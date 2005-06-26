@@ -39,7 +39,8 @@ extern int dquot_commit_info(struct super_block *sb, int type);
 extern int dquot_mark_dquot_dirty(struct dquot *dquot);
 
 extern int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path);
-extern int vfs_quota_on_mount(int type, int format_id, struct dentry *dentry);
+extern int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
+		int format_id, int type);
 extern int vfs_quota_off(struct super_block *sb, int type);
 #define vfs_quota_off_mount(sb, type) vfs_quota_off(sb, type)
 extern int vfs_quota_sync(struct super_block *sb, int type);

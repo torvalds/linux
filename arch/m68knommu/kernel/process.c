@@ -45,11 +45,13 @@ asmlinkage void ret_from_fork(void);
  */
 void default_idle(void)
 {
-	while(1) {
-		if (need_resched())
-			__asm__("stop #0x2000" : : : "cc");
-		schedule();
+	local_irq_disable();
+ 	while (!need_resched()) {
+		/* This stop will re-enable interrupts */
+ 		__asm__("stop #0x2000" : : : "cc");
+		local_irq_disable();
 	}
+	local_irq_enable();
 }
 
 void (*idle)(void) = default_idle;
@@ -63,7 +65,12 @@ void (*idle)(void) = default_idle;
 void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
-	idle();
+	while (1) {
+		idle();
+		preempt_enable_no_resched();
+		schedule();
+		preempt_disable();
+	}
 }
 
 void machine_restart(char * __unused)

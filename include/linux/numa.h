@@ -3,7 +3,7 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_FLATMEM
 #include <asm/numnodes.h>
 #endif
 

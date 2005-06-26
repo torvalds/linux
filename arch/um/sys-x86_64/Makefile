@@ -29,3 +29,5 @@ thunk.S-dir = lib
 module.c-dir = kernel
 
 subdir- := util
+
+include arch/um/scripts/Makefile.unmap

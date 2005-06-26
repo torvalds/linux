@@ -825,14 +825,16 @@ apply_relocate_add (Elf64_Shdr *sechdrs, const char *strtab, unsigned int symind
 		 * XXX Should have an arch-hook for running this after final section
 		 *     addresses have been selected...
 		 */
-		/* See if gp can cover the entire core module:  */
-		uint64_t gp = (uint64_t) mod->module_core + MAX_LTOFF / 2;
-		if (mod->core_size >= MAX_LTOFF)
+		uint64_t gp;
+		if (mod->core_size > MAX_LTOFF)
 			/*
 			 * This takes advantage of fact that SHF_ARCH_SMALL gets allocated
 			 * at the end of the module.
 			 */
-			gp = (uint64_t) mod->module_core + mod->core_size - MAX_LTOFF / 2;
+			gp = mod->core_size - MAX_LTOFF / 2;
+		else
+			gp = mod->core_size / 2;
+		gp = (uint64_t) mod->module_core + ((gp + 7) & -8);
 		mod->arch.gp = gp;
 		DEBUGP("%s: placing gp at 0x%lx\n", __FUNCTION__, gp);
 	}

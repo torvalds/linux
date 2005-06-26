@@ -53,27 +53,13 @@ extern void qla2x00_reg_remote_port(scsi_qla_host_t *, fc_port_t *);
  */
 extern char qla2x00_version_str[];
 
-extern int num_hosts;
-extern int apiHBAInstance;
-
-extern struct _qla2x00stats qla2x00_stats;
-extern int ql2xretrycount;
 extern int ql2xlogintimeout;
 extern int qlport_down_retry;
-extern int ql2xmaxqdepth;
-extern int displayConfig;
 extern int ql2xplogiabsentdevice;
 extern int ql2xenablezio;
 extern int ql2xintrdelaytimer;
 extern int ql2xloginretrycount;
 
-extern int ConfigRequired;
-
-extern int Bind;
-extern int ql2xsuspendcount;
-#if defined(MODULE)
-extern char *ql2xopts;
-#endif
 extern void qla2x00_sp_compl(scsi_qla_host_t *, srb_t *);
 
 extern char *qla2x00_get_fw_version_str(struct scsi_qla_host *, char *);

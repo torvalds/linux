@@ -57,7 +57,7 @@ Technical changes:
   Documentation/i2c/sysfs-interface for the individual files. Also
   convert the units these files read and write to the specified ones.
   If you need to add a new type of file, please discuss it on the
-  sensors mailing list <sensors@stimpy.netroedge.com> by providing a
+  sensors mailing list <lm-sensors@lm-sensors.org> by providing a
   patch to the Documentation/i2c/sysfs-interface file.
 
 * [Attach] For I2C drivers, the attach function should make sure

@@ -322,11 +322,9 @@ void syscall_trace(union uml_pt_regs *regs, int entryexit)
 					    UPT_SYSCALL_ARG2(regs),
 					    UPT_SYSCALL_ARG3(regs),
 					    UPT_SYSCALL_ARG4(regs));
-		else {
-                        int res = UPT_SYSCALL_RET(regs);
-			audit_syscall_exit(current, AUDITSC_RESULT(res),
-                                           res);
-                }
+		else audit_syscall_exit(current,
+                                        AUDITSC_RESULT(UPT_SYSCALL_RET(regs)),
+                                        UPT_SYSCALL_RET(regs));
 	}
 
 	/* Fake a debug trap */
@@ -356,14 +354,3 @@ void syscall_trace(union uml_pt_regs *regs, int entryexit)
 		current->exit_code = 0;
 	}
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

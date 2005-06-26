@@ -1084,7 +1084,7 @@ raw3270_probe (struct ccw_device *cdev)
  * Additional attributes for a 3270 device
  */
 static ssize_t
-raw3270_model_show(struct device *dev, char *buf)
+raw3270_model_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%i\n",
 			((struct raw3270 *) dev->driver_data)->model);
@@ -1092,7 +1092,7 @@ raw3270_model_show(struct device *dev, char *buf)
 static DEVICE_ATTR(model, 0444, raw3270_model_show, 0);
 
 static ssize_t
-raw3270_rows_show(struct device *dev, char *buf)
+raw3270_rows_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%i\n",
 			((struct raw3270 *) dev->driver_data)->rows);
@@ -1100,7 +1100,7 @@ raw3270_rows_show(struct device *dev, char *buf)
 static DEVICE_ATTR(rows, 0444, raw3270_rows_show, 0);
 
 static ssize_t
-raw3270_columns_show(struct device *dev, char *buf)
+raw3270_columns_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%i\n",
 			((struct raw3270 *) dev->driver_data)->cols);

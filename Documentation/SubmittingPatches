@@ -132,21 +132,6 @@ which require discussion or do not have a clear advantage should
 usually be sent first to linux-kernel.  Only after the patch is
 discussed should the patch then be submitted to Linus.
 
-For small patches you may want to CC the Trivial Patch Monkey
-trivial@rustcorp.com.au set up by Rusty Russell; which collects "trivial"
-patches. Trivial patches must qualify for one of the following rules:
- Spelling fixes in documentation
- Spelling fixes which could break grep(1).
- Warning fixes (cluttering with useless warnings is bad)
- Compilation fixes (only if they are actually correct)
- Runtime fixes (only if they actually fix things)
- Removing use of deprecated functions/macros (eg. check_region).
- Contact detail and documentation fixes
- Non-portable code replaced by portable code (even in arch-specific,
- since people copy, as long as it's trivial)
- Any fix by the author/maintainer of the file. (ie. patch monkey
- in re-transmission mode)
-
 
 
 5) Select your CC (e-mail carbon copy) list.
@@ -271,7 +256,7 @@ patch, which certifies that you wrote it or otherwise have the right to
 pass it on as a open-source patch.  The rules are pretty simple: if you
 can certify the below:
 
-        Developer's Certificate of Origin 1.0
+        Developer's Certificate of Origin 1.1
 
         By making a contribution to this project, I certify that:
 
@@ -291,9 +276,15 @@ can certify the below:
             person who certified (a), (b) or (c) and I have not modified
             it.
 
+	(d) I understand and agree that this project and the contribution
+	    are public and that a record of the contribution (including all
+	    personal information I submit with it, including my sign-off) is
+	    maintained indefinitely and may be redistributed consistent with
+	    this project or the open source license(s) involved.
+
 then you just add a line saying
 
-	Signed-off-by: Random J Developer <random@developer.org>
+	Signed-off-by: Random J Developer <random@developer.example.org>
 
 Some people also put extra tags at the end.  They'll just be ignored for
 now, but you can do this to mark internal company procedures or just

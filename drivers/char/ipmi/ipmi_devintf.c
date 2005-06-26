@@ -45,6 +45,7 @@
 #include <asm/semaphore.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/compat.h>
 
 #define IPMI_DEVINTF_VERSION "v33"
 
@@ -500,10 +501,205 @@ static int ipmi_ioctl(struct inode  *inode,
 	return rv;
 }
 
+#ifdef CONFIG_COMPAT
+
+/*
+ * The following code contains code for supporting 32-bit compatible
+ * ioctls on 64-bit kernels.  This allows running 32-bit apps on the
+ * 64-bit kernel
+ */
+#define COMPAT_IPMICTL_SEND_COMMAND	\
+	_IOR(IPMI_IOC_MAGIC, 13, struct compat_ipmi_req)
+#define COMPAT_IPMICTL_SEND_COMMAND_SETTIME	\
+	_IOR(IPMI_IOC_MAGIC, 21, struct compat_ipmi_req_settime)
+#define COMPAT_IPMICTL_RECEIVE_MSG	\
+	_IOWR(IPMI_IOC_MAGIC, 12, struct compat_ipmi_recv)
+#define COMPAT_IPMICTL_RECEIVE_MSG_TRUNC	\
+	_IOWR(IPMI_IOC_MAGIC, 11, struct compat_ipmi_recv)
+
+struct compat_ipmi_msg {
+	u8		netfn;
+	u8		cmd;
+	u16		data_len;
+	compat_uptr_t	data;
+};
+
+struct compat_ipmi_req {
+	compat_uptr_t		addr;
+	compat_uint_t		addr_len;
+	compat_long_t		msgid;
+	struct compat_ipmi_msg	msg;
+};
+
+struct compat_ipmi_recv {
+	compat_int_t		recv_type;
+	compat_uptr_t		addr;
+	compat_uint_t		addr_len;
+	compat_long_t		msgid;
+	struct compat_ipmi_msg	msg;
+};
+
+struct compat_ipmi_req_settime {
+	struct compat_ipmi_req	req;
+	compat_int_t		retries;
+	compat_uint_t		retry_time_ms;
+};
+
+/*
+ * Define some helper functions for copying IPMI data
+ */
+static long get_compat_ipmi_msg(struct ipmi_msg *p64,
+				struct compat_ipmi_msg __user *p32)
+{
+	compat_uptr_t tmp;
+
+	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
+			__get_user(p64->netfn, &p32->netfn) ||
+			__get_user(p64->cmd, &p32->cmd) ||
+			__get_user(p64->data_len, &p32->data_len) ||
+			__get_user(tmp, &p32->data))
+		return -EFAULT;
+	p64->data = compat_ptr(tmp);
+	return 0;
+}
+
+static long put_compat_ipmi_msg(struct ipmi_msg *p64,
+				struct compat_ipmi_msg __user *p32)
+{
+	if (!access_ok(VERIFY_WRITE, p32, sizeof(*p32)) ||
+			__put_user(p64->netfn, &p32->netfn) ||
+			__put_user(p64->cmd, &p32->cmd) ||
+			__put_user(p64->data_len, &p32->data_len))
+		return -EFAULT;
+	return 0;
+}
+
+static long get_compat_ipmi_req(struct ipmi_req *p64,
+				struct compat_ipmi_req __user *p32)
+{
+
+	compat_uptr_t	tmp;
+
+	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
+			__get_user(tmp, &p32->addr) ||
+			__get_user(p64->addr_len, &p32->addr_len) ||
+			__get_user(p64->msgid, &p32->msgid) ||
+			get_compat_ipmi_msg(&p64->msg, &p32->msg))
+		return -EFAULT;
+	p64->addr = compat_ptr(tmp);
+	return 0;
+}
+
+static long get_compat_ipmi_req_settime(struct ipmi_req_settime *p64,
+		struct compat_ipmi_req_settime __user *p32)
+{
+	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
+			get_compat_ipmi_req(&p64->req, &p32->req) ||
+			__get_user(p64->retries, &p32->retries) ||
+			__get_user(p64->retry_time_ms, &p32->retry_time_ms))
+		return -EFAULT;
+	return 0;
+}
+
+static long get_compat_ipmi_recv(struct ipmi_recv *p64,
+				 struct compat_ipmi_recv __user *p32)
+{
+	compat_uptr_t tmp;
+
+	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
+			__get_user(p64->recv_type, &p32->recv_type) ||
+			__get_user(tmp, &p32->addr) ||
+			__get_user(p64->addr_len, &p32->addr_len) ||
+			__get_user(p64->msgid, &p32->msgid) ||
+			get_compat_ipmi_msg(&p64->msg, &p32->msg))
+		return -EFAULT;
+	p64->addr = compat_ptr(tmp);
+	return 0;
+}
+
+static long put_compat_ipmi_recv(struct ipmi_recv *p64,
+				 struct compat_ipmi_recv __user *p32)
+{
+	if (!access_ok(VERIFY_WRITE, p32, sizeof(*p32)) ||
+			__put_user(p64->recv_type, &p32->recv_type) ||
+			__put_user(p64->addr_len, &p32->addr_len) ||
+			__put_user(p64->msgid, &p32->msgid) ||
+			put_compat_ipmi_msg(&p64->msg, &p32->msg))
+		return -EFAULT;
+	return 0;
+}
+
+/*
+ * Handle compatibility ioctls
+ */
+static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
+			      unsigned long arg)
+{
+	int rc;
+	struct ipmi_file_private *priv = filep->private_data;
+
+	switch(cmd) {
+	case COMPAT_IPMICTL_SEND_COMMAND:
+	{
+		struct ipmi_req	rp;
+
+		if (get_compat_ipmi_req(&rp, compat_ptr(arg)))
+			return -EFAULT;
+
+		return handle_send_req(priv->user, &rp,
+				priv->default_retries,
+				priv->default_retry_time_ms);
+	}
+	case COMPAT_IPMICTL_SEND_COMMAND_SETTIME:
+	{
+		struct ipmi_req_settime	sp;
+
+		if (get_compat_ipmi_req_settime(&sp, compat_ptr(arg)))
+			return -EFAULT;
+
+		return handle_send_req(priv->user, &sp.req,
+				sp.retries, sp.retry_time_ms);
+	}
+	case COMPAT_IPMICTL_RECEIVE_MSG:
+	case COMPAT_IPMICTL_RECEIVE_MSG_TRUNC:
+	{
+		struct ipmi_recv   *precv64, recv64;
+
+		if (get_compat_ipmi_recv(&recv64, compat_ptr(arg)))
+			return -EFAULT;
+
+		precv64 = compat_alloc_user_space(sizeof(recv64));
+		if (copy_to_user(precv64, &recv64, sizeof(recv64)))
+			return -EFAULT;
+
+		rc = ipmi_ioctl(filep->f_dentry->d_inode, filep,
+				((cmd == COMPAT_IPMICTL_RECEIVE_MSG)
+				 ? IPMICTL_RECEIVE_MSG
+				 : IPMICTL_RECEIVE_MSG_TRUNC),
+				(long) precv64);
+		if (rc != 0)
+			return rc;
+
+		if (copy_from_user(&recv64, precv64, sizeof(recv64)))
+			return -EFAULT;
+
+		if (put_compat_ipmi_recv(&recv64, compat_ptr(arg)))
+			return -EFAULT;
+
+		return rc;
+	}
+	default:
+		return ipmi_ioctl(filep->f_dentry->d_inode, filep, cmd, arg);
+	}
+}
+#endif
 
 static struct file_operations ipmi_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= ipmi_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = compat_ipmi_ioctl,
+#endif
 	.open		= ipmi_open,
 	.release	= ipmi_release,
 	.fasync		= ipmi_fasync,
@@ -529,12 +725,12 @@ static void ipmi_new_smi(int if_num)
 	devfs_mk_cdev(dev, S_IFCHR | S_IRUSR | S_IWUSR,
 		      "ipmidev/%d", if_num);
 
-	class_simple_device_add(ipmi_class, dev, NULL, "ipmi%d", if_num);
+	class_device_create(ipmi_class, dev, NULL, "ipmi%d", if_num);
 }
 
 static void ipmi_smi_gone(int if_num)
 {
-	class_simple_device_remove(ipmi_class, MKDEV(ipmi_major, if_num));
+	class_device_destroy(ipmi_class, MKDEV(ipmi_major, if_num));
 	devfs_remove("ipmidev/%d", if_num);
 }
 
@@ -555,7 +751,7 @@ static __init int init_ipmi_devintf(void)
 	printk(KERN_INFO "ipmi device interface version "
 	       IPMI_DEVINTF_VERSION "\n");
 
-	ipmi_class = class_simple_create(THIS_MODULE, "ipmi");
+	ipmi_class = class_create(THIS_MODULE, "ipmi");
 	if (IS_ERR(ipmi_class)) {
 		printk(KERN_ERR "ipmi: can't register device class\n");
 		return PTR_ERR(ipmi_class);
@@ -563,7 +759,7 @@ static __init int init_ipmi_devintf(void)
 
 	rv = register_chrdev(ipmi_major, DEVICE_NAME, &ipmi_fops);
 	if (rv < 0) {
-		class_simple_destroy(ipmi_class);
+		class_destroy(ipmi_class);
 		printk(KERN_ERR "ipmi: can't get major %d\n", ipmi_major);
 		return rv;
 	}
@@ -577,7 +773,7 @@ static __init int init_ipmi_devintf(void)
 	rv = ipmi_smi_watcher_register(&smi_watcher);
 	if (rv) {
 		unregister_chrdev(ipmi_major, DEVICE_NAME);
-		class_simple_destroy(ipmi_class);
+		class_destroy(ipmi_class);
 		printk(KERN_WARNING "ipmi: can't register smi watcher\n");
 		return rv;
 	}
@@ -588,7 +784,7 @@ module_init(init_ipmi_devintf);
 
 static __exit void cleanup_ipmi(void)
 {
-	class_simple_destroy(ipmi_class);
+	class_destroy(ipmi_class);
 	ipmi_smi_watcher_unregister(&smi_watcher);
 	devfs_remove(DEVICE_NAME);
 	unregister_chrdev(ipmi_major, DEVICE_NAME);

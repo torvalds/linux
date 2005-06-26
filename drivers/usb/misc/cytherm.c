@@ -85,7 +85,7 @@ static int vendor_command(struct usb_device *dev, unsigned char request,
 #define BRIGHTNESS 0x2c     /* RAM location for brightness value */
 #define BRIGHTNESS_SEM 0x2b /* RAM location for brightness semaphore */
 
-static ssize_t show_brightness(struct device *dev, char *buf)
+static ssize_t show_brightness(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(dev);    
 	struct usb_cytherm *cytherm = usb_get_intfdata(intf);     
@@ -93,7 +93,7 @@ static ssize_t show_brightness(struct device *dev, char *buf)
 	return sprintf(buf, "%i", cytherm->brightness);
 }
 
-static ssize_t set_brightness(struct device *dev, const char *buf, 
+static ssize_t set_brightness(struct device *dev, struct device_attribute *attr, const char *buf,
 			      size_t count)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
@@ -138,7 +138,7 @@ static DEVICE_ATTR(brightness, S_IRUGO | S_IWUSR | S_IWGRP,
 #define TEMP 0x33 /* RAM location for temperature */
 #define SIGN 0x34 /* RAM location for temperature sign */
 
-static ssize_t show_temp(struct device *dev, char *buf)
+static ssize_t show_temp(struct device *dev, struct device_attribute *attr, char *buf)
 {
 
 	struct usb_interface *intf = to_usb_interface(dev);
@@ -174,7 +174,7 @@ static ssize_t show_temp(struct device *dev, char *buf)
 }
 
 
-static ssize_t set_temp(struct device *dev, const char *buf, size_t count)
+static ssize_t set_temp(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	return count;
 }
@@ -184,7 +184,7 @@ static DEVICE_ATTR(temp, S_IRUGO, show_temp, set_temp);
 
 #define BUTTON 0x7a
 
-static ssize_t show_button(struct device *dev, char *buf)
+static ssize_t show_button(struct device *dev, struct device_attribute *attr, char *buf)
 {
 
 	struct usb_interface *intf = to_usb_interface(dev);
@@ -215,7 +215,7 @@ static ssize_t show_button(struct device *dev, char *buf)
 }
 
 
-static ssize_t set_button(struct device *dev, const char *buf, size_t count)
+static ssize_t set_button(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	return count;
 }
@@ -223,7 +223,7 @@ static ssize_t set_button(struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(button, S_IRUGO, show_button, set_button);
 
 
-static ssize_t show_port0(struct device *dev, char *buf)
+static ssize_t show_port0(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_cytherm *cytherm = usb_get_intfdata(intf);
@@ -249,7 +249,7 @@ static ssize_t show_port0(struct device *dev, char *buf)
 }
 
 
-static ssize_t set_port0(struct device *dev, const char *buf, size_t count)
+static ssize_t set_port0(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_cytherm *cytherm = usb_get_intfdata(intf);
@@ -283,7 +283,7 @@ static ssize_t set_port0(struct device *dev, const char *buf, size_t count)
 
 static DEVICE_ATTR(port0, S_IRUGO | S_IWUSR | S_IWGRP, show_port0, set_port0);
 
-static ssize_t show_port1(struct device *dev, char *buf)
+static ssize_t show_port1(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_cytherm *cytherm = usb_get_intfdata(intf);
@@ -309,7 +309,7 @@ static ssize_t show_port1(struct device *dev, char *buf)
 }
 
 
-static ssize_t set_port1(struct device *dev, const char *buf, size_t count)
+static ssize_t set_port1(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_cytherm *cytherm = usb_get_intfdata(intf);

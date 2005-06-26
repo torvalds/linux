@@ -345,7 +345,7 @@ hfc_send_data(struct BCState *bcs)
 		debugl1(cs,"send_data %d blocked", bcs->channel);
 }
 
-void
+static void
 main_rec_2bds0(struct BCState *bcs)
 {
 	struct IsdnCardState *cs = bcs->cs;
@@ -399,7 +399,7 @@ main_rec_2bds0(struct BCState *bcs)
 	return;
 }
 
-void
+static void
 mode_2bs0(struct BCState *bcs, int mode, int bc)
 {
 	struct IsdnCardState *cs = bcs->cs;
@@ -505,7 +505,7 @@ hfc_l2l1(struct PStack *st, int pr, void *arg)
 	}
 }
 
-void
+static void
 close_2bs0(struct BCState *bcs)
 {
 	mode_2bs0(bcs, 0, bcs->channel);
@@ -534,7 +534,7 @@ open_hfcstate(struct IsdnCardState *cs, struct BCState *bcs)
 	return (0);
 }
 
-int
+static int
 setstack_2b(struct PStack *st, struct BCState *bcs)
 {
 	bcs->channel = st->l1.bc;
@@ -1004,7 +1004,7 @@ HFCD_l1hw(struct PStack *st, int pr, void *arg)
 	}
 }
 
-void
+static void
 setstack_hfcd(struct PStack *st, struct IsdnCardState *cs)
 {
 	st->l1.l1hw = HFCD_l1hw;
@@ -1015,7 +1015,7 @@ hfc_dbusy_timer(struct IsdnCardState *cs)
 {
 }
 
-unsigned int __init
+static unsigned int __init
 *init_send_hfcd(int cnt)
 {
 	int i, *send;

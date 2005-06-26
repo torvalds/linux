@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/dnotify.h>
 #include <linux/kobject.h>
+#include <linux/namei.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 
@@ -13,7 +14,7 @@
 #define to_subsys(k) container_of(k,struct subsystem,kset.kobj)
 #define to_sattr(a) container_of(a,struct subsys_attribute,attr)
 
-/**
+/*
  * Subsystem file operations.
  * These operations allow subsystems to have files that can be 
  * read/written. 
@@ -23,7 +24,7 @@ subsys_attr_show(struct kobject * kobj, struct attribute * attr, char * page)
 {
 	struct subsystem * s = to_subsys(kobj);
 	struct subsys_attribute * sattr = to_sattr(attr);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (sattr->show)
 		ret = sattr->show(s,page);
@@ -36,7 +37,7 @@ subsys_attr_store(struct kobject * kobj, struct attribute * attr,
 {
 	struct subsystem * s = to_subsys(kobj);
 	struct subsys_attribute * sattr = to_sattr(attr);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (sattr->store)
 		ret = sattr->store(s,page,count);
@@ -182,7 +183,7 @@ fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t 
 		return -ENOMEM;
 
 	if (count >= PAGE_SIZE)
-		count = PAGE_SIZE - 1;
+		count = PAGE_SIZE;
 	error = copy_from_user(buffer->page,buf,count);
 	buffer->needs_read_fill = 1;
 	return error ? -EFAULT : count;
@@ -191,8 +192,9 @@ fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t 
 
 /**
  *	flush_write_buffer - push buffer to kobject.
- *	@file:		file pointer.
+ *	@dentry:	dentry to the attribute
  *	@buffer:	data buffer for file.
+ *	@count:		number of bytes
  *
  *	Get the correct pointers for the kobject and the attribute we're
  *	dealing with, then call the store() method for the attribute, 
@@ -400,7 +402,7 @@ int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 	int res = -ENOENT;
 
 	down(&dir->d_inode->i_sem);
-	victim = sysfs_get_dentry(dir, attr->name);
+	victim = lookup_one_len(attr->name, dir, strlen(attr->name));
 	if (!IS_ERR(victim)) {
 		/* make sure dentry is really there */
 		if (victim->d_inode && 
@@ -443,7 +445,7 @@ int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
 	int res = -ENOENT;
 
 	down(&dir->d_inode->i_sem);
-	victim = sysfs_get_dentry(dir, attr->name);
+	victim = lookup_one_len(attr->name, dir, strlen(attr->name));
 	if (!IS_ERR(victim)) {
 		if (victim->d_inode &&
 		    (victim->d_parent->d_inode == dir->d_inode)) {

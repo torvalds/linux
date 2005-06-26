@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-dvb.c,v 1.12 2005/02/18 12:28:29 kraxel Exp $
+ * $Id: saa7134-dvb.c,v 1.13 2005/06/12 04:19:19 mchehab Exp $
  *
  * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *

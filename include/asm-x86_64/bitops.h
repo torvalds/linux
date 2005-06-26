@@ -411,8 +411,6 @@ static __inline__ int ffs(int x)
 /* find last set bit */
 #define fls(x) generic_fls(x)
 
-#define ARCH_HAS_ATOMIC_UNSIGNED 1
-
 #endif /* __KERNEL__ */
 
 #endif /* _X86_64_BITOPS_H */

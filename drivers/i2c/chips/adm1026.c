@@ -23,7 +23,6 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -31,6 +30,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
+#include <linux/hwmon-sysfs.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
@@ -711,19 +711,27 @@ static struct adm1026_data *adm1026_update_device(struct device *dev)
 	return data;
 }
 
-static ssize_t show_in(struct device *dev, char *buf, int nr)
+static ssize_t show_in(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", INS_FROM_REG(nr, data->in[nr]));
 }
-static ssize_t show_in_min(struct device *dev, char *buf, int nr) 
+static ssize_t show_in_min(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev); 
 	return sprintf(buf,"%d\n", INS_FROM_REG(nr, data->in_min[nr]));
 }
-static ssize_t set_in_min(struct device *dev, const char *buf, 
-		size_t count, int nr)
+static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
@@ -734,14 +742,19 @@ static ssize_t set_in_min(struct device *dev, const char *buf,
 	up(&data->update_lock);
 	return count; 
 }
-static ssize_t show_in_max(struct device *dev, char *buf, int nr)
+static ssize_t show_in_max(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", INS_FROM_REG(nr, data->in_max[nr]));
 }
-static ssize_t set_in_max(struct device *dev, const char *buf,
-		size_t count, int nr)
+static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
@@ -753,34 +766,13 @@ static ssize_t set_in_max(struct device *dev, const char *buf,
 	return count;
 }
 
-#define in_reg(offset)                                                    \
-static ssize_t show_in##offset (struct device *dev, char *buf)            \
-{                                                                         \
-	return show_in(dev, buf, offset);                                 \
-}                                                                         \
-static ssize_t show_in##offset##_min (struct device *dev, char *buf)      \
-{                                                                         \
-	return show_in_min(dev, buf, offset);                             \
-}                                                                         \
-static ssize_t set_in##offset##_min (struct device *dev,                  \
-	const char *buf, size_t count)                                    \
-{                                                                         \
-	return set_in_min(dev, buf, count, offset);                       \
-}                                                                         \
-static ssize_t show_in##offset##_max (struct device *dev, char *buf)      \
-{                                                                         \
-	return show_in_max(dev, buf, offset);                             \
-}                                                                         \
-static ssize_t set_in##offset##_max (struct device *dev,                  \
-	const char *buf, size_t count)                                    \
-{                                                                         \
-	return set_in_max(dev, buf, count, offset);                       \
-}                                                                         \
-static DEVICE_ATTR(in##offset##_input, S_IRUGO, show_in##offset, NULL);   \
-static DEVICE_ATTR(in##offset##_min, S_IRUGO | S_IWUSR,                   \
-		show_in##offset##_min, set_in##offset##_min);             \
-static DEVICE_ATTR(in##offset##_max, S_IRUGO | S_IWUSR,                   \
-		show_in##offset##_max, set_in##offset##_max);
+#define in_reg(offset)						\
+static SENSOR_DEVICE_ATTR(in##offset##_input, S_IRUGO, show_in,	\
+		NULL, offset);					\
+static SENSOR_DEVICE_ATTR(in##offset##_min, S_IRUGO | S_IWUSR,	\
+		show_in_min, set_in_min, offset);		\
+static SENSOR_DEVICE_ATTR(in##offset##_max, S_IRUGO | S_IWUSR,	\
+		show_in_max, set_in_max, offset);
 
 
 in_reg(0);
@@ -800,19 +792,19 @@ in_reg(13);
 in_reg(14);
 in_reg(15);
 
-static ssize_t show_in16(struct device *dev, char *buf)
+static ssize_t show_in16(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", INS_FROM_REG(16, data->in[16]) -
 		NEG12_OFFSET);
 }
-static ssize_t show_in16_min(struct device *dev, char *buf) 
+static ssize_t show_in16_min(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev); 
 	return sprintf(buf,"%d\n", INS_FROM_REG(16, data->in_min[16])
 		- NEG12_OFFSET);
 }
-static ssize_t set_in16_min(struct device *dev, const char *buf, size_t count)
+static ssize_t set_in16_min(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
@@ -824,13 +816,13 @@ static ssize_t set_in16_min(struct device *dev, const char *buf, size_t count)
 	up(&data->update_lock);
 	return count; 
 }
-static ssize_t show_in16_max(struct device *dev, char *buf)
+static ssize_t show_in16_max(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", INS_FROM_REG(16, data->in_max[16])
 			- NEG12_OFFSET);
 }
-static ssize_t set_in16_max(struct device *dev, const char *buf, size_t count)
+static ssize_t set_in16_max(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
@@ -843,30 +835,38 @@ static ssize_t set_in16_max(struct device *dev, const char *buf, size_t count)
 	return count;
 }
 
-static DEVICE_ATTR(in16_input, S_IRUGO, show_in16, NULL);
-static DEVICE_ATTR(in16_min, S_IRUGO | S_IWUSR, show_in16_min, set_in16_min);
-static DEVICE_ATTR(in16_max, S_IRUGO | S_IWUSR, show_in16_max, set_in16_max);
+static SENSOR_DEVICE_ATTR(in16_input, S_IRUGO, show_in16, NULL, 16);
+static SENSOR_DEVICE_ATTR(in16_min, S_IRUGO | S_IWUSR, show_in16_min, set_in16_min, 16);
+static SENSOR_DEVICE_ATTR(in16_max, S_IRUGO | S_IWUSR, show_in16_max, set_in16_max, 16);
 
 
 
 
 /* Now add fan read/write functions */
 
-static ssize_t show_fan(struct device *dev, char *buf, int nr)
+static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", FAN_FROM_REG(data->fan[nr],
 		data->fan_div[nr]));
 }
-static ssize_t show_fan_min(struct device *dev, char *buf, int nr)
+static ssize_t show_fan_min(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", FAN_FROM_REG(data->fan_min[nr],
 		data->fan_div[nr]));
 }
-static ssize_t set_fan_min(struct device *dev, const char *buf,
-		size_t count, int nr)
+static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
@@ -879,23 +879,11 @@ static ssize_t set_fan_min(struct device *dev, const char *buf,
 	return count;
 }
 
-#define fan_offset(offset)                                                  \
-static ssize_t show_fan_##offset (struct device *dev, char *buf)            \
-{                                                                           \
-	return show_fan(dev, buf, offset - 1);                              \
-}                                                                           \
-static ssize_t show_fan_##offset##_min (struct device *dev, char *buf)      \
-{                                                                           \
-	return show_fan_min(dev, buf, offset - 1);                          \
-}                                                                           \
-static ssize_t set_fan_##offset##_min (struct device *dev,                  \
-	const char *buf, size_t count)                                      \
-{                                                                           \
-	return set_fan_min(dev, buf, count, offset - 1);                    \
-}                                                                           \
-static DEVICE_ATTR(fan##offset##_input, S_IRUGO, show_fan_##offset, NULL);  \
-static DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR,                    \
-		show_fan_##offset##_min, set_fan_##offset##_min);
+#define fan_offset(offset)                                         		\
+static SENSOR_DEVICE_ATTR(fan##offset##_input, S_IRUGO, show_fan, NULL, 	\
+		offset - 1);							\
+static SENSOR_DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR,           	\
+		show_fan_min, set_fan_min, offset - 1);
 
 fan_offset(1);
 fan_offset(2);
@@ -926,14 +914,19 @@ static void fixup_fan_min(struct device *dev, int fan, int old_div)
 }
 
 /* Now add fan_div read/write functions */
-static ssize_t show_fan_div(struct device *dev, char *buf, int nr)
+static ssize_t show_fan_div(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", data->fan_div[nr]);
 }
-static ssize_t set_fan_div(struct device *dev, const char *buf,
-		size_t count, int nr)
+static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int    val,orig_div,new_div,shift;
@@ -967,17 +960,8 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 }
 
 #define fan_offset_div(offset)                                          \
-static ssize_t show_fan_##offset##_div (struct device *dev, char *buf)  \
-{                                                                       \
-	return show_fan_div(dev, buf, offset - 1);                      \
-}                                                                       \
-static ssize_t set_fan_##offset##_div (struct device *dev,              \
-	const char *buf, size_t count)                                  \
-{                                                                       \
-	return set_fan_div(dev, buf, count, offset - 1);                \
-}                                                                       \
-static DEVICE_ATTR(fan##offset##_div, S_IRUGO | S_IWUSR,                \
-		show_fan_##offset##_div, set_fan_##offset##_div);
+static SENSOR_DEVICE_ATTR(fan##offset##_div, S_IRUGO | S_IWUSR,         \
+		show_fan_div, set_fan_div, offset - 1);
 
 fan_offset_div(1);
 fan_offset_div(2);
@@ -989,19 +973,27 @@ fan_offset_div(7);
 fan_offset_div(8);
 
 /* Temps */
-static ssize_t show_temp(struct device *dev, char *buf, int nr)
+static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", TEMP_FROM_REG(data->temp[nr]));
 }
-static ssize_t show_temp_min(struct device *dev, char *buf, int nr)
+static ssize_t show_temp_min(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", TEMP_FROM_REG(data->temp_min[nr]));
 }
-static ssize_t set_temp_min(struct device *dev, const char *buf,
-		size_t count, int nr)
+static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
@@ -1013,14 +1005,19 @@ static ssize_t set_temp_min(struct device *dev, const char *buf,
 	up(&data->update_lock);
 	return count;
 }
-static ssize_t show_temp_max(struct device *dev, char *buf, int nr)
+static ssize_t show_temp_max(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", TEMP_FROM_REG(data->temp_max[nr]));
 }
-static ssize_t set_temp_max(struct device *dev, const char *buf,
-		size_t count, int nr)
+static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
@@ -1032,48 +1029,34 @@ static ssize_t set_temp_max(struct device *dev, const char *buf,
 	up(&data->update_lock);
 	return count;
 }
-#define temp_reg(offset)                                                      \
-static ssize_t show_temp_##offset (struct device *dev, char *buf)             \
-{                                                                             \
-	return show_temp(dev, buf, offset - 1);                               \
-}                                                                             \
-static ssize_t show_temp_##offset##_min (struct device *dev, char *buf)       \
-{                                                                             \
-	return show_temp_min(dev, buf, offset - 1);                           \
-}                                                                             \
-static ssize_t show_temp_##offset##_max (struct device *dev, char *buf)       \
-{                                                                             \
-	return show_temp_max(dev, buf, offset - 1);                           \
-}                                                                             \
-static ssize_t set_temp_##offset##_min (struct device *dev,                   \
-	const char *buf, size_t count)                                        \
-{                                                                             \
-	return set_temp_min(dev, buf, count, offset - 1);                     \
-}                                                                             \
-static ssize_t set_temp_##offset##_max (struct device *dev,                   \
-	const char *buf, size_t count)                                        \
-{                                                                             \
-	return set_temp_max(dev, buf, count, offset - 1);                     \
-}                                                                             \
-static DEVICE_ATTR(temp##offset##_input, S_IRUGO, show_temp_##offset, NULL);  \
-static DEVICE_ATTR(temp##offset##_min, S_IRUGO | S_IWUSR,                     \
-		show_temp_##offset##_min, set_temp_##offset##_min);           \
-static DEVICE_ATTR(temp##offset##_max, S_IRUGO | S_IWUSR,                     \
-		show_temp_##offset##_max, set_temp_##offset##_max);
+
+#define temp_reg(offset)						\
+static SENSOR_DEVICE_ATTR(temp##offset##_input, S_IRUGO, show_temp, 	\
+		NULL, offset - 1);					\
+static SENSOR_DEVICE_ATTR(temp##offset##_min, S_IRUGO | S_IWUSR,	\
+		show_temp_min, set_temp_min, offset - 1);		\
+static SENSOR_DEVICE_ATTR(temp##offset##_max, S_IRUGO | S_IWUSR,	\
+		show_temp_max, set_temp_max, offset - 1);
 
 
 temp_reg(1);
 temp_reg(2);
 temp_reg(3);
 
-static ssize_t show_temp_offset(struct device *dev, char *buf, int nr)
+static ssize_t show_temp_offset(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", TEMP_FROM_REG(data->temp_offset[nr]));
 }
-static ssize_t set_temp_offset(struct device *dev, const char *buf,
-		size_t count, int nr)
+static ssize_t set_temp_offset(struct device *dev,
+		struct device_attribute *attr, const char *buf,
+		size_t count)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
@@ -1086,46 +1069,45 @@ static ssize_t set_temp_offset(struct device *dev, const char *buf,
 	return count;
 }
 
-#define temp_offset_reg(offset)                                             \
-static ssize_t show_temp_##offset##_offset (struct device *dev, char *buf)  \
-{                                                                           \
-	return show_temp_offset(dev, buf, offset - 1);                      \
-}                                                                           \
-static ssize_t set_temp_##offset##_offset (struct device *dev,              \
-	const char *buf, size_t count)                                      \
-{                                                                           \
-	return set_temp_offset(dev, buf, count, offset - 1);                \
-}                                                                           \
-static DEVICE_ATTR(temp##offset##_offset, S_IRUGO | S_IWUSR,                \
-		show_temp_##offset##_offset, set_temp_##offset##_offset);
+#define temp_offset_reg(offset)							\
+static SENSOR_DEVICE_ATTR(temp##offset##_offset, S_IRUGO | S_IWUSR,		\
+		show_temp_offset, set_temp_offset, offset - 1);
 
 temp_offset_reg(1);
 temp_offset_reg(2);
 temp_offset_reg(3);
 
-static ssize_t show_temp_auto_point1_temp_hyst(struct device *dev, char *buf,
-		int nr)
+static ssize_t show_temp_auto_point1_temp_hyst(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", TEMP_FROM_REG(
 		ADM1026_FAN_ACTIVATION_TEMP_HYST + data->temp_tmin[nr]));
 }
-static ssize_t show_temp_auto_point2_temp(struct device *dev, char *buf,
-		int nr)
+static ssize_t show_temp_auto_point2_temp(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", TEMP_FROM_REG(data->temp_tmin[nr] +
 		ADM1026_FAN_CONTROL_TEMP_RANGE));
 }
-static ssize_t show_temp_auto_point1_temp(struct device *dev, char *buf,
-		int nr)
+static ssize_t show_temp_auto_point1_temp(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", TEMP_FROM_REG(data->temp_tmin[nr]));
 }
-static ssize_t set_temp_auto_point1_temp(struct device *dev, const char *buf,
-		size_t count, int nr)
+static ssize_t set_temp_auto_point1_temp(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
@@ -1138,46 +1120,27 @@ static ssize_t set_temp_auto_point1_temp(struct device *dev, const char *buf,
 	return count;
 }
 
-#define temp_auto_point(offset)                                             \
-static ssize_t show_temp##offset##_auto_point1_temp (struct device *dev,    \
-	char *buf)                                                          \
-{                                                                           \
-	return show_temp_auto_point1_temp(dev, buf, offset - 1);            \
-}                                                                           \
-static ssize_t set_temp##offset##_auto_point1_temp (struct device *dev,     \
-	const char *buf, size_t count)                                      \
-{                                                                           \
-	return set_temp_auto_point1_temp(dev, buf, count, offset - 1);      \
-}                                                                           \
-static ssize_t show_temp##offset##_auto_point1_temp_hyst (struct device     \
-	*dev, char *buf)                                                    \
-{                                                                           \
-	return show_temp_auto_point1_temp_hyst(dev, buf, offset - 1);       \
-}                                                                           \
-static ssize_t show_temp##offset##_auto_point2_temp (struct device *dev,    \
-	 char *buf)                                                         \
-{                                                                           \
-	return show_temp_auto_point2_temp(dev, buf, offset - 1);            \
-}                                                                           \
-static DEVICE_ATTR(temp##offset##_auto_point1_temp, S_IRUGO | S_IWUSR,      \
-		show_temp##offset##_auto_point1_temp,                       \
-		set_temp##offset##_auto_point1_temp);                       \
-static DEVICE_ATTR(temp##offset##_auto_point1_temp_hyst, S_IRUGO,           \
-		show_temp##offset##_auto_point1_temp_hyst, NULL);           \
-static DEVICE_ATTR(temp##offset##_auto_point2_temp, S_IRUGO,                \
-		show_temp##offset##_auto_point2_temp, NULL);
+#define temp_auto_point(offset)							\
+static SENSOR_DEVICE_ATTR(temp##offset##_auto_point1_temp, S_IRUGO | S_IWUSR,	\
+		show_temp_auto_point1_temp, set_temp_auto_point1_temp, 		\
+		offset - 1);							\
+static SENSOR_DEVICE_ATTR(temp##offset##_auto_point1_temp_hyst, S_IRUGO,	\
+		show_temp_auto_point1_temp_hyst, NULL, offset - 1);		\
+static SENSOR_DEVICE_ATTR(temp##offset##_auto_point2_temp, S_IRUGO,		\
+		show_temp_auto_point2_temp, NULL, offset - 1);
 
 temp_auto_point(1);
 temp_auto_point(2);
 temp_auto_point(3);
 
-static ssize_t show_temp_crit_enable(struct device *dev, char *buf)
+static ssize_t show_temp_crit_enable(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", (data->config1 & CFG1_THERM_HOT) >> 4);
 }
-static ssize_t set_temp_crit_enable(struct device *dev, const char *buf,
-		size_t count)
+static ssize_t set_temp_crit_enable(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
@@ -1193,24 +1156,27 @@ static ssize_t set_temp_crit_enable(struct device *dev, const char *buf,
 	return count;
 }
 
-static DEVICE_ATTR(temp1_crit_enable, S_IRUGO | S_IWUSR, 
+#define temp_crit_enable(offset)				\
+static DEVICE_ATTR(temp##offset##_crit_enable, S_IRUGO | S_IWUSR, \
 	show_temp_crit_enable, set_temp_crit_enable);
 
-static DEVICE_ATTR(temp2_crit_enable, S_IRUGO | S_IWUSR, 
-	show_temp_crit_enable, set_temp_crit_enable);
+temp_crit_enable(1);
+temp_crit_enable(2);
+temp_crit_enable(3);
 
-static DEVICE_ATTR(temp3_crit_enable, S_IRUGO | S_IWUSR, 
-	show_temp_crit_enable, set_temp_crit_enable);
-
-
-static ssize_t show_temp_crit(struct device *dev, char *buf, int nr)
+static ssize_t show_temp_crit(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", TEMP_FROM_REG(data->temp_crit[nr]));
 }
-static ssize_t set_temp_crit(struct device *dev, const char *buf,
-		size_t count, int nr)
+static ssize_t set_temp_crit(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
@@ -1223,29 +1189,20 @@ static ssize_t set_temp_crit(struct device *dev, const char *buf,
 	return count;
 }
 
-#define temp_crit_reg(offset)                                             \
-static ssize_t show_temp_##offset##_crit (struct device *dev, char *buf)  \
-{                                                                         \
-	return show_temp_crit(dev, buf, offset - 1);                      \
-}                                                                         \
-static ssize_t set_temp_##offset##_crit (struct device *dev,              \
-	const char *buf, size_t count)                                    \
-{                                                                         \
-	return set_temp_crit(dev, buf, count, offset - 1);                \
-}                                                                         \
-static DEVICE_ATTR(temp##offset##_crit, S_IRUGO | S_IWUSR,                \
-		show_temp_##offset##_crit, set_temp_##offset##_crit);
+#define temp_crit_reg(offset)						\
+static SENSOR_DEVICE_ATTR(temp##offset##_crit, S_IRUGO | S_IWUSR,	\
+		show_temp_crit, set_temp_crit, offset - 1);
 
 temp_crit_reg(1);
 temp_crit_reg(2);
 temp_crit_reg(3);
 
-static ssize_t show_analog_out_reg(struct device *dev, char *buf)
+static ssize_t show_analog_out_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", DAC_FROM_REG(data->analog_out));
 }
-static ssize_t set_analog_out_reg(struct device *dev, const char *buf,
+static ssize_t set_analog_out_reg(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1262,20 +1219,21 @@ static ssize_t set_analog_out_reg(struct device *dev, const char *buf,
 static DEVICE_ATTR(analog_out, S_IRUGO | S_IWUSR, show_analog_out_reg, 
 	set_analog_out_reg);
 
-static ssize_t show_vid_reg(struct device *dev, char *buf)
+static ssize_t show_vid_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", vid_from_reg(data->vid & 0x3f, data->vrm));
 }
-
+/* vid deprecated in favour of cpu0_vid, remove after 2005-11-11 */
 static DEVICE_ATTR(vid, S_IRUGO, show_vid_reg, NULL);
+static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 
-static ssize_t show_vrm_reg(struct device *dev, char *buf)
+static ssize_t show_vrm_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", data->vrm);
 }
-static ssize_t store_vrm_reg(struct device *dev, const char *buf,
+static ssize_t store_vrm_reg(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1287,7 +1245,7 @@ static ssize_t store_vrm_reg(struct device *dev, const char *buf,
 
 static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg);
 
-static ssize_t show_alarms_reg(struct device *dev, char *buf)
+static ssize_t show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf, "%ld\n", (long) (data->alarms));
@@ -1295,12 +1253,12 @@ static ssize_t show_alarms_reg(struct device *dev, char *buf)
 
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms_reg, NULL);
 
-static ssize_t show_alarm_mask(struct device *dev, char *buf)
+static ssize_t show_alarm_mask(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%ld\n", data->alarm_mask);
 }
-static ssize_t set_alarm_mask(struct device *dev, const char *buf,
+static ssize_t set_alarm_mask(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1331,12 +1289,12 @@ static DEVICE_ATTR(alarm_mask, S_IRUGO | S_IWUSR, show_alarm_mask,
 	set_alarm_mask);
 
 
-static ssize_t show_gpio(struct device *dev, char *buf)
+static ssize_t show_gpio(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%ld\n", data->gpio);
 }
-static ssize_t set_gpio(struct device *dev, const char *buf,
+static ssize_t set_gpio(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1359,12 +1317,12 @@ static ssize_t set_gpio(struct device *dev, const char *buf,
 static DEVICE_ATTR(gpio, S_IRUGO | S_IWUSR, show_gpio, set_gpio);
 
 
-static ssize_t show_gpio_mask(struct device *dev, char *buf)
+static ssize_t show_gpio_mask(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%ld\n", data->gpio_mask);
 }
-static ssize_t set_gpio_mask(struct device *dev, const char *buf,
+static ssize_t set_gpio_mask(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1386,12 +1344,12 @@ static ssize_t set_gpio_mask(struct device *dev, const char *buf,
 
 static DEVICE_ATTR(gpio_mask, S_IRUGO | S_IWUSR, show_gpio_mask, set_gpio_mask);
 
-static ssize_t show_pwm_reg(struct device *dev, char *buf)
+static ssize_t show_pwm_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", PWM_FROM_REG(data->pwm1.pwm));
 }
-static ssize_t set_pwm_reg(struct device *dev, const char *buf,
+static ssize_t set_pwm_reg(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1407,12 +1365,12 @@ static ssize_t set_pwm_reg(struct device *dev, const char *buf,
 	}
 	return count;
 }
-static ssize_t show_auto_pwm_min(struct device *dev, char *buf)
+static ssize_t show_auto_pwm_min(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", data->pwm1.auto_pwm_min);
 }
-static ssize_t set_auto_pwm_min(struct device *dev, const char *buf,
+static ssize_t set_auto_pwm_min(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1429,16 +1387,16 @@ static ssize_t set_auto_pwm_min(struct device *dev, const char *buf,
 	up(&data->update_lock);
 	return count;
 }
-static ssize_t show_auto_pwm_max(struct device *dev, char *buf)
+static ssize_t show_auto_pwm_max(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf,"%d\n", ADM1026_PWM_MAX);
 }
-static ssize_t show_pwm_enable(struct device *dev, char *buf)
+static ssize_t show_pwm_enable(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", data->pwm1.enable);
 }
-static ssize_t set_pwm_enable(struct device *dev, const char *buf,
+static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1597,118 +1555,120 @@ int adm1026_detect(struct i2c_adapter *adapter, int address,
 	adm1026_init_client(new_client);
 
 	/* Register sysfs hooks */
-	device_create_file(&new_client->dev, &dev_attr_in0_input);
-	device_create_file(&new_client->dev, &dev_attr_in0_max);
-	device_create_file(&new_client->dev, &dev_attr_in0_min);
-	device_create_file(&new_client->dev, &dev_attr_in1_input);
-	device_create_file(&new_client->dev, &dev_attr_in1_max);
-	device_create_file(&new_client->dev, &dev_attr_in1_min);
-	device_create_file(&new_client->dev, &dev_attr_in2_input);
-	device_create_file(&new_client->dev, &dev_attr_in2_max);
-	device_create_file(&new_client->dev, &dev_attr_in2_min);
-	device_create_file(&new_client->dev, &dev_attr_in3_input);
-	device_create_file(&new_client->dev, &dev_attr_in3_max);
-	device_create_file(&new_client->dev, &dev_attr_in3_min);
-	device_create_file(&new_client->dev, &dev_attr_in4_input);
-	device_create_file(&new_client->dev, &dev_attr_in4_max);
-	device_create_file(&new_client->dev, &dev_attr_in4_min);
-	device_create_file(&new_client->dev, &dev_attr_in5_input);
-	device_create_file(&new_client->dev, &dev_attr_in5_max);
-	device_create_file(&new_client->dev, &dev_attr_in5_min);
-	device_create_file(&new_client->dev, &dev_attr_in6_input);
-	device_create_file(&new_client->dev, &dev_attr_in6_max);
-	device_create_file(&new_client->dev, &dev_attr_in6_min);
-	device_create_file(&new_client->dev, &dev_attr_in7_input);
-	device_create_file(&new_client->dev, &dev_attr_in7_max);
-	device_create_file(&new_client->dev, &dev_attr_in7_min);
-	device_create_file(&new_client->dev, &dev_attr_in8_input);
-	device_create_file(&new_client->dev, &dev_attr_in8_max);
-	device_create_file(&new_client->dev, &dev_attr_in8_min);
-	device_create_file(&new_client->dev, &dev_attr_in9_input);
-	device_create_file(&new_client->dev, &dev_attr_in9_max);
-	device_create_file(&new_client->dev, &dev_attr_in9_min);
-	device_create_file(&new_client->dev, &dev_attr_in10_input);
-	device_create_file(&new_client->dev, &dev_attr_in10_max);
-	device_create_file(&new_client->dev, &dev_attr_in10_min);
-	device_create_file(&new_client->dev, &dev_attr_in11_input);
-	device_create_file(&new_client->dev, &dev_attr_in11_max);
-	device_create_file(&new_client->dev, &dev_attr_in11_min);
-	device_create_file(&new_client->dev, &dev_attr_in12_input);
-	device_create_file(&new_client->dev, &dev_attr_in12_max);
-	device_create_file(&new_client->dev, &dev_attr_in12_min);
-	device_create_file(&new_client->dev, &dev_attr_in13_input);
-	device_create_file(&new_client->dev, &dev_attr_in13_max);
-	device_create_file(&new_client->dev, &dev_attr_in13_min);
-	device_create_file(&new_client->dev, &dev_attr_in14_input);
-	device_create_file(&new_client->dev, &dev_attr_in14_max);
-	device_create_file(&new_client->dev, &dev_attr_in14_min);
-	device_create_file(&new_client->dev, &dev_attr_in15_input);
-	device_create_file(&new_client->dev, &dev_attr_in15_max);
-	device_create_file(&new_client->dev, &dev_attr_in15_min);
-	device_create_file(&new_client->dev, &dev_attr_in16_input);
-	device_create_file(&new_client->dev, &dev_attr_in16_max);
-	device_create_file(&new_client->dev, &dev_attr_in16_min);
-	device_create_file(&new_client->dev, &dev_attr_fan1_input);
-	device_create_file(&new_client->dev, &dev_attr_fan1_div);
-	device_create_file(&new_client->dev, &dev_attr_fan1_min);
-	device_create_file(&new_client->dev, &dev_attr_fan2_input);
-	device_create_file(&new_client->dev, &dev_attr_fan2_div);
-	device_create_file(&new_client->dev, &dev_attr_fan2_min);
-	device_create_file(&new_client->dev, &dev_attr_fan3_input);
-	device_create_file(&new_client->dev, &dev_attr_fan3_div);
-	device_create_file(&new_client->dev, &dev_attr_fan3_min);
-	device_create_file(&new_client->dev, &dev_attr_fan4_input);
-	device_create_file(&new_client->dev, &dev_attr_fan4_div);
-	device_create_file(&new_client->dev, &dev_attr_fan4_min);
-	device_create_file(&new_client->dev, &dev_attr_fan5_input);
-	device_create_file(&new_client->dev, &dev_attr_fan5_div);
-	device_create_file(&new_client->dev, &dev_attr_fan5_min);
-	device_create_file(&new_client->dev, &dev_attr_fan6_input);
-	device_create_file(&new_client->dev, &dev_attr_fan6_div);
-	device_create_file(&new_client->dev, &dev_attr_fan6_min);
-	device_create_file(&new_client->dev, &dev_attr_fan7_input);
-	device_create_file(&new_client->dev, &dev_attr_fan7_div);
-	device_create_file(&new_client->dev, &dev_attr_fan7_min);
-	device_create_file(&new_client->dev, &dev_attr_fan8_input);
-	device_create_file(&new_client->dev, &dev_attr_fan8_div);
-	device_create_file(&new_client->dev, &dev_attr_fan8_min);
-	device_create_file(&new_client->dev, &dev_attr_temp1_input);
-	device_create_file(&new_client->dev, &dev_attr_temp1_max);
-	device_create_file(&new_client->dev, &dev_attr_temp1_min);
-	device_create_file(&new_client->dev, &dev_attr_temp2_input);
-	device_create_file(&new_client->dev, &dev_attr_temp2_max);
-	device_create_file(&new_client->dev, &dev_attr_temp2_min);
-	device_create_file(&new_client->dev, &dev_attr_temp3_input);
-	device_create_file(&new_client->dev, &dev_attr_temp3_max);
-	device_create_file(&new_client->dev, &dev_attr_temp3_min);
-	device_create_file(&new_client->dev, &dev_attr_temp1_offset);
-	device_create_file(&new_client->dev, &dev_attr_temp2_offset);
-	device_create_file(&new_client->dev, &dev_attr_temp3_offset);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in0_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in0_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in0_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in1_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in1_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in1_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in2_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in2_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in2_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in3_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in3_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in3_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in4_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in4_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in4_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in5_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in5_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in5_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in6_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in6_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in6_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in7_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in7_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in7_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in8_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in8_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in8_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in9_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in9_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in9_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in10_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in10_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in10_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in11_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in11_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in11_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in12_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in12_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in12_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in13_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in13_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in13_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in14_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in14_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in14_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in15_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in15_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in15_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in16_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in16_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_in16_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan1_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan1_div.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan1_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan2_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan2_div.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan2_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan3_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan3_div.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan3_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan4_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan4_div.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan4_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan5_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan5_div.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan5_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan6_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan6_div.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan6_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan7_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan7_div.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan7_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan8_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan8_div.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_fan8_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp1_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp1_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp1_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp2_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp2_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp2_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp3_input.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp3_max.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp3_min.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp1_offset.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp2_offset.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp3_offset.dev_attr);
 	device_create_file(&new_client->dev, 
-		&dev_attr_temp1_auto_point1_temp);
+		&sensor_dev_attr_temp1_auto_point1_temp.dev_attr);
 	device_create_file(&new_client->dev, 
-		&dev_attr_temp2_auto_point1_temp);
+		&sensor_dev_attr_temp2_auto_point1_temp.dev_attr);
 	device_create_file(&new_client->dev, 
-		&dev_attr_temp3_auto_point1_temp);
+		&sensor_dev_attr_temp3_auto_point1_temp.dev_attr);
 	device_create_file(&new_client->dev,
-		&dev_attr_temp1_auto_point1_temp_hyst);
+		&sensor_dev_attr_temp1_auto_point1_temp_hyst.dev_attr);
 	device_create_file(&new_client->dev,
-		&dev_attr_temp2_auto_point1_temp_hyst);
+		&sensor_dev_attr_temp2_auto_point1_temp_hyst.dev_attr);
 	device_create_file(&new_client->dev,
-		&dev_attr_temp3_auto_point1_temp_hyst);
+		&sensor_dev_attr_temp3_auto_point1_temp_hyst.dev_attr);
 	device_create_file(&new_client->dev, 
-		&dev_attr_temp1_auto_point2_temp);
+		&sensor_dev_attr_temp1_auto_point2_temp.dev_attr);
 	device_create_file(&new_client->dev, 
-		&dev_attr_temp2_auto_point2_temp);
+		&sensor_dev_attr_temp2_auto_point2_temp.dev_attr);
 	device_create_file(&new_client->dev, 
-		&dev_attr_temp3_auto_point2_temp);
-	device_create_file(&new_client->dev, &dev_attr_temp1_crit);
-	device_create_file(&new_client->dev, &dev_attr_temp2_crit);
-	device_create_file(&new_client->dev, &dev_attr_temp3_crit);
+		&sensor_dev_attr_temp3_auto_point2_temp.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp1_crit.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp2_crit.dev_attr);
+	device_create_file(&new_client->dev, &sensor_dev_attr_temp3_crit.dev_attr);
 	device_create_file(&new_client->dev, &dev_attr_temp1_crit_enable);
 	device_create_file(&new_client->dev, &dev_attr_temp2_crit_enable);
 	device_create_file(&new_client->dev, &dev_attr_temp3_crit_enable);
+	/* vid deprecated in favour of cpu0_vid, remove after 2005-11-11 */
 	device_create_file(&new_client->dev, &dev_attr_vid);
+	device_create_file(&new_client->dev, &dev_attr_cpu0_vid);
 	device_create_file(&new_client->dev, &dev_attr_vrm);
 	device_create_file(&new_client->dev, &dev_attr_alarms);
 	device_create_file(&new_client->dev, &dev_attr_alarm_mask);

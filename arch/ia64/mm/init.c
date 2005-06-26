@@ -305,8 +305,9 @@ setup_gate (void)
 	struct page *page;
 
 	/*
-	 * Map the gate page twice: once read-only to export the ELF headers etc. and once
-	 * execute-only page to enable privilege-promotion via "epc":
+	 * Map the gate page twice: once read-only to export the ELF
+	 * headers etc. and once execute-only page to enable
+	 * privilege-promotion via "epc":
 	 */
 	page = virt_to_page(ia64_imva(__start_gate_section));
 	put_kernel_page(page, GATE_ADDR, PAGE_READONLY);
@@ -315,6 +316,20 @@ setup_gate (void)
 	put_kernel_page(page, GATE_ADDR + PAGE_SIZE, PAGE_GATE);
 #else
 	put_kernel_page(page, GATE_ADDR + PERCPU_PAGE_SIZE, PAGE_GATE);
+	/* Fill in the holes (if any) with read-only zero pages: */
+	{
+		unsigned long addr;
+
+		for (addr = GATE_ADDR + PAGE_SIZE;
+		     addr < GATE_ADDR + PERCPU_PAGE_SIZE;
+		     addr += PAGE_SIZE)
+		{
+			put_kernel_page(ZERO_PAGE(0), addr,
+					PAGE_READONLY);
+			put_kernel_page(ZERO_PAGE(0), addr + PERCPU_PAGE_SIZE,
+					PAGE_READONLY);
+		}
+	}
 #endif
 	ia64_patch_gate();
 }

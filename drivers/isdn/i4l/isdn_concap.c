@@ -39,7 +39,7 @@
    */
 
 
-int isdn_concap_dl_data_req(struct concap_proto *concap, struct sk_buff *skb)
+static int isdn_concap_dl_data_req(struct concap_proto *concap, struct sk_buff *skb)
 {
 	struct net_device *ndev = concap -> net_dev;
 	isdn_net_dev *nd = ((isdn_net_local *) ndev->priv)->netdev;
@@ -58,7 +58,7 @@ int isdn_concap_dl_data_req(struct concap_proto *concap, struct sk_buff *skb)
 }
 
 
-int isdn_concap_dl_connect_req(struct concap_proto *concap)
+static int isdn_concap_dl_connect_req(struct concap_proto *concap)
 {
 	struct net_device *ndev = concap -> net_dev;
 	isdn_net_local *lp = (isdn_net_local *) ndev->priv;
@@ -71,7 +71,7 @@ int isdn_concap_dl_connect_req(struct concap_proto *concap)
 	return ret;
 }
 
-int isdn_concap_dl_disconn_req(struct concap_proto *concap)
+static int isdn_concap_dl_disconn_req(struct concap_proto *concap)
 {
 	IX25DEBUG( "isdn_concap_dl_disconn_req: %s \n", concap -> net_dev -> name);
 
@@ -83,15 +83,6 @@ struct concap_device_ops isdn_concap_reliable_dl_dops = {
 	&isdn_concap_dl_data_req,
 	&isdn_concap_dl_connect_req,
 	&isdn_concap_dl_disconn_req
-};
-
-struct concap_device_ops isdn_concap_demand_dial_dops = {
-	NULL, /* set this first entry to something like &isdn_net_start_xmit,
-		 but the entry part of the current isdn_net_start_xmit must be
-		 separated first. */
-	/* no connection control for demand dial semantics */
-	NULL,
-	NULL,
 };
 
 /* The following should better go into a dedicated source file such that

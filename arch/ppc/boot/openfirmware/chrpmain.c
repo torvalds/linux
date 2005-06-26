@@ -39,7 +39,7 @@ char *avail_high;
 
 #define SCRATCH_SIZE	(128 << 10)
 
-static char scratch[SCRATCH_SIZE];	/* 1MB of scratch space for gunzip */
+static char scratch[SCRATCH_SIZE];	/* 128k of scratch space for gunzip */
 
 typedef void (*kernel_start_t)(int, int, void *, unsigned int, unsigned int);
 

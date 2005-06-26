@@ -179,6 +179,8 @@ config CMDLINE
 	  time by entering them here. As a minimum, you should specify the
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
 
+source "mm/Kconfig"
+
 endmenu
 
 source "drivers/base/Kconfig"

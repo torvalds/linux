@@ -31,7 +31,7 @@ void __const_udelay(unsigned long n)
 {
 	n *= 4;
 
-	n *= (cpu_data(_smp_processor_id()).udelay_val * (HZ/4));
+	n *= (cpu_data(raw_smp_processor_id()).udelay_val * (HZ/4));
 	n >>= 32;
 
 	__delay(n + 1);

@@ -24,6 +24,9 @@
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu.h>
+#include <asm/mmu_context.h>
+#include <asm/pgtable.h>
+#include <asm/pgalloc.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
@@ -35,6 +38,13 @@
  */
 cpumask_t cpu_present_mask;
 cpumask_t cpu_online_map;
+
+/*
+ * as from 2.5, kernels no longer have an init_tasks structure
+ * so we need some other way of telling a new secondary core
+ * where to place its SVC stack
+ */
+struct secondary_data secondary_data;
 
 /*
  * structures for inter-processor calls
@@ -71,6 +81,8 @@ static DEFINE_SPINLOCK(smp_call_function_lock);
 int __init __cpu_up(unsigned int cpu)
 {
 	struct task_struct *idle;
+	pgd_t *pgd;
+	pmd_t *pmd;
 	int ret;
 
 	/*
@@ -84,17 +96,113 @@ int __init __cpu_up(unsigned int cpu)
 	}
 
 	/*
+	 * Allocate initial page tables to allow the new CPU to
+	 * enable the MMU safely.  This essentially means a set
+	 * of our "standard" page tables, with the addition of
+	 * a 1:1 mapping for the physical address of the kernel.
+	 */
+	pgd = pgd_alloc(&init_mm);
+	pmd = pmd_offset(pgd, PHYS_OFFSET);
+	*pmd = __pmd((PHYS_OFFSET & PGDIR_MASK) |
+		     PMD_TYPE_SECT | PMD_SECT_AP_WRITE);
+
+	/*
+	 * We need to tell the secondary core where to find
+	 * its stack and the page tables.
+	 */
+	secondary_data.stack = (void *)idle->thread_info + THREAD_SIZE - 8;
+	secondary_data.pgdir = virt_to_phys(pgd);
+	wmb();
+
+	/*
 	 * Now bring the CPU into our world.
 	 */
 	ret = boot_secondary(cpu, idle);
+	if (ret == 0) {
+		unsigned long timeout;
+
+		/*
+		 * CPU was successfully started, wait for it
+		 * to come online or time out.
+		 */
+		timeout = jiffies + HZ;
+		while (time_before(jiffies, timeout)) {
+			if (cpu_online(cpu))
+				break;
+
+			udelay(10);
+			barrier();
+		}
+
+		if (!cpu_online(cpu))
+			ret = -EIO;
+	}
+
+	secondary_data.stack = 0;
+	secondary_data.pgdir = 0;
+
+	*pmd_offset(pgd, PHYS_OFFSET) = __pmd(0);
+	pgd_free(pgd);
+
 	if (ret) {
-		printk(KERN_CRIT "cpu_up: processor %d failed to boot\n", cpu);
+		printk(KERN_CRIT "CPU%u: processor failed to boot\n", cpu);
+
 		/*
 		 * FIXME: We need to clean up the new idle thread. --rmk
 		 */
 	}
 
 	return ret;
+}
+
+/*
+ * This is the secondary CPU boot entry.  We're using this CPUs
+ * idle thread stack, but a set of temporary page tables.
+ */
+asmlinkage void __init secondary_start_kernel(void)
+{
+	struct mm_struct *mm = &init_mm;
+	unsigned int cpu = smp_processor_id();
+
+	printk("CPU%u: Booted secondary processor\n", cpu);
+
+	/*
+	 * All kernel threads share the same mm context; grab a
+	 * reference and switch to it.
+	 */
+	atomic_inc(&mm->mm_users);
+	atomic_inc(&mm->mm_count);
+	current->active_mm = mm;
+	cpu_set(cpu, mm->cpu_vm_mask);
+	cpu_switch_mm(mm->pgd, mm);
+	enter_lazy_tlb(mm, current);
+
+	cpu_init();
+
+	/*
+	 * Give the platform a chance to do its own initialisation.
+	 */
+	platform_secondary_init(cpu);
+
+	/*
+	 * Enable local interrupts.
+	 */
+	local_irq_enable();
+	local_fiq_enable();
+
+	calibrate_delay();
+
+	smp_store_cpu_info(cpu);
+
+	/*
+	 * OK, now it's safe to let the boot CPU continue
+	 */
+	cpu_set(cpu, cpu_online_map);
+
+	/*
+	 * OK, it's off to the idle thread for us
+	 */
+	cpu_idle();
 }
 
 /*

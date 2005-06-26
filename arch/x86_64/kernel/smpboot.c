@@ -34,6 +34,7 @@
  *      Andi Kleen              :       Converted to new state machine.
  *					Various cleanups.
  *					Probably mostly hotplug CPU ready now.
+ *	Ashok Raj			: CPU hotplug support
  */
 
 
@@ -57,11 +58,6 @@
 #include <asm/tlbflush.h>
 #include <asm/proto.h>
 #include <asm/nmi.h>
-
-/* Change for real CPU hotplug. Note other files need to be fixed
-   first too. */
-#define __cpuinit __init
-#define __cpuinitdata __initdata
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
@@ -102,6 +98,37 @@ EXPORT_SYMBOL(cpu_core_map);
 
 extern unsigned char trampoline_data[];
 extern unsigned char trampoline_end[];
+
+/* State of each CPU */
+DEFINE_PER_CPU(int, cpu_state) = { 0 };
+
+/*
+ * Store all idle threads, this can be reused instead of creating
+ * a new thread. Also avoids complicated thread destroy functionality
+ * for idle threads.
+ */
+struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
+
+#define get_idle_for_cpu(x)     (idle_thread_array[(x)])
+#define set_idle_for_cpu(x,p)   (idle_thread_array[(x)] = (p))
+
+/*
+ * cpu_possible_map should be static, it cannot change as cpu's
+ * are onlined, or offlined. The reason is per-cpu data-structures
+ * are allocated by some modules at init time, and dont expect to
+ * do this dynamically on cpu arrival/departure.
+ * cpu_present_map on the other hand can change dynamically.
+ * In case when cpu_hotplug is not compiled, then we resort to current
+ * behaviour, which is cpu_possible == cpu_present.
+ * If cpu-hotplug is supported, then we need to preallocate for all
+ * those NR_CPUS, hence cpu_possible_map represents entire NR_CPUS range.
+ * - Ashok Raj
+ */
+#ifdef CONFIG_HOTPLUG_CPU
+#define fixup_cpu_possible_map(x)	cpu_set((x), cpu_possible_map)
+#else
+#define fixup_cpu_possible_map(x)
+#endif
 
 /*
  * Currently trivial. Write the real->protected mode
@@ -418,6 +445,33 @@ void __cpuinit smp_callin(void)
 	cpu_set(cpuid, cpu_callin_map);
 }
 
+static inline void set_cpu_sibling_map(int cpu)
+{
+	int i;
+
+	if (smp_num_siblings > 1) {
+		for_each_cpu(i) {
+			if (cpu_core_id[cpu] == cpu_core_id[i]) {
+				cpu_set(i, cpu_sibling_map[cpu]);
+				cpu_set(cpu, cpu_sibling_map[i]);
+			}
+		}
+	} else {
+		cpu_set(cpu, cpu_sibling_map[cpu]);
+	}
+
+	if (current_cpu_data.x86_num_cores > 1) {
+		for_each_cpu(i) {
+			if (phys_proc_id[cpu] == phys_proc_id[i]) {
+				cpu_set(i, cpu_core_map[cpu]);
+				cpu_set(cpu, cpu_core_map[i]);
+			}
+		}
+	} else {
+		cpu_core_map[cpu] = cpu_sibling_map[cpu];
+	}
+}
+
 /*
  * Setup code on secondary processor (after comming out of the trampoline)
  */
@@ -448,9 +502,28 @@ void __cpuinit start_secondary(void)
 	enable_APIC_timer();
 
 	/*
+	 * The sibling maps must be set before turing the online map on for
+	 * this cpu
+	 */
+	set_cpu_sibling_map(smp_processor_id());
+
+	/*
+	 * We need to hold call_lock, so there is no inconsistency
+	 * between the time smp_call_function() determines number of
+	 * IPI receipients, and the time when the determination is made
+	 * for which cpus receive the IPI in genapic_flat.c. Holding this
+	 * lock helps us to not include this cpu in a currently in progress
+	 * smp_call_function().
+	 */
+	lock_ipi_call_lock();
+
+	/*
 	 * Allow the master to continue.
 	 */
 	cpu_set(smp_processor_id(), cpu_online_map);
+	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+	unlock_ipi_call_lock();
+
 	mb();
 
 	/* Wait for TSC sync to not schedule things before.
@@ -628,33 +701,77 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 	return (send_status | accept_status);
 }
 
+struct create_idle {
+	struct task_struct *idle;
+	struct completion done;
+	int cpu;
+};
+
+void do_fork_idle(void *_c_idle)
+{
+	struct create_idle *c_idle = _c_idle;
+
+	c_idle->idle = fork_idle(c_idle->cpu);
+	complete(&c_idle->done);
+}
+
 /*
  * Boot one CPU.
  */
 static int __cpuinit do_boot_cpu(int cpu, int apicid)
 {
-	struct task_struct *idle;
 	unsigned long boot_error;
 	int timeout;
 	unsigned long start_rip;
-	/*
-	 * We can't use kernel_thread since we must avoid to
-	 * reschedule the child.
-	 */
-	idle = fork_idle(cpu);
-	if (IS_ERR(idle)) {
-		printk("failed fork for CPU %d\n", cpu);
-		return PTR_ERR(idle);
+	struct create_idle c_idle = {
+		.cpu = cpu,
+		.done = COMPLETION_INITIALIZER(c_idle.done),
+	};
+	DECLARE_WORK(work, do_fork_idle, &c_idle);
+
+	c_idle.idle = get_idle_for_cpu(cpu);
+
+	if (c_idle.idle) {
+		c_idle.idle->thread.rsp = (unsigned long) (((struct pt_regs *)
+			(THREAD_SIZE + (unsigned long) c_idle.idle->thread_info)) - 1);
+		init_idle(c_idle.idle, cpu);
+		goto do_rest;
 	}
 
-	cpu_pda[cpu].pcurrent = idle;
+	/*
+	 * During cold boot process, keventd thread is not spun up yet.
+	 * When we do cpu hot-add, we create idle threads on the fly, we should
+	 * not acquire any attributes from the calling context. Hence the clean
+	 * way to create kernel_threads() is to do that from keventd().
+	 * We do the current_is_keventd() due to the fact that ACPI notifier
+	 * was also queuing to keventd() and when the caller is already running
+	 * in context of keventd(), we would end up with locking up the keventd
+	 * thread.
+	 */
+	if (!keventd_up() || current_is_keventd())
+		work.func(work.data);
+	else {
+		schedule_work(&work);
+		wait_for_completion(&c_idle.done);
+	}
+
+	if (IS_ERR(c_idle.idle)) {
+		printk("failed fork for CPU %d\n", cpu);
+		return PTR_ERR(c_idle.idle);
+	}
+
+	set_idle_for_cpu(cpu, c_idle.idle);
+
+do_rest:
+
+	cpu_pda[cpu].pcurrent = c_idle.idle;
 
 	start_rip = setup_trampoline();
 
-	init_rsp = idle->thread.rsp;
+	init_rsp = c_idle.idle->thread.rsp;
 	per_cpu(init_tss,cpu).rsp0 = init_rsp;
 	initial_code = start_secondary;
-	clear_ti_thread_flag(idle->thread_info, TIF_FORK);
+	clear_ti_thread_flag(c_idle.idle->thread_info, TIF_FORK);
 
 	printk(KERN_INFO "Booting processor %d/%d rip %lx rsp %lx\n", cpu, apicid,
 	       start_rip, init_rsp);
@@ -746,51 +863,6 @@ cycles_t cacheflush_time;
 unsigned long cache_decay_ticks;
 
 /*
- * Construct cpu_sibling_map[], so that we can tell the sibling CPU
- * on SMT systems efficiently.
- */
-static __cpuinit void detect_siblings(void)
-{
-	int cpu;
-
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-		cpus_clear(cpu_sibling_map[cpu]);
-		cpus_clear(cpu_core_map[cpu]);
-	}
-
-	for_each_online_cpu (cpu) {
-		struct cpuinfo_x86 *c = cpu_data + cpu;
-		int siblings = 0;
-		int i;
-		if (smp_num_siblings > 1) {
-			for_each_online_cpu (i) {
-				if (cpu_core_id[cpu] == cpu_core_id[i]) {
-					siblings++;
-					cpu_set(i, cpu_sibling_map[cpu]);
-				}
-			}
-		} else {
-			siblings++;
-			cpu_set(cpu, cpu_sibling_map[cpu]);
-		}
-
-		if (siblings != smp_num_siblings) {
-			printk(KERN_WARNING
-	       "WARNING: %d siblings found for CPU%d, should be %d\n",
-			       siblings, cpu, smp_num_siblings);
-			smp_num_siblings = siblings;
-		}
-		if (c->x86_num_cores > 1) {
-			for_each_online_cpu(i) {
-				if (phys_proc_id[cpu] == phys_proc_id[i])
-					cpu_set(i, cpu_core_map[cpu]);
-			}
-		} else
-			cpu_core_map[cpu] = cpu_sibling_map[cpu];
-	}
-}
-
-/*
  * Cleanup possible dangling ends...
  */
 static __cpuinit void smp_cleanup_boot(void)
@@ -823,7 +895,7 @@ static __cpuinit void smp_cleanup_boot(void)
  *
  * RED-PEN audit/test this more. I bet there is more state messed up here.
  */
-static __cpuinit void disable_smp(void)
+static __init void disable_smp(void)
 {
 	cpu_present_map = cpumask_of_cpu(0);
 	cpu_possible_map = cpumask_of_cpu(0);
@@ -838,7 +910,7 @@ static __cpuinit void disable_smp(void)
 /*
  * Handle user cpus=... parameter.
  */
-static __cpuinit void enforce_max_cpus(unsigned max_cpus)
+static __init void enforce_max_cpus(unsigned max_cpus)
 {
 	int i, k;
 	k = 0;
@@ -855,7 +927,7 @@ static __cpuinit void enforce_max_cpus(unsigned max_cpus)
 /*
  * Various sanity checks.
  */
-static int __cpuinit smp_sanity_check(unsigned max_cpus)
+static int __init smp_sanity_check(unsigned max_cpus)
 {
 	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
 		printk("weird, boot CPU (#%d) not listed by the BIOS.\n",
@@ -913,7 +985,7 @@ static int __cpuinit smp_sanity_check(unsigned max_cpus)
  * Prepare for SMP bootup.  The MP table or ACPI has been read
  * earlier.  Just do some sanity checking here and enable APIC mode.
  */
-void __cpuinit smp_prepare_cpus(unsigned int max_cpus)
+void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	int i;
 
@@ -930,10 +1002,9 @@ void __cpuinit smp_prepare_cpus(unsigned int max_cpus)
 		int apicid = cpu_present_to_apicid(i);
 		if (physid_isset(apicid, phys_cpu_present_map)) {
 			cpu_set(i, cpu_present_map);
-			/* possible map would be different if we supported real
-			   CPU hotplug. */
 			cpu_set(i, cpu_possible_map);
 		}
+		fixup_cpu_possible_map(i);
 	}
 
 	if (smp_sanity_check(max_cpus) < 0) {
@@ -978,13 +1049,13 @@ void __init smp_prepare_boot_cpu(void)
 	int me = smp_processor_id();
 	cpu_set(me, cpu_online_map);
 	cpu_set(me, cpu_callout_map);
+	cpu_set(0, cpu_sibling_map[0]);
+	cpu_set(0, cpu_core_map[0]);
+	per_cpu(cpu_state, me) = CPU_ONLINE;
 }
 
 /*
  * Entry point to boot a CPU.
- *
- * This is all __cpuinit, not __devinit for now because we don't support
- * CPU hotplug (yet).
  */
 int __cpuinit __cpu_up(unsigned int cpu)
 {
@@ -1001,6 +1072,15 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		return -EINVAL;
 	}
 
+	/*
+	 * Already booted CPU?
+	 */
+ 	if (cpu_isset(cpu, cpu_callin_map)) {
+		Dprintk("do_boot_cpu %d Already started\n", cpu);
+ 		return -ENOSYS;
+	}
+
+	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 	/* Boot it! */
 	err = do_boot_cpu(cpu, apicid);
 	if (err < 0) {
@@ -1013,23 +1093,118 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	while (!cpu_isset(cpu, cpu_online_map))
 		cpu_relax();
-	return 0;
+	err = 0;
+
+	return err;
 }
 
 /*
  * Finish the SMP boot.
  */
-void __cpuinit smp_cpus_done(unsigned int max_cpus)
+void __init smp_cpus_done(unsigned int max_cpus)
 {
+#ifndef CONFIG_HOTPLUG_CPU
 	zap_low_mappings();
+#endif
 	smp_cleanup_boot();
 
 #ifdef CONFIG_X86_IO_APIC
 	setup_ioapic_dest();
 #endif
 
-	detect_siblings();
 	time_init_gtod();
 
 	check_nmi_watchdog();
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+static void remove_siblinginfo(int cpu)
+{
+	int sibling;
+
+	for_each_cpu_mask(sibling, cpu_sibling_map[cpu])
+		cpu_clear(cpu, cpu_sibling_map[sibling]);
+	for_each_cpu_mask(sibling, cpu_core_map[cpu])
+		cpu_clear(cpu, cpu_core_map[sibling]);
+	cpus_clear(cpu_sibling_map[cpu]);
+	cpus_clear(cpu_core_map[cpu]);
+	phys_proc_id[cpu] = BAD_APICID;
+	cpu_core_id[cpu] = BAD_APICID;
+}
+
+void remove_cpu_from_maps(void)
+{
+	int cpu = smp_processor_id();
+
+	cpu_clear(cpu, cpu_callout_map);
+	cpu_clear(cpu, cpu_callin_map);
+	clear_bit(cpu, &cpu_initialized); /* was set by cpu_init() */
+}
+
+int __cpu_disable(void)
+{
+	int cpu = smp_processor_id();
+
+	/*
+	 * Perhaps use cpufreq to drop frequency, but that could go
+	 * into generic code.
+ 	 *
+	 * We won't take down the boot processor on i386 due to some
+	 * interrupts only being able to be serviced by the BSP.
+	 * Especially so if we're not using an IOAPIC	-zwane
+	 */
+	if (cpu == 0)
+		return -EBUSY;
+
+	disable_APIC_timer();
+
+	/*
+	 * HACK:
+	 * Allow any queued timer interrupts to get serviced
+	 * This is only a temporary solution until we cleanup
+	 * fixup_irqs as we do for IA64.
+	 */
+	local_irq_enable();
+	mdelay(1);
+
+	local_irq_disable();
+	remove_siblinginfo(cpu);
+
+	/* It's now safe to remove this processor from the online map */
+	cpu_clear(cpu, cpu_online_map);
+	remove_cpu_from_maps();
+	fixup_irqs(cpu_online_map);
+	return 0;
+}
+
+void __cpu_die(unsigned int cpu)
+{
+	/* We don't do anything here: idle task is faking death itself. */
+	unsigned int i;
+
+	for (i = 0; i < 10; i++) {
+		/* They ack this in play_dead by setting CPU_DEAD */
+		if (per_cpu(cpu_state, cpu) == CPU_DEAD) {
+			printk ("CPU %d is now offline\n", cpu);
+			return;
+		}
+		current->state = TASK_UNINTERRUPTIBLE;
+		schedule_timeout(HZ/10);
+	}
+ 	printk(KERN_ERR "CPU %u didn't die...\n", cpu);
+}
+
+#else /* ... !CONFIG_HOTPLUG_CPU */
+
+int __cpu_disable(void)
+{
+	return -ENOSYS;
+}
+
+void __cpu_die(unsigned int cpu)
+{
+	/* We said "no" in __cpu_disable */
+	BUG();
+}
+#endif /* CONFIG_HOTPLUG_CPU */

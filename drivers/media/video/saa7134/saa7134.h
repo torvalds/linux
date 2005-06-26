@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134.h,v 1.38 2005/03/07 12:01:51 kraxel Exp $
+ * $Id: saa7134.h,v 1.41 2005/06/07 18:02:26 nsh Exp $
  *
  * v4l2 device driver for philips saa7134 based TV cards
  *
@@ -21,7 +21,7 @@
  */
 
 #include <linux/version.h>
-#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,12)
+#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,13)
 
 #include <linux/pci.h>
 #include <linux/i2c.h>
@@ -91,9 +91,10 @@ struct saa7134_tvnorm {
 	unsigned int  h_stop;
 	unsigned int  video_v_start;
 	unsigned int  video_v_stop;
-	unsigned int  vbi_v_start;
-	unsigned int  vbi_v_stop;
+	unsigned int  vbi_v_start_0;
+	unsigned int  vbi_v_stop_0;
 	unsigned int  src_timing;
+	unsigned int  vbi_v_start_1;
 };
 
 struct saa7134_tvaudio {
@@ -167,7 +168,7 @@ struct saa7134_format {
 #define SAA7134_BOARD_SABRENT_SBTTVFM  42
 #define SAA7134_BOARD_ZOLID_XPERT_TV7134 43
 #define SAA7134_BOARD_EMPIRE_PCI_TV_RADIO_LE 44
-#define SAA7134_BOARD_AVERMEDIA_307    45
+#define SAA7134_BOARD_AVERMEDIA_STUDIO_307    45
 #define SAA7134_BOARD_AVERMEDIA_CARDBUS 46
 #define SAA7134_BOARD_CINERGY400_CARDBUS 47
 #define SAA7134_BOARD_CINERGY600_MK3   48
@@ -178,6 +179,10 @@ struct saa7134_format {
 #define SAA7135_BOARD_ASUSTeK_TVFM7135 53
 #define SAA7134_BOARD_FLYTVPLATINUM_FM 54
 #define SAA7134_BOARD_FLYDVBTDUO 55
+#define SAA7134_BOARD_AVERMEDIA_307    56
+#define SAA7134_BOARD_AVERMEDIA_GO_007_FM 57
+#define SAA7134_BOARD_ADS_INSTANT_TV 58
+#define SAA7134_BOARD_KWORLD_VSTREAM_XPERT 59
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -241,7 +246,7 @@ struct saa7134_dma;
 /* saa7134 page table */
 struct saa7134_pgtable {
 	unsigned int               size;
-	u32                        *cpu;
+	__le32                     *cpu;
 	dma_addr_t                 dma;
 };
 

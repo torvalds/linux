@@ -25,6 +25,10 @@
 #ifndef _LINUX_ACPI_H
 #define _LINUX_ACPI_H
 
+#include <linux/config.h>
+
+#ifdef	CONFIG_ACPI
+
 #ifndef _LINUX
 #define _LINUX
 #endif
@@ -533,4 +537,5 @@ static inline int acpi_get_pxm(acpi_handle handle)
 
 extern int pnpacpi_disabled;
 
-#endif /*_LINUX_ACPI_H*/
+#endif	/* CONFIG_ACPI */
+#endif	/*_LINUX_ACPI_H*/

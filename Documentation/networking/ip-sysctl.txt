@@ -304,57 +304,6 @@ tcp_low_latency - BOOLEAN
 	changed would be a Beowulf compute cluster.
 	Default: 0
 
-tcp_westwood - BOOLEAN
-        Enable TCP Westwood+ congestion control algorithm.
-	TCP Westwood+ is a sender-side only modification of the TCP Reno 
-	protocol stack that optimizes the performance of TCP congestion 
-	control. It is based on end-to-end bandwidth estimation to set 
-	congestion window and slow start threshold after a congestion 
-	episode. Using this estimation, TCP Westwood+ adaptively sets a 
-	slow start threshold and a congestion window which takes into 
-	account the bandwidth used  at the time congestion is experienced. 
-	TCP Westwood+ significantly increases fairness wrt TCP Reno in 
-	wired networks and throughput over wireless links.   
-        Default: 0
-
-tcp_vegas_cong_avoid - BOOLEAN
-	Enable TCP Vegas congestion avoidance algorithm.
-	TCP Vegas is a sender-side only change to TCP that anticipates
-	the onset of congestion by estimating the bandwidth. TCP Vegas
-	adjusts the sending rate by modifying the congestion
-	window. TCP Vegas should provide less packet loss, but it is
-	not as aggressive as TCP Reno.
-	Default:0
-
-tcp_bic - BOOLEAN
-	Enable BIC TCP congestion control algorithm.
-	BIC-TCP is a sender-side only change that ensures a linear RTT
-	fairness under large windows while offering both scalability and
-	bounded TCP-friendliness. The protocol combines two schemes
-	called additive increase and binary search increase. When the
-	congestion window is large, additive increase with a large
-	increment ensures linear RTT fairness as well as good
-	scalability. Under small congestion windows, binary search
-	increase provides TCP friendliness.
-	Default: 0
-
-tcp_bic_low_window - INTEGER
-	Sets the threshold window (in packets) where BIC TCP starts to
-	adjust the congestion window. Below this threshold BIC TCP behaves
-	the same as the default TCP Reno. 
-	Default: 14
-
-tcp_bic_fast_convergence - BOOLEAN
-	Forces BIC TCP to more quickly respond to changes in congestion
-	window. Allows two flows sharing the same connection to converge
-	more rapidly.
-	Default: 1
-
-tcp_default_win_scale - INTEGER
-	Sets the minimum window scale TCP will negotiate for on all
-	conections.
-	Default: 7
-
 tcp_tso_win_divisor - INTEGER
        This allows control over what percentage of the congestion window
        can be consumed by a single TSO frame.
@@ -367,6 +316,11 @@ tcp_frto - BOOLEAN
 	timeouts.  It is particularly beneficial in wireless environments
 	where packet loss is typically due to random radio interference
 	rather than intermediate router congestion.
+
+tcp_congestion_control - STRING
+	Set the congestion control algorithm to be used for new
+	connections. The algorithm "reno" is always available, but
+	additional choices may be available based on kernel configuration.
 
 somaxconn - INTEGER
 	Limit of socket listen() backlog, known in userspace as SOMAXCONN.

@@ -293,7 +293,11 @@
 #define INTEGRATOR_DBG_SWITCH           (INTEGRATOR_DBG_BASE + INTEGRATOR_DBG_SWITCH_OFFSET)
 
 
+#if defined(CONFIG_ARCH_INTEGRATOR_AP)
 #define INTEGRATOR_GPIO_BASE            0x1B000000	 /*  GPIO */
+#elif defined(CONFIG_ARCH_INTEGRATOR_CP)
+#define INTEGRATOR_GPIO_BASE            0xC9000000	 /*  GPIO */
+#endif
 
 /* ------------------------------------------------------------------------
  *  KMI keyboard/mouse definitions

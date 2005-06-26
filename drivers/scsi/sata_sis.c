@@ -114,6 +114,7 @@ static struct ata_port_operations sis_ops = {
 	.scr_write		= sis_scr_write,
 	.port_start		= ata_port_start,
 	.port_stop		= ata_port_stop,
+	.host_stop		= ata_host_stop,
 };
 
 static struct ata_port_info sis_port_info = {

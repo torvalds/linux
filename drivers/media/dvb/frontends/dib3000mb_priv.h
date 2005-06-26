@@ -294,7 +294,7 @@ static u16 dib3000mb_reg_filter_coeffs[] = {
 
 static u16 dib3000mb_filter_coeffs[] = {
 	 226,  160,   29,
- 	 979,  998,   19,
+	 979,  998,   19,
 	  22, 1019, 1006,
 	1022,   12,    6,
 	1017, 1017,    3,

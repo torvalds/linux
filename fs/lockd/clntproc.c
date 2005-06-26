@@ -21,6 +21,7 @@
 
 #define NLMDBG_FACILITY		NLMDBG_CLIENT
 #define NLMCLNT_GRACE_WAIT	(5*HZ)
+#define NLMCLNT_POLL_TIMEOUT	(30*HZ)
 
 static int	nlmclnt_test(struct nlm_rqst *, struct file_lock *);
 static int	nlmclnt_lock(struct nlm_rqst *, struct file_lock *);
@@ -312,7 +313,7 @@ static int nlm_wait_on_grace(wait_queue_head_t *queue)
 	prepare_to_wait(queue, &wait, TASK_INTERRUPTIBLE);
 	if (!signalled ()) {
 		schedule_timeout(NLMCLNT_GRACE_WAIT);
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 		if (!signalled ())
 			status = 0;
 	}
@@ -553,7 +554,8 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 {
 	struct nlm_host	*host = req->a_host;
 	struct nlm_res	*resp = &req->a_res;
-	int		status;
+	long timeout;
+	int status;
 
 	if (!host->h_monitored && nsm_monitor(host) < 0) {
 		printk(KERN_NOTICE "lockd: failed to monitor %s\n",
@@ -562,15 +564,32 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 		goto out;
 	}
 
-	do {
-		if ((status = nlmclnt_call(req, NLMPROC_LOCK)) >= 0) {
-			if (resp->status != NLM_LCK_BLOCKED)
-				break;
-			status = nlmclnt_block(host, fl, &resp->status);
-		}
+	if (req->a_args.block) {
+		status = nlmclnt_prepare_block(req, host, fl);
 		if (status < 0)
 			goto out;
-	} while (resp->status == NLM_LCK_BLOCKED && req->a_args.block);
+	}
+	for(;;) {
+		status = nlmclnt_call(req, NLMPROC_LOCK);
+		if (status < 0)
+			goto out_unblock;
+		if (resp->status != NLM_LCK_BLOCKED)
+			break;
+		/* Wait on an NLM blocking lock */
+		timeout = nlmclnt_block(req, NLMCLNT_POLL_TIMEOUT);
+		/* Did a reclaimer thread notify us of a server reboot? */
+		if (resp->status ==  NLM_LCK_DENIED_GRACE_PERIOD)
+			continue;
+		if (resp->status != NLM_LCK_BLOCKED)
+			break;
+		if (timeout >= 0)
+			continue;
+		/* We were interrupted. Send a CANCEL request to the server
+		 * and exit
+		 */
+		status = (int)timeout;
+		goto out_unblock;
+	}
 
 	if (resp->status == NLM_LCK_GRANTED) {
 		fl->fl_u.nfs_fl.state = host->h_state;
@@ -579,6 +598,11 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 		do_vfs_lock(fl);
 	}
 	status = nlm_stat_to_errno(resp->status);
+out_unblock:
+	nlmclnt_finish_block(req);
+	/* Cancel the blocked request if it is still pending */
+	if (resp->status == NLM_LCK_BLOCKED)
+		nlmclnt_cancel(host, fl);
 out:
 	nlmclnt_release_lockargs(req);
 	return status;

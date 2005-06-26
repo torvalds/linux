@@ -118,7 +118,6 @@ retry:
 	xfrm_policy_put_afinfo(afinfo);
 	return type;
 }
-EXPORT_SYMBOL(xfrm_get_type);
 
 int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, 
 		    unsigned short family)
@@ -216,8 +215,8 @@ out:
 
 expired:
 	read_unlock(&xp->lock);
-	km_policy_expired(xp, dir, 1);
-	xfrm_policy_delete(xp, dir);
+	if (!xfrm_policy_delete(xp, dir))
+		km_policy_expired(xp, dir, 1);
 	xfrm_pol_put(xp);
 }
 
@@ -555,7 +554,7 @@ static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 	return NULL;
 }
 
-void xfrm_policy_delete(struct xfrm_policy *pol, int dir)
+int xfrm_policy_delete(struct xfrm_policy *pol, int dir)
 {
 	write_lock_bh(&xfrm_policy_lock);
 	pol = __xfrm_policy_unlink(pol, dir);
@@ -564,7 +563,9 @@ void xfrm_policy_delete(struct xfrm_policy *pol, int dir)
 		if (dir < XFRM_POLICY_MAX)
 			atomic_inc(&flow_cache_genid);
 		xfrm_policy_kill(pol);
+		return 0;
 	}
+	return -ENOENT;
 }
 
 int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol)
@@ -1136,7 +1137,7 @@ int xfrm_bundle_ok(struct xfrm_dst *first, struct flowi *fl, int family)
 	struct xfrm_dst *last;
 	u32 mtu;
 
-	if (!dst_check(dst->path, 0) ||
+	if (!dst_check(dst->path, ((struct xfrm_dst *)dst)->path_cookie) ||
 	    (dst->dev && !netif_running(dst->dev)))
 		return 0;
 
@@ -1156,7 +1157,7 @@ int xfrm_bundle_ok(struct xfrm_dst *first, struct flowi *fl, int family)
 			xdst->child_mtu_cached = mtu;
 		}
 
-		if (!dst_check(xdst->route, 0))
+		if (!dst_check(xdst->route, xdst->route_cookie))
 			return 0;
 		mtu = dst_mtu(xdst->route);
 		if (xdst->route_mtu_cached != mtu) {

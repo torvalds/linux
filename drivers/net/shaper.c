@@ -100,34 +100,7 @@ static int sh_debug;		/* Debug flag */
 
 #define SHAPER_BANNER	"CymruNet Traffic Shaper BETA 0.04 for Linux 2.1\n"
 
-/*
- *	Locking
- */
- 
-static int shaper_lock(struct shaper *sh)
-{
-	/*
-	 *	Lock in an interrupt must fail
-	 */
-	while (test_and_set_bit(0, &sh->locked))
-	{
-		if (!in_interrupt())
-			sleep_on(&sh->wait_queue);
-		else
-			return 0;
-			
-	}
-	return 1;
-}
-
 static void shaper_kick(struct shaper *sh);
-
-static void shaper_unlock(struct shaper *sh)
-{
-	clear_bit(0, &sh->locked);
-	wake_up(&sh->wait_queue);
-	shaper_kick(sh);
-}
 
 /*
  *	Compute clocks on a buffer
@@ -157,17 +130,15 @@ static void shaper_setspeed(struct shaper *shaper, int bitspersec)
  *	Throw a frame at a shaper.
  */
   
-static int shaper_qframe(struct shaper *shaper, struct sk_buff *skb)
+
+static int shaper_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	struct shaper *shaper = dev->priv;
  	struct sk_buff *ptr;
    
- 	/*
- 	 *	Get ready to work on this shaper. Lock may fail if its
- 	 *	an interrupt and locked.
- 	 */
- 	 
- 	if(!shaper_lock(shaper))
- 		return -1;
+	if (down_trylock(&shaper->sem))
+		return -1;
+
  	ptr=shaper->sendq.prev;
  	
  	/*
@@ -260,7 +231,8 @@ static int shaper_qframe(struct shaper *shaper, struct sk_buff *skb)
                 dev_kfree_skb(ptr);
                 shaper->stats.collisions++;
  	}
- 	shaper_unlock(shaper);
+	shaper_kick(shaper);
+	up(&shaper->sem);
  	return 0;
 }
 
@@ -297,8 +269,13 @@ static void shaper_queue_xmit(struct shaper *shaper, struct sk_buff *skb)
  
 static void shaper_timer(unsigned long data)
 {
-	struct shaper *sh=(struct shaper *)data;
-	shaper_kick(sh);
+	struct shaper *shaper = (struct shaper *)data;
+
+	if (!down_trylock(&shaper->sem)) {
+		shaper_kick(shaper);
+		up(&shaper->sem);
+	} else
+		mod_timer(&shaper->timer, jiffies);
 }
 
 /*
@@ -310,19 +287,6 @@ static void shaper_kick(struct shaper *shaper)
 {
 	struct sk_buff *skb;
 	
-	/*
-	 *	Shaper unlock will kick
-	 */
-	 
-	if (test_and_set_bit(0, &shaper->locked))
-	{
-		if(sh_debug)
-			printk("Shaper locked.\n");
-		mod_timer(&shaper->timer, jiffies);
-		return;
-	}
-
-		
 	/*
 	 *	Walk the list (may be empty)
 	 */
@@ -364,8 +328,6 @@ static void shaper_kick(struct shaper *shaper)
 	 
 	if(skb!=NULL)
 		mod_timer(&shaper->timer, SHAPERCB(skb)->shapeclock);
-
-	clear_bit(0, &shaper->locked);
 }
 
 
@@ -376,14 +338,12 @@ static void shaper_kick(struct shaper *shaper)
 static void shaper_flush(struct shaper *shaper)
 {
 	struct sk_buff *skb;
- 	if(!shaper_lock(shaper))
-	{
-		printk(KERN_ERR "shaper: shaper_flush() called by an irq!\n");
- 		return;
-	}
+
+	down(&shaper->sem);
 	while((skb=skb_dequeue(&shaper->sendq))!=NULL)
 		dev_kfree_skb(skb);
-	shaper_unlock(shaper);
+	shaper_kick(shaper);
+	up(&shaper->sem);
 }
 
 /*
@@ -425,13 +385,6 @@ static int shaper_close(struct net_device *dev)
  *	for our attached device. This enables us to bandwidth allocate after
  *	ARP and other resolutions and not before.
  */
-
-
-static int shaper_start_xmit(struct sk_buff *skb, struct net_device *dev)
-{
-	struct shaper *sh=dev->priv;
-	return shaper_qframe(sh, skb);
-}
 
 static struct net_device_stats *shaper_get_stats(struct net_device *dev)
 {
@@ -623,7 +576,6 @@ static void shaper_init_priv(struct net_device *dev)
 	init_timer(&sh->timer);
 	sh->timer.function=shaper_timer;
 	sh->timer.data=(unsigned long)sh;
-	init_waitqueue_head(&sh->wait_queue);
 }
 
 /*

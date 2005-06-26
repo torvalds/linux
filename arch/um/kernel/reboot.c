@@ -38,14 +38,14 @@ static void kill_off_processes(void)
 
 void uml_cleanup(void)
 {
-	kill_off_processes();
+        kmalloc_ok = 0;
 	do_uml_exitcalls();
+	kill_off_processes();
 }
 
 void machine_restart(char * __unused)
 {
-	do_uml_exitcalls();
-	kill_off_processes();
+        uml_cleanup();
 	CHOOSE_MODE(reboot_tt(), reboot_skas());
 }
 
@@ -53,8 +53,7 @@ EXPORT_SYMBOL(machine_restart);
 
 void machine_power_off(void)
 {
-	do_uml_exitcalls();
-	kill_off_processes();
+        uml_cleanup();
 	CHOOSE_MODE(halt_tt(), halt_skas());
 }
 

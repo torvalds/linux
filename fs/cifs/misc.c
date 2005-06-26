@@ -571,6 +571,7 @@ cifs_convertUCSpath(char *target, const __le16 * source, int maxlen,
 				break;
 			case UNI_LESSTHAN:
 				target[j] = '<';
+				break;
 			default: 
 				len = cp->uni2char(src_char, &target[j], 
 						NLS_MAX_CHARSET_SIZE);

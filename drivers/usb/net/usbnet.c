@@ -2765,7 +2765,7 @@ static int blan_mdlm_bind (struct usbnet *dev, struct usb_interface *intf)
 			}
 			/* expect bcdVersion 1.0, ignore */
 			if (memcmp(&desc->bGUID, blan_guid, 16)
-				    && memcmp(&desc->bGUID, blan_guid, 16) ) {
+				    && memcmp(&desc->bGUID, safe_guid, 16) ) {
 				/* hey, this one might _really_ be MDLM! */
 				dev_dbg (&intf->dev, "MDLM guid\n");
 				goto bad_desc;

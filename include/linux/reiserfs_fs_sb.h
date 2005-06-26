@@ -467,6 +467,8 @@ enum reiserfs_mount_options {
     REISERFS_ERROR_RO,
     REISERFS_ERROR_CONTINUE,
 
+    REISERFS_QUOTA,		/* Some quota option specified */
+
     REISERFS_TEST1,
     REISERFS_TEST2,
     REISERFS_TEST3,

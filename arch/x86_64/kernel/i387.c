@@ -42,7 +42,7 @@ void mxcsr_feature_mask_init(void)
  * Called at bootup to set up the initial FPU state that is later cloned
  * into all processes.
  */
-void __init fpu_init(void)
+void __cpuinit fpu_init(void)
 {
 	unsigned long oldcr0 = read_cr0();
 	extern void __bad_fxsave_alignment(void);

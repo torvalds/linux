@@ -79,13 +79,13 @@ static void shutdown_opsput_irq(unsigned int irq)
 
 static struct hw_interrupt_type opsput_irq_type =
 {
-	"OPSPUT-IRQ",
-	startup_opsput_irq,
-	shutdown_opsput_irq,
-	enable_opsput_irq,
-	disable_opsput_irq,
-	mask_and_ack_opsput,
-	end_opsput_irq
+	.typename = "OPSPUT-IRQ",
+	.startup = startup_opsput_irq,
+	.shutdown = shutdown_opsput_irq,
+	.enable = enable_opsput_irq,
+	.disable = disable_opsput_irq,
+	.ack = mask_and_ack_opsput,
+	.end = end_opsput_irq
 };
 
 /*
@@ -156,13 +156,13 @@ static void shutdown_opsput_pld_irq(unsigned int irq)
 
 static struct hw_interrupt_type opsput_pld_irq_type =
 {
-	"OPSPUT-PLD-IRQ",
-	startup_opsput_pld_irq,
-	shutdown_opsput_pld_irq,
-	enable_opsput_pld_irq,
-	disable_opsput_pld_irq,
-	mask_and_ack_opsput_pld,
-	end_opsput_pld_irq
+	.typename = "OPSPUT-PLD-IRQ",
+	.startup = startup_opsput_pld_irq,
+	.shutdown = shutdown_opsput_pld_irq,
+	.enable = enable_opsput_pld_irq,
+	.disable = disable_opsput_pld_irq,
+	.ack = mask_and_ack_opsput_pld,
+	.end = end_opsput_pld_irq
 };
 
 /*

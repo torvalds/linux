@@ -95,7 +95,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 			schedule();
 		}
 
-		if (try_to_freeze(0))
+		if (try_to_freeze())
 			continue;
 
 		cond_resched();

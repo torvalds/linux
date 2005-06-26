@@ -52,7 +52,7 @@ WaitNoBusy(struct IsdnCardState *cs)
 		return (to);
 }
 
-int
+static int
 GetFreeFifoBytes(struct BCState *bcs)
 {
 	int s;
@@ -66,7 +66,7 @@ GetFreeFifoBytes(struct BCState *bcs)
 	return (s);
 }
 
-int
+static int
 ReadZReg(struct BCState *bcs, u_char reg)
 {
 	int val;
@@ -394,7 +394,7 @@ main_irq_hfc(struct BCState *bcs)
 	return;
 }
 
-void
+static void
 mode_hfc(struct BCState *bcs, int mode, int bc)
 {
 	struct IsdnCardState *cs = bcs->cs;
@@ -507,7 +507,7 @@ hfc_l2l1(struct PStack *st, int pr, void *arg)
 }
 
 
-void
+static void
 close_hfcstate(struct BCState *bcs)
 {
 	mode_hfc(bcs, 0, bcs->channel);
@@ -537,7 +537,7 @@ open_hfcstate(struct IsdnCardState *cs, struct BCState *bcs)
 	return (0);
 }
 
-int
+static int
 setstack_hfc(struct PStack *st, struct BCState *bcs)
 {
 	bcs->channel = st->l1.bc;
@@ -551,7 +551,7 @@ setstack_hfc(struct PStack *st, struct BCState *bcs)
 	return (0);
 }
 
-void __init
+static void __init
 init_send(struct BCState *bcs)
 {
 	int i;

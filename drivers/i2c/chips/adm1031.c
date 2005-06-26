@@ -292,11 +292,11 @@ set_fan_auto_channel(struct device *dev, const char *buf, size_t count, int nr)
 }
 
 #define fan_auto_channel_offset(offset)						\
-static ssize_t show_fan_auto_channel_##offset (struct device *dev, char *buf)	\
+static ssize_t show_fan_auto_channel_##offset (struct device *dev, struct device_attribute *attr, char *buf)	\
 {										\
 	return show_fan_auto_channel(dev, buf, offset - 1);			\
 }										\
-static ssize_t set_fan_auto_channel_##offset (struct device *dev,		\
+static ssize_t set_fan_auto_channel_##offset (struct device *dev, struct device_attribute *attr,		\
 	const char *buf, size_t count)						\
 {										\
 	return set_fan_auto_channel(dev, buf, count, offset - 1);		\
@@ -357,24 +357,24 @@ set_auto_temp_max(struct device *dev, const char *buf, size_t count, int nr)
 }
 
 #define auto_temp_reg(offset)							\
-static ssize_t show_auto_temp_##offset##_off (struct device *dev, char *buf)	\
+static ssize_t show_auto_temp_##offset##_off (struct device *dev, struct device_attribute *attr, char *buf)	\
 {										\
 	return show_auto_temp_off(dev, buf, offset - 1);			\
 }										\
-static ssize_t show_auto_temp_##offset##_min (struct device *dev, char *buf)	\
+static ssize_t show_auto_temp_##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)	\
 {										\
 	return show_auto_temp_min(dev, buf, offset - 1);			\
 }										\
-static ssize_t show_auto_temp_##offset##_max (struct device *dev, char *buf)	\
+static ssize_t show_auto_temp_##offset##_max (struct device *dev, struct device_attribute *attr, char *buf)	\
 {										\
 	return show_auto_temp_max(dev, buf, offset - 1);			\
 }										\
-static ssize_t set_auto_temp_##offset##_min (struct device *dev,		\
+static ssize_t set_auto_temp_##offset##_min (struct device *dev, struct device_attribute *attr,		\
 					     const char *buf, size_t count)	\
 {										\
 	return set_auto_temp_min(dev, buf, count, offset - 1);		\
 }										\
-static ssize_t set_auto_temp_##offset##_max (struct device *dev,		\
+static ssize_t set_auto_temp_##offset##_max (struct device *dev, struct device_attribute *attr,		\
 					     const char *buf, size_t count)	\
 {										\
 	return set_auto_temp_max(dev, buf, count, offset - 1);		\
@@ -421,11 +421,11 @@ set_pwm(struct device *dev, const char *buf, size_t count, int nr)
 }
 
 #define pwm_reg(offset)							\
-static ssize_t show_pwm_##offset (struct device *dev, char *buf)	\
+static ssize_t show_pwm_##offset (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_pwm(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_pwm_##offset (struct device *dev,			\
+static ssize_t set_pwm_##offset (struct device *dev, struct device_attribute *attr,			\
 				 const char *buf, size_t count)		\
 {									\
 	return set_pwm(dev, buf, count, offset - 1);		\
@@ -440,7 +440,7 @@ pwm_reg(2);
 
 /*
  * That function checks the cases where the fan reading is not
- * relevent.  It is used to provide 0 as fan reading when the fan is
+ * relevant.  It is used to provide 0 as fan reading when the fan is
  * not supposed to run
  */
 static int trust_fan_readings(struct adm1031_data *data, int chan)
@@ -557,24 +557,24 @@ set_fan_div(struct device *dev, const char *buf, size_t count, int nr)
 }
 
 #define fan_offset(offset)						\
-static ssize_t show_fan_##offset (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_fan(dev, buf, offset - 1);			\
 }									\
-static ssize_t show_fan_##offset##_min (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_fan_min(dev, buf, offset - 1);			\
 }									\
-static ssize_t show_fan_##offset##_div (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset##_div (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_fan_div(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_fan_##offset##_min (struct device *dev,		\
+static ssize_t set_fan_##offset##_min (struct device *dev, struct device_attribute *attr,		\
 	const char *buf, size_t count)					\
 {									\
 	return set_fan_min(dev, buf, count, offset - 1);		\
 }									\
-static ssize_t set_fan_##offset##_div (struct device *dev,		\
+static ssize_t set_fan_##offset##_div (struct device *dev, struct device_attribute *attr,		\
 	const char *buf, size_t count)					\
 {									\
 	return set_fan_div(dev, buf, count, offset - 1);		\
@@ -667,33 +667,33 @@ set_temp_crit(struct device *dev, const char *buf, size_t count, int nr)
 }
 
 #define temp_reg(offset)							\
-static ssize_t show_temp_##offset (struct device *dev, char *buf)		\
+static ssize_t show_temp_##offset (struct device *dev, struct device_attribute *attr, char *buf)		\
 {										\
 	return show_temp(dev, buf, offset - 1);				\
 }										\
-static ssize_t show_temp_##offset##_min (struct device *dev, char *buf)		\
+static ssize_t show_temp_##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)		\
 {										\
 	return show_temp_min(dev, buf, offset - 1);				\
 }										\
-static ssize_t show_temp_##offset##_max (struct device *dev, char *buf)		\
+static ssize_t show_temp_##offset##_max (struct device *dev, struct device_attribute *attr, char *buf)		\
 {										\
 	return show_temp_max(dev, buf, offset - 1);				\
 }										\
-static ssize_t show_temp_##offset##_crit (struct device *dev, char *buf)	\
+static ssize_t show_temp_##offset##_crit (struct device *dev, struct device_attribute *attr, char *buf)	\
 {										\
 	return show_temp_crit(dev, buf, offset - 1);			\
 }										\
-static ssize_t set_temp_##offset##_min (struct device *dev,			\
+static ssize_t set_temp_##offset##_min (struct device *dev, struct device_attribute *attr,			\
 					const char *buf, size_t count)		\
 {										\
 	return set_temp_min(dev, buf, count, offset - 1);			\
 }										\
-static ssize_t set_temp_##offset##_max (struct device *dev,			\
+static ssize_t set_temp_##offset##_max (struct device *dev, struct device_attribute *attr,			\
 					const char *buf, size_t count)		\
 {										\
 	return set_temp_max(dev, buf, count, offset - 1);			\
 }										\
-static ssize_t set_temp_##offset##_crit (struct device *dev,			\
+static ssize_t set_temp_##offset##_crit (struct device *dev, struct device_attribute *attr,			\
 					 const char *buf, size_t count)		\
 {										\
 	return set_temp_crit(dev, buf, count, offset - 1);			\
@@ -712,7 +712,7 @@ temp_reg(2);
 temp_reg(3);
 
 /* Alarms */
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1031_data *data = adm1031_update_device(dev);
 	return sprintf(buf, "%d\n", data->alarm);

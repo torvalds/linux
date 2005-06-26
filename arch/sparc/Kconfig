@@ -264,7 +264,11 @@ config SUNOS_EMUL
 	  want to run SunOS binaries on an Ultra you must also say Y to
 	  "Kernel support for 32-bit a.out binaries" above.
 
-source "drivers/parport/Kconfig"
+source "mm/Kconfig"
+
+endmenu
+
+source "drivers/Kconfig"
 
 config PRINTER
 	tristate "Parallel printer support"
@@ -290,6 +294,8 @@ config PRINTER
 
 	  If you have more than 8 printers, you need to increase the LP_NO
 	  macro in lp.c and the PARPORT_MAX macro in parport.h.
+
+source "mm/Kconfig"
 
 endmenu
 
@@ -372,17 +378,7 @@ config UNIX98_PTY_COUNT
 
 endmenu
 
-source "drivers/input/Kconfig"
-
 source "fs/Kconfig"
-
-source "sound/Kconfig"
-
-source "drivers/usb/Kconfig"
-
-source "drivers/infiniband/Kconfig"
-
-source "drivers/char/watchdog/Kconfig"
 
 source "arch/sparc/Kconfig.debug"
 

@@ -633,7 +633,7 @@ static const struct usb_gadget_ops dummy_ops = {
 
 /* "function" sysfs attribute */
 static ssize_t
-show_function (struct device *dev, char *buf)
+show_function (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct dummy	*dum = gadget_dev_to_dummy (dev);
 
@@ -1600,7 +1600,7 @@ show_urb (char *buf, size_t size, struct urb *urb)
 }
 
 static ssize_t
-show_urbs (struct device *dev, char *buf)
+show_urbs (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_hcd		*hcd = dev_get_drvdata (dev);
 	struct dummy		*dum = hcd_to_dummy (hcd);

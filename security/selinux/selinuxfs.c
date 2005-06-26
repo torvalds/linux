@@ -951,8 +951,7 @@ static int sel_make_bools(void)
 	u32 sid;
 
 	/* remove any existing files */
-	if (bool_pending_values)
-		kfree(bool_pending_values);
+	kfree(bool_pending_values);
 
 	sel_remove_bools(dir);
 
@@ -997,10 +996,8 @@ static int sel_make_bools(void)
 out:
 	free_page((unsigned long)page);
 	if (names) {
-		for (i = 0; i < num; i++) {
-			if (names[i])
-				kfree(names[i]);
-		}
+		for (i = 0; i < num; i++)
+			kfree(names[i]);
 		kfree(names);
 	}
 	return ret;

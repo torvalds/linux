@@ -21,11 +21,25 @@
 #include <asm/intrinsics.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
+#include <asm/kdebug.h>
 
 extern spinlock_t timerlist_lock;
 
 fpswa_interface_t *fpswa_interface;
 EXPORT_SYMBOL(fpswa_interface);
+
+struct notifier_block *ia64die_chain;
+static DEFINE_SPINLOCK(die_notifier_lock);
+
+int register_die_notifier(struct notifier_block *nb)
+{
+	int err = 0;
+	unsigned long flags;
+	spin_lock_irqsave(&die_notifier_lock, flags);
+	err = notifier_chain_register(&ia64die_chain, nb);
+	spin_unlock_irqrestore(&die_notifier_lock, flags);
+	return err;
+}
 
 void __init
 trap_init (void)
@@ -111,6 +125,24 @@ ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 	siginfo_t siginfo;
 	int sig, code;
 
+	/* break.b always sets cr.iim to 0, which causes problems for
+	 * debuggers.  Get the real break number from the original instruction,
+	 * but only for kernel code.  User space break.b is left alone, to
+	 * preserve the existing behaviour.  All break codings have the same
+	 * format, so there is no need to check the slot type.
+	 */
+	if (break_num == 0 && !user_mode(regs)) {
+		struct ia64_psr *ipsr = ia64_psr(regs);
+		unsigned long *bundle = (unsigned long *)regs->cr_iip;
+		unsigned long slot;
+		switch (ipsr->ri) {
+		      case 0:  slot = (bundle[0] >>  5); break;
+		      case 1:  slot = (bundle[0] >> 46) | (bundle[1] << 18); break;
+		      default: slot = (bundle[1] >> 23); break;
+		}
+		break_num = ((slot >> 36 & 1) << 20) | (slot >> 6 & 0xfffff);
+	}
+
 	/* SIGILL, SIGFPE, SIGSEGV, and SIGBUS want these field initialized: */
 	siginfo.si_addr = (void __user *) (regs->cr_iip + ia64_psr(regs)->ri);
 	siginfo.si_imm = break_num;
@@ -119,6 +151,10 @@ ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 
 	switch (break_num) {
 	      case 0: /* unknown error (used by GCC for __builtin_abort()) */
+		if (notify_die(DIE_BREAK, "break 0", regs, break_num, TRAP_BRKPT, SIGTRAP)
+			       	== NOTIFY_STOP) {
+			return;
+		}
 		die_if_kernel("bugcheck!", regs, break_num);
 		sig = SIGILL; code = ILL_ILLOPC;
 		break;
@@ -171,6 +207,15 @@ ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 		sig = SIGILL; code = __ILL_BNDMOD;
 		break;
 
+	      case 0x80200:
+	      case 0x80300:
+		if (notify_die(DIE_BREAK, "kprobe", regs, break_num, TRAP_BRKPT, SIGTRAP)
+			       	== NOTIFY_STOP) {
+			return;
+		}
+		sig = SIGTRAP; code = TRAP_BRKPT;
+		break;
+
 	      default:
 		if (break_num < 0x40000 || break_num > 0x100000)
 			die_if_kernel("Bad break", regs, break_num);
@@ -202,13 +247,21 @@ disabled_fph_fault (struct pt_regs *regs)
 
 	/* first, grant user-level access to fph partition: */
 	psr->dfh = 0;
+
+	/*
+	 * Make sure that no other task gets in on this processor
+	 * while we're claiming the FPU
+	 */
+	preempt_disable();
 #ifndef CONFIG_SMP
 	{
 		struct task_struct *fpu_owner
 			= (struct task_struct *)ia64_get_kr(IA64_KR_FPU_OWNER);
 
-		if (ia64_is_local_fpu_owner(current))
+		if (ia64_is_local_fpu_owner(current)) {
+			preempt_enable_no_resched();
 			return;
+		}
 
 		if (fpu_owner)
 			ia64_flush_fph(fpu_owner);
@@ -226,6 +279,7 @@ disabled_fph_fault (struct pt_regs *regs)
 		 */
 		psr->mfh = 1;
 	}
+	preempt_enable_no_resched();
 }
 
 static inline int
@@ -521,7 +575,11 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 #endif
 			break;
 		      case 35: siginfo.si_code = TRAP_BRANCH; ifa = 0; break;
-		      case 36: siginfo.si_code = TRAP_TRACE; ifa = 0; break;
+		      case 36:
+			      if (notify_die(DIE_SS, "ss", &regs, vector,
+					     vector, SIGTRAP) == NOTIFY_STOP)
+				      return;
+			      siginfo.si_code = TRAP_TRACE; ifa = 0; break;
 		}
 		siginfo.si_signo = SIGTRAP;
 		siginfo.si_errno = 0;

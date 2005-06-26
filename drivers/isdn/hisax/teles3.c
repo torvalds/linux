@@ -21,7 +21,7 @@
 #include "isdnl1.h"
 
 extern const char *CardType[];
-const char *teles3_revision = "$Revision: 2.19.2.4 $";
+static const char *teles3_revision = "$Revision: 2.19.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
 #define bytein(addr) inb(addr)
@@ -154,7 +154,7 @@ release_ioregs(struct IsdnCardState *cs, int mask)
 		release_region(cs->hw.teles3.hscx[1] + 32, 32);
 }
 
-void
+static void
 release_io_teles3(struct IsdnCardState *cs)
 {
 	if (cs->typ == ISDN_CTYPE_TELESPCMCIA) {

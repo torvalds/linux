@@ -560,14 +560,15 @@ void show_mem(void)
 		int shared = 0, cached = 0, reserved = 0;
 		printk("Node ID: %d\n", pgdat->node_id);
 		for(i = 0; i < pgdat->node_spanned_pages; i++) {
+			struct page *page = pgdat_page_nr(pgdat, i);
 			if (!ia64_pfn_valid(pgdat->node_start_pfn+i))
 				continue;
-			if (PageReserved(pgdat->node_mem_map+i))
+			if (PageReserved(page))
 				reserved++;
-			else if (PageSwapCache(pgdat->node_mem_map+i))
+			else if (PageSwapCache(page))
 				cached++;
-			else if (page_count(pgdat->node_mem_map+i))
-				shared += page_count(pgdat->node_mem_map+i)-1;
+			else if (page_count(page))
+				shared += page_count(page)-1;
 		}
 		total_present += present;
 		total_reserved += reserved;

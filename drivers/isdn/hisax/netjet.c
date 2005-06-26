@@ -25,8 +25,6 @@
 #include <asm/io.h>
 #include "netjet.h"
 
-const char *NETjet_revision = "$Revision: 1.29.2.4 $";
-
 /* Interface functions */
 
 u_char
@@ -66,7 +64,7 @@ NETjet_WriteICfifo(struct IsdnCardState *cs, u_char *data, int size)
 	outsb(cs->hw.njet.isac, data, size);
 }
 
-void fill_mem(struct BCState *bcs, u_int *pos, u_int cnt, int chan, u_char fill)
+static void fill_mem(struct BCState *bcs, u_int *pos, u_int cnt, int chan, u_char fill)
 {
 	u_int mask=0x000000ff, val = 0, *p=pos;
 	u_int i;
@@ -85,7 +83,7 @@ void fill_mem(struct BCState *bcs, u_int *pos, u_int cnt, int chan, u_char fill)
 	}
 }
 
-void
+static void
 mode_tiger(struct BCState *bcs, int mode, int bc)
 {
 	struct IsdnCardState *cs = bcs->cs;
@@ -852,7 +850,7 @@ tiger_l2l1(struct PStack *st, int pr, void *arg)
 }
 
 
-void
+static void
 close_tigerstate(struct BCState *bcs)
 {
 	mode_tiger(bcs, 0, bcs->channel);
@@ -900,7 +898,7 @@ open_tigerstate(struct IsdnCardState *cs, struct BCState *bcs)
 	return (0);
 }
 
-int
+static int
 setstack_tiger(struct PStack *st, struct BCState *bcs)
 {
 	bcs->channel = st->l1.bc;
@@ -966,7 +964,7 @@ inittiger(struct IsdnCardState *cs)
 	cs->bcs[1].BC_Close = close_tigerstate;
 }
 
-void
+static void
 releasetiger(struct IsdnCardState *cs)
 {
 	if (cs->bcs[0].hw.tiger.send) {

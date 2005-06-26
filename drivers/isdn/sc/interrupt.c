@@ -31,7 +31,7 @@ extern void rcvpkt(int, RspMessage *);
 extern int cinst;
 extern board *sc_adapter[];
 
-int get_card_from_irq(int irq)
+static int get_card_from_irq(int irq)
 {
 	int i;
 

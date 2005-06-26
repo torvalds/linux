@@ -23,7 +23,7 @@
 
 extern const char *CardType[];
 
-const char *teles0_revision = "$Revision: 2.15.2.4 $";
+static const char *teles0_revision = "$Revision: 2.15.2.4 $";
 
 #define TELES_IOMEM_SIZE	0x400
 #define byteout(addr,val) outb(val,addr)
@@ -183,7 +183,7 @@ teles0_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_teles0(struct IsdnCardState *cs)
 {
 	if (cs->hw.teles0.cfg_reg)

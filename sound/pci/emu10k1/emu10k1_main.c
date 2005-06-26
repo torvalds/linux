@@ -170,7 +170,7 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 			SPCS_GENERATIONSTATUS | 0x00001200 |
 			0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT);
 
-	if (emu->audigy && emu->revision == 4) { /* audigy2 */
+	if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
 		/* Hacks for Alice3 to work independent of haP16V driver */
 		u32 tmp;
 
@@ -189,7 +189,7 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 		/* Enabled Phased (8-channel) P16V playback */
 		outl(0x0201, emu->port + HCFG2);
 		/* Set playback routing. */
-		snd_emu10k1_ptr_write(emu, CAPTURE_P16V_SOURCE, 0, 78e4);
+		snd_emu10k1_ptr20_write(emu, CAPTURE_P16V_SOURCE, 0, 0x78e4);
 	}
 	if (emu->audigy && (emu->serial == 0x10011102) ) { /* audigy2 Value */
 		/* Hacks for Alice3 to work independent of haP16V driver */
@@ -600,7 +600,7 @@ static int snd_emu10k1_free(emu10k1_t *emu)
 	if (emu->port)
 		pci_release_regions(emu->pci);
 	pci_disable_device(emu->pci);
-	if (emu->audigy && emu->revision == 4) /* P16V */	
+	if (emu->card_capabilities->ca0151_chip) /* P16V */	
 		snd_p16v_free(emu);
 	kfree(emu);
 	return 0;
@@ -612,21 +612,24 @@ static int snd_emu10k1_dev_free(snd_device_t *device)
 	return snd_emu10k1_free(emu);
 }
 
-/* vendor, device, subsystem, emu10k1_chip, emu10k2_chip, ca0102_chip, ca0108_chip, ca0151_chip, spk71, spdif_bug, ac97_chip, ecard, driver, name */
-
 static emu_chip_details_t emu_chip_details[] = {
 	/* Audigy 2 Value AC3 out does not work yet. Need to find out how to turn off interpolators.*/
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10011102,
 	 .driver = "Audigy2", .name = "Audigy 2 Value [SB0400]", 
+	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
-	 .spk71 = 1} ,
+	 .spk71 = 1,
+	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0008, 
 	 .driver = "Audigy2", .name = "Audigy 2 Value [Unknown]", 
+	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
-	 .ca0108_chip = 1} ,
+	 .ca0108_chip = 1,
+	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20071102,
 	 .driver = "Audigy2", .name = "Audigy 4 PRO [SB0380]", 
+	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
@@ -635,6 +638,7 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20021102,
 	 .driver = "Audigy2", .name = "Audigy 2 ZS [SB0350]", 
+	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
@@ -643,6 +647,7 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20011102,
 	 .driver = "Audigy2", .name = "Audigy 2 ZS [2001]", 
+	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
@@ -651,6 +656,7 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10071102,
 	 .driver = "Audigy2", .name = "Audigy 2 [SB0240]", 
+	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
@@ -659,35 +665,165 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10051102,
 	 .driver = "Audigy2", .name = "Audigy 2 EX [1005]", 
+	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
 	 .spdif_bug = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10021102,
 	 .driver = "Audigy2", .name = "Audigy 2 Platinum [SB0240P]", 
+	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
 	 .spdif_bug = 1,
 	 .ac97_chip = 1} ,
-	{.vendor = 0x1102, .device = 0x0004,
-	 .driver = "Audigy", .name = "Audigy 1 or 2 [Unknown]", 
+	{.vendor = 0x1102, .device = 0x0004, .revision = 0x04,
+	 .driver = "Audigy2", .name = "Audigy 2 [Unknown]",
+	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
-	 .spdif_bug = 1} ,
+	 .ca0151_chip = 1,
+	 .spdif_bug = 1,
+	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10020052,
+	 .driver = "Audigy", .name = "Audigy 1 ES [SB0160]", 
+	 .id = "Audigy",
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .spdif_bug = 1,
+	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x00531102,
+	 .driver = "Audigy", .name = "Audigy 1 [SB0090]", 
+	 .id = "Audigy",
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x00511102,
+	 .driver = "Audigy", .name = "Audigy 1 [SB0090]", 
+	 .id = "Audigy",
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0004,
+	 .driver = "Audigy", .name = "Audigy 1 [Unknown]", 
+	 .id = "Audigy",
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x40011102,
 	 .driver = "EMU10K1", .name = "E-mu APS [4001]", 
+	 .id = "APS",
 	 .emu10k1_chip = 1,
 	 .ecard = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80611102,
+	 .driver = "EMU10K1", .name = "SBLive! Player 5.1 [SB0060]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80641102,
 	 .driver = "EMU10K1", .name = "SB Live 5.1", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80401102,
+	 .driver = "EMU10K1", .name = "SBLive! Platinum [CT4760P]", 
+	 .id = "Live",
 	 .emu10k1_chip = 1,
 	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x00211102,
+	 .driver = "EMU10K1", .name = "SBLive! [CT4620]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x00201102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [CT4670]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80221102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [CT4780]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80231102,
+	 .driver = "EMU10K1", .name = "SB PCI512 [CT4790]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80261102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [CT4830]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80311102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [CT4831]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80271102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [CT4832]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80511102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [CT4850]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80281102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [CT4870]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80321102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [CT4871]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80611102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [SB0060]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80691102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [SB0101]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x806A1102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [SB0103]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x806B1102,
+	 .driver = "EMU10K1", .name = "SBLive! [SB0105]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
 	{.vendor = 0x1102, .device = 0x0002,
 	 .driver = "EMU10K1", .name = "SB Live [Unknown]", 
+	 .id = "Live",
 	 .emu10k1_chip = 1,
-	 .ac97_chip = 1} ,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
 	{ } /* terminator */
 };
 
@@ -738,13 +874,15 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	emu->revision = revision;
 	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &emu->serial);
 	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &emu->model);
-	emu->card_type = EMU10K1_CARD_CREATIVE;
 	snd_printdd("vendor=0x%x, device=0x%x, subsystem_vendor_id=0x%x, subsystem_id=0x%x\n",pci->vendor, pci->device, emu->serial, emu->model);
 
 	for (c = emu_chip_details; c->vendor; c++) {
 		if (c->vendor == pci->vendor && c->device == pci->device) {
-			if (c->subsystem == emu->serial) break;
-			if (c->subsystem == 0) break;
+			if (c->subsystem && c->subsystem != emu->serial)
+				continue;
+			if (c->revision && c->revision != emu->revision)
+				continue;
+			break;
 		}
 	}
 	if (c->vendor == 0) {
@@ -759,6 +897,23 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	else
 		snd_printdd("Sound card name=%s, vendor=0x%x, device=0x%x, subsystem=0x%x\n", c->name, pci->vendor, pci->device, emu->serial);
 	
+	if (!*card->id && c->id) {
+		int i, n = 0;
+		strlcpy(card->id, c->id, sizeof(card->id));
+		for (;;) {
+			for (i = 0; i < snd_ecards_limit; i++) {
+				if (snd_cards[i] && !strcmp(snd_cards[i]->id, card->id))
+					break;
+			}
+			if (i >= snd_ecards_limit)
+				break;
+			n++;
+			if (n >= SNDRV_CARDS)
+				break;
+			snprintf(card->id, sizeof(card->id), "%s_%d", c->id, n);
+		}
+	}
+
 	is_audigy = emu->audigy = c->emu10k2_chip;
 
 	/* set the DMA transfer mask */
@@ -816,15 +971,6 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 
 	pci_set_master(pci);
 
-	if (c->ecard) {
-		emu->card_type = EMU10K1_CARD_EMUAPS;
-		emu->APS = 1;
-	}
-	if (! c->ac97_chip)
-		emu->no_ac97 = 1;
-	
-	emu->spk71 = c->spk71;
-	
 	emu->fx8010.fxbus_mask = 0x303f;
 	if (extin_mask == 0)
 		extin_mask = 0x3fcf;
@@ -833,7 +979,7 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	emu->fx8010.extin_mask = extin_mask;
 	emu->fx8010.extout_mask = extout_mask;
 
-	if (emu->APS) {
+	if (emu->card_capabilities->ecard) {
 		if ((err = snd_emu10k1_ecard_init(emu)) < 0) {
 			snd_emu10k1_free(emu);
 			return err;

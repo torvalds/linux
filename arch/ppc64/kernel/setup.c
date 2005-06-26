@@ -41,7 +41,6 @@
 #include <asm/smp.h>
 #include <asm/elf.h>
 #include <asm/machdep.h>
-#include <asm/iSeries/LparData.h>
 #include <asm/paca.h>
 #include <asm/ppcdebug.h>
 #include <asm/time.h>
@@ -57,6 +56,8 @@
 #include <asm/cache.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
+#include <asm/lmb.h>
+#include <asm/iSeries/ItLpNaca.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -102,11 +103,6 @@ extern void early_init_devtree(void *flat_dt);
 extern void unflatten_device_tree(void);
 
 extern void smp_release_cpus(void);
-
-unsigned long decr_overclock = 1;
-unsigned long decr_overclock_proc0 = 1;
-unsigned long decr_overclock_set = 0;
-unsigned long decr_overclock_proc0_set = 0;
 
 int have_of = 1;
 int boot_cpuid = 0;
@@ -348,6 +344,7 @@ static void __init setup_cpu_maps(void)
 extern struct machdep_calls pSeries_md;
 extern struct machdep_calls pmac_md;
 extern struct machdep_calls maple_md;
+extern struct machdep_calls bpa_md;
 
 /* Ultimately, stuff them in an elf section like initcalls... */
 static struct machdep_calls __initdata *machines[] = {
@@ -360,6 +357,9 @@ static struct machdep_calls __initdata *machines[] = {
 #ifdef CONFIG_PPC_MAPLE
 	&maple_md,
 #endif /* CONFIG_PPC_MAPLE */
+#ifdef CONFIG_PPC_BPA
+	&bpa_md,
+#endif
 	NULL
 };
 
@@ -677,36 +677,51 @@ void __init setup_system(void)
 	DBG(" <- setup_system()\n");
 }
 
+/* also used by kexec */
+void machine_shutdown(void)
+{
+	if (ppc_md.nvram_sync)
+		ppc_md.nvram_sync();
+}
 
 void machine_restart(char *cmd)
 {
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
+	machine_shutdown();
 	ppc_md.restart(cmd);
+#ifdef CONFIG_SMP
+	smp_send_stop();
+#endif
+	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1) ;
 }
-
 EXPORT_SYMBOL(machine_restart);
-  
+
 void machine_power_off(void)
 {
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
+	machine_shutdown();
 	ppc_md.power_off();
+#ifdef CONFIG_SMP
+	smp_send_stop();
+#endif
+	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1) ;
 }
-
 EXPORT_SYMBOL(machine_power_off);
-  
+
 void machine_halt(void)
 {
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
+	machine_shutdown();
 	ppc_md.halt();
+#ifdef CONFIG_SMP
+	smp_send_stop();
+#endif
+	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1) ;
 }
-
 EXPORT_SYMBOL(machine_halt);
-
-unsigned long ppc_proc_freq;
-unsigned long ppc_tb_freq;
 
 static int ppc64_panic_event(struct notifier_block *this,
                              unsigned long event, void *ptr)
@@ -1059,6 +1074,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();
+	sparse_init();
 
 	/* initialize the syscall map in systemcfg */
 	setup_syscall_map();
@@ -1083,11 +1099,11 @@ void __init setup_arch(char **cmdline_p)
 static void ppc64_do_msg(unsigned int src, const char *msg)
 {
 	if (ppc_md.progress) {
-		char buf[32];
+		char buf[128];
 
-		sprintf(buf, "%08x        \n", src);
+		sprintf(buf, "%08X\n", src);
 		ppc_md.progress(buf, 0);
-		sprintf(buf, "%-16s", msg);
+		snprintf(buf, 128, "%s", msg);
 		ppc_md.progress(buf, 0);
 	}
 }
@@ -1120,63 +1136,14 @@ void ppc64_dump_msg(unsigned int src, const char *msg)
 	printk("[dump]%04x %s\n", src, msg);
 }
 
-int set_spread_lpevents( char * str )
-{
-	/* The parameter is the number of processors to share in processing lp events */
-	unsigned long i;
-	unsigned long val = simple_strtoul( str, NULL, 0 );
-	if ( ( val > 0 ) && ( val <= NR_CPUS ) ) {
-		for ( i=1; i<val; ++i )
-			paca[i].lpqueue_ptr = paca[0].lpqueue_ptr;
-		printk("lpevent processing spread over %ld processors\n", val);
-	}
-	else
-		printk("invalid spreaqd_lpevents %ld\n", val);
-	return 1;
-}	
-
 /* This should only be called on processor 0 during calibrate decr */
-void setup_default_decr(void)
+void __init setup_default_decr(void)
 {
 	struct paca_struct *lpaca = get_paca();
 
-	if ( decr_overclock_set && !decr_overclock_proc0_set )
-		decr_overclock_proc0 = decr_overclock;
-
-	lpaca->default_decr = tb_ticks_per_jiffy / decr_overclock_proc0;	
+	lpaca->default_decr = tb_ticks_per_jiffy;
 	lpaca->next_jiffy_update_tb = get_tb() + tb_ticks_per_jiffy;
 }
-
-int set_decr_overclock_proc0( char * str )
-{
-	unsigned long val = simple_strtoul( str, NULL, 0 );
-	if ( ( val >= 1 ) && ( val <= 48 ) ) {
-		decr_overclock_proc0_set = 1;
-		decr_overclock_proc0 = val;
-		printk("proc 0 decrementer overclock factor of %ld\n", val);
-	}
-	else
-		printk("invalid proc 0 decrementer overclock factor of %ld\n", val);
-	return 1;
-}
-
-int set_decr_overclock( char * str )
-{
-	unsigned long val = simple_strtoul( str, NULL, 0 );
-	if ( ( val >= 1 ) && ( val <= 48 ) ) {
-		decr_overclock_set = 1;
-		decr_overclock = val;
-		printk("decrementer overclock factor of %ld\n", val);
-	}
-	else
-		printk("invalid decrementer overclock factor of %ld\n", val);
-	return 1;
-
-}
-
-__setup("spread_lpevents=", set_spread_lpevents );
-__setup("decr_overclock_proc0=", set_decr_overclock_proc0 );
-__setup("decr_overclock=", set_decr_overclock );
 
 #ifndef CONFIG_PPC_ISERIES
 /*

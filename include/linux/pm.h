@@ -103,7 +103,8 @@ extern int pm_active;
 /*
  * Register a device with power management
  */
-struct pm_dev __deprecated *pm_register(pm_dev_t type, unsigned long id, pm_callback callback);
+struct pm_dev __deprecated *
+pm_register(pm_dev_t type, unsigned long id, pm_callback callback);
 
 /*
  * Unregister a device with power management
@@ -190,17 +191,18 @@ typedef u32 __bitwise pm_message_t;
 /*
  * There are 4 important states driver can be in:
  * ON     -- driver is working
- * FREEZE -- stop operations and apply whatever policy is applicable to a suspended driver
- *           of that class, freeze queues for block like IDE does, drop packets for
- *           ethernet, etc... stop DMA engine too etc... so a consistent image can be
- *           saved; but do not power any hardware down.
- * SUSPEND - like FREEZE, but hardware is doing as much powersaving as possible. Roughly
- *           pci D3.
+ * FREEZE -- stop operations and apply whatever policy is applicable to a
+ *           suspended driver of that class, freeze queues for block like IDE
+ *           does, drop packets for ethernet, etc... stop DMA engine too etc...
+ *           so a consistent image can be saved; but do not power any hardware
+ *           down.
+ * SUSPEND - like FREEZE, but hardware is doing as much powersaving as
+ *           possible. Roughly pci D3.
  *
- * Unfortunately, current drivers only recognize numeric values 0 (ON) and 3 (SUSPEND).
- * We'll need to fix the drivers. So yes, putting 3 to all diferent defines is intentional,
- * and will go away as soon as drivers are fixed. Also note that typedef is neccessary,
- * we'll probably want to switch to
+ * Unfortunately, current drivers only recognize numeric values 0 (ON) and 3
+ * (SUSPEND).  We'll need to fix the drivers. So yes, putting 3 to all different
+ * defines is intentional, and will go away as soon as drivers are fixed.  Also
+ * note that typedef is neccessary, we'll probably want to switch to
  *   typedef struct pm_message_t { int event; int flags; } pm_message_t
  * or something similar soon.
  */
@@ -222,11 +224,18 @@ struct dev_pm_info {
 
 extern void device_pm_set_parent(struct device * dev, struct device * parent);
 
-extern int device_suspend(pm_message_t state);
 extern int device_power_down(pm_message_t state);
 extern void device_power_up(void);
 extern void device_resume(void);
 
+#ifdef CONFIG_PM
+extern int device_suspend(pm_message_t state);
+#else
+static inline int device_suspend(pm_message_t state)
+{
+	return 0;
+}
+#endif
 
 #endif /* __KERNEL__ */
 

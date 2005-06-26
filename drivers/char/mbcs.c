@@ -699,7 +699,7 @@ static inline int mbcs_hw_init(struct mbcs_soft *soft)
 	return 0;
 }
 
-static ssize_t show_algo(struct device *dev, char *buf)
+static ssize_t show_algo(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cx_dev *cx_dev = to_cx_dev(dev);
 	struct mbcs_soft *soft = cx_dev->soft;
@@ -715,7 +715,7 @@ static ssize_t show_algo(struct device *dev, char *buf)
 		       (debug0 >> 32), (debug0 & 0xffffffff));
 }
 
-static ssize_t store_algo(struct device *dev, const char *buf, size_t count)
+static ssize_t store_algo(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int n;
 	struct cx_dev *cx_dev = to_cx_dev(dev);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -66,7 +66,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
 #include "xfs_version.h"
-#include "xfs_ioctl32.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -484,7 +483,7 @@ xfssyncd(
 		set_current_state(TASK_INTERRUPTIBLE);
 		timeleft = schedule_timeout(timeleft);
 		/* swsusp */
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 		if (vfsp->vfs_flag & VFS_UMOUNT)
 			break;
 
@@ -591,8 +590,10 @@ linvfs_sync_super(
 	int		error;
 	int		flags = SYNC_FSDATA;
 
-	if (wait)
-		flags |= SYNC_WAIT;
+	if (unlikely(sb->s_frozen == SB_FREEZE_WRITE))
+		flags = SYNC_QUIESCE;
+	else
+		flags = SYNC_FSDATA | (wait ? SYNC_WAIT : 0);
 
 	VFS_SYNC(vfsp, flags, NULL, error);
 	sb->s_dirt = 0;
@@ -702,7 +703,8 @@ linvfs_getxquota(
 	struct vfs		*vfsp = LINVFS_GET_VFS(sb);
 	int			error, getmode;
 
-	getmode = (type == GRPQUOTA) ? Q_XGETGQUOTA : Q_XGETQUOTA;
+	getmode = (type == USRQUOTA) ? Q_XGETQUOTA :
+		 ((type == GRPQUOTA) ? Q_XGETGQUOTA : Q_XGETPQUOTA);
 	VFS_QUOTACTL(vfsp, getmode, id, (caddr_t)fdq, error);
 	return -error;
 }
@@ -717,7 +719,8 @@ linvfs_setxquota(
 	struct vfs		*vfsp = LINVFS_GET_VFS(sb);
 	int			error, setmode;
 
-	setmode = (type == GRPQUOTA) ? Q_XSETGQLIM : Q_XSETQLIM;
+	setmode = (type == USRQUOTA) ? Q_XSETQLIM :
+		 ((type == GRPQUOTA) ? Q_XSETGQLIM : Q_XSETPQLIM);
 	VFS_QUOTACTL(vfsp, setmode, id, (caddr_t)fdq, error);
 	return -error;
 }

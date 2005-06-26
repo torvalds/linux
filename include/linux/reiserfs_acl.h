@@ -1,6 +1,5 @@
 #include <linux/init.h>
 #include <linux/posix_acl.h>
-#include <linux/xattr_acl.h>
 
 #define REISERFS_ACL_VERSION	0x0001
 

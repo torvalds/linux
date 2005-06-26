@@ -29,7 +29,6 @@
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_CLUSTERIP.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
-#include <linux/netfilter_ipv4/lockhelp.h>
 
 #define CLUSTERIP_VERSION "0.6"
 
@@ -40,6 +39,8 @@
 #else
 #define DEBUGP
 #endif
+
+#define ASSERT_READ_LOCK(x)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
@@ -67,7 +68,7 @@ static LIST_HEAD(clusterip_configs);
 
 /* clusterip_lock protects the clusterip_configs list _AND_ the configurable
  * data within all structurses (num_local_nodes, local_nodes[]) */
-static DECLARE_RWLOCK(clusterip_lock);
+static DEFINE_RWLOCK(clusterip_lock);
 
 #ifdef CONFIG_PROC_FS
 static struct file_operations clusterip_proc_fops;
@@ -82,9 +83,9 @@ clusterip_config_get(struct clusterip_config *c) {
 static inline void
 clusterip_config_put(struct clusterip_config *c) {
 	if (atomic_dec_and_test(&c->refcount)) {
-		WRITE_LOCK(&clusterip_lock);
+		write_lock_bh(&clusterip_lock);
 		list_del(&c->list);
-		WRITE_UNLOCK(&clusterip_lock);
+		write_unlock_bh(&clusterip_lock);
 		dev_mc_delete(c->dev, c->clustermac, ETH_ALEN, 0);
 		dev_put(c->dev);
 		kfree(c);
@@ -97,7 +98,7 @@ __clusterip_config_find(u_int32_t clusterip)
 {
 	struct list_head *pos;
 
-	MUST_BE_READ_LOCKED(&clusterip_lock);
+	ASSERT_READ_LOCK(&clusterip_lock);
 	list_for_each(pos, &clusterip_configs) {
 		struct clusterip_config *c = list_entry(pos, 
 					struct clusterip_config, list);
@@ -114,14 +115,14 @@ clusterip_config_find_get(u_int32_t clusterip)
 {
 	struct clusterip_config *c;
 
-	READ_LOCK(&clusterip_lock);
+	read_lock_bh(&clusterip_lock);
 	c = __clusterip_config_find(clusterip);
 	if (!c) {
-		READ_UNLOCK(&clusterip_lock);
+		read_unlock_bh(&clusterip_lock);
 		return NULL;
 	}
 	atomic_inc(&c->refcount);
-	READ_UNLOCK(&clusterip_lock);
+	read_unlock_bh(&clusterip_lock);
 
 	return c;
 }
@@ -160,9 +161,9 @@ clusterip_config_init(struct ipt_clusterip_tgt_info *i, u_int32_t ip,
 	c->pde->data = c;
 #endif
 
-	WRITE_LOCK(&clusterip_lock);
+	write_lock_bh(&clusterip_lock);
 	list_add(&c->list, &clusterip_configs);
-	WRITE_UNLOCK(&clusterip_lock);
+	write_unlock_bh(&clusterip_lock);
 
 	return c;
 }
@@ -172,25 +173,25 @@ clusterip_add_node(struct clusterip_config *c, u_int16_t nodenum)
 {
 	int i;
 
-	WRITE_LOCK(&clusterip_lock);
+	write_lock_bh(&clusterip_lock);
 
 	if (c->num_local_nodes >= CLUSTERIP_MAX_NODES
 	    || nodenum > CLUSTERIP_MAX_NODES) {
-		WRITE_UNLOCK(&clusterip_lock);
+		write_unlock_bh(&clusterip_lock);
 		return 1;
 	}
 
 	/* check if we alrady have this number in our array */
 	for (i = 0; i < c->num_local_nodes; i++) {
 		if (c->local_nodes[i] == nodenum) {
-			WRITE_UNLOCK(&clusterip_lock);
+			write_unlock_bh(&clusterip_lock);
 			return 1;
 		}
 	}
 
 	c->local_nodes[c->num_local_nodes++] = nodenum;
 
-	WRITE_UNLOCK(&clusterip_lock);
+	write_unlock_bh(&clusterip_lock);
 	return 0;
 }
 
@@ -199,10 +200,10 @@ clusterip_del_node(struct clusterip_config *c, u_int16_t nodenum)
 {
 	int i;
 
-	WRITE_LOCK(&clusterip_lock);
+	write_lock_bh(&clusterip_lock);
 
 	if (c->num_local_nodes <= 1 || nodenum > CLUSTERIP_MAX_NODES) {
-		WRITE_UNLOCK(&clusterip_lock);
+		write_unlock_bh(&clusterip_lock);
 		return 1;
 	}
 		
@@ -211,12 +212,12 @@ clusterip_del_node(struct clusterip_config *c, u_int16_t nodenum)
 			int size = sizeof(u_int16_t)*(c->num_local_nodes-(i+1));
 			memmove(&c->local_nodes[i], &c->local_nodes[i+1], size);
 			c->num_local_nodes--;
-			WRITE_UNLOCK(&clusterip_lock);
+			write_unlock_bh(&clusterip_lock);
 			return 0;
 		}
 	}
 
-	WRITE_UNLOCK(&clusterip_lock);
+	write_unlock_bh(&clusterip_lock);
 	return 1;
 }
 
@@ -286,21 +287,21 @@ clusterip_responsible(struct clusterip_config *config, u_int32_t hash)
 {
 	int i;
 
-	READ_LOCK(&clusterip_lock);
+	read_lock_bh(&clusterip_lock);
 
 	if (config->num_local_nodes == 0) {
-		READ_UNLOCK(&clusterip_lock);
+		read_unlock_bh(&clusterip_lock);
 		return 0;
 	}
 
 	for (i = 0; i < config->num_local_nodes; i++) {
 		if (config->local_nodes[i] == hash) {
-			READ_UNLOCK(&clusterip_lock);
+			read_unlock_bh(&clusterip_lock);
 			return 1;
 		}
 	}
 
-	READ_UNLOCK(&clusterip_lock);
+	read_unlock_bh(&clusterip_lock);
 
 	return 0;
 }
@@ -338,7 +339,7 @@ target(struct sk_buff **pskb,
 	 * error messages (RELATED) and information requests (see below) */
 	if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP
 	    && (ctinfo == IP_CT_RELATED 
-		|| ctinfo == IP_CT_IS_REPLY+IP_CT_IS_REPLY))
+		|| ctinfo == IP_CT_RELATED+IP_CT_IS_REPLY))
 		return IPT_CONTINUE;
 
 	/* ip_conntrack_icmp guarantees us that we only have ICMP_ECHO, 
@@ -578,7 +579,7 @@ static void *clusterip_seq_start(struct seq_file *s, loff_t *pos)
 	struct clusterip_config *c = pde->data;
 	unsigned int *nodeidx;
 
-	READ_LOCK(&clusterip_lock);
+	read_lock_bh(&clusterip_lock);
 	if (*pos >= c->num_local_nodes)
 		return NULL;
 
@@ -608,7 +609,7 @@ static void clusterip_seq_stop(struct seq_file *s, void *v)
 {
 	kfree(v);
 
-	READ_UNLOCK(&clusterip_lock);
+	read_unlock_bh(&clusterip_lock);
 }
 
 static int clusterip_seq_show(struct seq_file *s, void *v)

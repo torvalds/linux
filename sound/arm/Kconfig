@@ -14,5 +14,11 @@ config SND_SA11XX_UDA1341
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sa11xx-uda1341.
 
+config SND_ARMAACI
+	tristate "ARM PrimeCell PL041 AC Link support"
+	depends on SND && ARM_AMBA
+	select SND_PCM
+	select SND_AC97_CODEC
+
 endmenu
 

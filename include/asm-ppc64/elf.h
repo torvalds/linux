@@ -221,9 +221,7 @@ do {								\
 		set_thread_flag(TIF_ABI_PENDING);		\
 	else							\
 		clear_thread_flag(TIF_ABI_PENDING);		\
-	if (ibcs2)						\
-		set_personality(PER_SVR4);			\
-	else if (current->personality != PER_LINUX32)		\
+	if (personality(current->personality) != PER_LINUX32)	\
 		set_personality(PER_LINUX);			\
 } while (0)
 

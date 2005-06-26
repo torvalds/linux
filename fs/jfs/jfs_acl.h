@@ -20,8 +20,6 @@
 
 #ifdef CONFIG_JFS_POSIX_ACL
 
-#include <linux/xattr_acl.h>
-
 int jfs_permission(struct inode *, int, struct nameidata *);
 int jfs_init_acl(struct inode *, struct inode *);
 int jfs_setattr(struct dentry *, struct iattr *);

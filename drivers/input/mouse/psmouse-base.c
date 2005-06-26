@@ -518,13 +518,16 @@ static int psmouse_probe(struct psmouse *psmouse)
 /*
  * First, we check if it's a mouse. It should send 0x00 or 0x03
  * in case of an IntelliMouse in 4-byte mode or 0x04 for IM Explorer.
+ * Sunrex K8561 IR Keyboard/Mouse reports 0xff on second and subsequent
+ * ID queries, probably due to a firmware bug.
  */
 
 	param[0] = 0xa5;
 	if (ps2_command(ps2dev, param, PSMOUSE_CMD_GETID))
 		return -1;
 
-	if (param[0] != 0x00 && param[0] != 0x03 && param[0] != 0x04)
+	if (param[0] != 0x00 && param[0] != 0x03 &&
+	    param[0] != 0x04 && param[0] != 0xff)
 		return -1;
 
 /*
@@ -972,7 +975,7 @@ static int psmouse_set_maxproto(const char *val, struct kernel_param *kp)
 		return -EINVAL;
 
 	if (!strncmp(val, "any", 3)) {
-		*((unsigned int *)kp->arg) = -1UL;
+		*((unsigned int *)kp->arg) = -1U;
 		return 0;
 	}
 

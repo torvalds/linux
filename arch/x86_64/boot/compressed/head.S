@@ -2,8 +2,6 @@
  *  linux/boot/head.S
  *
  *  Copyright (C) 1991, 1992, 1993  Linus Torvalds
- *
- *  $Id: head.S,v 1.3 2001/04/20 00:59:28 ak Exp $	 		
  */
 
 /*
@@ -21,13 +19,14 @@
  */
 
 /*
- * High loaded stuff by Hans Lermen & Werner Almesberger, Feb. 1996	
+ * High loaded stuff by Hans Lermen & Werner Almesberger, Feb. 1996
  */
 .code32
 .text
 
 #include <linux/linkage.h>
 #include <asm/segment.h>
+#include <asm/page.h>
 
 	.code32
 	.globl startup_32
@@ -77,7 +76,7 @@ startup_32:
 	jnz  3f
 	addl $8,%esp
 	xorl %ebx,%ebx
-	ljmp $(__KERNEL_CS), $0x100000
+	ljmp $(__KERNEL_CS), $__PHYSICAL_START
 
 /*
  * We come here, if we were loaded high.
@@ -103,7 +102,7 @@ startup_32:
 	popl %ecx	# lcount
 	popl %edx	# high_buffer_start
 	popl %eax	# hcount
-	movl $0x100000,%edi
+	movl $__PHYSICAL_START,%edi
 	cli		# make sure we don't get interrupted
 	ljmp $(__KERNEL_CS), $0x1000 # and jump to the move routine
 
@@ -128,7 +127,7 @@ move_routine_start:
 	movsl
 	movl %ebx,%esi	# Restore setup pointer
 	xorl %ebx,%ebx
-	ljmp $(__KERNEL_CS), $0x100000
+	ljmp $(__KERNEL_CS), $__PHYSICAL_START
 move_routine_end:
 
 

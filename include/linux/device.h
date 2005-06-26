@@ -14,6 +14,7 @@
 #include <linux/config.h>
 #include <linux/ioport.h>
 #include <linux/kobject.h>
+#include <linux/klist.h>
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -44,14 +45,15 @@ struct device;
 struct device_driver;
 struct class;
 struct class_device;
-struct class_simple;
 
 struct bus_type {
-	char			* name;
+	const char		* name;
 
 	struct subsystem	subsys;
 	struct kset		drivers;
 	struct kset		devices;
+	struct klist		klist_devices;
+	struct klist		klist_drivers;
 
 	struct bus_attribute	* bus_attrs;
 	struct device_attribute	* dev_attrs;
@@ -98,17 +100,18 @@ extern int bus_create_file(struct bus_type *, struct bus_attribute *);
 extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
 
 struct device_driver {
-	char			* name;
+	const char		* name;
 	struct bus_type		* bus;
 
 	struct completion	unloaded;
 	struct kobject		kobj;
-	struct list_head	devices;
+	struct klist		klist_devices;
+	struct klist_node	knode_bus;
 
-	struct module 		* owner;
+	struct module		* owner;
 
 	int	(*probe)	(struct device * dev);
-	int 	(*remove)	(struct device * dev);
+	int	(*remove)	(struct device * dev);
 	void	(*shutdown)	(struct device * dev);
 	int	(*suspend)	(struct device * dev, pm_message_t state, u32 level);
 	int	(*resume)	(struct device * dev, u32 level);
@@ -137,12 +140,16 @@ struct driver_attribute driver_attr_##_name = __ATTR(_name,_mode,_show,_store)
 extern int driver_create_file(struct device_driver *, struct driver_attribute *);
 extern void driver_remove_file(struct device_driver *, struct driver_attribute *);
 
+extern int driver_for_each_device(struct device_driver * drv, struct device * start,
+				  void * data, int (*fn)(struct device *, void *));
+
 
 /*
  * device classes
  */
 struct class {
-	char			* name;
+	const char		* name;
+	struct module		* owner;
 
 	struct subsystem	subsys;
 	struct list_head	children;
@@ -185,6 +192,7 @@ struct class_device {
 	struct kobject		kobj;
 	struct class		* class;	/* required */
 	dev_t			devt;		/* dev_t, creates the sysfs "dev" */
+	struct class_device_attribute *devt_attr;
 	struct device		* dev;		/* not necessary, but nice to have */
 	void			* class_data;	/* class-specific data */
 
@@ -245,25 +253,27 @@ struct class_interface {
 extern int class_interface_register(struct class_interface *);
 extern void class_interface_unregister(struct class_interface *);
 
-/* interface for class simple stuff */
-extern struct class_simple *class_simple_create(struct module *owner, char *name);
-extern void class_simple_destroy(struct class_simple *cs);
-extern struct class_device *class_simple_device_add(struct class_simple *cs, dev_t dev, struct device *device, const char *fmt, ...)
-	__attribute__((format(printf,4,5)));
-extern int class_simple_set_hotplug(struct class_simple *, 
-	int (*hotplug)(struct class_device *dev, char **envp, int num_envp, char *buffer, int buffer_size));
-extern void class_simple_device_remove(dev_t dev);
+extern struct class *class_create(struct module *owner, char *name);
+extern void class_destroy(struct class *cls);
+extern struct class_device *class_device_create(struct class *cls, dev_t devt,
+						struct device *device, char *fmt, ...)
+					__attribute__((format(printf,4,5)));
+extern void class_device_destroy(struct class *cls, dev_t devt);
 
 
 struct device {
-	struct list_head node;		/* node in sibling list */
-	struct list_head bus_list;	/* node in bus's list */
-	struct list_head driver_list;
-	struct list_head children;
+	struct klist		klist_children;
+	struct klist_node	knode_parent;		/* node in sibling list */
+	struct klist_node	knode_driver;
+	struct klist_node	knode_bus;
 	struct device 	* parent;
 
 	struct kobject kobj;
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
+
+	struct semaphore	sem;	/* semaphore to synchronize calls to
+					 * its driver.
+					 */
 
 	struct bus_type	* bus;		/* type of bus device is on */
 	struct device_driver *driver;	/* which driver has allocated this
@@ -287,12 +297,6 @@ struct device {
 
 	void	(*release)(struct device * dev);
 };
-
-static inline struct device *
-list_to_dev(struct list_head *node)
-{
-	return list_entry(node, struct device, node);
-}
 
 static inline void *
 dev_get_drvdata (struct device *dev)
@@ -321,7 +325,6 @@ extern int device_for_each_child(struct device *, void *,
  * Manual binding of a device to driver. See drivers/base/bus.c
  * for information on use.
  */
-extern int  driver_probe_device(struct device_driver * drv, struct device * dev);
 extern void device_bind_driver(struct device * dev);
 extern void device_release_driver(struct device * dev);
 extern int  device_attach(struct device * dev);
@@ -332,8 +335,10 @@ extern void driver_attach(struct device_driver * drv);
 
 struct device_attribute {
 	struct attribute	attr;
-	ssize_t (*show)(struct device * dev, char * buf);
-	ssize_t (*store)(struct device * dev, const char * buf, size_t count);
+	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count);
 };
 
 #define DEVICE_ATTR(_name,_mode,_show,_store) \
@@ -360,13 +365,12 @@ extern int (*platform_notify_remove)(struct device * dev);
  */
 extern struct device * get_device(struct device * dev);
 extern void put_device(struct device * dev);
-extern struct device *device_find(const char *name, struct bus_type *bus);
 
 
 /* drivers/base/platform.c */
 
 struct platform_device {
-	char		* name;
+	const char	* name;
 	u32		id;
 	struct device	dev;
 	u32		num_resources;

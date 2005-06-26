@@ -27,10 +27,10 @@ const char *conf_confnames[] = {
 	NULL,
 };
 
-static char *conf_expand_value(const signed char *in)
+static char *conf_expand_value(const char *in)
 {
 	struct symbol *sym;
-	const signed char *src;
+	const char *src;
 	static char res_value[SYMBOL_MAXLENGTH];
 	char *dst, name[SYMBOL_MAXLENGTH];
 

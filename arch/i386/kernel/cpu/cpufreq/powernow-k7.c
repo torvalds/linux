@@ -23,6 +23,7 @@
 #include <linux/dmi.h>
 
 #include <asm/msr.h>
+#include <asm/timer.h>
 #include <asm/timex.h>
 #include <asm/io.h>
 #include <asm/system.h>
@@ -586,13 +587,17 @@ static int __init powernow_cpu_init (struct cpufreq_policy *policy)
 
 	rdmsrl (MSR_K7_FID_VID_STATUS, fidvidstatus.val);
 
-	/* A K7 with powernow technology is set to max frequency by BIOS */
-	fsb = (10 * cpu_khz) / fid_codes[fidvidstatus.bits.MFID];
+	/* recalibrate cpu_khz */
+	result = recalibrate_cpu_khz();
+	if (result)
+		return result;
+
+	fsb = (10 * cpu_khz) / fid_codes[fidvidstatus.bits.CFID];
 	if (!fsb) {
 		printk(KERN_WARNING PFX "can not determine bus frequency\n");
 		return -EINVAL;
 	}
-	dprintk("FSB: %3d.%03d MHz\n", fsb/1000, fsb%1000);
+	dprintk("FSB: %3dMHz\n", fsb/1000);
 
 	if (dmi_check_system(powernow_dmi_table) || acpi_force) {
 		printk (KERN_INFO PFX "PSB/PST known to be broken.  Trying ACPI instead\n");
@@ -643,9 +648,7 @@ static int powernow_cpu_exit (struct cpufreq_policy *policy) {
 	}
 #endif
 
-	if (powernow_table)
-		kfree(powernow_table);
-
+	kfree(powernow_table);
 	return 0;
 }
 

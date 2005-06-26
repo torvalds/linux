@@ -285,16 +285,12 @@ enum blk_queue_state {
 	Queue_up,
 };
 
-#define BLK_TAGS_PER_LONG	(sizeof(unsigned long) * 8)
-#define BLK_TAGS_MASK		(BLK_TAGS_PER_LONG - 1)
-
 struct blk_queue_tag {
 	struct request **tag_index;	/* map of busy tags */
 	unsigned long *tag_map;		/* bit map of free/busy tags */
 	struct list_head busy_list;	/* fifo list of busy tags */
 	int busy;			/* current depth */
 	int max_depth;			/* what we will send to device */
-	int real_max_depth;		/* what the array can hold */
 	atomic_t refcnt;		/* map can be shared */
 };
 
@@ -396,6 +392,7 @@ struct request_queue
 	 */
 	unsigned int		sg_timeout;
 	unsigned int		sg_reserved_size;
+	int			node;
 
 	struct list_head	drain_list;
 
@@ -542,15 +539,12 @@ extern void generic_make_request(struct bio *bio);
 extern void blk_put_request(struct request *);
 extern void blk_end_sync_rq(struct request *rq);
 extern void blk_attempt_remerge(request_queue_t *, struct request *);
-extern void __blk_attempt_remerge(request_queue_t *, struct request *);
 extern struct request *blk_get_request(request_queue_t *, int, int);
-extern void blk_insert_request(request_queue_t *, struct request *, int, void *, int);
+extern void blk_insert_request(request_queue_t *, struct request *, int, void *);
 extern void blk_requeue_request(request_queue_t *, struct request *);
 extern void blk_plug_device(request_queue_t *);
 extern int blk_remove_plug(request_queue_t *);
 extern void blk_recount_segments(request_queue_t *, struct bio *);
-extern int blk_phys_contig_segment(request_queue_t *q, struct bio *, struct bio *);
-extern int blk_hw_contig_segment(request_queue_t *q, struct bio *, struct bio *);
 extern int scsi_cmd_ioctl(struct file *, struct gendisk *, unsigned int, void __user *);
 extern void blk_start_queue(request_queue_t *q);
 extern void blk_stop_queue(request_queue_t *q);
@@ -615,6 +609,8 @@ static inline void blkdev_dequeue_request(struct request *req)
 /*
  * Access functions for manipulating queue properties
  */
+extern request_queue_t *blk_init_queue_node(request_fn_proc *rfn,
+					spinlock_t *lock, int node_id);
 extern request_queue_t *blk_init_queue(request_fn_proc *, spinlock_t *);
 extern void blk_cleanup_queue(request_queue_t *);
 extern void blk_queue_make_request(request_queue_t *, make_request_fn *);
@@ -632,7 +628,6 @@ extern void blk_queue_dma_alignment(request_queue_t *, int);
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
 extern void blk_queue_ordered(request_queue_t *, int);
 extern void blk_queue_issue_flush_fn(request_queue_t *, issue_flush_fn *);
-extern int blkdev_scsi_issue_flush_fn(request_queue_t *, struct gendisk *, sector_t *);
 extern struct request *blk_start_pre_flush(request_queue_t *,struct request *);
 extern int blk_complete_barrier_rq(request_queue_t *, struct request *, int);
 extern int blk_complete_barrier_rq_locked(request_queue_t *, struct request *, int);
@@ -646,7 +641,8 @@ extern void blk_wait_queue_drained(request_queue_t *, int);
 extern void blk_finish_queue_drain(request_queue_t *);
 
 int blk_get_queue(request_queue_t *);
-request_queue_t *blk_alloc_queue(int);
+request_queue_t *blk_alloc_queue(int gfp_mask);
+request_queue_t *blk_alloc_queue_node(int,int);
 #define blk_put_queue(q) blk_cleanup_queue((q))
 
 /*
@@ -674,8 +670,6 @@ extern int blkdev_issue_flush(struct block_device *, sector_t *);
 #define MAX_SEGMENT_SIZE	65536
 
 #define blkdev_entry_to_request(entry) list_entry((entry), struct request, queuelist)
-
-extern void drive_stat_acct(struct request *, int, int);
 
 static inline int queue_hardsect_size(request_queue_t *q)
 {

@@ -97,7 +97,7 @@ static UCHAR ct41[] = { 1, BYP,     0x29                     }; // RESUME
 //static UCHAR ct44[]={ 2, BTH,     0x2C,0                   }; // MS PING
 //static UCHAR ct45[]={ 1, BTH,     0x2D                     }; // HOTENAB
 //static UCHAR ct46[]={ 1, BTH,     0x2E                     }; // HOTDSAB
-static UCHAR ct47[] = { 7, BTH,     0x2F,0,0,0,0,0,0         }; // UNIX FLAGS
+//static UCHAR ct47[]={ 7, BTH,     0x2F,0,0,0,0,0,0         }; // UNIX FLAGS
 //static UCHAR ct48[]={ 1, BTH,     0x30                     }; // DSRFLOWENAB
 //static UCHAR ct49[]={ 1, BTH,     0x31                     }; // DSRFLOWDSAB
 //static UCHAR ct50[]={ 1, BTH,     0x32                     }; // DTRFLOWENAB
@@ -162,6 +162,7 @@ static UCHAR ct89[]={ 1, BYP,     0x59                     }; // DSS_NOW
 // This routine sets the parameters of command 47 and returns a pointer to the
 // appropriate structure.
 //******************************************************************************
+#if 0
 cmdSyntaxPtr
 i2cmdUnixFlags(unsigned short iflag,unsigned short cflag,unsigned short lflag)
 {
@@ -175,6 +176,7 @@ i2cmdUnixFlags(unsigned short iflag,unsigned short cflag,unsigned short lflag)
 	pCM->cmd[6] = (unsigned char) (lflag >> 8);
 	return pCM;
 }
+#endif  /*  0  */
 
 //******************************************************************************
 // Function:   i2cmdBaudDef(which, rate)
@@ -187,7 +189,7 @@ i2cmdUnixFlags(unsigned short iflag,unsigned short cflag,unsigned short lflag)
 // This routine sets the parameters of commands 54 or 55 (according to the
 // argument which), and returns a pointer to the appropriate structure.
 //******************************************************************************
-cmdSyntaxPtr
+static cmdSyntaxPtr
 i2cmdBaudDef(int which, unsigned short rate)
 {
 	cmdSyntaxPtr pCM;

@@ -4,9 +4,9 @@
 /*
  * Define the address range of the imalloc VM area.
  */
-#define PHBS_IO_BASE  	  IOREGIONBASE
-#define IMALLOC_BASE      (IOREGIONBASE + 0x80000000ul)	/* Reserve 2 gigs for PHBs */
-#define IMALLOC_END       (IOREGIONBASE + EADDR_MASK)
+#define PHBS_IO_BASE  	  VMALLOC_END
+#define IMALLOC_BASE      (PHBS_IO_BASE + 0x80000000ul)	/* Reserve 2 gigs for PHBs */
+#define IMALLOC_END       (VMALLOC_START + EADDR_MASK)
 
 
 /* imalloc region types */
@@ -18,7 +18,9 @@
 
 extern struct vm_struct * im_get_free_area(unsigned long size);
 extern struct vm_struct * im_get_area(unsigned long v_addr, unsigned long size,
-			int region_type);
-unsigned long im_free(void *addr);
+				      int region_type);
+extern void im_free(void *addr);
+
+extern unsigned long ioremap_bot;
 
 #endif /* _PPC64_IMALLOC_H */

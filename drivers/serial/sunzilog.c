@@ -1071,7 +1071,7 @@ static void __init sunzilog_alloc_tables(void)
  */
 static struct zilog_layout __iomem * __init get_zs_sun4u(int chip, int zsnode)
 {
-	unsigned long mapped_addr;
+	void __iomem *mapped_addr;
 	unsigned int sun4u_ino;
 	struct sbus_bus *sbus = NULL;
 	struct sbus_dev *sdev = NULL;
@@ -1111,9 +1111,9 @@ static struct zilog_layout __iomem * __init get_zs_sun4u(int chip, int zsnode)
 		apply_fhc_ranges(central_bus->child,
 				 &zsregs[0], 1);
 		apply_central_ranges(central_bus, &zsregs[0], 1);
-		mapped_addr =
-			(((u64)zsregs[0].which_io)<<32UL) |
-			((u64)zsregs[0].phys_addr);
+		mapped_addr = (void __iomem *)
+			((((u64)zsregs[0].which_io)<<32UL) |
+			((u64)zsregs[0].phys_addr));
 	}
 
 	if (zilog_irq == -1) {

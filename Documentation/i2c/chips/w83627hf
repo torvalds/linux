@@ -1,0 +1,66 @@
+Kernel driver w83627hf
+======================
+
+Supported chips:
+  * Winbond W83627HF (ISA accesses ONLY)
+    Prefix: 'w83627hf'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: http://www.winbond.com/PDF/sheet/w83627hf.pdf
+  * Winbond W83627THF
+    Prefix: 'w83627thf'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: http://www.winbond.com/PDF/sheet/w83627thf.pdf
+  * Winbond W83697HF
+    Prefix: 'w83697hf'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: http://www.winbond.com/PDF/sheet/697hf.pdf
+  * Winbond W83637HF
+    Prefix: 'w83637hf'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: http://www.winbond.com/PDF/sheet/w83637hf.pdf
+
+Authors:
+        Frodo Looijaard <frodol@dds.nl>,
+        Philip Edelbrock <phil@netroedge.com>,
+        Mark Studebaker <mdsxyz123@yahoo.com>,
+        Bernhard C. Schrenk <clemy@clemy.org>
+
+Module Parameters
+-----------------
+
+* force_addr: int
+  Initialize the ISA address of the sensors
+* force_i2c: int
+  Initialize the I2C address of the sensors
+* init: int
+  (default is 1)
+  Use 'init=0' to bypass initializing the chip.
+  Try this if your computer crashes when you load the module.
+
+Description
+-----------
+
+This driver implements support for ISA accesses *only* for
+the Winbond W83627HF, W83627THF, W83697HF and W83637HF Super I/O chips.
+We will refer to them collectively as Winbond chips.
+
+This driver supports ISA accesses, which should be more reliable
+than i2c accesses. Also, for Tyan boards which contain both a
+Super I/O chip and a second i2c-only Winbond chip (often a W83782D),
+using this driver will avoid i2c address conflicts and complex
+initialization that were required in the w83781d driver.
+
+If you really want i2c accesses for these Super I/O chips,
+use the w83781d driver. However this is not the preferred method
+now that this ISA driver has been developed.
+
+Technically, the w83627thf does not support a VID reading. However, it's
+possible or even likely that your mainboard maker has routed these signals
+to a specific set of general purpose IO pins (the Asus P4C800-E is one such
+board). The w83627thf driver now interprets these as VID. If the VID on
+your board doesn't work, first see doc/vid in the lm_sensors package. If
+that still doesn't help, email us at lm-sensors@lm-sensors.org.
+
+For further information on this driver see the w83781d driver
+documentation.
+

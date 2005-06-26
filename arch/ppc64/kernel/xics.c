@@ -647,6 +647,31 @@ static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
 	}
 }
 
+void xics_teardown_cpu(void)
+{
+	int cpu = smp_processor_id();
+	int status;
+
+	ops->cppr_info(cpu, 0x00);
+	iosync();
+
+	/*
+	 * we need to EOI the IPI if we got here from kexec down IPI
+	 *
+	 * xics doesn't care if we duplicate an EOI as long as we
+	 * don't EOI and raise priority.
+	 *
+	 * probably need to check all the other interrupts too
+	 * should we be flagging idle loop instead?
+	 * or creating some task to be scheduled?
+	 */
+	ops->xirr_info_set(cpu, XICS_IPI);
+
+	status = rtas_set_indicator(GLOBAL_INTERRUPT_QUEUE,
+		(1UL << interrupt_server_size) - 1 - default_distrib_server, 0);
+	WARN_ON(status != 0);
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 
 /* Interrupts are disabled. */

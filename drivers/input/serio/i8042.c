@@ -396,7 +396,7 @@ static void i8042_stop(struct serio *serio)
 	struct i8042_port *port = serio->port_data;
 
 	port->exists = 0;
-	synchronize_kernel();
+	synchronize_sched();
 	port->serio = NULL;
 }
 
@@ -698,6 +698,26 @@ static void i8042_timer_func(unsigned long data)
 	i8042_interrupt(0, NULL, NULL);
 }
 
+static int i8042_ctl_test(void)
+{
+	unsigned char param;
+
+	if (!i8042_reset)
+		return 0;
+
+	if (i8042_command(&param, I8042_CMD_CTL_TEST)) {
+		printk(KERN_ERR "i8042.c: i8042 controller self test timeout.\n");
+		return -1;
+	}
+
+	if (param != I8042_RET_CTL_TEST) {
+		printk(KERN_ERR "i8042.c: i8042 controller selftest failed. (%#x != %#x)\n",
+			 param, I8042_RET_CTL_TEST);
+		return -1;
+	}
+
+	return 0;
+}
 
 /*
  * i8042_controller init initializes the i8042 controller, and,
@@ -719,21 +739,8 @@ static int i8042_controller_init(void)
 		return -1;
 	}
 
-	if (i8042_reset) {
-
-		unsigned char param;
-
-		if (i8042_command(&param, I8042_CMD_CTL_TEST)) {
-			printk(KERN_ERR "i8042.c: i8042 controller self test timeout.\n");
-			return -1;
-		}
-
-		if (param != I8042_RET_CTL_TEST) {
-			printk(KERN_ERR "i8042.c: i8042 controller selftest failed. (%#x != %#x)\n",
-				 param, I8042_RET_CTL_TEST);
-			return -1;
-		}
-	}
+	if (i8042_ctl_test())
+		return -1;
 
 /*
  * Save the CTR for restoral on unload / reboot.
@@ -802,15 +809,11 @@ static int i8042_controller_init(void)
  */
 static void i8042_controller_reset(void)
 {
-	unsigned char param;
-
 /*
  * Reset the controller if requested.
  */
 
-	if (i8042_reset)
-		if (i8042_command(&param, I8042_CMD_CTL_TEST))
-			printk(KERN_ERR "i8042.c: i8042 controller reset timeout.\n");
+	i8042_ctl_test();
 
 /*
  * Disable MUX mode if present.
@@ -922,8 +925,11 @@ static int i8042_resume(struct device *dev, u32 level)
 	if (level != RESUME_ENABLE)
 		return 0;
 
-	if (i8042_controller_init()) {
-		printk(KERN_ERR "i8042: resume failed\n");
+	if (i8042_ctl_test())
+		return -1;
+
+	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR)) {
+		printk(KERN_ERR "i8042: Can't write CTR\n");
 		return -1;
 	}
 

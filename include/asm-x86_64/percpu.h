@@ -39,7 +39,7 @@ extern void setup_per_cpu_areas(void);
 #define DEFINE_PER_CPU(type, name) \
     __typeof__(type) per_cpu__##name
 
-#define per_cpu(var, cpu)			(*((void)cpu, &per_cpu__##var))
+#define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu__##var))
 #define __get_cpu_var(var)			per_cpu__##var
 
 #endif	/* SMP */

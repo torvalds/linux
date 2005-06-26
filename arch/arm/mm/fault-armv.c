@@ -77,18 +77,14 @@ no_pmd:
 }
 
 static void
-make_coherent(struct vm_area_struct *vma, unsigned long addr, struct page *page, int dirty)
+make_coherent(struct address_space *mapping, struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
 {
-	struct address_space *mapping = page_mapping(page);
 	struct mm_struct *mm = vma->vm_mm;
 	struct vm_area_struct *mpnt;
 	struct prio_tree_iter iter;
 	unsigned long offset;
 	pgoff_t pgoff;
 	int aliases = 0;
-
-	if (!mapping)
-		return;
 
 	pgoff = vma->vm_pgoff + ((addr - vma->vm_start) >> PAGE_SHIFT);
 
@@ -115,8 +111,10 @@ make_coherent(struct vm_area_struct *vma, unsigned long addr, struct page *page,
 	if (aliases)
 		adjust_pte(vma, addr);
 	else
-		flush_cache_page(vma, addr, page_to_pfn(page));
+		flush_cache_page(vma, addr, pfn);
 }
+
+void __flush_dcache_page(struct address_space *mapping, struct page *page);
 
 /*
  * Take care of architecture specific things when placing a new PTE into
@@ -134,29 +132,22 @@ make_coherent(struct vm_area_struct *vma, unsigned long addr, struct page *page,
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
 {
 	unsigned long pfn = pte_pfn(pte);
+	struct address_space *mapping;
 	struct page *page;
 
 	if (!pfn_valid(pfn))
 		return;
+
 	page = pfn_to_page(pfn);
-	if (page_mapping(page)) {
+	mapping = page_mapping(page);
+	if (mapping) {
 		int dirty = test_and_clear_bit(PG_dcache_dirty, &page->flags);
 
-		if (dirty) {
-			/*
-			 * This is our first userspace mapping of this page.
-			 * Ensure that the physical page is coherent with
-			 * the kernel mapping.
-			 *
-			 * FIXME: only need to do this on VIVT and aliasing
-			 *        VIPT cache architectures.  We can do that
-			 *	  by choosing whether to set this bit...
-			 */
-			__cpuc_flush_dcache_page(page_address(page));
-		}
+		if (dirty)
+			__flush_dcache_page(mapping, page);
 
 		if (cache_is_vivt())
-			make_coherent(vma, addr, page, dirty);
+			make_coherent(mapping, vma, addr, pfn);
 	}
 }
 

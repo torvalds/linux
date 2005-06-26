@@ -32,10 +32,7 @@
 
 extern void rpc_init_irq(void);
 
-extern unsigned int vram_size;
-
-#if 0
-
+unsigned int vram_size;
 unsigned int memc_ctrl_reg;
 unsigned int number_mfm_drives;
 
@@ -62,8 +59,6 @@ static int __init parse_tag_acorn(const struct tag *tag)
 }
 
 __tagtable(ATAG_ACORN, parse_tag_acorn);
-
-#endif
 
 static struct map_desc rpc_io_desc[] __initdata = {
  { SCREEN_BASE,	SCREEN_START,	2*1048576, MT_DEVICE }, /* VRAM		*/

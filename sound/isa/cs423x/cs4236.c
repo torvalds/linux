@@ -349,8 +349,7 @@ static int __devinit snd_card_cs4236_pnp(int dev, struct snd_card_cs4236 *acard,
 		pnp_init_resource_table(cfg);
 		if (mpu_port[dev] != SNDRV_AUTO_PORT)
 			pnp_resource_change(&cfg->port_resource[0], mpu_port[dev], 2);
-		if (mpu_irq[dev] != SNDRV_AUTO_IRQ && mpu_irq[dev] >= 0 &&
-		    pnp_irq_valid(pdev, 0))
+		if (mpu_irq[dev] != SNDRV_AUTO_IRQ && mpu_irq[dev] >= 0)
 			pnp_resource_change(&cfg->irq_resource[0], mpu_irq[dev], 1);
 		err = pnp_manual_config_dev(pdev, cfg, 0);
 		if (err < 0)

@@ -19,7 +19,7 @@
  * 
  * Note, the TPM chip is not interrupt driven (only polling)
  * and can have very long timeouts (minutes!). Hence the unusual
- * calls to schedule_timeout.
+ * calls to msleep.
  *
  */
 
@@ -28,19 +28,16 @@
 #include <linux/spinlock.h>
 #include "tpm.h"
 
-#define	TPM_MINOR			224	/* officially assigned */
-
-#define	TPM_BUFSIZE			2048
-
-/* PCI configuration addresses */
-#define	PCI_GEN_PMCON_1			0xA0
-#define	PCI_GEN1_DEC			0xE4
-#define	PCI_LPC_EN			0xE6
-#define	PCI_GEN2_DEC			0xEC
+enum tpm_const {
+	TPM_MINOR = 224,	/* officially assigned */
+	TPM_BUFSIZE = 2048,
+	TPM_NUM_DEVICES = 256,
+	TPM_NUM_MASK_ENTRIES = TPM_NUM_DEVICES / (8 * sizeof(int))
+};
 
 static LIST_HEAD(tpm_chip_list);
 static DEFINE_SPINLOCK(driver_lock);
-static int dev_mask[32];
+static int dev_mask[TPM_NUM_MASK_ENTRIES];
 
 static void user_reader_timeout(unsigned long ptr)
 {
@@ -52,92 +49,17 @@ static void user_reader_timeout(unsigned long ptr)
 	up(&chip->buffer_mutex);
 }
 
-void tpm_time_expired(unsigned long ptr)
-{
-	int *exp = (int *) ptr;
-	*exp = 1;
-}
-
-EXPORT_SYMBOL_GPL(tpm_time_expired);
-
-/*
- * Initialize the LPC bus and enable the TPM ports
- */
-int tpm_lpc_bus_init(struct pci_dev *pci_dev, u16 base)
-{
-	u32 lpcenable, tmp;
-	int is_lpcm = 0;
-
-	switch (pci_dev->vendor) {
-	case PCI_VENDOR_ID_INTEL:
-		switch (pci_dev->device) {
-		case PCI_DEVICE_ID_INTEL_82801CA_12:
-		case PCI_DEVICE_ID_INTEL_82801DB_12:
-			is_lpcm = 1;
-			break;
-		}
-		/* init ICH (enable LPC) */
-		pci_read_config_dword(pci_dev, PCI_GEN1_DEC, &lpcenable);
-		lpcenable |= 0x20000000;
-		pci_write_config_dword(pci_dev, PCI_GEN1_DEC, lpcenable);
-
-		if (is_lpcm) {
-			pci_read_config_dword(pci_dev, PCI_GEN1_DEC,
-					      &lpcenable);
-			if ((lpcenable & 0x20000000) == 0) {
-				dev_err(&pci_dev->dev,
-					"cannot enable LPC\n");
-				return -ENODEV;
-			}
-		}
-
-		/* initialize TPM registers */
-		pci_read_config_dword(pci_dev, PCI_GEN2_DEC, &tmp);
-
-		if (!is_lpcm)
-			tmp = (tmp & 0xFFFF0000) | (base & 0xFFF0);
-		else
-			tmp =
-			    (tmp & 0xFFFF0000) | (base & 0xFFF0) |
-			    0x00000001;
-
-		pci_write_config_dword(pci_dev, PCI_GEN2_DEC, tmp);
-
-		if (is_lpcm) {
-			pci_read_config_dword(pci_dev, PCI_GEN_PMCON_1,
-					      &tmp);
-			tmp |= 0x00000004;	/* enable CLKRUN */
-			pci_write_config_dword(pci_dev, PCI_GEN_PMCON_1,
-					       tmp);
-		}
-		tpm_write_index(0x0D, 0x55);	/* unlock 4F */
-		tpm_write_index(0x0A, 0x00);	/* int disable */
-		tpm_write_index(0x08, base);	/* base addr lo */
-		tpm_write_index(0x09, (base & 0xFF00) >> 8);	/* base addr hi */
-		tpm_write_index(0x0D, 0xAA);	/* lock 4F */
-		break;
-	case PCI_VENDOR_ID_AMD:
-		/* nothing yet */
-		break;
-	}
-
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(tpm_lpc_bus_init);
-
 /*
  * Internal kernel interface to transmit TPM commands
  */
 static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 			    size_t bufsiz)
 {
-	ssize_t len;
+	ssize_t rc;
 	u32 count;
-	__be32 *native_size;
+	unsigned long stop;
 
-	native_size = (__force __be32 *) (buf + 2);
-	count = be32_to_cpu(*native_size);
+	count = be32_to_cpu(*((__be32 *) (buf + 2)));
 
 	if (count == 0)
 		return -ENODATA;
@@ -149,53 +71,49 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 
 	down(&chip->tpm_mutex);
 
-	if ((len = chip->vendor->send(chip, (u8 *) buf, count)) < 0) {
+	if ((rc = chip->vendor->send(chip, (u8 *) buf, count)) < 0) {
 		dev_err(&chip->pci_dev->dev,
-			"tpm_transmit: tpm_send: error %zd\n", len);
-		return len;
+			"tpm_transmit: tpm_send: error %zd\n", rc);
+		goto out;
 	}
 
-	down(&chip->timer_manipulation_mutex);
-	chip->time_expired = 0;
-	init_timer(&chip->device_timer);
-	chip->device_timer.function = tpm_time_expired;
-	chip->device_timer.expires = jiffies + 2 * 60 * HZ;
-	chip->device_timer.data = (unsigned long) &chip->time_expired;
-	add_timer(&chip->device_timer);
-	up(&chip->timer_manipulation_mutex);
-
+	stop = jiffies + 2 * 60 * HZ;
 	do {
 		u8 status = inb(chip->vendor->base + 1);
 		if ((status & chip->vendor->req_complete_mask) ==
 		    chip->vendor->req_complete_val) {
-			down(&chip->timer_manipulation_mutex);
-			del_singleshot_timer_sync(&chip->device_timer);
-			up(&chip->timer_manipulation_mutex);
 			goto out_recv;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(TPM_TIMEOUT);
+
+		if ((status == chip->vendor->req_canceled)) {
+			dev_err(&chip->pci_dev->dev, "Operation Canceled\n");
+			rc = -ECANCELED;
+			goto out;
+		}
+
+		msleep(TPM_TIMEOUT);	/* CHECK */
 		rmb();
-	} while (!chip->time_expired);
+	} while (time_before(jiffies, stop));
 
 
 	chip->vendor->cancel(chip);
-	dev_err(&chip->pci_dev->dev, "Time expired\n");
-	up(&chip->tpm_mutex);
-	return -EIO;
+	dev_err(&chip->pci_dev->dev, "Operation Timed out\n");
+	rc = -ETIME;
+	goto out;
 
 out_recv:
-	len = chip->vendor->recv(chip, (u8 *) buf, bufsiz);
-	if (len < 0)
+	rc = chip->vendor->recv(chip, (u8 *) buf, bufsiz);
+	if (rc < 0)
 		dev_err(&chip->pci_dev->dev,
-			"tpm_transmit: tpm_recv: error %zd\n", len);
+			"tpm_transmit: tpm_recv: error %zd\n", rc);
+out:
 	up(&chip->tpm_mutex);
-	return len;
+	return rc;
 }
 
 #define TPM_DIGEST_SIZE 20
 #define CAP_PCR_RESULT_SIZE 18
-static u8 cap_pcr[] = {
+static const u8 cap_pcr[] = {
 	0, 193,			/* TPM_TAG_RQU_COMMAND */
 	0, 0, 0, 22,		/* length */
 	0, 0, 0, 101,		/* TPM_ORD_GetCapability */
@@ -205,75 +123,94 @@ static u8 cap_pcr[] = {
 };
 
 #define READ_PCR_RESULT_SIZE 30
-static u8 pcrread[] = {
+static const u8 pcrread[] = {
 	0, 193,			/* TPM_TAG_RQU_COMMAND */
 	0, 0, 0, 14,		/* length */
 	0, 0, 0, 21,		/* TPM_ORD_PcrRead */
 	0, 0, 0, 0		/* PCR index */
 };
 
-static ssize_t show_pcrs(struct device *dev, char *buf)
+ssize_t tpm_show_pcrs(struct device *dev, struct device_attribute *attr,
+		      char *buf)
 {
 	u8 data[READ_PCR_RESULT_SIZE];
 	ssize_t len;
-	int i, j, index, num_pcrs;
+	int i, j, num_pcrs;
+	__be32 index;
 	char *str = buf;
 
 	struct tpm_chip *chip =
-	    pci_get_drvdata(container_of(dev, struct pci_dev, dev));
+	    pci_get_drvdata(to_pci_dev(dev));
 	if (chip == NULL)
 		return -ENODEV;
 
 	memcpy(data, cap_pcr, sizeof(cap_pcr));
 	if ((len = tpm_transmit(chip, data, sizeof(data)))
-	    < CAP_PCR_RESULT_SIZE)
-		return len;
+	    < CAP_PCR_RESULT_SIZE) {
+		dev_dbg(&chip->pci_dev->dev, "A TPM error (%d) occurred "
+				"attempting to determine the number of PCRS\n",
+			be32_to_cpu(*((__be32 *) (data + 6))));
+		return 0;
+	}
 
-	num_pcrs = be32_to_cpu(*((__force __be32 *) (data + 14)));
+	num_pcrs = be32_to_cpu(*((__be32 *) (data + 14)));
 
 	for (i = 0; i < num_pcrs; i++) {
 		memcpy(data, pcrread, sizeof(pcrread));
 		index = cpu_to_be32(i);
 		memcpy(data + 10, &index, 4);
 		if ((len = tpm_transmit(chip, data, sizeof(data)))
-		    < READ_PCR_RESULT_SIZE)
-			return len;
+		    < READ_PCR_RESULT_SIZE){
+			dev_dbg(&chip->pci_dev->dev, "A TPM error (%d) occurred"
+				" attempting to read PCR %d of %d\n",
+				be32_to_cpu(*((__be32 *) (data + 6))), i, num_pcrs);
+			goto out;
+		}
 		str += sprintf(str, "PCR-%02d: ", i);
 		for (j = 0; j < TPM_DIGEST_SIZE; j++)
 			str += sprintf(str, "%02X ", *(data + 10 + j));
 		str += sprintf(str, "\n");
 	}
+out:
 	return str - buf;
 }
-
-static DEVICE_ATTR(pcrs, S_IRUGO, show_pcrs, NULL);
+EXPORT_SYMBOL_GPL(tpm_show_pcrs);
 
 #define  READ_PUBEK_RESULT_SIZE 314
-static u8 readpubek[] = {
+static const u8 readpubek[] = {
 	0, 193,			/* TPM_TAG_RQU_COMMAND */
 	0, 0, 0, 30,		/* length */
 	0, 0, 0, 124,		/* TPM_ORD_ReadPubek */
 };
 
-static ssize_t show_pubek(struct device *dev, char *buf)
+ssize_t tpm_show_pubek(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
-	u8 data[READ_PUBEK_RESULT_SIZE];
+	u8 *data;
 	ssize_t len;
-	__be32 *native_val;
-	int i;
+	int i, rc;
 	char *str = buf;
 
 	struct tpm_chip *chip =
-	    pci_get_drvdata(container_of(dev, struct pci_dev, dev));
+	    pci_get_drvdata(to_pci_dev(dev));
 	if (chip == NULL)
 		return -ENODEV;
+
+	data = kmalloc(READ_PUBEK_RESULT_SIZE, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	memcpy(data, readpubek, sizeof(readpubek));
 	memset(data + sizeof(readpubek), 0, 20);	/* zero nonce */
 
-	if ((len = tpm_transmit(chip, data, sizeof(data))) <
-	    READ_PUBEK_RESULT_SIZE)
-		return len;
+	if ((len = tpm_transmit(chip, data, READ_PUBEK_RESULT_SIZE)) <
+	    READ_PUBEK_RESULT_SIZE) {
+		dev_dbg(&chip->pci_dev->dev, "A TPM error (%d) occurred "
+				"attempting to read the PUBEK\n",
+			    be32_to_cpu(*((__be32 *) (data + 6))));
+		rc = 0;
+		goto out;
+	}
 
 	/* 
 	   ignore header 10 bytes
@@ -286,8 +223,6 @@ static ssize_t show_pubek(struct device *dev, char *buf)
 	   ignore checksum 20 bytes
 	 */
 
-	native_val = (__force __be32 *) (data + 34);
-
 	str +=
 	    sprintf(str,
 		    "Algorithm: %02X %02X %02X %02X\nEncscheme: %02X %02X\n"
@@ -298,21 +233,23 @@ static ssize_t show_pubek(struct device *dev, char *buf)
 		    data[15], data[16], data[17], data[22], data[23],
 		    data[24], data[25], data[26], data[27], data[28],
 		    data[29], data[30], data[31], data[32], data[33],
-		    be32_to_cpu(*native_val)
-	    );
+		    be32_to_cpu(*((__be32 *) (data + 34))));
 
 	for (i = 0; i < 256; i++) {
-		str += sprintf(str, "%02X ", data[i + 39]);
+		str += sprintf(str, "%02X ", data[i + 38]);
 		if ((i + 1) % 16 == 0)
 			str += sprintf(str, "\n");
 	}
-	return str - buf;
+	rc = str - buf;
+out:
+	kfree(data);
+	return rc;
 }
 
-static DEVICE_ATTR(pubek, S_IRUGO, show_pubek, NULL);
+EXPORT_SYMBOL_GPL(tpm_show_pubek);
 
 #define CAP_VER_RESULT_SIZE 18
-static u8 cap_version[] = {
+static const u8 cap_version[] = {
 	0, 193,			/* TPM_TAG_RQU_COMMAND */
 	0, 0, 0, 18,		/* length */
 	0, 0, 0, 101,		/* TPM_ORD_GetCapability */
@@ -321,7 +258,7 @@ static u8 cap_version[] = {
 };
 
 #define CAP_MANUFACTURER_RESULT_SIZE 18
-static u8 cap_manufacturer[] = {
+static const u8 cap_manufacturer[] = {
 	0, 193,			/* TPM_TAG_RQU_COMMAND */
 	0, 0, 0, 22,		/* length */
 	0, 0, 0, 101,		/* TPM_ORD_GetCapability */
@@ -330,14 +267,15 @@ static u8 cap_manufacturer[] = {
 	0, 0, 1, 3
 };
 
-static ssize_t show_caps(struct device *dev, char *buf)
+ssize_t tpm_show_caps(struct device *dev, struct device_attribute *attr,
+		      char *buf)
 {
-	u8 data[READ_PUBEK_RESULT_SIZE];
+	u8 data[sizeof(cap_manufacturer)];
 	ssize_t len;
 	char *str = buf;
 
 	struct tpm_chip *chip =
-	    pci_get_drvdata(container_of(dev, struct pci_dev, dev));
+	    pci_get_drvdata(to_pci_dev(dev));
 	if (chip == NULL)
 		return -ENODEV;
 
@@ -348,7 +286,7 @@ static ssize_t show_caps(struct device *dev, char *buf)
 		return len;
 
 	str += sprintf(str, "Manufacturer: 0x%x\n",
-		       be32_to_cpu(*(data + 14)));
+		       be32_to_cpu(*((__be32 *) (data + 14))));
 
 	memcpy(data, cap_version, sizeof(cap_version));
 
@@ -363,8 +301,20 @@ static ssize_t show_caps(struct device *dev, char *buf)
 
 	return str - buf;
 }
+EXPORT_SYMBOL_GPL(tpm_show_caps);
 
-static DEVICE_ATTR(caps, S_IRUGO, show_caps, NULL);
+ssize_t tpm_store_cancel(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	if (chip == NULL)
+		return 0;
+
+	chip->vendor->cancel(chip);
+	return count;
+}
+EXPORT_SYMBOL_GPL(tpm_store_cancel);
+
 
 /*
  * Device file system interface to the TPM
@@ -422,24 +372,15 @@ EXPORT_SYMBOL_GPL(tpm_open);
 int tpm_release(struct inode *inode, struct file *file)
 {
 	struct tpm_chip *chip = file->private_data;
-	
-	file->private_data = NULL;
 
 	spin_lock(&driver_lock);
+	file->private_data = NULL;
 	chip->num_opens--;
-	spin_unlock(&driver_lock);
-
-	down(&chip->timer_manipulation_mutex);
-	if (timer_pending(&chip->user_read_timer))
-		del_singleshot_timer_sync(&chip->user_read_timer);
-	else if (timer_pending(&chip->device_timer))
-		del_singleshot_timer_sync(&chip->device_timer);
-	up(&chip->timer_manipulation_mutex);
-
-	kfree(chip->data_buffer);
+	del_singleshot_timer_sync(&chip->user_read_timer);
 	atomic_set(&chip->data_pending, 0);
-
 	pci_dev_put(chip->pci_dev);
+	kfree(chip->data_buffer);
+	spin_unlock(&driver_lock);
 	return 0;
 }
 
@@ -453,10 +394,8 @@ ssize_t tpm_write(struct file * file, const char __user * buf,
 
 	/* cannot perform a write until the read has cleared
 	   either via tpm_read or a user_read_timer timeout */
-	while (atomic_read(&chip->data_pending) != 0) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(TPM_TIMEOUT);
-	}
+	while (atomic_read(&chip->data_pending) != 0)
+		msleep(TPM_TIMEOUT);
 
 	down(&chip->buffer_mutex);
 
@@ -476,13 +415,7 @@ ssize_t tpm_write(struct file * file, const char __user * buf,
 	up(&chip->buffer_mutex);
 
 	/* Set a timeout by which the reader must come claim the result */
-	down(&chip->timer_manipulation_mutex);
-	init_timer(&chip->user_read_timer);
-	chip->user_read_timer.function = user_reader_timeout;
-	chip->user_read_timer.data = (unsigned long) chip;
-	chip->user_read_timer.expires = jiffies + (60 * HZ);
-	add_timer(&chip->user_read_timer);
-	up(&chip->timer_manipulation_mutex);
+	mod_timer(&chip->user_read_timer, jiffies + (60 * HZ));
 
 	return in_size;
 }
@@ -493,29 +426,19 @@ ssize_t tpm_read(struct file * file, char __user * buf,
 		 size_t size, loff_t * off)
 {
 	struct tpm_chip *chip = file->private_data;
-	int ret_size = -ENODATA;
+	int ret_size;
 
-	if (atomic_read(&chip->data_pending) != 0) {	/* Result available */
-		down(&chip->timer_manipulation_mutex);
-		del_singleshot_timer_sync(&chip->user_read_timer);
-		up(&chip->timer_manipulation_mutex);
+	del_singleshot_timer_sync(&chip->user_read_timer);
+	ret_size = atomic_read(&chip->data_pending);
+	atomic_set(&chip->data_pending, 0);
+	if (ret_size > 0) {	/* relay data */
+		if (size < ret_size)
+			ret_size = size;
 
 		down(&chip->buffer_mutex);
-
-		ret_size = atomic_read(&chip->data_pending);
-		atomic_set(&chip->data_pending, 0);
-
-		if (ret_size == 0)	/* timeout just occurred */
-			ret_size = -ETIME;
-		else if (ret_size > 0) {	/* relay data */
-			if (size < ret_size)
-				ret_size = size;
-
-			if (copy_to_user((void __user *) buf,
-					 chip->data_buffer, ret_size)) {
-				ret_size = -EFAULT;
-			}
-		}
+		if (copy_to_user
+		    ((void __user *) buf, chip->data_buffer, ret_size))
+			ret_size = -EFAULT;
 		up(&chip->buffer_mutex);
 	}
 
@@ -541,14 +464,13 @@ void __devexit tpm_remove(struct pci_dev *pci_dev)
 
 	pci_set_drvdata(pci_dev, NULL);
 	misc_deregister(&chip->vendor->miscdev);
+	kfree(&chip->vendor->miscdev.name);
 
-	device_remove_file(&pci_dev->dev, &dev_attr_pubek);
-	device_remove_file(&pci_dev->dev, &dev_attr_pcrs);
-	device_remove_file(&pci_dev->dev, &dev_attr_caps);
+	sysfs_remove_group(&pci_dev->dev.kobj, chip->vendor->attr_group);
 
 	pci_disable_device(pci_dev);
 
-	dev_mask[chip->dev_num / 32] &= !(1 << (chip->dev_num % 32));
+	dev_mask[chip->dev_num / TPM_NUM_MASK_ENTRIES ] &= !(1 << (chip->dev_num % TPM_NUM_MASK_ENTRIES));
 
 	kfree(chip);
 
@@ -590,10 +512,6 @@ int tpm_pm_resume(struct pci_dev *pci_dev)
 	if (chip == NULL)
 		return -ENODEV;
 
-	spin_lock(&driver_lock);
-	tpm_lpc_bus_init(pci_dev, chip->vendor->base);
-	spin_unlock(&driver_lock);
-
 	return 0;
 }
 
@@ -609,7 +527,9 @@ EXPORT_SYMBOL_GPL(tpm_pm_resume);
 int tpm_register_hardware(struct pci_dev *pci_dev,
 			  struct tpm_vendor_specific *entry)
 {
-	char devname[7];
+#define DEVNAME_SIZE 7
+
+	char *devname;
 	struct tpm_chip *chip;
 	int i, j;
 
@@ -622,17 +542,21 @@ int tpm_register_hardware(struct pci_dev *pci_dev,
 
 	init_MUTEX(&chip->buffer_mutex);
 	init_MUTEX(&chip->tpm_mutex);
-	init_MUTEX(&chip->timer_manipulation_mutex);
 	INIT_LIST_HEAD(&chip->list);
+
+	init_timer(&chip->user_read_timer);
+	chip->user_read_timer.function = user_reader_timeout;
+	chip->user_read_timer.data = (unsigned long) chip;
 
 	chip->vendor = entry;
 
 	chip->dev_num = -1;
 
-	for (i = 0; i < 32; i++)
-		for (j = 0; j < 8; j++)
+	for (i = 0; i < TPM_NUM_MASK_ENTRIES; i++)
+		for (j = 0; j < 8 * sizeof(int); j++)
 			if ((dev_mask[i] & (1 << j)) == 0) {
-				chip->dev_num = i * 32 + j;
+				chip->dev_num =
+				    i * TPM_NUM_MASK_ENTRIES + j;
 				dev_mask[i] |= 1 << j;
 				goto dev_num_search_complete;
 			}
@@ -648,7 +572,8 @@ dev_num_search_complete:
 	else
 		chip->vendor->miscdev.minor = MISC_DYNAMIC_MINOR;
 
-	snprintf(devname, sizeof(devname), "%s%d", "tpm", chip->dev_num);
+	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
+	scnprintf(devname, DEVNAME_SIZE, "%s%d", "tpm", chip->dev_num);
 	chip->vendor->miscdev.name = devname;
 
 	chip->vendor->miscdev.dev = &(pci_dev->dev);
@@ -665,31 +590,20 @@ dev_num_search_complete:
 		return -ENODEV;
 	}
 
+	spin_lock(&driver_lock);
+
 	pci_set_drvdata(pci_dev, chip);
 
 	list_add(&chip->list, &tpm_chip_list);
 
-	device_create_file(&pci_dev->dev, &dev_attr_pubek);
-	device_create_file(&pci_dev->dev, &dev_attr_pcrs);
-	device_create_file(&pci_dev->dev, &dev_attr_caps);
+	spin_unlock(&driver_lock);
+
+	sysfs_create_group(&pci_dev->dev.kobj, chip->vendor->attr_group);
 
 	return 0;
 }
 
 EXPORT_SYMBOL_GPL(tpm_register_hardware);
-
-static int __init init_tpm(void)
-{
-	return 0;
-}
-
-static void __exit cleanup_tpm(void)
-{
-
-}
-
-module_init(init_tpm);
-module_exit(cleanup_tpm);
 
 MODULE_AUTHOR("Leendert van Doorn (leendert@watson.ibm.com)");
 MODULE_DESCRIPTION("TPM Driver");

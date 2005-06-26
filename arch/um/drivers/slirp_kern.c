@@ -25,10 +25,7 @@ void slirp_init(struct net_device *dev, void *data)
 		{ .argw 	= init->argw,
 		  .pid  	= -1,
 		  .slave  	= -1,
-		  .ibuf  	= { '\0' },
-		  .obuf  	= { '\0' },
-		  .pos 		= 0,
-		  .esc 		= 0,
+		  .slip		= SLIP_PROTO_INIT,
 		  .dev 		= dev });
 
 	dev->init = NULL;

@@ -779,6 +779,12 @@ struct m3_quirk {
 				   (e.g. for IrDA on Dell Inspirons) */
 };
 
+struct m3_hv_quirk {
+	u16 vendor, device, subsystem_vendor, subsystem_device;
+	u32 config;		/* ALLEGRO_CONFIG hardware volume bits */
+	int is_omnibook;	/* Do HP OmniBook GPIO magic? */
+};
+
 struct m3_list {
 	int curlen;
 	int mem_addr;
@@ -828,6 +834,7 @@ struct snd_m3 {
 
 	struct pci_dev *pci;
 	struct m3_quirk *quirk;
+	struct m3_hv_quirk *hv_quirk;
 
 	int dacs_active;
 	int timer_users;
@@ -851,6 +858,11 @@ struct snd_m3 {
 	m3_dma_t *substreams;
 
 	spinlock_t reg_lock;
+	spinlock_t ac97_lock;
+
+	snd_kcontrol_t *master_switch;
+	snd_kcontrol_t *master_volume;
+	struct tasklet_struct hwvol_tq;
 
 #ifdef CONFIG_PM
 	u16 *suspend_mem;
@@ -968,6 +980,71 @@ static struct m3_quirk m3_quirk_list[] = {
 	{ NULL }
 };
 
+/* These values came from the Windows driver. */
+static struct m3_hv_quirk m3_hv_quirk_list[] = {
+	/* Allegro chips */
+	{ 0x125D, 0x1988, 0x0E11, 0x002E, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x0E11, 0x0094, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x0E11, 0xB112, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x0E11, 0xB114, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x103C, 0x0012, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x103C, 0x0018, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x103C, 0x001C, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x103C, 0x001D, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x103C, 0x001E, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x107B, 0x3350, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x10F7, 0x8338, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x10F7, 0x833C, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x10F7, 0x833D, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x10F7, 0x833E, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x10F7, 0x833F, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x13BD, 0x1018, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x13BD, 0x1019, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x13BD, 0x101A, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x14FF, 0x0F03, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x14FF, 0x0F04, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x14FF, 0x0F05, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x156D, 0xB400, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x156D, 0xB795, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x156D, 0xB797, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x156D, 0xC700, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
+	{ 0x125D, 0x1988, 0x1033, 0x80F1, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x1988, 0x103C, 0x001A, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 }, /* HP OmniBook 6100 */
+	{ 0x125D, 0x1988, 0x107B, 0x340A, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x1988, 0x107B, 0x3450, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x1988, 0x109F, 0x3134, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x1988, 0x109F, 0x3161, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x1988, 0x144D, 0x3280, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x1988, 0x144D, 0x3281, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x1988, 0x144D, 0xC002, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x1988, 0x144D, 0xC003, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x1988, 0x1509, 0x1740, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x1988, 0x1610, 0x0010, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x1988, 0x1042, 0x1042, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1988, 0x107B, 0x9500, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1988, 0x14FF, 0x0F06, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1988, 0x1558, 0x8586, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1988, 0x161F, 0x2011, HV_CTRL_ENABLE, 0 },
+	/* Maestro3 chips */
+	{ 0x125D, 0x1998, 0x103C, 0x000E, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1998, 0x103C, 0x0010, HV_CTRL_ENABLE, 1 }, /* HP OmniBook 6000 */
+	{ 0x125D, 0x1998, 0x103C, 0x0011, HV_CTRL_ENABLE, 1 }, /* HP OmniBook 500 */
+	{ 0x125D, 0x1998, 0x103C, 0x001B, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1998, 0x104D, 0x80A6, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1998, 0x104D, 0x80AA, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1998, 0x107B, 0x5300, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1998, 0x110A, 0x1998, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1998, 0x13BD, 0x1015, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1998, 0x13BD, 0x101C, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1998, 0x13BD, 0x1802, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1998, 0x1599, 0x0715, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x1998, 0x5643, 0x5643, HV_CTRL_ENABLE, 0 },
+	{ 0x125D, 0x199A, 0x144D, 0x3260, HV_CTRL_ENABLE | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x199A, 0x144D, 0x3261, HV_CTRL_ENABLE | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x199A, 0x144D, 0xC000, HV_CTRL_ENABLE | REDUCED_DEBOUNCE, 0 },
+	{ 0x125D, 0x199A, 0x144D, 0xC001, HV_CTRL_ENABLE | REDUCED_DEBOUNCE, 0 },
+	{ 0 }
+};
 
 /*
  * lowlevel functions
@@ -1565,6 +1642,68 @@ static void snd_m3_update_ptr(m3_t *chip, m3_dma_t *s)
 	}
 }
 
+static void snd_m3_update_hw_volume(unsigned long private_data)
+{
+	m3_t *chip = (m3_t *) private_data;
+	int x, val;
+	unsigned long flags;
+
+	/* Figure out which volume control button was pushed,
+	   based on differences from the default register
+	   values. */
+	x = inb(chip->iobase + SHADOW_MIX_REG_VOICE) & 0xee;
+
+	/* Reset the volume control registers. */
+	outb(0x88, chip->iobase + SHADOW_MIX_REG_VOICE);
+	outb(0x88, chip->iobase + HW_VOL_COUNTER_VOICE);
+	outb(0x88, chip->iobase + SHADOW_MIX_REG_MASTER);
+	outb(0x88, chip->iobase + HW_VOL_COUNTER_MASTER);
+
+	if (!chip->master_switch || !chip->master_volume)
+		return;
+
+	/* FIXME: we can't call snd_ac97_* functions since here is in tasklet. */
+	spin_lock_irqsave(&chip->ac97_lock, flags);
+
+	val = chip->ac97->regs[AC97_MASTER_VOL];
+	switch (x) {
+	case 0x88:
+		/* mute */
+		val ^= 0x8000;
+		chip->ac97->regs[AC97_MASTER_VOL] = val;
+		outw(val, chip->iobase + CODEC_DATA);
+		outb(AC97_MASTER_VOL, chip->iobase + CODEC_COMMAND);
+		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &chip->master_switch->id);
+		break;
+	case 0xaa:
+		/* volume up */
+		if ((val & 0x7f) > 0)
+			val--;
+		if ((val & 0x7f00) > 0)
+			val -= 0x0100;
+		chip->ac97->regs[AC97_MASTER_VOL] = val;
+		outw(val, chip->iobase + CODEC_DATA);
+		outb(AC97_MASTER_VOL, chip->iobase + CODEC_COMMAND);
+		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &chip->master_volume->id);
+		break;
+	case 0x66:
+		/* volume down */
+		if ((val & 0x7f) < 0x1f)
+			val++;
+		if ((val & 0x7f00) < 0x1f00)
+			val += 0x0100;
+		chip->ac97->regs[AC97_MASTER_VOL] = val;
+		outw(val, chip->iobase + CODEC_DATA);
+		outb(AC97_MASTER_VOL, chip->iobase + CODEC_COMMAND);
+		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &chip->master_volume->id);
+		break;
+	}
+	spin_unlock_irqrestore(&chip->ac97_lock, flags);
+}
+
 static irqreturn_t
 snd_m3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -1576,7 +1715,10 @@ snd_m3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	if (status == 0xff)
 		return IRQ_NONE;
-   
+
+	if (status & HV_INT_PENDING)
+		tasklet_hi_schedule(&chip->hwvol_tq);
+
 	/*
 	 * ack an assp int if its running
 	 * and has an int pending
@@ -1605,7 +1747,7 @@ snd_m3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #endif
 
 	/* ack ints */
-	snd_m3_outw(chip, HOST_INT_STATUS, status);
+	outb(status, chip->iobase + HOST_INT_STATUS);
 
 	return IRQ_HANDLED;
 }
@@ -1842,24 +1984,32 @@ static unsigned short
 snd_m3_ac97_read(ac97_t *ac97, unsigned short reg)
 {
 	m3_t *chip = ac97->private_data;
+	unsigned long flags;
+	unsigned short data;
 
 	if (snd_m3_ac97_wait(chip))
 		return 0xffff;
+	spin_lock_irqsave(&chip->ac97_lock, flags);
 	snd_m3_outb(chip, 0x80 | (reg & 0x7f), CODEC_COMMAND);
 	if (snd_m3_ac97_wait(chip))
 		return 0xffff;
-	return snd_m3_inw(chip, CODEC_DATA);
+	data = snd_m3_inw(chip, CODEC_DATA);
+	spin_unlock_irqrestore(&chip->ac97_lock, flags);
+	return data;
 }
 
 static void
 snd_m3_ac97_write(ac97_t *ac97, unsigned short reg, unsigned short val)
 {
 	m3_t *chip = ac97->private_data;
+	unsigned long flags;
 
 	if (snd_m3_ac97_wait(chip))
 		return;
+	spin_lock_irqsave(&chip->ac97_lock, flags);
 	snd_m3_outw(chip, val, CODEC_DATA);
 	snd_m3_outb(chip, reg & 0x7f, CODEC_COMMAND);
+	spin_unlock_irqrestore(&chip->ac97_lock, flags);
 }
 
 
@@ -1968,6 +2118,7 @@ static int __devinit snd_m3_mixer(m3_t *chip)
 {
 	ac97_bus_t *pbus;
 	ac97_template_t ac97;
+	snd_ctl_elem_id_t id;
 	int err;
 	static ac97_bus_ops_t ops = {
 		.write = snd_m3_ac97_write,
@@ -1987,6 +2138,15 @@ static int __devinit snd_m3_mixer(m3_t *chip)
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule_timeout(HZ / 10);
 	snd_ac97_write(chip->ac97, AC97_PCM, 0);
+
+	memset(&id, 0, sizeof(id));
+	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	strcpy(id.name, "Master Playback Switch");
+	chip->master_switch = snd_ctl_find_id(chip->card, &id);
+	memset(&id, 0, sizeof(id));
+	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	strcpy(id.name, "Master Playback Volume");
+	chip->master_volume = snd_ctl_find_id(chip->card, &id);
 
 	return 0;
 }
@@ -2293,6 +2453,7 @@ static int
 snd_m3_chip_init(m3_t *chip)
 {
 	struct pci_dev *pcidev = chip->pci;
+	unsigned long io = chip->iobase;
 	u32 n;
 	u16 w;
 	u8 t; /* makes as much sense as 'n', no? */
@@ -2303,8 +2464,27 @@ snd_m3_chip_init(m3_t *chip)
 	       DISABLE_LEGACY);
 	pci_write_config_word(pcidev, PCI_LEGACY_AUDIO_CTRL, w);
 
+	if (chip->hv_quirk && chip->hv_quirk->is_omnibook) {
+		/*
+		 * Volume buttons on some HP OmniBook laptops don't work
+		 * correctly. This makes them work for the most part.
+		 *
+		 * Volume up and down buttons on the laptop side work.
+		 * Fn+cursor_up (volme up) works.
+		 * Fn+cursor_down (volume down) doesn't work.
+		 * Fn+F7 (mute) works acts as volume up.
+		 */
+		outw(~(GPI_VOL_DOWN|GPI_VOL_UP), io + GPIO_MASK);
+		outw(inw(io + GPIO_DIRECTION) & ~(GPI_VOL_DOWN|GPI_VOL_UP), io + GPIO_DIRECTION);
+		outw((GPI_VOL_DOWN|GPI_VOL_UP), io + GPIO_DATA);
+		outw(0xffff, io + GPIO_MASK);
+	}
 	pci_read_config_dword(pcidev, PCI_ALLEGRO_CONFIG, &n);
-	n &= REDUCED_DEBOUNCE;
+	n &= ~(HV_CTRL_ENABLE | REDUCED_DEBOUNCE | HV_BUTTON_FROM_GD);
+	if (chip->hv_quirk)
+		n |= chip->hv_quirk->config;
+	/* For some reason we must always use reduced debounce. */
+	n |= REDUCED_DEBOUNCE;
 	n |= PM_CTRL_ENABLE | CLK_DIV_BY_49 | USE_PCI_TIMING;
 	pci_write_config_dword(pcidev, PCI_ALLEGRO_CONFIG, n);
 
@@ -2332,6 +2512,12 @@ snd_m3_chip_init(m3_t *chip)
 
 	outb(RUN_ASSP, chip->iobase + ASSP_CONTROL_B); 
 
+	outb(0x00, io + HARDWARE_VOL_CTRL);
+	outb(0x88, io + SHADOW_MIX_REG_VOICE);
+	outb(0x88, io + HW_VOL_COUNTER_VOICE);
+	outb(0x88, io + SHADOW_MIX_REG_MASTER);
+	outb(0x88, io + HW_VOL_COUNTER_MASTER);
+
 	return 0;
 } 
 
@@ -2341,7 +2527,7 @@ snd_m3_enable_ints(m3_t *chip)
 	unsigned long io = chip->iobase;
 
 	/* TODO: MPU401 not supported yet */
-	outw(ASSP_INT_ENABLE /*| MPU401_INT_ENABLE*/, io + HOST_INT_CTRL);
+	outw(ASSP_INT_ENABLE | HV_INT_ENABLE /*| MPU401_INT_ENABLE*/, io + HOST_INT_CTRL);
 	outb(inb(io + ASSP_CONTROL_C) | ASSP_HOST_INT_ENABLE,
 	     io + ASSP_CONTROL_C);
 }
@@ -2367,7 +2553,7 @@ static int snd_m3_free(m3_t *chip)
 		kfree(chip->substreams);
 	}
 	if (chip->iobase) {
-		snd_m3_outw(chip, HOST_INT_CTRL, 0); /* disable ints */
+		outw(0, chip->iobase + HOST_INT_CTRL); /* disable ints */
 	}
 
 #ifdef CONFIG_PM
@@ -2486,7 +2672,7 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 	m3_t *chip;
 	int i, err;
 	struct m3_quirk *quirk;
-	u16 subsystem_vendor, subsystem_device;
+	struct m3_hv_quirk *hv_quirk;
 	static snd_device_ops_t ops = {
 		.dev_free =	snd_m3_dev_free,
 	};
@@ -2524,14 +2710,21 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 	chip->pci = pci;
 	chip->irq = -1;
 
-	pci_read_config_word(pci, PCI_SUBSYSTEM_VENDOR_ID, &subsystem_vendor);
-	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &subsystem_device);
-
 	for (quirk = m3_quirk_list; quirk->vendor; quirk++) {
-		if (subsystem_vendor == quirk->vendor &&
-		    subsystem_device == quirk->device) {
+		if (pci->subsystem_vendor == quirk->vendor &&
+		    pci->subsystem_device == quirk->device) {
 			printk(KERN_INFO "maestro3: enabled hack for '%s'\n", quirk->name);
 			chip->quirk = quirk;
+			break;
+		}
+	}
+
+	for (hv_quirk = m3_hv_quirk_list; hv_quirk->vendor; hv_quirk++) {
+		if (pci->vendor == hv_quirk->vendor &&
+		    pci->device == hv_quirk->device &&
+		    pci->subsystem_vendor == hv_quirk->subsystem_vendor &&
+		    pci->subsystem_device == hv_quirk->subsystem_device) {
+			chip->hv_quirk = hv_quirk;
 			break;
 		}
 	}
@@ -2592,6 +2785,9 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 		snd_m3_free(chip);
 		return err;
 	}
+
+	spin_lock_init(&chip->ac97_lock);
+	tasklet_init(&chip->hwvol_tq, snd_m3_update_hw_volume, (unsigned long)chip);
 
 	if ((err = snd_m3_mixer(chip)) < 0)
 		return err;
@@ -2702,7 +2898,7 @@ static struct pci_driver driver = {
 	
 static int __init alsa_card_m3_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_m3_exit(void)

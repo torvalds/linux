@@ -1,0 +1,135 @@
+#ifndef LINUX_KEXEC_H
+#define LINUX_KEXEC_H
+
+#ifdef CONFIG_KEXEC
+#include <linux/types.h>
+#include <linux/list.h>
+#include <linux/linkage.h>
+#include <linux/compat.h>
+#include <asm/kexec.h>
+
+/* Verify architecture specific macros are defined */
+
+#ifndef KEXEC_SOURCE_MEMORY_LIMIT
+#error KEXEC_SOURCE_MEMORY_LIMIT not defined
+#endif
+
+#ifndef KEXEC_DESTINATION_MEMORY_LIMIT
+#error KEXEC_DESTINATION_MEMORY_LIMIT not defined
+#endif
+
+#ifndef KEXEC_CONTROL_MEMORY_LIMIT
+#error KEXEC_CONTROL_MEMORY_LIMIT not defined
+#endif
+
+#ifndef KEXEC_CONTROL_CODE_SIZE
+#error KEXEC_CONTROL_CODE_SIZE not defined
+#endif
+
+#ifndef KEXEC_ARCH
+#error KEXEC_ARCH not defined
+#endif
+
+/*
+ * This structure is used to hold the arguments that are used when loading
+ * kernel binaries.
+ */
+
+typedef unsigned long kimage_entry_t;
+#define IND_DESTINATION  0x1
+#define IND_INDIRECTION  0x2
+#define IND_DONE         0x4
+#define IND_SOURCE       0x8
+
+#define KEXEC_SEGMENT_MAX 8
+struct kexec_segment {
+	void __user *buf;
+	size_t bufsz;
+	unsigned long mem;	/* User space sees this as a (void *) ... */
+	size_t memsz;
+};
+
+#ifdef CONFIG_COMPAT
+struct compat_kexec_segment {
+	compat_uptr_t buf;
+	compat_size_t bufsz;
+	compat_ulong_t mem;	/* User space sees this as a (void *) ... */
+	compat_size_t memsz;
+};
+#endif
+
+struct kimage {
+	kimage_entry_t head;
+	kimage_entry_t *entry;
+	kimage_entry_t *last_entry;
+
+	unsigned long destination;
+
+	unsigned long start;
+	struct page *control_code_page;
+
+	unsigned long nr_segments;
+	struct kexec_segment segment[KEXEC_SEGMENT_MAX];
+
+	struct list_head control_pages;
+	struct list_head dest_pages;
+	struct list_head unuseable_pages;
+
+	/* Address of next control page to allocate for crash kernels. */
+	unsigned long control_page;
+
+	/* Flags to indicate special processing */
+	unsigned int type : 1;
+#define KEXEC_TYPE_DEFAULT 0
+#define KEXEC_TYPE_CRASH   1
+};
+
+
+
+/* kexec interface functions */
+extern NORET_TYPE void machine_kexec(struct kimage *image) ATTRIB_NORET;
+extern int machine_kexec_prepare(struct kimage *image);
+extern void machine_kexec_cleanup(struct kimage *image);
+extern asmlinkage long sys_kexec_load(unsigned long entry,
+					unsigned long nr_segments,
+					struct kexec_segment __user *segments,
+					unsigned long flags);
+#ifdef CONFIG_COMPAT
+extern asmlinkage long compat_sys_kexec_load(unsigned long entry,
+				unsigned long nr_segments,
+				struct compat_kexec_segment __user *segments,
+				unsigned long flags);
+#endif
+extern struct page *kimage_alloc_control_pages(struct kimage *image,
+						unsigned int order);
+extern void crash_kexec(struct pt_regs *);
+int kexec_should_crash(struct task_struct *);
+extern struct kimage *kexec_image;
+
+#define KEXEC_ON_CRASH  0x00000001
+#define KEXEC_ARCH_MASK 0xffff0000
+
+/* These values match the ELF architecture values.
+ * Unless there is a good reason that should continue to be the case.
+ */
+#define KEXEC_ARCH_DEFAULT ( 0 << 16)
+#define KEXEC_ARCH_386     ( 3 << 16)
+#define KEXEC_ARCH_X86_64  (62 << 16)
+#define KEXEC_ARCH_PPC     (20 << 16)
+#define KEXEC_ARCH_PPC64   (21 << 16)
+#define KEXEC_ARCH_IA_64   (50 << 16)
+#define KEXEC_ARCH_S390    (22 << 16)
+
+#define KEXEC_FLAGS    (KEXEC_ON_CRASH)  /* List of defined/legal kexec flags */
+
+/* Location of a reserved region to hold the crash kernel.
+ */
+extern struct resource crashk_res;
+
+#else /* !CONFIG_KEXEC */
+struct pt_regs;
+struct task_struct;
+static inline void crash_kexec(struct pt_regs *regs) { }
+static inline int kexec_should_crash(struct task_struct *p) { return 0; }
+#endif /* CONFIG_KEXEC */
+#endif /* LINUX_KEXEC_H */

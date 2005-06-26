@@ -148,7 +148,6 @@ static unsigned short normal_i2c[] = {
 	I2C_TDA9874   >> 1,
 	I2C_PIC16C54  >> 1,
 	I2C_CLIENT_END };
-static unsigned short normal_i2c_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
 static struct i2c_driver driver;
@@ -286,7 +285,6 @@ static int chip_thread(void *data)
 			schedule();
 		}
 		remove_wait_queue(&chip->wq, &wait);
-		try_to_freeze(PF_FREEZE);
 		if (chip->done || signal_pending(current))
 			break;
 		dprintk("%s: thread wakeup\n", i2c_clientname(&chip->c));
@@ -1238,17 +1236,17 @@ static int ta8874z_checkit(struct CHIPSTATE *chip)
 /* audio chip descriptions - struct CHIPDESC                              */
 
 /* insmod options to enable/disable individual audio chips */
-int tda8425  = 1;
-int tda9840  = 1;
-int tda9850  = 1;
-int tda9855  = 1;
-int tda9873  = 1;
-int tda9874a = 1;
-int tea6300  = 0;  // address clash with msp34xx
-int tea6320  = 0;  // address clash with msp34xx
-int tea6420  = 1;
-int pic16c54 = 1;
-int ta8874z  = 0;  // address clash with tda9840
+static int tda8425  = 1;
+static int tda9840  = 1;
+static int tda9850  = 1;
+static int tda9855  = 1;
+static int tda9873  = 1;
+static int tda9874a = 1;
+static int tea6300  = 0;  // address clash with msp34xx
+static int tea6320  = 0;  // address clash with msp34xx
+static int tea6420  = 1;
+static int pic16c54 = 1;
+static int ta8874z  = 0;  // address clash with tda9840
 
 module_param(tda8425, int, 0444);
 module_param(tda9840, int, 0444);

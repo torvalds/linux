@@ -43,6 +43,14 @@ Who:	Randy Dunlap <rddunlap@osdl.org>
 
 ---------------------------
 
+What:	RAW driver (CONFIG_RAW_DRIVER)
+When:	December 2005
+Why:	declared obsolete since kernel 2.6.3
+	O_DIRECT can be used instead
+Who:	Adrian Bunk <bunk@stusta.de>
+
+---------------------------
+
 What:	register_ioctl32_conversion() / unregister_ioctl32_conversion()
 When:	April 2005
 Why:	Replaced by ->compat_ioctl in file_operations and other method
@@ -66,6 +74,14 @@ Who:	Paul E. McKenney <paulmck@us.ibm.com>
 
 ---------------------------
 
+What:	remove verify_area()
+When:	July 2006
+Files:	Various uaccess.h headers.
+Why:	Deprecated and redundant. access_ok() should be used instead.
+Who:	Jesper Juhl <juhl-lkml@dif.dk>
+
+---------------------------
+
 What:	IEEE1394 Audio and Music Data Transmission Protocol driver,
 	Connection Management Procedures driver
 When:	November 2005
@@ -83,3 +99,23 @@ Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
 	more efficient.  You should really be using libraw1394 for raw1394
 	access anyway.
 Who:	Jody McIntyre <scjody@steamballoon.com>
+
+---------------------------
+
+What:	register_serial/unregister_serial
+When:	December 2005
+Why:	This interface does not allow serial ports to be registered against
+	a struct device, and as such does not allow correct power management
+	of such ports.  8250-based ports should use serial8250_register_port
+	and serial8250_unregister_port instead.
+Who:	Russell King <rmk@arm.linux.org.uk>
+
+---------------------------
+
+What:	i2c sysfs name change: in1_ref, vid deprecated in favour of cpu0_vid
+When:	November 2005
+Files:	drivers/i2c/chips/adm1025.c, drivers/i2c/chips/adm1026.c
+Why:	Match the other drivers' name for the same function, duplicate names
+	will be available until removal of old names.
+Who:	Grant Coady <gcoady@gmail.com>
+

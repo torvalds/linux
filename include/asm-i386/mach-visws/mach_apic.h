@@ -9,8 +9,6 @@
 #define no_balance_irq (0)
 #define esr_disable (0)
 
-#define NO_IOAPIC_CHECK (0)
-
 #define INT_DELIVERY_MODE dest_LowestPrio
 #define INT_DEST_MODE 1     /* logical delivery broadcast to all procs */
 
