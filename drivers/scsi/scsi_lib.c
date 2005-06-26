@@ -336,14 +336,15 @@ int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 		     struct scsi_sense_hdr *sshdr, int timeout, int retries)
 {
 	char *sense = NULL;
-		
+	int result;
+	
 	if (sshdr) {
 		sense = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
 		if (!sense)
 			return DRIVER_ERROR << 24;
 		memset(sense, 0, sizeof(*sense));
 	}
-	int result = scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
+	result = scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
 				  sense, timeout, retries, 0);
 	if (sshdr)
 		scsi_normalize_sense(sense, sizeof(*sense), sshdr);
