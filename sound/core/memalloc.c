@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <asm/uaccess.h>
 #include <linux/dma-mapping.h>
 #include <linux/moduleparam.h>
 #include <asm/semaphore.h>
@@ -44,13 +45,6 @@ MODULE_LICENSE("GPL");
 
 #ifndef SNDRV_CARDS
 #define SNDRV_CARDS	8
-#endif
-
-/* FIXME: so far only some PCI devices have the preallocation table */
-#ifdef CONFIG_PCI
-static int enable[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 1};
-module_param_array(enable, bool, NULL, 0444);
-MODULE_PARM_DESC(enable, "Enable cards to allocate buffers.");
 #endif
 
 /*
@@ -451,9 +445,13 @@ size_t snd_dma_get_reserved_buf(struct snd_dma_buffer *dmab, unsigned int id)
 	list_for_each(p, &mem_list_head) {
 		mem = list_entry(p, struct snd_mem_list, list);
 		if (mem->id == id &&
-		    ! memcmp(&mem->buffer.dev, &dmab->dev, sizeof(dmab->dev))) {
+		    (mem->buffer.dev.dev == NULL || dmab->dev.dev == NULL ||
+		     ! memcmp(&mem->buffer.dev, &dmab->dev, sizeof(dmab->dev)))) {
+			struct device *dev = dmab->dev.dev;
 			list_del(p);
 			*dmab = mem->buffer;
+			if (dmab->dev.dev == NULL)
+				dmab->dev.dev = dev;
 			kfree(mem);
 			up(&list_mutex);
 			return dmab->bytes;
@@ -508,91 +506,13 @@ static void free_all_reserved_pages(void)
 }
 
 
-
-/*
- * allocation of buffers for pre-defined devices
- */
-
-#ifdef CONFIG_PCI
-/* FIXME: for pci only - other bus? */
-struct prealloc_dev {
-	unsigned short vendor;
-	unsigned short device;
-	unsigned long dma_mask;
-	unsigned int size;
-	unsigned int buffers;
-};
-
-#define HAMMERFALL_BUFFER_SIZE    (16*1024*4*(26+1)+0x10000)
-
-static struct prealloc_dev prealloc_devices[] __initdata = {
-	{
-		/* hammerfall */
-		.vendor = 0x10ee,
-		.device = 0x3fc4,
-		.dma_mask = 0xffffffff,
-		.size = HAMMERFALL_BUFFER_SIZE,
-		.buffers = 2
-	},
-	{
-		/* HDSP */
-		.vendor = 0x10ee,
-		.device = 0x3fc5,
-		.dma_mask = 0xffffffff,
-		.size = HAMMERFALL_BUFFER_SIZE,
-		.buffers = 2
-	},
-	{ }, /* terminator */
-};
-
-static void __init preallocate_cards(void)
-{
-	struct pci_dev *pci = NULL;
-	int card;
-
-	card = 0;
-
-	while ((pci = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci)) != NULL) {
-		struct prealloc_dev *dev;
-		unsigned int i;
-		if (card >= SNDRV_CARDS)
-			break;
-		for (dev = prealloc_devices; dev->vendor; dev++) {
-			if (dev->vendor == pci->vendor && dev->device == pci->device)
-				break;
-		}
-		if (! dev->vendor)
-			continue;
-		if (! enable[card++]) {
-			printk(KERN_DEBUG "snd-page-alloc: skipping card %d, device %04x:%04x\n", card, pci->vendor, pci->device);
-			continue;
-		}
-			
-		if (pci_set_dma_mask(pci, dev->dma_mask) < 0 ||
-		    pci_set_consistent_dma_mask(pci, dev->dma_mask) < 0) {
-			printk(KERN_ERR "snd-page-alloc: cannot set DMA mask %lx for pci %04x:%04x\n", dev->dma_mask, dev->vendor, dev->device);
-			continue;
-		}
-		for (i = 0; i < dev->buffers; i++) {
-			struct snd_dma_buffer dmab;
-			memset(&dmab, 0, sizeof(dmab));
-			if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-						dev->size, &dmab) < 0)
-				printk(KERN_WARNING "snd-page-alloc: cannot allocate buffer pages (size = %d)\n", dev->size);
-			else
-				snd_dma_reserve_buf(&dmab, snd_dma_pci_buf_id(pci));
-		}
-	}
-}
-#else
-#define preallocate_cards()	/* NOP */
-#endif
-
-
 #ifdef CONFIG_PROC_FS
 /*
  * proc file interface
  */
+#define SND_MEM_PROC_FILE	"driver/snd-page-alloc"
+struct proc_dir_entry *snd_mem_proc;
+
 static int snd_mem_proc_read(char *page, char **start, off_t off,
 			     int count, int *eof, void *data)
 {
@@ -621,6 +541,97 @@ static int snd_mem_proc_read(char *page, char **start, off_t off,
 	up(&list_mutex);
 	return len;
 }
+
+/* FIXME: for pci only - other bus? */
+#ifdef CONFIG_PCI
+#define gettoken(bufp) strsep(bufp, " \t\n")
+
+static int snd_mem_proc_write(struct file *file, const char __user *buffer,
+			      unsigned long count, void *data)
+{
+	char buf[128];
+	char *token, *p;
+
+	if (count > ARRAY_SIZE(buf) - 1)
+		count = ARRAY_SIZE(buf) - 1;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[ARRAY_SIZE(buf) - 1] = '\0';
+
+	p = buf;
+	token = gettoken(&p);
+	if (! token || *token == '#')
+		return (int)count;
+	if (strcmp(token, "add") == 0) {
+		char *endp;
+		int vendor, device, size, buffers;
+		long mask;
+		int i, alloced;
+		struct pci_dev *pci;
+
+		if ((token = gettoken(&p)) == NULL ||
+		    (vendor = simple_strtol(token, NULL, 0)) <= 0 ||
+		    (token = gettoken(&p)) == NULL ||
+		    (device = simple_strtol(token, NULL, 0)) <= 0 ||
+		    (token = gettoken(&p)) == NULL ||
+		    (mask = simple_strtol(token, NULL, 0)) < 0 ||
+		    (token = gettoken(&p)) == NULL ||
+		    (size = memparse(token, &endp)) < 64*1024 ||
+		    size > 16*1024*1024 /* too big */ ||
+		    (token = gettoken(&p)) == NULL ||
+		    (buffers = simple_strtol(token, NULL, 0)) <= 0 ||
+		    buffers > 4) {
+			printk(KERN_ERR "snd-page-alloc: invalid proc write format\n");
+			return (int)count;
+		}
+		vendor &= 0xffff;
+		device &= 0xffff;
+
+		alloced = 0;
+		pci = NULL;
+		while ((pci = pci_find_device(vendor, device, pci)) != NULL) {
+			if (mask > 0 && mask < 0xffffffff) {
+				if (pci_set_dma_mask(pci, mask) < 0 ||
+				    pci_set_consistent_dma_mask(pci, mask) < 0) {
+					printk(KERN_ERR "snd-page-alloc: cannot set DMA mask %lx for pci %04x:%04x\n", mask, vendor, device);
+					return (int)count;
+				}
+			}
+			for (i = 0; i < buffers; i++) {
+				struct snd_dma_buffer dmab;
+				memset(&dmab, 0, sizeof(dmab));
+				if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+							size, &dmab) < 0) {
+					printk(KERN_ERR "snd-page-alloc: cannot allocate buffer pages (size = %d)\n", size);
+					return (int)count;
+				}
+				snd_dma_reserve_buf(&dmab, snd_dma_pci_buf_id(pci));
+			}
+			alloced++;
+		}
+		if (! alloced) {
+			for (i = 0; i < buffers; i++) {
+				struct snd_dma_buffer dmab;
+				memset(&dmab, 0, sizeof(dmab));
+				/* FIXME: We can allocate only in ZONE_DMA
+				 * without a device pointer!
+				 */
+				if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, NULL,
+							size, &dmab) < 0) {
+					printk(KERN_ERR "snd-page-alloc: cannot allocate buffer pages (size = %d)\n", size);
+					break;
+				}
+				snd_dma_reserve_buf(&dmab, (unsigned int)((vendor << 16) | device));
+			}
+		}
+	} else if (strcmp(token, "erase") == 0)
+		/* FIXME: need for releasing each buffer chunk? */
+		free_all_reserved_pages();
+	else
+		printk(KERN_ERR "snd-page-alloc: invalid proc cmd\n");
+	return (int)count;
+}
+#endif /* CONFIG_PCI */
 #endif /* CONFIG_PROC_FS */
 
 /*
@@ -630,15 +641,21 @@ static int snd_mem_proc_read(char *page, char **start, off_t off,
 static int __init snd_mem_init(void)
 {
 #ifdef CONFIG_PROC_FS
-	create_proc_read_entry("driver/snd-page-alloc", 0, NULL, snd_mem_proc_read, NULL);
+	snd_mem_proc = create_proc_entry(SND_MEM_PROC_FILE, 0644, NULL);
+	if (snd_mem_proc) {
+		snd_mem_proc->read_proc = snd_mem_proc_read;
+#ifdef CONFIG_PCI
+		snd_mem_proc->write_proc = snd_mem_proc_write;
 #endif
-	preallocate_cards();
+	}
+#endif
 	return 0;
 }
 
 static void __exit snd_mem_exit(void)
 {
-	remove_proc_entry("driver/snd-page-alloc", NULL);
+	if (snd_mem_proc)
+		remove_proc_entry(SND_MEM_PROC_FILE, NULL);
 	free_all_reserved_pages();
 	if (snd_allocated_pages > 0)
 		printk(KERN_ERR "snd-malloc: Memory leak?  pages not freed = %li\n", snd_allocated_pages);

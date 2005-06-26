@@ -197,10 +197,7 @@ int matroxfb_vgaHWinit(WPMINFO struct my_timming* m) {
 	DBG(__FUNCTION__)
 
 	hw->SEQ[0] = 0x00;
-	if (fwidth == 9)
-		hw->SEQ[1] = 0x00;
-	else
-		hw->SEQ[1] = 0x01;	/* or 0x09 */
+	hw->SEQ[1] = 0x01;	/* or 0x09 */
 	hw->SEQ[2] = 0x0F;	/* bitplanes */
 	hw->SEQ[3] = 0x00;
 	hw->SEQ[4] = 0x0E;

@@ -263,7 +263,7 @@ static int find_resource(struct resource *root, struct resource *new,
 			new->start = min;
 		if (new->end > max)
 			new->end = max;
-		new->start = (new->start + align - 1) & ~(align - 1);
+		new->start = ALIGN(new->start, align);
 		if (alignf)
 			alignf(alignf_data, new, size, align);
 		if (new->start < new->end && new->end - new->start >= size - 1) {

@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.12-rc2-m68k
-# Tue Apr  5 14:06:21 2005
+# Linux kernel version: 2.6.12-rc6-m68k
+# Tue Jun  7 20:34:41 2005
 #
 CONFIG_M68K=y
 CONFIG_MMU=y
@@ -35,6 +35,8 @@ CONFIG_KOBJECT_UEVENT=y
 CONFIG_KALLSYMS=y
 # CONFIG_KALLSYMS_ALL is not set
 # CONFIG_KALLSYMS_EXTRA_PASS is not set
+CONFIG_PRINTK=y
+CONFIG_BUG=y
 CONFIG_BASE_FULL=y
 CONFIG_FUTEX=y
 CONFIG_EPOLL=y
@@ -498,7 +500,6 @@ CONFIG_SERIO_SERPORT=m
 CONFIG_SERIO_LIBPS2=m
 # CONFIG_SERIO_RAW is not set
 # CONFIG_GAMEPORT is not set
-CONFIG_SOUND_GAMEPORT=y
 
 #
 # Character devices

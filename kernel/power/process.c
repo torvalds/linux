@@ -32,7 +32,7 @@ static inline int freezeable(struct task_struct * p)
 }
 
 /* Refrigerator is place where frozen processes are stored :-). */
-void refrigerator(unsigned long flag)
+void refrigerator(void)
 {
 	/* Hmm, should we be allowed to suspend when there are realtime
 	   processes around? */
@@ -41,14 +41,13 @@ void refrigerator(unsigned long flag)
 	current->state = TASK_UNINTERRUPTIBLE;
 	pr_debug("%s entered refrigerator\n", current->comm);
 	printk("=");
-	current->flags &= ~PF_FREEZE;
 
+	frozen_process(current);
 	spin_lock_irq(&current->sighand->siglock);
 	recalc_sigpending(); /* We sent fake signal, clean it up */
 	spin_unlock_irq(&current->sighand->siglock);
 
-	current->flags |= PF_FROZEN;
-	while (current->flags & PF_FROZEN)
+	while (frozen(current))
 		schedule();
 	pr_debug("%s left refrigerator\n", current->comm);
 	current->state = save;
@@ -57,10 +56,10 @@ void refrigerator(unsigned long flag)
 /* 0 = success, else # of processes that we failed to stop */
 int freeze_processes(void)
 {
-       int todo;
-       unsigned long start_time;
+	int todo;
+	unsigned long start_time;
 	struct task_struct *g, *p;
-	
+
 	printk( "Stopping tasks: " );
 	start_time = jiffies;
 	do {
@@ -70,14 +69,12 @@ int freeze_processes(void)
 			unsigned long flags;
 			if (!freezeable(p))
 				continue;
-			if ((p->flags & PF_FROZEN) ||
+			if ((frozen(p)) ||
 			    (p->state == TASK_TRACED) ||
 			    (p->state == TASK_STOPPED))
 				continue;
 
-			/* FIXME: smp problem here: we may not access other process' flags
-			   without locking */
-			p->flags |= PF_FREEZE;
+			freeze(p);
 			spin_lock_irqsave(&p->sighand->siglock, flags);
 			signal_wake_up(p, 0);
 			spin_unlock_irqrestore(&p->sighand->siglock, flags);
@@ -91,7 +88,7 @@ int freeze_processes(void)
 			return todo;
 		}
 	} while(todo);
-	
+
 	printk( "|\n" );
 	BUG_ON(in_atomic());
 	return 0;
@@ -106,10 +103,7 @@ void thaw_processes(void)
 	do_each_thread(g, p) {
 		if (!freezeable(p))
 			continue;
-		if (p->flags & PF_FROZEN) {
-			p->flags &= ~PF_FROZEN;
-			wake_up_process(p);
-		} else
+		if (!thaw_process(p))
 			printk(KERN_INFO " Strange, %s not stopped\n", p->comm );
 	} while_each_thread(g, p);
 

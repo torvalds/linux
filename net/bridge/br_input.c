@@ -23,11 +23,7 @@ const unsigned char bridge_ula[6] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
 
 static int br_pass_frame_up_finish(struct sk_buff *skb)
 {
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug = 0;
-#endif
-	netif_rx(skb);
-
+	netif_receive_skb(skb);
 	return 0;
 }
 
@@ -53,6 +49,9 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	struct net_bridge *br = p->br;
 	struct net_bridge_fdb_entry *dst;
 	int passedup = 0;
+
+	/* insert into forwarding database after filtering to avoid spoofing */
+	br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
 
 	if (br->dev->flags & IFF_PROMISC) {
 		struct sk_buff *skb2;
@@ -108,8 +107,7 @@ int br_handle_frame(struct net_bridge_port *p, struct sk_buff **pskb)
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
 		goto err;
 
-	if (p->state == BR_STATE_LEARNING ||
-	    p->state == BR_STATE_FORWARDING)
+	if (p->state == BR_STATE_LEARNING)
 		br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
 
 	if (p->br->stp_enabled &&

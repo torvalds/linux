@@ -153,6 +153,7 @@ static struct ata_port_operations piix_pata_ops = {
 
 	.port_start		= ata_port_start,
 	.port_stop		= ata_port_stop,
+	.host_stop		= ata_host_stop,
 };
 
 static struct ata_port_operations piix_sata_ops = {
@@ -180,6 +181,7 @@ static struct ata_port_operations piix_sata_ops = {
 
 	.port_start		= ata_port_start,
 	.port_stop		= ata_port_stop,
+	.host_stop		= ata_host_stop,
 };
 
 static struct ata_port_info piix_port_info[] = {
@@ -663,15 +665,6 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	return ata_pci_init_one(pdev, port_info, n_ports);
 }
 
-/**
- *	piix_init -
- *
- *	LOCKING:
- *
- *	RETURNS:
- *
- */
-
 static int __init piix_init(void)
 {
 	int rc;
@@ -686,13 +679,6 @@ static int __init piix_init(void)
 	DPRINTK("done\n");
 	return 0;
 }
-
-/**
- *	piix_exit -
- *
- *	LOCKING:
- *
- */
 
 static void __exit piix_exit(void)
 {

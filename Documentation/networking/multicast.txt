@@ -47,7 +47,6 @@ ni52		<------------------ Buggy ------------------>
 ni65		YES		YES		YES		Software(#)
 seeq		NO		NO		NO		N/A
 sgiseek		<------------------ Buggy ------------------>
-sk_g16		NO		NO		YES		N/A
 smc-ultra	YES		YES		YES		Hardware
 sunlance	YES		YES		YES		Hardware
 tulip		YES		YES		YES		Hardware

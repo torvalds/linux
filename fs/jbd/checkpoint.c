@@ -188,7 +188,6 @@ static int __cleanup_transaction(journal_t *journal, transaction_t *transaction)
 		} else {
 			jbd_unlock_bh_state(bh);
 		}
-		jh = next_jh;
 	} while (jh != last_jh);
 
 	return ret;
@@ -339,8 +338,10 @@ int log_do_checkpoint(journal_t *journal)
 			}
 		} while (jh != last_jh && !retry);
 
-		if (batch_count)
+		if (batch_count) {
 			__flush_batch(journal, bhs, &batch_count);
+			retry = 1;
+		}
 
 		/*
 		 * If someone cleaned up this transaction while we slept, we're

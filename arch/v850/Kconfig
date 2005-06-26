@@ -218,6 +218,8 @@ menu "Processor type and features"
 	     a lot of RAM, and you need to able to allocate very large
 	     contiguous chunks. If unsure, say N.
 
+source "mm/Kconfig"
+
 endmenu
 
 

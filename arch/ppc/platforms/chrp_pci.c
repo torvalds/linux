@@ -9,7 +9,6 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/ide.h>
-#include <linux/bootmem.h>
 
 #include <asm/io.h>
 #include <asm/pgtable.h>

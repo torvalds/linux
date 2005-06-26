@@ -107,10 +107,6 @@ static int ip_dev_loopback_xmit(struct sk_buff *newskb)
 	newskb->pkt_type = PACKET_LOOPBACK;
 	newskb->ip_summed = CHECKSUM_UNNECESSARY;
 	BUG_TRAP(newskb->dst);
-
-#ifdef CONFIG_NETFILTER_DEBUG
-	nf_debug_ip_loopback_xmit(newskb);
-#endif
 	nf_reset(newskb);
 	netif_rx(newskb);
 	return 0;
@@ -191,10 +187,6 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		kfree_skb(skb);
 		skb = skb2;
 	}
-
-#ifdef CONFIG_NETFILTER_DEBUG
-	nf_debug_ip_finish_output2(skb);
-#endif /*CONFIG_NETFILTER_DEBUG*/
 
 	nf_reset(skb);
 
@@ -415,9 +407,6 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	to->nf_bridge = from->nf_bridge;
 	nf_bridge_get(to->nf_bridge);
 #endif
-#ifdef CONFIG_NETFILTER_DEBUG
-	to->nf_debug = from->nf_debug;
-#endif
 #endif
 }
 
@@ -490,6 +479,14 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 			/* Partially cloned skb? */
 			if (skb_shared(frag))
 				goto slow_path;
+
+			BUG_ON(frag->sk);
+			if (skb->sk) {
+				sock_hold(skb->sk);
+				frag->sk = skb->sk;
+				frag->destructor = sock_wfree;
+				skb->truesize -= frag->truesize;
+			}
 		}
 
 		/* Everything is OK. Generate! */

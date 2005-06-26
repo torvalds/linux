@@ -151,7 +151,7 @@ l1m_debug(struct FsmInst *fi, char *fmt, ...)
 	va_end(args);
 }
 
-void
+static void
 L1activated(struct IsdnCardState *cs)
 {
 	struct PStack *st;
@@ -166,7 +166,7 @@ L1activated(struct IsdnCardState *cs)
 	}
 }
 
-void
+static void
 L1deactivated(struct IsdnCardState *cs)
 {
 	struct PStack *st;
@@ -370,7 +370,7 @@ init_bcstate(struct IsdnCardState *cs, int bc)
 
 #ifdef L2FRAME_DEBUG		/* psa */
 
-char *
+static char *
 l2cmd(u_char cmd)
 {
 	switch (cmd & ~0x10) {
@@ -404,7 +404,7 @@ l2cmd(u_char cmd)
 
 static char tmpdeb[32];
 
-char *
+static char *
 l2frames(u_char * ptr)
 {
 	switch (ptr[2] & ~0x10) {

@@ -365,7 +365,7 @@ static int security_validtrans_handle_fail(struct context *ocontext,
 		goto out;
 	if (context_struct_to_string(tcontext, &t, &tlen) < 0)
 		goto out;
-	audit_log(current->audit_context,
+	audit_log(current->audit_context, AUDIT_SELINUX_ERR,
 	          "security_validate_transition:  denied for"
 	          " oldcontext=%s newcontext=%s taskcontext=%s tclass=%s",
 	          o, n, t, policydb.p_class_val_to_name[tclass-1]);
@@ -476,8 +476,8 @@ int security_compute_av(u32 ssid,
 	int rc = 0;
 
 	if (!ss_initialized) {
-		avd->allowed = requested;
-		avd->decided = requested;
+		avd->allowed = 0xffffffff;
+		avd->decided = 0xffffffff;
 		avd->auditallow = 0;
 		avd->auditdeny = 0xffffffff;
 		avd->seqno = latest_granting;
@@ -742,7 +742,7 @@ static int compute_sid_handle_invalid_context(
 		goto out;
 	if (context_struct_to_string(newcontext, &n, &nlen) < 0)
 		goto out;
-	audit_log(current->audit_context,
+	audit_log(current->audit_context, AUDIT_SELINUX_ERR,
 		  "security_compute_sid:  invalid context %s"
 		  " for scontext=%s"
 		  " tcontext=%s"
@@ -1196,9 +1196,11 @@ int security_load_policy(void *data, size_t len)
 		}
 		policydb_loaded_version = policydb.policyvers;
 		ss_initialized = 1;
-
+		seqno = ++latest_granting;
 		LOAD_UNLOCK;
 		selinux_complete_init();
+		avc_ss_reset(seqno);
+		selnl_notify_policyload(seqno);
 		return 0;
 	}
 
@@ -1703,11 +1705,9 @@ out:
 err:
 	if (*names) {
 		for (i = 0; i < *len; i++)
-			if ((*names)[i])
-				kfree((*names)[i]);
+			kfree((*names)[i]);
 	}
-	if (*values)
-		kfree(*values);
+	kfree(*values);
 	goto out;
 }
 

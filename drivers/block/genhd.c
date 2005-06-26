@@ -40,7 +40,7 @@ static inline int major_to_index(int major)
 
 #ifdef CONFIG_PROC_FS
 /* get block device names in somewhat random order */
-int get_blkdev_list(char *p)
+int get_blkdev_list(char *p, int used)
 {
 	struct blk_major_name *n;
 	int i, len;
@@ -49,10 +49,18 @@ int get_blkdev_list(char *p)
 
 	down(&block_subsys_sem);
 	for (i = 0; i < ARRAY_SIZE(major_names); i++) {
-		for (n = major_names[i]; n; n = n->next)
+		for (n = major_names[i]; n; n = n->next) {
+			/*
+			 * If the curent string plus the 5 extra characters
+			 * in the line would run us off the page, then we're done
+			 */
+			if ((len + used + strlen(n->name) + 5) >= PAGE_SIZE)
+				goto page_full;
 			len += sprintf(p+len, "%3d %s\n",
 				       n->major, n->name);
+		}
 	}
+page_full:
 	up(&block_subsys_sem);
 
 	return len;
@@ -322,7 +330,7 @@ static ssize_t disk_attr_show(struct kobject *kobj, struct attribute *attr,
 	struct gendisk *disk = to_disk(kobj);
 	struct disk_attribute *disk_attr =
 		container_of(attr,struct disk_attribute,attr);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (disk_attr->show)
 		ret = disk_attr->show(disk,page);
@@ -582,10 +590,16 @@ struct seq_operations diskstats_op = {
 	.show	= diskstats_show
 };
 
-
 struct gendisk *alloc_disk(int minors)
 {
-	struct gendisk *disk = kmalloc(sizeof(struct gendisk), GFP_KERNEL);
+	return alloc_disk_node(minors, -1);
+}
+
+struct gendisk *alloc_disk_node(int minors, int node_id)
+{
+	struct gendisk *disk;
+
+	disk = kmalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
 	if (disk) {
 		memset(disk, 0, sizeof(struct gendisk));
 		if (!init_disk_stats(disk)) {
@@ -594,7 +608,7 @@ struct gendisk *alloc_disk(int minors)
 		}
 		if (minors > 1) {
 			int size = (minors - 1) * sizeof(struct hd_struct *);
-			disk->part = kmalloc(size, GFP_KERNEL);
+			disk->part = kmalloc_node(size, GFP_KERNEL, node_id);
 			if (!disk->part) {
 				kfree(disk);
 				return NULL;
@@ -610,6 +624,7 @@ struct gendisk *alloc_disk(int minors)
 }
 
 EXPORT_SYMBOL(alloc_disk);
+EXPORT_SYMBOL(alloc_disk_node);
 
 struct kobject *get_disk(struct gendisk *disk)
 {

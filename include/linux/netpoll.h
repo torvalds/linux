@@ -16,14 +16,19 @@ struct netpoll;
 struct netpoll {
 	struct net_device *dev;
 	char dev_name[16], *name;
-	int rx_flags;
 	void (*rx_hook)(struct netpoll *, int, char *, int);
 	void (*drop)(struct sk_buff *skb);
 	u32 local_ip, remote_ip;
 	u16 local_port, remote_port;
 	unsigned char local_mac[6], remote_mac[6];
+};
+
+struct netpoll_info {
 	spinlock_t poll_lock;
 	int poll_owner;
+	int rx_flags;
+	spinlock_t rx_lock;
+	struct netpoll *rx_np; /* netpoll that registered an rx_hook */
 };
 
 void netpoll_poll(struct netpoll *np);
@@ -39,22 +44,35 @@ void netpoll_queue(struct sk_buff *skb);
 #ifdef CONFIG_NETPOLL
 static inline int netpoll_rx(struct sk_buff *skb)
 {
-	return skb->dev->np && skb->dev->np->rx_flags && __netpoll_rx(skb);
+	struct netpoll_info *npinfo = skb->dev->npinfo;
+	unsigned long flags;
+	int ret = 0;
+
+	if (!npinfo || (!npinfo->rx_np && !npinfo->rx_flags))
+		return 0;
+
+	spin_lock_irqsave(&npinfo->rx_lock, flags);
+	/* check rx_flags again with the lock held */
+	if (npinfo->rx_flags && __netpoll_rx(skb))
+		ret = 1;
+	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+
+	return ret;
 }
 
 static inline void netpoll_poll_lock(struct net_device *dev)
 {
-	if (dev->np) {
-		spin_lock(&dev->np->poll_lock);
-		dev->np->poll_owner = smp_processor_id();
+	if (dev->npinfo) {
+		spin_lock(&dev->npinfo->poll_lock);
+		dev->npinfo->poll_owner = smp_processor_id();
 	}
 }
 
 static inline void netpoll_poll_unlock(struct net_device *dev)
 {
-	if (dev->np) {
-		spin_unlock(&dev->np->poll_lock);
-		dev->np->poll_owner = -1;
+	if (dev->npinfo) {
+		dev->npinfo->poll_owner = -1;
+		spin_unlock(&dev->npinfo->poll_lock);
 	}
 }
 

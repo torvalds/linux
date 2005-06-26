@@ -252,7 +252,9 @@ ixgb_get_regs(struct net_device *netdev,
 	uint32_t *reg_start = reg;
 	uint8_t i;
 
-	regs->version = (adapter->hw.device_id << 16) | adapter->hw.subsystem_id;
+	/* the 1 (one) below indicates an attempt at versioning, if the
+	 * interface in ethtool or the driver this 1 should be incremented */
+	regs->version = (1<<24) | hw->revision_id << 16 | hw->device_id;
 
 	/* General Registers */
 	*reg++ = IXGB_READ_REG(hw, CTRL0);	/*   0 */

@@ -39,7 +39,8 @@ static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
 		driver->id_table->vendor != pciedev->id.vendor) ||
 	       (driver->id_table->device != PCI_ANY_ID &&
 		driver->id_table->device != pciedev->id.device) ||	
-		driver->id_table->port_type != pciedev->id.port_type ||
+	       (driver->id_table->port_type != PCIE_ANY_PORT &&
+		driver->id_table->port_type != pciedev->id.port_type) ||
 		driver->id_table->service_type != pciedev->id.service_type )
 		return 0;
 

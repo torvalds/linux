@@ -58,7 +58,7 @@
 #include <linux/swapops.h>
 #include <linux/elf.h>
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 /* use the per-pgdat data instead for discontigmem - mbligh */
 unsigned long max_mapnr;
 struct page *mem_map;
@@ -840,22 +840,7 @@ check_user_page_readable(struct mm_struct *mm, unsigned long address)
 {
 	return __follow_page(mm, address, /*read*/1, /*write*/0) != NULL;
 }
-
 EXPORT_SYMBOL(check_user_page_readable);
-
-/* 
- * Given a physical address, is there a useful struct page pointing to
- * it?  This may become more complex in the future if we start dealing
- * with IO-aperture pages for direct-IO.
- */
-
-static inline struct page *get_page_map(struct page *page)
-{
-	if (!pfn_valid(page_to_pfn(page)))
-		return NULL;
-	return page;
-}
-
 
 static inline int
 untouched_anonymous_page(struct mm_struct* mm, struct vm_area_struct *vma,
@@ -886,7 +871,6 @@ untouched_anonymous_page(struct mm_struct* mm, struct vm_area_struct *vma,
 	/* There is a pte slot for 'address' in 'mm'. */
 	return 0;
 }
-
 
 int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		unsigned long start, int len, int write, int force,
@@ -951,21 +935,21 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		}
 		spin_lock(&mm->page_table_lock);
 		do {
-			struct page *map;
+			struct page *page;
 			int lookup_write = write;
 
 			cond_resched_lock(&mm->page_table_lock);
-			while (!(map = follow_page(mm, start, lookup_write))) {
+			while (!(page = follow_page(mm, start, lookup_write))) {
 				/*
 				 * Shortcut for anonymous pages. We don't want
 				 * to force the creation of pages tables for
-				 * insanly big anonymously mapped areas that
+				 * insanely big anonymously mapped areas that
 				 * nobody touched so far. This is important
 				 * for doing a core dump for these mappings.
 				 */
 				if (!lookup_write &&
 				    untouched_anonymous_page(mm,vma,start)) {
-					map = ZERO_PAGE(start);
+					page = ZERO_PAGE(start);
 					break;
 				}
 				spin_unlock(&mm->page_table_lock);
@@ -994,30 +978,21 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				spin_lock(&mm->page_table_lock);
 			}
 			if (pages) {
-				pages[i] = get_page_map(map);
-				if (!pages[i]) {
-					spin_unlock(&mm->page_table_lock);
-					while (i--)
-						page_cache_release(pages[i]);
-					i = -EFAULT;
-					goto out;
-				}
-				flush_dcache_page(pages[i]);
-				if (!PageReserved(pages[i]))
-					page_cache_get(pages[i]);
+				pages[i] = page;
+				flush_dcache_page(page);
+				if (!PageReserved(page))
+					page_cache_get(page);
 			}
 			if (vmas)
 				vmas[i] = vma;
 			i++;
 			start += PAGE_SIZE;
 			len--;
-		} while(len && start < vma->vm_end);
+		} while (len && start < vma->vm_end);
 		spin_unlock(&mm->page_table_lock);
-	} while(len);
-out:
+	} while (len);
 	return i;
 }
-
 EXPORT_SYMBOL(get_user_pages);
 
 static int zeromap_pte_range(struct mm_struct *mm, pmd_t *pmd,
@@ -1164,7 +1139,7 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 {
 	pgd_t *pgd;
 	unsigned long next;
-	unsigned long end = addr + size;
+	unsigned long end = addr + PAGE_ALIGN(size);
 	struct mm_struct *mm = vma->vm_mm;
 	int err;
 
@@ -1264,7 +1239,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct * vma,
 	}
 	old_page = pfn_to_page(pfn);
 
-	if (!TestSetPageLocked(old_page)) {
+	if (PageAnon(old_page) && !TestSetPageLocked(old_page)) {
 		int reuse = can_share_swap_page(old_page);
 		unlock_page(old_page);
 		if (reuse) {
@@ -1483,7 +1458,7 @@ restart:
  * unmap_mapping_range - unmap the portion of all mmaps
  * in the specified address_space corresponding to the specified
  * page range in the underlying file.
- * @address_space: the address space containing mmaps to be unmapped.
+ * @mapping: the address space containing mmaps to be unmapped.
  * @holebegin: byte in first page to unmap, relative to the start of
  * the underlying file.  This will be rounded down to a PAGE_SIZE
  * boundary.  Note that this is different from vmtruncate(), which
@@ -1701,19 +1676,16 @@ static int do_swap_page(struct mm_struct * mm,
 	spin_lock(&mm->page_table_lock);
 	page_table = pte_offset_map(pmd, address);
 	if (unlikely(!pte_same(*page_table, orig_pte))) {
-		pte_unmap(page_table);
-		spin_unlock(&mm->page_table_lock);
-		unlock_page(page);
-		page_cache_release(page);
 		ret = VM_FAULT_MINOR;
-		goto out;
+		goto out_nomap;
+	}
+
+	if (unlikely(!PageUptodate(page))) {
+		ret = VM_FAULT_SIGBUS;
+		goto out_nomap;
 	}
 
 	/* The page isn't present yet, go ahead with the fault. */
-		
-	swap_free(entry);
-	if (vm_swap_full())
-		remove_exclusive_swap_page(page);
 
 	inc_mm_counter(mm, rss);
 	pte = mk_pte(page, vma->vm_page_prot);
@@ -1721,11 +1693,15 @@ static int do_swap_page(struct mm_struct * mm,
 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
 		write_access = 0;
 	}
-	unlock_page(page);
 
 	flush_icache_page(vma, page);
 	set_pte_at(mm, address, page_table, pte);
 	page_add_anon_rmap(page, vma, address);
+
+	swap_free(entry);
+	if (vm_swap_full())
+		remove_exclusive_swap_page(page);
+	unlock_page(page);
 
 	if (write_access) {
 		if (do_wp_page(mm, vma, address,
@@ -1741,6 +1717,12 @@ static int do_swap_page(struct mm_struct * mm,
 	spin_unlock(&mm->page_table_lock);
 out:
 	return ret;
+out_nomap:
+	pte_unmap(page_table);
+	spin_unlock(&mm->page_table_lock);
+	unlock_page(page);
+	page_cache_release(page);
+	goto out;
 }
 
 /*

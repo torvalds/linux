@@ -1271,7 +1271,6 @@ extern void Logl2Frame(struct IsdnCardState *cs, struct sk_buff *skb, char *buf,
 void init_bcstate(struct IsdnCardState *cs, int bc);
 
 void setstack_HiSax(struct PStack *st, struct IsdnCardState *cs);
-unsigned int random_ri(void);
 void HiSax_addlist(struct IsdnCardState *sp, struct PStack *st);
 void HiSax_rmlist(struct IsdnCardState *sp, struct PStack *st);
 
@@ -1315,15 +1314,11 @@ int QuickHex(char *txt, u_char * p, int cnt);
 void LogFrame(struct IsdnCardState *cs, u_char * p, int size);
 void dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir);
 void iecpy(u_char * dest, u_char * iestart, int ieoffset);
-#ifdef ISDN_CHIP_ISAC
-void setstack_isac(struct PStack *st, struct IsdnCardState *cs);
-#endif	/* ISDN_CHIP_ISAC */
 #endif	/* __KERNEL__ */
 
 #define HZDELAY(jiffs) {int tout = jiffs; while (tout--) udelay(1000000/HZ);}
 
 int ll_run(struct IsdnCardState *cs, int addfeatures);
-void ll_stop(struct IsdnCardState *cs);
 int CallcNew(void);
 void CallcFree(void);
 int CallcNewChan(struct IsdnCardState *cs);

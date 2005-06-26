@@ -371,7 +371,7 @@
           <listitem><para>create <function>probe()</function> callback.</para></listitem>
           <listitem><para>create <function>remove()</function> callback.</para></listitem>
           <listitem><para>create pci_driver table which contains the three pointers above.</para></listitem>
-          <listitem><para>create <function>init()</function> function just calling <function>pci_module_init()</function> to register the pci_driver table defined above.</para></listitem>
+          <listitem><para>create <function>init()</function> function just calling <function>pci_register_driver()</function> to register the pci_driver table defined above.</para></listitem>
           <listitem><para>create <function>exit()</function> function to call <function>pci_unregister_driver()</function> function.</para></listitem>
         </itemizedlist>
       </para>
@@ -1198,7 +1198,7 @@
   /* initialization of the module */
   static int __init alsa_card_mychip_init(void)
   {
-          return pci_module_init(&driver);
+          return pci_register_driver(&driver);
   }
 
   /* clean up the module */
@@ -1654,7 +1654,7 @@
 <![CDATA[
   static int __init alsa_card_mychip_init(void)
   {
-          return pci_module_init(&driver);
+          return pci_register_driver(&driver);
   }
 
   static void __exit alsa_card_mychip_exit(void)

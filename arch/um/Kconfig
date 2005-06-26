@@ -35,6 +35,11 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+# Used in kernel/irq/manage.c and include/linux/irq.h
+config IRQ_RELEASE_METHOD
+	bool
+	default y
+
 menu "UML-specific options"
 
 config MODE_TT
@@ -69,6 +74,7 @@ config MODE_SKAS
 	option will shrink the UML binary slightly.
 
 source "arch/um/Kconfig_arch"
+source "mm/Kconfig"
 
 config LD_SCRIPT_STATIC
 	bool

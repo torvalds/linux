@@ -360,14 +360,14 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len)
 	err = copied;
 
 	/* Reset and regenerate socket error */
-	spin_lock_irq(&sk->sk_error_queue.lock);
+	spin_lock_bh(&sk->sk_error_queue.lock);
 	sk->sk_err = 0;
 	if ((skb2 = skb_peek(&sk->sk_error_queue)) != NULL) {
 		sk->sk_err = SKB_EXT_ERR(skb2)->ee.ee_errno;
-		spin_unlock_irq(&sk->sk_error_queue.lock);
+		spin_unlock_bh(&sk->sk_error_queue.lock);
 		sk->sk_error_report(sk);
 	} else
-		spin_unlock_irq(&sk->sk_error_queue.lock);
+		spin_unlock_bh(&sk->sk_error_queue.lock);
 
 out_free_skb:	
 	kfree_skb(skb);

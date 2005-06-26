@@ -63,42 +63,45 @@ static inline void file_free(struct file *f)
  */
 struct file *get_empty_filp(void)
 {
-static int old_max;
+	static int old_max;
 	struct file * f;
 
 	/*
 	 * Privileged users can go above max_files
 	 */
-	if (files_stat.nr_files < files_stat.max_files ||
-				capable(CAP_SYS_ADMIN)) {
-		f = kmem_cache_alloc(filp_cachep, GFP_KERNEL);
-		if (f) {
-			memset(f, 0, sizeof(*f));
-			if (security_file_alloc(f)) {
-				file_free(f);
-				goto fail;
-			}
-			eventpoll_init_file(f);
-			atomic_set(&f->f_count, 1);
-			f->f_uid = current->fsuid;
-			f->f_gid = current->fsgid;
-			rwlock_init(&f->f_owner.lock);
-			/* f->f_version: 0 */
-			INIT_LIST_HEAD(&f->f_list);
-			f->f_maxcount = INT_MAX;
-			return f;
-		}
-	}
+	if (files_stat.nr_files >= files_stat.max_files &&
+				!capable(CAP_SYS_ADMIN))
+		goto over;
 
+	f = kmem_cache_alloc(filp_cachep, GFP_KERNEL);
+	if (f == NULL)
+		goto fail;
+
+	memset(f, 0, sizeof(*f));
+	if (security_file_alloc(f))
+		goto fail_sec;
+
+	eventpoll_init_file(f);
+	atomic_set(&f->f_count, 1);
+	f->f_uid = current->fsuid;
+	f->f_gid = current->fsgid;
+	rwlock_init(&f->f_owner.lock);
+	/* f->f_version: 0 */
+	INIT_LIST_HEAD(&f->f_list);
+	f->f_maxcount = INT_MAX;
+	return f;
+
+over:
 	/* Ran out of filps - report that */
-	if (files_stat.max_files >= old_max) {
+	if (files_stat.nr_files > old_max) {
 		printk(KERN_INFO "VFS: file-max limit %d reached\n",
 					files_stat.max_files);
-		old_max = files_stat.max_files;
-	} else {
-		/* Big problems... */
-		printk(KERN_WARNING "VFS: filp allocation failed\n");
+		old_max = files_stat.nr_files;
 	}
+	goto fail;
+
+fail_sec:
+	file_free(f);
 fail:
 	return NULL;
 }

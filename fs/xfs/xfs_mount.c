@@ -64,6 +64,7 @@
 STATIC void	xfs_mount_log_sbunit(xfs_mount_t *, __int64_t);
 STATIC int	xfs_uuid_mount(xfs_mount_t *);
 STATIC void	xfs_uuid_unmount(xfs_mount_t *mp);
+STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
 
 static struct {
     short offset;
@@ -555,7 +556,7 @@ xfs_readsb(xfs_mount_t *mp)
  * fields from the superblock associated with the given
  * mount structure
  */
-void
+STATIC void
 xfs_mount_common(xfs_mount_t *mp, xfs_sb_t *sbp)
 {
 	int	i;
@@ -1081,7 +1082,7 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 	int64_t		fsid;
 #endif
 
-	xfs_iflush_all(mp, XFS_FLUSH_ALL);
+	xfs_iflush_all(mp);
 
 	XFS_QM_DQPURGEALL(mp,
 		XFS_QMOPT_UQUOTA | XFS_QMOPT_GQUOTA | XFS_QMOPT_UMOUNTING);
@@ -1111,15 +1112,6 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 	 */
 	ASSERT(mp->m_inodes == NULL);
 
-	/*
-	 * We may have bufs that are in the process of getting written still.
-	 * We must wait for the I/O completion of those. The sync flag here
-	 * does a two pass iteration thru the bufcache.
-	 */
-	if (XFS_FORCED_SHUTDOWN(mp)) {
-		xfs_incore_relse(mp->m_ddev_targp, 0, 1); /* synchronous */
-	}
-
 	xfs_unmountfs_close(mp, cr);
 	if ((mp->m_flags & XFS_MOUNT_NOUUID) == 0)
 		xfs_uuid_unmount(mp);
@@ -1146,7 +1138,7 @@ xfs_unmountfs_close(xfs_mount_t *mp, struct cred *cr)
 	xfs_free_buftarg(mp->m_ddev_targp, 0);
 }
 
-void
+STATIC void
 xfs_unmountfs_wait(xfs_mount_t *mp)
 {
 	if (mp->m_logdev_targp != mp->m_ddev_targp)

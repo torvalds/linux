@@ -2,7 +2,7 @@
  * Generic HDLC support routines for Linux
  * Frame Relay support
  *
- * Copyright (C) 1999 - 2003 Krzysztof Halasa <khc@pm.waw.pl>
+ * Copyright (C) 1999 - 2005 Krzysztof Halasa <khc@pm.waw.pl>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -27,6 +27,10 @@
  active = open and "link reliable"
  exist = new = not used
 
+ CCITT LMI: ITU-T Q.933 Annex A
+ ANSI LMI: ANSI T1.617 Annex D
+ CISCO LMI: the original, aka "Gang of Four" LMI
+
 */
 
 #include <linux/module.h>
@@ -49,45 +53,41 @@
 #undef DEBUG_ECN
 #undef DEBUG_LINK
 
-#define MAXLEN_LMISTAT  20	/* max size of status enquiry frame */
+#define FR_UI			0x03
+#define FR_PAD			0x00
 
-#define PVC_STATE_NEW	 0x01
-#define PVC_STATE_ACTIVE 0x02
-#define PVC_STATE_FECN	 0x08 /* FECN condition */
-#define PVC_STATE_BECN	 0x10 /* BECN condition */
-
-
-#define FR_UI		 0x03
-#define FR_PAD		 0x00
-
-#define NLPID_IP	 0xCC
-#define NLPID_IPV6	 0x8E
-#define NLPID_SNAP	 0x80
-#define NLPID_PAD	 0x00
-#define NLPID_Q933	 0x08
+#define NLPID_IP		0xCC
+#define NLPID_IPV6		0x8E
+#define NLPID_SNAP		0x80
+#define NLPID_PAD		0x00
+#define NLPID_CCITT_ANSI_LMI	0x08
+#define NLPID_CISCO_LMI		0x09
 
 
-#define LMI_DLCI                   0 /* LMI DLCI */
-#define LMI_PROTO               0x08
-#define LMI_CALLREF             0x00 /* Call Reference */
-#define LMI_ANSI_LOCKSHIFT      0x95 /* ANSI lockshift */
-#define LMI_REPTYPE                1 /* report type */
-#define LMI_CCITT_REPTYPE       0x51
-#define LMI_ALIVE                  3 /* keep alive */
-#define LMI_CCITT_ALIVE         0x53
-#define LMI_PVCSTAT                7 /* pvc status */
-#define LMI_CCITT_PVCSTAT       0x57
-#define LMI_FULLREP                0 /* full report  */
-#define LMI_INTEGRITY              1 /* link integrity report */
-#define LMI_SINGLE                 2 /* single pvc report */
+#define LMI_CCITT_ANSI_DLCI	   0 /* LMI DLCI */
+#define LMI_CISCO_DLCI		1023
+
+#define LMI_CALLREF		0x00 /* Call Reference */
+#define LMI_ANSI_LOCKSHIFT	0x95 /* ANSI locking shift */
+#define LMI_ANSI_CISCO_REPTYPE	0x01 /* report type */
+#define LMI_CCITT_REPTYPE	0x51
+#define LMI_ANSI_CISCO_ALIVE	0x03 /* keep alive */
+#define LMI_CCITT_ALIVE		0x53
+#define LMI_ANSI_CISCO_PVCSTAT	0x07 /* PVC status */
+#define LMI_CCITT_PVCSTAT	0x57
+
+#define LMI_FULLREP		0x00 /* full report  */
+#define LMI_INTEGRITY		0x01 /* link integrity report */
+#define LMI_SINGLE		0x02 /* single PVC report */
+
 #define LMI_STATUS_ENQUIRY      0x75
 #define LMI_STATUS              0x7D /* reply */
 
 #define LMI_REPT_LEN               1 /* report type element length */
 #define LMI_INTEG_LEN              2 /* link integrity element length */
 
-#define LMI_LENGTH                13 /* standard LMI frame length */
-#define LMI_ANSI_LENGTH           14
+#define LMI_CCITT_CISCO_LENGTH	  13 /* LMI frame lengths */
+#define LMI_ANSI_LENGTH		  14
 
 
 typedef struct {
@@ -223,35 +223,24 @@ static inline struct net_device** get_dev_p(pvc_device *pvc, int type)
 }
 
 
-static inline u16 status_to_dlci(u8 *status, int *active, int *new)
-{
-	*new = (status[2] & 0x08) ? 1 : 0;
-	*active = (status[2] & 0x02) ? 1 : 0;
-
-	return ((status[0] & 0x3F) << 4) | ((status[1] & 0x78) >> 3);
-}
-
-
-static inline void dlci_to_status(u16 dlci, u8 *status, int active, int new)
-{
-	status[0] = (dlci >> 4) & 0x3F;
-	status[1] = ((dlci << 3) & 0x78) | 0x80;
-	status[2] = 0x80;
-
-	if (new)
-		status[2] |= 0x08;
-	else if (active)
-		status[2] |= 0x02;
-}
-
-
-
 static int fr_hard_header(struct sk_buff **skb_p, u16 dlci)
 {
 	u16 head_len;
 	struct sk_buff *skb = *skb_p;
 
 	switch (skb->protocol) {
+	case __constant_ntohs(NLPID_CCITT_ANSI_LMI):
+		head_len = 4;
+		skb_push(skb, head_len);
+		skb->data[3] = NLPID_CCITT_ANSI_LMI;
+		break;
+
+	case __constant_ntohs(NLPID_CISCO_LMI):
+		head_len = 4;
+		skb_push(skb, head_len);
+		skb->data[3] = NLPID_CISCO_LMI;
+		break;
+
 	case __constant_ntohs(ETH_P_IP):
 		head_len = 4;
 		skb_push(skb, head_len);
@@ -262,12 +251,6 @@ static int fr_hard_header(struct sk_buff **skb_p, u16 dlci)
 		head_len = 4;
 		skb_push(skb, head_len);
 		skb->data[3] = NLPID_IPV6;
-		break;
-
-	case __constant_ntohs(LMI_PROTO):
-		head_len = 4;
-		skb_push(skb, head_len);
-		skb->data[3] = LMI_PROTO;
 		break;
 
 	case __constant_ntohs(ETH_P_802_3):
@@ -461,13 +444,14 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	struct sk_buff *skb;
 	pvc_device *pvc = hdlc->state.fr.first_pvc;
-	int len = (hdlc->state.fr.settings.lmi == LMI_ANSI) ? LMI_ANSI_LENGTH
-		: LMI_LENGTH;
-	int stat_len = 3;
+	int lmi = hdlc->state.fr.settings.lmi;
+	int dce = hdlc->state.fr.settings.dce;
+	int len = lmi == LMI_ANSI ? LMI_ANSI_LENGTH : LMI_CCITT_CISCO_LENGTH;
+	int stat_len = (lmi == LMI_CISCO) ? 6 : 3;
 	u8 *data;
 	int i = 0;
 
-	if (hdlc->state.fr.settings.dce && fullrep) {
+	if (dce && fullrep) {
 		len += hdlc->state.fr.dce_pvc_count * (2 + stat_len);
 		if (len > HDLC_MAX_MRU) {
 			printk(KERN_WARNING "%s: Too many PVCs while sending "
@@ -484,29 +468,31 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	}
 	memset(skb->data, 0, len);
 	skb_reserve(skb, 4);
-	skb->protocol = __constant_htons(LMI_PROTO);
-	fr_hard_header(&skb, LMI_DLCI);
+	if (lmi == LMI_CISCO) {
+		skb->protocol = __constant_htons(NLPID_CISCO_LMI);
+		fr_hard_header(&skb, LMI_CISCO_DLCI);
+	} else {
+		skb->protocol = __constant_htons(NLPID_CCITT_ANSI_LMI);
+		fr_hard_header(&skb, LMI_CCITT_ANSI_DLCI);
+	}
 	data = skb->tail;
 	data[i++] = LMI_CALLREF;
-	data[i++] = hdlc->state.fr.settings.dce
-		? LMI_STATUS : LMI_STATUS_ENQUIRY;
-	if (hdlc->state.fr.settings.lmi == LMI_ANSI)
+	data[i++] = dce ? LMI_STATUS : LMI_STATUS_ENQUIRY;
+	if (lmi == LMI_ANSI)
 		data[i++] = LMI_ANSI_LOCKSHIFT;
-	data[i++] = (hdlc->state.fr.settings.lmi == LMI_CCITT)
-		? LMI_CCITT_REPTYPE : LMI_REPTYPE;
+	data[i++] = lmi == LMI_CCITT ? LMI_CCITT_REPTYPE :
+		LMI_ANSI_CISCO_REPTYPE;
 	data[i++] = LMI_REPT_LEN;
 	data[i++] = fullrep ? LMI_FULLREP : LMI_INTEGRITY;
-
-	data[i++] = (hdlc->state.fr.settings.lmi == LMI_CCITT)
-		? LMI_CCITT_ALIVE : LMI_ALIVE;
+	data[i++] = lmi == LMI_CCITT ? LMI_CCITT_ALIVE : LMI_ANSI_CISCO_ALIVE;
 	data[i++] = LMI_INTEG_LEN;
 	data[i++] = hdlc->state.fr.txseq =fr_lmi_nextseq(hdlc->state.fr.txseq);
 	data[i++] = hdlc->state.fr.rxseq;
 
-	if (hdlc->state.fr.settings.dce && fullrep) {
+	if (dce && fullrep) {
 		while (pvc) {
-			data[i++] = (hdlc->state.fr.settings.lmi == LMI_CCITT)
-				? LMI_CCITT_PVCSTAT : LMI_PVCSTAT;
+			data[i++] = lmi == LMI_CCITT ? LMI_CCITT_PVCSTAT :
+				LMI_ANSI_CISCO_PVCSTAT;
 			data[i++] = stat_len;
 
 			/* LMI start/restart */
@@ -523,8 +509,20 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 				fr_log_dlci_active(pvc);
 			}
 
-			dlci_to_status(pvc->dlci, data + i,
-				       pvc->state.active, pvc->state.new);
+			if (lmi == LMI_CISCO) {
+				data[i] = pvc->dlci >> 8;
+				data[i + 1] = pvc->dlci & 0xFF;
+			} else {
+				data[i] = (pvc->dlci >> 4) & 0x3F;
+				data[i + 1] = ((pvc->dlci << 3) & 0x78) | 0x80;
+				data[i + 2] = 0x80;
+			}
+
+			if (pvc->state.new)
+				data[i + 2] |= 0x08;
+			else if (pvc->state.active)
+				data[i + 2] |= 0x02;
+
 			i += stat_len;
 			pvc = pvc->next;
 		}
@@ -569,6 +567,8 @@ static void fr_set_link_state(int reliable, struct net_device *dev)
 			pvc_carrier(0, pvc);
 			pvc->state.exist = pvc->state.active = 0;
 			pvc->state.new = 0;
+			if (!hdlc->state.fr.settings.dce)
+				pvc->state.bandwidth = 0;
 			pvc = pvc->next;
 		}
 	}
@@ -583,11 +583,12 @@ static void fr_timer(unsigned long arg)
 	int i, cnt = 0, reliable;
 	u32 list;
 
-	if (hdlc->state.fr.settings.dce)
+	if (hdlc->state.fr.settings.dce) {
 		reliable = hdlc->state.fr.request &&
 			time_before(jiffies, hdlc->state.fr.last_poll +
 				    hdlc->state.fr.settings.t392 * HZ);
-	else {
+		hdlc->state.fr.request = 0;
+	} else {
 		hdlc->state.fr.last_errors <<= 1; /* Shift the list */
 		if (hdlc->state.fr.request) {
 			if (hdlc->state.fr.reliable)
@@ -634,65 +635,88 @@ static void fr_timer(unsigned long arg)
 static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
-	int stat_len;
 	pvc_device *pvc;
-	int reptype = -1, error, no_ram;
 	u8 rxseq, txseq;
-	int i;
+	int lmi = hdlc->state.fr.settings.lmi;
+	int dce = hdlc->state.fr.settings.dce;
+	int stat_len = (lmi == LMI_CISCO) ? 6 : 3, reptype, error, no_ram, i;
 
-	if (skb->len < ((hdlc->state.fr.settings.lmi == LMI_ANSI)
-			? LMI_ANSI_LENGTH : LMI_LENGTH)) {
+	if (skb->len < (lmi == LMI_ANSI ? LMI_ANSI_LENGTH :
+			LMI_CCITT_CISCO_LENGTH)) {
 		printk(KERN_INFO "%s: Short LMI frame\n", dev->name);
 		return 1;
 	}
 
-	if (skb->data[5] != (!hdlc->state.fr.settings.dce ?
-			     LMI_STATUS : LMI_STATUS_ENQUIRY)) {
-		printk(KERN_INFO "%s: LMI msgtype=%x, Not LMI status %s\n",
-		       dev->name, skb->data[2],
-		       hdlc->state.fr.settings.dce ? "enquiry" : "reply");
+	if (skb->data[3] != (lmi == LMI_CISCO ? NLPID_CISCO_LMI :
+			     NLPID_CCITT_ANSI_LMI)) {
+		printk(KERN_INFO "%s: Received non-LMI frame with LMI"
+		       " DLCI\n", dev->name);
 		return 1;
 	}
 
-	i = (hdlc->state.fr.settings.lmi == LMI_ANSI) ? 7 : 6;
+	if (skb->data[4] != LMI_CALLREF) {
+		printk(KERN_INFO "%s: Invalid LMI Call reference (0x%02X)\n",
+		       dev->name, skb->data[4]);
+		return 1;
+	}
 
-	if (skb->data[i] !=
-	    ((hdlc->state.fr.settings.lmi == LMI_CCITT)
-	     ? LMI_CCITT_REPTYPE : LMI_REPTYPE)) {
-		printk(KERN_INFO "%s: Not a report type=%x\n",
+	if (skb->data[5] != (dce ? LMI_STATUS_ENQUIRY : LMI_STATUS)) {
+		printk(KERN_INFO "%s: Invalid LMI Message type (0x%02X)\n",
+		       dev->name, skb->data[5]);
+		return 1;
+	}
+
+	if (lmi == LMI_ANSI) {
+		if (skb->data[6] != LMI_ANSI_LOCKSHIFT) {
+			printk(KERN_INFO "%s: Not ANSI locking shift in LMI"
+			       " message (0x%02X)\n", dev->name, skb->data[6]);
+			return 1;
+		}
+		i = 7;
+	} else
+		i = 6;
+
+	if (skb->data[i] != (lmi == LMI_CCITT ? LMI_CCITT_REPTYPE :
+			     LMI_ANSI_CISCO_REPTYPE)) {
+		printk(KERN_INFO "%s: Not an LMI Report type IE (0x%02X)\n",
 		       dev->name, skb->data[i]);
 		return 1;
 	}
-	i++;
 
-	i++;				/* Skip length field */
+	if (skb->data[++i] != LMI_REPT_LEN) {
+		printk(KERN_INFO "%s: Invalid LMI Report type IE length"
+		       " (%u)\n", dev->name, skb->data[i]);
+		return 1;
+	}
 
-	reptype = skb->data[i++];
+	reptype = skb->data[++i];
+	if (reptype != LMI_INTEGRITY && reptype != LMI_FULLREP) {
+		printk(KERN_INFO "%s: Unsupported LMI Report type (0x%02X)\n",
+		       dev->name, reptype);
+		return 1;
+	}
 
-	if (skb->data[i]!=
-	    ((hdlc->state.fr.settings.lmi == LMI_CCITT)
-	     ? LMI_CCITT_ALIVE : LMI_ALIVE)) {
-		printk(KERN_INFO "%s: Unsupported status element=%x\n",
-		       dev->name, skb->data[i]);
+	if (skb->data[++i] != (lmi == LMI_CCITT ? LMI_CCITT_ALIVE :
+			       LMI_ANSI_CISCO_ALIVE)) {
+		printk(KERN_INFO "%s: Not an LMI Link integrity verification"
+		       " IE (0x%02X)\n", dev->name, skb->data[i]);
+		return 1;
+	}
+
+	if (skb->data[++i] != LMI_INTEG_LEN) {
+		printk(KERN_INFO "%s: Invalid LMI Link integrity verification"
+		       " IE length (%u)\n", dev->name, skb->data[i]);
 		return 1;
 	}
 	i++;
-
-	i++;			/* Skip length field */
 
 	hdlc->state.fr.rxseq = skb->data[i++]; /* TX sequence from peer */
 	rxseq = skb->data[i++];	/* Should confirm our sequence */
 
 	txseq = hdlc->state.fr.txseq;
 
-	if (hdlc->state.fr.settings.dce) {
-		if (reptype != LMI_FULLREP && reptype != LMI_INTEGRITY) {
-			printk(KERN_INFO "%s: Unsupported report type=%x\n",
-			       dev->name, reptype);
-			return 1;
-		}
+	if (dce)
 		hdlc->state.fr.last_poll = jiffies;
-	}
 
 	error = 0;
 	if (!hdlc->state.fr.reliable)
@@ -703,7 +727,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 		error = 1;
 	}
 
-	if (hdlc->state.fr.settings.dce) {
+	if (dce) {
 		if (hdlc->state.fr.fullrep_sent && !error) {
 /* Stop sending full report - the last one has been confirmed by DTE */
 			hdlc->state.fr.fullrep_sent = 0;
@@ -725,6 +749,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 			hdlc->state.fr.dce_changed = 0;
 		}
 
+		hdlc->state.fr.request = 1; /* got request */
 		fr_lmi_send(dev, reptype == LMI_FULLREP ? 1 : 0);
 		return 0;
 	}
@@ -739,7 +764,6 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 	if (reptype != LMI_FULLREP)
 		return 0;
 
-	stat_len = 3;
 	pvc = hdlc->state.fr.first_pvc;
 
 	while (pvc) {
@@ -750,24 +774,35 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 	no_ram = 0;
 	while (skb->len >= i + 2 + stat_len) {
 		u16 dlci;
+		u32 bw;
 		unsigned int active, new;
 
-		if (skb->data[i] != ((hdlc->state.fr.settings.lmi == LMI_CCITT)
-				     ? LMI_CCITT_PVCSTAT : LMI_PVCSTAT)) {
-			printk(KERN_WARNING "%s: Invalid PVCSTAT ID: %x\n",
-			       dev->name, skb->data[i]);
+		if (skb->data[i] != (lmi == LMI_CCITT ? LMI_CCITT_PVCSTAT :
+				       LMI_ANSI_CISCO_PVCSTAT)) {
+			printk(KERN_INFO "%s: Not an LMI PVC status IE"
+			       " (0x%02X)\n", dev->name, skb->data[i]);
+			return 1;
+		}
+
+		if (skb->data[++i] != stat_len) {
+			printk(KERN_INFO "%s: Invalid LMI PVC status IE length"
+			       " (%u)\n", dev->name, skb->data[i]);
 			return 1;
 		}
 		i++;
 
-		if (skb->data[i] != stat_len) {
-			printk(KERN_WARNING "%s: Invalid PVCSTAT length: %x\n",
-			       dev->name, skb->data[i]);
-			return 1;
+		new = !! (skb->data[i + 2] & 0x08);
+		active = !! (skb->data[i + 2] & 0x02);
+		if (lmi == LMI_CISCO) {
+			dlci = (skb->data[i] << 8) | skb->data[i + 1];
+			bw = (skb->data[i + 3] << 16) |
+				(skb->data[i + 4] << 8) |
+				(skb->data[i + 5]);
+		} else {
+			dlci = ((skb->data[i] & 0x3F) << 4) |
+				((skb->data[i + 1] & 0x78) >> 3);
+			bw = 0;
 		}
-		i++;
-
-		dlci = status_to_dlci(skb->data + i, &active, &new);
 
 		pvc = add_pvc(dev, dlci);
 
@@ -783,9 +818,11 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 			pvc->state.deleted = 0;
 			if (active != pvc->state.active ||
 			    new != pvc->state.new ||
+			    bw != pvc->state.bandwidth ||
 			    !pvc->state.exist) {
 				pvc->state.new = new;
 				pvc->state.active = active;
+				pvc->state.bandwidth = bw;
 				pvc_carrier(active, pvc);
 				fr_log_dlci_active(pvc);
 			}
@@ -801,6 +838,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 			pvc_carrier(0, pvc);
 			pvc->state.active = pvc->state.new = 0;
 			pvc->state.exist = 0;
+			pvc->state.bandwidth = 0;
 			fr_log_dlci_active(pvc);
 		}
 		pvc = pvc->next;
@@ -829,22 +867,15 @@ static int fr_rx(struct sk_buff *skb)
 
 	dlci = q922_to_dlci(skb->data);
 
-	if (dlci == LMI_DLCI) {
-		if (hdlc->state.fr.settings.lmi == LMI_NONE)
-			goto rx_error; /* LMI packet with no LMI? */
-
-		if (data[3] == LMI_PROTO) {
-			if (fr_lmi_recv(ndev, skb))
-				goto rx_error;
-			else {
-				dev_kfree_skb_any(skb);
-				return NET_RX_SUCCESS;
-			}
-		}
-
-		printk(KERN_INFO "%s: Received non-LMI frame with LMI DLCI\n",
-		       ndev->name);
-		goto rx_error;
+	if ((dlci == LMI_CCITT_ANSI_DLCI &&
+	     (hdlc->state.fr.settings.lmi == LMI_ANSI ||
+	      hdlc->state.fr.settings.lmi == LMI_CCITT)) ||
+	    (dlci == LMI_CISCO_DLCI &&
+	     hdlc->state.fr.settings.lmi == LMI_CISCO)) {
+		if (fr_lmi_recv(ndev, skb))
+			goto rx_error;
+		dev_kfree_skb_any(skb);
+		return NET_RX_SUCCESS;
 	}
 
 	pvc = find_pvc(hdlc, dlci);
@@ -1170,7 +1201,8 @@ int hdlc_fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 		if ((new_settings.lmi != LMI_NONE &&
 		     new_settings.lmi != LMI_ANSI &&
-		     new_settings.lmi != LMI_CCITT) ||
+		     new_settings.lmi != LMI_CCITT &&
+		     new_settings.lmi != LMI_CISCO) ||
 		    new_settings.t391 < 1 ||
 		    new_settings.t392 < 2 ||
 		    new_settings.n391 < 1 ||

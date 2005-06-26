@@ -73,7 +73,7 @@ u16 dib3000_seq[2][2][2] =     /* fft,gua,   inv   */
 	};
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de");
-MODULE_DESCRIPTION("Common functions for the dib3000mb/dib3000mc dvb-frontend drivers");
+MODULE_DESCRIPTION("Common functions for the dib3000mb/dib3000mc dvb frontend drivers");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(dib3000_seq);

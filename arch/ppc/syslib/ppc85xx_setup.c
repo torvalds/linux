@@ -23,7 +23,6 @@
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 
-#include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/mpc85xx.h>
 #include <asm/immap_85xx.h>
@@ -32,6 +31,8 @@
 #include <asm/kgdb.h>
 
 #include <syslib/ppc85xx_setup.h>
+
+extern void abort(void);
 
 /* Return the amount of memory */
 unsigned long __init
@@ -132,6 +133,12 @@ mpc85xx_halt(void)
 }
 
 #ifdef CONFIG_PCI
+
+#if defined(CONFIG_MPC8555_CDS) || defined(CONFIG_MPC8548_CDS)
+extern void mpc85xx_cds_enable_via(struct pci_controller *hose);
+extern void mpc85xx_cds_fixup_via(struct pci_controller *hose);
+#endif
+
 static void __init
 mpc85xx_setup_pci1(struct pci_controller *hose)
 {
@@ -302,7 +309,17 @@ mpc85xx_setup_hose(void)
 
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 
+#if defined(CONFIG_MPC8555_CDS) || defined(CONFIG_MPC8548_CDS)
+	/* Pre pciauto_bus_scan VIA init */
+	mpc85xx_cds_enable_via(hose_a);
+#endif
+
 	hose_a->last_busno = pciauto_bus_scan(hose_a, hose_a->first_busno);
+
+#if defined(CONFIG_MPC8555_CDS) || defined(CONFIG_MPC8548_CDS)
+	/* Post pciauto_bus_scan VIA fixup */
+	mpc85xx_cds_fixup_via(hose_a);
+#endif
 
 #ifdef CONFIG_85xx_PCI2
 	hose_b = pcibios_alloc_controller();

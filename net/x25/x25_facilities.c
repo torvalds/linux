@@ -17,6 +17,8 @@
  *	X.25 001	Split from x25_subr.c
  *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities 
  *					  negotiation.
+ *	apr/14/05	Shaun Pereira - Allow fast select with no restriction
+ *					on response.
  */
 
 #include <linux/kernel.h>
@@ -43,9 +45,31 @@ int x25_parse_facilities(struct sk_buff *skb,
 		case X25_FAC_CLASS_A:
 			switch (*p) {
 			case X25_FAC_REVERSE:
-				facilities->reverse = p[1] & 0x01;
-				*vc_fac_mask |= X25_MASK_REVERSE;
-				break;
+				if((p[1] & 0x81) == 0x81) {
+					facilities->reverse = p[1] & 0x81;
+					*vc_fac_mask |= X25_MASK_REVERSE;
+					break;
+				}
+
+				if((p[1] & 0x01) == 0x01) {
+					facilities->reverse = p[1] & 0x01;
+					*vc_fac_mask |= X25_MASK_REVERSE;
+					break;
+				}
+
+				if((p[1] & 0x80) == 0x80) {
+					facilities->reverse = p[1] & 0x80;
+					*vc_fac_mask |= X25_MASK_REVERSE;
+					break;
+				}
+
+				if(p[1] == 0x00) {
+					facilities->reverse
+						= X25_DEFAULT_REVERSE;
+					*vc_fac_mask |= X25_MASK_REVERSE;
+					break;
+				}
+
 			case X25_FAC_THROUGHPUT:
 				facilities->throughput = p[1];
 				*vc_fac_mask |= X25_MASK_THROUGHPUT;
@@ -122,7 +146,7 @@ int x25_create_facilities(unsigned char *buffer,
 
 	if (facilities->reverse && (facil_mask & X25_MASK_REVERSE)) {
 		*p++ = X25_FAC_REVERSE;
-		*p++ = !!facilities->reverse;
+		*p++ = facilities->reverse;
 	}
 
 	if (facilities->throughput && (facil_mask & X25_MASK_THROUGHPUT)) {
@@ -171,7 +195,7 @@ int x25_negotiate_facilities(struct sk_buff *skb, struct sock *sk,
 	/*
 	 *	They want reverse charging, we won't accept it.
 	 */
-	if (theirs.reverse && ours->reverse) {
+	if ((theirs.reverse & 0x01 ) && (ours->reverse & 0x01)) {
 		SOCK_DEBUG(sk, "X.25: rejecting reverse charging request");
 		return -1;
 	}

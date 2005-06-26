@@ -180,4 +180,7 @@ config CPU_H8S
 config PREEMPT
 	bool "Preemptible Kernel"
 	default n
+
+source "mm/Kconfig"
+
 endmenu

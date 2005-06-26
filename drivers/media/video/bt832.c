@@ -6,7 +6,7 @@
   It outputs an 8-bit 4:2:2 YUV or YCrCb video signal which can be directly
   connected to bt848/bt878 GPIO pins on this purpose.
   (see: VLSI Vision Ltd. www.vvl.co.uk for camera datasheets)
-  
+
   Supported Cards:
   -  Pixelview Rev.4E: 0x8a
 		GPIO 0x400000 toggles Bt832 RESET, and the chip changes to i2c 0x88 !
@@ -31,16 +31,16 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
-#include "id.h"
-#include "audiochip.h"
+#include <media/audiochip.h>
+#include <media/id.h>
 #include "bttv.h"
 #include "bt832.h"
 
 MODULE_LICENSE("GPL");
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = {I2C_CLIENT_END};
-static unsigned short normal_i2c_range[] = {I2C_BT832_ALT1>>1,I2C_BT832_ALT2>>1,I2C_CLIENT_END};
+static unsigned short normal_i2c[] = { I2C_BT832_ALT1>>1, I2C_BT832_ALT2>>1,
+				       I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
 /* ---------------------------------------------------------------------- */
@@ -95,7 +95,7 @@ int bt832_init(struct i2c_client *i2c_client_s)
 
 	buf=kmalloc(65,GFP_KERNEL);
 	bt832_hexdump(i2c_client_s,buf);
-	
+
 	if(buf[0x40] != 0x31) {
 		printk("bt832: this i2c chip is no bt832 (id=%02x). Detaching.\n",buf[0x40]);
 		kfree(buf);
@@ -135,7 +135,7 @@ int bt832_init(struct i2c_client *i2c_client_s)
 	buf[1]= 0x27 & (~0x01); // Default | !skip
 	if (2 != (rc = i2c_master_send(i2c_client_s,buf,2)))
                 printk("bt832: i2c i/o error EO: rc == %d (should be 2)\n",rc);
-	
+
         bt832_hexdump(i2c_client_s,buf);
 
 #if 0
@@ -168,8 +168,7 @@ int bt832_init(struct i2c_client *i2c_client_s)
 
 
 
-static int bt832_attach(struct i2c_adapter *adap, int addr,
-			  unsigned short flags, int kind)
+static int bt832_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct bt832 *t;
 
@@ -184,27 +183,32 @@ static int bt832_attach(struct i2c_adapter *adap, int addr,
                 return -ENOMEM;
 	memset(t,0,sizeof(*t));
 	t->client = client_template;
-        t->client.data = t;
+        i2c_set_clientdata(&t->client, t);
         i2c_attach_client(&t->client);
 
 	if(! bt832_init(&t->client)) {
 		bt832_detach(&t->client);
 		return -1;
 	}
-        
+
 	return 0;
 }
 
 static int bt832_probe(struct i2c_adapter *adap)
 {
+#ifdef I2C_CLASS_TV_ANALOG
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, bt832_attach);
+#else
+	if (adap->id == (I2C_ALGO_BIT | I2C_HW_B_BT848))
+		return i2c_probe(adap, &addr_data, bt832_attach);
+#endif
 	return 0;
 }
 
 static int bt832_detach(struct i2c_client *client)
 {
-	struct bt832 *t = (struct bt832*)client->data;
+	struct bt832 *t = i2c_get_clientdata(client);
 
 	printk("bt832: detach.\n");
 	i2c_detach_client(client);
@@ -215,7 +219,7 @@ static int bt832_detach(struct i2c_client *client)
 static int
 bt832_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
-	struct bt832 *t = (struct bt832*)client->data;
+	struct bt832 *t = i2c_get_clientdata(client);
 
 	printk("bt832: command %x\n",cmd);
 
@@ -249,19 +253,18 @@ static struct i2c_driver driver = {
 };
 static struct i2c_client client_template =
 {
-        .name   = "bt832",
-	.flags  = I2C_CLIENT_ALLOW_USE,
-        .driver = &driver,
+	I2C_DEVNAME("bt832"),
+	.flags      = I2C_CLIENT_ALLOW_USE,
+        .driver     = &driver,
 };
 
 
-int bt832_init_module(void)
+static int __init bt832_init_module(void)
 {
-	i2c_add_driver(&driver);
-	return 0;
+	return i2c_add_driver(&driver);
 }
 
-static void bt832_cleanup_module(void)
+static void __exit bt832_cleanup_module(void)
 {
 	i2c_del_driver(&driver);
 }
@@ -269,3 +272,10 @@ static void bt832_cleanup_module(void)
 module_init(bt832_init_module);
 module_exit(bt832_cleanup_module);
 
+/*
+ * Overrides for Emacs so that we follow Linus's tabbing style.
+ * ---------------------------------------------------------------------------
+ * Local variables:
+ * c-basic-offset: 8
+ * End:
+ */

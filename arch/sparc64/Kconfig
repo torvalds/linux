@@ -484,6 +484,8 @@ config CMDLINE
 
 	  NOTE: This option WILL override the PROM bootargs setting!
 
+source "mm/Kconfig"
+
 endmenu
 
 source "drivers/base/Kconfig"

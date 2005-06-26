@@ -40,6 +40,8 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
+#include <asm/arch/gpio.h>
+
 static DEFINE_SPINLOCK(ixp2000_slowport_lock);
 static unsigned long ixp2000_slowport_irq_flags;
 
@@ -162,12 +164,13 @@ void __init ixp2000_map_io(void)
 static unsigned ticks_per_jiffy;
 static unsigned ticks_per_usec;
 static unsigned next_jiffy_time;
+static volatile unsigned long *missing_jiffy_timer_csr;
 
 unsigned long ixp2000_gettimeoffset (void)
 {
  	unsigned long offset;
 
-	offset = next_jiffy_time - *IXP2000_T4_CSR;
+	offset = next_jiffy_time - *missing_jiffy_timer_csr;
 
 	return offset / ticks_per_usec;
 }
@@ -178,8 +181,8 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	/* clear timer 1 */
 	ixp2000_reg_write(IXP2000_T1_CLR, 1);
-	
-	while ((next_jiffy_time - *IXP2000_T4_CSR) > ticks_per_jiffy) {
+
+	while ((next_jiffy_time - *missing_jiffy_timer_csr) > ticks_per_jiffy) {
 		timer_tick(regs);
 		next_jiffy_time -= ticks_per_jiffy;
 	}
@@ -197,20 +200,37 @@ static struct irqaction ixp2000_timer_irq = {
 
 void __init ixp2000_init_time(unsigned long tick_rate)
 {
-	ixp2000_reg_write(IXP2000_T1_CLR, 0);
-	ixp2000_reg_write(IXP2000_T4_CLR, 0);
-
 	ticks_per_jiffy = (tick_rate + HZ/2) / HZ;
 	ticks_per_usec = tick_rate / 1000000;
 
+	/*
+	 * We use timer 1 as our timer interrupt.
+	 */
+	ixp2000_reg_write(IXP2000_T1_CLR, 0);
 	ixp2000_reg_write(IXP2000_T1_CLD, ticks_per_jiffy - 1);
 	ixp2000_reg_write(IXP2000_T1_CTL, (1 << 7));
 
 	/*
-	 * We use T4 as a monotonic counter to track missed jiffies
+	 * We use a second timer as a monotonic counter for tracking
+	 * missed jiffies.  The IXP2000 has four timers, but if we're
+	 * on an A-step IXP2800, timer 2 and 3 don't work, so on those
+	 * chips we use timer 4.  Timer 4 is the only timer that can
+	 * be used for the watchdog, so we use timer 2 if we're on a
+	 * non-buggy chip.
 	 */
-	ixp2000_reg_write(IXP2000_T4_CLD, -1);
-	ixp2000_reg_write(IXP2000_T4_CTL, (1 << 7));
+	if ((*IXP2000_PRODUCT_ID & 0x001ffef0) == 0x00000000) {
+		printk(KERN_INFO "Enabling IXP2800 erratum #25 workaround\n");
+
+		ixp2000_reg_write(IXP2000_T4_CLR, 0);
+		ixp2000_reg_write(IXP2000_T4_CLD, -1);
+		ixp2000_reg_write(IXP2000_T4_CTL, (1 << 7));
+		missing_jiffy_timer_csr = IXP2000_T4_CSR;
+	} else {
+		ixp2000_reg_write(IXP2000_T2_CLR, 0);
+		ixp2000_reg_write(IXP2000_T2_CLD, -1);
+		ixp2000_reg_write(IXP2000_T2_CTL, (1 << 7));
+		missing_jiffy_timer_csr = IXP2000_T2_CSR;
+	}
  	next_jiffy_time = 0xffffffff;
 
 	/* register for interrupt */
@@ -220,35 +240,40 @@ void __init ixp2000_init_time(unsigned long tick_rate)
 /*************************************************************************
  * GPIO helpers
  *************************************************************************/
-static unsigned long GPIO_IRQ_rising_edge;
 static unsigned long GPIO_IRQ_falling_edge;
+static unsigned long GPIO_IRQ_rising_edge;
 static unsigned long GPIO_IRQ_level_low;
 static unsigned long GPIO_IRQ_level_high;
 
-void gpio_line_config(int line, int style)
+static void update_gpio_int_csrs(void)
+{
+	ixp2000_reg_write(IXP2000_GPIO_FEDR, GPIO_IRQ_falling_edge);
+	ixp2000_reg_write(IXP2000_GPIO_REDR, GPIO_IRQ_rising_edge);
+	ixp2000_reg_write(IXP2000_GPIO_LSLR, GPIO_IRQ_level_low);
+	ixp2000_reg_write(IXP2000_GPIO_LSHR, GPIO_IRQ_level_high);
+}
+
+void gpio_line_config(int line, int direction)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
+	if (direction == GPIO_OUT) {
+		irq_desc[line + IRQ_IXP2000_GPIO0].valid = 0;
 
-	if(style == GPIO_OUT) {
 		/* if it's an output, it ain't an interrupt anymore */
-		ixp2000_reg_write(IXP2000_GPIO_PDSR, (1 << line));
 		GPIO_IRQ_falling_edge &= ~(1 << line);
 		GPIO_IRQ_rising_edge &= ~(1 << line);
 		GPIO_IRQ_level_low &= ~(1 << line);
 		GPIO_IRQ_level_high &= ~(1 << line);
-		ixp2000_reg_write(IXP2000_GPIO_FEDR, GPIO_IRQ_falling_edge);
-		ixp2000_reg_write(IXP2000_GPIO_REDR, GPIO_IRQ_rising_edge);
-		ixp2000_reg_write(IXP2000_GPIO_LSHR, GPIO_IRQ_level_high);
-		ixp2000_reg_write(IXP2000_GPIO_LSLR, GPIO_IRQ_level_low);
-		irq_desc[line+IRQ_IXP2000_GPIO0].valid = 0;
-	} else if(style == GPIO_IN) {
-		ixp2000_reg_write(IXP2000_GPIO_PDCR, (1 << line));
+		update_gpio_int_csrs();
+
+		ixp2000_reg_write(IXP2000_GPIO_PDSR, 1 << line);
+	} else if (direction == GPIO_IN) {
+		ixp2000_reg_write(IXP2000_GPIO_PDCR, 1 << line);
 	}
-		
 	local_irq_restore(flags);
-}	
+}
 
 
 /*************************************************************************
@@ -267,9 +292,50 @@ static void ixp2000_GPIO_irq_handler(unsigned int irq, struct irqdesc *desc, str
 	}
 }
 
+static int ixp2000_GPIO_irq_type(unsigned int irq, unsigned int type)
+{
+	int line = irq - IRQ_IXP2000_GPIO0;
+
+	/*
+	 * First, configure this GPIO line as an input.
+	 */
+	ixp2000_reg_write(IXP2000_GPIO_PDCR, 1 << line);
+
+	/*
+	 * Then, set the proper trigger type.
+	 */
+	if (type & IRQT_FALLING)
+		GPIO_IRQ_falling_edge |= 1 << line;
+	else
+		GPIO_IRQ_falling_edge &= ~(1 << line);
+	if (type & IRQT_RISING)
+		GPIO_IRQ_rising_edge |= 1 << line;
+	else
+		GPIO_IRQ_rising_edge &= ~(1 << line);
+	if (type & IRQT_LOW)
+		GPIO_IRQ_level_low |= 1 << line;
+	else
+		GPIO_IRQ_level_low &= ~(1 << line);
+	if (type & IRQT_HIGH)
+		GPIO_IRQ_level_high |= 1 << line;
+	else
+		GPIO_IRQ_level_high &= ~(1 << line);
+	update_gpio_int_csrs();
+
+	/*
+	 * Finally, mark the corresponding IRQ as valid.
+	 */
+	irq_desc[irq].valid = 1;
+
+	return 0;
+}
+
 static void ixp2000_GPIO_irq_mask_ack(unsigned int irq)
 {
 	ixp2000_reg_write(IXP2000_GPIO_INCR, (1 << (irq - IRQ_IXP2000_GPIO0)));
+
+	ixp2000_reg_write(IXP2000_GPIO_EDSR, (1 << (irq - IRQ_IXP2000_GPIO0)));
+	ixp2000_reg_write(IXP2000_GPIO_LDSR, (1 << (irq - IRQ_IXP2000_GPIO0)));
 	ixp2000_reg_write(IXP2000_GPIO_INST, (1 << (irq - IRQ_IXP2000_GPIO0)));
 }
 
@@ -284,6 +350,7 @@ static void ixp2000_GPIO_irq_unmask(unsigned int irq)
 }
 
 static struct irqchip ixp2000_GPIO_irq_chip = {
+	.type	= ixp2000_GPIO_irq_type,
 	.ack	= ixp2000_GPIO_irq_mask_ack,
 	.mask	= ixp2000_GPIO_irq_mask,
 	.unmask	= ixp2000_GPIO_irq_unmask
@@ -320,7 +387,7 @@ static void ixp2000_irq_mask(unsigned int irq)
 
 static void ixp2000_irq_unmask(unsigned int irq)
 {
-	ixp2000_reg_write(IXP2000_IRQ_ENABLE_SET,  (1 << irq));
+	ixp2000_reg_write(IXP2000_IRQ_ENABLE_SET, (1 << irq));
 }
 
 static struct irqchip ixp2000_irq_chip = {
@@ -357,16 +424,16 @@ void __init ixp2000_init_irq(void)
 	 * our mask/unmask code much simpler.
 	 */
 	for (irq = IRQ_IXP2000_SOFT_INT; irq <= IRQ_IXP2000_THDB3; irq++) {
-		if((1 << irq) & IXP2000_VALID_IRQ_MASK) {
+		if ((1 << irq) & IXP2000_VALID_IRQ_MASK) {
 			set_irq_chip(irq, &ixp2000_irq_chip);
 			set_irq_handler(irq, do_level_IRQ);
 			set_irq_flags(irq, IRQF_VALID);
 		} else set_irq_flags(irq, 0);
 	}
-	
+
 	/*
 	 * GPIO IRQs are invalid until someone sets the interrupt mode
-	 * by calling gpio_line_set();
+	 * by calling set_irq_type().
 	 */
 	for (irq = IRQ_IXP2000_GPIO0; irq <= IRQ_IXP2000_GPIO7; irq++) {
 		set_irq_chip(irq, &ixp2000_GPIO_irq_chip);

@@ -1295,8 +1295,7 @@ static snd_pcm_hw_constraint_list_t hw_constraints_period_sizes = {
 
 static void snd_cs46xx_pcm_free_substream(snd_pcm_runtime_t *runtime)
 {
-	cs46xx_pcm_t * cpcm = runtime->private_data;
-	kfree(cpcm);
+	kfree(runtime->private_data);
 }
 
 static int _cs46xx_playback_open_channel (snd_pcm_substream_t * substream,int pcm_channel_id)

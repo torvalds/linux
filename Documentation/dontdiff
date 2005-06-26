@@ -111,6 +111,7 @@ mkdep
 mktables
 modpost
 modversions.h*
+offset.h
 offsets.h
 oui.c*
 parse.c*

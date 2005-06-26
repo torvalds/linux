@@ -129,7 +129,7 @@ MODULE_PARM_DESC(nowait, "set to 1 for no wait state");
 /*
  * Transmit timeout, default 5 seconds.
  */
-static int watchdog = 5000;
+static int watchdog = 1000;
 module_param(watchdog, int, 0400);
 MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
 
@@ -660,15 +660,14 @@ static void smc_hardware_send_pkt(unsigned long data)
 	SMC_outw(((len & 1) ? (0x2000 | buf[len-1]) : 0), ioaddr, DATA_REG);
 
 	/*
-	 * If THROTTLE_TX_PKTS is set, we look at the TX_EMPTY flag
-	 * before queueing this packet for TX, and if it's clear then
-	 * we stop the queue here.  This will have the effect of
-	 * having at most 2 packets queued for TX in the chip's memory
-	 * at all time. If THROTTLE_TX_PKTS is not set then the queue
-	 * is stopped only when memory allocation (MC_ALLOC) does not
-	 * succeed right away.
+	 * If THROTTLE_TX_PKTS is set, we stop the queue here. This will
+	 * have the effect of having at most one packet queued for TX
+	 * in the chip's memory at all time.
+	 *
+	 * If THROTTLE_TX_PKTS is not set then the queue is stopped only
+	 * when memory allocation (MC_ALLOC) does not succeed right away.
 	 */
-	if (THROTTLE_TX_PKTS && !(SMC_GET_INT() & IM_TX_EMPTY_INT))
+	if (THROTTLE_TX_PKTS)
 		netif_stop_queue(dev);
 
 	/* queue the packet for TX */
@@ -792,17 +791,20 @@ static void smc_tx(struct net_device *dev)
 	DBG(2, "%s: TX STATUS 0x%04x PNR 0x%02x\n",
 		dev->name, tx_status, packet_no);
 
-	if (!(tx_status & TS_SUCCESS))
+	if (!(tx_status & ES_TX_SUC))
 		lp->stats.tx_errors++;
-	if (tx_status & TS_LOSTCAR)
+
+	if (tx_status & ES_LOSTCARR)
 		lp->stats.tx_carrier_errors++;
 
-	if (tx_status & TS_LATCOL) {
-		PRINTK("%s: late collision occurred on last xmit\n", dev->name);
+	if (tx_status & (ES_LATCOL | ES_16COL)) {
+		PRINTK("%s: %s occurred on last xmit\n", dev->name,
+		       (tx_status & ES_LATCOL) ?
+			"late collision" : "too many collisions");
 		lp->stats.tx_window_errors++;
 		if (!(lp->stats.tx_window_errors & 63) && net_ratelimit()) {
-			printk(KERN_INFO "%s: unexpectedly large numbers of "
-			       "late collisions. Please check duplex "
+			printk(KERN_INFO "%s: unexpectedly large number of "
+			       "bad collisions. Please check duplex "
 			       "setting.\n", dev->name);
 		}
 	}
@@ -1236,7 +1238,7 @@ static void smc_10bt_check_media(struct net_device *dev, int init)
 	old_carrier = netif_carrier_ok(dev) ? 1 : 0;
 
 	SMC_SELECT_BANK(0);
-	new_carrier = SMC_inw(ioaddr, EPH_STATUS_REG) & ES_LINK_OK ? 1 : 0;
+	new_carrier = (SMC_GET_EPH_STATUS() & ES_LINK_OK) ? 1 : 0;
 	SMC_SELECT_BANK(2);
 
 	if (init || (old_carrier != new_carrier)) {
@@ -1308,15 +1310,16 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if (!status)
 			break;
 
-		if (status & IM_RCV_INT) {
-			DBG(3, "%s: RX irq\n", dev->name);
-			smc_rcv(dev);
-		} else if (status & IM_TX_INT) {
+		if (status & IM_TX_INT) {
+			/* do this before RX as it will free memory quickly */
 			DBG(3, "%s: TX int\n", dev->name);
 			smc_tx(dev);
 			SMC_ACK_INT(IM_TX_INT);
 			if (THROTTLE_TX_PKTS)
 				netif_wake_queue(dev);
+		} else if (status & IM_RCV_INT) {
+			DBG(3, "%s: RX irq\n", dev->name);
+			smc_rcv(dev);
 		} else if (status & IM_ALLOC_INT) {
 			DBG(3, "%s: Allocation irq\n", dev->name);
 			tasklet_hi_schedule(&lp->tx_task);
@@ -1337,7 +1340,10 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			/* multiple collisions */
 			lp->stats.collisions += card_stats & 0xF;
 		} else if (status & IM_RX_OVRN_INT) {
-			DBG(1, "%s: RX overrun\n", dev->name);
+			DBG(1, "%s: RX overrun (EPH_ST 0x%04x)\n", dev->name,
+			       ({ int eph_st; SMC_SELECT_BANK(0);
+				  eph_st = SMC_GET_EPH_STATUS();
+				  SMC_SELECT_BANK(2); eph_st; }) );
 			SMC_ACK_INT(IM_RX_OVRN_INT);
 			lp->stats.rx_errors++;
 			lp->stats.rx_fifo_errors++;
@@ -1389,7 +1395,7 @@ static void smc_timeout(struct net_device *dev)
 {
 	struct smc_local *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
-	int status, mask, meminfo, fifo;
+	int status, mask, eph_st, meminfo, fifo;
 
 	DBG(2, "%s: %s\n", dev->name, __FUNCTION__);
 
@@ -1398,11 +1404,13 @@ static void smc_timeout(struct net_device *dev)
 	mask = SMC_GET_INT_MASK();
 	fifo = SMC_GET_FIFO();
 	SMC_SELECT_BANK(0);
+	eph_st = SMC_GET_EPH_STATUS();
 	meminfo = SMC_GET_MIR();
 	SMC_SELECT_BANK(2);
 	spin_unlock_irq(&lp->lock);
-	PRINTK( "%s: INT 0x%02x MASK 0x%02x MEM 0x%04x FIFO 0x%04x\n",
-		dev->name, status, mask, meminfo, fifo );
+	PRINTK( "%s: TX timeout (INT 0x%02x INTMASK 0x%02x "
+		"MEM 0x%04x FIFO 0x%04x EPH_ST 0x%04x)\n",
+		dev->name, status, mask, meminfo, fifo, eph_st );
 
 	smc_reset(dev);
 	smc_enable(dev);
@@ -1863,7 +1871,7 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 	SMC_SELECT_BANK(1);
 	val = SMC_GET_BASE();
 	val = ((val & 0x1F00) >> 3) << SMC_IO_SHIFT;
-	if (((unsigned long)ioaddr & ((PAGE_SIZE-1)<<SMC_IO_SHIFT)) != val) { /*XXX: WTF? */
+	if (((unsigned int)ioaddr & (0x3e0 << SMC_IO_SHIFT)) != val) {
 		printk("%s: IOADDR %p doesn't match configuration (%x).\n",
 			CARDNAME, ioaddr, val);
 	}

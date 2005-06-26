@@ -74,6 +74,13 @@ struct kcore_list {
 	size_t size;
 };
 
+struct vmcore {
+	struct list_head list;
+	unsigned long long paddr;
+	unsigned long size;
+	loff_t offset;
+};
+
 #ifdef CONFIG_PROC_FS
 
 extern struct proc_dir_entry proc_root;

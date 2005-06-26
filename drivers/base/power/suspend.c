@@ -39,13 +39,27 @@ int suspend_device(struct device * dev, pm_message_t state)
 {
 	int error = 0;
 
-	dev_dbg(dev, "suspending\n");
+	down(&dev->sem);
+	if (dev->power.power_state) {
+		dev_dbg(dev, "PM: suspend %d-->%d\n",
+			dev->power.power_state, state);
+	}
+	if (dev->power.pm_parent
+			&& dev->power.pm_parent->power.power_state) {
+		dev_err(dev,
+			"PM: suspend %d->%d, parent %s already %d\n",
+			dev->power.power_state, state,
+			dev->power.pm_parent->bus_id,
+			dev->power.pm_parent->power.power_state);
+	}
 
 	dev->power.prev_state = dev->power.power_state;
 
-	if (dev->bus && dev->bus->suspend && !dev->power.power_state)
+	if (dev->bus && dev->bus->suspend && !dev->power.power_state) {
+		dev_dbg(dev, "suspending\n");
 		error = dev->bus->suspend(dev, state);
-
+	}
+	up(&dev->sem);
 	return error;
 }
 
@@ -100,8 +114,19 @@ int device_suspend(pm_message_t state)
 		put_device(dev);
 	}
 	up(&dpm_list_sem);
-	if (error)
+	if (error) {
+		/* we failed... before resuming, bring back devices from
+		 * dpm_off_irq list back to main dpm_off list, we do want
+		 * to call resume() on them, in case they partially suspended
+		 * despite returning -EAGAIN
+		 */
+		while (!list_empty(&dpm_off_irq)) {
+			struct list_head * entry = dpm_off_irq.next;
+			list_del(entry);
+			list_add(entry, &dpm_off);
+		}
 		dpm_resume();
+	}
 	up(&dpm_sem);
 	return error;
 }

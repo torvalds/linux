@@ -593,6 +593,14 @@ _GLOBAL(flush_instruction_cache)
 	iccci	0,r3
 #endif
 #elif CONFIG_FSL_BOOKE
+BEGIN_FTR_SECTION
+	mfspr   r3,SPRN_L1CSR0
+	ori     r3,r3,L1CSR0_CFI|L1CSR0_CLFC
+	/* msync; isync recommended here */
+	mtspr   SPRN_L1CSR0,r3
+	isync
+	blr
+END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	mfspr	r3,SPRN_L1CSR1
 	ori	r3,r3,L1CSR1_ICFI|L1CSR1_ICLFR
 	mtspr	SPRN_L1CSR1,r3
@@ -619,7 +627,7 @@ _GLOBAL(flush_instruction_cache)
 _GLOBAL(flush_icache_range)
 BEGIN_FTR_SECTION
 	blr				/* for 601, do nothing */
-END_FTR_SECTION_IFSET(PPC_FEATURE_UNIFIED_CACHE)
+END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	li	r5,L1_CACHE_LINE_SIZE-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
@@ -736,7 +744,7 @@ _GLOBAL(flush_dcache_all)
 _GLOBAL(__flush_dcache_icache)
 BEGIN_FTR_SECTION
 	blr					/* for 601, do nothing */
-END_FTR_SECTION_IFSET(PPC_FEATURE_UNIFIED_CACHE)
+END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	rlwinm	r3,r3,0,0,19			/* Get page base address */
 	li	r4,4096/L1_CACHE_LINE_SIZE	/* Number of lines in a page */
 	mtctr	r4
@@ -764,7 +772,7 @@ END_FTR_SECTION_IFSET(PPC_FEATURE_UNIFIED_CACHE)
 _GLOBAL(__flush_dcache_icache_phys)
 BEGIN_FTR_SECTION
 	blr					/* for 601, do nothing */
-END_FTR_SECTION_IFSET(PPC_FEATURE_UNIFIED_CACHE)
+END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	mfmsr	r10
 	rlwinm	r0,r10,0,28,26			/* clear DR */
 	mtmsr	r0
@@ -1436,7 +1444,7 @@ _GLOBAL(sys_call_table)
 	.long sys_mq_timedreceive	/* 265 */
 	.long sys_mq_notify
 	.long sys_mq_getsetattr
-	.long sys_ni_syscall		/* 268 reserved for sys_kexec_load */
+	.long sys_kexec_load
 	.long sys_add_key
 	.long sys_request_key		/* 270 */
 	.long sys_keyctl

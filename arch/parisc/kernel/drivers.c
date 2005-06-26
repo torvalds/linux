@@ -466,7 +466,7 @@ static int parisc_generic_match(struct device *dev, struct device_driver *drv)
 }
 
 #define pa_dev_attr(name, field, format_string)				\
-static ssize_t name##_show(struct device *dev, char *buf)		\
+static ssize_t name##_show(struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct parisc_device *padev = to_parisc_device(dev);		\
 	return sprintf(buf, format_string, padev->field);		\

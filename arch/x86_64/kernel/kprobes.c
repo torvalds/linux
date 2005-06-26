@@ -27,6 +27,8 @@
  *		<prasanna@in.ibm.com> adapted for x86_64
  * 2005-Mar	Roland McGrath <roland@redhat.com>
  *		Fixed to handle %rip-relative addressing mode correctly.
+ * 2005-May     Rusty Lynch <rusty.lynch@intel.com>
+ *              Added function return probes functionality
  */
 
 #include <linux/config.h>
@@ -37,18 +39,16 @@
 #include <linux/slab.h>
 #include <linux/preempt.h>
 #include <linux/moduleloader.h>
-
+#include <asm/cacheflush.h>
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
 
 static DECLARE_MUTEX(kprobe_mutex);
 
-/* kprobe_status settings */
-#define KPROBE_HIT_ACTIVE	0x00000001
-#define KPROBE_HIT_SS		0x00000002
-
 static struct kprobe *current_kprobe;
 static unsigned long kprobe_status, kprobe_old_rflags, kprobe_saved_rflags;
+static struct kprobe *kprobe_prev;
+static unsigned long kprobe_status_prev, kprobe_old_rflags_prev, kprobe_saved_rflags_prev;
 static struct pt_regs jprobe_saved_regs;
 static long *jprobe_saved_rsp;
 static kprobe_opcode_t *get_insn_slot(void);
@@ -214,6 +214,21 @@ void arch_copy_kprobe(struct kprobe *p)
 		BUG_ON((s64) (s32) disp != disp); /* Sanity check.  */
 		*ripdisp = disp;
 	}
+	p->opcode = *p->addr;
+}
+
+void arch_arm_kprobe(struct kprobe *p)
+{
+	*p->addr = BREAKPOINT_INSTRUCTION;
+	flush_icache_range((unsigned long) p->addr,
+			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
+}
+
+void arch_disarm_kprobe(struct kprobe *p)
+{
+	*p->addr = p->opcode;
+	flush_icache_range((unsigned long) p->addr,
+			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
 void arch_remove_kprobe(struct kprobe *p)
@@ -223,10 +238,29 @@ void arch_remove_kprobe(struct kprobe *p)
 	down(&kprobe_mutex);
 }
 
-static inline void disarm_kprobe(struct kprobe *p, struct pt_regs *regs)
+static inline void save_previous_kprobe(void)
 {
-	*p->addr = p->opcode;
-	regs->rip = (unsigned long)p->addr;
+	kprobe_prev = current_kprobe;
+	kprobe_status_prev = kprobe_status;
+	kprobe_old_rflags_prev = kprobe_old_rflags;
+	kprobe_saved_rflags_prev = kprobe_saved_rflags;
+}
+
+static inline void restore_previous_kprobe(void)
+{
+	current_kprobe = kprobe_prev;
+	kprobe_status = kprobe_status_prev;
+	kprobe_old_rflags = kprobe_old_rflags_prev;
+	kprobe_saved_rflags = kprobe_saved_rflags_prev;
+}
+
+static inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs)
+{
+	current_kprobe = p;
+	kprobe_saved_rflags = kprobe_old_rflags
+		= (regs->eflags & (TF_MASK | IF_MASK));
+	if (is_IF_modifier(p->ainsn.insn))
+		kprobe_saved_rflags &= ~IF_MASK;
 }
 
 static void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
@@ -238,6 +272,50 @@ static void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 		regs->rip = (unsigned long)p->addr;
 	else
 		regs->rip = (unsigned long)p->ainsn.insn;
+}
+
+struct task_struct  *arch_get_kprobe_task(void *ptr)
+{
+	return ((struct thread_info *) (((unsigned long) ptr) &
+					(~(THREAD_SIZE -1))))->task;
+}
+
+void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs)
+{
+	unsigned long *sara = (unsigned long *)regs->rsp;
+	struct kretprobe_instance *ri;
+	static void *orig_ret_addr;
+
+	/*
+	 * Save the return address when the return probe hits
+	 * the first time, and use it to populate the (krprobe
+	 * instance)->ret_addr for subsequent return probes at
+	 * the same addrress since stack address would have
+	 * the kretprobe_trampoline by then.
+	 */
+	if (((void*) *sara) != kretprobe_trampoline)
+		orig_ret_addr = (void*) *sara;
+
+	if ((ri = get_free_rp_inst(rp)) != NULL) {
+		ri->rp = rp;
+		ri->stack_addr = sara;
+		ri->ret_addr = orig_ret_addr;
+		add_rp_inst(ri);
+		/* Replace the return addr with trampoline addr */
+		*sara = (unsigned long) &kretprobe_trampoline;
+	} else {
+		rp->nmissed++;
+	}
+}
+
+void arch_kprobe_flush_task(struct task_struct *tk)
+{
+	struct kretprobe_instance *ri;
+	while ((ri = get_rp_inst_tsk(tk)) != NULL) {
+		*((unsigned long *)(ri->stack_addr)) =
+					(unsigned long) ri->ret_addr;
+		recycle_rp_inst(ri);
+	}
 }
 
 /*
@@ -264,9 +342,30 @@ int kprobe_handler(struct pt_regs *regs)
 				regs->eflags |= kprobe_saved_rflags;
 				unlock_kprobes();
 				goto no_kprobe;
+			} else if (kprobe_status == KPROBE_HIT_SSDONE) {
+				/* TODO: Provide re-entrancy from
+				 * post_kprobes_handler() and avoid exception
+				 * stack corruption while single-stepping on
+				 * the instruction of the new probe.
+				 */
+				arch_disarm_kprobe(p);
+				regs->rip = (unsigned long)p->addr;
+				ret = 1;
+			} else {
+				/* We have reentered the kprobe_handler(), since
+				 * another probe was hit while within the
+				 * handler. We here save the original kprobe
+				 * variables and just single step on instruction
+				 * of the new probe without calling any user
+				 * handlers.
+				 */
+				save_previous_kprobe();
+				set_current_kprobe(p, regs);
+				p->nmissed++;
+				prepare_singlestep(p, regs);
+				kprobe_status = KPROBE_REENTER;
+				return 1;
 			}
-			disarm_kprobe(p, regs);
-			ret = 1;
 		} else {
 			p = current_kprobe;
 			if (p->break_handler && p->break_handler(p, regs)) {
@@ -296,11 +395,7 @@ int kprobe_handler(struct pt_regs *regs)
 	}
 
 	kprobe_status = KPROBE_HIT_ACTIVE;
-	current_kprobe = p;
-	kprobe_saved_rflags = kprobe_old_rflags
-	    = (regs->eflags & (TF_MASK | IF_MASK));
-	if (is_IF_modifier(p->ainsn.insn))
-		kprobe_saved_rflags &= ~IF_MASK;
+	set_current_kprobe(p, regs);
 
 	if (p->pre_handler && p->pre_handler(p, regs))
 		/* handler has already set things up, so skip ss setup */
@@ -314,6 +409,55 @@ ss_probe:
 no_kprobe:
 	preempt_enable_no_resched();
 	return ret;
+}
+
+/*
+ * For function-return probes, init_kprobes() establishes a probepoint
+ * here. When a retprobed function returns, this probe is hit and
+ * trampoline_probe_handler() runs, calling the kretprobe's handler.
+ */
+ void kretprobe_trampoline_holder(void)
+ {
+ 	asm volatile (  ".global kretprobe_trampoline\n"
+ 			"kretprobe_trampoline: \n"
+ 			"nop\n");
+ }
+
+/*
+ * Called when we hit the probe point at kretprobe_trampoline
+ */
+int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
+{
+	struct task_struct *tsk;
+	struct kretprobe_instance *ri;
+	struct hlist_head *head;
+	struct hlist_node *node;
+	unsigned long *sara = (unsigned long *)regs->rsp - 1;
+
+	tsk = arch_get_kprobe_task(sara);
+	head = kretprobe_inst_table_head(tsk);
+
+	hlist_for_each_entry(ri, node, head, hlist) {
+		if (ri->stack_addr == sara && ri->rp) {
+			if (ri->rp->handler)
+				ri->rp->handler(ri, regs);
+		}
+	}
+	return 0;
+}
+
+void trampoline_post_handler(struct kprobe *p, struct pt_regs *regs,
+						unsigned long flags)
+{
+	struct kretprobe_instance *ri;
+	/* RA already popped */
+	unsigned long *sara = ((unsigned long *)regs->rsp) - 1;
+
+	while ((ri = get_rp_inst(sara))) {
+		regs->rip = (unsigned long)ri->ret_addr;
+		recycle_rp_inst(ri);
+	}
+	regs->eflags &= ~TF_MASK;
 }
 
 /*
@@ -401,13 +545,23 @@ int post_kprobe_handler(struct pt_regs *regs)
 	if (!kprobe_running())
 		return 0;
 
-	if (current_kprobe->post_handler)
+	if ((kprobe_status != KPROBE_REENTER) && current_kprobe->post_handler) {
+		kprobe_status = KPROBE_HIT_SSDONE;
 		current_kprobe->post_handler(current_kprobe, regs, 0);
+	}
 
-	resume_execution(current_kprobe, regs);
+	if (current_kprobe->post_handler != trampoline_post_handler)
+		resume_execution(current_kprobe, regs);
 	regs->eflags |= kprobe_saved_rflags;
 
-	unlock_kprobes();
+	/* Restore the original saved kprobes variables and continue. */
+	if (kprobe_status == KPROBE_REENTER) {
+		restore_previous_kprobe();
+		goto out;
+	} else {
+		unlock_kprobes();
+	}
+out:
 	preempt_enable_no_resched();
 
 	/*

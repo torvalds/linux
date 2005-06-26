@@ -700,6 +700,8 @@ static int make_request(request_queue_t *q, struct bio * bio)
 		return 0;
 	}
 
+	md_write_start(mddev, bio);
+
 	/*
 	 * Register the new request and wait if the reconstruction
 	 * thread has put up a bar for new requests.
@@ -774,7 +776,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	rcu_read_unlock();
 
 	atomic_set(&r10_bio->remaining, 1);
-	md_write_start(mddev);
+
 	for (i = 0; i < conf->copies; i++) {
 		struct bio *mbio;
 		int d = r10_bio->devs[i].devnum;
@@ -1216,7 +1218,6 @@ static void raid10d(mddev_t *mddev)
 	mdk_rdev_t *rdev;
 
 	md_check_recovery(mddev);
-	md_handle_safemode(mddev);
 
 	for (;;) {
 		char b[BDEVNAME_SIZE];
@@ -1319,7 +1320,7 @@ static int init_resync(conf_t *conf)
  *
  */
 
-static int sync_request(mddev_t *mddev, sector_t sector_nr, int go_faster)
+static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, int go_faster)
 {
 	conf_t *conf = mddev_to_conf(mddev);
 	r10bio_t *r10_bio;
@@ -1333,7 +1334,7 @@ static int sync_request(mddev_t *mddev, sector_t sector_nr, int go_faster)
 
 	if (!conf->r10buf_pool)
 		if (init_resync(conf))
-			return -ENOMEM;
+			return 0;
 
  skipped:
 	max_sector = mddev->size << 1;
@@ -1341,15 +1342,15 @@ static int sync_request(mddev_t *mddev, sector_t sector_nr, int go_faster)
 		max_sector = mddev->resync_max_sectors;
 	if (sector_nr >= max_sector) {
 		close_sync(conf);
+		*skipped = 1;
 		return sectors_skipped;
 	}
 	if (chunks_skipped >= conf->raid_disks) {
 		/* if there has been nothing to do on any drive,
 		 * then there is nothing to do at all..
 		 */
-		sector_t sec = max_sector - sector_nr;
-		md_done_sync(mddev, sec, 1);
-		return sec + sectors_skipped;
+		*skipped = 1;
+		return (max_sector - sector_nr) + sectors_skipped;
 	}
 
 	/* make sure whole request will fit in a chunk - if chunks
@@ -1563,17 +1564,22 @@ static int sync_request(mddev_t *mddev, sector_t sector_nr, int go_faster)
 		}
 	}
 
+	if (sectors_skipped)
+		/* pretend they weren't skipped, it makes
+		 * no important difference in this case
+		 */
+		md_done_sync(mddev, sectors_skipped, 1);
+
 	return sectors_skipped + nr_sectors;
  giveup:
 	/* There is nowhere to write, so all non-sync
 	 * drives must be failed, so try the next chunk...
 	 */
 	{
-	int sec = max_sector - sector_nr;
+	sector_t sec = max_sector - sector_nr;
 	sectors_skipped += sec;
 	chunks_skipped ++;
 	sector_nr = max_sector;
-	md_done_sync(mddev, sec, 1);
 	goto skipped;
 	}
 }
@@ -1639,9 +1645,6 @@ static int run(mddev_t *mddev)
 			mdname(mddev));
 		goto out_free_conf;
 	}
-	mddev->queue->unplug_fn = raid10_unplug;
-
-	mddev->queue->issue_flush_fn = raid10_issue_flush;
 
 	ITERATE_RDEV(mddev, rdev, tmp) {
 		disk_idx = rdev->raid_disk;
@@ -1713,6 +1716,9 @@ static int run(mddev_t *mddev)
 	mddev->array_size = size/2;
 	mddev->resync_max_sectors = size;
 
+	mddev->queue->unplug_fn = raid10_unplug;
+	mddev->queue->issue_flush_fn = raid10_issue_flush;
+
 	/* Calculate max read-ahead size.
 	 * We need to readahead at least twice a whole stripe....
 	 * maybe...
@@ -1731,8 +1737,7 @@ static int run(mddev_t *mddev)
 out_free_conf:
 	if (conf->r10bio_pool)
 		mempool_destroy(conf->r10bio_pool);
-	if (conf->mirrors)
-		kfree(conf->mirrors);
+	kfree(conf->mirrors);
 	kfree(conf);
 	mddev->private = NULL;
 out:
@@ -1748,8 +1753,7 @@ static int stop(mddev_t *mddev)
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	if (conf->r10bio_pool)
 		mempool_destroy(conf->r10bio_pool);
-	if (conf->mirrors)
-		kfree(conf->mirrors);
+	kfree(conf->mirrors);
 	kfree(conf);
 	mddev->private = NULL;
 	return 0;

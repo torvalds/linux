@@ -317,6 +317,9 @@ extern int radeon_preinit( struct drm_device *dev, unsigned long flags );
 extern int radeon_postinit( struct drm_device *dev, unsigned long flags );
 extern int radeon_postcleanup( struct drm_device *dev );
 
+extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
+				unsigned long arg);
+
 /* Flags for stats.boxes
  */
 #define RADEON_BOX_DMA_IDLE      0x1

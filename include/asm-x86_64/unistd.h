@@ -552,7 +552,7 @@ __SYSCALL(__NR_mq_notify, sys_mq_notify)
 #define __NR_mq_getsetattr 	245
 __SYSCALL(__NR_mq_getsetattr, sys_mq_getsetattr)
 #define __NR_kexec_load 	246
-__SYSCALL(__NR_kexec_load, sys_ni_syscall)
+__SYSCALL(__NR_kexec_load, sys_kexec_load)
 #define __NR_waitid		247
 __SYSCALL(__NR_waitid, sys_waitid)
 #define __NR_add_key		248

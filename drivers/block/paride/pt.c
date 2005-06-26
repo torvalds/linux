@@ -242,7 +242,7 @@ static struct file_operations pt_fops = {
 };
 
 /* sysfs class support */
-static struct class_simple *pt_class;
+static struct class *pt_class;
 
 static inline int status_reg(struct pi_adapter *pi)
 {
@@ -963,7 +963,7 @@ static int __init pt_init(void)
 		err = -1;
 		goto out;
 	}
-	pt_class = class_simple_create(THIS_MODULE, "pt");
+	pt_class = class_create(THIS_MODULE, "pt");
 	if (IS_ERR(pt_class)) {
 		err = PTR_ERR(pt_class);
 		goto out_chrdev;
@@ -972,29 +972,29 @@ static int __init pt_init(void)
 	devfs_mk_dir("pt");
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present) {
-			class_simple_device_add(pt_class, MKDEV(major, unit), 
+			class_device_create(pt_class, MKDEV(major, unit),
 					NULL, "pt%d", unit);
 			err = devfs_mk_cdev(MKDEV(major, unit),
 				      S_IFCHR | S_IRUSR | S_IWUSR,
 				      "pt/%d", unit);
 			if (err) {
-				class_simple_device_remove(MKDEV(major, unit));
+				class_device_destroy(pt_class, MKDEV(major, unit));
 				goto out_class;
 			}
-			class_simple_device_add(pt_class, MKDEV(major, unit + 128),
+			class_device_create(pt_class, MKDEV(major, unit + 128),
 					NULL, "pt%dn", unit);
 			err = devfs_mk_cdev(MKDEV(major, unit + 128),
 				      S_IFCHR | S_IRUSR | S_IWUSR,
 				      "pt/%dn", unit);
 			if (err) {
-				class_simple_device_remove(MKDEV(major, unit + 128));
+				class_device_destroy(pt_class, MKDEV(major, unit + 128));
 				goto out_class;
 			}
 		}
 	goto out;
 
 out_class:
-	class_simple_destroy(pt_class);
+	class_destroy(pt_class);
 out_chrdev:
 	unregister_chrdev(major, "pt");
 out:
@@ -1006,12 +1006,12 @@ static void __exit pt_exit(void)
 	int unit;
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present) {
-			class_simple_device_remove(MKDEV(major, unit));
+			class_device_destroy(pt_class, MKDEV(major, unit));
 			devfs_remove("pt/%d", unit);
-			class_simple_device_remove(MKDEV(major, unit + 128));
+			class_device_destroy(pt_class, MKDEV(major, unit + 128));
 			devfs_remove("pt/%dn", unit);
 		}
-	class_simple_destroy(pt_class);
+	class_destroy(pt_class);
 	devfs_remove("pt");
 	unregister_chrdev(major, name);
 	for (unit = 0; unit < PT_UNITS; unit++)

@@ -7,8 +7,6 @@
 #define esr_disable (1)
 #define NO_BALANCE_IRQ (0)
 
-#define NO_IOAPIC_CHECK (1)	/* Don't check I/O APIC ID for xAPIC */
-
 /* In clustered mode, the high nibble of APIC ID is a cluster number.
  * The low nibble is a 4-bit bitmap. */
 #define XAPIC_DEST_CPUS_SHIFT	4

@@ -241,7 +241,7 @@
 #define PCI_CONTROL_BE_DEI		(1 << 21)	/* Big Endian Data Enable In  */
 #define PCI_CONTROL_BE_BEO		(1 << 20)	/* Big Endian Byte Enable Out */
 #define PCI_CONTROL_BE_BEI		(1 << 19)	/* Big Endian Byte Enable In  */
-#define PCI_CONTROL_PNR			(1 << 17)	/* PCI Not Reset bit */
+#define PCI_CONTROL_IEE			(1 << 17)	/* I/O cycle Endian swap Enable */
 
 #define IXP2000_PCI_RST_REL		(1 << 2)
 #define CFG_RST_DIR			(*IXP2000_PCI_CONTROL & IXP2000_PCICNTL_PCF)
@@ -363,6 +363,7 @@
 #define IXP2000_MIN_REV_MASK	      	0x0000000F
 #define IXP2000_PROD_ID_MASK		0xFFFFFFFF
 
+#define IXP2000_PRODUCT_ID		GLOBAL_REG(0x00)
 #define IXP2000_MISC_CONTROL		GLOBAL_REG(0x04)
 #define IXP2000_MSF_CLK_CNTRL  		GLOBAL_REG(0x08)
 #define IXP2000_RESET0      		GLOBAL_REG(0x0c)

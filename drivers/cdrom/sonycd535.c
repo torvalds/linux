@@ -1605,8 +1605,7 @@ out7:
 	put_disk(cdu_disk);
 out6:
 	for (i = 0; i < sony_buffer_sectors; i++)
-		if (sony_buffer[i]) 
-			kfree(sony_buffer[i]);
+		kfree(sony_buffer[i]);
 out5:
 	kfree(sony_buffer);
 out4:

@@ -22,6 +22,7 @@ struct timer_opts {
 	unsigned long (*get_offset)(void);
 	unsigned long long (*monotonic_clock)(void);
 	void (*delay)(unsigned long);
+	unsigned long (*read_timer)(void);
 };
 
 struct init_timer_opts {
@@ -52,7 +53,9 @@ extern struct init_timer_opts timer_cyclone_init;
 #endif
 
 extern unsigned long calibrate_tsc(void);
+extern unsigned long read_timer_tsc(void);
 extern void init_cpu_khz(void);
+extern int recalibrate_cpu_khz(void);
 #ifdef CONFIG_HPET_TIMER
 extern struct init_timer_opts timer_hpet_init;
 extern unsigned long calibrate_tsc_hpet(unsigned long *tsc_hpet_quotient_ptr);

@@ -35,6 +35,7 @@
 #include <linux/notifier.h>
 #include <linux/stop_machine.h>
 #include <linux/device.h>
+#include <linux/string.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #include <asm/cacheflush.h>
@@ -370,6 +371,43 @@ static inline void percpu_modcopy(void *pcpudst, const void *src,
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_MODULE_UNLOAD
+#define MODINFO_ATTR(field)	\
+static void setup_modinfo_##field(struct module *mod, const char *s)  \
+{                                                                     \
+	mod->field = kstrdup(s, GFP_KERNEL);                          \
+}                                                                     \
+static ssize_t show_modinfo_##field(struct module_attribute *mattr,   \
+	                struct module *mod, char *buffer)             \
+{                                                                     \
+	return sprintf(buffer, "%s\n", mod->field);                   \
+}                                                                     \
+static int modinfo_##field##_exists(struct module *mod)               \
+{                                                                     \
+	return mod->field != NULL;                                    \
+}                                                                     \
+static void free_modinfo_##field(struct module *mod)                  \
+{                                                                     \
+        kfree(mod->field);                                            \
+        mod->field = NULL;                                            \
+}                                                                     \
+static struct module_attribute modinfo_##field = {                    \
+	.attr = { .name = __stringify(field), .mode = 0444,           \
+		  .owner = THIS_MODULE },                             \
+	.show = show_modinfo_##field,                                 \
+	.setup = setup_modinfo_##field,                               \
+	.test = modinfo_##field##_exists,                             \
+	.free = free_modinfo_##field,                                 \
+};
+
+MODINFO_ATTR(version);
+MODINFO_ATTR(srcversion);
+
+static struct module_attribute *modinfo_attrs[] = {
+	&modinfo_version,
+	&modinfo_srcversion,
+	NULL,
+};
+
 /* Init the unload section of the module. */
 static void module_unload_init(struct module *mod)
 {
@@ -379,7 +417,7 @@ static void module_unload_init(struct module *mod)
 	for (i = 0; i < NR_CPUS; i++)
 		local_set(&mod->ref[i].count, 0);
 	/* Hold reference count during initialization. */
-	local_set(&mod->ref[_smp_processor_id()].count, 1);
+	local_set(&mod->ref[raw_smp_processor_id()].count, 1);
 	/* Backwards compatibility macros put refcount during init. */
 	mod->waiter = current;
 }
@@ -692,7 +730,7 @@ static int obsparm_copy_string(const char *val, struct kernel_param *kp)
 	return 0;
 }
 
-int set_obsolete(const char *val, struct kernel_param *kp)
+static int set_obsolete(const char *val, struct kernel_param *kp)
 {
 	unsigned int min, max;
 	unsigned int size, maxsize;
@@ -1031,6 +1069,32 @@ static void module_remove_refcnt_attr(struct module *mod)
 }
 #endif
 
+#ifdef CONFIG_MODULE_UNLOAD
+static int module_add_modinfo_attrs(struct module *mod)
+{
+	struct module_attribute *attr;
+	int error = 0;
+	int i;
+
+	for (i = 0; (attr = modinfo_attrs[i]) && !error; i++) {
+		if (!attr->test ||
+		    (attr->test && attr->test(mod)))
+			error = sysfs_create_file(&mod->mkobj.kobj,&attr->attr);
+	}
+	return error;
+}
+
+static void module_remove_modinfo_attrs(struct module *mod)
+{
+	struct module_attribute *attr;
+	int i;
+
+	for (i = 0; (attr = modinfo_attrs[i]); i++) {
+		sysfs_remove_file(&mod->mkobj.kobj,&attr->attr);
+		attr->free(mod);
+	}
+}
+#endif
 
 static int mod_sysfs_setup(struct module *mod,
 			   struct kernel_param *kparam,
@@ -1056,6 +1120,12 @@ static int mod_sysfs_setup(struct module *mod,
 	if (err)
 		goto out_unreg;
 
+#ifdef CONFIG_MODULE_UNLOAD
+	err = module_add_modinfo_attrs(mod);
+	if (err)
+		goto out_unreg;
+#endif
+
 	return 0;
 
 out_unreg:
@@ -1066,6 +1136,9 @@ out:
 
 static void mod_kobject_remove(struct module *mod)
 {
+#ifdef CONFIG_MODULE_UNLOAD
+	module_remove_modinfo_attrs(mod);
+#endif
 	module_remove_refcnt_attr(mod);
 	module_param_sysfs_remove(mod);
 
@@ -1310,6 +1383,23 @@ static char *get_modinfo(Elf_Shdr *sechdrs,
 	}
 	return NULL;
 }
+
+#ifdef CONFIG_MODULE_UNLOAD
+static void setup_modinfo(struct module *mod, Elf_Shdr *sechdrs,
+			  unsigned int infoindex)
+{
+	struct module_attribute *attr;
+	int i;
+
+	for (i = 0; (attr = modinfo_attrs[i]); i++) {
+		if (attr->setup)
+			attr->setup(mod,
+				    get_modinfo(sechdrs,
+						infoindex,
+						attr->attr.name));
+	}
+}
+#endif
 
 #ifdef CONFIG_KALLSYMS
 int is_exported(const char *name, const struct module *mod)
@@ -1615,6 +1705,11 @@ static struct module *load_module(void __user *umod,
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
 
+#ifdef CONFIG_MODULE_UNLOAD
+	/* Set up MODINFO_ATTR fields */
+	setup_modinfo(mod, sechdrs, infoindex);
+#endif
+
 	/* Fix up syms, so that st_value is a pointer to location. */
 	err = simplify_symbols(sechdrs, symindex, strtab, versindex, pcpuindex,
 			       mod);
@@ -1758,6 +1853,7 @@ sys_init_module(void __user *umod,
 		const char __user *uargs)
 {
 	struct module *mod;
+	mm_segment_t old_fs = get_fs();
 	int ret = 0;
 
 	/* Must have permission */
@@ -1775,6 +1871,9 @@ sys_init_module(void __user *umod,
 		return PTR_ERR(mod);
 	}
 
+	/* flush the icache in correct context */
+	set_fs(KERNEL_DS);
+
 	/* Flush the instruction cache, since we've played with text */
 	if (mod->module_init)
 		flush_icache_range((unsigned long)mod->module_init,
@@ -1782,6 +1881,8 @@ sys_init_module(void __user *umod,
 				   + mod->init_size);
 	flush_icache_range((unsigned long)mod->module_core,
 			   (unsigned long)mod->module_core + mod->core_size);
+
+	set_fs(old_fs);
 
 	/* Now sew it into the lists.  They won't access us, since
            strong_try_module_get() will fail. */

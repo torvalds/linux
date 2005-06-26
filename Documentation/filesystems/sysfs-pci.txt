@@ -7,7 +7,6 @@ that support it.  For example, a given bus might look like this:
      |-- 0000:17:00.0
      |   |-- class
      |   |-- config
-     |   |-- detach_state
      |   |-- device
      |   |-- irq
      |   |-- local_cpus
@@ -19,7 +18,7 @@ that support it.  For example, a given bus might look like this:
      |   |-- subsystem_device
      |   |-- subsystem_vendor
      |   `-- vendor
-     `-- detach_state
+     `-- ...
 
 The topmost element describes the PCI domain and bus number.  In this case,
 the domain number is 0000 and the bus number is 17 (both values are in hex).
@@ -31,7 +30,6 @@ files, each with their own function.
        ----		   --------
        class		   PCI class (ascii, ro)
        config		   PCI config space (binary, rw)
-       detach_state	   connection status (bool, rw)
        device		   PCI device (ascii, ro)
        irq		   IRQ number (ascii, ro)
        local_cpus	   nearby CPU mask (cpumask, ro)

@@ -51,7 +51,7 @@ extern void smp_send_reschedule(int cpu);
 
 extern unsigned long cpu_present_mask;
 
-#define smp_processor_id()	(current_thread_info()->cpu)
+#define raw_smp_processor_id()	(current_thread_info()->cpu)
 
 #endif /* CONFIG_SMP */
 

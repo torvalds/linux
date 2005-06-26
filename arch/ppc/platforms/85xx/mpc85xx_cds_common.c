@@ -42,8 +42,8 @@
 #include <asm/todc.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/open_pic.h>
+#include <asm/i8259.h>
 #include <asm/bootinfo.h>
 #include <asm/pci-bridge.h>
 #include <asm/mpc85xx.h>
@@ -72,40 +72,8 @@ static int cds_pci_slot = 2;
 static volatile u8 * cadmus;
 
 /* Internal interrupts are all Level Sensitive, and Positive Polarity */
-
 static u_char mpc85xx_cds_openpic_initsenses[] __initdata = {
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  0: L2 Cache */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  1: ECM */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  2: DDR DRAM */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  3: LBIU */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  4: DMA 0 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  5: DMA 1 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  6: DMA 2 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  7: DMA 3 */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  8: PCI/PCI-X */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  9: RIO Inbound Port Write Error */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 10: RIO Doorbell Inbound */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 11: RIO Outbound Message */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 12: RIO Inbound Message */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 13: TSEC 0 Transmit */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 14: TSEC 0 Receive */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 15: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 16: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 17: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 18: TSEC 0 Receive/Transmit Error */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 19: TSEC 1 Transmit */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 20: TSEC 1 Receive */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 21: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 22: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 23: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 24: TSEC 1 Receive/Transmit Error */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 25: Fast Ethernet */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 26: DUART */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 27: I2C */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 28: Performance Monitor */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 29: Unused */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 30: CPM */
-	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 31: Unused */
+	MPC85XX_INTERNAL_IRQ_SENSES,
 #if defined(CONFIG_PCI)
 	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* External 0: PCI1 slot */
 	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* External 1: PCI1 slot */
@@ -181,6 +149,7 @@ void __init
 mpc85xx_cds_init_IRQ(void)
 {
 	bd_t *binfo = (bd_t *) __res;
+	int i;
 
 	/* Determine the Physical Address of the OpenPIC regs */
 	phys_addr_t OpenPIC_PAddr = binfo->bi_immr_base + MPC85xx_OPENPIC_OFFSET;
@@ -189,14 +158,27 @@ mpc85xx_cds_init_IRQ(void)
 	OpenPIC_NumInitSenses = sizeof (mpc85xx_cds_openpic_initsenses);
 
 	/* Skip reserved space and internal sources */
+#ifdef CONFIG_MPC8548
+	openpic_set_sources(0, 48, OpenPIC_Addr + 0x10200);
+#else
 	openpic_set_sources(0, 32, OpenPIC_Addr + 0x10200);
+#endif
 	/* Map PIC IRQs 0-11 */
-	openpic_set_sources(32, 12, OpenPIC_Addr + 0x10000);
+	openpic_set_sources(48, 12, OpenPIC_Addr + 0x10000);
 
 	/* we let openpic interrupts starting from an offset, to
 	 * leave space for cascading interrupts underneath.
 	 */
 	openpic_init(MPC85xx_OPENPIC_IRQ_OFFSET);
+
+#ifdef CONFIG_PCI
+	openpic_hookup_cascade(PIRQ0A, "82c59 cascade", i8259_irq);
+
+	for (i = 0; i < NUM_8259_INTERRUPTS; i++)
+		irq_desc[i].handler = &i8259_pic;
+
+	i8259_init(0);
+#endif
 
 #ifdef CONFIG_CPM2
 	/* Setup CPM2 PIC */
@@ -231,7 +213,7 @@ mpc85xx_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 			 * interrupt on slot */
 		{
 			{ 0, 1, 2, 3 }, /* 16 - PMC */
-			{ 3, 0, 0, 0 }, /* 17 P2P (Tsi320) */
+			{ 0, 1, 2, 3 }, /* 17 P2P (Tsi320) */
 			{ 0, 1, 2, 3 }, /* 18 - Slot 1 */
 			{ 1, 2, 3, 0 }, /* 19 - Slot 2 */
 			{ 2, 3, 0, 1 }, /* 20 - Slot 3 */
@@ -280,12 +262,134 @@ mpc85xx_exclude_device(u_char bus, u_char devfn)
 			return PCIBIOS_DEVICE_NOT_FOUND;
 #endif
 	/* We explicitly do not go past the Tundra 320 Bridge */
-	if (bus == 1)
+	if ((bus == 1) && (PCI_SLOT(devfn) == ARCADIA_2ND_BRIDGE_IDSEL))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	if ((bus == 0) && (PCI_SLOT(devfn) == ARCADIA_2ND_BRIDGE_IDSEL))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	else
 		return PCIBIOS_SUCCESSFUL;
+}
+
+void __init
+mpc85xx_cds_enable_via(struct pci_controller *hose)
+{
+	u32 pci_class;
+	u16 vid, did;
+
+	early_read_config_dword(hose, 0, 0x88, PCI_CLASS_REVISION, &pci_class);
+	if ((pci_class >> 16) != PCI_CLASS_BRIDGE_PCI)
+		return;
+
+	/* Configure P2P so that we can reach bus 1 */
+	early_write_config_byte(hose, 0, 0x88, PCI_PRIMARY_BUS, 0);
+	early_write_config_byte(hose, 0, 0x88, PCI_SECONDARY_BUS, 1);
+	early_write_config_byte(hose, 0, 0x88, PCI_SUBORDINATE_BUS, 0xff);
+
+	early_read_config_word(hose, 1, 0x10, PCI_VENDOR_ID, &vid);
+	early_read_config_word(hose, 1, 0x10, PCI_DEVICE_ID, &did);
+
+	if ((vid != PCI_VENDOR_ID_VIA) ||
+			(did != PCI_DEVICE_ID_VIA_82C686))
+		return;
+
+	/* Enable USB and IDE functions */
+	early_write_config_byte(hose, 1, 0x10, 0x48, 0x08);
+}
+
+void __init
+mpc85xx_cds_fixup_via(struct pci_controller *hose)
+{
+	u32 pci_class;
+	u16 vid, did;
+
+	early_read_config_dword(hose, 0, 0x88, PCI_CLASS_REVISION, &pci_class);
+	if ((pci_class >> 16) != PCI_CLASS_BRIDGE_PCI)
+		return;
+
+	/*
+	 * Force the backplane P2P bridge to have a window
+	 * open from 0x00000000-0x00001fff in PCI I/O space.
+	 * This allows legacy I/O (i8259, etc) on the VIA
+	 * southbridge to be accessed.
+	 */
+	early_write_config_byte(hose, 0, 0x88, PCI_IO_BASE, 0x00);
+	early_write_config_word(hose, 0, 0x88, PCI_IO_BASE_UPPER16, 0x0000);
+	early_write_config_byte(hose, 0, 0x88, PCI_IO_LIMIT, 0x10);
+	early_write_config_word(hose, 0, 0x88, PCI_IO_LIMIT_UPPER16, 0x0000);
+
+	early_read_config_word(hose, 1, 0x10, PCI_VENDOR_ID, &vid);
+	early_read_config_word(hose, 1, 0x10, PCI_DEVICE_ID, &did);
+	if ((vid != PCI_VENDOR_ID_VIA) ||
+			(did != PCI_DEVICE_ID_VIA_82C686))
+		return;
+
+	/*
+	 * Since the P2P window was forced to cover the fixed
+	 * legacy I/O addresses, it is necessary to manually
+	 * place the base addresses for the IDE and USB functions
+	 * within this window.
+	 */
+	/* Function 1, IDE */
+	early_write_config_dword(hose, 1, 0x11, PCI_BASE_ADDRESS_0, 0x1ff8);
+	early_write_config_dword(hose, 1, 0x11, PCI_BASE_ADDRESS_1, 0x1ff4);
+	early_write_config_dword(hose, 1, 0x11, PCI_BASE_ADDRESS_2, 0x1fe8);
+	early_write_config_dword(hose, 1, 0x11, PCI_BASE_ADDRESS_3, 0x1fe4);
+	early_write_config_dword(hose, 1, 0x11, PCI_BASE_ADDRESS_4, 0x1fd0);
+
+	/* Function 2, USB ports 0-1 */
+	early_write_config_dword(hose, 1, 0x12, PCI_BASE_ADDRESS_4, 0x1fa0);
+
+	/* Function 3, USB ports 2-3 */
+	early_write_config_dword(hose, 1, 0x13, PCI_BASE_ADDRESS_4, 0x1f80);
+
+	/* Function 5, Power Management */
+	early_write_config_dword(hose, 1, 0x15, PCI_BASE_ADDRESS_0, 0x1e00);
+	early_write_config_dword(hose, 1, 0x15, PCI_BASE_ADDRESS_1, 0x1dfc);
+	early_write_config_dword(hose, 1, 0x15, PCI_BASE_ADDRESS_2, 0x1df8);
+
+	/* Function 6, AC97 Interface */
+	early_write_config_dword(hose, 1, 0x16, PCI_BASE_ADDRESS_0, 0x1c00);
+}
+
+void __init
+mpc85xx_cds_pcibios_fixup(void)
+{
+        struct pci_dev *dev = NULL;
+	u_char		c;
+
+        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+                                        PCI_DEVICE_ID_VIA_82C586_1, NULL))) {
+                /*
+                 * U-Boot does not set the enable bits
+                 * for the IDE device. Force them on here.
+                 */
+                pci_read_config_byte(dev, 0x40, &c);
+                c |= 0x03; /* IDE: Chip Enable Bits */
+                pci_write_config_byte(dev, 0x40, c);
+
+		/*
+		 * Since only primary interface works, force the
+		 * IDE function to standard primary IDE interrupt
+		 * w/ 8259 offset
+		 */
+                dev->irq = 14;
+                pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
+        }
+
+	/*
+	 * Force legacy USB interrupt routing
+	 */
+        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+                                        PCI_DEVICE_ID_VIA_82C586_2, NULL))) {
+                dev->irq = 10;
+                pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 10);
+        }
+
+        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+                                        PCI_DEVICE_ID_VIA_82C586_2, dev))) {
+                dev->irq = 11;
+                pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 11);
+        }
 }
 #endif /* CONFIG_PCI */
 
@@ -328,6 +432,9 @@ mpc85xx_cds_setup_arch(void)
 	loops_per_jiffy = freq / HZ;
 
 #ifdef CONFIG_PCI
+	/* VIA IDE configuration */
+        ppc_md.pcibios_fixup = mpc85xx_cds_pcibios_fixup;
+
 	/* setup PCI host bridges */
 	mpc85xx_setup_hose();
 #endif
@@ -339,26 +446,52 @@ mpc85xx_cds_setup_arch(void)
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	/* Invalidate the entry we stole earlier the serial ports
 	 * should be properly mapped */
-	invalidate_tlbcam_entry(NUM_TLBCAMS - 1);
+	invalidate_tlbcam_entry(num_tlbcam_entries - 1);
 #endif
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
-	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-	pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-	pdata->phyid = 0;
-	/* fixup phy address */
-	pdata->phy_reg_addr += binfo->bi_immr_base;
-	memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
+		pdata->phyid = 0;
+		/* fixup phy address */
+		pdata->phy_reg_addr += binfo->bi_immr_base;
+		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
-	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-	pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-	pdata->phyid = 1;
-	/* fixup phy address */
-	pdata->phy_reg_addr += binfo->bi_immr_base;
-	memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
+		pdata->phyid = 1;
+		/* fixup phy address */
+		pdata->phy_reg_addr += binfo->bi_immr_base;
+		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	}
 
+	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_eTSEC1);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
+		pdata->phyid = 0;
+		/* fixup phy address */
+		pdata->phy_reg_addr += binfo->bi_immr_base;
+		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	}
+
+	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_eTSEC2);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
+		pdata->phyid = 1;
+		/* fixup phy address */
+		pdata->phy_reg_addr += binfo->bi_immr_base;
+		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	}
+
+	ppc_sys_device_remove(MPC85xx_eTSEC3);
+	ppc_sys_device_remove(MPC85xx_eTSEC4);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start)
@@ -395,7 +528,7 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 		struct uart_port p;
 
 		/* Use the last TLB entry to map CCSRBAR to allow access to DUART regs */
-		settlbcam(NUM_TLBCAMS - 1, binfo->bi_immr_base,
+		settlbcam(num_tlbcam_entries - 1, binfo->bi_immr_base,
 				binfo->bi_immr_base, MPC85xx_CCSRBAR_SIZE, _PAGE_IO, 0);
 
 		memset(&p, 0, sizeof (p));
@@ -459,6 +592,9 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #if defined(CONFIG_SERIAL_8250) && defined(CONFIG_SERIAL_TEXT_DEBUG)
 	ppc_md.progress = gen550_progress;
 #endif /* CONFIG_SERIAL_8250 && CONFIG_SERIAL_TEXT_DEBUG */
+#if defined(CONFIG_SERIAL_8250) && defined(CONFIG_KGDB)
+	ppc_md.early_serial_map = mpc85xx_early_serial_map;
+#endif	/* CONFIG_SERIAL_8250 && CONFIG_KGDB */
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_cds_init(): exit", 0);

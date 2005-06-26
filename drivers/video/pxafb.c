@@ -43,6 +43,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
+#include <asm/div64.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/bitfield.h>
 #include <asm/arch/pxafb.h>
@@ -460,7 +461,7 @@ static inline unsigned int get_pcd(unsigned int pixclock)
          * speeds */
 
 	pcd = (unsigned long long)get_lcdclk_frequency_10khz() * pixclock;
-	pcd /= 100000000 * 2;
+	do_div(pcd, 100000000 * 2);
 	/* no need for this, since we should subtract 1 anyway. they cancel */
 	/* pcd += 1; */ /* make up for integer math truncations */
 	return (unsigned int)pcd;

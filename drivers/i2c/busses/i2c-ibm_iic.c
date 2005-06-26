@@ -695,7 +695,7 @@ static int __devinit iic_probe(struct ocp_device *ocp){
 
 	dev->irq = iic_force_poll ? -1 : ocp->def->irq;
 	if (dev->irq >= 0){
-		/* Disable interrupts until we finish intialization,
+		/* Disable interrupts until we finish initialization,
 		   assumes level-sensitive IRQ setup...
 		 */
 		iic_interrupt_mode(dev, 0);

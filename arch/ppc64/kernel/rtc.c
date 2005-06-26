@@ -42,10 +42,8 @@
 #include <asm/time.h>
 #include <asm/rtas.h>
 
-#include <asm/iSeries/LparData.h>
 #include <asm/iSeries/mf.h>
 #include <asm/machdep.h>
-#include <asm/iSeries/ItSpCommArea.h>
 
 extern int piranha_simulator;
 
@@ -292,47 +290,10 @@ int iSeries_set_rtc_time(struct rtc_time *tm)
 
 void iSeries_get_boot_time(struct rtc_time *tm)
 {
-	unsigned long time;
-	static unsigned long lastsec = 1;
-
-	u32 dataWord1 = *((u32 *)(&xSpCommArea.xBcdTimeAtIplStart));
-	u32 dataWord2 = *(((u32 *)&(xSpCommArea.xBcdTimeAtIplStart)) + 1);
-	int year = 1970;
-	int year1 = ( dataWord1 >> 24 ) & 0x000000FF;
-	int year2 = ( dataWord1 >> 16 ) & 0x000000FF;
-	int sec = ( dataWord1 >> 8 ) & 0x000000FF;
-	int min = dataWord1 & 0x000000FF;
-	int hour = ( dataWord2 >> 24 ) & 0x000000FF;
-	int day = ( dataWord2 >> 8 ) & 0x000000FF;
-	int mon = dataWord2 & 0x000000FF;
-
 	if ( piranha_simulator )
 		return;
 
-	BCD_TO_BIN(sec);
-	BCD_TO_BIN(min);
-	BCD_TO_BIN(hour);
-	BCD_TO_BIN(day);
-	BCD_TO_BIN(mon);
-	BCD_TO_BIN(year1);
-	BCD_TO_BIN(year2);
-	year = year1 * 100 + year2;
-
-	time = mktime(year, mon, day, hour, min, sec);
-	time += ( jiffies / HZ );
-
-	/* Now THIS is a nasty hack!
-	* It ensures that the first two calls get different answers.  
-	* That way the loop in init_time (time.c) will not think
-	* the clock is stuck.
-	*/
-	if ( lastsec ) {
-		time -= lastsec;
-		--lastsec;
-	}
-
-	to_tm(time, tm); 
-	tm->tm_year -= 1900;
+	mf_get_boot_rtc(tm);
 	tm->tm_mon  -= 1;
 }
 #endif
@@ -340,7 +301,7 @@ void iSeries_get_boot_time(struct rtc_time *tm)
 #ifdef CONFIG_PPC_RTAS
 #define MAX_RTC_WAIT 5000	/* 5 sec */
 #define RTAS_CLOCK_BUSY (-2)
-void pSeries_get_boot_time(struct rtc_time *rtc_tm)
+void rtas_get_boot_time(struct rtc_time *rtc_tm)
 {
 	int ret[8];
 	int error, wait_time;
@@ -375,7 +336,7 @@ void pSeries_get_boot_time(struct rtc_time *rtc_tm)
  * and if a delay is needed to read the clock.  In this case we just
  * silently return without updating rtc_tm.
  */
-void pSeries_get_rtc_time(struct rtc_time *rtc_tm)
+void rtas_get_rtc_time(struct rtc_time *rtc_tm)
 {
         int ret[8];
 	int error, wait_time;
@@ -410,7 +371,7 @@ void pSeries_get_rtc_time(struct rtc_time *rtc_tm)
 	rtc_tm->tm_year = ret[0] - 1900;
 }
 
-int pSeries_set_rtc_time(struct rtc_time *tm)
+int rtas_set_rtc_time(struct rtc_time *tm)
 {
 	int error, wait_time;
 	unsigned long max_wait_tb;

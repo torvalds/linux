@@ -763,7 +763,7 @@ static int stir_transmit_thread(void *arg)
 	{
 #ifdef CONFIG_PM
 		/* if suspending, then power off and wait */
-		if (unlikely(current->flags & PF_FREEZE)) {
+		if (unlikely(freezing(current))) {
 			if (stir->receiving)
 				receive_stop(stir);
 			else
@@ -771,7 +771,7 @@ static int stir_transmit_thread(void *arg)
 
 			write_reg(stir, REG_CTRL1, CTRL1_TXPWD|CTRL1_RXPWD);
 
-			refrigerator(PF_FREEZE);
+			refrigerator();
 
 			if (change_speed(stir, stir->speed))
 				break;

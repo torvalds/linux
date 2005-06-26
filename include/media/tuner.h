@@ -25,6 +25,8 @@
 
 #include "id.h"
 
+#define ADDR_UNSET (255)
+
 #define TUNER_TEMIC_PAL     0        /* 4002 FH5 (3X 7756, 9483) */
 #define TUNER_PHILIPS_PAL_I 1
 #define TUNER_PHILIPS_NTSC  2
@@ -98,12 +100,23 @@
 #define TUNER_PHILIPS_FQ1216AME_MK4 56 /* Hauppauge PVR-150 PAL */
 #define TUNER_PHILIPS_FQ1236A_MK4 57   /* Hauppauge PVR-500MCE NTSC */
 
+#define TUNER_YMEC_TVF_8531MF 58
+#define TUNER_YMEC_TVF_5533MF 59	/* Pixelview Pro Ultra NTSC */
+#define TUNER_THOMSON_DTT7611 60
+#define TUNER_TENA_9533_DI    61
+#define TUNER_TEA5767         62	/* Only FM Radio Tuner */
+
+#define TEA5767_TUNER_NAME "Philips TEA5767HN FM Radio"
+
+#define TUNER_THOMSON_DTT7611    60
+
 #define NOTUNER 0
 #define PAL     1	/* PAL_BG */
 #define PAL_I   2
 #define NTSC    3
 #define SECAM   4
 #define ATSC    5
+#define RADIO	6
 
 #define NoTuner 0
 #define Philips 1
@@ -119,10 +132,20 @@
 #define TCL     11
 #define THOMSON 12
 
+enum v4l_radio_tuner {
+        TEA5767_LOW_LO_32768    = 0,
+        TEA5767_HIGH_LO_32768   = 1,
+        TEA5767_LOW_LO_13MHz    = 2,
+        TEA5767_HIGH_LO_13MHz   = 3,
+};
+
+
 #define TUNER_SET_TYPE               _IOW('t',1,int)    /* set tuner type */
 #define TUNER_SET_TVFREQ             _IOW('t',2,int)    /* set tv freq */
+#define TUNER_SET_TYPE_ADDR          _IOW('T',3,int)	/* set tuner type and I2C addr */
 
 #define  TDA9887_SET_CONFIG          _IOW('t',5,int)
+
 /* tv card specific */
 # define TDA9887_PRESENT             (1<<0)
 # define TDA9887_PORT1_INACTIVE      (1<<1)
@@ -142,6 +165,12 @@
 
 #define I2C_ADDR_TDA8290        0x4b
 #define I2C_ADDR_TDA8275        0x61
+
+struct tuner_addr {
+	enum v4l2_tuner_type	v4l2_tuner;
+	unsigned int		type;
+	unsigned short		addr;
+};
 
 struct tuner {
 	/* device */

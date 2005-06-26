@@ -42,15 +42,8 @@ struct tcpdiag_entry
 
 static struct sock *tcpnl;
 
-
 #define TCPDIAG_PUT(skb, attrtype, attrlen) \
-({ int rtalen = RTA_LENGTH(attrlen);        \
-   struct rtattr *rta;                      \
-   if (skb_tailroom(skb) < RTA_ALIGN(rtalen)) goto nlmsg_failure; \
-   rta = (void*)__skb_put(skb, RTA_ALIGN(rtalen)); \
-   rta->rta_type = attrtype;                \
-   rta->rta_len = rtalen;                   \
-   RTA_DATA(rta); })
+	RTA_DATA(__RTA_PUT(skb, attrtype, attrlen))
 
 static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 			int ext, u32 pid, u32 seq, u16 nlmsg_flags)
@@ -61,7 +54,6 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 	struct nlmsghdr  *nlh;
 	struct tcp_info  *info = NULL;
 	struct tcpdiag_meminfo  *minfo = NULL;
-	struct tcpvegas_info *vinfo = NULL;
 	unsigned char	 *b = skb->tail;
 
 	nlh = NLMSG_PUT(skb, pid, seq, TCPDIAG_GETSOCK, sizeof(*r));
@@ -73,9 +65,11 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 		if (ext & (1<<(TCPDIAG_INFO-1)))
 			info = TCPDIAG_PUT(skb, TCPDIAG_INFO, sizeof(*info));
 		
-		if ((tcp_is_westwood(tp) || tcp_is_vegas(tp))
-		    && (ext & (1<<(TCPDIAG_VEGASINFO-1))))
-			vinfo = TCPDIAG_PUT(skb, TCPDIAG_VEGASINFO, sizeof(*vinfo));
+		if (ext & (1<<(TCPDIAG_CONG-1))) {
+			size_t len = strlen(tp->ca_ops->name);
+			strcpy(TCPDIAG_PUT(skb, TCPDIAG_CONG, len+1),
+			       tp->ca_ops->name);
+		}
 	}
 	r->tcpdiag_family = sk->sk_family;
 	r->tcpdiag_state = sk->sk_state;
@@ -166,23 +160,13 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 	if (info) 
 		tcp_get_info(sk, info);
 
-	if (vinfo) {
-		if (tcp_is_vegas(tp)) {
-			vinfo->tcpv_enabled = tp->vegas.doing_vegas_now;
-			vinfo->tcpv_rttcnt = tp->vegas.cntRTT;
-			vinfo->tcpv_rtt = jiffies_to_usecs(tp->vegas.baseRTT);
-			vinfo->tcpv_minrtt = jiffies_to_usecs(tp->vegas.minRTT);
-		} else {
-			vinfo->tcpv_enabled = 0;
-			vinfo->tcpv_rttcnt = 0;
-			vinfo->tcpv_rtt = jiffies_to_usecs(tp->westwood.rtt);
-			vinfo->tcpv_minrtt = jiffies_to_usecs(tp->westwood.rtt_min);
-		}
-	}
+	if (sk->sk_state < TCP_TIME_WAIT && tp->ca_ops->get_info)
+		tp->ca_ops->get_info(tp, ext, skb);
 
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
 
+rtattr_failure:
 nlmsg_failure:
 	skb_trim(skb, b - skb->data);
 	return -1;
@@ -455,9 +439,10 @@ static int tcpdiag_dump_sock(struct sk_buff *skb, struct sock *sk,
 }
 
 static int tcpdiag_fill_req(struct sk_buff *skb, struct sock *sk,
-			    struct open_request *req,
+			    struct request_sock *req,
 			    u32 pid, u32 seq)
 {
+	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct inet_sock *inet = inet_sk(sk);
 	unsigned char *b = skb->tail;
 	struct tcpdiagmsg *r;
@@ -482,9 +467,9 @@ static int tcpdiag_fill_req(struct sk_buff *skb, struct sock *sk,
 		tmo = 0;
 
 	r->id.tcpdiag_sport = inet->sport;
-	r->id.tcpdiag_dport = req->rmt_port;
-	r->id.tcpdiag_src[0] = req->af.v4_req.loc_addr;
-	r->id.tcpdiag_dst[0] = req->af.v4_req.rmt_addr;
+	r->id.tcpdiag_dport = ireq->rmt_port;
+	r->id.tcpdiag_src[0] = ireq->loc_addr;
+	r->id.tcpdiag_dst[0] = ireq->rmt_addr;
 	r->tcpdiag_expires = jiffies_to_msecs(tmo),
 	r->tcpdiag_rqueue = 0;
 	r->tcpdiag_wqueue = 0;
@@ -493,9 +478,9 @@ static int tcpdiag_fill_req(struct sk_buff *skb, struct sock *sk,
 #ifdef CONFIG_IP_TCPDIAG_IPV6
 	if (r->tcpdiag_family == AF_INET6) {
 		ipv6_addr_copy((struct in6_addr *)r->id.tcpdiag_src,
-			       &req->af.v6_req.loc_addr);
+			       &tcp6_rsk(req)->loc_addr);
 		ipv6_addr_copy((struct in6_addr *)r->id.tcpdiag_dst,
-			       &req->af.v6_req.rmt_addr);
+			       &tcp6_rsk(req)->rmt_addr);
 	}
 #endif
 	nlh->nlmsg_len = skb->tail - b;
@@ -513,7 +498,7 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	struct tcpdiag_entry entry;
 	struct tcpdiagreq *r = NLMSG_DATA(cb->nlh);
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct tcp_listen_opt *lopt;
+	struct listen_sock *lopt;
 	struct rtattr *bc = NULL;
 	struct inet_sock *inet = inet_sk(sk);
 	int j, s_j;
@@ -528,9 +513,9 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 
 	entry.family = sk->sk_family;
 
-	read_lock_bh(&tp->syn_wait_lock);
+	read_lock_bh(&tp->accept_queue.syn_wait_lock);
 
-	lopt = tp->listen_opt;
+	lopt = tp->accept_queue.listen_opt;
 	if (!lopt || !lopt->qlen)
 		goto out;
 
@@ -541,13 +526,15 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	}
 
 	for (j = s_j; j < TCP_SYNQ_HSIZE; j++) {
-		struct open_request *req, *head = lopt->syn_table[j];
+		struct request_sock *req, *head = lopt->syn_table[j];
 
 		reqnum = 0;
 		for (req = head; req; reqnum++, req = req->dl_next) {
+			struct inet_request_sock *ireq = inet_rsk(req);
+
 			if (reqnum < s_reqnum)
 				continue;
-			if (r->id.tcpdiag_dport != req->rmt_port &&
+			if (r->id.tcpdiag_dport != ireq->rmt_port &&
 			    r->id.tcpdiag_dport)
 				continue;
 
@@ -555,16 +542,16 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 				entry.saddr =
 #ifdef CONFIG_IP_TCPDIAG_IPV6
 					(entry.family == AF_INET6) ?
-					req->af.v6_req.loc_addr.s6_addr32 :
+					tcp6_rsk(req)->loc_addr.s6_addr32 :
 #endif
-					&req->af.v4_req.loc_addr;
+					&ireq->loc_addr;
 				entry.daddr = 
 #ifdef CONFIG_IP_TCPDIAG_IPV6
 					(entry.family == AF_INET6) ?
-					req->af.v6_req.rmt_addr.s6_addr32 :
+					tcp6_rsk(req)->rmt_addr.s6_addr32 :
 #endif
-					&req->af.v4_req.rmt_addr;
-				entry.dport = ntohs(req->rmt_port);
+					&ireq->rmt_addr;
+				entry.dport = ntohs(ireq->rmt_port);
 
 				if (!tcpdiag_bc_run(RTA_DATA(bc),
 						    RTA_PAYLOAD(bc), &entry))
@@ -585,7 +572,7 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	}
 
 out:
-	read_unlock_bh(&tp->syn_wait_lock);
+	read_unlock_bh(&tp->accept_queue.syn_wait_lock);
 
 	return err;
 }

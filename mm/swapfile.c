@@ -79,7 +79,7 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 		WARN_ON(page_count(page) <= 1);
 
 		bdi = bdev->bd_inode->i_mapping->backing_dev_info;
-		bdi->unplug_io_fn(bdi, page);
+		blk_run_backing_dev(bdi, page);
 	}
 	up_read(&swap_unplug_sem);
 }
@@ -276,61 +276,37 @@ void swap_free(swp_entry_t entry)
 }
 
 /*
- * Check if we're the only user of a swap page,
- * when the page is locked.
+ * How many references to page are currently swapped out?
  */
-static int exclusive_swap_page(struct page *page)
+static inline int page_swapcount(struct page *page)
 {
-	int retval = 0;
-	struct swap_info_struct * p;
+	int count = 0;
+	struct swap_info_struct *p;
 	swp_entry_t entry;
 
 	entry.val = page->private;
 	p = swap_info_get(entry);
 	if (p) {
-		/* Is the only swap cache user the cache itself? */
-		if (p->swap_map[swp_offset(entry)] == 1) {
-			/* Recheck the page count with the swapcache lock held.. */
-			write_lock_irq(&swapper_space.tree_lock);
-			if (page_count(page) == 2)
-				retval = 1;
-			write_unlock_irq(&swapper_space.tree_lock);
-		}
+		/* Subtract the 1 for the swap cache itself */
+		count = p->swap_map[swp_offset(entry)] - 1;
 		swap_info_put(p);
 	}
-	return retval;
+	return count;
 }
 
 /*
  * We can use this swap cache entry directly
  * if there are no other references to it.
- *
- * Here "exclusive_swap_page()" does the real
- * work, but we opportunistically check whether
- * we need to get all the locks first..
  */
 int can_share_swap_page(struct page *page)
 {
-	int retval = 0;
+	int count;
 
-	if (!PageLocked(page))
-		BUG();
-	switch (page_count(page)) {
-	case 3:
-		if (!PagePrivate(page))
-			break;
-		/* Fallthrough */
-	case 2:
-		if (!PageSwapCache(page))
-			break;
-		retval = exclusive_swap_page(page);
-		break;
-	case 1:
-		if (PageReserved(page))
-			break;
-		retval = 1;
-	}
-	return retval;
+	BUG_ON(!PageLocked(page));
+	count = page_mapcount(page);
+	if (count <= 1 && PageSwapCache(page))
+		count += page_swapcount(page);
+	return count == 1;
 }
 
 /*
@@ -529,9 +505,10 @@ static int unuse_mm(struct mm_struct *mm,
 
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		/*
-		 * Our reference to the page stops try_to_unmap_one from
-		 * unmapping its ptes, so swapoff can make progress.
+		 * Activate page so shrink_cache is unlikely to unmap its
+		 * ptes while lock is dropped, so swapoff can make progress.
 		 */
+		activate_page(page);
 		unlock_page(page);
 		down_read(&mm->mmap_sem);
 		lock_page(page);

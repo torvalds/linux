@@ -19,6 +19,7 @@
  *      Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/stddef.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/compiler.h>
@@ -34,7 +35,17 @@ static inline int request_module(const char * name, ...) { return -ENOSYS; }
 #endif
 
 #define try_then_request_module(x, mod...) ((x) ?: (request_module(mod), (x)))
-extern int call_usermodehelper(char *path, char *argv[], char *envp[], int wait);
+
+struct key;
+extern int call_usermodehelper_keys(char *path, char *argv[], char *envp[],
+				    struct key *session_keyring, int wait);
+
+static inline int
+call_usermodehelper(char *path, char **argv, char **envp, int wait)
+{
+	return call_usermodehelper_keys(path, argv, envp, NULL, wait);
+}
+
 extern void usermodehelper_init(void);
 
 #endif /* __LINUX_KMOD_H__ */

@@ -77,7 +77,7 @@ static struct adb_driver *adb_driver_list[] = {
 	NULL
 };
 
-static struct class_simple *adb_dev_class;
+static struct class *adb_dev_class;
 
 struct adb_driver *adb_controller;
 struct notifier_block *adb_client_list = NULL;
@@ -902,9 +902,8 @@ adbdev_init(void)
 
 	devfs_mk_cdev(MKDEV(ADB_MAJOR, 0), S_IFCHR | S_IRUSR | S_IWUSR, "adb");
 
-	adb_dev_class = class_simple_create(THIS_MODULE, "adb");
-	if (IS_ERR(adb_dev_class)) {
+	adb_dev_class = class_create(THIS_MODULE, "adb");
+	if (IS_ERR(adb_dev_class))
 		return;
-	}
-	class_simple_device_add(adb_dev_class, MKDEV(ADB_MAJOR, 0), NULL, "adb");
+	class_device_create(adb_dev_class, MKDEV(ADB_MAJOR, 0), NULL, "adb");
 }

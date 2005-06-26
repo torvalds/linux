@@ -125,23 +125,6 @@ void cb_out_2(struct pcbit_dev * dev, struct pcbit_chan* chan,
 
 
 /*
- * Disconnect received (actually RELEASE COMPLETE) 
- * This means we were not able to establish connection with remote
- * Inform the big boss above
- */
-void cb_out_3(struct pcbit_dev * dev, struct pcbit_chan* chan,
-	      struct callb_data *data) 
-{
-        isdn_ctrl ictl;
-
-        ictl.command = ISDN_STAT_DHUP;
-        ictl.driver=dev->id;
-        ictl.arg=chan->id;
-        dev->dev_if->statcallb(&ictl);
-}
-
-
-/*
  * Incoming call received
  * inform user
  */

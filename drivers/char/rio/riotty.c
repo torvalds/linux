@@ -524,16 +524,16 @@ riotclose(void  *ptr)
 	register uint SysPort = dev;
 	struct ttystatics *tp;		/* pointer to our ttystruct */
 #endif
-	struct Port *PortP =ptr;	/* pointer to the port structure */
+	struct Port *PortP = ptr;	/* pointer to the port structure */
 	int deleted = 0;
 	int	try = -1; /* Disable the timeouts by setting them to -1 */
 	int	repeat_this = -1; /* Congrats to those having 15 years of 
 				     uptime! (You get to break the driver.) */
-	long end_time;
+	unsigned long end_time;
 	struct tty_struct * tty;
 	unsigned long flags;
 	int Modem;
-	int rv =0;
+	int rv = 0;
 	
 	rio_dprintk (RIO_DEBUG_TTY, "port close SysPort %d\n",PortP->PortNum);
 
@@ -620,7 +620,7 @@ riotclose(void  *ptr)
 		if (repeat_this -- <= 0) {
 			rv = -EINTR;
 			rio_dprintk (RIO_DEBUG_TTY, "Waiting for not idle closed broken by signal\n");
-			RIOPreemptiveCmd(p, PortP, FCLOSE ); 
+			RIOPreemptiveCmd(p, PortP, FCLOSE);
 			goto close_end;
 		}
 		rio_dprintk (RIO_DEBUG_TTY, "Calling timeout to flush in closing\n");
@@ -656,14 +656,12 @@ riotclose(void  *ptr)
 		goto close_end;
 	}
 
-	
-
 	/* Can't call RIOShortCommand with the port locked. */
 	rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 
 	if (RIOShortCommand(p, PortP, CLOSE, 1, 0) == RIO_FAIL) {
-	  RIOPreemptiveCmd(p, PortP,FCLOSE);
-	  goto close_end;
+		RIOPreemptiveCmd(p, PortP, FCLOSE);
+		goto close_end;
 	}
 
 	if (!deleted)
@@ -697,7 +695,6 @@ riotclose(void  *ptr)
 ** RIO has it's own CTSFLOW and RTSFLOW flags in 'Config' in the port structure,** we need to make sure that the flags are clear when the port is opened.
 */
 	PortP->Config &= ~(RIO_CTSFLOW|RIO_RTSFLOW);
-
 
 #ifdef STATS
 	PortP->Stat.CloseCnt++;

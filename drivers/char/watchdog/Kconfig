@@ -414,6 +414,16 @@ config WATCHDOG_RIO
 	  machines.  The watchdog timeout period is normally one minute but
 	  can be changed with a boot-time parameter.
 
+# ppc64 RTAS watchdog
+config WATCHDOG_RTAS
+	tristate "RTAS watchdog"
+	depends on WATCHDOG && PPC_RTAS
+	help
+	  This driver adds watchdog support for the RTAS watchdog.
+
+          To compile this driver as a module, choose M here. The module
+	  will be called wdrtas.
+
 #
 # ISA-based Watchdog Cards
 #

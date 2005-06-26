@@ -22,6 +22,10 @@ extern unsigned long min_low_pfn;
  */
 extern unsigned long max_pfn;
 
+#ifdef CONFIG_CRASH_DUMP
+extern unsigned long saved_max_pfn;
+#endif
+
 /*
  * node_bootmem_map is a map pointer - the bits represent all physical 
  * memory pages (including holes) on the node.
@@ -66,6 +70,15 @@ extern void * __init __alloc_bootmem_node (pg_data_t *pgdat, unsigned long size,
 #define alloc_bootmem_low_pages_node(pgdat, x) \
 	__alloc_bootmem_node((pgdat), (x), PAGE_SIZE, 0)
 #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
+
+#ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
+extern void *alloc_remap(int nid, unsigned long size);
+#else
+static inline void *alloc_remap(int nid, unsigned long size)
+{
+	return NULL;
+}
+#endif
 
 extern unsigned long __initdata nr_kernel_pages;
 extern unsigned long __initdata nr_all_pages;

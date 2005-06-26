@@ -440,6 +440,8 @@ new_range:
 		for (i = start ; i < (start+size); i += MEMORY_INCREMENT)
 			numa_memory_lookup_table[i >> MEMORY_INCREMENT_SHIFT] =
 				numa_domain;
+		memory_present(numa_domain, start >> PAGE_SHIFT,
+						(start + size) >> PAGE_SHIFT);
 
 		if (--ranges)
 			goto new_range;
@@ -481,6 +483,7 @@ static void __init setup_nonnuma(void)
 
 	for (i = 0 ; i < top_of_ram; i += MEMORY_INCREMENT)
 		numa_memory_lookup_table[i >> MEMORY_INCREMENT_SHIFT] = 0;
+	memory_present(0, 0, init_node_data[0].node_end_pfn);
 }
 
 static void __init dump_numa_topology(void)

@@ -126,18 +126,8 @@ static irqreturn_t serial21285_rx_chars(int irq, void *dev_id, struct pt_regs *r
 				flag = TTY_FRAME;
 		}
 
-		if ((rxs & port->ignore_status_mask) == 0) {
-			tty_insert_flip_char(tty, ch, flag);
-		}
-		if ((rxs & RXSTAT_OVERRUN) &&
-		    tty->flip.count < TTY_FLIPBUF_SIZE) {
-			/*
-			 * Overrun is special, since it's reported
-			 * immediately, and doesn't affect the current
-			 * character.
-			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		}
+		uart_insert_char(port, rxs, RXSTAT_OVERRUN, ch, flag);
+
 		status = *CSR_UARTFLG;
 	}
 	tty_flip_buffer_push(tty);

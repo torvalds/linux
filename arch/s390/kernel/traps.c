@@ -668,7 +668,10 @@ asmlinkage void space_switch_exception(struct pt_regs * regs, long int_code)
 
 asmlinkage void kernel_stack_overflow(struct pt_regs * regs)
 {
-	die("Kernel stack overflow", regs, 0);
+	bust_spinlocks(1);
+	printk("Kernel stack overflow.\n");
+	show_regs(regs);
+	bust_spinlocks(0);
 	panic("Corrupt kernel stack, can't continue.");
 }
 
@@ -732,7 +735,7 @@ void __init trap_init(void)
 						    &ext_int_pfault);
 #endif
 #ifndef CONFIG_ARCH_S390X
-		cpcmd("SET PAGEX ON", NULL, 0);
+		cpcmd("SET PAGEX ON", NULL, 0, NULL);
 #endif
 	}
 }

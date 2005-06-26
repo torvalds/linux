@@ -34,7 +34,8 @@
 unsigned char __res[sizeof(bd_t)];
 
 extern void cpm2_reset(void);
-extern void m8260_find_bridges(void);
+extern void pq2_find_bridges(void);
+extern void pq2pci_init_irq(void);
 extern void idma_pci9_init(void);
 
 /* Place-holder for board-specific init */
@@ -56,7 +57,7 @@ m8260_setup_arch(void)
 	idma_pci9_init();
 #endif
 #ifdef CONFIG_PCI_8260
-	m8260_find_bridges();
+	pq2_find_bridges();
 #endif
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start)
@@ -173,6 +174,12 @@ m8260_init_IRQ(void)
 	 * in case the boot rom changed something on us.
 	 */
 	cpm2_immr->im_intctl.ic_siprr = 0x05309770;
+
+#if defined(CONFIG_PCI) && (defined(CONFIG_ADS8272) || defined(CONFIG_PQ2FADS))
+ 	/* Initialize stuff for the 82xx CPLD IC and install demux  */
+ 	pq2pci_init_irq();
+#endif
+
 }
 
 /*

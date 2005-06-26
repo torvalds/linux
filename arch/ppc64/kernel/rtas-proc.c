@@ -371,11 +371,11 @@ static ssize_t ppc_rtas_progress_write(struct file *file,
 	/* Lets see if the user passed hexdigits */
 	hex = simple_strtoul(progress_led, NULL, 10);
 
-	ppc_md.progress ((char *)progress_led, hex);
+	rtas_progress ((char *)progress_led, hex);
 	return count;
 
 	/* clear the line */
-	/* ppc_md.progress("                   ", 0xffff);*/
+	/* rtas_progress("                   ", 0xffff);*/
 }
 /* ****************************************************************** */
 static int ppc_rtas_progress_show(struct seq_file *m, void *v)

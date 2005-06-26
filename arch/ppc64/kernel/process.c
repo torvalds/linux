@@ -58,14 +58,6 @@ struct task_struct *last_task_used_math = NULL;
 struct task_struct *last_task_used_altivec = NULL;
 #endif
 
-struct mm_struct ioremap_mm = {
-	.pgd		= ioremap_dir,
-	.mm_users	= ATOMIC_INIT(2),
-	.mm_count	= ATOMIC_INIT(1),
-	.cpu_vm_mask	= CPU_MASK_ALL,
-	.page_table_lock = SPIN_LOCK_UNLOCKED,
-};
-
 /*
  * Make sure the floating-point register state in the
  * the thread_struct is up to date for task tsk.
@@ -378,9 +370,6 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		childregs->gpr[1] = sp + sizeof(struct pt_regs);
 		p->thread.regs = NULL;	/* no user register state */
 		clear_ti_thread_flag(p->thread_info, TIF_32BIT);
-#ifdef CONFIG_PPC_ISERIES
-		set_ti_thread_flag(p->thread_info, TIF_RUN_LIGHT);
-#endif
 	} else {
 		childregs->gpr[1] = usp;
 		p->thread.regs = childregs;

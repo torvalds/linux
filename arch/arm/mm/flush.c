@@ -13,14 +13,32 @@
 
 #include <asm/cacheflush.h>
 #include <asm/system.h>
+#include <asm/tlbflush.h>
 
-static void __flush_dcache_page(struct address_space *mapping, struct page *page)
+#ifdef CONFIG_CPU_CACHE_VIPT
+#define ALIAS_FLUSH_START	0xffff4000
+
+#define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
+
+static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 {
-	struct mm_struct *mm = current->active_mm;
-	struct vm_area_struct *mpnt;
-	struct prio_tree_iter iter;
-	pgoff_t pgoff;
+	unsigned long to = ALIAS_FLUSH_START + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
 
+	set_pte(TOP_PTE(to), pfn_pte(pfn, PAGE_KERNEL));
+	flush_tlb_kernel_page(to);
+
+	asm(	"mcrr	p15, 0, %1, %0, c14\n"
+	"	mcrr	p15, 0, %1, %0, c5\n"
+	    :
+	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES)
+	    : "cc");
+}
+#else
+#define flush_pfn_alias(pfn,vaddr)	do { } while (0)
+#endif
+
+void __flush_dcache_page(struct address_space *mapping, struct page *page)
+{
 	/*
 	 * Writeback any data associated with the kernel mapping of this
 	 * page.  This ensures that data in the physical page is mutually
@@ -29,12 +47,21 @@ static void __flush_dcache_page(struct address_space *mapping, struct page *page
 	__cpuc_flush_dcache_page(page_address(page));
 
 	/*
-	 * If there's no mapping pointer here, then this page isn't
-	 * visible to userspace yet, so there are no cache lines
-	 * associated with any other aliases.
+	 * If this is a page cache page, and we have an aliasing VIPT cache,
+	 * we only need to do one flush - which would be at the relevant
+	 * userspace colour, which is congruent with page->index.
 	 */
-	if (!mapping)
-		return;
+	if (mapping && cache_is_vipt_aliasing())
+		flush_pfn_alias(page_to_pfn(page),
+				page->index << PAGE_CACHE_SHIFT);
+}
+
+static void __flush_dcache_aliases(struct address_space *mapping, struct page *page)
+{
+	struct mm_struct *mm = current->active_mm;
+	struct vm_area_struct *mpnt;
+	struct prio_tree_iter iter;
+	pgoff_t pgoff;
 
 	/*
 	 * There are possible user space mappings of this page:
@@ -57,8 +84,6 @@ static void __flush_dcache_page(struct address_space *mapping, struct page *page
 			continue;
 		offset = (pgoff - mpnt->vm_pgoff) << PAGE_SHIFT;
 		flush_cache_page(mpnt, mpnt->vm_start + offset, page_to_pfn(page));
-		if (cache_is_vipt())
-			break;
 	}
 	flush_dcache_mmap_unlock(mapping);
 }
@@ -83,12 +108,12 @@ void flush_dcache_page(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 
-	if (cache_is_vipt_nonaliasing())
-		return;
-
 	if (mapping && !mapping_mapped(mapping))
 		set_bit(PG_dcache_dirty, &page->flags);
-	else
+	else {
 		__flush_dcache_page(mapping, page);
+		if (mapping && cache_is_vivt())
+			__flush_dcache_aliases(mapping, page);
+	}
 }
 EXPORT_SYMBOL(flush_dcache_page);

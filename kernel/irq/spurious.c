@@ -45,7 +45,7 @@ __report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret)
 	}
 }
 
-void report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret)
+static void report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret)
 {
 	static int count = 100;
 

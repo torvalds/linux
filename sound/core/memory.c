@@ -184,6 +184,20 @@ void snd_hidden_vfree(void *obj)
 	snd_wrapper_vfree(obj);
 }
 
+char *snd_hidden_kstrdup(const char *s, int flags)
+{
+	int len;
+	char *buf;
+
+	if (!s) return NULL;
+
+	len = strlen(s) + 1;
+	buf = _snd_kmalloc(len, flags);
+	if (buf)
+		memcpy(buf, s, len);
+	return buf;
+}
+
 static void snd_memory_info_read(snd_info_entry_t *entry, snd_info_buffer_t * buffer)
 {
 	snd_iprintf(buffer, "kmalloc: %li bytes\n", snd_alloc_kmalloc);
@@ -214,34 +228,7 @@ int __exit snd_memory_info_done(void)
 	return 0;
 }
 
-#else
-
-#define _snd_kmalloc kmalloc
-
 #endif /* CONFIG_SND_DEBUG_MEMORY */
-
-/**
- * snd_kmalloc_strdup - copy the string
- * @string: the original string
- * @flags: allocation conditions, GFP_XXX
- *
- * Allocates a memory chunk via kmalloc() and copies the string to it.
- *
- * Returns the pointer, or NULL if no enoguh memory.
- */
-char *snd_kmalloc_strdup(const char *string, int flags)
-{
-	size_t len;
-	char *ptr;
-
-	if (!string)
-		return NULL;
-	len = strlen(string) + 1;
-	ptr = _snd_kmalloc(len, flags);
-	if (ptr)
-		memcpy(ptr, string, len);
-	return ptr;
-}
 
 /**
  * copy_to_user_fromio - copy data from mmio-space to user-space

@@ -46,26 +46,28 @@
 
 #ifdef CONFIG_BOOKE
 #include "head_booke.h"
+#define TRANSFER_TO_HANDLER_EXC_LEVEL(exc_level)	\
+	mtspr	exc_level##_SPRG,r8;			\
+	BOOKE_LOAD_EXC_LEVEL_STACK(exc_level);		\
+	lwz	r0,GPR10-INT_FRAME_SIZE(r8);		\
+	stw	r0,GPR10(r11);				\
+	lwz	r0,GPR11-INT_FRAME_SIZE(r8);		\
+	stw	r0,GPR11(r11);				\
+	mfspr	r8,exc_level##_SPRG
+
 	.globl	mcheck_transfer_to_handler
 mcheck_transfer_to_handler:
-	mtspr	MCHECK_SPRG,r8
-	BOOKE_LOAD_MCHECK_STACK
-	lwz	r0,GPR10-INT_FRAME_SIZE(r8)
-	stw	r0,GPR10(r11)
-	lwz	r0,GPR11-INT_FRAME_SIZE(r8)
-	stw	r0,GPR11(r11)
-	mfspr	r8,MCHECK_SPRG
+	TRANSFER_TO_HANDLER_EXC_LEVEL(MCHECK)
+	b	transfer_to_handler_full
+
+	.globl	debug_transfer_to_handler
+debug_transfer_to_handler:
+	TRANSFER_TO_HANDLER_EXC_LEVEL(DEBUG)
 	b	transfer_to_handler_full
 
 	.globl	crit_transfer_to_handler
 crit_transfer_to_handler:
-	mtspr	CRIT_SPRG,r8
-	BOOKE_LOAD_CRIT_STACK
-	lwz	r0,GPR10-INT_FRAME_SIZE(r8)
-	stw	r0,GPR10(r11)
-	lwz	r0,GPR11-INT_FRAME_SIZE(r8)
-	stw	r0,GPR11(r11)
-	mfspr	r8,CRIT_SPRG
+	TRANSFER_TO_HANDLER_EXC_LEVEL(CRIT)
 	/* fall through */
 #endif
 
@@ -202,7 +204,7 @@ _GLOBAL(DoSyscall)
 	rlwinm	r11,r11,0,~_TIFL_FORCE_NOERROR
 	stw	r11,TI_LOCAL_FLAGS(r10)
 	lwz	r11,TI_FLAGS(r10)
-	andi.	r11,r11,_TIF_SYSCALL_TRACE
+	andi.	r11,r11,_TIF_SYSCALL_T_OR_A
 	bne-	syscall_dotrace
 syscall_dotrace_cont:
 	cmplwi	0,r0,NR_syscalls
@@ -237,7 +239,7 @@ ret_from_syscall:
 	SYNC
 	MTMSRD(r10)
 	lwz	r9,TI_FLAGS(r12)
-	andi.	r0,r9,(_TIF_SYSCALL_TRACE|_TIF_SIGPENDING|_TIF_NEED_RESCHED)
+	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SIGPENDING|_TIF_NEED_RESCHED)
 	bne-	syscall_exit_work
 syscall_exit_cont:
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
@@ -277,7 +279,8 @@ syscall_dotrace:
 	SAVE_NVGPRS(r1)
 	li	r0,0xc00
 	stw	r0,TRAP(r1)
-	bl	do_syscall_trace
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	do_syscall_trace_enter
 	lwz	r0,GPR0(r1)	/* Restore original registers */
 	lwz	r3,GPR3(r1)
 	lwz	r4,GPR4(r1)
@@ -291,7 +294,7 @@ syscall_dotrace:
 syscall_exit_work:
 	stw	r6,RESULT(r1)	/* Save result */
 	stw	r3,GPR3(r1)	/* Update return value */
-	andi.	r0,r9,_TIF_SYSCALL_TRACE
+	andi.	r0,r9,_TIF_SYSCALL_T_OR_A
 	beq	5f
 	ori	r10,r10,MSR_EE
 	SYNC
@@ -303,7 +306,8 @@ syscall_exit_work:
 	li	r4,0xc00
 	stw	r4,TRAP(r1)
 4:
-	bl	do_syscall_trace
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	do_syscall_trace_leave
 	REST_NVGPRS(r1)
 2:
 	lwz	r3,GPR3(r1)
@@ -627,8 +631,8 @@ sigreturn_exit:
 	subi	r1,r3,STACK_FRAME_OVERHEAD
 	rlwinm	r12,r1,0,0,18	/* current_thread_info() */
 	lwz	r9,TI_FLAGS(r12)
-	andi.	r0,r9,_TIF_SYSCALL_TRACE
-	bnel-	do_syscall_trace
+	andi.	r0,r9,_TIF_SYSCALL_T_OR_A
+	bnel-	do_syscall_trace_leave
 	/* fall through */
 
 	.globl	ret_from_except_full
@@ -781,99 +785,68 @@ exc_exit_restart_end:
  * time of the critical interrupt.
  *
  */
+#ifdef CONFIG_40x
+#define PPC_40x_TURN_OFF_MSR_DR						    \
+	/* avoid any possible TLB misses here by turning off MSR.DR, we	    \
+	 * assume the instructions here are mapped by a pinned TLB entry */ \
+	li	r10,MSR_IR;						    \
+	mtmsr	r10;							    \
+	isync;								    \
+	tophys(r1, r1);
+#else
+#define PPC_40x_TURN_OFF_MSR_DR
+#endif
+
+#define RET_FROM_EXC_LEVEL(exc_lvl_srr0, exc_lvl_srr1, exc_lvl_rfi)	\
+	REST_NVGPRS(r1);						\
+	lwz	r3,_MSR(r1);						\
+	andi.	r3,r3,MSR_PR;						\
+	LOAD_MSR_KERNEL(r10,MSR_KERNEL);				\
+	bne	user_exc_return;					\
+	lwz	r0,GPR0(r1);						\
+	lwz	r2,GPR2(r1);						\
+	REST_4GPRS(3, r1);						\
+	REST_2GPRS(7, r1);						\
+	lwz	r10,_XER(r1);						\
+	lwz	r11,_CTR(r1);						\
+	mtspr	SPRN_XER,r10;						\
+	mtctr	r11;							\
+	PPC405_ERR77(0,r1);						\
+	stwcx.	r0,0,r1;		/* to clear the reservation */	\
+	lwz	r11,_LINK(r1);						\
+	mtlr	r11;							\
+	lwz	r10,_CCR(r1);						\
+	mtcrf	0xff,r10;						\
+	PPC_40x_TURN_OFF_MSR_DR;					\
+	lwz	r9,_DEAR(r1);						\
+	lwz	r10,_ESR(r1);						\
+	mtspr	SPRN_DEAR,r9;						\
+	mtspr	SPRN_ESR,r10;						\
+	lwz	r11,_NIP(r1);						\
+	lwz	r12,_MSR(r1);						\
+	mtspr	exc_lvl_srr0,r11;					\
+	mtspr	exc_lvl_srr1,r12;					\
+	lwz	r9,GPR9(r1);						\
+	lwz	r12,GPR12(r1);						\
+	lwz	r10,GPR10(r1);						\
+	lwz	r11,GPR11(r1);						\
+	lwz	r1,GPR1(r1);						\
+	PPC405_ERR77_SYNC;						\
+	exc_lvl_rfi;							\
+	b	.;		/* prevent prefetch past exc_lvl_rfi */
+
 	.globl	ret_from_crit_exc
 ret_from_crit_exc:
-	REST_NVGPRS(r1)
-	lwz	r3,_MSR(r1)
-	andi.	r3,r3,MSR_PR
-	LOAD_MSR_KERNEL(r10,MSR_KERNEL)
-	bne	user_exc_return
-
-	lwz	r0,GPR0(r1)
-	lwz	r2,GPR2(r1)
-	REST_4GPRS(3, r1)
-	REST_2GPRS(7, r1)
-
-	lwz	r10,_XER(r1)
-	lwz	r11,_CTR(r1)
-	mtspr	SPRN_XER,r10
-	mtctr	r11
-
-	PPC405_ERR77(0,r1)
-	stwcx.	r0,0,r1			/* to clear the reservation */
-
-	lwz	r11,_LINK(r1)
-	mtlr	r11
-	lwz	r10,_CCR(r1)
-	mtcrf	0xff,r10
-#ifdef CONFIG_40x
-	/* avoid any possible TLB misses here by turning off MSR.DR, we
-	 * assume the instructions here are mapped by a pinned TLB entry */
-	li	r10,MSR_IR
-	mtmsr	r10
-	isync
-	tophys(r1, r1)
-#endif
-	lwz	r9,_DEAR(r1)
-	lwz	r10,_ESR(r1)
-	mtspr	SPRN_DEAR,r9
-	mtspr	SPRN_ESR,r10
-	lwz	r11,_NIP(r1)
-	lwz	r12,_MSR(r1)
-	mtspr	SPRN_CSRR0,r11
-	mtspr	SPRN_CSRR1,r12
-	lwz	r9,GPR9(r1)
-	lwz	r12,GPR12(r1)
-	lwz	r10,GPR10(r1)
-	lwz	r11,GPR11(r1)
-	lwz	r1,GPR1(r1)
-	PPC405_ERR77_SYNC
-	rfci
-	b	.		/* prevent prefetch past rfci */
+	RET_FROM_EXC_LEVEL(SPRN_CSRR0, SPRN_CSRR1, RFCI)
 
 #ifdef CONFIG_BOOKE
-/*
- * Return from a machine check interrupt, similar to a critical
- * interrupt.
- */
+	.globl	ret_from_debug_exc
+ret_from_debug_exc:
+	RET_FROM_EXC_LEVEL(SPRN_DSRR0, SPRN_DSRR1, RFDI)
+
 	.globl	ret_from_mcheck_exc
 ret_from_mcheck_exc:
-	REST_NVGPRS(r1)
-	lwz	r3,_MSR(r1)
-	andi.	r3,r3,MSR_PR
-	LOAD_MSR_KERNEL(r10,MSR_KERNEL)
-	bne	user_exc_return
-
-	lwz	r0,GPR0(r1)
-	lwz	r2,GPR2(r1)
-	REST_4GPRS(3, r1)
-	REST_2GPRS(7, r1)
-
-	lwz	r10,_XER(r1)
-	lwz	r11,_CTR(r1)
-	mtspr	SPRN_XER,r10
-	mtctr	r11
-
-	stwcx.	r0,0,r1			/* to clear the reservation */
-
-	lwz	r11,_LINK(r1)
-	mtlr	r11
-	lwz	r10,_CCR(r1)
-	mtcrf	0xff,r10
-	lwz	r9,_DEAR(r1)
-	lwz	r10,_ESR(r1)
-	mtspr	SPRN_DEAR,r9
-	mtspr	SPRN_ESR,r10
-	lwz	r11,_NIP(r1)
-	lwz	r12,_MSR(r1)
-	mtspr	SPRN_MCSRR0,r11
-	mtspr	SPRN_MCSRR1,r12
-	lwz	r9,GPR9(r1)
-	lwz	r12,GPR12(r1)
-	lwz	r10,GPR10(r1)
-	lwz	r11,GPR11(r1)
-	lwz	r1,GPR1(r1)
-	RFMCI
+	RET_FROM_EXC_LEVEL(SPRN_MCSRR0, SPRN_MCSRR1, RFMCI)
 #endif /* CONFIG_BOOKE */
 
 /*

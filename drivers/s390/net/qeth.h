@@ -24,7 +24,7 @@
 
 #include "qeth_mpc.h"
 
-#define VERSION_QETH_H 		"$Revision: 1.135 $"
+#define VERSION_QETH_H 		"$Revision: 1.139 $"
 
 #ifdef CONFIG_QETH_IPV6
 #define QETH_VERSION_IPV6 	":IPv6"
@@ -42,44 +42,44 @@
  */
 #define QETH_DBF_SETUP_NAME "qeth_setup"
 #define QETH_DBF_SETUP_LEN 8
-#define QETH_DBF_SETUP_INDEX 3
+#define QETH_DBF_SETUP_PAGES 8
 #define QETH_DBF_SETUP_NR_AREAS 1
 #define QETH_DBF_SETUP_LEVEL 5
 
 #define QETH_DBF_MISC_NAME "qeth_misc"
 #define QETH_DBF_MISC_LEN 128
-#define QETH_DBF_MISC_INDEX 1
+#define QETH_DBF_MISC_PAGES 2
 #define QETH_DBF_MISC_NR_AREAS 1
 #define QETH_DBF_MISC_LEVEL 2
 
 #define QETH_DBF_DATA_NAME "qeth_data"
 #define QETH_DBF_DATA_LEN 96
-#define QETH_DBF_DATA_INDEX 3
+#define QETH_DBF_DATA_PAGES 8
 #define QETH_DBF_DATA_NR_AREAS 1
 #define QETH_DBF_DATA_LEVEL 2
 
 #define QETH_DBF_CONTROL_NAME "qeth_control"
 #define QETH_DBF_CONTROL_LEN 256
-#define QETH_DBF_CONTROL_INDEX 3
+#define QETH_DBF_CONTROL_PAGES 8
 #define QETH_DBF_CONTROL_NR_AREAS 2
 #define QETH_DBF_CONTROL_LEVEL 5
 
 #define QETH_DBF_TRACE_NAME "qeth_trace"
 #define QETH_DBF_TRACE_LEN 8
-#define QETH_DBF_TRACE_INDEX 2
+#define QETH_DBF_TRACE_PAGES 4
 #define QETH_DBF_TRACE_NR_AREAS 2
 #define QETH_DBF_TRACE_LEVEL 3
 extern debug_info_t *qeth_dbf_trace;
 
 #define QETH_DBF_SENSE_NAME "qeth_sense"
 #define QETH_DBF_SENSE_LEN 64
-#define QETH_DBF_SENSE_INDEX 1
+#define QETH_DBF_SENSE_PAGES 2
 #define QETH_DBF_SENSE_NR_AREAS 1
 #define QETH_DBF_SENSE_LEVEL 2
 
 #define QETH_DBF_QERR_NAME "qeth_qerr"
 #define QETH_DBF_QERR_LEN 8
-#define QETH_DBF_QERR_INDEX 1
+#define QETH_DBF_QERR_PAGES 2
 #define QETH_DBF_QERR_NR_AREAS 2
 #define QETH_DBF_QERR_LEVEL 2
 
@@ -288,7 +288,8 @@ qeth_is_ipa_enabled(struct qeth_ipa_info *ipa, enum qeth_ipa_funcs func)
 #define QETH_TX_TIMEOUT		100 * HZ
 #define QETH_HEADER_SIZE	32
 #define MAX_PORTNO 		15
-#define QETH_FAKE_LL_LEN 	ETH_HLEN
+#define QETH_FAKE_LL_LEN_ETH	ETH_HLEN
+#define QETH_FAKE_LL_LEN_TR	(sizeof(struct trh_hdr)-TR_MAXRIFLEN+sizeof(struct trllc))
 #define QETH_FAKE_LL_V6_ADDR_POS 24
 
 /*IPv6 address autoconfiguration stuff*/
@@ -367,6 +368,25 @@ struct qeth_hdr {
 		struct qeth_hdr_layer2 l2;
 		struct qeth_hdr_layer3 l3;
 	} hdr;
+} __attribute__ ((packed));
+
+/*TCP Segmentation Offload header*/
+struct qeth_hdr_ext_tso {
+        __u16 hdr_tot_len;
+        __u8  imb_hdr_no;
+        __u8  reserved;
+        __u8  hdr_type;
+        __u8  hdr_version;
+        __u16 hdr_len;
+        __u32 payload_len;
+        __u16 mss;
+        __u16 dg_hdr_len;
+        __u8  padding[16];
+} __attribute__ ((packed));
+
+struct qeth_hdr_tso {
+        struct qeth_hdr hdr; 	/*hdr->hdr.l3.xxx*/
+	struct qeth_hdr_ext_tso ext;
 } __attribute__ ((packed));
 
 
@@ -866,6 +886,7 @@ qeth_push_skb(struct qeth_card *card, struct sk_buff **skb, int size)
         return hdr;
 }
 
+
 inline static int
 qeth_get_hlen(__u8 link_type)
 {
@@ -873,19 +894,19 @@ qeth_get_hlen(__u8 link_type)
 	switch (link_type) {
 	case QETH_LINK_TYPE_HSTR:
 	case QETH_LINK_TYPE_LANE_TR:
-		return sizeof(struct qeth_hdr) + TR_HLEN;
+		return sizeof(struct qeth_hdr_tso) + TR_HLEN;
 	default:
 #ifdef CONFIG_QETH_VLAN
-		return sizeof(struct qeth_hdr) + VLAN_ETH_HLEN;
+		return sizeof(struct qeth_hdr_tso) + VLAN_ETH_HLEN;
 #else
-		return sizeof(struct qeth_hdr) + ETH_HLEN;
+		return sizeof(struct qeth_hdr_tso) + ETH_HLEN;
 #endif
 	}
 #else  /* CONFIG_QETH_IPV6 */
 #ifdef CONFIG_QETH_VLAN
-	return sizeof(struct qeth_hdr) + VLAN_HLEN;
+	return sizeof(struct qeth_hdr_tso) + VLAN_HLEN;
 #else
-	return sizeof(struct qeth_hdr);
+	return sizeof(struct qeth_hdr_tso);
 #endif
 #endif /* CONFIG_QETH_IPV6 */
 }

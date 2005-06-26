@@ -21,7 +21,6 @@
 #include <asm/signal.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/open_pic.h>
 #include <asm/i8259.h>
@@ -275,7 +274,7 @@ static void __init openpic_enable_sie(void)
 }
 #endif
 
-#if defined(CONFIG_EPIC_SERIAL_MODE) || defined(CONFIG_PM)
+#if defined(CONFIG_EPIC_SERIAL_MODE)
 static void openpic_reset(void)
 {
 	openpic_setfield(&OpenPIC->Global.Global_Configuration0,
@@ -557,12 +556,10 @@ static void __init openpic_initipi(u_int ipi, u_int pri, u_int vec)
  */
 void openpic_cause_IPI(u_int ipi, cpumask_t cpumask)
 {
-	cpumask_t phys;
 	DECL_THIS_CPU;
 
 	CHECK_THIS_CPU;
 	check_arg_ipi(ipi);
-	phys = physmask(cpumask);
 	openpic_write(&OpenPIC->THIS_CPU.IPI_Dispatch(ipi),
 		      cpus_addr(physmask(cpumask))[0]);
 }
@@ -994,8 +991,6 @@ int openpic_resume(struct sys_device *sysdev)
 		spin_unlock_irqrestore(&openpic_setup_lock, flags);
 		return 0;
 	}
-
-	openpic_reset();
 
 	/* OpenPIC sometimes seem to need some time to be fully back up... */
 	do {

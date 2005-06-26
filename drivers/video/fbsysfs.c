@@ -228,8 +228,6 @@ static ssize_t store_virtual(struct class_device *class_device,
 	if (last - buf >= count)
 		return -EINVAL;
 	var.yres_virtual = simple_strtoul(last, &last, 0);
-	printk(KERN_ERR "fb: xres %d yres %d\n", var.xres_virtual,
-	       var.yres_virtual);
 
 	if ((err = activate(fb_info, &var)))
 		return err;
@@ -241,7 +239,7 @@ static ssize_t show_virtual(struct class_device *class_device, char *buf)
 	struct fb_info *fb_info =
 		(struct fb_info *)class_get_devdata(class_device);
 	return snprintf(buf, PAGE_SIZE, "%d,%d\n", fb_info->var.xres_virtual,
-			fb_info->var.xres_virtual);
+			fb_info->var.yres_virtual);
 }
 
 static ssize_t store_cmap(struct class_device *class_device, const char * buf,

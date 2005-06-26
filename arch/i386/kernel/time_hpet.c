@@ -50,7 +50,7 @@ static void hpet_writel(unsigned long d, unsigned long a)
  * comparator value and continue. Next tick can be caught by checking
  * for a change in the comparator value. Used in apic.c.
  */
-static void __init wait_hpet_tick(void)
+static void __devinit wait_hpet_tick(void)
 {
 	unsigned int start_cmp_val, end_cmp_val;
 

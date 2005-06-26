@@ -40,15 +40,15 @@ typedef struct isdn_x25iface_proto_data {
 
 
 /* is now in header file (extern): struct concap_proto * isdn_x25iface_proto_new(void); */
-void isdn_x25iface_proto_del( struct concap_proto * );
-int isdn_x25iface_proto_close( struct concap_proto * );
-int isdn_x25iface_proto_restart( struct concap_proto *,
-				 struct net_device *,
-				 struct concap_device_ops *);
-int isdn_x25iface_xmit( struct concap_proto *, struct sk_buff * );
-int isdn_x25iface_receive( struct concap_proto *, struct sk_buff * );
-int isdn_x25iface_connect_ind( struct concap_proto * );
-int isdn_x25iface_disconn_ind( struct concap_proto * );
+static void isdn_x25iface_proto_del( struct concap_proto * );
+static int isdn_x25iface_proto_close( struct concap_proto * );
+static int isdn_x25iface_proto_restart( struct concap_proto *,
+					struct net_device *,
+					struct concap_device_ops *);
+static int isdn_x25iface_xmit( struct concap_proto *, struct sk_buff * );
+static int isdn_x25iface_receive( struct concap_proto *, struct sk_buff * );
+static int isdn_x25iface_connect_ind( struct concap_proto * );
+static int isdn_x25iface_disconn_ind( struct concap_proto * );
 
 
 static struct concap_proto_ops ix25_pops = {
@@ -102,7 +102,7 @@ struct concap_proto * isdn_x25iface_proto_new(void)
 
 /* close the x25iface encapsulation protocol 
  */
-int isdn_x25iface_proto_close(struct concap_proto *cprot){
+static int isdn_x25iface_proto_close(struct concap_proto *cprot){
 
 	ix25_pdata_t *tmp;
         int ret = 0;
@@ -129,7 +129,7 @@ int isdn_x25iface_proto_close(struct concap_proto *cprot){
 
 /* Delete the x25iface encapsulation protocol instance
  */
-void isdn_x25iface_proto_del(struct concap_proto *cprot){
+static void isdn_x25iface_proto_del(struct concap_proto *cprot){
 
 	ix25_pdata_t * tmp;
  
@@ -158,9 +158,9 @@ void isdn_x25iface_proto_del(struct concap_proto *cprot){
 
 /* (re-)initialize the data structures for x25iface encapsulation
  */
-int isdn_x25iface_proto_restart(struct concap_proto *cprot,
-				struct net_device *ndev, 
-				struct concap_device_ops *dops)
+static int isdn_x25iface_proto_restart(struct concap_proto *cprot,
+					struct net_device *ndev,
+					struct concap_device_ops *dops)
 {
 	ix25_pdata_t * pda = cprot -> proto_data ;
 	ulong flags;
@@ -187,7 +187,7 @@ int isdn_x25iface_proto_restart(struct concap_proto *cprot,
 
 /* deliver a dl_data frame received from i4l HL driver to the network layer 
  */
-int isdn_x25iface_receive(struct concap_proto *cprot, struct sk_buff *skb)
+static int isdn_x25iface_receive(struct concap_proto *cprot, struct sk_buff *skb)
 {
   	IX25DEBUG( "isdn_x25iface_receive %s \n", MY_DEVNAME(cprot->net_dev) );
 	if ( ( (ix25_pdata_t*) (cprot->proto_data) ) 
@@ -206,7 +206,7 @@ int isdn_x25iface_receive(struct concap_proto *cprot, struct sk_buff *skb)
 
 /* a connection set up is indicated by lower layer 
  */
-int isdn_x25iface_connect_ind(struct concap_proto *cprot)
+static int isdn_x25iface_connect_ind(struct concap_proto *cprot)
 {
 	struct sk_buff * skb = dev_alloc_skb(1);
 	enum wan_states *state_p 
@@ -235,7 +235,7 @@ int isdn_x25iface_connect_ind(struct concap_proto *cprot)
 	
 /* a disconnect is indicated by lower layer 
  */
-int isdn_x25iface_disconn_ind(struct concap_proto *cprot)
+static int isdn_x25iface_disconn_ind(struct concap_proto *cprot)
 {
 	struct sk_buff *skb;
 	enum wan_states *state_p 
@@ -264,7 +264,7 @@ int isdn_x25iface_disconn_ind(struct concap_proto *cprot)
 /* process a frame handed over to us from linux network layer. First byte
    semantics as defined in Documentation/networking/x25-iface.txt
    */
-int isdn_x25iface_xmit(struct concap_proto *cprot, struct sk_buff *skb)
+static int isdn_x25iface_xmit(struct concap_proto *cprot, struct sk_buff *skb)
 {
 	unsigned char firstbyte = skb->data[0];
 	enum wan_states *state = &((ix25_pdata_t*)cprot->proto_data)->state;

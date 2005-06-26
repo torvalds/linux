@@ -671,14 +671,10 @@ static void PMacIrqCleanup(void)
 	release_OF_resource(awacs_node, 1);
 	release_OF_resource(awacs_node, 2);
 
-	if (awacs_tx_cmd_space)
-		kfree(awacs_tx_cmd_space);
-	if (awacs_rx_cmd_space)
-		kfree(awacs_rx_cmd_space);
-	if (beep_dbdma_cmd_space)
-		kfree(beep_dbdma_cmd_space);
-	if (beep_buf)
-		kfree(beep_buf);
+	kfree(awacs_tx_cmd_space);
+	kfree(awacs_rx_cmd_space);
+	kfree(beep_dbdma_cmd_space);
+	kfree(beep_buf);
 #ifdef CONFIG_PMAC_PBOOK
 	pmu_unregister_sleep_notifier(&awacs_sleep_notifier);
 #endif
@@ -2301,8 +2297,7 @@ if (count <= 0)
 #endif
 
 	if ((write_sq.max_count + 1) > number_of_tx_cmd_buffers) {
-		if (awacs_tx_cmd_space)
-			kfree(awacs_tx_cmd_space);
+		kfree(awacs_tx_cmd_space);
 		number_of_tx_cmd_buffers = 0;
 
 		/* we need nbufs + 1 (for the loop) and we should request + 1
@@ -2360,8 +2355,7 @@ if (count <= 0)
 #endif
 
 	if ((read_sq.max_count+1) > number_of_rx_cmd_buffers ) {
-		if (awacs_rx_cmd_space)
-			kfree(awacs_rx_cmd_space);
+		kfree(awacs_rx_cmd_space);
 		number_of_rx_cmd_buffers = 0;
 
 		/* we need nbufs + 1 (for the loop) and we should request + 1 again
@@ -2805,7 +2799,7 @@ __init setup_beep(void)
 	beep_buf = (short *) kmalloc(BEEP_BUFLEN * 4, GFP_KERNEL);
 	if (beep_buf == NULL) {
 		printk(KERN_ERR "dmasound_pmac: no memory for beep buffer\n");
-		if( beep_dbdma_cmd_space ) kfree(beep_dbdma_cmd_space) ;
+		kfree(beep_dbdma_cmd_space) ;
 		return -ENOMEM ;
 	}
 	return 0 ;

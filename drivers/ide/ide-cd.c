@@ -1932,8 +1932,11 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 
 		/*
 		 * check if dma is safe
+		 *
+		 * NOTE! The "len" and "addr" checks should possibly have
+		 * separate masks.
 		 */
-		if ((rq->data_len & mask) || (addr & mask))
+		if ((rq->data_len & 15) || (addr & mask))
 			info->dma = 0;
 	}
 
@@ -2654,16 +2657,63 @@ int ide_cdrom_lock_door (struct cdrom_device_info *cdi, int lock)
 }
 
 static
+int ide_cdrom_get_capabilities(ide_drive_t *drive, struct atapi_capabilities_page *cap)
+{
+	struct cdrom_info *info = drive->driver_data;
+	struct cdrom_device_info *cdi = &info->devinfo;
+	struct packet_command cgc;
+	int stat, attempts = 3, size = sizeof(*cap);
+
+	/*
+	 * ACER50 (and others?) require the full spec length mode sense
+	 * page capabilities size, but older drives break.
+	 */
+	if (!(!strcmp(drive->id->model, "ATAPI CD ROM DRIVE 50X MAX") ||
+	    !strcmp(drive->id->model, "WPI CDS-32X")))
+		size -= sizeof(cap->pad);
+
+	init_cdrom_command(&cgc, cap, size, CGC_DATA_UNKNOWN);
+	do { /* we seem to get stat=0x01,err=0x00 the first time (??) */
+		stat = cdrom_mode_sense(cdi, &cgc, GPMODE_CAPABILITIES_PAGE, 0);
+		if (!stat)
+			break;
+	} while (--attempts);
+	return stat;
+}
+
+static
+void ide_cdrom_update_speed (ide_drive_t *drive, struct atapi_capabilities_page *cap)
+{
+	/* The ACER/AOpen 24X cdrom has the speed fields byte-swapped */
+	if (!drive->id->model[0] &&
+	    !strncmp(drive->id->fw_rev, "241N", 4)) {
+		CDROM_STATE_FLAGS(drive)->current_speed  =
+			(((unsigned int)cap->curspeed) + (176/2)) / 176;
+		CDROM_CONFIG_FLAGS(drive)->max_speed =
+			(((unsigned int)cap->maxspeed) + (176/2)) / 176;
+	} else {
+		CDROM_STATE_FLAGS(drive)->current_speed  =
+			(ntohs(cap->curspeed) + (176/2)) / 176;
+		CDROM_CONFIG_FLAGS(drive)->max_speed =
+			(ntohs(cap->maxspeed) + (176/2)) / 176;
+	}
+}
+
+static
 int ide_cdrom_select_speed (struct cdrom_device_info *cdi, int speed)
 {
 	ide_drive_t *drive = (ide_drive_t*) cdi->handle;
 	struct request_sense sense;
+	struct atapi_capabilities_page cap;
 	int stat;
 
 	if ((stat = cdrom_select_speed(drive, speed, &sense)) < 0)
 		return stat;
 
-        cdi->speed = CDROM_STATE_FLAGS(drive)->current_speed;
+	if (!ide_cdrom_get_capabilities(drive, &cap)) {
+		ide_cdrom_update_speed(drive, &cap);
+		cdi->speed = CDROM_STATE_FLAGS(drive)->current_speed;
+	}
         return 0;
 }
 
@@ -2866,31 +2916,6 @@ static int ide_cdrom_register (ide_drive_t *drive, int nslots)
 }
 
 static
-int ide_cdrom_get_capabilities(ide_drive_t *drive, struct atapi_capabilities_page *cap)
-{
-	struct cdrom_info *info = drive->driver_data;
-	struct cdrom_device_info *cdi = &info->devinfo;
-	struct packet_command cgc;
-	int stat, attempts = 3, size = sizeof(*cap);
-
-	/*
-	 * ACER50 (and others?) require the full spec length mode sense
-	 * page capabilities size, but older drives break.
-	 */
-	if (!(!strcmp(drive->id->model, "ATAPI CD ROM DRIVE 50X MAX") ||
-	    !strcmp(drive->id->model, "WPI CDS-32X")))
-		size -= sizeof(cap->pad);
-
-	init_cdrom_command(&cgc, cap, size, CGC_DATA_UNKNOWN);
-	do { /* we seem to get stat=0x01,err=0x00 the first time (??) */
-		stat = cdrom_mode_sense(cdi, &cgc, GPMODE_CAPABILITIES_PAGE, 0);
-		if (!stat)
-			break;
-	} while (--attempts);
-	return stat;
-}
-
-static
 int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 {
 	struct cdrom_info *info = drive->driver_data;
@@ -2975,20 +3000,7 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 		}
 	}
 
-	/* The ACER/AOpen 24X cdrom has the speed fields byte-swapped */
-	if (!drive->id->model[0] &&
-	    !strncmp(drive->id->fw_rev, "241N", 4)) {
-		CDROM_STATE_FLAGS(drive)->current_speed  = 
-			(((unsigned int)cap.curspeed) + (176/2)) / 176;
-		CDROM_CONFIG_FLAGS(drive)->max_speed = 
-			(((unsigned int)cap.maxspeed) + (176/2)) / 176;
-	} else {
-		CDROM_STATE_FLAGS(drive)->current_speed  = 
-			(ntohs(cap.curspeed) + (176/2)) / 176;
-		CDROM_CONFIG_FLAGS(drive)->max_speed = 
-			(ntohs(cap.maxspeed) + (176/2)) / 176;
-	}
-
+	ide_cdrom_update_speed(drive, &cap);
 	/* don't print speed if the drive reported 0.
 	 */
 	printk(KERN_INFO "%s: ATAPI", drive->name);
@@ -3255,16 +3267,12 @@ sector_t ide_cdrom_capacity (ide_drive_t *drive)
 	return capacity * sectors_per_frame;
 }
 
-static
-int ide_cdrom_cleanup(ide_drive_t *drive)
+static int ide_cd_remove(struct device *dev)
 {
+	ide_drive_t *drive = to_ide_device(dev);
 	struct cdrom_info *info = drive->driver_data;
 
-	if (ide_unregister_subdriver(drive)) {
-		printk(KERN_ERR "%s: %s: failed to ide_unregister_subdriver\n",
-			__FUNCTION__, drive->name);
-		return 1;
-	}
+	ide_unregister_subdriver(drive, info->driver);
 
 	del_gendisk(info->disk);
 
@@ -3297,7 +3305,7 @@ static void ide_cd_release(struct kref *kref)
 	kfree(info);
 }
 
-static int ide_cdrom_attach (ide_drive_t *drive);
+static int ide_cd_probe(struct device *);
 
 #ifdef CONFIG_PROC_FS
 static int proc_idecd_read_capacity
@@ -3320,19 +3328,20 @@ static ide_proc_entry_t idecd_proc[] = {
 
 static ide_driver_t ide_cdrom_driver = {
 	.owner			= THIS_MODULE,
-	.name			= "ide-cdrom",
+	.gen_driver = {
+		.name		= "ide-cdrom",
+		.bus		= &ide_bus_type,
+		.probe		= ide_cd_probe,
+		.remove		= ide_cd_remove,
+	},
 	.version		= IDECD_VERSION,
 	.media			= ide_cdrom,
-	.busy			= 0,
 	.supports_dsc_overlap	= 1,
-	.cleanup		= ide_cdrom_cleanup,
 	.do_request		= ide_do_rw_cdrom,
 	.end_request		= ide_end_request,
 	.error			= __ide_error,
 	.abort			= __ide_abort,
 	.proc			= idecd_proc,
-	.attach			= ide_cdrom_attach,
-	.drives			= LIST_HEAD_INIT(ide_cdrom_driver.drives),
 };
 
 static int idecd_open(struct inode * inode, struct file * file)
@@ -3418,8 +3427,9 @@ static char *ignore = NULL;
 module_param(ignore, charp, 0400);
 MODULE_DESCRIPTION("ATAPI CD-ROM Driver");
 
-static int ide_cdrom_attach (ide_drive_t *drive)
+static int ide_cd_probe(struct device *dev)
 {
+	ide_drive_t *drive = to_ide_device(dev);
 	struct cdrom_info *info;
 	struct gendisk *g;
 	struct request_sense sense;
@@ -3453,11 +3463,8 @@ static int ide_cdrom_attach (ide_drive_t *drive)
 
 	ide_init_disk(g, drive);
 
-	if (ide_register_subdriver(drive, &ide_cdrom_driver)) {
-		printk(KERN_ERR "%s: Failed to register the driver with ide.c\n",
-			drive->name);
-		goto out_put_disk;
-	}
+	ide_register_subdriver(drive, &ide_cdrom_driver);
+
 	memset(info, 0, sizeof (struct cdrom_info));
 
 	kref_init(&info->kref);
@@ -3470,7 +3477,6 @@ static int ide_cdrom_attach (ide_drive_t *drive)
 
 	drive->driver_data = info;
 
-	DRIVER(drive)->busy++;
 	g->minors = 1;
 	snprintf(g->devfs_name, sizeof(g->devfs_name),
 			"%s/cd", drive->devfs_name);
@@ -3478,8 +3484,7 @@ static int ide_cdrom_attach (ide_drive_t *drive)
 	g->flags = GENHD_FL_CD | GENHD_FL_REMOVABLE;
 	if (ide_cdrom_setup(drive)) {
 		struct cdrom_device_info *devinfo = &info->devinfo;
-		DRIVER(drive)->busy--;
-		ide_unregister_subdriver(drive);
+		ide_unregister_subdriver(drive, &ide_cdrom_driver);
 		if (info->buffer != NULL)
 			kfree(info->buffer);
 		if (info->toc != NULL)
@@ -3492,7 +3497,6 @@ static int ide_cdrom_attach (ide_drive_t *drive)
 		drive->driver_data = NULL;
 		goto failed;
 	}
-	DRIVER(drive)->busy--;
 
 	cdrom_read_toc(drive, &sense);
 	g->fops = &idecd_ops;
@@ -3500,23 +3504,20 @@ static int ide_cdrom_attach (ide_drive_t *drive)
 	add_disk(g);
 	return 0;
 
-out_put_disk:
-	put_disk(g);
 out_free_cd:
 	kfree(info);
 failed:
-	return 1;
+	return -ENODEV;
 }
 
 static void __exit ide_cdrom_exit(void)
 {
-	ide_unregister_driver(&ide_cdrom_driver);
+	driver_unregister(&ide_cdrom_driver.gen_driver);
 }
  
 static int ide_cdrom_init(void)
 {
-	ide_register_driver(&ide_cdrom_driver);
-	return 0;
+	return driver_register(&ide_cdrom_driver.gen_driver);
 }
 
 module_init(ide_cdrom_init);

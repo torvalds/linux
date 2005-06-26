@@ -802,12 +802,13 @@ static void veth_tx_timeout(struct net_device *dev)
 
 	spin_lock_irqsave(&port->pending_gate, flags);
 
+	if (!port->pending_lpmask) {
+		spin_unlock_irqrestore(&port->pending_gate, flags);
+		return;
+	}
+
 	printk(KERN_WARNING "%s: Tx timeout!  Resetting lp connections: %08x\n",
 	       dev->name, port->pending_lpmask);
-
-	/* If we've timed out the queue must be stopped, which should
-	 * only ever happen when there is a pending packet. */
-	WARN_ON(! port->pending_lpmask);
 
 	for (i = 0; i < HVMAXARCHITECTEDLPS; i++) {
 		struct veth_lpar_connection *cnx = veth_cnx[i];
@@ -924,7 +925,7 @@ static int veth_transmit_to_one(struct sk_buff *skb, HvLpIndex rlp,
 
 	spin_lock_irqsave(&cnx->lock, flags);
 
-	if (! cnx->state & VETH_STATE_READY)
+	if (! (cnx->state & VETH_STATE_READY))
 		goto drop;
 
 	if ((skb->len - 14) > VETH_MAX_MTU)
@@ -1022,6 +1023,8 @@ static int veth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&port->pending_gate, flags);
 
 	lpmask = veth_transmit_to_many(skb, lpmask, dev);
+
+	dev->trans_start = jiffies;
 
 	if (! lpmask) {
 		dev_kfree_skb(skb);
@@ -1262,13 +1265,18 @@ static void veth_receive(struct veth_lpar_connection *cnx,
 
 		vlan = skb->data[9];
 		dev = veth_dev[vlan];
-		if (! dev)
-			/* Some earlier versions of the driver sent
-			   broadcasts down all connections, even to
-			   lpars that weren't on the relevant vlan.
-			   So ignore packets belonging to a vlan we're
-			   not on. */
+		if (! dev) {
+			/*
+			 * Some earlier versions of the driver sent
+			 * broadcasts down all connections, even to lpars
+			 * that weren't on the relevant vlan. So ignore
+			 * packets belonging to a vlan we're not on.
+			 * We can also be here if we receive packets while
+			 * the driver is going down, because then dev is NULL.
+			 */
+			dev_kfree_skb_irq(skb);
 			continue;
+		}
 
 		port = (struct veth_port *)dev->priv;
 		dest = *((u64 *) skb->data) & 0xFFFFFFFFFFFF0000;
@@ -1381,17 +1389,24 @@ void __exit veth_module_cleanup(void)
 {
 	int i;
 
-	vio_unregister_driver(&veth_driver);
+	/* Stop the queues first to stop any new packets being sent. */
+	for (i = 0; i < HVMAXARCHITECTEDVIRTUALLANS; i++)
+		if (veth_dev[i])
+			netif_stop_queue(veth_dev[i]);
 
+	/* Stop the connections before we unregister the driver. This
+	 * ensures there's no skbs lying around holding the device open. */
 	for (i = 0; i < HVMAXARCHITECTEDLPS; ++i)
 		veth_stop_connection(i);
 
 	HvLpEvent_unregisterHandler(HvLpEvent_Type_VirtualLan);
 
 	/* Hypervisor callbacks may have scheduled more work while we
-	 * were destroying connections. Now that we've disconnected from
+	 * were stoping connections. Now that we've disconnected from
 	 * the hypervisor make sure everything's finished. */
 	flush_scheduled_work();
+
+	vio_unregister_driver(&veth_driver);
 
 	for (i = 0; i < HVMAXARCHITECTEDLPS; ++i)
 		veth_destroy_connection(i);

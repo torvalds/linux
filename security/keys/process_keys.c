@@ -1,6 +1,6 @@
 /* process_keys.c: management of a process's keyrings
  *
- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -38,10 +38,9 @@ struct key root_user_keyring = {
 	.serial		= 2,
 	.type		= &key_type_keyring,
 	.user		= &root_key_user,
-	.lock		= RW_LOCK_UNLOCKED,
 	.sem		= __RWSEM_INITIALIZER(root_user_keyring.sem),
 	.perm		= KEY_USR_ALL,
-	.flags		= KEY_FLAG_INSTANTIATED,
+	.flags		= 1 << KEY_FLAG_INSTANTIATED,
 	.description	= "_uid.0",
 #ifdef KEY_DEBUGGING
 	.magic		= KEY_DEBUG_MAGIC,
@@ -54,10 +53,9 @@ struct key root_session_keyring = {
 	.serial		= 1,
 	.type		= &key_type_keyring,
 	.user		= &root_key_user,
-	.lock		= RW_LOCK_UNLOCKED,
 	.sem		= __RWSEM_INITIALIZER(root_session_keyring.sem),
 	.perm		= KEY_USR_ALL,
-	.flags		= KEY_FLAG_INSTANTIATED,
+	.flags		= 1 << KEY_FLAG_INSTANTIATED,
 	.description	= "_uid_ses.0",
 #ifdef KEY_DEBUGGING
 	.magic		= KEY_DEBUG_MAGIC,
@@ -167,7 +165,7 @@ int install_thread_keyring(struct task_struct *tsk)
 /*
  * make sure a process keyring is installed
  */
-static int install_process_keyring(struct task_struct *tsk)
+int install_process_keyring(struct task_struct *tsk)
 {
 	unsigned long flags;
 	struct key *keyring;
@@ -183,7 +181,7 @@ static int install_process_keyring(struct task_struct *tsk)
 			goto error;
 		}
 
-		/* attach or swap keyrings */
+		/* attach keyring */
 		spin_lock_irqsave(&tsk->sighand->siglock, flags);
 		if (!tsk->signal->process_keyring) {
 			tsk->signal->process_keyring = keyring;
@@ -229,12 +227,14 @@ static int install_session_keyring(struct task_struct *tsk,
 
 	/* install the keyring */
 	spin_lock_irqsave(&tsk->sighand->siglock, flags);
-	old = tsk->signal->session_keyring;
-	tsk->signal->session_keyring = keyring;
+	old = rcu_dereference(tsk->signal->session_keyring);
+	rcu_assign_pointer(tsk->signal->session_keyring, keyring);
 	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
 
 	ret = 0;
 
+	/* we're using RCU on the pointer */
+	synchronize_rcu();
 	key_put(old);
  error:
 	return ret;
@@ -247,8 +247,6 @@ static int install_session_keyring(struct task_struct *tsk,
  */
 int copy_thread_group_keys(struct task_struct *tsk)
 {
-	unsigned long flags;
-
 	key_check(current->thread_group->session_keyring);
 	key_check(current->thread_group->process_keyring);
 
@@ -256,10 +254,10 @@ int copy_thread_group_keys(struct task_struct *tsk)
 	tsk->signal->process_keyring = NULL;
 
 	/* same session keyring */
-	spin_lock_irqsave(&current->sighand->siglock, flags);
+	rcu_read_lock();
 	tsk->signal->session_keyring =
-		key_get(current->signal->session_keyring);
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
+		key_get(rcu_dereference(current->signal->session_keyring));
+	rcu_read_unlock();
 
 	return 0;
 
@@ -349,9 +347,7 @@ void key_fsuid_changed(struct task_struct *tsk)
 	/* update the ownership of the thread keyring */
 	if (tsk->thread_keyring) {
 		down_write(&tsk->thread_keyring->sem);
-		write_lock(&tsk->thread_keyring->lock);
 		tsk->thread_keyring->uid = tsk->fsuid;
-		write_unlock(&tsk->thread_keyring->lock);
 		up_write(&tsk->thread_keyring->sem);
 	}
 
@@ -366,9 +362,7 @@ void key_fsgid_changed(struct task_struct *tsk)
 	/* update the ownership of the thread keyring */
 	if (tsk->thread_keyring) {
 		down_write(&tsk->thread_keyring->sem);
-		write_lock(&tsk->thread_keyring->lock);
 		tsk->thread_keyring->gid = tsk->fsgid;
-		write_unlock(&tsk->thread_keyring->lock);
 		up_write(&tsk->thread_keyring->sem);
 	}
 
@@ -382,13 +376,13 @@ void key_fsgid_changed(struct task_struct *tsk)
  * - we return -EAGAIN if we didn't find any matching key
  * - we return -ENOKEY if we found only negative matching keys
  */
-struct key *search_process_keyrings_aux(struct key_type *type,
-					const void *description,
-					key_match_func_t match)
+struct key *search_process_keyrings(struct key_type *type,
+				    const void *description,
+				    key_match_func_t match,
+				    struct task_struct *context)
 {
-	struct task_struct *tsk = current;
-	unsigned long flags;
-	struct key *key, *ret, *err, *tmp;
+	struct request_key_auth *rka;
+	struct key *key, *ret, *err, *instkey;
 
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
@@ -402,9 +396,9 @@ struct key *search_process_keyrings_aux(struct key_type *type,
 	err = ERR_PTR(-EAGAIN);
 
 	/* search the thread keyring first */
-	if (tsk->thread_keyring) {
-		key = keyring_search_aux(tsk->thread_keyring, type,
-					 description, match);
+	if (context->thread_keyring) {
+		key = keyring_search_aux(context->thread_keyring,
+					 context, type, description, match);
 		if (!IS_ERR(key))
 			goto found;
 
@@ -422,9 +416,9 @@ struct key *search_process_keyrings_aux(struct key_type *type,
 	}
 
 	/* search the process keyring second */
-	if (tsk->signal->process_keyring) {
-		key = keyring_search_aux(tsk->signal->process_keyring,
-					 type, description, match);
+	if (context->signal->process_keyring) {
+		key = keyring_search_aux(context->signal->process_keyring,
+					 context, type, description, match);
 		if (!IS_ERR(key))
 			goto found;
 
@@ -441,51 +435,92 @@ struct key *search_process_keyrings_aux(struct key_type *type,
 		}
 	}
 
-	/* search the session keyring last */
-	spin_lock_irqsave(&tsk->sighand->siglock, flags);
+	/* search the session keyring */
+	if (context->signal->session_keyring) {
+		rcu_read_lock();
+		key = keyring_search_aux(
+			rcu_dereference(context->signal->session_keyring),
+			context, type, description, match);
+		rcu_read_unlock();
 
-	tmp = tsk->signal->session_keyring;
-	if (!tmp)
-		tmp = tsk->user->session_keyring;
-	atomic_inc(&tmp->usage);
+		if (!IS_ERR(key))
+			goto found;
 
-	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
-
-	key = keyring_search_aux(tmp, type, description, match);
-	key_put(tmp);
-	if (!IS_ERR(key))
-		goto found;
-
-	switch (PTR_ERR(key)) {
-	case -EAGAIN: /* no key */
-		if (ret)
+		switch (PTR_ERR(key)) {
+		case -EAGAIN: /* no key */
+			if (ret)
+				break;
+		case -ENOKEY: /* negative key */
+			ret = key;
 			break;
-	case -ENOKEY: /* negative key */
-		ret = key;
-		break;
-	default:
-		err = key;
-		break;
+		default:
+			err = key;
+			break;
+		}
+
+		/* if this process has a session keyring and that has an
+		 * instantiation authorisation key in the bottom level, then we
+		 * also search the keyrings of the process mentioned there */
+		if (context != current)
+			goto no_key;
+
+		rcu_read_lock();
+		instkey = __keyring_search_one(
+			rcu_dereference(context->signal->session_keyring),
+			&key_type_request_key_auth, NULL, 0);
+		rcu_read_unlock();
+
+		if (IS_ERR(instkey))
+			goto no_key;
+
+		rka = instkey->payload.data;
+
+		key = search_process_keyrings(type, description, match,
+					      rka->context);
+		key_put(instkey);
+
+		if (!IS_ERR(key))
+			goto found;
+
+		switch (PTR_ERR(key)) {
+		case -EAGAIN: /* no key */
+			if (ret)
+				break;
+		case -ENOKEY: /* negative key */
+			ret = key;
+			break;
+		default:
+			err = key;
+			break;
+		}
+	}
+	/* or search the user-session keyring */
+	else {
+		key = keyring_search_aux(context->user->session_keyring,
+					 context, type, description, match);
+		if (!IS_ERR(key))
+			goto found;
+
+		switch (PTR_ERR(key)) {
+		case -EAGAIN: /* no key */
+			if (ret)
+				break;
+		case -ENOKEY: /* negative key */
+			ret = key;
+			break;
+		default:
+			err = key;
+			break;
+		}
 	}
 
+
+no_key:
 	/* no key - decide on the error we're going to go for */
 	key = ret ? ret : err;
 
- found:
+found:
 	return key;
-
-} /* end search_process_keyrings_aux() */
-
-/*****************************************************************************/
-/*
- * search the process keyrings for the first matching key
- * - we return -EAGAIN if we didn't find any matching key
- * - we return -ENOKEY if we found only negative matching keys
- */
-struct key *search_process_keyrings(struct key_type *type,
-				    const char *description)
-{
-	return search_process_keyrings_aux(type, description, type->match);
 
 } /* end search_process_keyrings() */
 
@@ -495,72 +530,73 @@ struct key *search_process_keyrings(struct key_type *type,
  * - don't create special keyrings unless so requested
  * - partially constructed keys aren't found unless requested
  */
-struct key *lookup_user_key(key_serial_t id, int create, int partial,
-			    key_perm_t perm)
+struct key *lookup_user_key(struct task_struct *context, key_serial_t id,
+			    int create, int partial, key_perm_t perm)
 {
-	struct task_struct *tsk = current;
-	unsigned long flags;
 	struct key *key;
 	int ret;
+
+	if (!context)
+		context = current;
 
 	key = ERR_PTR(-ENOKEY);
 
 	switch (id) {
 	case KEY_SPEC_THREAD_KEYRING:
-		if (!tsk->thread_keyring) {
+		if (!context->thread_keyring) {
 			if (!create)
 				goto error;
 
-			ret = install_thread_keyring(tsk);
+			ret = install_thread_keyring(context);
 			if (ret < 0) {
 				key = ERR_PTR(ret);
 				goto error;
 			}
 		}
 
-		key = tsk->thread_keyring;
+		key = context->thread_keyring;
 		atomic_inc(&key->usage);
 		break;
 
 	case KEY_SPEC_PROCESS_KEYRING:
-		if (!tsk->signal->process_keyring) {
+		if (!context->signal->process_keyring) {
 			if (!create)
 				goto error;
 
-			ret = install_process_keyring(tsk);
+			ret = install_process_keyring(context);
 			if (ret < 0) {
 				key = ERR_PTR(ret);
 				goto error;
 			}
 		}
 
-		key = tsk->signal->process_keyring;
+		key = context->signal->process_keyring;
 		atomic_inc(&key->usage);
 		break;
 
 	case KEY_SPEC_SESSION_KEYRING:
-		if (!tsk->signal->session_keyring) {
+		if (!context->signal->session_keyring) {
 			/* always install a session keyring upon access if one
 			 * doesn't exist yet */
 			ret = install_session_keyring(
-			       tsk, tsk->user->session_keyring);
+			       context, context->user->session_keyring);
 			if (ret < 0)
 				goto error;
 		}
 
-		spin_lock_irqsave(&tsk->sighand->siglock, flags);
-		key = tsk->signal->session_keyring;
+		rcu_read_lock();
+		key = rcu_dereference(context->signal->session_keyring);
 		atomic_inc(&key->usage);
-		spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
+		rcu_read_unlock();
 		break;
 
 	case KEY_SPEC_USER_KEYRING:
-		key = tsk->user->uid_keyring;
+		key = context->user->uid_keyring;
 		atomic_inc(&key->usage);
 		break;
 
 	case KEY_SPEC_USER_SESSION_KEYRING:
-		key = tsk->user->session_keyring;
+		key = context->user->session_keyring;
 		atomic_inc(&key->usage);
 		break;
 
@@ -580,7 +616,7 @@ struct key *lookup_user_key(key_serial_t id, int create, int partial,
 		break;
 	}
 
-	/* check the status and permissions */
+	/* check the status */
 	if (perm) {
 		ret = key_validate(key);
 		if (ret < 0)
@@ -588,11 +624,13 @@ struct key *lookup_user_key(key_serial_t id, int create, int partial,
 	}
 
 	ret = -EIO;
-	if (!partial && !(key->flags & KEY_FLAG_INSTANTIATED))
+	if (!partial && !test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
 		goto invalid_key;
 
+	/* check the permissions */
 	ret = -EACCES;
-	if (!key_permission(key, perm))
+
+	if (!key_task_permission(key, context, perm))
 		goto invalid_key;
 
  error:
@@ -615,7 +653,6 @@ struct key *lookup_user_key(key_serial_t id, int create, int partial,
 long join_session_keyring(const char *name)
 {
 	struct task_struct *tsk = current;
-	unsigned long flags;
 	struct key *keyring;
 	long ret;
 
@@ -625,9 +662,9 @@ long join_session_keyring(const char *name)
 		if (ret < 0)
 			goto error;
 
-		spin_lock_irqsave(&tsk->sighand->siglock, flags);
-		ret = tsk->signal->session_keyring->serial;
-		spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
+		rcu_read_lock();
+		ret = rcu_dereference(tsk->signal->session_keyring)->serial;
+		rcu_read_unlock();
 		goto error;
 	}
 

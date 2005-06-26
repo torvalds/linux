@@ -1024,14 +1024,16 @@ static void ide_cacheflush_p(ide_drive_t *drive)
 		printk(KERN_INFO "%s: wcache flush failed!\n", drive->name);
 }
 
-static int idedisk_cleanup (ide_drive_t *drive)
+static int ide_disk_remove(struct device *dev)
 {
+	ide_drive_t *drive = to_ide_device(dev);
 	struct ide_disk_obj *idkp = drive->driver_data;
 	struct gendisk *g = idkp->disk;
 
 	ide_cacheflush_p(drive);
-	if (ide_unregister_subdriver(drive))
-		return 1;
+
+	ide_unregister_subdriver(drive, idkp->driver);
+
 	del_gendisk(g);
 
 	ide_disk_put(idkp);
@@ -1052,7 +1054,7 @@ static void ide_disk_release(struct kref *kref)
 	kfree(idkp);
 }
 
-static int idedisk_attach(ide_drive_t *drive);
+static int ide_disk_probe(struct device *dev);
 
 static void ide_device_shutdown(struct device *dev)
 {
@@ -1082,27 +1084,23 @@ static void ide_device_shutdown(struct device *dev)
 	dev->bus->suspend(dev, PMSG_SUSPEND);
 }
 
-/*
- *      IDE subdriver functions, registered with ide.c
- */
 static ide_driver_t idedisk_driver = {
 	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.name		= "ide-disk",
+		.bus		= &ide_bus_type,
+		.probe		= ide_disk_probe,
+		.remove		= ide_disk_remove,
 		.shutdown	= ide_device_shutdown,
 	},
-	.name			= "ide-disk",
 	.version		= IDEDISK_VERSION,
 	.media			= ide_disk,
-	.busy			= 0,
 	.supports_dsc_overlap	= 0,
-	.cleanup		= idedisk_cleanup,
 	.do_request		= ide_do_rw_disk,
 	.end_request		= ide_end_request,
 	.error			= __ide_error,
 	.abort			= __ide_abort,
 	.proc			= idedisk_proc,
-	.attach			= idedisk_attach,
-	.drives			= LIST_HEAD_INIT(idedisk_driver.drives),
 };
 
 static int idedisk_open(struct inode *inode, struct file *filp)
@@ -1199,8 +1197,9 @@ static struct block_device_operations idedisk_ops = {
 
 MODULE_DESCRIPTION("ATA DISK Driver");
 
-static int idedisk_attach(ide_drive_t *drive)
+static int ide_disk_probe(struct device *dev)
 {
+	ide_drive_t *drive = to_ide_device(dev);
 	struct ide_disk_obj *idkp;
 	struct gendisk *g;
 
@@ -1216,16 +1215,14 @@ static int idedisk_attach(ide_drive_t *drive)
 	if (!idkp)
 		goto failed;
 
-	g = alloc_disk(1 << PARTN_BITS);
+	g = alloc_disk_node(1 << PARTN_BITS,
+			pcibus_to_node(drive->hwif->pci_dev->bus));
 	if (!g)
 		goto out_free_idkp;
 
 	ide_init_disk(g, drive);
 
-	if (ide_register_subdriver(drive, &idedisk_driver)) {
-		printk (KERN_ERR "ide-disk: %s: Failed to register the driver with ide.c\n", drive->name);
-		goto out_put_disk;
-	}
+	ide_register_subdriver(drive, &idedisk_driver);
 
 	memset(idkp, 0, sizeof(*idkp));
 
@@ -1239,7 +1236,6 @@ static int idedisk_attach(ide_drive_t *drive)
 
 	drive->driver_data = idkp;
 
-	DRIVER(drive)->busy++;
 	idedisk_setup(drive);
 	if ((!drive->head || drive->head > 16) && !drive->select.b.lba) {
 		printk(KERN_ERR "%s: INVALID GEOMETRY: %d PHYSICAL HEADS?\n",
@@ -1247,7 +1243,7 @@ static int idedisk_attach(ide_drive_t *drive)
 		drive->attach = 0;
 	} else
 		drive->attach = 1;
-	DRIVER(drive)->busy--;
+
 	g->minors = 1 << PARTN_BITS;
 	strcpy(g->devfs_name, drive->devfs_name);
 	g->driverfs_dev = &drive->gendev;
@@ -1257,22 +1253,20 @@ static int idedisk_attach(ide_drive_t *drive)
 	add_disk(g);
 	return 0;
 
-out_put_disk:
-	put_disk(g);
 out_free_idkp:
 	kfree(idkp);
 failed:
-	return 1;
+	return -ENODEV;
 }
 
 static void __exit idedisk_exit (void)
 {
-	ide_unregister_driver(&idedisk_driver);
+	driver_unregister(&idedisk_driver.gen_driver);
 }
 
 static int idedisk_init (void)
 {
-	return ide_register_driver(&idedisk_driver);
+	return driver_register(&idedisk_driver.gen_driver);
 }
 
 module_init(idedisk_init);
