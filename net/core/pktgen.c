@@ -151,7 +151,7 @@
 #include <asm/timex.h>
 
 
-#define VERSION  "pktgen v2.61: Packet Generator for packet performance testing.\n"
+#define VERSION  "pktgen v2.62: Packet Generator for packet performance testing.\n"
 
 /* #define PG_DEBUG(a) a */
 #define PG_DEBUG(a) 
@@ -1921,6 +1921,11 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	struct iphdr *iph;
         struct pktgen_hdr *pgh = NULL;
         
+	/* Update any of the values, used when we're incrementing various
+	 * fields.
+	 */
+	mod_cur_headers(pkt_dev);
+
 	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + 16, GFP_ATOMIC);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
@@ -1933,11 +1938,6 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	eth = (__u8 *) skb_push(skb, 14);
 	iph = (struct iphdr *)skb_put(skb, sizeof(struct iphdr));
 	udph = (struct udphdr *)skb_put(skb, sizeof(struct udphdr));
-
-        /* Update any of the values, used when we're incrementing various
-         * fields.
-         */
-        mod_cur_headers(pkt_dev);
 
 	memcpy(eth, pkt_dev->hh, 12);
 	*(u16*)&eth[12] = __constant_htons(ETH_P_IP);
@@ -2192,7 +2192,12 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	int datalen;
 	struct ipv6hdr *iph;
         struct pktgen_hdr *pgh = NULL;
-        
+
+	/* Update any of the values, used when we're incrementing various
+	 * fields.
+	 */
+	mod_cur_headers(pkt_dev);
+
 	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + 16, GFP_ATOMIC);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
@@ -2206,17 +2211,9 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	iph = (struct ipv6hdr *)skb_put(skb, sizeof(struct ipv6hdr));
 	udph = (struct udphdr *)skb_put(skb, sizeof(struct udphdr));
 
-
-        /* Update any of the values, used when we're incrementing various
-         * fields.
-         */
-	mod_cur_headers(pkt_dev);
-
-	
 	memcpy(eth, pkt_dev->hh, 12);
 	*(u16*)&eth[12] = __constant_htons(ETH_P_IPV6);
-	
-        
+
 	datalen = pkt_dev->cur_pkt_size-14- 
 		sizeof(struct ipv6hdr)-sizeof(struct udphdr); /* Eth + IPh + UDPh */
 
