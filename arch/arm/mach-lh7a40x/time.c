@@ -53,8 +53,8 @@ lh7a40x_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction lh7a40x_timer_irq = {
 	.name		= "LHA740x Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= lh7a40x_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= lh7a40x_timer_interrupt,
 };
 
 static void __init lh7a40x_timer_init(void)

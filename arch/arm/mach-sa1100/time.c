@@ -99,8 +99,8 @@ sa1100_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction sa1100_timer_irq = {
 	.name		= "SA11xx Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= sa1100_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= sa1100_timer_interrupt,
 };
 
 static void __init sa1100_timer_init(void)
