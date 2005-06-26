@@ -479,6 +479,14 @@
  * 	- Support for generating gratuitous ARPs in active-backup mode.
  * 	  Includes support for VLAN tagging all bonding-generated ARPs
  * 	  as needed.  Set version to 2.6.2.
+ * 2005/06/08 - Jason Gabler <jygabler at lbl dot gov>
+ *	- alternate hashing policy support for mode 2
+ *	  * Added kernel parameter "xmit_hash_policy" to allow the selection
+ *	    of different hashing policies for mode 2.  The original mode 2
+ *	    policy is the default, now found in xmit_hash_policy_layer2().
+ *	  * Added xmit_hash_policy_layer34()
+ *	- Modified by Jay Vosburgh <fubar@us.ibm.com> to also support mode 4.
+ *	  Set version to 2.6.3.
  */
 
 //#define BONDING_DEBUG 1
@@ -493,7 +501,10 @@
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
+#include <net/ip.h>
 #include <linux/ip.h>
+#include <linux/tcp.h>
+#include <linux/udp.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -541,6 +552,7 @@ static int use_carrier	= 1;
 static char *mode	= NULL;
 static char *primary	= NULL;
 static char *lacp_rate	= NULL;
+static char *xmit_hash_policy = NULL;
 static int arp_interval = BOND_LINK_ARP_INTERV;
 static char *arp_ip_target[BOND_MAX_ARP_TARGETS] = { NULL, };
 
@@ -560,6 +572,8 @@ module_param(primary, charp, 0);
 MODULE_PARM_DESC(primary, "Primary network device to use");
 module_param(lacp_rate, charp, 0);
 MODULE_PARM_DESC(lacp_rate, "LACPDU tx rate to request from 802.3ad partner (slow/fast)");
+module_param(xmit_hash_policy, charp, 0);
+MODULE_PARM_DESC(xmit_hash_policy, "XOR hashing method : 0 for layer 2 (default), 1 for layer 3+4");
 module_param(arp_interval, int, 0);
 MODULE_PARM_DESC(arp_interval, "arp interval in milliseconds");
 module_param_array(arp_ip_target, charp, NULL, 0);
@@ -579,6 +593,7 @@ static struct proc_dir_entry *bond_proc_dir = NULL;
 static u32 arp_target[BOND_MAX_ARP_TARGETS] = { 0, } ;
 static int arp_ip_count	= 0;
 static int bond_mode	= BOND_MODE_ROUNDROBIN;
+static int xmit_hashtype= BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast	= 0;
 static int app_abi_ver	= 0;
 static int orig_app_abi_ver = -1; /* This is used to save the first ABI version
@@ -588,7 +603,6 @@ static int orig_app_abi_ver = -1; /* This is used to save the first ABI version
 				   * command comes from an application using
 				   * another ABI version.
 				   */
-
 struct bond_parm_tbl {
 	char *modename;
 	int mode;
@@ -611,9 +625,15 @@ static struct bond_parm_tbl bond_mode_tbl[] = {
 {	NULL,			-1},
 };
 
+static struct bond_parm_tbl xmit_hashtype_tbl[] = {
+{	"layer2",		BOND_XMIT_POLICY_LAYER2},
+{	"layer3+4",		BOND_XMIT_POLICY_LAYER34},
+{	NULL,			-1},
+};
+
 /*-------------------------- Forward declarations ---------------------------*/
 
-static inline void bond_set_mode_ops(struct net_device *bond_dev, int mode);
+static inline void bond_set_mode_ops(struct bonding *bond, int mode);
 static void bond_send_gratuitous_arp(struct bonding *bond);
 
 /*---------------------------- General routines -----------------------------*/
@@ -3724,6 +3744,46 @@ static void bond_unregister_lacpdu(struct bonding *bond)
 	dev_remove_pack(&(BOND_AD_INFO(bond).ad_pkt_type));
 }
 
+/*---------------------------- Hashing Policies -----------------------------*/
+
+/*
+ * Hash for the the output device based upon layer 3 and layer 4 data. If
+ * the packet is a frag or not TCP or UDP, just use layer 3 data.  If it is
+ * altogether not IP, mimic bond_xmit_hash_policy_l2()
+ */
+static int bond_xmit_hash_policy_l34(struct sk_buff *skb,
+				    struct net_device *bond_dev, int count)
+{
+	struct ethhdr *data = (struct ethhdr *)skb->data;
+	struct iphdr *iph = skb->nh.iph;
+	u16 *layer4hdr = (u16 *)((u32 *)iph + iph->ihl);
+	int layer4_xor = 0;
+
+	if (skb->protocol == __constant_htons(ETH_P_IP)) {
+		if (!(iph->frag_off & __constant_htons(IP_MF|IP_OFFSET)) &&
+		    (iph->protocol == IPPROTO_TCP ||
+		     iph->protocol == IPPROTO_UDP)) {
+			layer4_xor = htons((*layer4hdr ^ *(layer4hdr + 1)));
+		}
+		return (layer4_xor ^
+			((ntohl(iph->saddr ^ iph->daddr)) & 0xffff)) % count;
+
+	}
+
+	return (data->h_dest[5] ^ bond_dev->dev_addr[5]) % count;
+}
+
+/*
+ * Hash for the output device based upon layer 2 data
+ */
+static int bond_xmit_hash_policy_l2(struct sk_buff *skb,
+				   struct net_device *bond_dev, int count)
+{
+	struct ethhdr *data = (struct ethhdr *)skb->data;
+
+	return (data->h_dest[5] ^ bond_dev->dev_addr[5]) % count;
+}
+
 /*-------------------------- Device entry points ----------------------------*/
 
 static int bond_open(struct net_device *bond_dev)
@@ -4310,14 +4370,13 @@ out:
 }
 
 /*
- * in XOR mode, we determine the output device by performing xor on
- * the source and destination hw adresses.  If this device is not
- * enabled, find the next slave following this xor slave.
+ * In bond_xmit_xor() , we determine the output device by using a pre-
+ * determined xmit_hash_policy(), If the selected device is not enabled,
+ * find the next active slave.
  */
 static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 {
 	struct bonding *bond = bond_dev->priv;
-	struct ethhdr *data = (struct ethhdr *)skb->data;
 	struct slave *slave, *start_at;
 	int slave_no;
 	int i;
@@ -4329,7 +4388,7 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 		goto out;
 	}
 
-	slave_no = (data->h_dest[5]^bond_dev->dev_addr[5]) % bond->slave_cnt;
+	slave_no = bond->xmit_hash_policy(skb, bond_dev, bond->slave_cnt);
 
 	bond_for_each_slave(bond, slave, i) {
 		slave_no--;
@@ -4425,8 +4484,10 @@ out:
 /*
  * set bond mode specific net device operations
  */
-static inline void bond_set_mode_ops(struct net_device *bond_dev, int mode)
+static inline void bond_set_mode_ops(struct bonding *bond, int mode)
 {
+	struct net_device *bond_dev = bond->dev;
+
 	switch (mode) {
 	case BOND_MODE_ROUNDROBIN:
 		bond_dev->hard_start_xmit = bond_xmit_roundrobin;
@@ -4436,12 +4497,20 @@ static inline void bond_set_mode_ops(struct net_device *bond_dev, int mode)
 		break;
 	case BOND_MODE_XOR:
 		bond_dev->hard_start_xmit = bond_xmit_xor;
+		if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34)
+			bond->xmit_hash_policy = bond_xmit_hash_policy_l34;
+		else
+			bond->xmit_hash_policy = bond_xmit_hash_policy_l2;
 		break;
 	case BOND_MODE_BROADCAST:
 		bond_dev->hard_start_xmit = bond_xmit_broadcast;
 		break;
 	case BOND_MODE_8023AD:
 		bond_dev->hard_start_xmit = bond_3ad_xmit_xor;
+		if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34)
+			bond->xmit_hash_policy = bond_xmit_hash_policy_l34;
+		else
+			bond->xmit_hash_policy = bond_xmit_hash_policy_l2;
 		break;
 	case BOND_MODE_TLB:
 	case BOND_MODE_ALB:
@@ -4490,7 +4559,7 @@ static int __init bond_init(struct net_device *bond_dev, struct bond_params *par
 	bond_dev->change_mtu = bond_change_mtu;
 	bond_dev->set_mac_address = bond_set_mac_address;
 
-	bond_set_mode_ops(bond_dev, bond->params.mode);
+	bond_set_mode_ops(bond, bond->params.mode);
 
 	bond_dev->destructor = free_netdev;
 
@@ -4598,6 +4667,25 @@ static int bond_check_params(struct bond_params *params)
 			       ": Error: Invalid bonding mode \"%s\"\n",
 			       mode == NULL ? "NULL" : mode);
 			return -EINVAL;
+		}
+	}
+
+	if (xmit_hash_policy) {
+		if ((bond_mode != BOND_MODE_XOR) &&
+		    (bond_mode != BOND_MODE_8023AD)) {
+			printk(KERN_INFO DRV_NAME
+			       ": xor_mode param is irrelevant in mode %s\n",
+			       bond_mode_name(bond_mode));
+		} else {
+			xmit_hashtype = bond_parse_parm(xmit_hash_policy,
+							xmit_hashtype_tbl);
+			if (xmit_hashtype == -1) {
+				printk(KERN_ERR DRV_NAME
+			       	": Error: Invalid xmit_hash_policy \"%s\"\n",
+			       	xmit_hash_policy == NULL ? "NULL" :
+				       xmit_hash_policy);
+				return -EINVAL;
+			}
 		}
 	}
 
@@ -4812,6 +4900,7 @@ static int bond_check_params(struct bond_params *params)
 
 	/* fill params struct with the proper values */
 	params->mode = bond_mode;
+	params->xmit_policy = xmit_hashtype;
 	params->miimon = miimon;
 	params->arp_interval = arp_interval;
 	params->updelay = updelay;
