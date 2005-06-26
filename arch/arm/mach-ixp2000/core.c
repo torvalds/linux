@@ -103,6 +103,11 @@ static struct map_desc ixp2000_io_desc[] __initdata = {
 		.length		= IXP2000_PCI_CSR_SIZE,
 		.type		= MT_DEVICE
 	}, {
+		.virtual	= IXP2000_MSF_VIRT_BASE,
+		.physical	= IXP2000_MSF_PHYS_BASE,
+		.length		= IXP2000_MSF_SIZE,
+		.type		= MT_DEVICE
+	}, {
 		.virtual	= IXP2000_PCI_IO_VIRT_BASE,
 		.physical	= IXP2000_PCI_IO_PHYS_BASE,
 		.length		= IXP2000_PCI_IO_SIZE,
