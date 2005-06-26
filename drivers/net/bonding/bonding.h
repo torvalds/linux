@@ -36,8 +36,8 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define DRV_VERSION	"2.6.1"
-#define DRV_RELDATE	"October 29, 2004"
+#define DRV_VERSION	"2.6.2"
+#define DRV_RELDATE	"June 5, 2005"
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
@@ -149,6 +149,7 @@ struct bond_params {
 
 struct vlan_entry {
 	struct list_head vlan_list;
+	u32 vlan_ip;
 	unsigned short vlan_id;
 };
 
@@ -197,6 +198,7 @@ struct bonding {
 #endif /* CONFIG_PROC_FS */
 	struct   list_head bond_list;
 	struct   dev_mc_list *mc_list;
+	u32      master_ip;
 	u16      flags;
 	struct   ad_bond_info ad_info;
 	struct   alb_bond_info alb_info;
