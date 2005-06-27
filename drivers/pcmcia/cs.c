@@ -903,17 +903,29 @@ static int pcmcia_socket_hotplug(struct class_device *dev, char **envp,
 }
 
 
+static struct completion pcmcia_unload;
+
+static void pcmcia_release_socket_class(struct class *data)
+{
+	complete(&pcmcia_unload);
+}
+
+
 struct class pcmcia_socket_class = {
 	.name = "pcmcia_socket",
         .hotplug = pcmcia_socket_hotplug,
 	.release = pcmcia_release_socket,
+	.class_release = pcmcia_release_socket_class,
 };
 EXPORT_SYMBOL(pcmcia_socket_class);
 
 
 static int __init init_pcmcia_cs(void)
 {
-	int ret = class_register(&pcmcia_socket_class);
+	int ret;
+
+	init_completion(&pcmcia_unload);
+	ret = class_register(&pcmcia_socket_class);
 	if (ret)
 		return (ret);
 	return class_interface_register(&pccard_sysfs_interface);
@@ -923,6 +935,8 @@ static void __exit exit_pcmcia_cs(void)
 {
 	class_interface_unregister(&pccard_sysfs_interface);
 	class_unregister(&pcmcia_socket_class);
+
+	wait_for_completion(&pcmcia_unload);
 }
 
 subsys_initcall(init_pcmcia_cs);
