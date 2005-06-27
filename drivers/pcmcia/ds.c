@@ -262,8 +262,6 @@ void cs_error(client_handle_t handle, int func, int ret)
 }
 EXPORT_SYMBOL(cs_error);
 
-#ifdef CONFIG_PCMCIA_DEBUG
-
 
 static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 {
@@ -284,18 +282,15 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 			       "product string \"%s\": is 0x%x, should "
 			       "be 0x%x\n", p_drv->drv.name, did->prod_id[i],
 			       did->prod_id_hash[i], hash);
+			printk(KERN_DEBUG "pcmcia: see "
+				"Documentation/pcmcia/devicetable.txt for "
+				"details\n");
 		}
 		did++;
 	}
 
 	return;
 }
-
-#else
-static inline void pcmcia_check_driver(struct pcmcia_driver *p_drv) {
-	return;
-}
-#endif
 
 
 #ifdef CONFIG_PCMCIA_LOAD_CIS
