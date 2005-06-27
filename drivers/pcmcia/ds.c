@@ -746,6 +746,15 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 		}
 	}
 
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_ANONYMOUS) {
+		int i;
+		for (i=0; i<4; i++)
+			if (dev->prod_id[i])
+				return 0;
+		if (dev->has_manf_id || dev->has_card_id || dev->has_func_id)
+			return 0;
+	}
+
 	dev->dev.driver_data = (void *) did;
 
 	return 1;
