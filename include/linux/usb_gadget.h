@@ -711,7 +711,7 @@ usb_gadget_disconnect (struct usb_gadget *gadget)
  * 	the hardware level driver. Most calls must be handled by
  * 	the gadget driver, including descriptor and configuration
  * 	management.  The 16 bit members of the setup data are in
- * 	cpu order. Called in_interrupt; this may not sleep.  Driver
+ * 	USB byte order. Called in_interrupt; this may not sleep.  Driver
  *	queues a response to ep0, or returns negative to stall.
  * @disconnect: Invoked after all transfers have been stopped,
  * 	when the host is disconnected.  May be called in_interrupt; this

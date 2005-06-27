@@ -639,6 +639,7 @@ static void ati_remote_input_init(struct ati_remote *ati_remote)
 	idev->id.vendor = le16_to_cpu(ati_remote->udev->descriptor.idVendor);
 	idev->id.product = le16_to_cpu(ati_remote->udev->descriptor.idProduct);
 	idev->id.version = le16_to_cpu(ati_remote->udev->descriptor.bcdDevice);
+	idev->dev = &(ati_remote->udev->dev);
 }
 
 static int ati_remote_initialize(struct ati_remote *ati_remote)

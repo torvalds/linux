@@ -637,9 +637,8 @@ iso_stream_alloc (int mem_flags)
 {
 	struct ehci_iso_stream *stream;
 
-	stream = kmalloc(sizeof *stream, mem_flags);
+	stream = kcalloc(1, sizeof *stream, mem_flags);
 	if (likely (stream != NULL)) {
-		memset (stream, 0, sizeof(*stream));
 		INIT_LIST_HEAD(&stream->td_list);
 		INIT_LIST_HEAD(&stream->free_list);
 		stream->next_uframe = -1;
@@ -894,7 +893,7 @@ itd_sched_init (
 		trans |= length << 16;
 		uframe->transaction = cpu_to_le32 (trans);
 
-		/* might need to cross a buffer page within a td */
+		/* might need to cross a buffer page within a uframe */
 		uframe->bufp = (buf & ~(u64)0x0fff);
 		buf += length;
 		if (unlikely ((uframe->bufp != (buf & ~(u64)0x0fff))))
@@ -1194,6 +1193,7 @@ itd_init (struct ehci_iso_stream *stream, struct ehci_itd *itd)
 {
 	int i;
 
+	/* it's been recently zeroed */
 	itd->hw_next = EHCI_LIST_END;
 	itd->hw_bufp [0] = stream->buf0;
 	itd->hw_bufp [1] = stream->buf1;
@@ -1210,8 +1210,7 @@ itd_patch (
 	struct ehci_itd		*itd,
 	struct ehci_iso_sched	*iso_sched,
 	unsigned		index,
-	u16			uframe,
-	int			first
+	u16			uframe
 )
 {
 	struct ehci_iso_packet	*uf = &iso_sched->packet [index];
@@ -1228,7 +1227,7 @@ itd_patch (
 	itd->hw_bufp_hi [pg] |= cpu_to_le32 ((u32)(uf->bufp >> 32));
 
 	/* iso_frame_desc[].offset must be strictly increasing */
-	if (unlikely (!first && uf->cross)) {
+	if (unlikely (uf->cross)) {
 		u64	bufp = uf->bufp + 4096;
 		itd->pg = ++pg;
 		itd->hw_bufp [pg] |= cpu_to_le32 (bufp & ~(u32)0);
@@ -1257,7 +1256,7 @@ itd_link_urb (
 	struct ehci_iso_stream	*stream
 )
 {
-	int			packet, first = 1;
+	int			packet;
 	unsigned		next_uframe, uframe, frame;
 	struct ehci_iso_sched	*iso_sched = urb->hcpriv;
 	struct ehci_itd		*itd;
@@ -1290,7 +1289,6 @@ itd_link_urb (
 			list_move_tail (&itd->itd_list, &stream->td_list);
 			itd->stream = iso_stream_get (stream);
 			itd->urb = usb_get_urb (urb);
-			first = 1;
 			itd_init (stream, itd);
 		}
 
@@ -1298,8 +1296,7 @@ itd_link_urb (
 		frame = next_uframe >> 3;
 
 		itd->usecs [uframe] = stream->usecs;
-		itd_patch (itd, iso_sched, packet, uframe, first);
-		first = 0;
+		itd_patch (itd, iso_sched, packet, uframe);
 
 		next_uframe += stream->interval;
 		stream->depth += stream->interval;

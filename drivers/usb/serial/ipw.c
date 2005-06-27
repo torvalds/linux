@@ -399,16 +399,21 @@ static int ipw_write(struct usb_serial_port *port, const unsigned char *buf, int
 		dbg("%s - write request of 0 bytes", __FUNCTION__);
 		return 0;
 	}
-	
-	/* Racy and broken, FIXME properly! */
-	if (port->write_urb->status == -EINPROGRESS)
+
+	spin_lock(&port->lock);
+	if (port->write_urb_busy) {
+		spin_unlock(&port->lock);
+		dbg("%s - already writing", __FUNCTION__);
 		return 0;
+	}
+	port->write_urb_busy = 1;
+	spin_unlock(&port->lock);
 
 	count = min(count, port->bulk_out_size);
 	memcpy(port->bulk_out_buffer, buf, count);
 
 	dbg("%s count now:%d", __FUNCTION__, count);
-	
+
 	usb_fill_bulk_urb(port->write_urb, dev,
 			  usb_sndbulkpipe(dev, port->bulk_out_endpointAddress),
 			  port->write_urb->transfer_buffer,
@@ -418,6 +423,7 @@ static int ipw_write(struct usb_serial_port *port, const unsigned char *buf, int
 
 	ret = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 	if (ret != 0) {
+		port->write_urb_busy = 0;
 		dbg("%s - usb_submit_urb(write bulk) failed with error = %d", __FUNCTION__, ret);
 		return ret;
 	}
