@@ -126,13 +126,6 @@ config PMAC_BACKLIGHT
 	  events; also, the PowerBook button device will be enabled so you can
 	  change the screen brightness.
 
-config MAC_SERIAL
-	tristate "Support for PowerMac serial ports (OBSOLETE DRIVER)"
-	depends on PPC_PMAC && BROKEN
-	help
-	  This driver is obsolete. Use CONFIG_SERIAL_PMACZILOG in
-	  "Character devices --> Serial drivers --> PowerMac z85c30" option.
-
 config ADB_MACIO
 	bool "Include MacIO (CHRP) ADB driver"
 	depends on ADB && PPC_CHRP && !PPC_PMAC64
