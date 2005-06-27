@@ -362,7 +362,7 @@ static void esp_destroy(struct xfrm_state *x)
 	kfree(esp);
 }
 
-static int esp_init_state(struct xfrm_state *x, void *args)
+static int esp_init_state(struct xfrm_state *x)
 {
 	struct esp_data *esp = NULL;
 
@@ -478,7 +478,7 @@ static int __init esp4_init(void)
 {
 	struct xfrm_decap_state decap;
 
-	if (sizeof(struct esp_decap_data)  <
+	if (sizeof(struct esp_decap_data)  >
 	    sizeof(decap.decap_data)) {
 		extern void decap_data_too_small(void);
 

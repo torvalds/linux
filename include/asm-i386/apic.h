@@ -5,6 +5,7 @@
 #include <linux/pm.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
+#include <asm/processor.h>
 #include <asm/system.h>
 
 #define Dprintk(x...)
@@ -16,7 +17,19 @@
 #define APIC_VERBOSE 1
 #define APIC_DEBUG   2
 
+extern int enable_local_apic;
 extern int apic_verbosity;
+
+static inline void lapic_disable(void)
+{
+	enable_local_apic = -1;
+	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+}
+
+static inline void lapic_enable(void)
+{
+	enable_local_apic = 1;
+}
 
 /*
  * Define the default level of output to be very little
@@ -87,7 +100,7 @@ extern void (*wait_timer_tick)(void);
 extern int get_maxlvt(void);
 extern void clear_local_APIC(void);
 extern void connect_bsp_APIC (void);
-extern void disconnect_bsp_APIC (void);
+extern void disconnect_bsp_APIC (int virt_wire_setup);
 extern void disable_local_APIC (void);
 extern void lapic_shutdown (void);
 extern int verify_local_APIC (void);

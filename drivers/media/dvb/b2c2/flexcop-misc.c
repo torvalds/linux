@@ -45,11 +45,12 @@ const char *flexcop_revision_names[] = {
 
 const char *flexcop_device_names[] = {
 	"Unkown device",
-	"AirStar 2 DVB-T",
-	"AirStar 2 ATSC",
-	"SkyStar 2 DVB-S",
-	"SkyStar 2 DVB-S (old version)",
-	"CableStar 2 DVB-C",
+	"Air2PC/AirStar 2 DVB-T",
+	"Air2PC/AirStar 2 ATSC 1st generation",
+	"Air2PC/AirStar 2 ATSC 2nd generation",
+	"Sky2PC/SkyStar 2 DVB-S",
+	"Sky2PC/SkyStar 2 DVB-S (old version)",
+	"Cable2PC/CableStar 2 DVB-C",
 };
 
 const char *flexcop_bus_names[] = {

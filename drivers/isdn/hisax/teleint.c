@@ -18,7 +18,7 @@
 
 extern const char *CardType[];
 
-const char *TeleInt_revision = "$Revision: 1.16.2.5 $";
+static const char *TeleInt_revision = "$Revision: 1.16.2.5 $";
 
 #define byteout(addr,val) outb(val,addr)
 #define bytein(addr) inb(addr)
@@ -203,7 +203,7 @@ TeleInt_Timer(struct IsdnCardState *cs)
 	add_timer(&cs->hw.hfc.timer);
 }
 
-void
+static void
 release_io_TeleInt(struct IsdnCardState *cs)
 {
 	del_timer(&cs->hw.hfc.timer);

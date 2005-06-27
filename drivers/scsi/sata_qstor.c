@@ -536,6 +536,8 @@ static void qs_host_stop(struct ata_host_set *host_set)
 
 	writeb(0, mmio_base + QS_HCT_CTRL); /* disable host interrupts */
 	writeb(QS_CNFG3_GSRST, mmio_base + QS_HCF_CNFG3); /* global reset */
+
+	ata_host_stop(host_set);
 }
 
 static void qs_host_init(unsigned int chip_id, struct ata_probe_ent *pe)

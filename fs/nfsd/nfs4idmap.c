@@ -104,7 +104,7 @@ ent_update(struct ent *new, struct ent *itm)
 	ent_init(new, itm);
 }
 
-void
+static void
 ent_put(struct cache_head *ch, struct cache_detail *cd)
 {
 	if (cache_put(ch, cd)) {
@@ -186,7 +186,7 @@ warn_no_idmapd(struct cache_detail *detail)
 static int         idtoname_parse(struct cache_detail *, char *, int);
 static struct ent *idtoname_lookup(struct ent *, int);
 
-struct cache_detail idtoname_cache = {
+static struct cache_detail idtoname_cache = {
 	.hash_size	= ENT_HASHMAX,
 	.hash_table	= idtoname_table,
 	.name		= "nfs4.idtoname",
@@ -277,7 +277,7 @@ nametoid_hash(struct ent *ent)
 	return hash_str(ent->name, ENT_HASHBITS);
 }
 
-void
+static void
 nametoid_request(struct cache_detail *cd, struct cache_head *ch, char **bpp,
     int *blen)
 {
@@ -317,9 +317,9 @@ nametoid_show(struct seq_file *m, struct cache_detail *cd, struct cache_head *h)
 }
 
 static struct ent *nametoid_lookup(struct ent *, int);
-int                nametoid_parse(struct cache_detail *, char *, int);
+static int         nametoid_parse(struct cache_detail *, char *, int);
 
-struct cache_detail nametoid_cache = {
+static struct cache_detail nametoid_cache = {
 	.hash_size	= ENT_HASHMAX,
 	.hash_table	= nametoid_table,
 	.name		= "nfs4.nametoid",
@@ -330,7 +330,7 @@ struct cache_detail nametoid_cache = {
 	.warn_no_listener = warn_no_idmapd,
 };
 
-int
+static int
 nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 {
 	struct ent ent, *res;

@@ -67,7 +67,7 @@ MODULE_LICENSE("GPL");
 
 /* Some globals used */
 const char *hpsb_speedto_str[] = { "S100", "S200", "S400", "S800", "S1600", "S3200" };
-struct class_simple *hpsb_protocol_class;
+struct class *hpsb_protocol_class;
 
 #ifdef CONFIG_IEEE1394_VERBOSEDEBUG
 static void dump_packet(const char *text, quadlet_t *data, int size)
@@ -1041,10 +1041,8 @@ static int hpsbpkt_thread(void *__hi)
 
 	while (1) {
 		if (down_interruptible(&khpsbpkt_sig)) {
-			if (current->flags & PF_FREEZE) {
-				refrigerator(0);
+			if (try_to_freeze())
 				continue;
-			}
 			printk("khpsbpkt: received unexpected signal?!\n" );
 			break;
 		}
@@ -1121,7 +1119,7 @@ static int __init ieee1394_init(void)
 	if (ret < 0)
 		goto release_all_bus;
 
-	hpsb_protocol_class = class_simple_create(THIS_MODULE, "ieee1394_protocol");
+	hpsb_protocol_class = class_create(THIS_MODULE, "ieee1394_protocol");
 	if (IS_ERR(hpsb_protocol_class)) {
 		ret = PTR_ERR(hpsb_protocol_class);
 		goto release_class_host;
@@ -1159,7 +1157,7 @@ static int __init ieee1394_init(void)
 cleanup_csr:
 	cleanup_csr();
 release_class_protocol:
-	class_simple_destroy(hpsb_protocol_class);
+	class_destroy(hpsb_protocol_class);
 release_class_host:
 	class_unregister(&hpsb_host_class);
 release_all_bus:
@@ -1189,7 +1187,7 @@ static void __exit ieee1394_cleanup(void)
 
 	cleanup_csr();
 
-	class_simple_destroy(hpsb_protocol_class);
+	class_destroy(hpsb_protocol_class);
 	class_unregister(&hpsb_host_class);
 	for (i = 0; fw_bus_attrs[i]; i++)
 		bus_remove_file(&ieee1394_bus_type, fw_bus_attrs[i]);

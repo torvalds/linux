@@ -906,22 +906,12 @@ static int dst_tone_power_cmd(struct dst_state* state)
 	if (state->dst_type == DST_TYPE_IS_TERR)
 		return 0;
 
-	if (state->voltage == SEC_VOLTAGE_OFF)
-		paket[4] = 0;
-	else
-		paket[4] = 1;
-
-	if (state->tone == SEC_TONE_ON)
-		paket[2] = 0x02;
-	else
-		paket[2] = 0;
-	if (state->minicmd == SEC_MINI_A)
-		paket[3] = 0x02;
-	else
-		paket[3] = 0;
-
+	paket[4] = state->tx_tuna[4];
+	paket[2] = state->tx_tuna[2];
+	paket[3] = state->tx_tuna[3];
 	paket[7] = dst_check_sum (paket, 7);
 	dst_command(state, paket, 8);
+
 	return 0;
 }
 
@@ -980,7 +970,7 @@ static int dst_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
 
 static int dst_write_tuna(struct dvb_frontend* fe)
 {
-	struct dst_state* state = (struct dst_state*) fe->demodulator_priv;
+	struct dst_state* state = fe->demodulator_priv;
 	int retval;
 	u8 reply;
 
@@ -1048,10 +1038,10 @@ static int dst_write_tuna(struct dvb_frontend* fe)
 
 static int dst_set_diseqc(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd* cmd)
 {
-	struct dst_state* state = (struct dst_state*) fe->demodulator_priv;
+	struct dst_state* state = fe->demodulator_priv;
 	u8 paket[8] = { 0x00, 0x08, 0x04, 0xe0, 0x10, 0x38, 0xf0, 0xec };
 
-	if (state->dst_type == DST_TYPE_IS_TERR)
+	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
 
 	if (cmd->msg_len == 0 || cmd->msg_len > 4)
@@ -1064,39 +1054,32 @@ static int dst_set_diseqc(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd*
 
 static int dst_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 {
-	u8 *val;
 	int need_cmd;
-	struct dst_state* state = (struct dst_state*) fe->demodulator_priv;
+	struct dst_state* state = fe->demodulator_priv;
 
 	state->voltage = voltage;
 
-	if (state->dst_type == DST_TYPE_IS_TERR)
+	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
 
 	need_cmd = 0;
-	val = &state->tx_tuna[0];
-	val[8] &= ~0x40;
 	switch (voltage) {
-	case SEC_VOLTAGE_13:
-		if ((state->diseq_flags & HAS_POWER) == 0)
+		case SEC_VOLTAGE_13:
+		case SEC_VOLTAGE_18:
+			if ((state->diseq_flags & HAS_POWER) == 0)
+				need_cmd = 1;
+			state->diseq_flags |= HAS_POWER;
+			state->tx_tuna[4] = 0x01;
+			break;
+
+		case SEC_VOLTAGE_OFF:
 			need_cmd = 1;
-		state->diseq_flags |= HAS_POWER;
-		break;
+			state->diseq_flags &= ~(HAS_POWER | HAS_LOCK | ATTEMPT_TUNE);
+			state->tx_tuna[4] = 0x00;
+			break;
 
-	case SEC_VOLTAGE_18:
-		if ((state->diseq_flags & HAS_POWER) == 0)
-			need_cmd = 1;
-		state->diseq_flags |= HAS_POWER;
-		val[8] |= 0x40;
-		break;
-
-	case SEC_VOLTAGE_OFF:
-		need_cmd = 1;
-		state->diseq_flags &= ~(HAS_POWER | HAS_LOCK | ATTEMPT_TUNE);
-		break;
-
-	default:
-		return -EINVAL;
+		default:
+			return -EINVAL;
 	}
 	if (need_cmd)
 		dst_tone_power_cmd(state);
@@ -1106,37 +1089,56 @@ static int dst_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 
 static int dst_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 {
-	u8 *val;
-	struct dst_state* state = (struct dst_state*) fe->demodulator_priv;
+	struct dst_state* state = fe->demodulator_priv;
 
 	state->tone = tone;
 
-	if (state->dst_type == DST_TYPE_IS_TERR)
+	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
 
-	val = &state->tx_tuna[0];
-
-	val[8] &= ~0x1;
-
 	switch (tone) {
-	case SEC_TONE_OFF:
-		break;
+		case SEC_TONE_OFF:
+			state->tx_tuna[2] = 0xff;
+			break;
 
-	case SEC_TONE_ON:
-		val[8] |= 1;
-		break;
+		case SEC_TONE_ON:
+			state->tx_tuna[2] = 0x02;
+			break;
 
-	default:
-		return -EINVAL;
+		default:
+			return -EINVAL;
 	}
 	dst_tone_power_cmd(state);
 
 	return 0;
 }
 
+static int dst_send_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t minicmd)
+{
+	struct dst_state *state = fe->demodulator_priv;
+
+	if (state->dst_type != DST_TYPE_IS_SAT)
+		return 0;
+
+	state->minicmd = minicmd;
+
+	switch (minicmd) {
+		case SEC_MINI_A:
+			state->tx_tuna[3] = 0x02;
+			break;
+		case SEC_MINI_B:
+			state->tx_tuna[3] = 0xff;
+			break;
+	}
+	dst_tone_power_cmd(state);
+
+	return 0;
+}
+
+
 static int dst_init(struct dvb_frontend* fe)
 {
-	struct dst_state* state = (struct dst_state*) fe->demodulator_priv;
+	struct dst_state* state = fe->demodulator_priv;
 	static u8 ini_satci_tuna[] = { 9, 0, 3, 0xb6, 1, 0, 0x73, 0x21, 0, 0 };
 	static u8 ini_satfta_tuna[] = { 0, 0, 3, 0xb6, 1, 0x55, 0xbd, 0x50, 0, 0 };
 	static u8 ini_tvfta_tuna[] = { 0, 0, 3, 0xb6, 1, 7, 0x0, 0x0, 0, 0 };
@@ -1168,7 +1170,7 @@ static int dst_init(struct dvb_frontend* fe)
 
 static int dst_read_status(struct dvb_frontend* fe, fe_status_t* status)
 {
-	struct dst_state* state = (struct dst_state*) fe->demodulator_priv;
+	struct dst_state* state = fe->demodulator_priv;
 
 	*status = 0;
 	if (state->diseq_flags & HAS_LOCK) {
@@ -1182,7 +1184,7 @@ static int dst_read_status(struct dvb_frontend* fe, fe_status_t* status)
 
 static int dst_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 {
-	struct dst_state* state = (struct dst_state*) fe->demodulator_priv;
+	struct dst_state* state = fe->demodulator_priv;
 
 	dst_get_signal(state);
 	*strength = state->decode_strength;
@@ -1192,7 +1194,7 @@ static int dst_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 
 static int dst_read_snr(struct dvb_frontend* fe, u16* snr)
 {
-	struct dst_state* state = (struct dst_state*) fe->demodulator_priv;
+	struct dst_state* state = fe->demodulator_priv;
 
 	dst_get_signal(state);
 	*snr = state->decode_snr;
@@ -1202,7 +1204,7 @@ static int dst_read_snr(struct dvb_frontend* fe, u16* snr)
 
 static int dst_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
-	struct dst_state* state = (struct dst_state*) fe->demodulator_priv;
+	struct dst_state* state = fe->demodulator_priv;
 
 	dst_set_freq(state, p->frequency);
 	if (verbose > 4)
@@ -1228,7 +1230,7 @@ static int dst_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_paramet
 
 static int dst_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
-	struct dst_state* state = (struct dst_state*) fe->demodulator_priv;
+	struct dst_state* state = fe->demodulator_priv;
 
 	p->frequency = state->decode_freq;
 	p->inversion = state->inversion;
@@ -1248,7 +1250,7 @@ static int dst_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_paramet
 
 static void dst_release(struct dvb_frontend* fe)
 {
-	struct dst_state* state = (struct dst_state*) fe->demodulator_priv;
+	struct dst_state* state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -1346,7 +1348,7 @@ static struct dvb_frontend_ops dst_dvbs_ops = {
 	.read_signal_strength = dst_read_signal_strength,
 	.read_snr = dst_read_snr,
 
-	.diseqc_send_burst = dst_set_tone,
+	.diseqc_send_burst = dst_send_burst,
 	.diseqc_send_master_cmd = dst_set_diseqc,
 	.set_voltage = dst_set_voltage,
 	.set_tone = dst_set_tone,

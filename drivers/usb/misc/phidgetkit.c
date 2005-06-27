@@ -173,7 +173,7 @@ exit:
 }
 
 #define set_lcd_line(number)	\
-static ssize_t lcd_line_##number(struct device *dev, const char *buf, size_t count)	\
+static ssize_t lcd_line_##number(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
 {											\
 	struct usb_interface *intf = to_usb_interface(dev);				\
 	struct phidget_interfacekit *kit = usb_get_intfdata(intf);			\
@@ -184,7 +184,7 @@ static DEVICE_ATTR(lcd_line_##number, S_IWUGO, NULL, lcd_line_##number);
 set_lcd_line(1);
 set_lcd_line(2);
 
-static ssize_t set_backlight(struct device *dev, const char *buf, size_t count)
+static ssize_t set_backlight(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct phidget_interfacekit *kit = usb_get_intfdata(intf);
@@ -232,7 +232,7 @@ static void remove_lcd_files(struct phidget_interfacekit *kit)
 	}
 }
 
-static ssize_t enable_lcd_files(struct device *dev, const char *buf, size_t count)
+static ssize_t enable_lcd_files(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct phidget_interfacekit *kit = usb_get_intfdata(intf);
@@ -307,7 +307,7 @@ resubmit:
 }
 
 #define show_set_output(value)		\
-static ssize_t set_output##value(struct device *dev, const char *buf, 	\
+static ssize_t set_output##value(struct device *dev, struct device_attribute *attr, const char *buf, 	\
 							size_t count)	\
 {									\
 	struct usb_interface *intf = to_usb_interface(dev);		\
@@ -324,7 +324,7 @@ static ssize_t set_output##value(struct device *dev, const char *buf, 	\
 	return retval ? retval : count;					\
 }									\
 									\
-static ssize_t show_output##value(struct device *dev, char *buf)	\
+static ssize_t show_output##value(struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	struct usb_interface *intf = to_usb_interface(dev);		\
 	struct phidget_interfacekit *kit = usb_get_intfdata(intf);	\
@@ -343,7 +343,7 @@ show_set_output(7);
 show_set_output(8);	/* should be MAX_INTERFACES - 1 */
 
 #define show_input(value)	\
-static ssize_t show_input##value(struct device *dev, char *buf)	\
+static ssize_t show_input##value(struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	struct usb_interface *intf = to_usb_interface(dev);		\
 	struct phidget_interfacekit *kit = usb_get_intfdata(intf);	\
@@ -362,7 +362,7 @@ show_input(7);
 show_input(8);		/* should be MAX_INTERFACES - 1 */
 
 #define show_sensor(value)	\
-static ssize_t show_sensor##value(struct device *dev, char *buf)	\
+static ssize_t show_sensor##value(struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	struct usb_interface *intf = to_usb_interface(dev);		\
 	struct phidget_interfacekit *kit = usb_get_intfdata(intf);	\

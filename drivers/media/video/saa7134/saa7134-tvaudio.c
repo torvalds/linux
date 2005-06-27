@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-tvaudio.c,v 1.22 2005/01/07 13:11:19 kraxel Exp $
+ * $Id: saa7134-tvaudio.c,v 1.25 2005/06/07 19:00:38 nsh Exp $
  *
  * device driver for philips saa7134 based TV cards
  * tv audio decoder (fm stereo, nicam, ...)
@@ -181,7 +181,8 @@ static void tvaudio_init(struct saa7134_dev *dev)
 	saa_writeb(SAA7134_AUDIO_CLOCK0,      clock        & 0xff);
 	saa_writeb(SAA7134_AUDIO_CLOCK1,     (clock >>  8) & 0xff);
 	saa_writeb(SAA7134_AUDIO_CLOCK2,     (clock >> 16) & 0xff);
-	saa_writeb(SAA7134_AUDIO_PLL_CTRL,   0x01);
+	// frame locked audio was reported not to be reliable
+	saa_writeb(SAA7134_AUDIO_PLL_CTRL,   0x02);
 
 	saa_writeb(SAA7134_NICAM_ERROR_LOW,  0x14);
 	saa_writeb(SAA7134_NICAM_ERROR_HIGH, 0x50);
@@ -250,6 +251,11 @@ static void mute_input_7134(struct saa7134_dev *dev)
 	saa_andorb(SAA7134_AUDIO_FORMAT_CTRL, 0xc0, ausel);
 	saa_andorb(SAA7134_ANALOG_IO_SELECT, 0x08, ics);
 	saa_andorb(SAA7134_ANALOG_IO_SELECT, 0x07, ocs);
+	// for oss, we need to change the clock configuration
+	if (in->amux == TV)
+		saa_andorb(SAA7134_SIF_SAMPLE_FREQ,   0x03, 0x00);
+	else
+		saa_andorb(SAA7134_SIF_SAMPLE_FREQ,   0x03, 0x01);
 
 	/* switch gpio-connected external audio mux */
 	if (0 == card(dev).gpiomask)
@@ -439,15 +445,14 @@ static int tvaudio_getstereo(struct saa7134_dev *dev, struct saa7134_tvaudio *au
 		nicam = saa_readb(SAA7134_NICAM_STATUS);
 		dprintk("getstereo: nicam=0x%x\n",nicam);
 		switch (nicam & 0x0b) {
+		case 0x08:
+			retval = V4L2_TUNER_SUB_MONO;
+			break;
 		case 0x09:
 			retval = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 			break;
 		case 0x0a:
 			retval = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-			break;
-		case 0x08:
-		default:
-			retval = V4L2_TUNER_SUB_MONO;
 			break;
 		}
 		break;
@@ -572,14 +577,14 @@ static int tvaudio_thread(void *data)
 		} else if (0 != dev->last_carrier) {
 			/* no carrier -- try last detected one as fallback */
 			carrier = dev->last_carrier;
-			printk(KERN_WARNING "%s/audio: audio carrier scan failed, "
+			dprintk(KERN_WARNING "%s/audio: audio carrier scan failed, "
 			       "using %d.%03d MHz [last detected]\n",
 			       dev->name, carrier/1000, carrier%1000);
 
 		} else {
 			/* no carrier + no fallback -- use default */
 			carrier = default_carrier;
-			printk(KERN_WARNING "%s/audio: audio carrier scan failed, "
+			dprintk(KERN_WARNING "%s/audio: audio carrier scan failed, "
 			       "using %d.%03d MHz [default]\n",
 			       dev->name, carrier/1000, carrier%1000);
 		}

@@ -1,3 +1,7 @@
+/*
+ * $Id: audiochip.h,v 1.3 2005/06/12 04:19:19 mchehab Exp $
+ */
+
 #ifndef AUDIOCHIP_H
 #define AUDIOCHIP_H
 

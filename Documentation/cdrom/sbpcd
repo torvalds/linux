@@ -419,6 +419,7 @@ into the file "track01":
  */
 #include <stdio.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <linux/cdrom.h>
 
 static struct cdrom_tochdr hdr;
@@ -429,7 +430,7 @@ static int datafile, drive;
 static int i, j, limit, track, err;
 static char filename[32];
 
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 /*
  * open /dev/cdrom
@@ -516,6 +517,7 @@ entry[track+1].cdte_addr.lba=entry[track].cdte_addr.lba+300;
 	}
       arg.addr.lba++;
     }
+    return 0;
 }
 /*===================== end program ========================================*/
 
@@ -564,15 +566,16 @@ Appendix -- the "cdtester" utility:
 #include <stdio.h>
 #include <malloc.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <linux/cdrom.h>
 
 #ifdef AZT_PRIVATE_IOCTLS
 #include <linux/../../drivers/cdrom/aztcd.h>
-#endif AZT_PRIVATE_IOCTLS
+#endif /* AZT_PRIVATE_IOCTLS */
 #ifdef SBP_PRIVATE_IOCTLS
 #include <linux/../../drivers/cdrom/sbpcd.h>
 #include <linux/fs.h>
-#endif SBP_PRIVATE_IOCTLS
+#endif /* SBP_PRIVATE_IOCTLS */
 
 struct cdrom_tochdr hdr;
 struct cdrom_tochdr tocHdr;
@@ -590,7 +593,7 @@ union
 	struct cdrom_msf msf;
 	unsigned char buf[CD_FRAMESIZE_RAW];
 } azt;
-#endif AZT_PRIVATE_IOCTLS
+#endif /* AZT_PRIVATE_IOCTLS */
 int i, i1, i2, i3, j, k;
 unsigned char sequence=0;
 unsigned char command[80];
@@ -738,7 +741,7 @@ void display(int size,unsigned char *buffer)
 	} 
 } 
 
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	printf("\nTesting tool for a CDROM driver's audio functions V0.1\n");
 	printf("(C) 1995 Eberhard Moenkeberg <emoenke@gwdg.de>\n");
@@ -1046,12 +1049,13 @@ main(int argc, char *argv[])
 			rc=ioctl(drive,CDROMAUDIOBUFSIZ,j);
 			printf("%d frames granted.\n",rc);
 			break;
-#endif SBP_PRIVATE_IOCTLS
+#endif /* SBP_PRIVATE_IOCTLS */
 		default:
 			printf("unknown command: \"%s\".\n",command);
 			break;
 		}
 	}
+	return 0;
 }
 /*==========================================================================*/
 

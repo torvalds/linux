@@ -54,7 +54,9 @@ static int ipmi_init_msghandler(void);
 
 static int initialized = 0;
 
-static struct proc_dir_entry *proc_ipmi_root = NULL;
+#ifdef CONFIG_PROC_FS
+struct proc_dir_entry *proc_ipmi_root = NULL;
+#endif /* CONFIG_PROC_FS */
 
 #define MAX_EVENTS_IN_QUEUE	25
 
@@ -124,11 +126,13 @@ struct ipmi_channel
 	unsigned char protocol;
 };
 
+#ifdef CONFIG_PROC_FS
 struct ipmi_proc_entry
 {
 	char                   *name;
 	struct ipmi_proc_entry *next;
 };
+#endif
 
 #define IPMI_IPMB_NUM_SEQ	64
 #define IPMI_MAX_CHANNELS       8
@@ -156,10 +160,13 @@ struct ipmi_smi
 	struct ipmi_smi_handlers *handlers;
 	void                     *send_info;
 
+#ifdef CONFIG_PROC_FS
 	/* A list of proc entries for this interface.  This does not
 	   need a lock, only one thread creates it and only one thread
 	   destroys it. */
+	spinlock_t             proc_entry_lock;
 	struct ipmi_proc_entry *proc_entries;
+#endif
 
 	/* A table of sequence numbers for this interface.  We use the
            sequence numbers for IPMB messages that go out of the
@@ -641,7 +648,7 @@ int ipmi_create_user(unsigned int          if_num,
 		return -ENOMEM;
 
 	down_read(&interfaces_sem);
-	if ((if_num > MAX_IPMI_INTERFACES) || ipmi_interfaces[if_num] == NULL)
+	if ((if_num >= MAX_IPMI_INTERFACES) || ipmi_interfaces[if_num] == NULL)
 	{
 		rv = -EINVAL;
 		goto out_unlock;
@@ -1470,8 +1477,9 @@ int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
 			    read_proc_t *read_proc, write_proc_t *write_proc,
 			    void *data, struct module *owner)
 {
-	struct proc_dir_entry  *file;
 	int                    rv = 0;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry  *file;
 	struct ipmi_proc_entry *entry;
 
 	/* Create a list element. */
@@ -1497,10 +1505,13 @@ int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
 		file->write_proc = write_proc;
 		file->owner = owner;
 
+		spin_lock(&smi->proc_entry_lock);
 		/* Stick it on the list. */
 		entry->next = smi->proc_entries;
 		smi->proc_entries = entry;
+		spin_unlock(&smi->proc_entry_lock);
 	}
+#endif /* CONFIG_PROC_FS */
 
 	return rv;
 }
@@ -1509,6 +1520,7 @@ static int add_proc_entries(ipmi_smi_t smi, int num)
 {
 	int rv = 0;
 
+#ifdef CONFIG_PROC_FS
 	sprintf(smi->proc_dir_name, "%d", num);
 	smi->proc_dir = proc_mkdir(smi->proc_dir_name, proc_ipmi_root);
 	if (!smi->proc_dir)
@@ -1531,14 +1543,17 @@ static int add_proc_entries(ipmi_smi_t smi, int num)
 		rv = ipmi_smi_add_proc_entry(smi, "version",
 					     version_file_read_proc, NULL,
 					     smi, THIS_MODULE);
+#endif /* CONFIG_PROC_FS */
 
 	return rv;
 }
 
 static void remove_proc_entries(ipmi_smi_t smi)
 {
+#ifdef CONFIG_PROC_FS
 	struct ipmi_proc_entry *entry;
 
+	spin_lock(&smi->proc_entry_lock);
 	while (smi->proc_entries) {
 		entry = smi->proc_entries;
 		smi->proc_entries = entry->next;
@@ -1547,7 +1562,9 @@ static void remove_proc_entries(ipmi_smi_t smi)
 		kfree(entry->name);
 		kfree(entry);
 	}
+	spin_unlock(&smi->proc_entry_lock);
 	remove_proc_entry(smi->proc_dir_name, proc_ipmi_root);
+#endif /* CONFIG_PROC_FS */
 }
 
 static int
@@ -1694,6 +1711,9 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 				new_intf->seq_table[j].seqid = 0;
 			}
 			new_intf->curr_seq = 0;
+#ifdef CONFIG_PROC_FS
+			spin_lock_init(&(new_intf->proc_entry_lock));
+#endif
 			spin_lock_init(&(new_intf->waiting_msgs_lock));
 			INIT_LIST_HEAD(&(new_intf->waiting_msgs));
 			spin_lock_init(&(new_intf->events_lock));
@@ -2747,16 +2767,13 @@ static struct timer_list ipmi_timer;
    the queue and this silliness can go away. */
 #define IPMI_REQUEST_EV_TIME	(1000 / (IPMI_TIMEOUT_TIME))
 
-static volatile int stop_operation = 0;
-static volatile int timer_stopped = 0;
+static atomic_t stop_operation;
 static unsigned int ticks_to_req_ev = IPMI_REQUEST_EV_TIME;
 
 static void ipmi_timeout(unsigned long data)
 {
-	if (stop_operation) {
-		timer_stopped = 1;
+	if (atomic_read(&stop_operation))
 		return;
-	}
 
 	ticks_to_req_ev--;
 	if (ticks_to_req_ev == 0) {
@@ -2766,8 +2783,7 @@ static void ipmi_timeout(unsigned long data)
 
 	ipmi_timeout_handler(IPMI_TIMEOUT_TIME);
 
-	ipmi_timer.expires += IPMI_TIMEOUT_JIFFIES;
-	add_timer(&ipmi_timer);
+	mod_timer(&ipmi_timer, jiffies + IPMI_TIMEOUT_JIFFIES);
 }
 
 
@@ -3089,6 +3105,7 @@ static int ipmi_init_msghandler(void)
 		ipmi_interfaces[i] = NULL;
 	}
 
+#ifdef CONFIG_PROC_FS
 	proc_ipmi_root = proc_mkdir("ipmi", NULL);
 	if (!proc_ipmi_root) {
 	    printk(KERN_ERR PFX "Unable to create IPMI proc dir");
@@ -3096,6 +3113,7 @@ static int ipmi_init_msghandler(void)
 	}
 
 	proc_ipmi_root->owner = THIS_MODULE;
+#endif /* CONFIG_PROC_FS */
 
 	init_timer(&ipmi_timer);
 	ipmi_timer.data = 0;
@@ -3130,13 +3148,12 @@ static __exit void cleanup_ipmi(void)
 
 	/* Tell the timer to stop, then wait for it to stop.  This avoids
 	   problems with race conditions removing the timer here. */
-	stop_operation = 1;
-	while (!timer_stopped) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	atomic_inc(&stop_operation);
+	del_timer_sync(&ipmi_timer);
 
+#ifdef CONFIG_PROC_FS
 	remove_proc_entry(proc_ipmi_root->name, &proc_root);
+#endif /* CONFIG_PROC_FS */
 
 	initialized = 0;
 
@@ -3177,4 +3194,5 @@ EXPORT_SYMBOL(ipmi_get_my_address);
 EXPORT_SYMBOL(ipmi_set_my_LUN);
 EXPORT_SYMBOL(ipmi_get_my_LUN);
 EXPORT_SYMBOL(ipmi_smi_add_proc_entry);
+EXPORT_SYMBOL(proc_ipmi_root);
 EXPORT_SYMBOL(ipmi_user_set_run_to_completion);

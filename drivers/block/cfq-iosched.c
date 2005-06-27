@@ -1202,13 +1202,16 @@ retry:
 		if (new_cfqq) {
 			cfqq = new_cfqq;
 			new_cfqq = NULL;
-		} else if (gfp_mask & __GFP_WAIT) {
+		} else {
 			spin_unlock_irq(cfqd->queue->queue_lock);
 			new_cfqq = kmem_cache_alloc(cfq_pool, gfp_mask);
 			spin_lock_irq(cfqd->queue->queue_lock);
+
+			if (!new_cfqq && !(gfp_mask & __GFP_WAIT))
+				goto out;
+
 			goto retry;
-		} else
-			goto out;
+		}
 
 		memset(cfqq, 0, sizeof(*cfqq));
 
@@ -1772,7 +1775,7 @@ cfq_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 	struct cfq_fs_entry *entry = to_cfq(attr);
 
 	if (!entry->show)
-		return 0;
+		return -EIO;
 
 	return entry->show(e->elevator_data, page);
 }
@@ -1785,7 +1788,7 @@ cfq_attr_store(struct kobject *kobj, struct attribute *attr,
 	struct cfq_fs_entry *entry = to_cfq(attr);
 
 	if (!entry->store)
-		return -EINVAL;
+		return -EIO;
 
 	return entry->store(e->elevator_data, page, length);
 }

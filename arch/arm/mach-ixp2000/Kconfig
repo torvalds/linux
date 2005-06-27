@@ -54,6 +54,14 @@ config ARCH_IXDP2X01
 	depends on ARCH_IXDP2401 || ARCH_IXDP2801
 	default y	
 
+config IXP2000_SUPPORT_BROKEN_PCI_IO
+	bool "Support broken PCI I/O on older IXP2000s"
+	default y
+	help
+	  Say 'N' here if you only intend to run your kernel on an
+	  IXP2000 B0 or later model and do not need the PCI I/O
+	  byteswap workaround.  Say 'Y' otherwise.
+
 endmenu
 
 endif

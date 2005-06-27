@@ -101,6 +101,7 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>

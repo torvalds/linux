@@ -19,6 +19,7 @@
 
 #include <linux/fs.h>
 #include <linux/xattr.h>
+#include <linux/posix_acl_xattr.h>
 #include <linux/quotaops.h>
 #include "jfs_incore.h"
 #include "jfs_superblock.h"
@@ -718,9 +719,9 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 		return -EPERM;
 
 	/*
-	 * XATTR_NAME_ACL_ACCESS is tied to i_mode
+	 * POSIX_ACL_XATTR_ACCESS is tied to i_mode
 	 */
-	if (strcmp(name, XATTR_NAME_ACL_ACCESS) == 0) {
+	if (strcmp(name, POSIX_ACL_XATTR_ACCESS) == 0) {
 		acl = posix_acl_from_xattr(value, value_len);
 		if (IS_ERR(acl)) {
 			rc = PTR_ERR(acl);
@@ -750,7 +751,7 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 		JFS_IP(inode)->i_acl = JFS_ACL_NOT_CACHED;
 
 		return 0;
-	} else if (strcmp(name, XATTR_NAME_ACL_DEFAULT) == 0) {
+	} else if (strcmp(name, POSIX_ACL_XATTR_DEFAULT) == 0) {
 		acl = posix_acl_from_xattr(value, value_len);
 		if (IS_ERR(acl)) {
 			rc = PTR_ERR(acl);
@@ -946,8 +947,7 @@ int __jfs_setxattr(struct inode *inode, const char *name, const void *value,
       out:
 	up_write(&JFS_IP(inode)->xattr_sem);
 
-	if (os2name)
-		kfree(os2name);
+	kfree(os2name);
 
 	return rc;
 }
@@ -1042,8 +1042,7 @@ ssize_t __jfs_getxattr(struct inode *inode, const char *name, void *data,
       out:
 	up_read(&JFS_IP(inode)->xattr_sem);
 
-	if (os2name)
-		kfree(os2name);
+	kfree(os2name);
 
 	return size;
 }

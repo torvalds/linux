@@ -3,6 +3,7 @@
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/hardirq.h>
+#include <linux/module.h>
 
 #include <asm/i387.h>
 
@@ -397,3 +398,7 @@ void mmx_copy_page(void *to, void *from)
 	else
 		fast_copy_page(to, from);
 }
+
+EXPORT_SYMBOL(_mmx_memcpy);
+EXPORT_SYMBOL(mmx_clear_page);
+EXPORT_SYMBOL(mmx_copy_page);

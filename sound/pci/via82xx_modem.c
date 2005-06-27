@@ -352,10 +352,8 @@ static int clean_via_table(viadev_t *dev, snd_pcm_substream_t *substream,
 		snd_dma_free_pages(&dev->table);
 		dev->table.area = NULL;
 	}
-	if (dev->idx_table) {
-		kfree(dev->idx_table);
-		dev->idx_table = NULL;
-	}
+	kfree(dev->idx_table);
+	dev->idx_table = NULL;
 	return 0;
 }
 
@@ -420,7 +418,10 @@ static void snd_via82xx_codec_write(ac97_t *ac97,
 {
 	via82xx_t *chip = ac97->private_data;
 	unsigned int xval;
-	
+	if(reg == AC97_GPIO_STATUS) {
+		outl(val, VIAREG(chip, GPI_STATUS));
+		return;
+	}	
 	xval = !ac97->num ? VIA_REG_AC97_CODEC_ID_PRIMARY : VIA_REG_AC97_CODEC_ID_SECONDARY;
 	xval <<= VIA_REG_AC97_CODEC_ID_SHIFT;
 	xval |= reg << VIA_REG_AC97_CMD_SHIFT;
@@ -542,25 +543,6 @@ static int snd_via82xx_pcm_trigger(snd_pcm_substream_t * substream, int cmd)
 	if (cmd == SNDRV_PCM_TRIGGER_STOP)
 		snd_via82xx_channel_reset(chip, viadev);
 	return 0;
-}
-
-static int snd_via82xx_modem_pcm_trigger(snd_pcm_substream_t * substream, int cmd)
-{
-	via82xx_t *chip = snd_pcm_substream_chip(substream);
-	unsigned int val = 0;
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-		val = snd_ac97_read(chip->ac97, AC97_GPIO_STATUS);
-		outl(val|AC97_GPIO_LINE1_OH, VIAREG(chip, GPI_STATUS));
-		break;
-	case SNDRV_PCM_TRIGGER_STOP:
-		val = snd_ac97_read(chip->ac97, AC97_GPIO_STATUS);
-		outl(val&~AC97_GPIO_LINE1_OH, VIAREG(chip, GPI_STATUS));
-		break;
-	default:
-		break;
-	}
-	return snd_via82xx_pcm_trigger(substream, cmd);
 }
 
 /*
@@ -806,7 +788,7 @@ static snd_pcm_ops_t snd_via686_playback_ops = {
 	.hw_params =	snd_via82xx_hw_params,
 	.hw_free =	snd_via82xx_hw_free,
 	.prepare =	snd_via82xx_pcm_prepare,
-	.trigger =	snd_via82xx_modem_pcm_trigger,
+	.trigger =	snd_via82xx_pcm_trigger,
 	.pointer =	snd_via686_pcm_pointer,
 	.page =		snd_pcm_sgbuf_ops_page,
 };
@@ -819,7 +801,7 @@ static snd_pcm_ops_t snd_via686_capture_ops = {
 	.hw_params =	snd_via82xx_hw_params,
 	.hw_free =	snd_via82xx_hw_free,
 	.prepare =	snd_via82xx_pcm_prepare,
-	.trigger =	snd_via82xx_modem_pcm_trigger,
+	.trigger =	snd_via82xx_pcm_trigger,
 	.pointer =	snd_via686_pcm_pointer,
 	.page =		snd_pcm_sgbuf_ops_page,
 };
@@ -938,7 +920,7 @@ static void __devinit snd_via82xx_proc_init(via82xx_t *chip)
  *
  */
 
-static int __devinit snd_via82xx_chip_init(via82xx_t *chip)
+static int snd_via82xx_chip_init(via82xx_t *chip)
 {
 	unsigned int val;
 	int max_count;
@@ -1233,7 +1215,7 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_via82xx_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_via82xx_exit(void)

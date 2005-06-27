@@ -105,7 +105,7 @@ static int __pdflush(struct pdflush_work *my_work)
 		spin_unlock_irq(&pdflush_lock);
 
 		schedule();
-		if (try_to_freeze(PF_FREEZE)) {
+		if (try_to_freeze()) {
 			spin_lock_irq(&pdflush_lock);
 			continue;
 		}

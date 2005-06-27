@@ -3,17 +3,16 @@
  *
  *  Copyright (C) 2005 James Chapman <jchapman@katalix.com>
  *
- *	based on linux/drivers/acron/char/pcf8583.c
+ *	based on linux/drivers/acorn/char/pcf8583.c
  *  Copyright (C) 2000 Russell King
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Driver for Dallas Semiconductor DS1337 real time clock chip
+ * Driver for Dallas Semiconductor DS1337 and DS1339 real time clock chip
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -69,13 +68,11 @@ static struct i2c_driver ds1337_driver = {
 struct ds1337_data {
 	struct i2c_client client;
 	struct list_head list;
-	int id;
 };
 
 /*
  * Internal variables
  */
-static int ds1337_id;
 static LIST_HEAD(ds1337_clients);
 
 static inline int ds1337_read(struct i2c_client *client, u8 reg, u8 *value)
@@ -95,7 +92,6 @@ static inline int ds1337_read(struct i2c_client *client, u8 reg, u8 *value)
  */
 static int ds1337_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 {
-	struct ds1337_data *data = i2c_get_clientdata(client);
 	int result;
 	u8 buf[7];
 	u8 val;
@@ -103,9 +99,7 @@ static int ds1337_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 	u8 offs = 0;
 
 	if (!dt) {
-		dev_dbg(&client->adapter->dev, "%s: EINVAL: dt=NULL\n",
-			__FUNCTION__);
-
+		dev_dbg(&client->dev, "%s: EINVAL: dt=NULL\n", __FUNCTION__);
 		return -EINVAL;
 	}
 
@@ -119,98 +113,86 @@ static int ds1337_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 	msg[1].len = sizeof(buf);
 	msg[1].buf = &buf[0];
 
-	result = client->adapter->algo->master_xfer(client->adapter,
-						    &msg[0], 2);
+	result = i2c_transfer(client->adapter, msg, 2);
 
-	dev_dbg(&client->adapter->dev,
-		"%s: [%d] %02x %02x %02x %02x %02x %02x %02x\n",
+	dev_dbg(&client->dev, "%s: [%d] %02x %02x %02x %02x %02x %02x %02x\n",
 		__FUNCTION__, result, buf[0], buf[1], buf[2], buf[3],
 		buf[4], buf[5], buf[6]);
 
-	if (result >= 0) {
-		dt->tm_sec = BCD_TO_BIN(buf[0]);
-		dt->tm_min = BCD_TO_BIN(buf[1]);
+	if (result == 2) {
+		dt->tm_sec = BCD2BIN(buf[0]);
+		dt->tm_min = BCD2BIN(buf[1]);
 		val = buf[2] & 0x3f;
-		dt->tm_hour = BCD_TO_BIN(val);
-		dt->tm_wday = BCD_TO_BIN(buf[3]) - 1;
-		dt->tm_mday = BCD_TO_BIN(buf[4]);
+		dt->tm_hour = BCD2BIN(val);
+		dt->tm_wday = BCD2BIN(buf[3]) - 1;
+		dt->tm_mday = BCD2BIN(buf[4]);
 		val = buf[5] & 0x7f;
-		dt->tm_mon = BCD_TO_BIN(val);
-		dt->tm_year = 1900 + BCD_TO_BIN(buf[6]);
+		dt->tm_mon = BCD2BIN(val) - 1;
+		dt->tm_year = BCD2BIN(buf[6]);
 		if (buf[5] & 0x80)
 			dt->tm_year += 100;
 
-		dev_dbg(&client->adapter->dev, "%s: secs=%d, mins=%d, "
+		dev_dbg(&client->dev, "%s: secs=%d, mins=%d, "
 			"hours=%d, mday=%d, mon=%d, year=%d, wday=%d\n",
 			__FUNCTION__, dt->tm_sec, dt->tm_min,
 			dt->tm_hour, dt->tm_mday,
 			dt->tm_mon, dt->tm_year, dt->tm_wday);
-	} else {
-		dev_err(&client->adapter->dev, "ds1337[%d]: error reading "
-			"data! %d\n", data->id, result);
-		result = -EIO;
+
+		return 0;
 	}
 
-	return result;
+	dev_err(&client->dev, "error reading data! %d\n", result);
+	return -EIO;
 }
 
 static int ds1337_set_datetime(struct i2c_client *client, struct rtc_time *dt)
 {
-	struct ds1337_data *data = i2c_get_clientdata(client);
 	int result;
 	u8 buf[8];
 	u8 val;
 	struct i2c_msg msg[1];
 
 	if (!dt) {
-		dev_dbg(&client->adapter->dev, "%s: EINVAL: dt=NULL\n",
-			__FUNCTION__);
-
+		dev_dbg(&client->dev, "%s: EINVAL: dt=NULL\n", __FUNCTION__);
 		return -EINVAL;
 	}
 
-	dev_dbg(&client->adapter->dev, "%s: secs=%d, mins=%d, hours=%d, "
+	dev_dbg(&client->dev, "%s: secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n", __FUNCTION__,
 		dt->tm_sec, dt->tm_min, dt->tm_hour,
 		dt->tm_mday, dt->tm_mon, dt->tm_year, dt->tm_wday);
 
 	buf[0] = 0;		/* reg offset */
-	buf[1] = BIN_TO_BCD(dt->tm_sec);
-	buf[2] = BIN_TO_BCD(dt->tm_min);
-	buf[3] = BIN_TO_BCD(dt->tm_hour) | (1 << 6);
-	buf[4] = BIN_TO_BCD(dt->tm_wday) + 1;
-	buf[5] = BIN_TO_BCD(dt->tm_mday);
-	buf[6] = BIN_TO_BCD(dt->tm_mon);
-	if (dt->tm_year >= 2000) {
-		val = dt->tm_year - 2000;
+	buf[1] = BIN2BCD(dt->tm_sec);
+	buf[2] = BIN2BCD(dt->tm_min);
+	buf[3] = BIN2BCD(dt->tm_hour) | (1 << 6);
+	buf[4] = BIN2BCD(dt->tm_wday) + 1;
+	buf[5] = BIN2BCD(dt->tm_mday);
+	buf[6] = BIN2BCD(dt->tm_mon) + 1;
+	val = dt->tm_year;
+	if (val >= 100) {
+		val -= 100;
 		buf[6] |= (1 << 7);
-	} else {
-		val = dt->tm_year - 1900;
 	}
-	buf[7] = BIN_TO_BCD(val);
+	buf[7] = BIN2BCD(val);
 
 	msg[0].addr = client->addr;
 	msg[0].flags = 0;
 	msg[0].len = sizeof(buf);
 	msg[0].buf = &buf[0];
 
-	result = client->adapter->algo->master_xfer(client->adapter,
-						    &msg[0], 1);
-	if (result < 0) {
-		dev_err(&client->adapter->dev, "ds1337[%d]: error "
-			"writing data! %d\n", data->id, result);
-		result = -EIO;
-	} else {
-		result = 0;
-	}
+	result = i2c_transfer(client->adapter, msg, 1);
+	if (result == 1)
+		return 0;
 
-	return result;
+	dev_err(&client->dev, "error writing data! %d\n", result);
+	return -EIO;
 }
 
 static int ds1337_command(struct i2c_client *client, unsigned int cmd,
 			  void *arg)
 {
-	dev_dbg(&client->adapter->dev, "%s: cmd=%d\n", __FUNCTION__, cmd);
+	dev_dbg(&client->dev, "%s: cmd=%d\n", __FUNCTION__, cmd);
 
 	switch (cmd) {
 	case DS1337_GET_DATE:
@@ -228,7 +210,7 @@ static int ds1337_command(struct i2c_client *client, unsigned int cmd,
  * Public API for access to specific device. Useful for low-level
  * RTC access from kernel code.
  */
-int ds1337_do_command(int id, int cmd, void *arg)
+int ds1337_do_command(int bus, int cmd, void *arg)
 {
 	struct list_head *walk;
 	struct list_head *tmp;
@@ -236,7 +218,7 @@ int ds1337_do_command(int id, int cmd, void *arg)
 
 	list_for_each_safe(walk, tmp, &ds1337_clients) {
 		data = list_entry(walk, struct ds1337_data, list);
-		if (data->id == id)
+		if (data->client.adapter->nr == bus)
 			return ds1337_command(&data->client, cmd, arg);
 	}
 
@@ -346,7 +328,6 @@ static int ds1337_detect(struct i2c_adapter *adapter, int address, int kind)
 	ds1337_init_client(new_client);
 
 	/* Add client to local list */
-	data->id = ds1337_id++;
 	list_add(&data->list, &ds1337_clients);
 
 	return 0;
@@ -397,6 +378,8 @@ static void __exit ds1337_exit(void)
 MODULE_AUTHOR("James Chapman <jchapman@katalix.com>");
 MODULE_DESCRIPTION("DS1337 RTC driver");
 MODULE_LICENSE("GPL");
+
+EXPORT_SYMBOL_GPL(ds1337_do_command);
 
 module_init(ds1337_init);
 module_exit(ds1337_exit);

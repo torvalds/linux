@@ -226,6 +226,8 @@ config WARN_STACK_SIZE
 	  This allows you to specify the maximum frame size a function may
 	  have without the compiler complaining about it.
 
+source "mm/Kconfig"
+
 comment "I/O subsystem configuration"
 
 config MACHCHK_WARNING
@@ -452,6 +454,14 @@ config NO_IDLE_HZ_INIT
 	help
 	  The HZ timer is switched off in idle by default. That means the
 	  HZ timer is already disabled at boot time.
+
+config KEXEC
+	bool "kexec system call (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but is independent of hardware/microcode support.
 
 endmenu
 

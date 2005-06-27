@@ -28,7 +28,6 @@
 #include "irq_user.h"
 #include "mconsole_kern.h"
 #include "init.h"
-#include "2_5compat.h"
 
 #define MAX_TTYS (16)
 
@@ -56,7 +55,7 @@ static struct chan_opts opts = {
 
 static int con_config(char *str);
 static int con_get_config(char *dev, char *str, int size, char **error_out);
-static int con_remove(char *str);
+static int con_remove(int n);
 
 static struct line_driver driver = {
 	.name 			= "UML console",
@@ -76,6 +75,7 @@ static struct line_driver driver = {
 		.name  		= "con",
 		.config 	= con_config,
 		.get_config 	= con_get_config,
+                .id		= line_id,
 		.remove 	= con_remove,
 	},
 };
@@ -100,9 +100,9 @@ static int con_get_config(char *dev, char *str, int size, char **error_out)
 			       size, error_out));
 }
 
-static int con_remove(char *str)
+static int con_remove(int n)
 {
-	return(line_remove(vts, sizeof(vts)/sizeof(vts[0]), str));
+        return line_remove(vts, sizeof(vts)/sizeof(vts[0]), n);
 }
 
 static int con_open(struct tty_struct *tty, struct file *filp)

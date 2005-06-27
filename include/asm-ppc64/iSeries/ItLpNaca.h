@@ -1,17 +1,17 @@
 /*
  * ItLpNaca.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
@@ -19,18 +19,15 @@
 #ifndef _ITLPNACA_H
 #define _ITLPNACA_H
 
-//=============================================================================
-//
-//	This control block contains the data that is shared between the
-//	hypervisor (PLIC) and the OS.
-//
-//=============================================================================
+#include <linux/types.h>
 
-struct ItLpNaca
-{
-//=============================================================================
+/*
+ *	This control block contains the data that is shared between the
+ *	hypervisor (PLIC) and the OS.
+ */
+
+struct ItLpNaca {
 // CACHE_LINE_1 0x0000 - 0x007F Contains read-only data
-//=============================================================================
 	u32	xDesc;			// Eye catcher			x00-x03
 	u16	xSize;			// Size of this class		x04-x05
 	u16	xIntHdlrOffset;		// Offset to IntHdlr array	x06-x07
@@ -59,30 +56,25 @@ struct ItLpNaca
 	u64	xLoadAreaAddr;		// ER address of load area	x28-x2F
 	u32	xLoadAreaChunks;	// Chunks for the load area	x30-x33
 	u32	xPaseSysCallCRMask;	// Mask used to test CR before  x34-x37
-	// doing an ASR switch on PASE
-	// system call.
-	u64	xSlicSegmentTablePtr;   // Pointer to Slic seg table.   x38-x3f
-	u8	xRsvd1_4[64];		//         			x40-x7F 
-   
-//=============================================================================
+					// doing an ASR switch on PASE
+					// system call.
+	u64	xSlicSegmentTablePtr;	// Pointer to Slic seg table.   x38-x3f
+	u8	xRsvd1_4[64];		//				x40-x7F
+
 // CACHE_LINE_2 0x0080 - 0x00FF Contains local read-write data
-//=============================================================================
 	u8	xRsvd2_0[128];		// Reserved			x00-x7F
 
-//=============================================================================
 // CACHE_LINE_3-6 0x0100 - 0x02FF Contains LP Queue indicators
-// NB: Padding required to keep xInterrruptHdlr at x300 which is required 
+// NB: Padding required to keep xInterrruptHdlr at x300 which is required
 // for v4r4 PLIC.
-//=============================================================================
 	u8	xOldLpQueue[128];	// LP Queue needed for v4r4	100-17F
 	u8	xRsvd3_0[384];		// Reserved			180-2FF
-//=============================================================================
+
 // CACHE_LINE_7-8 0x0300 - 0x03FF Contains the address of the OS interrupt
 //  handlers
-//=============================================================================
 	u64	xInterruptHdlr[32];	// Interrupt handlers		300-x3FF
 };
 
-//=============================================================================
+extern struct ItLpNaca		itLpNaca;
 
 #endif /* _ITLPNACA_H */

@@ -57,8 +57,8 @@ p720t_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction clps711x_timer_irq = {
 	.name		= "CLPS711x Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= p720t_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= p720t_timer_interrupt,
 };
 
 static void __init clps711x_timer_init(void)

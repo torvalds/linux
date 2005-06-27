@@ -17,3 +17,5 @@ highmem.c-dir = mm
 module.c-dir = kernel
 
 subdir- := util
+
+include arch/um/scripts/Makefile.unmap

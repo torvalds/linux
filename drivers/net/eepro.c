@@ -600,12 +600,7 @@ struct net_device * __init eepro_probe(int unit)
 	err = do_eepro_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	release_region(dev->base_addr, EEPRO_IO_EXTENT);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -758,6 +753,7 @@ static int __init eepro_probe1(struct net_device *dev, int autoprobe)
 	int i;
 	struct eepro_local *lp;
 	int ioaddr = dev->base_addr;
+	int err;
 
 	/* Grab the region so we can find another board if autoIRQ fails. */
 	if (!request_region(ioaddr, EEPRO_IO_EXTENT, DRV_NAME)) { 
@@ -873,10 +869,16 @@ static int __init eepro_probe1(struct net_device *dev, int autoprobe)
 
 	/* reset 82595 */
 	eepro_reset(ioaddr);
+
+	err = register_netdev(dev);
+	if (err)
+		goto err;
 	return 0;
 exit:
+	err = -ENODEV;
+err:
  	release_region(dev->base_addr, EEPRO_IO_EXTENT);
- 	return -ENODEV;
+ 	return err;
 }
 
 /* Open/initialize the board.  This is called (in the current kernel)
@@ -1834,11 +1836,8 @@ init_module(void)
 		dev->irq = irq[i];
 
 		if (do_eepro_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_eepro[n_eepro++] = dev;
-				continue;
-			}
-			release_region(dev->base_addr, EEPRO_IO_EXTENT);
+			dev_eepro[n_eepro++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		break;

@@ -42,12 +42,6 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/arch.h>
 
-
-void ixdp2400_init_irq(void)
-{
-	ixdp2x00_init_irq(IXDP2800_CPLD_INT_STAT, IXDP2800_CPLD_INT_MASK, IXDP2400_NR_IRQS);
-}
-
 /*************************************************************************
  * IXDP2800 timer tick
  *************************************************************************/

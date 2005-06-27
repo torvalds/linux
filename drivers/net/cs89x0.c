@@ -319,13 +319,7 @@ struct net_device * __init cs89x0_probe(int unit)
 	}
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	outw(PP_ChipID, dev->base_addr + ADD_PORT);
-	release_region(dev->base_addr, NETCARD_IO_EXTENT);
 out:
 	free_netdev(dev);
 	printk(KERN_WARNING "cs89x0: no cs8900 or cs8920 detected.  Be sure to disable PnP with SETUP\n");
@@ -735,7 +729,13 @@ printk("PP_addr=0x%x\n", inw(ioaddr + ADD_PORT));
 	printk("\n");
 	if (net_debug)
 		printk("cs89x0_probe1() successful\n");
+
+	retval = register_netdev(dev);
+	if (retval)
+		goto out3;
 	return 0;
+out3:
+	outw(PP_ChipID, dev->base_addr + ADD_PORT);
 out2:
 	release_region(ioaddr & ~3, NETCARD_IO_EXTENT);
 out1:
@@ -1831,13 +1831,6 @@ init_module(void)
 	if (ret)
 		goto out;
 
-        if (register_netdev(dev) != 0) {
-                printk(KERN_ERR "cs89x0.c: No card found at 0x%x\n", io);
-                ret = -ENXIO;
-		outw(PP_ChipID, dev->base_addr + ADD_PORT);
-		release_region(dev->base_addr, NETCARD_IO_EXTENT);
-		goto out;
-        }
 	dev_cs89x0 = dev;
 	return 0;
 out:

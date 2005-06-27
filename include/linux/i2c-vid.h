@@ -97,3 +97,15 @@ static inline int vid_from_reg(int val, int vrm)
 		                     2050 - (val) * 50);
 	}
 }
+
+static inline int vid_to_reg(int val, int vrm)
+{
+	switch (vrm) {
+	case 91:		/* VRM 9.1 */
+	case 90:		/* VRM 9.0 */
+		return ((val >= 1100) && (val <= 1850) ?
+			((18499 - val * 10) / 25 + 5) / 10 : -1);
+	default:
+		return -1;
+	}
+}

@@ -346,10 +346,10 @@ extern int (*console_blank_hook)(int);
 struct apm_user {
 	int		magic;
 	struct apm_user *	next;
-	int		suser: 1;
-	int		writer: 1;
-	int		reader: 1;
-	int		suspend_wait: 1;
+	unsigned int	suser: 1;
+	unsigned int	writer: 1;
+	unsigned int	reader: 1;
+	unsigned int	suspend_wait: 1;
 	int		suspend_result;
 	int		suspends_pending;
 	int		standbys_pending;
@@ -1222,6 +1222,7 @@ static int suspend(int vetoable)
 
 	save_processor_state();
 	err = set_system_power_state(APM_STATE_SUSPEND);
+	ignore_normal_resume = 1;
 	restore_processor_state();
 
 	local_irq_disable();
@@ -1229,7 +1230,6 @@ static int suspend(int vetoable)
 	spin_lock(&i8253_lock);
 	reinit_timer();
 	set_time();
-	ignore_normal_resume = 1;
 
 	spin_unlock(&i8253_lock);
 	write_sequnlock(&xtime_lock);

@@ -1225,8 +1225,6 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	}
 
 	DO_UNLOCK(flags);
-
-	spin_lock_irq(shpnt->host_lock);
 	return ret;
 }
 

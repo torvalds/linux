@@ -41,7 +41,7 @@
 #include <asm/xmon.h>
 #include <asm/ocp.h>
 
-#if defined(CONFIG_85xx) || defined(CONFIG_83xx)
+#if defined(CONFIG_85xx) || defined(CONFIG_83xx) || defined(CONFIG_MPC10X_BRIDGE)
 #include <asm/ppc_sys.h>
 #endif
 
@@ -61,8 +61,6 @@ extern void power4_idle(void);
 
 extern boot_infos_t *boot_infos;
 struct ide_machdep_calls ppc_ide_md;
-char *sysmap;
-unsigned long sysmap_size;
 
 /* Used with the BI_MEMSIZE bootinfo parameter to store the memory
    size value reported by the boot loader. */
@@ -249,7 +247,7 @@ int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "bogomips\t: %lu.%02lu\n",
 		   lpj / (500000/HZ), (lpj / (5000/HZ)) % 100);
 
-#if defined(CONFIG_85xx) || defined(CONFIG_83xx)
+#if defined(CONFIG_85xx) || defined(CONFIG_83xx) || defined(CONFIG_MPC10X_BRIDGE)
 	if (cur_ppc_sys_spec->ppc_sys_name)
 		seq_printf(m, "chipset\t\t: %s\n",
 			cur_ppc_sys_spec->ppc_sys_name);
@@ -577,11 +575,6 @@ void parse_bootinfo(struct bi_record *rec)
 		switch (rec->tag) {
 		case BI_CMD_LINE:
 			strlcpy(cmd_line, (void *)data, sizeof(cmd_line));
-			break;
-		case BI_SYSMAP:
-			sysmap = (char *)((data[0] >= (KERNELBASE)) ? data[0] :
-					  (data[0]+KERNELBASE));
-			sysmap_size = data[1];
 			break;
 #ifdef CONFIG_BLK_DEV_INITRD
 		case BI_INITRD:

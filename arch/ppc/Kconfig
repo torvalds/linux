@@ -88,6 +88,9 @@ config 8xx
 	depends on BROKEN
 	bool "8xx"
 
+config E200
+	bool "e200"
+
 config E500
 	bool "e500"
 
@@ -98,12 +101,12 @@ config PPC_FPU
 
 config BOOKE
 	bool
-	depends on E500
+	depends on E200 || E500
 	default y
 
 config FSL_BOOKE
 	bool
-	depends on E500
+	depends on E200 || E500
 	default y
 
 config PTE_64BIT
@@ -141,16 +144,16 @@ config ALTIVEC
 
 config SPE
 	bool "SPE Support"
-	depends on E500
+	depends on E200 || E500
 	---help---
 	  This option enables kernel support for the Signal Processing
 	  Extensions (SPE) to the PowerPC processor. The kernel currently
 	  supports saving and restoring SPE registers, and turning on the
 	  'spe enable' bit so user processes can execute SPE instructions.
 
-	  This option is only usefully if you have a processor that supports
+	  This option is only useful if you have a processor that supports
 	  SPE (e500, otherwise known as 85xx series), but does not have any
-	  affect on a non-spe cpu (it does, however add code to the kernel).
+	  effect on a non-spe cpu (it does, however add code to the kernel).
 
 	  If in doubt, say Y here.
 
@@ -200,7 +203,7 @@ config TAU_AVERAGE
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || E500
+	depends on 4xx || 8xx || E200 || E500
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -213,6 +216,26 @@ config MATH_EMULATION
 	  or any machine with a 6xx, 7xx or 7xxx series processor, say N
 	  here.  Saying Y here will not hurt performance (on any machine) but
 	  will increase the size of the kernel.
+
+config KEXEC
+	bool "kexec system call (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is indepedent of the system firmware.   And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  The name comes from the similiarity to the exec system call.
+
+	  It is an ongoing process to be certain the hardware in a machine
+	  is properly shutdown, so do not be surprised if this code does not
+	  initially work for you.  It may help to enable device hotplugging
+	  support.  As of this writing the exact hardware interface is
+	  strongly in flux, so no good recommendation can be made.
+
+	  In the GameCube implementation, kexec allows you to load and
+	  run DOL files, including kernel and homebrew DOLs.
 
 source "drivers/cpufreq/Kconfig"
 
@@ -254,7 +277,7 @@ config PPC_STD_MMU
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || 8xx
+	depends on 4xx || 8xx || E200
 	default y
 
 endmenu
@@ -826,11 +849,6 @@ config MPC10X_BRIDGE
 	depends on PCORE || POWERPMC250 || LOPEC || SANDPOINT
 	default y
 
-config FSL_OCP
-	bool
-	depends on MPC10X_BRIDGE
-	default y
-
 config MPC10X_OPENPIC
 	bool
 	depends on POWERPMC250 || LOPEC || SANDPOINT
@@ -909,6 +927,8 @@ config PREEMPT
 
 config HIGHMEM
 	bool "High memory support"
+
+source "mm/Kconfig"
 
 source "fs/Kconfig.binfmt"
 
@@ -1083,6 +1103,23 @@ source "drivers/zorro/Kconfig"
 
 source kernel/power/Kconfig
 
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	default y
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y. Only embedded should say N here.
+
 endmenu
 
 config ISA_DMA_API
@@ -1143,12 +1180,12 @@ config PCI_QSPAN
 
 config PCI_8260
 	bool
-	depends on PCI && 8260 && !8272
+	depends on PCI && 8260
 	default y
 
 config 8260_PCI9
 	bool "  Enable workaround for MPC826x erratum PCI 9"
-	depends on PCI_8260
+	depends on PCI_8260 && !ADS8272
 	default y
 
 choice

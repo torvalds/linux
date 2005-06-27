@@ -178,6 +178,37 @@ int sctp_rcv(struct sk_buff *skb)
 
 	asoc = __sctp_rcv_lookup(skb, &src, &dest, &transport);
 
+	if (!asoc)
+		ep = __sctp_rcv_lookup_endpoint(&dest);
+
+	/* Retrieve the common input handling substructure. */
+	rcvr = asoc ? &asoc->base : &ep->base;
+	sk = rcvr->sk;
+
+	/*
+	 * If a frame arrives on an interface and the receiving socket is
+	 * bound to another interface, via SO_BINDTODEVICE, treat it as OOTB
+	 */
+	if (sk->sk_bound_dev_if && (sk->sk_bound_dev_if != af->skb_iif(skb)))
+	{
+		sock_put(sk);
+		if (asoc) {
+			sctp_association_put(asoc);
+			asoc = NULL;
+		} else {
+			sctp_endpoint_put(ep);
+			ep = NULL;
+		}
+		sk = sctp_get_ctl_sock();
+		ep = sctp_sk(sk)->ep;
+		sctp_endpoint_hold(ep);
+		sock_hold(sk);
+		rcvr = &ep->base;
+	}
+
+	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)
+		goto discard_release;
+
 	/*
 	 * RFC 2960, 8.4 - Handle "Out of the blue" Packets.
 	 * An SCTP packet is called an "out of the blue" (OOTB)
@@ -187,21 +218,11 @@ int sctp_rcv(struct sk_buff *skb)
 	 * packet belongs.
 	 */
 	if (!asoc) {
-		ep = __sctp_rcv_lookup_endpoint(&dest);
 		if (sctp_rcv_ootb(skb)) {
 			SCTP_INC_STATS_BH(SCTP_MIB_OUTOFBLUES);
 			goto discard_release;
 		}
 	}
-
-	/* Retrieve the common input handling substructure. */
-	rcvr = asoc ? &asoc->base : &ep->base;
-	sk = rcvr->sk;
-
-	if ((sk) && (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)) {
-		goto discard_release;
-	}
-
 
 	/* SCTP seems to always need a timestamp right now (FIXME) */
 	if (skb->stamp.tv_sec == 0) {
@@ -265,13 +286,11 @@ discard_it:
 
 discard_release:
 	/* Release any structures we may be holding. */
-	if (asoc) {
-		sock_put(asoc->base.sk);
+	sock_put(sk);
+	if (asoc)
 		sctp_association_put(asoc);
-	} else {
-		sock_put(ep->base.sk);
+	else
 		sctp_endpoint_put(ep);
-	}
 
 	goto discard_it;
 }
@@ -334,7 +353,7 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 
 	sctp_do_sm(SCTP_EVENT_T_OTHER,
 		   SCTP_ST_OTHER(SCTP_EVENT_ICMP_PROTO_UNREACH),
-		   asoc->state, asoc->ep, asoc, NULL,
+		   asoc->state, asoc->ep, asoc, t,
 		   GFP_ATOMIC);
 
 }

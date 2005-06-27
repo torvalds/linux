@@ -1,0 +1,65 @@
+
+choice
+	prompt "Preemption Model"
+	default PREEMPT_NONE
+
+config PREEMPT_NONE
+	bool "No Forced Preemption (Server)"
+	help
+	  This is the traditional Linux preemption model, geared towards
+	  throughput. It will still provide good latencies most of the
+	  time, but there are no guarantees and occasional longer delays
+	  are possible.
+
+	  Select this option if you are building a kernel for a server or
+	  scientific/computation system, or if you want to maximize the
+	  raw processing power of the kernel, irrespective of scheduling
+	  latencies.
+
+config PREEMPT_VOLUNTARY
+	bool "Voluntary Kernel Preemption (Desktop)"
+	help
+	  This option reduces the latency of the kernel by adding more
+	  "explicit preemption points" to the kernel code. These new
+	  preemption points have been selected to reduce the maximum
+	  latency of rescheduling, providing faster application reactions,
+	  at the cost of slighly lower throughput.
+
+	  This allows reaction to interactive events by allowing a
+	  low priority process to voluntarily preempt itself even if it
+	  is in kernel mode executing a system call. This allows
+	  applications to run more 'smoothly' even when the system is
+	  under load.
+
+	  Select this if you are building a kernel for a desktop system.
+
+config PREEMPT
+	bool "Preemptible Kernel (Low-Latency Desktop)"
+	help
+	  This option reduces the latency of the kernel by making
+	  all kernel code (that is not executing in a critical section)
+	  preemptible.  This allows reaction to interactive events by
+	  permitting a low priority process to be preempted involuntarily
+	  even if it is in kernel mode executing a system call and would
+	  otherwise not be about to reach a natural preemption point.
+	  This allows applications to run more 'smoothly' even when the
+	  system is under load, at the cost of slighly lower throughput
+	  and a slight runtime overhead to kernel code.
+
+	  Select this if you are building a kernel for a desktop or
+	  embedded system with latency requirements in the milliseconds
+	  range.
+
+endchoice
+
+config PREEMPT_BKL
+	bool "Preempt The Big Kernel Lock"
+	depends on SMP || PREEMPT
+	default y
+	help
+	  This option reduces the latency of the kernel by making the
+	  big kernel lock preemptible.
+
+	  Say Y here if you are building a kernel for a desktop system.
+	  Say N if you are unsure.
+

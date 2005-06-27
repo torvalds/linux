@@ -56,11 +56,8 @@ static int autofs4_check_mount(struct vfsmount *mnt, struct dentry *dentry)
 	mntget(mnt);
 	dget(dentry);
 
-	if (!follow_down(&mnt, &dentry))
+	if (!autofs4_follow_mount(&mnt, &dentry))
 		goto done;
-
-	while (d_mountpoint(dentry) && follow_down(&mnt, &dentry))
-		;
 
 	/* This is an autofs submount, we can't expire it */
 	if (is_autofs4_dentry(dentry))

@@ -150,7 +150,7 @@ static void *m1541_alloc_page(struct agp_bridge_data *bridge)
 	pci_read_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL, &temp);
 	pci_write_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL,
 			(((temp & ALI_CACHE_FLUSH_ADDR_MASK) |
-			  virt_to_phys(addr)) | ALI_CACHE_FLUSH_EN ));
+			  virt_to_gart(addr)) | ALI_CACHE_FLUSH_EN ));
 	return addr;
 }
 
@@ -174,7 +174,7 @@ static void m1541_destroy_page(void * addr)
 	pci_read_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL, &temp);
 	pci_write_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL,
 			(((temp & ALI_CACHE_FLUSH_ADDR_MASK) |
-			  virt_to_phys(addr)) | ALI_CACHE_FLUSH_EN));
+			  virt_to_gart(addr)) | ALI_CACHE_FLUSH_EN));
 	agp_generic_destroy_page(addr);
 }
 

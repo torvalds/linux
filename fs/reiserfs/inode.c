@@ -28,7 +28,7 @@ static int reiserfs_prepare_write(struct file *f, struct page *page,
 void reiserfs_delete_inode (struct inode * inode)
 {
     /* We need blocks for transaction + (user+group) quota update (possibly delete) */
-    int jbegin_count = JOURNAL_PER_BALANCE_CNT * 2 + 2 * REISERFS_QUOTA_INIT_BLOCKS;
+    int jbegin_count = JOURNAL_PER_BALANCE_CNT * 2 + 2 * REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb);
     struct reiserfs_transaction_handle th ;
   
     reiserfs_write_lock(inode->i_sb);
@@ -254,6 +254,7 @@ static int _get_block_create_0 (struct inode * inode, long block,
     char * p = NULL;
     int chars;
     int ret ;
+    int result ;
     int done = 0 ;
     unsigned long offset ;
 
@@ -262,10 +263,13 @@ static int _get_block_create_0 (struct inode * inode, long block,
 		  (loff_t)block * inode->i_sb->s_blocksize + 1, TYPE_ANY, 3);
 
 research:
-    if (search_for_position_by_key (inode->i_sb, &key, &path) != POSITION_FOUND) {
+    result = search_for_position_by_key (inode->i_sb, &key, &path) ;
+    if (result != POSITION_FOUND) {
 	pathrelse (&path);
         if (p)
             kunmap(bh_result->b_page) ;
+	if (result == IO_ERROR)
+	    return -EIO;
 	// We do not return -ENOENT if there is a hole but page is uptodate, because it means
 	// That there is some MMAPED data associated with it that is yet to be written to disk.
 	if ((args & GET_BLOCK_NO_HOLE) && !PageUptodate(bh_result->b_page) ) {
@@ -382,8 +386,9 @@ research:
 
 	// update key to look for the next piece
 	set_cpu_key_k_offset (&key, cpu_key_k_offset (&key) + chars);
-	if (search_for_position_by_key (inode->i_sb, &key, &path) != POSITION_FOUND)
-	    // we read something from tail, even if now we got IO_ERROR
+	result = search_for_position_by_key (inode->i_sb, &key, &path);
+	if (result != POSITION_FOUND)
+	    // i/o error most likely
 	    break;
 	bh = get_last_bh (&path);
 	ih = get_ih (&path);
@@ -394,6 +399,10 @@ research:
 
 finished:
     pathrelse (&path);
+
+    if (result == IO_ERROR)
+	return -EIO;
+
     /* this buffer has valid data, but isn't valid for io.  mapping it to
      * block #0 tells the rest of reiserfs it just has a tail in it
      */
@@ -591,7 +600,7 @@ int reiserfs_get_block (struct inode * inode, sector_t block,
        XXX in practically impossible worst case direct2indirect()
        can incur (much) more than 3 balancings.
        quota update for user, group */
-    int jbegin_count = JOURNAL_PER_BALANCE_CNT * 3 + 1 + 2 * REISERFS_QUOTA_TRANS_BLOCKS;
+    int jbegin_count = JOURNAL_PER_BALANCE_CNT * 3 + 1 + 2 * REISERFS_QUOTA_TRANS_BLOCKS(inode->i_sb);
     int version;
     int dangle = 1;
     loff_t new_offset = (((loff_t)block) << inode->i_sb->s_blocksize_bits) + 1 ;
@@ -2796,12 +2805,15 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr) {
 
                 if (!error) {
 		    struct reiserfs_transaction_handle th;
+		    int jbegin_count = 2*(REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb)+REISERFS_QUOTA_DEL_BLOCKS(inode->i_sb))+2;
 
 		    /* (user+group)*(old+new) structure - we count quota info and , inode write (sb, inode) */
-		    journal_begin(&th, inode->i_sb, 4*REISERFS_QUOTA_INIT_BLOCKS+2);
+		    error = journal_begin(&th, inode->i_sb, jbegin_count);
+ 		    if (error)
+ 			goto out;
                     error = DQUOT_TRANSFER(inode, attr) ? -EDQUOT : 0;
 		    if (error) {
-			journal_end(&th, inode->i_sb, 4*REISERFS_QUOTA_INIT_BLOCKS+2);
+			journal_end(&th, inode->i_sb, jbegin_count);
 			goto out;
 		    }
 		    /* Update corresponding info in inode so that everything is in
@@ -2811,7 +2823,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr) {
 		    if (attr->ia_valid & ATTR_GID)
 			inode->i_gid = attr->ia_gid;
 		    mark_inode_dirty(inode);
-		    journal_end(&th, inode->i_sb, 4*REISERFS_QUOTA_INIT_BLOCKS+2);
+		    error = journal_end(&th, inode->i_sb, jbegin_count);
 		}
         }
         if (!error)

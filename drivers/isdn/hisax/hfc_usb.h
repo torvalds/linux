@@ -168,7 +168,7 @@ static struct hfcusb_symbolic_list urb_errlist[] = {
 * 3 entries are the configuration number, the minimum interval for
 * Interrupt endpoints & boolean if E-channel logging possible
 */
-int validconf[][19] = {
+static int validconf[][19] = {
 	// INT in, ISO out config
 	{EP_NUL, EP_INT, EP_NUL, EP_INT, EP_NUL, EP_INT, EP_NOP, EP_INT,
 	 EP_ISO, EP_NUL, EP_ISO, EP_NUL, EP_ISO, EP_NUL, EP_NUL, EP_NUL,
@@ -187,7 +187,7 @@ int validconf[][19] = {
 };
 
 // string description of chosen config
-char *conf_str[] = {
+static char *conf_str[] = {
 	"4 Interrupt IN + 3 Isochron OUT",
 	"3 Interrupt IN + 3 Isochron OUT",
 	"4 Isochron IN + 3 Isochron OUT",

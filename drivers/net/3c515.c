@@ -365,7 +365,7 @@ static int nopnp;
 #endif /* __ISAPNP__ */
 
 static struct net_device *corkscrew_scan(int unit);
-static void corkscrew_setup(struct net_device *dev, int ioaddr,
+static int corkscrew_setup(struct net_device *dev, int ioaddr,
 			    struct pnp_dev *idev, int card_number);
 static int corkscrew_open(struct net_device *dev);
 static void corkscrew_timer(unsigned long arg);
@@ -539,10 +539,9 @@ static struct net_device *corkscrew_scan(int unit)
 			printk(KERN_INFO "3c515 Resource configuration register %#4.4x, DCR %4.4x.\n",
 		     		inl(ioaddr + 0x2002), inw(ioaddr + 0x2000));
 			/* irq = inw(ioaddr + 0x2002) & 15; */ /* Use the irq from isapnp */
-			corkscrew_setup(dev, ioaddr, idev, cards_found++);
 			SET_NETDEV_DEV(dev, &idev->dev);
 			pnp_cards++;
-			err = register_netdev(dev);
+			err = corkscrew_setup(dev, ioaddr, idev, cards_found++);
 			if (!err)
 				return dev;
 			cleanup_card(dev);
@@ -558,8 +557,7 @@ no_pnp:
 
 		printk(KERN_INFO "3c515 Resource configuration register %#4.4x, DCR %4.4x.\n",
 		     inl(ioaddr + 0x2002), inw(ioaddr + 0x2000));
-		corkscrew_setup(dev, ioaddr, NULL, cards_found++);
-		err = register_netdev(dev);
+		err = corkscrew_setup(dev, ioaddr, NULL, cards_found++);
 		if (!err)
 			return dev;
 		cleanup_card(dev);
@@ -568,7 +566,7 @@ no_pnp:
 	return NULL;
 }
 
-static void corkscrew_setup(struct net_device *dev, int ioaddr,
+static int corkscrew_setup(struct net_device *dev, int ioaddr,
 			    struct pnp_dev *idev, int card_number)
 {
 	struct corkscrew_private *vp = netdev_priv(dev);
@@ -691,6 +689,8 @@ static void corkscrew_setup(struct net_device *dev, int ioaddr,
 	dev->get_stats = &corkscrew_get_stats;
 	dev->set_multicast_list = &set_rx_mode;
 	dev->ethtool_ops = &netdev_ethtool_ops;
+
+	return register_netdev(dev);
 }
 
 

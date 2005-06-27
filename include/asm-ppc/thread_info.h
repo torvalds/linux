@@ -20,7 +20,8 @@ struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	unsigned long		local_flags;	/* non-racy flags */
 	int			cpu;		/* cpu we're on */
-	int			preempt_count;
+	int			preempt_count;	/* 0 => preemptable,
+						   <0 => BUG */
 	struct restart_block	restart_block;
 };
 
@@ -77,12 +78,19 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_POLLING_NRFLAG	4	/* true if poll_idle() is polling
 					   TIF_NEED_RESCHED */
 #define TIF_MEMDIE		5
+#define TIF_SYSCALL_AUDIT       6       /* syscall auditing active */
+#define TIF_SECCOMP             7      /* secure computing */
+
 /* as above, but as bit values */
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
+#define _TIF_SYSCALL_AUDIT      (1<<TIF_SYSCALL_AUDIT)
+#define _TIF_SECCOMP            (1<<TIF_SECCOMP)
+
+#define _TIF_SYSCALL_T_OR_A     (_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP)
 
 /*
  * Non racy (local) flags bit numbers

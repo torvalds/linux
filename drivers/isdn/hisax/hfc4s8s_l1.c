@@ -1358,7 +1358,7 @@ chipreset(hfc4s8s_hw * hw)
 /********************************************/
 /* disable/enable hardware in nt or te mode */
 /********************************************/
-void
+static void
 hfc_hardware_enable(hfc4s8s_hw * hw, int enable, int nt_mode)
 {
 	u_long flags;

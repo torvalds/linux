@@ -119,7 +119,6 @@ extern struct net_device *alloc_orinocodev(int sizeof_card,
 extern void free_orinocodev(struct net_device *dev);
 extern int __orinoco_up(struct net_device *dev);
 extern int __orinoco_down(struct net_device *dev);
-extern int orinoco_stop(struct net_device *dev);
 extern int orinoco_reinit_firmware(struct net_device *dev);
 extern irqreturn_t orinoco_interrupt(int irq, void * dev_id, struct pt_regs *regs);
 

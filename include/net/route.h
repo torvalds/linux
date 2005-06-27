@@ -107,7 +107,7 @@ struct rt_cache_stat
 
 extern struct rt_cache_stat *rt_cache_stat;
 #define RT_CACHE_STAT_INC(field)					  \
-		(per_cpu_ptr(rt_cache_stat, _smp_processor_id())->field++)
+		(per_cpu_ptr(rt_cache_stat, raw_smp_processor_id())->field++)
 
 extern struct ip_rt_acct *ip_rt_acct;
 
@@ -181,9 +181,6 @@ static inline int ip_route_newports(struct rtable **rp, u16 sport, u16 dport,
 		memcpy(&fl, &(*rp)->fl, sizeof(fl));
 		fl.fl_ip_sport = sport;
 		fl.fl_ip_dport = dport;
-#if defined(CONFIG_IP_ROUTE_MULTIPATH_CACHED)
-		fl.flags |= FLOWI_FLAG_MULTIPATHOLDROUTE;
-#endif
 		ip_rt_put(*rp);
 		*rp = NULL;
 		return ip_route_output_flow(rp, &fl, sk, 0);

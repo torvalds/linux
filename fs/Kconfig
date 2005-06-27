@@ -50,6 +50,23 @@ config EXT2_FS_SECURITY
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
 
+config EXT2_FS_XIP
+	bool "Ext2 execute in place support"
+	depends on EXT2_FS
+	help
+	  Execute in place can be used on memory-backed block devices. If you
+	  enable this option, you can select to mount block devices which are
+	  capable of this feature without using the page cache.
+
+	  If you do not use a block device that is capable of using this,
+	  or if unsure, say N.
+
+config FS_XIP
+# execute in place
+	bool
+	depends on EXT2_FS_XIP
+	default y
+
 config EXT3_FS
 	tristate "Ext3 journalling file system support"
 	help
@@ -717,6 +734,12 @@ config PROC_KCORE
 	bool "/proc/kcore support" if !ARM
 	depends on PROC_FS && MMU
 
+config PROC_VMCORE
+        bool "/proc/vmcore support (EXPERIMENTAL)"
+        depends on PROC_FS && EMBEDDED && EXPERIMENTAL && CRASH_DUMP
+        help
+        Exports the dump image of crashed kernel in ELF format.
+
 config SYSFS
 	bool "sysfs file system support" if EMBEDDED
 	default y
@@ -740,56 +763,6 @@ config SYSFS
 	example, "root=03:01" for /dev/hda1.
 
 	Designers of embedded systems may wish to say N here to conserve space.
-
-config DEVFS_FS
-	bool "/dev file system support (OBSOLETE)"
-	depends on EXPERIMENTAL
-	help
-	  This is support for devfs, a virtual file system (like /proc) which
-	  provides the file system interface to device drivers, normally found
-	  in /dev. Devfs does not depend on major and minor number
-	  allocations. Device drivers register entries in /dev which then
-	  appear automatically, which means that the system administrator does
-	  not have to create character and block special device files in the
-	  /dev directory using the mknod command (or MAKEDEV script) anymore.
-
-	  This is work in progress. If you want to use this, you *must* read
-	  the material in <file:Documentation/filesystems/devfs/>, especially
-	  the file README there.
-
-	  Note that devfs no longer manages /dev/pts!  If you are using UNIX98
-	  ptys, you will also need to mount the /dev/pts filesystem (devpts).
-
-	  Note that devfs has been obsoleted by udev,
-	  <http://www.kernel.org/pub/linux/utils/kernel/hotplug/>.
-	  It has been stripped down to a bare minimum and is only provided for
-	  legacy installations that use its naming scheme which is
-	  unfortunately different from the names normal Linux installations
-	  use.
-
-	  If unsure, say N.
-
-config DEVFS_MOUNT
-	bool "Automatically mount at boot"
-	depends on DEVFS_FS
-	help
-	  This option appears if you have CONFIG_DEVFS_FS enabled. Setting
-	  this to 'Y' will make the kernel automatically mount devfs onto /dev
-	  when the system is booted, before the init thread is started.
-	  You can override this with the "devfs=nomount" boot option.
-
-	  If unsure, say N.
-
-config DEVFS_DEBUG
-	bool "Debug devfs"
-	depends on DEVFS_FS
-	help
-	  If you say Y here, then the /dev file system code will generate
-	  debugging messages. See the file
-	  <file:Documentation/filesystems/devfs/boot-options> for more
-	  details.
-
-	  If unsure, say N.
 
 config DEVPTS_FS_XATTR
 	bool "/dev/pts Extended Attributes"
@@ -1318,6 +1291,7 @@ config NFS_FS
 	depends on INET
 	select LOCKD
 	select SUNRPC
+	select NFS_ACL_SUPPORT if NFS_V3_ACL
 	help
 	  If you are connected to some other (usually local) Unix computer
 	  (using SLIP, PLIP, PPP or Ethernet) and want to mount files residing
@@ -1359,6 +1333,16 @@ config NFS_V3
 	  3 of the NFS protocol.
 
 	  If unsure, say Y.
+
+config NFS_V3_ACL
+	bool "Provide client support for the NFSv3 ACL protocol extension"
+	depends on NFS_V3
+	help
+	  Implement the NFSv3 ACL protocol extension for manipulating POSIX
+	  Access Control Lists.  The server should also be compiled with
+	  the NFSv3 ACL protocol extension; see the CONFIG_NFSD_V3_ACL option.
+
+	  If unsure, say N.
 
 config NFS_V4
 	bool "Provide NFSv4 client support (EXPERIMENTAL)"
@@ -1403,6 +1387,7 @@ config NFSD
 	select LOCKD
 	select SUNRPC
 	select EXPORTFS
+	select NFS_ACL_SUPPORT if NFSD_V3_ACL || NFSD_V2_ACL
 	help
 	  If you want your Linux box to act as an NFS *server*, so that other
 	  computers on your local network which support NFS can access certain
@@ -1426,6 +1411,10 @@ config NFSD
 	  To compile the NFS server support as a module, choose M here: the
 	  module will be called nfsd.  If unsure, say N.
 
+config NFSD_V2_ACL
+	bool
+	depends on NFSD
+
 config NFSD_V3
 	bool "Provide NFSv3 server support"
 	depends on NFSD
@@ -1433,10 +1422,22 @@ config NFSD_V3
 	  If you would like to include the NFSv3 server as well as the NFSv2
 	  server, say Y here.  If unsure, say Y.
 
+config NFSD_V3_ACL
+	bool "Provide server support for the NFSv3 ACL protocol extension"
+	depends on NFSD_V3
+	select NFSD_V2_ACL
+	help
+	  Implement the NFSv3 ACL protocol extension for manipulating POSIX
+	  Access Control Lists on exported file systems. NFS clients should
+	  be compiled with the NFSv3 ACL protocol extension; see the
+	  CONFIG_NFS_V3_ACL option.  If unsure, say N.
+
 config NFSD_V4
 	bool "Provide NFSv4 server support (EXPERIMENTAL)"
 	depends on NFSD_V3 && EXPERIMENTAL
 	select NFSD_TCP
+	select CRYPTO_MD5
+	select CRYPTO
 	help
 	  If you would like to include the NFSv4 server as well as the NFSv2
 	  and NFSv3 servers, say Y here.  This feature is experimental, and
@@ -1476,6 +1477,15 @@ config LOCKD_V4
 
 config EXPORTFS
 	tristate
+
+config NFS_ACL_SUPPORT
+	tristate
+	select FS_POSIX_ACL
+
+config NFS_COMMON
+	bool
+	depends on NFSD || NFS_FS
+	default y
 
 config SUNRPC
 	tristate

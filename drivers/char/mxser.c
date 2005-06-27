@@ -1995,9 +1995,6 @@ static void mxser_receive_chars(struct mxser_struct *info, int *status)
 	unsigned char ch, gdl;
 	int ignored = 0;
 	int cnt = 0;
-	unsigned char *cp;
-	char *fp;
-	int count;
 	int recv_room;
 	int max = 256;
 	unsigned long flags;
@@ -2010,10 +2007,6 @@ static void mxser_receive_chars(struct mxser_struct *info, int *status)
 		mxser_stoprx(tty);
 		//return;
 	}
-
-	cp = tty->flip.char_buf;
-	fp = tty->flip.flag_buf;
-	count = 0;
 
 	// following add by Victor Yu. 09-02-2002
 	if (info->IsMoxaMustChipFlag != MOXA_OTHER_UART) {
@@ -2041,12 +2034,10 @@ static void mxser_receive_chars(struct mxser_struct *info, int *status)
 		}
 		while (gdl--) {
 			ch = inb(info->base + UART_RX);
-			count++;
-			*cp++ = ch;
-			*fp++ = 0;
+			tty_insert_flip_char(tty, ch, 0);
 			cnt++;
 			/*
-			   if((count>=HI_WATER) && (info->stop_rx==0)){
+			   if((cnt>=HI_WATER) && (info->stop_rx==0)){
 			   mxser_stoprx(tty);
 			   info->stop_rx=1;
 			   break;
@@ -2061,7 +2052,7 @@ intr_old:
 		if (max-- < 0)
 			break;
 		/*
-		   if((count>=HI_WATER) && (info->stop_rx==0)){
+		   if((cnt>=HI_WATER) && (info->stop_rx==0)){
 		   mxser_stoprx(tty);
 		   info->stop_rx=1;
 		   break;
@@ -2078,36 +2069,33 @@ intr_old:
 			if (++ignored > 100)
 				break;
 		} else {
-			count++;
+			char flag = 0;
 			if (*status & UART_LSR_SPECIAL) {
 				if (*status & UART_LSR_BI) {
-					*fp++ = TTY_BREAK;
+					flag = TTY_BREAK;
 /* added by casper 1/11/2000 */
 					info->icount.brk++;
-
 /* */
 					if (info->flags & ASYNC_SAK)
 						do_SAK(tty);
 				} else if (*status & UART_LSR_PE) {
-					*fp++ = TTY_PARITY;
+					flag = TTY_PARITY;
 /* added by casper 1/11/2000 */
 					info->icount.parity++;
 /* */
 				} else if (*status & UART_LSR_FE) {
-					*fp++ = TTY_FRAME;
+					flag = TTY_FRAME;
 /* added by casper 1/11/2000 */
 					info->icount.frame++;
 /* */
 				} else if (*status & UART_LSR_OE) {
-					*fp++ = TTY_OVERRUN;
+					flag = TTY_OVERRUN;
 /* added by casper 1/11/2000 */
 					info->icount.overrun++;
 /* */
-				} else
-					*fp++ = 0;
-			} else
-				*fp++ = 0;
-			*cp++ = ch;
+				}
+			}
+			tty_insert_flip_char(tty, ch, flag);
 			cnt++;
 			if (cnt >= recv_room) {
 				if (!info->ldisc_stop_rx) {
@@ -2132,13 +2120,13 @@ intr_old:
 		// above add by Victor Yu. 09-02-2002
 	} while (*status & UART_LSR_DR);
 
-      end_intr:		// add by Victor Yu. 09-02-2002
+end_intr:		// add by Victor Yu. 09-02-2002
 
 	mxvar_log.rxcnt[info->port] += cnt;
 	info->mon_data.rxcnt += cnt;
 	info->mon_data.up_rxcnt += cnt;
 	spin_unlock_irqrestore(&info->slock, flags);
-	
+
 	tty_flip_buffer_push(tty);
 }
 

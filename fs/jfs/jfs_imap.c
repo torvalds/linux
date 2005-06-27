@@ -47,6 +47,7 @@
 #include <linux/quotaops.h>
 
 #include "jfs_incore.h"
+#include "jfs_inode.h"
 #include "jfs_filsys.h"
 #include "jfs_dinode.h"
 #include "jfs_dmap.h"
@@ -67,11 +68,6 @@
 #define AG_LOCK_INIT(imap,index)	init_MUTEX(&(imap->im_aglock[index]))
 #define AG_LOCK(imap,agno)		down(&imap->im_aglock[agno])
 #define AG_UNLOCK(imap,agno)		up(&imap->im_aglock[agno])
-
-/*
- * external references
- */
-extern struct address_space_operations jfs_aops;
 
 /*
  * forward references

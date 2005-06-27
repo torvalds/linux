@@ -428,7 +428,7 @@ xfs_qm_dquot_logitem_committing(
 /*
  * This is the ops vector for dquots
  */
-struct xfs_item_ops xfs_dquot_item_ops = {
+STATIC struct xfs_item_ops xfs_dquot_item_ops = {
 	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_qm_dquot_logitem_size,
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_qm_dquot_logitem_format,
@@ -646,7 +646,7 @@ xfs_qm_qoffend_logitem_committing(xfs_qoff_logitem_t *qip, xfs_lsn_t commit_lsn)
 	return;
 }
 
-struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
+STATIC struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
 	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_size,
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_qm_qoff_logitem_format,
@@ -669,7 +669,7 @@ struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
 /*
  * This is the ops vector shared by all quotaoff-start log items.
  */
-struct xfs_item_ops xfs_qm_qoff_logitem_ops = {
+STATIC struct xfs_item_ops xfs_qm_qoff_logitem_ops = {
 	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_size,
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_qm_qoff_logitem_format,

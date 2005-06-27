@@ -490,6 +490,7 @@ asmlinkage void __init start_kernel(void)
 	vfs_caches_init_early();
 	mem_init();
 	kmem_cache_init();
+	setup_per_cpu_pageset();
 	numa_policy_init();
 	if (late_time_init)
 		late_time_init();

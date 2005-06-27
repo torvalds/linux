@@ -1880,6 +1880,13 @@ S: Schlehenweg 9
 S: D-91080 Uttenreuth
 S: Germany
 
+N: Jaya Kumar
+E: jayalk@intworks.biz
+W: http://www.intworks.biz
+D: Arc monochrome LCD framebuffer driver, x86 reboot fixups
+S: Gurgaon, India
+S: Kuala Lumpur, Malaysia
+
 N: Gabor Kuti
 M: seasons@falcon.sch.bme.hu
 M: seasons@makosteszta.sote.hu
@@ -2373,9 +2380,10 @@ E: tmolina@cablespeed.com
 D: bug fixes, documentation, minor hackery
 
 N: James Morris
-E: jmorris@intercode.com.au
+E: jmorris@redhat.com
 W: http://www.intercode.com.au/jmorris/
-D: Netfilter, Linux Security Modules (LSM).
+D: Netfilter, Linux Security Modules (LSM), SELinux, IPSec,
+D: Crypto API, general networking, miscellaneous.
 S: PO Box 707
 S: Spit Junction NSW 2088
 S: Australia
@@ -2475,13 +2483,9 @@ S: Potsdam, New York 13676
 S: USA
 
 N: Dave Neuer
-E: dneuer@innovation-charter.com
-E: mr_fred_smoothie@yahoo.com
+E: dave.neuer@pobox.com
 D: Helped implement support for Compaq's H31xx series iPAQs
 D: Other mostly minor tweaks & bugfixes
-S: 325 E. Main St., Suite 3
-S: Carnegie, PA 15105
-S: USA
 
 N: Michael Neuffer
 E: mike@i-Connect.Net

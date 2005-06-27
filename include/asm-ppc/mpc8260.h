@@ -41,7 +41,7 @@
 #endif
 
 #ifdef CONFIG_PCI_8260
-#include <syslib/m8260_pci.h>
+#include <syslib/m82xx_pci.h>
 #endif
 
 /* Make sure the memory translation stuff is there if PCI not used.

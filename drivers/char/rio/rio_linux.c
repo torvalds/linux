@@ -354,11 +354,6 @@ int rio_ismodem(struct tty_struct *tty)
 }
 
 
-void rio_udelay (int usecs)
-{
-  udelay (usecs);
-}
-
 static int rio_set_real_termios (void *ptr)
 {
   int rv, modem;

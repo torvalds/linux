@@ -18,7 +18,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
-#include <linux/spinlock.h>
+#include <linux/rcupdate.h>
 #include <asm/atomic.h>
 
 #ifdef __KERNEL__
@@ -78,7 +78,6 @@ struct key {
 	key_serial_t		serial;		/* key serial number */
 	struct rb_node		serial_node;
 	struct key_type		*type;		/* type of key */
-	rwlock_t		lock;		/* examination vs change lock */
 	struct rw_semaphore	sem;		/* change vs change sem */
 	struct key_user		*user;		/* owner of this key */
 	time_t			expiry;		/* time at which key expires (or 0) */
@@ -86,20 +85,24 @@ struct key {
 	gid_t			gid;
 	key_perm_t		perm;		/* access permissions */
 	unsigned short		quotalen;	/* length added to quota */
-	unsigned short		datalen;	/* payload data length */
-	unsigned short		flags;		/* status flags (change with lock writelocked) */
-#define KEY_FLAG_INSTANTIATED	0x00000001	/* set if key has been instantiated */
-#define KEY_FLAG_DEAD		0x00000002	/* set if key type has been deleted */
-#define KEY_FLAG_REVOKED	0x00000004	/* set if key had been revoked */
-#define KEY_FLAG_IN_QUOTA	0x00000008	/* set if key consumes quota */
-#define KEY_FLAG_USER_CONSTRUCT	0x00000010	/* set if key is being constructed in userspace */
-#define KEY_FLAG_NEGATIVE	0x00000020	/* set if key is negative */
+	unsigned short		datalen;	/* payload data length
+						 * - may not match RCU dereferenced payload
+						 * - payload should contain own length
+						 */
 
 #ifdef KEY_DEBUGGING
 	unsigned		magic;
 #define KEY_DEBUG_MAGIC		0x18273645u
 #define KEY_DEBUG_MAGIC_X	0xf8e9dacbu
 #endif
+
+	unsigned long		flags;		/* status flags (change with bitops) */
+#define KEY_FLAG_INSTANTIATED	0	/* set if key has been instantiated */
+#define KEY_FLAG_DEAD		1	/* set if key type has been deleted */
+#define KEY_FLAG_REVOKED	2	/* set if key had been revoked */
+#define KEY_FLAG_IN_QUOTA	3	/* set if key consumes quota */
+#define KEY_FLAG_USER_CONSTRUCT	4	/* set if key is being constructed in userspace */
+#define KEY_FLAG_NEGATIVE	5	/* set if key is negative */
 
 	/* the description string
 	 * - this is used to match a key against search criteria
@@ -196,10 +199,12 @@ extern int key_payload_reserve(struct key *key, size_t datalen);
 extern int key_instantiate_and_link(struct key *key,
 				    const void *data,
 				    size_t datalen,
-				    struct key *keyring);
+				    struct key *keyring,
+				    struct key *instkey);
 extern int key_negate_and_link(struct key *key,
 			       unsigned timeout,
-			       struct key *keyring);
+			       struct key *keyring,
+			       struct key *instkey);
 extern void key_revoke(struct key *key);
 extern void key_put(struct key *key);
 
@@ -242,13 +247,12 @@ extern struct key *keyring_search(struct key *keyring,
 				  struct key_type *type,
 				  const char *description);
 
-extern struct key *search_process_keyrings(struct key_type *type,
-					   const char *description);
-
 extern int keyring_add_key(struct key *keyring,
 			   struct key *key);
 
 extern struct key *key_lookup(key_serial_t id);
+
+extern void keyring_replace_payload(struct key *key, void *replacement);
 
 #define key_serial(key) ((key) ? (key)->serial : 0)
 
@@ -268,14 +272,22 @@ extern void key_fsuid_changed(struct task_struct *tsk);
 extern void key_fsgid_changed(struct task_struct *tsk);
 extern void key_init(void);
 
+#define __install_session_keyring(tsk, keyring)			\
+({								\
+	struct key *old_session = tsk->signal->session_keyring;	\
+	tsk->signal->session_keyring = keyring;			\
+	old_session;						\
+})
+
 #else /* CONFIG_KEYS */
 
 #define key_validate(k)			0
 #define key_serial(k)			0
-#define key_get(k) 			NULL
+#define key_get(k) 			({ NULL; })
 #define key_put(k)			do { } while(0)
 #define alloc_uid_keyring(u)		0
 #define switch_uid_keyring(u)		do { } while(0)
+#define __install_session_keyring(t, k)	({ NULL; })
 #define copy_keys(f,t)			0
 #define copy_thread_group_keys(t)	0
 #define exit_keys(t)			do { } while(0)

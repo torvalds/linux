@@ -245,12 +245,12 @@ static unsigned short *getnextpc(struct task_struct *child, unsigned short *pc)
 						addr = h8300_get_reg(child, regno-1+PT_ER1);
 					return (unsigned short *)addr;
 				case relb:
-					if ((inst = 0x55) || isbranch(child,inst & 0x0f))
+					if (inst == 0x55 || isbranch(child,inst & 0x0f))
 						pc = (unsigned short *)((unsigned long)pc +
 								       ((signed char)(*fetch_p)));
 					return pc+1; /* skip myself */
 				case relw:
-					if ((inst = 0x5c) || isbranch(child,(*fetch_p & 0xf0) >> 4))
+					if (inst == 0x5c || isbranch(child,(*fetch_p & 0xf0) >> 4))
 						pc = (unsigned short *)((unsigned long)pc +
 								       ((signed short)(*(pc+1))));
 					return pc+2; /* skip myself */

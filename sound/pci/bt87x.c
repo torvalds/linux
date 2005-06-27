@@ -918,7 +918,7 @@ static int __init alsa_card_bt87x_init(void)
 {
 	if (load_all)
 		driver.id_table = snd_bt87x_default_ids;
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_bt87x_exit(void)

@@ -197,8 +197,23 @@ static struct platform_device enp2611_flash = {
 	.resource	= &enp2611_flash_resource,
 };
 
+static struct ixp2000_i2c_pins enp2611_i2c_gpio_pins = {
+	.sda_pin	= ENP2611_GPIO_SDA,
+	.scl_pin	= ENP2611_GPIO_SCL,
+};
+
+static struct platform_device enp2611_i2c_controller = {
+	.name		= "IXP2000-I2C",
+	.id		= 0,
+	.dev		= {
+		.platform_data = &enp2611_i2c_gpio_pins
+	},
+	.num_resources	= 0
+};
+
 static struct platform_device *enp2611_devices[] __initdata = {
-	&enp2611_flash
+	&enp2611_flash,
+	&enp2611_i2c_controller
 };
 
 static void __init enp2611_init_machine(void)

@@ -960,7 +960,7 @@ static char hdlc_unregister_fail[] __exitdata =
 static void __exit n_hdlc_exit(void)
 {
 	/* Release tty registration of line discipline */
-	int status = tty_register_ldisc(N_HDLC, NULL);
+	int status = tty_unregister_ldisc(N_HDLC);
 
 	if (status)
 		printk(hdlc_unregister_fail, status);

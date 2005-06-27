@@ -357,6 +357,8 @@ config 060_WRITETHROUGH
 	  is hardwired on.  The 53c710 SCSI driver is known to suffer from
 	  this problem.
 
+source "mm/Kconfig"
+
 endmenu
 
 menu "General setup"

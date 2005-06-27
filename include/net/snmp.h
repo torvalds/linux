@@ -128,18 +128,18 @@ struct linux_mib {
 #define SNMP_STAT_USRPTR(name)	(name[1])
 
 #define SNMP_INC_STATS_BH(mib, field) 	\
-	(per_cpu_ptr(mib[0], _smp_processor_id())->mibs[field]++)
+	(per_cpu_ptr(mib[0], raw_smp_processor_id())->mibs[field]++)
 #define SNMP_INC_STATS_OFFSET_BH(mib, field, offset)	\
-	(per_cpu_ptr(mib[0], _smp_processor_id())->mibs[field + (offset)]++)
+	(per_cpu_ptr(mib[0], raw_smp_processor_id())->mibs[field + (offset)]++)
 #define SNMP_INC_STATS_USER(mib, field) \
-	(per_cpu_ptr(mib[1], _smp_processor_id())->mibs[field]++)
+	(per_cpu_ptr(mib[1], raw_smp_processor_id())->mibs[field]++)
 #define SNMP_INC_STATS(mib, field) 	\
-	(per_cpu_ptr(mib[!in_softirq()], _smp_processor_id())->mibs[field]++)
+	(per_cpu_ptr(mib[!in_softirq()], raw_smp_processor_id())->mibs[field]++)
 #define SNMP_DEC_STATS(mib, field) 	\
-	(per_cpu_ptr(mib[!in_softirq()], _smp_processor_id())->mibs[field]--)
+	(per_cpu_ptr(mib[!in_softirq()], raw_smp_processor_id())->mibs[field]--)
 #define SNMP_ADD_STATS_BH(mib, field, addend) 	\
-	(per_cpu_ptr(mib[0], _smp_processor_id())->mibs[field] += addend)
+	(per_cpu_ptr(mib[0], raw_smp_processor_id())->mibs[field] += addend)
 #define SNMP_ADD_STATS_USER(mib, field, addend) 	\
-	(per_cpu_ptr(mib[1], _smp_processor_id())->mibs[field] += addend)
+	(per_cpu_ptr(mib[1], raw_smp_processor_id())->mibs[field] += addend)
 
 #endif

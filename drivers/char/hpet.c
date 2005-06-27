@@ -834,7 +834,7 @@ int hpet_alloc(struct hpet_data *hdp)
 	printk("\n");
 
 	ns = hpetp->hp_period;	/* femptoseconds, 10^-15 */
-	do_div(ns, 1000000);	/* convert to nanoseconds, 10^-9 */
+	ns /= 1000000;		/* convert to nanoseconds, 10^-9 */
 	printk(KERN_INFO "hpet%d: %ldns tick, %d %d-bit timers\n",
 		hpetp->hp_which, ns, hpetp->hp_ntimer,
 		cap & HPET_COUNTER_SIZE_MASK ? 64 : 32);

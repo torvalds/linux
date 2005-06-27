@@ -21,8 +21,8 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/bootmem.h>
 #include <linux/module.h>
+#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mpc8260.h>
 #include <asm/page.h>

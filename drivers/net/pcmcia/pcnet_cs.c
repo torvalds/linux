@@ -1155,11 +1155,13 @@ static int set_config(struct net_device *dev, struct ifmap *map)
 static irqreturn_t ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs)
 {
     struct net_device *dev = dev_id;
-    pcnet_dev_t *info = PRIV(dev);
+    pcnet_dev_t *info;
     irqreturn_t ret = ei_interrupt(irq, dev_id, regs);
 
-    if (ret == IRQ_HANDLED)
+    if (ret == IRQ_HANDLED) {
+	    info = PRIV(dev);
 	    info->stale = 0;
+    }
     return ret;
 }
 
@@ -1350,7 +1352,7 @@ static void dma_block_input(struct net_device *dev, int count,
     if (count & 0x01)
 	buf[count-1] = inb(nic_base + PCNET_DATAPORT), xfer_count++;
 
-    /* This was for the ALPHA version only, but enough people have
+    /* This was for the ALPHA version only, but enough people have been
        encountering problems that it is still here. */
 #ifdef PCMCIA_DEBUG
     if (ei_debug > 4) {		/* DMA termination address check... */
@@ -1424,7 +1426,7 @@ static void dma_block_output(struct net_device *dev, int count,
     dma_start = jiffies;
 
 #ifdef PCMCIA_DEBUG
-    /* This was for the ALPHA version only, but enough people have
+    /* This was for the ALPHA version only, but enough people have been
        encountering problems that it is still here. */
     if (ei_debug > 4) {	/* DMA termination address check... */
 	int addr, tries = 20;
@@ -1537,20 +1539,20 @@ static void shmem_get_8390_hdr(struct net_device *dev,
 static void shmem_block_input(struct net_device *dev, int count,
 			      struct sk_buff *skb, int ring_offset)
 {
-    void __iomem *xfer_start = ei_status.mem + (TX_PAGES<<8)
-				+ ring_offset
+    void __iomem *base = ei_status.mem;
+    unsigned long offset = (TX_PAGES<<8) + ring_offset
 				- (ei_status.rx_start_page << 8);
     char *buf = skb->data;
     
-    if (xfer_start + count > (void __iomem *)ei_status.rmem_end) {
+    if (offset + count > ei_status.priv) {
 	/* We must wrap the input move. */
-	int semi_count = (void __iomem *)ei_status.rmem_end - xfer_start;
-	copyin(buf, xfer_start, semi_count);
+	int semi_count = ei_status.priv - offset;
+	copyin(buf, base + offset, semi_count);
 	buf += semi_count;
-	xfer_start = ei_status.mem + (TX_PAGES<<8);
+	offset = TX_PAGES<<8;
 	count -= semi_count;
     }
-    copyin(buf, xfer_start, count);
+    copyin(buf, base + offset, count);
 }
 
 /*====================================================================*/
@@ -1611,8 +1613,9 @@ static int setup_shmem_window(dev_link_t *link, int start_pg,
     }
     
     ei_status.mem = info->base + offset;
+    ei_status.priv = req.Size;
     dev->mem_start = (u_long)ei_status.mem;
-    dev->mem_end = ei_status.rmem_end = (u_long)info->base + req.Size;
+    dev->mem_end = dev->mem_start + req.Size;
 
     ei_status.tx_start_page = start_pg;
     ei_status.rx_start_page = start_pg + TX_PAGES;

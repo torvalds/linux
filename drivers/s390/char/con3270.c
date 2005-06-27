@@ -591,8 +591,8 @@ con3270_init(void)
 
 	/* Set the console mode for VM */
 	if (MACHINE_IS_VM) {
-		cpcmd("TERM CONMODE 3270", 0, 0);
-		cpcmd("TERM AUTOCR OFF", 0, 0);
+		cpcmd("TERM CONMODE 3270", NULL, 0, NULL);
+		cpcmd("TERM AUTOCR OFF", NULL, 0, NULL);
 	}
 
 	cdev = ccw_device_probe_console();

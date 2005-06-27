@@ -72,6 +72,8 @@ struct nlm_lockowner {
 	uint32_t pid;
 };
 
+struct nlm_wait;
+
 /*
  * Memory chunk for NLM client RPC request.
  */
@@ -81,6 +83,7 @@ struct nlm_rqst {
 	struct nlm_host *	a_host;		/* host handle */
 	struct nlm_args		a_args;		/* arguments */
 	struct nlm_res		a_res;		/* result */
+	struct nlm_wait *	a_block;
 	char			a_owner[NLMCLNT_OHSIZE];
 };
 
@@ -142,7 +145,9 @@ extern unsigned long		nlmsvc_timeout;
  * Lockd client functions
  */
 struct nlm_rqst * nlmclnt_alloc_call(void);
-int		  nlmclnt_block(struct nlm_host *, struct file_lock *, u32 *);
+int		  nlmclnt_prepare_block(struct nlm_rqst *req, struct nlm_host *host, struct file_lock *fl);
+void		  nlmclnt_finish_block(struct nlm_rqst *req);
+long		  nlmclnt_block(struct nlm_rqst *req, long timeout);
 int		  nlmclnt_cancel(struct nlm_host *, struct file_lock *);
 u32		  nlmclnt_grant(struct nlm_lock *);
 void		  nlmclnt_recovery(struct nlm_host *, u32);

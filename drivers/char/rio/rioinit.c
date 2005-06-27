@@ -37,6 +37,7 @@ static char *_rioinit_c_sccs_ = "@(#)rioinit.c	1.3";
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/string.h>
@@ -1560,14 +1561,14 @@ uint Slot;
 					  INTERRUPT_DISABLE | BYTE_OPERATION |
 					  SLOW_LINKS | SLOW_AT_BUS);
 			WBYTE(DpRamP->DpResetTpu, 0xFF);
-			rio_udelay (3);
+			udelay(3);
 
 			rio_dprintk (RIO_DEBUG_INIT,  "RIOHostReset: Don't know if it worked. Try reset again\n");
 			WBYTE(DpRamP->DpControl,  BOOT_FROM_RAM | EXTERNAL_BUS_OFF |
 					  INTERRUPT_DISABLE | BYTE_OPERATION |
 					  SLOW_LINKS | SLOW_AT_BUS);
 			WBYTE(DpRamP->DpResetTpu, 0xFF);
-			rio_udelay (3);
+			udelay(3);
 			break;
 #ifdef FUTURE_RELEASE
 	case RIO_EISA:
@@ -1599,7 +1600,7 @@ uint Slot;
 		DpRamP->DpControl  = RIO_PCI_BOOT_FROM_RAM;
 		DpRamP->DpResetInt = 0xFF;
 		DpRamP->DpResetTpu = 0xFF;
-		rio_udelay (100);
+		udelay(100);
 		/* for (i=0; i<6000; i++);  */
 		/* suspend( 3 ); */
 		break;

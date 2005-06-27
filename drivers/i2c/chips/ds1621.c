@@ -121,7 +121,7 @@ static int ds1621_write_value(struct i2c_client *client, u8 reg, u16 value)
 static void ds1621_init_client(struct i2c_client *client)
 {
 	int reg = ds1621_read_value(client, DS1621_REG_CONF);
-	/* switch to continous conversion mode */
+	/* switch to continuous conversion mode */
 	reg &= ~ DS1621_REG_CONFIG_1SHOT;
 
 	/* setup output polarity */
@@ -137,7 +137,7 @@ static void ds1621_init_client(struct i2c_client *client)
 }
 
 #define show(value)							\
-static ssize_t show_##value(struct device *dev, char *buf)		\
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct ds1621_data *data = ds1621_update_client(dev);		\
 	return sprintf(buf, "%d\n", LM75_TEMP_FROM_REG(data->value));	\
@@ -148,7 +148,7 @@ show(temp_min);
 show(temp_max);
 
 #define set_temp(suffix, value, reg)					\
-static ssize_t set_temp_##suffix(struct device *dev, const char *buf,	\
+static ssize_t set_temp_##suffix(struct device *dev, struct device_attribute *attr, const char *buf,	\
 				 size_t count)				\
 {									\
 	struct i2c_client *client = to_i2c_client(dev);			\
@@ -165,7 +165,7 @@ static ssize_t set_temp_##suffix(struct device *dev, const char *buf,	\
 set_temp(min, temp_min, DS1621_REG_TEMP_MIN);
 set_temp(max, temp_max, DS1621_REG_TEMP_MAX);
 
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ds1621_data *data = ds1621_update_client(dev);
 	return sprintf(buf, "%d\n", ALARMS_FROM_REG(data->conf));
@@ -303,7 +303,7 @@ static struct ds1621_data *ds1621_update_client(struct device *dev)
 		data->temp_max = ds1621_read_value(client,
 						    DS1621_REG_TEMP_MAX);
 
-		/* reset alarms if neccessary */
+		/* reset alarms if necessary */
 		new_conf = data->conf;
 		if (data->temp < data->temp_min)
 			new_conf &= ~DS1621_ALARM_TEMP_LOW;

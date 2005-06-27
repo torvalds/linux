@@ -1871,20 +1871,22 @@ static int as_init_queue(request_queue_t *q, elevator_t *e)
 	if (!arq_pool)
 		return -ENOMEM;
 
-	ad = kmalloc(sizeof(*ad), GFP_KERNEL);
+	ad = kmalloc_node(sizeof(*ad), GFP_KERNEL, q->node);
 	if (!ad)
 		return -ENOMEM;
 	memset(ad, 0, sizeof(*ad));
 
 	ad->q = q; /* Identify what queue the data belongs to */
 
-	ad->hash = kmalloc(sizeof(struct list_head)*AS_HASH_ENTRIES,GFP_KERNEL);
+	ad->hash = kmalloc_node(sizeof(struct list_head)*AS_HASH_ENTRIES,
+				GFP_KERNEL, q->node);
 	if (!ad->hash) {
 		kfree(ad);
 		return -ENOMEM;
 	}
 
-	ad->arq_pool = mempool_create(BLKDEV_MIN_RQ, mempool_alloc_slab, mempool_free_slab, arq_pool);
+	ad->arq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
+				mempool_free_slab, arq_pool, q->node);
 	if (!ad->arq_pool) {
 		kfree(ad->hash);
 		kfree(ad);
@@ -2044,7 +2046,7 @@ as_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 	struct as_fs_entry *entry = to_as(attr);
 
 	if (!entry->show)
-		return 0;
+		return -EIO;
 
 	return entry->show(e->elevator_data, page);
 }
@@ -2057,7 +2059,7 @@ as_attr_store(struct kobject *kobj, struct attribute *attr,
 	struct as_fs_entry *entry = to_as(attr);
 
 	if (!entry->store)
-		return -EINVAL;
+		return -EIO;
 
 	return entry->store(e->elevator_data, page, length);
 }

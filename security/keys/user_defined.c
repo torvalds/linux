@@ -42,12 +42,21 @@ struct key_type key_type_user = {
 	.read		= user_read,
 };
 
+struct user_key_payload {
+	struct rcu_head	rcu;		/* RCU destructor */
+	unsigned short	datalen;	/* length of this data */
+	char		data[0];	/* actual data */
+};
+
+EXPORT_SYMBOL_GPL(key_type_user);
+
 /*****************************************************************************/
 /*
  * instantiate a user defined key
  */
 static int user_instantiate(struct key *key, const void *data, size_t datalen)
 {
+	struct user_key_payload *upayload;
 	int ret;
 
 	ret = -EINVAL;
@@ -58,13 +67,15 @@ static int user_instantiate(struct key *key, const void *data, size_t datalen)
 	if (ret < 0)
 		goto error;
 
-	/* attach the data */
 	ret = -ENOMEM;
-	key->payload.data = kmalloc(datalen, GFP_KERNEL);
-	if (!key->payload.data)
+	upayload = kmalloc(sizeof(*upayload) + datalen, GFP_KERNEL);
+	if (!upayload)
 		goto error;
 
-	memcpy(key->payload.data, data, datalen);
+	/* attach the data */
+	upayload->datalen = datalen;
+	memcpy(upayload->data, data, datalen);
+	rcu_assign_pointer(key->payload.data, upayload);
 	ret = 0;
 
  error:
@@ -75,18 +86,25 @@ static int user_instantiate(struct key *key, const void *data, size_t datalen)
 /*****************************************************************************/
 /*
  * duplicate a user defined key
+ * - both keys' semaphores are locked against further modification
+ * - the new key cannot yet be accessed
  */
 static int user_duplicate(struct key *key, const struct key *source)
 {
+	struct user_key_payload *upayload, *spayload;
 	int ret;
 
 	/* just copy the payload */
 	ret = -ENOMEM;
-	key->payload.data = kmalloc(source->datalen, GFP_KERNEL);
+	upayload = kmalloc(sizeof(*upayload) + source->datalen, GFP_KERNEL);
+	if (upayload) {
+		spayload = rcu_dereference(source->payload.data);
+		BUG_ON(source->datalen != spayload->datalen);
 
-	if (key->payload.data) {
-		key->datalen = source->datalen;
-		memcpy(key->payload.data, source->payload.data, source->datalen);
+		upayload->datalen = key->datalen = spayload->datalen;
+		memcpy(upayload->data, spayload->data, key->datalen);
+
+		key->payload.data = upayload;
 		ret = 0;
 	}
 
@@ -96,40 +114,54 @@ static int user_duplicate(struct key *key, const struct key *source)
 
 /*****************************************************************************/
 /*
+ * dispose of the old data from an updated user defined key
+ */
+static void user_update_rcu_disposal(struct rcu_head *rcu)
+{
+	struct user_key_payload *upayload;
+
+	upayload = container_of(rcu, struct user_key_payload, rcu);
+
+	kfree(upayload);
+
+} /* end user_update_rcu_disposal() */
+
+/*****************************************************************************/
+/*
  * update a user defined key
+ * - the key's semaphore is write-locked
  */
 static int user_update(struct key *key, const void *data, size_t datalen)
 {
-	void *new, *zap;
+	struct user_key_payload *upayload, *zap;
 	int ret;
 
 	ret = -EINVAL;
 	if (datalen <= 0 || datalen > 32767 || !data)
 		goto error;
 
-	/* copy the data */
+	/* construct a replacement payload */
 	ret = -ENOMEM;
-	new = kmalloc(datalen, GFP_KERNEL);
-	if (!new)
+	upayload = kmalloc(sizeof(*upayload) + datalen, GFP_KERNEL);
+	if (!upayload)
 		goto error;
 
-	memcpy(new, data, datalen);
+	upayload->datalen = datalen;
+	memcpy(upayload->data, data, datalen);
 
 	/* check the quota and attach the new data */
-	zap = new;
-	write_lock(&key->lock);
+	zap = upayload;
 
 	ret = key_payload_reserve(key, datalen);
 
 	if (ret == 0) {
 		/* attach the new data, displacing the old */
 		zap = key->payload.data;
-		key->payload.data = new;
+		rcu_assign_pointer(key->payload.data, upayload);
 		key->expiry = 0;
 	}
 
-	write_unlock(&key->lock);
-	kfree(zap);
+	call_rcu(&zap->rcu, user_update_rcu_disposal);
 
  error:
 	return ret;
@@ -152,13 +184,15 @@ static int user_match(const struct key *key, const void *description)
  */
 static void user_destroy(struct key *key)
 {
-	kfree(key->payload.data);
+	struct user_key_payload *upayload = key->payload.data;
+
+	kfree(upayload);
 
 } /* end user_destroy() */
 
 /*****************************************************************************/
 /*
- * describe the user
+ * describe the user key
  */
 static void user_describe(const struct key *key, struct seq_file *m)
 {
@@ -171,18 +205,23 @@ static void user_describe(const struct key *key, struct seq_file *m)
 /*****************************************************************************/
 /*
  * read the key data
+ * - the key's semaphore is read-locked
  */
 static long user_read(const struct key *key,
 		      char __user *buffer, size_t buflen)
 {
-	long ret = key->datalen;
+	struct user_key_payload *upayload;
+	long ret;
+
+	upayload = rcu_dereference(key->payload.data);
+	ret = upayload->datalen;
 
 	/* we can return the data as is */
 	if (buffer && buflen > 0) {
-		if (buflen > key->datalen)
-			buflen = key->datalen;
+		if (buflen > upayload->datalen)
+			buflen = upayload->datalen;
 
-		if (copy_to_user(buffer, key->payload.data, buflen) != 0)
+		if (copy_to_user(buffer, upayload->data, buflen) != 0)
 			ret = -EFAULT;
 	}
 

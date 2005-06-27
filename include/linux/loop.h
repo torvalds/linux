@@ -61,7 +61,7 @@ struct loop_device {
 	struct semaphore	lo_sem;
 	struct semaphore	lo_ctl_mutex;
 	struct semaphore	lo_bh_mutex;
-	atomic_t		lo_pending;
+	int			lo_pending;
 
 	request_queue_t		*lo_queue;
 };

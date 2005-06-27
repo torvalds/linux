@@ -52,7 +52,7 @@ FILEONLY *internalfunctions;
 FILEONLY *externalfunctions;
 FILEONLY *symbolsonly;
 
-typedef void FILELINE(char * file, signed char * line);
+typedef void FILELINE(char * file, char * line);
 FILELINE * singlefunctions;
 FILELINE * entity_system;
 
@@ -148,9 +148,9 @@ struct symfile * filename_exist(char * filename)
  * Files are separated by tabs.
  */
 void adddep(char * file)		   { printf("\t%s", file); }
-void adddep2(char * file, signed char * line)     { line = line; adddep(file); }
+void adddep2(char * file, char * line)     { line = line; adddep(file); }
 void noaction(char * line)		   { line = line; }
-void noaction2(char * file, signed char * line)   { file = file; line = line; }
+void noaction2(char * file, char * line)   { file = file; line = line; }
 
 /* Echo the line without further action */
 void printline(char * line)               { printf("%s", line); }
@@ -179,8 +179,8 @@ void find_export_symbols(char * filename)
 			perror(real_filename);
 		}
 		while(fgets(line, MAXLINESZ, fp)) {
-			signed char *p;
-			signed char *e;
+			char *p;
+			char *e;
 			if (((p = strstr(line, "EXPORT_SYMBOL_GPL")) != 0) ||
                             ((p = strstr(line, "EXPORT_SYMBOL")) != 0)) {
 				/* Skip EXPORT_SYMBOL{_GPL} */
@@ -253,7 +253,7 @@ void extfunc(char * filename) { docfunctions(filename, FUNCTION);   }
  * Call kernel-doc with the following parameters:
  * kernel-doc -docbook -function function1 [-function function2]
  */
-void singfunc(char * filename, signed char * line)
+void singfunc(char * filename, char * line)
 {
 	char *vec[200]; /* Enough for specific functions */
         int i, idx = 0;
@@ -290,7 +290,7 @@ void singfunc(char * filename, signed char * line)
 void parse_file(FILE *infile)
 {
 	char line[MAXLINESZ];
-	signed char * s;
+	char * s;
 	while(fgets(line, MAXLINESZ, infile)) {
 		if (line[0] == '!') {
 			s = line + 2;

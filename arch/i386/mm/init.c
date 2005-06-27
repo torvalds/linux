@@ -191,7 +191,7 @@ static inline int page_kills_ppro(unsigned long pagenr)
 
 extern int is_available_memory(efi_memory_desc_t *);
 
-static inline int page_is_ram(unsigned long pagenr)
+int page_is_ram(unsigned long pagenr)
 {
 	int i;
 	unsigned long addr, end;
@@ -269,7 +269,6 @@ void __init one_highpage_init(struct page *page, int pfn, int bad_ppro)
 {
 	if (page_is_ram(pfn) && !(bad_ppro && page_kills_ppro(pfn))) {
 		ClearPageReserved(page);
-		set_bit(PG_highmem, &page->flags);
 		set_page_count(page, 1);
 		__free_page(page);
 		totalhigh_pages++;
@@ -277,7 +276,9 @@ void __init one_highpage_init(struct page *page, int pfn, int bad_ppro)
 		SetPageReserved(page);
 }
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
+extern void set_highmem_pages_init(int);
+#else
 static void __init set_highmem_pages_init(int bad_ppro)
 {
 	int pfn;
@@ -285,9 +286,7 @@ static void __init set_highmem_pages_init(int bad_ppro)
 		one_highpage_init(pfn_to_page(pfn), pfn, bad_ppro);
 	totalram_pages += totalhigh_pages;
 }
-#else
-extern void set_highmem_pages_init(int);
-#endif /* !CONFIG_DISCONTIGMEM */
+#endif /* CONFIG_FLATMEM */
 
 #else
 #define kmap_init() do { } while (0)
@@ -296,12 +295,13 @@ extern void set_highmem_pages_init(int);
 #endif /* CONFIG_HIGHMEM */
 
 unsigned long long __PAGE_KERNEL = _PAGE_KERNEL;
+EXPORT_SYMBOL(__PAGE_KERNEL);
 unsigned long long __PAGE_KERNEL_EXEC = _PAGE_KERNEL_EXEC;
 
-#ifndef CONFIG_DISCONTIGMEM
-#define remap_numa_kva() do {} while (0)
-#else
+#ifdef CONFIG_NUMA
 extern void __init remap_numa_kva(void);
+#else
+#define remap_numa_kva() do {} while (0)
 #endif
 
 static void __init pagetable_init (void)
@@ -352,7 +352,7 @@ static void __init pagetable_init (void)
 #endif
 }
 
-#if defined(CONFIG_PM_DISK) || defined(CONFIG_SOFTWARE_SUSPEND)
+#ifdef CONFIG_SOFTWARE_SUSPEND
 /*
  * Swap suspend & friends need this for resume because things like the intel-agp
  * driver might have split up a kernel 4MB mapping.
@@ -526,7 +526,7 @@ static void __init set_max_mapnr_init(void)
 #else
 	num_physpages = max_low_pfn;
 #endif
-#ifndef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_FLATMEM
 	max_mapnr = num_physpages;
 #endif
 }
@@ -540,7 +540,7 @@ void __init mem_init(void)
 	int tmp;
 	int bad_ppro;
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_FLATMEM
 	if (!mem_map)
 		BUG();
 #endif

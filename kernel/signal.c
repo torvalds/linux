@@ -24,6 +24,7 @@
 #include <linux/ptrace.h>
 #include <linux/posix-timers.h>
 #include <linux/signal.h>
+#include <linux/audit.h>
 #include <asm/param.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -212,6 +213,7 @@ static inline int has_pending_signals(sigset_t *signal, sigset_t *blocked)
 fastcall void recalc_sigpending_tsk(struct task_struct *t)
 {
 	if (t->signal->group_stop_count > 0 ||
+	    (freezing(t)) ||
 	    PENDING(&t->pending, &t->blocked) ||
 	    PENDING(&t->signal->shared_pending, &t->blocked))
 		set_tsk_thread_flag(t, TIF_SIGPENDING);
@@ -667,7 +669,11 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	    && (current->uid ^ t->suid) && (current->uid ^ t->uid)
 	    && !capable(CAP_KILL))
 		return error;
-	return security_task_kill(t, info, sig);
+
+	error = security_task_kill(t, info, sig);
+	if (!error)
+		audit_signal_info(sig, t); /* Let audit system see the signal */
+	return error;
 }
 
 /* forward decl */
@@ -2225,8 +2231,7 @@ sys_rt_sigtimedwait(const sigset_t __user *uthese,
 			current->state = TASK_INTERRUPTIBLE;
 			timeout = schedule_timeout(timeout);
 
-			if (current->flags & PF_FREEZE)
-				refrigerator(PF_FREEZE);
+			try_to_freeze();
 			spin_lock_irq(&current->sighand->siglock);
 			sig = dequeue_signal(current, &these, &info);
 			current->blocked = current->real_blocked;

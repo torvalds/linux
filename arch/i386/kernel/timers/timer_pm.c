@@ -246,6 +246,7 @@ static struct timer_opts timer_pmtmr = {
 	.get_offset		= get_offset_pmtmr,
 	.monotonic_clock 	= monotonic_clock_pmtmr,
 	.delay 			= delay_pmtmr,
+	.read_timer 		= read_timer_tsc,
 };
 
 struct init_timer_opts __initdata timer_pmtmr_init = {

@@ -19,6 +19,7 @@
  * Define the vendor/device ID for the MPC8265.
  */
 #define	PCI_DEVICE_ID_MPC8265	((0x18C0 << 16) | PCI_VENDOR_ID_MOTOROLA)
+#define	PCI_DEVICE_ID_MPC8272	((0x18C1 << 16) | PCI_VENDOR_ID_MOTOROLA)
 
 #define M8265_PCIBR0	0x101ac
 #define M8265_PCIBR1	0x101b0

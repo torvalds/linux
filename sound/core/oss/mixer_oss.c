@@ -24,6 +24,7 @@
 #include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/control.h>
@@ -1137,7 +1138,7 @@ static void snd_mixer_oss_proc_write(snd_info_entry_t *entry,
 			goto __unlock;
 		}
 		tbl->oss_id = ch;
-		tbl->name = snd_kmalloc_strdup(str, GFP_KERNEL);
+		tbl->name = kstrdup(str, GFP_KERNEL);
 		if (! tbl->name) {
 			kfree(tbl);
 			goto __unlock;

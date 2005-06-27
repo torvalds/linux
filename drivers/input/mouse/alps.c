@@ -352,7 +352,7 @@ static int alps_reconnect(struct psmouse *psmouse)
 	if (alps_get_status(psmouse, param))
 		return -1;
 
-	if (param[0] & 0x04)
+	if (!(param[0] & 0x04))
 		alps_tap_mode(psmouse, 1);
 
 	if (alps_absolute_mode(psmouse)) {

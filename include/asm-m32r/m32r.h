@@ -16,7 +16,6 @@
 	|| defined(CONFIG_CHIP_M32700) || defined(CONFIG_CHIP_M32102) \
         || defined(CONFIG_CHIP_OPSP)
 #include <asm/m32102.h>
-#include <asm/m32102peri.h>
 #endif
 
 /* Platform type */
@@ -35,6 +34,10 @@
 #if defined(CONFIG_PLAT_MAPPI2)
 #include <asm/mappi2/mappi2_pld.h>
 #endif	/* CONFIG_PLAT_MAPPI2 */
+
+#if defined(CONFIG_PLAT_MAPPI3)
+#include <asm/mappi3/mappi3_pld.h>
+#endif	/* CONFIG_PLAT_MAPPI3 */
 
 #if defined(CONFIG_PLAT_USRV)
 #include <asm/m32700ut/m32700ut_pld.h>

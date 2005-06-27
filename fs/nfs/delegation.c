@@ -16,6 +16,7 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_xdr.h>
 
+#include "nfs4_fs.h"
 #include "delegation.h"
 
 static struct nfs_delegation *nfs_alloc_delegation(void)

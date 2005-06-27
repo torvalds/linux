@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.12-rc3
-# Tue May  3 15:55:04 2005
+# Linux kernel version: 2.6.12-20050621
+# Tue Jun 21 14:03:24 2005
 #
 
 #
@@ -67,6 +67,7 @@ CONFIG_GENERIC_CALIBRATE_DELAY=y
 CONFIG_TIME_INTERPOLATION=y
 CONFIG_EFI=y
 CONFIG_GENERIC_IOMAP=y
+CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER=y
 # CONFIG_IA64_GENERIC is not set
 CONFIG_IA64_DIG=y
 # CONFIG_IA64_HP_ZX1 is not set
@@ -285,6 +286,7 @@ CONFIG_CHR_DEV_ST=m
 CONFIG_BLK_DEV_SR=m
 # CONFIG_BLK_DEV_SR_VENDOR is not set
 CONFIG_CHR_DEV_SG=m
+# CONFIG_CHR_DEV_SCH is not set
 
 #
 # Some SCSI devices (e.g. CD jukebox) support multiple LUNs
@@ -313,11 +315,8 @@ CONFIG_SCSI_FC_ATTRS=y
 # CONFIG_MEGARAID_NEWGEN is not set
 # CONFIG_MEGARAID_LEGACY is not set
 # CONFIG_SCSI_SATA is not set
-# CONFIG_SCSI_BUSLOGIC is not set
 # CONFIG_SCSI_DMX3191D is not set
-# CONFIG_SCSI_EATA is not set
 # CONFIG_SCSI_FUTURE_DOMAIN is not set
-# CONFIG_SCSI_GDTH is not set
 # CONFIG_SCSI_IPS is not set
 # CONFIG_SCSI_INITIO is not set
 # CONFIG_SCSI_INIA100 is not set
@@ -366,8 +365,10 @@ CONFIG_DM_ZERO=m
 # Fusion MPT device support
 #
 CONFIG_FUSION=y
-CONFIG_FUSION_MAX_SGE=40
-# CONFIG_FUSION_CTL is not set
+CONFIG_FUSION_SPI=y
+CONFIG_FUSION_FC=y
+CONFIG_FUSION_MAX_SGE=128
+CONFIG_FUSION_CTL=y
 
 #
 # IEEE 1394 (FireWire) support
@@ -506,9 +507,11 @@ CONFIG_E1000=y
 # CONFIG_HAMACHI is not set
 # CONFIG_YELLOWFIN is not set
 # CONFIG_R8169 is not set
+# CONFIG_SKGE is not set
 # CONFIG_SK98LIN is not set
 # CONFIG_VIA_VELOCITY is not set
 CONFIG_TIGON3=y
+# CONFIG_BNX2 is not set
 
 #
 # Ethernet (10000 Mbit)
@@ -598,7 +601,6 @@ CONFIG_GAMEPORT=m
 # CONFIG_GAMEPORT_VORTEX is not set
 # CONFIG_GAMEPORT_FM801 is not set
 # CONFIG_GAMEPORT_CS461X is not set
-CONFIG_SOUND_GAMEPORT=m
 
 #
 # Character devices
@@ -611,7 +613,6 @@ CONFIG_SERIAL_NONSTANDARD=y
 # CONFIG_CYCLADES is not set
 # CONFIG_MOXA_SMARTIO is not set
 # CONFIG_ISI is not set
-# CONFIG_SYNCLINK is not set
 # CONFIG_SYNCLINKMP is not set
 # CONFIG_N_HDLC is not set
 # CONFIG_SPECIALIX is not set

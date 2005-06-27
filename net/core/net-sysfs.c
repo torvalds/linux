@@ -21,6 +21,7 @@
 #define to_net_dev(class) container_of(class, struct net_device, class_dev)
 
 static const char fmt_hex[] = "%#x\n";
+static const char fmt_long_hex[] = "%#lx\n";
 static const char fmt_dec[] = "%d\n";
 static const char fmt_ulong[] = "%lu\n";
 
@@ -91,7 +92,7 @@ static CLASS_DEVICE_ATTR(field, S_IRUGO, show_##field, NULL)		\
 NETDEVICE_ATTR(addr_len, fmt_dec);
 NETDEVICE_ATTR(iflink, fmt_dec);
 NETDEVICE_ATTR(ifindex, fmt_dec);
-NETDEVICE_ATTR(features, fmt_hex);
+NETDEVICE_ATTR(features, fmt_long_hex);
 NETDEVICE_ATTR(type, fmt_dec);
 
 /* use same locking rules as GIFHWADDR ioctl's */
@@ -184,6 +185,22 @@ static ssize_t store_tx_queue_len(struct class_device *dev, const char *buf, siz
 static CLASS_DEVICE_ATTR(tx_queue_len, S_IRUGO | S_IWUSR, show_tx_queue_len, 
 			 store_tx_queue_len);
 
+NETDEVICE_SHOW(weight, fmt_dec);
+
+static int change_weight(struct net_device *net, unsigned long new_weight)
+{
+	net->weight = new_weight;
+	return 0;
+}
+
+static ssize_t store_weight(struct class_device *dev, const char *buf, size_t len)
+{
+	return netdev_store(dev, buf, len, change_weight);
+}
+
+static CLASS_DEVICE_ATTR(weight, S_IRUGO | S_IWUSR, show_weight, 
+			 store_weight);
+
 
 static struct class_device_attribute *net_class_attributes[] = {
 	&class_device_attr_ifindex,
@@ -193,6 +210,7 @@ static struct class_device_attribute *net_class_attributes[] = {
 	&class_device_attr_features,
 	&class_device_attr_mtu,
 	&class_device_attr_flags,
+	&class_device_attr_weight,
 	&class_device_attr_type,
 	&class_device_attr_address,
 	&class_device_attr_broadcast,

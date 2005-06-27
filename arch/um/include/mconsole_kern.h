@@ -20,7 +20,8 @@ struct mc_device {
 	char *name;
 	int (*config)(char *);
 	int (*get_config)(char *, char *, int, char **);
-	int (*remove)(char *);
+        int (*id)(char **, int *, int *);
+	int (*remove)(int);
 };
 
 #define CONFIG_CHUNK(str, size, current, chunk, end) \

@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
@@ -221,7 +222,23 @@ integrator_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 */
 	timer1->TimerClear = 1;
 
-	timer_tick(regs);
+	/*
+	 * the clock tick routines are only processed on the
+	 * primary CPU
+	 */
+	if (hard_smp_processor_id() == 0) {
+		timer_tick(regs);
+#ifdef CONFIG_SMP
+		smp_send_timer();
+#endif
+	}
+
+#ifdef CONFIG_SMP
+	/*
+	 * this is the ARM equivalent of the APIC timer interrupt
+	 */
+	update_process_times(user_mode(regs));
+#endif /* CONFIG_SMP */
 
 	write_sequnlock(&xtime_lock);
 
@@ -230,8 +247,8 @@ integrator_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction integrator_timer_irq = {
 	.name		= "Integrator Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= integrator_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= integrator_timer_interrupt,
 };
 
 /*

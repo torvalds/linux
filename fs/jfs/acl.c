@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/quotaops.h>
+#include <linux/posix_acl_xattr.h>
 #include "jfs_incore.h"
 #include "jfs_xattr.h"
 #include "jfs_acl.h"
@@ -36,11 +37,11 @@ static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 
 	switch(type) {
 		case ACL_TYPE_ACCESS:
-			ea_name = XATTR_NAME_ACL_ACCESS;
+			ea_name = POSIX_ACL_XATTR_ACCESS;
 			p_acl = &ji->i_acl;
 			break;
 		case ACL_TYPE_DEFAULT:
-			ea_name = XATTR_NAME_ACL_DEFAULT;
+			ea_name = POSIX_ACL_XATTR_DEFAULT;
 			p_acl = &ji->i_default_acl;
 			break;
 		default:
@@ -70,8 +71,7 @@ static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 		if (!IS_ERR(acl))
 			*p_acl = posix_acl_dup(acl);
 	}
-	if (value)
-		kfree(value);
+	kfree(value);
 	return acl;
 }
 
@@ -89,11 +89,11 @@ static int jfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 
 	switch(type) {
 		case ACL_TYPE_ACCESS:
-			ea_name = XATTR_NAME_ACL_ACCESS;
+			ea_name = POSIX_ACL_XATTR_ACCESS;
 			p_acl = &ji->i_acl;
 			break;
 		case ACL_TYPE_DEFAULT:
-			ea_name = XATTR_NAME_ACL_DEFAULT;
+			ea_name = POSIX_ACL_XATTR_DEFAULT;
 			p_acl = &ji->i_default_acl;
 			if (!S_ISDIR(inode->i_mode))
 				return acl ? -EACCES : 0;
@@ -102,7 +102,7 @@ static int jfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 			return -EINVAL;
 	}
 	if (acl) {
-		size = xattr_acl_size(acl->a_count);
+		size = posix_acl_xattr_size(acl->a_count);
 		value = kmalloc(size, GFP_KERNEL);
 		if (!value)
 			return -ENOMEM;
@@ -112,8 +112,7 @@ static int jfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	}
 	rc = __jfs_setxattr(inode, ea_name, value, size, 0);
 out:
-	if (value)
-		kfree(value);
+	kfree(value);
 
 	if (!rc) {
 		if (*p_acl && (*p_acl != JFS_ACL_NOT_CACHED))

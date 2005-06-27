@@ -118,7 +118,6 @@ retry:
 	xfrm_policy_put_afinfo(afinfo);
 	return type;
 }
-EXPORT_SYMBOL(xfrm_get_type);
 
 int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, 
 		    unsigned short family)
@@ -216,8 +215,8 @@ out:
 
 expired:
 	read_unlock(&xp->lock);
-	km_policy_expired(xp, dir, 1);
-	xfrm_policy_delete(xp, dir);
+	if (!xfrm_policy_delete(xp, dir))
+		km_policy_expired(xp, dir, 1);
 	xfrm_pol_put(xp);
 }
 
@@ -555,7 +554,7 @@ static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 	return NULL;
 }
 
-void xfrm_policy_delete(struct xfrm_policy *pol, int dir)
+int xfrm_policy_delete(struct xfrm_policy *pol, int dir)
 {
 	write_lock_bh(&xfrm_policy_lock);
 	pol = __xfrm_policy_unlink(pol, dir);
@@ -564,7 +563,9 @@ void xfrm_policy_delete(struct xfrm_policy *pol, int dir)
 		if (dir < XFRM_POLICY_MAX)
 			atomic_inc(&flow_cache_genid);
 		xfrm_policy_kill(pol);
+		return 0;
 	}
+	return -ENOENT;
 }
 
 int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol)

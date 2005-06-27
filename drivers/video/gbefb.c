@@ -1045,14 +1045,14 @@ static struct fb_ops gbefb_ops = {
  * sysfs
  */
 
-static ssize_t gbefb_show_memsize(struct device *dev, char *buf)
+static ssize_t gbefb_show_memsize(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", gbe_mem_size);
 }
 
 static DEVICE_ATTR(size, S_IRUGO, gbefb_show_memsize, NULL);
 
-static ssize_t gbefb_show_rev(struct device *device, char *buf)
+static ssize_t gbefb_show_rev(struct device *device, struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", gbe_revision);
 }

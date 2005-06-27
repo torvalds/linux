@@ -15,6 +15,7 @@
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/oplib.h>
+#include <asm/iommu.h>
 
 /* The abstraction used here is that there are PCI controllers,
  * each with one (Sabre) or two (PSYCHO/SCHIZO) PCI bus modules
@@ -39,9 +40,6 @@ struct pci_iommu {
 	 * streaming buffers underneath.
 	 */
 	spinlock_t	lock;
-
-	/* Context allocator. */
-	unsigned int	iommu_cur_ctx;
 
 	/* IOMMU page table, a linear array of ioptes. */
 	iopte_t		*page_table;		/* The page table itself. */
@@ -86,6 +84,10 @@ struct pci_iommu {
 		u16	next;
 		u16	flush;
 	} alloc_info[PBM_NCLUSTERS];
+
+	/* CTX allocation. */
+	unsigned long ctx_lowest_free;
+	unsigned long ctx_bitmap[IOMMU_NUM_CTXS / (sizeof(unsigned long) * 8)];
 
 	/* Here a PCI controller driver describes the areas of
 	 * PCI memory space where DMA to/from physical memory

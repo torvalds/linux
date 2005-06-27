@@ -936,8 +936,7 @@ Details:
  *
  *      Returns SUCCESS if command aborted else FAILED
  *
- *      Locks: struct Scsi_Host::host_lock held (with irqsave) on entry 
- *      and assumed to be held on return.
+ *      Locks: None held
  *
  *      Calling context: kernel thread
  *
@@ -955,8 +954,7 @@ Details:
  *
  *      Returns SUCCESS if command aborted else FAILED
  *
- *      Locks: struct Scsi_Host::host_lock held (with irqsave) on entry 
- *      and assumed to be held on return.
+ *      Locks: None held
  *
  *      Calling context: kernel thread
  *
@@ -974,8 +972,7 @@ Details:
  *
  *      Returns SUCCESS if command aborted else FAILED
  *
- *      Locks: struct Scsi_Host::host_lock held (with irqsave) on entry
- *      and assumed to be held on return.
+ *      Locks: None held
  *
  *      Calling context: kernel thread
  *
@@ -993,8 +990,7 @@ Details:
  *
  *      Returns SUCCESS if command aborted else FAILED
  *
- *      Locks: struct Scsi_Host::host_lock held (with irqsave) on entry
- *      and assumed to be held on return.
+ *      Locks: None held
  *
  *      Calling context: kernel thread
  *

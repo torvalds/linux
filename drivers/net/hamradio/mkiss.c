@@ -934,7 +934,7 @@ static void __exit mkiss_exit_driver(void)
 	kfree(ax25_ctrls);
 	ax25_ctrls = NULL;
 
-	if ((i = tty_register_ldisc(N_AX25, NULL)))
+	if ((i = tty_unregister_ldisc(N_AX25)))
 		printk(KERN_ERR "mkiss: can't unregister line discipline (err = %d)\n", i);
 }
 

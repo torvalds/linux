@@ -1,55 +1,13 @@
 /*
  *  linux/drivers/message/fusion/mptbase.c
- *      High performance SCSI + LAN / Fibre Channel device drivers.
  *      This is the Fusion MPT base driver which supports multiple
  *      (SCSI + LAN) specialized protocol drivers.
- *      For use with PCI chip/adapter(s):
- *          LSIFC9xx/LSI409xx Fibre Channel
+ *      For use with LSI Logic PCI chip/adapter(s)
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
- *  Credits:
- *      There are lots of people not mentioned below that deserve credit
- *      and thanks but won't get it here - sorry in advance that you
- *      got overlooked.
- *
- *      This driver would not exist if not for Alan Cox's development
- *      of the linux i2o driver.
- *
- *      A special thanks to Noah Romer (LSI Logic) for tons of work
- *      and tough debugging on the LAN driver, especially early on;-)
- *      And to Roger Hickerson (LSI Logic) for tirelessly supporting
- *      this driver project.
- *
- *      A special thanks to Pamela Delaney (LSI Logic) for tons of work
- *      and countless enhancements while adding support for the 1030
- *      chip family.  Pam has been instrumental in the development of
- *      of the 2.xx.xx series fusion drivers, and her contributions are
- *      far too numerous to hope to list in one place.
- *
- *      All manner of help from Stephen Shirron (LSI Logic):
- *      low-level FC analysis, debug + various fixes in FCxx firmware,
- *      initial port to alpha platform, various driver code optimizations,
- *      being a faithful sounding board on all sorts of issues & ideas,
- *      etc.
- *
- *      A huge debt of gratitude is owed to David S. Miller (DaveM)
- *      for fixing much of the stupid and broken stuff in the early
- *      driver while porting to sparc64 platform.  THANK YOU!
- *
- *      Special thanks goes to the I2O LAN driver people at the
- *      University of Helsinki, who, unbeknownst to them, provided
- *      the inspiration and initial structure for this driver.
- *
- *      A really huge debt of gratitude is owed to Eddie C. Dost
- *      for gobs of hard work fixing and optimizing LAN code.
- *      THANK YOU!
- *
- *  Copyright (c) 1999-2004 LSI Logic Corporation
- *  Originally By: Steven J. Ralston
- *  (mailto:sjralston1@netscape.net)
+ *  Copyright (c) 1999-2005 LSI Logic Corporation
  *  (mailto:mpt_linux_developer@lsil.com)
  *
- *  $Id: mptbase.c,v 1.126 2002/12/16 15:28:45 pdelaney Exp $
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -101,6 +59,7 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>		/* needed for in_interrupt() proto */
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
@@ -218,40 +177,34 @@ static void	mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static void	mpt_sp_log_info(MPT_ADAPTER *ioc, u32 log_info);
 
 /* module entry point */
-static int  __devinit mptbase_probe (struct pci_dev *, const struct pci_device_id *);
-static void __devexit mptbase_remove(struct pci_dev *);
-static void mptbase_shutdown(struct device * );
 static int  __init    fusion_init  (void);
 static void __exit    fusion_exit  (void);
-
-/****************************************************************************
- * Supported hardware
- */
-
-static struct pci_device_id mptbase_pci_table[] = {
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC909,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC929,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC919,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC929X,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FC919X,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_53C1030,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_1030_53C1035,
-		PCI_ANY_ID, PCI_ANY_ID },
-	{0}	/* Terminating entry */
-};
-MODULE_DEVICE_TABLE(pci, mptbase_pci_table);
 
 #define CHIPREG_READ32(addr) 		readl_relaxed(addr)
 #define CHIPREG_READ32_dmasync(addr)	readl(addr)
 #define CHIPREG_WRITE32(addr,val) 	writel(val, addr)
 #define CHIPREG_PIO_WRITE32(addr,val)	outl(val, (unsigned long)addr)
 #define CHIPREG_PIO_READ32(addr) 	inl((unsigned long)addr)
+
+static void
+pci_disable_io_access(struct pci_dev *pdev)
+{
+	u16 command_reg;
+
+	pci_read_config_word(pdev, PCI_COMMAND, &command_reg);
+	command_reg &= ~1;
+	pci_write_config_word(pdev, PCI_COMMAND, command_reg);
+}
+
+static void
+pci_enable_io_access(struct pci_dev *pdev)
+{
+	u16 command_reg;
+
+	pci_read_config_word(pdev, PCI_COMMAND, &command_reg);
+	command_reg |= 1;
+	pci_write_config_word(pdev, PCI_COMMAND, command_reg);
+}
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -330,8 +283,7 @@ mpt_interrupt(int irq, void *bus_id, struct pt_regs *r)
 					ioc->name, mr, req_idx));
 			DBG_DUMP_REPLY_FRAME(mr)
 
-			/* NEW!  20010301 -sralston
-			 *  Check/log IOC log info
+			/*  Check/log IOC log info
 			 */
 			ioc_stat = le16_to_cpu(mr->u.reply.IOCStatus);
 			if (ioc_stat & MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE) {
@@ -357,9 +309,7 @@ mpt_interrupt(int irq, void *bus_id, struct pt_regs *r)
 				mr = (MPT_FRAME_HDR *) CAST_U32_TO_PTR(pa);
 			} else if (type == MPI_CONTEXT_REPLY_TYPE_LAN) {
 				cb_idx = mpt_lan_index;
-				/*
-				 * BUG FIX!  20001218 -sralston
-				 *  Blind set of mf to NULL here was fatal
+				 /*  Blind set of mf to NULL here was fatal
 				 *  after lan_reply says "freeme"
 				 *  Fix sort of combined with an optimization here;
 				 *  added explicit check for case where lan_reply
@@ -430,15 +380,8 @@ mpt_interrupt(int irq, void *bus_id, struct pt_regs *r)
 		}
 
 		if (freeme) {
-			unsigned long flags;
-
 			/*  Put Request back on FreeQ!  */
-			spin_lock_irqsave(&ioc->FreeQlock, flags);
-			list_add_tail(&mf->u.frame.linkage.list, &ioc->FreeQ);
-#ifdef MFCNT
-			ioc->mfcnt--;
-#endif
-			spin_unlock_irqrestore(&ioc->FreeQlock, flags);
+			mpt_free_msg_frame(ioc, mf);
 		}
 
 		mb();
@@ -725,11 +668,9 @@ int
 mpt_device_driver_register(struct mpt_pci_driver * dd_cbfunc, int cb_idx)
 {
 	MPT_ADAPTER	*ioc;
-	int 		error=0;
 
 	if (cb_idx < 1 || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS) {
-		error= -EINVAL;
-		return error;
+		return -EINVAL;
 	}
 
 	MptDeviceDriverHandlers[cb_idx] = dd_cbfunc;
@@ -737,14 +678,12 @@ mpt_device_driver_register(struct mpt_pci_driver * dd_cbfunc, int cb_idx)
 	/* call per pci device probe entry point */
 	list_for_each_entry(ioc, &ioc_list, list) {
 		if(dd_cbfunc->probe) {
-			error = dd_cbfunc->probe(ioc->pcidev,
+			dd_cbfunc->probe(ioc->pcidev,
 			  ioc->pcidev->driver->id_table);
-			if(error != 0)
-				return error;
   		}
 	 }
 
-	return error;
+	return 0;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -809,8 +748,8 @@ mpt_get_msg_frame(int handle, MPT_ADAPTER *ioc)
 		mf->u.frame.hwhdr.msgctxu.fld.cb_idx = handle;	/* byte */
 		req_offset = (u8 *)mf - (u8 *)ioc->req_frames;
 								/* u16! */
-		req_idx = cpu_to_le16(req_offset / ioc->req_sz);
-		mf->u.frame.hwhdr.msgctxu.fld.req_idx = req_idx;
+		req_idx = req_offset / ioc->req_sz;
+		mf->u.frame.hwhdr.msgctxu.fld.req_idx = cpu_to_le16(req_idx);
 		mf->u.frame.hwhdr.msgctxu.fld.rsvd = 0;
 		ioc->RequestNB[req_idx] = ioc->NB_for_64_byte_frame; /* Default, will be changed if necessary in SG generation */
 #ifdef MFCNT
@@ -856,8 +795,8 @@ mpt_put_msg_frame(int handle, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 	mf->u.frame.hwhdr.msgctxu.fld.cb_idx = handle;		/* byte */
 	req_offset = (u8 *)mf - (u8 *)ioc->req_frames;
 								/* u16! */
-	req_idx = cpu_to_le16(req_offset / ioc->req_sz);
-	mf->u.frame.hwhdr.msgctxu.fld.req_idx = req_idx;
+	req_idx = req_offset / ioc->req_sz;
+	mf->u.frame.hwhdr.msgctxu.fld.req_idx = cpu_to_le16(req_idx);
 	mf->u.frame.hwhdr.msgctxu.fld.rsvd = 0;
 
 #ifdef MPT_DEBUG_MSG_FRAME
@@ -1058,7 +997,7 @@ mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
- *	mptbase_probe - Install a PCI intelligent MPT adapter.
+ *	mpt_attach - Install a PCI intelligent MPT adapter.
  *	@pdev: Pointer to pci_dev structure
  *
  *	This routine performs all the steps necessary to bring the IOC of
@@ -1073,8 +1012,8 @@ mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp)
  *
  *	TODO: Add support for polled controllers
  */
-static int __devinit
-mptbase_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+int
+mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	MPT_ADAPTER	*ioc;
 	u8		__iomem *mem;
@@ -1084,7 +1023,6 @@ mptbase_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	u32		 psize;
 	int		 ii;
 	int		 r = -ENODEV;
-	u64		 mask = 0xffffffffffffffffULL;
 	u8		 revision;
 	u8		 pcixcmd;
 	static int	 mpt_ids = 0;
@@ -1097,15 +1035,15 @@ mptbase_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	
 	dinitprintk((KERN_WARNING MYNAM ": mpt_adapter_install\n"));
 	
-	if (!pci_set_dma_mask(pdev, mask)) {
+	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
 		dprintk((KERN_INFO MYNAM
 			": 64 BIT PCI BUS DMA ADDRESSING SUPPORTED\n"));
-	} else if (pci_set_dma_mask(pdev, (u64) 0xffffffff)) {
+	} else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
 		printk(KERN_WARNING MYNAM ": 32 BIT PCI BUS DMA ADDRESSING NOT SUPPORTED\n");
 		return r;
 	}
 
-	if (!pci_set_consistent_dma_mask(pdev, mask))
+	if (!pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))
 		dprintk((KERN_INFO MYNAM
 			": Using 64 bit consistent mask\n"));
 	else
@@ -1243,6 +1181,16 @@ mptbase_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pcixcmd &= 0x8F;
 		pci_write_config_byte(pdev, 0x6a, pcixcmd);
 	}
+	else if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC939X) {
+		ioc->prod_name = "LSIFC939X";
+		ioc->bus_type = FC;
+		ioc->errata_flag_1064 = 1;
+	}
+	else if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC949X) {
+		ioc->prod_name = "LSIFC949X";
+		ioc->bus_type = FC;
+		ioc->errata_flag_1064 = 1;
+	}
 	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_53C1030) {
 		ioc->prod_name = "LSI53C1030";
 		ioc->bus_type = SCSI;
@@ -1260,6 +1208,9 @@ mptbase_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->prod_name = "LSI53C1035";
 		ioc->bus_type = SCSI;
 	}
+
+	if (ioc->errata_flag_1064)
+		pci_disable_io_access(pdev);
 
 	sprintf(ioc->name, "ioc%d", ioc->id);
 
@@ -1303,8 +1254,7 @@ mptbase_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 #endif
 	}
 
-	/* NEW!  20010220 -sralston
-	 * Check for "bound ports" (929, 929X, 1030, 1035) to reduce redundant resets.
+	/* Check for "bound ports" (929, 929X, 1030, 1035) to reduce redundant resets.
 	 */
 	mpt_detect_bound_ports(ioc, pdev);
 
@@ -1354,13 +1304,13 @@ mptbase_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
- *	mptbase_remove - Remove a PCI intelligent MPT adapter.
+ *	mpt_detach - Remove a PCI intelligent MPT adapter.
  *	@pdev: Pointer to pci_dev structure
  *
  */
 
-static void __devexit
-mptbase_remove(struct pci_dev *pdev)
+void
+mpt_detach(struct pci_dev *pdev)
 {
 	MPT_ADAPTER 	*ioc = pci_get_drvdata(pdev);
 	char pname[32];
@@ -1397,43 +1347,21 @@ mptbase_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	mptbase_shutdown -
- *
- */
-static void
-mptbase_shutdown(struct device * dev)
-{
-	int ii;
-
-	/* call per device driver shutdown entry point */
-	for(ii=0; ii<MPT_MAX_PROTOCOL_DRIVERS; ii++) {
-		if(MptDeviceDriverHandlers[ii] &&
-		  MptDeviceDriverHandlers[ii]->shutdown) {
-			MptDeviceDriverHandlers[ii]->shutdown(dev);
-		}
-	}
-
-}
-
-
 /**************************************************************************
  * Power Management
  */
 #ifdef CONFIG_PM
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
- *	mptbase_suspend - Fusion MPT base driver suspend routine.
+ *	mpt_suspend - Fusion MPT base driver suspend routine.
  *
  *
  */
-static int
-mptbase_suspend(struct pci_dev *pdev, pm_message_t state)
+int
+mpt_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	u32 device_state;
 	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
-	int ii;
 
 	switch(state)
 	{
@@ -1452,14 +1380,6 @@ mptbase_suspend(struct pci_dev *pdev, pm_message_t state)
 	printk(MYIOC_s_INFO_FMT
 	"pci-suspend: pdev=0x%p, slot=%s, Entering operating state [D%d]\n",
 		ioc->name, pdev, pci_name(pdev), device_state);
-
-	/* call per device driver suspend entry point */
-	for(ii=0; ii<MPT_MAX_PROTOCOL_DRIVERS; ii++) {
-		if(MptDeviceDriverHandlers[ii] &&
-		  MptDeviceDriverHandlers[ii]->suspend) {
-			MptDeviceDriverHandlers[ii]->suspend(pdev, state);
-		}
-	}
 
 	pci_save_state(pdev);
 
@@ -1484,18 +1404,18 @@ mptbase_suspend(struct pci_dev *pdev, pm_message_t state)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
- *	mptbase_resume - Fusion MPT base driver resume routine.
+ *	mpt_resume - Fusion MPT base driver resume routine.
  *
  *
  */
-static int
-mptbase_resume(struct pci_dev *pdev)
+int
+mpt_resume(struct pci_dev *pdev)
 {
 	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
 	u32 device_state = pdev->current_state;
 	int recovery_state;
 	int ii;
-
+	
 	printk(MYIOC_s_INFO_FMT
 	"pci-resume: pdev=0x%p, slot=%s, Previous operating state [D%d]\n",
 		ioc->name, pdev, pci_name(pdev), device_state);
@@ -1531,14 +1451,6 @@ mptbase_resume(struct pci_dev *pdev)
 	} else {
 		printk(MYIOC_s_INFO_FMT
 			"pci-resume: success\n", ioc->name);
-	}
-
-	/* call per device driver resume entry point */
-	for(ii=0; ii<MPT_MAX_PROTOCOL_DRIVERS; ii++) {
-		if(MptDeviceDriverHandlers[ii] &&
-		  MptDeviceDriverHandlers[ii]->resume) {
-			MptDeviceDriverHandlers[ii]->resume(pdev);
-		}
 	}
 
 	return 0;
@@ -1719,8 +1631,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 		ioc->alt_ioc->active = 1;
 	}
 
-	/* NEW!  20010120 -sralston
-	 *  Enable MPT base driver management of EventNotification
+	/*  Enable MPT base driver management of EventNotification
 	 *  and EventAck handling.
 	 */
 	if ((ret == 0) && (!ioc->facts.EventState))
@@ -1729,9 +1640,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 	if (ioc->alt_ioc && alt_ioc_ready && !ioc->alt_ioc->facts.EventState)
 		(void) SendEventNotification(ioc->alt_ioc, 1);	/* 1=Enable EventNotification */
 
-	/* (Bugzilla:fibrebugs, #513)
-	 * Bug fix (part 2)!  20010905 -sralston
-	 *	Add additional "reason" check before call to GetLanConfigPages
+	/*	Add additional "reason" check before call to GetLanConfigPages
 	 *	(combined with GetIoUnitPage2 call).  This prevents a somewhat
 	 *	recursive scenario; GetLanConfigPages times out, timer expired
 	 *	routine calls HardResetHandler, which calls into here again,
@@ -1829,37 +1738,43 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 static void
 mpt_detect_bound_ports(MPT_ADAPTER *ioc, struct pci_dev *pdev)
 {
-	unsigned int match_lo, match_hi;
+	struct pci_dev *peer=NULL;
+	unsigned int slot = PCI_SLOT(pdev->devfn);
+	unsigned int func = PCI_FUNC(pdev->devfn);
 	MPT_ADAPTER *ioc_srch;
 
-	match_lo = pdev->devfn-1;
-	match_hi = pdev->devfn+1;
-	dprintk((MYIOC_s_INFO_FMT "PCI bus/devfn=%x/%x, searching for devfn match on %x or %x\n",
-			ioc->name, pdev->bus->number, pdev->devfn, match_lo, match_hi));
+	dprintk((MYIOC_s_INFO_FMT "PCI device %s devfn=%x/%x,"
+	    " searching for devfn match on %x or %x\n",
+		ioc->name, pci_name(pdev), pdev->devfn,
+		func-1, func+1));
+
+	peer = pci_get_slot(pdev->bus, PCI_DEVFN(slot,func-1));
+	if (!peer) {
+		peer = pci_get_slot(pdev->bus, PCI_DEVFN(slot,func+1));
+		if (!peer)
+			return;
+	}
 
 	list_for_each_entry(ioc_srch, &ioc_list, list) {
 		struct pci_dev *_pcidev = ioc_srch->pcidev;
-
-		if ((_pcidev->device == pdev->device) &&
-		    (_pcidev->bus->number == pdev->bus->number) &&
-		    (_pcidev->devfn == match_lo || _pcidev->devfn == match_hi) ) {
+		if (_pcidev == peer) {
 			/* Paranoia checks */
 			if (ioc->alt_ioc != NULL) {
 				printk(KERN_WARNING MYNAM ": Oops, already bound (%s <==> %s)!\n",
-						ioc->name, ioc->alt_ioc->name);
+					ioc->name, ioc->alt_ioc->name);
 				break;
 			} else if (ioc_srch->alt_ioc != NULL) {
 				printk(KERN_WARNING MYNAM ": Oops, already bound (%s <==> %s)!\n",
-						ioc_srch->name, ioc_srch->alt_ioc->name);
+					ioc_srch->name, ioc_srch->alt_ioc->name);
 				break;
 			}
 			dprintk((KERN_INFO MYNAM ": FOUND! binding %s <==> %s\n",
-					ioc->name, ioc_srch->name));
+				ioc->name, ioc_srch->name));
 			ioc_srch->alt_ioc = ioc;
 			ioc->alt_ioc = ioc_srch;
-			break;
 		}
 	}
+	pci_dev_put(peer);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -1922,15 +1837,10 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 		ioc->alloc_total -= sz;
 	}
 
-	if (ioc->spi_data.nvram != NULL) {
-		kfree(ioc->spi_data.nvram);
-		ioc->spi_data.nvram = NULL;
-	}
-
-	if (ioc->spi_data.pIocPg3 != NULL) {
-		kfree(ioc->spi_data.pIocPg3);
-		ioc->spi_data.pIocPg3 = NULL;
-	}
+	kfree(ioc->spi_data.nvram);
+	kfree(ioc->spi_data.pIocPg3);
+	ioc->spi_data.nvram = NULL;
+	ioc->spi_data.pIocPg3 = NULL;
 
 	if (ioc->spi_data.pIocPg4 != NULL) {
 		sz = ioc->spi_data.IocPg4Sz;
@@ -1947,10 +1857,8 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 		ioc->ReqToChain = NULL;
 	}
 
-	if (ioc->ChainToChain != NULL) {
-		kfree(ioc->ChainToChain);
-		ioc->ChainToChain = NULL;
-	}
+	kfree(ioc->ChainToChain);
+	ioc->ChainToChain = NULL;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -2333,7 +2241,7 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
 			return -55;
 		}
 
-		r = sz = le32_to_cpu(facts->BlockSize);
+		r = sz = facts->BlockSize;
 		vv = ((63 / (sz * 4)) + 1) & 0x03;
 		ioc->NB_for_64_byte_frame = vv;
 		while ( sz )
@@ -2785,7 +2693,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, int sleepFlag)
 	/* prevent a second downloadboot and memory free with alt_ioc */
 	if (ioc->alt_ioc && ioc->alt_ioc->cached_fw)
 		ioc->alt_ioc->cached_fw = NULL;
-	
+
 	CHIPREG_WRITE32(&ioc->chip->WriteSequence, 0xFF);
 	CHIPREG_WRITE32(&ioc->chip->WriteSequence, MPI_WRSEQ_1ST_KEY_VALUE);
 	CHIPREG_WRITE32(&ioc->chip->WriteSequence, MPI_WRSEQ_2ND_KEY_VALUE);
@@ -2843,6 +2751,9 @@ mpt_downloadboot(MPT_ADAPTER *ioc, int sleepFlag)
 	/* Write the LoadStartAddress to the DiagRw Address Register
 	 * using Programmed IO
 	 */
+	if (ioc->errata_flag_1064)
+		pci_enable_io_access(ioc->pcidev);
+
 	CHIPREG_PIO_WRITE32(&ioc->pio_chip->DiagRwAddress, pFwHeader->LoadStartAddress);
 	ddlprintk((MYIOC_s_INFO_FMT "LoadStart addr written 0x%x \n",
 		ioc->name, pFwHeader->LoadStartAddress));
@@ -2888,6 +2799,9 @@ mpt_downloadboot(MPT_ADAPTER *ioc, int sleepFlag)
 	diagRwData |= 0x4000000;
 	CHIPREG_PIO_WRITE32(&ioc->pio_chip->DiagRwAddress, 0x3F000000);
 	CHIPREG_PIO_WRITE32(&ioc->pio_chip->DiagRwData, diagRwData);
+
+	if (ioc->errata_flag_1064)
+		pci_disable_io_access(ioc->pcidev);
 
 	diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
 	ddlprintk((MYIOC_s_INFO_FMT "downloadboot diag0val=%x, turning off PREVENT_IOC_BOOT, DISABLE_ARM\n",
@@ -4250,7 +4164,7 @@ mpt_GetScsiPortSettings(MPT_ADAPTER *ioc, int portnum)
 				if ((ioc->spi_data.busType == MPI_SCSIPORTPAGE0_PHY_SIGNAL_HVD) ||
 					(ioc->spi_data.busType == MPI_SCSIPORTPAGE0_PHY_SIGNAL_SE))  {
 
-					if (ioc->spi_data.minSyncFactor < MPT_ULTRA)
+				if (ioc->spi_data.minSyncFactor < MPT_ULTRA)
 						ioc->spi_data.minSyncFactor = MPT_ULTRA;
 				}
 			}
@@ -4482,10 +4396,8 @@ mpt_read_ioc_pg_3(MPT_ADAPTER *ioc)
 
 	/* Free the old page
 	 */
-	if (ioc->spi_data.pIocPg3) {
-		kfree(ioc->spi_data.pIocPg3);
-		ioc->spi_data.pIocPg3 = NULL;
-	}
+	kfree(ioc->spi_data.pIocPg3);
+	ioc->spi_data.pIocPg3 = NULL;
 
 	/* There is at least one physical disk.
 	 * Read and save IOC Page 3
@@ -4753,9 +4665,7 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 	u32		 flagsLength;
 	int		 in_isr;
 
-	/* (Bugzilla:fibrebugs, #513)
-	 * Bug fix (part 1)!  20010905 -sralston
-	 *	Prevent calling wait_event() (below), if caller happens
+	/*	Prevent calling wait_event() (below), if caller happens
 	 *	to be in ISR context, because that is fatal!
 	 */
 	in_isr = in_interrupt();
@@ -4861,9 +4771,7 @@ mpt_toolbox(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 	u32		 flagsLength;
 	int		 in_isr;
 
-	/* (Bugzilla:fibrebugs, #513)
-	 * Bug fix (part 1)!  20010905 -sralston
-	 *	Prevent calling wait_event() (below), if caller happens
+	/*	Prevent calling wait_event() (below), if caller happens
 	 *	to be in ISR context, because that is fatal!
 	 */
 	in_isr = in_interrupt();
@@ -5130,20 +5038,26 @@ static int
 procmpt_version_read(char *buf, char **start, off_t offset, int request, int *eof, void *data)
 {
 	int	 ii;
-	int	 scsi, lan, ctl, targ, dmp;
+	int	 scsi, fc, sas, lan, ctl, targ, dmp;
 	char	*drvname;
 	int	 len;
 
 	len = sprintf(buf, "%s-%s\n", "mptlinux", MPT_LINUX_VERSION_COMMON);
 	len += sprintf(buf+len, "  Fusion MPT base driver\n");
 
-	scsi = lan = ctl = targ = dmp = 0;
+	scsi = fc = sas = lan = ctl = targ = dmp = 0;
 	for (ii=MPT_MAX_PROTOCOL_DRIVERS-1; ii; ii--) {
 		drvname = NULL;
 		if (MptCallbacks[ii]) {
 			switch (MptDriverClass[ii]) {
-			case MPTSCSIH_DRIVER:
-				if (!scsi++) drvname = "SCSI host";
+			case MPTSPI_DRIVER:
+				if (!scsi++) drvname = "SPI host";
+				break;
+			case MPTFC_DRIVER:
+				if (!fc++) drvname = "FC host";
+				break;
+			case MPTSAS_DRIVER:
+				if (!sas++) drvname = "SAS host";
 				break;
 			case MPTLAN_DRIVER:
 				if (!lan++) drvname = "LAN";
@@ -5832,6 +5746,12 @@ mpt_sp_ioc_info(MPT_ADAPTER *ioc, u32 ioc_status, MPT_FRAME_HDR *mf)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+EXPORT_SYMBOL(mpt_attach);
+EXPORT_SYMBOL(mpt_detach);
+#ifdef CONFIG_PM
+EXPORT_SYMBOL(mpt_resume);
+EXPORT_SYMBOL(mpt_suspend);
+#endif
 EXPORT_SYMBOL(ioc_list);
 EXPORT_SYMBOL(mpt_proc_root_dir);
 EXPORT_SYMBOL(mpt_register);
@@ -5860,19 +5780,6 @@ EXPORT_SYMBOL(mpt_read_ioc_pg_3);
 EXPORT_SYMBOL(mpt_alloc_fw_memory);
 EXPORT_SYMBOL(mpt_free_fw_memory);
 
-static struct pci_driver mptbase_driver = {
-	.name		= "mptbase",
-	.id_table	= mptbase_pci_table,
-	.probe		= mptbase_probe,
-	.remove		= __devexit_p(mptbase_remove),
-	.driver         = {
-		.shutdown = mptbase_shutdown,
-        },
-#ifdef CONFIG_PM
-	.suspend	= mptbase_suspend,
-	.resume		= mptbase_resume,
-#endif
-};
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -5884,7 +5791,6 @@ static int __init
 fusion_init(void)
 {
 	int i;
-	int r;
 
 	show_mptmod_ver(my_NAME, my_VERSION);
 	printk(KERN_INFO COPYRIGHT "\n");
@@ -5896,8 +5802,7 @@ fusion_init(void)
 		MptResetHandlers[i] = NULL;
 	}
 
-	/* NEW!  20010120 -sralston
-	 *  Register ourselves (mptbase) in order to facilitate
+	/*  Register ourselves (mptbase) in order to facilitate
 	 *  EventNotification handling.
 	 */
 	mpt_base_index = mpt_register(mpt_base_reply, MPTBASE_DRIVER);
@@ -5913,11 +5818,7 @@ fusion_init(void)
 #ifdef CONFIG_PROC_FS
 	(void) procmpt_create();
 #endif
-	r = pci_register_driver(&mptbase_driver);
-	if(r)
-		return(r);
-
-	return r;
+	return 0;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -5933,14 +5834,12 @@ fusion_exit(void)
 
 	dexitprintk((KERN_INFO MYNAM ": fusion_exit() called!\n"));
 
-	pci_unregister_driver(&mptbase_driver);
 	mpt_reset_deregister(mpt_base_index);
 
 #ifdef CONFIG_PROC_FS
 	procmpt_destroy();
 #endif
 }
-
 
 module_init(fusion_init);
 module_exit(fusion_exit);

@@ -35,9 +35,9 @@ CROSS32AS	:= $(AS) -a32
 CROSS32LD	:= $(LD) -m elf32ppc
 CROSS32OBJCOPY	:= $(OBJCOPY)
 endif
-AS              := $(AS) -a64
-LD              := $(LD) -m elf64ppc
-CC		:= $(CC) -m64
+override AS	+= -a64
+override LD	+= -m elf64ppc
+override CC	+= -m64
 endif
 
 export CROSS32CC CROSS32AS CROSS32LD CROSS32OBJCOPY
@@ -90,12 +90,14 @@ boot := arch/ppc64/boot
 boottarget-$(CONFIG_PPC_PSERIES) := zImage zImage.initrd
 boottarget-$(CONFIG_PPC_MAPLE) := zImage zImage.initrd
 boottarget-$(CONFIG_PPC_ISERIES) := vmlinux.sminitrd vmlinux.initrd vmlinux.sm
+boottarget-$(CONFIG_PPC_BPA) := zImage zImage.initrd
 $(boottarget-y): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 bootimage-$(CONFIG_PPC_PSERIES) := $(boot)/zImage
 bootimage-$(CONFIG_PPC_PMAC) := vmlinux
 bootimage-$(CONFIG_PPC_MAPLE) := $(boot)/zImage
+bootimage-$(CONFIG_PPC_BPA) := zImage
 bootimage-$(CONFIG_PPC_ISERIES) := vmlinux
 BOOTIMAGE := $(bootimage-y)
 install: vmlinux

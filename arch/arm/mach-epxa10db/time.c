@@ -56,8 +56,8 @@ epxa10db_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction epxa10db_timer_irq = {
 	.name		= "Excalibur Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= epxa10db_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= epxa10db_timer_interrupt,
 };
 
 /*

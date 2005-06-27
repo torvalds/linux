@@ -363,7 +363,7 @@ int os_write_file(int fd, const void *buf, int len)
 		       (int (*)(int, void *, int)) write, copy_to_user_proc));
 }
 
-int os_file_size(char *file, long long *size_out)
+int os_file_size(char *file, unsigned long long *size_out)
 {
 	struct uml_stat buf;
 	int err;

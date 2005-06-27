@@ -173,8 +173,8 @@ ebsa110_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction ebsa110_timer_irq = {
 	.name		= "EBSA110 Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= ebsa110_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= ebsa110_timer_interrupt,
 };
 
 /*

@@ -1715,8 +1715,11 @@ static int mesh_host_reset(struct scsi_cmnd *cmd)
 	struct mesh_state *ms = (struct mesh_state *) cmd->device->host->hostdata;
 	volatile struct mesh_regs __iomem *mr = ms->mesh;
 	volatile struct dbdma_regs __iomem *md = ms->dma;
+	unsigned long flags;
 
 	printk(KERN_DEBUG "mesh_host_reset\n");
+
+	spin_lock_irqsave(ms->host->host_lock, flags);
 
 	/* Reset the controller & dbdma channel */
 	out_le32(&md->control, (RUN|PAUSE|FLUSH|WAKE) << 16);	/* stop dma */
@@ -1739,6 +1742,7 @@ static int mesh_host_reset(struct scsi_cmnd *cmd)
 	/* Complete pending commands */
 	handle_reset(ms);
 	
+	spin_unlock_irqrestore(ms->host->host_lock, flags);
 	return SUCCESS;
 }
 

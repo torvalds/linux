@@ -28,6 +28,7 @@
 #define HPAGE_SIZE	((1UL) << HPAGE_SHIFT)
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+#define ARCH_HAS_HUGETLB_CLEAN_STALE_PGTABLE
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
@@ -63,12 +64,14 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define __pgd(x) ((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
-#define __START_KERNEL		0xffffffff80100000UL
+#define __PHYSICAL_START	((unsigned long)CONFIG_PHYSICAL_START)
+#define __START_KERNEL		(__START_KERNEL_map + __PHYSICAL_START)
 #define __START_KERNEL_map	0xffffffff80000000UL
 #define __PAGE_OFFSET           0xffff810000000000UL
 
 #else
-#define __START_KERNEL		0xffffffff80100000
+#define __PHYSICAL_START	CONFIG_PHYSICAL_START
+#define __START_KERNEL		(__START_KERNEL_map + __PHYSICAL_START)
 #define __START_KERNEL_map	0xffffffff80000000
 #define __PAGE_OFFSET           0xffff810000000000
 #endif /* !__ASSEMBLY__ */
@@ -118,7 +121,9 @@ extern __inline__ int get_order(unsigned long size)
 	  __pa(v); })
 
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
-#ifndef CONFIG_DISCONTIGMEM
+#define __boot_va(x)		__va(x)
+#define __boot_pa(x)		__pa(x)
+#ifdef CONFIG_FLATMEM
 #define pfn_to_page(pfn)	(mem_map + (pfn))
 #define page_to_pfn(page)	((unsigned long)((page) - mem_map))
 #define pfn_valid(pfn)		((pfn) < max_mapnr)

@@ -23,7 +23,10 @@
 #include <linux/devfs_fs_kernel.h>
 #include <linux/ptrace.h>
 #include <linux/device.h>
+#include <linux/highmem.h>
+#include <linux/crash_dump.h>
 #include <linux/backing-dev.h>
+#include <linux/bootmem.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -273,6 +276,40 @@ static int mmap_kmem(struct file * file, struct vm_area_struct * vma)
 	return mmap_mem(file, vma);
 }
 
+#ifdef CONFIG_CRASH_DUMP
+/*
+ * Read memory corresponding to the old kernel.
+ */
+static ssize_t read_oldmem(struct file *file, char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	unsigned long pfn, offset;
+	size_t read = 0, csize;
+	int rc = 0;
+
+	while (count) {
+		pfn = *ppos / PAGE_SIZE;
+		if (pfn > saved_max_pfn)
+			return read;
+
+		offset = (unsigned long)(*ppos % PAGE_SIZE);
+		if (count > PAGE_SIZE - offset)
+			csize = PAGE_SIZE - offset;
+		else
+			csize = count;
+
+		rc = copy_oldmem_page(pfn, buf, csize, offset, 1);
+		if (rc < 0)
+			return rc;
+		buf += csize;
+		*ppos += csize;
+		read += csize;
+		count -= csize;
+	}
+	return read;
+}
+#endif
+
 extern long vread(char *buf, char *addr, unsigned long count);
 extern long vwrite(char *buf, char *addr, unsigned long count);
 
@@ -484,7 +521,7 @@ static ssize_t write_kmem(struct file * file, const char __user * buf,
  	return virtr + wrote;
 }
 
-#if defined(CONFIG_ISA) || !defined(__mc68000__)
+#if (defined(CONFIG_ISA) || !defined(__mc68000__)) && (!defined(CONFIG_PPC_ISERIES) || defined(CONFIG_PCI))
 static ssize_t read_port(struct file * file, char __user * buf,
 			 size_t count, loff_t *ppos)
 {
@@ -721,6 +758,7 @@ static int open_port(struct inode * inode, struct file * filp)
 #define read_full       read_zero
 #define open_mem	open_port
 #define open_kmem	open_mem
+#define open_oldmem	open_mem
 
 static struct file_operations mem_fops = {
 	.llseek		= memory_lseek,
@@ -744,7 +782,7 @@ static struct file_operations null_fops = {
 	.write		= write_null,
 };
 
-#if defined(CONFIG_ISA) || !defined(__mc68000__)
+#if (defined(CONFIG_ISA) || !defined(__mc68000__)) && (!defined(CONFIG_PPC_ISERIES) || defined(CONFIG_PCI))
 static struct file_operations port_fops = {
 	.llseek		= memory_lseek,
 	.read		= read_port,
@@ -769,6 +807,13 @@ static struct file_operations full_fops = {
 	.read		= read_full,
 	.write		= write_full,
 };
+
+#ifdef CONFIG_CRASH_DUMP
+static struct file_operations oldmem_fops = {
+	.read	= read_oldmem,
+	.open	= open_oldmem,
+};
+#endif
 
 static ssize_t kmsg_write(struct file * file, const char __user * buf,
 			  size_t count, loff_t *ppos)
@@ -804,7 +849,7 @@ static int memory_open(struct inode * inode, struct file * filp)
 		case 3:
 			filp->f_op = &null_fops;
 			break;
-#if defined(CONFIG_ISA) || !defined(__mc68000__)
+#if (defined(CONFIG_ISA) || !defined(__mc68000__)) && (!defined(CONFIG_PPC_ISERIES) || defined(CONFIG_PCI))
 		case 4:
 			filp->f_op = &port_fops;
 			break;
@@ -825,6 +870,11 @@ static int memory_open(struct inode * inode, struct file * filp)
 		case 11:
 			filp->f_op = &kmsg_fops;
 			break;
+#ifdef CONFIG_CRASH_DUMP
+		case 12:
+			filp->f_op = &oldmem_fops;
+			break;
+#endif
 		default:
 			return -ENXIO;
 	}
@@ -846,7 +896,7 @@ static const struct {
 	{1, "mem",     S_IRUSR | S_IWUSR | S_IRGRP, &mem_fops},
 	{2, "kmem",    S_IRUSR | S_IWUSR | S_IRGRP, &kmem_fops},
 	{3, "null",    S_IRUGO | S_IWUGO,           &null_fops},
-#if defined(CONFIG_ISA) || !defined(__mc68000__)
+#if (defined(CONFIG_ISA) || !defined(__mc68000__)) && (!defined(CONFIG_PPC_ISERIES) || defined(CONFIG_PCI))
 	{4, "port",    S_IRUSR | S_IWUSR | S_IRGRP, &port_fops},
 #endif
 	{5, "zero",    S_IRUGO | S_IWUGO,           &zero_fops},
@@ -854,9 +904,12 @@ static const struct {
 	{8, "random",  S_IRUGO | S_IWUSR,           &random_fops},
 	{9, "urandom", S_IRUGO | S_IWUSR,           &urandom_fops},
 	{11,"kmsg",    S_IRUGO | S_IWUSR,           &kmsg_fops},
+#ifdef CONFIG_CRASH_DUMP
+	{12,"oldmem",    S_IRUSR | S_IWUSR | S_IRGRP, &oldmem_fops},
+#endif
 };
 
-static struct class_simple *mem_class;
+static struct class *mem_class;
 
 static int __init chr_dev_init(void)
 {
@@ -865,10 +918,9 @@ static int __init chr_dev_init(void)
 	if (register_chrdev(MEM_MAJOR,"mem",&memory_fops))
 		printk("unable to get major %d for memory devs\n", MEM_MAJOR);
 
-	mem_class = class_simple_create(THIS_MODULE, "mem");
+	mem_class = class_create(THIS_MODULE, "mem");
 	for (i = 0; i < ARRAY_SIZE(devlist); i++) {
-		class_simple_device_add(mem_class,
-					MKDEV(MEM_MAJOR, devlist[i].minor),
+		class_device_create(mem_class, MKDEV(MEM_MAJOR, devlist[i].minor),
 					NULL, devlist[i].name);
 		devfs_mk_cdev(MKDEV(MEM_MAJOR, devlist[i].minor),
 				S_IFCHR | devlist[i].mode, devlist[i].name);

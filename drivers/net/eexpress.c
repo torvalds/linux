@@ -436,11 +436,8 @@ struct net_device * __init express_probe(int unit)
 	netdev_boot_setup_check(dev);
 
 	err = do_express_probe(dev);
-	if (!err) {
-		err = register_netdev(dev);
-		if (!err)
-			return dev;
-	}
+	if (!err)
+		return dev;
 	free_netdev(dev);
 	return ERR_PTR(err);
 }
@@ -1205,7 +1202,8 @@ static int __init eexp_hw_probe(struct net_device *dev, unsigned short ioaddr)
 	dev->set_multicast_list = &eexp_set_multicast;
 	dev->tx_timeout = eexp_timeout;
 	dev->watchdog_timeo = 2*HZ;
-	return 0;
+
+	return register_netdev(dev);
 }
 
 /*
@@ -1716,7 +1714,7 @@ int init_module(void)
 				break;
 			printk(KERN_NOTICE "eexpress.c: Module autoprobe not recommended, give io=xx.\n");
 		}
-		if (do_express_probe(dev) == 0 && register_netdev(dev) == 0) {
+		if (do_express_probe(dev) == 0) {
 			dev_eexp[this_dev] = dev;
 			found++;
 			continue;

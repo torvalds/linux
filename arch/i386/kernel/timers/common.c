@@ -6,6 +6,7 @@
 #include <linux/timex.h>
 #include <linux/errno.h>
 #include <linux/jiffies.h>
+#include <linux/module.h>
 
 #include <asm/io.h>
 #include <asm/timer.h>
@@ -24,7 +25,7 @@
 
 #define CALIBRATE_TIME	(5 * 1000020/HZ)
 
-unsigned long __init calibrate_tsc(void)
+unsigned long calibrate_tsc(void)
 {
 	mach_prepare_counter();
 
@@ -85,7 +86,7 @@ bad_ctc:
 #define CALIBRATE_CNT_HPET 	(5 * hpet_tick)
 #define CALIBRATE_TIME_HPET 	(5 * KERNEL_TICK_USEC)
 
-unsigned long __init calibrate_tsc_hpet(unsigned long *tsc_hpet_quotient_ptr)
+unsigned long __devinit calibrate_tsc_hpet(unsigned long *tsc_hpet_quotient_ptr)
 {
 	unsigned long tsc_startlow, tsc_starthigh;
 	unsigned long tsc_endlow, tsc_endhigh;
@@ -138,8 +139,17 @@ bad_calibration:
 }
 #endif
 
+
+unsigned long read_timer_tsc(void)
+{
+	unsigned long retval;
+	rdtscl(retval);
+	return retval;
+}
+
+
 /* calculate cpu_khz */
-void __init init_cpu_khz(void)
+void init_cpu_khz(void)
 {
 	if (cpu_has_tsc) {
 		unsigned long tsc_quotient = calibrate_tsc();
@@ -153,8 +163,10 @@ void __init init_cpu_khz(void)
 		       		:"=a" (cpu_khz), "=d" (edx)
         	       		:"r" (tsc_quotient),
 	                	"0" (eax), "1" (edx));
-				printk("Detected %lu.%03lu MHz processor.\n", cpu_khz / 1000, cpu_khz % 1000);
+				printk("Detected %u.%03u MHz processor.\n",
+					cpu_khz / 1000, cpu_khz % 1000);
 			}
 		}
 	}
 }
+

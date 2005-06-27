@@ -74,6 +74,8 @@ config HIGHPTE
 	  with a lot of RAM, this can be wasteful of precious low memory.
 	  Setting this option will put user-space page tables in high memory.
 
+source "mm/Kconfig"
+
 choice
 	prompt "uClinux kernel load address"
 	depends on !MMU

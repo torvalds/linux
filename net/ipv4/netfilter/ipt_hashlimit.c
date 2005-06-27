@@ -37,7 +37,6 @@
 
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_hashlimit.h>
-#include <linux/netfilter_ipv4/lockhelp.h>
 
 /* FIXME: this is just for IP_NF_ASSERRT */
 #include <linux/netfilter_ipv4/ip_conntrack.h>
@@ -92,7 +91,7 @@ struct ipt_hashlimit_htable {
 	struct hlist_head hash[0];	/* hashtable itself */
 };
 
-static DECLARE_LOCK(hashlimit_lock);	/* protects htables list */
+static DEFINE_SPINLOCK(hashlimit_lock);	/* protects htables list */
 static DECLARE_MUTEX(hlimit_mutex);	/* additional checkentry protection */
 static HLIST_HEAD(hashlimit_htables);
 static kmem_cache_t *hashlimit_cachep;
@@ -233,9 +232,9 @@ static int htable_create(struct ipt_hashlimit_info *minfo)
 	hinfo->timer.function = htable_gc;
 	add_timer(&hinfo->timer);
 
-	LOCK_BH(&hashlimit_lock);
+	spin_lock_bh(&hashlimit_lock);
 	hlist_add_head(&hinfo->node, &hashlimit_htables);
-	UNLOCK_BH(&hashlimit_lock);
+	spin_unlock_bh(&hashlimit_lock);
 
 	return 0;
 }
@@ -301,15 +300,15 @@ static struct ipt_hashlimit_htable *htable_find_get(char *name)
 	struct ipt_hashlimit_htable *hinfo;
 	struct hlist_node *pos;
 
-	LOCK_BH(&hashlimit_lock);
+	spin_lock_bh(&hashlimit_lock);
 	hlist_for_each_entry(hinfo, pos, &hashlimit_htables, node) {
 		if (!strcmp(name, hinfo->pde->name)) {
 			atomic_inc(&hinfo->use);
-			UNLOCK_BH(&hashlimit_lock);
+			spin_unlock_bh(&hashlimit_lock);
 			return hinfo;
 		}
 	}
-	UNLOCK_BH(&hashlimit_lock);
+	spin_unlock_bh(&hashlimit_lock);
 
 	return NULL;
 }
@@ -317,9 +316,9 @@ static struct ipt_hashlimit_htable *htable_find_get(char *name)
 static void htable_put(struct ipt_hashlimit_htable *hinfo)
 {
 	if (atomic_dec_and_test(&hinfo->use)) {
-		LOCK_BH(&hashlimit_lock);
+		spin_lock_bh(&hashlimit_lock);
 		hlist_del(&hinfo->node);
-		UNLOCK_BH(&hashlimit_lock);
+		spin_unlock_bh(&hashlimit_lock);
 		htable_destroy(hinfo);
 	}
 }

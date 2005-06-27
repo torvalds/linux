@@ -173,4 +173,12 @@ config DVB_OR51132
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
+config DVB_BCM3510
+	tristate "Broadcom BCM3510"
+	depends on DVB_CORE
+	select FW_LOADER
+	help
+	  An ATSC 8VSB/16VSB and QAM64/256 tuner module. Say Y when you want to
+	  support this frontend.
+
 endmenu

@@ -1274,6 +1274,9 @@ static int el3_close(struct net_device *dev)
 		spin_lock_irqsave(&lp->window_lock, flags);
 		update_stats(dev);
 		spin_unlock_irqrestore(&lp->window_lock, flags);
+
+		/* force interrupts off */
+		outw(SetIntrEnb | 0x0000, ioaddr + EL3_CMD);
 	}
 
 	link->open--;

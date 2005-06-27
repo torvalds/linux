@@ -207,33 +207,6 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	---help---
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-	  This allows applications to run more reliably even when the system is
-	  under load. On contrary it may also break your drivers and add
-	  priority inheritance problems to your system. Don't select it if
-	  you rely on a stable system or have slightly obscure hardware.
-	  It's also not very well tested on x86-64 currently.
-	  You have been warned.
-
-	  Say Y here if you are feeling brave and building a kernel for a
-	  desktop, embedded or real-time system.  Say N if you are unsure.
-
-config PREEMPT_BKL
-	bool "Preempt The Big Kernel Lock"
-	depends on PREEMPT
-	default y
-	help
-	  This option reduces the latency of the kernel by making the
-	  big kernel lock preemptible.
-
-	  Say Y here if you are building a kernel for a desktop system.
-	  Say N if you are unsure.
-
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
 	depends on SMP
@@ -243,6 +216,8 @@ config SCHED_SMT
 	  when dealing with Intel Pentium 4 chips with HyperThreading at a
 	  cost of slightly increased overhead in some places. If unsure say
 	  N here.
+
+source "kernel/Kconfig.preempt"
 
 config K8_NUMA
        bool "K8 NUMA support"
@@ -265,7 +240,7 @@ config NUMA_EMU
 	  into virtual nodes when booted with "numa=fake=N", where N is the
 	  number of nodes. This is only useful for debugging.
 
-config DISCONTIGMEM
+config ARCH_DISCONTIGMEM_ENABLE
        bool
        depends on NUMA
        default y
@@ -273,6 +248,27 @@ config DISCONTIGMEM
 config NUMA
        bool
        default n
+
+config ARCH_DISCONTIGMEM_ENABLE
+	def_bool y
+	depends on NUMA
+
+config ARCH_DISCONTIGMEM_DEFAULT
+	def_bool y
+	depends on NUMA
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	depends on NUMA
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+	depends on !NUMA
+
+source "mm/Kconfig"
+
+config HAVE_ARCH_EARLY_PFN_TO_NID
+	def_bool y
 
 config HAVE_DEC_LOCK
 	bool
@@ -292,6 +288,15 @@ config NR_CPUS
 	  This is purely to save memory - each supported CPU requires
 	  memory in the static kernel configuration.
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
+	depends on SMP && HOTPLUG && EXPERIMENTAL
+	help
+		Say Y here to experiment with turning CPUs off and on.  CPUs
+		can be controlled through /sys/devices/system/cpu/cpu#.
+		Say N if you want to disable CPU hotplug.
+
+
 config HPET_TIMER
 	bool
 	default y
@@ -305,6 +310,7 @@ config HPET_TIMER
 
 config X86_PM_TIMER
 	bool "PM timer"
+	depends on ACPI
 	default y
 	help
 	  Support the ACPI PM timer for time keeping. This is slow,
@@ -363,6 +369,34 @@ config X86_MCE_INTEL
 	   Additional support for intel specific MCE features such as
 	   the thermal monitor.
 
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded" if EMBEDDED
+	default "0x100000"
+	help
+	  This gives the physical address where the kernel is loaded.
+	  Primarily used in the case of kexec on panic where the
+	  fail safe kernel needs to run at a different address than
+	  the panic-ed kernel.
+
+	  Don't change this unless you know what you are doing.
+
+config KEXEC
+	bool "kexec system call (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is indepedent of the system firmware.   And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  The name comes from the similiarity to the exec system call.
+
+	  It is an ongoing process to be certain the hardware in a machine
+	  is properly shutdown, so do not be surprised if this code does not
+	  initially work for you.  It may help to enable device hotplugging
+	  support.  As of this writing the exact hardware interface is
+	  strongly in flux, so no good recommendation can be made.
+
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
@@ -379,6 +413,8 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 	  If unsure, say Y. Only embedded should say N here.
+
+source kernel/Kconfig.hz
 
 endmenu
 

@@ -1,5 +1,5 @@
 /*
-    $Id: cx88-reg.h,v 1.6 2004/10/13 10:39:00 kraxel Exp $
+    $Id: cx88-reg.h,v 1.7 2005/06/03 13:31:51 mchehab Exp $
 
     cx88x-hw.h - CX2388x register offsets
 
@@ -397,6 +397,7 @@
 #define AUD_RATE_ADJ4            0x3205e4
 #define AUD_RATE_ADJ5            0x3205e8
 #define AUD_APB_IN_RATE_ADJ      0x3205ec
+#define AUD_I2SCNTL              0x3205ec
 #define AUD_PHASE_FIX_CTL        0x3205f0
 #define AUD_PLL_PRESCALE         0x320600
 #define AUD_PLL_DDS              0x320604

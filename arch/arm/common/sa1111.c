@@ -721,16 +721,17 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	return ret;
 }
 
+static int sa1111_remove_one(struct device *dev, void *data)
+{
+	device_unregister(dev);
+	return 0;
+}
+
 static void __sa1111_remove(struct sa1111 *sachip)
 {
-	struct list_head *l, *n;
 	void __iomem *irqbase = sachip->base + SA1111_INTC;
 
-	list_for_each_safe(l, n, &sachip->dev->children) {
-		struct device *d = list_to_dev(l);
-
-		device_unregister(d);
-	}
+	device_for_each_child(sachip->dev, NULL, sa1111_remove_one);
 
 	/* disable all IRQs */
 	sa1111_writel(0, irqbase + SA1111_INTEN0);

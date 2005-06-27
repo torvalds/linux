@@ -1,6 +1,4 @@
 /*
- *  $Id: build.c,v 1.3 2001/06/26 15:14:50 pavel Exp $
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 1997 Martin Mares
  */
@@ -8,7 +6,8 @@
 /*
  * This file builds a disk-image from three different files:
  *
- * - bootsect: exactly 512 bytes of 8086 machine code, loads the rest
+ * - bootsect: compatibility mbr which prints an error message if
+ *             someone tries to boot the kernel directly.
  * - setup: 8086 machine code, sets up system parm
  * - system: 80386 code for actual system
  *

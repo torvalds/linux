@@ -1209,7 +1209,7 @@ struct airo_info {
 	unsigned char		__iomem *pciaux;
 	unsigned char		*shared;
 	dma_addr_t		shared_dma;
-	int			power;
+	pm_message_t		power;
 	SsidRid			*SSID;
 	APListRid		*APList;
 #define	PCI_SHARED_LEN		2*MPI_MAX_FIDS*PKTSIZE+RIDSIZE
@@ -2918,7 +2918,7 @@ static int airo_thread(void *data) {
 			flush_signals(current);
 
 		/* make swsusp happy with our thread */
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 
 		if (test_bit(JOB_DIE, &ai->flags))
 			break;
@@ -5499,9 +5499,9 @@ static int airo_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	cmd.cmd=HOSTSLEEP;
 	issuecommand(ai, &cmd, &rsp);
 
-	pci_enable_wake(pdev, state, 1);
+	pci_enable_wake(pdev, pci_choose_state(pdev, state), 1);
 	pci_save_state(pdev);
-	return pci_set_power_state(pdev, state);
+	return pci_set_power_state(pdev, pci_choose_state(pdev, state));
 }
 
 static int airo_pci_resume(struct pci_dev *pdev)
@@ -5512,7 +5512,7 @@ static int airo_pci_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
-	pci_enable_wake(pdev, ai->power, 0);
+	pci_enable_wake(pdev, pci_choose_state(pdev, ai->power), 0);
 
 	if (ai->power > 1) {
 		reset_card(dev, 0);
@@ -5541,7 +5541,7 @@ static int airo_pci_resume(struct pci_dev *pdev)
 	}
 	writeConfigRid(ai, 0);
 	enable_MAC(ai, &rsp, 0);
-	ai->power = 0;
+	ai->power = PMSG_ON;
 	netif_device_attach(dev);
 	netif_wake_queue(dev);
 	enable_interrupts(ai);

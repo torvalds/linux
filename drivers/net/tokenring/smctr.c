@@ -77,7 +77,7 @@ static int ringspeed;
 
 /* SMC Name of the Adapter. */
 static char smctr_name[] = "SMC TokenCard";
-char *smctr_model = "Unknown";
+static char *smctr_model = "Unknown";
 
 /* Use 0 for production, 1 for verification, 2 for debug, and
  * 3 for very verbose debug.

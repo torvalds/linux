@@ -26,6 +26,8 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
+unsigned int vram_size;
+
 static void cl7500_ack_irq_a(unsigned int irq)
 {
 	unsigned int val, mask;
@@ -296,8 +298,8 @@ clps7500_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction clps7500_timer_irq = {
 	.name		= "CLPS7500 Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= clps7500_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= clps7500_timer_interrupt,
 };
 
 /*

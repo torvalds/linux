@@ -23,7 +23,7 @@
 
 extern const char *CardType[];
 
-const char *bkm_a4t_revision = "$Revision: 1.22.2.4 $";
+static const char *bkm_a4t_revision = "$Revision: 1.22.2.4 $";
 
 
 static inline u_char
@@ -167,7 +167,7 @@ bkm_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 	}
 }
 
-void
+static void
 release_io_bkm(struct IsdnCardState *cs)
 {
 	if (cs->hw.ax.base) {

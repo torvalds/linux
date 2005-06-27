@@ -18,7 +18,6 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -224,28 +223,28 @@ static ssize_t set_in_max(struct device *dev, const char *buf,
 	
 #define show_in_offset(offset)					\
 static ssize_t							\
-	show_in##offset (struct device *dev, char *buf)		\
+	show_in##offset (struct device *dev, struct device_attribute *attr, char *buf)		\
 {								\
 	return show_in(dev, buf, offset);			\
 }								\
 static DEVICE_ATTR(in##offset##_input, S_IRUGO, 		\
 		show_in##offset, NULL);				\
 static ssize_t							\
-	show_in##offset##_min (struct device *dev, char *buf)   \
+	show_in##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)   \
 {								\
 	return show_in_min(dev, buf, offset);			\
 }								\
 static ssize_t							\
-	show_in##offset##_max (struct device *dev, char *buf)   \
+	show_in##offset##_max (struct device *dev, struct device_attribute *attr, char *buf)   \
 {								\
 	return show_in_max(dev, buf, offset);			\
 }								\
-static ssize_t set_in##offset##_min (struct device *dev,	\
+static ssize_t set_in##offset##_min (struct device *dev, struct device_attribute *attr,	\
 		const char *buf, size_t count)			\
 {								\
 	return set_in_min(dev, buf, count, offset);		\
 }								\
-static ssize_t set_in##offset##_max (struct device *dev,	\
+static ssize_t set_in##offset##_max (struct device *dev, struct device_attribute *attr,	\
 		const char *buf, size_t count)			\
 {								\
 	return set_in_max(dev, buf, count, offset);		\
@@ -264,19 +263,19 @@ show_in_offset(5);
 show_in_offset(6);
 
 /* Temperature */
-static ssize_t show_temp(struct device *dev, char *buf)
+static ssize_t show_temp(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm78_data *data = lm78_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp));
 }
 
-static ssize_t show_temp_over(struct device *dev, char *buf)
+static ssize_t show_temp_over(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm78_data *data = lm78_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_over));
 }
 
-static ssize_t set_temp_over(struct device *dev, const char *buf, size_t count)
+static ssize_t set_temp_over(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm78_data *data = i2c_get_clientdata(client);
@@ -289,13 +288,13 @@ static ssize_t set_temp_over(struct device *dev, const char *buf, size_t count)
 	return count;
 }
 
-static ssize_t show_temp_hyst(struct device *dev, char *buf)
+static ssize_t show_temp_hyst(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm78_data *data = lm78_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_hyst));
 }
 
-static ssize_t set_temp_hyst(struct device *dev, const char *buf, size_t count)
+static ssize_t set_temp_hyst(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm78_data *data = i2c_get_clientdata(client);
@@ -398,19 +397,19 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 }
 
 #define show_fan_offset(offset)						\
-static ssize_t show_fan_##offset (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_fan(dev, buf, offset - 1);				\
 }									\
-static ssize_t show_fan_##offset##_min (struct device *dev, char *buf)  \
+static ssize_t show_fan_##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)  \
 {									\
 	return show_fan_min(dev, buf, offset - 1);			\
 }									\
-static ssize_t show_fan_##offset##_div (struct device *dev, char *buf)  \
+static ssize_t show_fan_##offset##_div (struct device *dev, struct device_attribute *attr, char *buf)  \
 {									\
 	return show_fan_div(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_fan_##offset##_min (struct device *dev,		\
+static ssize_t set_fan_##offset##_min (struct device *dev, struct device_attribute *attr,		\
 		const char *buf, size_t count)				\
 {									\
 	return set_fan_min(dev, buf, count, offset - 1);		\
@@ -419,13 +418,13 @@ static DEVICE_ATTR(fan##offset##_input, S_IRUGO, show_fan_##offset, NULL);\
 static DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR,		\
 		show_fan_##offset##_min, set_fan_##offset##_min);
 
-static ssize_t set_fan_1_div(struct device *dev, const char *buf,
+static ssize_t set_fan_1_div(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	return set_fan_div(dev, buf, count, 0) ;
 }
 
-static ssize_t set_fan_2_div(struct device *dev, const char *buf,
+static ssize_t set_fan_2_div(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	return set_fan_div(dev, buf, count, 1) ;
@@ -443,7 +442,7 @@ static DEVICE_ATTR(fan2_div, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(fan3_div, S_IRUGO, show_fan_3_div, NULL);
 
 /* VID */
-static ssize_t show_vid(struct device *dev, char *buf)
+static ssize_t show_vid(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm78_data *data = lm78_update_device(dev);
 	return sprintf(buf, "%d\n", VID_FROM_REG(data->vid));
@@ -451,7 +450,7 @@ static ssize_t show_vid(struct device *dev, char *buf)
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 
 /* Alarms */
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm78_data *data = lm78_update_device(dev);
 	return sprintf(buf, "%u\n", data->alarms);
@@ -671,7 +670,7 @@ static int lm78_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-/* The SMBus locks itself, but ISA access must be locked explicitely! 
+/* The SMBus locks itself, but ISA access must be locked explicitly! 
    We don't want to lock the whole ISA bus, so we lock each client
    separately.
    We ignore the LM78 BUSY flag at this moment - it could lead to deadlocks,
@@ -690,7 +689,7 @@ static int lm78_read_value(struct i2c_client *client, u8 reg)
 		return i2c_smbus_read_byte_data(client, reg);
 }
 
-/* The SMBus locks itself, but ISA access muse be locked explicitely! 
+/* The SMBus locks itself, but ISA access muse be locked explicitly! 
    We don't want to lock the whole ISA bus, so we lock each client
    separately.
    We ignore the LM78 BUSY flag at this moment - it could lead to deadlocks,

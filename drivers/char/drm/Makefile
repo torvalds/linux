@@ -19,6 +19,11 @@ radeon-objs := radeon_drv.o radeon_cp.o radeon_state.o radeon_mem.o radeon_irq.o
 ffb-objs    := ffb_drv.o ffb_context.o
 sis-objs    := sis_drv.o sis_ds.o sis_mm.o
 
+ifeq ($(CONFIG_COMPAT),y)
+drm-objs    += drm_ioc32.o
+radeon-objs += radeon_ioc32.o
+endif
+
 obj-$(CONFIG_DRM)	+= drm.o
 obj-$(CONFIG_DRM_GAMMA) += gamma.o
 obj-$(CONFIG_DRM_TDFX)	+= tdfx.o
