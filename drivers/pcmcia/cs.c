@@ -43,36 +43,11 @@
 #include <pcmcia/ds.h>
 #include "cs_internal.h"
 
-#ifdef CONFIG_PCI
-#define PCI_OPT " [pci]"
-#else
-#define PCI_OPT ""
-#endif
-#ifdef CONFIG_CARDBUS
-#define CB_OPT " [cardbus]"
-#else
-#define CB_OPT ""
-#endif
-#ifdef CONFIG_PM
-#define PM_OPT " [pm]"
-#else
-#define PM_OPT ""
-#endif
-#if !defined(CONFIG_CARDBUS) && !defined(CONFIG_PCI) && !defined(CONFIG_PM)
-#define OPTIONS " none"
-#else
-#define OPTIONS PCI_OPT CB_OPT PM_OPT
-#endif
-
-static const char *release = "Linux Kernel Card Services";
-static const char *options = "options: " OPTIONS;
-
-/*====================================================================*/
 
 /* Module parameters */
 
 MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
-MODULE_DESCRIPTION("Linux Kernel Card Services\noptions:" OPTIONS);
+MODULE_DESCRIPTION("Linux Kernel Card Services");
 MODULE_LICENSE("GPL");
 
 #define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0444)
@@ -100,29 +75,26 @@ int cs_debug_level(int level)
 }
 #endif
 
-/*====================================================================*/
 
 socket_state_t dead_socket = {
 	.csc_mask	= SS_DETECT,
 };
+EXPORT_SYMBOL(dead_socket);
 
 
 /* List of all sockets, protected by a rwsem */
 LIST_HEAD(pcmcia_socket_list);
-DECLARE_RWSEM(pcmcia_socket_list_rwsem);
 EXPORT_SYMBOL(pcmcia_socket_list);
+
+DECLARE_RWSEM(pcmcia_socket_list_rwsem);
 EXPORT_SYMBOL(pcmcia_socket_list_rwsem);
 
 
-/*====================================================================
-
-    Low-level PC Card interface drivers need to register with Card
-    Services using these calls.
-    
-======================================================================*/
-
 /**
- * socket drivers are expected to use the following callbacks in their 
+ * Low-level PCMCIA socket drivers need to register with the PCCard
+ * core using pcmcia_register_socket.
+ *
+ * socket drivers are expected to use the following callbacks in their
  * .drv struct:
  *  - pcmcia_socket_dev_suspend
  *  - pcmcia_socket_dev_resume
@@ -222,8 +194,8 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 	}
 
 	/* try to obtain a socket number [yes, it gets ugly if we
-	 * register more than 2^sizeof(unsigned int) pcmcia 
-	 * sockets... but the socket number is deprecated 
+	 * register more than 2^sizeof(unsigned int) pcmcia
+	 * sockets... but the socket number is deprecated
 	 * anyways, so I don't care] */
 	down_write(&pcmcia_socket_list_rwsem);
 	if (list_empty(&pcmcia_socket_list))
@@ -332,54 +304,49 @@ struct pcmcia_socket * pcmcia_get_socket_by_nr(unsigned int nr)
 EXPORT_SYMBOL(pcmcia_get_socket_by_nr);
 
 
-/*======================================================================
-
-    socket_setup() and shutdown_socket() are called by the main event
-    handler when card insertion and removal events are received.
-    socket_setup() turns on socket power and resets the socket, in two stages.
-    shutdown_socket() unconfigures a socket and turns off socket power.
-
-======================================================================*/
-
+/**
+ * socket_setup() and shutdown_socket() are called by the main event
+ * handler when card insertion and removal events are received.
+ * socket_setup() turns on socket power and resets the socket, in two stages.
+ * shutdown_socket() unconfigures a socket and turns off socket power.
+ */
 static void shutdown_socket(struct pcmcia_socket *s)
 {
-    cs_dbg(s, 1, "shutdown_socket\n");
+	cs_dbg(s, 1, "shutdown_socket\n");
 
-    /* Blank out the socket state */
-    s->socket = dead_socket;
-    s->ops->init(s);
-    s->ops->set_socket(s, &s->socket);
-    s->irq.AssignedIRQ = s->irq.Config = 0;
-    s->lock_count = 0;
-    destroy_cis_cache(s);
+	/* Blank out the socket state */
+	s->socket = dead_socket;
+	s->ops->init(s);
+	s->ops->set_socket(s, &s->socket);
+	s->irq.AssignedIRQ = s->irq.Config = 0;
+	s->lock_count = 0;
+	destroy_cis_cache(s);
 #ifdef CONFIG_CARDBUS
-    cb_free(s);
+	cb_free(s);
 #endif
-    s->functions = 0;
-    if (s->config) {
-	kfree(s->config);
-	s->config = NULL;
-    }
-
-    {
-	int status;
-	s->ops->get_status(s, &status);
-	if (status & SS_POWERON) {
-		printk(KERN_ERR "PCMCIA: socket %p: *** DANGER *** unable to remove socket power\n", s);
+	s->functions = 0;
+	if (s->config) {
+		kfree(s->config);
+		s->config = NULL;
 	}
-    }
+
+	{
+		int status;
+		s->ops->get_status(s, &status);
+		if (status & SS_POWERON) {
+			printk(KERN_ERR "PCMCIA: socket %p: *** DANGER *** unable to remove socket power\n", s);
+		}
+	}
 } /* shutdown_socket */
 
-/*======================================================================
 
-    The central event handler.  Send_event() sends an event to the
-    16-bit subsystem, which then calls the relevant device drivers.
-    Parse_events() interprets the event bits from
-    a card status change report.  Do_shutdown() handles the high
-    priority stuff associated with a card removal.
-    
-======================================================================*/
-
+/**
+ * The central event handler.  Send_event() sends an event to the
+ * 16-bit subsystem, which then calls the relevant device drivers.
+ * Parse_events() interprets the event bits from
+ * a card status change report.  Do_shutdown() handles the high
+ * priority stuff associated with a card removal.
+ */
 
 /* NOTE: send_event needs to be called with skt->sem held. */
 
@@ -738,27 +705,7 @@ void pcmcia_parse_events(struct pcmcia_socket *s, u_int events)
 		wake_up(&s->thread_wait);
 	}
 } /* pcmcia_parse_events */
-
-
-/*=====================================================================
-
-    Return the PCI device associated with a card..
-
-======================================================================*/
-
-#ifdef CONFIG_CARDBUS
-
-struct pci_bus *pcmcia_lookup_bus(struct pcmcia_socket *s)
-{
-	if (!s || !(s->state & SOCKET_CARDBUS))
-		return NULL;
-
-	return s->cb_dev->subordinate;
-}
-
-EXPORT_SYMBOL(pcmcia_lookup_bus);
-
-#endif
+EXPORT_SYMBOL(pcmcia_parse_events);
 
 
 /* register pcmcia_callback */
@@ -790,18 +737,15 @@ int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c)
 EXPORT_SYMBOL(pccard_register_pcmcia);
 
 
-/*======================================================================
-
-    I'm not sure which "reset" function this is supposed to use,
-    but for now, it uses the low-level interface's reset, not the
-    CIS register.
-    
-======================================================================*/
+/* I'm not sure which "reset" function this is supposed to use,
+ * but for now, it uses the low-level interface's reset, not the
+ * CIS register.
+ */
 
 int pccard_reset_card(struct pcmcia_socket *skt)
 {
 	int ret;
-    
+
 	cs_dbg(skt, 1, "resetting socket\n");
 
 	down(&skt->skt_sem);
@@ -834,17 +778,14 @@ int pccard_reset_card(struct pcmcia_socket *skt)
 } /* reset_card */
 EXPORT_SYMBOL(pccard_reset_card);
 
-/*======================================================================
 
-    These shut down or wake up a socket.  They are sort of user
-    initiated versions of the APM suspend and resume actions.
-    
-======================================================================*/
-
+/* These shut down or wake up a socket.  They are sort of user
+ * initiated versions of the APM suspend and resume actions.
+ */
 int pcmcia_suspend_card(struct pcmcia_socket *skt)
 {
 	int ret;
-    
+
 	cs_dbg(skt, 1, "suspending socket\n");
 
 	down(&skt->skt_sem);
@@ -863,6 +804,8 @@ int pcmcia_suspend_card(struct pcmcia_socket *skt)
 
 	return ret;
 } /* suspend_card */
+EXPORT_SYMBOL(pcmcia_suspend_card);
+
 
 int pcmcia_resume_card(struct pcmcia_socket *skt)
 {
@@ -886,13 +829,10 @@ int pcmcia_resume_card(struct pcmcia_socket *skt)
 
 	return ret;
 } /* resume_card */
+EXPORT_SYMBOL(pcmcia_resume_card);
 
-/*======================================================================
 
-    These handle user requests to eject or insert a card.
-    
-======================================================================*/
-
+/* These handle user requests to eject or insert a card. */
 int pcmcia_eject_card(struct pcmcia_socket *skt)
 {
 	int ret;
@@ -919,6 +859,8 @@ int pcmcia_eject_card(struct pcmcia_socket *skt)
 
 	return ret;
 } /* eject_card */
+EXPORT_SYMBOL(pcmcia_eject_card);
+
 
 int pcmcia_insert_card(struct pcmcia_socket *skt)
 {
@@ -942,6 +884,8 @@ int pcmcia_insert_card(struct pcmcia_socket *skt)
 
 	return ret;
 } /* insert_card */
+EXPORT_SYMBOL(pcmcia_insert_card);
+
 
 static int pcmcia_socket_hotplug(struct class_device *dev, char **envp,
 				int num_envp, char *buffer, int buffer_size)
@@ -958,20 +902,6 @@ static int pcmcia_socket_hotplug(struct class_device *dev, char **envp,
 	return 0;
 }
 
-/*======================================================================
-
-    OS-specific module glue goes here
-    
-======================================================================*/
-/* in alpha order */
-EXPORT_SYMBOL(pcmcia_eject_card);
-EXPORT_SYMBOL(pcmcia_insert_card);
-EXPORT_SYMBOL(pcmcia_replace_cis);
-EXPORT_SYMBOL(pcmcia_resume_card);
-EXPORT_SYMBOL(pcmcia_suspend_card);
-
-EXPORT_SYMBOL(dead_socket);
-EXPORT_SYMBOL(pcmcia_parse_events);
 
 struct class pcmcia_socket_class = {
 	.name = "pcmcia_socket",
@@ -983,11 +913,7 @@ EXPORT_SYMBOL(pcmcia_socket_class);
 
 static int __init init_pcmcia_cs(void)
 {
-	int ret;
-	printk(KERN_INFO "%s\n", release);
-	printk(KERN_INFO "  %s\n", options);
-
-	ret = class_register(&pcmcia_socket_class);
+	int ret = class_register(&pcmcia_socket_class);
 	if (ret)
 		return (ret);
 	return class_interface_register(&pccard_sysfs_interface);
@@ -995,13 +921,10 @@ static int __init init_pcmcia_cs(void)
 
 static void __exit exit_pcmcia_cs(void)
 {
-    printk(KERN_INFO "unloading Kernel Card Services\n");
-    class_interface_unregister(&pccard_sysfs_interface);
-    class_unregister(&pcmcia_socket_class);
+	class_interface_unregister(&pccard_sysfs_interface);
+	class_unregister(&pcmcia_socket_class);
 }
 
 subsys_initcall(init_pcmcia_cs);
 module_exit(exit_pcmcia_cs);
-
-/*====================================================================*/
 

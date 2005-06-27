@@ -385,6 +385,7 @@ int pcmcia_replace_cis(struct pcmcia_socket *s, cisdump_t *cis)
     memcpy(s->fake_cis, cis->Data, cis->Length);
     return CS_SUCCESS;
 }
+EXPORT_SYMBOL(pcmcia_replace_cis);
 
 /*======================================================================
 

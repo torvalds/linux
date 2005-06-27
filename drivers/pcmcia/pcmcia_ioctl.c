@@ -275,8 +275,16 @@ rescan:
 	return (ret);
 } /* bind_request */
 
+#ifdef CONFIG_CARDBUS
 
-extern struct pci_bus *pcmcia_lookup_bus(struct pcmcia_socket *s);
+static struct pci_bus *pcmcia_lookup_bus(struct pcmcia_socket *s)
+{
+	if (!s || !(s->state & SOCKET_CARDBUS))
+		return NULL;
+
+	return s->cb_dev->subordinate;
+}
+#endif
 
 static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int first)
 {
