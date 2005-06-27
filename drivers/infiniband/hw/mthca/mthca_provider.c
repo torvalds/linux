@@ -53,7 +53,7 @@ static int mthca_query_device(struct ib_device *ibdev,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	memset(props, 0, sizeof props);
+	memset(props, 0, sizeof *props);
 
 	props->fw_ver              = mdev->fw_ver;
 
