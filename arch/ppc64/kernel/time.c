@@ -91,6 +91,7 @@ unsigned long tb_to_xs;
 unsigned      tb_to_us;
 unsigned long processor_freq;
 DEFINE_SPINLOCK(rtc_lock);
+EXPORT_SYMBOL_GPL(rtc_lock);
 
 unsigned long tb_to_ns_scale;
 unsigned long tb_to_ns_shift;
