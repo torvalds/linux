@@ -131,10 +131,4 @@ extern int xtRelocate(tid_t tid, struct inode *ip,
 extern int xtAppend(tid_t tid,
 		    struct inode *ip, int xflag, s64 xoff, int maxblocks,
 		    int *xlenp, s64 * xaddrp, int flag);
-
-#ifdef  _JFS_DEBUG_XTREE
-extern int xtDisplayTree(struct inode *ip);
-extern int xtDisplayPage(struct inode *ip, s64 bn, xtpage_t * p);
-#endif				/* _JFS_DEBUG_XTREE */
-
 #endif				/* !_H_JFS_XTREE */

@@ -269,11 +269,4 @@ extern int dtModify(tid_t tid, struct inode *ip, struct component_name * key,
 		    ino_t * orig_ino, ino_t new_ino, int flag);
 
 extern int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir);
-
-#ifdef  _JFS_DEBUG_DTREE
-extern int dtDisplayTree(struct inode *ip);
-
-extern int dtDisplayPage(struct inode *ip, s64 bn, dtpage_t * p);
-#endif				/* _JFS_DEBUG_DTREE */
-
 #endif				/* !_H_JFS_DTREE */
