@@ -205,9 +205,6 @@ static int skge_get_settings(struct net_device *dev,
 			if (hw->chip_id == CHIP_ID_YUKON)
 				ecmd->supported &= ~SUPPORTED_1000baseT_Half;
 
-			else if (hw->chip_id == CHIP_ID_YUKON_FE)
-				ecmd->supported &= ~(SUPPORTED_1000baseT_Half
-						     | SUPPORTED_1000baseT_Full);
 		}
 
 		ecmd->port = PORT_TP;
@@ -248,9 +245,6 @@ static u32 skge_modes(const struct skge_hw *hw)
 			modes &= ~ADVERTISED_1000baseT_Half;
 			break;
 
-		case CHIP_ID_YUKON_FE:
-			modes &= ~(ADVERTISED_1000baseT_Half|ADVERTISED_1000baseT_Full);
-			break;
 		}
 	} else {
 		modes |= ADVERTISED_FIBRE;
@@ -270,8 +264,6 @@ static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	} else {
 		switch (ecmd->speed) {
 		case SPEED_1000:
-			if (hw->chip_id == CHIP_ID_YUKON_FE)
-				return -EINVAL;
 			break;
 		case SPEED_100:
 		case SPEED_10:
@@ -540,8 +532,6 @@ static inline u32 hwkhz(const struct skge_hw *hw)
 {
 	if (hw->chip_id == CHIP_ID_GENESIS)
 		return 53215; /* or:  53.125 MHz */
-	else if (hw->chip_id == CHIP_ID_YUKON_EC)
-		return 125000; /* or: 125.000 MHz */
 	else
 		return 78215; /* or:  78.125 MHz */
 }
@@ -1598,11 +1588,7 @@ static void yukon_init(struct skge_hw *hw, int port)
 			  PHY_M_EC_MAC_S_MSK);
 		ectrl |= PHY_M_EC_MAC_S(MAC_TX_CLK_25_MHZ);
 
-		/* on PHY 88E1111 there is a change for downshift control */
-		if (hw->chip_id == CHIP_ID_YUKON_EC)
-			ectrl |= PHY_M_EC_M_DSC_2(0) | PHY_M_EC_DOWN_S_ENA;
-		else
-			ectrl |= PHY_M_EC_M_DSC(0) | PHY_M_EC_S_DSC(1);
+		ectrl |= PHY_M_EC_M_DSC(0) | PHY_M_EC_S_DSC(1);
 
 		gm_phy_write(hw, port, PHY_MARV_EXT_CTRL, ectrl);
 	}
@@ -1688,8 +1674,7 @@ static void yukon_init(struct skge_hw *hw, int port)
 		ctrl |= PHY_CT_RESET;
 	}
 
-	if (hw->chip_id != CHIP_ID_YUKON_FE)
-		gm_phy_write(hw, port, PHY_MARV_1000T_CTRL, ct1000);
+	gm_phy_write(hw, port, PHY_MARV_1000T_CTRL, ct1000);
 
 	gm_phy_write(hw, port, PHY_MARV_AUNE_ADV, adv);
 	gm_phy_write(hw, port, PHY_MARV_CTRL, ctrl);
@@ -1698,22 +1683,10 @@ static void yukon_init(struct skge_hw *hw, int port)
 	ledctrl = PHY_M_LED_PULS_DUR(PULS_170MS);
 	ledover = 0;
 
-	if (hw->chip_id == CHIP_ID_YUKON_FE) {
-		/* on 88E3082 these bits are at 11..9 (shifted left) */
-		ledctrl |= PHY_M_LED_BLINK_RT(BLINK_84MS) << 1;
+	ledctrl |= PHY_M_LED_BLINK_RT(BLINK_84MS) | PHY_M_LEDC_TX_CTRL;
 
-		gm_phy_write(hw, port, PHY_MARV_FE_LED_PAR,
-				  ((gm_phy_read(hw, port, PHY_MARV_FE_LED_PAR)
-
-				    & ~PHY_M_FELP_LED1_MSK)
-				   | PHY_M_FELP_LED1_CTRL(LED_PAR_CTRL_ACT_BL)));
-	} else {
-		/* set Tx LED (LED_TX) to blink mode on Rx OR Tx activity */
-		ledctrl |= PHY_M_LED_BLINK_RT(BLINK_84MS) | PHY_M_LEDC_TX_CTRL;
-
-		/* turn off the Rx LED (LED_RX) */
-		ledover |= PHY_M_LED_MO_RX(MO_LED_OFF);
-	}
+	/* turn off the Rx LED (LED_RX) */
+	ledover |= PHY_M_LED_MO_RX(MO_LED_OFF);
 
 	/* disable blink mode (LED_DUPLEX) on collisions */
 	ctrl |= PHY_M_LEDC_DP_CTRL;
@@ -1928,9 +1901,6 @@ static void yukon_mac_intr(struct skge_hw *hw, int port)
 
 static u16 yukon_speed(const struct skge_hw *hw, u16 aux)
 {
-	if (hw->chip_id == CHIP_ID_YUKON_FE)
-		return (aux & PHY_M_PS_SPEED_100) ? SPEED_100 : SPEED_10;
-
 	switch (aux & PHY_M_PS_SPEED_MSK) {
 	case PHY_M_PS_SPEED_1000:
 		return SPEED_1000;
@@ -1975,8 +1945,7 @@ static void yukon_link_down(struct skge_port *skge)
 			  gm_phy_read(hw, port, GM_GP_CTRL)
 			  & ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA));
 
-	if (hw->chip_id != CHIP_ID_YUKON_FE &&
-	    skge->flow_control == FLOW_MODE_REM_SEND) {
+	if (skge->flow_control == FLOW_MODE_REM_SEND) {
 		/* restore Asymmetric Pause bit */
 		gm_phy_write(hw, port, PHY_MARV_AUNE_ADV,
 				  gm_phy_read(hw, port,
@@ -2009,9 +1978,7 @@ static void yukon_phy_intr(struct skge_port *skge)
 			goto failed;
 		}
 
-		if (!(hw->chip_id == CHIP_ID_YUKON_FE || hw->chip_id == CHIP_ID_YUKON_EC)
-		    && (gm_phy_read(hw, port, PHY_MARV_1000T_STAT)
-			& PHY_B_1000S_MSF)) {
+		if (gm_phy_read(hw, port, PHY_MARV_1000T_STAT) & PHY_B_1000S_MSF) {
 			reason = "master/slave fault";
 			goto failed;
 		}
@@ -2024,10 +1991,6 @@ static void yukon_phy_intr(struct skge_port *skge)
 		skge->duplex = (phystat & PHY_M_PS_FULL_DUP)
 			? DUPLEX_FULL : DUPLEX_HALF;
 		skge->speed = yukon_speed(hw, phystat);
-
-		/* Tx & Rx Pause Enabled bits are at 9..8 */
-		if (hw->chip_id == CHIP_ID_YUKON_XL)
-			phystat >>= 6;
 
 		/* We are using IEEE 802.3z/D5.0 Table 37-4 */
 		switch (phystat & PHY_M_PS_PAUSE_MSK) {
@@ -2875,9 +2838,6 @@ static const struct {
 	{ CHIP_ID_YUKON,	 "Yukon" },
 	{ CHIP_ID_YUKON_LITE,	 "Yukon-Lite"},
 	{ CHIP_ID_YUKON_LP,	 "Yukon-LP"},
-	{ CHIP_ID_YUKON_XL,	 "Yukon-2 XL"},
-	{ CHIP_ID_YUKON_EC,	 "YUKON-2 EC"},
-	{ CHIP_ID_YUKON_FE,	 "YUKON-2 FE"},
 };
 
 static const char *skge_board_name(const struct skge_hw *hw)
