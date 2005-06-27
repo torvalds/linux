@@ -500,14 +500,6 @@ static int skge_set_rx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
-/* Only Yukon II supports TSO (not implemented yet) */
-static int skge_set_tso(struct net_device *dev, u32 data)
-{
-	if (data)
-		return -EOPNOTSUPP;
-	return 0;
-}
-
 static void skge_get_pauseparam(struct net_device *dev,
 				struct ethtool_pauseparam *ecmd)
 {
@@ -752,8 +744,6 @@ static struct ethtool_ops skge_ethtool_ops = {
 	.set_pauseparam = skge_set_pauseparam,
 	.get_coalesce	= skge_get_coalesce,
 	.set_coalesce	= skge_set_coalesce,
-	.get_tso	= ethtool_op_get_tso,
-	.set_tso	= skge_set_tso,
 	.get_sg		= ethtool_op_get_sg,
 	.set_sg		= skge_set_sg,
 	.get_tx_csum	= ethtool_op_get_tx_csum,
