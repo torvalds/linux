@@ -246,21 +246,23 @@ void mthca_free_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt)
 int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 		    int start_index, u64 *buffer_list, int list_len)
 {
+	struct mthca_mailbox *mailbox;
 	u64 *mtt_entry;
 	int err = 0;
 	u8 status;
 	int i;
 
-	mtt_entry = (u64 *) __get_free_page(GFP_KERNEL);
-	if (!mtt_entry)
-		return -ENOMEM;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	mtt_entry = mailbox->buf;
 
 	while (list_len > 0) {
 		mtt_entry[0] = cpu_to_be64(dev->mr_table.mtt_base +
 					   mtt->first_seg * MTHCA_MTT_SEG_SIZE +
 					   start_index * 8);
 		mtt_entry[1] = 0;
-		for (i = 0; i < list_len && i < PAGE_SIZE / 8 - 2; ++i)
+		for (i = 0; i < list_len && i < MTHCA_MAILBOX_SIZE / 8 - 2; ++i)
 			mtt_entry[i + 2] = cpu_to_be64(buffer_list[i] |
 						       MTHCA_MTT_FLAG_PRESENT);
 
@@ -271,7 +273,7 @@ int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 		if (i & 1)
 			mtt_entry[i + 2] = 0;
 
-		err = mthca_WRITE_MTT(dev, mtt_entry, (i + 1) & ~1, &status);
+		err = mthca_WRITE_MTT(dev, mailbox, (i + 1) & ~1, &status);
 		if (err) {
 			mthca_warn(dev, "WRITE_MTT failed (%d)\n", err);
 			goto out;
@@ -289,7 +291,7 @@ int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 	}
 
 out:
-	free_page((unsigned long) mtt_entry);
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
@@ -332,7 +334,7 @@ static inline u32 key_to_hw_index(struct mthca_dev *dev, u32 key)
 int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 		   u64 iova, u64 total_size, u32 access, struct mthca_mr *mr)
 {
-	void *mailbox;
+	struct mthca_mailbox *mailbox;
 	struct mthca_mpt_entry *mpt_entry;
 	u32 key;
 	int i;
@@ -354,13 +356,12 @@ int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 			goto err_out_mpt_free;
 	}
 
-	mailbox = kmalloc(sizeof *mpt_entry + MTHCA_CMD_MAILBOX_EXTRA,
-			  GFP_KERNEL);
-	if (!mailbox) {
-		err = -ENOMEM;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox)) {
+		err = PTR_ERR(mailbox);
 		goto err_out_table;
 	}
-	mpt_entry = MAILBOX_ALIGN(mailbox);
+	mpt_entry = mailbox->buf;
 
 	mpt_entry->flags = cpu_to_be32(MTHCA_MPT_FLAG_SW_OWNS     |
 				       MTHCA_MPT_FLAG_MIO         |
@@ -394,7 +395,7 @@ int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 		}
 	}
 
-	err = mthca_SW2HW_MPT(dev, mpt_entry,
+	err = mthca_SW2HW_MPT(dev, mailbox,
 			      key & (dev->limits.num_mpts - 1),
 			      &status);
 	if (err) {
@@ -407,11 +408,11 @@ int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 		goto err_out_mailbox;
 	}
 
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 
 err_out_mailbox:
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 
 err_out_table:
 	mthca_table_put(dev, dev->mr_table.mpt_table, key);
@@ -487,7 +488,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		    u32 access, struct mthca_fmr *mr)
 {
 	struct mthca_mpt_entry *mpt_entry;
-	void *mailbox;
+	struct mthca_mailbox *mailbox;
 	u64 mtt_seg;
 	u32 key, idx;
 	u8 status;
@@ -538,12 +539,11 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 	} else
 		mr->mem.tavor.mtts = dev->mr_table.tavor_fmr.mtt_base + mtt_seg;
 
-	mailbox = kmalloc(sizeof *mpt_entry + MTHCA_CMD_MAILBOX_EXTRA,
-			  GFP_KERNEL);
-	if (!mailbox)
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
 		goto err_out_free_mtt;
 
-	mpt_entry = MAILBOX_ALIGN(mailbox);
+	mpt_entry = mailbox->buf;
 
 	mpt_entry->flags = cpu_to_be32(MTHCA_MPT_FLAG_SW_OWNS     |
 				       MTHCA_MPT_FLAG_MIO         |
@@ -568,7 +568,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		}
 	}
 
-	err = mthca_SW2HW_MPT(dev, mpt_entry,
+	err = mthca_SW2HW_MPT(dev, mailbox,
 			      key & (dev->limits.num_mpts - 1),
 			      &status);
 	if (err) {
@@ -582,11 +582,11 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		goto err_out_mailbox_free;
 	}
 
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 	return 0;
 
 err_out_mailbox_free:
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 
 err_out_free_mtt:
 	mthca_free_mtt(dev, mr->mtt);

@@ -99,6 +99,7 @@ enum {
 };
 
 struct mthca_cmd {
+	struct pci_pool          *pool;
 	int                       use_events;
 	struct semaphore          hcr_sem;
 	struct semaphore 	  poll_sem;

@@ -37,8 +37,7 @@
 
 #include <ib_verbs.h>
 
-#define MTHCA_CMD_MAILBOX_ALIGN 16UL
-#define MTHCA_CMD_MAILBOX_EXTRA (MTHCA_CMD_MAILBOX_ALIGN - 1)
+#define MTHCA_MAILBOX_SIZE 4096
 
 enum {
 	/* command completed successfully: */
@@ -110,6 +109,11 @@ enum {
 	DEV_LIM_FLAG_RAW_MULTI          = 1 << 19,
 	DEV_LIM_FLAG_UD_AV_PORT_ENFORCE = 1 << 20,
 	DEV_LIM_FLAG_UD_MULTI           = 1 << 21,
+};
+
+struct mthca_mailbox {
+	dma_addr_t dma;
+	void      *buf;
 };
 
 struct mthca_dev_lim {
@@ -242,6 +246,10 @@ void mthca_cmd_use_polling(struct mthca_dev *dev);
 void mthca_cmd_event(struct mthca_dev *dev, u16 token,
 		     u8  status, u64 out_param);
 
+struct mthca_mailbox *mthca_alloc_mailbox(struct mthca_dev *dev,
+					  unsigned int gfp_mask);
+void mthca_free_mailbox(struct mthca_dev *dev, struct mthca_mailbox *mailbox);
+
 int mthca_SYS_EN(struct mthca_dev *dev, u8 *status);
 int mthca_SYS_DIS(struct mthca_dev *dev, u8 *status);
 int mthca_MAP_FA(struct mthca_dev *dev, struct mthca_icm *icm, u8 *status);
@@ -272,41 +280,39 @@ int mthca_MAP_ICM_AUX(struct mthca_dev *dev, struct mthca_icm *icm, u8 *status);
 int mthca_UNMAP_ICM_AUX(struct mthca_dev *dev, u8 *status);
 int mthca_SET_ICM_SIZE(struct mthca_dev *dev, u64 icm_size, u64 *aux_pages,
 		       u8 *status);
-int mthca_SW2HW_MPT(struct mthca_dev *dev, void *mpt_entry,
+int mthca_SW2HW_MPT(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int mpt_index, u8 *status);
-int mthca_HW2SW_MPT(struct mthca_dev *dev, void *mpt_entry,
+int mthca_HW2SW_MPT(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int mpt_index, u8 *status);
-int mthca_WRITE_MTT(struct mthca_dev *dev, u64 *mtt_entry,
+int mthca_WRITE_MTT(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int num_mtt, u8 *status);
 int mthca_SYNC_TPT(struct mthca_dev *dev, u8 *status);
 int mthca_MAP_EQ(struct mthca_dev *dev, u64 event_mask, int unmap,
 		 int eq_num, u8 *status);
-int mthca_SW2HW_EQ(struct mthca_dev *dev, void *eq_context,
+int mthca_SW2HW_EQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int eq_num, u8 *status);
-int mthca_HW2SW_EQ(struct mthca_dev *dev, void *eq_context,
+int mthca_HW2SW_EQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int eq_num, u8 *status);
-int mthca_SW2HW_CQ(struct mthca_dev *dev, void *cq_context,
+int mthca_SW2HW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int cq_num, u8 *status);
-int mthca_HW2SW_CQ(struct mthca_dev *dev, void *cq_context,
+int mthca_HW2SW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int cq_num, u8 *status);
 int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
-		    int is_ee, void *qp_context, u32 optmask,
+		    int is_ee, struct mthca_mailbox *mailbox, u32 optmask,
 		    u8 *status);
 int mthca_QUERY_QP(struct mthca_dev *dev, u32 num, int is_ee,
-		   void *qp_context, u8 *status);
+		   struct mthca_mailbox *mailbox, u8 *status);
 int mthca_CONF_SPECIAL_QP(struct mthca_dev *dev, int type, u32 qpn,
 			  u8 *status);
 int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
-		  int port, struct ib_wc* in_wc, struct ib_grh* in_grh,
+		  int port, struct ib_wc *in_wc, struct ib_grh *in_grh,
 		  void *in_mad, void *response_mad, u8 *status);
-int mthca_READ_MGM(struct mthca_dev *dev, int index, void *mgm,
-		   u8 *status);
-int mthca_WRITE_MGM(struct mthca_dev *dev, int index, void *mgm,
-		    u8 *status);
-int mthca_MGID_HASH(struct mthca_dev *dev, void *gid, u16 *hash,
-		    u8 *status);
+int mthca_READ_MGM(struct mthca_dev *dev, int index,
+		   struct mthca_mailbox *mailbox, u8 *status);
+int mthca_WRITE_MGM(struct mthca_dev *dev, int index,
+		    struct mthca_mailbox *mailbox, u8 *status);
+int mthca_MGID_HASH(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
+		    u16 *hash, u8 *status);
 int mthca_NOP(struct mthca_dev *dev, u8 *status);
-
-#define MAILBOX_ALIGN(x) ((void *) ALIGN((unsigned long) (x), MTHCA_CMD_MAILBOX_ALIGN))
 
 #endif /* MTHCA_CMD_H */

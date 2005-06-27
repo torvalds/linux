@@ -589,7 +589,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	struct mthca_dev *dev = to_mdev(ibqp->device);
 	struct mthca_qp *qp = to_mqp(ibqp);
 	enum ib_qp_state cur_state, new_state;
-	void *mailbox = NULL;
+	struct mthca_mailbox *mailbox;
 	struct mthca_qp_param *qp_param;
 	struct mthca_qp_context *qp_context;
 	u32 req_param, opt_param;
@@ -646,10 +646,10 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		return -EINVAL;
 	}
 
-	mailbox = kmalloc(sizeof (*qp_param) + MTHCA_CMD_MAILBOX_EXTRA, GFP_KERNEL);
-	if (!mailbox)
-		return -ENOMEM;
-	qp_param = MAILBOX_ALIGN(mailbox);
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	qp_param = mailbox->buf;
 	qp_context = &qp_param->context;
 	memset(qp_param, 0, sizeof *qp_param);
 
@@ -872,7 +872,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	}
 
 	err = mthca_MODIFY_QP(dev, state_table[cur_state][new_state].trans,
-			      qp->qpn, 0, qp_param, 0, &status);
+			      qp->qpn, 0, mailbox, 0, &status);
 	if (status) {
 		mthca_warn(dev, "modify QP %d returned status %02x.\n",
 			   state_table[cur_state][new_state].trans, status);
@@ -882,7 +882,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	if (!err)
 		qp->state = new_state;
 
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 
 	if (is_sqp(dev, qp))
 		store_attrs(to_msqp(qp), attr, attr_mask);

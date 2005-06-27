@@ -745,7 +745,7 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 		  struct mthca_cq *cq)
 {
 	int size = nent * MTHCA_CQ_ENTRY_SIZE;
-	void *mailbox = NULL;
+	struct mthca_mailbox *mailbox;
 	struct mthca_cq_context *cq_context;
 	int err = -ENOMEM;
 	u8 status;
@@ -779,12 +779,11 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 			goto err_out_ci;
 	}
 
-	mailbox = kmalloc(sizeof (struct mthca_cq_context) + MTHCA_CMD_MAILBOX_EXTRA,
-			  GFP_KERNEL);
-	if (!mailbox)
-		goto err_out_mailbox;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		goto err_out_arm;
 
-	cq_context = MAILBOX_ALIGN(mailbox);
+	cq_context = mailbox->buf;
 
 	err = mthca_alloc_cq_buf(dev, size, cq);
 	if (err)
@@ -815,7 +814,7 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 		cq_context->state_db = cpu_to_be32(cq->arm_db_index);
 	}
 
-	err = mthca_SW2HW_CQ(dev, cq_context, cq->cqn, &status);
+	err = mthca_SW2HW_CQ(dev, mailbox, cq->cqn, &status);
 	if (err) {
 		mthca_warn(dev, "SW2HW_CQ failed (%d)\n", err);
 		goto err_out_free_mr;
@@ -839,7 +838,7 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 
 	cq->cons_index = 0;
 
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 
 	return 0;
 
@@ -848,8 +847,9 @@ err_out_free_mr:
 	mthca_free_cq_buf(dev, cq);
 
 err_out_mailbox:
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 
+err_out_arm:
 	if (mthca_is_memfree(dev))
 		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM, cq->arm_db_index);
 
@@ -869,28 +869,26 @@ err_out:
 void mthca_free_cq(struct mthca_dev *dev,
 		   struct mthca_cq *cq)
 {
-	void *mailbox;
+	struct mthca_mailbox *mailbox;
 	int err;
 	u8 status;
 
 	might_sleep();
 
-	mailbox = kmalloc(sizeof (struct mthca_cq_context) + MTHCA_CMD_MAILBOX_EXTRA,
-			  GFP_KERNEL);
-	if (!mailbox) {
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox)) {
 		mthca_warn(dev, "No memory for mailbox to free CQ.\n");
 		return;
 	}
 
-	err = mthca_HW2SW_CQ(dev, MAILBOX_ALIGN(mailbox), cq->cqn, &status);
+	err = mthca_HW2SW_CQ(dev, mailbox, cq->cqn, &status);
 	if (err)
 		mthca_warn(dev, "HW2SW_CQ failed (%d)\n", err);
 	else if (status)
-		mthca_warn(dev, "HW2SW_CQ returned status 0x%02x\n",
-			   status);
+		mthca_warn(dev, "HW2SW_CQ returned status 0x%02x\n", status);
 
 	if (0) {
-		u32 *ctx = MAILBOX_ALIGN(mailbox);
+		u32 *ctx = mailbox->buf;
 		int j;
 
 		printk(KERN_ERR "context for CQN %x (cons index %x, next sw %d)\n",
@@ -922,7 +920,7 @@ void mthca_free_cq(struct mthca_dev *dev,
 
 	mthca_table_put(dev, dev->cq_table.table, cq->cqn);
 	mthca_free(&dev->cq_table.alloc, cq->cqn);
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 }
 
 int __devinit mthca_init_cq_table(struct mthca_dev *dev)
