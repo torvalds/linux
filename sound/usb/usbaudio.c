@@ -2408,10 +2408,9 @@ static int parse_audio_format(snd_usb_audio_t *chip, struct audioformat *fp,
 	if (chip->usb_id == USB_ID(0x041e, 0x3000) ||
 	    chip->usb_id == USB_ID(0x041e, 0x3020)) {
 		if (fmt[3] == USB_FORMAT_TYPE_I &&
-		    stream == SNDRV_PCM_STREAM_PLAYBACK &&
 		    fp->rates != SNDRV_PCM_RATE_48000 &&
 		    fp->rates != SNDRV_PCM_RATE_96000)
-			return -1; /* use 48k only */
+			return -1;
 	}
 #endif
 	return 0;
