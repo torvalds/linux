@@ -63,6 +63,10 @@
 #include <asm/backlight.h>
 #endif
 
+#ifdef CONFIG_PPC32
+#include <asm/open_pic.h>
+#endif
+
 /* Some compile options */
 #undef SUSPEND_USES_PMU
 #define DEBUG_SLEEP
@@ -405,6 +409,12 @@ static int __init via_pmu_start(void)
 	bright_req_2.complete = 1;
 #ifdef CONFIG_PMAC_PBOOK
 	batt_req.complete = 1;
+#endif
+
+#ifdef CONFIG_PPC32
+	if (pmu_kind == PMU_KEYLARGO_BASED)
+		openpic_set_irq_priority(vias->intrs[0].line,
+					 OPENPIC_PRIORITY_DEFAULT + 1);
 #endif
 
 	if (request_irq(vias->intrs[0].line, via_pmu_interrupt, 0, "VIA-PMU",
