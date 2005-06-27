@@ -5,7 +5,6 @@ struct user_info_t;
 /* Socket state information */
 struct pcmcia_bus_socket {
 	struct kref		refcount;
-	struct pcmcia_callback	callback;
 	int			state;
 	struct pcmcia_socket	*parent;
 

@@ -1167,6 +1167,12 @@ int pcmcia_deregister_client(client_handle_t handle)
 } /* deregister_client */
 EXPORT_SYMBOL(pcmcia_deregister_client);
 
+static struct pcmcia_callback pcmcia_bus_callback = {
+	.owner = THIS_MODULE,
+	.event = ds_event,
+	.requery = pcmcia_bus_rescan,
+};
+
 static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev)
 {
 	struct pcmcia_socket *socket = class_get_devdata(class_dev);
@@ -1201,12 +1207,9 @@ static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev)
 	INIT_WORK(&s->device_add, pcmcia_delayed_add_pseudo_device, s);
 
 	/* Set up hotline to Card Services */
-	s->callback.owner = THIS_MODULE;
-	s->callback.event = &ds_event;
-	s->callback.requery = &pcmcia_bus_rescan;
 	socket->pcmcia = s;
 
-	ret = pccard_register_pcmcia(socket, &s->callback);
+	ret = pccard_register_pcmcia(socket, &pcmcia_bus_callback);
 	if (ret) {
 		printk(KERN_ERR "PCMCIA registration PCCard core failed for socket %p\n", socket);
 		pcmcia_put_bus_socket(s);
@@ -1216,7 +1219,6 @@ static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev)
 
 	return 0;
 }
-
 
 static void pcmcia_bus_remove_socket(struct class_device *class_dev)
 {
