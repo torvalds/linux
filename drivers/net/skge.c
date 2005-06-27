@@ -88,8 +88,8 @@ MODULE_DEVICE_TABLE(pci, skge_id_table);
 static int skge_up(struct net_device *dev);
 static int skge_down(struct net_device *dev);
 static void skge_tx_clean(struct skge_port *skge);
-static void skge_xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
-static void skge_gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
+static void xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
+static void gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
 static void genesis_get_stats(struct skge_port *skge, u64 *data);
 static void yukon_get_stats(struct skge_port *skge, u64 *data);
 static void yukon_init(struct skge_hw *hw, int port);
@@ -632,30 +632,30 @@ static int skge_set_coalesce(struct net_device *dev,
 static void skge_led_on(struct skge_hw *hw, int port)
 {
 	if (hw->chip_id == CHIP_ID_GENESIS) {
-		skge_write8(hw, SKGEMAC_REG(port, LNK_LED_REG), LINKLED_ON);
+		skge_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_ON);
 		skge_write8(hw, B0_LED, LED_STAT_ON);
 
-		skge_write8(hw, SKGEMAC_REG(port, RX_LED_TST), LED_T_ON);
-		skge_write32(hw, SKGEMAC_REG(port, RX_LED_VAL), 100);
-		skge_write8(hw, SKGEMAC_REG(port, RX_LED_CTRL), LED_START);
+		skge_write8(hw, SK_REG(port, RX_LED_TST), LED_T_ON);
+		skge_write32(hw, SK_REG(port, RX_LED_VAL), 100);
+		skge_write8(hw, SK_REG(port, RX_LED_CTRL), LED_START);
 
 		switch (hw->phy_type) {
 		case SK_PHY_BCOM:
-			skge_xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL,
+			xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL,
 					  PHY_B_PEC_LED_ON);
 			break;
 		case SK_PHY_LONE:
-			skge_xm_phy_write(hw, port, PHY_LONE_LED_CFG,
+			xm_phy_write(hw, port, PHY_LONE_LED_CFG,
 					  0x0800);
 			break;
 		default:
-			skge_write8(hw, SKGEMAC_REG(port, TX_LED_TST), LED_T_ON);
-			skge_write32(hw, SKGEMAC_REG(port, TX_LED_VAL), 100);
-			skge_write8(hw, SKGEMAC_REG(port, TX_LED_CTRL), LED_START);
+			skge_write8(hw, SK_REG(port, TX_LED_TST), LED_T_ON);
+			skge_write32(hw, SK_REG(port, TX_LED_VAL), 100);
+			skge_write8(hw, SK_REG(port, TX_LED_CTRL), LED_START);
 		}
 	} else {
-		skge_gm_phy_write(hw, port, PHY_MARV_LED_CTRL, 0);
-		skge_gm_phy_write(hw, port, PHY_MARV_LED_OVER,
+		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, 0);
+		gm_phy_write(hw, port, PHY_MARV_LED_OVER,
 				  PHY_M_LED_MO_DUP(MO_LED_ON)  |
 				  PHY_M_LED_MO_10(MO_LED_ON)   |
 				  PHY_M_LED_MO_100(MO_LED_ON)  |
@@ -667,28 +667,28 @@ static void skge_led_on(struct skge_hw *hw, int port)
 static void skge_led_off(struct skge_hw *hw, int port)
 {
 	if (hw->chip_id == CHIP_ID_GENESIS) {
-		skge_write8(hw, SKGEMAC_REG(port, LNK_LED_REG), LINKLED_OFF);
+		skge_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_OFF);
 		skge_write8(hw, B0_LED, LED_STAT_OFF);
 
-		skge_write32(hw, SKGEMAC_REG(port, RX_LED_VAL), 0);
-		skge_write8(hw, SKGEMAC_REG(port, RX_LED_CTRL), LED_T_OFF);
+		skge_write32(hw, SK_REG(port, RX_LED_VAL), 0);
+		skge_write8(hw, SK_REG(port, RX_LED_CTRL), LED_T_OFF);
 
 		switch (hw->phy_type) {
 		case SK_PHY_BCOM:
-			skge_xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL,
+			xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL,
 					  PHY_B_PEC_LED_OFF);
 			break;
 		case SK_PHY_LONE:
-			skge_xm_phy_write(hw, port, PHY_LONE_LED_CFG,
+			xm_phy_write(hw, port, PHY_LONE_LED_CFG,
 					  PHY_L_LC_LEDT);
 			break;
 		default:
-			skge_write32(hw, SKGEMAC_REG(port, TX_LED_VAL), 0);
-			skge_write8(hw, SKGEMAC_REG(port, TX_LED_CTRL), LED_T_OFF);
+			skge_write32(hw, SK_REG(port, TX_LED_VAL), 0);
+			skge_write8(hw, SK_REG(port, TX_LED_CTRL), LED_T_OFF);
 		}
 	} else {
-		skge_gm_phy_write(hw, port, PHY_MARV_LED_CTRL, 0);
-		skge_gm_phy_write(hw, port, PHY_MARV_LED_OVER,
+		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, 0);
+		gm_phy_write(hw, port, PHY_MARV_LED_OVER,
 				  PHY_M_LED_MO_DUP(MO_LED_OFF)  |
 				  PHY_M_LED_MO_10(MO_LED_OFF)   |
 				  PHY_M_LED_MO_100(MO_LED_OFF)  |
@@ -908,17 +908,17 @@ static void skge_link_down(struct skge_port *skge)
 		printk(KERN_INFO PFX "%s: Link is down.\n", skge->netdev->name);
 }
 
-static u16 skge_xm_phy_read(struct skge_hw *hw, int port,  u16 reg)
+static u16 xm_phy_read(struct skge_hw *hw, int port, u16 reg)
 {
 	int i;
 	u16 v;
 
-	skge_xm_write16(hw, port, XM_PHY_ADDR, reg | hw->phy_addr);
-	v = skge_xm_read16(hw, port, XM_PHY_DATA);
+	xm_write16(hw, port, XM_PHY_ADDR, reg | hw->phy_addr);
+	v = xm_read16(hw, port, XM_PHY_DATA);
 	if (hw->phy_type != SK_PHY_XMAC) {
 		for (i = 0; i < PHY_RETRIES; i++) {
 			udelay(1);
-			if (skge_xm_read16(hw, port, XM_MMU_CMD)
+			if (xm_read16(hw, port, XM_MMU_CMD)
 			    & XM_MMU_PHY_RDY)
 				goto ready;
 		}
@@ -927,19 +927,19 @@ static u16 skge_xm_phy_read(struct skge_hw *hw, int port,  u16 reg)
 		       hw->dev[port]->name);
 		return 0;
 	ready:
-		v = skge_xm_read16(hw, port, XM_PHY_DATA);
+		v = xm_read16(hw, port, XM_PHY_DATA);
 	}
 
 	return v;
 }
 
-static void skge_xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
+static void xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
 {
 	int i;
 
-	skge_xm_write16(hw, port, XM_PHY_ADDR, reg | hw->phy_addr);
+	xm_write16(hw, port, XM_PHY_ADDR, reg | hw->phy_addr);
 	for (i = 0; i < PHY_RETRIES; i++) {
-		if (!(skge_xm_read16(hw, port, XM_MMU_CMD) & XM_MMU_PHY_BUSY))
+		if (!(xm_read16(hw, port, XM_MMU_CMD) & XM_MMU_PHY_BUSY))
 			goto ready;
 		cpu_relax();
 	}
@@ -948,10 +948,10 @@ static void skge_xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
 
 
  ready:
-	skge_xm_write16(hw, port, XM_PHY_DATA, val);
+	xm_write16(hw, port, XM_PHY_DATA, val);
 	for (i = 0; i < PHY_RETRIES; i++) {
 		udelay(1);
-		if (!(skge_xm_read16(hw, port, XM_MMU_CMD) & XM_MMU_PHY_BUSY))
+		if (!(xm_read16(hw, port, XM_MMU_CMD) & XM_MMU_PHY_BUSY))
 			return;
 	}
 	printk(KERN_WARNING PFX "%s: phy write timed out\n",
@@ -992,20 +992,20 @@ static void genesis_reset(struct skge_hw *hw, int port)
 	u64 zero = 0;
 
 	/* reset the statistics module */
-	skge_xm_write32(hw, port, XM_GP_PORT, XM_GP_RES_STAT);
-	skge_xm_write16(hw, port, XM_IMSK, 0xffff);	/* disable XMAC IRQs */
-	skge_xm_write32(hw, port, XM_MODE, 0);		/* clear Mode Reg */
-	skge_xm_write16(hw, port, XM_TX_CMD, 0);	/* reset TX CMD Reg */
-	skge_xm_write16(hw, port, XM_RX_CMD, 0);	/* reset RX CMD Reg */
+	xm_write32(hw, port, XM_GP_PORT, XM_GP_RES_STAT);
+	xm_write16(hw, port, XM_IMSK, 0xffff);	/* disable XMAC IRQs */
+	xm_write32(hw, port, XM_MODE, 0);		/* clear Mode Reg */
+	xm_write16(hw, port, XM_TX_CMD, 0);	/* reset TX CMD Reg */
+	xm_write16(hw, port, XM_RX_CMD, 0);	/* reset RX CMD Reg */
 
 	/* disable all PHY IRQs */
 	if  (hw->phy_type == SK_PHY_BCOM)
-		skge_xm_write16(hw, port, PHY_BCOM_INT_MASK, 0xffff);
+		xm_write16(hw, port, PHY_BCOM_INT_MASK, 0xffff);
 
-	skge_xm_outhash(hw, port, XM_HSM, (u8 *) &zero);
+	xm_outhash(hw, port, XM_HSM, (u8 *) &zero);
 	for (i = 0; i < 15; i++)
-		skge_xm_outaddr(hw, port, XM_EXM(i), (u8 *) &zero);
-	skge_xm_outhash(hw, port, XM_SRC_CHK, (u8 *) &zero);
+		xm_outaddr(hw, port, XM_EXM(i), (u8 *) &zero);
+	xm_outhash(hw, port, XM_SRC_CHK, (u8 *) &zero);
 }
 
 
@@ -1033,14 +1033,14 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 
 
 	/* initialize Rx, Tx and Link LED */
-	skge_write8(hw, SKGEMAC_REG(port, LNK_LED_REG), LINKLED_ON);
-	skge_write8(hw, SKGEMAC_REG(port, LNK_LED_REG), LINKLED_LINKSYNC_ON);
+	skge_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_ON);
+	skge_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_LINKSYNC_ON);
 
-	skge_write8(hw, SKGEMAC_REG(port, RX_LED_CTRL), LED_START);
-	skge_write8(hw, SKGEMAC_REG(port, TX_LED_CTRL), LED_START);
+	skge_write8(hw, SK_REG(port, RX_LED_CTRL), LED_START);
+	skge_write8(hw, SK_REG(port, TX_LED_CTRL), LED_START);
 
 	/* Unreset the XMAC. */
-	skge_write16(hw, SKGEMAC_REG(port, TX_MFF_CTRL1), MFF_CLR_MAC_RST);
+	skge_write16(hw, SK_REG(port, TX_MFF_CTRL1), MFF_CLR_MAC_RST);
 
 	/*
 	 * Perform additional initialization for external PHYs,
@@ -1060,13 +1060,13 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 		skge_read32(hw, B2_GP_IO);
 
 		/* Enable GMII mode on the XMAC. */
-		skge_xm_write16(hw, port, XM_HW_CFG, XM_HW_GMII_MD);
+		xm_write16(hw, port, XM_HW_CFG, XM_HW_GMII_MD);
 
-		id1 = skge_xm_phy_read(hw, port, PHY_XMAC_ID1);
+		id1 = xm_phy_read(hw, port, PHY_XMAC_ID1);
 
 		/* Optimize MDIO transfer by suppressing preamble. */
-		skge_xm_write16(hw, port, XM_MMU_CMD,
-				skge_xm_read16(hw, port, XM_MMU_CMD)
+		xm_write16(hw, port, XM_MMU_CMD,
+				xm_read16(hw, port, XM_MMU_CMD)
 				| XM_MMU_NO_PRE);
 
 		if (id1 == PHY_BCOM_ID1_C0) {
@@ -1075,7 +1075,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 			 * Write magic patterns to reserved registers.
 			 */
 			for (i = 0; i < ARRAY_SIZE(C0hack); i++)
-				skge_xm_phy_write(hw, port,
+				xm_phy_write(hw, port,
 					  C0hack[i].reg, C0hack[i].val);
 
 		} else if (id1 == PHY_BCOM_ID1_A1) {
@@ -1084,7 +1084,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 			 * Write magic patterns to reserved registers.
 			 */
 			for (i = 0; i < ARRAY_SIZE(A1hack); i++)
-				skge_xm_phy_write(hw, port,
+				xm_phy_write(hw, port,
 					  A1hack[i].reg, A1hack[i].val);
 		}
 
@@ -1092,23 +1092,23 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 		 * Workaround BCOM Errata (#10523) for all BCom PHYs.
 		 * Disable Power Management after reset.
 		 */
-		r = skge_xm_phy_read(hw, port, PHY_BCOM_AUX_CTRL);
-		skge_xm_phy_write(hw, port, PHY_BCOM_AUX_CTRL, r | PHY_B_AC_DIS_PM);
+		r = xm_phy_read(hw, port, PHY_BCOM_AUX_CTRL);
+		xm_phy_write(hw, port, PHY_BCOM_AUX_CTRL, r | PHY_B_AC_DIS_PM);
 	}
 
 	/* Dummy read */
-	skge_xm_read16(hw, port, XM_ISRC);
+	xm_read16(hw, port, XM_ISRC);
 
-	r = skge_xm_read32(hw, port, XM_MODE);
-	skge_xm_write32(hw, port, XM_MODE, r|XM_MD_CSA);
+	r = xm_read32(hw, port, XM_MODE);
+	xm_write32(hw, port, XM_MODE, r|XM_MD_CSA);
 
 	/* We don't need the FCS appended to the packet. */
-	r = skge_xm_read16(hw, port, XM_RX_CMD);
-	skge_xm_write16(hw, port, XM_RX_CMD, r | XM_RX_STRIP_FCS);
+	r = xm_read16(hw, port, XM_RX_CMD);
+	xm_write16(hw, port, XM_RX_CMD, r | XM_RX_STRIP_FCS);
 
 	/* We want short frames padded to 60 bytes. */
-	r = skge_xm_read16(hw, port, XM_TX_CMD);
-	skge_xm_write16(hw, port, XM_TX_CMD, r | XM_TX_AUTO_PAD);
+	r = xm_read16(hw, port, XM_TX_CMD);
+	xm_write16(hw, port, XM_TX_CMD, r | XM_TX_AUTO_PAD);
 
 	/*
 	 * Enable the reception of all error frames. This is is
@@ -1124,19 +1124,19 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	 * case the XMAC will start transfering frames out of the
 	 * RX FIFO as soon as the FIFO threshold is reached.
 	 */
-	r = skge_xm_read32(hw, port, XM_MODE);
-	skge_xm_write32(hw, port, XM_MODE,
+	r = xm_read32(hw, port, XM_MODE);
+	xm_write32(hw, port, XM_MODE,
 		     XM_MD_RX_CRCE|XM_MD_RX_LONG|XM_MD_RX_RUNT|
 		     XM_MD_RX_ERR|XM_MD_RX_IRLE);
 
-	skge_xm_outaddr(hw, port, XM_SA, hw->dev[port]->dev_addr);
-	skge_xm_outaddr(hw, port, XM_EXM(0), hw->dev[port]->dev_addr);
+	xm_outaddr(hw, port, XM_SA, hw->dev[port]->dev_addr);
+	xm_outaddr(hw, port, XM_EXM(0), hw->dev[port]->dev_addr);
 
 	/*
 	 * Bump up the transmit threshold. This helps hold off transmit
 	 * underruns when we're blasting traffic from both ports at once.
 	 */
-	skge_xm_write16(hw, port, XM_TX_THR, 512);
+	xm_write16(hw, port, XM_TX_THR, 512);
 
 	/* Configure MAC arbiter */
 	skge_write16(hw, B3_MA_TO_CTRL, MA_RST_CLR);
@@ -1153,18 +1153,18 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	skge_write8(hw, B3_MA_RCINI_TX2, 0);
 
 	/* Configure Rx MAC FIFO */
-	skge_write8(hw, SKGEMAC_REG(port, RX_MFF_CTRL2), MFF_RST_CLR);
-	skge_write16(hw, SKGEMAC_REG(port, RX_MFF_CTRL1), MFF_ENA_TIM_PAT);
-	skge_write8(hw, SKGEMAC_REG(port, RX_MFF_CTRL2), MFF_ENA_OP_MD);
+	skge_write8(hw, SK_REG(port, RX_MFF_CTRL2), MFF_RST_CLR);
+	skge_write16(hw, SK_REG(port, RX_MFF_CTRL1), MFF_ENA_TIM_PAT);
+	skge_write8(hw, SK_REG(port, RX_MFF_CTRL2), MFF_ENA_OP_MD);
 
 	/* Configure Tx MAC FIFO */
-	skge_write8(hw, SKGEMAC_REG(port, TX_MFF_CTRL2), MFF_RST_CLR);
-	skge_write16(hw, SKGEMAC_REG(port, TX_MFF_CTRL1), MFF_TX_CTRL_DEF);
-	skge_write8(hw, SKGEMAC_REG(port, TX_MFF_CTRL2), MFF_ENA_OP_MD);
+	skge_write8(hw, SK_REG(port, TX_MFF_CTRL2), MFF_RST_CLR);
+	skge_write16(hw, SK_REG(port, TX_MFF_CTRL1), MFF_TX_CTRL_DEF);
+	skge_write8(hw, SK_REG(port, TX_MFF_CTRL2), MFF_ENA_OP_MD);
 
 	if (hw->dev[port]->mtu > ETH_DATA_LEN) {
 		/* Enable frame flushing if jumbo frames used */
-		skge_write16(hw, SKGEMAC_REG(port,RX_MFF_CTRL1), MFF_ENA_FLUSH);
+		skge_write16(hw, SK_REG(port,RX_MFF_CTRL1), MFF_ENA_FLUSH);
 	} else {
 		/* enable timeout timers if normal frames */
 		skge_write16(hw, B3_PA_CTRL,
@@ -1172,11 +1172,11 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	}
 
 
-	r = skge_xm_read16(hw, port, XM_RX_CMD);
+	r = xm_read16(hw, port, XM_RX_CMD);
 	if (hw->dev[port]->mtu > ETH_DATA_LEN)
-		skge_xm_write16(hw, port, XM_RX_CMD, r | XM_RX_BIG_PK_OK);
+		xm_write16(hw, port, XM_RX_CMD, r | XM_RX_BIG_PK_OK);
 	else
-		skge_xm_write16(hw, port, XM_RX_CMD, r & ~(XM_RX_BIG_PK_OK));
+		xm_write16(hw, port, XM_RX_CMD, r & ~(XM_RX_BIG_PK_OK));
 
 	switch (hw->phy_type) {
 	case SK_PHY_XMAC:
@@ -1198,7 +1198,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 				break;
 			}
 
-			skge_xm_phy_write(hw, port, PHY_XMAC_AUNE_ADV, ctrl1);
+			xm_phy_write(hw, port, PHY_XMAC_AUNE_ADV, ctrl1);
 			ctrl2 = PHY_CT_ANE | PHY_CT_RE_CFG;
 		} else {
 			ctrl2 = 0;
@@ -1206,7 +1206,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 				ctrl2 |= PHY_CT_DUP_MD;
 		}
 
-		skge_xm_phy_write(hw, port, PHY_XMAC_CTRL, ctrl2);
+		xm_phy_write(hw, port, PHY_XMAC_CTRL, ctrl2);
 		break;
 
 	case SK_PHY_BCOM:
@@ -1253,27 +1253,27 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 			ctrl2 |= PHY_B_1000C_MSE;	/* set it to Slave */
 		}
 
-		skge_xm_phy_write(hw, port, PHY_BCOM_1000T_CTRL, ctrl2);
-		skge_xm_phy_write(hw, port, PHY_BCOM_AUNE_ADV, ctrl3);
+		xm_phy_write(hw, port, PHY_BCOM_1000T_CTRL, ctrl2);
+		xm_phy_write(hw, port, PHY_BCOM_AUNE_ADV, ctrl3);
 
 		if (skge->netdev->mtu > ETH_DATA_LEN) {
 			ctrl4 |= PHY_B_PEC_HIGH_LA;
 			ctrl5 |= PHY_B_AC_LONG_PACK;
 
-			skge_xm_phy_write(hw, port,PHY_BCOM_AUX_CTRL, ctrl5);
+			xm_phy_write(hw, port,PHY_BCOM_AUX_CTRL, ctrl5);
 		}
 
-		skge_xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL, ctrl4);
-		skge_xm_phy_write(hw, port, PHY_BCOM_CTRL, ctrl1);
+		xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL, ctrl4);
+		xm_phy_write(hw, port, PHY_BCOM_CTRL, ctrl1);
 		break;
 	}
 	spin_unlock_bh(&hw->phy_lock);
 
 	/* Clear MIB counters */
-	skge_xm_write16(hw, port, XM_STAT_CMD,
+	xm_write16(hw, port, XM_STAT_CMD,
 			XM_SC_CLR_RXC | XM_SC_CLR_TXC);
 	/* Clear two times according to Errata #3 */
-	skge_xm_write16(hw, port, XM_STAT_CMD,
+	xm_write16(hw, port, XM_STAT_CMD,
 			XM_SC_CLR_RXC | XM_SC_CLR_TXC);
 
 	/* Start polling for link status */
@@ -1293,12 +1293,12 @@ static void genesis_stop(struct skge_port *skge)
 	 * If the transfer stucks at the MAC the STOP command will not
 	 * terminate if we don't flush the XMAC's transmit FIFO !
 	 */
-	skge_xm_write32(hw, port, XM_MODE,
-			skge_xm_read32(hw, port, XM_MODE)|XM_MD_FTF);
+	xm_write32(hw, port, XM_MODE,
+			xm_read32(hw, port, XM_MODE)|XM_MD_FTF);
 
 
 	/* Reset the MAC */
-	skge_write16(hw, SKGEMAC_REG(port, TX_MFF_CTRL1), MFF_SET_MAC_RST);
+	skge_write16(hw, SK_REG(port, TX_MFF_CTRL1), MFF_SET_MAC_RST);
 
 	/* For external PHYs there must be special handling */
 	if (hw->phy_type != SK_PHY_XMAC) {
@@ -1315,11 +1315,11 @@ static void genesis_stop(struct skge_port *skge)
 		skge_read32(hw, B2_GP_IO);
 	}
 
-	skge_xm_write16(hw, port, XM_MMU_CMD,
-			skge_xm_read16(hw, port, XM_MMU_CMD)
+	xm_write16(hw, port, XM_MMU_CMD,
+			xm_read16(hw, port, XM_MMU_CMD)
 			& ~(XM_MMU_ENA_RX | XM_MMU_ENA_TX));
 
-	skge_xm_read16(hw, port, XM_MMU_CMD);
+	xm_read16(hw, port, XM_MMU_CMD);
 }
 
 
@@ -1330,11 +1330,11 @@ static void genesis_get_stats(struct skge_port *skge, u64 *data)
 	int i;
 	unsigned long timeout = jiffies + HZ;
 
-	skge_xm_write16(hw, port,
+	xm_write16(hw, port,
 			XM_STAT_CMD, XM_SC_SNP_TXC | XM_SC_SNP_RXC);
 
 	/* wait for update to complete */
-	while (skge_xm_read16(hw, port, XM_STAT_CMD)
+	while (xm_read16(hw, port, XM_STAT_CMD)
 	       & (XM_SC_SNP_TXC | XM_SC_SNP_RXC)) {
 		if (time_after(jiffies, timeout))
 			break;
@@ -1342,26 +1342,26 @@ static void genesis_get_stats(struct skge_port *skge, u64 *data)
 	}
 
 	/* special case for 64 bit octet counter */
-	data[0] = (u64) skge_xm_read32(hw, port, XM_TXO_OK_HI) << 32
-		| skge_xm_read32(hw, port, XM_TXO_OK_LO);
-	data[1] = (u64) skge_xm_read32(hw, port, XM_RXO_OK_HI) << 32
-		| skge_xm_read32(hw, port, XM_RXO_OK_LO);
+	data[0] = (u64) xm_read32(hw, port, XM_TXO_OK_HI) << 32
+		| xm_read32(hw, port, XM_TXO_OK_LO);
+	data[1] = (u64) xm_read32(hw, port, XM_RXO_OK_HI) << 32
+		| xm_read32(hw, port, XM_RXO_OK_LO);
 
 	for (i = 2; i < ARRAY_SIZE(skge_stats); i++)
-		data[i] = skge_xm_read32(hw, port, skge_stats[i].xmac_offset);
+		data[i] = xm_read32(hw, port, skge_stats[i].xmac_offset);
 }
 
 static void genesis_mac_intr(struct skge_hw *hw, int port)
 {
 	struct skge_port *skge = netdev_priv(hw->dev[port]);
-	u16 status = skge_xm_read16(hw, port, XM_ISRC);
+	u16 status = xm_read16(hw, port, XM_ISRC);
 
 	pr_debug("genesis_intr status %x\n", status);
 	if (hw->phy_type == SK_PHY_XMAC) {
 		/* LInk down, start polling for state change */
 		if (status & XM_IS_INP_ASS) {
-			skge_xm_write16(hw, port, XM_IMSK,
-					skge_xm_read16(hw, port, XM_IMSK) | XM_IS_INP_ASS);
+			xm_write16(hw, port, XM_IMSK,
+					xm_read16(hw, port, XM_IMSK) | XM_IS_INP_ASS);
 			mod_timer(&skge->link_check, jiffies + LINK_POLL_HZ);
 		}
 		else if (status & XM_IS_AND)
@@ -1369,41 +1369,41 @@ static void genesis_mac_intr(struct skge_hw *hw, int port)
 	}
 
 	if (status & XM_IS_TXF_UR) {
-		skge_xm_write32(hw, port, XM_MODE, XM_MD_FTF);
+		xm_write32(hw, port, XM_MODE, XM_MD_FTF);
 		++skge->net_stats.tx_fifo_errors;
 	}
 	if (status & XM_IS_RXF_OV) {
-		skge_xm_write32(hw, port, XM_MODE, XM_MD_FRF);
+		xm_write32(hw, port, XM_MODE, XM_MD_FRF);
 		++skge->net_stats.rx_fifo_errors;
 	}
 }
 
-static void skge_gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
+static void gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
 {
 	int i;
 
-	skge_gma_write16(hw, port, GM_SMI_DATA, val);
-	skge_gma_write16(hw, port, GM_SMI_CTRL,
+	gma_write16(hw, port, GM_SMI_DATA, val);
+	gma_write16(hw, port, GM_SMI_CTRL,
 			 GM_SMI_CT_PHY_AD(hw->phy_addr) | GM_SMI_CT_REG_AD(reg));
 	for (i = 0; i < PHY_RETRIES; i++) {
 		udelay(1);
 
-		if (!(skge_gma_read16(hw, port, GM_SMI_CTRL) & GM_SMI_CT_BUSY))
+		if (!(gma_read16(hw, port, GM_SMI_CTRL) & GM_SMI_CT_BUSY))
 			break;
 	}
 }
 
-static u16 skge_gm_phy_read(struct skge_hw *hw, int port, u16 reg)
+static u16 gm_phy_read(struct skge_hw *hw, int port, u16 reg)
 {
 	int i;
 
-	skge_gma_write16(hw, port, GM_SMI_CTRL,
+	gma_write16(hw, port, GM_SMI_CTRL,
 			 GM_SMI_CT_PHY_AD(hw->phy_addr)
 			 | GM_SMI_CT_REG_AD(reg) | GM_SMI_CT_OP_RD);
 
 	for (i = 0; i < PHY_RETRIES; i++) {
 		udelay(1);
-		if (skge_gma_read16(hw, port, GM_SMI_CTRL) & GM_SMI_CT_RD_VAL)
+		if (gma_read16(hw, port, GM_SMI_CTRL) & GM_SMI_CT_RD_VAL)
 			goto ready;
 	}
 
@@ -1411,7 +1411,7 @@ static u16 skge_gm_phy_read(struct skge_hw *hw, int port, u16 reg)
 	       hw->dev[port]->name);
 	return 0;
  ready:
-	return skge_gma_read16(hw, port, GM_SMI_DATA);
+	return gma_read16(hw, port, GM_SMI_DATA);
 }
 
 static void genesis_link_down(struct skge_port *skge)
@@ -1421,12 +1421,12 @@ static void genesis_link_down(struct skge_port *skge)
 
 	pr_debug("genesis_link_down\n");
 
-	skge_xm_write16(hw, port, XM_MMU_CMD,
-			skge_xm_read16(hw, port, XM_MMU_CMD)
+	xm_write16(hw, port, XM_MMU_CMD,
+			xm_read16(hw, port, XM_MMU_CMD)
 			& ~(XM_MMU_ENA_RX | XM_MMU_ENA_TX));
 
 	/* dummy read to ensure writing */
-	(void) skge_xm_read16(hw, port, XM_MMU_CMD);
+	(void) xm_read16(hw, port, XM_MMU_CMD);
 
 	skge_link_down(skge);
 }
@@ -1439,7 +1439,7 @@ static void genesis_link_up(struct skge_port *skge)
 	u32 mode, msk;
 
 	pr_debug("genesis_link_up\n");
-	cmd = skge_xm_read16(hw, port, XM_MMU_CMD);
+	cmd = xm_read16(hw, port, XM_MMU_CMD);
 
 	/*
 	 * enabling pause frame reception is required for 1000BT
@@ -1452,9 +1452,9 @@ static void genesis_link_up(struct skge_port *skge)
 		/* Enable Pause Frame Reception */
 		cmd &= ~XM_MMU_IGN_PF;
 
-	skge_xm_write16(hw, port, XM_MMU_CMD, cmd);
+	xm_write16(hw, port, XM_MMU_CMD, cmd);
 
-	mode = skge_xm_read32(hw, port, XM_MODE);
+	mode = xm_read32(hw, port, XM_MODE);
 	if (skge->flow_control == FLOW_MODE_SYMMETRIC ||
 	    skge->flow_control == FLOW_MODE_LOC_SEND) {
 		/*
@@ -1468,10 +1468,10 @@ static void genesis_link_up(struct skge_port *skge)
 		/* XM_PAUSE_DA = '010000C28001' (default) */
 		/* XM_MAC_PTIME = 0xffff (maximum) */
 		/* remember this value is defined in big endian (!) */
-		skge_xm_write16(hw, port, XM_MAC_PTIME, 0xffff);
+		xm_write16(hw, port, XM_MAC_PTIME, 0xffff);
 
 		mode |= XM_PAUSE_MODE;
-		skge_write16(hw, SKGEMAC_REG(port, RX_MFF_CTRL1), MFF_ENA_PAUSE);
+		skge_write16(hw, SK_REG(port, RX_MFF_CTRL1), MFF_ENA_PAUSE);
 	} else {
 		/*
 		 * disable pause frame generation is required for 1000BT
@@ -1480,20 +1480,20 @@ static void genesis_link_up(struct skge_port *skge)
 		/* Disable Pause Mode in Mode Register */
 		mode &= ~XM_PAUSE_MODE;
 
-		skge_write16(hw, SKGEMAC_REG(port, RX_MFF_CTRL1), MFF_DIS_PAUSE);
+		skge_write16(hw, SK_REG(port, RX_MFF_CTRL1), MFF_DIS_PAUSE);
 	}
 
-	skge_xm_write32(hw, port, XM_MODE, mode);
+	xm_write32(hw, port, XM_MODE, mode);
 
 	msk = XM_DEF_MSK;
 	if (hw->phy_type != SK_PHY_XMAC)
 		msk |= XM_IS_INP_ASS;	/* disable GP0 interrupt bit */
 
-	skge_xm_write16(hw, port, XM_IMSK, msk);
-	skge_xm_read16(hw, port, XM_ISRC);
+	xm_write16(hw, port, XM_IMSK, msk);
+	xm_read16(hw, port, XM_ISRC);
 
 	/* get MMU Command Reg. */
-	cmd = skge_xm_read16(hw, port, XM_MMU_CMD);
+	cmd = xm_read16(hw, port, XM_MMU_CMD);
 	if (hw->phy_type != SK_PHY_XMAC && skge->duplex == DUPLEX_FULL)
 		cmd |= XM_MMU_GMII_FD;
 
@@ -1502,15 +1502,15 @@ static void genesis_link_up(struct skge_port *skge)
 		 * Workaround BCOM Errata (#10523) for all BCom Phys
 		 * Enable Power Management after link up
 		 */
-		skge_xm_phy_write(hw, port, PHY_BCOM_AUX_CTRL,
-				  skge_xm_phy_read(hw, port, PHY_BCOM_AUX_CTRL)
+		xm_phy_write(hw, port, PHY_BCOM_AUX_CTRL,
+				  xm_phy_read(hw, port, PHY_BCOM_AUX_CTRL)
 				  & ~PHY_B_AC_DIS_PM);
-		skge_xm_phy_write(hw, port, PHY_BCOM_INT_MASK,
+		xm_phy_write(hw, port, PHY_BCOM_INT_MASK,
 				  PHY_B_DEF_MSK);
 	}
 
 	/* enable Rx/Tx */
-	skge_xm_write16(hw, port, XM_MMU_CMD,
+	xm_write16(hw, port, XM_MMU_CMD,
 			cmd | XM_MMU_ENA_RX | XM_MMU_ENA_TX);
 	skge_link_up(skge);
 }
@@ -1520,7 +1520,7 @@ static void genesis_bcom_intr(struct skge_port *skge)
 {
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	u16 stat = skge_xm_phy_read(hw, port, PHY_BCOM_INT_STAT);
+	u16 stat = xm_phy_read(hw, port, PHY_BCOM_INT_STAT);
 
 	pr_debug("genesis_bcom intr stat=%x\n", stat);
 
@@ -1528,16 +1528,16 @@ static void genesis_bcom_intr(struct skge_port *skge)
 	 *	enable and disable loopback mode if "NO HCD" occurs.
 	 */
 	if (stat & PHY_B_IS_NO_HDCL) {
-		u16 ctrl = skge_xm_phy_read(hw, port, PHY_BCOM_CTRL);
-		skge_xm_phy_write(hw, port, PHY_BCOM_CTRL,
+		u16 ctrl = xm_phy_read(hw, port, PHY_BCOM_CTRL);
+		xm_phy_write(hw, port, PHY_BCOM_CTRL,
 				  ctrl | PHY_CT_LOOP);
-		skge_xm_phy_write(hw, port, PHY_BCOM_CTRL,
+		xm_phy_write(hw, port, PHY_BCOM_CTRL,
 				  ctrl & ~PHY_CT_LOOP);
 	}
 
-	stat = skge_xm_phy_read(hw, port, PHY_BCOM_STAT);
+	stat = xm_phy_read(hw, port, PHY_BCOM_STAT);
 	if (stat & (PHY_B_IS_AN_PR | PHY_B_IS_LST_CHANGE)) {
-		u16 aux = skge_xm_phy_read(hw, port, PHY_BCOM_AUX_STAT);
+		u16 aux = xm_phy_read(hw, port, PHY_BCOM_AUX_STAT);
 		if ( !(aux & PHY_B_AS_LS) && netif_carrier_ok(skge->netdev))
 			genesis_link_down(skge);
 
@@ -1590,7 +1590,7 @@ static void skge_link_timer(unsigned long __arg)
 	else {
 		int i;
 		for (i = 0; i < 3; i++)
-			if (skge_xm_read16(hw, port, XM_ISRC) & XM_IS_INP_ASS)
+			if (xm_read16(hw, port, XM_ISRC) & XM_IS_INP_ASS)
 				break;
 
 		if (i == 3)
@@ -1610,7 +1610,7 @@ static void yukon_init(struct skge_hw *hw, int port)
 
 	pr_debug("yukon_init\n");
 	if (skge->autoneg == AUTONEG_ENABLE) {
-		u16 ectrl = skge_gm_phy_read(hw, port, PHY_MARV_EXT_CTRL);
+		u16 ectrl = gm_phy_read(hw, port, PHY_MARV_EXT_CTRL);
 
 		ectrl &= ~(PHY_M_EC_M_DSC_MSK | PHY_M_EC_S_DSC_MSK |
 			  PHY_M_EC_MAC_S_MSK);
@@ -1622,15 +1622,15 @@ static void yukon_init(struct skge_hw *hw, int port)
 		else
 			ectrl |= PHY_M_EC_M_DSC(0) | PHY_M_EC_S_DSC(1);
 
-		skge_gm_phy_write(hw, port, PHY_MARV_EXT_CTRL, ectrl);
+		gm_phy_write(hw, port, PHY_MARV_EXT_CTRL, ectrl);
 	}
 
-	ctrl = skge_gm_phy_read(hw, port, PHY_MARV_CTRL);
+	ctrl = gm_phy_read(hw, port, PHY_MARV_CTRL);
 	if (skge->autoneg == AUTONEG_DISABLE)
 		ctrl &= ~PHY_CT_ANE;
 
 	ctrl |= PHY_CT_RESET;
-	skge_gm_phy_write(hw, port, PHY_MARV_CTRL, ctrl);
+	gm_phy_write(hw, port, PHY_MARV_CTRL, ctrl);
 
 	ctrl = 0;
 	ct1000 = 0;
@@ -1707,10 +1707,10 @@ static void yukon_init(struct skge_hw *hw, int port)
 	}
 
 	if (hw->chip_id != CHIP_ID_YUKON_FE)
-		skge_gm_phy_write(hw, port, PHY_MARV_1000T_CTRL, ct1000);
+		gm_phy_write(hw, port, PHY_MARV_1000T_CTRL, ct1000);
 
-	skge_gm_phy_write(hw, port, PHY_MARV_AUNE_ADV, adv);
-	skge_gm_phy_write(hw, port, PHY_MARV_CTRL, ctrl);
+	gm_phy_write(hw, port, PHY_MARV_AUNE_ADV, adv);
+	gm_phy_write(hw, port, PHY_MARV_CTRL, ctrl);
 
 	/* Setup Phy LED's */
 	ledctrl = PHY_M_LED_PULS_DUR(PULS_170MS);
@@ -1720,8 +1720,8 @@ static void yukon_init(struct skge_hw *hw, int port)
 		/* on 88E3082 these bits are at 11..9 (shifted left) */
 		ledctrl |= PHY_M_LED_BLINK_RT(BLINK_84MS) << 1;
 
-		skge_gm_phy_write(hw, port, PHY_MARV_FE_LED_PAR,
-				  ((skge_gm_phy_read(hw, port, PHY_MARV_FE_LED_PAR)
+		gm_phy_write(hw, port, PHY_MARV_FE_LED_PAR,
+				  ((gm_phy_read(hw, port, PHY_MARV_FE_LED_PAR)
 
 				    & ~PHY_M_FELP_LED1_MSK)
 				   | PHY_M_FELP_LED1_CTRL(LED_PAR_CTRL_ACT_BL)));
@@ -1735,7 +1735,7 @@ static void yukon_init(struct skge_hw *hw, int port)
 
 	/* disable blink mode (LED_DUPLEX) on collisions */
 	ctrl |= PHY_M_LEDC_DP_CTRL;
-	skge_gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
+	gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
 
 	if (skge->autoneg == AUTONEG_DISABLE || skge->speed == SPEED_100) {
 		/* turn on 100 Mbps LED (LED_LINK100) */
@@ -1743,25 +1743,25 @@ static void yukon_init(struct skge_hw *hw, int port)
 	}
 
 	if (ledover)
-		skge_gm_phy_write(hw, port, PHY_MARV_LED_OVER, ledover);
+		gm_phy_write(hw, port, PHY_MARV_LED_OVER, ledover);
 
 	/* Enable phy interrupt on autonegotiation complete (or link up) */
 	if (skge->autoneg == AUTONEG_ENABLE)
-		skge_gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_IS_AN_COMPL);
+		gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_IS_AN_COMPL);
 	else
-		skge_gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_DEF_MSK);
+		gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_DEF_MSK);
 }
 
 static void yukon_reset(struct skge_hw *hw, int port)
 {
-	skge_gm_phy_write(hw, port, PHY_MARV_INT_MASK, 0);/* disable PHY IRQs */
-	skge_gma_write16(hw, port, GM_MC_ADDR_H1, 0);	/* clear MC hash */
-	skge_gma_write16(hw, port, GM_MC_ADDR_H2, 0);
-	skge_gma_write16(hw, port, GM_MC_ADDR_H3, 0);
-	skge_gma_write16(hw, port, GM_MC_ADDR_H4, 0);
+	gm_phy_write(hw, port, PHY_MARV_INT_MASK, 0);/* disable PHY IRQs */
+	gma_write16(hw, port, GM_MC_ADDR_H1, 0);	/* clear MC hash */
+	gma_write16(hw, port, GM_MC_ADDR_H2, 0);
+	gma_write16(hw, port, GM_MC_ADDR_H3, 0);
+	gma_write16(hw, port, GM_MC_ADDR_H4, 0);
 
-	skge_gma_write16(hw, port, GM_RX_CTRL,
-			 skge_gma_read16(hw, port, GM_RX_CTRL)
+	gma_write16(hw, port, GM_RX_CTRL,
+			 gma_read16(hw, port, GM_RX_CTRL)
 			 | GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA);
 }
 
@@ -1779,8 +1779,8 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 			     (skge_read32(hw, B2_GP_IO) | GP_DIR_9 | GP_IO_9));
 
 	/* hard reset */
-	skge_write32(hw, SKGEMAC_REG(port, GPHY_CTRL), GPC_RST_SET);
-	skge_write32(hw, SKGEMAC_REG(port, GMAC_CTRL), GMC_RST_SET);
+	skge_write32(hw, SK_REG(port, GPHY_CTRL), GPC_RST_SET);
+	skge_write32(hw, SK_REG(port, GMAC_CTRL), GMC_RST_SET);
 
 	/* WA code for COMA mode -- clear PHY reset */
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
@@ -1795,13 +1795,13 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	reg |= iscopper(hw) ? GPC_HWCFG_GMII_COP : GPC_HWCFG_GMII_FIB;
 
 	/* Clear GMC reset */
-	skge_write32(hw, SKGEMAC_REG(port, GPHY_CTRL), reg | GPC_RST_SET);
-	skge_write32(hw, SKGEMAC_REG(port, GPHY_CTRL), reg | GPC_RST_CLR);
-	skge_write32(hw, SKGEMAC_REG(port, GMAC_CTRL), GMC_PAUSE_ON | GMC_RST_CLR);
+	skge_write32(hw, SK_REG(port, GPHY_CTRL), reg | GPC_RST_SET);
+	skge_write32(hw, SK_REG(port, GPHY_CTRL), reg | GPC_RST_CLR);
+	skge_write32(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_ON | GMC_RST_CLR);
 	if (skge->autoneg == AUTONEG_DISABLE) {
 		reg = GM_GPCR_AU_ALL_DIS;
-		skge_gma_write16(hw, port, GM_GP_CTRL,
-				 skge_gma_read16(hw, port, GM_GP_CTRL) | reg);
+		gma_write16(hw, port, GM_GP_CTRL,
+				 gma_read16(hw, port, GM_GP_CTRL) | reg);
 
 		switch (skge->speed) {
 		case SPEED_1000:
@@ -1817,7 +1817,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 		reg = GM_GPCR_SPEED_1000 | GM_GPCR_SPEED_100 | GM_GPCR_DUP_FULL;
 	switch (skge->flow_control) {
 	case FLOW_MODE_NONE:
-		skge_write32(hw, SKGEMAC_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);
+		skge_write32(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);
 		reg |= GM_GPCR_FC_TX_DIS | GM_GPCR_FC_RX_DIS | GM_GPCR_AU_FCT_DIS;
 		break;
 	case FLOW_MODE_LOC_SEND:
@@ -1825,7 +1825,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 		reg |= GM_GPCR_FC_RX_DIS | GM_GPCR_AU_FCT_DIS;
 	}
 
-	skge_gma_write16(hw, port, GM_GP_CTRL, reg);
+	gma_write16(hw, port, GM_GP_CTRL, reg);
 	skge_read16(hw, GMAC_IRQ_SRC);
 
 	spin_lock_bh(&hw->phy_lock);
@@ -1833,25 +1833,25 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	spin_unlock_bh(&hw->phy_lock);
 
 	/* MIB clear */
-	reg = skge_gma_read16(hw, port, GM_PHY_ADDR);
-	skge_gma_write16(hw, port, GM_PHY_ADDR, reg | GM_PAR_MIB_CLR);
+	reg = gma_read16(hw, port, GM_PHY_ADDR);
+	gma_write16(hw, port, GM_PHY_ADDR, reg | GM_PAR_MIB_CLR);
 
 	for (i = 0; i < GM_MIB_CNT_SIZE; i++)
-		skge_gma_read16(hw, port, GM_MIB_CNT_BASE + 8*i);
-	skge_gma_write16(hw, port, GM_PHY_ADDR, reg);
+		gma_read16(hw, port, GM_MIB_CNT_BASE + 8*i);
+	gma_write16(hw, port, GM_PHY_ADDR, reg);
 
 	/* transmit control */
-	skge_gma_write16(hw, port, GM_TX_CTRL, TX_COL_THR(TX_COL_DEF));
+	gma_write16(hw, port, GM_TX_CTRL, TX_COL_THR(TX_COL_DEF));
 
 	/* receive control reg: unicast + multicast + no FCS  */
-	skge_gma_write16(hw, port, GM_RX_CTRL,
+	gma_write16(hw, port, GM_RX_CTRL,
 			 GM_RXCR_UCF_ENA | GM_RXCR_CRC_DIS | GM_RXCR_MCF_ENA);
 
 	/* transmit flow control */
-	skge_gma_write16(hw, port, GM_TX_FLOW_CTRL, 0xffff);
+	gma_write16(hw, port, GM_TX_FLOW_CTRL, 0xffff);
 
 	/* transmit parameter */
-	skge_gma_write16(hw, port, GM_TX_PARAM,
+	gma_write16(hw, port, GM_TX_PARAM,
 			 TX_JAM_LEN_VAL(TX_JAM_LEN_DEF) |
 			 TX_JAM_IPG_VAL(TX_JAM_IPG_DEF) |
 			 TX_IPG_JAM_DATA(TX_IPG_JAM_DEF));
@@ -1861,33 +1861,33 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	if (hw->dev[port]->mtu > 1500)
 		reg |= GM_SMOD_JUMBO_ENA;
 
-	skge_gma_write16(hw, port, GM_SERIAL_MODE, reg);
+	gma_write16(hw, port, GM_SERIAL_MODE, reg);
 
 	/* physical address: used for pause frames */
-	skge_gm_set_addr(hw, port, GM_SRC_ADDR_1L, addr);
+	gma_set_addr(hw, port, GM_SRC_ADDR_1L, addr);
 	/* virtual address for data */
-	skge_gm_set_addr(hw, port, GM_SRC_ADDR_2L, addr);
+	gma_set_addr(hw, port, GM_SRC_ADDR_2L, addr);
 
 	/* enable interrupt mask for counter overflows */
-	skge_gma_write16(hw, port, GM_TX_IRQ_MSK, 0);
-	skge_gma_write16(hw, port, GM_RX_IRQ_MSK, 0);
-	skge_gma_write16(hw, port, GM_TR_IRQ_MSK, 0);
+	gma_write16(hw, port, GM_TX_IRQ_MSK, 0);
+	gma_write16(hw, port, GM_RX_IRQ_MSK, 0);
+	gma_write16(hw, port, GM_TR_IRQ_MSK, 0);
 
 	/* Initialize Mac Fifo */
 
 	/* Configure Rx MAC FIFO */
-	skge_write16(hw, SKGEMAC_REG(port, RX_GMF_FL_MSK), RX_FF_FL_DEF_MSK);
+	skge_write16(hw, SK_REG(port, RX_GMF_FL_MSK), RX_FF_FL_DEF_MSK);
 	reg = GMF_OPER_ON | GMF_RX_F_FL_ON;
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
 	    chip_rev(hw) == CHIP_REV_YU_LITE_A3)
 		reg &= ~GMF_RX_F_FL_ON;
-	skge_write8(hw, SKGEMAC_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
-	skge_write16(hw, SKGEMAC_REG(port, RX_GMF_CTRL_T), reg);
-	skge_write16(hw, SKGEMAC_REG(port, RX_GMF_FL_THR), RX_GMF_FL_THR_DEF);
+	skge_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
+	skge_write16(hw, SK_REG(port, RX_GMF_CTRL_T), reg);
+	skge_write16(hw, SK_REG(port, RX_GMF_FL_THR), RX_GMF_FL_THR_DEF);
 
 	/* Configure Tx MAC FIFO */
-	skge_write8(hw, SKGEMAC_REG(port, TX_GMF_CTRL_T), GMF_RST_CLR);
-	skge_write16(hw, SKGEMAC_REG(port, TX_GMF_CTRL_T), GMF_OPER_ON);
+	skge_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_CLR);
+	skge_write16(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_OPER_ON);
 }
 
 static void yukon_stop(struct skge_port *skge)
@@ -1901,14 +1901,14 @@ static void yukon_stop(struct skge_port *skge)
 			     skge_read32(hw, B2_GP_IO) | GP_DIR_9 | GP_IO_9);
 	}
 
-	skge_gma_write16(hw, port, GM_GP_CTRL,
-			 skge_gma_read16(hw, port, GM_GP_CTRL)
+	gma_write16(hw, port, GM_GP_CTRL,
+			 gma_read16(hw, port, GM_GP_CTRL)
 			 & ~(GM_GPCR_RX_ENA|GM_GPCR_RX_ENA));
-	skge_gma_read16(hw, port, GM_GP_CTRL);
+	gma_read16(hw, port, GM_GP_CTRL);
 
 	/* set GPHY Control reset */
-	skge_gma_write32(hw, port, GPHY_CTRL, GPC_RST_SET);
-	skge_gma_write32(hw, port, GMAC_CTRL, GMC_RST_SET);
+	gma_write32(hw, port, GPHY_CTRL, GPC_RST_SET);
+	gma_write32(hw, port, GMAC_CTRL, GMC_RST_SET);
 }
 
 static void yukon_get_stats(struct skge_port *skge, u64 *data)
@@ -1917,29 +1917,29 @@ static void yukon_get_stats(struct skge_port *skge, u64 *data)
 	int port = skge->port;
 	int i;
 
-	data[0] = (u64) skge_gma_read32(hw, port, GM_TXO_OK_HI) << 32
-		| skge_gma_read32(hw, port, GM_TXO_OK_LO);
-	data[1] = (u64) skge_gma_read32(hw, port, GM_RXO_OK_HI) << 32
-		| skge_gma_read32(hw, port, GM_RXO_OK_LO);
+	data[0] = (u64) gma_read32(hw, port, GM_TXO_OK_HI) << 32
+		| gma_read32(hw, port, GM_TXO_OK_LO);
+	data[1] = (u64) gma_read32(hw, port, GM_RXO_OK_HI) << 32
+		| gma_read32(hw, port, GM_RXO_OK_LO);
 
 	for (i = 2; i < ARRAY_SIZE(skge_stats); i++)
-		data[i] = skge_gma_read32(hw, port,
+		data[i] = gma_read32(hw, port,
 					  skge_stats[i].gma_offset);
 }
 
 static void yukon_mac_intr(struct skge_hw *hw, int port)
 {
 	struct skge_port *skge = netdev_priv(hw->dev[port]);
-	u8 status = skge_read8(hw, SKGEMAC_REG(port, GMAC_IRQ_SRC));
+	u8 status = skge_read8(hw, SK_REG(port, GMAC_IRQ_SRC));
 
 	pr_debug("yukon_intr status %x\n", status);
 	if (status & GM_IS_RX_FF_OR) {
 		++skge->net_stats.rx_fifo_errors;
-		skge_gma_write8(hw, port, RX_GMF_CTRL_T, GMF_CLI_RX_FO);
+		gma_write8(hw, port, RX_GMF_CTRL_T, GMF_CLI_RX_FO);
 	}
 	if (status & GM_IS_TX_FF_UR) {
 		++skge->net_stats.tx_fifo_errors;
-		skge_gma_write8(hw, port, TX_GMF_CTRL_T, GMF_CLI_TX_FU);
+		gma_write8(hw, port, TX_GMF_CTRL_T, GMF_CLI_TX_FU);
 	}
 
 }
@@ -1970,15 +1970,15 @@ static void yukon_link_up(struct skge_port *skge)
 	/* Enable Transmit FIFO Underrun */
 	skge_write8(hw, GMAC_IRQ_MSK, GMAC_DEF_MSK);
 
-	reg = skge_gma_read16(hw, port, GM_GP_CTRL);
+	reg = gma_read16(hw, port, GM_GP_CTRL);
 	if (skge->duplex == DUPLEX_FULL || skge->autoneg == AUTONEG_ENABLE)
 		reg |= GM_GPCR_DUP_FULL;
 
 	/* enable Rx/Tx */
 	reg |= GM_GPCR_RX_ENA | GM_GPCR_TX_ENA;
-	skge_gma_write16(hw, port, GM_GP_CTRL, reg);
+	gma_write16(hw, port, GM_GP_CTRL, reg);
 
-	skge_gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_DEF_MSK);
+	gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_DEF_MSK);
 	skge_link_up(skge);
 }
 
@@ -1988,16 +1988,16 @@ static void yukon_link_down(struct skge_port *skge)
 	int port = skge->port;
 
 	pr_debug("yukon_link_down\n");
-	skge_gm_phy_write(hw, port, PHY_MARV_INT_MASK, 0);
-	skge_gm_phy_write(hw, port, GM_GP_CTRL,
-			  skge_gm_phy_read(hw, port, GM_GP_CTRL)
+	gm_phy_write(hw, port, PHY_MARV_INT_MASK, 0);
+	gm_phy_write(hw, port, GM_GP_CTRL,
+			  gm_phy_read(hw, port, GM_GP_CTRL)
 			  & ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA));
 
 	if (hw->chip_id != CHIP_ID_YUKON_FE &&
 	    skge->flow_control == FLOW_MODE_REM_SEND) {
 		/* restore Asymmetric Pause bit */
-		skge_gm_phy_write(hw, port, PHY_MARV_AUNE_ADV,
-				  skge_gm_phy_read(hw, port,
+		gm_phy_write(hw, port, PHY_MARV_AUNE_ADV,
+				  gm_phy_read(hw, port,
 						   PHY_MARV_AUNE_ADV)
 				  | PHY_M_AN_ASP);
 
@@ -2016,19 +2016,19 @@ static void yukon_phy_intr(struct skge_port *skge)
 	const char *reason = NULL;
 	u16 istatus, phystat;
 
-	istatus = skge_gm_phy_read(hw, port, PHY_MARV_INT_STAT);
-	phystat = skge_gm_phy_read(hw, port, PHY_MARV_PHY_STAT);
+	istatus = gm_phy_read(hw, port, PHY_MARV_INT_STAT);
+	phystat = gm_phy_read(hw, port, PHY_MARV_PHY_STAT);
 	pr_debug("yukon phy intr istat=%x phy_stat=%x\n", istatus, phystat);
 
 	if (istatus & PHY_M_IS_AN_COMPL) {
-		if (skge_gm_phy_read(hw, port, PHY_MARV_AUNE_LP)
+		if (gm_phy_read(hw, port, PHY_MARV_AUNE_LP)
 		    & PHY_M_AN_RF) {
 			reason = "remote fault";
 			goto failed;
 		}
 
 		if (!(hw->chip_id == CHIP_ID_YUKON_FE || hw->chip_id == CHIP_ID_YUKON_EC)
-		    && (skge_gm_phy_read(hw, port, PHY_MARV_1000T_STAT)
+		    && (gm_phy_read(hw, port, PHY_MARV_1000T_STAT)
 			& PHY_B_1000S_MSF)) {
 			reason = "master/slave fault";
 			goto failed;
@@ -2064,9 +2064,9 @@ static void yukon_phy_intr(struct skge_port *skge)
 
 		if (skge->flow_control == FLOW_MODE_NONE ||
 		    (skge->speed < SPEED_1000 && skge->duplex == DUPLEX_HALF))
-			skge_write8(hw, SKGEMAC_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);
+			skge_write8(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);
 		else
-			skge_write8(hw, SKGEMAC_REG(port, GMAC_CTRL), GMC_PAUSE_ON);
+			skge_write8(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_ON);
 		yukon_link_up(skge);
 		return;
 	}
@@ -2229,12 +2229,12 @@ static int skge_down(struct net_device *dev)
 		yukon_stop(skge);
 
 	/* Disable Force Sync bit and Enable Alloc bit */
-	skge_write8(hw, SKGEMAC_REG(port, TXA_CTRL),
+	skge_write8(hw, SK_REG(port, TXA_CTRL),
 		    TXA_DIS_FSYNC | TXA_DIS_ALLOC | TXA_STOP_RC);
 
 	/* Stop Interval Timer and Limit Counter of Tx Arbiter */
-	skge_write32(hw, SKGEMAC_REG(port, TXA_ITI_INI), 0L);
-	skge_write32(hw, SKGEMAC_REG(port, TXA_LIM_INI), 0L);
+	skge_write32(hw, SK_REG(port, TXA_ITI_INI), 0L);
+	skge_write32(hw, SK_REG(port, TXA_LIM_INI), 0L);
 
 	/* Reset PCI FIFO */
 	skge_write32(hw, Q_ADDR(txqaddr[port], Q_CSR), CSR_SET_RESET);
@@ -2249,13 +2249,13 @@ static int skge_down(struct net_device *dev)
 	skge_write32(hw, Q_ADDR(rxqaddr[port], Q_CSR), CSR_SET_RESET);
 
 	if (hw->chip_id == CHIP_ID_GENESIS) {
-		skge_write8(hw, SKGEMAC_REG(port, TX_MFF_CTRL2), MFF_RST_SET);
-		skge_write8(hw, SKGEMAC_REG(port, RX_MFF_CTRL2), MFF_RST_SET);
-		skge_write8(hw, SKGEMAC_REG(port, TX_LED_CTRL), LED_STOP);
-		skge_write8(hw, SKGEMAC_REG(port, RX_LED_CTRL), LED_STOP);
+		skge_write8(hw, SK_REG(port, TX_MFF_CTRL2), MFF_RST_SET);
+		skge_write8(hw, SK_REG(port, RX_MFF_CTRL2), MFF_RST_SET);
+		skge_write8(hw, SK_REG(port, TX_LED_CTRL), LED_STOP);
+		skge_write8(hw, SK_REG(port, RX_LED_CTRL), LED_STOP);
 	} else {
-		skge_write8(hw, SKGEMAC_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
-		skge_write8(hw, SKGEMAC_REG(port, TX_GMF_CTRL_T), GMF_RST_SET);
+		skge_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
+		skge_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_SET);
 	}
 
 	/* turn off led's */
@@ -2451,7 +2451,7 @@ static void genesis_set_multicast(struct net_device *dev)
 	u32 mode;
 	u8 filter[8];
 
-	mode = skge_xm_read32(hw, port, XM_MODE);
+	mode = xm_read32(hw, port, XM_MODE);
 	mode |= XM_MD_ENA_HASH;
 	if (dev->flags & IFF_PROMISC)
 		mode |= XM_MD_ENA_PROM;
@@ -2470,9 +2470,9 @@ static void genesis_set_multicast(struct net_device *dev)
 		}
 	}
 
-	skge_xm_outhash(hw, port, XM_HSM, filter);
+	xm_outhash(hw, port, XM_HSM, filter);
 
-	skge_xm_write32(hw, port, XM_MODE, mode);
+	xm_write32(hw, port, XM_MODE, mode);
 }
 
 static void yukon_set_multicast(struct net_device *dev)
@@ -2486,7 +2486,7 @@ static void yukon_set_multicast(struct net_device *dev)
 
 	memset(filter, 0, sizeof(filter));
 
-	reg = skge_gma_read16(hw, port, GM_RX_CTRL);
+	reg = gma_read16(hw, port, GM_RX_CTRL);
 	reg |= GM_RXCR_UCF_ENA;
 
 	if (dev->flags & IFF_PROMISC) 		/* promiscious */
@@ -2506,16 +2506,16 @@ static void yukon_set_multicast(struct net_device *dev)
 	}
 
 
-	skge_gma_write16(hw, port, GM_MC_ADDR_H1,
+	gma_write16(hw, port, GM_MC_ADDR_H1,
 			 (u16)filter[0] | ((u16)filter[1] << 8));
-	skge_gma_write16(hw, port, GM_MC_ADDR_H2,
+	gma_write16(hw, port, GM_MC_ADDR_H2,
 			 (u16)filter[2] | ((u16)filter[3] << 8));
-	skge_gma_write16(hw, port, GM_MC_ADDR_H3,
+	gma_write16(hw, port, GM_MC_ADDR_H3,
 			 (u16)filter[4] | ((u16)filter[5] << 8));
-	skge_gma_write16(hw, port, GM_MC_ADDR_H4,
+	gma_write16(hw, port, GM_MC_ADDR_H4,
 			 (u16)filter[6] | ((u16)filter[7] << 8));
 
-	skge_gma_write16(hw, port, GM_RX_CTRL, reg);
+	gma_write16(hw, port, GM_RX_CTRL, reg);
 }
 
 static inline int bad_phy_status(const struct skge_hw *hw, u32 status)
@@ -2679,11 +2679,11 @@ static void skge_mac_parity(struct skge_hw *hw, int port)
 	       : (port == 0 ? "(port A)": "(port B"));
 
 	if (hw->chip_id == CHIP_ID_GENESIS)
-		skge_write16(hw, SKGEMAC_REG(port, TX_MFF_CTRL1),
+		skge_write16(hw, SK_REG(port, TX_MFF_CTRL1),
 			     MFF_CLR_PERR);
 	else
 		/* HW-Bug #8: cleared by GMF_CLI_TX_FC instead of GMF_CLI_TX_PE */
-		skge_write8(hw, SKGEMAC_REG(port, TX_GMF_CTRL_T),
+		skge_write8(hw, SK_REG(port, TX_GMF_CTRL_T),
 			    (hw->chip_id == CHIP_ID_YUKON && chip_rev(hw) == 0)
 			    ? GMF_CLI_TX_FC : GMF_CLI_TX_PE);
 }
@@ -2715,9 +2715,9 @@ static void skge_error_irq(struct skge_hw *hw)
 	if (hw->chip_id == CHIP_ID_GENESIS) {
 		/* clear xmac errors */
 		if (hwstatus & (IS_NO_STAT_M1|IS_NO_TIST_M1))
-			skge_write16(hw, SKGEMAC_REG(0, RX_MFF_CTRL1), MFF_CLR_INSTAT);
+			skge_write16(hw, SK_REG(0, RX_MFF_CTRL1), MFF_CLR_INSTAT);
 		if (hwstatus & (IS_NO_STAT_M2|IS_NO_TIST_M2))
-			skge_write16(hw, SKGEMAC_REG(0, RX_MFF_CTRL2), MFF_CLR_INSTAT);
+			skge_write16(hw, SK_REG(0, RX_MFF_CTRL2), MFF_CLR_INSTAT);
 	} else {
 		/* Timestamp (unused) overflow */
 		if (hwstatus & IS_IRQ_TIST_OV)
@@ -3000,8 +3000,8 @@ static int skge_reset(struct skge_hw *hw)
 		skge_write8(hw, B0_POWER_CTRL,
 			    PC_VAUX_ENA | PC_VCC_ENA | PC_VAUX_OFF | PC_VCC_ON);
 		for (i = 0; i < ports; i++) {
-			skge_write16(hw, SKGEMAC_REG(i, GMAC_LINK_CTRL), GMLC_RST_SET);
-			skge_write16(hw, SKGEMAC_REG(i, GMAC_LINK_CTRL), GMLC_RST_CLR);
+			skge_write16(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_SET);
+			skge_write16(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_CLR);
 		}
 	}
 
@@ -3012,7 +3012,7 @@ static int skge_reset(struct skge_hw *hw)
 
 	/* enable the Tx Arbiters */
 	for (i = 0; i < ports; i++)
-		skge_write8(hw, SKGEMAC_REG(i, TXA_CTRL), TXA_ENA_ARB);
+		skge_write8(hw, SK_REG(i, TXA_CTRL), TXA_ENA_ARB);
 
 	/* Initialize ram interface */
 	skge_write16(hw, B3_RI_CTRL, RI_RST_CLR);

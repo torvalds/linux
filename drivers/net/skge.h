@@ -488,7 +488,7 @@ enum {
 						PA_ENA_TO_TX1 | PA_ENA_TO_TX2)
 
 
-/* Transmit Arbiter Registers MAC 1 and 2, use MR_ADDR() to access */
+/* Transmit Arbiter Registers MAC 1 and 2, use SK_REG() to access */
 /*	TXA_ITI_INI		32 bit	Tx Arb Interval Timer Init Val */
 /*	TXA_ITI_VAL		32 bit	Tx Arb Interval Timer Value */
 /*	TXA_LIM_INI		32 bit	Tx Arb Limit Counter Init Val */
@@ -511,7 +511,7 @@ enum {
 /*
  *	Bank 4 - 5
  */
-/* Transmit Arbiter Registers MAC 1 and 2, use MR_ADDR() to access */
+/* Transmit Arbiter Registers MAC 1 and 2, use SK_REG() to access */
 enum {
 	TXA_ITI_INI	= 0x0200,/* 32 bit	Tx Arb Interval Timer Init Val*/
 	TXA_ITI_VAL	= 0x0204,/* 32 bit	Tx Arb Interval Timer Value */
@@ -2892,114 +2892,87 @@ static inline void skge_write8(const struct skge_hw *hw, int reg, u8 val)
 }
 
 /* MAC Related Registers inside the device. */
-#define SKGEMAC_REG(port,reg)	(((port)<<7)+(reg))
-
-/* PCI config space can be accessed via memory mapped space */
-#define SKGEPCI_REG(reg) ((reg)+ 0x380)
-
-#define SKGEXM_REG(port, reg) \
+#define SK_REG(port,reg)	(((port)<<7)+(reg))
+#define SK_XMAC_REG(port, reg) \
 	((BASE_XMAC_1 + (port) * (BASE_XMAC_2 - BASE_XMAC_1)) | (reg) << 1)
 
-static inline u32 skge_xm_read32(const struct skge_hw *hw, int port, int reg)
+static inline u32 xm_read32(const struct skge_hw *hw, int port, int reg)
 {
-	return skge_read32(hw, SKGEXM_REG(port,reg));
+	u32 v;
+	v = skge_read16(hw, SK_XMAC_REG(port, reg));
+	v |= (u32)skge_read16(hw, SK_XMAC_REG(port, reg+2)) << 16;
+	return v;
 }
 
-static inline u16 skge_xm_read16(const struct skge_hw *hw, int port, int reg)
+static inline u16 xm_read16(const struct skge_hw *hw, int port, int reg)
 {
-	return skge_read16(hw, SKGEXM_REG(port,reg));
+	return skge_read16(hw, SK_XMAC_REG(port,reg));
 }
 
-static inline u8 skge_xm_read8(const struct skge_hw *hw, int port, int reg)
+static inline void xm_write32(const struct skge_hw *hw, int port, int r, u32 v)
 {
-	return skge_read8(hw, SKGEXM_REG(port,reg));
+	skge_write16(hw, SK_XMAC_REG(port,r), v & 0xffff);
+	skge_write16(hw, SK_XMAC_REG(port,r+2), v >> 16);
 }
 
-static inline void skge_xm_write32(const struct skge_hw *hw, int port, int r, u32 v)
+static inline void xm_write16(const struct skge_hw *hw, int port, int r, u16 v)
 {
-	skge_write32(hw, SKGEXM_REG(port,r), v);
+	skge_write16(hw, SK_XMAC_REG(port,r), v);
 }
 
-static inline void skge_xm_write16(const struct skge_hw *hw, int port, int r, u16 v)
-{
-	skge_write16(hw, SKGEXM_REG(port,r), v);
-}
-
-static inline void skge_xm_write8(const struct skge_hw *hw, int port, int r, u8 v)
-{
-	skge_write8(hw, SKGEXM_REG(port,r), v);
-}
-
-static inline void skge_xm_outhash(const struct skge_hw *hw, int port, int reg,
+static inline void xm_outhash(const struct skge_hw *hw, int port, int reg,
 				   const u8 *hash)
 {
-	skge_xm_write16(hw, port, reg,
-			(u16)hash[0] | ((u16)hash[1] << 8));
-	skge_xm_write16(hw, port, reg+2,
-			(u16)hash[2] | ((u16)hash[3] << 8));
-	skge_xm_write16(hw, port, reg+4,
-			(u16)hash[4] | ((u16)hash[5] << 8));
-	skge_xm_write16(hw, port, reg+6,
-			(u16)hash[6] | ((u16)hash[7] << 8));
+	xm_write16(hw, port, reg,   (u16)hash[0] | ((u16)hash[1] << 8));
+	xm_write16(hw, port, reg+2, (u16)hash[2] | ((u16)hash[3] << 8));
+	xm_write16(hw, port, reg+4, (u16)hash[4] | ((u16)hash[5] << 8));
+	xm_write16(hw, port, reg+6, (u16)hash[6] | ((u16)hash[7] << 8));
 }
 
-static inline void skge_xm_outaddr(const struct skge_hw *hw, int port, int reg,
+static inline void xm_outaddr(const struct skge_hw *hw, int port, int reg,
 				   const u8 *addr)
 {
-	skge_xm_write16(hw, port, reg,
-			(u16)addr[0] | ((u16)addr[1] << 8));
-	skge_xm_write16(hw, port, reg,
-			(u16)addr[2] | ((u16)addr[3] << 8));
-	skge_xm_write16(hw, port, reg,
-			(u16)addr[4] | ((u16)addr[5] << 8));
+	xm_write16(hw, port, reg,   (u16)addr[0] | ((u16)addr[1] << 8));
+	xm_write16(hw, port, reg+2, (u16)addr[2] | ((u16)addr[3] << 8));
+	xm_write16(hw, port, reg+4, (u16)addr[4] | ((u16)addr[5] << 8));
 }
 
+#define SK_GMAC_REG(port,reg) \
+	(BASE_GMAC_1 + (port) * (BASE_GMAC_2-BASE_GMAC_1) + (reg))
 
-#define SKGEGMA_REG(port,reg) \
-	((reg) + BASE_GMAC_1 + \
-	 (port) * (BASE_GMAC_2-BASE_GMAC_1))
-
-static inline u16 skge_gma_read16(const struct skge_hw *hw, int port, int reg)
+static inline u16 gma_read16(const struct skge_hw *hw, int port, int reg)
 {
-	return skge_read16(hw, SKGEGMA_REG(port,reg));
+	return skge_read16(hw, SK_GMAC_REG(port,reg));
 }
 
-static inline u32 skge_gma_read32(const struct skge_hw *hw, int port, int reg)
+static inline u32 gma_read32(const struct skge_hw *hw, int port, int reg)
 {
-	return (u32) skge_read16(hw, SKGEGMA_REG(port,reg))
-		| ((u32)skge_read16(hw, SKGEGMA_REG(port,reg+4)) << 16);
+	return (u32) skge_read16(hw, SK_GMAC_REG(port,reg))
+		| ((u32)skge_read16(hw, SK_GMAC_REG(port,reg+4)) << 16);
 }
 
-static inline u8 skge_gma_read8(const struct skge_hw *hw, int port, int reg)
+static inline void gma_write16(const struct skge_hw *hw, int port, int r, u16 v)
 {
-	return skge_read8(hw, SKGEGMA_REG(port,reg));
+	skge_write16(hw, SK_GMAC_REG(port,r), v);
 }
 
-static inline void skge_gma_write16(const struct skge_hw *hw, int port, int r, u16 v)
+static inline void gma_write32(const struct skge_hw *hw, int port, int r, u32 v)
 {
-	skge_write16(hw, SKGEGMA_REG(port,r), v);
+	skge_write16(hw, SK_GMAC_REG(port, r), (u16) v);
+	skge_write32(hw, SK_GMAC_REG(port, r+4), (u16)(v >> 16));
 }
 
-static inline void skge_gma_write32(const struct skge_hw *hw, int port, int r, u32 v)
+static inline void gma_write8(const struct skge_hw *hw, int port, int r, u8 v)
 {
-	skge_write16(hw, SKGEGMA_REG(port, r), (u16) v);
-	skge_write32(hw, SKGEGMA_REG(port, r+4), (u16)(v >> 16));
+	skge_write8(hw, SK_GMAC_REG(port,r), v);
 }
 
-static inline void skge_gma_write8(const struct skge_hw *hw, int port, int r, u8 v)
-{
-	skge_write8(hw, SKGEGMA_REG(port,r), v);
-}
-
-static inline void skge_gm_set_addr(struct skge_hw *hw, int port, int reg,
+static inline void gma_set_addr(struct skge_hw *hw, int port, int reg,
 				    const u8 *addr)
 {
-	skge_gma_write16(hw, port, reg,
-			 (u16) addr[0] | ((u16) addr[1] << 8));
-	skge_gma_write16(hw, port, reg+4,
-			 (u16) addr[2] | ((u16) addr[3] << 8));
-	skge_gma_write16(hw, port, reg+8,
-			 (u16) addr[4] | ((u16) addr[5] << 8));
+	gma_write16(hw, port, reg,  (u16) addr[0] | ((u16) addr[1] << 8));
+	gma_write16(hw, port, reg+4,(u16) addr[2] | ((u16) addr[3] << 8));
+	gma_write16(hw, port, reg+8,(u16) addr[4] | ((u16) addr[5] << 8));
 }
 
 #endif
