@@ -501,8 +501,8 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 	eq_context = MAILBOX_ALIGN(mailbox);
 
 	for (i = 0; i < npages; ++i) {
-		eq->page_list[i].buf = pci_alloc_consistent(dev->pdev,
-							    PAGE_SIZE, &t);
+		eq->page_list[i].buf = dma_alloc_coherent(&dev->pdev->dev,
+							  PAGE_SIZE, &t, GFP_KERNEL);
 		if (!eq->page_list[i].buf)
 			goto err_out_free;
 
@@ -582,10 +582,10 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
  err_out_free:
 	for (i = 0; i < npages; ++i)
 		if (eq->page_list[i].buf)
-			pci_free_consistent(dev->pdev, PAGE_SIZE,
-					    eq->page_list[i].buf,
-					    pci_unmap_addr(&eq->page_list[i],
-							   mapping));
+			dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
+					  eq->page_list[i].buf,
+					  pci_unmap_addr(&eq->page_list[i],
+							 mapping));
 
 	kfree(eq->page_list);
 	kfree(dma_list);

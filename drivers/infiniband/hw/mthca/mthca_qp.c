@@ -934,7 +934,8 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 			mthca_dbg(dev, "Creating direct QP of size %d (shift %d)\n",
 				  size, shift);
 
-		qp->queue.direct.buf = pci_alloc_consistent(dev->pdev, size, &t);
+		qp->queue.direct.buf = dma_alloc_coherent(&dev->pdev->dev, size,
+							  &t, GFP_KERNEL);
 		if (!qp->queue.direct.buf)
 			goto err_out;
 
@@ -973,7 +974,8 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 
 		for (i = 0; i < npages; ++i) {
 			qp->queue.page_list[i].buf =
-				pci_alloc_consistent(dev->pdev, PAGE_SIZE, &t);
+				dma_alloc_coherent(&dev->pdev->dev, PAGE_SIZE,
+						   &t, GFP_KERNEL);
 			if (!qp->queue.page_list[i].buf)
 				goto err_out_free;
 
@@ -996,16 +998,15 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 
  err_out_free:
 	if (qp->is_direct) {
-		pci_free_consistent(dev->pdev, size,
-				    qp->queue.direct.buf,
-				    pci_unmap_addr(&qp->queue.direct, mapping));
+		dma_free_coherent(&dev->pdev->dev, size, qp->queue.direct.buf,
+				  pci_unmap_addr(&qp->queue.direct, mapping));
 	} else
 		for (i = 0; i < npages; ++i) {
 			if (qp->queue.page_list[i].buf)
-				pci_free_consistent(dev->pdev, PAGE_SIZE,
-						    qp->queue.page_list[i].buf,
-						    pci_unmap_addr(&qp->queue.page_list[i],
-								   mapping));
+				dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
+						  qp->queue.page_list[i].buf,
+						  pci_unmap_addr(&qp->queue.page_list[i],
+								 mapping));
 
 		}
 
