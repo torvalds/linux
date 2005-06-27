@@ -2317,8 +2317,8 @@ enum {
 };
 
 #define XM_PAUSE_MODE	(XM_MD_SPOE_E | XM_MD_SPOL_I | XM_MD_SPOH_I)
-#define XM_DEF_MODE		(XM_MD_RX_RUNT | XM_MD_RX_IRLE | XM_MD_RX_LONG |\
-				XM_MD_RX_CRCE | XM_MD_RX_ERR | XM_MD_CSA | XM_MD_CAA)
+#define XM_DEF_MODE	(XM_MD_RX_RUNT | XM_MD_RX_IRLE | XM_MD_RX_LONG |\
+			 XM_MD_RX_CRCE | XM_MD_RX_ERR | XM_MD_CSA)
 
 /*	XM_STAT_CMD	16 bit r/w	Statistics Command Register */
 enum {

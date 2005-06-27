@@ -97,10 +97,12 @@ static void genesis_mac_init(struct skge_hw *hw, int port);
 static void genesis_reset(struct skge_hw *hw, int port);
 static void genesis_link_up(struct skge_port *skge);
 
+/* Avoid conditionals by using array */
 static const int txqaddr[] = { Q_XA1, Q_XA2 };
 static const int rxqaddr[] = { Q_R1, Q_R2 };
 static const u32 rxirqmask[] = { IS_R1_F, IS_R2_F };
 static const u32 txirqmask[] = { IS_XA1_F, IS_XA2_F };
+static const u32 portirqmask[] = { IS_PORT_1, IS_PORT_2 };
 
 /* Don't need to look at whole 16K.
  * last interesting register is descriptor poll timer.
@@ -1382,7 +1384,9 @@ static void genesis_mac_intr(struct skge_hw *hw, int port)
 	struct skge_port *skge = netdev_priv(hw->dev[port]);
 	u16 status = xm_read16(hw, port, XM_ISRC);
 
-	pr_debug("genesis_intr status %x\n", status);
+	if (netif_msg_intr(skge))
+		printk(KERN_DEBUG PFX "%s: mac interrupt status 0x%x\n",
+		       skge->netdev->name, status);
 
 	if (status & XM_IS_TXF_UR) {
 		xm_write32(hw, port, XM_MODE, XM_MD_FTF);
@@ -1446,6 +1450,7 @@ static void genesis_link_up(struct skge_port *skge)
 	 */
 	if (skge->flow_control == FLOW_MODE_NONE ||
 	    skge->flow_control == FLOW_MODE_LOC_SEND)
+		/* Disable Pause Frame Reception */
 		cmd |= XM_MMU_IGN_PF;
 	else
 		/* Enable Pause Frame Reception */
@@ -1519,7 +1524,9 @@ static inline void bcom_phy_intr(struct skge_port *skge)
 	u16 isrc;
 
 	isrc = xm_phy_read(hw, port, PHY_BCOM_INT_STAT);
-	pr_debug("bcom_phy_interrupt status=0x%x\n", isrc);
+	if (netif_msg_intr(skge))
+		printk(KERN_DEBUG PFX "%s: phy interrupt status 0x%x\n",
+		       skge->netdev->name, isrc);
 
 	if (isrc & PHY_B_IS_PSE)
 		printk(KERN_ERR PFX "%s: uncorrectable pair swap error\n",
@@ -1823,10 +1830,14 @@ static void yukon_get_stats(struct skge_port *skge, u64 *data)
 
 static void yukon_mac_intr(struct skge_hw *hw, int port)
 {
-	struct skge_port *skge = netdev_priv(hw->dev[port]);
+	struct net_device *dev = hw->dev[port];
+	struct skge_port *skge = netdev_priv(dev);
 	u8 status = skge_read8(hw, SK_REG(port, GMAC_IRQ_SRC));
 
-	pr_debug("yukon_intr status %x\n", status);
+	if (netif_msg_intr(skge))
+		printk(KERN_DEBUG PFX "%s: mac interrupt status 0x%x\n",
+		       dev->name, status);
+
 	if (status & GM_IS_RX_FF_OR) {
 		++skge->net_stats.rx_fifo_errors;
 		gma_write8(hw, port, RX_GMF_CTRL_T, GMF_CLI_RX_FO);
@@ -1908,7 +1919,10 @@ static void yukon_phy_intr(struct skge_port *skge)
 
 	istatus = gm_phy_read(hw, port, PHY_MARV_INT_STAT);
 	phystat = gm_phy_read(hw, port, PHY_MARV_PHY_STAT);
-	pr_debug("yukon phy intr istat=%x phy_stat=%x\n", istatus, phystat);
+
+	if (netif_msg_intr(skge))
+		printk(KERN_DEBUG PFX "%s: phy interrupt status 0x%x 0x%x\n",
+		       skge->netdev->name, istatus, phystat);
 
 	if (istatus & PHY_M_IS_AN_COMPL) {
 		if (gm_phy_read(hw, port, PHY_MARV_AUNE_LP)
@@ -2054,6 +2068,10 @@ static int skge_up(struct net_device *dev)
 		goto free_rx_ring;
 
 	skge->tx_avail = skge->tx_ring.count - 1;
+
+	/* Enable IRQ from port */
+	hw->intr_mask |= portirqmask[port];
+	skge_write32(hw, B0_IMSK, hw->intr_mask);
 
 	/* Initialze MAC */
 	if (hw->chip_id == CHIP_ID_GENESIS)
@@ -2449,7 +2467,8 @@ static int skge_poll(struct net_device *dev, int *budget)
 	unsigned int to_do = min(dev->quota, *budget);
 	unsigned int work_done = 0;
 	int done;
-	static const u32 irqmask[] = { IS_PORT_1, IS_PORT_2 };
+
+	pr_debug("skge_poll\n");
 
 	for (e = ring->to_clean; e != ring->to_use && work_done < to_do;
 	     e = e->next) {
@@ -2512,10 +2531,9 @@ static int skge_poll(struct net_device *dev, int *budget)
 
 	if (done) {
 		local_irq_disable();
-		hw->intr_mask |= irqmask[skge->port];
-		/* Order is important since data can get interrupted */
-		skge_write32(hw, B0_IMSK, hw->intr_mask);
 		__netif_rx_complete(dev);
+		hw->intr_mask |= portirqmask[skge->port];
+		skge_write32(hw, B0_IMSK, hw->intr_mask);
 		local_irq_enable();
 	}
 
@@ -2697,19 +2715,14 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 		return IRQ_NONE;
 
 	status &= hw->intr_mask;
-
-	if ((status & IS_R1_F) && netif_rx_schedule_prep(hw->dev[0])) {
-		status &= ~IS_R1_F;
+	if (status & IS_R1_F) {
 		hw->intr_mask &= ~IS_R1_F;
-		skge_write32(hw, B0_IMSK, hw->intr_mask);
-		__netif_rx_schedule(hw->dev[0]);
+		netif_rx_schedule(hw->dev[0]);
 	}
 
-	if ((status & IS_R2_F) && netif_rx_schedule_prep(hw->dev[1])) {
-		status &= ~IS_R2_F;
+	if (status & IS_R2_F) {
 		hw->intr_mask &= ~IS_R2_F;
-		skge_write32(hw, B0_IMSK, hw->intr_mask);
-		__netif_rx_schedule(hw->dev[1]);
+		netif_rx_schedule(hw->dev[1]);
 	}
 
 	if (status & IS_XA1_F)
@@ -2732,8 +2745,7 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 		tasklet_schedule(&hw->ext_tasklet);
 	}
 
-	if (status)
-		skge_write32(hw, B0_IMSK, hw->intr_mask);
+	skge_write32(hw, B0_IMSK, hw->intr_mask);
 
 	return IRQ_HANDLED;
 }
@@ -2918,9 +2930,7 @@ static int skge_reset(struct skge_hw *hw)
 	skge_write32(hw, B2_IRQM_INI, skge_usecs2clk(hw, 100));
 	skge_write32(hw, B2_IRQM_CTRL, TIM_START);
 
-	hw->intr_mask = IS_HW_ERR | IS_EXT_REG | IS_PORT_1;
-	if (hw->ports > 1)
-		hw->intr_mask |= IS_PORT_2;
+	hw->intr_mask = IS_HW_ERR | IS_EXT_REG;
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
 
 	if (hw->chip_id != CHIP_ID_GENESIS)
