@@ -247,8 +247,8 @@ integrator_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction integrator_timer_irq = {
 	.name		= "Integrator Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= integrator_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= integrator_timer_interrupt,
 };
 
 /*

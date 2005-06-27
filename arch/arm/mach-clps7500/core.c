@@ -298,8 +298,8 @@ clps7500_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction clps7500_timer_irq = {
 	.name		= "CLPS7500 Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= clps7500_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= clps7500_timer_interrupt,
 };
 
 /*

@@ -188,8 +188,8 @@ static irqreturn_t omap_mpu_timer_interrupt(int irq, void *dev_id,
 
 static struct irqaction omap_mpu_timer_irq = {
 	.name		= "mpu timer",
-	.flags		= SA_INTERRUPT,
-	.handler	= omap_mpu_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= omap_mpu_timer_interrupt,
 };
 
 static unsigned long omap_mpu_timer1_overflows;
@@ -203,7 +203,7 @@ static irqreturn_t omap_mpu_timer1_interrupt(int irq, void *dev_id,
 static struct irqaction omap_mpu_timer1_irq = {
 	.name		= "mpu timer1 overflow",
 	.flags		= SA_INTERRUPT,
-	.handler	= omap_mpu_timer1_interrupt
+	.handler	= omap_mpu_timer1_interrupt,
 };
 
 static __init void omap_init_mpu_timer(void)
@@ -349,8 +349,8 @@ static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
 
 static struct irqaction omap_32k_timer_irq = {
 	.name		= "32KHz timer",
-	.flags		= SA_INTERRUPT,
-	.handler	= omap_32k_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= omap_32k_timer_interrupt,
 };
 
 static __init void omap_init_32k_timer(void)
