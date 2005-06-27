@@ -559,6 +559,7 @@ static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
 				  convert_access(acc), mr);
 
 	if (err) {
+		kfree(page_list);
 		kfree(mr);
 		return ERR_PTR(err);
 	}
