@@ -49,6 +49,8 @@
 #define DEFAULT_RX_RING_SIZE	512
 #define MAX_TX_RING_SIZE	1024
 #define MAX_RX_RING_SIZE	4096
+#define RX_COPY_THRESHOLD	128
+#define RX_BUF_SIZE		1536
 #define PHY_RETRIES	        1000
 #define ETH_JUMBO_MTU		9000
 #define TX_WATCHDOG		(5 * HZ)
@@ -746,6 +748,7 @@ static int skge_ring_alloc(struct skge_ring *ring, void *vaddr, u64 base)
 
 	for (i = 0, e = ring->start, d = vaddr; i < ring->count; i++, e++, d++) {
 		e->desc = d;
+		e->skb = NULL;
 		if (i == ring->count - 1) {
 			e->next = ring->start;
 			d->next_offset = base;
@@ -759,24 +762,23 @@ static int skge_ring_alloc(struct skge_ring *ring, void *vaddr, u64 base)
 	return 0;
 }
 
-/* Setup buffer for receiving */
-static inline int skge_rx_alloc(struct skge_port *skge,
-				struct skge_element *e)
+static struct sk_buff *skge_rx_alloc(struct net_device *dev, unsigned int size)
 {
-	unsigned long bufsize = skge->netdev->mtu + ETH_HLEN; /* VLAN? */
-	struct skge_rx_desc *rd = e->desc;
-	struct sk_buff *skb;
-	u64 map;
+	struct sk_buff *skb = dev_alloc_skb(size);
 
-	skb = dev_alloc_skb(bufsize + NET_IP_ALIGN);
-	if (unlikely(!skb)) {
-		printk(KERN_DEBUG PFX "%s: out of memory for receive\n",
-		       skge->netdev->name);
-		return -ENOMEM;
+	if (likely(skb)) {
+		skb->dev = dev;
+		skb_reserve(skb, NET_IP_ALIGN);
 	}
+	return skb;
+}
 
-	skb->dev = skge->netdev;
-	skb_reserve(skb, NET_IP_ALIGN);
+/* Allocate and setup a new buffer for receiving */
+static void skge_rx_setup(struct skge_port *skge, struct skge_element *e,
+			  struct sk_buff *skb, unsigned int bufsize)
+{
+	struct skge_rx_desc *rd = e->desc;
+	u64 map;
 
 	map = pci_map_single(skge->hw->pdev, skb->data, bufsize,
 			     PCI_DMA_FROMDEVICE);
@@ -794,55 +796,69 @@ static inline int skge_rx_alloc(struct skge_port *skge,
 	rd->control = BMU_OWN | BMU_STF | BMU_IRQ_EOF | BMU_TCP_CHECK | bufsize;
 	pci_unmap_addr_set(e, mapaddr, map);
 	pci_unmap_len_set(e, maplen, bufsize);
-	return 0;
 }
 
-/* Free all unused buffers in receive ring, assumes receiver stopped */
+/* Resume receiving using existing skb,
+ * Note: DMA address is not changed by chip.
+ * 	 MTU not changed while receiver active.
+ */
+static void skge_rx_reuse(struct skge_element *e, unsigned int size)
+{
+	struct skge_rx_desc *rd = e->desc;
+
+	rd->csum2 = 0;
+	rd->csum2_start = ETH_HLEN;
+
+	wmb();
+
+	rd->control = BMU_OWN | BMU_STF | BMU_IRQ_EOF | BMU_TCP_CHECK | size;
+}
+
+
+/* Free all  buffers in receive ring, assumes receiver stopped */
 static void skge_rx_clean(struct skge_port *skge)
 {
 	struct skge_hw *hw = skge->hw;
 	struct skge_ring *ring = &skge->rx_ring;
 	struct skge_element *e;
 
-	for (e = ring->to_clean; e != ring->to_use; e = e->next) {
+	e = ring->start;
+	do {
 		struct skge_rx_desc *rd = e->desc;
 		rd->control = 0;
-
-		pci_unmap_single(hw->pdev,
-				 pci_unmap_addr(e, mapaddr),
-				 pci_unmap_len(e, maplen),
-				 PCI_DMA_FROMDEVICE);
-		dev_kfree_skb(e->skb);
-		e->skb = NULL;
-	}
-	ring->to_clean = e;
+		if (e->skb) {
+			pci_unmap_single(hw->pdev,
+					 pci_unmap_addr(e, mapaddr),
+					 pci_unmap_len(e, maplen),
+					 PCI_DMA_FROMDEVICE);
+			dev_kfree_skb(e->skb);
+			e->skb = NULL;
+		}
+	} while ((e = e->next) != ring->start);
 }
 
+
 /* Allocate buffers for receive ring
- * For receive: to_use   is refill location
- *              to_clean is next received frame.
- *
- * if (to_use == to_clean)
- *	 then ring all frames in ring need buffers
- * if (to_use->next == to_clean)
- *	 then ring all frames in ring have buffers
+ * For receive:  to_clean is next received frame.
  */
 static int skge_rx_fill(struct skge_port *skge)
 {
 	struct skge_ring *ring = &skge->rx_ring;
 	struct skge_element *e;
-	int ret = 0;
+	unsigned int bufsize = skge->rx_buf_size;
 
-	for (e = ring->to_use; e->next != ring->to_clean; e = e->next) {
-		if (skge_rx_alloc(skge, e)) {
-			ret = 1;
-			break;
-		}
+	e = ring->start;
+	do {
+		struct sk_buff *skb = skge_rx_alloc(skge->netdev, bufsize);
 
-	}
-	ring->to_use = e;
+		if (!skb)
+			return -ENOMEM;
 
-	return ret;
+		skge_rx_setup(skge, e, skb, bufsize);
+	} while ( (e = e->next) != ring->start);
+
+	ring->to_clean = ring->start;
+	return 0;
 }
 
 static void skge_link_up(struct skge_port *skge)
@@ -2048,6 +2064,12 @@ static int skge_up(struct net_device *dev)
 	if (netif_msg_ifup(skge))
 		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
 
+	if (dev->mtu > RX_BUF_SIZE)
+		skge->rx_buf_size = dev->mtu + ETH_HLEN + NET_IP_ALIGN;
+	else
+		skge->rx_buf_size = RX_BUF_SIZE;
+
+
 	rx_size = skge->rx_ring.count * sizeof(struct skge_rx_desc);
 	tx_size = skge->tx_ring.count * sizeof(struct skge_tx_desc);
 	skge->mem_size = tx_size + rx_size;
@@ -2060,7 +2082,8 @@ static int skge_up(struct net_device *dev)
 	if ((err = skge_ring_alloc(&skge->rx_ring, skge->mem, skge->dma)))
 		goto free_pci_mem;
 
-	if (skge_rx_fill(skge))
+	err = skge_rx_fill(skge);
+	if (err)
 		goto free_rx_ring;
 
 	if ((err = skge_ring_alloc(&skge->tx_ring, skge->mem + rx_size,
@@ -2284,6 +2307,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 static inline void skge_tx_free(struct skge_hw *hw, struct skge_element *e)
 {
+	/* This ring element can be skb or fragment */
 	if (e->skb) {
 		pci_unmap_single(hw->pdev,
 			       pci_unmap_addr(e, mapaddr),
@@ -2328,16 +2352,17 @@ static void skge_tx_timeout(struct net_device *dev)
 static int skge_change_mtu(struct net_device *dev, int new_mtu)
 {
 	int err = 0;
+	int running = netif_running(dev);
 
 	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
 		return -EINVAL;
 
-	dev->mtu = new_mtu;
 
-	if (netif_running(dev)) {
+	if (running)
 		skge_down(dev);
+	dev->mtu = new_mtu;
+	if (running)
 		skge_up(dev);
-	}
 
 	return err;
 }
@@ -2436,27 +2461,75 @@ static void skge_rx_error(struct skge_port *skge, int slot,
 		printk(KERN_DEBUG PFX "%s: rx err, slot %d control 0x%x status 0x%x\n",
 		       skge->netdev->name, slot, control, status);
 
-	if ((control & (BMU_EOF|BMU_STF)) != (BMU_STF|BMU_EOF)
-	    || (control & BMU_BBC) > skge->netdev->mtu + VLAN_ETH_HLEN)
+	if ((control & (BMU_EOF|BMU_STF)) != (BMU_STF|BMU_EOF))
 		skge->net_stats.rx_length_errors++;
-	else {
-		if (skge->hw->chip_id == CHIP_ID_GENESIS) {
-			if (status & (XMR_FS_RUNT|XMR_FS_LNG_ERR))
-				skge->net_stats.rx_length_errors++;
-			if (status & XMR_FS_FRA_ERR)
-				skge->net_stats.rx_frame_errors++;
-			if (status & XMR_FS_FCS_ERR)
-				skge->net_stats.rx_crc_errors++;
-		} else {
-			if (status & (GMR_FS_LONG_ERR|GMR_FS_UN_SIZE))
-				skge->net_stats.rx_length_errors++;
-			if (status & GMR_FS_FRAGMENT)
-				skge->net_stats.rx_frame_errors++;
-			if (status & GMR_FS_CRC_ERR)
-				skge->net_stats.rx_crc_errors++;
-		}
+	else if (skge->hw->chip_id == CHIP_ID_GENESIS) {
+		if (status & (XMR_FS_RUNT|XMR_FS_LNG_ERR))
+			skge->net_stats.rx_length_errors++;
+		if (status & XMR_FS_FRA_ERR)
+			skge->net_stats.rx_frame_errors++;
+		if (status & XMR_FS_FCS_ERR)
+			skge->net_stats.rx_crc_errors++;
+	} else {
+		if (status & (GMR_FS_LONG_ERR|GMR_FS_UN_SIZE))
+			skge->net_stats.rx_length_errors++;
+		if (status & GMR_FS_FRAGMENT)
+			skge->net_stats.rx_frame_errors++;
+		if (status & GMR_FS_CRC_ERR)
+			skge->net_stats.rx_crc_errors++;
 	}
 }
+
+/* Get receive buffer from descriptor.
+ * Handles copy of small buffers and reallocation failures
+ */
+static inline struct sk_buff *skge_rx_get(struct skge_port *skge,
+					  struct skge_element *e,
+					  unsigned int len)
+{
+	struct sk_buff *nskb, *skb;
+
+	if (len < RX_COPY_THRESHOLD) {
+		nskb = skge_rx_alloc(skge->netdev, len + NET_IP_ALIGN);
+		if (unlikely(!nskb))
+			return NULL;
+
+		pci_dma_sync_single_for_cpu(skge->hw->pdev,
+					    pci_unmap_addr(e, mapaddr),
+					    len, PCI_DMA_FROMDEVICE);
+		memcpy(nskb->data, e->skb->data, len);
+		pci_dma_sync_single_for_device(skge->hw->pdev,
+					       pci_unmap_addr(e, mapaddr),
+					       len, PCI_DMA_FROMDEVICE);
+
+		if (skge->rx_csum) {
+			struct skge_rx_desc *rd = e->desc;
+			nskb->csum = le16_to_cpu(rd->csum2);
+			nskb->ip_summed = CHECKSUM_HW;
+		}
+		skge_rx_reuse(e, skge->rx_buf_size);
+		return nskb;
+	} else {
+		nskb = skge_rx_alloc(skge->netdev, skge->rx_buf_size);
+		if (unlikely(!nskb))
+			return NULL;
+
+		pci_unmap_single(skge->hw->pdev,
+				 pci_unmap_addr(e, mapaddr),
+				 pci_unmap_len(e, maplen),
+				 PCI_DMA_FROMDEVICE);
+		skb = e->skb;
+		if (skge->rx_csum) {
+			struct skge_rx_desc *rd = e->desc;
+			skb->csum = le16_to_cpu(rd->csum2);
+			skb->ip_summed = CHECKSUM_HW;
+		}
+
+		skge_rx_setup(skge, e, nskb, skge->rx_buf_size);
+		return skb;
+	}
+}
+
 
 static int skge_poll(struct net_device *dev, int *budget)
 {
@@ -2466,14 +2539,12 @@ static int skge_poll(struct net_device *dev, int *budget)
 	struct skge_element *e;
 	unsigned int to_do = min(dev->quota, *budget);
 	unsigned int work_done = 0;
-	int done;
 
 	pr_debug("skge_poll\n");
 
-	for (e = ring->to_clean; e != ring->to_use && work_done < to_do;
-	     e = e->next) {
+	for (e = ring->to_clean; work_done < to_do; e = e->next) {
 		struct skge_rx_desc *rd = e->desc;
-		struct sk_buff *skb = e->skb;
+		struct sk_buff *skb;
 		u32 control, len, status;
 
 		rmb();
@@ -2482,19 +2553,12 @@ static int skge_poll(struct net_device *dev, int *budget)
 			break;
 
 		len = control & BMU_BBC;
-		e->skb = NULL;
-
-		pci_unmap_single(hw->pdev,
-				 pci_unmap_addr(e, mapaddr),
-				 pci_unmap_len(e, maplen),
-				 PCI_DMA_FROMDEVICE);
-
 		status = rd->status;
-		if ((control & (BMU_EOF|BMU_STF)) != (BMU_STF|BMU_EOF)
-		     || len > dev->mtu + VLAN_ETH_HLEN
-		     || bad_phy_status(hw, status)) {
+
+		if (unlikely((control & (BMU_EOF|BMU_STF)) != (BMU_STF|BMU_EOF)
+			     || bad_phy_status(hw, status))) {
 			skge_rx_error(skge, e - ring->start, control, status);
-			dev_kfree_skb(skb);
+			skge_rx_reuse(e, skge->rx_buf_size);
 			continue;
 		}
 
@@ -2502,42 +2566,37 @@ static int skge_poll(struct net_device *dev, int *budget)
 		    printk(KERN_DEBUG PFX "%s: rx slot %td status 0x%x len %d\n",
 			   dev->name, e - ring->start, rd->status, len);
 
-		skb_put(skb, len);
-		skb->protocol = eth_type_trans(skb, dev);
+		skb = skge_rx_get(skge, e, len);
+		if (likely(skb)) {
+			skb_put(skb, len);
+			skb->protocol = eth_type_trans(skb, dev);
 
-		if (skge->rx_csum) {
-			skb->csum = le16_to_cpu(rd->csum2);
-			skb->ip_summed = CHECKSUM_HW;
-		}
+			dev->last_rx = jiffies;
+			netif_receive_skb(skb);
 
-		dev->last_rx = jiffies;
-		netif_receive_skb(skb);
-
-		++work_done;
+			++work_done;
+		} else
+			skge_rx_reuse(e, skge->rx_buf_size);
 	}
 	ring->to_clean = e;
-
-	*budget -= work_done;
-	dev->quota -= work_done;
-	done = work_done < to_do;
-
-	if (skge_rx_fill(skge))
-		done = 0;
 
 	/* restart receiver */
 	wmb();
 	skge_write8(hw, Q_ADDR(rxqaddr[skge->port], Q_CSR),
 		    CSR_START | CSR_IRQ_CL_F);
 
-	if (done) {
-		local_irq_disable();
-		__netif_rx_complete(dev);
-		hw->intr_mask |= portirqmask[skge->port];
-		skge_write32(hw, B0_IMSK, hw->intr_mask);
-		local_irq_enable();
-	}
+	*budget -= work_done;
+	dev->quota -= work_done;
 
-	return !done;
+	if (work_done >=  to_do)
+		return 1; /* not done */
+
+	local_irq_disable();
+	__netif_rx_complete(dev);
+	hw->intr_mask |= portirqmask[skge->port];
+	skge_write32(hw, B0_IMSK, hw->intr_mask);
+	local_irq_enable();
+	return 0;
 }
 
 static inline void skge_tx_intr(struct net_device *dev)

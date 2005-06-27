@@ -2503,6 +2503,7 @@ struct skge_port {
 	void		     *mem;	/* PCI memory for rings */
 	dma_addr_t	     dma;
 	unsigned long	     mem_size;
+	unsigned int	     rx_buf_size;
 
 	struct timer_list    led_blink;
 };
