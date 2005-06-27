@@ -203,8 +203,11 @@ enum {
 	IS_XA2_F	= 1<<1,		/* Q_XA2 End of Frame */
 	IS_XA2_C	= 1<<0,		/* Q_XA2 Encoding Error */
 
-	IS_PORT_1	= IS_XA1_F| IS_R1_F| IS_MAC1,
-	IS_PORT_2	= IS_XA2_F| IS_R2_F| IS_MAC2,
+	IS_TO_PORT1	= IS_PA_TO_RX1 | IS_PA_TO_TX1,
+	IS_TO_PORT2	= IS_PA_TO_RX2 | IS_PA_TO_TX2,
+
+	IS_PORT_1	= IS_XA1_F| IS_R1_F | IS_TO_PORT1 | IS_MAC1,
+	IS_PORT_2	= IS_XA2_F| IS_R2_F | IS_TO_PORT2 | IS_MAC2,
 };
 
 

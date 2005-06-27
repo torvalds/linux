@@ -2731,6 +2731,24 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 	if (status & IS_XA2_F)
 		skge_tx_intr(hw->dev[1]);
 
+	if (status & IS_PA_TO_RX1) {
+		struct skge_port *skge = netdev_priv(hw->dev[0]);
+		++skge->net_stats.rx_over_errors;
+		skge_write16(hw, B3_PA_CTRL, PA_CLR_TO_RX1);
+	}
+
+	if (status & IS_PA_TO_RX2) {
+		struct skge_port *skge = netdev_priv(hw->dev[1]);
+		++skge->net_stats.rx_over_errors;
+		skge_write16(hw, B3_PA_CTRL, PA_CLR_TO_RX2);
+	}
+
+	if (status & IS_PA_TO_TX1)
+		skge_write16(hw, B3_PA_CTRL, PA_CLR_TO_TX1);
+
+	if (status & IS_PA_TO_TX2)
+		skge_write16(hw, B3_PA_CTRL, PA_CLR_TO_TX2);
+
 	if (status & IS_MAC1)
 		skge_mac_intr(hw, 0);
 
