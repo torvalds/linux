@@ -1225,6 +1225,16 @@ enum {
 	PHY_B_PES_MLT3_ER	= 1<<0, /* Bit  0:	MLT3 code Error */
 };
 
+/*  PHY_BCOM_AUNE_ADV	16 bit r/w	Auto-Negotiation Advertisement *****/
+/*  PHY_BCOM_AUNE_LP	16 bit r/o	Link Partner Ability Reg *****/
+enum {
+	PHY_B_AN_RF	= 1<<13, /* Bit 13:	Remote Fault */
+
+	PHY_B_AN_ASP	= 1<<11, /* Bit 11:	Asymmetric Pause */
+	PHY_B_AN_PC	= 1<<10, /* Bit 10:	Pause Capable */
+};
+
+
 /*****  PHY_BCOM_FC_CTR		16 bit r/w	False Carrier Counter *****/
 enum {
 	PHY_B_FC_CTR	= 0xff, /* Bit  7..0:	False Carrier Counter */
@@ -1285,7 +1295,9 @@ enum {
 	PHY_B_IS_LST_CHANGE	= 1<<1, /* Bit  1:	Link Status Changed */
 	PHY_B_IS_CRC_ER	= 1<<0, /* Bit  0:	CRC Error */
 };
-#define PHY_B_DEF_MSK	(~(PHY_B_IS_AN_PR | PHY_B_IS_LST_CHANGE))
+#define PHY_B_DEF_MSK	\
+	(~(PHY_B_IS_PSE | PHY_B_IS_AN_PR | PHY_B_IS_DUP_CHANGE | \
+	    PHY_B_IS_LSP_CHANGE | PHY_B_IS_LST_CHANGE))
 
 /* Pause Bits (PHY_B_AN_ASP and PHY_B_AN_PC) encoding */
 enum {
@@ -2489,7 +2501,6 @@ struct skge_port {
 	dma_addr_t	     dma;
 	unsigned long	     mem_size;
 
-	struct timer_list    link_check;
 	struct timer_list    led_blink;
 };
 
