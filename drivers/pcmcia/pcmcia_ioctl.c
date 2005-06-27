@@ -760,9 +760,9 @@ void __init pcmcia_setup_ioctl(void) {
 
 	/* Set up character device for user mode clients */
 	i = register_chrdev(0, "pcmcia", &ds_fops);
-	if (i == -EBUSY)
+	if (i < 0)
 		printk(KERN_NOTICE "unable to find a free device # for "
-		       "Driver Services\n");
+		       "Driver Services (error=%d)\n", i);
 	else
 		major_dev = i;
 
