@@ -847,9 +847,29 @@ pcmcia_device_stringattr(prod_id2, prod_id[1]);
 pcmcia_device_stringattr(prod_id3, prod_id[2]);
 pcmcia_device_stringattr(prod_id4, prod_id[3]);
 
+static ssize_t modalias_show(struct device *dev, char *buf)
+{
+	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+	int i;
+	u32 hash[4] = { 0, 0, 0, 0};
 
-static ssize_t pcmcia_store_allow_func_id_match (struct device * dev, struct device_attribute *attr,
-						 const char * buf, size_t count)
+	/* calculate hashes */
+	for (i=0; i<4; i++) {
+		if (!p_dev->prod_id[i])
+			continue;
+		hash[i] = crc32(0,p_dev->prod_id[i],strlen(p_dev->prod_id[i]));
+	}
+	return sprintf(buf, "pcmcia:m%04Xc%04Xf%02Xfn%02Xpfn%02X"
+				"pa%08Xpb%08Xpc%08Xpd%08X\n",
+				p_dev->has_manf_id ? p_dev->manf_id : 0,
+				p_dev->has_card_id ? p_dev->card_id : 0,
+				p_dev->has_func_id ? p_dev->func_id : 0,
+				p_dev->func, p_dev->device_no,
+				hash[0], hash[1], hash[2], hash[3]);
+}
+
+static ssize_t pcmcia_store_allow_func_id_match(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
         if (!count)
@@ -873,6 +893,7 @@ static struct device_attribute pcmcia_dev_attrs[] = {
 	__ATTR_RO(prod_id2),
 	__ATTR_RO(prod_id3),
 	__ATTR_RO(prod_id4),
+	__ATTR_RO(modalias),
 	__ATTR(allow_func_id_match, 0200, NULL, pcmcia_store_allow_func_id_match),
 	__ATTR_NULL,
 };
