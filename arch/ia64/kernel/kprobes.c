@@ -270,6 +270,13 @@ static int valid_kprobe_addr(int template, int slot, unsigned long addr)
 				addr);
 		return -EINVAL;
 	}
+
+	if (slot == 1 && bundle_encoding[template][1] != L) {
+		printk(KERN_WARNING "Inserting kprobes on slot #1 "
+		       "is not supported\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
