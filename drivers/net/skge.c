@@ -179,6 +179,36 @@ static int skge_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
+/* Determine supported/adverised modes based on hardware.
+ * Note: ethtoool ADVERTISED_xxx == SUPPORTED_xxx
+ */
+static u32 skge_supported_modes(const struct skge_hw *hw)
+{
+	u32 supported;
+
+	if (iscopper(hw)) {
+		supported = SUPPORTED_10baseT_Half
+			| SUPPORTED_10baseT_Full
+			| SUPPORTED_100baseT_Half
+			| SUPPORTED_100baseT_Full
+			| SUPPORTED_1000baseT_Half
+			| SUPPORTED_1000baseT_Full
+			| SUPPORTED_Autoneg| SUPPORTED_TP;
+
+		if (hw->chip_id == CHIP_ID_GENESIS)
+			supported &= ~(SUPPORTED_10baseT_Half
+					     | SUPPORTED_10baseT_Full
+					     | SUPPORTED_100baseT_Half
+					     | SUPPORTED_100baseT_Full);
+
+		else if (hw->chip_id == CHIP_ID_YUKON)
+			supported &= ~SUPPORTED_1000baseT_Half;
+	} else
+		supported = SUPPORTED_1000baseT_Full | SUPPORTED_FIBRE
+			| SUPPORTED_Autoneg;
+
+	return supported;
+}
 
 static int skge_get_settings(struct net_device *dev,
 			     struct ethtool_cmd *ecmd)
@@ -187,35 +217,13 @@ static int skge_get_settings(struct net_device *dev,
 	struct skge_hw *hw = skge->hw;
 
 	ecmd->transceiver = XCVR_INTERNAL;
+	ecmd->supported = skge_supported_modes(hw);
 
 	if (iscopper(hw)) {
-		if (hw->chip_id == CHIP_ID_GENESIS)
-			ecmd->supported = SUPPORTED_1000baseT_Full
-				| SUPPORTED_1000baseT_Half
-				| SUPPORTED_Autoneg | SUPPORTED_TP;
-		else {
-			ecmd->supported = SUPPORTED_10baseT_Half
-				| SUPPORTED_10baseT_Full
-				| SUPPORTED_100baseT_Half
-				| SUPPORTED_100baseT_Full
-				| SUPPORTED_1000baseT_Half
-				| SUPPORTED_1000baseT_Full
-				| SUPPORTED_Autoneg| SUPPORTED_TP;
-
-			if (hw->chip_id == CHIP_ID_YUKON)
-				ecmd->supported &= ~SUPPORTED_1000baseT_Half;
-
-		}
-
 		ecmd->port = PORT_TP;
 		ecmd->phy_address = hw->phy_addr;
-	} else {
-		ecmd->supported = SUPPORTED_1000baseT_Full
-			| SUPPORTED_FIBRE
-			| SUPPORTED_Autoneg;
-
+	} else
 		ecmd->port = PORT_FIBRE;
-	}
 
 	ecmd->advertising = skge->advertising;
 	ecmd->autoneg = skge->autoneg;
@@ -224,60 +232,57 @@ static int skge_get_settings(struct net_device *dev,
 	return 0;
 }
 
-static u32 skge_modes(const struct skge_hw *hw)
-{
-	u32 modes = ADVERTISED_Autoneg
-		| ADVERTISED_1000baseT_Full | ADVERTISED_1000baseT_Half
-		| ADVERTISED_100baseT_Full | ADVERTISED_100baseT_Half
-		| ADVERTISED_10baseT_Full | ADVERTISED_10baseT_Half;
-
-	if (iscopper(hw)) {
-		modes |= ADVERTISED_TP;
-		switch (hw->chip_id) {
-		case CHIP_ID_GENESIS:
-			modes &= ~(ADVERTISED_100baseT_Full
-				   | ADVERTISED_100baseT_Half
-				   | ADVERTISED_10baseT_Full
-				   | ADVERTISED_10baseT_Half);
-			break;
-
-		case CHIP_ID_YUKON:
-			modes &= ~ADVERTISED_1000baseT_Half;
-			break;
-
-		}
-	} else {
-		modes |= ADVERTISED_FIBRE;
-		modes &= ~ADVERTISED_1000baseT_Half;
-	}
-	return modes;
-}
-
 static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct skge_port *skge = netdev_priv(dev);
 	const struct skge_hw *hw = skge->hw;
+	u32 supported = skge_supported_modes(hw);
 
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
-		if (ecmd->advertising & skge_modes(hw))
-			return -EINVAL;
+		ecmd->advertising = supported;
+		skge->duplex = -1;
+		skge->speed = -1;
 	} else {
-		switch (ecmd->speed) {
+		u32 setting;
+
+		switch(ecmd->speed) {
 		case SPEED_1000:
+			if (ecmd->duplex == DUPLEX_FULL)
+				setting = SUPPORTED_1000baseT_Full;
+			else if (ecmd->duplex == DUPLEX_HALF)
+				setting = SUPPORTED_1000baseT_Half;
+			else
+				return -EINVAL;
 			break;
 		case SPEED_100:
+			if (ecmd->duplex == DUPLEX_FULL)
+				setting = SUPPORTED_100baseT_Full;
+			else if (ecmd->duplex == DUPLEX_HALF)
+				setting = SUPPORTED_100baseT_Half;
+			else
+				return -EINVAL;
+			break;
+
 		case SPEED_10:
-			if (iscopper(hw) || hw->chip_id == CHIP_ID_GENESIS)
+			if (ecmd->duplex == DUPLEX_FULL)
+				setting = SUPPORTED_10baseT_Full;
+			else if (ecmd->duplex == DUPLEX_HALF)
+				setting = SUPPORTED_10baseT_Half;
+			else
 				return -EINVAL;
 			break;
 		default:
 			return -EINVAL;
 		}
+
+		if ((setting & supported) == 0)
+			return -EINVAL;
+
+		skge->speed = ecmd->speed;
+		skge->duplex = ecmd->duplex;
 	}
 
 	skge->autoneg = ecmd->autoneg;
-	skge->speed = ecmd->speed;
-	skge->duplex = ecmd->duplex;
 	skge->advertising = ecmd->advertising;
 
 	if (netif_running(dev)) {
@@ -2973,7 +2978,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	skge->flow_control = FLOW_MODE_SYMMETRIC;
 	skge->duplex = -1;
 	skge->speed = -1;
-	skge->advertising = skge_modes(hw);
+	skge->advertising = skge_supported_modes(hw);
 
 	hw->dev[port] = dev;
 
