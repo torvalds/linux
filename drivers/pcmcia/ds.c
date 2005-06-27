@@ -653,6 +653,11 @@ static inline void pcmcia_add_pseudo_device(struct pcmcia_bus_socket *s)
 	return;
 }
 
+static void pcmcia_bus_rescan(void)
+{
+	/* must be called with skt_sem held */
+        bus_rescan_devices(&pcmcia_bus_type);
+}
 
 static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 				  struct pcmcia_device_id *did)
@@ -1766,6 +1771,7 @@ static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev)
 	s->callback.owner = THIS_MODULE;
 	s->callback.event = &ds_event;
 	s->callback.resources_done = &pcmcia_card_add;
+	s->callback.replace_cis = &pcmcia_bus_rescan;
 	socket->pcmcia = s;
 
 	ret = pccard_register_pcmcia(socket, &s->callback);

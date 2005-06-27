@@ -160,6 +160,7 @@ struct pcmcia_callback{
 	struct module	*owner;
 	int		(*event) (struct pcmcia_socket *s, event_t event, int priority);
 	int		(*resources_done) (struct pcmcia_socket *s);
+	void		(*replace_cis) (void);
 };
 
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);

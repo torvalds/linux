@@ -282,6 +282,50 @@ static ssize_t pccard_show_cis(struct kobject *kobj, char *buf, loff_t off, size
 	return (count);
 }
 
+static ssize_t pccard_store_cis(struct kobject *kobj, char *buf, loff_t off, size_t count)
+{
+	struct pcmcia_socket *s = to_socket(container_of(kobj, struct class_device, kobj));
+	cisdump_t *cis;
+	ssize_t ret = count;
+
+	if (off)
+		return -EINVAL;
+
+	if (count >= 0x200)
+		return -EINVAL;
+
+	if (!(s->state & SOCKET_PRESENT))
+		return -ENODEV;
+
+	cis = kmalloc(sizeof(cisdump_t), GFP_KERNEL);
+	if (!cis)
+		return -ENOMEM;
+	memset(cis, 0, sizeof(cisdump_t));
+
+	cis->Length = count + 1;
+	memcpy(cis->Data, buf, count);
+
+	if (pcmcia_replace_cis(s, cis))
+		ret  = -EIO;
+
+	kfree(cis);
+
+	if (!ret) {
+		down(&s->skt_sem);
+		if ((s->callback) && (s->state & SOCKET_PRESENT) &&
+		    !(s->state & SOCKET_CARDBUS)) {
+			if (try_module_get(s->callback->owner)) {
+				s->callback->replace_cis();
+				module_put(s->callback->owner);
+			}
+		}
+		up(&s->skt_sem);
+	}
+
+
+	return (ret);
+}
+
 
 static struct class_device_attribute *pccard_socket_attributes[] = {
 	&class_device_attr_card_type,
@@ -296,9 +340,10 @@ static struct class_device_attribute *pccard_socket_attributes[] = {
 };
 
 static struct bin_attribute pccard_cis_attr = {
-	.attr = { .name = "cis", .mode = S_IRUGO, .owner = THIS_MODULE},
+	.attr = { .name = "cis", .mode = S_IRUGO | S_IWUSR, .owner = THIS_MODULE},
 	.size = 0x200,
 	.read = pccard_show_cis,
+	.write = pccard_store_cis,
 };
 
 static int __devinit pccard_sysfs_add_socket(struct class_device *class_dev)
