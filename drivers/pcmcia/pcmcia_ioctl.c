@@ -71,6 +71,29 @@ extern int ds_pc_debug;
 #define ds_dbg(lvl, fmt, arg...) do { } while (0)
 #endif
 
+static const char *release = "Linux Kernel Card Services";
+
+/** pcmcia_get_card_services_info
+ *
+ * Return information about this version of Card Services
+ */
+static int pcmcia_get_card_services_info(servinfo_t *info)
+{
+	unsigned int socket_count = 0;
+	struct list_head *tmp;
+	info->Signature[0] = 'C';
+	info->Signature[1] = 'S';
+	down_read(&pcmcia_socket_list_rwsem);
+	list_for_each(tmp, &pcmcia_socket_list)
+		socket_count++;
+	up_read(&pcmcia_socket_list_rwsem);
+	info->Count = socket_count;
+	info->Revision = CS_RELEASE_CODE;
+	info->CSLevel = 0x0210;
+	info->VendorString = (char *)release;
+	return CS_SUCCESS;
+} /* get_card_services_info */
+
 
 /* backwards-compatible accessing of driver --- by name! */
 

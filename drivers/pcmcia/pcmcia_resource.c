@@ -36,8 +36,6 @@
 #include "ds_internal.h"
 
 
-static const char *release = "Linux Kernel Card Services";
-
 /* Access speed for IO windows */
 static int io_speed = 0;
 module_param(io_speed, int, 0444);
@@ -202,7 +200,18 @@ int pccard_access_configuration_register(struct pcmcia_socket *s,
 	}
 	return CS_SUCCESS;
 } /* pccard_access_configuration_register */
-EXPORT_SYMBOL(pccard_access_configuration_register);
+
+int pcmcia_access_configuration_register(client_handle_t handle,
+					 conf_reg_t *reg)
+{
+	struct pcmcia_socket *s;
+	if (CHECK_HANDLE(handle))
+		return CS_BAD_HANDLE;
+	s = SOCKET(handle);
+	return pccard_access_configuration_register(s, handle->Function, reg);
+}
+EXPORT_SYMBOL(pcmcia_access_configuration_register);
+
 
 
 int pccard_get_configuration_info(struct pcmcia_socket *s,
@@ -260,31 +269,20 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 
 	return CS_SUCCESS;
 } /* pccard_get_configuration_info */
-EXPORT_SYMBOL(pccard_get_configuration_info);
 
-
-/** pcmcia_get_card_services_info
- *
- * Return information about this version of Card Services
- */
-
-int pcmcia_get_card_services_info(servinfo_t *info)
+int pcmcia_get_configuration_info(client_handle_t handle,
+				  config_info_t *config)
 {
-	unsigned int socket_count = 0;
-	struct list_head *tmp;
-	info->Signature[0] = 'C';
-	info->Signature[1] = 'S';
-	down_read(&pcmcia_socket_list_rwsem);
-	list_for_each(tmp, &pcmcia_socket_list)
-		socket_count++;
-	up_read(&pcmcia_socket_list_rwsem);
-	info->Count = socket_count;
-	info->Revision = CS_RELEASE_CODE;
-	info->CSLevel = 0x0210;
-	info->VendorString = (char *)release;
-	return CS_SUCCESS;
-} /* get_card_services_info */
-EXPORT_SYMBOL(pcmcia_get_card_services_info);
+	struct pcmcia_socket *s;
+
+	if ((CHECK_HANDLE(handle)) || !config)
+		return CS_BAD_HANDLE;
+	s = SOCKET(handle);
+	if (!s)
+		return CS_BAD_HANDLE;
+	return pccard_get_configuration_info(s, handle->Function, config);
+}
+EXPORT_SYMBOL(pcmcia_get_configuration_info);
 
 
 /** pcmcia_get_window
@@ -379,7 +377,17 @@ int pccard_get_status(struct pcmcia_socket *s, unsigned int function,
 		(val & SS_READY) ? CS_EVENT_READY_CHANGE : 0;
 	return CS_SUCCESS;
 } /* pccard_get_status */
-EXPORT_SYMBOL(pccard_get_status);
+
+int pcmcia_get_status(client_handle_t handle, cs_status_t *status)
+{
+	struct pcmcia_socket *s;
+	if (CHECK_HANDLE(handle))
+		return CS_BAD_HANDLE;
+	s = SOCKET(handle);
+	return pccard_get_status(s, handle->Function, status);
+}
+EXPORT_SYMBOL(pcmcia_get_status);
+
 
 
 /** pcmcia_get_mem_page
