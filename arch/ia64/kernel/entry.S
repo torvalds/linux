@@ -1577,8 +1577,8 @@ sys_call_table:
 	data8 sys_add_key
 	data8 sys_request_key
 	data8 sys_keyctl
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall			// 1275
+	data8 sys_ioprio_set
+	data8 sys_ioprio_get			// 1275
 	data8 sys_set_zone_reclaim
 	data8 sys_ni_syscall
 	data8 sys_ni_syscall

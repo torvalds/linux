@@ -760,7 +760,8 @@ static void deadline_put_request(request_queue_t *q, struct request *rq)
 }
 
 static int
-deadline_set_request(request_queue_t *q, struct request *rq, int gfp_mask)
+deadline_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
+		     int gfp_mask)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 	struct deadline_rq *drq;
