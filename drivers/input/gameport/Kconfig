@@ -49,22 +49,8 @@ config GAMEPORT_EMU10K1
 	  To compile this driver as a module, choose M here: the
 	  module will be called emu10k1-gp.
 
-config GAMEPORT_VORTEX
-	tristate "Aureal Vortex, Vortex 2 gameport support"
-	depends on PCI
-	help
-	  Say Y here if you have an Aureal Vortex 1 or 2  card and want
-	  to use its gameport.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called vortex.
-
 config GAMEPORT_FM801
 	tristate "ForteMedia FM801 gameport support"
-	depends on PCI
-
-config GAMEPORT_CS461X
-	tristate "Crystal SoundFusion gameport support"
 	depends on PCI
 
 endif

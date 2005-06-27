@@ -94,7 +94,7 @@ struct lgff_device {
 					isn't really necessary */
 
 	unsigned long flags[1];      /* Contains various information about the
-				        state of the driver for this device */	
+				        state of the driver for this device */
 
 	struct timer_list timer;
 };
@@ -234,7 +234,7 @@ static struct hid_report* hid_lgff_duplicate_report(struct hid_report* report)
 		kfree(ret);
 		return NULL;
 	}
-	memset(ret->field[0]->value, 0, sizeof(s32[8]));	
+	memset(ret->field[0]->value, 0, sizeof(s32[8]));
 
 	return ret;
 }
@@ -295,11 +295,11 @@ static int hid_lgff_event(struct hid_device *hid, struct input_dev* input,
 	unsigned long flags;
 
 	if (type != EV_FF)                     return -EINVAL;
-       	if (!LGFF_CHECK_OWNERSHIP(code, lgff)) return -EACCES;
+	if (!LGFF_CHECK_OWNERSHIP(code, lgff)) return -EACCES;
 	if (value < 0)                         return -EINVAL;
 
 	spin_lock_irqsave(&lgff->lock, flags);
-	
+
 	if (value > 0) {
 		if (test_bit(EFFECT_STARTED, effect->flags)) {
 			spin_unlock_irqrestore(&lgff->lock, flags);
@@ -345,7 +345,7 @@ static int hid_lgff_flush(struct input_dev *dev, struct file *file)
 		  and perform ioctls on the same fd all at the same time */
 		if ( current->pid == lgff->effects[i].owner
 		     && test_bit(EFFECT_USED, lgff->effects[i].flags)) {
-			
+
 			if (hid_lgff_erase(dev, i))
 				warn("erase effect %d failed", i);
 		}
@@ -378,7 +378,7 @@ static int hid_lgff_upload_effect(struct input_dev* input,
 	struct lgff_effect new;
 	int id;
 	unsigned long flags;
-	
+
 	dbg("ioctl rumble");
 
 	if (!test_bit(effect->type, input->ffbit)) return -EINVAL;
@@ -441,7 +441,7 @@ static void hid_lgff_timer(unsigned long timer_data)
 
 	spin_lock_irqsave(&lgff->lock, flags);
 
- 	for (i=0; i<LGFF_EFFECTS; ++i) {
+	for (i=0; i<LGFF_EFFECTS; ++i) {
 		struct lgff_effect* effect = lgff->effects +i;
 
 		if (test_bit(EFFECT_PLAYING, effect->flags)) {
@@ -491,7 +491,7 @@ static void hid_lgff_timer(unsigned long timer_data)
 				set_bit(EFFECT_PLAYING, lgff->effects[i].flags);
 			}
 		}
- 	}
+	}
 
 #define CLAMP(x) if (x < 0) x = 0; if (x > 0xff) x = 0xff
 
@@ -524,5 +524,5 @@ static void hid_lgff_timer(unsigned long timer_data)
 		add_timer(&lgff->timer);
 	}
 
- 	spin_unlock_irqrestore(&lgff->lock, flags);
+	spin_unlock_irqrestore(&lgff->lock, flags);
 }
