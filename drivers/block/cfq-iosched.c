@@ -375,9 +375,10 @@ cfq_find_next_crq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	struct cfq_rq *crq_next = NULL, *crq_prev = NULL;
 	struct rb_node *rbnext, *rbprev;
 
+	rbnext = NULL;
 	if (ON_RB(&last->rb_node))
 		rbnext = rb_next(&last->rb_node);
-	else {
+	if (!rbnext) {
 		rbnext = rb_first(&cfqq->sort_list);
 		if (rbnext == &last->rb_node)
 			rbnext = NULL;
