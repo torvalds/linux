@@ -40,6 +40,7 @@ enum {
 	ALC880_W810,
 	ALC880_Z71V,
 	ALC880_AUTO,
+	ALC880_6ST,
 	ALC880_6ST_DIG,
 	ALC880_F1734,
 	ALC880_ASUS,
@@ -1559,7 +1560,9 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	{ .modelname = "z71v", .config = ALC880_Z71V },
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1964, .config = ALC880_Z71V },
 
-	{ .modelname = "6statack-digout", .config = ALC880_6ST_DIG },
+	{ .modelname = "6stack", .config = ALC880_6ST },
+
+	{ .modelname = "6stack-digout", .config = ALC880_6ST_DIG },
 	{ .pci_subvendor = 0x2668, .pci_subdevice = 0x8086, .config = ALC880_6ST_DIG },
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0x2668, .config = ALC880_6ST_DIG },
 	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x1150, .config = ALC880_6ST_DIG },
@@ -1645,6 +1648,15 @@ static struct alc_config_preset alc880_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc880_fivestack_modes),
 		.channel_mode = alc880_fivestack_modes,
 		.input_mux = &alc880_capture_source,
+	},
+	[ALC880_6ST] = {
+		.mixers = { alc880_six_stack_mixer },
+		.init_verbs = { alc880_volume_init_verbs, alc880_pin_6stack_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc880_6st_dac_nids),
+		.dac_nids = alc880_6st_dac_nids,
+		.num_channel_mode = ARRAY_SIZE(alc880_sixstack_modes),
+		.channel_mode = alc880_sixstack_modes,
+		.input_mux = &alc880_6stack_capture_source,
 	},
 	[ALC880_6ST_DIG] = {
 		.mixers = { alc880_six_stack_mixer },
