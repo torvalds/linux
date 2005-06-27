@@ -110,7 +110,7 @@ static void smt_fill_setcount(struct s_smc *smc, struct smt_p_setcount *setcount
 static void smt_fill_echo(struct s_smc *smc, struct smt_p_echo *echo, u_long seed,
 			  int len);
 
-void smt_clear_una_dna(struct s_smc *smc);
+static void smt_clear_una_dna(struct s_smc *smc);
 static void smt_clear_old_una_dna(struct s_smc *smc);
 #ifdef	CONCENTRATOR
 static int entity_to_index(void);
@@ -118,7 +118,7 @@ static int entity_to_index(void);
 static void update_dac(struct s_smc *smc, int report);
 static int div_ratio(u_long upper, u_long lower);
 #ifdef  USE_CAN_ADDR
-void	hwm_conv_can(struct s_smc *smc, char *data, int len);
+static void	hwm_conv_can(struct s_smc *smc, char *data, int len);
 #else
 #define		hwm_conv_can(smc,data,len)
 #endif
@@ -214,24 +214,6 @@ void smt_agent_task(struct s_smc *smc)
 	smt_timer_start(smc,&smc->sm.smt_timer, (u_long)1000000L,
 		EV_TOKEN(EVENT_SMT,SM_TIMER)) ;
 	DB_SMT("SMT agent task\n",0,0) ;
-}
-
-void smt_please_reconnect(struct s_smc *smc, int reconn_time)
-/* struct s_smc	*smc;  Pointer to SMT context */
-/* int reconn_time;    Wait for reconnect time in seconds */
-{
-	/*
-	 * The please reconnect variable is used as a timer.
-	 * It is decremented each time smt_event is called.
-	 * This happens every second or when smt_force_irq is called.
-	 * Note: smt_force_irq () is called on some packet receives and
-	 *       when a multicast address is changed. Since nothing
-	 *       is received during the disconnect and the multicast
-	 *       address changes can be viewed as not very often and
-	 *       the timer runs out close to its given value
-	 *       (reconn_time).
-	 */
-	smc->sm.please_reconnect = reconn_time ;
 }
 
 #ifndef SMT_REAL_TOKEN_CT
@@ -1574,7 +1556,7 @@ static void smt_fill_echo(struct s_smc *smc, struct smt_p_echo *echo, u_long see
  * clear DNA and UNA
  * called from CFM if configuration changes
  */
-void smt_clear_una_dna(struct s_smc *smc)
+static void smt_clear_una_dna(struct s_smc *smc)
 {
 	smc->mib.m[MAC0].fddiMACUpstreamNbr = SMT_Unknown ;
 	smc->mib.m[MAC0].fddiMACDownstreamNbr = SMT_Unknown ;
@@ -2058,30 +2040,10 @@ int smt_action(struct s_smc *smc, int class, int code, int index)
 }
 
 /*
- * change tneg
- *	set T_Req in MIB (Path Attribute)
- *	calculate new values for MAC
- *	if change required
- *		disconnect
- *		set reconnect
- *	end
- */
-void smt_change_t_neg(struct s_smc *smc, u_long tneg)
-{
-	smc->mib.a[PATH0].fddiPATHMaxT_Req = tneg ;
-
-	if (smt_set_mac_opvalues(smc)) {
-		RS_SET(smc,RS_EVENT) ;
-		smc->sm.please_reconnect = 1 ;
-		queue_event(smc,EVENT_ECM,EC_DISCONNECT) ;
-	}
-}
-
-/*
  * canonical conversion of <len> bytes beginning form *data
  */
 #ifdef  USE_CAN_ADDR
-void hwm_conv_can(struct s_smc *smc, char *data, int len)
+static void hwm_conv_can(struct s_smc *smc, char *data, int len)
 {
 	int i ;
 
