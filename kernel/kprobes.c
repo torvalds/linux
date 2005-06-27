@@ -240,12 +240,6 @@ static int aggr_break_handler(struct kprobe *p, struct pt_regs *regs)
 	return 0;
 }
 
-struct kprobe trampoline_p = {
-		.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
-		.pre_handler = trampoline_probe_handler,
-		.post_handler = trampoline_post_handler
-};
-
 struct kretprobe_instance *get_free_rp_inst(struct kretprobe *rp)
 {
 	struct hlist_node *node;
@@ -264,35 +258,18 @@ static struct kretprobe_instance *get_used_rp_inst(struct kretprobe *rp)
 	return NULL;
 }
 
-struct kretprobe_instance *get_rp_inst(void *sara)
-{
-	struct hlist_head *head;
-	struct hlist_node *node;
-	struct task_struct *tsk;
-	struct kretprobe_instance *ri;
-
-	tsk = arch_get_kprobe_task(sara);
-	head = &kretprobe_inst_table[hash_ptr(tsk, KPROBE_HASH_BITS)];
-	hlist_for_each_entry(ri, node, head, hlist) {
-		if (ri->stack_addr == sara)
-			return ri;
-	}
-	return NULL;
-}
-
 void add_rp_inst(struct kretprobe_instance *ri)
 {
-	struct task_struct *tsk;
 	/*
 	 * Remove rp inst off the free list -
 	 * Add it back when probed function returns
 	 */
 	hlist_del(&ri->uflist);
-	tsk = arch_get_kprobe_task(ri->stack_addr);
+
 	/* Add rp inst onto table */
 	INIT_HLIST_NODE(&ri->hlist);
 	hlist_add_head(&ri->hlist,
-			&kretprobe_inst_table[hash_ptr(tsk, KPROBE_HASH_BITS)]);
+			&kretprobe_inst_table[hash_ptr(ri->task, KPROBE_HASH_BITS)]);
 
 	/* Also add this rp inst to the used list. */
 	INIT_HLIST_NODE(&ri->uflist);
@@ -319,34 +296,25 @@ struct hlist_head * kretprobe_inst_table_head(struct task_struct *tsk)
 	return &kretprobe_inst_table[hash_ptr(tsk, KPROBE_HASH_BITS)];
 }
 
-struct kretprobe_instance *get_rp_inst_tsk(struct task_struct *tk)
-{
-	struct task_struct *tsk;
-	struct hlist_head *head;
-	struct hlist_node *node;
-	struct kretprobe_instance *ri;
-
-	head = &kretprobe_inst_table[hash_ptr(tk, KPROBE_HASH_BITS)];
-
-	hlist_for_each_entry(ri, node, head, hlist) {
-		tsk = arch_get_kprobe_task(ri->stack_addr);
-		if (tsk == tk)
-			return ri;
-	}
-	return NULL;
-}
-
 /*
- * This function is called from do_exit or do_execv when task tk's stack is
- * about to be recycled. Recycle any function-return probe instances
- * associated with this task. These represent probed functions that have
- * been called but may never return.
+ * This function is called from exit_thread or flush_thread when task tk's
+ * stack is being recycled so that we can recycle any function-return probe
+ * instances associated with this task. These left over instances represent
+ * probed functions that have been called but will never return.
  */
 void kprobe_flush_task(struct task_struct *tk)
 {
+        struct kretprobe_instance *ri;
+        struct hlist_head *head;
+	struct hlist_node *node, *tmp;
 	unsigned long flags = 0;
+
 	spin_lock_irqsave(&kprobe_lock, flags);
-	arch_kprobe_flush_task(tk);
+        head = kretprobe_inst_table_head(current);
+        hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+                if (ri->task == tk)
+                        recycle_rp_inst(ri);
+        }
 	spin_unlock_irqrestore(&kprobe_lock, flags);
 }
 
@@ -606,9 +574,10 @@ static int __init init_kprobes(void)
 		INIT_HLIST_HEAD(&kretprobe_inst_table[i]);
 	}
 
-	err = register_die_notifier(&kprobe_exceptions_nb);
-	/* Register the trampoline probe for return probe */
-	register_kprobe(&trampoline_p);
+	err = arch_init();
+	if (!err)
+		err = register_die_notifier(&kprobe_exceptions_nb);
+
 	return err;
 }
 

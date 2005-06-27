@@ -104,33 +104,12 @@ struct jprobe {
 };
 
 #ifdef ARCH_SUPPORTS_KRETPROBES
-extern int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs);
-extern void trampoline_post_handler(struct kprobe *p, struct pt_regs *regs,
-							unsigned long flags);
-extern struct task_struct *arch_get_kprobe_task(void *ptr);
 extern void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs);
-extern void arch_kprobe_flush_task(struct task_struct *tk);
 #else /* ARCH_SUPPORTS_KRETPROBES */
-static inline void kretprobe_trampoline(void)
-{
-}
-static inline int trampoline_probe_handler(struct kprobe *p,
-						struct pt_regs *regs)
-{
-	return 0;
-}
-static inline void trampoline_post_handler(struct kprobe *p,
-				struct pt_regs *regs, unsigned long flags)
-{
-}
 static inline void arch_prepare_kretprobe(struct kretprobe *rp,
 					struct pt_regs *regs)
 {
 }
-static inline void arch_kprobe_flush_task(struct task_struct *tk)
-{
-}
-#define arch_get_kprobe_task(ptr) ((struct task_struct *)NULL)
 #endif /* ARCH_SUPPORTS_KRETPROBES */
 /*
  * Function-return probe -
@@ -155,8 +134,8 @@ struct kretprobe_instance {
 	struct hlist_node uflist; /* either on free list or used list */
 	struct hlist_node hlist;
 	struct kretprobe *rp;
-	void *ret_addr;
-	void *stack_addr;
+	kprobe_opcode_t *ret_addr;
+	struct task_struct *task;
 };
 
 #ifdef CONFIG_KPROBES
@@ -176,6 +155,7 @@ extern void arch_copy_kprobe(struct kprobe *p);
 extern void arch_arm_kprobe(struct kprobe *p);
 extern void arch_disarm_kprobe(struct kprobe *p);
 extern void arch_remove_kprobe(struct kprobe *p);
+extern int arch_init(void);
 extern void show_registers(struct pt_regs *regs);
 extern kprobe_opcode_t *get_insn_slot(void);
 extern void free_insn_slot(kprobe_opcode_t *slot);
@@ -196,8 +176,6 @@ int register_kretprobe(struct kretprobe *rp);
 void unregister_kretprobe(struct kretprobe *rp);
 
 struct kretprobe_instance *get_free_rp_inst(struct kretprobe *rp);
-struct kretprobe_instance *get_rp_inst(void *sara);
-struct kretprobe_instance *get_rp_inst_tsk(struct task_struct *tk);
 void add_rp_inst(struct kretprobe_instance *ri);
 void kprobe_flush_task(struct task_struct *tk);
 void recycle_rp_inst(struct kretprobe_instance *ri);
