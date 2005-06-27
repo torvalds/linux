@@ -380,6 +380,12 @@ void mthca_uar_free(struct mthca_dev *dev, struct mthca_uar *uar);
 int mthca_pd_alloc(struct mthca_dev *dev, struct mthca_pd *pd);
 void mthca_pd_free(struct mthca_dev *dev, struct mthca_pd *pd);
 
+struct mthca_mtt *mthca_alloc_mtt(struct mthca_dev *dev, int size);
+void mthca_free_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt);
+int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
+		    int start_index, u64 *buffer_list, int list_len);
+int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
+		   u64 iova, u64 total_size, u32 access, struct mthca_mr *mr);
 int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
 			   u32 access, struct mthca_mr *mr);
 int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
