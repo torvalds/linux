@@ -717,9 +717,42 @@ static inline void pcmcia_add_pseudo_device(struct pcmcia_bus_socket *s)
 	return;
 }
 
-static void pcmcia_bus_rescan(void)
+static int pcmcia_requery(struct device *dev, void * _data)
 {
+	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+	if (!p_dev->dev.driver)
+		pcmcia_device_query(p_dev);
+
+	return 0;
+}
+
+static void pcmcia_bus_rescan(struct pcmcia_socket *skt)
+{
+	int no_devices=0;
+	unsigned long flags;
+
 	/* must be called with skt_sem held */
+	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	if (list_empty(&skt->pcmcia->devices_list))
+		no_devices=1;
+	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+
+	/* if no devices were added for this socket yet because of
+	 * missing resource information or other trouble, we need to
+	 * do this now. */
+	if (no_devices) {
+		int ret = pcmcia_card_add(skt);
+		if (ret)
+			return;
+	}
+
+	/* some device information might have changed because of a CIS
+	 * update or because we can finally read it correctly... so
+	 * determine it again, overwriting old values if necessary. */
+	bus_for_each_dev(&pcmcia_bus_type, NULL, NULL, pcmcia_requery);
+
+	/* we re-scan all devices, not just the ones connected to this
+	 * socket. This does not matter, though. */
 	bus_rescan_devices(&pcmcia_bus_type);
 }
 
@@ -1861,8 +1894,7 @@ static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev)
 	/* Set up hotline to Card Services */
 	s->callback.owner = THIS_MODULE;
 	s->callback.event = &ds_event;
-	s->callback.resources_done = &pcmcia_card_add;
-	s->callback.replace_cis = &pcmcia_bus_rescan;
+	s->callback.requery = &pcmcia_bus_rescan;
 	socket->pcmcia = s;
 
 	ret = pccard_register_pcmcia(socket, &s->callback);

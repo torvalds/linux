@@ -163,24 +163,20 @@ static ssize_t pccard_store_resource(struct class_device *dev, const char *buf, 
 		return -EINVAL;
 
 	spin_lock_irqsave(&s->lock, flags);
-	if (!s->resource_setup_done) {
+	if (!s->resource_setup_done)
 		s->resource_setup_done = 1;
-		spin_unlock_irqrestore(&s->lock, flags);
-
-		down(&s->skt_sem);
-		if ((s->callback) &&
-		    (s->state & SOCKET_PRESENT) &&
-		    !(s->state & SOCKET_CARDBUS)) {
-			if (try_module_get(s->callback->owner)) {
-				s->callback->resources_done(s);
-				module_put(s->callback->owner);
-			}
-		}
-		up(&s->skt_sem);
-
-		return count;
-	}
 	spin_unlock_irqrestore(&s->lock, flags);
+
+	down(&s->skt_sem);
+	if ((s->callback) &&
+	    (s->state & SOCKET_PRESENT) &&
+	    !(s->state & SOCKET_CARDBUS)) {
+		if (try_module_get(s->callback->owner)) {
+			s->callback->requery(s);
+			module_put(s->callback->owner);
+		}
+	}
+	up(&s->skt_sem);
 
 	return count;
 }
@@ -315,7 +311,7 @@ static ssize_t pccard_store_cis(struct kobject *kobj, char *buf, loff_t off, siz
 		if ((s->callback) && (s->state & SOCKET_PRESENT) &&
 		    !(s->state & SOCKET_CARDBUS)) {
 			if (try_module_get(s->callback->owner)) {
-				s->callback->replace_cis();
+				s->callback->requery(s);
 				module_put(s->callback->owner);
 			}
 		}
