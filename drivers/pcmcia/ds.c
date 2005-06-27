@@ -260,6 +260,41 @@ void cs_error(client_handle_t handle, int func, int ret)
 }
 EXPORT_SYMBOL(cs_error);
 
+#ifdef CONFIG_PCMCIA_DEBUG
+
+
+static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
+{
+	struct pcmcia_device_id *did = p_drv->id_table;
+	unsigned int i;
+	u32 hash;
+
+	while (did && did->match_flags) {
+		for (i=0; i<4; i++) {
+			if (!did->prod_id[i])
+				continue;
+
+			hash = crc32(0, did->prod_id[i], strlen(did->prod_id[i]));
+			if (hash == did->prod_id_hash[i])
+				continue;
+
+			printk(KERN_DEBUG "pcmcia: %s: invalid hash for "
+			       "product string \"%s\": is 0x%x, should "
+			       "be 0x%x\n", p_drv->drv.name, did->prod_id[i],
+			       did->prod_id_hash[i], hash);
+		}
+		did++;
+	}
+
+	return;
+}
+
+#else
+static inline void pcmcia_check_driver(struct pcmcia_driver *p_drv) {
+	return;
+}
+#endif
+
 /*======================================================================*/
 
 static struct pcmcia_driver * get_pcmcia_driver (dev_info_t *dev_info);
@@ -295,6 +330,8 @@ int pcmcia_register_driver(struct pcmcia_driver *driver)
 {
 	if (!driver)
 		return -EINVAL;
+
+	pcmcia_check_driver(driver);
 
 	/* initialize common fields */
 	driver->drv.bus = &pcmcia_bus_type;
