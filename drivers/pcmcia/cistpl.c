@@ -182,6 +182,8 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	  *(u_char *)(ptr+2), *(u_char *)(ptr+3));
     return 0;
 }
+EXPORT_SYMBOL(pcmcia_read_cis_mem);
+
 
 void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		   u_int len, void *ptr)
@@ -239,6 +241,8 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	}
     }
 }
+EXPORT_SYMBOL(pcmcia_write_cis_mem);
+
 
 /*======================================================================
 
