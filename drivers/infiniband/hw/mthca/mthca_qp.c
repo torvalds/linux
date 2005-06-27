@@ -683,7 +683,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	if (attr_mask & IB_QP_AV) {
 		qp_context->pri_path.g_mylmc     = attr->ah_attr.src_path_bits & 0x7f;
 		qp_context->pri_path.rlid        = cpu_to_be16(attr->ah_attr.dlid);
-		qp_context->pri_path.static_rate = (!!attr->ah_attr.static_rate) << 3;
+		qp_context->pri_path.static_rate = !!attr->ah_attr.static_rate;
 		if (attr->ah_attr.ah_flags & IB_AH_GRH) {
 			qp_context->pri_path.g_mylmc |= 1 << 7;
 			qp_context->pri_path.mgid_index = attr->ah_attr.grh.sgid_index;
