@@ -153,6 +153,7 @@ struct snd_usb_substream {
 	unsigned int format;     /* USB data format */
 	unsigned int datapipe;   /* the data i/o pipe */
 	unsigned int syncpipe;   /* 1 - async out or adaptive in */
+	unsigned int datainterval;	/* log_2 of data packet interval */
 	unsigned int syncinterval;  /* P for adaptive mode, 0 otherwise */
 	unsigned int freqn;      /* nominal sampling rate in fs/fps in Q16.16 format */
 	unsigned int freqm;      /* momentary sampling rate in fs/fps in Q16.16 format */
@@ -518,7 +519,8 @@ static int prepare_playback_urb(snd_usb_substream_t *subs,
 		if (subs->fill_max)
 			counts = subs->maxframesize; /* fixed */
 		else {
-			subs->phase = (subs->phase & 0xffff) + subs->freqm;
+			subs->phase = (subs->phase & 0xffff)
+				+ (subs->freqm << subs->datainterval);
 			counts = subs->phase >> 16;
 			if (counts > subs->maxframesize)
 				counts = subs->maxframesize;
@@ -899,16 +901,19 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 	else
 		subs->freqn = get_usb_high_speed_rate(rate);
 	subs->freqm = subs->freqn;
-	subs->freqmax = subs->freqn + (subs->freqn >> 2); /* max. allowed frequency */
-	subs->phase = 0;
-
-	/* calculate the max. size of packet */
-	maxsize = ((subs->freqmax + 0xffff) * (frame_bits >> 3)) >> 16;
-	if (subs->maxpacksize && maxsize > subs->maxpacksize) {
-		//snd_printd(KERN_DEBUG "maxsize %d is greater than defined size %d\n",
-		//	   maxsize, subs->maxpacksize);
+	/* calculate max. frequency */
+	if (subs->maxpacksize) {
+		/* whatever fits into a max. size packet */
 		maxsize = subs->maxpacksize;
+		subs->freqmax = (maxsize / (frame_bits >> 3))
+				<< (16 - subs->datainterval);
+	} else {
+		/* no max. packet size: just take 25% higher than nominal */
+		subs->freqmax = subs->freqn + (subs->freqn >> 2);
+		maxsize = ((subs->freqmax + 0xffff) * (frame_bits >> 3))
+				>> (16 - subs->datainterval);
 	}
+	subs->phase = 0;
 
 	if (subs->fill_max)
 		subs->curpacksize = subs->maxpacksize;
@@ -918,7 +923,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
 		urb_packs = nrpacks;
 	else
-		urb_packs = nrpacks * 8;
+		urb_packs = (nrpacks * 8) >> subs->datainterval;
 
 	/* allocate a temporary buffer for playback */
 	if (is_playback) {
@@ -991,7 +996,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 		u->urb->pipe = subs->datapipe;
 		u->urb->transfer_flags = URB_ISO_ASAP;
 		u->urb->number_of_packets = u->packets;
-		u->urb->interval = 1;
+		u->urb->interval = 1 << subs->datainterval;
 		u->urb->context = u;
 		u->urb->complete = snd_usb_complete_callback(snd_complete_urb);
 	}
@@ -1195,6 +1200,12 @@ static int set_format(snd_usb_substream_t *subs, struct audioformat *fmt)
 		subs->datapipe = usb_sndisocpipe(dev, ep);
 	else
 		subs->datapipe = usb_rcvisocpipe(dev, ep);
+	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH &&
+	    get_endpoint(alts, 0)->bInterval >= 1 &&
+	    get_endpoint(alts, 0)->bInterval <= 4)
+		subs->datainterval = get_endpoint(alts, 0)->bInterval - 1;
+	else
+		subs->datainterval = 0;
 	subs->syncpipe = subs->syncinterval = 0;
 	subs->maxpacksize = fmt->maxpacksize;
 	subs->fill_max = 0;
@@ -2492,8 +2503,10 @@ static int parse_audio_endpoints(snd_usb_audio_t *chip, int iface_no)
 		fp->altset_idx = i;
 		fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;
 		fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
-		/* FIXME: decode wMaxPacketSize of high bandwith endpoints */
 		fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
+		if (snd_usb_get_speed(dev) == USB_SPEED_HIGH)
+			fp->maxpacksize = (((fp->maxpacksize >> 11) & 3) + 1)
+					* (fp->maxpacksize & 0x7ff);
 		fp->attributes = csep[3];
 
 		/* some quirks for attributes here */
