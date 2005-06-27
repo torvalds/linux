@@ -105,7 +105,7 @@ void pcmcia_validate_mem(struct pcmcia_socket *s)
 }
 EXPORT_SYMBOL(pcmcia_validate_mem);
 
-int adjust_io_region(struct resource *res, unsigned long r_start,
+int pcmcia_adjust_io_region(struct resource *res, unsigned long r_start,
 		     unsigned long r_end, struct pcmcia_socket *s)
 {
 	if (s->resource_ops->adjust_io_region)
@@ -113,7 +113,7 @@ int adjust_io_region(struct resource *res, unsigned long r_start,
 	return -ENOMEM;
 }
 
-struct resource *find_io_region(unsigned long base, int num,
+struct resource *pcmcia_find_io_region(unsigned long base, int num,
 		   unsigned long align, struct pcmcia_socket *s)
 {
 	if (s->resource_ops->find_io)
@@ -121,7 +121,7 @@ struct resource *find_io_region(unsigned long base, int num,
 	return NULL;
 }
 
-struct resource *find_mem_region(u_long base, u_long num, u_long align,
+struct resource *pcmcia_find_mem_region(u_long base, u_long num, u_long align,
 				 int low, struct pcmcia_socket *s)
 {
 	if (s->resource_ops->find_mem)

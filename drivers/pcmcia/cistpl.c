@@ -90,7 +90,7 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
 {
     pccard_mem_map *mem = &s->cis_mem;
     if (!(s->features & SS_CAP_STATIC_MAP) && mem->res == NULL) {
-	mem->res = find_mem_region(0, s->map_size, s->map_size, 0, s);
+	mem->res = pcmcia_find_mem_region(0, s->map_size, s->map_size, 0, s);
 	if (mem->res == NULL) {
 	    printk(KERN_NOTICE "cs: unable to map card memory!\n");
 	    return NULL;
@@ -119,13 +119,13 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
 #define IS_ATTR		1
 #define IS_INDIRECT	8
 
-int read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
+int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		 u_int len, void *ptr)
 {
     void __iomem *sys, *end;
     unsigned char *buf = ptr;
     
-    cs_dbg(s, 3, "read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    cs_dbg(s, 3, "pcmcia_read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -183,13 +183,13 @@ int read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
     return 0;
 }
 
-void write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
+void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		   u_int len, void *ptr)
 {
     void __iomem *sys, *end;
     unsigned char *buf = ptr;
     
-    cs_dbg(s, 3, "write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    cs_dbg(s, 3, "pcmcia_write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -274,7 +274,7 @@ static void read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
 	ret = read_cb_mem(s, attr, addr, len, ptr);
     else
 #endif
-	ret = read_cis_mem(s, attr, addr, len, ptr);
+	ret = pcmcia_read_cis_mem(s, attr, addr, len, ptr);
 
 	if (ret == 0) {
 		/* Copy data into the cache */
@@ -348,7 +348,7 @@ int verify_cis_cache(struct pcmcia_socket *s)
 			read_cb_mem(s, cis->attr, cis->addr, len, buf);
 		else
 #endif
-			read_cis_mem(s, cis->attr, cis->addr, len, buf);
+			pcmcia_read_cis_mem(s, cis->attr, cis->addr, len, buf);
 
 		if (memcmp(buf, cis->cache, len) != 0) {
 			kfree(buf);

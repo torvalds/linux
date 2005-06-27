@@ -787,7 +787,7 @@ static int alloc_io_space(struct pcmcia_socket *s, u_int attr, ioaddr_t *base,
 	    return 1;
     for (i = 0; i < MAX_IO_WIN; i++) {
 	if (s->io[i].NumPorts == 0) {
-	    s->io[i].res = find_io_region(*base, num, align, s);
+	    s->io[i].res = pcmcia_find_io_region(*base, num, align, s);
 	    if (s->io[i].res) {
 		s->io[i].Attributes = attr;
 		s->io[i].BasePort = *base = s->io[i].res->start;
@@ -800,7 +800,7 @@ static int alloc_io_space(struct pcmcia_socket *s, u_int attr, ioaddr_t *base,
 	/* Try to extend top of window */
 	try = s->io[i].BasePort + s->io[i].NumPorts;
 	if ((*base == 0) || (*base == try))
-	    if (adjust_io_region(s->io[i].res, s->io[i].res->start,
+	    if (pcmcia_adjust_io_region(s->io[i].res, s->io[i].res->start,
 				 s->io[i].res->end + num, s) == 0) {
 		*base = try;
 		s->io[i].NumPorts += num;
@@ -810,7 +810,7 @@ static int alloc_io_space(struct pcmcia_socket *s, u_int attr, ioaddr_t *base,
 	/* Try to extend bottom of window */
 	try = s->io[i].BasePort - num;
 	if ((*base == 0) || (*base == try))
-	    if (adjust_io_region(s->io[i].res, s->io[i].res->start - num,
+	    if (pcmcia_adjust_io_region(s->io[i].res, s->io[i].res->start - num,
 				 s->io[i].res->end, s) == 0) {
 		s->io[i].BasePort = *base = try;
 		s->io[i].NumPorts += num;
@@ -872,12 +872,12 @@ int pccard_access_configuration_register(struct pcmcia_socket *s,
     
     switch (reg->Action) {
     case CS_READ:
-	read_cis_mem(s, 1, addr, 1, &val);
+	pcmcia_read_cis_mem(s, 1, addr, 1, &val);
 	reg->Value = val;
 	break;
     case CS_WRITE:
 	val = reg->Value;
-	write_cis_mem(s, 1, addr, 1, &val);
+	pcmcia_write_cis_mem(s, 1, addr, 1, &val);
 	break;
     default:
 	return CS_BAD_ARGS;
@@ -1050,7 +1050,7 @@ int pccard_get_status(struct pcmcia_socket *s, unsigned int function, cs_status_
 	(c->IntType & (INT_MEMORY_AND_IO | INT_ZOOMED_VIDEO))) {
 	u_char reg;
 	if (c->Present & PRESENT_PIN_REPLACE) {
-	    read_cis_mem(s, 1, (c->ConfigBase+CISREG_PRR)>>1, 1, &reg);
+	    pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_PRR)>>1, 1, &reg);
 	    status->CardState |=
 		(reg & PRR_WP_STATUS) ? CS_EVENT_WRITE_PROTECT : 0;
 	    status->CardState |=
@@ -1064,7 +1064,7 @@ int pccard_get_status(struct pcmcia_socket *s, unsigned int function, cs_status_
 	    status->CardState |= CS_EVENT_READY_CHANGE;
 	}
 	if (c->Present & PRESENT_EXT_STATUS) {
-	    read_cis_mem(s, 1, (c->ConfigBase+CISREG_ESR)>>1, 1, &reg);
+	    pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_ESR)>>1, 1, &reg);
 	    status->CardState |=
 		(reg & ESR_REQ_ATTN) ? CS_EVENT_REQUEST_ATTENTION : 0;
 	}
@@ -1401,7 +1401,7 @@ int pcmcia_request_configuration(client_handle_t handle,
     c->Present = c->CardValues = req->Present;
     if (req->Present & PRESENT_COPY) {
 	c->Copy = req->Copy;
-	write_cis_mem(s, 1, (base + CISREG_SCR)>>1, 1, &c->Copy);
+	pcmcia_write_cis_mem(s, 1, (base + CISREG_SCR)>>1, 1, &c->Copy);
     }
     if (req->Present & PRESENT_OPTION) {
 	if (s->functions == 1) {
@@ -1415,30 +1415,30 @@ int pcmcia_request_configuration(client_handle_t handle,
 	if (c->state & CONFIG_IRQ_REQ)
 	    if (!(c->irq.Attributes & IRQ_FORCED_PULSE))
 		c->Option |= COR_LEVEL_REQ;
-	write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &c->Option);
+	pcmcia_write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &c->Option);
 	mdelay(40);
     }
     if (req->Present & PRESENT_STATUS) {
 	c->Status = req->Status;
-	write_cis_mem(s, 1, (base + CISREG_CCSR)>>1, 1, &c->Status);
+	pcmcia_write_cis_mem(s, 1, (base + CISREG_CCSR)>>1, 1, &c->Status);
     }
     if (req->Present & PRESENT_PIN_REPLACE) {
 	c->Pin = req->Pin;
-	write_cis_mem(s, 1, (base + CISREG_PRR)>>1, 1, &c->Pin);
+	pcmcia_write_cis_mem(s, 1, (base + CISREG_PRR)>>1, 1, &c->Pin);
     }
     if (req->Present & PRESENT_EXT_STATUS) {
 	c->ExtStatus = req->ExtStatus;
-	write_cis_mem(s, 1, (base + CISREG_ESR)>>1, 1, &c->ExtStatus);
+	pcmcia_write_cis_mem(s, 1, (base + CISREG_ESR)>>1, 1, &c->ExtStatus);
     }
     if (req->Present & PRESENT_IOBASE_0) {
 	u_char b = c->io.BasePort1 & 0xff;
-	write_cis_mem(s, 1, (base + CISREG_IOBASE_0)>>1, 1, &b);
+	pcmcia_write_cis_mem(s, 1, (base + CISREG_IOBASE_0)>>1, 1, &b);
 	b = (c->io.BasePort1 >> 8) & 0xff;
-	write_cis_mem(s, 1, (base + CISREG_IOBASE_1)>>1, 1, &b);
+	pcmcia_write_cis_mem(s, 1, (base + CISREG_IOBASE_1)>>1, 1, &b);
     }
     if (req->Present & PRESENT_IOSIZE) {
 	u_char b = c->io.NumPorts1 + c->io.NumPorts2 - 1;
-	write_cis_mem(s, 1, (base + CISREG_IOSIZE)>>1, 1, &b);
+	pcmcia_write_cis_mem(s, 1, (base + CISREG_IOSIZE)>>1, 1, &b);
     }
     
     /* Configure I/O windows */
@@ -1678,7 +1678,7 @@ int pcmcia_request_window(client_handle_t *handle, win_req_t *req, window_handle
     win->sock = s;
 
     if (!(s->features & SS_CAP_STATIC_MAP)) {
-	win->ctl.res = find_mem_region(req->Base, req->Size, align,
+	win->ctl.res = pcmcia_find_mem_region(req->Base, req->Size, align,
 				       (req->Attributes & WIN_MAP_BELOW_1MB), s);
 	if (!win->ctl.res)
 	    return CS_IN_USE;
