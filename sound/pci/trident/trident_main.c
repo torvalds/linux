@@ -472,6 +472,7 @@ void snd_trident_write_voice_regs(trident_t * trident,
 		break;
 	default:
 		snd_BUG();
+		return;
 	}
 
 	outb(voice->number, TRID_REG(trident, T4D_LFO_GC_CIR));
