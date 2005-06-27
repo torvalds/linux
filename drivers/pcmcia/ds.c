@@ -10,41 +10,23 @@
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * (C) 1999		David A. Hinds
- * (C) 2003 - 2004	Dominik Brodowski
+ * (C) 2003 - 2005	Dominik Brodowski
  */
 
 #include <linux/config.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
-#include <linux/string.h>
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
-#include <linux/fcntl.h>
-#include <linux/sched.h>
-#include <linux/smp_lock.h>
-#include <linux/timer.h>
-#include <linux/ioctl.h>
-#include <linux/proc_fs.h>
-#include <linux/poll.h>
-#include <linux/pci.h>
 #include <linux/list.h>
 #include <linux/delay.h>
-#include <linux/kref.h>
 #include <linux/workqueue.h>
 #include <linux/crc32.h>
 #include <linux/firmware.h>
 
-#include <asm/atomic.h>
-
 #define IN_CARD_SERVICES
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
-#include <pcmcia/bulkmem.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/ss.h>

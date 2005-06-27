@@ -19,36 +19,21 @@
 
 
 #include <linux/config.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/major.h>
-#include <linux/string.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
-#include <linux/fcntl.h>
-#include <linux/sched.h>
-#include <linux/smp_lock.h>
-#include <linux/timer.h>
 #include <linux/ioctl.h>
 #include <linux/proc_fs.h>
 #include <linux/poll.h>
 #include <linux/pci.h>
-#include <linux/list.h>
-#include <linux/delay.h>
-#include <linux/kref.h>
 #include <linux/workqueue.h>
-#include <linux/crc32.h>
-
-#include <asm/atomic.h>
 
 #define IN_CARD_SERVICES
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
-#include <pcmcia/bulkmem.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/ss.h>
