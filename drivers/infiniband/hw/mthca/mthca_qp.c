@@ -724,9 +724,9 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RETRY_COUNT);
 	}
 
-	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) {
-		qp_context->params1 |= cpu_to_be32(min(attr->max_dest_rd_atomic ?
-						       ffs(attr->max_dest_rd_atomic) - 1 : 0,
+	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC) {
+		qp_context->params1 |= cpu_to_be32(min(attr->max_rd_atomic ?
+						       ffs(attr->max_rd_atomic) - 1 : 0,
 						       7) << 21);
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_SRA_MAX);
 	}
@@ -764,10 +764,10 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		qp->atomic_rd_en = attr->qp_access_flags;
 	}
 
-	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC) {
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) {
 		u8 rra_max;
 
-		if (qp->resp_depth && !attr->max_rd_atomic) {
+		if (qp->resp_depth && !attr->max_dest_rd_atomic) {
 			/*
 			 * Lowering our responder resources to zero.
 			 * Turn off RDMA/atomics as responder.
@@ -778,7 +778,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 								MTHCA_QP_OPTPAR_RAE);
 		}
 
-		if (!qp->resp_depth && attr->max_rd_atomic) {
+		if (!qp->resp_depth && attr->max_dest_rd_atomic) {
 			/*
 			 * Increasing our responder resources from
 			 * zero.  Turn on RDMA/atomics as appropriate.
@@ -799,7 +799,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		}
 
 		for (rra_max = 0;
-		     1 << rra_max < attr->max_rd_atomic &&
+		     1 << rra_max < attr->max_dest_rd_atomic &&
 			     rra_max < dev->qp_table.rdb_shift;
 		     ++rra_max)
 			; /* nothing */
@@ -807,7 +807,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		qp_context->params2      |= cpu_to_be32(rra_max << 21);
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RRA_MAX);
 
-		qp->resp_depth = attr->max_rd_atomic;
+		qp->resp_depth = attr->max_dest_rd_atomic;
 	}
 
 	qp_context->params2 |= cpu_to_be32(MTHCA_QP_BIT_RSC);
