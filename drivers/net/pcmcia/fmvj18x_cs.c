@@ -435,7 +435,9 @@ static void fmvj18x_config(dev_link_t *link)
 		pcmcia_get_status(handle, &status);
 		if (status.CardState & CS_EVENT_3VCARD)
 		    link->conf.Vcc = 33; /* inserted in 3.3V slot */
-	    } else if (le16_to_cpu(buf[1]) == PRODID_TDK_GN3410) {
+	    } else if (le16_to_cpu(buf[1]) == PRODID_TDK_GN3410
+			|| le16_to_cpu(buf[1]) == PRODID_TDK_NP9610
+			|| le16_to_cpu(buf[1]) == PRODID_TDK_MN3200) {
 		/* MultiFunction Card */
 		link->conf.ConfigBase = 0x800;
 		link->conf.ConfigIndex = 0x47;
@@ -783,6 +785,8 @@ static struct pcmcia_device_id fmvj18x_ids[] = {
 	PCMCIA_DEVICE_PROD_ID1("PCMCIA MBH10302", 0x8f4005da),
 	PCMCIA_DEVICE_PROD_ID1("UBKK,V2.0", 0x90888080),
 	PCMCIA_PFC_DEVICE_PROD_ID12(0, "TDK", "GlobalNetworker 3410/3412", 0x1eae9475, 0xd9a93bed),
+	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0d0a),
+	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0e0a),
 	PCMCIA_DEVICE_NULL,
 };
 MODULE_DEVICE_TABLE(pcmcia, fmvj18x_ids);
