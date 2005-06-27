@@ -1490,7 +1490,7 @@ show_registers (struct device *_dev, struct device_attribute *attr, char *buf)
 	unsigned long		flags;
 	int			i;
 	u32			t1, t2;
-	char			*s;
+	const char		*s;
 
 	dev = dev_get_drvdata (_dev);
 	next = buf;
