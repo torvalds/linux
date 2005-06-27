@@ -75,7 +75,7 @@ module_param_named(pc_debug, ds_pc_debug, int, 0644);
 
 spinlock_t pcmcia_dev_list_lock;
 
-static int unbind_request(struct pcmcia_bus_socket *s);
+static int unbind_request(struct pcmcia_socket *s);
 
 /*====================================================================*/
 
@@ -313,24 +313,6 @@ static inline int pcmcia_load_firmware(struct pcmcia_device *dev, char * filenam
 /*======================================================================*/
 
 
-void pcmcia_release_bus_socket(struct kref *refcount)
-{
-	struct pcmcia_bus_socket *s = container_of(refcount, struct pcmcia_bus_socket, refcount);
-	pcmcia_put_socket(s->parent);
-	kfree(s);
-}
-
-void pcmcia_put_bus_socket(struct pcmcia_bus_socket *s)
-{
-	kref_put(&s->refcount, pcmcia_release_bus_socket);
-}
-
-struct pcmcia_bus_socket *pcmcia_get_bus_socket(struct pcmcia_bus_socket *s)
-{
-	kref_get(&s->refcount);
-	return (s);
-}
-
 /**
  * pcmcia_register_driver - register a PCMCIA driver with the bus core
  *
@@ -387,7 +369,7 @@ static void pcmcia_release_dev(struct device *dev)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 	ds_dbg(1, "releasing dev %p\n", p_dev);
-	pcmcia_put_bus_socket(p_dev->socket->pcmcia);
+	pcmcia_put_socket(p_dev->socket);
 	kfree(p_dev);
 }
 
@@ -522,12 +504,12 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
  */
 static DECLARE_MUTEX(device_add_lock);
 
-struct pcmcia_device * pcmcia_device_add(struct pcmcia_bus_socket *s, unsigned int function)
+struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int function)
 {
 	struct pcmcia_device *p_dev;
 	unsigned long flags;
 
-	s = pcmcia_get_bus_socket(s);
+	s = pcmcia_get_socket(s);
 	if (!s)
 		return NULL;
 
@@ -542,18 +524,18 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_bus_socket *s, unsigned i
 		goto err_put;
 	memset(p_dev, 0, sizeof(struct pcmcia_device));
 
-	p_dev->socket = s->parent;
+	p_dev->socket = s;
 	p_dev->device_no = (s->device_count++);
 	p_dev->func   = function;
 
 	p_dev->dev.bus = &pcmcia_bus_type;
-	p_dev->dev.parent = s->parent->dev.dev;
+	p_dev->dev.parent = s->dev.dev;
 	p_dev->dev.release = pcmcia_release_dev;
 	sprintf (p_dev->dev.bus_id, "%d.%d", p_dev->socket->sock, p_dev->device_no);
 
 	/* compat */
 	p_dev->client.client_magic = CLIENT_MAGIC;
-	p_dev->client.Socket = s->parent;
+	p_dev->client.Socket = s;
 	p_dev->client.Function = function;
 	p_dev->client.state = CLIENT_UNBOUND;
 
@@ -581,7 +563,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_bus_socket *s, unsigned i
 	s->device_count--;
  err_put:
 	up(&device_add_lock);
-	pcmcia_put_bus_socket(s);
+	pcmcia_put_socket(s);
 
 	return NULL;
 }
@@ -612,7 +594,7 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 	/* this doesn't handle multifunction devices on one pcmcia function
 	 * yet. */
 	for (i=0; i < no_funcs; i++)
-		pcmcia_device_add(s->pcmcia, i);
+		pcmcia_device_add(s, i);
 
 	return (ret);
 }
@@ -620,12 +602,12 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 
 static void pcmcia_delayed_add_pseudo_device(void *data)
 {
-	struct pcmcia_bus_socket *s = data;
+	struct pcmcia_socket *s = data;
 	pcmcia_device_add(s, 0);
 	s->pcmcia_state.device_add_pending = 0;
 }
 
-static inline void pcmcia_add_pseudo_device(struct pcmcia_bus_socket *s)
+static inline void pcmcia_add_pseudo_device(struct pcmcia_socket *s)
 {
 	if (!s->pcmcia_state.device_add_pending) {
 		schedule_work(&s->device_add);
@@ -650,7 +632,7 @@ static void pcmcia_bus_rescan(struct pcmcia_socket *skt)
 
 	/* must be called with skt_sem held */
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
-	if (list_empty(&skt->pcmcia->devices_list))
+	if (list_empty(&skt->devices_list))
 		no_devices=1;
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
@@ -727,7 +709,7 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 		 * pseudo devices, and if not, add the second one.
 		 */
 		if (dev->device_no == 0)
-			pcmcia_add_pseudo_device(dev->socket->pcmcia);
+			pcmcia_add_pseudo_device(dev->socket);
 
 		if (dev->device_no != did->device_no)
 			return 0;
@@ -947,21 +929,13 @@ static int send_event_callback(struct device *dev, void * _data)
 
 static int send_event(struct pcmcia_socket *s, event_t event, int priority)
 {
-	int ret = 0;
 	struct send_event_data private;
-	struct pcmcia_bus_socket *skt = pcmcia_get_bus_socket(s->pcmcia);
-
-	if (!skt)
-		return 0;
 
 	private.skt = s;
 	private.event = event;
 	private.priority = priority;
 
-	ret = bus_for_each_dev(&pcmcia_bus_type, NULL, &private, send_event_callback);
-
-	pcmcia_put_bus_socket(skt);
-	return ret;
+	return bus_for_each_dev(&pcmcia_bus_type, NULL, &private, send_event_callback);
 } /* send_event */
 
 
@@ -972,25 +946,25 @@ static int send_event(struct pcmcia_socket *s, event_t event, int priority)
 
 static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 {
-	struct pcmcia_bus_socket *s = skt->pcmcia;
+	struct pcmcia_socket *s = pcmcia_get_socket(skt);
 	int ret = 0;
 
 	ds_dbg(1, "ds_event(0x%06x, %d, 0x%p)\n",
-	       event, priority, s);
+	       event, priority, skt);
     
 	switch (event) {
 
 	case CS_EVENT_CARD_REMOVAL:
 		s->pcmcia_state.present = 0;
 	    	send_event(skt, event, priority);
-		unbind_request(s);
-		handle_event(s, event);
+		unbind_request(skt);
+		handle_event(skt, event);
 		break;
 	
 	case CS_EVENT_CARD_INSERTION:
 		s->pcmcia_state.present = 1;
 		pcmcia_card_add(skt);
-		handle_event(s, event);
+		handle_event(skt, event);
 		break;
 
 	case CS_EVENT_EJECTION_REQUEST:
@@ -998,10 +972,12 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 		break;
 
 	default:
-		handle_event(s, event);
+		handle_event(skt, event);
 		send_event(skt, event, priority);
 		break;
     }
+
+    pcmcia_put_socket(s);
 
     return 0;
 } /* ds_event */
@@ -1011,8 +987,7 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
 {
 	client_t *client = NULL;
-	struct pcmcia_socket *s;
-	struct pcmcia_bus_socket *skt = NULL;
+	struct pcmcia_socket *s = NULL;
 	struct pcmcia_device *p_dev = NULL;
 
 	/* Look for unbound client with matching dev_info */
@@ -1023,14 +998,11 @@ int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
 		if (s->state & SOCKET_CARDBUS)
 			continue;
 
-		skt = s->pcmcia;
-		if (!skt)
-			continue;
-		skt = pcmcia_get_bus_socket(skt);
-		if (!skt)
+		s = pcmcia_get_socket(s);
+		if (!s)
 			continue;
 		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
-		list_for_each_entry(p_dev, &skt->devices_list, socket_device_list) {
+		list_for_each_entry(p_dev, &s->devices_list, socket_device_list) {
 			struct pcmcia_driver *p_drv;
 			p_dev = pcmcia_get_dev(p_dev);
 			if (!p_dev)
@@ -1049,14 +1021,14 @@ int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
 			pcmcia_put_dev(p_dev);
 		}
 		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
-		pcmcia_put_bus_socket(skt);
+		pcmcia_put_socket(s);
 	}
  found:
 	up_read(&pcmcia_socket_list_rwsem);
 	if (!p_dev || !client)
 		return -ENODEV;
 
-	pcmcia_put_bus_socket(skt); /* safe, as we already hold a reference from bind_device */
+	pcmcia_put_socket(s); /* safe, as we already hold a reference from bind_device */
 
 	*handle = client;
 	client->state &= ~CLIENT_UNBOUND;
@@ -1106,12 +1078,12 @@ EXPORT_SYMBOL(pcmcia_register_client);
 /* unbind _all_ devices attached to a given pcmcia_bus_socket. The
  * drivers have been called with EVENT_CARD_REMOVAL before.
  */
-static int unbind_request(struct pcmcia_bus_socket *s)
+static int unbind_request(struct pcmcia_socket *s)
 {
 	struct pcmcia_device	*p_dev;
 	unsigned long		flags;
 
-	ds_dbg(2, "unbind_request(%d)\n", s->parent->sock);
+	ds_dbg(2, "unbind_request(%d)\n", s->sock);
 
 	s->device_count = 0;
 
@@ -1176,24 +1148,14 @@ static struct pcmcia_callback pcmcia_bus_callback = {
 static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev)
 {
 	struct pcmcia_socket *socket = class_get_devdata(class_dev);
-	struct pcmcia_bus_socket *s;
 	int ret;
 
-	s = kmalloc(sizeof(struct pcmcia_bus_socket), GFP_KERNEL);
-	if(!s)
-		return -ENOMEM;
-	memset(s, 0, sizeof(struct pcmcia_bus_socket));
-
-	/* get reference to parent socket */
-	s->parent = pcmcia_get_socket(socket);
-	if (!s->parent) {
+	socket = pcmcia_get_socket(socket);
+	if (!socket) {
 		printk(KERN_ERR "PCMCIA obtaining reference to socket %p failed\n", socket);
-		kfree (s);
 		return -ENODEV;
 	}
 
-	kref_init(&s->refcount);
-    
 	/*
 	 * Ugly. But we want to wait for the socket threads to have started up.
 	 * We really should let the drivers themselves drive some of this..
@@ -1201,19 +1163,17 @@ static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev)
 	msleep(250);
 
 #ifdef CONFIG_PCMCIA_IOCTL
-	init_waitqueue_head(&s->queue);
+	init_waitqueue_head(&socket->queue);
 #endif
-	INIT_LIST_HEAD(&s->devices_list);
-	INIT_WORK(&s->device_add, pcmcia_delayed_add_pseudo_device, s);
-
-	/* Set up hotline to Card Services */
-	socket->pcmcia = s;
+	INIT_LIST_HEAD(&socket->devices_list);
+	INIT_WORK(&socket->device_add, pcmcia_delayed_add_pseudo_device, socket);
+	memset(&socket->pcmcia_state, 0, sizeof(u8));
+	socket->device_count = 0;
 
 	ret = pccard_register_pcmcia(socket, &pcmcia_bus_callback);
 	if (ret) {
 		printk(KERN_ERR "PCMCIA registration PCCard core failed for socket %p\n", socket);
-		pcmcia_put_bus_socket(s);
-		socket->pcmcia = NULL;
+		pcmcia_put_socket(socket);
 		return (ret);
 	}
 
@@ -1224,14 +1184,13 @@ static void pcmcia_bus_remove_socket(struct class_device *class_dev)
 {
 	struct pcmcia_socket *socket = class_get_devdata(class_dev);
 
-	if (!socket || !socket->pcmcia)
+	if (!socket)
 		return;
 
+	socket->pcmcia_state.dead = 1;
 	pccard_register_pcmcia(socket, NULL);
 
-	socket->pcmcia->pcmcia_state.dead = 1;
-	pcmcia_put_bus_socket(socket->pcmcia);
-	socket->pcmcia = NULL;
+	pcmcia_put_socket(socket);
 
 	return;
 }

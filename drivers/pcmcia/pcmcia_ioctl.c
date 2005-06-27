@@ -70,7 +70,7 @@ typedef struct user_info_t {
 	int			event_head, event_tail;
 	event_t			event[MAX_EVENTS];
 	struct user_info_t	*next;
-	struct pcmcia_bus_socket *socket;
+	struct pcmcia_socket	*socket;
 } user_info_t;
 
 
@@ -86,15 +86,6 @@ extern int ds_pc_debug;
 #define ds_dbg(lvl, fmt, arg...) do { } while (0)
 #endif
 
-
-static struct pcmcia_bus_socket * get_socket_info_by_nr(unsigned int nr)
-{
-	struct pcmcia_socket * s = pcmcia_get_socket_by_nr(nr);
-	if (s && s->pcmcia)
-		return s->pcmcia;
-	else
-		return NULL;
-}
 
 /* backwards-compatible accessing of driver --- by name! */
 
@@ -172,7 +163,7 @@ static void queue_event(user_info_t *user, event_t event)
     user->event[user->event_head] = event;
 }
 
-void handle_event(struct pcmcia_bus_socket *s, event_t event)
+void handle_event(struct pcmcia_socket *s, event_t event)
 {
     user_info_t *user;
     for (user = s->user; user; user = user->next)
@@ -204,18 +195,18 @@ void handle_event(struct pcmcia_bus_socket *s, event_t event)
 
 ======================================================================*/
 
-static int bind_request(struct pcmcia_bus_socket *s, bind_info_t *bind_info)
+static int bind_request(struct pcmcia_socket *s, bind_info_t *bind_info)
 {
 	struct pcmcia_driver *p_drv;
 	struct pcmcia_device *p_dev;
 	int ret = 0;
 	unsigned long flags;
 
-	s = pcmcia_get_bus_socket(s);
+	s = pcmcia_get_socket(s);
 	if (!s)
 		return -EINVAL;
 
-	ds_dbg(2, "bind_request(%d, '%s')\n", s->parent->sock,
+	ds_dbg(2, "bind_request(%d, '%s')\n", s->sock,
 	       (char *)bind_info->dev_info);
 
 	p_drv = get_pcmcia_driver(&bind_info->dev_info);
@@ -278,9 +269,9 @@ rescan:
 	/*
 	 * Prevent this racing with a card insertion.
 	 */
-	down(&s->parent->skt_sem);
+	down(&s->skt_sem);
 	bus_rescan_devices(&pcmcia_bus_type);
-	up(&s->parent->skt_sem);
+	up(&s->skt_sem);
 
 	/* check whether the driver indeed matched. I don't care if this
 	 * is racy or not, because it can only happen on cardmgr access
@@ -294,7 +285,7 @@ rescan:
  err_put_driver:
 	put_driver(&p_drv->drv);
  err_put:
-	pcmcia_put_bus_socket(s);
+	pcmcia_put_socket(s);
 
 	return (ret);
 } /* bind_request */
@@ -302,7 +293,7 @@ rescan:
 
 extern struct pci_bus *pcmcia_lookup_bus(struct pcmcia_socket *s);
 
-static int get_device_info(struct pcmcia_bus_socket *s, bind_info_t *bind_info, int first)
+static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int first)
 {
 	dev_node_t *node;
 	struct pcmcia_device *p_dev;
@@ -317,7 +308,7 @@ static int get_device_info(struct pcmcia_bus_socket *s, bind_info_t *bind_info, 
 	{
 		struct pci_bus *bus;
 
-		bus = pcmcia_lookup_bus(s->parent);
+		bus = pcmcia_lookup_bus(s);
 		if (bus) {
 			struct list_head *list;
 			struct pci_dev *dev = NULL;
@@ -391,21 +382,21 @@ static int get_device_info(struct pcmcia_bus_socket *s, bind_info_t *bind_info, 
 static int ds_open(struct inode *inode, struct file *file)
 {
     socket_t i = iminor(inode);
-    struct pcmcia_bus_socket *s;
+    struct pcmcia_socket *s;
     user_info_t *user;
 
     ds_dbg(0, "ds_open(socket %d)\n", i);
 
-    s = get_socket_info_by_nr(i);
+    s = pcmcia_get_socket_by_nr(i);
     if (!s)
 	    return -ENODEV;
-    s = pcmcia_get_bus_socket(s);
+    s = pcmcia_get_socket(s);
     if (!s)
 	    return -ENODEV;
 
     if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
 	    if (s->pcmcia_state.busy) {
-		    pcmcia_put_bus_socket(s);
+		    pcmcia_put_socket(s);
 		    return -EBUSY;
 	    }
 	else
@@ -414,7 +405,7 @@ static int ds_open(struct inode *inode, struct file *file)
 
     user = kmalloc(sizeof(user_info_t), GFP_KERNEL);
     if (!user) {
-	    pcmcia_put_bus_socket(s);
+	    pcmcia_put_socket(s);
 	    return -ENOMEM;
     }
     user->event_tail = user->event_head = 0;
@@ -433,7 +424,7 @@ static int ds_open(struct inode *inode, struct file *file)
 
 static int ds_release(struct inode *inode, struct file *file)
 {
-    struct pcmcia_bus_socket *s;
+    struct pcmcia_socket *s;
     user_info_t *user, **link;
 
     ds_dbg(0, "ds_release(socket %d)\n", iminor(inode));
@@ -456,7 +447,7 @@ static int ds_release(struct inode *inode, struct file *file)
     *link = user->next;
     user->user_magic = 0;
     kfree(user);
-    pcmcia_put_bus_socket(s);
+    pcmcia_put_socket(s);
 out:
     return 0;
 } /* ds_release */
@@ -466,7 +457,7 @@ out:
 static ssize_t ds_read(struct file *file, char __user *buf,
 		       size_t count, loff_t *ppos)
 {
-    struct pcmcia_bus_socket *s;
+    struct pcmcia_socket *s;
     user_info_t *user;
     int ret;
 
@@ -510,7 +501,7 @@ static ssize_t ds_write(struct file *file, const char __user *buf,
 /* No kernel lock - fine */
 static u_int ds_poll(struct file *file, poll_table *wait)
 {
-    struct pcmcia_bus_socket *s;
+    struct pcmcia_socket *s;
     user_info_t *user;
 
     ds_dbg(2, "ds_poll(socket %d)\n", iminor(file->f_dentry->d_inode));
@@ -536,7 +527,7 @@ extern int pcmcia_adjust_resource_info(adjust_t *adj);
 static int ds_ioctl(struct inode * inode, struct file * file,
 		    u_int cmd, u_long arg)
 {
-    struct pcmcia_bus_socket *s;
+    struct pcmcia_socket *s;
     void __user *uarg = (char __user *)arg;
     u_int size;
     int ret, err;
@@ -589,57 +580,57 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	break;
     case DS_GET_CONFIGURATION_INFO:
 	if (buf->config.Function &&
-	   (buf->config.Function >= s->parent->functions))
+	   (buf->config.Function >= s->functions))
 	    ret = CS_BAD_ARGS;
 	else
-	    ret = pccard_get_configuration_info(s->parent,
+	    ret = pccard_get_configuration_info(s,
 			buf->config.Function, &buf->config);
 	break;
     case DS_GET_FIRST_TUPLE:
-	down(&s->parent->skt_sem);
-	pcmcia_validate_mem(s->parent);
-	up(&s->parent->skt_sem);
-	ret = pccard_get_first_tuple(s->parent, BIND_FN_ALL, &buf->tuple);
+	down(&s->skt_sem);
+	pcmcia_validate_mem(s);
+	up(&s->skt_sem);
+	ret = pccard_get_first_tuple(s, BIND_FN_ALL, &buf->tuple);
 	break;
     case DS_GET_NEXT_TUPLE:
-	ret = pccard_get_next_tuple(s->parent, BIND_FN_ALL, &buf->tuple);
+	ret = pccard_get_next_tuple(s, BIND_FN_ALL, &buf->tuple);
 	break;
     case DS_GET_TUPLE_DATA:
 	buf->tuple.TupleData = buf->tuple_parse.data;
 	buf->tuple.TupleDataMax = sizeof(buf->tuple_parse.data);
-	ret = pccard_get_tuple_data(s->parent, &buf->tuple);
+	ret = pccard_get_tuple_data(s, &buf->tuple);
 	break;
     case DS_PARSE_TUPLE:
 	buf->tuple.TupleData = buf->tuple_parse.data;
 	ret = pccard_parse_tuple(&buf->tuple, &buf->tuple_parse.parse);
 	break;
     case DS_RESET_CARD:
-	ret = pccard_reset_card(s->parent);
+	ret = pccard_reset_card(s);
 	break;
     case DS_GET_STATUS:
 	if (buf->status.Function &&
-	   (buf->status.Function >= s->parent->functions))
+	   (buf->status.Function >= s->functions))
 	    ret = CS_BAD_ARGS;
 	else
-	ret = pccard_get_status(s->parent, buf->status.Function, &buf->status);
+	ret = pccard_get_status(s, buf->status.Function, &buf->status);
 	break;
     case DS_VALIDATE_CIS:
-	down(&s->parent->skt_sem);
-	pcmcia_validate_mem(s->parent);
-	up(&s->parent->skt_sem);
-	ret = pccard_validate_cis(s->parent, BIND_FN_ALL, &buf->cisinfo);
+	down(&s->skt_sem);
+	pcmcia_validate_mem(s);
+	up(&s->skt_sem);
+	ret = pccard_validate_cis(s, BIND_FN_ALL, &buf->cisinfo);
 	break;
     case DS_SUSPEND_CARD:
-	ret = pcmcia_suspend_card(s->parent);
+	ret = pcmcia_suspend_card(s);
 	break;
     case DS_RESUME_CARD:
-	ret = pcmcia_resume_card(s->parent);
+	ret = pcmcia_resume_card(s);
 	break;
     case DS_EJECT_CARD:
-	err = pcmcia_eject_card(s->parent);
+	err = pcmcia_eject_card(s);
 	break;
     case DS_INSERT_CARD:
-	err = pcmcia_insert_card(s->parent);
+	err = pcmcia_insert_card(s);
 	break;
     case DS_ACCESS_CONFIGURATION_REGISTER:
 	if ((buf->conf_reg.Action == CS_WRITE) && !capable(CAP_SYS_ADMIN)) {
@@ -647,10 +638,10 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	    goto free_out;
 	}
 	if (buf->conf_reg.Function &&
-	   (buf->conf_reg.Function >= s->parent->functions))
+	   (buf->conf_reg.Function >= s->functions))
 	    ret = CS_BAD_ARGS;
 	else
-	    ret = pccard_access_configuration_register(s->parent,
+	    ret = pccard_access_configuration_register(s,
 			buf->conf_reg.Function, &buf->conf_reg);
 	break;
     case DS_GET_FIRST_REGION:
@@ -671,11 +662,11 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	goto free_out;
 	break;
     case DS_GET_FIRST_WINDOW:
-	ret = pcmcia_get_window(s->parent, &buf->win_info.handle, 0,
+	ret = pcmcia_get_window(s, &buf->win_info.handle, 0,
 			&buf->win_info.window);
 	break;
     case DS_GET_NEXT_WINDOW:
-	ret = pcmcia_get_window(s->parent, &buf->win_info.handle,
+	ret = pcmcia_get_window(s, &buf->win_info.handle,
 			buf->win_info.handle->index + 1, &buf->win_info.window);
 	break;
     case DS_GET_MEM_PAGE:
@@ -683,7 +674,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 			   &buf->win_info.map);
 	break;
     case DS_REPLACE_CIS:
-	ret = pcmcia_replace_cis(s->parent, &buf->cisdump);
+	ret = pcmcia_replace_cis(s, &buf->cisdump);
 	break;
     case DS_BIND_REQUEST:
 	if (!capable(CAP_SYS_ADMIN)) {
