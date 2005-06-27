@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/kref.h>
 #include <linux/workqueue.h>
+#include <linux/crc32.h>
 
 #include <asm/atomic.h>
 
@@ -600,6 +601,71 @@ static int pcmcia_bus_match(struct device * dev, struct device_driver * drv) {
 
 	return 0;
 }
+
+#ifdef CONFIG_HOTPLUG
+
+static int pcmcia_bus_hotplug(struct device *dev, char **envp, int num_envp,
+			      char *buffer, int buffer_size)
+{
+	struct pcmcia_device *p_dev;
+	int i, length = 0;
+	u32 hash[4] = { 0, 0, 0, 0};
+
+	if (!dev)
+		return -ENODEV;
+
+	p_dev = to_pcmcia_dev(dev);
+
+	/* calculate hashes */
+	for (i=0; i<4; i++) {
+		if (!p_dev->prod_id[i])
+			continue;
+		hash[i] = crc32(0, p_dev->prod_id[i], strlen(p_dev->prod_id[i]));
+	}
+
+	i = 0;
+
+	if (add_hotplug_env_var(envp, num_envp, &i,
+				buffer, buffer_size, &length,
+				"SOCKET_NO=%u",
+				p_dev->socket->sock))
+		return -ENOMEM;
+
+	if (add_hotplug_env_var(envp, num_envp, &i,
+				buffer, buffer_size, &length,
+				"DEVICE_NO=%02X",
+				p_dev->device_no))
+		return -ENOMEM;
+
+	if (add_hotplug_env_var(envp, num_envp, &i,
+				buffer, buffer_size, &length,
+				"MODALIAS=pcmcia:m%04Xc%04Xf%02Xfn%02Xpfn%02X"
+				"pa%08Xpb%08Xpc%08Xpd%08X",
+				p_dev->has_manf_id ? p_dev->manf_id : 0,
+				p_dev->has_card_id ? p_dev->card_id : 0,
+				p_dev->has_func_id ? p_dev->func_id : 0,
+				p_dev->func,
+				p_dev->device_no,
+				hash[0],
+				hash[1],
+				hash[2],
+				hash[3]))
+		return -ENOMEM;
+
+	envp[i] = NULL;
+
+	return 0;
+}
+
+#else
+
+static int pcmcia_bus_hotplug(struct device *dev, char **envp, int num_envp,
+			      char *buffer, int buffer_size)
+{
+	return -ENODEV;
+}
+
+#endif
 
 /************************ per-device sysfs output ***************************/
 
@@ -1575,6 +1641,7 @@ static struct class_interface pcmcia_bus_interface = {
 
 struct bus_type pcmcia_bus_type = {
 	.name = "pcmcia",
+	.hotplug = pcmcia_bus_hotplug,
 	.match = pcmcia_bus_match,
 	.dev_attrs = pcmcia_dev_attrs,
 };
