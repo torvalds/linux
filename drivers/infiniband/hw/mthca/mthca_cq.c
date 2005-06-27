@@ -918,9 +918,9 @@ void mthca_free_cq(struct mthca_dev *dev,
 	if (mthca_is_memfree(dev)) {
 		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM,    cq->arm_db_index);
 		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);
-		mthca_table_put(dev, dev->cq_table.table, cq->cqn);
 	}
 
+	mthca_table_put(dev, dev->cq_table.table, cq->cqn);
 	mthca_free(&dev->cq_table.alloc, cq->cqn);
 	kfree(mailbox);
 }

@@ -195,10 +195,8 @@ static void mthca_free_mtt(struct mthca_dev *dev, u32 seg, int order,
 			   struct mthca_buddy* buddy)
 {
 	mthca_buddy_free(buddy, seg, order);
-
-	if (mthca_is_memfree(dev))
-		mthca_table_put_range(dev, dev->mr_table.mtt_table, seg,
-				      seg + (1 << order) - 1);
+	mthca_table_put_range(dev, dev->mr_table.mtt_table, seg,
+			      seg + (1 << order) - 1);
 }
 
 static inline u32 tavor_hw_index_to_key(u32 ind)
@@ -299,8 +297,7 @@ int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
 	return err;
 
 err_out_table:
-	if (mthca_is_memfree(dev))
-		mthca_table_put(dev, dev->mr_table.mpt_table, key);
+	mthca_table_put(dev, dev->mr_table.mpt_table, key);
 
 err_out_mpt_free:
 	mthca_free(&dev->mr_table.mpt_alloc, key);
@@ -437,8 +434,7 @@ err_out_free_mtt:
 	mthca_free_mtt(dev, mr->first_seg, mr->order, &dev->mr_table.mtt_buddy);
 
 err_out_table:
-	if (mthca_is_memfree(dev))
-		mthca_table_put(dev, dev->mr_table.mpt_table, key);
+	mthca_table_put(dev, dev->mr_table.mpt_table, key);
 
 err_out_mpt_free:
 	mthca_free(&dev->mr_table.mpt_alloc, key);
@@ -452,9 +448,8 @@ static void mthca_free_region(struct mthca_dev *dev, u32 lkey, int order,
 	if (order >= 0)
 		mthca_free_mtt(dev, first_seg, order, buddy);
 
-	if (mthca_is_memfree(dev))
-		mthca_table_put(dev, dev->mr_table.mpt_table,
-				arbel_key_to_hw_index(lkey));
+	mthca_table_put(dev, dev->mr_table.mpt_table,
+			arbel_key_to_hw_index(lkey));
 
 	mthca_free(&dev->mr_table.mpt_alloc, key_to_hw_index(dev, lkey));
 }
@@ -596,8 +591,7 @@ err_out_free_mtt:
 		       dev->mr_table.fmr_mtt_buddy);
 
 err_out_table:
-	if (mthca_is_memfree(dev))
-		mthca_table_put(dev, dev->mr_table.mpt_table, key);
+	mthca_table_put(dev, dev->mr_table.mpt_table, key);
 
 err_out_mpt_free:
 	mthca_free(&dev->mr_table.mpt_alloc, mr->ibmr.lkey);

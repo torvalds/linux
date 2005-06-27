@@ -1111,11 +1111,12 @@ static void mthca_free_memfree(struct mthca_dev *dev,
 	if (mthca_is_memfree(dev)) {
 		mthca_free_db(dev, MTHCA_DB_TYPE_SQ, qp->sq.db_index);
 		mthca_free_db(dev, MTHCA_DB_TYPE_RQ, qp->rq.db_index);
-		mthca_table_put(dev, dev->qp_table.rdb_table,
-				qp->qpn << dev->qp_table.rdb_shift);
-		mthca_table_put(dev, dev->qp_table.eqp_table, qp->qpn);
-		mthca_table_put(dev, dev->qp_table.qp_table, qp->qpn);
 	}
+
+	mthca_table_put(dev, dev->qp_table.rdb_table,
+			qp->qpn << dev->qp_table.rdb_shift);
+	mthca_table_put(dev, dev->qp_table.eqp_table, qp->qpn);
+	mthca_table_put(dev, dev->qp_table.qp_table, qp->qpn);
 }
 
 static void mthca_wq_init(struct mthca_wq* wq)
