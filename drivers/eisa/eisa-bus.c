@@ -149,7 +149,7 @@ void eisa_driver_unregister (struct eisa_driver *edrv)
 	driver_unregister (&edrv->driver);
 }
 
-static ssize_t eisa_show_sig (struct device *dev, char *buf)
+static ssize_t eisa_show_sig (struct device *dev, struct device_attribute *attr, char *buf)
 {
         struct eisa_device *edev = to_eisa_device (dev);
         return sprintf (buf,"%s\n", edev->id.sig);
@@ -157,7 +157,7 @@ static ssize_t eisa_show_sig (struct device *dev, char *buf)
 
 static DEVICE_ATTR(signature, S_IRUGO, eisa_show_sig, NULL);
 
-static ssize_t eisa_show_state (struct device *dev, char *buf)
+static ssize_t eisa_show_state (struct device *dev, struct device_attribute *attr, char *buf)
 {
         struct eisa_device *edev = to_eisa_device (dev);
         return sprintf (buf,"%d\n", edev->state & EISA_CONFIG_ENABLED);

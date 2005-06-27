@@ -245,19 +245,19 @@ static void reset_fan_alarm(struct i2c_client *client, int nr)
 /* Volts */
 #define VOLT_FROM_REG(val, mult)	((val) * (mult) / 255)
 
-static ssize_t show_volt_12(struct device *dev, char *buf)
+static ssize_t show_volt_12(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct fscpos_data *data = fscpos_update_device(dev);
 	return sprintf(buf, "%u\n", VOLT_FROM_REG(data->volt[0], 14200));
 }
 
-static ssize_t show_volt_5(struct device *dev, char *buf)
+static ssize_t show_volt_5(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct fscpos_data *data = fscpos_update_device(dev);
 	return sprintf(buf, "%u\n", VOLT_FROM_REG(data->volt[1], 6600));
 }
 
-static ssize_t show_volt_batt(struct device *dev, char *buf)
+static ssize_t show_volt_batt(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct fscpos_data *data = fscpos_update_device(dev);
 	return sprintf(buf, "%u\n", VOLT_FROM_REG(data->volt[2], 3300));
@@ -327,7 +327,7 @@ static ssize_t set_wdog_preset(struct i2c_client *client, struct fscpos_data
 }
 
 /* Event */
-static ssize_t show_event(struct device *dev, char *buf)
+static ssize_t show_event(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	/* bits 5..7 reserved => mask with 0x1f */
 	struct fscpos_data *data = fscpos_update_device(dev);
@@ -338,14 +338,14 @@ static ssize_t show_event(struct device *dev, char *buf)
  * Sysfs stuff
  */
 #define create_getter(kind, sub) \
-	static ssize_t sysfs_show_##kind##sub(struct device *dev, char *buf) \
+	static ssize_t sysfs_show_##kind##sub(struct device *dev, struct device_attribute *attr, char *buf) \
 	{ \
 		struct fscpos_data *data = fscpos_update_device(dev); \
 		return show_##kind##sub(data, buf); \
 	}
 
 #define create_getter_n(kind, offset, sub) \
-	static ssize_t sysfs_show_##kind##offset##sub(struct device *dev, char\
+	static ssize_t sysfs_show_##kind##offset##sub(struct device *dev, struct device_attribute *attr, char\
 								 	*buf) \
 	{ \
 		struct fscpos_data *data = fscpos_update_device(dev); \
@@ -353,7 +353,7 @@ static ssize_t show_event(struct device *dev, char *buf)
 	}
 
 #define create_setter(kind, sub, reg) \
-	static ssize_t sysfs_set_##kind##sub (struct device *dev, const char \
+	static ssize_t sysfs_set_##kind##sub (struct device *dev, struct device_attribute *attr, const char \
 							*buf, size_t count) \
 	{ \
 		struct i2c_client *client = to_i2c_client(dev); \
@@ -362,7 +362,7 @@ static ssize_t show_event(struct device *dev, char *buf)
 	}
 
 #define create_setter_n(kind, offset, sub, reg) \
-	static ssize_t sysfs_set_##kind##offset##sub (struct device *dev, \
+	static ssize_t sysfs_set_##kind##offset##sub (struct device *dev, struct device_attribute *attr, \
 					const char *buf, size_t count) \
 	{ \
 		struct i2c_client *client = to_i2c_client(dev); \

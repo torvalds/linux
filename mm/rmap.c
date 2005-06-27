@@ -247,8 +247,8 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
  *
  * On success returns with mapped pte and locked mm->page_table_lock.
  */
-static pte_t *page_check_address(struct page *page, struct mm_struct *mm,
-					unsigned long address)
+pte_t *page_check_address(struct page *page, struct mm_struct *mm,
+			  unsigned long address)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -535,27 +535,6 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 	 */
 	if ((vma->vm_flags & (VM_LOCKED|VM_RESERVED)) ||
 			ptep_clear_flush_young(vma, address, pte)) {
-		ret = SWAP_FAIL;
-		goto out_unmap;
-	}
-
-	/*
-	 * Don't pull an anonymous page out from under get_user_pages.
-	 * GUP carefully breaks COW and raises page count (while holding
-	 * page_table_lock, as we have here) to make sure that the page
-	 * cannot be freed.  If we unmap that page here, a user write
-	 * access to the virtual address will bring back the page, but
-	 * its raised count will (ironically) be taken to mean it's not
-	 * an exclusive swap page, do_wp_page will replace it by a copy
-	 * page, and the user never get to see the data GUP was holding
-	 * the original page for.
-	 *
-	 * This test is also useful for when swapoff (unuse_process) has
-	 * to drop page lock: its reference to the page stops existing
-	 * ptes from being unmapped, so swapoff can make progress.
-	 */
-	if (PageSwapCache(page) &&
-	    page_count(page) != page_mapcount(page) + 2) {
 		ret = SWAP_FAIL;
 		goto out_unmap;
 	}

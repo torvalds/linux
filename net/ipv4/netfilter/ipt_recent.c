@@ -223,7 +223,7 @@ static int ip_recent_ctrl(struct file *file, const char __user *input, unsigned 
 			curr_table->table[count].last_seen = 0;
 			curr_table->table[count].addr = 0;
 			curr_table->table[count].ttl = 0;
-			memset(curr_table->table[count].last_pkts,0,ip_pkt_list_tot*sizeof(u_int32_t));
+			memset(curr_table->table[count].last_pkts,0,ip_pkt_list_tot*sizeof(unsigned long));
 			curr_table->table[count].oldest_pkt = 0;
 			curr_table->table[count].time_pos = 0;
 			curr_table->time_info[count].position = count;
@@ -502,7 +502,7 @@ match(const struct sk_buff *skb,
 		location = time_info[curr_table->time_pos].position;
 		hash_table[r_list[location].hash_entry] = -1;
 		hash_table[hash_result] = location;
-		memset(r_list[location].last_pkts,0,ip_pkt_list_tot*sizeof(u_int32_t));
+		memset(r_list[location].last_pkts,0,ip_pkt_list_tot*sizeof(unsigned long));
 		r_list[location].time_pos = curr_table->time_pos;
 		r_list[location].addr = addr;
 		r_list[location].ttl = ttl;
@@ -631,7 +631,7 @@ match(const struct sk_buff *skb,
 			r_list[location].last_seen = 0;
 			r_list[location].addr = 0;
 			r_list[location].ttl = 0;
-			memset(r_list[location].last_pkts,0,ip_pkt_list_tot*sizeof(u_int32_t));
+			memset(r_list[location].last_pkts,0,ip_pkt_list_tot*sizeof(unsigned long));
 			r_list[location].oldest_pkt = 0;
 			ans = !info->invert;
 		}
@@ -734,10 +734,10 @@ checkentry(const char *tablename,
 	memset(curr_table->table,0,sizeof(struct recent_ip_list)*ip_list_tot);
 #ifdef DEBUG
 	if(debug) printk(KERN_INFO RECENT_NAME ": checkentry: Allocating %d for pkt_list.\n",
-			sizeof(u_int32_t)*ip_pkt_list_tot*ip_list_tot);
+			sizeof(unsigned long)*ip_pkt_list_tot*ip_list_tot);
 #endif
 
-	hold = vmalloc(sizeof(u_int32_t)*ip_pkt_list_tot*ip_list_tot);
+	hold = vmalloc(sizeof(unsigned long)*ip_pkt_list_tot*ip_list_tot);
 #ifdef DEBUG
 	if(debug) printk(KERN_INFO RECENT_NAME ": checkentry: After pkt_list allocation.\n");
 #endif

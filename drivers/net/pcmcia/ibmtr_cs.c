@@ -119,9 +119,6 @@ static void ibmtr_detach(dev_link_t *);
 
 static dev_link_t *dev_list;
 
-extern int ibmtr_probe_card(struct net_device *dev);
-extern irqreturn_t tok_interrupt (int irq, void *dev_id, struct pt_regs *regs);
-
 /*====================================================================*/
 
 typedef struct ibmtr_dev_t {

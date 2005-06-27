@@ -315,7 +315,7 @@ extern struct efi_memory_map memmap;
  */
 static inline int efi_range_is_wc(unsigned long start, unsigned long len)
 {
-	int i;
+	unsigned long i;
 
 	for (i = 0; i < len; i += (1UL << EFI_PAGE_SHIFT)) {
 		unsigned long paddr = __pa(start + i);

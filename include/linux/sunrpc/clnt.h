@@ -111,6 +111,11 @@ struct rpc_procinfo {
 struct rpc_clnt *rpc_create_client(struct rpc_xprt *xprt, char *servname,
 				struct rpc_program *info,
 				u32 version, rpc_authflavor_t authflavor);
+struct rpc_clnt *rpc_new_client(struct rpc_xprt *xprt, char *servname,
+				struct rpc_program *info,
+				u32 version, rpc_authflavor_t authflavor);
+struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
+				struct rpc_program *, int);
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 int		rpc_shutdown_client(struct rpc_clnt *);
 int		rpc_destroy_client(struct rpc_clnt *);
@@ -129,6 +134,7 @@ void		rpc_clnt_sigmask(struct rpc_clnt *clnt, sigset_t *oldset);
 void		rpc_clnt_sigunmask(struct rpc_clnt *clnt, sigset_t *oldset);
 void		rpc_setbufsize(struct rpc_clnt *, unsigned int, unsigned int);
 size_t		rpc_max_payload(struct rpc_clnt *);
+int		rpc_ping(struct rpc_clnt *clnt, int flags);
 
 static __inline__
 int rpc_call(struct rpc_clnt *clnt, u32 proc, void *argp, void *resp, int flags)

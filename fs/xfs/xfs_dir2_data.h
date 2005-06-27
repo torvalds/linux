@@ -193,10 +193,6 @@ extern xfs_dir2_data_free_t *
 				 xfs_dir2_data_unused_t *dup, int *loghead);
 
 extern void
-	xfs_dir2_data_freeremove(xfs_dir2_data_t *d,
-				 xfs_dir2_data_free_t *dfp, int *loghead);
-
-extern void
 	xfs_dir2_data_freescan(struct xfs_mount *mp, xfs_dir2_data_t *d,
 			       int *loghead, char *aendp);
 

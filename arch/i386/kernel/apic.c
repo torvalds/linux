@@ -26,6 +26,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
+#include <linux/cpu.h>
 
 #include <asm/atomic.h>
 #include <asm/smp.h>
@@ -38,6 +39,11 @@
 #include <mach_apic.h>
 
 #include "io_ports.h"
+
+/*
+ * Knob to control our willingness to enable the local APIC.
+ */
+int enable_local_apic __initdata = 0; /* -1=force-disable, +1=force-enable */
 
 /*
  * Debug level
@@ -205,7 +211,7 @@ void __init connect_bsp_APIC(void)
 	enable_apic_mode();
 }
 
-void disconnect_bsp_APIC(void)
+void disconnect_bsp_APIC(int virt_wire_setup)
 {
 	if (pic_mode) {
 		/*
@@ -218,6 +224,42 @@ void disconnect_bsp_APIC(void)
 				"entering PIC mode.\n");
 		outb(0x70, 0x22);
 		outb(0x00, 0x23);
+	}
+	else {
+		/* Go back to Virtual Wire compatibility mode */
+		unsigned long value;
+
+		/* For the spurious interrupt use vector F, and enable it */
+		value = apic_read(APIC_SPIV);
+		value &= ~APIC_VECTOR_MASK;
+		value |= APIC_SPIV_APIC_ENABLED;
+		value |= 0xf;
+		apic_write_around(APIC_SPIV, value);
+
+		if (!virt_wire_setup) {
+			/* For LVT0 make it edge triggered, active high, external and enabled */
+			value = apic_read(APIC_LVT0);
+			value &= ~(APIC_MODE_MASK | APIC_SEND_PENDING |
+				APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |
+				APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED );
+			value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
+			value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_EXTINT);
+			apic_write_around(APIC_LVT0, value);
+		}
+		else {
+			/* Disable LVT0 */
+			apic_write_around(APIC_LVT0, APIC_LVT_MASKED);
+		}
+
+		/* For LVT1 make it edge triggered, active high, nmi and enabled */
+		value = apic_read(APIC_LVT1);
+		value &= ~(
+			APIC_MODE_MASK | APIC_SEND_PENDING |
+			APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |
+			APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED);
+		value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
+		value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_NMI);
+		apic_write_around(APIC_LVT1, value);
 	}
 }
 
@@ -363,7 +405,7 @@ void __init init_bsp_APIC(void)
 	apic_write_around(APIC_LVT1, value);
 }
 
-void __init setup_local_APIC (void)
+void __devinit setup_local_APIC(void)
 {
 	unsigned long oldvalue, value, ver, maxlvt;
 
@@ -634,7 +676,7 @@ static struct sys_device device_lapic = {
 	.cls	= &lapic_sysclass,
 };
 
-static void __init apic_pm_activate(void)
+static void __devinit apic_pm_activate(void)
 {
 	apic_pm_state.active = 1;
 }
@@ -664,26 +706,6 @@ static void apic_pm_activate(void) { }
  * Detect and enable local APICs on non-SMP boards.
  * Original code written by Keir Fraser.
  */
-
-/*
- * Knob to control our willingness to enable the local APIC.
- */
-int enable_local_apic __initdata = 0; /* -1=force-disable, +1=force-enable */
-
-static int __init lapic_disable(char *str)
-{
-	enable_local_apic = -1;
-	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
-	return 0;
-}
-__setup("nolapic", lapic_disable);
-
-static int __init lapic_enable(char *str)
-{
-	enable_local_apic = 1;
-	return 0;
-}
-__setup("lapic", lapic_enable);
 
 static int __init apic_set_verbosity(char *str)
 {
@@ -855,7 +877,7 @@ fake_ioapic_page:
  * but we do not accept timer interrupts yet. We only allow the BP
  * to calibrate.
  */
-static unsigned int __init get_8254_timer_count(void)
+static unsigned int __devinit get_8254_timer_count(void)
 {
 	extern spinlock_t i8253_lock;
 	unsigned long flags;
@@ -874,7 +896,7 @@ static unsigned int __init get_8254_timer_count(void)
 }
 
 /* next tick in 8254 can be caught by catching timer wraparound */
-static void __init wait_8254_wraparound(void)
+static void __devinit wait_8254_wraparound(void)
 {
 	unsigned int curr_count, prev_count;
 
@@ -894,7 +916,7 @@ static void __init wait_8254_wraparound(void)
  * Default initialization for 8254 timers. If we use other timers like HPET,
  * we override this later
  */
-void (*wait_timer_tick)(void) __initdata = wait_8254_wraparound;
+void (*wait_timer_tick)(void) __devinitdata = wait_8254_wraparound;
 
 /*
  * This function sets up the local APIC timer, with a timeout of
@@ -930,7 +952,7 @@ static void __setup_APIC_LVTT(unsigned int clocks)
 	apic_write_around(APIC_TMICT, clocks/APIC_DIVISOR);
 }
 
-static void __init setup_APIC_timer(unsigned int clocks)
+static void __devinit setup_APIC_timer(unsigned int clocks)
 {
 	unsigned long flags;
 
@@ -1043,12 +1065,12 @@ void __init setup_boot_APIC_clock(void)
 	local_irq_enable();
 }
 
-void __init setup_secondary_APIC_clock(void)
+void __devinit setup_secondary_APIC_clock(void)
 {
 	setup_APIC_timer(calibration_result);
 }
 
-void __init disable_APIC_timer(void)
+void __devinit disable_APIC_timer(void)
 {
 	if (using_apic_timer) {
 		unsigned long v;
@@ -1133,7 +1155,7 @@ inline void smp_local_timer_interrupt(struct pt_regs * regs)
 		}
 
 #ifdef CONFIG_SMP
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode_vm(regs));
 #endif
 	}
 

@@ -112,6 +112,7 @@
 #include	<linux/moduleparam.h>
 #include	<linux/init.h>
 #include 	<linux/proc_fs.h>
+#include	<linux/dma-mapping.h>
 
 #include	"h/skdrv1st.h"
 #include	"h/skdrv2nd.h"
@@ -4212,7 +4213,7 @@ SK_BOOL		DualNet;
 			Flags);
 
 		SkGeStopPort(pAC, IoC, FromPort, SK_STOP_ALL, SK_HARD_RST);
-		pAC->dev[Param.Para32[0]]->flags &= ~IFF_RUNNING;
+		netif_carrier_off(pAC->dev[Param.Para32[0]]);
 		spin_unlock_irqrestore(
 			&pAC->TxPort[FromPort][TX_PRIO_LOW].TxDesRingLock,
 			Flags);
@@ -4355,7 +4356,7 @@ SK_BOOL		DualNet;
 		}
 
 		/* Inform the world that link protocol is up. */
-		pAC->dev[Param.Para32[0]]->flags |= IFF_RUNNING;
+		netif_carrier_on(pAC->dev[Param.Para32[0]]);
 
 		break;
 	case SK_DRV_NET_DOWN:	 /* SK_U32 Reason */
@@ -4368,7 +4369,7 @@ SK_BOOL		DualNet;
 		} else {
 			DoPrintInterfaceChange = SK_TRUE;
 		}
-		pAC->dev[Param.Para32[1]]->flags &= ~IFF_RUNNING;
+		netif_carrier_off(pAC->dev[Param.Para32[1]]);
 		break;
 	case SK_DRV_SWITCH_HARD: /* SK_U32 FromPortIdx SK_U32 ToPortIdx */
 		SK_DBG_MSG(NULL, SK_DBGMOD_DRV, SK_DBGCAT_DRV_EVENT,
@@ -4912,8 +4913,8 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 		goto out;
  
 	/* Configure DMA attributes. */
-	if (pci_set_dma_mask(pdev, (u64) 0xffffffffffffffffULL) &&
-	    pci_set_dma_mask(pdev, (u64) 0xffffffff))
+	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) &&
+	    pci_set_dma_mask(pdev, DMA_32BIT_MASK))
 		goto out_disable_device;
 
 
@@ -4961,7 +4962,6 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller =	&SkGePollController;
 #endif
-	dev->flags &= 		~IFF_RUNNING;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	SET_ETHTOOL_OPS(dev, &SkGeEthtoolOps);
 
@@ -5035,7 +5035,6 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 		dev->set_mac_address    = &SkGeSetMacAddr;
 		dev->do_ioctl           = &SkGeIoctl;
 		dev->change_mtu         = &SkGeChangeMtu;
-		dev->flags             &= ~IFF_RUNNING;
 		SET_NETDEV_DEV(dev, &pdev->dev);
 		SET_ETHTOOL_OPS(dev, &SkGeEthtoolOps);
 

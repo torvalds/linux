@@ -507,7 +507,7 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 }
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
-static ssize_t pci_show_devspec(struct device *dev, char *buf)
+static ssize_t pci_show_devspec(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev;
 	struct device_node *np;
@@ -901,6 +901,9 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 
 	list_for_each_entry(dev, &bus->devices, bus_list)
 		ppc_md.iommu_dev_setup(dev);
+
+	if (ppc_md.irq_bus_setup)
+		ppc_md.irq_bus_setup(bus);
 
 	if (!pci_probe_only)
 		return;

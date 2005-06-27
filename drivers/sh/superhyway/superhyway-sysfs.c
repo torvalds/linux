@@ -15,7 +15,7 @@
 #include <linux/superhyway.h>
 
 #define superhyway_ro_attr(name, fmt, field)				\
-static ssize_t name##_show(struct device *dev, char *buf)		\
+static ssize_t name##_show(struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct superhyway_device *s = to_superhyway_device(dev);	\
 	return sprintf(buf, fmt, s->field);				\

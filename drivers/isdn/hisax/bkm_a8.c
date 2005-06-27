@@ -27,7 +27,7 @@
 
 extern const char *CardType[];
 
-const char sct_quadro_revision[] = "$Revision: 1.22.2.4 $";
+static const char sct_quadro_revision[] = "$Revision: 1.22.2.4 $";
 
 static const char *sct_quadro_subtypes[] =
 {
@@ -193,7 +193,7 @@ bkm_interrupt_ipac(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_sct_quadro(struct IsdnCardState *cs)
 {
 	release_region(cs->hw.ax.base & 0xffffffc0, 128);
@@ -261,7 +261,7 @@ BKM_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return (0);
 }
 
-int __init
+static int __init
 sct_alloc_io(u_int adr, u_int len)
 {
 	if (!request_region(adr, len, "scitel")) {

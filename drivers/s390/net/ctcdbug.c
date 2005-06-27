@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/ctcdbug.c ($Revision: 1.4 $)
+ * linux/drivers/s390/net/ctcdbug.c ($Revision: 1.6 $)
  *
  * CTC / ESCON network driver - s390 dbf exploit.
  *
@@ -9,7 +9,7 @@
  *    Author(s): Original Code written by
  *			  Peter Tiedemann (ptiedem@de.ibm.com)
  *
- *    $Revision: 1.4 $	 $Date: 2004/08/04 10:11:59 $
+ *    $Revision: 1.6 $	 $Date: 2005/05/11 08:10:17 $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,15 +51,15 @@ int
 ctc_register_dbf_views(void)
 {
 	ctc_dbf_setup = debug_register(CTC_DBF_SETUP_NAME,
-					CTC_DBF_SETUP_INDEX,
+					CTC_DBF_SETUP_PAGES,
 					CTC_DBF_SETUP_NR_AREAS,
 					CTC_DBF_SETUP_LEN);
 	ctc_dbf_data = debug_register(CTC_DBF_DATA_NAME,
-				       CTC_DBF_DATA_INDEX,
+				       CTC_DBF_DATA_PAGES,
 				       CTC_DBF_DATA_NR_AREAS,
 				       CTC_DBF_DATA_LEN);
 	ctc_dbf_trace = debug_register(CTC_DBF_TRACE_NAME,
-					CTC_DBF_TRACE_INDEX,
+					CTC_DBF_TRACE_PAGES,
 					CTC_DBF_TRACE_NR_AREAS,
 					CTC_DBF_TRACE_LEN);
 

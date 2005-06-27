@@ -1423,8 +1423,7 @@ static void reset_tx_descriptors(struct net_device *dev)
 		if (cur->skbuff) {
 			pci_unmap_single(np->pci_dev, cur->buffer,
 				cur->skbuff->len, PCI_DMA_TODEVICE);
-			dev_kfree_skb(cur->skbuff);
-			/* or dev_kfree_skb_irq(cur->skbuff); ? */
+			dev_kfree_skb_any(cur->skbuff);
 			cur->skbuff = NULL;
 		}
 		cur->status = 0;

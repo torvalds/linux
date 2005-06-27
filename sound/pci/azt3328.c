@@ -1520,7 +1520,7 @@ static int __init alsa_card_azf3328_init(void)
 {
 	int err;
 	snd_azf3328_dbgcallenter();
-	err = pci_module_init(&driver);
+	err = pci_register_driver(&driver);
 	snd_azf3328_dbgcallleave();
 	return err;
 }

@@ -753,7 +753,7 @@ config SERIAL_MPC52xx_CONSOLE_BAUD
 
 config SERIAL_ICOM
 	tristate "IBM Multiport Serial Adapter"
-	depends on PPC_ISERIES || PPC_PSERIES
+	depends on PCI && (PPC_ISERIES || PPC_PSERIES)
 	select SERIAL_CORE
 	help
 	  This driver is for a family of multiport serial adapters
@@ -842,5 +842,14 @@ config SERIAL_JSM
 
           To compile this driver as a module, choose M here: the
           module will be called jsm.
+
+config SERIAL_SGI_IOC4
+	tristate "SGI IOC4 controller serial support"
+	depends on (IA64_GENERIC || IA64_SGI_SN2) && SGI_IOC4
+	select SERIAL_CORE
+	help
+		If you have an SGI Altix with an IOC4 based Base IO card
+		and wish to use the serial ports on this card, say Y.
+		Otherwise, say N.
 
 endmenu

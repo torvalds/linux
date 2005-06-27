@@ -118,6 +118,7 @@
 #include <linux/netdevice.h>
 #include <net/protocol.h>
 #include <linux/skbuff.h>
+#include <net/request_sock.h>
 #include <net/sock.h>
 #include <net/xfrm.h>
 #include <linux/ipsec.h>
@@ -1363,6 +1364,7 @@ static LIST_HEAD(proto_list);
 
 int proto_register(struct proto *prot, int alloc_slab)
 {
+	char *request_sock_slab_name;
 	int rc = -ENOBUFS;
 
 	if (alloc_slab) {
@@ -1374,6 +1376,25 @@ int proto_register(struct proto *prot, int alloc_slab)
 			       prot->name);
 			goto out;
 		}
+
+		if (prot->rsk_prot != NULL) {
+			static const char mask[] = "request_sock_%s";
+
+			request_sock_slab_name = kmalloc(strlen(prot->name) + sizeof(mask) - 1, GFP_KERNEL);
+			if (request_sock_slab_name == NULL)
+				goto out_free_sock_slab;
+
+			sprintf(request_sock_slab_name, mask, prot->name);
+			prot->rsk_prot->slab = kmem_cache_create(request_sock_slab_name,
+								 prot->rsk_prot->obj_size, 0,
+								 SLAB_HWCACHE_ALIGN, NULL, NULL);
+
+			if (prot->rsk_prot->slab == NULL) {
+				printk(KERN_CRIT "%s: Can't create request sock SLAB cache!\n",
+				       prot->name);
+				goto out_free_request_sock_slab_name;
+			}
+		}
 	}
 
 	write_lock(&proto_list_lock);
@@ -1382,6 +1403,12 @@ int proto_register(struct proto *prot, int alloc_slab)
 	rc = 0;
 out:
 	return rc;
+out_free_request_sock_slab_name:
+	kfree(request_sock_slab_name);
+out_free_sock_slab:
+	kmem_cache_destroy(prot->slab);
+	prot->slab = NULL;
+	goto out;
 }
 
 EXPORT_SYMBOL(proto_register);
@@ -1393,6 +1420,14 @@ void proto_unregister(struct proto *prot)
 	if (prot->slab != NULL) {
 		kmem_cache_destroy(prot->slab);
 		prot->slab = NULL;
+	}
+
+	if (prot->rsk_prot != NULL && prot->rsk_prot->slab != NULL) {
+		const char *name = kmem_cache_name(prot->rsk_prot->slab);
+
+		kmem_cache_destroy(prot->rsk_prot->slab);
+		kfree(name);
+		prot->rsk_prot->slab = NULL;
 	}
 
 	list_del(&prot->node);

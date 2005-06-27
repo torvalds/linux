@@ -203,7 +203,7 @@ $(obj)/zvmlinux: $(OBJS) $(LIBS) $(srctree)/$(boot)/ld.script \
 		$(obj)/dummy.o $(obj)/image.o
 	$(LD) $(LD_ARGS) -o $@ $(OBJS) $(obj)/image.o $(LIBS)
 	$(OBJCOPY) $(OBJCOPY_ARGS) $@ $@ -R .comment -R .stab \
-		-R .stabstr -R .ramdisk -R .sysmap
+		-R .stabstr -R .ramdisk
 
 $(obj)/zvmlinux.initrd: $(OBJS) $(LIBS) $(srctree)/$(boot)/ld.script \
 		$(images)/vmlinux.gz $(obj)/dummy.o
@@ -215,7 +215,7 @@ $(obj)/zvmlinux.initrd: $(OBJS) $(LIBS) $(srctree)/$(boot)/ld.script \
 		$(obj)/dummy.o $(obj)/image.o
 	$(LD) $(LD_ARGS) -o $@ $(OBJS) $(obj)/image.o $(LIBS)
 	$(OBJCOPY) $(OBJCOPY_ARGS) $@ $@ -R .comment -R .stab \
-		-R .stabstr -R .sysmap
+		-R .stabstr
 
 # Sort-of dummy rules, that let us format the image we want.
 zImage: $(images)/$(zimage-y) $(obj)/zvmlinux

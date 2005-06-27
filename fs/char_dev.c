@@ -56,10 +56,21 @@ int get_chrdev_list(char *page)
 
 	down(&chrdevs_lock);
 	for (i = 0; i < ARRAY_SIZE(chrdevs) ; i++) {
-		for (cd = chrdevs[i]; cd; cd = cd->next)
+		for (cd = chrdevs[i]; cd; cd = cd->next) {
+			/*
+			 * if the current name, plus the 5 extra characters
+			 * in the device line for this entry
+			 * would run us off the page, we're done
+			 */
+			if ((len+strlen(cd->name) + 5) >= PAGE_SIZE)
+				goto page_full;
+
+
 			len += sprintf(page+len, "%3d %s\n",
 				       cd->major, cd->name);
+		}
 	}
+page_full:
 	up(&chrdevs_lock);
 
 	return len;

@@ -41,7 +41,6 @@
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/open_pic.h>
 #include <asm/bootinfo.h>
 #include <asm/pci-bridge.h>
@@ -125,25 +124,29 @@ sbc8560_setup_arch(void)
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	/* Invalidate the entry we stole earlier the serial ports
 	 * should be properly mapped */ 
-	invalidate_tlbcam_entry(NUM_TLBCAMS - 1);
+	invalidate_tlbcam_entry(num_tlbcam_entries - 1);
 #endif
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
-	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-	pdata->interruptPHY = MPC85xx_IRQ_EXT6;
-	pdata->phyid = 25;
-	/* fixup phy address */
-	pdata->phy_reg_addr += binfo->bi_immr_base;
-	memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->interruptPHY = MPC85xx_IRQ_EXT6;
+		pdata->phyid = 25;
+		/* fixup phy address */
+		pdata->phy_reg_addr += binfo->bi_immr_base;
+		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
-	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-	pdata->interruptPHY = MPC85xx_IRQ_EXT7;
-	pdata->phyid = 26;
-	/* fixup phy address */
-	pdata->phy_reg_addr += binfo->bi_immr_base;
-	memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->interruptPHY = MPC85xx_IRQ_EXT7;
+		pdata->phyid = 26;
+		/* fixup phy address */
+		pdata->phy_reg_addr += binfo->bi_immr_base;
+		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start)
@@ -176,7 +179,7 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	/* Use the last TLB entry to map CCSRBAR to allow access to DUART regs */
-	settlbcam(NUM_TLBCAMS - 1, UARTA_ADDR,
+	settlbcam(num_tlbcam_entries - 1, UARTA_ADDR,
 		  UARTA_ADDR, 0x1000, _PAGE_IO, 0);
 #endif
 
@@ -221,6 +224,9 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #if defined(CONFIG_SERIAL_8250) && defined(CONFIG_SERIAL_TEXT_DEBUG)
 	ppc_md.progress = gen550_progress;
 #endif	/* CONFIG_SERIAL_8250 && CONFIG_SERIAL_TEXT_DEBUG */
+#if defined(CONFIG_SERIAL_8250) && defined(CONFIG_KGDB)
+	ppc_md.early_serial_map = sbc8560_early_serial_map;
+#endif	/* CONFIG_SERIAL_8250 && CONFIG_KGDB */
 
 	if (ppc_md.progress)
 		ppc_md.progress("sbc8560_init(): exit", 0);

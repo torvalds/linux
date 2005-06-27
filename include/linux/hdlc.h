@@ -1,7 +1,7 @@
 /*
  * Generic HDLC support routines for Linux
  *
- * Copyright (C) 1999-2003 Krzysztof Halasa <khc@pm.waw.pl>
+ * Copyright (C) 1999-2005 Krzysztof Halasa <khc@pm.waw.pl>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -41,6 +41,7 @@
 #define LMI_NONE		1 /* No LMI, all PVCs are static */
 #define LMI_ANSI		2 /* ANSI Annex D */
 #define LMI_CCITT		3 /* ITU-T Annex A */
+#define LMI_CISCO		4 /* The "original" LMI, aka Gang of Four */
 
 #define HDLC_MAX_MTU 1500	/* Ethernet 1500 bytes */
 #define HDLC_MAX_MRU (HDLC_MAX_MTU + 10 + 14 + 4) /* for ETH+VLAN over FR */
@@ -89,6 +90,7 @@ typedef struct pvc_device_struct {
 		unsigned int deleted: 1;
 		unsigned int fecn: 1;
 		unsigned int becn: 1;
+		unsigned int bandwidth;	/* Cisco LMI reporting only */
 	}state;
 }pvc_device;
 

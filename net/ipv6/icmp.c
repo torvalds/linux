@@ -277,8 +277,8 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 {
 	struct inet6_dev *idev = NULL;
 	struct ipv6hdr *hdr = skb->nh.ipv6h;
-	struct sock *sk = icmpv6_socket->sk;
-	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct sock *sk;
+	struct ipv6_pinfo *np;
 	struct in6_addr *saddr = NULL;
 	struct dst_entry *dst;
 	struct icmp6hdr tmp_hdr;
@@ -358,6 +358,9 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	if (icmpv6_xmit_lock())
 		return;
 
+	sk = icmpv6_socket->sk;
+	np = inet6_sk(sk);
+
 	if (!icmpv6_xrlim_allow(sk, type, &fl))
 		goto out;
 
@@ -423,9 +426,9 @@ out:
 
 static void icmpv6_echo_reply(struct sk_buff *skb)
 {
-	struct sock *sk = icmpv6_socket->sk;
+	struct sock *sk;
 	struct inet6_dev *idev;
-	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct ipv6_pinfo *np;
 	struct in6_addr *saddr = NULL;
 	struct icmp6hdr *icmph = (struct icmp6hdr *) skb->h.raw;
 	struct icmp6hdr tmp_hdr;
@@ -453,6 +456,9 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 
 	if (icmpv6_xmit_lock())
 		return;
+
+	sk = icmpv6_socket->sk;
+	np = inet6_sk(sk);
 
 	if (!fl.oif && ipv6_addr_is_multicast(&fl.fl6_dst))
 		fl.oif = np->mcast_oif;

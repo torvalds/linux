@@ -31,7 +31,8 @@ long sys_fork(void)
 	long ret;
 
 	current->thread.forking = 1;
-        ret = do_fork(SIGCHLD, 0, NULL, 0, NULL, NULL);
+	ret = do_fork(SIGCHLD, UPT_SP(&current->thread.regs.regs),
+		      &current->thread.regs, 0, NULL, NULL);
 	current->thread.forking = 0;
 	return(ret);
 }
@@ -41,8 +42,9 @@ long sys_vfork(void)
 	long ret;
 
 	current->thread.forking = 1;
-	ret = do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, 0, NULL, 0, NULL,
-		      NULL);
+	ret = do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD,
+		      UPT_SP(&current->thread.regs.regs),
+		      &current->thread.regs, 0, NULL, NULL);
 	current->thread.forking = 0;
 	return(ret);
 }
@@ -162,14 +164,3 @@ int next_syscall_index(int limit)
 	spin_unlock(&syscall_lock);
 	return(ret);
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

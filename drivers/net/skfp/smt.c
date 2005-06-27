@@ -86,7 +86,7 @@ static void smt_send_sif_config(struct s_smc *smc, struct fddi_addr *dest,
 static void smt_send_sif_operation(struct s_smc *smc, struct fddi_addr *dest,
 				   u_long tid, int local);
 #ifdef LITTLE_ENDIAN
-static void smt_string_swap(void);
+static void smt_string_swap(char *data, const char *format, int len);
 #endif
 static void smt_add_frame_len(SMbuf *mb, int len);
 static void smt_fill_una(struct s_smc *smc, struct smt_p_una *una);

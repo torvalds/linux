@@ -118,6 +118,11 @@
 /* maximum number of endpoints per interface */
 #define MIDI_MAX_ENDPOINTS 2
 
+/* handling of USB vendor/product ID pairs as 32-bit numbers */
+#define USB_ID(vendor, product) (((vendor) << 16) | (product))
+#define USB_ID_VENDOR(id) ((id) >> 16)
+#define USB_ID_PRODUCT(id) ((u16)(id))
+
 /*
  */
 
@@ -127,6 +132,7 @@ struct snd_usb_audio {
 	int index;
 	struct usb_device *dev;
 	snd_card_t *card;
+	u32 usb_id;
 	int shutdown;
 	int num_interfaces;
 
@@ -136,7 +142,7 @@ struct snd_usb_audio {
 	struct list_head midi_list;	/* list of midi interfaces */
 	int next_midi_device;
 
-	unsigned int ignore_ctl_error;	/* for mixer */
+	struct list_head mixer_list;	/* list of mixer interfaces */
 };
 
 /*
@@ -219,11 +225,12 @@ void *snd_usb_find_csint_desc(void *descstart, int desclen, void *after, u8 dsub
 int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe, __u8 request, __u8 requesttype, __u16 value, __u16 index, void *data, __u16 size, int timeout);
 
 int snd_usb_create_mixer(snd_usb_audio_t *chip, int ctrlif);
+void snd_usb_mixer_disconnect(struct list_head *p);
 
 int snd_usb_create_midi_interface(snd_usb_audio_t *chip, struct usb_interface *iface, const snd_usb_audio_quirk_t *quirk);
 void snd_usbmidi_input_stop(struct list_head* p);
 void snd_usbmidi_input_start(struct list_head* p);
-void snd_usbmidi_disconnect(struct list_head *p, struct usb_driver *driver);
+void snd_usbmidi_disconnect(struct list_head *p);
 
 /*
  * retrieve usb_interface descriptor from the host interface

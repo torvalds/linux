@@ -53,22 +53,8 @@ fill_mp_bus_to_cpumask(void)
 				for (j = SECONDARY_LDT_BUS_NUMBER(ldtbus);
 				     j <= SUBORDINATE_LDT_BUS_NUMBER(ldtbus);
 				     j++)
-					pci_bus_to_cpumask[j] =
-						node_to_cpumask(NODE_ID(nid));
+					pci_bus_to_node[j] = NODE_ID(nid);
 			}
-		}
-	}
-
-	/* quick sanity check */
-	printed = 0;
-	for (i = 0; i < 256; i++) {
-		if (cpus_empty(pci_bus_to_cpumask[i])) {
-			pci_bus_to_cpumask[i] = CPU_MASK_ALL;
-			if (printed)
-				continue;
-			printk(KERN_ERR
-			       "k8-bus.c: some busses have empty cpu mask\n");
-			printed = 1;
 		}
 	}
 

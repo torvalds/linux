@@ -517,7 +517,7 @@ retry:
 	result = tot_bytes;
 
 out:
-	nfs_end_data_update_defer(inode);
+	nfs_end_data_update(inode);
 	nfs_writedata_free(wdata);
 	return result;
 
@@ -751,11 +751,6 @@ nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t count, 
 	retval = -EFAULT;
 	if (!access_ok(VERIFY_READ, iov.iov_base, iov.iov_len))
 		goto out;
-        if (file->f_error) {
-                retval = file->f_error;
-                file->f_error = 0;
-                goto out;
-        }
 	retval = -EFBIG;
 	if (limit != RLIM_INFINITY) {
 		if (pos >= limit) {

@@ -348,17 +348,21 @@ spi_transport_rd_attr(rd_strm, "%d\n");
 spi_transport_rd_attr(rti, "%d\n");
 spi_transport_rd_attr(pcomp_en, "%d\n");
 
+/* we only care about the first child device so we return 1 */
+static int child_iter(struct device *dev, void *data)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+	spi_dv_device(sdev);
+	return 1;
+}
+
 static ssize_t
 store_spi_revalidate(struct class_device *cdev, const char *buf, size_t count)
 {
 	struct scsi_target *starget = transport_class_to_starget(cdev);
 
-	/* FIXME: we're relying on an awful lot of device internals
-	 * here.  We really need a function to get the first available
-	 * child */
-	struct device *dev = container_of(starget->dev.children.next, struct device, node);
-	struct scsi_device *sdev = to_scsi_device(dev);
-	spi_dv_device(sdev);
+	device_for_each_child(&starget->dev, NULL, child_iter);
 	return count;
 }
 static CLASS_DEVICE_ATTR(revalidate, S_IWUSR, NULL, store_spi_revalidate);
@@ -669,6 +673,7 @@ spi_dv_retrain(struct scsi_request *sreq, u8 *buffer, u8 *ptr,
 {
 	struct spi_internal *i = to_spi_internal(sreq->sr_host->transportt);
 	struct scsi_device *sdev = sreq->sr_device;
+	struct scsi_target *starget = sdev->sdev_target;
 	int period = 0, prevperiod = 0; 
 	enum spi_compare_returns retval;
 
@@ -682,24 +687,40 @@ spi_dv_retrain(struct scsi_request *sreq, u8 *buffer, u8 *ptr,
 			break;
 
 		/* OK, retrain, fallback */
+		if (i->f->get_iu)
+			i->f->get_iu(starget);
+		if (i->f->get_qas)
+			i->f->get_qas(starget);
 		if (i->f->get_period)
 			i->f->get_period(sdev->sdev_target);
-		newperiod = spi_period(sdev->sdev_target);
-		period = newperiod > period ? newperiod : period;
-		if (period < 0x0d)
-			period++;
-		else
-			period += period >> 1;
 
-		if (unlikely(period > 0xff || period == prevperiod)) {
-			/* Total failure; set to async and return */
-			SPI_PRINTK(sdev->sdev_target, KERN_ERR, "Domain Validation Failure, dropping back to Asynchronous\n");
-			DV_SET(offset, 0);
-			return SPI_COMPARE_FAILURE;
+		/* Here's the fallback sequence; first try turning off
+		 * IU, then QAS (if we can control them), then finally
+		 * fall down the periods */
+		if (i->f->set_iu && spi_iu(starget)) {
+			SPI_PRINTK(starget, KERN_ERR, "Domain Validation Disabing Information Units\n");
+			DV_SET(iu, 0);
+		} else if (i->f->set_qas && spi_qas(starget)) {
+			SPI_PRINTK(starget, KERN_ERR, "Domain Validation Disabing Quick Arbitration and Selection\n");
+			DV_SET(qas, 0);
+		} else {
+			newperiod = spi_period(starget);
+			period = newperiod > period ? newperiod : period;
+			if (period < 0x0d)
+				period++;
+			else
+				period += period >> 1;
+
+			if (unlikely(period > 0xff || period == prevperiod)) {
+				/* Total failure; set to async and return */
+				SPI_PRINTK(starget, KERN_ERR, "Domain Validation Failure, dropping back to Asynchronous\n");
+				DV_SET(offset, 0);
+				return SPI_COMPARE_FAILURE;
+			}
+			SPI_PRINTK(starget, KERN_ERR, "Domain Validation detected failure, dropping back\n");
+			DV_SET(period, period);
+			prevperiod = period;
 		}
-		SPI_PRINTK(sdev->sdev_target, KERN_ERR, "Domain Validation detected failure, dropping back\n");
-		DV_SET(period, period);
-		prevperiod = period;
 	}
 	return retval;
 }
@@ -768,23 +789,21 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 	
 	if (spi_dv_device_compare_inquiry(sreq, buffer, buffer, DV_LOOPS)
 	    != SPI_COMPARE_SUCCESS) {
-		SPI_PRINTK(sdev->sdev_target, KERN_ERR, "Domain Validation Initial Inquiry Failed\n");
+		SPI_PRINTK(starget, KERN_ERR, "Domain Validation Initial Inquiry Failed\n");
 		/* FIXME: should probably offline the device here? */
 		return;
 	}
 
 	/* test width */
 	if (i->f->set_width && spi_max_width(starget) && sdev->wdtr) {
-		i->f->set_width(sdev->sdev_target, 1);
-
-		printk("WIDTH IS %d\n", spi_max_width(starget));
+		i->f->set_width(starget, 1);
 
 		if (spi_dv_device_compare_inquiry(sreq, buffer,
 						   buffer + len,
 						   DV_LOOPS)
 		    != SPI_COMPARE_SUCCESS) {
-			SPI_PRINTK(sdev->sdev_target, KERN_ERR, "Wide Transfers Fail\n");
-			i->f->set_width(sdev->sdev_target, 0);
+			SPI_PRINTK(starget, KERN_ERR, "Wide Transfers Fail\n");
+			i->f->set_width(starget, 0);
 		}
 	}
 
@@ -792,7 +811,7 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 		return;
 
 	/* device can't handle synchronous */
-	if(!sdev->ppr && !sdev->sdtr)
+	if (!sdev->ppr && !sdev->sdtr)
 		return;
 
 	/* see if the device has an echo buffer.  If it does we can
@@ -807,16 +826,30 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 	/* now set up to the maximum */
 	DV_SET(offset, spi_max_offset(starget));
 	DV_SET(period, spi_min_period(starget));
+	/* try QAS requests; this should be harmless to set if the
+	 * target supports it */
+	DV_SET(qas, 1);
+	/* Also try IU transfers */
+	DV_SET(iu, 1);
+	if (spi_min_period(starget) < 9) {
+		/* This u320 (or u640). Ignore the coupled parameters
+		 * like DT and IU, but set the optional ones */
+		DV_SET(rd_strm, 1);
+		DV_SET(wr_flow, 1);
+		DV_SET(rti, 1);
+		if (spi_min_period(starget) == 8)
+			DV_SET(pcomp_en, 1);
+	}
 
 	if (len == 0) {
-		SPI_PRINTK(sdev->sdev_target, KERN_INFO, "Domain Validation skipping write tests\n");
+		SPI_PRINTK(starget, KERN_INFO, "Domain Validation skipping write tests\n");
 		spi_dv_retrain(sreq, buffer, buffer + len,
 			       spi_dv_device_compare_inquiry);
 		return;
 	}
 
 	if (len > SPI_MAX_ECHO_BUFFER_SIZE) {
-		SPI_PRINTK(sdev->sdev_target, KERN_WARNING, "Echo buffer size %d is too big, trimming to %d\n", len, SPI_MAX_ECHO_BUFFER_SIZE);
+		SPI_PRINTK(starget, KERN_WARNING, "Echo buffer size %d is too big, trimming to %d\n", len, SPI_MAX_ECHO_BUFFER_SIZE);
 		len = SPI_MAX_ECHO_BUFFER_SIZE;
 	}
 

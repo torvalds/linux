@@ -99,9 +99,10 @@ enum
 	TCPDIAG_MEMINFO,
 	TCPDIAG_INFO,
 	TCPDIAG_VEGASINFO,
+	TCPDIAG_CONG,
 };
 
-#define TCPDIAG_MAX TCPDIAG_VEGASINFO
+#define TCPDIAG_MAX TCPDIAG_CONG
 
 
 /* TCPDIAG_MEM */
@@ -122,6 +123,5 @@ struct tcpvegas_info {
 	__u32	tcpv_rtt;
 	__u32	tcpv_minrtt;
 };
-
 
 #endif /* _TCP_DIAG_H_ */

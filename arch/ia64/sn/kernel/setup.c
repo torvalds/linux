@@ -222,7 +222,7 @@ void __init early_sn_setup(void)
 
 extern int platform_intr_list[];
 extern nasid_t master_nasid;
-static int shub_1_1_found __initdata;
+static int __initdata shub_1_1_found = 0;
 
 /*
  * sn_check_for_wars
@@ -251,7 +251,7 @@ static void __init sn_check_for_wars(void)
 	} else {
 		for_each_online_node(cnode) {
 			if (is_shub_1_1(cnodeid_to_nasid(cnode)))
-				sn_hub_info->shub_1_1_found = 1;
+				shub_1_1_found = 1;
 		}
 	}
 }
@@ -270,6 +270,8 @@ void __init sn_setup(char **cmdline_p)
 	int pxm;
 	int major = sn_sal_rev_major(), minor = sn_sal_rev_minor();
 	extern void sn_cpu_init(void);
+
+	ia64_sn_plat_set_error_handling_features();
 
 	/*
 	 * If the generic code has enabled vga console support - lets

@@ -236,7 +236,7 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 	struct buffer_head *bh = NULL;
 	struct qnx4_xblk *xblk = NULL;
 	struct qnx4_inode_entry *qnx4_inode = qnx4_raw_inode(inode);
-	qnx4_nxtnt_t nxtnt = le16_to_cpu(qnx4_inode->di_num_xtnts);
+	u16 nxtnt = le16_to_cpu(qnx4_inode->di_num_xtnts);
 
 	if ( iblock < le32_to_cpu(qnx4_inode->di_first_xtnt.xtnt_size) ) {
 		// iblock is in the first extent. This is easy.
@@ -372,7 +372,7 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 		printk("qnx4: unable to read the superblock\n");
 		goto outnobh;
 	}
-	if ( le32_to_cpu( *(__u32*)bh->b_data ) != QNX4_SUPER_MAGIC ) {
+	if ( le32_to_cpup((__le32*) bh->b_data) != QNX4_SUPER_MAGIC ) {
 		if (!silent)
 			printk("qnx4: wrong fsid in superblock.\n");
 		goto out;

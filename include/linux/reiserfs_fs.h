@@ -1644,11 +1644,18 @@ struct reiserfs_journal_header {
 #define JOURNAL_MAX_TRANS_AGE 30
 #define JOURNAL_PER_BALANCE_CNT (3 * (MAX_HEIGHT-2) + 9)
 #ifdef CONFIG_QUOTA
-#define REISERFS_QUOTA_TRANS_BLOCKS 2	/* We need to update data and inode (atime) */
-#define REISERFS_QUOTA_INIT_BLOCKS (DQUOT_MAX_WRITES*(JOURNAL_PER_BALANCE_CNT+2)+1)	/* 1 balancing, 1 bitmap, 1 data per write + stat data update */
+/* We need to update data and inode (atime) */
+#define REISERFS_QUOTA_TRANS_BLOCKS(s) (REISERFS_SB(s)->s_mount_opt & (1<<REISERFS_QUOTA) ? 2 : 0)
+/* 1 balancing, 1 bitmap, 1 data per write + stat data update */
+#define REISERFS_QUOTA_INIT_BLOCKS(s) (REISERFS_SB(s)->s_mount_opt & (1<<REISERFS_QUOTA) ? \
+(DQUOT_INIT_ALLOC*(JOURNAL_PER_BALANCE_CNT+2)+DQUOT_INIT_REWRITE+1) : 0)
+/* same as with INIT */
+#define REISERFS_QUOTA_DEL_BLOCKS(s) (REISERFS_SB(s)->s_mount_opt & (1<<REISERFS_QUOTA) ? \
+(DQUOT_DEL_ALLOC*(JOURNAL_PER_BALANCE_CNT+2)+DQUOT_DEL_REWRITE+1) : 0)
 #else
-#define REISERFS_QUOTA_TRANS_BLOCKS 0
-#define REISERFS_QUOTA_INIT_BLOCKS 0
+#define REISERFS_QUOTA_TRANS_BLOCKS(s) 0
+#define REISERFS_QUOTA_INIT_BLOCKS(s) 0
+#define REISERFS_QUOTA_DEL_BLOCKS(s) 0
 #endif
 
 /* both of these can be as low as 1, or as high as you want.  The min is the

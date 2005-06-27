@@ -35,6 +35,9 @@ void wake_up_buffer_waiter(void);
 #define TRACE_BEGIN_CODE		8
 #define TRACE_END_CODE			9
  
+#define INVALID_COOKIE ~0UL
+#define NO_COOKIE 0UL
+
 /* add data to the event buffer */
 void add_event_entry(unsigned long data);
  

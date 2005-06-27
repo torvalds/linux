@@ -107,7 +107,7 @@ busid_to_int(char *bus_id)
  *        replaced by a link to the cdev tree.
  */
 static ssize_t
-tape_medium_state_show(struct device *dev, char *buf)
+tape_medium_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tape_device *tdev;
 
@@ -119,7 +119,7 @@ static
 DEVICE_ATTR(medium_state, 0444, tape_medium_state_show, NULL);
 
 static ssize_t
-tape_first_minor_show(struct device *dev, char *buf)
+tape_first_minor_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tape_device *tdev;
 
@@ -131,7 +131,7 @@ static
 DEVICE_ATTR(first_minor, 0444, tape_first_minor_show, NULL);
 
 static ssize_t
-tape_state_show(struct device *dev, char *buf)
+tape_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tape_device *tdev;
 
@@ -144,7 +144,7 @@ static
 DEVICE_ATTR(state, 0444, tape_state_show, NULL);
 
 static ssize_t
-tape_operation_show(struct device *dev, char *buf)
+tape_operation_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tape_device *tdev;
 	ssize_t rc;
@@ -171,7 +171,7 @@ static
 DEVICE_ATTR(operation, 0444, tape_operation_show, NULL);
 
 static ssize_t
-tape_blocksize_show(struct device *dev, char *buf)
+tape_blocksize_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tape_device *tdev;
 
@@ -1186,7 +1186,7 @@ tape_mtop(struct tape_device *device, int mt_op, int mt_count)
 static int
 tape_init (void)
 {
-	TAPE_DBF_AREA = debug_register ( "tape", 1, 2, 4*sizeof(long));
+	TAPE_DBF_AREA = debug_register ( "tape", 2, 2, 4*sizeof(long));
 	debug_register_view(TAPE_DBF_AREA, &debug_sprintf_view);
 #ifdef DBF_LIKE_HELL
 	debug_set_level(TAPE_DBF_AREA, 6);

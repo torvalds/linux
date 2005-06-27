@@ -111,15 +111,15 @@ static int au1100fb_ioctl(struct inode *inode, struct file *file, u_int cmd,
 void au1100_nocursor(struct display *p, int mode, int xx, int yy){};
 
 static struct fb_ops au1100fb_ops = {
-	owner:		THIS_MODULE,
-	fb_get_fix:	fbgen_get_fix,
-	fb_get_var:	fbgen_get_var,
-	fb_set_var:	fbgen_set_var,
-	fb_get_cmap:	fbgen_get_cmap,
-	fb_set_cmap:	fbgen_set_cmap,
-	fb_pan_display: fbgen_pan_display,
-        fb_ioctl:       au1100fb_ioctl,
-	fb_mmap:        au1100fb_mmap,
+	.owner		= THIS_MODULE,
+	.fb_get_fix	= fbgen_get_fix,
+	.fb_get_var	= fbgen_get_var,
+	.fb_set_var	= fbgen_set_var,
+	.fb_get_cmap	= fbgen_get_cmap,
+	.fb_set_cmap	= fbgen_set_cmap,
+	.fb_pan_display	= fbgen_pan_display,
+        .fb_ioctl	= au1100fb_ioctl,
+	.fb_mmap	= au1100fb_mmap,
 };
 
 static void au1100_detect(void)

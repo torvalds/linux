@@ -8,7 +8,7 @@
 
 DOCBOOKS := wanbook.xml z8530book.xml mcabook.xml videobook.xml \
 	    kernel-hacking.xml kernel-locking.xml deviceiobook.xml \
-	    procfs-guide.xml writing_usb_driver.xml scsidrivers.xml \
+	    procfs-guide.xml writing_usb_driver.xml \
 	    sis900.xml kernel-api.xml journal-api.xml lsm.xml usb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml
 
@@ -49,7 +49,7 @@ installmandocs: mandocs
 KERNELDOC = scripts/kernel-doc
 DOCPROC   = scripts/basic/docproc
 
-XMLTOFLAGS = -m Documentation/DocBook/stylesheet.xsl
+XMLTOFLAGS = -m $(srctree)/Documentation/DocBook/stylesheet.xsl
 #XMLTOFLAGS += --skip-validation
 
 ###

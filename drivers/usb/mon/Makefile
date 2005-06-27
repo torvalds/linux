@@ -4,4 +4,4 @@
 
 usbmon-objs	:= mon_main.o mon_stat.o mon_text.o
 
-obj-$(CONFIG_USB_MON)	+= usbmon.o
+obj-$(CONFIG_USB)	+= usbmon.o

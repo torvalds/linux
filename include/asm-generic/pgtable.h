@@ -125,6 +125,9 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 
 #ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
 #define page_test_and_clear_dirty(page) (0)
+#define pte_maybe_dirty(pte)		pte_dirty(pte)
+#else
+#define pte_maybe_dirty(pte)		(1)
 #endif
 
 #ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG

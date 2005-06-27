@@ -358,6 +358,10 @@ running once the system is up.
 	cpia_pp=	[HW,PPT]
 			Format: { parport<nr> | auto | none }
 
+	crashkernel=nn[KMG]@ss[KMG]
+			[KNL] Reserve a chunk of physical memory to
+			hold a kernel to switch to with kexec on panic.
+
 	cs4232=		[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>,<mpuio>,<mpuirq>
 
@@ -447,6 +451,10 @@ running once the system is up.
 			Format: {"as"|"cfq"|"deadline"|"noop"}
 			See Documentation/block/as-iosched.txt
 			and Documentation/block/deadline-iosched.txt for details.
+	elfcorehdr=	[IA-32]
+			Specifies physical address of start of kernel core image
+			elf header.
+			See Documentation/kdump.txt for details.
 
 	enforcing	[SELINUX] Set initial enforcing status.
 			Format: {"0" | "1"}
@@ -548,6 +556,9 @@ running once the system is up.
 
 	i810=		[HW,DRM]
 
+	i8k.ignore_dmi	[HW] Continue probing hardware even if DMI data
+			indicates that the driver is running on unsupported
+			hardware.
 	i8k.force	[HW] Activate i8k driver even if SMM BIOS signature
 			does not match list of supported models.
 	i8k.power_status

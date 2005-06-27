@@ -202,8 +202,6 @@ int xfs_dir_leaf_to_shortform(struct xfs_da_args *args);
 /*
  * Routines used for growing the Btree.
  */
-int	xfs_dir_leaf_create(struct xfs_da_args *args, xfs_dablk_t which_block,
-				   struct xfs_dabuf **bpp);
 int	xfs_dir_leaf_split(struct xfs_da_state *state,
 				  struct xfs_da_state_blk *oldblk,
 				  struct xfs_da_state_blk *newblk);

@@ -440,7 +440,7 @@ static int rtasd(void *unused)
 		goto error;
 	}
 
-	printk(KERN_ERR "RTAS daemon started\n");
+	printk(KERN_INFO "RTAS daemon started\n");
 
 	DEBUG("will sleep for %d jiffies\n", (HZ*60/rtas_event_scan_rate) / 2);
 
@@ -485,7 +485,7 @@ static int __init rtas_init(void)
 	/* No RTAS, only warn if we are on a pSeries box  */
 	if (rtas_token("event-scan") == RTAS_UNKNOWN_SERVICE) {
 		if (systemcfg->platform & PLATFORM_PSERIES)
-			printk(KERN_ERR "rtasd: no event-scan on system\n");
+			printk(KERN_INFO "rtasd: no event-scan on system\n");
 		return 1;
 	}
 

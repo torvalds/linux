@@ -207,6 +207,18 @@ unsigned long get_wchan(struct task_struct *p);
 #endif /* __s390x__ */
 
 /*
+ * Set PSW to specified value.
+ */
+static inline void __load_psw(psw_t psw)
+{
+#ifndef __s390x__
+	asm volatile ("lpsw  0(%0)" : : "a" (&psw), "m" (psw) : "cc" );
+#else
+	asm volatile ("lpswe 0(%0)" : : "a" (&psw), "m" (psw) : "cc" );
+#endif
+}
+
+/*
  * Set PSW mask to specified value, while leaving the
  * PSW addr pointing to the next instruction.
  */
@@ -214,8 +226,8 @@ unsigned long get_wchan(struct task_struct *p);
 static inline void __load_psw_mask (unsigned long mask)
 {
 	unsigned long addr;
-
 	psw_t psw;
+
 	psw.mask = mask;
 
 #ifndef __s390x__
@@ -241,30 +253,8 @@ static inline void __load_psw_mask (unsigned long mask)
  */
 static inline void enabled_wait(void)
 {
-	unsigned long reg;
-	psw_t wait_psw;
-
-	wait_psw.mask = PSW_BASE_BITS | PSW_MASK_IO | PSW_MASK_EXT |
-		PSW_MASK_MCHECK | PSW_MASK_WAIT | PSW_DEFAULT_KEY;
-#ifndef __s390x__
-	asm volatile (
-		"    basr %0,0\n"
-		"0:  la   %0,1f-0b(%0)\n"
-		"    st   %0,4(%1)\n"
-		"    oi   4(%1),0x80\n"
-		"    lpsw 0(%1)\n"
-		"1:"
-		: "=&a" (reg) : "a" (&wait_psw), "m" (wait_psw)
-		: "memory", "cc" );
-#else /* __s390x__ */
-	asm volatile (
-		"    larl  %0,0f\n"
-		"    stg   %0,8(%1)\n"
-		"    lpswe 0(%1)\n"
-		"0:"
-		: "=&a" (reg) : "a" (&wait_psw), "m" (wait_psw)
-		: "memory", "cc" );
-#endif /* __s390x__ */
+	__load_psw_mask(PSW_BASE_BITS | PSW_MASK_IO | PSW_MASK_EXT |
+			PSW_MASK_MCHECK | PSW_MASK_WAIT | PSW_DEFAULT_KEY);
 }
 
 /*
@@ -273,13 +263,11 @@ static inline void enabled_wait(void)
 
 static inline void disabled_wait(unsigned long code)
 {
-        char psw_buffer[2*sizeof(psw_t)];
         unsigned long ctl_buf;
-        psw_t *dw_psw = (psw_t *)(((unsigned long) &psw_buffer+sizeof(psw_t)-1)
-                                  & -sizeof(psw_t));
+        psw_t dw_psw;
 
-        dw_psw->mask = PSW_BASE_BITS | PSW_MASK_WAIT;
-        dw_psw->addr = code;
+        dw_psw.mask = PSW_BASE_BITS | PSW_MASK_WAIT;
+        dw_psw.addr = code;
         /* 
          * Store status and then load disabled wait psw,
          * the processor is dead afterwards
@@ -301,7 +289,7 @@ static inline void disabled_wait(unsigned long code)
                       "    oi    0x1c0,0x10\n" /* fake protection bit */
                       "    lpsw 0(%1)"
                       : "=m" (ctl_buf)
-		      : "a" (dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc" );
+		      : "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc" );
 #else /* __s390x__ */
         asm volatile ("    stctg 0,0,0(%2)\n"
                       "    ni    4(%2),0xef\n" /* switch off protection */
@@ -333,7 +321,7 @@ static inline void disabled_wait(unsigned long code)
                       "    oi    0x384(1),0x10\n" /* fake protection bit */
                       "    lpswe 0(%1)"
                       : "=m" (ctl_buf)
-		      : "a" (dw_psw), "a" (&ctl_buf),
+		      : "a" (&dw_psw), "a" (&ctl_buf),
 		        "m" (dw_psw) : "cc", "0", "1");
 #endif /* __s390x__ */
 }

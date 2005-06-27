@@ -60,7 +60,7 @@
 	.spillsp @priunat,SW(AR_UNAT)+16+(off);					\
 	.spillsp ar.rnat,SW(AR_RNAT)+16+(off);					\
 	.spillsp ar.bspstore,SW(AR_BSPSTORE)+16+(off);				\
-	.spillsp pr,SW(PR)+16+(off))
+	.spillsp pr,SW(PR)+16+(off)
 
 #define DO_SAVE_SWITCH_STACK			\
 	movl r28=1f;				\

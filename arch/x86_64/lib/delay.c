@@ -12,12 +12,19 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <asm/delay.h>
+#include <asm/msr.h>
 
 #ifdef CONFIG_SMP
 #include <asm/smp.h>
 #endif
 
 int x86_udelay_tsc = 0;		/* Delay via TSC */
+
+int read_current_timer(unsigned long *timer_value)
+{
+	rdtscll(*timer_value);
+	return 0;
+}
 
 void __delay(unsigned long loops)
 {
@@ -34,7 +41,7 @@ void __delay(unsigned long loops)
 
 inline void __const_udelay(unsigned long xloops)
 {
-	__delay(((xloops * cpu_data[_smp_processor_id()].loops_per_jiffy) >> 32) * HZ);
+	__delay(((xloops * cpu_data[raw_smp_processor_id()].loops_per_jiffy) >> 32) * HZ);
 }
 
 void __udelay(unsigned long usecs)

@@ -563,8 +563,14 @@ static bits64 estimateDiv128To64( bits64 a0, bits64 a1, bits64 b )
     bits64 rem0, rem1, term0, term1;
     bits64 z;
     if ( b <= a0 ) return LIT64( 0xFFFFFFFFFFFFFFFF );
-    b0 = b>>32;
-    z = ( b0<<32 <= a0 ) ? LIT64( 0xFFFFFFFF00000000 ) : ( a0 / b0 )<<32;
+    b0 = b>>32;  /* hence b0 is 32 bits wide now */
+    if ( b0<<32 <= a0 ) {
+        z = LIT64( 0xFFFFFFFF00000000 );
+    }  else {
+        z = a0;
+        do_div( z, b0 );
+        z <<= 32;
+    }
     mul64To128( b, z, &term0, &term1 );
     sub128( a0, a1, term0, term1, &rem0, &rem1 );
     while ( ( (sbits64) rem0 ) < 0 ) {
@@ -573,7 +579,12 @@ static bits64 estimateDiv128To64( bits64 a0, bits64 a1, bits64 b )
         add128( rem0, rem1, b0, b1, &rem0, &rem1 );
     }
     rem0 = ( rem0<<32 ) | ( rem1>>32 );
-    z |= ( b0<<32 <= rem0 ) ? 0xFFFFFFFF : rem0 / b0;
+    if ( b0<<32 <= rem0 ) {
+        z |= 0xFFFFFFFF;
+    } else {
+        do_div( rem0, b0 );
+        z |= rem0;
+    }
     return z;
 
 }
@@ -601,6 +612,7 @@ static bits32 estimateSqrt32( int16 aExp, bits32 a )
     };
     int8 index;
     bits32 z;
+    bits64 A;
 
     index = ( a>>27 ) & 15;
     if ( aExp & 1 ) {
@@ -614,7 +626,9 @@ static bits32 estimateSqrt32( int16 aExp, bits32 a )
         z = ( 0x20000 <= z ) ? 0xFFFF8000 : ( z<<15 );
         if ( z <= a ) return (bits32) ( ( (sbits32) a )>>1 );
     }
-    return ( (bits32) ( ( ( (bits64) a )<<31 ) / z ) ) + ( z>>1 );
+    A = ( (bits64) a )<<31;
+    do_div( A, z );
+    return ( (bits32) A ) + ( z>>1 );
 
 }
 

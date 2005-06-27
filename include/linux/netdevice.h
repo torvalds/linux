@@ -41,7 +41,7 @@
 struct divert_blk;
 struct vlan_group;
 struct ethtool_ops;
-struct netpoll;
+struct netpoll_info;
 					/* source back-compat hooks */
 #define SET_ETHTOOL_OPS(netdev,ops) \
 	( (netdev)->ethtool_ops = (ops) )
@@ -164,12 +164,6 @@ struct netif_rx_stats
 	unsigned total;
 	unsigned dropped;
 	unsigned time_squeeze;
-	unsigned throttled;
-	unsigned fastroute_hit;
-	unsigned fastroute_success;
-	unsigned fastroute_defer;
-	unsigned fastroute_deferred_out;
-	unsigned fastroute_latency_reduction;
 	unsigned cpu_collision;
 };
 
@@ -204,7 +198,7 @@ struct hh_cache
 	/* cached hardware header; allow for machine alignment needs.        */
 #define HH_DATA_MOD	16
 #define HH_DATA_OFF(__len) \
-	(HH_DATA_MOD - ((__len) & (HH_DATA_MOD - 1)))
+	(HH_DATA_MOD - (((__len - 1) & (HH_DATA_MOD - 1)) + 1))
 #define HH_DATA_ALIGN(__len) \
 	(((__len)+(HH_DATA_MOD-1))&~(HH_DATA_MOD - 1))
 	unsigned long	hh_data[HH_DATA_ALIGN(LL_MAX_HEADER) / sizeof(long)];
@@ -401,7 +395,7 @@ struct net_device
 	} reg_state;
 
 	/* Net device features */
-	int			features;
+	unsigned long		features;
 #define NETIF_F_SG		1	/* Scatter/gather IO. */
 #define NETIF_F_IP_CSUM		2	/* Can checksum only TCP/UDP over IPv4. */
 #define NETIF_F_NO_CSUM		4	/* Does not require checksum. F.e. loopack. */
@@ -468,7 +462,7 @@ struct net_device
 						     unsigned char *haddr);
 	int			(*neigh_setup)(struct net_device *dev, struct neigh_parms *);
 #ifdef CONFIG_NETPOLL
-	struct netpoll		*np;
+	struct netpoll_info	*npinfo;
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	void                    (*poll_controller)(struct net_device *dev);
@@ -562,12 +556,9 @@ static inline int unregister_gifconf(unsigned int family)
 
 struct softnet_data
 {
-	int			throttle;
-	int			cng_level;
-	int			avg_blog;
+	struct net_device	*output_queue;
 	struct sk_buff_head	input_pkt_queue;
 	struct list_head	poll_list;
-	struct net_device	*output_queue;
 	struct sk_buff		*completion_queue;
 
 	struct net_device	backlog_dev;	/* Sorry. 8) */
@@ -913,6 +904,7 @@ extern void		dev_mc_discard(struct net_device *dev);
 extern void		dev_set_promiscuity(struct net_device *dev, int inc);
 extern void		dev_set_allmulti(struct net_device *dev, int inc);
 extern void		netdev_state_change(struct net_device *dev);
+extern void		netdev_features_change(struct net_device *dev);
 /* Load a device via the kmod */
 extern void		dev_load(const char *name);
 extern void		dev_mcast_init(void);
@@ -923,10 +915,6 @@ extern int skb_checksum_help(struct sk_buff *skb, int inward);
 /* rx skb timestamps */
 extern void		net_enable_timestamp(void);
 extern void		net_disable_timestamp(void);
-
-#ifdef CONFIG_SYSCTL
-extern char *net_sysctl_strdup(const char *s);
-#endif
 
 #endif /* __KERNEL__ */
 

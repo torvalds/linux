@@ -83,7 +83,8 @@
 #define IPR			0x08		/* Global interrupt pending register		*/
 						/* Clear pending interrupts by writing a 1 to	*/
 						/* the relevant bits and zero to the other bits	*/
-
+#define IPR_P16V		0x80000000	/* Bit set when the CA0151 P16V chip wishes
+						   to interrupt */
 #define IPR_GPIOMSG		0x20000000	/* GPIO message interrupt (RE'd, still not sure 
 						   which INTE bits enable it)			*/
 
@@ -746,6 +747,7 @@
 						/* Assumes sample lock				*/
 
 /* These three bitfields apply to CDSRCS, GPSRCS, and (except as noted) ZVSRCS.			*/
+#define SRCS_SPDIFVALID		0x04000000	/* SPDIF stream valid				*/
 #define SRCS_SPDIFLOCKED	0x02000000	/* SPDIF stream locked				*/
 #define SRCS_RATELOCKED		0x01000000	/* Sample rate locked				*/
 #define SRCS_ESTSAMPLERATE	0x0007ffff	/* Do not modify this field.			*/
@@ -803,10 +805,26 @@
 #define A_FXWC2			0x75		/* Selects 0x9f-0x80 for FX recording           */
 
 #define A_SPDIF_SAMPLERATE	0x76		/* Set the sample rate of SPDIF output		*/
-#define A_SPDIF_RATE_MASK	0x000000c0
+#define A_SAMPLE_RATE		0x76		/* Various sample rate settings. */
+#define A_SAMPLE_RATE_NOT_USED  0x0ffc111e	/* Bits that are not used and cannot be set. 	*/
+#define A_SAMPLE_RATE_UNKNOWN	0xf0030001	/* Bits that can be set, but have unknown use. 	*/
+#define A_SPDIF_RATE_MASK	0x000000e0	/* Any other values for rates, just use 48000	*/
 #define A_SPDIF_48000		0x00000000
-#define A_SPDIF_44100		0x00000080
+#define A_SPDIF_192000		0x00000020
 #define A_SPDIF_96000		0x00000040
+#define A_SPDIF_44100		0x00000080
+
+#define A_I2S_CAPTURE_RATE_MASK	0x00000e00	/* This sets the capture PCM rate, but it is    */
+#define A_I2S_CAPTURE_48000	0x00000000	/* unclear if this sets the ADC rate as well.	*/
+#define A_I2S_CAPTURE_192000	0x00000200
+#define A_I2S_CAPTURE_96000	0x00000400
+#define A_I2S_CAPTURE_44100	0x00000800
+
+#define A_PCM_RATE_MASK		0x0000e000	/* This sets the playback PCM rate on the P16V	*/
+#define A_PCM_48000		0x00000000
+#define A_PCM_192000		0x00002000
+#define A_PCM_96000		0x00004000
+#define A_PCM_44100		0x00008000
 
 /* 0x77,0x78,0x79 "something i2s-related" - default to 0x01080000 on my audigy 2 ZS --rlrevell	*/
 /* 0x7a, 0x7b - lookup tables */
@@ -1039,28 +1057,28 @@ typedef struct {
 	u32 vendor;
 	u32 device;
 	u32 subsystem;
+	unsigned char revision;
 	unsigned char emu10k1_chip; /* Original SB Live. Not SB Live 24bit. */
 	unsigned char emu10k2_chip; /* Audigy 1 or Audigy 2. */
 	unsigned char ca0102_chip;  /* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
 	unsigned char ca0108_chip;  /* Audigy 2 Value */
 	unsigned char ca0151_chip;  /* P16V */
 	unsigned char spk71;        /* Has 7.1 speakers */
+	unsigned char sblive51;	    /* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
 	unsigned char spdif_bug;    /* Has Spdif phasing bug */
 	unsigned char ac97_chip;    /* Has an AC97 chip */
 	unsigned char ecard;        /* APS EEPROM */
-	char * driver;
-	char * name;
+	const char *driver;
+	const char *name;
+	const char *id;		/* for backward compatibility - can be NULL if not needed */
 } emu_chip_details_t;
 
 struct _snd_emu10k1 {
 	int irq;
 
 	unsigned long port;			/* I/O port number */
-	unsigned int APS: 1,			/* APS flag */
-	    no_ac97: 1,				/* no AC'97 */
-	    tos_link: 1,			/* tos link detected */
-	    rear_ac97: 1,			/* rear channels are on AC'97 */
-	    spk71:1;				/* 7.1 configuration (Audigy 2 ZS) */
+	unsigned int tos_link: 1,		/* tos link detected */
+	    rear_ac97: 1;			/* rear channels are on AC'97 */
 	const emu_chip_details_t *card_capabilities;	/* Contains profile of card capabilities */
 	unsigned int audigy;			/* is Audigy? */
 	unsigned int revision;			/* chip revision */
@@ -1109,7 +1127,10 @@ struct _snd_emu10k1 {
 
 	emu10k1_voice_t voices[NUM_G];
 	emu10k1_voice_t p16v_voices[4];
+	emu10k1_voice_t p16v_capture_voice;
 	int p16v_device_offset;
+	u32 p16v_capture_source;
+	u32 p16v_capture_channel;
 	emu10k1_pcm_mixer_t pcm_mixer[32];
 	emu10k1_pcm_mixer_t efx_pcm_mixer[NUM_EFX_PLAYBACK];
 	snd_kcontrol_t *ctl_send_routing;
@@ -1453,7 +1474,6 @@ int snd_emu10k1_fx8010_unregister_irq_handler(emu10k1_t *emu,
 #endif
 
 typedef struct {
-	unsigned int card;			/* card type */
 	unsigned int internal_tram_size;	/* in samples */
 	unsigned int external_tram_size;	/* in samples */
 	char fxbus_names[16][32];		/* names of FXBUSes */

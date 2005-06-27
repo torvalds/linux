@@ -484,9 +484,6 @@ static void ip6_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	to->nf_bridge = from->nf_bridge;
 	nf_bridge_get(to->nf_bridge);
 #endif
-#ifdef CONFIG_NETFILTER_DEBUG
-	to->nf_debug = from->nf_debug;
-#endif
 #endif
 }
 

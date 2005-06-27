@@ -124,14 +124,16 @@ void irq_unlock(unsigned long flags)
 	spin_unlock_irqrestore(&irq_spinlock, flags);
 }
 
-/*  presently hw_interrupt_type must define (startup || enable) &&
- *  disable && end */
+/* hw_interrupt_type must define (startup || enable) &&
+ * (shutdown || disable) && end */
 static void dummy(unsigned int irq)
 {
 }
 
-static struct hw_interrupt_type SIGIO_irq_type = {
+/* This is used for everything else than the timer. */
+static struct hw_interrupt_type normal_irq_type = {
 	.typename = "SIGIO",
+	.release = free_irq_by_irq_and_dev,
 	.disable = dummy,
 	.enable = dummy,
 	.ack = dummy,
@@ -140,6 +142,7 @@ static struct hw_interrupt_type SIGIO_irq_type = {
 
 static struct hw_interrupt_type SIGVTALRM_irq_type = {
 	.typename = "SIGVTALRM",
+	.release = free_irq_by_irq_and_dev,
 	.shutdown = dummy, /* never called */
 	.disable = dummy,
 	.enable = dummy,
@@ -160,7 +163,7 @@ void __init init_IRQ(void)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &SIGIO_irq_type;
+		irq_desc[i].handler = &normal_irq_type;
 		enable_irq(i);
 	}
 }

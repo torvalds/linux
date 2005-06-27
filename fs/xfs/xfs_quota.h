@@ -96,13 +96,15 @@ typedef struct xfs_dqblk {
  * flags for q_flags field in the dquot.
  */
 #define XFS_DQ_USER		0x0001		/* a user quota */
-/* #define XFS_DQ_PROJ		0x0002		-- project quota (IRIX) */
+#define XFS_DQ_PROJ		0x0002		/* project quota */
 #define XFS_DQ_GROUP		0x0004		/* a group quota */
 #define XFS_DQ_FLOCKED		0x0008		/* flush lock taken */
 #define XFS_DQ_DIRTY		0x0010		/* dquot is dirty */
 #define XFS_DQ_WANT		0x0020		/* for lookup/reclaim race */
 #define XFS_DQ_INACTIVE		0x0040		/* dq off mplist & hashlist */
 #define XFS_DQ_MARKER		0x0080		/* sentinel */
+
+#define XFS_DQ_ALLTYPES		(XFS_DQ_USER|XFS_DQ_PROJ|XFS_DQ_GROUP)
 
 /*
  * In the worst case, when both user and group quotas are on,
@@ -124,7 +126,7 @@ typedef struct xfs_dqblk {
 typedef struct xfs_dq_logformat {
 	__uint16_t		qlf_type;      /* dquot log item type */
 	__uint16_t		qlf_size;      /* size of this item */
-	xfs_dqid_t		qlf_id;	       /* usr/grp id number : 32 bits */
+	xfs_dqid_t		qlf_id;	       /* usr/grp/proj id : 32 bits */
 	__int64_t		qlf_blkno;     /* blkno of dquot buffer */
 	__int32_t		qlf_len;       /* len of dquot buffer */
 	__uint32_t		qlf_boffset;   /* off of dquot in buffer */
@@ -152,9 +154,9 @@ typedef struct xfs_qoff_logformat {
 #define XFS_UQUOTA_ACCT	0x0001  /* user quota accounting ON */
 #define XFS_UQUOTA_ENFD	0x0002  /* user quota limits enforced */
 #define XFS_UQUOTA_CHKD	0x0004  /* quotacheck run on usr quotas */
-#define XFS_PQUOTA_ACCT	0x0008  /* (IRIX) project quota accounting ON */
-#define XFS_GQUOTA_ENFD	0x0010  /* group quota limits enforced */
-#define XFS_GQUOTA_CHKD	0x0020  /* quotacheck run on grp quotas */
+#define XFS_PQUOTA_ACCT	0x0008  /* project quota accounting ON */
+#define XFS_OQUOTA_ENFD	0x0010  /* other (grp/prj) quota limits enforced */
+#define XFS_OQUOTA_CHKD	0x0020  /* quotacheck run on other (grp/prj) quotas */
 #define XFS_GQUOTA_ACCT	0x0040  /* group quota accounting ON */
 
 /*
@@ -162,17 +164,22 @@ typedef struct xfs_qoff_logformat {
  * are in the process of getting turned off. These flags are in m_qflags but
  * never in sb_qflags.
  */
-#define XFS_UQUOTA_ACTIVE	0x0080  /* uquotas are being turned off */
-#define XFS_GQUOTA_ACTIVE	0x0100  /* gquotas are being turned off */
+#define XFS_UQUOTA_ACTIVE	0x0100  /* uquotas are being turned off */
+#define XFS_PQUOTA_ACTIVE	0x0200  /* pquotas are being turned off */
+#define XFS_GQUOTA_ACTIVE	0x0400  /* gquotas are being turned off */
 
 /*
  * Checking XFS_IS_*QUOTA_ON() while holding any inode lock guarantees
  * quota will be not be switched off as long as that inode lock is held.
  */
 #define XFS_IS_QUOTA_ON(mp)	((mp)->m_qflags & (XFS_UQUOTA_ACTIVE | \
-						   XFS_GQUOTA_ACTIVE))
+						   XFS_GQUOTA_ACTIVE | \
+						   XFS_PQUOTA_ACTIVE))
+#define XFS_IS_OQUOTA_ON(mp)	((mp)->m_qflags & (XFS_GQUOTA_ACTIVE | \
+						   XFS_PQUOTA_ACTIVE))
 #define XFS_IS_UQUOTA_ON(mp)	((mp)->m_qflags & XFS_UQUOTA_ACTIVE)
 #define XFS_IS_GQUOTA_ON(mp)	((mp)->m_qflags & XFS_GQUOTA_ACTIVE)
+#define XFS_IS_PQUOTA_ON(mp)	((mp)->m_qflags & XFS_PQUOTA_ACTIVE)
 
 /*
  * Flags to tell various functions what to do. Not all of these are meaningful
@@ -182,7 +189,7 @@ typedef struct xfs_qoff_logformat {
 #define XFS_QMOPT_DQLOCK	0x0000001 /* dqlock */
 #define XFS_QMOPT_DQALLOC	0x0000002 /* alloc dquot ondisk if needed */
 #define XFS_QMOPT_UQUOTA	0x0000004 /* user dquot requested */
-#define XFS_QMOPT_GQUOTA	0x0000008 /* group dquot requested */
+#define XFS_QMOPT_PQUOTA	0x0000008 /* project dquot requested */
 #define XFS_QMOPT_FORCE_RES	0x0000010 /* ignore quota limits */
 #define XFS_QMOPT_DQSUSER	0x0000020 /* don't cache super users dquot */
 #define XFS_QMOPT_SBVERSION	0x0000040 /* change superblock version num */
@@ -192,6 +199,7 @@ typedef struct xfs_qoff_logformat {
 #define XFS_QMOPT_DOWARN        0x0000400 /* increase warning cnt if necessary */
 #define XFS_QMOPT_ILOCKED	0x0000800 /* inode is already locked (excl) */
 #define XFS_QMOPT_DQREPAIR	0x0001000 /* repair dquot, if damaged. */
+#define XFS_QMOPT_GQUOTA	0x0002000 /* group dquot requested */
 
 /*
  * flags to xfs_trans_mod_dquot to indicate which field needs to be
@@ -231,7 +239,8 @@ typedef struct xfs_qoff_logformat {
 #define XFS_TRANS_DQ_DELRTBCOUNT XFS_QMOPT_DELRTBCOUNT
 
 
-#define XFS_QMOPT_QUOTALL	(XFS_QMOPT_UQUOTA|XFS_QMOPT_GQUOTA)
+#define XFS_QMOPT_QUOTALL	\
+		(XFS_QMOPT_UQUOTA | XFS_QMOPT_PQUOTA | XFS_QMOPT_GQUOTA)
 #define XFS_QMOPT_RESBLK_MASK	(XFS_QMOPT_RES_REGBLKS | XFS_QMOPT_RES_RTBLKS)
 
 #ifdef __KERNEL__
@@ -246,21 +255,33 @@ typedef struct xfs_qoff_logformat {
  */
 #define XFS_NOT_DQATTACHED(mp, ip) ((XFS_IS_UQUOTA_ON(mp) &&\
 				     (ip)->i_udquot == NULL) || \
-				    (XFS_IS_GQUOTA_ON(mp) && \
+				    (XFS_IS_OQUOTA_ON(mp) && \
 				     (ip)->i_gdquot == NULL))
 
-#define XFS_QM_NEED_QUOTACHECK(mp) ((XFS_IS_UQUOTA_ON(mp) && \
-				     (mp->m_sb.sb_qflags & \
-				      XFS_UQUOTA_CHKD) == 0) || \
-				    (XFS_IS_GQUOTA_ON(mp) && \
-				     (mp->m_sb.sb_qflags & \
-				      XFS_GQUOTA_CHKD) == 0))
+#define XFS_QM_NEED_QUOTACHECK(mp) \
+	((XFS_IS_UQUOTA_ON(mp) && \
+		(mp->m_sb.sb_qflags & XFS_UQUOTA_CHKD) == 0) || \
+	 (XFS_IS_GQUOTA_ON(mp) && \
+		((mp->m_sb.sb_qflags & XFS_OQUOTA_CHKD) == 0 || \
+		 (mp->m_sb.sb_qflags & XFS_PQUOTA_ACCT))) || \
+	 (XFS_IS_PQUOTA_ON(mp) && \
+		((mp->m_sb.sb_qflags & XFS_OQUOTA_CHKD) == 0 || \
+		 (mp->m_sb.sb_qflags & XFS_GQUOTA_ACCT))))
+
+#define XFS_MOUNT_QUOTA_SET1	(XFS_UQUOTA_ACCT|XFS_UQUOTA_ENFD|\
+				 XFS_UQUOTA_CHKD|XFS_PQUOTA_ACCT|\
+				 XFS_OQUOTA_ENFD|XFS_OQUOTA_CHKD)
+
+#define XFS_MOUNT_QUOTA_SET2	(XFS_UQUOTA_ACCT|XFS_UQUOTA_ENFD|\
+				 XFS_UQUOTA_CHKD|XFS_GQUOTA_ACCT|\
+				 XFS_OQUOTA_ENFD|XFS_OQUOTA_CHKD)
 
 #define XFS_MOUNT_QUOTA_ALL	(XFS_UQUOTA_ACCT|XFS_UQUOTA_ENFD|\
-				 XFS_UQUOTA_CHKD|XFS_GQUOTA_ACCT|\
-				 XFS_GQUOTA_ENFD|XFS_GQUOTA_CHKD)
+				 XFS_UQUOTA_CHKD|XFS_PQUOTA_ACCT|\
+				 XFS_OQUOTA_ENFD|XFS_OQUOTA_CHKD|\
+				 XFS_GQUOTA_ACCT)
 #define XFS_MOUNT_QUOTA_MASK	(XFS_MOUNT_QUOTA_ALL | XFS_UQUOTA_ACTIVE | \
-				 XFS_GQUOTA_ACTIVE)
+				 XFS_GQUOTA_ACTIVE | XFS_PQUOTA_ACTIVE)
 
 
 /*
@@ -331,15 +352,8 @@ typedef struct xfs_dqtrxops {
 #define XFS_TRANS_UNRESERVE_AND_MOD_DQUOTS(mp, tp) \
 	XFS_DQTRXOP_VOID(mp, tp, qo_unreserve_and_mod_dquots)
 
-#define XFS_TRANS_RESERVE_BLKQUOTA(mp, tp, ip, nblks) \
-	XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, tp, ip, nblks, 0, \
-				XFS_QMOPT_RES_REGBLKS)
-#define XFS_TRANS_RESERVE_BLKQUOTA_FORCE(mp, tp, ip, nblks) \
-	XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, tp, ip, nblks, 0, \
-				XFS_QMOPT_RES_REGBLKS | XFS_QMOPT_FORCE_RES)
-#define XFS_TRANS_UNRESERVE_BLKQUOTA(mp, tp, ip, nblks) \
-	XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, tp, ip, -(nblks), 0, \
-				XFS_QMOPT_RES_REGBLKS)
+#define XFS_TRANS_UNRESERVE_QUOTA_NBLKS(mp, tp, ip, nblks, ninos, flags) \
+	XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, tp, ip, -(nblks), -(ninos), flags)
 #define XFS_TRANS_RESERVE_QUOTA(mp, tp, ud, gd, nb, ni, f) \
 	XFS_TRANS_RESERVE_QUOTA_BYDQUOTS(mp, tp, ud, gd, nb, ni, \
 				f | XFS_QMOPT_RES_REGBLKS)

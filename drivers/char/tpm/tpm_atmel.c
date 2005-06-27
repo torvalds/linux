@@ -22,17 +22,23 @@
 #include "tpm.h"
 
 /* Atmel definitions */
-#define	TPM_ATML_BASE			0x400
+enum tpm_atmel_addr {
+	TPM_ATMEL_BASE_ADDR_LO = 0x08,
+	TPM_ATMEL_BASE_ADDR_HI = 0x09
+};
 
 /* write status bits */
-#define	ATML_STATUS_ABORT		0x01
-#define	ATML_STATUS_LASTBYTE		0x04
-
+enum tpm_atmel_write_status {
+	ATML_STATUS_ABORT = 0x01,
+	ATML_STATUS_LASTBYTE = 0x04
+};
 /* read status bits */
-#define	ATML_STATUS_BUSY		0x01
-#define	ATML_STATUS_DATA_AVAIL		0x02
-#define	ATML_STATUS_REWRITE		0x04
-
+enum tpm_atmel_read_status {
+	ATML_STATUS_BUSY = 0x01,
+	ATML_STATUS_DATA_AVAIL = 0x02,
+	ATML_STATUS_REWRITE = 0x04,
+	ATML_STATUS_READY = 0x08
+};
 
 static int tpm_atml_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 {
@@ -121,13 +127,29 @@ static struct file_operations atmel_ops = {
 	.release = tpm_release,
 };
 
+static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
+static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
+static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
+static DEVICE_ATTR(cancel, S_IWUSR |S_IWGRP, NULL, tpm_store_cancel);
+
+static struct attribute* atmel_attrs[] = {
+	&dev_attr_pubek.attr,
+	&dev_attr_pcrs.attr,
+	&dev_attr_caps.attr,
+	&dev_attr_cancel.attr,
+	0,
+};
+
+static struct attribute_group atmel_attr_grp = { .attrs = atmel_attrs };
+
 static struct tpm_vendor_specific tpm_atmel = {
 	.recv = tpm_atml_recv,
 	.send = tpm_atml_send,
 	.cancel = tpm_atml_cancel,
 	.req_complete_mask = ATML_STATUS_BUSY | ATML_STATUS_DATA_AVAIL,
 	.req_complete_val = ATML_STATUS_DATA_AVAIL,
-	.base = TPM_ATML_BASE,
+	.req_canceled = ATML_STATUS_READY,
+	.attr_group = &atmel_attr_grp,
 	.miscdev = { .fops = &atmel_ops, },
 };
 
@@ -136,27 +158,29 @@ static int __devinit tpm_atml_init(struct pci_dev *pci_dev,
 {
 	u8 version[4];
 	int rc = 0;
+	int lo, hi;
 
 	if (pci_enable_device(pci_dev))
 		return -EIO;
 
-	if (tpm_lpc_bus_init(pci_dev, TPM_ATML_BASE)) {
-		rc = -ENODEV;
-		goto out_err;
-	}
+	lo = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_LO);
+	hi = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_HI);
+
+	tpm_atmel.base = (hi<<8)|lo;
+	dev_dbg( &pci_dev->dev, "Operating with base: 0x%x\n", tpm_atmel.base);
 
 	/* verify that it is an Atmel part */
-	if (tpm_read_index(4) != 'A' || tpm_read_index(5) != 'T'
-	    || tpm_read_index(6) != 'M' || tpm_read_index(7) != 'L') {
+	if (tpm_read_index(TPM_ADDR, 4) != 'A' || tpm_read_index(TPM_ADDR, 5) != 'T'
+	    || tpm_read_index(TPM_ADDR, 6) != 'M' || tpm_read_index(TPM_ADDR, 7) != 'L') {
 		rc = -ENODEV;
 		goto out_err;
 	}
 
 	/* query chip for its version number */
-	if ((version[0] = tpm_read_index(0x00)) != 0xFF) {
-		version[1] = tpm_read_index(0x01);
-		version[2] = tpm_read_index(0x02);
-		version[3] = tpm_read_index(0x03);
+	if ((version[0] = tpm_read_index(TPM_ADDR, 0x00)) != 0xFF) {
+		version[1] = tpm_read_index(TPM_ADDR, 0x01);
+		version[2] = tpm_read_index(TPM_ADDR, 0x02);
+		version[3] = tpm_read_index(TPM_ADDR, 0x03);
 	} else {
 		dev_info(&pci_dev->dev, "version query failed\n");
 		rc = -ENODEV;
@@ -183,6 +207,7 @@ static struct pci_device_id tpm_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_12)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_0)},
 	{PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_LPC)},
+	{PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB6LPC)},
 	{0,}
 };
 

@@ -31,6 +31,60 @@ static void jffs_free_fm(struct jffs_fm *n);
 extern kmem_cache_t     *fm_cache;
 extern kmem_cache_t     *node_cache;
 
+#if CONFIG_JFFS_FS_VERBOSE > 0
+void
+jffs_print_fmcontrol(struct jffs_fmcontrol *fmc)
+{
+	D(printk("struct jffs_fmcontrol: 0x%p\n", fmc));
+	D(printk("{\n"));
+	D(printk("        %u, /* flash_size  */\n", fmc->flash_size));
+	D(printk("        %u, /* used_size  */\n", fmc->used_size));
+	D(printk("        %u, /* dirty_size  */\n", fmc->dirty_size));
+	D(printk("        %u, /* free_size  */\n", fmc->free_size));
+	D(printk("        %u, /* sector_size  */\n", fmc->sector_size));
+	D(printk("        %u, /* min_free_size  */\n", fmc->min_free_size));
+	D(printk("        %u, /* max_chunk_size  */\n", fmc->max_chunk_size));
+	D(printk("        0x%p, /* mtd  */\n", fmc->mtd));
+	D(printk("        0x%p, /* head  */    "
+		 "(head->offset = 0x%08x)\n",
+		 fmc->head, (fmc->head ? fmc->head->offset : 0)));
+	D(printk("        0x%p, /* tail  */    "
+		 "(tail->offset + tail->size = 0x%08x)\n",
+		 fmc->tail,
+		 (fmc->tail ? fmc->tail->offset + fmc->tail->size : 0)));
+	D(printk("        0x%p, /* head_extra  */\n", fmc->head_extra));
+	D(printk("        0x%p, /* tail_extra  */\n", fmc->tail_extra));
+	D(printk("}\n"));
+}
+#endif  /*  CONFIG_JFFS_FS_VERBOSE > 0  */
+
+#if CONFIG_JFFS_FS_VERBOSE > 2
+static void
+jffs_print_fm(struct jffs_fm *fm)
+{
+	D(printk("struct jffs_fm: 0x%p\n", fm));
+	D(printk("{\n"));
+	D(printk("       0x%08x, /* offset  */\n", fm->offset));
+	D(printk("       %u, /* size  */\n", fm->size));
+	D(printk("       0x%p, /* prev  */\n", fm->prev));
+	D(printk("       0x%p, /* next  */\n", fm->next));
+	D(printk("       0x%p, /* nodes  */\n", fm->nodes));
+	D(printk("}\n"));
+}
+#endif  /*  CONFIG_JFFS_FS_VERBOSE > 2  */
+
+#if 0
+void
+jffs_print_node_ref(struct jffs_node_ref *ref)
+{
+	D(printk("struct jffs_node_ref: 0x%p\n", ref));
+	D(printk("{\n"));
+	D(printk("       0x%p, /* node  */\n", ref->node));
+	D(printk("       0x%p, /* next  */\n", ref->next));
+	D(printk("}\n"));
+}
+#endif  /*  0  */
+
 /* This function creates a new shiny flash memory control structure.  */
 struct jffs_fmcontrol *
 jffs_build_begin(struct jffs_control *c, int unit)
@@ -742,54 +796,3 @@ int jffs_get_node_inuse(void)
 {
 	return no_jffs_node;
 }
-
-void
-jffs_print_fmcontrol(struct jffs_fmcontrol *fmc)
-{
-	D(printk("struct jffs_fmcontrol: 0x%p\n", fmc));
-	D(printk("{\n"));
-	D(printk("        %u, /* flash_size  */\n", fmc->flash_size));
-	D(printk("        %u, /* used_size  */\n", fmc->used_size));
-	D(printk("        %u, /* dirty_size  */\n", fmc->dirty_size));
-	D(printk("        %u, /* free_size  */\n", fmc->free_size));
-	D(printk("        %u, /* sector_size  */\n", fmc->sector_size));
-	D(printk("        %u, /* min_free_size  */\n", fmc->min_free_size));
-	D(printk("        %u, /* max_chunk_size  */\n", fmc->max_chunk_size));
-	D(printk("        0x%p, /* mtd  */\n", fmc->mtd));
-	D(printk("        0x%p, /* head  */    "
-		 "(head->offset = 0x%08x)\n",
-		 fmc->head, (fmc->head ? fmc->head->offset : 0)));
-	D(printk("        0x%p, /* tail  */    "
-		 "(tail->offset + tail->size = 0x%08x)\n",
-		 fmc->tail,
-		 (fmc->tail ? fmc->tail->offset + fmc->tail->size : 0)));
-	D(printk("        0x%p, /* head_extra  */\n", fmc->head_extra));
-	D(printk("        0x%p, /* tail_extra  */\n", fmc->tail_extra));
-	D(printk("}\n"));
-}
-
-void
-jffs_print_fm(struct jffs_fm *fm)
-{
-	D(printk("struct jffs_fm: 0x%p\n", fm));
-	D(printk("{\n"));
-	D(printk("       0x%08x, /* offset  */\n", fm->offset));
-	D(printk("       %u, /* size  */\n", fm->size));
-	D(printk("       0x%p, /* prev  */\n", fm->prev));
-	D(printk("       0x%p, /* next  */\n", fm->next));
-	D(printk("       0x%p, /* nodes  */\n", fm->nodes));
-	D(printk("}\n"));
-}
-
-#if 0
-void
-jffs_print_node_ref(struct jffs_node_ref *ref)
-{
-	D(printk("struct jffs_node_ref: 0x%p\n", ref));
-	D(printk("{\n"));
-	D(printk("       0x%p, /* node  */\n", ref->node));
-	D(printk("       0x%p, /* next  */\n", ref->next));
-	D(printk("}\n"));
-}
-#endif  /*  0  */
-

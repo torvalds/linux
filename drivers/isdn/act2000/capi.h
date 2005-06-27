@@ -350,7 +350,6 @@ actcapi_nextsmsg(act2000_card *card)
 extern int actcapi_chkhdr(act2000_card *, actcapi_msghdr *);
 extern int actcapi_listen_req(act2000_card *);
 extern int actcapi_manufacturer_req_net(act2000_card *);
-extern int actcapi_manufacturer_req_v42(act2000_card *, ulong);
 extern int actcapi_manufacturer_req_errh(act2000_card *);
 extern int actcapi_manufacturer_req_msn(act2000_card *);
 extern int actcapi_connect_req(act2000_card *, act2000_chan *, char *, char, int, int);

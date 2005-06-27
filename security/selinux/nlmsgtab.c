@@ -63,6 +63,8 @@ static struct nlmsg_perm nlmsg_route_perms[] =
 	{ RTM_GETPREFIX,	NETLINK_ROUTE_SOCKET__NLMSG_READ  },
 	{ RTM_GETMULTICAST,	NETLINK_ROUTE_SOCKET__NLMSG_READ  },
 	{ RTM_GETANYCAST,	NETLINK_ROUTE_SOCKET__NLMSG_READ  },
+	{ RTM_GETNEIGHTBL,	NETLINK_ROUTE_SOCKET__NLMSG_READ  },
+	{ RTM_SETNEIGHTBL,	NETLINK_ROUTE_SOCKET__NLMSG_WRITE },
 };
 
 static struct nlmsg_perm nlmsg_firewall_perms[] =
@@ -97,6 +99,7 @@ static struct nlmsg_perm nlmsg_audit_perms[] =
 	{ AUDIT_ADD,		NETLINK_AUDIT_SOCKET__NLMSG_WRITE    },
 	{ AUDIT_DEL,		NETLINK_AUDIT_SOCKET__NLMSG_WRITE    },
 	{ AUDIT_USER,		NETLINK_AUDIT_SOCKET__NLMSG_RELAY    },
+	{ AUDIT_SIGNAL_INFO,	NETLINK_AUDIT_SOCKET__NLMSG_READ     },
 };
 
 
@@ -141,8 +144,13 @@ int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm)
 		break;
 
 	case SECCLASS_NETLINK_AUDIT_SOCKET:
-		err = nlmsg_perm(nlmsg_type, perm, nlmsg_audit_perms,
-				 sizeof(nlmsg_audit_perms));
+		if (nlmsg_type >= AUDIT_FIRST_USER_MSG &&
+		    nlmsg_type <= AUDIT_LAST_USER_MSG) {
+			*perm = NETLINK_AUDIT_SOCKET__NLMSG_RELAY;
+		} else {
+			err = nlmsg_perm(nlmsg_type, perm, nlmsg_audit_perms,
+					 sizeof(nlmsg_audit_perms));
+		}
 		break;
 
 	/* No messaging from userspace, or class unknown/unhandled */

@@ -21,6 +21,7 @@
 #include <linux/vfs.h>
 #include <asm/uaccess.h>
 #include <linux/fs.h>
+#include <linux/personality.h>
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
 
@@ -807,7 +808,9 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 
 	/* NB: we're sure to have correct a_ops only after f_op->open */
 	if (f->f_flags & O_DIRECT) {
-		if (!f->f_mapping->a_ops || !f->f_mapping->a_ops->direct_IO) {
+		if (!f->f_mapping->a_ops ||
+		    ((!f->f_mapping->a_ops->direct_IO) &&
+		    (!f->f_mapping->a_ops->get_xip_page))) {
 			fput(f);
 			f = ERR_PTR(-EINVAL);
 		}
@@ -933,31 +936,27 @@ EXPORT_SYMBOL(fd_install);
 asmlinkage long sys_open(const char __user * filename, int flags, int mode)
 {
 	char * tmp;
-	int fd, error;
+	int fd;
 
-#if BITS_PER_LONG != 32
-	flags |= O_LARGEFILE;
-#endif
+	if (force_o_largefile())
+		flags |= O_LARGEFILE;
+
 	tmp = getname(filename);
 	fd = PTR_ERR(tmp);
 	if (!IS_ERR(tmp)) {
 		fd = get_unused_fd();
 		if (fd >= 0) {
 			struct file *f = filp_open(tmp, flags, mode);
-			error = PTR_ERR(f);
-			if (IS_ERR(f))
-				goto out_error;
-			fd_install(fd, f);
+			if (IS_ERR(f)) {
+				put_unused_fd(fd);
+				fd = PTR_ERR(f);
+			} else {
+				fd_install(fd, f);
+			}
 		}
-out:
 		putname(tmp);
 	}
 	return fd;
-
-out_error:
-	put_unused_fd(fd);
-	fd = error;
-	goto out;
 }
 EXPORT_SYMBOL_GPL(sys_open);
 
@@ -980,23 +979,15 @@ asmlinkage long sys_creat(const char __user * pathname, int mode)
  */
 int filp_close(struct file *filp, fl_owner_t id)
 {
-	int retval;
-
-	/* Report and clear outstanding errors */
-	retval = filp->f_error;
-	if (retval)
-		filp->f_error = 0;
+	int retval = 0;
 
 	if (!file_count(filp)) {
 		printk(KERN_ERR "VFS: Close: file count is 0\n");
-		return retval;
+		return 0;
 	}
 
-	if (filp->f_op && filp->f_op->flush) {
-		int err = filp->f_op->flush(filp);
-		if (!retval)
-			retval = err;
-	}
+	if (filp->f_op && filp->f_op->flush)
+		retval = filp->f_op->flush(filp);
 
 	dnotify_flush(filp, id);
 	locks_remove_posix(filp, id);

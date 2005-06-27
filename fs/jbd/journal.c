@@ -167,7 +167,7 @@ loop:
 	}
 
 	wake_up(&journal->j_wait_done_commit);
-	if (current->flags & PF_FREEZE) {
+	if (freezing(current)) {
 		/*
 		 * The simpler the better. Flushing journal isn't a
 		 * good idea, because that depends on threads that may
@@ -175,7 +175,7 @@ loop:
 		 */
 		jbd_debug(1, "Now suspending kjournald\n");
 		spin_unlock(&journal->j_state_lock);
-		refrigerator(PF_FREEZE);
+		refrigerator();
 		spin_lock(&journal->j_state_lock);
 	} else {
 		/*

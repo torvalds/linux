@@ -137,6 +137,24 @@ config CHR_DEV_SG
 
 	  If unsure, say N.
 
+config CHR_DEV_SCH
+	tristate "SCSI media changer support"
+	depends on SCSI
+	---help---
+	  This is a driver for SCSI media changers.  Most common devices are
+	  tape libraries and MOD/CDROM jukeboxes.  *Real* jukeboxes, you
+	  don't need this for those tiny 6-slot cdrom changers.  Media
+	  changers are listed as "Type: Medium Changer" in /proc/scsi/scsi.
+	  If you have such hardware and want to use it with linux, say Y
+	  here.  Check <file:Documentation/scsi-changer.txt> for details.
+	
+	  If you want to compile this as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want),
+	  say M here and read <file:Documentation/modules.txt> and
+	  <file:Documentation/scsi.txt>. The module will be called ch.o.
+	  If unsure, say N.
+	
+
 comment "Some SCSI devices (e.g. CD jukebox) support multiple LUNs"
 	depends on SCSI
 
@@ -1192,28 +1210,6 @@ config SCSI_PAS16
 	  To compile this driver as a module, choose M here: the
 	  module will be called pas16.
 
-config SCSI_PCI2000
-	tristate "PCI2000 support"
-	depends on PCI && SCSI && BROKEN
-	help
-	  This is support for the PCI2000I EIDE interface card which acts as a
-	  SCSI host adapter.  Please read the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pci2000.
-
-config SCSI_PCI2220I
-	tristate "PCI2220i support"
-	depends on PCI && SCSI && BROKEN
-	help
-	  This is support for the PCI2220i EIDE interface card which acts as a
-	  SCSI host adapter.  Please read the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pci2220i.
-
 config SCSI_PSI240I
 	tristate "PSI240i support"
 	depends on ISA && SCSI
@@ -1752,7 +1748,7 @@ config SCSI_NCR53C7xx_FAST
 
 config SUN3_SCSI
 	tristate "Sun3 NCR5380 SCSI"
-	depends on SUN3 && SCSI
+	depends on SUN3 && SCSI && BROKEN
 	help
 	  This option will enable support for the OBIO (onboard io) NCR5380
 	  SCSI controller found in the Sun 3/50 and 3/60, as well as for

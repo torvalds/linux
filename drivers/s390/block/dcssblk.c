@@ -35,26 +35,29 @@
 static int dcssblk_open(struct inode *inode, struct file *filp);
 static int dcssblk_release(struct inode *inode, struct file *filp);
 static int dcssblk_make_request(struct request_queue *q, struct bio *bio);
+static int dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
+				 unsigned long *data);
 
 static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
 
 static int dcssblk_major;
 static struct block_device_operations dcssblk_devops = {
-	.owner   = THIS_MODULE,
-	.open    = dcssblk_open,
-	.release = dcssblk_release,
+	.owner   	= THIS_MODULE,
+	.open    	= dcssblk_open,
+	.release 	= dcssblk_release,
+	.direct_access 	= dcssblk_direct_access,
 };
 
-static ssize_t dcssblk_add_store(struct device * dev, const char * buf,
+static ssize_t dcssblk_add_store(struct device * dev, struct device_attribute *attr, const char * buf,
 				  size_t count);
-static ssize_t dcssblk_remove_store(struct device * dev, const char * buf,
+static ssize_t dcssblk_remove_store(struct device * dev, struct device_attribute *attr, const char * buf,
 				  size_t count);
-static ssize_t dcssblk_save_store(struct device * dev, const char * buf,
+static ssize_t dcssblk_save_store(struct device * dev, struct device_attribute *attr, const char * buf,
 				  size_t count);
-static ssize_t dcssblk_save_show(struct device *dev, char *buf);
-static ssize_t dcssblk_shared_store(struct device * dev, const char * buf,
+static ssize_t dcssblk_save_show(struct device *dev, struct device_attribute *attr, char *buf);
+static ssize_t dcssblk_shared_store(struct device * dev, struct device_attribute *attr, const char * buf,
 				  size_t count);
-static ssize_t dcssblk_shared_show(struct device *dev, char *buf);
+static ssize_t dcssblk_shared_show(struct device *dev, struct device_attribute *attr, char *buf);
 
 static DEVICE_ATTR(add, S_IWUSR, NULL, dcssblk_add_store);
 static DEVICE_ATTR(remove, S_IWUSR, NULL, dcssblk_remove_store);
@@ -195,7 +198,7 @@ dcssblk_segment_warn(int rc, char* seg_name)
  * operation (show + store)
  */
 static ssize_t
-dcssblk_shared_show(struct device *dev, char *buf)
+dcssblk_shared_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct dcssblk_dev_info *dev_info;
 
@@ -204,7 +207,7 @@ dcssblk_shared_show(struct device *dev, char *buf)
 }
 
 static ssize_t
-dcssblk_shared_store(struct device *dev, const char *inbuf, size_t count)
+dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const char *inbuf, size_t count)
 {
 	struct dcssblk_dev_info *dev_info;
 	int rc;
@@ -288,7 +291,7 @@ out:
  * (show + store)
  */
 static ssize_t
-dcssblk_save_show(struct device *dev, char *buf)
+dcssblk_save_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct dcssblk_dev_info *dev_info;
 
@@ -297,7 +300,7 @@ dcssblk_save_show(struct device *dev, char *buf)
 }
 
 static ssize_t
-dcssblk_save_store(struct device *dev, const char *inbuf, size_t count)
+dcssblk_save_store(struct device *dev, struct device_attribute *attr, const char *inbuf, size_t count)
 {
 	struct dcssblk_dev_info *dev_info;
 
@@ -343,7 +346,7 @@ dcssblk_save_store(struct device *dev, const char *inbuf, size_t count)
  * device attribute for adding devices
  */
 static ssize_t
-dcssblk_add_store(struct device *dev, const char *buf, size_t count)
+dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int rc, i;
 	struct dcssblk_dev_info *dev_info;
@@ -517,7 +520,7 @@ out_nobuf:
  * device attribute for removing devices
  */
 static ssize_t
-dcssblk_remove_store(struct device *dev, const char *buf, size_t count)
+dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct dcssblk_dev_info *dev_info;
 	int rc, i;
@@ -641,6 +644,20 @@ dcssblk_make_request(request_queue_t *q, struct bio *bio)
 		/* Request beyond end of DCSS segment. */
 		goto fail;
 	}
+	/* verify data transfer direction */
+	if (dev_info->is_shared) {
+		switch (dev_info->segment_type) {
+		case SEG_TYPE_SR:
+		case SEG_TYPE_ER:
+		case SEG_TYPE_SC:
+			/* cannot write to these segments */
+			if (bio_data_dir(bio) == WRITE) {
+				PRINT_WARN("rejecting write to ro segment %s\n", dev_info->dev.bus_id);
+				goto fail;
+			}
+		}
+	}
+
 	index = (bio->bi_sector >> 3);
 	bio_for_each_segment(bvec, bio, i) {
 		page_addr = (unsigned long)
@@ -661,7 +678,26 @@ dcssblk_make_request(request_queue_t *q, struct bio *bio)
 	bio_endio(bio, bytes_done, 0);
 	return 0;
 fail:
-	bio_io_error(bio, bytes_done);
+	bio_io_error(bio, bio->bi_size);
+	return 0;
+}
+
+static int
+dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
+			unsigned long *data)
+{
+	struct dcssblk_dev_info *dev_info;
+	unsigned long pgoff;
+
+	dev_info = bdev->bd_disk->private_data;
+	if (!dev_info)
+		return -ENODEV;
+	if (secnum % (PAGE_SIZE/512))
+		return -EINVAL;
+	pgoff = secnum / (PAGE_SIZE / 512);
+	if ((pgoff+1)*PAGE_SIZE-1 > dev_info->end - dev_info->start)
+		return -ERANGE;
+	*data = (unsigned long) (dev_info->start+pgoff*PAGE_SIZE);
 	return 0;
 }
 
@@ -682,7 +718,7 @@ dcssblk_check_params(void)
 			buf[j-i] = dcssblk_segments[j];
 		}
 		buf[j-i] = '\0';
-		rc = dcssblk_add_store(dcssblk_root_dev, buf, j-i);
+		rc = dcssblk_add_store(dcssblk_root_dev, NULL, buf, j-i);
 		if ((rc >= 0) && (dcssblk_segments[j] == '(')) {
 			for (k = 0; buf[k] != '\0'; k++)
 				buf[k] = toupper(buf[k]);
@@ -692,7 +728,7 @@ dcssblk_check_params(void)
 				up_read(&dcssblk_devices_sem);
 				if (dev_info)
 					dcssblk_shared_store(&dev_info->dev,
-							     "0\n", 2);
+							     NULL, "0\n", 2);
 			}
 		}
 		while ((dcssblk_segments[j] != ',') &&

@@ -253,24 +253,6 @@ xfs_trans_ihold(
 	ip->i_itemp->ili_flags |= XFS_ILI_HOLD;
 }
 
-/*
- * Cancel the previous inode hold request made on this inode
- * for this transaction.
- */
-/*ARGSUSED*/
-void
-xfs_trans_ihold_release(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*ip)
-{
-	ASSERT(ip->i_transp == tp);
-	ASSERT(ip->i_itemp != NULL);
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE));
-	ASSERT(ip->i_itemp->ili_flags & XFS_ILI_HOLD);
-
-	ip->i_itemp->ili_flags &= ~XFS_ILI_HOLD;
-}
-
 
 /*
  * This is called to mark the fields indicated in fieldmask as needing

@@ -7639,31 +7639,31 @@ static int
 qeth_register_dbf_views(void)
 {
 	qeth_dbf_setup = debug_register(QETH_DBF_SETUP_NAME,
-					QETH_DBF_SETUP_INDEX,
+					QETH_DBF_SETUP_PAGES,
 					QETH_DBF_SETUP_NR_AREAS,
 					QETH_DBF_SETUP_LEN);
 	qeth_dbf_misc = debug_register(QETH_DBF_MISC_NAME,
-				       QETH_DBF_MISC_INDEX,
+				       QETH_DBF_MISC_PAGES,
 				       QETH_DBF_MISC_NR_AREAS,
 				       QETH_DBF_MISC_LEN);
 	qeth_dbf_data = debug_register(QETH_DBF_DATA_NAME,
-				       QETH_DBF_DATA_INDEX,
+				       QETH_DBF_DATA_PAGES,
 				       QETH_DBF_DATA_NR_AREAS,
 				       QETH_DBF_DATA_LEN);
 	qeth_dbf_control = debug_register(QETH_DBF_CONTROL_NAME,
-					  QETH_DBF_CONTROL_INDEX,
+					  QETH_DBF_CONTROL_PAGES,
 					  QETH_DBF_CONTROL_NR_AREAS,
 					  QETH_DBF_CONTROL_LEN);
 	qeth_dbf_sense = debug_register(QETH_DBF_SENSE_NAME,
-					QETH_DBF_SENSE_INDEX,
+					QETH_DBF_SENSE_PAGES,
 					QETH_DBF_SENSE_NR_AREAS,
 					QETH_DBF_SENSE_LEN);
 	qeth_dbf_qerr = debug_register(QETH_DBF_QERR_NAME,
-				       QETH_DBF_QERR_INDEX,
+				       QETH_DBF_QERR_PAGES,
 				       QETH_DBF_QERR_NR_AREAS,
 				       QETH_DBF_QERR_LEN);
 	qeth_dbf_trace = debug_register(QETH_DBF_TRACE_NAME,
-					QETH_DBF_TRACE_INDEX,
+					QETH_DBF_TRACE_PAGES,
 					QETH_DBF_TRACE_NR_AREAS,
 					QETH_DBF_TRACE_LEN);
 

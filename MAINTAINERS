@@ -73,7 +73,7 @@ S: Status, one of the following:
 3C359 NETWORK DRIVER
 P:	Mike Phillips
 M:	mikep@linuxtr.net
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 L:	linux-tr@linuxtr.net
 W:	http://www.linuxtr.net
 S:	Maintained
@@ -81,13 +81,13 @@ S:	Maintained
 3C505 NETWORK DRIVER
 P:	Philip Blundell
 M:	philb@gnu.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 3CR990 NETWORK DRIVER
 P:	David Dillow
 M:	dave@thedillows.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 3W-XXXX ATA-RAID CONTROLLER DRIVER
@@ -130,7 +130,7 @@ S:	Maintained
 8169 10/100/1000 GIGABIT ETHERNET DRIVER
 P:	Francois Romieu
 M:	romieu@fr.zoreil.com
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 8250/16?50 (AND CLONE UARTS) SERIAL DRIVER
@@ -143,7 +143,7 @@ S:	Maintained
 8390 NETWORK DRIVERS [WD80x3/SMC-ELITE, SMC-ULTRA, NE2000, 3C503, etc.]
 P:	Paul Gortmaker
 M:	p_gortmaker@yahoo.com
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 A2232 SERIAL BOARD DRIVER
@@ -194,7 +194,7 @@ S:	Maintained
 ADM1025 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 ADT746X FAN DRIVER
@@ -239,6 +239,12 @@ L:	linux-usb-devel@lists.sourceforge.net
 W:	http://www.linux-usb.org/SpeedTouch/
 S:	Maintained
 
+ALI1563 I2C DRIVER
+P:	Rudolf Marek
+M:	r.marek@sh.cvut.cz
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 ALPHA PORT
 P:	Richard Henderson
 M:	rth@twiddle.net
@@ -257,6 +263,11 @@ S:	Supported
 APPLETALK NETWORK LAYER
 P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
+S:	Maintained
+
+ARC FRAMEBUFFER DRIVER
+P:	Jaya Kumar
+M:	jayalk@intworks.biz
 S:	Maintained
 
 ARM26 ARCHITECTURE
@@ -293,7 +304,7 @@ S:	Maintained
 ARM/PT DIGITAL BOARD PORT
 P:	Stefan Eletzhofer
 M:	stefan.eletzhofer@eletztrick.de
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 
@@ -306,27 +317,27 @@ S:	Maintained
 ARM/STRONGARM110 PORT
 P:	Russell King
 M:	rmk@arm.linux.org.uk
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 
 ARM/S3C2410 ARM ARCHITECTURE
 P:	Ben Dooks
 M:	ben-s3c2410@fluff.org
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.fluff.org/ben/linux/
 S:	Maintained
 
 ARM/S3C2440 ARM ARCHITECTURE
 P:	Ben Dooks
 M:	ben-s3c2440@fluff.org
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.fluff.org/ben/linux/
 S:	Maintained
 
 ARPD SUPPORT
 P:	Jonathan Layes
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 ASUS ACPI EXTRAS DRIVER
@@ -493,6 +504,13 @@ L:   bonding-devel@lists.sourceforge.net
 W:   http://sourceforge.net/projects/bonding/
 S:   Supported
 
+BROADBAND PROCESSOR ARCHITECTURE
+P:	Arnd Bergmann
+M:	arnd@arndb.de
+L:	linuxppc64-dev@ozlabs.org
+W:	http://linuxppc64.org
+S:	Supported
+
 BTTV VIDEO4LINUX DRIVER
 P:	Gerd Knorr
 M:	kraxel@bytesex.org
@@ -558,10 +576,9 @@ S:	Supported
 
 COMPUTONE INTELLIPORT MULTIPORT CARD
 P:	Michael H. Warfield
-M:	Michael H. Warfield <mhw@wittsend.com>
+M:	mhw@wittsend.com
 W:	http://www.wittsend.com/computone.html
-L:	linux-computone@lazuli.wittsend.com
-S:	Orphaned
+S:	Maintained
 
 COSA/SRP SYNC SERIAL DRIVER
 P:	Jan "Yenya" Kasprzak
@@ -700,7 +717,7 @@ S:	Orphaned
 
 DIGI RIGHTSWITCH NETWORK DRIVER
 P:	Rick Richardson
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 W:	http://www.digi.com
 S:	Orphaned
 
@@ -728,6 +745,11 @@ DAVICOM FAST ETHERNET (DMFE) NETWORK DRIVER
 P:	Tobias Ringstrom
 M:	tori@unhappy.mine.nu
 L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+DOCBOOK FOR DOCUMENTATION
+P:	Martin Waitz
+M:	tali@admingilde.org
 S:	Maintained
 
 DOUBLETALK DRIVER
@@ -806,7 +828,7 @@ S:	Maintained
 ETHEREXPRESS-16 NETWORK DRIVER
 P:	Philip Blundell
 M:	philb@gnu.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 ETHERNET BRIDGE
@@ -869,7 +891,7 @@ S:	Maintained
 FRAME RELAY DLCI/FRAD (Sangoma drivers too)
 P:	Mike McLagan
 M:	mike.mclagan@linux.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 FREEVXFS FILESYSTEM
@@ -993,7 +1015,7 @@ P:	Greg Kroah-Hartman
 M:	greg@kroah.com
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.nu/
 S:	Maintained
 
@@ -1030,8 +1052,8 @@ W:	http://www.ia64-linux.org/
 S:	Maintained
 
 SN-IA64 (Itanium) SUB-PLATFORM
-P:	Jesse Barnes
-M:	jbarnes@sgi.com
+P:	Greg Edwards
+M:	edwardsg@sgi.com
 L:	linux-altix@sgi.com
 L:	linux-ia64@vger.kernel.org
 W:	http://www.sgi.com/altix
@@ -1216,7 +1238,7 @@ S:	Maintained
 IPX NETWORK LAYER
 P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 IRDA SUBSYSTEM
@@ -1312,6 +1334,16 @@ KERNEL EVENT LAYER (KOBJECT_UEVENT)
 P:	Robert Love
 M:	rml@novell.com
 L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+KEXEC
+P:	Eric Biederman
+P:	Randy Dunlap
+M:	ebiederm@xmission.com
+M:	rddunlap@osdl.org
+W:	http://www.xmission.com/~ebiederm/files/kexec/
+L:	linux-kernel@vger.kernel.org
+L:	fastboot@osdl.org
 S:	Maintained
 
 LANMEDIA WAN CARD DRIVER
@@ -1421,13 +1453,13 @@ S:	Supported
 LM83 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 LM90 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 LOGICAL DISK MANAGER SUPPORT (LDM, Windows 2000/XP Dynamic Disks)
@@ -1483,7 +1515,7 @@ MARVELL MV64340 ETHERNET DRIVER
 P:	Manish Lachwani
 M:	Manish_Lachwani@pmc-sierra.com
 L:	linux-mips@linux-mips.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Supported
 
 MATROX FRAMEBUFFER DRIVER
@@ -1593,13 +1625,13 @@ P:	Andrew Morton
 M:	akpm@osdl.org
 P:	Jeff Garzik
 M:	jgarzik@pobox.com
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 NETWORKING [GENERAL]
 P:	Networking Team
-M:	netdev@oss.sgi.com
-L:	netdev@oss.sgi.com
+M:	netdev@vger.kernel.org
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 NETWORKING [IPv4/IPv6]
@@ -1615,7 +1647,7 @@ P:	Hideaki YOSHIFUJI
 M:	yoshfuji@linux-ipv6.org
 P:	Patrick McHardy
 M:	kaber@coreworks.de
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 IPVS
@@ -1635,7 +1667,7 @@ NI5010 NETWORK DRIVER
 P:	Jan-Pascal van Best and Andreas Mohr
 M:	Jan-Pascal van Best <jvbest@qv3pluto.leidenuniv.nl>
 M:	Andreas Mohr <100.30936@germany.net>
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 NINJA SCSI-3 / NINJA SCSI-32Bi (16bit/CardBus) PCMCIA SCSI HOST ADAPTER DRIVER
@@ -1677,7 +1709,7 @@ P:	Peter De Shrijver
 M:	p2@ace.ulyssis.student.kuleuven.ac.be
 P:	Mike Phillips
 M:	mikep@linuxtr.net 
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 L:	linux-tr@linuxtr.net
 W:	http://www.linuxtr.net
 S:	Maintained
@@ -1784,7 +1816,7 @@ S:	Unmaintained
 PCNET32 NETWORK DRIVER
 P:	Thomas Bogendörfer
 M:	tsbogend@alpha.franken.de
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 PHRAM MTD DRIVER
@@ -1796,7 +1828,7 @@ S:	Maintained
 POSIX CLOCKS and TIMERS
 P:	George Anzinger
 M:	george@mvista.com
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Supported
 
 PNP SUPPORT
@@ -1831,7 +1863,7 @@ S:	Supported
 PRISM54 WIRELESS DRIVER
 P:	Prism54 Development Team
 M:	prism54-private@prism54.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 W:	http://prism54.org
 S:	Maintained
 
@@ -1844,7 +1876,7 @@ S:	Maintained
 PXA2xx SUPPORT
 P:	Nicolas Pitre
 M:	nico@cam.org
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 S:	Maintained
 
 QLOGIC QLA2XXX FC-SCSI DRIVER
@@ -2048,7 +2080,7 @@ SIS 900/7016 FAST ETHERNET DRIVER
 P:	Daniele Venzano
 M:	venza@brownhat.org
 W:	http://www.brownhat.org/sis900.html
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 SIS FRAMEBUFFER DRIVER
@@ -2066,7 +2098,7 @@ S:	Maintained
 SMSC47M1 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Odd Fixes
 
 SMB FILESYSTEM
@@ -2099,15 +2131,13 @@ S:	Maintained
 SOFTWARE SUSPEND:
 P:	Pavel Machek
 M:	pavel@suse.cz
-M:	pavel@ucw.cz
-L:	http://lister.fornax.hu/mailman/listinfo/swsusp
-W:	http://swsusp.sf.net/
+L:	linux-pm@osdl.org
 S:	Maintained
 
 SONIC NETWORK DRIVER
 P:	Thomas Bogendoerfer
 M:	tsbogend@alpha.franken.de
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 SONY VAIO CONTROL DEVICE DRIVER
@@ -2129,6 +2159,11 @@ W:	http://tpmdd.sourceforge.net
 L:	tpmdd-devel@lists.sourceforge.net
 S:	Maintained
 
+TENSILICA XTENSA PORT (xtensa):
+P:	Chris Zankel
+M:	chris@zankel.net
+S:	Maintained
+
 UltraSPARC (sparc64):
 P:	David S. Miller
 M:	davem@davemloft.net
@@ -2146,7 +2181,7 @@ SHARP LH SUPPORT (LH7952X & LH7A40X)
 P:	Marc Singer
 M:	elf@buici.com
 W:	http://projects.buici.com/arm
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 S:	Maintained
 
 SPARC (sparc32):
@@ -2164,7 +2199,7 @@ S:	Supported
 SPX NETWORK LAYER
 P:	Jay Schulist
 M:	jschlst@samba.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Supported
 
 SRM (Alpha) environment access
@@ -2243,7 +2278,7 @@ S:	Maintained
 TOKEN-RING NETWORK DRIVER
 P:	Mike Phillips
 M:	mikep@linuxtr.net
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 L:	linux-tr@linuxtr.net
 W:	http://www.linuxtr.net
 S:	Maintained
@@ -2573,7 +2608,7 @@ M:	davidm@snapgear.com
 P:	D. Jeff Dionne (created first uClinux port)
 M:	jeff@uclinux.org
 W:	http://www.uclinux.org/
-L:	uclinux-dev@uclinux.org
+L:	uclinux-dev@uclinux.org  (subscribers-only)
 S:	Maintained
 
 UCLINUX FOR NEC V850
@@ -2605,7 +2640,7 @@ S:	Orphan
 W1 DALLAS'S 1-WIRE BUS
 P:	Evgeniy Polyakov
 M:	johnpol@2ka.mipt.ru
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 W83L51xD SD/MMC CARD INTERFACE DRIVER
@@ -2618,7 +2653,7 @@ S:	Maintained
 W83L785TS HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Odd Fixes
 
 WAN ROUTER & SANGOMA WANPIPE DRIVERS & API (X.25, FRAME RELAY, PPP, CISCO HDLC)

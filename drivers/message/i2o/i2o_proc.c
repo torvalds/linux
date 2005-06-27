@@ -28,7 +28,7 @@
  */
 
 #define OSM_NAME	"proc-osm"
-#define OSM_VERSION	"$Rev$"
+#define OSM_VERSION	"1.145"
 #define OSM_DESCRIPTION	"I2O ProcFS OSM"
 
 #define I2O_MAX_MODULES 4
@@ -228,7 +228,7 @@ static const char *i2o_get_class_name(int class)
 	case I2O_CLASS_FLOPPY_DEVICE:
 		idx = 12;
 		break;
-	case I2O_CLASS_BUS_ADAPTER_PORT:
+	case I2O_CLASS_BUS_ADAPTER:
 		idx = 13;
 		break;
 	case I2O_CLASS_PEER_TRANSPORT_AGENT:
@@ -490,7 +490,7 @@ static int i2o_seq_show_lct(struct seq_file *seq, void *v)
 				seq_printf(seq, ", Unknown Device Type");
 			break;
 
-		case I2O_CLASS_BUS_ADAPTER_PORT:
+		case I2O_CLASS_BUS_ADAPTER:
 			if (lct->lct_entry[i].sub_class < BUS_TABLE_SIZE)
 				seq_printf(seq, ", %s",
 					   bus_ports[lct->lct_entry[i].

@@ -149,36 +149,6 @@ static int check_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t
 	return error;
 }
 
-static struct super_block *get_super_to_sync(int type)
-{
-	struct list_head *head;
-	int cnt, dirty;
-
-restart:
-	spin_lock(&sb_lock);
-	list_for_each(head, &super_blocks) {
-		struct super_block *sb = list_entry(head, struct super_block, s_list);
-
-		/* This test just improves performance so it needn't be reliable... */
-		for (cnt = 0, dirty = 0; cnt < MAXQUOTAS; cnt++)
-			if ((type == cnt || type == -1) && sb_has_quota_enabled(sb, cnt)
-			    && info_any_dirty(&sb_dqopt(sb)->info[cnt]))
-				dirty = 1;
-		if (!dirty)
-			continue;
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		if (!sb->s_root) {
-			drop_super(sb);
-			goto restart;
-		}
-		return sb;
-	}
-	spin_unlock(&sb_lock);
-	return NULL;
-}
-
 static void quota_sync_sb(struct super_block *sb, int type)
 {
 	int cnt;
@@ -219,17 +189,35 @@ static void quota_sync_sb(struct super_block *sb, int type)
 
 void sync_dquots(struct super_block *sb, int type)
 {
+	int cnt, dirty;
+
 	if (sb) {
 		if (sb->s_qcop->quota_sync)
 			quota_sync_sb(sb, type);
+		return;
 	}
-	else {
-		while ((sb = get_super_to_sync(type)) != NULL) {
-			if (sb->s_qcop->quota_sync)
-				quota_sync_sb(sb, type);
-			drop_super(sb);
-		}
+
+	spin_lock(&sb_lock);
+restart:
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		/* This test just improves performance so it needn't be reliable... */
+		for (cnt = 0, dirty = 0; cnt < MAXQUOTAS; cnt++)
+			if ((type == cnt || type == -1) && sb_has_quota_enabled(sb, cnt)
+			    && info_any_dirty(&sb_dqopt(sb)->info[cnt]))
+				dirty = 1;
+		if (!dirty)
+			continue;
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+		down_read(&sb->s_umount);
+		if (sb->s_root && sb->s_qcop->quota_sync)
+			quota_sync_sb(sb, type);
+		up_read(&sb->s_umount);
+		spin_lock(&sb_lock);
+		if (__put_super_and_need_restart(sb))
+			goto restart;
 	}
+	spin_unlock(&sb_lock);
 }
 
 /* Copy parameters and call proper function */

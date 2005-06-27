@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/init.h> 
 #include <linux/smp_lock.h>
+#include <linux/miscdevice.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>
@@ -117,24 +118,39 @@ static struct file_operations mmapper_fops = {
 	.release	= mmapper_release,
 };
 
+static struct miscdevice mmapper_dev = {
+	.minor		= MISC_DYNAMIC_MINOR,
+	.name		= "mmapper",
+	.fops		= &mmapper_fops
+};
+
 static int __init mmapper_init(void)
 {
+	int err;
+
 	printk(KERN_INFO "Mapper v0.1\n");
 
 	v_buf = (char *) find_iomem("mmapper", &mmapper_size);
 	if(mmapper_size == 0){
 		printk(KERN_ERR "mmapper_init - find_iomem failed\n");
-		return(0);
+		goto out;
+	}
+
+	err = misc_register(&mmapper_dev);
+	if(err){
+		printk(KERN_ERR "mmapper - misc_register failed, err = %d\n",
+		       err);
+		goto out;
 	}
 
 	p_buf = __pa(v_buf);
-
-	devfs_mk_cdev(MKDEV(30, 0), S_IFCHR|S_IRUGO|S_IWUGO, "mmapper");
-	return(0);
+out:
+	return 0;
 }
 
 static void mmapper_exit(void)
 {
+	misc_deregister(&mmapper_dev);
 }
 
 module_init(mmapper_init);

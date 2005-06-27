@@ -11,6 +11,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/config.h>
 #include <linux/acpi.h>
 #include <linux/console.h>
 #include <linux/efi.h>
@@ -22,12 +23,15 @@ setup_serial_console(struct pcdp_uart *uart)
 {
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 	int mmio;
-	static char options[64];
+	static char options[64], *p = options;
 
 	mmio = (uart->addr.address_space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY);
-	snprintf(options, sizeof(options), "console=uart,%s,0x%lx,%lun%d",
-		mmio ? "mmio" : "io", uart->addr.address, uart->baud,
-		uart->bits ? uart->bits : 8);
+	p += sprintf(p, "console=uart,%s,0x%lx",
+		mmio ? "mmio" : "io", uart->addr.address);
+	if (uart->baud)
+		p += sprintf(p, ",%lu", uart->baud);
+	if (uart->bits)
+		p += sprintf(p, "n%d", uart->bits);
 
 	return early_serial_console_init(options);
 #else

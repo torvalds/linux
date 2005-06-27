@@ -22,9 +22,9 @@ static void stderr_console_write(struct console *console, const char *string,
 }
 
 static struct console stderr_console = {
-	.name		"stderr",
-	.write		stderr_console_write,
-	.flags		CON_PRINTBUFFER,
+	.name		= "stderr",
+	.write		= stderr_console_write,
+	.flags		= CON_PRINTBUFFER,
 };
 
 static int __init stderr_console_init(void)

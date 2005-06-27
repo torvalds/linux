@@ -101,7 +101,6 @@ struct neigh_table dn_neigh_table = {
 	.id =				"dn_neigh_cache",
 	.parms ={
 		.tbl =			&dn_neigh_table,
-		.entries =		0,
 		.base_reachable_time =	30 * HZ,
 		.retrans_time =	1 * HZ,
 		.gc_staletime =	60 * HZ,

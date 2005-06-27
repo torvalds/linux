@@ -344,10 +344,25 @@ iplstart:
 	bno   .Lnoreset
         la    %r2,.Lreset              
         lhi   %r3,26
-        .long 0x83230008
+	diag  %r2,%r3,8
+	mvc   0x78(8),.Lrdrnewpsw	       # set up IO interrupt psw
+.Lwaitrdrirq:
+	lpsw  .Lrdrwaitpsw
+.Lrdrint:
+	c     %r1,0xb8			       # compare subchannel number
+	bne   .Lwaitrdrirq
+	la    %r5,.Lirb
+	tsch  0(%r5)
 .Lnoreset:
+	b     .Lnoload
+
+	.align 8
+.Lrdrnewpsw:
+	.long  0x00080000,0x80000000+.Lrdrint
+.Lrdrwaitpsw:
+	.long  0x020a0000,0x80000000+.Lrdrint
 #endif
-	
+
 #
 # everything loaded, go for it
 #
@@ -518,9 +533,9 @@ startup:basr  %r13,0                     # get base
 	l     %r2,.Lrcp2-.LPG1(%r13)	# try with Read SCP
 	b     .Lservicecall-.LPG1(%r13)
 .Lprocsccb:
-	lh    %r1,.Lscpincr1-PARMAREA(%r4) # use this one if != 0
-	chi   %r1,0x00
-	jne   .Lscnd
+	lghi  %r1,0
+	icm   %r1,3,.Lscpincr1-PARMAREA(%r4) # use this one if != 0
+	jnz   .Lscnd
 	lg    %r1,.Lscpincr2-PARMAREA(%r4) # otherwise use this one
 .Lscnd:
 	xr    %r3,%r3			# same logic

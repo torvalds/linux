@@ -217,8 +217,7 @@ static int linear_run (mddev_t *mddev)
 	return 0;
 
 out:
-	if (conf)
-		kfree(conf);
+	kfree(conf);
 	return 1;
 }
 

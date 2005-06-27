@@ -1,14 +1,13 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.12-rc1-bk2
-# Sun Mar 27 17:47:45 2005
+# Linux kernel version: 2.6.12-git4
+# Wed Jun 22 15:56:42 2005
 #
 CONFIG_ARM=y
 CONFIG_MMU=y
 CONFIG_UID16=y
 CONFIG_RWSEM_GENERIC_SPINLOCK=y
 CONFIG_GENERIC_CALIBRATE_DELAY=y
-CONFIG_GENERIC_IOMAP=y
 
 #
 # Code maturity level options
@@ -17,6 +16,7 @@ CONFIG_EXPERIMENTAL=y
 # CONFIG_CLEAN_COMPILE is not set
 CONFIG_BROKEN=y
 CONFIG_BROKEN_ON_SMP=y
+CONFIG_INIT_ENV_ARG_LIMIT=32
 
 #
 # General setup
@@ -35,6 +35,8 @@ CONFIG_KOBJECT_UEVENT=y
 CONFIG_KALLSYMS=y
 # CONFIG_KALLSYMS_ALL is not set
 # CONFIG_KALLSYMS_EXTRA_PASS is not set
+CONFIG_PRINTK=y
+CONFIG_BUG=y
 CONFIG_BASE_FULL=y
 CONFIG_FUTEX=y
 CONFIG_EPOLL=y
@@ -81,6 +83,7 @@ CONFIG_ARCH_S3C2410=y
 # CONFIG_ARCH_VERSATILE is not set
 # CONFIG_ARCH_IMX is not set
 # CONFIG_ARCH_H720X is not set
+# CONFIG_ARCH_AAEC2000 is not set
 
 #
 # S3C24XX Implementations
@@ -134,6 +137,7 @@ CONFIG_CPU_TLB_V4WBI=y
 #
 # Bus support
 #
+CONFIG_ISA_DMA_API=y
 
 #
 # PCCARD (PCMCIA/CardBus) support
@@ -143,7 +147,9 @@ CONFIG_CPU_TLB_V4WBI=y
 #
 # Kernel Features
 #
+# CONFIG_SMP is not set
 # CONFIG_PREEMPT is not set
+# CONFIG_DISCONTIGMEM is not set
 CONFIG_ALIGNMENT_TRAP=y
 
 #
@@ -297,7 +303,6 @@ CONFIG_PARPORT_1284=y
 #
 # Block devices
 #
-# CONFIG_BLK_DEV_FD is not set
 # CONFIG_PARIDE is not set
 # CONFIG_BLK_DEV_COW_COMMON is not set
 CONFIG_BLK_DEV_LOOP=y
@@ -359,6 +364,7 @@ CONFIG_BLK_DEV_IDE_BAST=y
 #
 # Fusion MPT device support
 #
+# CONFIG_FUSION is not set
 
 #
 # IEEE 1394 (FireWire) support
@@ -378,10 +384,11 @@ CONFIG_NET=y
 # Networking options
 #
 # CONFIG_PACKET is not set
-# CONFIG_NETLINK_DEV is not set
 CONFIG_UNIX=y
 # CONFIG_NET_KEY is not set
 CONFIG_INET=y
+CONFIG_IP_FIB_HASH=y
+# CONFIG_IP_FIB_TRIE is not set
 # CONFIG_IP_MULTICAST is not set
 # CONFIG_IP_ADVANCED_ROUTER is not set
 CONFIG_IP_PNP=y
@@ -443,8 +450,9 @@ CONFIG_NETDEVICES=y
 # Ethernet (10 or 100Mbit)
 #
 CONFIG_NET_ETHERNET=y
-# CONFIG_MII is not set
+CONFIG_MII=m
 # CONFIG_SMC91X is not set
+CONFIG_DM9000=m
 
 #
 # Ethernet (1000 Mbit)
@@ -521,7 +529,6 @@ CONFIG_SERIO_SERPORT=y
 CONFIG_SERIO_LIBPS2=y
 # CONFIG_SERIO_RAW is not set
 # CONFIG_GAMEPORT is not set
-CONFIG_SOUND_GAMEPORT=y
 
 #
 # Character devices
@@ -605,7 +612,6 @@ CONFIG_S3C2410_RTC=y
 #
 # TPM devices
 #
-# CONFIG_TCG_TPM is not set
 
 #
 # I2C support
@@ -654,6 +660,7 @@ CONFIG_SENSORS_LM78=m
 CONFIG_SENSORS_LM85=m
 # CONFIG_SENSORS_LM87 is not set
 # CONFIG_SENSORS_LM90 is not set
+# CONFIG_SENSORS_LM92 is not set
 # CONFIG_SENSORS_MAX1619 is not set
 # CONFIG_SENSORS_PC87360 is not set
 # CONFIG_SENSORS_SMSC47B397 is not set
@@ -665,6 +672,7 @@ CONFIG_SENSORS_LM85=m
 #
 # Other I2C Chip support
 #
+# CONFIG_SENSORS_DS1337 is not set
 CONFIG_SENSORS_EEPROM=m
 # CONFIG_SENSORS_PCF8574 is not set
 # CONFIG_SENSORS_PCF8591 is not set
@@ -696,8 +704,10 @@ CONFIG_FB=y
 # CONFIG_FB_CFB_COPYAREA is not set
 # CONFIG_FB_CFB_IMAGEBLIT is not set
 # CONFIG_FB_SOFT_CURSOR is not set
+# CONFIG_FB_MACMODES is not set
 CONFIG_FB_MODE_HELPERS=y
 # CONFIG_FB_TILEBLITTING is not set
+# CONFIG_FB_S1D13XXX is not set
 # CONFIG_FB_VIRTUAL is not set
 
 #
@@ -782,7 +792,6 @@ CONFIG_FAT_DEFAULT_IOCHARSET="iso8859-1"
 #
 CONFIG_PROC_FS=y
 CONFIG_SYSFS=y
-# CONFIG_DEVFS_FS is not set
 # CONFIG_DEVPTS_FS_XATTR is not set
 # CONFIG_TMPFS is not set
 # CONFIG_HUGETLBFS is not set

@@ -25,19 +25,26 @@
 #include <asm/sizes.h>
 #include <asm/arch/platform.h>
 
-// FIXME = PCI settings need to be fixed!!!!!
-
 /*
- * Similar to above, but for PCI addresses (memory, IO, Config and the
- * V3 chip itself).  WARNING: this has to mirror definitions in platform.h
+ * PCI space virtual addresses
  */
-#define PCI_MEMORY_VADDR       0xe8000000
-#define PCI_CONFIG_VADDR       0xec000000
-#define PCI_V3_VADDR           0xed000000
-#define PCI_IO_VADDR           0xee000000
+#define VERSATILE_PCI_VIRT_BASE		0xe8000000
+#define VERSATILE_PCI_CFG_VIRT_BASE	0xe9000000
 
-#define PCIO_BASE		PCI_IO_VADDR
-#define PCIMEM_BASE		PCI_MEMORY_VADDR
+#if 0
+#define VERSATILE_PCI_VIRT_MEM_BASE0	0xf4000000
+#define VERSATILE_PCI_VIRT_MEM_BASE1	0xf5000000
+#define VERSATILE_PCI_VIRT_MEM_BASE2	0xf6000000
+
+#define PCIO_BASE			VERSATILE_PCI_VIRT_MEM_BASE0
+#define PCIMEM_BASE			VERSATILE_PCI_VIRT_MEM_BASE1
+#endif
+
+/* CIK guesswork */
+#define PCIBIOS_MIN_IO			0x44000000
+#define PCIBIOS_MIN_MEM			0x50000000
+
+#define pcibios_assign_all_busses()     1
 
 /* macro to get at IO space when running virtually */
 #define IO_ADDRESS(x)		(((x) & 0x0fffffff) + (((x) >> 4) & 0x0f000000) + 0xf0000000)

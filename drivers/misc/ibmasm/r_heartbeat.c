@@ -63,7 +63,7 @@ int ibmasm_start_reverse_heartbeat(struct service_processor *sp, struct reverse_
 	int times_failed = 0;
 	int result = 1;
 
-	cmd = ibmasm_new_command(sizeof rhb_dot_cmd);
+	cmd = ibmasm_new_command(sp, sizeof rhb_dot_cmd);
 	if (!cmd)
 		return -ENOMEM;
 

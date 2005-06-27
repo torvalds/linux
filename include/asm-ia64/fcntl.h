@@ -81,4 +81,6 @@ struct flock {
 
 #define F_LINUX_SPECIFIC_BASE	1024
 
+#define force_o_largefile() ( ! (current->personality & PER_LINUX32) )
+
 #endif /* _ASM_IA64_FCNTL_H */

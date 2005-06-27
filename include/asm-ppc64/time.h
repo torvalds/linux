@@ -34,6 +34,15 @@ struct rtc_time;
 extern void to_tm(int tim, struct rtc_time * tm);
 extern time_t last_rtc_update;
 
+void generic_calibrate_decr(void);
+void setup_default_decr(void);
+
+/* Some sane defaults: 125 MHz timebase, 1GHz processor */
+extern unsigned long ppc_proc_freq;
+#define DEFAULT_PROC_FREQ	(DEFAULT_TB_FREQ * 8)
+extern unsigned long ppc_tb_freq;
+#define DEFAULT_TB_FREQ		125000000UL
+
 /*
  * By putting all of this stuff into a single struct we 
  * reduce the number of cache lines touched by do_gettimeofday.

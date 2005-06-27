@@ -226,10 +226,6 @@ extern int fini_bttv_i2c(struct bttv *btv);
 #define dprintk  if (bttv_debug >= 1) printk
 #define d2printk if (bttv_debug >= 2) printk
 
-/* our devices */
-#define BTTV_MAX 16
-extern unsigned int bttv_num;
-
 #define BTTV_MAX_FBUF   0x208000
 #define VBIBUF_SIZE     (2048*VBI_MAXLINES*2)
 #define BTTV_TIMEOUT    (HZ/2) /* 0.5 seconds */
@@ -375,6 +371,10 @@ struct bttv {
 	unsigned int users;
 	struct bttv_fh init;
 };
+
+/* our devices */
+#define BTTV_MAX 16
+extern unsigned int bttv_num;
 extern struct bttv bttvs[BTTV_MAX];
 
 /* private ioctls */

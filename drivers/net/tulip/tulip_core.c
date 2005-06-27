@@ -1514,8 +1514,8 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
                     (PCI_SLOT(pdev->devfn) == 12))) {
                        /* Cobalt MAC address in first EEPROM locations. */
                        sa_offset = 0;
-                       /* No media table either */
-                       tp->flags &= ~HAS_MEDIA_TABLE;
+		       /* Ensure our media table fixup get's applied */
+		       memcpy(ee_data + 16, ee_data, 8);
                }
 #endif
 #ifdef CONFIG_GSC

@@ -74,7 +74,7 @@ static char *strTeiEvent[] =
 	"EV_T202",
 };
 
-unsigned int
+static unsigned int
 random_ri(void)
 {
 	unsigned int x;

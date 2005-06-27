@@ -143,39 +143,6 @@ static int synaptics_identify(struct psmouse *psmouse)
 	return -1;
 }
 
-static void print_ident(struct synaptics_data *priv)
-{
-	printk(KERN_INFO "Synaptics Touchpad, model: %ld\n", SYN_ID_MODEL(priv->identity));
-	printk(KERN_INFO " Firmware: %ld.%ld\n", SYN_ID_MAJOR(priv->identity),
-	       SYN_ID_MINOR(priv->identity));
-	if (SYN_MODEL_ROT180(priv->model_id))
-		printk(KERN_INFO " 180 degree mounted touchpad\n");
-	if (SYN_MODEL_PORTRAIT(priv->model_id))
-		printk(KERN_INFO " portrait touchpad\n");
-	printk(KERN_INFO " Sensor: %ld\n", SYN_MODEL_SENSOR(priv->model_id));
-	if (SYN_MODEL_NEWABS(priv->model_id))
-		printk(KERN_INFO " new absolute packet format\n");
-	if (SYN_MODEL_PEN(priv->model_id))
-		printk(KERN_INFO " pen detection\n");
-
-	if (SYN_CAP_EXTENDED(priv->capabilities)) {
-		printk(KERN_INFO " Touchpad has extended capability bits\n");
-		if (SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap))
-			printk(KERN_INFO " -> %d multi-buttons, i.e. besides standard buttons\n",
-			       (int)(SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap)));
-		if (SYN_CAP_MIDDLE_BUTTON(priv->capabilities))
-			printk(KERN_INFO " -> middle button\n");
-		if (SYN_CAP_FOUR_BUTTON(priv->capabilities))
-			printk(KERN_INFO " -> four buttons\n");
-		if (SYN_CAP_MULTIFINGER(priv->capabilities))
-			printk(KERN_INFO " -> multifinger detection\n");
-		if (SYN_CAP_PALMDETECT(priv->capabilities))
-			printk(KERN_INFO " -> palm detection\n");
-		if (SYN_CAP_PASS_THROUGH(priv->capabilities))
-			printk(KERN_INFO " -> pass-through port\n");
-	}
-}
-
 static int synaptics_query_hardware(struct psmouse *psmouse)
 {
 	int retries = 0;
@@ -666,7 +633,11 @@ int synaptics_init(struct psmouse *psmouse)
 
 	priv->pkt_type = SYN_MODEL_NEWABS(priv->model_id) ? SYN_NEWABS : SYN_OLDABS;
 
-	print_ident(priv);
+	printk(KERN_INFO "Synaptics Touchpad, model: %ld, fw: %ld.%ld, id: %#lx, caps: %#lx/%#lx\n",
+		SYN_ID_MODEL(priv->identity),
+		SYN_ID_MAJOR(priv->identity), SYN_ID_MINOR(priv->identity),
+		priv->model_id, priv->capabilities, priv->ext_cap);
+
 	set_input_params(&psmouse->dev, priv);
 
 	psmouse->protocol_handler = synaptics_process_byte;

@@ -127,6 +127,7 @@ enum {
 #define TCP_WINDOW_CLAMP	10	/* Bound advertised window */
 #define TCP_INFO		11	/* Information about this connection. */
 #define TCP_QUICKACK		12	/* Block/reenable quick acks */
+#define TCP_CONGESTION		13	/* Congestion control algorithm */
 
 #define TCPI_OPT_TIMESTAMPS	1
 #define TCPI_OPT_SACK		2
@@ -203,13 +204,6 @@ struct tcp_sack_block {
 	__u32	end_seq;
 };
 
-enum tcp_congestion_algo {
-	TCP_RENO=0,
-	TCP_VEGAS,
-	TCP_WESTWOOD,
-	TCP_BIC,
-};
-
 struct tcp_options_received {
 /*	PAWS/RTTM data	*/
 	long	ts_recent_stamp;/* Time we stored ts_recent (for aging) */
@@ -229,6 +223,17 @@ struct tcp_options_received {
 	__u16	user_mss;  	/* mss requested by user in ioctl */
 	__u16	mss_clamp;	/* Maximal mss, negotiated at connection setup */
 };
+
+struct tcp_request_sock {
+	struct inet_request_sock req;
+	__u32			 rcv_isn;
+	__u32			 snt_isn;
+};
+
+static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
+{
+	return (struct tcp_request_sock *)req;
+}
 
 struct tcp_sock {
 	/* inet_sock has to be the first member of tcp_sock */
@@ -294,7 +299,7 @@ struct tcp_sock {
 	__u8	reordering;	/* Packet reordering metric.		*/
 	__u8	frto_counter;	/* Number of new acks after RTO */
 
-	__u8	adv_cong;	/* Using Vegas, Westwood, or BIC */
+	__u8	unused;
 	__u8	defer_accept;	/* User waits for some data after accept() */
 
 /* RTT measurement */
@@ -368,22 +373,7 @@ struct tcp_sock {
 
 	__u32	total_retrans;	/* Total retransmits for entire connection */
 
-	/* The syn_wait_lock is necessary only to avoid proc interface having
-	 * to grab the main lock sock while browsing the listening hash
-	 * (otherwise it's deadlock prone).
-	 * This lock is acquired in read mode only from listening_get_next()
-	 * and it's acquired in write mode _only_ from code that is actively
-	 * changing the syn_wait_queue. All readers that are holding
-	 * the master sock lock don't need to grab this lock in read mode
-	 * too as the syn_wait_queue writes are always protected from
-	 * the main sock lock.
-	 */
-	rwlock_t		syn_wait_lock;
-	struct tcp_listen_opt	*listen_opt;
-
-	/* FIFO of established children */
-	struct open_request	*accept_queue;
-	struct open_request	*accept_queue_tail;
+	struct request_sock_queue accept_queue; /* FIFO of established children */
 
 	unsigned int		keepalive_time;	  /* time before keep alive takes place */
 	unsigned int		keepalive_intvl;  /* time interval between keep alive probes */
@@ -405,42 +395,20 @@ struct tcp_sock {
 		__u32	time;
 	} rcvq_space;
 
-/* TCP Westwood structure */
-        struct {
-                __u32    bw_ns_est;        /* first bandwidth estimation..not too smoothed 8) */
-                __u32    bw_est;           /* bandwidth estimate */
-                __u32    rtt_win_sx;       /* here starts a new evaluation... */
-                __u32    bk;
-                __u32    snd_una;          /* used for evaluating the number of acked bytes */
-                __u32    cumul_ack;
-                __u32    accounted;
-                __u32    rtt;
-                __u32    rtt_min;          /* minimum observed RTT */
-        } westwood;
-
-/* Vegas variables */
-	struct {
-		__u32	beg_snd_nxt;	/* right edge during last RTT */
-		__u32	beg_snd_una;	/* left edge  during last RTT */
-		__u32	beg_snd_cwnd;	/* saves the size of the cwnd */
-		__u8	doing_vegas_now;/* if true, do vegas for this RTT */
-		__u16	cntRTT;		/* # of RTTs measured within last RTT */
-		__u32	minRTT;		/* min of RTTs measured within last RTT (in usec) */
-		__u32	baseRTT;	/* the min of all Vegas RTT measurements seen (in usec) */
-	} vegas;
-
-	/* BI TCP Parameters */
-	struct {
-		__u32	cnt;		/* increase cwnd by 1 after this number of ACKs */
-		__u32 	last_max_cwnd;	/* last maximium snd_cwnd */
-		__u32	last_cwnd;	/* the last snd_cwnd */
-		__u32   last_stamp;     /* time when updated last_cwnd */
-	} bictcp;
+	/* Pluggable TCP congestion control hook */
+	struct tcp_congestion_ops *ca_ops;
+	u32	ca_priv[16];
+#define TCP_CA_PRIV_SIZE	(16*sizeof(u32))
 };
 
 static inline struct tcp_sock *tcp_sk(const struct sock *sk)
 {
 	return (struct tcp_sock *)sk;
+}
+
+static inline void *tcp_ca(const struct tcp_sock *tp)
+{
+	return (void *) tp->ca_priv;
 }
 
 #endif

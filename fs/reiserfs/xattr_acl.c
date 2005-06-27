@@ -4,7 +4,7 @@
 #include <linux/errno.h>
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
-#include <linux/xattr_acl.h>
+#include <linux/posix_acl_xattr.h>
 #include <linux/reiserfs_xattr.h>
 #include <linux/reiserfs_acl.h>
 #include <asm/uaccess.h>
@@ -192,11 +192,11 @@ reiserfs_get_acl(struct inode *inode, int type)
 
         switch (type) {
             case ACL_TYPE_ACCESS:
-                name = XATTR_NAME_ACL_ACCESS;
+                name = POSIX_ACL_XATTR_ACCESS;
                 p_acl = &reiserfs_i->i_acl_access;
                 break;
             case ACL_TYPE_DEFAULT:
-                name = XATTR_NAME_ACL_DEFAULT;
+                name = POSIX_ACL_XATTR_DEFAULT;
                 p_acl = &reiserfs_i->i_acl_default;
                 break;
             default:
@@ -260,7 +260,7 @@ reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 
         switch (type) {
             case ACL_TYPE_ACCESS:
-                name = XATTR_NAME_ACL_ACCESS;
+                name = POSIX_ACL_XATTR_ACCESS;
                 p_acl = &reiserfs_i->i_acl_access;
                 if (acl) {
                     mode_t mode = inode->i_mode;
@@ -275,7 +275,7 @@ reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
                 }
                 break;
             case ACL_TYPE_DEFAULT:
-                name = XATTR_NAME_ACL_DEFAULT;
+                name = POSIX_ACL_XATTR_DEFAULT;
                 p_acl = &reiserfs_i->i_acl_default;
                 if (!S_ISDIR (inode->i_mode))
                     return acl ? -EACCES : 0;
@@ -468,7 +468,7 @@ static int
 posix_acl_access_get(struct inode *inode, const char *name,
 			  void *buffer, size_t size)
 {
-	if (strlen(name) != sizeof(XATTR_NAME_ACL_ACCESS)-1)
+	if (strlen(name) != sizeof(POSIX_ACL_XATTR_ACCESS)-1)
 		return -EINVAL;
 	return xattr_get_acl(inode, ACL_TYPE_ACCESS, buffer, size);
 }
@@ -477,7 +477,7 @@ static int
 posix_acl_access_set(struct inode *inode, const char *name,
 			  const void *value, size_t size, int flags)
 {
-	if (strlen(name) != sizeof(XATTR_NAME_ACL_ACCESS)-1)
+	if (strlen(name) != sizeof(POSIX_ACL_XATTR_ACCESS)-1)
 		return -EINVAL;
 	return xattr_set_acl(inode, ACL_TYPE_ACCESS, value, size);
 }
@@ -487,7 +487,7 @@ posix_acl_access_del (struct inode *inode, const char *name)
 {
     struct reiserfs_inode_info *reiserfs_i = REISERFS_I(inode);
     struct posix_acl **acl = &reiserfs_i->i_acl_access;
-    if (strlen(name) != sizeof(XATTR_NAME_ACL_ACCESS)-1)
+    if (strlen(name) != sizeof(POSIX_ACL_XATTR_ACCESS)-1)
 	return -EINVAL;
     if (!IS_ERR (*acl) && *acl) {
         posix_acl_release (*acl);
@@ -510,7 +510,7 @@ posix_acl_access_list (struct inode *inode, const char *name, int namelen, char 
 }
 
 struct reiserfs_xattr_handler posix_acl_access_handler = {
-	.prefix = XATTR_NAME_ACL_ACCESS,
+	.prefix = POSIX_ACL_XATTR_ACCESS,
 	.get = posix_acl_access_get,
 	.set = posix_acl_access_set,
 	.del = posix_acl_access_del,
@@ -521,7 +521,7 @@ static int
 posix_acl_default_get (struct inode *inode, const char *name,
 			   void *buffer, size_t size)
 {
-	if (strlen(name) != sizeof(XATTR_NAME_ACL_DEFAULT)-1)
+	if (strlen(name) != sizeof(POSIX_ACL_XATTR_DEFAULT)-1)
 		return -EINVAL;
 	return xattr_get_acl(inode, ACL_TYPE_DEFAULT, buffer, size);
 }
@@ -530,7 +530,7 @@ static int
 posix_acl_default_set(struct inode *inode, const char *name,
 			   const void *value, size_t size, int flags)
 {
-	if (strlen(name) != sizeof(XATTR_NAME_ACL_DEFAULT)-1)
+	if (strlen(name) != sizeof(POSIX_ACL_XATTR_DEFAULT)-1)
 		return -EINVAL;
 	return xattr_set_acl(inode, ACL_TYPE_DEFAULT, value, size);
 }
@@ -540,7 +540,7 @@ posix_acl_default_del (struct inode *inode, const char *name)
 {
     struct reiserfs_inode_info *reiserfs_i = REISERFS_I(inode);
     struct posix_acl **acl = &reiserfs_i->i_acl_default;
-    if (strlen(name) != sizeof(XATTR_NAME_ACL_DEFAULT)-1)
+    if (strlen(name) != sizeof(POSIX_ACL_XATTR_DEFAULT)-1)
 	return -EINVAL;
     if (!IS_ERR (*acl) && *acl) {
         posix_acl_release (*acl);
@@ -563,7 +563,7 @@ posix_acl_default_list (struct inode *inode, const char *name, int namelen, char
 }
 
 struct reiserfs_xattr_handler posix_acl_default_handler = {
-	.prefix = XATTR_NAME_ACL_DEFAULT,
+	.prefix = POSIX_ACL_XATTR_DEFAULT,
 	.get = posix_acl_default_get,
 	.set = posix_acl_default_set,
 	.del = posix_acl_default_del,

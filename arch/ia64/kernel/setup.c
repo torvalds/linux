@@ -720,7 +720,8 @@ cpu_init (void)
 	ia64_set_kr(IA64_KR_PT_BASE, __pa(ia64_imva(empty_zero_page)));
 
 	/*
-	 * Initialize default control register to defer all speculative faults.  The
+	 * Initialize default control register to defer speculative faults except
+	 * for those arising from TLB misses, which are not deferred.  The
 	 * kernel MUST NOT depend on a particular setting of these bits (in other words,
 	 * the kernel must have recovery code for all speculative accesses).  Turn on
 	 * dcr.lc as per recommendation by the architecture team.  Most IA-32 apps

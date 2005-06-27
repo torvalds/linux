@@ -27,15 +27,52 @@
 #include <linux/sched.h>
 #include <linux/elf.h>
 
-/* Request and reply types */
-#define AUDIT_GET      1000	/* Get status */
-#define AUDIT_SET      1001	/* Set status (enable/disable/auditd) */
-#define AUDIT_LIST     1002	/* List filtering rules */
-#define AUDIT_ADD      1003	/* Add filtering rule */
-#define AUDIT_DEL      1004	/* Delete filtering rule */
-#define AUDIT_USER     1005	/* Send a message from user-space */
-#define AUDIT_LOGIN    1006     /* Define the login id and informaiton */
-#define AUDIT_KERNEL   2000	/* Asynchronous audit record. NOT A REQUEST. */
+/* The netlink messages for the audit system is divided into blocks:
+ * 1000 - 1099 are for commanding the audit system
+ * 1100 - 1199 user space trusted application messages
+ * 1200 - 1299 messages internal to the audit daemon
+ * 1300 - 1399 audit event messages
+ * 1400 - 1499 SE Linux use
+ * 1500 - 1999 future use
+ * 2000 is for otherwise unclassified kernel audit messages
+ *
+ * Messages from 1000-1199 are bi-directional. 1200-1299 are exclusively user
+ * space. Anything over that is kernel --> user space communication.
+ */
+#define AUDIT_GET		1000	/* Get status */
+#define AUDIT_SET		1001	/* Set status (enable/disable/auditd) */
+#define AUDIT_LIST		1002	/* List syscall filtering rules */
+#define AUDIT_ADD		1003	/* Add syscall filtering rule */
+#define AUDIT_DEL		1004	/* Delete syscall filtering rule */
+#define AUDIT_USER		1005	/* Message from userspace -- deprecated */
+#define AUDIT_LOGIN		1006	/* Define the login id and information */
+#define AUDIT_WATCH_INS		1007	/* Insert file/dir watch entry */
+#define AUDIT_WATCH_REM		1008	/* Remove file/dir watch entry */
+#define AUDIT_WATCH_LIST	1009	/* List all file/dir watches */
+#define AUDIT_SIGNAL_INFO	1010	/* Get info about sender of signal to auditd */
+
+#define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages uninteresting to kernel */
+#define AUDIT_LAST_USER_MSG	1199
+ 
+#define AUDIT_DAEMON_START      1200    /* Daemon startup record */
+#define AUDIT_DAEMON_END        1201    /* Daemon normal stop record */
+#define AUDIT_DAEMON_ABORT      1202    /* Daemon error stop record */
+#define AUDIT_DAEMON_CONFIG     1203    /* Daemon config change */
+
+#define AUDIT_SYSCALL		1300	/* Syscall event */
+#define AUDIT_FS_WATCH		1301	/* Filesystem watch event */
+#define AUDIT_PATH		1302	/* Filename path information */
+#define AUDIT_IPC		1303	/* IPC record */
+#define AUDIT_SOCKETCALL	1304	/* sys_socketcall arguments */
+#define AUDIT_CONFIG_CHANGE	1305	/* Audit system configuration change */
+#define AUDIT_SOCKADDR		1306	/* sockaddr copied as syscall arg */
+#define AUDIT_CWD		1307	/* Current working directory */
+
+#define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
+#define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
+#define AUDIT_AVC_PATH		1402	/* dentry, vfsmount pair from avc */
+
+#define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
 /* Rule flags */
 #define AUDIT_PER_TASK 0x01	/* Apply rule at task creation (not syscall) */
@@ -132,16 +169,9 @@
 #define AUDIT_ARCH_V850		(EM_V850|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_X86_64	(EM_X86_64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 
-#ifndef __KERNEL__
-struct audit_message {
-	struct nlmsghdr nlh;
-	char		data[1200];
-};
-#endif
-
 struct audit_status {
 	__u32		mask;		/* Bit mask for valid entries */
-	__u32		enabled;	/* 1 = enabled, 0 = disbaled */
+	__u32		enabled;	/* 1 = enabled, 0 = disabled */
 	__u32		failure;	/* Failure-to-log action */
 	__u32		pid;		/* pid of auditd process */
 	__u32		rate_limit;	/* messages rate limit (per second) */
@@ -160,6 +190,11 @@ struct audit_rule {		/* for AUDIT_LIST, AUDIT_ADD, and AUDIT_DEL */
 };
 
 #ifdef __KERNEL__
+
+struct audit_sig_info {
+	uid_t		uid;
+	pid_t		pid;
+};
 
 struct audit_buffer;
 struct audit_context;
@@ -185,11 +220,16 @@ extern void audit_inode(const char *name, const struct inode *inode);
 				/* Private API (for audit.c only) */
 extern int  audit_receive_filter(int type, int pid, int uid, int seq,
 				 void *data, uid_t loginuid);
-extern void audit_get_stamp(struct audit_context *ctx,
-			    struct timespec *t, unsigned int *serial);
+extern unsigned int audit_serial(void);
+extern void auditsc_get_stamp(struct audit_context *ctx,
+			      struct timespec *t, unsigned int *serial);
 extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 extern uid_t audit_get_loginuid(struct audit_context *ctx);
 extern int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
+extern int audit_socketcall(int nargs, unsigned long *args);
+extern int audit_sockaddr(int len, void *addr);
+extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
+extern void audit_signal_info(int sig, struct task_struct *t);
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
@@ -198,18 +238,24 @@ extern int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mo
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
 #define audit_inode(n,i) do { ; } while (0)
+#define audit_receive_filter(t,p,u,s,d,l) ({ -EOPNOTSUPP; })
+#define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
 #define audit_ipc_perms(q,u,g,m) ({ 0; })
+#define audit_socketcall(n,a) ({ 0; })
+#define audit_sockaddr(len, addr) ({ 0; })
+#define audit_avc_path(dentry, mnt) ({ 0; })
+#define audit_signal_info(s,t) do { ; } while (0)
 #endif
 
 #ifdef CONFIG_AUDIT
 /* These are defined in audit.c */
 				/* Public API */
-extern void		    audit_log(struct audit_context *ctx,
+extern void		    audit_log(struct audit_context *ctx, int type,
 				      const char *fmt, ...)
-			    __attribute__((format(printf,2,3)));
+			    __attribute__((format(printf,3,4)));
 
-extern struct audit_buffer *audit_log_start(struct audit_context *ctx);
+extern struct audit_buffer *audit_log_start(struct audit_context *ctx,int type);
 extern void		    audit_log_format(struct audit_buffer *ab,
 					     const char *fmt, ...)
 			    __attribute__((format(printf,2,3)));
@@ -229,8 +275,8 @@ extern void		    audit_send_reply(int pid, int seq, int type,
 					     void *payload, int size);
 extern void		    audit_log_lost(const char *message);
 #else
-#define audit_log(t,f,...) do { ; } while (0)
-#define audit_log_start(t) ({ NULL; })
+#define audit_log(c,t,f,...) do { ; } while (0)
+#define audit_log_start(c,t) ({ NULL; })
 #define audit_log_vformat(b,f,a) do { ; } while (0)
 #define audit_log_format(b,f,...) do { ; } while (0)
 #define audit_log_end(b) do { ; } while (0)

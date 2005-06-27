@@ -24,7 +24,7 @@
 #include <linux/ctype.h>
 
 extern char *HiSax_getrev(const char *revision);
-const char *ni1_revision = "$Revision: 2.8.2.3 $";
+static const char *ni1_revision = "$Revision: 2.8.2.3 $";
 
 #define EXT_BEARER_CAPS 1
 
@@ -2665,7 +2665,7 @@ static void l3ni1_spid_send( struct l3_process *pc, u_char pr, void *arg )
 	l3ni1_SendSpid( pc, pr, arg, 20 );
 }
 
-void l3ni1_spid_epid( struct l3_process *pc, u_char pr, void *arg )
+static void l3ni1_spid_epid( struct l3_process *pc, u_char pr, void *arg )
 {
 	struct sk_buff *skb = arg;
 

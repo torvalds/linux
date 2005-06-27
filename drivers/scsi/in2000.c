@@ -1644,14 +1644,16 @@ static int in2000_bus_reset(Scsi_Cmnd * cmd)
 	struct Scsi_Host *instance;
 	struct IN2000_hostdata *hostdata;
 	int x;
+	unsigned long flags;
 
 	instance = cmd->device->host;
 	hostdata = (struct IN2000_hostdata *) instance->hostdata;
 
 	printk(KERN_WARNING "scsi%d: Reset. ", instance->host_no);
 
-	/* do scsi-reset here */
+	spin_lock_irqsave(instance->host_lock, flags);
 
+	/* do scsi-reset here */
 	reset_hardware(instance, RESET_CARD_AND_BUS);
 	for (x = 0; x < 8; x++) {
 		hostdata->busy[x] = 0;
@@ -1668,21 +1670,12 @@ static int in2000_bus_reset(Scsi_Cmnd * cmd)
 	hostdata->outgoing_len = 0;
 
 	cmd->result = DID_RESET << 16;
+
+	spin_unlock_irqrestore(instance->host_lock, flags);
 	return SUCCESS;
 }
 
-static int in2000_host_reset(Scsi_Cmnd * cmd)
-{
-	return FAILED;
-}
-
-static int in2000_device_reset(Scsi_Cmnd * cmd)
-{
-	return FAILED;
-}
-
-
-static int in2000_abort(Scsi_Cmnd * cmd)
+static int __in2000_abort(Scsi_Cmnd * cmd)
 {
 	struct Scsi_Host *instance;
 	struct IN2000_hostdata *hostdata;
@@ -1803,6 +1796,16 @@ static int in2000_abort(Scsi_Cmnd * cmd)
 	return SUCCESS;
 }
 
+static int in2000_abort(Scsi_Cmnd * cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __in2000_abort(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
+}
 
 
 #define MAX_IN2000_HOSTS 3
@@ -2311,8 +2314,6 @@ static Scsi_Host_Template driver_template = {
 	.queuecommand    		= in2000_queuecommand,
 	.eh_abort_handler		= in2000_abort,
 	.eh_bus_reset_handler		= in2000_bus_reset,
-	.eh_device_reset_handler	= in2000_device_reset,
-	.eh_host_reset_handler	= in2000_host_reset, 
 	.bios_param      		= in2000_biosparam, 
 	.can_queue       		= IN2000_CAN_Q,
 	.this_id         		= IN2000_HOST_ID,

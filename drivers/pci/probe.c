@@ -125,7 +125,7 @@ static inline unsigned int pci_calc_resource_flags(unsigned int flags)
 /*
  * Find the extent of a PCI decode..
  */
-static u32 pci_size(u32 base, u32 maxbase, unsigned long mask)
+static u32 pci_size(u32 base, u32 maxbase, u32 mask)
 {
 	u32 size = mask & maxbase;	/* Find the significant bits */
 	if (!size)

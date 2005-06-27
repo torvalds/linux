@@ -89,6 +89,13 @@ static inline void pte_free(struct page *pte)
 	__free_page(pte);
 }
 
+static inline void __pmd_populate(pmd_t *pmdp, unsigned long pmdval)
+{
+	pmdp[0] = __pmd(pmdval);
+	pmdp[1] = __pmd(pmdval + 256 * sizeof(pte_t));
+	flush_pmd_entry(pmdp);
+}
+
 /*
  * Populate the pmdp entry with a pointer to the pte.  This pmd is part
  * of the mm address space.
@@ -99,32 +106,19 @@ static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp, pte_t *ptep)
 {
 	unsigned long pte_ptr = (unsigned long)ptep;
-	unsigned long pmdval;
-
-	BUG_ON(mm != &init_mm);
 
 	/*
 	 * The pmd must be loaded with the physical
 	 * address of the PTE table
 	 */
 	pte_ptr -= PTRS_PER_PTE * sizeof(void *);
-	pmdval = __pa(pte_ptr) | _PAGE_KERNEL_TABLE;
-	pmdp[0] = __pmd(pmdval);
-	pmdp[1] = __pmd(pmdval + 256 * sizeof(pte_t));
-	flush_pmd_entry(pmdp);
+	__pmd_populate(pmdp, __pa(pte_ptr) | _PAGE_KERNEL_TABLE);
 }
 
 static inline void
 pmd_populate(struct mm_struct *mm, pmd_t *pmdp, struct page *ptep)
 {
-	unsigned long pmdval;
-
-	BUG_ON(mm == &init_mm);
-
-	pmdval = page_to_pfn(ptep) << PAGE_SHIFT | _PAGE_USER_TABLE;
-	pmdp[0] = __pmd(pmdval);
-	pmdp[1] = __pmd(pmdval + 256 * sizeof(pte_t));
-	flush_pmd_entry(pmdp);
+	__pmd_populate(pmdp, page_to_pfn(ptep) << PAGE_SHIFT | _PAGE_USER_TABLE);
 }
 
 #endif

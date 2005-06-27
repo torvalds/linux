@@ -196,11 +196,15 @@ static struct map_desc versatile_io_desc[] __initdata = {
 #ifdef CONFIG_DEBUG_LL
  { IO_ADDRESS(VERSATILE_UART0_BASE), VERSATILE_UART0_BASE, SZ_4K,      MT_DEVICE },
 #endif
-#ifdef FIXME
- { PCI_MEMORY_VADDR,		     PHYS_PCI_MEM_BASE,    SZ_16M,     MT_DEVICE },
- { PCI_CONFIG_VADDR,		     PHYS_PCI_CONFIG_BASE, SZ_16M,     MT_DEVICE },
- { PCI_V3_VADDR,		     PHYS_PCI_V3_BASE,     SZ_512K,    MT_DEVICE },
- { PCI_IO_VADDR,		     PHYS_PCI_IO_BASE,     SZ_64K,     MT_DEVICE },
+#ifdef CONFIG_PCI
+ { IO_ADDRESS(VERSATILE_PCI_CORE_BASE), VERSATILE_PCI_CORE_BASE, SZ_4K, MT_DEVICE },
+ { VERSATILE_PCI_VIRT_BASE,          VERSATILE_PCI_BASE,   VERSATILE_PCI_BASE_SIZE, MT_DEVICE },
+ { VERSATILE_PCI_CFG_VIRT_BASE,      VERSATILE_PCI_CFG_BASE, VERSATILE_PCI_CFG_BASE_SIZE, MT_DEVICE },
+#if 0
+ { VERSATILE_PCI_VIRT_MEM_BASE0,     VERSATILE_PCI_MEM_BASE0, SZ_16M,  MT_DEVICE },
+ { VERSATILE_PCI_VIRT_MEM_BASE1,     VERSATILE_PCI_MEM_BASE1, SZ_16M,  MT_DEVICE },
+ { VERSATILE_PCI_VIRT_MEM_BASE2,     VERSATILE_PCI_MEM_BASE2, SZ_16M,  MT_DEVICE },
+#endif
 #endif
 };
 
@@ -543,7 +547,7 @@ static void versatile_clcd_enable(struct clcd_fb *fb)
 		val |= SYS_CLCD_MODE_5551;
 		break;
 	case 6:
-		val |= SYS_CLCD_MODE_565_BLSB;
+		val |= SYS_CLCD_MODE_565_RLSB;
 		break;
 	case 8:
 		val |= SYS_CLCD_MODE_888;
@@ -871,8 +875,8 @@ static irqreturn_t versatile_timer_interrupt(int irq, void *dev_id, struct pt_re
 
 static struct irqaction versatile_timer_irq = {
 	.name		= "Versatile Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= versatile_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= versatile_timer_interrupt,
 };
 
 /*

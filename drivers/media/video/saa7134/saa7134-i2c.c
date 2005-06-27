@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-i2c.c,v 1.10 2005/01/24 17:37:23 kraxel Exp $
+ * $Id: saa7134-i2c.c,v 1.11 2005/06/12 01:36:14 mchehab Exp $
  *
  * device driver for philips saa7134 based TV cards
  * i2c interface support

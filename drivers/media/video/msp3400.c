@@ -147,7 +147,6 @@ static unsigned short normal_i2c[] = {
 	I2C_MSP3400C_ALT  >> 1,
 	I2C_CLIENT_END
 };
-static unsigned short normal_i2c_range[] = {I2C_CLIENT_END,I2C_CLIENT_END};
 I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
@@ -736,7 +735,6 @@ static int msp34xx_sleep(struct msp3400c *msp, int timeout)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
-again:
 	add_wait_queue(&msp->wq, &wait);
 	if (!kthread_should_stop()) {
 		if (timeout < 0) {
@@ -752,12 +750,8 @@ again:
 #endif
 		}
 	}
-
+	try_to_freeze();
 	remove_wait_queue(&msp->wq, &wait);
-
-	if (try_to_freeze(PF_FREEZE))
-		goto again;
-
 	return msp->restart;
 }
 
@@ -1437,7 +1431,7 @@ static int msp_detach(struct i2c_client *client);
 static int msp_probe(struct i2c_adapter *adap);
 static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg);
 
-static int msp_suspend(struct device * dev, pm_message_t state, u32 level);
+static int msp_suspend(struct device * dev, u32 state, u32 level);
 static int msp_resume(struct device * dev, u32 level);
 
 static void msp_wake_thread(struct i2c_client *client);
@@ -1842,7 +1836,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int msp_suspend(struct device * dev, pm_message_t state, u32 level)
+static int msp_suspend(struct device * dev, u32 state, u32 level)
 {
 	struct i2c_client *c = container_of(dev, struct i2c_client, dev);
 

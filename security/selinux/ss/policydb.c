@@ -590,17 +590,12 @@ void policydb_destroy(struct policydb *p)
 		hashtab_destroy(p->symtab[i].table);
 	}
 
-	for (i = 0; i < SYM_NUM; i++) {
-		if (p->sym_val_to_name[i])
-			kfree(p->sym_val_to_name[i]);
-	}
+	for (i = 0; i < SYM_NUM; i++)
+		kfree(p->sym_val_to_name[i]);
 
-	if (p->class_val_to_struct)
-		kfree(p->class_val_to_struct);
-	if (p->role_val_to_struct)
-		kfree(p->role_val_to_struct);
-	if (p->user_val_to_struct)
-		kfree(p->user_val_to_struct);
+	kfree(p->class_val_to_struct);
+	kfree(p->role_val_to_struct);
+	kfree(p->user_val_to_struct);
 
 	avtab_destroy(&p->te_avtab);
 

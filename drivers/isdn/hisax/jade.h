@@ -128,7 +128,6 @@
 #define	jade_TXAUDIOCH2CFG				0x1A
 
 extern int JadeVersion(struct IsdnCardState *cs, char *s);
-extern void modejade(struct BCState *bcs, int mode, int bc);
 extern void clear_pending_jade_ints(struct IsdnCardState *cs);
 extern void initjade(struct IsdnCardState *cs);
 

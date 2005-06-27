@@ -2828,7 +2828,7 @@ static void __exit strip_exit_driver(void)
 	/* Unregister with the /proc/net file here. */
 	proc_net_remove("strip");
 
-	if ((i = tty_register_ldisc(N_STRIP, NULL)))
+	if ((i = tty_unregister_ldisc(N_STRIP)))
 		printk(KERN_ERR "STRIP: can't unregister line discipline (err = %d)\n", i);
 
 	printk(signoff);

@@ -26,11 +26,6 @@
  * 'enabled' to drive the GPIOs.
  */
 
-#include <linux/config.h>
-#ifdef CONFIG_I2C_DEBUG_BUS
-#define DEBUG	1
-#endif
-
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/device.h>
@@ -38,7 +33,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
-#include <asm/hardware.h>	/* Pick up IXP42000-specific bits */
+#include <asm/hardware.h>	/* Pick up IXP2000-specific bits */
+#include <asm/arch/gpio.h>
 
 static inline int ixp2000_scl_pin(void *data)
 {
