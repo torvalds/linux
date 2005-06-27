@@ -636,10 +636,6 @@ static void skge_led_on(struct skge_hw *hw, int port)
 			xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL,
 					  PHY_B_PEC_LED_ON);
 			break;
-		case SK_PHY_LONE:
-			xm_phy_write(hw, port, PHY_LONE_LED_CFG,
-					  0x0800);
-			break;
 		default:
 			skge_write8(hw, SK_REG(port, TX_LED_TST), LED_T_ON);
 			skge_write32(hw, SK_REG(port, TX_LED_VAL), 100);
@@ -669,10 +665,6 @@ static void skge_led_off(struct skge_hw *hw, int port)
 		case SK_PHY_BCOM:
 			xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL,
 					  PHY_B_PEC_LED_OFF);
-			break;
-		case SK_PHY_LONE:
-			xm_phy_write(hw, port, PHY_LONE_LED_CFG,
-					  PHY_L_LC_LEDT);
 			break;
 		default:
 			skge_write32(hw, SK_REG(port, TX_LED_VAL), 0);
@@ -1202,7 +1194,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	case SK_PHY_BCOM:
 		ctrl1 = PHY_CT_SP1000;
 		ctrl2 = 0;
-		ctrl3 = PHY_SEL_TYPE;
+		ctrl3 = PHY_AN_CSMA;
 		ctrl4 = PHY_B_PEC_EN_LTR;
 		ctrl5 = PHY_B_AC_TX_TST;
 
@@ -1624,7 +1616,7 @@ static void yukon_init(struct skge_hw *hw, int port)
 
 	ctrl = 0;
 	ct1000 = 0;
-	adv = PHY_SEL_TYPE;
+	adv = PHY_AN_CSMA;
 
 	if (skge->autoneg == AUTONEG_ENABLE) {
 		if (iscopper(hw)) {
