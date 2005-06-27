@@ -42,6 +42,7 @@ config PCMCIA_DEBUG
 
 config PCMCIA
 	tristate "16-bit PCMCIA support"
+	select CRC32
 	default y
 	---help---
 	   This option enables support for 16-bit PCMCIA cards. Most older
