@@ -365,6 +365,7 @@ void fcp_register(fc_channel *fc, u8 type, int unregister)
 			kfree (fc->scsi_bitmap);
 			kfree (fc->cmd_slots);
 			FCND(("Unregistering\n"));
+#if 0
 			if (fc->rst_pkt) {
 				if (fc->rst_pkt->eh_state == SCSI_STATE_UNUSED)
 					kfree(fc->rst_pkt);
@@ -373,6 +374,7 @@ void fcp_register(fc_channel *fc, u8 type, int unregister)
 					printk("FC: Reset in progress. Now?!");
 				}
 			}
+#endif
 			FCND(("Unregistered\n"));
 		}
 	} else
@@ -915,6 +917,7 @@ int fcp_scsi_abort(Scsi_Cmnd *SCpnt)
 	}
 }
 
+#if 0
 void fcp_scsi_reset_done(Scsi_Cmnd *SCpnt)
 {
 	fc_channel *fc = FC_SCMND(SCpnt);
@@ -922,11 +925,13 @@ void fcp_scsi_reset_done(Scsi_Cmnd *SCpnt)
 	fc->rst_pkt->eh_state = SCSI_STATE_FINISHED;
 	up(fc->rst_pkt->device->host->eh_action);
 }
+#endif
 
 #define FCP_RESET_TIMEOUT (2*HZ)
 
 int fcp_scsi_dev_reset(Scsi_Cmnd *SCpnt)
 {
+#if 0 /* broken junk, but if davem wants to compile this driver, let him.. */
 	unsigned long flags;
 	fcp_cmd *cmd;
 	fcp_cmnd *fcmd;
@@ -1000,6 +1005,7 @@ int fcp_scsi_dev_reset(Scsi_Cmnd *SCpnt)
 	}
 	fc->rst_pkt->eh_state = SCSI_STATE_UNUSED;
 	return SUCCESS;
+#endif
 }
 
 static int __fcp_scsi_host_reset(Scsi_Cmnd *SCpnt)
