@@ -2249,9 +2249,10 @@ static void cfq_put_cfqd(struct cfq_data *cfqd)
 	if (!atomic_dec_and_test(&cfqd->ref))
 		return;
 
-	cfq_shutdown_timer_wq(cfqd);
-
 	blk_put_queue(q);
+
+	cfq_shutdown_timer_wq(cfqd);
+	q->elevator->elevator_data = NULL;
 
 	mempool_destroy(cfqd->crq_pool);
 	kfree(cfqd->crq_hash);
