@@ -89,6 +89,8 @@ static void __iomem *
 set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flags)
 {
     pccard_mem_map *mem = &s->cis_mem;
+    int ret;
+
     if (!(s->features & SS_CAP_STATIC_MAP) && mem->res == NULL) {
 	mem->res = pcmcia_find_mem_region(0, s->map_size, s->map_size, 0, s);
 	if (mem->res == NULL) {
@@ -99,7 +101,12 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
     }
     mem->card_start = card_offset;
     mem->flags = flags;
-    s->ops->set_mem_map(s, mem);
+    ret = s->ops->set_mem_map(s, mem);
+    if (ret) {
+	iounmap(s->cis_virt);
+	return NULL;
+    }
+
     if (s->features & SS_CAP_STATIC_MAP) {
 	if (s->cis_virt)
 	    iounmap(s->cis_virt);

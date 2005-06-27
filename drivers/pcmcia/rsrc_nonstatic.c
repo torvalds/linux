@@ -372,6 +372,9 @@ static int do_mem_probe(u_long base, u_long num, struct pcmcia_socket *s)
 	   base, base+num-1);
     bad = fail = 0;
     step = (num < 0x20000) ? 0x2000 : ((num>>4) & ~0x1fff);
+    /* don't allow too large steps */
+    if (step > 0x800000)
+	step = 0x800000;
     /* cis_readable wants to map 2x map_size */
     if (step < 2 * s->map_size)
 	step = 2 * s->map_size;
@@ -465,8 +468,7 @@ static void validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 
 	for (m = s_data->mem_db.next; m != &s_data->mem_db; m = mm.next) {
 		mm = *m;
-		if (do_mem_probe(mm.base, mm.num, s))
-			break;
+		do_mem_probe(mm.base, mm.num, s);
 	}
 }
 
