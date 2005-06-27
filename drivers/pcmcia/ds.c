@@ -36,6 +36,7 @@
 #include <linux/kref.h>
 #include <linux/workqueue.h>
 #include <linux/crc32.h>
+#include <linux/firmware.h>
 
 #include <asm/atomic.h>
 
@@ -294,6 +295,68 @@ static inline void pcmcia_check_driver(struct pcmcia_driver *p_drv) {
 	return;
 }
 #endif
+
+
+#ifdef CONFIG_PCMCIA_LOAD_CIS
+
+/**
+ * pcmcia_load_firmware - load CIS from userspace if device-provided is broken
+ * @dev - the pcmcia device which needs a CIS override
+ * @filename - requested filename in /lib/firmware/cis/
+ *
+ * This uses the in-kernel firmware loading mechanism to use a "fake CIS" if
+ * the one provided by the card is broken. The firmware files reside in
+ * /lib/firmware/cis/ in userspace.
+ */
+static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
+{
+	struct pcmcia_socket *s = dev->socket;
+	const struct firmware *fw;
+	char path[20];
+	int ret=-ENOMEM;
+	cisdump_t *cis;
+
+	if (!filename)
+		return -EINVAL;
+
+	ds_dbg(1, "trying to load firmware %s\n", filename);
+
+	if (strlen(filename) > 14)
+		return -EINVAL;
+
+	snprintf(path, 20, "%s", filename);
+
+	if (request_firmware(&fw, path, &dev->dev) == 0) {
+		if (fw->size >= CISTPL_MAX_CIS_SIZE)
+			goto release;
+
+		cis = kmalloc(sizeof(cisdump_t), GFP_KERNEL);
+		if (!cis)
+			goto release;
+
+		memset(cis, 0, sizeof(cisdump_t));
+
+		cis->Length = fw->size + 1;
+		memcpy(cis->Data, fw->data, fw->size);
+
+		if (!pcmcia_replace_cis(s, cis))
+			ret = 0;
+	}
+ release:
+	release_firmware(fw);
+
+	return (ret);
+}
+
+#else /* !CONFIG_PCMCIA_LOAD_CIS */
+
+static inline int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
+{
+	return -ENODEV;
+}
+
+#endif
+
 
 /*======================================================================*/
 
@@ -739,11 +802,11 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FAKE_CIS) {
-		if (!dev->socket->fake_cis) {
-			/* FIXME: evaluate using firmware helpers to
-			 * automagically load it from userspace */
+		if (!dev->socket->fake_cis)
+			pcmcia_load_firmware(dev, did->cisfile);
+
+		if (!dev->socket->fake_cis)
 			return 0;
-		}
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_ANONYMOUS) {
