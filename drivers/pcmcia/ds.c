@@ -656,7 +656,7 @@ static inline void pcmcia_add_pseudo_device(struct pcmcia_bus_socket *s)
 static void pcmcia_bus_rescan(void)
 {
 	/* must be called with skt_sem held */
-        bus_rescan_devices(&pcmcia_bus_type);
+	bus_rescan_devices(&pcmcia_bus_type);
 }
 
 static inline int pcmcia_devmatch(struct pcmcia_device *dev,
@@ -869,6 +869,23 @@ pcmcia_device_stringattr(prod_id2, prod_id[1]);
 pcmcia_device_stringattr(prod_id3, prod_id[2]);
 pcmcia_device_stringattr(prod_id4, prod_id[3]);
 
+
+static ssize_t pcmcia_store_allow_func_id_match (struct device * dev, struct device_attribute *attr,
+						 const char * buf, size_t count)
+{
+	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+        if (!count)
+                return -EINVAL;
+
+	down(&p_dev->socket->skt_sem);
+	p_dev->allow_func_id_match = 1;
+	up(&p_dev->socket->skt_sem);
+
+	bus_rescan_devices(&pcmcia_bus_type);
+
+	return count;
+}
+
 static struct device_attribute pcmcia_dev_attrs[] = {
 	__ATTR(function, 0444, func_show, NULL),
 	__ATTR_RO(func_id),
@@ -878,6 +895,7 @@ static struct device_attribute pcmcia_dev_attrs[] = {
 	__ATTR_RO(prod_id2),
 	__ATTR_RO(prod_id3),
 	__ATTR_RO(prod_id4),
+	__ATTR(allow_func_id_match, 0200, NULL, pcmcia_store_allow_func_id_match),
 	__ATTR_NULL,
 };
 
