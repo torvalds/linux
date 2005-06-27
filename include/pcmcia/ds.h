@@ -18,6 +18,8 @@
 
 #include <pcmcia/bulkmem.h>
 #include <pcmcia/cs_types.h>
+#include <pcmcia/device_id.h>
+#include <linux/mod_devicetable.h>
 
 typedef struct tuple_parse_t {
     tuple_t		tuple;
@@ -135,6 +137,7 @@ struct pcmcia_driver {
 	dev_link_t		*(*attach)(void);
 	void			(*detach)(dev_link_t *);
 	struct module		*owner;
+	struct pcmcia_device_id	*id_table;
 	struct device_driver	drv;
 };
 
@@ -173,7 +176,9 @@ struct pcmcia_device {
 	u8			has_manf_id:1;
 	u8			has_card_id:1;
 	u8			has_func_id:1;
-	u8			reserved:5;
+
+	u8			allow_func_id_match:1;
+	u8			reserved:4;
 
 	u8			func_id;
 	u16			manf_id;

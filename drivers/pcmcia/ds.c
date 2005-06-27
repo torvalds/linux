@@ -101,6 +101,9 @@ struct pcmcia_bus_socket {
 	u8			device_count; /* the number of devices, used
 					       * only internally and subject
 					       * to incorrectness and change */
+
+	u8			device_add_pending;
+	struct work_struct	device_add;
 };
 static spinlock_t pcmcia_dev_list_lock;
 
@@ -512,6 +515,10 @@ static struct pcmcia_device * pcmcia_device_add(struct pcmcia_bus_socket *s, uns
 
 	down(&device_add_lock);
 
+	/* max of 2 devices per card */
+	if (s->device_count == 2)
+		goto err_put;
+
 	p_dev = kmalloc(sizeof(struct pcmcia_device), GFP_KERNEL);
 	if (!p_dev)
 		goto err_put;
@@ -536,6 +543,8 @@ static struct pcmcia_device * pcmcia_device_add(struct pcmcia_bus_socket *s, uns
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 	list_add_tail(&p_dev->socket_device_list, &s->devices_list);
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+
+	pcmcia_device_query(p_dev);
 
 	if (device_register(&p_dev->dev)) {
 		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
@@ -591,13 +600,122 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 }
 
 
+static void pcmcia_delayed_add_pseudo_device(void *data)
+{
+	struct pcmcia_bus_socket *s = data;
+	pcmcia_device_add(s, 0);
+	s->device_add_pending = 0;
+}
+
+static inline void pcmcia_add_pseudo_device(struct pcmcia_bus_socket *s)
+{
+	if (!s->device_add_pending) {
+		schedule_work(&s->device_add);
+		s->device_add_pending = 1;
+	}
+	return;
+}
+
+
+static inline int pcmcia_devmatch(struct pcmcia_device *dev,
+				  struct pcmcia_device_id *did)
+{
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_MANF_ID) {
+		if ((!dev->has_manf_id) || (dev->manf_id != did->manf_id))
+			return 0;
+	}
+
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_CARD_ID) {
+		if ((!dev->has_card_id) || (dev->card_id != did->card_id))
+			return 0;
+	}
+
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FUNCTION) {
+		if (dev->func != did->function)
+			return 0;
+	}
+
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID1) {
+		if (!dev->prod_id[0])
+			return 0;
+		if (strcmp(did->prod_id[0], dev->prod_id[0]))
+			return 0;
+	}
+
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID2) {
+		if (!dev->prod_id[1])
+			return 0;
+		if (strcmp(did->prod_id[1], dev->prod_id[1]))
+			return 0;
+	}
+
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID3) {
+		if (!dev->prod_id[2])
+			return 0;
+		if (strcmp(did->prod_id[2], dev->prod_id[2]))
+			return 0;
+	}
+
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID4) {
+		if (!dev->prod_id[3])
+			return 0;
+		if (strcmp(did->prod_id[3], dev->prod_id[3]))
+			return 0;
+	}
+
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) {
+		/* handle pseudo multifunction devices:
+		 * there are at most two pseudo multifunction devices.
+		 * if we're matching against the first, schedule a
+		 * call which will then check whether there are two
+		 * pseudo devices, and if not, add the second one.
+		 */
+		if (dev->device_no == 0)
+			pcmcia_add_pseudo_device(dev->socket->pcmcia);
+
+		if (dev->device_no != did->device_no)
+			return 0;
+	}
+
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FUNC_ID) {
+		if ((!dev->has_func_id) || (dev->func_id != did->func_id))
+			return 0;
+
+		/* if this is a pseudo-multi-function device,
+		 * we need explicit matches */
+		if (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO)
+			return 0;
+		if (dev->device_no)
+			return 0;
+
+		/* also, FUNC_ID matching needs to be activated by userspace
+		 * after it has re-checked that there is no possible module
+		 * with a prod_id/manf_id/card_id match.
+		 */
+		if (!dev->allow_func_id_match)
+			return 0;
+	}
+
+	dev->dev.driver_data = (void *) did;
+
+	return 1;
+}
+
+
 static int pcmcia_bus_match(struct device * dev, struct device_driver * drv) {
 	struct pcmcia_device * p_dev = to_pcmcia_dev(dev);
 	struct pcmcia_driver * p_drv = to_pcmcia_drv(drv);
+	struct pcmcia_device_id *did = p_drv->id_table;
 
 	/* matching by cardmgr */
 	if (p_dev->cardmgr == p_drv)
 		return 1;
+
+	while (did && did->match_flags) {
+		if (pcmcia_devmatch(p_dev, did))
+			return 1;
+		did++;
+	}
 
 	return 0;
 }
@@ -922,7 +1040,9 @@ static int bind_request(struct pcmcia_bus_socket *s, bind_info_t *bind_info)
 rescan:
 	p_dev->cardmgr = p_drv;
 
-	pcmcia_device_query(p_dev);
+	/* if a driver is already running, we can abort */
+	if (p_dev->dev.driver)
+		goto err_put_module;
 
 	/*
 	 * Prevent this racing with a card insertion.
@@ -1595,6 +1715,7 @@ static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev)
 
 	init_waitqueue_head(&s->queue);
 	INIT_LIST_HEAD(&s->devices_list);
+	INIT_WORK(&s->device_add, pcmcia_delayed_add_pseudo_device, s);
 
 	/* Set up hotline to Card Services */
 	s->callback.owner = THIS_MODULE;
