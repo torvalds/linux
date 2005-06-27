@@ -143,7 +143,7 @@ static void skge_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 static int wol_supported(const struct skge_hw *hw)
 {
 	return !((hw->chip_id == CHIP_ID_GENESIS ||
-		  (hw->chip_id == CHIP_ID_YUKON && chip_rev(hw) == 0)));
+		  (hw->chip_id == CHIP_ID_YUKON && hw->chip_rev == 0)));
 }
 
 static void skge_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -1774,7 +1774,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 
 	/* WA code for COMA mode -- set PHY reset */
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    chip_rev(hw) == CHIP_REV_YU_LITE_A3)
+	    hw->chip_rev == CHIP_REV_YU_LITE_A3)
 		skge_write32(hw, B2_GP_IO,
 			     (skge_read32(hw, B2_GP_IO) | GP_DIR_9 | GP_IO_9));
 
@@ -1784,7 +1784,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 
 	/* WA code for COMA mode -- clear PHY reset */
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    chip_rev(hw) == CHIP_REV_YU_LITE_A3)
+	    hw->chip_rev == CHIP_REV_YU_LITE_A3)
 		skge_write32(hw, B2_GP_IO,
 			     (skge_read32(hw, B2_GP_IO) | GP_DIR_9)
 			     & ~GP_IO_9);
@@ -1879,7 +1879,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	skge_write16(hw, SK_REG(port, RX_GMF_FL_MSK), RX_FF_FL_DEF_MSK);
 	reg = GMF_OPER_ON | GMF_RX_F_FL_ON;
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    chip_rev(hw) == CHIP_REV_YU_LITE_A3)
+	    hw->chip_rev == CHIP_REV_YU_LITE_A3)
 		reg &= ~GMF_RX_F_FL_ON;
 	skge_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
 	skge_write16(hw, SK_REG(port, RX_GMF_CTRL_T), reg);
@@ -1896,7 +1896,7 @@ static void yukon_stop(struct skge_port *skge)
 	int port = skge->port;
 
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    chip_rev(hw) == CHIP_REV_YU_LITE_A3) {
+	    hw->chip_rev == CHIP_REV_YU_LITE_A3) {
 		skge_write32(hw, B2_GP_IO,
 			     skge_read32(hw, B2_GP_IO) | GP_DIR_9 | GP_IO_9);
 	}
@@ -2178,7 +2178,7 @@ static int skge_up(struct net_device *dev)
 		yukon_mac_init(hw, port);
 
 	/* Configure RAMbuffers */
-	chunk = hw->ram_size / (isdualport(hw) ? 4 : 2);
+	chunk = hw->ram_size / ((hw->ports + 1)*2);
 	ram_addr = hw->ram_offset + 2 * chunk * port;
 
 	skge_ramset(hw, rxqaddr[port], ram_addr, chunk);
@@ -2322,7 +2322,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		 * does.  Looks like hardware is wrong?
 		 */
 		if (ip->protocol == IPPROTO_UDP
-	            && chip_rev(hw) == 0 && hw->chip_id == CHIP_ID_YUKON)
+	            && hw->chip_rev == 0 && hw->chip_id == CHIP_ID_YUKON)
 			control = BMU_TCP_CHECK;
 		else
 			control = BMU_UDP_CHECK;
@@ -2684,7 +2684,7 @@ static void skge_mac_parity(struct skge_hw *hw, int port)
 	else
 		/* HW-Bug #8: cleared by GMF_CLI_TX_FC instead of GMF_CLI_TX_PE */
 		skge_write8(hw, SK_REG(port, TX_GMF_CTRL_T),
-			    (hw->chip_id == CHIP_ID_YUKON && chip_rev(hw) == 0)
+			    (hw->chip_id == CHIP_ID_YUKON && hw->chip_rev == 0)
 			    ? GMF_CLI_TX_FC : GMF_CLI_TX_PE);
 }
 
@@ -2919,8 +2919,8 @@ static const char *skge_board_name(const struct skge_hw *hw)
 static int skge_reset(struct skge_hw *hw)
 {
 	u16 ctst;
-	u8 t8;
-	int i, ports;
+	u8 t8, mac_cfg;
+	int i;
 
 	ctst = skge_read16(hw, B0_CTST);
 
@@ -2975,8 +2975,9 @@ static int skge_reset(struct skge_hw *hw)
 		return -EOPNOTSUPP;
 	}
 
-	hw->mac_cfg = skge_read8(hw, B2_MAC_CFG);
-	ports = isdualport(hw) ? 2 : 1;
+	mac_cfg = skge_read8(hw, B2_MAC_CFG);
+	hw->ports = (mac_cfg & CFG_SNG_MAC) ? 1 : 2;
+	hw->chip_rev = (mac_cfg & CFG_CHIP_R_MSK) >> 4;
 
 	/* read the adapters RAM size */
 	t8 = skge_read8(hw, B2_E_0);
@@ -2999,7 +3000,7 @@ static int skge_reset(struct skge_hw *hw)
 		/* switch power to VCC (WA for VAUX problem) */
 		skge_write8(hw, B0_POWER_CTRL,
 			    PC_VAUX_ENA | PC_VCC_ENA | PC_VAUX_OFF | PC_VCC_ON);
-		for (i = 0; i < ports; i++) {
+		for (i = 0; i < hw->ports; i++) {
 			skge_write16(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_SET);
 			skge_write16(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_CLR);
 		}
@@ -3011,7 +3012,7 @@ static int skge_reset(struct skge_hw *hw)
 	skge_write8(hw, B0_LED, LED_STAT_ON);
 
 	/* enable the Tx Arbiters */
-	for (i = 0; i < ports; i++)
+	for (i = 0; i < hw->ports; i++)
 		skge_write8(hw, SK_REG(i, TXA_CTRL), TXA_ENA_ARB);
 
 	/* Initialize ram interface */
@@ -3040,7 +3041,7 @@ static int skge_reset(struct skge_hw *hw)
 	skge_write32(hw, B2_IRQM_CTRL, TIM_START);
 
 	hw->intr_mask = IS_HW_ERR | IS_EXT_REG | IS_PORT_1;
-	if (isdualport(hw))
+	if (hw->ports > 1)
 		hw->intr_mask |= IS_PORT_2;
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
 
@@ -3048,7 +3049,7 @@ static int skge_reset(struct skge_hw *hw)
 		skge_write8(hw, GMAC_IRQ_MSK, 0);
 
 	spin_lock_bh(&hw->phy_lock);
-	for (i = 0; i < ports; i++) {
+	for (i = 0; i < hw->ports; i++) {
 		if (hw->chip_id == CHIP_ID_GENESIS)
 			genesis_reset(hw, i);
 		else
@@ -3060,7 +3061,8 @@ static int skge_reset(struct skge_hw *hw)
 }
 
 /* Initialize network device */
-static struct net_device *skge_devinit(struct skge_hw *hw, int port)
+static struct net_device *skge_devinit(struct skge_hw *hw, int port,
+				       int highmem)
 {
 	struct skge_port *skge;
 	struct net_device *dev = alloc_etherdev(sizeof(*skge));
@@ -3093,6 +3095,8 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port)
 #endif
 	dev->irq = hw->pdev->irq;
 	dev->features = NETIF_F_LLTX;
+	if (highmem)
+		dev->features |= NETIF_F_HIGHDMA;
 
 	skge = netdev_priv(dev);
 	skge->netdev = dev;
@@ -3221,13 +3225,10 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 
 	printk(KERN_INFO PFX "addr 0x%lx irq %d chip %s rev %d\n",
 	       pci_resource_start(pdev, 0), pdev->irq,
-	       skge_board_name(hw), chip_rev(hw));
+	       skge_board_name(hw), hw->chip_rev);
 
-	if ((dev = skge_devinit(hw, 0)) == NULL)
+	if ((dev = skge_devinit(hw, 0, using_dac)) == NULL)
 		goto err_out_led_off;
-
-	if (using_dac)
-		dev->features |= NETIF_F_HIGHDMA;
 
 	if ((err = register_netdev(dev))) {
 		printk(KERN_ERR PFX "%s: cannot register net device\n",
@@ -3237,10 +3238,7 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 
 	skge_show_addr(dev);
 
-	if (isdualport(hw) && (dev1 = skge_devinit(hw, 1))) {
-		if (using_dac)
-			dev1->features |= NETIF_F_HIGHDMA;
-
+	if (hw->ports > 1 && (dev1 = skge_devinit(hw, 1, using_dac))) {
 		if (register_netdev(dev1) == 0)
 			skge_show_addr(dev1);
 		else {

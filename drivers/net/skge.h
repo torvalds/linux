@@ -2793,11 +2793,12 @@ struct skge_hw {
 	u32		     intr_mask;
 	struct net_device    *dev[2];
 
-	u8		     mac_cfg;
 	u8	     	     chip_id;
+	u8		     chip_rev;
 	u8		     phy_type;
 	u8		     pmd_type;
 	u16		     phy_addr;
+	u8		     ports;
 
 	u32	     	     ram_size;
 	u32	     	     ram_offset;
@@ -2806,15 +2807,6 @@ struct skge_hw {
 	spinlock_t	     phy_lock;
 };
 
-static inline int isdualport(const struct skge_hw *hw)
-{
-	return !(hw->mac_cfg & CFG_SNG_MAC);
-}
-
-static inline u8 chip_rev(const struct skge_hw *hw)
-{
-	return (hw->mac_cfg & CFG_CHIP_R_MSK) >> 4;
-}
 
 static inline int iscopper(const struct skge_hw *hw)
 {
