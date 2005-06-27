@@ -172,6 +172,17 @@ static inline void set_cqe_hw(struct mthca_cqe *cqe)
 	cqe->owner = MTHCA_CQ_ENTRY_OWNER_HW;
 }
 
+static void dump_cqe(struct mthca_dev *dev, void *cqe_ptr)
+{
+	__be32 *cqe = cqe_ptr;
+
+	(void) cqe;	/* avoid warning if mthca_dbg compiled away... */
+	mthca_dbg(dev, "CQE contents %08x %08x %08x %08x %08x %08x %08x %08x\n",
+		  be32_to_cpu(cqe[0]), be32_to_cpu(cqe[1]), be32_to_cpu(cqe[2]),
+		  be32_to_cpu(cqe[3]), be32_to_cpu(cqe[4]), be32_to_cpu(cqe[5]),
+		  be32_to_cpu(cqe[6]), be32_to_cpu(cqe[7]));
+}
+
 /*
  * incr is ignored in native Arbel (mem-free) mode, so cq->cons_index
  * should be correct before calling update_cons_index().
@@ -281,16 +292,12 @@ static int handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
 	int dbd;
 	u32 new_wqe;
 
-	if (1 && cqe->syndrome != SYNDROME_WR_FLUSH_ERR) {
-		int j;
-
-		mthca_dbg(dev, "%x/%d: error CQE -> QPN %06x, WQE @ %08x\n",
-			  cq->cqn, cq->cons_index, be32_to_cpu(cqe->my_qpn),
-			  be32_to_cpu(cqe->wqe));
-
-		for (j = 0; j < 8; ++j)
-			printk(KERN_DEBUG "  [%2x] %08x\n",
-			       j * 4, be32_to_cpu(((u32 *) cqe)[j]));
+	if (cqe->syndrome == SYNDROME_LOCAL_QP_OP_ERR) {
+		mthca_dbg(dev, "local QP operation err "
+			  "(QPN %06x, WQE @ %08x, CQN %06x, index %d)\n",
+			  be32_to_cpu(cqe->my_qpn), be32_to_cpu(cqe->wqe),
+			  cq->cqn, cq->cons_index);
+		dump_cqe(dev, cqe);
 	}
 
 	/*
@@ -378,15 +385,6 @@ static int handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
 	return 0;
 }
 
-static void dump_cqe(struct mthca_cqe *cqe)
-{
-	int j;
-
-	for (j = 0; j < 8; ++j)
-		printk(KERN_DEBUG "  [%2x] %08x\n",
-		       j * 4, be32_to_cpu(((u32 *) cqe)[j]));
-}
-
 static inline int mthca_poll_one(struct mthca_dev *dev,
 				 struct mthca_cq *cq,
 				 struct mthca_qp **cur_qp,
@@ -415,8 +413,7 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 		mthca_dbg(dev, "%x/%d: CQE -> QPN %06x, WQE @ %08x\n",
 			  cq->cqn, cq->cons_index, be32_to_cpu(cqe->my_qpn),
 			  be32_to_cpu(cqe->wqe));
-
-		dump_cqe(cqe);
+		dump_cqe(dev, cqe);
 	}
 
 	is_error = (cqe->opcode & MTHCA_ERROR_CQE_OPCODE_MASK) ==
