@@ -601,7 +601,7 @@ static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_star
 
 ======================================================================*/
 
-struct resource *nonstatic_find_io_region(unsigned long base, int num,
+static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 		   unsigned long align, struct pcmcia_socket *s)
 {
 	struct resource *res = make_resource(0, num, IORESOURCE_IO, s->dev.class_id);
@@ -635,8 +635,8 @@ struct resource *nonstatic_find_io_region(unsigned long base, int num,
 	return res;
 }
 
-struct resource * nonstatic_find_mem_region(u_long base, u_long num, u_long align,
-				 int low, struct pcmcia_socket *s)
+static struct resource * nonstatic_find_mem_region(u_long base, u_long num,
+		u_long align, int low, struct pcmcia_socket *s)
 {
 	struct resource *res = make_resource(0, num, IORESOURCE_MEM, s->dev.class_id);
 	struct socket_data *s_data = s->resource_data;

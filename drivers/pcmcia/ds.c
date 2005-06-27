@@ -60,7 +60,7 @@ MODULE_DESCRIPTION("PCMCIA Driver Services");
 MODULE_LICENSE("GPL");
 
 #ifdef DEBUG
-int ds_pc_debug;
+static int ds_pc_debug;
 
 module_param_named(pc_debug, ds_pc_debug, int, 0644);
 
@@ -107,6 +107,8 @@ struct pcmcia_bus_socket {
 	struct work_struct	device_add;
 };
 static spinlock_t pcmcia_dev_list_lock;
+
+static struct bus_type pcmcia_bus_type;
 
 #define DS_SOCKET_PRESENT		0x01
 #define DS_SOCKET_BUSY			0x02
@@ -218,7 +220,7 @@ static const lookup_t service_table[] = {
 };
 
 
-int pcmcia_report_error(client_handle_t handle, error_info_t *err)
+static int pcmcia_report_error(client_handle_t handle, error_info_t *err)
 {
 	int i;
 	char *serv;
@@ -248,7 +250,6 @@ int pcmcia_report_error(client_handle_t handle, error_info_t *err)
 
 	return CS_SUCCESS;
 } /* report_error */
-EXPORT_SYMBOL(pcmcia_report_error);
 
 /* end of code which was in cs.c before */
 
@@ -1901,13 +1902,12 @@ static struct class_interface pcmcia_bus_interface = {
 };
 
 
-struct bus_type pcmcia_bus_type = {
+static struct bus_type pcmcia_bus_type = {
 	.name = "pcmcia",
 	.hotplug = pcmcia_bus_hotplug,
 	.match = pcmcia_bus_match,
 	.dev_attrs = pcmcia_dev_attrs,
 };
-EXPORT_SYMBOL(pcmcia_bus_type);
 
 
 static int __init init_pcmcia_bus(void)

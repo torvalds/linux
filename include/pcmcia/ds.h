@@ -131,8 +131,6 @@ typedef struct dev_link_t {
 
 struct pcmcia_socket;
 
-extern struct bus_type pcmcia_bus_type;
-
 struct pcmcia_driver {
 	dev_link_t		*(*attach)(void);
 	void			(*detach)(dev_link_t *);
