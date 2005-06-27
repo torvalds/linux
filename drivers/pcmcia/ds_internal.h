@@ -5,7 +5,6 @@ struct user_info_t;
 /* Socket state information */
 struct pcmcia_bus_socket {
 	struct kref		refcount;
-	int			state;
 	struct pcmcia_socket	*parent;
 
 	/* the PCMCIA devices connected to this socket (normally one, more
@@ -15,7 +14,14 @@ struct pcmcia_bus_socket {
 					       * only internally and subject
 					       * to incorrectness and change */
 
-	u8			device_add_pending;
+	struct {
+		u8		present:1,
+				busy:1,
+				dead:1,
+				device_add_pending:1,
+				reserved:4;
+	} 			pcmcia_state;
+
 	struct work_struct	device_add;
 
 
@@ -28,10 +34,6 @@ extern spinlock_t pcmcia_dev_list_lock;
 
 extern struct bus_type pcmcia_bus_type;
 
-
-#define DS_SOCKET_PRESENT		0x01
-#define DS_SOCKET_BUSY			0x02
-#define DS_SOCKET_DEAD			0x80
 
 extern struct pcmcia_device * pcmcia_get_dev(struct pcmcia_device *p_dev);
 extern void pcmcia_put_dev(struct pcmcia_device *p_dev);

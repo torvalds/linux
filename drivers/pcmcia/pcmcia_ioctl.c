@@ -404,12 +404,12 @@ static int ds_open(struct inode *inode, struct file *file)
 	    return -ENODEV;
 
     if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
-	    if (s->state & DS_SOCKET_BUSY) {
+	    if (s->pcmcia_state.busy) {
 		    pcmcia_put_bus_socket(s);
 		    return -EBUSY;
 	    }
 	else
-	    s->state |= DS_SOCKET_BUSY;
+	    s->pcmcia_state.busy = 1;
     }
 
     user = kmalloc(sizeof(user_info_t), GFP_KERNEL);
@@ -424,7 +424,7 @@ static int ds_open(struct inode *inode, struct file *file)
     s->user = user;
     file->private_data = user;
 
-    if (s->state & DS_SOCKET_PRESENT)
+    if (s->pcmcia_state.present)
 	queue_event(user, CS_EVENT_CARD_INSERTION);
     return 0;
 } /* ds_open */
@@ -446,7 +446,7 @@ static int ds_release(struct inode *inode, struct file *file)
 
     /* Unlink user data structure */
     if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
-	s->state &= ~DS_SOCKET_BUSY;
+	s->pcmcia_state.busy = 0;
     }
     file->private_data = NULL;
     for (link = &s->user; *link; link = &(*link)->next)
@@ -480,7 +480,7 @@ static ssize_t ds_read(struct file *file, char __user *buf,
 	return -EIO;
 
     s = user->socket;
-    if (s->state & DS_SOCKET_DEAD)
+    if (s->pcmcia_state.dead)
         return -EIO;
 
     ret = wait_event_interruptible(s->queue, !queue_empty(user));
@@ -550,7 +550,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	return -EIO;
 
     s = user->socket;
-    if (s->state & DS_SOCKET_DEAD)
+    if (s->pcmcia_state.dead)
         return -EIO;
 
     size = (cmd & IOCSIZE_MASK) >> IOCSIZE_SHIFT;

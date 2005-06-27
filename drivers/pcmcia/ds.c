@@ -622,14 +622,14 @@ static void pcmcia_delayed_add_pseudo_device(void *data)
 {
 	struct pcmcia_bus_socket *s = data;
 	pcmcia_device_add(s, 0);
-	s->device_add_pending = 0;
+	s->pcmcia_state.device_add_pending = 0;
 }
 
 static inline void pcmcia_add_pseudo_device(struct pcmcia_bus_socket *s)
 {
-	if (!s->device_add_pending) {
+	if (!s->pcmcia_state.device_add_pending) {
 		schedule_work(&s->device_add);
-		s->device_add_pending = 1;
+		s->pcmcia_state.device_add_pending = 1;
 	}
 	return;
 }
@@ -981,14 +981,14 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 	switch (event) {
 
 	case CS_EVENT_CARD_REMOVAL:
-		s->state &= ~DS_SOCKET_PRESENT;
+		s->pcmcia_state.present = 0;
 	    	send_event(skt, event, priority);
 		unbind_request(s);
 		handle_event(s, event);
 		break;
 	
 	case CS_EVENT_CARD_INSERTION:
-		s->state |= DS_SOCKET_PRESENT;
+		s->pcmcia_state.present = 1;
 		pcmcia_card_add(skt);
 		handle_event(s, event);
 		break;
@@ -1229,7 +1229,7 @@ static void pcmcia_bus_remove_socket(struct class_device *class_dev)
 
 	pccard_register_pcmcia(socket, NULL);
 
-	socket->pcmcia->state |= DS_SOCKET_DEAD;
+	socket->pcmcia->pcmcia_state.dead = 1;
 	pcmcia_put_bus_socket(socket->pcmcia);
 	socket->pcmcia = NULL;
 
