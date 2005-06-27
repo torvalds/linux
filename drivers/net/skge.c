@@ -2692,10 +2692,10 @@ static void skge_pci_clear(struct skge_hw *hw)
 {
 	u16 status;
 
-	status = skge_read16(hw, SKGEPCI_REG(PCI_STATUS));
+	pci_read_config_word(hw->pdev, PCI_STATUS, &status);
 	skge_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-	skge_write16(hw, SKGEPCI_REG(PCI_STATUS),
-		     status | PCI_STATUS_ERROR_BITS);
+	pci_write_config_word(hw->pdev, PCI_STATUS,
+			      status | PCI_STATUS_ERROR_BITS);
 	skge_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 }
 
