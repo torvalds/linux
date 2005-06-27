@@ -196,6 +196,7 @@ struct pcmcia_device_id {
 
 	/* not matched against */
 	kernel_ulong_t	driver_info;
+	char *		cisfile;
 };
 
 #define PCMCIA_DEV_ID_MATCH_MANF_ID	0x0001
@@ -207,5 +208,6 @@ struct pcmcia_device_id {
 #define PCMCIA_DEV_ID_MATCH_PROD_ID3	0x0040
 #define PCMCIA_DEV_ID_MATCH_PROD_ID4	0x0080
 #define PCMCIA_DEV_ID_MATCH_DEVICE_NO	0x0100
+#define PCMCIA_DEV_ID_MATCH_FAKE_CIS	0x0200
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

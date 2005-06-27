@@ -733,6 +733,14 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 			return 0;
 	}
 
+	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FAKE_CIS) {
+		if (!dev->socket->fake_cis) {
+			/* FIXME: evaluate using firmware helpers to
+			 * automagically load it from userspace */
+			return 0;
+		}
+	}
+
 	dev->dev.driver_data = (void *) did;
 
 	return 1;
