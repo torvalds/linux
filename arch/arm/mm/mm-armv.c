@@ -169,7 +169,14 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 
 	memzero(new_pgd, FIRST_KERNEL_PGD_NR * sizeof(pgd_t));
 
+	/*
+	 * Copy over the kernel and IO PGD entries
+	 */
 	init_pgd = pgd_offset_k(0);
+	memcpy(new_pgd + FIRST_KERNEL_PGD_NR, init_pgd + FIRST_KERNEL_PGD_NR,
+		       (PTRS_PER_PGD - FIRST_KERNEL_PGD_NR) * sizeof(pgd_t));
+
+	clean_dcache_area(new_pgd, PTRS_PER_PGD * sizeof(pgd_t));
 
 	if (!vectors_high()) {
 		/*
@@ -197,14 +204,6 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 
 		spin_unlock(&mm->page_table_lock);
 	}
-
-	/*
-	 * Copy over the kernel and IO PGD entries
-	 */
-	memcpy(new_pgd + FIRST_KERNEL_PGD_NR, init_pgd + FIRST_KERNEL_PGD_NR,
-		       (PTRS_PER_PGD - FIRST_KERNEL_PGD_NR) * sizeof(pgd_t));
-
-	clean_dcache_area(new_pgd, PTRS_PER_PGD * sizeof(pgd_t));
 
 	return new_pgd;
 
