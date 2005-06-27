@@ -187,6 +187,102 @@ static ssize_t pccard_store_resource(struct class_device *dev, const char *buf, 
 static CLASS_DEVICE_ATTR(available_resources_setup_done, 0600, pccard_show_resource, pccard_store_resource);
 
 
+static ssize_t pccard_extract_cis(struct pcmcia_socket *s, char *buf, loff_t off, size_t count)
+{
+	tuple_t tuple;
+	int status, i;
+	loff_t pointer = 0;
+	ssize_t ret = 0;
+	u_char *tuplebuffer;
+	u_char *tempbuffer;
+
+	tuplebuffer = kmalloc(sizeof(u_char) * 256, GFP_KERNEL);
+	if (!tuplebuffer)
+		return -ENOMEM;
+
+	tempbuffer = kmalloc(sizeof(u_char) * 258, GFP_KERNEL);
+	if (!tempbuffer) {
+		ret = -ENOMEM;
+		goto free_tuple;
+	}
+
+	memset(&tuple, 0, sizeof(tuple_t));
+
+	tuple.Attributes = TUPLE_RETURN_LINK | TUPLE_RETURN_COMMON;
+	tuple.DesiredTuple = RETURN_FIRST_TUPLE;
+	tuple.TupleOffset = 0;
+
+	status = pccard_get_first_tuple(s, BIND_FN_ALL, &tuple);
+	while (!status) {
+		tuple.TupleData = tuplebuffer;
+		tuple.TupleDataMax = 255;
+		memset(tuplebuffer, 0, sizeof(u_char) * 255);
+
+		status = pccard_get_tuple_data(s, &tuple);
+		if (status)
+			break;
+
+		if (off < (pointer + 2 + tuple.TupleDataLen)) {
+			tempbuffer[0] = tuple.TupleCode & 0xff;
+			tempbuffer[1] = tuple.TupleLink & 0xff;
+			for (i = 0; i < tuple.TupleDataLen; i++)
+				tempbuffer[i + 2] = tuplebuffer[i] & 0xff;
+
+			for (i = 0; i < (2 + tuple.TupleDataLen); i++) {
+				if (((i + pointer) >= off) &&
+				    (i + pointer) < (off + count)) {
+					buf[ret] = tempbuffer[i];
+					ret++;
+				}
+			}
+		}
+
+		pointer += 2 + tuple.TupleDataLen;
+
+		if (pointer >= (off + count))
+			break;
+
+		if (tuple.TupleCode == CISTPL_END)
+			break;
+		status = pccard_get_next_tuple(s, BIND_FN_ALL, &tuple);
+	}
+
+	kfree(tempbuffer);
+ free_tuple:
+	kfree(tuplebuffer);
+
+	return (ret);
+}
+
+static ssize_t pccard_show_cis(struct kobject *kobj, char *buf, loff_t off, size_t count)
+{
+	unsigned int size = 0x200;
+
+	if (off >= size)
+		count = 0;
+	else {
+		struct pcmcia_socket *s;
+		cisinfo_t cisinfo;
+
+		if (off + count > size)
+			count = size - off;
+
+		s = to_socket(container_of(kobj, struct class_device, kobj));
+
+		if (!(s->state & SOCKET_PRESENT))
+			return -ENODEV;
+		if (pccard_validate_cis(s, BIND_FN_ALL, &cisinfo))
+			return -EIO;
+		if (!cisinfo.Chains)
+			return -ENODATA;
+
+		count = pccard_extract_cis(s, buf, off, count);
+	}
+
+	return (count);
+}
+
+
 static struct class_device_attribute *pccard_socket_attributes[] = {
 	&class_device_attr_card_type,
 	&class_device_attr_card_voltage,
@@ -199,6 +295,12 @@ static struct class_device_attribute *pccard_socket_attributes[] = {
 	NULL,
 };
 
+static struct bin_attribute pccard_cis_attr = {
+	.attr = { .name = "cis", .mode = S_IRUGO, .owner = THIS_MODULE},
+	.size = 0x200,
+	.read = pccard_show_cis,
+};
+
 static int __devinit pccard_sysfs_add_socket(struct class_device *class_dev)
 {
 	struct class_device_attribute **attr;
@@ -209,6 +311,8 @@ static int __devinit pccard_sysfs_add_socket(struct class_device *class_dev)
 		if (ret)
 			break;
 	}
+	if (!ret)
+		ret = sysfs_create_bin_file(&class_dev->kobj, &pccard_cis_attr);
 
 	return ret;
 }
@@ -217,6 +321,7 @@ static void __devexit pccard_sysfs_remove_socket(struct class_device *class_dev)
 {
 	struct class_device_attribute **attr;
 
+	sysfs_remove_bin_file(&class_dev->kobj, &pccard_cis_attr);
 	for (attr = pccard_socket_attributes; *attr; attr++)
 		class_device_remove_file(class_dev, *attr);
 }
