@@ -537,7 +537,7 @@ enum {
 
 /* Queue Register Offsets, use Q_ADDR() to access */
 enum {
-	B8_Q_REGS = 0x0400, /* base of Queue registers */	
+	B8_Q_REGS = 0x0400, /* base of Queue registers */
 	Q_D	= 0x00,	/* 8*32	bit	Current Descriptor */
 	Q_DA_L	= 0x20,	/* 32 bit	Current Descriptor Address Low dWord */
 	Q_DA_H	= 0x24,	/* 32 bit	Current Descriptor Address High dWord */
@@ -986,7 +986,7 @@ enum {
 	LINKLED_BLINK_OFF    = 0x10,
 	LINKLED_BLINK_ON     = 0x20,
 };
-	
+
 /* GMAC and GPHY Control Registers (YUKON only) */
 enum {
 	GMAC_CTRL	= 0x0f00,/* 32 bit	GMAC Control Reg */
@@ -1306,7 +1306,7 @@ enum {
 enum {
 	PHY_ANE_PAR_DF	= 1<<4, /* Bit  4:	Parallel Detection Fault */
 
-	PHY_ANE_LP_CAP	= 1<<0, /* Bit  0:	Link Partner Auto-Neg. Cap. */ 	
+	PHY_ANE_LP_CAP	= 1<<0, /* Bit  0:	Link Partner Auto-Neg. Cap. */
 };
 
 enum {
@@ -1718,7 +1718,7 @@ enum {
 	PHY_M_PC_EN_DET_PLUS	= 3<<8, /* Energy Detect Plus (Mode 2) */
 };
 
-#define PHY_M_PC_MDI_XMODE(x)	(((x)<<5) & PHY_M_PC_MDIX_MSK)	
+#define PHY_M_PC_MDI_XMODE(x)	(((x)<<5) & PHY_M_PC_MDIX_MSK)
 
 enum {
 	PHY_M_PC_MAN_MDI	= 0, /* 00 = Manual MDI configuration */
@@ -2105,7 +2105,7 @@ enum {
 	GM_GPSR_FC_RX_DIS	= 1<<2,	/* Bit  2:	Rx Flow-Control Mode Disabled */
 	GM_GPSR_PROM_EN		= 1<<1,	/* Bit  1:	Promiscuous Mode Enabled */
 };
-	
+
 /*	GM_GP_CTRL	16 bit r/w	General Purpose Control Register */
 enum {
 	GM_GPCR_PROM_ENA	= 1<<14,	/* Bit 14:	Enable Promiscuous Mode */
@@ -2127,7 +2127,7 @@ enum {
 
 #define GM_GPCR_SPEED_1000	(GM_GPCR_GIGS_ENA | GM_GPCR_SPEED_100)
 #define GM_GPCR_AU_ALL_DIS	(GM_GPCR_AU_DUP_DIS | GM_GPCR_AU_FCT_DIS|GM_GPCR_AU_SPD_DIS)
-	
+
 /*	GM_TX_CTRL			16 bit r/w	Transmit Control Register */
 enum {
 	GM_TXCR_FORCE_JAM	= 1<<15, /* Bit 15:	Force Jam / Flow-Control */
@@ -2138,7 +2138,7 @@ enum {
 
 #define TX_COL_THR(x)		(((x)<<10) & GM_TXCR_COL_THR_MSK)
 #define TX_COL_DEF		0x04
-	
+
 /*	GM_RX_CTRL			16 bit r/w	Receive Control Register */
 enum {
 	GM_RXCR_UCF_ENA	= 1<<15, /* Bit 15:	Enable Unicast filtering */
@@ -2146,7 +2146,7 @@ enum {
 	GM_RXCR_CRC_DIS	= 1<<13, /* Bit 13:	Remove 4-byte CRC */
 	GM_RXCR_PASS_FC	= 1<<12, /* Bit 12:	Pass FC packets to FIFO */
 };
-	
+
 /*	GM_TX_PARAM		16 bit r/w	Transmit Parameter Register */
 enum {
 	GM_TXPA_JAMLEN_MSK	= 0x03<<14,	/* Bit 15..14:	Jam Length */
@@ -2171,7 +2171,7 @@ enum {
 	GM_SMOD_JUMBO_ENA	= 1<<8,	/* Bit  8:	Enable Jumbo (Max. Frame Len) */
 	 GM_SMOD_IPG_MSK	= 0x1f	/* Bit 4..0:	Inter-Packet Gap (IPG) */
 };
-	
+
 #define DATA_BLIND_VAL(x)	(((x)<<11) & GM_SMOD_DATABL_MSK)
 #define DATA_BLIND_DEF		0x04
 
@@ -2186,7 +2186,7 @@ enum {
 	GM_SMI_CT_RD_VAL	= 1<<4,	/* Bit  4:	Read Valid (Read completed) */
 	GM_SMI_CT_BUSY		= 1<<3,	/* Bit  3:	Busy (Operation in progress) */
 };
-	
+
 #define GM_SMI_CT_PHY_AD(x)	(((x)<<11) & GM_SMI_CT_PHY_A_MSK)
 #define GM_SMI_CT_REG_AD(x)	(((x)<<6) & GM_SMI_CT_REG_A_MSK)
 
@@ -2195,7 +2195,7 @@ enum {
 	GM_PAR_MIB_CLR	= 1<<5,	/* Bit  5:	Set MIB Clear Counter Mode */
 	GM_PAR_MIB_TST	= 1<<4,	/* Bit  4:	MIB Load Counter (Test Mode) */
 };
-	
+
 /* Receive Frame Status Encoding */
 enum {
 	GMR_FS_LEN	= 0xffff<<16, /* Bit 31..16:	Rx Frame Length */
@@ -2217,12 +2217,12 @@ enum {
 /*
  * GMR_FS_ANY_ERR (analogous to XMR_FS_ANY_ERR)
  */
-	GMR_FS_ANY_ERR	= GMR_FS_CRC_ERR | GMR_FS_LONG_ERR | 
-		  	  GMR_FS_MII_ERR | GMR_FS_BAD_FC | GMR_FS_GOOD_FC | 
+	GMR_FS_ANY_ERR	= GMR_FS_CRC_ERR | GMR_FS_LONG_ERR |
+		  	  GMR_FS_MII_ERR | GMR_FS_BAD_FC | GMR_FS_GOOD_FC |
 			  GMR_FS_JABBER,
 /* Rx GMAC FIFO Flush Mask (default) */
 	RX_FF_FL_DEF_MSK = GMR_FS_CRC_ERR | GMR_FS_RX_FF_OV |GMR_FS_MII_ERR |
-			   GMR_FS_BAD_FC | GMR_FS_GOOD_FC | GMR_FS_UN_SIZE | 
+			   GMR_FS_BAD_FC | GMR_FS_GOOD_FC | GMR_FS_UN_SIZE |
 			   GMR_FS_JABBER,
 };
 
@@ -2801,7 +2801,7 @@ struct skge_hw {
 
 	u32	     	     ram_size;
 	u32	     	     ram_offset;
-	
+
 	struct tasklet_struct ext_tasklet;
 	spinlock_t	     phy_lock;
 };
@@ -2827,7 +2827,7 @@ enum {
 	FLOW_MODE_REM_SEND	= 2, /* Symmetric or just remote */
 	FLOW_MODE_SYMMETRIC	= 3, /* Both stations may send PAUSE */
 };
-	
+
 struct skge_port {
 	u32		     msg_enable;
 	struct skge_hw	     *hw;
@@ -2933,24 +2933,24 @@ static inline void skge_xm_write8(const struct skge_hw *hw, int port, int r, u8 
 static inline void skge_xm_outhash(const struct skge_hw *hw, int port, int reg,
 				   const u8 *hash)
 {
-	skge_xm_write16(hw, port, reg, 
+	skge_xm_write16(hw, port, reg,
 			(u16)hash[0] | ((u16)hash[1] << 8));
-	skge_xm_write16(hw, port, reg+2, 
+	skge_xm_write16(hw, port, reg+2,
 			(u16)hash[2] | ((u16)hash[3] << 8));
-	skge_xm_write16(hw, port, reg+4, 
+	skge_xm_write16(hw, port, reg+4,
 			(u16)hash[4] | ((u16)hash[5] << 8));
-	skge_xm_write16(hw, port, reg+6, 
+	skge_xm_write16(hw, port, reg+6,
 			(u16)hash[6] | ((u16)hash[7] << 8));
 }
 
 static inline void skge_xm_outaddr(const struct skge_hw *hw, int port, int reg,
 				   const u8 *addr)
 {
-	skge_xm_write16(hw, port, reg, 
+	skge_xm_write16(hw, port, reg,
 			(u16)addr[0] | ((u16)addr[1] << 8));
-	skge_xm_write16(hw, port, reg, 
+	skge_xm_write16(hw, port, reg,
 			(u16)addr[2] | ((u16)addr[3] << 8));
-	skge_xm_write16(hw, port, reg, 
+	skge_xm_write16(hw, port, reg,
 			(u16)addr[4] | ((u16)addr[5] << 8));
 }
 
@@ -3001,5 +3001,5 @@ static inline void skge_gm_set_addr(struct skge_hw *hw, int port, int reg,
 	skge_gma_write16(hw, port, reg+8,
 			 (u16) addr[4] | ((u16) addr[5] << 8));
 }
-		
+
 #endif

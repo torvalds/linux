@@ -170,7 +170,7 @@ static int skge_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 
-	if(wol->wolopts != WAKE_MAGIC && wol->wolopts != 0)
+	if (wol->wolopts != WAKE_MAGIC && wol->wolopts != 0)
 		return -EOPNOTSUPP;
 
 	if (wol->wolopts == WAKE_MAGIC && !wol_supported(hw))
@@ -247,7 +247,7 @@ static u32 skge_modes(const struct skge_hw *hw)
 
 	if (iscopper(hw)) {
 		modes |= ADVERTISED_TP;
-		switch(hw->chip_id) {
+		switch (hw->chip_id) {
 		case CHIP_ID_GENESIS:
 			modes &= ~(ADVERTISED_100baseT_Full
 				   | ADVERTISED_100baseT_Half
@@ -279,7 +279,7 @@ static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (ecmd->advertising & skge_modes(hw))
 			return -EINVAL;
 	} else {
-		switch(ecmd->speed) {
+		switch (ecmd->speed) {
 		case SPEED_1000:
 			if (hw->chip_id == CHIP_ID_YUKON_FE)
 				return -EINVAL;
@@ -393,7 +393,7 @@ static void skge_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	int i;
 
-	switch(stringset) {
+	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < ARRAY_SIZE(skge_stats); i++)
 			memcpy(data + i * ETH_GSTRING_LEN,
@@ -540,9 +540,9 @@ static int skge_set_pauseparam(struct net_device *dev,
 	skge->autoneg = ecmd->autoneg;
 	if (ecmd->rx_pause && ecmd->tx_pause)
 		skge->flow_control = FLOW_MODE_SYMMETRIC;
-	else if(ecmd->rx_pause && !ecmd->tx_pause)
+	else if (ecmd->rx_pause && !ecmd->tx_pause)
 		skge->flow_control = FLOW_MODE_REM_SEND;
-	else if(!ecmd->rx_pause && ecmd->tx_pause)
+	else if (!ecmd->rx_pause && ecmd->tx_pause)
 		skge->flow_control = FLOW_MODE_LOC_SEND;
 	else
 		skge->flow_control = FLOW_MODE_NONE;
@@ -730,7 +730,7 @@ static int skge_phys_id(struct net_device *dev, u32 data)
 {
 	struct skge_port *skge = netdev_priv(dev);
 
-	if(!data || data > (u32)(MAX_SCHEDULE_TIMEOUT / HZ))
+	if (!data || data > (u32)(MAX_SCHEDULE_TIMEOUT / HZ))
 		data = (u32)(MAX_SCHEDULE_TIMEOUT / HZ);
 
 	/* start blinking */
@@ -1960,7 +1960,7 @@ static u16 yukon_speed(const struct skge_hw *hw, u16 aux)
 	if (hw->chip_id == CHIP_ID_YUKON_FE)
 		return (aux & PHY_M_PS_SPEED_100) ? SPEED_100 : SPEED_10;
 
-	switch(aux & PHY_M_PS_SPEED_MSK) {
+	switch (aux & PHY_M_PS_SPEED_MSK) {
 	case PHY_M_PS_SPEED_1000:
 		return SPEED_1000;
 	case PHY_M_PS_SPEED_100:
@@ -2299,10 +2299,10 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 	local_irq_save(flags);
 	if (!spin_trylock(&skge->tx_lock)) {
- 		/* Collision - tell upper layer to requeue */ 
- 		local_irq_restore(flags); 
- 		return NETDEV_TX_LOCKED; 
- 	} 
+ 		/* Collision - tell upper layer to requeue */
+ 		local_irq_restore(flags);
+ 		return NETDEV_TX_LOCKED;
+ 	}
 
 	if (unlikely(skge->tx_avail < skb_shinfo(skb)->nr_frags +1)) {
 		netif_stop_queue(dev);
@@ -2439,7 +2439,7 @@ static int skge_change_mtu(struct net_device *dev, int new_mtu)
 {
 	int err = 0;
 
-	if(new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
+	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
@@ -2473,7 +2473,7 @@ static void genesis_set_multicast(struct net_device *dev)
 		memset(filter, 0xff, sizeof(filter));
 	else {
 		memset(filter, 0, sizeof(filter));
-		for(i = 0; list && i < count; i++, list = list->next) {
+		for (i = 0; list && i < count; i++, list = list->next) {
 			u32 crc = crc32_le(~0, list->dmi_addr, ETH_ALEN);
 			u8 bit = 63 - (crc & 63);
 
@@ -2510,7 +2510,7 @@ static void yukon_set_multicast(struct net_device *dev)
 		int i;
 		reg |= GM_RXCR_MCF_ENA;
 
-		for(i = 0; list && i < dev->mc_count; i++, list = list->next) {
+		for (i = 0; list && i < dev->mc_count; i++, list = list->next) {
 			u32 bit = ether_crc(ETH_ALEN, list->dmi_addr) & 0x3f;
 			filter[bit/8] |= 1 << (bit%8);
 		}
@@ -2657,7 +2657,7 @@ static inline void skge_tx_intr(struct net_device *dev)
 	struct skge_element *e;
 
 	spin_lock(&skge->tx_lock);
-	for(e = ring->to_clean; e != ring->to_use; e = e->next) {
+	for (e = ring->to_clean; e != ring->to_use; e = e->next) {
 		struct skge_tx_desc *td = e->desc;
 		u32 control;
 
@@ -2712,7 +2712,7 @@ static void skge_pci_clear(struct skge_hw *hw)
 
 static void skge_mac_intr(struct skge_hw *hw, int port)
 {
-	if (hw->chip_id == CHIP_ID_GENESIS) 
+	if (hw->chip_id == CHIP_ID_GENESIS)
 		genesis_mac_intr(hw, port);
 	else
 		yukon_mac_intr(hw, port);
@@ -2847,7 +2847,7 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 
 	if (status & IS_MAC1)
 		skge_mac_intr(hw, 0);
-	
+
 	if (status & IS_MAC2)
 		skge_mac_intr(hw, 1);
 
@@ -2952,7 +2952,7 @@ static int skge_reset(struct skge_hw *hw)
 	hw->phy_type = skge_read8(hw, B2_E_1) & 0xf;
 	hw->pmd_type = skge_read8(hw, B2_PMD_TYP);
 
-	switch(hw->chip_id) {
+	switch (hw->chip_id) {
 	case CHIP_ID_GENESIS:
 		switch (hw->phy_type) {
 		case SK_PHY_XMAC:
@@ -3288,7 +3288,7 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 	struct skge_hw *hw  = pci_get_drvdata(pdev);
 	struct net_device *dev0, *dev1;
 
-	if(!hw)
+	if (!hw)
 		return;
 
 	if ((dev1 = hw->dev[1]))
@@ -3316,7 +3316,7 @@ static int skge_suspend(struct pci_dev *pdev, u32 state)
 	struct skge_hw *hw  = pci_get_drvdata(pdev);
 	int i, wol = 0;
 
-	for(i = 0; i < 2; i++) {
+	for (i = 0; i < 2; i++) {
 		struct net_device *dev = hw->dev[i];
 
 		if (dev) {
@@ -3349,11 +3349,11 @@ static int skge_resume(struct pci_dev *pdev)
 
 	skge_reset(hw);
 
-	for(i = 0; i < 2; i++) {
+	for (i = 0; i < 2; i++) {
 		struct net_device *dev = hw->dev[i];
 		if (dev) {
 			netif_device_attach(dev);
-			if(netif_running(dev))
+			if (netif_running(dev))
 				skge_up(dev);
 		}
 	}
