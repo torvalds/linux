@@ -8,6 +8,11 @@
 #define LOAD_OFFSET	(KERNEL_START - KERNEL_TR_PAGE_SIZE)
 #include <asm-generic/vmlinux.lds.h>
 
+#define IVT_TEXT							\
+		VMLINUX_SYMBOL(__start_ivt_text) = .;			\
+		*(.text.ivt)						\
+		VMLINUX_SYMBOL(__end_ivt_text) = .;
+
 OUTPUT_FORMAT("elf64-ia64-little")
 OUTPUT_ARCH(ia64)
 ENTRY(phys_start)
@@ -39,7 +44,7 @@ SECTIONS
 
   .text : AT(ADDR(.text) - LOAD_OFFSET)
     {
-	*(.text.ivt)
+	IVT_TEXT
 	*(.text)
 	SCHED_TEXT
 	LOCK_TEXT

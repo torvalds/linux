@@ -34,6 +34,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
+#include <asm/sections.h>
 
 extern void jprobe_inst_return(void);
 
@@ -263,13 +264,26 @@ static inline void get_kprobe_inst(bundle_t *bundle, uint slot,
 	}
 }
 
+/* Returns non-zero if the addr is in the Interrupt Vector Table */
+static inline int in_ivt_functions(unsigned long addr)
+{
+	return (addr >= (unsigned long)__start_ivt_text
+		&& addr < (unsigned long)__end_ivt_text);
+}
+
 static int valid_kprobe_addr(int template, int slot, unsigned long addr)
 {
 	if ((slot > 2) || ((bundle_encoding[template][1] == L) && slot > 1)) {
-		printk(KERN_WARNING "Attempting to insert unaligned kprobe at 0x%lx\n",
-				addr);
+		printk(KERN_WARNING "Attempting to insert unaligned kprobe "
+				"at 0x%lx\n", addr);
 		return -EINVAL;
 	}
+
+ 	if (in_ivt_functions(addr)) {
+ 		printk(KERN_WARNING "Kprobes can't be inserted inside "
+				"IVT functions at 0x%lx\n", addr);
+ 		return -EINVAL;
+ 	}
 
 	if (slot == 1 && bundle_encoding[template][1] != L) {
 		printk(KERN_WARNING "Inserting kprobes on slot #1 "
