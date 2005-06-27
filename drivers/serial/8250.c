@@ -77,22 +77,8 @@ static unsigned int share_irqs = SERIAL8250_SHARE_IRQS;
  */
 #define is_real_interrupt(irq)	((irq) != 0)
 
-/*
- * This converts from our new CONFIG_ symbols to the symbols
- * that asm/serial.h expects.  You _NEED_ to comment out the
- * linux/config.h include contained inside asm/serial.h for
- * this to work.
- */
-#undef CONFIG_SERIAL_MANY_PORTS
-#undef CONFIG_SERIAL_DETECT_IRQ
-#undef CONFIG_SERIAL_MULTIPORT
-#undef CONFIG_HUB6
-
 #ifdef CONFIG_SERIAL_8250_DETECT_IRQ
 #define CONFIG_SERIAL_DETECT_IRQ 1
-#endif
-#ifdef CONFIG_SERIAL_8250_MULTIPORT
-#define CONFIG_SERIAL_MULTIPORT 1
 #endif
 #ifdef CONFIG_SERIAL_8250_MANY_PORTS
 #define CONFIG_SERIAL_MANY_PORTS 1
@@ -2323,10 +2309,11 @@ static int __devinit serial8250_probe(struct device *dev)
 {
 	struct plat_serial8250_port *p = dev->platform_data;
 	struct uart_port port;
+	int ret, i;
 
 	memset(&port, 0, sizeof(struct uart_port));
 
-	for (; p && p->flags != 0; p++) {
+	for (i = 0; p && p->flags != 0; p++, i++) {
 		port.iobase	= p->iobase;
 		port.membase	= p->membase;
 		port.irq	= p->irq;
@@ -2335,10 +2322,16 @@ static int __devinit serial8250_probe(struct device *dev)
 		port.iotype	= p->iotype;
 		port.flags	= p->flags;
 		port.mapbase	= p->mapbase;
+		port.hub6	= p->hub6;
 		port.dev	= dev;
 		if (share_irqs)
 			port.flags |= UPF_SHARE_IRQ;
-		serial8250_register_port(&port);
+		ret = serial8250_register_port(&port);
+		if (ret < 0) {
+			dev_err(dev, "unable to register port at index %d "
+				"(IO%lx MEM%lx IRQ%d): %d\n", i,
+				p->iobase, p->mapbase, p->irq, ret);
+		}
 	}
 	return 0;
 }
