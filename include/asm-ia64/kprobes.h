@@ -64,6 +64,8 @@ typedef struct _bundle {
 
 #define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)pentry
 
+#define ARCH_SUPPORTS_KRETPROBES
+
 #define SLOT0_OPCODE_SHIFT	(37)
 #define SLOT1_p1_OPCODE_SHIFT	(37 - (64-46))
 #define SLOT2_OPCODE_SHIFT 	(37)
@@ -95,11 +97,6 @@ struct arch_specific_insn {
 };
 
 /* ia64 does not need this */
-static inline void jprobe_return(void)
-{
-}
-
-/* ia64 does not need this */
 static inline void arch_copy_kprobe(struct kprobe *p)
 {
 }
@@ -107,6 +104,12 @@ static inline void arch_copy_kprobe(struct kprobe *p)
 #ifdef CONFIG_KPROBES
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
+
+/* ia64 does not need this */
+static inline void jprobe_return(void)
+{
+}
+
 #else				/* !CONFIG_KPROBES */
 static inline int kprobe_exceptions_notify(struct notifier_block *self,
 					   unsigned long val, void *data)
