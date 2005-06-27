@@ -828,11 +828,32 @@ static void stac92xx_free(struct hda_codec *codec)
 	kfree(spec);
 }
 
+#ifdef CONFIG_PM
+static int stac92xx_resume(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	int i;
+
+	stac92xx_init(codec);
+	for (i = 0; i < spec->num_mixers; i++)
+		snd_hda_resume_ctls(codec, spec->mixers[i]);
+	if (spec->multiout.dig_out_nid)
+		snd_hda_resume_spdif_out(codec);
+	if (spec->dig_in_nid)
+		snd_hda_resume_spdif_in(codec);
+
+	return 0;
+}
+#endif
+
 static struct hda_codec_ops stac92xx_patch_ops = {
 	.build_controls = stac92xx_build_controls,
 	.build_pcms = stac92xx_build_pcms,
 	.init = stac92xx_init,
 	.free = stac92xx_free,
+#ifdef CONFIG_PM
+	.resume = stac92xx_resume,
+#endif
 };
 
 static int patch_stac9200(struct hda_codec *codec)
