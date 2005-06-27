@@ -768,6 +768,58 @@ static int nonstatic_adjust_resource_info(struct pcmcia_socket *s, adjust_t *adj
 	return CS_UNSUPPORTED_FUNCTION;
 }
 
+#ifdef CONFIG_PCI
+static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
+{
+	struct resource *res;
+	int i, done = 0;
+
+	if (!s->cb_dev || !s->cb_dev->bus)
+		return -ENODEV;
+
+	for (i=0; i < PCI_BUS_NUM_RESOURCES; i++) {
+		res = s->cb_dev->bus->resource[i];
+		if (!res)
+			continue;
+
+		if (res->flags & IORESOURCE_IO) {
+			if (res == &ioport_resource)
+				continue;
+			printk(KERN_INFO "pcmcia: parent PCI bridge I/O window: 0x%lx - 0x%lx\n",
+			       res->start, res->end);
+			if (!adjust_io(s, ADD_MANAGED_RESOURCE, res->start, res->end))
+				done |= IORESOURCE_IO;
+
+		}
+
+		if (res->flags & IORESOURCE_MEM) {
+			if (res == &iomem_resource)
+				continue;
+			printk(KERN_INFO "pcmcia: parent PCI bridge Memory window: 0x%lx - 0x%lx\n",
+			       res->start, res->end);
+			if (!adjust_memory(s, ADD_MANAGED_RESOURCE, res->start, res->end))
+				done |= IORESOURCE_MEM;
+		}
+	}
+
+	/* if we got at least one of IO, and one of MEM, we can be glad and
+	 * activate the PCMCIA subsystem */
+	if (done & (IORESOURCE_MEM | IORESOURCE_IO))
+		s->resource_setup_done = 1;
+
+	return 0;
+}
+
+#else
+
+static inline int nonstatic_autoadd_resources(struct pcmcia_socket *s)
+{
+	return -ENODEV;
+}
+
+#endif
+
+
 static int nonstatic_init(struct pcmcia_socket *s)
 {
 	struct socket_data *data;
@@ -781,6 +833,8 @@ static int nonstatic_init(struct pcmcia_socket *s)
 	data->io_db.next = &data->io_db;
 
 	s->resource_data = (void *) data;
+
+	nonstatic_autoadd_resources(s);
 
 	return 0;
 }
@@ -862,6 +916,8 @@ static ssize_t store_io_db(struct class_device *class_dev, const char *buf, size
 		return -EINVAL;
 
 	ret = adjust_io(s, add, start_addr, end_addr);
+	if (!ret)
+		s->resource_setup_new = 1;
 
 	return ret ? ret : count;
 }
@@ -912,6 +968,8 @@ static ssize_t store_mem_db(struct class_device *class_dev, const char *buf, siz
 		return -EINVAL;
 
 	ret = adjust_memory(s, add, start_addr, end_addr);
+	if (!ret)
+		s->resource_setup_new = 1;
 
 	return ret ? ret : count;
 }

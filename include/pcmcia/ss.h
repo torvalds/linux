@@ -216,8 +216,9 @@ struct pcmcia_socket {
 
 	/* is set to one if resource setup is done using adjust_resource_info() */
 	u8				resource_setup_old:1;
+	u8				resource_setup_new:1;
 
-	u8				reserved:6;
+	u8				reserved:5;
 
 	/* socket operations */
 	struct pccard_operations *	ops;

@@ -72,7 +72,7 @@ int pcmcia_adjust_resource_info(adjust_t *adj)
 			/* you can't use the old interface if the new
 			 * one was used before */
 			spin_lock_irqsave(&s->lock, flags);
-			if ((s->resource_setup_done) &&
+			if ((s->resource_setup_new) &&
 			    !(s->resource_setup_old)) {
 				spin_unlock_irqrestore(&s->lock, flags);
 				continue;
