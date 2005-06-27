@@ -96,7 +96,7 @@ void ib_pack(const struct ib_field        *desc,
 			else
 				val = 0;
 
-			mask = cpu_to_be64(((1ull << desc[i].size_bits) - 1) << shift);
+			mask = cpu_to_be64((~0ull >> (64 - desc[i].size_bits)) << shift);
 			addr = (__be64 *) ((__be32 *) buf + desc[i].offset_words);
 			*addr = (*addr & ~mask) | (cpu_to_be64(val) & mask);
 		} else {
@@ -176,7 +176,7 @@ void ib_unpack(const struct ib_field        *desc,
 			__be64 *addr;
 
 			shift = 64 - desc[i].offset_bits - desc[i].size_bits;
-			mask = ((1ull << desc[i].size_bits) - 1) << shift;
+			mask = (~0ull >> (64 - desc[i].size_bits)) << shift;
 			addr = (__be64 *) buf + desc[i].offset_words;
 			val = (be64_to_cpup(addr) & mask) >> shift;
 			value_write(desc[i].struct_offset_bytes,
