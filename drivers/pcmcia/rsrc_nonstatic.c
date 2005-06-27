@@ -779,6 +779,17 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 	if (!s->cb_dev || !s->cb_dev->bus)
 		return -ENODEV;
 
+#if defined(CONFIG_X86) || defined(CONFIG_X86_64)
+	/* If this is the root bus, the risk of hitting
+	 * some strange system devices which aren't protected
+	 * by either ACPI resource tables or properly requested
+	 * resources is too big. Therefore, don't do auto-adding
+	 * of resources at the moment.
+	 */
+	if (s->cb_dev->bus->number == 0)
+		return -EINVAL;
+#endif
+
 	for (i=0; i < PCI_BUS_NUM_RESOURCES; i++) {
 		res = s->cb_dev->bus->resource[i];
 		if (!res)
