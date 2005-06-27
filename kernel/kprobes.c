@@ -36,6 +36,7 @@
 #include <linux/hash.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/moduleloader.h>
 #include <asm/cacheflush.h>
 #include <asm/errno.h>
 #include <asm/kdebug.h>
@@ -49,6 +50,106 @@ static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 unsigned int kprobe_cpu = NR_CPUS;
 static DEFINE_SPINLOCK(kprobe_lock);
 static struct kprobe *curr_kprobe;
+
+/*
+ * kprobe->ainsn.insn points to the copy of the instruction to be
+ * single-stepped. x86_64, POWER4 and above have no-exec support and
+ * stepping on the instruction on a vmalloced/kmalloced/data page
+ * is a recipe for disaster
+ */
+#define INSNS_PER_PAGE	(PAGE_SIZE/(MAX_INSN_SIZE * sizeof(kprobe_opcode_t)))
+
+struct kprobe_insn_page {
+	struct hlist_node hlist;
+	kprobe_opcode_t *insns;		/* Page of instruction slots */
+	char slot_used[INSNS_PER_PAGE];
+	int nused;
+};
+
+static struct hlist_head kprobe_insn_pages;
+
+/**
+ * get_insn_slot() - Find a slot on an executable page for an instruction.
+ * We allocate an executable page if there's no room on existing ones.
+ */
+kprobe_opcode_t *get_insn_slot(void)
+{
+	struct kprobe_insn_page *kip;
+	struct hlist_node *pos;
+
+	hlist_for_each(pos, &kprobe_insn_pages) {
+		kip = hlist_entry(pos, struct kprobe_insn_page, hlist);
+		if (kip->nused < INSNS_PER_PAGE) {
+			int i;
+			for (i = 0; i < INSNS_PER_PAGE; i++) {
+				if (!kip->slot_used[i]) {
+					kip->slot_used[i] = 1;
+					kip->nused++;
+					return kip->insns + (i * MAX_INSN_SIZE);
+				}
+			}
+			/* Surprise!  No unused slots.  Fix kip->nused. */
+			kip->nused = INSNS_PER_PAGE;
+		}
+	}
+
+	/* All out of space.  Need to allocate a new page. Use slot 0.*/
+	kip = kmalloc(sizeof(struct kprobe_insn_page), GFP_KERNEL);
+	if (!kip) {
+		return NULL;
+	}
+
+	/*
+	 * Use module_alloc so this page is within +/- 2GB of where the
+	 * kernel image and loaded module images reside. This is required
+	 * so x86_64 can correctly handle the %rip-relative fixups.
+	 */
+	kip->insns = module_alloc(PAGE_SIZE);
+	if (!kip->insns) {
+		kfree(kip);
+		return NULL;
+	}
+	INIT_HLIST_NODE(&kip->hlist);
+	hlist_add_head(&kip->hlist, &kprobe_insn_pages);
+	memset(kip->slot_used, 0, INSNS_PER_PAGE);
+	kip->slot_used[0] = 1;
+	kip->nused = 1;
+	return kip->insns;
+}
+
+void free_insn_slot(kprobe_opcode_t *slot)
+{
+	struct kprobe_insn_page *kip;
+	struct hlist_node *pos;
+
+	hlist_for_each(pos, &kprobe_insn_pages) {
+		kip = hlist_entry(pos, struct kprobe_insn_page, hlist);
+		if (kip->insns <= slot &&
+		    slot < kip->insns + (INSNS_PER_PAGE * MAX_INSN_SIZE)) {
+			int i = (slot - kip->insns) / MAX_INSN_SIZE;
+			kip->slot_used[i] = 0;
+			kip->nused--;
+			if (kip->nused == 0) {
+				/*
+				 * Page is no longer in use.  Free it unless
+				 * it's the last one.  We keep the last one
+				 * so as not to have to set it up again the
+				 * next time somebody inserts a probe.
+				 */
+				hlist_del(&kip->hlist);
+				if (hlist_empty(&kprobe_insn_pages)) {
+					INIT_HLIST_NODE(&kip->hlist);
+					hlist_add_head(&kip->hlist,
+						&kprobe_insn_pages);
+				} else {
+					module_free(NULL, kip->insns);
+					kfree(kip);
+				}
+			}
+			return;
+		}
+	}
+}
 
 /* Locks kprobe: irqs must be disabled */
 void lock_kprobes(void)

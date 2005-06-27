@@ -36,6 +36,8 @@
 #include <asm/kdebug.h>
 #include <asm/sstep.h>
 
+static DECLARE_MUTEX(kprobe_mutex);
+
 static struct kprobe *current_kprobe;
 static unsigned long kprobe_status, kprobe_saved_msr;
 static struct kprobe *kprobe_prev;
@@ -53,6 +55,15 @@ int arch_prepare_kprobe(struct kprobe *p)
 	} else if (IS_MTMSRD(insn) || IS_RFID(insn)) {
 		printk("Cannot register a kprobe on rfid or mtmsrd\n");
 		ret = -EINVAL;
+	}
+
+	/* insn must be on a special executable page on ppc64 */
+	if (!ret) {
+		up(&kprobe_mutex);
+		p->ainsn.insn = get_insn_slot();
+		down(&kprobe_mutex);
+		if (!p->ainsn.insn)
+			ret = -ENOMEM;
 	}
 	return ret;
 }
@@ -79,16 +90,22 @@ void arch_disarm_kprobe(struct kprobe *p)
 
 void arch_remove_kprobe(struct kprobe *p)
 {
+	up(&kprobe_mutex);
+	free_insn_slot(p->ainsn.insn);
+	down(&kprobe_mutex);
 }
 
 static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
+	kprobe_opcode_t insn = *p->ainsn.insn;
+
 	regs->msr |= MSR_SE;
-	/*single step inline if it a breakpoint instruction*/
-	if (p->opcode == BREAKPOINT_INSTRUCTION)
+
+	/* single step inline if it is a trap variant */
+	if (IS_TW(insn) || IS_TD(insn) || IS_TWI(insn) || IS_TDI(insn))
 		regs->nip = (unsigned long)p->addr;
 	else
-		regs->nip = (unsigned long)&p->ainsn.insn;
+		regs->nip = (unsigned long)p->ainsn.insn;
 }
 
 static inline void save_previous_kprobe(void)
@@ -205,9 +222,10 @@ no_kprobe:
 static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
 	int ret;
+	unsigned int insn = *p->ainsn.insn;
 
 	regs->nip = (unsigned long)p->addr;
-	ret = emulate_step(regs, p->ainsn.insn[0]);
+	ret = emulate_step(regs, insn);
 	if (ret == 0)
 		regs->nip = (unsigned long)p->addr + 4;
 }

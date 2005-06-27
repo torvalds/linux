@@ -28,6 +28,7 @@
 #include <linux/ptrace.h>
 #include <asm/break.h>
 
+#define MAX_INSN_SIZE   16
 #define BREAK_INST	(long)(__IA64_BREAK_KPROBE << 6)
 
 typedef union cmp_inst {

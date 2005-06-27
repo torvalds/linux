@@ -177,6 +177,8 @@ extern void arch_arm_kprobe(struct kprobe *p);
 extern void arch_disarm_kprobe(struct kprobe *p);
 extern void arch_remove_kprobe(struct kprobe *p);
 extern void show_registers(struct pt_regs *regs);
+extern kprobe_opcode_t *get_insn_slot(void);
+extern void free_insn_slot(kprobe_opcode_t *slot);
 
 /* Get the kprobe at this addr (if any).  Must have called lock_kprobes */
 struct kprobe *get_kprobe(void *addr);
