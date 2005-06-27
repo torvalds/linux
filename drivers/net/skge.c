@@ -7,7 +7,7 @@
  * of the original driver such as link fail-over and link management because
  * those should be done at higher levels.
  *
- * Copyright (C) 2004, Stephen Hemminger <shemminger@osdl.org>
+ * Copyright (C) 2004, 2005 Stephen Hemminger <shemminger@osdl.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"0.6"
+#define DRV_VERSION		"0.7"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
