@@ -271,8 +271,9 @@ cplus_fptrap_insn_1:
 	fmuld		%f0, %f2, %f26
 	faddd		%f0, %f2, %f28
 	fmuld		%f0, %f2, %f30
+	membar		#Sync
 	b,pt		%xcc, fpdis_exit
-	 membar		#Sync
+	 nop
 2:	andcc		%g5, FPRS_DU, %g0
 	bne,pt		%icc, 3f
 	 fzero		%f32
@@ -301,8 +302,9 @@ cplus_fptrap_insn_2:
 	fmuld		%f32, %f34, %f58
 	faddd		%f32, %f34, %f60
 	fmuld		%f32, %f34, %f62
+	membar		#Sync
 	ba,pt		%xcc, fpdis_exit
-	 membar		#Sync
+	 nop
 3:	mov		SECONDARY_CONTEXT, %g3
 	add		%g6, TI_FPREGS, %g1
 	ldxa		[%g3] ASI_DMMU, %g5
