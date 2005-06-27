@@ -615,8 +615,7 @@ static void mthca_free_eq(struct mthca_dev *dev,
 	if (err)
 		mthca_warn(dev, "HW2SW_EQ failed (%d)\n", err);
 	if (status)
-		mthca_warn(dev, "HW2SW_EQ returned status 0x%02x\n",
-			   status);
+		mthca_warn(dev, "HW2SW_EQ returned status 0x%02x\n", status);
 
 	dev->eq_table.arm_mask &= ~eq->eqn_mask;
 
@@ -709,8 +708,7 @@ static int __devinit mthca_map_eq_regs(struct mthca_dev *dev)
 		if (mthca_map_reg(dev, ((pci_resource_len(dev->pdev, 0) - 1) &
 					dev->fw.arbel.eq_arm_base) + 4, 4,
 				  &dev->eq_regs.arbel.eq_arm)) {
-			mthca_err(dev, "Couldn't map interrupt clear register, "
-				  "aborting.\n");
+			mthca_err(dev, "Couldn't map EQ arm register, aborting.\n");
 			mthca_unmap_reg(dev, (pci_resource_len(dev->pdev, 0) - 1) &
 					dev->fw.arbel.clr_int_base, MTHCA_CLR_INT_SIZE,
 					dev->clr_base);
@@ -721,8 +719,7 @@ static int __devinit mthca_map_eq_regs(struct mthca_dev *dev)
 				  dev->fw.arbel.eq_set_ci_base,
 				  MTHCA_EQ_SET_CI_SIZE,
 				  &dev->eq_regs.arbel.eq_set_ci_base)) {
-			mthca_err(dev, "Couldn't map interrupt clear register, "
-				  "aborting.\n");
+			mthca_err(dev, "Couldn't map EQ CI register, aborting.\n");
 			mthca_unmap_reg(dev, ((pci_resource_len(dev->pdev, 0) - 1) &
 					      dev->fw.arbel.eq_arm_base) + 4, 4,
 					dev->eq_regs.arbel.eq_arm);

@@ -70,7 +70,7 @@ MODULE_PARM_DESC(msi, "attempt to use MSI if nonzero");
 #endif /* CONFIG_PCI_MSI */
 
 static const char mthca_version[] __devinitdata =
-	"ib_mthca: Mellanox InfiniBand HCA driver v"
+	DRV_NAME ": Mellanox InfiniBand HCA driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
 
 static struct mthca_profile default_profile = {
@@ -928,13 +928,13 @@ static int __devinit mthca_init_one(struct pci_dev *pdev,
 	 */
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM) ||
 	    pci_resource_len(pdev, 0) != 1 << 20) {
-		dev_err(&pdev->dev, "Missing DCS, aborting.");
+		dev_err(&pdev->dev, "Missing DCS, aborting.\n");
 		err = -ENODEV;
 		goto err_disable_pdev;
 	}
 	if (!(pci_resource_flags(pdev, 2) & IORESOURCE_MEM) ||
 	    pci_resource_len(pdev, 2) != 1 << 23) {
-		dev_err(&pdev->dev, "Missing UAR, aborting.");
+		dev_err(&pdev->dev, "Missing UAR, aborting.\n");
 		err = -ENODEV;
 		goto err_disable_pdev;
 	}
@@ -1164,7 +1164,7 @@ static struct pci_device_id mthca_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, mthca_pci_table);
 
 static struct pci_driver mthca_driver = {
-	.name		= "ib_mthca",
+	.name		= DRV_NAME,
 	.id_table	= mthca_pci_table,
 	.probe		= mthca_init_one,
 	.remove		= __devexit_p(mthca_remove_one)
