@@ -431,6 +431,27 @@ static int mthca_cmd_imm(struct mthca_dev *dev,
 				      timeout, status);
 }
 
+int mthca_cmd_init(struct mthca_dev *dev)
+{
+	sema_init(&dev->cmd.hcr_sem, 1);
+	sema_init(&dev->cmd.poll_sem, 1);
+	dev->cmd.use_events = 0;
+
+	dev->hcr = ioremap(pci_resource_start(dev->pdev, 0) + MTHCA_HCR_BASE,
+			   MTHCA_HCR_SIZE);
+	if (!dev->hcr) {
+		mthca_err(dev, "Couldn't map command register.");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void mthca_cmd_cleanup(struct mthca_dev *dev)
+{
+	iounmap(dev->hcr);
+}
+
 /*
  * Switch to using events to issue FW commands (should be called after
  * event queue to command events has been initialized).

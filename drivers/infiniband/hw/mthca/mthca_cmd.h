@@ -235,6 +235,8 @@ struct mthca_set_ib_param {
 	u32 cap_mask;
 };
 
+int mthca_cmd_init(struct mthca_dev *dev);
+void mthca_cmd_cleanup(struct mthca_dev *dev);
 int mthca_cmd_use_events(struct mthca_dev *dev);
 void mthca_cmd_use_polling(struct mthca_dev *dev);
 void mthca_cmd_event(struct mthca_dev *dev, u16 token,

@@ -1005,25 +1005,18 @@ static int __devinit mthca_init_one(struct pci_dev *pdev,
 	    !pci_enable_msi(pdev))
 		mdev->mthca_flags |= MTHCA_FLAG_MSI;
 
-	sema_init(&mdev->cmd.hcr_sem, 1);
-	sema_init(&mdev->cmd.poll_sem, 1);
-	mdev->cmd.use_events = 0;
-
-	mdev->hcr = ioremap(pci_resource_start(pdev, 0) + MTHCA_HCR_BASE, MTHCA_HCR_SIZE);
-	if (!mdev->hcr) {
-		mthca_err(mdev, "Couldn't map command register, "
-			  "aborting.\n");
-		err = -ENOMEM;
+	if (mthca_cmd_init(mdev)) {
+		mthca_err(mdev, "Failed to init command interface, aborting.\n");
 		goto err_free_dev;
 	}
 
 	err = mthca_tune_pci(mdev);
 	if (err)
-		goto err_iounmap;
+		goto err_cmd;
 
 	err = mthca_init_hca(mdev);
 	if (err)
-		goto err_iounmap;
+		goto err_cmd;
 
 	if (mdev->fw_ver < mthca_hca_table[id->driver_data].latest_fw) {
 		mthca_warn(mdev, "HCA FW version %x.%x.%x is old (%x.%x.%x is current).\n",
@@ -1071,8 +1064,8 @@ err_cleanup:
 err_close:
 	mthca_close_hca(mdev);
 
-err_iounmap:
-	iounmap(mdev->hcr);
+err_cmd:
+	mthca_cmd_cleanup(mdev);
 
 err_free_dev:
 	if (mdev->mthca_flags & MTHCA_FLAG_MSI_X)
@@ -1119,10 +1112,8 @@ static void __devexit mthca_remove_one(struct pci_dev *pdev)
 		iounmap(mdev->kar);
 		mthca_uar_free(mdev, &mdev->driver_uar);
 		mthca_cleanup_uar_table(mdev);
-
 		mthca_close_hca(mdev);
-
-		iounmap(mdev->hcr);
+		mthca_cmd_cleanup(mdev);
 
 		if (mdev->mthca_flags & MTHCA_FLAG_MSI_X)
 			pci_disable_msix(pdev);
