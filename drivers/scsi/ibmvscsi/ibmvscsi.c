@@ -87,7 +87,7 @@ static int max_channel = 3;
 static int init_timeout = 5;
 static int max_requests = 50;
 
-#define IBMVSCSI_VERSION "1.5.5"
+#define IBMVSCSI_VERSION "1.5.6"
 
 MODULE_DESCRIPTION("IBM Virtual SCSI");
 MODULE_AUTHOR("Dave Boutcher");
@@ -674,8 +674,6 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 {
 	struct viosrp_adapter_info *req;
 	struct srp_event_struct *evt_struct;
-	
-	memset(&hostdata->madapter_info, 0x00, sizeof(hostdata->madapter_info));
 	
 	evt_struct = get_event_struct(&hostdata->pool);
 	if (!evt_struct) {
