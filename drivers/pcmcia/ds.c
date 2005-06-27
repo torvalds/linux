@@ -116,8 +116,13 @@ static struct bus_type pcmcia_bus_type;
 #define DS_SOCKET_DEAD			0x80
 
 /*====================================================================*/
+#ifdef CONFIG_PCMCIA_IOCTL
 
 static int major_dev = -1;
+static struct pcmcia_bus_socket * get_socket_info_by_nr(unsigned int nr);
+static struct pcmcia_driver * get_pcmcia_driver (dev_info_t *dev_info);
+
+#endif
 
 static int unbind_request(struct pcmcia_bus_socket *s);
 
@@ -356,8 +361,6 @@ static inline int pcmcia_load_firmware(struct pcmcia_device *dev, char * filenam
 
 /*======================================================================*/
 
-static struct pcmcia_driver * get_pcmcia_driver (dev_info_t *dev_info);
-static struct pcmcia_bus_socket * get_socket_info_by_nr(unsigned int nr);
 
 static void pcmcia_release_bus_socket(struct kref *refcount)
 {
@@ -411,6 +414,7 @@ void pcmcia_unregister_driver(struct pcmcia_driver *driver)
 }
 EXPORT_SYMBOL(pcmcia_unregister_driver);
 
+#ifdef CONFIG_PCMCIA_IOCTL
 #ifdef CONFIG_PROC_FS
 static struct proc_dir_entry *proc_pccard = NULL;
 
@@ -442,6 +446,7 @@ static int proc_read_drivers(char *buf, char **start, off_t pos,
 
 	return (p - buf);
 }
+#endif
 #endif
 
 /* pcmcia_device handling */
@@ -998,6 +1003,8 @@ static struct device_attribute pcmcia_dev_attrs[] = {
     
 ======================================================================*/
 
+#ifdef CONFIG_PCMCIA_IOCTL
+
 static int queue_empty(user_info_t *user)
 {
     return (user->event_head == user->event_tail);
@@ -1024,6 +1031,11 @@ static void handle_event(struct pcmcia_bus_socket *s, event_t event)
 	queue_event(user, event);
     wake_up_interruptible(&s->queue);
 }
+#else
+static inline void handle_event(struct pcmcia_bus_socket *s, event_t event) { return; }
+static inline int handle_request(struct pcmcia_bus_socket *s, event_t event) { return CS_SUCCESS; }
+#endif
+
 
 
 /*======================================================================
@@ -1142,6 +1154,8 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 
 ======================================================================*/
 
+#ifdef CONFIG_PCMCIA_IOCTL
+
 static int bind_request(struct pcmcia_bus_socket *s, bind_info_t *bind_info)
 {
 	struct pcmcia_driver *p_drv;
@@ -1236,6 +1250,8 @@ rescan:
 
 	return (ret);
 } /* bind_request */
+
+#endif
 
 
 int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
@@ -1334,6 +1350,7 @@ EXPORT_SYMBOL(pcmcia_register_client);
 
 
 /*====================================================================*/
+#ifdef CONFIG_PCMCIA_IOCTL
 
 extern struct pci_bus *pcmcia_lookup_bus(struct pcmcia_socket *s);
 
@@ -1422,6 +1439,8 @@ static int get_device_info(struct pcmcia_bus_socket *s, bind_info_t *bind_info, 
 	return (ret);
 } /* get_device_info */
 
+#endif
+
 /*====================================================================*/
 
 /* unbind _all_ devices attached to a given pcmcia_bus_socket. The
@@ -1494,6 +1513,8 @@ EXPORT_SYMBOL(pcmcia_deregister_client);
     The user-mode PC Card device interface
 
 ======================================================================*/
+
+#ifdef CONFIG_PCMCIA_IOCTL
 
 static int ds_open(struct inode *inode, struct file *file)
 {
@@ -1855,6 +1876,8 @@ static struct file_operations ds_fops = {
 	.poll		= ds_poll,
 };
 
+#endif
+
 static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev)
 {
 	struct pcmcia_socket *socket = class_get_devdata(class_dev);
@@ -1939,13 +1962,16 @@ static struct bus_type pcmcia_bus_type = {
 
 static int __init init_pcmcia_bus(void)
 {
+#ifdef CONFIG_PCMCIA_IOCTL
 	int i;
+#endif
 
 	spin_lock_init(&pcmcia_dev_list_lock);
 
 	bus_register(&pcmcia_bus_type);
 	class_interface_register(&pcmcia_bus_interface);
 
+#ifdef CONFIG_PCMCIA_IOCTL
 	/* Set up character device for user mode clients */
 	i = register_chrdev(0, "pcmcia", &ds_fops);
 	if (i < 0)
@@ -1959,6 +1985,7 @@ static int __init init_pcmcia_bus(void)
 	if (proc_pccard)
 		create_proc_read_entry("drivers",0,proc_pccard,proc_read_drivers,NULL);
 #endif
+#endif
 
 	return 0;
 }
@@ -1970,6 +1997,7 @@ static void __exit exit_pcmcia_bus(void)
 {
 	class_interface_unregister(&pcmcia_bus_interface);
 
+#ifdef CONFIG_PCMCIA_IOCTL
 #ifdef CONFIG_PROC_FS
 	if (proc_pccard) {
 		remove_proc_entry("drivers", proc_pccard);
@@ -1978,6 +2006,7 @@ static void __exit exit_pcmcia_bus(void)
 #endif
 	if (major_dev != -1)
 		unregister_chrdev(major_dev, "pcmcia");
+#endif
 
 	bus_unregister(&pcmcia_bus_type);
 }
@@ -1986,7 +2015,7 @@ module_exit(exit_pcmcia_bus);
 
 
 /* helpers for backwards-compatible functions */
-
+#ifdef CONFIG_PCMCIA_IOCTL
 static struct pcmcia_bus_socket * get_socket_info_by_nr(unsigned int nr)
 {
 	struct pcmcia_socket * s = pcmcia_get_socket_by_nr(nr);
@@ -2011,5 +2040,6 @@ static struct pcmcia_driver * get_pcmcia_driver (dev_info_t *dev_info)
 
 	return (p_drv);
 }
+#endif
 
 MODULE_ALIAS("ds");
