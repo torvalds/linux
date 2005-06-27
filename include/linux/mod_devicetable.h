@@ -191,12 +191,22 @@ struct pcmcia_device_id {
 	/* for pseude multi-function devices */
 	__u8  		device_no;
 
-	const char *	prod_id[4];
 	__u32 		prod_id_hash[4];
+
+	/* not matched against in kernelspace*/
+#ifdef __KERNEL__
+	const char *	prod_id[4];
+#else
+	kernel_ulong_t	prod_id[4];
+#endif
 
 	/* not matched against */
 	kernel_ulong_t	driver_info;
+#ifdef __KERNEL__
 	char *		cisfile;
+#else
+	kernel_ulong_t	cisfile;
+#endif
 };
 
 #define PCMCIA_DEV_ID_MATCH_MANF_ID	0x0001
