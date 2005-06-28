@@ -1675,6 +1675,13 @@ static void set_multicast_list(struct net_device *dev)
 
 } /* set_multicast_list */
 
+static struct pcmcia_device_id nmclan_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("New Media Corporation", "Ethernet", 0x085a850b, 0x00b2e941),
+	PCMCIA_DEVICE_PROD_ID12("Portable Add-ons", "Ethernet", 0x0ebf1d60, 0x00b2e941),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, nmclan_ids);
+
 static struct pcmcia_driver nmclan_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -1682,6 +1689,7 @@ static struct pcmcia_driver nmclan_cs_driver = {
 	},
 	.attach		= nmclan_attach,
 	.detach		= nmclan_detach,
+	.id_table       = nmclan_ids,
 };
 
 static int __init init_nmclan_cs(void)

@@ -935,6 +935,12 @@ static int bt3c_event(event_t event, int priority, event_callback_args_t *args)
 	return 0;
 }
 
+static struct pcmcia_device_id bt3c_ids[] = {
+	PCMCIA_DEVICE_PROD_ID13("3COM", "Bluetooth PC Card", 0xefce0a31, 0xd4ce9b02),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, bt3c_ids);
+
 static struct pcmcia_driver bt3c_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -942,6 +948,7 @@ static struct pcmcia_driver bt3c_driver = {
 	},
 	.attach		= bt3c_attach,
 	.detach		= bt3c_detach,
+	.id_table	= bt3c_ids,
 };
 
 static int __init init_bt3c_cs(void)

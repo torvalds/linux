@@ -19,7 +19,7 @@
 /* You should not mess with this directly. That's the job of irq.c.
  *
  * If you make changes here, please update hand coded assembler of
- * SBUS/floppy interrupt handler in entry.S -DaveM
+ * the vectored interrupt trap handler in entry.S -DaveM
  *
  * This is currently one DCACHE line, two buckets per L2 cache
  * line.  Keep this in mind please.
@@ -121,11 +121,6 @@ extern void disable_irq(unsigned int);
 extern void enable_irq(unsigned int);
 extern unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long imap);
 extern unsigned int sbus_build_irq(void *sbus, unsigned int ino);
-
-extern int request_fast_irq(unsigned int irq,
-			    irqreturn_t (*handler)(int, void *, struct pt_regs *),
-			    unsigned long flags, __const__ char *devname,
-			    void *dev_id);
 
 static __inline__ void set_softint(unsigned long bits)
 {

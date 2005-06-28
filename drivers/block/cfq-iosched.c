@@ -300,7 +300,6 @@ CFQ_CRQ_FNS(requeued);
 static struct cfq_queue *cfq_find_cfq_hash(struct cfq_data *, unsigned int, unsigned short);
 static void cfq_dispatch_sort(request_queue_t *, struct cfq_rq *);
 static void cfq_put_cfqd(struct cfq_data *cfqd);
-static inline int cfq_pending_requests(struct cfq_data *cfqd);
 
 #define process_sync(tsk)	((tsk)->flags & PF_SYNCWRITE)
 
@@ -346,6 +345,28 @@ static struct request *cfq_find_rq_hash(struct cfq_data *cfqd, sector_t offset)
 	}
 
 	return NULL;
+}
+
+static inline int cfq_pending_requests(struct cfq_data *cfqd)
+{
+	return !list_empty(&cfqd->queue->queue_head) || cfqd->busy_queues;
+}
+
+/*
+ * scheduler run of queue, if there are requests pending and no one in the
+ * driver that will restart queueing
+ */
+static inline void cfq_schedule_dispatch(struct cfq_data *cfqd)
+{
+	if (!cfqd->rq_in_driver && cfq_pending_requests(cfqd))
+		kblockd_schedule_work(&cfqd->unplug_work);
+}
+
+static int cfq_queue_empty(request_queue_t *q)
+{
+	struct cfq_data *cfqd = q->elevator->elevator_data;
+
+	return !cfq_pending_requests(cfqd);
 }
 
 /*
@@ -1069,16 +1090,6 @@ cfq_prio_to_maxrq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	WARN_ON(cfqq->ioprio >= IOPRIO_BE_NR);
 
 	return 2 * (base_rq + base_rq * (CFQ_PRIO_LISTS - 1 - cfqq->ioprio));
-}
-
-/*
- * scheduler run of queue, if there are requests pending and no one in the
- * driver that will restart queueing
- */
-static inline void cfq_schedule_dispatch(struct cfq_data *cfqd)
-{
-	if (!cfqd->rq_in_driver && cfq_pending_requests(cfqd))
-		kblockd_schedule_work(&cfqd->unplug_work);
 }
 
 /*
@@ -1846,18 +1857,6 @@ cfq_insert_request(request_queue_t *q, struct request *rq, int where)
 	}
 }
 
-static inline int cfq_pending_requests(struct cfq_data *cfqd)
-{
-	return !list_empty(&cfqd->queue->queue_head) || cfqd->busy_queues;
-}
-
-static int cfq_queue_empty(request_queue_t *q)
-{
-	struct cfq_data *cfqd = q->elevator->elevator_data;
-
-	return !cfq_pending_requests(cfqd);
-}
-
 static void cfq_completed_request(request_queue_t *q, struct request *rq)
 {
 	struct cfq_rq *crq = RQ_DATA(rq);
@@ -1952,7 +1951,7 @@ __cfq_may_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 {
 #if 1
 	if ((cfq_cfqq_wait_request(cfqq) || cfq_cfqq_must_alloc(cfqq)) &&
-	    !cfq_cfqq_must_alloc_slice) {
+	    !cfq_cfqq_must_alloc_slice(cfqq)) {
 		cfq_mark_cfqq_must_alloc_slice(cfqq);
 		return ELV_MQUEUE_MUST;
 	}
@@ -1969,7 +1968,7 @@ __cfq_may_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 * only allow 1 ELV_MQUEUE_MUST per slice, otherwise we
 		 * can quickly flood the queue with writes from a single task
 		 */
-		if (rw == READ || !cfq_cfqq_must_alloc_slice) {
+		if (rw == READ || !cfq_cfqq_must_alloc_slice(cfqq)) {
 			cfq_mark_cfqq_must_alloc_slice(cfqq);
 			return ELV_MQUEUE_MUST;
 		}

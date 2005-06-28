@@ -37,6 +37,7 @@
 #include <asm/uaccess.h>
 #include <asm/cache.h>
 #include <asm/cpudata.h>
+#include <asm/auxio.h>
 
 #ifdef CONFIG_SMP
 static void distribute_irqs(void);
@@ -834,137 +835,65 @@ void handler_irq(int irq, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_BLK_DEV_FD
-extern void floppy_interrupt(int irq, void *dev_cookie, struct pt_regs *regs);
+extern irqreturn_t floppy_interrupt(int, void *, struct pt_regs *);;
 
-void sparc_floppy_irq(int irq, void *dev_cookie, struct pt_regs *regs)
+/* XXX No easy way to include asm/floppy.h XXX */
+extern unsigned char *pdma_vaddr;
+extern unsigned long pdma_size;
+extern volatile int doing_pdma;
+extern unsigned long fdc_status;
+
+irqreturn_t sparc_floppy_irq(int irq, void *dev_cookie, struct pt_regs *regs)
 {
-	struct irqaction *action = *(irq + irq_action);
-	struct ino_bucket *bucket;
-	int cpu = smp_processor_id();
+	if (likely(doing_pdma)) {
+		void __iomem *stat = (void __iomem *) fdc_status;
+		unsigned char *vaddr = pdma_vaddr;
+		unsigned long size = pdma_size;
+		u8 val;
 
-	irq_enter();
-	kstat_this_cpu.irqs[irq]++;
+		while (size) {
+			val = readb(stat);
+			if (unlikely(!(val & 0x80))) {
+				pdma_vaddr = vaddr;
+				pdma_size = size;
+				return IRQ_HANDLED;
+			}
+			if (unlikely(!(val & 0x20))) {
+				pdma_vaddr = vaddr;
+				pdma_size = size;
+				doing_pdma = 0;
+				goto main_interrupt;
+			}
+			if (val & 0x40) {
+				/* read */
+				*vaddr++ = readb(stat + 1);
+			} else {
+				unsigned char data = *vaddr++;
 
-	*(irq_work(cpu, irq)) = 0;
-	bucket = get_ino_in_irqaction(action) + ivector_table;
+				/* write */
+				writeb(data, stat + 1);
+			}
+			size--;
+		}
 
-	bucket->flags |= IBF_INPROGRESS;
+		pdma_vaddr = vaddr;
+		pdma_size = size;
 
-	floppy_interrupt(irq, dev_cookie, regs);
-	upa_writel(ICLR_IDLE, bucket->iclr);
+		/* Send Terminal Count pulse to floppy controller. */
+		val = readb(auxio_register);
+		val |= AUXIO_AUX1_FTCNT;
+		writeb(val, auxio_register);
+		val &= AUXIO_AUX1_FTCNT;
+		writeb(val, auxio_register);
 
-	bucket->flags &= ~IBF_INPROGRESS;
+		doing_pdma = 0;
+	}
 
-	irq_exit();
+main_interrupt:
+	return floppy_interrupt(irq, dev_cookie, regs);
 }
+EXPORT_SYMBOL(sparc_floppy_irq);
 #endif
-
-/* The following assumes that the branch lies before the place we
- * are branching to.  This is the case for a trap vector...
- * You have been warned.
- */
-#define SPARC_BRANCH(dest_addr, inst_addr) \
-          (0x10800000 | ((((dest_addr)-(inst_addr))>>2)&0x3fffff))
-
-#define SPARC_NOP (0x01000000)
-
-static void install_fast_irq(unsigned int cpu_irq,
-			     irqreturn_t (*handler)(int, void *, struct pt_regs *))
-{
-	extern unsigned long sparc64_ttable_tl0;
-	unsigned long ttent = (unsigned long) &sparc64_ttable_tl0;
-	unsigned int *insns;
-
-	ttent += 0x820;
-	ttent += (cpu_irq - 1) << 5;
-	insns = (unsigned int *) ttent;
-	insns[0] = SPARC_BRANCH(((unsigned long) handler),
-				((unsigned long)&insns[0]));
-	insns[1] = SPARC_NOP;
-	__asm__ __volatile__("membar #StoreStore; flush %0" : : "r" (ttent));
-}
-
-int request_fast_irq(unsigned int irq,
-		     irqreturn_t (*handler)(int, void *, struct pt_regs *),
-		     unsigned long irqflags, const char *name, void *dev_id)
-{
-	struct irqaction *action;
-	struct ino_bucket *bucket = __bucket(irq);
-	unsigned long flags;
-
-	/* No pil0 dummy buckets allowed here. */
-	if (bucket < &ivector_table[0] ||
-	    bucket >= &ivector_table[NUM_IVECS]) {
-		unsigned int *caller;
-
-		__asm__ __volatile__("mov %%i7, %0" : "=r" (caller));
-		printk(KERN_CRIT "request_fast_irq: Old style IRQ registry attempt "
-		       "from %p, irq %08x.\n", caller, irq);
-		return -EINVAL;
-	}	
-	
-	if (!handler)
-		return -EINVAL;
-
-	if ((bucket->pil == 0) || (bucket->pil == 14)) {
-		printk("request_fast_irq: Trying to register shared IRQ 0 or 14.\n");
-		return -EBUSY;
-	}
-
-	spin_lock_irqsave(&irq_action_lock, flags);
-
-	action = *(bucket->pil + irq_action);
-	if (action) {
-		if (action->flags & SA_SHIRQ)
-			panic("Trying to register fast irq when already shared.\n");
-		if (irqflags & SA_SHIRQ)
-			panic("Trying to register fast irq as shared.\n");
-		printk("request_fast_irq: Trying to register yet already owned.\n");
-		spin_unlock_irqrestore(&irq_action_lock, flags);
-		return -EBUSY;
-	}
-
-	/*
-	 * We do not check for SA_SAMPLE_RANDOM in this path. Neither do we
-	 * support smp intr affinity in this path.
-	 */
-	if (irqflags & SA_STATIC_ALLOC) {
-		if (static_irq_count < MAX_STATIC_ALLOC)
-			action = &static_irqaction[static_irq_count++];
-		else
-			printk("Request for IRQ%d (%s) SA_STATIC_ALLOC failed "
-			       "using kmalloc\n", bucket->pil, name);
-	}
-	if (action == NULL)
-		action = (struct irqaction *)kmalloc(sizeof(struct irqaction),
-						     GFP_ATOMIC);
-	if (!action) {
-		spin_unlock_irqrestore(&irq_action_lock, flags);
-		return -ENOMEM;
-	}
-	install_fast_irq(bucket->pil, handler);
-
-	bucket->irq_info = action;
-	bucket->flags |= IBF_ACTIVE;
-
-	action->handler = handler;
-	action->flags = irqflags;
-	action->dev_id = NULL;
-	action->name = name;
-	action->next = NULL;
-	put_ino_in_irqaction(action, irq);
-	put_smpaff_in_irqaction(action, CPU_MASK_NONE);
-
-	*(bucket->pil + irq_action) = action;
-	enable_irq(irq);
-
-	spin_unlock_irqrestore(&irq_action_lock, flags);
-
-#ifdef CONFIG_SMP
-	distribute_irqs();
-#endif
-	return 0;
-}
 
 /* We really don't need these at all on the Sparc.  We only have
  * stubs here because they are exported to modules.

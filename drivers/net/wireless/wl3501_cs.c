@@ -2240,6 +2240,12 @@ static int wl3501_event(event_t event, int pri, event_callback_args_t *args)
 	return 0;
 }
 
+static struct pcmcia_device_id wl3501_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0xd601, 0x0001),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, wl3501_ids);
+
 static struct pcmcia_driver wl3501_driver = {
 	.owner          = THIS_MODULE,
 	.drv            = {
@@ -2247,6 +2253,7 @@ static struct pcmcia_driver wl3501_driver = {
 	},
 	.attach         = wl3501_attach,
 	.detach         = wl3501_detach,
+	.id_table	= wl3501_ids,
 };
 
 static int __init wl3501_init_module(void)

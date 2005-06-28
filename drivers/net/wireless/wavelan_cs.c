@@ -4895,6 +4895,15 @@ wavelan_event(event_t		event,		/* The event received */
   return 0;
 }
 
+static struct pcmcia_device_id wavelan_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("AT&T","WaveLAN/PCMCIA", 0xe7c5affd, 0x1bc50975),
+	PCMCIA_DEVICE_PROD_ID12("Digital", "RoamAbout/DS", 0x9999ab35, 0x00d05e06),
+	PCMCIA_DEVICE_PROD_ID12("Lucent Technologies", "WaveLAN/PCMCIA", 0x23eb9949, 0x1bc50975),
+	PCMCIA_DEVICE_PROD_ID12("NCR", "WaveLAN/PCMCIA", 0x24358cd4, 0x1bc50975),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, wavelan_ids);
+
 static struct pcmcia_driver wavelan_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -4902,6 +4911,7 @@ static struct pcmcia_driver wavelan_driver = {
 	},
 	.attach		= wavelan_attach,
 	.detach		= wavelan_detach,
+	.id_table       = wavelan_ids,
 };
 
 static int __init
