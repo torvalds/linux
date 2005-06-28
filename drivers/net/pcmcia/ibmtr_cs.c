@@ -508,6 +508,13 @@ static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase)
     return;
 }
 
+static struct pcmcia_device_id ibmtr_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("3Com", "TokenLink Velocity PC Card", 0x41240e5b, 0x82c3734e),
+	PCMCIA_DEVICE_PROD_ID12("IBM", "TOKEN RING", 0xb569a6e5, 0xbf8eed47),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, ibmtr_ids);
+
 static struct pcmcia_driver ibmtr_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -515,6 +522,7 @@ static struct pcmcia_driver ibmtr_cs_driver = {
 	},
 	.attach		= ibmtr_attach,
 	.detach		= ibmtr_detach,
+	.id_table       = ibmtr_ids,
 };
 
 static int __init init_ibmtr_cs(void)

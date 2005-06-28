@@ -559,6 +559,15 @@ static int airo_event(event_t event, int priority,
 	return 0;
 } /* airo_event */
 
+static struct pcmcia_device_id airo_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x015f, 0x000a),
+	PCMCIA_DEVICE_MANF_CARD(0x015f, 0x0005),
+	PCMCIA_DEVICE_MANF_CARD(0x015f, 0x0007),
+	PCMCIA_DEVICE_MANF_CARD(0x0105, 0x0007),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, airo_ids);
+
 static struct pcmcia_driver airo_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -566,6 +575,7 @@ static struct pcmcia_driver airo_driver = {
 	},
 	.attach		= airo_attach,
 	.detach		= airo_detach,
+	.id_table       = airo_ids,
 };
 
 static int airo_cs_init(void)

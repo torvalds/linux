@@ -380,13 +380,20 @@ static int pdacf_event(event_t event, int priority, event_callback_args_t *args)
 /*
  * Module entry points
  */
+static struct pcmcia_device_id snd_pdacf_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x015d, 0x4c45),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, snd_pdacf_ids);
+
 static struct pcmcia_driver pdacf_cs_driver = {
 	.owner          = THIS_MODULE,
 	.drv            = {
 		.name   = "snd-pdaudiocf",
 	},
 	.attach         = snd_pdacf_attach,
-	.detach         = snd_pdacf_detach
+	.detach         = snd_pdacf_detach,
+	.id_table	= snd_pdacf_ids,
 };
 
 static int __init init_pdacf(void)

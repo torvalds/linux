@@ -489,6 +489,12 @@ static int teles_cs_event(event_t event, int priority,
     return 0;
 } /* teles_cs_event */
 
+static struct pcmcia_device_id teles_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("TELES", "S0/PC", 0x67b50eae, 0xe9e70119),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, teles_ids);
+
 static struct pcmcia_driver teles_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -496,6 +502,7 @@ static struct pcmcia_driver teles_cs_driver = {
 	},
 	.attach		= teles_attach,
 	.detach		= teles_detach,
+	.id_table       = teles_ids,
 };
 
 static int __init init_teles_cs(void)

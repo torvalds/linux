@@ -55,8 +55,9 @@ static __inline__ int rwsem_atomic_update(int delta, struct rw_semaphore *sem)
 		"add		%%g1, %1, %%g7\n\t"
 		"cas		[%2], %%g1, %%g7\n\t"
 		"cmp		%%g1, %%g7\n\t"
+		"membar		#StoreLoad | #StoreStore\n\t"
 		"bne,pn		%%icc, 1b\n\t"
-		" membar	#StoreLoad | #StoreStore\n\t"
+		" nop\n\t"
 		"mov		%%g7, %0\n\t"
 		: "=&r" (tmp)
 		: "0" (tmp), "r" (sem)

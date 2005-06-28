@@ -266,8 +266,9 @@ __cheetah_flush_tlb_pending:	/* 22 insns */
 	 andn		%o3, 1, %o3
 	stxa		%g0, [%o3] ASI_IMMU_DEMAP
 2:	stxa		%g0, [%o3] ASI_DMMU_DEMAP	
+	membar		#Sync
 	brnz,pt		%o1, 1b
-	 membar		#Sync
+	 nop
 	stxa		%g2, [%o4] ASI_DMMU
 	flush		%g6
 	wrpr		%g0, 0, %tl

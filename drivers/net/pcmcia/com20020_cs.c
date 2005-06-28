@@ -483,7 +483,11 @@ static int com20020_event(event_t event, int priority,
     return 0;
 } /* com20020_event */
 
-
+static struct pcmcia_device_id com20020_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("Contemporary Control Systems, Inc.", "PCM20 Arcnet Adapter", 0x59991666, 0x95dfffaf),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, com20020_ids);
 
 static struct pcmcia_driver com20020_cs_driver = {
 	.owner		= THIS_MODULE,
@@ -492,6 +496,7 @@ static struct pcmcia_driver com20020_cs_driver = {
 	},
 	.attach		= com20020_attach,
 	.detach		= com20020_detach,
+	.id_table	= com20020_ids,
 };
 
 static int __init init_com20020_cs(void)

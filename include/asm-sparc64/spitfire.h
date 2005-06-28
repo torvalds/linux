@@ -111,7 +111,6 @@ static __inline__ void spitfire_put_dcache_tag(unsigned long addr, unsigned long
 			     "membar	#Sync"
 			     : /* No outputs */
 			     : "r" (tag), "r" (addr), "i" (ASI_DCACHE_TAG));
-	__asm__ __volatile__ ("membar #Sync" : : : "memory");
 }
 
 /* The instruction cache lines are flushed with this, but note that
