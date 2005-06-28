@@ -17,7 +17,6 @@
 
 extern void *finddevice(const char *);
 extern int getprop(void *, const char *, void *, int);
-extern void printk(char *fmt, ...);
 extern void printf(const char *fmt, ...);
 extern int sprintf(char *buf, const char *fmt, ...);
 void gunzip(void *, int, unsigned char *, int *);

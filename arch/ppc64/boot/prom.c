@@ -40,7 +40,7 @@ void *finddevice(const char *name);
 int getprop(void *phandle, const char *name, void *buf, int buflen);
 void chrpboot(int a1, int a2, void *prom);	/* in main.c */
 
-void printk(char *fmt, ...);
+int printf(char *fmt, ...);
 
 /* there is no convenient header to get this from...  -- paulus */
 extern unsigned long strlen(const char *);
@@ -220,7 +220,7 @@ readchar(void)
 		case 1:
 			return ch;
 		case -1:
-			printk("read(stdin) returned -1\r\n");
+			printf("read(stdin) returned -1\r\n");
 			return -1;
 		}
 	}
@@ -626,18 +626,6 @@ int sprintf(char * buf, const char *fmt, ...)
 }
 
 static char sprint_buf[1024];
-
-void
-printk(char *fmt, ...)
-{
-	va_list args;
-	int n;
-
-	va_start(args, fmt);
-	n = vsprintf(sprint_buf, fmt, args);
-	va_end(args);
-	write(stdout, sprint_buf, n);
-}
 
 int
 printf(char *fmt, ...)
