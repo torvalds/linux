@@ -49,6 +49,19 @@ config USB_EHCI_ROOT_HUB_TT
 
 	  This supports the EHCI implementation from TransDimension Inc.
 
+config USB_ISP116X_HCD
+	tristate "ISP116X HCD support"
+	depends on USB
+	default N
+	---help---
+	  The ISP1160 and ISP1161 chips are USB host controllers. Enable this
+	  option if your board has this chip. If unsure, say N.
+
+	  This driver does not support isochronous transfers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called isp116x-hcd.
+
 config USB_OHCI_HCD
 	tristate "OHCI HCD support"
 	depends on USB && USB_ARCH_HAS_OHCI

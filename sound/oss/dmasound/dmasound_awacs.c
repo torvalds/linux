@@ -255,7 +255,7 @@ static int awacs_burgundy_read_mvolume(unsigned address);
 
 static volatile struct dbdma_cmd *emergency_dbdma_cmd;
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /*
  * Stuff for restoring after a sleep.
  */
@@ -263,7 +263,7 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when);
 struct pmu_sleep_notifier awacs_sleep_notifier = {
 	awacs_sleep_notify, SLEEP_LEVEL_SOUND,
 };
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 /* for (soft) sample rate translations */
 int expand_bal;		/* Balance factor for expanding (not volume!) */
@@ -675,7 +675,7 @@ static void PMacIrqCleanup(void)
 	kfree(awacs_rx_cmd_space);
 	kfree(beep_dbdma_cmd_space);
 	kfree(beep_buf);
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	pmu_unregister_sleep_notifier(&awacs_sleep_notifier);
 #endif
 }
@@ -1415,7 +1415,7 @@ load_awacs(void)
 	}
 }
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /*
  * Save state when going to sleep, restore it afterwards.
  */
@@ -1551,7 +1551,7 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when)
 	}
 	return PBOOK_SLEEP_OK;
 }
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 
 /* All the burgundy functions: */
@@ -3053,9 +3053,9 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 	if ((res=setup_beep()))
 		return res ;
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	pmu_register_sleep_notifier(&awacs_sleep_notifier);
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 	/* Powerbooks have odd ways of enabling inputs such as
 	   an expansion-bay CD or sound from an internal modem

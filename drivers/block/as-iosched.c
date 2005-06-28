@@ -1806,7 +1806,8 @@ static void as_put_request(request_queue_t *q, struct request *rq)
 	rq->elevator_private = NULL;
 }
 
-static int as_set_request(request_queue_t *q, struct request *rq, int gfp_mask)
+static int as_set_request(request_queue_t *q, struct request *rq,
+			  struct bio *bio, int gfp_mask)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 	struct as_rq *arq = mempool_alloc(ad->arq_pool, gfp_mask);
@@ -1827,7 +1828,7 @@ static int as_set_request(request_queue_t *q, struct request *rq, int gfp_mask)
 	return 1;
 }
 
-static int as_may_queue(request_queue_t *q, int rw)
+static int as_may_queue(request_queue_t *q, int rw, struct bio *bio)
 {
 	int ret = ELV_MQUEUE_MAY;
 	struct as_data *ad = q->elevator->elevator_data;

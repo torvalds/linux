@@ -370,8 +370,9 @@ void __init openpic_init(int offset)
 	/* Initialize IPI interrupts */
 	if ( ppc_md.progress ) ppc_md.progress("openpic: ipi",0x3bb);
 	for (i = 0; i < OPENPIC_NUM_IPI; i++) {
-		/* Disabled, Priority 10..13 */
-		openpic_initipi(i, 10+i, OPENPIC_VEC_IPI+i+offset);
+		/* Disabled, increased priorities 10..13 */
+		openpic_initipi(i, OPENPIC_PRIORITY_IPI_BASE+i,
+				OPENPIC_VEC_IPI+i+offset);
 		/* IPIs are per-CPU */
 		irq_desc[OPENPIC_VEC_IPI+i+offset].status |= IRQ_PER_CPU;
 		irq_desc[OPENPIC_VEC_IPI+i+offset].handler = &open_pic_ipi;
@@ -399,8 +400,9 @@ void __init openpic_init(int offset)
 		if (sense & IRQ_SENSE_MASK)
 			irq_desc[i+offset].status = IRQ_LEVEL;
 
-		/* Enabled, Priority 8 */
-		openpic_initirq(i, 8, i+offset, (sense & IRQ_POLARITY_MASK),
+		/* Enabled, Default priority */
+		openpic_initirq(i, OPENPIC_PRIORITY_DEFAULT, i+offset,
+				(sense & IRQ_POLARITY_MASK),
 				(sense & IRQ_SENSE_MASK));
 		/* Processor 0 */
 		openpic_mapirq(i, CPU_MASK_CPU0, CPU_MASK_NONE);
@@ -656,6 +658,18 @@ static void __init openpic_maptimer(u_int timer, cpumask_t cpumask)
 }
 
 /*
+ * Change the priority of an interrupt
+ */
+void __init
+openpic_set_irq_priority(u_int irq, u_int pri)
+{
+	check_arg_irq(irq);
+	openpic_safe_writefield(&ISR[irq - open_pic_irq_offset]->Vector_Priority,
+				OPENPIC_PRIORITY_MASK,
+				pri << OPENPIC_PRIORITY_SHIFT);
+}
+
+/*
  * Initalize the interrupt source which will generate an NMI.
  * This raises the interrupt's priority from 8 to 9.
  *
@@ -665,9 +679,7 @@ void __init
 openpic_init_nmi_irq(u_int irq)
 {
 	check_arg_irq(irq);
-	openpic_safe_writefield(&ISR[irq - open_pic_irq_offset]->Vector_Priority,
-				OPENPIC_PRIORITY_MASK,
-				9 << OPENPIC_PRIORITY_SHIFT);
+	openpic_set_irq_priority(irq, OPENPIC_PRIORITY_NMI);
 }
 
 /*

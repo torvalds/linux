@@ -36,7 +36,6 @@ struct kbtab {
 	struct input_dev dev;
 	struct usb_device *usbdev;
 	struct urb *irq;
-	int open;
 	int x, y;
 	int button;
 	int pressure;
@@ -79,12 +78,12 @@ static void kbtab_irq(struct urb *urb, struct pt_regs *regs)
 	/*input_report_key(dev, BTN_TOUCH , data[0] & 0x01);*/
 	input_report_key(dev, BTN_RIGHT, data[0] & 0x02);
 
-	if( -1 == kb_pressure_click){ 
+	if (-1 == kb_pressure_click) {
 		input_report_abs(dev, ABS_PRESSURE, kbtab->pressure);
 	} else {
 		input_report_key(dev, BTN_LEFT, (kbtab->pressure > kb_pressure_click) ? 1 : 0);
 	};
-	
+
 	input_sync(dev);
 
  exit:
@@ -105,14 +104,9 @@ static int kbtab_open(struct input_dev *dev)
 {
 	struct kbtab *kbtab = dev->private;
 
-	if (kbtab->open++)
-		return 0;
-
 	kbtab->irq->dev = kbtab->usbdev;
-	if (usb_submit_urb(kbtab->irq, GFP_KERNEL)) {
-		kbtab->open--;
+	if (usb_submit_urb(kbtab->irq, GFP_KERNEL))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -121,8 +115,7 @@ static void kbtab_close(struct input_dev *dev)
 {
 	struct kbtab *kbtab = dev->private;
 
-	if (!--kbtab->open)
-		usb_kill_urb(kbtab->irq);
+	usb_kill_urb(kbtab->irq);
 }
 
 static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -161,7 +154,7 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	kbtab->dev.absmax[ABS_X] = 0x2000;
 	kbtab->dev.absmax[ABS_Y] = 0x1750;
 	kbtab->dev.absmax[ABS_PRESSURE] = 0xff;
-	
+
 	kbtab->dev.absfuzz[ABS_X] = 4;
 	kbtab->dev.absfuzz[ABS_Y] = 4;
 

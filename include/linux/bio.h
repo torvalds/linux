@@ -22,6 +22,7 @@
 
 #include <linux/highmem.h>
 #include <linux/mempool.h>
+#include <linux/ioprio.h>
 
 /* Platforms may set this to teach the BIO layer about IOMMU hardware. */
 #include <asm/io.h>
@@ -148,6 +149,19 @@ struct bio {
 #define BIO_RW_BARRIER	2
 #define BIO_RW_FAILFAST	3
 #define BIO_RW_SYNC	4
+
+/*
+ * upper 16 bits of bi_rw define the io priority of this bio
+ */
+#define BIO_PRIO_SHIFT	(8 * sizeof(unsigned long) - IOPRIO_BITS)
+#define bio_prio(bio)	((bio)->bi_rw >> BIO_PRIO_SHIFT)
+#define bio_prio_valid(bio)	ioprio_valid(bio_prio(bio))
+
+#define bio_set_prio(bio, prio)		do {			\
+	WARN_ON(prio >= (1 << IOPRIO_BITS));			\
+	(bio)->bi_rw &= ((1UL << BIO_PRIO_SHIFT) - 1);		\
+	(bio)->bi_rw |= ((unsigned long) (prio) << BIO_PRIO_SHIFT);	\
+} while (0)
 
 /*
  * various member access, note that bio_data should of course not be used

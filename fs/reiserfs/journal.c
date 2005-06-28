@@ -645,18 +645,22 @@ struct buffer_chunk {
 
 static void write_chunk(struct buffer_chunk *chunk) {
     int i;
+    get_fs_excl();
     for (i = 0; i < chunk->nr ; i++) {
 	submit_logged_buffer(chunk->bh[i]) ;
     }
     chunk->nr = 0;
+    put_fs_excl();
 }
 
 static void write_ordered_chunk(struct buffer_chunk *chunk) {
     int i;
+    get_fs_excl();
     for (i = 0; i < chunk->nr ; i++) {
 	submit_ordered_buffer(chunk->bh[i]) ;
     }
     chunk->nr = 0;
+    put_fs_excl();
 }
 
 static int add_to_chunk(struct buffer_chunk *chunk, struct buffer_head *bh,
@@ -918,6 +922,8 @@ static int flush_commit_list(struct super_block *s, struct reiserfs_journal_list
     return 0 ;
   }
 
+  get_fs_excl();
+
   /* before we can put our commit blocks on disk, we have to make sure everyone older than
   ** us is on disk too
   */
@@ -1055,6 +1061,7 @@ put_jl:
 
   if (retval)
     reiserfs_abort (s, retval, "Journal write error in %s", __FUNCTION__);
+  put_fs_excl();
   return retval;
 }
 
@@ -1250,6 +1257,8 @@ static int flush_journal_list(struct super_block *s,
     reiserfs_panic(s, "journal-715: flush_journal_list, length is %lu, trans id %lu\n", j_len_saved, jl->j_trans_id);
     return 0 ;
   }
+
+  get_fs_excl();
 
   /* if all the work is already done, get out of here */
   if (atomic_read(&(jl->j_nonzerolen)) <= 0 && 
@@ -1450,6 +1459,7 @@ flush_older_and_return:
   put_journal_list(s, jl);
   if (flushall)
     up(&journal->j_flush_sem);
+  put_fs_excl();
   return err ;
 } 
 
@@ -2719,6 +2729,7 @@ relock:
   th->t_trans_id = journal->j_trans_id ;
   unlock_journal(p_s_sb) ;
   INIT_LIST_HEAD (&th->t_list);
+  get_fs_excl();
   return 0 ;
 
 out_fail:
@@ -3526,6 +3537,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th, struct super_b
   BUG_ON (th->t_refcount > 1);
   BUG_ON (!th->t_trans_id);
 
+  put_fs_excl();
   current->journal_info = th->t_handle_save;
   reiserfs_check_lock_depth(p_s_sb, "journal end");
   if (journal->j_len == 0) {

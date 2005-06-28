@@ -1398,7 +1398,7 @@ static void rhine_tx(struct net_device *dev)
 	while (rp->dirty_tx != rp->cur_tx) {
 		txstatus = le32_to_cpu(rp->tx_ring[entry].tx_status);
 		if (debug > 6)
-			printk(KERN_DEBUG " Tx scavenge %d status %8.8x.\n",
+			printk(KERN_DEBUG "Tx scavenge %d status %8.8x.\n",
 			       entry, txstatus);
 		if (txstatus & DescOwn)
 			break;
@@ -1469,7 +1469,7 @@ static void rhine_rx(struct net_device *dev)
 		int data_size = desc_status >> 16;
 
 		if (debug > 4)
-			printk(KERN_DEBUG " rhine_rx() status is %8.8x.\n",
+			printk(KERN_DEBUG "rhine_rx() status is %8.8x.\n",
 			       desc_status);
 		if (--boguscnt < 0)
 			break;
@@ -1487,7 +1487,7 @@ static void rhine_rx(struct net_device *dev)
 			} else if (desc_status & RxErr) {
 				/* There was a error. */
 				if (debug > 2)
-					printk(KERN_DEBUG " rhine_rx() Rx "
+					printk(KERN_DEBUG "rhine_rx() Rx "
 					       "error was %8.8x.\n",
 					       desc_status);
 				rp->stats.rx_errors++;
