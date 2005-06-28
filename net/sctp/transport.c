@@ -103,7 +103,6 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 
 	/* Set up the heartbeat timer. */
 	init_timer(&peer->hb_timer);
-	peer->hb_interval = SCTP_DEFAULT_TIMEOUT_HEARTBEAT;
 	peer->hb_timer.function = sctp_generate_heartbeat_event;
 	peer->hb_timer.data = (unsigned long)peer;
 
