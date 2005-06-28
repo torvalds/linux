@@ -682,7 +682,7 @@ void __init memtable_init(struct meminfo *mi)
 	}
 
 	flush_cache_all();
-	flush_tlb_all();
+	local_flush_tlb_all();
 
 	top_pmd = pmd_off_k(0xffff0000);
 }
