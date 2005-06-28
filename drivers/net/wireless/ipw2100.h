@@ -44,30 +44,6 @@
 
 #include <linux/workqueue.h>
 
-#ifndef IRQ_NONE
-typedef void irqreturn_t;
-#define IRQ_NONE
-#define IRQ_HANDLED
-#define IRQ_RETVAL(x)
-#endif
-
-#if WIRELESS_EXT < 17
-#define IW_QUAL_QUAL_INVALID  0x10
-#define IW_QUAL_LEVEL_INVALID 0x20
-#define IW_QUAL_NOISE_INVALID 0x40
-#endif
-
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,5) )
-#define pci_dma_sync_single_for_cpu	pci_dma_sync_single
-#define pci_dma_sync_single_for_device	pci_dma_sync_single
-#endif
-
-#ifndef HAVE_FREE_NETDEV
-#define free_netdev(x) kfree(x)
-#endif
-
-
-
 struct ipw2100_priv;
 struct ipw2100_tx_packet;
 struct ipw2100_rx_packet;
@@ -167,15 +143,6 @@ enum { IPW_DEBUG_ENABLED = 0 };
 #define IPW_DEBUG_STATE(f, a...) IPW_DEBUG(IPW_DL_STATE | IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
 #define IPW_DEBUG_ASSOC(f, a...) IPW_DEBUG(IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
 
-
-#define VERIFY(f) \
-{ \
-  int status = 0; \
-  status = f; \
-  if(status) \
-     return status; \
-}
-
 enum {
 	IPW_HW_STATE_DISABLED = 1,
 	IPW_HW_STATE_ENABLED = 0
@@ -209,8 +176,6 @@ struct bd_status {
 		u8 field;
 	} info;
 } __attribute__ ((packed));
-
-#define	IPW_BUFDESC_LAST_FRAG 0
 
 struct ipw2100_bd {
 	u32 host_addr;
@@ -355,7 +320,7 @@ struct ipw2100_data_header {
 	u16 fragment_size;
 } __attribute__ ((packed));
 
-// Host command data structure
+/* Host command data structure */
 struct host_command {
 	u32 host_command;		// COMMAND ID
 	u32 host_command1;		// COMMAND ID
@@ -648,9 +613,6 @@ struct ipw2100_priv {
 	struct semaphore adapter_sem;
 
 	wait_queue_head_t wait_command_queue;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-	u32 pm_state[PM_STATE_SIZE];
-#endif
 };
 
 
@@ -701,7 +663,7 @@ struct ipw2100_priv {
 #define MSDU_TX_RATES          62
 
 
-// Rogue AP Detection
+/* Rogue AP Detection */
 #define SET_STATION_STAT_BITS      64
 #define CLEAR_STATIONS_STAT_BITS   65
 #define LEAP_ROGUE_MODE            66	//TODO tbw replaced by CFG_LEAP_ROGUE_AP
@@ -711,25 +673,16 @@ struct ipw2100_priv {
 
 
 
-// system configuration bit mask:
-//#define IPW_CFG_ANTENNA_SETTING           0x03
-//#define IPW_CFG_ANTENNA_A                 0x01
-//#define IPW_CFG_ANTENNA_B                 0x02
+/* system configuration bit mask: */
 #define IPW_CFG_MONITOR               0x00004
-//#define IPW_CFG_TX_STATUS_ENABLE    0x00008
 #define IPW_CFG_PREAMBLE_AUTO        0x00010
 #define IPW_CFG_IBSS_AUTO_START     0x00020
-//#define IPW_CFG_KERBEROS_ENABLE     0x00040
 #define IPW_CFG_LOOPBACK            0x00100
-//#define IPW_CFG_WNMP_PING_PASS      0x00200
-//#define IPW_CFG_DEBUG_ENABLE        0x00400
 #define IPW_CFG_ANSWER_BCSSID_PROBE 0x00800
-//#define IPW_CFG_BT_PRIORITY         0x01000
 #define IPW_CFG_BT_SIDEBAND_SIGNAL	0x02000
 #define IPW_CFG_802_1x_ENABLE       0x04000
 #define IPW_CFG_BSS_MASK		0x08000
 #define IPW_CFG_IBSS_MASK		0x10000
-//#define IPW_CFG_DYNAMIC_CW          0x10000
 
 #define IPW_SCAN_NOASSOCIATE (1<<0)
 #define IPW_SCAN_MIXED_CELL (1<<1)
@@ -760,41 +713,6 @@ struct ipw2100_priv {
 
 #define IPW_MEM_HOST_SHARED_TX_QUEUE_WRITE_INDEX \
     (IPW_MEM_SRAM_HOST_INTERRUPT_AREA_LOWER_BOUND)
-
-
-#if 0
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_0_BD_BASE          (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x00)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_0_BD_SIZE          (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x04)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_1_BD_BASE          (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x08)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_1_BD_SIZE          (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x0c)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_2_BD_BASE          (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x10)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_2_BD_SIZE          (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x14)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_3_BD_BASE          (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x18)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_3_BD_SIZE          (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x1c)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_0_READ_INDEX       (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x80)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_1_READ_INDEX       (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x84)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_2_READ_INDEX       (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x88)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_3_READ_INDEX       (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x8c)
-
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_BD_BASE(QueueNum) \
-    (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + (QueueNum<<3))
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_BD_SIZE(QueueNum) \
-    (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x0004+(QueueNum<<3))
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_READ_INDEX(QueueNum) \
-    (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x0080+(QueueNum<<2))
-
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_0_WRITE_INDEX \
-    (IPW_MEM_SRAM_HOST_INTERRUPT_AREA_LOWER_BOUND + 0x00)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_1_WRITE_INDEX \
-    (IPW_MEM_SRAM_HOST_INTERRUPT_AREA_LOWER_BOUND + 0x04)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_2_WRITE_INDEX \
-    (IPW_MEM_SRAM_HOST_INTERRUPT_AREA_LOWER_BOUND + 0x08)
-#define IPW_MEM_HOST_SHARED_TX_QUEUE_3_WRITE_INDEX \
-    (IPW_MEM_SRAM_HOST_INTERRUPT_AREA_LOWER_BOUND + 0x0c)
-#define IPW_MEM_HOST_SHARED_SLAVE_MODE_INT_REGISTER \
-    (IPW_MEM_SRAM_HOST_INTERRUPT_AREA_LOWER_BOUND + 0x78)
-
-#endif
 
 #define IPW_MEM_HOST_SHARED_ORDINALS_TABLE_1   (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x180)
 #define IPW_MEM_HOST_SHARED_ORDINALS_TABLE_2   (IPW_MEM_SRAM_HOST_SHARED_LOWER_BOUND + 0x184)
@@ -913,7 +831,7 @@ struct ipw2100_rx {
 	} rx_data;
 } __attribute__ ((packed));
 
-// Bit 0-7 are for 802.11b tx rates - .  Bit 5-7 are reserved
+/* Bit 0-7 are for 802.11b tx rates - .  Bit 5-7 are reserved */
 #define TX_RATE_1_MBIT              0x0001
 #define TX_RATE_2_MBIT              0x0002
 #define TX_RATE_5_5_MBIT            0x0004
@@ -1193,7 +1111,6 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_UCODE_VERSION,	// Ucode Version
 	IPW_ORD_HW_RF_SWITCH_STATE = 214,	// HW RF Kill Switch State
 } ORDINALTABLE1;
-//ENDOF TABLE1
 
 // ordinal table 2
 // Variable length data:
