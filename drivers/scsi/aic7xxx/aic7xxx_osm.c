@@ -136,10 +136,6 @@ static struct scsi_transport_template *ahc_linux_transport_template = NULL;
 #include <linux/blkdev.h>		/* For block_size() */
 #include <linux/delay.h>	/* For ssleep/msleep */
 
-/*
- * Lock protecting manipulation of the ahc softc list.
- */
-spinlock_t ahc_list_spinlock;
 
 /*
  * Set this to the delay in seconds after SCSI bus reset.
@@ -292,25 +288,6 @@ ahc_print_path(struct ahc_softc *ahc, struct scb *scb)
 static uint32_t aic7xxx_no_reset;
 
 /*
- * Certain PCI motherboards will scan PCI devices from highest to lowest,
- * others scan from lowest to highest, and they tend to do all kinds of
- * strange things when they come into contact with PCI bridge chips.  The
- * net result of all this is that the PCI card that is actually used to boot
- * the machine is very hard to detect.  Most motherboards go from lowest
- * PCI slot number to highest, and the first SCSI controller found is the
- * one you boot from.  The only exceptions to this are when a controller
- * has its BIOS disabled.  So, we by default sort all of our SCSI controllers
- * from lowest PCI slot number to highest PCI slot number.  We also force
- * all controllers with their BIOS disabled to the end of the list.  This
- * works on *almost* all computers.  Where it doesn't work, we have this
- * option.  Setting this option to non-0 will reverse the order of the sort
- * to highest first, then lowest, but will still leave cards with their BIOS
- * disabled at the very end.  That should fix everyone up unless there are
- * really strange cirumstances.
- */
-static uint32_t aic7xxx_reverse_scan;
-
-/*
  * Should we force EXTENDED translation on a controller.
  *     0 == Use whatever is in the SEEPROM or default to off
  *     1 == Use whatever is in the SEEPROM or default to on
@@ -416,7 +393,9 @@ static int ahc_linux_run_command(struct ahc_softc*,
 static void ahc_linux_setup_tag_info_global(char *p);
 static aic_option_callback_t ahc_linux_setup_tag_info;
 static int  aic7xxx_setup(char *s);
-static int  ahc_linux_next_unit(void);
+
+static int ahc_linux_unit;
+
 
 /********************************* Inlines ************************************/
 static __inline void ahc_linux_unmap_scb(struct ahc_softc*, struct scb*);
@@ -911,99 +890,6 @@ ahc_dmamap_unload(struct ahc_softc *ahc, bus_dma_tag_t dmat, bus_dmamap_t map)
 	return (0);
 }
 
-/********************* Platform Dependent Functions ***************************/
-/*
- * Compare "left hand" softc with "right hand" softc, returning:
- * < 0 - lahc has a lower priority than rahc
- *   0 - Softcs are equal
- * > 0 - lahc has a higher priority than rahc
- */
-int
-ahc_softc_comp(struct ahc_softc *lahc, struct ahc_softc *rahc)
-{
-	int	value;
-	int	rvalue;
-	int	lvalue;
-
-	/*
-	 * Under Linux, cards are ordered as follows:
-	 *	1) VLB/EISA BIOS enabled devices sorted by BIOS address.
-	 *	2) PCI devices with BIOS enabled sorted by bus/slot/func.
-	 *	3) All remaining VLB/EISA devices sorted by ioport.
-	 *	4) All remaining PCI devices sorted by bus/slot/func.
-	 */
-	value = (lahc->flags & AHC_BIOS_ENABLED)
-	      - (rahc->flags & AHC_BIOS_ENABLED);
-	if (value != 0)
-		/* Controllers with BIOS enabled have a *higher* priority */
-		return (value);
-
-	/*
-	 * Same BIOS setting, now sort based on bus type.
-	 * EISA and VL controllers sort together.  EISA/VL
-	 * have higher priority than PCI.
-	 */
-	rvalue = (rahc->chip & AHC_BUS_MASK);
- 	if (rvalue == AHC_VL)
-		rvalue = AHC_EISA;
-	lvalue = (lahc->chip & AHC_BUS_MASK);
- 	if (lvalue == AHC_VL)
-		lvalue = AHC_EISA;
-	value = rvalue - lvalue;
-	if (value != 0)
-		return (value);
-
-	/* Still equal.  Sort by BIOS address, ioport, or bus/slot/func. */
-	switch (rvalue) {
-#ifdef CONFIG_PCI
-	case AHC_PCI:
-	{
-		char primary_channel;
-
-		if (aic7xxx_reverse_scan != 0)
-			value = ahc_get_pci_bus(lahc->dev_softc)
-			      - ahc_get_pci_bus(rahc->dev_softc);
-		else
-			value = ahc_get_pci_bus(rahc->dev_softc)
-			      - ahc_get_pci_bus(lahc->dev_softc);
-		if (value != 0)
-			break;
-		if (aic7xxx_reverse_scan != 0)
-			value = ahc_get_pci_slot(lahc->dev_softc)
-			      - ahc_get_pci_slot(rahc->dev_softc);
-		else
-			value = ahc_get_pci_slot(rahc->dev_softc)
-			      - ahc_get_pci_slot(lahc->dev_softc);
-		if (value != 0)
-			break;
-		/*
-		 * On multi-function devices, the user can choose
-		 * to have function 1 probed before function 0.
-		 * Give whichever channel is the primary channel
-		 * the highest priority.
-		 */
-		primary_channel = (lahc->flags & AHC_PRIMARY_CHANNEL) + 'A';
-		value = -1;
-		if (lahc->channel == primary_channel)
-			value = 1;
-		break;
-	}
-#endif
-	case AHC_EISA:
-		if ((rahc->flags & AHC_BIOS_ENABLED) != 0) {
-			value = rahc->platform_data->bios_address
-			      - lahc->platform_data->bios_address; 
-		} else {
-			value = rahc->bsh.ioport
-			      - lahc->bsh.ioport; 
-		}
-		break;
-	default:
-		panic("ahc_softc_sort: invalid bus type");
-	}
-	return (value);
-}
-
 static void
 ahc_linux_setup_tag_info_global(char *p)
 {
@@ -1055,7 +941,6 @@ aic7xxx_setup(char *s)
 #ifdef AHC_DEBUG
 		{ "debug", &ahc_debug },
 #endif
-		{ "reverse_scan", &aic7xxx_reverse_scan },
 		{ "periodic_otag", &aic7xxx_periodic_otag },
 		{ "pci_parity", &aic7xxx_pci_parity },
 		{ "seltime", &aic7xxx_seltime },
@@ -1130,7 +1015,7 @@ ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *templa
 	host->max_lun = AHC_NUM_LUNS;
 	host->max_channel = (ahc->features & AHC_TWIN) ? 1 : 0;
 	host->sg_tablesize = AHC_NSEG;
-	ahc_set_unit(ahc, ahc_linux_next_unit());
+	ahc_set_unit(ahc, ahc_linux_unit++);
 	sprintf(buf, "scsi%d", host->host_no);
 	new_name = malloc(strlen(buf) + 1, M_DEVBUF, M_NOWAIT);
 	if (new_name != NULL) {
@@ -1156,29 +1041,6 @@ ahc_linux_get_memsize(void)
 
 	si_meminfo(&si);
 	return ((uint64_t)si.totalram << PAGE_SHIFT);
-}
-
-/*
- * Find the smallest available unit number to use
- * for a new device.  We don't just use a static
- * count to handle the "repeated hot-(un)plug"
- * scenario.
- */
-static int
-ahc_linux_next_unit(void)
-{
-	struct ahc_softc *ahc;
-	int unit;
-
-	unit = 0;
-retry:
-	TAILQ_FOREACH(ahc, &ahc_tailq, links) {
-		if (ahc->unit == unit) {
-			unit++;
-			goto retry;
-		}
-	}
-	return (unit);
 }
 
 /*
@@ -2684,12 +2546,6 @@ ahc_linux_init(void)
 				      sizeof(struct ahc_linux_target));
 	scsi_transport_reserve_device(ahc_linux_transport_template,
 				      sizeof(struct ahc_linux_device));
-
-	/*
-	 * Initialize our softc list lock prior to
-	 * probing for any adapters.
-	 */
-	ahc_list_lockinit();
 
 	ahc_linux_pci_init();
 	ahc_linux_eisa_init();

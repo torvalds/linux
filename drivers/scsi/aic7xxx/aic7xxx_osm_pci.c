@@ -143,10 +143,6 @@ ahc_linux_pci_dev_remove(struct pci_dev *pdev)
 	struct ahc_softc *ahc = pci_get_drvdata(pdev);
 	u_long s;
 
-	ahc_list_lock(&s);
-	TAILQ_REMOVE(&ahc_tailq, ahc, links);
-	ahc_list_unlock(&s);
-
 	ahc_lock(ahc, &s);
 	ahc_intr_enable(ahc, FALSE);
 	ahc_unlock(ahc, &s);

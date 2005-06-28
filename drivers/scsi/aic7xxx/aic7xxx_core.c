@@ -52,9 +52,6 @@
 #include <dev/aic7xxx/aicasm/aicasm_insformat.h>
 #endif
 
-/****************************** Softc Data ************************************/
-struct ahc_softc_tailq ahc_tailq = TAILQ_HEAD_INITIALIZER(ahc_tailq);
-
 /***************************** Lookup Tables **********************************/
 char *ahc_chip_names[] =
 {
@@ -3876,62 +3873,6 @@ ahc_softc_init(struct ahc_softc *ahc)
 	}
 
 	return (0);
-}
-
-void
-ahc_softc_insert(struct ahc_softc *ahc)
-{
-	struct ahc_softc *list_ahc;
-
-#if AHC_PCI_CONFIG > 0
-	/*
-	 * Second Function PCI devices need to inherit some
-	 * settings from function 0.
-	 */
-	if ((ahc->chip & AHC_BUS_MASK) == AHC_PCI
-	 && (ahc->features & AHC_MULTI_FUNC) != 0) {
-		TAILQ_FOREACH(list_ahc, &ahc_tailq, links) {
-			ahc_dev_softc_t list_pci;
-			ahc_dev_softc_t pci;
-
-			list_pci = list_ahc->dev_softc;
-			pci = ahc->dev_softc;
-			if (ahc_get_pci_slot(list_pci) == ahc_get_pci_slot(pci)
-			 && ahc_get_pci_bus(list_pci) == ahc_get_pci_bus(pci)) {
-				struct ahc_softc *master;
-				struct ahc_softc *slave;
-
-				if (ahc_get_pci_function(list_pci) == 0) {
-					master = list_ahc;
-					slave = ahc;
-				} else {
-					master = ahc;
-					slave = list_ahc;
-				}
-				slave->flags &= ~AHC_BIOS_ENABLED; 
-				slave->flags |=
-				    master->flags & AHC_BIOS_ENABLED;
-				slave->flags &= ~AHC_PRIMARY_CHANNEL; 
-				slave->flags |=
-				    master->flags & AHC_PRIMARY_CHANNEL;
-				break;
-			}
-		}
-	}
-#endif
-
-	/*
-	 * Insertion sort into our list of softcs.
-	 */
-	list_ahc = TAILQ_FIRST(&ahc_tailq);
-	while (list_ahc != NULL
-	    && ahc_softc_comp(ahc, list_ahc) <= 0)
-		list_ahc = TAILQ_NEXT(list_ahc, links);
-	if (list_ahc != NULL)
-		TAILQ_INSERT_BEFORE(list_ahc, ahc, links);
-	else
-		TAILQ_INSERT_TAIL(&ahc_tailq, ahc, links);
-	ahc->init_level++;
 }
 
 void

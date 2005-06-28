@@ -1023,9 +1023,6 @@ struct ahc_softc {
 	struct cs		 *critical_sections;
 	u_int			  num_critical_sections;
 
-	/* Links for chaining softcs */
-	TAILQ_ENTRY(ahc_softc)	  links;
-
 	/* Channel Names ('A', 'B', etc.) */
 	char			  channel;
 	char			  channel_b;
@@ -1109,9 +1106,6 @@ struct ahc_softc {
 	uint16_t	 	  user_discenable;/* Disconnection allowed  */
 	uint16_t		  user_tagenable;/* Tagged Queuing allowed */
 };
-
-TAILQ_HEAD(ahc_softc_tailq, ahc_softc);
-extern struct ahc_softc_tailq ahc_tailq;
 
 /************************ Active Device Information ***************************/
 typedef enum {
@@ -1198,7 +1192,6 @@ void			 ahc_intr_enable(struct ahc_softc *ahc, int enable);
 void			 ahc_pause_and_flushwork(struct ahc_softc *ahc);
 int			 ahc_suspend(struct ahc_softc *ahc); 
 int			 ahc_resume(struct ahc_softc *ahc);
-void			 ahc_softc_insert(struct ahc_softc *);
 void			 ahc_set_unit(struct ahc_softc *, int);
 void			 ahc_set_name(struct ahc_softc *, char *);
 void			 ahc_alloc_scbs(struct ahc_softc *ahc);

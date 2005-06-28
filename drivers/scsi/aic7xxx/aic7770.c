@@ -254,19 +254,12 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 	if (error != 0)
 		return (error);
 
-	ahc_list_lock(&l);
-	/*
-	 * Link this softc in with all other ahc instances.
-	 */
-	ahc_softc_insert(ahc);
+	ahc->init_level++;
 
 	/*
 	 * Enable the board's BUS drivers
 	 */
 	ahc_outb(ahc, BCTL, ENABLE);
-
-	ahc_list_unlock(&l);
-
 	return (0);
 }
 
