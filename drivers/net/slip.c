@@ -74,6 +74,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/if_arp.h>
 #include <linux/if_slip.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include "slip.h"
 #ifdef CONFIG_INET
