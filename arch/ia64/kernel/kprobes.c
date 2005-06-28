@@ -34,6 +34,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
+#include <asm/sections.h>
 
 extern void jprobe_inst_return(void);
 
@@ -263,13 +264,33 @@ static inline void get_kprobe_inst(bundle_t *bundle, uint slot,
 	}
 }
 
+/* Returns non-zero if the addr is in the Interrupt Vector Table */
+static inline int in_ivt_functions(unsigned long addr)
+{
+	return (addr >= (unsigned long)__start_ivt_text
+		&& addr < (unsigned long)__end_ivt_text);
+}
+
 static int valid_kprobe_addr(int template, int slot, unsigned long addr)
 {
 	if ((slot > 2) || ((bundle_encoding[template][1] == L) && slot > 1)) {
-		printk(KERN_WARNING "Attempting to insert unaligned kprobe at 0x%lx\n",
-				addr);
+		printk(KERN_WARNING "Attempting to insert unaligned kprobe "
+				"at 0x%lx\n", addr);
 		return -EINVAL;
 	}
+
+ 	if (in_ivt_functions(addr)) {
+ 		printk(KERN_WARNING "Kprobes can't be inserted inside "
+				"IVT functions at 0x%lx\n", addr);
+ 		return -EINVAL;
+ 	}
+
+	if (slot == 1 && bundle_encoding[template][1] != L) {
+		printk(KERN_WARNING "Inserting kprobes on slot #1 "
+		       "is not supported\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -288,6 +309,94 @@ static inline void restore_previous_kprobe(void)
 static inline void set_current_kprobe(struct kprobe *p)
 {
 	current_kprobe = p;
+}
+
+static void kretprobe_trampoline(void)
+{
+}
+
+/*
+ * At this point the target function has been tricked into
+ * returning into our trampoline.  Lookup the associated instance
+ * and then:
+ *    - call the handler function
+ *    - cleanup by marking the instance as unused
+ *    - long jump back to the original return address
+ */
+int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
+{
+	struct kretprobe_instance *ri = NULL;
+	struct hlist_head *head;
+	struct hlist_node *node, *tmp;
+	unsigned long orig_ret_address = 0;
+	unsigned long trampoline_address =
+		((struct fnptr *)kretprobe_trampoline)->ip;
+
+        head = kretprobe_inst_table_head(current);
+
+	/*
+	 * It is possible to have multiple instances associated with a given
+	 * task either because an multiple functions in the call path
+	 * have a return probe installed on them, and/or more then one return
+	 * return probe was registered for a target function.
+	 *
+	 * We can handle this because:
+	 *     - instances are always inserted at the head of the list
+	 *     - when multiple return probes are registered for the same
+	 *       function, the first instance's ret_addr will point to the
+	 *       real return address, and all the rest will point to
+	 *       kretprobe_trampoline
+	 */
+	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+                if (ri->task != current)
+			/* another task is sharing our hash bucket */
+                        continue;
+
+		if (ri->rp && ri->rp->handler)
+			ri->rp->handler(ri, regs);
+
+		orig_ret_address = (unsigned long)ri->ret_addr;
+		recycle_rp_inst(ri);
+
+		if (orig_ret_address != trampoline_address)
+			/*
+			 * This is the real return address. Any other
+			 * instances associated with this task are for
+			 * other calls deeper on the call stack
+			 */
+			break;
+	}
+
+	BUG_ON(!orig_ret_address || (orig_ret_address == trampoline_address));
+	regs->cr_iip = orig_ret_address;
+
+	unlock_kprobes();
+	preempt_enable_no_resched();
+
+        /*
+         * By returning a non-zero value, we are telling
+         * kprobe_handler() that we have handled unlocking
+         * and re-enabling preemption.
+         */
+        return 1;
+}
+
+void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs)
+{
+	struct kretprobe_instance *ri;
+
+	if ((ri = get_free_rp_inst(rp)) != NULL) {
+		ri->rp = rp;
+		ri->task = current;
+		ri->ret_addr = (kprobe_opcode_t *)regs->b0;
+
+		/* Replace the return addr with trampoline addr */
+		regs->b0 = ((struct fnptr *)kretprobe_trampoline)->ip;
+
+		add_rp_inst(ri);
+	} else {
+		rp->nmissed++;
+	}
 }
 
 int arch_prepare_kprobe(struct kprobe *p)
@@ -492,8 +601,8 @@ static int pre_kprobes_handler(struct die_args *args)
 	if (p->pre_handler && p->pre_handler(p, regs))
 		/*
 		 * Our pre-handler is specifically requesting that we just
-		 * do a return.  This is handling the case where the
-		 * pre-handler is really our special jprobe pre-handler.
+		 * do a return.  This is used for both the jprobe pre-handler
+		 * and the kretprobe trampoline
 		 */
 		return 1;
 
@@ -598,4 +707,15 @@ int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	*regs = jprobe_saved_regs;
 	return 1;
+}
+
+static struct kprobe trampoline_p = {
+	.pre_handler = trampoline_probe_handler
+};
+
+int __init arch_init(void)
+{
+	trampoline_p.addr =
+		(kprobe_opcode_t *)((struct fnptr *)kretprobe_trampoline)->ip;
+	return register_kprobe(&trampoline_p);
 }

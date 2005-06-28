@@ -258,17 +258,17 @@ static int __init ns558_init(void)
 {
 	int i = 0;
 
+	if (pnp_register_driver(&ns558_pnp_driver) >= 0)
+		pnp_registered = 1;
+
 /*
- * Probe ISA ports first so that PnP gets to choose free port addresses
- * not occupied by the ISA ports.
+ * Probe ISA ports after PnP, so that PnP ports that are already
+ * enabled get detected as PnP. This may be suboptimal in multi-device
+ * configurations, but saves hassle with simple setups.
  */
 
 	while (ns558_isa_portlist[i])
 		ns558_isa_probe(ns558_isa_portlist[i++]);
-
-	if (pnp_register_driver(&ns558_pnp_driver) >= 0)
-		pnp_registered = 1;
-
 
 	return (list_empty(&ns558_list) && !pnp_registered) ? -ENODEV : 0;
 }

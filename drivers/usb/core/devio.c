@@ -784,16 +784,16 @@ static int proc_setconfig(struct dev_state *ps, void __user *arg)
  		for (i = 0; i < actconfig->desc.bNumInterfaces; ++i) {
  			if (usb_interface_claimed(actconfig->interface[i])) {
 				dev_warn (&ps->dev->dev,
-					"usbfs: interface %d claimed "
+					"usbfs: interface %d claimed by %s "
 					"while '%s' sets config #%d\n",
 					actconfig->interface[i]
 						->cur_altsetting
 						->desc.bInterfaceNumber,
+					actconfig->interface[i]
+						->dev.driver->name,
 					current->comm, u);
-#if 0	/* FIXME:  enable in 2.6.10 or so */
  				status = -EBUSY;
 				break;
-#endif
 			}
  		}
  	}

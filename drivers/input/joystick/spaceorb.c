@@ -4,7 +4,7 @@
  *  Copyright (c) 1999-2001 Vojtech Pavlik
  *
  *  Based on the work of:
- *  	David Thompson
+ *	David Thompson
  */
 
 /*

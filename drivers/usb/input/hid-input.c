@@ -164,7 +164,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case HID_GD_X: case HID_GD_Y: case HID_GD_Z:
 				case HID_GD_RX: case HID_GD_RY: case HID_GD_RZ:
 				case HID_GD_SLIDER: case HID_GD_DIAL: case HID_GD_WHEEL:
-					if (field->flags & HID_MAIN_ITEM_RELATIVE) 
+					if (field->flags & HID_MAIN_ITEM_RELATIVE)
 						map_rel(usage->hid & 0xf);
 					else
 						map_abs(usage->hid & 0xf);
@@ -297,7 +297,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case HID_UP_MSVENDOR:
 
 			goto ignore;
-			
+
 		case HID_UP_PID:
 
 			set_bit(EV_FF, input->evbit);
@@ -349,7 +349,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		goto ignore;
 
 	if ((device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_7 | HID_QUIRK_2WHEEL_MOUSE_HACK_5)) &&
-		 (usage->type == EV_REL) && (usage->code == REL_WHEEL)) 
+		 (usage->type == EV_REL) && (usage->code == REL_WHEEL))
 			set_bit(REL_HWHEEL, bit);
 
 	if (((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_5) && (usage->hid == 0x00090005))
@@ -365,11 +365,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			a = field->logical_minimum = 0;
 			b = field->logical_maximum = 255;
 		}
-		
+
 		if (field->application == HID_GD_GAMEPAD || field->application == HID_GD_JOYSTICK)
 			input_set_abs_params(input, usage->code, a, b, (b - a) >> 8, (b - a) >> 4);
 		else	input_set_abs_params(input, usage->code, a, b, 0, 0);
-		
+
 	}
 
 	if (usage->hat_min < usage->hat_max || usage->hat_dir) {
@@ -420,7 +420,7 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
-	if (usage->hat_min < usage->hat_max || usage->hat_dir) { 
+	if (usage->hat_min < usage->hat_max || usage->hat_dir) {
 		int hat_dir = usage->hat_dir;
 		if (!hat_dir)
 			hat_dir = (value - usage->hat_min) * 8 / (usage->hat_max - usage->hat_min + 1) + 1;
@@ -551,7 +551,7 @@ int hidinput_connect(struct hid_device *hid)
 	for (i = 0; i < hid->maxcollection; i++)
 		if (hid->collection[i].type == HID_COLLECTION_APPLICATION ||
 		    hid->collection[i].type == HID_COLLECTION_PHYSICAL)
-		    	if (IS_INPUT_APPLICATION(hid->collection[i].usage))
+			if (IS_INPUT_APPLICATION(hid->collection[i].usage))
 				break;
 
 	if (i == hid->maxcollection)
@@ -592,7 +592,7 @@ int hidinput_connect(struct hid_device *hid)
 				for (j = 0; j < report->field[i]->maxusage; j++)
 					hidinput_configure_usage(hidinput, report->field[i],
 								 report->field[i]->usage + j);
-			
+
 			if (hid->quirks & HID_QUIRK_MULTI_INPUT) {
 				/* This will leave hidinput NULL, so that it
 				 * allocates another one if we have more inputs on

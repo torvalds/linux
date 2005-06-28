@@ -1274,6 +1274,7 @@ module_param_array(irq, int, NULL, 0);
 module_param_array(io, int, NULL, 0);
 MODULE_PARM_DESC(io, "EtherLink/MC I/O base address(es)");
 MODULE_PARM_DESC(irq, "EtherLink/MC IRQ number(s)");
+MODULE_LICENSE("GPL");
 
 int init_module(void)
 {

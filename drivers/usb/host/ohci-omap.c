@@ -181,7 +181,7 @@ static int omap_start_hc(struct ohci_hcd *ohci, struct platform_device *pdev)
 	if (config->otg) {
 		ohci_to_hcd(ohci)->self.otg_port = config->otg;
 		/* default/minimum OTG power budget:  8 mA */
-		ohci->power_budget = 8;
+		ohci_to_hcd(ohci)->power_budget = 8;
 	}
 
 	/* boards can use OTG transceivers in non-OTG modes */
@@ -230,7 +230,7 @@ static int omap_start_hc(struct ohci_hcd *ohci, struct platform_device *pdev)
 
 		/* TPS2045 switch for internal transceiver (port 1) */
 		if (machine_is_omap_osk()) {
-			ohci->power_budget = 250;
+			ohci_to_hcd(ohci)->power_budget = 250;
 
 			rh &= ~RH_A_NOCP;
 

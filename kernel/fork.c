@@ -1090,6 +1090,11 @@ static task_t *copy_process(unsigned long clone_flags,
 		spin_unlock(&current->sighand->siglock);
 	}
 
+	/*
+	 * inherit ioprio
+	 */
+	p->ioprio = current->ioprio;
+
 	SET_LINKS(p);
 	if (unlikely(p->ptrace & PT_PTRACED))
 		__ptrace_link(p, current->parent);

@@ -1449,3 +1449,5 @@ _GLOBAL(sys_call_table)
 	.long sys_request_key		/* 270 */
 	.long sys_keyctl
 	.long sys_waitid
+	.long sys_ioprio_set
+	.long sys_ioprio_get

@@ -7,7 +7,7 @@ menu "Video For Linux"
 
 comment "Video Adapters"
 
-config CONFIG_TUNER_MULTI_I2C
+config TUNER_MULTI_I2C
 	bool "Enable support for multiple I2C devices on Video Adapters (EXPERIMENTAL)"
 	depends on VIDEO_DEV && EXPERIMENTAL
 	---help---

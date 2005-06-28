@@ -900,7 +900,7 @@ typedef struct aironet_ioctl {
 	unsigned char __user *data;	// d-data
 } aironet_ioctl;
 
-static char *swversion = "2.1";
+static char swversion[] = "2.1";
 #endif /* CISCO_EXT */
 
 #define NUM_MODULES       2

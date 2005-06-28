@@ -9,18 +9,18 @@
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or 
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- * 
+ *
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
@@ -72,7 +72,6 @@ struct usb_kbd {
 	unsigned char newleds;
 	char name[128];
 	char phys[64];
-	int open;
 
 	unsigned char *new;
 	struct usb_ctrlrequest *cr;
@@ -166,7 +165,7 @@ static void usb_kbd_led(struct urb *urb, struct pt_regs *regs)
 
 	if (urb->status)
 		warn("led urb status %d received", urb->status);
-	
+
 	if (*(kbd->leds) == kbd->newleds)
 		return;
 
@@ -180,14 +179,9 @@ static int usb_kbd_open(struct input_dev *dev)
 {
 	struct usb_kbd *kbd = dev->private;
 
-	if (kbd->open++)
-		return 0;
-
 	kbd->irq->dev = kbd->usbdev;
-	if (usb_submit_urb(kbd->irq, GFP_KERNEL)) {
-		kbd->open--;
+	if (usb_submit_urb(kbd->irq, GFP_KERNEL))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -196,8 +190,7 @@ static void usb_kbd_close(struct input_dev *dev)
 {
 	struct usb_kbd *kbd = dev->private;
 
-	if (!--kbd->open)
-		usb_kill_urb(kbd->irq);
+	usb_kill_urb(kbd->irq);
 }
 
 static int usb_kbd_alloc_mem(struct usb_device *dev, struct usb_kbd *kbd)
@@ -230,7 +223,7 @@ static void usb_kbd_free_mem(struct usb_device *dev, struct usb_kbd *kbd)
 		usb_buffer_free(dev, 1, kbd->leds, kbd->leds_dma);
 }
 
-static int usb_kbd_probe(struct usb_interface *iface, 
+static int usb_kbd_probe(struct usb_interface *iface,
 			 const struct usb_device_id *id)
 {
 	struct usb_device * dev = interface_to_usbdev(iface);
@@ -272,7 +265,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	for (i = 0; i < 255; i++)
 		set_bit(usb_kbd_keycode[i], kbd->dev.keybit);
 	clear_bit(0, kbd->dev.keybit);
-	
+
 	kbd->dev.private = kbd;
 	kbd->dev.event = usb_kbd_event;
 	kbd->dev.open = usb_kbd_open;
@@ -294,7 +287,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	sprintf(kbd->phys, "%s/input0", path);
 
 	kbd->dev.name = kbd->name;
-	kbd->dev.phys = kbd->phys;	
+	kbd->dev.phys = kbd->phys;
 	kbd->dev.id.bustype = BUS_USB;
 	kbd->dev.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
 	kbd->dev.id.product = le16_to_cpu(dev->descriptor.idProduct);
@@ -329,7 +322,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 static void usb_kbd_disconnect(struct usb_interface *intf)
 {
 	struct usb_kbd *kbd = usb_get_intfdata (intf);
-	
+
 	usb_set_intfdata(intf, NULL);
 	if (kbd) {
 		usb_kill_urb(kbd->irq);

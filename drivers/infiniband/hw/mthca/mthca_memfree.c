@@ -179,8 +179,13 @@ out:
 
 void mthca_table_put(struct mthca_dev *dev, struct mthca_icm_table *table, int obj)
 {
-	int i = (obj & (table->num_obj - 1)) * table->obj_size / MTHCA_TABLE_CHUNK_SIZE;
+	int i;
 	u8 status;
+
+	if (!mthca_is_memfree(dev))
+		return;
+
+	i = (obj & (table->num_obj - 1)) * table->obj_size / MTHCA_TABLE_CHUNK_SIZE;
 
 	down(&table->mutex);
 
@@ -255,6 +260,9 @@ void mthca_table_put_range(struct mthca_dev *dev, struct mthca_icm_table *table,
 			   int start, int end)
 {
 	int i;
+
+	if (!mthca_is_memfree(dev))
+		return;
 
 	for (i = start; i <= end; i += MTHCA_TABLE_CHUNK_SIZE / table->obj_size)
 		mthca_table_put(dev, table, i);

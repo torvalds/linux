@@ -455,8 +455,7 @@ static int streamer_reset(struct net_device *dev)
 	writew(readw(streamer_mmio + BCTL) | BCTL_SOFTRESET, streamer_mmio + BCTL);
 	t = jiffies;
 	/* Hold soft reset bit for a while */
-	current->state = TASK_UNINTERRUPTIBLE;
-	schedule_timeout(HZ);
+	ssleep(1);
 	
 	writew(readw(streamer_mmio + BCTL) & ~BCTL_SOFTRESET,
 	       streamer_mmio + BCTL);
@@ -512,8 +511,7 @@ static int streamer_reset(struct net_device *dev)
 	writew(SISR_MI, streamer_mmio + SISR_MASK_SUM);
 
 	while (!((readw(streamer_mmio + SISR)) & SISR_SRB_REPLY)) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(HZ/10);
+		msleep_interruptible(100);
 		if (jiffies - t > 40 * HZ) {
 			printk(KERN_ERR
 			       "IBM PCI tokenring card not responding\n");

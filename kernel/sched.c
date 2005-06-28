@@ -3448,15 +3448,7 @@ int task_nice(const task_t *p)
 {
 	return TASK_NICE(p);
 }
-
-/*
- * The only users of task_nice are binfmt_elf and binfmt_elf32.
- * binfmt_elf is no longer modular, but binfmt_elf32 still is.
- * Therefore, task_nice is needed if there is a compat_mode.
- */
-#ifdef CONFIG_COMPAT
 EXPORT_SYMBOL_GPL(task_nice);
-#endif
 
 /**
  * idle_cpu - is a given cpu idle currently?

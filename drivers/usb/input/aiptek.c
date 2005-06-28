@@ -1,7 +1,7 @@
 /*
  *  Native support for the Aiptek HyperPen USB Tablets
  *  (4000U/5000U/6000U/8000U/12000U)
- *  
+ *
  *  Copyright (c) 2001      Chris Atenasio   <chris@crud.net>
  *  Copyright (c) 2002-2004 Bryan W. Headley <bwheadley@earthlink.net>
  *
@@ -31,7 +31,7 @@
  *           - Added support for the sysfs interface, deprecating the
  *             procfs interface for 2.5.x kernel. Also added support for
  *             Wheel command. Bryan W. Headley July-15-2003.
- *      v1.2 - Reworked jitter timer as a kernel thread. 
+ *      v1.2 - Reworked jitter timer as a kernel thread.
  *             Bryan W. Headley November-28-2003/Jan-10-2004.
  *      v1.3 - Repaired issue of kernel thread going nuts on single-processor
  *             machines, introduced programmableDelay as a command line
@@ -49,10 +49,10 @@
  * NOTE:
  *      This kernel driver is augmented by the "Aiptek" XFree86 input
  *      driver for your X server, as well as the Gaiptek GUI Front-end
- *      "Tablet Manager". 
- *      These three products are highly interactive with one another, 
+ *      "Tablet Manager".
+ *      These three products are highly interactive with one another,
  *      so therefore it's easier to document them all as one subsystem.
- *      Please visit the project's "home page", located at, 
+ *      Please visit the project's "home page", located at,
  *      http://aiptektablet.sourceforge.net.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -156,7 +156,7 @@
  * Command/Data    Description     Return Bytes    Return Value
  * 0x10/0x00       SwitchToMouse       0
  * 0x10/0x01       SwitchToTablet      0
- * 0x18/0x04       SetResolution       0 
+ * 0x18/0x04       SetResolution       0
  * 0x12/0xFF       AutoGainOn          0
  * 0x17/0x00       FilterOn            0
  * 0x01/0x00       GetXExtension       2           MaxX
@@ -247,7 +247,7 @@
 #define AIPTEK_DIAGNOSTIC_SENDING_ABSOLUTE_IN_RELATIVE	2
 #define AIPTEK_DIAGNOSTIC_TOOL_DISALLOWED		3
 
-	/* Time to wait (in ms) to help mask hand jittering 
+	/* Time to wait (in ms) to help mask hand jittering
 	 * when pressing the stylus buttons.
 	 */
 #define AIPTEK_JITTER_DELAY_DEFAULT			50
@@ -324,7 +324,6 @@ struct aiptek {
 	struct aiptek_settings curSetting;	/* tablet's current programmable */
 	struct aiptek_settings newSetting;	/* ... and new param settings    */
 	unsigned int ifnum;			/* interface number for IO       */
-	int openCount;				/* module use counter            */
 	int diagnostic;				/* tablet diagnostic codes       */
 	unsigned long eventCount;		/* event count                   */
 	int inDelay;				/* jitter: in jitter delay?      */
@@ -791,7 +790,7 @@ exit:
  * specific Aiptek model numbers, because there has been overlaps,
  * use, and reuse of id's in existing models. Certain models have
  * been known to use more than one ID, indicative perhaps of
- * manufacturing revisions. In any event, we consider these 
+ * manufacturing revisions. In any event, we consider these
  * IDs to not be model-specific nor unique.
  */
 static const struct usb_device_id aiptek_ids[] = {
@@ -814,15 +813,9 @@ static int aiptek_open(struct input_dev *inputdev)
 {
 	struct aiptek *aiptek = inputdev->private;
 
-	if (aiptek->openCount++ > 0) {
-		return 0;
-	}
-
 	aiptek->urb->dev = aiptek->usbdev;
-	if (usb_submit_urb(aiptek->urb, GFP_KERNEL) != 0) {
-		aiptek->openCount--;
+	if (usb_submit_urb(aiptek->urb, GFP_KERNEL) != 0)
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -834,13 +827,11 @@ static void aiptek_close(struct input_dev *inputdev)
 {
 	struct aiptek *aiptek = inputdev->private;
 
-	if (--aiptek->openCount == 0) {
-		usb_kill_urb(aiptek->urb);
-	}
+	usb_kill_urb(aiptek->urb);
 }
 
 /***********************************************************************
- * aiptek_set_report and aiptek_get_report() are borrowed from Linux 2.4.x, 
+ * aiptek_set_report and aiptek_get_report() are borrowed from Linux 2.4.x,
  * where they were known as usb_set_report and usb_get_report.
  */
 static int
@@ -2252,7 +2243,6 @@ static void aiptek_disconnect(struct usb_interface *intf)
 				AIPTEK_PACKET_LENGTH,
 				aiptek->data, aiptek->data_dma);
 		kfree(aiptek);
-		aiptek = NULL;
 	}
 }
 

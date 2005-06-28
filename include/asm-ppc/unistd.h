@@ -277,8 +277,10 @@
 #define __NR_request_key	270
 #define __NR_keyctl		271
 #define __NR_waitid		272
+#define __NR_ioprio_set		273
+#define __NR_ioprio_get		274
 
-#define __NR_syscalls		273
+#define __NR_syscalls		275
 
 #define __NR(n)	#n
 
