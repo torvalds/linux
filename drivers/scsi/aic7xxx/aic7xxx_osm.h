@@ -132,7 +132,6 @@ typedef struct scsi_cmnd      *ahc_io_ctx_t;
 /************************* Configuration Data *********************************/
 extern u_int aic7xxx_no_probe;
 extern u_int aic7xxx_allow_memio;
-extern int aic7xxx_detect_complete;
 extern struct scsi_host_template aic7xxx_driver_template;
 
 /***************************** Bus Space/DMA **********************************/

@@ -208,8 +208,7 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return (-error);
 	}
 	pci_set_drvdata(pdev, ahc);
-	if (aic7xxx_detect_complete)
-		ahc_linux_register_host(ahc, &aic7xxx_driver_template);
+	ahc_linux_register_host(ahc, &aic7xxx_driver_template);
 	return (0);
 }
 

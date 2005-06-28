@@ -338,13 +338,6 @@ static uint32_t aic7xxx_pci_parity = ~0;
 uint32_t aic7xxx_allow_memio = ~0;
 
 /*
- * aic7xxx_detect() has been run, so register all device arrivals
- * immediately with the system rather than deferring to the sorted
- * attachment performed by aic7xxx_detect().
- */
-int aic7xxx_detect_complete;
-
-/*
  * So that we can set how long each device is given as a selection timeout.
  * The table of values goes like this:
  *   0 - 256ms
@@ -473,48 +466,6 @@ ahc_linux_map_seg(struct ahc_softc *ahc, struct scb *scb,
 
 	sg->len = ahc_htole32(len);
 	return (consumed);
-}
-
-/*
- * Try to detect an Adaptec 7XXX controller.
- */
-static int
-ahc_linux_detect(struct scsi_host_template *template)
-{
-	struct	ahc_softc *ahc;
-	int     found = 0;
-
-	/*
-	 * If we've been passed any parameters, process them now.
-	 */
-	if (aic7xxx)
-		aic7xxx_setup(aic7xxx);
-
-	template->proc_name = "aic7xxx";
-
-	/*
-	 * Initialize our softc list lock prior to
-	 * probing for any adapters.
-	 */
-	ahc_list_lockinit();
-
-	found = ahc_linux_pci_init();
-	if (!ahc_linux_eisa_init())
-		found++;
-	
-	/*
-	 * Register with the SCSI layer all
-	 * controllers we've found.
-	 */
-	TAILQ_FOREACH(ahc, &ahc_tailq, links) {
-
-		if (ahc_linux_register_host(ahc, template) == 0)
-			found++;
-	}
-
-	aic7xxx_detect_complete++;
-
-	return (found);
 }
 
 /*
@@ -848,6 +799,7 @@ ahc_linux_bus_reset(struct scsi_cmnd *cmd)
 struct scsi_host_template aic7xxx_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= "aic7xxx",
+	.proc_name		= "aic7xxx",
 	.proc_info		= ahc_linux_proc_info,
 	.info			= ahc_linux_info,
 	.queuecommand		= ahc_linux_queue,
@@ -2717,18 +2669,31 @@ static struct spi_function_template ahc_linux_transport_functions = {
 static int __init
 ahc_linux_init(void)
 {
-	ahc_linux_transport_template = spi_attach_transport(&ahc_linux_transport_functions);
+	/*
+	 * If we've been passed any parameters, process them now.
+	 */
+	if (aic7xxx)
+		aic7xxx_setup(aic7xxx);
+
+	ahc_linux_transport_template =
+		spi_attach_transport(&ahc_linux_transport_functions);
 	if (!ahc_linux_transport_template)
 		return -ENODEV;
+
 	scsi_transport_reserve_target(ahc_linux_transport_template,
 				      sizeof(struct ahc_linux_target));
 	scsi_transport_reserve_device(ahc_linux_transport_template,
 				      sizeof(struct ahc_linux_device));
-	if (ahc_linux_detect(&aic7xxx_driver_template))
-		return 0;
-	spi_release_transport(ahc_linux_transport_template);
-	ahc_linux_exit();
-	return -ENODEV;
+
+	/*
+	 * Initialize our softc list lock prior to
+	 * probing for any adapters.
+	 */
+	ahc_list_lockinit();
+
+	ahc_linux_pci_init();
+	ahc_linux_eisa_init();
+	return 0;
 }
 
 static void
