@@ -65,7 +65,7 @@ static inline int is_zero_ether_addr(const u8 *addr)
  */
 static inline int is_multicast_ether_addr(const u8 *addr)
 {
-	return addr[0] & 0x01;
+	return ((addr[0] != 0xff) && (0x01 & addr[0]));
 }
 
 /**
