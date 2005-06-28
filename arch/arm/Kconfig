@@ -361,6 +361,11 @@ config NO_IDLE_HZ
 	  Alternatively, if you want dynamic tick automatically enabled
 	  during boot, pass "dyntick=enable" via the kernel command string.
 
+	  Please note that dynamic tick may affect the accuracy of
+	  timekeeping on some platforms depending on the implementation.
+	  Currently at least OMAP platform is known to have accurate
+	  timekeeping with dynamic tick.
+
 config ARCH_DISCONTIGMEM_ENABLE
 	bool
 	default (ARCH_LH7A40X && !LH7A40X_CONTIGMEM)
