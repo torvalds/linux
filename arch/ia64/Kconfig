@@ -220,13 +220,6 @@ config IOSAPIC
 	depends on !IA64_HP_SIM
 	default y
 
-config IA64_SGI_SN_SIM
-	bool "SGI Medusa Simulator Support"
-	depends on IA64_SGI_SN2 || IA64_GENERIC
-	help
-	  If you are compiling a kernel that will run under SGI's IA-64
-	  simulator (Medusa) then say Y, otherwise say N.
-
 config IA64_SGI_SN_XP
 	tristate "Support communication between SGI SSIs"
 	select IA64_UNCACHED_ALLOCATOR
