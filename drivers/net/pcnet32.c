@@ -1602,7 +1602,7 @@ pcnet32_init_ring(struct net_device *dev)
 
 	rmb();
 	if (lp->rx_dma_addr[i] == 0)
-	    lp->rx_dma_addr[i] = pci_map_single(lp->pci_dev, rx_skbuff->tail,
+	    lp->rx_dma_addr[i] = pci_map_single(lp->pci_dev, rx_skbuff->data,
 		    PKT_BUF_SZ-2, PCI_DMA_FROMDEVICE);
 	lp->rx_ring[i].base = (u32)le32_to_cpu(lp->rx_dma_addr[i]);
 	lp->rx_ring[i].buf_length = le16_to_cpu(2-PKT_BUF_SZ);
@@ -1983,7 +1983,7 @@ pcnet32_rx(struct net_device *dev)
 			lp->rx_skbuff[entry] = newskb;
 			newskb->dev = dev;
 			lp->rx_dma_addr[entry] =
-			    pci_map_single(lp->pci_dev, newskb->tail,
+			    pci_map_single(lp->pci_dev, newskb->data,
 				    PKT_BUF_SZ-2, PCI_DMA_FROMDEVICE);
 			lp->rx_ring[entry].base = le32_to_cpu(lp->rx_dma_addr[entry]);
 			rx_in_place = 1;
@@ -2020,7 +2020,7 @@ pcnet32_rx(struct net_device *dev)
 						PKT_BUF_SZ-2,
 						PCI_DMA_FROMDEVICE);
 		    eth_copy_and_sum(skb,
-			    (unsigned char *)(lp->rx_skbuff[entry]->tail),
+			    (unsigned char *)(lp->rx_skbuff[entry]->data),
 			    pkt_len,0);
 		    pci_dma_sync_single_for_device(lp->pci_dev,
 						   lp->rx_dma_addr[entry],

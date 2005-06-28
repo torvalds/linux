@@ -990,7 +990,7 @@ static void alloc_rbufs(struct net_device *dev)
 		skb->dev = dev;                 /* Mark as being used by this device. */
 
 		rp->rx_skbuff_dma[i] =
-			pci_map_single(rp->pdev, skb->tail, rp->rx_buf_sz,
+			pci_map_single(rp->pdev, skb->data, rp->rx_buf_sz,
 				       PCI_DMA_FROMDEVICE);
 
 		rp->rx_ring[i].addr = cpu_to_le32(rp->rx_skbuff_dma[i]);
@@ -1518,7 +1518,7 @@ static void rhine_rx(struct net_device *dev)
 							    PCI_DMA_FROMDEVICE);
 
 				eth_copy_and_sum(skb,
-						 rp->rx_skbuff[entry]->tail,
+						 rp->rx_skbuff[entry]->data,
 						 pkt_len, 0);
 				skb_put(skb, pkt_len);
 				pci_dma_sync_single_for_device(rp->pdev,
@@ -1561,7 +1561,7 @@ static void rhine_rx(struct net_device *dev)
 				break;	/* Better luck next round. */
 			skb->dev = dev;	/* Mark as being used by this device. */
 			rp->rx_skbuff_dma[entry] =
-				pci_map_single(rp->pdev, skb->tail,
+				pci_map_single(rp->pdev, skb->data,
 					       rp->rx_buf_sz,
 					       PCI_DMA_FROMDEVICE);
 			rp->rx_ring[entry].addr = cpu_to_le32(rp->rx_skbuff_dma[entry]);

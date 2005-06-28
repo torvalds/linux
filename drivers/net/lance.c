@@ -862,7 +862,7 @@ lance_init_ring(struct net_device *dev, int gfp)
 		lp->rx_skbuff[i] = skb;
 		if (skb) {
 			skb->dev = dev;
-			rx_buff = skb->tail;
+			rx_buff = skb->data;
 		} else
 			rx_buff = kmalloc(PKT_BUF_SZ, GFP_DMA | gfp);
 		if (rx_buff == NULL)
