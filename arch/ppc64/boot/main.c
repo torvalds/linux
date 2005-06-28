@@ -146,10 +146,10 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 		}
 		a1 = initrd.addr;
 		a2 = initrd.size;
-		printf("initial ramdisk moving 0x%lx <- 0x%lx (%lx bytes)\n\r",
+		printf("initial ramdisk moving 0x%lx <- 0x%lx (0x%lx bytes)\n\r",
 		       initrd.addr, (unsigned long)_initrd_start, initrd.size);
 		memmove((void *)initrd.addr, (void *)_initrd_start, initrd.size);
-		printf("initrd head: 0x%lx\n\r", *((u32 *)initrd.addr));
+		printf("initrd head: 0x%lx\n\r", *((unsigned long *)initrd.addr));
 	}
 
 	/* Eventually gunzip the kernel */
@@ -199,9 +199,6 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 	vmlinux.size -= (unsigned long)elf64ph->p_offset;
 
 	flush_cache((void *)vmlinux.addr, vmlinux.size);
-
-	if (a1)
-		printf("initrd head: 0x%lx\n\r", *((u32 *)initrd.addr));
 
 	kernel_entry = (kernel_entry_t)vmlinux.addr;
 #ifdef DEBUG
