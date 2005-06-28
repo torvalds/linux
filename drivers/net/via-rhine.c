@@ -507,7 +507,7 @@ static struct net_device_stats *rhine_get_stats(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
-static void rhine_shutdown (struct device *gdev);
+static void rhine_shutdown (struct pci_dev *pdev);
 
 #define RHINE_WAIT_FOR(condition) do {					\
 	int i=1024;							\
@@ -1895,9 +1895,8 @@ static void __devexit rhine_remove_one(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static void rhine_shutdown (struct device *gendev)
+static void rhine_shutdown (struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = to_pci_dev(gendev);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
@@ -1956,7 +1955,7 @@ static int rhine_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_save_state(pdev);
 
 	spin_lock_irqsave(&rp->lock, flags);
-	rhine_shutdown(&pdev->dev);
+	rhine_shutdown(pdev);
 	spin_unlock_irqrestore(&rp->lock, flags);
 
 	free_irq(dev->irq, dev);
@@ -2010,9 +2009,7 @@ static struct pci_driver rhine_driver = {
 	.suspend	= rhine_suspend,
 	.resume		= rhine_resume,
 #endif /* CONFIG_PM */
-	.driver = {
-		.shutdown = rhine_shutdown,
-	}
+	.shutdown =	rhine_shutdown,
 };
 
 

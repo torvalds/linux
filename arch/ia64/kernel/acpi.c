@@ -236,9 +236,7 @@ acpi_parse_iosapic (acpi_table_entry_header *header, const unsigned long end)
 	if (BAD_MADT_ENTRY(iosapic, end))
 		return -EINVAL;
 
-	iosapic_init(iosapic->address, iosapic->global_irq_base);
-
-	return 0;
+	return iosapic_init(iosapic->address, iosapic->global_irq_base);
 }
 
 
@@ -772,7 +770,7 @@ EXPORT_SYMBOL(acpi_unmap_lsapic);
  
 
 #ifdef CONFIG_ACPI_NUMA
-acpi_status __init
+acpi_status __devinit
 acpi_map_iosapic (acpi_handle handle, u32 depth, void *context, void **ret)
 {
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
@@ -825,4 +823,28 @@ acpi_map_iosapic (acpi_handle handle, u32 depth, void *context, void **ret)
 	return AE_OK;
 }
 #endif /* CONFIG_NUMA */
+
+int
+acpi_register_ioapic (acpi_handle handle, u64 phys_addr, u32 gsi_base)
+{
+	int err;
+
+	if ((err = iosapic_init(phys_addr, gsi_base)))
+		return err;
+
+#if CONFIG_ACPI_NUMA
+	acpi_map_iosapic(handle, 0, NULL, NULL);
+#endif /* CONFIG_ACPI_NUMA */
+
+	return 0;
+}
+EXPORT_SYMBOL(acpi_register_ioapic);
+
+int
+acpi_unregister_ioapic (acpi_handle handle, u32 gsi_base)
+{
+	return iosapic_remove(gsi_base);
+}
+EXPORT_SYMBOL(acpi_unregister_ioapic);
+
 #endif /* CONFIG_ACPI_BOOT */

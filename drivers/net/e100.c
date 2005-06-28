@@ -2447,9 +2447,8 @@ static int e100_resume(struct pci_dev *pdev)
 #endif
 
 
-static void e100_shutdown(struct device *dev)
+static void e100_shutdown(struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
 
@@ -2470,11 +2469,7 @@ static struct pci_driver e100_driver = {
 	.suspend =      e100_suspend,
 	.resume =       e100_resume,
 #endif
-
-	.driver = {
-		.shutdown = e100_shutdown,
-	}
-
+	.shutdown =	e100_shutdown,
 };
 
 static int __init e100_init_module(void)
