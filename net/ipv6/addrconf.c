@@ -3031,9 +3031,12 @@ static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*pmsg), flags);
 	pmsg = NLMSG_DATA(nlh);
 	pmsg->prefix_family = AF_INET6;
+	pmsg->prefix_pad1 = 0;
+	pmsg->prefix_pad2 = 0;
 	pmsg->prefix_ifindex = idev->dev->ifindex;
 	pmsg->prefix_len = pinfo->prefix_len;
 	pmsg->prefix_type = pinfo->type;
+	pmsg->prefix_pad3 = 0;
 	
 	pmsg->prefix_flags = 0;
 	if (pinfo->onlink)

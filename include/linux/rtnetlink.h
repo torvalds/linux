@@ -363,6 +363,8 @@ enum
 struct rta_session
 {
 	__u8	proto;
+	__u8	pad1;
+	__u16	pad2;
 
 	union {
 		struct {
@@ -635,10 +637,13 @@ struct ifinfomsg
 struct prefixmsg
 {
 	unsigned char	prefix_family;
+	unsigned char	prefix_pad1;
+	unsigned short	prefix_pad2;
 	int		prefix_ifindex;
 	unsigned char	prefix_type;
 	unsigned char	prefix_len;
 	unsigned char	prefix_flags;
+	unsigned char	prefix_pad3;
 };
 
 enum 

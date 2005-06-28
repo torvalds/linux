@@ -1528,6 +1528,7 @@ static __inline__ int cbq_dump_ovl(struct sk_buff *skb, struct cbq_class *cl)
 
 	opt.strategy = cl->ovl_strategy;
 	opt.priority2 = cl->priority2+1;
+	opt.pad = 0;
 	opt.penalty = (cl->penalty*1000)/HZ;
 	RTA_PUT(skb, TCA_CBQ_OVL_STRATEGY, sizeof(opt), &opt);
 	return skb->len;
