@@ -1920,6 +1920,7 @@ static const char * ata_dma_blacklist [] = {
 	"HITACHI CDR-8335",
 	"HITACHI CDR-8435",
 	"Toshiba CD-ROM XM-6202B",
+	"TOSHIBA CD-ROM XM-1702BC",
 	"CD-532E-A",
 	"E-IDE CD-ROM CR-840",
 	"CD-ROM Drive/F5A",
@@ -1927,7 +1928,6 @@ static const char * ata_dma_blacklist [] = {
 	"SAMSUNG CD-ROM SC-148C",
 	"SAMSUNG CD-ROM SC",
 	"SanDisk SDP3B-64",
-	"SAMSUNG CD-ROM SN-124",
 	"ATAPI CD-ROM DRIVE 40X MAXIMUM",
 	"_NEC DV5800A",
 };
