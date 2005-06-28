@@ -1912,6 +1912,15 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 	}
 
 get_rq:
+	/*
+	 * Only allow batching queuers to allocate up to 50% over the defined
+	 * limit of requests, otherwise we could have thousands of requests
+	 * allocated with any setting of ->nr_requests
+	 */
+	if (rl->count[rw] >= (3 * q->nr_requests / 2)) {
+		spin_unlock_irq(q->queue_lock);
+		goto out;
+	}
 	rl->count[rw]++;
 	rl->starved[rw] = 0;
 	if (rl->count[rw] >= queue_congestion_on_threshold(q))
