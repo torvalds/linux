@@ -19,6 +19,11 @@ static inline void secure_computing(int this_syscall)
 		__secure_computing(this_syscall);
 }
 
+static inline int has_secure_computing(struct thread_info *ti)
+{
+	return unlikely(test_ti_thread_flag(ti, TIF_SECCOMP));
+}
+
 #else /* CONFIG_SECCOMP */
 
 #if (__GNUC__ > 2)
@@ -28,6 +33,11 @@ static inline void secure_computing(int this_syscall)
 #endif
 
 #define secure_computing(x) do { } while (0)
+/* static inline to preserve typechecking */
+static inline int has_secure_computing(struct thread_info *ti)
+{
+	return 0;
+}
 
 #endif /* CONFIG_SECCOMP */
 

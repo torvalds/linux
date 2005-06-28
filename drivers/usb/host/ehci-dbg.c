@@ -254,7 +254,7 @@ dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
 	}
 
 	return scnprintf (buf, len,
-		"%s%sport %d status %06x%s%s sig=%s %s%s%s%s%s%s%s%s%s",
+		"%s%sport %d status %06x%s%s sig=%s%s%s%s%s%s%s%s%s%s",
 		label, label [0] ? " " : "", port, status,
 		(status & PORT_POWER) ? " POWER" : "",
 		(status & PORT_OWNER) ? " OWNER" : "",
@@ -644,9 +644,11 @@ show_registers (struct class_device *class_dev, char *buf)
 	if (bus->controller->power.power_state) {
 		size = scnprintf (next, size,
 			"bus %s, device %s (driver " DRIVER_VERSION ")\n"
+			"%s\n"
 			"SUSPENDED (no register access)\n",
 			hcd->self.controller->bus->name,
-			hcd->self.controller->bus_id);
+			hcd->self.controller->bus_id,
+			hcd->product_desc);
 		goto done;
 	}
 
@@ -654,12 +656,52 @@ show_registers (struct class_device *class_dev, char *buf)
 	i = HC_VERSION(readl (&ehci->caps->hc_capbase));
 	temp = scnprintf (next, size,
 		"bus %s, device %s (driver " DRIVER_VERSION ")\n"
+		"%s\n"
 		"EHCI %x.%02x, hcd state %d\n",
 		hcd->self.controller->bus->name,
 		hcd->self.controller->bus_id,
+		hcd->product_desc,
 		i >> 8, i & 0x0ff, hcd->state);
 	size -= temp;
 	next += temp;
+
+#ifdef	CONFIG_PCI
+	/* EHCI 0.96 and later may have "extended capabilities" */
+	if (hcd->self.controller->bus == &pci_bus_type) {
+		struct pci_dev	*pdev;
+		u32		offset, cap, cap2;
+		unsigned	count = 256/4;
+
+		pdev = to_pci_dev(ehci_to_hcd(ehci)->self.controller);
+		offset = HCC_EXT_CAPS (readl (&ehci->caps->hcc_params));
+		while (offset && count--) {
+			pci_read_config_dword (pdev, offset, &cap);
+			switch (cap & 0xff) {
+			case 1:
+				temp = scnprintf (next, size,
+					"ownership %08x%s%s\n", cap,
+					(cap & (1 << 24)) ? " linux" : "",
+					(cap & (1 << 16)) ? " firmware" : "");
+				size -= temp;
+				next += temp;
+
+				offset += 4;
+				pci_read_config_dword (pdev, offset, &cap2);
+				temp = scnprintf (next, size,
+					"SMI sts/enable 0x%08x\n", cap2);
+				size -= temp;
+				next += temp;
+				break;
+			case 0:		/* illegal reserved capability */
+				cap = 0;
+				/* FALLTHROUGH */
+			default:		/* unknown */
+				break;
+			}
+			temp = (cap >> 8) & 0xff;
+		}
+	}
+#endif
 
 	// FIXME interpret both types of params
 	i = readl (&ehci->caps->hcs_params);
@@ -696,12 +738,19 @@ show_registers (struct class_device *class_dev, char *buf)
 	size -= temp;
 	next += temp;
 
-	for (i = 0; i < HCS_N_PORTS (ehci->hcs_params); i++) {
-		temp = dbg_port_buf (scratch, sizeof scratch, label, i + 1,
-				readl (&ehci->regs->port_status [i]));
+	for (i = 1; i <= HCS_N_PORTS (ehci->hcs_params); i++) {
+		temp = dbg_port_buf (scratch, sizeof scratch, label, i,
+				readl (&ehci->regs->port_status [i - 1]));
 		temp = scnprintf (next, size, fmt, temp, scratch);
 		size -= temp;
 		next += temp;
+		if (i == HCS_DEBUG_PORT(ehci->hcs_params) && ehci->debug) {
+			temp = scnprintf (next, size,
+					"    debug control %08x\n",
+					readl (&ehci->debug->control));
+			size -= temp;
+			next += temp;
+		}
 	}
 
 	if (ehci->reclaim) {

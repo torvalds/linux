@@ -166,7 +166,7 @@ extern int pmu_i2c_simple_read(int bus, int addr,  u8* data, int len);
 extern int pmu_i2c_simple_write(int bus, int addr,  u8* data, int len);
 
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /*
  * Stuff for putting the powerbook to sleep and waking it again.
  *
@@ -208,6 +208,8 @@ struct pmu_sleep_notifier
 int pmu_register_sleep_notifier(struct pmu_sleep_notifier* notifier);
 int pmu_unregister_sleep_notifier(struct pmu_sleep_notifier* notifier);
 
+#endif /* CONFIG_PM */
+
 #define PMU_MAX_BATTERIES	2
 
 /* values for pmu_power_flags */
@@ -234,7 +236,5 @@ struct pmu_battery_info
 extern int pmu_battery_count;
 extern struct pmu_battery_info pmu_batteries[PMU_MAX_BATTERIES];
 extern unsigned int pmu_power_flags;
-
-#endif /* CONFIG_PMAC_PBOOK */
 
 #endif	/* __KERNEL__ */

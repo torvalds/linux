@@ -15,10 +15,10 @@
  * information given below, I will _not_ be liable!
  *
  * RJ10 pinout:		To DE9:		Or DB25:
- * 	1 - RxD <---->	Pin 3 (TxD) <->	Pin 2 (TxD)
- * 	2 - GND <---->	Pin 5 (GND) <->	Pin 7 (GND)
- * 	4 - TxD <---->	Pin 2 (RxD) <->	Pin 3 (RxD)
- * 	3 - +12V (from HDD drive connector), DON'T connect to DE9 or DB25!!!
+ *	1 - RxD <---->	Pin 3 (TxD) <->	Pin 2 (TxD)
+ *	2 - GND <---->	Pin 5 (GND) <->	Pin 7 (GND)
+ *	4 - TxD <---->	Pin 2 (RxD) <->	Pin 3 (RxD)
+ *	3 - +12V (from HDD drive connector), DON'T connect to DE9 or DB25!!!
  *
  * Pin numbers for DE9 and DB25 are noted on the plug (quite small:). For
  * RJ10, it's like this:

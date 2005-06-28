@@ -341,10 +341,14 @@ static int ir_write (struct usb_serial_port *port, const unsigned char *buf, int
 	if (count == 0)
 		return 0;
 
-	if (port->write_urb->status == -EINPROGRESS) {
-		dbg ("%s - already writing", __FUNCTION__);
+	spin_lock(&port->lock);
+	if (port->write_urb_busy) {
+		spin_unlock(&port->lock);
+		dbg("%s - already writing", __FUNCTION__);
 		return 0;
 	}
+	port->write_urb_busy = 1;
+	spin_unlock(&port->lock);
 
 	transfer_buffer = port->write_urb->transfer_buffer;
 	transfer_size = min(count, port->bulk_out_size - 1);
@@ -374,9 +378,10 @@ static int ir_write (struct usb_serial_port *port, const unsigned char *buf, int
 	port->write_urb->transfer_flags = URB_ZERO_PACKET;
 
 	result = usb_submit_urb (port->write_urb, GFP_ATOMIC);
-	if (result)
+	if (result) {
+		port->write_urb_busy = 0;
 		dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __FUNCTION__, result);
-	else
+	} else
 		result = transfer_size;
 
 	return result;
@@ -387,7 +392,8 @@ static void ir_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
-	
+
+	port->write_urb_busy = 0;
 	if (urb->status) {
 		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
 		return;

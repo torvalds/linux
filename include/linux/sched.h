@@ -608,6 +608,8 @@ struct task_struct {
 	struct list_head run_list;
 	prio_array_t *array;
 
+	unsigned short ioprio;
+
 	unsigned long sleep_avg;
 	unsigned long long timestamp, last_ran;
 	unsigned long long sched_time; /* sched_clock time spent running */
@@ -763,6 +765,7 @@ struct task_struct {
 	nodemask_t mems_allowed;
 	int cpuset_mems_generation;
 #endif
+	atomic_t fs_excl;	/* holding fs exclusive resources */
 };
 
 static inline pid_t process_group(struct task_struct *tsk)
@@ -1112,7 +1115,8 @@ extern void unhash_process(struct task_struct *p);
 
 /*
  * Protects ->fs, ->files, ->mm, ->ptrace, ->group_info, ->comm, keyring
- * subscriptions and synchronises with wait4().  Also used in procfs.
+ * subscriptions and synchronises with wait4().  Also used in procfs.  Also
+ * pins the final release of task.io_context.
  *
  * Nests both inside and outside of read_lock(&tasklist_lock).
  * It must not be nested with write_lock_irq(&tasklist_lock),

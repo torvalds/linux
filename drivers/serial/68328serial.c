@@ -1497,23 +1497,6 @@ rs68328_init(void)
 	return 0;
 }
 
-
-
-/*
- * register_serial and unregister_serial allows for serial ports to be
- * configured at run-time, to support PCMCIA modems.
- */
-/* SPARC: Unused at this time, just here to make things link. */
-int register_serial(struct serial_struct *req)
-{
-	return -1;
-}
-
-void unregister_serial(int line)
-{
-	return;
-}
-	
 module_init(rs68328_init);
 
 

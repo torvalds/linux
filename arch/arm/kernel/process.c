@@ -32,6 +32,7 @@
 #include <asm/leds.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
+#include <asm/mach/time.h>
 
 extern const char *processor_modes[];
 extern void setup_mm_for_reboot(char mode);
@@ -85,8 +86,10 @@ EXPORT_SYMBOL(pm_power_off);
 void default_idle(void)
 {
 	local_irq_disable();
-	if (!need_resched() && !hlt_counter)
+	if (!need_resched() && !hlt_counter) {
+		timer_dyn_reprogram();
 		arch_idle();
+	}
 	local_irq_enable();
 }
 

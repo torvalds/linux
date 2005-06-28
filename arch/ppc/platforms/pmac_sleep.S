@@ -46,7 +46,7 @@
 	.section .text
 	.align	5
 
-#if defined(CONFIG_PMAC_PBOOK) || defined(CONFIG_CPU_FREQ_PMAC)
+#if defined(CONFIG_PM) || defined(CONFIG_CPU_FREQ_PMAC)
 
 /* This gets called by via-pmu.c late during the sleep process.
  * The PMU was already send the sleep command and will shut us down
@@ -382,7 +382,7 @@ turn_on_mmu:
 	isync
 	rfi
 
-#endif /* defined(CONFIG_PMAC_PBOOK) || defined(CONFIG_CPU_FREQ) */
+#endif /* defined(CONFIG_PM) || defined(CONFIG_CPU_FREQ) */
 
 	.section .data
 	.balign	L1_CACHE_LINE_SIZE
