@@ -2904,6 +2904,12 @@ static int write_int(struct file *file, const char __user *buffer, unsigned long
 }
 #endif
 
+static struct pcmcia_device_id ray_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x01a6, 0x0000),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, ray_ids);
+
 static struct pcmcia_driver ray_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -2911,6 +2917,7 @@ static struct pcmcia_driver ray_driver = {
 	},
 	.attach		= ray_attach,
 	.detach		= ray_detach,
+	.id_table       = ray_ids,
 };
 
 static int __init init_ray_cs(void)

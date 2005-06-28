@@ -18,17 +18,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-/*
- please add the following as /etc/pcmcia/vxpocket.conf:
- 
-  device "snd-vxpocket"
-     class "audio" module "snd-vxpocket"
-
-  card "Digigram VX-POCKET"
-    manfid 0x01f1, 0x0100
-    bind "snd-vxpocket"
-
- */
 
 #include <sound/driver.h>
 #include <linux/init.h>
@@ -140,13 +129,20 @@ static void vxp_detach(dev_link_t *link)
  * Module entry points
  */
 
+static struct pcmcia_device_id vxp_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x01f1, 0x0100),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, vxp_ids);
+
 static struct pcmcia_driver vxp_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= DEV_INFO,
 	},
 	.attach		= vxp_attach,
-	.detach		= vxp_detach
+	.detach		= vxp_detach,
+	.id_table	= vxp_ids,
 };
 
 static int __init init_vxpocket(void)

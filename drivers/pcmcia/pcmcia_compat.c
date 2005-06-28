@@ -74,19 +74,6 @@ int pcmcia_validate_cis(client_handle_t handle, cisinfo_t *info)
 }
 EXPORT_SYMBOL(pcmcia_validate_cis);
 
-int pcmcia_get_configuration_info(client_handle_t handle,
-				  config_info_t *config)
-{
-	struct pcmcia_socket *s;
-
-	if ((CHECK_HANDLE(handle)) || !config)
-		return CS_BAD_HANDLE;
-	s = SOCKET(handle);
-	if (!s)
-		return CS_BAD_HANDLE;
-	return pccard_get_configuration_info(s, handle->Function, config);
-}
-EXPORT_SYMBOL(pcmcia_get_configuration_info);
 
 int pcmcia_reset_card(client_handle_t handle, client_req_t *req)
 {
@@ -101,25 +88,4 @@ int pcmcia_reset_card(client_handle_t handle, client_req_t *req)
 	return pccard_reset_card(skt);
 }
 EXPORT_SYMBOL(pcmcia_reset_card);
-
-int pcmcia_get_status(client_handle_t handle, cs_status_t *status)
-{
-	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
-	s = SOCKET(handle);
-	return pccard_get_status(s, handle->Function, status);
-}
-EXPORT_SYMBOL(pcmcia_get_status);
-
-int pcmcia_access_configuration_register(client_handle_t handle,
-					 conf_reg_t *reg)
-{
-	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
-	s = SOCKET(handle);
-	return pccard_access_configuration_register(s, handle->Function, reg);
-}
-EXPORT_SYMBOL(pcmcia_access_configuration_register);
 

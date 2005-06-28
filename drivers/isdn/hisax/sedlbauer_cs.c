@@ -616,6 +616,18 @@ static int sedlbauer_event(event_t event, int priority,
     return 0;
 } /* sedlbauer_event */
 
+static struct pcmcia_device_id sedlbauer_ids[] = {
+	PCMCIA_DEVICE_PROD_ID1234("SEDLBAUER", "speed star II", "V 3.1", "(c) 93 - 98 cb ", 0x81fb79f5, 0xf3612e1d, 0x6b95c78a, 0x50d4149c),
+	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "ISDN-Adapter", "4D67", 0x81fb79f5, 0xe4e9bc12, 0x397b7e90),
+	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "ISDN-Adapter", "4D98", 0x81fb79f5, 0xe4e9bc12, 0x2e5c7fce),
+	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "ISDN-Adapter", " (C) 93-94 VK", 0x81fb79f5, 0xe4e9bc12, 0x8db143fe),
+	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "ISDN-Adapter", " (c) 93-95 VK", 0x81fb79f5, 0xe4e9bc12, 0xb391ab4c),
+	PCMCIA_DEVICE_PROD_ID12("HST High Soft Tech GmbH", "Saphir II B", 0xd79e0b84, 0x21d083ae),
+/*	PCMCIA_DEVICE_PROD_ID1234("SEDLBAUER", 0x81fb79f5), */ /* too generic*/
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, sedlbauer_ids);
+
 static struct pcmcia_driver sedlbauer_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -623,6 +635,7 @@ static struct pcmcia_driver sedlbauer_driver = {
 	},
 	.attach		= sedlbauer_attach,
 	.detach		= sedlbauer_detach,
+	.id_table	= sedlbauer_ids,
 };
 
 static int __init init_sedlbauer_cs(void)

@@ -1668,6 +1668,12 @@ static int netwave_close(struct net_device *dev) {
     return 0;
 }
 
+static struct pcmcia_device_id netwave_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("Xircom", "CreditCard Netwave", 0x2e3ee845, 0x54e28a28),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, netwave_ids);
+
 static struct pcmcia_driver netwave_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -1675,6 +1681,7 @@ static struct pcmcia_driver netwave_driver = {
 	},
 	.attach		= netwave_attach,
 	.detach		= netwave_detach,
+	.id_table       = netwave_ids,
 };
 
 static int __init init_netwave_cs(void)

@@ -1089,6 +1089,14 @@ static int bluecard_event(event_t event, int priority, event_callback_args_t *ar
 	return 0;
 }
 
+static struct pcmcia_device_id bluecard_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("BlueCard", "LSE041", 0xbaf16fbf, 0x657cc15e),
+	PCMCIA_DEVICE_PROD_ID12("BTCFCARD", "LSE139", 0xe3987764, 0x2524b59c),
+	PCMCIA_DEVICE_PROD_ID12("WSS", "LSE039", 0x0a0736ec, 0x24e6dfab),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, bluecard_ids);
+
 static struct pcmcia_driver bluecard_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -1096,6 +1104,7 @@ static struct pcmcia_driver bluecard_driver = {
 	},
 	.attach		= bluecard_attach,
 	.detach		= bluecard_detach,
+	.id_table	= bluecard_ids,
 };
 
 static int __init init_bluecard_cs(void)

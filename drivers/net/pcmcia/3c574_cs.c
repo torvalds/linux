@@ -1286,6 +1286,13 @@ static int el3_close(struct net_device *dev)
 	return 0;
 }
 
+static struct pcmcia_device_id tc574_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0574),
+	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(0, 0x0101, 0x0556, "3CCFEM556.cis"),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, tc574_ids);
+
 static struct pcmcia_driver tc574_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -1293,6 +1300,7 @@ static struct pcmcia_driver tc574_driver = {
 	},
 	.attach		= tc574_attach,
 	.detach		= tc574_detach,
+	.id_table       = tc574_ids,
 };
 
 static int __init init_tc574(void)

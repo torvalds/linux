@@ -75,6 +75,8 @@
 
 #ifndef __ASSEMBLY__
 
+extern void __iomem *auxio_register;
+
 #define AUXIO_LTE_ON	1
 #define AUXIO_LTE_OFF	0
 
