@@ -18,6 +18,7 @@ i915-objs   := i915_drv.o i915_dma.o i915_irq.o i915_mem.o
 radeon-objs := radeon_drv.o radeon_cp.o radeon_state.o radeon_mem.o radeon_irq.o
 ffb-objs    := ffb_drv.o ffb_context.o
 sis-objs    := sis_drv.o sis_ds.o sis_mm.o
+via-objs    := via_irq.o via_drv.o via_ds.o via_map.o via_mm.o via_dma.o via_verifier.o via_video.o
 
 ifeq ($(CONFIG_COMPAT),y)
 drm-objs    += drm_ioc32.o
@@ -35,4 +36,5 @@ obj-$(CONFIG_DRM_I830)	+= i830.o
 obj-$(CONFIG_DRM_I915)  += i915.o
 obj-$(CONFIG_DRM_FFB)   += ffb.o
 obj-$(CONFIG_DRM_SIS)   += sis.o
+obj-$(CONFIG_DRM_VIA)	+=via.o
 
