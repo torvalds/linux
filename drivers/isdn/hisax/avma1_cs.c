@@ -501,6 +501,13 @@ static int avma1cs_event(event_t event, int priority,
     return 0;
 } /* avma1cs_event */
 
+static struct pcmcia_device_id avma1cs_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("AVM", "ISDN A", 0x95d42008, 0xadc9d4bb),
+	PCMCIA_DEVICE_PROD_ID12("ISDN", "CARD", 0x8d9761c8, 0x01c5aa7b),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, avma1cs_ids);
+
 static struct pcmcia_driver avma1cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -508,6 +515,7 @@ static struct pcmcia_driver avma1cs_driver = {
 	},
 	.attach		= avma1cs_attach,
 	.detach		= avma1cs_detach,
+	.id_table	= avma1cs_ids,
 };
  
 /*====================================================================*/

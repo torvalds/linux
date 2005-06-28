@@ -850,7 +850,7 @@ static int pcnet32_phys_id(struct net_device *dev, u32 data)
     if ((!data) || (data > (u32)(MAX_SCHEDULE_TIMEOUT / HZ)))
     data = (u32)(MAX_SCHEDULE_TIMEOUT / HZ);
 
-    schedule_timeout(data * HZ);
+    msleep_interruptible(data * 1000);
     del_timer_sync(&lp->blink_timer);
 
     /* Restore the original value of the bcrs */

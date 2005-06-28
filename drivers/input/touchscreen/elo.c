@@ -226,7 +226,7 @@ static int elo_connect(struct serio *serio, struct serio_driver *drv)
 			input_set_abs_params(&elo->dev, ABS_Y, 96, 4000, 0, 0);
 			input_set_abs_params(&elo->dev, ABS_PRESSURE, 0, 255, 0, 0);
 			break;
-		
+
 		case 1: /* 6-byte protocol */
 			input_set_abs_params(&elo->dev, ABS_PRESSURE, 0, 15, 0, 0);
 

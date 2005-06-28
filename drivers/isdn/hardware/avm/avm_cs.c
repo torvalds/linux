@@ -486,6 +486,14 @@ static int avmcs_event(event_t event, int priority,
     return 0;
 } /* avmcs_event */
 
+static struct pcmcia_device_id avmcs_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("AVM", "ISDN-Controller B1", 0x95d42008, 0x845dc335),
+	PCMCIA_DEVICE_PROD_ID12("AVM", "Mobile ISDN-Controller M1", 0x95d42008, 0x81e10430),
+	PCMCIA_DEVICE_PROD_ID12("AVM", "Mobile ISDN-Controller M2", 0x95d42008, 0x18e8558a),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, avmcs_ids);
+
 static struct pcmcia_driver avmcs_driver = {
 	.owner	= THIS_MODULE,
 	.drv	= {
@@ -493,6 +501,7 @@ static struct pcmcia_driver avmcs_driver = {
 	},
 	.attach	= avmcs_attach,
 	.detach	= avmcs_detach,
+	.id_table = avmcs_ids,
 };
 
 static int __init avmcs_init(void)

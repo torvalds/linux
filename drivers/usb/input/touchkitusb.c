@@ -69,7 +69,6 @@ struct touchkit_usb {
 	struct urb *irq;
 	struct usb_device *udev;
 	struct input_dev input;
-	int open;
 	char name[128];
 	char phys[64];
 };
@@ -134,15 +133,10 @@ static int touchkit_open(struct input_dev *input)
 {
 	struct touchkit_usb *touchkit = input->private;
 
-	if (touchkit->open++)
-		return 0;
-
 	touchkit->irq->dev = touchkit->udev;
 
-	if (usb_submit_urb(touchkit->irq, GFP_ATOMIC)) {
-		touchkit->open--;
+	if (usb_submit_urb(touchkit->irq, GFP_ATOMIC))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -151,8 +145,7 @@ static void touchkit_close(struct input_dev *input)
 {
 	struct touchkit_usb *touchkit = input->private;
 
-	if (!--touchkit->open)
-		usb_kill_urb(touchkit->irq);
+	usb_kill_urb(touchkit->irq);
 }
 
 static int touchkit_alloc_buffers(struct usb_device *udev,

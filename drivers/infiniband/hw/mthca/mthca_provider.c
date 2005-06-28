@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -52,7 +53,7 @@ static int mthca_query_device(struct ib_device *ibdev,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	memset(props, 0, sizeof props);
+	memset(props, 0, sizeof *props);
 
 	props->fw_ver              = mdev->fw_ver;
 
@@ -558,6 +559,7 @@ static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
 				  convert_access(acc), mr);
 
 	if (err) {
+		kfree(page_list);
 		kfree(mr);
 		return ERR_PTR(err);
 	}

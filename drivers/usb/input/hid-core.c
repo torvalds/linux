@@ -232,7 +232,7 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 	report->size += parser->global.report_size * parser->global.report_count;
 
 	if (!parser->local.usage_index) /* Ignore padding fields */
-		return 0; 
+		return 0;
 
 	usages = max_t(int, parser->local.usage_index, parser->global.report_count);
 
@@ -765,7 +765,7 @@ static __inline__ __u32 s32ton(__s32 value, unsigned n)
 static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
 {
 	report += (offset >> 5) << 2; offset &= 31;
-	return (le64_to_cpu(get_unaligned((__le64*)report)) >> offset) & ((1 << n) - 1);
+	return (le64_to_cpu(get_unaligned((__le64*)report)) >> offset) & ((1ULL << n) - 1);
 }
 
 static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u32 value)
@@ -1233,6 +1233,13 @@ int hid_wait_io(struct hid_device *hid)
 	return 0;
 }
 
+static int hid_set_idle(struct usb_device *dev, int ifnum, int report, int idle)
+{
+	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+		HID_REQ_SET_IDLE, USB_TYPE_CLASS | USB_RECIP_INTERFACE, (idle << 8) | report,
+		ifnum, NULL, 0, USB_CTRL_SET_TIMEOUT);
+}
+
 static int hid_get_class_descriptor(struct usb_device *dev, int ifnum,
 		unsigned char type, void *buf, int size)
 {
@@ -1301,10 +1308,6 @@ void hid_init_reports(struct hid_device *hid)
 
 	if (err)
 		warn("timeout initializing reports\n");
-
-	usb_control_msg(hid->dev, usb_sndctrlpipe(hid->dev, 0),
-		HID_REQ_SET_IDLE, USB_TYPE_CLASS | USB_RECIP_INTERFACE, 0,
-		hid->ifnum, NULL, 0, USB_CTRL_SET_TIMEOUT);
 }
 
 #define USB_VENDOR_ID_WACOM		0x056a
@@ -1317,6 +1320,10 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_DEVICE_ID_WACOM_PTU		0x0003
 #define USB_DEVICE_ID_WACOM_INTUOS3	0x00B0
 #define USB_DEVICE_ID_WACOM_CINTIQ	0x003F
+
+#define USB_VENDOR_ID_ACECAD		0x0460
+#define USB_DEVICE_ID_ACECAD_FLAIR	0x0004
+#define USB_DEVICE_ID_ACECAD_302	0x0008
 
 #define USB_VENDOR_ID_KBGEAR		0x084e
 #define USB_DEVICE_ID_KBGEAR_JAMSTUDIO	0x1001
@@ -1502,6 +1509,9 @@ static struct hid_blacklist {
 	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_4_PHIDGETSERVO_20, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_1_PHIDGETSERVO_20, HID_QUIRK_IGNORE },
 
+	{ USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_FLAIR, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_302, HID_QUIRK_IGNORE },
+
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_UC100KM, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_CS124U, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_2PORTKVM, HID_QUIRK_NOGET },
@@ -1590,6 +1600,8 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		return NULL;
 	}
 
+	hid_set_idle(dev, interface->desc.bInterfaceNumber, 0, 0);
+
 	if ((n = hid_get_class_descriptor(dev, interface->desc.bInterfaceNumber, HID_DT_REPORT, rdesc, rsize)) < 0) {
 		dbg("reading report descriptor failed");
 		kfree(rdesc);
@@ -1635,7 +1647,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		/* Change the polling interval of mice. */
 		if (hid->collection->usage == HID_GD_MOUSE && hid_mousepoll_interval > 0)
 			interval = hid_mousepoll_interval;
-		
+
 		if (endpoint->bEndpointAddress & USB_DIR_IN) {
 			if (hid->urbin)
 				continue;

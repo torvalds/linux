@@ -2327,6 +2327,38 @@ static int smc_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 	return rc;
 }
 
+static struct pcmcia_device_id smc91c92_ids[] = {
+	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0109, 0x0501),
+	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0140, 0x000a),
+	PCMCIA_PFC_DEVICE_PROD_ID123(0, "MEGAHERTZ", "CC/XJEM3288", "DATA/FAX/CELL ETHERNET MODEM", 0xf510db04, 0x04cd2988, 0x46a52d63),
+	PCMCIA_PFC_DEVICE_PROD_ID123(0, "MEGAHERTZ", "CC/XJEM3336", "DATA/FAX/CELL ETHERNET MODEM", 0xf510db04, 0x0143b773, 0x46a52d63),
+	PCMCIA_PFC_DEVICE_PROD_ID123(0, "MEGAHERTZ", "EM1144T", "PCMCIA MODEM", 0xf510db04, 0x856d66c8, 0xbd6c43ef),
+	PCMCIA_PFC_DEVICE_PROD_ID123(0, "MEGAHERTZ", "XJEM1144/CCEM1144", "PCMCIA MODEM", 0xf510db04, 0x52d21e1e, 0xbd6c43ef),
+	PCMCIA_PFC_DEVICE_PROD_ID12(0, "Gateway 2000", "XJEM3336", 0xdd9989be, 0x662c394c),
+	PCMCIA_PFC_DEVICE_PROD_ID12(0, "MEGAHERTZ", "XJEM1144/CCEM1144", 0xf510db04, 0x52d21e1e),
+	PCMCIA_PFC_DEVICE_PROD_ID12(0, "Ositech", "Trumpcard", 0x0c2f80cd, 0x0573c29f),
+	PCMCIA_PFC_DEVICE_PROD_ID12(0, "Ositech", "Trumpcard", 0x0c2f80cd, 0x0573c29f),
+	PCMCIA_MFC_DEVICE_MANF_CARD(0, 0x016c, 0x0020),
+	PCMCIA_DEVICE_MANF_CARD(0x016c, 0x0023),
+	PCMCIA_DEVICE_PROD_ID123("BASICS by New Media Corporation", "Ethernet", "SMC91C94", 0x23c78a9d, 0x00b2e941, 0xcef397fb),
+	PCMCIA_DEVICE_PROD_ID12("ARGOSY", "Fast Ethernet PCCard", 0x78f308dc, 0xdcea68bc),
+	PCMCIA_DEVICE_PROD_ID12("dit Co., Ltd.", "PC Card-10/100BTX", 0xe59365c8, 0x6a2161d1),
+	PCMCIA_DEVICE_PROD_ID12("DYNALINK", "L100C", 0x6a26d1cf, 0xc16ce9c5),
+	PCMCIA_DEVICE_PROD_ID12("Farallon", "Farallon Enet", 0x58d93fc4, 0x244734e9),
+	PCMCIA_DEVICE_PROD_ID12("Megahertz", "CC10BT/2", 0x33234748, 0x3c95b953),
+	PCMCIA_DEVICE_PROD_ID12("MELCO/SMC", "LPC-TX", 0xa2cd8e6d, 0x42da662a),
+	PCMCIA_DEVICE_PROD_ID12("Ositech", "Trumpcard", 0x0c2f80cd, 0x0573c29f),
+	PCMCIA_DEVICE_PROD_ID12("Ositech", "Trumpcard", 0x0c2f80cd, 0x0573c29f),
+	PCMCIA_DEVICE_PROD_ID12("PCMCIA", "Fast Ethernet PCCard", 0x281f1c5d, 0xdcea68bc),
+	PCMCIA_DEVICE_PROD_ID12("Psion", "10Mb Ethernet", 0x4ef00b21, 0x844be9e9),
+	PCMCIA_DEVICE_PROD_ID12("SMC", "EtherEZ Ethernet 8020", 0xc4f8b18b, 0x4a0eeb2d),
+	/* These conflict with other cards! */
+	/* PCMCIA_DEVICE_MANF_CARD(0x0186, 0x0100), */
+	/* PCMCIA_DEVICE_MANF_CARD(0x8a01, 0xc1ab), */
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, smc91c92_ids);
+
 static struct pcmcia_driver smc91c92_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -2334,6 +2366,7 @@ static struct pcmcia_driver smc91c92_cs_driver = {
 	},
 	.attach		= smc91c92_attach,
 	.detach		= smc91c92_detach,
+	.id_table       = smc91c92_ids,
 };
 
 static int __init init_smc91c92_cs(void)

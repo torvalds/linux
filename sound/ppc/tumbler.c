@@ -1128,7 +1128,7 @@ static void tumbler_reset_audio(pmac_t *chip)
 	}
 }
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /* suspend mixer */
 static void tumbler_suspend(pmac_t *chip)
 {
@@ -1370,7 +1370,7 @@ int __init snd_pmac_tumbler_init(pmac_t *chip)
 	if ((err = snd_ctl_add(chip->card, chip->drc_sw_ctl)) < 0)
 		return err;
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	chip->suspend = tumbler_suspend;
 	chip->resume = tumbler_resume;
 #endif

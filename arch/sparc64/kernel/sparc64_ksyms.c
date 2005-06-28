@@ -227,7 +227,6 @@ EXPORT_SYMBOL(__flush_dcache_range);
 
 EXPORT_SYMBOL(mostek_lock);
 EXPORT_SYMBOL(mstk48t02_regs);
-EXPORT_SYMBOL(request_fast_irq);
 #ifdef CONFIG_SUN_AUXIO
 EXPORT_SYMBOL(auxio_set_led);
 EXPORT_SYMBOL(auxio_set_lte);

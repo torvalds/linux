@@ -1,4 +1,4 @@
-/* Siemens ID Mouse driver v0.5
+/* Siemens ID Mouse driver v0.6
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License as
@@ -10,6 +10,9 @@
 
   Derived from the USB Skeleton driver 1.1,
   Copyright (C) 2003 Greg Kroah-Hartman (greg@kroah.com)
+
+  Additional information provided by Martin Reising
+  <Martin.Reising@natural-computing.de>
 
 */
 
@@ -25,28 +28,43 @@
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 
+/* image constants */
 #define WIDTH 225
-#define HEIGHT 288
-#define HEADER "P5 225 288 255 "
+#define HEIGHT 289
+#define HEADER "P5 225 289 255 "
 #define IMGSIZE ((WIDTH * HEIGHT) + sizeof(HEADER)-1)
 
-/* Version Information */
-#define DRIVER_VERSION "0.5"
+/* version information */
+#define DRIVER_VERSION "0.6"
 #define DRIVER_SHORT   "idmouse"
 #define DRIVER_AUTHOR  "Florian 'Floe' Echtler <echtler@fs.tum.de>"
 #define DRIVER_DESC    "Siemens ID Mouse FingerTIP Sensor Driver"
 
-/* Siemens ID Mouse */
-#define USB_IDMOUSE_VENDOR_ID  0x0681
-#define USB_IDMOUSE_PRODUCT_ID 0x0005
-
-/* we still need a minor number */
+/* minor number for misc USB devices */
 #define USB_IDMOUSE_MINOR_BASE 132
 
+/* vendor and device IDs */
+#define ID_SIEMENS 0x0681
+#define ID_IDMOUSE 0x0005
+#define ID_CHERRY  0x0010
+
+/* device ID table */
 static struct usb_device_id idmouse_table[] = {
-	{USB_DEVICE(USB_IDMOUSE_VENDOR_ID, USB_IDMOUSE_PRODUCT_ID)},
-	{} /* null entry at the end */
+	{USB_DEVICE(ID_SIEMENS, ID_IDMOUSE)}, /* Siemens ID Mouse (Professional) */
+	{USB_DEVICE(ID_SIEMENS, ID_CHERRY )}, /* Cherry FingerTIP ID Board       */
+	{}                                    /* terminating null entry          */
 };
+
+/* sensor commands */
+#define FTIP_RESET   0x20
+#define FTIP_ACQUIRE 0x21
+#define FTIP_RELEASE 0x22
+#define FTIP_BLINK   0x23  /* LSB of value = blink pulse width */
+#define FTIP_SCROLL  0x24
+
+#define ftip_command(dev, command, value, index) \
+	usb_control_msg (dev->udev, usb_sndctrlpipe (dev->udev, 0), command, \
+	USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT, value, index, NULL, 0, 1000)
 
 MODULE_DEVICE_TABLE(usb, idmouse_table);
 
@@ -57,7 +75,8 @@ struct usb_idmouse {
 	struct usb_interface *interface; /* the interface for this device */
 
 	unsigned char *bulk_in_buffer; /* the buffer to receive data */
-	size_t bulk_in_size; /* the size of the receive buffer */
+	size_t bulk_in_size; /* the maximum bulk packet size */
+	size_t orig_bi_size; /* same as above, but reported by the device */
 	__u8 bulk_in_endpointAddr; /* the address of the bulk in endpoint */
 
 	int open; /* if the port is open or not */
@@ -103,7 +122,7 @@ static struct usb_driver idmouse_driver = {
 	.id_table = idmouse_table,
 };
 
-// prevent races between open() and disconnect()
+/* prevent races between open() and disconnect() */
 static DECLARE_MUTEX(disconnect_sem);
 
 static int idmouse_create_image(struct usb_idmouse *dev)
@@ -112,42 +131,34 @@ static int idmouse_create_image(struct usb_idmouse *dev)
 	int bulk_read = 0;
 	int result = 0;
 
-	if (dev->bulk_in_size < sizeof(HEADER))
-		return -ENOMEM;
-
-	memcpy(dev->bulk_in_buffer,HEADER,sizeof(HEADER)-1);
+	memcpy(dev->bulk_in_buffer, HEADER, sizeof(HEADER)-1);
 	bytes_read += sizeof(HEADER)-1;
 
-	/* Dump the setup packets. Yes, they are uncommented, simply 
-	   because they were sniffed under Windows using SnoopyPro.
-	   I _guess_ that 0x22 is a kind of reset command and 0x21 
-	   means init..
-	*/
-	result = usb_control_msg (dev->udev, usb_sndctrlpipe (dev->udev, 0),
-				0x21, 0x42, 0x0001, 0x0002, NULL, 0, 1000);
+	/* reset the device and set a fast blink rate */
+	result = ftip_command(dev, FTIP_RELEASE, 0, 0);
 	if (result < 0)
-		return result;
-	result = usb_control_msg (dev->udev, usb_sndctrlpipe (dev->udev, 0),
-				0x20, 0x42, 0x0001, 0x0002, NULL, 0, 1000);
+		goto reset;
+	result = ftip_command(dev, FTIP_BLINK,   1, 0);
 	if (result < 0)
-		return result;
-	result = usb_control_msg (dev->udev, usb_sndctrlpipe (dev->udev, 0),
-				0x22, 0x42, 0x0000, 0x0002, NULL, 0, 1000);
-	if (result < 0)
-		return result;
+		goto reset;
 
-	result = usb_control_msg (dev->udev, usb_sndctrlpipe (dev->udev, 0),
-				0x21, 0x42, 0x0001, 0x0002, NULL, 0, 1000);
+	/* initialize the sensor - sending this command twice */
+	/* significantly reduces the rate of failed reads     */
+	result = ftip_command(dev, FTIP_ACQUIRE, 0, 0);
 	if (result < 0)
-		return result;
-	result = usb_control_msg (dev->udev, usb_sndctrlpipe (dev->udev, 0),
-				0x20, 0x42, 0x0001, 0x0002, NULL, 0, 1000);
+		goto reset;
+	result = ftip_command(dev, FTIP_ACQUIRE, 0, 0);
 	if (result < 0)
-		return result;
-	result = usb_control_msg (dev->udev, usb_sndctrlpipe (dev->udev, 0),
-				0x20, 0x42, 0x0000, 0x0002, NULL, 0, 1000);
+		goto reset;
+
+	/* start the readout - sending this command twice */
+	/* presumably enables the high dynamic range mode */
+	result = ftip_command(dev, FTIP_RESET,   0, 0);
 	if (result < 0)
-		return result;
+		goto reset;
+	result = ftip_command(dev, FTIP_RESET,   0, 0);
+	if (result < 0)
+		goto reset;
 
 	/* loop over a blocking bulk read to get data from the device */
 	while (bytes_read < IMGSIZE) {
@@ -155,22 +166,40 @@ static int idmouse_create_image(struct usb_idmouse *dev)
 				usb_rcvbulkpipe (dev->udev, dev->bulk_in_endpointAddr),
 				dev->bulk_in_buffer + bytes_read,
 				dev->bulk_in_size, &bulk_read, 5000);
-		if (result < 0)
-			return result;
-		if (signal_pending(current))
-			return -EINTR;
+		if (result < 0) {
+			/* Maybe this error was caused by the increased packet size? */
+			/* Reset to the original value and tell userspace to retry.  */
+			if (dev->bulk_in_size != dev->orig_bi_size) {
+				dev->bulk_in_size = dev->orig_bi_size;
+				result = -EAGAIN;
+			}
+			break;
+		}
+		if (signal_pending(current)) {
+			result = -EINTR;
+			break;
+		}
 		bytes_read += bulk_read;
 	}
 
 	/* reset the device */
-	result = usb_control_msg (dev->udev, usb_sndctrlpipe (dev->udev, 0),
-				0x22, 0x42, 0x0000, 0x0002, NULL, 0, 1000);
-	if (result < 0)
-		return result;
+reset:
+	ftip_command(dev, FTIP_RELEASE, 0, 0);
 
-	/* should be IMGSIZE == 64815 */
+	/* check for valid image */
+	/* right border should be black (0x00) */
+	for (bytes_read = sizeof(HEADER)-1 + WIDTH-1; bytes_read < IMGSIZE; bytes_read += WIDTH)
+		if (dev->bulk_in_buffer[bytes_read] != 0x00)
+			return -EAGAIN;
+
+	/* lower border should be white (0xFF) */
+	for (bytes_read = IMGSIZE-WIDTH; bytes_read < IMGSIZE-1; bytes_read++)
+		if (dev->bulk_in_buffer[bytes_read] != 0xFF)
+			return -EAGAIN;
+
+	/* should be IMGSIZE == 65040 */
 	dbg("read %d bytes fingerprint data", bytes_read);
-	return 0;
+	return result;
 }
 
 static inline void idmouse_delete(struct usb_idmouse *dev)
@@ -282,10 +311,10 @@ static ssize_t idmouse_read(struct file *file, char __user *buffer, size_t count
 
 	dev = (struct usb_idmouse *) file->private_data;
 
-	// lock this object
+	/* lock this object */
 	down (&dev->sem);
 
-	// verify that the device wasn't unplugged
+	/* verify that the device wasn't unplugged */
 	if (!dev->present) {
 		up (&dev->sem);
 		return -ENODEV;
@@ -296,8 +325,7 @@ static ssize_t idmouse_read(struct file *file, char __user *buffer, size_t count
 		return 0;
 	}
 
-	if (count > IMGSIZE - *ppos)
-		count = IMGSIZE - *ppos;
+	count = min ((loff_t)count, IMGSIZE - (*ppos));
 
 	if (copy_to_user (buffer, dev->bulk_in_buffer + *ppos, count)) {
 		result = -EFAULT;
@@ -306,7 +334,7 @@ static ssize_t idmouse_read(struct file *file, char __user *buffer, size_t count
 		*ppos += count;
 	}
 
-	// unlock the device 
+	/* unlock the device */
 	up(&dev->sem);
 	return result;
 }
@@ -318,7 +346,6 @@ static int idmouse_probe(struct usb_interface *interface,
 	struct usb_idmouse *dev = NULL;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	size_t buffer_size;
 	int result;
 
 	/* check if we have gotten the data or the hid interface */
@@ -344,11 +371,11 @@ static int idmouse_probe(struct usb_interface *interface,
 		USB_ENDPOINT_XFER_BULK)) {
 
 		/* we found a bulk in endpoint */
-		buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
-		dev->bulk_in_size = buffer_size;
+		dev->orig_bi_size = le16_to_cpu(endpoint->wMaxPacketSize);
+		dev->bulk_in_size = 0x200; /* works _much_ faster */
 		dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
 		dev->bulk_in_buffer =
-			kmalloc(IMGSIZE + buffer_size, GFP_KERNEL);
+			kmalloc(IMGSIZE + dev->bulk_in_size, GFP_KERNEL);
 
 		if (!dev->bulk_in_buffer) {
 			err("Unable to allocate input buffer.");

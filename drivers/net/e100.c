@@ -1093,11 +1093,16 @@ static int e100_phy_init(struct nic *nic)
 	}
 
 	if((nic->mac >= mac_82550_D102) || ((nic->flags & ich) && 
-		(mdio_read(netdev, nic->mii.phy_id, MII_TPISTATUS) & 0x8000) && 
-		(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled)))
-		/* enable/disable MDI/MDI-X auto-switching */
-		mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG,
-			nic->mii.force_media ? 0 : NCONFIG_AUTO_SWITCH);
+	   (mdio_read(netdev, nic->mii.phy_id, MII_TPISTATUS) & 0x8000))) {
+		/* enable/disable MDI/MDI-X auto-switching.
+		   MDI/MDI-X auto-switching is disabled for 82551ER/QM chips */
+		if((nic->mac == mac_82551_E) || (nic->mac == mac_82551_F) ||
+		   (nic->mac == mac_82551_10) || (nic->mii.force_media) || 
+		   !(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled)) 
+			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, 0);
+		else
+			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, NCONFIG_AUTO_SWITCH);
+	}
 
 	return 0;
 }
@@ -1666,8 +1671,10 @@ static irqreturn_t e100_intr(int irq, void *dev_id, struct pt_regs *regs)
 	if(stat_ack & stat_ack_rnr)
 		nic->ru_running = RU_SUSPENDED;
 
-	e100_disable_irq(nic);
-	netif_rx_schedule(netdev);
+	if(likely(netif_rx_schedule_prep(netdev))) {
+		e100_disable_irq(nic);
+		__netif_rx_schedule(netdev);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -2335,10 +2342,10 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
-	e100_phy_init(nic);
-
 	if((err = e100_eeprom_load(nic)))
 		goto err_out_free;
+
+	e100_phy_init(nic);
 
 	memcpy(netdev->dev_addr, nic->eeprom, ETH_ALEN);
 	if(!is_valid_ether_addr(netdev->dev_addr)) {
