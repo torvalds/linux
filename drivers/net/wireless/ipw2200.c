@@ -1170,7 +1170,7 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 		HOST_COMPLETE_TIMEOUT);
 	if (rc == 0) {
 		IPW_DEBUG_INFO("Command completion failed out after %dms.\n",
-			       HOST_COMPLETE_TIMEOUT / (HZ / 1000));
+			       jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 		priv->status &= ~STATUS_HCMD_ACTIVE;
 		return -EIO;
 	}
