@@ -437,10 +437,6 @@ running once the system is up.
 			Format: {"of[f]" | "sk[ipmbr]"}
 			See comment in arch/i386/boot/edd.S
 
-	edd		[EDD]
-			Format: {"of[f]" | "sk[ipmbr]"}
-			See comment in arch/i386/boot/edd.S
-
 	eicon=		[HW,ISDN] 
 			Format: <id>,<membase>,<irq>
 
