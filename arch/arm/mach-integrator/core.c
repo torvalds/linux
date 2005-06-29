@@ -215,7 +215,6 @@ integrator_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * primary CPU
 	 */
 	if (hard_smp_processor_id() == 0) {
-		nmi_tick();
 		timer_tick(regs);
 #ifdef CONFIG_SMP
 		smp_send_timer();
