@@ -1978,8 +1978,6 @@ static int ftdi_ioctl (struct usb_serial_port *port, struct file * file, unsigne
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 
-	int  ret, mask;
-	
 	dbg("%s cmd 0x%04x", __FUNCTION__, cmd);
 
 	/* Based on code from acm.c and others */
