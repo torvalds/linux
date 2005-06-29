@@ -509,7 +509,6 @@ config TPS65010
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps65010.
 
-
 config SENSORS_M41T00
 	tristate "ST M41T00 RTC chip"
 	depends on I2C && PPC32
