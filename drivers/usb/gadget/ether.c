@@ -954,6 +954,7 @@ set_ether_config (struct eth_dev *dev, unsigned gfp_flags)
 	int					result = 0;
 	struct usb_gadget			*gadget = dev->gadget;
 
+#if defined(DEV_CONFIG_CDC) || defined(CONFIG_USB_ETH_RNDIS)
 	/* status endpoint used for RNDIS and (optionally) CDC */
 	if (!subset_active(dev) && dev->status_ep) {
 		dev->status = ep_desc (gadget, &hs_status_desc,
@@ -967,6 +968,7 @@ set_ether_config (struct eth_dev *dev, unsigned gfp_flags)
 			goto done;
 		}
 	}
+#endif
 
 	dev->in = ep_desc (dev->gadget, &hs_source_desc, &fs_source_desc);
 	dev->in_ep->driver_data = dev;
