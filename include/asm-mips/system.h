@@ -178,7 +178,9 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 		__asm__ __volatile__(
 		"	.set	mips3					\n"
 		"1:	ll	%0, %3			# xchg_u32	\n"
+		"	.set	mips0					\n"
 		"	move	%2, %z4					\n"
+		"	.set	mips3					\n"
 		"	sc	%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		ROT_IN_PIECES
@@ -195,7 +197,9 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 		__asm__ __volatile__(
 		"	.set	mips3					\n"
 		"1:	ll	%0, %3			# xchg_u32	\n"
+		"	.set	mips0					\n"
 		"	move	%2, %z4					\n"
+		"	.set	mips3					\n"
 		"	sc	%2, %1					\n"
 		"	beqz	%2, 1b					\n"
 #ifdef CONFIG_SMP
