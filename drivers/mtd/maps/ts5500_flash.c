@@ -23,20 +23,18 @@
  * - If you have created your own jffs file system and the bios overwrites 
  *   it during boot, try disabling Drive A: and B: in the boot order.
  *
- * $Id: ts5500_flash.c,v 1.3 2005/06/16 08:49:30 sean Exp $
+ * $Id: ts5500_flash.c,v 1.4 2005/06/29 09:29:43 sean Exp $
  */
 
 #include <linux/config.h>
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/mtd/mtd.h>
+#include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/mtd/map.h>
-
-#ifdef CONFIG_MTD_PARTITIONS
+#include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#endif
+#include <linux/types.h>
+
 
 #define WINDOW_ADDR	0x09400000
 #define WINDOW_SIZE	0x00200000
@@ -48,7 +46,6 @@ static struct map_info ts5500_map = {
 	.phys = WINDOW_ADDR
 };
 
-#ifdef CONFIG_MTD_PARTITIONS
 static struct mtd_partition ts5500_partitions[] = {
 	{
 		.name = "Drive A",
@@ -69,8 +66,6 @@ static struct mtd_partition ts5500_partitions[] = {
 
 #define NUM_PARTITIONS (sizeof(ts5500_partitions)/sizeof(struct mtd_partition))
 
-#endif
-
 static struct mtd_info *mymtd;
 
 static int __init init_ts5500_map(void)
@@ -79,48 +74,39 @@ static int __init init_ts5500_map(void)
 
 	ts5500_map.virt = ioremap_nocache(ts5500_map.phys, ts5500_map.size);
 
-	if(!ts5500_map.virt) {
+	if (!ts5500_map.virt) {
 		printk(KERN_ERR "Failed to ioremap_nocache\n");
 		rc = -EIO;
-		goto err_out_ioremap;
+		goto err2;
 	}
 
 	simple_map_init(&ts5500_map);
 
 	mymtd = do_map_probe("jedec_probe", &ts5500_map);
-	if(!mymtd)
+	if (!mymtd)
 		mymtd = do_map_probe("map_rom", &ts5500_map);
 
-	if(!mymtd) {
+	if (!mymtd) {
 		rc = -ENXIO;
-		goto err_out_map;
+		goto err1;
 	}
 
 	mymtd->owner = THIS_MODULE;
-#ifdef CONFIG_MTD_PARTITIONS
 	add_mtd_partitions(mymtd, ts5500_partitions, NUM_PARTITIONS);
-#else	
-	add_mtd_device(mymtd);
-#endif
 
 	return 0;
 
-err_out_map:
+err1:
 	map_destroy(mymtd);
-err_out_ioremap:
 	iounmap(ts5500_map.virt);
-
+err2:
 	return rc;
 }
 
 static void __exit cleanup_ts5500_map(void)
 {
 	if (mymtd) {
-#ifdef CONFIG_MTD_PARTITIONS
 		del_mtd_partitions(mymtd);
-#else
-		del_mtd_device(mymtd);
-#endif
 		map_destroy(mymtd);
 	}
 
