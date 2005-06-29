@@ -731,7 +731,7 @@ static void __init build_r3000_tlb_refill_handler(void)
 	if (p > tlb_handler + 32)
 		panic("TLB refill handler space exceeded");
 
-	printk("Synthesized TLB handler (%u instructions).\n",
+	printk("Synthesized TLB refill handler (%u instructions).\n",
 	       (unsigned int)(p - tlb_handler));
 #ifdef DEBUG_TLB
 	{
