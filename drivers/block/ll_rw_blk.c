@@ -1971,10 +1971,11 @@ out:
 static struct request *get_request_wait(request_queue_t *q, int rw,
 					struct bio *bio)
 {
-	DEFINE_WAIT(wait);
 	struct request *rq;
 
-	do {
+	rq = get_request(q, rw, bio, GFP_NOIO);
+	while (!rq) {
+		DEFINE_WAIT(wait);
 		struct request_list *rl = &q->rq;
 
 		prepare_to_wait_exclusive(&rl->wait[rw], &wait,
@@ -1999,7 +2000,7 @@ static struct request *get_request_wait(request_queue_t *q, int rw,
 			put_io_context(ioc);
 		}
 		finish_wait(&rl->wait[rw], &wait);
-	} while (!rq);
+	}
 
 	return rq;
 }
@@ -2521,7 +2522,7 @@ EXPORT_SYMBOL(blk_attempt_remerge);
 
 static int __make_request(request_queue_t *q, struct bio *bio)
 {
-	struct request *req, *freereq = NULL;
+	struct request *req;
 	int el_ret, rw, nr_sectors, cur_nr_sectors, barrier, err, sync;
 	unsigned short prio;
 	sector_t sector;
@@ -2549,14 +2550,9 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 		goto end_io;
 	}
 
-again:
 	spin_lock_irq(q->queue_lock);
 
-	if (elv_queue_empty(q)) {
-		blk_plug_device(q);
-		goto get_rq;
-	}
-	if (barrier)
+	if (unlikely(barrier) || elv_queue_empty(q))
 		goto get_rq;
 
 	el_ret = elv_merge(q, &req, bio);
@@ -2601,40 +2597,23 @@ again:
 				elv_merged_request(q, req);
 			goto out;
 
-		/*
-		 * elevator says don't/can't merge. get new request
-		 */
-		case ELEVATOR_NO_MERGE:
-			break;
-
+		/* ELV_NO_MERGE: elevator says don't/can't merge. */
 		default:
-			printk("elevator returned crap (%d)\n", el_ret);
-			BUG();
+			;
 	}
 
-	/*
-	 * Grab a free request from the freelist - if that is empty, check
-	 * if we are doing read ahead and abort instead of blocking for
-	 * a free slot.
-	 */
 get_rq:
-	if (freereq) {
-		req = freereq;
-		freereq = NULL;
-	} else {
-		spin_unlock_irq(q->queue_lock);
-		if ((freereq = get_request(q, rw, bio, GFP_ATOMIC)) == NULL) {
-			/*
-			 * READA bit set
-			 */
-			err = -EWOULDBLOCK;
-			if (bio_rw_ahead(bio))
-				goto end_io;
-	
-			freereq = get_request_wait(q, rw, bio);
-		}
-		goto again;
-	}
+	/*
+	 * Grab a free request. This is might sleep but can not fail.
+	 */
+	spin_unlock_irq(q->queue_lock);
+	req = get_request_wait(q, rw, bio);
+	/*
+	 * After dropping the lock and possibly sleeping here, our request
+	 * may now be mergeable after it had proven unmergeable (above).
+	 * We don't worry about that case for efficiency. It won't happen
+	 * often, and the elevators are able to handle it.
+	 */
 
 	req->flags |= REQ_CMD;
 
@@ -2663,10 +2642,11 @@ get_rq:
 	req->rq_disk = bio->bi_bdev->bd_disk;
 	req->start_time = jiffies;
 
+	spin_lock_irq(q->queue_lock);
+	if (elv_queue_empty(q))
+		blk_plug_device(q);
 	add_request(q, req);
 out:
-	if (freereq)
-		__blk_put_request(q, freereq);
 	if (sync)
 		__generic_unplug_device(q);
 
