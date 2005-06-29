@@ -1867,19 +1867,20 @@ static void freed_request(request_queue_t *q, int rw)
 
 #define blkdev_free_rq(list) list_entry((list)->next, struct request, queuelist)
 /*
- * Get a free request, queue_lock must not be held
+ * Get a free request, queue_lock must be held.
+ * Returns NULL on failure, with queue_lock held.
+ * Returns !NULL on success, with queue_lock *not held*.
  */
 static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 				   int gfp_mask)
 {
 	struct request *rq = NULL;
 	struct request_list *rl = &q->rq;
-	struct io_context *ioc = get_io_context(gfp_mask);
+	struct io_context *ioc = get_io_context(GFP_ATOMIC);
 
 	if (unlikely(test_bit(QUEUE_FLAG_DRAIN, &q->queue_flags)))
 		goto out;
 
-	spin_lock_irq(q->queue_lock);
 	if (rl->count[rw]+1 >= q->nr_requests) {
 		/*
 		 * The queue will fill after this allocation, so set it as
@@ -1907,7 +1908,6 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 		 * The queue is full and the allocating process is not a
 		 * "batcher", and not exempted by the IO scheduler
 		 */
-		spin_unlock_irq(q->queue_lock);
 		goto out;
 	}
 
@@ -1950,7 +1950,6 @@ rq_starved:
 		if (unlikely(rl->count[rw] == 0))
 			rl->starved[rw] = 1;
 
-		spin_unlock_irq(q->queue_lock);
 		goto out;
 	}
 
@@ -1967,6 +1966,8 @@ out:
 /*
  * No available requests for this queue, unplug the device and wait for some
  * requests to become available.
+ *
+ * Called with q->queue_lock held, and returns with it unlocked.
  */
 static struct request *get_request_wait(request_queue_t *q, int rw,
 					struct bio *bio)
@@ -1986,7 +1987,8 @@ static struct request *get_request_wait(request_queue_t *q, int rw,
 		if (!rq) {
 			struct io_context *ioc;
 
-			generic_unplug_device(q);
+			__generic_unplug_device(q);
+			spin_unlock_irq(q->queue_lock);
 			io_schedule();
 
 			/*
@@ -1998,6 +2000,8 @@ static struct request *get_request_wait(request_queue_t *q, int rw,
 			ioc = get_io_context(GFP_NOIO);
 			ioc_set_batching(q, ioc);
 			put_io_context(ioc);
+
+			spin_lock_irq(q->queue_lock);
 		}
 		finish_wait(&rl->wait[rw], &wait);
 	}
@@ -2011,14 +2015,18 @@ struct request *blk_get_request(request_queue_t *q, int rw, int gfp_mask)
 
 	BUG_ON(rw != READ && rw != WRITE);
 
-	if (gfp_mask & __GFP_WAIT)
+	spin_lock_irq(q->queue_lock);
+	if (gfp_mask & __GFP_WAIT) {
 		rq = get_request_wait(q, rw, NULL);
-	else
+	} else {
 		rq = get_request(q, rw, NULL, gfp_mask);
+		if (!rq)
+			spin_unlock_irq(q->queue_lock);
+	}
+	/* q->queue_lock is unlocked at this point */
 
 	return rq;
 }
-
 EXPORT_SYMBOL(blk_get_request);
 
 /**
@@ -2605,9 +2613,10 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 get_rq:
 	/*
 	 * Grab a free request. This is might sleep but can not fail.
+	 * Returns with the queue unlocked.
 	 */
-	spin_unlock_irq(q->queue_lock);
 	req = get_request_wait(q, rw, bio);
+
 	/*
 	 * After dropping the lock and possibly sleeping here, our request
 	 * may now be mergeable after it had proven unmergeable (above).
