@@ -312,7 +312,7 @@ wait_busy(hfc4s8s_hw * a)
 /* function to read critical counter registers that   */
 /* may be udpated by the chip during read             */
 /******************************************************/
-static volatile u_char
+static u_char
 Read_hfc8_stable(hfc4s8s_hw * hw, int reg)
 {
 	u_char ref8;
@@ -324,7 +324,7 @@ Read_hfc8_stable(hfc4s8s_hw * hw, int reg)
 	return in8;
 }
 
-static volatile int
+static int
 Read_hfc16_stable(hfc4s8s_hw * hw, int reg)
 {
 	int ref16;
