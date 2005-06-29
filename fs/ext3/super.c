@@ -944,7 +944,8 @@ clear_qf_name:
 					"for remount\n");
 				return 0;
 			}
-			match_int(&args[0], &option);
+			if (match_int(&args[0], &option) != 0)
+				return 0;
 			*n_blocks_count = option;
 			break;
 		case Opt_nobh:
