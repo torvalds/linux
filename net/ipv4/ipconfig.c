@@ -1149,8 +1149,10 @@ static int __init ic_dynamic(void)
 		ic_rarp_cleanup();
 #endif
 
-	if (!ic_got_reply)
+	if (!ic_got_reply) {
+		ic_myaddr = INADDR_NONE;
 		return -1;
+	}
 
 	printk("IP-Config: Got %s answer from %u.%u.%u.%u, ",
 		((ic_got_reply & IC_RARP) ? "RARP" 

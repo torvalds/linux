@@ -1909,7 +1909,7 @@ static int ip_route_input_slow(struct sk_buff *skb, u32 daddr, u32 saddr,
 	 */
 	if ((err = fib_lookup(&fl, &res)) != 0) {
 		if (!IN_DEV_FORWARD(in_dev))
-			goto e_inval;
+			goto e_hostunreach;
 		goto no_route;
 	}
 	free_res = 1;
@@ -1933,7 +1933,7 @@ static int ip_route_input_slow(struct sk_buff *skb, u32 daddr, u32 saddr,
 	}
 
 	if (!IN_DEV_FORWARD(in_dev))
-		goto e_inval;
+		goto e_hostunreach;
 	if (res.type != RTN_UNICAST)
 		goto martian_destination;
 
@@ -2025,6 +2025,11 @@ martian_destination:
 			"%u.%u.%u.%u, dev %s\n",
 			NIPQUAD(daddr), NIPQUAD(saddr), dev->name);
 #endif
+
+e_hostunreach:
+        err = -EHOSTUNREACH;
+        goto done;
+
 e_inval:
 	err = -EINVAL;
 	goto done;

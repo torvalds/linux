@@ -822,7 +822,7 @@ static int corkscrew_open(struct net_device *dev)
 				break;	/* Bad news!  */
 			skb->dev = dev;	/* Mark as being used by this device. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
-			vp->rx_ring[i].addr = isa_virt_to_bus(skb->tail);
+			vp->rx_ring[i].addr = isa_virt_to_bus(skb->data);
 		}
 		vp->rx_ring[i - 1].next = isa_virt_to_bus(&vp->rx_ring[0]);	/* Wrap the ring. */
 		outl(isa_virt_to_bus(&vp->rx_ring[0]), ioaddr + UpListPtr);
@@ -1406,7 +1406,7 @@ static int boomerang_rx(struct net_device *dev)
 				break;	/* Bad news!  */
 			skb->dev = dev;	/* Mark as being used by this device. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
-			vp->rx_ring[entry].addr = isa_virt_to_bus(skb->tail);
+			vp->rx_ring[entry].addr = isa_virt_to_bus(skb->data);
 			vp->rx_skbuff[entry] = skb;
 		}
 		vp->rx_ring[entry].status = 0;	/* Clear complete bit. */

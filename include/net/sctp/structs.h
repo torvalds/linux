@@ -161,6 +161,9 @@ extern struct sctp_globals {
 	 */
 	int sndbuf_policy;
 
+	/* Delayed SACK timeout  200ms default*/
+	int sack_timeout;
+
 	/* HB.interval		    - 30 seconds  */
 	int hb_interval;
 
@@ -217,6 +220,7 @@ extern struct sctp_globals {
 #define sctp_sndbuf_policy	 	(sctp_globals.sndbuf_policy)
 #define sctp_max_retrans_path		(sctp_globals.max_retrans_path)
 #define sctp_max_retrans_init		(sctp_globals.max_retrans_init)
+#define sctp_sack_timeout		(sctp_globals.sack_timeout)
 #define sctp_hb_interval		(sctp_globals.hb_interval)
 #define sctp_max_instreams		(sctp_globals.max_instreams)
 #define sctp_max_outstreams		(sctp_globals.max_outstreams)

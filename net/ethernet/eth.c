@@ -92,10 +92,9 @@ int eth_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
 	 *	Set the source hardware address. 
 	 */
 	 
-	if(saddr)
-		memcpy(eth->h_source,saddr,dev->addr_len);
-	else
-		memcpy(eth->h_source,dev->dev_addr,dev->addr_len);
+	if(!saddr)
+		saddr = dev->dev_addr;
+	memcpy(eth->h_source,saddr,dev->addr_len);
 
 	/*
 	 *	Anyway, the loopback-device should never use this function... 

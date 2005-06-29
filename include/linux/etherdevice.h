@@ -25,6 +25,7 @@
 #define _LINUX_ETHERDEVICE_H
 
 #include <linux/if_ether.h>
+#include <linux/netdevice.h>
 #include <linux/random.h>
 
 #ifdef __KERNEL__

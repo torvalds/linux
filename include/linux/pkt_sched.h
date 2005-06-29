@@ -221,9 +221,11 @@ struct tc_gred_qopt
 /* gred setup */
 struct tc_gred_sopt
 {
-       __u32           DPs;
-       __u32           def_DP;
-       __u8            grio;
+       __u32		DPs;
+       __u32		def_DP;
+       __u8		grio;
+       __u8		pad1;
+       __u16		pad2;
 };
 
 /* HTB section */
@@ -351,6 +353,7 @@ struct tc_cbq_ovl
 #define	TC_CBQ_OVL_DROP		3
 #define	TC_CBQ_OVL_RCLASSIC	4
 	unsigned char	priority2;
+	__u16		pad;
 	__u32		penalty;
 };
 
