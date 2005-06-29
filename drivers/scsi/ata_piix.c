@@ -68,8 +68,8 @@ enum {
 	PIIX_COMB_PATA_P0	= (1 << 1),
 	PIIX_COMB		= (1 << 2), /* combined mode enabled? */
 
-	PIIX_PORT_PRESENT	= (1 << 0),
-	PIIX_PORT_ENABLED	= (1 << 4),
+	PIIX_PORT_ENABLED	= (1 << 0),
+	PIIX_PORT_PRESENT	= (1 << 4),
 
 	PIIX_80C_PRI		= (1 << 5) | (1 << 4),
 	PIIX_80C_SEC		= (1 << 7) | (1 << 6),
@@ -377,7 +377,9 @@ static void piix_pata_phy_reset(struct ata_port *ap)
  *	None (inherited from caller).
  *
  *	RETURNS:
- *	Non-zero if device detected, zero otherwise.
+ *	Non-zero if port is enabled, it may or may not have a device
+ *	attached in that case (PRESENT bit would only be set if BIOS probe
+ *	was done). Zero is returned if port is disabled.
  */
 static int piix_sata_probe (struct ata_port *ap)
 {
@@ -401,7 +403,7 @@ static int piix_sata_probe (struct ata_port *ap)
 	 */
 
 	for (i = 0; i < 4; i++) {
-		mask = (PIIX_PORT_PRESENT << i) | (PIIX_PORT_ENABLED << i);
+		mask = (PIIX_PORT_ENABLED << i);
 
 		if ((orig_mask & mask) == mask)
 			if (combined || (i == ap->hard_port_no))
