@@ -426,7 +426,9 @@ struct ieee80211_stats {
 
 struct ieee80211_device;
 
+#if 0 /* for later */
 #include "ieee80211_crypt.h"
+#endif
 
 #define SEC_KEY_1         (1<<0)
 #define SEC_KEY_2         (1<<1)
