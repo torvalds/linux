@@ -156,7 +156,7 @@ ixp4xx_wdt_release(struct inode *inode, struct file *file)
 	if (test_bit(WDT_OK_TO_CLOSE, &wdt_status)) {
 		wdt_disable();
 	} else {
-		printk(KERN_CRIT "WATCHDOG: Device closed unexpectdly - "
+		printk(KERN_CRIT "WATCHDOG: Device closed unexpectedly - "
 					"timer will not stop\n");
 	}
 
