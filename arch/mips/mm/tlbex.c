@@ -1238,8 +1238,15 @@ static void __init build_r4000_tlb_refill_handler(void)
 	{
 		int i;
 
+		f = final_handler;
+#ifdef CONFIG_64BIT
+		if (final_len > 32)
+			final_len = 64;
+		else
+			f = final_handler + 32;
+#endif /* CONFIG_64BIT */
 		for (i = 0; i < final_len; i++)
-			printk("%08x\n", final_handler[i]);
+			printk("%08x\n", f[i]);
 	}
 #endif
 
