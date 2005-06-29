@@ -182,6 +182,13 @@ static int uart_startup(struct uart_state *state, int init_hw)
 				uart_set_mctrl(port, TIOCM_RTS | TIOCM_DTR);
 		}
 
+		if (info->flags & UIF_CTS_FLOW) {
+			spin_lock_irq(&port->lock);
+			if (!(port->ops->get_mctrl(port) & TIOCM_CTS))
+				info->tty->hw_stopped = 1;
+			spin_unlock_irq(&port->lock);
+		}
+
 		info->flags |= UIF_INITIALIZED;
 
 		clear_bit(TTY_IO_ERROR, &info->tty->flags);
@@ -1131,6 +1138,16 @@ static void uart_set_termios(struct tty_struct *tty, struct termios *old_termios
 		spin_lock_irqsave(&state->port->lock, flags);
 		tty->hw_stopped = 0;
 		__uart_start(tty);
+		spin_unlock_irqrestore(&state->port->lock, flags);
+	}
+
+	/* Handle turning on CRTSCTS */
+	if (!(old_termios->c_cflag & CRTSCTS) && (cflag & CRTSCTS)) {
+		spin_lock_irqsave(&state->port->lock, flags);
+		if (!(state->port->ops->get_mctrl(state->port) & TIOCM_CTS)) {
+			tty->hw_stopped = 1;
+			state->port->ops->stop_tx(state->port, 0);
+		}
 		spin_unlock_irqrestore(&state->port->lock, flags);
 	}
 
