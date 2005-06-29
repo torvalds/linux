@@ -107,8 +107,8 @@ hardware.
 	indicate that the signal is permanently active.  If RI is
 	not available, the signal should not be indicated as active.
 
-	Locking: none.
-	Interrupts: caller dependent.
+	Locking: port->lock taken.
+	Interrupts: locally disabled.
 	This call must not sleep
 
   stop_tx(port,tty_stop)

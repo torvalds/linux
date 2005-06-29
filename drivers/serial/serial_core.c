@@ -828,7 +828,10 @@ static int uart_tiocmget(struct tty_struct *tty, struct file *file)
 	if ((!file || !tty_hung_up_p(file)) &&
 	    !(tty->flags & (1 << TTY_IO_ERROR))) {
 		result = port->mctrl;
+
+		spin_lock_irq(&port->lock);
 		result |= port->ops->get_mctrl(port);
+		spin_unlock_irq(&port->lock);
 	}
 	up(&state->sem);
 
@@ -1369,6 +1372,7 @@ uart_block_til_ready(struct file *filp, struct uart_state *state)
 	DECLARE_WAITQUEUE(wait, current);
 	struct uart_info *info = state->info;
 	struct uart_port *port = state->port;
+	unsigned int mctrl;
 
 	info->blocked_open++;
 	state->count--;
@@ -1416,7 +1420,10 @@ uart_block_til_ready(struct file *filp, struct uart_state *state)
 		 * and wait for the carrier to indicate that the
 		 * modem is ready for us.
 		 */
-		if (port->ops->get_mctrl(port) & TIOCM_CAR)
+		spin_lock_irq(&port->lock);
+		mctrl = port->ops->get_mctrl(port);
+		spin_unlock_irq(&port->lock);
+		if (mctrl & TIOCM_CAR)
 			break;
 
 		up(&state->sem);
@@ -1618,7 +1625,9 @@ static int uart_line_info(char *buf, struct uart_driver *drv, int i)
 
 	if(capable(CAP_SYS_ADMIN))
 	{
+		spin_lock_irq(&port->lock);
 		status = port->ops->get_mctrl(port);
+		spin_unlock_irq(&port->lock);
 
 		ret += sprintf(buf + ret, " tx:%d rx:%d",
 				port->icount.tx, port->icount.rx);
