@@ -1,5 +1,5 @@
 /*
- * $Id: tda8290.c,v 1.7 2005/03/07 12:01:51 kraxel Exp $
+ * $Id: tda8290.c,v 1.11 2005/06/18 06:09:06 nsh Exp $
  *
  * i2c tv tuner chip device driver
  * controls the philips tda8290+75 tuner chip combo.
@@ -69,7 +69,7 @@ static __u8 get_freq_entry( struct freq_entry* table, __u16 freq)
 static unsigned char i2c_enable_bridge[2] = 	{ 0x21, 0xC0 };
 static unsigned char i2c_disable_bridge[2] = 	{ 0x21, 0x80 };
 static unsigned char i2c_init_tda8275[14] = 	{ 0x00, 0x00, 0x00, 0x00,
-						  0x7C, 0x04, 0xA3, 0x3F,
+						  0xfC, 0x04, 0xA3, 0x3F,
 						  0x2A, 0x04, 0xFF, 0x00,
 						  0x00, 0x40 };
 static unsigned char i2c_set_VS[2] = 		{ 0x30, 0x6F };
@@ -138,16 +138,24 @@ static int tda8290_tune(struct i2c_client *c)
 
 static void set_frequency(struct tuner *t, u16 ifc)
 {
-	u32 N = (((t->freq<<3)+ifc)&0x3fffc);
+	u32 freq;
+	u32 N;
 
-	N = N >> get_freq_entry(div_table, t->freq);
+	if (t->mode == V4L2_TUNER_RADIO)
+		freq = t->freq / 1000;
+	else
+		freq = t->freq;
+
+	N = (((freq<<3)+ifc)&0x3fffc);
+
+	N = N >> get_freq_entry(div_table, freq);
 	t->i2c_set_freq[0] = 0;
 	t->i2c_set_freq[1] = (unsigned char)(N>>8);
 	t->i2c_set_freq[2] = (unsigned char) N;
 	t->i2c_set_freq[3] = 0x40;
 	t->i2c_set_freq[4] = 0x52;
-	t->i2c_set_freq[5] = get_freq_entry(band_table, t->freq);
-	t->i2c_set_freq[6] = get_freq_entry(agc_table,  t->freq);
+	t->i2c_set_freq[5] = get_freq_entry(band_table, freq);
+	t->i2c_set_freq[6] = get_freq_entry(agc_table,  freq);
 	t->i2c_set_freq[7] = 0x8f;
 }
 
