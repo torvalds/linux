@@ -673,8 +673,10 @@ retry:
 
 	ohci_dump (ohci, 1);
 
-	if (ohci_to_hcd(ohci)->self.root_hub == NULL)
+	if (ohci_to_hcd(ohci)->self.root_hub == NULL) {
+		register_reboot_notifier (&ohci->reboot_notifier);
 		create_debug_files (ohci);
+	}
 
 	return 0;
 }
