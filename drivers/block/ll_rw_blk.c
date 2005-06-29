@@ -1876,7 +1876,7 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 {
 	struct request *rq = NULL;
 	struct request_list *rl = &q->rq;
-	struct io_context *ioc = get_io_context(GFP_ATOMIC);
+	struct io_context *ioc = current_io_context(GFP_ATOMIC);
 
 	if (unlikely(test_bit(QUEUE_FLAG_DRAIN, &q->queue_flags)))
 		goto out;
@@ -1959,7 +1959,6 @@ rq_starved:
 	rq_init(q, rq);
 	rq->rl = rl;
 out:
-	put_io_context(ioc);
 	return rq;
 }
 
@@ -1997,9 +1996,8 @@ static struct request *get_request_wait(request_queue_t *q, int rw,
 			 * up to a big batch of them for a small period time.
 			 * See ioc_batching, ioc_set_batching
 			 */
-			ioc = get_io_context(GFP_NOIO);
+			ioc = current_io_context(GFP_NOIO);
 			ioc_set_batching(q, ioc);
-			put_io_context(ioc);
 
 			spin_lock_irq(q->queue_lock);
 		}
@@ -3282,24 +3280,20 @@ void exit_io_context(void)
 
 /*
  * If the current task has no IO context then create one and initialise it.
- * If it does have a context, take a ref on it.
+ * Otherwise, return its existing IO context.
  *
- * This is always called in the context of the task which submitted the I/O.
- * But weird things happen, so we disable local interrupts to ensure exclusive
- * access to *current.
+ * This returned IO context doesn't have a specifically elevated refcount,
+ * but since the current task itself holds a reference, the context can be
+ * used in general code, so long as it stays within `current` context.
  */
-struct io_context *get_io_context(int gfp_flags)
+struct io_context *current_io_context(int gfp_flags)
 {
 	struct task_struct *tsk = current;
-	unsigned long flags;
 	struct io_context *ret;
 
-	local_irq_save(flags);
 	ret = tsk->io_context;
-	if (ret)
-		goto out;
-
-	local_irq_restore(flags);
+	if (likely(ret))
+		return ret;
 
 	ret = kmem_cache_alloc(iocontext_cachep, gfp_flags);
 	if (ret) {
@@ -3310,25 +3304,25 @@ struct io_context *get_io_context(int gfp_flags)
 		ret->nr_batch_requests = 0; /* because this is 0 */
 		ret->aic = NULL;
 		ret->cic = NULL;
-
-		local_irq_save(flags);
-
-		/*
-		 * very unlikely, someone raced with us in setting up the task
-		 * io context. free new context and just grab a reference.
-		 */
-		if (!tsk->io_context)
-			tsk->io_context = ret;
-		else {
-			kmem_cache_free(iocontext_cachep, ret);
-			ret = tsk->io_context;
-		}
-
-out:
-		atomic_inc(&ret->refcount);
-		local_irq_restore(flags);
+		tsk->io_context = ret;
 	}
 
+	return ret;
+}
+EXPORT_SYMBOL(current_io_context);
+
+/*
+ * If the current task has no IO context then create one and initialise it.
+ * If it does have a context, take a ref on it.
+ *
+ * This is always called in the context of the task which submitted the I/O.
+ */
+struct io_context *get_io_context(int gfp_flags)
+{
+	struct io_context *ret;
+	ret = current_io_context(gfp_flags);
+	if (likely(ret))
+		atomic_inc(&ret->refcount);
 	return ret;
 }
 EXPORT_SYMBOL(get_io_context);
