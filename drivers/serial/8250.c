@@ -105,7 +105,7 @@ static struct old_serial_port old_serial_port[] = {
 	SERIAL_PORT_DFNS /* defined in asm/serial.h */
 };
 
-#define UART_NR	(ARRAY_SIZE(old_serial_port) + CONFIG_SERIAL_8250_NR_UARTS)
+#define UART_NR	CONFIG_SERIAL_8250_NR_UARTS
 
 #ifdef CONFIG_SERIAL_8250_RSA
 
