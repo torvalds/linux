@@ -53,7 +53,7 @@ struct boot_data {
 /*  to be called at start of POF file reading,       */
 /*  before starting any decryption on any POF record. */
 /*****************************************************/
-void
+static void
 StartDecryption(struct boot_data *boot)
 {
 	boot->Cryptor = CRYPT_STARTTERM;
@@ -66,7 +66,7 @@ StartDecryption(struct boot_data *boot)
 /*       to HI and LO boot loader and (all) seq tags, because  */
 /*       global Cryptor is started for whole POF.              */
 /***************************************************************/
-void
+static void
 DecryptBuf(struct boot_data *boot, int cnt)
 {
 	uchar *bufp = boot->buf.BootBuf;

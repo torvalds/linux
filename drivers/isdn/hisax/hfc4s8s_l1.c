@@ -1465,7 +1465,7 @@ hfc_hardware_enable(hfc4s8s_hw * hw, int enable, int nt_mode)
 /******************************************/
 /* disable memory mapped ports / io ports */
 /******************************************/
-void
+static void
 release_pci_ports(hfc4s8s_hw * hw)
 {
 	pci_write_config_word(hw->pdev, PCI_COMMAND, 0);
@@ -1481,7 +1481,7 @@ release_pci_ports(hfc4s8s_hw * hw)
 /*****************************************/
 /* enable memory mapped ports / io ports */
 /*****************************************/
-void
+static void
 enable_pci_ports(hfc4s8s_hw * hw)
 {
 #ifdef CONFIG_HISAX_HFC4S8S_PCIMEM
