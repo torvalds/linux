@@ -1532,6 +1532,9 @@ EXPORT_SYMBOL(usb_register);
 EXPORT_SYMBOL(usb_deregister);
 EXPORT_SYMBOL(usb_disabled);
 
+EXPORT_SYMBOL_GPL(usb_get_intf);
+EXPORT_SYMBOL_GPL(usb_put_intf);
+
 EXPORT_SYMBOL(usb_alloc_dev);
 EXPORT_SYMBOL(usb_put_dev);
 EXPORT_SYMBOL(usb_get_dev);
