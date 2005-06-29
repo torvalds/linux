@@ -2908,6 +2908,7 @@ static int __exit omap_udc_remove(struct device *dev)
  * make host resumes and VBUS detection trigger OMAP wakeup events; that
  * may involve talking to an external transceiver (e.g. isp1301).
  */
+
 static int omap_udc_suspend(struct device *dev, pm_message_t message, u32 level)
 {
 	u32	devstat;
@@ -2936,8 +2937,6 @@ static int omap_udc_resume(struct device *dev, u32 level)
 		return 0;
 
 	DBG("resume + wakeup/SRP\n");
-	udc->gadget.dev.parent->power.power_state = PMSG_ON;
-	udc->gadget.dev.power.power_state = PMSG_ON;
 	omap_pullup(&udc->gadget, 1);
 
 	/* maybe the host would enumerate us if we nudged it */
