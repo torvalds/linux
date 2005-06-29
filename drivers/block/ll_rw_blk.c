@@ -1917,10 +1917,9 @@ get_rq:
 	 * limit of requests, otherwise we could have thousands of requests
 	 * allocated with any setting of ->nr_requests
 	 */
-	if (rl->count[rw] >= (3 * q->nr_requests / 2)) {
-		spin_unlock_irq(q->queue_lock);
+	if (rl->count[rw] >= (3 * q->nr_requests / 2))
 		goto out;
-	}
+
 	rl->count[rw]++;
 	rl->starved[rw] = 0;
 	if (rl->count[rw] >= queue_congestion_on_threshold(q))
