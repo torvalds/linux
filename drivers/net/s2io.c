@@ -1699,11 +1699,9 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 #else
 		ba = &nic->ba[ring_no][block_no][off];
 		skb_reserve(skb, BUF0_LEN);
-		tmp = (unsigned long) skb->data;
-		tmp += ALIGN_SIZE;
-		tmp &= ~ALIGN_SIZE;
-		skb->data = (void *) tmp;
-		skb->tail = (void *) tmp;
+		tmp = ((unsigned long) skb->data & ALIGN_SIZE);
+		if (tmp)
+			skb_reserve(skb, (ALIGN_SIZE + 1) - tmp);
 
 		memset(rxdp, 0, sizeof(RxD_t));
 		rxdp->Buffer2_ptr = pci_map_single

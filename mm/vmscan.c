@@ -972,7 +972,7 @@ int try_to_free_pages(struct zone **zones, unsigned int gfp_mask)
 		 * writeout.  So in laptop mode, write out the whole world.
 		 */
 		if (total_scanned > sc.swap_cluster_max + sc.swap_cluster_max/2) {
-			wakeup_bdflush(laptop_mode ? 0 : total_scanned);
+			wakeup_pdflush(laptop_mode ? 0 : total_scanned);
 			sc.may_writepage = 1;
 		}
 

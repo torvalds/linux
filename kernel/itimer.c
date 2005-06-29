@@ -153,11 +153,15 @@ int do_setitimer(int which, struct itimerval *value, struct itimerval *ovalue)
 
 	switch (which) {
 	case ITIMER_REAL:
+again:
 		spin_lock_irq(&tsk->sighand->siglock);
 		interval = tsk->signal->it_real_incr;
 		val = it_real_value(tsk->signal);
-		if (val)
-			del_timer_sync(&tsk->signal->real_timer);
+		/* We are sharing ->siglock with it_real_fn() */
+		if (try_to_del_timer_sync(&tsk->signal->real_timer) < 0) {
+			spin_unlock_irq(&tsk->sighand->siglock);
+			goto again;
+		}
 		tsk->signal->it_real_incr =
 			timeval_to_jiffies(&value->it_interval);
 		it_real_arm(tsk, timeval_to_jiffies(&value->it_value));

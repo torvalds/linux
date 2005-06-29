@@ -60,6 +60,7 @@ static void __iomem *smbios_start;
 static void __iomem *cpqhp_rom_start;
 static int power_mode;
 static int debug;
+static int initialized;
 
 #define DRIVER_VERSION	"0.9.8"
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>"
@@ -1271,7 +1272,6 @@ static int one_time_init(void)
 {
 	int loop;
 	int retval = 0;
-	static int initialized = 0;
 
 	if (initialized)
 		return 0;
@@ -1441,7 +1441,8 @@ static void __exit unload_cpqphpd(void)
 	}
 
 	// Stop the notification mechanism
-	cpqhp_event_stop_thread();
+	if (initialized)
+		cpqhp_event_stop_thread();
 
 	//unmap the rom address
 	if (cpqhp_rom_start)

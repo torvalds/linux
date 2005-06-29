@@ -108,6 +108,21 @@ typedef int (*acpi_op_unbind)	(struct acpi_device *device);
 typedef int (*acpi_op_match)	(struct acpi_device *device,
 				 struct acpi_driver *driver);
 
+struct acpi_bus_ops {
+	u32 			acpi_op_add:1;
+	u32			acpi_op_remove:1;
+	u32			acpi_op_lock:1;
+	u32			acpi_op_start:1;
+	u32			acpi_op_stop:1;
+	u32			acpi_op_suspend:1;
+	u32			acpi_op_resume:1;
+	u32			acpi_op_scan:1;
+	u32			acpi_op_bind:1;
+	u32			acpi_op_unbind:1;
+	u32			acpi_op_match:1;
+	u32			reserved:21;
+};
+
 struct acpi_device_ops {
 	acpi_op_add		add;
 	acpi_op_remove		remove;
@@ -327,9 +342,9 @@ int acpi_bus_generate_event (struct acpi_device *device, u8 type, int data);
 int acpi_bus_receive_event (struct acpi_bus_event *event);
 int acpi_bus_register_driver (struct acpi_driver *driver);
 int acpi_bus_unregister_driver (struct acpi_driver *driver);
-int acpi_bus_scan (struct acpi_device *start);
 int acpi_bus_add (struct acpi_device **child, struct acpi_device *parent,
 		acpi_handle handle, int type);
+int acpi_bus_start (struct acpi_device *device);
 
 
 int acpi_match_ids (struct acpi_device	*device, char	*ids);

@@ -1867,19 +1867,20 @@ static void freed_request(request_queue_t *q, int rw)
 
 #define blkdev_free_rq(list) list_entry((list)->next, struct request, queuelist)
 /*
- * Get a free request, queue_lock must not be held
+ * Get a free request, queue_lock must be held.
+ * Returns NULL on failure, with queue_lock held.
+ * Returns !NULL on success, with queue_lock *not held*.
  */
 static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 				   int gfp_mask)
 {
 	struct request *rq = NULL;
 	struct request_list *rl = &q->rq;
-	struct io_context *ioc = get_io_context(gfp_mask);
+	struct io_context *ioc = current_io_context(GFP_ATOMIC);
 
 	if (unlikely(test_bit(QUEUE_FLAG_DRAIN, &q->queue_flags)))
 		goto out;
 
-	spin_lock_irq(q->queue_lock);
 	if (rl->count[rw]+1 >= q->nr_requests) {
 		/*
 		 * The queue will fill after this allocation, so set it as
@@ -1907,11 +1908,18 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 		 * The queue is full and the allocating process is not a
 		 * "batcher", and not exempted by the IO scheduler
 		 */
-		spin_unlock_irq(q->queue_lock);
 		goto out;
 	}
 
 get_rq:
+	/*
+	 * Only allow batching queuers to allocate up to 50% over the defined
+	 * limit of requests, otherwise we could have thousands of requests
+	 * allocated with any setting of ->nr_requests
+	 */
+	if (rl->count[rw] >= (3 * q->nr_requests / 2))
+		goto out;
+
 	rl->count[rw]++;
 	rl->starved[rw] = 0;
 	if (rl->count[rw] >= queue_congestion_on_threshold(q))
@@ -1941,7 +1949,6 @@ rq_starved:
 		if (unlikely(rl->count[rw] == 0))
 			rl->starved[rw] = 1;
 
-		spin_unlock_irq(q->queue_lock);
 		goto out;
 	}
 
@@ -1951,21 +1958,23 @@ rq_starved:
 	rq_init(q, rq);
 	rq->rl = rl;
 out:
-	put_io_context(ioc);
 	return rq;
 }
 
 /*
  * No available requests for this queue, unplug the device and wait for some
  * requests to become available.
+ *
+ * Called with q->queue_lock held, and returns with it unlocked.
  */
 static struct request *get_request_wait(request_queue_t *q, int rw,
 					struct bio *bio)
 {
-	DEFINE_WAIT(wait);
 	struct request *rq;
 
-	do {
+	rq = get_request(q, rw, bio, GFP_NOIO);
+	while (!rq) {
+		DEFINE_WAIT(wait);
 		struct request_list *rl = &q->rq;
 
 		prepare_to_wait_exclusive(&rl->wait[rw], &wait,
@@ -1976,7 +1985,8 @@ static struct request *get_request_wait(request_queue_t *q, int rw,
 		if (!rq) {
 			struct io_context *ioc;
 
-			generic_unplug_device(q);
+			__generic_unplug_device(q);
+			spin_unlock_irq(q->queue_lock);
 			io_schedule();
 
 			/*
@@ -1985,12 +1995,13 @@ static struct request *get_request_wait(request_queue_t *q, int rw,
 			 * up to a big batch of them for a small period time.
 			 * See ioc_batching, ioc_set_batching
 			 */
-			ioc = get_io_context(GFP_NOIO);
+			ioc = current_io_context(GFP_NOIO);
 			ioc_set_batching(q, ioc);
-			put_io_context(ioc);
+
+			spin_lock_irq(q->queue_lock);
 		}
 		finish_wait(&rl->wait[rw], &wait);
-	} while (!rq);
+	}
 
 	return rq;
 }
@@ -2001,14 +2012,18 @@ struct request *blk_get_request(request_queue_t *q, int rw, int gfp_mask)
 
 	BUG_ON(rw != READ && rw != WRITE);
 
-	if (gfp_mask & __GFP_WAIT)
+	spin_lock_irq(q->queue_lock);
+	if (gfp_mask & __GFP_WAIT) {
 		rq = get_request_wait(q, rw, NULL);
-	else
+	} else {
 		rq = get_request(q, rw, NULL, gfp_mask);
+		if (!rq)
+			spin_unlock_irq(q->queue_lock);
+	}
+	/* q->queue_lock is unlocked at this point */
 
 	return rq;
 }
-
 EXPORT_SYMBOL(blk_get_request);
 
 /**
@@ -2512,7 +2527,7 @@ EXPORT_SYMBOL(blk_attempt_remerge);
 
 static int __make_request(request_queue_t *q, struct bio *bio)
 {
-	struct request *req, *freereq = NULL;
+	struct request *req;
 	int el_ret, rw, nr_sectors, cur_nr_sectors, barrier, err, sync;
 	unsigned short prio;
 	sector_t sector;
@@ -2540,14 +2555,9 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 		goto end_io;
 	}
 
-again:
 	spin_lock_irq(q->queue_lock);
 
-	if (elv_queue_empty(q)) {
-		blk_plug_device(q);
-		goto get_rq;
-	}
-	if (barrier)
+	if (unlikely(barrier) || elv_queue_empty(q))
 		goto get_rq;
 
 	el_ret = elv_merge(q, &req, bio);
@@ -2592,40 +2602,24 @@ again:
 				elv_merged_request(q, req);
 			goto out;
 
-		/*
-		 * elevator says don't/can't merge. get new request
-		 */
-		case ELEVATOR_NO_MERGE:
-			break;
-
+		/* ELV_NO_MERGE: elevator says don't/can't merge. */
 		default:
-			printk("elevator returned crap (%d)\n", el_ret);
-			BUG();
+			;
 	}
+
+get_rq:
+	/*
+	 * Grab a free request. This is might sleep but can not fail.
+	 * Returns with the queue unlocked.
+	 */
+	req = get_request_wait(q, rw, bio);
 
 	/*
-	 * Grab a free request from the freelist - if that is empty, check
-	 * if we are doing read ahead and abort instead of blocking for
-	 * a free slot.
+	 * After dropping the lock and possibly sleeping here, our request
+	 * may now be mergeable after it had proven unmergeable (above).
+	 * We don't worry about that case for efficiency. It won't happen
+	 * often, and the elevators are able to handle it.
 	 */
-get_rq:
-	if (freereq) {
-		req = freereq;
-		freereq = NULL;
-	} else {
-		spin_unlock_irq(q->queue_lock);
-		if ((freereq = get_request(q, rw, bio, GFP_ATOMIC)) == NULL) {
-			/*
-			 * READA bit set
-			 */
-			err = -EWOULDBLOCK;
-			if (bio_rw_ahead(bio))
-				goto end_io;
-	
-			freereq = get_request_wait(q, rw, bio);
-		}
-		goto again;
-	}
 
 	req->flags |= REQ_CMD;
 
@@ -2654,10 +2648,11 @@ get_rq:
 	req->rq_disk = bio->bi_bdev->bd_disk;
 	req->start_time = jiffies;
 
+	spin_lock_irq(q->queue_lock);
+	if (elv_queue_empty(q))
+		blk_plug_device(q);
 	add_request(q, req);
 out:
-	if (freereq)
-		__blk_put_request(q, freereq);
 	if (sync)
 		__generic_unplug_device(q);
 
@@ -3284,24 +3279,20 @@ void exit_io_context(void)
 
 /*
  * If the current task has no IO context then create one and initialise it.
- * If it does have a context, take a ref on it.
+ * Otherwise, return its existing IO context.
  *
- * This is always called in the context of the task which submitted the I/O.
- * But weird things happen, so we disable local interrupts to ensure exclusive
- * access to *current.
+ * This returned IO context doesn't have a specifically elevated refcount,
+ * but since the current task itself holds a reference, the context can be
+ * used in general code, so long as it stays within `current` context.
  */
-struct io_context *get_io_context(int gfp_flags)
+struct io_context *current_io_context(int gfp_flags)
 {
 	struct task_struct *tsk = current;
-	unsigned long flags;
 	struct io_context *ret;
 
-	local_irq_save(flags);
 	ret = tsk->io_context;
-	if (ret)
-		goto out;
-
-	local_irq_restore(flags);
+	if (likely(ret))
+		return ret;
 
 	ret = kmem_cache_alloc(iocontext_cachep, gfp_flags);
 	if (ret) {
@@ -3312,25 +3303,25 @@ struct io_context *get_io_context(int gfp_flags)
 		ret->nr_batch_requests = 0; /* because this is 0 */
 		ret->aic = NULL;
 		ret->cic = NULL;
-
-		local_irq_save(flags);
-
-		/*
-		 * very unlikely, someone raced with us in setting up the task
-		 * io context. free new context and just grab a reference.
-		 */
-		if (!tsk->io_context)
-			tsk->io_context = ret;
-		else {
-			kmem_cache_free(iocontext_cachep, ret);
-			ret = tsk->io_context;
-		}
-
-out:
-		atomic_inc(&ret->refcount);
-		local_irq_restore(flags);
+		tsk->io_context = ret;
 	}
 
+	return ret;
+}
+EXPORT_SYMBOL(current_io_context);
+
+/*
+ * If the current task has no IO context then create one and initialise it.
+ * If it does have a context, take a ref on it.
+ *
+ * This is always called in the context of the task which submitted the I/O.
+ */
+struct io_context *get_io_context(int gfp_flags)
+{
+	struct io_context *ret;
+	ret = current_io_context(gfp_flags);
+	if (likely(ret))
+		atomic_inc(&ret->refcount);
 	return ret;
 }
 EXPORT_SYMBOL(get_io_context);

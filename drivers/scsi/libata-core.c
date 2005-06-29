@@ -1408,7 +1408,9 @@ void __sata_phy_reset(struct ata_port *ap)
 	if (ap->flags & ATA_FLAG_SATA_RESET) {
 		/* issue phy wake/reset */
 		scr_write_flush(ap, SCR_CONTROL, 0x301);
-		udelay(400);			/* FIXME: a guess */
+		/* Couldn't find anything in SATA I/II specs, but
+		 * AHCI-1.1 10.4.2 says at least 1 ms. */
+		mdelay(1);
 	}
 	scr_write_flush(ap, SCR_CONTROL, 0x300); /* phy wake/clear reset */
 
@@ -1920,6 +1922,7 @@ static const char * ata_dma_blacklist [] = {
 	"HITACHI CDR-8335",
 	"HITACHI CDR-8435",
 	"Toshiba CD-ROM XM-6202B",
+	"TOSHIBA CD-ROM XM-1702BC",
 	"CD-532E-A",
 	"E-IDE CD-ROM CR-840",
 	"CD-ROM Drive/F5A",
@@ -1927,7 +1930,6 @@ static const char * ata_dma_blacklist [] = {
 	"SAMSUNG CD-ROM SC-148C",
 	"SAMSUNG CD-ROM SC",
 	"SanDisk SDP3B-64",
-	"SAMSUNG CD-ROM SN-124",
 	"ATAPI CD-ROM DRIVE 40X MAXIMUM",
 	"_NEC DV5800A",
 };

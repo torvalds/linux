@@ -734,16 +734,20 @@ void pcibios_update_irq(struct pci_dev *, int irq);
 /* Generic PCI functions used internally */
 
 extern struct pci_bus *pci_find_bus(int domain, int busnr);
+void pci_bus_add_devices(struct pci_bus *bus);
 struct pci_bus *pci_scan_bus_parented(struct device *parent, int bus, struct pci_ops *ops, void *sysdata);
 static inline struct pci_bus *pci_scan_bus(int bus, struct pci_ops *ops, void *sysdata)
 {
-	return pci_scan_bus_parented(NULL, bus, ops, sysdata);
+	struct pci_bus *root_bus;
+	root_bus = pci_scan_bus_parented(NULL, bus, ops, sysdata);
+	if (root_bus)
+		pci_bus_add_devices(root_bus);
+	return root_bus;
 }
 int pci_scan_slot(struct pci_bus *bus, int devfn);
 struct pci_dev * pci_scan_single_device(struct pci_bus *bus, int devfn);
 unsigned int pci_scan_child_bus(struct pci_bus *bus);
 void pci_bus_add_device(struct pci_dev *dev);
-void pci_bus_add_devices(struct pci_bus *bus);
 void pci_name_device(struct pci_dev *dev);
 char *pci_class_name(u32 class);
 void pci_read_bridge_bases(struct pci_bus *child);
@@ -870,6 +874,15 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 #define	pci_pool_alloc(pool, flags, handle) dma_pool_alloc(pool, flags, handle)
 #define	pci_pool_free(pool, vaddr, addr) dma_pool_free(pool, vaddr, addr)
 
+enum pci_dma_burst_strategy {
+	PCI_DMA_BURST_INFINITY,	/* make bursts as large as possible,
+				   strategy_parameter is N/A */
+	PCI_DMA_BURST_BOUNDARY, /* disconnect at every strategy_parameter
+				   byte boundaries */
+	PCI_DMA_BURST_MULTIPLE, /* disconnect at some multiple of
+				   strategy_parameter byte boundaries */
+};
+
 #if defined(CONFIG_ISA) || defined(CONFIG_EISA)
 extern struct pci_dev *isa_bridge;
 #endif
@@ -972,6 +985,8 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 }
 #endif
 
+#define pci_dma_burst_advice(pdev, strat, strategy_parameter) do { } while (0)
+
 #endif /* !CONFIG_PCI */
 
 /* these helpers provide future and backwards compatibility
@@ -1015,6 +1030,20 @@ static inline char *pci_name(struct pci_dev *pdev)
 #else
 #define pci_pretty_name(dev) ""
 #endif
+
+
+/* Some archs don't want to expose struct resource to userland as-is
+ * in sysfs and /proc
+ */
+#ifndef HAVE_ARCH_PCI_RESOURCE_TO_USER
+static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
+                const struct resource *rsrc, u64 *start, u64 *end)
+{
+	*start = rsrc->start;
+	*end = rsrc->end;
+}
+#endif /* HAVE_ARCH_PCI_RESOURCE_TO_USER */
+
 
 /*
  *  The world is not perfect and supplies us with broken PCI devices.

@@ -1876,7 +1876,7 @@ static int rtl8169_alloc_rx_skb(struct pci_dev *pdev, struct sk_buff **sk_buff,
 	skb_reserve(skb, NET_IP_ALIGN);
 	*sk_buff = skb;
 
-	mapping = pci_map_single(pdev, skb->tail, rx_buf_sz,
+	mapping = pci_map_single(pdev, skb->data, rx_buf_sz,
 				 PCI_DMA_FROMDEVICE);
 
 	rtl8169_map_to_asic(desc, mapping, rx_buf_sz);
@@ -2336,7 +2336,7 @@ static inline int rtl8169_try_rx_copy(struct sk_buff **sk_buff, int pkt_size,
 		skb = dev_alloc_skb(pkt_size + NET_IP_ALIGN);
 		if (skb) {
 			skb_reserve(skb, NET_IP_ALIGN);
-			eth_copy_and_sum(skb, sk_buff[0]->tail, pkt_size, 0);
+			eth_copy_and_sum(skb, sk_buff[0]->data, pkt_size, 0);
 			*sk_buff = skb;
 			rtl8169_mark_to_asic(desc, rx_buf_sz);
 			ret = 0;

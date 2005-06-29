@@ -507,7 +507,7 @@ static struct net_device_stats *rhine_get_stats(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
-static void rhine_shutdown (struct device *gdev);
+static void rhine_shutdown (struct pci_dev *pdev);
 
 #define RHINE_WAIT_FOR(condition) do {					\
 	int i=1024;							\
@@ -990,7 +990,7 @@ static void alloc_rbufs(struct net_device *dev)
 		skb->dev = dev;                 /* Mark as being used by this device. */
 
 		rp->rx_skbuff_dma[i] =
-			pci_map_single(rp->pdev, skb->tail, rp->rx_buf_sz,
+			pci_map_single(rp->pdev, skb->data, rp->rx_buf_sz,
 				       PCI_DMA_FROMDEVICE);
 
 		rp->rx_ring[i].addr = cpu_to_le32(rp->rx_skbuff_dma[i]);
@@ -1518,7 +1518,7 @@ static void rhine_rx(struct net_device *dev)
 							    PCI_DMA_FROMDEVICE);
 
 				eth_copy_and_sum(skb,
-						 rp->rx_skbuff[entry]->tail,
+						 rp->rx_skbuff[entry]->data,
 						 pkt_len, 0);
 				skb_put(skb, pkt_len);
 				pci_dma_sync_single_for_device(rp->pdev,
@@ -1561,7 +1561,7 @@ static void rhine_rx(struct net_device *dev)
 				break;	/* Better luck next round. */
 			skb->dev = dev;	/* Mark as being used by this device. */
 			rp->rx_skbuff_dma[entry] =
-				pci_map_single(rp->pdev, skb->tail,
+				pci_map_single(rp->pdev, skb->data,
 					       rp->rx_buf_sz,
 					       PCI_DMA_FROMDEVICE);
 			rp->rx_ring[entry].addr = cpu_to_le32(rp->rx_skbuff_dma[entry]);
@@ -1895,9 +1895,8 @@ static void __devexit rhine_remove_one(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static void rhine_shutdown (struct device *gendev)
+static void rhine_shutdown (struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = to_pci_dev(gendev);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
@@ -1956,7 +1955,7 @@ static int rhine_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_save_state(pdev);
 
 	spin_lock_irqsave(&rp->lock, flags);
-	rhine_shutdown(&pdev->dev);
+	rhine_shutdown(pdev);
 	spin_unlock_irqrestore(&rp->lock, flags);
 
 	free_irq(dev->irq, dev);
@@ -2010,9 +2009,7 @@ static struct pci_driver rhine_driver = {
 	.suspend	= rhine_suspend,
 	.resume		= rhine_resume,
 #endif /* CONFIG_PM */
-	.driver = {
-		.shutdown = rhine_shutdown,
-	}
+	.shutdown =	rhine_shutdown,
 };
 
 
