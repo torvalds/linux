@@ -437,7 +437,7 @@ void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
 	memtable_init(mi);
 	if (mdesc->map_io)
 		mdesc->map_io();
-	flush_tlb_all();
+	local_flush_tlb_all();
 
 	/*
 	 * initialise the zones within each node
