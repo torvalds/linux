@@ -758,6 +758,9 @@ running once the system is up.
 	maxcpus=	[SMP] Maximum number of processors that	an SMP kernel
 			should make use of
 
+	max_addr=[KMG]	[KNL,BOOT,ia64] All physical memory greater than or
+			equal to this physical address is ignored.
+
 	max_luns=	[SCSI] Maximum number of LUNs to probe
 			Should be between 1 and 2^32-1.
 
