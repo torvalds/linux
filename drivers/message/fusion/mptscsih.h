@@ -82,7 +82,7 @@
 #endif
 
 extern void mptscsih_remove(struct pci_dev *);
-extern void mptscsih_shutdown(struct device *);
+extern void mptscsih_shutdown(struct pci_dev *);
 #ifdef CONFIG_PM
 extern int mptscsih_suspend(struct pci_dev *pdev, u32 state);
 extern int mptscsih_resume(struct pci_dev *pdev);

@@ -153,7 +153,7 @@ container_device_add(struct acpi_device **device, acpi_handle handle)
 		return_VALUE(-ENODEV);
 	}
 
-	result = acpi_bus_scan(*device);
+	result = acpi_bus_start(*device);
 
 	return_VALUE(result);
 }

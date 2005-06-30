@@ -1,5 +1,5 @@
 /*
- * $Id: mt20xx.c,v 1.4 2005/03/04 09:24:56 kraxel Exp $
+ * $Id: mt20xx.c,v 1.5 2005/06/16 08:29:49 nsh Exp $
  *
  * i2c tv tuner chip device driver
  * controls microtune tuners, mt2032 + mt2050 at the moment.
@@ -295,8 +295,8 @@ static void mt2032_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	int if2 = t->radio_if2;
 
 	// per Manual for FM tuning: first if center freq. 1085 MHz
-        mt2032_set_if_freq(c, freq*62500 /* freq*1000*1000/16 */,
-			   1085*1000*1000,if2,if2,if2);
+        mt2032_set_if_freq(c, freq * 1000 / 16,
+			      1085*1000*1000,if2,if2,if2);
 }
 
 // Initalization as described in "MT203x Programming Procedures", Rev 1.2, Feb.2001

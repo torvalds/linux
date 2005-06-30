@@ -13,13 +13,14 @@ Allocating Device Numbers
 -------------------------
 
 Major and minor numbers for block and character devices are allocated
-by the Linux assigned name and number authority (currently better
-known as H Peter Anvin). The site is http://www.lanana.org/. This
+by the Linux assigned name and number authority (currently this is
+Torben Mathiasen). The site is http://www.lanana.org/. This
 also deals with allocating numbers for devices that are not going to
 be submitted to the mainstream kernel.
+See Documentation/devices.txt for more information on this.
 
-If you don't use assigned numbers then when you device is submitted it will
-get given an assigned number even if that is different from values you may
+If you don't use assigned numbers then when your device is submitted it will
+be given an assigned number even if that is different from values you may
 have shipped to customers before.
 
 Who To Submit Drivers To
@@ -32,7 +33,8 @@ Linux 2.2:
 	If the code area has a general maintainer then please submit it to
 	the maintainer listed in MAINTAINERS in the kernel file. If the
 	maintainer does not respond or you cannot find the appropriate
-	maintainer then please contact Alan Cox <alan@lxorguk.ukuu.org.uk>
+	maintainer then please contact the 2.2 kernel maintainer:
+	Marc-Christian Petersen <m.c.p@wolk-project.de>.
 
 Linux 2.4:
 	The same rules apply as 2.2. The final contact point for Linux 2.4
@@ -48,7 +50,7 @@ What Criteria Determine Acceptance
 
 Licensing:	The code must be released to us under the
 		GNU General Public License. We don't insist on any kind
-		of exclusively GPL licensing, and if you wish the driver
+		of exclusive GPL licensing, and if you wish the driver
 		to be useful to other communities such as BSD you may well
 		wish to release under multiple licenses.
 

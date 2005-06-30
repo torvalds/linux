@@ -512,11 +512,11 @@ W:	http://linuxppc64.org
 S:	Supported
 
 BTTV VIDEO4LINUX DRIVER
-P:	Gerd Knorr
-M:	kraxel@bytesex.org
+P:	Mauro Carvalho Chehab
+M:	mchehab@brturbo.com.br
 L:	video4linux-list@redhat.com
-W:	http://bytesex.org/bttv/
-S:	Orphan
+W:	http://linuxtv.org
+S:	Maintained
 
 BUSLOGIC SCSI DRIVER
 P:	Leonard N. Zubkoff
@@ -2632,10 +2632,11 @@ W:	http://rio500.sourceforge.net
 S:	Maintained
 
 VIDEO FOR LINUX
-P:	Gerd Knorr
-M:	kraxel@bytesex.org
+P:	Mauro Carvalho Chehab
+M:	mchehab@brturbo.com.br
 L:	video4linux-list@redhat.com
-S:	Orphan
+W:	http://linuxtv.org
+S:	Maintained
 
 W1 DALLAS'S 1-WIRE BUS
 P:	Evgeniy Polyakov

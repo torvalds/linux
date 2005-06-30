@@ -14,7 +14,10 @@
  * videoram directly without any black magic.
  */
 
-#define VGA_MAP_MEM(x)	((unsigned long) ioremap((x), 0))
+extern unsigned long vga_console_iobase;
+extern unsigned long vga_console_membase;
+
+#define VGA_MAP_MEM(x)	((unsigned long) ioremap(vga_console_membase + (x), 0))
 
 #define vga_readb(x)	(*(x))
 #define vga_writeb(x,y)	(*(y) = (x))

@@ -419,9 +419,7 @@ static struct pci_driver mptspi_driver = {
 	.id_table	= mptspi_pci_table,
 	.probe		= mptspi_probe,
 	.remove		= __devexit_p(mptscsih_remove),
-	.driver         = {
-		.shutdown = mptscsih_shutdown,
-        },
+	.shutdown	= mptscsih_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= mptscsih_suspend,
 	.resume		= mptscsih_resume,

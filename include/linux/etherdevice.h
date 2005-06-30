@@ -25,6 +25,7 @@
 #define _LINUX_ETHERDEVICE_H
 
 #include <linux/if_ether.h>
+#include <linux/netdevice.h>
 #include <linux/random.h>
 
 #ifdef __KERNEL__
@@ -66,6 +67,12 @@ static inline int is_zero_ether_addr(const u8 *addr)
 static inline int is_multicast_ether_addr(const u8 *addr)
 {
 	return ((addr[0] != 0xff) && (0x01 & addr[0]));
+}
+
+static inline int is_broadcast_ether_addr(const u8 *addr)
+{
+        return ((addr[0] == 0xff) && (addr[1] == 0xff) && (addr[2] == 0xff) &&  
+		(addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff));
 }
 
 /**

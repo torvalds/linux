@@ -86,6 +86,16 @@ static inline void pcibios_penalize_isa_irq(int irq)
 #define sg_dma_address(sg)	((sg)->dma_address)
 #define sg_dma_len(sg)		((sg)->length)
 
+#ifdef CONFIG_PCI
+static inline void pci_dma_burst_advice(struct pci_dev *pdev,
+					enum pci_dma_burst_strategy *strat,
+					unsigned long *strategy_parameter)
+{
+	*strat = PCI_DMA_BURST_INFINITY;
+	*strategy_parameter = ~0UL;
+}
+#endif
+
 /* Board-specific fixup routines. */
 extern void pcibios_fixup(void);
 extern void pcibios_fixup_irqs(void);

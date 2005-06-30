@@ -85,7 +85,7 @@ static inline void wait_on_inode(struct inode *inode)
 /*
  * mm/page-writeback.c
  */
-int wakeup_bdflush(long nr_pages);
+int wakeup_pdflush(long nr_pages);
 void laptop_io_completion(void);
 void laptop_sync_completion(void);
 void throttle_vm_writeout(void);

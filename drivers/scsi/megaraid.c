@@ -5036,9 +5036,9 @@ megaraid_remove_one(struct pci_dev *pdev)
 }
 
 static void
-megaraid_shutdown(struct device *dev)
+megaraid_shutdown(struct pci_dev *pdev)
 {
-	struct Scsi_Host *host = pci_get_drvdata(to_pci_dev(dev));
+	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	adapter_t *adapter = (adapter_t *)host->hostdata;
 
 	__megaraid_shutdown(adapter);
@@ -5070,9 +5070,7 @@ static struct pci_driver megaraid_pci_driver = {
 	.id_table	= megaraid_pci_tbl,
 	.probe		= megaraid_probe_one,
 	.remove		= __devexit_p(megaraid_remove_one),
-	.driver		= {
-		.shutdown = megaraid_shutdown,
-	},
+	.shutdown	= megaraid_shutdown,
 };
 
 static int __init megaraid_init(void)

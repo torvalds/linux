@@ -78,6 +78,25 @@ static inline int pci_dac_dma_supported(struct pci_dev *hwdev,u64 mask)
 	return 0;
 }
 
+#ifdef CONFIG_PCI
+static inline void pci_dma_burst_advice(struct pci_dev *pdev,
+					enum pci_dma_burst_strategy *strat,
+					unsigned long *strategy_parameter)
+{
+	unsigned long cacheline_size;
+	u8 byte;
+
+	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &byte);
+	if (byte == 0)
+		cacheline_size = 1024;
+	else
+		cacheline_size = (int) byte * 4;
+
+	*strat = PCI_DMA_BURST_MULTIPLE;
+	*strategy_parameter = cacheline_size;
+}
+#endif
+
 extern int pci_domain_nr(struct pci_bus *bus);
 
 /* Decide whether to display the domain number in /proc */
@@ -135,6 +154,13 @@ extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
 					 unsigned long offset,
 					 unsigned long size,
 					 pgprot_t prot);
+
+#ifdef CONFIG_PPC_MULTIPLATFORM
+#define HAVE_ARCH_PCI_RESOURCE_TO_USER
+extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
+				 const struct resource *rsrc,
+				 u64 *start, u64 *end);
+#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 
 #endif	/* __KERNEL__ */

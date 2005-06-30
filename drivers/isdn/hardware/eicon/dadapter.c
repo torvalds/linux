@@ -44,7 +44,7 @@ static didd_adapter_change_notification_t\
   Array to held adapter information
    -------------------------------------------------------------------------- */
 static DESCRIPTOR  HandleTable[NEW_MAX_DESCRIPTORS];
-dword Adapters = 0; /* Number of adapters */
+static dword Adapters = 0; /* Number of adapters */
 /* --------------------------------------------------------------------------
   Shadow IDI_DIMAINT
   and 'shadow' debug stuff

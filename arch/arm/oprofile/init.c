@@ -20,6 +20,8 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	ret = pmu_init(ops, &op_xscale_spec);
 #endif
 
+	ops->backtrace = arm_backtrace;
+
 	return ret;
 }
 

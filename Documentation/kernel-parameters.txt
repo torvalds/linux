@@ -622,6 +622,17 @@ running once the system is up.
 	ips=		[HW,SCSI] Adaptec / IBM ServeRAID controller
 			See header of drivers/scsi/ips.c.
 
+	irqfixup	[HW]
+			When an interrupt is not handled search all handlers
+			for it. Intended to get systems with badly broken
+			firmware running.
+
+	irqpoll		[HW]
+			When an interrupt is not handled search all handlers
+			for it. Also check all handlers each timer
+			interrupt. Intended to get systems with badly broken
+			firmware running.
+
 	isapnp=		[ISAPNP]
 			Format: <RDP>, <reset>, <pci_scan>, <verbosity>
 
@@ -1030,6 +1041,10 @@ running once the system is up.
 		irqmask=0xMMMM		[IA-32] Set a bit mask of IRQs allowed to be assigned
 					automatically to PCI devices. You can make the kernel
 					exclude IRQs of your ISA cards this way.
+		pirqaddr=0xAAAAA	[IA-32] Specify the physical address
+					of the PIRQ table (normally generated
+					by the BIOS) if it is outside the
+					F0000h-100000h range.
 		lastbus=N		[IA-32] Scan all buses till bus #N. Can be useful
 					if the kernel is unable to find your secondary buses
 					and you want to tell it explicitly which ones they are.

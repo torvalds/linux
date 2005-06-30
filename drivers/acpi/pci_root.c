@@ -46,6 +46,7 @@ ACPI_MODULE_NAME		("pci_root")
 
 static int acpi_pci_root_add (struct acpi_device *device);
 static int acpi_pci_root_remove (struct acpi_device *device, int type);
+static int acpi_pci_root_start (struct acpi_device *device);
 
 static struct acpi_driver acpi_pci_root_driver = {
 	.name =		ACPI_PCI_ROOT_DRIVER_NAME,
@@ -54,6 +55,7 @@ static struct acpi_driver acpi_pci_root_driver = {
 	.ops =		{
 				.add =    acpi_pci_root_add,
 				.remove = acpi_pci_root_remove,
+				.start =  acpi_pci_root_start,
 			},
 };
 
@@ -169,6 +171,7 @@ acpi_pci_root_add (
 	if (!root)
 		return_VALUE(-ENOMEM);
 	memset(root, 0, sizeof(struct acpi_pci_root));
+	INIT_LIST_HEAD(&root->node);
 
 	root->handle = device->handle;
 	strcpy(acpi_device_name(device), ACPI_PCI_ROOT_DEVICE_NAME);
@@ -298,12 +301,31 @@ acpi_pci_root_add (
 			root->id.bus);
 
 end:
-	if (result)
+	if (result) {
+		if (!list_empty(&root->node))
+			list_del(&root->node);
 		kfree(root);
+	}
 
 	return_VALUE(result);
 }
 
+static int
+acpi_pci_root_start (
+	struct acpi_device	*device)
+{
+	struct acpi_pci_root	*root;
+
+	ACPI_FUNCTION_TRACE("acpi_pci_root_start");
+
+	list_for_each_entry(root, &acpi_pci_roots, node) {
+		if (root->handle == device->handle) {
+			pci_bus_add_devices(root->bus);
+			return_VALUE(0);
+		}
+	}
+	return_VALUE(-ENODEV);
+}
 
 static int
 acpi_pci_root_remove (

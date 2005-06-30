@@ -1050,7 +1050,10 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_sndbuf_policy		= 0;
 
 	/* HB.interval              - 30 seconds */
-	sctp_hb_interval		= 30 * HZ;
+	sctp_hb_interval		= SCTP_DEFAULT_TIMEOUT_HEARTBEAT;
+
+	/* delayed SACK timeout */
+	sctp_sack_timeout		= SCTP_DEFAULT_TIMEOUT_SACK;
 
 	/* Implementation specific variables. */
 
