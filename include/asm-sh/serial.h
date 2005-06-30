@@ -29,20 +29,18 @@
 #ifdef CONFIG_HD64465
 #include <asm/hd64465.h>
 
-#define STD_SERIAL_PORT_DEFNS                   \
+#define SERIAL_PORT_DFNS                   \
         /* UART CLK   PORT IRQ     FLAGS        */                      \
         { 0, BASE_BAUD, 0x3F8, HD64465_IRQ_UART, STD_COM_FLAGS }  /* ttyS0 */
 
 #else
 
-#define STD_SERIAL_PORT_DEFNS			\
+#define SERIAL_PORT_DFNS			\
 	/* UART CLK   PORT IRQ     FLAGS        */			\
 	{ 0, BASE_BAUD, 0x3F8, 4, STD_COM_FLAGS },	/* ttyS0 */	\
 	{ 0, BASE_BAUD, 0x2F8, 3, STD_COM_FLAGS }	/* ttyS1 */
 
 #endif
-
-#define SERIAL_PORT_DFNS STD_SERIAL_PORT_DEFNS
 
 #endif
 #endif /* _ASM_SERIAL_H */
