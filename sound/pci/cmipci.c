@@ -306,7 +306,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_REG_FM_PCI		0x50
 
 /*
- * for CMI-8338 .. this is not valid for CMI-8738.
+ * access from SB-mixer port
  */
 #define CM_REG_EXTENT_IND	0xf0
 #define CM_VPHONE_MASK		0xe0	/* Phone volume control (0-3) << 5 */
@@ -315,6 +315,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_VSPKM		0x08	/* Speaker mute control, default high */
 #define CM_RLOOPREN		0x04    /* Rec. R-channel enable */
 #define CM_RLOOPLEN		0x02	/* Rec. L-channel enable */
+#define CM_VADMIC3		0x01	/* Mic record boost */
 
 /*
  * CMI-8338 spec ver 0.5 (this is not valid for CMI-8738):
@@ -2135,8 +2136,12 @@ static snd_kcontrol_new_t snd_cmipci_mixers[] __devinitdata = {
 	CMIPCI_MIXER_VOL_STEREO("Aux Playback Volume", CM_REG_AUX_VOL, 4, 0, 15),
 	CMIPCI_MIXER_SW_STEREO("Aux Playback Switch", CM_REG_MIXER2, CM_VAUXLM_SHIFT, CM_VAUXRM_SHIFT, 0),
 	CMIPCI_MIXER_SW_STEREO("Aux Capture Switch", CM_REG_MIXER2, CM_RAUXLEN_SHIFT, CM_RAUXREN_SHIFT, 0),
-	CMIPCI_MIXER_SW_MONO("Mic Boost", CM_REG_MIXER2, CM_MICGAINZ_SHIFT, 1),
+	CMIPCI_MIXER_SW_MONO("Mic Boost Playback Switch", CM_REG_MIXER2, CM_MICGAINZ_SHIFT, 1),
 	CMIPCI_MIXER_VOL_MONO("Mic Capture Volume", CM_REG_MIXER2, CM_VADMIC_SHIFT, 7),
+	CMIPCI_SB_VOL_MONO("Phone Playback Volume", CM_REG_EXTENT_IND, 5, 7),
+	CMIPCI_DOUBLE("Phone Playback Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 4, 4, 1, 0, 0),
+	CMIPCI_DOUBLE("PC Speaker Playnack Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 3, 3, 1, 0, 0),
+	CMIPCI_DOUBLE("Mic Boost Capture Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 0, 0, 1, 0, 0),
 };
 
 /*
