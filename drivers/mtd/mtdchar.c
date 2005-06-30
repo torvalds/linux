@@ -1,5 +1,5 @@
 /*
- * $Id: mtdchar.c,v 1.70 2005/04/01 15:36:11 nico Exp $
+ * $Id: mtdchar.c,v 1.72 2005/06/30 00:23:24 tpoynor Exp $
  *
  * Character-device access to raw MTD devices.
  *
@@ -15,49 +15,36 @@
 #include <linux/fs.h>
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_DEVFS_FS
-#include <linux/devfs_fs_kernel.h>
+#include <linux/device.h>
+
+static struct class *mtd_class;
 
 static void mtd_notify_add(struct mtd_info* mtd)
 {
 	if (!mtd)
 		return;
 
-	devfs_mk_cdev(MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
-		      S_IFCHR | S_IRUGO | S_IWUGO, "mtd/%d", mtd->index);
-		
-	devfs_mk_cdev(MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
-		      S_IFCHR | S_IRUGO, "mtd/%dro", mtd->index);
+	class_device_create(mtd_class, MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
+			    NULL, "mtd%d", mtd->index);
+	
+	class_device_create(mtd_class, 
+			    MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
+			    NULL, "mtd%dro", mtd->index);
 }
 
 static void mtd_notify_remove(struct mtd_info* mtd)
 {
 	if (!mtd)
 		return;
-	devfs_remove("mtd/%d", mtd->index);
-	devfs_remove("mtd/%dro", mtd->index);
+
+	class_device_destroy(mtd_class, MKDEV(MTD_CHAR_MAJOR, mtd->index*2));
+	class_device_destroy(mtd_class, MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1));
 }
 
 static struct mtd_notifier notifier = {
 	.add	= mtd_notify_add,
 	.remove	= mtd_notify_remove,
 };
-
-static inline void mtdchar_devfs_init(void)
-{
-	devfs_mk_dir("mtd");
-	register_mtd_user(&notifier);
-}
-
-static inline void mtdchar_devfs_exit(void)
-{
-	unregister_mtd_user(&notifier);
-	devfs_remove("mtd");
-}
-#else /* !DEVFS */
-#define mtdchar_devfs_init() do { } while(0)
-#define mtdchar_devfs_exit() do { } while(0)
-#endif
 
 /*
  * We use file->private_data to store a pointer to the MTDdevice.
@@ -657,13 +644,22 @@ static int __init init_mtdchar(void)
 		return -EAGAIN;
 	}
 
-	mtdchar_devfs_init();
+	mtd_class = class_create(THIS_MODULE, "mtd");
+
+	if (IS_ERR(mtd_class)) {
+		printk(KERN_ERR "Error creating mtd class.\n");
+		unregister_chrdev(MTD_CHAR_MAJOR, "mtd");
+		return 1;
+	}
+
+	register_mtd_user(&notifier);
 	return 0;
 }
 
 static void __exit cleanup_mtdchar(void)
 {
-	mtdchar_devfs_exit();
+	unregister_mtd_user(&notifier);
+	class_destroy(mtd_class);
 	unregister_chrdev(MTD_CHAR_MAJOR, "mtd");
 }
 
