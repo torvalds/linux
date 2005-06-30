@@ -164,11 +164,7 @@ udf_find_entry(struct inode *dir, struct dentry *dentry,
 	uint32_t extoffset, elen, offset;
 	struct buffer_head *bh = NULL;
 
-	if (!dir)
-		return NULL;
-
 	size = (udf_ext0_offset(dir) + dir->i_size) >> 2;
-
 	f_pos = (udf_ext0_offset(dir) >> 2);
 
 	fibh->soffset = fibh->eoffset = (f_pos & ((dir->i_sb->s_blocksize - 1) >> 2)) << 2;
