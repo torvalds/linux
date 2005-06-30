@@ -69,7 +69,7 @@ struct hvlpevent_queue {
 	char	*xSlicEventStackPtr;	// 0x20
 	u8	xIndex;			// 0x28 unique sequential index.
 	u8	xSlicRsvd[3];		// 0x29-2b
-	u32	xInUseWord;		// 0x2C
+	spinlock_t	lock;
 };
 
 extern struct hvlpevent_queue hvlpevent_queue;

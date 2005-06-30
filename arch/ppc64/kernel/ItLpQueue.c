@@ -42,35 +42,8 @@ static char *event_types[HvLpEvent_Type_NumTypes] = {
 	"Virtual I/O"
 };
 
-static __inline__ int set_inUse(void)
-{
-	int t;
-	u32 * inUseP = &hvlpevent_queue.xInUseWord;
-
-	__asm__ __volatile__("\n\
-1:	lwarx	%0,0,%2		\n\
-	cmpwi	0,%0,0		\n\
-	li	%0,0		\n\
-	bne-	2f		\n\
-	addi	%0,%0,1		\n\
-	stwcx.	%0,0,%2		\n\
-	bne-	1b		\n\
-2:	eieio"
-	: "=&r" (t), "=m" (hvlpevent_queue.xInUseWord)
-	: "r" (inUseP), "m" (hvlpevent_queue.xInUseWord)
-	: "cc");
-
-	return t;
-}
-
-static __inline__ void clear_inUse(void)
-{
-	hvlpevent_queue.xInUseWord = 0;
-}
-
 /* Array of LpEvent handler functions */
 extern LpEventHandler lpEventHandler[HvLpEvent_Type_NumTypes];
-unsigned long ItLpQueueInProcess = 0;
 
 static struct HvLpEvent * get_next_hvlpevent(void)
 {
@@ -144,13 +117,8 @@ void process_hvlpevents(struct pt_regs *regs)
 	struct HvLpEvent * event;
 
 	/* If we have recursed, just return */
-	if ( !set_inUse() )
+	if (!spin_trylock(&hvlpevent_queue.lock))
 		return;
-
-	if (ItLpQueueInProcess == 0)
-		ItLpQueueInProcess = 1;
-	else
-		BUG();
 
 	for (;;) {
 		event = get_next_hvlpevent();
@@ -187,9 +155,7 @@ void process_hvlpevents(struct pt_regs *regs)
 			break;
 	}
 
-	ItLpQueueInProcess = 0;
-	mb();
-	clear_inUse();
+	spin_unlock(&hvlpevent_queue.lock);
 }
 
 static int set_spread_lpevents(char *str)
