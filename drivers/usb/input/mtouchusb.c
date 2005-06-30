@@ -53,6 +53,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 #define MTOUCHUSB_MIN_XC                0x0
 #define MTOUCHUSB_MAX_RAW_XC            0x4000
@@ -232,10 +233,7 @@ static int mtouchusb_probe(struct usb_interface *intf, const struct usb_device_i
 
 	mtouch->input.name = mtouch->name;
 	mtouch->input.phys = mtouch->phys;
-	mtouch->input.id.bustype = BUS_USB;
-	mtouch->input.id.vendor = le16_to_cpu(udev->descriptor.idVendor);
-	mtouch->input.id.product = le16_to_cpu(udev->descriptor.idProduct);
-	mtouch->input.id.version = le16_to_cpu(udev->descriptor.bcdDevice);
+	usb_to_input_id(udev, &mtouch->input.id);
 	mtouch->input.dev = &intf->dev;
 
 	mtouch->input.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);

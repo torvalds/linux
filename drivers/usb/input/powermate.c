@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 #define POWERMATE_VENDOR	0x077d	/* Griffin Technology, Inc. */
 #define POWERMATE_PRODUCT_NEW	0x0410	/* Griffin PowerMate */
@@ -389,10 +390,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 	pm->input.keybit[LONG(BTN_0)] = BIT(BTN_0);
 	pm->input.relbit[LONG(REL_DIAL)] = BIT(REL_DIAL);
 	pm->input.mscbit[LONG(MSC_PULSELED)] = BIT(MSC_PULSELED);
-	pm->input.id.bustype = BUS_USB;
-	pm->input.id.vendor = le16_to_cpu(udev->descriptor.idVendor);
-	pm->input.id.product = le16_to_cpu(udev->descriptor.idProduct);
-	pm->input.id.version = le16_to_cpu(udev->descriptor.bcdDevice);
+	usb_to_input_id(udev, &pm->input.id);
 	pm->input.event = powermate_input_event;
 	pm->input.dev = &intf->dev;
 	pm->input.phys = pm->phys;

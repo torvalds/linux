@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 /*
  * Version Information
@@ -212,10 +213,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 
 	acecad->dev.name = acecad->name;
 	acecad->dev.phys = acecad->phys;
-	acecad->dev.id.bustype = BUS_USB;
-	acecad->dev.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
-	acecad->dev.id.product = le16_to_cpu(dev->descriptor.idProduct);
-	acecad->dev.id.version = le16_to_cpu(dev->descriptor.bcdDevice);
+	usb_to_input_id(dev, &acecad->dev.id);
 	acecad->dev.dev = &intf->dev;
 
 	usb_fill_int_urb(acecad->irq, dev, pipe,

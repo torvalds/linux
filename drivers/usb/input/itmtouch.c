@@ -53,6 +53,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 /* only an 8 byte buffer necessary for a single packet */
 #define ITM_BUFSIZE			8
@@ -184,10 +185,7 @@ static int itmtouch_probe(struct usb_interface *intf, const struct usb_device_id
 
 	itmtouch->inputdev.name = itmtouch->name;
 	itmtouch->inputdev.phys = itmtouch->phys;
-	itmtouch->inputdev.id.bustype = BUS_USB;
-	itmtouch->inputdev.id.vendor = udev->descriptor.idVendor;
-	itmtouch->inputdev.id.product = udev->descriptor.idProduct;
-	itmtouch->inputdev.id.version = udev->descriptor.bcdDevice;
+	usb_to_input_id(udev, &itmtouch->inputdev.id);
 	itmtouch->inputdev.dev = &intf->dev;
 
 	if (!strlen(itmtouch->name))

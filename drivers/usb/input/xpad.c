@@ -62,6 +62,7 @@
 #include <linux/module.h>
 #include <linux/smp_lock.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 #define DRIVER_VERSION "v0.0.5"
 #define DRIVER_AUTHOR "Marko Friedemann <mfr@bmx-chemnitz.de>"
@@ -256,10 +257,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	xpad->udev = udev;
 
-	xpad->dev.id.bustype = BUS_USB;
-	xpad->dev.id.vendor = le16_to_cpu(udev->descriptor.idVendor);
-	xpad->dev.id.product = le16_to_cpu(udev->descriptor.idProduct);
-	xpad->dev.id.version = le16_to_cpu(udev->descriptor.bcdDevice);
+	usb_to_input_id(udev, &xpad->dev.id);
 	xpad->dev.dev = &intf->dev;
 	xpad->dev.private = xpad;
 	xpad->dev.name = xpad_device[i].name;

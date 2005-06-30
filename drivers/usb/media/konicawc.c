@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/input.h>
+#include <linux/usb_input.h>
 
 #include "usbvideo.h"
 
@@ -845,10 +846,7 @@ static int konicawc_probe(struct usb_interface *intf, const struct usb_device_id
 		cam->input.private = cam;
 		cam->input.evbit[0] = BIT(EV_KEY);
 		cam->input.keybit[LONG(BTN_0)] = BIT(BTN_0);
-		cam->input.id.bustype = BUS_USB;
-		cam->input.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
-		cam->input.id.product = le16_to_cpu(dev->descriptor.idProduct);
-		cam->input.id.version = le16_to_cpu(dev->descriptor.bcdDevice);
+		usb_to_input_id(dev, &cam->input.id);
 		input_register_device(&cam->input);
 		
 		usb_make_path(dev, cam->input_physname, 56);

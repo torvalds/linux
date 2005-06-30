@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 /*
  * Version Information
@@ -171,10 +172,7 @@ static int usb_mouse_probe(struct usb_interface * intf, const struct usb_device_
 
 	mouse->dev.name = mouse->name;
 	mouse->dev.phys = mouse->phys;
-	mouse->dev.id.bustype = BUS_USB;
-	mouse->dev.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
-	mouse->dev.id.product = le16_to_cpu(dev->descriptor.idProduct);
-	mouse->dev.id.version = le16_to_cpu(dev->descriptor.bcdDevice);
+	usb_to_input_id(dev, &mouse->dev.id);
 	mouse->dev.dev = &intf->dev;
 
 	if (dev->manufacturer)

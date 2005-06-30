@@ -4,6 +4,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
 
@@ -167,10 +168,7 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	kbtab->dev.name = "KB Gear Tablet";
 	kbtab->dev.phys = kbtab->phys;
-	kbtab->dev.id.bustype = BUS_USB;
-	kbtab->dev.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
-	kbtab->dev.id.product = le16_to_cpu(dev->descriptor.idProduct);
-	kbtab->dev.id.version = le16_to_cpu(dev->descriptor.bcdDevice);
+	usb_to_input_id(dev, &kbtab->dev.id);
 	kbtab->dev.dev = &intf->dev;
 	kbtab->usbdev = dev;
 
