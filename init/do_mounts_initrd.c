@@ -86,7 +86,10 @@ static void __init handle_initrd(void)
 		printk("okay\n");
 	else {
 		int fd = sys_open("/dev/root.old", O_RDWR, 0);
-		printk("failed\n");
+		if (error == -ENOENT)
+			printk("/initrd does not exist. Ignored.\n");
+		else
+			printk("failed\n");
 		printk(KERN_NOTICE "Unmounting old root\n");
 		sys_umount("/old", MNT_DETACH);
 		printk(KERN_NOTICE "Trying to free ramdisk memory ... ");
