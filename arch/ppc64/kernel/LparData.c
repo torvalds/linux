@@ -28,13 +28,6 @@
 #include <asm/iSeries/IoHriProcessorVpd.h>
 #include <asm/iSeries/ItSpCommArea.h>
 
-/* The LpQueue is used to pass event data from the hypervisor to
- * the partition.  This is where I/O interrupt events are communicated.
- */
-
-/* May be filled in by the hypervisor so cannot end up in the BSS */
-struct ItLpQueue xItLpQueue __attribute__((__section__(".data")));
-
 
 /* The HvReleaseData is the root of the information shared between 
  * the hypervisor and Linux.  

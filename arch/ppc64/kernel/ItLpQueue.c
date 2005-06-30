@@ -20,6 +20,14 @@
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/HvCallEvent.h>
 
+/*
+ * The LpQueue is used to pass event data from the hypervisor to
+ * the partition.  This is where I/O interrupt events are communicated.
+ *
+ * It is written to by the hypervisor so cannot end up in the BSS.
+ */
+struct ItLpQueue xItLpQueue __attribute__((__section__(".data")));
+
 static char *event_types[9] = {
 	"Hypervisor\t\t",
 	"Machine Facilities\t",
