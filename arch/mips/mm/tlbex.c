@@ -827,11 +827,16 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 		i_nop(p);
 		break;
 
-	case CPU_R4300:
 	case CPU_R4600:
 	case CPU_R4700:
 	case CPU_R5000:
 	case CPU_R5000A:
+		i_nop(p);
+		tlbw(p);
+		i_nop(p);
+		break;
+
+	case CPU_R4300:
 	case CPU_5KC:
 	case CPU_TX49XX:
 	case CPU_AU1000:
