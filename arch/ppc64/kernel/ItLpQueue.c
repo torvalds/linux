@@ -74,24 +74,27 @@ unsigned long ItLpQueueInProcess = 0;
 
 static struct HvLpEvent * get_next_hvlpevent(void)
 {
-	struct HvLpEvent * nextLpEvent =
-		(struct HvLpEvent *)hvlpevent_queue.xSlicCurEventPtr;
-	if (nextLpEvent->xFlags.xValid) {
+	struct HvLpEvent * event;
+	event = (struct HvLpEvent *)hvlpevent_queue.xSlicCurEventPtr;
+
+	if (event->xFlags.xValid) {
 		/* rmb() needed only for weakly consistent machines (regatta) */
 		rmb();
 		/* Set pointer to next potential event */
-		hvlpevent_queue.xSlicCurEventPtr += ((nextLpEvent->xSizeMinus1 +
-				      LpEventAlign) /
-				      LpEventAlign) *
-				      LpEventAlign;
-		/* Wrap to beginning if no room at end */
-		if (hvlpevent_queue.xSlicCurEventPtr > hvlpevent_queue.xSlicLastValidEventPtr)
-			hvlpevent_queue.xSlicCurEventPtr = hvlpevent_queue.xSlicEventStackPtr;
-	}
-	else
-		nextLpEvent = NULL;
+		hvlpevent_queue.xSlicCurEventPtr += ((event->xSizeMinus1 +
+				LpEventAlign) / LpEventAlign) * LpEventAlign;
 
-	return nextLpEvent;
+		/* Wrap to beginning if no room at end */
+		if (hvlpevent_queue.xSlicCurEventPtr >
+				hvlpevent_queue.xSlicLastValidEventPtr) {
+			hvlpevent_queue.xSlicCurEventPtr =
+				hvlpevent_queue.xSlicEventStackPtr;
+		}
+	} else {
+		event = NULL;
+	}
+
+	return event;
 }
 
 static unsigned long spread_lpevents = NR_CPUS;
@@ -104,34 +107,41 @@ int hvlpevent_is_pending(void)
 		return 0;
 
 	next_event = (struct HvLpEvent *)hvlpevent_queue.xSlicCurEventPtr;
-	return next_event->xFlags.xValid | hvlpevent_queue.xPlicOverflowIntPending;
+
+	return next_event->xFlags.xValid |
+		hvlpevent_queue.xPlicOverflowIntPending;
 }
 
 static void hvlpevent_clear_valid(struct HvLpEvent * event)
 {
-	/* Clear the valid bit of the event
-	 * Also clear bits within this event that might
-	 * look like valid bits (on 64-byte boundaries)
+	/* Tell the Hypervisor that we're done with this event.
+	 * Also clear bits within this event that might look like valid bits.
+	 * ie. on 64-byte boundaries.
 	 */
+	struct HvLpEvent *tmp;
 	unsigned extra = ((event->xSizeMinus1 + LpEventAlign) /
 						 LpEventAlign) - 1;
+
 	switch (extra) {
 	case 3:
-	   ((struct HvLpEvent*)((char*)event+3*LpEventAlign))->xFlags.xValid=0;
+		tmp = (struct HvLpEvent*)((char*)event + 3 * LpEventAlign);
+		tmp->xFlags.xValid = 0;
 	case 2:
-	   ((struct HvLpEvent*)((char*)event+2*LpEventAlign))->xFlags.xValid=0;
+		tmp = (struct HvLpEvent*)((char*)event + 2 * LpEventAlign);
+		tmp->xFlags.xValid = 0;
 	case 1:
-	   ((struct HvLpEvent*)((char*)event+1*LpEventAlign))->xFlags.xValid=0;
-	case 0:
-		;
+		tmp = (struct HvLpEvent*)((char*)event + 1 * LpEventAlign);
+		tmp->xFlags.xValid = 0;
 	}
+
 	mb();
+
 	event->xFlags.xValid = 0;
 }
 
 void process_hvlpevents(struct pt_regs *regs)
 {
-	struct HvLpEvent * nextLpEvent;
+	struct HvLpEvent * event;
 
 	/* If we have recursed, just return */
 	if ( !set_inUse() )
@@ -143,8 +153,8 @@ void process_hvlpevents(struct pt_regs *regs)
 		BUG();
 
 	for (;;) {
-		nextLpEvent = get_next_hvlpevent();
-		if (nextLpEvent) {
+		event = get_next_hvlpevent();
+		if (event) {
 			/* Call appropriate handler here, passing
 			 * a pointer to the LpEvent.  The handler
 			 * must make a copy of the LpEvent if it
@@ -158,15 +168,15 @@ void process_hvlpevents(struct pt_regs *regs)
 			 * registered for, so no type check is necessary
 			 * here!
 			 */
-			if (nextLpEvent->xType < HvLpEvent_Type_NumTypes)
-				__get_cpu_var(hvlpevent_counts)[nextLpEvent->xType]++;
-			if (nextLpEvent->xType < HvLpEvent_Type_NumTypes &&
-					lpEventHandler[nextLpEvent->xType])
-				lpEventHandler[nextLpEvent->xType](nextLpEvent, regs);
+			if (event->xType < HvLpEvent_Type_NumTypes)
+				__get_cpu_var(hvlpevent_counts)[event->xType]++;
+			if (event->xType < HvLpEvent_Type_NumTypes &&
+					lpEventHandler[event->xType])
+				lpEventHandler[event->xType](event, regs);
 			else
-				printk(KERN_INFO "Unexpected Lp Event type=%d\n", nextLpEvent->xType );
+				printk(KERN_INFO "Unexpected Lp Event type=%d\n", event->xType );
 
-			hvlpevent_clear_valid(nextLpEvent);
+			hvlpevent_clear_valid(event);
 		} else if (hvlpevent_queue.xPlicOverflowIntPending)
 			/*
 			 * No more valid events. If overflow events are
