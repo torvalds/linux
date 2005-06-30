@@ -19,18 +19,4 @@
  * A500 w/ PCI serial cards: 5 + 4 * card ~= 17
  */
  
-#define STD_SERIAL_PORT_DEFNS			\
-	{ 0, },		/* ttyS0 */	\
-	{ 0, },		/* ttyS1 */	\
-	{ 0, },		/* ttyS2 */	\
-	{ 0, },		/* ttyS3 */	\
-	{ 0, },		/* ttyS4 */	\
-	{ 0, },		/* ttyS5 */	\
-	{ 0, },		/* ttyS6 */	\
-	{ 0, },		/* ttyS7 */	\
-	{ 0, },		/* ttyS8 */
-
-
-#define SERIAL_PORT_DFNS		\
-	STD_SERIAL_PORT_DEFNS
-
+#define SERIAL_PORT_DFNS

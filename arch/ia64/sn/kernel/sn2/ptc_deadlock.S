@@ -6,6 +6,7 @@
  * Copyright (C) 2000-2004 Silicon Graphics, Inc. All rights reserved.
  */
 
+#include <asm/types.h>
 #include <asm/sn/shub_mmr.h>
 
 #define DEADLOCKBIT	SH_PIO_WRITE_STATUS_WRITE_DEADLOCK_SHFT
