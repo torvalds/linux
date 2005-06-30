@@ -853,26 +853,6 @@ static int __init iSeries_src_init(void)
 
 late_initcall(iSeries_src_init);
 
-static int set_spread_lpevents(char *str)
-{
-	unsigned long val = simple_strtoul(str, NULL, 0);
-	extern unsigned long spread_lpevents;
-
-	/*
-	 * The parameter is the number of processors to share in processing
-	 * lp events.
-	 */
-	if (( val > 0) && (val <= NR_CPUS)) {
-		spread_lpevents = val;
-		printk("lpevent processing spread over %ld processors\n", val);
-	} else {
-		printk("invalid spread_lpevents %ld\n", val);
-	}
-
-	return 1;
-}
-__setup("spread_lpevents=", set_spread_lpevents);
-
 #ifndef CONFIG_PCI
 void __init iSeries_init_IRQ(void) { }
 #endif

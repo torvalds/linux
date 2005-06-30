@@ -69,7 +69,7 @@ struct HvLpEvent * ItLpQueue_getNextLpEvent( struct ItLpQueue * lpQueue )
 	return nextLpEvent;
 }
 
-unsigned long spread_lpevents = NR_CPUS;
+static unsigned long spread_lpevents = NR_CPUS;
 
 int ItLpQueue_isLpIntPending( struct ItLpQueue * lpQueue )
 {
@@ -166,3 +166,23 @@ unsigned ItLpQueue_process( struct ItLpQueue * lpQueue, struct pt_regs *regs )
 
 	return numIntsProcessed;
 }
+
+static int set_spread_lpevents(char *str)
+{
+	unsigned long val = simple_strtoul(str, NULL, 0);
+
+	/*
+	 * The parameter is the number of processors to share in processing
+	 * lp events.
+	 */
+	if (( val > 0) && (val <= NR_CPUS)) {
+		spread_lpevents = val;
+		printk("lpevent processing spread over %ld processors\n", val);
+	} else {
+		printk("invalid spread_lpevents %ld\n", val);
+	}
+
+	return 1;
+}
+__setup("spread_lpevents=", set_spread_lpevents);
+
