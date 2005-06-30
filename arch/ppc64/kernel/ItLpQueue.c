@@ -69,7 +69,7 @@ struct HvLpEvent * ItLpQueue_getNextLpEvent( struct ItLpQueue * lpQueue )
 	return nextLpEvent;
 }
 
-unsigned long spread_lpevents = 1;
+unsigned long spread_lpevents = NR_CPUS;
 
 int ItLpQueue_isLpIntPending( struct ItLpQueue * lpQueue )
 {
