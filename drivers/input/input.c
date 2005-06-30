@@ -48,12 +48,6 @@ static LIST_HEAD(input_handler_list);
 
 static struct input_handler *input_table[8];
 
-#ifdef CONFIG_PROC_FS
-static struct proc_dir_entry *proc_bus_input_dir;
-static DECLARE_WAIT_QUEUE_HEAD(input_devices_poll_wait);
-static int input_devices_state;
-#endif
-
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
 	struct input_handle *handle;
@@ -312,6 +306,7 @@ static struct input_device_id *input_match_device(struct input_device_id *id, st
 	return NULL;
 }
 
+
 /*
  * Input hotplugging interface - loading event handlers based on
  * device bitfields.
@@ -428,161 +423,26 @@ static void input_call_hotplug(char *verb, struct input_dev *dev)
 
 #endif
 
-void input_register_device(struct input_dev *dev)
-{
-	struct input_handle *handle;
-	struct input_handler *handler;
-	struct input_device_id *id;
-
-	set_bit(EV_SYN, dev->evbit);
-
-	init_MUTEX(&dev->sem);
-
-	/*
-	 * If delay and period are pre-set by the driver, then autorepeating
-	 * is handled by the driver itself and we don't do it in input.c.
-	 */
-
-	init_timer(&dev->timer);
-	if (!dev->rep[REP_DELAY] && !dev->rep[REP_PERIOD]) {
-		dev->timer.data = (long) dev;
-		dev->timer.function = input_repeat_key;
-		dev->rep[REP_DELAY] = 250;
-		dev->rep[REP_PERIOD] = 33;
-	}
-
-	INIT_LIST_HEAD(&dev->h_list);
-	list_add_tail(&dev->node, &input_dev_list);
-
-	list_for_each_entry(handler, &input_handler_list, node)
-		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
-			if ((id = input_match_device(handler->id_table, dev)))
-				if ((handle = handler->connect(handler, dev, id)))
-					input_link_handle(handle);
-
-#ifdef CONFIG_HOTPLUG
-	input_call_hotplug("add", dev);
-#endif
-
 #ifdef CONFIG_PROC_FS
+
+static struct proc_dir_entry *proc_bus_input_dir;
+static DECLARE_WAIT_QUEUE_HEAD(input_devices_poll_wait);
+static int input_devices_state;
+
+static inline void input_wakeup_procfs_readers(void)
+{
 	input_devices_state++;
 	wake_up(&input_devices_poll_wait);
-#endif
 }
 
-void input_unregister_device(struct input_dev *dev)
+static unsigned int input_devices_poll(struct file *file, poll_table *wait)
 {
-	struct list_head * node, * next;
-
-	if (!dev) return;
-
-	del_timer_sync(&dev->timer);
-
-	list_for_each_safe(node, next, &dev->h_list) {
-		struct input_handle * handle = to_handle(node);
-		list_del_init(&handle->d_node);
-		list_del_init(&handle->h_node);
-		handle->handler->disconnect(handle);
-	}
-
-#ifdef CONFIG_HOTPLUG
-	input_call_hotplug("remove", dev);
-#endif
-
-	list_del_init(&dev->node);
-
-#ifdef CONFIG_PROC_FS
-	input_devices_state++;
-	wake_up(&input_devices_poll_wait);
-#endif
+	int state = input_devices_state;
+	poll_wait(file, &input_devices_poll_wait, wait);
+	if (state != input_devices_state)
+		return POLLIN | POLLRDNORM;
+	return 0;
 }
-
-void input_register_handler(struct input_handler *handler)
-{
-	struct input_dev *dev;
-	struct input_handle *handle;
-	struct input_device_id *id;
-
-	if (!handler) return;
-
-	INIT_LIST_HEAD(&handler->h_list);
-
-	if (handler->fops != NULL)
-		input_table[handler->minor >> 5] = handler;
-
-	list_add_tail(&handler->node, &input_handler_list);
-
-	list_for_each_entry(dev, &input_dev_list, node)
-		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
-			if ((id = input_match_device(handler->id_table, dev)))
-				if ((handle = handler->connect(handler, dev, id)))
-					input_link_handle(handle);
-
-#ifdef CONFIG_PROC_FS
-	input_devices_state++;
-	wake_up(&input_devices_poll_wait);
-#endif
-}
-
-void input_unregister_handler(struct input_handler *handler)
-{
-	struct list_head * node, * next;
-
-	list_for_each_safe(node, next, &handler->h_list) {
-		struct input_handle * handle = to_handle_h(node);
-		list_del_init(&handle->h_node);
-		list_del_init(&handle->d_node);
-		handler->disconnect(handle);
-	}
-
-	list_del_init(&handler->node);
-
-	if (handler->fops != NULL)
-		input_table[handler->minor >> 5] = NULL;
-
-#ifdef CONFIG_PROC_FS
-	input_devices_state++;
-	wake_up(&input_devices_poll_wait);
-#endif
-}
-
-static int input_open_file(struct inode *inode, struct file *file)
-{
-	struct input_handler *handler = input_table[iminor(inode) >> 5];
-	struct file_operations *old_fops, *new_fops = NULL;
-	int err;
-
-	/* No load-on-demand here? */
-	if (!handler || !(new_fops = fops_get(handler->fops)))
-		return -ENODEV;
-
-	/*
-	 * That's _really_ odd. Usually NULL ->open means "nothing special",
-	 * not "no device". Oh, well...
-	 */
-	if (!new_fops->open) {
-		fops_put(new_fops);
-		return -ENODEV;
-	}
-	old_fops = file->f_op;
-	file->f_op = new_fops;
-
-	err = new_fops->open(inode, file);
-
-	if (err) {
-		fops_put(file->f_op);
-		file->f_op = fops_get(old_fops);
-	}
-	fops_put(old_fops);
-	return err;
-}
-
-static struct file_operations input_fops = {
-	.owner = THIS_MODULE,
-	.open = input_open_file,
-};
-
-#ifdef CONFIG_PROC_FS
 
 #define SPRINTF_BIT_B(bit, name, max) \
 	do { \
@@ -599,16 +459,6 @@ static struct file_operations input_fops = {
 		if (test_bit(ev, dev->evbit)) \
 			SPRINTF_BIT_B(bit, name, max); \
 	} while (0)
-
-
-static unsigned int input_devices_poll(struct file *file, poll_table *wait)
-{
-	int state = input_devices_state;
-	poll_wait(file, &input_devices_poll_wait, wait);
-	if (state != input_devices_state)
-		return POLLIN | POLLRDNORM;
-	return 0;
-}
 
 static int input_devices_read(char *buf, char **start, off_t pos, int count, int *eof, void *data)
 {
@@ -704,68 +554,225 @@ static int __init input_proc_init(void)
 	struct proc_dir_entry *entry;
 
 	proc_bus_input_dir = proc_mkdir("input", proc_bus);
-	if (proc_bus_input_dir == NULL)
+	if (!proc_bus_input_dir)
 		return -ENOMEM;
+
 	proc_bus_input_dir->owner = THIS_MODULE;
+
 	entry = create_proc_read_entry("devices", 0, proc_bus_input_dir, input_devices_read, NULL);
-	if (entry == NULL) {
-		remove_proc_entry("input", proc_bus);
-		return -ENOMEM;
-	}
+	if (!entry)
+		goto fail1;
+
 	entry->owner = THIS_MODULE;
 	input_fileops = *entry->proc_fops;
 	entry->proc_fops = &input_fileops;
 	entry->proc_fops->poll = input_devices_poll;
+
 	entry = create_proc_read_entry("handlers", 0, proc_bus_input_dir, input_handlers_read, NULL);
-	if (entry == NULL) {
-		remove_proc_entry("devices", proc_bus_input_dir);
-		remove_proc_entry("input", proc_bus);
-		return -ENOMEM;
-	}
+	if (!entry)
+		goto fail2;
+
 	entry->owner = THIS_MODULE;
+
 	return 0;
+
+ fail2:	remove_proc_entry("devices", proc_bus_input_dir);
+ fail1: remove_proc_entry("input", proc_bus);
+	return -ENOMEM;
 }
+
+static void __exit input_proc_exit(void)
+{
+	remove_proc_entry("devices", proc_bus_input_dir);
+	remove_proc_entry("handlers", proc_bus_input_dir);
+	remove_proc_entry("input", proc_bus);
+}
+
 #else /* !CONFIG_PROC_FS */
+static inline void input_wakeup_procfs_readers(void) { }
 static inline int input_proc_init(void) { return 0; }
+static inline void input_proc_exit(void) { }
 #endif
+
+void input_register_device(struct input_dev *dev)
+{
+	struct input_handle *handle;
+	struct input_handler *handler;
+	struct input_device_id *id;
+
+	set_bit(EV_SYN, dev->evbit);
+
+	init_MUTEX(&dev->sem);
+
+	/*
+	 * If delay and period are pre-set by the driver, then autorepeating
+	 * is handled by the driver itself and we don't do it in input.c.
+	 */
+
+	init_timer(&dev->timer);
+	if (!dev->rep[REP_DELAY] && !dev->rep[REP_PERIOD]) {
+		dev->timer.data = (long) dev;
+		dev->timer.function = input_repeat_key;
+		dev->rep[REP_DELAY] = 250;
+		dev->rep[REP_PERIOD] = 33;
+	}
+
+	INIT_LIST_HEAD(&dev->h_list);
+	list_add_tail(&dev->node, &input_dev_list);
+
+	list_for_each_entry(handler, &input_handler_list, node)
+		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
+			if ((id = input_match_device(handler->id_table, dev)))
+				if ((handle = handler->connect(handler, dev, id)))
+					input_link_handle(handle);
+
+#ifdef CONFIG_HOTPLUG
+	input_call_hotplug("add", dev);
+#endif
+
+	input_wakeup_procfs_readers();
+}
+
+void input_unregister_device(struct input_dev *dev)
+{
+	struct list_head * node, * next;
+
+	if (!dev) return;
+
+	del_timer_sync(&dev->timer);
+
+	list_for_each_safe(node, next, &dev->h_list) {
+		struct input_handle * handle = to_handle(node);
+		list_del_init(&handle->d_node);
+		list_del_init(&handle->h_node);
+		handle->handler->disconnect(handle);
+	}
+
+#ifdef CONFIG_HOTPLUG
+	input_call_hotplug("remove", dev);
+#endif
+
+	list_del_init(&dev->node);
+
+	input_wakeup_procfs_readers();
+}
+
+void input_register_handler(struct input_handler *handler)
+{
+	struct input_dev *dev;
+	struct input_handle *handle;
+	struct input_device_id *id;
+
+	if (!handler) return;
+
+	INIT_LIST_HEAD(&handler->h_list);
+
+	if (handler->fops != NULL)
+		input_table[handler->minor >> 5] = handler;
+
+	list_add_tail(&handler->node, &input_handler_list);
+
+	list_for_each_entry(dev, &input_dev_list, node)
+		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
+			if ((id = input_match_device(handler->id_table, dev)))
+				if ((handle = handler->connect(handler, dev, id)))
+					input_link_handle(handle);
+
+	input_wakeup_procfs_readers();
+}
+
+void input_unregister_handler(struct input_handler *handler)
+{
+	struct list_head * node, * next;
+
+	list_for_each_safe(node, next, &handler->h_list) {
+		struct input_handle * handle = to_handle_h(node);
+		list_del_init(&handle->h_node);
+		list_del_init(&handle->d_node);
+		handler->disconnect(handle);
+	}
+
+	list_del_init(&handler->node);
+
+	if (handler->fops != NULL)
+		input_table[handler->minor >> 5] = NULL;
+
+	input_wakeup_procfs_readers();
+}
+
+static int input_open_file(struct inode *inode, struct file *file)
+{
+	struct input_handler *handler = input_table[iminor(inode) >> 5];
+	struct file_operations *old_fops, *new_fops = NULL;
+	int err;
+
+	/* No load-on-demand here? */
+	if (!handler || !(new_fops = fops_get(handler->fops)))
+		return -ENODEV;
+
+	/*
+	 * That's _really_ odd. Usually NULL ->open means "nothing special",
+	 * not "no device". Oh, well...
+	 */
+	if (!new_fops->open) {
+		fops_put(new_fops);
+		return -ENODEV;
+	}
+	old_fops = file->f_op;
+	file->f_op = new_fops;
+
+	err = new_fops->open(inode, file);
+
+	if (err) {
+		fops_put(file->f_op);
+		file->f_op = fops_get(old_fops);
+	}
+	fops_put(old_fops);
+	return err;
+}
+
+static struct file_operations input_fops = {
+	.owner = THIS_MODULE,
+	.open = input_open_file,
+};
 
 struct class *input_class;
 
 static int __init input_init(void)
 {
-	int retval = -ENOMEM;
+	int err;
 
 	input_class = class_create(THIS_MODULE, "input");
-	if (IS_ERR(input_class))
+	if (IS_ERR(input_class)) {
+		printk(KERN_ERR "input: unable to register input class\n");
 		return PTR_ERR(input_class);
-	input_proc_init();
-	retval = register_chrdev(INPUT_MAJOR, "input", &input_fops);
-	if (retval) {
-		printk(KERN_ERR "input: unable to register char major %d", INPUT_MAJOR);
-		remove_proc_entry("devices", proc_bus_input_dir);
-		remove_proc_entry("handlers", proc_bus_input_dir);
-		remove_proc_entry("input", proc_bus);
-		class_destroy(input_class);
-		return retval;
 	}
 
-	retval = devfs_mk_dir("input");
-	if (retval) {
-		remove_proc_entry("devices", proc_bus_input_dir);
-		remove_proc_entry("handlers", proc_bus_input_dir);
-		remove_proc_entry("input", proc_bus);
-		unregister_chrdev(INPUT_MAJOR, "input");
-		class_destroy(input_class);
+	err = input_proc_init();
+	if (err)
+		goto fail1;
+
+	err = register_chrdev(INPUT_MAJOR, "input", &input_fops);
+	if (err) {
+		printk(KERN_ERR "input: unable to register char major %d", INPUT_MAJOR);
+		goto fail2;
 	}
-	return retval;
+
+	err = devfs_mk_dir("input");
+	if (err)
+		goto fail3;
+
+	return 0;
+
+ fail3:	unregister_chrdev(INPUT_MAJOR, "input");
+ fail2:	input_proc_exit();
+ fail1:	class_destroy(input_class);
+	return err;
 }
 
 static void __exit input_exit(void)
 {
-	remove_proc_entry("devices", proc_bus_input_dir);
-	remove_proc_entry("handlers", proc_bus_input_dir);
-	remove_proc_entry("input", proc_bus);
-
+	input_proc_exit();
 	devfs_remove("input");
 	unregister_chrdev(INPUT_MAJOR, "input");
 	class_destroy(input_class);
