@@ -1059,6 +1059,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-pxa2xx-ac97 (on arm only)
+  ------------------------------------
+
+    Module for AC97 driver for the Intel PXA2xx chip
+
+    For ARM architecture only.
+
   Module snd-rme32
   ----------------
 
