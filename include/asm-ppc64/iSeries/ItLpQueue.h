@@ -76,9 +76,9 @@ struct ItLpQueue {
 
 extern struct ItLpQueue xItLpQueue;
 
-extern struct HvLpEvent *ItLpQueue_getNextLpEvent(struct ItLpQueue *);
-extern int ItLpQueue_isLpIntPending(struct ItLpQueue *);
-extern unsigned ItLpQueue_process(struct ItLpQueue *, struct pt_regs *);
+extern struct HvLpEvent *ItLpQueue_getNextLpEvent(void);
+extern int ItLpQueue_isLpIntPending(void);
+extern unsigned ItLpQueue_process(struct pt_regs *);
 extern void ItLpQueue_clearValid(struct HvLpEvent *);
 
 #endif /* _ITLPQUEUE_H */

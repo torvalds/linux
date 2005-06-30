@@ -17,10 +17,10 @@
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/HvCallEvent.h>
 
-static __inline__ int set_inUse( struct ItLpQueue * lpQueue )
+static __inline__ int set_inUse(void)
 {
 	int t;
-	u32 * inUseP = &(lpQueue->xInUseWord);
+	u32 * inUseP = &xItLpQueue.xInUseWord;
 
 	__asm__ __volatile__("\n\
 1:	lwarx	%0,0,%2		\n\
@@ -31,37 +31,37 @@ static __inline__ int set_inUse( struct ItLpQueue * lpQueue )
 	stwcx.	%0,0,%2		\n\
 	bne-	1b		\n\
 2:	eieio"
-	: "=&r" (t), "=m" (lpQueue->xInUseWord)
-	: "r" (inUseP), "m" (lpQueue->xInUseWord)
+	: "=&r" (t), "=m" (xItLpQueue.xInUseWord)
+	: "r" (inUseP), "m" (xItLpQueue.xInUseWord)
 	: "cc");
 
 	return t;
 }
 
-static __inline__ void clear_inUse( struct ItLpQueue * lpQueue )
+static __inline__ void clear_inUse(void)
 {
-	lpQueue->xInUseWord = 0;
+	xItLpQueue.xInUseWord = 0;
 }
 
 /* Array of LpEvent handler functions */
 extern LpEventHandler lpEventHandler[HvLpEvent_Type_NumTypes];
 unsigned long ItLpQueueInProcess = 0;
 
-struct HvLpEvent * ItLpQueue_getNextLpEvent( struct ItLpQueue * lpQueue )
+struct HvLpEvent * ItLpQueue_getNextLpEvent(void)
 {
 	struct HvLpEvent * nextLpEvent = 
-		(struct HvLpEvent *)lpQueue->xSlicCurEventPtr;
+		(struct HvLpEvent *)xItLpQueue.xSlicCurEventPtr;
 	if ( nextLpEvent->xFlags.xValid ) {
 		/* rmb() needed only for weakly consistent machines (regatta) */
 		rmb();
 		/* Set pointer to next potential event */
-		lpQueue->xSlicCurEventPtr += ((nextLpEvent->xSizeMinus1 +
+		xItLpQueue.xSlicCurEventPtr += ((nextLpEvent->xSizeMinus1 +
 				      LpEventAlign ) /
 				      LpEventAlign ) *
 				      LpEventAlign;
 		/* Wrap to beginning if no room at end */
-		if (lpQueue->xSlicCurEventPtr > lpQueue->xSlicLastValidEventPtr)
-			lpQueue->xSlicCurEventPtr = lpQueue->xSlicEventStackPtr;
+		if (xItLpQueue.xSlicCurEventPtr > xItLpQueue.xSlicLastValidEventPtr)
+			xItLpQueue.xSlicCurEventPtr = xItLpQueue.xSlicEventStackPtr;
 	}
 	else 
 		nextLpEvent = NULL;
@@ -71,15 +71,15 @@ struct HvLpEvent * ItLpQueue_getNextLpEvent( struct ItLpQueue * lpQueue )
 
 static unsigned long spread_lpevents = NR_CPUS;
 
-int ItLpQueue_isLpIntPending( struct ItLpQueue * lpQueue )
+int ItLpQueue_isLpIntPending(void)
 {
 	struct HvLpEvent *next_event;
 
 	if (smp_processor_id() >= spread_lpevents)
 		return 0;
 
-	next_event = (struct HvLpEvent *)lpQueue->xSlicCurEventPtr;
-	return next_event->xFlags.xValid | lpQueue->xPlicOverflowIntPending;
+	next_event = (struct HvLpEvent *)xItLpQueue.xSlicCurEventPtr;
+	return next_event->xFlags.xValid | xItLpQueue.xPlicOverflowIntPending;
 }
 
 void ItLpQueue_clearValid( struct HvLpEvent * event )
@@ -104,13 +104,13 @@ void ItLpQueue_clearValid( struct HvLpEvent * event )
 	event->xFlags.xValid = 0;
 }
 
-unsigned ItLpQueue_process( struct ItLpQueue * lpQueue, struct pt_regs *regs )
+unsigned ItLpQueue_process(struct pt_regs *regs)
 {
 	unsigned numIntsProcessed = 0;
 	struct HvLpEvent * nextLpEvent;
 
 	/* If we have recursed, just return */
-	if ( !set_inUse( lpQueue ) )
+	if ( !set_inUse() )
 		return 0;
 	
 	if (ItLpQueueInProcess == 0)
@@ -119,13 +119,13 @@ unsigned ItLpQueue_process( struct ItLpQueue * lpQueue, struct pt_regs *regs )
 		BUG();
 
 	for (;;) {
-		nextLpEvent = ItLpQueue_getNextLpEvent( lpQueue );
+		nextLpEvent = ItLpQueue_getNextLpEvent();
 		if ( nextLpEvent ) {
 			/* Count events to return to caller
-			 * and count processed events in lpQueue
+			 * and count processed events in xItLpQueue
  			 */
 			++numIntsProcessed;
-			lpQueue->xLpIntCount++;		
+			xItLpQueue.xLpIntCount++;
 			/* Call appropriate handler here, passing 
 			 * a pointer to the LpEvent.  The handler
 			 * must make a copy of the LpEvent if it
@@ -140,7 +140,7 @@ unsigned ItLpQueue_process( struct ItLpQueue * lpQueue, struct pt_regs *regs )
 			 * here!
   			 */
 			if ( nextLpEvent->xType < HvLpEvent_Type_NumTypes )
-				lpQueue->xLpIntCountByType[nextLpEvent->xType]++;
+				xItLpQueue.xLpIntCountByType[nextLpEvent->xType]++;
 			if ( nextLpEvent->xType < HvLpEvent_Type_NumTypes &&
 			     lpEventHandler[nextLpEvent->xType] ) 
 				lpEventHandler[nextLpEvent->xType](nextLpEvent, regs);
@@ -148,19 +148,19 @@ unsigned ItLpQueue_process( struct ItLpQueue * lpQueue, struct pt_regs *regs )
 				printk(KERN_INFO "Unexpected Lp Event type=%d\n", nextLpEvent->xType );
 			
 			ItLpQueue_clearValid( nextLpEvent );
-		} else if ( lpQueue->xPlicOverflowIntPending )
+		} else if ( xItLpQueue.xPlicOverflowIntPending )
 			/*
 			 * No more valid events. If overflow events are
 			 * pending process them
 			 */
-			HvCallEvent_getOverflowLpEvents( lpQueue->xIndex);
+			HvCallEvent_getOverflowLpEvents( xItLpQueue.xIndex);
 		else
 			break;
 	}
 
 	ItLpQueueInProcess = 0;
 	mb();
-	clear_inUse( lpQueue );
+	clear_inUse();
 
 	get_paca()->lpevent_count += numIntsProcessed;
 
