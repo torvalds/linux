@@ -1178,6 +1178,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module supports up to 8 cards.
 
+  Module snd-sun-dbri (on sparc only)
+  -----------------------------------
+
+    Module for DBRI sound chips found on Sparcs.
+
+    Module supports up to 8 cards.
+
   Module snd-wavefront
   --------------------
 
