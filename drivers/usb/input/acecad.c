@@ -87,8 +87,8 @@ static void usb_acecad_irq(struct urb *urb, struct pt_regs *regs)
 	if (prox) {
 		int x = data[1] | (data[2] << 8);
 		int y = data[3] | (data[4] << 8);
-		/*Pressure should compute the same way for flair and 302*/
-		int pressure = data[5] | ((int)data[6] << 8);
+		/* Pressure should compute the same way for flair and 302 */
+		int pressure = data[5] | (data[6] << 8);
 		int touch = data[0] & 0x01;
 		int stylus = (data[0] & 0x10) >> 4;
 		int stylus2 = (data[0] & 0x20) >> 5;
@@ -104,9 +104,9 @@ static void usb_acecad_irq(struct urb *urb, struct pt_regs *regs)
 	input_sync(dev);
 
 resubmit:
-	status = usb_submit_urb (urb, GFP_ATOMIC);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status)
-		err ("can't resubmit intr, %s-%s/input0, status %d",
+		err("can't resubmit intr, %s-%s/input0, status %d",
 			acecad->usbdev->bus->bus_name, acecad->usbdev->devpath, status);
 }
 
