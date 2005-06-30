@@ -40,50 +40,6 @@ static int __init iseries_proc_create(void)
 }
 core_initcall(iseries_proc_create);
 
-static char *event_types[9] = {
-	"Hypervisor\t\t",
-	"Machine Facilities\t",
-	"Session Manager\t",
-	"SPD I/O\t\t",
-	"Virtual Bus\t\t",
-	"PCI I/O\t\t",
-	"RIO I/O\t\t",
-	"Virtual Lan\t\t",
-	"Virtual I/O\t\t"
-};
-
-static int proc_lpevents_show(struct seq_file *m, void *v)
-{
-	unsigned int i;
-
-	seq_printf(m, "LpEventQueue 0\n");
-	seq_printf(m, "  events processed:\t%lu\n",
-		   (unsigned long)xItLpQueue.xLpIntCount);
-
-	for (i = 0; i < 9; ++i)
-		seq_printf(m, "    %s %10lu\n", event_types[i],
-			   (unsigned long)xItLpQueue.xLpIntCountByType[i]);
-
-	seq_printf(m, "\n  events processed by processor:\n");
-
-	for_each_online_cpu(i)
-		seq_printf(m, "    CPU%02d  %10u\n", i, paca[i].lpevent_count);
-
-	return 0;
-}
-
-static int proc_lpevents_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_lpevents_show, NULL);
-}
-
-static struct file_operations proc_lpevents_operations = {
-	.open		= proc_lpevents_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static unsigned long startTitan = 0;
 static unsigned long startTb = 0;
 
@@ -147,10 +103,6 @@ static struct file_operations proc_titantod_operations = {
 static int __init iseries_proc_init(void)
 {
 	struct proc_dir_entry *e;
-
-	e = create_proc_entry("iSeries/lpevents", S_IFREG|S_IRUGO, NULL);
-	if (e)
-		e->proc_fops = &proc_lpevents_operations;
 
 	e = create_proc_entry("iSeries/titanTod", S_IFREG|S_IRUGO, NULL);
 	if (e)
