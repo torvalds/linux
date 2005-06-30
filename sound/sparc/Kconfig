@@ -7,12 +7,22 @@ config SND_SUN_AMD7930
 	tristate "Sun AMD7930"
 	depends on SBUS && SND
 	select SND_PCM
+	help
+	  Say Y here to include support for AMD7930 sound device on Sun.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-sun-amd7930.
 
 #  dep_tristate 'Sun DBRI' CONFIG_SND_SUN_DBRI $CONFIG_SND
 config SND_SUN_CS4231
 	tristate "Sun CS4231"
 	depends on SND
 	select SND_PCM
+	help
+	  Say Y here to include support for CS4231 sound device on Sun.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-sun-cs4231.
 
 endmenu
 
