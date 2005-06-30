@@ -62,7 +62,7 @@ static __inline__ void clear_inUse(void)
 extern LpEventHandler lpEventHandler[HvLpEvent_Type_NumTypes];
 unsigned long ItLpQueueInProcess = 0;
 
-struct HvLpEvent * ItLpQueue_getNextLpEvent(void)
+static struct HvLpEvent * ItLpQueue_getNextLpEvent(void)
 {
 	struct HvLpEvent * nextLpEvent = 
 		(struct HvLpEvent *)xItLpQueue.xSlicCurEventPtr;
@@ -97,7 +97,7 @@ int ItLpQueue_isLpIntPending(void)
 	return next_event->xFlags.xValid | xItLpQueue.xPlicOverflowIntPending;
 }
 
-void ItLpQueue_clearValid( struct HvLpEvent * event )
+static void ItLpQueue_clearValid( struct HvLpEvent * event )
 {
 	/* Clear the valid bit of the event
 	 * Also clear bits within this event that might
