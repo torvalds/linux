@@ -99,7 +99,7 @@ CONFIG_ACPI_DEALLOCATE_IRQ=y
 # Firmware Drivers
 #
 CONFIG_EFI_VARS=y
-# CONFIG_EFI_PCDP is not set
+CONFIG_EFI_PCDP=y
 CONFIG_BINFMT_ELF=y
 # CONFIG_BINFMT_MISC is not set
 
@@ -650,7 +650,7 @@ CONFIG_MMTIMER=y
 #
 # Console display driver support
 #
-# CONFIG_VGA_CONSOLE is not set
+CONFIG_VGA_CONSOLE=y
 CONFIG_DUMMY_CONSOLE=y
 
 #
