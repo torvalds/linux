@@ -371,16 +371,12 @@ void __init vr1000_map_io(void)
 	usb_simtec_init();
 }
 
-void __init vr1000_init_irq(void)
-{
-	s3c24xx_init_irq();
-}
 
 MACHINE_START(VR1000, "Thorcom-VR1000")
      MAINTAINER("Ben Dooks <ben@simtec.co.uk>")
      BOOT_MEM(S3C2410_SDRAM_PA, S3C2410_PA_UART, (u32)S3C24XX_VA_UART)
      BOOT_PARAMS(S3C2410_SDRAM_PA + 0x100)
-     MAPIO(vr1000_map_io)
-     INITIRQ(vr1000_init_irq)
+	.map_io		= vr1000_map_io,
+	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
 MACHINE_END
