@@ -193,7 +193,7 @@ struct ItVpdAreas itVpdAreas = {
 		0,0,0,			/* 13 - 15 */
 		sizeof(struct IoHriProcessorVpd),/* 16 length of Proc Vpd */
 		0,0,0,0,0,0,		/* 17 - 22  */
-		sizeof(struct ItLpQueue),/*     23 length of Lp Queue */
+		sizeof(struct hvlpevent_queue),	/* 23 length of Lp Queue */
 		0,0			/* 24 - 25 */
 		},
 	.xSlicVpdAdrs = {			/* VPD addresses */
@@ -211,7 +211,7 @@ struct ItVpdAreas itVpdAreas = {
 		0,0,0,			/* 13 - 15 */
 		&xIoHriProcessorVpd,	/*      16 Proc Vpd */
 		0,0,0,0,0,0,		/* 17 - 22 */
-		&xItLpQueue,		/*      23 Lp Queue */
+		&hvlpevent_queue,	/*      23 Lp Queue */
 		0,0
 	}
 };
