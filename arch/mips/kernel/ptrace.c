@@ -177,19 +177,22 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			write_c0_status(flags);
 			break;
 		}
-		case DSP_BASE ... DSP_BASE + 5:
+		case DSP_BASE ... DSP_BASE + 5: {
+			dspreg_t *dregs;
+
 			if (!cpu_has_dsp) {
 				tmp = 0;
 				ret = -EIO;
 				goto out_tsk;
 			}
 			if (child->thread.dsp.used_dsp) {
-				dspreg_t *dregs = __get_dsp_regs(child);
+				dregs = __get_dsp_regs(child);
 				tmp = (unsigned long) (dregs[addr - DSP_BASE]);
 			} else {
 				tmp = -1;	/* DSP registers yet used  */
 			}
 			break;
+		}
 		case DSP_CONTROL:
 			if (!cpu_has_dsp) {
 				tmp = 0;
@@ -270,15 +273,18 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			else
 				child->thread.fpu.soft.fcr31 = data;
 			break;
-		case DSP_BASE ... DSP_BASE + 5:
+		case DSP_BASE ... DSP_BASE + 5: {
+			dspreg_t *dregs;
+
 			if (!cpu_has_dsp) {
 				ret = -EIO;
 				break;
 			}
 
-			dspreg_t *dregs = __get_dsp_regs(child);
+			dregs = __get_dsp_regs(child);
 			dregs[addr - DSP_BASE] = data;
 			break;
+		}
 		case DSP_CONTROL:
 			if (!cpu_has_dsp) {
 				ret = -EIO;
