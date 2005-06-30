@@ -1376,7 +1376,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-vxpocket
   -------------------
 
-    Module for Digigram VX-Pocket VX2 PCMCIA card.
+    Module for Digigram VX-Pocket VX2 and 440 PCMCIA cards.
 
     ibl      - Capture IBL size. (default = 0, minimum size)
 
@@ -1385,29 +1385,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     To activate the driver via the card manager, you'll need to set
     up /etc/pcmcia/vxpocket.conf.  See the sound/pcmcia/vx/vxpocket.c.
-
-    When the driver is compiled as a module and the hotplug firmware
-    is supported, the firmware data is loaded via hotplug automatically.
-    Install the necessary firmware files in alsa-firmware package.
-    When no hotplug fw loader is available, you need to load the
-    firmware via vxloader utility in alsa-tools package.
-
-    About capture IBL, see the description of snd-vx222 module.
-
-    Note: the driver is build only when CONFIG_ISA is set.
-    
-  Module snd-vxp440
-  -----------------
-
-    Module for Digigram VX-Pocket 440 PCMCIA card.
-
-    ibl      - Capture IBL size. (default = 0, minimum size)
-
-    Module supports up to 8 cards.  The module is compiled only when
-    PCMCIA is supported on kernel.
-
-    To activate the driver via the card manager, you'll need to set
-    up /etc/pcmcia/vxp440.conf.  See the sound/pcmcia/vx/vxp440.c.
 
     When the driver is compiled as a module and the hotplug firmware
     is supported, the firmware data is loaded via hotplug automatically.
