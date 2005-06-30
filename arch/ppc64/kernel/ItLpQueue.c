@@ -70,7 +70,7 @@ static __inline__ void clear_inUse(void)
 extern LpEventHandler lpEventHandler[HvLpEvent_Type_NumTypes];
 unsigned long ItLpQueueInProcess = 0;
 
-static struct HvLpEvent * ItLpQueue_getNextLpEvent(void)
+static struct HvLpEvent * get_next_hvlpevent(void)
 {
 	struct HvLpEvent * nextLpEvent = 
 		(struct HvLpEvent *)hvlpevent_queue.xSlicCurEventPtr;
@@ -94,7 +94,7 @@ static struct HvLpEvent * ItLpQueue_getNextLpEvent(void)
 
 static unsigned long spread_lpevents = NR_CPUS;
 
-int ItLpQueue_isLpIntPending(void)
+int hvlpevent_is_pending(void)
 {
 	struct HvLpEvent *next_event;
 
@@ -105,7 +105,7 @@ int ItLpQueue_isLpIntPending(void)
 	return next_event->xFlags.xValid | hvlpevent_queue.xPlicOverflowIntPending;
 }
 
-static void ItLpQueue_clearValid( struct HvLpEvent * event )
+static void hvlpevent_clear_valid( struct HvLpEvent * event )
 {
 	/* Clear the valid bit of the event
 	 * Also clear bits within this event that might
@@ -127,7 +127,7 @@ static void ItLpQueue_clearValid( struct HvLpEvent * event )
 	event->xFlags.xValid = 0;
 }
 
-unsigned ItLpQueue_process(struct pt_regs *regs)
+unsigned process_hvlpevents(struct pt_regs *regs)
 {
 	unsigned numIntsProcessed = 0;
 	struct HvLpEvent * nextLpEvent;
@@ -142,7 +142,7 @@ unsigned ItLpQueue_process(struct pt_regs *regs)
 		BUG();
 
 	for (;;) {
-		nextLpEvent = ItLpQueue_getNextLpEvent();
+		nextLpEvent = get_next_hvlpevent();
 		if ( nextLpEvent ) {
 			/* Count events to return to caller
 			 * and count processed events in hvlpevent_queue
@@ -170,7 +170,7 @@ unsigned ItLpQueue_process(struct pt_regs *regs)
 			else
 				printk(KERN_INFO "Unexpected Lp Event type=%d\n", nextLpEvent->xType );
 			
-			ItLpQueue_clearValid( nextLpEvent );
+			hvlpevent_clear_valid( nextLpEvent );
 		} else if ( hvlpevent_queue.xPlicOverflowIntPending )
 			/*
 			 * No more valid events. If overflow events are

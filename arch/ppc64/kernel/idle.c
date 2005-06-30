@@ -88,7 +88,7 @@ static int iSeries_idle(void)
 
 	while (1) {
 		if (lpaca->lppaca.shared_proc) {
-			if (ItLpQueue_isLpIntPending())
+			if (hvlpevent_is_pending())
 				process_iSeries_events();
 			if (!need_resched())
 				yield_shared_processor();
@@ -100,7 +100,7 @@ static int iSeries_idle(void)
 
 				while (!need_resched()) {
 					HMT_medium();
-					if (ItLpQueue_isLpIntPending())
+					if (hvlpevent_is_pending())
 						process_iSeries_events();
 					HMT_low();
 				}

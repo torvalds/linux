@@ -294,8 +294,8 @@ void do_IRQ(struct pt_regs *regs)
 		iSeries_smp_message_recv(regs);
 	}
 #endif /* CONFIG_SMP */
-	if (ItLpQueue_isLpIntPending())
-		lpevent_count += ItLpQueue_process(regs);
+	if (hvlpevent_is_pending())
+		lpevent_count += process_hvlpevents(regs);
 
 	irq_exit();
 

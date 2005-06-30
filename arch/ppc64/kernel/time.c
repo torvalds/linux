@@ -367,8 +367,8 @@ int timer_interrupt(struct pt_regs * regs)
 	set_dec(next_dec);
 
 #ifdef CONFIG_PPC_ISERIES
-	if (ItLpQueue_isLpIntPending())
-		lpevent_count += ItLpQueue_process(regs);
+	if (hvlpevent_is_pending())
+		lpevent_count += process_hvlpevents(regs);
 #endif
 
 /* collect purr register values often, for accurate calculations */
