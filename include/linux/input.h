@@ -811,9 +811,9 @@ struct input_dev {
 
 	void *private;
 
-	char *name;
-	char *phys;
-	char *uniq;
+	const char *name;
+	const char *phys;
+	const char *uniq;
 	struct input_id id;
 
 	unsigned long evbit[NBITS(EV_MAX)];

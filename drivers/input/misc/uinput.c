@@ -251,6 +251,7 @@ static int uinput_alloc_device(struct file *file, const char __user *buffer, siz
 	struct uinput_user_dev	*user_dev;
 	struct input_dev	*dev;
 	struct uinput_device	*udev;
+	char			*name;
 	int			size;
 	int			retval;
 
@@ -274,13 +275,13 @@ static int uinput_alloc_device(struct file *file, const char __user *buffer, siz
 		kfree(dev->name);
 
 	size = strnlen(user_dev->name, UINPUT_MAX_NAME_SIZE) + 1;
-	dev->name = kmalloc(size, GFP_KERNEL);
-	if (!dev->name) {
+	dev->name = name = kmalloc(size, GFP_KERNEL);
+	if (!name) {
 		retval = -ENOMEM;
 		goto exit;
 	}
+	strlcpy(name, user_dev->name, size);
 
-	strlcpy(dev->name, user_dev->name, size);
 	dev->id.bustype	= user_dev->id.bustype;
 	dev->id.vendor	= user_dev->id.vendor;
 	dev->id.product	= user_dev->id.product;
@@ -397,6 +398,7 @@ static int uinput_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 	struct uinput_ff_erase  ff_erase;
 	struct uinput_request   *req;
 	int                     length;
+	char			*phys;
 
 	udev = file->private_data;
 
@@ -494,20 +496,19 @@ static int uinput_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 				retval = -EFAULT;
 				break;
 			}
-			if (NULL != udev->dev->phys)
-				kfree(udev->dev->phys);
-			udev->dev->phys = kmalloc(length, GFP_KERNEL);
-			if (!udev->dev->phys) {
+			kfree(udev->dev->phys);
+			udev->dev->phys = phys = kmalloc(length, GFP_KERNEL);
+			if (!phys) {
 				retval = -ENOMEM;
 				break;
 			}
-			if (copy_from_user(udev->dev->phys, p, length)) {
-				retval = -EFAULT;
-				kfree(udev->dev->phys);
+			if (copy_from_user(phys, p, length)) {
 				udev->dev->phys = NULL;
+				kfree(phys);
+				retval = -EFAULT;
 				break;
 			}
-			udev->dev->phys[length - 1] = '\0';
+			phys[length - 1] = '\0';
 			break;
 
 		case UI_BEGIN_FF_UPLOAD:

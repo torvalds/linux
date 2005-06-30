@@ -1228,14 +1228,7 @@ static int __devinit sonypi_probe(void)
 		sonypi_device.input_jog_dev.keybit[LONG(BTN_MOUSE)] =
 			BIT(BTN_MIDDLE);
 		sonypi_device.input_jog_dev.relbit[0] = BIT(REL_WHEEL);
-		sonypi_device.input_jog_dev.name =
-			kmalloc(sizeof(SONYPI_JOG_INPUTNAME), GFP_KERNEL);
-		if (!sonypi_device.input_jog_dev.name) {
-			printk(KERN_ERR "sonypi: kmalloc failed\n");
-			ret = -ENOMEM;
-			goto out_inkmallocinput1;
-		}
-		sprintf(sonypi_device.input_jog_dev.name, SONYPI_JOG_INPUTNAME);
+		sonypi_device.input_jog_dev.name = SONYPI_JOG_INPUTNAME;
 		sonypi_device.input_jog_dev.id.bustype = BUS_ISA;
 		sonypi_device.input_jog_dev.id.vendor = PCI_VENDOR_ID_SONY;
 
@@ -1249,14 +1242,7 @@ static int __devinit sonypi_probe(void)
 			if (sonypi_inputkeys[i].inputev)
 				set_bit(sonypi_inputkeys[i].inputev,
 					sonypi_device.input_key_dev.keybit);
-		sonypi_device.input_key_dev.name =
-			kmalloc(sizeof(SONYPI_KEY_INPUTNAME), GFP_KERNEL);
-		if (!sonypi_device.input_key_dev.name) {
-			printk(KERN_ERR "sonypi: kmalloc failed\n");
-			ret = -ENOMEM;
-			goto out_inkmallocinput2;
-		}
-		sprintf(sonypi_device.input_key_dev.name, SONYPI_KEY_INPUTNAME);
+		sonypi_device.input_key_dev.name = SONYPI_KEY_INPUTNAME;
 		sonypi_device.input_key_dev.id.bustype = BUS_ISA;
 		sonypi_device.input_key_dev.id.vendor = PCI_VENDOR_ID_SONY;
 
@@ -1314,11 +1300,7 @@ out_platformdev:
 	kfifo_free(sonypi_device.input_fifo);
 out_infifo:
 	input_unregister_device(&sonypi_device.input_key_dev);
-	kfree(sonypi_device.input_key_dev.name);
-out_inkmallocinput2:
 	input_unregister_device(&sonypi_device.input_jog_dev);
-	kfree(sonypi_device.input_jog_dev.name);
-out_inkmallocinput1:
 	free_irq(sonypi_device.irq, sonypi_irq);
 out_reqirq:
 	release_region(sonypi_device.ioport1, sonypi_device.region_size);
@@ -1345,9 +1327,7 @@ static void __devexit sonypi_remove(void)
 
 	if (useinput) {
 		input_unregister_device(&sonypi_device.input_key_dev);
-		kfree(sonypi_device.input_key_dev.name);
 		input_unregister_device(&sonypi_device.input_jog_dev);
-		kfree(sonypi_device.input_jog_dev.name);
 		kfifo_free(sonypi_device.input_fifo);
 	}
 
