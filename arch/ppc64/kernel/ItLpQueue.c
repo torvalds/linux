@@ -31,15 +31,15 @@ struct hvlpevent_queue hvlpevent_queue __attribute__((__section__(".data")));
 DEFINE_PER_CPU(unsigned long[HvLpEvent_Type_NumTypes], hvlpevent_counts);
 
 static char *event_types[HvLpEvent_Type_NumTypes] = {
-	"Hypervisor\t\t",
-	"Machine Facilities\t",
-	"Session Manager\t",
-	"SPD I/O\t\t",
-	"Virtual Bus\t\t",
-	"PCI I/O\t\t",
-	"RIO I/O\t\t",
-	"Virtual Lan\t\t",
-	"Virtual I/O\t\t"
+	"Hypervisor",
+	"Machine Facilities",
+	"Session Manager",
+	"SPD I/O",
+	"Virtual Bus",
+	"PCI I/O",
+	"RIO I/O",
+	"Virtual Lan",
+	"Virtual I/O"
 };
 
 static __inline__ int set_inUse(void)
@@ -248,7 +248,7 @@ static int proc_lpevents_show(struct seq_file *m, void *v)
 			sum += per_cpu(hvlpevent_counts, cpu)[i];
 		}
 
-		seq_printf(m, "    %s %10lu\n", event_types[i], sum);
+		seq_printf(m, "    %-20s %10lu\n", event_types[i], sum);
 	}
 
 	seq_printf(m, "\n  events processed by processor:\n");
