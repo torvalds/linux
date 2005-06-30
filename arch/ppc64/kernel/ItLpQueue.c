@@ -12,11 +12,25 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/bootmem.h>
+#include <linux/seq_file.h>
+#include <linux/proc_fs.h>
 #include <asm/system.h>
 #include <asm/paca.h>
 #include <asm/iSeries/ItLpQueue.h>
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/HvCallEvent.h>
+
+static char *event_types[9] = {
+	"Hypervisor\t\t",
+	"Machine Facilities\t",
+	"Session Manager\t",
+	"SPD I/O\t\t",
+	"Virtual Bus\t\t",
+	"PCI I/O\t\t",
+	"RIO I/O\t\t",
+	"Virtual Lan\t\t",
+	"Virtual I/O\t\t"
+};
 
 static __inline__ int set_inUse(void)
 {
@@ -208,3 +222,48 @@ void setup_hvlpevent_queue(void)
 					(LpEventStackSize - LpEventMaxSize);
 	xItLpQueue.xIndex = 0;
 }
+
+static int proc_lpevents_show(struct seq_file *m, void *v)
+{
+	unsigned int i;
+
+	seq_printf(m, "LpEventQueue 0\n");
+	seq_printf(m, "  events processed:\t%lu\n",
+		   (unsigned long)xItLpQueue.xLpIntCount);
+
+	for (i = 0; i < 9; ++i)
+		seq_printf(m, "    %s %10lu\n", event_types[i],
+			   (unsigned long)xItLpQueue.xLpIntCountByType[i]);
+
+	seq_printf(m, "\n  events processed by processor:\n");
+
+	for_each_online_cpu(i)
+		seq_printf(m, "    CPU%02d  %10u\n", i, paca[i].lpevent_count);
+
+	return 0;
+}
+
+static int proc_lpevents_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_lpevents_show, NULL);
+}
+
+static struct file_operations proc_lpevents_operations = {
+	.open		= proc_lpevents_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init proc_lpevents_init(void)
+{
+	struct proc_dir_entry *e;
+
+	e = create_proc_entry("iSeries/lpevents", S_IFREG|S_IRUGO, NULL);
+	if (e)
+		e->proc_fops = &proc_lpevents_operations;
+
+	return 0;
+}
+__initcall(proc_lpevents_init);
+
