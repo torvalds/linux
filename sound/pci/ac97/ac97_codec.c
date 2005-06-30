@@ -367,6 +367,7 @@ int snd_ac97_update(ac97_t *ac97, unsigned short reg, unsigned short value)
 		ac97->regs[reg] = value;
 		ac97->bus->ops->write(ac97, reg, value);
 	}
+	set_bit(reg, ac97->reg_accessed);
 	up(&ac97->reg_mutex);
 	return change;
 }
@@ -410,6 +411,7 @@ int snd_ac97_update_bits_nolock(ac97_t *ac97, unsigned short reg,
 		ac97->regs[reg] = new;
 		ac97->bus->ops->write(ac97, reg, new);
 	}
+	set_bit(reg, ac97->reg_accessed);
 	return change;
 }
 
