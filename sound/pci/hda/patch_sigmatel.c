@@ -540,7 +540,7 @@ static int stac92xx_add_control(struct sigmatel_spec *spec, int type, const char
 
 	knew = &spec->kctl_alloc[spec->num_kctl_used];
 	*knew = stac92xx_control_templates[type];
-	knew->name = snd_kmalloc_strdup(name, GFP_KERNEL);
+	knew->name = kstrdup(name, GFP_KERNEL);
 	if (! knew->name)
 		return -ENOMEM;
 	knew->private_value = val;
