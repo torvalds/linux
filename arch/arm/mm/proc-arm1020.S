@@ -445,7 +445,7 @@ __arm1020_setup:
 	/*
 	 *  R
 	 * .RVI ZFRS BLDP WCAM
-	 * .0.1 1001 ..11 0101	/* FIXME: why no V bit? */
+	 * .0.1 1001 ..11 0101	FIXME: why no V bit?
 	 */
 	.type	arm1020_cr1_clear, #object
 	.type	arm1020_cr1_set, #object
