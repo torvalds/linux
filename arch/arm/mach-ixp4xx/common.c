@@ -298,8 +298,8 @@ static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id, struct pt_regs 
 
 static struct irqaction ixp4xx_timer_irq = {
 	.name		= "IXP4xx Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= ixp4xx_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= ixp4xx_timer_interrupt,
 };
 
 static void __init ixp4xx_timer_init(void)

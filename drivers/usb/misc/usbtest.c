@@ -461,7 +461,7 @@ static int perform_sglist (
 
 static unsigned realworld = 1;
 module_param (realworld, uint, 0);
-MODULE_PARM_DESC (realworld, "clear to demand stricter ch9 compliance");
+MODULE_PARM_DESC (realworld, "clear to demand stricter spec compliance");
 
 static int get_altsetting (struct usbtest_dev *dev)
 {
@@ -604,9 +604,8 @@ static int ch9_postconfig (struct usbtest_dev *dev)
 				USB_DIR_IN | USB_RECIP_DEVICE,
 				0, 0, dev->buf, 1, USB_CTRL_GET_TIMEOUT);
 		if (retval != 1 || dev->buf [0] != expected) {
-			dev_dbg (&iface->dev,
-				"get config --> %d (%d)\n", retval,
-				expected);
+			dev_dbg (&iface->dev, "get config --> %d %d (1 %d)\n",
+				retval, dev->buf[0], expected);
 			return (retval < 0) ? retval : -EDOM;
 		}
 	}
@@ -1243,7 +1242,7 @@ static int ctrl_out (struct usbtest_dev *dev,
 	char			*what = "?";
 	struct usb_device	*udev;
 	
-	if (length > 0xffff || vary >= length)
+	if (length < 1 || length > 0xffff || vary >= length)
 		return -EINVAL;
 
 	buf = kmalloc(length, SLAB_KERNEL);
@@ -1266,6 +1265,11 @@ static int ctrl_out (struct usbtest_dev *dev,
 				0, 0, buf, len, USB_CTRL_SET_TIMEOUT);
 		if (retval != len) {
 			what = "write";
+			if (retval >= 0) {
+				INFO(dev, "ctrl_out, wlen %d (expected %d)\n",
+						retval, len);
+				retval = -EBADMSG;
+			}
 			break;
 		}
 
@@ -1275,6 +1279,11 @@ static int ctrl_out (struct usbtest_dev *dev,
 				0, 0, buf, len, USB_CTRL_GET_TIMEOUT);
 		if (retval != len) {
 			what = "read";
+			if (retval >= 0) {
+				INFO(dev, "ctrl_out, rlen %d (expected %d)\n",
+						retval, len);
+				retval = -EBADMSG;
+			}
 			break;
 		}
 
@@ -1293,8 +1302,13 @@ static int ctrl_out (struct usbtest_dev *dev,
 		}
 
 		len += vary;
+
+		/* [real world] the "zero bytes IN" case isn't really used.
+		 * hardware can easily trip up in this wierd case, since its
+		 * status stage is IN, not OUT like other ep0in transfers.
+		 */
 		if (len > length)
-			len = 0;
+			len = realworld ? 1 : 0;
 	}
 
 	if (retval < 0)
@@ -1518,6 +1532,11 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 
 	if (down_interruptible (&dev->sem))
 		return -ERESTARTSYS;
+
+	if (intf->dev.power.power_state != PMSG_ON) {
+		up (&dev->sem);
+		return -EHOSTUNREACH;
+	}
 
 	/* some devices, like ez-usb default devices, need a non-default
 	 * altsetting to have any active endpoints.  some tests change
@@ -1762,8 +1781,10 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 	case 14:
 		if (!dev->info->ctrl_out)
 			break;
-		dev_dbg (&intf->dev, "TEST 14:  %d ep0out, 0..%d vary %d\n",
-				param->iterations, param->length, param->vary);
+		dev_dbg (&intf->dev, "TEST 14:  %d ep0out, %d..%d vary %d\n",
+				param->iterations,
+				realworld ? 1 : 0, param->length,
+				param->vary);
 		retval = ctrl_out (dev, param->iterations, 
 				param->length, param->vary);
 		break;
@@ -1926,6 +1947,27 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 			info->alt >= 0 ? " (+alt)" : "");
 	return 0;
 }
+
+static int usbtest_suspend (struct usb_interface *intf, pm_message_t message)
+{
+	struct usbtest_dev	*dev = usb_get_intfdata (intf);
+
+	down (&dev->sem);
+	intf->dev.power.power_state = PMSG_SUSPEND;
+	up (&dev->sem);
+	return 0;
+}
+
+static int usbtest_resume (struct usb_interface *intf)
+{
+	struct usbtest_dev	*dev = usb_get_intfdata (intf);
+
+	down (&dev->sem);
+	intf->dev.power.power_state = PMSG_ON;
+	up (&dev->sem);
+	return 0;
+}
+
 
 static void usbtest_disconnect (struct usb_interface *intf)
 {
@@ -2115,6 +2157,8 @@ static struct usb_driver usbtest_driver = {
 	.probe =	usbtest_probe,
 	.ioctl =	usbtest_ioctl,
 	.disconnect =	usbtest_disconnect,
+	.suspend =	usbtest_suspend,
+	.resume =	usbtest_resume,
 };
 
 /*-------------------------------------------------------------------------*/

@@ -549,6 +549,11 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 	unsigned offset;
 	unsigned mask;
 
+	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
+	/* Already allocated? */
+	if (res->parent)
+		return 0;
+
 	/* The granularity of the memory limit is 4kB, on IO it's 4 bytes */
 	mask = ~0xfff;
 	if (type & IORESOURCE_IO)
@@ -556,7 +561,6 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 
 	offset = 0x1c + 8*nr;
 	bus = socket->dev->subordinate;
-	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
 	res->name = bus->name;
 	res->flags = type;
 	res->start = 0;

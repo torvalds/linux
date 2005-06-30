@@ -69,6 +69,7 @@
  * usb_serial_port: structure for the specific ports of a device.
  * @serial: pointer back to the struct usb_serial owner of this port.
  * @tty: pointer to the corresponding tty for this port.
+ * @lock: spinlock to grab when updating portions of this structure.
  * @number: the number of the port (the minor number).
  * @interrupt_in_buffer: pointer to the interrupt in buffer for this port.
  * @interrupt_in_urb: pointer to the interrupt in struct urb for this port.
@@ -98,6 +99,7 @@
 struct usb_serial_port {
 	struct usb_serial *	serial;
 	struct tty_struct *	tty;
+	spinlock_t		lock;
 	unsigned char		number;
 
 	unsigned char *		interrupt_in_buffer;
@@ -117,6 +119,7 @@ struct usb_serial_port {
 	unsigned char *		bulk_out_buffer;
 	int			bulk_out_size;
 	struct urb *		write_urb;
+	int			write_urb_busy;
 	__u8			bulk_out_endpointAddress;
 
 	wait_queue_head_t	write_wait;

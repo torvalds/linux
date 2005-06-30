@@ -35,6 +35,7 @@
 #include <linux/smp_lock.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
@@ -3391,10 +3392,10 @@ static int __devinit via_init_one (struct pci_dev *pdev, const struct pci_device
 	if (rc)
 		goto err_out_disable;
 
-	rc = pci_set_dma_mask(pdev, 0xffffffffULL);
+	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc)
 		goto err_out_res;
-	rc = pci_set_consistent_dma_mask(pdev, 0xffffffffULL);
+	rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc)
 		goto err_out_res;
 

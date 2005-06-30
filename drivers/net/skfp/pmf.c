@@ -36,12 +36,13 @@ static int smt_authorize(struct s_smc *smc, struct smt_header *sm);
 static int smt_check_set_count(struct s_smc *smc, struct smt_header *sm);
 static const struct s_p_tab* smt_get_ptab(u_short para);
 static int smt_mib_phys(struct s_smc *smc);
-int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index, int local,
-		 int set);
+static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
+			int local, int set);
 void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 		  int index, int local);
 static SMbuf *smt_build_pmf_response(struct s_smc *smc, struct smt_header *req,
 				     int set, int local);
+static int port_to_mib(struct s_smc *smc, int p);
 
 #define MOFFSS(e)	((int)&(((struct fddi_mib *)0)->e))
 #define MOFFSA(e)	((int) (((struct fddi_mib *)0)->e))
@@ -1078,8 +1079,8 @@ wrong_error:
 /*
  * set parameter
  */
-int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index, int local,
-		 int set)
+static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
+			int local, int set)
 {
 #define IFSET(x)	if (set) (x)
 
@@ -1549,7 +1550,7 @@ static int smt_mib_phys(struct s_smc *smc)
 #endif
 }
 
-int port_to_mib(struct s_smc *smc, int p)
+static int port_to_mib(struct s_smc *smc, int p)
 {
 #ifdef	CONCENTRATOR
 	SK_UNUSED(smc) ;

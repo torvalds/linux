@@ -1057,6 +1057,17 @@ static int el3_close(struct net_device *dev)
     return 0;
 }
 
+static struct pcmcia_device_id tc589_ids[] = {
+	PCMCIA_MFC_DEVICE_MANF_CARD(0, 0x0101, 0x0562),
+	PCMCIA_MFC_DEVICE_PROD_ID1(0, "Motorola MARQUIS", 0xf03e4e77),
+	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0589),
+	PCMCIA_DEVICE_PROD_ID12("Farallon", "ENet", 0x58d93fc4, 0x992c2202),
+	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(0, 0x0101, 0x0035, "3CXEM556.cis"),
+	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(0, 0x0101, 0x003d, "3CXEM556.cis"),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, tc589_ids);
+
 static struct pcmcia_driver tc589_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -1064,6 +1075,7 @@ static struct pcmcia_driver tc589_driver = {
 	},
 	.attach		= tc589_attach,
 	.detach		= tc589_detach,
+        .id_table       = tc589_ids,
 };
 
 static int __init init_tc589(void)

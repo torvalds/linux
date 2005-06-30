@@ -58,9 +58,6 @@ EXPORT_SYMBOL(__strlen_user);
 EXPORT_SYMBOL(__strncpy_from_user);
 EXPORT_SYMBOL(__strnlen_user);
 
-#include <asm/unistd.h>
-EXPORT_SYMBOL(__ia64_syscall);
-
 /* from arch/ia64/lib */
 extern void __divsi3(void);
 extern void __udivsi3(void);

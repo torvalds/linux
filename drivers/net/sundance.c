@@ -1028,7 +1028,7 @@ static void init_ring(struct net_device *dev)
 		skb->dev = dev;		/* Mark as being used by this device. */
 		skb_reserve(skb, 2);	/* 16 byte align the IP header. */
 		np->rx_ring[i].frag[0].addr = cpu_to_le32(
-			pci_map_single(np->pci_dev, skb->tail, np->rx_buf_sz,
+			pci_map_single(np->pci_dev, skb->data, np->rx_buf_sz,
 				PCI_DMA_FROMDEVICE));
 		np->rx_ring[i].frag[0].length = cpu_to_le32(np->rx_buf_sz | LastFrag);
 	}
@@ -1341,7 +1341,7 @@ static void rx_poll(unsigned long data)
 							    np->rx_buf_sz,
 							    PCI_DMA_FROMDEVICE);
 
-				eth_copy_and_sum(skb, np->rx_skbuff[entry]->tail, pkt_len, 0);
+				eth_copy_and_sum(skb, np->rx_skbuff[entry]->data, pkt_len, 0);
 				pci_dma_sync_single_for_device(np->pci_dev,
 							       desc->frag[0].addr,
 							       np->rx_buf_sz,
@@ -1400,7 +1400,7 @@ static void refill_rx (struct net_device *dev)
 			skb->dev = dev;		/* Mark as being used by this device. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 			np->rx_ring[entry].frag[0].addr = cpu_to_le32(
-				pci_map_single(np->pci_dev, skb->tail,
+				pci_map_single(np->pci_dev, skb->data,
 					np->rx_buf_sz, PCI_DMA_FROMDEVICE));
 		}
 		/* Perhaps we need not reset this field. */

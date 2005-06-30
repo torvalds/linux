@@ -43,7 +43,7 @@
  *		2 of the License, or (at your option) any later version.
  */
 
-#define VERSION "0.323"
+#define VERSION "0.324"
 
 #include <linux/config.h>
 #include <asm/uaccess.h>
@@ -341,8 +341,10 @@ static struct leaf *leaf_new(void)
 static struct leaf_info *leaf_info_new(int plen)
 {
 	struct leaf_info *li = kmalloc(sizeof(struct leaf_info),  GFP_KERNEL);
-	li->plen = plen;
-	INIT_LIST_HEAD(&li->falh);
+	if(li) {
+		li->plen = plen;
+		INIT_LIST_HEAD(&li->falh);
+	}
 	return li;
 }
 
@@ -879,8 +881,8 @@ static struct node *trie_rebalance(struct trie *t, struct tnode *tn)
 	return (struct node*) tn;
 }
 
-static struct list_head *
-fib_insert_node(struct trie *t, u32 key, int plen)
+static  struct list_head *
+fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 {
 	int pos, newpos;
 	struct tnode *tp = NULL, *tn = NULL;
@@ -940,7 +942,6 @@ fib_insert_node(struct trie *t, u32 key, int plen)
 	if(tp && IS_LEAF(tp))
 		BUG();
 
-	t->revision++;
 
 	/* Case 1: n is a leaf. Compare prefixes */
 
@@ -949,8 +950,10 @@ fib_insert_node(struct trie *t, u32 key, int plen)
 		
 		li = leaf_info_new(plen);
 		
-		if(! li) 
-			BUG();
+		if(! li) {
+			*err = -ENOMEM;
+			goto err;
+		}
 
 		fa_head = &li->falh;
 		insert_leaf_info(&l->list, li);
@@ -959,14 +962,19 @@ fib_insert_node(struct trie *t, u32 key, int plen)
 	t->size++;
 	l = leaf_new();
 
-	if(! l) 
-		BUG();
+	if(! l) {
+		*err = -ENOMEM;
+		goto err;
+	}
 
 	l->key = key;
 	li = leaf_info_new(plen);
 
-	if(! li) 
-		BUG();
+	if(! li) {
+		tnode_free((struct tnode *) l);
+		*err = -ENOMEM;
+		goto err;
+	}
 
 	fa_head = &li->falh;
 	insert_leaf_info(&l->list, li);
@@ -1003,9 +1011,14 @@ fib_insert_node(struct trie *t, u32 key, int plen)
 			newpos = 0;
 			tn = tnode_new(key, newpos, 1); /* First tnode */ 
 		}
-		if(!tn) 
-			trie_bug("tnode_pfx_new failed");
 
+		if(!tn) {
+			free_leaf_info(li);
+			tnode_free((struct tnode *) l);
+			*err = -ENOMEM;
+			goto err;
+		}			
+			
 		NODE_SET_PARENT(tn, tp);
 
 		missbit=tkey_extract_bits(key, newpos, 1);
@@ -1027,7 +1040,9 @@ fib_insert_node(struct trie *t, u32 key, int plen)
 	}
 	/* Rebalance the trie */
 	t->trie = trie_rebalance(t, tp);
-done:;
+done:
+	t->revision++;
+err:;
 	return fa_head;
 }
 
@@ -1156,8 +1171,12 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 	 * Insert new entry to the list.
 	 */
 
-	if(!fa_head)
-		fa_head = fib_insert_node(t, key, plen);
+	if(!fa_head) {
+		fa_head = fib_insert_node(t, &err, key, plen);
+		err = 0;
+		if(err) 
+			goto out_free_new_fa;
+	}
 
 	write_lock_bh(&fib_lock);
 
@@ -1170,6 +1189,9 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, tb->tb_id, nlhdr, req);
 succeeded:
 	return 0;
+
+out_free_new_fa:
+	kmem_cache_free(fn_alias_kmem, new_fa);
 out:
 	fib_release_info(fi);
 err:;	

@@ -1429,7 +1429,7 @@ static int generic_cdc_bind (struct usbnet *dev, struct usb_interface *intf)
 			info->ether = (void *) buf;
 			if (info->ether->bLength != sizeof *info->ether) {
 				dev_dbg (&intf->dev, "CDC ether len %u\n",
-					info->u->bLength);
+					info->ether->bLength);
 				goto bad_desc;
 			}
 			dev->net->mtu = le16_to_cpup (

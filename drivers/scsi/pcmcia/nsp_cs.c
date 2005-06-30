@@ -2125,6 +2125,18 @@ static int nsp_cs_event(event_t		       event,
  *	module entry point
  *====================================================================*/
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,68))
+static struct pcmcia_device_id nsp_cs_ids[] = {
+	PCMCIA_DEVICE_PROD_ID123("IO DATA", "CBSC16       ", "1", 0x547e66dc, 0x0d63a3fd, 0x51de003a),
+	PCMCIA_DEVICE_PROD_ID123("KME    ", "SCSI-CARD-001", "1", 0x534c02bc, 0x52008408, 0x51de003a),
+	PCMCIA_DEVICE_PROD_ID123("KME    ", "SCSI-CARD-002", "1", 0x534c02bc, 0xcb09d5b2, 0x51de003a),
+	PCMCIA_DEVICE_PROD_ID123("KME    ", "SCSI-CARD-003", "1", 0x534c02bc, 0xbc0ee524, 0x51de003a),
+	PCMCIA_DEVICE_PROD_ID123("KME    ", "SCSI-CARD-004", "1", 0x534c02bc, 0x226a7087, 0x51de003a),
+	PCMCIA_DEVICE_PROD_ID123("WBT", "NinjaSCSI-3", "R1.0", 0xc7ba805f, 0xfdc7c97d, 0x6973710e),
+	PCMCIA_DEVICE_PROD_ID123("WORKBIT", "UltraNinja-16", "1", 0x28191418, 0xb70f4b09, 0x51de003a),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, nsp_cs_ids);
+
 static struct pcmcia_driver nsp_driver = {
 	.owner          = THIS_MODULE,
 	.drv            = {
@@ -2132,6 +2144,7 @@ static struct pcmcia_driver nsp_driver = {
 	},
 	.attach         = nsp_cs_attach,
 	.detach         = nsp_cs_detach,
+	.id_table	= nsp_cs_ids,
 };
 #endif
 

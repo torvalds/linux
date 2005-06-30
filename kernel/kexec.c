@@ -241,7 +241,7 @@ static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 
 static int kimage_crash_alloc(struct kimage **rimage, unsigned long entry,
 				unsigned long nr_segments,
-				struct kexec_segment *segments)
+				struct kexec_segment __user *segments)
 {
 	int result;
 	struct kimage *image;
@@ -650,7 +650,7 @@ static kimage_entry_t *kimage_dst_used(struct kimage *image,
 		}
 	}
 
-	return 0;
+	return NULL;
 }
 
 static struct page *kimage_alloc_page(struct kimage *image,
@@ -696,7 +696,7 @@ static struct page *kimage_alloc_page(struct kimage *image,
 		/* Allocate a page, if we run out of memory give up */
 		page = kimage_alloc_pages(gfp_mask, 0);
 		if (!page)
-			return 0;
+			return NULL;
 		/* If the page cannot be used file it away */
 		if (page_to_pfn(page) >
 				(KEXEC_SOURCE_MEMORY_LIMIT >> PAGE_SHIFT)) {
@@ -754,7 +754,7 @@ static int kimage_load_normal_segment(struct kimage *image,
 	unsigned long maddr;
 	unsigned long ubytes, mbytes;
 	int result;
-	unsigned char *buf;
+	unsigned char __user *buf;
 
 	result = 0;
 	buf = segment->buf;
@@ -818,7 +818,7 @@ static int kimage_load_crash_segment(struct kimage *image,
 	unsigned long maddr;
 	unsigned long ubytes, mbytes;
 	int result;
-	unsigned char *buf;
+	unsigned char __user *buf;
 
 	result = 0;
 	buf = segment->buf;

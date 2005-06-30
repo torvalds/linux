@@ -217,6 +217,7 @@ static void el3_poll_controller(struct net_device *dev);
 static struct eisa_device_id el3_eisa_ids[] = {
 		{ "TCM5092" },
 		{ "TCM5093" },
+		{ "TCM5095" },
 		{ "" }
 };
 

@@ -156,10 +156,13 @@
 */
 #define DELAYED_RESOURCE_CNT	64
 
+#define PCI_DEVICE_ID_HP_SX2000_IOC	0x12ec
+
 #define ZX1_IOC_ID	((PCI_DEVICE_ID_HP_ZX1_IOC << 16) | PCI_VENDOR_ID_HP)
 #define ZX2_IOC_ID	((PCI_DEVICE_ID_HP_ZX2_IOC << 16) | PCI_VENDOR_ID_HP)
 #define REO_IOC_ID	((PCI_DEVICE_ID_HP_REO_IOC << 16) | PCI_VENDOR_ID_HP)
 #define SX1000_IOC_ID	((PCI_DEVICE_ID_HP_SX1000_IOC << 16) | PCI_VENDOR_ID_HP)
+#define SX2000_IOC_ID	((PCI_DEVICE_ID_HP_SX2000_IOC << 16) | PCI_VENDOR_ID_HP)
 
 #define ZX1_IOC_OFFSET	0x1000	/* ACPI reports SBA, we want IOC */
 
@@ -1726,6 +1729,7 @@ static struct ioc_iommu ioc_iommu_info[] __initdata = {
 	{ ZX1_IOC_ID, "zx1", ioc_zx1_init },
 	{ ZX2_IOC_ID, "zx2", NULL },
 	{ SX1000_IOC_ID, "sx1000", NULL },
+	{ SX2000_IOC_ID, "sx2000", NULL },
 };
 
 static struct ioc * __init

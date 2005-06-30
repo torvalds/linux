@@ -28,22 +28,17 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/console.h>
 #include <asm/io.h>
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>
-#endif
-#ifdef CONFIG_PMAC_PBOOK
-#include <linux/adb.h>
-#include <linux/pmu.h>
 #endif
 
 /*
  * Since we access the display with inb/outb to fixed port numbers,
  * we can only handle one 6555x chip.  -- paulus
  */
-static struct fb_info chipsfb_info;
-
 #define write_ind(num, val, ap, dp)	do { \
 	outb((num), (ap)); outb((val), (dp)); \
 } while (0)
@@ -73,14 +68,6 @@ static struct fb_info chipsfb_info;
 #define read_ar(num, var)	do { \
 	inb(0x3da); read_ind(num, var, 0x3c0, 0x3c1); \
 } while (0)
-
-#ifdef CONFIG_PMAC_PBOOK
-static unsigned char *save_framebuffer;
-int chips_sleep_notify(struct pmu_sleep_notifier *self, int when);
-static struct pmu_sleep_notifier chips_sleep_notifier = {
-	chips_sleep_notify, SLEEP_LEVEL_VIDEO,
-};
-#endif
 
 /*
  * Exported functions
@@ -356,6 +343,8 @@ static struct fb_var_screeninfo chipsfb_var __initdata = {
 
 static void __init init_chips(struct fb_info *p, unsigned long addr)
 {
+	memset(p->screen_base, 0, 0x100000);
+
 	p->fix = chipsfb_fix;
 	p->fix.smem_start = addr;
 
@@ -366,34 +355,41 @@ static void __init init_chips(struct fb_info *p, unsigned long addr)
 
 	fb_alloc_cmap(&p->cmap, 256, 0);
 
-	if (register_framebuffer(p) < 0) {
-		printk(KERN_ERR "C&T 65550 framebuffer failed to register\n");
-		return;
-	}
-
-	printk(KERN_INFO "fb%d: Chips 65550 frame buffer (%dK RAM detected)\n",
-		p->node, p->fix.smem_len / 1024);
-
 	chips_hw_init();
 }
 
 static int __devinit
 chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 {
-	struct fb_info *p = &chipsfb_info;
+	struct fb_info *p;
 	unsigned long addr, size;
 	unsigned short cmd;
+	int rc = -ENODEV;
+
+	if (pci_enable_device(dp) < 0) {
+		dev_err(&dp->dev, "Cannot enable PCI device\n");
+		goto err_out;
+	}
 
 	if ((dp->resource[0].flags & IORESOURCE_MEM) == 0)
-		return -ENODEV;
+		goto err_disable;
 	addr = pci_resource_start(dp, 0);
 	size = pci_resource_len(dp, 0);
 	if (addr == 0)
-		return -ENODEV;
-	if (p->screen_base != 0)
-		return -EBUSY;
-	if (!request_mem_region(addr, size, "chipsfb"))
-		return -EBUSY;
+		goto err_disable;
+
+	p = framebuffer_alloc(0, &dp->dev);
+	if (p == NULL) {
+		dev_err(&dp->dev, "Cannot allocate framebuffer structure\n");
+		rc = -ENOMEM;
+		goto err_disable;
+	}
+
+	if (pci_request_region(dp, 0, "chipsfb") != 0) {
+		dev_err(&dp->dev, "Cannot request framebuffer\n");
+		rc = -EBUSY;
+		goto err_release_fb;
+	}
 
 #ifdef __BIG_ENDIAN
 	addr += 0x800000;	// Use big-endian aperture
@@ -411,37 +407,89 @@ chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 	set_backlight_enable(1);
 #endif /* CONFIG_PMAC_BACKLIGHT */
 
+#ifdef CONFIG_PPC
 	p->screen_base = __ioremap(addr, 0x200000, _PAGE_NO_CACHE);
+#else
+	p->screen_base = ioremap(addr, 0x200000);
+#endif
 	if (p->screen_base == NULL) {
-		release_mem_region(addr, size);
-		return -ENOMEM;
+		dev_err(&dp->dev, "Cannot map framebuffer\n");
+		rc = -ENOMEM;
+		goto err_release_pci;
 	}
-	p->device = &dp->dev;
-	init_chips(p, addr);
-
-#ifdef CONFIG_PMAC_PBOOK
-	pmu_register_sleep_notifier(&chips_sleep_notifier);
-#endif /* CONFIG_PMAC_PBOOK */
 
 	pci_set_drvdata(dp, p);
+	p->device = &dp->dev;
+
+	init_chips(p, addr);
+
+	if (register_framebuffer(p) < 0) {
+		dev_err(&dp->dev,"C&T 65550 framebuffer failed to register\n");
+		goto err_unmap;
+	}
+
+	dev_info(&dp->dev,"fb%d: Chips 65550 frame buffer"
+		 " (%dK RAM detected)\n",
+		 p->node, p->fix.smem_len / 1024);
+
 	return 0;
+
+ err_unmap:
+	iounmap(p->screen_base);
+ err_release_pci:
+	pci_release_region(dp, 0);
+ err_release_fb:
+	framebuffer_release(p);
+ err_disable:
+ err_out:
+	return rc;
 }
 
 static void __devexit chipsfb_remove(struct pci_dev *dp)
 {
 	struct fb_info *p = pci_get_drvdata(dp);
 
-	if (p != &chipsfb_info || p->screen_base == NULL)
+	if (p->screen_base == NULL)
 		return;
 	unregister_framebuffer(p);
 	iounmap(p->screen_base);
 	p->screen_base = NULL;
-	release_mem_region(pci_resource_start(dp, 0), pci_resource_len(dp, 0));
-
-#ifdef CONFIG_PMAC_PBOOK
-	pmu_unregister_sleep_notifier(&chips_sleep_notifier);
-#endif /* CONFIG_PMAC_PBOOK */
+	pci_release_region(dp, 0);
 }
+
+#ifdef CONFIG_PM
+static int chipsfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+        struct fb_info *p = pci_get_drvdata(pdev);
+
+	if (state == pdev->dev.power.power_state)
+		return 0;
+	if (state != PM_SUSPEND_MEM)
+		goto done;
+
+	acquire_console_sem();
+	chipsfb_blank(1, p);
+	fb_set_suspend(p, 1);
+	release_console_sem();
+ done:
+	pdev->dev.power.power_state = state;
+	return 0;
+}
+
+static int chipsfb_pci_resume(struct pci_dev *pdev)
+{
+        struct fb_info *p = pci_get_drvdata(pdev);
+
+	acquire_console_sem();
+	fb_set_suspend(p, 0);
+	chipsfb_blank(0, p);
+	release_console_sem();
+
+	pdev->dev.power.power_state = PMSG_ON;
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 
 static struct pci_device_id chipsfb_pci_tbl[] = {
 	{ PCI_VENDOR_ID_CT, PCI_DEVICE_ID_CT_65550, PCI_ANY_ID, PCI_ANY_ID },
@@ -455,6 +503,10 @@ static struct pci_driver chipsfb_driver = {
 	.id_table =	chipsfb_pci_tbl,
 	.probe =	chipsfb_pci_init,
 	.remove =	__devexit_p(chipsfb_remove),
+#ifdef CONFIG_PM
+	.suspend =	chipsfb_pci_suspend,
+	.resume =	chipsfb_pci_resume,
+#endif
 };
 
 int __init chips_init(void)
@@ -471,49 +523,5 @@ static void __exit chipsfb_exit(void)
 {
 	pci_unregister_driver(&chipsfb_driver);
 }
-
-#ifdef CONFIG_PMAC_PBOOK
-/*
- * Save the contents of the frame buffer when we go to sleep,
- * and restore it when we wake up again.
- */
-int
-chips_sleep_notify(struct pmu_sleep_notifier *self, int when)
-{
-	struct fb_info *p = &chipsfb_info;
-	int nb = p->var.yres * p->fix.line_length;
-
-	if (p->screen_base == NULL)
-		return PBOOK_SLEEP_OK;
-
-	switch (when) {
-	case PBOOK_SLEEP_REQUEST:
-		save_framebuffer = vmalloc(nb);
-		if (save_framebuffer == NULL)
-			return PBOOK_SLEEP_REFUSE;
-		break;
-	case PBOOK_SLEEP_REJECT:
-		if (save_framebuffer) {
-			vfree(save_framebuffer);
-			save_framebuffer = NULL;
-		}
-		break;
-	case PBOOK_SLEEP_NOW:
-		chipsfb_blank(1, p);
-		if (save_framebuffer)
-			memcpy(save_framebuffer, p->screen_base, nb);
-		break;
-	case PBOOK_WAKE:
-		if (save_framebuffer) {
-			memcpy(p->screen_base, save_framebuffer, nb);
-			vfree(save_framebuffer);
-			save_framebuffer = NULL;
-		}
-		chipsfb_blank(0, p);
-		break;
-	}
-	return PBOOK_SLEEP_OK;
-}
-#endif /* CONFIG_PMAC_PBOOK */
 
 MODULE_LICENSE("GPL");

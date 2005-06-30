@@ -855,6 +855,12 @@ static int btuart_event(event_t event, int priority, event_callback_args_t *args
 	return 0;
 }
 
+static struct pcmcia_device_id btuart_ids[] = {
+	/* don't use this driver. Use serial_cs + hci_uart instead */
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, btuart_ids);
+
 static struct pcmcia_driver btuart_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -862,6 +868,7 @@ static struct pcmcia_driver btuart_driver = {
 	},
 	.attach		= btuart_attach,
 	.detach		= btuart_detach,
+	.id_table	= btuart_ids,
 };
 
 static int __init init_btuart_cs(void)

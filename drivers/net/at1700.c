@@ -34,10 +34,6 @@
 	only is it difficult to detect, it also moves around in I/O space in
 	response to inb()s from other device probes!
 */
-/*
-	99/03/03  Allied Telesis RE1000 Plus support by T.Hagawa
-	99/12/30	port to 2.3.35 by K.Takai
-*/
 
 #include <linux/config.h>
 #include <linux/errno.h>

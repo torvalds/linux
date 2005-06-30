@@ -17,8 +17,9 @@ __down_read:
 	bne,pn		%icc, 1b
 	 add		%g7, 1, %g7
 	cmp		%g7, 0
+	membar		#StoreLoad | #StoreStore
 	bl,pn		%icc, 3f
-	 membar		#StoreLoad | #StoreStore
+	 nop
 2:
 	retl
 	 nop
@@ -57,8 +58,9 @@ __down_write:
 	cmp		%g3, %g7
 	bne,pn		%icc, 1b
 	 cmp		%g7, 0
+	membar		#StoreLoad | #StoreStore
 	bne,pn		%icc, 3f
-	 membar		#StoreLoad | #StoreStore
+	 nop
 2:	retl
 	 nop
 3:
@@ -97,8 +99,9 @@ __up_read:
 	cmp		%g1, %g7
 	bne,pn		%icc, 1b
 	 cmp		%g7, 0
+	membar		#StoreLoad | #StoreStore
 	bl,pn		%icc, 3f
-	 membar		#StoreLoad | #StoreStore
+	 nop
 2:	retl
 	 nop
 3:	sethi		%hi(RWSEM_ACTIVE_MASK), %g1
@@ -126,8 +129,9 @@ __up_write:
 	bne,pn		%icc, 1b
 	 sub		%g7, %g1, %g7
 	cmp		%g7, 0
+	membar		#StoreLoad | #StoreStore
 	bl,pn		%icc, 3f
-	 membar		#StoreLoad | #StoreStore
+	 nop
 2:
 	retl
 	 nop
@@ -151,8 +155,9 @@ __downgrade_write:
 	bne,pn		%icc, 1b
 	 sub		%g7, %g1, %g7
 	cmp		%g7, 0
+	membar		#StoreLoad | #StoreStore
 	bl,pn		%icc, 3f
-	 membar		#StoreLoad | #StoreStore
+	 nop
 2:
 	retl
 	 nop

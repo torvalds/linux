@@ -318,6 +318,16 @@ static int aha152x_event(event_t event, int priority,
     return 0;
 }
 
+static struct pcmcia_device_id aha152x_ids[] = {
+	PCMCIA_DEVICE_PROD_ID123("New Media", "SCSI", "Bus Toaster", 0xcdf7e4cc, 0x35f26476, 0xa8851d6e),
+	PCMCIA_DEVICE_PROD_ID123("NOTEWORTHY", "SCSI", "Bus Toaster", 0xad89c6e8, 0x35f26476, 0xa8851d6e),
+	PCMCIA_DEVICE_PROD_ID12("Adaptec, Inc.", "APA-1460 SCSI Host Adapter", 0x24ba9738, 0x3a3c3d20),
+	PCMCIA_DEVICE_PROD_ID12("New Media Corporation", "Multimedia Sound/SCSI", 0x085a850b, 0x80a6535c),
+	PCMCIA_DEVICE_PROD_ID12("NOTEWORTHY", "NWCOMB02 SCSI/AUDIO COMBO CARD", 0xad89c6e8, 0x5f9a615b),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, aha152x_ids);
+
 static struct pcmcia_driver aha152x_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -325,6 +335,7 @@ static struct pcmcia_driver aha152x_cs_driver = {
 	},
 	.attach		= aha152x_attach,
 	.detach		= aha152x_detach,
+	.id_table       = aha152x_ids,
 };
 
 static int __init init_aha152x_cs(void)

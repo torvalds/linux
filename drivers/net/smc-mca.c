@@ -49,7 +49,6 @@
 #include <asm/system.h>
 
 #include "8390.h"
-#include "smc-mca.h"
 
 #define DRV_NAME "smc-mca"
 
@@ -100,6 +99,63 @@ module_param_array(ultra_irq, int, NULL, 0);
 MODULE_PARM_DESC(ultra_io, "SMC Ultra/EtherEZ MCA I/O base address(es)");
 MODULE_PARM_DESC(ultra_irq, "SMC Ultra/EtherEZ MCA IRQ number(s)");
 
+static const struct {
+  unsigned int base_addr;
+} addr_table[] = {
+    { 0x0800 },
+    { 0x1800 },
+    { 0x2800 },
+    { 0x3800 },
+    { 0x4800 },
+    { 0x5800 },
+    { 0x6800 },
+    { 0x7800 },
+    { 0x8800 },
+    { 0x9800 },
+    { 0xa800 },
+    { 0xb800 },
+    { 0xc800 },
+    { 0xd800 },
+    { 0xe800 },
+    { 0xf800 }
+};
+
+#define MEM_MASK 64
+
+static const struct {
+  unsigned char mem_index;
+  unsigned long mem_start;
+  unsigned char num_pages;
+} mem_table[] = {
+    { 16, 0x0c0000, 40 },
+    { 18, 0x0c4000, 40 },
+    { 20, 0x0c8000, 40 },
+    { 22, 0x0cc000, 40 },
+    { 24, 0x0d0000, 40 },
+    { 26, 0x0d4000, 40 },
+    { 28, 0x0d8000, 40 },
+    { 30, 0x0dc000, 40 },
+    {144, 0xfc0000, 40 },
+    {148, 0xfc8000, 40 },
+    {154, 0xfd0000, 40 },
+    {156, 0xfd8000, 40 },
+    {  0, 0x0c0000, 20 },
+    {  1, 0x0c2000, 20 },
+    {  2, 0x0c4000, 20 },
+    {  3, 0x0c6000, 20 }
+};
+
+#define IRQ_MASK 243
+static const struct {
+   unsigned char new_irq;
+   unsigned char old_irq;
+} irq_table[] = {
+   {  3,  3 },
+   {  4,  4 },
+   { 10, 10 },
+   { 14, 15 }
+};
+
 static short smc_mca_adapter_ids[] __initdata = {
 	0x61c8,
 	0x61c9,
@@ -126,7 +182,7 @@ static char *smc_mca_adapter_names[] __initdata = {
 
 static int ultra_found = 0;
 
-int __init ultramca_probe(struct device *gen_dev)
+static int __init ultramca_probe(struct device *gen_dev)
 {
 	unsigned short ioaddr;
 	struct net_device *dev;

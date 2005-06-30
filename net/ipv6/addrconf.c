@@ -2777,7 +2777,7 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 		read_lock_bh(&idev->lock);
 		switch (type) {
 		case UNICAST_ADDR:
-			/* unicast address */
+			/* unicast address incl. temp addr */
 			for (ifa = idev->addr_list; ifa;
 			     ifa = ifa->if_next, ip_idx++) {
 				if (ip_idx < s_ip_idx)
@@ -2788,19 +2788,6 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 				    NLM_F_MULTI)) <= 0)
 					goto done;
 			}
-			/* temp addr */
-#ifdef CONFIG_IPV6_PRIVACY
-			for (ifa = idev->tempaddr_list; ifa; 
-			     ifa = ifa->tmp_next, ip_idx++) {
-				if (ip_idx < s_ip_idx)
-					continue;
-				if ((err = inet6_fill_ifaddr(skb, ifa, 
-				    NETLINK_CB(cb->skb).pid, 
-				    cb->nlh->nlmsg_seq, RTM_NEWADDR,
-				    NLM_F_MULTI)) <= 0) 
-					goto done;
-			}
-#endif
 			break;
 		case MULTICAST_ADDR:
 			/* multicast address */
@@ -2923,6 +2910,7 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*r), flags);
 	r = NLMSG_DATA(nlh);
 	r->ifi_family = AF_INET6;
+	r->__ifi_pad = 0;
 	r->ifi_type = dev->type;
 	r->ifi_index = dev->ifindex;
 	r->ifi_flags = dev_get_flags(dev);
@@ -3030,9 +3018,12 @@ static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*pmsg), flags);
 	pmsg = NLMSG_DATA(nlh);
 	pmsg->prefix_family = AF_INET6;
+	pmsg->prefix_pad1 = 0;
+	pmsg->prefix_pad2 = 0;
 	pmsg->prefix_ifindex = idev->dev->ifindex;
 	pmsg->prefix_len = pinfo->prefix_len;
 	pmsg->prefix_type = pinfo->type;
+	pmsg->prefix_pad3 = 0;
 	
 	pmsg->prefix_flags = 0;
 	if (pinfo->onlink)

@@ -136,8 +136,9 @@ static __inline__ void set_dcache_dirty(struct page *page, int this_cpu)
 			     "or	%%g1, %0, %%g1\n\t"
 			     "casx	[%2], %%g7, %%g1\n\t"
 			     "cmp	%%g7, %%g1\n\t"
+			     "membar	#StoreLoad | #StoreStore\n\t"
 			     "bne,pn	%%xcc, 1b\n\t"
-			     " membar	#StoreLoad | #StoreStore"
+			     " nop"
 			     : /* no outputs */
 			     : "r" (mask), "r" (non_cpu_bits), "r" (&page->flags)
 			     : "g1", "g7");
@@ -157,8 +158,9 @@ static __inline__ void clear_dcache_dirty_cpu(struct page *page, unsigned long c
 			     " andn	%%g7, %1, %%g1\n\t"
 			     "casx	[%2], %%g7, %%g1\n\t"
 			     "cmp	%%g7, %%g1\n\t"
+			     "membar	#StoreLoad | #StoreStore\n\t"
 			     "bne,pn	%%xcc, 1b\n\t"
-			     " membar	#StoreLoad | #StoreStore\n"
+			     " nop\n"
 			     "2:"
 			     : /* no outputs */
 			     : "r" (cpu), "r" (mask), "r" (&page->flags),

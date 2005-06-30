@@ -1661,7 +1661,7 @@ typhoon_alloc_rx_skb(struct typhoon *tp, u32 idx)
 #endif
 
 	skb->dev = tp->dev;
-	dma_addr = pci_map_single(tp->pdev, skb->tail,
+	dma_addr = pci_map_single(tp->pdev, skb->data,
 				  PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 
 	/* Since no card does 64 bit DAC, the high bits will never
@@ -1721,7 +1721,7 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile u32 * ready,
 			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr,
 						    PKT_BUF_SZ,
 						    PCI_DMA_FROMDEVICE);
-			eth_copy_and_sum(new_skb, skb->tail, pkt_len, 0);
+			eth_copy_and_sum(new_skb, skb->data, pkt_len, 0);
 			pci_dma_sync_single_for_device(tp->pdev, dma_addr,
 						       PKT_BUF_SZ,
 						       PCI_DMA_FROMDEVICE);

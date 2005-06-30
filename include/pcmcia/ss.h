@@ -15,10 +15,12 @@
 #ifndef _LINUX_SS_H
 #define _LINUX_SS_H
 
+#include <linux/config.h>
+#include <linux/device.h>
+
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/bulkmem.h>
-#include <linux/device.h>
 
 /* Definitions for card status flags for GetStatus */
 #define SS_WRPROT	0x0001
@@ -171,7 +173,7 @@ typedef struct window_t {
 
 struct config_t;
 struct pcmcia_callback;
-
+struct user_info_t;
 
 struct pcmcia_socket {
 	struct module			*owner;
@@ -216,8 +218,9 @@ struct pcmcia_socket {
 
 	/* is set to one if resource setup is done using adjust_resource_info() */
 	u8				resource_setup_old:1;
+	u8				resource_setup_new:1;
 
-	u8				reserved:6;
+	u8				reserved:5;
 
 	/* socket operations */
 	struct pccard_operations *	ops;
@@ -241,8 +244,31 @@ struct pcmcia_socket {
 	unsigned int			thread_events;
 
 	/* pcmcia (16-bit) */
-	struct pcmcia_bus_socket	*pcmcia;
 	struct pcmcia_callback		*callback;
+
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
+	struct list_head		devices_list;	/*  PCMCIA devices */
+	u8				device_count;	/* the number of devices, used
+							 * only internally and subject
+							 * to incorrectness and change */
+
+	struct {
+		u8			present:1,	/* PCMCIA card is present in socket */
+					busy:1,		/* "master" ioctl is used */
+					dead:1,		/* pcmcia module is being unloaded */
+					device_add_pending:1, /* a pseudo-multifunction-device
+							       * add event is pending */
+					reserved:4;
+	} 				pcmcia_state;
+
+	struct work_struct		device_add;	/* for adding further pseudo-multifunction
+							 * devices */
+
+#ifdef CONFIG_PCMCIA_IOCTL
+	struct user_info_t		*user;
+	wait_queue_head_t		queue;
+#endif
+#endif
 
 	/* cardbus (32-bit) */
 #ifdef CONFIG_CARDBUS

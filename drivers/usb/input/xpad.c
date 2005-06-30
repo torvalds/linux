@@ -104,13 +104,12 @@ MODULE_DEVICE_TABLE (usb, xpad_table);
 struct usb_xpad {
 	struct input_dev dev;			/* input device interface */
 	struct usb_device *udev;		/* usb device */
-	
+
 	struct urb *irq_in;			/* urb for interrupt in report */
 	unsigned char *idata;			/* input data */
 	dma_addr_t idata_dma;
-	
+
 	char phys[65];				/* physical device path */
-	int open_count;				/* reference count */
 };
 
 /*
@@ -128,35 +127,35 @@ static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *d
 	struct input_dev *dev = &xpad->dev;
 
 	input_regs(dev, regs);
-	
+
 	/* left stick */
 	input_report_abs(dev, ABS_X, (__s16) (((__s16)data[13] << 8) | data[12]));
 	input_report_abs(dev, ABS_Y, (__s16) (((__s16)data[15] << 8) | data[14]));
-	
+
 	/* right stick */
 	input_report_abs(dev, ABS_RX, (__s16) (((__s16)data[17] << 8) | data[16]));
 	input_report_abs(dev, ABS_RY, (__s16) (((__s16)data[19] << 8) | data[18]));
-	
+
 	/* triggers left/right */
 	input_report_abs(dev, ABS_Z, data[10]);
 	input_report_abs(dev, ABS_RZ, data[11]);
-	
+
 	/* digital pad */
 	input_report_abs(dev, ABS_HAT0X, !!(data[2] & 0x08) - !!(data[2] & 0x04));
 	input_report_abs(dev, ABS_HAT0Y, !!(data[2] & 0x02) - !!(data[2] & 0x01));
-	
+
 	/* start/back buttons and stick press left/right */
 	input_report_key(dev, BTN_START, (data[2] & 0x10) >> 4);
 	input_report_key(dev, BTN_BACK, (data[2] & 0x20) >> 5);
 	input_report_key(dev, BTN_THUMBL, (data[2] & 0x40) >> 6);
 	input_report_key(dev, BTN_THUMBR, data[2] >> 7);
-	
+
 	/* "analog" buttons A, B, X, Y */
 	input_report_key(dev, BTN_A, data[4]);
 	input_report_key(dev, BTN_B, data[5]);
 	input_report_key(dev, BTN_X, data[6]);
 	input_report_key(dev, BTN_Y, data[7]);
-	
+
 	/* "analog" buttons black, white */
 	input_report_key(dev, BTN_C, data[8]);
 	input_report_key(dev, BTN_Z, data[9]);
@@ -168,7 +167,7 @@ static void xpad_irq_in(struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_xpad *xpad = urb->context;
 	int retval;
-	
+
 	switch (urb->status) {
 	case 0:
 		/* success */
@@ -183,7 +182,7 @@ static void xpad_irq_in(struct urb *urb, struct pt_regs *regs)
 		dbg("%s - nonzero urb status received: %d", __FUNCTION__, urb->status);
 		goto exit;
 	}
-	
+
 	xpad_process_packet(xpad, 0, xpad->idata, regs);
 
 exit:
@@ -196,25 +195,19 @@ exit:
 static int xpad_open (struct input_dev *dev)
 {
 	struct usb_xpad *xpad = dev->private;
-	
-	if (xpad->open_count++)
-		return 0;
-	
+
 	xpad->irq_in->dev = xpad->udev;
-	if (usb_submit_urb(xpad->irq_in, GFP_KERNEL)) {
-		xpad->open_count--;
+	if (usb_submit_urb(xpad->irq_in, GFP_KERNEL))
 		return -EIO;
-	}
-	
+
 	return 0;
 }
 
 static void xpad_close (struct input_dev *dev)
 {
 	struct usb_xpad *xpad = dev->private;
-	
-	if (!--xpad->open_count)
-		usb_kill_urb(xpad->irq_in);
+
+	usb_kill_urb(xpad->irq_in);
 }
 
 static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -224,19 +217,19 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	struct usb_endpoint_descriptor *ep_irq_in;
 	char path[64];
 	int i;
-	
+
 	for (i = 0; xpad_device[i].idVendor; i++) {
 		if ((le16_to_cpu(udev->descriptor.idVendor) == xpad_device[i].idVendor) &&
 		    (le16_to_cpu(udev->descriptor.idProduct) == xpad_device[i].idProduct))
 			break;
 	}
-	
+
 	if ((xpad = kmalloc (sizeof(struct usb_xpad), GFP_KERNEL)) == NULL) {
 		err("cannot allocate memory for new pad");
 		return -ENOMEM;
 	}
 	memset(xpad, 0, sizeof(struct usb_xpad));
-	
+
 	xpad->idata = usb_buffer_alloc(udev, XPAD_PKT_LEN,
 				       SLAB_ATOMIC, &xpad->idata_dma);
 	if (!xpad->idata) {
@@ -251,18 +244,18 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
                 kfree(xpad);
 		return -ENOMEM;
         }
-	
+
 	ep_irq_in = &intf->cur_altsetting->endpoint[0].desc;
-	
+
 	usb_fill_int_urb(xpad->irq_in, udev,
 			 usb_rcvintpipe(udev, ep_irq_in->bEndpointAddress),
 			 xpad->idata, XPAD_PKT_LEN, xpad_irq_in,
 			 xpad, ep_irq_in->bInterval);
 	xpad->irq_in->transfer_dma = xpad->idata_dma;
 	xpad->irq_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-	
+
 	xpad->udev = udev;
-	
+
 	xpad->dev.id.bustype = BUS_USB;
 	xpad->dev.id.vendor = le16_to_cpu(udev->descriptor.idVendor);
 	xpad->dev.id.product = le16_to_cpu(udev->descriptor.idProduct);
@@ -273,21 +266,21 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	xpad->dev.phys = xpad->phys;
 	xpad->dev.open = xpad_open;
 	xpad->dev.close = xpad_close;
-	
+
 	usb_make_path(udev, path, 64);
 	snprintf(xpad->phys, 64,  "%s/input0", path);
-	
+
 	xpad->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	
+
 	for (i = 0; xpad_btn[i] >= 0; i++)
 		set_bit(xpad_btn[i], xpad->dev.keybit);
-	
+
 	for (i = 0; xpad_abs[i] >= 0; i++) {
-		
+
 		signed short t = xpad_abs[i];
-		
+
 		set_bit(t, xpad->dev.absbit);
-		
+
 		switch (t) {
 			case ABS_X:
 			case ABS_Y:
@@ -310,11 +303,11 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 				break;
 		}
 	}
-	
+
 	input_register_device(&xpad->dev);
-	
+
 	printk(KERN_INFO "input: %s on %s", xpad->dev.name, path);
-	
+
 	usb_set_intfdata(intf, xpad);
 	return 0;
 }
@@ -322,7 +315,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 static void xpad_disconnect(struct usb_interface *intf)
 {
 	struct usb_xpad *xpad = usb_get_intfdata (intf);
-	
+
 	usb_set_intfdata(intf, NULL);
 	if (xpad) {
 		usb_kill_urb(xpad->irq_in);

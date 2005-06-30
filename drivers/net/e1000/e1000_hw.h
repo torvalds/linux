@@ -66,6 +66,7 @@ typedef enum {
     e1000_eeprom_spi,
     e1000_eeprom_microwire,
     e1000_eeprom_flash,
+    e1000_eeprom_none, /* No NVM support */
     e1000_num_eeprom_types
 } e1000_eeprom_type;
 

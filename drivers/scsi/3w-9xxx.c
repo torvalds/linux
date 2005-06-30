@@ -1916,9 +1916,9 @@ static void __twa_shutdown(TW_Device_Extension *tw_dev)
 } /* End __twa_shutdown() */
 
 /* Wrapper for __twa_shutdown */
-static void twa_shutdown(struct device *dev)
+static void twa_shutdown(struct pci_dev *pdev)
 {
-	struct Scsi_Host *host = pci_get_drvdata(to_pci_dev(dev));
+	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 
 	__twa_shutdown(tw_dev);
@@ -2140,9 +2140,7 @@ static struct pci_driver twa_driver = {
 	.id_table	= twa_pci_tbl,
 	.probe		= twa_probe,
 	.remove		= twa_remove,
-	.driver		= {
-		.shutdown = twa_shutdown
-	}
+	.shutdown	= twa_shutdown
 };
 
 /* This function is called on driver initialization */

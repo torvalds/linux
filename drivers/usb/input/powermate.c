@@ -10,7 +10,7 @@
  * back to the host when polled by the USB controller.
  *
  * Testing with the knob I have has shown that it measures approximately 94 "clicks"
- * for one full rotation. Testing with my High Speed Rotation Actuator (ok, it was 
+ * for one full rotation. Testing with my High Speed Rotation Actuator (ok, it was
  * a variable speed cordless electric drill) has shown that the device can measure
  * speeds of up to 7 clicks either clockwise or anticlockwise between pollings from
  * the host. If it counts more than 7 clicks before it is polled, it will wrap back
@@ -120,9 +120,9 @@ exit:
 /* Decide if we need to issue a control message and do so. Must be called with pm->lock taken */
 static void powermate_sync_state(struct powermate_device *pm)
 {
-	if (pm->requires_update == 0) 
+	if (pm->requires_update == 0)
 		return; /* no updates are required */
-	if (pm->config->status == -EINPROGRESS) 
+	if (pm->config->status == -EINPROGRESS)
 		return; /* an update is already in progress; it'll issue this update when it completes */
 
 	if (pm->requires_update & UPDATE_PULSE_ASLEEP){
@@ -142,7 +142,7 @@ static void powermate_sync_state(struct powermate_device *pm)
 		   2: multiply the speed
 		   the argument only has an effect for operations 0 and 2, and ranges between
 		   1 (least effect) to 255 (maximum effect).
-       
+
 		   thus, several states are equivalent and are coalesced into one state.
 
 		   we map this onto a range from 0 to 510, with:
@@ -151,7 +151,7 @@ static void powermate_sync_state(struct powermate_device *pm)
 		   256 -- 510  -- use multiple (510 = fastest).
 
 		   Only values of 'arg' quite close to 255 are particularly useful/spectacular.
-		*/    
+		*/
 		if (pm->pulse_speed < 255){
 			op = 0;                   // divide
 			arg = 255 - pm->pulse_speed;
@@ -199,14 +199,14 @@ static void powermate_config_complete(struct urb *urb, struct pt_regs *regs)
 
 	if (urb->status)
 		printk(KERN_ERR "powermate: config urb returned %d\n", urb->status);
-	
+
 	spin_lock_irqsave(&pm->lock, flags);
 	powermate_sync_state(pm);
 	spin_unlock_irqrestore(&pm->lock, flags);
 }
 
 /* Set the LED up as described and begin the sync with the hardware if required */
-static void powermate_pulse_led(struct powermate_device *pm, int static_brightness, int pulse_speed, 
+static void powermate_pulse_led(struct powermate_device *pm, int static_brightness, int pulse_speed,
 				int pulse_table, int pulse_asleep, int pulse_awake)
 {
 	unsigned long flags;
@@ -229,7 +229,7 @@ static void powermate_pulse_led(struct powermate_device *pm, int static_brightne
 	/* mark state updates which are required */
 	if (static_brightness != pm->static_brightness){
 		pm->static_brightness = static_brightness;
-		pm->requires_update |= UPDATE_STATIC_BRIGHTNESS;		
+		pm->requires_update |= UPDATE_STATIC_BRIGHTNESS;
 	}
 	if (pulse_asleep != pm->pulse_asleep){
 		pm->pulse_asleep = pulse_asleep;
@@ -246,7 +246,7 @@ static void powermate_pulse_led(struct powermate_device *pm, int static_brightne
 	}
 
 	powermate_sync_state(pm);
-   
+
 	spin_unlock_irqrestore(&pm->lock, flags);
 }
 
@@ -257,19 +257,19 @@ static int powermate_input_event(struct input_dev *dev, unsigned int type, unsig
 	struct powermate_device *pm = dev->private;
 
 	if (type == EV_MSC && code == MSC_PULSELED){
-		/*  
+		/*
 		    bits  0- 7: 8 bits: LED brightness
 		    bits  8-16: 9 bits: pulsing speed modifier (0 ... 510); 0-254 = slower, 255 = standard, 256-510 = faster.
 		    bits 17-18: 2 bits: pulse table (0, 1, 2 valid)
 		    bit     19: 1 bit : pulse whilst asleep?
 		    bit     20: 1 bit : pulse constantly?
-		*/  
+		*/
 		int static_brightness = command & 0xFF;   // bits 0-7
 		int pulse_speed = (command >> 8) & 0x1FF; // bits 8-16
 		int pulse_table = (command >> 17) & 0x3;  // bits 17-18
 		int pulse_asleep = (command >> 19) & 0x1; // bit 19
 		int pulse_awake  = (command >> 20) & 0x1; // bit 20
-  
+
 		powermate_pulse_led(pm, static_brightness, pulse_speed, pulse_table, pulse_asleep, pulse_awake);
 	}
 
@@ -378,7 +378,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 	switch (le16_to_cpu(udev->descriptor.idProduct)) {
 	case POWERMATE_PRODUCT_NEW: pm->input.name = pm_name_powermate; break;
 	case POWERMATE_PRODUCT_OLD: pm->input.name = pm_name_soundknob; break;
-	default: 
+	default:
 		pm->input.name = pm_name_soundknob;
 		printk(KERN_WARNING "powermate: unknown product id %04x\n",
 		       le16_to_cpu(udev->descriptor.idProduct));
@@ -402,11 +402,11 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 	usb_make_path(udev, path, 64);
 	snprintf(pm->phys, 64, "%s/input0", path);
 	printk(KERN_INFO "input: %s on %s\n", pm->input.name, pm->input.phys);
-	
+
 	/* force an update of everything */
 	pm->requires_update = UPDATE_PULSE_ASLEEP | UPDATE_PULSE_AWAKE | UPDATE_PULSE_MODE | UPDATE_STATIC_BRIGHTNESS;
 	powermate_pulse_led(pm, 0x80, 255, 0, 1, 0); // set default pulse parameters
-  
+
 	usb_set_intfdata(intf, pm);
 	return 0;
 }

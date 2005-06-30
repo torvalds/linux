@@ -315,8 +315,8 @@ err:
 static void netlink_remove(struct sock *sk)
 {
 	netlink_table_grab();
-	nl_table[sk->sk_protocol].hash.entries--;
-	sk_del_node_init(sk);
+	if (sk_del_node_init(sk))
+		nl_table[sk->sk_protocol].hash.entries--;
 	if (nlk_sk(sk)->groups)
 		__sk_del_bind_node(sk);
 	netlink_table_ungrab();
@@ -429,7 +429,12 @@ retry:
 	err = netlink_insert(sk, pid);
 	if (err == -EADDRINUSE)
 		goto retry;
-	return 0;
+
+	/* If 2 threads race to autobind, that is fine.  */
+	if (err == -EBUSY)
+		err = 0;
+
+	return err;
 }
 
 static inline int netlink_capable(struct socket *sock, unsigned int flag) 

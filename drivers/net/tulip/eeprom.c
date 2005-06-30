@@ -63,6 +63,22 @@ static struct eeprom_fixup eeprom_fixups[] __devinitdata = {
 	 */
 	{ 0x1e00, 0x0000, 0x000b, 0x8f01, 0x0103, 0x0300, 0x0821, 0x000, 0x0001, 0x0000, 0x01e1 }
   },
+  {"Cobalt Microserver", 0, 0x10, 0xE0, {0x1e00, /* 0 == controller #, 1e == offset	*/
+					 0x0000, /* 0 == high offset, 0 == gap		*/
+					 0x0800, /* Default Autoselect			*/
+					 0x8001, /* 1 leaf, extended type, bogus len	*/
+					 0x0003, /* Type 3 (MII), PHY #0		*/
+					 0x0400, /* 0 init instr, 4 reset instr		*/
+					 0x0801, /* Set control mode, GP0 output	*/
+					 0x0000, /* Drive GP0 Low (RST is active low)	*/
+					 0x0800, /* control mode, GP0 input (undriven)	*/
+					 0x0000, /* clear control mode			*/
+					 0x7800, /* 100TX FDX + HDX, 10bT FDX + HDX	*/
+					 0x01e0, /* Advertise all above			*/
+					 0x5000, /* FDX all above			*/
+					 0x1800, /* Set fast TTM in 100bt modes		*/
+					 0x0000, /* PHY cannot be unplugged		*/
+  }},
   {NULL}};
 
 

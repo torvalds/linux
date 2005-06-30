@@ -71,8 +71,11 @@ static inline void iosapic_eoi(char __iomem *iosapic, u32 vector)
 }
 
 extern void __init iosapic_system_init (int pcat_compat);
-extern void __init iosapic_init (unsigned long address,
+extern int __devinit iosapic_init (unsigned long address,
 				    unsigned int gsi_base);
+#ifdef CONFIG_HOTPLUG
+extern int iosapic_remove (unsigned int gsi_base);
+#endif /* CONFIG_HOTPLUG */
 extern int gsi_to_vector (unsigned int gsi);
 extern int gsi_to_irq (unsigned int gsi);
 extern void iosapic_enable_intr (unsigned int vector);
@@ -94,11 +97,14 @@ extern unsigned int iosapic_version (char __iomem *addr);
 
 extern void iosapic_pci_fixup (int);
 #ifdef CONFIG_NUMA
-extern void __init map_iosapic_to_node (unsigned int, int);
+extern void __devinit map_iosapic_to_node (unsigned int, int);
 #endif
 #else
 #define iosapic_system_init(pcat_compat)			do { } while (0)
-#define iosapic_init(address,gsi_base)				do { } while (0)
+#define iosapic_init(address,gsi_base)				(-EINVAL)
+#ifdef CONFIG_HOTPLUG
+#define iosapic_remove(gsi_base)				(-ENODEV)
+#endif /* CONFIG_HOTPLUG */
 #define iosapic_register_intr(gsi,polarity,trigger)		(gsi)
 #define iosapic_unregister_intr(irq)				do { } while (0)
 #define iosapic_override_isa_irq(isa_irq,gsi,polarity,trigger)	do { } while (0)

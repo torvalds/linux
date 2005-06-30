@@ -68,13 +68,6 @@ static const char driver_name[DEV_NAME_LEN]  = "sl811_cs";
 
 static dev_link_t *dev_list = NULL;
 
-static int irq_list[4] = { -1 };
-static int irq_list_count;
-
-module_param_array(irq_list, int, &irq_list_count, 0444);
-
-INT_MODULE_PARM(irq_mask, 0xdeb8);
-
 typedef struct local_info_t {
 	dev_link_t		link;
 	dev_node_t		node;
@@ -373,7 +366,7 @@ static dev_link_t *sl811_cs_attach(void)
 	local_info_t *local;
 	dev_link_t *link;
 	client_reg_t client_reg;
-	int ret, i;
+	int ret;
 
 	local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local)
@@ -385,11 +378,6 @@ static dev_link_t *sl811_cs_attach(void)
 	/* Initialize */
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 	link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
-	if (irq_list[0] == -1)
-		link->irq.IRQInfo2 = irq_mask;
-	else
-		for (i = 0; i < irq_list_count; i++)
-			link->irq.IRQInfo2 |= 1 << irq_list[i];
 	link->irq.Handler = NULL;
 
 	link->conf.Attributes = 0;
@@ -418,6 +406,12 @@ static dev_link_t *sl811_cs_attach(void)
 	return link;
 }
 
+static struct pcmcia_device_id sl811_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0xc015, 0x0001), /* RATOC USB HOST CF+ Card */
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, sl811_ids);
+
 static struct pcmcia_driver sl811_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -425,6 +419,7 @@ static struct pcmcia_driver sl811_cs_driver = {
 	},
 	.attach		= sl811_cs_attach,
 	.detach		= sl811_cs_detach,
+	.id_table	= sl811_ids,
 };
 
 /*====================================================================*/

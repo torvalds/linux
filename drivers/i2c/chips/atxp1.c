@@ -144,7 +144,7 @@ static ssize_t atxp1_storevcore(struct device *dev, struct device_attribute *att
 	if (vid == cvid)
 		return count;
 
-	dev_info(dev, "Setting VCore to %d mV (0x%02x)\n", vcore, vid);
+	dev_dbg(dev, "Setting VCore to %d mV (0x%02x)\n", vcore, vid);
 
 	/* Write every 25 mV step to increase stability */
 	if (cvid > vid) {

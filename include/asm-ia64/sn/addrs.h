@@ -216,6 +216,10 @@
 #define TIO_SWIN_WIDGETNUM(x)		(((x)  >> TIO_SWIN_SIZE_BITS) & TIO_SWIN_WIDGET_MASK)
 
 
+#define TIO_IOSPACE_ADDR(n,x)					\
+	/* Move in the Chiplet ID for TIO Local Block MMR */	\
+	(REMOTE_ADDR(n,x) | 1UL << (NASID_SHIFT - 2))
+
 /*
  * The following macros produce the correct base virtual address for
  * the hub registers. The REMOTE_HUB_* macro produce
@@ -233,12 +237,15 @@
 #define REMOTE_HUB_ADDR(n,x)						\
 	((n & 1) ?							\
 	/* TIO: */							\
-	((volatile u64 *)(GLOBAL_MMR_ADDR(n,x)))			\
-	: /* SHUB: */							\
-	(((x) & BWIN_TOP) ? ((volatile u64 *)(GLOBAL_MMR_ADDR(n,x)))\
+	(is_shub2() ?							\
+	/* TIO on Shub2 */						\
+	(volatile u64 *)(TIO_IOSPACE_ADDR(n,x))				\
+	: /* TIO on shub1 */						\
+	(volatile u64 *)(GLOBAL_MMR_ADDR(n,x)))				\
+									\
+	: /* SHUB1 and SHUB2 MMRs: */					\
+	(((x) & BWIN_TOP) ? ((volatile u64 *)(GLOBAL_MMR_ADDR(n,x)))	\
 	: ((volatile u64 *)(NODE_SWIN_BASE(n,1) + 0x800000 + (x)))))
-
-
 
 #define HUB_L(x)			(*((volatile typeof(*x) *)x))
 #define	HUB_S(x,d)			(*((volatile typeof(*x) *)x) = (d))

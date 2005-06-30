@@ -338,6 +338,7 @@ static int super_written(struct bio *bio, unsigned int bytes_done, int error)
 
 	if (atomic_dec_and_test(&rdev->mddev->pending_writes))
 		wake_up(&rdev->mddev->sb_wait);
+	bio_put(bio);
 	return 0;
 }
 

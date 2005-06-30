@@ -29,6 +29,7 @@ MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(ps2_init);
 EXPORT_SYMBOL(ps2_sendbyte);
+EXPORT_SYMBOL(ps2_drain);
 EXPORT_SYMBOL(ps2_command);
 EXPORT_SYMBOL(ps2_schedule_command);
 EXPORT_SYMBOL(ps2_handle_ack);
@@ -45,11 +46,11 @@ struct ps2work {
 
 
 /*
- * ps2_sendbyte() sends a byte to the mouse, and waits for acknowledge.
- * It doesn't handle retransmission, though it could - because when there would
- * be need for retransmissions, the mouse has to be replaced anyway.
+ * ps2_sendbyte() sends a byte to the device and waits for acknowledge.
+ * It doesn't handle retransmission, though it could - because if there
+ * is a need for retransmissions device has to be replaced anyway.
  *
- * ps2_sendbyte() can only be called from a process context
+ * ps2_sendbyte() can only be called from a process context.
  */
 
 int ps2_sendbyte(struct ps2dev *ps2dev, unsigned char byte, int timeout)
@@ -72,6 +73,91 @@ int ps2_sendbyte(struct ps2dev *ps2dev, unsigned char byte, int timeout)
 }
 
 /*
+ * ps2_drain() waits for device to transmit requested number of bytes
+ * and discards them.
+ */
+
+void ps2_drain(struct ps2dev *ps2dev, int maxbytes, int timeout)
+{
+	if (maxbytes > sizeof(ps2dev->cmdbuf)) {
+		WARN_ON(1);
+		maxbytes = sizeof(ps2dev->cmdbuf);
+	}
+
+	down(&ps2dev->cmd_sem);
+
+	serio_pause_rx(ps2dev->serio);
+	ps2dev->flags = PS2_FLAG_CMD;
+	ps2dev->cmdcnt = maxbytes;
+	serio_continue_rx(ps2dev->serio);
+
+	wait_event_timeout(ps2dev->wait,
+			   !(ps2dev->flags & PS2_FLAG_CMD),
+			   msecs_to_jiffies(timeout));
+	up(&ps2dev->cmd_sem);
+}
+
+/*
+ * ps2_is_keyboard_id() checks received ID byte against the list of
+ * known keyboard IDs.
+ */
+
+static inline int ps2_is_keyboard_id(char id_byte)
+{
+	static char keyboard_ids[] = {
+		0xab,	/* Regular keyboards		*/
+		0xac,	/* NCD Sun keyboard		*/
+		0x2b,	/* Trust keyboard, translated	*/
+		0x5d,	/* Trust keyboard		*/
+		0x60,	/* NMB SGI keyboard, translated */
+		0x47,	/* NMB SGI keyboard		*/
+	};
+
+	return memchr(keyboard_ids, id_byte, sizeof(keyboard_ids)) != NULL;
+}
+
+/*
+ * ps2_adjust_timeout() is called after receiving 1st byte of command
+ * response and tries to reduce remaining timeout to speed up command
+ * completion.
+ */
+
+static int ps2_adjust_timeout(struct ps2dev *ps2dev, int command, int timeout)
+{
+	switch (command) {
+		case PS2_CMD_RESET_BAT:
+			/*
+			 * Device has sent the first response byte after
+			 * reset command, reset is thus done, so we can
+			 * shorten the timeout.
+			 * The next byte will come soon (keyboard) or not
+			 * at all (mouse).
+			 */
+			if (timeout > msecs_to_jiffies(100))
+				timeout = msecs_to_jiffies(100);
+			break;
+
+		case PS2_CMD_GETID:
+			/*
+			 * If device behind the port is not a keyboard there
+			 * won't be 2nd byte of ID response.
+			 */
+			if (!ps2_is_keyboard_id(ps2dev->cmdbuf[1])) {
+				serio_pause_rx(ps2dev->serio);
+				ps2dev->flags = ps2dev->cmdcnt = 0;
+				serio_continue_rx(ps2dev->serio);
+				timeout = 0;
+			}
+			break;
+
+		default:
+			break;
+	}
+
+	return timeout;
+}
+
+/*
  * ps2_command() sends a command and its parameters to the mouse,
  * then waits for the response and puts it in the param array.
  *
@@ -85,6 +171,11 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 	int receive = (command >> 8) & 0xf;
 	int rc = -1;
 	int i;
+
+	if (receive > sizeof(ps2dev->cmdbuf)) {
+		WARN_ON(1);
+		return -1;
+	}
 
 	down(&ps2dev->cmd_sem);
 
@@ -101,10 +192,9 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 	 * ACKing the reset command, and so it can take a long
 	 * time before the ACK arrrives.
 	 */
-	if (command & 0xff)
-		if (ps2_sendbyte(ps2dev, command & 0xff,
-			command == PS2_CMD_RESET_BAT ? 1000 : 200))
-			goto out;
+	if (ps2_sendbyte(ps2dev, command & 0xff,
+			 command == PS2_CMD_RESET_BAT ? 1000 : 200))
+		goto out;
 
 	for (i = 0; i < send; i++)
 		if (ps2_sendbyte(ps2dev, param[i], 200))
@@ -120,33 +210,7 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 
 	if (ps2dev->cmdcnt && timeout > 0) {
 
-		if (command == PS2_CMD_RESET_BAT && timeout > msecs_to_jiffies(100)) {
-			/*
-			 * Device has sent the first response byte
-			 * after a reset command, reset is thus done,
-			 * shorten the timeout. The next byte will come
-			 * soon (keyboard) or not at all (mouse).
-			 */
-			timeout = msecs_to_jiffies(100);
-		}
-
-		if (command == PS2_CMD_GETID &&
-		    ps2dev->cmdbuf[receive - 1] != 0xab && /* Regular keyboards */
-		    ps2dev->cmdbuf[receive - 1] != 0xac && /* NCD Sun keyboard */
-		    ps2dev->cmdbuf[receive - 1] != 0x2b && /* Trust keyboard, translated */
-		    ps2dev->cmdbuf[receive - 1] != 0x5d && /* Trust keyboard */
-		    ps2dev->cmdbuf[receive - 1] != 0x60 && /* NMB SGI keyboard, translated */
-		    ps2dev->cmdbuf[receive - 1] != 0x47) { /* NMB SGI keyboard */
-			/*
-			 * Device behind the port is not a keyboard
-			 * so we don't need to wait for the 2nd byte
-			 * of ID response.
-			 */
-			serio_pause_rx(ps2dev->serio);
-			ps2dev->flags = ps2dev->cmdcnt = 0;
-			serio_continue_rx(ps2dev->serio);
-		}
-
+		timeout = ps2_adjust_timeout(ps2dev, command, timeout);
 		wait_event_timeout(ps2dev->wait,
 				   !(ps2dev->flags & PS2_FLAG_CMD), timeout);
 	}
@@ -160,7 +224,7 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 
 	rc = 0;
 
-out:
+ out:
 	serio_pause_rx(ps2dev->serio);
 	ps2dev->flags = 0;
 	serio_continue_rx(ps2dev->serio);

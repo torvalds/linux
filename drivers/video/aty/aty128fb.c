@@ -350,10 +350,8 @@ static int default_vmode __initdata = VMODE_1024_768_60;
 static int default_cmode __initdata = CMODE_8;
 #endif
 
-#ifdef CONFIG_PMAC_PBOOK
 static int default_crt_on __initdata = 0;
 static int default_lcd_on __initdata = 1;
-#endif
 
 #ifdef CONFIG_MTRR
 static int mtrr = 1;
@@ -1249,7 +1247,6 @@ static int aty128_crtc_to_var(const struct aty128_crtc *crtc,
 	return 0;
 }
 
-#ifdef CONFIG_PMAC_PBOOK
 static void aty128_set_crt_enable(struct aty128fb_par *par, int on)
 {
 	if (on) {
@@ -1284,7 +1281,6 @@ static void aty128_set_lcd_enable(struct aty128fb_par *par, int on)
 		aty_st_le32(LVDS_GEN_CNTL, reg);
 	}
 }
-#endif /* CONFIG_PMAC_PBOOK */
 
 static void aty128_set_pll(struct aty128_pll *pll, const struct aty128fb_par *par)
 {
@@ -1491,12 +1487,10 @@ static int aty128fb_set_par(struct fb_info *info)
 	info->fix.visual = par->crtc.bpp == 8 ? FB_VISUAL_PSEUDOCOLOR
 		: FB_VISUAL_DIRECTCOLOR;
 
-#ifdef CONFIG_PMAC_PBOOK
 	if (par->chip_gen == rage_M3) {
 		aty128_set_crt_enable(par, par->crt_on);
 		aty128_set_lcd_enable(par, par->lcd_on);
 	}
-#endif
 	if (par->accel_flags & FB_ACCELF_TEXT)
 		aty128_init_engine(par);
 
@@ -1652,7 +1646,6 @@ static int __init aty128fb_setup(char *options)
 		return 0;
 
 	while ((this_opt = strsep(&options, ",")) != NULL) {
-#ifdef CONFIG_PMAC_PBOOK
 		if (!strncmp(this_opt, "lcd:", 4)) {
 			default_lcd_on = simple_strtoul(this_opt+4, NULL, 0);
 			continue;
@@ -1660,7 +1653,6 @@ static int __init aty128fb_setup(char *options)
 			default_crt_on = simple_strtoul(this_opt+4, NULL, 0);
 			continue;
 		}
-#endif
 #ifdef CONFIG_MTRR
 		if(!strncmp(this_opt, "nomtrr", 6)) {
 			mtrr = 0;
@@ -1752,10 +1744,8 @@ static int __init aty128_init(struct pci_dev *pdev, const struct pci_device_id *
 	info->fbops = &aty128fb_ops;
 	info->flags = FBINFO_FLAG_DEFAULT;
 
-#ifdef CONFIG_PMAC_PBOOK
 	par->lcd_on = default_lcd_on;
 	par->crt_on = default_crt_on;
-#endif
 
 	var = default_var;
 #ifdef CONFIG_PPC_PMAC
@@ -2035,12 +2025,10 @@ static int aty128fb_blank(int blank, struct fb_info *fb)
 
 	aty_st_8(CRTC_EXT_CNTL+1, state);
 
-#ifdef CONFIG_PMAC_PBOOK
 	if (par->chip_gen == rage_M3) {
 		aty128_set_crt_enable(par, par->crt_on && !blank);
 		aty128_set_lcd_enable(par, par->lcd_on && !blank);
 	}
-#endif	
 #ifdef CONFIG_PMAC_BACKLIGHT
 	if ((_machine == _MACH_Pmac) && !blank)
 		set_backlight_enable(1);
@@ -2124,7 +2112,6 @@ static int aty128fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 static int aty128fb_ioctl(struct inode *inode, struct file *file, u_int cmd,
 			  u_long arg, struct fb_info *info)
 {
-#ifdef CONFIG_PMAC_PBOOK
 	struct aty128fb_par *par = info->par;
 	u32 value;
 	int rc;
@@ -2149,7 +2136,6 @@ static int aty128fb_ioctl(struct inode *inode, struct file *file, u_int cmd,
 		value = (par->crt_on << 1) | par->lcd_on;
 		return put_user(value, (__u32 __user *)arg);
 	}
-#endif
 	return -EINVAL;
 }
 

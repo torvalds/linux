@@ -373,6 +373,13 @@ int parport_event(event_t event, int priority,
     return 0;
 } /* parport_event */
 
+static struct pcmcia_device_id parport_ids[] = {
+	PCMCIA_DEVICE_FUNC_ID(3),
+	PCMCIA_DEVICE_MANF_CARD(0x0137, 0x0003),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, parport_ids);
+
 static struct pcmcia_driver parport_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -380,6 +387,8 @@ static struct pcmcia_driver parport_cs_driver = {
 	},
 	.attach		= parport_attach,
 	.detach		= parport_detach,
+	.id_table	= parport_ids,
+
 };
 
 static int __init init_parport_cs(void)

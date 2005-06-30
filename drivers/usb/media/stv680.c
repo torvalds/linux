@@ -1375,9 +1375,13 @@ static int stv680_probe (struct usb_interface *intf, const struct usb_device_id 
 	    (le16_to_cpu(dev->descriptor.idProduct) == USB_PENCAM_PRODUCT_ID)) {
 		camera_name = "STV0680";
 		PDEBUG (0, "STV(i): STV0680 camera found.");
+	} else if ((le16_to_cpu(dev->descriptor.idVendor) == USB_CREATIVEGOMINI_VENDOR_ID) &&
+		   (le16_to_cpu(dev->descriptor.idProduct) == USB_CREATIVEGOMINI_PRODUCT_ID)) {
+		camera_name = "Creative WebCam Go Mini";
+		PDEBUG (0, "STV(i): Creative WebCam Go Mini found.");
 	} else {
-		PDEBUG (0, "STV(e): Vendor/Product ID do not match STV0680 values.");
-		PDEBUG (0, "STV(e): Check that the STV0680 camera is connected to the computer.");
+		PDEBUG (0, "STV(e): Vendor/Product ID do not match STV0680 or Creative WebCam Go Mini values.");
+		PDEBUG (0, "STV(e): Check that the STV0680 or Creative WebCam Go Mini camera is connected to the computer.");
 		retval = -ENODEV;
 		goto error;
 	}

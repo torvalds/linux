@@ -324,6 +324,7 @@ sandpoint_setup_arch(void)
 			pdata[1].irq = 0;
 			pdata[1].mapbase = 0;
 		}
+	}
 
 	printk(KERN_INFO "Motorola SPS Sandpoint Test Platform\n");
 	printk(KERN_INFO "Port by MontaVista Software, Inc. (source@mvista.com)\n");

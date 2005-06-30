@@ -86,14 +86,14 @@ config SERIAL_8250_ACPI
 	  namespace, say Y here.  If unsure, say N.
 
 config SERIAL_8250_NR_UARTS
-	int "Maximum number of non-legacy 8250/16550 serial ports"
+	int "Maximum number of 8250/16550 serial ports"
 	depends on SERIAL_8250
 	default "4"
-	---help---
-	  Set this to the number of non-legacy serial ports you want
-	  the driver to support.  This includes any ports discovered
-	  via ACPI or PCI enumeration and any ports that may be added
-	  at run-time via hot-plug.
+	help
+	  Set this to the number of serial ports you want the driver
+	  to support.  This includes any ports discovered via ACPI or
+	  PCI enumeration and any ports that may be added at run-time
+	  via hot-plug, or any ISA multi-port serial cards.
 
 config SERIAL_8250_EXTENDED
 	bool "Extended 8250/16550 serial driver options"
@@ -141,30 +141,73 @@ config SERIAL_8250_DETECT_IRQ
 
 	  If unsure, say N.
 
-config SERIAL_8250_MULTIPORT
-	bool "Support special multiport boards"
-	depends on SERIAL_8250_EXTENDED
-	help
-	  Some multiport serial ports have special ports which are used to
-	  signal when there are any serial ports on the board which need
-	  servicing. Say Y here to enable the serial driver to take advantage
-	  of those special I/O ports.
-
 config SERIAL_8250_RSA
 	bool "Support RSA serial ports"
 	depends on SERIAL_8250_EXTENDED
 	help
 	  ::: To be written :::
 
-comment "Non-8250 serial port support"
+#
+# Multi-port serial cards
+#
+
+config SERIAL_8250_FOURPORT
+	tristate "Support Fourport cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have an AST FourPort serial board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_fourport.
+
+config SERIAL_8250_ACCENT
+	tristate "Support Accent cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have an Accent Async serial board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_accent.
+
+
+config SERIAL_8250_BOCA
+	tristate "Support Boca cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have a Boca serial board.  Please read the Boca
+	  mini-HOWTO, avaialble from <http://www.tldp.org/docs.html#howto>
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_boca.
+
+
+config SERIAL_8250_HUB6
+	tristate "Support Hub6 cards"
+	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
+	help
+	  Say Y here if you have a HUB6 serial board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_hub6.
+
+config SERIAL_8250_MCA
+	tristate "Support 8250-type ports on MCA buses"
+	depends on SERIAL_8250 != n && MCA
+	help
+	  Say Y here if you have a MCA serial ports.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_mca.
 
 config SERIAL_8250_ACORN
 	tristate "Acorn expansion card serial port support"
-	depends on ARM && ARCH_ACORN && SERIAL_8250
+	depends on ARCH_ACORN && SERIAL_8250
 	help
 	  If you have an Atomwide Serial card or Serial Port card for an Acorn
 	  system, say Y to this option.  The driver can handle 1, 2, or 3 port
 	  cards.  If unsure, say N.
+
+comment "Non-8250 serial port support"
 
 config SERIAL_AMBA_PL010
 	tristate "ARM AMBA PL010 serial port support"

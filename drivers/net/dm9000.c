@@ -224,7 +224,7 @@ static void dm9000_outblk_32bit(void __iomem *reg, void *data, int count)
 
 static void dm9000_inblk_8bit(void __iomem *reg, void *data, int count)
 {
-	readsb(reg, data, count+1);
+	readsb(reg, data, count);
 }
 
 
@@ -364,7 +364,7 @@ dm9000_release_board(struct platform_device *pdev, struct board_info *db)
 	}
 
 	if (db->addr_res != NULL) {
-		release_resource(db->data_req);
+		release_resource(db->addr_res);
 		kfree(db->addr_req);
 	}
 }

@@ -1285,6 +1285,9 @@ static int b44_open(struct net_device *dev)
 	b44_init_hw(bp);
 	bp->flags |= B44_FLAG_INIT_COMPLETE;
 
+	netif_carrier_off(dev);
+	b44_check_phy(bp);
+
 	spin_unlock_irq(&bp->lock);
 
 	init_timer(&bp->timer);

@@ -60,6 +60,8 @@ struct dyn_tick_timer {
 };
 
 void timer_dyn_reprogram(void);
+#else
+#define timer_dyn_reprogram()	do { } while (0)
 #endif
 
 extern struct sys_timer *system_timer;

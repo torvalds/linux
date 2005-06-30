@@ -52,11 +52,34 @@ struct pcdp_uart {
 	u32				clock_rate;
 	u8				pci_prog_intfc;
 	u8				flags;
-};
+} __attribute__((packed));
+
+#define PCDP_IF_PCI	1
+
+/* pcdp_if_pci.trans */
+#define PCDP_PCI_TRANS_IOPORT	0x02
+#define PCDP_PCI_TRANS_MMIO	0x01
+
+struct pcdp_if_pci {
+	u8			interconnect;
+	u8			reserved;
+	u16			length;
+	u8			segment;
+	u8			bus;
+	u8			dev;
+	u8			fun;
+	u16			dev_id;
+	u16			vendor_id;
+	u32			acpi_interrupt;
+	u64			mmio_tra;
+	u64			ioport_tra;
+	u8			flags;
+	u8			trans;
+} __attribute__((packed));
 
 struct pcdp_vga {
 	u8			count;		/* address space descriptors */
-};
+} __attribute__((packed));
 
 /* pcdp_device.flags */
 #define PCDP_PRIMARY_CONSOLE	1
@@ -66,7 +89,9 @@ struct pcdp_device {
 	u8			flags;
 	u16			length;
 	u16			efi_index;
-};
+	/* next data is pcdp_if_pci or pcdp_if_acpi (not yet supported) */
+	/* next data is device specific type (currently only pcdp_vga) */
+} __attribute__((packed));
 
 struct pcdp {
 	u8			signature[4];
@@ -81,4 +106,4 @@ struct pcdp {
 	u32			num_uarts;
 	struct pcdp_uart	uart[0];	/* actual size is num_uarts */
 	/* remainder of table is pcdp_device structures */
-};
+} __attribute__((packed));

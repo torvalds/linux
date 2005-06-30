@@ -54,18 +54,18 @@ struct mthca_uar {
 	int           index;
 };
 
+struct mthca_mtt;
+
 struct mthca_mr {
-	struct ib_mr ibmr;
-	int order;
-	u32 first_seg;
+	struct ib_mr      ibmr;
+	struct mthca_mtt *mtt;
 };
 
 struct mthca_fmr {
-	struct ib_fmr ibmr;
+	struct ib_fmr      ibmr;
 	struct ib_fmr_attr attr;
-	int order;
-	u32 first_seg;
-	int maps;
+	struct mthca_mtt  *mtt;
+	int                maps;
 	union {
 		struct {
 			struct mthca_mpt_entry __iomem *mpt;

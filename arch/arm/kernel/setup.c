@@ -359,7 +359,8 @@ void cpu_init(void)
 	      "I" (offsetof(struct stack, abt[0])),
 	      "I" (PSR_F_BIT | PSR_I_BIT | UND_MODE),
 	      "I" (offsetof(struct stack, und[0])),
-	      "I" (PSR_F_BIT | PSR_I_BIT | SVC_MODE));
+	      "I" (PSR_F_BIT | PSR_I_BIT | SVC_MODE)
+	    : "r14");
 }
 
 static struct machine_desc * __init setup_machine(unsigned int nr)
