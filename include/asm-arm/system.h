@@ -85,7 +85,9 @@ struct pt_regs;
 void die(const char *msg, struct pt_regs *regs, int err)
 		__attribute__((noreturn));
 
-void die_if_kernel(const char *str, struct pt_regs *regs, int err);
+struct siginfo;
+void notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
+		unsigned long err, unsigned long trap);
 
 void hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
 				       struct pt_regs *),
