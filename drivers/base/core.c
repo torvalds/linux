@@ -333,7 +333,7 @@ void device_del(struct device * dev)
 	struct device * parent = dev->parent;
 
 	if (parent)
-		klist_remove(&dev->knode_parent);
+		klist_del(&dev->knode_parent);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...
