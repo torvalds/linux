@@ -53,24 +53,23 @@ static int uinput_dev_event(struct input_dev *dev, unsigned int type, unsigned i
 	return 0;
 }
 
-static int uinput_request_alloc_id(struct input_dev *dev, struct uinput_request *request)
+static int uinput_request_alloc_id(struct uinput_device *udev, struct uinput_request *request)
 {
 	/* Atomically allocate an ID for the given request. Returns 0 on success. */
-	struct uinput_device *udev = dev->private;
 	int id;
 	int err = -1;
 
-	down(&udev->requests_sem);
+	spin_lock(&udev->requests_lock);
 
 	for (id = 0; id < UINPUT_NUM_REQUESTS; id++)
 		if (!udev->requests[id]) {
-			udev->requests[id] = request;
 			request->id = id;
+			udev->requests[id] = request;
 			err = 0;
 			break;
 		}
 
-	up(&udev->requests_sem);
+	spin_unlock(&udev->requests_lock);
 	return err;
 }
 
@@ -79,70 +78,78 @@ static struct uinput_request* uinput_request_find(struct uinput_device *udev, in
 	/* Find an input request, by ID. Returns NULL if the ID isn't valid. */
 	if (id >= UINPUT_NUM_REQUESTS || id < 0)
 		return NULL;
-	if (udev->requests[id]->completed)
-		return NULL;
 	return udev->requests[id];
 }
 
-static void uinput_request_init(struct input_dev *dev, struct uinput_request *request, int code)
+static inline int uinput_request_reserve_slot(struct uinput_device *udev, struct uinput_request *request)
 {
-	struct uinput_device *udev = dev->private;
-
-	memset(request, 0, sizeof(struct uinput_request));
-	request->code = code;
-	init_waitqueue_head(&request->waitq);
-
-	/* Allocate an ID. If none are available right away, wait. */
-	request->retval = wait_event_interruptible(udev->requests_waitq,
-					!uinput_request_alloc_id(dev, request));
+	/* Allocate slot. If none are available right away, wait. */
+	return wait_event_interruptible(udev->requests_waitq,
+					!uinput_request_alloc_id(udev, request));
 }
 
-static void uinput_request_submit(struct input_dev *dev, struct uinput_request *request)
+static void uinput_request_done(struct uinput_device *udev, struct uinput_request *request)
 {
-	struct uinput_device *udev = dev->private;
+	complete(&request->done);
+
+	/* Mark slot as available */
+	udev->requests[request->id] = NULL;
+	wake_up_interruptible(&udev->requests_waitq);
+}
+
+static int uinput_request_submit(struct input_dev *dev, struct uinput_request *request)
+{
 	int retval;
 
 	/* Tell our userspace app about this new request by queueing an input event */
 	uinput_dev_event(dev, EV_UINPUT, request->code, request->id);
 
 	/* Wait for the request to complete */
-	retval = wait_event_interruptible(request->waitq, request->completed);
-	if (retval)
-		request->retval = retval;
+	retval = wait_for_completion_interruptible(&request->done);
+	if (!retval)
+		retval = request->retval;
 
-	/* Release this request's ID, let others know it's available */
-	udev->requests[request->id] = NULL;
-	wake_up_interruptible(&udev->requests_waitq);
+	return retval;
 }
 
 static int uinput_dev_upload_effect(struct input_dev *dev, struct ff_effect *effect)
 {
 	struct uinput_request request;
+	int retval;
 
 	if (!test_bit(EV_FF, dev->evbit))
 		return -ENOSYS;
 
-	uinput_request_init(dev, &request, UI_FF_UPLOAD);
-	if (request.retval)
-		return request.retval;
+	request.id = -1;
+	init_completion(&request.done);
+	request.code = UI_FF_UPLOAD;
 	request.u.effect = effect;
-	uinput_request_submit(dev, &request);
-	return request.retval;
+
+	retval = uinput_request_reserve_slot(dev->private, &request);
+	if (!retval)
+		retval = uinput_request_submit(dev, &request);
+
+	return retval;
 }
 
 static int uinput_dev_erase_effect(struct input_dev *dev, int effect_id)
 {
 	struct uinput_request request;
+	int retval;
 
 	if (!test_bit(EV_FF, dev->evbit))
 		return -ENOSYS;
 
-	uinput_request_init(dev, &request, UI_FF_ERASE);
-	if (request.retval)
-		return request.retval;
+	request.id = -1;
+	init_completion(&request.done);
+	request.code = UI_FF_ERASE;
 	request.u.effect_id = effect_id;
-	uinput_request_submit(dev, &request);
-	return request.retval;
+
+	retval = uinput_request_reserve_slot(dev->private, &request);
+	if (!retval)
+		retval = uinput_request_submit(dev, &request);
+
+	return retval;
 }
 
 static int uinput_create_device(struct uinput_device *udev)
@@ -189,7 +196,7 @@ static int uinput_open(struct inode *inode, struct file *file)
 	if (!newdev)
 		goto error;
 	memset(newdev, 0, sizeof(struct uinput_device));
-	init_MUTEX(&newdev->requests_sem);
+	spin_lock_init(&newdev->requests_lock);
 	init_waitqueue_head(&newdev->requests_waitq);
 
 	newinput = kmalloc(sizeof(struct input_dev), GFP_KERNEL);
@@ -551,8 +558,7 @@ static int uinput_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 			}
 			req->retval = ff_up.retval;
 			memcpy(req->u.effect, &ff_up.effect, sizeof(struct ff_effect));
-			req->completed = 1;
-			wake_up_interruptible(&req->waitq);
+			uinput_request_done(udev, req);
 			break;
 
 		case UI_END_FF_ERASE:
@@ -566,8 +572,7 @@ static int uinput_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 				break;
 			}
 			req->retval = ff_erase.retval;
-			req->completed = 1;
-			wake_up_interruptible(&req->waitq);
+			uinput_request_done(udev, req);
 			break;
 
 		default:

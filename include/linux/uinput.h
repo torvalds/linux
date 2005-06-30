@@ -42,8 +42,7 @@ struct uinput_request {
 	int			code;	/* UI_FF_UPLOAD, UI_FF_ERASE */
 
 	int			retval;
-	wait_queue_head_t	waitq;
-	int			completed;
+	struct completion	done;
 
 	union {
 		int		effect_id;
@@ -62,7 +61,7 @@ struct uinput_device {
 
 	struct uinput_request	*requests[UINPUT_NUM_REQUESTS];
 	wait_queue_head_t	requests_waitq;
-	struct semaphore	requests_sem;
+	spinlock_t		requests_lock;
 };
 #endif	/* __KERNEL__ */
 
