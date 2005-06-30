@@ -80,5 +80,6 @@ extern struct HvLpEvent *ItLpQueue_getNextLpEvent(void);
 extern int ItLpQueue_isLpIntPending(void);
 extern unsigned ItLpQueue_process(struct pt_regs *);
 extern void ItLpQueue_clearValid(struct HvLpEvent *);
+extern void setup_hvlpevent_queue(void);
 
 #endif /* _ITLPQUEUE_H */

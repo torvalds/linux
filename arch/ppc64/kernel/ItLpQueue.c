@@ -11,6 +11,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/bootmem.h>
 #include <asm/system.h>
 #include <asm/paca.h>
 #include <asm/iSeries/ItLpQueue.h>
@@ -186,3 +187,24 @@ static int set_spread_lpevents(char *str)
 }
 __setup("spread_lpevents=", set_spread_lpevents);
 
+void setup_hvlpevent_queue(void)
+{
+	void *eventStack;
+
+	/*
+	 * Allocate a page for the Event Stack. The Hypervisor needs the
+	 * absolute real address, so we subtract out the KERNELBASE and add
+	 * in the absolute real address of the kernel load area.
+	 */
+	eventStack = alloc_bootmem_pages(LpEventStackSize);
+	memset(eventStack, 0, LpEventStackSize);
+
+	/* Invoke the hypervisor to initialize the event stack */
+	HvCallEvent_setLpEventStack(0, eventStack, LpEventStackSize);
+
+	xItLpQueue.xSlicEventStackPtr = (char *)eventStack;
+	xItLpQueue.xSlicCurEventPtr = (char *)eventStack;
+	xItLpQueue.xSlicLastValidEventPtr = (char *)eventStack +
+					(LpEventStackSize - LpEventMaxSize);
+	xItLpQueue.xIndex = 0;
+}

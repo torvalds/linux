@@ -24,7 +24,6 @@
 #include <linux/smp.h>
 #include <linux/param.h>
 #include <linux/string.h>
-#include <linux/bootmem.h>
 #include <linux/initrd.h>
 #include <linux/seq_file.h>
 #include <linux/kdev_t.h>
@@ -676,7 +675,6 @@ static void __init iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr)
  */
 static void __init iSeries_setup_arch(void)
 {
-	void *eventStack;
 	unsigned procIx = get_paca()->lppaca.dyn_hv_phys_proc_index;
 
 	/* Add an eye catcher and the systemcfg layout version number */
@@ -685,24 +683,7 @@ static void __init iSeries_setup_arch(void)
 	systemcfg->version.minor = SYSTEMCFG_MINOR;
 
 	/* Setup the Lp Event Queue */
-
-	/* Allocate a page for the Event Stack
-	 * The hypervisor wants the absolute real address, so
-	 * we subtract out the KERNELBASE and add in the
-	 * absolute real address of the kernel load area
-	 */
-	eventStack = alloc_bootmem_pages(LpEventStackSize);
-	memset(eventStack, 0, LpEventStackSize);
-
-	/* Invoke the hypervisor to initialize the event stack */
-	HvCallEvent_setLpEventStack(0, eventStack, LpEventStackSize);
-
-	/* Initialize fields in our Lp Event Queue */
-	xItLpQueue.xSlicEventStackPtr = (char *)eventStack;
-	xItLpQueue.xSlicCurEventPtr = (char *)eventStack;
-	xItLpQueue.xSlicLastValidEventPtr = (char *)eventStack +
-					(LpEventStackSize - LpEventMaxSize);
-	xItLpQueue.xIndex = 0;
+	setup_hvlpevent_queue();
 
 	/* Compute processor frequency */
 	procFreqHz = ((1UL << 34) * 1000000) /
