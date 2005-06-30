@@ -28,7 +28,9 @@
  */
 struct hvlpevent_queue hvlpevent_queue __attribute__((__section__(".data")));
 
-static char *event_types[9] = {
+DEFINE_PER_CPU(unsigned long[HvLpEvent_Type_NumTypes], hvlpevent_counts);
+
+static char *event_types[HvLpEvent_Type_NumTypes] = {
 	"Hypervisor\t\t",
 	"Machine Facilities\t",
 	"Session Manager\t",
@@ -129,7 +131,6 @@ static void hvlpevent_clear_valid( struct HvLpEvent * event )
 
 void process_hvlpevents(struct pt_regs *regs)
 {
-	unsigned numIntsProcessed = 0;
 	struct HvLpEvent * nextLpEvent;
 
 	/* If we have recursed, just return */
@@ -144,8 +145,6 @@ void process_hvlpevents(struct pt_regs *regs)
 	for (;;) {
 		nextLpEvent = get_next_hvlpevent();
 		if ( nextLpEvent ) {
-			++numIntsProcessed;
-			hvlpevent_queue.xLpIntCount++;
 			/* Call appropriate handler here, passing 
 			 * a pointer to the LpEvent.  The handler
 			 * must make a copy of the LpEvent if it
@@ -160,7 +159,7 @@ void process_hvlpevents(struct pt_regs *regs)
 			 * here!
   			 */
 			if ( nextLpEvent->xType < HvLpEvent_Type_NumTypes )
-				hvlpevent_queue.xLpIntCountByType[nextLpEvent->xType]++;
+				__get_cpu_var(hvlpevent_counts)[nextLpEvent->xType]++;
 			if ( nextLpEvent->xType < HvLpEvent_Type_NumTypes &&
 			     lpEventHandler[nextLpEvent->xType] ) 
 				lpEventHandler[nextLpEvent->xType](nextLpEvent, regs);
@@ -181,8 +180,6 @@ void process_hvlpevents(struct pt_regs *regs)
 	ItLpQueueInProcess = 0;
 	mb();
 	clear_inUse();
-
-	get_paca()->lpevent_count += numIntsProcessed;
 }
 
 static int set_spread_lpevents(char *str)
@@ -228,20 +225,37 @@ void setup_hvlpevent_queue(void)
 
 static int proc_lpevents_show(struct seq_file *m, void *v)
 {
-	unsigned int i;
+	int cpu, i;
+	unsigned long sum;
+	static unsigned long cpu_totals[NR_CPUS];
+
+	/* FIXME: do we care that there's no locking here? */
+	sum = 0;
+	for_each_online_cpu(cpu) {
+		cpu_totals[cpu] = 0;
+		for (i = 0; i < HvLpEvent_Type_NumTypes; i++) {
+			cpu_totals[cpu] += per_cpu(hvlpevent_counts, cpu)[i];
+		}
+		sum += cpu_totals[cpu];
+	}
 
 	seq_printf(m, "LpEventQueue 0\n");
-	seq_printf(m, "  events processed:\t%lu\n",
-		   (unsigned long)hvlpevent_queue.xLpIntCount);
+	seq_printf(m, "  events processed:\t%lu\n", sum);
 
-	for (i = 0; i < 9; ++i)
-		seq_printf(m, "    %s %10lu\n", event_types[i],
-			   (unsigned long)hvlpevent_queue.xLpIntCountByType[i]);
+	for (i = 0; i < HvLpEvent_Type_NumTypes; ++i) {
+		sum = 0;
+		for_each_online_cpu(cpu) {
+			sum += per_cpu(hvlpevent_counts, cpu)[i];
+		}
+
+		seq_printf(m, "    %s %10lu\n", event_types[i], sum);
+	}
 
 	seq_printf(m, "\n  events processed by processor:\n");
 
-	for_each_online_cpu(i)
-		seq_printf(m, "    CPU%02d  %10u\n", i, paca[i].lpevent_count);
+	for_each_online_cpu(cpu) {
+		seq_printf(m, "    CPU%02d  %10lu\n", cpu, cpu_totals[cpu]);
+	}
 
 	return 0;
 }

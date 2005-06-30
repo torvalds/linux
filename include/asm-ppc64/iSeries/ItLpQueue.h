@@ -70,8 +70,6 @@ struct hvlpevent_queue {
 	u8	xIndex;			// 0x28 unique sequential index.
 	u8	xSlicRsvd[3];		// 0x29-2b
 	u32	xInUseWord;		// 0x2C
-	u64	xLpIntCount;		// 0x30 Total Lp Int msgs processed
-	u64	xLpIntCountByType[9];	// 0x38-0x7F Event counts by type
 };
 
 extern struct hvlpevent_queue hvlpevent_queue;

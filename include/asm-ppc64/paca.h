@@ -89,7 +89,6 @@ struct paca_struct {
 	u64 next_jiffy_update_tb;	/* TB value for next jiffy update */
 	u64 saved_r1;			/* r1 save for RTAS calls */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
-	u32 lpevent_count;		/* lpevents processed  */
 	u8 proc_enabled;		/* irq soft-enable flag */
 
 	/* not yet used */
