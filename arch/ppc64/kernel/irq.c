@@ -66,7 +66,6 @@ EXPORT_SYMBOL(irq_desc);
 int distribute_irqs = 1;
 int __irq_offset_value;
 int ppc_spurious_interrupts;
-unsigned long lpevent_count;
 u64 ppc64_interrupt_controller;
 
 int show_interrupts(struct seq_file *p, void *v)
@@ -295,7 +294,7 @@ void do_IRQ(struct pt_regs *regs)
 	}
 #endif /* CONFIG_SMP */
 	if (hvlpevent_is_pending())
-		lpevent_count += process_hvlpevents(regs);
+		process_hvlpevents(regs);
 
 	irq_exit();
 

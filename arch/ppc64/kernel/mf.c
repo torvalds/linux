@@ -801,9 +801,8 @@ int mf_get_boot_rtc(struct rtc_time *tm)
 		return rc;
 	/* We need to poll here as we are not yet taking interrupts */
 	while (rtc_data.busy) {
-		extern unsigned long lpevent_count;
 		if (hvlpevent_is_pending())
-			lpevent_count += process_hvlpevents(NULL);
+			process_hvlpevents(NULL);
 	}
 	return rtc_set_tm(rtc_data.rc, rtc_data.ce_msg.ce_msg, tm);
 }

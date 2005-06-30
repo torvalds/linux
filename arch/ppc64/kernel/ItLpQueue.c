@@ -127,14 +127,14 @@ static void hvlpevent_clear_valid( struct HvLpEvent * event )
 	event->xFlags.xValid = 0;
 }
 
-unsigned process_hvlpevents(struct pt_regs *regs)
+void process_hvlpevents(struct pt_regs *regs)
 {
 	unsigned numIntsProcessed = 0;
 	struct HvLpEvent * nextLpEvent;
 
 	/* If we have recursed, just return */
 	if ( !set_inUse() )
-		return 0;
+		return;
 	
 	if (ItLpQueueInProcess == 0)
 		ItLpQueueInProcess = 1;
@@ -144,9 +144,6 @@ unsigned process_hvlpevents(struct pt_regs *regs)
 	for (;;) {
 		nextLpEvent = get_next_hvlpevent();
 		if ( nextLpEvent ) {
-			/* Count events to return to caller
-			 * and count processed events in hvlpevent_queue
- 			 */
 			++numIntsProcessed;
 			hvlpevent_queue.xLpIntCount++;
 			/* Call appropriate handler here, passing 
@@ -186,8 +183,6 @@ unsigned process_hvlpevents(struct pt_regs *regs)
 	clear_inUse();
 
 	get_paca()->lpevent_count += numIntsProcessed;
-
-	return numIntsProcessed;
 }
 
 static int set_spread_lpevents(char *str)
