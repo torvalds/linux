@@ -274,14 +274,11 @@ static unsigned int serial_pxa_tx_empty(struct uart_port *port)
 static unsigned int serial_pxa_get_mctrl(struct uart_port *port)
 {
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
-	unsigned long flags;
 	unsigned char status;
 	unsigned int ret;
 
 return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
-	spin_lock_irqsave(&up->port.lock, flags);
 	status = serial_in(up, UART_MSR);
-	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	ret = 0;
 	if (status & UART_MSR_DCD)

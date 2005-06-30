@@ -439,6 +439,8 @@ tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
 
 	t = NLMSG_DATA(nlh);
 	t->tca_family = AF_UNSPEC;
+	t->tca__pad1 = 0;
+	t->tca__pad2 = 0;
 	
 	x = (struct rtattr*) skb->tail;
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
@@ -580,6 +582,8 @@ static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
 	nlh = NLMSG_PUT(skb, pid, n->nlmsg_seq, RTM_DELACTION, sizeof(*t));
 	t = NLMSG_DATA(nlh);
 	t->tca_family = AF_UNSPEC;
+	t->tca__pad1 = 0;
+	t->tca__pad2 = 0;
 
 	x = (struct rtattr *) skb->tail;
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
@@ -687,7 +691,9 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*t), flags);
 	t = NLMSG_DATA(nlh);
 	t->tca_family = AF_UNSPEC;
-	
+	t->tca__pad1 = 0;
+	t->tca__pad2 = 0;
+
 	x = (struct rtattr*) skb->tail;
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
 
@@ -842,6 +848,8 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	                cb->nlh->nlmsg_type, sizeof(*t));
 	t = NLMSG_DATA(nlh);
 	t->tca_family = AF_UNSPEC;
+	t->tca__pad1 = 0;
+	t->tca__pad2 = 0;
 
 	x = (struct rtattr *) skb->tail;
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);

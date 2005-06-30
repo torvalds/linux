@@ -96,8 +96,8 @@ struct platform_device s3c_device_lcd = {
 	.num_resources	  = ARRAY_SIZE(s3c_lcd_resource),
 	.resource	  = s3c_lcd_resource,
 	.dev              = {
-		.dma_mask = &s3c_device_lcd_dmamask,
-		.coherent_dma_mask = 0xffffffffUL
+		.dma_mask		= &s3c_device_lcd_dmamask,
+		.coherent_dma_mask	= 0xffffffffUL
 	}
 };
 

@@ -57,6 +57,16 @@ extern void pci_free_consistent(struct pci_dev *hwdev, size_t size,
  */
 #define PCI_DMA_BUS_IS_PHYS	(1)
 
+#ifdef CONFIG_PCI
+static inline void pci_dma_burst_advice(struct pci_dev *pdev,
+					enum pci_dma_burst_strategy *strat,
+					unsigned long *strategy_parameter)
+{
+	*strat = PCI_DMA_BURST_INFINITY;
+	*strategy_parameter = ~0UL;
+}
+#endif
+
 /*
  *	These are pretty much arbitary with the CoMEM implementation.
  *	We have the whole address space to ourselves.

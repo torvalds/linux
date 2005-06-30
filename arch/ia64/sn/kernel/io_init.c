@@ -384,7 +384,7 @@ static int __init sn_pci_init(void)
 	extern void register_sn_procfs(void);
 #endif
 
-	if (!ia64_platform_is("sn2") || IS_RUNNING_ON_SIMULATOR())
+	if (!ia64_platform_is("sn2") || IS_RUNNING_ON_FAKE_PROM())
 		return 0;
 
 	/*

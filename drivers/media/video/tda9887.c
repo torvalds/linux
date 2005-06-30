@@ -368,7 +368,7 @@ static int tda9887_set_tvnorm(struct tda9887 *t, char *buf)
 		if (t->radio_mode == V4L2_TUNER_MODE_MONO)
 			norm = &radio_mono;
 		else
-		        norm = &radio_stereo;
+			norm = &radio_stereo;
 	} else {
 		for (i = 0; i < ARRAY_SIZE(tvnorms); i++) {
 			if (tvnorms[i].std & t->std) {
@@ -566,7 +566,6 @@ static int tda9887_configure(struct tda9887 *t)
 	if (UNSET != t->pinnacle_id) {
 		tda9887_set_pinnacle(t,buf);
 	}
-
 	tda9887_set_config(t,buf);
 	tda9887_set_insmod(t,buf);
 
@@ -615,8 +614,8 @@ static int tda9887_attach(struct i2c_adapter *adap, int addr, int kind)
 	t->pinnacle_id = UNSET;
 	t->radio_mode = V4L2_TUNER_MODE_STEREO;
 
-        i2c_set_clientdata(&t->client, t);
-        i2c_attach_client(&t->client);
+	i2c_set_clientdata(&t->client, t);
+	i2c_attach_client(&t->client);
 
 	return 0;
 }

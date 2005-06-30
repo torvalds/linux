@@ -46,10 +46,9 @@
 #include <linux/nfsd/nfsfh.h>
 #include <linux/quotaops.h>
 #include <linux/dnotify.h>
-#include <linux/xattr_acl.h>
 #include <linux/posix_acl.h>
-#ifdef CONFIG_NFSD_V4
 #include <linux/posix_acl_xattr.h>
+#ifdef CONFIG_NFSD_V4
 #include <linux/xattr.h>
 #include <linux/nfs4.h>
 #include <linux/nfs4_acl.h>
@@ -1872,10 +1871,10 @@ nfsd_get_posix_acl(struct svc_fh *fhp, int type)
 		return ERR_PTR(-EOPNOTSUPP);
 	switch(type) {
 		case ACL_TYPE_ACCESS:
-			name = XATTR_NAME_ACL_ACCESS;
+			name = POSIX_ACL_XATTR_ACCESS;
 			break;
 		case ACL_TYPE_DEFAULT:
-			name = XATTR_NAME_ACL_DEFAULT;
+			name = POSIX_ACL_XATTR_DEFAULT;
 			break;
 		default:
 			return ERR_PTR(-EOPNOTSUPP);
@@ -1919,17 +1918,17 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 		return -EOPNOTSUPP;
 	switch(type) {
 		case ACL_TYPE_ACCESS:
-			name = XATTR_NAME_ACL_ACCESS;
+			name = POSIX_ACL_XATTR_ACCESS;
 			break;
 		case ACL_TYPE_DEFAULT:
-			name = XATTR_NAME_ACL_DEFAULT;
+			name = POSIX_ACL_XATTR_DEFAULT;
 			break;
 		default:
 			return -EOPNOTSUPP;
 	}
 
 	if (acl && acl->a_count) {
-		size = xattr_acl_size(acl->a_count);
+		size = posix_acl_xattr_size(acl->a_count);
 		value = kmalloc(size, GFP_KERNEL);
 		if (!value)
 			return -ENOMEM;

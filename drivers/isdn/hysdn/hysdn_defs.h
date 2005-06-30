@@ -227,7 +227,6 @@ typedef struct hycapictrl_info hycapictrl_info;
 /*****************/
 /* exported vars */
 /*****************/
-extern int cardmax;		/* number of found cards */
 extern hysdn_card *card_root;	/* pointer to first card */
 
 
@@ -244,7 +243,6 @@ extern void hysdn_procconf_release(void);	/* deinit proc config filesys */
 /* hysdn_proclog.c */
 extern int hysdn_proclog_init(hysdn_card *);	/* init proc log entry */
 extern void hysdn_proclog_release(hysdn_card *);	/* deinit proc log entry */
-extern void put_log_buffer(hysdn_card *, char *);	/* output log data */
 extern void hysdn_addlog(hysdn_card *, char *,...);	/* output data to log */
 extern void hysdn_card_errlog(hysdn_card *, tErrLogEntry *, int);	/* output card log */
 
@@ -278,16 +276,6 @@ extern unsigned int hycapi_enable;
 extern int hycapi_capi_create(hysdn_card *);	/* create a new capi device */
 extern int hycapi_capi_release(hysdn_card *);	/* delete the device */
 extern int hycapi_capi_stop(hysdn_card *card);   /* suspend */
-extern int hycapi_load_firmware(struct capi_ctr *, capiloaddata *);
-extern void hycapi_reset_ctr(struct capi_ctr *);
-extern void hycapi_remove_ctr(struct capi_ctr *);
-extern void hycapi_register_appl(struct capi_ctr *, __u16 appl,
-				 capi_register_params *);
-extern void hycapi_release_appl(struct capi_ctr *, __u16 appl);
-extern u16  hycapi_send_message(struct capi_ctr *, struct sk_buff *skb);
-extern char *hycapi_procinfo(struct capi_ctr *);
-extern int hycapi_read_proc(char *page, char **start, off_t off,
-			    int count, int *eof, struct capi_ctr *card);
 extern void hycapi_rx_capipkt(hysdn_card * card, uchar * buf, word len);
 extern void hycapi_tx_capiack(hysdn_card * card);
 extern struct sk_buff *hycapi_tx_capiget(hysdn_card *card);

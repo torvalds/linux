@@ -1058,12 +1058,9 @@ mpsc_get_mctrl(struct uart_port *port)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
 	u32 mflags, status;
-	ulong iflags;
 
-	spin_lock_irqsave(&pi->port.lock, iflags);
 	status = (pi->mirror_regs) ? pi->MPSC_CHR_10_m :
 		readl(pi->mpsc_base + MPSC_CHR_10);
-	spin_unlock_irqrestore(&pi->port.lock, iflags);
 
 	mflags = 0;
 	if (status & 0x1)

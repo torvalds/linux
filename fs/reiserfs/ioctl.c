@@ -36,10 +36,16 @@ int reiserfs_ioctl (struct inode * inode, struct file * filp, unsigned int cmd,
 	/* following two cases are taken from fs/ext2/ioctl.c by Remy
 	   Card (card@masi.ibp.fr) */
 	case REISERFS_IOC_GETFLAGS:
+		if (!reiserfs_attrs (inode->i_sb))
+			return -ENOTTY;
+
 		flags = REISERFS_I(inode) -> i_attrs;
 		i_attrs_to_sd_attrs( inode, ( __u16 * ) &flags );
 		return put_user(flags, (int __user *) arg);
 	case REISERFS_IOC_SETFLAGS: {
+		if (!reiserfs_attrs (inode->i_sb))
+			return -ENOTTY;
+
 		if (IS_RDONLY(inode))
 			return -EROFS;
 

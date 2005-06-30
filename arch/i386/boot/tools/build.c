@@ -70,7 +70,8 @@ void usage(void)
 
 int main(int argc, char ** argv)
 {
-	unsigned int i, c, sz, setup_sectors;
+	unsigned int i, sz, setup_sectors;
+	int c;
 	u32 sys_size;
 	byte major_root, minor_root;
 	struct stat sb;

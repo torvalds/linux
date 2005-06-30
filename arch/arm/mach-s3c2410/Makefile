@@ -18,6 +18,7 @@ obj-$(CONFIG_S3C2410_DMA)  += dma.o
 # Power Management support
 
 obj-$(CONFIG_PM)	   += pm.o sleep.o
+obj-$(CONFIG_PM_SIMTEC)	   += pm-simtec.o
 
 # S3C2440 support
 

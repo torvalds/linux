@@ -632,7 +632,7 @@ static void scsi_free_sgtable(struct scatterlist *sgl, int index)
 {
 	struct scsi_host_sg_pool *sgp;
 
-	BUG_ON(index > SG_MEMPOOL_NR);
+	BUG_ON(index >= SG_MEMPOOL_NR);
 
 	sgp = scsi_sg_pools + index;
 	mempool_free(sgl, sgp->pool);

@@ -442,13 +442,10 @@ static unsigned int serial_txx9_tx_empty(struct uart_port *port)
 static unsigned int serial_txx9_get_mctrl(struct uart_port *port)
 {
 	struct uart_txx9_port *up = (struct uart_txx9_port *)port;
-	unsigned long flags;
 	unsigned int ret;
 
-	spin_lock_irqsave(&up->port.lock, flags);
 	ret =  ((sio_in(up, TXX9_SIFLCR) & TXX9_SIFLCR_RTSSC) ? 0 : TIOCM_RTS)
 		| ((sio_in(up, TXX9_SICISR) & TXX9_SICISR_CTSS) ? 0 : TIOCM_CTS);
-	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	return ret;
 }

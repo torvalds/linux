@@ -132,6 +132,8 @@
 #define SALRET_INVALID_ARG	(-2)
 #define SALRET_ERROR		(-3)
 
+#define SN_SAL_FAKE_PROM			   0x02009999
+
 
 /**
  * sn_sal_rev_major - get the major SGI SAL revision number
@@ -1103,6 +1105,14 @@ ia64_sn_bte_recovery(nasid_t nasid)
 	if (rv.status == SALRET_NOT_IMPLEMENTED)
 		return 0;
 	return (int) rv.status;
+}
+
+static inline int
+ia64_sn_is_fake_prom(void)
+{
+	struct ia64_sal_retval rv;
+	SAL_CALL_NOLOCK(rv, SN_SAL_FAKE_PROM, 0, 0, 0, 0, 0, 0, 0);
+	return (rv.status == 0);
 }
 
 #endif /* _ASM_IA64_SN_SN_SAL_H */

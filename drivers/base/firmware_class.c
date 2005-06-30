@@ -74,6 +74,8 @@ static ssize_t
 firmware_timeout_store(struct class *class, const char *buf, size_t count)
 {
 	loading_timeout = simple_strtol(buf, NULL, 10);
+	if (loading_timeout < 0)
+		loading_timeout = 0;
 	return count;
 }
 
@@ -138,6 +140,10 @@ firmware_loading_store(struct class_device *class_dev,
 	switch (loading) {
 	case 1:
 		down(&fw_lock);
+		if (!fw_priv->fw) {
+			up(&fw_lock);
+			break;
+		}
 		vfree(fw_priv->fw->data);
 		fw_priv->fw->data = NULL;
 		fw_priv->fw->size = 0;
@@ -178,7 +184,7 @@ firmware_data_read(struct kobject *kobj,
 
 	down(&fw_lock);
 	fw = fw_priv->fw;
-	if (test_bit(FW_STATUS_DONE, &fw_priv->status)) {
+	if (!fw || test_bit(FW_STATUS_DONE, &fw_priv->status)) {
 		ret_count = -ENODEV;
 		goto out;
 	}
@@ -238,9 +244,10 @@ firmware_data_write(struct kobject *kobj,
 
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
+
 	down(&fw_lock);
 	fw = fw_priv->fw;
-	if (test_bit(FW_STATUS_DONE, &fw_priv->status)) {
+	if (!fw || test_bit(FW_STATUS_DONE, &fw_priv->status)) {
 		retval = -ENODEV;
 		goto out;
 	}
@@ -418,7 +425,7 @@ request_firmware(const struct firmware **firmware_p, const char *name,
 
 	fw_priv = class_get_devdata(class_dev);
 
-	if (loading_timeout) {
+	if (loading_timeout > 0) {
 		fw_priv->timeout.expires = jiffies + loading_timeout * HZ;
 		add_timer(&fw_priv->timeout);
 	}
