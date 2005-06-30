@@ -27,6 +27,7 @@
 #include <asm/processor.h>
 #include <asm/string.h>
 
+#include <ioremap.h>
 #include <mangle-port.h>
 
 /*
@@ -209,6 +210,8 @@ extern void __iounmap(volatile void __iomem *addr);
 static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 	unsigned long flags)
 {
+#define __IS_LOW512(addr) (!((phys_t)(addr) & (phys_t) ~0x1fffffffULL))
+
 	if (cpu_has_64bit_addresses) {
 		u64 base = UNCAC_BASE;
 
@@ -219,9 +222,29 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 		if (flags == _CACHE_UNCACHED)
 			base = (u64) IO_BASE;
 		return (void __iomem *) (unsigned long) (base + offset);
+	} else if (__builtin_constant_p(offset) &&
+		   __builtin_constant_p(size) && __builtin_constant_p(flags)) {
+		phys_t phys_addr, last_addr;
+
+		phys_addr = fixup_bigphys_addr(offset, size);
+
+		/* Don't allow wraparound or zero size. */
+		last_addr = phys_addr + size - 1;
+		if (!size || last_addr < phys_addr)
+			return NULL;
+
+		/*
+		 * Map uncached objects in the low 512MB of address
+		 * space using KSEG1.
+		 */
+		if (__IS_LOW512(phys_addr) && __IS_LOW512(last_addr) &&
+		    flags == _CACHE_UNCACHED)
+			return (void __iomem *)CKSEG1ADDR(phys_addr);
 	}
 
 	return __ioremap(offset, size, flags);
+
+#undef __IS_LOW512
 }
 
 /*
@@ -273,12 +296,16 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 
 static inline void iounmap(volatile void __iomem *addr)
 {
-	if (cpu_has_64bit_addresses)
+#define __IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
+
+	if (cpu_has_64bit_addresses ||
+	    (__builtin_constant_p(addr) && __IS_KSEG1(addr)))
 		return;
 
 	__iounmap(addr);
-}
 
+#undef __IS_KSEG1
+}
 
 #define __BUILD_MEMORY_SINGLE(pfx, bwlq, type, irq)			\
 									\

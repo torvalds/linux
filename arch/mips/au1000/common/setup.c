@@ -155,7 +155,7 @@ void __init plat_setup(void)
 
 #if defined(CONFIG_64BIT_PHYS_ADDR)
 /* This routine should be valid for all Au1x based boards */
-phys_t fixup_bigphys_addr(phys_t phys_addr, phys_t size)
+phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 {
 	u32 start, end;
 
