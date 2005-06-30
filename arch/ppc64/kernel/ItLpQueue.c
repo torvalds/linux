@@ -69,15 +69,17 @@ struct HvLpEvent * ItLpQueue_getNextLpEvent( struct ItLpQueue * lpQueue )
 	return nextLpEvent;
 }
 
+unsigned long spread_lpevents = 1;
+
 int ItLpQueue_isLpIntPending( struct ItLpQueue * lpQueue )
 {
-	int retval = 0;
-	struct HvLpEvent * nextLpEvent;
-	if ( lpQueue ) {
-		nextLpEvent = (struct HvLpEvent *)lpQueue->xSlicCurEventPtr;
-		retval = nextLpEvent->xFlags.xValid | lpQueue->xPlicOverflowIntPending;
-	}
-	return retval;
+	struct HvLpEvent *next_event;
+
+	if (smp_processor_id() >= spread_lpevents)
+		return 0;
+
+	next_event = (struct HvLpEvent *)lpQueue->xSlicCurEventPtr;
+	return next_event->xFlags.xValid | lpQueue->xPlicOverflowIntPending;
 }
 
 void ItLpQueue_clearValid( struct HvLpEvent * event )

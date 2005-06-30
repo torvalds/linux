@@ -269,7 +269,6 @@ out:
 void do_IRQ(struct pt_regs *regs)
 {
 	struct paca_struct *lpaca;
-	struct ItLpQueue *lpq;
 
 	irq_enter();
 
@@ -295,9 +294,8 @@ void do_IRQ(struct pt_regs *regs)
 		iSeries_smp_message_recv(regs);
 	}
 #endif /* CONFIG_SMP */
-	lpq = lpaca->lpqueue_ptr;
-	if (lpq && ItLpQueue_isLpIntPending(lpq))
-		lpevent_count += ItLpQueue_process(lpq, regs);
+	if (ItLpQueue_isLpIntPending(&xItLpQueue))
+		lpevent_count += ItLpQueue_process(&xItLpQueue, regs);
 
 	irq_exit();
 

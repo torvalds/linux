@@ -855,17 +855,15 @@ late_initcall(iSeries_src_init);
 
 static int set_spread_lpevents(char *str)
 {
-	unsigned long i;
 	unsigned long val = simple_strtoul(str, NULL, 0);
+	extern unsigned long spread_lpevents;
 
 	/*
 	 * The parameter is the number of processors to share in processing
 	 * lp events.
 	 */
 	if (( val > 0) && (val <= NR_CPUS)) {
-		for (i = 1; i < val; ++i)
-			paca[i].lpqueue_ptr = paca[0].lpqueue_ptr;
-
+		spread_lpevents = val;
 		printk("lpevent processing spread over %ld processors\n", val);
 	} else {
 		printk("invalid spread_lpevents %ld\n", val);

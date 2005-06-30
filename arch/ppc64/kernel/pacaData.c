@@ -45,7 +45,6 @@ extern unsigned long __toc_start;
 #ifdef CONFIG_PPC_ISERIES
 #define EXTRA_INITS(number, lpq)					    \
 	.lppaca_ptr = &paca[number].lppaca,				    \
-	.lpqueue_ptr = (lpq),		/* &xItLpQueue, */		    \
 	.reg_save_ptr = &paca[number].reg_save,				    \
 	.reg_save = {							    \
 		.xDesc = 0xd397d9e2,	/* "LpRS" */			    \

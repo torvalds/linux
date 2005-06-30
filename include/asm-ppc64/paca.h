@@ -20,7 +20,6 @@
 #include	<asm/types.h>
 #include	<asm/lppaca.h>
 #include	<asm/iSeries/ItLpRegSave.h>
-#include	<asm/iSeries/ItLpQueue.h>
 #include	<asm/mmu.h>
 
 register struct paca_struct *local_paca asm("r13");
@@ -62,7 +61,6 @@ struct paca_struct {
 	u16 paca_index;			/* Logical processor number */
 
 	u32 default_decr;		/* Default decrementer value */
-	struct ItLpQueue *lpqueue_ptr;	/* LpQueue handled by this CPU */
 	u64 kernel_toc;			/* Kernel TOC address */
 	u64 stab_real;			/* Absolute address of segment table */
 	u64 stab_addr;			/* Virtual address of segment table */
