@@ -55,6 +55,8 @@ do_entInt(unsigned long type, unsigned long vector,
 #ifdef CONFIG_SMP
 	  {
 		long cpu;
+
+		local_irq_disable();
 		smp_percpu_timer_interrupt(regs);
 		cpu = smp_processor_id();
 		if (cpu != boot_cpuid) {
