@@ -1505,6 +1505,7 @@
 #define PSSR_OTGPH	(1 << 6)	/* OTG Peripheral control Hold */
 #define PSSR_RDH	(1 << 5)	/* Read Disable Hold */
 #define PSSR_PH		(1 << 4)	/* Peripheral Control Hold */
+#define PSSR_STS	(1 << 3)	/* Standby Mode Status */
 #define PSSR_VFS	(1 << 2)	/* VDD Fault Status */
 #define PSSR_BFS	(1 << 1)	/* Battery Fault Status */
 #define PSSR_SSS	(1 << 0)	/* Software Sleep Status */
