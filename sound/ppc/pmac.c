@@ -36,7 +36,7 @@
 #include <asm/pci-bridge.h>
 
 
-#if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
+#ifdef CONFIG_PM
 static int snd_pmac_register_sleep_notifier(pmac_t *chip);
 static int snd_pmac_unregister_sleep_notifier(pmac_t *chip);
 static int snd_pmac_suspend(snd_card_t *card, pm_message_t state);
@@ -782,7 +782,7 @@ static int snd_pmac_free(pmac_t *chip)
 	}
 
 	snd_pmac_sound_feature(chip, 0);
-#if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
+#ifdef CONFIG_PM
 	snd_pmac_unregister_sleep_notifier(chip);
 #endif
 
@@ -1292,7 +1292,7 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
 	/* Reset dbdma channels */
 	snd_pmac_dbdma_reset(chip);
 
-#if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
+#ifdef CONFIG_PM
 	/* add sleep notifier */
 	if (! snd_pmac_register_sleep_notifier(chip))
 		snd_card_set_pm_callback(chip->card, snd_pmac_suspend, snd_pmac_resume, chip);
@@ -1316,7 +1316,7 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
  * sleep notify for powerbook
  */
 
-#if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
+#ifdef CONFIG_PM
 
 /*
  * Save state when going to sleep, restore it afterwards.
@@ -1414,4 +1414,5 @@ static int snd_pmac_unregister_sleep_notifier(pmac_t *chip)
 	return 0;
 }
 
-#endif /* CONFIG_PM && CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
+

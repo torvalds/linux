@@ -316,6 +316,9 @@ do {									\
 typedef int drm_ioctl_t( struct inode *inode, struct file *filp,
 			 unsigned int cmd, unsigned long arg );
 
+typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
+			       unsigned long arg);
+
 typedef struct drm_ioctl_desc {
 	drm_ioctl_t	     *func;
 	int		     auth_needed;
@@ -774,6 +777,8 @@ extern void          drm_exit(struct drm_driver *driver);
 extern int           drm_version(struct inode *inode, struct file *filp,
 				  unsigned int cmd, unsigned long arg);
 extern int           drm_ioctl(struct inode *inode, struct file *filp,
+				unsigned int cmd, unsigned long arg);
+extern long	     drm_compat_ioctl(struct file *filp,
 				unsigned int cmd, unsigned long arg);
 extern int           drm_takedown(drm_device_t * dev);
 

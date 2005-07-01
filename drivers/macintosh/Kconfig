@@ -86,33 +86,18 @@ config PMAC_SMU
 	  on the "SMU" system control chip which replaces the old PMU.
 	  If you don't know, say Y.
 
-config PMAC_PBOOK
-	bool "Power management support for PowerBooks"
-	depends on ADB_PMU
-	---help---
-	  This provides support for putting a PowerBook to sleep; it also
-	  enables media bay support.  Power management works on the
-	  PB2400/3400/3500, Wallstreet, Lombard, and Bronze PowerBook G3 and
-	  the Titanium Powerbook G4, as well as the iBooks.  You should get
-	  the power management daemon, pmud, to make it work and you must have
-	  the /dev/pmu device (see the pmud README).
-
-	  Get pmud from <ftp://ftp.samba.org/pub/ppclinux/pmud/>.
-
-	  If you have a PowerBook, you should say Y here.
-
-	  You may also want to compile the dma sound driver as a module and
-	  have it autoloaded. The act of removing the module shuts down the
-	  sound hardware for more power savings.
-
-config PM
-	bool
-	depends on PPC_PMAC && ADB_PMU && PMAC_PBOOK
-	default y
-
 config PMAC_APM_EMU
 	tristate "APM emulation"
-	depends on PMAC_PBOOK
+	depends on PPC_PMAC && PPC32 && PM
+
+config PMAC_MEDIABAY
+	bool "Support PowerBook hotswap media bay"
+	depends on PPC_PMAC && PPC32
+	help
+	  This option adds support for older PowerBook's hotswap media bay
+	  that can contains batteries, floppy drives, or IDE devices. PCI
+	  devices are not fully supported in the bay as I never had one to
+	  try with
 
 # made a separate option since backlight may end up beeing used
 # on non-powerbook machines (but only on PMU based ones AFAIK)
@@ -125,13 +110,6 @@ config PMAC_BACKLIGHT
 	  on and off appropriately on power-management and lid-open/lid-closed
 	  events; also, the PowerBook button device will be enabled so you can
 	  change the screen brightness.
-
-config MAC_SERIAL
-	tristate "Support for PowerMac serial ports (OBSOLETE DRIVER)"
-	depends on PPC_PMAC && BROKEN
-	help
-	  This driver is obsolete. Use CONFIG_SERIAL_PMACZILOG in
-	  "Character devices --> Serial drivers --> PowerMac z85c30" option.
 
 config ADB_MACIO
 	bool "Include MacIO (CHRP) ADB driver"

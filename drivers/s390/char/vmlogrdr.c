@@ -236,7 +236,7 @@ vmlogrdr_get_recording_class_AB(void) {
 	int len,i;
 
 	printk (KERN_DEBUG "vmlogrdr: query command: %s\n", cp_command);
-	cpcmd(cp_command, cp_response, sizeof(cp_response));
+	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 	printk (KERN_DEBUG "vmlogrdr: response: %s", cp_response);
 	len = strnlen(cp_response,sizeof(cp_response));
 	// now the parsing
@@ -288,7 +288,7 @@ vmlogrdr_recording(struct vmlogrdr_priv_t * logptr, int action, int purge) {
 
 		printk (KERN_DEBUG "vmlogrdr: recording command: %s\n",
 			cp_command);
-		cpcmd(cp_command, cp_response, sizeof(cp_response));
+		cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 		printk (KERN_DEBUG "vmlogrdr: recording response: %s",
 			cp_response);
 	}
@@ -301,7 +301,7 @@ vmlogrdr_recording(struct vmlogrdr_priv_t * logptr, int action, int purge) {
 		qid_string);
 
 	printk (KERN_DEBUG "vmlogrdr: recording command: %s\n", cp_command);
-	cpcmd(cp_command, cp_response, sizeof(cp_response));
+	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 	printk (KERN_DEBUG "vmlogrdr: recording response: %s",
 		cp_response);
 	/* The recording command will usually answer with 'Command complete'
@@ -607,7 +607,7 @@ vmlogrdr_purge_store(struct device * dev, struct device_attribute *attr, const c
 			 priv->recording_name);
 
 	printk (KERN_DEBUG "vmlogrdr: recording command: %s\n", cp_command);
-	cpcmd(cp_command, cp_response, sizeof(cp_response));
+	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 	printk (KERN_DEBUG "vmlogrdr: recording response: %s",
 		cp_response);
 
@@ -682,7 +682,7 @@ vmlogrdr_recording_status_show(struct device_driver *driver, char *buf) {
 	char cp_command[] = "QUERY RECORDING ";
 	int len;
 
-	cpcmd(cp_command, buf, 4096);
+	cpcmd(cp_command, buf, 4096, NULL);
 	len = strlen(buf);
 	return len;
 }

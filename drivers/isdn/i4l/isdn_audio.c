@@ -392,16 +392,6 @@ isdn_audio_adpcm2xlaw(adpcm_state * s, int fmt, unsigned char *in,
 }
 
 int
-isdn_audio_2adpcm_flush(adpcm_state * s, unsigned char *out)
-{
-	int olen = 0;
-
-	if (s->nleft)
-		isdn_audio_put_bits(0, 8 - s->nleft, s, &out, &olen);
-	return olen;
-}
-
-int
 isdn_audio_xlaw2adpcm(adpcm_state * s, int fmt, unsigned char *in,
 		      unsigned char *out, int len)
 {

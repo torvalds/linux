@@ -34,7 +34,6 @@
 
 #define ADDR32 (0)
 
-#include <linux/version.h>
 #include <linux/module.h>
 
 MODULE_AUTHOR("Deanna Bonds, with _lots_ of help from Mark Salyzyn");
@@ -1811,9 +1810,9 @@ static int adpt_system_info(void __user *buffer)
 	memset(&si, 0, sizeof(si));
 
 	si.osType = OS_LINUX;
-	si.osMajorVersion = (u8) (LINUX_VERSION_CODE >> 16);
-	si.osMinorVersion = (u8) (LINUX_VERSION_CODE >> 8 & 0x0ff);
-	si.osRevision =     (u8) (LINUX_VERSION_CODE & 0x0ff);
+	si.osMajorVersion = 0;
+	si.osMinorVersion = 0;
+	si.osRevision = 0;
 	si.busType = SI_PCI_BUS;
 	si.processorFamily = DPTI_sig.dsProcessorFamily;
 

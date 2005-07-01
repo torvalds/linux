@@ -35,6 +35,7 @@
 #include <linux/moduleparam.h>
 #include <linux/list.h>
 #include <linux/suspend.h>
+#include <linux/jiffies.h>
 #include <asm/processor.h>
 #include <asm/semaphore.h>
 
@@ -327,7 +328,8 @@ static int dvb_frontend_is_exiting(struct dvb_frontend *fe)
 		return 1;
 
 	if (fepriv->dvbdev->writers == 1)
-		if (jiffies - fepriv->release_jiffies > dvb_shutdown_timeout * HZ)
+		if (time_after(jiffies, fepriv->release_jiffies +
+					dvb_shutdown_timeout * HZ))
 			return 1;
 
 	return 0;
@@ -389,8 +391,7 @@ static int dvb_frontend_thread(void *data)
 			break;
 		}
 
-		if (current->flags & PF_FREEZE)
-			refrigerator(PF_FREEZE);
+		try_to_freeze();
 
 		if (down_interruptible(&fepriv->sem))
 			break;

@@ -18,18 +18,18 @@
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or 
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- * 
+ *
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
@@ -77,16 +77,11 @@ MODULE_PARM_DESC(irq, "IRQ number (5=default)");
 
 __obsolete_setup("logibm_irq=");
 
-static int logibm_used = 0;
-
 static irqreturn_t logibm_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
 static int logibm_open(struct input_dev *dev)
 {
-	if (logibm_used++)
-		return 0;
 	if (request_irq(logibm_irq, logibm_interrupt, 0, "logibm", NULL)) {
-		logibm_used--;
 		printk(KERN_ERR "logibm.c: Can't allocate irq %d\n", logibm_irq);
 		return -EBUSY;
 	}
@@ -96,8 +91,6 @@ static int logibm_open(struct input_dev *dev)
 
 static void logibm_close(struct input_dev *dev)
 {
-	if (--logibm_used)
-		return;
 	outb(LOGIBM_DISABLE_IRQ, LOGIBM_CONTROL_PORT);
 	free_irq(logibm_irq, NULL);
 }
@@ -167,7 +160,7 @@ static int __init logibm_init(void)
 	outb(LOGIBM_DISABLE_IRQ, LOGIBM_CONTROL_PORT);
 
 	input_register_device(&logibm_dev);
-	
+
 	printk(KERN_INFO "input: Logitech bus mouse at %#x irq %d\n", LOGIBM_BASE, logibm_irq);
 
 	return 0;

@@ -1251,8 +1251,7 @@ static int kcdrwd(void *foobar)
 			VPRINTK("kcdrwd: wake up\n");
 
 			/* make swsusp happy with our thread */
-			if (current->flags & PF_FREEZE)
-				refrigerator(PF_FREEZE);
+			try_to_freeze();
 
 			list_for_each_entry(pkt, &pd->cdrw.pkt_active_list, list) {
 				if (!pkt->sleep_time)

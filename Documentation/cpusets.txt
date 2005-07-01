@@ -51,6 +51,14 @@ mems_allowed vector.
 
 If a cpuset is cpu or mem exclusive, no other cpuset, other than a direct
 ancestor or descendent, may share any of the same CPUs or Memory Nodes.
+A cpuset that is cpu exclusive has a sched domain associated with it.
+The sched domain consists of all cpus in the current cpuset that are not
+part of any exclusive child cpusets.
+This ensures that the scheduler load balacing code only balances
+against the cpus that are in the sched domain as defined above and not
+all of the cpus in the system. This removes any overhead due to
+load balancing code trying to pull tasks outside of the cpu exclusive
+cpuset only to be prevented by the tasks' cpus_allowed mask.
 
 User level code may create and destroy cpusets by name in the cpuset
 virtual file system, manage the attributes and permissions of these
@@ -84,6 +92,9 @@ This can be especially valuable on:
       and a database), or
     * NUMA systems running large HPC applications with demanding
       performance characteristics.
+    * Also cpu_exclusive cpusets are useful for servers running orthogonal
+      workloads such as RT applications requiring low latency and HPC
+      applications that are throughput sensitive
 
 These subsets, or "soft partitions" must be able to be dynamically
 adjusted, as the job mix changes, without impacting other concurrently
@@ -125,6 +136,8 @@ Cpusets extends these two mechanisms as follows:
  - A cpuset may be marked exclusive, which ensures that no other
    cpuset (except direct ancestors and descendents) may contain
    any overlapping CPUs or Memory Nodes.
+   Also a cpu_exclusive cpuset would be associated with a sched
+   domain.
  - You can list all the tasks (by pid) attached to any cpuset.
 
 The implementation of cpusets requires a few, simple hooks
@@ -136,6 +149,9 @@ into the rest of the kernel, none in performance critical paths:
    allowed in that tasks cpuset.
  - in sched.c migrate_all_tasks(), to keep migrating tasks within
    the CPUs allowed by their cpuset, if possible.
+ - in sched.c, a new API partition_sched_domains for handling
+   sched domain changes associated with cpu_exclusive cpusets
+   and related changes in both sched.c and arch/ia64/kernel/domain.c
  - in the mbind and set_mempolicy system calls, to mask the requested
    Memory Nodes by what's allowed in that tasks cpuset.
  - in page_alloc, to restrict memory to allowed nodes.

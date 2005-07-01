@@ -15,9 +15,8 @@
 #include <asm/smp.h>
 #include <asm/io.h>
 #include <asm/arch_hooks.h>
+#include <asm/i8253.h>
 
-extern spinlock_t i8259A_lock;
-extern spinlock_t i8253_lock;
 #include "do_timer.h"
 #include "io_ports.h"
 
@@ -166,7 +165,6 @@ struct init_timer_opts __initdata timer_pit_init = {
 
 void setup_pit_timer(void)
 {
-	extern spinlock_t i8253_lock;
 	unsigned long flags;
 
 	spin_lock_irqsave(&i8253_lock, flags);

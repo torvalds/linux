@@ -213,19 +213,3 @@ int setup_buffers(int card, int c)
 	return 0;
 }
 
-int print_skb(int card,char *skb_p, int len){
-	int i,data;
-	pr_debug("%s: data at 0x%x len: 0x%x\n", sc_adapter[card]->devicename,
-			skb_p,len);
-	for(i=1;i<=len;i++,skb_p++){
-		data = (int) (0xff & (*skb_p));
-		pr_debug("%s: data =  0x%x", sc_adapter[card]->devicename,data);
-		if(!(i%4))
-			pr_debug(" ");
-		if(!(i%32))
-			pr_debug("\n");
-	}
-	pr_debug("\n");
-	return 0;
-}		
-

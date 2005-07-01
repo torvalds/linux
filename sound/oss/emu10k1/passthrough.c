@@ -213,8 +213,7 @@ void emu10k1_pt_stop(struct emu10k1_card *card)
 				sblive_writeptr(card, SPCS0 + i, 0, pt->old_spcs[i]);
 		}
 		pt->state = PT_STATE_INACTIVE;
-		if(pt->buf)
-			kfree(pt->buf);
+		kfree(pt->buf);
 	}
 }
 

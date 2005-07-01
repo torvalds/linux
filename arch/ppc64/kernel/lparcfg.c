@@ -34,6 +34,7 @@
 #include <asm/system.h>
 #include <asm/time.h>
 #include <asm/iSeries/ItExtVpdPanel.h>
+#include <asm/prom.h>
 
 #define MODULE_VERS "1.6"
 #define MODULE_NAME "lparcfg"

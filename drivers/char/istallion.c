@@ -407,7 +407,6 @@ static unsigned long	stli_eisamemprobeaddrs[] = {
 };
 
 static int	stli_eisamempsize = sizeof(stli_eisamemprobeaddrs) / sizeof(unsigned long);
-int		stli_eisaprobe = STLI_EISAPROBE;
 
 /*
  *	Define the Stallion PCI vendor and device IDs.
@@ -4685,7 +4684,7 @@ static int stli_initbrds(void)
 #ifdef MODULE
 	stli_argbrds();
 #endif
-	if (stli_eisaprobe)
+	if (STLI_EISAPROBE)
 		stli_findeisabrds();
 #ifdef CONFIG_PCI
 	stli_findpcibrds();

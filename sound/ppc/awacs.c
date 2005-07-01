@@ -90,7 +90,7 @@ snd_pmac_awacs_write_noreg(pmac_t *chip, int reg, int val)
 	snd_pmac_awacs_write(chip, val | (reg << 12));
 }
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /* Recalibrate chip */
 static void screamer_recalibrate(pmac_t *chip)
 {
@@ -642,7 +642,7 @@ static void awacs_restore_all_regs(pmac_t *chip)
 	}
 }
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 static void snd_pmac_awacs_suspend(pmac_t *chip)
 {
 	snd_pmac_awacs_write_noreg(chip, 1, (chip->awacs_reg[1]
@@ -676,7 +676,7 @@ static void snd_pmac_awacs_resume(pmac_t *chip)
 	}
 #endif
 }
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 #ifdef PMAC_SUPPORT_AUTOMUTE
 /*
@@ -883,7 +883,7 @@ snd_pmac_awacs_init(pmac_t *chip)
 	 * set lowlevel callbacks
 	 */
 	chip->set_format = snd_pmac_awacs_set_format;
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	chip->suspend = snd_pmac_awacs_suspend;
 	chip->resume = snd_pmac_awacs_resume;
 #endif

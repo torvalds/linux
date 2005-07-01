@@ -145,34 +145,12 @@ extern unsigned int user_debug;
 #define set_wmb(var, value) do { var = value; wmb(); } while (0)
 #define nop() __asm__ __volatile__("mov\tr0,r0\t@ nop\n\t");
 
-#ifdef CONFIG_SMP
 /*
- * Define our own context switch locking.  This allows us to enable
- * interrupts over the context switch, otherwise we end up with high
- * interrupt latency.  The real problem area is switch_mm() which may
- * do a full cache flush.
+ * switch_mm() may do a full cache flush over the context switch,
+ * so enable interrupts over the context switch to avoid high
+ * latency.
  */
-#define prepare_arch_switch(rq,next)					\
-do {									\
-	spin_lock(&(next)->switch_lock);				\
-	spin_unlock_irq(&(rq)->lock);					\
-} while (0)
-
-#define finish_arch_switch(rq,prev)					\
-	spin_unlock(&(prev)->switch_lock)
-
-#define task_running(rq,p)						\
-	((rq)->curr == (p) || spin_is_locked(&(p)->switch_lock))
-#else
-/*
- * Our UP-case is more simple, but we assume knowledge of how
- * spin_unlock_irq() and friends are implemented.  This avoids
- * us needlessly decrementing and incrementing the preempt count.
- */
-#define prepare_arch_switch(rq,next)	local_irq_enable()
-#define finish_arch_switch(rq,prev)	spin_unlock(&(rq)->lock)
-#define task_running(rq,p)		((rq)->curr == (p))
-#endif
+#define __ARCH_WANT_INTERRUPTS_ON_CTXSW
 
 /*
  * switch_to(prev, next) should switch from task `prev' to `next'
@@ -312,7 +290,6 @@ do {									\
 })
 
 #ifdef CONFIG_SMP
-#error SMP not supported
 
 #define smp_mb()		mb()
 #define smp_rmb()		rmb()
@@ -326,6 +303,8 @@ do {									\
 #define smp_wmb()		barrier()
 #define smp_read_barrier_depends()		do { } while(0)
 
+#endif /* CONFIG_SMP */
+
 #if defined(CONFIG_CPU_SA1100) || defined(CONFIG_CPU_SA110)
 /*
  * On the StrongARM, "swp" is terminally broken since it bypasses the
@@ -338,8 +317,15 @@ do {									\
  *
  * We choose (1) since its the "easiest" to achieve here and is not
  * dependent on the processor type.
+ *
+ * NOTE that this solution won't work on an SMP system, so explcitly
+ * forbid it here.
  */
+#ifdef CONFIG_SMP
+#error SMP is not supported on SA1100/SA110
+#else
 #define swp_is_buggy
+#endif
 #endif
 
 static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
@@ -382,8 +368,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 
 	return ret;
 }
-
-#endif /* CONFIG_SMP */
 
 #endif /* __ASSEMBLY__ */
 

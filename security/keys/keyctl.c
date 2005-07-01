@@ -1,6 +1,6 @@
 /* keyctl.c: userspace keyctl operations
  *
- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -49,6 +49,13 @@ asmlinkage long sys_add_key(const char __user *_type,
 		goto error;
 	type[31] = '\0';
 
+	if (!type[0])
+		goto error;
+
+	ret = -EPERM;
+	if (type[0] == '.')
+		goto error;
+
 	ret = -EFAULT;
 	dlen = strnlen_user(_description, PAGE_SIZE - 1);
 	if (dlen <= 0)
@@ -82,7 +89,7 @@ asmlinkage long sys_add_key(const char __user *_type,
 	}
 
 	/* find the target keyring (which must be writable) */
-	keyring = lookup_user_key(ringid, 1, 0, KEY_WRITE);
+	keyring = lookup_user_key(NULL, ringid, 1, 0, KEY_WRITE);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error3;
@@ -181,7 +188,7 @@ asmlinkage long sys_request_key(const char __user *_type,
 	/* get the destination keyring if specified */
 	dest = NULL;
 	if (destringid) {
-		dest = lookup_user_key(destringid, 1, 0, KEY_WRITE);
+		dest = lookup_user_key(NULL, destringid, 1, 0, KEY_WRITE);
 		if (IS_ERR(dest)) {
 			ret = PTR_ERR(dest);
 			goto error3;
@@ -196,23 +203,15 @@ asmlinkage long sys_request_key(const char __user *_type,
 	}
 
 	/* do the search */
-	key = request_key(ktype, description, callout_info);
+	key = request_key_and_link(ktype, description, callout_info, dest);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error5;
 	}
 
-	/* link the resulting key to the destination keyring */
-	if (dest) {
-		ret = key_link(dest, key);
-		if (ret < 0)
-			goto error6;
-	}
-
 	ret = key->serial;
 
- error6:
-	key_put(key);
+ 	key_put(key);
  error5:
 	key_type_put(ktype);
  error4:
@@ -237,7 +236,7 @@ long keyctl_get_keyring_ID(key_serial_t id, int create)
 	struct key *key;
 	long ret;
 
-	key = lookup_user_key(id, create, 0, KEY_SEARCH);
+	key = lookup_user_key(NULL, id, create, 0, KEY_SEARCH);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error;
@@ -324,7 +323,7 @@ long keyctl_update_key(key_serial_t id,
 	}
 
 	/* find the target key (which must be writable) */
-	key = lookup_user_key(id, 0, 0, KEY_WRITE);
+	key = lookup_user_key(NULL, id, 0, 0, KEY_WRITE);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error2;
@@ -352,7 +351,7 @@ long keyctl_revoke_key(key_serial_t id)
 	struct key *key;
 	long ret;
 
-	key = lookup_user_key(id, 0, 0, KEY_WRITE);
+	key = lookup_user_key(NULL, id, 0, 0, KEY_WRITE);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error;
@@ -378,7 +377,7 @@ long keyctl_keyring_clear(key_serial_t ringid)
 	struct key *keyring;
 	long ret;
 
-	keyring = lookup_user_key(ringid, 1, 0, KEY_WRITE);
+	keyring = lookup_user_key(NULL, ringid, 1, 0, KEY_WRITE);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error;
@@ -404,13 +403,13 @@ long keyctl_keyring_link(key_serial_t id, key_serial_t ringid)
 	struct key *keyring, *key;
 	long ret;
 
-	keyring = lookup_user_key(ringid, 1, 0, KEY_WRITE);
+	keyring = lookup_user_key(NULL, ringid, 1, 0, KEY_WRITE);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error;
 	}
 
-	key = lookup_user_key(id, 1, 0, KEY_LINK);
+	key = lookup_user_key(NULL, id, 1, 0, KEY_LINK);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error2;
@@ -438,13 +437,13 @@ long keyctl_keyring_unlink(key_serial_t id, key_serial_t ringid)
 	struct key *keyring, *key;
 	long ret;
 
-	keyring = lookup_user_key(ringid, 0, 0, KEY_WRITE);
+	keyring = lookup_user_key(NULL, ringid, 0, 0, KEY_WRITE);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error;
 	}
 
-	key = lookup_user_key(id, 0, 0, 0);
+	key = lookup_user_key(NULL, id, 0, 0, 0);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error2;
@@ -475,16 +474,29 @@ long keyctl_describe_key(key_serial_t keyid,
 			 char __user *buffer,
 			 size_t buflen)
 {
-	struct key *key;
+	struct key *key, *instkey;
 	char *tmpbuf;
 	long ret;
 
-	key = lookup_user_key(keyid, 0, 1, KEY_VIEW);
+	key = lookup_user_key(NULL, keyid, 0, 1, KEY_VIEW);
 	if (IS_ERR(key)) {
+		/* viewing a key under construction is permitted if we have the
+		 * authorisation token handy */
+		if (PTR_ERR(key) == -EACCES) {
+			instkey = key_get_instantiation_authkey(keyid);
+			if (!IS_ERR(instkey)) {
+				key_put(instkey);
+				key = lookup_user_key(NULL, keyid, 0, 1, 0);
+				if (!IS_ERR(key))
+					goto okay;
+			}
+		}
+
 		ret = PTR_ERR(key);
 		goto error;
 	}
 
+okay:
 	/* calculate how much description we're going to return */
 	ret = -ENOMEM;
 	tmpbuf = kmalloc(PAGE_SIZE, GFP_KERNEL);
@@ -568,7 +580,7 @@ long keyctl_keyring_search(key_serial_t ringid,
 		goto error2;
 
 	/* get the keyring at which to begin the search */
-	keyring = lookup_user_key(ringid, 0, 0, KEY_SEARCH);
+	keyring = lookup_user_key(NULL, ringid, 0, 0, KEY_SEARCH);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error2;
@@ -577,7 +589,7 @@ long keyctl_keyring_search(key_serial_t ringid,
 	/* get the destination keyring if specified */
 	dest = NULL;
 	if (destringid) {
-		dest = lookup_user_key(destringid, 1, 0, KEY_WRITE);
+		dest = lookup_user_key(NULL, destringid, 1, 0, KEY_WRITE);
 		if (IS_ERR(dest)) {
 			ret = PTR_ERR(dest);
 			goto error3;
@@ -656,24 +668,23 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 	long ret;
 
 	/* find the key first */
-	key = lookup_user_key(keyid, 0, 0, 0);
+	key = lookup_user_key(NULL, keyid, 0, 0, 0);
 	if (!IS_ERR(key)) {
 		/* see if we can read it directly */
 		if (key_permission(key, KEY_READ))
 			goto can_read_key;
 
-		/* can't; see if it's searchable from this process's
-		 * keyrings */
-		ret = -ENOKEY;
-		if (key_permission(key, KEY_SEARCH)) {
-			/* okay - we do have search permission on the key
-			 * itself, but do we have the key? */
-			skey = search_process_keyrings_aux(key->type, key,
-							   keyctl_read_key_same);
-			if (!IS_ERR(skey))
-				goto can_read_key2;
-		}
+		/* we can't; see if it's searchable from this process's
+		 * keyrings
+		 * - we automatically take account of the fact that it may be
+		 *   dangling off an instantiation key
+		 */
+		skey = search_process_keyrings(key->type, key,
+					       keyctl_read_key_same, current);
+		if (!IS_ERR(skey))
+			goto can_read_key2;
 
+		ret = PTR_ERR(skey);
 		goto error2;
 	}
 
@@ -719,7 +730,7 @@ long keyctl_chown_key(key_serial_t id, uid_t uid, gid_t gid)
 	if (uid == (uid_t) -1 && gid == (gid_t) -1)
 		goto error;
 
-	key = lookup_user_key(id, 1, 1, 0);
+	key = lookup_user_key(NULL, id, 1, 1, 0);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error;
@@ -728,7 +739,6 @@ long keyctl_chown_key(key_serial_t id, uid_t uid, gid_t gid)
 	/* make the changes with the locks held to prevent chown/chown races */
 	ret = -EACCES;
 	down_write(&key->sem);
-	write_lock(&key->lock);
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		/* only the sysadmin can chown a key to some other UID */
@@ -755,7 +765,6 @@ long keyctl_chown_key(key_serial_t id, uid_t uid, gid_t gid)
 	ret = 0;
 
  no_access:
-	write_unlock(&key->lock);
 	up_write(&key->sem);
 	key_put(key);
  error:
@@ -778,32 +787,25 @@ long keyctl_setperm_key(key_serial_t id, key_perm_t perm)
 	if (perm & ~(KEY_USR_ALL | KEY_GRP_ALL | KEY_OTH_ALL))
 		goto error;
 
-	key = lookup_user_key(id, 1, 1, 0);
+	key = lookup_user_key(NULL, id, 1, 1, 0);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error;
 	}
 
-	/* make the changes with the locks held to prevent chown/chmod
-	 * races */
+	/* make the changes with the locks held to prevent chown/chmod races */
 	ret = -EACCES;
 	down_write(&key->sem);
-	write_lock(&key->lock);
 
-	/* if we're not the sysadmin, we can only chmod a key that we
-	 * own */
-	if (!capable(CAP_SYS_ADMIN) && key->uid != current->fsuid)
-		goto no_access;
+	/* if we're not the sysadmin, we can only change a key that we own */
+	if (capable(CAP_SYS_ADMIN) || key->uid == current->fsuid) {
+		key->perm = perm;
+		ret = 0;
+	}
 
-	/* changing the permissions mask */
-	key->perm = perm;
-	ret = 0;
-
- no_access:
-	write_unlock(&key->lock);
 	up_write(&key->sem);
 	key_put(key);
- error:
+error:
 	return ret;
 
 } /* end keyctl_setperm_key() */
@@ -818,7 +820,8 @@ long keyctl_instantiate_key(key_serial_t id,
 			    size_t plen,
 			    key_serial_t ringid)
 {
-	struct key *key, *keyring;
+	struct request_key_auth *rka;
+	struct key *instkey, *keyring;
 	void *payload;
 	long ret;
 
@@ -840,18 +843,21 @@ long keyctl_instantiate_key(key_serial_t id,
 			goto error2;
 	}
 
-	/* find the target key (which must be writable) */
-	key = lookup_user_key(id, 0, 1, KEY_WRITE);
-	if (IS_ERR(key)) {
-		ret = PTR_ERR(key);
+	/* find the instantiation authorisation key */
+	instkey = key_get_instantiation_authkey(id);
+	if (IS_ERR(instkey)) {
+		ret = PTR_ERR(instkey);
 		goto error2;
 	}
 
-	/* find the destination keyring if present (which must also be
-	 * writable) */
+	rka = instkey->payload.data;
+
+	/* find the destination keyring amongst those belonging to the
+	 * requesting task */
 	keyring = NULL;
 	if (ringid) {
-		keyring = lookup_user_key(ringid, 1, 0, KEY_WRITE);
+		keyring = lookup_user_key(rka->context, ringid, 1, 0,
+					  KEY_WRITE);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
 			goto error3;
@@ -859,11 +865,12 @@ long keyctl_instantiate_key(key_serial_t id,
 	}
 
 	/* instantiate the key and link it into a keyring */
-	ret = key_instantiate_and_link(key, payload, plen, keyring);
+	ret = key_instantiate_and_link(rka->target_key, payload, plen,
+				       keyring, instkey);
 
 	key_put(keyring);
  error3:
-	key_put(key);
+	key_put(instkey);
  error2:
 	kfree(payload);
  error:
@@ -878,21 +885,24 @@ long keyctl_instantiate_key(key_serial_t id,
  */
 long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 {
-	struct key *key, *keyring;
+	struct request_key_auth *rka;
+	struct key *instkey, *keyring;
 	long ret;
 
-	/* find the target key (which must be writable) */
-	key = lookup_user_key(id, 0, 1, KEY_WRITE);
-	if (IS_ERR(key)) {
-		ret = PTR_ERR(key);
+	/* find the instantiation authorisation key */
+	instkey = key_get_instantiation_authkey(id);
+	if (IS_ERR(instkey)) {
+		ret = PTR_ERR(instkey);
 		goto error;
 	}
+
+	rka = instkey->payload.data;
 
 	/* find the destination keyring if present (which must also be
 	 * writable) */
 	keyring = NULL;
 	if (ringid) {
-		keyring = lookup_user_key(ringid, 1, 0, KEY_WRITE);
+		keyring = lookup_user_key(NULL, ringid, 1, 0, KEY_WRITE);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
 			goto error2;
@@ -900,15 +910,53 @@ long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 	}
 
 	/* instantiate the key and link it into a keyring */
-	ret = key_negate_and_link(key, timeout, keyring);
+	ret = key_negate_and_link(rka->target_key, timeout, keyring, instkey);
 
 	key_put(keyring);
  error2:
-	key_put(key);
+	key_put(instkey);
  error:
 	return ret;
 
 } /* end keyctl_negate_key() */
+
+/*****************************************************************************/
+/*
+ * set the default keyring in which request_key() will cache keys
+ * - return the old setting
+ */
+long keyctl_set_reqkey_keyring(int reqkey_defl)
+{
+	int ret;
+
+	switch (reqkey_defl) {
+	case KEY_REQKEY_DEFL_THREAD_KEYRING:
+		ret = install_thread_keyring(current);
+		if (ret < 0)
+			return ret;
+		goto set;
+
+	case KEY_REQKEY_DEFL_PROCESS_KEYRING:
+		ret = install_process_keyring(current);
+		if (ret < 0)
+			return ret;
+
+	case KEY_REQKEY_DEFL_DEFAULT:
+	case KEY_REQKEY_DEFL_SESSION_KEYRING:
+	case KEY_REQKEY_DEFL_USER_KEYRING:
+	case KEY_REQKEY_DEFL_USER_SESSION_KEYRING:
+	set:
+		current->jit_keyring = reqkey_defl;
+
+	case KEY_REQKEY_DEFL_NO_CHANGE:
+		return current->jit_keyring;
+
+	case KEY_REQKEY_DEFL_GROUP_KEYRING:
+	default:
+		return -EINVAL;
+	}
+
+} /* end keyctl_set_reqkey_keyring() */
 
 /*****************************************************************************/
 /*
@@ -979,6 +1027,9 @@ asmlinkage long sys_keyctl(int option, unsigned long arg2, unsigned long arg3,
 		return keyctl_negate_key((key_serial_t) arg2,
 					 (unsigned) arg3,
 					 (key_serial_t) arg4);
+
+	case KEYCTL_SET_REQKEY_KEYRING:
+		return keyctl_set_reqkey_keyring(arg2);
 
 	default:
 		return -EOPNOTSUPP;

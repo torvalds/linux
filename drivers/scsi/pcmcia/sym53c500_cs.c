@@ -999,6 +999,14 @@ MODULE_AUTHOR("Bob Tracy <rct@frus.com>");
 MODULE_DESCRIPTION("SYM53C500 PCMCIA SCSI driver");
 MODULE_LICENSE("GPL");
 
+static struct pcmcia_device_id sym53c500_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("BASICS by New Media Corporation", "SCSI Sym53C500", 0x23c78a9d, 0x0099e7f7),
+	PCMCIA_DEVICE_PROD_ID12("New Media Corporation", "SCSI Bus Toaster Sym53C500", 0x085a850b, 0x45432eb8),
+	PCMCIA_DEVICE_PROD_ID2("SCSI9000", 0x21648f44),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, sym53c500_ids);
+
 static struct pcmcia_driver sym53c500_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -1006,6 +1014,7 @@ static struct pcmcia_driver sym53c500_cs_driver = {
 	},
 	.attach		= SYM53C500_attach,
 	.detach		= SYM53C500_detach,
+	.id_table       = sym53c500_ids,
 };
 
 static int __init

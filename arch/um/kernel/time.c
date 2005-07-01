@@ -33,7 +33,7 @@ void timer(void)
 	timeradd(&xtime, &local_offset, &xtime);
 }
 
-void set_interval(int timer_type)
+static void set_interval(int timer_type)
 {
 	int usec = 1000000/hz();
 	struct itimerval interval = ((struct itimerval) { { 0, usec },
@@ -45,12 +45,7 @@ void set_interval(int timer_type)
 
 void enable_timer(void)
 {
-	int usec = 1000000/hz();
-	struct itimerval enable = ((struct itimerval) { { 0, usec },
-							{ 0, usec }});
-	if(setitimer(ITIMER_VIRTUAL, &enable, NULL))
-		printk("enable_timer - setitimer failed, errno = %d\n",
-		       errno);
+	set_interval(ITIMER_VIRTUAL);
 }
 
 void disable_timer(void)
@@ -155,13 +150,15 @@ void idle_sleep(int secs)
 	nanosleep(&ts, NULL);
 }
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+/* XXX This partly duplicates init_irq_signals */
+
+void user_time_init(void)
+{
+	set_handler(SIGVTALRM, (__sighandler_t) alarm_handler,
+		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH,
+		    SIGALRM, SIGUSR2, -1);
+	set_handler(SIGALRM, (__sighandler_t) alarm_handler,
+		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH,
+		    SIGVTALRM, SIGUSR2, -1);
+	set_interval(ITIMER_VIRTUAL);
+}

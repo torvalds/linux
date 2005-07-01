@@ -115,18 +115,6 @@
 #endif	/* CONFIG_NET_RADIO */
 #include <asm/current.h>
 
-/* This define, if set, will randomly drop a packet when congestion
- * is more than moderate.  It helps fairness in the multi-interface
- * case when one of them is a hog, but it kills performance for the
- * single interface case so it is off now by default.
- */
-#undef RAND_LIE
-
-/* Setting this will sample the queue lengths and thus congestion
- * via a timer instead of as each packet is received.
- */
-#undef OFFLINE_SAMPLE
-
 /*
  *	The list of packet types we will receive (as opposed to discard)
  *	and the routines to invoke.
@@ -158,11 +146,6 @@
 static DEFINE_SPINLOCK(ptype_lock);
 static struct list_head ptype_base[16];	/* 16 way hashed list */
 static struct list_head ptype_all;		/* Taps */
-
-#ifdef OFFLINE_SAMPLE
-static void sample_queue(unsigned long dummy);
-static struct timer_list samp_timer = TIMER_INITIALIZER(sample_queue, 0, 0);
-#endif
 
 /*
  * The @dev_base list is protected by @dev_base_lock and the rtln
@@ -215,7 +198,7 @@ static struct notifier_block *netdev_chain;
  *	Device drivers call our routines to queue packets here. We empty the
  *	queue in the local softnet handler.
  */
-DEFINE_PER_CPU(struct softnet_data, softnet_data) = { 0, };
+DEFINE_PER_CPU(struct softnet_data, softnet_data) = { NULL };
 
 #ifdef CONFIG_SYSFS
 extern int netdev_sysfs_init(void);
@@ -1363,69 +1346,11 @@ out:
 			Receiver routines
   =======================================================================*/
 
-int netdev_max_backlog = 300;
+int netdev_max_backlog = 1000;
+int netdev_budget = 300;
 int weight_p = 64;            /* old backlog weight */
-/* These numbers are selected based on intuition and some
- * experimentatiom, if you have more scientific way of doing this
- * please go ahead and fix things.
- */
-int no_cong_thresh = 10;
-int no_cong = 20;
-int lo_cong = 100;
-int mod_cong = 290;
 
 DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
-
-
-static void get_sample_stats(int cpu)
-{
-#ifdef RAND_LIE
-	unsigned long rd;
-	int rq;
-#endif
-	struct softnet_data *sd = &per_cpu(softnet_data, cpu);
-	int blog = sd->input_pkt_queue.qlen;
-	int avg_blog = sd->avg_blog;
-
-	avg_blog = (avg_blog >> 1) + (blog >> 1);
-
-	if (avg_blog > mod_cong) {
-		/* Above moderate congestion levels. */
-		sd->cng_level = NET_RX_CN_HIGH;
-#ifdef RAND_LIE
-		rd = net_random();
-		rq = rd % netdev_max_backlog;
-		if (rq < avg_blog) /* unlucky bastard */
-			sd->cng_level = NET_RX_DROP;
-#endif
-	} else if (avg_blog > lo_cong) {
-		sd->cng_level = NET_RX_CN_MOD;
-#ifdef RAND_LIE
-		rd = net_random();
-		rq = rd % netdev_max_backlog;
-			if (rq < avg_blog) /* unlucky bastard */
-				sd->cng_level = NET_RX_CN_HIGH;
-#endif
-	} else if (avg_blog > no_cong)
-		sd->cng_level = NET_RX_CN_LOW;
-	else  /* no congestion */
-		sd->cng_level = NET_RX_SUCCESS;
-
-	sd->avg_blog = avg_blog;
-}
-
-#ifdef OFFLINE_SAMPLE
-static void sample_queue(unsigned long dummy)
-{
-/* 10 ms 0r 1ms -- i don't care -- JHS */
-	int next_tick = 1;
-	int cpu = smp_processor_id();
-
-	get_sample_stats(cpu);
-	next_tick += jiffies;
-	mod_timer(&samp_timer, next_tick);
-}
-#endif
 
 
 /**
@@ -1448,7 +1373,6 @@ static void sample_queue(unsigned long dummy)
 
 int netif_rx(struct sk_buff *skb)
 {
-	int this_cpu;
 	struct softnet_data *queue;
 	unsigned long flags;
 
@@ -1464,38 +1388,22 @@ int netif_rx(struct sk_buff *skb)
 	 * short when CPU is congested, but is still operating.
 	 */
 	local_irq_save(flags);
-	this_cpu = smp_processor_id();
 	queue = &__get_cpu_var(softnet_data);
 
 	__get_cpu_var(netdev_rx_stat).total++;
 	if (queue->input_pkt_queue.qlen <= netdev_max_backlog) {
 		if (queue->input_pkt_queue.qlen) {
-			if (queue->throttle)
-				goto drop;
-
 enqueue:
 			dev_hold(skb->dev);
 			__skb_queue_tail(&queue->input_pkt_queue, skb);
-#ifndef OFFLINE_SAMPLE
-			get_sample_stats(this_cpu);
-#endif
 			local_irq_restore(flags);
-			return queue->cng_level;
+			return NET_RX_SUCCESS;
 		}
-
-		if (queue->throttle)
-			queue->throttle = 0;
 
 		netif_rx_schedule(&queue->backlog_dev);
 		goto enqueue;
 	}
 
-	if (!queue->throttle) {
-		queue->throttle = 1;
-		__get_cpu_var(netdev_rx_stat).throttled++;
-	}
-
-drop:
 	__get_cpu_var(netdev_rx_stat).dropped++;
 	local_irq_restore(flags);
 
@@ -1780,8 +1688,6 @@ job_done:
 	smp_mb__before_clear_bit();
 	netif_poll_enable(backlog_dev);
 
-	if (queue->throttle)
-		queue->throttle = 0;
 	local_irq_enable();
 	return 0;
 }
@@ -1790,8 +1696,7 @@ static void net_rx_action(struct softirq_action *h)
 {
 	struct softnet_data *queue = &__get_cpu_var(softnet_data);
 	unsigned long start_time = jiffies;
-	int budget = netdev_max_backlog;
-
+	int budget = netdev_budget;
 	
 	local_irq_disable();
 
@@ -2055,15 +1960,9 @@ static int softnet_seq_show(struct seq_file *seq, void *v)
 	struct netif_rx_stats *s = v;
 
 	seq_printf(seq, "%08x %08x %08x %08x %08x %08x %08x %08x %08x\n",
-		   s->total, s->dropped, s->time_squeeze, s->throttled,
-		   s->fastroute_hit, s->fastroute_success, s->fastroute_defer,
-		   s->fastroute_deferred_out,
-#if 0
-		   s->fastroute_latency_reduction
-#else
-		   s->cpu_collision
-#endif
-		  );
+		   s->total, s->dropped, s->time_squeeze, 0,
+		   0, 0, 0, 0, /* was fastroute */
+		   s->cpu_collision );
 	return 0;
 }
 
@@ -3305,9 +3204,6 @@ static int __init net_dev_init(void)
 
 		queue = &per_cpu(softnet_data, i);
 		skb_queue_head_init(&queue->input_pkt_queue);
-		queue->throttle = 0;
-		queue->cng_level = 0;
-		queue->avg_blog = 10; /* arbitrary non-zero */
 		queue->completion_queue = NULL;
 		INIT_LIST_HEAD(&queue->poll_list);
 		set_bit(__LINK_STATE_START, &queue->backlog_dev.state);
@@ -3315,11 +3211,6 @@ static int __init net_dev_init(void)
 		queue->backlog_dev.poll = process_backlog;
 		atomic_set(&queue->backlog_dev.refcnt, 1);
 	}
-
-#ifdef OFFLINE_SAMPLE
-	samp_timer.expires = jiffies + (10 * HZ);
-	add_timer(&samp_timer);
-#endif
 
 	dev_boot_phase = 0;
 

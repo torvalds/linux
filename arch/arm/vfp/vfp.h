@@ -117,7 +117,13 @@ static inline u64 vfp_estimate_div128to64(u64 nh, u64 nl, u64 m)
 	if (nh >= m)
 		return ~0ULL;
 	mh = m >> 32;
-	z = (mh << 32 <= nh) ? 0xffffffff00000000ULL : (nh / mh) << 32;
+	if (mh << 32 <= nh) {
+		z = 0xffffffff00000000ULL;
+	} else {
+		z = nh;
+		do_div(z, mh);
+		z <<= 32;
+	}
 	mul64to128(&termh, &terml, m, z);
 	sub128(&remh, &reml, nh, nl, termh, terml);
 	ml = m << 32;
@@ -126,7 +132,12 @@ static inline u64 vfp_estimate_div128to64(u64 nh, u64 nl, u64 m)
 		add128(&remh, &reml, remh, reml, mh, ml);
 	}
 	remh = (remh << 32) | (reml >> 32);
-	z |= (mh << 32 <= remh) ? 0xffffffff : remh / mh;
+	if (mh << 32 <= remh) {
+		z |= 0xffffffff;
+	} else {
+		do_div(remh, mh);
+		z |= remh;
+	}
 	return z;
 }
 

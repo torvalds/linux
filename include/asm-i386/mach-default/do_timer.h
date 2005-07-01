@@ -1,6 +1,7 @@
 /* defines for inline arch setup functions */
 
 #include <asm/apic.h>
+#include <asm/i8259.h>
 
 /**
  * do_timer_interrupt_hook - hook into timer tick

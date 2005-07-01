@@ -784,6 +784,8 @@ fastcall NORET_TYPE void do_exit(long code)
 
 	profile_task_exit(tsk);
 
+	WARN_ON(atomic_read(&tsk->fs_excl));
+
 	if (unlikely(in_interrupt()))
 		panic("Aiee, killing interrupt handler!");
 	if (unlikely(!tsk->pid))

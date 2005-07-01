@@ -396,7 +396,6 @@ struct pcmcia_socket;
 int pcmcia_access_configuration_register(client_handle_t handle, conf_reg_t *reg);
 int pcmcia_deregister_client(client_handle_t handle);
 int pcmcia_get_configuration_info(client_handle_t handle, config_info_t *config);
-int pcmcia_get_card_services_info(servinfo_t *info);
 int pcmcia_get_first_window(window_handle_t *win, win_req_t *req);
 int pcmcia_get_next_window(window_handle_t *win, win_req_t *req);
 int pcmcia_get_status(client_handle_t handle, cs_status_t *status);
@@ -417,7 +416,6 @@ int pcmcia_suspend_card(struct pcmcia_socket *skt);
 int pcmcia_resume_card(struct pcmcia_socket *skt);
 int pcmcia_eject_card(struct pcmcia_socket *skt);
 int pcmcia_insert_card(struct pcmcia_socket *skt);
-int pcmcia_report_error(client_handle_t handle, error_info_t *err);
 
 struct pcmcia_socket * pcmcia_get_socket(struct pcmcia_socket *skt);
 void pcmcia_put_socket(struct pcmcia_socket *skt);

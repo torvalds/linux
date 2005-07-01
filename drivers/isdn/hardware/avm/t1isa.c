@@ -328,7 +328,7 @@ static int t1isa_load_firmware(struct capi_ctr *ctrl, capiloaddata *data)
 	return 0;
 }
 
-void t1isa_reset_ctr(struct capi_ctr *ctrl)
+static void t1isa_reset_ctr(struct capi_ctr *ctrl)
 {
 	avmctrl_info *cinfo = (avmctrl_info *)(ctrl->driverdata);
 	avmcard *card = cinfo->card;

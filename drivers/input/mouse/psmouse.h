@@ -77,6 +77,8 @@ enum psmouse_type {
 	PSMOUSE_IMEX,
 	PSMOUSE_SYNAPTICS,
 	PSMOUSE_ALPS,
+	PSMOUSE_LIFEBOOK,
+	PSMOUSE_AUTO		/* This one should always be last */
 };
 
 int psmouse_sliced_command(struct psmouse *psmouse, unsigned char command);
@@ -99,7 +101,7 @@ static ssize_t psmouse_do_set_##_name(struct device *d, struct device_attribute 
 {										\
 	return psmouse_attr_set_helper(d, b, s, psmouse_attr_set_##_name);	\
 }										\
-static struct device_attribute psmouse_attr_##_name = 				\
+static struct device_attribute psmouse_attr_##_name =				\
 	__ATTR(_name, S_IWUSR | S_IRUGO,					\
 		psmouse_do_show_##_name, psmouse_do_set_##_name);
 

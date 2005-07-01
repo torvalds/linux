@@ -188,7 +188,13 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		skb = skb2;
 	}
 
-	nf_reset(skb);
+#ifdef CONFIG_BRIDGE_NETFILTER
+	/* bridge-netfilter defers calling some IP hooks to the bridge layer
+	 * and still needs the conntrack reference.
+	 */
+	if (skb->nf_bridge == NULL)
+#endif
+		nf_reset(skb);
 
 	if (hh) {
 		int hh_alen;

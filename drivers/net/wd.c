@@ -149,12 +149,7 @@ struct net_device * __init wd_probe(int unit)
 	err = do_wd_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -164,6 +159,7 @@ out:
 static int __init wd_probe1(struct net_device *dev, int ioaddr)
 {
 	int i;
+	int err;
 	int checksum = 0;
 	int ancient = 0;			/* An old card without config registers. */
 	int word16 = 0;				/* 0 = 8 bit, 1 = 16 bit */
@@ -356,7 +352,10 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 		outb(inb(ioaddr+4)|0x80, ioaddr+4);
 #endif
 
-	return 0;
+	err = register_netdev(dev);
+	if (err)
+		free_irq(dev->irq, dev);
+	return err;
 }
 
 static int
@@ -527,11 +526,8 @@ init_module(void)
 		dev->mem_start = mem[this_dev];
 		dev->mem_end = mem_end[this_dev];
 		if (do_wd_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_wd[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_wd[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		printk(KERN_WARNING "wd.c: No wd80x3 card found (i/o = 0x%x).\n", io[this_dev]);

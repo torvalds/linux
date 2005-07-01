@@ -121,10 +121,13 @@ void __devinit pci_bus_add_devices(struct pci_bus *bus)
 		 * If there is an unattached subordinate bus, attach
 		 * it and then scan for unattached PCI devices.
 		 */
-		if (dev->subordinate && list_empty(&dev->subordinate->node)) {
-			spin_lock(&pci_bus_lock);
-			list_add_tail(&dev->subordinate->node, &dev->bus->children);
-			spin_unlock(&pci_bus_lock);
+		if (dev->subordinate) {
+		       if (list_empty(&dev->subordinate->node)) {
+			       spin_lock(&pci_bus_lock);
+			       list_add_tail(&dev->subordinate->node,
+					       &dev->bus->children);
+			       spin_unlock(&pci_bus_lock);
+		       }
 			pci_bus_add_devices(dev->subordinate);
 
 			sysfs_create_link(&dev->subordinate->class_dev.kobj, &dev->dev.kobj, "bridge");

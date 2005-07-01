@@ -212,23 +212,23 @@ void use_config(char *m, int slen)
 		if (*p == '_')
 			*p = '/';
 		else
-			*p = tolower((unsigned char)*p);
+			*p = tolower((int)*p);
 	}
 	printf("    $(wildcard include/config/%s.h) \\\n", s);
 }
 
-void parse_config_file(signed char *map, size_t len)
+void parse_config_file(char *map, size_t len)
 {
 	int *end = (int *) (map + len);
 	/* start at +1, so that p can never be < map */
 	int *m   = (int *) map + 1;
-	signed char *p, *q;
+	char *p, *q;
 
 	for (; m < end; m++) {
-		if (*m == INT_CONF) { p = (signed char *) m  ; goto conf; }
-		if (*m == INT_ONFI) { p = (signed char *) m-1; goto conf; }
-		if (*m == INT_NFIG) { p = (signed char *) m-2; goto conf; }
-		if (*m == INT_FIG_) { p = (signed char *) m-3; goto conf; }
+		if (*m == INT_CONF) { p = (char *) m  ; goto conf; }
+		if (*m == INT_ONFI) { p = (char *) m-1; goto conf; }
+		if (*m == INT_NFIG) { p = (char *) m-2; goto conf; }
+		if (*m == INT_FIG_) { p = (char *) m-3; goto conf; }
 		continue;
 	conf:
 		if (p > map + len - 7)
@@ -291,9 +291,9 @@ void do_config_file(char *filename)
 
 void parse_dep_file(void *map, size_t len)
 {
-	signed char *m = map;
-	signed char *end = m + len;
-	signed char *p;
+	char *m = map;
+	char *end = m + len;
+	char *p;
 	char s[PATH_MAX];
 
 	p = strchr(m, ':');

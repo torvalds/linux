@@ -146,8 +146,8 @@ claw_unregister_debug_facility(void)
 static int
 claw_register_debug_facility(void)
 {
-	claw_dbf_setup = debug_register("claw_setup", 1, 1, 8);
-	claw_dbf_trace = debug_register("claw_trace", 1, 2, 8);
+	claw_dbf_setup = debug_register("claw_setup", 2, 1, 8);
+	claw_dbf_trace = debug_register("claw_trace", 2, 2, 8);
 	if (claw_dbf_setup == NULL || claw_dbf_trace == NULL) {
 		printk(KERN_WARNING "Not enough memory for debug facility.\n");
 		claw_unregister_debug_facility();

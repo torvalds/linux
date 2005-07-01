@@ -643,15 +643,21 @@ static int hub_configure(struct usb_hub *hub,
 		message = "can't get hub status";
 		goto fail;
 	}
-	cpu_to_le16s(&hubstatus);
-	if ((hubstatus & (1 << USB_DEVICE_SELF_POWERED)) == 0) {
+	le16_to_cpus(&hubstatus);
+	if (hdev == hdev->bus->root_hub) {
+		struct usb_hcd *hcd =
+				container_of(hdev->bus, struct usb_hcd, self);
+
+		hub->power_budget = min(500u, hcd->power_budget) / 2;
+	} else if ((hubstatus & (1 << USB_DEVICE_SELF_POWERED)) == 0) {
 		dev_dbg(hub_dev, "hub controller current requirement: %dmA\n",
 			hub->descriptor->bHubContrCurrent);
 		hub->power_budget = (501 - hub->descriptor->bHubContrCurrent)
 					/ 2;
+	}
+	if (hub->power_budget)
 		dev_dbg(hub_dev, "%dmA bus power budget for children\n",
 			hub->power_budget * 2);
-	}
 
 
 	ret = hub_hub_status(hub, &hubstatus, &hubchange);
@@ -1727,7 +1733,7 @@ static int finish_port_resume(struct usb_device *udev)
 			struct usb_driver	*driver;
 
 			intf = udev->actconfig->interface[i];
-			if (intf->dev.power.power_state == PMSG_SUSPEND)
+			if (intf->dev.power.power_state == PMSG_ON)
 				continue;
 			if (!intf->dev.driver) {
 				/* FIXME maybe force to alt 0 */
@@ -2787,6 +2793,11 @@ static void hub_events(void)
 
 		hub->activating = 0;
 
+		/* If this is a root hub, tell the HCD it's okay to
+		 * re-enable port-change interrupts now. */
+		if (!hdev->parent)
+			usb_enable_root_hub_irq(hdev->bus);
+
 loop:
 		usb_unlock_device(hdev);
 		usb_put_intf(intf);
@@ -2808,7 +2819,7 @@ static int hub_thread(void *__unused)
 	do {
 		hub_events();
 		wait_event_interruptible(khubd_wait, !list_empty(&hub_event_list)); 
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 	} while (!signal_pending(current));
 
 	pr_debug ("%s: khubd exiting\n", usbcore_name);

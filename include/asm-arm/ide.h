@@ -5,7 +5,7 @@
  */
 
 /*
- *  This file contains the i386 architecture specific IDE code.
+ *  This file contains the ARM architecture specific IDE code.
  */
 
 #ifndef __ASMARM_IDE_H

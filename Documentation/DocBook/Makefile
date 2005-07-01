@@ -49,7 +49,7 @@ installmandocs: mandocs
 KERNELDOC = scripts/kernel-doc
 DOCPROC   = scripts/basic/docproc
 
-XMLTOFLAGS = -m Documentation/DocBook/stylesheet.xsl
+XMLTOFLAGS = -m $(srctree)/Documentation/DocBook/stylesheet.xsl
 #XMLTOFLAGS += --skip-validation
 
 ###

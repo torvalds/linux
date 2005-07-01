@@ -46,6 +46,7 @@ struct zd1201 {
 	char			essid[IW_ESSID_MAX_SIZE+1];
 	int			essidlen;
 	int			mac_enabled;
+	int			was_enabled;
 	int			monitor;
 	int			encode_enabled;
 	int			encode_restricted;

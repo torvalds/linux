@@ -338,9 +338,8 @@ static int nvram_remove_os_partition(void)
  */
 static int nvram_create_os_partition(void)
 {
-	struct list_head * p;
-	struct nvram_partition *part = NULL;
-	struct nvram_partition *new_part = NULL;
+	struct nvram_partition *part;
+	struct nvram_partition *new_part;
 	struct nvram_partition *free_part = NULL;
 	int seq_init[2] = { 0, 0 };
 	loff_t tmp_index;
@@ -349,8 +348,7 @@ static int nvram_create_os_partition(void)
 	
 	/* Find a free partition that will give us the maximum needed size 
 	   If can't find one that will give us the minimum size needed */
-	list_for_each(p, &nvram_part->partition) {
-		part = list_entry(p, struct nvram_partition, partition);
+	list_for_each_entry(part, &nvram_part->partition, partition) {
 		if (part->header.signature != NVRAM_SIG_FREE)
 			continue;
 

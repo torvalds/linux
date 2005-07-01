@@ -90,7 +90,7 @@ static int sleepy_trackpad;
 static int autopoll_devs;
 int __adb_probe_sync;
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 static int adb_notify_sleep(struct pmu_sleep_notifier *self, int when);
 static struct pmu_sleep_notifier adb_sleep_notifier = {
 	adb_notify_sleep,
@@ -320,9 +320,9 @@ int __init adb_init(void)
 		printk(KERN_WARNING "Warning: no ADB interface detected\n");
 		adb_controller = NULL;
 	} else {
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 		pmu_register_sleep_notifier(&adb_sleep_notifier);
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 #ifdef CONFIG_PPC
 		if (machine_is_compatible("AAPL,PowerBook1998") ||
 			machine_is_compatible("PowerBook1,1"))
@@ -337,7 +337,7 @@ int __init adb_init(void)
 
 __initcall(adb_init);
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /*
  * notify clients before sleep and reset bus afterwards
  */
@@ -378,7 +378,7 @@ adb_notify_sleep(struct pmu_sleep_notifier *self, int when)
 	}
 	return PBOOK_SLEEP_OK;
 }
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 static int
 do_adb_reset_bus(void)

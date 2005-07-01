@@ -403,7 +403,7 @@ static struct file_operations video_fops =
 	.llseek		= no_llseek,
 };
 
-void vv_callback(struct saa7146_dev *dev, unsigned long status)
+static void vv_callback(struct saa7146_dev *dev, unsigned long status)
 {
 	u32 isr = status;
 	

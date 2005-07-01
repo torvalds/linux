@@ -180,7 +180,6 @@ struct mca_device *mca_find_device_by_slot(int slot)
 
 	return info.mca_dev;
 }
-EXPORT_SYMBOL(mca_find_device_by_slot);
 
 /**
  *	mca_read_stored_pos - read POS register from boot data

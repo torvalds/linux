@@ -123,9 +123,9 @@ void cb_free(struct pcmcia_socket *s);
 int read_cb_mem(struct pcmcia_socket *s, int space, u_int addr, u_int len, void *ptr);
 
 /* In cistpl.c */
-int read_cis_mem(struct pcmcia_socket *s, int attr,
+int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr,
 		 u_int addr, u_int len, void *ptr);
-void write_cis_mem(struct pcmcia_socket *s, int attr,
+void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr,
 		   u_int addr, u_int len, void *ptr);
 void release_cis_mem(struct pcmcia_socket *s);
 void destroy_cis_cache(struct pcmcia_socket *s);
@@ -134,13 +134,12 @@ int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function, cisdata_t 
 
 /* In rsrc_mgr */
 void pcmcia_validate_mem(struct pcmcia_socket *s);
-struct resource *find_io_region(unsigned long base, int num, unsigned long align,
+struct resource *pcmcia_find_io_region(unsigned long base, int num, unsigned long align,
 		   struct pcmcia_socket *s);
-int adjust_io_region(struct resource *res, unsigned long r_start,
+int pcmcia_adjust_io_region(struct resource *res, unsigned long r_start,
 		     unsigned long r_end, struct pcmcia_socket *s);
-struct resource *find_mem_region(u_long base, u_long num, u_long align,
+struct resource *pcmcia_find_mem_region(u_long base, u_long num, u_long align,
 		    int low, struct pcmcia_socket *s);
-int adjust_resource_info(client_handle_t handle, adjust_t *adj);
 void release_resource_db(struct pcmcia_socket *s);
 
 /* In socket_sysfs.c */
@@ -159,7 +158,7 @@ int pccard_access_configuration_register(struct pcmcia_socket *s, unsigned int f
 struct pcmcia_callback{
 	struct module	*owner;
 	int		(*event) (struct pcmcia_socket *s, event_t event, int priority);
-	int		(*resources_done) (struct pcmcia_socket *s);
+	void		(*requery) (struct pcmcia_socket *s);
 };
 
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);

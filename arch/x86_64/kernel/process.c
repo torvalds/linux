@@ -8,7 +8,8 @@
  * 
  *  X86-64 port
  *	Andi Kleen.
- * 
+ *
+ *	CPU hotplug support - ashok.raj@intel.com
  *  $Id: process.c,v 1.38 2002/01/15 10:08:03 ak Exp $
  */
 
@@ -18,6 +19,7 @@
 
 #include <stdarg.h>
 
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -154,6 +156,29 @@ void cpu_idle_wait(void)
 }
 EXPORT_SYMBOL_GPL(cpu_idle_wait);
 
+#ifdef CONFIG_HOTPLUG_CPU
+DECLARE_PER_CPU(int, cpu_state);
+
+#include <asm/nmi.h>
+/* We don't actually take CPU down, just spin without interrupts. */
+static inline void play_dead(void)
+{
+	idle_task_exit();
+	wbinvd();
+	mb();
+	/* Ack it */
+	__get_cpu_var(cpu_state) = CPU_DEAD;
+
+	while (1)
+		safe_halt();
+}
+#else
+static inline void play_dead(void)
+{
+	BUG();
+}
+#endif /* CONFIG_HOTPLUG_CPU */
+
 /*
  * The idle thread. There's no useful work to be
  * done, so just try to conserve power and have a
@@ -174,6 +199,8 @@ void cpu_idle (void)
 			idle = pm_idle;
 			if (!idle)
 				idle = default_idle;
+			if (cpu_is_offline(smp_processor_id()))
+				play_dead();
 			idle();
 		}
 
@@ -204,7 +231,7 @@ static void mwait_idle(void)
 	}
 }
 
-void __init select_idle_routine(const struct cpuinfo_x86 *c)
+void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 {
 	static int printed;
 	if (cpu_has(c, X86_FEATURE_MWAIT)) {
@@ -455,6 +482,33 @@ out:
 }
 
 /*
+ * This function selects if the context switch from prev to next
+ * has to tweak the TSC disable bit in the cr4.
+ */
+static inline void disable_tsc(struct task_struct *prev_p,
+			       struct task_struct *next_p)
+{
+	struct thread_info *prev, *next;
+
+	/*
+	 * gcc should eliminate the ->thread_info dereference if
+	 * has_secure_computing returns 0 at compile time (SECCOMP=n).
+	 */
+	prev = prev_p->thread_info;
+	next = next_p->thread_info;
+
+	if (has_secure_computing(prev) || has_secure_computing(next)) {
+		/* slow path here */
+		if (has_secure_computing(prev) &&
+		    !has_secure_computing(next)) {
+			write_cr4(read_cr4() & ~X86_CR4_TSD);
+		} else if (!has_secure_computing(prev) &&
+			   has_secure_computing(next))
+			write_cr4(read_cr4() | X86_CR4_TSD);
+	}
+}
+
+/*
  * This special macro can be used to load a debugging register
  */
 #define loaddebug(thread,r) set_debug(thread->debugreg ## r, r)
@@ -571,6 +625,8 @@ struct task_struct *__switch_to(struct task_struct *prev_p, struct task_struct *
 			memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
 		}
 	}
+
+	disable_tsc(prev_p, next_p);
 
 	return prev_p;
 }

@@ -51,6 +51,9 @@ struct module_attribute {
         ssize_t (*show)(struct module_attribute *, struct module *, char *);
         ssize_t (*store)(struct module_attribute *, struct module *,
 			 const char *, size_t count);
+	void (*setup)(struct module *, const char *);
+	int (*test)(struct module *);
+	void (*free)(struct module *);
 };
 
 struct module_kobject
@@ -239,6 +242,8 @@ struct module
 	/* Sysfs stuff. */
 	struct module_kobject mkobj;
 	struct module_param_attrs *param_attrs;
+	const char *version;
+	const char *srcversion;
 
 	/* Exported symbols */
 	const struct kernel_symbol *syms;

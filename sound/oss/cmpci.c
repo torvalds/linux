@@ -123,6 +123,7 @@
 #include <linux/smp_lock.h>
 #include <linux/bitops.h>
 #include <linux/wait.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/page.h>
@@ -3058,7 +3059,7 @@ static int __devinit cm_probe(struct pci_dev *pcidev, const struct pci_device_id
 		return -ENODEV;
 	if (pcidev->irq == 0)
 		return -ENODEV;
-	i = pci_set_dma_mask(pcidev, 0xffffffff);
+	i = pci_set_dma_mask(pcidev, DMA_32BIT_MASK);
 	if (i) {
 		printk(KERN_WARNING "cmpci: architecture does not support 32bit PCI busmaster DMA\n");
 		return i;

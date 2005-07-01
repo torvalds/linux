@@ -2178,8 +2178,7 @@ void ad1848_unload(int io_base, int irq, int dma_playback, int dma_capture, int 
 		
 	if (devc != NULL)
 	{
-		if(audio_devs[dev]->portc!=NULL)
-			kfree(audio_devs[dev]->portc);
+		kfree(audio_devs[dev]->portc);
 		release_region(devc->base, 4);
 
 		if (!share_dma)

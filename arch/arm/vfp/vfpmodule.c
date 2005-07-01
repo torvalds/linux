@@ -89,7 +89,7 @@ void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
 	current->thread.error_code = 0;
 	current->thread.trap_no = 6;
 
-	force_sig_info(SIGFPE, &info, current);
+	send_sig_info(SIGFPE, &info, current);
 }
 
 static void vfp_panic(char *reason)

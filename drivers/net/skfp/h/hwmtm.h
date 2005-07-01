@@ -262,31 +262,6 @@ struct os_debug {
 					(smc)->hw.fp.tx_q[queue].tx_curr_put
 
 /*
- *	BEGIN_MANUAL_ENTRY(HWM_TX_CHECK)
- *	void HWM_TX_CHECK(smc,frame_status,low_water)
- *
- * function	MACRO		(hardware module, hwmtm.h)
- *		This macro is invoked by the OS-specific before it left it's
- *		driver_send function. This macro calls mac_drv_clear_txd
- *		if the free TxDs of the current transmit queue is equal or
- *		lower than the given low water mark.
- *
- * para	frame_status	status of the frame, see design description
- *	low_water	low water mark of free TxD's
- *
- *	END_MANUAL_ENTRY
- */
-#ifndef HWM_NO_FLOW_CTL
-#define	HWM_TX_CHECK(smc,frame_status,low_water) {\
-	if ((low_water)>=(smc)->hw.fp.tx_q[(frame_status)&QUEUE_A0].tx_free) {\
-		mac_drv_clear_txd(smc) ;\
-	}\
-}
-#else
-#define	HWM_TX_CHECK(smc,frame_status,low_water)	mac_drv_clear_txd(smc)
-#endif
-
-/*
  *	BEGIN_MANUAL_ENTRY(HWM_GET_RX_FRAG_LEN)
  *	int HWM_GET_RX_FRAG_LEN(rxd)
  *

@@ -91,13 +91,12 @@ void do_monitor_call(struct pt_regs *regs, long interruption_code)
 			    (void *)(long) smp_processor_id());
 }
 
+extern void s390_handle_mcck(void);
 /*
  * The idle loop on a S390...
  */
 void default_idle(void)
 {
-	psw_t wait_psw;
-	unsigned long reg;
 	int cpu, rc;
 
 	local_irq_disable();
@@ -125,38 +124,17 @@ void default_idle(void)
 		cpu_die();
 #endif
 
-	/* 
-	 * Wait for external, I/O or machine check interrupt and
-	 * switch off machine check bit after the wait has ended.
-	 */
-	wait_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK | PSW_MASK_WAIT |
-		PSW_MASK_IO | PSW_MASK_EXT;
-#ifndef CONFIG_ARCH_S390X
-	asm volatile (
-		"    basr %0,0\n"
-		"0:  la   %0,1f-0b(%0)\n"
-		"    st   %0,4(%1)\n"
-		"    oi   4(%1),0x80\n"
-		"    lpsw 0(%1)\n"
-		"1:  la   %0,2f-1b(%0)\n"
-		"    st   %0,4(%1)\n"
-		"    oi   4(%1),0x80\n"
-		"    ni   1(%1),0xf9\n"
-		"    lpsw 0(%1)\n"
-		"2:"
-		: "=&a" (reg) : "a" (&wait_psw) : "memory", "cc" );
-#else /* CONFIG_ARCH_S390X */
-	asm volatile (
-		"    larl  %0,0f\n"
-		"    stg   %0,8(%1)\n"
-		"    lpswe 0(%1)\n"
-		"0:  larl  %0,1f\n"
-		"    stg   %0,8(%1)\n"
-		"    ni    1(%1),0xf9\n"
-		"    lpswe 0(%1)\n"
-		"1:"
-		: "=&a" (reg) : "a" (&wait_psw) : "memory", "cc" );
-#endif /* CONFIG_ARCH_S390X */
+	local_mcck_disable();
+	if (test_thread_flag(TIF_MCCK_PENDING)) {
+		local_mcck_enable();
+		local_irq_enable();
+		s390_handle_mcck();
+		return;
+	}
+
+	/* Wait for external, I/O or machine check interrupt. */
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_WAIT |
+			PSW_MASK_IO | PSW_MASK_EXT);
 }
 
 void cpu_idle(void)

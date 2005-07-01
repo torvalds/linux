@@ -128,8 +128,8 @@ aaec2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction aaec2000_timer_irq = {
 	.name		= "AAEC-2000 Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= aaec2000_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= aaec2000_timer_interrupt,
 };
 
 static void __init aaec2000_timer_init(void)

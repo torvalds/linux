@@ -213,6 +213,7 @@ extern int dir_notify_enable;
 #include <linux/radix-tree.h>
 #include <linux/prio_tree.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
@@ -220,6 +221,7 @@ extern int dir_notify_enable;
 
 struct iovec;
 struct nameidata;
+struct kiocb;
 struct pipe_inode_info;
 struct poll_table_struct;
 struct kstatfs;
@@ -240,7 +242,7 @@ typedef int (get_block_t)(struct inode *inode, sector_t iblock,
 typedef int (get_blocks_t)(struct inode *inode, sector_t iblock,
 			unsigned long max_blocks,
 			struct buffer_head *bh_result, int create);
-typedef void (dio_iodone_t)(struct inode *inode, loff_t offset,
+typedef void (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 			ssize_t bytes, void *private);
 
 /*
@@ -302,7 +304,6 @@ struct iattr {
 struct page;
 struct address_space;
 struct writeback_control;
-struct kiocb;
 
 struct address_space_operations {
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
@@ -330,6 +331,8 @@ struct address_space_operations {
 	int (*releasepage) (struct page *, int);
 	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
+	struct page* (*get_xip_page)(struct address_space *, sector_t,
+			int);
 };
 
 struct backing_dev_info;
@@ -820,16 +823,34 @@ enum {
 #define vfs_check_frozen(sb, level) \
 	wait_event((sb)->s_wait_unfrozen, ((sb)->s_frozen < (level)))
 
+static inline void get_fs_excl(void)
+{
+	atomic_inc(&current->fs_excl);
+}
+
+static inline void put_fs_excl(void)
+{
+	atomic_dec(&current->fs_excl);
+}
+
+static inline int has_fs_excl(void)
+{
+	return atomic_read(&current->fs_excl);
+}
+
+
 /*
  * Superblock locking.
  */
 static inline void lock_super(struct super_block * sb)
 {
+	get_fs_excl();
 	down(&sb->s_lock);
 }
 
 static inline void unlock_super(struct super_block * sb)
 {
+	put_fs_excl();
 	up(&sb->s_lock);
 }
 
@@ -885,6 +906,7 @@ struct block_device_operations {
 	int (*ioctl) (struct inode *, struct file *, unsigned, unsigned long);
 	long (*unlocked_ioctl) (struct file *, unsigned, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned, unsigned long);
+	int (*direct_access) (struct block_device *, sector_t, unsigned long *);
 	int (*media_changed) (struct gendisk *);
 	int (*revalidate_disk) (struct gendisk *);
 	struct module *owner;
@@ -1495,6 +1517,23 @@ extern loff_t generic_file_llseek(struct file *file, loff_t offset, int origin);
 extern loff_t remote_llseek(struct file *file, loff_t offset, int origin);
 extern int generic_file_open(struct inode * inode, struct file * filp);
 extern int nonseekable_open(struct inode * inode, struct file * filp);
+
+#ifdef CONFIG_FS_XIP
+extern ssize_t xip_file_read(struct file *filp, char __user *buf, size_t len,
+			     loff_t *ppos);
+extern ssize_t xip_file_sendfile(struct file *in_file, loff_t *ppos,
+				 size_t count, read_actor_t actor,
+				 void *target);
+extern int xip_file_mmap(struct file * file, struct vm_area_struct * vma);
+extern ssize_t xip_file_write(struct file *filp, const char __user *buf,
+			      size_t len, loff_t *ppos);
+extern int xip_truncate_page(struct address_space *mapping, loff_t from);
+#else
+static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
+{
+	return 0;
+}
+#endif
 
 static inline void do_generic_file_read(struct file * filp, loff_t *ppos,
 					read_descriptor_t * desc,

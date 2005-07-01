@@ -9,18 +9,18 @@
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or 
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- * 
+ *
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
@@ -51,7 +51,6 @@ struct usb_mouse {
 	struct usb_device *usbdev;
 	struct input_dev dev;
 	struct urb *irq;
-	int open;
 
 	signed char *data;
 	dma_addr_t data_dma;
@@ -101,14 +100,9 @@ static int usb_mouse_open(struct input_dev *dev)
 {
 	struct usb_mouse *mouse = dev->private;
 
-	if (mouse->open++)
-		return 0;
-
 	mouse->irq->dev = mouse->usbdev;
-	if (usb_submit_urb(mouse->irq, GFP_KERNEL)) {
-		mouse->open--;
+	if (usb_submit_urb(mouse->irq, GFP_KERNEL))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -117,8 +111,7 @@ static void usb_mouse_close(struct input_dev *dev)
 {
 	struct usb_mouse *mouse = dev->private;
 
-	if (!--mouse->open)
-		usb_kill_urb(mouse->irq);
+	usb_kill_urb(mouse->irq);
 }
 
 static int usb_mouse_probe(struct usb_interface * intf, const struct usb_device_id * id)
@@ -132,19 +125,19 @@ static int usb_mouse_probe(struct usb_interface * intf, const struct usb_device_
 
 	interface = intf->cur_altsetting;
 
-	if (interface->desc.bNumEndpoints != 1) 
+	if (interface->desc.bNumEndpoints != 1)
 		return -ENODEV;
 
 	endpoint = &interface->endpoint[0].desc;
-	if (!(endpoint->bEndpointAddress & 0x80)) 
+	if (!(endpoint->bEndpointAddress & 0x80))
 		return -ENODEV;
-	if ((endpoint->bmAttributes & 3) != 3) 
+	if ((endpoint->bmAttributes & 3) != 3)
 		return -ENODEV;
 
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
 
-	if (!(mouse = kmalloc(sizeof(struct usb_mouse), GFP_KERNEL))) 
+	if (!(mouse = kmalloc(sizeof(struct usb_mouse), GFP_KERNEL)))
 		return -ENOMEM;
 	memset(mouse, 0, sizeof(struct usb_mouse));
 
@@ -209,7 +202,7 @@ static int usb_mouse_probe(struct usb_interface * intf, const struct usb_device_
 static void usb_mouse_disconnect(struct usb_interface *intf)
 {
 	struct usb_mouse *mouse = usb_get_intfdata (intf);
-	
+
 	usb_set_intfdata(intf, NULL);
 	if (mouse) {
 		usb_kill_urb(mouse->irq);
@@ -238,7 +231,7 @@ static struct usb_driver usb_mouse_driver = {
 static int __init usb_mouse_init(void)
 {
 	int retval = usb_register(&usb_mouse_driver);
-	if (retval == 0) 
+	if (retval == 0)
 		info(DRIVER_VERSION ":" DRIVER_DESC);
 	return retval;
 }

@@ -5,6 +5,7 @@ extern int bus_add_driver(struct device_driver *);
 extern void bus_remove_driver(struct device_driver *);
 
 extern void driver_detach(struct device_driver * drv);
+extern int driver_probe_device(struct device_driver *, struct device *);
 
 static inline struct class_device *to_class_dev(struct kobject *obj)
 {

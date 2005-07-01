@@ -86,6 +86,11 @@ static long madvise_willneed(struct vm_area_struct * vma,
 	if (!file)
 		return -EBADF;
 
+	if (file->f_mapping->a_ops->get_xip_page) {
+		/* no bad return value, but ignore advice */
+		return 0;
+	}
+
 	*prev = vma;
 	start = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
 	if (end > vma->vm_end)

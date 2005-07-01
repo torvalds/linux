@@ -299,6 +299,15 @@ static int fdomain_event(event_t event, int priority,
     return 0;
 } /* fdomain_event */
 
+
+static struct pcmcia_device_id fdomain_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("IBM Corp.", "SCSI PCMCIA Card", 0xe3736c88, 0x859cad20),
+	PCMCIA_DEVICE_PROD_ID1("SCSI PCMCIA Adapter Card", 0x8dacb57e),
+	PCMCIA_DEVICE_PROD_ID12(" SIMPLE TECHNOLOGY Corporation", "SCSI PCMCIA Credit Card Controller", 0x182bdafe, 0xc80d106f),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, fdomain_ids);
+
 static struct pcmcia_driver fdomain_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -306,6 +315,7 @@ static struct pcmcia_driver fdomain_cs_driver = {
 	},
 	.attach		= fdomain_attach,
 	.detach		= fdomain_detach,
+	.id_table       = fdomain_ids,
 };
 
 static int __init init_fdomain_cs(void)

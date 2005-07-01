@@ -44,9 +44,9 @@ running, the suggested command should tell you.
 
 Again, keep in mind that this list assumes you are already
 functionally running a Linux 2.4 kernel.  Also, not all tools are
-necessary on all systems; obviously, if you don't have any PCMCIA (PC
-Card) hardware, for example, you probably needn't concern yourself
-with pcmcia-cs.
+necessary on all systems; obviously, if you don't have any ISDN
+hardware, for example, you probably needn't concern yourself with
+isdn4k-utils.
 
 o  Gnu C                  2.95.3                  # gcc --version
 o  Gnu make               3.79.1                  # make --version
@@ -57,13 +57,14 @@ o  e2fsprogs              1.29                    # tune2fs
 o  jfsutils               1.1.3                   # fsck.jfs -V
 o  reiserfsprogs          3.6.3                   # reiserfsck -V 2>&1|grep reiserfsprogs
 o  xfsprogs               2.6.0                   # xfs_db -V
+o  pcmciautils            004
 o  pcmcia-cs              3.1.21                  # cardmgr -V
 o  quota-tools            3.09                    # quota -V
 o  PPP                    2.4.0                   # pppd --version
 o  isdn4k-utils           3.1pre1                 # isdnctrl 2>&1|grep version
 o  nfs-utils              1.0.5                   # showmount --version
 o  procps                 3.2.0                   # ps --version
-o  oprofile               0.5.3                   # oprofiled --version
+o  oprofile               0.9                     # oprofiled --version
 
 Kernel compilation
 ==================
@@ -186,13 +187,20 @@ architecture independent and any version from 2.0.0 onward should
 work correctly with this version of the XFS kernel code (2.6.0 or
 later is recommended, due to some significant improvements).
 
+PCMCIAutils
+-----------
+
+PCMCIAutils replaces pcmcia-cs (see below). It properly sets up
+PCMCIA sockets at system startup and loads the appropriate modules
+for 16-bit PCMCIA devices if the kernel is modularized and the hotplug
+subsystem is used.
 
 Pcmcia-cs
 ---------
 
 PCMCIA (PC Card) support is now partially implemented in the main
-kernel source.  Pay attention when you recompile your kernel ;-).
-Also, be sure to upgrade to the latest pcmcia-cs release.
+kernel source. The "pcmciautils" package (see above) replaces pcmcia-cs
+for newest kernels.
 
 Quota-tools
 -----------
@@ -349,9 +357,13 @@ Xfsprogs
 --------
 o  <ftp://oss.sgi.com/projects/xfs/download/>
 
+Pcmciautils
+-----------
+o  <ftp://ftp.kernel.org/pub/linux/utils/kernel/pcmcia/>
+
 Pcmcia-cs
 ---------
-o  <ftp://pcmcia-cs.sourceforge.net/pub/pcmcia-cs/pcmcia-cs-3.1.21.tar.gz>
+o  <http://pcmcia-cs.sourceforge.net/>
 
 Quota-tools
 ----------

@@ -363,6 +363,8 @@ enum
 struct rta_session
 {
 	__u8	proto;
+	__u8	pad1;
+	__u16	pad2;
 
 	union {
 		struct {
@@ -635,10 +637,13 @@ struct ifinfomsg
 struct prefixmsg
 {
 	unsigned char	prefix_family;
+	unsigned char	prefix_pad1;
+	unsigned short	prefix_pad2;
 	int		prefix_ifindex;
 	unsigned char	prefix_type;
 	unsigned char	prefix_len;
 	unsigned char	prefix_flags;
+	unsigned char	prefix_pad3;
 };
 
 enum 
@@ -892,10 +897,15 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 		 goto rtattr_failure; \
    	__rta_fill(skb, attrtype, attrlen, data); }) 
 
-#define RTA_PUT_NOHDR(skb, attrlen, data) \
+#define RTA_APPEND(skb, attrlen, data) \
 ({	if (unlikely(skb_tailroom(skb) < (int)(attrlen))) \
 		goto rtattr_failure; \
-	memcpy(skb_put(skb, RTA_ALIGN(attrlen)), data, attrlen); })
+	memcpy(skb_put(skb, attrlen), data, attrlen); })
+
+#define RTA_PUT_NOHDR(skb, attrlen, data) \
+({	RTA_APPEND(skb, RTA_ALIGN(attrlen), data); \
+	memset(skb->tail - (RTA_ALIGN(attrlen) - attrlen), 0, \
+	       RTA_ALIGN(attrlen) - attrlen); })
 
 #define RTA_PUT_U8(skb, attrtype, value) \
 ({	u8 _tmp = (value); \
@@ -975,6 +985,7 @@ __rta_reserve(struct sk_buff *skb, int attrtype, int attrlen)
 	rta = (struct rtattr*)skb_put(skb, RTA_ALIGN(size));
 	rta->rta_type = attrtype;
 	rta->rta_len = size;
+	memset(RTA_DATA(rta) + attrlen, 0, RTA_ALIGN(size) - size);
 	return rta;
 }
 

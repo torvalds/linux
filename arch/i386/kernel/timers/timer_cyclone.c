@@ -17,9 +17,9 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/fixmap.h>
-#include "io_ports.h"
+#include <asm/i8253.h>
 
-extern spinlock_t i8253_lock;
+#include "io_ports.h"
 
 /* Number of usecs that the last interrupt was delayed */
 static int delay_at_last_interrupt;

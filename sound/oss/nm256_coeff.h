@@ -4650,7 +4650,7 @@ nm256_loadAllCoefficients (struct nm256_info *card)
     card->coeffsCurrent = 1;
 }
 
-void
+static void
 nm256_loadCoefficient (struct nm256_info *card, int which, int number)
 {
     static u16 addrs[3] = { 0x1c, 0x21c, 0x408 };

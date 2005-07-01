@@ -9,6 +9,7 @@
 
 
 		    Dominik Brodowski  <linux@brodo.de>
+            some additions and corrections by Nico Golde <nico@ngolde.de>
 
 
 
@@ -25,6 +26,7 @@ Contents:
 2.1  Performance
 2.2  Powersave
 2.3  Userspace
+2.4  Ondemand
 
 3.   The Governor Interface in the CPUfreq Core
 
@@ -86,7 +88,7 @@ highest frequency within the borders of scaling_min_freq and
 scaling_max_freq.
 
 
-2.1 Powersave
+2.2 Powersave
 -------------
 
 The CPUfreq governor "powersave" sets the CPU statically to the
@@ -94,13 +96,21 @@ lowest frequency within the borders of scaling_min_freq and
 scaling_max_freq.
 
 
-2.2 Userspace
+2.3 Userspace
 -------------
 
 The CPUfreq governor "userspace" allows the user, or any userspace
 program running with UID "root", to set the CPU to a specific frequency
 by making a sysfs file "scaling_setspeed" available in the CPU-device
 directory.
+
+
+2.4 Ondemand
+------------
+
+The CPUfreq govenor "ondemand" sets the CPU depending on the
+current usage. To do this the CPU must have the capability to
+switch the frequency very fast.
 
 
 

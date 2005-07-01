@@ -27,12 +27,12 @@
 #include <linux/root_dev.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <linux/bootmem.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx.h>
 #ifdef CONFIG_BOOTIMG
 #include <linux/bootimg.h>
 #endif
+#include <asm/io.h>
 #include <asm/page.h>
 #include <asm/time.h>
 #include <asm/smp.h>

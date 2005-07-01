@@ -50,6 +50,23 @@ config EXT2_FS_SECURITY
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
 
+config EXT2_FS_XIP
+	bool "Ext2 execute in place support"
+	depends on EXT2_FS
+	help
+	  Execute in place can be used on memory-backed block devices. If you
+	  enable this option, you can select to mount block devices which are
+	  capable of this feature without using the page cache.
+
+	  If you do not use a block device that is capable of using this,
+	  or if unsure, say N.
+
+config FS_XIP
+# execute in place
+	bool
+	depends on EXT2_FS_XIP
+	default y
+
 config EXT3_FS
 	tristate "Ext3 journalling file system support"
 	help
@@ -716,6 +733,12 @@ config PROC_FS
 config PROC_KCORE
 	bool "/proc/kcore support" if !ARM
 	depends on PROC_FS && MMU
+
+config PROC_VMCORE
+        bool "/proc/vmcore support (EXPERIMENTAL)"
+        depends on PROC_FS && EMBEDDED && EXPERIMENTAL && CRASH_DUMP
+        help
+        Exports the dump image of crashed kernel in ELF format.
 
 config SYSFS
 	bool "sysfs file system support" if EMBEDDED
@@ -1413,6 +1436,8 @@ config NFSD_V4
 	bool "Provide NFSv4 server support (EXPERIMENTAL)"
 	depends on NFSD_V3 && EXPERIMENTAL
 	select NFSD_TCP
+	select CRYPTO_MD5
+	select CRYPTO
 	help
 	  If you would like to include the NFSv4 server as well as the NFSv2
 	  and NFSv3 servers, say Y here.  This feature is experimental, and

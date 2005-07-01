@@ -138,7 +138,7 @@ static int rxrpc_krxiod(void *arg)
 
 		_debug("### End Work");
 
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 
                 /* discard pending signals */
 		rxrpc_discard_my_signals();

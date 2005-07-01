@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-core.c,v 1.28 2005/02/22 09:56:29 kraxel Exp $
+ * $Id: saa7134-core.c,v 1.30 2005/05/22 19:23:39 nsh Exp $
  *
  * device driver for philips saa7134 based TV cards
  * driver core
@@ -316,7 +316,7 @@ unsigned long saa7134_buffer_base(struct saa7134_buf *buf)
 
 int saa7134_pgtable_alloc(struct pci_dev *pci, struct saa7134_pgtable *pt)
 {
-        u32          *cpu;
+        __le32       *cpu;
         dma_addr_t   dma_addr;
 
 	cpu = pci_alloc_consistent(pci, SAA7134_PGTABLE_SIZE, &dma_addr);
@@ -332,7 +332,7 @@ int saa7134_pgtable_build(struct pci_dev *pci, struct saa7134_pgtable *pt,
 			  struct scatterlist *list, unsigned int length,
 			  unsigned int startpage)
 {
-	u32           *ptr;
+	__le32        *ptr;
 	unsigned int  i,p;
 
 	BUG_ON(NULL == pt || NULL == pt->cpu);
@@ -340,7 +340,7 @@ int saa7134_pgtable_build(struct pci_dev *pci, struct saa7134_pgtable *pt,
 	ptr = pt->cpu + startpage;
 	for (i = 0; i < length; i++, list++)
 		for (p = 0; p * 4096 < list->length; p++, ptr++)
-			*ptr = sg_dma_address(list) - list->offset;
+			*ptr = cpu_to_le32(sg_dma_address(list) - list->offset);
 	return 0;
 }
 

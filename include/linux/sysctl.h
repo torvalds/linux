@@ -243,6 +243,7 @@ enum
 	NET_CORE_MOD_CONG=16,
 	NET_CORE_DEV_WEIGHT=17,
 	NET_CORE_SOMAXCONN=18,
+	NET_CORE_BUDGET=19,
 };
 
 /* /proc/sys/net/ethernet */
@@ -640,6 +641,7 @@ enum {
 	NET_SCTP_ADDIP_ENABLE		 = 13,
 	NET_SCTP_PRSCTP_ENABLE		 = 14,
 	NET_SCTP_SNDBUF_POLICY		 = 15,
+	NET_SCTP_SACK_TIMEOUT		 = 16,
 };
 
 /* /proc/sys/net/bridge */

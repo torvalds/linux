@@ -1286,7 +1286,7 @@ static void init_ring(struct net_device *dev)
 		np->rx_info[i].skb = skb;
 		if (skb == NULL)
 			break;
-		np->rx_info[i].mapping = pci_map_single(np->pci_dev, skb->tail, np->rx_buf_sz, PCI_DMA_FROMDEVICE);
+		np->rx_info[i].mapping = pci_map_single(np->pci_dev, skb->data, np->rx_buf_sz, PCI_DMA_FROMDEVICE);
 		skb->dev = dev;			/* Mark as being used by this device. */
 		/* Grrr, we cannot offset to correctly align the IP header. */
 		np->rx_ring[i].rxaddr = cpu_to_dma(np->rx_info[i].mapping | RxDescValid);
@@ -1572,7 +1572,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 			pci_dma_sync_single_for_cpu(np->pci_dev,
 						    np->rx_info[entry].mapping,
 						    pkt_len, PCI_DMA_FROMDEVICE);
-			eth_copy_and_sum(skb, np->rx_info[entry].skb->tail, pkt_len, 0);
+			eth_copy_and_sum(skb, np->rx_info[entry].skb->data, pkt_len, 0);
 			pci_dma_sync_single_for_device(np->pci_dev,
 						       np->rx_info[entry].mapping,
 						       pkt_len, PCI_DMA_FROMDEVICE);
@@ -1696,7 +1696,7 @@ static void refill_rx_ring(struct net_device *dev)
 			if (skb == NULL)
 				break;	/* Better luck next round. */
 			np->rx_info[entry].mapping =
-				pci_map_single(np->pci_dev, skb->tail, np->rx_buf_sz, PCI_DMA_FROMDEVICE);
+				pci_map_single(np->pci_dev, skb->data, np->rx_buf_sz, PCI_DMA_FROMDEVICE);
 			skb->dev = dev;	/* Mark as being used by this device. */
 			np->rx_ring[entry].rxaddr =
 				cpu_to_dma(np->rx_info[entry].mapping | RxDescValid);

@@ -70,8 +70,7 @@ void __init get_mtrr_state(void)
 /*  Free resources associated with a struct mtrr_state  */
 void __init finalize_mtrr_state(void)
 {
-	if (mtrr_state.var_ranges)
-		kfree(mtrr_state.var_ranges);
+	kfree(mtrr_state.var_ranges);
 	mtrr_state.var_ranges = NULL;
 }
 

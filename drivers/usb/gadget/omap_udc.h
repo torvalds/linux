@@ -20,6 +20,7 @@
 #define	UDC_CTRL_REG			UDC_REG(0x0C)	/* Endpoint control */
 #	define	UDC_CLR_HALT		(1 << 7)
 #	define	UDC_SET_HALT		(1 << 6)
+#	define	UDC_CLRDATA_TOGGLE	(1 << 3)
 #	define	UDC_SET_FIFO_EN		(1 << 2)
 #	define	UDC_CLR_EP		(1 << 1)
 #	define	UDC_RESET_EP		(1 << 0)
@@ -99,6 +100,7 @@
 
 /* DMA configuration registers:  up to three channels in each direction.  */
 #define	UDC_RXDMA_CFG_REG		UDC_REG(0x40)	/* 3 eps for RX DMA */
+#	define	UDC_DMA_REQ		(1 << 12)
 #define	UDC_TXDMA_CFG_REG		UDC_REG(0x44)	/* 3 eps for TX DMA */
 #define	UDC_DATA_DMA_REG		UDC_REG(0x48)	/* rx/tx fifo addr */
 
@@ -162,6 +164,7 @@ struct omap_udc {
 	spinlock_t			lock;
 	struct omap_ep			ep[32];
 	u16				devstat;
+	u16				clr_halt;
 	struct otg_transceiver		*transceiver;
 	struct list_head		iso;
 	unsigned			softconnect:1;
@@ -171,7 +174,6 @@ struct omap_udc {
 	unsigned			ep0_set_config:1;
 	unsigned			ep0_reset_config:1;
 	unsigned			ep0_setup:1;
-
 	struct completion		*done;
 };
 

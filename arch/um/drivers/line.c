@@ -602,11 +602,26 @@ int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
 	return n;
 }
 
-int line_remove(struct line *lines, unsigned int num, char *str)
+int line_id(char **str, int *start_out, int *end_out)
+{
+	char *end;
+        int n;
+
+	n = simple_strtoul(*str, &end, 0);
+	if((*end != '\0') || (end == *str))
+                return -1;
+
+        *str = end;
+        *start_out = n;
+        *end_out = n;
+        return n;
+}
+
+int line_remove(struct line *lines, unsigned int num, int n)
 {
 	char config[sizeof("conxxxx=none\0")];
 
-	sprintf(config, "%s=none", str);
+	sprintf(config, "%d=none", n);
 	return !line_setup(lines, num, config, 0);
 }
 

@@ -547,7 +547,7 @@ rio_timer (unsigned long data)
 				skb_reserve (skb, 2);
 				np->rx_ring[entry].fraginfo =
 				    cpu_to_le64 (pci_map_single
-					 (np->pdev, skb->tail, np->rx_buf_sz,
+					 (np->pdev, skb->data, np->rx_buf_sz,
 					  PCI_DMA_FROMDEVICE));
 			}
 			np->rx_ring[entry].fraginfo |=
@@ -618,7 +618,7 @@ alloc_list (struct net_device *dev)
 		/* Rubicon now supports 40 bits of addressing space. */
 		np->rx_ring[i].fraginfo =
 		    cpu_to_le64 ( pci_map_single (
-			 	  np->pdev, skb->tail, np->rx_buf_sz,
+			 	  np->pdev, skb->data, np->rx_buf_sz,
 				  PCI_DMA_FROMDEVICE));
 		np->rx_ring[i].fraginfo |= cpu_to_le64 (np->rx_buf_sz) << 48;
 	}
@@ -906,7 +906,7 @@ receive_packet (struct net_device *dev)
 				/* 16 byte align the IP header */
 				skb_reserve (skb, 2);
 				eth_copy_and_sum (skb,
-						  np->rx_skbuff[entry]->tail,
+						  np->rx_skbuff[entry]->data,
 						  pkt_len, 0);
 				skb_put (skb, pkt_len);
 				pci_dma_sync_single_for_device(np->pdev,
@@ -950,7 +950,7 @@ receive_packet (struct net_device *dev)
 			skb_reserve (skb, 2);
 			np->rx_ring[entry].fraginfo =
 			    cpu_to_le64 (pci_map_single
-					 (np->pdev, skb->tail, np->rx_buf_sz,
+					 (np->pdev, skb->data, np->rx_buf_sz,
 					  PCI_DMA_FROMDEVICE));
 		}
 		np->rx_ring[entry].fraginfo |=

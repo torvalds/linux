@@ -16,7 +16,7 @@
 #include <asm/ebus.h>
 #include <asm/auxio.h>
 
-/* This cannot be static, as it is referenced in entry.S */
+/* This cannot be static, as it is referenced in irq.c */
 void __iomem *auxio_register = NULL;
 
 enum auxio_type {

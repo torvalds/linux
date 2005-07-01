@@ -1,6 +1,4 @@
 /*
- * $Id: dvb-pll.c,v 1.7 2005/02/10 11:52:02 kraxel Exp $
- *
  * descriptions + helper functions for simple dvb plls.
  *
  * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
@@ -114,6 +112,92 @@ struct dvb_pll_desc dvb_pll_unknown_1 = {
 };
 EXPORT_SYMBOL(dvb_pll_unknown_1);
 
+/* Infineon TUA6010XS
+ * used in Thomson Cable Tuner
+ */
+struct dvb_pll_desc dvb_pll_tua6010xs = {
+	.name  = "Infineon TUA6010XS",
+	.min   =  44250000,
+	.max   = 858000000,
+	.count = 3,
+	.entries = {
+		{  115750000, 36125000, 62500, 0x8e, 0x03 },
+		{  403250000, 36125000, 62500, 0x8e, 0x06 },
+		{  999999999, 36125000, 62500, 0x8e, 0x85 },
+	},
+};
+EXPORT_SYMBOL(dvb_pll_tua6010xs);
+
+/* Panasonic env57h1xd5 (some Philips PLL ?) */
+struct dvb_pll_desc dvb_pll_env57h1xd5 = {
+	.name  = "Panasonic ENV57H1XD5",
+	.min   =  44250000,
+	.max   = 858000000,
+	.count = 4,
+	.entries = {
+		{  153000000, 36291666, 166666, 0xc2, 0x41 },
+		{  470000000, 36291666, 166666, 0xc2, 0x42 },
+		{  526000000, 36291666, 166666, 0xc2, 0x84 },
+		{  999999999, 36291666, 166666, 0xc2, 0xa4 },
+	},
+};
+EXPORT_SYMBOL(dvb_pll_env57h1xd5);
+
+/* Philips TDA6650/TDA6651
+ * used in Panasonic ENV77H11D5
+ */
+static void tda665x_bw(u8 *buf, int bandwidth)
+{
+	if (bandwidth == BANDWIDTH_8_MHZ)
+		buf[3] |= 0x08;
+}
+
+struct dvb_pll_desc dvb_pll_tda665x = {
+	.name  = "Philips TDA6650/TDA6651",
+	.min   =  44250000,
+	.max   = 858000000,
+	.setbw = tda665x_bw,
+	.count = 12,
+	.entries = {
+		{   93834000, 36249333, 166667, 0xca, 0x61 /* 011 0 0 0  01 */ },
+		{  123834000, 36249333, 166667, 0xca, 0xa1 /* 101 0 0 0  01 */ },
+		{  161000000, 36249333, 166667, 0xca, 0xa1 /* 101 0 0 0  01 */ },
+		{  163834000, 36249333, 166667, 0xca, 0xc2 /* 110 0 0 0  10 */ },
+		{  253834000, 36249333, 166667, 0xca, 0x62 /* 011 0 0 0  10 */ },
+		{  383834000, 36249333, 166667, 0xca, 0xa2 /* 101 0 0 0  10 */ },
+		{  443834000, 36249333, 166667, 0xca, 0xc2 /* 110 0 0 0  10 */ },
+		{  444000000, 36249333, 166667, 0xca, 0xc3 /* 110 0 0 0  11 */ },
+		{  583834000, 36249333, 166667, 0xca, 0x63 /* 011 0 0 0  11 */ },
+		{  793834000, 36249333, 166667, 0xca, 0xa3 /* 101 0 0 0  11 */ },
+		{  444834000, 36249333, 166667, 0xca, 0xc3 /* 110 0 0 0  11 */ },
+		{  861000000, 36249333, 166667, 0xca, 0xe3 /* 111 0 0 0  11 */ },
+	}
+};
+EXPORT_SYMBOL(dvb_pll_tda665x);
+
+/* Infineon TUA6034
+ * used in LG TDTP E102P
+ */
+static void tua6034_bw(u8 *buf, int bandwidth)
+{
+	if (BANDWIDTH_7_MHZ != bandwidth)
+		buf[3] |= 0x08;
+}
+
+struct dvb_pll_desc dvb_pll_tua6034 = {
+	.name  = "Infineon TUA6034",
+	.min   =  44250000,
+	.max   = 858000000,
+	.count = 3,
+	.setbw = tua6034_bw,
+	.entries = {
+		{  174500000, 36166667, 62500, 0xce, 0x01 },
+		{  230000000, 36166667, 62500, 0xce, 0x02 },
+		{  999999999, 36166667, 62500, 0xce, 0x04 },
+	},
+};
+EXPORT_SYMBOL(dvb_pll_tua6034);
+
 /* ----------------------------------------------------------- */
 /* code                                                        */
 
@@ -160,9 +244,3 @@ EXPORT_SYMBOL(dvb_pll_configure);
 MODULE_DESCRIPTION("dvb pll library");
 MODULE_AUTHOR("Gerd Knorr");
 MODULE_LICENSE("GPL");
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

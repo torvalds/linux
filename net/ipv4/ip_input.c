@@ -283,14 +283,18 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct iphdr *iph = skb->nh.iph;
+	int err;
 
 	/*
 	 *	Initialise the virtual path cache for the packet. It describes
 	 *	how the packet travels inside Linux networking.
 	 */ 
 	if (skb->dst == NULL) {
-		if (ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))
+		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
+			if (err == -EHOSTUNREACH)
+				IP_INC_STATS_BH(IPSTATS_MIB_INADDRERRORS);
 			goto drop; 
+		}
 	}
 
 #ifdef CONFIG_NET_CLS_ROUTE

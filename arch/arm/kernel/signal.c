@@ -697,7 +697,7 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 	if (!user_mode(regs))
 		return 0;
 
-	if (try_to_freeze(0))
+	if (try_to_freeze())
 		goto no_signal;
 
 	if (current->ptrace & PT_SINGLESTEP)

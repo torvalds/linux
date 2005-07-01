@@ -218,7 +218,7 @@ static snd_kcontrol_new_t daca_mixers[] = {
 };
 
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 static void daca_resume(pmac_t *chip)
 {
 	pmac_daca_t *mix = chip->mixer_data;
@@ -227,7 +227,7 @@ static void daca_resume(pmac_t *chip)
 				  mix->amp_on ? 0x05 : 0x04);
 	daca_set_volume(mix);
 }
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 
 static void daca_cleanup(pmac_t *chip)
@@ -275,7 +275,7 @@ int __init snd_pmac_daca_init(pmac_t *chip)
 			return err;
 	}
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	chip->resume = daca_resume;
 #endif
 

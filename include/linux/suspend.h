@@ -58,7 +58,7 @@ static inline int software_suspend(void)
 }
 #endif
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_SUSPEND_SMP
 extern void disable_nonboot_cpus(void);
 extern void enable_nonboot_cpus(void);
 #else

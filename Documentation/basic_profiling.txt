@@ -27,9 +27,13 @@ dump output	readprofile -m /boot/System.map > captured_profile
 
 Oprofile
 --------
-Get the source (I use 0.8) from http://oprofile.sourceforge.net/
-and add "idle=poll" to the kernel command line
+
+Get the source (see Changes for required version) from
+http://oprofile.sourceforge.net/ and add "idle=poll" to the kernel command
+line.
+
 Configure with CONFIG_PROFILING=y and CONFIG_OPROFILE=y & reboot on new kernel
+
 ./configure --with-kernel-support
 make install
 
@@ -46,7 +50,7 @@ start		opcontrol --start
 stop		opcontrol --stop
 dump output	opreport >  output_file
 
-To only report on the kernel, run opreport /boot/vmlinux > output_file
+To only report on the kernel, run opreport -l /boot/vmlinux > output_file
 
 A reset is needed to clear old statistics, which survive a reboot.
 

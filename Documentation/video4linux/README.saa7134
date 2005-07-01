@@ -57,6 +57,15 @@ Cards can use either of these two crystals (xtal):
  - 24.576MHz -> .audio_clock=0x200000
 (xtal * .audio_clock = 51539600)
 
+Some details about 30/34/35:
+
+ - saa7130 - low-price chip, doesn't have mute, that is why all those
+ cards should have .mute field defined in their tuner structure.
+
+ - saa7134 - usual chip
+
+ - saa7133/35 - saa7135 is probably a marketing decision, since all those
+ chips identifies itself as 33 on pci.
 
 Credits
 =======

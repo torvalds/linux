@@ -1324,9 +1324,9 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	/* XXX FIXME: Media bay stuff need re-organizing */
 	if (np->parent && np->parent->name
 	    && strcasecmp(np->parent->name, "media-bay") == 0) {
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PMAC_MEDIABAY
 		media_bay_set_ide_infos(np->parent, pmif->regbase, pmif->irq, hwif->index);
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PMAC_MEDIABAY */
 		pmif->mediabay = 1;
 		if (!bidp)
 			pmif->aapl_bus_id = 1;
@@ -1382,10 +1382,10 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	       hwif->index, model_name[pmif->kind], pmif->aapl_bus_id,
 	       pmif->mediabay ? " (mediabay)" : "", hwif->irq);
 			
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PMAC_MEDIABAY
 	if (pmif->mediabay && check_media_bay_by_base(pmif->regbase, MB_CD) == 0)
 		hwif->noprobe = 0;
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PMAC_MEDIABAY */
 
 	hwif->sg_max_nents = MAX_DCMDS;
 
