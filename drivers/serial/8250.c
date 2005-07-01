@@ -2061,7 +2061,8 @@ static void __init serial8250_isa_init_ports(void)
 		up->port.ops = &serial8250_pops;
 	}
 
-	for (i = 0, up = serial8250_ports; i < ARRAY_SIZE(old_serial_port);
+	for (i = 0, up = serial8250_ports;
+	     i < ARRAY_SIZE(old_serial_port) && i < UART_NR;
 	     i++, up++) {
 		up->port.iobase   = old_serial_port[i].port;
 		up->port.irq      = irq_canonicalize(old_serial_port[i].irq);
