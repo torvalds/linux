@@ -1966,6 +1966,7 @@
 #define MECR_NOS	(1 << 0)	/* Number Of Sockets: 0 -> 1 sock, 1 -> 2 sock */
 #define MECR_CIT	(1 << 1)	/* Card Is There: 0 -> no card, 1 -> card inserted */
 
+#define MDREFR_K0DB4	(1 << 29)	/* SDCLK0 Divide by 4 Control/Status */
 #define MDREFR_K2FREE	(1 << 25)	/* SDRAM Free-Running Control */
 #define MDREFR_K1FREE	(1 << 24)	/* SDRAM Free-Running Control */
 #define MDREFR_K0FREE	(1 << 23)	/* SDRAM Free-Running Control */
