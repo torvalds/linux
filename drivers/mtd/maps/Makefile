@@ -1,7 +1,7 @@
 #
 # linux/drivers/maps/Makefile
 #
-# $Id: Makefile.common,v 1.26 2005/03/02 14:51:04 dvrabel Exp $
+# $Id: Makefile.common,v 1.29 2005/06/30 22:41:36 tpoynor Exp $
 
 ifeq ($(CONFIG_MTD_COMPLEX_MAPPINGS),y)
 obj-$(CONFIG_MTD)		+= map_funcs.o
@@ -22,6 +22,7 @@ obj-$(CONFIG_MTD_AMD76XROM)	+= amd76xrom.o
 obj-$(CONFIG_MTD_ICHXROM)	+= ichxrom.o
 obj-$(CONFIG_MTD_TSUNAMI)	+= tsunami_flash.o
 obj-$(CONFIG_MTD_LUBBOCK)	+= lubbock-flash.o
+obj-$(CONFIG_MTD_MAINSTONE)	+= mainstone-flash.o
 obj-$(CONFIG_MTD_MBX860)	+= mbx860.o
 obj-$(CONFIG_MTD_CEIVA)		+= ceiva.o
 obj-$(CONFIG_MTD_OCTAGON)	+= octagon-5066.o

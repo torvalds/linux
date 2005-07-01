@@ -1,5 +1,5 @@
 # drivers/mtd/maps/Kconfig
-# $Id: Kconfig,v 1.51 2005/03/18 02:07:22 gleixner Exp $
+# $Id: Kconfig,v 1.54 2005/06/30 22:41:36 tpoynor Exp $
 
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
@@ -128,6 +128,14 @@ config MTD_LUBBOCK
 	help
 	  This provides a driver for the on-board flash of the Intel
 	  'Lubbock' XScale evaluation board.
+
+config MTD_MAINSTONE
+	tristate "CFI Flash device mapped on Intel Mainstone XScale eval board"
+	depends on MACH_MAINSTONE && MTD_CFI_INTELEXT
+	select MTD_PARTITIONS
+	help
+	  This provides a driver for the on-board flash of the Intel
+	  'Mainstone PXA27x evaluation board.
 
 config MTD_OCTAGON
 	tristate "JEDEC Flash device mapped on Octagon 5066 SBC"
