@@ -97,10 +97,10 @@ ioctl(file,I2C_PEC,long select)
 ioctl(file,I2C_FUNCS,unsigned long *funcs)
   Gets the adapter functionality and puts it in *funcs.
 
-ioctl(file,I2C_RDWR,struct i2c_ioctl_rdwr_data *msgset)
+ioctl(file,I2C_RDWR,struct i2c_rdwr_ioctl_data *msgset)
 
   Do combined read/write transaction without stop in between.
-  The argument is a pointer to a struct i2c_ioctl_rdwr_data {
+  The argument is a pointer to a struct i2c_rdwr_ioctl_data {
 
       struct i2c_msg *msgs;  /* ptr to array of simple messages */
       int nmsgs;             /* number of messages to exchange */
