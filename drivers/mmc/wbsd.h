@@ -187,4 +187,6 @@ struct wbsd_host
 	struct tasklet_struct	timeout_tasklet;
 	struct tasklet_struct	finish_tasklet;
 	struct tasklet_struct	block_tasklet;
+	
+	struct timer_list	timer;		/* Card detection timer */
 };
