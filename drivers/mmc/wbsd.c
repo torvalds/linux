@@ -54,28 +54,6 @@
 #define DBGF(x...)	do { } while (0)
 #endif
 
-#ifdef CONFIG_MMC_DEBUG
-void DBG_REG(int reg, u8 value)
-{
-	int i;
-	
-	printk(KERN_DEBUG "wbsd: Register %d: 0x%02X %3d '%c' ",
-		reg, (int)value, (int)value, (value < 0x20)?'.':value);
-	
-	for (i = 7;i >= 0;i--)
-	{
-		if (value & (1 << i))
-			printk("x");
-		else
-			printk(".");
-	}
-	
-	printk("\n");
-}
-#else
-#define DBG_REG(r, v) do {}  while (0)
-#endif
-
 /*
  * Device resources
  */
@@ -91,6 +69,13 @@ static const struct pnp_device_id pnp_dev_table[] = {
 MODULE_DEVICE_TABLE(pnp, pnp_dev_table);
 
 #endif /* CONFIG_PNP */
+
+static const int config_ports[] = { 0x2E, 0x4E };
+static const int unlock_codes[] = { 0x83, 0x87 };
+
+static const int valid_ids[] = {
+	0x7112,
+	};
 
 #ifdef CONFIG_PNP
 static unsigned int nopnp = 0;
