@@ -344,9 +344,9 @@ __create_page_tables:
 	str	r6, [r0]
 #endif
 
+#ifdef CONFIG_DEBUG_LL
 	bic	r7, r7, #0x0c			@ turn off cacheable
 						@ and bufferable bits
-#ifdef CONFIG_DEBUG_LL
 	/*
 	 * Map in IO space for serial debugging.
 	 * This allows debug messages to be output
@@ -372,14 +372,10 @@ __create_page_tables:
 	teq	r1, #MACH_TYPE_NETWINDER
 	teqne	r1, #MACH_TYPE_CATS
 	bne	1f
-	add	r0, r4, #0x3fc0			@ ff000000
-	mov	r3, #0x7c000000
-	orr	r3, r3, r7
-	str	r3, [r0], #4
-	add	r3, r3, #1 << 20
-	str	r3, [r0], #4
+	add	r0, r4, #0xff000000 >> 18
+	orr	r3, r7, #0x7c000000
+	str	r3, [r0]
 1:
-#endif
 #endif
 #ifdef CONFIG_ARCH_RPC
 	/*
@@ -387,12 +383,12 @@ __create_page_tables:
 	 * Similar reasons here - for debug.  This is
 	 * only for Acorn RiscPC architectures.
 	 */
-	add	r0, r4, #0x80			@ 02000000
-	mov	r3, #0x02000000
-	orr	r3, r3, r7
+	add	r0, r4, #0x02000000 >> 18
+	orr	r3, r7, #0x02000000
 	str	r3, [r0]
-	add	r0, r4, #0x3600			@ d8000000
+	add	r0, r4, #0xd8000000 >> 18
 	str	r3, [r0]
+#endif
 #endif
 	mov	pc, lr
 	.ltorg
