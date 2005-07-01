@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
+#include <asm/addrspace.h>
 #include <asm/system.h>
 #include <asm/traps.h>
 
@@ -29,8 +30,8 @@
 
 static inline void dec_kn02xa_be_ack(void)
 {
-	volatile u32 *mer = (void *)KN02XA_MER;
-	volatile u32 *mem_intr = (void *)KN02XA_MEM_INTR;
+	volatile u32 *mer = (void *)CKSEG1ADDR(KN02XA_MER);
+	volatile u32 *mem_intr = (void *)CKSEG1ADDR(KN02XA_MEM_INTR);
 
 	*mer = KN02CA_MER_INTR;		/* Clear errors; keep the ARC IRQ. */
 	*mem_intr = 0;			/* Any write clears the bus IRQ. */
@@ -40,8 +41,8 @@ static inline void dec_kn02xa_be_ack(void)
 static int dec_kn02xa_be_backend(struct pt_regs *regs, int is_fixup,
 				 int invoker)
 {
-	volatile u32 *kn02xa_mer = (void *)KN02XA_MER;
-	volatile u32 *kn02xa_ear = (void *)KN02XA_EAR;
+	volatile u32 *kn02xa_mer = (void *)CKSEG1ADDR(KN02XA_MER);
+	volatile u32 *kn02xa_ear = (void *)CKSEG1ADDR(KN02XA_EAR);
 
 	static const char excstr[] = "exception";
 	static const char intstr[] = "interrupt";
@@ -126,7 +127,7 @@ irqreturn_t dec_kn02xa_be_interrupt(int irq, void *dev_id,
 
 void __init dec_kn02xa_be_init(void)
 {
-	volatile u32 *mbcs = (void *)(KN4K_SLOT_BASE + KN4K_MB_CSR);
+	volatile u32 *mbcs = (void *)CKSEG1ADDR(KN4K_SLOT_BASE + KN4K_MB_CSR);
 
         /* For KN04 we need to make sure EE (?) is enabled in the MB.  */
         if (current_cpu_data.cputype == CPU_R4000SC)

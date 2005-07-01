@@ -13,9 +13,7 @@
 #ifndef __ASM_MIPS_DEC_KN01_H
 #define __ASM_MIPS_DEC_KN01_H
 
-#include <asm/addrspace.h>
-
-#define KN01_SLOT_BASE	CKSEG1ADDR(0x10000000)
+#define KN01_SLOT_BASE	0x10000000
 #define KN01_SLOT_SIZE	0x01000000
 
 /*
@@ -41,17 +39,9 @@
 
 
 /*
- * Some port addresses...
- */
-#define KN01_LANCE_BASE (KN01_SLOT_BASE + KN01_LANCE)	/* 0xB8000000 */
-#define KN01_DZ11_BASE	(KN01_SLOT_BASE + KN01_DZ11)	/* 0xBC000000 */
-#define KN01_RTC_BASE	(KN01_SLOT_BASE + KN01_RTC)	/* 0xBD000000 */
-
-
-/*
  * Frame buffer memory address.
  */
-#define KN01_VFB_MEM	CKSEG1ADDR(0x0fc00000)
+#define KN01_VFB_MEM	0x0fc00000
 
 /*
  * CPU interrupt bits.

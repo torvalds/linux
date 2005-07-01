@@ -37,7 +37,8 @@ static int kn02_irq_base;
 
 static inline void unmask_kn02_irq(unsigned int irq)
 {
-	volatile u32 *csr = (volatile u32 *)KN02_CSR_BASE;
+	volatile u32 *csr = (volatile u32 *)CKSEG1ADDR(KN02_SLOT_BASE +
+						       KN02_CSR);
 
 	cached_kn02_csr |= (1 << (irq - kn02_irq_base + 16));
 	*csr = cached_kn02_csr;
@@ -45,7 +46,8 @@ static inline void unmask_kn02_irq(unsigned int irq)
 
 static inline void mask_kn02_irq(unsigned int irq)
 {
-	volatile u32 *csr = (volatile u32 *)KN02_CSR_BASE;
+	volatile u32 *csr = (volatile u32 *)CKSEG1ADDR(KN02_SLOT_BASE +
+						       KN02_CSR);
 
 	cached_kn02_csr &= ~(1 << (irq - kn02_irq_base + 16));
 	*csr = cached_kn02_csr;
@@ -105,7 +107,8 @@ static struct hw_interrupt_type kn02_irq_type = {
 
 void __init init_kn02_irqs(int base)
 {
-	volatile u32 *csr = (volatile u32 *)KN02_CSR_BASE;
+	volatile u32 *csr = (volatile u32 *)CKSEG1ADDR(KN02_SLOT_BASE +
+						       KN02_CSR);
 	unsigned long flags;
 	int i;
 

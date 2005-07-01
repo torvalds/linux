@@ -65,14 +65,14 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/bootinfo.h>
-#include <asm/dec/serial.h>
 
-#ifdef CONFIG_MACH_DECSTATION
 #include <asm/dec/interrupts.h>
-#include <asm/dec/machtype.h>
-#include <asm/dec/tc.h>
 #include <asm/dec/ioasic_addrs.h>
-#endif
+#include <asm/dec/machtype.h>
+#include <asm/dec/serial.h>
+#include <asm/dec/system.h>
+#include <asm/dec/tc.h>
+
 #ifdef CONFIG_KGDB
 #include <asm/kgdb.h>
 #endif
@@ -1616,30 +1616,22 @@ static void __init probe_sccs(void)
 		return;
 	}
 
-	/*
-	 * When serial console is activated, tc_init has not been called yet
-	 * and system_base is undefined. Unfortunately we have to hardcode
-	 * system_base for this case :-(. HK
-	 */
 	switch(mips_machtype) {
 #ifdef CONFIG_MACH_DECSTATION
 	case MACH_DS5000_2X0:
 	case MACH_DS5900:
-		system_base = CKSEG1ADDR(0x1f800000);
 		n_chips = 2;
 		zs_parms = &ds_parms;
 		zs_parms->irq0 = dec_interrupt[DEC_IRQ_SCC0];
 		zs_parms->irq1 = dec_interrupt[DEC_IRQ_SCC1];
 		break;
 	case MACH_DS5000_1XX:
-		system_base = CKSEG1ADDR(0x1c000000);
 		n_chips = 2;
 		zs_parms = &ds_parms;
 		zs_parms->irq0 = dec_interrupt[DEC_IRQ_SCC0];
 		zs_parms->irq1 = dec_interrupt[DEC_IRQ_SCC1];
 		break;
 	case MACH_DS5000_XX:
-		system_base = CKSEG1ADDR(0x1c000000);
 		n_chips = 1;
 		zs_parms = &ds_parms;
 		zs_parms->irq0 = dec_interrupt[DEC_IRQ_SCC0];
@@ -1661,10 +1653,10 @@ static void __init probe_sccs(void)
 			 * The sccs reside on the high byte of the 16 bit IOBUS
 			 */
 			zs_channels[n_channels].control =
-				(volatile unsigned char *)system_base +
+				(volatile void *)CKSEG1ADDR(dec_kn_slot_base +
 			  (0 == chip ? zs_parms->scc0 : zs_parms->scc1) +
 			  (0 == channel ? zs_parms->channel_a_offset :
-			                  zs_parms->channel_b_offset);
+			                  zs_parms->channel_b_offset));
 			zs_channels[n_channels].data =
 				zs_channels[n_channels].control + 4;
 

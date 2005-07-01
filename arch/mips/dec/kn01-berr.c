@@ -51,7 +51,7 @@ DEFINE_SPINLOCK(kn01_lock);
 
 static inline void dec_kn01_be_ack(void)
 {
-	volatile u16 *csr = (void *)(KN01_SLOT_BASE + KN01_CSR);
+	volatile u16 *csr = (void *)CKSEG1ADDR(KN01_SLOT_BASE + KN01_CSR);
 	unsigned long flags;
 
 	spin_lock_irqsave(&kn01_lock, flags);
@@ -64,7 +64,8 @@ static inline void dec_kn01_be_ack(void)
 
 static int dec_kn01_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 {
-	volatile u32 *kn01_erraddr = (void *)(KN01_SLOT_BASE + KN01_ERRADDR);
+	volatile u32 *kn01_erraddr = (void *)CKSEG1ADDR(KN01_SLOT_BASE +
+							KN01_ERRADDR);
 
 	static const char excstr[] = "exception";
 	static const char intstr[] = "interrupt";
@@ -152,7 +153,7 @@ int dec_kn01_be_handler(struct pt_regs *regs, int is_fixup)
 irqreturn_t dec_kn01_be_interrupt(int irq, void *dev_id,
 				    struct pt_regs *regs)
 {
-	volatile u16 *csr = (void *)(KN01_SLOT_BASE + KN01_CSR);
+	volatile u16 *csr = (void *)CKSEG1ADDR(KN01_SLOT_BASE + KN01_CSR);
 	int action;
 
 	if (!(*csr & KN01_CSR_MEMERR))
@@ -178,7 +179,7 @@ irqreturn_t dec_kn01_be_interrupt(int irq, void *dev_id,
 
 void __init dec_kn01_be_init(void)
 {
-	volatile u16 *csr = (void *)(KN01_SLOT_BASE + KN01_CSR);
+	volatile u16 *csr = (void *)CKSEG1ADDR(KN01_SLOT_BASE + KN01_CSR);
 	unsigned long flags;
 
 	spin_lock_irqsave(&kn01_lock, flags);

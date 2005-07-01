@@ -21,7 +21,6 @@
 #ifndef __ASM_MIPS_DEC_KN05_H
 #define __ASM_MIPS_DEC_KN05_H
 
-#include <asm/addrspace.h>
 #include <asm/dec/ioasic_addrs.h>
 
 /*
@@ -30,7 +29,7 @@
  * passed to the I/O ASIC's decoder like with the KN03 or KN02-BA/CA.
  * Others are handled locally.  "Low" slots are always passed.
  */
-#define KN4K_SLOT_BASE	KSEG1ADDR(0x1fc00000)
+#define KN4K_SLOT_BASE	0x1fc00000
 
 #define KN4K_MB_ROM	(0*IOASIC_SLOT_SIZE)	/* KN05/KN04 card ROM */
 #define KN4K_IOCTL	(1*IOASIC_SLOT_SIZE)	/* I/O ASIC */

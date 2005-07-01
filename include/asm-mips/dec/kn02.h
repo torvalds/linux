@@ -13,11 +13,7 @@
 #ifndef __ASM_MIPS_DEC_KN02_H
 #define __ASM_MIPS_DEC_KN02_H
 
-#include <asm/addrspace.h>
-#include <asm/dec/ecc.h>
-
-
-#define KN02_SLOT_BASE	CKSEG1ADDR(0x1fc00000)
+#define KN02_SLOT_BASE	0x1fc00000
 #define KN02_SLOT_SIZE	0x00080000
 
 /*
@@ -31,14 +27,6 @@
 #define KN02_RTC	(5*KN02_SLOT_SIZE)	/* DS1287 RTC */
 #define KN02_CSR	(6*KN02_SLOT_SIZE)	/* system ctrl & status reg */
 #define KN02_SYS_ROM_7	(7*KN02_SLOT_SIZE)	/* system board ROM (alias) */
-
-
-/*
- * Some port addresses...
- */
-#define KN02_DZ11_BASE	(KN02_SLOT_BASE + KN02_DZ11)	/* DZ11 */
-#define KN02_RTC_BASE	(KN02_SLOT_BASE + KN02_RTC)	/* RTC */
-#define KN02_CSR_BASE	(KN02_SLOT_BASE + KN02_CSR)	/* CSR */
 
 
 /*

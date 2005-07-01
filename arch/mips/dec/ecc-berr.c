@@ -227,11 +227,11 @@ irqreturn_t dec_ecc_be_interrupt(int irq, void *dev_id, struct pt_regs *regs)
  */
 static inline void dec_kn02_be_init(void)
 {
-	volatile u32 *csr = (void *)KN02_CSR_BASE;
+	volatile u32 *csr = (void *)CKSEG1ADDR(KN02_SLOT_BASE + KN02_CSR);
 	unsigned long flags;
 
-	kn0x_erraddr = (void *)(KN02_SLOT_BASE + KN02_ERRADDR);
-	kn0x_chksyn = (void *)(KN02_SLOT_BASE + KN02_CHKSYN);
+	kn0x_erraddr = (void *)CKSEG1ADDR(KN02_SLOT_BASE + KN02_ERRADDR);
+	kn0x_chksyn = (void *)CKSEG1ADDR(KN02_SLOT_BASE + KN02_CHKSYN);
 
 	spin_lock_irqsave(&kn02_lock, flags);
 
@@ -250,11 +250,11 @@ static inline void dec_kn02_be_init(void)
 
 static inline void dec_kn03_be_init(void)
 {
-	volatile u32 *mcr = (void *)(KN03_SLOT_BASE + IOASIC_MCR);
-	volatile u32 *mbcs = (void *)(KN4K_SLOT_BASE + KN4K_MB_CSR);
+	volatile u32 *mcr = (void *)CKSEG1ADDR(KN03_SLOT_BASE + IOASIC_MCR);
+	volatile u32 *mbcs = (void *)CKSEG1ADDR(KN4K_SLOT_BASE + KN4K_MB_CSR);
 
-	kn0x_erraddr = (void *)(KN03_SLOT_BASE + IOASIC_ERRADDR);
-	kn0x_chksyn = (void *)(KN03_SLOT_BASE + IOASIC_CHKSYN);
+	kn0x_erraddr = (void *)CKSEG1ADDR(KN03_SLOT_BASE + IOASIC_ERRADDR);
+	kn0x_chksyn = (void *)CKSEG1ADDR(KN03_SLOT_BASE + IOASIC_CHKSYN);
 
 	/*
 	 * Set normal ECC detection and generation, enable ECC correction.

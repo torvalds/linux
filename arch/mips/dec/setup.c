@@ -39,6 +39,7 @@
 #include <asm/dec/kn02ca.h>
 #include <asm/dec/kn03.h>
 #include <asm/dec/kn230.h>
+#include <asm/dec/system.h>
 
 
 extern void dec_machine_restart(char *command);
@@ -48,10 +49,16 @@ extern irqreturn_t dec_intr_halt(int irq, void *dev_id, struct pt_regs *regs);
 
 extern asmlinkage void decstation_handle_int(void);
 
+unsigned long dec_kn_slot_base, dec_kn_slot_size;
+
+EXPORT_SYMBOL(dec_kn_slot_base);
+EXPORT_SYMBOL(dec_kn_slot_size);
+
 spinlock_t ioasic_ssr_lock;
 
 volatile u32 *ioasic_base;
-unsigned long dec_kn_slot_size;
+
+EXPORT_SYMBOL(ioasic_base);
 
 /*
  * IRQ routing and priority tables.  Priorites are set as follows:
@@ -78,6 +85,9 @@ unsigned long dec_kn_slot_size;
 int dec_interrupt[DEC_NR_INTS] = {
 	[0 ... DEC_NR_INTS - 1] = -1
 };
+
+EXPORT_SYMBOL(dec_interrupt);
+
 int_ptr cpu_mask_nr_tbl[DEC_MAX_CPU_INTS][2] = {
 	{ { .i = ~0 }, { .p = dec_intr_unimplemented } },
 };
@@ -755,7 +765,3 @@ void __init arch_init_irq(void)
 	if (dec_interrupt[DEC_IRQ_HALT] >= 0)
 		setup_irq(dec_interrupt[DEC_IRQ_HALT], &haltirq);
 }
-
-EXPORT_SYMBOL(ioasic_base);
-EXPORT_SYMBOL(dec_kn_slot_size);
-EXPORT_SYMBOL(dec_interrupt);
