@@ -647,6 +647,8 @@ source "drivers/input/Kconfig"
 
 source "drivers/i2c/Kconfig"
 
+source "drivers/hwmon/Kconfig"
+
 source "fs/Kconfig"
 
 source "drivers/media/Kconfig"

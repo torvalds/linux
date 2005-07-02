@@ -179,6 +179,8 @@ source "drivers/serial/Kconfig"
 
 source "drivers/i2c/Kconfig"
 
+source "drivers/hwmon/Kconfig"
+
 source "drivers/usb/Kconfig"
 
 endmenu
