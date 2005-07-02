@@ -592,7 +592,7 @@ typedef struct mixer_def mixer_ent;
   {{reg_l, pola_l, pos_l, len_l}, {reg_r, pola_r, pos_r, len_r}}
 
 
-mixer_ent mix_devices[SOUND_MIXER_NRDEVICES][2] = {
+static mixer_ent mix_devices[SOUND_MIXER_NRDEVICES][2] = {
 MIX_ENT(SOUND_MIXER_VOLUME,	14, 1, 8, 5,	14, 1, 0, 5),
 MIX_ENT(SOUND_MIXER_BASS,	 0, 0, 0, 0,	 0, 0, 0, 0),
 MIX_ENT(SOUND_MIXER_TREBLE,	 0, 0, 0, 0,	 0, 0, 0, 0),

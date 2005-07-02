@@ -87,6 +87,7 @@ Revision History:
 #include <linux/if_vlan.h>
 #include <linux/ctype.h>	
 #include <linux/crc32.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -2006,12 +2007,11 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 	}
 
 	/* Initialize DMA */
-	if(!pci_dma_supported(pdev, 0xffffffff)){
+	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) < 0) {
 		printk(KERN_ERR "amd8111e: DMA not supported,"
 			"exiting.\n");
-		goto  err_free_reg;
-	} else
-		pdev->dma_mask = 0xffffffff;
+		goto err_free_reg;
+	}
 	
 	reg_addr = pci_resource_start(pdev, 0);
 	reg_len = pci_resource_len(pdev, 0);

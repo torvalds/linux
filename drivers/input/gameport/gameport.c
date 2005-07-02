@@ -17,11 +17,10 @@
 #include <linux/init.h>
 #include <linux/gameport.h>
 #include <linux/wait.h>
-#include <linux/completion.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/kthread.h>
 
 /*#include <asm/io.h>*/
 
@@ -61,12 +60,13 @@ static void gameport_disconnect_port(struct gameport *gameport);
 
 #if defined(__i386__)
 
+#include <asm/i8253.h>
+
 #define DELTA(x,y)      ((y)-(x)+((y)<(x)?1193182/HZ:0))
 #define GET_TIME(x)     do { x = get_time_pit(); } while (0)
 
 static unsigned int get_time_pit(void)
 {
-	extern spinlock_t i8253_lock;
 	unsigned long flags;
 	unsigned int count;
 
@@ -134,7 +134,7 @@ static int gameport_measure_speed(struct gameport *gameport)
 	}
 
 	gameport_close(gameport);
-	return (cpu_data[_smp_processor_id()].loops_per_jiffy * (unsigned long)HZ / (1000 / 50)) / (tx < 1 ? 1 : tx);
+	return (cpu_data[raw_smp_processor_id()].loops_per_jiffy * (unsigned long)HZ / (1000 / 50)) / (tx < 1 ? 1 : tx);
 
 #else
 
@@ -238,8 +238,7 @@ struct gameport_event {
 static DEFINE_SPINLOCK(gameport_event_lock);	/* protects gameport_event_list */
 static LIST_HEAD(gameport_event_list);
 static DECLARE_WAIT_QUEUE_HEAD(gameport_wait);
-static DECLARE_COMPLETION(gameport_exited);
-static int gameport_pid;
+static struct task_struct *gameport_task;
 
 static void gameport_queue_event(void *object, struct module *owner,
 			      enum gameport_event_type event_type)
@@ -250,12 +249,12 @@ static void gameport_queue_event(void *object, struct module *owner,
 	spin_lock_irqsave(&gameport_event_lock, flags);
 
 	/*
- 	 * Scan event list for the other events for the same gameport port,
+	 * Scan event list for the other events for the same gameport port,
 	 * starting with the most recent one. If event is the same we
 	 * do not need add new one. If event is of different type we
 	 * need to add this event and should not look further because
 	 * we need to preseve sequence of distinct events.
- 	 */
+	 */
 	list_for_each_entry_reverse(event, &gameport_event_list, node) {
 		if (event->object == object) {
 			if (event->type == event_type)
@@ -432,20 +431,15 @@ static struct gameport *gameport_get_pending_child(struct gameport *parent)
 
 static int gameport_thread(void *nothing)
 {
-	lock_kernel();
-	daemonize("kgameportd");
-	allow_signal(SIGTERM);
-
 	do {
 		gameport_handle_events();
-		wait_event_interruptible(gameport_wait, !list_empty(&gameport_event_list));
-		try_to_freeze(PF_FREEZE);
-	} while (!signal_pending(current));
+		wait_event_interruptible(gameport_wait,
+			kthread_should_stop() || !list_empty(&gameport_event_list));
+		try_to_freeze();
+	} while (!kthread_should_stop());
 
 	printk(KERN_DEBUG "gameport: kgameportd exiting\n");
-
-	unlock_kernel();
-	complete_and_exit(&gameport_exited, 0);
+	return 0;
 }
 
 
@@ -453,13 +447,13 @@ static int gameport_thread(void *nothing)
  * Gameport port operations
  */
 
-static ssize_t gameport_show_description(struct device *dev, char *buf)
+static ssize_t gameport_show_description(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct gameport *gameport = to_gameport_port(dev);
 	return sprintf(buf, "%s\n", gameport->name);
 }
 
-static ssize_t gameport_rebind_driver(struct device *dev, const char *buf, size_t count)
+static ssize_t gameport_rebind_driver(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct gameport *gameport = to_gameport_port(dev);
 	struct device_driver *drv;
@@ -773,9 +767,10 @@ void gameport_close(struct gameport *gameport)
 
 static int __init gameport_init(void)
 {
-	if (!(gameport_pid = kernel_thread(gameport_thread, NULL, CLONE_KERNEL))) {
+	gameport_task = kthread_run(gameport_thread, NULL, "kgameportd");
+	if (IS_ERR(gameport_task)) {
 		printk(KERN_ERR "gameport: Failed to start kgameportd\n");
-		return -1;
+		return PTR_ERR(gameport_task);
 	}
 
 	gameport_bus.dev_attrs = gameport_device_attrs;
@@ -789,8 +784,7 @@ static int __init gameport_init(void)
 static void __exit gameport_exit(void)
 {
 	bus_unregister(&gameport_bus);
-	kill_proc(gameport_pid, SIGTERM, 1);
-	wait_for_completion(&gameport_exited);
+	kthread_stop(gameport_task);
 }
 
 module_init(gameport_init);

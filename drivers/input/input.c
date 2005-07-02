@@ -219,10 +219,24 @@ void input_release_device(struct input_handle *handle)
 
 int input_open_device(struct input_handle *handle)
 {
+	struct input_dev *dev = handle->dev;
+	int err;
+
+	err = down_interruptible(&dev->sem);
+	if (err)
+		return err;
+
 	handle->open++;
-	if (handle->dev->open)
-		return handle->dev->open(handle->dev);
-	return 0;
+
+	if (!dev->users++ && dev->open)
+		err = dev->open(dev);
+
+	if (err)
+		handle->open--;
+
+	up(&dev->sem);
+
+	return err;
 }
 
 int input_flush_device(struct input_handle* handle, struct file* file)
@@ -235,10 +249,17 @@ int input_flush_device(struct input_handle* handle, struct file* file)
 
 void input_close_device(struct input_handle *handle)
 {
+	struct input_dev *dev = handle->dev;
+
 	input_release_device(handle);
-	if (handle->dev->close)
-		handle->dev->close(handle->dev);
+
+	down(&dev->sem);
+
+	if (!--dev->users && dev->close)
+		dev->close(dev);
 	handle->open--;
+
+	up(&dev->sem);
 }
 
 static void input_link_handle(struct input_handle *handle)
@@ -414,6 +435,8 @@ void input_register_device(struct input_dev *dev)
 	struct input_device_id *id;
 
 	set_bit(EV_SYN, dev->evbit);
+
+	init_MUTEX(&dev->sem);
 
 	/*
 	 * If delay and period are pre-set by the driver, then autorepeating
@@ -674,6 +697,8 @@ static int input_handlers_read(char *buf, char **start, off_t pos, int count, in
 	return (count > cnt) ? cnt : count;
 }
 
+static struct file_operations input_fileops;
+
 static int __init input_proc_init(void)
 {
 	struct proc_dir_entry *entry;
@@ -688,6 +713,8 @@ static int __init input_proc_init(void)
 		return -ENOMEM;
 	}
 	entry->owner = THIS_MODULE;
+	input_fileops = *entry->proc_fops;
+	entry->proc_fops = &input_fileops;
 	entry->proc_fops->poll = input_devices_poll;
 	entry = create_proc_read_entry("handlers", 0, proc_bus_input_dir, input_handlers_read, NULL);
 	if (entry == NULL) {
@@ -702,13 +729,13 @@ static int __init input_proc_init(void)
 static inline int input_proc_init(void) { return 0; }
 #endif
 
-struct class_simple *input_class;
+struct class *input_class;
 
 static int __init input_init(void)
 {
 	int retval = -ENOMEM;
 
-	input_class = class_simple_create(THIS_MODULE, "input");
+	input_class = class_create(THIS_MODULE, "input");
 	if (IS_ERR(input_class))
 		return PTR_ERR(input_class);
 	input_proc_init();
@@ -718,7 +745,7 @@ static int __init input_init(void)
 		remove_proc_entry("devices", proc_bus_input_dir);
 		remove_proc_entry("handlers", proc_bus_input_dir);
 		remove_proc_entry("input", proc_bus);
-		class_simple_destroy(input_class);
+		class_destroy(input_class);
 		return retval;
 	}
 
@@ -728,7 +755,7 @@ static int __init input_init(void)
 		remove_proc_entry("handlers", proc_bus_input_dir);
 		remove_proc_entry("input", proc_bus);
 		unregister_chrdev(INPUT_MAJOR, "input");
-		class_simple_destroy(input_class);
+		class_destroy(input_class);
 	}
 	return retval;
 }
@@ -741,7 +768,7 @@ static void __exit input_exit(void)
 
 	devfs_remove("input");
 	unregister_chrdev(INPUT_MAJOR, "input");
-	class_simple_destroy(input_class);
+	class_destroy(input_class);
 }
 
 subsys_initcall(input_init);

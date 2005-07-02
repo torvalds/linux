@@ -171,12 +171,7 @@ struct net_device * __init el2_probe(int unit)
 	err = do_el2_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -355,6 +350,10 @@ el2_probe1(struct net_device *dev, int ioaddr)
 #ifdef CONFIG_NET_POLL_CONTROLLER
     dev->poll_controller = ei_poll;
 #endif
+
+    retval = register_netdev(dev);
+    if (retval)
+	goto out1;
 
     if (dev->mem_start)
 	printk("%s: %s - %dkB RAM, 8kB shared mem window at %#6lx-%#6lx.\n",
@@ -715,11 +714,8 @@ init_module(void)
 		dev->base_addr = io[this_dev];
 		dev->mem_end = xcvr[this_dev];	/* low 4bits = xcvr sel. */
 		if (do_el2_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_el2[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_el2[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		printk(KERN_WARNING "3c503.c: No 3c503 card found (i/o = 0x%x).\n", io[this_dev]);

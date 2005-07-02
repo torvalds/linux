@@ -127,7 +127,6 @@ ip_vs_dst_reset(struct ip_vs_dest *dest)
 
 #define IP_VS_XMIT(skb, rt)				\
 do {							\
-	nf_reset_debug(skb);				\
 	(skb)->nfcache |= NFC_IPVS_PROPERTY;		\
 	(skb)->ip_summed = CHECKSUM_NONE;		\
 	NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, (skb), NULL,	\

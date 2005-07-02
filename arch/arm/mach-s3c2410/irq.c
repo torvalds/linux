@@ -40,8 +40,11 @@
  *   04-Nov-2004  Ben Dooks
  *		  Fix standard IRQ wake for EINT0..4 and RTC
  *
- *   22-Feb-2004  Ben Dooks
+ *   22-Feb-2005  Ben Dooks
  *		  Fixed edge-triggering on ADC IRQ
+ *
+ *   28-Jun-2005  Ben Dooks
+ *		  Mark IRQ_LCD valid
 */
 
 #include <linux/init.h>
@@ -366,7 +369,6 @@ static struct irqchip s3c_irq_eint0t4 = {
 #define INTMSK_UART1	 (1UL << (IRQ_UART1 - IRQ_EINT0))
 #define INTMSK_UART2	 (1UL << (IRQ_UART2 - IRQ_EINT0))
 #define INTMSK_ADCPARENT (1UL << (IRQ_ADCPARENT - IRQ_EINT0))
-#define INTMSK_LCD	 (1UL << (IRQ_LCD - IRQ_EINT0))
 
 static inline void
 s3c_irqsub_mask(unsigned int irqno, unsigned int parentbit,
@@ -716,7 +718,6 @@ void __init s3c24xx_init_irq(void)
 		case IRQ_UART0:
 		case IRQ_UART1:
 		case IRQ_UART2:
-		case IRQ_LCD:
 		case IRQ_ADCPARENT:
 			set_irq_chip(irqno, &s3c_irq_level_chip);
 			set_irq_handler(irqno, do_level_IRQ);

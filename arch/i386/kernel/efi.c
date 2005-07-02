@@ -30,6 +30,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/efi.h>
+#include <linux/kexec.h>
 
 #include <asm/setup.h>
 #include <asm/io.h>
@@ -598,6 +599,9 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 		if (md->type == EFI_CONVENTIONAL_MEMORY) {
 			request_resource(res, code_resource);
 			request_resource(res, data_resource);
+#ifdef CONFIG_KEXEC
+			request_resource(res, &crashk_res);
+#endif
 		}
 	}
 }

@@ -955,7 +955,7 @@ EXPORT_SYMBOL(b1dma_release_appl);
 EXPORT_SYMBOL(b1dma_send_message);
 EXPORT_SYMBOL(b1dmactl_read_proc);
 
-int b1dma_init(void)
+static int __init b1dma_init(void)
 {
 	char *p;
 	char rev[32];
@@ -972,7 +972,7 @@ int b1dma_init(void)
 	return 0;
 }
 
-void b1dma_exit(void)
+static void __exit b1dma_exit(void)
 {
 }
 

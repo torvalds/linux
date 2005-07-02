@@ -118,6 +118,45 @@ static int ipv4_sysctl_forward_strategy(ctl_table *table,
 	return 1;
 }
 
+static int proc_tcp_congestion_control(ctl_table *ctl, int write, struct file * filp,
+				       void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	char val[TCP_CA_NAME_MAX];
+	ctl_table tbl = {
+		.data = val,
+		.maxlen = TCP_CA_NAME_MAX,
+	};
+	int ret;
+
+	tcp_get_default_congestion_control(val);
+
+	ret = proc_dostring(&tbl, write, filp, buffer, lenp, ppos);
+	if (write && ret == 0)
+		ret = tcp_set_default_congestion_control(val);
+	return ret;
+}
+
+int sysctl_tcp_congestion_control(ctl_table *table, int __user *name, int nlen,
+				  void __user *oldval, size_t __user *oldlenp,
+				  void __user *newval, size_t newlen,
+				  void **context)
+{
+	char val[TCP_CA_NAME_MAX];
+	ctl_table tbl = {
+		.data = val,
+		.maxlen = TCP_CA_NAME_MAX,
+	};
+	int ret;
+
+	tcp_get_default_congestion_control(val);
+	ret = sysctl_string(&tbl, name, nlen, oldval, oldlenp, newval, newlen,
+			    context);
+	if (ret == 0 && newval && newlen)
+		ret = tcp_set_default_congestion_control(val);
+	return ret;
+}
+
+
 ctl_table ipv4_table[] = {
         {
 		.ctl_name	= NET_IPV4_TCP_TIMESTAMPS,
@@ -612,70 +651,6 @@ ctl_table ipv4_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_TCP_WESTWOOD, 
-		.procname	= "tcp_westwood",
-		.data		= &sysctl_tcp_westwood,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_TCP_VEGAS,
-		.procname	= "tcp_vegas_cong_avoid",
-		.data		= &sysctl_tcp_vegas_cong_avoid,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_TCP_VEGAS_ALPHA,
-		.procname	= "tcp_vegas_alpha",
-		.data		= &sysctl_tcp_vegas_alpha,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_TCP_VEGAS_BETA,
-		.procname	= "tcp_vegas_beta",
-		.data		= &sysctl_tcp_vegas_beta,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_TCP_VEGAS_GAMMA,
-		.procname	= "tcp_vegas_gamma",
-		.data		= &sysctl_tcp_vegas_gamma,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_TCP_BIC,
-		.procname	= "tcp_bic",
-		.data		= &sysctl_tcp_bic,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_TCP_BIC_FAST_CONVERGENCE,
-		.procname	= "tcp_bic_fast_convergence",
-		.data		= &sysctl_tcp_bic_fast_convergence,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_TCP_BIC_LOW_WINDOW,
-		.procname	= "tcp_bic_low_window",
-		.data		= &sysctl_tcp_bic_low_window,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
 		.ctl_name	= NET_TCP_MODERATE_RCVBUF,
 		.procname	= "tcp_moderate_rcvbuf",
 		.data		= &sysctl_tcp_moderate_rcvbuf,
@@ -692,13 +667,14 @@ ctl_table ipv4_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_TCP_BIC_BETA,
-		.procname	= "tcp_bic_beta",
-		.data		= &sysctl_tcp_bic_beta,
-		.maxlen		= sizeof(int),
+		.ctl_name	= NET_TCP_CONG_CONTROL,
+		.procname	= "tcp_congestion_control",
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.maxlen		= TCP_CA_NAME_MAX,
+		.proc_handler	= &proc_tcp_congestion_control,
+		.strategy	= &sysctl_tcp_congestion_control,
 	},
+
 	{ .ctl_name = 0 }
 };
 

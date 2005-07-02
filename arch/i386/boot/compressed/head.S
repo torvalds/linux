@@ -25,6 +25,7 @@
 
 #include <linux/linkage.h>
 #include <asm/segment.h>
+#include <asm/page.h>
 
 	.globl startup_32
 	
@@ -74,7 +75,7 @@ startup_32:
 	popl %esi	# discard address
 	popl %esi	# real mode pointer
 	xorl %ebx,%ebx
-	ljmp $(__BOOT_CS), $0x100000
+	ljmp $(__BOOT_CS), $__PHYSICAL_START
 
 /*
  * We come here, if we were loaded high.
@@ -99,7 +100,7 @@ startup_32:
 	popl %ecx	# lcount
 	popl %edx	# high_buffer_start
 	popl %eax	# hcount
-	movl $0x100000,%edi
+	movl $__PHYSICAL_START,%edi
 	cli		# make sure we don't get interrupted
 	ljmp $(__BOOT_CS), $0x1000 # and jump to the move routine
 
@@ -124,5 +125,5 @@ move_routine_start:
 	movsl
 	movl %ebx,%esi	# Restore setup pointer
 	xorl %ebx,%ebx
-	ljmp $(__BOOT_CS), $0x100000
+	ljmp $(__BOOT_CS), $__PHYSICAL_START
 move_routine_end:

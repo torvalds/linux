@@ -60,12 +60,8 @@ static inline int node_to_first_cpu(int node)
 	return first_cpu(mask);
 }
 
-/* Returns the number of the node containing PCI bus number 'busnr' */
-static inline cpumask_t __pcibus_to_cpumask(int busnr)
-{
-	return node_to_cpumask(mp_bus_id_to_node[busnr]);
-}
-#define pcibus_to_cpumask(bus)	__pcibus_to_cpumask(bus->number)
+#define pcibus_to_node(bus) mp_bus_id_to_node[(bus)->number]
+#define pcibus_to_cpumask(bus) node_to_cpumask(pcibus_to_node(bus))
 
 /* sched_domains SD_NODE_INIT for NUMAQ machines */
 #define SD_NODE_INIT (struct sched_domain) {		\
@@ -78,11 +74,14 @@ static inline cpumask_t __pcibus_to_cpumask(int busnr)
 	.imbalance_pct		= 125,			\
 	.cache_hot_time		= (10*1000000),		\
 	.cache_nice_tries	= 1,			\
+	.busy_idx		= 3,			\
+	.idle_idx		= 1,			\
+	.newidle_idx		= 2,			\
+	.wake_idx		= 1,			\
 	.per_cpu_gain		= 100,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_EXEC	\
-				| SD_BALANCE_NEWIDLE	\
-				| SD_WAKE_IDLE		\
+				| SD_BALANCE_FORK	\
 				| SD_WAKE_BALANCE,	\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\

@@ -231,13 +231,16 @@ smp_flush_tlb_all (void)
 void
 smp_flush_tlb_mm (struct mm_struct *mm)
 {
+	preempt_disable();
 	/* this happens for the common case of a single-threaded fork():  */
 	if (likely(mm == current->active_mm && atomic_read(&mm->mm_users) == 1))
 	{
 		local_finish_flush_tlb_mm(mm);
+		preempt_enable();
 		return;
 	}
 
+	preempt_enable();
 	/*
 	 * We could optimize this further by using mm->cpu_vm_mask to track which CPUs
 	 * have been running in the address space.  It's not clear that this is worth the
@@ -269,7 +272,7 @@ smp_call_function_single (int cpuid, void (*func) (void *info), void *info, int 
 	int me = get_cpu(); /* prevent preemption and reschedule on another processor */
 
 	if (cpuid == me) {
-		printk("%s: trying to call self\n", __FUNCTION__);
+		printk(KERN_INFO "%s: trying to call self\n", __FUNCTION__);
 		put_cpu();
 		return -EBUSY;
 	}

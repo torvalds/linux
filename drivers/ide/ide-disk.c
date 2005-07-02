@@ -119,6 +119,10 @@ static int lba_capacity_is_ok (struct hd_driveid *id)
 {
 	unsigned long lba_sects, chs_sects, head, tail;
 
+	/* No non-LBA info .. so valid! */
+	if (id->cyls == 0)
+		return 1;
+
 	/*
 	 * The ATA spec tells large drives to return
 	 * C/H/S = 16383/16/63 independent of their size.
@@ -1215,7 +1219,8 @@ static int ide_disk_probe(struct device *dev)
 	if (!idkp)
 		goto failed;
 
-	g = alloc_disk(1 << PARTN_BITS);
+	g = alloc_disk_node(1 << PARTN_BITS,
+			pcibus_to_node(drive->hwif->pci_dev->bus));
 	if (!g)
 		goto out_free_idkp;
 

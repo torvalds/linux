@@ -16,6 +16,11 @@ struct nfs_lock_info {
 	struct nlm_lockowner *owner;
 };
 
+struct nfs4_lock_state;
+struct nfs4_lock_info {
+	struct nfs4_lock_state *owner;
+};
+
 /*
  * Lock flag values
  */

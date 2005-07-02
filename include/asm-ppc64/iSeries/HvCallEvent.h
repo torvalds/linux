@@ -1,32 +1,28 @@
 /*
  * HvCallEvent.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-
 /*
- *	This file contains the "hypervisor call" interface which is used to
- *	drive the hypervisor from the OS.
+ * This file contains the "hypervisor call" interface which is used to
+ * drive the hypervisor from the OS.
  */
 #ifndef _HVCALLEVENT_H
 #define _HVCALLEVENT_H
 
-/*
- * Standard Includes
- */
 #include <asm/iSeries/HvCallSc.h>
 #include <asm/iSeries/HvTypes.h>
 #include <asm/abs_addr.h>
@@ -71,7 +67,7 @@ typedef u64 HvLpDma_Rc;
 #define HvCallEventCloseLpEventPath			HvCallEvent +  2
 #define HvCallEventDmaBufList				HvCallEvent +  3
 #define HvCallEventDmaSingle				HvCallEvent +  4
-#define HvCallEventDmaToSp				HvCallEvent +  5 
+#define HvCallEventDmaToSp				HvCallEvent +  5
 #define HvCallEventGetOverflowLpEvents			HvCallEvent +  6
 #define HvCallEventGetSourceLpInstanceId		HvCallEvent +  7
 #define HvCallEventGetTargetLpInstanceId		HvCallEvent +  8
@@ -85,14 +81,12 @@ typedef u64 HvLpDma_Rc;
 
 static inline void HvCallEvent_getOverflowLpEvents(u8 queueIndex)
 {
-	HvCall1(HvCallEventGetOverflowLpEvents,queueIndex);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
+	HvCall1(HvCallEventGetOverflowLpEvents, queueIndex);
 }
 
 static inline void HvCallEvent_setInterLpQueueIndex(u8 queueIndex)
 {
-	HvCall1(HvCallEventSetInterLpQueueIndex,queueIndex);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
+	HvCall1(HvCallEventSetInterLpQueueIndex, queueIndex);
 }
 
 static inline void HvCallEvent_setLpEventStack(u8 queueIndex,
@@ -103,7 +97,6 @@ static inline void HvCallEvent_setLpEventStack(u8 queueIndex,
 	abs_addr = virt_to_abs(eventStackAddr);
 	HvCall3(HvCallEventSetLpEventStack, queueIndex, abs_addr,
 			eventStackSize);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
 }
 
 static inline void HvCallEvent_setLpEventQueueInterruptProc(u8 queueIndex,
@@ -111,22 +104,18 @@ static inline void HvCallEvent_setLpEventQueueInterruptProc(u8 queueIndex,
 {
 	HvCall2(HvCallEventSetLpEventQueueInterruptProc, queueIndex,
 			lpLogicalProcIndex);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
 }
 
 static inline HvLpEvent_Rc HvCallEvent_signalLpEvent(struct HvLpEvent *event)
 {
 	u64 abs_addr;
-	HvLpEvent_Rc retVal;
 
 #ifdef DEBUG_SENDEVENT
 	printk("HvCallEvent_signalLpEvent: *event = %016lx\n ",
 			(unsigned long)event);
 #endif
 	abs_addr = virt_to_abs(event);
-	retVal = (HvLpEvent_Rc)HvCall1(HvCallEventSignalLpEvent, abs_addr);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall1(HvCallEventSignalLpEvent, abs_addr);
 }
 
 static inline HvLpEvent_Rc HvCallEvent_signalLpEventFast(HvLpIndex targetLp,
@@ -136,9 +125,7 @@ static inline HvLpEvent_Rc HvCallEvent_signalLpEventFast(HvLpIndex targetLp,
 		u64 eventData1, u64 eventData2, u64 eventData3,
 		u64 eventData4, u64 eventData5)
 {
-	HvLpEvent_Rc retVal;
-
-	// Pack the misc bits into a single Dword to pass to PLIC
+	/* Pack the misc bits into a single Dword to pass to PLIC */
 	union {
 		struct HvCallEvent_PackedParms	parms;
 		u64		dword;
@@ -152,67 +139,49 @@ static inline HvLpEvent_Rc HvCallEvent_signalLpEventFast(HvLpIndex targetLp,
 	packed.parms.xSourceInstId	= sourceInstanceId;
 	packed.parms.xTargetInstId	= targetInstanceId;
 
-	retVal = (HvLpEvent_Rc)HvCall7(HvCallEventSignalLpEventParms,
-			packed.dword, correlationToken, eventData1,eventData2,
-			eventData3,eventData4, eventData5);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall7(HvCallEventSignalLpEventParms, packed.dword,
+			correlationToken, eventData1, eventData2,
+			eventData3, eventData4, eventData5);
 }
 
 static inline HvLpEvent_Rc HvCallEvent_ackLpEvent(struct HvLpEvent *event)
 {
 	u64 abs_addr;
-	HvLpEvent_Rc retVal;
 
 	abs_addr = virt_to_abs(event);
-	retVal = (HvLpEvent_Rc)HvCall1(HvCallEventAckLpEvent, abs_addr);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall1(HvCallEventAckLpEvent, abs_addr);
 }
 
 static inline HvLpEvent_Rc HvCallEvent_cancelLpEvent(struct HvLpEvent *event)
 {
 	u64 abs_addr;
-	HvLpEvent_Rc retVal;
 
 	abs_addr = virt_to_abs(event);
-	retVal = (HvLpEvent_Rc)HvCall1(HvCallEventCancelLpEvent, abs_addr);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall1(HvCallEventCancelLpEvent, abs_addr);
 }
 
 static inline HvLpInstanceId HvCallEvent_getSourceLpInstanceId(
 		HvLpIndex targetLp, HvLpEvent_Type type)
 {
-	HvLpInstanceId retVal;	
-
-	retVal = HvCall2(HvCallEventGetSourceLpInstanceId, targetLp, type);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall2(HvCallEventGetSourceLpInstanceId, targetLp, type);
 }
 
 static inline HvLpInstanceId HvCallEvent_getTargetLpInstanceId(
 		HvLpIndex targetLp, HvLpEvent_Type type)
 {
-	HvLpInstanceId retVal;	
-
-	retVal = HvCall2(HvCallEventGetTargetLpInstanceId, targetLp, type);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall2(HvCallEventGetTargetLpInstanceId, targetLp, type);
 }
 
 static inline void HvCallEvent_openLpEventPath(HvLpIndex targetLp,
 		HvLpEvent_Type type)
 {
 	HvCall2(HvCallEventOpenLpEventPath, targetLp, type);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
 }
 
 static inline void HvCallEvent_closeLpEventPath(HvLpIndex targetLp,
 		HvLpEvent_Type type)
 {
 	HvCall2(HvCallEventCloseLpEventPath, targetLp, type);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
 }
 
 static inline HvLpDma_Rc HvCallEvent_dmaBufList(HvLpEvent_Type type,
@@ -224,8 +193,7 @@ static inline HvLpDma_Rc HvCallEvent_dmaBufList(HvLpEvent_Type type,
 		/* Do these need to be converted to absolute addresses? */
 		u64 localBufList, u64 remoteBufList, u32 transferLength)
 {
-	HvLpDma_Rc retVal;
-	// Pack the misc bits into a single Dword to pass to PLIC
+	/* Pack the misc bits into a single Dword to pass to PLIC */
 	union {
 		struct HvCallEvent_PackedDmaParms	parms;
 		u64		dword;
@@ -241,11 +209,8 @@ static inline HvLpDma_Rc HvCallEvent_dmaBufList(HvLpEvent_Type type,
 	packed.parms.xLocalInstId	= localInstanceId;
 	packed.parms.xRemoteInstId	= remoteInstanceId;
 
-	retVal = (HvLpDma_Rc)HvCall4(HvCallEventDmaBufList,
-			packed.dword, localBufList, remoteBufList,
-			transferLength);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall4(HvCallEventDmaBufList, packed.dword, localBufList,
+			remoteBufList, transferLength);
 }
 
 static inline HvLpDma_Rc HvCallEvent_dmaSingle(HvLpEvent_Type type,
@@ -256,8 +221,7 @@ static inline HvLpDma_Rc HvCallEvent_dmaSingle(HvLpEvent_Type type,
 		HvLpDma_AddressType remoteAddressType,
 		u64 localAddrOrTce, u64 remoteAddrOrTce, u32 transferLength)
 {
-	HvLpDma_Rc retVal;
-	// Pack the misc bits into a single Dword to pass to PLIC
+	/* Pack the misc bits into a single Dword to pass to PLIC */
 	union {
 		struct HvCallEvent_PackedDmaParms	parms;
 		u64		dword;
@@ -273,25 +237,17 @@ static inline HvLpDma_Rc HvCallEvent_dmaSingle(HvLpEvent_Type type,
 	packed.parms.xLocalInstId	= localInstanceId;
 	packed.parms.xRemoteInstId	= remoteInstanceId;
 
-	retVal = (HvLpDma_Rc)HvCall4(HvCallEventDmaSingle,
-			packed.dword, localAddrOrTce, remoteAddrOrTce,
-			transferLength);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return (HvLpDma_Rc)HvCall4(HvCallEventDmaSingle, packed.dword,
+			localAddrOrTce, remoteAddrOrTce, transferLength);
 }
 
-static inline HvLpDma_Rc HvCallEvent_dmaToSp(void* local, u32 remote,
+static inline HvLpDma_Rc HvCallEvent_dmaToSp(void *local, u32 remote,
 		u32 length, HvLpDma_Direction dir)
 {
 	u64 abs_addr;
-	HvLpDma_Rc retVal;
 
 	abs_addr = virt_to_abs(local);
-	retVal = (HvLpDma_Rc)HvCall4(HvCallEventDmaToSp, abs_addr, remote,
-			length, dir);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall4(HvCallEventDmaToSp, abs_addr, remote, length, dir);
 }
-
 
 #endif /* _HVCALLEVENT_H */

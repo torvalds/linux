@@ -20,6 +20,7 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/hardware/amba.h>
+#include <asm/hardware/arm_timer.h>
 #include <asm/arch/cm.h>
 #include <asm/system.h>
 #include <asm/leds.h>
@@ -156,16 +157,6 @@ EXPORT_SYMBOL(cm_control);
 #define TICKS2USECS(x)	((x) / TICKS_PER_uSEC)
 #endif
 
-/*
- * What does it look like?
- */
-typedef struct TimerStruct {
-	unsigned long TimerLoad;
-	unsigned long TimerValue;
-	unsigned long TimerControl;
-	unsigned long TimerClear;
-} TimerStruct_t;
-
 static unsigned long timer_reload;
 
 /*
@@ -174,7 +165,6 @@ static unsigned long timer_reload;
  */
 unsigned long integrator_gettimeoffset(void)
 {
-	volatile TimerStruct_t *timer1 = (TimerStruct_t *)TIMER1_VA_BASE;
 	unsigned long ticks1, ticks2, status;
 
 	/*
@@ -183,11 +173,11 @@ unsigned long integrator_gettimeoffset(void)
 	 * an interrupt.  We get around this by ensuring that the
 	 * counter has not reloaded between our two reads.
 	 */
-	ticks2 = timer1->TimerValue & 0xffff;
+	ticks2 = readl(TIMER1_VA_BASE + TIMER_VALUE) & 0xffff;
 	do {
 		ticks1 = ticks2;
 		status = __raw_readl(VA_IC_BASE + IRQ_RAW_STATUS);
-		ticks2 = timer1->TimerValue & 0xffff;
+		ticks2 = readl(TIMER1_VA_BASE + TIMER_VALUE) & 0xffff;
 	} while (ticks2 > ticks1);
 
 	/*
@@ -213,21 +203,18 @@ unsigned long integrator_gettimeoffset(void)
 static irqreturn_t
 integrator_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	volatile TimerStruct_t *timer1 = (volatile TimerStruct_t *)TIMER1_VA_BASE;
-
 	write_seqlock(&xtime_lock);
 
 	/*
 	 * clear the interrupt
 	 */
-	timer1->TimerClear = 1;
+	writel(1, TIMER1_VA_BASE + TIMER_INTCLR);
 
 	/*
 	 * the clock tick routines are only processed on the
 	 * primary CPU
 	 */
 	if (hard_smp_processor_id() == 0) {
-		nmi_tick();
 		timer_tick(regs);
 #ifdef CONFIG_SMP
 		smp_send_timer();
@@ -248,8 +235,8 @@ integrator_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction integrator_timer_irq = {
 	.name		= "Integrator Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= integrator_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= integrator_timer_interrupt,
 };
 
 /*
@@ -257,32 +244,29 @@ static struct irqaction integrator_timer_irq = {
  */
 void __init integrator_time_init(unsigned long reload, unsigned int ctrl)
 {
-	volatile TimerStruct_t *timer0 = (volatile TimerStruct_t *)TIMER0_VA_BASE;
-	volatile TimerStruct_t *timer1 = (volatile TimerStruct_t *)TIMER1_VA_BASE;
-	volatile TimerStruct_t *timer2 = (volatile TimerStruct_t *)TIMER2_VA_BASE;
-	unsigned int timer_ctrl = 0x80 | 0x40;	/* periodic */
+	unsigned int timer_ctrl = TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC;
 
 	timer_reload = reload;
 	timer_ctrl |= ctrl;
 
 	if (timer_reload > 0x100000) {
 		timer_reload >>= 8;
-		timer_ctrl |= 0x08; /* /256 */
+		timer_ctrl |= TIMER_CTRL_DIV256;
 	} else if (timer_reload > 0x010000) {
 		timer_reload >>= 4;
-		timer_ctrl |= 0x04; /* /16 */
+		timer_ctrl |= TIMER_CTRL_DIV16;
 	}
 
 	/*
 	 * Initialise to a known state (all timers off)
 	 */
-	timer0->TimerControl = 0;
-	timer1->TimerControl = 0;
-	timer2->TimerControl = 0;
+	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
+	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
+	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
 
-	timer1->TimerLoad    = timer_reload;
-	timer1->TimerValue   = timer_reload;
-	timer1->TimerControl = timer_ctrl;
+	writel(timer_reload, TIMER1_VA_BASE + TIMER_LOAD);
+	writel(timer_reload, TIMER1_VA_BASE + TIMER_VALUE);
+	writel(timer_ctrl, TIMER1_VA_BASE + TIMER_CTRL);
 
 	/*
 	 * Make irqs happen for the system timer

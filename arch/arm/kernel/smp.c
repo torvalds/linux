@@ -145,7 +145,8 @@ int __init __cpu_up(unsigned int cpu)
 	pgd_free(pgd);
 
 	if (ret) {
-		printk(KERN_CRIT "cpu_up: processor %d failed to boot\n", cpu);
+		printk(KERN_CRIT "CPU%u: processor failed to boot\n", cpu);
+
 		/*
 		 * FIXME: We need to clean up the new idle thread. --rmk
 		 */
@@ -500,4 +501,127 @@ void smp_send_stop(void)
 int __init setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
+}
+
+static int
+on_each_cpu_mask(void (*func)(void *), void *info, int retry, int wait,
+		 cpumask_t mask)
+{
+	int ret = 0;
+
+	preempt_disable();
+
+	ret = smp_call_function_on_cpu(func, info, retry, wait, mask);
+	if (cpu_isset(smp_processor_id(), mask))
+		func(info);
+
+	preempt_enable();
+
+	return ret;
+}
+
+/**********************************************************************/
+
+/*
+ * TLB operations
+ */
+struct tlb_args {
+	struct vm_area_struct *ta_vma;
+	unsigned long ta_start;
+	unsigned long ta_end;
+};
+
+static inline void ipi_flush_tlb_all(void *ignored)
+{
+	local_flush_tlb_all();
+}
+
+static inline void ipi_flush_tlb_mm(void *arg)
+{
+	struct mm_struct *mm = (struct mm_struct *)arg;
+
+	local_flush_tlb_mm(mm);
+}
+
+static inline void ipi_flush_tlb_page(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_page(ta->ta_vma, ta->ta_start);
+}
+
+static inline void ipi_flush_tlb_kernel_page(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_kernel_page(ta->ta_start);
+}
+
+static inline void ipi_flush_tlb_range(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
+}
+
+static inline void ipi_flush_tlb_kernel_range(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_kernel_range(ta->ta_start, ta->ta_end);
+}
+
+void flush_tlb_all(void)
+{
+	on_each_cpu(ipi_flush_tlb_all, NULL, 1, 1);
+}
+
+void flush_tlb_mm(struct mm_struct *mm)
+{
+	cpumask_t mask = mm->cpu_vm_mask;
+
+	on_each_cpu_mask(ipi_flush_tlb_mm, mm, 1, 1, mask);
+}
+
+void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
+{
+	cpumask_t mask = vma->vm_mm->cpu_vm_mask;
+	struct tlb_args ta;
+
+	ta.ta_vma = vma;
+	ta.ta_start = uaddr;
+
+	on_each_cpu_mask(ipi_flush_tlb_page, &ta, 1, 1, mask);
+}
+
+void flush_tlb_kernel_page(unsigned long kaddr)
+{
+	struct tlb_args ta;
+
+	ta.ta_start = kaddr;
+
+	on_each_cpu(ipi_flush_tlb_kernel_page, &ta, 1, 1);
+}
+
+void flush_tlb_range(struct vm_area_struct *vma,
+                     unsigned long start, unsigned long end)
+{
+	cpumask_t mask = vma->vm_mm->cpu_vm_mask;
+	struct tlb_args ta;
+
+	ta.ta_vma = vma;
+	ta.ta_start = start;
+	ta.ta_end = end;
+
+	on_each_cpu_mask(ipi_flush_tlb_range, &ta, 1, 1, mask);
+}
+
+void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	struct tlb_args ta;
+
+	ta.ta_start = start;
+	ta.ta_end = end;
+
+	on_each_cpu(ipi_flush_tlb_kernel_range, &ta, 1, 1);
 }

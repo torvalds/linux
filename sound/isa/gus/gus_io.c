@@ -244,6 +244,8 @@ unsigned short snd_gf1_i_look16(snd_gus_card_t * gus, unsigned char reg)
 	return res;
 }
 
+#if 0
+
 void snd_gf1_i_adlib_write(snd_gus_card_t * gus,
 		           unsigned char reg,
 		           unsigned char data)
@@ -264,6 +266,8 @@ void snd_gf1_i_write_addr(snd_gus_card_t * gus, unsigned char reg,
 	__snd_gf1_write_addr(gus, reg, addr, w_16bit);
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
+
+#endif  /*  0  */
 
 unsigned int snd_gf1_i_read_addr(snd_gus_card_t * gus,
 				 unsigned char reg, short w_16bit)
@@ -328,6 +332,8 @@ unsigned char snd_gf1_peek(snd_gus_card_t * gus, unsigned int addr)
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 	return res;
 }
+
+#if 0
 
 void snd_gf1_pokew(snd_gus_card_t * gus, unsigned int addr, unsigned short data)
 {
@@ -405,9 +411,7 @@ void snd_gf1_dram_setmem(snd_gus_card_t * gus, unsigned int addr,
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
-/*
-
- */
+#endif  /*  0  */
 
 void snd_gf1_select_active_voices(snd_gus_card_t * gus)
 {
@@ -469,6 +473,8 @@ void snd_gf1_print_voice_registers(snd_gus_card_t * gus)
 		printk(" -%i- GF1  pan                    = 0x%x\n", voice, snd_gf1_i_read8(gus, 0x0c));
 }
 
+#if 0
+
 void snd_gf1_print_global_registers(snd_gus_card_t * gus)
 {
 	unsigned char global_mode = 0x00;
@@ -527,5 +533,7 @@ void snd_gf1_peek_print_block(snd_gus_card_t * gus, unsigned int addr, int count
 		}
 	}
 }
+
+#endif  /*  0  */
 
 #endif

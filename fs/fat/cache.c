@@ -56,7 +56,7 @@ int __init fat_cache_init(void)
 	return 0;
 }
 
-void __exit fat_cache_destroy(void)
+void fat_cache_destroy(void)
 {
 	if (kmem_cache_destroy(fat_cache_cachep))
 		printk(KERN_INFO "fat_cache: not all structures were freed\n");

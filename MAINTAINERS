@@ -194,7 +194,7 @@ S:	Maintained
 ADM1025 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 ADT746X FAN DRIVER
@@ -242,7 +242,7 @@ S:	Maintained
 ALI1563 I2C DRIVER
 P:	Rudolf Marek
 M:	r.marek@sh.cvut.cz
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 ALPHA PORT
@@ -263,6 +263,11 @@ S:	Supported
 APPLETALK NETWORK LAYER
 P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
+S:	Maintained
+
+ARC FRAMEBUFFER DRIVER
+P:	Jaya Kumar
+M:	jayalk@intworks.biz
 S:	Maintained
 
 ARM26 ARCHITECTURE
@@ -299,7 +304,7 @@ S:	Maintained
 ARM/PT DIGITAL BOARD PORT
 P:	Stefan Eletzhofer
 M:	stefan.eletzhofer@eletztrick.de
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 
@@ -312,21 +317,21 @@ S:	Maintained
 ARM/STRONGARM110 PORT
 P:	Russell King
 M:	rmk@arm.linux.org.uk
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 
 ARM/S3C2410 ARM ARCHITECTURE
 P:	Ben Dooks
 M:	ben-s3c2410@fluff.org
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.fluff.org/ben/linux/
 S:	Maintained
 
 ARM/S3C2440 ARM ARCHITECTURE
 P:	Ben Dooks
 M:	ben-s3c2440@fluff.org
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.fluff.org/ben/linux/
 S:	Maintained
 
@@ -506,12 +511,19 @@ L:   bonding-devel@lists.sourceforge.net
 W:   http://sourceforge.net/projects/bonding/
 S:   Supported
 
+BROADBAND PROCESSOR ARCHITECTURE
+P:	Arnd Bergmann
+M:	arnd@arndb.de
+L:	linuxppc64-dev@ozlabs.org
+W:	http://linuxppc64.org
+S:	Supported
+
 BTTV VIDEO4LINUX DRIVER
-P:	Gerd Knorr
-M:	kraxel@bytesex.org
+P:	Mauro Carvalho Chehab
+M:	mchehab@brturbo.com.br
 L:	video4linux-list@redhat.com
-W:	http://bytesex.org/bttv/
-S:	Orphan
+W:	http://linuxtv.org
+S:	Maintained
 
 BUSLOGIC SCSI DRIVER
 P:	Leonard N. Zubkoff
@@ -571,10 +583,9 @@ S:	Supported
 
 COMPUTONE INTELLIPORT MULTIPORT CARD
 P:	Michael H. Warfield
-M:	Michael H. Warfield <mhw@wittsend.com>
+M:	mhw@wittsend.com
 W:	http://www.wittsend.com/computone.html
-L:	linux-computone@lazuli.wittsend.com
-S:	Orphaned
+S:	Maintained
 
 COSA/SRP SYNC SERIAL DRIVER
 P:	Jan "Yenya" Kasprzak
@@ -1004,7 +1015,7 @@ P:	Greg Kroah-Hartman
 M:	greg@kroah.com
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.nu/
 S:	Maintained
 
@@ -1145,7 +1156,7 @@ S:	Maintained
 
 INFINIBAND SUBSYSTEM
 P:	Roland Dreier
-M:	roland@topspin.com
+M:	rolandd@cisco.com
 P:	Sean Hefty
 M:	mshefty@ichips.intel.com
 P:	Hal Rosenstock
@@ -1325,6 +1336,16 @@ M:	rml@novell.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+KEXEC
+P:	Eric Biederman
+P:	Randy Dunlap
+M:	ebiederm@xmission.com
+M:	rddunlap@osdl.org
+W:	http://www.xmission.com/~ebiederm/files/kexec/
+L:	linux-kernel@vger.kernel.org
+L:	fastboot@osdl.org
+S:	Maintained
+
 LANMEDIA WAN CARD DRIVER
 P:	Andrew Stanley-Jones
 M:	asj@lanmedia.com
@@ -1432,13 +1453,13 @@ S:	Supported
 LM83 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 LM90 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 LOGICAL DISK MANAGER SUPPORT (LDM, Windows 2000/XP Dynamic Disks)
@@ -1855,7 +1876,7 @@ S:	Maintained
 PXA2xx SUPPORT
 P:	Nicolas Pitre
 M:	nico@cam.org
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 S:	Maintained
 
 QLOGIC QLA2XXX FC-SCSI DRIVER
@@ -2077,7 +2098,7 @@ S:	Maintained
 SMSC47M1 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Odd Fixes
 
 SMB FILESYSTEM
@@ -2110,9 +2131,7 @@ S:	Maintained
 SOFTWARE SUSPEND:
 P:	Pavel Machek
 M:	pavel@suse.cz
-M:	pavel@ucw.cz
-L:	http://lister.fornax.hu/mailman/listinfo/swsusp
-W:	http://swsusp.sf.net/
+L:	linux-pm@osdl.org
 S:	Maintained
 
 SONIC NETWORK DRIVER
@@ -2140,6 +2159,11 @@ W:	http://tpmdd.sourceforge.net
 L:	tpmdd-devel@lists.sourceforge.net
 S:	Maintained
 
+TENSILICA XTENSA PORT (xtensa):
+P:	Chris Zankel
+M:	chris@zankel.net
+S:	Maintained
+
 UltraSPARC (sparc64):
 P:	David S. Miller
 M:	davem@davemloft.net
@@ -2157,7 +2181,7 @@ SHARP LH SUPPORT (LH7952X & LH7A40X)
 P:	Marc Singer
 M:	elf@buici.com
 W:	http://projects.buici.com/arm
-L:	linux-arm-kernel@lists.arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 S:	Maintained
 
 SPARC (sparc32):
@@ -2584,7 +2608,7 @@ M:	davidm@snapgear.com
 P:	D. Jeff Dionne (created first uClinux port)
 M:	jeff@uclinux.org
 W:	http://www.uclinux.org/
-L:	uclinux-dev@uclinux.org
+L:	uclinux-dev@uclinux.org  (subscribers-only)
 S:	Maintained
 
 UCLINUX FOR NEC V850
@@ -2608,15 +2632,16 @@ W:	http://rio500.sourceforge.net
 S:	Maintained
 
 VIDEO FOR LINUX
-P:	Gerd Knorr
-M:	kraxel@bytesex.org
+P:	Mauro Carvalho Chehab
+M:	mchehab@brturbo.com.br
 L:	video4linux-list@redhat.com
-S:	Orphan
+W:	http://linuxtv.org
+S:	Maintained
 
 W1 DALLAS'S 1-WIRE BUS
 P:	Evgeniy Polyakov
 M:	johnpol@2ka.mipt.ru
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 W83L51xD SD/MMC CARD INTERFACE DRIVER
@@ -2629,7 +2654,7 @@ S:	Maintained
 W83L785TS HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	sensors@stimpy.netroedge.com
+L:	lm-sensors@lm-sensors.org
 S:	Odd Fixes
 
 WAN ROUTER & SANGOMA WANPIPE DRIVERS & API (X.25, FRAME RELAY, PPP, CISCO HDLC)

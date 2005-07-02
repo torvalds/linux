@@ -33,8 +33,6 @@
 #include <asm/hw_irq.h>
 
 
-static int pci_routeirq;
-
 /*
  * Low-level SAL-based PCI configuration access functions. Note that SAL
  * calls are already serialized (via sal_lock), so we don't need another
@@ -139,23 +137,7 @@ static void acpi_map_iosapics(void)
 static int __init
 pci_acpi_init (void)
 {
-	struct pci_dev *dev = NULL;
-
-	printk(KERN_INFO "PCI: Using ACPI for IRQ routing\n");
-
 	acpi_map_iosapics();
-
-	if (pci_routeirq) {
-		/*
-		 * PCI IRQ routing is set up by pci_enable_device(), but we
-		 * also do it here in case there are still broken drivers that
-		 * don't use pci_enable_device().
-		 */
-		printk(KERN_INFO "PCI: Routing interrupts for all devices because \"pci=routeirq\" specified\n");
-		for_each_pci_dev(dev)
-			acpi_pci_irq_enable(dev);
-	} else
-		printk(KERN_INFO "PCI: If a device doesn't work, try \"pci=routeirq\".  If it helps, post a report\n");
 
 	return 0;
 }
@@ -330,7 +312,7 @@ pci_acpi_scan_root(struct acpi_device *device, int domain, int bus)
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, add_window,
 			&info);
 
-	pbus = pci_scan_bus(bus, &pci_root_ops, controller);
+	pbus = pci_scan_bus_parented(NULL, bus, &pci_root_ops, controller);
 	if (pbus)
 		pcibios_setup_root_windows(pbus, controller);
 
@@ -391,6 +373,25 @@ void pcibios_bus_to_resource(struct pci_dev *dev,
 	res->end = region->end + offset;
 }
 
+static int __devinit is_valid_resource(struct pci_dev *dev, int idx)
+{
+	unsigned int i, type_mask = IORESOURCE_IO | IORESOURCE_MEM;
+	struct resource *devr = &dev->resource[idx];
+
+	if (!dev->bus)
+		return 0;
+	for (i=0; i<PCI_BUS_NUM_RESOURCES; i++) {
+		struct resource *busr = dev->bus->resource[i];
+
+		if (!busr || ((busr->flags ^ devr->flags) & type_mask))
+			continue;
+		if ((devr->start) && (devr->start >= busr->start) &&
+				(devr->end <= busr->end))
+			return 1;
+	}
+	return 0;
+}
+
 static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 {
 	struct pci_bus_region region;
@@ -404,7 +405,8 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 		region.start = dev->resource[i].start;
 		region.end = dev->resource[i].end;
 		pcibios_bus_to_resource(dev, &dev->resource[i], &region);
-		pci_claim_resource(dev, i);
+		if ((is_valid_resource(dev, i)))
+			pci_claim_resource(dev, i);
 	}
 }
 
@@ -416,6 +418,10 @@ pcibios_fixup_bus (struct pci_bus *b)
 {
 	struct pci_dev *dev;
 
+	if (b->self) {
+		pci_read_bridge_bases(b);
+		pcibios_fixup_device_resources(b->self);
+	}
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
 
@@ -436,18 +442,24 @@ pcibios_enable_resources (struct pci_dev *dev, int mask)
 	u16 cmd, old_cmd;
 	int idx;
 	struct resource *r;
+	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM;
 
 	if (!dev)
 		return -EINVAL;
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	old_cmd = cmd;
-	for (idx=0; idx<6; idx++) {
+	for (idx=0; idx<PCI_NUM_RESOURCES; idx++) {
 		/* Only set up the desired resources.  */
 		if (!(mask & (1 << idx)))
 			continue;
 
 		r = &dev->resource[idx];
+		if (!(r->flags & type_mask))
+			continue;
+		if ((idx == PCI_ROM_RESOURCE) &&
+				(!(r->flags & IORESOURCE_ROM_ENABLE)))
+			continue;
 		if (!r->start && r->end) {
 			printk(KERN_ERR
 			       "PCI: Device %s not available because of resource collisions\n",
@@ -459,8 +471,6 @@ pcibios_enable_resources (struct pci_dev *dev, int mask)
 		if (r->flags & IORESOURCE_MEM)
 			cmd |= PCI_COMMAND_MEMORY;
 	}
-	if (dev->resource[PCI_ROM_RESOURCE].start)
-		cmd |= PCI_COMMAND_MEMORY;
 	if (cmd != old_cmd) {
 		printk("PCI: Enabling device %s (%04x -> %04x)\n", pci_name(dev), old_cmd, cmd);
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
@@ -500,8 +510,6 @@ pcibios_align_resource (void *data, struct resource *res,
 char * __init
 pcibios_setup (char *str)
 {
-	if (!strcmp(str, "routeirq"))
-		pci_routeirq = 1;
 	return NULL;
 }
 

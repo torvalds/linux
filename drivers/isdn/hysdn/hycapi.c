@@ -42,6 +42,8 @@ typedef struct _hycapi_appl {
 
 static hycapi_appl hycapi_applications[CAPI_MAXAPPL];
 
+static u16 hycapi_send_message(struct capi_ctr *ctrl, struct sk_buff *skb);
+
 static inline int _hycapi_appCheck(int app_id, int ctrl_no)
 {
 	if((ctrl_no <= 0) || (ctrl_no > CAPI_MAXCONTR) || (app_id <= 0) ||
@@ -57,7 +59,7 @@ static inline int _hycapi_appCheck(int app_id, int ctrl_no)
 Kernel-Capi callback reset_ctr
 ******************************/     
 
-void 
+static void
 hycapi_reset_ctr(struct capi_ctr *ctrl)
 {
 	hycapictrl_info *cinfo = ctrl->driverdata;
@@ -73,7 +75,7 @@ hycapi_reset_ctr(struct capi_ctr *ctrl)
 Kernel-Capi callback remove_ctr
 ******************************/     
 
-void 
+static void
 hycapi_remove_ctr(struct capi_ctr *ctrl)
 {
 	int i;
@@ -215,7 +217,7 @@ Error-checking is done for CAPI-compliance.
 The application is recorded in the internal list.
 *************************************************************/
 
-void 
+static void
 hycapi_register_appl(struct capi_ctr *ctrl, __u16 appl, 
 		     capi_register_params *rp)
 {
@@ -291,7 +293,7 @@ Release the application from the internal list an remove it's
 registration at controller-level
 ******************************************************************/
 
-void 
+static void
 hycapi_release_appl(struct capi_ctr *ctrl, __u16 appl)
 {
 	int chk;
@@ -364,7 +366,7 @@ firmware-releases that do not check the MsgLen-Indication!
 
 ***************************************************************/
 
-u16 hycapi_send_message(struct capi_ctr *ctrl, struct sk_buff *skb)
+static u16 hycapi_send_message(struct capi_ctr *ctrl, struct sk_buff *skb)
 {
 	__u16 appl_id;
 	int _len, _len2;
@@ -437,8 +439,8 @@ Informations provided in the /proc/capi-entries.
 
 *********************************************************************/
 
-int hycapi_read_proc(char *page, char **start, off_t off,
-		     int count, int *eof, struct capi_ctr *ctrl)
+static int hycapi_read_proc(char *page, char **start, off_t off,
+			    int count, int *eof, struct capi_ctr *ctrl)
 {
 	hycapictrl_info *cinfo = (hycapictrl_info *)(ctrl->driverdata);
 	hysdn_card *card = cinfo->card;
@@ -485,7 +487,7 @@ on capi-interface registration.
 
 **************************************************************/
 
-int hycapi_load_firmware(struct capi_ctr *ctrl, capiloaddata *data)
+static int hycapi_load_firmware(struct capi_ctr *ctrl, capiloaddata *data)
 {
 #ifdef HYCAPI_PRINTFNAMES
 	printk(KERN_NOTICE "hycapi_load_firmware\n");    
@@ -494,7 +496,7 @@ int hycapi_load_firmware(struct capi_ctr *ctrl, capiloaddata *data)
 }
 
 
-char *hycapi_procinfo(struct capi_ctr *ctrl)
+static char *hycapi_procinfo(struct capi_ctr *ctrl)
 {
 	hycapictrl_info *cinfo = (hycapictrl_info *)(ctrl->driverdata);
 #ifdef HYCAPI_PRINTFNAMES

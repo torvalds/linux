@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/quotaops.h>
 #include "jfs_incore.h"
+#include "jfs_inode.h"
 #include "jfs_filsys.h"
 #include "jfs_imap.h"
 #include "jfs_dinode.h"

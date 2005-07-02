@@ -215,7 +215,7 @@ static struct page *dio_get_page(struct dio *dio)
 static void dio_complete(struct dio *dio, loff_t offset, ssize_t bytes)
 {
 	if (dio->end_io && dio->result)
-		dio->end_io(dio->inode, offset, bytes, dio->map_bh.b_private);
+		dio->end_io(dio->iocb, offset, bytes, dio->map_bh.b_private);
 	if (dio->lock_type == DIO_LOCKING)
 		up_read(&dio->inode->i_alloc_sem);
 }

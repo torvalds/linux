@@ -87,9 +87,6 @@ int ncp_open_create_file_or_subdir(struct ncp_server *, struct inode *, char *,
 
 int ncp_initialize_search(struct ncp_server *, struct inode *,
 		      struct nw_search_sequence *target);
-int ncp_search_for_file_or_subdir(struct ncp_server *server,
-			      struct nw_search_sequence *seq,
-			      struct nw_info_struct *target);
 int ncp_search_for_fileset(struct ncp_server *server,
 			   struct nw_search_sequence *seq,
 			   int* more, int* cnt,

@@ -328,9 +328,7 @@ static int monitor_task(void *arg)
 	struct thermostat* th = arg;
 
 	while(!kthread_should_stop()) {
-		if (current->flags & PF_FREEZE)
-			refrigerator(PF_FREEZE);
-
+		try_to_freeze();
 		msleep_interruptible(2000);
 
 #ifndef DEBUG
@@ -455,21 +453,22 @@ static int attach_one_thermostat(struct i2c_adapter *adapter, int addr,
  * pass around to the attribute functions, so we don't really have
  * choice but implement a bunch of them...
  *
+ * FIXME, it does now...
  */
 #define BUILD_SHOW_FUNC_INT(name, data)				\
-static ssize_t show_##name(struct device *dev, char *buf)	\
+static ssize_t show_##name(struct device *dev, struct device_attribute *attr, char *buf)	\
 {								\
 	return sprintf(buf, "%d\n", data);			\
 }
 
 #define BUILD_SHOW_FUNC_STR(name, data)				\
-static ssize_t show_##name(struct device *dev, char *buf)	\
+static ssize_t show_##name(struct device *dev, struct device_attribute *attr, char *buf)       \
 {								\
 	return sprintf(buf, "%s\n", data);			\
 }
 
 #define BUILD_SHOW_FUNC_FAN(name, data)				\
-static ssize_t show_##name(struct device *dev, char *buf)       \
+static ssize_t show_##name(struct device *dev, struct device_attribute *attr, char *buf)       \
 {								\
 	return sprintf(buf, "%d (%d rpm)\n", 			\
 		thermostat->last_speed[data],			\
@@ -478,7 +477,7 @@ static ssize_t show_##name(struct device *dev, char *buf)       \
 }
 
 #define BUILD_STORE_FUNC_DEG(name, data)			\
-static ssize_t store_##name(struct device *dev, const char *buf, size_t n) \
+static ssize_t store_##name(struct device *dev, struct device_attribute *attr, const char *buf, size_t n) \
 {								\
 	int val;						\
 	int i;							\
@@ -491,7 +490,7 @@ static ssize_t store_##name(struct device *dev, const char *buf, size_t n) \
 }
 
 #define BUILD_STORE_FUNC_INT(name, data)			\
-static ssize_t store_##name(struct device *dev, const char *buf, size_t n) \
+static ssize_t store_##name(struct device *dev, struct device_attribute *attr, const char *buf, size_t n) \
 {								\
 	u32 val;						\
 	val = simple_strtoul(buf, NULL, 10);			\

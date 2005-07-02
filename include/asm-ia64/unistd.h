@@ -263,6 +263,9 @@
 #define __NR_add_key			1271
 #define __NR_request_key		1272
 #define __NR_keyctl			1273
+#define __NR_ioprio_set			1274
+#define __NR_ioprio_get			1275
+#define __NR_set_zone_reclaim		1276
 
 #ifdef __KERNEL__
 

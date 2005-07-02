@@ -17,6 +17,13 @@
 # 20050320  Kianusch Sayah Karadji <kianusch@sk-tech.net>
 #           Added support for GEODE CPU
 
+HAS_BIARCH      := $(call cc-option-yn, -m32)
+ifeq ($(HAS_BIARCH),y)
+AS              := $(AS) --32
+LD              := $(LD) -m elf_i386
+CC              := $(CC) -m32
+endif
+
 LDFLAGS		:= -m elf_i386
 OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
 LDFLAGS_vmlinux :=

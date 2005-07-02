@@ -165,6 +165,8 @@ do {						\
 #define SPRN_MCSRR1	0x23B	/* Machine Check Save and Restore Register 1 */
 #define SPRN_MCSR	0x23C	/* Machine Check Status Register */
 #define SPRN_MCAR	0x23D	/* Machine Check Address Register */
+#define SPRN_DSRR0	0x23E	/* Debug Save and Restore Register 0 */
+#define SPRN_DSRR1	0x23F	/* Debug Save and Restore Register 1 */
 #define SPRN_MAS0	0x270	/* MMU Assist Register 0 */
 #define SPRN_MAS1	0x271	/* MMU Assist Register 1 */
 #define SPRN_MAS2	0x272	/* MMU Assist Register 2 */
@@ -264,6 +266,17 @@ do {						\
 #define MCSR_BUS_IPERR 	0x00000002UL /* Instruction parity Error */
 #define MCSR_BUS_RPERR 	0x00000001UL /* Read parity Error */
 #endif
+#ifdef CONFIG_E200
+#define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
+#define MCSR_CP_PERR 	0x20000000UL /* Cache Push Parity Error */
+#define MCSR_CPERR 	0x10000000UL /* Cache Parity Error */
+#define MCSR_EXCP_ERR 	0x08000000UL /* ISI, ITLB, or Bus Error on 1st insn
+					fetch for an exception handler */
+#define MCSR_BUS_IRERR 	0x00000010UL /* Read Bus Error on instruction fetch*/
+#define MCSR_BUS_DRERR 	0x00000008UL /* Read Bus Error on data load */
+#define MCSR_BUS_WRERR 	0x00000004UL /* Write Bus Error on buffered
+					store or cache line push */
+#endif
 
 /* Bit definitions for the DBSR. */
 /*
@@ -311,6 +324,7 @@ do {						\
 #define ESR_ST		0x00800000	/* Store Operation */
 #define ESR_DLK		0x00200000	/* Data Cache Locking */
 #define ESR_ILK		0x00100000	/* Instr. Cache Locking */
+#define ESR_PUO		0x00040000	/* Unimplemented Operation exception */
 #define ESR_BO		0x00020000	/* Byte Ordering */
 
 /* Bit definitions related to the DBCR0. */
@@ -387,10 +401,12 @@ do {						\
 #define ICCR_CACHE	1		/* Cacheable */
 
 /* Bit definitions for L1CSR0. */
+#define L1CSR0_CLFC	0x00000100	/* Cache Lock Bits Flash Clear */
 #define L1CSR0_DCFI	0x00000002	/* Data Cache Flash Invalidate */
+#define L1CSR0_CFI	0x00000002	/* Cache Flash Invalidate */
 #define L1CSR0_DCE	0x00000001	/* Data Cache Enable */
 
-/* Bit definitions for L1CSR0. */
+/* Bit definitions for L1CSR1. */
 #define L1CSR1_ICLFR	0x00000100	/* Instr Cache Lock Bits Flash Reset */
 #define L1CSR1_ICFI	0x00000002	/* Instr Cache Flash Invalidate */
 #define L1CSR1_ICE	0x00000001	/* Instr Cache Enable */

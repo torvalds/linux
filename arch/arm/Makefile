@@ -56,7 +56,7 @@ tune-$(CONFIG_CPU_XSCALE)	:=$(call cc-option,-mtune=xscale,-mtune=strongarm110) 
 tune-$(CONFIG_CPU_V6)		:=-mtune=strongarm
 
 # Need -Uarm for gcc < 3.x
-CFLAGS_ABI	:=$(call cc-option,-mapcs-32,-mabi=apcs-gnu)
+CFLAGS_ABI	:=$(call cc-option,-mapcs-32,-mabi=apcs-gnu) $(call cc-option,-mno-thumb-interwork,)
 CFLAGS		+=$(CFLAGS_ABI) $(arch-y) $(tune-y) $(call cc-option,-mshort-load-bytes,$(call cc-option,-malignment-traps,)) -msoft-float -Uarm
 AFLAGS		+=$(CFLAGS_ABI) $(arch-y) $(tune-y) -msoft-float
 
@@ -97,6 +97,7 @@ textaddr-$(CONFIG_ARCH_FORTUNET)   := 0xc0008000
  machine-$(CONFIG_ARCH_VERSATILE)  := versatile
  machine-$(CONFIG_ARCH_IMX)	   := imx
  machine-$(CONFIG_ARCH_H720X)	   := h720x
+ machine-$(CONFIG_ARCH_AAEC2000)   := aaec2000
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.

@@ -182,6 +182,13 @@ static int uart_startup(struct uart_state *state, int init_hw)
 				uart_set_mctrl(port, TIOCM_RTS | TIOCM_DTR);
 		}
 
+		if (info->flags & UIF_CTS_FLOW) {
+			spin_lock_irq(&port->lock);
+			if (!(port->ops->get_mctrl(port) & TIOCM_CTS))
+				info->tty->hw_stopped = 1;
+			spin_unlock_irq(&port->lock);
+		}
+
 		info->flags |= UIF_INITIALIZED;
 
 		clear_bit(TTY_IO_ERROR, &info->tty->flags);
@@ -828,7 +835,10 @@ static int uart_tiocmget(struct tty_struct *tty, struct file *file)
 	if ((!file || !tty_hung_up_p(file)) &&
 	    !(tty->flags & (1 << TTY_IO_ERROR))) {
 		result = port->mctrl;
+
+		spin_lock_irq(&port->lock);
 		result |= port->ops->get_mctrl(port);
+		spin_unlock_irq(&port->lock);
 	}
 	up(&state->sem);
 
@@ -1131,6 +1141,16 @@ static void uart_set_termios(struct tty_struct *tty, struct termios *old_termios
 		spin_unlock_irqrestore(&state->port->lock, flags);
 	}
 
+	/* Handle turning on CRTSCTS */
+	if (!(old_termios->c_cflag & CRTSCTS) && (cflag & CRTSCTS)) {
+		spin_lock_irqsave(&state->port->lock, flags);
+		if (!(state->port->ops->get_mctrl(state->port) & TIOCM_CTS)) {
+			tty->hw_stopped = 1;
+			state->port->ops->stop_tx(state->port, 0);
+		}
+		spin_unlock_irqrestore(&state->port->lock, flags);
+	}
+
 #if 0
 	/*
 	 * No need to wake up processes in open wait, since they
@@ -1369,6 +1389,7 @@ uart_block_til_ready(struct file *filp, struct uart_state *state)
 	DECLARE_WAITQUEUE(wait, current);
 	struct uart_info *info = state->info;
 	struct uart_port *port = state->port;
+	unsigned int mctrl;
 
 	info->blocked_open++;
 	state->count--;
@@ -1416,7 +1437,10 @@ uart_block_til_ready(struct file *filp, struct uart_state *state)
 		 * and wait for the carrier to indicate that the
 		 * modem is ready for us.
 		 */
-		if (port->ops->get_mctrl(port) & TIOCM_CAR)
+		spin_lock_irq(&port->lock);
+		mctrl = port->ops->get_mctrl(port);
+		spin_unlock_irq(&port->lock);
+		if (mctrl & TIOCM_CAR)
 			break;
 
 		up(&state->sem);
@@ -1618,7 +1642,9 @@ static int uart_line_info(char *buf, struct uart_driver *drv, int i)
 
 	if(capable(CAP_SYS_ADMIN))
 	{
+		spin_lock_irq(&port->lock);
 		status = port->ops->get_mctrl(port);
+		spin_unlock_irq(&port->lock);
 
 		ret += sprintf(buf + ret, " tx:%d rx:%d",
 				port->icount.tx, port->icount.rx);

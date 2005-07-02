@@ -41,7 +41,9 @@
 #include <linux/pm.h>
 
 #include <asm/io.h>
+#include <asm/mach/time.h>
 #include <asm/mach-types.h>
+
 #include <asm/arch/omap16xx.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/mux.h>
@@ -80,13 +82,13 @@ void omap_pm_idle(void)
 		return;
 	}
 	mask32 = omap_readl(ARM_SYSST);
-	local_fiq_enable();
-	local_irq_enable();
 
-#if defined(CONFIG_OMAP_32K_TIMER) && defined(CONFIG_NO_IDLE_HZ)
-	/* Override timer to use VST for the next cycle */
-	omap_32k_timer_next_vst_interrupt();
-#endif
+	/*
+	 * Since an interrupt may set up a timer, we don't want to
+	 * reprogram the hardware timer with interrupts enabled.
+	 * Re-enable interrupts only after returning from idle.
+	 */
+	timer_dyn_reprogram();
 
 	if ((mask32 & DSP_IDLE) == 0) {
 		__asm__ volatile ("mcr	p15, 0, r0, c7, c0, 4");
@@ -102,6 +104,8 @@ void omap_pm_idle(void)
 
 		func_ptr();
 	}
+	local_fiq_enable();
+	local_irq_enable();
 }
 
 /*

@@ -1577,19 +1577,35 @@ do_link:
  *
  * Simple function to lookup and return a dentry and create it
  * if it doesn't exist.  Is SMP-safe.
+ *
+ * Returns with nd->dentry->d_inode->i_sem locked.
  */
 struct dentry *lookup_create(struct nameidata *nd, int is_dir)
 {
-	struct dentry *dentry;
+	struct dentry *dentry = ERR_PTR(-EEXIST);
 
 	down(&nd->dentry->d_inode->i_sem);
-	dentry = ERR_PTR(-EEXIST);
+	/*
+	 * Yucky last component or no last component at all?
+	 * (foo/., foo/.., /////)
+	 */
 	if (nd->last_type != LAST_NORM)
 		goto fail;
 	nd->flags &= ~LOOKUP_PARENT;
+
+	/*
+	 * Do the final lookup.
+	 */
 	dentry = lookup_hash(&nd->last, nd->dentry);
 	if (IS_ERR(dentry))
 		goto fail;
+
+	/*
+	 * Special case - lookup gave negative, but... we had foo/bar/
+	 * From the vfs_mknod() POV we just have a negative dentry -
+	 * all is fine. Let's be bastards - you had / on the end, you've
+	 * been asking for (non-existent) directory. -ENOENT for you.
+	 */
 	if (!is_dir && nd->last.name[nd->last.len] && !dentry->d_inode)
 		goto enoent;
 	return dentry;

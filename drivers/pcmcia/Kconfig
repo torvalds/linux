@@ -14,8 +14,8 @@ config PCCARD
 	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
 	  computer.  These are credit-card size devices such as network cards,
 	  modems or hard drives often used with laptops computers.  There are
-	  actually two varieties of these cards: the older 16 bit PCMCIA cards
-	  and the newer 32 bit CardBus cards.
+	  actually two varieties of these cards: 16 bit PCMCIA and 32 bit
+	  CardBus cards.
 
 	  To compile this driver as modules, choose M here: the
 	  module will be called pcmcia_core.
@@ -42,21 +42,50 @@ config PCMCIA_DEBUG
 
 config PCMCIA
 	tristate "16-bit PCMCIA support"
+	select CRC32
 	default y
 	---help---
 	   This option enables support for 16-bit PCMCIA cards. Most older
 	   PC-cards are such 16-bit PCMCIA cards, so unless you know you're
 	   only using 32-bit CardBus cards, say Y or M here.
 
-	   To use 16-bit PCMCIA cards, you will need supporting software from 
-	   David Hinds' pcmcia-cs package (see the file <file:Documentation/Changes>
- 	   for location).  Please also read the PCMCIA-HOWTO, available from
-	   <http://www.tldp.org/docs.html#howto>.
+	   To use 16-bit PCMCIA cards, you will need supporting software in
+	   most cases. (see the file <file:Documentation/Changes> for
+	   location and details).
 
 	   To compile this driver as modules, choose M here: the
 	   module will be called pcmcia.
 
 	   If unsure, say Y.
+
+config PCMCIA_LOAD_CIS
+	bool "Load CIS updates from userspace (EXPERIMENTAL)"
+	depends on PCMCIA && EXPERIMENTAL
+	select FW_LOADER
+	default y
+	help
+	  Some PCMCIA cards require an updated Card Information Structure (CIS)
+	  to be loaded from userspace to work correctly. If you say Y here,
+	  and your userspace is arranged correctly, this will be loaded
+	  automatically using the in-kernel firmware loader and the hotplug
+	  subsystem, instead of relying on cardmgr from pcmcia-cs to do so.
+
+	  If unsure, say Y.
+
+config PCMCIA_IOCTL
+	bool
+	depends on PCMCIA
+	default y
+	help
+	  If you say Y here, the deprecated ioctl interface to the PCMCIA
+	  subsystem will be built. It is needed by cardmgr and cardctl
+	  (pcmcia-cs) to function properly.
+
+	  If you do not use the new pcmciautils package, and have a
+	  yenta, Cirrus PD6729, i82092, i82365 or tcic compatible bridge,
+	  you need to say Y here to be able to use 16-bit PCMCIA cards.
+
+	  If unsure, say Y.
 
 config CARDBUS
 	bool "32-bit CardBus support"	
@@ -77,8 +106,6 @@ comment "PC-card bridges"
 
 config YENTA
 	tristate "CardBus yenta-compatible bridge support"
-	depends on PCI
-#fixme: remove dependendcy on CARDBUS
 	depends on CARDBUS
 	select PCCARD_NONSTATIC
 	---help---
@@ -171,19 +198,21 @@ config PCMCIA_PROBE
 config M32R_PCC
 	bool "M32R PCMCIA I/F"
 	depends on M32R && CHIP_M32700 && PCMCIA
+	select PCCARD_NONSTATIC
 	help
 	  Say Y here to use the M32R PCMCIA controller.
 
 config M32R_CFC
 	bool "M32R CF I/F Controller"
-	depends on M32R && (PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_OPSPUT)
+	depends on M32R && (PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_MAPPI3 || PLAT_OPSPUT)
+	select PCCARD_NONSTATIC
 	help
 	  Say Y here to use the M32R CompactFlash controller.
 
 config M32R_CFC_NUM
 	int "M32R CF I/F number"
 	depends on M32R_CFC
-	default "1" if PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_OPSPUT
+	default "1" if PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_MAPPI3 || PLAT_OPSPUT
 	help
 	  Set the number of M32R CF slots.
 

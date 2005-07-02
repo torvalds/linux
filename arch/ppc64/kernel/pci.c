@@ -351,7 +351,7 @@ static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
 		*offset += hose->pci_mem_offset;
 		res_bit = IORESOURCE_MEM;
 	} else {
-		io_offset = (unsigned long)hose->io_base_virt;
+		io_offset = (unsigned long)hose->io_base_virt - pci_io_base;
 		*offset += io_offset;
 		res_bit = IORESOURCE_IO;
 	}
@@ -378,7 +378,7 @@ static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
 
 		/* found it! construct the final physical address */
 		if (mmap_state == pci_mmap_io)
-			*offset += hose->io_base_phys - io_offset;
+		       	*offset += hose->io_base_phys - io_offset;
 		return rp;
 	}
 
@@ -507,7 +507,7 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 }
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
-static ssize_t pci_show_devspec(struct device *dev, char *buf)
+static ssize_t pci_show_devspec(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev;
 	struct device_node *np;
@@ -902,6 +902,9 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 	list_for_each_entry(dev, &bus->devices, bus_list)
 		ppc_md.iommu_dev_setup(dev);
 
+	if (ppc_md.irq_bus_setup)
+		ppc_md.irq_bus_setup(bus);
+
 	if (!pci_probe_only)
 		return;
 
@@ -940,5 +943,23 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 	return 0;
 }
 EXPORT_SYMBOL(pci_read_irq_line);
+
+void pci_resource_to_user(const struct pci_dev *dev, int bar,
+			  const struct resource *rsrc,
+			  u64 *start, u64 *end)
+{
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	unsigned long offset = 0;
+
+	if (hose == NULL)
+		return;
+
+	if (rsrc->flags & IORESOURCE_IO)
+		offset = pci_io_base - (unsigned long)hose->io_base_virt +
+			hose->io_base_phys;
+
+	*start = rsrc->start + offset;
+	*end = rsrc->end + offset;
+}
 
 #endif /* CONFIG_PPC_MULTIPLATFORM */

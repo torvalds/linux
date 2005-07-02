@@ -341,20 +341,22 @@ static inline void write_super(struct super_block *sb)
  */
 void sync_supers(void)
 {
-	struct super_block * sb;
-restart:
+	struct super_block *sb;
+
 	spin_lock(&sb_lock);
-	sb = sb_entry(super_blocks.next);
-	while (sb != sb_entry(&super_blocks))
+restart:
+	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (sb->s_dirt) {
 			sb->s_count++;
 			spin_unlock(&sb_lock);
 			down_read(&sb->s_umount);
 			write_super(sb);
-			drop_super(sb);
-			goto restart;
-		} else
-			sb = sb_entry(sb->s_list.next);
+			up_read(&sb->s_umount);
+			spin_lock(&sb_lock);
+			if (__put_super_and_need_restart(sb))
+				goto restart;
+		}
+	}
 	spin_unlock(&sb_lock);
 }
 
@@ -381,20 +383,16 @@ void sync_filesystems(int wait)
 
 	down(&mutex);		/* Could be down_interruptible */
 	spin_lock(&sb_lock);
-	for (sb = sb_entry(super_blocks.next); sb != sb_entry(&super_blocks);
-			sb = sb_entry(sb->s_list.next)) {
+	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (!sb->s_op->sync_fs)
 			continue;
 		if (sb->s_flags & MS_RDONLY)
 			continue;
 		sb->s_need_sync_fs = 1;
 	}
-	spin_unlock(&sb_lock);
 
 restart:
-	spin_lock(&sb_lock);
-	for (sb = sb_entry(super_blocks.next); sb != sb_entry(&super_blocks);
-			sb = sb_entry(sb->s_list.next)) {
+	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (!sb->s_need_sync_fs)
 			continue;
 		sb->s_need_sync_fs = 0;
@@ -405,8 +403,11 @@ restart:
 		down_read(&sb->s_umount);
 		if (sb->s_root && (wait || sb->s_dirt))
 			sb->s_op->sync_fs(sb, wait);
-		drop_super(sb);
-		goto restart;
+		up_read(&sb->s_umount);
+		/* restart only when sb is no longer on the list */
+		spin_lock(&sb_lock);
+		if (__put_super_and_need_restart(sb))
+			goto restart;
 	}
 	spin_unlock(&sb_lock);
 	up(&mutex);
@@ -422,21 +423,25 @@ restart:
 
 struct super_block * get_super(struct block_device *bdev)
 {
-	struct list_head *p;
+	struct super_block *sb;
+
 	if (!bdev)
 		return NULL;
-rescan:
+
 	spin_lock(&sb_lock);
-	list_for_each(p, &super_blocks) {
-		struct super_block *s = sb_entry(p);
-		if (s->s_bdev == bdev) {
-			s->s_count++;
+rescan:
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (sb->s_bdev == bdev) {
+			sb->s_count++;
 			spin_unlock(&sb_lock);
-			down_read(&s->s_umount);
-			if (s->s_root)
-				return s;
-			drop_super(s);
-			goto rescan;
+			down_read(&sb->s_umount);
+			if (sb->s_root)
+				return sb;
+			up_read(&sb->s_umount);
+			/* restart only when sb is no longer on the list */
+			spin_lock(&sb_lock);
+			if (__put_super_and_need_restart(sb))
+				goto rescan;
 		}
 	}
 	spin_unlock(&sb_lock);
@@ -447,20 +452,22 @@ EXPORT_SYMBOL(get_super);
  
 struct super_block * user_get_super(dev_t dev)
 {
-	struct list_head *p;
+	struct super_block *sb;
 
-rescan:
 	spin_lock(&sb_lock);
-	list_for_each(p, &super_blocks) {
-		struct super_block *s = sb_entry(p);
-		if (s->s_dev ==  dev) {
-			s->s_count++;
+rescan:
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (sb->s_dev ==  dev) {
+			sb->s_count++;
 			spin_unlock(&sb_lock);
-			down_read(&s->s_umount);
-			if (s->s_root)
-				return s;
-			drop_super(s);
-			goto rescan;
+			down_read(&sb->s_umount);
+			if (sb->s_root)
+				return sb;
+			up_read(&sb->s_umount);
+			/* restart only when sb is no longer on the list */
+			spin_lock(&sb_lock);
+			if (__put_super_and_need_restart(sb))
+				goto rescan;
 		}
 	}
 	spin_unlock(&sb_lock);
@@ -835,6 +842,7 @@ do_kern_mount(const char *fstype, int flags, const char *name, void *data)
 	mnt->mnt_parent = mnt;
 	mnt->mnt_namespace = current->namespace;
 	up_write(&sb->s_umount);
+	free_secdata(secdata);
 	put_filesystem(type);
 	return mnt;
 out_sb:

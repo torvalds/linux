@@ -206,7 +206,10 @@ MODULE_PARM_DESC(dual_codec, "Secondary Codec ID (0 = disabled).");
 
 #define BA0_PMCS		0x0344	/* Power Management Control/Status */
 #define BA0_CWPR		0x03e0	/* Configuration Write Protect */
+
 #define BA0_EPPMC		0x03e4	/* Extended PCI Power Management Control */
+#define BA0_EPPMC_FPDN		(1<<14) /* Full Power DowN */
+
 #define BA0_GPIOR		0x03e8	/* GPIO Pin Interface Register */
 
 #define BA0_SPMC		0x03ec	/* Serial Port Power Management Control (& ASDIN2 enable) */
@@ -1335,11 +1338,6 @@ static inline int snd_cs4281_create_gameport(cs4281_t *chip) { return -ENOSYS; }
 static inline void snd_cs4281_free_gameport(cs4281_t *chip) { }
 #endif /* CONFIG_GAMEPORT || (MODULE && CONFIG_GAMEPORT_MODULE) */
 
-
-/*
-
- */
-
 static int snd_cs4281_free(cs4281_t *chip)
 {
 	snd_cs4281_free_gameport(chip);
@@ -1460,6 +1458,11 @@ static int snd_cs4281_chip_init(cs4281_t *chip)
 	unsigned int tmp;
 	int timeout;
 	int retry_count = 2;
+
+	/* Having EPPMC.FPDN=1 prevent proper chip initialisation */
+	tmp = snd_cs4281_peekBA0(chip, BA0_EPPMC);
+	if (tmp & BA0_EPPMC_FPDN)
+		snd_cs4281_pokeBA0(chip, BA0_EPPMC, tmp & ~BA0_EPPMC_FPDN);
 
       __retry:
 	tmp = snd_cs4281_peekBA0(chip, BA0_CFLR);
@@ -2124,7 +2127,7 @@ static struct pci_driver driver = {
 	
 static int __init alsa_card_cs4281_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_cs4281_exit(void)

@@ -189,7 +189,7 @@ extern void ocp_for_each_device(void(*callback)(struct ocp_device *, void *arg),
 /* Sysfs support */
 #define OCP_SYSFS_ADDTL(type, format, name, field)			\
 static ssize_t								\
-show_##name##_##field(struct device *dev, char *buf)			\
+show_##name##_##field(struct device *dev, struct device_attribute *attr, char *buf)			\
 {									\
 	struct ocp_device *odev = to_ocp_dev(dev);			\
 	type *add = odev->def->additions;				\
@@ -200,10 +200,6 @@ static DEVICE_ATTR(name##_##field, S_IRUGO, show_##name##_##field, NULL);
 
 #ifdef CONFIG_IBM_OCP
 #include <asm/ibm_ocp.h>
-#endif
-
-#ifdef CONFIG_FSL_OCP
-#include <asm/fsl_ocp.h>
 #endif
 
 #endif				/* CONFIG_PPC_OCP */

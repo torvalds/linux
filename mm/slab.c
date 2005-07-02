@@ -92,6 +92,7 @@
 #include	<linux/sysctl.h>
 #include	<linux/module.h>
 #include	<linux/rcupdate.h>
+#include	<linux/string.h>
 
 #include	<asm/uaccess.h>
 #include	<asm/cacheflush.h>
@@ -2851,6 +2852,7 @@ next:
 	}
 	check_irq_on();
 	up(&cache_chain_sem);
+	drain_remote_pages();
 	/* Setup the next iteration */
 	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC + smp_processor_id());
 }
@@ -3081,3 +3083,26 @@ unsigned int ksize(const void *objp)
 
 	return size;
 }
+
+
+/*
+ * kstrdup - allocate space for and copy an existing string
+ *
+ * @s: the string to duplicate
+ * @gfp: the GFP mask used in the kmalloc() call when allocating memory
+ */
+char *kstrdup(const char *s, int gfp)
+{
+	size_t len;
+	char *buf;
+
+	if (!s)
+		return NULL;
+
+	len = strlen(s) + 1;
+	buf = kmalloc(len, gfp);
+	if (buf)
+		memcpy(buf, s, len);
+	return buf;
+}
+EXPORT_SYMBOL(kstrdup);

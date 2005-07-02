@@ -32,6 +32,7 @@
 #include <net/sock.h>
 #include <linux/rtnetlink.h>
 #include <linux/random.h>
+#include <linux/string.h>
 
 #define NEIGH_DEBUG 1
 
@@ -1597,6 +1598,8 @@ static int neightbl_fill_info(struct neigh_table *tbl, struct sk_buff *skb,
 
 	read_lock_bh(&tbl->lock);
 	ndtmsg->ndtm_family = tbl->family;
+	ndtmsg->ndtm_pad1   = 0;
+	ndtmsg->ndtm_pad2   = 0;
 
 	RTA_PUT_STRING(skb, NDTA_NAME, tbl->id);
 	RTA_PUT_MSECS(skb, NDTA_GC_INTERVAL, tbl->gc_interval);
@@ -1682,6 +1685,8 @@ static int neightbl_fill_param_info(struct neigh_table *tbl,
 
 	read_lock_bh(&tbl->lock);
 	ndtmsg->ndtm_family = tbl->family;
+	ndtmsg->ndtm_pad1   = 0;
+	ndtmsg->ndtm_pad2   = 0;
 	RTA_PUT_STRING(skb, NDTA_NAME, tbl->id);
 
 	if (neightbl_fill_parms(skb, parms) < 0)
@@ -1871,6 +1876,8 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *n,
 	struct ndmsg *ndm = NLMSG_DATA(nlh);
 
 	ndm->ndm_family	 = n->ops->family;
+	ndm->ndm_pad1    = 0;
+	ndm->ndm_pad2    = 0;
 	ndm->ndm_flags	 = n->flags;
 	ndm->ndm_type	 = n->type;
 	ndm->ndm_ifindex = n->dev->ifindex;
@@ -2592,7 +2599,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 		t->neigh_vars[17].extra1 = dev;
 	}
 
-	dev_name = net_sysctl_strdup(dev_name_source);
+	dev_name = kstrdup(dev_name_source, GFP_KERNEL);
 	if (!dev_name) {
 		err = -ENOBUFS;
 		goto free;

@@ -162,7 +162,7 @@ ixp2000_wdt_release(struct inode *inode, struct file *file)
 	if (test_bit(WDT_OK_TO_CLOSE, &wdt_status)) {
 		wdt_disable();
 	} else {
-		printk(KERN_CRIT "WATCHDOG: Device closed unexpectdly - "
+		printk(KERN_CRIT "WATCHDOG: Device closed unexpectedly - "
 					"timer will not stop\n");
 	}
 
@@ -192,7 +192,12 @@ static struct miscdevice ixp2000_wdt_miscdev =
 
 static int __init ixp2000_wdt_init(void)
 {
-	wdt_tick_rate = (*IXP2000_T1_CLD * HZ)/ 256;;
+	if ((*IXP2000_PRODUCT_ID & 0x001ffef0) == 0x00000000) {
+		printk(KERN_INFO "Unable to use IXP2000 watchdog due to IXP2800 erratum #25.\n");
+		return -EIO;
+	}
+
+	wdt_tick_rate = (*IXP2000_T1_CLD * HZ) / 256;
 
 	return misc_register(&ixp2000_wdt_miscdev);
 }

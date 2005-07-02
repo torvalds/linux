@@ -20,7 +20,8 @@ struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	unsigned long		local_flags;	/* non-racy flags */
 	int			cpu;		/* cpu we're on */
-	int			preempt_count;
+	int			preempt_count;	/* 0 => preemptable,
+						   <0 => BUG */
 	struct restart_block	restart_block;
 };
 

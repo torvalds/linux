@@ -229,12 +229,7 @@ struct net_device * __init ne_probe(int unit)
 	err = do_ne_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -534,8 +529,14 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 	dev->poll_controller = ei_poll;
 #endif
 	NS8390_init(dev, 0);
+
+	ret = register_netdev(dev);
+	if (ret)
+		goto out_irq;
 	return 0;
 
+out_irq:
+	free_irq(dev->irq, dev);
 err_out:
 	release_region(ioaddr, NE_IO_EXTENT);
 	return ret;
@@ -826,11 +827,8 @@ int init_module(void)
 		dev->mem_end = bad[this_dev];
 		dev->base_addr = io[this_dev];
 		if (do_ne_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_ne[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_ne[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		if (found)

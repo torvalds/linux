@@ -15,6 +15,8 @@
 #include <linux/slab.h>
 #include "st5481.h"
 
+static int st5481_isoc_flatten(struct urb *urb);
+
 /* ======================================================================
  * control pipe
  */
@@ -55,9 +57,9 @@ static void usb_next_ctrl_msg(struct urb *urb,
  * Asynchronous endpoint 0 request (async version of usb_control_msg).
  * The request will be queued up in a FIFO if the endpoint is busy.
  */
-void usb_ctrl_msg(struct st5481_adapter *adapter,
-		  u8 request, u8 requesttype, u16 value, u16 index,
-		  ctrl_complete_t complete, void *context)
+static void usb_ctrl_msg(struct st5481_adapter *adapter,
+			 u8 request, u8 requesttype, u16 value, u16 index,
+			 ctrl_complete_t complete, void *context)
 {
 	struct st5481_ctrl *ctrl = &adapter->ctrl;
 	int w_index;
@@ -571,7 +573,7 @@ void st5481_release_in(struct st5481_in *in)
  * Make the transfer_buffer contiguous by
  * copying from the iso descriptors if necessary. 
  */
-int st5481_isoc_flatten(struct urb *urb)
+static int st5481_isoc_flatten(struct urb *urb)
 {
 	struct usb_iso_packet_descriptor *pipd,*pend;
 	unsigned char *src,*dst;

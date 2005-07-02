@@ -2343,8 +2343,8 @@ static void dv1394_remove_host (struct hpsb_host *host)
 			dv1394_un_init(video);
 	} while (video != NULL);
 
-	class_simple_device_remove(MKDEV(
-		IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)));
+	class_device_destroy(hpsb_protocol_class,
+		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)));
 	devfs_remove("ieee1394/dv/host%d/NTSC", id);
 	devfs_remove("ieee1394/dv/host%d/PAL", id);
 	devfs_remove("ieee1394/dv/host%d", id);
@@ -2361,7 +2361,7 @@ static void dv1394_add_host (struct hpsb_host *host)
 
 	ohci = (struct ti_ohci *)host->hostdata;
 
-	class_simple_device_add(hpsb_protocol_class, MKDEV(
+	class_device_create(hpsb_protocol_class, MKDEV(
 		IEEE1394_MAJOR,	IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)), 
 		NULL, "dv1394-%d", id);
 	devfs_mk_dir("ieee1394/dv/host%d", id);

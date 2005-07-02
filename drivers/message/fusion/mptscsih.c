@@ -170,7 +170,7 @@ static void	mptscsih_fillbuf(char *buffer, int size, int index, int width);
 #endif
 
 void 		mptscsih_remove(struct pci_dev *);
-void 		mptscsih_shutdown(struct device *);
+void 		mptscsih_shutdown(struct pci_dev *);
 #ifdef CONFIG_PM
 int 		mptscsih_suspend(struct pci_dev *pdev, pm_message_t state);
 int 		mptscsih_resume(struct pci_dev *pdev);
@@ -988,7 +988,7 @@ mptscsih_remove(struct pci_dev *pdev)
 #endif
 #endif
 
-	mptscsih_shutdown(&pdev->dev);
+	mptscsih_shutdown(pdev);
 
 	sz1=0;
 
@@ -1026,9 +1026,9 @@ mptscsih_remove(struct pci_dev *pdev)
  *
  */
 void
-mptscsih_shutdown(struct device * dev)
+mptscsih_shutdown(struct pci_dev *pdev)
 {
-	MPT_ADAPTER 		*ioc = pci_get_drvdata(to_pci_dev(dev));
+	MPT_ADAPTER 		*ioc = pci_get_drvdata(pdev);
 	struct Scsi_Host 	*host = ioc->sh;
 	MPT_SCSI_HOST		*hd;
 
@@ -1054,7 +1054,7 @@ mptscsih_shutdown(struct device * dev)
 int
 mptscsih_suspend(struct pci_dev *pdev, pm_message_t state)
 {
-	mptscsih_shutdown(&pdev->dev);
+	mptscsih_shutdown(pdev);
 	return mpt_suspend(pdev,state);
 }
 
@@ -2338,7 +2338,7 @@ slave_configure_exit:
 }
 
 ssize_t
-mptscsih_store_queue_depth(struct device *dev, const char *buf, size_t count)
+mptscsih_store_queue_depth(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int			 depth;
 	struct scsi_device	*sdev = to_scsi_device(dev);

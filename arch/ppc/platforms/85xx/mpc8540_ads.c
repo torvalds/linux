@@ -41,7 +41,6 @@
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/open_pic.h>
 #include <asm/bootinfo.h>
 #include <asm/pci-bridge.h>
@@ -88,33 +87,39 @@ mpc8540ads_setup_arch(void)
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	/* Invalidate the entry we stole earlier the serial ports
 	 * should be properly mapped */
-	invalidate_tlbcam_entry(NUM_TLBCAMS - 1);
+	invalidate_tlbcam_entry(num_tlbcam_entries - 1);
 #endif
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
-	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-	pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-	pdata->phyid = 0;
-	/* fixup phy address */
-	pdata->phy_reg_addr += binfo->bi_immr_base;
-	memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
+		pdata->phyid = 0;
+		/* fixup phy address */
+		pdata->phy_reg_addr += binfo->bi_immr_base;
+		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
+	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
-	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-	pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-	pdata->phyid = 1;
-	/* fixup phy address */
-	pdata->phy_reg_addr += binfo->bi_immr_base;
-	memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	if (pdata) {
+		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
+		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
+		pdata->phyid = 1;
+		/* fixup phy address */
+		pdata->phy_reg_addr += binfo->bi_immr_base;
+		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
+	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_FEC);
-	pdata->board_flags = 0;
-	pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-	pdata->phyid = 3;
-	/* fixup phy address */
-	pdata->phy_reg_addr += binfo->bi_immr_base;
-	memcpy(pdata->mac_addr, binfo->bi_enet2addr, 6);
+	if (pdata) {
+		pdata->board_flags = 0;
+		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
+		pdata->phyid = 3;
+		/* fixup phy address */
+		pdata->phy_reg_addr += binfo->bi_immr_base;
+		memcpy(pdata->mac_addr, binfo->bi_enet2addr, 6);
+	}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start)
@@ -150,7 +155,7 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 		struct uart_port p;
 
 		/* Use the last TLB entry to map CCSRBAR to allow access to DUART regs */
-		settlbcam(NUM_TLBCAMS - 1, binfo->bi_immr_base,
+		settlbcam(num_tlbcam_entries - 1, binfo->bi_immr_base,
 			  binfo->bi_immr_base, MPC85xx_CCSRBAR_SIZE, _PAGE_IO, 0);
 
 		memset(&p, 0, sizeof (p));

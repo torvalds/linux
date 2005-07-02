@@ -661,10 +661,12 @@ static void idefloppy_output_buffers (ide_drive_t *drive, idefloppy_pc_t *pc, un
 
 	idefloppy_do_end_request(drive, 1, done >> 9);
 
+#if IDEFLOPPY_DEBUG_BUGS
 	if (bcount) {
 		printk(KERN_ERR "%s: leftover data in idefloppy_output_buffers, bcount == %d\n", drive->name, bcount);
 		idefloppy_write_zeros(drive, bcount);
 	}
+#endif
 }
 
 static void idefloppy_update_buffers (ide_drive_t *drive, idefloppy_pc_t *pc)
@@ -1048,6 +1050,9 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 	atapi_bcount_t bcount;
 	ide_handler_t *pkt_xfer_routine;
 
+#if 0 /* Accessing floppy->pc is not valid here, the previous pc may be gone
+         and have lived on another thread's stack; that stack may have become
+         unmapped meanwhile (CONFIG_DEBUG_PAGEALLOC). */
 #if IDEFLOPPY_DEBUG_BUGS
 	if (floppy->pc->c[0] == IDEFLOPPY_REQUEST_SENSE_CMD &&
 	    pc->c[0] == IDEFLOPPY_REQUEST_SENSE_CMD) {
@@ -1055,6 +1060,7 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 			"Two request sense in serial were issued\n");
 	}
 #endif /* IDEFLOPPY_DEBUG_BUGS */
+#endif
 
 	if (floppy->failed_pc == NULL &&
 	    pc->c[0] != IDEFLOPPY_REQUEST_SENSE_CMD)

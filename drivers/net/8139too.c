@@ -1606,7 +1606,7 @@ static int rtl8139_thread (void *data)
 		do {
 			timeout = interruptible_sleep_on_timeout (&tp->thr_wait, timeout);
 			/* make swsusp happy with our thread */
-			try_to_freeze(PF_FREEZE);
+			try_to_freeze();
 		} while (!signal_pending (current) && (timeout > 0));
 
 		if (signal_pending (current)) {

@@ -2,6 +2,7 @@
  *  linux/arch/i386/kernel/reboot.c
  */
 
+#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -19,12 +20,12 @@
  * Power off function, if any
  */
 void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
 
 static int reboot_mode;
 static int reboot_thru_bios;
 
 #ifdef CONFIG_SMP
-int reboot_smp = 0;
 static int reboot_cpu = -1;
 /* shamelessly grabbed from lib/vsprintf.c for readability */
 #define is_digit(c)	((c) >= '0' && (c) <= '9')
@@ -47,7 +48,6 @@ static int __init reboot_setup(char *str)
 			break;
 #ifdef CONFIG_SMP
 		case 's': /* "smp" reboot by executing reset on BSP or other CPU*/
-			reboot_smp = 1;
 			if (is_digit(*(str+1))) {
 				reboot_cpu = (int) (*(str+1) - '0');
 				if (is_digit(*(str+2))) 
@@ -86,33 +86,9 @@ static int __init set_bios_reboot(struct dmi_system_id *d)
 	return 0;
 }
 
-/*
- * Some machines require the "reboot=s"  commandline option, this quirk makes that automatic.
- */
-static int __init set_smp_reboot(struct dmi_system_id *d)
-{
-#ifdef CONFIG_SMP
-	if (!reboot_smp) {
-		reboot_smp = 1;
-		printk(KERN_INFO "%s series board detected. Selecting SMP-method for reboots.\n", d->ident);
-	}
-#endif
-	return 0;
-}
-
-/*
- * Some machines require the "reboot=b,s"  commandline option, this quirk makes that automatic.
- */
-static int __init set_smp_bios_reboot(struct dmi_system_id *d)
-{
-	set_smp_reboot(d);
-	set_bios_reboot(d);
-	return 0;
-}
-
 static struct dmi_system_id __initdata reboot_dmi_table[] = {
 	{	/* Handle problems with rebooting on Dell 1300's */
-		.callback = set_smp_bios_reboot,
+		.callback = set_bios_reboot,
 		.ident = "Dell PowerEdge 1300",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Computer Corporation"),
@@ -295,42 +271,36 @@ void machine_real_restart(unsigned char *code, int length)
 				:
 				: "i" ((void *) (0x1000 - sizeof (real_mode_switch) - 100)));
 }
+#ifdef CONFIG_APM_MODULE
+EXPORT_SYMBOL(machine_real_restart);
+#endif
 
-void machine_restart(char * __unused)
+void machine_shutdown(void)
 {
 #ifdef CONFIG_SMP
-	int cpuid;
-	
-	cpuid = GET_APIC_ID(apic_read(APIC_ID));
+	int reboot_cpu_id;
 
-	if (reboot_smp) {
+	/* The boot cpu is always logical cpu 0 */
+	reboot_cpu_id = 0;
 
-		/* check to see if reboot_cpu is valid 
-		   if its not, default to the BSP */
-		if ((reboot_cpu == -1) ||  
-		      (reboot_cpu > (NR_CPUS -1))  || 
-		      !physid_isset(cpuid, phys_cpu_present_map))
-			reboot_cpu = boot_cpu_physical_apicid;
-
-		reboot_smp = 0;  /* use this as a flag to only go through this once*/
-		/* re-run this function on the other CPUs
-		   it will fall though this section since we have 
-		   cleared reboot_smp, and do the reboot if it is the
-		   correct CPU, otherwise it halts. */
-		if (reboot_cpu != cpuid)
-			smp_call_function((void *)machine_restart , NULL, 1, 0);
+	/* See if there has been given a command line override */
+	if ((reboot_cpu_id != -1) && (reboot_cpu < NR_CPUS) &&
+		cpu_isset(reboot_cpu, cpu_online_map)) {
+		reboot_cpu_id = reboot_cpu;
 	}
 
-	/* if reboot_cpu is still -1, then we want a tradional reboot, 
-	   and if we are not running on the reboot_cpu,, halt */
-	if ((reboot_cpu != -1) && (cpuid != reboot_cpu)) {
-		for (;;)
-		__asm__ __volatile__ ("hlt");
+	/* Make certain the cpu I'm rebooting on is online */
+	if (!cpu_isset(reboot_cpu_id, cpu_online_map)) {
+		reboot_cpu_id = smp_processor_id();
 	}
-	/*
-	 * Stop all CPUs and turn off local APICs and the IO-APIC, so
-	 * other OSs see a clean IRQ state.
+
+	/* Make certain I only run on the appropriate processor */
+	set_cpus_allowed(current, cpumask_of_cpu(reboot_cpu_id));
+
+	/* O.K. Now that I'm on the appropriate processor, stop
+	 * all of the others, and disable their local APICs.
 	 */
+
 	smp_send_stop();
 #endif /* CONFIG_SMP */
 
@@ -339,6 +309,11 @@ void machine_restart(char * __unused)
 #ifdef CONFIG_X86_IO_APIC
 	disable_IO_APIC();
 #endif
+}
+
+void machine_restart(char * __unused)
+{
+	machine_shutdown();
 
 	if (!reboot_thru_bios) {
 		if (efi_enabled) {

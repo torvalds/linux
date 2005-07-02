@@ -194,6 +194,7 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 	mm->mmap = NULL;
 	mm->mmap_cache = NULL;
 	mm->free_area_cache = oldmm->mmap_base;
+	mm->cached_hole_size = ~0UL;
 	mm->map_count = 0;
 	set_mm_counter(mm, rss, 0);
 	set_mm_counter(mm, anon_rss, 0);
@@ -249,8 +250,9 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 
 		/*
 		 * Link in the new vma and copy the page table entries:
-		 * link in first so that swapoff can see swap entries,
-		 * and try_to_unmap_one's find_vma find the new vma.
+		 * link in first so that swapoff can see swap entries.
+		 * Note that, exceptionally, here the vma is inserted
+		 * without holding mm->mmap_sem.
 		 */
 		spin_lock(&mm->page_table_lock);
 		*pprev = tmp;
@@ -322,6 +324,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm)
 	mm->ioctx_list = NULL;
 	mm->default_kioctx = (struct kioctx)INIT_KIOCTX(mm->default_kioctx, *mm);
 	mm->free_area_cache = TASK_UNMAPPED_BASE;
+	mm->cached_hole_size = ~0UL;
 
 	if (likely(!mm_alloc_pgd(mm))) {
 		mm->def_flags = 0;
@@ -1000,9 +1003,6 @@ static task_t *copy_process(unsigned long clone_flags,
 	p->pdeath_signal = 0;
 	p->exit_state = 0;
 
-	/* Perform scheduler related setup */
-	sched_fork(p);
-
 	/*
 	 * Ok, make it visible to the rest of the system.
 	 * We dont wake it up yet.
@@ -1011,18 +1011,24 @@ static task_t *copy_process(unsigned long clone_flags,
 	INIT_LIST_HEAD(&p->ptrace_children);
 	INIT_LIST_HEAD(&p->ptrace_list);
 
+	/* Perform scheduler related setup. Assign this task to a CPU. */
+	sched_fork(p, clone_flags);
+
 	/* Need tasklist lock for parent etc handling! */
 	write_lock_irq(&tasklist_lock);
 
 	/*
-	 * The task hasn't been attached yet, so cpus_allowed mask cannot
-	 * have changed. The cpus_allowed mask of the parent may have
-	 * changed after it was copied first time, and it may then move to
-	 * another CPU - so we re-copy it here and set the child's CPU to
-	 * the parent's CPU. This avoids alot of nasty races.
+	 * The task hasn't been attached yet, so its cpus_allowed mask will
+	 * not be changed, nor will its assigned CPU.
+	 *
+	 * The cpus_allowed mask of the parent may have changed after it was
+	 * copied first time - so re-copy it here, then check the child's CPU
+	 * to ensure it is on a valid CPU (and if not, just force it back to
+	 * parent's CPU). This avoids alot of nasty races.
 	 */
 	p->cpus_allowed = current->cpus_allowed;
-	set_task_cpu(p, smp_processor_id());
+	if (unlikely(!cpu_isset(task_cpu(p), p->cpus_allowed)))
+		set_task_cpu(p, smp_processor_id());
 
 	/*
 	 * Check for pending SIGKILL! The new thread should not be allowed
@@ -1083,6 +1089,11 @@ static task_t *copy_process(unsigned long clone_flags,
 
 		spin_unlock(&current->sighand->siglock);
 	}
+
+	/*
+	 * inherit ioprio
+	 */
+	p->ioprio = current->ioprio;
 
 	SET_LINKS(p);
 	if (unlikely(p->ptrace & PT_PTRACED))

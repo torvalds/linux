@@ -183,7 +183,6 @@ struct ipv6_txoptions
 	struct ipv6_opt_hdr	*hopopt;
 	struct ipv6_opt_hdr	*dst0opt;
 	struct ipv6_rt_hdr	*srcrt;	/* Routing Header */
-	struct ipv6_opt_hdr	*auth;
 	struct ipv6_opt_hdr	*dst1opt;
 
 	/* Option buffer, as read by IPV6_PKTOPTIONS, starts here. */

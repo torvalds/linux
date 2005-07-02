@@ -292,6 +292,7 @@ void *snd_hidden_kcalloc(size_t n, size_t size, int flags);
 void snd_hidden_kfree(const void *obj);
 void *snd_hidden_vmalloc(unsigned long size);
 void snd_hidden_vfree(void *obj);
+char *snd_hidden_kstrdup(const char *s, int flags);
 #define kmalloc(size, flags) snd_hidden_kmalloc(size, flags)
 #define kcalloc(n, size, flags) snd_hidden_kcalloc(n, size, flags)
 #define kfree(obj) snd_hidden_kfree(obj)
@@ -301,6 +302,7 @@ void snd_hidden_vfree(void *obj);
 #define vmalloc_nocheck(size) snd_wrapper_vmalloc(size)
 #define kfree_nocheck(obj) snd_wrapper_kfree(obj)
 #define vfree_nocheck(obj) snd_wrapper_vfree(obj)
+#define kstrdup(s, flags)  snd_hidden_kstrdup(s, flags)
 #else
 #define snd_memory_init() /*NOP*/
 #define snd_memory_done() /*NOP*/
@@ -311,7 +313,6 @@ void snd_hidden_vfree(void *obj);
 #define kfree_nocheck(obj) kfree(obj)
 #define vfree_nocheck(obj) vfree(obj)
 #endif
-char *snd_kmalloc_strdup(const char *string, int flags);
 int copy_to_user_fromio(void __user *dst, const volatile void __iomem *src, size_t count);
 int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size_t count);
 

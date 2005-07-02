@@ -400,7 +400,12 @@ static int __init topology_init(void)
 		struct cpu *c = &per_cpu(cpu_devices, cpu);
 
 #ifdef CONFIG_NUMA
-		parent = &node_devices[cpu_to_node(cpu)];
+		/* The node to which a cpu belongs can't be known
+		 * until the cpu is made present.
+		 */
+		parent = NULL;
+		if (cpu_present(cpu))
+			parent = &node_devices[cpu_to_node(cpu)];
 #endif
 		/*
 		 * For now, we just see if the system supports making

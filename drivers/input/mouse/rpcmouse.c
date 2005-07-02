@@ -59,7 +59,7 @@ static irqreturn_t rpcmouse_irq(int irq, void *dev_id, struct pt_regs *regs)
 	b = (short) (__raw_readl(0xe0310000) ^ 0x70);
 
 	dx = x - rpcmouse_lastx;
-	dy = y - rpcmouse_lasty; 
+	dy = y - rpcmouse_lasty;
 
 	rpcmouse_lastx = x;
 	rpcmouse_lasty = y;

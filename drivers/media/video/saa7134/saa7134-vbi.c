@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-vbi.c,v 1.6 2004/12/10 12:33:39 kraxel Exp $
+ * $Id: saa7134-vbi.c,v 1.7 2005/05/24 23:13:06 nsh Exp $
  *
  * device driver for philips saa7134 based TV cards
  * video4linux video interface
@@ -60,10 +60,10 @@ static void task_init(struct saa7134_dev *dev, struct saa7134_buf *buf,
 	saa_writeb(SAA7134_VBI_H_START2(task), norm->h_start     >> 8);
 	saa_writeb(SAA7134_VBI_H_STOP1(task),  norm->h_stop      &  0xff);
 	saa_writeb(SAA7134_VBI_H_STOP2(task),  norm->h_stop      >> 8);
-	saa_writeb(SAA7134_VBI_V_START1(task), norm->vbi_v_start &  0xff);
-	saa_writeb(SAA7134_VBI_V_START2(task), norm->vbi_v_start >> 8);
-	saa_writeb(SAA7134_VBI_V_STOP1(task),  norm->vbi_v_stop  &  0xff);
-	saa_writeb(SAA7134_VBI_V_STOP2(task),  norm->vbi_v_stop  >> 8);
+	saa_writeb(SAA7134_VBI_V_START1(task), norm->vbi_v_start_0 &  0xff);
+	saa_writeb(SAA7134_VBI_V_START2(task), norm->vbi_v_start_0 >> 8);
+	saa_writeb(SAA7134_VBI_V_STOP1(task),  norm->vbi_v_stop_0  &  0xff);
+	saa_writeb(SAA7134_VBI_V_STOP2(task),  norm->vbi_v_stop_0  >> 8);
 
 	saa_writeb(SAA7134_VBI_H_SCALE_INC1(task),        VBI_SCALE & 0xff);
 	saa_writeb(SAA7134_VBI_H_SCALE_INC2(task),        VBI_SCALE >> 8);
@@ -127,7 +127,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 	unsigned int lines, llength, size;
 	int err;
 
-	lines   = norm->vbi_v_stop - norm->vbi_v_start +1;
+	lines   = norm->vbi_v_stop_0 - norm->vbi_v_start_0 +1;
 	if (lines > VBI_LINE_COUNT)
 		lines = VBI_LINE_COUNT;
 #if 1
@@ -177,7 +177,7 @@ buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 	struct saa7134_dev *dev = fh->dev;
 	int llength,lines;
 
-	lines   = dev->tvnorm->vbi_v_stop - dev->tvnorm->vbi_v_start +1;
+	lines   = dev->tvnorm->vbi_v_stop_0 - dev->tvnorm->vbi_v_start_0 +1;
 #if 1
 	llength = VBI_LINE_LENGTH;
 #else

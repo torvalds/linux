@@ -89,19 +89,22 @@ and use the interleaved 4 channel data.
 
 There are some control switchs affecting to the speaker connections:
 
-"Line-In As Rear"	- As mentioned above, the line-in jack is used
-	for the rear (3th and 4th channels) output.
-"Line-In As Bass"	- The line-in jack is used for the bass (5th
-	and 6th channels) output.
-"Mic As Center/LFE"	- The mic jack is used for the bass output.
-	If this switch is on, you cannot use a microphone as a capture
-	source, of course.
-
+"Line-In Mode"	- an enum control to change the behavior of line-in
+	jack.  Either "Line-In", "Rear Output" or "Bass Output" can
+	be selected.  The last item is available only with model 039
+	or newer. 
+	When "Rear Output" is chosen, the surround channels 3 and 4
+	are output to line-in jack.
+"Mic-In Mode"	- an enum control to change the behavior of mic-in
+	jack.  Either "Mic-In" or "Center/LFE Output" can be
+	selected. 
+	When "Center/LFE Output" is chosen, the center and bass
+	channels (channels 5 and 6) are output to mic-in jack. 
 
 Digital I/O
 -----------
 
-The CM8x38 provides the excellent SPDIF capability with very chip
+The CM8x38 provides the excellent SPDIF capability with very cheap
 price (yes, that's the reason I bought the card :)
 
 The SPDIF playback and capture are done via the third PCM device
@@ -122,8 +125,9 @@ respectively, so you cannot playback both analog and digital streams
 simultaneously.
 
 To enable SPDIF output, you need to turn on "IEC958 Output Switch"
-control via mixer or alsactl.  Then you'll see the red light on from
-the card so you know that's working obviously :)
+control via mixer or alsactl ("IEC958" is the official name of
+so-called S/PDIF).  Then you'll see the red light on from the card so
+you know that's working obviously :)
 The SPDIF input is always enabled, so you can hear SPDIF input data
 from line-out with "IEC958 In Monitor" switch at any time (see
 below).
@@ -205,9 +209,10 @@ In addition to the standard SB mixer, CM8x38 provides more functions.
 MIDI CONTROLLER
 ---------------
 
-The MPU401-UART interface is enabled as default only for the first
-(CMIPCI) card.  You need to set module option "midi_port" properly
-for the 2nd (CMIPCI) card.
+The MPU401-UART interface is disabled as default.  You need to set
+module option "mpu_port" with a valid I/O port address to enable the
+MIDI support.  The valid I/O ports are 0x300, 0x310, 0x320 and 0x330.
+Choose the value which doesn't conflict with other cards.
 
 There is _no_ hardware wavetable function on this chip (except for
 OPL3 synth below).
@@ -229,9 +234,11 @@ I don't know why..
 Joystick and Modem
 ------------------
 
-The joystick and modem should be available by enabling the control
-switch "Joystick" and "Modem" respectively.  But I myself have never
-tested them yet.
+The legacy joystick is supported.  To enable the joystick support, pass
+joystick_port=1 module option.  The value 1 means the auto-detection.
+If the auto-detection fails, try to pass the exact I/O address.
+
+The modem is enabled dynamically via a card control switch "Modem".
 
 
 Debugging Information

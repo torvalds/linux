@@ -82,7 +82,7 @@
 #endif
 
 extern void mptscsih_remove(struct pci_dev *);
-extern void mptscsih_shutdown(struct device *);
+extern void mptscsih_shutdown(struct pci_dev *);
 #ifdef CONFIG_PM
 extern int mptscsih_suspend(struct pci_dev *pdev, u32 state);
 extern int mptscsih_resume(struct pci_dev *pdev);
@@ -103,5 +103,5 @@ extern int mptscsih_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_F
 extern int mptscsih_scandv_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *r);
 extern int mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply);
 extern int mptscsih_ioc_reset(MPT_ADAPTER *ioc, int post_reset);
-extern ssize_t mptscsih_store_queue_depth(struct device *dev, const char *buf, size_t count);
+extern ssize_t mptscsih_store_queue_depth(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
 extern void mptscsih_timer_expired(unsigned long data);

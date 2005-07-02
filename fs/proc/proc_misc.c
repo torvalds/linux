@@ -44,6 +44,7 @@
 #include <linux/jiffies.h>
 #include <linux/sysrq.h>
 #include <linux/vmalloc.h>
+#include <linux/crash_dump.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -214,6 +215,19 @@ static int fragmentation_open(struct inode *inode, struct file *file)
 
 static struct file_operations fragmentation_file_operations = {
 	.open		= fragmentation_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+extern struct seq_operations zoneinfo_op;
+static int zoneinfo_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &zoneinfo_op);
+}
+
+static struct file_operations proc_zoneinfo_file_operations = {
+	.open		= zoneinfo_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
@@ -438,7 +452,7 @@ static int devices_read_proc(char *page, char **start, off_t off,
 				 int count, int *eof, void *data)
 {
 	int len = get_chrdev_list(page);
-	len += get_blkdev_list(page+len);
+	len += get_blkdev_list(page+len, len);
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 
@@ -589,6 +603,7 @@ void __init proc_misc_init(void)
 	create_seq_entry("slabinfo",S_IWUSR|S_IRUGO,&proc_slabinfo_operations);
 	create_seq_entry("buddyinfo",S_IRUGO, &fragmentation_file_operations);
 	create_seq_entry("vmstat",S_IRUGO, &proc_vmstat_file_operations);
+	create_seq_entry("zoneinfo",S_IRUGO, &proc_zoneinfo_file_operations);
 	create_seq_entry("diskstats", 0, &proc_diskstats_operations);
 #ifdef CONFIG_MODULES
 	create_seq_entry("modules", 0, &proc_modules_operations);
@@ -603,6 +618,11 @@ void __init proc_misc_init(void)
 		proc_root_kcore->size =
 				(size_t)high_memory - PAGE_OFFSET + PAGE_SIZE;
 	}
+#endif
+#ifdef CONFIG_PROC_VMCORE
+	proc_vmcore = create_proc_entry("vmcore", S_IRUSR, NULL);
+	if (proc_vmcore)
+		proc_vmcore->proc_fops = &proc_vmcore_operations;
 #endif
 #ifdef CONFIG_MAGIC_SYSRQ
 	entry = create_proc_entry("sysrq-trigger", S_IWUSR, NULL);

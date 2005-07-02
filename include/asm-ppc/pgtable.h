@@ -267,8 +267,6 @@ extern unsigned long ioremap_bot, ioremap_base;
 #define _PMD_PRESENT_MASK (PAGE_MASK)
 #define _PMD_BAD	(~PAGE_MASK)
 
-#define NUM_TLBCAMS	(16)
-
 #elif defined(CONFIG_8xx)
 /* Definitions for 8xx embedded chips. */
 #define _PAGE_PRESENT	0x0001	/* Page is valid */

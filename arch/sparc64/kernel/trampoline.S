@@ -98,8 +98,9 @@ startup_continue:
 
 	sethi		%hi(prom_entry_lock), %g2
 1:	ldstub		[%g2 + %lo(prom_entry_lock)], %g1
+	membar		#StoreLoad | #StoreStore
 	brnz,pn		%g1, 1b
-	 membar		#StoreLoad | #StoreStore
+	 nop
 
 	sethi		%hi(p1275buf), %g2
 	or		%g2, %lo(p1275buf), %g2

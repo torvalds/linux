@@ -396,7 +396,7 @@ static void i8042_stop(struct serio *serio)
 	struct i8042_port *port = serio->port_data;
 
 	port->exists = 0;
-	synchronize_kernel();
+	synchronize_sched();
 	port->serio = NULL;
 }
 

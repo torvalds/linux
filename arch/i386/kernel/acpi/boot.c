@@ -29,6 +29,7 @@
 #include <linux/efi.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/dmi.h>
 
 #include <asm/pgtable.h>
 #include <asm/io_apic.h>
@@ -158,9 +159,15 @@ char *__acpi_map_table(unsigned long phys, unsigned long size)
 #endif
 
 #ifdef CONFIG_PCI_MMCONFIG
-static int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
+/* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
+struct acpi_table_mcfg_config *pci_mmcfg_config;
+int pci_mmcfg_config_num;
+
+int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
 {
 	struct acpi_table_mcfg *mcfg;
+	unsigned long i;
+	int config_size;
 
 	if (!phys_addr || !size)
 		return -EINVAL;
@@ -171,18 +178,38 @@ static int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
 		return -ENODEV;
 	}
 
-	if (mcfg->base_reserved) {
-		printk(KERN_ERR PREFIX "MMCONFIG not in low 4GB of memory\n");
+	/* how many config structures do we have */
+	pci_mmcfg_config_num = 0;
+	i = size - sizeof(struct acpi_table_mcfg);
+	while (i >= sizeof(struct acpi_table_mcfg_config)) {
+		++pci_mmcfg_config_num;
+		i -= sizeof(struct acpi_table_mcfg_config);
+	};
+	if (pci_mmcfg_config_num == 0) {
+		printk(KERN_ERR PREFIX "MMCONFIG has no entries\n");
 		return -ENODEV;
 	}
 
-	pci_mmcfg_base_addr = mcfg->base_address;
+	config_size = pci_mmcfg_config_num * sizeof(*pci_mmcfg_config);
+	pci_mmcfg_config = kmalloc(config_size, GFP_KERNEL);
+	if (!pci_mmcfg_config) {
+		printk(KERN_WARNING PREFIX
+		       "No memory for MCFG config tables\n");
+		return -ENOMEM;
+	}
+
+	memcpy(pci_mmcfg_config, &mcfg->config, config_size);
+	for (i = 0; i < pci_mmcfg_config_num; ++i) {
+		if (mcfg->config[i].base_reserved) {
+			printk(KERN_ERR PREFIX
+			       "MMCONFIG not in low 4GB of memory\n");
+			return -ENODEV;
+		}
+	}
 
 	return 0;
 }
-#else
-#define	acpi_parse_mcfg NULL
-#endif /* !CONFIG_PCI_MMCONFIG */
+#endif /* CONFIG_PCI_MMCONFIG */
 
 #ifdef CONFIG_X86_LOCAL_APIC
 static int __init
@@ -506,6 +533,22 @@ acpi_unmap_lsapic(int cpu)
 EXPORT_SYMBOL(acpi_unmap_lsapic);
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
 
+int
+acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base)
+{
+	/* TBD */
+	return -EINVAL;
+}
+EXPORT_SYMBOL(acpi_register_ioapic);
+
+int
+acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base)
+{
+	/* TBD */
+	return -EINVAL;
+}
+EXPORT_SYMBOL(acpi_unregister_ioapic);
+
 static unsigned long __init
 acpi_scan_rsdp (
 	unsigned long		start,
@@ -815,6 +858,219 @@ acpi_process_madt(void)
 	return;
 }
 
+extern int acpi_force;
+
+#ifdef __i386__
+
+#ifdef	CONFIG_ACPI_PCI
+static int __init disable_acpi_irq(struct dmi_system_id *d)
+{
+	if (!acpi_force) {
+		printk(KERN_NOTICE "%s detected: force use of acpi=noirq\n",
+		       d->ident);
+		acpi_noirq_set();
+	}
+	return 0;
+}
+
+static int __init disable_acpi_pci(struct dmi_system_id *d)
+{
+	if (!acpi_force) {
+		printk(KERN_NOTICE "%s detected: force use of pci=noacpi\n",
+		       d->ident);
+		acpi_disable_pci();
+	}
+	return 0;
+}
+#endif
+
+static int __init dmi_disable_acpi(struct dmi_system_id *d)
+{
+	if (!acpi_force) {
+		printk(KERN_NOTICE "%s detected: acpi off\n",d->ident);
+		disable_acpi();
+	} else {
+		printk(KERN_NOTICE
+		       "Warning: DMI blacklist says broken, but acpi forced\n");
+	}
+	return 0;
+}
+
+/*
+ * Limit ACPI to CPU enumeration for HT
+ */
+static int __init force_acpi_ht(struct dmi_system_id *d)
+{
+	if (!acpi_force) {
+		printk(KERN_NOTICE "%s detected: force use of acpi=ht\n", d->ident);
+		disable_acpi();
+		acpi_ht = 1;
+	} else {
+		printk(KERN_NOTICE
+		       "Warning: acpi=force overrules DMI blacklist: acpi=ht\n");
+	}
+	return 0;
+}
+
+/*
+ * If your system is blacklisted here, but you find that acpi=force
+ * works for you, please contact acpi-devel@sourceforge.net
+ */
+static struct dmi_system_id __initdata acpi_dmi_table[] = {
+	/*
+	 * Boxes that need ACPI disabled
+	 */
+	{
+		.callback = dmi_disable_acpi,
+		.ident = "IBM Thinkpad",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+			DMI_MATCH(DMI_BOARD_NAME, "2629H1G"),
+		},
+	},
+
+	/*
+	 * Boxes that need acpi=ht
+	 */
+	{
+		.callback = force_acpi_ht,
+		.ident = "FSC Primergy T850",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PRIMERGY T850"),
+		},
+	},
+	{
+		.callback = force_acpi_ht,
+		.ident = "DELL GX240",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Dell Computer Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "OptiPlex GX240"),
+		},
+	},
+	{
+		.callback = force_acpi_ht,
+		.ident = "HP VISUALIZE NT Workstation",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP VISUALIZE NT Workstation"),
+		},
+	},
+	{
+		.callback = force_acpi_ht,
+		.ident = "Compaq Workstation W8000",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Compaq"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Workstation W8000"),
+		},
+	},
+	{
+		.callback = force_acpi_ht,
+		.ident = "ASUS P4B266",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "P4B266"),
+		},
+	},
+	{
+		.callback = force_acpi_ht,
+		.ident = "ASUS P2B-DS",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "P2B-DS"),
+		},
+	},
+	{
+		.callback = force_acpi_ht,
+		.ident = "ASUS CUR-DLS",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "CUR-DLS"),
+		},
+	},
+	{
+		.callback = force_acpi_ht,
+		.ident = "ABIT i440BX-W83977",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ABIT <http://www.abit.com>"),
+			DMI_MATCH(DMI_BOARD_NAME, "i440BX-W83977 (BP6)"),
+		},
+	},
+	{
+		.callback = force_acpi_ht,
+		.ident = "IBM Bladecenter",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+			DMI_MATCH(DMI_BOARD_NAME, "IBM eServer BladeCenter HS20"),
+		},
+	},
+	{
+		.callback = force_acpi_ht,
+		.ident = "IBM eServer xSeries 360",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+			DMI_MATCH(DMI_BOARD_NAME, "eServer xSeries 360"),
+		},
+	},
+	{
+		.callback = force_acpi_ht,
+		.ident = "IBM eserver xSeries 330",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+			DMI_MATCH(DMI_BOARD_NAME, "eserver xSeries 330"),
+		},
+	},
+	{
+		.callback = force_acpi_ht,
+		.ident = "IBM eserver xSeries 440",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "eserver xSeries 440"),
+		},
+	},
+
+#ifdef	CONFIG_ACPI_PCI
+	/*
+	 * Boxes that need ACPI PCI IRQ routing disabled
+	 */
+	{
+		.callback = disable_acpi_irq,
+		.ident = "ASUS A7V",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC"),
+			DMI_MATCH(DMI_BOARD_NAME, "<A7V>"),
+			/* newer BIOS, Revision 1011, does work */
+			DMI_MATCH(DMI_BIOS_VERSION, "ASUS A7V ACPI BIOS Revision 1007"),
+		},
+	},
+
+	/*
+	 * Boxes that need ACPI PCI IRQ routing and PCI scan disabled
+	 */
+	{	/* _BBN 0 bug */
+		.callback = disable_acpi_pci,
+		.ident = "ASUS PR-DLS",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "PR-DLS"),
+			DMI_MATCH(DMI_BIOS_VERSION, "ASUS PR-DLS ACPI BIOS Revision 1010"),
+			DMI_MATCH(DMI_BIOS_DATE, "03/21/2003")
+		},
+	},
+	{
+		.callback = disable_acpi_pci,
+		.ident = "Acer TravelMate 36x Laptop",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+ 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 360"),
+		},
+	},
+#endif
+	{ }
+};
+
+#endif	/* __i386__ */
+
 /*
  * acpi_boot_table_init() and acpi_boot_init()
  *  called from setup_arch(), always.
@@ -843,6 +1099,10 @@ acpi_boot_table_init(void)
 {
 	int error;
 
+#ifdef __i386__
+	dmi_check_system(acpi_dmi_table);
+#endif
+
 	/*
 	 * If acpi_disabled, bail out
 	 * One exception: acpi=ht continues far enough to enumerate LAPICs
@@ -870,8 +1130,6 @@ acpi_boot_table_init(void)
 	 */
 	error = acpi_blacklisted();
 	if (error) {
-		extern int acpi_force;
-
 		if (acpi_force) {
 			printk(KERN_WARNING PREFIX "acpi=force override\n");
 		} else {
@@ -907,7 +1165,6 @@ int __init acpi_boot_init(void)
 	acpi_process_madt();
 
 	acpi_table_parse(ACPI_HPET, acpi_parse_hpet);
-	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
 
 	return 0;
 }

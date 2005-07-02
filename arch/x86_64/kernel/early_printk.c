@@ -2,20 +2,24 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/tty.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 
 /* Simple VGA output */
 
 #ifdef __i386__
+#include <asm/setup.h>
 #define VGABASE		(__ISA_IO_base + 0xb8000)
 #else
+#include <asm/bootsetup.h>
 #define VGABASE		((void __iomem *)0xffffffff800b8000UL)
 #endif
 
-#define MAX_YPOS	25
-#define MAX_XPOS	80
+#define MAX_YPOS	max_ypos
+#define MAX_XPOS	max_xpos
 
+static int max_ypos = 25, max_xpos = 80;
 static int current_ypos = 1, current_xpos = 0; 
 
 static void early_vga_write(struct console *con, const char *str, unsigned n)
@@ -196,7 +200,10 @@ int __init setup_early_printk(char *opt)
 	} else if (!strncmp(buf, "ttyS", 4)) { 
 		early_serial_init(buf);
 		early_console = &early_serial_console;		
-	} else if (!strncmp(buf, "vga", 3)) {
+	} else if (!strncmp(buf, "vga", 3)
+	           && SCREEN_INFO.orig_video_isVGA == 1) {
+		max_xpos = SCREEN_INFO.orig_video_cols;
+		max_ypos = SCREEN_INFO.orig_video_lines;
 		early_console = &early_vga_console; 
 	}
 	early_console_initialized = 1;

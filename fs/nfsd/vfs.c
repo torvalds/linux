@@ -46,10 +46,9 @@
 #include <linux/nfsd/nfsfh.h>
 #include <linux/quotaops.h>
 #include <linux/dnotify.h>
-#ifdef CONFIG_NFSD_V4
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
-#include <linux/xattr_acl.h>
+#ifdef CONFIG_NFSD_V4
 #include <linux/xattr.h>
 #include <linux/nfs4.h>
 #include <linux/nfs4_acl.h>
@@ -424,13 +423,13 @@ nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_nfserr;
 
 	if (pacl) {
-		error = set_nfsv4_acl_one(dentry, pacl, XATTR_NAME_ACL_ACCESS);
+		error = set_nfsv4_acl_one(dentry, pacl, POSIX_ACL_XATTR_ACCESS);
 		if (error < 0)
 			goto out_nfserr;
 	}
 
 	if (dpacl) {
-		error = set_nfsv4_acl_one(dentry, dpacl, XATTR_NAME_ACL_DEFAULT);
+		error = set_nfsv4_acl_one(dentry, dpacl, POSIX_ACL_XATTR_DEFAULT);
 		if (error < 0)
 			goto out_nfserr;
 	}
@@ -497,7 +496,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry, struct nfs4_ac
 	struct posix_acl *pacl = NULL, *dpacl = NULL;
 	unsigned int flags = 0;
 
-	pacl = _get_posix_acl(dentry, XATTR_NAME_ACL_ACCESS);
+	pacl = _get_posix_acl(dentry, POSIX_ACL_XATTR_ACCESS);
 	if (IS_ERR(pacl) && PTR_ERR(pacl) == -ENODATA)
 		pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
 	if (IS_ERR(pacl)) {
@@ -507,7 +506,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry, struct nfs4_ac
 	}
 
 	if (S_ISDIR(inode->i_mode)) {
-		dpacl = _get_posix_acl(dentry, XATTR_NAME_ACL_DEFAULT);
+		dpacl = _get_posix_acl(dentry, POSIX_ACL_XATTR_DEFAULT);
 		if (IS_ERR(dpacl) && PTR_ERR(dpacl) == -ENODATA)
 			dpacl = NULL;
 		else if (IS_ERR(dpacl)) {
@@ -1857,3 +1856,107 @@ nfsd_racache_init(int cache_size)
 	nfsdstats.ra_size = cache_size;
 	return 0;
 }
+
+#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
+struct posix_acl *
+nfsd_get_posix_acl(struct svc_fh *fhp, int type)
+{
+	struct inode *inode = fhp->fh_dentry->d_inode;
+	char *name;
+	void *value = NULL;
+	ssize_t size;
+	struct posix_acl *acl;
+
+	if (!IS_POSIXACL(inode) || !inode->i_op || !inode->i_op->getxattr)
+		return ERR_PTR(-EOPNOTSUPP);
+	switch(type) {
+		case ACL_TYPE_ACCESS:
+			name = POSIX_ACL_XATTR_ACCESS;
+			break;
+		case ACL_TYPE_DEFAULT:
+			name = POSIX_ACL_XATTR_DEFAULT;
+			break;
+		default:
+			return ERR_PTR(-EOPNOTSUPP);
+	}
+
+	size = inode->i_op->getxattr(fhp->fh_dentry, name, NULL, 0);
+
+	if (size < 0) {
+		acl = ERR_PTR(size);
+		goto getout;
+	} else if (size > 0) {
+		value = kmalloc(size, GFP_KERNEL);
+		if (!value) {
+			acl = ERR_PTR(-ENOMEM);
+			goto getout;
+		}
+		size = inode->i_op->getxattr(fhp->fh_dentry, name, value, size);
+		if (size < 0) {
+			acl = ERR_PTR(size);
+			goto getout;
+		}
+	}
+	acl = posix_acl_from_xattr(value, size);
+
+getout:
+	kfree(value);
+	return acl;
+}
+
+int
+nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
+{
+	struct inode *inode = fhp->fh_dentry->d_inode;
+	char *name;
+	void *value = NULL;
+	size_t size;
+	int error;
+
+	if (!IS_POSIXACL(inode) || !inode->i_op ||
+	    !inode->i_op->setxattr || !inode->i_op->removexattr)
+		return -EOPNOTSUPP;
+	switch(type) {
+		case ACL_TYPE_ACCESS:
+			name = POSIX_ACL_XATTR_ACCESS;
+			break;
+		case ACL_TYPE_DEFAULT:
+			name = POSIX_ACL_XATTR_DEFAULT;
+			break;
+		default:
+			return -EOPNOTSUPP;
+	}
+
+	if (acl && acl->a_count) {
+		size = posix_acl_xattr_size(acl->a_count);
+		value = kmalloc(size, GFP_KERNEL);
+		if (!value)
+			return -ENOMEM;
+		size = posix_acl_to_xattr(acl, value, size);
+		if (size < 0) {
+			error = size;
+			goto getout;
+		}
+	} else
+		size = 0;
+
+	if (!fhp->fh_locked)
+		fh_lock(fhp);  /* unlocking is done automatically */
+	if (size)
+		error = inode->i_op->setxattr(fhp->fh_dentry, name,
+					      value, size, 0);
+	else {
+		if (!S_ISDIR(inode->i_mode) && type == ACL_TYPE_DEFAULT)
+			error = 0;
+		else {
+			error = inode->i_op->removexattr(fhp->fh_dentry, name);
+			if (error == -ENODATA)
+				error = 0;
+		}
+	}
+
+getout:
+	kfree(value);
+	return error;
+}
+#endif  /* defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL) */

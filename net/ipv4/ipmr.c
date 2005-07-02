@@ -297,6 +297,7 @@ static int vif_delete(int vifi)
 static void ipmr_destroy_unres(struct mfc_cache *c)
 {
 	struct sk_buff *skb;
+	struct nlmsgerr *e;
 
 	atomic_dec(&cache_resolve_queue_len);
 
@@ -306,7 +307,9 @@ static void ipmr_destroy_unres(struct mfc_cache *c)
 			nlh->nlmsg_type = NLMSG_ERROR;
 			nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
 			skb_trim(skb, nlh->nlmsg_len);
-			((struct nlmsgerr*)NLMSG_DATA(nlh))->error = -ETIMEDOUT;
+			e = NLMSG_DATA(nlh);
+			e->error = -ETIMEDOUT;
+			memset(&e->msg, 0, sizeof(e->msg));
 			netlink_unicast(rtnl, skb, NETLINK_CB(skb).dst_pid, MSG_DONTWAIT);
 		} else
 			kfree_skb(skb);
@@ -499,6 +502,7 @@ static struct mfc_cache *ipmr_cache_alloc_unres(void)
 static void ipmr_cache_resolve(struct mfc_cache *uc, struct mfc_cache *c)
 {
 	struct sk_buff *skb;
+	struct nlmsgerr *e;
 
 	/*
 	 *	Play the pending entries through our router
@@ -515,7 +519,9 @@ static void ipmr_cache_resolve(struct mfc_cache *uc, struct mfc_cache *c)
 				nlh->nlmsg_type = NLMSG_ERROR;
 				nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
 				skb_trim(skb, nlh->nlmsg_len);
-				((struct nlmsgerr*)NLMSG_DATA(nlh))->error = -EMSGSIZE;
+				e = NLMSG_DATA(nlh);
+				e->error = -EMSGSIZE;
+				memset(&e->msg, 0, sizeof(e->msg));
 			}
 			err = netlink_unicast(rtnl, skb, NETLINK_CB(skb).dst_pid, MSG_DONTWAIT);
 		} else
@@ -1350,6 +1356,7 @@ int ip_mr_input(struct sk_buff *skb)
 			     */
 			    read_lock(&mrt_lock);
 			    if (mroute_socket) {
+				    nf_reset(skb);
 				    raw_rcv(mroute_socket, skb);
 				    read_unlock(&mrt_lock);
 				    return 0;

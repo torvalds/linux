@@ -428,8 +428,8 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 	return (void __user *)((rsp - frame_size) & -8UL);
 }
 
-void ia32_setup_frame(int sig, struct k_sigaction *ka,
-			compat_sigset_t *set, struct pt_regs * regs)
+int ia32_setup_frame(int sig, struct k_sigaction *ka,
+		     compat_sigset_t *set, struct pt_regs * regs)
 {
 	struct sigframe __user *frame;
 	int err = 0;
@@ -514,14 +514,15 @@ void ia32_setup_frame(int sig, struct k_sigaction *ka,
 		current->comm, current->pid, frame, regs->rip, frame->pretcode);
 #endif
 
-	return;
+	return 1;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
+	return 0;
 }
 
-void ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
-			   compat_sigset_t *set, struct pt_regs * regs)
+int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+			compat_sigset_t *set, struct pt_regs * regs)
 {
 	struct rt_sigframe __user *frame;
 	int err = 0;
@@ -613,9 +614,9 @@ void ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		current->comm, current->pid, frame, regs->rip, frame->pretcode);
 #endif
 
-	return;
+	return 1;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
+	return 0;
 }
-

@@ -107,10 +107,6 @@ static int ip_dev_loopback_xmit(struct sk_buff *newskb)
 	newskb->pkt_type = PACKET_LOOPBACK;
 	newskb->ip_summed = CHECKSUM_UNNECESSARY;
 	BUG_TRAP(newskb->dst);
-
-#ifdef CONFIG_NETFILTER_DEBUG
-	nf_debug_ip_loopback_xmit(newskb);
-#endif
 	nf_reset(newskb);
 	netif_rx(newskb);
 	return 0;
@@ -192,11 +188,13 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		skb = skb2;
 	}
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	nf_debug_ip_finish_output2(skb);
-#endif /*CONFIG_NETFILTER_DEBUG*/
-
-	nf_reset(skb);
+#ifdef CONFIG_BRIDGE_NETFILTER
+	/* bridge-netfilter defers calling some IP hooks to the bridge layer
+	 * and still needs the conntrack reference.
+	 */
+	if (skb->nf_bridge == NULL)
+#endif
+		nf_reset(skb);
 
 	if (hh) {
 		int hh_alen;
@@ -414,9 +412,6 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	nf_bridge_put(to->nf_bridge);
 	to->nf_bridge = from->nf_bridge;
 	nf_bridge_get(to->nf_bridge);
-#endif
-#ifdef CONFIG_NETFILTER_DEBUG
-	to->nf_debug = from->nf_debug;
 #endif
 #endif
 }

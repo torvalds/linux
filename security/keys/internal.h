@@ -1,6 +1,6 @@
 /* internal.h: authentication token and access key management internal defs
  *
- * Copyright (C) 2003 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2003-5 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -14,6 +14,16 @@
 
 #include <linux/key.h>
 #include <linux/key-ui.h>
+
+#if 0
+#define kenter(FMT, a...)	printk("==> %s("FMT")\n",__FUNCTION__ , ## a)
+#define kleave(FMT, a...)	printk("<== %s()"FMT"\n",__FUNCTION__ , ## a)
+#define kdebug(FMT, a...)	printk(FMT"\n" , ## a)
+#else
+#define kenter(FMT, a...)	do {} while(0)
+#define kleave(FMT, a...)	do {} while(0)
+#define kdebug(FMT, a...)	do {} while(0)
+#endif
 
 extern struct key_type key_type_dead;
 extern struct key_type key_type_user;
@@ -66,20 +76,46 @@ extern struct key *__keyring_search_one(struct key *keyring,
 					const char *description,
 					key_perm_t perm);
 
+extern struct key *keyring_search_instkey(struct key *keyring,
+					  key_serial_t target_id);
+
 typedef int (*key_match_func_t)(const struct key *, const void *);
 
 extern struct key *keyring_search_aux(struct key *keyring,
+				      struct task_struct *tsk,
 				      struct key_type *type,
 				      const void *description,
 				      key_match_func_t match);
 
-extern struct key *search_process_keyrings_aux(struct key_type *type,
-					       const void *description,
-					       key_match_func_t match);
+extern struct key *search_process_keyrings(struct key_type *type,
+					   const void *description,
+					   key_match_func_t match,
+					   struct task_struct *tsk);
 
 extern struct key *find_keyring_by_name(const char *name, key_serial_t bound);
 
 extern int install_thread_keyring(struct task_struct *tsk);
+extern int install_process_keyring(struct task_struct *tsk);
+
+extern struct key *request_key_and_link(struct key_type *type,
+					const char *description,
+					const char *callout_info,
+					struct key *dest_keyring);
+
+/*
+ * request_key authorisation
+ */
+struct request_key_auth {
+	struct key		*target_key;
+	struct task_struct	*context;
+	pid_t			pid;
+};
+
+extern struct key_type key_type_request_key_auth;
+extern struct key *request_key_auth_new(struct key *target,
+					struct key **_rkakey);
+
+extern struct key *key_get_instantiation_authkey(key_serial_t target_id);
 
 /*
  * keyctl functions
@@ -100,6 +136,7 @@ extern long keyctl_setperm_key(key_serial_t, key_perm_t);
 extern long keyctl_instantiate_key(key_serial_t, const void __user *,
 				   size_t, key_serial_t);
 extern long keyctl_negate_key(key_serial_t, unsigned, key_serial_t);
+extern long keyctl_set_reqkey_keyring(int);
 
 
 /*

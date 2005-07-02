@@ -84,8 +84,8 @@ shark_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction shark_timer_irq = {
 	.name		= "Shark Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= shark_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= shark_timer_interrupt,
 };
 
 /*

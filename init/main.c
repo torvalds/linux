@@ -383,6 +383,13 @@ static void noinline rest_init(void)
 	numa_default_policy();
 	unlock_kernel();
 	preempt_enable_no_resched();
+
+	/*
+	 * The boot idle thread must execute schedule()
+	 * at least one to get things moving:
+	 */
+	schedule();
+
 	cpu_idle();
 } 
 
@@ -490,6 +497,7 @@ asmlinkage void __init start_kernel(void)
 	vfs_caches_init_early();
 	mem_init();
 	kmem_cache_init();
+	setup_per_cpu_pageset();
 	numa_policy_init();
 	if (late_time_init)
 		late_time_init();

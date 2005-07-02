@@ -37,7 +37,7 @@ sysdev_show(struct kobject * kobj, struct attribute * attr, char * buffer)
 
 	if (sysdev_attr->show)
 		return sysdev_attr->show(sysdev, buffer);
-	return 0;
+	return -EIO;
 }
 
 
@@ -50,7 +50,7 @@ sysdev_store(struct kobject * kobj, struct attribute * attr,
 
 	if (sysdev_attr->store)
 		return sysdev_attr->store(sysdev, buffer, count);
-	return 0;
+	return -EIO;
 }
 
 static struct sysfs_ops sysfs_ops = {

@@ -290,7 +290,7 @@ static void rpc_make_runnable(struct rpc_task *task)
 			return;
 		}
 	} else
-		wake_up(&task->u.tk_wait.waitq);
+		wake_up_bit(&task->tk_runstate, RPC_TASK_QUEUED);
 }
 
 /*
@@ -555,6 +555,38 @@ __rpc_atrun(struct rpc_task *task)
 }
 
 /*
+ * Helper that calls task->tk_exit if it exists and then returns
+ * true if we should exit __rpc_execute.
+ */
+static inline int __rpc_do_exit(struct rpc_task *task)
+{
+	if (task->tk_exit != NULL) {
+		lock_kernel();
+		task->tk_exit(task);
+		unlock_kernel();
+		/* If tk_action is non-null, we should restart the call */
+		if (task->tk_action != NULL) {
+			if (!RPC_ASSASSINATED(task)) {
+				/* Release RPC slot and buffer memory */
+				xprt_release(task);
+				rpc_free(task);
+				return 0;
+			}
+			printk(KERN_ERR "RPC: dead task tried to walk away.\n");
+		}
+	}
+	return 1;
+}
+
+static int rpc_wait_bit_interruptible(void *word)
+{
+	if (signal_pending(current))
+		return -ERESTARTSYS;
+	schedule();
+	return 0;
+}
+
+/*
  * This is the RPC `scheduler' (or rather, the finite state machine).
  */
 static int __rpc_execute(struct rpc_task *task)
@@ -566,8 +598,7 @@ static int __rpc_execute(struct rpc_task *task)
 
 	BUG_ON(RPC_IS_QUEUED(task));
 
- restarted:
-	while (1) {
+	for (;;) {
 		/*
 		 * Garbage collection of pending timers...
 		 */
@@ -600,11 +631,12 @@ static int __rpc_execute(struct rpc_task *task)
 		 * by someone else.
 		 */
 		if (!RPC_IS_QUEUED(task)) {
-			if (!task->tk_action)
+			if (task->tk_action != NULL) {
+				lock_kernel();
+				task->tk_action(task);
+				unlock_kernel();
+			} else if (__rpc_do_exit(task))
 				break;
-			lock_kernel();
-			task->tk_action(task);
-			unlock_kernel();
 		}
 
 		/*
@@ -624,42 +656,24 @@ static int __rpc_execute(struct rpc_task *task)
 
 		/* sync task: sleep here */
 		dprintk("RPC: %4d sync task going to sleep\n", task->tk_pid);
-		if (RPC_TASK_UNINTERRUPTIBLE(task)) {
-			__wait_event(task->u.tk_wait.waitq, !RPC_IS_QUEUED(task));
-		} else {
-			__wait_event_interruptible(task->u.tk_wait.waitq, !RPC_IS_QUEUED(task), status);
+		/* Note: Caller should be using rpc_clnt_sigmask() */
+		status = out_of_line_wait_on_bit(&task->tk_runstate,
+				RPC_TASK_QUEUED, rpc_wait_bit_interruptible,
+				TASK_INTERRUPTIBLE);
+		if (status == -ERESTARTSYS) {
 			/*
 			 * When a sync task receives a signal, it exits with
 			 * -ERESTARTSYS. In order to catch any callbacks that
 			 * clean up after sleeping on some queue, we don't
 			 * break the loop here, but go around once more.
 			 */
-			if (status == -ERESTARTSYS) {
-				dprintk("RPC: %4d got signal\n", task->tk_pid);
-				task->tk_flags |= RPC_TASK_KILLED;
-				rpc_exit(task, -ERESTARTSYS);
-				rpc_wake_up_task(task);
-			}
+			dprintk("RPC: %4d got signal\n", task->tk_pid);
+			task->tk_flags |= RPC_TASK_KILLED;
+			rpc_exit(task, -ERESTARTSYS);
+			rpc_wake_up_task(task);
 		}
 		rpc_set_running(task);
 		dprintk("RPC: %4d sync task resuming\n", task->tk_pid);
-	}
-
-	if (task->tk_exit) {
-		lock_kernel();
-		task->tk_exit(task);
-		unlock_kernel();
-		/* If tk_action is non-null, the user wants us to restart */
-		if (task->tk_action) {
-			if (!RPC_ASSASSINATED(task)) {
-				/* Release RPC slot and buffer memory */
-				if (task->tk_rqstp)
-					xprt_release(task);
-				rpc_free(task);
-				goto restarted;
-			}
-			printk(KERN_ERR "RPC: dead task tries to walk away.\n");
-		}
 	}
 
 	dprintk("RPC: %4d exit() = %d\n", task->tk_pid, task->tk_status);
@@ -759,8 +773,6 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, rpc_action call
 
 	/* Initialize workqueue for async tasks */
 	task->tk_workqueue = rpciod_workqueue;
-	if (!RPC_IS_ASYNC(task))
-		init_waitqueue_head(&task->u.tk_wait.waitq);
 
 	if (clnt) {
 		atomic_inc(&clnt->cl_users);

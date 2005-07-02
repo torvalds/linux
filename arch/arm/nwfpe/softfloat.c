@@ -28,6 +28,8 @@ this code that are retained.
 ===============================================================================
 */
 
+#include <asm/div64.h>
+
 #include "fpa11.h"
 //#include "milieu.h"
 //#include "softfloat.h"
@@ -1331,7 +1333,11 @@ float32 float32_div( float32 a, float32 b )
         aSig >>= 1;
         ++zExp;
     }
-    zSig = ( ( (bits64) aSig )<<32 ) / bSig;
+    {
+        bits64 tmp = ( (bits64) aSig )<<32;
+        do_div( tmp, bSig );
+        zSig = tmp;
+    }
     if ( ( zSig & 0x3F ) == 0 ) {
         zSig |= ( ( (bits64) bSig ) * zSig != ( (bits64) aSig )<<32 );
     }
@@ -1397,7 +1403,9 @@ float32 float32_rem( float32 a, float32 b )
         q = ( bSig <= aSig );
         if ( q ) aSig -= bSig;
         if ( 0 < expDiff ) {
-            q = ( ( (bits64) aSig )<<32 ) / bSig;
+            bits64 tmp = ( (bits64) aSig )<<32;
+            do_div( tmp, bSig );
+            q = tmp;
             q >>= 32 - expDiff;
             bSig >>= 2;
             aSig = ( ( aSig>>1 )<<( expDiff - 1 ) ) - bSig * q;

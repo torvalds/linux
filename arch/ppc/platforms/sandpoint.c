@@ -81,6 +81,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>	/* for linux/serial_core.h */
 #include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -99,6 +100,7 @@
 #include <asm/mpc10x.h>
 #include <asm/pci-bridge.h>
 #include <asm/kgdb.h>
+#include <asm/ppc_sys.h>
 
 #include "sandpoint.h"
 
@@ -304,6 +306,25 @@ sandpoint_setup_arch(void)
 
 	/* Lookup PCI host bridges */
 	sandpoint_find_bridges();
+
+	if (strncmp (cur_ppc_sys_spec->ppc_sys_name, "8245", 4) == 0)
+	{
+		bd_t *bp = (bd_t *)__res;
+		struct plat_serial8250_port *pdata;
+		pdata = (struct plat_serial8250_port *) ppc_sys_get_pdata(MPC10X_DUART);
+
+		if (pdata)
+		{
+			pdata[0].uartclk = bp->bi_busfreq;
+			pdata[0].membase = ioremap(pdata[0].mapbase, 0x100);
+
+			/* this disables the 2nd serial port on the DUART
+			 * since the sandpoint does not have it connected */
+			pdata[1].uartclk = 0;
+			pdata[1].irq = 0;
+			pdata[1].mapbase = 0;
+		}
+	}
 
 	printk(KERN_INFO "Motorola SPS Sandpoint Test Platform\n");
 	printk(KERN_INFO "Port by MontaVista Software, Inc. (source@mvista.com)\n");

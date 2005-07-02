@@ -295,6 +295,12 @@ static int ixj_event(event_t event, int priority, event_callback_args_t * args)
 	return 0;
 }
 
+static struct pcmcia_device_id ixj_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x0257, 0x0600),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, ixj_ids);
+
 static struct pcmcia_driver ixj_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -302,6 +308,7 @@ static struct pcmcia_driver ixj_driver = {
 	},
 	.attach		= ixj_attach,
 	.detach		= ixj_detach,
+	.id_table	= ixj_ids,
 };
 
 static int __init ixj_pcmcia_init(void)

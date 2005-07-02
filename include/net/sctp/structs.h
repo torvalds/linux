@@ -161,6 +161,9 @@ extern struct sctp_globals {
 	 */
 	int sndbuf_policy;
 
+	/* Delayed SACK timeout  200ms default*/
+	int sack_timeout;
+
 	/* HB.interval		    - 30 seconds  */
 	int hb_interval;
 
@@ -217,6 +220,7 @@ extern struct sctp_globals {
 #define sctp_sndbuf_policy	 	(sctp_globals.sndbuf_policy)
 #define sctp_max_retrans_path		(sctp_globals.max_retrans_path)
 #define sctp_max_retrans_init		(sctp_globals.max_retrans_init)
+#define sctp_sack_timeout		(sctp_globals.sack_timeout)
 #define sctp_hb_interval		(sctp_globals.hb_interval)
 #define sctp_max_instreams		(sctp_globals.max_instreams)
 #define sctp_max_outstreams		(sctp_globals.max_outstreams)
@@ -867,10 +871,13 @@ struct sctp_transport {
 	 */
 	unsigned long last_time_ecne_reduced;
 
-	/* active      : The current active state of this destination,
-	 *	       :  i.e. DOWN, UP, etc.
+	/* The number of times INIT has been sent on this transport. */
+	int init_sent_count;
+
+	/* state       : The current state of this destination,
+	 *             : i.e. SCTP_ACTIVE, SCTP_INACTIVE, SCTP_UNKOWN.
 	 */
-	int active;
+	int state;
 
 	/* hb_allowed  : The current heartbeat state of this destination,
 	 *	       :  i.e. ALLOW-HB, NO-HEARTBEAT, etc.
@@ -1222,9 +1229,6 @@ struct sctp_endpoint {
 
 	/* sendbuf acct. policy.	*/
 	__u32 sndbuf_policy;
-
-	/* Name for debugging output... */
-	char *debug_name;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1314,10 +1318,22 @@ struct sctp_association {
 		 *	       : association. Normally this information is
 		 *	       : hashed or keyed for quick lookup and access
 		 *	       : of the TCB.
+		 *	       : The list is also initialized with the list
+		 *	       : of addresses passed with the sctp_connectx()
+		 *	       : call.
 		 *
 		 * It is a list of SCTP_transport's.
 		 */
 		struct list_head transport_addr_list;
+
+		/* transport_count
+		 *
+		 * Peer        : A count of the number of peer addresses
+		 * Transport   : in the Peer Transport Address List.
+		 * Address     :
+		 * Count       :
+		 */
+		__u16 transport_count;
 
 		/* port
 		 *   The transport layer port number.
@@ -1486,6 +1502,9 @@ struct sctp_association {
 	/* Transport to which SHUTDOWN chunk was last sent.  */
 	struct sctp_transport *shutdown_last_sent_to;
 
+	/* Transport to which INIT chunk was last sent.  */
+	struct sctp_transport *init_last_sent_to;
+
 	/* Next TSN    : The next TSN number to be assigned to a new
 	 *	       : DATA chunk.  This is sent in the INIT or INIT
 	 *	       : ACK chunk to the peer and incremented each
@@ -1549,8 +1568,11 @@ struct sctp_association {
 	/* The message size at which SCTP fragmentation will occur. */
 	__u32 frag_point;
 
-	/* Currently only one counter is used to count INIT errors. */
-	int counters[SCTP_NUMBER_COUNTERS];
+	/* Counter used to count INIT errors. */
+	int init_err_counter;
+
+	/* Count the number of INIT cycles (for doubling timeout). */
+	int init_cycle;
 
 	/* Default send parameters. */
 	__u16 default_stream;
@@ -1708,6 +1730,8 @@ void sctp_association_free(struct sctp_association *);
 void sctp_association_put(struct sctp_association *);
 void sctp_association_hold(struct sctp_association *);
 
+struct sctp_transport *sctp_assoc_choose_init_transport(
+	struct sctp_association *);
 struct sctp_transport *sctp_assoc_choose_shutdown_transport(
 	struct sctp_association *);
 void sctp_assoc_update_retran_path(struct sctp_association *);
@@ -1717,9 +1741,12 @@ int sctp_assoc_lookup_laddr(struct sctp_association *asoc,
 			    const union sctp_addr *laddr);
 struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *,
 				     const union sctp_addr *address,
-				     const int gfp);
+				     const int gfp,
+				     const int peer_state);
 void sctp_assoc_del_peer(struct sctp_association *asoc,
 			 const union sctp_addr *addr);
+void sctp_assoc_rm_peer(struct sctp_association *asoc,
+			 struct sctp_transport *peer);
 void sctp_assoc_control_transport(struct sctp_association *,
 				  struct sctp_transport *,
 				  sctp_transport_cmd_t, sctp_sn_error_t);

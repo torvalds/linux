@@ -390,7 +390,7 @@ setstack_l3dc(struct PStack *st, struct Channel *chanp)
 	}
 }
 
-void
+static void
 isdnl3_trans(struct PStack *st, int pr, void *arg) {
 	st->l3.l3l2(st, pr, arg);
 }

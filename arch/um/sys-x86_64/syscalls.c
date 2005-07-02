@@ -174,26 +174,11 @@ long sys_clone(unsigned long clone_flags, unsigned long newsp,
 {
 	long ret;
 
-	/* XXX: normal arch do here this pass, and also pass the regs to
-	 * do_fork, instead of NULL. Currently the arch-independent code
-	 * ignores these values, while the UML code (actually it's
-	 * copy_thread) does the right thing. But this should change,
-	 probably. */
-	/*if (!newsp)
-		newsp = UPT_SP(current->thread.regs);*/
+	if (!newsp)
+		newsp = UPT_SP(&current->thread.regs.regs);
 	current->thread.forking = 1;
-	ret = do_fork(clone_flags, newsp, NULL, 0, parent_tid, child_tid);
+	ret = do_fork(clone_flags, newsp, &current->thread.regs, 0, parent_tid,
+		      child_tid);
 	current->thread.forking = 0;
 	return(ret);
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

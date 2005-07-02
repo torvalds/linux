@@ -298,9 +298,11 @@ static int uinput_alloc_device(struct file *file, const char __user *buffer, siz
 	/* check if absmin/absmax/absfuzz/absflat are filled as
 	 * told in Documentation/input/input-programming.txt */
 	if (test_bit(EV_ABS, dev->evbit)) {
-		retval = uinput_validate_absbits(dev);
-		if (retval < 0)
+		int err = uinput_validate_absbits(dev);
+		if (err < 0) {
+			retval = err;
 			kfree(dev->name);
+		}
 	}
 
 exit:

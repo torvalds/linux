@@ -28,7 +28,7 @@ struct _cache_table
 };
 
 /* all the cache descriptor types we care about (no TLB or trace cache entries) */
-static struct _cache_table cache_table[] __initdata =
+static struct _cache_table cache_table[] __devinitdata =
 {
 	{ 0x06, LVL_1_INST, 8 },	/* 4-way set assoc, 32 byte line size */
 	{ 0x08, LVL_1_INST, 16 },	/* 4-way set assoc, 32 byte line size */
@@ -160,7 +160,7 @@ static int __init find_num_cache_leaves(void)
 	return retval;
 }
 
-unsigned int __init init_intel_cacheinfo(struct cpuinfo_x86 *c)
+unsigned int __devinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 {
 	unsigned int trace = 0, l1i = 0, l1d = 0, l2 = 0, l3 = 0; /* Cache sizes */
 	unsigned int new_l1d = 0, new_l1i = 0; /* Cache sizes from cpuid(4) */

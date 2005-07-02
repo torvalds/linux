@@ -21,7 +21,8 @@ extern const char *flexcop_revision_names[];
 typedef enum {
 	FC_UNK = 0,
 	FC_AIR_DVB,
-	FC_AIR_ATSC,
+	FC_AIR_ATSC1,
+	FC_AIR_ATSC2,
 	FC_SKY,
 	FC_SKY_OLD,
 	FC_CABLE,

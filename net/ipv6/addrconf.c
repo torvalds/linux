@@ -57,6 +57,7 @@
 #endif
 #include <linux/delay.h>
 #include <linux/notifier.h>
+#include <linux/string.h>
 
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -695,7 +696,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 
 		if (rt && ((rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0)) {
 			if (onlink == 0) {
-				ip6_del_rt(rt, NULL, NULL);
+				ip6_del_rt(rt, NULL, NULL, NULL);
 				rt = NULL;
 			} else if (!(rt->rt6i_flags & RTF_EXPIRES)) {
 				rt->rt6i_expires = expires;
@@ -1340,7 +1341,7 @@ addrconf_prefix_route(struct in6_addr *pfx, int plen, struct net_device *dev,
 	if (dev->type == ARPHRD_SIT && (dev->flags&IFF_POINTOPOINT))
 		rtmsg.rtmsg_flags |= RTF_NONEXTHOP;
 
-	ip6_route_add(&rtmsg, NULL, NULL);
+	ip6_route_add(&rtmsg, NULL, NULL, NULL);
 }
 
 /* Create "default" multicast route to the interface */
@@ -1357,7 +1358,7 @@ static void addrconf_add_mroute(struct net_device *dev)
 	rtmsg.rtmsg_ifindex = dev->ifindex;
 	rtmsg.rtmsg_flags = RTF_UP;
 	rtmsg.rtmsg_type = RTMSG_NEWROUTE;
-	ip6_route_add(&rtmsg, NULL, NULL);
+	ip6_route_add(&rtmsg, NULL, NULL, NULL);
 }
 
 static void sit_route_add(struct net_device *dev)
@@ -1374,7 +1375,7 @@ static void sit_route_add(struct net_device *dev)
 	rtmsg.rtmsg_flags	= RTF_UP|RTF_NONEXTHOP;
 	rtmsg.rtmsg_ifindex	= dev->ifindex;
 
-	ip6_route_add(&rtmsg, NULL, NULL);
+	ip6_route_add(&rtmsg, NULL, NULL, NULL);
 }
 
 static void addrconf_add_lroute(struct net_device *dev)
@@ -1467,7 +1468,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 		if (rt && ((rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0)) {
 			if (rt->rt6i_flags&RTF_EXPIRES) {
 				if (valid_lft == 0) {
-					ip6_del_rt(rt, NULL, NULL);
+					ip6_del_rt(rt, NULL, NULL, NULL);
 					rt = NULL;
 				} else {
 					rt->rt6i_expires = rt_expires;
@@ -2776,7 +2777,7 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 		read_lock_bh(&idev->lock);
 		switch (type) {
 		case UNICAST_ADDR:
-			/* unicast address */
+			/* unicast address incl. temp addr */
 			for (ifa = idev->addr_list; ifa;
 			     ifa = ifa->if_next, ip_idx++) {
 				if (ip_idx < s_ip_idx)
@@ -2787,19 +2788,6 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 				    NLM_F_MULTI)) <= 0)
 					goto done;
 			}
-			/* temp addr */
-#ifdef CONFIG_IPV6_PRIVACY
-			for (ifa = idev->tempaddr_list; ifa; 
-			     ifa = ifa->tmp_next, ip_idx++) {
-				if (ip_idx < s_ip_idx)
-					continue;
-				if ((err = inet6_fill_ifaddr(skb, ifa, 
-				    NETLINK_CB(cb->skb).pid, 
-				    cb->nlh->nlmsg_seq, RTM_NEWADDR,
-				    NLM_F_MULTI)) <= 0) 
-					goto done;
-			}
-#endif
 			break;
 		case MULTICAST_ADDR:
 			/* multicast address */
@@ -2922,6 +2910,7 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*r), flags);
 	r = NLMSG_DATA(nlh);
 	r->ifi_family = AF_INET6;
+	r->__ifi_pad = 0;
 	r->ifi_type = dev->type;
 	r->ifi_index = dev->ifindex;
 	r->ifi_flags = dev_get_flags(dev);
@@ -3029,9 +3018,12 @@ static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*pmsg), flags);
 	pmsg = NLMSG_DATA(nlh);
 	pmsg->prefix_family = AF_INET6;
+	pmsg->prefix_pad1 = 0;
+	pmsg->prefix_pad2 = 0;
 	pmsg->prefix_ifindex = idev->dev->ifindex;
 	pmsg->prefix_len = pinfo->prefix_len;
 	pmsg->prefix_type = pinfo->type;
+	pmsg->prefix_pad3 = 0;
 	
 	pmsg->prefix_flags = 0;
 	if (pinfo->onlink)
@@ -3094,7 +3086,7 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 	switch (event) {
 	case RTM_NEWADDR:
 		dst_hold(&ifp->rt->u.dst);
-		if (ip6_ins_rt(ifp->rt, NULL, NULL))
+		if (ip6_ins_rt(ifp->rt, NULL, NULL, NULL))
 			dst_release(&ifp->rt->u.dst);
 		if (ifp->idev->cnf.forwarding)
 			addrconf_join_anycast(ifp);
@@ -3104,7 +3096,7 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 			addrconf_leave_anycast(ifp);
 		addrconf_leave_solict(ifp->idev, &ifp->addr);
 		dst_hold(&ifp->rt->u.dst);
-		if (ip6_del_rt(ifp->rt, NULL, NULL))
+		if (ip6_del_rt(ifp->rt, NULL, NULL, NULL))
 			dst_free(&ifp->rt->u.dst);
 		else
 			dst_release(&ifp->rt->u.dst);
@@ -3437,7 +3429,7 @@ static void addrconf_sysctl_register(struct inet6_dev *idev, struct ipv6_devconf
 	 * by sysctl and we wouldn't want anyone to change it under our feet
 	 * (see SIOCSIFNAME).
 	 */	
-	dev_name = net_sysctl_strdup(dev_name);
+	dev_name = kstrdup(dev_name, GFP_KERNEL);
 	if (!dev_name)
 	    goto free;
 

@@ -24,10 +24,12 @@
 #include <linux/completion.h>
 #include <linux/vfs.h>
 #include <linux/moduleparam.h>
+#include <linux/posix_acl.h>
 #include <asm/uaccess.h>
 
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
+#include "jfs_inode.h"
 #include "jfs_metapage.h"
 #include "jfs_superblock.h"
 #include "jfs_dmap.h"
@@ -61,37 +63,6 @@ int jfsloglevel = JFS_LOGLEVEL_WARN;
 module_param(jfsloglevel, int, 0644);
 MODULE_PARM_DESC(jfsloglevel, "Specify JFS loglevel (0, 1 or 2)");
 #endif
-
-/*
- * External declarations
- */
-extern int jfs_mount(struct super_block *);
-extern int jfs_mount_rw(struct super_block *, int);
-extern int jfs_umount(struct super_block *);
-extern int jfs_umount_rw(struct super_block *);
-
-extern int jfsIOWait(void *);
-extern int jfs_lazycommit(void *);
-extern int jfs_sync(void *);
-
-extern void jfs_read_inode(struct inode *inode);
-extern void jfs_dirty_inode(struct inode *inode);
-extern void jfs_delete_inode(struct inode *inode);
-extern int jfs_write_inode(struct inode *inode, int wait);
-
-extern struct dentry *jfs_get_parent(struct dentry *dentry);
-extern int jfs_extendfs(struct super_block *, s64, int);
-
-extern struct dentry_operations jfs_ci_dentry_operations;
-
-#ifdef PROC_FS_JFS		/* see jfs_debug.h */
-extern void jfs_proc_init(void);
-extern void jfs_proc_clean(void);
-#endif
-
-extern wait_queue_head_t jfs_IO_thread_wait;
-extern wait_queue_head_t jfs_commit_thread_wait;
-extern wait_queue_head_t jfs_sync_thread_wait;
 
 static void jfs_handle_error(struct super_block *sb)
 {
@@ -592,11 +563,6 @@ static struct file_system_type jfs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
-
-extern int metapage_init(void);
-extern int txInit(void);
-extern void txExit(void);
-extern void metapage_exit(void);
 
 static void init_once(void *foo, kmem_cache_t * cachep, unsigned long flags)
 {

@@ -10,6 +10,7 @@
 #include "stv0299.h"
 #include "mt352.h"
 #include "nxt2002.h"
+#include "bcm3510.h"
 #include "stv0297.h"
 #include "mt312.h"
 
@@ -285,21 +286,25 @@ static int samsung_tdtc9251dh0_pll_set(struct dvb_frontend* fe, struct dvb_front
 }
 
 static struct mt352_config samsung_tdtc9251dh0_config = {
-
 	.demod_address = 0x0f,
-	.demod_init = samsung_tdtc9251dh0_demod_init,
-	.pll_set = samsung_tdtc9251dh0_pll_set,
+	.demod_init    = samsung_tdtc9251dh0_demod_init,
+	.pll_set       = samsung_tdtc9251dh0_pll_set,
 };
 
-static int nxt2002_request_firmware(struct dvb_frontend* fe, const struct firmware **fw, char* name)
+static int flexcop_fe_request_firmware(struct dvb_frontend* fe, const struct firmware **fw, char* name)
 {
 	struct flexcop_device *fc = fe->dvb->priv;
 	return request_firmware(fw, name, fc->dev);
 }
 
 static struct nxt2002_config samsung_tbmv_config = {
-	.demod_address = 0x0a,
-	.request_firmware = nxt2002_request_firmware,
+	.demod_address    = 0x0a,
+	.request_firmware = flexcop_fe_request_firmware,
+};
+
+static struct bcm3510_config air2pc_atsc_first_gen_config = {
+	.demod_address    = 0x0f,
+	.request_firmware = flexcop_fe_request_firmware,
 };
 
 static int skystar23_samsung_tbdu18132_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
@@ -354,10 +359,15 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 		fc->dev_type          = FC_AIR_DVB;
 		info("found the mt352 at i2c address: 0x%02x",samsung_tdtc9251dh0_config.demod_address);
 	} else
-	/* try the air atsc (nxt2002) */
+	/* try the air atsc 2nd generation (nxt2002) */
 	if ((fc->fe = nxt2002_attach(&samsung_tbmv_config, &fc->i2c_adap)) != NULL) {
-		fc->dev_type          = FC_AIR_ATSC;
+		fc->dev_type          = FC_AIR_ATSC2;
 		info("found the nxt2002 at i2c address: 0x%02x",samsung_tbmv_config.demod_address);
+	} else
+	/* try the air atsc 1nd generation (bcm3510)/panasonic ct10s */
+	if ((fc->fe = bcm3510_attach(&air2pc_atsc_first_gen_config, &fc->i2c_adap)) != NULL) {
+		fc->dev_type          = FC_AIR_ATSC1;
+		info("found the bcm3510 at i2c address: 0x%02x",air2pc_atsc_first_gen_config.demod_address);
 	} else
 	/* try the cable dvb (stv0297) */
 	if ((fc->fe = stv0297_attach(&alps_tdee4_stv0297_config, &fc->i2c_adap, 0xf8)) != NULL) {

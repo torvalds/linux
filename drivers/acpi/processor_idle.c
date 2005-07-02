@@ -171,7 +171,7 @@ static void acpi_processor_idle (void)
 	int			sleep_ticks = 0;
 	u32			t1, t2 = 0;
 
-	pr = processors[_smp_processor_id()];
+	pr = processors[raw_smp_processor_id()];
 	if (!pr)
 		return;
 

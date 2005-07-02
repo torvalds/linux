@@ -18,6 +18,7 @@
 #include <linux/sysrq.h>
 #include <linux/interrupt.h>
 #include <linux/nmi.h>
+#include <linux/kexec.h>
 
 int panic_timeout;
 int panic_on_oops;
@@ -63,6 +64,13 @@ NORET_TYPE void panic(const char * fmt, ...)
         unsigned long caller = (unsigned long) __builtin_return_address(0);
 #endif
 
+	/*
+	 * It's possible to come here directly from a panic-assertion and not
+	 * have preempt disabled. Some functions called from here want
+	 * preempt to be disabled. No point enabling it later though...
+	 */
+	preempt_disable();
+
 	bust_spinlocks(1);
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
@@ -70,7 +78,19 @@ NORET_TYPE void panic(const char * fmt, ...)
 	printk(KERN_EMERG "Kernel panic - not syncing: %s\n",buf);
 	bust_spinlocks(0);
 
+	/*
+	 * If we have crashed and we have a crash kernel loaded let it handle
+	 * everything else.
+	 * Do we want to call this before we try to display a message?
+	 */
+	crash_kexec(NULL);
+
 #ifdef CONFIG_SMP
+	/*
+	 * Note smp_send_stop is the usual smp shutdown function, which
+	 * unfortunately means it may not be hardened to work in a panic
+	 * situation.
+	 */
 	smp_send_stop();
 #endif
 
@@ -79,8 +99,7 @@ NORET_TYPE void panic(const char * fmt, ...)
 	if (!panic_blink)
 		panic_blink = no_blink;
 
-	if (panic_timeout > 0)
-	{
+	if (panic_timeout > 0) {
 		/*
 	 	 * Delay timeout seconds before rebooting the machine. 
 		 * We can't use the "normal" timers since we just panicked..

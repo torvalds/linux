@@ -300,18 +300,18 @@ static int gs_build_config_buf(u8 *buf, enum usb_device_speed speed,
 		u8 type, unsigned int index, int is_otg);
 
 static struct usb_request *gs_alloc_req(struct usb_ep *ep, unsigned int len,
-	int kmalloc_flags);
+	unsigned kmalloc_flags);
 static void gs_free_req(struct usb_ep *ep, struct usb_request *req);
 
 static struct gs_req_entry *gs_alloc_req_entry(struct usb_ep *ep, unsigned len,
-	int kmalloc_flags);
+	unsigned kmalloc_flags);
 static void gs_free_req_entry(struct usb_ep *ep, struct gs_req_entry *req);
 
-static int gs_alloc_ports(struct gs_dev *dev, int kmalloc_flags);
+static int gs_alloc_ports(struct gs_dev *dev, unsigned kmalloc_flags);
 static void gs_free_ports(struct gs_dev *dev);
 
 /* circular buffer */
-static struct gs_buf *gs_buf_alloc(unsigned int size, int kmalloc_flags);
+static struct gs_buf *gs_buf_alloc(unsigned int size, unsigned kmalloc_flags);
 static void gs_buf_free(struct gs_buf *gb);
 static void gs_buf_clear(struct gs_buf *gb);
 static unsigned int gs_buf_data_avail(struct gs_buf *gb);
@@ -1607,9 +1607,9 @@ static int gs_setup(struct usb_gadget *gadget,
 	int ret = -EOPNOTSUPP;
 	struct gs_dev *dev = get_gadget_data(gadget);
 	struct usb_request *req = dev->dev_ctrl_req;
-	u16 wIndex = ctrl->wIndex;
-	u16 wValue = ctrl->wValue;
-	u16 wLength = ctrl->wLength;
+	u16 wIndex = le16_to_cpu(ctrl->wIndex);
+	u16 wValue = le16_to_cpu(ctrl->wValue);
+	u16 wLength = le16_to_cpu(ctrl->wLength);
 
 	switch (ctrl->bRequestType & USB_TYPE_MASK) {
 	case USB_TYPE_STANDARD:
@@ -1651,9 +1651,9 @@ static int gs_setup_standard(struct usb_gadget *gadget,
 	int ret = -EOPNOTSUPP;
 	struct gs_dev *dev = get_gadget_data(gadget);
 	struct usb_request *req = dev->dev_ctrl_req;
-	u16 wIndex = ctrl->wIndex;
-	u16 wValue = ctrl->wValue;
-	u16 wLength = ctrl->wLength;
+	u16 wIndex = le16_to_cpu(ctrl->wIndex);
+	u16 wValue = le16_to_cpu(ctrl->wValue);
+	u16 wLength = le16_to_cpu(ctrl->wLength);
 
 	switch (ctrl->bRequest) {
 	case USB_REQ_GET_DESCRIPTOR:
@@ -1782,9 +1782,9 @@ static int gs_setup_class(struct usb_gadget *gadget,
 	struct gs_dev *dev = get_gadget_data(gadget);
 	struct gs_port *port = dev->dev_port[0];	/* ACM only has one port */
 	struct usb_request *req = dev->dev_ctrl_req;
-	u16 wIndex = ctrl->wIndex;
-	u16 wValue = ctrl->wValue;
-	u16 wLength = ctrl->wLength;
+	u16 wIndex = le16_to_cpu(ctrl->wIndex);
+	u16 wValue = le16_to_cpu(ctrl->wValue);
+	u16 wLength = le16_to_cpu(ctrl->wLength);
 
 	switch (ctrl->bRequest) {
 	case USB_CDC_REQ_SET_LINE_CODING:
@@ -2119,7 +2119,8 @@ static int gs_build_config_buf(u8 *buf, enum usb_device_speed speed,
  * Allocate a usb_request and its buffer.  Returns a pointer to the
  * usb_request or NULL if there is an error.
  */
-static struct usb_request *gs_alloc_req(struct usb_ep *ep, unsigned int len, int kmalloc_flags)
+static struct usb_request *
+gs_alloc_req(struct usb_ep *ep, unsigned int len, unsigned kmalloc_flags)
 {
 	struct usb_request *req;
 
@@ -2159,7 +2160,8 @@ static void gs_free_req(struct usb_ep *ep, struct usb_request *req)
  * Allocates a request and its buffer, using the given
  * endpoint, buffer len, and kmalloc flags.
  */
-static struct gs_req_entry *gs_alloc_req_entry(struct usb_ep *ep, unsigned len, int kmalloc_flags)
+static struct gs_req_entry *
+gs_alloc_req_entry(struct usb_ep *ep, unsigned len, unsigned kmalloc_flags)
 {
 	struct gs_req_entry	*req;
 
@@ -2200,7 +2202,7 @@ static void gs_free_req_entry(struct usb_ep *ep, struct gs_req_entry *req)
  *
  * The device lock is normally held when calling this function.
  */
-static int gs_alloc_ports(struct gs_dev *dev, int kmalloc_flags)
+static int gs_alloc_ports(struct gs_dev *dev, unsigned kmalloc_flags)
 {
 	int i;
 	struct gs_port *port;
@@ -2282,7 +2284,7 @@ static void gs_free_ports(struct gs_dev *dev)
  *
  * Allocate a circular buffer and all associated memory.
  */
-static struct gs_buf *gs_buf_alloc(unsigned int size, int kmalloc_flags)
+static struct gs_buf *gs_buf_alloc(unsigned int size, unsigned kmalloc_flags)
 {
 	struct gs_buf *gb;
 

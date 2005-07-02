@@ -83,7 +83,9 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	peer->last_time_used = jiffies;
 	peer->last_time_ecne_reduced = jiffies;
 
-	peer->active = SCTP_ACTIVE;
+	peer->init_sent_count = 0;
+
+	peer->state = SCTP_ACTIVE;
 	peer->hb_allowed = 0;
 
 	/* Initialize the default path max_retrans.  */
@@ -101,7 +103,6 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 
 	/* Set up the heartbeat timer. */
 	init_timer(&peer->hb_timer);
-	peer->hb_interval = SCTP_DEFAULT_TIMEOUT_HEARTBEAT;
 	peer->hb_timer.function = sctp_generate_heartbeat_event;
 	peer->hb_timer.data = (unsigned long)peer;
 

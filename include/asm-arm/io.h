@@ -82,7 +82,7 @@ extern void __readwrite_bug(const char *fn);
  * only.  Their primary purpose is to access PCI and ISA peripherals.
  *
  * Note that for a big endian machine, this implies that the following
- * big endian mode connectivity is in place, as described by numerious
+ * big endian mode connectivity is in place, as described by numerous
  * ARM documents:
  *
  *    PCI:  D0-D7   D8-D15 D16-D23 D24-D31
@@ -271,6 +271,35 @@ extern void __iounmap(void __iomem *addr);
 #define ioremap_cached(cookie,size)	__arch_ioremap((cookie),(size),L_PTE_CACHEABLE,1)
 #define iounmap(cookie)			__arch_iounmap(cookie)
 #endif
+
+/*
+ * io{read,write}{8,16,32} macros
+ */
+#ifndef ioread8
+#define ioread8(p)	({ unsigned int __v = __raw_readb(p); __v; })
+#define ioread16(p)	({ unsigned int __v = le16_to_cpu(__raw_readw(p)); __v; })
+#define ioread32(p)	({ unsigned int __v = le32_to_cpu(__raw_readl(p)); __v; })
+
+#define iowrite8(v,p)	__raw_writeb(v, p)
+#define iowrite16(v,p)	__raw_writew(cpu_to_le16(v), p)
+#define iowrite32(v,p)	__raw_writel(cpu_to_le32(v), p)
+
+#define ioread8_rep(p,d,c)	__raw_readsb(p,d,c)
+#define ioread16_rep(p,d,c)	__raw_readsw(p,d,c)
+#define ioread32_rep(p,d,c)	__raw_readsl(p,d,c)
+
+#define iowrite8_rep(p,s,c)	__raw_writesb(p,s,c)
+#define iowrite16_rep(p,s,c)	__raw_writesw(p,s,c)
+#define iowrite32_rep(p,s,c)	__raw_writesl(p,s,c)
+
+extern void __iomem *ioport_map(unsigned long port, unsigned int nr);
+extern void ioport_unmap(void __iomem *addr);
+#endif
+
+struct pci_dev;
+
+extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen);
+extern void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
 
 /*
  * can the hardware map this into one segment or not, given no other

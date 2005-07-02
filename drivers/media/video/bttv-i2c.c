@@ -1,5 +1,5 @@
 /*
-    $Id: bttv-i2c.c,v 1.18 2005/02/16 12:14:10 kraxel Exp $
+    $Id: bttv-i2c.c,v 1.21 2005/06/10 17:20:24 mchehab Exp $
 
     bttv-i2c.c  --  all the i2c code is here
 

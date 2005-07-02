@@ -406,14 +406,12 @@ void line_disable(struct tty_struct *tty, int current_irq)
 	if(line->driver->read_irq == current_irq)
 		free_irq_later(line->driver->read_irq, tty);
 	else {
-		free_irq_by_irq_and_dev(line->driver->read_irq, tty);
 		free_irq(line->driver->read_irq, tty);
 	}
 
 	if(line->driver->write_irq == current_irq)
 		free_irq_later(line->driver->write_irq, tty);
 	else {
-		free_irq_by_irq_and_dev(line->driver->write_irq, tty);
 		free_irq(line->driver->write_irq, tty);
 	}
 
@@ -604,11 +602,26 @@ int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
 	return n;
 }
 
-int line_remove(struct line *lines, unsigned int num, char *str)
+int line_id(char **str, int *start_out, int *end_out)
+{
+	char *end;
+        int n;
+
+	n = simple_strtoul(*str, &end, 0);
+	if((*end != '\0') || (end == *str))
+                return -1;
+
+        *str = end;
+        *start_out = n;
+        *end_out = n;
+        return n;
+}
+
+int line_remove(struct line *lines, unsigned int num, int n)
 {
 	char config[sizeof("conxxxx=none\0")];
 
-	sprintf(config, "%s=none", str);
+	sprintf(config, "%d=none", n);
 	return !line_setup(lines, num, config, 0);
 }
 
@@ -758,7 +771,6 @@ static void unregister_winch(struct tty_struct *tty)
         if(winch->pid != -1)
                 os_kill_process(winch->pid, 1);
 
-        free_irq_by_irq_and_dev(WINCH_IRQ, winch);
         free_irq(WINCH_IRQ, winch);
         list_del(&winch->list);
         kfree(winch);

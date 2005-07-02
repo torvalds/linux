@@ -919,9 +919,9 @@ zero_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	struct zero_dev		*dev = get_gadget_data (gadget);
 	struct usb_request	*req = dev->req;
 	int			value = -EOPNOTSUPP;
-	u16			w_index = ctrl->wIndex;
-	u16			w_value = ctrl->wValue;
-	u16			w_length = ctrl->wLength;
+	u16			w_index = le16_to_cpu(ctrl->wIndex);
+	u16			w_value = le16_to_cpu(ctrl->wValue);
+	u16			w_length = le16_to_cpu(ctrl->wLength);
 
 	/* usually this stores reply data in the pre-allocated ep0 buffer,
 	 * but config change events will reconfigure hardware.

@@ -184,6 +184,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 					raw_rcv(last, skb2);
 			}
 			last = sk;
+			nf_reset(skb);
 		}
 	}
 
@@ -199,10 +200,6 @@ int ip_call_ra_chain(struct sk_buff *skb)
 static inline int ip_local_deliver_finish(struct sk_buff *skb)
 {
 	int ihl = skb->nh.iph->ihl*4;
-
-#ifdef CONFIG_NETFILTER_DEBUG
-	nf_debug_ip_local_deliver(skb);
-#endif /*CONFIG_NETFILTER_DEBUG*/
 
 	__skb_pull(skb, ihl);
 
@@ -286,14 +283,18 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct iphdr *iph = skb->nh.iph;
+	int err;
 
 	/*
 	 *	Initialise the virtual path cache for the packet. It describes
 	 *	how the packet travels inside Linux networking.
 	 */ 
 	if (skb->dst == NULL) {
-		if (ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))
+		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
+			if (err == -EHOSTUNREACH)
+				IP_INC_STATS_BH(IPSTATS_MIB_INADDRERRORS);
 			goto drop; 
+		}
 	}
 
 #ifdef CONFIG_NET_CLS_ROUTE

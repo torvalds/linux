@@ -102,9 +102,9 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	/* Set up the base timeout information.  */
 	ep->timeouts[SCTP_EVENT_TIMEOUT_NONE] = 0;
 	ep->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] =
-		SCTP_DEFAULT_TIMEOUT_T1_COOKIE;
+		msecs_to_jiffies(sp->rtoinfo.srto_initial);
 	ep->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] =
-		SCTP_DEFAULT_TIMEOUT_T1_INIT;
+		msecs_to_jiffies(sp->rtoinfo.srto_initial);
 	ep->timeouts[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN] =
 		msecs_to_jiffies(sp->rtoinfo.srto_initial);
 	ep->timeouts[SCTP_EVENT_TIMEOUT_T3_RTX] = 0;
@@ -117,12 +117,9 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
         ep->timeouts[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]
 		= 5 * msecs_to_jiffies(sp->rtoinfo.srto_max);
 
-	ep->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] =
-		SCTP_DEFAULT_TIMEOUT_HEARTBEAT;
-	ep->timeouts[SCTP_EVENT_TIMEOUT_SACK] =
-		SCTP_DEFAULT_TIMEOUT_SACK;
-	ep->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
-		sp->autoclose * HZ;
+	ep->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] = 0;
+	ep->timeouts[SCTP_EVENT_TIMEOUT_SACK] = sctp_sack_timeout;
+	ep->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] = sp->autoclose * HZ;
 
 	/* Use SCTP specific send buffer space queues.  */
 	ep->sndbuf_policy = sctp_sndbuf_policy;
@@ -134,7 +131,6 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	ep->last_key = ep->current_key = 0;
 	ep->key_changed_at = jiffies;
 
-	ep->debug_name = "unnamedEndpoint";
 	return ep;
 }
 

@@ -476,11 +476,11 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 			ld = tty_ldisc_ref(tty);
 			switch (arg) {
 			case TCIFLUSH:
-				if (ld->flush_buffer)
+				if (ld && ld->flush_buffer)
 					ld->flush_buffer(tty);
 				break;
 			case TCIOFLUSH:
-				if (ld->flush_buffer)
+				if (ld && ld->flush_buffer)
 					ld->flush_buffer(tty);
 				/* fall through */
 			case TCOFLUSH:

@@ -610,16 +610,11 @@ static irqreturn_t sunzilog_interrupt(int irq, void *dev_id, struct pt_regs *reg
 static __inline__ unsigned char sunzilog_read_channel_status(struct uart_port *port)
 {
 	struct zilog_channel __iomem *channel;
-	unsigned long flags;
 	unsigned char status;
-
-	spin_lock_irqsave(&port->lock, flags);
 
 	channel = ZILOG_CHANNEL_FROM_PORT(port);
 	status = sbus_readb(&channel->control);
 	ZSDELAY();
-
-	spin_unlock_irqrestore(&port->lock, flags);
 
 	return status;
 }
@@ -627,10 +622,16 @@ static __inline__ unsigned char sunzilog_read_channel_status(struct uart_port *p
 /* The port lock is not held.  */
 static unsigned int sunzilog_tx_empty(struct uart_port *port)
 {
+	unsigned long flags;
 	unsigned char status;
 	unsigned int ret;
 
+	spin_lock_irqsave(&port->lock, flags);
+
 	status = sunzilog_read_channel_status(port);
+
+	spin_unlock_irqrestore(&port->lock, flags);
+
 	if (status & Tx_BUF_EMP)
 		ret = TIOCSER_TEMT;
 	else
@@ -639,7 +640,7 @@ static unsigned int sunzilog_tx_empty(struct uart_port *port)
 	return ret;
 }
 
-/* The port lock is not held.  */
+/* The port lock is held and interrupts are disabled.  */
 static unsigned int sunzilog_get_mctrl(struct uart_port *port)
 {
 	unsigned char status;
@@ -1071,7 +1072,7 @@ static void __init sunzilog_alloc_tables(void)
  */
 static struct zilog_layout __iomem * __init get_zs_sun4u(int chip, int zsnode)
 {
-	unsigned long mapped_addr;
+	void __iomem *mapped_addr;
 	unsigned int sun4u_ino;
 	struct sbus_bus *sbus = NULL;
 	struct sbus_dev *sdev = NULL;
@@ -1111,9 +1112,9 @@ static struct zilog_layout __iomem * __init get_zs_sun4u(int chip, int zsnode)
 		apply_fhc_ranges(central_bus->child,
 				 &zsregs[0], 1);
 		apply_central_ranges(central_bus, &zsregs[0], 1);
-		mapped_addr =
-			(((u64)zsregs[0].which_io)<<32UL) |
-			((u64)zsregs[0].phys_addr);
+		mapped_addr = (void __iomem *)
+			((((u64)zsregs[0].which_io)<<32UL) |
+			((u64)zsregs[0].phys_addr));
 	}
 
 	if (zilog_irq == -1) {

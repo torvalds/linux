@@ -262,7 +262,7 @@ static unsigned int emu10k1_select_interprom(unsigned int pitch_target)
  *
  * returns: cache invalidate size in samples
  */
-static int inline emu10k1_ccis(int stereo, int w_16)
+static inline int emu10k1_ccis(int stereo, int w_16)
 {
 	if (w_16) {
 		return stereo ? 24 : 26;
@@ -991,9 +991,7 @@ static void snd_emu10k1_pcm_efx_mixer_notify(emu10k1_t *emu, int idx, int activa
 
 static void snd_emu10k1_pcm_free_substream(snd_pcm_runtime_t *runtime)
 {
-	emu10k1_pcm_t *epcm = runtime->private_data;
-
-	kfree(epcm);
+	kfree(runtime->private_data);
 }
 
 static int snd_emu10k1_efx_playback_close(snd_pcm_substream_t * substream)

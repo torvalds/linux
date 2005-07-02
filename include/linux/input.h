@@ -859,6 +859,10 @@ struct input_dev {
 	int (*erase_effect)(struct input_dev *dev, int effect_id);
 
 	struct input_handle *grab;
+
+	struct semaphore sem;	/* serializes open and close operations */
+	unsigned int users;
+
 	struct device *dev;
 
 	struct list_head	h_list;
@@ -1015,7 +1019,7 @@ static inline void input_set_abs_params(struct input_dev *dev, int axis, int min
 	dev->absbit[LONG(axis)] |= BIT(axis);
 }
 
-extern struct class_simple *input_class;
+extern struct class *input_class;
 
 #endif
 #endif

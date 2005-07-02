@@ -299,10 +299,14 @@ static int safe_write (struct usb_serial_port *port, const unsigned char *buf, i
 		dbg ("%s - write request of 0 bytes", __FUNCTION__);
 		return (0);
 	}
-	if (port->write_urb->status == -EINPROGRESS) {
-		dbg ("%s - already writing", __FUNCTION__);
-		return (0);
+	spin_lock(&port->lock);
+	if (port->write_urb_busy) {
+		spin_unlock(&port->lock);
+		dbg("%s - already writing", __FUNCTION__);
+		return 0;
 	}
+	port->write_urb_busy = 1;
+	spin_unlock(&port->lock);
 
 	packet_length = port->bulk_out_size;	// get max packetsize
 
@@ -354,6 +358,7 @@ static int safe_write (struct usb_serial_port *port, const unsigned char *buf, i
 #endif
 	port->write_urb->dev = port->serial->dev;
 	if ((result = usb_submit_urb (port->write_urb, GFP_KERNEL))) {
+		port->write_urb_busy = 0;
 		err ("%s - failed submitting write urb, error %d", __FUNCTION__, result);
 		return 0;
 	}
@@ -368,7 +373,7 @@ static int safe_write_room (struct usb_serial_port *port)
 
 	dbg ("%s", __FUNCTION__);
 
-	if (port->write_urb->status != -EINPROGRESS)
+	if (port->write_urb_busy)
 		room = port->bulk_out_size - (safe ? 2 : 0);
 
 	if (room) {

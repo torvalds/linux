@@ -786,7 +786,7 @@ static void yellowfin_init_ring(struct net_device *dev)
 		skb->dev = dev;		/* Mark as being used by this device. */
 		skb_reserve(skb, 2);	/* 16 byte align the IP header. */
 		yp->rx_ring[i].addr = cpu_to_le32(pci_map_single(yp->pci_dev,
-			skb->tail, yp->rx_buf_sz, PCI_DMA_FROMDEVICE));
+			skb->data, yp->rx_buf_sz, PCI_DMA_FROMDEVICE));
 	}
 	yp->rx_ring[i-1].dbdma_cmd = cpu_to_le32(CMD_STOP);
 	yp->dirty_rx = (unsigned int)(i - RX_RING_SIZE);
@@ -1111,7 +1111,7 @@ static int yellowfin_rx(struct net_device *dev)
 		pci_dma_sync_single_for_cpu(yp->pci_dev, desc->addr,
 			yp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 		desc_status = le32_to_cpu(desc->result_status) >> 16;
-		buf_addr = rx_skb->tail;
+		buf_addr = rx_skb->data;
 		data_size = (le32_to_cpu(desc->dbdma_cmd) - 
 			le32_to_cpu(desc->result_status)) & 0xffff;
 		frame_status = le16_to_cpu(get_unaligned((s16*)&(buf_addr[data_size - 2])));
@@ -1185,7 +1185,7 @@ static int yellowfin_rx(struct net_device *dev)
 					break;
 				skb->dev = dev;
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
-				eth_copy_and_sum(skb, rx_skb->tail, pkt_len, 0);
+				eth_copy_and_sum(skb, rx_skb->data, pkt_len, 0);
 				skb_put(skb, pkt_len);
 				pci_dma_sync_single_for_device(yp->pci_dev, desc->addr,
 											   yp->rx_buf_sz,
@@ -1211,7 +1211,7 @@ static int yellowfin_rx(struct net_device *dev)
 			skb->dev = dev;	/* Mark as being used by this device. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 			yp->rx_ring[entry].addr = cpu_to_le32(pci_map_single(yp->pci_dev,
-				skb->tail, yp->rx_buf_sz, PCI_DMA_FROMDEVICE));
+				skb->data, yp->rx_buf_sz, PCI_DMA_FROMDEVICE));
 		}
 		yp->rx_ring[entry].dbdma_cmd = cpu_to_le32(CMD_STOP);
 		yp->rx_ring[entry].result_status = 0;	/* Clear complete bit. */

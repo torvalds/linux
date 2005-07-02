@@ -171,45 +171,31 @@ The following lists are used internally:
 
   normal_i2c: filled in by the module writer. 
      A list of I2C addresses which should normally be examined.
-   normal_i2c_range: filled in by the module writer.
-     A list of pairs of I2C addresses, each pair being an inclusive range of
-     addresses which should normally be examined.
    probe: insmod parameter. 
      A list of pairs. The first value is a bus number (-1 for any I2C bus), 
      the second is the address. These addresses are also probed, as if they 
      were in the 'normal' list.
-   probe_range: insmod parameter. 
-     A list of triples. The first value is a bus number (-1 for any I2C bus), 
-     the second and third are addresses.  These form an inclusive range of 
-     addresses that are also probed, as if they were in the 'normal' list.
    ignore: insmod parameter.
      A list of pairs. The first value is a bus number (-1 for any I2C bus), 
      the second is the I2C address. These addresses are never probed. 
-     This parameter overrules 'normal' and 'probe', but not the 'force' lists.
-   ignore_range: insmod parameter. 
-     A list of triples. The first value is a bus number (-1 for any I2C bus), 
-     the second and third are addresses. These form an inclusive range of 
-     I2C addresses that are never probed.
      This parameter overrules 'normal' and 'probe', but not the 'force' lists.
    force: insmod parameter. 
      A list of pairs. The first value is a bus number (-1 for any I2C bus),
      the second is the I2C address. A device is blindly assumed to be on
      the given address, no probing is done. 
 
-Fortunately, as a module writer, you just have to define the `normal' 
-and/or `normal_range' parameters. The complete declaration could look
-like this:
+Fortunately, as a module writer, you just have to define the `normal_i2c' 
+parameter. The complete declaration could look like this:
 
-  /* Scan 0x20 to 0x2f, 0x37, and 0x40 to 0x4f */
-  static unsigned short normal_i2c[] = { 0x37,I2C_CLIENT_END }; 
-  static unsigned short normal_i2c_range[] = { 0x20, 0x2f, 0x40, 0x4f, 
-                                               I2C_CLIENT_END };
+  /* Scan 0x37, and 0x48 to 0x4f */
+  static unsigned short normal_i2c[] = { 0x37, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
+                                         0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
   /* Magic definition of all other variables and things */
   I2C_CLIENT_INSMOD;
 
-Note that you *have* to call the two defined variables `normal_i2c' and
-`normal_i2c_range', without any prefix!
+Note that you *have* to call the defined variable `normal_i2c',
+without any prefix!
 
 
 Probing classes (sensors)
@@ -223,39 +209,17 @@ The following lists are used internally. They are all lists of integers.
 
    normal_i2c: filled in by the module writer. Terminated by SENSORS_I2C_END.
      A list of I2C addresses which should normally be examined.
-   normal_i2c_range: filled in by the module writer. Terminated by 
-     SENSORS_I2C_END
-     A list of pairs of I2C addresses, each pair being an inclusive range of
-     addresses which should normally be examined.
    normal_isa: filled in by the module writer. Terminated by SENSORS_ISA_END.
      A list of ISA addresses which should normally be examined.
-   normal_isa_range: filled in by the module writer. Terminated by 
-     SENSORS_ISA_END
-     A list of triples. The first two elements are ISA addresses, being an
-     range of addresses which should normally be examined. The third is the
-     modulo parameter: only addresses which are 0 module this value relative
-     to the first address of the range are actually considered.
    probe: insmod parameter. Initialize this list with SENSORS_I2C_END values.
      A list of pairs. The first value is a bus number (SENSORS_ISA_BUS for
      the ISA bus, -1 for any I2C bus), the second is the address. These
      addresses are also probed, as if they were in the 'normal' list.
-   probe_range: insmod parameter. Initialize this list with SENSORS_I2C_END 
-     values.
-     A list of triples. The first value is a bus number (SENSORS_ISA_BUS for
-     the ISA bus, -1 for any I2C bus), the second and third are addresses. 
-     These form an inclusive range of addresses that are also probed, as
-     if they were in the 'normal' list.
    ignore: insmod parameter. Initialize this list with SENSORS_I2C_END values.
      A list of pairs. The first value is a bus number (SENSORS_ISA_BUS for
      the ISA bus, -1 for any I2C bus), the second is the I2C address. These
      addresses are never probed. This parameter overrules 'normal' and 
      'probe', but not the 'force' lists.
-   ignore_range: insmod parameter. Initialize this list with SENSORS_I2C_END 
-      values.
-     A list of triples. The first value is a bus number (SENSORS_ISA_BUS for
-     the ISA bus, -1 for any I2C bus), the second and third are addresses. 
-     These form an inclusive range of I2C addresses that are never probed.
-     This parameter overrules 'normal' and 'probe', but not the 'force' lists.
 
 Also used is a list of pointers to sensors_force_data structures:
    force_data: insmod parameters. A list, ending with an element of which
@@ -269,16 +233,14 @@ Also used is a list of pointers to sensors_force_data structures:
 So we have a generic insmod variabled `force', and chip-specific variables
 `force_CHIPNAME'.
 
-Fortunately, as a module writer, you just have to define the `normal' 
-and/or `normal_range' parameters, and define what chip names are used. 
+Fortunately, as a module writer, you just have to define the `normal_i2c' 
+and `normal_isa' parameters, and define what chip names are used. 
 The complete declaration could look like this:
-  /* Scan i2c addresses 0x20 to 0x2f, 0x37, and 0x40 to 0x4f
-  static unsigned short normal_i2c[] = {0x37,SENSORS_I2C_END};
-  static unsigned short normal_i2c_range[] = {0x20,0x2f,0x40,0x4f,
-                                              SENSORS_I2C_END};
+  /* Scan i2c addresses 0x37, and 0x48 to 0x4f */
+  static unsigned short normal_i2c[] = { 0x37, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
+                                         0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
   /* Scan ISA address 0x290 */
   static unsigned int normal_isa[] = {0x0290,SENSORS_ISA_END};
-  static unsigned int normal_isa_range[] = {SENSORS_ISA_END};
 
   /* Define chips foo and bar, as well as all module parameters and things */
   SENSORS_INSMOD_2(foo,bar);

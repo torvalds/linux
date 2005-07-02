@@ -52,7 +52,7 @@
 #include <asm/cache.h>
 #include <asm/prom.h>
 #include <asm/ptrace.h>
-#include <asm/iSeries/LparData.h>
+#include <asm/iSeries/ItLpQueue.h>
 #include <asm/machdep.h>
 #include <asm/paca.h>
 
@@ -66,7 +66,6 @@ EXPORT_SYMBOL(irq_desc);
 int distribute_irqs = 1;
 int __irq_offset_value;
 int ppc_spurious_interrupts;
-unsigned long lpevent_count;
 u64 ppc64_interrupt_controller;
 
 int show_interrupts(struct seq_file *p, void *v)
@@ -245,7 +244,7 @@ void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq)
 
 		spin_lock(&desc->lock);
 		if (!noirqdebug)
-			note_interrupt(irq, desc, action_ret);
+			note_interrupt(irq, desc, action_ret, regs);
 		if (likely(!(desc->status & IRQ_PENDING)))
 			break;
 		desc->status &= ~IRQ_PENDING;
@@ -269,7 +268,6 @@ out:
 void do_IRQ(struct pt_regs *regs)
 {
 	struct paca_struct *lpaca;
-	struct ItLpQueue *lpq;
 
 	irq_enter();
 
@@ -295,9 +293,8 @@ void do_IRQ(struct pt_regs *regs)
 		iSeries_smp_message_recv(regs);
 	}
 #endif /* CONFIG_SMP */
-	lpq = lpaca->lpqueue_ptr;
-	if (lpq && ItLpQueue_isLpIntPending(lpq))
-		lpevent_count += ItLpQueue_process(lpq, regs);
+	if (hvlpevent_is_pending())
+		process_hvlpevents(regs);
 
 	irq_exit();
 
@@ -394,6 +391,9 @@ int virt_irq_create_mapping(unsigned int real_irq)
 
 	if (ppc64_interrupt_controller == IC_OPEN_PIC)
 		return real_irq;	/* no mapping for openpic (for now) */
+
+	if (ppc64_interrupt_controller == IC_BPA_IIC)
+		return real_irq;	/* no mapping for iic either */
 
 	/* don't map interrupts < MIN_VIRT_IRQ */
 	if (real_irq < MIN_VIRT_IRQ) {

@@ -223,7 +223,7 @@ static void tul_select_atn(HCS * pCurHcb, SCB * pCurScb);
 static void tul_select_atn3(HCS * pCurHcb, SCB * pCurScb);
 static void tul_select_atn_stop(HCS * pCurHcb, SCB * pCurScb);
 static int int_tul_busfree(HCS * pCurHcb);
-int int_tul_scsi_rst(HCS * pCurHcb);
+static int int_tul_scsi_rst(HCS * pCurHcb);
 static int int_tul_bad_seq(HCS * pCurHcb);
 static int int_tul_resel(HCS * pCurHcb);
 static int tul_sync_done(HCS * pCurHcb);
@@ -240,9 +240,8 @@ static int tul_se2_rd_all(WORD CurBase);
 static void tul_se2_update_all(WORD CurBase);	/* setup default pattern */
 static void tul_read_eeprom(WORD CurBase);
 
-				/* ---- EXTERNAL VARIABLES ---- */
-HCS tul_hcs[MAX_SUPPORTED_ADAPTERS];
 				/* ---- INTERNAL VARIABLES ---- */
+static HCS tul_hcs[MAX_SUPPORTED_ADAPTERS];
 static INI_ADPT_STRUCT i91u_adpt[MAX_SUPPORTED_ADAPTERS];
 
 /*NVRAM nvram, *nvramp = &nvram; */
@@ -381,7 +380,7 @@ void tul_se2_wait(void)
 
 
 ******************************************************************/
-void tul_se2_instr(WORD CurBase, UCHAR instr)
+static void tul_se2_instr(WORD CurBase, UCHAR instr)
 {
 	int i;
 	UCHAR b;
@@ -437,7 +436,7 @@ void tul_se2_ew_ds(WORD CurBase)
 	Input  :address of Serial E2PROM
 	Output :value stored in  Serial E2PROM
 *******************************************************************/
-USHORT tul_se2_rd(WORD CurBase, ULONG adr)
+static USHORT tul_se2_rd(WORD CurBase, ULONG adr)
 {
 	UCHAR instr, readByte;
 	USHORT readWord;
@@ -468,7 +467,7 @@ USHORT tul_se2_rd(WORD CurBase, ULONG adr)
 /******************************************************************
  Input: new value in  Serial E2PROM, address of Serial E2PROM
 *******************************************************************/
-void tul_se2_wr(WORD CurBase, UCHAR adr, USHORT writeWord)
+static void tul_se2_wr(WORD CurBase, UCHAR adr, USHORT writeWord)
 {
 	UCHAR readByte;
 	UCHAR instr;
@@ -584,8 +583,8 @@ void tul_read_eeprom(WORD CurBase)
 	TUL_WR(CurBase + TUL_GCTRL, gctrl & ~TUL_GCTRL_EEPROM_BIT);
 }				/* read_eeprom */
 
-int Addi91u_into_Adapter_table(WORD wBIOS, WORD wBASE, BYTE bInterrupt,
-			       BYTE bBus, BYTE bDevice)
+static int Addi91u_into_Adapter_table(WORD wBIOS, WORD wBASE, BYTE bInterrupt,
+				      BYTE bBus, BYTE bDevice)
 {
 	int i, j;
 
@@ -616,7 +615,7 @@ int Addi91u_into_Adapter_table(WORD wBIOS, WORD wBASE, BYTE bInterrupt,
 	return 1;
 }
 
-void init_i91uAdapter_table(void)
+static void init_i91uAdapter_table(void)
 {
 	int i;
 
@@ -630,7 +629,7 @@ void init_i91uAdapter_table(void)
 	return;
 }
 
-void tul_stop_bm(HCS * pCurHcb)
+static void tul_stop_bm(HCS * pCurHcb)
 {
 
 	if (TUL_RD(pCurHcb->HCS_Base, TUL_XStatus) & XPEND) {	/* if DMA xfer is pending, abort DMA xfer */
@@ -642,7 +641,7 @@ void tul_stop_bm(HCS * pCurHcb)
 }
 
 /***************************************************************************/
-void get_tulipPCIConfig(HCS * pCurHcb, int ch_idx)
+static void get_tulipPCIConfig(HCS * pCurHcb, int ch_idx)
 {
 	pCurHcb->HCS_Base = i91u_adpt[ch_idx].ADPT_BASE;	/* Supply base address  */
 	pCurHcb->HCS_BIOS = i91u_adpt[ch_idx].ADPT_BIOS;	/* Supply BIOS address  */
@@ -651,7 +650,7 @@ void get_tulipPCIConfig(HCS * pCurHcb, int ch_idx)
 }
 
 /***************************************************************************/
-int tul_reset_scsi(HCS * pCurHcb, int seconds)
+static int tul_reset_scsi(HCS * pCurHcb, int seconds)
 {
 	TUL_WR(pCurHcb->HCS_Base + TUL_SCtrl0, TSC_RST_BUS);
 
@@ -670,7 +669,8 @@ int tul_reset_scsi(HCS * pCurHcb, int seconds)
 }
 
 /***************************************************************************/
-int init_tulip(HCS * pCurHcb, SCB * scbp, int tul_num_scb, BYTE * pbBiosAdr, int seconds)
+static int init_tulip(HCS * pCurHcb, SCB * scbp, int tul_num_scb,
+		      BYTE * pbBiosAdr, int seconds)
 {
 	int i;
 	BYTE *pwFlags;
@@ -788,7 +788,7 @@ int init_tulip(HCS * pCurHcb, SCB * scbp, int tul_num_scb, BYTE * pbBiosAdr, int
 }
 
 /***************************************************************************/
-SCB *tul_alloc_scb(HCS * hcsp)
+static SCB *tul_alloc_scb(HCS * hcsp)
 {
 	SCB *pTmpScb;
 	ULONG flags;
@@ -807,7 +807,7 @@ SCB *tul_alloc_scb(HCS * hcsp)
 }
 
 /***************************************************************************/
-void tul_release_scb(HCS * hcsp, SCB * scbp)
+static void tul_release_scb(HCS * hcsp, SCB * scbp)
 {
 	ULONG flags;
 
@@ -829,7 +829,7 @@ void tul_release_scb(HCS * hcsp, SCB * scbp)
 }
 
 /***************************************************************************/
-void tul_append_pend_scb(HCS * pCurHcb, SCB * scbp)
+static void tul_append_pend_scb(HCS * pCurHcb, SCB * scbp)
 {
 
 #if DEBUG_QUEUE
@@ -847,7 +847,7 @@ void tul_append_pend_scb(HCS * pCurHcb, SCB * scbp)
 }
 
 /***************************************************************************/
-void tul_push_pend_scb(HCS * pCurHcb, SCB * scbp)
+static void tul_push_pend_scb(HCS * pCurHcb, SCB * scbp)
 {
 
 #if DEBUG_QUEUE
@@ -863,7 +863,7 @@ void tul_push_pend_scb(HCS * pCurHcb, SCB * scbp)
 }
 
 /***************************************************************************/
-SCB *tul_find_first_pend_scb(HCS * pCurHcb)
+static SCB *tul_find_first_pend_scb(HCS * pCurHcb)
 {
 	SCB *pFirstPend;
 
@@ -894,24 +894,7 @@ SCB *tul_find_first_pend_scb(HCS * pCurHcb)
 	return (pFirstPend);
 }
 /***************************************************************************/
-SCB *tul_pop_pend_scb(HCS * pCurHcb)
-{
-	SCB *pTmpScb;
-
-	if ((pTmpScb = pCurHcb->HCS_FirstPend) != NULL) {
-		if ((pCurHcb->HCS_FirstPend = pTmpScb->SCB_NxtScb) == NULL)
-			pCurHcb->HCS_LastPend = NULL;
-		pTmpScb->SCB_NxtScb = NULL;
-	}
-#if DEBUG_QUEUE
-	printk("Pop pend SCB %lx; ", (ULONG) pTmpScb);
-#endif
-	return (pTmpScb);
-}
-
-
-/***************************************************************************/
-void tul_unlink_pend_scb(HCS * pCurHcb, SCB * pCurScb)
+static void tul_unlink_pend_scb(HCS * pCurHcb, SCB * pCurScb)
 {
 	SCB *pTmpScb, *pPrevScb;
 
@@ -939,7 +922,7 @@ void tul_unlink_pend_scb(HCS * pCurHcb, SCB * pCurScb)
 	return;
 }
 /***************************************************************************/
-void tul_append_busy_scb(HCS * pCurHcb, SCB * scbp)
+static void tul_append_busy_scb(HCS * pCurHcb, SCB * scbp)
 {
 
 #if DEBUG_QUEUE
@@ -961,7 +944,7 @@ void tul_append_busy_scb(HCS * pCurHcb, SCB * scbp)
 }
 
 /***************************************************************************/
-SCB *tul_pop_busy_scb(HCS * pCurHcb)
+static SCB *tul_pop_busy_scb(HCS * pCurHcb)
 {
 	SCB *pTmpScb;
 
@@ -982,7 +965,7 @@ SCB *tul_pop_busy_scb(HCS * pCurHcb)
 }
 
 /***************************************************************************/
-void tul_unlink_busy_scb(HCS * pCurHcb, SCB * pCurScb)
+static void tul_unlink_busy_scb(HCS * pCurHcb, SCB * pCurScb)
 {
 	SCB *pTmpScb, *pPrevScb;
 
@@ -1037,7 +1020,7 @@ SCB *tul_find_busy_scb(HCS * pCurHcb, WORD tarlun)
 }
 
 /***************************************************************************/
-void tul_append_done_scb(HCS * pCurHcb, SCB * scbp)
+static void tul_append_done_scb(HCS * pCurHcb, SCB * scbp)
 {
 
 #if DEBUG_QUEUE
@@ -1073,7 +1056,7 @@ SCB *tul_find_done_scb(HCS * pCurHcb)
 }
 
 /***************************************************************************/
-int tul_abort_srb(HCS * pCurHcb, struct scsi_cmnd *srbp)
+static int tul_abort_srb(HCS * pCurHcb, struct scsi_cmnd *srbp)
 {
 	ULONG flags;
 	SCB *pTmpScb, *pPrevScb;
@@ -1163,7 +1146,7 @@ int tul_abort_srb(HCS * pCurHcb, struct scsi_cmnd *srbp)
 }
 
 /***************************************************************************/
-int tul_bad_seq(HCS * pCurHcb)
+static int tul_bad_seq(HCS * pCurHcb)
 {
 	SCB *pCurScb;
 
@@ -1182,9 +1165,11 @@ int tul_bad_seq(HCS * pCurHcb)
 	return (tul_post_scsi_rst(pCurHcb));
 }
 
+#if 0
+
 /************************************************************************/
-int tul_device_reset(HCS * pCurHcb, struct scsi_cmnd *pSrb,
-		unsigned int target, unsigned int ResetFlags)
+static int tul_device_reset(HCS * pCurHcb, struct scsi_cmnd *pSrb,
+			    unsigned int target, unsigned int ResetFlags)
 {
 	ULONG flags;
 	SCB *pScb;
@@ -1255,7 +1240,7 @@ int tul_device_reset(HCS * pCurHcb, struct scsi_cmnd *pSrb,
 	return SCSI_RESET_PENDING;
 }
 
-int tul_reset_scsi_bus(HCS * pCurHcb)
+static int tul_reset_scsi_bus(HCS * pCurHcb)
 {
 	ULONG flags;
 
@@ -1284,8 +1269,10 @@ int tul_reset_scsi_bus(HCS * pCurHcb)
 	return (SCSI_RESET_SUCCESS | SCSI_RESET_HOST_RESET);
 }
 
+#endif  /*  0  */
+
 /************************************************************************/
-void tul_exec_scb(HCS * pCurHcb, SCB * pCurScb)
+static void tul_exec_scb(HCS * pCurHcb, SCB * pCurScb)
 {
 	ULONG flags;
 
@@ -1318,7 +1305,7 @@ void tul_exec_scb(HCS * pCurHcb, SCB * pCurScb)
 }
 
 /***************************************************************************/
-int tul_isr(HCS * pCurHcb)
+static int tul_isr(HCS * pCurHcb)
 {
 	/* Enter critical section       */
 
@@ -2108,7 +2095,7 @@ int int_tul_busfree(HCS * pCurHcb)
 
 /***************************************************************************/
 /* scsi bus reset */
-int int_tul_scsi_rst(HCS * pCurHcb)
+static int int_tul_scsi_rst(HCS * pCurHcb)
 {
 	SCB *pCurScb;
 	int i;
@@ -2214,7 +2201,7 @@ int int_tul_resel(HCS * pCurHcb)
 
 
 /***************************************************************************/
-int int_tul_bad_seq(HCS * pCurHcb)
+static int int_tul_bad_seq(HCS * pCurHcb)
 {				/* target wrong phase           */
 	SCB *pCurScb;
 	int i;

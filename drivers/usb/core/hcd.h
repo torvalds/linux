@@ -65,7 +65,8 @@ struct usb_hcd {	/* usb_bus.hcpriv points to this */
 	const char		*product_desc;	/* product/vendor string */
 	char			irq_descr[24];	/* driver + bus # */
 
-	struct timer_list	rh_timer;	/* drives root hub */
+	struct timer_list	rh_timer;	/* drives root-hub polling */
+	struct urb		*status_urb;	/* the current status urb */
 
 	/*
 	 * hardware info/state
@@ -76,10 +77,17 @@ struct usb_hcd {	/* usb_bus.hcpriv points to this */
 	unsigned		remote_wakeup:1;/* sw should use wakeup? */
 	unsigned		rh_registered:1;/* is root hub registered? */
 
+	/* The next flag is a stopgap, to be removed when all the HCDs
+	 * support the new root-hub polling mechanism. */
+	unsigned		uses_new_polling:1;
+	unsigned		poll_rh:1;	/* poll for rh status? */
+	unsigned		poll_pending:1;	/* status has changed? */
+
 	int			irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */
 	u64			rsrc_start;	/* memory/io resource start */
 	u64			rsrc_len;	/* memory/io resource length */
+	unsigned		power_budget;	/* in mA, 0 = no limit */
 
 #define HCD_BUFFER_POOLS	4
 	struct dma_pool		*pool [HCD_BUFFER_POOLS];
@@ -207,6 +215,8 @@ struct hc_driver {
 	int		(*hub_suspend)(struct usb_hcd *);
 	int		(*hub_resume)(struct usb_hcd *);
 	int		(*start_port_reset)(struct usb_hcd *, unsigned port_num);
+	void		(*hub_irq_enable)(struct usb_hcd *);
+		/* Needed only if port-change IRQs are level-triggered */
 };
 
 extern void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb, struct pt_regs *regs);
@@ -243,7 +253,9 @@ void hcd_buffer_free (struct usb_bus *bus, size_t size,
 
 /* generic bus glue, needed for host controllers that don't use PCI */
 extern irqreturn_t usb_hcd_irq (int irq, void *__hcd, struct pt_regs *r);
+
 extern void usb_hc_died (struct usb_hcd *hcd);
+extern void usb_hcd_poll_rh_status(struct usb_hcd *hcd);
 
 /* -------------------------------------------------------------------------- */
 
@@ -341,9 +353,6 @@ extern long usb_calc_bus_time (int speed, int is_input,
 
 extern struct usb_bus *usb_alloc_bus (struct usb_operations *);
 
-extern int usb_hcd_register_root_hub (struct usb_device *usb_dev,
-		struct usb_hcd *hcd);
-
 extern void usb_hcd_resume_root_hub (struct usb_hcd *hcd);
 
 extern void usb_set_device_state(struct usb_device *udev,
@@ -359,6 +368,8 @@ extern wait_queue_head_t usb_kill_urb_queue;
 
 extern struct usb_bus *usb_bus_get (struct usb_bus *bus);
 extern void usb_bus_put (struct usb_bus *bus);
+
+extern void usb_enable_root_hub_irq (struct usb_bus *bus);
 
 extern int usb_find_interface_driver (struct usb_device *dev,
 	struct usb_interface *interface);
@@ -399,7 +410,7 @@ static inline void usbfs_cleanup(void) { }
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_USB_MON) || defined(CONFIG_USB_MON_MODULE)
+#if defined(CONFIG_USB_MON)
 
 struct usb_mon_operations {
 	void (*urb_submit)(struct usb_bus *bus, struct urb *urb);

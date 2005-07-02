@@ -1861,13 +1861,6 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 #endif
 }
 
-void pcm_set_lct_short(struct s_smc *smc, int n)
-{
-	if (n <= 0 || n > 1000)
-		return ;
-	smc->s.lct_short = n ;
-}
-
 #ifdef	DEBUG
 /*
  * fill state struct

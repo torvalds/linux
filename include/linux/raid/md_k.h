@@ -15,6 +15,9 @@
 #ifndef _MD_K_H
 #define _MD_K_H
 
+/* and dm-bio-list.h is not under include/linux because.... ??? */
+#include "../../../drivers/md/dm-bio-list.h"
+
 #define MD_RESERVED       0UL
 #define LINEAR            1UL
 #define RAID0             2UL
@@ -180,6 +183,10 @@ struct mdk_rdev_s
 
 	int desc_nr;			/* descriptor index in the superblock */
 	int raid_disk;			/* role of device in array */
+	int saved_raid_disk;		/* role that device used to have in the
+					 * array and could again if we did a partial
+					 * resync from the bitmap
+					 */
 
 	atomic_t	nr_pending;	/* number of pending requests.
 					 * only maintained for arrays that
@@ -252,6 +259,11 @@ struct mddev_s
 	atomic_t			recovery_active; /* blocks scheduled, but not written */
 	wait_queue_head_t		recovery_wait;
 	sector_t			recovery_cp;
+
+	spinlock_t			write_lock;
+	wait_queue_head_t		sb_wait;	/* for waiting on superblock updates */
+	atomic_t			pending_writes;	/* number of active superblock writes */
+
 	unsigned int			safemode;	/* if set, update "clean" superblock
 							 * when no writes pending.
 							 */ 
@@ -259,6 +271,13 @@ struct mddev_s
 	struct timer_list		safemode_timer;
 	atomic_t			writes_pending; 
 	request_queue_t			*queue;	/* for plugging ... */
+
+	struct bitmap                   *bitmap; /* the bitmap for the device */
+	struct file			*bitmap_file; /* the bitmap file */
+	long				bitmap_offset; /* offset from superblock of
+							* start of bitmap. May be
+							* negative, but not '0'
+							*/
 
 	struct list_head		all_mddevs;
 };
@@ -291,7 +310,7 @@ struct mdk_personality_s
 	int (*hot_add_disk) (mddev_t *mddev, mdk_rdev_t *rdev);
 	int (*hot_remove_disk) (mddev_t *mddev, int number);
 	int (*spare_active) (mddev_t *mddev);
-	int (*sync_request)(mddev_t *mddev, sector_t sector_nr, int go_faster);
+	sector_t (*sync_request)(mddev_t *mddev, sector_t sector_nr, int *skipped, int go_faster);
 	int (*resize) (mddev_t *mddev, sector_t sectors);
 	int (*reshape) (mddev_t *mddev, int raid_disks);
 	int (*reconfig) (mddev_t *mddev, int layout, int chunk_size);
@@ -334,6 +353,7 @@ typedef struct mdk_thread_s {
 	unsigned long           flags;
 	struct completion	*event;
 	struct task_struct	*tsk;
+	unsigned long		timeout;
 	const char		*name;
 } mdk_thread_t;
 

@@ -1,0 +1,57 @@
+Kernel driver lm63
+==================
+
+Supported chips:
+  * National Semiconductor LM63
+    Prefix: 'lm63'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/pf/LM/LM63.html
+
+Author: Jean Delvare <khali@linux-fr.org>
+
+Thanks go to Tyan and especially Alex Buckingham for setting up a remote
+access to their S4882 test platform for this driver.
+  http://www.tyan.com/
+
+Description
+-----------
+
+The LM63 is a digital temperature sensor with integrated fan monitoring
+and control.
+
+The LM63 is basically an LM86 with fan speed monitoring and control
+capabilities added. It misses some of the LM86 features though:
+ - No low limit for local temperature.
+ - No critical limit for local temperature.
+ - Critical limit for remote temperature can be changed only once. We
+   will consider that the critical limit is read-only.
+
+The datasheet isn't very clear about what the tachometer reading is.
+
+An explanation from National Semiconductor: The two lower bits of the read
+value have to be masked out. The value is still 16 bit in width.
+
+All temperature values are given in degrees Celsius. Resolution is 1.0
+degree for the local temperature, 0.125 degree for the remote temperature.
+
+The fan speed is measured using a tachometer. Contrary to most chips which
+store the value in an 8-bit register and have a selectable clock divider
+to make sure that the result will fit in the register, the LM63 uses 16-bit
+value for measuring the speed of the fan. It can measure fan speeds down to
+83 RPM, at least in theory.
+
+Note that the pin used for fan monitoring is shared with an alert out
+function. Depending on how the board designer wanted to use the chip, fan
+speed monitoring will or will not be possible. The proper chip configuration
+is left to the BIOS, and the driver will blindly trust it.
+
+A PWM output can be used to control the speed of the fan. The LM63 has two
+PWM modes: manual and automatic. Automatic mode is not fully implemented yet
+(you cannot define your custom PWM/temperature curve), and mode change isn't
+supported either.
+
+The lm63 driver will not update its values more frequently than every
+second; reading them more often will do no harm, but will return 'old'
+values.
+

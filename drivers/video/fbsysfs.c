@@ -228,8 +228,6 @@ static ssize_t store_virtual(struct class_device *class_device,
 	if (last - buf >= count)
 		return -EINVAL;
 	var.yres_virtual = simple_strtoul(last, &last, 0);
-	printk(KERN_ERR "fb: xres %d yres %d\n", var.xres_virtual,
-	       var.yres_virtual);
 
 	if ((err = activate(fb_info, &var)))
 		return err;

@@ -1077,7 +1077,7 @@ static int __devinit _snd_emu10k1_audigy_init_efx(emu10k1_t *emu)
 	gpr += 2;
 	
 	/* PCM Side Playback (independent from stereo mix) */
-	if (emu->spk71) {
+	if (emu->card_capabilities->spk71) {
 		A_OP(icode, &ptr, iMAC0, A_GPR(playback+6), A_C_00000000, A_GPR(gpr), A_FXBUS(FXBUS_PCM_LEFT_SIDE));
 		A_OP(icode, &ptr, iMAC0, A_GPR(playback+7), A_C_00000000, A_GPR(gpr+1), A_FXBUS(FXBUS_PCM_RIGHT_SIDE));
 		snd_emu10k1_init_stereo_control(&controls[nctl++], "PCM Side Playback Volume", gpr, 100);
@@ -1145,14 +1145,14 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	A_ADD_VOLUME_IN(stereo_mix, gpr, A_EXTIN_SPDIF_CD_L);
 	A_ADD_VOLUME_IN(stereo_mix+1, gpr+1, A_EXTIN_SPDIF_CD_R);
 	snd_emu10k1_init_stereo_control(&controls[nctl++],
-					emu->no_ac97 ? "CD Playback Volume" : "Audigy CD Playback Volume",
+					emu->card_capabilities->ac97_chip ? "Audigy CD Playback Volume" : "CD Playback Volume",
 					gpr, 0);
 	gpr += 2;
 	/* Audigy CD Capture Volume */
 	A_ADD_VOLUME_IN(capture, gpr, A_EXTIN_SPDIF_CD_L);
 	A_ADD_VOLUME_IN(capture+1, gpr+1, A_EXTIN_SPDIF_CD_R);
 	snd_emu10k1_init_stereo_control(&controls[nctl++],
-					emu->no_ac97 ? "CD Capture Volume" : "Audigy CD Capture Volume",
+					emu->card_capabilities->ac97_chip ? "Audigy CD Capture Volume" : "CD Capture Volume",
 					gpr, 0);
 	gpr += 2;
 
@@ -1171,14 +1171,14 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	A_ADD_VOLUME_IN(stereo_mix, gpr, A_EXTIN_LINE2_L);
 	A_ADD_VOLUME_IN(stereo_mix+1, gpr+1, A_EXTIN_LINE2_R);
 	snd_emu10k1_init_stereo_control(&controls[nctl++],
-					emu->no_ac97 ? "Line Playback Volume" : "Line2 Playback Volume",
+					emu->card_capabilities->ac97_chip ? "Line2 Playback Volume" : "Line Playback Volume",
 					gpr, 0);
 	gpr += 2;
 	/* Line2 Capture Volume */
 	A_ADD_VOLUME_IN(capture, gpr, A_EXTIN_LINE2_L);
 	A_ADD_VOLUME_IN(capture+1, gpr+1, A_EXTIN_LINE2_R);
 	snd_emu10k1_init_stereo_control(&controls[nctl++],
-					emu->no_ac97 ? "Line Capture Volume" : "Line2 Capture Volume",
+					emu->card_capabilities->ac97_chip ? "Line2 Capture Volume" : "Line Capture Volume",
 					gpr, 0);
 	gpr += 2;
         
@@ -1197,14 +1197,14 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	A_ADD_VOLUME_IN(stereo_mix, gpr, A_EXTIN_AUX2_L);
 	A_ADD_VOLUME_IN(stereo_mix+1, gpr+1, A_EXTIN_AUX2_R);
 	snd_emu10k1_init_stereo_control(&controls[nctl++],
-					emu->no_ac97 ? "Aux Playback Volume" : "Aux2 Playback Volume",
+					emu->card_capabilities->ac97_chip ? "Aux2 Playback Volume" : "Aux Playback Volume",
 					gpr, 0);
 	gpr += 2;
 	/* Aux2 Capture Volume */
 	A_ADD_VOLUME_IN(capture, gpr, A_EXTIN_AUX2_L);
 	A_ADD_VOLUME_IN(capture+1, gpr+1, A_EXTIN_AUX2_R);
 	snd_emu10k1_init_stereo_control(&controls[nctl++],
-					emu->no_ac97 ? "Aux Capture Volume" : "Aux2 Capture Volume",
+					emu->card_capabilities->ac97_chip ? "Aux2 Capture Volume" : "Aux Capture Volume",
 					gpr, 0);
 	gpr += 2;
 	
@@ -1232,7 +1232,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	snd_emu10k1_init_mono_control(&controls[nctl++], "LFE Playback Volume", gpr, 0);
 	gpr++;
 	
-	if (emu->spk71) {
+	if (emu->card_capabilities->spk71) {
 		/* Stereo Mix Side Playback */
 		A_OP(icode, &ptr, iMAC0, A_GPR(playback+6), A_GPR(playback+6), A_GPR(gpr), A_GPR(stereo_mix));
 		A_OP(icode, &ptr, iMAC0, A_GPR(playback+7), A_GPR(playback+7), A_GPR(gpr+1), A_GPR(stereo_mix+1));
@@ -1266,7 +1266,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	A_OP(icode, &ptr, iACC3, A_GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + 3), A_GPR(playback + 3), A_C_00000000, A_C_00000000); /* rear right */
 	A_OP(icode, &ptr, iACC3, A_GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + 4), A_GPR(playback + 4), A_C_00000000, A_C_00000000); /* center */
 	A_OP(icode, &ptr, iACC3, A_GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + 5), A_GPR(playback + 5), A_C_00000000, A_C_00000000); /* LFE */
-	if (emu->spk71) {
+	if (emu->card_capabilities->spk71) {
 		A_OP(icode, &ptr, iACC3, A_GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + 6), A_GPR(playback + 6), A_C_00000000, A_C_00000000); /* side left */
 		A_OP(icode, &ptr, iACC3, A_GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + 7), A_GPR(playback + 7), A_C_00000000, A_C_00000000); /* side right */
 	}
@@ -1359,7 +1359,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	A_PUT_STEREO_OUTPUT(A_EXTOUT_AREAR_L, A_EXTOUT_AREAR_R, playback+2 + SND_EMU10K1_PLAYBACK_CHANNELS);
 	A_PUT_OUTPUT(A_EXTOUT_ACENTER, playback+4 + SND_EMU10K1_PLAYBACK_CHANNELS);
 	A_PUT_OUTPUT(A_EXTOUT_ALFE, playback+5 + SND_EMU10K1_PLAYBACK_CHANNELS);
-	if (emu->spk71)
+	if (emu->card_capabilities->spk71)
 		A_PUT_STEREO_OUTPUT(A_EXTOUT_ASIDE_L, A_EXTOUT_ASIDE_R, playback+6 + SND_EMU10K1_PLAYBACK_CHANNELS);
 
 	/* headphone */
@@ -1982,22 +1982,27 @@ static int __devinit _snd_emu10k1_init_efx(emu10k1_t *emu)
 		OP(icode, &ptr, iACC3, EXTOUT(EXTOUT_MIC_CAP), GPR(capture + 2), C_00000000, C_00000000);
 
 	/* EFX capture - capture the 16 EXTINS */
-	OP(icode, &ptr, iACC3, FXBUS2(14), C_00000000, C_00000000, EXTIN(0));
-	OP(icode, &ptr, iACC3, FXBUS2(15), C_00000000, C_00000000, EXTIN(1));
-	OP(icode, &ptr, iACC3, FXBUS2(0), C_00000000, C_00000000, EXTIN(2));
-	OP(icode, &ptr, iACC3, FXBUS2(3), C_00000000, C_00000000, EXTIN(3));
-	/* Dont connect anything to FXBUS2 1 and 2.  These are shared with 
-	 * Center/LFE on the SBLive 5.1.  The kX driver only changes the 
-	 * routing when it detects an SBLive 5.1.
-	 *
-	 * Since only 14 of the 16 EXTINs are used, this is not a big problem.  
-	 * We route AC97L and R to FX capture 14 and 15, SPDIF CD in to FX capture 
-	 * 0 and 3, then the rest of the EXTINs to the corresponding FX capture 
-	 * channel.
-	 */
-	for (z = 4; z < 14; z++) {
-		OP(icode, &ptr, iACC3, FXBUS2(z), C_00000000, C_00000000, EXTIN(z));
+	if (emu->card_capabilities->sblive51) {
+		/* On the Live! 5.1, FXBUS2(1) and FXBUS(2) are shared with EXTOUT_ACENTER
+		 * and EXTOUT_ALFE, so we can't connect inputs to them for multitrack recording.
+		 *
+		 * Since only 14 of the 16 EXTINs are used, this is not a big problem.  
+		 * We route AC97L and R to FX capture 14 and 15, SPDIF CD in to FX capture 
+		 * 0 and 3, then the rest of the EXTINs to the corresponding FX capture 
+		 * channel.  Multitrack recorders will still see the center/lfe output signal 
+		 * on the second and third channels.
+		 */
+		OP(icode, &ptr, iACC3, FXBUS2(14), C_00000000, C_00000000, EXTIN(0));
+		OP(icode, &ptr, iACC3, FXBUS2(15), C_00000000, C_00000000, EXTIN(1));
+		OP(icode, &ptr, iACC3, FXBUS2(0), C_00000000, C_00000000, EXTIN(2));
+		OP(icode, &ptr, iACC3, FXBUS2(3), C_00000000, C_00000000, EXTIN(3));
+		for (z = 4; z < 14; z++)
+			OP(icode, &ptr, iACC3, FXBUS2(z), C_00000000, C_00000000, EXTIN(z));
+	} else {
+		for (z = 0; z < 16; z++)
+			OP(icode, &ptr, iACC3, FXBUS2(z), C_00000000, C_00000000, EXTIN(z));
 	}
+	    
 
 	if (gpr > tmp) {
 		snd_BUG();
@@ -2128,7 +2133,6 @@ static int snd_emu10k1_fx8010_info(emu10k1_t *emu, emu10k1_fx8010_info_t *info)
 	int res;
 
 	memset(info, 0, sizeof(info));
-	info->card = emu->card_type;
 	info->internal_tram_size = emu->fx8010.itram_size;
 	info->external_tram_size = emu->fx8010.etram_pages.bytes / 2;
 	fxbus = fxbuses;

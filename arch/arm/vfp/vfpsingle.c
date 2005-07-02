@@ -32,6 +32,8 @@
  */
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+
+#include <asm/div64.h>
 #include <asm/ptrace.h>
 #include <asm/vfp.h>
 
@@ -303,7 +305,11 @@ u32 vfp_estimate_sqrt_significand(u32 exponent, u32 significand)
 		if (z <= a)
 			return (s32)a >> 1;
 	}
-	return (u32)(((u64)a << 31) / z) + (z >> 1);
+	{
+		u64 v = (u64)a << 31;
+		do_div(v, z);
+		return v + (z >> 1);
+	}
 }
 
 static u32 vfp_single_fsqrt(int sd, int unused, s32 m, u32 fpscr)
@@ -1107,7 +1113,11 @@ static u32 vfp_single_fdiv(int sd, int sn, s32 m, u32 fpscr)
 		vsn.significand >>= 1;
 		vsd.exponent++;
 	}
-	vsd.significand = ((u64)vsn.significand << 32) / vsm.significand;
+	{
+		u64 significand = (u64)vsn.significand << 32;
+		do_div(significand, vsm.significand);
+		vsd.significand = significand;
+	}
 	if ((vsd.significand & 0x3f) == 0)
 		vsd.significand |= ((u64)vsm.significand * vsd.significand != (u64)vsn.significand << 32);
 

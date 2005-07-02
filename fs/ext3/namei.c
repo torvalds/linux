@@ -932,8 +932,16 @@ static struct buffer_head * ext3_dx_find_entry(struct dentry *dentry,
 	struct inode *dir = dentry->d_parent->d_inode;
 
 	sb = dir->i_sb;
-	if (!(frame = dx_probe(dentry, NULL, &hinfo, frames, err)))
-		return NULL;
+	/* NFS may look up ".." - look at dx_root directory block */
+	if (namelen > 2 || name[0] != '.'||(name[1] != '.' && name[1] != '\0')){
+		if (!(frame = dx_probe(dentry, NULL, &hinfo, frames, err)))
+			return NULL;
+	} else {
+		frame = frames;
+		frame->bh = NULL;			/* for dx_release() */
+		frame->at = (struct dx_entry *)frames;	/* hack for zero entry*/
+		dx_set_block(frame->at, 0);		/* dx_root block is 0 */
+	}
 	hash = hinfo.hash;
 	do {
 		block = dx_get_block(frame->at);
@@ -1637,9 +1645,9 @@ static int ext3_create (struct inode * dir, struct dentry * dentry, int mode,
 	int err, retries = 0;
 
 retry:
-	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS +
+	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
 					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					2*EXT3_QUOTA_INIT_BLOCKS);
+					2*EXT3_QUOTA_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -1671,9 +1679,9 @@ static int ext3_mknod (struct inode * dir, struct dentry *dentry,
 		return -EINVAL;
 
 retry:
-	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS +
+	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
 			 		EXT3_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					2*EXT3_QUOTA_INIT_BLOCKS);
+					2*EXT3_QUOTA_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -1707,9 +1715,9 @@ static int ext3_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 		return -EMLINK;
 
 retry:
-	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS +
+	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
 					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					2*EXT3_QUOTA_INIT_BLOCKS);
+					2*EXT3_QUOTA_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -1998,7 +2006,7 @@ static int ext3_rmdir (struct inode * dir, struct dentry *dentry)
 	/* Initialize quotas before so that eventual writes go in
 	 * separate transaction */
 	DQUOT_INIT(dentry->d_inode);
-	handle = ext3_journal_start(dir, EXT3_DELETE_TRANS_BLOCKS);
+	handle = ext3_journal_start(dir, EXT3_DELETE_TRANS_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2057,7 +2065,7 @@ static int ext3_unlink(struct inode * dir, struct dentry *dentry)
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
 	DQUOT_INIT(dentry->d_inode);
-	handle = ext3_journal_start(dir, EXT3_DELETE_TRANS_BLOCKS);
+	handle = ext3_journal_start(dir, EXT3_DELETE_TRANS_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2112,9 +2120,9 @@ static int ext3_symlink (struct inode * dir,
 		return -ENAMETOOLONG;
 
 retry:
-	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS +
+	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
 			 		EXT3_INDEX_EXTRA_TRANS_BLOCKS + 5 +
-					2*EXT3_QUOTA_INIT_BLOCKS);
+					2*EXT3_QUOTA_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2166,7 +2174,7 @@ static int ext3_link (struct dentry * old_dentry,
 		return -EMLINK;
 
 retry:
-	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS +
+	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
 					EXT3_INDEX_EXTRA_TRANS_BLOCKS);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
@@ -2208,7 +2216,8 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 	 * in separate transaction */
 	if (new_dentry->d_inode)
 		DQUOT_INIT(new_dentry->d_inode);
-	handle = ext3_journal_start(old_dir, 2 * EXT3_DATA_TRANS_BLOCKS +
+	handle = ext3_journal_start(old_dir, 2 *
+					EXT3_DATA_TRANS_BLOCKS(old_dir->i_sb) +
 			 		EXT3_INDEX_EXTRA_TRANS_BLOCKS + 2);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);

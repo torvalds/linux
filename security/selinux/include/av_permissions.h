@@ -465,6 +465,8 @@
 #define PROCESS__DYNTRANSITION                    0x00800000UL
 #define PROCESS__SETCURRENT                       0x01000000UL
 #define PROCESS__EXECMEM                          0x02000000UL
+#define PROCESS__EXECSTACK                        0x04000000UL
+#define PROCESS__EXECHEAP                         0x08000000UL
 
 #define IPC__CREATE                               0x00000001UL
 #define IPC__DESTROY                              0x00000002UL

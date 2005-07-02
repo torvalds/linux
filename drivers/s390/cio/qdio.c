@@ -56,7 +56,7 @@
 #include "ioasm.h"
 #include "chsc.h"
 
-#define VERSION_QDIO_C "$Revision: 1.98 $"
+#define VERSION_QDIO_C "$Revision: 1.101 $"
 
 /****************** MODULE PARAMETER VARIABLES ********************/
 MODULE_AUTHOR("Utz Bacher <utz.bacher@de.ibm.com>");
@@ -3342,7 +3342,7 @@ static int
 qdio_register_dbf_views(void)
 {
 	qdio_dbf_setup=debug_register(QDIO_DBF_SETUP_NAME,
-				      QDIO_DBF_SETUP_INDEX,
+				      QDIO_DBF_SETUP_PAGES,
 				      QDIO_DBF_SETUP_NR_AREAS,
 				      QDIO_DBF_SETUP_LEN);
 	if (!qdio_dbf_setup)
@@ -3351,7 +3351,7 @@ qdio_register_dbf_views(void)
 	debug_set_level(qdio_dbf_setup,QDIO_DBF_SETUP_LEVEL);
 
 	qdio_dbf_sbal=debug_register(QDIO_DBF_SBAL_NAME,
-				     QDIO_DBF_SBAL_INDEX,
+				     QDIO_DBF_SBAL_PAGES,
 				     QDIO_DBF_SBAL_NR_AREAS,
 				     QDIO_DBF_SBAL_LEN);
 	if (!qdio_dbf_sbal)
@@ -3361,7 +3361,7 @@ qdio_register_dbf_views(void)
 	debug_set_level(qdio_dbf_sbal,QDIO_DBF_SBAL_LEVEL);
 
 	qdio_dbf_sense=debug_register(QDIO_DBF_SENSE_NAME,
-				      QDIO_DBF_SENSE_INDEX,
+				      QDIO_DBF_SENSE_PAGES,
 				      QDIO_DBF_SENSE_NR_AREAS,
 				      QDIO_DBF_SENSE_LEN);
 	if (!qdio_dbf_sense)
@@ -3371,7 +3371,7 @@ qdio_register_dbf_views(void)
 	debug_set_level(qdio_dbf_sense,QDIO_DBF_SENSE_LEVEL);
 
 	qdio_dbf_trace=debug_register(QDIO_DBF_TRACE_NAME,
-				      QDIO_DBF_TRACE_INDEX,
+				      QDIO_DBF_TRACE_PAGES,
 				      QDIO_DBF_TRACE_NR_AREAS,
 				      QDIO_DBF_TRACE_LEN);
 	if (!qdio_dbf_trace)
@@ -3382,7 +3382,7 @@ qdio_register_dbf_views(void)
 
 #ifdef CONFIG_QDIO_DEBUG
         qdio_dbf_slsb_out=debug_register(QDIO_DBF_SLSB_OUT_NAME,
-                                         QDIO_DBF_SLSB_OUT_INDEX,
+                                         QDIO_DBF_SLSB_OUT_PAGES,
                                          QDIO_DBF_SLSB_OUT_NR_AREAS,
                                          QDIO_DBF_SLSB_OUT_LEN);
         if (!qdio_dbf_slsb_out)
@@ -3391,7 +3391,7 @@ qdio_register_dbf_views(void)
         debug_set_level(qdio_dbf_slsb_out,QDIO_DBF_SLSB_OUT_LEVEL);
 
         qdio_dbf_slsb_in=debug_register(QDIO_DBF_SLSB_IN_NAME,
-                                        QDIO_DBF_SLSB_IN_INDEX,
+                                        QDIO_DBF_SLSB_IN_PAGES,
                                         QDIO_DBF_SLSB_IN_NR_AREAS,
                                         QDIO_DBF_SLSB_IN_LEN);
         if (!qdio_dbf_slsb_in)

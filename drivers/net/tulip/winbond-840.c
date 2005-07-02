@@ -121,6 +121,7 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -394,7 +395,7 @@ static int __devinit w840_probe1 (struct pci_dev *pdev,
 
 	irq = pdev->irq;
 
-	if (pci_set_dma_mask(pdev,0xFFFFffff)) {
+	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
 		printk(KERN_WARNING "Winbond-840: Device %s disabled due to DMA limitations.\n",
 		       pci_name(pdev));
 		return -EIO;
@@ -848,7 +849,7 @@ static void init_rxtx_rings(struct net_device *dev)
 		if (skb == NULL)
 			break;
 		skb->dev = dev;			/* Mark as being used by this device. */
-		np->rx_addr[i] = pci_map_single(np->pci_dev,skb->tail,
+		np->rx_addr[i] = pci_map_single(np->pci_dev,skb->data,
 					skb->len,PCI_DMA_FROMDEVICE);
 
 		np->rx_ring[i].buffer1 = np->rx_addr[i];
@@ -1268,7 +1269,7 @@ static int netdev_rx(struct net_device *dev)
 				pci_dma_sync_single_for_cpu(np->pci_dev,np->rx_addr[entry],
 							    np->rx_skbuff[entry]->len,
 							    PCI_DMA_FROMDEVICE);
-				eth_copy_and_sum(skb, np->rx_skbuff[entry]->tail, pkt_len, 0);
+				eth_copy_and_sum(skb, np->rx_skbuff[entry]->data, pkt_len, 0);
 				skb_put(skb, pkt_len);
 				pci_dma_sync_single_for_device(np->pci_dev,np->rx_addr[entry],
 							       np->rx_skbuff[entry]->len,
@@ -1314,7 +1315,7 @@ static int netdev_rx(struct net_device *dev)
 				break;			/* Better luck next round. */
 			skb->dev = dev;			/* Mark as being used by this device. */
 			np->rx_addr[entry] = pci_map_single(np->pci_dev,
-							skb->tail,
+							skb->data,
 							skb->len, PCI_DMA_FROMDEVICE);
 			np->rx_ring[entry].buffer1 = np->rx_addr[entry];
 		}

@@ -599,7 +599,7 @@ static ssize_t ac_read (struct file *filp, char __user *buf, size_t count, loff_
 
 #ifdef DEBUG
 		if (loopcount++ > 2) {
-			printk("Looping in ac_read. loopcount %d\n", loopcount);
+			printk(KERN_DEBUG "Looping in ac_read. loopcount %d\n", loopcount);
 		}
 #endif
 	} 

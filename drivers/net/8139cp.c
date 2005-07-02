@@ -61,6 +61,7 @@
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
@@ -595,7 +596,7 @@ rx_status_loop:
 
 		mapping =
 		cp->rx_skb[rx_tail].mapping =
-			pci_map_single(cp->pdev, new_skb->tail,
+			pci_map_single(cp->pdev, new_skb->data,
 				       buflen, PCI_DMA_FROMDEVICE);
 		cp->rx_skb[rx_tail].skb = new_skb;
 
@@ -1100,7 +1101,7 @@ static int cp_refill_rx (struct cp_private *cp)
 		skb_reserve(skb, RX_OFFSET);
 
 		cp->rx_skb[i].mapping = pci_map_single(cp->pdev,
-			skb->tail, cp->rx_buf_sz, PCI_DMA_FROMDEVICE);
+			skb->data, cp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 		cp->rx_skb[i].skb = skb;
 
 		cp->rx_ring[i].opts2 = 0;
@@ -1515,22 +1516,22 @@ static void cp_get_ethtool_stats (struct net_device *dev,
 				  struct ethtool_stats *estats, u64 *tmp_stats)
 {
 	struct cp_private *cp = netdev_priv(dev);
-	unsigned int work = 100;
 	int i;
+
+	memset(cp->nic_stats, 0, sizeof(struct cp_dma_stats));
 
 	/* begin NIC statistics dump */
 	cpw32(StatsAddr + 4, (cp->nic_stats_dma >> 16) >> 16);
 	cpw32(StatsAddr, (cp->nic_stats_dma & 0xffffffff) | DumpStats);
 	cpr32(StatsAddr);
 
-	while (work-- > 0) {
+	for (i = 0; i < 1000; i++) {
 		if ((cpr32(StatsAddr) & DumpStats) == 0)
 			break;
-		cpu_relax();
+		udelay(10);
 	}
-
-	if (cpr32(StatsAddr) & DumpStats)
-		return /* -EIO */;
+	cpw32(StatsAddr, 0);
+	cpw32(StatsAddr + 4, 0);
 
 	i = 0;
 	tmp_stats[i++] = le64_to_cpu(cp->nic_stats->tx_ok);
@@ -1732,19 +1733,19 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Configure DMA attributes. */
 	if ((sizeof(dma_addr_t) > 4) &&
-	    !pci_set_consistent_dma_mask(pdev, 0xffffffffffffffffULL) &&
-	    !pci_set_dma_mask(pdev, 0xffffffffffffffffULL)) {
+	    !pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK) &&
+	    !pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
 		pci_using_dac = 1;
 	} else {
 		pci_using_dac = 0;
 
-		rc = pci_set_dma_mask(pdev, 0xffffffffULL);
+		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
 			printk(KERN_ERR PFX "No usable DMA configuration, "
 			       "aborting.\n");
 			goto err_out_res;
 		}
-		rc = pci_set_consistent_dma_mask(pdev, 0xffffffffULL);
+		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
 			printk(KERN_ERR PFX "No usable consistent DMA configuration, "
 			       "aborting.\n");

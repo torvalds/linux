@@ -741,6 +741,7 @@ asmlinkage int sys32_pciconfig_write(u32 bus, u32 dfn, u32 off, u32 len, u32 ubu
 
 asmlinkage int sys32_pciconfig_iobase(u32 which, u32 in_bus, u32 in_devfn)
 {
+#ifdef CONFIG_PCI
 	struct pci_controller* hose;
 	struct list_head *ln;
 	struct pci_bus *bus = NULL;
@@ -786,7 +787,7 @@ asmlinkage int sys32_pciconfig_iobase(u32 which, u32 in_bus, u32 in_devfn)
 	case IOBASE_ISA_MEM:
 		return -EINVAL;
 	}
-
+#endif	/* CONFIG_PCI */
 	return -EOPNOTSUPP;
 }
 

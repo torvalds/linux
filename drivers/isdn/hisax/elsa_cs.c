@@ -508,6 +508,13 @@ static int elsa_cs_event(event_t event, int priority,
     return 0;
 } /* elsa_cs_event */
 
+static struct pcmcia_device_id elsa_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("ELSA AG (Aachen, Germany)", "MicroLink ISDN/MC ", 0x983de2c4, 0x333ba257),
+	PCMCIA_DEVICE_PROD_ID12("ELSA GmbH, Aachen", "MicroLink ISDN/MC ", 0x639e5718, 0x333ba257),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, elsa_ids);
+
 static struct pcmcia_driver elsa_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -515,6 +522,7 @@ static struct pcmcia_driver elsa_cs_driver = {
 	},
 	.attach		= elsa_cs_attach,
 	.detach		= elsa_cs_detach,
+	.id_table	= elsa_ids,
 };
 
 static int __init init_elsa_cs(void)

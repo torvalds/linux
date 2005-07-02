@@ -129,13 +129,15 @@ static struct nf_hook_ops ip6t_ops[] = {
 	  .hook = ip6t_hook, 
 	  .pf = PF_INET6,
 	  .hooknum = NF_IP6_PRE_ROUTING,
-	  .priority = NF_IP6_PRI_FIRST
+	  .priority = NF_IP6_PRI_FIRST,
+	  .owner = THIS_MODULE,
 	},
 	{
 	  .hook = ip6t_hook, 
 	  .pf = PF_INET6, 
 	  .hooknum = NF_IP6_LOCAL_OUT,
-	  .priority = NF_IP6_PRI_FIRST
+	  .priority = NF_IP6_PRI_FIRST,
+	  .owner = THIS_MODULE,
 	},
 };
 

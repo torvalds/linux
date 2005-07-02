@@ -66,6 +66,7 @@
 #include <linux/ethtool.h>
 #include <linux/crc32.h>
 #include <linux/bitops.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/processor.h>      /* Processor type for cache alignment. */
 #include <asm/io.h>
@@ -93,8 +94,6 @@ static int sis900_debug = -1; /* Use SIS900_DEF_MSG as value */
 
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (4*HZ)
-/* SiS 900 is capable of 32 bits BM DMA */
-#define SIS900_DMA_MASK 0xffffffff
 
 enum {
 	SIS_900 = 0,
@@ -414,7 +413,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 	ret = pci_enable_device(pci_dev);
 	if(ret) return ret;
 	
-	i = pci_set_dma_mask(pci_dev, SIS900_DMA_MASK);
+	i = pci_set_dma_mask(pci_dev, DMA_32BIT_MASK);
 	if(i){
 		printk(KERN_ERR "sis900.c: architecture does not support"
 			"32bit PCI busmaster DMA\n");
@@ -1155,7 +1154,7 @@ sis900_init_rx_ring(struct net_device *net_dev)
 		sis_priv->rx_skbuff[i] = skb;
 		sis_priv->rx_ring[i].cmdsts = RX_BUF_SIZE;
                 sis_priv->rx_ring[i].bufptr = pci_map_single(sis_priv->pci_dev,
-                        skb->tail, RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+                        skb->data, RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
 	}
 	sis_priv->dirty_rx = (unsigned int) (i - NUM_RX_DESC);
 
@@ -1777,7 +1776,7 @@ static int sis900_rx(struct net_device *net_dev)
 			sis_priv->rx_skbuff[entry] = skb;
 			sis_priv->rx_ring[entry].cmdsts = RX_BUF_SIZE;
                 	sis_priv->rx_ring[entry].bufptr = 
-				pci_map_single(sis_priv->pci_dev, skb->tail, 
+				pci_map_single(sis_priv->pci_dev, skb->data, 
 					RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
 			sis_priv->dirty_rx++;
 		}
@@ -1810,7 +1809,7 @@ static int sis900_rx(struct net_device *net_dev)
 			sis_priv->rx_skbuff[entry] = skb;
 			sis_priv->rx_ring[entry].cmdsts = RX_BUF_SIZE;
                 	sis_priv->rx_ring[entry].bufptr =
-				pci_map_single(sis_priv->pci_dev, skb->tail,
+				pci_map_single(sis_priv->pci_dev, skb->data,
 					RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
 		}
 	}

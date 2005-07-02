@@ -291,10 +291,8 @@ snd_emux_create_effect(snd_emux_port_t *p)
 void
 snd_emux_delete_effect(snd_emux_port_t *p)
 {
-	if (p->effect) {
-		kfree(p->effect);
-		p->effect = NULL;
-	}
+	kfree(p->effect);
+	p->effect = NULL;
 }
 
 void

@@ -30,6 +30,7 @@
 #include <linux/irq.h>
 #include <asm/tlbflush.h>
 #include <asm/arch_hooks.h>
+#include <asm/i8253.h>
 
 /*
  * Power off function, if any
@@ -182,7 +183,6 @@ voyager_timer_interrupt(struct pt_regs *regs)
 		 * and swiftly introduce it to something sharp and
 		 * pointy.  */
 		__u16 val;
-		extern spinlock_t i8253_lock;
 
 		spin_lock(&i8253_lock);
 		

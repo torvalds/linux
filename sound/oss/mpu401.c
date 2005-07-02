@@ -1240,8 +1240,7 @@ void unload_mpu401(struct address_info *hw_config)
 		p=mpu401_synth_operations[n];
 		sound_unload_mididev(n);
 		sound_unload_timerdev(hw_config->slots[2]);
-		if(p)
-			kfree(p);
+		kfree(p);
 	}
 }
 

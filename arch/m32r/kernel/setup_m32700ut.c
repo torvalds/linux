@@ -78,13 +78,13 @@ static void shutdown_m32700ut_irq(unsigned int irq)
 
 static struct hw_interrupt_type m32700ut_irq_type =
 {
-	"M32700UT-IRQ",
-	startup_m32700ut_irq,
-	shutdown_m32700ut_irq,
-	enable_m32700ut_irq,
-	disable_m32700ut_irq,
-	mask_and_ack_m32700ut,
-	end_m32700ut_irq
+	.typename = "M32700UT-IRQ",
+	.startup = startup_m32700ut_irq,
+	.shutdown = shutdown_m32700ut_irq,
+	.enable = enable_m32700ut_irq,
+	.disable = disable_m32700ut_irq,
+	.ack = mask_and_ack_m32700ut,
+	.end = end_m32700ut_irq
 };
 
 /*
@@ -155,13 +155,13 @@ static void shutdown_m32700ut_pld_irq(unsigned int irq)
 
 static struct hw_interrupt_type m32700ut_pld_irq_type =
 {
-	"M32700UT-PLD-IRQ",
-	startup_m32700ut_pld_irq,
-	shutdown_m32700ut_pld_irq,
-	enable_m32700ut_pld_irq,
-	disable_m32700ut_pld_irq,
-	mask_and_ack_m32700ut_pld,
-	end_m32700ut_pld_irq
+	.typename = "M32700UT-PLD-IRQ",
+	.startup = startup_m32700ut_pld_irq,
+	.shutdown = shutdown_m32700ut_pld_irq,
+	.enable = enable_m32700ut_pld_irq,
+	.disable = disable_m32700ut_pld_irq,
+	.ack = mask_and_ack_m32700ut_pld,
+	.end = end_m32700ut_pld_irq
 };
 
 /*
@@ -224,13 +224,13 @@ static void shutdown_m32700ut_lanpld_irq(unsigned int irq)
 
 static struct hw_interrupt_type m32700ut_lanpld_irq_type =
 {
-	"M32700UT-PLD-LAN-IRQ",
-	startup_m32700ut_lanpld_irq,
-	shutdown_m32700ut_lanpld_irq,
-	enable_m32700ut_lanpld_irq,
-	disable_m32700ut_lanpld_irq,
-	mask_and_ack_m32700ut_lanpld,
-	end_m32700ut_lanpld_irq
+	.typename = "M32700UT-PLD-LAN-IRQ",
+	.startup = startup_m32700ut_lanpld_irq,
+	.shutdown = shutdown_m32700ut_lanpld_irq,
+	.enable = enable_m32700ut_lanpld_irq,
+	.disable = disable_m32700ut_lanpld_irq,
+	.ack = mask_and_ack_m32700ut_lanpld,
+	.end = end_m32700ut_lanpld_irq
 };
 
 /*
@@ -293,13 +293,13 @@ static void shutdown_m32700ut_lcdpld_irq(unsigned int irq)
 
 static struct hw_interrupt_type m32700ut_lcdpld_irq_type =
 {
-	"M32700UT-PLD-LCD-IRQ",
-	startup_m32700ut_lcdpld_irq,
-	shutdown_m32700ut_lcdpld_irq,
-	enable_m32700ut_lcdpld_irq,
-	disable_m32700ut_lcdpld_irq,
-	mask_and_ack_m32700ut_lcdpld,
-	end_m32700ut_lcdpld_irq
+	.typename = "M32700UT-PLD-LCD-IRQ",
+	.startup = startup_m32700ut_lcdpld_irq,
+	.shutdown = shutdown_m32700ut_lcdpld_irq,
+	.enable = enable_m32700ut_lcdpld_irq,
+	.disable = disable_m32700ut_lcdpld_irq,
+	.ack = mask_and_ack_m32700ut_lcdpld,
+	.end = end_m32700ut_lcdpld_irq
 };
 
 void __init init_IRQ(void)

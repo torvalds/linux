@@ -26,10 +26,16 @@ struct usbmix_name_map {
 	int control;
 };
 
+struct usbmix_selector_map {
+	int id;
+	int count;
+	const char **names;
+};
+
 struct usbmix_ctl_map {
-	int vendor;
-	int product;
+	u32 id;
 	const struct usbmix_name_map *map;
+	const struct usbmix_selector_map *selector_map;
 	int ignore_ctl_error;
 };
 
@@ -91,6 +97,96 @@ static struct usbmix_name_map extigy_map[] = {
 	{ 0 } /* terminator */
 };
 
+/* Sound Blaster MP3+ controls mapping
+ * The default mixer channels have totally misleading names,
+ * e.g. no Master and fake PCM volume
+ *			Pavel Mihaylov <bin@bash.info>
+ */
+static struct usbmix_name_map mp3plus_map[] = {
+	/* 1: IT pcm */
+	/* 2: IT mic */
+	/* 3: IT line */
+	/* 4: IT digital in */
+	/* 5: OT digital out */
+	/* 6: OT speaker */
+	/* 7: OT pcm capture */
+	{ 8, "Capture Input Source" }, /* FU, default PCM Capture Source */
+		/* (Mic, Input 1 = Line input, Input 2 = Optical input) */
+	{ 9, "Master Playback" }, /* FU, default Speaker 1 */
+	/* { 10, "Mic Capture", 1 }, */ /* FU, Mic Capture */
+	/* { 10, "Mic Capture", 2 }, */ /* FU, Mic Capture */
+	{ 10, "Mic Boost", 7 }, /* FU, default Auto Gain Input */
+	{ 11, "Line Capture" }, /* FU, default PCM Capture */
+	{ 12, "Digital In Playback" }, /* FU, default PCM 1 */
+	/* { 13, "Mic Playback" }, */ /* FU, default Mic Playback */
+	{ 14, "Line Playback" }, /* FU, default Speaker */
+	/* 15: MU */
+	{ 0 } /* terminator */
+};
+
+/* Topology of SB Audigy 2 NX
+
+          +----------------------------->EU[27]--+
+          |                                      v
+          | +----------------------------------->SU[29]---->FU[22]-->Dig_OUT[24]
+          | |                                    ^
+USB_IN[1]-+------------+              +->EU[17]->+->FU[11]-+
+            |          v              |          v         |
+Dig_IN[4]---+->FU[6]-->MU[16]->FU[18]-+->EU[21]->SU[31]----->FU[30]->Hph_OUT[20]
+            |          ^              |                    |
+Lin_IN[7]-+--->FU[8]---+              +->EU[23]->FU[28]------------->Spk_OUT[19]
+          | |                                              v
+          +--->FU[12]------------------------------------->SU[14]--->USB_OUT[15]
+            |                                              ^
+            +->FU[13]--------------------------------------+
+*/
+static struct usbmix_name_map audigy2nx_map[] = {
+	/* 1: IT pcm playback */
+	/* 4: IT digital in */
+	{ 6, "Digital In Playback" }, /* FU */
+	/* 7: IT line in */
+	{ 8, "Line Playback" }, /* FU */
+	{ 11, "What-U-Hear Capture" }, /* FU */
+	{ 12, "Line Capture" }, /* FU */
+	{ 13, "Digital In Capture" }, /* FU */
+	{ 14, "Capture Source" }, /* SU */
+	/* 15: OT pcm capture */
+	/* 16: MU w/o controls */
+	{ 17, NULL }, /* DISABLED: EU (for what?) */
+	{ 18, "Master Playback" }, /* FU */
+	/* 19: OT speaker */
+	/* 20: OT headphone */
+	{ 21, NULL }, /* DISABLED: EU (for what?) */
+	{ 22, "Digital Out Playback" }, /* FU */
+	{ 23, NULL }, /* DISABLED: EU (for what?) */
+	/* 24: OT digital out */
+	{ 27, NULL }, /* DISABLED: EU (for what?) */
+	{ 28, "Speaker Playback" }, /* FU */
+	{ 29, "Digital Out Source" }, /* SU */
+	{ 30, "Headphone Playback" }, /* FU */
+	{ 31, "Headphone Source" }, /* SU */
+	{ 0 } /* terminator */
+};
+
+static struct usbmix_selector_map audigy2nx_selectors[] = {
+	{
+		.id = 14, /* Capture Source */
+		.count = 3,
+		.names = (const char*[]) {"Line", "Digital In", "What-U-Hear"}
+	},
+	{
+		.id = 29, /* Digital Out Source */
+		.count = 3,
+		.names = (const char*[]) {"Front", "PCM", "Digital In"}
+	},
+	{
+		.id = 31, /* Headphone Source */
+		.count = 2,
+		.names = (const char*[]) {"Front", "Side"}
+	},
+	{ 0 } /* terminator */
+};
+
 /* LineX FM Transmitter entry - needed to bypass controls bug */
 static struct usbmix_name_map linex_map[] = {
 	/* 1: IT pcm */
@@ -127,9 +223,29 @@ static struct usbmix_name_map justlink_map[] = {
  */
 
 static struct usbmix_ctl_map usbmix_ctl_maps[] = {
-	{ 0x41e, 0x3000, extigy_map, 1 },
-	{ 0x8bb, 0x2702, linex_map, 1 },
-	{ 0xc45, 0x1158, justlink_map, 0 },
+	{
+		.id = USB_ID(0x041e, 0x3000),
+		.map = extigy_map,
+		.ignore_ctl_error = 1,
+	},
+	{
+		.id = USB_ID(0x041e, 0x3010),
+		.map = mp3plus_map,
+	},
+	{
+		.id = USB_ID(0x041e, 0x3020),
+		.map = audigy2nx_map,
+		.selector_map = audigy2nx_selectors,
+	},
+	{
+		.id = USB_ID(0x08bb, 0x2702),
+		.map = linex_map,
+		.ignore_ctl_error = 1,
+	},
+	{
+		.id = USB_ID(0x0c45, 0x1158),
+		.map = justlink_map,
+	},
 	{ 0 } /* terminator */
 };
 

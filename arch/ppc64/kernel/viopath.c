@@ -43,12 +43,10 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/LparData.h>
+#include <asm/iSeries/ItExtVpdPanel.h>
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvCallCfg.h>
 #include <asm/iSeries/mf.h>
-#include <asm/iSeries/iSeries_proc.h>
 #include <asm/iSeries/vio.h>
 
 /* Status of the path to each other partition in the system.
@@ -365,7 +363,7 @@ void vio_set_hostlp(void)
 	 * while we're active
 	 */
 	viopath_ourLp = HvLpConfig_getLpIndex();
-	viopath_hostLp = HvCallCfg_getHostingLpIndex(viopath_ourLp);
+	viopath_hostLp = HvLpConfig_getHostingLpIndex(viopath_ourLp);
 
 	if (viopath_hostLp != HvLpIndexInvalid)
 		vio_setHandler(viomajorsubtype_config, handleConfig);
@@ -487,7 +485,7 @@ int viopath_open(HvLpIndex remoteLp, int subtype, int numReq)
 	unsigned long flags;
 	int tempNumAllocated;
 
-	if ((remoteLp >= HvMaxArchitectedLps) || (remoteLp == HvLpIndexInvalid))
+	if ((remoteLp >= HVMAXARCHITECTEDLPS) || (remoteLp == HvLpIndexInvalid))
 		return -EINVAL;
 
 	subtype = subtype >> VIOMAJOR_SUBTYPE_SHIFT;
@@ -558,7 +556,7 @@ int viopath_close(HvLpIndex remoteLp, int subtype, int numReq)
 	int numOpen;
 	struct alloc_parms parms;
 
-	if ((remoteLp >= HvMaxArchitectedLps) || (remoteLp == HvLpIndexInvalid))
+	if ((remoteLp >= HVMAXARCHITECTEDLPS) || (remoteLp == HvLpIndexInvalid))
 		return -EINVAL;
 
 	subtype = subtype >> VIOMAJOR_SUBTYPE_SHIFT;

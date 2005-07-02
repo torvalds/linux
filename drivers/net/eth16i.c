@@ -473,13 +473,7 @@ struct net_device * __init eth16i_probe(int unit)
 	err = do_eth16i_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	free_irq(dev->irq, dev);
-	release_region(dev->base_addr, ETH16I_IO_EXTENT);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -569,7 +563,13 @@ static int __init eth16i_probe1(struct net_device *dev, int ioaddr)
 	dev->tx_timeout 	= eth16i_timeout;
 	dev->watchdog_timeo	= TX_TIMEOUT;
 	spin_lock_init(&lp->lock);
+
+	retval = register_netdev(dev);
+	if (retval)
+		goto out1;
 	return 0;
+out1:
+	free_irq(dev->irq, dev);
 out:
 	release_region(ioaddr, ETH16I_IO_EXTENT);
 	return retval;
@@ -1462,12 +1462,8 @@ int init_module(void)
 		}
 
 		if (do_eth16i_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_eth16i[found++] = dev;
-				continue;
-			}
-			free_irq(dev->irq, dev);
-			release_region(dev->base_addr, ETH16I_IO_EXTENT);
+			dev_eth16i[found++] = dev;
+			continue;
 		}
 		printk(KERN_WARNING "eth16i.c No Eth16i card found (i/o = 0x%x).\n",
 		       io[this_dev]);

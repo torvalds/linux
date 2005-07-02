@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-ixp2000/ixp2000-gpio.h
+ * include/asm-arm/arch-ixp2000/gpio.h
  *
  * Copyright (C) 2002 Intel Corporation.
  *
@@ -16,26 +16,18 @@
  * Use this instead of directly setting the GPIO registers.
  * GPIOs may also be used as GPIOs (e.g. for emulating i2c/smb)
  */
-#ifndef _ASM_ARCH_IXP2000_GPIO_H_
-#define _ASM_ARCH_IXP2000_GPIO_H_
+#ifndef __ASM_ARCH_GPIO_H
+#define __ASM_ARCH_GPIO_H
 
 #ifndef __ASSEMBLY__
-#define GPIO_OUT			0x0
-#define GPIO_IN				0x80
+
+#define GPIO_IN				0
+#define GPIO_OUT			1
 
 #define IXP2000_GPIO_LOW		0
 #define IXP2000_GPIO_HIGH		1
 
-#define GPIO_NO_EDGES           	0
-#define GPIO_FALLING_EDGE       	1
-#define GPIO_RISING_EDGE        	2
-#define GPIO_BOTH_EDGES         	3
-#define GPIO_LEVEL_LOW          	4
-#define GPIO_LEVEL_HIGH         	8
-
-extern void set_GPIO_IRQ_edge(int gpio_nr, int edge);
-extern void set_GPIO_IRQ_level(int gpio_nr, int level);
-extern void gpio_line_config(int line, int style);
+extern void gpio_line_config(int line, int direction);
 
 static inline int gpio_line_get(int line)
 {
@@ -45,11 +37,12 @@ static inline int gpio_line_get(int line)
 static inline void gpio_line_set(int line, int value)
 {
 	if (value == IXP2000_GPIO_HIGH) {
-		ixp_reg_write(IXP2000_GPIO_POSR, BIT(line));
-	} else if (value == IXP2000_GPIO_LOW)
-		ixp_reg_write(IXP2000_GPIO_POCR, BIT(line));
+		ixp2000_reg_write(IXP2000_GPIO_POSR, 1 << line);
+	} else if (value == IXP2000_GPIO_LOW) {
+		ixp2000_reg_write(IXP2000_GPIO_POCR, 1 << line);
+	}
 }
 
 #endif /* !__ASSEMBLY__ */
-#endif /* ASM_ARCH_IXP2000_GPIO_H_ */
 
+#endif /* ASM_ARCH_IXP2000_GPIO_H_ */

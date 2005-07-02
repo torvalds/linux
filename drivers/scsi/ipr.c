@@ -2716,7 +2716,7 @@ static int ipr_change_queue_type(struct scsi_device *sdev, int tag_type)
  * Return value:
  * 	number of bytes printed to buffer
  **/
-static ssize_t ipr_show_adapter_handle(struct device *dev, char *buf)
+static ssize_t ipr_show_adapter_handle(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)sdev->host->hostdata;
@@ -6012,7 +6012,7 @@ static int __devinit ipr_probe(struct pci_dev *pdev,
 
 /**
  * ipr_shutdown - Shutdown handler.
- * @dev:	device struct
+ * @pdev:	pci device struct
  *
  * This function is invoked upon system shutdown/reboot. It will issue
  * an adapter shutdown to the adapter to flush the write cache.
@@ -6020,9 +6020,9 @@ static int __devinit ipr_probe(struct pci_dev *pdev,
  * Return value:
  * 	none
  **/
-static void ipr_shutdown(struct device *dev)
+static void ipr_shutdown(struct pci_dev *pdev)
 {
-	struct ipr_ioa_cfg *ioa_cfg = pci_get_drvdata(to_pci_dev(dev));
+	struct ipr_ioa_cfg *ioa_cfg = pci_get_drvdata(pdev);
 	unsigned long lock_flags = 0;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
@@ -6068,9 +6068,7 @@ static struct pci_driver ipr_driver = {
 	.id_table = ipr_pci_table,
 	.probe = ipr_probe,
 	.remove = ipr_remove,
-	.driver = {
-		.shutdown = ipr_shutdown,
-	},
+	.shutdown = ipr_shutdown,
 };
 
 /**

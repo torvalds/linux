@@ -148,7 +148,7 @@ config HOTPLUG_CPU
 	default y if SMP
 	select HOTPLUG
 
-config DISCONTIGMEM
+config ARCH_DISCONTIGMEM_ENABLE
 	bool "Discontiguous memory support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 	help
@@ -156,6 +156,8 @@ config DISCONTIGMEM
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa> for more.
+
+source "mm/Kconfig"
 
 config PREEMPT
 	bool

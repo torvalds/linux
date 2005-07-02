@@ -77,22 +77,8 @@ static unsigned int share_irqs = SERIAL8250_SHARE_IRQS;
  */
 #define is_real_interrupt(irq)	((irq) != 0)
 
-/*
- * This converts from our new CONFIG_ symbols to the symbols
- * that asm/serial.h expects.  You _NEED_ to comment out the
- * linux/config.h include contained inside asm/serial.h for
- * this to work.
- */
-#undef CONFIG_SERIAL_MANY_PORTS
-#undef CONFIG_SERIAL_DETECT_IRQ
-#undef CONFIG_SERIAL_MULTIPORT
-#undef CONFIG_HUB6
-
 #ifdef CONFIG_SERIAL_8250_DETECT_IRQ
 #define CONFIG_SERIAL_DETECT_IRQ 1
-#endif
-#ifdef CONFIG_SERIAL_8250_MULTIPORT
-#define CONFIG_SERIAL_MULTIPORT 1
 #endif
 #ifdef CONFIG_SERIAL_8250_MANY_PORTS
 #define CONFIG_SERIAL_MANY_PORTS 1
@@ -119,7 +105,7 @@ static struct old_serial_port old_serial_port[] = {
 	SERIAL_PORT_DFNS /* defined in asm/serial.h */
 };
 
-#define UART_NR	(ARRAY_SIZE(old_serial_port) + CONFIG_SERIAL_8250_NR_UARTS)
+#define UART_NR	CONFIG_SERIAL_8250_NR_UARTS
 
 #ifdef CONFIG_SERIAL_8250_RSA
 
@@ -132,9 +118,9 @@ struct uart_8250_port {
 	struct uart_port	port;
 	struct timer_list	timer;		/* "no irq" timer */
 	struct list_head	list;		/* ports on this IRQ */
-	unsigned int		capabilities;	/* port capabilities */
+	unsigned short		capabilities;	/* port capabilities */
+	unsigned short		bugs;		/* port bugs */
 	unsigned int		tx_loadsz;	/* transmit fifo load size */
-	unsigned short		rev;
 	unsigned char		acr;
 	unsigned char		ier;
 	unsigned char		lcr;
@@ -560,7 +546,14 @@ static void autoconfig_has_efr(struct uart_8250_port *up)
 	if (id1 == 0x16 && id2 == 0xC9 &&
 	    (id3 == 0x50 || id3 == 0x52 || id3 == 0x54)) {
 		up->port.type = PORT_16C950;
-		up->rev = rev | (id3 << 8);
+
+		/*
+		 * Enable work around for the Oxford Semiconductor 952 rev B
+		 * chip which causes it to seriously miscalculate baud rates
+		 * when DLL is 0.
+		 */
+		if (id3 == 0x52 && rev == 0x01)
+			up->bugs |= UART_BUG_QUOT;
 		return;
 	}
 	
@@ -577,8 +570,6 @@ static void autoconfig_has_efr(struct uart_8250_port *up)
 
 	id2 = id1 >> 8;
 	if (id2 == 0x10 || id2 == 0x12 || id2 == 0x14) {
-		if (id2 == 0x10)
-			up->rev = id1 & 255;
 		up->port.type = PORT_16850;
 		return;
 	}
@@ -809,6 +800,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 //	save_flags(flags); cli();
 
 	up->capabilities = 0;
+	up->bugs = 0;
 
 	if (!(up->port.flags & UPF_BUGGY_UART)) {
 		/*
@@ -1001,25 +993,30 @@ static void autoconfig_irq(struct uart_8250_port *up)
 	up->port.irq = (irq > 0) ? irq : 0;
 }
 
+static inline void __stop_tx(struct uart_8250_port *p)
+{
+	if (p->ier & UART_IER_THRI) {
+		p->ier &= ~UART_IER_THRI;
+		serial_out(p, UART_IER, p->ier);
+	}
+}
+
 static void serial8250_stop_tx(struct uart_port *port, unsigned int tty_stop)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 
-	if (up->ier & UART_IER_THRI) {
-		up->ier &= ~UART_IER_THRI;
-		serial_out(up, UART_IER, up->ier);
-	}
+	__stop_tx(up);
 
 	/*
-	 * We only do this from uart_stop - if we run out of
-	 * characters to send, we don't want to prevent the
-	 * FIFO from emptying.
+	 * We really want to stop the transmitter from sending.
 	 */
-	if (up->port.type == PORT_16C950 && tty_stop) {
+	if (up->port.type == PORT_16C950) {
 		up->acr |= UART_ACR_TXDIS;
 		serial_icr_write(up, UART_ACR, up->acr);
 	}
 }
+
+static void transmit_chars(struct uart_8250_port *up);
 
 static void serial8250_start_tx(struct uart_port *port, unsigned int tty_start)
 {
@@ -1028,11 +1025,20 @@ static void serial8250_start_tx(struct uart_port *port, unsigned int tty_start)
 	if (!(up->ier & UART_IER_THRI)) {
 		up->ier |= UART_IER_THRI;
 		serial_out(up, UART_IER, up->ier);
+
+		if (up->bugs & UART_BUG_TXEN) {
+			unsigned char lsr, iir;
+			lsr = serial_in(up, UART_LSR);
+			iir = serial_in(up, UART_IIR);
+			if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT)
+				transmit_chars(up);
+		}
 	}
+
 	/*
-	 * We only do this from uart_start
+	 * Re-enable the transmitter if we disabled it.
 	 */
-	if (tty_start && up->port.type == PORT_16C950) {
+	if (up->port.type == PORT_16C950 && up->acr & UART_ACR_TXDIS) {
 		up->acr &= ~UART_ACR_TXDIS;
 		serial_icr_write(up, UART_ACR, up->acr);
 	}
@@ -1153,7 +1159,7 @@ static _INLINE_ void transmit_chars(struct uart_8250_port *up)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		serial8250_stop_tx(&up->port, 0);
+		__stop_tx(up);
 		return;
 	}
 
@@ -1172,7 +1178,7 @@ static _INLINE_ void transmit_chars(struct uart_8250_port *up)
 	DEBUG_INTR("THRE...");
 
 	if (uart_circ_empty(xmit))
-		serial8250_stop_tx(&up->port, 0);
+		__stop_tx(up);
 }
 
 static _INLINE_ void check_modem_status(struct uart_8250_port *up)
@@ -1374,13 +1380,10 @@ static unsigned int serial8250_tx_empty(struct uart_port *port)
 static unsigned int serial8250_get_mctrl(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
-	unsigned long flags;
 	unsigned char status;
 	unsigned int ret;
 
-	spin_lock_irqsave(&up->port.lock, flags);
 	status = serial_in(up, UART_MSR);
-	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	ret = 0;
 	if (status & UART_MSR_DCD)
@@ -1433,6 +1436,7 @@ static int serial8250_startup(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 	unsigned long flags;
+	unsigned char lsr, iir;
 	int retval;
 
 	up->capabilities = uart_config[up->port.type].flags;
@@ -1536,6 +1540,26 @@ static int serial8250_startup(struct uart_port *port)
 			up->port.mctrl |= TIOCM_OUT2;
 
 	serial8250_set_mctrl(&up->port, up->port.mctrl);
+
+	/*
+	 * Do a quick test to see if we receive an
+	 * interrupt when we enable the TX irq.
+	 */
+	serial_outp(up, UART_IER, UART_IER_THRI);
+	lsr = serial_in(up, UART_LSR);
+	iir = serial_in(up, UART_IIR);
+	serial_outp(up, UART_IER, 0);
+
+	if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT) {
+		if (!(up->bugs & UART_BUG_TXEN)) {
+			up->bugs |= UART_BUG_TXEN;
+			pr_debug("ttyS%d - enabling bad tx status workarounds\n",
+				 port->line);
+		}
+	} else {
+		up->bugs &= ~UART_BUG_TXEN;
+	}
+
 	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	/*
@@ -1645,22 +1669,22 @@ serial8250_set_termios(struct uart_port *port, struct termios *termios,
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
-		cval = 0x00;
+		cval = UART_LCR_WLEN5;
 		break;
 	case CS6:
-		cval = 0x01;
+		cval = UART_LCR_WLEN6;
 		break;
 	case CS7:
-		cval = 0x02;
+		cval = UART_LCR_WLEN7;
 		break;
 	default:
 	case CS8:
-		cval = 0x03;
+		cval = UART_LCR_WLEN8;
 		break;
 	}
 
 	if (termios->c_cflag & CSTOPB)
-		cval |= 0x04;
+		cval |= UART_LCR_STOP;
 	if (termios->c_cflag & PARENB)
 		cval |= UART_LCR_PARITY;
 	if (!(termios->c_cflag & PARODD))
@@ -1677,12 +1701,9 @@ serial8250_set_termios(struct uart_port *port, struct termios *termios,
 	quot = serial8250_get_divisor(port, baud);
 
 	/*
-	 * Work around a bug in the Oxford Semiconductor 952 rev B
-	 * chip which causes it to seriously miscalculate baud rates
-	 * when DLL is 0.
+	 * Oxford Semi 952 rev B workaround
 	 */
-	if ((quot & 0xff) == 0 && up->port.type == PORT_16C950 &&
-	    up->rev == 0x5201)
+	if (up->bugs & UART_BUG_QUOT && (quot & 0xff) == 0)
 		quot ++;
 
 	if (up->capabilities & UART_CAP_FIFO && up->port.fifosize > 1) {
@@ -2040,7 +2061,8 @@ static void __init serial8250_isa_init_ports(void)
 		up->port.ops = &serial8250_pops;
 	}
 
-	for (i = 0, up = serial8250_ports; i < ARRAY_SIZE(old_serial_port);
+	for (i = 0, up = serial8250_ports;
+	     i < ARRAY_SIZE(old_serial_port) && i < UART_NR;
 	     i++, up++) {
 		up->port.iobase   = old_serial_port[i].port;
 		up->port.irq      = irq_canonicalize(old_serial_port[i].irq);
@@ -2289,10 +2311,11 @@ static int __devinit serial8250_probe(struct device *dev)
 {
 	struct plat_serial8250_port *p = dev->platform_data;
 	struct uart_port port;
+	int ret, i;
 
 	memset(&port, 0, sizeof(struct uart_port));
 
-	for (; p && p->flags != 0; p++) {
+	for (i = 0; p && p->flags != 0; p++, i++) {
 		port.iobase	= p->iobase;
 		port.membase	= p->membase;
 		port.irq	= p->irq;
@@ -2301,10 +2324,16 @@ static int __devinit serial8250_probe(struct device *dev)
 		port.iotype	= p->iotype;
 		port.flags	= p->flags;
 		port.mapbase	= p->mapbase;
+		port.hub6	= p->hub6;
 		port.dev	= dev;
 		if (share_irqs)
 			port.flags |= UPF_SHARE_IRQ;
-		serial8250_register_port(&port);
+		ret = serial8250_register_port(&port);
+		if (ret < 0) {
+			dev_err(dev, "unable to register port at index %d "
+				"(IO%lx MEM%lx IRQ%d): %d\n", i,
+				p->iobase, p->mapbase, p->irq, ret);
+		}
 	}
 	return 0;
 }

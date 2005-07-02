@@ -27,6 +27,8 @@
  *		<prasanna@in.ibm.com> adapted for x86_64
  * 2005-Mar	Roland McGrath <roland@redhat.com>
  *		Fixed to handle %rip-relative addressing mode correctly.
+ * 2005-May     Rusty Lynch <rusty.lynch@intel.com>
+ *              Added function return probes functionality
  */
 
 #include <linux/config.h>
@@ -36,23 +38,19 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/preempt.h>
-#include <linux/moduleloader.h>
 
+#include <asm/cacheflush.h>
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
 
 static DECLARE_MUTEX(kprobe_mutex);
 
-/* kprobe_status settings */
-#define KPROBE_HIT_ACTIVE	0x00000001
-#define KPROBE_HIT_SS		0x00000002
-
 static struct kprobe *current_kprobe;
 static unsigned long kprobe_status, kprobe_old_rflags, kprobe_saved_rflags;
+static struct kprobe *kprobe_prev;
+static unsigned long kprobe_status_prev, kprobe_old_rflags_prev, kprobe_saved_rflags_prev;
 static struct pt_regs jprobe_saved_regs;
 static long *jprobe_saved_rsp;
-static kprobe_opcode_t *get_insn_slot(void);
-static void free_insn_slot(kprobe_opcode_t *slot);
 void jprobe_return_end(void);
 
 /* copy of the kernel stack at the probe fire time */
@@ -214,6 +212,21 @@ void arch_copy_kprobe(struct kprobe *p)
 		BUG_ON((s64) (s32) disp != disp); /* Sanity check.  */
 		*ripdisp = disp;
 	}
+	p->opcode = *p->addr;
+}
+
+void arch_arm_kprobe(struct kprobe *p)
+{
+	*p->addr = BREAKPOINT_INSTRUCTION;
+	flush_icache_range((unsigned long) p->addr,
+			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
+}
+
+void arch_disarm_kprobe(struct kprobe *p)
+{
+	*p->addr = p->opcode;
+	flush_icache_range((unsigned long) p->addr,
+			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
 void arch_remove_kprobe(struct kprobe *p)
@@ -223,10 +236,29 @@ void arch_remove_kprobe(struct kprobe *p)
 	down(&kprobe_mutex);
 }
 
-static inline void disarm_kprobe(struct kprobe *p, struct pt_regs *regs)
+static inline void save_previous_kprobe(void)
 {
-	*p->addr = p->opcode;
-	regs->rip = (unsigned long)p->addr;
+	kprobe_prev = current_kprobe;
+	kprobe_status_prev = kprobe_status;
+	kprobe_old_rflags_prev = kprobe_old_rflags;
+	kprobe_saved_rflags_prev = kprobe_saved_rflags;
+}
+
+static inline void restore_previous_kprobe(void)
+{
+	current_kprobe = kprobe_prev;
+	kprobe_status = kprobe_status_prev;
+	kprobe_old_rflags = kprobe_old_rflags_prev;
+	kprobe_saved_rflags = kprobe_saved_rflags_prev;
+}
+
+static inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs)
+{
+	current_kprobe = p;
+	kprobe_saved_rflags = kprobe_old_rflags
+		= (regs->eflags & (TF_MASK | IF_MASK));
+	if (is_IF_modifier(p->ainsn.insn))
+		kprobe_saved_rflags &= ~IF_MASK;
 }
 
 static void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
@@ -238,6 +270,25 @@ static void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 		regs->rip = (unsigned long)p->addr;
 	else
 		regs->rip = (unsigned long)p->ainsn.insn;
+}
+
+void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs)
+{
+	unsigned long *sara = (unsigned long *)regs->rsp;
+        struct kretprobe_instance *ri;
+
+        if ((ri = get_free_rp_inst(rp)) != NULL) {
+                ri->rp = rp;
+                ri->task = current;
+		ri->ret_addr = (kprobe_opcode_t *) *sara;
+
+		/* Replace the return addr with trampoline addr */
+		*sara = (unsigned long) &kretprobe_trampoline;
+
+                add_rp_inst(ri);
+        } else {
+                rp->nmissed++;
+        }
 }
 
 /*
@@ -264,9 +315,30 @@ int kprobe_handler(struct pt_regs *regs)
 				regs->eflags |= kprobe_saved_rflags;
 				unlock_kprobes();
 				goto no_kprobe;
+			} else if (kprobe_status == KPROBE_HIT_SSDONE) {
+				/* TODO: Provide re-entrancy from
+				 * post_kprobes_handler() and avoid exception
+				 * stack corruption while single-stepping on
+				 * the instruction of the new probe.
+				 */
+				arch_disarm_kprobe(p);
+				regs->rip = (unsigned long)p->addr;
+				ret = 1;
+			} else {
+				/* We have reentered the kprobe_handler(), since
+				 * another probe was hit while within the
+				 * handler. We here save the original kprobe
+				 * variables and just single step on instruction
+				 * of the new probe without calling any user
+				 * handlers.
+				 */
+				save_previous_kprobe();
+				set_current_kprobe(p, regs);
+				p->nmissed++;
+				prepare_singlestep(p, regs);
+				kprobe_status = KPROBE_REENTER;
+				return 1;
 			}
-			disarm_kprobe(p, regs);
-			ret = 1;
 		} else {
 			p = current_kprobe;
 			if (p->break_handler && p->break_handler(p, regs)) {
@@ -296,11 +368,7 @@ int kprobe_handler(struct pt_regs *regs)
 	}
 
 	kprobe_status = KPROBE_HIT_ACTIVE;
-	current_kprobe = p;
-	kprobe_saved_rflags = kprobe_old_rflags
-	    = (regs->eflags & (TF_MASK | IF_MASK));
-	if (is_IF_modifier(p->ainsn.insn))
-		kprobe_saved_rflags &= ~IF_MASK;
+	set_current_kprobe(p, regs);
 
 	if (p->pre_handler && p->pre_handler(p, regs))
 		/* handler has already set things up, so skip ss setup */
@@ -314,6 +382,78 @@ ss_probe:
 no_kprobe:
 	preempt_enable_no_resched();
 	return ret;
+}
+
+/*
+ * For function-return probes, init_kprobes() establishes a probepoint
+ * here. When a retprobed function returns, this probe is hit and
+ * trampoline_probe_handler() runs, calling the kretprobe's handler.
+ */
+ void kretprobe_trampoline_holder(void)
+ {
+ 	asm volatile (  ".global kretprobe_trampoline\n"
+ 			"kretprobe_trampoline: \n"
+ 			"nop\n");
+ }
+
+/*
+ * Called when we hit the probe point at kretprobe_trampoline
+ */
+int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
+{
+        struct kretprobe_instance *ri = NULL;
+        struct hlist_head *head;
+        struct hlist_node *node, *tmp;
+	unsigned long orig_ret_address = 0;
+	unsigned long trampoline_address =(unsigned long)&kretprobe_trampoline;
+
+        head = kretprobe_inst_table_head(current);
+
+	/*
+	 * It is possible to have multiple instances associated with a given
+	 * task either because an multiple functions in the call path
+	 * have a return probe installed on them, and/or more then one return
+	 * return probe was registered for a target function.
+	 *
+	 * We can handle this because:
+	 *     - instances are always inserted at the head of the list
+	 *     - when multiple return probes are registered for the same
+         *       function, the first instance's ret_addr will point to the
+	 *       real return address, and all the rest will point to
+	 *       kretprobe_trampoline
+	 */
+	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+                if (ri->task != current)
+			/* another task is sharing our hash bucket */
+                        continue;
+
+		if (ri->rp && ri->rp->handler)
+			ri->rp->handler(ri, regs);
+
+		orig_ret_address = (unsigned long)ri->ret_addr;
+		recycle_rp_inst(ri);
+
+		if (orig_ret_address != trampoline_address)
+			/*
+			 * This is the real return address. Any other
+			 * instances associated with this task are for
+			 * other calls deeper on the call stack
+			 */
+			break;
+	}
+
+	BUG_ON(!orig_ret_address || (orig_ret_address == trampoline_address));
+	regs->rip = orig_ret_address;
+
+	unlock_kprobes();
+	preempt_enable_no_resched();
+
+        /*
+         * By returning a non-zero value, we are telling
+         * kprobe_handler() that we have handled unlocking
+         * and re-enabling preemption.
+         */
+        return 1;
 }
 
 /*
@@ -401,13 +541,22 @@ int post_kprobe_handler(struct pt_regs *regs)
 	if (!kprobe_running())
 		return 0;
 
-	if (current_kprobe->post_handler)
+	if ((kprobe_status != KPROBE_REENTER) && current_kprobe->post_handler) {
+		kprobe_status = KPROBE_HIT_SSDONE;
 		current_kprobe->post_handler(current_kprobe, regs, 0);
+	}
 
 	resume_execution(current_kprobe, regs);
 	regs->eflags |= kprobe_saved_rflags;
 
-	unlock_kprobes();
+	/* Restore the original saved kprobes variables and continue. */
+	if (kprobe_status == KPROBE_REENTER) {
+		restore_previous_kprobe();
+		goto out;
+	} else {
+		unlock_kprobes();
+	}
+out:
 	preempt_enable_no_resched();
 
 	/*
@@ -528,111 +677,12 @@ int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	return 0;
 }
 
-/*
- * kprobe->ainsn.insn points to the copy of the instruction to be single-stepped.
- * By default on x86_64, pages we get from kmalloc or vmalloc are not
- * executable.  Single-stepping an instruction on such a page yields an
- * oops.  So instead of storing the instruction copies in their respective
- * kprobe objects, we allocate a page, map it executable, and store all the
- * instruction copies there.  (We can allocate additional pages if somebody
- * inserts a huge number of probes.)  Each page can hold up to INSNS_PER_PAGE
- * instruction slots, each of which is MAX_INSN_SIZE*sizeof(kprobe_opcode_t)
- * bytes.
- */
-#define INSNS_PER_PAGE (PAGE_SIZE/(MAX_INSN_SIZE*sizeof(kprobe_opcode_t)))
-struct kprobe_insn_page {
-	struct hlist_node hlist;
-	kprobe_opcode_t *insns;		/* page of instruction slots */
-	char slot_used[INSNS_PER_PAGE];
-	int nused;
+static struct kprobe trampoline_p = {
+	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
+	.pre_handler = trampoline_probe_handler
 };
 
-static struct hlist_head kprobe_insn_pages;
-
-/**
- * get_insn_slot() - Find a slot on an executable page for an instruction.
- * We allocate an executable page if there's no room on existing ones.
- */
-static kprobe_opcode_t *get_insn_slot(void)
+int __init arch_init(void)
 {
-	struct kprobe_insn_page *kip;
-	struct hlist_node *pos;
-
-	hlist_for_each(pos, &kprobe_insn_pages) {
-		kip = hlist_entry(pos, struct kprobe_insn_page, hlist);
-		if (kip->nused < INSNS_PER_PAGE) {
-			int i;
-			for (i = 0; i < INSNS_PER_PAGE; i++) {
-				if (!kip->slot_used[i]) {
-					kip->slot_used[i] = 1;
-					kip->nused++;
-					return kip->insns + (i*MAX_INSN_SIZE);
-				}
-			}
-			/* Surprise!  No unused slots.  Fix kip->nused. */
-			kip->nused = INSNS_PER_PAGE;
-		}
-	}
-
-	/* All out of space.  Need to allocate a new page. Use slot 0.*/
-	kip = kmalloc(sizeof(struct kprobe_insn_page), GFP_KERNEL);
-	if (!kip) {
-		return NULL;
-	}
-
-	/*
-	 * For the %rip-relative displacement fixups to be doable, we
-	 * need our instruction copy to be within +/- 2GB of any data it
-	 * might access via %rip.  That is, within 2GB of where the
-	 * kernel image and loaded module images reside.  So we allocate
-	 * a page in the module loading area.
-	 */
-	kip->insns = module_alloc(PAGE_SIZE);
-	if (!kip->insns) {
-		kfree(kip);
-		return NULL;
-	}
-	INIT_HLIST_NODE(&kip->hlist);
-	hlist_add_head(&kip->hlist, &kprobe_insn_pages);
-	memset(kip->slot_used, 0, INSNS_PER_PAGE);
-	kip->slot_used[0] = 1;
-	kip->nused = 1;
-	return kip->insns;
-}
-
-/**
- * free_insn_slot() - Free instruction slot obtained from get_insn_slot().
- */
-static void free_insn_slot(kprobe_opcode_t *slot)
-{
-	struct kprobe_insn_page *kip;
-	struct hlist_node *pos;
-
-	hlist_for_each(pos, &kprobe_insn_pages) {
-		kip = hlist_entry(pos, struct kprobe_insn_page, hlist);
-		if (kip->insns <= slot
-		    && slot < kip->insns+(INSNS_PER_PAGE*MAX_INSN_SIZE)) {
-			int i = (slot - kip->insns) / MAX_INSN_SIZE;
-			kip->slot_used[i] = 0;
-			kip->nused--;
-			if (kip->nused == 0) {
-				/*
-				 * Page is no longer in use.  Free it unless
-				 * it's the last one.  We keep the last one
-				 * so as not to have to set it up again the
-				 * next time somebody inserts a probe.
-				 */
-				hlist_del(&kip->hlist);
-				if (hlist_empty(&kprobe_insn_pages)) {
-					INIT_HLIST_NODE(&kip->hlist);
-					hlist_add_head(&kip->hlist,
-						&kprobe_insn_pages);
-				} else {
-					module_free(NULL, kip->insns);
-					kfree(kip);
-				}
-			}
-			return;
-		}
-	}
+	return register_kprobe(&trampoline_p);
 }

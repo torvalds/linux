@@ -37,7 +37,6 @@
  * superblocks of the Veritas Filesystem.
  */
 #include <linux/types.h>
-#include "vxfs_kcompat.h"
 
 
 /*
