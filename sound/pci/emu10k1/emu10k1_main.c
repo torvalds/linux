@@ -191,7 +191,7 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 		/* Set playback routing. */
 		snd_emu10k1_ptr20_write(emu, CAPTURE_P16V_SOURCE, 0, 0x78e4);
 	}
-	if (emu->audigy && (emu->serial == 0x10011102) ) { /* audigy2 Value */
+	if (emu->card_capabilities->ca0108_chip) { /* audigy2 Value */
 		/* Hacks for Alice3 to work independent of haP16V driver */
 		u32 tmp;
 
@@ -253,6 +253,8 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 			     HCFG_AUTOMUTE | HCFG_JOYENABLE, emu->port + HCFG);
 		else
 			outl(HCFG_AUTOMUTE | HCFG_JOYENABLE, emu->port + HCFG);
+	/* FIXME: Remove all these emu->model and replace it with a card recognition parameter,
+	 * e.g. card_capabilities->joystick */
 	} else if (emu->model == 0x20 ||
 	    emu->model == 0xc400 ||
 	    (emu->model == 0x21 && emu->revision < 6))
@@ -299,12 +301,12 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 	if (emu->audigy) {
 		outl(inl(emu->port + A_IOCFG) & ~0x44, emu->port + A_IOCFG);
  
-		if (emu->revision == 4) { /* audigy2 */
+		if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
 			/* Unmute Analog now.  Set GPO6 to 1 for Apollo.
 			 * This has to be done after init ALice3 I2SOut beyond 48KHz.
 			 * So, sequence is important. */
 			outl(inl(emu->port + A_IOCFG) | 0x0040, emu->port + A_IOCFG);
-		} else if (emu->serial == 0x10011102) { /* audigy2 value */
+		} else if (emu->card_capabilities->ca0108_chip) { /* audigy2 value */
 			/* Unmute Analog now. */
 			outl(inl(emu->port + A_IOCFG) | 0x0060, emu->port + A_IOCFG);
 		} else {
