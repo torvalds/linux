@@ -286,7 +286,7 @@ extern void		    audit_log_lost(const char *message);
 extern struct semaphore audit_netlink_sem;
 #else
 #define audit_log(c,t,f,...) do { ; } while (0)
-#define audit_log_start(c,t) ({ NULL; })
+#define audit_log_start(c,g,t) ({ NULL; })
 #define audit_log_vformat(b,f,a) do { ; } while (0)
 #define audit_log_format(b,f,...) do { ; } while (0)
 #define audit_log_end(b) do { ; } while (0)
