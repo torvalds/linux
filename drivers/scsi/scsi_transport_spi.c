@@ -795,7 +795,8 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 	}
 
 	/* test width */
-	if (i->f->set_width && spi_max_width(starget) && sdev->wdtr) {
+	if (i->f->set_width && spi_max_width(starget) &&
+	    scsi_device_wide(sdev)) {
 		i->f->set_width(starget, 1);
 
 		if (spi_dv_device_compare_inquiry(sreq, buffer,
@@ -811,14 +812,14 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 		return;
 
 	/* device can't handle synchronous */
-	if (!sdev->ppr && !sdev->sdtr)
+	if (!scsi_device_sync(sdev) && !scsi_device_dt(sdev))
 		return;
 
 	/* see if the device has an echo buffer.  If it does we can
 	 * do the SPI pattern write tests */
 
 	len = 0;
-	if (sdev->ppr)
+	if (scsi_device_dt(sdev))
 		len = spi_dv_device_get_echo_buffer(sreq, buffer);
 
  retry:
@@ -828,9 +829,11 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 	DV_SET(period, spi_min_period(starget));
 	/* try QAS requests; this should be harmless to set if the
 	 * target supports it */
-	DV_SET(qas, 1);
+	if (scsi_device_qas(sdev))
+		DV_SET(qas, 1);
 	/* Also try IU transfers */
-	DV_SET(iu, 1);
+	if (scsi_device_ius(sdev))
+		DV_SET(iu, 1);
 	if (spi_min_period(starget) < 9) {
 		/* This u320 (or u640). Ignore the coupled parameters
 		 * like DT and IU, but set the optional ones */
