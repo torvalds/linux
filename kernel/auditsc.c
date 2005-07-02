@@ -516,7 +516,7 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 	int		   word = AUDIT_WORD(ctx->major);
 	int		   bit  = AUDIT_BIT(ctx->major);
 
-	if (audit_pid && ctx->pid == audit_pid)
+	if (audit_pid && tsk->pid == audit_pid)
 		return AUDIT_DISABLED;
 
 	rcu_read_lock();
@@ -601,7 +601,7 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 	context->return_valid = return_valid;
 	context->return_code  = return_code;
 
-	if (context->in_syscall && !context->auditable && tsk->pid != audit_pid) {
+	if (context->in_syscall && !context->auditable) {
 		enum audit_state state;
 		state = audit_filter_syscall(tsk, context, &audit_filter_list[AUDIT_FILTER_EXIT]);
 		if (state == AUDIT_RECORD_CONTEXT)
