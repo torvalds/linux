@@ -151,9 +151,9 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	lb_stats = &per_cpu(loopback_stats, get_cpu());
 	lb_stats->rx_bytes += skb->len;
-	lb_stats->tx_bytes += skb->len;
+	lb_stats->tx_bytes = lb_stats->rx_bytes;
 	lb_stats->rx_packets++;
-	lb_stats->tx_packets++;
+	lb_stats->tx_packets = lb_stats->rx_packets;
 	put_cpu();
 
 	netif_rx(skb);
