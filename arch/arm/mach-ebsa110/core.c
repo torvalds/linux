@@ -233,13 +233,15 @@ static int __init ebsa110_init(void)
 arch_initcall(ebsa110_init);
 
 MACHINE_START(EBSA110, "EBSA110")
-	MAINTAINER("Russell King")
-	BOOT_MEM(0x00000000, 0xe0000000, 0xe0000000)
-	BOOT_PARAMS(0x00000400)
-	DISABLE_PARPORT(0)
-	DISABLE_PARPORT(2)
-	SOFT_REBOOT
-	MAPIO(ebsa110_map_io)
-	INITIRQ(ebsa110_init_irq)
+	/* Maintainer: Russell King */
+	.phys_ram	= 0x00000000,
+	.phys_io	= 0xe0000000,
+	.io_pg_offst	= ((0xe0000000) >> 18) & 0xfffc,
+	.boot_params	= 0x00000400,
+	.reserve_lp0	= 1,
+	.reserve_lp2	= 1,
+	.soft_reboot	= 1,
+	.map_io		= ebsa110_map_io,
+	.init_irq	= ebsa110_init_irq,
 	.timer		= &ebsa110_timer,
 MACHINE_END
