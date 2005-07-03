@@ -132,8 +132,8 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb_orphan(skb);
 
-	skb->protocol=eth_type_trans(skb,dev);
-	skb->dev=dev;
+	skb->protocol = eth_type_trans(skb,dev);
+	skb->dev = dev;
 #ifndef LOOPBACK_MUST_CHECKSUM
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 #endif
@@ -211,12 +211,12 @@ struct net_device loopback_dev = {
 	.type			= ARPHRD_LOOPBACK,	/* 0x0001*/
 	.rebuild_header		= eth_rebuild_header,
 	.flags			= IFF_LOOPBACK,
-	.features 		= NETIF_F_SG|NETIF_F_FRAGLIST
+	.features 		= NETIF_F_SG | NETIF_F_FRAGLIST
 #ifdef LOOPBACK_TSO
-				  |NETIF_F_TSO
+				  | NETIF_F_TSO
 #endif
-				  |NETIF_F_NO_CSUM|NETIF_F_HIGHDMA
-				  |NETIF_F_LLTX,
+				  | NETIF_F_NO_CSUM | NETIF_F_HIGHDMA
+				  | NETIF_F_LLTX,
 	.ethtool_ops		= &loopback_ethtool_ops,
 };
 
