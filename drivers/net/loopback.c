@@ -68,6 +68,7 @@ static DEFINE_PER_CPU(struct net_device_stats, loopback_stats);
  * of largesending device modulo TCP checksum, which is ignored for loopback.
  */
 
+#ifdef LOOPBACK_TSO
 static void emulate_large_send_offload(struct sk_buff *skb)
 {
 	struct iphdr *iph = skb->nh.iph;
@@ -119,6 +120,7 @@ static void emulate_large_send_offload(struct sk_buff *skb)
 
 	dev_kfree_skb(skb);
 }
+#endif /* LOOPBACK_TSO */
 
 /*
  * The higher levels take care of making this non-reentrant (it's
@@ -136,6 +138,7 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 #endif
 
+#ifdef LOOPBACK_TSO
 	if (skb_shinfo(skb)->tso_size) {
 		BUG_ON(skb->protocol != htons(ETH_P_IP));
 		BUG_ON(skb->nh.iph->protocol != IPPROTO_TCP);
@@ -143,7 +146,7 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 		emulate_large_send_offload(skb);
 		return 0;
 	}
-
+#endif
 	dev->last_rx = jiffies;
 
 	lb_stats = &per_cpu(loopback_stats, get_cpu());
@@ -209,6 +212,9 @@ struct net_device loopback_dev = {
 	.rebuild_header		= eth_rebuild_header,
 	.flags			= IFF_LOOPBACK,
 	.features 		= NETIF_F_SG|NETIF_F_FRAGLIST
+#ifdef LOOPBACK_TSO
+				  |NETIF_F_TSO
+#endif
 				  |NETIF_F_NO_CSUM|NETIF_F_HIGHDMA
 				  |NETIF_F_LLTX,
 	.ethtool_ops		= &loopback_ethtool_ops,
