@@ -616,6 +616,7 @@ static int snd_emu10k1_dev_free(snd_device_t *device)
 
 static emu_chip_details_t emu_chip_details[] = {
 	/* Audigy 2 Value AC3 out does not work yet. Need to find out how to turn off interpolators.*/
+	/* Tested by James@superbug.co.uk 3rd July 2005 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10011102,
 	 .driver = "Audigy2", .name = "Audigy 2 Value [SB0400]", 
 	 .id = "Audigy2",
@@ -629,6 +630,7 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
 	 .ac97_chip = 1} ,
+	/* Tested by James@superbug.co.uk 3rd July 2005 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20071102,
 	 .driver = "Audigy2", .name = "Audigy 4 PRO [SB0380]", 
 	 .id = "Audigy2",
@@ -773,6 +775,7 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .emu10k1_chip = 1,
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
+	/* Tested by James@superbug.co.uk 3rd July 2005 */
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80271102,
 	 .driver = "EMU10K1", .name = "SBLive! Value [CT4832]", 
 	 .id = "Live",
