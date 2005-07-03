@@ -309,7 +309,7 @@ static int amd74xx_ide_dma_check(ide_drive_t *drive)
  * and initialize its drive independent registers.
  */
 
-static unsigned int __init init_chipset_amd74xx(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev, const char *name)
 {
 	unsigned char t;
 	unsigned int u;
@@ -413,7 +413,7 @@ static unsigned int __init init_chipset_amd74xx(struct pci_dev *dev, const char 
 	return dev->irq;
 }
 
-static void __init init_hwif_amd74xx(ide_hwif_t *hwif)
+static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 {
 	int i;
 
