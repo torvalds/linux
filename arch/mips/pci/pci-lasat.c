@@ -68,11 +68,9 @@ int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	switch (slot) {
 	case 1:
-		return LASATINT_PCIA;
 	case 2:
-		return LASATINT_PCIB;
 	case 3:
-		return LASATINT_PCIC;
+		return LASATINT_PCIA + (((slot-1) + (pin-1)) % 4);
 	case 4:
 		return LASATINT_ETH1;   /* Ethernet 1 (LAN 2) */
 	case 5:
