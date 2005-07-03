@@ -146,23 +146,27 @@ extern void iop321_init_time(void);
 
 #if defined(CONFIG_ARCH_IQ80321)
 MACHINE_START(IQ80321, "Intel IQ80321")
-	MAINTAINER("Intel Corporation")
-	BOOT_MEM(PHYS_OFFSET, IQ80321_UART, IQ80321_UART)
-	MAPIO(iq80321_map_io)
-	INITIRQ(iop321_init_irq)
+	/* Maintainer: Intel Corporation */
+	.phys_ram	= PHYS_OFFSET,
+	.phys_io	= IQ80321_UART,
+	.io_pg_offst	= ((IQ80321_UART) >> 18) & 0xfffc,
+	.map_io		= iq80321_map_io,
+	.init_irq	= iop321_init_irq,
 	.timer		= &iop321_timer,
-    BOOT_PARAMS(0xa0000100)
-	INIT_MACHINE(iop32x_init)
+	.boot_params	= 0xa0000100,
+	.init_machine	= iop32x_init,
 MACHINE_END
 #elif defined(CONFIG_ARCH_IQ31244)
 MACHINE_START(IQ31244, "Intel IQ31244")
-    MAINTAINER("Intel Corp.")
-    BOOT_MEM(PHYS_OFFSET, IQ31244_UART, IQ31244_UART)
-    MAPIO(iq31244_map_io)
-    INITIRQ(iop321_init_irq)
+	/* Maintainer: Intel Corp. */
+	.phys_ram	= PHYS_OFFSET,
+	.phys_io	= IQ31244_UART,
+	.io_pg_offst	= ((IQ31244_UART) >> 18) & 0xfffc,
+	.map_io		= iq31244_map_io,
+	.init_irq	= iop321_init_irq,
 	.timer		= &iop321_timer,
-    BOOT_PARAMS(0xa0000100)
-	INIT_MACHINE(iop32x_init)
+	.boot_params	= 0xa0000100,
+	.init_machine	= iop32x_init,
 MACHINE_END
 #else
 #error No machine descriptor defined for this IOP3XX implementation

@@ -287,34 +287,40 @@ static void __init corgi_map_io(void)
 
 #ifdef CONFIG_MACH_CORGI
 MACHINE_START(CORGI, "SHARP Corgi")
-	BOOT_MEM(0xa0000000, 0x40000000, io_p2v(0x40000000))
-	FIXUP(fixup_corgi)
-	MAPIO(corgi_map_io)
-	INITIRQ(corgi_init_irq)
-	.init_machine = corgi_init,
-	.timer = &pxa_timer,
+	.phys_ram	= 0xa0000000,
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= ((io_p2v(0x40000000) >> 18) & 0xfffc,)
+	.fixup		= fixup_corgi,
+	.map_io		= corgi_map_io,
+	.init_irq	= corgi_init_irq,
+	.init_machine	= corgi_init,
+	.timer		= &pxa_timer,
 MACHINE_END
 #endif
 
 #ifdef CONFIG_MACH_SHEPHERD
 MACHINE_START(SHEPHERD, "SHARP Shepherd")
-	BOOT_MEM(0xa0000000, 0x40000000, io_p2v(0x40000000))
-	FIXUP(fixup_corgi)
-	MAPIO(corgi_map_io)
-	INITIRQ(corgi_init_irq)
-	.init_machine = corgi_init,
-	.timer = &pxa_timer,
+	.phys_ram	= 0xa0000000,
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= ((io_p2v(0x40000000) >> 18) & 0xfffc,)
+	.fixup		= fixup_corgi,
+	.map_io		= corgi_map_io,
+	.init_irq	= corgi_init_irq,
+	.init_machine	= corgi_init,
+	.timer		= &pxa_timer,
 MACHINE_END
 #endif
 
 #ifdef CONFIG_MACH_HUSKY
 MACHINE_START(HUSKY, "SHARP Husky")
-	BOOT_MEM(0xa0000000, 0x40000000, io_p2v(0x40000000))
-	FIXUP(fixup_corgi)
-	MAPIO(corgi_map_io)
-	INITIRQ(corgi_init_irq)
-	.init_machine = corgi_init,
-	.timer = &pxa_timer,
+	.phys_ram	= 0xa0000000,
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= ((io_p2v(0x40000000) >> 18) & 0xfffc,)
+	.fixup		= fixup_corgi,
+	.map_io		= corgi_map_io,
+	.init_irq	= corgi_init_irq,
+	.init_machine	= corgi_init,
+	.timer		= &pxa_timer,
 MACHINE_END
 #endif
 

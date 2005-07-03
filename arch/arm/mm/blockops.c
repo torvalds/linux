@@ -25,13 +25,14 @@ blk_flush_kern_dcache_page(void *kaddr)
 {
 	asm(
 	"add	r1, r0, %0							\n\
+	sub	r1, r1, %1							\n\
 1:	.word	0xec401f0e	@ mcrr	p15, 0, r0, r1, c14, 0	@ blocking	\n\
 	mov	r0, #0								\n\
 	mcr	p15, 0, r0, c7, c5, 0						\n\
 	mcr	p15, 0, r0, c7, c10, 4						\n\
 	mov	pc, lr"
 	:
-	: "I" (PAGE_SIZE));
+	: "I" (PAGE_SIZE), "I" (L1_CACHE_BYTES));
 }
 
 /*
