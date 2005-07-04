@@ -26,7 +26,7 @@ struct machine_desc {
 						 * page tabe entry	*/
 
 	const char		*name;		/* architecture name	*/
-	unsigned int		param_offset;	/* parameter page	*/
+	unsigned long		boot_params;	/* tagged list		*/
 
 	unsigned int		video_start;	/* start of video RAM	*/
 	unsigned int		video_end;	/* end of video RAM	*/
