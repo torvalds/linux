@@ -1265,6 +1265,22 @@ qla1280_biosparam_old(Disk * disk, kdev_t dev, int geom[])
 	return qla1280_biosparam(disk->device, NULL, disk->capacity, geom);
 }
 #endif
+ 
+/* disable risc and host interrupts */
+static inline void
+qla1280_disable_intrs(struct scsi_qla_host *ha)
+{
+	WRT_REG_WORD(&ha->iobase->ictrl, 0);
+	RD_REG_WORD(&ha->iobase->ictrl);	/* PCI Posted Write flush */
+}
+
+/* enable risc and host interrupts */
+static inline void
+qla1280_enable_intrs(struct scsi_qla_host *ha)
+{
+	WRT_REG_WORD(&ha->iobase->ictrl, (ISP_EN_INT | ISP_EN_RISC));
+	RD_REG_WORD(&ha->iobase->ictrl);	/* PCI Posted Write flush */
+}
 
 /**************************************************************************
  * qla1280_intr_handler
@@ -1286,7 +1302,7 @@ qla1280_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 	ha->isr_count++;
 	reg = ha->iobase;
 
-	WRT_REG_WORD(&reg->ictrl, 0);	/* disable our interrupt. */
+	qla1280_disable_intrs(ha);
 
 	data = qla1280_debounce_register(&reg->istatus);
 	/* Check for pending interrupts. */
@@ -1299,8 +1315,7 @@ qla1280_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 
 	spin_unlock(HOST_LOCK);
 
-	/* enable our interrupt. */
-	WRT_REG_WORD(&reg->ictrl, (ISP_EN_INT | ISP_EN_RISC));
+	qla1280_enable_intrs(ha);
 
 	LEAVE_INTR("qla1280_intr_handler");
 	return IRQ_RETVAL(handled);
@@ -1612,38 +1627,6 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 /****************************************************************************/
 /*                QLogic ISP1280 Hardware Support Functions.                */
 /****************************************************************************/
-
- /*
-  * qla2100_enable_intrs
-  * qla2100_disable_intrs
-  *
-  * Input:
-  *      ha = adapter block pointer.
-  *
-  * Returns:
-  *      None
-  */
-static inline void
-qla1280_enable_intrs(struct scsi_qla_host *ha)
-{
-	struct device_reg __iomem *reg;
-
-	reg = ha->iobase;
-	/* enable risc and host interrupts */
-	WRT_REG_WORD(&reg->ictrl, (ISP_EN_INT | ISP_EN_RISC));
-	RD_REG_WORD(&reg->ictrl);	/* PCI Posted Write flush */
-}
-
-static inline void
-qla1280_disable_intrs(struct scsi_qla_host *ha)
-{
-	struct device_reg __iomem *reg;
-
-	reg = ha->iobase;
-	/* disable risc and host interrupts */
-	WRT_REG_WORD(&reg->ictrl, 0);
-	RD_REG_WORD(&reg->ictrl);	/* PCI Posted Write flush */
-}
 
 /*
  * qla1280_initialize_adapter
@@ -4751,7 +4734,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 #if LINUX_VERSION_CODE >= 0x020600
  error_disable_adapter:
-	WRT_REG_WORD(&ha->iobase->ictrl, 0);
+	qla1280_disable_intrs(ha);
 #endif
  error_free_irq:
 	free_irq(pdev->irq, ha);
@@ -4788,7 +4771,7 @@ qla1280_remove_one(struct pci_dev *pdev)
 	scsi_remove_host(host);
 #endif
 
-	WRT_REG_WORD(&ha->iobase->ictrl, 0);
+	qla1280_disable_intrs(ha);
 
 	free_irq(pdev->irq, ha);
 
