@@ -184,7 +184,7 @@ MACHINE_START(PXA_IDP, "Vibren PXA255 IDP")
 	/* Maintainer: Vibren Technologies */
 	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
-	.io_pg_offst	= ((io_p2v(0x40000000) >> 18) & 0xfffc,)
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= idp_map_io,
 	.init_irq	= idp_init_irq,
 	.timer		= &pxa_timer,

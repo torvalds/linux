@@ -289,7 +289,7 @@ static void __init corgi_map_io(void)
 MACHINE_START(CORGI, "SHARP Corgi")
 	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
-	.io_pg_offst	= ((io_p2v(0x40000000) >> 18) & 0xfffc,)
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
 	.map_io		= corgi_map_io,
 	.init_irq	= corgi_init_irq,
@@ -302,7 +302,7 @@ MACHINE_END
 MACHINE_START(SHEPHERD, "SHARP Shepherd")
 	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
-	.io_pg_offst	= ((io_p2v(0x40000000) >> 18) & 0xfffc,)
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
 	.map_io		= corgi_map_io,
 	.init_irq	= corgi_init_irq,
@@ -315,7 +315,7 @@ MACHINE_END
 MACHINE_START(HUSKY, "SHARP Husky")
 	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
-	.io_pg_offst	= ((io_p2v(0x40000000) >> 18) & 0xfffc,)
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
 	.map_io		= corgi_map_io,
 	.init_irq	= corgi_init_irq,
