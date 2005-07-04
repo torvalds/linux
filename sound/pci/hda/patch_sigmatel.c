@@ -36,6 +36,10 @@
 
 #undef STAC_TEST
 
+#define NUM_CONTROL_ALLOC	32
+#define STAC_HP_EVENT		0x37
+#define STAC_UNSOL_ENABLE 	(AC_USRSP_EN | STAC_HP_EVENT)
+
 struct sigmatel_spec {
 	snd_kcontrol_new_t *mixers[4];
 	unsigned int num_mixers;
@@ -507,8 +511,6 @@ static int stac92xx_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
-#define NUM_CONTROL_ALLOC	32
-
 enum {
 	STAC_CTL_WIDGET_VOL,
 	STAC_CTL_WIDGET_MUTE,
@@ -617,9 +619,17 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec, struct auto_pin
 	hda_nid_t pin = cfg->hp_pin;
 	hda_nid_t nid;
 	int i, err;
+	unsigned int wid_caps;
 
 	if (! pin)
 		return 0;
+
+	wid_caps = snd_hda_param_read(codec, pin, AC_PAR_AUDIO_WIDGET_CAP);
+	if (wid_caps & AC_WCAP_UNSOL_CAP)
+		/* Enable unsolicited responses on the HP widget */
+		snd_hda_codec_write(codec, pin, 0,
+				AC_VERB_SET_UNSOLICITED_ENABLE,
+				STAC_UNSOL_ENABLE);
 
 	nid = snd_hda_codec_read(codec, pin, 0, AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
 	for (i = 0; i < cfg->line_outs; i++) {
@@ -828,6 +838,53 @@ static void stac92xx_free(struct hda_codec *codec)
 	kfree(spec);
 }
 
+static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
+				unsigned int flag)
+{
+	unsigned int pin_ctl = snd_hda_codec_read(codec, nid,
+			0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0x00);
+	snd_hda_codec_write(codec, nid, 0,
+			AC_VERB_SET_PIN_WIDGET_CONTROL,
+			pin_ctl | flag);
+}
+
+static void stac92xx_reset_pinctl(struct hda_codec *codec, hda_nid_t nid,
+				  unsigned int flag)
+{
+	unsigned int pin_ctl = snd_hda_codec_read(codec, nid,
+			0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0x00);
+	snd_hda_codec_write(codec, nid, 0,
+			AC_VERB_SET_PIN_WIDGET_CONTROL,
+			pin_ctl & ~flag);
+}
+
+static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i, presence;
+
+	if ((res >> 26) != STAC_HP_EVENT)
+		return;
+
+	presence = snd_hda_codec_read(codec, cfg->hp_pin, 0,
+			AC_VERB_GET_PIN_SENSE, 0x00) >> 31;
+
+	if (presence) {
+		/* disable lineouts, enable hp */
+		for (i = 0; i < cfg->line_outs; i++)
+			stac92xx_reset_pinctl(codec, cfg->line_out_pins[i],
+						AC_PINCTL_OUT_EN);
+		stac92xx_set_pinctl(codec, cfg->hp_pin, AC_PINCTL_OUT_EN);
+	} else {
+		/* enable lineouts, disable hp */
+		for (i = 0; i < cfg->line_outs; i++)
+			stac92xx_set_pinctl(codec, cfg->line_out_pins[i],
+						AC_PINCTL_OUT_EN);
+		stac92xx_reset_pinctl(codec, cfg->hp_pin, AC_PINCTL_OUT_EN);
+	}
+} 
+
 #ifdef CONFIG_PM
 static int stac92xx_resume(struct hda_codec *codec)
 {
@@ -851,6 +908,7 @@ static struct hda_codec_ops stac92xx_patch_ops = {
 	.build_pcms = stac92xx_build_pcms,
 	.init = stac92xx_init,
 	.free = stac92xx_free,
+	.unsol_event = stac92xx_unsol_event,
 #ifdef CONFIG_PM
 	.resume = stac92xx_resume,
 #endif
