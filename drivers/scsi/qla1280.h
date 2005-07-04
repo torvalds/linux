@@ -979,14 +979,6 @@ struct ctio_a64_ret_entry {
 #define CS_RETRY            0x82	/* Driver defined */
 
 /*
- * ISP status entry - SCSI status byte bit definitions.
- */
-#define SS_CHECK_CONDITION  BIT_1
-#define SS_CONDITION_MET    BIT_2
-#define SS_BUSY_CONDITION   BIT_3
-#define SS_RESERVE_CONFLICT (BIT_4 | BIT_3)
-
-/*
  * ISP target entries - Option flags bit definitions.
  */
 #define OF_ENABLE_TAG       BIT_1	/* Tagged queue action enable */
