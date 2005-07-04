@@ -94,9 +94,6 @@
 #define REQUEST_ENTRY_CNT		256 /* Number of request entries. */
 #define RESPONSE_ENTRY_CNT		16  /* Number of response entries. */
 
-/* Number of segments 1 - 65535 */
-#define SG_SEGMENTS			32  /* Cmd entry + 6 continuations */
-
 /*
  * SCSI Request Block structure  (sp)  that is placed
  * on cmd->SCp location of every I/O
