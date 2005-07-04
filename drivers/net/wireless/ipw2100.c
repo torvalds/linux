@@ -1833,7 +1833,7 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 
 #ifdef ACPI_CSTATE_LIMIT_DEFINED
 	if (priv->config & CFG_C3_DISABLED) {
-		IPW_DEBUG_INFO(DRV_NAME ": Resetting C3 transitions.\n");
+		IPW_DEBUG_INFO(": Resetting C3 transitions.\n");
 		acpi_set_cstate_limit(priv->cstate_limit);
 		priv->config &= ~CFG_C3_DISABLED;
 	}
@@ -1858,8 +1858,7 @@ static void ipw2100_reset_adapter(struct ipw2100_priv *priv)
 	int associated = priv->status & STATUS_ASSOCIATED;
 
 	spin_lock_irqsave(&priv->low_lock, flags);
-	IPW_DEBUG_INFO(DRV_NAME ": %s: Restarting adapter.\n",
-		       priv->net_dev->name);
+	IPW_DEBUG_INFO(": %s: Restarting adapter.\n", priv->net_dev->name);
 	priv->resets++;
 	priv->status &= ~(STATUS_ASSOCIATED | STATUS_ASSOCIATING);
 	priv->status |= STATUS_SECURITY_UPDATED;
@@ -2062,7 +2061,7 @@ static void isr_indicate_rf_kill(struct ipw2100_priv *priv, u32 status)
 
 #ifdef ACPI_CSTATE_LIMIT_DEFINED
 	if (priv->config & CFG_C3_DISABLED) {
-		IPW_DEBUG_INFO(DRV_NAME ": Resetting C3 transitions.\n");
+		IPW_DEBUG_INFO(": Resetting C3 transitions.\n");
 		acpi_set_cstate_limit(priv->cstate_limit);
 		priv->config &= ~CFG_C3_DISABLED;
 	}
@@ -2300,11 +2299,11 @@ static inline void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
 	int limit;
 #endif
 
-	IPW_DEBUG_INFO(DRV_NAME ": PCI latency error detected at "
-		       "0x%04zX.\n", i * sizeof(struct ipw2100_status));
+	IPW_DEBUG_INFO(": PCI latency error detected at 0x%04zX.\n",
+		       i * sizeof(struct ipw2100_status));
 
 #ifdef ACPI_CSTATE_LIMIT_DEFINED
-	IPW_DEBUG_INFO(DRV_NAME ": Disabling C3 transitions.\n");
+	IPW_DEBUG_INFO(": Disabling C3 transitions.\n");
 	limit = acpi_get_cstate_limit();
 	if (limit > 2) {
 		priv->cstate_limit = limit;
@@ -4001,8 +4000,7 @@ static ssize_t store_debug_level(struct device_driver *d, const char *buf,
 	} else
 		val = simple_strtoul(p, &p, 10);
 	if (p == buf)
-		IPW_DEBUG_INFO(DRV_NAME
-			       ": %s is not in hex or decimal form.\n", buf);
+		IPW_DEBUG_INFO(": %s is not in hex or decimal form.\n", buf);
 	else
 		ipw2100_debug_level = val;
 
