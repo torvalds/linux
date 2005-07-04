@@ -15,6 +15,7 @@
 #include <asm/iommu.h>
 #include <asm/irq.h>
 #include <asm/upa.h>
+#include <asm/pstate.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
@@ -326,6 +327,44 @@ static int __init schizo_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 	return ret;
 }
 
+static void tomatillo_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_arg2)
+{
+	unsigned long sync_reg = (unsigned long) _arg2;
+	u64 mask = 1 << (__irq_ino(__irq(bucket)) & IMAP_INO);
+	u64 val;
+	int limit;
+
+	schizo_write(sync_reg, mask);
+
+	limit = 100000;
+	val = 0;
+	while (--limit) {
+		val = schizo_read(sync_reg);
+		if (!(val & mask))
+			break;
+	}
+	if (limit <= 0) {
+		printk("tomatillo_wsync_handler: DMA won't sync [%lx:%lx]\n",
+		       val, mask);
+	}
+
+	if (_arg1) {
+		static unsigned char cacheline[64]
+			__attribute__ ((aligned (64)));
+
+		__asm__ __volatile__("rd %%fprs, %0\n\t"
+				     "or %0, %4, %1\n\t"
+				     "wr %1, 0x0, %%fprs\n\t"
+				     "stda %%f0, [%5] %6\n\t"
+				     "wr %0, 0x0, %%fprs\n\t"
+				     "membar #Sync"
+				     : "=&r" (mask), "=&r" (val)
+				     : "0" (mask), "1" (val),
+				     "i" (FPRS_FEF), "r" (&cacheline[0]),
+				     "i" (ASI_BLK_COMMIT_P));
+	}
+}
+
 static unsigned int schizo_irq_build(struct pci_pbm_info *pbm,
 				     struct pci_dev *pdev,
 				     unsigned int ino)
@@ -368,6 +407,15 @@ static unsigned int schizo_irq_build(struct pci_pbm_info *pbm,
 
 	bucket = __bucket(build_irq(pil, ign_fixup, iclr, imap));
 	bucket->flags |= IBF_PCI;
+
+	if (pdev && pbm->chip_type == PBM_CHIP_TYPE_TOMATILLO) {
+		struct irq_desc *p = bucket->irq_info;
+
+		p->pre_handler = tomatillo_wsync_handler;
+		p->pre_handler_arg1 = ((pbm->chip_version <= 4) ?
+				       (void *) 1 : (void *) 0);
+		p->pre_handler_arg2 = (void *) pbm->sync_reg;
+	}
 
 	return __irq(bucket);
 }
@@ -2014,6 +2062,9 @@ static void __init schizo_pbm_init(struct pci_controller_info *p,
 
 	pbm->pbm_regs = pr_regs[0].phys_addr;
 	pbm->controller_regs = pr_regs[1].phys_addr - 0x10000UL;
+
+	if (chip_type == PBM_CHIP_TYPE_TOMATILLO)
+		pbm->sync_reg = pr_regs[3].phys_addr + 0x1a18UL;
 
 	sprintf(pbm->name,
 		(chip_type == PBM_CHIP_TYPE_TOMATILLO ?
