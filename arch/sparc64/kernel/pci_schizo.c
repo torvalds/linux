@@ -1936,9 +1936,7 @@ static void __init schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 {
 	u64 tmp;
 
-	/* Set IRQ retry to infinity. */
-	schizo_write(pbm->pbm_regs + SCHIZO_PCI_IRQ_RETRY,
-		     SCHIZO_IRQ_RETRY_INF);
+	schizo_write(pbm->pbm_regs + SCHIZO_PCI_IRQ_RETRY, 5);
 
 	tmp = schizo_read(pbm->pbm_regs + SCHIZO_PCI_CTRL);
 
