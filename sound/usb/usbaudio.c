@@ -2938,8 +2938,6 @@ static int snd_usb_extigy_boot_quirk(struct usb_device *dev, struct usb_interfac
 
 static int snd_usb_audigy2nx_boot_quirk(struct usb_device *dev)
 {
-#if 0
-	/* TODO: enable this when high speed synchronization actually works */
 	u8 buf = 1;
 
 	snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), 0x2a,
@@ -2951,7 +2949,6 @@ static int snd_usb_audigy2nx_boot_quirk(struct usb_device *dev)
 				1, 2000, NULL, 0, 1000);
 		return -ENODEV;
 	}
-#endif
 	return 0;
 }
 
