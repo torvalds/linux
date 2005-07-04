@@ -84,12 +84,14 @@ fixup_cats(struct machine_desc *desc, struct tag *tags,
 }
 
 MACHINE_START(CATS, "Chalice-CATS")
-	MAINTAINER("Philip Blundell")
-	BOOT_MEM(0x00000000, DC21285_ARMCSR_BASE, 0xfe000000)
-	BOOT_PARAMS(0x00000100)
-	SOFT_REBOOT
-	FIXUP(fixup_cats)
-	MAPIO(footbridge_map_io)
-	INITIRQ(footbridge_init_irq)
+	/* Maintainer: Philip Blundell */
+	.phys_ram	= 0x00000000,
+	.phys_io	= DC21285_ARMCSR_BASE,
+	.io_pg_offst	= ((0xfe000000) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.soft_reboot	= 1,
+	.fixup		= fixup_cats,
+	.map_io		= footbridge_map_io,
+	.init_irq	= footbridge_init_irq,
 	.timer		= &isa_timer,
 MACHINE_END

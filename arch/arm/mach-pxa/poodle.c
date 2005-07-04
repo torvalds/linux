@@ -180,10 +180,12 @@ static void __init poodle_map_io(void)
 }
 
 MACHINE_START(POODLE, "SHARP Poodle")
-	BOOT_MEM(0xa0000000, 0x40000000, io_p2v(0x40000000))
-	FIXUP(fixup_poodle)
-	MAPIO(poodle_map_io)
-	INITIRQ(pxa_init_irq)
-	.timer = &pxa_timer,
-	.init_machine = poodle_init,
+	.phys_ram	= 0xa0000000,
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= ((io_p2v(0x40000000) >> 18) & 0xfffc,)
+	.fixup		= fixup_poodle,
+	.map_io		= poodle_map_io,
+	.init_irq	= pxa_init_irq,
+	.timer		= &pxa_timer,
+	.init_machine	= poodle_init,
 MACHINE_END

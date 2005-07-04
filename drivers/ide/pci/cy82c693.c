@@ -391,7 +391,7 @@ static void cy82c693_tune_drive (ide_drive_t *drive, u8 pio)
 /*
  * this function is called during init and is used to setup the cy82c693 chip
  */
-static unsigned int __init init_chipset_cy82c693(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const char *name)
 {
 	if (PCI_FUNC(dev->devfn) != 1)
 		return 0;
@@ -443,7 +443,7 @@ static unsigned int __init init_chipset_cy82c693(struct pci_dev *dev, const char
 /*
  * the init function - called for each ide channel once
  */
-static void __init init_hwif_cy82c693(ide_hwif_t *hwif)
+static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 {
 	hwif->autodma = 0;
 
@@ -467,9 +467,9 @@ static void __init init_hwif_cy82c693(ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
-static __initdata ide_hwif_t *primary;
+static __devinitdata ide_hwif_t *primary;
 
-void __init init_iops_cy82c693(ide_hwif_t *hwif)
+void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
 {
 	if (PCI_FUNC(hwif->pci_dev->devfn) == 1)
 		primary = hwif;

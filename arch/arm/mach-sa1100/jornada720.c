@@ -97,9 +97,11 @@ static void __init jornada720_map_io(void)
 }
 
 MACHINE_START(JORNADA720, "HP Jornada 720")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xf8000000)
-	BOOT_PARAMS(0xc0000100)
-	MAPIO(jornada720_map_io)
-	INITIRQ(sa1100_init_irq)
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.map_io		= jornada720_map_io,
+	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 MACHINE_END

@@ -464,7 +464,7 @@ void __devexit tpm_remove(struct pci_dev *pci_dev)
 
 	pci_set_drvdata(pci_dev, NULL);
 	misc_deregister(&chip->vendor->miscdev);
-	kfree(&chip->vendor->miscdev.name);
+	kfree(chip->vendor->miscdev.name);
 
 	sysfs_remove_group(&pci_dev->dev.kobj, chip->vendor->attr_group);
 

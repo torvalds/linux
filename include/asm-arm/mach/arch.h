@@ -54,38 +54,6 @@ const struct machine_desc __mach_desc_##_type	\
 	.nr		= MACH_TYPE_##_type,	\
 	.name		= _name,
 
-#define MAINTAINER(n)
-
-#define BOOT_MEM(_pram,_pio,_vio)		\
-	.phys_ram	= _pram,		\
-	.phys_io	= _pio,			\
-	.io_pg_offst	= ((_vio)>>18)&0xfffc,
-
-#define BOOT_PARAMS(_params)			\
-	.param_offset	= _params,
-
-#define VIDEO(_start,_end)			\
-	.video_start	= _start,		\
-	.video_end	= _end,
-
-#define DISABLE_PARPORT(_n)			\
-	.reserve_lp##_n	= 1,
-
-#define SOFT_REBOOT				\
-	.soft_reboot	= 1,
-
-#define FIXUP(_func)				\
-	.fixup		= _func,
-
-#define MAPIO(_func)				\
-	.map_io		= _func,
-
-#define INITIRQ(_func)				\
-	.init_irq	= _func,
-
-#define INIT_MACHINE(_func)			\
-	.init_machine	= _func,
-
 #define MACHINE_END				\
 };
 

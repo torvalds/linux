@@ -177,11 +177,13 @@ static void __init h2_map_io(void)
 }
 
 MACHINE_START(OMAP_H2, "TI-H2")
-	MAINTAINER("Imre Deak <imre.deak@nokia.com>")
-	BOOT_MEM(0x10000000, 0xfff00000, 0xfef00000)
-	BOOT_PARAMS(0x10000100)
-	MAPIO(h2_map_io)
-	INITIRQ(h2_init_irq)
-	INIT_MACHINE(h2_init)
+	/* Maintainer: Imre Deak <imre.deak@nokia.com> */
+	.phys_ram	= 0x10000000,
+	.phys_io	= 0xfff00000,
+	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
+	.boot_params	= 0x10000100,
+	.map_io		= h2_map_io,
+	.init_irq	= h2_init_irq,
+	.init_machine	= h2_init,
 	.timer		= &omap_timer,
 MACHINE_END

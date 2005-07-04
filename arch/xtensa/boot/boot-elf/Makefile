@@ -27,7 +27,7 @@ Image:	vmlinux $(OBJS)
 		--set-section-flags image=contents,alloc,load,load,data \
 		$(OBJS) $@.tmp
 	$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) \
-		-T arch/$(ARCH)/boot/boot-elf/boot.ld \
+		-T $(srctree)/arch/$(ARCH)/boot/boot-elf/boot.ld \
 		-o arch/$(ARCH)/boot/$@.elf $@.tmp
 	rm -f $@.tmp vmlinux.tmp
 
@@ -41,7 +41,7 @@ Image.initrd:	vmlinux $(OBJS)
 		--set-section-flags image=contents,alloc,load,load,data \
 		$(OBJS) $@.tmp
 	$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) \
-		-T arch/$(ARCH)/boot/boot-elf/boot.ld \
+		-T $(srctree)/arch/$(ARCH)/boot/boot-elf/boot.ld \
 		-o arch/$(ARCH)/boot/$@.elf $@.tmp
 	rm -f $@.tmp vmlinux.tmp
 
