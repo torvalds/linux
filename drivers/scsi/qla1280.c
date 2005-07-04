@@ -1546,7 +1546,7 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 	int host_status = DID_ERROR;
 	uint16_t comp_status = le16_to_cpu(sts->comp_status);
 	uint16_t state_flags = le16_to_cpu(sts->state_flags);
-	uint16_t residual_length = le16_to_cpu(sts->residual_length);
+	uint16_t residual_length = le32_to_cpu(sts->residual_length);
 	uint16_t scsi_status = le16_to_cpu(sts->scsi_status);
 #if DEBUG_QLA1280_INTR
 	static char *reason[] = {
@@ -1932,7 +1932,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 			"%d,%d(0x%x)\n",
 			risc_code_address, cnt, num, risc_address);
 		for(i = 0; i < cnt; i++)
-			((uint16_t *)ha->request_ring)[i] =
+			((__le16 *)ha->request_ring)[i] =
 				cpu_to_le16(risc_code_address[i]);
 
 		mb[0] = MBC_LOAD_RAM;
@@ -2986,7 +2986,7 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	struct scsi_cmnd *cmd = sp->cmd;
 	cmd_a64_entry_t *pkt;
 	struct scatterlist *sg = NULL;
-	u32 *dword_ptr;
+	__le32 *dword_ptr;
 	dma_addr_t dma_handle;
 	int status = 0;
 	int cnt;
@@ -3273,7 +3273,7 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	struct scsi_cmnd *cmd = sp->cmd;
 	struct cmd_entry *pkt;
 	struct scatterlist *sg = NULL;
-	uint32_t *dword_ptr;
+	__le32 *dword_ptr;
 	int status = 0;
 	int cnt;
 	int req_cnt;
