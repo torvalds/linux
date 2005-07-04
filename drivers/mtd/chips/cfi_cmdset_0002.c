@@ -17,7 +17,7 @@
  *
  * This code is GPL
  *
- * $Id: cfi_cmdset_0002.c,v 1.117 2005/06/06 23:04:35 tpoynor Exp $
+ * $Id: cfi_cmdset_0002.c,v 1.118 2005/07/04 22:34:29 gleixner Exp $
  *
  */
 
@@ -581,7 +581,7 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
  * didn't emit calls to its own support functions). Also configuring MTD CFI
  * support to a single buswidth and a single interleave is also recommended.
  */
-#include <asm/hardware.h>
+
 static void xip_disable(struct map_info *map, struct flchip *chip,
 			unsigned long adr)
 {
