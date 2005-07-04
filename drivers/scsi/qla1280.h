@@ -451,18 +451,15 @@ struct nvram {
 		uint16_t unused_38;	/* 38, 39 */
 
 		struct {
-			union {
-				uint8_t c;
-				struct {
-					uint8_t renegotiate_on_error:1;
-					uint8_t stop_queue_on_check:1;
-					uint8_t auto_request_sense:1;
-					uint8_t tag_queuing:1;
-					uint8_t enable_sync:1;
-					uint8_t enable_wide:1;
-					uint8_t parity_checking:1;
-					uint8_t disconnect_allowed:1;
-				} f;
+			struct {
+				uint8_t renegotiate_on_error:1;
+				uint8_t stop_queue_on_check:1;
+				uint8_t auto_request_sense:1;
+				uint8_t tag_queuing:1;
+				uint8_t enable_sync:1;
+				uint8_t enable_wide:1;
+				uint8_t parity_checking:1;
+				uint8_t disconnect_allowed:1;
 			} parameter;	/* 40 */
 
 			uint8_t execution_throttle;	/* 41 */
