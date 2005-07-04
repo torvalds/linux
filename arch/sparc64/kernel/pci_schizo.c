@@ -933,6 +933,7 @@ static irqreturn_t schizo_ce_intr(int irq, void *dev_id, struct pt_regs *regs)
 
 #define SCHIZO_PCI_CTRL		(0x2000UL)
 #define SCHIZO_PCICTRL_BUS_UNUS	(1UL << 63UL) /* Safari */
+#define SCHIZO_PCICTRL_DTO_INT	(1UL << 61UL) /* Tomatillo */
 #define SCHIZO_PCICTRL_ARB_PRIO (0x1ff << 52UL) /* Tomatillo */
 #define SCHIZO_PCICTRL_ESLCK	(1UL << 51UL) /* Safari */
 #define SCHIZO_PCICTRL_ERRSLOT	(7UL << 48UL) /* Safari */
@@ -1939,33 +1940,25 @@ static void __init schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	schizo_write(pbm->pbm_regs + SCHIZO_PCI_IRQ_RETRY,
 		     SCHIZO_IRQ_RETRY_INF);
 
-	/* Enable arbiter for all PCI slots.  Also, disable PCI interval
-	 * timer so that DTO (Discard TimeOuts) are not reported because
-	 * some Schizo revisions report them erroneously.
-	 */
 	tmp = schizo_read(pbm->pbm_regs + SCHIZO_PCI_CTRL);
-	if (pbm->chip_type == PBM_CHIP_TYPE_SCHIZO_PLUS &&
-	    pbm->chip_version == 0x5 &&
-	    pbm->chip_revision == 0x1)
-		tmp |= 0x0f;
-	else
-		tmp |= 0xff;
 
-	tmp &= ~SCHIZO_PCICTRL_PTO;
+	/* Enable arbiter for all PCI slots.  */
+	tmp |= 0xff;
+
 	if (pbm->chip_type == PBM_CHIP_TYPE_TOMATILLO &&
 	    pbm->chip_version >= 0x2)
 		tmp |= 0x3UL << SCHIZO_PCICTRL_PTO_SHIFT;
-	else
-		tmp |= 0x1UL << SCHIZO_PCICTRL_PTO_SHIFT;
 
 	if (!prom_getbool(pbm->prom_node, "no-bus-parking"))
 		tmp |= SCHIZO_PCICTRL_PARK;
+	else
+		tmp &= ~SCHIZO_PCICTRL_PARK;
 
 	if (pbm->chip_type == PBM_CHIP_TYPE_TOMATILLO &&
 	    pbm->chip_version <= 0x1)
-		tmp |= (1UL << 61);
+		tmp |= SCHIZO_PCICTRL_DTO_INT;
 	else
-		tmp &= ~(1UL << 61);
+		tmp &= ~SCHIZO_PCICTRL_DTO_INT;
 
 	if (pbm->chip_type == PBM_CHIP_TYPE_TOMATILLO)
 		tmp |= (SCHIZO_PCICTRL_MRM_PREF |
