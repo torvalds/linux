@@ -1733,69 +1733,6 @@ qla1280_initialize_adapter(struct scsi_qla_host *ha)
 	return status;
 }
 
-
-/*
- * ISP Firmware Test
- *      Checks if present version of RISC firmware is older than
- *      driver firmware.
- *
- * Input:
- *      ha = adapter block pointer.
- *
- * Returns:
- *      0 = firmware does not need to be loaded.
- */
-static int
-qla1280_isp_firmware(struct scsi_qla_host *ha)
-{
-	struct nvram *nv = (struct nvram *) ha->response_ring;
-	int status = 0;		/* dg 2/27 always loads RISC */
-	uint16_t mb[MAILBOX_REGISTER_COUNT];
-
-	ENTER("qla1280_isp_firmware");
-
-	dprintk(1, "scsi(%li): Determining if RISC is loaded\n", ha->host_no);
-
-	/* Bad NVRAM data, load RISC code. */
-	if (!ha->nvram_valid) {
-		ha->flags.disable_risc_code_load = 0;
-	} else
-		ha->flags.disable_risc_code_load =
-			nv->cntr_flags_1.disable_loading_risc_code;
-
-	if (ha->flags.disable_risc_code_load) {
-		dprintk(3, "qla1280_isp_firmware: Telling RISC to verify "
-			"checksum of loaded BIOS code.\n");
-
-		/* Verify checksum of loaded RISC code. */
-		mb[0] = MBC_VERIFY_CHECKSUM;
-		/* mb[1] = ql12_risc_code_addr01; */
-		mb[1] = *ql1280_board_tbl[ha->devnum].fwstart;
-
-		if (!(status =
-		      qla1280_mailbox_command(ha, BIT_1 | BIT_0, &mb[0]))) {
-			/* Start firmware execution. */
-			dprintk(3, "qla1280_isp_firmware: Startng F/W "
-				"execution.\n");
-
-			mb[0] = MBC_EXECUTE_FIRMWARE;
-			/* mb[1] = ql12_risc_code_addr01; */
-			mb[1] = *ql1280_board_tbl[ha->devnum].fwstart;
-			qla1280_mailbox_command(ha, BIT_1 | BIT_0, &mb[0]);
-		} else
-			printk(KERN_INFO "qla1280: RISC checksum failed.\n");
-	} else {
-		dprintk(1, "qla1280: NVRAM configured to load RISC load.\n");
-		status = 1;
-	}
-
-	if (status)
-		dprintk(2, "qla1280_isp_firmware: **** Load RISC code ****\n");
-
-	LEAVE("qla1280_isp_firmware");
-	return status;
-}
-
 /*
  * Chip diagnostics
  *      Test chip for proper operation.
@@ -2080,14 +2017,7 @@ qla1280_start_firmware(struct scsi_qla_host *ha)
 static int
 qla1280_load_firmware(struct scsi_qla_host *ha)
 {
-	int err = -ENODEV;
-
-	/* If firmware needs to be loaded */
-	if (!qla1280_isp_firmware(ha)) {
-		printk(KERN_ERR "scsi(%li): isp_firmware() failed!\n",
-				ha->host_no);
-		goto out;
-	}
+	int err;
 
 	err = qla1280_chip_diag(ha);
 	if (err)
