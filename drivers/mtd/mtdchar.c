@@ -1,5 +1,5 @@
 /*
- * $Id: mtdchar.c,v 1.72 2005/06/30 00:23:24 tpoynor Exp $
+ * $Id: mtdchar.c,v 1.73 2005/07/04 17:36:41 gleixner Exp $
  *
  * Character-device access to raw MTD devices.
  *
@@ -649,7 +649,7 @@ static int __init init_mtdchar(void)
 	if (IS_ERR(mtd_class)) {
 		printk(KERN_ERR "Error creating mtd class.\n");
 		unregister_chrdev(MTD_CHAR_MAJOR, "mtd");
-		return 1;
+		return PTR_ERR(mtd_class);
 	}
 
 	register_mtd_user(&notifier);
