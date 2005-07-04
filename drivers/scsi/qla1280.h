@@ -375,29 +375,23 @@ struct nvram {
 	uint16_t unused_12;	/* 12, 13 */
 	uint16_t unused_14;	/* 14, 15 */
 
-	union {
-		uint8_t c;
-		struct {
-			uint8_t reserved:2;
-			uint8_t burst_enable:1;
-			uint8_t reserved_1:1;
-			uint8_t fifo_threshold:4;
-		} f;
+	struct {
+		uint8_t reserved:2;
+		uint8_t burst_enable:1;
+		uint8_t reserved_1:1;
+		uint8_t fifo_threshold:4;
 	} isp_config;		/* 16 */
 
 	/* Termination
 	 * 0 = Disable, 1 = high only, 3 = Auto term
 	 */
-	union {
-		uint8_t c;
-		struct {
-			uint8_t scsi_bus_1_control:2;
-			uint8_t scsi_bus_0_control:2;
-			uint8_t unused_0:1;
-			uint8_t unused_1:1;
-			uint8_t unused_2:1;
-			uint8_t auto_term_support:1;
-		} f;
+	struct {
+		uint8_t scsi_bus_1_control:2;
+		uint8_t scsi_bus_0_control:2;
+		uint8_t unused_0:1;
+		uint8_t unused_1:1;
+		uint8_t unused_2:1;
+		uint8_t auto_term_support:1;
 	} termination;		/* 17 */
 
 	uint16_t isp_parameter;	/* 18, 19 */

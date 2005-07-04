@@ -2189,9 +2189,9 @@ qla1280_set_defaults(struct scsi_qla_host *ha)
 	/* nv->cntr_flags_1.disable_loading_risc_code = 1; */
 	nv->firmware_feature.f.enable_fast_posting = 1;
 	nv->firmware_feature.f.disable_synchronous_backoff = 1;
-	nv->termination.f.scsi_bus_0_control = 3;
-	nv->termination.f.scsi_bus_1_control = 3;
-	nv->termination.f.auto_term_support = 1;
+	nv->termination.scsi_bus_0_control = 3;
+	nv->termination.scsi_bus_1_control = 3;
+	nv->termination.auto_term_support = 1;
 
 	/*
 	 * Set default FIFO magic - What appropriate values would be here
@@ -2201,7 +2201,12 @@ qla1280_set_defaults(struct scsi_qla_host *ha)
 	 * header file provided by QLogic seems to be bogus or incomplete
 	 * at best.
 	 */
-	nv->isp_config.c = ISP_CFG1_BENAB|ISP_CFG1_F128;
+	nv->isp_config.burst_enable = 1;
+	if (IS_ISP1040(ha))
+		nv->isp_config.fifo_threshold |= 3;
+	else
+		nv->isp_config.fifo_threshold |= 4;
+
 	if (IS_ISP1x160(ha))
 		nv->isp_parameter = 0x01; /* fast memory enable */
 
@@ -2362,31 +2367,40 @@ qla1280_nvram_config(struct scsi_qla_host *ha)
 
 		hwrev = RD_REG_WORD(&reg->cfg_0) & ISP_CFG0_HWMSK;
 
-		cfg1 = RD_REG_WORD(&reg->cfg_1);
+		cfg1 = RD_REG_WORD(&reg->cfg_1) & ~(BIT_4 | BIT_5 | BIT_6);
 		cdma_conf = RD_REG_WORD(&reg->cdma_cfg);
 		ddma_conf = RD_REG_WORD(&reg->ddma_cfg);
 
 		/* Busted fifo, says mjacob. */
-		if (hwrev == ISP_CFG0_1040A)
-			WRT_REG_WORD(&reg->cfg_1, cfg1 | ISP_CFG1_F64);
-		else
-			WRT_REG_WORD(&reg->cfg_1, cfg1 | ISP_CFG1_F64 | ISP_CFG1_BENAB);
+		if (hwrev != ISP_CFG0_1040A)
+			cfg1 |= nv->isp_config.fifo_threshold << 4;
+
+		cfg1 |= nv->isp_config.burst_enable << 2;
+		WRT_REG_WORD(&reg->cfg_1, cfg1);
 
 		WRT_REG_WORD(&reg->cdma_cfg, cdma_conf | CDMA_CONF_BENAB);
 		WRT_REG_WORD(&reg->ddma_cfg, cdma_conf | DDMA_CONF_BENAB);
 	} else {
+		uint16_t cfg1, term;
+
 		/* Set ISP hardware DMA burst */
-		mb[0] = nv->isp_config.c;
+		cfg1 = nv->isp_config.fifo_threshold << 4;
+		cfg1 |= nv->isp_config.burst_enable << 2;
 		/* Enable DMA arbitration on dual channel controllers */
 		if (ha->ports > 1)
-			mb[0] |= BIT_13;
-		WRT_REG_WORD(&reg->cfg_1, mb[0]);
+			cfg1 |= BIT_13;
+		WRT_REG_WORD(&reg->cfg_1, cfg1);
 
 		/* Set SCSI termination. */
-		WRT_REG_WORD(&reg->gpio_enable, (BIT_3 + BIT_2 + BIT_1 + BIT_0));
-		mb[0] = nv->termination.c & (BIT_3 + BIT_2 + BIT_1 + BIT_0);
-		WRT_REG_WORD(&reg->gpio_data, mb[0]);
+		WRT_REG_WORD(&reg->gpio_enable,
+			     BIT_7 | BIT_3 | BIT_2 | BIT_1 | BIT_0);
+		term = nv->termination.scsi_bus_1_control;
+		term |= nv->termination.scsi_bus_0_control << 2;
+		term |= nv->termination.auto_term_support << 7;
+		RD_REG_WORD(&reg->id_l);	/* Flush PCI write */
+		WRT_REG_WORD(&reg->gpio_data, term);
 	}
+	RD_REG_WORD(&reg->id_l);	/* Flush PCI write */
 
 	/* ISP parameter word. */
 	mb[0] = MBC_SET_SYSTEM_PARAMETER;
