@@ -1082,10 +1082,6 @@ struct scsi_qla_host {
 		uint32_t reset_active:1;		/* 3 */
 		uint32_t abort_isp_active:1;		/* 4 */
 		uint32_t disable_risc_code_load:1;	/* 5 */
-		uint32_t enable_64bit_addressing:1;	/* 6 */
-		uint32_t in_reset:1;			/* 7 */
-		uint32_t ints_enabled:1;
-		uint32_t ignore_nvram:1;
 #ifdef __ia64__
 		uint32_t use_pci_vchannel:1;
 #endif

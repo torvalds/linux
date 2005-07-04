@@ -996,7 +996,6 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 		break;
 
 	case ABORT_DEVICE:
-		ha->flags.in_reset = 1;
 		if (qla1280_verbose)
 			printk(KERN_INFO
 			       "scsi(%ld:%d:%d:%d): Queueing abort device "
@@ -1010,7 +1009,6 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 			printk(KERN_INFO
 			       "scsi(%ld:%d:%d:%d): Queueing device reset "
 			       "command.\n", ha->host_no, bus, target, lun);
-		ha->flags.in_reset = 1;
 		if (qla1280_device_reset(ha, bus, target) == 0)
 			result = SUCCESS;
 		break;
@@ -1019,7 +1017,6 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 		if (qla1280_verbose)
 			printk(KERN_INFO "qla1280(%ld:%d): Issuing BUS "
 			       "DEVICE RESET\n", ha->host_no, bus);
-		ha->flags.in_reset = 1;
 		if (qla1280_bus_reset(ha, bus == 0))
 			result = SUCCESS;
 
@@ -1047,7 +1044,6 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 
 	if (!list_empty(&ha->done_q))
 		qla1280_done(ha);
-	ha->flags.in_reset = 0;
 
 	/* If we didn't manage to issue the action, or we have no
 	 * command to wait for, exit here */
@@ -1636,7 +1632,6 @@ qla1280_enable_intrs(struct scsi_qla_host *ha)
 	/* enable risc and host interrupts */
 	WRT_REG_WORD(&reg->ictrl, (ISP_EN_INT | ISP_EN_RISC));
 	RD_REG_WORD(&reg->ictrl);	/* PCI Posted Write flush */
-	ha->flags.ints_enabled = 1;
 }
 
 static inline void
@@ -1648,7 +1643,6 @@ qla1280_disable_intrs(struct scsi_qla_host *ha)
 	/* disable risc and host interrupts */
 	WRT_REG_WORD(&reg->ictrl, 0);
 	RD_REG_WORD(&reg->ictrl);	/* PCI Posted Write flush */
-	ha->flags.ints_enabled = 0;
 }
 
 /*
@@ -1679,7 +1673,6 @@ qla1280_initialize_adapter(struct scsi_qla_host *ha)
 	ha->flags.reset_active = 0;
 	ha->flags.abort_isp_active = 0;
 
-	ha->flags.ints_enabled = 0;
 #if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_SGI_SN2)
 	if (ia64_platform_is("sn2")) {
 		printk(KERN_INFO "scsi(%li): Enabling SN2 PCI DMA "
