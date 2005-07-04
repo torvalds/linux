@@ -1260,7 +1260,12 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 /* Mark of the Unicorn devices */
 {
 	/* thanks to Robert A. Lerche <ral 'at' msbit.com> */
-	USB_DEVICE(0x07fd, 0x0001),
+	.match_flags = USB_DEVICE_ID_MATCH_VENDOR |
+		       USB_DEVICE_ID_MATCH_PRODUCT |
+		       USB_DEVICE_ID_MATCH_DEV_SUBCLASS,
+	.idVendor = 0x07fd,
+	.idProduct = 0x0001,
+	.bDeviceSubClass = 2,
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "MOTU",
 		.product_name = "Fastlane",
