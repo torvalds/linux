@@ -454,15 +454,27 @@ qdisc_create(struct net_device *dev, u32 handle, struct rtattr **tca, int *errp)
 	sch->handle = handle;
 
 	if (!ops->init || (err = ops->init(sch, tca[TCA_OPTIONS-1])) == 0) {
+#ifdef CONFIG_NET_ESTIMATOR
+		if (tca[TCA_RATE-1]) {
+			err = gen_new_estimator(&sch->bstats, &sch->rate_est,
+						sch->stats_lock,
+						tca[TCA_RATE-1]);
+			if (err) {
+				/*
+				 * Any broken qdiscs that would require
+				 * a ops->reset() here? The qdisc was never
+				 * in action so it shouldn't be necessary.
+				 */
+				if (ops->destroy)
+					ops->destroy(sch);
+				goto err_out3;
+			}
+		}
+#endif
 		qdisc_lock_tree(dev);
 		list_add_tail(&sch->list, &dev->qdisc_list);
 		qdisc_unlock_tree(dev);
 
-#ifdef CONFIG_NET_ESTIMATOR
-		if (tca[TCA_RATE-1])
-			gen_new_estimator(&sch->bstats, &sch->rate_est,
-				sch->stats_lock, tca[TCA_RATE-1]);
-#endif
 		return sch;
 	}
 err_out3:
