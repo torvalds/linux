@@ -358,11 +358,32 @@ static inline void free_leaf_info(struct leaf_info *li)
 	kfree(li);
 }
 
+static struct tnode *tnode_alloc(unsigned int size)
+{
+	if (size <= PAGE_SIZE) {
+		return kmalloc(size, GFP_KERNEL);
+	} else {
+		return (struct tnode *)
+		       __get_free_pages(GFP_KERNEL, get_order(size));
+	}
+}
+
+static void __tnode_free(struct tnode *tn)
+{
+	unsigned int size = sizeof(struct tnode) +
+	                    (1<<tn->bits) * sizeof(struct node *);
+
+	if (size <= PAGE_SIZE)
+		kfree(tn);
+	else
+		free_pages((unsigned long)tn, get_order(size));
+}
+
 static struct tnode* tnode_new(t_key key, int pos, int bits)
 {
 	int nchildren = 1<<bits;
 	int sz = sizeof(struct tnode) + nchildren * sizeof(struct node *);
-	struct tnode *tn = kmalloc(sz,  GFP_KERNEL);
+	struct tnode *tn = tnode_alloc(sz);
 
 	if(tn)  {
 		memset(tn, 0, sz);
@@ -390,7 +411,7 @@ static void tnode_free(struct tnode *tn)
 			printk("FL %p \n", tn);
 	}
 	else if(IS_TNODE(tn)) { 
-		kfree(tn);
+		__tnode_free(tn);
 		if(trie_debug > 0 ) 
 			printk("FT %p \n", tn);
 	}
