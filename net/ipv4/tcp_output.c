@@ -909,6 +909,9 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 	if (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN)
 		return 0;
 
+	if (tp->ca_state != TCP_CA_Open)
+		return 0;
+
 	in_flight = tcp_packets_in_flight(tp);
 
 	BUG_ON(tcp_skb_pcount(skb) <= 1 ||
