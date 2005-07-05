@@ -1328,23 +1328,8 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 	ip_rt_put(rt);
 }
 
-/*
- *	IP protocol layer initialiser
- */
-
-static struct packet_type ip_packet_type = {
-	.type = __constant_htons(ETH_P_IP),
-	.func = ip_rcv,
-};
-
-/*
- *	IP registers the packet type and then calls the subprotocol initialisers
- */
-
 void __init ip_init(void)
 {
-	dev_add_pack(&ip_packet_type);
-
 	ip_rt_init();
 	inet_initpeers();
 
