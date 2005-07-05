@@ -54,7 +54,7 @@
  *		Marc Boucher	:	routing by fwmark
  *	Robert Olsson		:	Added rt_cache statistics
  *	Arnaldo C. Melo		:	Convert proc stuff to seq_file
- *	Eric Dumazet		:	hashed spinlocks
+ *	Eric Dumazet		:	hashed spinlocks and rt_check_expire() fixes.
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -606,18 +606,25 @@ static struct rtable **rt_remove_balanced_route(struct rtable **chain_head,
 /* This runs via a timer and thus is always in BH context. */
 static void rt_check_expire(unsigned long dummy)
 {
-	static int rover;
-	int i = rover, t;
+	static unsigned int rover;
+	unsigned int i = rover, goal;
 	struct rtable *rth, **rthp;
 	unsigned long now = jiffies;
+	u64 mult;
 
-	for (t = ip_rt_gc_interval << rt_hash_log; t >= 0;
-	     t -= ip_rt_gc_timeout) {
+	mult = ((u64)ip_rt_gc_interval) << rt_hash_log;
+	if (ip_rt_gc_timeout > 1)
+		do_div(mult, ip_rt_gc_timeout);
+	goal = (unsigned int)mult;
+	if (goal > rt_hash_mask) goal = rt_hash_mask + 1;
+	for (; goal > 0; goal--) {
 		unsigned long tmo = ip_rt_gc_timeout;
 
 		i = (i + 1) & rt_hash_mask;
 		rthp = &rt_hash_table[i].chain;
 
+		if (*rthp == 0)
+			continue;
 		spin_lock(rt_hash_lock_addr(i));
 		while ((rth = *rthp) != NULL) {
 			if (rth->u.dst.expires) {
@@ -658,7 +665,7 @@ static void rt_check_expire(unsigned long dummy)
 			break;
 	}
 	rover = i;
-	mod_timer(&rt_periodic_timer, now + ip_rt_gc_interval);
+	mod_timer(&rt_periodic_timer, jiffies + ip_rt_gc_interval);
 }
 
 /* This can run from both BH and non-BH contexts, the latter
