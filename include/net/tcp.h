@@ -848,7 +848,6 @@ extern __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb,
 
 /* tcp_output.c */
 
-extern int tcp_write_xmit(struct sock *, int nonagle);
 extern void __tcp_data_snd_check(struct sock *sk, struct sk_buff *skb);
 extern void __tcp_push_pending_frames(struct sock *sk, struct tcp_sock *tp,
 				      unsigned cur_mss, int nonagle);
@@ -867,6 +866,9 @@ extern int  tcp_send_synack(struct sock *);
 extern void tcp_push_one(struct sock *, unsigned mss_now);
 extern void tcp_send_ack(struct sock *sk);
 extern void tcp_send_delayed_ack(struct sock *sk);
+
+/* tcp_input.c */
+extern void tcp_cwnd_application_limited(struct sock *sk);
 
 /* tcp_timer.c */
 extern void tcp_init_xmit_timers(struct sock *);
@@ -1232,28 +1234,6 @@ static inline void tcp_sync_left_out(struct tcp_sock *tp)
 	    (tp->sacked_out >= tp->packets_out - tp->lost_out))
 		tp->sacked_out = tp->packets_out - tp->lost_out;
 	tp->left_out = tp->sacked_out + tp->lost_out;
-}
-
-extern void tcp_cwnd_application_limited(struct sock *sk);
-
-/* Congestion window validation. (RFC2861) */
-
-static inline void tcp_cwnd_validate(struct sock *sk, struct tcp_sock *tp)
-{
-	__u32 packets_out = tp->packets_out;
-
-	if (packets_out >= tp->snd_cwnd) {
-		/* Network is feed fully. */
-		tp->snd_cwnd_used = 0;
-		tp->snd_cwnd_stamp = tcp_time_stamp;
-	} else {
-		/* Network starves. */
-		if (tp->packets_out > tp->snd_cwnd_used)
-			tp->snd_cwnd_used = tp->packets_out;
-
-		if ((s32)(tcp_time_stamp - tp->snd_cwnd_stamp) >= tp->rto)
-			tcp_cwnd_application_limited(sk);
-	}
 }
 
 /* Set slow start threshould and cwnd not falling to slow start */
