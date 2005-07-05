@@ -887,6 +887,7 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
+	unsigned int tso_segs, cwnd_quota;
 	int sent_pkts;
 
 	/* If we are closed, the bytes will have to remain here.
@@ -896,19 +897,31 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 	if (unlikely(sk->sk_state == TCP_CLOSE))
 		return 0;
 
+	skb = sk->sk_send_head;
+	if (unlikely(!skb))
+		return 0;
+
+	tso_segs = tcp_init_tso_segs(sk, skb);
+	cwnd_quota = tcp_cwnd_test(tp, skb);
 	sent_pkts = 0;
-	while ((skb = sk->sk_send_head) &&
-	       tcp_snd_test(sk, skb, mss_now,
-			    tcp_skb_is_last(sk, skb) ? nonagle :
-			    TCP_NAGLE_PUSH)) {
-		if (skb->len > mss_now) {
-			if (tcp_fragment(sk, skb, mss_now))
+
+	while (cwnd_quota >= tso_segs) {
+		if (unlikely(!tcp_nagle_test(tp, skb, mss_now,
+					     (tcp_skb_is_last(sk, skb) ?
+					      nonagle : TCP_NAGLE_PUSH))))
+			break;
+
+		if (unlikely(!tcp_snd_wnd_test(tp, skb, mss_now)))
+			break;
+
+		if (unlikely(skb->len > mss_now)) {
+			if (unlikely(tcp_fragment(sk, skb,  mss_now)))
 				break;
 		}
 
 		TCP_SKB_CB(skb)->when = tcp_time_stamp;
 		tcp_tso_set_push(skb);
-		if (tcp_transmit_skb(sk, skb_clone(skb, GFP_ATOMIC)))
+		if (unlikely(tcp_transmit_skb(sk, skb_clone(skb, GFP_ATOMIC))))
 			break;
 
 		/* Advance the send_head.  This one is sent out.
@@ -917,10 +930,19 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 		update_send_head(sk, tp, skb);
 
 		tcp_minshall_update(tp, mss_now, skb);
-		sent_pkts = 1;
+		sent_pkts++;
+
+		/* Do not optimize this to use tso_segs. If we chopped up
+		 * the packet above, tso_segs will no longer be valid.
+		 */
+		cwnd_quota -= tcp_skb_pcount(skb);
+		skb = sk->sk_send_head;
+		if (!skb)
+			break;
+		tso_segs = tcp_init_tso_segs(sk, skb);
 	}
 
-	if (sent_pkts) {
+	if (likely(sent_pkts)) {
 		tcp_cwnd_validate(sk, tp);
 		return 0;
 	}
