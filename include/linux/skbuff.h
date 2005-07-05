@@ -183,7 +183,6 @@ struct skb_shared_info {
  *	@priority: Packet queueing priority
  *	@users: User count - see {datagram,tcp}.c
  *	@protocol: Packet protocol from driver
- *	@security: Security level of packet
  *	@truesize: Buffer size 
  *	@head: Head of buffer
  *	@data: Data head pointer
@@ -255,8 +254,7 @@ struct sk_buff {
 				pkt_type,
 				ip_summed;
 	__u32			priority;
-	unsigned short		protocol,
-				security;
+	unsigned short		protocol;
 
 	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_NETFILTER
