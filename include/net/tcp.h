@@ -862,7 +862,7 @@ extern int  tcp_write_wakeup(struct sock *);
 extern void tcp_send_fin(struct sock *sk);
 extern void tcp_send_active_reset(struct sock *sk, int priority);
 extern int  tcp_send_synack(struct sock *);
-extern void tcp_push_one(struct sock *, unsigned mss_now);
+extern void tcp_push_one(struct sock *, unsigned int mss_now);
 extern void tcp_send_ack(struct sock *sk);
 extern void tcp_send_delayed_ack(struct sock *sk);
 
@@ -968,7 +968,7 @@ static inline void tcp_reset_xmit_timer(struct sock *sk, int what, unsigned long
 static inline void tcp_initialize_rcv_mss(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	unsigned int hint = min(tp->advmss, tp->mss_cache_std);
+	unsigned int hint = min_t(unsigned int, tp->advmss, tp->mss_cache);
 
 	hint = min(hint, tp->rcv_wnd/2);
 	hint = min(hint, TCP_MIN_RCVMSS);

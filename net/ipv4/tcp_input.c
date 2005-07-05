@@ -740,10 +740,10 @@ __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst)
 	__u32 cwnd = (dst ? dst_metric(dst, RTAX_INITCWND) : 0);
 
 	if (!cwnd) {
-		if (tp->mss_cache_std > 1460)
+		if (tp->mss_cache > 1460)
 			cwnd = 2;
 		else
-			cwnd = (tp->mss_cache_std > 1095) ? 3 : 4;
+			cwnd = (tp->mss_cache > 1095) ? 3 : 4;
 	}
 	return min_t(__u32, cwnd, tp->snd_cwnd_clamp);
 }
@@ -914,7 +914,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	if (sk->sk_route_caps & NETIF_F_TSO) {
 		sk->sk_route_caps &= ~NETIF_F_TSO;
 		sock_set_flag(sk, SOCK_NO_LARGESEND);
-		tp->mss_cache = tp->mss_cache_std;
+		tp->mss_cache = tp->mss_cache;
 	}
 
 	if (!tp->sacked_out)
@@ -1077,7 +1077,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			    (IsFack(tp) ||
 			     !before(lost_retrans,
 				     TCP_SKB_CB(skb)->ack_seq + tp->reordering *
-				     tp->mss_cache_std))) {
+				     tp->mss_cache))) {
 				TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 				tp->retrans_out -= tcp_skb_pcount(skb);
 
@@ -3334,7 +3334,7 @@ static void tcp_new_space(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	if (tcp_should_expand_sndbuf(sk, tp)) {
- 		int sndmem = max_t(u32, tp->rx_opt.mss_clamp, tp->mss_cache_std) +
+ 		int sndmem = max_t(u32, tp->rx_opt.mss_clamp, tp->mss_cache) +
 			MAX_TCP_HEADER + 16 + sizeof(struct sk_buff),
 		    demanded = max_t(unsigned int, tp->snd_cwnd,
 						   tp->reordering + 1);
