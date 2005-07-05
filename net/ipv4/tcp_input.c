@@ -1957,15 +1957,6 @@ static inline void tcp_ack_packets_out(struct sock *sk, struct tcp_sock *tp)
 	}
 }
 
-/* There is one downside to this scheme.  Although we keep the
- * ACK clock ticking, adjusting packet counters and advancing
- * congestion window, we do not liberate socket send buffer
- * space.
- *
- * Mucking with skb->truesize and sk->sk_wmem_alloc et al.
- * then making a write space wakeup callback is a possible
- * future enhancement.  WARNING: it is not trivial to make.
- */
 static int tcp_tso_acked(struct sock *sk, struct sk_buff *skb,
 			 __u32 now, __s32 *seq_rtt)
 {
