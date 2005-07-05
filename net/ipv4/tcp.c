@@ -756,13 +756,9 @@ static inline int select_size(struct sock *sk, struct tcp_sock *tp)
 {
 	int tmp = tp->mss_cache_std;
 
-	if (sk->sk_route_caps & NETIF_F_SG) {
-		int pgbreak = SKB_MAX_HEAD(MAX_TCP_HEADER);
+	if (sk->sk_route_caps & NETIF_F_SG)
+		tmp = 0;
 
-		if (tmp >= pgbreak &&
-		    tmp <= pgbreak + (MAX_SKB_FRAGS - 1) * PAGE_SIZE)
-			tmp = pgbreak;
-	}
 	return tmp;
 }
 
@@ -872,11 +868,6 @@ new_segment:
 					tcp_mark_push(tp, skb);
 					goto new_segment;
 				} else if (page) {
-					/* If page is cached, align
-					 * offset to L1 cache boundary
-					 */
-					off = (off + L1_CACHE_BYTES - 1) &
-					      ~(L1_CACHE_BYTES - 1);
 					if (off == PAGE_SIZE) {
 						put_page(page);
 						TCP_PAGE(sk) = page = NULL;
