@@ -434,6 +434,33 @@ static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
+/* Does SKB fit into the send window? */
+static inline int tcp_snd_wnd_test(struct tcp_sock *tp, struct sk_buff *skb, unsigned int cur_mss)
+{
+	u32 end_seq = TCP_SKB_CB(skb)->end_seq;
+
+	return !after(end_seq, tp->snd_una + tp->snd_wnd);
+}
+
+/* Can at least one segment of SKB be sent right now, according to the
+ * congestion window rules?  If so, return how many segments are allowed.
+ */
+static inline unsigned int tcp_cwnd_test(struct tcp_sock *tp, struct sk_buff *skb)
+{
+	u32 in_flight, cwnd;
+
+	/* Don't be strict about the congestion window for the final FIN.  */
+	if (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN)
+		return 1;
+
+	in_flight = tcp_packets_in_flight(tp);
+	cwnd = tp->snd_cwnd;
+	if (in_flight < cwnd)
+		return (cwnd - in_flight);
+
+	return 0;
+}
+
 static inline int tcp_minshall_check(const struct tcp_sock *tp)
 {
 	return after(tp->snd_sml,tp->snd_una) &&
@@ -442,7 +469,7 @@ static inline int tcp_minshall_check(const struct tcp_sock *tp)
 
 /* Return 0, if packet can be sent now without violation Nagle's rules:
  * 1. It is full sized.
- * 2. Or it contains FIN.
+ * 2. Or it contains FIN. (already checked by caller)
  * 3. Or TCP_NODELAY was set.
  * 4. Or TCP_CORK is not set, and all sent packets are ACKed.
  *    With Minshall's modification: all sent small packets are ACKed.
@@ -453,56 +480,73 @@ static inline int tcp_nagle_check(const struct tcp_sock *tp,
 				  unsigned mss_now, int nonagle)
 {
 	return (skb->len < mss_now &&
-		!(TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN) &&
 		((nonagle&TCP_NAGLE_CORK) ||
 		 (!nonagle &&
 		  tp->packets_out &&
 		  tcp_minshall_check(tp))));
 }
 
-/* This checks if the data bearing packet SKB (usually sk->sk_send_head)
- * should be put on the wire right now.
+/* Return non-zero if the Nagle test allows this packet to be
+ * sent now.
  */
-static int tcp_snd_test(struct sock *sk, struct sk_buff *skb,
-			unsigned cur_mss, int nonagle)
+static inline int tcp_nagle_test(struct tcp_sock *tp, struct sk_buff *skb,
+				 unsigned int cur_mss, int nonagle)
+{
+	/* Nagle rule does not apply to frames, which sit in the middle of the
+	 * write_queue (they have no chances to get new data).
+	 *
+	 * This is implemented in the callers, where they modify the 'nonagle'
+	 * argument based upon the location of SKB in the send queue.
+	 */
+	if (nonagle & TCP_NAGLE_PUSH)
+		return 1;
+
+	/* Don't use the nagle rule for urgent data (or for the final FIN).  */
+	if (tp->urg_mode ||
+	    (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN))
+		return 1;
+
+	if (!tcp_nagle_check(tp, skb, cur_mss, nonagle))
+		return 1;
+
+	return 0;
+}
+
+/* This must be invoked the first time we consider transmitting
+ * SKB onto the wire.
+ */
+static inline int tcp_init_tso_segs(struct sock *sk, struct sk_buff *skb)
+{
+	int tso_segs = tcp_skb_pcount(skb);
+
+	if (!tso_segs) {
+		tcp_set_skb_tso_segs(sk, skb);
+		tso_segs = tcp_skb_pcount(skb);
+	}
+	return tso_segs;
+}
+
+/* This checks if the data bearing packet SKB (usually sk->sk_send_head)
+ * should be put on the wire right now.  If so, it returns the number of
+ * packets allowed by the congestion window.
+ */
+static unsigned int tcp_snd_test(struct sock *sk, struct sk_buff *skb,
+				 unsigned int cur_mss, int nonagle)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	int pkts = tcp_skb_pcount(skb);
+	unsigned int cwnd_quota;
 
-	if (!pkts) {
-		tcp_set_skb_tso_segs(sk, skb);
-		pkts = tcp_skb_pcount(skb);
-	}
+	tcp_init_tso_segs(sk, skb);
 
-	/*	RFC 1122 - section 4.2.3.4
-	 *
-	 *	We must queue if
-	 *
-	 *	a) The right edge of this frame exceeds the window
-	 *	b) There are packets in flight and we have a small segment
-	 *	   [SWS avoidance and Nagle algorithm]
-	 *	   (part of SWS is done on packetization)
-	 *	   Minshall version sounds: there are no _small_
-	 *	   segments in flight. (tcp_nagle_check)
-	 *	c) We have too many packets 'in flight'
-	 *
-	 * 	Don't use the nagle rule for urgent data (or
-	 *	for the final FIN -DaveM).
-	 *
-	 *	Also, Nagle rule does not apply to frames, which
-	 *	sit in the middle of queue (they have no chances
-	 *	to get new data) and if room at tail of skb is
-	 *	not enough to save something seriously (<32 for now).
-	 */
+	if (!tcp_nagle_test(tp, skb, cur_mss, nonagle))
+		return 0;
 
-	/* Don't be strict about the congestion window for the
-	 * final FIN frame.  -DaveM
-	 */
-	return (((nonagle&TCP_NAGLE_PUSH) || tp->urg_mode
-		 || !tcp_nagle_check(tp, skb, cur_mss, nonagle)) &&
-		(((tcp_packets_in_flight(tp) + (pkts-1)) < tp->snd_cwnd) ||
-		 (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN)) &&
-		!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una + tp->snd_wnd));
+	cwnd_quota = tcp_cwnd_test(tp, skb);
+	if (cwnd_quota &&
+	    !tcp_snd_wnd_test(tp, skb, cur_mss))
+		cwnd_quota = 0;
+
+	return cwnd_quota;
 }
 
 static inline int tcp_skb_is_last(const struct sock *sk, 
