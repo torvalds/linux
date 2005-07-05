@@ -76,10 +76,6 @@ static inline void *load_pointer(struct sk_buff *skb, int k,
  
 int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int flen)
 {
-	/* len is UNSIGNED. Byte wide insns relies only on implicit
-	   type casts to prevent reading arbitrary memory locations.
-	 */
-	unsigned int len = skb->len-skb->data_len;
 	struct sock_filter *fentry;	/* We walk down these */
 	void *ptr;
 	u32 A = 0;	   		/* Accumulator */
@@ -206,10 +202,10 @@ load_b:
 			}
 			return 0;
 		case BPF_LD|BPF_W|BPF_LEN:
-			A = len;
+			A = skb->len;
 			continue;
 		case BPF_LDX|BPF_W|BPF_LEN:
-			X = len;
+			X = skb->len;
 			continue;
 		case BPF_LD|BPF_W|BPF_IND:
 			k = X + fentry->k;
