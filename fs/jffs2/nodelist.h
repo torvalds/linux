@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.h,v 1.130 2005/04/09 10:46:59 dedekind Exp $
+ * $Id: nodelist.h,v 1.131 2005/07/05 21:03:07 dwmw2 Exp $
  *
  */
 
@@ -161,7 +161,7 @@ struct jffs2_full_dnode
 */
 struct jffs2_tmp_dnode_info
 {
-	struct jffs2_tmp_dnode_info *next;
+	struct rb_node rb;
 	struct jffs2_full_dnode *fn;
 	uint32_t version;
 };       
@@ -387,7 +387,7 @@ static inline struct jffs2_node_frag *frag_last(struct rb_root *root)
 D2(void jffs2_print_frag_list(struct jffs2_inode_info *f));
 void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new, struct jffs2_full_dirent **list);
 int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
-			  struct jffs2_tmp_dnode_info **tnp, struct jffs2_full_dirent **fdp,
+			  struct rb_root *tnp, struct jffs2_full_dirent **fdp,
 			  uint32_t *highest_version, uint32_t *latest_mctime,
 			  uint32_t *mctime_ver);
 void jffs2_set_inocache_state(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic, int state);

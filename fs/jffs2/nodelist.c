@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.94 2005/04/13 13:22:35 dwmw2 Exp $
+ * $Id: nodelist.c,v 1.95 2005/07/05 21:03:07 dwmw2 Exp $
  *
  */
 
@@ -58,27 +58,61 @@ void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new
 /* Put a new tmp_dnode_info into the list, keeping the list in 
    order of increasing version
 */
-static void jffs2_add_tn_to_list(struct jffs2_tmp_dnode_info *tn, struct jffs2_tmp_dnode_info **list)
+
+static void jffs2_add_tn_to_list(struct jffs2_tmp_dnode_info *tn, struct rb_root *list)
 {
-	struct jffs2_tmp_dnode_info **prev = list;
-	
-	while ((*prev) && (*prev)->version < tn->version) {
-		prev = &((*prev)->next);
-	}
-	tn->next = (*prev);
-        *prev = tn;
+	struct rb_node **p = &list->rb_node;
+	struct rb_node * parent = NULL;
+	struct jffs2_tmp_dnode_info *this;
+
+	while (*p) {
+		parent = *p;
+		this = rb_entry(parent, struct jffs2_tmp_dnode_info, rb);
+
+		if (tn->version < this->version)
+			p = &(*p)->rb_left;
+		else if (tn->version > this->version)
+			p = &(*p)->rb_right;
+		else if (tn < this)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+        }
+
+	rb_link_node(&tn->rb, parent, p);
+	rb_insert_color(&tn->rb, list);
 }
 
-static void jffs2_free_tmp_dnode_info_list(struct jffs2_tmp_dnode_info *tn)
+static void jffs2_free_tmp_dnode_info_list(struct rb_root *list)
 {
-	struct jffs2_tmp_dnode_info *next;
+	struct rb_node *this;
+	struct jffs2_tmp_dnode_info *tn;
 
-	while (tn) {
-		next = tn;
-		tn = tn->next;
-		jffs2_free_full_dnode(next->fn);
-		jffs2_free_tmp_dnode_info(next);
+	this = list->rb_node;
+
+	/* Now at bottom of tree */
+	while (this) {
+		if (this->rb_left)
+			this = this->rb_left;
+		else if (this->rb_right)
+			this = this->rb_right;
+		else {
+			tn = rb_entry(this, struct jffs2_tmp_dnode_info, rb);
+			jffs2_free_full_dnode(tn->fn);
+			jffs2_free_tmp_dnode_info(tn);
+
+			this = this->rb_parent;
+			if (!this)
+				break;
+
+			if (this->rb_left == &tn->rb)
+				this->rb_left = NULL;
+			else if (this->rb_right == &tn->rb)
+				this->rb_right = NULL;
+			else BUG();
+		}
 	}
+	list->rb_node = NULL;
 }
 
 static void jffs2_free_full_dirent_list(struct jffs2_full_dirent *fd)
@@ -108,12 +142,13 @@ static struct jffs2_raw_node_ref *jffs2_first_valid_node(struct jffs2_raw_node_r
    with this ino, returning the former in order of version */
 
 int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
-			  struct jffs2_tmp_dnode_info **tnp, struct jffs2_full_dirent **fdp,
+			  struct rb_root *tnp, struct jffs2_full_dirent **fdp,
 			  uint32_t *highest_version, uint32_t *latest_mctime,
 			  uint32_t *mctime_ver)
 {
 	struct jffs2_raw_node_ref *ref, *valid_ref;
-	struct jffs2_tmp_dnode_info *tn, *ret_tn = NULL;
+	struct jffs2_tmp_dnode_info *tn;
+	struct rb_root ret_tn = RB_ROOT;
 	struct jffs2_full_dirent *fd, *ret_fd = NULL;
 	union jffs2_node_union node;
 	size_t retlen;
@@ -450,7 +485,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 	return 0;
 
  free_out:
-	jffs2_free_tmp_dnode_info_list(ret_tn);
+	jffs2_free_tmp_dnode_info_list(&ret_tn);
 	jffs2_free_full_dirent_list(ret_fd);
 	return err;
 }

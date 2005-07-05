@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.119 2005/03/01 10:34:03 dedekind Exp $
+ * $Id: readinode.c,v 1.120 2005/07/05 21:03:07 dwmw2 Exp $
  *
  */
 
@@ -500,7 +500,9 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 					struct jffs2_inode_info *f,
 					struct jffs2_raw_inode *latest_node)
 {
-	struct jffs2_tmp_dnode_info *tn_list, *tn;
+	struct jffs2_tmp_dnode_info *tn = NULL;
+	struct rb_root tn_list;
+	struct rb_node *rb, *repl_rb;
 	struct jffs2_full_dirent *fd_list;
 	struct jffs2_full_dnode *fn = NULL;
 	uint32_t crc;
@@ -522,9 +524,10 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 	}
 	f->dents = fd_list;
 
-	while (tn_list) {
-		tn = tn_list;
+	rb = rb_first(&tn_list);
 
+	while (rb) {
+		tn = rb_entry(rb, struct jffs2_tmp_dnode_info, rb);
 		fn = tn->fn;
 
 		if (f->metadata) {
@@ -556,7 +559,30 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 			mdata_ver = tn->version;
 		}
 	next_tn:
-		tn_list = tn->next;
+		BUG_ON(rb->rb_left);
+		repl_rb = NULL;
+		if (rb->rb_parent && rb->rb_parent->rb_left == rb) {
+			/* We were then left-hand child of our parent. We need
+			   to move our own right-hand child into our place. */
+			repl_rb = rb->rb_right;
+			if (repl_rb)
+				repl_rb->rb_parent = rb->rb_parent;
+		} else
+			repl_rb = NULL;
+
+		rb = rb_next(rb);
+
+		/* Remove the spent tn from the tree; don't bother rebalancing
+		   but put our right-hand child in our own place. */
+		if (tn->rb.rb_parent) {
+			if (tn->rb.rb_parent->rb_left == &tn->rb)
+				tn->rb.rb_parent->rb_left = repl_rb;
+			else if (tn->rb.rb_parent->rb_right == &tn->rb)
+				tn->rb.rb_parent->rb_right = repl_rb;
+			else BUG();
+		} else if (tn->rb.rb_right)
+			tn->rb.rb_right->rb_parent = NULL;
+
 		jffs2_free_tmp_dnode_info(tn);
 	}
 	D1(jffs2_sanitycheck_fragtree(f));
