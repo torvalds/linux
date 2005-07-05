@@ -842,54 +842,54 @@ static inline void tcp_cwnd_validate(struct sock *sk, struct tcp_sock *tp)
 static int tcp_write_xmit(struct sock *sk, int nonagle)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct sk_buff *skb;
 	unsigned int mss_now;
+	int sent_pkts;
 
 	/* If we are closed, the bytes will have to remain here.
 	 * In time closedown will finish, we empty the write queue and all
 	 * will be happy.
 	 */
-	if (sk->sk_state != TCP_CLOSE) {
-		struct sk_buff *skb;
-		int sent_pkts = 0;
+	if (unlikely(sk->sk_state == TCP_CLOSE))
+		return 0;
 
-		/* Account for SACKS, we may need to fragment due to this.
-		 * It is just like the real MSS changing on us midstream.
-		 * We also handle things correctly when the user adds some
-		 * IP options mid-stream.  Silly to do, but cover it.
-		 */
-		mss_now = tcp_current_mss(sk, 1);
 
-		while ((skb = sk->sk_send_head) &&
-		       tcp_snd_test(sk, skb, mss_now,
-			       	    tcp_skb_is_last(sk, skb) ? nonagle :
-				    			       TCP_NAGLE_PUSH)) {
-			if (skb->len > mss_now) {
-				if (tcp_fragment(sk, skb, mss_now))
-					break;
-			}
-
-			TCP_SKB_CB(skb)->when = tcp_time_stamp;
-			tcp_tso_set_push(skb);
-			if (tcp_transmit_skb(sk, skb_clone(skb, GFP_ATOMIC)))
+	/* Account for SACKS, we may need to fragment due to this.
+	 * It is just like the real MSS changing on us midstream.
+	 * We also handle things correctly when the user adds some
+	 * IP options mid-stream.  Silly to do, but cover it.
+	 */
+	mss_now = tcp_current_mss(sk, 1);
+	sent_pkts = 0;
+	while ((skb = sk->sk_send_head) &&
+	       tcp_snd_test(sk, skb, mss_now,
+			    tcp_skb_is_last(sk, skb) ? nonagle :
+			    TCP_NAGLE_PUSH)) {
+		if (skb->len > mss_now) {
+			if (tcp_fragment(sk, skb, mss_now))
 				break;
-
-			/* Advance the send_head.  This one is sent out.
-			 * This call will increment packets_out.
-			 */
-			update_send_head(sk, tp, skb);
-
-			tcp_minshall_update(tp, mss_now, skb);
-			sent_pkts = 1;
 		}
 
-		if (sent_pkts) {
-			tcp_cwnd_validate(sk, tp);
-			return 0;
-		}
+		TCP_SKB_CB(skb)->when = tcp_time_stamp;
+		tcp_tso_set_push(skb);
+		if (tcp_transmit_skb(sk, skb_clone(skb, GFP_ATOMIC)))
+			break;
 
-		return !tp->packets_out && sk->sk_send_head;
+		/* Advance the send_head.  This one is sent out.
+		 * This call will increment packets_out.
+		 */
+		update_send_head(sk, tp, skb);
+
+		tcp_minshall_update(tp, mss_now, skb);
+		sent_pkts = 1;
 	}
-	return 0;
+
+	if (sent_pkts) {
+		tcp_cwnd_validate(sk, tp);
+		return 0;
+	}
+
+	return !tp->packets_out && sk->sk_send_head;
 }
 
 /* Push out any pending frames which were held back due to
