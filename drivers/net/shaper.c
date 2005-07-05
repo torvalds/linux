@@ -135,10 +135,8 @@ static int shaper_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct shaper *shaper = dev->priv;
  	struct sk_buff *ptr;
-   
-	if (down_trylock(&shaper->sem))
-		return -1;
-
+  
+	spin_lock(&shaper->lock);
  	ptr=shaper->sendq.prev;
  	
  	/*
@@ -232,7 +230,7 @@ static int shaper_start_xmit(struct sk_buff *skb, struct net_device *dev)
                 shaper->stats.collisions++;
  	}
 	shaper_kick(shaper);
-	up(&shaper->sem);
+	spin_unlock(&shaper->lock);
  	return 0;
 }
 
@@ -271,11 +269,9 @@ static void shaper_timer(unsigned long data)
 {
 	struct shaper *shaper = (struct shaper *)data;
 
-	if (!down_trylock(&shaper->sem)) {
-		shaper_kick(shaper);
-		up(&shaper->sem);
-	} else
-		mod_timer(&shaper->timer, jiffies);
+	spin_lock(&shaper->lock);
+	shaper_kick(shaper);
+	spin_unlock(&shaper->lock);
 }
 
 /*
@@ -332,21 +328,6 @@ static void shaper_kick(struct shaper *shaper)
 
 
 /*
- *	Flush the shaper queues on a closedown
- */
- 
-static void shaper_flush(struct shaper *shaper)
-{
-	struct sk_buff *skb;
-
-	down(&shaper->sem);
-	while((skb=skb_dequeue(&shaper->sendq))!=NULL)
-		dev_kfree_skb(skb);
-	shaper_kick(shaper);
-	up(&shaper->sem);
-}
-
-/*
  *	Bring the interface up. We just disallow this until a 
  *	bind.
  */
@@ -375,7 +356,15 @@ static int shaper_open(struct net_device *dev)
 static int shaper_close(struct net_device *dev)
 {
 	struct shaper *shaper=dev->priv;
-	shaper_flush(shaper);
+	struct sk_buff *skb;
+
+	while ((skb = skb_dequeue(&shaper->sendq)) != NULL)
+		dev_kfree_skb(skb);
+
+	spin_lock_bh(&shaper->lock);
+	shaper_kick(shaper);
+	spin_unlock_bh(&shaper->lock);
+
 	del_timer_sync(&shaper->timer);
 	return 0;
 }
@@ -576,6 +565,7 @@ static void shaper_init_priv(struct net_device *dev)
 	init_timer(&sh->timer);
 	sh->timer.function=shaper_timer;
 	sh->timer.data=(unsigned long)sh;
+	spin_lock_init(&sh->lock);
 }
 
 /*
