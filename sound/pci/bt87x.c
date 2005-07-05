@@ -804,7 +804,7 @@ static int __devinit snd_bt87x_detect_card(struct pci_dev *pci)
 	int i;
 	const struct pci_device_id *supported;
 
-	supported = pci_match_device(snd_bt87x_ids, pci);
+	supported = pci_match_device(driver, pci);
 	if (supported)
 		return supported->driver_data;
 

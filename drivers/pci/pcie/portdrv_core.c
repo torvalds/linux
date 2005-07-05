@@ -275,9 +275,16 @@ int pcie_port_device_probe(struct pci_dev *dev)
 
 int pcie_port_device_register(struct pci_dev *dev)
 {
+	struct pcie_port_device_ext *p_ext;
 	int status, type, capabilities, irq_mode, i;
 	int vectors[PCIE_PORT_DEVICE_MAXSERVICES];
 	u16 reg16;
+
+	/* Allocate port device extension */
+	if (!(p_ext = kmalloc(sizeof(struct pcie_port_device_ext), GFP_KERNEL)))
+		return -ENOMEM;
+
+	pci_set_drvdata(dev, p_ext);
 
 	/* Get port type */
 	pci_read_config_word(dev,
@@ -288,6 +295,7 @@ int pcie_port_device_register(struct pci_dev *dev)
 	/* Now get port services */
 	capabilities = get_port_device_capability(dev);
 	irq_mode = assign_interrupt_mode(dev, vectors, capabilities);
+	p_ext->interrupt_mode = irq_mode;
 
 	/* Allocate child services if any */
 	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
