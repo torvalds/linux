@@ -207,8 +207,6 @@ psched_tod_diff(int delta_sec, int bound)
 
 #endif /* !CONFIG_NET_SCH_CLK_GETTIMEOFDAY */
 
-extern struct Qdisc noop_qdisc;
-extern struct Qdisc_ops noop_qdisc_ops;
 extern struct Qdisc_ops pfifo_qdisc_ops;
 extern struct Qdisc_ops bfifo_qdisc_ops;
 
@@ -216,14 +214,6 @@ extern int register_qdisc(struct Qdisc_ops *qops);
 extern int unregister_qdisc(struct Qdisc_ops *qops);
 extern struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle);
 extern struct Qdisc *qdisc_lookup_class(struct net_device *dev, u32 handle);
-extern void dev_init_scheduler(struct net_device *dev);
-extern void dev_shutdown(struct net_device *dev);
-extern void dev_activate(struct net_device *dev);
-extern void dev_deactivate(struct net_device *dev);
-extern void qdisc_reset(struct Qdisc *qdisc);
-extern void qdisc_destroy(struct Qdisc *qdisc);
-extern struct Qdisc * qdisc_create_dflt(struct net_device *dev,
-	struct Qdisc_ops *ops);
 extern struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 		struct rtattr *tab);
 extern void qdisc_put_rtab(struct qdisc_rate_table *tab);
