@@ -248,17 +248,18 @@ struct sk_buff {
 				data_len,
 				mac_len,
 				csum;
-	unsigned char		local_df,
-				cloned:1,
-				nohdr:1,
-				pkt_type,
-				ip_summed;
 	__u32			priority;
-	unsigned short		protocol;
+	__u8			local_df:1,
+				cloned:1,
+				ip_summed:2,
+				nohdr:1;
+				/* 3 bits spare */
+	__u8			pkt_type;
+	__u16			protocol;
 
 	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_NETFILTER
-        unsigned long		nfmark;
+	unsigned long		nfmark;
 	__u32			nfcache;
 	__u32			nfctinfo;
 	struct nf_conntrack	*nfct;
