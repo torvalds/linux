@@ -3300,6 +3300,28 @@ void tcp_cwnd_application_limited(struct sock *sk)
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 }
 
+static inline int tcp_should_expand_sndbuf(struct sock *sk, struct tcp_sock *tp)
+{
+	/* If the user specified a specific send buffer setting, do
+	 * not modify it.
+	 */
+	if (sk->sk_userlocks & SOCK_SNDBUF_LOCK)
+		return 0;
+
+	/* If we are under global TCP memory pressure, do not expand.  */
+	if (tcp_memory_pressure)
+		return 0;
+
+	/* If we are under soft global TCP memory pressure, do not expand.  */
+	if (atomic_read(&tcp_memory_allocated) >= sysctl_tcp_mem[0])
+		return 0;
+
+	/* If we filled the congestion window, do not expand.  */
+	if (tp->packets_out >= tp->snd_cwnd)
+		return 0;
+
+	return 1;
+}
 
 /* When incoming ACK allowed to free some skb from write_queue,
  * we remember this event in flag SOCK_QUEUE_SHRUNK and wake up socket
@@ -3311,10 +3333,7 @@ static void tcp_new_space(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (tp->packets_out < tp->snd_cwnd &&
-	    !(sk->sk_userlocks & SOCK_SNDBUF_LOCK) &&
-	    !tcp_memory_pressure &&
-	    atomic_read(&tcp_memory_allocated) < sysctl_tcp_mem[0]) {
+	if (tcp_should_expand_sndbuf(sk, tp)) {
  		int sndmem = max_t(u32, tp->rx_opt.mss_clamp, tp->mss_cache_std) +
 			MAX_TCP_HEADER + 16 + sizeof(struct sk_buff),
 		    demanded = max_t(unsigned int, tp->snd_cwnd,
