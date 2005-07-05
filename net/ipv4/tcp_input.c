@@ -2038,7 +2038,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p, s32 *seq_usrtt
 		 * the other end.
 		 */
 		if (after(scb->end_seq, tp->snd_una)) {
-			if (tcp_skb_pcount(skb) > 1)
+			if (tcp_skb_pcount(skb) > 1 &&
+			    after(tp->snd_una, scb->seq))
 				acked |= tcp_tso_acked(sk, skb,
 						       now, &seq_rtt);
 			break;
