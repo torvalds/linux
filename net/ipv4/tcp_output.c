@@ -655,6 +655,7 @@ static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len)
 	}
 
 	/* Link BUFF into the send queue. */
+	skb_header_release(buff);
 	__skb_append(skb, buff);
 
 	return 0;
