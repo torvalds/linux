@@ -140,11 +140,11 @@ static inline void tcp_event_data_sent(struct tcp_sock *tp,
 		tp->ack.pingpong = 1;
 }
 
-static __inline__ void tcp_event_ack_sent(struct sock *sk)
+static __inline__ void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	tcp_dec_quickack_mode(tp);
+	tcp_dec_quickack_mode(tp, pkts);
 	tcp_clear_xmit_timer(sk, TCP_TIME_DACK);
 }
 
@@ -355,7 +355,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		tp->af_specific->send_check(sk, th, skb->len, skb);
 
 		if (tcb->flags & TCPCB_FLAG_ACK)
-			tcp_event_ack_sent(sk);
+			tcp_event_ack_sent(sk, tcp_skb_pcount(skb));
 
 		if (skb->len != tcp_header_size)
 			tcp_event_data_sent(tp, skb, sk);

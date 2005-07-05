@@ -721,11 +721,16 @@ static inline int tcp_ack_scheduled(struct tcp_sock *tp)
 	return tp->ack.pending&TCP_ACK_SCHED;
 }
 
-static __inline__ void tcp_dec_quickack_mode(struct tcp_sock *tp)
+static __inline__ void tcp_dec_quickack_mode(struct tcp_sock *tp, unsigned int pkts)
 {
-	if (tp->ack.quick && --tp->ack.quick == 0) {
-		/* Leaving quickack mode we deflate ATO. */
-		tp->ack.ato = TCP_ATO_MIN;
+	if (tp->ack.quick) {
+		if (pkts >= tp->ack.quick) {
+			tp->ack.quick = 0;
+
+			/* Leaving quickack mode we deflate ATO. */
+			tp->ack.ato = TCP_ATO_MIN;
+		} else
+			tp->ack.quick -= pkts;
 	}
 }
 
