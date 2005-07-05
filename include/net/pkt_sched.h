@@ -13,13 +13,12 @@ struct qdisc_walker
 
 extern rwlock_t qdisc_tree_lock;
 
-#define	QDISC_ALIGN		32
-#define	QDISC_ALIGN_CONST	(QDISC_ALIGN - 1)
+#define QDISC_ALIGNTO		32
+#define QDISC_ALIGN(len)	(((len) + QDISC_ALIGNTO-1) & ~(QDISC_ALIGNTO-1))
 
 static inline void *qdisc_priv(struct Qdisc *q)
 {
-	return (char *)q + ((sizeof(struct Qdisc) + QDISC_ALIGN_CONST)
-			      & ~QDISC_ALIGN_CONST);
+	return (char *) q + QDISC_ALIGN(sizeof(struct Qdisc));
 }
 
 /* 
