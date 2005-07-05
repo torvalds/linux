@@ -71,6 +71,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/bootmem.h>
 #include <linux/string.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -3103,12 +3104,14 @@ __setup("rhash_entries=", set_rhash_entries);
 
 int __init ip_rt_init(void)
 {
-	int order, goal, rc = 0;
+	int rc = 0;
 
 	rt_hash_rnd = (int) ((num_physpages ^ (num_physpages>>8)) ^
 			     (jiffies ^ (jiffies >> 7)));
 
 #ifdef CONFIG_NET_CLS_ROUTE
+	{
+	int order;
 	for (order = 0;
 	     (PAGE_SIZE << order) < 256 * sizeof(struct ip_rt_acct) * NR_CPUS; order++)
 		/* NOTHING */;
@@ -3116,6 +3119,7 @@ int __init ip_rt_init(void)
 	if (!ip_rt_acct)
 		panic("IP: failed to allocate ip_rt_acct\n");
 	memset(ip_rt_acct, 0, PAGE_SIZE << order);
+	}
 #endif
 
 	ipv4_dst_ops.kmem_cachep = kmem_cache_create("ip_dst_cache",
@@ -3126,32 +3130,17 @@ int __init ip_rt_init(void)
 	if (!ipv4_dst_ops.kmem_cachep)
 		panic("IP: failed to allocate ip_dst_cache\n");
 
-	goal = num_physpages >> (26 - PAGE_SHIFT);
-	if (rhash_entries)
-		goal = (rhash_entries * sizeof(struct rt_hash_bucket)) >> PAGE_SHIFT;
-	for (order = 0; (1UL << order) < goal; order++)
-		/* NOTHING */;
-
-	do {
-		rt_hash_mask = (1UL << order) * PAGE_SIZE /
-			sizeof(struct rt_hash_bucket);
-		while (rt_hash_mask & (rt_hash_mask - 1))
-			rt_hash_mask--;
-		rt_hash_table = (struct rt_hash_bucket *)
-			__get_free_pages(GFP_ATOMIC, order);
-	} while (rt_hash_table == NULL && --order > 0);
-
-	if (!rt_hash_table)
-		panic("Failed to allocate IP route cache hash table\n");
-
-	printk(KERN_INFO "IP: routing cache hash table of %u buckets, %ldKbytes\n",
-	       rt_hash_mask,
-	       (long) (rt_hash_mask * sizeof(struct rt_hash_bucket)) / 1024);
-
-	for (rt_hash_log = 0; (1 << rt_hash_log) != rt_hash_mask; rt_hash_log++)
-		/* NOTHING */;
-
-	rt_hash_mask--;
+	rt_hash_table = (struct rt_hash_bucket *)
+		alloc_large_system_hash("IP route cache",
+					sizeof(struct rt_hash_bucket),
+					rhash_entries,
+					(num_physpages >= 128 * 1024) ?
+						(27 - PAGE_SHIFT) :
+						(29 - PAGE_SHIFT),
+					HASH_HIGHMEM,
+					&rt_hash_log,
+					&rt_hash_mask,
+					0);
 	memset(rt_hash_table, 0, (rt_hash_mask + 1) * sizeof(struct rt_hash_bucket));
 	rt_hash_lock_init();
 
