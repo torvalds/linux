@@ -756,8 +756,17 @@ static inline int select_size(struct sock *sk, struct tcp_sock *tp)
 {
 	int tmp = tp->mss_cache_std;
 
-	if (sk->sk_route_caps & NETIF_F_SG)
-		tmp = 0;
+	if (sk->sk_route_caps & NETIF_F_SG) {
+		if (sk->sk_route_caps & NETIF_F_TSO)
+			tmp = 0;
+		else {
+			int pgbreak = SKB_MAX_HEAD(MAX_TCP_HEADER);
+
+			if (tmp >= pgbreak &&
+			    tmp <= pgbreak + (MAX_SKB_FRAGS - 1) * PAGE_SIZE)
+				tmp = pgbreak;
+		}
+	}
 
 	return tmp;
 }
