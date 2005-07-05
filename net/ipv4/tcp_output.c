@@ -839,11 +839,10 @@ static inline void tcp_cwnd_validate(struct sock *sk, struct tcp_sock *tp)
  * Returns 1, if no segments are in flight and we have queued segments, but
  * cannot send anything now because of SWS or another problem.
  */
-static int tcp_write_xmit(struct sock *sk, int nonagle)
+static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	unsigned int mss_now;
 	int sent_pkts;
 
 	/* If we are closed, the bytes will have to remain here.
@@ -853,13 +852,6 @@ static int tcp_write_xmit(struct sock *sk, int nonagle)
 	if (unlikely(sk->sk_state == TCP_CLOSE))
 		return 0;
 
-
-	/* Account for SACKS, we may need to fragment due to this.
-	 * It is just like the real MSS changing on us midstream.
-	 * We also handle things correctly when the user adds some
-	 * IP options mid-stream.  Silly to do, but cover it.
-	 */
-	mss_now = tcp_current_mss(sk, 1);
 	sent_pkts = 0;
 	while ((skb = sk->sk_send_head) &&
 	       tcp_snd_test(sk, skb, mss_now,
@@ -897,7 +889,7 @@ static int tcp_write_xmit(struct sock *sk, int nonagle)
  * The socket must be locked by the caller.
  */
 void __tcp_push_pending_frames(struct sock *sk, struct tcp_sock *tp,
-			       unsigned cur_mss, int nonagle)
+			       unsigned int cur_mss, int nonagle)
 {
 	struct sk_buff *skb = sk->sk_send_head;
 
@@ -905,7 +897,7 @@ void __tcp_push_pending_frames(struct sock *sk, struct tcp_sock *tp,
 		if (!tcp_skb_is_last(sk, skb))
 			nonagle = TCP_NAGLE_PUSH;
 		if (!tcp_snd_test(sk, skb, cur_mss, nonagle) ||
-		    tcp_write_xmit(sk, nonagle))
+		    tcp_write_xmit(sk, cur_mss, nonagle))
 			tcp_check_probe_timer(sk, tp);
 	}
 }
@@ -916,7 +908,7 @@ void __tcp_data_snd_check(struct sock *sk, struct sk_buff *skb)
 
 	if (after(TCP_SKB_CB(skb)->end_seq, tp->snd_una + tp->snd_wnd) ||
 	    tcp_packets_in_flight(tp) >= tp->snd_cwnd ||
-	    tcp_write_xmit(sk, tp->nonagle))
+	    tcp_write_xmit(sk, tcp_current_mss(sk, 1), tp->nonagle))
 		tcp_check_probe_timer(sk, tp);
 }
 
