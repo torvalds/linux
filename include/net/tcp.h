@@ -849,6 +849,7 @@ extern __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb,
 /* tcp_output.c */
 
 extern int tcp_write_xmit(struct sock *, int nonagle);
+extern void __tcp_data_snd_check(struct sock *sk, struct sk_buff *skb);
 extern void __tcp_push_pending_frames(struct sock *sk, struct tcp_sock *tp,
 				      unsigned cur_mss, int nonagle);
 extern int tcp_may_send_now(struct sock *sk, struct tcp_sock *tp);
