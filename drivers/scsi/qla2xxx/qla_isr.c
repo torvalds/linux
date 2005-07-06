@@ -240,13 +240,13 @@ qla2x00_mbx_completion(scsi_qla_host_t *ha, uint16_t mb0)
 	wptr = (uint16_t __iomem *)MAILBOX_REG(ha, reg, 1);
 
 	for (cnt = 1; cnt < ha->mbx_count; cnt++) {
-		if (IS_QLA2200(ha) && cnt == 8) 
+		if (IS_QLA2200(ha) && cnt == 8)
 			wptr = (uint16_t __iomem *)MAILBOX_REG(ha, reg, 8);
 		if (cnt == 4 || cnt == 5)
 			ha->mailbox_out[cnt] = qla2x00_debounce_register(wptr);
 		else
 			ha->mailbox_out[cnt] = RD_REG_WORD(wptr);
-	
+
 		wptr++;
 	}
 
@@ -514,7 +514,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		    "Configuration change detected: value=%x.\n", mb[1]);
 
 		if (atomic_read(&ha->loop_state) != LOOP_DOWN) {
-			atomic_set(&ha->loop_state, LOOP_DOWN);  
+			atomic_set(&ha->loop_state, LOOP_DOWN);
 			if (!atomic_read(&ha->loop_down_timer))
 				atomic_set(&ha->loop_down_timer,
 				    LOOP_DOWN_TIME);
@@ -846,7 +846,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		qla_printk(KERN_WARNING, ha, "Status Entry invalid handle.\n");
 
 		set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-		if (ha->dpc_wait && !ha->dpc_active) 
+		if (ha->dpc_wait && !ha->dpc_active)
 			up(ha->dpc_wait);
 
 		return;
@@ -969,7 +969,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		}
 
 		/*
-		 * Check to see if SCSI Status is non zero. If so report SCSI 
+		 * Check to see if SCSI Status is non zero. If so report SCSI
 		 * Status.
 		 */
 		if (lscsi_status != 0) {
@@ -991,7 +991,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 			sp->request_sense_length = sense_len;
 			sp->request_sense_ptr = cp->sense_buffer;
 
-			if (sp->request_sense_length > 32) 
+			if (sp->request_sense_length > 32)
 				sense_len = 32;
 
 			memcpy(cp->sense_buffer, sense_data, sense_len);
@@ -1096,7 +1096,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		break;
 
 	case CS_ABORTED:
-		/* 
+		/*
 		 * hv2.19.12 - DID_ABORT does not retry the request if we
 		 * aborted this request then abort otherwise it must be a
 		 * reset.
@@ -1137,7 +1137,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 		/* SCSI Mid-Layer handles device queue full */
 
-		cp->result = DID_OK << 16 | lscsi_status; 
+		cp->result = DID_OK << 16 | lscsi_status;
 
 		break;
 
@@ -1178,7 +1178,7 @@ qla2x00_status_cont_entry(scsi_qla_host_t *ha, sts_cont_entry_t *pkt)
 			    "sp=%p sp->state:%d\n", __func__, sp, sp->state));
 			qla_printk(KERN_INFO, ha,
 			    "cmd is NULL: already returned to OS (sp=%p)\n",
-			    sp); 
+			    sp);
 
 			ha->status_srb = NULL;
 			return;
@@ -1223,7 +1223,7 @@ qla2x00_error_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 	else if (pkt->entry_status & RF_INV_E_COUNT)
 		qla_printk(KERN_ERR, ha, "%s: Invalid Entry Count\n", __func__);
 	else if (pkt->entry_status & RF_INV_E_PARAM)
-		qla_printk(KERN_ERR, ha, 
+		qla_printk(KERN_ERR, ha,
 		    "%s: Invalid Entry Parameter\n", __func__);
 	else if (pkt->entry_status & RF_INV_E_TYPE)
 		qla_printk(KERN_ERR, ha, "%s: Invalid Entry Type\n", __func__);
@@ -1365,7 +1365,6 @@ qla24xx_process_response_queue(struct scsi_qla_host *ha)
 			DEBUG3(printk(KERN_INFO
 			    "scsi(%ld): Process error entry.\n", ha->host_no));
 
-			//FIXME
 			qla2x00_error_entry(ha, (sts_entry_t *) pkt);
 			((response_t *)pkt)->signature = RESPONSE_PROCESSED;
 			wmb();

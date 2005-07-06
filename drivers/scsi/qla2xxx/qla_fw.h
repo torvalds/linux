@@ -21,8 +21,6 @@
 #ifndef __QLA_FW_H
 #define __QLA_FW_H
 
-// ISP24xx
-
 #define RISC_SADDRESS		0x100000
 #define MBS_CHECKSUM_ERROR	0x4010
 
@@ -60,7 +58,6 @@ struct port_database_24xx {
 #define PDS_PORT_UNAVAILABLE	0x07
 #define PDS_PRLO_PENDING	0x09
 #define PDS_LOGO_PENDING	0x11
-//FIXME
 #define PDS_PRLI2_PENDING	0x12
 
 	uint8_t hard_address[3];

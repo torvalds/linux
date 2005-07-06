@@ -116,7 +116,7 @@
 
 #include "qla_settings.h"
 
-/* 
+/*
  * Data bit definitions
  */
 #define BIT_0	0x1
@@ -194,8 +194,8 @@
 #define MAX_TARGETS		MAX_FIBRE_DEVICES
 #define MIN_LUNS		8
 #define MAX_LUNS		MAX_FIBRE_LUNS
-#define MAX_CMDS_PER_LUN	255 
-                                    
+#define MAX_CMDS_PER_LUN	255
+
 /*
  * Fibre Channel device definitions.
  */
@@ -243,7 +243,7 @@
 #define RESPONSE_ENTRY_CNT_2300		512	/* Number of response entries.*/
 
 /*
- * SCSI Request Block 
+ * SCSI Request Block
  */
 typedef struct srb {
 	struct list_head list;
@@ -254,7 +254,7 @@ typedef struct srb {
 	struct scsi_cmnd *cmd;		/* Linux SCSI command pkt */
 
 	struct timer_list timer;	/* Command timer */
-	atomic_t ref_count;	/* Reference count for this structure */			
+	atomic_t ref_count;	/* Reference count for this structure */
 	uint16_t flags;
 
 	/* Request state */
@@ -312,7 +312,7 @@ struct device_reg_2xxx {
 	uint16_t flash_data;		/* Flash BIOS data */
 	uint16_t unused_1[1];		/* Gap */
 	uint16_t ctrl_status;		/* Control/Status */
-#define CSR_FLASH_64K_BANK	BIT_3	/* Flash upper 64K bank select */ 
+#define CSR_FLASH_64K_BANK	BIT_3	/* Flash upper 64K bank select */
 #define CSR_FLASH_ENABLE	BIT_1	/* Flash BIOS Read/Write enable */
 #define CSR_ISP_SOFT_RESET	BIT_0	/* ISP soft reset */
 
@@ -355,12 +355,12 @@ struct device_reg_2xxx {
 			uint16_t rsp_q_out;	/*  Out-Pointer */
 
 						/* RISC to Host Status */
-			uint32_t host_status;	
+			uint32_t host_status;
 #define HSR_RISC_INT		BIT_15	/* RISC interrupt */
 #define HSR_RISC_PAUSED		BIT_8	/* RISC Paused */
 
 					/* Host to Host Semaphore */
-			uint16_t host_semaphore; 
+			uint16_t host_semaphore;
 			uint16_t unused_3[17];	/* Gap */
 			uint16_t mailbox0;
 			uint16_t mailbox1;
@@ -1057,7 +1057,7 @@ typedef struct {
 	 * LSB BIT 5 = Rx Sensitivity 1G bit 1
 	 * LSB BIT 6 = Rx Sensitivity 1G bit 2
 	 * LSB BIT 7 = Rx Sensitivity 1G bit 3
-	 *            
+	 *
 	 * MSB BIT 0 = Tx Sensitivity 2G bit 0
 	 * MSB BIT 1 = Tx Sensitivity 2G bit 1
 	 * MSB BIT 2 = Tx Sensitivity 2G bit 2
@@ -1075,7 +1075,7 @@ typedef struct {
 	 * LSB BIT 5 = Output Swing 2G bit 0
 	 * LSB BIT 6 = Output Swing 2G bit 1
 	 * LSB BIT 7 = Output Swing 2G bit 2
-	 *            
+	 *
 	 * MSB BIT 0 = Output Emphasis 2G bit 0
 	 * MSB BIT 1 = Output Emphasis 2G bit 1
 	 * MSB BIT 2 = Output Enable
@@ -1997,7 +1997,7 @@ struct qla_board_info {
 struct gid_list_info {
 	uint8_t	al_pa;
 	uint8_t	area;
-	uint8_t	domain;		
+	uint8_t	domain;
 	uint8_t	loop_id_2100;	/* ISP2100/ISP2200 -- 4 bytes. */
 	uint16_t loop_id;	/* ISP23XX         -- 6 bytes. */
 	uint16_t reserved_1;	/* ISP24XX         -- 8 bytes. */
@@ -2111,7 +2111,7 @@ typedef struct scsi_qla_host {
 #define ISP_ABORT_RETRY         20      /* ISP aborted. */
 #define FCPORT_RESCAN_NEEDED	21      /* IO descriptor processing needed */
 #define IODESC_PROCESS_NEEDED	22      /* IO descriptor processing needed */
-#define IOCTL_ERROR_RECOVERY	23      
+#define IOCTL_ERROR_RECOVERY	23
 #define LOOP_RESET_NEEDED	24
 #define BEACON_BLINK_NEEDED	25
 
@@ -2126,7 +2126,7 @@ typedef struct scsi_qla_host {
 #define SRB_MIN_REQ	128
 	mempool_t	*srb_mempool;
 
-	/* This spinlock is used to protect "io transactions", you must	
+	/* This spinlock is used to protect "io transactions", you must
 	 * aquire it before doing any IO to the card, eg with RD_REG*() and
 	 * WRT_REG*() for the duration of your entire commandtransaction.
 	 *
@@ -2153,12 +2153,12 @@ typedef struct scsi_qla_host {
 	response_t      *response_ring_ptr; /* Current address. */
 	uint16_t        rsp_ring_index;     /* Current index. */
 	uint16_t	response_q_length;
-    
+
 	struct isp_operations isp_ops;
 
 	/* Outstandings ISP commands. */
 	srb_t		*outstanding_cmds[MAX_OUTSTANDING_COMMANDS];
-	uint32_t	current_outstanding_cmd; 
+	uint32_t	current_outstanding_cmd;
 	srb_t		*status_srb;	/* Status continuation entry. */
 
 	uint16_t           revision;
@@ -2187,7 +2187,7 @@ typedef struct scsi_qla_host {
 #define LOOP_P2P  2
 #define P2P_LOOP  3
 
-        uint8_t		marker_needed; 
+        uint8_t		marker_needed;
 
 	uint8_t		interrupts_on;
 
@@ -2208,7 +2208,7 @@ typedef struct scsi_qla_host {
 	uint8_t		mbx_count;
 	uint16_t	last_loop_id;
 
-        uint32_t	login_retry_count; 
+        uint32_t	login_retry_count;
 
 	/* Fibre Channel Device List. */
 	struct list_head	fcports;
@@ -2253,7 +2253,7 @@ typedef struct scsi_qla_host {
 	dma_addr_t	rlc_rsp_dma;
 	rpt_lun_cmd_rsp_t *rlc_rsp;
 
-	/* Small DMA pool allocations -- maximum 256 bytes in length. */ 
+	/* Small DMA pool allocations -- maximum 256 bytes in length. */
 #define DMA_POOL_SIZE	256
 	struct dma_pool *s_dma_pool;
 
@@ -2281,10 +2281,10 @@ typedef struct scsi_qla_host {
 	uint32_t	mbx_flags;
 #define  MBX_IN_PROGRESS	BIT_0
 #define  MBX_BUSY		BIT_1	/* Got the Access */
-#define  MBX_SLEEPING_ON_SEM	BIT_2 
+#define  MBX_SLEEPING_ON_SEM	BIT_2
 #define  MBX_POLLING_FOR_COMP	BIT_3
 #define  MBX_COMPLETED		BIT_4
-#define  MBX_TIMEDOUT		BIT_5 
+#define  MBX_TIMEDOUT		BIT_5
 #define  MBX_ACCESS_TIMEDOUT	BIT_6
 
 	mbx_cmd_t 	mc;
@@ -2345,7 +2345,7 @@ typedef struct scsi_qla_host {
 	  test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) || \
 	  test_bit(LOOP_RESYNC_ACTIVE, &ha->dpc_flags)) || \
 	 atomic_read(&ha->loop_state) == LOOP_DOWN)
-				 
+
 #define LOOP_RDY(ha)	(!LOOP_NOT_READY(ha))
 
 #define TGT_Q(ha, t) (ha->otgt[t])

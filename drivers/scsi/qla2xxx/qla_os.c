@@ -64,7 +64,7 @@ MODULE_PARM_DESC(ql2xplogiabsentdevice,
 int ql2xenablezio = 0;
 module_param(ql2xenablezio, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xenablezio,
-		"Option to enable ZIO:If 1 then enable it otherwise" 
+		"Option to enable ZIO:If 1 then enable it otherwise"
 		" use the default set in the NVRAM."
 		" Default is 0 : disabled");
 
@@ -89,7 +89,7 @@ static void qla2x00_free_device(scsi_qla_host_t *);
 static void qla2x00_config_dma_addressing(scsi_qla_host_t *ha);
 
 /*
- * SCSI host template entry points 
+ * SCSI host template entry points
  */
 static int qla2xxx_slave_configure(struct scsi_device * device);
 static int qla2xxx_slave_alloc(struct scsi_device *);
@@ -280,7 +280,7 @@ char *
 qla2x00_fw_version_str(struct scsi_qla_host *ha, char *str)
 {
 	char un_str[10];
-	
+
 	sprintf(str, "%d.%02d.%02d ", ha->fw_major_version,
 	    ha->fw_minor_version,
 	    ha->fw_subminor_version);
@@ -504,14 +504,14 @@ qla2x00_eh_wait_on_command(scsi_qla_host_t *ha, struct scsi_cmnd *cmd)
 
 /*
  * qla2x00_wait_for_hba_online
- *    Wait till the HBA is online after going through 
+ *    Wait till the HBA is online after going through
  *    <= MAX_RETRIES_OF_ISP_ABORT  or
  *    finally HBA is disabled ie marked offline
  *
  * Input:
  *     ha - pointer to host adapter structure
- * 
- * Note:    
+ *
+ * Note:
  *    Does context switching-Release SPIN_LOCK
  *    (if any) before calling this routine.
  *
@@ -519,13 +519,13 @@ qla2x00_eh_wait_on_command(scsi_qla_host_t *ha, struct scsi_cmnd *cmd)
  *    Success (Adapter is online) : 0
  *    Failed  (Adapter is offline/disabled) : 1
  */
-static int 
+static int
 qla2x00_wait_for_hba_online(scsi_qla_host_t *ha)
 {
 	int		return_status;
 	unsigned long	wait_online;
 
-	wait_online = jiffies + (MAX_LOOP_TIMEOUT * HZ); 
+	wait_online = jiffies + (MAX_LOOP_TIMEOUT * HZ);
 	while (((test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags)) ||
 	    test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags) ||
 	    test_bit(ISP_ABORT_RETRY, &ha->dpc_flags) ||
@@ -533,8 +533,8 @@ qla2x00_wait_for_hba_online(scsi_qla_host_t *ha)
 
 		msleep(1000);
 	}
-	if (ha->flags.online) 
-		return_status = QLA_SUCCESS; 
+	if (ha->flags.online)
+		return_status = QLA_SUCCESS;
 	else
 		return_status = QLA_FUNCTION_FAILED;
 
@@ -546,27 +546,27 @@ qla2x00_wait_for_hba_online(scsi_qla_host_t *ha)
 /*
  * qla2x00_wait_for_loop_ready
  *    Wait for MAX_LOOP_TIMEOUT(5 min) value for loop
- *    to be in LOOP_READY state.	 
+ *    to be in LOOP_READY state.
  * Input:
  *     ha - pointer to host adapter structure
- * 
- * Note:    
+ *
+ * Note:
  *    Does context switching-Release SPIN_LOCK
  *    (if any) before calling this routine.
- *    
+ *
  *
  * Return:
  *    Success (LOOP_READY) : 0
  *    Failed  (LOOP_NOT_READY) : 1
  */
-static inline int 
+static inline int
 qla2x00_wait_for_loop_ready(scsi_qla_host_t *ha)
 {
 	int 	 return_status = QLA_SUCCESS;
 	unsigned long loop_timeout ;
 
 	/* wait for 5 min at the max for loop to be ready */
-	loop_timeout = jiffies + (MAX_LOOP_TIMEOUT * HZ); 
+	loop_timeout = jiffies + (MAX_LOOP_TIMEOUT * HZ);
 
 	while ((!atomic_read(&ha->loop_down_timer) &&
 	    atomic_read(&ha->loop_state) == LOOP_DOWN) ||
@@ -577,7 +577,7 @@ qla2x00_wait_for_loop_ready(scsi_qla_host_t *ha)
 			break;
 		}
 	}
-	return (return_status);	
+	return (return_status);
 }
 
 /**************************************************************************
@@ -647,13 +647,13 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	/* Wait for the command to be returned. */
 	if (ret == SUCCESS) {
 		if (qla2x00_eh_wait_on_command(ha, cmd) != QLA_SUCCESS) {
-			qla_printk(KERN_ERR, ha, 
+			qla_printk(KERN_ERR, ha,
 			    "scsi(%ld:%d:%d): Abort handler timed out -- %lx "
 			    "%x.\n", ha->host_no, id, lun, serial, ret);
 		}
 	}
 
-	qla_printk(KERN_INFO, ha, 
+	qla_printk(KERN_INFO, ha,
 	    "scsi(%ld:%d:%d): Abort command issued -- %lx %x.\n", ha->host_no,
 	    id, lun, serial, ret);
 
@@ -668,7 +668,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 *
 * Input:
 *    ha - pointer to scsi_qla_host structure.
-*    t  - target 	
+*    t  - target
 * Returns:
 *    Either SUCCESS or FAILED.
 *
@@ -717,7 +717,7 @@ qla2x00_eh_wait_for_pending_target_commands(scsi_qla_host_t *ha, unsigned int t)
 *    executing commands.
 *
 *    NOTE: The use of SP is undefined within this context.  Do *NOT*
-*          attempt to use this value, even if you determine it is 
+*          attempt to use this value, even if you determine it is
 *          non-null.
 *
 * Input:
@@ -793,7 +793,7 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 			    "commands\n", __func__, ha->host_no));
 			qla_printk(KERN_INFO, ha,
 			    "%s: failed while waiting for commands\n",
-			    __func__); 
+			    __func__);
 
 			goto eh_dev_reset_done;
 		}
@@ -959,7 +959,7 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 
 	/*
 	 * Fixme-may be dpc thread is active and processing
-	 * loop_resync,so wait a while for it to 
+	 * loop_resync,so wait a while for it to
 	 * be completed and then issue big hammer.Otherwise
 	 * it may cause I/O failure as big hammer marks the
 	 * devices as lost kicking of the port_down_timer
@@ -974,7 +974,7 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 
 		if (qla2x00_wait_for_hba_online(ha) != QLA_SUCCESS)
 			goto eh_host_reset_lock;
-	} 
+	}
 	clear_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags);
 
 	/* Waiting for our command in done_queue to be returned to OS.*/
@@ -1020,7 +1020,7 @@ qla2x00_loop_reset(scsi_qla_host_t *ha)
 	}
 
 	if (status == QLA_SUCCESS &&
-		((!ha->flags.enable_target_reset && 
+		((!ha->flags.enable_target_reset &&
 		  !ha->flags.enable_lip_reset) ||
 		ha->flags.enable_lip_full_login)) {
 
@@ -1139,7 +1139,7 @@ qla2x00_config_dma_addressing(scsi_qla_host_t *ha)
 
 			if (pci_set_consistent_dma_mask(ha->pdev,
 			    DMA_64BIT_MASK)) {
-				qla_printk(KERN_DEBUG, ha, 
+				qla_printk(KERN_DEBUG, ha,
 				    "Failed to set 64 bit PCI consistent mask; "
 				    "using 32 bit.\n");
 				pci_set_consistent_dma_mask(ha->pdev,
@@ -1666,7 +1666,7 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *ha, fc_port_t *fcport,
 {
 	if (atomic_read(&fcport->state) == FCS_ONLINE && fcport->rport)
 		fc_remote_port_block(fcport->rport);
-	/* 
+	/*
 	 * We may need to retry the login, so don't change the state of the
 	 * port but do the retries.
 	 */
@@ -1711,7 +1711,7 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *ha, fc_port_t *fcport,
  * Context:
  */
 void
-qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha) 
+qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha)
 {
 	fc_port_t *fcport;
 
@@ -2061,11 +2061,11 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
  *
  * Context:
  *      Kernel context.
- * 
+ *
  * Note: Sets the ref_count for non Null sp to one.
  */
 static int
-qla2x00_allocate_sp_pool(scsi_qla_host_t *ha) 
+qla2x00_allocate_sp_pool(scsi_qla_host_t *ha)
 {
 	int      rval;
 
@@ -2081,10 +2081,10 @@ qla2x00_allocate_sp_pool(scsi_qla_host_t *ha)
 
 /*
  *  This routine frees all adapter allocated memory.
- *  
+ *
  */
 static void
-qla2x00_free_sp_pool( scsi_qla_host_t *ha) 
+qla2x00_free_sp_pool( scsi_qla_host_t *ha)
 {
 	if (ha->srb_mempool) {
 		mempool_destroy(ha->srb_mempool);
@@ -2223,7 +2223,7 @@ qla2x00_do_dpc(void *data)
 
 						DEBUG(printk("scsi(%ld): port login OK: logged in ID 0x%x\n",
 						    ha->host_no, fcport->loop_id));
-						
+
 						fcport->port_login_retry_count =
 						    ha->port_down_retry_count * PORT_RETRY_TIME;
 						atomic_set(&fcport->state, FCS_ONLINE);
@@ -2254,7 +2254,7 @@ qla2x00_do_dpc(void *data)
 			clear_bit(LOGIN_RETRY_NEEDED, &ha->dpc_flags);
 			DEBUG(printk("scsi(%ld): qla2x00_login_retry()\n",
 			    ha->host_no));
-				
+
 			set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 
 			DEBUG(printk("scsi(%ld): qla2x00_login_retry - end\n",
@@ -2315,7 +2315,7 @@ qla2x00_do_dpc(void *data)
 *      ha  = adapter block pointer.
 */
 static void
-qla2x00_rst_aen(scsi_qla_host_t *ha) 
+qla2x00_rst_aen(scsi_qla_host_t *ha)
 {
 	if (ha->flags.online && !ha->flags.reset_active &&
 	    !atomic_read(&ha->loop_down_timer) &&
@@ -2386,7 +2386,7 @@ qla2x00_timer(scsi_qla_host_t *ha)
 	 *
 	 * Whenever, a port is in the LOST state we start decrementing its port
 	 * down timer every second until it reaches zero. Once  it reaches zero
-	 * the port it marked DEAD. 
+	 * the port it marked DEAD.
 	 */
 	t = 0;
 	list_for_each_entry(fcport, &ha->fcports, list) {
@@ -2398,9 +2398,9 @@ qla2x00_timer(scsi_qla_host_t *ha)
 			if (atomic_read(&fcport->port_down_timer) == 0)
 				continue;
 
-			if (atomic_dec_and_test(&fcport->port_down_timer) != 0) 
+			if (atomic_dec_and_test(&fcport->port_down_timer) != 0)
 				atomic_set(&fcport->state, FCS_DEVICE_DEAD);
-			
+
 			DEBUG(printk("scsi(%ld): fcport-%d - port retry count: "
 			    "%d remaining\n",
 			    ha->host_no,
@@ -2422,7 +2422,7 @@ qla2x00_timer(scsi_qla_host_t *ha)
 			    ha->host_no));
 
 			if (!IS_QLA2100(ha) && ha->link_down_timeout)
-				atomic_set(&ha->loop_state, LOOP_DEAD); 
+				atomic_set(&ha->loop_state, LOOP_DEAD);
 
 			/* Schedule an ISP abort to return any tape commands. */
 			spin_lock_irqsave(&ha->hardware_lock, cpu_flags);

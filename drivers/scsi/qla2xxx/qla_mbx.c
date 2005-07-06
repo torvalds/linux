@@ -294,7 +294,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *ha, mbx_cmd_t *mcp)
 			    "Mailbox command timeout occured. Scheduling ISP "
 			    "abort.\n");
 			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-			if (ha->dpc_wait && !ha->dpc_active) 
+			if (ha->dpc_wait && !ha->dpc_active)
 				up(ha->dpc_wait);
 
 		} else if (!abort_active) {
@@ -1753,18 +1753,18 @@ qla2x00_login_fabric(scsi_qla_host_t *ha, uint16_t loop_id, uint8_t domain,
 /*
  * qla2x00_login_local_device
  *           Issue login loop port mailbox command.
- *    
+ *
  * Input:
  *           ha = adapter block pointer.
  *           loop_id = device loop ID.
  *           opt = command options.
- *          
+ *
  * Returns:
  *            Return status code.
- *             
+ *
  * Context:
  *            Kernel context.
- *             
+ *
  */
 int
 qla2x00_login_local_device(scsi_qla_host_t *ha, uint16_t loop_id,
@@ -2070,7 +2070,7 @@ qla2x00_get_resource_cnts(scsi_qla_host_t *ha, uint16_t *cur_xchg_cnt,
 	} else {
 		DEBUG11(printk("%s(%ld): done. mb1=%x mb2=%x mb3=%x mb6=%x "
 		    "mb7=%x mb10=%x.\n", __func__, ha->host_no,
-		    mcp->mb[1], mcp->mb[2], mcp->mb[3], mcp->mb[6], mcp->mb[7], 
+		    mcp->mb[1], mcp->mb[2], mcp->mb[3], mcp->mb[6], mcp->mb[7],
 		    mcp->mb[10]));
 
 		if (cur_xchg_cnt)

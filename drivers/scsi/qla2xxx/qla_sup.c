@@ -31,7 +31,7 @@ static void qla2x00_nv_write(scsi_qla_host_t *, uint16_t);
  */
 
 /**
- * qla2x00_lock_nvram_access() - 
+ * qla2x00_lock_nvram_access() -
  * @ha: HA context
  */
 void
@@ -64,7 +64,7 @@ qla2x00_lock_nvram_access(scsi_qla_host_t *ha)
 }
 
 /**
- * qla2x00_unlock_nvram_access() - 
+ * qla2x00_unlock_nvram_access() -
  * @ha: HA context
  */
 void
@@ -542,18 +542,18 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 
 	conf_addr = flash_conf_to_access_addr(0x03d8);
 	switch (man_id) {
-	case 0xbf: // STT flash
+	case 0xbf: /* STT flash. */
 		rest_addr = 0x1fff;
 		sec_mask = 0x3e000;
 		if (flash_id == 0x80)
 			conf_addr = flash_conf_to_access_addr(0x0352);
 		break;
-	case 0x13: // ST M25P80
+	case 0x13: /* ST M25P80. */
 		rest_addr = 0x3fff;
 		sec_mask = 0x3c000;
 		break;
 	default:
-		// Default to 64 kb sector size
+		/* Default to 64 kb sector size. */
 		rest_addr = 0x3fff;
 		sec_mask = 0x3c000;
 		break;

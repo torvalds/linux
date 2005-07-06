@@ -317,7 +317,7 @@ qla2x00_gid_pt(scsi_qla_host_t *ha, sw_info_t *list)
 		 * single call.  Return a failed status, and let GA_NXT handle
 		 * the overload.
 		 */
-		if (i == MAX_FIBRE_DEVICES) 
+		if (i == MAX_FIBRE_DEVICES)
 			rval = QLA_FUNCTION_FAILED;
 	}
 
@@ -658,7 +658,7 @@ qla2x00_rsnn_nn(scsi_qla_host_t *ha)
 
 	/* Prepare CT arguments -- node_name, symbolic node_name, size */
 	memcpy(ct_req->req.rsnn_nn.node_name, ha->node_name, WWN_SIZE);
-	
+
 	/* Prepare the Symbolic Node Name */
 	/* Board type */
 	snn = ct_req->req.rsnn_nn.sym_node_name;
@@ -863,7 +863,7 @@ qla2x00_sns_gid_pt(scsi_qla_host_t *ha, sw_info_t *list)
 		 * single call.  Return a failed status, and let GA_NXT handle
 		 * the overload.
 		 */
-		if (i == MAX_FIBRE_DEVICES) 
+		if (i == MAX_FIBRE_DEVICES)
 			rval = QLA_FUNCTION_FAILED;
 	}
 

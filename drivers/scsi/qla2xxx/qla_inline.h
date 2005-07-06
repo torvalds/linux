@@ -30,7 +30,7 @@ static __inline__ uint16_t qla2x00_debounce_register(volatile uint16_t __iomem *
  *      register value.
  */
 static __inline__ uint16_t
-qla2x00_debounce_register(volatile uint16_t __iomem *addr) 
+qla2x00_debounce_register(volatile uint16_t __iomem *addr)
 {
 	volatile uint16_t first;
 	volatile uint16_t second;
@@ -78,7 +78,7 @@ static __inline__ int qla2x00_normalize_dma_addr(
  *	ffffabc1ffffeeee	(0x100000000 + e_addr)
  *	ffffabc100000000	(0x100000000 + e_addr) & ~(0xffffffff)
  *	ffffabc100000000	(ne_addr)
- *	
+ *
  * Compute length of second DMA segment:
  *
  *	00000000ffffeeee	(e_addr & 0xffffffff)
@@ -114,40 +114,10 @@ qla2x00_normalize_dma_addr(
 }
 
 static __inline__ void qla2x00_poll(scsi_qla_host_t *);
-static inline void 
+static inline void
 qla2x00_poll(scsi_qla_host_t *ha)
 {
 	ha->isp_ops.intr_handler(0, ha, NULL);
-}
-
-static __inline__ int qla2x00_is_wwn_zero(uint8_t *);
-
-/*
- * qla2x00_is_wwn_zero - Check for zero node name
- *
- * Input:
- *      wwn = Pointer to WW name to check
- *
- * Returns:
- *      1 if name is 0x00 else 0
- *
- * Context:
- *      Kernel context.
- */
-static __inline__ int
-qla2x00_is_wwn_zero(uint8_t *wwn)
-{
-	int cnt;
-
-	for (cnt = 0; cnt < WWN_SIZE ; cnt++, wwn++) {
-		if (*wwn != 0)
-			break;
-	}
-	/* if zero return 1 */
-	if (cnt == WWN_SIZE)
-		return (1);
-	else
-		return (0);
 }
 
 static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *);
@@ -155,7 +125,7 @@ static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *);
  * This routine will wait for fabric devices for
  * the reset delay.
  */
-static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *ha) 
+static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *ha)
 {
 	uint16_t	fw_state;
 
@@ -186,54 +156,6 @@ qla2x00_issue_marker(scsi_qla_host_t *ha, int ha_locked)
 		ha->marker_needed = 0;
 	}
 	return (QLA_SUCCESS);
-}
-
-static __inline__ void qla2x00_add_timer_to_cmd(srb_t *, int);
-static __inline__ void qla2x00_delete_timer_from_cmd(srb_t *);
-
-/**************************************************************************
-*   qla2x00_add_timer_to_cmd
-*
-* Description:
-*       Creates a timer for the specified command. The timeout is usually
-*       the command time from kernel minus 2 secs.
-*
-* Input:
-*     sp - pointer to validate
-*
-* Returns:
-*     None.
-**************************************************************************/
-static inline void
-qla2x00_add_timer_to_cmd(srb_t *sp, int timeout)
-{
-	init_timer(&sp->timer);
-	sp->timer.expires = jiffies + timeout * HZ;
-	sp->timer.data = (unsigned long) sp;
-	sp->timer.function = (void (*) (unsigned long))qla2x00_cmd_timeout;
-	add_timer(&sp->timer);
-}
-
-/**************************************************************************
-*   qla2x00_delete_timer_from_cmd
-*
-* Description:
-*       Delete the timer for the specified command.
-*
-* Input:
-*     sp - pointer to validate
-*
-* Returns:
-*     None.
-**************************************************************************/
-static inline void 
-qla2x00_delete_timer_from_cmd(srb_t *sp)
-{
-	if (sp->timer.function != NULL) {
-		del_timer(&sp->timer);
-		sp->timer.function =  NULL;
-		sp->timer.data = (unsigned long) NULL;
-	}
 }
 
 static inline uint8_t *host_to_fcp_swap(uint8_t *, uint32_t);

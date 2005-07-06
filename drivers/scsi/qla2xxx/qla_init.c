@@ -123,10 +123,10 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 		    (rval = qla2x00_init_rings(ha)) == QLA_SUCCESS) {
 check_fw_ready_again:
 			/*
-			 * Wait for a successful LIP up to a maximum 
+			 * Wait for a successful LIP up to a maximum
 			 * of (in seconds): RISC login timeout value,
 			 * RISC retry count value, and port down retry
-			 * value OR a minimum of 4 seconds OR If no 
+			 * value OR a minimum of 4 seconds OR If no
 			 * cable, only 5 seconds.
 			 */
 			rval = qla2x00_fw_ready(ha);
@@ -389,7 +389,7 @@ qla2x00_isp_firmware(scsi_qla_host_t *ha)
 	int  rval;
 
 	/* Assume loading risc code */
-	rval = QLA_FUNCTION_FAILED; 
+	rval = QLA_FUNCTION_FAILED;
 
 	if (ha->flags.disable_risc_code_load) {
 		DEBUG2(printk("scsi(%ld): RISC CODE NOT loaded\n",
@@ -417,7 +417,7 @@ qla2x00_isp_firmware(scsi_qla_host_t *ha)
  * Returns 0 on success.
  */
 void
-qla2x00_reset_chip(scsi_qla_host_t *ha) 
+qla2x00_reset_chip(scsi_qla_host_t *ha)
 {
 	unsigned long   flags = 0;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
@@ -673,7 +673,7 @@ qla2x00_chip_diag(scsi_qla_host_t *ha)
 		for (cnt = 6000000; cnt && (data == MBS_BUSY); cnt--) {
 			udelay(5);
 			data = RD_MAILBOX_REG(ha, reg, 0);
-			barrier(); 
+			barrier();
 		}
 	} else
 		udelay(10);
@@ -988,7 +988,7 @@ qla2x00_update_fw_options(scsi_qla_host_t *ha)
 		emphasis = (ha->fw_seriallink_options[2] &
 		    (BIT_4 | BIT_3)) >> 3;
 		tx_sens = ha->fw_seriallink_options[0] &
-		    (BIT_3 | BIT_2 | BIT_1 | BIT_0); 
+		    (BIT_3 | BIT_2 | BIT_1 | BIT_0);
 		rx_sens = (ha->fw_seriallink_options[0] &
 		    (BIT_7 | BIT_6 | BIT_5 | BIT_4)) >> 4;
 		ha->fw_options[10] = (emphasis << 14) | (swing << 8);
@@ -1006,7 +1006,7 @@ qla2x00_update_fw_options(scsi_qla_host_t *ha)
 		    (BIT_7 | BIT_6 | BIT_5)) >> 5;
 		emphasis = ha->fw_seriallink_options[3] & (BIT_1 | BIT_0);
 		tx_sens = ha->fw_seriallink_options[1] &
-		    (BIT_3 | BIT_2 | BIT_1 | BIT_0); 
+		    (BIT_3 | BIT_2 | BIT_1 | BIT_0);
 		rx_sens = (ha->fw_seriallink_options[1] &
 		    (BIT_7 | BIT_6 | BIT_5 | BIT_4)) >> 4;
 		ha->fw_options[11] = (emphasis << 14) | (swing << 8);
@@ -1171,7 +1171,7 @@ qla2x00_fw_ready(scsi_qla_host_t *ha)
 	rval = QLA_SUCCESS;
 
 	/* 20 seconds for loop down. */
-	min_wait = 20;		
+	min_wait = 20;
 
 	/*
 	 * Firmware should take at most one RATOV to login, plus 5 seconds for
@@ -1217,8 +1217,8 @@ qla2x00_fw_ready(scsi_qla_host_t *ha)
 			    (fw_state >= FSTATE_LOSS_OF_SYNC ||
 				fw_state == FSTATE_WAIT_AL_PA)) {
 				/* Loop down. Timeout on min_wait for states
-				 * other than Wait for Login. 
-				 */	
+				 * other than Wait for Login.
+				 */
 				if (time_after_eq(jiffies, mtime)) {
 					qla_printk(KERN_INFO, ha,
 					    "Cable is unplugged...\n");
@@ -1620,7 +1620,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	 *
 	 *	 The driver waits for the link to come up after link down
 	 *	 before returning I/Os to OS with "DID_NO_CONNECT".
-	 */						
+	 */
 	if (nv->link_down_timeout == 0) {
 		ha->loop_down_abort_time =
 		    (LOOP_DOWN_TIME - LOOP_DOWN_TIMEOUT);
@@ -1628,7 +1628,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 		ha->link_down_timeout =	 nv->link_down_timeout;
 		ha->loop_down_abort_time =
 		    (LOOP_DOWN_TIME - ha->link_down_timeout);
-	} 
+	}
 
 	/*
 	 * Need enough time to try and get the port back.
@@ -1730,7 +1730,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, int flags)
  *      2 = database was full and device was not configured.
  */
 static int
-qla2x00_configure_loop(scsi_qla_host_t *ha) 
+qla2x00_configure_loop(scsi_qla_host_t *ha)
 {
 	int  rval;
 	unsigned long flags, save_flags;
@@ -1838,7 +1838,7 @@ qla2x00_configure_loop(scsi_qla_host_t *ha)
  *	0 = success.
  */
 static int
-qla2x00_configure_local_loop(scsi_qla_host_t *ha) 
+qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 {
 	int		rval, rval2;
 	int		found_devs;
@@ -1993,16 +1993,16 @@ cleanup_allocation:
 }
 
 static void
-qla2x00_probe_for_all_luns(scsi_qla_host_t *ha) 
+qla2x00_probe_for_all_luns(scsi_qla_host_t *ha)
 {
 	fc_port_t	*fcport;
 
-	qla2x00_mark_all_devices_lost(ha); 
+	qla2x00_mark_all_devices_lost(ha);
  	list_for_each_entry(fcport, &ha->fcports, list) {
 		if (fcport->port_type != FCT_TARGET)
 			continue;
 
-		qla2x00_update_fcport(ha, fcport); 
+		qla2x00_update_fcport(ha, fcport);
 	}
 }
 
@@ -2573,7 +2573,7 @@ qla2x00_find_new_loop_id(scsi_qla_host_t *ha, fc_port_t *dev)
  *	Kernel context.
  */
 static int
-qla2x00_device_resync(scsi_qla_host_t *ha) 
+qla2x00_device_resync(scsi_qla_host_t *ha)
 {
 	int	rval;
 	int	rval2;
@@ -2837,8 +2837,8 @@ qla2x00_fabric_login(scsi_qla_host_t *ha, fc_port_t *fcport,
 			 * unrecoverable / not handled error
 			 */
 			DEBUG2(printk("%s(%ld): failed=%x port_id=%02x%02x%02x "
- 			    "loop_id=%x jiffies=%lx.\n", 
- 			    __func__, ha->host_no, mb[0], 
+ 			    "loop_id=%x jiffies=%lx.\n",
+ 			    __func__, ha->host_no, mb[0],
 			    fcport->d_id.b.domain, fcport->d_id.b.area,
 			    fcport->d_id.b.al_pa, fcport->loop_id, jiffies));
 
@@ -2901,7 +2901,7 @@ qla2x00_local_device_login(scsi_qla_host_t *ha, uint16_t loop_id)
  *      0 = success
  */
 int
-qla2x00_loop_resync(scsi_qla_host_t *ha) 
+qla2x00_loop_resync(scsi_qla_host_t *ha)
 {
 	int   rval;
 	uint32_t wait_time;
@@ -2960,7 +2960,7 @@ qla2x00_rescan_fcports(scsi_qla_host_t *ha)
 
 		rescan_done = 1;
 	}
-	qla2x00_probe_for_all_luns(ha); 
+	qla2x00_probe_for_all_luns(ha);
 }
 
 /*
@@ -3030,7 +3030,7 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 
 			ha->isp_ops.enable_intrs(ha);
 
-			ha->isp_abort_cnt = 0; 
+			ha->isp_abort_cnt = 0;
 			clear_bit(ISP_ABORT_RETRY, &ha->dpc_flags);
 		} else {	/* failed the ISP abort */
 			ha->flags.online = 1;
@@ -3039,7 +3039,7 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
  					qla_printk(KERN_WARNING, ha,
 					    "ISP error recovery failed - "
 					    "board disabled\n");
-					/* 
+					/*
 					 * The next call disables the board
 					 * completely.
 					 */
@@ -3064,7 +3064,7 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 				status = 1;
 			}
 		}
-		       
+
 	}
 
 	if (status) {
@@ -3119,11 +3119,11 @@ qla2x00_restart_isp(scsi_qla_host_t *ha)
 			}
 
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	
+
 			status = qla2x00_setup_chip(ha);
 
 			spin_lock_irqsave(&ha->hardware_lock, flags);
- 
+
 			if (!IS_QLA24XX(ha) && !IS_QLA25XX(ha)) {
 				/* Enable proper parity */
 				if (IS_QLA2300(ha))
@@ -3168,7 +3168,7 @@ qla2x00_restart_isp(scsi_qla_host_t *ha)
 		}
 
 		/* if no cable then assume it's good */
-		if ((ha->device_flags & DFLG_NO_CABLE)) 
+		if ((ha->device_flags & DFLG_NO_CABLE))
 			status = 0;
 
 		DEBUG(printk("%s(): Configure loop done, status = 0x%x\n",

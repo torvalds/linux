@@ -468,7 +468,7 @@ queuing_error:
  *
  * Returns non-zero if a failure occured, else zero.
  */
-int 
+int
 __qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
     uint8_t type)
 {
@@ -504,7 +504,7 @@ __qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
 	return (QLA_SUCCESS);
 }
 
-int 
+int
 qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
     uint8_t type)
 {

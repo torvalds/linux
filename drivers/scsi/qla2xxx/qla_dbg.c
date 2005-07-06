@@ -74,7 +74,7 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	fw->hccr = RD_REG_WORD(&reg->hccr);
 
 	/* Pause RISC. */
-	WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC); 
+	WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC);
 	if (IS_QLA2300(ha)) {
 		for (cnt = 30000;
 		    (RD_REG_WORD(&reg->hccr) & HCCR_RISC_PAUSE) == 0 &&
@@ -91,85 +91,85 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 	if (rval == QLA_SUCCESS) {
 		dmp_reg = (uint16_t __iomem *)(reg + 0);
-		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++)
 			fw->pbiu_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x10);
-		for (cnt = 0; cnt < sizeof(fw->risc_host_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_host_reg) / 2; cnt++)
 			fw->risc_host_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x40);
-		for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
 			fw->mailbox_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x40);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->resp_dma_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->resp_dma_reg) / 2; cnt++)
 			fw->resp_dma_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x50);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->dma_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->dma_reg) / 2; cnt++)
 			fw->dma_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x00);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0xA0);
-		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++)
 			fw->risc_hdw_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2000); 
+		WRT_REG_WORD(&reg->pcr, 0x2000);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp0_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp0_reg) / 2; cnt++)
 			fw->risc_gp0_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2200); 
+		WRT_REG_WORD(&reg->pcr, 0x2200);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp1_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp1_reg) / 2; cnt++)
 			fw->risc_gp1_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2400); 
+		WRT_REG_WORD(&reg->pcr, 0x2400);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp2_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp2_reg) / 2; cnt++)
 			fw->risc_gp2_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2600); 
+		WRT_REG_WORD(&reg->pcr, 0x2600);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp3_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp3_reg) / 2; cnt++)
 			fw->risc_gp3_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2800); 
+		WRT_REG_WORD(&reg->pcr, 0x2800);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp4_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp4_reg) / 2; cnt++)
 			fw->risc_gp4_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2A00); 
+		WRT_REG_WORD(&reg->pcr, 0x2A00);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp5_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp5_reg) / 2; cnt++)
 			fw->risc_gp5_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2C00); 
+		WRT_REG_WORD(&reg->pcr, 0x2C00);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp6_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp6_reg) / 2; cnt++)
 			fw->risc_gp6_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2E00); 
+		WRT_REG_WORD(&reg->pcr, 0x2E00);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp7_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp7_reg) / 2; cnt++)
 			fw->risc_gp7_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->ctrl_status, 0x10); 
+		WRT_REG_WORD(&reg->ctrl_status, 0x10);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->frame_buf_hdw_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->frame_buf_hdw_reg) / 2; cnt++)
 			fw->frame_buf_hdw_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->ctrl_status, 0x20); 
+		WRT_REG_WORD(&reg->ctrl_status, 0x20);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->fpm_b0_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->fpm_b0_reg) / 2; cnt++)
 			fw->fpm_b0_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->ctrl_status, 0x30); 
+		WRT_REG_WORD(&reg->ctrl_status, 0x30);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->fpm_b1_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->fpm_b1_reg) / 2; cnt++)
 			fw->fpm_b1_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
 		/* Reset RISC. */
@@ -622,7 +622,7 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	fw->hccr = RD_REG_WORD(&reg->hccr);
 
 	/* Pause RISC. */
-	WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC); 
+	WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC);
 	for (cnt = 30000; (RD_REG_WORD(&reg->hccr) & HCCR_RISC_PAUSE) == 0 &&
 	    rval == QLA_SUCCESS; cnt--) {
 		if (cnt)
@@ -632,7 +632,7 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	}
 	if (rval == QLA_SUCCESS) {
 		dmp_reg = (uint16_t __iomem *)(reg + 0);
-		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++)
 			fw->pbiu_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x10);
@@ -644,67 +644,67 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		}
 
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x20);
-		for (cnt = 0; cnt < sizeof(fw->dma_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->dma_reg) / 2; cnt++)
 			fw->dma_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x00);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0xA0);
-		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++)
 			fw->risc_hdw_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2000); 
+		WRT_REG_WORD(&reg->pcr, 0x2000);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp0_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp0_reg) / 2; cnt++)
 			fw->risc_gp0_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2100); 
+		WRT_REG_WORD(&reg->pcr, 0x2100);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp1_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp1_reg) / 2; cnt++)
 			fw->risc_gp1_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2200); 
+		WRT_REG_WORD(&reg->pcr, 0x2200);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp2_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp2_reg) / 2; cnt++)
 			fw->risc_gp2_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2300); 
+		WRT_REG_WORD(&reg->pcr, 0x2300);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp3_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp3_reg) / 2; cnt++)
 			fw->risc_gp3_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2400); 
+		WRT_REG_WORD(&reg->pcr, 0x2400);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp4_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp4_reg) / 2; cnt++)
 			fw->risc_gp4_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2500); 
+		WRT_REG_WORD(&reg->pcr, 0x2500);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp5_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp5_reg) / 2; cnt++)
 			fw->risc_gp5_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2600); 
+		WRT_REG_WORD(&reg->pcr, 0x2600);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp6_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp6_reg) / 2; cnt++)
 			fw->risc_gp6_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->pcr, 0x2700); 
+		WRT_REG_WORD(&reg->pcr, 0x2700);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->risc_gp7_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->risc_gp7_reg) / 2; cnt++)
 			fw->risc_gp7_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->ctrl_status, 0x10); 
+		WRT_REG_WORD(&reg->ctrl_status, 0x10);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->frame_buf_hdw_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->frame_buf_hdw_reg) / 2; cnt++)
 			fw->frame_buf_hdw_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->ctrl_status, 0x20); 
+		WRT_REG_WORD(&reg->ctrl_status, 0x20);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->fpm_b0_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->fpm_b0_reg) / 2; cnt++)
 			fw->fpm_b0_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
-		WRT_REG_WORD(&reg->ctrl_status, 0x30); 
+		WRT_REG_WORD(&reg->ctrl_status, 0x30);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
-		for (cnt = 0; cnt < sizeof(fw->fpm_b1_reg) / 2; cnt++) 
+		for (cnt = 0; cnt < sizeof(fw->fpm_b1_reg) / 2; cnt++)
 			fw->fpm_b1_reg[cnt] = RD_REG_WORD(dmp_reg++);
 
 		/* Reset the ISP. */
@@ -723,7 +723,7 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	if (rval == QLA_SUCCESS && (IS_QLA2200(ha) || (IS_QLA2100(ha) &&
 	    (RD_REG_WORD(&reg->mctr) & (BIT_1 | BIT_0)) != 0))) {
 
-		WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC); 
+		WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC);
 		for (cnt = 30000;
 		    (RD_REG_WORD(&reg->hccr) & HCCR_RISC_PAUSE) == 0 &&
 		    rval == QLA_SUCCESS; cnt--) {
@@ -964,7 +964,7 @@ qla_uprintf(char **uiter, char *fmt, ...)
 	int	iter, len;
 	char	buf[128];
 	va_list	args;
- 
+
 	va_start(args, fmt);
 	len = vsprintf(buf, fmt, args);
 	va_end(args);
@@ -1913,8 +1913,8 @@ qla24xx_ascii_fw_dump(scsi_qla_host_t *ha)
 /*                         Driver Debug Functions.                          */
 /****************************************************************************/
 
-void 
-qla2x00_dump_regs(scsi_qla_host_t *ha) 
+void
+qla2x00_dump_regs(scsi_qla_host_t *ha)
 {
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
@@ -1935,7 +1935,7 @@ qla2x00_dump_regs(scsi_qla_host_t *ha)
 
 
 void
-qla2x00_dump_buffer(uint8_t * b, uint32_t size) 
+qla2x00_dump_buffer(uint8_t * b, uint32_t size)
 {
 	uint32_t cnt;
 	uint8_t c;
@@ -1961,11 +1961,11 @@ qla2x00_dump_buffer(uint8_t * b, uint32_t size)
 /**************************************************************************
  *   qla2x00_print_scsi_cmd
  *	 Dumps out info about the scsi cmd and srb.
- *   Input	 
+ *   Input
  *	 cmd : struct scsi_cmnd
  **************************************************************************/
 void
-qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd) 
+qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd)
 {
 	int i;
 	struct scsi_qla_host *ha;
@@ -1988,7 +1988,7 @@ qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd)
 	    cmd->request_buffer, cmd->request_bufflen);
 	printk("  tag=%d, transfersize=0x%x\n",
 	    cmd->tag, cmd->transfersize);
-	printk("  serial_number=%lx, SP=%p\n", cmd->serial_number, sp); 
+	printk("  serial_number=%lx, SP=%p\n", cmd->serial_number, sp);
 	printk("  data direction=%d\n", cmd->sc_data_direction);
 
 	if (!sp)
@@ -2025,8 +2025,8 @@ qla2x00_dump_pkt(void *pkt)
  *       count   = number of words.
  */
 void
-qla2x00_formatted_dump_buffer(char *string, uint8_t * buffer, 
-				uint8_t wd_size, uint32_t count) 
+qla2x00_formatted_dump_buffer(char *string, uint8_t * buffer,
+				uint8_t wd_size, uint32_t count)
 {
 	uint32_t cnt;
 	uint16_t *buf16;
