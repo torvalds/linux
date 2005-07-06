@@ -740,10 +740,10 @@ __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst)
 	__u32 cwnd = (dst ? dst_metric(dst, RTAX_INITCWND) : 0);
 
 	if (!cwnd) {
-		if (tp->mss_cache_std > 1460)
+		if (tp->mss_cache > 1460)
 			cwnd = 2;
 		else
-			cwnd = (tp->mss_cache_std > 1095) ? 3 : 4;
+			cwnd = (tp->mss_cache > 1095) ? 3 : 4;
 	}
 	return min_t(__u32, cwnd, tp->snd_cwnd_clamp);
 }
@@ -914,7 +914,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	if (sk->sk_route_caps & NETIF_F_TSO) {
 		sk->sk_route_caps &= ~NETIF_F_TSO;
 		sock_set_flag(sk, SOCK_NO_LARGESEND);
-		tp->mss_cache = tp->mss_cache_std;
+		tp->mss_cache = tp->mss_cache;
 	}
 
 	if (!tp->sacked_out)
@@ -1077,7 +1077,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			    (IsFack(tp) ||
 			     !before(lost_retrans,
 				     TCP_SKB_CB(skb)->ack_seq + tp->reordering *
-				     tp->mss_cache_std))) {
+				     tp->mss_cache))) {
 				TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 				tp->retrans_out -= tcp_skb_pcount(skb);
 
@@ -1957,15 +1957,6 @@ static inline void tcp_ack_packets_out(struct sock *sk, struct tcp_sock *tp)
 	}
 }
 
-/* There is one downside to this scheme.  Although we keep the
- * ACK clock ticking, adjusting packet counters and advancing
- * congestion window, we do not liberate socket send buffer
- * space.
- *
- * Mucking with skb->truesize and sk->sk_wmem_alloc et al.
- * then making a write space wakeup callback is a possible
- * future enhancement.  WARNING: it is not trivial to make.
- */
 static int tcp_tso_acked(struct sock *sk, struct sk_buff *skb,
 			 __u32 now, __s32 *seq_rtt)
 {
@@ -2047,7 +2038,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p, s32 *seq_usrtt
 		 * the other end.
 		 */
 		if (after(scb->end_seq, tp->snd_una)) {
-			if (tcp_skb_pcount(skb) > 1)
+			if (tcp_skb_pcount(skb) > 1 &&
+			    after(tp->snd_una, scb->seq))
 				acked |= tcp_tso_acked(sk, skb,
 						       now, &seq_rtt);
 			break;
@@ -3308,6 +3300,28 @@ void tcp_cwnd_application_limited(struct sock *sk)
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 }
 
+static inline int tcp_should_expand_sndbuf(struct sock *sk, struct tcp_sock *tp)
+{
+	/* If the user specified a specific send buffer setting, do
+	 * not modify it.
+	 */
+	if (sk->sk_userlocks & SOCK_SNDBUF_LOCK)
+		return 0;
+
+	/* If we are under global TCP memory pressure, do not expand.  */
+	if (tcp_memory_pressure)
+		return 0;
+
+	/* If we are under soft global TCP memory pressure, do not expand.  */
+	if (atomic_read(&tcp_memory_allocated) >= sysctl_tcp_mem[0])
+		return 0;
+
+	/* If we filled the congestion window, do not expand.  */
+	if (tp->packets_out >= tp->snd_cwnd)
+		return 0;
+
+	return 1;
+}
 
 /* When incoming ACK allowed to free some skb from write_queue,
  * we remember this event in flag SOCK_QUEUE_SHRUNK and wake up socket
@@ -3319,11 +3333,8 @@ static void tcp_new_space(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (tp->packets_out < tp->snd_cwnd &&
-	    !(sk->sk_userlocks & SOCK_SNDBUF_LOCK) &&
-	    !tcp_memory_pressure &&
-	    atomic_read(&tcp_memory_allocated) < sysctl_tcp_mem[0]) {
- 		int sndmem = max_t(u32, tp->rx_opt.mss_clamp, tp->mss_cache_std) +
+	if (tcp_should_expand_sndbuf(sk, tp)) {
+ 		int sndmem = max_t(u32, tp->rx_opt.mss_clamp, tp->mss_cache) +
 			MAX_TCP_HEADER + 16 + sizeof(struct sk_buff),
 		    demanded = max_t(unsigned int, tp->snd_cwnd,
 						   tp->reordering + 1);
@@ -3346,22 +3357,9 @@ static inline void tcp_check_space(struct sock *sk)
 	}
 }
 
-static void __tcp_data_snd_check(struct sock *sk, struct sk_buff *skb)
+static __inline__ void tcp_data_snd_check(struct sock *sk, struct tcp_sock *tp)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	if (after(TCP_SKB_CB(skb)->end_seq, tp->snd_una + tp->snd_wnd) ||
-	    tcp_packets_in_flight(tp) >= tp->snd_cwnd ||
-	    tcp_write_xmit(sk, tp->nonagle))
-		tcp_check_probe_timer(sk, tp);
-}
-
-static __inline__ void tcp_data_snd_check(struct sock *sk)
-{
-	struct sk_buff *skb = sk->sk_send_head;
-
-	if (skb != NULL)
-		__tcp_data_snd_check(sk, skb);
+	tcp_push_pending_frames(sk, tp);
 	tcp_check_space(sk);
 }
 
@@ -3655,7 +3653,7 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				 */
 				tcp_ack(sk, skb, 0);
 				__kfree_skb(skb); 
-				tcp_data_snd_check(sk);
+				tcp_data_snd_check(sk, tp);
 				return 0;
 			} else { /* Header too small */
 				TCP_INC_STATS_BH(TCP_MIB_INERRS);
@@ -3721,7 +3719,7 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			if (TCP_SKB_CB(skb)->ack_seq != tp->snd_una) {
 				/* Well, only one small jumplet in fast path... */
 				tcp_ack(sk, skb, FLAG_DATA);
-				tcp_data_snd_check(sk);
+				tcp_data_snd_check(sk, tp);
 				if (!tcp_ack_scheduled(tp))
 					goto no_ack;
 			}
@@ -3799,7 +3797,7 @@ step5:
 	/* step 7: process the segment text */
 	tcp_data_queue(sk, skb);
 
-	tcp_data_snd_check(sk);
+	tcp_data_snd_check(sk, tp);
 	tcp_ack_snd_check(sk);
 	return 0;
 
@@ -4109,7 +4107,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		/* Do step6 onward by hand. */
 		tcp_urg(sk, skb, th);
 		__kfree_skb(skb);
-		tcp_data_snd_check(sk);
+		tcp_data_snd_check(sk, tp);
 		return 0;
 	}
 
@@ -4300,7 +4298,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 
 	/* tcp_data could move socket to TIME-WAIT */
 	if (sk->sk_state != TCP_CLOSE) {
-		tcp_data_snd_check(sk);
+		tcp_data_snd_check(sk, tp);
 		tcp_ack_snd_check(sk);
 	}
 

@@ -737,8 +737,8 @@ void __init setup_arch(char **cmdline_p)
 	if (mdesc->soft_reboot)
 		reboot_setup("s");
 
-	if (mdesc->param_offset)
-		tags = phys_to_virt(mdesc->param_offset);
+	if (mdesc->boot_params)
+		tags = phys_to_virt(mdesc->boot_params);
 
 	/*
 	 * If we have the old style parameters, convert them to

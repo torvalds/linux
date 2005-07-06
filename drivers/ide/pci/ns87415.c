@@ -195,7 +195,7 @@ static int ns87415_ide_dma_check (ide_drive_t *drive)
 	return __ide_dma_check(drive);
 }
 
-static void __init init_hwif_ns87415 (ide_hwif_t *hwif)
+static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = hwif->pci_dev;
 	unsigned int ctrl, using_inta;

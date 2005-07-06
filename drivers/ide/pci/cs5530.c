@@ -217,7 +217,7 @@ static int cs5530_config_dma (ide_drive_t *drive)
  *	Initialize the cs5530 bridge for reliable IDE DMA operation.
  */
 
-static unsigned int __init init_chipset_cs5530 (struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const char *name)
 {
 	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL;
 	unsigned long flags;
@@ -308,7 +308,7 @@ static unsigned int __init init_chipset_cs5530 (struct pci_dev *dev, const char 
  *	performs channel-specific pre-initialization before drive probing.
  */
 
-static void __init init_hwif_cs5530 (ide_hwif_t *hwif)
+static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 {
 	unsigned long basereg;
 	u32 d0_timings;

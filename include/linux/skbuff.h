@@ -183,7 +183,6 @@ struct skb_shared_info {
  *	@priority: Packet queueing priority
  *	@users: User count - see {datagram,tcp}.c
  *	@protocol: Packet protocol from driver
- *	@security: Security level of packet
  *	@truesize: Buffer size 
  *	@head: Head of buffer
  *	@data: Data head pointer
@@ -249,18 +248,18 @@ struct sk_buff {
 				data_len,
 				mac_len,
 				csum;
-	unsigned char		local_df,
-				cloned:1,
-				nohdr:1,
-				pkt_type,
-				ip_summed;
 	__u32			priority;
-	unsigned short		protocol,
-				security;
+	__u8			local_df:1,
+				cloned:1,
+				ip_summed:2,
+				nohdr:1;
+				/* 3 bits spare */
+	__u8			pkt_type;
+	__u16			protocol;
 
 	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_NETFILTER
-        unsigned long		nfmark;
+	unsigned long		nfmark;
 	__u32			nfcache;
 	__u32			nfctinfo;
 	struct nf_conntrack	*nfct;
@@ -1211,7 +1210,7 @@ static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 {
 	int hlen = skb_headlen(skb);
 
-	if (offset + len <= hlen)
+	if (hlen - offset >= len)
 		return skb->data + offset;
 
 	if (skb_copy_bits(skb, offset, buffer, len) < 0)

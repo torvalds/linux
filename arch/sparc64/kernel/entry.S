@@ -553,13 +553,11 @@ do_ivec:
 	sllx		%g3, 5, %g3
 	or		%g2, %lo(ivector_table), %g2
 	add		%g2, %g3, %g3
-	ldx		[%g3 + 0x08], %g2	/* irq_info */
 	ldub		[%g3 + 0x04], %g4	/* pil */
-	brz,pn		%g2, do_ivec_spurious
-	 mov		1, %g2
-
+	mov		1, %g2
 	sllx		%g2, %g4, %g2
 	sllx		%g4, 2, %g4
+
 	lduw		[%g6 + %g4], %g5	/* g5 = irq_work(cpu, pil) */
 	stw		%g5, [%g3 + 0x00]	/* bucket->irq_chain = g5 */
 	stw		%g3, [%g6 + %g4]	/* irq_work(cpu, pil) = bucket */
@@ -567,9 +565,9 @@ do_ivec:
 	retry
 do_ivec_xcall:
 	mov		0x50, %g1
-
 	ldxa		[%g1 + %g0] ASI_INTR_R, %g1
 	srl		%g3, 0, %g3
+
 	mov		0x60, %g7
 	ldxa		[%g7 + %g0] ASI_INTR_R, %g7
 	stxa		%g0, [%g0] ASI_INTR_RECEIVE
@@ -580,19 +578,6 @@ do_ivec_xcall:
 	.align		32
 1:	jmpl		%g3, %g0
 	 nop
-
-do_ivec_spurious:
-	stw		%g3, [%g6 + 0x00]	/* irq_work(cpu, 0) = bucket */
-	rdpr		%pstate, %g5
-
-	wrpr		%g5, PSTATE_IG | PSTATE_AG, %pstate
-	sethi		%hi(109f), %g7
-	ba,pt		%xcc, etrap
-109:	 or		%g7, %lo(109b), %g7
-	call		catch_disabled_ivec
-	 add		%sp, PTREGS_OFF, %o0
-	ba,pt		%xcc, rtrap
-	 clr		%l6
 
 	.globl		save_alternate_globals
 save_alternate_globals: /* %o0 = save_area */

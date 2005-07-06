@@ -2372,6 +2372,9 @@ void *kmem_cache_alloc_node(kmem_cache_t *cachep, int flags, int nodeid)
 	struct slab *slabp;
 	kmem_bufctl_t next;
 
+	if (nodeid == -1)
+		return kmem_cache_alloc(cachep, flags);
+
 	for (loop = 0;;loop++) {
 		struct list_head *q;
 

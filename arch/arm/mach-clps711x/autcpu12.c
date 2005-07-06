@@ -59,11 +59,13 @@ void __init autcpu12_map_io(void)
 }
 
 MACHINE_START(AUTCPU12, "autronix autcpu12")
-	MAINTAINER("Thomas Gleixner")
-        BOOT_MEM(0xc0000000, 0x80000000, 0xff000000)
-	BOOT_PARAMS(0xc0020000)
-	MAPIO(autcpu12_map_io)
-	INITIRQ(clps711x_init_irq)
+	/* Maintainer: Thomas Gleixner */
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xff000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0020000,
+	.map_io		= autcpu12_map_io,
+	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
 MACHINE_END
 

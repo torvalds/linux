@@ -1303,8 +1303,7 @@ static void psycho_controller_hwinit(struct pci_controller_info *p)
 {
 	u64 tmp;
 
-	/* PROM sets the IRQ retry value too low, increase it. */
-	psycho_write(p->pbm_A.controller_regs + PSYCHO_IRQ_RETRY, 0xff);
+	psycho_write(p->pbm_A.controller_regs + PSYCHO_IRQ_RETRY, 5);
 
 	/* Enable arbiter for all PCI slots. */
 	tmp = psycho_read(p->pbm_A.controller_regs + PSYCHO_PCIA_CTRL);

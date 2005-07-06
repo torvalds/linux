@@ -774,7 +774,6 @@ static int __init inet6_init(void)
 	if (if6_proc_init())
 		goto proc_if6_fail;
 #endif
-	ipv6_packet_init();
 	ip6_route_init();
 	ip6_flowlabel_init();
 	err = addrconf_init();
@@ -791,6 +790,8 @@ static int __init inet6_init(void)
 	/* Init v6 transport protocols. */
 	udpv6_init();
 	tcpv6_init();
+
+	ipv6_packet_init();
 	err = 0;
 out:
 	return err;
@@ -798,7 +799,6 @@ out:
 addrconf_fail:
 	ip6_flowlabel_cleanup();
 	ip6_route_cleanup();
-	ipv6_packet_cleanup();
 #ifdef CONFIG_PROC_FS
 	if6_proc_exit();
 proc_if6_fail:

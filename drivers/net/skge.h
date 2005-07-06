@@ -7,6 +7,7 @@
 /* PCI config registers */
 #define PCI_DEV_REG1	0x40
 #define PCI_DEV_REG2	0x44
+#define  PCI_REV_DESC	 0x4
 
 #define PCI_STATUS_ERROR_BITS (PCI_STATUS_DETECTED_PARITY | \
 			       PCI_STATUS_SIG_SYSTEM_ERROR | \

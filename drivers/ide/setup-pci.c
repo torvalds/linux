@@ -847,7 +847,7 @@ static int __init ide_scan_pcidev(struct pci_dev *dev)
 		d = list_entry(l, struct pci_driver, node);
 		if(d->id_table)
 		{
-			const struct pci_device_id *id = pci_match_device(d->id_table, dev);
+			const struct pci_device_id *id = pci_match_id(d->id_table, dev);
 			if(id != NULL)
 			{
 				if(d->probe(dev, id) >= 0)

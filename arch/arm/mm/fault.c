@@ -372,49 +372,50 @@ do_bad(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 static struct fsr_info {
 	int	(*fn)(unsigned long addr, unsigned int fsr, struct pt_regs *regs);
 	int	sig;
+	int	code;
 	const char *name;
 } fsr_info[] = {
 	/*
 	 * The following are the standard ARMv3 and ARMv4 aborts.  ARMv5
 	 * defines these to be "precise" aborts.
 	 */
-	{ do_bad,		SIGSEGV, "vector exception"		   },
-	{ do_bad,		SIGILL,	 "alignment exception"		   },
-	{ do_bad,		SIGKILL, "terminal exception"		   },
-	{ do_bad,		SIGILL,	 "alignment exception"		   },
-	{ do_bad,		SIGBUS,	 "external abort on linefetch"	   },
-	{ do_translation_fault,	SIGSEGV, "section translation fault"	   },
-	{ do_bad,		SIGBUS,	 "external abort on linefetch"	   },
-	{ do_page_fault,	SIGSEGV, "page translation fault"	   },
-	{ do_bad,		SIGBUS,	 "external abort on non-linefetch" },
-	{ do_bad,		SIGSEGV, "section domain fault"		   },
-	{ do_bad,		SIGBUS,	 "external abort on non-linefetch" },
-	{ do_bad,		SIGSEGV, "page domain fault"		   },
-	{ do_bad,		SIGBUS,	 "external abort on translation"   },
-	{ do_sect_fault,	SIGSEGV, "section permission fault"	   },
-	{ do_bad,		SIGBUS,	 "external abort on translation"   },
-	{ do_page_fault,	SIGSEGV, "page permission fault"	   },
+	{ do_bad,		SIGSEGV, 0,		"vector exception"		   },
+	{ do_bad,		SIGILL,	 BUS_ADRALN,	"alignment exception"		   },
+	{ do_bad,		SIGKILL, 0,		"terminal exception"		   },
+	{ do_bad,		SIGILL,	 BUS_ADRALN,	"alignment exception"		   },
+	{ do_bad,		SIGBUS,	 0,		"external abort on linefetch"	   },
+	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"section translation fault"	   },
+	{ do_bad,		SIGBUS,	 0,		"external abort on linefetch"	   },
+	{ do_page_fault,	SIGSEGV, SEGV_MAPERR,	"page translation fault"	   },
+	{ do_bad,		SIGBUS,	 0,		"external abort on non-linefetch"  },
+	{ do_bad,		SIGSEGV, SEGV_ACCERR,	"section domain fault"		   },
+	{ do_bad,		SIGBUS,	 0,		"external abort on non-linefetch"  },
+	{ do_bad,		SIGSEGV, SEGV_ACCERR,	"page domain fault"		   },
+	{ do_bad,		SIGBUS,	 0,		"external abort on translation"	   },
+	{ do_sect_fault,	SIGSEGV, SEGV_ACCERR,	"section permission fault"	   },
+	{ do_bad,		SIGBUS,	 0,		"external abort on translation"	   },
+	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"page permission fault"		   },
 	/*
 	 * The following are "imprecise" aborts, which are signalled by bit
 	 * 10 of the FSR, and may not be recoverable.  These are only
 	 * supported if the CPU abort handler supports bit 10.
 	 */
-	{ do_bad,		SIGBUS,  "unknown 16"			   },
-	{ do_bad,		SIGBUS,  "unknown 17"			   },
-	{ do_bad,		SIGBUS,  "unknown 18"			   },
-	{ do_bad,		SIGBUS,  "unknown 19"			   },
-	{ do_bad,		SIGBUS,  "lock abort"			   }, /* xscale */
-	{ do_bad,		SIGBUS,  "unknown 21"			   },
-	{ do_bad,		SIGBUS,  "imprecise external abort"	   }, /* xscale */
-	{ do_bad,		SIGBUS,  "unknown 23"			   },
-	{ do_bad,		SIGBUS,  "dcache parity error"		   }, /* xscale */
-	{ do_bad,		SIGBUS,  "unknown 25"			   },
-	{ do_bad,		SIGBUS,  "unknown 26"			   },
-	{ do_bad,		SIGBUS,  "unknown 27"			   },
-	{ do_bad,		SIGBUS,  "unknown 28"			   },
-	{ do_bad,		SIGBUS,  "unknown 29"			   },
-	{ do_bad,		SIGBUS,  "unknown 30"			   },
-	{ do_bad,		SIGBUS,  "unknown 31"			   }
+	{ do_bad,		SIGBUS,  0,		"unknown 16"			   },
+	{ do_bad,		SIGBUS,  0,		"unknown 17"			   },
+	{ do_bad,		SIGBUS,  0,		"unknown 18"			   },
+	{ do_bad,		SIGBUS,  0,		"unknown 19"			   },
+	{ do_bad,		SIGBUS,  0,		"lock abort"			   }, /* xscale */
+	{ do_bad,		SIGBUS,  0,		"unknown 21"			   },
+	{ do_bad,		SIGBUS,  BUS_OBJERR,	"imprecise external abort"	   }, /* xscale */
+	{ do_bad,		SIGBUS,  0,		"unknown 23"			   },
+	{ do_bad,		SIGBUS,  0,		"dcache parity error"		   }, /* xscale */
+	{ do_bad,		SIGBUS,  0,		"unknown 25"			   },
+	{ do_bad,		SIGBUS,  0,		"unknown 26"			   },
+	{ do_bad,		SIGBUS,  0,		"unknown 27"			   },
+	{ do_bad,		SIGBUS,  0,		"unknown 28"			   },
+	{ do_bad,		SIGBUS,  0,		"unknown 29"			   },
+	{ do_bad,		SIGBUS,  0,		"unknown 30"			   },
+	{ do_bad,		SIGBUS,  0,		"unknown 31"			   }
 };
 
 void __init
@@ -435,15 +436,19 @@ asmlinkage void
 do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = fsr_info + (fsr & 15) + ((fsr & (1 << 10)) >> 6);
+	struct siginfo info;
 
 	if (!inf->fn(addr, fsr, regs))
 		return;
 
 	printk(KERN_ALERT "Unhandled fault: %s (0x%03x) at 0x%08lx\n",
 		inf->name, fsr, addr);
-	force_sig(inf->sig, current);
-	show_pte(current->mm, addr);
-	die_if_kernel("Oops", regs, 0);
+
+	info.si_signo = inf->sig;
+	info.si_errno = 0;
+	info.si_code  = inf->code;
+	info.si_addr  = (void __user *)addr;
+	notify_die("", regs, &info, fsr, 0);
 }
 
 asmlinkage void

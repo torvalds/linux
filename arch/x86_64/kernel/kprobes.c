@@ -682,7 +682,7 @@ static struct kprobe trampoline_p = {
 	.pre_handler = trampoline_probe_handler
 };
 
-int __init arch_init(void)
+int __init arch_init_kprobes(void)
 {
 	return register_kprobe(&trampoline_p);
 }

@@ -195,11 +195,13 @@ static void __init h3_map_io(void)
 }
 
 MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")
-	MAINTAINER("Texas Instruments, Inc.")
-	BOOT_MEM(0x10000000, 0xfff00000, 0xfef00000)
-	BOOT_PARAMS(0x10000100)
-	MAPIO(h3_map_io)
-	INITIRQ(h3_init_irq)
-	INIT_MACHINE(h3_init)
+	/* Maintainer: Texas Instruments, Inc. */
+	.phys_ram	= 0x10000000,
+	.phys_io	= 0xfff00000,
+	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
+	.boot_params	= 0x10000100,
+	.map_io		= h3_map_io,
+	.init_irq	= h3_init_irq,
+	.init_machine	= h3_init,
 	.timer		= &omap_timer,
 MACHINE_END

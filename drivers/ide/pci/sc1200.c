@@ -459,7 +459,7 @@ printk("%s: SC1200: resume\n", hwif->name);
  * This gets invoked by the IDE driver once for each channel,
  * and performs channel-specific pre-initialization before drive probing.
  */
-static void __init init_hwif_sc1200 (ide_hwif_t *hwif)
+static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 {
 	if (hwif->mate)
 		hwif->serialized = hwif->mate->serialized = 1;

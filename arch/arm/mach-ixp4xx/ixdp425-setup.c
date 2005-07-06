@@ -128,36 +128,39 @@ static void __init ixdp425_init(void)
 }
 
 MACHINE_START(IXDP425, "Intel IXDP425 Development Platform")
-	MAINTAINER("MontaVista Software, Inc.")
-	BOOT_MEM(PHYS_OFFSET, IXP4XX_PERIPHERAL_BASE_PHYS,
-		IXP4XX_PERIPHERAL_BASE_VIRT)
-	MAPIO(ixdp425_map_io)
-	INITIRQ(ixp4xx_init_irq)
+	/* Maintainer: MontaVista Software, Inc. */
+	.phys_ram	= PHYS_OFFSET,
+	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
+	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
+	.map_io		= ixdp425_map_io,
+	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
-	BOOT_PARAMS(0x0100)
-	INIT_MACHINE(ixdp425_init)
+	.boot_params	= 0x0100,
+	.init_machine	= ixdp425_init,
 MACHINE_END
 
 MACHINE_START(IXDP465, "Intel IXDP465 Development Platform")
-	MAINTAINER("MontaVista Software, Inc.")
-	BOOT_MEM(PHYS_OFFSET, IXP4XX_PERIPHERAL_BASE_PHYS,
-		IXP4XX_PERIPHERAL_BASE_VIRT)
-	MAPIO(ixdp425_map_io)
-	INITIRQ(ixp4xx_init_irq)
+	/* Maintainer: MontaVista Software, Inc. */
+	.phys_ram	= PHYS_OFFSET,
+	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
+	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
+	.map_io		= ixdp425_map_io,
+	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
-	BOOT_PARAMS(0x0100)
-	INIT_MACHINE(ixdp425_init)
+	.boot_params	= 0x0100,
+	.init_machine	= ixdp425_init,
 MACHINE_END
 
 MACHINE_START(IXCDP1100, "Intel IXCDP1100 Development Platform")
-	MAINTAINER("MontaVista Software, Inc.")
-	BOOT_MEM(PHYS_OFFSET, IXP4XX_PERIPHERAL_BASE_PHYS,
-		IXP4XX_PERIPHERAL_BASE_VIRT)
-	MAPIO(ixdp425_map_io)
-	INITIRQ(ixp4xx_init_irq)
+	/* Maintainer: MontaVista Software, Inc. */
+	.phys_ram	= PHYS_OFFSET,
+	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
+	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
+	.map_io		= ixdp425_map_io,
+	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
-	BOOT_PARAMS(0x0100)
-	INIT_MACHINE(ixdp425_init)
+	.boot_params	= 0x0100,
+	.init_machine	= ixdp425_init,
 MACHINE_END
 
 /*
@@ -168,14 +171,15 @@ MACHINE_END
  */
 #ifdef CONFIG_ARCH_AVILA
 MACHINE_START(AVILA, "Gateworks Avila Network Platform")
-	MAINTAINER("Deepak Saxena <dsaxena@plexity.net>")
-	BOOT_MEM(PHYS_OFFSET, IXP4XX_PERIPHERAL_BASE_PHYS,
-		IXP4XX_PERIPHERAL_BASE_VIRT)
-	MAPIO(ixdp425_map_io)
-	INITIRQ(ixp4xx_init_irq)
+	/* Maintainer: Deepak Saxena <dsaxena@plexity.net> */
+	.phys_ram	= PHYS_OFFSET,
+	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
+	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
+	.map_io		= ixdp425_map_io,
+	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
-	BOOT_PARAMS(0x0100)
-	INIT_MACHINE(ixdp425_init)
+	.boot_params	= 0x0100,
+	.init_machine	= ixdp425_init,
 MACHINE_END
 #endif
 
