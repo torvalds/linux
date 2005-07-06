@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/errno.h>
+#include <linux/kmod.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include "internal.h"
@@ -33,7 +34,7 @@ static inline void crypto_alg_put(struct crypto_alg *alg)
 	module_put(alg->cra_module);
 }
 
-struct crypto_alg *crypto_alg_lookup(const char *name)
+static struct crypto_alg *crypto_alg_lookup(const char *name)
 {
 	struct crypto_alg *q, *alg = NULL;
 
@@ -52,6 +53,13 @@ struct crypto_alg *crypto_alg_lookup(const char *name)
 	
 	up_read(&crypto_alg_sem);
 	return alg;
+}
+
+/* A far more intelligent version of this is planned.  For now, just
+ * try an exact match on the name of the algorithm. */
+static inline struct crypto_alg *crypto_alg_mod_lookup(const char *name)
+{
+	return try_then_request_module(crypto_alg_lookup(name), name);
 }
 
 static int crypto_init_flags(struct crypto_tfm *tfm, u32 flags)

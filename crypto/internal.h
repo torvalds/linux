@@ -16,7 +16,6 @@
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/kmod.h>
 #include <asm/kmap_types.h>
 
 extern enum km_type crypto_km_types[];
@@ -40,15 +39,6 @@ static inline void crypto_yield(struct crypto_tfm *tfm)
 {
 	if (!in_atomic())
 		cond_resched();
-}
-
-struct crypto_alg *crypto_alg_lookup(const char *name);
-
-/* A far more intelligent version of this is planned.  For now, just
- * try an exact match on the name of the algorithm. */
-static inline struct crypto_alg *crypto_alg_mod_lookup(const char *name)
-{
-	return try_then_request_module(crypto_alg_lookup(name), name);
 }
 
 #ifdef CONFIG_CRYPTO_HMAC
