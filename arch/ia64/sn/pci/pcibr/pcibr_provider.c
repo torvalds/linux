@@ -6,18 +6,17 @@
  * Copyright (C) 2001-2004 Silicon Graphics, Inc. All rights reserved.
  */
 
-#include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/types.h>
 #include <linux/pci.h>
-#include <asm/sn/sn_sal.h>
-#include "xtalk/xwidgetdev.h"
+#include <asm/sn/addrs.h>
 #include <asm/sn/geo.h>
-#include "xtalk/hubdev.h"
+#include <asm/sn/pcibr_provider.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
-#include "pci/pcibr_provider.h"
-#include <asm/sn/addrs.h>
-
+#include <asm/sn/sn_sal.h>
+#include "xtalk/xwidgetdev.h"
+#include "xtalk/hubdev.h"
 
 static int sal_pcibr_error_interrupt(struct pcibus_info *soft)
 {

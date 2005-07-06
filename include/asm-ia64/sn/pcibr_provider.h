@@ -8,6 +8,9 @@
 #ifndef _ASM_IA64_SN_PCI_PCIBR_PROVIDER_H
 #define _ASM_IA64_SN_PCI_PCIBR_PROVIDER_H
 
+#include <asm/sn/intr.h>
+#include <asm/sn/pcibus_provider_defs.h>
+
 /* Workarounds */
 #define PV907516 (1 << 1) /* TIOCP: Don't write the write buffer flush reg */
 
@@ -20,7 +23,7 @@
 #define IS_PIC_SOFT(ps)     (ps->pbi_bridge_type == PCIBR_BRIDGETYPE_PIC)
 
 
-/* 
+/*
  * The different PCI Bridge types supported on the SGI Altix platforms
  */
 #define PCIBR_BRIDGETYPE_UNKNOWN       -1
@@ -100,7 +103,7 @@ struct pcibus_info {
 
 	struct ate_resource     pbi_int_ate_resource;
 	uint64_t                pbi_int_ate_size;
-	
+
 	uint64_t                pbi_dir_xbase;
 	char                    pbi_hub_xid;
 

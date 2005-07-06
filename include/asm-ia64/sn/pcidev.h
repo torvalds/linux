@@ -13,6 +13,8 @@
 #define SN_PCIDEV_INFO(pci_dev) \
         ((struct pcidev_info *)(pci_dev)->sysdata)
 
+#define SN_PCIBUS_BUSSOFT_INFO(pci_bus) \
+	(struct pcibus_info *)((struct pcibus_bussoft *)(PCI_CONTROLLER((pci_bus))->platform_data))
 /*
  * Given a pci_bus, return the sn pcibus_bussoft struct.  Note that
  * this only works for root busses, not for busses represented by PPB's.
@@ -53,6 +55,8 @@ struct pcidev_info {
 
 extern void sn_irq_fixup(struct pci_dev *pci_dev,
 			 struct sn_irq_info *sn_irq_info);
-
+extern void sn_irq_unfixup(struct pci_dev *pci_dev);
+extern void sn_pci_fixup_slot(struct pci_dev *dev);
+extern void sn_pci_unfixup_slot(struct pci_dev *dev);
 extern void sn_irq_lh_init(void);
 #endif				/* _ASM_IA64_SN_PCI_PCIDEV_H */

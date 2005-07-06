@@ -9,17 +9,17 @@
 #include <linux/bootmem.h>
 #include <linux/nodemask.h>
 #include <asm/sn/types.h>
-#include <asm/sn/sn_sal.h>
 #include <asm/sn/addrs.h>
+#include <asm/sn/geo.h>
+#include <asm/sn/io.h>
+#include <asm/sn/pcibr_provider.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
-#include "pci/pcibr_provider.h"
-#include "xtalk/xwidgetdev.h"
-#include <asm/sn/geo.h>
-#include "xtalk/hubdev.h"
-#include <asm/sn/io.h>
 #include <asm/sn/simulator.h>
+#include <asm/sn/sn_sal.h>
 #include <asm/sn/tioca_provider.h>
+#include "xtalk/hubdev.h"
+#include "xtalk/xwidgetdev.h"
 
 nasid_t master_nasid = INVALID_NASID;	/* Partition Master */
 
@@ -226,7 +226,7 @@ static void sn_fixup_ionodes(void)
  * from our PCI provider include PIO maps to BAR space and interrupt
  * objects.
  */
-static void sn_pci_fixup_slot(struct pci_dev *dev)
+void sn_pci_fixup_slot(struct pci_dev *dev)
 {
 	int idx;
 	int segment = 0;

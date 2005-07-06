@@ -15,7 +15,7 @@
  * PIC handles PCI/X busses.  PCI/X requires that the 'bridge' (i.e. PIC)
  * be designated as 'device 0'.   That is a departure from earlier SGI
  * PCI bridges.  Because of that we use config space 1 to access the
- * config space of the first actual PCI device on the bus. 
+ * config space of the first actual PCI device on the bus.
  * Here's what the PIC manual says:
  *
  *     The current PCI-X bus specification now defines that the parent
@@ -29,14 +29,14 @@
  *     correlated Configs pace and our device space 0 <-> 0, 1 <-> 1, etc.
  *     PCI-X requires we start a 1, not 0 and currently the PX brick
  *     does associate our:
- * 
+ *
  *         device 0 with configuration space window 1,
- *         device 1 with configuration space window 2, 
+ *         device 1 with configuration space window 2,
  *         device 2 with configuration space window 3,
  *         device 3 with configuration space window 4.
  *
- * The net effect is that all config space access are off-by-one with 
- * relation to other per-slot accesses on the PIC.   
+ * The net effect is that all config space access are off-by-one with
+ * relation to other per-slot accesses on the PIC.
  * Here is a table that shows some of that:
  *
  *                               Internal Slot#
@@ -65,7 +65,7 @@
  *****************************************************************************/
 
 /* NOTE: PIC WAR. PV#854697.  PIC does not allow writes just to [31:0]
- * of a 64-bit register.  When writing PIC registers, always write the 
+ * of a 64-bit register.  When writing PIC registers, always write the
  * entire 64 bits.
  */
 
@@ -164,7 +164,7 @@ struct pic {
 	uint64_t	clear_all;			/* 0x000{438,,,5F8} */
     } p_buf_count[8];
 
-    
+
     /* 0x000600-0x0009FF -- PCI/X registers */
     uint64_t		p_pcix_bus_err_addr;		/* 0x000600 */
     uint64_t		p_pcix_bus_err_attr;		/* 0x000608 */

@@ -10,13 +10,12 @@
 
 #include <linux/irq.h>
 #include <linux/spinlock.h>
-#include <asm/sn/intr.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/arch.h>
-#include "xtalk/xwidgetdev.h"
+#include <asm/sn/intr.h>
+#include <asm/sn/pcibr_provider.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
-#include "pci/pcibr_provider.h"
 #include <asm/sn/shub_mmr.h>
 #include <asm/sn/sn_sal.h>
 
