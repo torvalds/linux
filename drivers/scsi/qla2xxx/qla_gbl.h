@@ -207,11 +207,14 @@ extern void qla2x00_write_nvram_word(scsi_qla_host_t *, uint32_t, uint16_t);
  */
 extern void qla2100_fw_dump(scsi_qla_host_t *, int);
 extern void qla2300_fw_dump(scsi_qla_host_t *, int);
+extern void qla24xx_fw_dump(scsi_qla_host_t *, int);
 extern void qla2100_ascii_fw_dump(scsi_qla_host_t *);
 extern void qla2300_ascii_fw_dump(scsi_qla_host_t *);
+extern void qla24xx_ascii_fw_dump(scsi_qla_host_t *);
 extern void qla2x00_dump_regs(scsi_qla_host_t *);
 extern void qla2x00_dump_buffer(uint8_t *, uint32_t);
 extern void qla2x00_print_scsi_cmd(struct scsi_cmnd *);
+extern void qla2x00_dump_pkt(void *);
 
 /*
  * Global Function Prototypes in qla_gs.c source file.
