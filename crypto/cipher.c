@@ -154,6 +154,31 @@ static int crypt(const struct cipher_desc *desc,
 	return 0;
 }
 
+static int crypt_iv_unaligned(struct cipher_desc *desc,
+			      struct scatterlist *dst,
+			      struct scatterlist *src,
+			      unsigned int nbytes)
+{
+	struct crypto_tfm *tfm = desc->tfm;
+	unsigned int alignmask = crypto_tfm_alg_alignmask(tfm);
+	u8 *iv = desc->info;
+
+	if (unlikely(((unsigned long)iv & alignmask))) {
+		unsigned int ivsize = tfm->crt_cipher.cit_ivsize;
+		u8 buffer[ivsize + alignmask];
+		u8 *tmp = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
+		int err;
+
+		desc->info = memcpy(tmp, iv, ivsize);
+		err = crypt(desc, dst, src, nbytes);
+		memcpy(iv, tmp, ivsize);
+
+		return err;
+	}
+
+	return crypt(desc, dst, src, nbytes);
+}
+
 static unsigned int cbc_process_encrypt(const struct cipher_desc *desc,
 					u8 *dst, const u8 *src,
 					unsigned int nbytes)
@@ -298,7 +323,7 @@ static int cbc_encrypt_iv(struct crypto_tfm *tfm,
 	desc.prfn = cipher->cia_encrypt_cbc ?: cbc_process_encrypt;
 	desc.info = iv;
 
-	return crypt(&desc, dst, src, nbytes);
+	return crypt_iv_unaligned(&desc, dst, src, nbytes);
 }
 
 static int cbc_decrypt(struct crypto_tfm *tfm,
@@ -330,7 +355,7 @@ static int cbc_decrypt_iv(struct crypto_tfm *tfm,
 	desc.prfn = cipher->cia_decrypt_cbc ?: cbc_process_decrypt;
 	desc.info = iv;
 
-	return crypt(&desc, dst, src, nbytes);
+	return crypt_iv_unaligned(&desc, dst, src, nbytes);
 }
 
 static int nocrypt(struct crypto_tfm *tfm,
