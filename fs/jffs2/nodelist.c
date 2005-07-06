@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.95 2005/07/05 21:03:07 dwmw2 Exp $
+ * $Id: nodelist.c,v 1.97 2005/07/06 15:18:41 dwmw2 Exp $
  *
  */
 
@@ -69,11 +69,10 @@ static void jffs2_add_tn_to_list(struct jffs2_tmp_dnode_info *tn, struct rb_root
 		parent = *p;
 		this = rb_entry(parent, struct jffs2_tmp_dnode_info, rb);
 
+		/* There may actually be a collision here, but it doesn't
+		   actually matter. As long as the two nodes with the same
+		   version are together, it's all fine. */
 		if (tn->version < this->version)
-			p = &(*p)->rb_left;
-		else if (tn->version > this->version)
-			p = &(*p)->rb_right;
-		else if (tn < this)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
