@@ -23,14 +23,6 @@
 #include "internal.h"
 #include "scatterwalk.h"
 
-struct cipher_desc {
-	struct crypto_tfm *tfm;
-	void (*crfn)(void *ctx, u8 *dst, const u8 *src);
-	unsigned int (*prfn)(const struct cipher_desc *desc, u8 *dst,
-			     const u8 *src, unsigned int nbytes);
-	void *info;
-};
-
 static inline void xor_64(u8 *a, const u8 *b)
 {
 	((u32 *)a)[0] ^= ((u32 *)b)[0];
@@ -224,10 +216,11 @@ static int ecb_encrypt(struct crypto_tfm *tfm,
                        struct scatterlist *src, unsigned int nbytes)
 {
 	struct cipher_desc desc;
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
-	desc.crfn = tfm->__crt_alg->cra_cipher.cia_encrypt;
-	desc.prfn = ecb_process;
+	desc.crfn = cipher->cia_encrypt;
+	desc.prfn = cipher->cia_encrypt_ecb ?: ecb_process;
 
 	return crypt(&desc, dst, src, nbytes);
 }
@@ -238,10 +231,11 @@ static int ecb_decrypt(struct crypto_tfm *tfm,
 		       unsigned int nbytes)
 {
 	struct cipher_desc desc;
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
-	desc.crfn = tfm->__crt_alg->cra_cipher.cia_decrypt;
-	desc.prfn = ecb_process;
+	desc.crfn = cipher->cia_decrypt;
+	desc.prfn = cipher->cia_decrypt_ecb ?: ecb_process;
 
 	return crypt(&desc, dst, src, nbytes);
 }
@@ -252,10 +246,11 @@ static int cbc_encrypt(struct crypto_tfm *tfm,
 		       unsigned int nbytes)
 {
 	struct cipher_desc desc;
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
-	desc.crfn = tfm->__crt_alg->cra_cipher.cia_encrypt;
-	desc.prfn = cbc_process_encrypt;
+	desc.crfn = cipher->cia_encrypt;
+	desc.prfn = cipher->cia_encrypt_cbc ?: cbc_process_encrypt;
 	desc.info = tfm->crt_cipher.cit_iv;
 
 	return crypt(&desc, dst, src, nbytes);
@@ -267,10 +262,11 @@ static int cbc_encrypt_iv(struct crypto_tfm *tfm,
                           unsigned int nbytes, u8 *iv)
 {
 	struct cipher_desc desc;
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
-	desc.crfn = tfm->__crt_alg->cra_cipher.cia_encrypt;
-	desc.prfn = cbc_process_encrypt;
+	desc.crfn = cipher->cia_encrypt;
+	desc.prfn = cipher->cia_encrypt_cbc ?: cbc_process_encrypt;
 	desc.info = iv;
 
 	return crypt(&desc, dst, src, nbytes);
@@ -282,10 +278,11 @@ static int cbc_decrypt(struct crypto_tfm *tfm,
 		       unsigned int nbytes)
 {
 	struct cipher_desc desc;
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
-	desc.crfn = tfm->__crt_alg->cra_cipher.cia_decrypt;
-	desc.prfn = cbc_process_decrypt;
+	desc.crfn = cipher->cia_decrypt;
+	desc.prfn = cipher->cia_decrypt_cbc ?: cbc_process_decrypt;
 	desc.info = tfm->crt_cipher.cit_iv;
 
 	return crypt(&desc, dst, src, nbytes);
@@ -297,10 +294,11 @@ static int cbc_decrypt_iv(struct crypto_tfm *tfm,
                           unsigned int nbytes, u8 *iv)
 {
 	struct cipher_desc desc;
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
-	desc.crfn = tfm->__crt_alg->cra_cipher.cia_decrypt;
-	desc.prfn = cbc_process_decrypt;
+	desc.crfn = cipher->cia_decrypt;
+	desc.prfn = cipher->cia_decrypt_cbc ?: cbc_process_decrypt;
 	desc.info = iv;
 
 	return crypt(&desc, dst, src, nbytes);

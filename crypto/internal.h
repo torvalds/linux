@@ -42,11 +42,6 @@ static inline void crypto_yield(struct crypto_tfm *tfm)
 		cond_resched();
 }
 
-static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm)
-{
-	return (void *)&tfm[1];
-}
-
 struct crypto_alg *crypto_alg_lookup(const char *name);
 
 /* A far more intelligent version of this is planned.  For now, just
