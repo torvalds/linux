@@ -33,7 +33,7 @@ static int macio_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct macio_dev * macio_dev = to_macio_device(dev);
 	struct macio_driver * macio_drv = to_macio_driver(drv);
-	const struct of_match * matches = macio_drv->match_table;
+	const struct of_device_id * matches = macio_drv->match_table;
 
 	if (!matches) 
 		return 0;
@@ -66,7 +66,7 @@ static int macio_device_probe(struct device *dev)
 	int error = -ENODEV;
 	struct macio_driver *drv;
 	struct macio_dev *macio_dev;
-	const struct of_match *match;
+	const struct of_device_id *match;
 
 	drv = to_macio_driver(dev->driver);
 	macio_dev = to_macio_device(dev);

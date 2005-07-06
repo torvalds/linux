@@ -25,6 +25,8 @@ typedef Elf64_Addr	kernel_ulong_t;
 #include <stdint.h>
 #endif
 
+#include <ctype.h>
+
 typedef uint32_t	__u32;
 typedef uint16_t	__u16;
 typedef unsigned char	__u8;
@@ -323,6 +325,22 @@ static int do_pcmcia_entry(const char *filename,
 
 
 
+static int do_of_entry (const char *filename, struct of_device_id *of, char *alias)
+{
+    char *tmp;
+    sprintf (alias, "of:N%sT%sC%s",
+                    of->name[0] ? of->name : "*",
+                    of->type[0] ? of->type : "*",
+                    of->compatible[0] ? of->compatible : "*");
+
+    /* Replace all whitespace with underscores */
+    for (tmp = alias; tmp && *tmp; tmp++)
+        if (isspace (*tmp))
+            *tmp = '_';
+
+    return 1;
+}
+
 /* Ignore any prefix, eg. v850 prepends _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -401,6 +419,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	else if (sym_is(symname, "__mod_pcmcia_device_table"))
 		do_table(symval, sym->st_size, sizeof(struct pcmcia_device_id),
 			 do_pcmcia_entry, mod);
+        else if (sym_is(symname, "__mod_of_device_table"))
+		do_table(symval, sym->st_size, sizeof(struct of_device_id),
+			 do_of_entry, mod);
+
 }
 
 /* Now add out buffered information to the generated C source */

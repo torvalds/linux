@@ -24,20 +24,8 @@ struct of_device
 };
 #define	to_of_device(d) container_of(d, struct of_device, dev)
 
-/*
- * Struct used for matching a device
- */
-struct of_match
-{
-	char	*name;
-	char	*type;
-	char	*compatible;
-	void	*data;
-};
-#define OF_ANY_MATCH		((char *)-1L)
-
-extern const struct of_match *of_match_device(
-	const struct of_match *matches, const struct of_device *dev);
+extern const struct of_device_id *of_match_device(
+	const struct of_device_id *matches, const struct of_device *dev);
 
 extern struct of_device *of_dev_get(struct of_device *dev);
 extern void of_dev_put(struct of_device *dev);
@@ -49,10 +37,10 @@ extern void of_dev_put(struct of_device *dev);
 struct of_platform_driver
 {
 	char			*name;
-	struct of_match		*match_table;
+	struct of_device_id	*match_table;
 	struct module		*owner;
 
-	int	(*probe)(struct of_device* dev, const struct of_match *match);
+	int	(*probe)(struct of_device* dev, const struct of_device_id *match);
 	int	(*remove)(struct of_device* dev);
 
 	int	(*suspend)(struct of_device* dev, pm_message_t state);
