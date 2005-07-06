@@ -3,7 +3,7 @@
  *
  * Author: Deepak Saxena <dsaxena@plexity.net>
  *
- * Copyright (C) 2002-2004  MontaVista Software, Inc.
+ * Copyright (C) 2002-2005  MontaVista Software, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -383,6 +383,180 @@ __ixp4xx_insl(u32 io_addr, u32 *vaddr, u32 count)
 		*vaddr++ = inl(io_addr);
 }
 
+#define	__is_io_address(p)	(((unsigned long)p >= 0x0) && \
+					((unsigned long)p <= 0x0000ffff))
+static inline unsigned int
+__ixp4xx_ioread8(void __iomem *port)
+{
+	if (__is_io_address(port))
+		return	(unsigned int)__ixp4xx_inb((unsigned int)port);
+	else
+#ifndef CONFIG_IXP4XX_INDIRECT_PCI
+		return (unsigned int)__raw_readb((u32)port);
+#else
+		return (unsigned int)__ixp4xx_readb((u32)port);
+#endif
+}
+
+static inline void
+__ixp4xx_ioread8_rep(u32 port, u8 *vaddr, u32 count)
+{
+	if (__is_io_address(port))
+		__ixp4xx_insb(port, vaddr, count);
+	else
+#ifndef	CONFIG_IXP4XX_INDIRECT_PCI
+		__raw_readsb((void __iomem *)port, vaddr, count);
+#else
+		__ixp4xx_readsb(port, vaddr, count);
+#endif
+}
+
+static inline unsigned int
+__ixp4xx_ioread16(void __iomem *port)
+{
+	if (__is_io_address(port))
+		return	(unsigned int)__ixp4xx_inw((unsigned int)port);
+	else
+#ifndef CONFIG_IXP4XX_INDIRECT_PCI
+		return le16_to_cpu(__raw_readw((u32)port));
+#else
+		return (unsigned int)__ixp4xx_readw((u32)port);
+#endif
+}
+
+static inline void
+__ixp4xx_ioread16_rep(u32 port, u16 *vaddr, u32 count)
+{
+	if (__is_io_address(port))
+		__ixp4xx_insw(port, vaddr, count);
+	else
+#ifndef	CONFIG_IXP4XX_INDIRECT_PCI
+		__raw_readsw((void __iomem *)port, vaddr, count);
+#else
+		__ixp4xx_readsw(port, vaddr, count);
+#endif
+}
+
+static inline unsigned int
+__ixp4xx_ioread32(void __iomem *port)
+{
+	if (__is_io_address(port))
+		return	(unsigned int)__ixp4xx_inl((unsigned int)port);
+	else {
+#ifndef CONFIG_IXP4XX_INDIRECT_PCI
+		return le32_to_cpu(__raw_readl((u32)port));
+#else
+		return (unsigned int)__ixp4xx_readl((u32)port);
+#endif
+	}
+}
+
+static inline void
+__ixp4xx_ioread32_rep(u32 port, u32 *vaddr, u32 count)
+{
+	if (__is_io_address(port))
+		__ixp4xx_insl(port, vaddr, count);
+	else
+#ifndef	CONFIG_IXP4XX_INDIRECT_PCI
+		__raw_readsl((void __iomem *)port, vaddr, count);
+#else
+		__ixp4xx_readsl(port, vaddr, count);
+#endif
+}
+
+static inline void
+__ixp4xx_iowrite8(u8 value, void __iomem *port)
+{
+	if (__is_io_address(port))
+		__ixp4xx_outb(value, (unsigned int)port);
+	else
+#ifndef CONFIG_IXP4XX_INDIRECT_PCI
+		__raw_writeb(value, (u32)port);
+#else
+		__ixp4xx_writeb(value, (u32)port);
+#endif
+}
+
+static inline void
+__ixp4xx_iowrite8_rep(u32 port, u8 *vaddr, u32 count)
+{
+	if (__is_io_address(port))
+		__ixp4xx_outsb(port, vaddr, count);
+#ifndef CONFIG_IXP4XX_INDIRECT_PCI
+		__raw_writesb((void __iomem *)port, vaddr, count);
+#else
+		__ixp4xx_writesb(port, vaddr, count);
+#endif
+}
+
+static inline void
+__ixp4xx_iowrite16(u16 value, void __iomem *port)
+{
+	if (__is_io_address(port))
+		__ixp4xx_outw(value, (unsigned int)port);
+	else
+#ifndef CONFIG_IXP4XX_INDIRECT_PCI
+		__raw_writew(cpu_to_le16(value), (u32)port);
+#else
+		__ixp4xx_writew(value, (u32)port);
+#endif
+}
+
+static inline void
+__ixp4xx_iowrite16_rep(u32 port, u16 *vaddr, u32 count)
+{
+	if (__is_io_address(port))
+		__ixp4xx_outsw(port, vaddr, count);
+#ifndef CONFIG_IXP4XX_INDIRECT_PCI
+		__raw_readsw((void __iomem *)port, vaddr, count);
+#else
+		__ixp4xx_writesw(port, vaddr, count);
+#endif
+}
+
+static inline void
+__ixp4xx_iowrite32(u32 value, void __iomem *port)
+{
+	if (__is_io_address(port))
+		__ixp4xx_outl(value, (unsigned int)port);
+	else
+#ifndef CONFIG_IXP4XX_INDIRECT_PCI
+		__raw_writel(cpu_to_le32(value), (u32)port);
+#else
+		__ixp4xx_writel(value, (u32)port);
+#endif
+}
+
+static inline void
+__ixp4xx_iowrite32_rep(u32 port, u32 *vaddr, u32 count)
+{
+	if (__is_io_address(port))
+		__ixp4xx_outsl(port, vaddr, count);
+#ifndef CONFIG_IXP4XX_INDIRECT_PCI
+		__raw_readsl((void __iomem *)port, vaddr, count);
+#else
+		__ixp4xx_outsl(port, vaddr, count);
+#endif
+}
+
+#define	ioread8(p)			__ixp4xx_ioread8(p)
+#define	ioread16(p)			__ixp4xx_ioread16(p)
+#define	ioread32(p)			__ixp4xx_ioread32(p)
+
+#define	ioread8_rep(p, v, c)		__ixp4xx_ioread8_rep(p, v, c)
+#define	ioread16_rep(p, v, c)		__ixp4xx_ioread16_rep(p, v, c)
+#define	ioread32_rep(p, v, c)		__ixp4xx_ioread32_rep(p, v, c)
+
+#define	iowrite8(v,p)			__ixp4xx_iowrite8(v,p)
+#define	iowrite16(v,p)			__ixp4xx_iowrite16(v,p)
+#define	iowrite32(v,p)			__ixp4xx_iowrite32(v,p)
+
+#define	iowrite8_rep(p, v, c)		__ixp4xx_iowrite8_rep(p, v, c)
+#define	iowrite16_rep(p, v, c)		__ixp4xx_iowrite16_rep(p, v, c)
+#define	iowrite32_rep(p, v, c)		__ixp4xx_iowrite32_rep(p, v, c)
+
+#define	ioport_map(port, nr)		((void __iomem*)port)
+#define	ioport_unmap(addr)
 
 #endif	//  __ASM_ARM_ARCH_IO_H
 
