@@ -63,23 +63,29 @@ qla2x00_sysfs_write_fw_dump(struct kobject *kobj, char *buf, loff_t off,
 			    ha->host_no);
 
 			vfree(ha->fw_dump_buffer);
-			free_pages((unsigned long)ha->fw_dump,
-			    ha->fw_dump_order);
+			if (!IS_QLA24XX(ha) && !IS_QLA25XX(ha))
+				free_pages((unsigned long)ha->fw_dump,
+				    ha->fw_dump_order);
 
 			ha->fw_dump_reading = 0;
 			ha->fw_dump_buffer = NULL;
 			ha->fw_dump = NULL;
+			ha->fw_dumped = 0;
 		}
 		break;
 	case 1:
-		if (ha->fw_dump != NULL && !ha->fw_dump_reading) {
+		if ((ha->fw_dump || ha->fw_dumped) && !ha->fw_dump_reading) {
 			ha->fw_dump_reading = 1;
 
-			dump_size = FW_DUMP_SIZE_1M;
-			if (ha->fw_memory_size < 0x20000) 
-				dump_size = FW_DUMP_SIZE_128K;
-			else if (ha->fw_memory_size < 0x80000) 
-				dump_size = FW_DUMP_SIZE_512K;
+			if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+				dump_size = FW_DUMP_SIZE_24XX;
+			else {
+				dump_size = FW_DUMP_SIZE_1M;
+				if (ha->fw_memory_size < 0x20000)
+					dump_size = FW_DUMP_SIZE_128K;
+				else if (ha->fw_memory_size < 0x80000)
+					dump_size = FW_DUMP_SIZE_512K;
+			}
 			ha->fw_dump_buffer = (char *)vmalloc(dump_size);
 			if (ha->fw_dump_buffer == NULL) {
 				qla_printk(KERN_WARNING, ha,

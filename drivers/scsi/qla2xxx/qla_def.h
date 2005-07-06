@@ -1989,7 +1989,8 @@ struct qla_board_info {
 
 	char isp_name[8];
 	struct qla_fw_info *fw_info;
-	char *fw_fname;;
+	char *fw_fname;
+	struct scsi_host_template *sht;
 };
 
 /* Return data from MBC_GET_ID_LIST call. */
