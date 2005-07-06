@@ -124,6 +124,7 @@ struct crypto_alg {
 	u32 cra_flags;
 	unsigned int cra_blocksize;
 	unsigned int cra_ctxsize;
+	unsigned int cra_alignmask;
 	const char cra_name[CRYPTO_MAX_ALG_NAME];
 
 	union {

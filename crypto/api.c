@@ -168,6 +168,12 @@ int crypto_register_alg(struct crypto_alg *alg)
 {
 	int ret = 0;
 	struct crypto_alg *q;
+
+	if (alg->cra_alignmask & (alg->cra_alignmask + 1))
+		return -EINVAL;
+
+	if (alg->cra_alignmask > PAGE_SIZE)
+		return -EINVAL;
 	
 	down_write(&crypto_alg_sem);
 	

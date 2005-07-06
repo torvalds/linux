@@ -55,6 +55,12 @@ static inline void scatterwalk_advance(struct scatter_walk *walk,
 	walk->len_this_segment -= nbytes;
 }
 
+static inline unsigned int scatterwalk_aligned(struct scatter_walk *walk,
+					       unsigned int alignmask)
+{
+	return !(walk->offset & alignmask);
+}
+
 void scatterwalk_start(struct scatter_walk *walk, struct scatterlist *sg);
 int scatterwalk_copychunks(void *buf, struct scatter_walk *walk, size_t nbytes, int out);
 void scatterwalk_map(struct scatter_walk *walk, int out);

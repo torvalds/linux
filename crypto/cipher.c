@@ -41,8 +41,10 @@ static unsigned int crypt_slow(const struct cipher_desc *desc,
 			       struct scatter_walk *in,
 			       struct scatter_walk *out, unsigned int bsize)
 {
-	u8 src[bsize];
-	u8 dst[bsize];
+	unsigned int alignmask = desc->tfm->__crt_alg->cra_alignmask;
+	u8 buffer[bsize * 2 + alignmask];
+	u8 *src = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
+	u8 *dst = src + bsize;
 	unsigned int n;
 
 	n = scatterwalk_copychunks(src, in, bsize, 0);
@@ -59,14 +61,23 @@ static unsigned int crypt_slow(const struct cipher_desc *desc,
 static inline unsigned int crypt_fast(const struct cipher_desc *desc,
 				      struct scatter_walk *in,
 				      struct scatter_walk *out,
-				      unsigned int nbytes)
+				      unsigned int nbytes, u8 *tmp)
 {
 	u8 *src, *dst;
 
 	src = in->data;
 	dst = scatterwalk_samebuf(in, out) ? src : out->data;
 
+	if (tmp) {
+		memcpy(tmp, in->data, nbytes);
+		src = tmp;
+		dst = tmp;
+	}
+
 	nbytes = desc->prfn(desc, dst, src, nbytes);
+
+	if (tmp)
+		memcpy(out->data, tmp, nbytes);
 
 	scatterwalk_advance(in, nbytes);
 	scatterwalk_advance(out, nbytes);
@@ -87,6 +98,8 @@ static int crypt(const struct cipher_desc *desc,
 	struct scatter_walk walk_in, walk_out;
 	struct crypto_tfm *tfm = desc->tfm;
 	const unsigned int bsize = crypto_tfm_alg_blocksize(tfm);
+	unsigned int alignmask = tfm->__crt_alg->cra_alignmask;
+	unsigned long buffer = 0;
 
 	if (!nbytes)
 		return 0;
@@ -100,16 +113,27 @@ static int crypt(const struct cipher_desc *desc,
 	scatterwalk_start(&walk_out, dst);
 
 	for(;;) {
-		unsigned int n;
+		unsigned int n = nbytes;
+		u8 *tmp = NULL;
+
+		if (!scatterwalk_aligned(&walk_in, alignmask) ||
+		    !scatterwalk_aligned(&walk_out, alignmask)) {
+			if (!buffer) {
+				buffer = __get_free_page(GFP_ATOMIC);
+				if (!buffer)
+					n = 0;
+			}
+			tmp = (u8 *)buffer;
+		}
 
 		scatterwalk_map(&walk_in, 0);
 		scatterwalk_map(&walk_out, 1);
 
-		n = scatterwalk_clamp(&walk_in, nbytes);
+		n = scatterwalk_clamp(&walk_in, n);
 		n = scatterwalk_clamp(&walk_out, n);
 
 		if (likely(n >= bsize))
-			n = crypt_fast(desc, &walk_in, &walk_out, n);
+			n = crypt_fast(desc, &walk_in, &walk_out, n, tmp);
 		else
 			n = crypt_slow(desc, &walk_in, &walk_out, bsize);
 
@@ -119,10 +143,15 @@ static int crypt(const struct cipher_desc *desc,
 		scatterwalk_done(&walk_out, 1, nbytes);
 
 		if (!nbytes)
-			return 0;
+			break;
 
 		crypto_yield(tfm);
 	}
+
+	if (buffer)
+		free_page(buffer);
+
+	return 0;
 }
 
 static unsigned int cbc_process_encrypt(const struct cipher_desc *desc,
