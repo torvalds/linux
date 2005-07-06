@@ -18,6 +18,40 @@
 #include "xtalk/xwidgetdev.h"
 #include "xtalk/hubdev.h"
 
+int
+sal_pcibr_slot_enable(struct pcibus_info *soft, int device, void *resp)
+{
+	struct ia64_sal_retval ret_stuff;
+	uint64_t busnum;
+
+	ret_stuff.status = 0;
+	ret_stuff.v0 = 0;
+
+	busnum = soft->pbi_buscommon.bs_persist_busnum;
+	SAL_CALL_NOLOCK(ret_stuff, (u64) SN_SAL_IOIF_SLOT_ENABLE, (u64) busnum,
+			(u64) device, (u64) resp, 0, 0, 0, 0);
+
+	return (int)ret_stuff.v0;
+}
+
+int
+sal_pcibr_slot_disable(struct pcibus_info *soft, int device, int action,
+		       void *resp)
+{
+	struct ia64_sal_retval ret_stuff;
+	uint64_t busnum;
+
+	ret_stuff.status = 0;
+	ret_stuff.v0 = 0;
+
+	busnum = soft->pbi_buscommon.bs_persist_busnum;
+	SAL_CALL_NOLOCK(ret_stuff, (u64) SN_SAL_IOIF_SLOT_DISABLE,
+			(u64) busnum, (u64) device, (u64) action,
+			(u64) resp, 0, 0, 0);
+
+	return (int)ret_stuff.v0;
+}
+
 static int sal_pcibr_error_interrupt(struct pcibus_info *soft)
 {
 	struct ia64_sal_retval ret_stuff;
@@ -187,3 +221,6 @@ pcibr_init_provider(void)
 
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(sal_pcibr_slot_enable);
+EXPORT_SYMBOL_GPL(sal_pcibr_slot_disable);

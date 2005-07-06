@@ -284,7 +284,6 @@ void sn_irq_fixup(struct pci_dev *pci_dev, struct sn_irq_info *sn_irq_info)
 	int cpu = nasid_slice_to_cpuid(nasid, slice);
 
 	pci_dev_get(pci_dev);
-
 	sn_irq_info->irq_cpuid = cpu;
 	sn_irq_info->irq_pciioinfo = SN_PCIDEV_INFO(pci_dev);
 
@@ -305,15 +304,16 @@ void sn_irq_unfixup(struct pci_dev *pci_dev)
 		return;
 
 	sn_irq_info = SN_PCIDEV_INFO(pci_dev)->pdi_sn_irq_info;
-	if (!sn_irq_info || !sn_irq_info->irq_irq)
+	if (!sn_irq_info || !sn_irq_info->irq_irq) {
+		kfree(sn_irq_info);
 		return;
+	}
 
 	unregister_intr_pda(sn_irq_info);
 	spin_lock(&sn_irq_info_lock);
 	list_del_rcu(&sn_irq_info->list);
 	spin_unlock(&sn_irq_info_lock);
 	call_rcu(&sn_irq_info->rcu, sn_irq_info_free);
-
 	pci_dev_put(pci_dev);
 }
 

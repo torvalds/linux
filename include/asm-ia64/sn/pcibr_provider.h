@@ -151,4 +151,8 @@ extern void 		pcibr_change_devices_irq(struct sn_irq_info *sn_irq_info);
 extern int 		pcibr_ate_alloc(struct pcibus_info *, int);
 extern void 		pcibr_ate_free(struct pcibus_info *, int);
 extern void 		ate_write(struct pcibus_info *, int, int, uint64_t);
+extern int sal_pcibr_slot_enable(struct pcibus_info *soft, int device,
+				 void *resp);
+extern int sal_pcibr_slot_disable(struct pcibus_info *soft, int device,
+				  int action, void *resp);
 #endif
