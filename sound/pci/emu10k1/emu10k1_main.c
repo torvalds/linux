@@ -832,6 +832,7 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 		       unsigned short extout_mask,
 		       long max_cache_bytes,
 		       int enable_ir,
+		       uint subsystem,
 		       emu10k1_t ** remu)
 {
 	emu10k1_t *emu;
@@ -877,10 +878,16 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 
 	for (c = emu_chip_details; c->vendor; c++) {
 		if (c->vendor == pci->vendor && c->device == pci->device) {
-			if (c->subsystem && c->subsystem != emu->serial)
-				continue;
-			if (c->revision && c->revision != emu->revision)
-				continue;
+			if (subsystem) {
+				if (c->subsystem && (c->subsystem == subsystem) ) {
+					break;
+				} else continue;
+			} else {
+				if (c->subsystem && (c->subsystem != emu->serial) )
+					continue;
+				if (c->revision && c->revision != emu->revision)
+					continue;
+			}
 			break;
 		}
 	}
@@ -891,10 +898,14 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 		return -ENOENT;
 	}
 	emu->card_capabilities = c;
-	if (c->subsystem != 0)
+	if (c->subsystem && !subsystem)
 		snd_printdd("Sound card name=%s\n", c->name);
-	else
-		snd_printdd("Sound card name=%s, vendor=0x%x, device=0x%x, subsystem=0x%x\n", c->name, pci->vendor, pci->device, emu->serial);
+	else if (subsystem) 
+		snd_printdd("Sound card name=%s, vendor=0x%x, device=0x%x, subsystem=0x%x. Forced to subsytem=0x%x\n",
+		       	c->name, pci->vendor, pci->device, emu->serial, c->subsystem);
+	else 
+		snd_printdd("Sound card name=%s, vendor=0x%x, device=0x%x, subsystem=0x%x.\n",
+		      	c->name, pci->vendor, pci->device, emu->serial);
 	
 	if (!*card->id && c->id) {
 		int i, n = 0;
