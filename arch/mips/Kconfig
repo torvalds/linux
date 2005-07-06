@@ -1050,14 +1050,28 @@ choice
 	prompt "CPU type"
 	default CPU_R4X00
 
-config CPU_MIPS32
-	bool "MIPS32"
+config CPU_MIPS32_R1
+	bool "MIPS32 Release 1"
 	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_HAS_PREFETCH
+	help
+	  Choose this option to build a kernel for release 1 or later of the
+	  MIPS32 architecture.  Most modern embedded systems with a 32-bit
+	  MIPS processor are based on a MIPS32 processor.  If you know the
+	  specific type of processor in your system, choose those that one
+	  otherwise CPU_MIPS32_R1 is a safe bet for any MIPS32 system.
 
-config CPU_MIPS64
-	bool "MIPS64"
+config CPU_MIPS64_R1
+	bool "MIPS64 Release 1"
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_HAS_PREFETCH
+	help
+	  Choose this option to build a kernel for release 1 or later of the
+	  MIPS64 architecture.  Many modern embedded systems with a 64-bit
+	  MIPS processor are based on a MIPS64 processor.  If you know the
+	  specific type of processor in your system, choose those that one
+	  otherwise CPU_MIPS64_R1 is a safe bet for any MIPS64 system.
 
 config CPU_R3000
 	bool "R3000"
@@ -1253,7 +1267,7 @@ config SB1_PASS_2_1_WORKAROUNDS
 
 config 64BIT_PHYS_ADDR
 	bool "Support for 64-bit physical address space"
-	depends on (CPU_R4X00 || CPU_R5000 || CPU_RM7000 || CPU_RM9000 || CPU_R10000 || CPU_SB1 || CPU_MIPS32 || CPU_MIPS64) && 32BIT
+	depends on (CPU_R4X00 || CPU_R5000 || CPU_RM7000 || CPU_RM9000 || CPU_R10000 || CPU_SB1 || CPU_MIPS32_R1 || CPU_MIPS64_R1) && 32BIT
 
 config CPU_ADVANCED
 	bool "Override CPU Options"
@@ -1276,7 +1290,7 @@ config CPU_HAS_LLSC
 
 config CPU_HAS_LLDSCD
 	bool "lld/scd Instructions available" if CPU_ADVANCED
-	default y if !CPU_ADVANCED && !CPU_R3000 && !CPU_VR41XX && !CPU_TX39XX && !CPU_MIPS32
+	default y if !CPU_ADVANCED && !CPU_R3000 && !CPU_VR41XX && !CPU_TX39XX && !CPU_MIPS32_R1
 	help
 	  Say Y here if your CPU has the lld and scd instructions, the 64-bit
 	  equivalents of ll and sc.  Say Y here for better performance, N if

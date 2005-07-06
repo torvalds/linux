@@ -76,7 +76,7 @@ static inline void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
  * These are used to make use of C type-checking..
  */
 #ifdef CONFIG_64BIT_PHYS_ADDR
-  #ifdef CONFIG_CPU_MIPS32
+  #ifdef CONFIG_CPU_MIPS32_R1
     typedef struct { unsigned long pte_low, pte_high; } pte_t;
     #define pte_val(x)    ((x).pte_low | ((unsigned long long)(x).pte_high << 32))
   #else

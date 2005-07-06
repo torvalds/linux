@@ -118,8 +118,8 @@ void __init cpu_cache_init(void)
 #if defined(CONFIG_CPU_R4X00)  || defined(CONFIG_CPU_VR41XX) || \
     defined(CONFIG_CPU_R4300)  || defined(CONFIG_CPU_R5000)  || \
     defined(CONFIG_CPU_NEVADA) || defined(CONFIG_CPU_R5432)  || \
-    defined(CONFIG_CPU_R5500)  || defined(CONFIG_CPU_MIPS32) || \
-    defined(CONFIG_CPU_MIPS64) || defined(CONFIG_CPU_TX49XX) || \
+    defined(CONFIG_CPU_R5500)  || defined(CONFIG_CPU_MIPS32_R1) || \
+    defined(CONFIG_CPU_MIPS64_R1) || defined(CONFIG_CPU_TX49XX) || \
     defined(CONFIG_CPU_RM7000) || defined(CONFIG_CPU_RM9000)
 		ld_mmu_r4xx0();
 #endif

@@ -864,7 +864,7 @@ asmlinkage void cache_parity_error(void)
 	       reg_val & (1<<22) ? "E0 " : "");
 	printk("IDX: 0x%08x\n", reg_val & ((1<<22)-1));
 
-#if defined(CONFIG_CPU_MIPS32) || defined (CONFIG_CPU_MIPS64)
+#if defined(CONFIG_CPU_MIPS32_R1) || defined(CONFIG_CPU_MIPS64_R1)
 	if (reg_val & (1<<22))
 		printk("DErrAddr0: 0x%0*lx\n", field, read_c0_derraddr0());
 

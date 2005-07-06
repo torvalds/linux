@@ -14,7 +14,7 @@
 /*
  * CPU feature overrides for MIPS boards
  */
-#ifdef CONFIG_CPU_MIPS32
+#ifdef CONFIG_CPU_MIPS32_R1
 #define cpu_has_tlb		1
 #define cpu_has_4kex		1
 #define cpu_has_4ktlb		1
@@ -39,7 +39,7 @@
 /* #define cpu_has_subset_pcaches ? */
 #endif
 
-#ifdef CONFIG_CPU_MIPS64
+#ifdef CONFIG_CPU_MIPS64_R1
 #define cpu_has_tlb		1
 #define cpu_has_4kex		1
 #define cpu_has_4ktlb		1
