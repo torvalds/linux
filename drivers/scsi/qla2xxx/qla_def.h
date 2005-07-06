@@ -2032,8 +2032,7 @@ struct isp_operations {
 
 	uint16_t (*calc_req_entries) (uint16_t);
 	void (*build_iocbs) (srb_t *, cmd_entry_t *, uint16_t);
-	ms_iocb_entry_t * (*prep_ms_iocb) (struct scsi_qla_host *, uint32_t,
-	    uint32_t);
+	void * (*prep_ms_iocb) (struct scsi_qla_host *, uint32_t, uint32_t);
 
 	uint8_t * (*read_nvram) (struct scsi_qla_host *, uint8_t *,
 		uint32_t, uint32_t);

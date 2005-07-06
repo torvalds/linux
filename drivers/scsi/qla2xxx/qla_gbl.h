@@ -219,8 +219,8 @@ extern void qla2x00_dump_pkt(void *);
 /*
  * Global Function Prototypes in qla_gs.c source file.
  */
-extern ms_iocb_entry_t *qla2x00_prep_ms_iocb(scsi_qla_host_t *, uint32_t,
-    uint32_t);
+extern void *qla2x00_prep_ms_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
+extern void *qla24xx_prep_ms_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
 extern int qla2x00_ga_nxt(scsi_qla_host_t *, fc_port_t *);
 extern int qla2x00_gid_pt(scsi_qla_host_t *, sw_info_t *);
 extern int qla2x00_gpn_id(scsi_qla_host_t *, sw_info_t *);

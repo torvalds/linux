@@ -822,7 +822,11 @@ qla2x00_issue_iocb(scsi_qla_host_t *ha, void*  buffer, dma_addr_t phys_addr,
 		DEBUG2(printk("qla2x00_issue_iocb(%ld): failed rval 0x%x",
 		    ha->host_no,rval);)
 	} else {
-		/*EMPTY*/
+		sts_entry_t *sts_entry = (sts_entry_t *) buffer;
+
+		/* Mask reserved bits. */
+		sts_entry->entry_status &=
+		    IS_QLA24XX(ha) || IS_QLA25XX(ha) ? RF_MASK_24XX :RF_MASK;
 	}
 
 	return rval;
