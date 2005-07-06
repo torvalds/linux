@@ -41,27 +41,6 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
 
-/* XXX(hch): move to pci_ids.h */
-#ifndef PCI_DEVICE_ID_QLOGIC_ISP2300
-#define PCI_DEVICE_ID_QLOGIC_ISP2300	0x2300
-#endif
-
-#ifndef PCI_DEVICE_ID_QLOGIC_ISP2312
-#define PCI_DEVICE_ID_QLOGIC_ISP2312	0x2312
-#endif
-
-#ifndef PCI_DEVICE_ID_QLOGIC_ISP2322
-#define PCI_DEVICE_ID_QLOGIC_ISP2322	0x2322
-#endif
-
-#ifndef PCI_DEVICE_ID_QLOGIC_ISP6312
-#define PCI_DEVICE_ID_QLOGIC_ISP6312	0x6312
-#endif
-
-#ifndef PCI_DEVICE_ID_QLOGIC_ISP6322
-#define PCI_DEVICE_ID_QLOGIC_ISP6322	0x6322
-#endif
-
 #if defined(CONFIG_SCSI_QLA21XX) || defined(CONFIG_SCSI_QLA21XX_MODULE)
 #define IS_QLA2100(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2100)
 #else
