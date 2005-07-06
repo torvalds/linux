@@ -16,8 +16,9 @@
  *	02-May-2005  BJD  Fixed s3c2440 support
  *	02-May-2005  BJD  Reduced hwcontrol decode
  *	20-Jun-2005  BJD  Updated s3c2440 support, fixed timing bug
+ *	08-Jul-2005  BJD  Fix OOPS when no platform data supplied
  *
- * $Id: s3c2410.c,v 1.13 2005/06/20 11:48:21 bjd Exp $
+ * $Id: s3c2410.c,v 1.14 2005/07/06 20:05:06 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -232,7 +233,7 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
 	if (chip == -1) {
 		cur |= bit;
 	} else {
-		if (chip > nmtd->set->nr_chips) {
+		if (nmtd->set != NULL && chip > nmtd->set->nr_chips) {
 			printk(KERN_ERR PFX "chip %d out of range\n", chip);
 			return;
 		}
