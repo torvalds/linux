@@ -1134,13 +1134,16 @@ static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 static inline struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
 						   int size, int mem, int gfp)
 {
-	struct sk_buff *skb = alloc_skb(size + sk->sk_prot->max_header, gfp);
+	struct sk_buff *skb;
+	int hdr_len;
 
+	hdr_len = SKB_DATA_ALIGN(sk->sk_prot->max_header);
+	skb = alloc_skb(size + hdr_len, gfp);
 	if (skb) {
 		skb->truesize += mem;
 		if (sk->sk_forward_alloc >= (int)skb->truesize ||
 		    sk_stream_mem_schedule(sk, skb->truesize, 0)) {
-			skb_reserve(skb, sk->sk_prot->max_header);
+			skb_reserve(skb, hdr_len);
 			return skb;
 		}
 		__kfree_skb(skb);

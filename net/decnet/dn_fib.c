@@ -551,7 +551,8 @@ int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (t < s_t)
 			continue;
 		if (t > s_t)
-			memset(&cb->args[1], 0, sizeof(cb->args)-sizeof(int));
+			memset(&cb->args[1], 0,
+			       sizeof(cb->args) - sizeof(cb->args[0]));
 		tb = dn_fib_get_table(t, 0);
 		if (tb == NULL)
 			continue;

@@ -170,19 +170,14 @@ struct slcompress {
 };
 #define NULLSLCOMPR	(struct slcompress *)0
 
-#define __ARGS(x) x
-
 /* In slhc.c: */
-struct slcompress *slhc_init __ARGS((int rslots, int tslots));
-void slhc_free __ARGS((struct slcompress *comp));
+struct slcompress *slhc_init(int rslots, int tslots);
+void slhc_free(struct slcompress *comp);
 
-int slhc_compress __ARGS((struct slcompress *comp, unsigned char *icp,
-			  int isize, unsigned char *ocp, unsigned char **cpp,
-			  int compress_cid));
-int slhc_uncompress __ARGS((struct slcompress *comp, unsigned char *icp,
-			    int isize));
-int slhc_remember __ARGS((struct slcompress *comp, unsigned char *icp,
-			  int isize));
-int slhc_toss __ARGS((struct slcompress *comp));
+int slhc_compress(struct slcompress *comp, unsigned char *icp, int isize,
+		  unsigned char *ocp, unsigned char **cpp, int compress_cid);
+int slhc_uncompress(struct slcompress *comp, unsigned char *icp, int isize);
+int slhc_remember(struct slcompress *comp, unsigned char *icp, int isize);
+int slhc_toss(struct slcompress *comp);
 
 #endif	/* _SLHC_H */
