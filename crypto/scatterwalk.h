@@ -40,10 +40,10 @@ static inline int scatterwalk_samebuf(struct scatter_walk *walk_in,
 	       walk_in->offset == walk_out->offset;
 }
 
-static inline int scatterwalk_across_pages(struct scatter_walk *walk,
-					   unsigned int nbytes)
+static inline unsigned int scatterwalk_clamp(struct scatter_walk *walk,
+					     unsigned int nbytes)
 {
-	return nbytes > walk->len_this_page;
+	return nbytes > walk->len_this_page ? walk->len_this_page : nbytes;
 }
 
 static inline void scatterwalk_advance(struct scatter_walk *walk,
