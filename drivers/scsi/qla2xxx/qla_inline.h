@@ -236,6 +236,19 @@ qla2x00_delete_timer_from_cmd(srb_t *sp)
 	}
 }
 
+static inline uint8_t *host_to_fcp_swap(uint8_t *, uint32_t);
+static inline uint8_t *
+host_to_fcp_swap(uint8_t *fcp, uint32_t bsize)
+{
+       uint32_t *ifcp = (uint32_t *) fcp;
+       uint32_t *ofcp = (uint32_t *) fcp;
+       uint32_t iter = bsize >> 2;
+
+       for (; iter ; iter--)
+               *ofcp++ = swab32(*ifcp++);
+
+       return fcp;
+}
 
 static inline int qla2x00_is_reserved_id(scsi_qla_host_t *, uint16_t);
 static inline int
