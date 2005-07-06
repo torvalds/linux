@@ -16,6 +16,7 @@
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <asm/kmap_types.h>
 
 extern enum km_type crypto_km_types[];
@@ -60,6 +61,33 @@ void __init crypto_init_proc(void);
 static inline void crypto_init_proc(void)
 { }
 #endif
+
+static inline unsigned int crypto_digest_ctxsize(struct crypto_alg *alg,
+						 int flags)
+{
+	return alg->cra_ctxsize;
+}
+
+static inline unsigned int crypto_cipher_ctxsize(struct crypto_alg *alg,
+						 int flags)
+{
+	unsigned int len = alg->cra_ctxsize;
+	
+	switch (flags & CRYPTO_TFM_MODE_MASK) {
+	case CRYPTO_TFM_MODE_CBC:
+		len = ALIGN(len, alg->cra_alignmask + 1);
+		len += alg->cra_blocksize;
+		break;
+	}
+
+	return len;
+}
+
+static inline unsigned int crypto_compress_ctxsize(struct crypto_alg *alg,
+						   int flags)
+{
+	return alg->cra_ctxsize;
+}
 
 int crypto_init_digest_flags(struct crypto_tfm *tfm, u32 flags);
 int crypto_init_cipher_flags(struct crypto_tfm *tfm, u32 flags);

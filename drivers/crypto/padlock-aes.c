@@ -465,8 +465,7 @@ static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct aes_ctx) +
-					PADLOCK_ALIGNMENT,
+	.cra_ctxsize		=	sizeof(struct aes_ctx),
 	.cra_alignmask		=	PADLOCK_ALIGNMENT - 1,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(aes_alg.cra_list),

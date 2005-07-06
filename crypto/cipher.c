@@ -41,7 +41,7 @@ static unsigned int crypt_slow(const struct cipher_desc *desc,
 			       struct scatter_walk *in,
 			       struct scatter_walk *out, unsigned int bsize)
 {
-	unsigned int alignmask = desc->tfm->__crt_alg->cra_alignmask;
+	unsigned int alignmask = crypto_tfm_alg_alignmask(desc->tfm);
 	u8 buffer[bsize * 2 + alignmask];
 	u8 *src = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	u8 *dst = src + bsize;
@@ -98,7 +98,7 @@ static int crypt(const struct cipher_desc *desc,
 	struct scatter_walk walk_in, walk_out;
 	struct crypto_tfm *tfm = desc->tfm;
 	const unsigned int bsize = crypto_tfm_alg_blocksize(tfm);
-	unsigned int alignmask = tfm->__crt_alg->cra_alignmask;
+	unsigned int alignmask = crypto_tfm_alg_alignmask(tfm);
 	unsigned long buffer = 0;
 
 	if (!nbytes)
@@ -399,6 +399,8 @@ int crypto_init_cipher_ops(struct crypto_tfm *tfm)
 	}
 	
 	if (ops->cit_mode == CRYPTO_TFM_MODE_CBC) {
+		unsigned int align;
+		unsigned long addr;
 	    	
 	    	switch (crypto_tfm_alg_blocksize(tfm)) {
 	    	case 8:
@@ -418,9 +420,11 @@ int crypto_init_cipher_ops(struct crypto_tfm *tfm)
 	    	}
 	    	
 		ops->cit_ivsize = crypto_tfm_alg_blocksize(tfm);
-	    	ops->cit_iv = kmalloc(ops->cit_ivsize, GFP_KERNEL);
-		if (ops->cit_iv == NULL)
-			ret = -ENOMEM;
+		align = crypto_tfm_alg_alignmask(tfm) + 1;
+		addr = (unsigned long)crypto_tfm_ctx(tfm);
+		addr = ALIGN(addr, align);
+		addr += ALIGN(tfm->__crt_alg->cra_ctxsize, align);
+		ops->cit_iv = (void *)addr;
 	}
 
 out:	
@@ -429,5 +433,4 @@ out:
 
 void crypto_exit_cipher_ops(struct crypto_tfm *tfm)
 {
-	kfree(tfm->crt_cipher.cit_iv);
 }

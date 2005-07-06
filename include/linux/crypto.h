@@ -288,6 +288,11 @@ static inline unsigned int crypto_tfm_alg_digestsize(struct crypto_tfm *tfm)
 	return tfm->__crt_alg->cra_digest.dia_digestsize;
 }
 
+static inline unsigned int crypto_tfm_alg_alignmask(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_alignmask;
+}
+
 static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm)
 {
 	return (void *)&tfm[1];

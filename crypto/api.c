@@ -125,20 +125,46 @@ static void crypto_exit_ops(struct crypto_tfm *tfm)
 	}
 }
 
+static unsigned int crypto_ctxsize(struct crypto_alg *alg, int flags)
+{
+	unsigned int len;
+
+	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
+	default:
+		BUG();
+
+	case CRYPTO_ALG_TYPE_CIPHER:
+		len = crypto_cipher_ctxsize(alg, flags);
+		break;
+		
+	case CRYPTO_ALG_TYPE_DIGEST:
+		len = crypto_digest_ctxsize(alg, flags);
+		break;
+		
+	case CRYPTO_ALG_TYPE_COMPRESS:
+		len = crypto_compress_ctxsize(alg, flags);
+		break;
+	}
+
+	return len + alg->cra_alignmask;
+}
+
 struct crypto_tfm *crypto_alloc_tfm(const char *name, u32 flags)
 {
 	struct crypto_tfm *tfm = NULL;
 	struct crypto_alg *alg;
+	unsigned int tfm_size;
 
 	alg = crypto_alg_mod_lookup(name);
 	if (alg == NULL)
 		goto out;
-	
-	tfm = kmalloc(sizeof(*tfm) + alg->cra_ctxsize, GFP_KERNEL);
+
+	tfm_size = sizeof(*tfm) + crypto_ctxsize(alg, flags);
+	tfm = kmalloc(tfm_size, GFP_KERNEL);
 	if (tfm == NULL)
 		goto out_put;
 
-	memset(tfm, 0, sizeof(*tfm) + alg->cra_ctxsize);
+	memset(tfm, 0, tfm_size);
 	
 	tfm->__crt_alg = alg;
 	
