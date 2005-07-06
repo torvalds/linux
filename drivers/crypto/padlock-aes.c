@@ -49,6 +49,7 @@
 #include <linux/errno.h>
 #include <linux/crypto.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <asm/byteorder.h>
 #include "padlock.h"
 
@@ -59,8 +60,12 @@
 #define AES_EXTENDED_KEY_SIZE_B	(AES_EXTENDED_KEY_SIZE * sizeof(uint32_t))
 
 struct aes_ctx {
-	uint32_t e_data[AES_EXTENDED_KEY_SIZE+4];
-	uint32_t d_data[AES_EXTENDED_KEY_SIZE+4];
+	uint32_t e_data[AES_EXTENDED_KEY_SIZE];
+	uint32_t d_data[AES_EXTENDED_KEY_SIZE];
+	struct {
+		struct cword encrypt;
+		struct cword decrypt;
+	} cword;
 	uint32_t *E;
 	uint32_t *D;
 	int key_length;
@@ -280,10 +285,15 @@ aes_hw_extkey_available(uint8_t key_len)
 	return 0;
 }
 
+static inline struct aes_ctx *aes_ctx(void *ctx)
+{
+	return (struct aes_ctx *)ALIGN((unsigned long)ctx, PADLOCK_ALIGNMENT);
+}
+
 static int
 aes_set_key(void *ctx_arg, const uint8_t *in_key, unsigned int key_len, uint32_t *flags)
 {
-	struct aes_ctx *ctx = ctx_arg;
+	struct aes_ctx *ctx = aes_ctx(ctx_arg);
 	uint32_t i, t, u, v, w;
 	uint32_t P[AES_EXTENDED_KEY_SIZE];
 	uint32_t rounds;
@@ -295,24 +305,35 @@ aes_set_key(void *ctx_arg, const uint8_t *in_key, unsigned int key_len, uint32_t
 
 	ctx->key_length = key_len;
 
+	/*
+	 * If the hardware is capable of generating the extended key
+	 * itself we must supply the plain key for both encryption
+	 * and decryption.
+	 */
 	ctx->E = ctx->e_data;
-	ctx->D = ctx->d_data;
-
-	/* Ensure 16-Bytes alignmentation of keys for VIA PadLock. */
-	if ((int)(ctx->e_data) & 0x0F)
-		ctx->E += 4 - (((int)(ctx->e_data) & 0x0F) / sizeof (ctx->e_data[0]));
-
-	if ((int)(ctx->d_data) & 0x0F)
-		ctx->D += 4 - (((int)(ctx->d_data) & 0x0F) / sizeof (ctx->d_data[0]));
+	ctx->D = ctx->e_data;
 
 	E_KEY[0] = uint32_t_in (in_key);
 	E_KEY[1] = uint32_t_in (in_key + 4);
 	E_KEY[2] = uint32_t_in (in_key + 8);
 	E_KEY[3] = uint32_t_in (in_key + 12);
 
+	/* Prepare control words. */
+	memset(&ctx->cword, 0, sizeof(ctx->cword));
+
+	ctx->cword.decrypt.encdec = 1;
+	ctx->cword.encrypt.rounds = 10 + (key_len - 16) / 4;
+	ctx->cword.decrypt.rounds = ctx->cword.encrypt.rounds;
+	ctx->cword.encrypt.ksize = (key_len - 16) / 8;
+	ctx->cword.decrypt.ksize = ctx->cword.encrypt.ksize;
+
 	/* Don't generate extended keys if the hardware can do it. */
 	if (aes_hw_extkey_available(key_len))
 		return 0;
+
+	ctx->D = ctx->d_data;
+	ctx->cword.encrypt.keygen = 1;
+	ctx->cword.decrypt.keygen = 1;
 
 	switch (key_len) {
 	case 16:
@@ -370,9 +391,8 @@ aes_set_key(void *ctx_arg, const uint8_t *in_key, unsigned int key_len, uint32_t
 /* ====== Encryption/decryption routines ====== */
 
 /* This is the real call to PadLock. */
-static inline void
-padlock_xcrypt_ecb(uint8_t *input, uint8_t *output, uint8_t *key,
-		   void *control_word, uint32_t count)
+static inline void padlock_xcrypt_ecb(const u8 *input, u8 *output, void *key,
+				      void *control_word, u32 count)
 {
 	asm volatile ("pushfl; popfl");		/* enforce key reload. */
 	asm volatile (".byte 0xf3,0x0f,0xa7,0xc8"	/* rep xcryptecb */
@@ -381,66 +401,26 @@ padlock_xcrypt_ecb(uint8_t *input, uint8_t *output, uint8_t *key,
 }
 
 static void
-aes_padlock(void *ctx_arg, uint8_t *out_arg, const uint8_t *in_arg, int encdec)
-{
-	/* Don't blindly modify this structure - the items must 
-	   fit on 16-Bytes boundaries! */
-	struct padlock_xcrypt_data {
-		uint8_t buf[AES_BLOCK_SIZE];
-		union cword cword;
-	};
-
-	struct aes_ctx *ctx = ctx_arg;
-	char bigbuf[sizeof(struct padlock_xcrypt_data) + 16];
-	struct padlock_xcrypt_data *data;
-	void *key;
-
-	/* Place 'data' at the first 16-Bytes aligned address in 'bigbuf'. */
-	if (((long)bigbuf) & 0x0F)
-		data = (void*)(bigbuf + 16 - ((long)bigbuf & 0x0F));
-	else
-		data = (void*)bigbuf;
-
-	/* Prepare Control word. */
-	memset (data, 0, sizeof(struct padlock_xcrypt_data));
-	data->cword.b.encdec = !encdec;	/* in the rest of cryptoapi ENC=1/DEC=0 */
-	data->cword.b.rounds = 10 + (ctx->key_length - 16) / 4;
-	data->cword.b.ksize = (ctx->key_length - 16) / 8;
-
-	/* Is the hardware capable to generate the extended key? */
-	if (!aes_hw_extkey_available(ctx->key_length))
-		data->cword.b.keygen = 1;
-
-	/* ctx->E starts with a plain key - if the hardware is capable
-	   to generate the extended key itself we must supply
-	   the plain key for both Encryption and Decryption. */
-	if (encdec == CRYPTO_DIR_ENCRYPT || data->cword.b.keygen == 0)
-		key = ctx->E;
-	else
-		key = ctx->D;
-	
-	memcpy(data->buf, in_arg, AES_BLOCK_SIZE);
-	padlock_xcrypt_ecb(data->buf, data->buf, key, &data->cword, 1);
-	memcpy(out_arg, data->buf, AES_BLOCK_SIZE);
-}
-
-static void
 aes_encrypt(void *ctx_arg, uint8_t *out, const uint8_t *in)
 {
-	aes_padlock(ctx_arg, out, in, CRYPTO_DIR_ENCRYPT);
+	struct aes_ctx *ctx = aes_ctx(ctx_arg);
+	padlock_xcrypt_ecb(in, out, ctx->E, &ctx->cword.encrypt, 1);
 }
 
 static void
 aes_decrypt(void *ctx_arg, uint8_t *out, const uint8_t *in)
 {
-	aes_padlock(ctx_arg, out, in, CRYPTO_DIR_DECRYPT);
+	struct aes_ctx *ctx = aes_ctx(ctx_arg);
+	padlock_xcrypt_ecb(in, out, ctx->D, &ctx->cword.decrypt, 1);
 }
 
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct aes_ctx),
+	.cra_ctxsize		=	sizeof(struct aes_ctx) +
+					PADLOCK_ALIGNMENT,
+	.cra_alignmask		=	PADLOCK_ALIGNMENT - 1,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(aes_alg.cra_list),
 	.cra_u			=	{
