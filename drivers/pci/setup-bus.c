@@ -74,6 +74,7 @@ pbus_assign_resources_sorted(struct pci_bus *bus)
 		idx = res - &list->dev->resource[0];
 		if (pci_assign_resource(list->dev, idx)) {
 			res->start = 0;
+			res->end = 0;
 			res->flags = 0;
 		}
 		tmp = list;
