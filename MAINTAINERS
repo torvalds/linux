@@ -2161,7 +2161,7 @@ UltraSPARC (sparc64):
 P:	David S. Miller
 M:	davem@davemloft.net
 P:	Eddie C. Dost
-M:	ecd@skynet.be
+M:	ecd@brainaid.de
 P:	Jakub Jelinek
 M:	jj@sunsite.ms.mff.cuni.cz
 P:	Anton Blanchard
