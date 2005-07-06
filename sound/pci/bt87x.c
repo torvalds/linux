@@ -798,6 +798,8 @@ static struct {
 	{0x270f, 0xfc00}, /* Chaintech Digitop DST-1000 DVB-S */
 };
 
+static struct pci_driver driver;
+
 /* return the rate of the card, or a negative value if it's blacklisted */
 static int __devinit snd_bt87x_detect_card(struct pci_dev *pci)
 {
