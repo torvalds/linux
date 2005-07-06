@@ -35,13 +35,22 @@ extern int qla2x00_initialize_adapter(scsi_qla_host_t *);
 
 extern int qla2100_pci_config(struct scsi_qla_host *);
 extern int qla2300_pci_config(struct scsi_qla_host *);
+extern int qla24xx_pci_config(scsi_qla_host_t *);
 extern void qla2x00_reset_chip(struct scsi_qla_host *);
+extern void qla24xx_reset_chip(struct scsi_qla_host *);
 extern int qla2x00_chip_diag(struct scsi_qla_host *);
+extern int qla24xx_chip_diag(struct scsi_qla_host *);
 extern void qla2x00_config_rings(struct scsi_qla_host *);
+extern void qla24xx_config_rings(struct scsi_qla_host *);
 extern void qla2x00_reset_adapter(struct scsi_qla_host *);
+extern void qla24xx_reset_adapter(struct scsi_qla_host *);
 extern int qla2x00_nvram_config(struct scsi_qla_host *);
+extern int qla24xx_nvram_config(struct scsi_qla_host *);
 extern void qla2x00_update_fw_options(struct scsi_qla_host *);
+extern void qla24xx_update_fw_options(scsi_qla_host_t *);
 extern int qla2x00_load_risc(struct scsi_qla_host *, uint32_t *);
+extern int qla24xx_load_risc_flash(scsi_qla_host_t *, uint32_t *);
+extern int qla24xx_load_risc_hotplug(scsi_qla_host_t *, uint32_t *);
 
 extern fc_port_t *qla2x00_alloc_fcport(scsi_qla_host_t *, int);
 

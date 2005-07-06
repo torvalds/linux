@@ -1175,6 +1175,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->isp_ops.reset_adapter	= qla2x00_reset_adapter;
 	ha->isp_ops.nvram_config	= qla2x00_nvram_config;
 	ha->isp_ops.update_fw_options	= qla2x00_update_fw_options;
+	ha->isp_ops.load_risc		= qla2x00_load_risc;
 	ha->isp_ops.pci_info_str	= qla2x00_pci_info_str;
 	ha->isp_ops.fw_version_str	= qla2x00_fw_version_str;
 	ha->isp_ops.intr_handler	= qla2100_intr_handler;
