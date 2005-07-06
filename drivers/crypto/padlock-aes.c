@@ -400,8 +400,8 @@ static inline void padlock_xcrypt_ecb(const u8 *input, u8 *output, void *key,
 		      : "d"(control_word), "b"(key), "c"(count));
 }
 
-static inline void padlock_xcrypt_cbc(const u8 *input, u8 *output, void *key,
-				      u8 *iv, void *control_word, u32 count)
+static inline u8 *padlock_xcrypt_cbc(const u8 *input, u8 *output, void *key,
+				     u8 *iv, void *control_word, u32 count)
 {
 	/* Enforce key reload. */
 	asm volatile ("pushfl; popfl");
@@ -409,6 +409,7 @@ static inline void padlock_xcrypt_cbc(const u8 *input, u8 *output, void *key,
 	asm volatile (".byte 0xf3,0x0f,0xa7,0xd0"
 		      : "+S" (input), "+D" (output), "+a" (iv)
 		      : "d" (control_word), "b" (key), "c" (count));
+	return iv;
 }
 
 static void
@@ -447,8 +448,12 @@ static unsigned int aes_encrypt_cbc(const struct cipher_desc *desc, u8 *out,
 				    const u8 *in, unsigned int nbytes)
 {
 	struct aes_ctx *ctx = aes_ctx(crypto_tfm_ctx(desc->tfm));
-	padlock_xcrypt_cbc(in, out, ctx->E, desc->info, &ctx->cword.encrypt,
-			   nbytes / AES_BLOCK_SIZE);
+	u8 *iv;
+
+	iv = padlock_xcrypt_cbc(in, out, ctx->E, desc->info,
+				&ctx->cword.encrypt, nbytes / AES_BLOCK_SIZE);
+	memcpy(desc->info, iv, AES_BLOCK_SIZE);
+
 	return nbytes & ~(AES_BLOCK_SIZE - 1);
 }
 
