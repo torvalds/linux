@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: dir.c,v 1.85 2005/03/01 10:34:03 dedekind Exp $
+ * $Id: dir.c,v 1.86 2005/07/06 12:13:09 dwmw2 Exp $
  *
  */
 
@@ -22,16 +22,6 @@
 #include <linux/time.h>
 #include "nodelist.h"
 
-/* Urgh. Please tell me there's a nicer way of doing these. */
-#include <linux/version.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,48)
-typedef int mknod_arg_t;
-#define NAMEI_COMPAT(x) ((void *)x)
-#else
-typedef dev_t mknod_arg_t;
-#define NAMEI_COMPAT(x) (x)
-#endif
-
 static int jffs2_readdir (struct file *, void *, filldir_t);
 
 static int jffs2_create (struct inode *,struct dentry *,int,
@@ -43,7 +33,7 @@ static int jffs2_unlink (struct inode *,struct dentry *);
 static int jffs2_symlink (struct inode *,struct dentry *,const char *);
 static int jffs2_mkdir (struct inode *,struct dentry *,int);
 static int jffs2_rmdir (struct inode *,struct dentry *);
-static int jffs2_mknod (struct inode *,struct dentry *,int,mknod_arg_t);
+static int jffs2_mknod (struct inode *,struct dentry *,int,dev_t);
 static int jffs2_rename (struct inode *, struct dentry *,
                         struct inode *, struct dentry *);
 
@@ -58,8 +48,8 @@ struct file_operations jffs2_dir_operations =
 
 struct inode_operations jffs2_dir_inode_operations =
 {
-	.create =	NAMEI_COMPAT(jffs2_create),
-	.lookup =	NAMEI_COMPAT(jffs2_lookup),
+	.create =	jffs2_create,
+	.lookup =	jffs2_lookup,
 	.link =		jffs2_link,
 	.unlink =	jffs2_unlink,
 	.symlink =	jffs2_symlink,
@@ -578,7 +568,7 @@ static int jffs2_rmdir (struct inode *dir_i, struct dentry *dentry)
 	return ret;
 }
 
-static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, mknod_arg_t rdev)
+static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, dev_t rdev)
 {
 	struct jffs2_inode_info *f, *dir_f;
 	struct jffs2_sb_info *c;

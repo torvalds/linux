@@ -7,11 +7,10 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: fs.c,v 1.53 2005/02/09 09:23:53 pavlov Exp $
+ * $Id: fs.c,v 1.56 2005/07/06 12:13:09 dwmw2 Exp $
  *
  */
 
-#include <linux/version.h>
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -526,9 +525,7 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root)
 		goto out_root_i;
 
-#if LINUX_VERSION_CODE >= 0x20403
 	sb->s_maxbytes = 0xFFFFFFFF;
-#endif
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = JFFS2_SUPER_MAGIC;
