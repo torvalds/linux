@@ -2094,7 +2094,8 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 		qla_printk(KERN_WARNING, ha,
 		    "Unable to allocate fc remote port!\n");
 
-	if (rport->scsi_target_id != -1 && rport->scsi_target_id < MAX_TARGETS)
+	if (rport->scsi_target_id != -1 &&
+	    rport->scsi_target_id < ha->host->max_id)
 		fcport->os_target_id = rport->scsi_target_id;
 
 	rport->dd_data = fcport;

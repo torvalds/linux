@@ -181,7 +181,7 @@
  */
 #define WWN_SIZE		8	/* Size of WWPN, WWN & WWNN */
 #define MAX_FIBRE_DEVICES	512
-#define MAX_FIBRE_LUNS  	256
+#define MAX_FIBRE_LUNS  	0xFFFF
 #define	MAX_RSCN_COUNT		32
 #define	MAX_HOST_COUNT		16
 
@@ -191,7 +191,6 @@
 #define MAX_BUSES		1  /* We only have one bus today */
 #define MAX_TARGETS_2100	MAX_FIBRE_DEVICES
 #define MAX_TARGETS_2200	MAX_FIBRE_DEVICES
-#define MAX_TARGETS		MAX_FIBRE_DEVICES
 #define MIN_LUNS		8
 #define MAX_LUNS		MAX_FIBRE_LUNS
 #define MAX_CMDS_PER_LUN	255
