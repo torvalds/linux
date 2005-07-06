@@ -917,7 +917,8 @@ static int irq_affinity_read_proc (char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
 	struct ino_bucket *bp = ivector_table + (long)data;
-	struct irqaction *ap = bp->irq_info;
+	struct irq_desc *desc = bp->irq_info;
+	struct irqaction *ap = desc->action;
 	cpumask_t mask;
 	int len;
 
@@ -935,11 +936,13 @@ static int irq_affinity_read_proc (char *page, char **start, off_t off,
 static inline void set_intr_affinity(int irq, cpumask_t hw_aff)
 {
 	struct ino_bucket *bp = ivector_table + irq;
+	struct irq_desc *desc = bp->irq_info;
+	struct irqaction *ap = desc->action;
 
 	/* Users specify affinity in terms of hw cpu ids.
 	 * As soon as we do this, handler_irq() might see and take action.
 	 */
-	put_smpaff_in_irqaction((struct irqaction *)bp->irq_info, hw_aff);
+	put_smpaff_in_irqaction(ap, hw_aff);
 
 	/* Migration is simply done by the next cpu to service this
 	 * interrupt.
