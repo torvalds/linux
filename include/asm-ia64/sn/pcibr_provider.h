@@ -108,10 +108,11 @@ struct pcibus_info {
 	char                    pbi_hub_xid;
 
 	uint64_t                pbi_devreg[8];
-	spinlock_t              pbi_lock;
 
 	uint32_t		pbi_valid_devices;
 	uint32_t		pbi_enabled_devices;
+
+	spinlock_t              pbi_lock;
 };
 
 /*
