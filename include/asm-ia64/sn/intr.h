@@ -9,6 +9,8 @@
 #ifndef _ASM_IA64_SN_INTR_H
 #define _ASM_IA64_SN_INTR_H
 
+#include <linux/rcupdate.h>
+
 #define SGI_UART_VECTOR		(0xe9)
 #define SGI_PCIBR_ERROR		(0x33)
 
@@ -33,7 +35,7 @@
 
 // The SN PROM irq struct
 struct sn_irq_info {
-	struct sn_irq_info *irq_next;	/* sharing irq list	     */
+	struct sn_irq_info *irq_next;	/* deprecated DO NOT USE     */
 	short		irq_nasid;	/* Nasid IRQ is assigned to  */
 	int		irq_slice;	/* slice IRQ is assigned to  */
 	int		irq_cpuid;	/* kernel logical cpuid	     */
@@ -47,6 +49,8 @@ struct sn_irq_info {
 	int		irq_cookie;	/* unique cookie 	     */
 	int		irq_flags;	/* flags */
 	int		irq_share_cnt;	/* num devices sharing IRQ   */
+	struct list_head	list;	/* list of sn_irq_info structs */
+	struct rcu_head		rcu;	/* rcu callback list */
 };
 
 extern void sn_send_IPI_phys(int, long, int, int);

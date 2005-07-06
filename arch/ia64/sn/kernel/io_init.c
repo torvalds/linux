@@ -21,7 +21,6 @@
 #include <asm/sn/simulator.h>
 #include <asm/sn/tioca_provider.h>
 
-char master_baseio_wid;
 nasid_t master_nasid = INVALID_NASID;	/* Partition Master */
 
 struct slab_info {
@@ -231,11 +230,13 @@ static void sn_pci_fixup_slot(struct pci_dev *dev)
 {
 	int idx;
 	int segment = 0;
-	uint64_t size;
-	struct sn_irq_info *sn_irq_info;
-	struct pci_dev *host_pci_dev;
 	int status = 0;
 	struct pcibus_bussoft *bs;
+ 	struct pci_bus *host_pci_bus;
+ 	struct pci_dev *host_pci_dev;
+ 	struct sn_irq_info *sn_irq_info;
+ 	unsigned long size;
+ 	unsigned int bus_no, devfn;
 
 	dev->sysdata = kmalloc(sizeof(struct pcidev_info), GFP_KERNEL);
 	if (SN_PCIDEV_INFO(dev) <= 0)
@@ -253,7 +254,7 @@ static void sn_pci_fixup_slot(struct pci_dev *dev)
 				     (u64) __pa(SN_PCIDEV_INFO(dev)),
 				     (u64) __pa(sn_irq_info));
 	if (status)
-		BUG();		/* Cannot get platform pci device information information */
+		BUG(); /* Cannot get platform pci device information */
 
 	/* Copy over PIO Mapped Addresses */
 	for (idx = 0; idx <= PCI_ROM_RESOURCE; idx++) {
@@ -275,15 +276,20 @@ static void sn_pci_fixup_slot(struct pci_dev *dev)
 			dev->resource[idx].parent = &iomem_resource;
 	}
 
-	/* set up host bus linkages */
-	bs = SN_PCIBUS_BUSSOFT(dev->bus);
-	host_pci_dev =
-	    pci_find_slot(SN_PCIDEV_INFO(dev)->pdi_slot_host_handle >> 32,
-			  SN_PCIDEV_INFO(dev)->
-			  pdi_slot_host_handle & 0xffffffff);
+ 	/* Using the PROMs values for the PCI host bus, get the Linux
+ 	 * PCI host_pci_dev struct and set up host bus linkages
+ 	 */
+
+ 	bus_no = SN_PCIDEV_INFO(dev)->pdi_slot_host_handle >> 32;
+ 	devfn = SN_PCIDEV_INFO(dev)->pdi_slot_host_handle & 0xffffffff;
+ 	host_pci_bus = pci_find_bus(pci_domain_nr(dev->bus), bus_no);
+ 	host_pci_dev = pci_get_slot(host_pci_bus, devfn);
+
+	SN_PCIDEV_INFO(dev)->host_pci_dev = host_pci_dev;
 	SN_PCIDEV_INFO(dev)->pdi_host_pcidev_info =
-	    SN_PCIDEV_INFO(host_pci_dev);
+	    					SN_PCIDEV_INFO(host_pci_dev);
 	SN_PCIDEV_INFO(dev)->pdi_linux_pcidev = dev;
+	bs = SN_PCIBUS_BUSSOFT(dev->bus);
 	SN_PCIDEV_INFO(dev)->pdi_pcibus_info = bs;
 
 	if (bs && bs->bs_asic_type < PCIIO_ASIC_MAX_TYPES) {
@@ -297,6 +303,9 @@ static void sn_pci_fixup_slot(struct pci_dev *dev)
 		SN_PCIDEV_INFO(dev)->pdi_sn_irq_info = sn_irq_info;
 		dev->irq = SN_PCIDEV_INFO(dev)->pdi_sn_irq_info->irq_irq;
 		sn_irq_fixup(dev, sn_irq_info);
+	} else {
+		SN_PCIDEV_INFO(dev)->pdi_sn_irq_info = NULL;
+		kfree(sn_irq_info);
 	}
 }
 
@@ -403,11 +412,7 @@ static int __init sn_pci_init(void)
 	 */
 	ia64_max_iommu_merge_mask = ~PAGE_MASK;
 	sn_fixup_ionodes();
-	sn_irq = kmalloc(sizeof(struct sn_irq_info *) * NR_IRQS, GFP_KERNEL);
-	if (sn_irq <= 0)
-		BUG();		/* Canno afford to run out of memory. */
-	memset(sn_irq, 0, sizeof(struct sn_irq_info *) * NR_IRQS);
-
+	sn_irq_lh_init();
 	sn_init_cpei_timer();
 
 #ifdef CONFIG_PROC_FS
