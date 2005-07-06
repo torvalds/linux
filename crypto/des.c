@@ -38,12 +38,10 @@
 #define ROR(d,c,o)	((d) = (d) >> (c) | (d) << (o))
 
 struct des_ctx {
-	u8 iv[DES_BLOCK_SIZE];
 	u32 expkey[DES_EXPKEY_WORDS];
 };
 
 struct des3_ede_ctx {
-	u8 iv[DES_BLOCK_SIZE];
 	u32 expkey[DES3_EDE_EXPKEY_WORDS];
 };
 
