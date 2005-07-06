@@ -13,6 +13,8 @@
  * any later version.
  *
  */
+
+#include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/errno.h>
@@ -189,8 +191,14 @@ out:
 
 void crypto_free_tfm(struct crypto_tfm *tfm)
 {
-	struct crypto_alg *alg = tfm->__crt_alg;
-	int size = sizeof(*tfm) + alg->cra_ctxsize;
+	struct crypto_alg *alg;
+	int size;
+
+	if (unlikely(!tfm))
+		return;
+
+	alg = tfm->__crt_alg;
+	size = sizeof(*tfm) + alg->cra_ctxsize;
 
 	crypto_exit_ops(tfm);
 	crypto_alg_put(alg);
