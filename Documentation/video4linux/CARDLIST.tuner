@@ -59,3 +59,6 @@ tuner=57 - Philips FQ1236A MK4
 tuner=58 - Ymec TVision TVF-8531MF
 tuner=59 - Ymec TVision TVF-5533MF
 tuner=60 - Thomson DDT 7611 (ATSC/NTSC)
+tuner=61 - Tena TNF9533-D/IF
+tuner=62 - Philips TEA5767HN FM Radio
+tuner=63 - Philips FMD1216ME MK3 Hybrid Tuner

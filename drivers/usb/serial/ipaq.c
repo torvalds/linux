@@ -818,11 +818,6 @@ static void ipaq_write_gather(struct usb_serial_port *port)
 	struct ipaq_packet	*pkt, *tmp;
 	struct urb		*urb = port->write_urb;
 
-	if (urb->status == -EINPROGRESS) {
-		/* Should never happen */
-		err("%s - flushing while urb is active !", __FUNCTION__);
-		return;
-	}
 	room = URBDATA_SIZE;
 	list_for_each_entry_safe(pkt, tmp, &priv->queue, list) {
 		count = min(room, (int)(pkt->len - pkt->written));

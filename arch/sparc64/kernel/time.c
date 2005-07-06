@@ -973,7 +973,7 @@ static void sparc64_start_timers(irqreturn_t (*cfunc)(int, void *, struct pt_reg
 	int err;
 
 	/* Register IRQ handler. */
-	err = request_irq(build_irq(0, 0, 0UL, 0UL), cfunc, SA_STATIC_ALLOC,
+	err = request_irq(build_irq(0, 0, 0UL, 0UL), cfunc, 0,
 			  "timer", NULL);
 
 	if (err) {

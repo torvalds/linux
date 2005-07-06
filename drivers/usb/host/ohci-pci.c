@@ -14,14 +14,11 @@
  * This file is licenced under the GPL.
  */
  
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/pci-bridge.h>
 #include <asm/prom.h>
-#ifndef CONFIG_PM
-#	define CONFIG_PM
-#endif
 #endif
 
 #ifndef CONFIG_PCI
@@ -132,7 +129,7 @@ static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 	/* let things settle down a bit */
 	msleep (100);
 	
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PPC_PMAC
 	if (_machine == _MACH_Pmac) {
 	   	struct device_node	*of_node;
  
@@ -141,7 +138,7 @@ static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 		if (of_node)
 			pmac_call_feature(PMAC_FTR_USB_ENABLE, of_node, 0, 0);
 	}
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PPC_PMAC */
 	return 0;
 }
 
@@ -151,7 +148,7 @@ static int ohci_pci_resume (struct usb_hcd *hcd)
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	int			retval = 0;
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PPC_PMAC
 	if (_machine == _MACH_Pmac) {
 		struct device_node *of_node;
 
@@ -160,7 +157,7 @@ static int ohci_pci_resume (struct usb_hcd *hcd)
 		if (of_node)
 			pmac_call_feature (PMAC_FTR_USB_ENABLE, of_node, 0, 1);
 	}
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PPC_PMAC */
 
 	/* resume root hub */
 	if (time_before (jiffies, ohci->next_statechange))

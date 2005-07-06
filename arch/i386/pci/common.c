@@ -25,7 +25,8 @@ unsigned int pci_probe = PCI_PROBE_BIOS | PCI_PROBE_CONF1 | PCI_PROBE_CONF2 |
 
 int pci_routeirq;
 int pcibios_last_bus = -1;
-struct pci_bus *pci_root_bus = NULL;
+unsigned long pirq_table_addr;
+struct pci_bus *pci_root_bus;
 struct pci_raw_ops *raw_pci_ops;
 
 static int pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *value)
@@ -133,7 +134,7 @@ struct pci_bus * __devinit pcibios_scan_root(int busnum)
 
 	printk("PCI: Probing PCI hardware (bus %02x)\n", busnum);
 
-	return pci_scan_bus(busnum, &pci_root_ops, NULL);
+	return pci_scan_bus_parented(NULL, busnum, &pci_root_ops, NULL);
 }
 
 extern u8 pci_cache_line_size;
@@ -164,6 +165,7 @@ static int __init pcibios_init(void)
 	if ((pci_probe & PCI_BIOS_SORT) && !(pci_probe & PCI_NO_SORT))
 		pcibios_sort();
 #endif
+	pci_assign_unassigned_resources();
 	return 0;
 }
 
@@ -187,6 +189,9 @@ char * __devinit  pcibios_setup(char *str)
 		return NULL;
 	} else if (!strcmp(str, "biosirq")) {
 		pci_probe |= PCI_BIOS_IRQ_SCAN;
+		return NULL;
+	} else if (!strncmp(str, "pirqaddr=", 9)) {
+		pirq_table_addr = simple_strtoul(str+9, NULL, 0);
 		return NULL;
 	}
 #endif

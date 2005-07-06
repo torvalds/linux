@@ -54,16 +54,23 @@ struct as_io_context {
 
 struct cfq_queue;
 struct cfq_io_context {
-	void (*dtor)(struct cfq_io_context *);
-	void (*exit)(struct cfq_io_context *);
-
-	struct io_context *ioc;
-
 	/*
 	 * circular list of cfq_io_contexts belonging to a process io context
 	 */
 	struct list_head list;
 	struct cfq_queue *cfqq;
+	void *key;
+
+	struct io_context *ioc;
+
+	unsigned long last_end_request;
+	unsigned long last_queue;
+	unsigned long ttime_total;
+	unsigned long ttime_samples;
+	unsigned long ttime_mean;
+
+	void (*dtor)(struct cfq_io_context *);
+	void (*exit)(struct cfq_io_context *);
 };
 
 /*
@@ -73,7 +80,9 @@ struct cfq_io_context {
  */
 struct io_context {
 	atomic_t refcount;
-	pid_t pid;
+	struct task_struct *task;
+
+	int (*set_ioprio)(struct io_context *, unsigned int);
 
 	/*
 	 * For request batching
@@ -81,14 +90,13 @@ struct io_context {
 	unsigned long last_waited; /* Time last woken after wait for request */
 	int nr_batch_requests;     /* Number of requests left in the batch */
 
-	spinlock_t lock;
-
 	struct as_io_context *aic;
 	struct cfq_io_context *cic;
 };
 
 void put_io_context(struct io_context *ioc);
 void exit_io_context(void);
+struct io_context *current_io_context(int gfp_flags);
 struct io_context *get_io_context(int gfp_flags);
 void copy_io_context(struct io_context **pdst, struct io_context **psrc);
 void swap_io_context(struct io_context **ioc1, struct io_context **ioc2);
@@ -133,6 +141,8 @@ struct request {
 	struct bio *biotail;
 
 	void *elevator_private;
+
+	unsigned short ioprio;
 
 	int rq_status;	/* should split this into a few status bits */
 	struct gendisk *rq_disk;

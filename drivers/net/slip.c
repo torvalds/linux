@@ -74,6 +74,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/if_arp.h>
 #include <linux/if_slip.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include "slip.h"
 #ifdef CONFIG_INET
@@ -1383,10 +1384,8 @@ static void __exit slip_exit(void)
 	/* First of all: check for active disciplines and hangup them.
 	 */
 	do {
-		if (busy) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ / 10);
-		}
+		if (busy)
+			msleep_interruptible(100);
 
 		busy = 0;
 		for (i = 0; i < slip_maxdev; i++) {

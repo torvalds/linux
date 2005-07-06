@@ -206,7 +206,7 @@ via_calibrate_decr(void)
 	return 1;
 }
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /*
  * Reset the time after a sleep.
  */
@@ -238,7 +238,7 @@ time_sleep_notify(struct pmu_sleep_notifier *self, int when)
 static struct pmu_sleep_notifier time_sleep_notifier __pmacdata = {
 	time_sleep_notify, SLEEP_LEVEL_MISC,
 };
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 /*
  * Query the OF and get the decr frequency.
@@ -251,9 +251,9 @@ pmac_calibrate_decr(void)
 	struct device_node *cpu;
 	unsigned int freq, *fp;
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	pmu_register_sleep_notifier(&time_sleep_notifier);
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 	/* We assume MacRISC2 machines have correct device-tree
 	 * calibration. That's better since the VIA itself seems

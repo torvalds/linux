@@ -807,6 +807,13 @@ static int dtl1_event(event_t event, int priority, event_callback_args_t *args)
 	return 0;
 }
 
+static struct pcmcia_device_id dtl1_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("Nokia Mobile Phones", "DTL-1", 0xe1bfdd64, 0xe168480d),
+	PCMCIA_DEVICE_PROD_ID12("Socket", "CF", 0xb38bcc2e, 0x44ebf863),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, dtl1_ids);
+
 static struct pcmcia_driver dtl1_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
@@ -814,6 +821,7 @@ static struct pcmcia_driver dtl1_driver = {
 	},
 	.attach		= dtl1_attach,
 	.detach		= dtl1_detach,
+	.id_table	= dtl1_ids,
 };
 
 static int __init init_dtl1_cs(void)

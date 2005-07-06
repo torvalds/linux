@@ -551,6 +551,16 @@ config MTD_PCMCIA
 	  cards are usually around 4-16MiB in size. This does not include
 	  Compact Flash cards which are treated as IDE devices.
 
+config MTD_PCMCIA_ANONYMOUS
+	bool "Use PCMCIA MTD drivers for anonymous PCMCIA cards"
+	depends on MTD_PCMCIA
+	default N
+	help
+	  If this option is enabled, PCMCIA cards which do not report
+	  anything about themselves are assumed to be MTD cards.
+
+	  If unsure, say N.
+
 config MTD_UCLINUX
 	tristate "Generic uClinux RAM/ROM filesystem support"
 	depends on MTD_PARTITIONS && !MMU

@@ -132,7 +132,7 @@ config XTENSA_CPU_CLOCK
 config GENERIC_CALIBRATE_DELAY
 	bool "Auto calibration of the BogoMIPS value"
 	---help---
-	  The BogoMIPS value can easily derived from the CPU frequency.
+	  The BogoMIPS value can easily be derived from the CPU frequency.
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
@@ -157,6 +157,8 @@ config XTENSA_ISS_NETWORK
 	bool
 	depends on XTENSA_PLATFORM_ISS
 	default y
+
+source "mm/Kconfig"
 
 endmenu
 

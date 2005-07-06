@@ -78,7 +78,7 @@ int tulip_refill_rx(struct net_device *dev)
 			if (skb == NULL)
 				break;
 
-			mapping = pci_map_single(tp->pdev, skb->tail, PKT_BUF_SZ,
+			mapping = pci_map_single(tp->pdev, skb->data, PKT_BUF_SZ,
 						 PCI_DMA_FROMDEVICE);
 			tp->rx_buffers[entry].mapping = mapping;
 
@@ -199,12 +199,12 @@ int tulip_poll(struct net_device *dev, int *budget)
 								   tp->rx_buffers[entry].mapping,
 								   pkt_len, PCI_DMA_FROMDEVICE);
 #if ! defined(__alpha__)
-                                       eth_copy_and_sum(skb, tp->rx_buffers[entry].skb->tail,
+                                       eth_copy_and_sum(skb, tp->rx_buffers[entry].skb->data,
                                                         pkt_len, 0);
                                        skb_put(skb, pkt_len);
 #else
                                        memcpy(skb_put(skb, pkt_len),
-                                              tp->rx_buffers[entry].skb->tail,
+                                              tp->rx_buffers[entry].skb->data,
                                               pkt_len);
 #endif
                                        pci_dma_sync_single_for_device(tp->pdev,
@@ -423,12 +423,12 @@ static int tulip_rx(struct net_device *dev)
 							    tp->rx_buffers[entry].mapping,
 							    pkt_len, PCI_DMA_FROMDEVICE);
 #if ! defined(__alpha__)
-				eth_copy_and_sum(skb, tp->rx_buffers[entry].skb->tail,
+				eth_copy_and_sum(skb, tp->rx_buffers[entry].skb->data,
 						 pkt_len, 0);
 				skb_put(skb, pkt_len);
 #else
 				memcpy(skb_put(skb, pkt_len),
-				       tp->rx_buffers[entry].skb->tail,
+				       tp->rx_buffers[entry].skb->data,
 				       pkt_len);
 #endif
 				pci_dma_sync_single_for_device(tp->pdev,

@@ -486,12 +486,13 @@ struct request *elv_former_request(request_queue_t *q, struct request *rq)
 	return NULL;
 }
 
-int elv_set_request(request_queue_t *q, struct request *rq, int gfp_mask)
+int elv_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
+		    int gfp_mask)
 {
 	elevator_t *e = q->elevator;
 
 	if (e->ops->elevator_set_req_fn)
-		return e->ops->elevator_set_req_fn(q, rq, gfp_mask);
+		return e->ops->elevator_set_req_fn(q, rq, bio, gfp_mask);
 
 	rq->elevator_private = NULL;
 	return 0;
@@ -505,12 +506,12 @@ void elv_put_request(request_queue_t *q, struct request *rq)
 		e->ops->elevator_put_req_fn(q, rq);
 }
 
-int elv_may_queue(request_queue_t *q, int rw)
+int elv_may_queue(request_queue_t *q, int rw, struct bio *bio)
 {
 	elevator_t *e = q->elevator;
 
 	if (e->ops->elevator_may_queue_fn)
-		return e->ops->elevator_may_queue_fn(q, rw);
+		return e->ops->elevator_may_queue_fn(q, rw, bio);
 
 	return ELV_MQUEUE_MAY;
 }

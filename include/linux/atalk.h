@@ -1,6 +1,8 @@
 #ifndef __LINUX_ATALK_H__
 #define __LINUX_ATALK_H__
 
+#include <asm/byteorder.h>
+
 /*
  * AppleTalk networking structures
  *

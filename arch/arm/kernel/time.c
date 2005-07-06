@@ -424,15 +424,19 @@ static int timer_dyn_tick_disable(void)
 	return ret;
 }
 
+/*
+ * Reprogram the system timer for at least the calculated time interval.
+ * This function should be called from the idle thread with IRQs disabled,
+ * immediately before sleeping.
+ */
 void timer_dyn_reprogram(void)
 {
 	struct dyn_tick_timer *dyn_tick = system_timer->dyn_tick;
-	unsigned long flags;
 
-	write_seqlock_irqsave(&xtime_lock, flags);
+	write_seqlock(&xtime_lock);
 	if (dyn_tick->state & DYN_TICK_ENABLED)
 		dyn_tick->reprogram(next_timer_interrupt() - jiffies);
-	write_sequnlock_irqrestore(&xtime_lock, flags);
+	write_sequnlock(&xtime_lock);
 }
 
 static ssize_t timer_show_dyn_tick(struct sys_device *dev, char *buf)

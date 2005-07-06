@@ -48,8 +48,9 @@ start_to_zero:
 #endif
 to_zero:
 	ldstub	[%o1], %g3
+	membar	#StoreLoad | #StoreStore
 	brnz,pn	%g3, spin_on_lock
-	 membar	#StoreLoad | #StoreStore
+	 nop
 loop2:	cas	[%o0], %g2, %g7		/* ASSERT(g7 == 0) */
 	cmp	%g2, %g7
 
@@ -71,8 +72,9 @@ loop2:	cas	[%o0], %g2, %g7		/* ASSERT(g7 == 0) */
 	 nop
 spin_on_lock:
 	ldub	[%o1], %g3
+	membar	#LoadLoad
 	brnz,pt	%g3, spin_on_lock
-	 membar	#LoadLoad
+	 nop
 	ba,pt	%xcc, to_zero
 	 nop
 	nop

@@ -380,10 +380,12 @@ static void __init h3100_map_io(void)
 }
 
 MACHINE_START(H3100, "Compaq iPAQ H3100")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xf8000000)
-	BOOT_PARAMS(0xc0000100)
-	MAPIO(h3100_map_io)
-	INITIRQ(sa1100_init_irq)
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.map_io		= h3100_map_io,
+	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= h3xxx_mach_init,
 MACHINE_END
@@ -496,10 +498,12 @@ static void __init h3600_map_io(void)
 }
 
 MACHINE_START(H3600, "Compaq iPAQ H3600")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xf8000000)
-	BOOT_PARAMS(0xc0000100)
-	MAPIO(h3600_map_io)
-	INITIRQ(sa1100_init_irq)
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.map_io		= h3600_map_io,
+	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= h3xxx_mach_init,
 MACHINE_END
@@ -727,7 +731,7 @@ static void h3800_IRQ_demux(unsigned int irq, struct irqdesc *desc, struct pt_re
 static struct irqaction h3800_irq = {
 	.name		= "h3800_asic",
 	.handler	= h3800_IRQ_demux,
-	.flags		= SA_INTERRUPT,
+	.flags		= SA_INTERRUPT | SA_TIMER,
 };
 
 u32 kpio_int_shadow = 0;
@@ -881,10 +885,12 @@ static void __init h3800_map_io(void)
 }
 
 MACHINE_START(H3800, "Compaq iPAQ H3800")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xf8000000)
-	BOOT_PARAMS(0xc0000100)
-	MAPIO(h3800_map_io)
-	INITIRQ(h3800_init_irq)
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.map_io		= h3800_map_io,
+	.init_irq	= h3800_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= h3xxx_mach_init,
 MACHINE_END

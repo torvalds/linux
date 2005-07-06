@@ -177,12 +177,7 @@ struct net_device * __init es_probe(int unit)
 	err = do_es_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -310,6 +305,10 @@ static int __init es_probe1(struct net_device *dev, int ioaddr)
 	dev->poll_controller = ei_poll;
 #endif
 	NS8390_init(dev, 0);
+
+	retval = register_netdev(dev);
+	if (retval)
+		goto out1;
 	return 0;
 out1:
 	free_irq(dev->irq, dev);
@@ -445,11 +444,8 @@ init_module(void)
 		dev->base_addr = io[this_dev];
 		dev->mem_start = mem[this_dev];
 		if (do_es_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_es3210[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_es3210[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		printk(KERN_WARNING "es3210.c: No es3210 card found (i/o = 0x%x).\n", io[this_dev]);

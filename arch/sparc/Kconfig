@@ -270,65 +270,9 @@ endmenu
 
 source "drivers/Kconfig"
 
-config PRINTER
-	tristate "Parallel printer support"
-	depends on PARPORT
-	---help---
-	  If you intend to attach a printer to the parallel port of your Linux
-	  box (as opposed to using a serial printer; if the connector at the
-	  printer has 9 or 25 holes ["female"], then it's serial), say Y.
-	  Also read the Printing-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  It is possible to share one parallel port among several devices
-	  (e.g. printer and ZIP drive) and it is safe to compile the
-	  corresponding drivers into the kernel.  If you want to compile this
-	  driver as a module however, choose M here and read
-	  <file:Documentation/parport.txt>.  The module will be called lp.
-
-	  If you have several parallel ports, you can specify which ports to
-	  use with the "lp" kernel command line option.  (Try "man bootparam"
-	  or see the documentation of your boot loader (silo) about how to pass
-	  options to the kernel at boot time.)  The syntax of the "lp" command
-	  line option can be found in <file:drivers/char/lp.c>.
-
-	  If you have more than 8 printers, you need to increase the LP_NO
-	  macro in lp.c and the PARPORT_MAX macro in parport.h.
-
-source "mm/Kconfig"
-
-endmenu
-
-source "drivers/base/Kconfig"
-
-source "drivers/video/Kconfig"
-
-source "drivers/mtd/Kconfig"
-
-source "drivers/serial/Kconfig"
-
 if !SUN4
 source "drivers/sbus/char/Kconfig"
 endif
-
-source "drivers/block/Kconfig"
-
-# Don't frighten a common SBus user
-if PCI
-
-source "drivers/ide/Kconfig"
-
-endif
-
-source "drivers/isdn/Kconfig"
-
-source "drivers/scsi/Kconfig"
-
-source "drivers/fc4/Kconfig"
-
-source "drivers/md/Kconfig"
-
-source "net/Kconfig"
 
 # This one must be before the filesystem configs. -DaveM
 

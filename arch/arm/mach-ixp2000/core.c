@@ -103,6 +103,11 @@ static struct map_desc ixp2000_io_desc[] __initdata = {
 		.length		= IXP2000_PCI_CSR_SIZE,
 		.type		= MT_DEVICE
 	}, {
+		.virtual	= IXP2000_MSF_VIRT_BASE,
+		.physical	= IXP2000_MSF_PHYS_BASE,
+		.length		= IXP2000_MSF_SIZE,
+		.type		= MT_DEVICE
+	}, {
 		.virtual	= IXP2000_PCI_IO_VIRT_BASE,
 		.physical	= IXP2000_PCI_IO_PHYS_BASE,
 		.length		= IXP2000_PCI_IO_SIZE,
@@ -194,8 +199,8 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction ixp2000_timer_irq = {
 	.name		= "IXP2000 Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= ixp2000_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= ixp2000_timer_interrupt,
 };
 
 void __init ixp2000_init_time(unsigned long tick_rate)

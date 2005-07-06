@@ -1117,30 +1117,6 @@ void mac_clear_multicast(struct s_smc *smc)
 /*
 	BEGIN_MANUAL_ENTRY(if,func;others;2)
 
-	int mac_set_func_addr(smc,f_addr)
-	struct s_smc *smc ;
-	u_long f_addr ;
-
-Function	DOWNCALL	(SMT, fplustm.c)
-		Set a Token-Ring functional address, the address will
-		be activated after calling mac_update_multicast()
-
-Para	f_addr	functional bits in non-canonical format
-
-Returns	0: always success
-
-	END_MANUAL_ENTRY()
- */
-int mac_set_func_addr(struct s_smc *smc, u_long f_addr)
-{
-	smc->hw.fp.func_addr = f_addr ;
-	return(0) ;
-}
-
-
-/*
-	BEGIN_MANUAL_ENTRY(if,func;others;2)
-
 	int mac_add_multicast(smc,addr,can)
 	struct s_smc *smc ;
 	struct fddi_addr *addr ;
@@ -1200,52 +1176,6 @@ int mac_add_multicast(struct s_smc *smc, struct fddi_addr *addr, int can)
 		smc->hw.fp.os_slots_used++ ;
 
 	return(0) ;
-}
-
-/*
-	BEGIN_MANUAL_ENTRY(if,func;others;2)
-
-	void mac_del_multicast(smc,addr,can)
-	struct s_smc *smc ;
-	struct fddi_addr *addr ;
-	int can ;
-
-Function	DOWNCALL	(SMT, fplustm.c)
-		Delete an entry from the multicast table
-
-Para	addr	pointer to a multicast address
-	can	= 0:	the multicast address has the physical format
-		= 1:	the multicast address has the canonical format
-		| 0x80	permanent
-
-	END_MANUAL_ENTRY()
- */
-void mac_del_multicast(struct s_smc *smc, struct fddi_addr *addr, int can)
-{
-	SK_LOC_DECL(struct fddi_addr,own) ;
-	struct s_fpmc	*tb ;
-
-	if (!(tb = mac_get_mc_table(smc,addr,&own,1,can & ~0x80)))
-		return ;
-	/*
-	 * permanent addresses must be deleted with perm bit
-	 * and vice versa
-	 */
-	if (( tb->perm &&  (can & 0x80)) ||
-	    (!tb->perm && !(can & 0x80))) {
-		/*
-		 * delete it
-		 */
-		if (tb->n) {
-			tb->n-- ;
-			if (tb->perm) {
-				smc->hw.fp.smt_slots_used-- ;
-			}
-			else {
-				smc->hw.fp.os_slots_used-- ;
-			}
-		}
-	}
 }
 
 /*

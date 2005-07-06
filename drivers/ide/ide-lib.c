@@ -487,8 +487,7 @@ static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
 	u8 err = 0;
 
 	local_irq_set(flags);
-	printk("%s: %s: status=0x%02x", drive->name, msg, stat);
-	printk(" { ");
+	printk("%s: %s: status=0x%02x { ", drive->name, msg, stat);
 	if (stat & BUSY_STAT)
 		printk("Busy ");
 	else {
@@ -500,15 +499,13 @@ static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
 		if (stat & INDEX_STAT)	printk("Index ");
 		if (stat & ERR_STAT)	printk("Error ");
 	}
-	printk("}");
-	printk("\n");
+	printk("}\n");
 	if ((stat & (BUSY_STAT|ERR_STAT)) == ERR_STAT) {
 		err = hwif->INB(IDE_ERROR_REG);
-		printk("%s: %s: error=0x%02x", drive->name, msg, err);
-		printk(" { ");
+		printk("%s: %s: error=0x%02x { ", drive->name, msg, err);
 		if (err & ABRT_ERR)	printk("DriveStatusError ");
 		if (err & ICRC_ERR)
-			printk("Bad%s ", (err & ABRT_ERR) ? "CRC" : "Sector");
+			printk((err & ABRT_ERR) ? "BadCRC " : "BadSector ");
 		if (err & ECC_ERR)	printk("UncorrectableError ");
 		if (err & ID_ERR)	printk("SectorIdNotFound ");
 		if (err & TRK0_ERR)	printk("TrackZeroNotFound ");
@@ -546,8 +543,8 @@ static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
 				printk(", sector=%llu",
 					(unsigned long long)HWGROUP(drive)->rq->sector);
 		}
+		printk("\n");
 	}
-	printk("\n");
 	ide_dump_opcode(drive);
 	local_irq_restore(flags);
 	return err;

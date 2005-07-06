@@ -470,18 +470,6 @@ ENTRY(load_switch_stack)
 	br.cond.sptk.many b7
 END(load_switch_stack)
 
-GLOBAL_ENTRY(__ia64_syscall)
-	.regstk 6,0,0,0
-	mov r15=in5				// put syscall number in place
-	break __BREAK_SYSCALL
-	movl r2=errno
-	cmp.eq p6,p7=-1,r10
-	;;
-(p6)	st4 [r2]=r8
-(p6)	mov r8=-1
-	br.ret.sptk.many rp
-END(__ia64_syscall)
-
 GLOBAL_ENTRY(execve)
 	mov r15=__NR_execve			// put syscall number in place
 	break __BREAK_SYSCALL
@@ -637,7 +625,7 @@ END(ia64_ret_from_syscall)
  *	      r8-r11: restored (syscall return value(s))
  *		 r12: restored (user-level stack pointer)
  *		 r13: restored (user-level thread pointer)
- *		 r14: cleared
+ *		 r14: set to __kernel_syscall_via_epc
  *		 r15: restored (syscall #)
  *	     r16-r17: cleared
  *		 r18: user-level b6
@@ -658,7 +646,7 @@ END(ia64_ret_from_syscall)
  *		  pr: restored (user-level pr)
  *		  b0: restored (user-level rp)
  *	          b6: restored
- *		  b7: cleared
+ *		  b7: set to __kernel_syscall_via_epc
  *	     ar.unat: restored (user-level ar.unat)
  *	      ar.pfs: restored (user-level ar.pfs)
  *	      ar.rsc: restored (user-level ar.rsc)
@@ -704,72 +692,79 @@ ENTRY(ia64_leave_syscall)
 	;;
 (p6)	ld4 r31=[r18]				// load current_thread_info()->flags
 	ld8 r19=[r2],PT(B6)-PT(LOADRS)		// load ar.rsc value for "loadrs"
-	mov b7=r0		// clear b7
+	nop.i 0
 	;;
-	ld8 r23=[r3],PT(R11)-PT(AR_BSPSTORE)	// load ar.bspstore (may be garbage)
+	mov r16=ar.bsp				// M2  get existing backing store pointer
 	ld8 r18=[r2],PT(R9)-PT(B6)		// load b6
 (p6)	and r15=TIF_WORK_MASK,r31		// any work other than TIF_SYSCALL_TRACE?
 	;;
-	mov r16=ar.bsp				// M2  get existing backing store pointer
+	ld8 r23=[r3],PT(R11)-PT(AR_BSPSTORE)	// load ar.bspstore (may be garbage)
 (p6)	cmp4.ne.unc p6,p0=r15, r0		// any special work pending?
 (p6)	br.cond.spnt .work_pending_syscall
 	;;
 	// start restoring the state saved on the kernel stack (struct pt_regs):
 	ld8 r9=[r2],PT(CR_IPSR)-PT(R9)
 	ld8 r11=[r3],PT(CR_IIP)-PT(R11)
-	mov f6=f0		// clear f6
+(pNonSys) break 0		//      bug check: we shouldn't be here if pNonSys is TRUE!
 	;;
 	invala			// M0|1 invalidate ALAT
-	rsm psr.i | psr.ic	// M2 initiate turning off of interrupt and interruption collection
-	mov f9=f0		// clear f9
+	rsm psr.i | psr.ic	// M2   turn off interrupts and interruption collection
+	cmp.eq p9,p0=r0,r0	// A    set p9 to indicate that we should restore cr.ifs
 
-	ld8 r29=[r2],16		// load cr.ipsr
-	ld8 r28=[r3],16			// load cr.iip
-	mov f8=f0		// clear f8
+	ld8 r29=[r2],16		// M0|1 load cr.ipsr
+	ld8 r28=[r3],16		// M0|1 load cr.iip
+	mov r22=r0		// A    clear r22
 	;;
 	ld8 r30=[r2],16		// M0|1 load cr.ifs
 	ld8 r25=[r3],16		// M0|1 load ar.unat
-	cmp.eq p9,p0=r0,r0	// set p9 to indicate that we should restore cr.ifs
-	;;
-	ld8 r26=[r2],PT(B0)-PT(AR_PFS)	// M0|1 load ar.pfs
-(pKStk)	mov r22=psr		// M2 read PSR now that interrupts are disabled
-	mov f10=f0		// clear f10
-	;;
-	ld8 r21=[r2],PT(AR_RNAT)-PT(B0) // load b0
-	ld8 r27=[r3],PT(PR)-PT(AR_RSC)	// load ar.rsc
-	mov f11=f0		// clear f11
-	;;
-	ld8 r24=[r2],PT(AR_FPSR)-PT(AR_RNAT)	// load ar.rnat (may be garbage)
-	ld8 r31=[r3],PT(R1)-PT(PR)		// load predicates
 (pUStk) add r14=IA64_TASK_THREAD_ON_USTACK_OFFSET,r13
 	;;
-	ld8 r20=[r2],PT(R12)-PT(AR_FPSR)	// load ar.fpsr
-	ld8.fill r1=[r3],16	// load r1
-(pUStk) mov r17=1
+	ld8 r26=[r2],PT(B0)-PT(AR_PFS)	// M0|1 load ar.pfs
+(pKStk)	mov r22=psr			// M2   read PSR now that interrupts are disabled
+	nop 0
 	;;
-	srlz.d			// M0  ensure interruption collection is off
-	ld8.fill r13=[r3],16
-	mov f7=f0		// clear f7
+	ld8 r21=[r2],PT(AR_RNAT)-PT(B0) // M0|1 load b0
+	ld8 r27=[r3],PT(PR)-PT(AR_RSC)	// M0|1 load ar.rsc
+	mov f6=f0			// F    clear f6
 	;;
-	ld8.fill r12=[r2]	// restore r12 (sp)
-	mov.m ar.ssd=r0		// M2 clear ar.ssd
-	mov r22=r0		// clear r22
+	ld8 r24=[r2],PT(AR_FPSR)-PT(AR_RNAT)	// M0|1 load ar.rnat (may be garbage)
+	ld8 r31=[r3],PT(R1)-PT(PR)		// M0|1 load predicates
+	mov f7=f0				// F    clear f7
+	;;
+	ld8 r20=[r2],PT(R12)-PT(AR_FPSR)	// M0|1 load ar.fpsr
+	ld8.fill r1=[r3],16			// M0|1 load r1
+(pUStk) mov r17=1				// A
+	;;
+(pUStk) st1 [r14]=r17				// M2|3
+	ld8.fill r13=[r3],16			// M0|1
+	mov f8=f0				// F    clear f8
+	;;
+	ld8.fill r12=[r2]			// M0|1 restore r12 (sp)
+	ld8.fill r15=[r3]			// M0|1 restore r15
+	mov b6=r18				// I0   restore b6
 
-	ld8.fill r15=[r3]	// restore r15
-(pUStk) st1 [r14]=r17
-	addl r3=THIS_CPU(ia64_phys_stacked_size_p8),r0
-	;;
-(pUStk)	ld4 r17=[r3]		// r17 = cpu_data->phys_stacked_size_p8
-	mov.m ar.csd=r0		// M2 clear ar.csd
-	mov b6=r18		// I0  restore b6
-	;;
-	mov r14=r0		// clear r14
-	shr.u r18=r19,16	// I0|1 get byte size of existing "dirty" partition
-(pKStk) br.cond.dpnt.many skip_rbs_switch
+	addl r17=THIS_CPU(ia64_phys_stacked_size_p8),r0 // A
+	mov f9=f0					// F    clear f9
+(pKStk) br.cond.dpnt.many skip_rbs_switch		// B
 
-	mov.m ar.ccv=r0		// clear ar.ccv
-(pNonSys) br.cond.dpnt.many dont_preserve_current_frame
-	br.cond.sptk.many rbs_switch
+	srlz.d				// M0   ensure interruption collection is off (for cover)
+	shr.u r18=r19,16		// I0|1 get byte size of existing "dirty" partition
+	cover				// B    add current frame into dirty partition & set cr.ifs
+	;;
+(pUStk) ld4 r17=[r17]			// M0|1 r17 = cpu_data->phys_stacked_size_p8
+	mov r19=ar.bsp			// M2   get new backing store pointer
+	mov f10=f0			// F    clear f10
+
+	nop.m 0
+	movl r14=__kernel_syscall_via_epc // X
+	;;
+	mov.m ar.csd=r0			// M2   clear ar.csd
+	mov.m ar.ccv=r0			// M2   clear ar.ccv
+	mov b7=r14			// I0   clear b7 (hint with __kernel_syscall_via_epc)
+
+	mov.m ar.ssd=r0			// M2   clear ar.ssd
+	mov f11=f0			// F    clear f11
+	br.cond.sptk.many rbs_switch	// B
 END(ia64_leave_syscall)
 
 #ifdef CONFIG_IA32_SUPPORT
@@ -885,7 +880,7 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 	ldf.fill f7=[r2],PT(F11)-PT(F7)
 	ldf.fill f8=[r3],32
 	;;
-	srlz.i			// ensure interruption collection is off
+	srlz.d	// ensure that inter. collection is off (VHPT is don't care, since text is pinned)
 	mov ar.ccv=r15
 	;;
 	ldf.fill f11=[r2]
@@ -945,11 +940,10 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 	 * NOTE: alloc, loadrs, and cover can't be predicated.
 	 */
 (pNonSys) br.cond.dpnt dont_preserve_current_frame
-
-rbs_switch:
 	cover				// add current frame into dirty partition and set cr.ifs
 	;;
 	mov r19=ar.bsp			// get new backing store pointer
+rbs_switch:
 	sub r16=r16,r18			// krbs = old bsp - size of dirty partition
 	cmp.ne p9,p0=r0,r0		// clear p9 to skip restore of cr.ifs
 	;;
@@ -1024,14 +1018,14 @@ rse_clear_invalid:
 	mov loc5=0
 	mov loc6=0
 	mov loc7=0
-(pRecurse) br.call.sptk.few b0=rse_clear_invalid
+(pRecurse) br.call.dptk.few b0=rse_clear_invalid
 	;;
 	mov loc8=0
 	mov loc9=0
 	cmp.ne pReturn,p0=r0,in1	// if recursion count != 0, we need to do a br.ret
 	mov loc10=0
 	mov loc11=0
-(pReturn) br.ret.sptk.many b0
+(pReturn) br.ret.dptk.many b0
 #endif /* !CONFIG_ITANIUM */
 #	undef pRecurse
 #	undef pReturn
@@ -1577,8 +1571,8 @@ sys_call_table:
 	data8 sys_add_key
 	data8 sys_request_key
 	data8 sys_keyctl
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall			// 1275
+	data8 sys_ioprio_set
+	data8 sys_ioprio_get			// 1275
 	data8 sys_set_zone_reclaim
 	data8 sys_ni_syscall
 	data8 sys_ni_syscall

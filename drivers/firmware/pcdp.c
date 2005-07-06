@@ -16,6 +16,7 @@
 #include <linux/console.h>
 #include <linux/efi.h>
 #include <linux/serial.h>
+#include <asm/vga.h>
 #include "pcdp.h"
 
 static int __init
@@ -40,10 +41,27 @@ setup_serial_console(struct pcdp_uart *uart)
 }
 
 static int __init
-setup_vga_console(struct pcdp_vga *vga)
+setup_vga_console(struct pcdp_device *dev)
 {
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
-	if (efi_mem_type(0xA0000) == EFI_CONVENTIONAL_MEMORY) {
+	u8 *if_ptr;
+
+	if_ptr = ((u8 *)dev + sizeof(struct pcdp_device));
+	if (if_ptr[0] == PCDP_IF_PCI) {
+		struct pcdp_if_pci if_pci;
+
+		/* struct copy since ifptr might not be correctly aligned */
+
+		memcpy(&if_pci, if_ptr, sizeof(if_pci));
+
+		if (if_pci.trans & PCDP_PCI_TRANS_IOPORT)
+			vga_console_iobase = if_pci.ioport_tra;
+
+		if (if_pci.trans & PCDP_PCI_TRANS_MMIO)
+			vga_console_membase = if_pci.mmio_tra;
+	}
+
+	if (efi_mem_type(vga_console_membase + 0xA0000) == EFI_CONVENTIONAL_MEMORY) {
 		printk(KERN_ERR "PCDP: VGA selected, but frame buffer is not MMIO!\n");
 		return -ENODEV;
 	}
@@ -95,7 +113,7 @@ efi_setup_pcdp_console(char *cmdline)
 	     dev = (struct pcdp_device *) ((u8 *) dev + dev->length)) {
 		if (dev->flags & PCDP_PRIMARY_CONSOLE) {
 			if (dev->type == PCDP_CONSOLE_VGA) {
-				return setup_vga_console((struct pcdp_vga *) dev);
+				return setup_vga_console(dev);
 			}
 		}
 	}

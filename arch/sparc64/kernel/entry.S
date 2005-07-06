@@ -271,8 +271,9 @@ cplus_fptrap_insn_1:
 	fmuld		%f0, %f2, %f26
 	faddd		%f0, %f2, %f28
 	fmuld		%f0, %f2, %f30
+	membar		#Sync
 	b,pt		%xcc, fpdis_exit
-	 membar		#Sync
+	 nop
 2:	andcc		%g5, FPRS_DU, %g0
 	bne,pt		%icc, 3f
 	 fzero		%f32
@@ -301,8 +302,9 @@ cplus_fptrap_insn_2:
 	fmuld		%f32, %f34, %f58
 	faddd		%f32, %f34, %f60
 	fmuld		%f32, %f34, %f62
+	membar		#Sync
 	ba,pt		%xcc, fpdis_exit
-	 membar		#Sync
+	 nop
 3:	mov		SECONDARY_CONTEXT, %g3
 	add		%g6, TI_FPREGS, %g1
 	ldxa		[%g3] ASI_DMMU, %g5
@@ -551,13 +553,11 @@ do_ivec:
 	sllx		%g3, 5, %g3
 	or		%g2, %lo(ivector_table), %g2
 	add		%g2, %g3, %g3
-	ldx		[%g3 + 0x08], %g2	/* irq_info */
 	ldub		[%g3 + 0x04], %g4	/* pil */
-	brz,pn		%g2, do_ivec_spurious
-	 mov		1, %g2
-
+	mov		1, %g2
 	sllx		%g2, %g4, %g2
 	sllx		%g4, 2, %g4
+
 	lduw		[%g6 + %g4], %g5	/* g5 = irq_work(cpu, pil) */
 	stw		%g5, [%g3 + 0x00]	/* bucket->irq_chain = g5 */
 	stw		%g3, [%g6 + %g4]	/* irq_work(cpu, pil) = bucket */
@@ -565,9 +565,9 @@ do_ivec:
 	retry
 do_ivec_xcall:
 	mov		0x50, %g1
-
 	ldxa		[%g1 + %g0] ASI_INTR_R, %g1
 	srl		%g3, 0, %g3
+
 	mov		0x60, %g7
 	ldxa		[%g7 + %g0] ASI_INTR_R, %g7
 	stxa		%g0, [%g0] ASI_INTR_RECEIVE
@@ -578,19 +578,6 @@ do_ivec_xcall:
 	.align		32
 1:	jmpl		%g3, %g0
 	 nop
-
-do_ivec_spurious:
-	stw		%g3, [%g6 + 0x00]	/* irq_work(cpu, 0) = bucket */
-	rdpr		%pstate, %g5
-
-	wrpr		%g5, PSTATE_IG | PSTATE_AG, %pstate
-	sethi		%hi(109f), %g7
-	ba,pt		%xcc, etrap
-109:	 or		%g7, %lo(109b), %g7
-	call		catch_disabled_ivec
-	 add		%sp, PTREGS_OFF, %o0
-	ba,pt		%xcc, rtrap
-	 clr		%l6
 
 	.globl		save_alternate_globals
 save_alternate_globals: /* %o0 = save_area */
@@ -698,116 +685,6 @@ utrap_ill:
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
 	 clr		%l6
-
-#ifdef CONFIG_BLK_DEV_FD
-	.globl		floppy_hardint
-floppy_hardint:
-	wr		%g0, (1 << 11), %clear_softint
-	sethi		%hi(doing_pdma), %g1
-	ld		[%g1 + %lo(doing_pdma)], %g2
-	brz,pn		%g2, floppy_dosoftint
-	 sethi		%hi(fdc_status), %g3
-	ldx		[%g3 + %lo(fdc_status)], %g3
-	sethi		%hi(pdma_vaddr), %g5
-	ldx		[%g5 + %lo(pdma_vaddr)], %g4
-	sethi		%hi(pdma_size), %g5
-	ldx		[%g5 + %lo(pdma_size)], %g5
-
-next_byte:
-	lduba		[%g3] ASI_PHYS_BYPASS_EC_E, %g7
-	andcc		%g7, 0x80, %g0
-	be,pn		%icc, floppy_fifo_emptied
-	 andcc		%g7, 0x20, %g0
-	be,pn		%icc, floppy_overrun
-	 andcc		%g7, 0x40, %g0
-	be,pn		%icc, floppy_write
-	 sub		%g5, 1, %g5
-
-	inc		%g3
-	lduba		[%g3] ASI_PHYS_BYPASS_EC_E, %g7
-	dec		%g3
-	orcc		%g0, %g5, %g0
-	stb		%g7, [%g4]
-	bne,pn		%xcc, next_byte
-	 add		%g4, 1, %g4
-
-	b,pt		%xcc, floppy_tdone
-	 nop
-
-floppy_write:
-	ldub		[%g4], %g7
-	orcc		%g0, %g5, %g0
-	inc		%g3
-	stba		%g7, [%g3] ASI_PHYS_BYPASS_EC_E
-	dec		%g3
-	bne,pn		%xcc, next_byte
-	 add		%g4, 1, %g4
-
-floppy_tdone:
-	sethi		%hi(pdma_vaddr), %g1
-	stx		%g4, [%g1 + %lo(pdma_vaddr)]
-	sethi		%hi(pdma_size), %g1
-	stx		%g5, [%g1 + %lo(pdma_size)]
-	sethi		%hi(auxio_register), %g1
-	ldx		[%g1 + %lo(auxio_register)], %g7
-	lduba		[%g7] ASI_PHYS_BYPASS_EC_E, %g5
-	or		%g5, AUXIO_AUX1_FTCNT, %g5
-/*	andn		%g5, AUXIO_AUX1_MASK, %g5 */
-	stba		%g5, [%g7] ASI_PHYS_BYPASS_EC_E
-	andn		%g5, AUXIO_AUX1_FTCNT, %g5
-/*	andn		%g5, AUXIO_AUX1_MASK, %g5 */
-
-	nop; nop;  nop; nop;  nop; nop;
-	nop; nop;  nop; nop;  nop; nop;
-
-	stba		%g5, [%g7] ASI_PHYS_BYPASS_EC_E
-	sethi		%hi(doing_pdma), %g1
-	b,pt		%xcc, floppy_dosoftint
-	 st		%g0, [%g1 + %lo(doing_pdma)]
-
-floppy_fifo_emptied:
-	sethi		%hi(pdma_vaddr), %g1
-	stx		%g4, [%g1 + %lo(pdma_vaddr)]
-	sethi		%hi(pdma_size), %g1
-	stx		%g5, [%g1 + %lo(pdma_size)]
-	sethi		%hi(irq_action), %g1
-	or		%g1, %lo(irq_action), %g1
-	ldx		[%g1 + (11 << 3)], %g3		! irqaction[floppy_irq]
-	ldx		[%g3 + 0x08], %g4		! action->flags>>48==ino
-	sethi		%hi(ivector_table), %g3
-	srlx		%g4, 48, %g4
-	or		%g3, %lo(ivector_table), %g3
-	sllx		%g4, 5, %g4
-	ldx		[%g3 + %g4], %g4		! &ivector_table[ino]
-	ldx		[%g4 + 0x10], %g4		! bucket->iclr
-	stwa		%g0, [%g4] ASI_PHYS_BYPASS_EC_E	! ICLR_IDLE
-	membar		#Sync				! probably not needed...
-	retry
-
-floppy_overrun:
-	sethi		%hi(pdma_vaddr), %g1
-	stx		%g4, [%g1 + %lo(pdma_vaddr)]
-	sethi		%hi(pdma_size), %g1
-	stx		%g5, [%g1 + %lo(pdma_size)]
-	sethi		%hi(doing_pdma), %g1
-	st		%g0, [%g1 + %lo(doing_pdma)]
-
-floppy_dosoftint:
-	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
-	sethi		%hi(109f), %g7
-	b,pt		%xcc, etrap_irq
-109:	 or		%g7, %lo(109b), %g7
-
-	mov		11, %o0
-	mov		0, %o1
-	call		sparc_floppy_irq
-	 add		%sp, PTREGS_OFF, %o2
-
-	b,pt		%xcc, rtrap_irq
-	 nop
-
-#endif /* CONFIG_BLK_DEV_FD */
 
 	/* XXX Here is stuff we still need to write... -DaveM XXX */
 	.globl		netbsd_syscall

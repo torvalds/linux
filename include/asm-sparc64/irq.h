@@ -16,10 +16,22 @@
 #include <asm/pil.h>
 #include <asm/ptrace.h>
 
+struct ino_bucket;
+
+#define MAX_IRQ_DESC_ACTION	4
+
+struct irq_desc {
+	void			(*pre_handler)(struct ino_bucket *, void *, void *);
+	void			*pre_handler_arg1;
+	void			*pre_handler_arg2;
+	u32			action_active_mask;
+	struct irqaction	action[MAX_IRQ_DESC_ACTION];
+};
+
 /* You should not mess with this directly. That's the job of irq.c.
  *
  * If you make changes here, please update hand coded assembler of
- * SBUS/floppy interrupt handler in entry.S -DaveM
+ * the vectored interrupt trap handler in entry.S -DaveM
  *
  * This is currently one DCACHE line, two buckets per L2 cache
  * line.  Keep this in mind please.
@@ -42,24 +54,11 @@ struct ino_bucket {
 	/* Miscellaneous flags. */
 /*0x06*/unsigned char flags;
 
-	/* This is used to deal with IBF_DMA_SYNC on
-	 * Sabre systems.
-	 */
-/*0x07*/unsigned char synctab_ent;
+	/* Currently unused.  */
+/*0x07*/unsigned char __pad;
 
-	/* Reference to handler for this IRQ.  If this is
-	 * non-NULL this means it is active and should be
-	 * serviced.  Else the pending member is set to one
-	 * and later registry of the interrupt checks for
-	 * this condition.
-	 *
-	 * Normally this is just an irq_action structure.
-	 * But, on PCI, if multiple interrupt sources behind
-	 * a bridge have multiple interrupt sources that share
-	 * the same INO bucket, this points to an array of
-	 * pointers to four IRQ action structures.
-	 */
-/*0x08*/void *irq_info;
+	/* Reference to IRQ descriptor for this bucket. */
+/*0x08*/struct irq_desc *irq_info;
 
 	/* Sun5 Interrupt Clear Register. */
 /*0x10*/unsigned long iclr;
@@ -68,12 +67,6 @@ struct ino_bucket {
 /*0x18*/unsigned long imap;
 
 };
-
-#ifdef CONFIG_PCI
-extern unsigned long pci_dma_wsync;
-extern unsigned long dma_sync_reg_table[256];
-extern unsigned char dma_sync_reg_table_entry;
-#endif
 
 /* IMAP/ICLR register defines */
 #define IMAP_VALID		0x80000000	/* IRQ Enabled		*/
@@ -90,11 +83,9 @@ extern unsigned char dma_sync_reg_table_entry;
 #define ICLR_PENDING		0x00000003	/* Pending state	*/
 
 /* Only 8-bits are available, be careful.  -DaveM */
-#define IBF_DMA_SYNC	0x01	/* DMA synchronization behind PCI bridge needed. */
-#define IBF_PCI		0x02	/* Indicates PSYCHO/SABRE/SCHIZO PCI interrupt.	 */
-#define IBF_ACTIVE	0x04	/* This interrupt is active and has a handler.	 */
-#define IBF_MULTI	0x08	/* On PCI, indicates shared bucket.		 */
-#define IBF_INPROGRESS	0x10	/* IRQ is being serviced.			 */
+#define IBF_PCI		0x02	/* PSYCHO/SABRE/SCHIZO PCI interrupt.	 */
+#define IBF_ACTIVE	0x04	/* Interrupt is active and has a handler.*/
+#define IBF_INPROGRESS	0x10	/* IRQ is being serviced.		 */
 
 #define NUM_IVECS	(IMAP_INR + 1)
 extern struct ino_bucket ivector_table[NUM_IVECS];
@@ -121,11 +112,6 @@ extern void disable_irq(unsigned int);
 extern void enable_irq(unsigned int);
 extern unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long imap);
 extern unsigned int sbus_build_irq(void *sbus, unsigned int ino);
-
-extern int request_fast_irq(unsigned int irq,
-			    irqreturn_t (*handler)(int, void *, struct pt_regs *),
-			    unsigned long flags, __const__ char *devname,
-			    void *dev_id);
 
 static __inline__ void set_softint(unsigned long bits)
 {

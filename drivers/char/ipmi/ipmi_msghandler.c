@@ -1088,8 +1088,8 @@ static inline int i_ipmi_request(ipmi_user_t          user,
 		long                  seqid;
 		int                   broadcast = 0;
 
-		if (addr->channel > IPMI_NUM_CHANNELS) {
-			spin_lock_irqsave(&intf->counter_lock, flags);
+		if (addr->channel >= IPMI_MAX_CHANNELS) {
+		        spin_lock_irqsave(&intf->counter_lock, flags);
 			intf->sent_invalid_commands++;
 			spin_unlock_irqrestore(&intf->counter_lock, flags);
 			rv = -EINVAL;

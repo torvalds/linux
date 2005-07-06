@@ -22,16 +22,18 @@
  */
 #define __flush_tlb_global()						\
 	do {								\
-		unsigned long tmpreg;					\
+		unsigned long tmpreg, cr4, cr4_orig;			\
 									\
 		__asm__ __volatile__(					\
-			"movq %1, %%cr4;  # turn off PGE     \n"	\
+			"movq %%cr4, %2;  # turn off PGE     \n"	\
+			"movq %2, %1;                        \n"	\
+			"andq %3, %1;                        \n"	\
+			"movq %1, %%cr4;                     \n"	\
 			"movq %%cr3, %0;  # flush TLB        \n"	\
 			"movq %0, %%cr3;                     \n"	\
 			"movq %2, %%cr4;  # turn PGE back on \n"	\
-			: "=&r" (tmpreg)				\
-			: "r" (mmu_cr4_features & ~X86_CR4_PGE),	\
-			  "r" (mmu_cr4_features)			\
+			: "=&r" (tmpreg), "=&r" (cr4), "=&r" (cr4_orig)	\
+			: "i" (~X86_CR4_PGE)				\
 			: "memory");					\
 	} while (0)
 

@@ -1,5 +1,5 @@
 /*
- * $Id: tuner-core.c,v 1.15 2005/06/12 01:36:14 mchehab Exp $
+ * $Id: tuner-core.c,v 1.29 2005/06/21 15:40:33 mchehab Exp $
  *
  * i2c tv tuner chip device driver
  * core core, i.e. kernel interfaces, registering and so on
@@ -26,7 +26,6 @@
 /*
  * comment line bellow to return to old behavor, where only one I2C device is supported
  */
-#define CONFIG_TUNER_MULTI_I2C /**/
 
 #define UNSET (-1U)
 
@@ -58,9 +57,7 @@ MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
 MODULE_LICENSE("GPL");
 
 static int this_adap;
-#ifdef CONFIG_TUNER_MULTI_I2C
 static unsigned short first_tuner, tv_tuner, radio_tuner;
-#endif
 
 static struct i2c_driver driver;
 static struct i2c_client client_template;
@@ -81,26 +78,9 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 		return;
 	}
 	if (freq < tv_range[0]*16 || freq > tv_range[1]*16) {
-
-		if (freq >= tv_range[0]*16364 && freq <= tv_range[1]*16384) {
-			/* V4L2_TUNER_CAP_LOW frequency */
-
-			tuner_dbg("V4L2_TUNER_CAP_LOW freq selected for TV. Tuners yet doesn't support converting it to valid freq.\n");
-
-			t->tv_freq(c,freq>>10);
-
-			return;
-                } else {
-			/* FIXME: better do that chip-specific, but
-			   right now we don't have that in the config
-			   struct and this way is still better than no
-			   check at all */
 			tuner_info("TV freq (%d.%02d) out of range (%d-%d)\n",
 				   freq/16,freq%16*100/16,tv_range[0],tv_range[1]);
-			return;
-		}
 	}
-	tuner_dbg("62.5 Khz freq step selected for TV.\n");
 	t->tv_freq(c,freq);
 }
 
@@ -116,31 +96,18 @@ static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 		tuner_info("no radio tuning for this one, sorry.\n");
 		return;
 	}
-	if (freq < radio_range[0]*16 || freq > radio_range[1]*16) {
-		if (freq >= tv_range[0]*16364 && freq <= tv_range[1]*16384) {
-			/* V4L2_TUNER_CAP_LOW frequency */
-			if (t->type == TUNER_TEA5767) {
-				tuner_info("radio freq step 62.5Hz (%d.%06d)\n",(freq>>14),freq%(1<<14)*10000);
-				t->radio_freq(c,freq>>10);
-				return;
-			}
-
-			tuner_dbg("V4L2_TUNER_CAP_LOW freq selected for Radio. Tuners yet doesn't support converting it to valid freq.\n");
-
-			tuner_info("radio freq (%d.%06d)\n",(freq>>14),freq%(1<<14)*10000);
-
-			t->radio_freq(c,freq>>10);
-			return;
-
-                } else {
-			tuner_info("radio freq (%d.%02d) out of range (%d-%d)\n",
-			   freq/16,freq%16*100/16,
-				   radio_range[0],radio_range[1]);
-			return;
-		}
+	if (freq >= radio_range[0]*16000 && freq <= radio_range[1]*16000) {
+		if (tuner_debug)
+			tuner_info("radio freq step 62.5Hz (%d.%06d)\n",
+			 		    freq/16000,freq%16000*1000/16);
+		t->radio_freq(c,freq);
+        } else {
+		tuner_info("radio freq (%d.%02d) out of range (%d-%d)\n",
+			    freq/16,freq%16*100/16,
+			    radio_range[0],radio_range[1]);
 	}
-	tuner_dbg("62.5 Khz freq step selected for Radio.\n");
-	t->radio_freq(c,freq);
+
+	return;
 }
 
 static void set_freq(struct i2c_client *c, unsigned long freq)
@@ -166,8 +133,8 @@ static void set_freq(struct i2c_client *c, unsigned long freq)
 static void set_type(struct i2c_client *c, unsigned int type)
 {
 	struct tuner *t = i2c_get_clientdata(c);
+	unsigned char buffer[4];
 
-	tuner_dbg ("I2C addr 0x%02x with type %d\n",c->addr<<1,type);
 	/* sanity check */
 	if (type == UNSET || type == TUNER_ABSENT)
 		return;
@@ -179,8 +146,8 @@ static void set_type(struct i2c_client *c, unsigned int type)
 		t->type = type;
 		return;
 	}
-	if (t->initialized)
-		/* run only once */
+	if ((t->initialized) && (t->type == type))
+		/* run only once except type change  Hac 04/05*/
 		return;
 
 	t->initialized = 1;
@@ -193,25 +160,42 @@ static void set_type(struct i2c_client *c, unsigned int type)
 	case TUNER_PHILIPS_TDA8290:
 		tda8290_init(c);
 		break;
+	case TUNER_TEA5767:
+		if (tea5767_tuner_init(c)==EINVAL) t->type=TUNER_ABSENT;
+		break;
+	case TUNER_PHILIPS_FMD1216ME_MK3:
+		buffer[0] = 0x0b;
+		buffer[1] = 0xdc;
+		buffer[2] = 0x9c;
+		buffer[3] = 0x60;
+    		i2c_master_send(c,buffer,4);
+		mdelay(1);
+		buffer[2] = 0x86;
+		buffer[3] = 0x54;
+    		i2c_master_send(c,buffer,4);
+		default_tuner_init(c);
+		break;
 	default:
+		/* TEA5767 autodetection code */
+			if (tea5767_tuner_init(c)!=EINVAL) {
+				t->type = TUNER_TEA5767;
+				if (first_tuner == 0x60)
+					first_tuner++;
+				break;
+			}
+
 		default_tuner_init(c);
 		break;
 	}
+	tuner_dbg ("I2C addr 0x%02x with type %d\n",c->addr<<1,type);
 }
 
-#ifdef CONFIG_TUNER_MULTI_I2C
 #define CHECK_ADDR(tp,cmd,tun)	if (client->addr!=tp) { \
-			  return 0; } else \
+			  return 0; } else if (tuner_debug) \
 			  tuner_info ("Cmd %s accepted to "tun"\n",cmd);
 #define CHECK_MODE(cmd)	if (t->mode == V4L2_TUNER_RADIO) { \
 		 	CHECK_ADDR(radio_tuner,cmd,"radio") } else \
 			{ CHECK_ADDR(tv_tuner,cmd,"TV"); }
-#else
-#define CHECK_ADDR(tp,cmd,tun) tuner_info ("Cmd %s accepted to "tun"\n",cmd);
-#define CHECK_MODE(cmd) tuner_info ("Cmd %s accepted\n",cmd);
-#endif
-
-#ifdef CONFIG_TUNER_MULTI_I2C
 
 static void set_addr(struct i2c_client *c, struct tuner_addr *tun_addr)
 {
@@ -242,9 +226,6 @@ static void set_addr(struct i2c_client *c, struct tuner_addr *tun_addr)
 	}
 	set_type(c,tun_addr->type);
 }
-#else
-#define set_addr(c,tun_addr) set_type(c,(tun_addr)->type)
-#endif
 
 static char pal[] = "-";
 module_param_string(pal, pal, sizeof(pal), 0644);
@@ -284,17 +265,12 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct tuner *t;
 
-#ifndef CONFIG_TUNER_MULTI_I2C
-	if (this_adap > 0)
-		return -1;
-#else
 	/* by default, first I2C card is both tv and radio tuner */
 	if (this_adap == 0) {
 		first_tuner = addr;
 		tv_tuner = addr;
 		radio_tuner = addr;
 	}
-#endif
 	this_adap++;
 
         client_template.adapter = adap;
@@ -308,6 +284,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	i2c_set_clientdata(&t->i2c, t);
 	t->type       = UNSET;
 	t->radio_if2  = 10700*1000; /* 10.7MHz - FM radio */
+	t->audmode    = V4L2_TUNER_MODE_STEREO;
 
         i2c_attach_client(&t->i2c);
 	tuner_info("chip found @ 0x%x (%s)\n",
@@ -325,11 +302,9 @@ static int tuner_probe(struct i2c_adapter *adap)
 	}
 	this_adap = 0;
 
-#ifdef CONFIG_TUNER_MULTI_I2C
 	first_tuner = 0;
 	tv_tuner = 0;
 	radio_tuner = 0;
-#endif
 
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, tuner_attach);
@@ -392,8 +367,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			t->radio_if2 = 41300 * 1000;
 			break;
 		}
-                break;
-
+		break;
 	/* --- v4l ioctls --- */
 	/* take care: bttv does userspace copying, we'll get a
 	   kernel pointer here... */
@@ -440,11 +414,18 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				vt->signal = t->has_signal(client);
 			if (t->is_stereo) {
 				if (t->is_stereo(client))
-					vt-> flags |= VIDEO_TUNER_STEREO_ON;
+					vt->flags |= VIDEO_TUNER_STEREO_ON;
 				else
-					vt-> flags &= 0xffff ^ VIDEO_TUNER_STEREO_ON;
+					vt->flags &= ~VIDEO_TUNER_STEREO_ON;
 			}
 			vt->flags |= V4L2_TUNER_CAP_LOW; /* Allow freqs at 62.5 Hz */
+
+			vt->rangelow = radio_range[0] * 16000;
+			vt->rangehigh = radio_range[1] * 16000;
+
+		} else {
+			vt->rangelow = tv_range[0] * 16;
+			vt->rangehigh = tv_range[1] * 16;
 		}
 
 		return 0;
@@ -510,20 +491,46 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				tuner -> signal = t->has_signal(client);
 			if (t->is_stereo) {
 				if (t->is_stereo(client)) {
-					tuner -> capability |= V4L2_TUNER_CAP_STEREO;
-					tuner -> rxsubchans |= V4L2_TUNER_SUB_STEREO;
+					tuner -> rxsubchans = V4L2_TUNER_SUB_STEREO | V4L2_TUNER_SUB_MONO;
 				} else {
-					tuner -> rxsubchans &= 0xffff ^ V4L2_TUNER_SUB_STEREO;
+					tuner -> rxsubchans = V4L2_TUNER_SUB_MONO;
 				}
 			}
+			tuner->capability |= V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
+			tuner->audmode = t->audmode;
+
+			tuner->rangelow = radio_range[0] * 16000;
+			tuner->rangehigh = radio_range[1] * 16000;
+		} else {
+			tuner->rangelow = tv_range[0] * 16;
+			tuner->rangehigh = tv_range[1] * 16;
 		}
-		/* Wow to deal with V4L2_TUNER_CAP_LOW ? For now, it accepts from low at 62.5KHz step  to high at 62.5 Hz */
-		tuner->rangelow = tv_range[0] * 16;
-//		tuner->rangehigh = tv_range[1] * 16;
-//		tuner->rangelow = tv_range[0] * 16384;
-		tuner->rangehigh = tv_range[1] * 16384;
 		break;
 	}
+	case VIDIOC_S_TUNER: /* Allow changing radio range and audio mode */
+	{
+		struct v4l2_tuner *tuner = arg;
+
+		CHECK_ADDR(radio_tuner,"VIDIOC_S_TUNER","radio");
+		SWITCH_V4L2;
+
+		/* To switch the audio mode, applications initialize the
+		   index and audmode fields and the reserved array and
+		   call the VIDIOC_S_TUNER ioctl. */
+		/* rxsubchannels: V4L2_TUNER_MODE_MONO, V4L2_TUNER_MODE_STEREO,
+		   V4L2_TUNER_MODE_LANG1, V4L2_TUNER_MODE_LANG2,
+		   V4L2_TUNER_MODE_SAP */
+
+		if (tuner->audmode == V4L2_TUNER_MODE_MONO)
+			t->audmode = V4L2_TUNER_MODE_MONO;
+		else
+			t->audmode = V4L2_TUNER_MODE_STEREO;
+
+		set_radio_freq(client, t->freq);
+		break;
+	}
+	case TDA9887_SET_CONFIG: /* Nothing to do on tuner-core */
+		break;
 	default:
 		tuner_dbg ("Unimplemented IOCTL 0x%08x called to tuner.\n", cmd);
 		/* nothing */

@@ -1327,16 +1327,25 @@ out_fail:
 EXPORT_SYMBOL(fat_fill_super);
 
 int __init fat_cache_init(void);
-void __exit fat_cache_destroy(void);
+void fat_cache_destroy(void);
 
 static int __init init_fat_fs(void)
 {
-	int ret;
+	int err;
 
-	ret = fat_cache_init();
-	if (ret < 0)
-		return ret;
-	return fat_init_inodecache();
+	err = fat_cache_init();
+	if (err)
+		return err;
+
+	err = fat_init_inodecache();
+	if (err)
+		goto failed;
+
+	return 0;
+
+failed:
+	fat_cache_destroy();
+	return err;
 }
 
 static void __exit exit_fat_fs(void)

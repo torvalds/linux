@@ -1,6 +1,6 @@
 /*
  *    Disk Array driver for HP SA 5xxx and 6xxx Controllers
- *    Copyright 2000, 2002 Hewlett-Packard Development Company, L.P.
+ *    Copyright 2000, 2005 Hewlett-Packard Development Company, L.P.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@
 MODULE_AUTHOR("Hewlett-Packard Company");
 MODULE_DESCRIPTION("Driver for HP Controller SA5xxx SA6xxx version 2.6.6");
 MODULE_SUPPORTED_DEVICE("HP SA5i SA5i+ SA532 SA5300 SA5312 SA641 SA642 SA6400"
-			" SA6i P600 P800 E400");
+			" SA6i P600 P800 E400 E300");
 MODULE_LICENSE("GPL");
 
 #include "cciss_cmd.h"
@@ -85,8 +85,10 @@ static const struct pci_device_id cciss_pci_device_id[] = {
 		0x103C, 0x3225, 0, 0, 0},
 	{ PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_CISSB,
 		0x103c, 0x3223, 0, 0, 0},
-	{ PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_CISSB,
+	{ PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_CISSC,
 		0x103c, 0x3231, 0, 0, 0},
+	{ PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_CISSC,
+		0x103c, 0x3233, 0, 0, 0},
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, cciss_pci_device_id);
@@ -110,6 +112,7 @@ static struct board_type products[] = {
 	{ 0x3225103C, "Smart Array P600", &SA5_access},
 	{ 0x3223103C, "Smart Array P800", &SA5_access},
 	{ 0x3231103C, "Smart Array E400", &SA5_access},
+	{ 0x3233103C, "Smart Array E300", &SA5_access},
 };
 
 /* How long to wait (in millesconds) for board to go into simple mode */
@@ -635,6 +638,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 		cciss_pci_info_struct pciinfo;
 
 		if (!arg) return -EINVAL;
+		pciinfo.domain = pci_domain_nr(host->pdev->bus);
 		pciinfo.bus = host->pdev->bus->number;
 		pciinfo.dev_fn = host->pdev->devfn;
 		pciinfo.board_id = host->board_id;
@@ -782,18 +786,10 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 
  	case CCISS_GETLUNINFO: {
  		LogvolInfo_struct luninfo;
- 		int i;
  		
  		luninfo.LunID = drv->LunID;
  		luninfo.num_opens = drv->usage_count;
  		luninfo.num_parts = 0;
- 		/* count partitions 1 to 15 with sizes > 0 */
- 		for (i = 0; i < MAX_PART - 1; i++) {
-			if (!disk->part[i])
-				continue;
-			if (disk->part[i]->nr_sects != 0)
-				luninfo.num_parts++;
-		}
  		if (copy_to_user(argp, &luninfo,
  				sizeof(LogvolInfo_struct)))
  			return -EFAULT;

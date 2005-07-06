@@ -18,6 +18,21 @@
 #ifndef _IXP2000_REGS_H_
 #define _IXP2000_REGS_H_
 
+/*
+ * IXP2000 linux memory map:
+ *
+ * virt		phys		size
+ * fb000000	db000000	16M		PCI CFG1
+ * fc000000	da000000	16M		PCI CFG0
+ * fd000000	d8000000	16M		PCI I/O
+ * fe[0-7]00000			8M		per-platform mappings
+ * feb00000	c8000000	1M		MSF
+ * fec00000	df000000	1M		PCI CSRs
+ * fed00000	de000000	1M		PCI CREG
+ * fee00000	d6000000	1M		INTCTL
+ * fef00000	c0000000	1M		CAP
+ */
+
 /* 
  * Static I/O regions.
  *
@@ -70,6 +85,10 @@
 #define IXP2000_PCI_CSR_PHYS_BASE	0xdf000000
 #define	IXP2000_PCI_CSR_VIRT_BASE	0xfec00000
 #define	IXP2000_PCI_CSR_SIZE		0x00100000
+
+#define IXP2000_MSF_PHYS_BASE		0xc8000000
+#define IXP2000_MSF_VIRT_BASE		0xfeb00000
+#define IXP2000_MSF_SIZE		0x00100000
 
 #define IXP2000_PCI_IO_PHYS_BASE	0xd8000000
 #define	IXP2000_PCI_IO_VIRT_BASE	0xfd000000

@@ -84,8 +84,8 @@ shark_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction shark_timer_irq = {
 	.name		= "Shark Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= shark_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= shark_timer_interrupt,
 };
 
 /*
@@ -105,10 +105,12 @@ static struct sys_timer shark_timer = {
 };
 
 MACHINE_START(SHARK, "Shark")
-	MAINTAINER("Alexander Schulz")
-	BOOT_MEM(0x08000000, 0x40000000, 0xe0000000)
-	BOOT_PARAMS(0x08003000)
-	MAPIO(shark_map_io)
-	INITIRQ(shark_init_irq)
+	/* Maintainer: Alexander Schulz */
+	.phys_ram	= 0x08000000,
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= ((0xe0000000) >> 18) & 0xfffc,
+	.boot_params	= 0x08003000,
+	.map_io		= shark_map_io,
+	.init_irq	= shark_init_irq,
 	.timer		= &shark_timer,
 MACHINE_END

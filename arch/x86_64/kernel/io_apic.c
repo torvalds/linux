@@ -1064,7 +1064,6 @@ void print_all_local_APICs (void)
 
 void __apicdebuginit print_PIC(void)
 {
-	extern spinlock_t i8259A_lock;
 	unsigned int v;
 	unsigned long flags;
 

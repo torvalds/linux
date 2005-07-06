@@ -276,7 +276,8 @@ static void  xl_ee_write(struct net_device *dev, int ee_addr, u16 ee_value)
 	return ; 
 }
  
-int __devinit xl_probe(struct pci_dev *pdev, const struct pci_device_id *ent) 
+static int __devinit xl_probe(struct pci_dev *pdev,
+			      const struct pci_device_id *ent) 
 {
 	struct net_device *dev ; 
 	struct xl_private *xl_priv ; 

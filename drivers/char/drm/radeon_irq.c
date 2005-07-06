@@ -35,6 +35,14 @@
 #include "radeon_drm.h"
 #include "radeon_drv.h"
 
+static __inline__ u32 radeon_acknowledge_irqs(drm_radeon_private_t *dev_priv, u32 mask)
+{
+	u32 irqs = RADEON_READ(RADEON_GEN_INT_STATUS) & mask;
+	if (irqs)
+		RADEON_WRITE(RADEON_GEN_INT_STATUS, irqs);
+	return irqs;
+}
+
 /* Interrupts - Used for device synchronization and flushing in the
  * following circumstances:
  *
@@ -63,8 +71,8 @@ irqreturn_t radeon_driver_irq_handler( DRM_IRQ_ARGS )
 	/* Only consider the bits we're interested in - others could be used
 	 * outside the DRM
 	 */
-	stat = RADEON_READ(RADEON_GEN_INT_STATUS)
-	     & (RADEON_SW_INT_TEST | RADEON_CRTC_VBLANK_STAT);
+	stat = radeon_acknowledge_irqs(dev_priv, (RADEON_SW_INT_TEST_ACK | 
+						  RADEON_CRTC_VBLANK_STAT));
 	if (!stat)
 		return IRQ_NONE;
 
@@ -80,17 +88,7 @@ irqreturn_t radeon_driver_irq_handler( DRM_IRQ_ARGS )
 		drm_vbl_send_signals( dev );
 	}
 
-	/* Acknowledge interrupts we handle */
-	RADEON_WRITE(RADEON_GEN_INT_STATUS, stat);
 	return IRQ_HANDLED;
-}
-
-static __inline__ void radeon_acknowledge_irqs(drm_radeon_private_t *dev_priv)
-{
-	u32 tmp = RADEON_READ( RADEON_GEN_INT_STATUS )
-		& (RADEON_SW_INT_TEST_ACK | RADEON_CRTC_VBLANK_STAT);
-	if (tmp)
-		RADEON_WRITE( RADEON_GEN_INT_STATUS, tmp );
 }
 
 static int radeon_emit_irq(drm_device_t *dev)
@@ -141,7 +139,7 @@ int radeon_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence)
 		return DRM_ERR(EINVAL);
 	}
 
-	radeon_acknowledge_irqs( dev_priv );
+	radeon_acknowledge_irqs(dev_priv, RADEON_CRTC_VBLANK_STAT);
 
 	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
 
@@ -219,7 +217,8 @@ void radeon_driver_irq_preinstall( drm_device_t *dev ) {
       	RADEON_WRITE( RADEON_GEN_INT_CNTL, 0 );
 
 	/* Clear bits if they're already high */
-	radeon_acknowledge_irqs( dev_priv );
+	radeon_acknowledge_irqs(dev_priv, (RADEON_SW_INT_TEST_ACK |
+					   RADEON_CRTC_VBLANK_STAT));
 }
 
 void radeon_driver_irq_postinstall( drm_device_t *dev ) {

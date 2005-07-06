@@ -72,6 +72,7 @@ __flush_tlb_pending:
 	flush		%g6
 	retl
 	 wrpr		%g7, 0x0, %pstate
+	nop
 
 	.align		32
 	.globl		__flush_tlb_kernel_range
@@ -249,7 +250,7 @@ __cheetah_flush_tlb_mm: /* 15 insns */
 	retl
 	 wrpr		%g7, 0x0, %pstate
 
-__cheetah_flush_tlb_pending:	/* 22 insns */
+__cheetah_flush_tlb_pending:	/* 23 insns */
 	/* %o0 = context, %o1 = nr, %o2 = vaddrs[] */
 	rdpr		%pstate, %g7
 	sllx		%o1, 3, %o1
@@ -266,8 +267,9 @@ __cheetah_flush_tlb_pending:	/* 22 insns */
 	 andn		%o3, 1, %o3
 	stxa		%g0, [%o3] ASI_IMMU_DEMAP
 2:	stxa		%g0, [%o3] ASI_DMMU_DEMAP	
+	membar		#Sync
 	brnz,pt		%o1, 1b
-	 membar		#Sync
+	 nop
 	stxa		%g2, [%o4] ASI_DMMU
 	flush		%g6
 	wrpr		%g0, 0, %tl
@@ -316,7 +318,7 @@ cheetah_patch_cachetlbops:
 	sethi		%hi(__cheetah_flush_tlb_pending), %o1
 	or		%o1, %lo(__cheetah_flush_tlb_pending), %o1
 	call		cheetah_patch_one
-	 mov		22, %o2
+	 mov		23, %o2
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 	sethi		%hi(__flush_dcache_page), %o0
