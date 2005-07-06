@@ -2028,7 +2028,8 @@ struct isp_operations {
 	int (*abort_target) (struct fc_port *);
 	int (*fabric_login) (struct scsi_qla_host *, uint16_t, uint8_t,
 		uint8_t, uint8_t, uint16_t *, uint8_t);
-	int (*fabric_logout) (struct scsi_qla_host *, uint16_t);
+	int (*fabric_logout) (struct scsi_qla_host *, uint16_t, uint8_t,
+	    uint8_t, uint8_t);
 
 	uint16_t (*calc_req_entries) (uint16_t);
 	void (*build_iocbs) (srb_t *, cmd_entry_t *, uint16_t);

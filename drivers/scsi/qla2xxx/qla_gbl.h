@@ -104,10 +104,10 @@ extern int
 qla2x00_load_ram(scsi_qla_host_t *, dma_addr_t, uint16_t, uint16_t);
 
 extern int
-qla2x00_load_ram_ext(scsi_qla_host_t *, dma_addr_t, uint32_t, uint16_t);
+qla2x00_load_ram_ext(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);
 
 extern int
-qla2x00_execute_fw(scsi_qla_host_t *);
+qla2x00_execute_fw(scsi_qla_host_t *, uint32_t);
 
 extern void
 qla2x00_get_fw_version(scsi_qla_host_t *, uint16_t *,
@@ -123,7 +123,7 @@ extern int
 qla2x00_mbx_reg_test(scsi_qla_host_t *);
 
 extern int
-qla2x00_verify_checksum(scsi_qla_host_t *);
+qla2x00_verify_checksum(scsi_qla_host_t *, uint32_t);
 
 extern int
 qla2x00_issue_iocb(scsi_qla_host_t *, void *, dma_addr_t, size_t);
@@ -133,7 +133,7 @@ qla2x00_abort_command(scsi_qla_host_t *, srb_t *);
 
 #if USE_ABORT_TGT
 extern int
-qla2x00_abort_target(fc_port_t *fcport);
+qla2x00_abort_target(fc_port_t *);
 #endif
 
 extern int
@@ -167,12 +167,18 @@ qla2x00_send_sns(scsi_qla_host_t *, dma_addr_t, uint16_t, size_t);
 extern int
 qla2x00_login_fabric(scsi_qla_host_t *, uint16_t, uint8_t, uint8_t, uint8_t,
     uint16_t *, uint8_t);
+extern int
+qla24xx_login_fabric(scsi_qla_host_t *, uint16_t, uint8_t, uint8_t, uint8_t,
+    uint16_t *, uint8_t);
 
 extern int
 qla2x00_login_local_device(scsi_qla_host_t *, uint16_t, uint16_t *, uint8_t);
 
 extern int
-qla2x00_fabric_logout(scsi_qla_host_t *ha, uint16_t loop_id);
+qla2x00_fabric_logout(scsi_qla_host_t *, uint16_t, uint8_t, uint8_t, uint8_t);
+
+extern int
+qla24xx_fabric_logout(scsi_qla_host_t *, uint16_t, uint8_t, uint8_t, uint8_t);
 
 extern int
 qla2x00_full_login_lip(scsi_qla_host_t *ha);
@@ -186,6 +192,18 @@ qla2x00_get_resource_cnts(scsi_qla_host_t *, uint16_t *, uint16_t *, uint16_t *,
 
 extern int
 qla2x00_get_fcal_position_map(scsi_qla_host_t *ha, char *pos_map);
+
+extern int qla24xx_abort_command(scsi_qla_host_t *, srb_t *);
+extern int qla24xx_abort_target(fc_port_t *);
+
+extern int qla2x00_system_error(scsi_qla_host_t *);
+
+extern int
+qla2x00_get_serdes_params(scsi_qla_host_t *, uint16_t *, uint16_t *,
+    uint16_t *);
+
+extern int
+qla2x00_set_serdes_params(scsi_qla_host_t *, uint16_t, uint16_t, uint16_t);
 
 /*
  * Global Function Prototypes in qla_isr.c source file.

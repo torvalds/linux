@@ -2002,7 +2002,10 @@ qla2x00_do_dpc(void *data)
 						if (fcport->flags &
 						    FCF_TAPE_PRESENT)
 							ha->isp_ops.fabric_logout(
-							    ha, fcport->loop_id);
+							    ha, fcport->loop_id,
+							    fcport->d_id.b.domain,
+							    fcport->d_id.b.area,
+							    fcport->d_id.b.al_pa);
 						status = qla2x00_fabric_login(
 						    ha, fcport, &next_loopid);
 					} else

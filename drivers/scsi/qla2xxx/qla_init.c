@@ -331,7 +331,9 @@ qla2x00_isp_firmware(scsi_qla_host_t *ha)
 		qla_printk(KERN_INFO, ha, "RISC CODE NOT loaded\n");
 
 		/* Verify checksum of loaded RISC code. */
-		rval = qla2x00_verify_checksum(ha);
+		rval = qla2x00_verify_checksum(ha,
+		    IS_QLA24XX(ha) || IS_QLA25XX(ha) ? RISC_SADDRESS :
+		    *ha->brd_info->fw_info[0].fwstart);
 	}
 
 	if (rval) {
@@ -756,13 +758,17 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 		DEBUG(printk("scsi(%ld): Verifying Checksum of loaded RISC "
 		    "code.\n", ha->host_no));
 
-		rval = qla2x00_verify_checksum(ha);
+		rval = qla2x00_verify_checksum(ha,
+		    IS_QLA24XX(ha) || IS_QLA25XX(ha) ? RISC_SADDRESS :
+		    *ha->brd_info->fw_info[0].fwstart);
 		if (rval == QLA_SUCCESS) {
 			/* Start firmware execution. */
 			DEBUG(printk("scsi(%ld): Checksum OK, start "
 			    "firmware.\n", ha->host_no));
 
-			rval = qla2x00_execute_fw(ha);
+			rval = qla2x00_execute_fw(ha,
+			    IS_QLA24XX(ha) || IS_QLA25XX(ha) ? RISC_SADDRESS :
+			    *ha->brd_info->fw_info[0].fwstart);
 			/* Retrieve firmware information. */
 			if (rval == QLA_SUCCESS && ha->fw_major_version == 0) {
 				qla2x00_get_fw_version(ha,
@@ -2011,7 +2017,10 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 				    fcport->port_type != FCT_BROADCAST) {
 
 					ha->isp_ops.fabric_logout(ha,
-					    fcport->loop_id);
+					    fcport->loop_id,
+					    fcport->d_id.b.domain,
+					    fcport->d_id.b.area,
+					    fcport->d_id.b.al_pa);
 					fcport->loop_id = FC_NO_LOOP_ID;
 				}
 			}
@@ -2256,7 +2265,9 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 			    (fcport->flags & FCF_TAPE_PRESENT) == 0 &&
 			    fcport->port_type != FCT_INITIATOR &&
 			    fcport->port_type != FCT_BROADCAST) {
-				ha->isp_ops.fabric_logout(ha, fcport->loop_id);
+				ha->isp_ops.fabric_logout(ha, fcport->loop_id,
+				    fcport->d_id.b.domain, fcport->d_id.b.area,
+				    fcport->d_id.b.al_pa);
 				fcport->loop_id = FC_NO_LOOP_ID;
 			}
 
@@ -2515,7 +2526,9 @@ qla2x00_fabric_dev_login(scsi_qla_host_t *ha, fc_port_t *fcport,
 	if (rval == QLA_SUCCESS) {
 		rval = qla2x00_get_port_database(ha, fcport, 0);
 		if (rval != QLA_SUCCESS) {
-			ha->isp_ops.fabric_logout(ha, fcport->loop_id);
+			ha->isp_ops.fabric_logout(ha, fcport->loop_id,
+			    fcport->d_id.b.domain, fcport->d_id.b.area,
+			    fcport->d_id.b.al_pa);
 		} else {
 			qla2x00_update_fcport(ha, fcport);
 		}
@@ -2620,7 +2633,9 @@ qla2x00_fabric_login(scsi_qla_host_t *ha, fc_port_t *fcport,
 			 * dead.
 			 */
 			*next_loopid = fcport->loop_id;
-			ha->isp_ops.fabric_logout(ha, fcport->loop_id);
+			ha->isp_ops.fabric_logout(ha, fcport->loop_id,
+			    fcport->d_id.b.domain, fcport->d_id.b.area,
+			    fcport->d_id.b.al_pa);
 			qla2x00_mark_device_lost(ha, fcport, 1);
 
 			rval = 1;
@@ -2636,7 +2651,9 @@ qla2x00_fabric_login(scsi_qla_host_t *ha, fc_port_t *fcport,
 			    fcport->d_id.b.al_pa, fcport->loop_id, jiffies));
 
 			*next_loopid = fcport->loop_id;
-			ha->isp_ops.fabric_logout(ha, fcport->loop_id);
+			ha->isp_ops.fabric_logout(ha, fcport->loop_id,
+			    fcport->d_id.b.domain, fcport->d_id.b.area,
+			    fcport->d_id.b.al_pa);
 			fcport->loop_id = FC_NO_LOOP_ID;
 			atomic_set(&fcport->state, FCS_DEVICE_DEAD);
 
