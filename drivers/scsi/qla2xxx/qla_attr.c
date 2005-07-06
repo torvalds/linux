@@ -93,10 +93,7 @@ qla2x00_sysfs_write_fw_dump(struct kobject *kobj, char *buf, loff_t off,
 			    "Firmware dump ready for read on (%ld).\n",
 			    ha->host_no);
 			memset(ha->fw_dump_buffer, 0, dump_size);
-			if (IS_QLA2100(ha) || IS_QLA2200(ha))
- 				qla2100_ascii_fw_dump(ha);
- 			else
- 				qla2300_ascii_fw_dump(ha);
+			ha->isp_ops.ascii_fw_dump(ha);
 			ha->fw_dump_buffer_len = strlen(ha->fw_dump_buffer);
 		}
 		break;

@@ -117,45 +117,8 @@ static __inline__ void qla2x00_poll(scsi_qla_host_t *);
 static inline void 
 qla2x00_poll(scsi_qla_host_t *ha)
 {
-	if (IS_QLA2100(ha) || IS_QLA2200(ha))
-		qla2100_intr_handler(0, ha, NULL);
-	else
-		qla2300_intr_handler(0, ha, NULL);
+	ha->isp_ops.intr_handler(0, ha, NULL);
 }
-
-
-static __inline__ void qla2x00_enable_intrs(scsi_qla_host_t *);
-static __inline__ void qla2x00_disable_intrs(scsi_qla_host_t *);
-
-static inline void 
-qla2x00_enable_intrs(scsi_qla_host_t *ha)
-{
-	unsigned long flags = 0;
-	device_reg_t __iomem *reg = ha->iobase;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->interrupts_on = 1;
-	/* enable risc and host interrupts */
-	WRT_REG_WORD(&reg->ictrl, ICR_EN_INT | ICR_EN_RISC);
-	RD_REG_WORD(&reg->ictrl);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-}
-
-static inline void 
-qla2x00_disable_intrs(scsi_qla_host_t *ha)
-{
-	unsigned long flags = 0;
-	device_reg_t __iomem *reg = ha->iobase;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->interrupts_on = 0;
-	/* disable risc and host interrupts */
-	WRT_REG_WORD(&reg->ictrl, 0);
-	RD_REG_WORD(&reg->ictrl);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-}
-
 
 static __inline__ int qla2x00_is_wwn_zero(uint8_t *);
 

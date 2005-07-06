@@ -356,10 +356,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint32_t mbx)
 		    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh.\n",
 		    mb[1], mb[2], mb[3]);
 
-		if (IS_QLA2100(ha) || IS_QLA2200(ha))
-			qla2100_fw_dump(ha, 1);
-		else
-	    		qla2300_fw_dump(ha, 1);
+		ha->isp_ops.fw_dump(ha, 1);
 
 		if (mb[1] == 0) {
 			qla_printk(KERN_INFO, ha,

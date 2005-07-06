@@ -405,7 +405,7 @@ qla2300_ascii_fw_dump(scsi_qla_host_t *ha)
 	fw = ha->fw_dump;
 
 	qla_uprintf(&uiter, "%s Firmware Version %s\n", ha->model_number,
-	    qla2x00_get_fw_version_str(ha, fw_info));
+	    ha->isp_ops.fw_version_str(ha, fw_info));
 
 	qla_uprintf(&uiter, "\n[==>BEG]\n");
 
@@ -819,7 +819,7 @@ qla2100_ascii_fw_dump(scsi_qla_host_t *ha)
 	fw = ha->fw_dump;
 
 	qla_uprintf(&uiter, "%s Firmware Version %s\n", ha->model_number,
-	    qla2x00_get_fw_version_str(ha, fw_info));
+	    ha->isp_ops.fw_version_str(ha, fw_info));
 
 	qla_uprintf(&uiter, "\n[==>BEG]\n");
 

@@ -32,6 +32,17 @@ extern int qla2x00_probe_one(struct pci_dev *, struct qla_board_info *);
  * Global Function Prototypes in qla_init.c source file.
  */
 extern int qla2x00_initialize_adapter(scsi_qla_host_t *);
+
+extern int qla2100_pci_config(struct scsi_qla_host *);
+extern int qla2300_pci_config(struct scsi_qla_host *);
+extern void qla2x00_reset_chip(struct scsi_qla_host *);
+extern int qla2x00_chip_diag(struct scsi_qla_host *);
+extern void qla2x00_config_rings(struct scsi_qla_host *);
+extern void qla2x00_reset_adapter(struct scsi_qla_host *);
+extern int qla2x00_nvram_config(struct scsi_qla_host *);
+extern void qla2x00_update_fw_options(struct scsi_qla_host *);
+extern int qla2x00_load_risc(struct scsi_qla_host *, uint32_t *);
+
 extern fc_port_t *qla2x00_alloc_fcport(scsi_qla_host_t *, int);
 
 extern int qla2x00_loop_resync(scsi_qla_host_t *);
@@ -205,6 +216,8 @@ extern void qla2x00_print_scsi_cmd(struct scsi_cmnd *);
 /*
  * Global Function Prototypes in qla_gs.c source file.
  */
+extern ms_iocb_entry_t *qla2x00_prep_ms_iocb(scsi_qla_host_t *, uint32_t,
+    uint32_t);
 extern int qla2x00_ga_nxt(scsi_qla_host_t *, fc_port_t *);
 extern int qla2x00_gid_pt(scsi_qla_host_t *, sw_info_t *);
 extern int qla2x00_gpn_id(scsi_qla_host_t *, sw_info_t *);

@@ -33,6 +33,7 @@
 #include <linux/mempool.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
+#include <linux/interrupt.h>
 #include <asm/semaphore.h>
 
 #include <scsi/scsi.h>
@@ -1950,6 +1951,47 @@ struct gid_list_info {
 #define GID_LIST_SIZE (sizeof(struct gid_list_info) * MAX_FIBRE_DEVICES)
 
 /*
+ * ISP operations
+ */
+struct isp_operations {
+
+	int (*pci_config) (struct scsi_qla_host *);
+	void (*reset_chip) (struct scsi_qla_host *);
+	int (*chip_diag) (struct scsi_qla_host *);
+	void (*config_rings) (struct scsi_qla_host *);
+	void (*reset_adapter) (struct scsi_qla_host *);
+	int (*nvram_config) (struct scsi_qla_host *);
+	void (*update_fw_options) (struct scsi_qla_host *);
+	int (*load_risc) (struct scsi_qla_host *, uint32_t *);
+
+	char * (*pci_info_str) (struct scsi_qla_host *, char *);
+	char * (*fw_version_str) (struct scsi_qla_host *, char *);
+
+	irqreturn_t (*intr_handler) (int, void *, struct pt_regs *);
+	void (*enable_intrs) (struct scsi_qla_host *);
+	void (*disable_intrs) (struct scsi_qla_host *);
+
+	int (*abort_command) (struct scsi_qla_host *, srb_t *);
+	int (*abort_target) (struct fc_port *);
+	int (*fabric_login) (struct scsi_qla_host *, uint16_t, uint8_t,
+		uint8_t, uint8_t, uint16_t *, uint8_t);
+	int (*fabric_logout) (struct scsi_qla_host *, uint16_t);
+
+	uint16_t (*calc_req_entries) (uint16_t);
+	void (*build_iocbs) (srb_t *, cmd_entry_t *, uint16_t);
+	ms_iocb_entry_t * (*prep_ms_iocb) (struct scsi_qla_host *, uint32_t,
+	    uint32_t);
+
+	uint8_t * (*read_nvram) (struct scsi_qla_host *, uint8_t *,
+		uint32_t, uint32_t);
+	int (*write_nvram) (struct scsi_qla_host *, uint8_t *, uint32_t,
+		uint32_t);
+
+	void (*fw_dump) (struct scsi_qla_host *, int);
+	void (*ascii_fw_dump) (struct scsi_qla_host *);
+};
+
+/*
  * Linux Host Adapter structure
  */
 typedef struct scsi_qla_host {
@@ -2055,8 +2097,7 @@ typedef struct scsi_qla_host {
 	uint16_t        rsp_ring_index;     /* Current index. */
 	uint16_t	response_q_length;
     
-	uint16_t	(*calc_request_entries)(uint16_t);
-	void		(*build_scsi_iocbs)(srb_t *, cmd_entry_t *, uint16_t);
+	struct isp_operations isp_ops;
 
 	/* Outstandings ISP commands. */
 	srb_t		*outstanding_cmds[MAX_OUTSTANDING_COMMANDS];
@@ -2149,6 +2190,7 @@ typedef struct scsi_qla_host {
 
 	dma_addr_t	gid_list_dma;
 	struct gid_list_info *gid_list;
+	int		gid_list_info_size;
 
 	dma_addr_t	rlc_rsp_dma;
 	rpt_lun_cmd_rsp_t *rlc_rsp;

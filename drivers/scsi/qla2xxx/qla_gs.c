@@ -18,9 +18,6 @@
  */
 #include "qla_def.h"
 
-static inline ms_iocb_entry_t *
-qla2x00_prep_ms_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
-
 static inline struct ct_sns_req *
 qla2x00_prep_ct_req(struct ct_sns_req *, uint16_t, uint16_t);
 
@@ -42,7 +39,7 @@ static int qla2x00_sns_rnn_id(scsi_qla_host_t *);
  *
  * Returns a pointer to the @ha's ms_iocb.
  */
-static inline ms_iocb_entry_t *
+ms_iocb_entry_t *
 qla2x00_prep_ms_iocb(scsi_qla_host_t *ha, uint32_t req_size, uint32_t rsp_size)
 {
 	ms_iocb_entry_t *ms_pkt;
