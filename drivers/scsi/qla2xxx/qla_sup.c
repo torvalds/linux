@@ -38,7 +38,7 @@ void
 qla2x00_lock_nvram_access(scsi_qla_host_t *ha)
 {
 	uint16_t data;
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA2300(ha)) {
 		data = RD_REG_WORD(&reg->nvram);
@@ -70,7 +70,7 @@ qla2x00_lock_nvram_access(scsi_qla_host_t *ha)
 void
 qla2x00_unlock_nvram_access(scsi_qla_host_t *ha)
 {
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA2300(ha)) {
 		WRT_REG_WORD(&reg->u.isp2300.host_semaphore, 0);
@@ -85,10 +85,8 @@ qla2x00_unlock_nvram_access(scsi_qla_host_t *ha)
 void
 qla2x00_release_nvram_protection(scsi_qla_host_t *ha)
 {
-	device_reg_t __iomem *reg;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint32_t word;
-
-	reg = ha->iobase;
 
 	/* Release NVRAM write protection. */
 	if (IS_QLA2322(ha) || IS_QLA6322(ha)) {
@@ -161,7 +159,7 @@ qla2x00_write_nvram_word(scsi_qla_host_t *ha, uint32_t addr, uint16_t data)
 	int count;
 	uint16_t word;
 	uint32_t nv_cmd;
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	qla2x00_nv_write(ha, NVR_DATA_OUT);
 	qla2x00_nv_write(ha, 0);
@@ -223,7 +221,7 @@ static uint16_t
 qla2x00_nvram_request(scsi_qla_host_t *ha, uint32_t nv_cmd)
 {
 	uint8_t		cnt;
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint16_t	data = 0;
 	uint16_t	reg_data;
 
@@ -265,7 +263,7 @@ qla2x00_nvram_request(scsi_qla_host_t *ha, uint32_t nv_cmd)
 static void
 qla2x00_nv_deselect(scsi_qla_host_t *ha)
 {
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	WRT_REG_WORD(&reg->nvram, NVR_DESELECT);
 	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
@@ -280,7 +278,7 @@ qla2x00_nv_deselect(scsi_qla_host_t *ha)
 static void
 qla2x00_nv_write(scsi_qla_host_t *ha, uint16_t data)
 {
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	WRT_REG_WORD(&reg->nvram, data | NVR_SELECT | NVR_WRT_ENABLE);
 	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */

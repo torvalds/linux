@@ -36,7 +36,7 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	uint16_t	mb0, mb2;
 
 	uint32_t	stat;
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint16_t __iomem *dmp_reg;
 	unsigned long	flags;
 	struct qla2300_fw_dump	*fw;
@@ -587,7 +587,7 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	uint32_t	cnt, timer;
 	uint16_t	risc_address;
 	uint16_t	mb0, mb2;
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint16_t __iomem *dmp_reg;
 	unsigned long	flags;
 	struct qla2100_fw_dump	*fw;
@@ -984,7 +984,7 @@ qla_uprintf(char **uiter, char *fmt, ...)
 void 
 qla2x00_dump_regs(scsi_qla_host_t *ha) 
 {
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	printk("Mailbox registers:\n");
 	printk("scsi(%ld): mbox 0 0x%04x \n",

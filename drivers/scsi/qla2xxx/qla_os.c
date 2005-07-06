@@ -1089,7 +1089,7 @@ static void
 qla2x00_enable_intrs(scsi_qla_host_t *ha)
 {
 	unsigned long flags = 0;
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	ha->interrupts_on = 1;
@@ -1104,7 +1104,7 @@ static void
 qla2x00_disable_intrs(scsi_qla_host_t *ha)
 {
 	unsigned long flags = 0;
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	ha->interrupts_on = 0;
@@ -1120,7 +1120,7 @@ qla2x00_disable_intrs(scsi_qla_host_t *ha)
 int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 {
 	int	ret = -ENODEV;
-	device_reg_t __iomem *reg;
+	struct device_reg_2xxx __iomem *reg;
 	struct Scsi_Host *host;
 	scsi_qla_host_t *ha;
 	unsigned long	flags = 0;
@@ -1300,7 +1300,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	DEBUG2(printk("DEBUG: detect hba %ld at address = %p\n",
 	    ha->host_no, ha));
 
-	reg = ha->iobase;
+	reg = &ha->iobase->isp;
 
 	ha->isp_ops.disable_intrs(ha);
 

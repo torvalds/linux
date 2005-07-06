@@ -41,7 +41,7 @@ irqreturn_t
 qla2100_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	scsi_qla_host_t	*ha;
-	device_reg_t __iomem *reg;
+	struct device_reg_2xxx __iomem *reg;
 	int		status;
 	unsigned long	flags;
 	unsigned long	iter;
@@ -54,7 +54,7 @@ qla2100_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 		return (IRQ_NONE);
 	}
 
-	reg = ha->iobase;
+	reg = &ha->iobase->isp;
 	status = 0;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -118,7 +118,7 @@ irqreturn_t
 qla2300_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	scsi_qla_host_t	*ha;
-	device_reg_t __iomem *reg;
+	struct device_reg_2xxx __iomem *reg;
 	int		status;
 	unsigned long	flags;
 	unsigned long	iter;
@@ -133,7 +133,7 @@ qla2300_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 		return (IRQ_NONE);
 	}
 
-	reg = ha->iobase;
+	reg = &ha->iobase->isp;
 	status = 0;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -220,7 +220,7 @@ qla2x00_mbx_completion(scsi_qla_host_t *ha, uint16_t mb0)
 {
 	uint16_t	cnt;
 	uint16_t __iomem *wptr;
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	/* Load return mailbox registers. */
 	ha->flags.mbox_int = 1;
@@ -261,7 +261,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint32_t mbx)
 	uint16_t	handle_cnt;
 	uint16_t	cnt;
 	uint32_t	handles[5];
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint32_t	rscn_entry, host_pid;
 	uint8_t		rscn_queue_index;
 
@@ -707,7 +707,7 @@ qla2x00_process_completed_request(struct scsi_qla_host *ha, uint32_t index)
 void
 qla2x00_process_response_queue(struct scsi_qla_host *ha)
 {
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	sts_entry_t	*pkt;
 	uint16_t        handle_cnt;
 	uint16_t        cnt;

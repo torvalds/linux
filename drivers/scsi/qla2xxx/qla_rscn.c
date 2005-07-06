@@ -348,7 +348,7 @@ static inline struct mbx_entry *
 qla2x00_get_mbx_iocb_entry(scsi_qla_host_t *ha, uint32_t handle)
 {
 	uint16_t cnt;
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	struct mbx_entry *mbxentry;
 
 	mbxentry = NULL;

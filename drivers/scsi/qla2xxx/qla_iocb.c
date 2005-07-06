@@ -315,13 +315,13 @@ qla2x00_start_scsi(srb_t *sp)
 	uint16_t	cnt;
 	uint16_t	req_cnt;
 	uint16_t	tot_dsds;
-	device_reg_t __iomem *reg;
+	struct device_reg_2xxx __iomem *reg;
 	char		tag[2];
 
 	/* Setup device pointers. */
 	ret = 0;
 	ha = sp->ha;
-	reg = ha->iobase;
+	reg = &ha->iobase->isp;
 	cmd = sp->cmd;
 	/* So we know we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
@@ -521,7 +521,7 @@ qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
 static request_t *
 qla2x00_req_pkt(scsi_qla_host_t *ha)
 {
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	request_t	*pkt = NULL;
 	uint16_t	cnt;
 	uint32_t	*dword_ptr;
@@ -586,7 +586,7 @@ qla2x00_req_pkt(scsi_qla_host_t *ha)
 void
 qla2x00_isp_cmd(scsi_qla_host_t *ha)
 {
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	DEBUG5(printk("%s(): IOCB data:\n", __func__));
 	DEBUG5(qla2x00_dump_buffer(
