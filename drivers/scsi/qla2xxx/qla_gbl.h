@@ -220,6 +220,17 @@ extern void qla2x00_unlock_nvram_access(scsi_qla_host_t *);
 extern void qla2x00_release_nvram_protection(scsi_qla_host_t *);
 extern uint16_t qla2x00_get_nvram_word(scsi_qla_host_t *, uint32_t);
 extern void qla2x00_write_nvram_word(scsi_qla_host_t *, uint32_t, uint16_t);
+extern uint32_t *qla24xx_read_flash_data(scsi_qla_host_t *, uint32_t *,
+    uint32_t, uint32_t);
+extern uint8_t *qla2x00_read_nvram_data(scsi_qla_host_t *, uint8_t *, uint32_t,
+    uint32_t);
+extern uint8_t *qla24xx_read_nvram_data(scsi_qla_host_t *, uint8_t *, uint32_t,
+    uint32_t);
+extern int qla2x00_write_nvram_data(scsi_qla_host_t *, uint8_t *, uint32_t,
+    uint32_t);
+extern int qla24xx_write_nvram_data(scsi_qla_host_t *, uint8_t *, uint32_t,
+    uint32_t);
+
 /*
  * Global Function Prototypes in qla_dbg.c source file.
  */

@@ -118,23 +118,15 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj, char *buf, loff_t off,
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
-	uint16_t	*witer;
 	unsigned long	flags;
-	uint16_t	cnt;
 
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != sizeof(nvram_t))
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->nvram_size)
 		return 0;
 
 	/* Read NVRAM. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	qla2x00_lock_nvram_access(ha);
- 	witer = (uint16_t *)buf;
- 	for (cnt = 0; cnt < count / 2; cnt++) {
-		*witer = cpu_to_le16(qla2x00_get_nvram_word(ha,
-		    cnt+ha->nvram_base));
-		witer++;
- 	}
-	qla2x00_unlock_nvram_access(ha);
+	ha->isp_ops.read_nvram(ha, (uint8_t *)buf, ha->nvram_base,
+	    ha->nvram_size);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return (count);
@@ -146,34 +138,38 @@ qla2x00_sysfs_write_nvram(struct kobject *kobj, char *buf, loff_t off,
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
-	uint8_t		*iter;
-	uint16_t	*witer;
 	unsigned long	flags;
 	uint16_t	cnt;
-	uint8_t		chksum;
 
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != sizeof(nvram_t))
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->nvram_size)
 		return 0;
 
 	/* Checksum NVRAM. */
-	iter = (uint8_t *)buf;
-	chksum = 0;
-	for (cnt = 0; cnt < count - 1; cnt++)
-		chksum += *iter++;
-	chksum = ~chksum + 1;
-	*iter = chksum;
+	if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+		uint32_t *iter;
+		uint32_t chksum;
+
+		iter = (uint32_t *)buf;
+		chksum = 0;
+		for (cnt = 0; cnt < ((count >> 2) - 1); cnt++)
+			chksum += le32_to_cpu(*iter++);
+		chksum = ~chksum + 1;
+		*iter = cpu_to_le32(chksum);
+	} else {
+		uint8_t *iter;
+		uint8_t chksum;
+
+		iter = (uint8_t *)buf;
+		chksum = 0;
+		for (cnt = 0; cnt < count - 1; cnt++)
+			chksum += *iter++;
+		chksum = ~chksum + 1;
+		*iter = chksum;
+	}
 
 	/* Write NVRAM. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	qla2x00_lock_nvram_access(ha);
-	qla2x00_release_nvram_protection(ha);
- 	witer = (uint16_t *)buf;
-	for (cnt = 0; cnt < count / 2; cnt++) {
-		qla2x00_write_nvram_word(ha, cnt+ha->nvram_base,
-		    cpu_to_le16(*witer));
-		witer++;
-	}
-	qla2x00_unlock_nvram_access(ha);
+	ha->isp_ops.write_nvram(ha, (uint8_t *)buf, ha->nvram_base, count);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return (count);
@@ -185,7 +181,7 @@ static struct bin_attribute sysfs_nvram_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 		.owner = THIS_MODULE,
 	},
-	.size = sizeof(nvram_t),
+	.size = 0,
 	.read = qla2x00_sysfs_read_nvram,
 	.write = qla2x00_sysfs_write_nvram,
 };
@@ -196,6 +192,7 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *ha)
 	struct Scsi_Host *host = ha->host;
 
 	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_fw_dump_attr);
+	sysfs_nvram_attr.size = ha->nvram_size;
 	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_nvram_attr);
 }
 

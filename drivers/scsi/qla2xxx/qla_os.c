@@ -1187,6 +1187,8 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->isp_ops.calc_req_entries	= qla2x00_calc_iocbs_32;
 	ha->isp_ops.build_iocbs		= qla2x00_build_scsi_iocbs_32;
 	ha->isp_ops.prep_ms_iocb	= qla2x00_prep_ms_iocb;
+	ha->isp_ops.read_nvram		= qla2x00_read_nvram_data;
+	ha->isp_ops.write_nvram		= qla2x00_write_nvram_data;
 	ha->isp_ops.fw_dump		= qla2100_fw_dump;
 	ha->isp_ops.ascii_fw_dump	= qla2100_ascii_fw_dump;
 	if (IS_QLA2100(ha)) {
