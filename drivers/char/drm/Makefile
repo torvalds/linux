@@ -22,6 +22,9 @@ sis-objs    := sis_drv.o sis_ds.o sis_mm.o
 ifeq ($(CONFIG_COMPAT),y)
 drm-objs    += drm_ioc32.o
 radeon-objs += radeon_ioc32.o
+mga-objs    += mga_ioc32.o
+r128-objs   += r128_ioc32.o
+i915-objs   += i915_ioc32.o
 endif
 
 obj-$(CONFIG_DRM)	+= drm.o

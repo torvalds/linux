@@ -130,6 +130,10 @@ extern void i915_mem_takedown(struct mem_block **heap);
 extern void i915_mem_release(drm_device_t * dev,
 			     DRMFILE filp, struct mem_block *heap);
 
+extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
+			      unsigned long arg)
+
+
 #define I915_READ(reg)          DRM_READ32(dev_priv->mmio_map, reg)
 #define I915_WRITE(reg,val)     DRM_WRITE32(dev_priv->mmio_map, reg, val)
 #define I915_READ16(reg) 	DRM_READ16(dev_priv->mmio_map, reg)
