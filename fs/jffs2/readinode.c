@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.120 2005/07/05 21:03:07 dwmw2 Exp $
+ * $Id: readinode.c,v 1.124 2005/07/07 15:45:29 dedekind Exp $
  *
  */
 
@@ -151,6 +151,9 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 
 	D1(printk(KERN_DEBUG "jffs2_add_full_dnode_to_inode(ino #%u, f %p, fn %p)\n", f->inocache->ino, f, fn));
 
+	if (unlikely(!fn->size))
+		return 0;
+
 	newfrag = jffs2_alloc_node_frag();
 	if (unlikely(!newfrag))
 		return -ENOMEM;
@@ -158,11 +161,6 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 	D2(printk(KERN_DEBUG "adding node %04x-%04x @0x%08x on flash, newfrag *%p\n",
 		  fn->ofs, fn->ofs+fn->size, ref_offset(fn->raw), newfrag));
 	
-	if (unlikely(!fn->size)) {
-		jffs2_free_node_frag(newfrag);
-		return 0;
-	}
-
 	newfrag->ofs = fn->ofs;
 	newfrag->size = fn->size;
 	newfrag->node = fn;
