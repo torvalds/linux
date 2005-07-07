@@ -157,6 +157,7 @@ alloc_pci_controller (int seg)
 
 	memset(controller, 0, sizeof(*controller));
 	controller->segment = seg;
+	controller->node = -1;
 	return controller;
 }
 
@@ -288,6 +289,7 @@ pci_acpi_scan_root(struct acpi_device *device, int domain, int bus)
 	unsigned int windows = 0;
 	struct pci_bus *pbus;
 	char *name;
+	int pxm;
 
 	controller = alloc_pci_controller(domain);
 	if (!controller)
@@ -295,10 +297,16 @@ pci_acpi_scan_root(struct acpi_device *device, int domain, int bus)
 
 	controller->acpi_handle = device->handle;
 
+	pxm = acpi_get_pxm(controller->acpi_handle);
+#ifdef CONFIG_NUMA
+	if (pxm >= 0)
+		controller->node = pxm_to_nid_map[pxm];
+#endif
+
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_window,
 			&windows);
-	controller->window = kmalloc(sizeof(*controller->window) * windows,
-			GFP_KERNEL);
+	controller->window = kmalloc_node(sizeof(*controller->window) * windows,
+			GFP_KERNEL, controller->node);
 	if (!controller->window)
 		goto out2;
 
