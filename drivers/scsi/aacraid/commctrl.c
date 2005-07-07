@@ -517,7 +517,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	}
 	if (dev->dac_support == 1) {
 		struct user_sgmap64* upsg = (struct user_sgmap64*)&user_srbcmd->sg;
-		struct sgmap64* psg = (struct sgmap64*)&user_srbcmd->sg;
+		struct sgmap64* psg = (struct sgmap64*)&srbcmd->sg;
 		struct user_sgmap* usg;
 		byte_count = 0;
 
