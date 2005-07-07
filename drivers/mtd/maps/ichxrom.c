@@ -2,7 +2,7 @@
  * ichxrom.c
  *
  * Normal mappings of chips in physical memory
- * $Id: ichxrom.c,v 1.17 2005/03/18 14:04:35 gleixner Exp $
+ * $Id: ichxrom.c,v 1.18 2005/07/07 10:26:20 dwmw2 Exp $
  */
 
 #include <linux/module.h>
@@ -338,9 +338,9 @@ static struct pci_device_id ichxrom_pci_tbl[] __devinitdata = {
 	{ 0, },
 };
 
+#if 0
 MODULE_DEVICE_TABLE(pci, ichxrom_pci_tbl);
 
-#if 0
 static struct pci_driver ichxrom_driver = {
 	.name =		MOD_NAME,
 	.id_table =	ichxrom_pci_tbl,
