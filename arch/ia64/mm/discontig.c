@@ -126,6 +126,33 @@ static unsigned long __init compute_pernodesize(int node)
 }
 
 /**
+ * per_cpu_node_setup - setup per-cpu areas on each node
+ * @cpu_data: per-cpu area on this node
+ * @node: node to setup
+ *
+ * Copy the static per-cpu data into the region we just set aside and then
+ * setup __per_cpu_offset for each CPU on this node.  Return a pointer to
+ * the end of the area.
+ */
+static void *per_cpu_node_setup(void *cpu_data, int node)
+{
+#ifdef CONFIG_SMP
+	int cpu;
+
+	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+		if (node == node_cpuid[cpu].nid) {
+			memcpy(__va(cpu_data), __phys_per_cpu_start,
+			       __per_cpu_end - __per_cpu_start);
+			__per_cpu_offset[cpu] = (char*)__va(cpu_data) -
+				__per_cpu_start;
+			cpu_data += PERCPU_PAGE_SIZE;
+		}
+	}
+#endif
+	return cpu_data;
+}
+
+/**
  * fill_pernode - initialize pernode data.
  * @node: the node id.
  * @pernode: physical address of pernode data
@@ -135,7 +162,7 @@ static void __init fill_pernode(int node, unsigned long pernode,
 	unsigned long pernodesize)
 {
 	void *cpu_data;
-	int cpus = early_nr_cpus_node(node), cpu;
+	int cpus = early_nr_cpus_node(node);
 	struct bootmem_data *bdp = &mem_data[node].bootmem_data;
 
 	mem_data[node].pernode_addr = pernode;
@@ -155,23 +182,11 @@ static void __init fill_pernode(int node, unsigned long pernode,
 	mem_data[node].pgdat->bdata = bdp;
 	pernode += L1_CACHE_ALIGN(sizeof(pg_data_t));
 
-	/*
-	 * Copy the static per-cpu data into the region we
-	 * just set aside and then setup __per_cpu_offset
-	 * for each CPU on this node.
-	 */
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-		if (node == node_cpuid[cpu].nid) {
-			memcpy(__va(cpu_data), __phys_per_cpu_start,
-			       __per_cpu_end - __per_cpu_start);
-			__per_cpu_offset[cpu] = (char*)__va(cpu_data) -
-				__per_cpu_start;
-			cpu_data += PERCPU_PAGE_SIZE;
-		}
-	}
+	cpu_data = per_cpu_node_setup(cpu_data, node);
 
 	return;
 }
+
 /**
  * find_pernode_space - allocate memory for memory map and per-node structures
  * @start: physical start of range
@@ -300,8 +315,8 @@ static void __init reserve_pernode_space(void)
  */
 static void __init initialize_pernode_data(void)
 {
-	int cpu, node;
 	pg_data_t *pgdat_list[MAX_NUMNODES];
+	int cpu, node;
 
 	for_each_online_node(node)
 		pgdat_list[node] = mem_data[node].pgdat;
@@ -311,12 +326,22 @@ static void __init initialize_pernode_data(void)
 		memcpy(mem_data[node].node_data->pg_data_ptrs, pgdat_list,
 		       sizeof(pgdat_list));
 	}
-
+#ifdef CONFIG_SMP
 	/* Set the node_data pointer for each per-cpu struct */
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 		node = node_cpuid[cpu].nid;
 		per_cpu(cpu_info, cpu).node_data = mem_data[node].node_data;
 	}
+#else
+	{
+		struct cpuinfo_ia64 *cpu0_cpu_info;
+		cpu = 0;
+		node = node_cpuid[cpu].nid;
+		cpu0_cpu_info = (struct cpuinfo_ia64 *)(__phys_per_cpu_start +
+			((char *)&per_cpu__cpu_info - __per_cpu_start));
+		cpu0_cpu_info->node_data = mem_data[node].node_data;
+	}
+#endif /* CONFIG_SMP */
 }
 
 /**
@@ -461,6 +486,7 @@ void __init find_memory(void)
 	find_initrd();
 }
 
+#ifdef CONFIG_SMP
 /**
  * per_cpu_init - setup per-cpu variables
  *
@@ -471,15 +497,15 @@ void *per_cpu_init(void)
 {
 	int cpu;
 
-	if (smp_processor_id() == 0) {
-		for (cpu = 0; cpu < NR_CPUS; cpu++) {
-			per_cpu(local_per_cpu_offset, cpu) =
-				__per_cpu_offset[cpu];
-		}
-	}
+	if (smp_processor_id() != 0)
+		return __per_cpu_start + __per_cpu_offset[smp_processor_id()];
+
+	for (cpu = 0; cpu < NR_CPUS; cpu++)
+		per_cpu(local_per_cpu_offset, cpu) = __per_cpu_offset[cpu];
 
 	return __per_cpu_start + __per_cpu_offset[smp_processor_id()];
 }
+#endif /* CONFIG_SMP */
 
 /**
  * show_mem - give short summary of memory stats
