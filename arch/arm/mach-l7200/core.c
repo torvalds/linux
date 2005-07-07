@@ -81,9 +81,11 @@ static void __init l7200_map_io(void)
 }
 
 MACHINE_START(L7200, "LinkUp Systems L7200")
-	MAINTAINER("Steve Hill / Scott McConnell")
-	BOOT_MEM(0xf0000000, 0x80040000, 0xd0000000)
-	MAPIO(l7200_map_io)
-	INITIRQ(l7200_init_irq)
+	/* Maintainer: Steve Hill / Scott McConnell */
+	.phys_ram	= 0xf0000000,
+	.phys_io	= 0x80040000,
+	.io_pg_offst	= ((0xd0000000) >> 18) & 0xfffc,
+	.map_io		= l7200_map_io,
+	.init_irq	= l7200_init_irq,
 MACHINE_END
 

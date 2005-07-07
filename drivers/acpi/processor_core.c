@@ -723,7 +723,7 @@ int acpi_processor_device_add(
 		return_VALUE(-ENODEV);
 	}
 
-	acpi_bus_scan(*device);
+	acpi_bus_start(*device);
 
 	pr = acpi_driver_data(*device);
 	if (!pr)

@@ -945,8 +945,8 @@ static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
 
 				/* Received Packet CRC check need or not */
 				if ( (db->dm910x_chk_mode & 1) &&
-					(cal_CRC(skb->tail, rxlen, 1) !=
-					(*(u32 *) (skb->tail+rxlen) ))) { /* FIXME (?) */
+					(cal_CRC(skb->data, rxlen, 1) !=
+					(*(u32 *) (skb->data+rxlen) ))) { /* FIXME (?) */
 					/* Found a error received packet */
 					dmfe_reuse_skb(db, rxptr->rx_skb_ptr);
 					db->dm910x_chk_mode = 3;
@@ -959,7 +959,7 @@ static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
 						/* size less than COPY_SIZE, allocate a rxlen SKB */
 						skb->dev = dev;
 						skb_reserve(skb, 2); /* 16byte align */
-						memcpy(skb_put(skb, rxlen), rxptr->rx_skb_ptr->tail, rxlen);
+						memcpy(skb_put(skb, rxlen), rxptr->rx_skb_ptr->data, rxlen);
 						dmfe_reuse_skb(db, rxptr->rx_skb_ptr);
 					} else {
 						skb->dev = dev;
@@ -1252,7 +1252,7 @@ static void dmfe_reuse_skb(struct dmfe_board_info *db, struct sk_buff * skb)
 
 	if (!(rxptr->rdes0 & cpu_to_le32(0x80000000))) {
 		rxptr->rx_skb_ptr = skb;
-		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->tail, RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
+		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->data, RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
 		wmb();
 		rxptr->rdes0 = cpu_to_le32(0x80000000);
 		db->rx_avail_cnt++;
@@ -1463,7 +1463,7 @@ static void allocate_rx_buffer(struct dmfe_board_info *db)
 		if ( ( skb = dev_alloc_skb(RX_ALLOC_SIZE) ) == NULL )
 			break;
 		rxptr->rx_skb_ptr = skb; /* FIXME (?) */
-		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->tail, RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
+		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->data, RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
 		wmb();
 		rxptr->rdes0 = cpu_to_le32(0x80000000);
 		rxptr = rxptr->next_rx_desc;

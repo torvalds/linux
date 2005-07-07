@@ -40,9 +40,11 @@ static void __init aaed2000_map_io(void)
 }
 
 MACHINE_START(AAED2000, "Agilent AAED-2000 Development Platform")
-	MAINTAINER("Nicolas Bellido Y Ortega")
-	BOOT_MEM(0xf0000000, PIO_BASE, VIO_BASE)
-	MAPIO(aaed2000_map_io)
-	INITIRQ(aaed2000_init_irq)
+	/* Maintainer: Nicolas Bellido Y Ortega */
+	.phys_ram	= 0xf0000000,
+	.phys_io	= PIO_BASE,
+	.io_pg_offst	= ((VIO_BASE) >> 18) & 0xfffc,
+	.map_io		= aaed2000_map_io,
+	.init_irq	= aaed2000_init_irq,
 	.timer		= &aaec2000_timer,
 MACHINE_END

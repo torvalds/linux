@@ -1,5 +1,5 @@
 /*
- * $Id: tuner-simple.c,v 1.21 2005/06/10 19:53:26 nsh Exp $
+ * $Id: tuner-simple.c,v 1.31 2005/06/21 16:02:25 mkrufky Exp $
  *
  * i2c tv tuner chip device driver
  * controls all those simple 4-control-bytes style tuners.
@@ -207,28 +207,27 @@ static struct tunertype tuners[] = {
 	{ "LG PAL (TAPE series)", LGINNOTEK, PAL,
           16*170.00, 16*450.00, 0x01,0x02,0x08,0xce,623},
 
-        { "Philips PAL/SECAM multi (FQ1216AME MK4)", Philips, PAL,
-          16*160.00,16*442.00,0x01,0x02,0x04,0xce,623 },
-        { "Philips FQ1236A MK4", Philips, NTSC,
-          16*160.00,16*442.00,0x01,0x02,0x04,0x8e,732 },
+	{ "Philips PAL/SECAM multi (FQ1216AME MK4)", Philips, PAL,
+	  16*160.00,16*442.00,0x01,0x02,0x04,0xce,623 },
+	{ "Philips FQ1236A MK4", Philips, NTSC,
+	  16*160.00,16*442.00,0x01,0x02,0x04,0x8e,732 },
 
 	/* Should work for TVF8531MF, TVF8831MF, TVF8731MF */
 	{ "Ymec TVision TVF-8531MF", Philips, NTSC,
 	  16*160.00,16*454.00,0xa0,0x90,0x30,0x8e,732},
 	{ "Ymec TVision TVF-5533MF", Philips, NTSC,
 	  16*160.00,16*454.00,0x01,0x02,0x04,0x8e,732},
-
 	{ "Thomson DDT 7611 (ATSC/NTSC)", THOMSON, ATSC,
 	  16*157.25,16*454.00,0x39,0x3a,0x3c,0x8e,732},
-	{ "Tena TNF9533-D/IF", LGINNOTEK, PAL,
-	  16*160.25, 16*464.25, 0x01,0x02,0x08,0x8e,623},
+	/* Should work for TNF9533-D/IF, TNF9533-B/DF */
+	{ "Tena TNF9533-D/IF", Philips, PAL,
+          16*160.25,16*464.25,0x01,0x02,0x04,0x8e,623},
 
-	/*
-	 * This entry is for TEA5767 FM radio only chip used on several boards
-	 * w/TV tuner
-	 */
+	/* This entry is for TEA5767 FM radio only chip used on several boards w/TV tuner */
 	{ TEA5767_TUNER_NAME, Philips, RADIO,
-	  -1, -1, 0, 0, 0, TEA5767_LOW_LO_32768,0},
+          -1, -1, 0, 0, 0, TEA5767_LOW_LO_32768,0},
+	{ "Philips FMD1216ME MK3 Hybrid Tuner", Philips, PAL,
+	  16*160.00,16*442.00,0x51,0x52,0x54,0x86,623 },
 };
 
 unsigned const int tuner_count = ARRAY_SIZE(tuners);
@@ -455,24 +454,24 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	int rc;
 
 	tun=&tuners[t->type];
-	div = freq + (int)(16*10.7);
+	div = (freq / 1000) + (int)(16*10.7);
 	buffer[2] = tun->config;
 
 	switch (t->type) {
 	case TUNER_TENA_9533_DI:
 	case TUNER_YMEC_TVF_5533MF:
-
 		/*These values are empirically determinated */
-		div = (freq*122)/16 - 20;
+		div = (freq * 122) / 16000 - 20;
 		buffer[2] = 0x88; /* could be also 0x80 */
 		buffer[3] = 0x19; /* could be also 0x10, 0x18, 0x99 */
 		break;
 	case TUNER_PHILIPS_FM1216ME_MK3:
 	case TUNER_PHILIPS_FM1236_MK3:
+	case TUNER_PHILIPS_FMD1216ME_MK3:
 		buffer[3] = 0x19;
 		break;
 	case TUNER_PHILIPS_FM1256_IH3:
-		div = (20 * freq)/16 + 333 * 2;
+		div = (20 * freq) / 16000 + 333 * 2;
 	        buffer[2] = 0x80;
 		buffer[3] = 0x19;
 		break;
@@ -505,6 +504,7 @@ int default_tuner_init(struct i2c_client *c)
 	t->radio_freq = default_set_radio_freq;
 	t->has_signal = tuner_signal;
 	t->is_stereo  = tuner_stereo;
+
 	return 0;
 }
 

@@ -182,6 +182,16 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define SMC_insl(a, r, p, l)	readsl((a) + (r), p, l)
 #define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
 
+#include <asm/mach-types.h>
+#include <asm/arch/cpu.h>
+
+#define	SMC_IRQ_TRIGGER_TYPE (( \
+		   machine_is_omap_h2() \
+		|| machine_is_omap_h3() \
+		|| (machine_is_omap_innovator() && !cpu_is_omap150()) \
+	) ? IRQT_FALLING : IRQT_RISING)
+
+
 #elif	defined(CONFIG_SH_SH4202_MICRODEV)
 
 #define SMC_CAN_USE_8BIT	0
@@ -300,6 +310,9 @@ static inline void SMC_outsw (unsigned long a, int r, unsigned char* p, int l)
 
 #endif
 
+#ifndef	SMC_IRQ_TRIGGER_TYPE
+#define	SMC_IRQ_TRIGGER_TYPE	IRQT_RISING
+#endif
 
 #ifdef SMC_USE_PXA_DMA
 /*

@@ -4,7 +4,7 @@
 
 # Each configuration option enables a list of files.
 
-obj-$(CONFIG_PPC_PMAC)		+= macio_asic.o
+obj-$(CONFIG_PPC_PMAC)		+= macio_asic.o macio_sysfs.o
 
 obj-$(CONFIG_PMAC_MEDIABAY)	+= mediabay.o
 obj-$(CONFIG_MAC_EMUMOUSEBTN)	+= mac_hid.o

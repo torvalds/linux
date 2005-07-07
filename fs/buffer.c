@@ -278,7 +278,7 @@ EXPORT_SYMBOL(thaw_bdev);
  */
 static void do_sync(unsigned long wait)
 {
-	wakeup_bdflush(0);
+	wakeup_pdflush(0);
 	sync_inodes(0);		/* All mappings, inodes and their blockdevs */
 	DQUOT_SYNC(NULL);
 	sync_supers();		/* Write the superblocks */
@@ -497,7 +497,7 @@ static void free_more_memory(void)
 	struct zone **zones;
 	pg_data_t *pgdat;
 
-	wakeup_bdflush(1024);
+	wakeup_pdflush(1024);
 	yield();
 
 	for_each_pgdat(pgdat) {

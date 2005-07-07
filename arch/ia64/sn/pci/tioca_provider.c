@@ -336,7 +336,7 @@ tioca_dma_d48(struct pci_dev *pdev, uint64_t paddr)
 	if (!ct_addr)
 		return 0;
 
-	bus_addr = (dma_addr_t) (ct_addr & 0xffffffffffff);
+	bus_addr = (dma_addr_t) (ct_addr & 0xffffffffffffUL);
 	node_upper = ct_addr >> 48;
 
 	if (node_upper > 64) {
@@ -464,7 +464,7 @@ map_return:
  * For mappings created using the direct modes (64 or 48) there are no
  * resources to release.
  */
-void
+static void
 tioca_dma_unmap(struct pci_dev *pdev, dma_addr_t bus_addr, int dir)
 {
 	int i, entry;
@@ -514,7 +514,7 @@ tioca_dma_unmap(struct pci_dev *pdev, dma_addr_t bus_addr, int dir)
  * The mapping mode used is based on the devices dma_mask.  As a last resort
  * use the GART mapped mode.
  */
-uint64_t
+static uint64_t
 tioca_dma_map(struct pci_dev *pdev, uint64_t paddr, size_t byte_count)
 {
 	uint64_t mapaddr;
@@ -580,7 +580,7 @@ tioca_error_intr_handler(int irq, void *arg, struct pt_regs *pt)
  * On successful setup, returns the kernel version of tioca_common back to
  * the caller.
  */
-void *
+static void *
 tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft)
 {
 	struct tioca_common *tioca_common;

@@ -546,11 +546,11 @@ static inline void init_rx_bufs(struct net_device *dev)
 		rbd->b_next = WSWAPrbd(virt_to_bus(rbd+1));
 		rbd->b_addr = WSWAPrbd(virt_to_bus(rbd));
 		rbd->skb = skb;
-		rbd->v_data = skb->tail;
-		rbd->b_data = WSWAPchar(virt_to_bus(skb->tail));
+		rbd->v_data = skb->data;
+		rbd->b_data = WSWAPchar(virt_to_bus(skb->data));
 		rbd->size = PKT_BUF_SZ;
 #ifdef __mc68000__
-		cache_clear(virt_to_phys(skb->tail), PKT_BUF_SZ);
+		cache_clear(virt_to_phys(skb->data), PKT_BUF_SZ);
 #endif
 	}
 	lp->rbd_head = lp->rbds;
@@ -816,10 +816,10 @@ static inline int i596_rx(struct net_device *dev)
 				rx_in_place = 1;
 				rbd->skb = newskb;
 				newskb->dev = dev;
-				rbd->v_data = newskb->tail;
-				rbd->b_data = WSWAPchar(virt_to_bus(newskb->tail));
+				rbd->v_data = newskb->data;
+				rbd->b_data = WSWAPchar(virt_to_bus(newskb->data));
 #ifdef __mc68000__
-				cache_clear(virt_to_phys(newskb->tail), PKT_BUF_SZ);
+				cache_clear(virt_to_phys(newskb->data), PKT_BUF_SZ);
 #endif
 			}
 			else
@@ -840,7 +840,7 @@ memory_squeeze:
 				skb->protocol=eth_type_trans(skb,dev);
 				skb->len = pkt_len;
 #ifdef __mc68000__
-				cache_clear(virt_to_phys(rbd->skb->tail),
+				cache_clear(virt_to_phys(rbd->skb->data),
 						pkt_len);
 #endif
 				netif_rx(skb);

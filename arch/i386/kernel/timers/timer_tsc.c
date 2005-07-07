@@ -24,6 +24,7 @@
 #include "mach_timer.h"
 
 #include <asm/hpet.h>
+#include <asm/i8253.h>
 
 #ifdef CONFIG_HPET_TIMER
 static unsigned long hpet_usec_quotient;
@@ -34,8 +35,6 @@ static struct timer_opts timer_tsc;
 static inline void cpufreq_delayed_get(void);
 
 int tsc_disable __devinitdata = 0;
-
-extern spinlock_t i8253_lock;
 
 static int use_tsc;
 /* Number of usecs that the last interrupt was delayed */

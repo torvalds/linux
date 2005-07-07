@@ -1,4 +1,4 @@
-#include "zlib.h"
+#include <linux/zlib.h>
 
 /* bits taken from ppc */
 
@@ -9,11 +9,10 @@ void exit (void)
   for (;;);
 }
 
-void *zalloc(void *x, unsigned items, unsigned size)
+void *zalloc(unsigned size)
 {
         void *p = avail_ram;
 
-        size *= items;
         size = (size + 7) & -8;
         avail_ram += size;
         if (avail_ram > end_avail) {
@@ -23,11 +22,6 @@ void *zalloc(void *x, unsigned items, unsigned size)
         }
         return p;
 }
-
-void zfree(void *x, void *addr, unsigned nb)
-{
-}
-
 
 #define HEAD_CRC        2
 #define EXTRA_FIELD     4
@@ -43,7 +37,6 @@ void gunzip (void *dst, int dstlen, unsigned char *src, int *lenp)
 	int r, i, flags;
 
         /* skip header */
-
         i = 10;
         flags = src[3];
         if (src[2] != DEFLATED || (flags & RESERVED) != 0) {
@@ -65,9 +58,8 @@ void gunzip (void *dst, int dstlen, unsigned char *src, int *lenp)
                 exit();
         }
 
-        s.zalloc = zalloc;
-        s.zfree = zfree;
-        r = inflateInit2(&s, -MAX_WBITS);
+	s.workspace = zalloc(zlib_inflate_workspacesize());
+        r = zlib_inflateInit2(&s, -MAX_WBITS);
         if (r != Z_OK) {
                 //puts("inflateInit2 returned "); puthex(r); puts("\n");
                 exit();
@@ -76,12 +68,12 @@ void gunzip (void *dst, int dstlen, unsigned char *src, int *lenp)
         s.avail_in = *lenp - i;
         s.next_out = dst;
         s.avail_out = dstlen;
-        r = inflate(&s, Z_FINISH);
+        r = zlib_inflate(&s, Z_FINISH);
         if (r != Z_OK && r != Z_STREAM_END) {
                 //puts("inflate returned "); puthex(r); puts("\n");
                 exit();
         }
         *lenp = s.next_out - (unsigned char *) dst;
-        inflateEnd(&s);
+        zlib_inflateEnd(&s);
 }
 

@@ -786,7 +786,6 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 
  	case CCISS_GETLUNINFO: {
  		LogvolInfo_struct luninfo;
- 		int i;
  		
  		luninfo.LunID = drv->LunID;
  		luninfo.num_opens = drv->usage_count;

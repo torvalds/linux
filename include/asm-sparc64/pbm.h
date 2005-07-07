@@ -145,6 +145,9 @@ struct pci_pbm_info {
 	/* Physical address base of PBM registers. */
 	unsigned long			pbm_regs;
 
+	/* Physical address of DMA sync register, if any.  */
+	unsigned long			sync_reg;
+
 	/* Opaque 32-bit system bus Port ID. */
 	u32				portid;
 

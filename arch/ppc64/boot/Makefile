@@ -52,7 +52,7 @@ obj-sec = $(foreach section, $(1), $(patsubst %,$(obj)/kernel-%.o, $(section)))
 src-sec = $(foreach section, $(1), $(patsubst %,$(obj)/kernel-%.c, $(section)))
 gz-sec  = $(foreach section, $(1), $(patsubst %,$(obj)/kernel-%.gz, $(section)))
 
-hostprogs-y		:= piggy addnote addRamDisk
+hostprogs-y		:= addnote addRamDisk
 targets 		+= zImage zImage.initrd imagesize.c \
 			   $(patsubst $(obj)/%,%, $(call obj-sec, $(required) $(initrd))) \
 			   $(patsubst $(obj)/%,%, $(call src-sec, $(required) $(initrd))) \
@@ -77,9 +77,6 @@ addsection = $(CROSS32OBJCOPY) $(1) \
 
 quiet_cmd_addnote = ADDNOTE $@ 
       cmd_addnote = $(CROSS32LD) $(BOOTLFLAGS) -o $@ $(obj-boot) && $(obj)/addnote $@
-
-quiet_cmd_piggy = PIGGY   $@
-      cmd_piggy = $(obj)/piggyback $(@:.o=) < $< | $(CROSS32AS) -o $@
 
 $(call gz-sec, $(required)): $(obj)/kernel-%.gz: % FORCE
 	$(call if_changed,gzip)

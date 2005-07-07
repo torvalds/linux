@@ -1107,7 +1107,7 @@ static void allocate_rx_buffers(struct net_device *dev)
 
 		skb->dev = dev;	/* Mark as being used by this device. */
 		np->lack_rxbuf->skbuff = skb;
-		np->lack_rxbuf->buffer = pci_map_single(np->pci_dev, skb->tail,
+		np->lack_rxbuf->buffer = pci_map_single(np->pci_dev, skb->data,
 			np->rx_buf_sz, PCI_DMA_FROMDEVICE);
 		np->lack_rxbuf->status = RXOWN;
 		++np->really_rx_count;
@@ -1300,7 +1300,7 @@ static void init_ring(struct net_device *dev)
 		++np->really_rx_count;
 		np->rx_ring[i].skbuff = skb;
 		skb->dev = dev;	/* Mark as being used by this device. */
-		np->rx_ring[i].buffer = pci_map_single(np->pci_dev, skb->tail,
+		np->rx_ring[i].buffer = pci_map_single(np->pci_dev, skb->data,
 			np->rx_buf_sz, PCI_DMA_FROMDEVICE);
 		np->rx_ring[i].status = RXOWN;
 		np->rx_ring[i].control |= RXIC;
@@ -1737,11 +1737,11 @@ static int netdev_rx(struct net_device *dev)
 
 #if ! defined(__alpha__)
 				eth_copy_and_sum(skb, 
-					np->cur_rx->skbuff->tail, pkt_len, 0);
+					np->cur_rx->skbuff->data, pkt_len, 0);
 				skb_put(skb, pkt_len);
 #else
 				memcpy(skb_put(skb, pkt_len),
-					np->cur_rx->skbuff->tail, pkt_len);
+					np->cur_rx->skbuff->data, pkt_len);
 #endif
 				pci_dma_sync_single_for_device(np->pci_dev,
 							       np->cur_rx->buffer,

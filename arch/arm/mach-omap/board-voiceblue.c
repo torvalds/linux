@@ -246,11 +246,13 @@ EXPORT_SYMBOL(voiceblue_wdt_disable);
 EXPORT_SYMBOL(voiceblue_wdt_ping);
 
 MACHINE_START(VOICEBLUE, "VoiceBlue OMAP5910")
-	MAINTAINER("Ladislav Michl <michl@2n.cz>")
-	BOOT_MEM(0x10000000, 0xfff00000, 0xfef00000)
-	BOOT_PARAMS(0x10000100)
-	MAPIO(voiceblue_map_io)
-	INITIRQ(voiceblue_init_irq)
-	INIT_MACHINE(voiceblue_init)
-	.timer = &omap_timer,
+	/* Maintainer: Ladislav Michl <michl@2n.cz> */
+	.phys_ram	= 0x10000000,
+	.phys_io	= 0xfff00000,
+	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
+	.boot_params	= 0x10000100,
+	.map_io		= voiceblue_map_io,
+	.init_irq	= voiceblue_init_irq,
+	.init_machine	= voiceblue_init,
+	.timer		= &omap_timer,
 MACHINE_END

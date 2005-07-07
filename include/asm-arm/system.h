@@ -85,7 +85,9 @@ struct pt_regs;
 void die(const char *msg, struct pt_regs *regs, int err)
 		__attribute__((noreturn));
 
-void die_if_kernel(const char *str, struct pt_regs *regs, int err);
+struct siginfo;
+void notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
+		unsigned long err, unsigned long trap);
 
 void hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
 				       struct pt_regs *),
@@ -290,7 +292,6 @@ do {									\
 })
 
 #ifdef CONFIG_SMP
-#error SMP not supported
 
 #define smp_mb()		mb()
 #define smp_rmb()		rmb()
@@ -304,6 +305,8 @@ do {									\
 #define smp_wmb()		barrier()
 #define smp_read_barrier_depends()		do { } while(0)
 
+#endif /* CONFIG_SMP */
+
 #if defined(CONFIG_CPU_SA1100) || defined(CONFIG_CPU_SA110)
 /*
  * On the StrongARM, "swp" is terminally broken since it bypasses the
@@ -316,8 +319,15 @@ do {									\
  *
  * We choose (1) since its the "easiest" to achieve here and is not
  * dependent on the processor type.
+ *
+ * NOTE that this solution won't work on an SMP system, so explcitly
+ * forbid it here.
  */
+#ifdef CONFIG_SMP
+#error SMP is not supported on SA1100/SA110
+#else
 #define swp_is_buggy
+#endif
 #endif
 
 static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
@@ -360,8 +370,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 
 	return ret;
 }
-
-#endif /* CONFIG_SMP */
 
 #endif /* __ASSEMBLY__ */
 

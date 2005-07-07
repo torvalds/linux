@@ -126,6 +126,7 @@ void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const void *data
 	rta->rta_type = attrtype;
 	rta->rta_len = size;
 	memcpy(RTA_DATA(rta), data, attrlen);
+	memset(RTA_DATA(rta) + attrlen, 0, RTA_ALIGN(size) - size);
 }
 
 size_t rtattr_strlcpy(char *dest, const struct rtattr *rta, size_t size)
@@ -188,6 +189,7 @@ static int rtnetlink_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	nlh = NLMSG_NEW(skb, pid, seq, type, sizeof(*r), flags);
 	r = NLMSG_DATA(nlh);
 	r->ifi_family = AF_UNSPEC;
+	r->__ifi_pad = 0;
 	r->ifi_type = dev->type;
 	r->ifi_index = dev->ifindex;
 	r->ifi_flags = dev_get_flags(dev);

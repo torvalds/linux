@@ -78,11 +78,13 @@ mx1ads_map_io(void)
 }
 
 MACHINE_START(MX1ADS, "Motorola MX1ADS")
-	MAINTAINER("Sascha Hauer, Pengutronix")
-	BOOT_MEM(0x08000000, 0x00200000, 0xe0200000)
-	BOOT_PARAMS(0x08000100)
-	MAPIO(mx1ads_map_io)
-	INITIRQ(imx_init_irq)
+	/* Maintainer: Sascha Hauer, Pengutronix */
+	.phys_ram	= 0x08000000,
+	.phys_io	= 0x00200000,
+	.io_pg_offst	= ((0xe0200000) >> 18) & 0xfffc,
+	.boot_params	= 0x08000100,
+	.map_io		= mx1ads_map_io,
+	.init_irq	= imx_init_irq,
 	.timer		= &imx_timer,
-	INIT_MACHINE(mx1ads_init)
+	.init_machine	= mx1ads_init,
 MACHINE_END

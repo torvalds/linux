@@ -572,13 +572,10 @@ static unsigned int sunsu_tx_empty(struct uart_port *port)
 static unsigned int sunsu_get_mctrl(struct uart_port *port)
 {
 	struct uart_sunsu_port *up = (struct uart_sunsu_port *) port;
-	unsigned long flags;
 	unsigned char status;
 	unsigned int ret;
 
-	spin_lock_irqsave(&up->port.lock, flags);
 	status = serial_in(up, UART_MSR);
-	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	ret = 0;
 	if (status & UART_MSR_DCD)

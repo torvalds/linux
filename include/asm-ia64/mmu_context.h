@@ -132,6 +132,9 @@ reload_context (mm_context_t context)
 	ia64_srlz_i();			/* srlz.i implies srlz.d */
 }
 
+/*
+ * Must be called with preemption off
+ */
 static inline void
 activate_context (struct mm_struct *mm)
 {

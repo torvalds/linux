@@ -240,7 +240,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 	siginfo_t info;
 	int signo, code;
 
-	if (regs->ps == 0) {
+	if ((regs->ps & ~IPL_MAX) == 0) {
 		if (type == 1) {
 			const unsigned int *data
 			  = (const unsigned int *) regs->pc;

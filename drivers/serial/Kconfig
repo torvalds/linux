@@ -86,7 +86,7 @@ config SERIAL_8250_ACPI
 	  namespace, say Y here.  If unsure, say N.
 
 config SERIAL_8250_NR_UARTS
-	int "Maximum number of non-legacy 8250/16550 serial ports"
+	int "Maximum number of 8250/16550 serial ports"
 	depends on SERIAL_8250
 	default "4"
 	help

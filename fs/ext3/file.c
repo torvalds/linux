@@ -36,7 +36,11 @@ static int ext3_release_file (struct inode * inode, struct file * filp)
 	/* if we are the last writer on the inode, drop the block reservation */
 	if ((filp->f_mode & FMODE_WRITE) &&
 			(atomic_read(&inode->i_writecount) == 1))
+	{
+		down(&EXT3_I(inode)->truncate_sem);
 		ext3_discard_reservation(inode);
+		up(&EXT3_I(inode)->truncate_sem);
+	}
 	if (is_dx(inode) && filp->private_data)
 		ext3_htree_free_dir_info(filp->private_data);
 

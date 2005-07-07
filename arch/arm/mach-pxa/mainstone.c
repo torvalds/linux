@@ -345,10 +345,12 @@ static void __init mainstone_map_io(void)
 }
 
 MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
-	MAINTAINER("MontaVista Software Inc.")
-	BOOT_MEM(0xa0000000, 0x40000000, io_p2v(0x40000000))
-	MAPIO(mainstone_map_io)
-	INITIRQ(mainstone_init_irq)
+	/* Maintainer: MontaVista Software Inc. */
+	.phys_ram	= 0xa0000000,
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
+	.map_io		= mainstone_map_io,
+	.init_irq	= mainstone_init_irq,
 	.timer		= &pxa_timer,
-	INIT_MACHINE(mainstone_init)
+	.init_machine	= mainstone_init,
 MACHINE_END

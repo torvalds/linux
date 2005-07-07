@@ -596,7 +596,7 @@ rx_status_loop:
 
 		mapping =
 		cp->rx_skb[rx_tail].mapping =
-			pci_map_single(cp->pdev, new_skb->tail,
+			pci_map_single(cp->pdev, new_skb->data,
 				       buflen, PCI_DMA_FROMDEVICE);
 		cp->rx_skb[rx_tail].skb = new_skb;
 
@@ -1101,7 +1101,7 @@ static int cp_refill_rx (struct cp_private *cp)
 		skb_reserve(skb, RX_OFFSET);
 
 		cp->rx_skb[i].mapping = pci_map_single(cp->pdev,
-			skb->tail, cp->rx_buf_sz, PCI_DMA_FROMDEVICE);
+			skb->data, cp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 		cp->rx_skb[i].skb = skb;
 
 		cp->rx_ring[i].opts2 = 0;

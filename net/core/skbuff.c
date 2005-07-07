@@ -357,7 +357,6 @@ struct sk_buff *skb_clone(struct sk_buff *skb, int gfp_mask)
 	C(ip_summed);
 	C(priority);
 	C(protocol);
-	C(security);
 	n->destructor = NULL;
 #ifdef CONFIG_NETFILTER
 	C(nfmark);
@@ -422,7 +421,6 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->pkt_type	= old->pkt_type;
 	new->stamp	= old->stamp;
 	new->destructor = NULL;
-	new->security	= old->security;
 #ifdef CONFIG_NETFILTER
 	new->nfmark	= old->nfmark;
 	new->nfcache	= old->nfcache;

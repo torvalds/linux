@@ -4,7 +4,7 @@
  * OMAP Timers
  *
  * Copyright (C) 2004 Nokia Corporation
- * Partial timer rewrite and additional VST timer support by
+ * Partial timer rewrite and additional dynamic tick timer support by
  * Tony Lindgen <tony@atomide.com> and
  * Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
  *
@@ -261,7 +261,6 @@ unsigned long long sched_clock(void)
  * so with HZ = 100, TVR = 327.68.
  */
 #define OMAP_32K_TIMER_TICK_PERIOD	((32768 / HZ) - 1)
-#define MAX_SKIP_JIFFIES		25
 #define TIMER_32K_SYNCHRONIZED		0xfffbc410
 
 #define JIFFIES_TO_HW_TICKS(nr_jiffies, clock_rate)			\
@@ -347,6 +346,42 @@ static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NO_IDLE_HZ
+/*
+ * Programs the next timer interrupt needed. Called when dynamic tick is
+ * enabled, and to reprogram the ticks to skip from pm_idle. Note that
+ * we can keep the timer continuous, and don't need to set it to run in
+ * one-shot mode. This is because the timer will get reprogrammed again
+ * after next interrupt.
+ */
+void omap_32k_timer_reprogram(unsigned long next_tick)
+{
+	omap_32k_timer_start(JIFFIES_TO_HW_TICKS(next_tick, 32768) + 1);
+}
+
+static struct irqaction omap_32k_timer_irq;
+extern struct timer_update_handler timer_update;
+
+static int omap_32k_timer_enable_dyn_tick(void)
+{
+	/* No need to reprogram timer, just use the next interrupt */
+	return 0;
+}
+
+static int omap_32k_timer_disable_dyn_tick(void)
+{
+	omap_32k_timer_start(OMAP_32K_TIMER_TICK_PERIOD);
+	return 0;
+}
+
+static struct dyn_tick_timer omap_dyn_tick_timer = {
+	.enable		= omap_32k_timer_enable_dyn_tick,
+	.disable	= omap_32k_timer_disable_dyn_tick,
+	.reprogram	= omap_32k_timer_reprogram,
+	.handler	= omap_32k_timer_interrupt,
+};
+#endif	/* CONFIG_NO_IDLE_HZ */
+
 static struct irqaction omap_32k_timer_irq = {
 	.name		= "32KHz timer",
 	.flags		= SA_INTERRUPT | SA_TIMER,
@@ -355,6 +390,11 @@ static struct irqaction omap_32k_timer_irq = {
 
 static __init void omap_init_32k_timer(void)
 {
+
+#ifdef CONFIG_NO_IDLE_HZ
+	omap_timer.dyn_tick = &omap_dyn_tick_timer;
+#endif
+
 	setup_irq(INT_OS_TIMER, &omap_32k_timer_irq);
 	omap_timer.offset  = omap_32k_timer_gettimeoffset;
 	omap_32k_last_tick = omap_32k_sync_timer_read();

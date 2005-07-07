@@ -35,6 +35,7 @@
 #include <asm/desc.h>
 #include <asm/arch_hooks.h>
 #include <asm/hpet.h>
+#include <asm/i8253.h>
 
 #include <mach_apic.h>
 
@@ -879,7 +880,6 @@ fake_ioapic_page:
  */
 static unsigned int __devinit get_8254_timer_count(void)
 {
-	extern spinlock_t i8253_lock;
 	unsigned long flags;
 
 	unsigned int count;

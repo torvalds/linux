@@ -34,9 +34,9 @@ relocate_new_kernel:
 
 	mr	r8, r0
 	ori     r8, r8, MSR_RI|MSR_ME
-	mtspr	SRR1, r8
+	mtspr	SPRN_SRR1, r8
 	addi	r8, r4, 1f - relocate_new_kernel
-	mtspr	SRR0, r8
+	mtspr	SPRN_SRR0, r8
 	sync
 	rfi
 

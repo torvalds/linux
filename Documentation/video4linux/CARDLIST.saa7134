@@ -54,3 +54,9 @@
  55 -> LifeView FlyDVB-T DUO                    [5168:0306]
  56 -> Avermedia AVerTV 307                     [1461:a70a]
  57 -> Avermedia AVerTV GO 007 FM               [1461:f31f]
+ 58 -> ADS Tech Instant TV (saa7135)            [1421:0350,1421:0370]
+ 59 -> Kworld/Tevion V-Stream Xpert TV PVR7134
+ 60 -> Typhoon DVB-T Duo Digital/Analog Cardbus
+ 61 -> Philips TOUGH DVB-T reference design
+ 62 -> Compro VideoMate TV Gold+II
+ 63 -> Kworld Xpert TV PVR7134

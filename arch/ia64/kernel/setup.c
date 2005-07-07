@@ -72,6 +72,8 @@ DEFINE_PER_CPU(unsigned long, ia64_phys_stacked_size_p8);
 unsigned long ia64_cycles_per_usec;
 struct ia64_boot_param *ia64_boot_param;
 struct screen_info screen_info;
+unsigned long vga_console_iobase;
+unsigned long vga_console_membase;
 
 unsigned long ia64_max_cacheline_size;
 unsigned long ia64_iobase;	/* virtual address for I/O accesses */
@@ -273,23 +275,25 @@ io_port_init (void)
 static inline int __init
 early_console_setup (char *cmdline)
 {
+	int earlycons = 0;
+
 #ifdef CONFIG_SERIAL_SGI_L1_CONSOLE
 	{
 		extern int sn_serial_console_early_setup(void);
 		if (!sn_serial_console_early_setup())
-			return 0;
+			earlycons++;
 	}
 #endif
 #ifdef CONFIG_EFI_PCDP
 	if (!efi_setup_pcdp_console(cmdline))
-		return 0;
+		earlycons++;
 #endif
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 	if (!early_serial_console_init(cmdline))
-		return 0;
+		earlycons++;
 #endif
 
-	return -1;
+	return (earlycons) ? 0 : -1;
 }
 
 static inline void

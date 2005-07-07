@@ -1,5 +1,5 @@
 /*
-    $Id: bttvp.h,v 1.17 2005/02/16 12:14:10 kraxel Exp $
+    $Id: bttvp.h,v 1.19 2005/06/16 21:38:45 nsh Exp $
 
     bttv - Bt848 frame grabber driver
 
@@ -326,6 +326,9 @@ struct bttv {
 	int opt_vcr_hack;
 	int opt_whitecrush_upper;
 	int opt_whitecrush_lower;
+	int opt_uv_ratio;
+	int opt_full_luma_range;
+	int opt_coring;
 
 	/* radio data/state */
 	int has_radio;

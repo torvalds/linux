@@ -27,6 +27,7 @@
  *     10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
  *     14-Mar-2006 BJD  Updated for __iomem changes
  *     22-Jun-2006 BJD  Added DM9000 platform information
+ *     28-Jun-2006 BJD  Moved pm functionality out to common code
 */
 
 #include <linux/kernel.h>
@@ -67,7 +68,6 @@
 #include "devs.h"
 #include "cpu.h"
 #include "usb-simtec.h"
-#include "pm.h"
 
 #define COPYRIGHT ", (c) 2004-2005 Simtec Electronics"
 
@@ -405,44 +405,14 @@ void __init bast_map_io(void)
 	usb_simtec_init();
 }
 
-void __init bast_init_irq(void)
-{
-	s3c24xx_init_irq();
-}
-
-#ifdef CONFIG_PM
-
-/* bast_init_machine
- *
- * enable the power management functions for the EB2410ITX
-*/
-
-static __init void bast_init_machine(void)
-{
-	unsigned long gstatus4;
-
-	printk(KERN_INFO "BAST Power Manangement" COPYRIGHT "\n");
-
-	gstatus4  = (__raw_readl(S3C2410_BANKCON7) & 0x3) << 30;
-	gstatus4 |= (__raw_readl(S3C2410_BANKCON6) & 0x3) << 28;
-	gstatus4 |= (__raw_readl(S3C2410_BANKSIZE) & S3C2410_BANKSIZE_MASK);
-
-	__raw_writel(gstatus4, S3C2410_GSTATUS4);
-
-	s3c2410_pm_init();
-}
-
-#else
-#define bast_init_machine NULL
-#endif
-
 
 MACHINE_START(BAST, "Simtec-BAST")
-     MAINTAINER("Ben Dooks <ben@simtec.co.uk>")
-     BOOT_MEM(S3C2410_SDRAM_PA, S3C2410_PA_UART, (u32)S3C24XX_VA_UART)
-     BOOT_PARAMS(S3C2410_SDRAM_PA + 0x100)
-     MAPIO(bast_map_io)
-     INITIRQ(bast_init_irq)
-	.init_machine	= bast_init_machine,
+	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
+	.phys_ram	= S3C2410_SDRAM_PA,
+	.phys_io	= S3C2410_PA_UART,
+	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
+	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.map_io		= bast_map_io,
+	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

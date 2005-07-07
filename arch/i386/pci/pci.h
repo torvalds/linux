@@ -27,6 +27,7 @@
 #define PCI_ASSIGN_ALL_BUSSES	0x4000
 
 extern unsigned int pci_probe;
+extern unsigned long pirq_table_addr;
 
 /* pci-i386.c */
 

@@ -8,13 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-const int config_ports[] = { 0x2E, 0x4E };
-const int unlock_codes[] = { 0x83, 0x87 };
-
-const int valid_ids[] = {
-	0x7112,
-	};
-
 #define LOCK_CODE		0xAA
 
 #define WBSD_CONF_SWRST		0x02
@@ -187,4 +180,6 @@ struct wbsd_host
 	struct tasklet_struct	timeout_tasklet;
 	struct tasklet_struct	finish_tasklet;
 	struct tasklet_struct	block_tasklet;
+	
+	struct timer_list	timer;		/* Card detection timer */
 };

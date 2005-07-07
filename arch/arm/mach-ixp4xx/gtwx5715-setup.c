@@ -140,14 +140,15 @@ static void __init gtwx5715_init(void)
 
 
 MACHINE_START(GTWX5715, "Gemtek GTWX5715 (Linksys WRV54G)")
-        MAINTAINER("George Joseph")
-        BOOT_MEM(PHYS_OFFSET, IXP4XX_UART2_BASE_PHYS,
-                IXP4XX_UART2_BASE_VIRT)
-        MAPIO(gtwx5715_map_io)
-        INITIRQ(ixp4xx_init_irq)
-		  .timer		= &ixp4xx_timer,
-        BOOT_PARAMS(0x0100)
-        INIT_MACHINE(gtwx5715_init)
+	/* Maintainer: George Joseph */
+	.phys_ram	= PHYS_OFFSET,
+	.phys_io	= IXP4XX_UART2_BASE_PHYS,
+	.io_pg_offst	= ((IXP4XX_UART2_BASE_VIRT) >> 18) & 0xfffc,
+	.map_io		= gtwx5715_map_io,
+	.init_irq	= ixp4xx_init_irq,
+	.timer		= &ixp4xx_timer,
+	.boot_params	= 0x0100,
+	.init_machine	= gtwx5715_init,
 MACHINE_END
 
 

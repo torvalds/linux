@@ -270,11 +270,13 @@ static void __init innovator_map_io(void)
 }
 
 MACHINE_START(OMAP_INNOVATOR, "TI-Innovator")
-	MAINTAINER("MontaVista Software, Inc.")
-	BOOT_MEM(0x10000000, 0xfff00000, 0xfef00000)
-	BOOT_PARAMS(0x10000100)
-	MAPIO(innovator_map_io)
-	INITIRQ(innovator_init_irq)
-	INIT_MACHINE(innovator_init)
+	/* Maintainer: MontaVista Software, Inc. */
+	.phys_ram	= 0x10000000,
+	.phys_io	= 0xfff00000,
+	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
+	.boot_params	= 0x10000100,
+	.map_io		= innovator_map_io,
+	.init_irq	= innovator_init_irq,
+	.init_machine	= innovator_init,
 	.timer		= &omap_timer,
 MACHINE_END

@@ -30,9 +30,6 @@ extern void __lshrdi3(void);
 extern void __modsi3(void);
 extern void __muldi3(void);
 extern void __ucmpdi2(void);
-extern void __udivdi3(void);
-extern void __umoddi3(void);
-extern void __udivmoddi4(void);
 extern void __udivsi3(void);
 extern void __umodsi3(void);
 extern void __do_div64(void);
@@ -44,7 +41,10 @@ extern void fp_enter(void);
  * This has a special calling convention; it doesn't
  * modify any of the usual registers, except for LR.
  */
+#define EXPORT_CRC_ALIAS(sym) __CRC_SYMBOL(sym, "")
+
 #define EXPORT_SYMBOL_ALIAS(sym,orig)		\
+ EXPORT_CRC_ALIAS(sym)				\
  const struct kernel_symbol __ksymtab_##sym	\
   __attribute__((section("__ksymtab"))) =	\
     { (unsigned long)&orig, #sym };
@@ -134,9 +134,6 @@ EXPORT_SYMBOL(__lshrdi3);
 EXPORT_SYMBOL(__modsi3);
 EXPORT_SYMBOL(__muldi3);
 EXPORT_SYMBOL(__ucmpdi2);
-EXPORT_SYMBOL(__udivdi3);
-EXPORT_SYMBOL(__umoddi3);
-EXPORT_SYMBOL(__udivmoddi4);
 EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(__umodsi3);
 EXPORT_SYMBOL(__do_div64);
