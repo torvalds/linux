@@ -259,7 +259,7 @@ int drm_release( struct inode *inode, struct file *filp )
 	drm_fasync( -1, filp, 0 );
 
 	down( &dev->ctxlist_sem );
-	if ( !list_empty( &dev->ctxlist->head ) ) {
+	if ( dev->ctxlist && (!list_empty(&dev->ctxlist->head))) {
 		drm_ctx_list_t *pos, *n;
 
 		list_for_each_entry_safe( pos, n, &dev->ctxlist->head, head ) {
