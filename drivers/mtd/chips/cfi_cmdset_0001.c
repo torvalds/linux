@@ -845,7 +845,7 @@ static void __xipram xip_enable(struct map_info *map, struct flchip *chip,
 		chip->state = FL_READY;
 	}
 	(void) map_read(map, adr);
-	asm volatile (".rep 8; nop; .endr"); /* fill instruction prefetch */
+	xip_iprefetch();
 	local_irq_enable();
 }
 
