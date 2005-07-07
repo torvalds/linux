@@ -251,7 +251,7 @@ int drm_release( struct inode *inode, struct file *filp )
 		}
 	}
 	
-	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
+	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA) && !dev->driver->release)
 	{
 		dev->driver->reclaim_buffers(dev, filp);
 	}
