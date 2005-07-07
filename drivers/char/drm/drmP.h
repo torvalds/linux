@@ -806,7 +806,6 @@ extern ssize_t       drm_read(struct file *filp, char __user *buf, size_t count,
 extern void	     drm_mem_init(void);
 extern int	     drm_mem_info(char *buf, char **start, off_t offset,
 				   int request, int *eof, void *data);
-extern void	     *drm_calloc(size_t nmemb, size_t size, int area);
 extern void	     *drm_realloc(void *oldpt, size_t oldsize, size_t size,
 				   int area);
 extern unsigned long drm_alloc_pages(int order, int area);
@@ -1064,9 +1063,16 @@ static __inline__ void drm_free(void *pt, size_t size, int area)
 {
 	kfree(pt);
 }
+
+/** Wrapper around kcalloc() */
+static __inline__ void *drm_calloc(size_t nmemb, size_t size, int area)
+{
+	return kcalloc(nmemb, size, GFP_KERNEL);
+}
 #else
 extern void *drm_alloc(size_t size, int area);
 extern void drm_free(void *pt, size_t size, int area);
+extern void *drm_calloc(size_t nmemb, size_t size, int area);
 #endif
 
 /*@}*/
