@@ -11,7 +11,7 @@ obj-y		+= commoncap.o
 endif
 
 # Object file lists
-obj-$(CONFIG_SECURITY)			+= security.o dummy.o
+obj-$(CONFIG_SECURITY)			+= security.o dummy.o inode.o
 # Must precede capability.o in order to stack properly.
 obj-$(CONFIG_SECURITY_SELINUX)		+= selinux/built-in.o
 obj-$(CONFIG_SECURITY_CAPABILITIES)	+= commoncap.o capability.o
