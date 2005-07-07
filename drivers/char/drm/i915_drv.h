@@ -99,14 +99,6 @@ typedef struct drm_i915_private {
 } drm_i915_private_t;
 
 				/* i915_dma.c */
-extern int i915_dma_init(DRM_IOCTL_ARGS);
-extern int i915_dma_cleanup(drm_device_t * dev);
-extern int i915_flush_ioctl(DRM_IOCTL_ARGS);
-extern int i915_batchbuffer(DRM_IOCTL_ARGS);
-extern int i915_flip_bufs(DRM_IOCTL_ARGS);
-extern int i915_getparam(DRM_IOCTL_ARGS);
-extern int i915_setparam(DRM_IOCTL_ARGS);
-extern int i915_cmdbuffer(DRM_IOCTL_ARGS);
 extern void i915_kernel_lost_context(drm_device_t * dev);
 extern void i915_driver_pretakedown(drm_device_t *dev);
 extern void i915_driver_prerelease(drm_device_t *dev, DRMFILE filp);
@@ -114,8 +106,6 @@ extern void i915_driver_prerelease(drm_device_t *dev, DRMFILE filp);
 /* i915_irq.c */
 extern int i915_irq_emit(DRM_IOCTL_ARGS);
 extern int i915_irq_wait(DRM_IOCTL_ARGS);
-extern int i915_wait_irq(drm_device_t * dev, int irq_nr);
-extern int i915_emit_irq(drm_device_t * dev);
 
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(drm_device_t *dev);

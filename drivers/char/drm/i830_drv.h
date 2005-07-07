@@ -123,8 +123,6 @@ typedef struct drm_i830_private {
 /* i830_dma.c */
 extern void i830_reclaim_buffers(drm_device_t *dev, struct file *filp);
 
-extern int i830_mmap_buffers(struct file *filp, struct vm_area_struct *vma);
-
 /* i830_irq.c */
 extern int i830_irq_emit( struct inode *inode, struct file *filp, 
 			  unsigned int cmd, unsigned long arg );
