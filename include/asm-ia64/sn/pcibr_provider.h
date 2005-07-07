@@ -8,6 +8,9 @@
 #ifndef _ASM_IA64_SN_PCI_PCIBR_PROVIDER_H
 #define _ASM_IA64_SN_PCI_PCIBR_PROVIDER_H
 
+#include <asm/sn/intr.h>
+#include <asm/sn/pcibus_provider_defs.h>
+
 /* Workarounds */
 #define PV907516 (1 << 1) /* TIOCP: Don't write the write buffer flush reg */
 
@@ -20,7 +23,7 @@
 #define IS_PIC_SOFT(ps)     (ps->pbi_bridge_type == PCIBR_BRIDGETYPE_PIC)
 
 
-/* 
+/*
  * The different PCI Bridge types supported on the SGI Altix platforms
  */
 #define PCIBR_BRIDGETYPE_UNKNOWN       -1
@@ -100,15 +103,16 @@ struct pcibus_info {
 
 	struct ate_resource     pbi_int_ate_resource;
 	uint64_t                pbi_int_ate_size;
-	
+
 	uint64_t                pbi_dir_xbase;
 	char                    pbi_hub_xid;
 
 	uint64_t                pbi_devreg[8];
-	spinlock_t              pbi_lock;
 
 	uint32_t		pbi_valid_devices;
 	uint32_t		pbi_enabled_devices;
+
+	spinlock_t              pbi_lock;
 };
 
 /*
@@ -148,4 +152,8 @@ extern void 		pcibr_change_devices_irq(struct sn_irq_info *sn_irq_info);
 extern int 		pcibr_ate_alloc(struct pcibus_info *, int);
 extern void 		pcibr_ate_free(struct pcibus_info *, int);
 extern void 		ate_write(struct pcibus_info *, int, int, uint64_t);
+extern int sal_pcibr_slot_enable(struct pcibus_info *soft, int device,
+				 void *resp);
+extern int sal_pcibr_slot_disable(struct pcibus_info *soft, int device,
+				  int action, void *resp);
 #endif

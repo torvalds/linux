@@ -111,7 +111,7 @@ struct tiocp{
 	uint64_t	clear_all;			/* 0x000{438,,,5F8} */
     } cp_buf_count[8];
 
-    
+
     /* 0x000600-0x0009FF -- PCI/X registers */
     uint64_t		cp_pcix_bus_err_addr;		/* 0x000600 */
     uint64_t		cp_pcix_bus_err_attr;		/* 0x000608 */

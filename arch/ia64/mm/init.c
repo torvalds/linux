@@ -597,7 +597,8 @@ mem_init (void)
 	kclist_add(&kcore_kernel, _stext, _end - _stext);
 
 	for_each_pgdat(pgdat)
-		totalram_pages += free_all_bootmem_node(pgdat);
+		if (pgdat->bdata->node_bootmem_map)
+			totalram_pages += free_all_bootmem_node(pgdat);
 
 	reserved_pages = 0;
 	efi_memmap_walk(count_reserved_pages, &reserved_pages);
