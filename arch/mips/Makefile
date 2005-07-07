@@ -97,6 +97,15 @@ cflags-y			+= $(call cc-option, -finline-limit=100000)
 LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
 MODFLAGS			+= -mlong-calls
 
+#
+# We explicitly add the endianness specifier if needed, this allows
+# to compile kernels with a toolchain for the other endianness. We
+# carefully avoid to add it redundantly because gcc 3.3/3.4 complains
+# when fed the toolchain default!
+#
+cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= $(shell $(CC) -dumpmachine |grep -q 'mips*el-linux*' && echo -EB)
+cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= $(shell $(CC) -dumpmachine |grep -q 'mips*el-linux*' || echo -EL)
+
 cflags-$(CONFIG_SB1XXX_CORELIS)	+= -mno-sched-prolog -fno-omit-frame-pointer
 
 #
