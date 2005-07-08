@@ -487,7 +487,7 @@ L_LA(_r3000_write_probe_fail)
 static __init int __attribute__((unused)) in_compat_space_p(long addr)
 {
 	/* Is this address in 32bit compat space? */
-	return (((addr) & 0xffffffff00000000) == 0xffffffff00000000);
+	return (((addr) & 0xffffffff00000000L) == 0xffffffff00000000L);
 }
 
 static __init int __attribute__((unused)) rel_highest(long val)
