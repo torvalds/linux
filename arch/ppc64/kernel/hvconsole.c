@@ -93,7 +93,7 @@ EXPORT_SYMBOL(hvc_put_chars);
  * We hope/assume that the first vty found corresponds to the first console
  * device.
  */
-int hvc_find_vtys(void)
+static int hvc_find_vtys(void)
 {
 	struct device_node *vty;
 	int num_found = 0;
@@ -119,3 +119,4 @@ int hvc_find_vtys(void)
 
 	return num_found;
 }
+console_initcall(hvc_find_vtys);

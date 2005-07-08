@@ -219,10 +219,23 @@ struct console hvc_con_driver = {
 	.index		= -1,
 };
 
-/* Early console initialization.  Preceeds driver initialization. */
+/*
+ * Early console initialization.  Preceeds driver initialization.
+ *
+ * (1) we are first, and the user specified another driver
+ * -- index will remain -1
+ * (2) we are first and the user specified no driver
+ * -- index will be set to 0, then we will fail setup.
+ * (3)  we are first and the user specified our driver
+ * -- index will be set to user specified driver, and we will fail
+ * (4) we are after driver, and this initcall will register us
+ * -- if the user didn't specify a driver then the console will match
+ *
+ * Note that for cases 2 and 3, we will match later when the io driver
+ * calls hvc_instantiate() and call register again.
+ */
 static int __init hvc_console_init(void)
 {
-	hvc_find_vtys();
 	register_console(&hvc_con_driver);
 	return 0;
 }
@@ -256,6 +269,13 @@ int hvc_instantiate(uint32_t vtermno, int index)
 	/* reserve all indices upto and including this index */
 	if (last_hvc < index)
 		last_hvc = index;
+
+	/* if this index is what the user requested, then register
+	 * now (setup won't fail at this point).  It's ok to just
+	 * call register again if previously .setup failed.
+	 */
+	if (index == hvc_con_driver.index)
+		register_console(&hvc_con_driver);
 
 	return 0;
 }

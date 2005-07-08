@@ -32,9 +32,6 @@
 extern int hvc_get_chars(uint32_t vtermno, char *buf, int count);
 extern int hvc_put_chars(uint32_t vtermno, const char *buf, int count);
 
-/* Early discovery of console adapters. */
-extern int hvc_find_vtys(void);
-
-/* Implemented by a console driver */
+/* Register a vterm and a slot index for use as a console */
 extern int hvc_instantiate(uint32_t vtermno, int index);
 #endif /* _PPC64_HVCONSOLE_H */
