@@ -874,6 +874,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 			  * change request correctly. */
 			atomic_set(&conf->cl_callback.cb_set, 0);
 			gen_confirm(conf);
+			nfsd4_remove_clid_dir(unconf);
 			expire_client(unconf);
 			status = nfs_ok;
 
