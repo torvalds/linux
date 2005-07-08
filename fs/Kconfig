@@ -29,6 +29,7 @@ config EXT2_FS_XATTR
 config EXT2_FS_POSIX_ACL
 	bool "Ext2 POSIX Access Control Lists"
 	depends on EXT2_FS_XATTR
+	select FS_POSIX_ACL
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
@@ -114,6 +115,7 @@ config EXT3_FS_XATTR
 config EXT3_FS_POSIX_ACL
 	bool "Ext3 POSIX Access Control Lists"
 	depends on EXT3_FS_XATTR
+	select FS_POSIX_ACL
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
@@ -241,6 +243,7 @@ config REISERFS_FS_XATTR
 config REISERFS_FS_POSIX_ACL
 	bool "ReiserFS POSIX Access Control Lists"
 	depends on REISERFS_FS_XATTR
+	select FS_POSIX_ACL
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
@@ -274,6 +277,7 @@ config JFS_FS
 config JFS_POSIX_ACL
 	bool "JFS POSIX Access Control Lists"
 	depends on JFS_FS
+	select FS_POSIX_ACL
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
@@ -318,8 +322,7 @@ config FS_POSIX_ACL
 # 	Never use this symbol for ifdefs.
 #
 	bool
-	depends on EXT2_FS_POSIX_ACL || EXT3_FS_POSIX_ACL || JFS_POSIX_ACL || REISERFS_FS_POSIX_ACL || NFSD_V4
-	default y
+	default n
 
 source "fs/xfs/Kconfig"
 
@@ -1438,6 +1441,7 @@ config NFSD_V4
 	select NFSD_TCP
 	select CRYPTO_MD5
 	select CRYPTO
+	select FS_POSIX_ACL
 	help
 	  If you would like to include the NFSv4 server as well as the NFSv2
 	  and NFSv3 servers, say Y here.  This feature is experimental, and
