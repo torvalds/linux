@@ -846,8 +846,9 @@ int __init hvc_init(void)
 }
 module_init(hvc_init);
 
-/* This isn't particularily necessary due to this being a console driver but it
- * is nice to be thorough */
+/* This isn't particularily necessary due to this being a console driver
+ * but it is nice to be thorough.
+ */
 static void __exit hvc_exit(void)
 {
 	kthread_stop(hvc_task);
@@ -856,5 +857,6 @@ static void __exit hvc_exit(void)
 	tty_unregister_driver(hvc_driver);
 	/* return tty_struct instances allocated in hvc_init(). */
 	put_tty_driver(hvc_driver);
+	unregister_console(&hvc_con_driver);
 }
 module_exit(hvc_exit);
