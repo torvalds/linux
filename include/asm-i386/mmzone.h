@@ -37,6 +37,8 @@ static inline void get_memcfg_numa(void)
 	get_memcfg_numa_flat();
 }
 
+extern int early_pfn_to_nid(unsigned long pfn);
+
 #else /* !CONFIG_NUMA */
 #define get_memcfg_numa get_memcfg_numa_flat
 #define get_zholes_size(n) (0)
@@ -148,7 +150,5 @@ static inline int pfn_valid(int pfn)
 	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
 
 #endif /* CONFIG_NEED_MULTIPLE_NODES */
-
-extern int early_pfn_to_nid(unsigned long pfn);
 
 #endif /* _ASM_MMZONE_H_ */
