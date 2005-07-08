@@ -30,39 +30,19 @@
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
-#include <linux/slab.h>
-#include <linux/uio.h>
-#include <linux/aio.h>
-#include <linux/nfs_fs.h>
-#include <linux/module.h>
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
-#include <linux/nfsd/syscall.h>
 #include <linux/poll.h>
 #include <linux/personality.h>
 #include <linux/stat.h>
-#include <linux/filter.h>
-#include <linux/highmem.h>
-#include <linux/highuid.h>
 #include <linux/mman.h>
-#include <linux/ipv6.h>
 #include <linux/in.h>
-#include <linux/icmpv6.h>
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/sysctl.h>
 #include <linux/binfmts.h>
-#include <linux/dnotify.h>
 #include <linux/security.h>
 #include <linux/compat.h>
 #include <linux/ptrace.h>
-#include <linux/aio_abi.h>
 #include <linux/elf.h>
-
-#include <net/scm.h>
-#include <net/sock.h>
 
 #include <asm/ptrace.h>
 #include <asm/types.h>
@@ -70,7 +50,6 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/semaphore.h>
-#include <asm/ppcdebug.h>
 #include <asm/time.h>
 #include <asm/mmu_context.h>
 #include <asm/systemcfg.h>
@@ -350,8 +329,6 @@ asmlinkage long sys32_adjtimex(struct timex32 __user *utp)
 	return ret;
 }
 
-
-/* These are here just in case some old sparc32 binary calls it. */
 asmlinkage long sys32_pause(void)
 {
 	current->state = TASK_INTERRUPTIBLE;
@@ -359,8 +336,6 @@ asmlinkage long sys32_pause(void)
 	
 	return -ERESTARTNOHAND;
 }
-
-
 
 static inline long get_ts32(struct timespec *o, struct compat_timeval __user *i)
 {
@@ -1272,8 +1247,6 @@ long ppc32_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
 	return sys_fadvise64(fd, (u64)offset_high << 32 | offset_low,
 			     (u64)len_high << 32 | len_low, advice);
 }
-
-extern asmlinkage long sys_timer_create(clockid_t, sigevent_t __user *, timer_t __user *);
 
 long ppc32_timer_create(clockid_t clock,
 			struct compat_sigevent __user *ev32,
