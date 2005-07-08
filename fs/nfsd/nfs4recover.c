@@ -119,25 +119,12 @@ out:
 	return status;
 }
 
-static int
-nfsd4_rec_fsync(struct dentry *dentry)
+static void
+nfsd4_sync_rec_dir(void)
 {
-	struct file *filp;
-	int status = nfs_ok;
-
-	dprintk("NFSD: nfs4_fsync_rec_dir\n");
-	filp = dentry_open(dget(dentry), mntget(rec_dir.mnt), O_RDWR);
-	if (IS_ERR(filp)) {
-		status = PTR_ERR(filp);
-		goto out;
-	}
-	if (filp->f_op && filp->f_op->fsync)
-		status = filp->f_op->fsync(filp, filp->f_dentry, 0);
-	fput(filp);
-out:
-	if (status)
-		printk("nfsd4: unable to sync recovery directory\n");
-	return status;
+	down(&rec_dir.dentry->d_inode->i_sem);
+	nfsd_sync_dir(rec_dir.dentry);
+	up(&rec_dir.dentry->d_inode->i_sem);
 }
 
 int
@@ -176,7 +163,7 @@ out_unlock:
 	up(&rec_dir.dentry->d_inode->i_sem);
 	if (status == 0) {
 		clp->cl_firststate = 1;
-		status = nfsd4_rec_fsync(rec_dir.dentry);
+		nfsd4_sync_rec_dir();
 	}
 	nfs4_reset_user(uid, gid);
 	dprintk("NFSD: nfsd4_create_clid_dir returns %d\n", status);
@@ -331,7 +318,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	status = nfsd4_unlink_clid_dir(clp->cl_recdir, HEXDIR_LEN-1);
 	nfs4_reset_user(uid, gid);
 	if (status == 0)
-		status = nfsd4_rec_fsync(rec_dir.dentry);
+		nfsd4_sync_rec_dir();
 	if (status)
 		printk("NFSD: Failed to remove expired client state directory"
 				" %.*s\n", HEXDIR_LEN, clp->cl_recdir);
@@ -362,7 +349,7 @@ nfsd4_recdir_purge_old(void) {
 		return;
 	status = nfsd4_list_rec_dir(rec_dir.dentry, purge_old);
 	if (status == 0)
-		status = nfsd4_rec_fsync(rec_dir.dentry);
+		nfsd4_sync_rec_dir();
 	if (status)
 		printk("nfsd4: failed to purge old clients from recovery"
 			" directory %s\n", rec_dir.dentry->d_name.name);
