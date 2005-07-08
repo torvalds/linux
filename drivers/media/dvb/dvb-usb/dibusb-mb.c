@@ -115,6 +115,12 @@ static struct usb_device_id dibusb_dib3000mb_table [] = {
 /* 22 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ULTIMA_TVBOX_AN2235_WARM) },
 /* 23 */	{ USB_DEVICE(USB_VID_ADSTECH,		USB_PID_ADSTECH_USB2_COLD) },
 /* 24 */	{ USB_DEVICE(USB_VID_ADSTECH,		USB_PID_ADSTECH_USB2_WARM) },
+
+// #define DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+
+#ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+/* 25 */	{ USB_DEVICE(USB_VID_ANCHOR,		USB_PID_ULTIMA_TVBOX_ANCHOR_COLD) },
+#endif
 			{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, dibusb_dib3000mb_table);
@@ -228,12 +234,22 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 		}
 	},
 
+#ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+	.num_device_descs = 2,
+#else
 	.num_device_descs = 1,
+#endif
 	.devices = {
 		{	"Artec T1 USB1.1 TVBOX with AN2235",
 			{ &dibusb_dib3000mb_table[20], NULL },
 			{ &dibusb_dib3000mb_table[21], NULL },
 		},
+#ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+		{	"Artec T1 USB1.1 TVBOX with AN2235 (faulty USB IDs)",
+			{ &dibusb_dib3000mb_table[25], NULL },
+			{ NULL },
+		},
+#endif
 	}
 };
 
