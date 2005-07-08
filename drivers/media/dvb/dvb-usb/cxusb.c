@@ -14,9 +14,6 @@
  * TODO: check if the cx25840-driver (from ivtv) can be used for the analogue
  * part
  *
- * FIXME: We're getting a lock and signal, but the isochronous transfer is empty
- * for DVB-T.
- *
  * Copyright (C) 2005 Patrick Boettcher (patrick.boettcher@desy.de)
  *
  *	This program is free software; you can redistribute it and/or modify it
@@ -157,11 +154,19 @@ static int cxusb_power_ctrl(struct dvb_usb_device *d, int onoff)
 
 static int cxusb_streaming_ctrl(struct dvb_usb_device *d, int onoff)
 {
+	u8 buf[2] = { 0x03, 0x00 };
+	if (onoff)
+		cxusb_ctrl_msg(d,0x36, buf, 2, NULL, 0);
+	else
+		cxusb_ctrl_msg(d,0x37, NULL, 0, NULL, 0);
+
 	return 0;
 }
 
 struct cx22702_config cxusb_cx22702_config = {
 	.demod_address = 0x63,
+
+	.output_mode = CX22702_PARALLEL_OUTPUT,
 
 	.pll_init = dvb_usb_pll_init_i2c,
 	.pll_set  = dvb_usb_pll_set_i2c,
@@ -182,12 +187,15 @@ static int cxusb_frontend_attach(struct dvb_usb_device *d)
 	u8 buf[2] = { 0x03, 0x00 };
 	u8 b = 0;
 
+	if (usb_set_interface(d->udev,0,0) < 0)
+		err("set interface to alts=0 failed");
+
 	cxusb_ctrl_msg(d,0xde,&b,0,NULL,0);
 	cxusb_set_i2c_path(d,PATH_TUNER_OTHER);
 	cxusb_ctrl_msg(d,CMD_POWER_OFF, NULL, 0, &b, 1);
 
 	if (usb_set_interface(d->udev,0,6) < 0)
-		err("set interface failed\n");
+		err("set interface failed");
 
 	cxusb_ctrl_msg(d,0x36, buf, 2, NULL, 0);
 	cxusb_set_i2c_path(d,PATH_CX22702);
@@ -236,9 +244,9 @@ static struct dvb_usb_properties cxusb_properties = {
 		.endpoint = 0x02,
 		.u = {
 			.isoc = {
-				.framesperurb = 64,
-				.framesize = 940*3,
-				.interval = 1,
+				.framesperurb = 32,
+				.framesize = 940,
+				.interval = 5,
 			}
 		}
 	},
