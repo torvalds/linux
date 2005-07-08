@@ -2038,15 +2038,13 @@ static int av7110_fe_lock_fix(struct av7110* av7110, fe_status_t status)
 	if (av7110->fe_synced == synced)
 		return 0;
 
-	av7110->fe_synced = synced;
-
 	if (av7110->playing)
 		return 0;
 
 	if (down_interruptible(&av7110->pid_mutex))
 		return -ERESTARTSYS;
 
-	if (av7110->fe_synced) {
+	if (synced) {
 		ret = SetPIDs(av7110, av7110->pids[DMX_PES_VIDEO],
 			av7110->pids[DMX_PES_AUDIO],
 			av7110->pids[DMX_PES_TELETEXT], 0,
@@ -2061,6 +2059,9 @@ static int av7110_fe_lock_fix(struct av7110* av7110, fe_status_t status)
 				ret = av7110_wait_msgstate(av7110, GPMQBusy);
 		}
 	}
+
+	if (!ret)
+		av7110->fe_synced = synced;
 
 	up(&av7110->pid_mutex);
 	return ret;
