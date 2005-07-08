@@ -316,6 +316,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	if (!rec_dir_init || !clp->cl_firststate)
 		return;
 
+	clp->cl_firststate = 0;
 	nfs4_save_user(&uid, &gid);
 	status = nfsd4_unlink_clid_dir(clp->cl_recdir, HEXDIR_LEN-1);
 	nfs4_reset_user(uid, gid);
