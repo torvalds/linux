@@ -20,18 +20,12 @@
 #include <linux/kernel.h>
 #include <linux/smp.h>
 #include <linux/cpu.h>
-#include <linux/module.h>
 #include <linux/sysctl.h>
-#include <linux/smp.h>
 
 #include <asm/system.h>
 #include <asm/processor.h>
-#include <asm/mmu.h>
 #include <asm/cputable.h>
 #include <asm/time.h>
-#include <asm/iSeries/HvCall.h>
-#include <asm/iSeries/ItLpQueue.h>
-#include <asm/plpar_wrappers.h>
 #include <asm/systemcfg.h>
 #include <asm/machdep.h>
 
@@ -49,7 +43,8 @@ int default_idle(void)
 			set_thread_flag(TIF_POLLING_NRFLAG);
 
 			while (!need_resched() && !cpu_is_offline(cpu)) {
-				barrier();
+				ppc64_runlatch_off();
+
 				/*
 				 * Go into low thread priority and possibly
 				 * low power mode.
@@ -64,6 +59,7 @@ int default_idle(void)
 			set_need_resched();
 		}
 
+		ppc64_runlatch_on();
 		schedule();
 		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
 			cpu_die();
@@ -74,17 +70,22 @@ int default_idle(void)
 
 int native_idle(void)
 {
-	while(1) {
-		/* check CPU type here */
+	while (1) {
+		ppc64_runlatch_off();
+
 		if (!need_resched())
 			power4_idle();
-		if (need_resched())
-			schedule();
 
-		if (cpu_is_offline(raw_smp_processor_id()) &&
+		if (need_resched()) {
+			ppc64_runlatch_on();
+			schedule();
+		}
+
+		if (cpu_is_offline(smp_processor_id()) &&
 		    system_state == SYSTEM_RUNNING)
 			cpu_die();
 	}
+
 	return 0;
 }
 
