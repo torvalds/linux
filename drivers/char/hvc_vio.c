@@ -43,8 +43,30 @@ static struct vio_device_id hvc_driver_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(vio, hvc_driver_table);
 
+static int filtered_get_chars(uint32_t vtermno, char *buf, int count)
+{
+	unsigned long got;
+	int i;
+
+	got = hvc_get_chars(vtermno, buf, count);
+
+	/*
+	 * Work around a HV bug where it gives us a null
+	 * after every \r.  -- paulus
+	 */
+	for (i = 1; i < got; ++i) {
+		if (buf[i] == 0 && buf[i-1] == '\r') {
+			--got;
+			if (i < got)
+				memmove(&buf[i], &buf[i+1],
+					got - i);
+		}
+	}
+	return got;
+}
+
 static struct hv_ops hvc_get_put_ops = {
-	.get_chars = hvc_get_chars,
+	.get_chars = filtered_get_chars,
 	.put_chars = hvc_put_chars,
 };
 

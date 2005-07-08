@@ -41,28 +41,13 @@ int hvc_get_chars(uint32_t vtermno, char *buf, int count)
 	unsigned long got;
 
 	if (plpar_hcall(H_GET_TERM_CHAR, vtermno, 0, 0, 0, &got,
-		(unsigned long *)buf, (unsigned long *)buf+1) == H_Success) {
-		/*
-		 * Work around a HV bug where it gives us a null
-		 * after every \r.  -- paulus
-		 */
-		if (got > 0) {
-			int i;
-			for (i = 1; i < got; ++i) {
-				if (buf[i] == 0 && buf[i-1] == '\r') {
-					--got;
-					if (i < got)
-						memmove(&buf[i], &buf[i+1],
-							got - i);
-				}
-			}
-		}
+		(unsigned long *)buf, (unsigned long *)buf+1) == H_Success)
 		return got;
-	}
 	return 0;
 }
 
 EXPORT_SYMBOL(hvc_get_chars);
+
 
 /**
  * hvc_put_chars: send characters to firmware for denoted vterm adapter
