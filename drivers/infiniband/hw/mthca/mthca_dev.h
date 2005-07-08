@@ -414,6 +414,7 @@ int mthca_poll_cq(struct ib_cq *ibcq, int num_entries,
 int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify notify);
 int mthca_arbel_arm_cq(struct ib_cq *cq, enum ib_cq_notify notify);
 int mthca_init_cq(struct mthca_dev *dev, int nent,
+		  struct mthca_ucontext *ctx, u32 pdn,
 		  struct mthca_cq *cq);
 void mthca_free_cq(struct mthca_dev *dev,
 		   struct mthca_cq *cq);

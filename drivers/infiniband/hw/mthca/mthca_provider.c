@@ -497,28 +497,85 @@ static struct ib_cq *mthca_create_cq(struct ib_device *ibdev, int entries,
 				     struct ib_ucontext *context,
 				     struct ib_udata *udata)
 {
+	struct mthca_create_cq ucmd;
 	struct mthca_cq *cq;
 	int nent;
 	int err;
 
+	if (context) {
+		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
+			return ERR_PTR(-EFAULT);
+
+		err = mthca_map_user_db(to_mdev(ibdev), &to_mucontext(context)->uar,
+					to_mucontext(context)->db_tab,
+					ucmd.set_db_index, ucmd.set_db_page);
+		if (err)
+			return ERR_PTR(err);
+
+		err = mthca_map_user_db(to_mdev(ibdev), &to_mucontext(context)->uar,
+					to_mucontext(context)->db_tab,
+					ucmd.arm_db_index, ucmd.arm_db_page);
+		if (err)
+			goto err_unmap_set;
+	}
+
 	cq = kmalloc(sizeof *cq, GFP_KERNEL);
-	if (!cq)
-		return ERR_PTR(-ENOMEM);
+	if (!cq) {
+		err = -ENOMEM;
+		goto err_unmap_arm;
+	}
+
+	if (context) {
+		cq->mr.ibmr.lkey    = ucmd.lkey;
+		cq->set_ci_db_index = ucmd.set_db_index;
+		cq->arm_db_index    = ucmd.arm_db_index;
+	}
 
 	for (nent = 1; nent <= entries; nent <<= 1)
 		; /* nothing */
 
-	err = mthca_init_cq(to_mdev(ibdev), nent, cq);
-	if (err) {
-		kfree(cq);
-		cq = ERR_PTR(err);
+	err = mthca_init_cq(to_mdev(ibdev), nent,
+			    context ? to_mucontext(context) : NULL,
+			    context ? ucmd.pdn : to_mdev(ibdev)->driver_pd.pd_num,
+			    cq);
+	if (err)
+		goto err_free;
+
+	if (context && ib_copy_to_udata(udata, &cq->cqn, sizeof (__u32))) {
+		mthca_free_cq(to_mdev(ibdev), cq);
+		goto err_free;
 	}
 
 	return &cq->ibcq;
+
+err_free:
+	kfree(cq);
+
+err_unmap_arm:
+	if (context)
+		mthca_unmap_user_db(to_mdev(ibdev), &to_mucontext(context)->uar,
+				    to_mucontext(context)->db_tab, ucmd.arm_db_index);
+
+err_unmap_set:
+	if (context)
+		mthca_unmap_user_db(to_mdev(ibdev), &to_mucontext(context)->uar,
+				    to_mucontext(context)->db_tab, ucmd.set_db_index);
+
+	return ERR_PTR(err);
 }
 
 static int mthca_destroy_cq(struct ib_cq *cq)
 {
+	if (cq->uobject) {
+		mthca_unmap_user_db(to_mdev(cq->device),
+				    &to_mucontext(cq->uobject->context)->uar,
+				    to_mucontext(cq->uobject->context)->db_tab,
+				    to_mcq(cq)->arm_db_index);
+		mthca_unmap_user_db(to_mdev(cq->device),
+				    &to_mucontext(cq->uobject->context)->uar,
+				    to_mucontext(cq->uobject->context)->db_tab,
+				    to_mcq(cq)->set_ci_db_index);
+	}
 	mthca_free_cq(to_mdev(cq->device), to_mcq(cq));
 	kfree(cq);
 

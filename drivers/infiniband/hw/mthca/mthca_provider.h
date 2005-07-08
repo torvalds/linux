@@ -177,6 +177,7 @@ struct mthca_cq {
 	int                    cqn;
 	u32                    cons_index;
 	int                    is_direct;
+	int                    is_kernel;
 
 	/* Next fields are Arbel only */
 	int                    set_ci_db_index;
