@@ -119,8 +119,7 @@ struct av7110 {
 	volatile int		bmp_state;
 #define BMP_NONE     0
 #define BMP_LOADING  1
-#define BMP_LOADINGS 2
-#define BMP_LOADED   3
+#define BMP_LOADED   2
 	wait_queue_head_t	bmpq;
 
 
