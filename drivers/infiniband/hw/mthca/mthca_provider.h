@@ -92,6 +92,7 @@ struct mthca_pd {
 	u32             pd_num;
 	atomic_t        sqp_count;
 	struct mthca_mr ntmr;
+	int             privileged;
 };
 
 struct mthca_eq {

@@ -368,10 +368,18 @@ static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev,
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	err = mthca_pd_alloc(to_mdev(ibdev), pd);
+	err = mthca_pd_alloc(to_mdev(ibdev), !context, pd);
 	if (err) {
 		kfree(pd);
 		return ERR_PTR(err);
+	}
+
+	if (context) {
+		if (ib_copy_to_udata(udata, &pd->pd_num, sizeof (__u32))) {
+			mthca_pd_free(to_mdev(ibdev), pd);
+			kfree(pd);
+			return ERR_PTR(-EFAULT);
+		}
 	}
 
 	return &pd->ibpd;

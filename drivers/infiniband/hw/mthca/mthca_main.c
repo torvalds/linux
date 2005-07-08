@@ -665,7 +665,7 @@ static int __devinit mthca_setup_hca(struct mthca_dev *dev)
 		goto err_pd_table_free;
 	}
 
-	err = mthca_pd_alloc(dev, &dev->driver_pd);
+	err = mthca_pd_alloc(dev, 1, &dev->driver_pd);
 	if (err) {
 		mthca_err(dev, "Failed to create driver PD, "
 			  "aborting.\n");
