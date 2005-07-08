@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-cards.c,v 1.84 2005/07/02 19:42:09 mkrufky Exp $
+ * $Id: cx88-cards.c,v 1.85 2005/07/04 19:35:05 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * card-specific stuff.
@@ -723,6 +723,7 @@ struct cx88_board cx88_boards[] = {
                         .vmux   = 2,
                         .gpio0  = 0x0f00,
                 }},
+		.dvb            = 1,
         },
         [CX88_BOARD_ADSTECH_DVB_T_PCI] = {
                 .name           = "ADS Tech Instant TV DVB-T PCI",

@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-mpeg.c,v 1.28 2005/06/20 03:36:00 mkrufky Exp $
+ * $Id: cx88-mpeg.c,v 1.30 2005/07/05 19:44:40 mkrufky Exp $
  *
  *  Support for the mpeg transport stream transfers
  *  PCI function #2 of the cx2388x.
@@ -73,11 +73,11 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		cx_write(TS_GEN_CNTRL, 0x0040 | dev->ts_gen_cntrl);
 		udelay(100);
 		cx_write(MO_PINMUX_IO, 0x00);
-		if (core->board == CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q) {
-			cx_write(TS_HW_SOP_CNTRL,0x47<<16 | 188<<4 | 0x00);
+		cx_write(TS_HW_SOP_CNTRL,0x47<<16|188<<4|0x01);
+		if ((core->board == CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q) ||
+		    (core->board == CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T)) {
 			cx_write(TS_SOP_STAT, 0<<16 | 0<<14 | 1<<13 | 0<<12);
 		} else {
-			cx_write(TS_HW_SOP_CNTRL,47<<16|188<<4|0x00);
 			cx_write(TS_SOP_STAT,0x00);
 		}
 		cx_write(TS_GEN_CNTRL, dev->ts_gen_cntrl);

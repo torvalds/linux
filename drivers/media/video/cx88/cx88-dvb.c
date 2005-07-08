@@ -220,6 +220,13 @@ static struct lgdt3302_config fusionhdtv_3_gold_q = {
 	.pll_desc         = &dvb_pll_microtune_4042,
 	.set_ts_params    = lgdt3302_set_ts_param,
 };
+
+static struct lgdt3302_config fusionhdtv_3_gold_t = {
+	.demod_address    = 0x0e,
+	.pll_address      = 0x61,
+	.pll_desc         = &dvb_pll_thomson_dtt7611,
+	.set_ts_params    = lgdt3302_set_ts_param,
+};
 #endif
 
 static int dvb_register(struct cx8802_dev *dev)
@@ -279,6 +286,20 @@ static int dvb_register(struct cx8802_dev *dev)
 		cx_set(MO_GP0_IO, 9); // ANT connector too FIXME
 		mdelay(200);
 		dev->dvb.frontend = lgdt3302_attach(&fusionhdtv_3_gold_q,
+						    &dev->core->i2c_adap);
+		}
+		break;
+	case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T:
+		dev->ts_gen_cntrl = 0x08;
+		{
+		/* Do a hardware reset of chip before using it. */
+		struct cx88_core *core = dev->core;
+
+		cx_clear(MO_GP0_IO, 1);
+		mdelay(100);
+		cx_set(MO_GP0_IO, 9); /* ANT connector too FIXME */
+		mdelay(200);
+		dev->dvb.frontend = lgdt3302_attach(&fusionhdtv_3_gold_t,
 						    &dev->core->i2c_adap);
 		}
 		break;
