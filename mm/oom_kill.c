@@ -258,9 +258,11 @@ void out_of_memory(unsigned int __nocast gfp_mask, int order)
 	struct mm_struct *mm = NULL;
 	task_t * p;
 
-	printk("oom-killer: gfp_mask=0x%x, order=%d\n", gfp_mask, order);
-	/* print memory stats */
-	show_mem();
+	if (printk_ratelimit()) {
+		printk("oom-killer: gfp_mask=0x%x, order=%d\n",
+			gfp_mask, order);
+		show_mem();
+	}
 
 	read_lock(&tasklist_lock);
 retry:
