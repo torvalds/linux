@@ -1803,8 +1803,9 @@ M:	greg@kroah.com
 S:	Maintained
 
 PCMCIA SUBSYSTEM
+P:	Linux PCMCIA Team
 L:	http://lists.infradead.org/mailman/listinfo/linux-pcmcia
-S:	Unmaintained
+S:	Maintained
 
 PCNET32 NETWORK DRIVER
 P:	Thomas Bogendörfer
