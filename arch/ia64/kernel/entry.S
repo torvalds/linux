@@ -1249,7 +1249,7 @@ ENTRY(sys_rt_sigreturn)
  	stf.spill [r17]=f11
 	adds out0=16,sp				// out0 = &sigscratch
 	br.call.sptk.many rp=ia64_rt_sigreturn
-.ret19:	.restore sp 0
+.ret19:	.restore sp,0
 	adds sp=16,sp
 	;;
 	ld8 r9=[sp]				// load new ar.unat
