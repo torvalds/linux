@@ -215,7 +215,7 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 
 	poll_wait(file, &tun->read_wait, wait);
  
-	if (skb_queue_len(&tun->readq))
+	if (!skb_queue_empty(&tun->readq))
 		mask |= POLLIN | POLLRDNORM;
 
 	return mask;
