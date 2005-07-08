@@ -208,7 +208,7 @@ static void fmd1216me_bw(u8 *buf, u32 freq, int bandwidth)
 }
 
 struct dvb_pll_desc dvb_pll_fmd1216me = {
-	.name = "placeholder",
+	.name = "Philips FMD1216ME",
 	.min = 50870000,
 	.max = 858000000,
 	.setbw = fmd1216me_bw,
@@ -224,6 +224,30 @@ struct dvb_pll_desc dvb_pll_fmd1216me = {
 	}
 };
 EXPORT_SYMBOL(dvb_pll_fmd1216me);
+
+/* ALPS TDED4
+ * used in Nebula-Cards and USB boxes
+ */
+static void tded4_bw(u8 *buf, u32 freq, int bandwidth)
+{
+	if (bandwidth == BANDWIDTH_8_MHZ)
+		buf[3] |= 0x04;
+}
+
+struct dvb_pll_desc dvb_pll_tded4 = {
+	.name = "ALPS TDED4",
+	.min = 47000000,
+	.max = 863000000,
+	.setbw = tded4_bw,
+	.count = 4,
+	.entries = {
+		{ 153000000, 36166667, 166667, 0x85, 0x01 },
+		{ 470000000, 36166667, 166667, 0x85, 0x02 },
+		{ 823000000, 36166667, 166667, 0x85, 0x08 },
+		{ 999999999, 36166667, 166667, 0x85, 0x88 },
+	}
+};
+EXPORT_SYMBOL(dvb_pll_tded4);
 
 /* ----------------------------------------------------------- */
 /* code                                                        */
