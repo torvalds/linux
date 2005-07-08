@@ -15,7 +15,9 @@
 
 #include <linux/module.h>
 #include <linux/i2o.h>
+#include <linux/dcache.h>
 #include <linux/namei.h>
+#include <linux/fs.h>
 
 #include <asm/uaccess.h>
 
