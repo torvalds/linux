@@ -2165,7 +2165,6 @@ out:
 static int
 nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *stateid, int flags, struct nfs4_stateowner **sopp, struct nfs4_stateid **stpp, clientid_t *lockclid)
 {
-	int status;
 	struct nfs4_stateid *stp;
 	struct nfs4_stateowner *sop;
 
@@ -2173,19 +2172,17 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 			"stateid = (%08x/%08x/%08x/%08x)\n", seqid,
 		stateid->si_boot, stateid->si_stateownerid, stateid->si_fileid,
 		stateid->si_generation);
-			        
+
 	*stpp = NULL;
 	*sopp = NULL;
 
-	status = nfserr_bad_stateid;
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid)) {
 		printk("NFSD: preprocess_seqid_op: magic stateid!\n");
-		goto out;
+		return nfserr_bad_stateid;
 	}
 
-	status = nfserr_stale_stateid;
 	if (STALE_STATEID(stateid))
-		goto out;
+		return nfserr_stale_stateid;
 	/*
 	* We return BAD_STATEID if filehandle doesn't match stateid, 
 	* the confirmed flag is incorrecly set, or the generation 
@@ -2204,8 +2201,6 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 		goto check_replay;
 	}
 
-	status = nfserr_bad_stateid;
-
 	/* for new lock stateowners:
 	 * check that the lock->v.new.open_stateid
 	 * refers to an open stateowner
@@ -2218,14 +2213,14 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 		struct nfs4_client *clp = sop->so_client;
 
 		if (!sop->so_is_open_owner)
-			goto out;
+			return nfserr_bad_stateid;
 		if (!cmp_clid(&clp->cl_clientid, lockclid))
-			goto out;
+			return nfserr_bad_stateid;
 	}
 
 	if ((flags & CHECK_FH) && nfs4_check_fh(current_fh, stp)) {
 		printk("NFSD: preprocess_seqid_op: fh-stateid mismatch!\n");
-		goto out;
+		return nfserr_bad_stateid;
 	}
 
 	*stpp = stp;
@@ -2239,45 +2234,38 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 	if (seqid != sop->so_seqid)
 		goto check_replay;
 
-	if (sop->so_confirmed) {
-		if (flags & CONFIRM) {
-			printk("NFSD: preprocess_seqid_op: expected unconfirmed stateowner!\n");
-			goto out;
-		}
+	if (sop->so_confirmed && flags & CONFIRM) {
+		printk("NFSD: preprocess_seqid_op: expected"
+				" unconfirmed stateowner!\n");
+		return nfserr_bad_stateid;
 	}
-	else {
-		if (!(flags & CONFIRM)) {
-			printk("NFSD: preprocess_seqid_op: stateowner not confirmed yet!\n");
-			goto out;
-		}
+	if (!sop->so_confirmed && !(flags & CONFIRM)) {
+		printk("NFSD: preprocess_seqid_op: stateowner not"
+				" confirmed yet!\n");
+		return nfserr_bad_stateid;
 	}
 	if (stateid->si_generation > stp->st_stateid.si_generation) {
 		printk("NFSD: preprocess_seqid_op: future stateid?!\n");
-		goto out;
+		return nfserr_bad_stateid;
 	}
 
-	status = nfserr_old_stateid;
 	if (stateid->si_generation < stp->st_stateid.si_generation) {
 		printk("NFSD: preprocess_seqid_op: old stateid!\n");
-		goto out;
+		return nfserr_old_stateid;
 	}
 	renew_client(sop->so_client);
-	status = nfs_ok;
+	return nfs_ok;
 
-out:
-	return status;
 check_replay:
 	if (seqid == sop->so_seqid - 1) {
 		printk("NFSD: preprocess_seqid_op: retransmission?\n");
 		/* indicate replay to calling function */
-		status = NFSERR_REPLAY_ME;
-	} else  {
-		printk("NFSD: preprocess_seqid_op: bad seqid (expected %d, got %d\n", sop->so_seqid, seqid);
-
-		*sopp = NULL;
-		status = nfserr_bad_seqid;
+		return NFSERR_REPLAY_ME;
 	}
-	goto out;
+	printk("NFSD: preprocess_seqid_op: bad seqid (expected %d, got %d)\n",
+			sop->so_seqid, seqid);
+	*sopp = NULL;
+	return nfserr_bad_seqid;
 }
 
 int
