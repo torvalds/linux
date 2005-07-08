@@ -120,9 +120,9 @@ static struct dvb_usb_rc_key vp7045_rc_keys[] = {
 	{ 0x00, 0x4c, KEY_PAUSE },
 	{ 0x00, 0x4d, KEY_SCREEN }, /* Full screen mode. */
 	{ 0x00, 0x54, KEY_AUDIO }, /* MTS - Switch to secondary audio. */
-	{ 0x00, 0xa1, KEY_CANCEL }, /* Cancel */
+	{ 0x00, 0x0c, KEY_CANCEL }, /* Cancel */
 	{ 0x00, 0x1c, KEY_EPG }, /* EPG */
-	{ 0x00, 0x40, KEY_TAB }, /* Tab */
+	{ 0x00, 0x00, KEY_TAB }, /* Tab */
 	{ 0x00, 0x48, KEY_INFO }, /* Preview */
 	{ 0x00, 0x04, KEY_LIST }, /* RecordList */
 	{ 0x00, 0x0f, KEY_TEXT } /* Teletext */
