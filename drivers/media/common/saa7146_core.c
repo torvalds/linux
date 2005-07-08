@@ -512,7 +512,7 @@ int saa7146_register_extension(struct saa7146_extension* ext)
 	ext->driver.remove = saa7146_remove_one;
 
 	printk("saa7146: register extension '%s'.\n",ext->name);
-	return pci_module_init(&ext->driver);
+	return pci_register_driver(&ext->driver);
 }
 
 int saa7146_unregister_extension(struct saa7146_extension* ext)
