@@ -2704,11 +2704,11 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 	nfs4_lock_state();
 
 	if (lock->lk_is_new) {
-	/*
-	 * Client indicates that this is a new lockowner.
-	 * Use open owner and open stateid to create lock owner and lock 
-	 * stateid.
-	 */
+		/*
+		 * Client indicates that this is a new lockowner.
+		 * Use open owner and open stateid to create lock owner and
+		 * lock stateid.
+		 */
 		struct nfs4_stateid *open_stp = NULL;
 		struct nfs4_file *fp;
 		
@@ -2842,10 +2842,10 @@ conflicting_lock:
 out_destroy_new_stateid:
 	if (lock->lk_is_new) {
 		dprintk("NFSD: nfsd4_lock: destroy new stateid!\n");
-	/*
-	* An error encountered after instantiation of the new
-	* stateid has forced us to destroy it.
-	*/
+		/*
+		 * An error encountered after instantiation of the new
+		 * stateid has forced us to destroy it.
+		 */
 		if (!seqid_mutating_err(status))
 			open_sop->so_seqid--;
 
