@@ -19,6 +19,18 @@ config 3_LEVEL_PGTABLES
 	memory.  All the memory that can't be mapped directly will be treated
 	as high memory.
 
+config STUB_CODE
+	hex
+	default 0xbfffe000
+
+config STUB_DATA
+	hex
+	default 0xbffff000
+
+config STUB_START
+	hex
+	default STUB_CODE
+
 config ARCH_HAS_SC_SIGNALS
 	bool
 	default y

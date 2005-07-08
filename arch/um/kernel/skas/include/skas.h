@@ -6,9 +6,11 @@
 #ifndef __SKAS_H
 #define __SKAS_H
 
+#include "mm_id.h"
 #include "sysdep/ptrace.h"
 
 extern int userspace_pid[];
+extern int proc_mm, ptrace_faultinfo;
 
 extern void switch_threads(void *me, void *next);
 extern void thread_wait(void *sw, void *fb);
@@ -22,16 +24,17 @@ extern void new_thread_proc(void *stack, void (*handler)(int sig));
 extern void remove_sigstack(void);
 extern void new_thread_handler(int sig);
 extern void handle_syscall(union uml_pt_regs *regs);
-extern void map(int fd, unsigned long virt, unsigned long len, int r, int w,
-		int x, int phys_fd, unsigned long long offset);
-extern int unmap(int fd, void *addr, unsigned long len);
-extern int protect(int fd, unsigned long addr, unsigned long len, 
-		   int r, int w, int x);
+extern int map(struct mm_id * mm_idp, unsigned long virt, unsigned long len,
+               int r, int w, int x, int phys_fd, unsigned long long offset);
+extern int unmap(struct mm_id * mm_idp, void *addr, unsigned long len);
+extern int protect(struct mm_id * mm_idp, unsigned long addr,
+		   unsigned long len, int r, int w, int x);
 extern void user_signal(int sig, union uml_pt_regs *regs, int pid);
 extern int new_mm(int from);
-extern void start_userspace(int cpu);
+extern int start_userspace(unsigned long stub_stack);
 extern void get_skas_faultinfo(int pid, struct faultinfo * fi);
 extern long execute_syscall_skas(void *r);
+extern unsigned long current_stub_stack(void);
 
 #endif
 

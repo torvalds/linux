@@ -353,6 +353,8 @@ void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
 
 #define PFN_UP(x) (((x) + PAGE_SIZE-1) >> PAGE_SHIFT)
 
+extern int __syscall_stub_start, __binary_start;
+
 void setup_physmem(unsigned long start, unsigned long reserve_end,
 		   unsigned long len, unsigned long highmem)
 {
@@ -370,6 +372,12 @@ void setup_physmem(unsigned long start, unsigned long reserve_end,
 		os_print_error(err, "Mapping memory");
 		exit(1);
 	}
+
+	/* Special kludge - This page will be mapped in to userspace processes
+	 * from physmem_fd, so it needs to be written out there.
+	 */
+	os_seek_file(physmem_fd, __pa(&__syscall_stub_start));
+	os_write_file(physmem_fd, &__syscall_stub_start, PAGE_SIZE);
 
 	bootmap_size = init_bootmem(pfn, pfn + delta);
 	free_bootmem(__pa(reserve_end) + bootmap_size,
