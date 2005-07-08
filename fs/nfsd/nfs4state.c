@@ -3084,7 +3084,12 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp, struct nfsd4_release_lockowner *
 	 * of the lockowner state released; so don't release any until all
 	 * have been checked. */
 	status = nfs_ok;
-	list_for_each_entry(sop, &matches, so_perclient) {
+	while (!list_empty(&matches)) {
+		sop = list_entry(matches.next, struct nfs4_stateowner,
+								so_perclient);
+		/* unhash_stateowner deletes so_perclient only
+		 * for openowners. */
+		list_del(&sop->so_perclient);
 		release_stateowner(sop);
 	}
 out:
