@@ -284,7 +284,9 @@ static int mthca_query_gid(struct ib_device *ibdev, u8 port,
 	return err;
 }
 
-static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev)
+static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev,
+				    struct ib_ucontext *context,
+				    struct ib_udata *udata)
 {
 	struct mthca_pd *pd;
 	int err;
@@ -338,7 +340,8 @@ static int mthca_ah_destroy(struct ib_ah *ah)
 }
 
 static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
-				     struct ib_qp_init_attr *init_attr)
+				     struct ib_qp_init_attr *init_attr,
+				     struct ib_udata *udata)
 {
 	struct mthca_qp *qp;
 	int err;
@@ -409,7 +412,9 @@ static int mthca_destroy_qp(struct ib_qp *qp)
 	return 0;
 }
 
-static struct ib_cq *mthca_create_cq(struct ib_device *ibdev, int entries)
+static struct ib_cq *mthca_create_cq(struct ib_device *ibdev, int entries,
+				     struct ib_ucontext *context,
+				     struct ib_udata *udata)
 {
 	struct mthca_cq *cq;
 	int nent;
@@ -692,6 +697,8 @@ int mthca_register_device(struct mthca_dev *dev)
 	int i;
 
 	strlcpy(dev->ib_dev.name, "mthca%d", IB_DEVICE_NAME_MAX);
+	dev->ib_dev.owner                = THIS_MODULE;
+
 	dev->ib_dev.node_type            = IB_NODE_CA;
 	dev->ib_dev.phys_port_cnt        = dev->limits.num_ports;
 	dev->ib_dev.dma_device           = &dev->pdev->dev;
