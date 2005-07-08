@@ -90,24 +90,28 @@
 #ifdef CONFIG_32BIT
 		mfc0	\temp, CP0_CONTEXT
 		srl	\temp, 23
-		LONG_S	\stackp, kernelsp(\temp)
 #endif
 #if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
 		lw	\temp, TI_CPU(gp)
 		dsll	\temp, 3
-		lui	\temp2, %hi(kernelsp)
-		daddu	\temp, \temp2
-		LONG_S	\stackp, %lo(kernelsp)(\temp)
 #endif
 #if defined(CONFIG_64BIT) && defined(CONFIG_BUILD_ELF64)
 		MFC0	\temp, CP0_CONTEXT
 		dsrl	\temp, 23
-		LONG_S	\stackp, kernelsp(\temp)
 #endif
+		LONG_S	\stackp, kernelsp(\temp)
 		.endm
 #else
 		.macro	get_saved_sp	/* Uniprocessor variation */
+#if defined(CONFIG_64BIT) && defined(CONFIG_BUILD_ELF64)
+		lui	k1, %highest(kernelsp)
+		daddiu	k1, %higher(kernelsp)
+		dsll	k1, k1, 16
+		daddiu	k1, %hi(kernelsp)
+		dsll	k1, k1, 16
+#else
 		lui	k1, %hi(kernelsp)
+#endif
 		LONG_L	k1, %lo(kernelsp)(k1)
 		.endm
 
