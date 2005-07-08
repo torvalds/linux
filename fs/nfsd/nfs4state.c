@@ -1988,14 +1988,11 @@ laundromat_main(void *not_used)
 	queue_delayed_work(laundry_wq, &laundromat_work, t*HZ);
 }
 
-/* search ownerid_hashtbl[] and close_lru for stateid owner
- * (stateid->si_stateownerid)
- */
 static struct nfs4_stateowner *
-find_openstateowner_id(u32 st_id, int flags) {
+search_close_lru(u32 st_id, int flags)
+{
 	struct nfs4_stateowner *local = NULL;
 
-	dprintk("NFSD: find_openstateowner_id %d\n", st_id);
 	if (flags & CLOSE_STATE) {
 		list_for_each_entry(local, &close_lru, so_close_lru) {
 			if (local->so_id == st_id)
@@ -2193,13 +2190,19 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 	* We return BAD_STATEID if filehandle doesn't match stateid, 
 	* the confirmed flag is incorrecly set, or the generation 
 	* number is incorrect.  
-	* If there is no entry in the openfile table for this id, 
-	* we can't always return BAD_STATEID;
-	* this might be a retransmitted CLOSE which has arrived after 
-	* the openfile has been released.
 	*/
-	if (!(stp = find_stateid(stateid, flags)))
-		goto no_nfs4_stateid;
+	stp = find_stateid(stateid, flags);
+	if (stp == NULL) {
+		/*
+		 * Also, we should make sure this isn't just the result of
+		 * a replayed close:
+		 */
+		sop = search_close_lru(stateid->si_stateownerid, flags);
+		if (sop == NULL)
+			return nfserr_bad_stateid;
+		*sopp = sop;
+		goto check_replay;
+	}
 
 	status = nfserr_bad_stateid;
 
@@ -2263,21 +2266,6 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 
 out:
 	return status;
-
-no_nfs4_stateid:
-
-	/*
-	* We determine whether this is a bad stateid or a replay, 
-	* starting by trying to look up the stateowner.
-	* If stateowner is not found - stateid is bad.
-	*/
-	if (!(sop = find_openstateowner_id(stateid->si_stateownerid, flags))) {
-		printk("NFSD: preprocess_seqid_op: no stateowner or nfs4_stateid!\n");
-		status = nfserr_bad_stateid;
-		goto out;
-	}
-	*sopp = sop;
-
 check_replay:
 	if (seqid == sop->so_seqid - 1) {
 		printk("NFSD: preprocess_seqid_op: retransmission?\n");
