@@ -43,6 +43,11 @@ static struct vio_device_id hvc_driver_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(vio, hvc_driver_table);
 
+static struct hv_ops hvc_get_put_ops = {
+	.get_chars = hvc_get_chars,
+	.put_chars = hvc_put_chars,
+};
+
 static int __devinit hvc_vio_probe(struct vio_dev *vdev,
 				const struct vio_device_id *id)
 {
@@ -52,7 +57,7 @@ static int __devinit hvc_vio_probe(struct vio_dev *vdev,
 	if (!vdev || !id)
 		return -EPERM;
 
-	hp = hvc_alloc(vdev->unit_address, vdev->irq);
+	hp = hvc_alloc(vdev->unit_address, vdev->irq, &hvc_get_put_ops);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
 	dev_set_drvdata(&vdev->dev, hp);
@@ -115,7 +120,7 @@ static int hvc_find_vtys(void)
 			continue;
 
 		if (device_is_compatible(vty, "hvterm1")) {
-			hvc_instantiate(*vtermno, num_found);
+			hvc_instantiate(*vtermno, num_found, &hvc_get_put_ops);
 			++num_found;
 		}
 	}

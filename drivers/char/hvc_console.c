@@ -85,6 +85,7 @@ struct hvc_struct {
 	char outbuf[N_OUTBUF] __ALIGNED__;
 	int n_outbuf;
 	uint32_t vtermno;
+	struct hv_ops *ops;
 	int irq_requested;
 	int irq;
 	struct list_head next;
@@ -142,6 +143,7 @@ struct hvc_struct *hvc_get_by_index(int index)
  * console interfaces but can still be used as a tty device.  This has to be
  * static because kmalloc will not work during early console init.
  */
+static struct hv_ops *cons_ops[MAX_NR_HVC_CONSOLES];
 static uint32_t vtermnos[MAX_NR_HVC_CONSOLES] =
 	{[0 ... MAX_NR_HVC_CONSOLES - 1] = -1};
 
@@ -154,14 +156,14 @@ void hvc_console_print(struct console *co, const char *b, unsigned count)
 {
 	char c[16] __ALIGNED__;
 	unsigned i = 0, n = 0;
-	int r, donecr = 0;
+	int r, donecr = 0, index = co->index;
 
 	/* Console access attempt outside of acceptable console range. */
-	if (co->index >= MAX_NR_HVC_CONSOLES)
+	if (index >= MAX_NR_HVC_CONSOLES)
 		return;
 
 	/* This console adapter was removed so it is not useable. */
-	if (vtermnos[co->index] < 0)
+	if (vtermnos[index] < 0)
 		return;
 
 	while (count > 0 || i > 0) {
@@ -175,7 +177,7 @@ void hvc_console_print(struct console *co, const char *b, unsigned count)
 				--count;
 			}
 		} else {
-			r = hvc_put_chars(vtermnos[co->index], c, i);
+			r = cons_ops[index]->put_chars(vtermnos[index], c, i);
 			if (r < 0) {
 				/* throw away chars on error */
 				i = 0;
@@ -245,7 +247,7 @@ console_initcall(hvc_console_init);
  * vty adapters do NOT get an hvc_instantiate() callback since they
  * appear after early console init.
  */
-int hvc_instantiate(uint32_t vtermno, int index)
+int hvc_instantiate(uint32_t vtermno, int index, struct hv_ops *ops)
 {
 	struct hvc_struct *hp;
 
@@ -263,6 +265,7 @@ int hvc_instantiate(uint32_t vtermno, int index)
 	}
 
 	vtermnos[index] = vtermno;
+	cons_ops[index] = ops;
 
 	/* reserve all indices upto and including this index */
 	if (last_hvc < index)
@@ -466,7 +469,7 @@ static void hvc_push(struct hvc_struct *hp)
 {
 	int n;
 
-	n = hvc_put_chars(hp->vtermno, hp->outbuf, hp->n_outbuf);
+	n = hp->ops->put_chars(hp->vtermno, hp->outbuf, hp->n_outbuf);
 	if (n <= 0) {
 		if (n == 0)
 			return;
@@ -604,7 +607,7 @@ static int hvc_poll(struct hvc_struct *hp)
 			break;
 		}
 
-		n = hvc_get_chars(hp->vtermno, buf, count);
+		n = hp->ops->get_chars(hp->vtermno, buf, count);
 		if (n <= 0) {
 			/* Hangup the tty when disconnected from host */
 			if (n == -EPIPE) {
@@ -737,7 +740,8 @@ static struct kobj_type hvc_kobj_type = {
 	.release = destroy_hvc_struct,
 };
 
-struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq)
+struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq,
+					struct hv_ops *ops)
 {
 	struct hvc_struct *hp;
 	int i;
@@ -750,6 +754,7 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq)
 
 	hp->vtermno = vtermno;
 	hp->irq = irq;
+	hp->ops = ops;
 
 	kobject_init(&hp->kobj);
 	hp->kobj.ktype = &hvc_kobj_type;
