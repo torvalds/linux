@@ -8,20 +8,15 @@
 
 #include <asm/smp.h>
 
-#if CONFIG_NUMA
+#ifdef CONFIG_NUMA
 extern struct pglist_data *node_data[];
 #define NODE_DATA(nid)	(node_data[nid])
 
-#ifdef CONFIG_NUMA
-	#ifdef CONFIG_X86_NUMAQ
-		#include <asm/numaq.h>
-	#else	/* summit or generic arch */
-		#include <asm/srat.h>
-	#endif
-#else /* !CONFIG_NUMA */
-	#define get_memcfg_numa get_memcfg_numa_flat
-	#define get_zholes_size(n) (0)
-#endif /* CONFIG_NUMA */
+#ifdef CONFIG_X86_NUMAQ
+	#include <asm/numaq.h>
+#else	/* summit or generic arch */
+	#include <asm/srat.h>
+#endif
 
 extern int get_memcfg_numa_flat(void );
 /*
@@ -42,6 +37,9 @@ static inline void get_memcfg_numa(void)
 	get_memcfg_numa_flat();
 }
 
+#else /* !CONFIG_NUMA */
+#define get_memcfg_numa get_memcfg_numa_flat
+#define get_zholes_size(n) (0)
 #endif /* CONFIG_NUMA */
 
 #ifdef CONFIG_DISCONTIGMEM
