@@ -61,7 +61,7 @@ struct vfsmount *alloc_vfsmnt(const char *name)
 		INIT_LIST_HEAD(&mnt->mnt_child);
 		INIT_LIST_HEAD(&mnt->mnt_mounts);
 		INIT_LIST_HEAD(&mnt->mnt_list);
-		INIT_LIST_HEAD(&mnt->mnt_fslink);
+		INIT_LIST_HEAD(&mnt->mnt_expire);
 		if (name) {
 			int size = strlen(name)+1;
 			char *newname = kmalloc(size, GFP_KERNEL);
@@ -165,8 +165,8 @@ clone_mnt(struct vfsmount *old, struct dentry *root)
 		/* stick the duplicate mount on the same expiry list
 		 * as the original if that was on one */
 		spin_lock(&vfsmount_lock);
-		if (!list_empty(&old->mnt_fslink))
-			list_add(&mnt->mnt_fslink, &old->mnt_fslink);
+		if (!list_empty(&old->mnt_expire))
+			list_add(&mnt->mnt_expire, &old->mnt_expire);
 		spin_unlock(&vfsmount_lock);
 	}
 	return mnt;
@@ -351,7 +351,7 @@ static void umount_tree(struct vfsmount *mnt)
 	while (!list_empty(&kill)) {
 		mnt = list_entry(kill.next, struct vfsmount, mnt_list);
 		list_del_init(&mnt->mnt_list);
-		list_del_init(&mnt->mnt_fslink);
+		list_del_init(&mnt->mnt_expire);
 		if (mnt->mnt_parent == mnt) {
 			spin_unlock(&vfsmount_lock);
 		} else {
@@ -645,7 +645,7 @@ static int do_loopback(struct nameidata *nd, char *old_name, int recurse)
 	if (mnt) {
 		/* stop bind mounts from expiring */
 		spin_lock(&vfsmount_lock);
-		list_del_init(&mnt->mnt_fslink);
+		list_del_init(&mnt->mnt_expire);
 		spin_unlock(&vfsmount_lock);
 
 		err = graft_tree(mnt, nd);
@@ -744,7 +744,7 @@ static int do_move_mount(struct nameidata *nd, char *old_name)
 
 	/* if the mount is moved, it should no longer be expire
 	 * automatically */
-	list_del_init(&old_nd.mnt->mnt_fslink);
+	list_del_init(&old_nd.mnt->mnt_expire);
 out2:
 	spin_unlock(&vfsmount_lock);
 out1:
@@ -814,7 +814,7 @@ int do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
 	if (err == 0 && fslist) {
 		/* add to the specified expiration list */
 		spin_lock(&vfsmount_lock);
-		list_add_tail(&newmnt->mnt_fslink, fslist);
+		list_add_tail(&newmnt->mnt_expire, fslist);
 		spin_unlock(&vfsmount_lock);
 	}
 
@@ -869,7 +869,7 @@ static void expire_mount(struct vfsmount *mnt, struct list_head *mounts)
 		 * Someone brought it back to life whilst we didn't have any
 		 * locks held so return it to the expiration list
 		 */
-		list_add_tail(&mnt->mnt_fslink, mounts);
+		list_add_tail(&mnt->mnt_expire, mounts);
 		spin_unlock(&vfsmount_lock);
 	}
 }
@@ -896,13 +896,13 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 	 * - still marked for expiry (marked on the last call here; marks are
 	 *   cleared by mntput())
 	 */
-	list_for_each_entry_safe(mnt, next, mounts, mnt_fslink) {
+	list_for_each_entry_safe(mnt, next, mounts, mnt_expire) {
 		if (!xchg(&mnt->mnt_expiry_mark, 1) ||
 		    atomic_read(&mnt->mnt_count) != 1)
 			continue;
 
 		mntget(mnt);
-		list_move(&mnt->mnt_fslink, &graveyard);
+		list_move(&mnt->mnt_expire, &graveyard);
 	}
 
 	/*
@@ -912,8 +912,8 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 	 * - dispose of the corpse
 	 */
 	while (!list_empty(&graveyard)) {
-		mnt = list_entry(graveyard.next, struct vfsmount, mnt_fslink);
-		list_del_init(&mnt->mnt_fslink);
+		mnt = list_entry(graveyard.next, struct vfsmount, mnt_expire);
+		list_del_init(&mnt->mnt_expire);
 
 		/* don't do anything if the namespace is dead - all the
 		 * vfsmounts from it are going away anyway */
