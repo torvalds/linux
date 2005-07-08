@@ -808,6 +808,7 @@ int do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
 		goto unlock;
 
 	newmnt->mnt_flags = mnt_flags;
+	newmnt->mnt_namespace = current->namespace;
 	err = graft_tree(newmnt, nd);
 
 	if (err == 0 && fslist) {
