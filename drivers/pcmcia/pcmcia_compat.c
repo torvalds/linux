@@ -31,28 +31,22 @@
 int pcmcia_get_first_tuple(client_handle_t handle, tuple_t *tuple)
 {
 	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
 	s = SOCKET(handle);
-	return pccard_get_first_tuple(s, handle->Function, tuple);
+	return pccard_get_first_tuple(s, handle->func, tuple);
 }
 EXPORT_SYMBOL(pcmcia_get_first_tuple);
 
 int pcmcia_get_next_tuple(client_handle_t handle, tuple_t *tuple)
 {
 	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
 	s = SOCKET(handle);
-	return pccard_get_next_tuple(s, handle->Function, tuple);
+	return pccard_get_next_tuple(s, handle->func, tuple);
 }
 EXPORT_SYMBOL(pcmcia_get_next_tuple);
 
 int pcmcia_get_tuple_data(client_handle_t handle, tuple_t *tuple)
 {
 	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
 	s = SOCKET(handle);
 	return pccard_get_tuple_data(s, tuple);
 }
@@ -67,10 +61,8 @@ EXPORT_SYMBOL(pcmcia_parse_tuple);
 int pcmcia_validate_cis(client_handle_t handle, cisinfo_t *info)
 {
 	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
 	s = SOCKET(handle);
-	return pccard_validate_cis(s, handle->Function, info);
+	return pccard_validate_cis(s, handle->func, info);
 }
 EXPORT_SYMBOL(pcmcia_validate_cis);
 
@@ -78,9 +70,7 @@ EXPORT_SYMBOL(pcmcia_validate_cis);
 int pcmcia_reset_card(client_handle_t handle, client_req_t *req)
 {
 	struct pcmcia_socket *skt;
-    
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
+
 	skt = SOCKET(handle);
 	if (!skt)
 		return CS_BAD_HANDLE;
@@ -88,4 +78,3 @@ int pcmcia_reset_card(client_handle_t handle, client_req_t *req)
 	return pccard_reset_card(skt);
 }
 EXPORT_SYMBOL(pcmcia_reset_card);
-

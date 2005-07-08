@@ -163,7 +163,7 @@ static int pcmcia_report_error(client_handle_t handle, error_info_t *err)
 	int i;
 	char *serv;
 
-	if (CHECK_HANDLE(handle))
+	if (!handle)
 		printk(KERN_NOTICE);
 	else {
 		struct pcmcia_device *p_dev = handle_to_pdev(handle);
@@ -380,7 +380,7 @@ static int pcmcia_device_probe(struct device * dev)
 
 	if (p_drv->attach) {
 		p_dev->instance = p_drv->attach();
-		if ((!p_dev->instance) || (p_dev->client.state & CLIENT_UNBOUND)) {
+		if ((!p_dev->instance) || (p_dev->state & CLIENT_UNBOUND)) {
 			printk(KERN_NOTICE "ds: unable to create instance "
 			       "of '%s'!\n", p_drv->drv.name);
 			ret = -EINVAL;
@@ -520,10 +520,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	sprintf (p_dev->dev.bus_id, "%d.%d", p_dev->socket->sock, p_dev->device_no);
 
 	/* compat */
-	p_dev->client.client_magic = CLIENT_MAGIC;
-	p_dev->client.Socket = s;
-	p_dev->client.Function = function;
-	p_dev->client.state = CLIENT_UNBOUND;
+	p_dev->state = CLIENT_UNBOUND;
 
 	/* Add to the list in pcmcia_bus_socket */
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
@@ -930,7 +927,7 @@ static int send_event_callback(struct device *dev, void * _data)
 	if (!p_drv)
 		return 0;
 
-	if (p_dev->client.state & (CLIENT_UNBOUND|CLIENT_STALE))
+	if (p_dev->state & (CLIENT_UNBOUND|CLIENT_STALE))
 		return 0;
 
 	if (p_drv->event)
@@ -999,7 +996,7 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 
 int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
 {
-	client_t *client = NULL;
+	struct pcmcia_device *client = NULL;
 	struct pcmcia_socket *s = NULL;
 	struct pcmcia_device *p_dev = NULL;
 	struct pcmcia_driver *p_drv = NULL;
@@ -1020,14 +1017,14 @@ int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
 			p_dev = pcmcia_get_dev(p_dev);
 			if (!p_dev)
 				continue;
-			if (!(p_dev->client.state & CLIENT_UNBOUND) ||
+			if (!(p_dev->state & CLIENT_UNBOUND) ||
 			    (!p_dev->dev.driver)) {
 				pcmcia_put_dev(p_dev);
 				continue;
 			}
 			p_drv = to_pcmcia_drv(p_dev->dev.driver);
 			if (!strncmp(p_drv->drv.name, (char *)req->dev_info, DEV_NAME_LEN)) {
-				client = &p_dev->client;
+				client = p_dev;
 				spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 				goto found;
 			}
@@ -1043,20 +1040,18 @@ int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
 
 	pcmcia_put_socket(s); /* safe, as we already hold a reference from bind_device */
 
-	*handle = client;
-	client->state &= ~CLIENT_UNBOUND;
-	client->Socket = s;
+	*handle = p_dev;
+	p_dev->state &= ~CLIENT_UNBOUND;
 	p_dev->event_callback_args = req->event_callback_args;
-	p_dev->event_callback_args.client_handle = client;
+	p_dev->event_callback_args.client_handle = p_dev;
 
 
 	if (s->state & SOCKET_CARDBUS)
 		client->state |= CLIENT_CARDBUS;
 
-	if ((!(s->state & SOCKET_CARDBUS)) && (s->functions == 0) &&
-	    (client->Function != BIND_FN_ALL)) {
+	if ((!(s->state & SOCKET_CARDBUS)) && (s->functions == 0)) {
 		cistpl_longlink_mfc_t mfc;
-		if (pccard_read_tuple(s, client->Function, CISTPL_LONGLINK_MFC, &mfc)
+		if (pccard_read_tuple(s, client->func, CISTPL_LONGLINK_MFC, &mfc)
 		    == CS_SUCCESS)
 			s->functions = mfc.nfn;
 		else
@@ -1108,7 +1103,7 @@ static int unbind_request(struct pcmcia_socket *s)
 		}
 		p_dev = list_entry((&s->devices_list)->next, struct pcmcia_device, socket_device_list);
 		list_del(&p_dev->socket_device_list);
-		p_dev->client.state |= CLIENT_STALE;
+		p_dev->state |= CLIENT_STALE;
 		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
 		device_unregister(&p_dev->dev);
@@ -1123,9 +1118,6 @@ int pcmcia_deregister_client(client_handle_t handle)
 	int i;
 	struct pcmcia_device *p_dev = handle_to_pdev(handle);
 
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
-
 	s = SOCKET(handle);
 	ds_dbg(1, "deregister_client(%p)\n", handle);
 
@@ -1136,7 +1128,6 @@ int pcmcia_deregister_client(client_handle_t handle)
 			goto warn_out;
 
 	if (handle->state & CLIENT_STALE) {
-		handle->client_magic = 0;
 		handle->state &= ~CLIENT_STALE;
 		pcmcia_put_dev(p_dev);
 	} else {

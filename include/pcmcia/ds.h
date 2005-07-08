@@ -162,13 +162,7 @@ struct pcmcia_device {
 	   struct soon */
 	dev_link_t		*instance;
 	event_callback_args_t 	event_callback_args;
-
-	struct client_t {
-		u_short			client_magic;
-		struct pcmcia_socket	*Socket;
-		u_char			Function;
-		u_int			state;
-	}			client;
+	u_int			state;
 
 	/* information about this device */
 	u8			has_manf_id:1;
@@ -193,8 +187,8 @@ struct pcmcia_device {
 #define to_pcmcia_dev(n) container_of(n, struct pcmcia_device, dev)
 #define to_pcmcia_drv(n) container_of(n, struct pcmcia_driver, drv)
 
-#define handle_to_pdev(handle) container_of(handle, struct pcmcia_device, client);
-#define handle_to_dev(handle) ((container_of(handle, struct pcmcia_device, client))->dev)
+#define handle_to_pdev(handle) (handle)
+#define handle_to_dev(handle) (handle->dev)
 
 /* error reporting */
 void cs_error(client_handle_t handle, int func, int ret);

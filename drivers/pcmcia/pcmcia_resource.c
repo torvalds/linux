@@ -206,10 +206,8 @@ int pcmcia_access_configuration_register(client_handle_t handle,
 					 conf_reg_t *reg)
 {
 	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
 	s = SOCKET(handle);
-	return pccard_access_configuration_register(s, handle->Function, reg);
+	return pccard_access_configuration_register(s, handle->func, reg);
 }
 EXPORT_SYMBOL(pcmcia_access_configuration_register);
 
@@ -276,12 +274,12 @@ int pcmcia_get_configuration_info(client_handle_t handle,
 {
 	struct pcmcia_socket *s;
 
-	if ((CHECK_HANDLE(handle)) || !config)
+	if (!config)
 		return CS_BAD_HANDLE;
 	s = SOCKET(handle);
 	if (!s)
 		return CS_BAD_HANDLE;
-	return pccard_get_configuration_info(s, handle->Function, config);
+	return pccard_get_configuration_info(s, handle->func, config);
 }
 EXPORT_SYMBOL(pcmcia_get_configuration_info);
 
@@ -382,10 +380,8 @@ int pccard_get_status(struct pcmcia_socket *s, unsigned int function,
 int pcmcia_get_status(client_handle_t handle, cs_status_t *status)
 {
 	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
 	s = SOCKET(handle);
-	return pccard_get_status(s, handle->Function, status);
+	return pccard_get_status(s, handle->func, status);
 }
 EXPORT_SYMBOL(pcmcia_get_status);
 
@@ -432,8 +428,6 @@ int pcmcia_modify_configuration(client_handle_t handle,
 	struct pcmcia_socket *s;
 	config_t *c;
 
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
 	s = SOCKET(handle);
 	c = CONFIG(handle);
 	if (!(s->state & SOCKET_PRESENT))
@@ -478,8 +472,7 @@ int pcmcia_release_configuration(client_handle_t handle)
 	struct pcmcia_socket *s;
 	int i;
 
-	if (CHECK_HANDLE(handle) ||
-	    !(handle->state & CLIENT_CONFIG_LOCKED))
+	if (!(handle->state & CLIENT_CONFIG_LOCKED))
 		return CS_BAD_HANDLE;
 	handle->state &= ~CLIENT_CONFIG_LOCKED;
 	s = SOCKET(handle);
@@ -527,7 +520,7 @@ int pcmcia_release_io(client_handle_t handle, io_req_t *req)
 {
 	struct pcmcia_socket *s;
 
-	if (CHECK_HANDLE(handle) || !(handle->state & CLIENT_IO_REQ))
+	if (!(handle->state & CLIENT_IO_REQ))
 		return CS_BAD_HANDLE;
 	handle->state &= ~CLIENT_IO_REQ;
 	s = SOCKET(handle);
@@ -561,7 +554,7 @@ EXPORT_SYMBOL(pcmcia_release_io);
 int pcmcia_release_irq(client_handle_t handle, irq_req_t *req)
 {
 	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle) || !(handle->state & CLIENT_IRQ_REQ))
+	if (!(handle->state & CLIENT_IRQ_REQ))
 		return CS_BAD_HANDLE;
 	handle->state &= ~CLIENT_IRQ_REQ;
 	s = SOCKET(handle);
@@ -632,8 +625,6 @@ int pcmcia_request_configuration(client_handle_t handle,
 	config_t *c;
 	pccard_io_map iomap;
 
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
 	s = SOCKET(handle);
 	if (!(s->state & SOCKET_PRESENT))
 		return CS_NO_CARD;
@@ -762,8 +753,6 @@ int pcmcia_request_io(client_handle_t handle, io_req_t *req)
 	struct pcmcia_socket *s;
 	config_t *c;
 
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
 	s = SOCKET(handle);
 	if (!(s->state & SOCKET_PRESENT))
 		return CS_NO_CARD;
@@ -834,8 +823,6 @@ int pcmcia_request_irq(client_handle_t handle, irq_req_t *req)
 	int ret = CS_IN_USE, irq = 0;
 	struct pcmcia_device *p_dev = handle_to_pdev(handle);
 
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
 	s = SOCKET(handle);
 	if (!(s->state & SOCKET_PRESENT))
 		return CS_NO_CARD;
@@ -926,9 +913,7 @@ int pcmcia_request_window(client_handle_t *handle, win_req_t *req, window_handle
 	u_long align;
 	int w;
 
-	if (CHECK_HANDLE(*handle))
-		return CS_BAD_HANDLE;
-	s = (*handle)->Socket;
+	s = (*handle)->socket;
 	if (!(s->state & SOCKET_PRESENT))
 		return CS_NO_CARD;
 	if (req->Attributes & (WIN_PAGED | WIN_SHARED))
