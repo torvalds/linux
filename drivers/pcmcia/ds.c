@@ -158,17 +158,15 @@ static const lookup_t service_table[] = {
 };
 
 
-static int pcmcia_report_error(client_handle_t handle, error_info_t *err)
+static int pcmcia_report_error(struct pcmcia_device *p_dev, error_info_t *err)
 {
 	int i;
 	char *serv;
 
-	if (!handle)
+	if (!p_dev)
 		printk(KERN_NOTICE);
-	else {
-		struct pcmcia_device *p_dev = handle_to_pdev(handle);
+	else
 		printk(KERN_NOTICE "%s: ", p_dev->dev.bus_id);
-	}
 
 	for (i = 0; i < ARRAY_SIZE(service_table); i++)
 		if (service_table[i].key == err->func)
@@ -193,10 +191,10 @@ static int pcmcia_report_error(client_handle_t handle, error_info_t *err)
 
 /*======================================================================*/
 
-void cs_error(client_handle_t handle, int func, int ret)
+void cs_error(struct pcmcia_device *p_dev, int func, int ret)
 {
 	error_info_t err = { func, ret };
-	pcmcia_report_error(handle, &err);
+	pcmcia_report_error(p_dev, &err);
 }
 EXPORT_SYMBOL(cs_error);
 
@@ -574,8 +572,6 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 	else
 		no_funcs = 1;
 
-	/* this doesn't handle multifunction devices on one pcmcia function
-	 * yet. */
 	for (i=0; i < no_funcs; i++)
 		pcmcia_device_add(s, i);
 
@@ -994,9 +990,8 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 
 
 
-int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
+int pcmcia_register_client(struct pcmcia_device **handle, client_reg_t *req)
 {
-	struct pcmcia_device *client = NULL;
 	struct pcmcia_socket *s = NULL;
 	struct pcmcia_device *p_dev = NULL;
 	struct pcmcia_driver *p_drv = NULL;
@@ -1024,7 +1019,6 @@ int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
 			}
 			p_drv = to_pcmcia_drv(p_dev->dev.driver);
 			if (!strncmp(p_drv->drv.name, (char *)req->dev_info, DEV_NAME_LEN)) {
-				client = p_dev;
 				spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 				goto found;
 			}
@@ -1035,7 +1029,7 @@ int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
 	}
  found:
 	up_read(&pcmcia_socket_list_rwsem);
-	if (!p_dev || !client)
+	if (!p_dev)
 		return -ENODEV;
 
 	pcmcia_put_socket(s); /* safe, as we already hold a reference from bind_device */
@@ -1046,12 +1040,9 @@ int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
 	p_dev->event_callback_args.client_handle = p_dev;
 
 
-	if (s->state & SOCKET_CARDBUS)
-		client->state |= CLIENT_CARDBUS;
-
-	if ((!(s->state & SOCKET_CARDBUS)) && (s->functions == 0)) {
+	if (!s->functions) {
 		cistpl_longlink_mfc_t mfc;
-		if (pccard_read_tuple(s, client->func, CISTPL_LONGLINK_MFC, &mfc)
+		if (pccard_read_tuple(s, p_dev->func, CISTPL_LONGLINK_MFC, &mfc)
 		    == CS_SUCCESS)
 			s->functions = mfc.nfn;
 		else
@@ -1064,7 +1055,7 @@ int pcmcia_register_client(client_handle_t *handle, client_reg_t *req)
 	}
 
 	ds_dbg(1, "register_client(): client 0x%p, dev %s\n",
-	       client, p_dev->dev.bus_id);
+	       p_dev, p_dev->dev.bus_id);
 
 	if ((s->state & (SOCKET_PRESENT|SOCKET_CARDBUS)) == SOCKET_PRESENT) {
 		if (p_drv->event)
@@ -1112,26 +1103,25 @@ static int unbind_request(struct pcmcia_socket *s)
 	return 0;
 } /* unbind_request */
 
-int pcmcia_deregister_client(client_handle_t handle)
+int pcmcia_deregister_client(struct pcmcia_device *p_dev)
 {
 	struct pcmcia_socket *s;
 	int i;
-	struct pcmcia_device *p_dev = handle_to_pdev(handle);
 
-	s = SOCKET(handle);
-	ds_dbg(1, "deregister_client(%p)\n", handle);
+	s = p_dev->socket;
+	ds_dbg(1, "deregister_client(%p)\n", p_dev);
 
-	if (handle->state & (CLIENT_IRQ_REQ|CLIENT_IO_REQ|CLIENT_CONFIG_LOCKED))
+	if (p_dev->state & (CLIENT_IRQ_REQ|CLIENT_IO_REQ|CLIENT_CONFIG_LOCKED))
 		goto warn_out;
 	for (i = 0; i < MAX_WIN; i++)
-		if (handle->state & CLIENT_WIN_REQ(i))
+		if (p_dev->state & CLIENT_WIN_REQ(i))
 			goto warn_out;
 
-	if (handle->state & CLIENT_STALE) {
-		handle->state &= ~CLIENT_STALE;
+	if (p_dev->state & CLIENT_STALE) {
+		p_dev->state &= ~CLIENT_STALE;
 		pcmcia_put_dev(p_dev);
 	} else {
-		handle->state = CLIENT_UNBOUND;
+		p_dev->state = CLIENT_UNBOUND;
 	}
 
 	return CS_SUCCESS;
