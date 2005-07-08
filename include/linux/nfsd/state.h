@@ -203,7 +203,9 @@ struct nfs4_stateowner {
 	int			so_is_open_owner; /* 1=openowner,0=lockowner */
 	u32                     so_id;
 	struct nfs4_client *    so_client;
-	u32                     so_seqid;    
+	/* after increment in ENCODE_SEQID_OP_TAIL, represents the next
+	 * sequence id expected from the client: */
+	u32                     so_seqid;
 	struct xdr_netobj       so_owner;     /* open owner name */
 	int                     so_confirmed; /* successful OPEN_CONFIRM? */
 	struct nfs4_replay	so_replay;
