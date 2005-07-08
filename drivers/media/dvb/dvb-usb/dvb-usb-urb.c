@@ -29,7 +29,7 @@ int dvb_usb_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 
 	ret = usb_bulk_msg(d->udev,usb_sndbulkpipe(d->udev,
 			d->props.generic_bulk_ctrl_endpoint), wbuf,wlen,&actlen,
-			2*HZ);
+			2000);
 
 	if (ret)
 		err("bulk message failed: %d (%d/%d)",ret,wlen,actlen);
@@ -43,7 +43,7 @@ int dvb_usb_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 
 		ret = usb_bulk_msg(d->udev,usb_rcvbulkpipe(d->udev,
 				d->props.generic_bulk_ctrl_endpoint),rbuf,rlen,&actlen,
-				2*HZ);
+				2000);
 
 		if (ret)
 			err("recv bulk message failed: %d",ret);
