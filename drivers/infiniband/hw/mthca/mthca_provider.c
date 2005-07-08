@@ -424,6 +424,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				     struct ib_qp_init_attr *init_attr,
 				     struct ib_udata *udata)
 {
+	struct mthca_create_qp ucmd;
 	struct mthca_qp *qp;
 	int err;
 
@@ -432,41 +433,82 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	case IB_QPT_UC:
 	case IB_QPT_UD:
 	{
+		struct mthca_ucontext *context;
+
 		qp = kmalloc(sizeof *qp, GFP_KERNEL);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 
-		qp->sq.max    = init_attr->cap.max_send_wr;
-		qp->rq.max    = init_attr->cap.max_recv_wr;
-		qp->sq.max_gs = init_attr->cap.max_send_sge;
-		qp->rq.max_gs = init_attr->cap.max_recv_sge;
+		if (pd->uobject) {
+			context = to_mucontext(pd->uobject->context);
+
+			if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
+				return ERR_PTR(-EFAULT);
+
+			err = mthca_map_user_db(to_mdev(pd->device), &context->uar,
+						context->db_tab,
+						ucmd.sq_db_index, ucmd.sq_db_page);
+			if (err) {
+				kfree(qp);
+				return ERR_PTR(err);
+			}
+
+			err = mthca_map_user_db(to_mdev(pd->device), &context->uar,
+						context->db_tab,
+						ucmd.rq_db_index, ucmd.rq_db_page);
+			if (err) {
+				mthca_unmap_user_db(to_mdev(pd->device),
+						    &context->uar,
+						    context->db_tab,
+						    ucmd.sq_db_index);
+				kfree(qp);
+				return ERR_PTR(err);
+			}
+
+			qp->mr.ibmr.lkey = ucmd.lkey;
+			qp->sq.db_index  = ucmd.sq_db_index;
+			qp->rq.db_index  = ucmd.rq_db_index;
+		}
 
 		err = mthca_alloc_qp(to_mdev(pd->device), to_mpd(pd),
 				     to_mcq(init_attr->send_cq),
 				     to_mcq(init_attr->recv_cq),
 				     init_attr->qp_type, init_attr->sq_sig_type,
-				     qp);
+				     &init_attr->cap, qp);
+
+		if (err && pd->uobject) {
+			context = to_mucontext(pd->uobject->context);
+
+			mthca_unmap_user_db(to_mdev(pd->device),
+					    &context->uar,
+					    context->db_tab,
+					    ucmd.sq_db_index);
+			mthca_unmap_user_db(to_mdev(pd->device),
+					    &context->uar,
+					    context->db_tab,
+					    ucmd.rq_db_index);
+		}
+
 		qp->ibqp.qp_num = qp->qpn;
 		break;
 	}
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	{
+		/* Don't allow userspace to create special QPs */
+		if (pd->uobject)
+			return ERR_PTR(-EINVAL);
+
 		qp = kmalloc(sizeof (struct mthca_sqp), GFP_KERNEL);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
-
-		qp->sq.max    = init_attr->cap.max_send_wr;
-		qp->rq.max    = init_attr->cap.max_recv_wr;
-		qp->sq.max_gs = init_attr->cap.max_send_sge;
-		qp->rq.max_gs = init_attr->cap.max_recv_sge;
 
 		qp->ibqp.qp_num = init_attr->qp_type == IB_QPT_SMI ? 0 : 1;
 
 		err = mthca_alloc_sqp(to_mdev(pd->device), to_mpd(pd),
 				      to_mcq(init_attr->send_cq),
 				      to_mcq(init_attr->recv_cq),
-				      init_attr->sq_sig_type,
+				      init_attr->sq_sig_type, &init_attr->cap,
 				      qp->ibqp.qp_num, init_attr->port_num,
 				      to_msqp(qp));
 		break;
@@ -481,13 +523,27 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 		return ERR_PTR(err);
 	}
 
-        init_attr->cap.max_inline_data = 0;
+	init_attr->cap.max_inline_data = 0;
+	init_attr->cap.max_send_wr     = qp->sq.max;
+	init_attr->cap.max_recv_wr     = qp->rq.max;
+	init_attr->cap.max_send_sge    = qp->sq.max_gs;
+	init_attr->cap.max_recv_sge    = qp->rq.max_gs;
 
 	return &qp->ibqp;
 }
 
 static int mthca_destroy_qp(struct ib_qp *qp)
 {
+	if (qp->uobject) {
+		mthca_unmap_user_db(to_mdev(qp->device),
+				    &to_mucontext(qp->uobject->context)->uar,
+				    to_mucontext(qp->uobject->context)->db_tab,
+				    to_mqp(qp)->sq.db_index);
+		mthca_unmap_user_db(to_mdev(qp->device),
+				    &to_mucontext(qp->uobject->context)->uar,
+				    to_mucontext(qp->uobject->context)->db_tab,
+				    to_mqp(qp)->rq.db_index);
+	}
 	mthca_free_qp(to_mdev(qp->device), to_mqp(qp));
 	kfree(qp);
 	return 0;
