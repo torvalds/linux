@@ -31,10 +31,17 @@ static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_device *d)
 	return 0;
 }
 
-/* some of the dibusb 1.1 device aren't equipped with the default tuner
+static int dibusb_thomson_tuner_attach(struct dvb_usb_device *d)
+{
+	d->pll_addr = 0x61;
+	d->pll_desc = &dvb_pll_tua6010xs;
+	return 0;
+}
+
+/* Some of the Artec 1.1 device aren't equipped with the default tuner
  * (Thomson Cable), but with a Panasonic ENV77H11D5.  This function figures
  * this out. */
-static int dibusb_dib3000mb_tuner_attach (struct dvb_usb_device *d)
+static int dibusb_tuner_probe_and_attach(struct dvb_usb_device *d)
 {
 	u8 b[2] = { 0,0 }, b2[1];
 	int ret = 0;
@@ -59,8 +66,7 @@ static int dibusb_dib3000mb_tuner_attach (struct dvb_usb_device *d)
 
 	if (b2[0] == 0xfe) {
 		info("this device has the Thomson Cable onboard. Which is default.");
-		d->pll_addr = 0x61;
-		d->pll_desc = &dvb_pll_tua6010xs;
+		dibusb_thomson_tuner_attach(d);
 	} else {
 		u8 bpll[4] = { 0x0b, 0xf5, 0x85, 0xab };
 		info("this device has the Panasonic ENV77H11D5 onboard.");
@@ -114,6 +120,8 @@ static struct usb_device_id dibusb_dib3000mb_table [] = {
 /* 21 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ULTIMA_TVBOX_AN2235_COLD) },
 /* 22 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ULTIMA_TVBOX_AN2235_WARM) },
 /* 23 */	{ USB_DEVICE(USB_VID_ADSTECH,		USB_PID_ADSTECH_USB2_COLD) },
+
+/* device ID with default DIBUSB2_0-firmware and with the hacked firmware */
 /* 24 */	{ USB_DEVICE(USB_VID_ADSTECH,		USB_PID_ADSTECH_USB2_WARM) },
 
 // #define DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
@@ -140,7 +148,7 @@ static struct dvb_usb_properties dibusb1_1_properties = {
 	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
 	.power_ctrl       = dibusb_power_ctrl,
 	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_dib3000mb_tuner_attach,
+	.tuner_attach     = dibusb_tuner_probe_and_attach,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
@@ -212,7 +220,7 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
 	.power_ctrl       = dibusb_power_ctrl,
 	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_dib3000mb_tuner_attach,
+	.tuner_attach     = dibusb_tuner_probe_and_attach,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
@@ -257,7 +265,7 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = CYPRESS_FX2,
 
-	.firmware = "dvb-usb-adstech-usb2-01.fw",
+	.firmware = "dvb-usb-adstech-usb2-02.fw",
 
 	.size_of_priv     = sizeof(struct dibusb_state),
 
@@ -266,7 +274,7 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
 	.power_ctrl       = dibusb2_0_power_ctrl,
 	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_dib3000mb_tuner_attach,
+	.tuner_attach     = dibusb_thomson_tuner_attach,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
@@ -288,11 +296,11 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 		}
 	},
 
-	.num_device_descs = 2,
+	.num_device_descs = 1,
 	.devices = {
 		{	"KWorld/ADSTech Instant DVB-T USB 2.0",
 			{ &dibusb_dib3000mb_table[23], NULL },
-			{ &dibusb_dib3000mb_table[24], NULL }, /* device ID with default DIBUSB2_0-firmware */
+			{ &dibusb_dib3000mb_table[24], NULL },
 		},
 	}
 };
