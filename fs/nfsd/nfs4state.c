@@ -2706,11 +2706,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 		(long long) lock->lk_offset,
 		(long long) lock->lk_length);
 
-	if (nfs4_in_grace() && !lock->lk_reclaim)
-		return nfserr_grace;
-	if (!nfs4_in_grace() && lock->lk_reclaim)
-		return nfserr_no_grace;
-
 	if (check_lock_length(lock->lk_offset, lock->lk_length))
 		 return nfserr_inval;
 
@@ -2784,6 +2779,13 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 		printk("NFSD: nfsd4_lock: permission denied!\n");
 		goto out;
 	}
+
+	status = nfserr_grace;
+	if (nfs4_in_grace() && !lock->lk_reclaim)
+		goto out;
+	status = nfserr_no_grace;
+	if (!nfs4_in_grace() && lock->lk_reclaim)
+		goto out;
 
 	locks_init_lock(&file_lock);
 	switch (lock->lk_type) {
