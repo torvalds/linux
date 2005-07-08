@@ -458,27 +458,27 @@ static inline int SendDAC(struct av7110 *av7110, u8 addr, u8 data)
 	return av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, AudioDAC, 2, addr, data);
 }
 
-static inline void av7710_set_video_mode(struct av7110 *av7110, int mode)
+static inline int av7710_set_video_mode(struct av7110 *av7110, int mode)
 {
-	av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetVidMode, 1, mode);
+	return av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetVidMode, 1, mode);
 }
 
-static int inline vidcom(struct av7110 *av7110, u32 com, u32 arg)
+static inline int vidcom(struct av7110 *av7110, u32 com, u32 arg)
 {
 	return av7110_fw_cmd(av7110, COMTYPE_MISC, AV7110_FW_VIDEO_COMMAND, 4,
 			     (com>>16), (com&0xffff),
 			     (arg>>16), (arg&0xffff));
 }
 
-static int inline audcom(struct av7110 *av7110, u32 com)
+static inline int audcom(struct av7110 *av7110, u32 com)
 {
 	return av7110_fw_cmd(av7110, COMTYPE_MISC, AV7110_FW_AUDIO_COMMAND, 2,
 			     (com>>16), (com&0xffff));
 }
 
-static inline void Set22K(struct av7110 *av7110, int state)
+static inline int Set22K(struct av7110 *av7110, int state)
 {
-	av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, (state ? ON22K : OFF22K), 0);
+	return av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, (state ? ON22K : OFF22K), 0);
 }
 
 
