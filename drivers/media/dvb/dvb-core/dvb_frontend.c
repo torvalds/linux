@@ -626,11 +626,21 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
-	case FE_READ_STATUS:
-		if (fe->ops->read_status)
-			err = fe->ops->read_status(fe, (fe_status_t*) parg);
-		break;
+	case FE_READ_STATUS: {
+		fe_status_t* status = parg;
 
+		/* if retune was requested but hasn't occured yet, prevent
+		 * that user get signal state from previous tuning */
+		if(fepriv->state == FESTATE_RETUNE) {
+			err=0;
+			*status = 0;
+			break;
+		}
+
+		if (fe->ops->read_status)
+			err = fe->ops->read_status(fe, status);
+		break;
+	}
 	case FE_READ_BER:
 		if (fe->ops->read_ber)
 			err = fe->ops->read_ber(fe, (__u32*) parg);
