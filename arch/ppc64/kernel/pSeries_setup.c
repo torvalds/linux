@@ -83,8 +83,8 @@ int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 extern void pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
 
-static int shared_idle(void);
-static int dedicated_idle(void);
+static int pseries_shared_idle(void);
+static int pseries_dedicated_idle(void);
 
 static volatile void __iomem * chrp_int_ack_special;
 struct mpic *pSeries_mpic;
@@ -238,10 +238,10 @@ static void __init pSeries_setup_arch(void)
 	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR) {
 		if (get_paca()->lppaca.shared_proc) {
 			printk(KERN_INFO "Using shared processor idle loop\n");
-			ppc_md.idle_loop = shared_idle;
+			ppc_md.idle_loop = pseries_shared_idle;
 		} else {
 			printk(KERN_INFO "Using dedicated idle loop\n");
-			ppc_md.idle_loop = dedicated_idle;
+			ppc_md.idle_loop = pseries_dedicated_idle;
 		}
 	} else {
 		printk(KERN_INFO "Using default idle loop\n");
@@ -438,15 +438,47 @@ static int __init pSeries_probe(int platform)
 
 DECLARE_PER_CPU(unsigned long, smt_snooze_delay);
 
-int dedicated_idle(void)
+static inline void dedicated_idle_sleep(unsigned int cpu)
+{
+	struct paca_struct *ppaca = &paca[cpu ^ 1];
+
+	/* Only sleep if the other thread is not idle */
+	if (!(ppaca->lppaca.idle)) {
+		local_irq_disable();
+
+		/*
+		 * We are about to sleep the thread and so wont be polling any
+		 * more.
+		 */
+		clear_thread_flag(TIF_POLLING_NRFLAG);
+
+		/*
+		 * SMT dynamic mode. Cede will result in this thread going
+		 * dormant, if the partner thread is still doing work.  Thread
+		 * wakes up if partner goes idle, an interrupt is presented, or
+		 * a prod occurs.  Returning from the cede enables external
+		 * interrupts.
+		 */
+		if (!need_resched())
+			cede_processor();
+		else
+			local_irq_enable();
+	} else {
+		/*
+		 * Give the HV an opportunity at the processor, since we are
+		 * not doing any work.
+		 */
+		poll_pending();
+	}
+}
+
+static int pseries_dedicated_idle(void)
 {
 	long oldval;
-	struct paca_struct *lpaca = get_paca(), *ppaca;
+	struct paca_struct *lpaca = get_paca();
+	unsigned int cpu = smp_processor_id();
 	unsigned long start_snooze;
 	unsigned long *smt_snooze_delay = &__get_cpu_var(smt_snooze_delay);
-	unsigned int cpu = smp_processor_id();
-
-	ppaca = &paca[cpu ^ 1];
 
 	while (1) {
 		/*
@@ -458,9 +490,13 @@ int dedicated_idle(void)
 		oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
 		if (!oldval) {
 			set_thread_flag(TIF_POLLING_NRFLAG);
+
 			start_snooze = __get_tb() +
 				*smt_snooze_delay * tb_ticks_per_usec;
+
 			while (!need_resched() && !cpu_is_offline(cpu)) {
+				ppc64_runlatch_off();
+
 				/*
 				 * Go into low thread priority and possibly
 				 * low power mode.
@@ -468,60 +504,31 @@ int dedicated_idle(void)
 				HMT_low();
 				HMT_very_low();
 
-				if (*smt_snooze_delay == 0 ||
-				    __get_tb() < start_snooze)
-					continue;
-
-				HMT_medium();
-
-				if (!(ppaca->lppaca.idle)) {
-					local_irq_disable();
-
-					/*
-					 * We are about to sleep the thread
-					 * and so wont be polling any
-					 * more.
-					 */
-					clear_thread_flag(TIF_POLLING_NRFLAG);
-
-					/*
-					 * SMT dynamic mode. Cede will result
-					 * in this thread going dormant, if the
-					 * partner thread is still doing work.
-					 * Thread wakes up if partner goes idle,
-					 * an interrupt is presented, or a prod
-					 * occurs.  Returning from the cede
-					 * enables external interrupts.
-					 */
-					if (!need_resched())
-						cede_processor();
-					else
-						local_irq_enable();
-				} else {
-					/*
-					 * Give the HV an opportunity at the
-					 * processor, since we are not doing
-					 * any work.
-					 */
-					poll_pending();
+				if (*smt_snooze_delay != 0 &&
+				    __get_tb() > start_snooze) {
+					HMT_medium();
+					dedicated_idle_sleep(cpu);
 				}
+
 			}
 
+			HMT_medium();
 			clear_thread_flag(TIF_POLLING_NRFLAG);
 		} else {
 			set_need_resched();
 		}
 
-		HMT_medium();
 		lpaca->lppaca.idle = 0;
+		ppc64_runlatch_on();
+
 		schedule();
+
 		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
 			cpu_die();
 	}
-	return 0;
 }
 
-static int shared_idle(void)
+static int pseries_shared_idle(void)
 {
 	struct paca_struct *lpaca = get_paca();
 	unsigned int cpu = smp_processor_id();
@@ -535,6 +542,7 @@ static int shared_idle(void)
 
 		while (!need_resched() && !cpu_is_offline(cpu)) {
 			local_irq_disable();
+			ppc64_runlatch_off();
 
 			/*
 			 * Yield the processor to the hypervisor.  We return if
@@ -550,13 +558,16 @@ static int shared_idle(void)
 				cede_processor();
 			else
 				local_irq_enable();
+
+			HMT_medium();
 		}
 
-		HMT_medium();
 		lpaca->lppaca.idle = 0;
+		ppc64_runlatch_on();
+
 		schedule();
-		if (cpu_is_offline(smp_processor_id()) &&
-		    system_state == SYSTEM_RUNNING)
+
+		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
 			cpu_die();
 	}
 
