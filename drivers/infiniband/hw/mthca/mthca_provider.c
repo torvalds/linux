@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2005 Cisco Systems. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -37,6 +38,8 @@
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
+#include "mthca_user.h"
+#include "mthca_memfree.h"
 
 static int mthca_query_device(struct ib_device *ibdev,
 			      struct ib_device_attr *props)
@@ -282,6 +285,59 @@ static int mthca_query_gid(struct ib_device *ibdev, u8 port,
 	kfree(in_mad);
 	kfree(out_mad);
 	return err;
+}
+
+static struct ib_ucontext *mthca_alloc_ucontext(struct ib_device *ibdev,
+						struct ib_udata *udata)
+{
+	struct mthca_alloc_ucontext_resp uresp;
+	struct mthca_ucontext           *context;
+	int                              err;
+
+	memset(&uresp, 0, sizeof uresp);
+
+	uresp.qp_tab_size = to_mdev(ibdev)->limits.num_qps;
+	if (mthca_is_memfree(to_mdev(ibdev)))
+		uresp.uarc_size = to_mdev(ibdev)->uar_table.uarc_size;
+	else
+		uresp.uarc_size = 0;
+
+	context = kmalloc(sizeof *context, GFP_KERNEL);
+	if (!context)
+		return ERR_PTR(-ENOMEM);
+
+	err = mthca_uar_alloc(to_mdev(ibdev), &context->uar);
+	if (err) {
+		kfree(context);
+		return ERR_PTR(err);
+	}
+
+	context->db_tab = mthca_init_user_db_tab(to_mdev(ibdev));
+	if (IS_ERR(context->db_tab)) {
+		err = PTR_ERR(context->db_tab);
+		mthca_uar_free(to_mdev(ibdev), &context->uar);
+		kfree(context);
+		return ERR_PTR(err);
+	}
+
+	if (ib_copy_to_udata(udata, &uresp, sizeof uresp)) {
+		mthca_cleanup_user_db_tab(to_mdev(ibdev), &context->uar, context->db_tab);
+		mthca_uar_free(to_mdev(ibdev), &context->uar);
+		kfree(context);
+		return ERR_PTR(-EFAULT);
+	}
+
+	return &context->ibucontext;
+}
+
+static int mthca_dealloc_ucontext(struct ib_ucontext *context)
+{
+	mthca_cleanup_user_db_tab(to_mdev(context->device), &to_mucontext(context)->uar,
+				  to_mucontext(context)->db_tab);
+	mthca_uar_free(to_mdev(context->device), &to_mucontext(context)->uar);
+	kfree(to_mucontext(context));
+
+	return 0;
 }
 
 static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev,
@@ -708,6 +764,8 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.modify_port          = mthca_modify_port;
 	dev->ib_dev.query_pkey           = mthca_query_pkey;
 	dev->ib_dev.query_gid            = mthca_query_gid;
+	dev->ib_dev.alloc_ucontext       = mthca_alloc_ucontext;
+	dev->ib_dev.dealloc_ucontext     = mthca_dealloc_ucontext;
 	dev->ib_dev.alloc_pd             = mthca_alloc_pd;
 	dev->ib_dev.dealloc_pd           = mthca_dealloc_pd;
 	dev->ib_dev.create_ah            = mthca_ah_create;
