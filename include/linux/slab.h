@@ -65,7 +65,7 @@ extern void *kmem_cache_alloc(kmem_cache_t *, unsigned int __nocast);
 extern void kmem_cache_free(kmem_cache_t *, void *);
 extern unsigned int kmem_cache_size(kmem_cache_t *);
 extern const char *kmem_cache_name(kmem_cache_t *);
-extern kmem_cache_t *kmem_find_general_cachep(size_t size, int gfpflags);
+extern kmem_cache_t *kmem_find_general_cachep(size_t size, unsigned int __nocast gfpflags);
 
 /* Size description struct for general caches. */
 struct cache_sizes {
@@ -105,7 +105,7 @@ extern unsigned int ksize(const void *);
 
 #ifdef CONFIG_NUMA
 extern void *kmem_cache_alloc_node(kmem_cache_t *, int flags, int node);
-extern void *kmalloc_node(size_t size, int flags, int node);
+extern void *kmalloc_node(size_t size, unsigned int __nocast flags, int node);
 #else
 static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, int flags, int node)
 {
