@@ -830,6 +830,15 @@ static void expire_mount(struct vfsmount *mnt, struct list_head *mounts)
 	spin_lock(&vfsmount_lock);
 
 	/*
+	 * Check if mount is still attached, if not, let whoever holds it deal
+	 * with the sucker
+	 */
+	if (mnt->mnt_parent == mnt) {
+		spin_unlock(&vfsmount_lock);
+		return;
+	}
+
+	/*
 	 * Check that it is still dead: the count should now be 2 - as
 	 * contributed by the vfsmount parent and the mntget above
 	 */
