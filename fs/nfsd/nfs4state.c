@@ -2258,7 +2258,7 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 		printk("NFSD: preprocess_seqid_op: old stateid!\n");
 		goto out;
 	}
-	/* XXX renew the client lease here */
+	renew_client(sop->so_client);
 	status = nfs_ok;
 
 out:
