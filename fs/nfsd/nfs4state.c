@@ -1531,8 +1531,6 @@ renew:
 	status = nfs_ok;
 	renew_client(sop->so_client);
 out:
-	if (status && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
-		status = nfserr_reclaim_bad;
 	return status;
 }
 
@@ -1688,17 +1686,11 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct svc_fh *cur_fh, struct nfs4_sta
 
 /* decrement seqid on successful reclaim, it will be bumped in encode_open */
 static void
-nfs4_set_claim_prev(struct nfsd4_open *open, int *status)
+nfs4_set_claim_prev(struct nfsd4_open *open)
 {
-	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS) {
-		if (*status)
-			*status = nfserr_reclaim_bad;
-		else {
-			open->op_stateowner->so_confirmed = 1;
-			open->op_stateowner->so_client->cl_firststate = 1;
-			open->op_stateowner->so_seqid--;
-		}
-	}
+	open->op_stateowner->so_confirmed = 1;
+	open->op_stateowner->so_client->cl_firststate = 1;
+	open->op_stateowner->so_seqid--;
 }
 
 /*
@@ -1863,8 +1855,8 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 out:
 	if (fp)
 		put_nfs4_file(fp);
-	/* CLAIM_PREVIOUS has different error returns */
-	nfs4_set_claim_prev(open, &status);
+	if (status == 0 && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
+		nfs4_set_claim_prev(open);
 	/*
 	* To finish the open response, we just need to set the rflags.
 	*/
@@ -2738,11 +2730,8 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 		                        CHECK_FH | OPEN_STATE,
 		                        &open_sop, &open_stp,
 					&lock->v.new.clientid);
-		if (status) {
-			if (lock->lk_reclaim)
-				status = nfserr_reclaim_bad;
+		if (status)
 			goto out;
-		}
 		/* create lockowner and lock stateid */
 		fp = open_stp->st_file;
 		strhashval = lock_ownerstr_hashval(fp->fi_inode, 
