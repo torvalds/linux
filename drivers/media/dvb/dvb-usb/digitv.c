@@ -1,10 +1,9 @@
 /* DVB USB compliant linux driver for Nebula Electronics uDigiTV DVB-T USB2.0
  * receiver
  *
- * Copyright (C) 2005 Patrick Boettcher (patrick.boettcher@desy.de) and
- *                    Allan Third (allan.third@cs.man.ac.uk)
+ * Copyright (C) 2005 Patrick Boettcher (patrick.boettcher@desy.de)
  *
- * partly based on the SDK published by Nebula Electronics (TODO do we want this line ?)
+ * partly based on the SDK published by Nebula Electronics
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the Free
@@ -95,41 +94,20 @@ static int digitv_identify_state (struct usb_device *udev, struct
 
 static int digitv_mt352_demod_init(struct dvb_frontend *fe)
 {
-	static u8 mt352_clock_config[] = { 0x89, 0x38, 0x2d };
-	static u8 mt352_reset[] = { 0x50, 0x80 };
-	static u8 mt352_mclk_ratio[] = { 0x8b, 0x00 };
+	static u8 reset_buf[] = { 0x89, 0x38,  0x8a, 0x2d, 0x50, 0x80 };
+	static u8 init_buf[] = { 0x68, 0xa0,  0x8e, 0x40,  0x53, 0x50,
+			0x67, 0x20,  0x7d, 0x01,  0x7c, 0x00,  0x7a, 0x00,
+			0x79, 0x20,  0x57, 0x05,  0x56, 0x31,  0x88, 0x0f,
+			0x75, 0x32 };
+	int i;
 
-	static u8 mt352_agc_cfg[] = { 0x68, 0xa0 };
-	static u8 mt352_adc_ctl_1_cfg[] = { 0x8E, 0xa0 };
-	static u8 mt352_acq_ctl[] = { 0x53, 0x50 };
-	static u8 mt352_agc_target[] = { 0x67, 0x20 };
+	for (i = 0; i < ARRAY_SIZE(reset_buf); i += 2)
+		mt352_write(fe, &reset_buf[i], 2);
 
-	static u8 mt352_rs_err_per[] = { 0x7c, 0x00, 0x01 };
-	static u8 mt352_snr_select[] = { 0x79, 0x00, 0x20 };
-
-	static u8 mt352_input_freq_1[] = { 0x56, 0x31, 0x05 };
-
-	static u8 mt352_scan_ctl[] = { 0x88, 0x0f };
-	static u8 mt352_capt_range[] = { 0x75, 0x32 };
-
-	mt352_write(fe, mt352_clock_config, sizeof(mt352_clock_config));
-	mt352_write(fe, mt352_reset, sizeof(mt352_reset));
 	msleep(1);
-	mt352_write(fe, mt352_mclk_ratio, sizeof(mt352_mclk_ratio));
 
-	mt352_write(fe, mt352_agc_cfg, sizeof(mt352_agc_cfg));
-	mt352_write(fe, mt352_adc_ctl_1_cfg, sizeof(mt352_adc_ctl_1_cfg));
-	mt352_write(fe, mt352_acq_ctl, sizeof(mt352_acq_ctl));
-	mt352_write(fe, mt352_agc_target, sizeof(mt352_agc_target));
-
-
-	mt352_write(fe, mt352_rs_err_per, sizeof(mt352_rs_err_per));
-	mt352_write(fe, mt352_snr_select, sizeof(mt352_snr_select));
-
-	mt352_write(fe, mt352_input_freq_1, sizeof(mt352_input_freq_1));
-
-	mt352_write(fe, mt352_scan_ctl, sizeof(mt352_scan_ctl));
-	mt352_write(fe, mt352_capt_range, sizeof(mt352_capt_range));
+	for (i = 0; i < ARRAY_SIZE(init_buf); i += 2)
+		mt352_write(fe, &init_buf[i], 2);
 
 	return 0;
 }
@@ -137,7 +115,7 @@ static int digitv_mt352_demod_init(struct dvb_frontend *fe)
 static struct mt352_config digitv_mt352_config = {
 	.demod_address = 0x0, /* ignored by the digitv anyway */
 	.demod_init = digitv_mt352_demod_init,
-	.pll_set = NULL, /* TODO */
+	.pll_set = dvb_usb_pll_set,
 };
 
 static struct nxt6000_config digitv_nxt6000_config = {
@@ -150,9 +128,9 @@ static struct nxt6000_config digitv_nxt6000_config = {
 
 static int digitv_frontend_attach(struct dvb_usb_device *d)
 {
-	if ((d->fe = mt352_attach(&digitv_mt352_config, &d->i2c_adap)) == NULL)
+	if ((d->fe = mt352_attach(&digitv_mt352_config, &d->i2c_adap)) != NULL)
 		return 0;
-	if ((d->fe = nxt6000_attach(&digitv_nxt6000_config, &d->i2c_adap)) == NULL) {
+	if ((d->fe = nxt6000_attach(&digitv_nxt6000_config, &d->i2c_adap)) != NULL) {
 
 		warn("nxt6000 support is not done yet, in fact you are one of the first "
 				"person who wants to use this device in Linux. Please report to "
@@ -161,6 +139,13 @@ static int digitv_frontend_attach(struct dvb_usb_device *d)
 		return 0;
 	}
 	return -EIO;
+}
+
+static int digitv_tuner_attach(struct dvb_usb_device *d)
+{
+	d->pll_addr = 0x60;
+	d->pll_desc = &dvb_pll_tded4;
+	return 0;
 }
 
 static struct dvb_usb_rc_key digitv_rc_keys[] = {
@@ -183,7 +168,6 @@ int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		deb_rc("key: %x %x %x %x %x\n",key[0],key[1],key[2],key[3],key[4]);
 	return 0;
 }
-
 
 /* DVB USB Driver stuff */
 static struct dvb_usb_properties digitv_properties;
@@ -208,13 +192,8 @@ static struct dvb_usb_properties digitv_properties = {
 
 	.size_of_priv     = 0,
 
-	.streaming_ctrl   = NULL,
-	.pid_filter       = NULL,
-	.pid_filter_ctrl  = NULL,
-	.power_ctrl       = NULL,
 	.frontend_attach  = digitv_frontend_attach,
-	.tuner_attach     = NULL, // digitv_tuner_attach,
-	.read_mac_address = NULL,
+	.tuner_attach     = digitv_tuner_attach,
 
 	.rc_interval      = 1000,
 	.rc_key_map       = digitv_rc_keys,
@@ -238,7 +217,7 @@ static struct dvb_usb_properties digitv_properties = {
 		}
 	},
 
-	.num_device_descs = 2,
+	.num_device_descs = 1,
 	.devices = {
 		{   "Nebula Electronics uDigiTV DVB-T USB2.0)",
 			{ &digitv_table[0], NULL },
