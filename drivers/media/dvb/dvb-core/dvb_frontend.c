@@ -42,6 +42,8 @@
 #include "dvb_frontend.h"
 #include "dvbdev.h"
 
+// #define DEBUG_LOCKLOSS 1
+
 static int dvb_frontend_debug;
 static int dvb_shutdown_timeout = 5;
 static int dvb_force_auto_inversion;
@@ -113,6 +115,7 @@ struct dvb_frontend_private {
 	int exit;
 	int wakeup;
 	fe_status_t status;
+	fe_sec_tone_mode_t tone;
 };
 
 
@@ -434,9 +437,26 @@ static int dvb_frontend_thread(void *data)
 			/* we're tuned, and the lock is still good... */
 			if (s & FE_HAS_LOCK)
 				continue;
-			else {
-				/* if we _WERE_ tuned, but now don't have a lock,
-				 * need to zigzag */
+			else { /* if we _WERE_ tuned, but now don't have a lock */
+#ifdef DEBUG_LOCKLOSS
+				/* first of all try setting the tone again if it was on - this
+				 * sometimes works around problems with noisy power supplies */
+				if (fe->ops->set_tone && (fepriv->tone == SEC_TONE_ON)) {
+					fe->ops->set_tone(fe, fepriv->tone);
+					mdelay(100);
+					s = 0;
+					fe->ops->read_status(fe, &s);
+					if (s & FE_HAS_LOCK) {
+						printk("DVB%i: Lock was lost, but regained by setting "
+						       "the tone. This may indicate your power supply "
+						       "is noisy/slightly incompatable with this DVB-S "
+						       "adapter\n", fe->dvb->num);
+						fepriv->state = FESTATE_TUNED;
+						continue;
+					}
+				}
+#endif
+				/* some other reason for losing the lock - start zigzagging */
 				fepriv->state = FESTATE_ZIGZAG_FAST;
 				fepriv->started_auto_step = fepriv->auto_step;
 				check_wrapped = 0;
@@ -691,6 +711,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			err = fe->ops->set_tone(fe, (fe_sec_tone_mode_t) parg);
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
+			fepriv->tone = (fe_sec_tone_mode_t) parg;
 		}
 		break;
 
@@ -893,6 +914,7 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	init_MUTEX (&fepriv->events.sem);
 	fe->dvb = dvb;
 	fepriv->inversion = INVERSION_OFF;
+	fepriv->tone = SEC_TONE_OFF;
 
 	printk ("DVB: registering frontend %i (%s)...\n",
 		fe->dvb->num,
