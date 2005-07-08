@@ -47,7 +47,7 @@ static inline struct vfsmount *mntget(struct vfsmount *mnt)
 
 extern void __mntput(struct vfsmount *mnt);
 
-static inline void _mntput(struct vfsmount *mnt)
+static inline void mntput_no_expire(struct vfsmount *mnt)
 {
 	if (mnt) {
 		if (atomic_dec_and_test(&mnt->mnt_count))
@@ -59,7 +59,7 @@ static inline void mntput(struct vfsmount *mnt)
 {
 	if (mnt) {
 		mnt->mnt_expiry_mark = 0;
-		_mntput(mnt);
+		mntput_no_expire(mnt);
 	}
 }
 

@@ -314,7 +314,7 @@ void path_release(struct nameidata *nd)
 void path_release_on_umount(struct nameidata *nd)
 {
 	dput(nd->dentry);
-	_mntput(nd->mnt);
+	mntput_no_expire(nd->mnt);
 }
 
 /*
