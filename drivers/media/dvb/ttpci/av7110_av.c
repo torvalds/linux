@@ -1126,7 +1126,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 		//note: arg is ignored by firmware
 		if (av7110->playing & RP_VIDEO)
 			ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY,
-				      __Scan_I, 2, AV_PES, 0);
+					    __Scan_I, 2, AV_PES, 0);
 		else
 			ret = vidcom(av7110, VIDEO_CMD_FFWD, arg);
 		if (!ret) {
@@ -1164,15 +1164,15 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 
 		if (av7110->playing == RP_AV) {
 			ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY,
-				      __Play, 2, AV_PES, 0);
+					    __Play, 2, AV_PES, 0);
 			if (ret)
 				break;
 			if (av7110->trickmode == TRICK_FAST)
 				ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY,
-					      __Scan_I, 2, AV_PES, 0);
+						    __Scan_I, 2, AV_PES, 0);
 			if (av7110->trickmode == TRICK_SLOW) {
 				ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY,
-					      __Slow, 2, 0, 0);
+						    __Slow, 2, 0, 0);
 				if (!ret)
 					ret = vidcom(av7110, VIDEO_CMD_SLOW, arg);
 			}
@@ -1303,7 +1303,7 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 		av7110_ipack_reset(&av7110->ipack[0]);
 		if (av7110->playing == RP_AV)
 			ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY,
-			       __Play, 2, AV_PES, 0);
+					    __Play, 2, AV_PES, 0);
 		break;
 	case AUDIO_SET_ID:
 

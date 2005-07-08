@@ -122,11 +122,11 @@ static void init_av7110_av(struct av7110 *av7110)
 	/* set internal volume control to maximum */
 	av7110->adac_type = DVB_ADAC_TI;
 	ret = av7110_set_volume(av7110, av7110->mixer.volume_left, av7110->mixer.volume_right);
-	if (ret<0)
+	if (ret < 0)
 		printk("dvb-ttpci:cannot set internal volume to maximum:%d\n",ret);
 
 	ret = av7710_set_video_mode(av7110, vidmode);
-	if (ret<0)
+	if (ret < 0)
 		printk("dvb-ttpci:cannot set video mode:%d\n",ret);
 
 	/* handle different card types */
@@ -162,10 +162,10 @@ static void init_av7110_av(struct av7110 *av7110)
 	if (av7110->adac_type == DVB_ADAC_NONE || av7110->adac_type == DVB_ADAC_MSP) {
 		// switch DVB SCART on
 		ret = av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, MainSwitch, 1, 0);
-		if (ret<0)
+		if (ret < 0)
 			printk("dvb-ttpci:cannot switch on SCART(Main):%d\n",ret);
 		ret = av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, ADSwitch, 1, 1);
-		if (ret<0)
+		if (ret < 0)
 			printk("dvb-ttpci:cannot switch on SCART(AD):%d\n",ret);
 		if (rgb_on &&
 		    (av7110->dev->pci->subsystem_vendor == 0x110a) && (av7110->dev->pci->subsystem_device == 0x0000)) {
@@ -175,10 +175,10 @@ static void init_av7110_av(struct av7110 *av7110)
 	}
 
 	ret = av7110_set_volume(av7110, av7110->mixer.volume_left, av7110->mixer.volume_right);
-	if (ret<0)
+	if (ret < 0)
 		printk("dvb-ttpci:cannot set volume :%d\n",ret);
 	ret = av7110_setup_irc_config(av7110, 0);
-	if (ret<0)
+	if (ret < 0)
 		printk("dvb-ttpci:cannot setup irc config :%d\n",ret);
 }
 
