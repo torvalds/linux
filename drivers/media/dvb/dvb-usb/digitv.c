@@ -37,7 +37,7 @@ static int digitv_ctrl_msg(struct dvb_usb_device *d,
 		dvb_usb_generic_write(d,sndbuf,7);
 	} else {
 		dvb_usb_generic_rw(d,sndbuf,7,rcvbuf,7,10);
-		memcpy(&rbuf,&rcvbuf[3],rlen);
+		memcpy(rbuf,&rcvbuf[3],rlen);
 	}
 	return 0;
 }
