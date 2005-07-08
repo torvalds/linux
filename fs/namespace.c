@@ -880,24 +880,13 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 		/* check that it is still dead: the count should now be 2 - as
 		 * contributed by the vfsmount parent and the mntget above */
 		if (atomic_read(&mnt->mnt_count) == 2) {
-			struct vfsmount *xdmnt;
-			struct dentry *xdentry;
+			struct nameidata old_nd;
 
 			/* delete from the namespace */
 			list_del_init(&mnt->mnt_list);
-			list_del_init(&mnt->mnt_child);
-			list_del_init(&mnt->mnt_hash);
-			mnt->mnt_mountpoint->d_mounted--;
-
-			xdentry = mnt->mnt_mountpoint;
-			mnt->mnt_mountpoint = mnt->mnt_root;
-			xdmnt = mnt->mnt_parent;
-			mnt->mnt_parent = mnt;
-
+			detach_mnt(mnt, &old_nd);
 			spin_unlock(&vfsmount_lock);
-
-			mntput(xdmnt);
-			dput(xdentry);
+			path_release(&old_nd);
 
 			/* now lay it to rest if this was the last ref on the
 			 * superblock */
