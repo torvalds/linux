@@ -144,8 +144,8 @@ struct hvc_struct *hvc_get_by_index(int index)
  * console interfaces but can still be used as a tty device.  This has to be
  * static because kmalloc will not work during early console init.
  */
-static uint32_t vtermnos[MAX_NR_HVC_CONSOLES];
-
+static uint32_t vtermnos[MAX_NR_HVC_CONSOLES] =
+	{[0 ... MAX_NR_HVC_CONSOLES - 1] = -1};
 
 /*
  * Console APIs, NOT TTY.  These APIs are available immediately when
@@ -213,10 +213,6 @@ struct console hvc_con_driver = {
 /* Early console initialization.  Preceeds driver initialization. */
 static int __init hvc_console_init(void)
 {
-	int i;
-
-	for (i=0; i<MAX_NR_HVC_CONSOLES; i++)
-		vtermnos[i] = -1;
 	hvc_find_vtys();
 	register_console(&hvc_con_driver);
 	return 0;
