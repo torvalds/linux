@@ -33,6 +33,7 @@
 #include <asm/iSeries/ItLpQueue.h>
 #include <asm/plpar_wrappers.h>
 #include <asm/systemcfg.h>
+#include <asm/machdep.h>
 
 extern void power4_idle(void);
 
@@ -122,7 +123,7 @@ static int iSeries_idle(void)
 
 #else
 
-static int default_idle(void)
+int default_idle(void)
 {
 	long oldval;
 	unsigned int cpu = smp_processor_id();
@@ -288,7 +289,7 @@ static int shared_idle(void)
 
 #endif /* CONFIG_PPC_PSERIES */
 
-static int native_idle(void)
+int native_idle(void)
 {
 	while(1) {
 		/* check CPU type here */
@@ -308,7 +309,8 @@ static int native_idle(void)
 
 void cpu_idle(void)
 {
-	idle_loop();
+	BUG_ON(NULL == ppc_md.idle_loop);
+	ppc_md.idle_loop();
 }
 
 int powersave_nap;

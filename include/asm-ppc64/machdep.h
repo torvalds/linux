@@ -140,7 +140,12 @@ struct machdep_calls {
 						unsigned long size,
 						pgprot_t vma_prot);
 
+	/* Idle loop for this platform, leave empty for default idle loop */
+	int		(*idle_loop)(void);
 };
+
+extern int default_idle(void);
+extern int native_idle(void);
 
 extern struct machdep_calls ppc_md;
 extern char cmd_line[COMMAND_LINE_SIZE];
