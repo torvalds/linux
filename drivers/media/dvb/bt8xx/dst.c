@@ -325,12 +325,12 @@ static int dst_set_polarization(struct dst_state *state)
 	switch (state->voltage) {
 		case SEC_VOLTAGE_13:	// vertical
 			printk("%s: Polarization=[Vertical]\n", __FUNCTION__);
-			state->tx_tuna[8] |= 0x40;  //1
+			state->tx_tuna[8] &= ~0x40;  //1
 			break;
 
 		case SEC_VOLTAGE_18:	// horizontal
 			printk("%s: Polarization=[Horizontal]\n", __FUNCTION__);
-			state->tx_tuna[8] =~ 0x40;  // 0
+			state->tx_tuna[8] |= 0x40;  // 0
 			break;
 
 		case SEC_VOLTAGE_OFF:
