@@ -452,7 +452,6 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/version.h>
 
 /* Wavelan declarations */
 #include "i82593.h"	/* Definitions for the Intel chip */

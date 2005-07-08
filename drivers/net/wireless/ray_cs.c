@@ -46,7 +46,6 @@
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>

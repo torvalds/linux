@@ -48,7 +48,6 @@
 #include <linux/parport.h>
 #include <linux/parport_pc.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>

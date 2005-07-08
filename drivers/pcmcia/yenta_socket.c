@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>

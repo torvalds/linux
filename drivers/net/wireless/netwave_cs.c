@@ -62,7 +62,6 @@
 #endif	/* WIRELESS_EXT > 12 */
 #endif
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>

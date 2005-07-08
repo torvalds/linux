@@ -18,7 +18,6 @@
 #include <linux/init.h>
 
 #define IN_CARD_SERVICES
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/bulkmem.h>
