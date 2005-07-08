@@ -868,14 +868,11 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
  */
 static void yenta_get_socket_capabilities(struct yenta_socket *socket, u32 isa_irq_mask)
 {
-	socket->socket.features |= SS_CAP_PAGE_REGS | SS_CAP_PCCARD | SS_CAP_CARDBUS;
-	socket->socket.map_size = 0x1000;
 	socket->socket.pci_irq = socket->cb_irq;
 	if (isa_probe)
 		socket->socket.irq_mask = yenta_probe_irq(socket, isa_irq_mask);
 	else
 		socket->socket.irq_mask = 0;
-	socket->socket.cb_dev = socket->dev;
 
 	printk(KERN_INFO "Yenta: ISA IRQ mask 0x%04x, PCI irq %d\n",
 	       socket->socket.irq_mask, socket->cb_irq);
@@ -941,6 +938,9 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 	socket->socket.dev.dev = &dev->dev;
 	socket->socket.driver_data = socket;
 	socket->socket.owner = THIS_MODULE;
+	socket->socket.features = SS_CAP_PAGE_REGS | SS_CAP_PCCARD;
+	socket->socket.map_size = 0x1000;
+	socket->socket.cb_dev = dev;
 
 	/* prepare struct yenta_socket */
 	socket->dev = dev;
@@ -1011,6 +1011,10 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 		socket->poll_timer.data = (unsigned long)socket;
 		socket->poll_timer.expires = jiffies + HZ;
 		add_timer(&socket->poll_timer);
+		printk(KERN_INFO "Yenta: no PCI IRQ, CardBus support disabled for this socket.\n"
+		       KERN_INFO "Yenta: check your BIOS CardBus, BIOS IRQ or ACPI settings.\n");
+	} else {
+		socket->socket.features |= SS_CAP_CARDBUS;
 	}
 
 	/* Figure out what the dang thing can do for the PCMCIA layer... */
