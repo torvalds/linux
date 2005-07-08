@@ -888,7 +888,6 @@ static int iseries_shared_idle(void)
 
 static int iseries_dedicated_idle(void)
 {
-	struct paca_struct *lpaca = get_paca();
 	long oldval;
 
 	while (1) {
