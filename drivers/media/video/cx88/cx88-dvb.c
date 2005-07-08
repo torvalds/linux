@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-dvb.c,v 1.36 2005/06/21 06:08:12 mkrufky Exp $
+ * $Id: cx88-dvb.c,v 1.37 2005/06/28 23:41:47 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
@@ -30,9 +30,10 @@
 #include <linux/file.h>
 #include <linux/suspend.h>
 
-/* those two frontends need merging via linuxtv cvs ... */
+/* these three frontends need merging via linuxtv cvs ... */
 #define HAVE_CX22702 1
 #define HAVE_OR51132 1
+#define HAVE_LGDT3302 1
 
 #include "cx88.h"
 #include "dvb-pll.h"
@@ -43,6 +44,9 @@
 #endif
 #if HAVE_OR51132
 # include "or51132.h"
+#endif
+#if HAVE_LGDT3302
+# include "lgdt3302.h"
 #endif
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
@@ -199,6 +203,25 @@ static struct or51132_config pchdtv_hd3000 = {
 };
 #endif
 
+#if HAVE_LGDT3302
+static int lgdt3302_set_ts_param(struct dvb_frontend* fe, int is_punctured)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	if (is_punctured)
+		dev->ts_gen_cntrl |= 0x04;
+	else
+		dev->ts_gen_cntrl &= ~0x04;
+	return 0;
+}
+
+static struct lgdt3302_config fusionhdtv_3_gold_q = {
+	.demod_address    = 0x0e,
+	.pll_address      = 0x61,
+	.pll_desc         = &dvb_pll_microtune_4042,
+	.set_ts_params    = lgdt3302_set_ts_param,
+};
+#endif
+
 static int dvb_register(struct cx8802_dev *dev)
 {
 	/* init struct videobuf_dvb */
@@ -241,6 +264,22 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_PCHDTV_HD3000:
 		dev->dvb.frontend = or51132_attach(&pchdtv_hd3000,
 						 &dev->core->i2c_adap);
+		break;
+#endif
+#if HAVE_LGDT3302
+	case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q:
+		dev->ts_gen_cntrl = 0x08;
+		{
+		/* Do a hardware reset of chip before using it. */
+		struct cx88_core *core = dev->core;
+
+		cx_clear(MO_GP0_IO, 1);
+		mdelay(100);
+		cx_set(MO_GP0_IO, 9); // ANT connector too FIXME
+		mdelay(200);
+		dev->dvb.frontend = lgdt3302_attach(&fusionhdtv_3_gold_q,
+						    &dev->core->i2c_adap);
+		}
 		break;
 #endif
 	default:

@@ -485,6 +485,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0	= 0x0f00,
 		}},
+		.dvb            = 1,
 	},
         [CX88_BOARD_HAUPPAUGE_DVB_T1] = {
 		.name           = "Hauppauge Nova-T DVB-T",
