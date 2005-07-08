@@ -138,11 +138,14 @@ acpi_psx_execute (
 	 * objects (such as Operation Regions) can be created during the
 	 * first pass parse.
 	 */
-	obj_desc->method.owning_id = acpi_ut_allocate_owner_id (ACPI_OWNER_TYPE_METHOD);
+	status = acpi_ut_allocate_owner_id (&obj_desc->method.owner_id);
+	if (ACPI_FAILURE (status)) {
+		goto cleanup2;
+	}
 
 	/* Create and initialize a new walk state */
 
-	walk_state = acpi_ds_create_walk_state (obj_desc->method.owning_id,
+	walk_state = acpi_ds_create_walk_state (obj_desc->method.owner_id,
 			   NULL, NULL, NULL);
 	if (!walk_state) {
 		status = AE_NO_MEMORY;

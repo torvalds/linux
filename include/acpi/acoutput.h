@@ -136,7 +136,7 @@
 /*
  * Debug level macros that are used in the DEBUG_PRINT macros
  */
-#define ACPI_DEBUG_LEVEL(dl)        (u32) dl,__LINE__,&_debug_info
+#define ACPI_DEBUG_LEVEL(dl)        (u32) dl,ACPI_DEBUG_PARAMETERS
 
 /* Exception level -- used in the global "debug_level" */
 

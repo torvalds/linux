@@ -116,10 +116,9 @@ acpi_ut_track_stack_ptr (
  *
  * PARAMETERS:  requested_debug_level - Requested debug print level
  *              line_number         - Caller's line number (for error output)
- *              dbg_info            - Contains:
- *                  proc_name           - Caller's procedure name
- *                  module_name         - Caller's module name
- *                  component_id        - Caller's component ID
+ *              function_name       - Caller's procedure name
+ *              module_name         - Caller's module name
+ *              component_id        - Caller's component ID
  *              Format              - Printf format field
  *              ...                 - Optional printf arguments
  *
@@ -134,7 +133,9 @@ void  ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print (
 	u32                             requested_debug_level,
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	char                            *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	char                            *format,
 	...)
 {
@@ -146,7 +147,7 @@ acpi_ut_debug_print (
 	 * Stay silent if the debug level or component ID is disabled
 	 */
 	if (!(requested_debug_level & acpi_dbg_level) ||
-		!(dbg_info->component_id & acpi_dbg_layer)) {
+		!(component_id & acpi_dbg_layer)) {
 		return;
 	}
 
@@ -169,14 +170,14 @@ acpi_ut_debug_print (
 	 * Display the module name, current line number, thread ID (if requested),
 	 * current procedure nesting level, and the current procedure name
 	 */
-	acpi_os_printf ("%8s-%04ld ", dbg_info->module_name, line_number);
+	acpi_os_printf ("%8s-%04ld ", module_name, line_number);
 
 	if (ACPI_LV_THREADS & acpi_dbg_level) {
 		acpi_os_printf ("[%04lX] ", thread_id);
 	}
 
 	acpi_os_printf ("[%02ld] %-22.22s: ",
-		acpi_gbl_nesting_level, dbg_info->proc_name);
+		acpi_gbl_nesting_level, function_name);
 
 	va_start (args, format);
 	acpi_os_vprintf (format, args);
@@ -190,10 +191,9 @@ EXPORT_SYMBOL(acpi_ut_debug_print);
  *
  * PARAMETERS:  requested_debug_level - Requested debug print level
  *              line_number         - Caller's line number
- *              dbg_info            - Contains:
- *                  proc_name           - Caller's procedure name
- *                  module_name         - Caller's module name
- *                  component_id        - Caller's component ID
+ *              function_name       - Caller's procedure name
+ *              module_name         - Caller's module name
+ *              component_id        - Caller's component ID
  *              Format              - Printf format field
  *              ...                 - Optional printf arguments
  *
@@ -208,7 +208,9 @@ void  ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print_raw (
 	u32                             requested_debug_level,
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	char                            *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	char                            *format,
 	...)
 {
@@ -216,7 +218,7 @@ acpi_ut_debug_print_raw (
 
 
 	if (!(requested_debug_level & acpi_dbg_level) ||
-		!(dbg_info->component_id & acpi_dbg_layer)) {
+		!(component_id & acpi_dbg_layer)) {
 		return;
 	}
 
@@ -231,10 +233,9 @@ EXPORT_SYMBOL(acpi_ut_debug_print_raw);
  * FUNCTION:    acpi_ut_trace
  *
  * PARAMETERS:  line_number         - Caller's line number
- *              dbg_info            - Contains:
- *                  proc_name           - Caller's procedure name
- *                  module_name         - Caller's module name
- *                  component_id        - Caller's component ID
+ *              function_name       - Caller's procedure name
+ *              module_name         - Caller's module name
+ *              component_id        - Caller's component ID
  *
  * RETURN:      None
  *
@@ -246,14 +247,17 @@ EXPORT_SYMBOL(acpi_ut_debug_print_raw);
 void
 acpi_ut_trace (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info)
+	char                            *function_name,
+	char                            *module_name,
+	u32                             component_id)
 {
 
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr ();
 
-	acpi_ut_debug_print (ACPI_LV_FUNCTIONS, line_number, dbg_info,
-			"%s\n", acpi_gbl_fn_entry_str);
+	acpi_ut_debug_print (ACPI_LV_FUNCTIONS,
+		line_number, function_name, module_name, component_id,
+		"%s\n", acpi_gbl_fn_entry_str);
 }
 EXPORT_SYMBOL(acpi_ut_trace);
 
@@ -263,10 +267,9 @@ EXPORT_SYMBOL(acpi_ut_trace);
  * FUNCTION:    acpi_ut_trace_ptr
  *
  * PARAMETERS:  line_number         - Caller's line number
- *              dbg_info            - Contains:
- *                  proc_name           - Caller's procedure name
- *                  module_name         - Caller's module name
- *                  component_id        - Caller's component ID
+ *              function_name       - Caller's procedure name
+ *              module_name         - Caller's module name
+ *              component_id        - Caller's component ID
  *              Pointer             - Pointer to display
  *
  * RETURN:      None
@@ -279,14 +282,17 @@ EXPORT_SYMBOL(acpi_ut_trace);
 void
 acpi_ut_trace_ptr (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	char                            *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	void                            *pointer)
 {
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr ();
 
-	acpi_ut_debug_print (ACPI_LV_FUNCTIONS, line_number, dbg_info,
-			"%s %p\n", acpi_gbl_fn_entry_str, pointer);
+	acpi_ut_debug_print (ACPI_LV_FUNCTIONS,
+		line_number, function_name, module_name, component_id,
+		"%s %p\n", acpi_gbl_fn_entry_str, pointer);
 }
 
 
@@ -295,10 +301,9 @@ acpi_ut_trace_ptr (
  * FUNCTION:    acpi_ut_trace_str
  *
  * PARAMETERS:  line_number         - Caller's line number
- *              dbg_info            - Contains:
- *                  proc_name           - Caller's procedure name
- *                  module_name         - Caller's module name
- *                  component_id        - Caller's component ID
+ *              function_name       - Caller's procedure name
+ *              module_name         - Caller's module name
+ *              component_id        - Caller's component ID
  *              String              - Additional string to display
  *
  * RETURN:      None
@@ -311,15 +316,18 @@ acpi_ut_trace_ptr (
 void
 acpi_ut_trace_str (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	char                            *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	char                            *string)
 {
 
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr ();
 
-	acpi_ut_debug_print (ACPI_LV_FUNCTIONS, line_number, dbg_info,
-			"%s %s\n", acpi_gbl_fn_entry_str, string);
+	acpi_ut_debug_print (ACPI_LV_FUNCTIONS,
+		line_number, function_name, module_name, component_id,
+		"%s %s\n", acpi_gbl_fn_entry_str, string);
 }
 
 
@@ -328,10 +336,9 @@ acpi_ut_trace_str (
  * FUNCTION:    acpi_ut_trace_u32
  *
  * PARAMETERS:  line_number         - Caller's line number
- *              dbg_info            - Contains:
- *                  proc_name           - Caller's procedure name
- *                  module_name         - Caller's module name
- *                  component_id        - Caller's component ID
+ *              function_name       - Caller's procedure name
+ *              module_name         - Caller's module name
+ *              component_id        - Caller's component ID
  *              Integer             - Integer to display
  *
  * RETURN:      None
@@ -344,15 +351,18 @@ acpi_ut_trace_str (
 void
 acpi_ut_trace_u32 (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	char                            *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	u32                             integer)
 {
 
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr ();
 
-	acpi_ut_debug_print (ACPI_LV_FUNCTIONS, line_number, dbg_info,
-			"%s %08X\n", acpi_gbl_fn_entry_str, integer);
+	acpi_ut_debug_print (ACPI_LV_FUNCTIONS,
+		line_number, function_name, module_name, component_id,
+		"%s %08X\n", acpi_gbl_fn_entry_str, integer);
 }
 
 
@@ -361,10 +371,9 @@ acpi_ut_trace_u32 (
  * FUNCTION:    acpi_ut_exit
  *
  * PARAMETERS:  line_number         - Caller's line number
- *              dbg_info            - Contains:
- *                  proc_name           - Caller's procedure name
- *                  module_name         - Caller's module name
- *                  component_id        - Caller's component ID
+ *              function_name       - Caller's procedure name
+ *              module_name         - Caller's module name
+ *              component_id        - Caller's component ID
  *
  * RETURN:      None
  *
@@ -376,11 +385,14 @@ acpi_ut_trace_u32 (
 void
 acpi_ut_exit (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info)
+	char                            *function_name,
+	char                            *module_name,
+	u32                             component_id)
 {
 
-	acpi_ut_debug_print (ACPI_LV_FUNCTIONS, line_number, dbg_info,
-			"%s\n", acpi_gbl_fn_exit_str);
+	acpi_ut_debug_print (ACPI_LV_FUNCTIONS,
+		line_number, function_name, module_name, component_id,
+		"%s\n", acpi_gbl_fn_exit_str);
 
 	acpi_gbl_nesting_level--;
 }
@@ -392,10 +404,9 @@ EXPORT_SYMBOL(acpi_ut_exit);
  * FUNCTION:    acpi_ut_status_exit
  *
  * PARAMETERS:  line_number         - Caller's line number
- *              dbg_info            - Contains:
- *                  proc_name           - Caller's procedure name
- *                  module_name         - Caller's module name
- *                  component_id        - Caller's component ID
+ *              function_name       - Caller's procedure name
+ *              module_name         - Caller's module name
+ *              component_id        - Caller's component ID
  *              Status              - Exit status code
  *
  * RETURN:      None
@@ -408,19 +419,23 @@ EXPORT_SYMBOL(acpi_ut_exit);
 void
 acpi_ut_status_exit (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	char                            *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	acpi_status                     status)
 {
 
 	if (ACPI_SUCCESS (status)) {
-		acpi_ut_debug_print (ACPI_LV_FUNCTIONS, line_number, dbg_info,
-				"%s %s\n", acpi_gbl_fn_exit_str,
-				acpi_format_exception (status));
+		acpi_ut_debug_print (ACPI_LV_FUNCTIONS,
+			line_number, function_name, module_name, component_id,
+			"%s %s\n", acpi_gbl_fn_exit_str,
+			acpi_format_exception (status));
 	}
 	else {
-		acpi_ut_debug_print (ACPI_LV_FUNCTIONS, line_number, dbg_info,
-				"%s ****Exception****: %s\n", acpi_gbl_fn_exit_str,
-				acpi_format_exception (status));
+		acpi_ut_debug_print (ACPI_LV_FUNCTIONS,
+			line_number, function_name, module_name, component_id,
+			"%s ****Exception****: %s\n", acpi_gbl_fn_exit_str,
+			acpi_format_exception (status));
 	}
 
 	acpi_gbl_nesting_level--;
@@ -433,10 +448,9 @@ EXPORT_SYMBOL(acpi_ut_status_exit);
  * FUNCTION:    acpi_ut_value_exit
  *
  * PARAMETERS:  line_number         - Caller's line number
- *              dbg_info            - Contains:
- *                  proc_name           - Caller's procedure name
- *                  module_name         - Caller's module name
- *                  component_id        - Caller's component ID
+ *              function_name       - Caller's procedure name
+ *              module_name         - Caller's module name
+ *              component_id        - Caller's component ID
  *              Value               - Value to be printed with exit msg
  *
  * RETURN:      None
@@ -449,13 +463,16 @@ EXPORT_SYMBOL(acpi_ut_status_exit);
 void
 acpi_ut_value_exit (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	char                            *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	acpi_integer                    value)
 {
 
-	acpi_ut_debug_print (ACPI_LV_FUNCTIONS, line_number, dbg_info,
-			"%s %8.8X%8.8X\n", acpi_gbl_fn_exit_str,
-			ACPI_FORMAT_UINT64 (value));
+	acpi_ut_debug_print (ACPI_LV_FUNCTIONS,
+		line_number, function_name, module_name, component_id,
+		"%s %8.8X%8.8X\n", acpi_gbl_fn_exit_str,
+		ACPI_FORMAT_UINT64 (value));
 
 	acpi_gbl_nesting_level--;
 }
@@ -467,10 +484,9 @@ EXPORT_SYMBOL(acpi_ut_value_exit);
  * FUNCTION:    acpi_ut_ptr_exit
  *
  * PARAMETERS:  line_number         - Caller's line number
- *              dbg_info            - Contains:
- *                  proc_name           - Caller's procedure name
- *                  module_name         - Caller's module name
- *                  component_id        - Caller's component ID
+ *              function_name       - Caller's procedure name
+ *              module_name         - Caller's module name
+ *              component_id        - Caller's component ID
  *              Ptr                 - Pointer to display
  *
  * RETURN:      None
@@ -483,12 +499,15 @@ EXPORT_SYMBOL(acpi_ut_value_exit);
 void
 acpi_ut_ptr_exit (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	char                            *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	u8                              *ptr)
 {
 
-	acpi_ut_debug_print (ACPI_LV_FUNCTIONS, line_number, dbg_info,
-			"%s %p\n", acpi_gbl_fn_exit_str, ptr);
+	acpi_ut_debug_print (ACPI_LV_FUNCTIONS,
+		line_number, function_name, module_name, component_id,
+		"%s %p\n", acpi_gbl_fn_exit_str, ptr);
 
 	acpi_gbl_nesting_level--;
 }

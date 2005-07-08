@@ -77,7 +77,6 @@ acpi_ds_parse_method (
 	union acpi_operand_object       *obj_desc;
 	union acpi_parse_object         *op;
 	struct acpi_namespace_node      *node;
-	acpi_owner_id                   owner_id;
 	struct acpi_walk_state          *walk_state;
 
 
@@ -132,15 +131,18 @@ acpi_ds_parse_method (
 	 * objects (such as Operation Regions) can be created during the
 	 * first pass parse.
 	 */
-	owner_id = acpi_ut_allocate_owner_id (ACPI_OWNER_TYPE_METHOD);
-	obj_desc->method.owning_id = owner_id;
+	status = acpi_ut_allocate_owner_id (&obj_desc->method.owner_id);
+	if (ACPI_FAILURE (status)) {
+		goto cleanup;
+	}
 
 	/* Create and initialize a new walk state */
 
-	walk_state = acpi_ds_create_walk_state (owner_id, NULL, NULL, NULL);
+	walk_state = acpi_ds_create_walk_state (
+			  obj_desc->method.owner_id, NULL, NULL, NULL);
 	if (!walk_state) {
 		status = AE_NO_MEMORY;
-		goto cleanup;
+		goto cleanup2;
 	}
 
 	status = acpi_ds_init_aml_walk (walk_state, op, node,
@@ -148,7 +150,7 @@ acpi_ds_parse_method (
 			  obj_desc->method.aml_length, NULL, 1);
 	if (ACPI_FAILURE (status)) {
 		acpi_ds_delete_walk_state (walk_state);
-		goto cleanup;
+		goto cleanup2;
 	}
 
 	/*
@@ -162,12 +164,15 @@ acpi_ds_parse_method (
 	 */
 	status = acpi_ps_parse_aml (walk_state);
 	if (ACPI_FAILURE (status)) {
-		goto cleanup;
+		goto cleanup2;
 	}
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
 		"**** [%4.4s] Parsed **** named_obj=%p Op=%p\n",
 		acpi_ut_get_node_name (obj_handle), obj_handle, op));
+
+cleanup2:
+	(void) acpi_ut_release_owner_id (obj_desc->method.owner_id);
 
 cleanup:
 	acpi_ps_delete_parse_tree (op);
@@ -265,7 +270,7 @@ acpi_ds_call_control_method (
 {
 	acpi_status                     status;
 	struct acpi_namespace_node      *method_node;
-	struct acpi_walk_state          *next_walk_state;
+	struct acpi_walk_state          *next_walk_state = NULL;
 	union acpi_operand_object       *obj_desc;
 	struct acpi_parameter_info      info;
 	u32                             i;
@@ -289,20 +294,23 @@ acpi_ds_call_control_method (
 		return_ACPI_STATUS (AE_NULL_OBJECT);
 	}
 
-	obj_desc->method.owning_id = acpi_ut_allocate_owner_id (ACPI_OWNER_TYPE_METHOD);
+	status = acpi_ut_allocate_owner_id (&obj_desc->method.owner_id);
+	if (ACPI_FAILURE (status)) {
+		return_ACPI_STATUS (status);
+	}
 
 	/* Init for new method, wait on concurrency semaphore */
 
 	status = acpi_ds_begin_method_execution (method_node, obj_desc,
 			  this_walk_state->method_node);
 	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+		goto cleanup;
 	}
 
 	if (!(obj_desc->method.method_flags & AML_METHOD_INTERNAL_ONLY)) {
 		/* 1) Parse: Create a new walk state for the preempting walk */
 
-		next_walk_state = acpi_ds_create_walk_state (obj_desc->method.owning_id,
+		next_walk_state = acpi_ds_create_walk_state (obj_desc->method.owner_id,
 				  op, obj_desc, NULL);
 		if (!next_walk_state) {
 			return_ACPI_STATUS (AE_NO_MEMORY);
@@ -332,7 +340,7 @@ acpi_ds_call_control_method (
 
 	/* 2) Execute: Create a new state for the preempting walk */
 
-	next_walk_state = acpi_ds_create_walk_state (obj_desc->method.owning_id,
+	next_walk_state = acpi_ds_create_walk_state (obj_desc->method.owner_id,
 			  NULL, obj_desc, thread);
 	if (!next_walk_state) {
 		status = AE_NO_MEMORY;
@@ -383,6 +391,7 @@ acpi_ds_call_control_method (
 	/* On error, we must delete the new walk state */
 
 cleanup:
+	(void) acpi_ut_release_owner_id (obj_desc->method.owner_id);
 	if (next_walk_state && (next_walk_state->method_desc)) {
 		/* Decrement the thread count on the method parse tree */
 
@@ -584,7 +593,7 @@ acpi_ds_terminate_control_method (
 		 * Delete any namespace entries created anywhere else within
 		 * the namespace
 		 */
-		acpi_ns_delete_namespace_by_owner (walk_state->method_desc->method.owning_id);
+		acpi_ns_delete_namespace_by_owner (walk_state->method_desc->method.owner_id);
 		status = acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
 		if (ACPI_FAILURE (status)) {
 			return_ACPI_STATUS (status);

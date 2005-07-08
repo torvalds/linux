@@ -487,7 +487,7 @@ acpi_ex_unload_table (
 	 * Delete the entire namespace under this table Node
 	 * (Offset contains the table_id)
 	 */
-	acpi_ns_delete_namespace_by_owner (table_info->table_id);
+	acpi_ns_delete_namespace_by_owner (table_info->owner_id);
 
 	/* Delete the table itself */
 

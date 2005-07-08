@@ -203,7 +203,7 @@ acpi_ns_dump_one_object (
 
 	/* Check if the owner matches */
 
-	if ((info->owner_id != ACPI_UINT32_MAX) &&
+	if ((info->owner_id != ACPI_OWNER_ID_MAX) &&
 		(info->owner_id != this_node->owner_id)) {
 		return (AE_OK);
 	}
@@ -598,7 +598,7 @@ acpi_ns_dump_objects (
 	acpi_object_type                type,
 	u8                              display_type,
 	u32                             max_depth,
-	u32                             owner_id,
+	acpi_owner_id                   owner_id,
 	acpi_handle                     start_handle)
 {
 	struct acpi_walk_info           info;
@@ -643,7 +643,7 @@ acpi_ns_dump_entry (
 
 
 	info.debug_level = debug_level;
-	info.owner_id = ACPI_UINT32_MAX;
+	info.owner_id = ACPI_OWNER_ID_MAX;
 	info.display_type = ACPI_DISPLAY_SUMMARY;
 
 	(void) acpi_ns_dump_one_object (handle, 1, &info, NULL);
@@ -694,7 +694,7 @@ acpi_ns_dump_tables (
 	}
 
 	acpi_ns_dump_objects (ACPI_TYPE_ANY, ACPI_DISPLAY_OBJECTS, max_depth,
-			ACPI_UINT32_MAX, search_handle);
+			ACPI_OWNER_ID_MAX, search_handle);
 	return_VOID;
 }
 #endif	/* _ACPI_ASL_COMPILER */

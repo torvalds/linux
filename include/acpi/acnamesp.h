@@ -163,7 +163,7 @@ acpi_ns_delete_namespace_subtree (
 
 void
 acpi_ns_delete_namespace_by_owner (
-	u16                             table_id);
+	acpi_owner_id                   owner_id);
 
 void
 acpi_ns_detach_object (
@@ -219,7 +219,7 @@ acpi_ns_dump_objects (
 	acpi_object_type                type,
 	u8                              display_type,
 	u32                             max_depth,
-	u32                             ownder_id,
+	acpi_owner_id                   owner_id,
 	acpi_handle                     start_handle);
 #endif	/* ACPI_FUTURE_USAGE */
 

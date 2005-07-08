@@ -96,30 +96,11 @@ acpi_tb_verify_rsdp (
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
-	/*
-	 *  The signature and checksum must both be correct
-	 */
-	if (ACPI_STRNCMP ((char *) rsdp, RSDP_SIG, sizeof (RSDP_SIG)-1) != 0) {
-		/* Nope, BAD Signature */
+	/* Verify RSDP signature and checksum */
 
-		status = AE_BAD_SIGNATURE;
+	status = acpi_tb_validate_rsdp (rsdp);
+	if (ACPI_FAILURE (status)) {
 		goto cleanup;
-	}
-
-	/* Check the standard checksum */
-
-	if (acpi_tb_checksum (rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0) {
-		status = AE_BAD_CHECKSUM;
-		goto cleanup;
-	}
-
-	/* Check extended checksum if table version >= 2 */
-
-	if (rsdp->revision >= 2) {
-		if (acpi_tb_checksum (rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0) {
-			status = AE_BAD_CHECKSUM;
-			goto cleanup;
-		}
 	}
 
 	/* The RSDP supplied is OK */

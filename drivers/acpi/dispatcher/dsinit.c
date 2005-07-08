@@ -99,7 +99,7 @@ acpi_ds_init_one_object (
 	 * was just loaded
 	 */
 	if (((struct acpi_namespace_node *) obj_handle)->owner_id !=
-			info->table_desc->table_id) {
+			info->table_desc->owner_id) {
 		return (AE_OK);
 	}
 
@@ -168,7 +168,7 @@ acpi_ds_init_one_object (
 		 */
 		acpi_ns_delete_namespace_subtree (obj_handle);
 		acpi_ns_delete_namespace_by_owner (
-			((struct acpi_namespace_node *) obj_handle)->object->method.owning_id);
+			((struct acpi_namespace_node *) obj_handle)->object->method.owner_id);
 		break;
 
 
@@ -237,7 +237,7 @@ acpi_ds_initialize_objects (
 
 	ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
 		"\nTable [%4.4s](id %4.4X) - %hd Objects with %hd Devices %hd Methods %hd Regions\n",
-		table_desc->pointer->signature, table_desc->table_id, info.object_count,
+		table_desc->pointer->signature, table_desc->owner_id, info.object_count,
 		info.device_count, info.method_count, info.op_region_count));
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,

@@ -435,35 +435,24 @@ acpi_ut_update_object_reference (
 	union acpi_operand_object       *object,
 	u16                             action)
 {
-	acpi_status                     status;
-	u32                             i;
-	union acpi_generic_state         *state_list = NULL;
-	union acpi_generic_state         *state;
+	acpi_status                     status = AE_OK;
+	union acpi_generic_state        *state_list = NULL;
+	union acpi_operand_object       *next_object = NULL;
+	union acpi_generic_state        *state;
+	acpi_native_uint                i;
 
 
 	ACPI_FUNCTION_TRACE_PTR ("ut_update_object_reference", object);
 
 
-	/* Ignore a null object ptr */
+	while (object) {
+		/* Make sure that this isn't a namespace handle */
 
-	if (!object) {
-		return_ACPI_STATUS (AE_OK);
-	}
-
-	/* Make sure that this isn't a namespace handle */
-
-	if (ACPI_GET_DESCRIPTOR_TYPE (object) == ACPI_DESC_TYPE_NAMED) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
-			"Object %p is NS handle\n", object));
-		return_ACPI_STATUS (AE_OK);
-	}
-
-	state = acpi_ut_create_update_state (object, action);
-
-	while (state) {
-		object = state->update.object;
-		action = state->update.value;
-		acpi_ut_delete_generic_state (state);
+		if (ACPI_GET_DESCRIPTOR_TYPE (object) == ACPI_DESC_TYPE_NAMED) {
+			ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+				"Object %p is NS handle\n", object));
+			return_ACPI_STATUS (AE_OK);
+		}
 
 		/*
 		 * All sub-objects must have their reference count incremented also.
@@ -476,12 +465,10 @@ acpi_ut_update_object_reference (
 			acpi_ut_update_ref_count (object->device.device_notify, action);
 			break;
 
-
 		case ACPI_TYPE_PACKAGE:
-
 			/*
-			 * We must update all the sub-objects of the package
-			 * (Each of whom may have their own sub-objects, etc.
+			 * We must update all the sub-objects of the package,
+			 * each of whom may have their own sub-objects.
 			 */
 			for (i = 0; i < object->package.count; i++) {
 				/*
@@ -497,35 +484,19 @@ acpi_ut_update_object_reference (
 			}
 			break;
 
-
 		case ACPI_TYPE_BUFFER_FIELD:
 
-			status = acpi_ut_create_update_state_and_push (
-					 object->buffer_field.buffer_obj, action, &state_list);
-			if (ACPI_FAILURE (status)) {
-				goto error_exit;
-			}
+			next_object = object->buffer_field.buffer_obj;
 			break;
-
 
 		case ACPI_TYPE_LOCAL_REGION_FIELD:
 
-			status = acpi_ut_create_update_state_and_push (
-					 object->field.region_obj, action, &state_list);
-			if (ACPI_FAILURE (status)) {
-				goto error_exit;
-			}
-		   break;
-
+			next_object = object->field.region_obj;
+			break;
 
 		case ACPI_TYPE_LOCAL_BANK_FIELD:
 
-			status = acpi_ut_create_update_state_and_push (
-					 object->bank_field.bank_obj, action, &state_list);
-			if (ACPI_FAILURE (status)) {
-				goto error_exit;
-			}
-
+			next_object = object->bank_field.bank_obj;
 			status = acpi_ut_create_update_state_and_push (
 					 object->bank_field.region_obj, action, &state_list);
 			if (ACPI_FAILURE (status)) {
@@ -533,15 +504,9 @@ acpi_ut_update_object_reference (
 			}
 			break;
 
-
 		case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
-			status = acpi_ut_create_update_state_and_push (
-					 object->index_field.index_obj, action, &state_list);
-			if (ACPI_FAILURE (status)) {
-				goto error_exit;
-			}
-
+			next_object = object->index_field.index_obj;
 			status = acpi_ut_create_update_state_and_push (
 					 object->index_field.data_obj, action, &state_list);
 			if (ACPI_FAILURE (status)) {
@@ -549,28 +514,19 @@ acpi_ut_update_object_reference (
 			}
 			break;
 
-
 		case ACPI_TYPE_LOCAL_REFERENCE:
-
 			/*
 			 * The target of an Index (a package, string, or buffer) must track
 			 * changes to the ref count of the index.
 			 */
 			if (object->reference.opcode == AML_INDEX_OP) {
-				status = acpi_ut_create_update_state_and_push (
-						 object->reference.object, action, &state_list);
-				if (ACPI_FAILURE (status)) {
-					goto error_exit;
-				}
+				next_object = object->reference.object;
 			}
 			break;
 
-
 		case ACPI_TYPE_REGION:
 		default:
-
-			/* No subobjects */
-			break;
+			break;/* No subobjects */
 		}
 
 		/*
@@ -579,14 +535,22 @@ acpi_ut_update_object_reference (
 		 * main object to be deleted.
 		 */
 		acpi_ut_update_ref_count (object, action);
+		object = NULL;
 
 		/* Move on to the next object to be updated */
 
-		state = acpi_ut_pop_generic_state (&state_list);
+		if (next_object) {
+			object = next_object;
+			next_object = NULL;
+		}
+		else if (state_list) {
+			state = acpi_ut_pop_generic_state (&state_list);
+			object = state->update.object;
+			acpi_ut_delete_generic_state (state);
+		}
 	}
 
 	return_ACPI_STATUS (AE_OK);
-
 
 error_exit:
 

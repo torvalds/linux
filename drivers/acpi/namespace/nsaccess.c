@@ -163,7 +163,7 @@ acpi_ns_root_initialize (
 
 				/*
 				 * i_aSL Compiler cheats by putting parameter count
-				 * in the owner_iD
+				 * in the owner_iD (param_count max is 7)
 				 */
 				new_node->owner_id = obj_desc->method.param_count;
 #else

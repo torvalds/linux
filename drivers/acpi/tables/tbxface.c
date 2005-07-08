@@ -260,8 +260,7 @@ acpi_unload_table (
 		 * "Scope" operator.  Thus, we need to track ownership by an ID, not
 		 * simply a position within the hierarchy
 		 */
-		acpi_ns_delete_namespace_by_owner (table_desc->table_id);
-
+		acpi_ns_delete_namespace_by_owner (table_desc->owner_id);
 		table_desc = table_desc->next;
 	}
 

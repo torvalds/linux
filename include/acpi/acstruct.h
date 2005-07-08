@@ -71,7 +71,6 @@ struct acpi_walk_state
 	u8                                  walk_type;
 	acpi_owner_id                       owner_id;                           /* Owner of objects created during the walk */
 	u8                                  last_predicate;                     /* Result of last predicate */
-	u8                                  reserved;                           /* For alignment */
 	u8                                  current_result;                     /* */
 	u8                                  next_op_info;                       /* Info about next_op */
 	u8                                  num_operands;                       /* Stack pointer for Operands[] array */
@@ -154,17 +153,17 @@ struct acpi_device_walk_info
 struct acpi_walk_info
 {
 	u32                             debug_level;
-	u32                             owner_id;
+	acpi_owner_id                   owner_id;
 	u8                              display_type;
 };
 
 /* Display Types */
 
-#define ACPI_DISPLAY_SUMMARY    0
-#define ACPI_DISPLAY_OBJECTS    1
-#define ACPI_DISPLAY_MASK       1
+#define ACPI_DISPLAY_SUMMARY    (u8) 0
+#define ACPI_DISPLAY_OBJECTS    (u8) 1
+#define ACPI_DISPLAY_MASK       (u8) 1
 
-#define ACPI_DISPLAY_SHORT      2
+#define ACPI_DISPLAY_SHORT      (u8) 2
 
 struct acpi_get_devices_info
 {

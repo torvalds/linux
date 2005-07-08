@@ -251,6 +251,7 @@ acpi_tb_init_table_descriptor (
 {
 	struct acpi_table_list          *list_head;
 	struct acpi_table_desc          *table_desc;
+	acpi_status                     status;
 
 
 	ACPI_FUNCTION_TRACE_U32 ("tb_init_table_descriptor", table_type);
@@ -261,6 +262,13 @@ acpi_tb_init_table_descriptor (
 	table_desc = ACPI_MEM_CALLOCATE (sizeof (struct acpi_table_desc));
 	if (!table_desc) {
 		return_ACPI_STATUS (AE_NO_MEMORY);
+	}
+
+	/* Get a new owner ID for the table */
+
+	status = acpi_ut_allocate_owner_id (&table_desc->owner_id);
+	if (ACPI_FAILURE (status)) {
+		return_ACPI_STATUS (status);
 	}
 
 	/* Install the table into the global data structure */
@@ -325,8 +333,6 @@ acpi_tb_init_table_descriptor (
 	table_desc->aml_start           = (u8 *) (table_desc->pointer + 1),
 	table_desc->aml_length          = (u32) (table_desc->length -
 			 (u32) sizeof (struct acpi_table_header));
-	table_desc->table_id            = acpi_ut_allocate_owner_id (
-			 ACPI_OWNER_TYPE_TABLE);
 	table_desc->loaded_into_namespace = FALSE;
 
 	/*
@@ -339,7 +345,7 @@ acpi_tb_init_table_descriptor (
 
 	/* Return Data */
 
-	table_info->table_id        = table_desc->table_id;
+	table_info->owner_id        = table_desc->owner_id;
 	table_info->installed_desc  = table_desc;
 
 	return_ACPI_STATUS (AE_OK);

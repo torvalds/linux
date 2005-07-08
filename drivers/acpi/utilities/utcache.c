@@ -74,6 +74,9 @@ acpi_os_create_cache (
 	struct acpi_memory_list         *cache;
 
 
+	ACPI_FUNCTION_ENTRY ();
+
+
 	if (!cache_name || !return_cache || (object_size < 16)) {
 		return (AE_BAD_PARAMETER);
 	}
@@ -161,7 +164,10 @@ acpi_os_delete_cache (
 	acpi_status                     status;
 
 
-	/* Purge all objects in the cache */
+	ACPI_FUNCTION_ENTRY ();
+
+
+   /* Purge all objects in the cache */
 
 	status = acpi_os_purge_cache (cache);
 	if (ACPI_FAILURE (status)) {
@@ -259,7 +265,7 @@ acpi_os_acquire_object (
 	void                            *object;
 
 
-	ACPI_FUNCTION_NAME ("ut_acquire_from_cache");
+	ACPI_FUNCTION_NAME ("os_acquire_object");
 
 
 	if (!cache) {
@@ -286,7 +292,7 @@ acpi_os_acquire_object (
 
 		ACPI_MEM_TRACKING (cache->hits++);
 		ACPI_MEM_TRACKING (ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"Object %p from %s\n", object, cache->list_name)));
+			"Object %p from %s cache\n", object, cache->list_name)));
 
 		status = acpi_ut_release_mutex (ACPI_MTX_CACHES);
 		if (ACPI_FAILURE (status)) {

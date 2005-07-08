@@ -87,7 +87,7 @@ acpi_ns_one_complete_parse (
 
 	/* Create and initialize a new walk state */
 
-	walk_state = acpi_ds_create_walk_state (table_desc->table_id,
+	walk_state = acpi_ds_create_walk_state (table_desc->owner_id,
 			   NULL, NULL, NULL);
 	if (!walk_state) {
 		acpi_ps_free_op (parse_root);

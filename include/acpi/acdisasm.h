@@ -211,7 +211,7 @@ acpi_dm_byte_list (
 	union acpi_parse_object         *op);
 
 void
-acpi_is_eisa_id (
+acpi_dm_is_eisa_id (
 	union acpi_parse_object         *op);
 
 void

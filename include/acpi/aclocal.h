@@ -56,6 +56,13 @@ typedef u32                                     acpi_mutex_handle;
 #define AML_NUM_OPCODES                 0x7F
 
 
+/* Forward declarations */
+
+struct acpi_walk_state        ;
+struct acpi_obj_mutex;
+union acpi_parse_object        ;
+
+
 /*****************************************************************************
  *
  * Mutex typedefs and structs
@@ -116,31 +123,29 @@ static char                         *acpi_gbl_mutex_names[] =
 #endif
 
 
+/* Owner IDs are used to track namespace nodes for selective deletion */
+
+typedef u8                                      acpi_owner_id;
+#define ACPI_OWNER_ID_MAX               0xFF
+
+/* This Thread ID means that the mutex is not in use (unlocked) */
+
+#define ACPI_MUTEX_NOT_ACQUIRED         (u32) -1
+
 /* Table for the global mutexes */
 
 struct acpi_mutex_info
 {
 	acpi_mutex                          mutex;
 	u32                                 use_count;
-	u32                                 owner_id;
+	u32                                 thread_id;
 };
-
-/* This owner ID means that the mutex is not in use (unlocked) */
-
-#define ACPI_MUTEX_NOT_ACQUIRED         (u32) (-1)
 
 
 /* Lock flag parameter for various interfaces */
 
 #define ACPI_MTX_DO_NOT_LOCK            0
 #define ACPI_MTX_LOCK                   1
-
-
-typedef u16                                     acpi_owner_id;
-#define ACPI_OWNER_TYPE_TABLE           0x0
-#define ACPI_OWNER_TYPE_METHOD          0x1
-#define ACPI_FIRST_METHOD_ID            0x0001
-#define ACPI_FIRST_TABLE_ID             0xF000
 
 
 /* Field access granularities */
@@ -185,13 +190,20 @@ struct acpi_namespace_node
 {
 	u8                                  descriptor;     /* Used to differentiate object descriptor types */
 	u8                                  type;           /* Type associated with this name */
-	u16                                 owner_id;
+	u16                                 reference_count; /* Current count of references and children */
 	union acpi_name_union               name;           /* ACPI Name, always 4 chars per ACPI spec */
 	union acpi_operand_object           *object;        /* Pointer to attached ACPI object (optional) */
 	struct acpi_namespace_node          *child;         /* First child */
 	struct acpi_namespace_node          *peer;          /* Next peer*/
-	u16                                 reference_count; /* Current count of references and children */
+	u8                                  owner_id;       /* Who created this node */
 	u8                                  flags;
+
+	/* Fields used by the ASL compiler only */
+
+#ifdef ACPI_ASL_COMPILER
+	u32                                 value;
+	union acpi_parse_object             *op;
+#endif
 };
 
 
@@ -222,7 +234,7 @@ struct acpi_table_desc
 	u64                             physical_address;
 	u32                             aml_length;
 	acpi_size                       length;
-	acpi_owner_id                   table_id;
+	acpi_owner_id                   owner_id;
 	u8                              type;
 	u8                              allocation;
 	u8                              loaded_into_namespace;
@@ -418,13 +430,6 @@ struct acpi_field_info
 #define ACPI_CONTROL_PREDICATE_EXECUTING     0xC2
 #define ACPI_CONTROL_PREDICATE_FALSE         0xC3
 #define ACPI_CONTROL_PREDICATE_TRUE          0xC4
-
-
-/* Forward declarations */
-
-struct acpi_walk_state        ;
-struct acpi_obj_mutex;
-union acpi_parse_object        ;
 
 
 #define ACPI_STATE_COMMON                  /* Two 32-bit fields and a pointer */\
@@ -915,14 +920,6 @@ struct acpi_integrity_info
  * Debug
  *
  ****************************************************************************/
-
-struct acpi_debug_print_info
-{
-	u32                             component_id;
-	char                            *proc_name;
-	char                            *module_name;
-};
-
 
 /* Entry for a memory allocation (debug only) */
 

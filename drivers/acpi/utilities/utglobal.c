@@ -738,73 +738,6 @@ acpi_ut_valid_object_type (
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_allocate_owner_id
- *
- * PARAMETERS:  id_type         - Type of ID (method or table)
- *
- * DESCRIPTION: Allocate a table or method owner id
- *
- * NOTE: this algorithm has a wraparound problem at 64_k method invocations, and
- *       should be revisited (TBD)
- *
- ******************************************************************************/
-
-acpi_owner_id
-acpi_ut_allocate_owner_id (
-	u32                             id_type)
-{
-	acpi_owner_id                   owner_id = 0xFFFF;
-
-
-	ACPI_FUNCTION_TRACE ("ut_allocate_owner_id");
-
-
-	if (ACPI_FAILURE (acpi_ut_acquire_mutex (ACPI_MTX_CACHES)))
-	{
-		return (0);
-	}
-
-	switch (id_type)
-	{
-	case ACPI_OWNER_TYPE_TABLE:
-
-		owner_id = acpi_gbl_next_table_owner_id;
-		acpi_gbl_next_table_owner_id++;
-
-		/* Check for wraparound */
-
-		if (acpi_gbl_next_table_owner_id == ACPI_FIRST_METHOD_ID)
-		{
-			acpi_gbl_next_table_owner_id = ACPI_FIRST_TABLE_ID;
-			ACPI_REPORT_WARNING (("Table owner ID wraparound\n"));
-		}
-		break;
-
-
-	case ACPI_OWNER_TYPE_METHOD:
-
-		owner_id = acpi_gbl_next_method_owner_id;
-		acpi_gbl_next_method_owner_id++;
-
-		if (acpi_gbl_next_method_owner_id == ACPI_FIRST_TABLE_ID)
-		{
-			/* Check for wraparound */
-
-			acpi_gbl_next_method_owner_id = ACPI_FIRST_METHOD_ID;
-		}
-		break;
-
-	default:
-		break;
-	}
-
-	(void) acpi_ut_release_mutex (ACPI_MTX_CACHES);
-	return_VALUE (owner_id);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ut_init_globals
  *
  * PARAMETERS:  None
@@ -848,7 +781,7 @@ acpi_ut_init_globals (
 	for (i = 0; i < NUM_MUTEX; i++)
 	{
 		acpi_gbl_mutex_info[i].mutex        = NULL;
-		acpi_gbl_mutex_info[i].owner_id     = ACPI_MUTEX_NOT_ACQUIRED;
+		acpi_gbl_mutex_info[i].thread_id    = ACPI_MUTEX_NOT_ACQUIRED;
 		acpi_gbl_mutex_info[i].use_count    = 0;
 	}
 
@@ -889,8 +822,7 @@ acpi_ut_init_globals (
 	acpi_gbl_ns_lookup_count            = 0;
 	acpi_gbl_ps_find_count              = 0;
 	acpi_gbl_acpi_hardware_present      = TRUE;
-	acpi_gbl_next_table_owner_id        = ACPI_FIRST_TABLE_ID;
-	acpi_gbl_next_method_owner_id       = ACPI_FIRST_METHOD_ID;
+	acpi_gbl_owner_id_mask              = 0;
 	acpi_gbl_debugger_configuration     = DEBUGGER_THREADING;
 	acpi_gbl_db_output_flags            = ACPI_DB_CONSOLE_OUTPUT;
 

@@ -169,6 +169,10 @@ acpi_status
 acpi_tb_get_table_rsdt (
 	void);
 
+acpi_status
+acpi_tb_validate_rsdp (
+	struct rsdp_descriptor          *rsdp);
+
 
 /*
  * tbutils - common table utilities

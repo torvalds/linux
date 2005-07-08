@@ -407,9 +407,14 @@ acpi_ps_parse_loop (
 					INCREMENT_ARG_LIST (walk_state->arg_types);
 				}
 
+
 				/* Special processing for certain opcodes */
 
-				if ((walk_state->pass_number <= ACPI_IMODE_LOAD_PASS1) &&
+	/* TBD (remove): Temporary mechanism to disable this code if needed */
+
+#ifndef ACPI_NO_MODULE_LEVEL_CODE
+
+			 if ((walk_state->pass_number <= ACPI_IMODE_LOAD_PASS1) &&
 				   ((walk_state->parse_flags & ACPI_PARSE_DISASSEMBLE) == 0)) {
 					/*
 					 * We want to skip If/Else/While constructs during Pass1
@@ -434,7 +439,7 @@ acpi_ps_parse_loop (
 						break;
 					}
 				}
-
+#endif
 				switch (op->common.aml_opcode) {
 				case AML_METHOD_OP:
 

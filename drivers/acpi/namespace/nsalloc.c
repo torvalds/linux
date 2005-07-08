@@ -190,7 +190,7 @@ acpi_ns_install_node (
 	struct acpi_namespace_node      *node,          /* New Child*/
 	acpi_object_type                type)
 {
-	u16                             owner_id = 0;
+	acpi_owner_id                   owner_id = 0;
 	struct acpi_namespace_node      *child_node;
 #ifdef ACPI_ALPHABETIC_NAMESPACE
 
@@ -559,7 +559,7 @@ acpi_ns_remove_reference (
 
 void
 acpi_ns_delete_namespace_by_owner (
-	u16                             owner_id)
+	acpi_owner_id                    owner_id)
 {
 	struct acpi_namespace_node      *child_node;
 	struct acpi_namespace_node      *deletion_node;
@@ -635,6 +635,7 @@ acpi_ns_delete_namespace_by_owner (
 		}
 	}
 
+	(void) acpi_ut_release_owner_id (owner_id);
 	return_VOID;
 }
 

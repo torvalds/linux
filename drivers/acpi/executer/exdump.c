@@ -819,7 +819,7 @@ acpi_ex_dump_object_descriptor (
 		acpi_ex_out_integer ("param_count", obj_desc->method.param_count);
 		acpi_ex_out_integer ("Concurrency", obj_desc->method.concurrency);
 		acpi_ex_out_pointer ("Semaphore",   obj_desc->method.semaphore);
-		acpi_ex_out_integer ("owning_id",   obj_desc->method.owning_id);
+		acpi_ex_out_integer ("owner_id",    obj_desc->method.owner_id);
 		acpi_ex_out_integer ("aml_length",  obj_desc->method.aml_length);
 		acpi_ex_out_pointer ("aml_start",   obj_desc->method.aml_start);
 		break;

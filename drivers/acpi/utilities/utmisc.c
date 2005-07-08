@@ -52,6 +52,100 @@
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_allocate_owner_id
+ *
+ * PARAMETERS:  owner_id        - Where the new owner ID is returned
+ *
+ * DESCRIPTION: Allocate a table or method owner id
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ut_allocate_owner_id (
+	acpi_owner_id                   *owner_id)
+{
+	acpi_native_uint                i;
+	acpi_status                     status;
+
+
+	ACPI_FUNCTION_TRACE ("ut_allocate_owner_id");
+
+
+	status = acpi_ut_acquire_mutex (ACPI_MTX_CACHES);
+	if (ACPI_FAILURE (status)) {
+		return_ACPI_STATUS (status);
+	}
+
+	/* Find a free owner ID */
+
+	for (i = 0; i < 32; i++) {
+		if (!(acpi_gbl_owner_id_mask & (1 << i))) {
+			acpi_gbl_owner_id_mask |= (1 << i);
+			*owner_id = (acpi_owner_id) i;
+			goto exit;
+		}
+	}
+
+	/*
+	 * If we are here, all owner_ids have been allocated. This probably should
+	 * not happen since the IDs are reused after deallocation. The IDs are
+	 * allocated upon table load (one per table) and method execution, and
+	 * they are released when a table is unloaded or a method completes
+	 * execution.
+	 */
+	status = AE_OWNER_ID_LIMIT;
+	ACPI_REPORT_ERROR ((
+		"Could not allocate new owner_id (32 max), AE_OWNER_ID_LIMIT\n"));
+
+exit:
+	(void) acpi_ut_release_mutex (ACPI_MTX_CACHES);
+	return_ACPI_STATUS (status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_release_owner_id
+ *
+ * PARAMETERS:  owner_id        - A previously allocated owner ID
+ *
+ * DESCRIPTION: Release a table or method owner id
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ut_release_owner_id (
+	acpi_owner_id                   owner_id)
+{
+	acpi_status                     status;
+
+
+	ACPI_FUNCTION_TRACE ("ut_release_owner_id");
+
+
+	status = acpi_ut_acquire_mutex (ACPI_MTX_CACHES);
+	if (ACPI_FAILURE (status)) {
+		return_ACPI_STATUS (status);
+	}
+
+	/* Free the owner ID */
+
+	if (acpi_gbl_owner_id_mask & (1 << owner_id)) {
+		acpi_gbl_owner_id_mask ^= (1 << owner_id);
+	}
+	else {
+		/* This owner_id has not been allocated */
+
+		status = AE_NOT_EXIST;
+	}
+
+	(void) acpi_ut_release_mutex (ACPI_MTX_CACHES);
+	return_ACPI_STATUS (status);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_strupr (strupr)
  *
  * PARAMETERS:  src_string      - The source string to convert

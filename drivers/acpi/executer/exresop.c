@@ -426,6 +426,10 @@ acpi_ex_resolve_operands (
 
 				return_ACPI_STATUS (status);
 			}
+
+			if (obj_desc != *stack_ptr) {
+				acpi_ut_remove_reference (obj_desc);
+			}
 			goto next_operand;
 
 
@@ -447,6 +451,10 @@ acpi_ex_resolve_operands (
 				}
 
 				return_ACPI_STATUS (status);
+			}
+
+			if (obj_desc != *stack_ptr) {
+				acpi_ut_remove_reference (obj_desc);
 			}
 			goto next_operand;
 
@@ -470,6 +478,10 @@ acpi_ex_resolve_operands (
 				}
 
 				return_ACPI_STATUS (status);
+			}
+
+			if (obj_desc != *stack_ptr) {
+				acpi_ut_remove_reference (obj_desc);
 			}
 			goto next_operand;
 
@@ -514,6 +526,10 @@ acpi_ex_resolve_operands (
 				status = acpi_ex_convert_to_buffer (obj_desc, stack_ptr);
 				if (ACPI_FAILURE (status)) {
 					return_ACPI_STATUS (status);
+				}
+
+				if (obj_desc != *stack_ptr) {
+					acpi_ut_remove_reference (obj_desc);
 				}
 				break;
 

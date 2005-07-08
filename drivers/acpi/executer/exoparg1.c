@@ -904,6 +904,7 @@ acpi_ex_opcode_1A_0T_1R (
 			 */
 			return_desc = acpi_ns_get_attached_object (
 					  (struct acpi_namespace_node *) operand[0]);
+			acpi_ut_add_reference (return_desc);
 		}
 		else {
 			/*
@@ -953,20 +954,10 @@ acpi_ex_opcode_1A_0T_1R (
 					 * add another reference to the referenced object, however.
 					 */
 					return_desc = *(operand[0]->reference.where);
-					if (!return_desc) {
-						/*
-						 * We can't return a NULL dereferenced value.  This is
-						 * an uninitialized package element and is thus a
-						 * severe error.
-						 */
-						ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-							"NULL package element obj %p\n",
-							operand[0]));
-						status = AE_AML_UNINITIALIZED_ELEMENT;
-						goto cleanup;
+					if (return_desc) {
+	                    acpi_ut_add_reference (return_desc);
 					}
 
-					acpi_ut_add_reference (return_desc);
 					break;
 
 

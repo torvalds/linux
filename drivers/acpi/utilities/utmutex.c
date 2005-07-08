@@ -159,7 +159,7 @@ acpi_ut_create_mutex (
 	if (!acpi_gbl_mutex_info[mutex_id].mutex) {
 		status = acpi_os_create_semaphore (1, 1,
 				  &acpi_gbl_mutex_info[mutex_id].mutex);
-		acpi_gbl_mutex_info[mutex_id].owner_id = ACPI_MUTEX_NOT_ACQUIRED;
+		acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
 		acpi_gbl_mutex_info[mutex_id].use_count = 0;
 	}
 
@@ -196,7 +196,7 @@ acpi_ut_delete_mutex (
 	status = acpi_os_delete_semaphore (acpi_gbl_mutex_info[mutex_id].mutex);
 
 	acpi_gbl_mutex_info[mutex_id].mutex = NULL;
-	acpi_gbl_mutex_info[mutex_id].owner_id = ACPI_MUTEX_NOT_ACQUIRED;
+	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
 
 	return_ACPI_STATUS (status);
 }
@@ -274,7 +274,7 @@ acpi_ut_acquire_mutex (
 			this_thread_id, acpi_ut_get_mutex_name (mutex_id)));
 
 		acpi_gbl_mutex_info[mutex_id].use_count++;
-		acpi_gbl_mutex_info[mutex_id].owner_id = this_thread_id;
+		acpi_gbl_mutex_info[mutex_id].thread_id = this_thread_id;
 	}
 	else {
 		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
@@ -322,7 +322,7 @@ acpi_ut_release_mutex (
 	/*
 	 * Mutex must be acquired in order to release it!
 	 */
-	if (acpi_gbl_mutex_info[mutex_id].owner_id == ACPI_MUTEX_NOT_ACQUIRED) {
+	if (acpi_gbl_mutex_info[mutex_id].thread_id == ACPI_MUTEX_NOT_ACQUIRED) {
 		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
 			"Mutex [%s] is not acquired, cannot release\n",
 			acpi_ut_get_mutex_name (mutex_id)));
@@ -359,7 +359,7 @@ acpi_ut_release_mutex (
 
 	/* Mark unlocked FIRST */
 
-	acpi_gbl_mutex_info[mutex_id].owner_id = ACPI_MUTEX_NOT_ACQUIRED;
+	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
 
 	status = acpi_os_signal_semaphore (acpi_gbl_mutex_info[mutex_id].mutex, 1);
 

@@ -199,7 +199,7 @@ struct acpi_object_method
 	ACPI_INTERNAL_METHOD            implementation;
 	u8                                      concurrency;
 	u8                                      thread_count;
-	acpi_owner_id                           owning_id;
+	acpi_owner_id                           owner_id;
 };
 
 
