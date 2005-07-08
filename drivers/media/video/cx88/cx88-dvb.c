@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-dvb.c,v 1.33 2005/06/12 04:19:19 mchehab Exp $
+ * $Id: cx88-dvb.c,v 1.36 2005/06/21 06:08:12 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
@@ -231,6 +231,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	case CX88_BOARD_KWORLD_DVB_T:
 	case CX88_BOARD_DNTV_LIVE_DVB_T:
+	case CX88_BOARD_ADSTECH_DVB_T_PCI:
 		dev->core->pll_addr = 0x61;
 		dev->core->pll_desc = &dvb_pll_unknown_1;
 		dev->dvb.frontend = mt352_attach(&dntv_live_dvbt_config,
