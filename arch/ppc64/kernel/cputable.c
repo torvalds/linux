@@ -81,7 +81,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-II (northstar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -94,7 +94,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-III (pulsar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -107,7 +107,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-III (icestar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -120,7 +120,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "RS64-IV (sstar)",
 		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
 			CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE | CPU_FTR_IABR |
-			CPU_FTR_PMC8 | CPU_FTR_MMCRA,
+			CPU_FTR_PMC8 | CPU_FTR_MMCRA | CPU_FTR_CTRL,
 		.cpu_user_features	= COMMON_USER_PPC64,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
