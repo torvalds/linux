@@ -1200,7 +1200,7 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 	case AUDIO_CONTINUE:
 		if (av7110->audiostate.play_state == AUDIO_PAUSED) {
 			av7110->audiostate.play_state = AUDIO_PLAYING;
-			audcom(av7110, AUDIO_CMD_MUTE | AUDIO_CMD_PCM16);
+			audcom(av7110, AUDIO_CMD_UNMUTE | AUDIO_CMD_PCM16);
 		}
 		break;
 
