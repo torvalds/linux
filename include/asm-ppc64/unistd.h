@@ -268,7 +268,7 @@
 #define __NR_rtas		255
 /* Number 256 is reserved for sys_debug_setcontext */
 /* Number 257 is reserved for vserver */
-/* Number 258 is reserved for new sys_remap_file_pages */
+/* 258 currently unused */
 #define __NR_mbind		259
 #define __NR_get_mempolicy	260
 #define __NR_set_mempolicy	261
