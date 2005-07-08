@@ -825,6 +825,44 @@ unlock:
 
 EXPORT_SYMBOL_GPL(do_add_mount);
 
+static void expire_mount(struct vfsmount *mnt, struct list_head *mounts)
+{
+	spin_lock(&vfsmount_lock);
+
+	/*
+	 * Check that it is still dead: the count should now be 2 - as
+	 * contributed by the vfsmount parent and the mntget above
+	 */
+	if (atomic_read(&mnt->mnt_count) == 2) {
+		struct nameidata old_nd;
+
+		/* delete from the namespace */
+		list_del_init(&mnt->mnt_list);
+		detach_mnt(mnt, &old_nd);
+		spin_unlock(&vfsmount_lock);
+		path_release(&old_nd);
+
+		/*
+		 * Now lay it to rest if this was the last ref on the superblock
+		 */
+		if (atomic_read(&mnt->mnt_sb->s_active) == 1) {
+			/* last instance - try to be smart */
+			lock_kernel();
+			DQUOT_OFF(mnt->mnt_sb);
+			acct_auto_close(mnt->mnt_sb);
+			unlock_kernel();
+		}
+		mntput(mnt);
+	} else {
+		/*
+		 * Someone brought it back to life whilst we didn't have any
+		 * locks held so return it to the expiration list
+		 */
+		list_add_tail(&mnt->mnt_fslink, mounts);
+		spin_unlock(&vfsmount_lock);
+	}
+}
+
 /*
  * process a list of expirable mountpoints with the intent of discarding any
  * mountpoints that aren't in use and haven't been touched since last we came
@@ -875,38 +913,7 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 
 		spin_unlock(&vfsmount_lock);
 		down_write(&namespace->sem);
-		spin_lock(&vfsmount_lock);
-
-		/* check that it is still dead: the count should now be 2 - as
-		 * contributed by the vfsmount parent and the mntget above */
-		if (atomic_read(&mnt->mnt_count) == 2) {
-			struct nameidata old_nd;
-
-			/* delete from the namespace */
-			list_del_init(&mnt->mnt_list);
-			detach_mnt(mnt, &old_nd);
-			spin_unlock(&vfsmount_lock);
-			path_release(&old_nd);
-
-			/* now lay it to rest if this was the last ref on the
-			 * superblock */
-			if (atomic_read(&mnt->mnt_sb->s_active) == 1) {
-				/* last instance - try to be smart */
-				lock_kernel();
-				DQUOT_OFF(mnt->mnt_sb);
-				acct_auto_close(mnt->mnt_sb);
-				unlock_kernel();
-			}
-
-			mntput(mnt);
-		} else {
-			/* someone brought it back to life whilst we didn't
-			 * have any locks held so return it to the expiration
-			 * list */
-			list_add_tail(&mnt->mnt_fslink, mounts);
-			spin_unlock(&vfsmount_lock);
-		}
-
+		expire_mount(mnt, mounts);
 		up_write(&namespace->sem);
 
 		mntput(mnt);
