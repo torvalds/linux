@@ -44,7 +44,7 @@ int vp7045_usb_op(struct dvb_usb_device *d, u8 cmd, u8 *out, int outlen, u8 *in,
 	if (usb_control_msg(d->udev,
 			usb_sndctrlpipe(d->udev,0),
 			TH_COMMAND_OUT, USB_TYPE_VENDOR | USB_DIR_OUT, 0, 0,
-			outbuf, 20, 2*HZ) != 20) {
+			outbuf, 20, 2000) != 20) {
 		err("USB control message 'out' went wrong.");
 		ret = -EIO;
 		goto unlock;
@@ -55,7 +55,7 @@ int vp7045_usb_op(struct dvb_usb_device *d, u8 cmd, u8 *out, int outlen, u8 *in,
 	if (usb_control_msg(d->udev,
 			usb_rcvctrlpipe(d->udev,0),
 			TH_COMMAND_IN, USB_TYPE_VENDOR | USB_DIR_IN, 0, 0,
-			inbuf, 12, 2*HZ) != 12) {
+			inbuf, 12, 2000) != 12) {
 		err("USB control message 'in' went wrong.");
 		ret = -EIO;
 		goto unlock;
@@ -255,7 +255,7 @@ static struct dvb_usb_properties vp7045_properties = {
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver vp7045_usb_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "dvb-usb-vp7045",
+	.name		= "dvb_usb_vp7045",
 	.probe 		= vp7045_usb_probe,
 	.disconnect = dvb_usb_device_exit,
 	.id_table 	= vp7045_usb_table,

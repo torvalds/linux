@@ -409,7 +409,7 @@ static struct pci_device_id flexcop_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, flexcop_pci_tbl);
 
 static struct pci_driver flexcop_pci_driver = {
-	.name     = "Technisat/B2C2 FlexCop II/IIb PCI",
+	.name     = "b2c2_flexcop_pci",
 	.id_table = flexcop_pci_tbl,
 	.probe    = flexcop_pci_probe,
 	.remove   = flexcop_pci_remove,

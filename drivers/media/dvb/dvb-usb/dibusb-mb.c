@@ -317,7 +317,7 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 
 static struct usb_driver dibusb_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "DiBcom based USB DVB-T devices (DiB3000M-B based)",
+	.name		= "dvb_usb_dibusb_mb",
 	.probe		= dibusb_probe,
 	.disconnect = dvb_usb_device_exit,
 	.id_table	= dibusb_dib3000mb_table,

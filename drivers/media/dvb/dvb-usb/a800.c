@@ -149,7 +149,7 @@ static struct dvb_usb_properties a800_properties = {
 
 static struct usb_driver a800_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "AVerMedia AverTV DVB-T USB 2.0 (A800)",
+	.name		= "dvb_usb_a800",
 	.probe		= a800_probe,
 	.disconnect = dvb_usb_device_exit,
 	.id_table	= a800_table,
