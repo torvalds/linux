@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-dvb.c,v 1.37 2005/06/28 23:41:47 mkrufky Exp $
+ * $Id: cx88-dvb.c,v 1.39 2005/07/02 20:00:46 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
@@ -235,6 +235,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = cx22702_attach(&hauppauge_novat_config,
 						   &dev->core->i2c_adap);
 		break;
+	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
 	case CX88_BOARD_CONEXANT_DVB_T1:
 		dev->dvb.frontend = cx22702_attach(&connexant_refboard_config,
 						   &dev->core->i2c_adap);

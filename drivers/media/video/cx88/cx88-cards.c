@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-cards.c,v 1.82 2005/06/28 04:33:53 mkrufky Exp $
+ * $Id: cx88-cards.c,v 1.84 2005/07/02 19:42:09 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * card-specific stuff.
@@ -743,6 +743,15 @@ struct cx88_board cx88_boards[] = {
                 }},
 		.dvb            = 1,
 	},
+	[CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1] = {
+		.name           = "TerraTec Cinergy 1400 DVB-T",
+		.tuner_type     = TUNER_ABSENT,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		}},
+		.dvb            = 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -866,6 +875,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x1421,
 		.subdevice = 0x0334,
 		.card      = CX88_BOARD_ADSTECH_DVB_T_PCI,
+ 	},{
+		.subvendor = 0x153b,
+		.subdevice = 0x1166,
+		.card      = CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
