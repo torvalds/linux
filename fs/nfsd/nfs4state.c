@@ -1295,7 +1295,7 @@ nfs4_share_conflict(struct svc_fh *current_fh, unsigned int deny_type)
 	fp = find_file(ino);
 	if (!fp)
 		return nfs_ok;
-	ret = nfserr_share_denied;
+	ret = nfserr_locked;
 	/* Search for conflicting share reservations */
 	list_for_each_entry(stp, &fp->fi_stateids, st_perfile) {
 		if (test_bit(deny_type, &stp->st_deny_bmap) ||
