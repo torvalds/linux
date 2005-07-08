@@ -2155,6 +2155,10 @@ static int __init nsp_cs_init(void)
 
 	nsp_msg(KERN_INFO, "loading...");
 	pcmcia_get_card_services_info(&serv);
+	if (serv.Revision != CS_RELEASE_CODE) {
+		nsp_msg(KERN_DEBUG, "Card Services release does not match!");
+		return -EINVAL;
+	}
 	register_pcmcia_driver(&dev_info, &nsp_cs_attach, &nsp_cs_detach);
 
 	nsp_dbg(NSP_DEBUG_INIT, "out");
