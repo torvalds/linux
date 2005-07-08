@@ -1820,6 +1820,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		status = nfs4_upgrade_open(rqstp, current_fh, stp, open);
 		if (status)
 			goto out;
+		update_stateid(&stp->st_stateid);
 	} else {
 		/* Stateid was not found, this is a new OPEN */
 		int flags = 0;
