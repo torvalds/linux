@@ -152,7 +152,14 @@ typedef union {
 	struct {
 		u32 Special_controls               :16;
 		u32 Block_reset_enable             : 8;
-		u32 reset_blocks                   : 8;
+		u32 reset_block_700                : 1;
+		u32 reset_block_600                : 1;
+		u32 reset_block_500                : 1;
+		u32 reset_block_400                : 1;
+		u32 reset_block_300                : 1;
+		u32 reset_block_200                : 1;
+		u32 reset_block_100                : 1;
+		u32 reset_block_000                : 1;
 	} sw_reset_210;
 
 	struct {
