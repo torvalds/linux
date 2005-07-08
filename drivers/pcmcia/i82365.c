@@ -698,14 +698,6 @@ static void __init add_pcic(int ns, int type)
     struct i82365_socket *t = &socket[sockets-ns];
 
     base = sockets-ns;
-    if (t->ioaddr > 0) {
-	if (!request_region(t->ioaddr, 2, "i82365")) {
-	    printk(KERN_ERR "i82365: IO region conflict at %#lx, not available\n",
-			t->ioaddr);
-	    return;
-	}
-    }
-    
     if (base == 0) printk("\n");
     printk(KERN_INFO "  %s", pcic[type].name);
     printk(" ISA-to-PCMCIA at port %#lx ofs 0x%02x",
