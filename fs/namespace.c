@@ -345,6 +345,7 @@ static void umount_tree(struct vfsmount *mnt)
 	for (p = mnt; p; p = next_mnt(p, mnt)) {
 		list_del(&p->mnt_list);
 		list_add(&p->mnt_list, &kill);
+		p->mnt_namespace = NULL;
 	}
 
 	while (!list_empty(&kill)) {
@@ -1449,15 +1450,8 @@ void __init mnt_init(unsigned long mempages)
 
 void __put_namespace(struct namespace *namespace)
 {
-	struct vfsmount *mnt;
-
 	down_write(&namespace->sem);
 	spin_lock(&vfsmount_lock);
-
-	list_for_each_entry(mnt, &namespace->list, mnt_list) {
-		mnt->mnt_namespace = NULL;
-	}
-
 	umount_tree(namespace->root);
 	spin_unlock(&vfsmount_lock);
 	up_write(&namespace->sem);
