@@ -1,5 +1,5 @@
-/* DVB USB library compliant Linux driver for the Yakumo/Hama/Typhoon DVB-T
- * USB2.0 receiver.
+/* DVB USB library compliant Linux driver for the WideView/ Yakumo/ Hama/
+ * Typhoon/ Yuan DVB-T USB2.0 receiver.
  *
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
  *
@@ -89,8 +89,8 @@ static int dtt200u_usb_probe(struct usb_interface *intf,
 }
 
 static struct usb_device_id dtt200u_usb_table [] = {
-	    { USB_DEVICE(USB_VID_AVERMEDIA_UNK, USB_PID_DTT200U_COLD) },
-	    { USB_DEVICE(USB_VID_AVERMEDIA_UNK, USB_PID_DTT200U_WARM) },
+	    { USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_DTT200U_COLD) },
+	    { USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_DTT200U_WARM) },
 	    { 0 },
 };
 MODULE_DEVICE_TABLE(usb, dtt200u_usb_table);
@@ -127,8 +127,8 @@ static struct dvb_usb_properties dtt200u_properties = {
 
 	.num_device_descs = 1,
 	.devices = {
-		{ .name = "Yakumo/Hama/Typhoon DVB-T USB2.0)",
-		  .cold_ids = { &dtt200u_usb_table[0], &dtt200u_usb_table[2] },
+		{ .name = "WideView/Yakumo/Hama/Typhoon DVB-T USB2.0)",
+		  .cold_ids = { &dtt200u_usb_table[0], NULL },
 		  .warm_ids = { &dtt200u_usb_table[1], NULL },
 		},
 		{ 0 },
@@ -138,7 +138,7 @@ static struct dvb_usb_properties dtt200u_properties = {
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver dtt200u_usb_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "Yakumo/Hama/Typhoon DVB-T USB2.0",
+	.name		= "dtt200u",
 	.probe 		= dtt200u_usb_probe,
 	.disconnect = dvb_usb_device_exit,
 	.id_table 	= dtt200u_usb_table,
@@ -166,6 +166,6 @@ module_init(dtt200u_usb_module_init);
 module_exit(dtt200u_usb_module_exit);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
-MODULE_DESCRIPTION("Driver for the Yakumo/Hama/Typhoon DVB-T USB2.0 device");
+MODULE_DESCRIPTION("Driver for the WideView/Yakumo/Hama/Typhoon DVB-T USB2.0 device");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");

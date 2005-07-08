@@ -12,7 +12,7 @@
 /* Vendor IDs */
 #define USB_VID_ADSTECH						0x06e1
 #define USB_VID_ANCHOR						0x0547
-#define USB_VID_AVERMEDIA_UNK				0x14aa
+#define USB_VID_WIDEVIEW					0x14aa
 #define USB_VID_AVERMEDIA					0x07ca
 #define USB_VID_COMPRO						0x185b
 #define USB_VID_COMPRO_UNK					0x145f

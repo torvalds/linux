@@ -1,5 +1,5 @@
-/* Frontend part of the Linux driver for the Yakumo/Hama/Typhoon DVB-T
- * USB2.0 receiver.
+/* Frontend part of the Linux driver for the WideView/ Yakumo/ Hama/
+ * Typhoon/ Yuan DVB-T USB2.0 receiver.
  *
  * Copyright (C) 2005 Patrick Boettcher <patrick.boettcher@desy.de>
  *
