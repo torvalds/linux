@@ -109,9 +109,11 @@ config DVB_USB_NOVA_T_USB2
 	  Say Y here to support the Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 receiver.
 
 config DVB_USB_DTT200U
-	tristate "WideView/Yakumo/Hama/Typhoon/Yuan DVB-T USB2.0 support"
+	tristate "WideView WT-200U and WT-220U (pen) DVB-T USB2.0 support (Yakumo/Hama/Typhoon/Yuan)"
 	depends on DVB_USB
 	help
 	  Say Y here to support the WideView/Yakumo/Hama/Typhoon/Yuan DVB-T USB2.0 receiver.
 
 	  The receivers are also known as DTT200U (Yakumo) and UB300 (Yuan).
+
+	  The WT-220U and its clones are pen-sized.
