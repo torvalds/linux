@@ -9,7 +9,7 @@ struct dvb_pll_desc {
 	char *name;
 	u32  min;
 	u32  max;
-	void (*setbw)(u8 *buf, int bandwidth);
+	void (*setbw)(u8 *buf, u32 freq, int bandwidth);
 	int  count;
 	struct {
 		u32 limit;
@@ -30,6 +30,7 @@ extern struct dvb_pll_desc dvb_pll_tua6010xs;
 extern struct dvb_pll_desc dvb_pll_env57h1xd5;
 extern struct dvb_pll_desc dvb_pll_tua6034;
 extern struct dvb_pll_desc dvb_pll_tda665x;
+extern struct dvb_pll_desc dvb_pll_fmd1216me;
 
 int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 		      u32 freq, int bandwidth);

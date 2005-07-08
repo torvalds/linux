@@ -55,7 +55,7 @@ struct dvb_pll_desc dvb_pll_thomson_dtt7610 = {
 };
 EXPORT_SYMBOL(dvb_pll_thomson_dtt7610);
 
-static void thomson_dtt759x_bw(u8 *buf, int bandwidth)
+static void thomson_dtt759x_bw(u8 *buf, u32 freq, int bandwidth)
 {
 	if (BANDWIDTH_7_MHZ == bandwidth)
 		buf[3] |= 0x10;
@@ -146,7 +146,7 @@ EXPORT_SYMBOL(dvb_pll_env57h1xd5);
 /* Philips TDA6650/TDA6651
  * used in Panasonic ENV77H11D5
  */
-static void tda665x_bw(u8 *buf, int bandwidth)
+static void tda665x_bw(u8 *buf, u32 freq, int bandwidth)
 {
 	if (bandwidth == BANDWIDTH_8_MHZ)
 		buf[3] |= 0x08;
@@ -178,7 +178,7 @@ EXPORT_SYMBOL(dvb_pll_tda665x);
 /* Infineon TUA6034
  * used in LG TDTP E102P
  */
-static void tua6034_bw(u8 *buf, int bandwidth)
+static void tua6034_bw(u8 *buf, u32 freq, int bandwidth)
 {
 	if (BANDWIDTH_7_MHZ != bandwidth)
 		buf[3] |= 0x08;
@@ -197,6 +197,33 @@ struct dvb_pll_desc dvb_pll_tua6034 = {
 	},
 };
 EXPORT_SYMBOL(dvb_pll_tua6034);
+
+/* Philips FMD1216ME
+ * used in Medion Hybrid PCMCIA card and USB Box
+ */
+static void fmd1216me_bw(u8 *buf, u32 freq, int bandwidth)
+{
+	if (bandwidth == BANDWIDTH_8_MHZ && freq >= 158870000)
+		buf[3] |= 0x08;
+}
+
+struct dvb_pll_desc dvb_pll_fmd1216me = {
+	.name = "placeholder",
+	.min = 50870000,
+	.max = 858000000,
+	.setbw = fmd1216me_bw,
+	.count = 7,
+	.entries = {
+		{ 143870000, 36213333, 166667, 0xbc, 0x41 },
+		{ 158870000, 36213333, 166667, 0xf4, 0x41 },
+		{ 329870000, 36213333, 166667, 0xbc, 0x42 },
+		{ 441870000, 36213333, 166667, 0xf4, 0x42 },
+		{ 625870000, 36213333, 166667, 0xbc, 0x44 },
+		{ 803870000, 36213333, 166667, 0xf4, 0x44 },
+		{ 999999999, 36213333, 166667, 0xfc, 0x44 },
+	}
+};
+EXPORT_SYMBOL(dvb_pll_fmd1216me);
 
 /* ----------------------------------------------------------- */
 /* code                                                        */
@@ -231,7 +258,7 @@ int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 	buf[3] = desc->entries[i].cb2;
 
 	if (desc->setbw)
-		desc->setbw(buf, bandwidth);
+		desc->setbw(buf, freq, bandwidth);
 
 	if (debug)
 		printk("pll: %s: div=%d | buf=0x%02x,0x%02x,0x%02x,0x%02x\n",
