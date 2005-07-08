@@ -35,6 +35,7 @@
  */
 
 #include <ib_smi.h>
+#include <linux/mm.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
@@ -336,6 +337,22 @@ static int mthca_dealloc_ucontext(struct ib_ucontext *context)
 				  to_mucontext(context)->db_tab);
 	mthca_uar_free(to_mdev(context->device), &to_mucontext(context)->uar);
 	kfree(to_mucontext(context));
+
+	return 0;
+}
+
+static int mthca_mmap_uar(struct ib_ucontext *context,
+			  struct vm_area_struct *vma)
+{
+	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (remap_pfn_range(vma, vma->vm_start,
+			    to_mucontext(context)->uar.pfn,
+			    PAGE_SIZE, vma->vm_page_prot))
+		return -EAGAIN;
 
 	return 0;
 }
@@ -766,6 +783,7 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.query_gid            = mthca_query_gid;
 	dev->ib_dev.alloc_ucontext       = mthca_alloc_ucontext;
 	dev->ib_dev.dealloc_ucontext     = mthca_dealloc_ucontext;
+	dev->ib_dev.mmap                 = mthca_mmap_uar;
 	dev->ib_dev.alloc_pd             = mthca_alloc_pd;
 	dev->ib_dev.dealloc_pd           = mthca_dealloc_pd;
 	dev->ib_dev.create_ah            = mthca_ah_create;
