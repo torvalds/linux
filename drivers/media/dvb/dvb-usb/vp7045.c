@@ -94,13 +94,38 @@ static int vp7045_power_ctrl(struct dvb_usb_device *d, int onoff)
 /* The keymapping struct. Somehow this should be loaded to the driver, but
  * currently it is hardcoded. */
 static struct dvb_usb_rc_key vp7045_rc_keys[] = {
-	/* insert the keys like this. to make the raw keys visible, enable
-	 * debug=0x04 when loading dvb-usb-vp7045. */
-
-	/* these keys are probably wrong. I don't have a working IR-receiver on my
-	 * vp7045, so I can't test it.  Patches are welcome. */
-	{ 0x00, 0x01, KEY_1 },
-	{ 0x00, 0x02, KEY_2 },
+	{ 0x00, 0x16, KEY_POWER },
+	{ 0x00, 0x10, KEY_MUTE },
+	{ 0x00, 0x03, KEY_1 },
+	{ 0x00, 0x01, KEY_2 },
+	{ 0x00, 0x06, KEY_3 },
+	{ 0x00, 0x09, KEY_4 },
+	{ 0x00, 0x1d, KEY_5 },
+	{ 0x00, 0x1f, KEY_6 },
+	{ 0x00, 0x0d, KEY_7 },
+	{ 0x00, 0x19, KEY_8 },
+	{ 0x00, 0x1b, KEY_9 },
+	{ 0x00, 0x15, KEY_0 },
+	{ 0x00, 0x05, KEY_CHANNELUP },
+	{ 0x00, 0x02, KEY_CHANNELDOWN },
+	{ 0x00, 0x1e, KEY_VOLUMEUP },
+	{ 0x00, 0x0a, KEY_VOLUMEDOWN },
+	{ 0x00, 0x11, KEY_RECORD },
+	{ 0x00, 0x17, KEY_FAVORITES }, /* Heart symbol - Channel list. */
+	{ 0x00, 0x14, KEY_PLAY },
+	{ 0x00, 0x1a, KEY_STOP },
+	{ 0x00, 0x40, KEY_REWIND },
+	{ 0x00, 0x12, KEY_FASTFORWARD },
+	{ 0x00, 0x0e, KEY_PREVIOUS }, /* Recall - Previous channel. */
+	{ 0x00, 0x4c, KEY_PAUSE },
+	{ 0x00, 0x4d, KEY_SCREEN }, /* Full screen mode. */
+	{ 0x00, 0x54, KEY_AUDIO }, /* MTS - Switch to secondary audio. */
+	{ 0x00, 0xa1, KEY_CANCEL }, /* Cancel */
+	{ 0x00, 0x1c, KEY_EPG }, /* EPG */
+	{ 0x00, 0x40, KEY_TAB }, /* Tab */
+	{ 0x00, 0x48, KEY_INFO }, /* Preview */
+	{ 0x00, 0x04, KEY_LIST }, /* RecordList */
+	{ 0x00, 0x0f, KEY_TEXT } /* Teletext */
 };
 
 static int vp7045_rc_query(struct dvb_usb_device *d, u32 *key_buf, int *state)

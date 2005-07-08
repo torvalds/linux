@@ -226,7 +226,9 @@ Patches, comments and suggestions are very very welcome.
    Jennifer Chen, Jeff and Jack from Twinhan for kindly supporting by
 	writing the vp7045-driver.
 
-   Some guys on the linux-dvb mailing list for encouraging me
+   Michael Paxton for submitting remote control keymaps.
+
+   Some guys on the linux-dvb mailing list for encouraging me.
 
    Peter Schildmann >peter.schildmann-nospam-at-web.de< for his
     user-level firmware loader, which saves a lot of time
