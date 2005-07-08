@@ -1366,9 +1366,9 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 		if ((buflen -= 4) < 0)
 			goto out_resource;
 		if (exp->ex_flags & NFSEXP_NOSUBTREECHECK)
-			WRITE32(NFS4_FH_VOLATILE_ANY);
+			WRITE32(NFS4_FH_PERSISTENT);
 		else
-			WRITE32(NFS4_FH_VOLATILE_ANY|NFS4_FH_VOL_RENAME);
+			WRITE32(NFS4_FH_PERSISTENT|NFS4_FH_VOL_RENAME);
 	}
 	if (bmval0 & FATTR4_WORD0_CHANGE) {
 		/*
