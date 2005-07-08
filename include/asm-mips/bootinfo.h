@@ -77,6 +77,7 @@
 #define  MACH_SGI_IP27		1	/* Origin 200, Origin 2000, Onyx 2 */
 #define  MACH_SGI_IP28		2	/* Indigo2 Impact		*/
 #define  MACH_SGI_IP32		3	/* O2				*/
+#define  MACH_SGI_IP30		4	/* Octane, Octane2              */
 
 /*
  * Valid machtype for group COBALT
