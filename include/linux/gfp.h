@@ -12,8 +12,8 @@ struct vm_area_struct;
  * GFP bitmasks..
  */
 /* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low two bits) */
-#define __GFP_DMA	0x01
-#define __GFP_HIGHMEM	0x02
+#define __GFP_DMA	0x01u
+#define __GFP_HIGHMEM	0x02u
 
 /*
  * Action modifiers - doesn't change the zoning

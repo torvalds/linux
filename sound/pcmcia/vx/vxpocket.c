@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
-#include <pcmcia/version.h>
 #include "vxpocket.h"
 #include <sound/initval.h>
 

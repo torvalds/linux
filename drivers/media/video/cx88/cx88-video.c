@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-video.c,v 1.63 2005/06/12 04:19:19 mchehab Exp $
+ * $Id: cx88-video.c,v 1.70 2005/06/20 03:36:00 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * video4linux video interface
@@ -261,7 +261,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.default_value = 0,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
-		.off                   = 0,
+		.off                   = 128,
 		.reg                   = MO_HUE,
 		.mask                  = 0x00ff,
 		.shift                 = 0,
@@ -1351,9 +1351,6 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			V4L2_CAP_STREAMING     |
 			V4L2_CAP_VBI_CAPTURE   |
 #if 0
-			V4L2_TUNER_CAP_LOW     |
-#endif
-#if 0
 			V4L2_CAP_VIDEO_OVERLAY |
 #endif
 			0;
@@ -1475,7 +1472,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			}
 			break;
 		case 1:
-			if (CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD == core->board) {
+			if (CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q == core->board) {
 				strcpy(a->name,"Line In");
 				a->capability = V4L2_AUDCAP_STEREO;
 				return 0;
@@ -1588,11 +1585,11 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct v4l2_frequency *f = arg;
 
+		memset(f,0,sizeof(*f));
+
 		if (UNSET == core->tuner_type)
 			return -EINVAL;
-		if (f->tuner != 0)
-			return -EINVAL;
-		memset(f,0,sizeof(*f));
+
 		f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 		f->frequency = dev->freq;
 		return 0;
@@ -1612,11 +1609,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		down(&dev->lock);
 		dev->freq = f->frequency;
 		cx88_newstation(core);
-#ifdef V4L2_I2C_CLIENTS
 		cx88_call_i2c_clients(dev->core,VIDIOC_S_FREQUENCY,f);
-#else
-		cx88_call_i2c_clients(dev->core,VIDIOCSFREQ,&dev->freq);
-#endif
 		up(&dev->lock);
 		return 0;
 	}
@@ -1714,11 +1707,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 			sizeof(cap->card));
 		sprintf(cap->bus_info,"PCI:%s", pci_name(dev->pci));
 		cap->version = CX88_VERSION_CODE;
-		cap->capabilities = V4L2_CAP_TUNER
-#if 0
-				    | V4L2_TUNER_CAP_LOW
-#endif
-				    ;
+		cap->capabilities = V4L2_CAP_TUNER;
 		return 0;
 	}
 	case VIDIOC_G_TUNER:
@@ -1730,19 +1719,8 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 
 		memset(t,0,sizeof(*t));
 		strcpy(t->name, "Radio");
-                t->rangelow  = (int)(65*16);
-                t->rangehigh = (int)(108*16);
 
-#ifdef V4L2_I2C_CLIENTS
 		cx88_call_i2c_clients(dev->core,VIDIOC_G_TUNER,t);
-#else
-		{
-			struct video_tuner vt;
-			memset(&vt,0,sizeof(vt));
-			cx88_call_i2c_clients(dev,VIDIOCGTUNER,&vt);
-			t->signal = vt.signal;
-		}
-#endif
 		return 0;
 	}
 	case VIDIOC_ENUMINPUT:
@@ -1775,8 +1753,29 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 		*id = 0;
 		return 0;
 	}
-	case VIDIOC_S_AUDIO:
+	case VIDIOCSTUNER:
+	{
+		struct video_tuner *v = arg;
+
+		if (v->tuner) /* Only tuner 0 */
+			return -EINVAL;
+
+		cx88_call_i2c_clients(dev->core,VIDIOCSTUNER,v);
+                return 0;
+	}
 	case VIDIOC_S_TUNER:
+	{
+		struct v4l2_tuner *t = arg;
+
+		if (0 != t->index)
+			return -EINVAL;
+
+		cx88_call_i2c_clients(dev->core,VIDIOC_S_TUNER,t);
+
+		return 0;
+	}
+
+	case VIDIOC_S_AUDIO:
 	case VIDIOC_S_INPUT:
 	case VIDIOC_S_STD:
 		return 0;

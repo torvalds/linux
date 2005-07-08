@@ -258,10 +258,10 @@ int write_dst(struct dst_state *state, u8 *data, u8 len)
 	if (debug && (verbose > 4)) {
 		u8 i;
 		if (verbose > 4) {
-			dprintk("%s writing", __FUNCTION__);
+			dprintk("%s writing [ ", __FUNCTION__);
 			for (i = 0; i < len; i++)
-				dprintk(" %02x", data[i]);
-			dprintk("\n");
+				dprintk("%02x ", data[i]);
+			dprintk("]\n");
 		}
 	}
 	for (cnt = 0; cnt < 2; cnt++) {
@@ -320,10 +320,29 @@ int read_dst(struct dst_state *state, u8 * ret, u8 len)
 }
 EXPORT_SYMBOL(read_dst);
 
+static int dst_set_polarization(struct dst_state *state)
+{
+	switch (state->voltage) {
+		case SEC_VOLTAGE_13:	// vertical
+			printk("%s: Polarization=[Vertical]\n", __FUNCTION__);
+			state->tx_tuna[8] &= ~0x40;  //1
+			break;
+
+		case SEC_VOLTAGE_18:	// horizontal
+			printk("%s: Polarization=[Horizontal]\n", __FUNCTION__);
+			state->tx_tuna[8] |= 0x40;  // 0
+			break;
+
+		case SEC_VOLTAGE_OFF:
+
+			break;
+	}
+
+	return 0;
+}
+
 static int dst_set_freq(struct dst_state *state, u32 freq)
 {
-	u8 *val;
-
 	state->frequency = freq;
 	if (debug > 4)
 		dprintk("%s: set Frequency %u\n", __FUNCTION__, freq);
@@ -332,46 +351,30 @@ static int dst_set_freq(struct dst_state *state, u32 freq)
 		freq = freq / 1000;
 		if (freq < 950 || freq > 2150)
 			return -EINVAL;
-		val = &state->tx_tuna[0];
-		val[2] = (freq >> 8) & 0x7f;
-		val[3] = (u8) freq;
-		val[4] = 1;
-		val[8] &= ~4;
-		if (freq < 1531)
-			val[8] |= 4;
+
+		state->tx_tuna[2] = (freq >> 8);
+		state->tx_tuna[3] = (u8) freq;
+		state->tx_tuna[4] = 0x01;
+		state->tx_tuna[8] &= ~0x04;
+		if (state->type_flags & DST_TYPE_HAS_OBS_REGS) {
+			if (freq < 1531)
+				state->tx_tuna[8] |= 0x04;
+		}
+
 	} else if (state->dst_type == DST_TYPE_IS_TERR) {
 		freq = freq / 1000;
 		if (freq < 137000 || freq > 858000)
 			return -EINVAL;
-		val = &state->tx_tuna[0];
-		val[2] = (freq >> 16) & 0xff;
-		val[3] = (freq >> 8) & 0xff;
-		val[4] = (u8) freq;
-		val[5] = 0;
-		switch (state->bandwidth) {
-		case BANDWIDTH_6_MHZ:
-			val[6] = 6;
-			break;
 
-		case BANDWIDTH_7_MHZ:
-		case BANDWIDTH_AUTO:
-			val[6] = 7;
-			break;
+		state->tx_tuna[2] = (freq >> 16) & 0xff;
+		state->tx_tuna[3] = (freq >> 8) & 0xff;
+		state->tx_tuna[4] = (u8) freq;
 
-		case BANDWIDTH_8_MHZ:
-			val[6] = 8;
-			break;
-		}
-
-		val[7] = 0;
-		val[8] = 0;
 	} else if (state->dst_type == DST_TYPE_IS_CABLE) {
-		/* guess till will get one */
-		freq = freq / 1000;
-		val = &state->tx_tuna[0];
-		val[2] = (freq >> 16) & 0xff;
-		val[3] = (freq >> 8) & 0xff;
-		val[4] = (u8) freq;
+		state->tx_tuna[2] = (freq >> 16) & 0xff;
+		state->tx_tuna[3] = (freq >> 8) & 0xff;
+		state->tx_tuna[4] = (u8) freq;
+
 	} else
 		return -EINVAL;
 	return 0;
@@ -379,51 +382,58 @@ static int dst_set_freq(struct dst_state *state, u32 freq)
 
 static int dst_set_bandwidth(struct dst_state* state, fe_bandwidth_t bandwidth)
 {
-	u8 *val;
-
 	state->bandwidth = bandwidth;
 
 	if (state->dst_type != DST_TYPE_IS_TERR)
 		return 0;
 
-	val = &state->tx_tuna[0];
 	switch (bandwidth) {
-	case BANDWIDTH_6_MHZ:
-		val[6] = 6;
-		break;
+		case BANDWIDTH_6_MHZ:
+			if (state->dst_hw_cap & DST_TYPE_HAS_CA)
+				state->tx_tuna[7] = 0x06;
+			else {
+				state->tx_tuna[6] = 0x06;
+				state->tx_tuna[7] = 0x00;
+			}
+			break;
 
-	case BANDWIDTH_7_MHZ:
-		val[6] = 7;
-		break;
+		case BANDWIDTH_7_MHZ:
+			if (state->dst_hw_cap & DST_TYPE_HAS_CA)
+				state->tx_tuna[7] = 0x07;
+			else {
+				state->tx_tuna[6] = 0x07;
+				state->tx_tuna[7] = 0x00;
+			}
+			break;
 
-	case BANDWIDTH_8_MHZ:
-		val[6] = 8;
-		break;
+		case BANDWIDTH_8_MHZ:
+			if (state->dst_hw_cap & DST_TYPE_HAS_CA)
+				state->tx_tuna[7] = 0x08;
+			else {
+				state->tx_tuna[6] = 0x08;
+				state->tx_tuna[7] = 0x00;
+			}
+			break;
 
-	default:
-		return -EINVAL;
+		default:
+			return -EINVAL;
 	}
 	return 0;
 }
 
 static int dst_set_inversion(struct dst_state* state, fe_spectral_inversion_t inversion)
 {
-	u8 *val;
-
 	state->inversion = inversion;
-
-	val = &state->tx_tuna[0];
-
-	val[8] &= ~0x80;
-
 	switch (inversion) {
-	case INVERSION_OFF:
-		break;
-	case INVERSION_ON:
-		val[8] |= 0x80;
-		break;
-	default:
-		return -EINVAL;
+		case INVERSION_OFF:	// Inversion = Normal
+			state->tx_tuna[8] &= ~0x80;
+			break;
+
+		case INVERSION_ON:
+			state->tx_tuna[8] |= 0x80;
+			break;
+		default:
+			return -EINVAL;
 	}
 	return 0;
 }
@@ -477,6 +487,52 @@ static int dst_set_symbolrate(struct dst_state* state, u32 srate)
 		val[8] |= 0x20;
 	return 0;
 }
+
+
+static int dst_set_modulation(struct dst_state *state, fe_modulation_t modulation)
+{
+	if (state->dst_type != DST_TYPE_IS_CABLE)
+		return 0;
+
+	state->modulation = modulation;
+	switch (modulation) {
+		case QAM_16:
+			state->tx_tuna[8] = 0x10;
+			break;
+
+		case QAM_32:
+			state->tx_tuna[8] = 0x20;
+			break;
+
+		case QAM_64:
+			state->tx_tuna[8] = 0x40;
+			break;
+
+		case QAM_128:
+			state->tx_tuna[8] = 0x80;
+			break;
+
+		case QAM_256:
+			state->tx_tuna[8] = 0x00;
+			break;
+
+		case QPSK:
+		case QAM_AUTO:
+		case VSB_8:
+		case VSB_16:
+		default:
+			return -EINVAL;
+
+	}
+
+	return 0;
+}
+
+static fe_modulation_t dst_get_modulation(struct dst_state *state)
+{
+	return state->modulation;
+}
+
 
 u8 dst_check_sum(u8 * buf, u32 len)
 {
@@ -577,7 +633,7 @@ struct dst_types dst_tlist[] = {
 		.device_id = "200103A",
 		.offset = 0,
 		.dst_type =  DST_TYPE_IS_SAT,
-		.type_flags = DST_TYPE_HAS_SYMDIV | DST_TYPE_HAS_FW_1,
+		.type_flags = DST_TYPE_HAS_SYMDIV | DST_TYPE_HAS_FW_1 | DST_TYPE_HAS_OBS_REGS,
 		.dst_feature = 0
 	},	/*	obsolete	*/
 
@@ -626,7 +682,7 @@ struct dst_types dst_tlist[] = {
 		.device_id = "DSTMCI",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_SAT,
-		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD,
+		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD | DST_TYPE_HAS_INC_COUNT,
 		.dst_feature = DST_TYPE_HAS_CA | DST_TYPE_HAS_DISEQC3 | DST_TYPE_HAS_DISEQC4
 							| DST_TYPE_HAS_MOTO | DST_TYPE_HAS_MAC
 	},
@@ -872,7 +928,7 @@ static int dst_get_signal(struct dst_state* state)
 {
 	int retval;
 	u8 get_signal[] = { 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfb };
-
+	printk("%s: Getting Signal strength and other parameters !!!!!!!!\n", __FUNCTION__);
 	if ((state->diseq_flags & ATTEMPT_TUNE) == 0) {
 		state->decode_lock = state->decode_strength = state->decode_snr = 0;
 		return 0;
@@ -954,15 +1010,8 @@ static int dst_get_tuna(struct dst_state* state)
 	state->decode_freq = ((state->rx_tuna[2] & 0x7f) << 8) + state->rx_tuna[3];
 
 	state->decode_lock = 1;
-	/*
-	   dst->decode_n1 = (dst->rx_tuna[4] << 8) +
-	   (dst->rx_tuna[5]);
-
-	   dst->decode_n2 = (dst->rx_tuna[8] << 8) +
-	   (dst->rx_tuna[7]);
-	 */
 	state->diseq_flags |= HAS_LOCK;
-	/* dst->cur_jiff = jiffies; */
+
 	return 1;
 }
 
@@ -1098,7 +1147,11 @@ static int dst_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 
 	switch (tone) {
 		case SEC_TONE_OFF:
-			state->tx_tuna[2] = 0xff;
+			if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
+			    state->tx_tuna[2] = 0x00;
+			else
+			    state->tx_tuna[2] = 0xff;
+
 			break;
 
 		case SEC_TONE_ON:
@@ -1145,7 +1198,8 @@ static int dst_init(struct dvb_frontend* fe)
 	static u8 ini_tvci_tuna[] = { 9, 0, 3, 0xb6, 1, 7, 0x0, 0x0, 0, 0 };
 	static u8 ini_cabfta_tuna[] = { 0, 0, 3, 0xb6, 1, 7, 0x0, 0x0, 0, 0 };
 	static u8 ini_cabci_tuna[] = { 9, 0, 3, 0xb6, 1, 7, 0x0, 0x0, 0, 0 };
-	state->inversion = INVERSION_ON;
+//	state->inversion = INVERSION_ON;
+	state->inversion = INVERSION_OFF;
 	state->voltage = SEC_VOLTAGE_13;
 	state->tone = SEC_TONE_OFF;
 	state->symbol_rate = 29473000;
@@ -1174,7 +1228,7 @@ static int dst_read_status(struct dvb_frontend* fe, fe_status_t* status)
 
 	*status = 0;
 	if (state->diseq_flags & HAS_LOCK) {
-		dst_get_signal(state);
+//		dst_get_signal(state);	// don't require(?) to ask MCU
 		if (state->decode_lock)
 			*status |= FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_SYNC | FE_HAS_VITERBI;
 	}
@@ -1208,20 +1262,25 @@ static int dst_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_paramet
 
 	dst_set_freq(state, p->frequency);
 	if (verbose > 4)
-		dprintk("Set Frequency = [%d]\n", p->frequency);
+		dprintk("Set Frequency=[%d]\n", p->frequency);
 
-	dst_set_inversion(state, p->inversion);
+//	dst_set_inversion(state, p->inversion);
 	if (state->dst_type == DST_TYPE_IS_SAT) {
+		if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
+			dst_set_inversion(state, p->inversion);
+
 		dst_set_fec(state, p->u.qpsk.fec_inner);
 		dst_set_symbolrate(state, p->u.qpsk.symbol_rate);
+		dst_set_polarization(state);
 		if (verbose > 4)
-			dprintk("Set Symbolrate = [%d]\n", p->u.qpsk.symbol_rate);
+			dprintk("Set Symbolrate=[%d]\n", p->u.qpsk.symbol_rate);
 
 	} else if (state->dst_type == DST_TYPE_IS_TERR) {
 		dst_set_bandwidth(state, p->u.ofdm.bandwidth);
 	} else if (state->dst_type == DST_TYPE_IS_CABLE) {
 		dst_set_fec(state, p->u.qam.fec_inner);
 		dst_set_symbolrate(state, p->u.qam.symbol_rate);
+		dst_set_modulation(state, p->u.qam.modulation);
 	}
 	dst_write_tuna(fe);
 
@@ -1233,8 +1292,11 @@ static int dst_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_paramet
 	struct dst_state* state = fe->demodulator_priv;
 
 	p->frequency = state->decode_freq;
-	p->inversion = state->inversion;
+//	p->inversion = state->inversion;
 	if (state->dst_type == DST_TYPE_IS_SAT) {
+		if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
+			p->inversion = state->inversion;
+
 		p->u.qpsk.symbol_rate = state->symbol_rate;
 		p->u.qpsk.fec_inner = dst_get_fec(state);
 	} else if (state->dst_type == DST_TYPE_IS_TERR) {
@@ -1242,7 +1304,8 @@ static int dst_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_paramet
 	} else if (state->dst_type == DST_TYPE_IS_CABLE) {
 		p->u.qam.symbol_rate = state->symbol_rate;
 		p->u.qam.fec_inner = dst_get_fec(state);
-		p->u.qam.modulation = QAM_AUTO;
+//		p->u.qam.modulation = QAM_AUTO;
+		p->u.qam.modulation = dst_get_modulation(state);
 	}
 
 	return 0;

@@ -228,7 +228,7 @@ static struct sysrq_key_op sysrq_term_op = {
 
 static void moom_callback(void *ignored)
 {
-	out_of_memory(GFP_KERNEL);
+	out_of_memory(GFP_KERNEL, 0);
 }
 
 static DECLARE_WORK(moom_work, moom_callback, NULL);

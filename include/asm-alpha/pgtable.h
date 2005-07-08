@@ -132,6 +132,8 @@
 #define __S110	_PAGE_S(0)
 #define __S111	_PAGE_S(0)
 
+#define pgprot_noncached(prot)	(prot)
+
 /*
  * BAD_PAGETABLE is used when we need a bogus page-table, while
  * BAD_PAGE is used for a bogus page.

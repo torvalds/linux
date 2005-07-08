@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-input.c,v 1.11 2005/05/22 20:57:56 nsh Exp $
+ * $Id: cx88-input.c,v 1.13 2005/06/13 16:07:46 nsh Exp $
  *
  * Device driver for GPIO attached remote control interfaces
  * on Conexant 2388x based TV/DVB cards.
@@ -121,6 +121,86 @@ static IR_KEYTAB_TYPE ir_codes_iodata_bctv7e[IR_KEYTAB_SIZE] = {
 	[ 0x21 ] = KEY_PLAY,            // play
 	[ 0x61 ] = KEY_FASTFORWARD,     // forward >>
 	[ 0x01 ] = KEY_NEXT,            // skip >|
+};
+
+/* ---------------------------------------------------------------------- */
+
+/* ADS Tech Instant TV DVB-T PCI Remote */
+static IR_KEYTAB_TYPE ir_codes_adstech_dvb_t_pci[IR_KEYTAB_SIZE] = {
+	[ 0x5b ] = KEY_POWER,
+	[ 0x5f ] = KEY_MUTE,
+	[ 0x57 ] = KEY_1,
+	[ 0x4f ] = KEY_2,
+	[ 0x53 ] = KEY_3,
+	[ 0x56 ] = KEY_4,
+	[ 0x4e ] = KEY_5,
+	[ 0x5e ] = KEY_6,
+	[ 0x54 ] = KEY_7,
+	[ 0x4c ] = KEY_8,
+	[ 0x5c ] = KEY_9,
+	[ 0x4d ] = KEY_0,
+	[ 0x55 ] = KEY_GOTO,
+	[ 0x5d ] = KEY_SEARCH,
+	[ 0x17 ] = KEY_EPG,             // Guide
+	[ 0x1f ] = KEY_MENU,
+	[ 0x0f ] = KEY_UP,
+	[ 0x46 ] = KEY_DOWN,
+	[ 0x16 ] = KEY_LEFT,
+	[ 0x1e ] = KEY_RIGHT,
+	[ 0x0e ] = KEY_SELECT,          // Enter
+	[ 0x5a ] = KEY_INFO,
+	[ 0x52 ] = KEY_EXIT,
+	[ 0x59 ] = KEY_PREVIOUS,
+	[ 0x51 ] = KEY_NEXT,
+	[ 0x58 ] = KEY_REWIND,
+	[ 0x50 ] = KEY_FORWARD,
+	[ 0x44 ] = KEY_PLAYPAUSE,
+	[ 0x07 ] = KEY_STOP,
+	[ 0x1b ] = KEY_RECORD,
+	[ 0x13 ] = KEY_TUNER,           // Live
+	[ 0x0a ] = KEY_A,
+	[ 0x12 ] = KEY_B,
+	[ 0x03 ] = KEY_PROG1,           // 1
+	[ 0x01 ] = KEY_PROG2,           // 2
+	[ 0x00 ] = KEY_PROG3,           // 3
+	[ 0x06 ] = KEY_DVD,
+	[ 0x48 ] = KEY_AUX,             // Photo
+	[ 0x40 ] = KEY_VIDEO,
+	[ 0x19 ] = KEY_AUDIO,           // Music
+	[ 0x0b ] = KEY_CHANNELUP,
+	[ 0x08 ] = KEY_CHANNELDOWN,
+	[ 0x15 ] = KEY_VOLUMEUP,
+	[ 0x1c ] = KEY_VOLUMEDOWN,
+};
+
+/* ---------------------------------------------------------------------- */
+
+/* MSI TV@nywhere remote */
+static IR_KEYTAB_TYPE ir_codes_msi_tvanywhere[IR_KEYTAB_SIZE] = {
+       [ 0x00 ] = KEY_0,           /* '0' */
+       [ 0x01 ] = KEY_1,           /* '1' */
+       [ 0x02 ] = KEY_2,           /* '2' */
+       [ 0x03 ] = KEY_3,           /* '3' */
+       [ 0x04 ] = KEY_4,           /* '4' */
+       [ 0x05 ] = KEY_5,           /* '5' */
+       [ 0x06 ] = KEY_6,           /* '6' */
+       [ 0x07 ] = KEY_7,           /* '7' */
+       [ 0x08 ] = KEY_8,           /* '8' */
+       [ 0x09 ] = KEY_9,           /* '9' */
+       [ 0x0c ] = KEY_MUTE,        /* 'Mute' */
+       [ 0x0f ] = KEY_SCREEN,      /* 'Full Screen' */
+       [ 0x10 ] = KEY_F,           /* 'Funtion' */
+       [ 0x11 ] = KEY_T,           /* 'Time shift' */
+       [ 0x12 ] = KEY_POWER,       /* 'Power' */
+       [ 0x13 ] = KEY_MEDIA,       /* 'MTS' */
+       [ 0x14 ] = KEY_SLOW,        /* 'Slow' */
+       [ 0x16 ] = KEY_REWIND,      /* 'backward <<' */
+       [ 0x17 ] = KEY_ENTER,       /* 'Return' */
+       [ 0x18 ] = KEY_FASTFORWARD, /* 'forward >>' */
+       [ 0x1a ] = KEY_CHANNELUP,   /* 'Channel+' */
+       [ 0x1b ] = KEY_VOLUMEUP,    /* 'Volume+' */
+       [ 0x1e ] = KEY_CHANNELDOWN, /* 'Channel-' */
+       [ 0x1f ] = KEY_VOLUMEDOWN,  /* 'Volume-' */
 };
 
 /* ---------------------------------------------------------------------- */
@@ -269,6 +349,20 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->mask_keyup   = 0x80;
 		ir->polling      = 1; // ms
 		break;
+	case CX88_BOARD_ADSTECH_DVB_T_PCI:
+		ir_codes         = ir_codes_adstech_dvb_t_pci;
+		ir->gpio_addr    = MO_GP1_IO;
+		ir->mask_keycode = 0xbf;
+		ir->mask_keyup   = 0x40;
+		ir->polling      = 50; // ms
+		break;
+        case CX88_BOARD_MSI_TVANYWHERE_MASTER:
+                ir_codes         = ir_codes_msi_tvanywhere;
+                ir->gpio_addr    = MO_GP1_IO;
+                ir->mask_keycode = 0x1f;
+                ir->mask_keyup   = 0x40;
+                ir->polling      = 1;
+                break;
 	}
 
 	if (NULL == ir_codes) {

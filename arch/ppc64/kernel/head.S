@@ -308,6 +308,7 @@ exception_marker:
 label##_pSeries:					\
 	HMT_MEDIUM;					\
 	mtspr	SPRG1,r13;		/* save r13 */	\
+	RUNLATCH_ON(r13);				\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
 
 #define STD_EXCEPTION_ISERIES(n, label, area)		\
@@ -315,6 +316,7 @@ label##_pSeries:					\
 label##_iSeries:					\
 	HMT_MEDIUM;					\
 	mtspr	SPRG1,r13;		/* save r13 */	\
+	RUNLATCH_ON(r13);				\
 	EXCEPTION_PROLOG_ISERIES_1(area);		\
 	EXCEPTION_PROLOG_ISERIES_2;			\
 	b	label##_common
@@ -324,6 +326,7 @@ label##_iSeries:					\
 label##_iSeries:							\
 	HMT_MEDIUM;							\
 	mtspr	SPRG1,r13;		/* save r13 */			\
+	RUNLATCH_ON(r13);						\
 	EXCEPTION_PROLOG_ISERIES_1(PACA_EXGEN);				\
 	lbz	r10,PACAPROCENABLED(r13);				\
 	cmpwi	0,r10,0;						\
@@ -393,6 +396,7 @@ __start_interrupts:
 _machine_check_pSeries:
 	HMT_MEDIUM
 	mtspr	SPRG1,r13		/* save r13 */
+	RUNLATCH_ON(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
 	. = 0x300
@@ -419,6 +423,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 data_access_slb_pSeries:
 	HMT_MEDIUM
 	mtspr	SPRG1,r13
+	RUNLATCH_ON(r13)
 	mfspr	r13,SPRG3		/* get paca address into r13 */
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
 	std	r10,PACA_EXSLB+EX_R10(r13)
@@ -439,6 +444,7 @@ data_access_slb_pSeries:
 instruction_access_slb_pSeries:
 	HMT_MEDIUM
 	mtspr	SPRG1,r13
+	RUNLATCH_ON(r13)
 	mfspr	r13,SPRG3		/* get paca address into r13 */
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
 	std	r10,PACA_EXSLB+EX_R10(r13)
@@ -464,6 +470,7 @@ instruction_access_slb_pSeries:
 	.globl	system_call_pSeries
 system_call_pSeries:
 	HMT_MEDIUM
+	RUNLATCH_ON(r9)
 	mr	r9,r13
 	mfmsr	r10
 	mfspr	r13,SPRG3
@@ -707,11 +714,13 @@ fwnmi_data_area:
 system_reset_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRG1,r13		/* save r13 */
+	RUNLATCH_ON(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
 	.globl machine_check_fwnmi
 machine_check_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRG1,r13		/* save r13 */
+	RUNLATCH_ON(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
 	/*
@@ -848,6 +857,7 @@ unrecov_fer:
 	.align	7
 	.globl data_access_common
 data_access_common:
+	RUNLATCH_ON(r10)		/* It wont fit in the 0x300 handler */
 	mfspr	r10,DAR
 	std	r10,PACA_EXGEN+EX_DAR(r13)
 	mfspr	r10,DSISR

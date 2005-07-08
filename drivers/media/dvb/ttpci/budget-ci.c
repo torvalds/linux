@@ -69,6 +69,7 @@ struct budget_ci {
 	int slot_status;
 	struct dvb_ca_en50221 ca;
 	char ir_dev_name[50];
+	u8 tuner_pll_address; /* used for philips_tdm1316l configs */
 };
 
 /* from reading the following remotes:
@@ -723,7 +724,7 @@ static int philips_tdm1316l_pll_init(struct dvb_frontend *fe)
 	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
 	static u8 td1316_init[] = { 0x0b, 0xf5, 0x85, 0xab };
 	static u8 disable_mc44BC374c[] = { 0x1d, 0x74, 0xa0, 0x68 };
-	struct i2c_msg tuner_msg = {.addr = 0x63,.flags = 0,.buf = td1316_init,.len =
+	struct i2c_msg tuner_msg = {.addr = budget_ci->tuner_pll_address,.flags = 0,.buf = td1316_init,.len =
 			sizeof(td1316_init) };
 
 	// setup PLL configuration
@@ -746,7 +747,7 @@ static int philips_tdm1316l_pll_set(struct dvb_frontend *fe, struct dvb_frontend
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
 	u8 tuner_buf[4];
-	struct i2c_msg tuner_msg = {.addr = 0x63,.flags = 0,.buf = tuner_buf,.len = sizeof(tuner_buf) };
+	struct i2c_msg tuner_msg = {.addr = budget_ci->tuner_pll_address,.flags = 0,.buf = tuner_buf,.len = sizeof(tuner_buf) };
 	int tuner_frequency = 0;
 	u8 band, cp, filter;
 
@@ -838,8 +839,12 @@ static struct tda1004x_config philips_tdm1316l_config = {
 	.demod_address = 0x8,
 	.invert = 0,
 	.invert_oclk = 0,
+	.xtal_freq = TDA10046_XTAL_4M,
+	.agc_config = TDA10046_AGC_DEFAULT,
+	.if_freq = TDA10046_FREQ_3617,
 	.pll_init = philips_tdm1316l_pll_init,
 	.pll_set = philips_tdm1316l_pll_set,
+	.pll_sleep = NULL,
 	.request_firmware = philips_tdm1316l_request_firmware,
 };
 
@@ -865,8 +870,18 @@ static void frontend_init(struct budget_ci *budget_ci)
 		break;
 
 	case 0x1011:		// Hauppauge/TT Nova-T budget (tda10045/Philips tdm1316l(tda6651tt) + TDA9889)
+		budget_ci->tuner_pll_address = 0x63;
 		budget_ci->budget.dvb_frontend =
 			tda10045_attach(&philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
+		if (budget_ci->budget.dvb_frontend) {
+			break;
+		}
+		break;
+
+	case 0x1012:		// Hauppauge/TT Nova-T CI budget (tda10045/Philips tdm1316l(tda6651tt) + TDA9889)
+		budget_ci->tuner_pll_address = 0x60;
+		budget_ci->budget.dvb_frontend =
+			tda10046_attach(&philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			break;
 		}
@@ -950,11 +965,13 @@ static struct saa7146_extension budget_extension;
 
 MAKE_BUDGET_INFO(ttbci, "TT-Budget/WinTV-NOVA-CI PCI", BUDGET_TT_HW_DISEQC);
 MAKE_BUDGET_INFO(ttbt2, "TT-Budget/WinTV-NOVA-T	 PCI", BUDGET_TT);
+MAKE_BUDGET_INFO(ttbtci, "TT-Budget-T-CI PCI", BUDGET_TT);
 
 static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbci, 0x13c2, 0x100c),
 	MAKE_EXTENSION_PCI(ttbci, 0x13c2, 0x100f),
 	MAKE_EXTENSION_PCI(ttbt2, 0x13c2, 0x1011),
+	MAKE_EXTENSION_PCI(ttbtci, 0x13c2, 0x1012),
 	{
 	 .vendor = 0,
 	 }

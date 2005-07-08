@@ -694,4 +694,12 @@ extern unsigned long boot_option_idle_override;
 extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
 
+#ifdef CONFIG_MTRR
+extern void mtrr_ap_init(void);
+extern void mtrr_bp_init(void);
+#else
+#define mtrr_ap_init() do {} while (0)
+#define mtrr_bp_init() do {} while (0)
+#endif
+
 #endif /* __ASM_I386_PROCESSOR_H */

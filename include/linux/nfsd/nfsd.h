@@ -124,6 +124,7 @@ int		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 
 int		nfsd_notify_change(struct inode *, struct iattr *);
 int		nfsd_permission(struct svc_export *, struct dentry *, int);
+void		nfsd_sync_dir(struct dentry *dp);
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL
@@ -230,6 +231,7 @@ void		nfsd_lockd_shutdown(void);
 #define	nfserr_reclaim_bad	__constant_htonl(NFSERR_RECLAIM_BAD)
 #define	nfserr_badname		__constant_htonl(NFSERR_BADNAME)
 #define	nfserr_cb_path_down	__constant_htonl(NFSERR_CB_PATH_DOWN)
+#define	nfserr_locked		__constant_htonl(NFSERR_LOCKED)
 
 /* error codes for internal use */
 /* if a request fails due to kmalloc failure, it gets dropped.

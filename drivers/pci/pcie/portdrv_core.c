@@ -325,7 +325,7 @@ int pcie_port_device_register(struct pci_dev *dev)
 static int suspend_iter(struct device *dev, void *data)
 {
 	struct pcie_port_service_driver *service_driver;
-	u32 state = (u32)data;
+	pm_message_t state = * (pm_message_t *) data;
 
  	if ((dev->bus == &pcie_port_bus_type) &&
  	    (dev->driver)) {
@@ -336,9 +336,9 @@ static int suspend_iter(struct device *dev, void *data)
 	return 0;
 }
 
-int pcie_port_device_suspend(struct pci_dev *dev, u32 state)
+int pcie_port_device_suspend(struct pci_dev *dev, pm_message_t state)
 {
-	device_for_each_child(&dev->dev, (void *)state, suspend_iter);
+	device_for_each_child(&dev->dev, &state, suspend_iter);
 	return 0;
 }
 

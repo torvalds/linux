@@ -61,6 +61,12 @@ static struct dvb_usb_rc_key a800_rc_keys[] = {
 	{ 0x02, 0x00, KEY_LAST },        /* >>| / BLUE */
 	{ 0x02, 0x04, KEY_EPG },         /* EPG */
 	{ 0x02, 0x15, KEY_MENU },        /* MENU */
+
+	{ 0x03, 0x03, KEY_CHANNELUP },   /* CH UP */
+	{ 0x03, 0x02, KEY_CHANNELDOWN }, /* CH DOWN */
+	{ 0x03, 0x01, KEY_FIRST },       /* |<< / GREEN */
+	{ 0x03, 0x00, KEY_LAST },        /* >>| / BLUE */
+
 };
 
 int a800_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
@@ -68,7 +74,7 @@ int a800_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	u8 key[5];
 	if (usb_control_msg(d->udev,usb_rcvctrlpipe(d->udev,0),
 				0x04, USB_TYPE_VENDOR | USB_DIR_IN, 0, 0, key, 5,
-				2*HZ) != 5)
+				2000) != 5)
 		return -ENODEV;
 
 	/* call the universal NEC remote processor, to find out the key's state and event */
@@ -143,7 +149,7 @@ static struct dvb_usb_properties a800_properties = {
 
 static struct usb_driver a800_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "AVerMedia AverTV DVB-T USB 2.0 (A800)",
+	.name		= "dvb_usb_a800",
 	.probe		= a800_probe,
 	.disconnect = dvb_usb_device_exit,
 	.id_table	= a800_table,

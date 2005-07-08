@@ -10,6 +10,8 @@
 static void flexcop_rcv_data_ctrl(struct flexcop_device *fc, int onoff)
 {
 	flexcop_set_ibi_value(ctrl_208,Rcv_Data_sig,onoff);
+
+	deb_ts("rcv_data is now: '%s'\n",onoff ? "on" : "off");
 }
 
 void flexcop_smc_ctrl(struct flexcop_device *fc, int onoff)
@@ -151,7 +153,7 @@ int flexcop_pid_feed_control(struct flexcop_device *fc, struct dvb_demux_feed *d
 {
 	int max_pid_filter = 6 + fc->has_32_hw_pid_filter*32;
 
-	fc->feedcount += onoff ? 1 : -1;
+	fc->feedcount += onoff ? 1 : -1; /* the number of PIDs/Feed currently requested */
 	if (dvbdmxfeed->index >= max_pid_filter)
 		fc->extra_feedcount += onoff ? 1 : -1;
 
@@ -178,8 +180,14 @@ int flexcop_pid_feed_control(struct flexcop_device *fc, struct dvb_demux_feed *d
 	/* if it was the first or last feed request change the stream-status */
 	if (fc->feedcount == onoff) {
 		flexcop_rcv_data_ctrl(fc,onoff);
-		if (fc->stream_control)
+		if (fc->stream_control) /* device specific stream control */
 			fc->stream_control(fc,onoff);
+
+		/* feeding stopped -> reset the flexcop filter*/
+		if (onoff == 0) {
+			flexcop_reset_block_300(fc);
+			flexcop_hw_filter_init(fc);
+		}
 	}
 
 	return 0;

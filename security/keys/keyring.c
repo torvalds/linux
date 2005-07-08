@@ -129,7 +129,7 @@ static int keyring_duplicate(struct key *keyring, const struct key *source)
 	int loop, ret;
 
 	const unsigned limit =
-		(PAGE_SIZE - sizeof(*klist)) / sizeof(struct key);
+		(PAGE_SIZE - sizeof(*klist)) / sizeof(struct key *);
 
 	ret = 0;
 
@@ -150,7 +150,7 @@ static int keyring_duplicate(struct key *keyring, const struct key *source)
 			max = limit;
 
 		ret = -ENOMEM;
-		size = sizeof(*klist) + sizeof(struct key) * max;
+		size = sizeof(*klist) + sizeof(struct key *) * max;
 		klist = kmalloc(size, GFP_KERNEL);
 		if (!klist)
 			goto error;
@@ -163,7 +163,7 @@ static int keyring_duplicate(struct key *keyring, const struct key *source)
 		klist->nkeys = sklist->nkeys;
 		memcpy(klist->keys,
 		       sklist->keys,
-		       sklist->nkeys * sizeof(struct key));
+		       sklist->nkeys * sizeof(struct key *));
 
 		for (loop = klist->nkeys - 1; loop >= 0; loop--)
 			atomic_inc(&klist->keys[loop]->usage);
@@ -783,7 +783,7 @@ int __key_link(struct key *keyring, struct key *key)
 		ret = -ENFILE;
 		if (max > 65535)
 			goto error3;
-		size = sizeof(*klist) + sizeof(*key) * max;
+		size = sizeof(*klist) + sizeof(struct key *) * max;
 		if (size > PAGE_SIZE)
 			goto error3;
 
@@ -895,7 +895,8 @@ int key_unlink(struct key *keyring, struct key *key)
 
 key_is_present:
 	/* we need to copy the key list for RCU purposes */
-	nklist = kmalloc(sizeof(*klist) + sizeof(*key) * klist->maxkeys,
+	nklist = kmalloc(sizeof(*klist) +
+			 sizeof(struct key *) * klist->maxkeys,
 			 GFP_KERNEL);
 	if (!nklist)
 		goto nomem;
@@ -905,12 +906,12 @@ key_is_present:
 	if (loop > 0)
 		memcpy(&nklist->keys[0],
 		       &klist->keys[0],
-		       loop * sizeof(klist->keys[0]));
+		       loop * sizeof(struct key *));
 
 	if (loop < nklist->nkeys)
 		memcpy(&nklist->keys[loop],
 		       &klist->keys[loop + 1],
-		       (nklist->nkeys - loop) * sizeof(klist->keys[0]));
+		       (nklist->nkeys - loop) * sizeof(struct key *));
 
 	/* adjust the user's quota */
 	key_payload_reserve(keyring,
