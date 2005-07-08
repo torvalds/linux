@@ -940,5 +940,6 @@ void __init iSeries_early_setup(void)
 	ppc_md.get_rtc_time = iSeries_get_rtc_time;
 	ppc_md.calibrate_decr = iSeries_calibrate_decr;
 	ppc_md.progress = iSeries_progress;
+	ppc_md.idle_loop = iSeries_idle;
 }
 

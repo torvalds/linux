@@ -19,6 +19,7 @@
 #undef DEBUG
 
 #include <linux/config.h>
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -81,6 +82,9 @@ int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 
 extern void pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
+
+static int shared_idle(void);
+static int dedicated_idle(void);
 
 static volatile void __iomem * chrp_int_ack_special;
 struct mpic *pSeries_mpic;
@@ -229,6 +233,20 @@ static void __init pSeries_setup_arch(void)
 
 	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR)
 		vpa_init(boot_cpuid);
+
+	/* Choose an idle loop */
+	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR) {
+		if (get_paca()->lppaca.shared_proc) {
+			printk(KERN_INFO "Using shared processor idle loop\n");
+			ppc_md.idle_loop = shared_idle;
+		} else {
+			printk(KERN_INFO "Using dedicated idle loop\n");
+			ppc_md.idle_loop = dedicated_idle;
+		}
+	} else {
+		printk(KERN_INFO "Using default idle loop\n");
+		ppc_md.idle_loop = default_idle;
+	}
 }
 
 static int __init pSeries_init_panel(void)
