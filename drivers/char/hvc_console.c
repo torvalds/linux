@@ -61,15 +61,20 @@
  */
 #define HVC_ALLOC_TTY_ADAPTERS	8
 
-static struct tty_driver *hvc_driver;
-#ifdef CONFIG_MAGIC_SYSRQ
-static int sysrq_pressed;
-#endif
-
 #define N_OUTBUF	16
 #define N_INBUF		16
 
 #define __ALIGNED__	__attribute__((__aligned__(8)))
+
+static struct tty_driver *hvc_driver;
+static struct task_struct *hvc_task;
+
+/* Picks up late kicks after list walk but before schedule() */
+static int hvc_kicked;
+
+#ifdef CONFIG_MAGIC_SYSRQ
+static int sysrq_pressed;
+#endif
 
 struct hvc_struct {
 	spinlock_t lock;
@@ -97,48 +102,10 @@ static struct list_head hvc_structs = LIST_HEAD_INIT(hvc_structs);
 static DEFINE_SPINLOCK(hvc_structs_lock);
 
 /*
- * Initial console vtermnos for console API usage prior to full console
- * initialization.  Any vty adapter outside this range will not have usable
- * console interfaces but can still be used as a tty device.  This has to be
- * static because kmalloc will not work during early console init.
- */
-static uint32_t vtermnos[MAX_NR_HVC_CONSOLES];
-
-/* Used for accounting purposes */
-static int num_vterms = 0;
-
-static struct task_struct *hvc_task;
-
-/*
  * This value is used to associate a tty->index value to a hvc_struct based
  * upon order of exposure via hvc_probe().
  */
 static int hvc_count = -1;
-
-/* Picks up late kicks after list walk but before schedule() */
-static int hvc_kicked;
-
-/* Wake the sleeping khvcd */
-static void hvc_kick(void)
-{
-	hvc_kicked = 1;
-	wake_up_process(hvc_task);
-}
-
-/*
- * NOTE: This API isn't used if the console adapter doesn't support interrupts.
- * In this case the console is poll driven.
- */
-static irqreturn_t hvc_handle_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
-{
-	hvc_kick();
-	return IRQ_HANDLED;
-}
-
-static void hvc_unthrottle(struct tty_struct *tty)
-{
-	hvc_kick();
-}
 
 /*
  * Do not call this function with either the hvc_strucst_lock or the hvc_struct
@@ -166,6 +133,133 @@ struct hvc_struct *hvc_get_by_index(int index)
 
 	spin_unlock(&hvc_structs_lock);
 	return hp;
+}
+
+
+/*
+ * Initial console vtermnos for console API usage prior to full console
+ * initialization.  Any vty adapter outside this range will not have usable
+ * console interfaces but can still be used as a tty device.  This has to be
+ * static because kmalloc will not work during early console init.
+ */
+static uint32_t vtermnos[MAX_NR_HVC_CONSOLES];
+
+/* Used for accounting purposes */
+static int num_vterms = 0;
+
+/*
+ * Console APIs, NOT TTY.  These APIs are available immediately when
+ * hvc_console_setup() finds adapters.
+ */
+
+void hvc_console_print(struct console *co, const char *b, unsigned count)
+{
+	char c[16] __ALIGNED__;
+	unsigned i = 0, n = 0;
+	int r, donecr = 0;
+
+	/* Console access attempt outside of acceptable console range. */
+	if (co->index >= MAX_NR_HVC_CONSOLES)
+		return;
+
+	/* This console adapter was removed so it is not useable. */
+	if (vtermnos[co->index] < 0)
+		return;
+
+	while (count > 0 || i > 0) {
+		if (count > 0 && i < sizeof(c)) {
+			if (b[n] == '\n' && !donecr) {
+				c[i++] = '\r';
+				donecr = 1;
+			} else {
+				c[i++] = b[n++];
+				donecr = 0;
+				--count;
+			}
+		} else {
+			r = hvc_put_chars(vtermnos[co->index], c, i);
+			if (r < 0) {
+				/* throw away chars on error */
+				i = 0;
+			} else if (r > 0) {
+				i -= r;
+				if (i > 0)
+					memmove(c, c+r, i);
+			}
+		}
+	}
+}
+
+static struct tty_driver *hvc_console_device(struct console *c, int *index)
+{
+	*index = c->index;
+	return hvc_driver;
+}
+
+static int __init hvc_console_setup(struct console *co, char *options)
+{
+	return 0;
+}
+
+struct console hvc_con_driver = {
+	.name		= "hvc",
+	.write		= hvc_console_print,
+	.device		= hvc_console_device,
+	.setup		= hvc_console_setup,
+	.flags		= CON_PRINTBUFFER,
+	.index		= -1,
+};
+
+/* Early console initialization.  Preceeds driver initialization. */
+static int __init hvc_console_init(void)
+{
+	int i;
+
+	for (i=0; i<MAX_NR_HVC_CONSOLES; i++)
+		vtermnos[i] = -1;
+	num_vterms = hvc_find_vtys();
+	register_console(&hvc_con_driver);
+	return 0;
+}
+console_initcall(hvc_console_init);
+
+/*
+ * hvc_instantiate() is an early console discovery method which locates consoles
+ * prior to the vio subsystem discovering them.  Hotplugged vty adapters do NOT
+ * get an hvc_instantiate() callback since the appear after early console init.
+ */
+int hvc_instantiate(uint32_t vtermno, int index)
+{
+	if (index < 0 || index >= MAX_NR_HVC_CONSOLES)
+		return -1;
+
+	if (vtermnos[index] != -1)
+		return -1;
+
+	vtermnos[index] = vtermno;
+	return 0;
+}
+
+/* Wake the sleeping khvcd */
+static void hvc_kick(void)
+{
+	hvc_kicked = 1;
+	wake_up_process(hvc_task);
+}
+
+/*
+ * NOTE: This API isn't used if the console adapter doesn't support interrupts.
+ * In this case the console is poll driven.
+ */
+static irqreturn_t hvc_handle_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+{
+	hvc_kick();
+	return IRQ_HANDLED;
+}
+
+static void hvc_unthrottle(struct tty_struct *tty)
+{
+	hvc_kick();
 }
 
 /*
@@ -577,14 +671,6 @@ static struct tty_operations hvc_ops = {
 	.chars_in_buffer = hvc_chars_in_buffer,
 };
 
-char hvc_driver_name[] = "hvc_console";
-
-static struct vio_device_id hvc_driver_table[] __devinitdata= {
-	{"serial", "hvterm1"},
-	{ NULL, }
-};
-MODULE_DEVICE_TABLE(vio, hvc_driver_table);
-
 /* callback when the kboject ref count reaches zero. */
 static void destroy_hvc_struct(struct kobject *kobj)
 {
@@ -674,6 +760,14 @@ static int __devexit hvc_remove(struct vio_dev *dev)
 	return 0;
 }
 
+char hvc_driver_name[] = "hvc_console";
+
+static struct vio_device_id hvc_driver_table[] __devinitdata= {
+	{"serial", "hvterm1"},
+	{ NULL, }
+};
+MODULE_DEVICE_TABLE(vio, hvc_driver_table);
+
 static struct vio_driver hvc_vio_driver = {
 	.name		= hvc_driver_name,
 	.id_table	= hvc_driver_table,
@@ -721,6 +815,7 @@ int __init hvc_init(void)
 
 	return rc;
 }
+module_init(hvc_init);
 
 /* This isn't particularily necessary due to this being a console driver but it
  * is nice to be thorough */
@@ -733,99 +828,4 @@ static void __exit hvc_exit(void)
 	/* return tty_struct instances allocated in hvc_init(). */
 	put_tty_driver(hvc_driver);
 }
-
-/*
- * Console APIs, NOT TTY.  These APIs are available immediately when
- * hvc_console_setup() finds adapters.
- */
-
-/*
- * hvc_instantiate() is an early console discovery method which locates consoles
- * prior to the vio subsystem discovering them.  Hotplugged vty adapters do NOT
- * get an hvc_instantiate() callback since the appear after early console init.
- */
-int hvc_instantiate(uint32_t vtermno, int index)
-{
-	if (index < 0 || index >= MAX_NR_HVC_CONSOLES)
-		return -1;
-
-	if (vtermnos[index] != -1)
-		return -1;
-
-	vtermnos[index] = vtermno;
-	return 0;
-}
-
-void hvc_console_print(struct console *co, const char *b, unsigned count)
-{
-	char c[16] __ALIGNED__;
-	unsigned i = 0, n = 0;
-	int r, donecr = 0;
-
-	/* Console access attempt outside of acceptable console range. */
-	if (co->index >= MAX_NR_HVC_CONSOLES)
-		return;
-
-	/* This console adapter was removed so it is not useable. */
-	if (vtermnos[co->index] < 0)
-		return;
-
-	while (count > 0 || i > 0) {
-		if (count > 0 && i < sizeof(c)) {
-			if (b[n] == '\n' && !donecr) {
-				c[i++] = '\r';
-				donecr = 1;
-			} else {
-				c[i++] = b[n++];
-				donecr = 0;
-				--count;
-			}
-		} else {
-			r = hvc_put_chars(vtermnos[co->index], c, i);
-			if (r < 0) {
-				/* throw away chars on error */
-				i = 0;
-			} else if (r > 0) {
-				i -= r;
-				if (i > 0)
-					memmove(c, c+r, i);
-			}
-		}
-	}
-}
-
-static struct tty_driver *hvc_console_device(struct console *c, int *index)
-{
-	*index = c->index;
-	return hvc_driver;
-}
-
-static int __init hvc_console_setup(struct console *co, char *options)
-{
-	return 0;
-}
-
-struct console hvc_con_driver = {
-	.name		= "hvc",
-	.write		= hvc_console_print,
-	.device		= hvc_console_device,
-	.setup		= hvc_console_setup,
-	.flags		= CON_PRINTBUFFER,
-	.index		= -1,
-};
-
-/* Early console initialization.  Preceeds driver initialization. */
-static int __init hvc_console_init(void)
-{
-	int i;
-
-	for (i=0; i<MAX_NR_HVC_CONSOLES; i++)
-		vtermnos[i] = -1;
-	num_vterms = hvc_find_vtys();
-	register_console(&hvc_con_driver);
-	return 0;
-}
-console_initcall(hvc_console_init);
-
-module_init(hvc_init);
 module_exit(hvc_exit);
