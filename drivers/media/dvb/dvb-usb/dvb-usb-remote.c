@@ -39,7 +39,7 @@ static void dvb_usb_read_remote_control(void *data)
 			d->last_event = event;
 		case REMOTE_KEY_REPEAT:
 			deb_rc("key repeated\n");
-			input_event(&d->rc_input_dev, EV_KEY, event, 1);
+			input_event(&d->rc_input_dev, EV_KEY, d->last_event, 1);
 			input_event(&d->rc_input_dev, EV_KEY, d->last_event, 0);
 			input_sync(&d->rc_input_dev);
 			break;
@@ -160,12 +160,12 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 				break;
 			}
 			/* See if we can match the raw key code. */
-			for (i = 0; i < sizeof(keymap)/sizeof(struct dvb_usb_rc_key); i++)
+			for (i = 0; i < d->props.rc_key_map_size; i++)
 				if (keymap[i].custom == keybuf[1] &&
 					keymap[i].data == keybuf[3]) {
 					*event = keymap[i].event;
 					*state = REMOTE_KEY_PRESSED;
-					break;
+					return 0;
 				}
 			deb_err("key mapping failed - no appropriate key found in keymapping\n");
 			break;
