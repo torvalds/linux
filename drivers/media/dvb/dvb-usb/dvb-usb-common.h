@@ -12,6 +12,7 @@
 #include "dvb-usb.h"
 
 extern int dvb_usb_debug;
+extern int dvb_usb_disable_rc_polling;
 
 #define deb_info(args...) dprintk(dvb_usb_debug,0x01,args)
 #define deb_xfer(args...) dprintk(dvb_usb_debug,0x02,args)

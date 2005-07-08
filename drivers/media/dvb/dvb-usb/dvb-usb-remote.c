@@ -21,6 +21,10 @@ static void dvb_usb_read_remote_control(void *data)
 	/* TODO: need a lock here.  We can simply skip checking for the remote control
 	   if we're busy. */
 
+	/* when the parameter has been set to 1 via sysfs while the driver was running */
+	if (dvb_usb_disable_rc_polling)
+		return;
+
 	if (d->props.rc_query(d,&event,&state)) {
 		err("error while querying for an remote control event.");
 		goto schedule;
@@ -85,7 +89,9 @@ schedule:
 int dvb_usb_remote_init(struct dvb_usb_device *d)
 {
 	int i;
-	if (d->props.rc_key_map == NULL)
+	if (d->props.rc_key_map == NULL ||
+		d->props.rc_query == NULL ||
+		dvb_usb_disable_rc_polling)
 		return 0;
 
 	/* Initialise the remote-control structures.*/
