@@ -39,90 +39,6 @@ extern void power4_idle(void);
 
 static int (*idle_loop)(void);
 
-#ifdef CONFIG_PPC_ISERIES
-static unsigned long maxYieldTime = 0;
-static unsigned long minYieldTime = 0xffffffffffffffffUL;
-
-static inline void process_iSeries_events(void)
-{
-	asm volatile ("li 0,0x5555; sc" : : : "r0", "r3");
-}
-
-static void yield_shared_processor(void)
-{
-	unsigned long tb;
-	unsigned long yieldTime;
-
-	HvCall_setEnabledInterrupts(HvCall_MaskIPI |
-				    HvCall_MaskLpEvent |
-				    HvCall_MaskLpProd |
-				    HvCall_MaskTimeout);
-
-	tb = get_tb();
-	/* Compute future tb value when yield should expire */
-	HvCall_yieldProcessor(HvCall_YieldTimed, tb+tb_ticks_per_jiffy);
-
-	yieldTime = get_tb() - tb;
-	if (yieldTime > maxYieldTime)
-		maxYieldTime = yieldTime;
-
-	if (yieldTime < minYieldTime)
-		minYieldTime = yieldTime;
-	
-	/*
-	 * The decrementer stops during the yield.  Force a fake decrementer
-	 * here and let the timer_interrupt code sort out the actual time.
-	 */
-	get_paca()->lppaca.int_dword.fields.decr_int = 1;
-	process_iSeries_events();
-}
-
-static int iSeries_idle(void)
-{
-	struct paca_struct *lpaca;
-	long oldval;
-
-	/* ensure iSeries run light will be out when idle */
-	ppc64_runlatch_off();
-
-	lpaca = get_paca();
-
-	while (1) {
-		if (lpaca->lppaca.shared_proc) {
-			if (hvlpevent_is_pending())
-				process_iSeries_events();
-			if (!need_resched())
-				yield_shared_processor();
-		} else {
-			oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
-
-			if (!oldval) {
-				set_thread_flag(TIF_POLLING_NRFLAG);
-
-				while (!need_resched()) {
-					HMT_medium();
-					if (hvlpevent_is_pending())
-						process_iSeries_events();
-					HMT_low();
-				}
-
-				HMT_medium();
-				clear_thread_flag(TIF_POLLING_NRFLAG);
-			} else {
-				set_need_resched();
-			}
-		}
-
-		ppc64_runlatch_on();
-		schedule();
-		ppc64_runlatch_off();
-	}
-
-	return 0;
-}
-
-#else
-
 int default_idle(void)
 {
 	long oldval;
@@ -304,8 +220,6 @@ int native_idle(void)
 	}
 	return 0;
 }
-
-#endif /* CONFIG_PPC_ISERIES */
 
 void cpu_idle(void)
 {
