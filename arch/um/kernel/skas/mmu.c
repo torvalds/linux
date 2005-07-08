@@ -75,6 +75,7 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 int init_new_context_skas(struct task_struct *task, struct mm_struct *mm)
 {
 	struct mm_struct *cur_mm = current->mm;
+	struct mm_id *cur_mm_id = &cur_mm->context.skas.id;
 	struct mm_id *mm_id = &mm->context.skas.id;
 	unsigned long stack;
 	int from, ret;
@@ -115,7 +116,11 @@ int init_new_context_skas(struct task_struct *task, struct mm_struct *mm)
 			goto out_free;
 
 		mm->nr_ptes--;
-		mm_id->u.pid = start_userspace(stack);
+
+		if((cur_mm != NULL) && (cur_mm != &init_mm))
+			mm_id->u.pid = copy_context_skas0(stack,
+							  cur_mm_id->u.pid);
+		else mm_id->u.pid = start_userspace(stack);
 	}
 
 	return 0;

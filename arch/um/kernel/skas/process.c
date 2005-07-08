@@ -13,6 +13,7 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <sys/user.h>
+#include <sys/time.h>
 #include <asm/unistd.h>
 #include <asm/types.h>
 #include "user.h"
@@ -22,6 +23,7 @@
 #include "user_util.h"
 #include "kern_util.h"
 #include "skas.h"
+#include "stub-data.h"
 #include "mm_id.h"
 #include "sysdep/sigcontext.h"
 #include "sysdep/stub.h"
@@ -295,6 +297,67 @@ void userspace(union uml_pt_regs *regs)
 #define INIT_JMP_CALLBACK 2
 #define INIT_JMP_HALT 3
 #define INIT_JMP_REBOOT 4
+
+
+int copy_context_skas0(unsigned long new_stack, int pid)
+{
+	int err;
+	unsigned long regs[MAX_REG_NR];
+	unsigned long current_stack = current_stub_stack();
+	struct stub_data *data = (struct stub_data *) current_stack;
+	struct stub_data *child_data = (struct stub_data *) new_stack;
+	__u64 new_offset;
+	int new_fd = phys_mapping(to_phys((void *)new_stack), &new_offset);
+
+	/* prepare offset and fd of child's stack as argument for parent's
+	 * and child's mmap2 calls
+	 */
+	*data = ((struct stub_data) { .offset	= MMAP_OFFSET(new_offset),
+				      .fd	= new_fd,
+				      .timer	= ((struct itimerval)
+					           { { 0, 1000000 / hz() },
+						     { 0, 1000000 / hz() }})});
+	get_safe_registers(regs);
+
+	/* Set parent's instruction pointer to start of clone-stub */
+	regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
+				(unsigned long) stub_clone_handler -
+				(unsigned long) &__syscall_stub_start;
+	regs[REGS_SP_INDEX] = UML_CONFIG_STUB_DATA + PAGE_SIZE -
+		sizeof(void *);
+	err = ptrace_setregs(pid, regs);
+	if(err < 0)
+		panic("copy_context_skas0 : PTRACE_SETREGS failed, "
+		      "pid = %d, errno = %d\n", pid, errno);
+
+	/* set a well known return code for detection of child write failure */
+	child_data->err = 12345678;
+
+	/* Wait, until parent has finished its work: read child's pid from
+	 * parent's stack, and check, if bad result.
+	 */
+	wait_stub_done(pid, 0, "copy_context_skas0");
+
+	pid = data->err;
+	if(pid < 0)
+		panic("copy_context_skas0 - stub-parent reports error %d\n",
+		      pid);
+
+	/* Wait, until child has finished too: read child's result from
+	 * child's stack and check it.
+	 */
+	wait_stub_done(pid, -1, "copy_context_skas0");
+	if (child_data->err != UML_CONFIG_STUB_DATA)
+		panic("copy_context_skas0 - stub-child reports error %d\n",
+		      child_data->err);
+
+	if (ptrace(PTRACE_OLDSETOPTIONS, pid, NULL,
+		   (void *)PTRACE_O_TRACESYSGOOD) < 0)
+		panic("copy_context_skas0 : PTRACE_SETOPTIONS failed, "
+		      "errno = %d\n", errno);
+
+	return pid;
+}
 
 void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 		void (*handler)(int))
