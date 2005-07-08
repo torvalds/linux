@@ -120,6 +120,8 @@ static int debug;
 #define TDA10046H_GPIO_OUT_SEL	 0x41
 #define TDA10046H_GPIO_SELECT	 0x42
 #define TDA10046H_AGC_CONF	 0x43
+#define TDA10046H_AGC_THR	 0x44
+#define TDA10046H_AGC_RENORM	 0x45
 #define TDA10046H_AGC_GAINS	 0x46
 #define TDA10046H_AGC_TUN_MIN	 0x47
 #define TDA10046H_AGC_TUN_MAX	 0x48
@@ -272,14 +274,26 @@ static int tda10046h_set_bandwidth(struct tda1004x_state *state,
 	switch (bandwidth) {
 	case BANDWIDTH_6_MHZ:
 		tda1004x_write_buf(state, TDA10046H_TIME_WREF1, bandwidth_6mhz, sizeof(bandwidth_6mhz));
+		if (state->config->if_freq == TDA10046_FREQ_045) {
+			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0x09);
+			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_LSB, 0x4f);
+		}
 		break;
 
 	case BANDWIDTH_7_MHZ:
 		tda1004x_write_buf(state, TDA10046H_TIME_WREF1, bandwidth_7mhz, sizeof(bandwidth_7mhz));
+		if (state->config->if_freq == TDA10046_FREQ_045) {
+			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0x0a);
+			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_LSB, 0x79);
+		}
 		break;
 
 	case BANDWIDTH_8_MHZ:
 		tda1004x_write_buf(state, TDA10046H_TIME_WREF1, bandwidth_8mhz, sizeof(bandwidth_8mhz));
+		if (state->config->if_freq == TDA10046_FREQ_045) {
+			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0x0b);
+			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_LSB, 0xa3);
+		}
 		break;
 
 	default:
@@ -419,6 +433,14 @@ static void tda10046_init_plls(struct dvb_frontend* fe)
 	case TDA10046_FREQ_3613:
 		tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0xd4);
 		tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_LSB, 0x13);
+		break;
+	case TDA10046_FREQ_045:
+		tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0x0b);
+		tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_LSB, 0xa3);
+		break;
+	case TDA10046_FREQ_052:
+		tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0x0c);
+		tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_LSB, 0x06);
 		break;
 	}
 	tda10046h_set_bandwidth(state, BANDWIDTH_8_MHZ); // default bandwidth 8 MHz
@@ -588,6 +610,16 @@ static int tda10046_init(struct dvb_frontend* fe)
 		break;
 	case TDA10046_AGC_IFO_AUTO_NEG:
 		tda1004x_write_byteI(state, TDA10046H_AGC_CONF, 0x0a); // AGC setup
+		tda1004x_write_byteI(state, TDA10046H_CONF_POLARITY, 0x60); // set AGC polarities
+		break;
+	case TDA10046_AGC_IFO_AUTO_POS:
+		tda1004x_write_byteI(state, TDA10046H_AGC_CONF, 0x0a); // AGC setup
+		tda1004x_write_byteI(state, TDA10046H_CONF_POLARITY, 0x00); // set AGC polarities
+		break;
+	case TDA10046_AGC_TDA827X:
+		tda1004x_write_byteI(state, TDA10046H_AGC_CONF, 0x02);   // AGC setup
+		tda1004x_write_byteI(state, TDA10046H_AGC_THR, 0x70);    // AGC Threshold
+		tda1004x_write_byteI(state, TDA10046H_AGC_RENORM, 0x0E); // Gain Renormalize
 		tda1004x_write_byteI(state, TDA10046H_CONF_POLARITY, 0x60); // set AGC polarities
 		break;
 	}
@@ -1091,9 +1123,12 @@ static int tda1004x_sleep(struct dvb_frontend* fe)
 		break;
 
 	case TDA1004X_DEMOD_TDA10046:
-		tda1004x_write_mask(state, TDA1004X_CONFC4, 1, 1);
-		if (state->config->pll_sleep != NULL)
+		if (state->config->pll_sleep != NULL) {
+			tda1004x_enable_tuner_i2c(state);
 			state->config->pll_sleep(fe);
+			tda1004x_disable_tuner_i2c(state);
+		}
+		tda1004x_write_mask(state, TDA1004X_CONFC4, 1, 1);
 		break;
 	}
 	state->initialised = 0;
@@ -1104,8 +1139,9 @@ static int tda1004x_sleep(struct dvb_frontend* fe)
 static int tda1004x_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fesettings)
 {
 	fesettings->min_delay_ms = 800;
-	fesettings->step_size = 166667;
-	fesettings->max_drift = 166667*2;
+	/* Drift compensation makes no sense for DVB-T */
+	fesettings->step_size = 0;
+	fesettings->max_drift = 0;
 	return 0;
 }
 

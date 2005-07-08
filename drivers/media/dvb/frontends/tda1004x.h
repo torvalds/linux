@@ -34,11 +34,15 @@ enum tda10046_xtal {
 enum tda10046_agc {
 	TDA10046_AGC_DEFAULT,		/* original configuration */
 	TDA10046_AGC_IFO_AUTO_NEG,	/* IF AGC only, automatic, negtive */
+	TDA10046_AGC_IFO_AUTO_POS,	/* IF AGC only, automatic, positive */
+	TDA10046_AGC_TDA827X,	    /* IF AGC only, special setup for tda827x */
 };
 
 enum tda10046_if {
 	TDA10046_FREQ_3617,		/* original config, 36,166 MHZ */
 	TDA10046_FREQ_3613,		/* 36,13 MHZ */
+	TDA10046_FREQ_045,		/* low IF, 4.0, 4.5, or 5.0 MHZ */
+	TDA10046_FREQ_052,		/* low IF, 5.1667 MHZ for tda9889 */
 };
 
 struct tda1004x_config
