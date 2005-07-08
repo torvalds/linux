@@ -352,11 +352,11 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 
 	start = jiffies;
 	while (rdebi(av7110, DEBINOSWAP, COMMAND, 0, 2 )) {
-		msleep(1);
 		if (time_after(jiffies, start + ARM_WAIT_FREE)) {
 			printk(KERN_ERR "dvb-ttpci: %s(): timeout waiting for COMMAND idle\n", __FUNCTION__);
 			return -ETIMEDOUT;
 		}
+		msleep(1);
 	}
 
 	wdebi(av7110, DEBINOSWAP, COM_IF_LOCK, 0xffff, 2);
@@ -364,11 +364,11 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 #ifndef _NOHANDSHAKE
 	start = jiffies;
 	while (rdebi(av7110, DEBINOSWAP, HANDSHAKE_REG, 0, 2 )) {
-		msleep(1);
 		if (time_after(jiffies, start + ARM_WAIT_SHAKE)) {
 			printk(KERN_ERR "dvb-ttpci: %s(): timeout waiting for HANDSHAKE_REG\n", __FUNCTION__);
 			return -ETIMEDOUT;
 		}
+		msleep(1);
 	}
 #endif
 
@@ -433,7 +433,6 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 #ifdef COM_DEBUG
 	start = jiffies;
 	while (rdebi(av7110, DEBINOSWAP, COMMAND, 0, 2 )) {
-		msleep(1);
 		if (time_after(jiffies, start + ARM_WAIT_FREE)) {
 			printk(KERN_ERR "dvb-ttpci: %s(): timeout waiting for COMMAND %d to complete\n",
 			       __FUNCTION__,
@@ -441,6 +440,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 			       );
 			return -ETIMEDOUT;
 		}
+		msleep(1);
 	}
 
 	stat = rdebi(av7110, DEBINOSWAP, MSGSTATE, 0, 2);
@@ -554,25 +554,25 @@ int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 
 	start = jiffies;
 	while (rdebi(av7110, DEBINOSWAP, COMMAND, 0, 2)) {
-#ifdef _NOHANDSHAKE
-		msleep(1);
-#endif
 		if (time_after(jiffies, start + ARM_WAIT_FREE)) {
 			printk(KERN_ERR "%s: timeout waiting for COMMAND to complete\n", __FUNCTION__);
 			up(&av7110->dcomlock);
 			return -ETIMEDOUT;
 		}
+#ifdef _NOHANDSHAKE
+		msleep(1);
+#endif
 	}
 
 #ifndef _NOHANDSHAKE
 	start = jiffies;
 	while (rdebi(av7110, DEBINOSWAP, HANDSHAKE_REG, 0, 2 )) {
-		msleep(1);
 		if (time_after(jiffies, start + ARM_WAIT_SHAKE)) {
 			printk(KERN_ERR "%s: timeout waiting for HANDSHAKE_REG\n", __FUNCTION__);
 			up(&av7110->dcomlock);
 			return -ETIMEDOUT;
 		}
+		msleep(1);
 	}
 #endif
 
@@ -712,13 +712,13 @@ static int FlushText(struct av7110 *av7110)
 		return -ERESTARTSYS;
 	start = jiffies;
 	while (rdebi(av7110, DEBINOSWAP, BUFF1_BASE, 0, 2)) {
-		msleep(1);
 		if (time_after(jiffies, start + ARM_WAIT_OSD)) {
 			printk(KERN_ERR "dvb-ttpci: %s(): timeout waiting for BUFF1_BASE == 0\n",
 			       __FUNCTION__);
 			up(&av7110->dcomlock);
 			return -ETIMEDOUT;
 		}
+		msleep(1);
 	}
 	up(&av7110->dcomlock);
 	return 0;
@@ -736,24 +736,24 @@ static int WriteText(struct av7110 *av7110, u8 win, u16 x, u16 y, u8* buf)
 
 	start = jiffies;
 	while (rdebi(av7110, DEBINOSWAP, BUFF1_BASE, 0, 2)) {
-		msleep(1);
 		if (time_after(jiffies, start + ARM_WAIT_OSD)) {
 			printk(KERN_ERR "dvb-ttpci: %s: timeout waiting for BUFF1_BASE == 0\n",
 			       __FUNCTION__);
 			up(&av7110->dcomlock);
 			return -ETIMEDOUT;
 		}
+		msleep(1);
 	}
 #ifndef _NOHANDSHAKE
 	start = jiffies;
 	while (rdebi(av7110, DEBINOSWAP, HANDSHAKE_REG, 0, 2)) {
-		msleep(1);
 		if (time_after(jiffies, start + ARM_WAIT_SHAKE)) {
 			printk(KERN_ERR "dvb-ttpci: %s: timeout waiting for HANDSHAKE_REG\n",
 			       __FUNCTION__);
 			up(&av7110->dcomlock);
 			return -ETIMEDOUT;
 		}
+		msleep(1);
 	}
 #endif
 	for (i = 0; i < length / 2; i++)
