@@ -696,11 +696,6 @@ static dev_link_t *bt3c_attach(void)
 	link->next = dev_list;
 	dev_list = link;
 	client_reg.dev_info = &dev_info;
-	client_reg.EventMask =
-	    CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	    CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	    CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &bt3c_event;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 
@@ -947,6 +942,7 @@ static struct pcmcia_driver bt3c_driver = {
 		.name	= "bt3c_cs",
 	},
 	.attach		= bt3c_attach,
+	.event		= bt3c_event,
 	.detach		= bt3c_detach,
 	.id_table	= bt3c_ids,
 };

@@ -35,7 +35,6 @@ MODULE_LICENSE("GPL");
  * prototypes
  */
 static void vxpocket_config(dev_link_t *link);
-static int vxpocket_event(event_t event, int priority, event_callback_args_t *args);
 
 
 static void vxpocket_release(dev_link_t *link)
@@ -169,14 +168,6 @@ dev_link_t *snd_vxpocket_attach(struct snd_vxp_entry *hw)
 	/* Register with Card Services */
 	memset(&client_reg, 0, sizeof(client_reg));
 	client_reg.dev_info = hw->dev_info;
-	client_reg.EventMask = 
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL
-#ifdef CONFIG_PM
-		| CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET
-		| CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME
-#endif
-		;
-	client_reg.event_handler = &vxpocket_event;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 
@@ -321,7 +312,7 @@ failed:
 /*
  * event callback
  */
-static int vxpocket_event(event_t event, int priority, event_callback_args_t *args)
+int vxpocket_event(event_t event, int priority, event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
 	vx_core_t *chip = link->priv;
@@ -380,4 +371,5 @@ static int vxpocket_event(event_t event, int priority, event_callback_args_t *ar
  */
 EXPORT_SYMBOL(snd_vxpocket_ops);
 EXPORT_SYMBOL(snd_vxpocket_attach);
+EXPORT_SYMBOL(vxpocket_event);
 EXPORT_SYMBOL(snd_vxpocket_detach);

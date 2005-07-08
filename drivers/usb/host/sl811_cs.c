@@ -389,11 +389,6 @@ static dev_link_t *sl811_cs_attach(void)
 	dev_list = link;
 	client_reg.dev_info = (dev_info_t *) &driver_name;
 	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &sl811_cs_event;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 	ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -418,6 +413,7 @@ static struct pcmcia_driver sl811_cs_driver = {
 		.name	= (char *)driver_name,
 	},
 	.attach		= sl811_cs_attach,
+	.event		= sl811_cs_event,
 	.detach		= sl811_cs_detach,
 	.id_table	= sl811_ids,
 };

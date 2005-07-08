@@ -393,11 +393,6 @@ static dev_link_t *ray_attach(void)
     link->next = dev_list;
     dev_list = link;
     client_reg.dev_info = &dev_info;
-    client_reg.EventMask =
-        CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-        CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-        CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &ray_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
 
@@ -2916,6 +2911,7 @@ static struct pcmcia_driver ray_driver = {
 		.name	= "ray_cs",
 	},
 	.attach		= ray_attach,
+	.event		= ray_event,
 	.detach		= ray_detach,
 	.id_table       = ray_ids,
 };

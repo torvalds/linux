@@ -133,6 +133,8 @@ struct pcmcia_socket;
 
 struct pcmcia_driver {
 	dev_link_t		*(*attach)(void);
+	int (*event)		(event_t event, int priority,
+				 event_callback_args_t *);
 	void			(*detach)(dev_link_t *);
 	struct module		*owner;
 	struct pcmcia_device_id	*id_table;
@@ -159,15 +161,13 @@ struct pcmcia_device {
 	/* deprecated, a cleaned up version will be moved into this
 	   struct soon */
 	dev_link_t		*instance;
+	event_callback_args_t 	event_callback_args;
+
 	struct client_t {
 		u_short			client_magic;
 		struct pcmcia_socket	*Socket;
 		u_char			Function;
 		u_int			state;
-		event_t			EventMask;
-		int (*event_handler)	(event_t event, int priority,
-					 event_callback_args_t *);
-		event_callback_args_t 	event_callback_args;
 	}			client;
 
 	/* information about this device */

@@ -114,9 +114,6 @@ static inline void cs_socket_put(struct pcmcia_socket *skt)
 #define CHECK_ERASEQ(q) \
     (((q) == NULL) || ((q)->eraseq_magic != ERASEQ_MAGIC))
 
-#define EVENT(h, e, p) \
-    ((h)->event_handler((e), (p), &(h)->event_callback_args))
-
 /* In cardbus.c */
 int cb_alloc(struct pcmcia_socket *s);
 void cb_free(struct pcmcia_socket *s);

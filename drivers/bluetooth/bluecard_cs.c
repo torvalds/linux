@@ -895,11 +895,6 @@ static dev_link_t *bluecard_attach(void)
 	link->next = dev_list;
 	dev_list = link;
 	client_reg.dev_info = &dev_info;
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &bluecard_event;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 
@@ -1103,6 +1098,7 @@ static struct pcmcia_driver bluecard_driver = {
 		.name	= "bluecard_cs",
 	},
 	.attach		= bluecard_attach,
+	.event		= bluecard_event,
 	.detach		= bluecard_detach,
 	.id_table	= bluecard_ids,
 };

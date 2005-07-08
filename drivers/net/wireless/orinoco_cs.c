@@ -186,11 +186,6 @@ orinoco_cs_attach(void)
 	dev_list = link;
 
 	client_reg.dev_info = &dev_info;
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &orinoco_cs_event;
 	client_reg.Version = 0x0210; /* FIXME: what does this mean? */
 	client_reg.event_callback_args.client_data = link;
 
@@ -664,6 +659,7 @@ static struct pcmcia_driver orinoco_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.attach		= orinoco_cs_attach,
+	.event		= orinoco_cs_event,
 	.detach		= orinoco_cs_detach,
 	.id_table       = orinoco_cs_ids,
 };
