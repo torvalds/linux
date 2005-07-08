@@ -1160,6 +1160,7 @@ init_stateid(struct nfs4_stateid *stp, struct nfs4_file *fp, struct nfsd4_open *
 	stp->st_deny_bmap = 0;
 	__set_bit(open->op_share_access, &stp->st_access_bmap);
 	__set_bit(open->op_share_deny, &stp->st_deny_bmap);
+	stp->st_openstp = NULL;
 }
 
 static void
@@ -2158,12 +2159,18 @@ out:
 	return status;
 }
 
+static inline int
+setlkflg (int type)
+{
+	return (type == NFS4_READW_LT || type == NFS4_READ_LT) ?
+		RD_STATE : WR_STATE;
+}
 
 /* 
  * Checks for sequence id mutating operations. 
  */
 static int
-nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *stateid, int flags, struct nfs4_stateowner **sopp, struct nfs4_stateid **stpp, clientid_t *lockclid)
+nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *stateid, int flags, struct nfs4_stateowner **sopp, struct nfs4_stateid **stpp, struct nfsd4_lock *lock)
 {
 	struct nfs4_stateid *stp;
 	struct nfs4_stateowner *sop;
@@ -2201,21 +2208,31 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 		goto check_replay;
 	}
 
-	/* for new lock stateowners:
-	 * check that the lock->v.new.open_stateid
-	 * refers to an open stateowner
-	 *
-	 * check that the lockclid (nfs4_lock->v.new.clientid) is the same
-	 * as the open_stateid->st_stateowner->so_client->clientid
-	 */
-	if (lockclid) {
+	if (lock) {
 		struct nfs4_stateowner *sop = stp->st_stateowner;
+		clientid_t *lockclid = &lock->v.new.clientid;
 		struct nfs4_client *clp = sop->so_client;
+		int lkflg = 0;
+		int status;
 
-		if (!sop->so_is_open_owner)
-			return nfserr_bad_stateid;
-		if (!cmp_clid(&clp->cl_clientid, lockclid))
-			return nfserr_bad_stateid;
+		lkflg = setlkflg(lock->lk_type);
+
+		if (lock->lk_is_new) {
+                       if (!sop->so_is_open_owner)
+			       return nfserr_bad_stateid;
+                       if (!cmp_clid(&clp->cl_clientid, lockclid))
+			       return nfserr_bad_stateid;
+                       /* stp is the open stateid */
+                       status = nfs4_check_openmode(stp, lkflg);
+                       if (status)
+			       return status;
+               } else {
+                       /* stp is the lock stateid */
+                       status = nfs4_check_openmode(stp->st_openstp, lkflg);
+                       if (status)
+			       return status;
+               }
+
 	}
 
 	if ((flags & CHECK_FH) && nfs4_check_fh(current_fh, stp)) {
@@ -2642,6 +2659,7 @@ alloc_init_lock_stateid(struct nfs4_stateowner *sop, struct nfs4_file *fp, struc
 	stp->st_vfs_file = open_stp->st_vfs_file; /* FIXME refcount?? */
 	stp->st_access_bmap = open_stp->st_access_bmap;
 	stp->st_deny_bmap = open_stp->st_deny_bmap;
+	stp->st_openstp = open_stp;
 
 out:
 	return stp;
@@ -2697,8 +2715,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 				        lock->lk_new_open_seqid,
 		                        &lock->lk_new_open_stateid,
 		                        CHECK_FH | OPEN_STATE,
-		                        &open_sop, &open_stp,
-					&lock->v.new.clientid);
+		                        &open_sop, &open_stp, lock);
 		if (status)
 			goto out;
 		/* create lockowner and lock stateid */
@@ -2726,7 +2743,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 				       lock->lk_old_lock_seqid, 
 				       &lock->lk_old_lock_stateid, 
 				       CHECK_FH | LOCK_STATE, 
-				       &lock->lk_stateowner, &lock_stp, NULL);
+				       &lock->lk_stateowner, &lock_stp, lock);
 		if (status)
 			goto out;
 	}

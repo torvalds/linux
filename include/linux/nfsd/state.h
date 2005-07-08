@@ -237,6 +237,10 @@ struct nfs4_file {
 *       st_perlockowner: (open stateid) list of lock nfs4_stateowners
 * 	st_access_bmap: used only for open stateid
 * 	st_deny_bmap: used only for open stateid
+*	st_openstp: open stateid lock stateid was derived from
+*
+* XXX: open stateids and lock stateids have diverged sufficiently that
+* we should consider defining separate structs for the two cases.
 */
 
 struct nfs4_stateid {
@@ -250,6 +254,7 @@ struct nfs4_stateid {
 	struct file                 * st_vfs_file;
 	unsigned long                 st_access_bmap;
 	unsigned long                 st_deny_bmap;
+	struct nfs4_stateid         * st_openstp;
 };
 
 /* flags for preprocess_seqid_op() */
