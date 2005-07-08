@@ -822,16 +822,6 @@ asmlinkage long sys32_getpgid(u32 pid)
 }
 
 
-/* Note: it is necessary to treat which and who as unsigned ints,
- * with the corresponding cast to a signed int to insure that the 
- * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
- * and the register representation of a signed int (msr in 64-bit mode) is performed.
- */
-asmlinkage long sys32_getpriority(u32 which, u32 who)
-{
-	return sys_getpriority((int)which, (int)who);
-}
-
 
 /* Note: it is necessary to treat pid as an unsigned int,
  * with the corresponding cast to a signed int to insure that the 
@@ -1023,11 +1013,28 @@ asmlinkage long sys32_setpgid(u32 pid, u32 pgid)
 	return sys_setpgid((int)pid, (int)pgid);
 }
 
+long sys32_getpriority(u32 which, u32 who)
+{
+	/* sign extend which and who */
+	return sys_getpriority((int)which, (int)who);
+}
 
 long sys32_setpriority(u32 which, u32 who, u32 niceval)
 {
 	/* sign extend which, who and niceval */
 	return sys_setpriority((int)which, (int)who, (int)niceval);
+}
+
+long sys32_ioprio_get(u32 which, u32 who)
+{
+	/* sign extend which and who */
+	return sys_ioprio_get((int)which, (int)who);
+}
+
+long sys32_ioprio_set(u32 which, u32 who, u32 ioprio)
+{
+	/* sign extend which, who and ioprio */
+	return sys_ioprio_set((int)which, (int)who, (int)ioprio);
 }
 
 /* Note: it is necessary to treat newmask as an unsigned int,
