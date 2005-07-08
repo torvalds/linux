@@ -1050,8 +1050,7 @@ static int av7110_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
 	struct av7110 *av7110 = demux->priv;
-
-	int ret = 0;
+	int i, rc, ret = 0;
 	dprintk(4, "%p\n", av7110);
 
 	if (feed->type == DMX_TYPE_TS) {
@@ -1072,17 +1071,17 @@ static int av7110_stop_feed(struct dvb_demux_feed *feed)
 	}
 
 	if (!ret && feed->type == DMX_TYPE_SEC) {
-		int i;
-
-		for (i = 0; i<demux->filternum; i++)
+		for (i = 0; i<demux->filternum; i++) {
 			if (demux->filter[i].state == DMX_STATE_GO &&
 			    demux->filter[i].filter.parent == &feed->feed.sec) {
 				demux->filter[i].state = DMX_STATE_READY;
 				if (demux->dmx.frontend->source != DMX_MEMORY_FE) {
-					ret = StopHWFilter(&demux->filter[i]);
-					if (ret)
-						break;
+					rc = StopHWFilter(&demux->filter[i]);
+					if (!ret)
+						ret = rc;
+					/* keep going, stop as many filters as possible */
 				}
+			}
 		}
 	}
 
