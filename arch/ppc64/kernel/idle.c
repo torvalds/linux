@@ -37,8 +37,6 @@
 
 extern void power4_idle(void);
 
-static int (*idle_loop)(void);
-
 int default_idle(void)
 {
 	long oldval;
@@ -127,42 +125,3 @@ register_powersave_nap_sysctl(void)
 }
 __initcall(register_powersave_nap_sysctl);
 #endif
-
-int idle_setup(void)
-{
-	/*
-	 * Move that junk to each platform specific file, eventually define
-	 * a pSeries_idle for shared processor stuff
-	 */
-#ifdef CONFIG_PPC_ISERIES
-	idle_loop = iSeries_idle;
-	return 1;
-#else
-	idle_loop = default_idle;
-#endif
-#ifdef CONFIG_PPC_PSERIES
-	if (systemcfg->platform & PLATFORM_PSERIES) {
-		if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR) {
-			if (get_paca()->lppaca.shared_proc) {
-				printk(KERN_INFO "Using shared processor idle loop\n");
-				idle_loop = shared_idle;
-			} else {
-				printk(KERN_INFO "Using dedicated idle loop\n");
-				idle_loop = dedicated_idle;
-			}
-		} else {
-			printk(KERN_INFO "Using default idle loop\n");
-			idle_loop = default_idle;
-		}
-	}
-#endif /* CONFIG_PPC_PSERIES */
-#ifndef CONFIG_PPC_ISERIES
-	if (systemcfg->platform == PLATFORM_POWERMAC ||
-	    systemcfg->platform == PLATFORM_MAPLE) {
-		printk(KERN_INFO "Using native/NAP idle loop\n");
-		idle_loop = native_idle;
-	}
-#endif /* CONFIG_PPC_ISERIES */
-
-	return 1;
-}
