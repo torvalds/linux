@@ -209,6 +209,8 @@ static struct dvb_usb_properties dibusb1_1_properties = {
 
 static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
+	.pid_filter_count = 16,
+
 	.usb_ctrl = CYPRESS_AN2235,
 
 	.firmware = "dvb-usb-dibusb-an2235-01.fw",
@@ -263,6 +265,8 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 
 static struct dvb_usb_properties dibusb2_0b_properties = {
 	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
+	.pid_filter_count = 32,
+
 	.usb_ctrl = CYPRESS_FX2,
 
 	.firmware = "dvb-usb-adstech-usb2-02.fw",
