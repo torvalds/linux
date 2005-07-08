@@ -584,14 +584,17 @@ static int hvc_poll(struct hvc_struct *hp)
 		}
 		for (i = 0; i < n; ++i) {
 #ifdef CONFIG_MAGIC_SYSRQ
-			/* Handle the SysRq Hack */
-			if (buf[i] == '\x0f') {	/* ^O -- should support a sequence */
-				sysrq_pressed = 1;
-				continue;
-			} else if (sysrq_pressed) {
-				handle_sysrq(buf[i], NULL, tty);
-				sysrq_pressed = 0;
-				continue;
+			if (hp->index == hvc_con_driver.index) {
+				/* Handle the SysRq Hack */
+				/* XXX should support a sequence */
+				if (buf[i] == '\x0f') {	/* ^O */
+					sysrq_pressed = 1;
+					continue;
+				} else if (sysrq_pressed) {
+					handle_sysrq(buf[i], NULL, tty);
+					sysrq_pressed = 0;
+					continue;
+				}
 			}
 #endif /* CONFIG_MAGIC_SYSRQ */
 			tty_insert_flip_char(tty, buf[i], 0);
