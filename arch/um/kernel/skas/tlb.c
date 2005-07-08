@@ -76,7 +76,6 @@ void flush_tlb_mm_skas(struct mm_struct *mm)
                 return;
 
         fix_range(mm, 0, host_task_size, 0);
-        flush_tlb_kernel_range_common(start_vm, end_vm);
 }
 
 void force_flush_all_skas(void)
