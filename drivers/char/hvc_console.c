@@ -254,13 +254,17 @@ static void hvc_kick(void)
 	wake_up_process(hvc_task);
 }
 
+static int hvc_poll(struct hvc_struct *hp);
+
 /*
  * NOTE: This API isn't used if the console adapter doesn't support interrupts.
  * In this case the console is poll driven.
  */
 static irqreturn_t hvc_handle_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 {
-	hvc_kick();
+	/* if hvc_poll request a repoll, then kick the hvcd thread */
+	if (hvc_poll(dev_instance))
+		hvc_kick();
 	return IRQ_HANDLED;
 }
 
@@ -598,8 +602,8 @@ static int hvc_poll(struct hvc_struct *hp)
 
 		/*
 		 * Account for the total amount read in one loop, and if above
-		 * 64 bytes, we do a quick schedule loop to let the tty grok the
-		 * data and eventually throttle us.
+		 * 64 bytes, we do a quick schedule loop to let the tty grok
+		 * the data and eventually throttle us.
 		 */
 		read_total += n;
 		if (read_total >= 64) {
