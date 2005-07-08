@@ -3,8 +3,8 @@
  *
  *  Setup routines for Renesas MAPPI-II(M3A-ZA36) Board
  *
- *  Copyright (c) 2001, 2002  Hiroyuki Kondo, Hirokazu Takata,
- *                            Hitoshi Yamamoto, Mamoru Sakugawa
+ *  Copyright (c) 2001-2005  Hiroyuki Kondo, Hirokazu Takata,
+ *                           Hitoshi Yamamoto, Mamoru Sakugawa
  */
 
 #include <linux/config.h>
