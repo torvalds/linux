@@ -838,8 +838,12 @@ static struct tda1004x_config philips_tdm1316l_config = {
 	.demod_address = 0x8,
 	.invert = 0,
 	.invert_oclk = 0,
+	.xtal_freq = TDA10046_XTAL_4M,
+	.agc_config = TDA10046_AGC_DEFAULT,
+	.if_freq = TDA10046_FREQ_3617,
 	.pll_init = philips_tdm1316l_pll_init,
 	.pll_set = philips_tdm1316l_pll_set,
+	.pll_sleep = NULL,
 	.request_firmware = philips_tdm1316l_request_firmware,
 };
 

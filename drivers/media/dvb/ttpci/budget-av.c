@@ -695,8 +695,12 @@ static struct tda1004x_config philips_tu1216_config = {
 	.demod_address = 0x8,
 	.invert = 1,
 	.invert_oclk = 1,
+	.xtal_freq = TDA10046_XTAL_4M,
+	.agc_config = TDA10046_AGC_DEFAULT,
+	.if_freq = TDA10046_FREQ_3617,
 	.pll_init = philips_tu1216_pll_init,
 	.pll_set = philips_tu1216_pll_set,
+	.pll_sleep = NULL,
 	.request_firmware = philips_tu1216_request_firmware,
 };
 
