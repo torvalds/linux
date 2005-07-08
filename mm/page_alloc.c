@@ -936,7 +936,7 @@ rebalance:
 				goto got_pg;
 		}
 
-		out_of_memory(gfp_mask);
+		out_of_memory(gfp_mask, order);
 		goto restart;
 	}
 
