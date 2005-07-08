@@ -146,8 +146,6 @@ struct hvc_struct *hvc_get_by_index(int index)
  */
 static uint32_t vtermnos[MAX_NR_HVC_CONSOLES];
 
-/* Used for accounting purposes */
-static int num_vterms = 0;
 
 /*
  * Console APIs, NOT TTY.  These APIs are available immediately when
@@ -219,7 +217,7 @@ static int __init hvc_console_init(void)
 
 	for (i=0; i<MAX_NR_HVC_CONSOLES; i++)
 		vtermnos[i] = -1;
-	num_vterms = hvc_find_vtys();
+	hvc_find_vtys();
 	register_console(&hvc_con_driver);
 	return 0;
 }
@@ -651,7 +649,6 @@ int khvcd(void *unused)
 		if (cpus_empty(cpus_in_xmon)) {
 			spin_lock(&hvc_structs_lock);
 			list_for_each_entry(hp, &hvc_structs, next) {
-				/*hp = list_entry(node, struct hvc_struct, * next); */
 				poll_mask |= hvc_poll(hp);
 			}
 			spin_unlock(&hvc_structs_lock);
@@ -811,9 +808,8 @@ int __init hvc_init(void)
 {
 	int rc;
 
-	/* We need more than num_vterms adapters due to hotplug additions. */
+	/* We need more than hvc_count adapters due to hotplug additions. */
 	hvc_driver = alloc_tty_driver(HVC_ALLOC_TTY_ADAPTERS);
-	/* hvc_driver = alloc_tty_driver(num_vterms); */
 	if (!hvc_driver)
 		return -ENOMEM;
 
