@@ -93,6 +93,19 @@ struct dvb_pll_desc dvb_pll_lg_z201 = {
 };
 EXPORT_SYMBOL(dvb_pll_lg_z201);
 
+struct dvb_pll_desc dvb_pll_microtune_4042 = {
+	.name  = "Microtune 4042 FI5",
+	.min   =  57000000,
+	.max   = 858000000,
+	.count = 3,
+	.entries = {
+		{ 162000000, 44000000, 62500, 0x8e, 0xa1 },
+		{ 457000000, 44000000, 62500, 0x8e, 0x91 },
+		{ 999999999, 44000000, 62500, 0x8e, 0x31 },
+	},
+};
+EXPORT_SYMBOL(dvb_pll_microtune_4042);
+
 struct dvb_pll_desc dvb_pll_unknown_1 = {
 	.name  = "unknown 1", /* used by dntv live dvb-t */
 	.min   = 174000000,
