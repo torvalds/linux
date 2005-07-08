@@ -289,7 +289,9 @@ nfsd4_unlink_clid_dir(char *name, int namlen)
 
 	dprintk("NFSD: nfsd4_unlink_clid_dir. name %.*s\n", namlen, name);
 
+	down(&rec_dir.dentry->d_inode->i_sem);
 	dentry = lookup_one_len(name, rec_dir.dentry, namlen);
+	up(&rec_dir.dentry->d_inode->i_sem);
 	if (IS_ERR(dentry)) {
 		status = PTR_ERR(dentry);
 		return status;
