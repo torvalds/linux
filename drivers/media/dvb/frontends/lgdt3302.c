@@ -1,5 +1,5 @@
 /*
- * $Id: lgdt3302.c,v 1.2 2005/06/28 23:50:48 mkrufky Exp $
+ * $Id: lgdt3302.c,v 1.5 2005/07/07 03:47:15 mkrufky Exp $
  *
  *    Support for LGDT3302 (DViCO FustionHDTV 3 Gold) - VSB/QAM
  *
@@ -34,7 +34,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -208,8 +207,6 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 	struct lgdt3302_state* state =
 		(struct lgdt3302_state*) fe->demodulator_priv;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,10)
-
 	/* Use 50MHz parameter values from spec sheet since xtal is 50 */
 	static u8 top_ctrl_cfg[]   = { TOP_CONTROL, 0x03 };
 	static u8 vsb_freq_cfg[]   = { VSB_CARRIER_FREQ0, 0x00, 0x87, 0x8e, 0x01 };
@@ -301,9 +298,6 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 		lgdt3302_SwReset(state);
 		state->current_modulation = param->u.vsb.modulation;
 	}
-#else
-	printk("lgdt3302: %s: you need a newer kernel for this, sorry\n",__FUNCTION__);
-#endif
 
 	/* Change only if we are actually changing the channel */
 	if (state->current_frequency != param->frequency) {
@@ -352,11 +346,28 @@ static int lgdt3302_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	 * This is done in SwReset();
 	 */
 
+	/* AGC status register */
+	i2c_selectreadbytes(state, AGC_STATUS, buf, 1);
+	dprintk("%s: AGC_STATUS = 0x%02x\n", __FUNCTION__, buf[0]);
+	if ((buf[0] & 0x0c) == 0x8){
+		/* Test signal does not exist flag */
+		/* as well as the AGC lock flag.   */
+		*status |= FE_HAS_SIGNAL;
+	} else {
+		/* Without a signal all other status bits are meaningless */
+		return 0;
+	}
+
 	/* signal status */
 	i2c_selectreadbytes(state, TOP_CONTROL, buf, sizeof(buf));
 	dprintk("%s: TOP_CONTROL = 0x%02x, IRO_MASK = 0x%02x, IRQ_STATUS = 0x%02x\n", __FUNCTION__, buf[0], buf[1], buf[2]);
+
+#if 0
+	/* Alternative method to check for a signal */
+	/* using the SNR good/bad interrupts.   */
 	if ((buf[2] & 0x30) == 0x10)
 		*status |= FE_HAS_SIGNAL;
+#endif
 
 	/* sync status */
 	if ((buf[2] & 0x03) == 0x01) {
@@ -369,17 +380,6 @@ static int lgdt3302_read_status(struct dvb_frontend* fe, fe_status_t* status)
 		*status |= FE_HAS_VITERBI;
 	}
 
-#if 0
-	/* Alternative method to check for a signal */
-	/* AGC status register */
-	i2c_selectreadbytes(state, AGC_STATUS, buf, 1);
-	dprintk("%s: AGC_STATUS = 0x%02x\n", __FUNCTION__, buf[0]);
-	if ((buf[0] & 0x0c) == 0x80) /* Test signal does not exist flag */
-		/* Test AGC lock flag */
-		*status |= FE_HAS_SIGNAL;
-	else
-		return 0;
-
 	/* Carrier Recovery Lock Status Register */
 	i2c_selectreadbytes(state, CARRIER_LOCK, buf, 1);
 	dprintk("%s: CARRIER_LOCK = 0x%02x\n", __FUNCTION__, buf[0]);
@@ -389,21 +389,14 @@ static int lgdt3302_read_status(struct dvb_frontend* fe, fe_status_t* status)
 		/* Need to undestand why there are 3 lock levels here */
 		if ((buf[0] & 0x07) == 0x07)
 			*status |= FE_HAS_CARRIER;
-		else
-			return 0;
 		break;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,10)
 	case VSB_8:
 		if ((buf[0] & 0x80) == 0x80)
 			*status |= FE_HAS_CARRIER;
-		else
-			return 0;
 		break;
-#endif
 	default:
 		printk("KERN_WARNING lgdt3302: %s: Modulation set to unsupported value\n", __FUNCTION__);
 	}
-#endif
 
 	return 0;
 }
