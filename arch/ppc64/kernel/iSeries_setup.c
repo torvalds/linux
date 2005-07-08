@@ -834,9 +834,6 @@ static int __init iSeries_src_init(void)
 
 late_initcall(iSeries_src_init);
 
-static unsigned long maxYieldTime = 0;
-static unsigned long minYieldTime = 0xffffffffffffffffUL;
-
 static inline void process_iSeries_events(void)
 {
 	asm volatile ("li 0,0x5555; sc" : : : "r0", "r3");
@@ -845,7 +842,6 @@ static inline void process_iSeries_events(void)
 static void yield_shared_processor(void)
 {
 	unsigned long tb;
-	unsigned long yieldTime;
 
 	HvCall_setEnabledInterrupts(HvCall_MaskIPI |
 				    HvCall_MaskLpEvent |
@@ -856,13 +852,6 @@ static void yield_shared_processor(void)
 	/* Compute future tb value when yield should expire */
 	HvCall_yieldProcessor(HvCall_YieldTimed, tb+tb_ticks_per_jiffy);
 
-	yieldTime = get_tb() - tb;
-	if (yieldTime > maxYieldTime)
-		maxYieldTime = yieldTime;
-
-	if (yieldTime < minYieldTime)
-		minYieldTime = yieldTime;
-
 	/*
 	 * The decrementer stops during the yield.  Force a fake decrementer
 	 * here and let the timer_interrupt code sort out the actual time.
@@ -871,45 +860,62 @@ static void yield_shared_processor(void)
 	process_iSeries_events();
 }
 
-static int iSeries_idle(void)
+static int iseries_shared_idle(void)
 {
-	struct paca_struct *lpaca;
+	while (1) {
+		while (!need_resched() && !hvlpevent_is_pending()) {
+			local_irq_disable();
+			ppc64_runlatch_off();
+
+			/* Recheck with irqs off */
+			if (!need_resched() && !hvlpevent_is_pending())
+				yield_shared_processor();
+
+			HMT_medium();
+			local_irq_enable();
+		}
+
+		ppc64_runlatch_on();
+
+		if (hvlpevent_is_pending())
+			process_iSeries_events();
+
+		schedule();
+	}
+
+	return 0;
+}
+
+static int iseries_dedicated_idle(void)
+{
+	struct paca_struct *lpaca = get_paca();
 	long oldval;
 
-	/* ensure iSeries run light will be out when idle */
-	ppc64_runlatch_off();
-
-	lpaca = get_paca();
-
 	while (1) {
-		if (lpaca->lppaca.shared_proc) {
-			if (hvlpevent_is_pending())
-				process_iSeries_events();
-			if (!need_resched())
-				yield_shared_processor();
-		} else {
-			oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
+		oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
 
-			if (!oldval) {
-				set_thread_flag(TIF_POLLING_NRFLAG);
+		if (!oldval) {
+			set_thread_flag(TIF_POLLING_NRFLAG);
 
-				while (!need_resched()) {
+			while (!need_resched()) {
+				ppc64_runlatch_off();
+				HMT_low();
+
+				if (hvlpevent_is_pending()) {
 					HMT_medium();
-					if (hvlpevent_is_pending())
-						process_iSeries_events();
-					HMT_low();
+					ppc64_runlatch_on();
+					process_iSeries_events();
 				}
-
-				HMT_medium();
-				clear_thread_flag(TIF_POLLING_NRFLAG);
-			} else {
-				set_need_resched();
 			}
+
+			HMT_medium();
+			clear_thread_flag(TIF_POLLING_NRFLAG);
+		} else {
+			set_need_resched();
 		}
 
 		ppc64_runlatch_on();
 		schedule();
-		ppc64_runlatch_off();
 	}
 
 	return 0;
@@ -940,6 +946,10 @@ void __init iSeries_early_setup(void)
 	ppc_md.get_rtc_time = iSeries_get_rtc_time;
 	ppc_md.calibrate_decr = iSeries_calibrate_decr;
 	ppc_md.progress = iSeries_progress;
-	ppc_md.idle_loop = iSeries_idle;
+
+	if (get_paca()->lppaca.shared_proc)
+		ppc_md.idle_loop = iseries_shared_idle;
+	else
+		ppc_md.idle_loop = iseries_dedicated_idle;
 }
 
