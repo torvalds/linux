@@ -1149,7 +1149,7 @@ endif # KBUILD_EXTMOD
 #(which is the most common case IMHO) to avoid unneeded clutter in the big tags file.
 #Adding $(srctree) adds about 20M on i386 to the size of the output file!
 
-ifeq ($(KBUILD_OUTPUT),)
+ifeq ($(src),$(obj))
 __srctree =
 else
 __srctree = $(srctree)/
