@@ -702,7 +702,7 @@ int snd_info_get_line(snd_info_buffer_t * buffer, char *line, int len)
 }
 
 /**
- * snd_info_get_line - parse a string token
+ * snd_info_get_str - parse a string token
  * @dest: the buffer to store the string token
  * @src: the original string
  * @len: the max. length of token - 1
@@ -939,7 +939,8 @@ int snd_info_unregister(snd_info_entry_t * entry)
 {
 	struct proc_dir_entry *root;
 
-	snd_assert(entry != NULL && entry->p != NULL, return -ENXIO);
+	snd_assert(entry != NULL, return -ENXIO);
+	snd_assert(entry->p != NULL, return -ENXIO);
 	root = entry->parent == NULL ? snd_proc_root : entry->parent->p;
 	snd_assert(root, return -ENXIO);
 	down(&info_mutex);
