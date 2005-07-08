@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <asm/hvcall.h>
 #include <asm/hvconsole.h>
-#include <asm/prom.h>
 
 /**
  * hvc_get_chars - retrieve characters from firmware for denoted vterm adatper
@@ -88,35 +87,3 @@ int hvc_put_chars(uint32_t vtermno, const char *buf, int count)
 }
 
 EXPORT_SYMBOL(hvc_put_chars);
-
-/*
- * We hope/assume that the first vty found corresponds to the first console
- * device.
- */
-static int hvc_find_vtys(void)
-{
-	struct device_node *vty;
-	int num_found = 0;
-
-	for (vty = of_find_node_by_name(NULL, "vty"); vty != NULL;
-			vty = of_find_node_by_name(vty, "vty")) {
-		uint32_t *vtermno;
-
-		/* We have statically defined space for only a certain number of
-		 * console adapters. */
-		if (num_found >= MAX_NR_HVC_CONSOLES)
-			break;
-
-		vtermno = (uint32_t *)get_property(vty, "reg", NULL);
-		if (!vtermno)
-			continue;
-
-		if (device_is_compatible(vty, "hvterm1")) {
-			hvc_instantiate(*vtermno, num_found);
-			++num_found;
-		}
-	}
-
-	return num_found;
-}
-console_initcall(hvc_find_vtys);

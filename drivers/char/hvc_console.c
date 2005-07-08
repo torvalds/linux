@@ -41,7 +41,6 @@
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/hvconsole.h>
-#include <asm/vio.h>
 
 #define HVC_MAJOR	229
 #define HVC_MINOR	0
@@ -90,7 +89,6 @@ struct hvc_struct {
 	int irq;
 	struct list_head next;
 	struct kobject kobj; /* ref count & hvc_struct lifetime */
-	struct vio_dev *vdev;
 };
 
 /* dynamic list of hvc_struct instances */
@@ -279,6 +277,7 @@ int hvc_instantiate(uint32_t vtermno, int index)
 
 	return 0;
 }
+EXPORT_SYMBOL(hvc_instantiate);
 
 /* Wake the sleeping khvcd */
 static void hvc_kick(void)
@@ -738,26 +737,19 @@ static struct kobj_type hvc_kobj_type = {
 	.release = destroy_hvc_struct,
 };
 
-static int __devinit hvc_probe(
-		struct vio_dev *dev,
-		const struct vio_device_id *id)
+struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq)
 {
 	struct hvc_struct *hp;
 	int i;
 
-	/* probed with invalid parameters. */
-	if (!dev || !id)
-		return -EPERM;
-
 	hp = kmalloc(sizeof(*hp), GFP_KERNEL);
 	if (!hp)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	memset(hp, 0x00, sizeof(*hp));
-	hp->vtermno = dev->unit_address;
-	hp->vdev = dev;
-	hp->vdev->dev.driver_data = hp;
-	hp->irq = dev->irq;
+
+	hp->vtermno = vtermno;
+	hp->irq = irq;
 
 	kobject_init(&hp->kobj);
 	hp->kobj.ktype = &hvc_kobj_type;
@@ -782,12 +774,12 @@ static int __devinit hvc_probe(
 	list_add_tail(&(hp->next), &hvc_structs);
 	spin_unlock(&hvc_structs_lock);
 
-	return 0;
+	return hp;
 }
+EXPORT_SYMBOL(hvc_alloc);
 
-static int __devexit hvc_remove(struct vio_dev *dev)
+int __devexit hvc_remove(struct hvc_struct *hp)
 {
-	struct hvc_struct *hp = dev->dev.driver_data;
 	unsigned long flags;
 	struct kobject *kobjp;
 	struct tty_struct *tty;
@@ -820,28 +812,12 @@ static int __devexit hvc_remove(struct vio_dev *dev)
 		tty_hangup(tty);
 	return 0;
 }
-
-char hvc_driver_name[] = "hvc_console";
-
-static struct vio_device_id hvc_driver_table[] __devinitdata= {
-	{"serial", "hvterm1"},
-	{ NULL, }
-};
-MODULE_DEVICE_TABLE(vio, hvc_driver_table);
-
-static struct vio_driver hvc_vio_driver = {
-	.name		= hvc_driver_name,
-	.id_table	= hvc_driver_table,
-	.probe		= hvc_probe,
-	.remove		= hvc_remove,
-};
+EXPORT_SYMBOL(hvc_remove);
 
 /* Driver initialization.  Follow console initialization.  This is where the TTY
  * interfaces start to become available. */
 int __init hvc_init(void)
 {
-	int rc;
-
 	/* We need more than hvc_count adapters due to hotplug additions. */
 	hvc_driver = alloc_tty_driver(HVC_ALLOC_TTY_ADAPTERS);
 	if (!hvc_driver)
@@ -870,10 +846,7 @@ int __init hvc_init(void)
 		return -EIO;
 	}
 
-	/* Register as a vio device to receive callbacks */
-	rc = vio_register_driver(&hvc_vio_driver);
-
-	return rc;
+	return 0;
 }
 module_init(hvc_init);
 
@@ -884,7 +857,6 @@ static void __exit hvc_exit(void)
 {
 	kthread_stop(hvc_task);
 
-	vio_unregister_driver(&hvc_vio_driver);
 	tty_unregister_driver(hvc_driver);
 	/* return tty_struct instances allocated in hvc_init(). */
 	put_tty_driver(hvc_driver);

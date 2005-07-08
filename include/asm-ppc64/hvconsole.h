@@ -29,9 +29,16 @@
  */
 #define MAX_NR_HVC_CONSOLES	16
 
+/* implemented by a low level driver */
 extern int hvc_get_chars(uint32_t vtermno, char *buf, int count);
 extern int hvc_put_chars(uint32_t vtermno, const char *buf, int count);
 
-/* Register a vterm and a slot index for use as a console */
+struct hvc_struct;
+
+/* Register a vterm and a slot index for use as a console (console_init) */
 extern int hvc_instantiate(uint32_t vtermno, int index);
+/* register a vterm for hvc tty operation (module_init or hotplug add) */
+extern struct hvc_struct * __devinit hvc_alloc(uint32_t vtermno, int irq);
+/* remove a vterm from hvc tty operation (modele_exit or hotplug remove) */
+extern int __devexit hvc_remove(struct hvc_struct *hp);
 #endif /* _PPC64_HVCONSOLE_H */
