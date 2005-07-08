@@ -68,14 +68,6 @@ typedef struct adjust_t {
 #define RES_ALLOCATED			0x20
 #define RES_REMOVED			0x40
 
-typedef struct servinfo_t {
-    char	Signature[2];
-    u_int	Count;
-    u_int	Revision;
-    u_int	CSLevel;
-    char	*VendorString;
-} servinfo_t;
-
 typedef struct event_callback_args_t {
 	struct pcmcia_device	*client_handle;
 	void			*client_data;

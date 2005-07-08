@@ -49,7 +49,6 @@ typedef struct mtd_info_t {
 } mtd_info_t;
 
 typedef union ds_ioctl_arg_t {
-    servinfo_t		servinfo;
     adjust_t		adjust;
     config_info_t	config;
     tuple_t		tuple;
@@ -65,7 +64,6 @@ typedef union ds_ioctl_arg_t {
     cisdump_t		cisdump;
 } ds_ioctl_arg_t;
 
-#define DS_GET_CARD_SERVICES_INFO	_IOR ('d', 1, servinfo_t)
 #define DS_ADJUST_RESOURCE_INFO		_IOWR('d', 2, adjust_t)
 #define DS_GET_CONFIGURATION_INFO	_IOWR('d', 3, config_info_t)
 #define DS_GET_FIRST_TUPLE		_IOWR('d', 4, tuple_t)
