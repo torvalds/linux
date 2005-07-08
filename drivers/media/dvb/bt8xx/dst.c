@@ -1147,7 +1147,11 @@ static int dst_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 
 	switch (tone) {
 		case SEC_TONE_OFF:
-			state->tx_tuna[2] = 0xff;
+			if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
+			    state->tx_tuna[2] = 0x00;
+			else
+			    state->tx_tuna[2] = 0xff;
+
 			break;
 
 		case SEC_TONE_ON:
