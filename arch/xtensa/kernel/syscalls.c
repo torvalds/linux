@@ -46,8 +46,6 @@
 
 extern void do_syscall_trace(void);
 typedef int (*syscall_t)(void *a0,...);
-extern int (*do_syscalls)(struct pt_regs *regs, syscall_t fun,
-				     int narg);
 extern syscall_t sys_call_table[];
 extern unsigned char sys_narg_table[];
 
@@ -72,10 +70,8 @@ int sys_pipe(int __user *userfds)
 /*
  * Common code for old and new mmaps.
  */
-
-static inline long do_mmap2(unsigned long addr, unsigned long len,
-    			    unsigned long prot, unsigned long flags,
-			    unsigned long fd, unsigned long pgoff)
+long sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
+	       unsigned long flags, unsigned long fd, unsigned long pgoff)
 {
 	int error = -EBADF;
 	struct file * file = NULL;
@@ -95,29 +91,6 @@ static inline long do_mmap2(unsigned long addr, unsigned long len,
 		fput(file);
 out:
 	return error;
-}
-
-unsigned long old_mmap(unsigned long addr, size_t len, int prot,
-		       int flags, int fd, off_t offset)
-{
-	return do_mmap2(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
-}
-
-long sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
-	       unsigned long flags, unsigned long fd, unsigned long pgoff)
-{
-	return do_mmap2(addr, len, prot, flags, fd, pgoff);
-}
-
-int sys_fork(struct pt_regs *regs)
-{
-	return do_fork(SIGCHLD, regs->areg[1], regs, 0, NULL, NULL);
-}
-
-int sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK|CLONE_VM|SIGCHLD, regs->areg[1],
-		       regs, 0, NULL, NULL);
 }
 
 int sys_clone(struct pt_regs *regs)
@@ -161,30 +134,6 @@ int sys_uname(struct old_utsname * name)
 		return 0;
 	return -EFAULT;
 }
-
-int sys_olduname(struct oldold_utsname * name)
-{
-	int error;
-
-	if (!name)
-		return -EFAULT;
-	if (!access_ok(VERIFY_WRITE,name,sizeof(struct oldold_utsname)))
-		return -EFAULT;
-
-	error = __copy_to_user(&name->sysname,&system_utsname.sysname,__OLD_UTS_LEN);
-	error -= __put_user(0,name->sysname+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->nodename,&system_utsname.nodename,__OLD_UTS_LEN);
-	error -= __put_user(0,name->nodename+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->release,&system_utsname.release,__OLD_UTS_LEN);
-	error -= __put_user(0,name->release+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->version,&system_utsname.version,__OLD_UTS_LEN);
-	error -= __put_user(0,name->version+__OLD_UTS_LEN);
-	error -= __copy_to_user(&name->machine,&system_utsname.machine,__OLD_UTS_LEN);
-	error -= __put_user(0,name->machine+__OLD_UTS_LEN);
-
-	return error ? -EFAULT : 0;
-}
-
 
 /*
  * Build the string table for the builtin "poor man's strace".
@@ -319,100 +268,3 @@ void system_call (struct pt_regs *regs)
 	regs->areg[2] = res;
 	do_syscall_trace();
 }
-
-/*
- * sys_ipc() is the de-multiplexer for the SysV IPC calls..
- *
- * This is really horribly ugly.
- */
-
-int sys_ipc (uint call, int first, int second,
-			int third, void __user *ptr, long fifth)
-{
-	int version, ret;
-
-	version = call >> 16; /* hack for backward compatibility */
-	call &= 0xffff;
-	ret = -ENOSYS;
-
-	switch (call) {
-	case SEMOP:
-		ret = sys_semtimedop (first, (struct sembuf __user *)ptr,
-				     second, NULL);
-		break;
-
-	case SEMTIMEDOP:
-		ret = sys_semtimedop (first, (struct sembuf __user *)ptr,
-				      second, (const struct timespec *) fifth);
-		break;
-
-	case SEMGET:
-		ret = sys_semget (first, second, third);
-		break;
-
-	case SEMCTL: {
-		union semun fourth;
-
-		if (ptr && !get_user(fourth.__pad, (void *__user *) ptr))
-			ret = sys_semctl (first, second, third, fourth);
-		break;
-		}
-
-	case MSGSND:
-		ret = sys_msgsnd (first, (struct msgbuf __user*) ptr,
-				  second, third);
-		break;
-
-	case MSGRCV:
-		switch (version) {
-		case 0: {
-			struct ipc_kludge tmp;
-
-			if (ptr && !copy_from_user(&tmp,
-					   (struct ipc_kludge *) ptr,
-					   sizeof (tmp)))
-				ret = sys_msgrcv (first, tmp.msgp, second,
-						  tmp.msgtyp, third);
-			break;
-			}
-
-		default:
-			ret = sys_msgrcv (first, (struct msgbuf __user *) ptr,
-					  second, 0, third);
-			break;
-		}
-		break;
-
-	case MSGGET:
-		ret = sys_msgget ((key_t) first, second);
-		break;
-
-	case MSGCTL:
-		ret = sys_msgctl (first, second, (struct msqid_ds __user*) ptr);
-		break;
-
-	case SHMAT: {
-		ulong raddr;
-		ret = do_shmat (first, (char __user *) ptr, second, &raddr);
-
-		if (!ret)
-			ret = put_user (raddr, (ulong __user *) third);
-
-		break;
-		}
-
-	case SHMDT:
-		ret = sys_shmdt ((char __user *)ptr);
-		break;
-
-	case SHMGET:
-		ret = sys_shmget (first, second, third);
-		break;
-
-	case SHMCTL:
-		ret = sys_shmctl (first, second, (struct shmid_ds __user*) ptr);
-		break;
-	}
-	return ret;
-}
-
