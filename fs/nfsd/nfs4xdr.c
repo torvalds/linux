@@ -1218,8 +1218,7 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 
 #define ENCODE_SEQID_OP_TAIL(stateowner) do {			\
 	if (seqid_mutating_err(nfserr) && stateowner) { 	\
-		if (stateowner->so_confirmed)			\
-			stateowner->so_seqid++;			\
+		stateowner->so_seqid++;				\
 		stateowner->so_replay.rp_status = nfserr;   	\
 		stateowner->so_replay.rp_buflen = 		\
 			  (((char *)(resp)->p - (char *)save)); \

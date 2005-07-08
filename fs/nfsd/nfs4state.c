@@ -1483,7 +1483,7 @@ nfsd4_process_open1(struct nfsd4_open *open)
 	if (sop) {
 		open->op_stateowner = sop;
 		/* check for replay */
-		if (open->op_seqid == sop->so_seqid){
+		if (open->op_seqid == sop->so_seqid - 1){
 			if (sop->so_replay.rp_buflen)
 				return NFSERR_REPLAY_ME;
 			else {
@@ -1498,7 +1498,7 @@ nfsd4_process_open1(struct nfsd4_open *open)
 				goto renew;
 			}
 		} else if (sop->so_confirmed) {
-			if (open->op_seqid == sop->so_seqid + 1)
+			if (open->op_seqid == sop->so_seqid)
 				goto renew;
 			status = nfserr_bad_seqid;
 			goto out;
@@ -1684,13 +1684,11 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct svc_fh *cur_fh, struct nfs4_sta
 }
 
 
-/* decrement seqid on successful reclaim, it will be bumped in encode_open */
 static void
 nfs4_set_claim_prev(struct nfsd4_open *open)
 {
 	open->op_stateowner->so_confirmed = 1;
 	open->op_stateowner->so_client->cl_firststate = 1;
-	open->op_stateowner->so_seqid--;
 }
 
 /*
@@ -2234,7 +2232,7 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 	*  For the moment, we ignore the possibility of 
 	*  generation number wraparound.
 	*/
-	if (seqid != sop->so_seqid + 1)
+	if (seqid != sop->so_seqid)
 		goto check_replay;
 
 	if (sop->so_confirmed) {
@@ -2280,12 +2278,12 @@ no_nfs4_stateid:
 	*sopp = sop;
 
 check_replay:
-	if (seqid == sop->so_seqid) {
+	if (seqid == sop->so_seqid - 1) {
 		printk("NFSD: preprocess_seqid_op: retransmission?\n");
 		/* indicate replay to calling function */
 		status = NFSERR_REPLAY_ME;
 	} else  {
-		printk("NFSD: preprocess_seqid_op: bad seqid (expected %d, got %d\n", sop->so_seqid +1, seqid);
+		printk("NFSD: preprocess_seqid_op: bad seqid (expected %d, got %d\n", sop->so_seqid, seqid);
 
 		*sopp = NULL;
 		status = nfserr_bad_seqid;
@@ -2608,7 +2606,6 @@ find_lockstateowner_str(struct inode *inode, clientid_t *clid,
  * occured. 
  *
  * strhashval = lock_ownerstr_hashval 
- * so_seqid = lock->lk_new_lock_seqid - 1: it gets bumped in encode 
  */
 
 static struct nfs4_stateowner *
@@ -2633,7 +2630,7 @@ alloc_init_lock_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 	sop->so_is_open_owner = 0;
 	sop->so_id = current_ownerid++;
 	sop->so_client = clp;
-	sop->so_seqid = lock->lk_new_lock_seqid - 1;
+	sop->so_seqid = lock->lk_new_lock_seqid;
 	sop->so_confirmed = 1;
 	rp = &sop->so_replay;
 	rp->rp_status = NFSERR_SERVERFAULT;
