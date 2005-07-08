@@ -847,6 +847,7 @@ static void expire_mount(struct vfsmount *mnt, struct list_head *mounts)
 
 		/* delete from the namespace */
 		list_del_init(&mnt->mnt_list);
+		mnt->mnt_namespace = NULL;
 		detach_mnt(mnt, &old_nd);
 		spin_unlock(&vfsmount_lock);
 		path_release(&old_nd);
