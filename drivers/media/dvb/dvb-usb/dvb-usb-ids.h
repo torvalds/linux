@@ -24,6 +24,7 @@
 #define USB_VID_HANFTEK						0x15f4
 #define USB_VID_HAUPPAUGE					0x2040
 #define USB_VID_HYPER_PALTEK				0x1025
+#define USB_VID_KYE							0x0458
 #define USB_VID_MEDION						0x1660
 #define USB_VID_VISIONPLUS					0x13d3
 #define USB_VID_TWINHAN						0x1822
@@ -80,6 +81,8 @@
 #define USB_PID_DVICO_BLUEBIRD_LGZ201_1		0xdb01
 #define USB_PID_DVICO_BLUEBIRD_TH7579_2		0xdb11
 #define USB_PID_MEDION_MD95700				0x0932
+#define USB_PID_KYE_DVB_T_COLD				0x701e
+#define USB_PID_KYE_DVB_T_WARM				0x701f
 
 
 #endif

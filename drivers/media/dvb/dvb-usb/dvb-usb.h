@@ -195,7 +195,7 @@ struct dvb_usb_properties {
 	} urb;
 
 	int num_device_descs;
-	struct dvb_usb_device_description devices[8];
+	struct dvb_usb_device_description devices[9];
 };
 
 

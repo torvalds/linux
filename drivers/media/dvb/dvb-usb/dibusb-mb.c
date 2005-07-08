@@ -123,11 +123,13 @@ static struct usb_device_id dibusb_dib3000mb_table [] = {
 
 /* device ID with default DIBUSB2_0-firmware and with the hacked firmware */
 /* 24 */	{ USB_DEVICE(USB_VID_ADSTECH,		USB_PID_ADSTECH_USB2_WARM) },
+/* 25 */	{ USB_DEVICE(USB_VID_KYE,			USB_PID_KYE_DVB_T_COLD) },
+/* 26 */	{ USB_DEVICE(USB_VID_KYE,			USB_PID_KYE_DVB_T_WARM) },
 
 // #define DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
 
 #ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
-/* 25 */	{ USB_DEVICE(USB_VID_ANCHOR,		USB_PID_ULTIMA_TVBOX_ANCHOR_COLD) },
+/* 27 */	{ USB_DEVICE(USB_VID_ANCHOR,		USB_PID_ULTIMA_TVBOX_ANCHOR_COLD) },
 #endif
 			{ }		/* Terminating entry */
 };
@@ -170,7 +172,7 @@ static struct dvb_usb_properties dibusb1_1_properties = {
 		}
 	},
 
-	.num_device_descs = 8,
+	.num_device_descs = 9,
 	.devices = {
 		{	"AVerMedia AverTV DVBT USB1.1",
 			{ &dibusb_dib3000mb_table[0],  NULL },
@@ -203,6 +205,10 @@ static struct dvb_usb_properties dibusb1_1_properties = {
 		{	"Artec T1 USB1.1 TVBOX with AN2135",
 			{ &dibusb_dib3000mb_table[19], NULL },
 			{ &dibusb_dib3000mb_table[20], NULL },
+		},
+		{	"VideoWalker DVB-T USB",
+			{ &dibusb_dib3000mb_table[25], NULL },
+			{ &dibusb_dib3000mb_table[26], NULL },
 		},
 	}
 };
@@ -256,7 +262,7 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 		},
 #ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
 		{	"Artec T1 USB1.1 TVBOX with AN2235 (faulty USB IDs)",
-			{ &dibusb_dib3000mb_table[25], NULL },
+			{ &dibusb_dib3000mb_table[27], NULL },
 			{ NULL },
 		},
 #endif
