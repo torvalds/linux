@@ -40,6 +40,12 @@ config DVB_VES1X93
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_S5H1420
+	tristate "Samsung S5H1420 based"
+	depends on DVB_CORE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
 comment "DVB-T (terrestrial) frontends"
 	depends on DVB_CORE
 
