@@ -1081,8 +1081,10 @@ void __init setup_arch(char **cmdline_p)
 	ppc_md.setup_arch();
 
 	/* Use the default idle loop if the platform hasn't provided one. */
-	if (NULL == ppc_md.idle_loop)
+	if (NULL == ppc_md.idle_loop) {
 		ppc_md.idle_loop = default_idle;
+		printk(KERN_INFO "Using default idle loop\n");
+	}
 
 	paging_init();
 	ppc64_boot_msg(0x15, "Setup Done");

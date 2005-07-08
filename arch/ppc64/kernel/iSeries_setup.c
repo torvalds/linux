@@ -946,9 +946,12 @@ void __init iSeries_early_setup(void)
 	ppc_md.calibrate_decr = iSeries_calibrate_decr;
 	ppc_md.progress = iSeries_progress;
 
-	if (get_paca()->lppaca.shared_proc)
+	if (get_paca()->lppaca.shared_proc) {
 		ppc_md.idle_loop = iseries_shared_idle;
-	else
+		printk(KERN_INFO "Using shared processor idle loop\n");
+	} else {
 		ppc_md.idle_loop = iseries_dedicated_idle;
+		printk(KERN_INFO "Using dedicated idle loop\n");
+	}
 }
 
