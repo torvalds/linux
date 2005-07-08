@@ -21,12 +21,14 @@ config DVB_USB_DEBUG
 config DVB_USB_A800
 	tristate "AVerMedia AverTV DVB-T USB 2.0 (A800)"
 	depends on DVB_USB
+	select DVB_DIB3000MC
 	help
 	  Say Y here to support the AVerMedia AverTV DVB-T USB 2.0 (A800) receiver.
 
 config DVB_USB_DIBUSB_MB
 	tristate "DiBcom USB DVB-T devices (based on the DiB3000M-B) (see help for device list)"
 	depends on DVB_USB
+	select DVB_DIB3000MB
 	help
 	  Support for USB 1.1 and 2.0 DVB-T receivers based on reference designs made by
 	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-B demodulator.
@@ -52,6 +54,7 @@ config DVB_USB_DIBUSB_MB
 config DVB_USB_DIBUSB_MC
 	tristate "DiBcom USB DVB-T devices (based on the DiB3000M-C/P) (see help for device list)"
 	depends on DVB_USB
+	select DVB_DIB3000MC
 	help
 	  Support for 2.0 DVB-T receivers based on reference designs made by
 	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-C/P demodulator.
@@ -66,12 +69,24 @@ config DVB_USB_DIBUSB_MC
 config DVB_USB_UMT_010
 	tristate "HanfTek UMT-010 DVB-T USB2.0 support"
 	depends on DVB_USB
+	select DVB_DIB3000MC
 	help
 	  Say Y here to support the HanfTek UMT-010 USB2.0 stick-sized DVB-T receiver.
+
+config DVB_USB_CXUSB
+	tristate "Medion MD95700 hybrid USB2.0 (Conexant) support"
+	depends on DVB_USB
+	select DVB_CX22702
+	help
+	  Say Y here to support the Medion MD95700 hybrid USB2.0 device. Currently
+	  only the DVB-T part is supported and MPEG2 data transfer are not working
+	  :(.
 
 config DVB_USB_DIGITV
 	tristate "Nebula Electronics uDigiTV DVB-T USB2.0 support"
 	depends on DVB_USB
+	select DVB_NXT6000
+	select DVB_MT352
 	help
 	  Say Y here to support the Nebula Electronics uDigitV USB2.0 DVB-T receiver.
 
@@ -87,6 +102,7 @@ config DVB_USB_VP7045
 config DVB_USB_NOVA_T_USB2
 	tristate "Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 support"
 	depends on DVB_USB
+	select DVB_DIB3000MC
 	help
 	  Say Y here to support the Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 receiver.
 
