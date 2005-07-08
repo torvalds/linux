@@ -570,9 +570,9 @@ static int philips_cu1216_pll_set(struct dvb_frontend *fe, struct dvb_frontend_p
 
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
-	buf[2] = 0x8e;
-	buf[3] = (params->frequency < 174500000 ? 0xa1 :
-		  params->frequency < 454000000 ? 0x92 : 0x34);
+	buf[2] = 0x86;
+	buf[3] = (params->frequency < 150000000 ? 0x01 :
+		  params->frequency < 445000000 ? 0x02 : 0x04);
 
 	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
