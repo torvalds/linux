@@ -669,8 +669,10 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 
 		ret = filter->feed.ts->start_filtering(filter->feed.ts);
 
-		if (ret < 0)
+		if (ret < 0) {
+			dmxdev->demux->release_ts_feed(dmxdev->demux, *tsfeed);
 			return ret;
+		}
 
 		break;
 	}
