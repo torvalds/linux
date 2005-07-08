@@ -869,7 +869,7 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 		/* don't do anything if the namespace is dead - all the
 		 * vfsmounts from it are going away anyway */
 		namespace = mnt->mnt_namespace;
-		if (!namespace || atomic_read(&namespace->count) <= 0)
+		if (!namespace || !namespace->root)
 			continue;
 		get_namespace(namespace);
 
@@ -1450,9 +1450,12 @@ void __init mnt_init(unsigned long mempages)
 
 void __put_namespace(struct namespace *namespace)
 {
+	struct vfsmount *root = namespace->root;
+	namespace->root = NULL;
+	spin_unlock(&vfsmount_lock);
 	down_write(&namespace->sem);
 	spin_lock(&vfsmount_lock);
-	umount_tree(namespace->root);
+	umount_tree(root);
 	spin_unlock(&vfsmount_lock);
 	up_write(&namespace->sem);
 	kfree(namespace);
