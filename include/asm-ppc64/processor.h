@@ -524,6 +524,15 @@ static inline void ppc64_runlatch_off(void)
 
 #endif /* __ASSEMBLY__ */
 
+#ifdef __KERNEL__
+#define RUNLATCH_ON(REG)			\
+BEGIN_FTR_SECTION				\
+	mfspr	(REG),SPRN_CTRLF;		\
+	ori	(REG),(REG),CTRL_RUNLATCH;	\
+	mtspr	SPRN_CTRLT,(REG);		\
+END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
+#endif
+
 /*
  * Number of entries in the SLB. If this ever changes we should handle
  * it with a use a cpu feature fixup.
