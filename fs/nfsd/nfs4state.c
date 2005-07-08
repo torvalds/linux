@@ -2715,11 +2715,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 			goto out;
 		}
 
-		/* is the new lock seqid presented by the client zero? */
-		status = nfserr_bad_seqid;
-		if (lock->v.new.lock_seqid != 0)
-			goto out;
-
 		/* validate and update open stateid and open seqid */
 		status = nfs4_preprocess_seqid_op(current_fh, 
 				        lock->lk_new_open_seqid,
