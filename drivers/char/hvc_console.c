@@ -192,12 +192,21 @@ void hvc_console_print(struct console *co, const char *b, unsigned count)
 
 static struct tty_driver *hvc_console_device(struct console *c, int *index)
 {
+	if (vtermnos[c->index] == -1)
+		return NULL;
+
 	*index = c->index;
 	return hvc_driver;
 }
 
 static int __init hvc_console_setup(struct console *co, char *options)
 {
+	if (co->index < 0 || co->index >= MAX_NR_HVC_CONSOLES)
+		return -ENODEV;
+
+	if (vtermnos[co->index] == -1)
+		return -ENODEV;
+
 	return 0;
 }
 
@@ -227,11 +236,20 @@ console_initcall(hvc_console_init);
  */
 int hvc_instantiate(uint32_t vtermno, int index)
 {
+	struct hvc_struct *hp;
+
 	if (index < 0 || index >= MAX_NR_HVC_CONSOLES)
 		return -1;
 
 	if (vtermnos[index] != -1)
 		return -1;
+
+	/* make sure no no tty has been registerd in this index */
+	hp = hvc_get_by_index(index);
+	if (hp) {
+		kobject_put(&hp->kobj);
+		return -1;
+	}
 
 	vtermnos[index] = vtermno;
 
