@@ -349,7 +349,7 @@ static int tda1004x_check_upload_ok(struct tda1004x_state *state)
 
 	data1 = tda1004x_read_byte(state, TDA1004X_DSP_DATA1);
 	data2 = tda1004x_read_byte(state, TDA1004X_DSP_DATA2);
-	if (data1 != 0x67 || data2 < 0x20 || data2 > 0x2a) {
+	if (data1 != 0x67 || data2 < 0x20 || data2 > 0x2e) {
 		printk(KERN_INFO "tda1004x: found firmware revision %x -- invalid\n", data2);
 		return -EIO;
 	}
