@@ -370,6 +370,10 @@ W:	http://www.thekelleys.org.uk/atmel
 W:	http://atmelwlandriver.sourceforge.net/
 S:	Maintained
 
+AUDIT SUBSYSTEM
+L:	linux-audit@redhat.com (subscribers-only)
+S:	Maintained
+
 AX.25 NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
