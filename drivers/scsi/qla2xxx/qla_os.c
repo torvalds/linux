@@ -1071,26 +1071,12 @@ qla2x00_device_reset(scsi_qla_host_t *ha, fc_port_t *reset_fcport)
 static int
 qla2xxx_slave_alloc(struct scsi_device *sdev)
 {
-	scsi_qla_host_t *ha = to_qla_host(sdev->host);
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
-	fc_port_t *fcport;
-	int found;
 
 	if (!rport)
 		return -ENXIO;
 
-	found = 0;
-	list_for_each_entry(fcport, &ha->fcports, list) {
-		if (rport->port_name ==
-		    be64_to_cpu(*(uint64_t *)fcport->port_name)) {
-			found++;
-			break;
-		}
-	}
-	if (!found)
-		return -ENXIO;
-
-	sdev->hostdata = fcport;
+	sdev->hostdata = rport->dd_data;
 
 	return 0;
 }

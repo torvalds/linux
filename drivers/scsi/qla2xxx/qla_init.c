@@ -2068,21 +2068,24 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 	rport_ids.port_id = fcport->d_id.b.domain << 16 |
 	    fcport->d_id.b.area << 8 | fcport->d_id.b.al_pa;
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
+	fcport->rport = rport = fc_remote_port_add(ha->host, 0, &rport_ids);
+	if (!rport) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to allocate fc remote port!\n");
+		return;
+	}
+	rport->dd_data = fcport;
+
+	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
 	if (fcport->port_type == FCT_INITIATOR)
 		rport_ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
 	if (fcport->port_type == FCT_TARGET)
 		rport_ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
-
-	fcport->rport = rport = fc_remote_port_add(ha->host, 0, &rport_ids);
-	if (!rport)
-		qla_printk(KERN_WARNING, ha,
-		    "Unable to allocate fc remote port!\n");
+	fc_remote_port_rolechg(rport, rport_ids.roles);
 
 	if (rport->scsi_target_id != -1 &&
 	    rport->scsi_target_id < ha->host->max_id)
 		fcport->os_target_id = rport->scsi_target_id;
-
-	rport->dd_data = fcport;
 }
 
 /*
