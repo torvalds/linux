@@ -582,7 +582,6 @@ void sctp_datamsg_track(struct sctp_chunk *);
 void sctp_chunk_fail(struct sctp_chunk *, int error);
 int sctp_chunk_abandoned(struct sctp_chunk *);
 
-
 /* RFC2960 1.4 Key Terms
  *
  * o Chunk: A unit of information within an SCTP packet, consisting of
@@ -592,13 +591,8 @@ int sctp_chunk_abandoned(struct sctp_chunk *);
  * each chunk as well as a few other header pointers...
  */
 struct sctp_chunk {
-	/* These first three elements MUST PRECISELY match the first
-	 * three elements of struct sk_buff.  This allows us to reuse
-	 * all the skb_* queue management functions.
-	 */
-	struct sctp_chunk *next;
-	struct sctp_chunk *prev;
-	struct sk_buff_head *list;
+	struct list_head list;
+
 	atomic_t refcnt;
 
 	/* This is our link to the per-transport transmitted list.  */
@@ -717,7 +711,7 @@ struct sctp_packet {
 	__u32 vtag;
 
 	/* This contains the payload chunks.  */
-	struct sk_buff_head chunks;
+	struct list_head chunk_list;
 
 	/* This is the overhead of the sctp and ip headers. */
 	size_t overhead;
@@ -974,7 +968,7 @@ struct sctp_inq {
 	/* This is actually a queue of sctp_chunk each
 	 * containing a partially decoded packet.
 	 */
-	struct sk_buff_head in;
+	struct list_head in_chunk_list;
 	/* This is the packet which is currently off the in queue and is
 	 * being worked on through the inbound chunk processing.
 	 */
@@ -1017,7 +1011,7 @@ struct sctp_outq {
 	struct sctp_association *asoc;
 
 	/* Data pending that has never been transmitted.  */
-	struct sk_buff_head out;
+	struct list_head out_chunk_list;
 
 	unsigned out_qlen;	/* Total length of queued data chunks. */
 
@@ -1025,7 +1019,7 @@ struct sctp_outq {
 	unsigned error;
 
 	/* These are control chunks we want to send.  */
-	struct sk_buff_head control;
+	struct list_head control_chunk_list;
 
 	/* These are chunks that have been sacked but are above the
 	 * CTSN, or cumulative tsn ack point.
@@ -1672,7 +1666,7 @@ struct sctp_association {
 	 *  which already resides in sctp_outq.	 Please move this
 	 *  queue and its supporting logic down there.	--piggy]
 	 */
-	struct sk_buff_head addip_chunks;
+	struct list_head addip_chunk_list;
 
 	/* ADDIP Section 4.1 ASCONF Chunk Procedures
 	 *
