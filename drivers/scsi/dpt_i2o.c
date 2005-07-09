@@ -382,7 +382,6 @@ static int adpt_queue(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd *))
 {
 	adpt_hba* pHba = NULL;
 	struct adpt_device* pDev = NULL;	/* dpt per device information */
-	ulong timeout = jiffies + (TMOUT_SCSI*HZ);
 
 	cmd->scsi_done = done;
 	/*
