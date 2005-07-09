@@ -2464,8 +2464,7 @@ static void __devinit intel8x0_measure_ac97_clock(intel8x0_t *chip)
 	}
 	do_gettimeofday(&start_time);
 	spin_unlock_irq(&chip->reg_lock);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ / 20);
+	msleep(50);
 	spin_lock_irq(&chip->reg_lock);
 	/* check the position */
 	pos = ichdev->fragsize1;

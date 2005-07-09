@@ -2018,21 +2018,11 @@ static int __devinit snd_ensoniq_create(snd_card_t * card,
 		if (pci->vendor == es1371_ac97_reset_hack[idx].vid &&
 		    pci->device == es1371_ac97_reset_hack[idx].did &&
 		    ensoniq->rev == es1371_ac97_reset_hack[idx].rev) {
-		        unsigned long tmo;
-			signed long tmo2;
-
 			ensoniq->cssr |= ES_1371_ST_AC97_RST;
 			outl(ensoniq->cssr, ES_REG(ensoniq, STATUS));
 			/* need to delay around 20ms(bleech) to give
 			some CODECs enough time to wakeup */
-			tmo = jiffies + (HZ / 50) + 1;
-			while (1) {
-				tmo2 = tmo - jiffies;
-				if (tmo2 <= 0)
-					break;
-				set_current_state(TASK_UNINTERRUPTIBLE);
-				schedule_timeout(tmo2);
-			}
+			msleep(20);
 			break;
 		}
 	/* AC'97 warm reset to start the bitclk */

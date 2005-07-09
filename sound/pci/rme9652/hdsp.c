@@ -679,8 +679,7 @@ static int snd_hdsp_load_firmware_from_cache(hdsp_t *hdsp) {
 		}
 
 		if ((1000 / HZ) < 3000) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout((3000 * HZ + 999) / 1000);
+			ssleep(3);
 		} else {
 			mdelay(3000);
 		}
@@ -5080,8 +5079,7 @@ static int __devinit snd_hdsp_create(snd_card_t *card,
 	if (!is_9652 && !is_9632) {
 		/* we wait 2 seconds to let freshly inserted cardbus cards do their hardware init */
  		if ((1000 / HZ) < 2000) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout((2000 * HZ + 999) / 1000);
+			ssleep(2);
 		} else {
 			mdelay(2000);
 		}
