@@ -43,6 +43,8 @@ config SPARC64_PAGE_SIZE_4MB
 
 endchoice
 
+source kernel/Kconfig.hz
+
 source "init/Kconfig"
 
 config SYSVIPC_COMPAT
