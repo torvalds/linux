@@ -317,6 +317,10 @@ qla2x00_fw_version_str(struct scsi_qla_host *ha, char *str)
 char *
 qla24xx_fw_version_str(struct scsi_qla_host *ha, char *str)
 {
+	sprintf(str, "%d.%02d.%02d ", ha->fw_major_version,
+	    ha->fw_minor_version,
+	    ha->fw_subminor_version);
+
 	if (ha->fw_attributes & BIT_0)
 		strcat(str, "[Class 2] ");
 	if (ha->fw_attributes & BIT_1)
@@ -326,7 +330,6 @@ qla24xx_fw_version_str(struct scsi_qla_host *ha, char *str)
 	if (ha->fw_attributes & BIT_13)
 		strcat(str, "[Experimental]");
 	return str;
-
 }
 
 static inline srb_t *
