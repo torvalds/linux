@@ -1724,6 +1724,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	struct in_device *in_dev = NULL;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_sf_socklist *psl;
+	int leavegroup = 0;
 	int i, j, rv;
 
 	if (!MULTICAST(addr))
@@ -1774,6 +1775,12 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 		}
 		if (rv)		/* source not found */
 			goto done;
+
+		/* special case - (INCLUDE, empty) == LEAVE_GROUP */
+		if (psl->sl_count == 1 && omode == MCAST_INCLUDE) {
+			leavegroup = 1;
+			goto done;
+		}
 
 		/* update the interface filter */
 		ip_mc_del_src(in_dev, &mreqs->imr_multiaddr, omode, 1, 
@@ -1831,6 +1838,8 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 		&mreqs->imr_sourceaddr, 1);
 done:
 	rtnl_shunlock();
+	if (leavegroup)
+		return ip_mc_leave_group(sk, &imr);
 	return err;
 }
 
