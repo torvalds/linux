@@ -1748,12 +1748,16 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 		    && pmc->multi.imr_ifindex == imr.imr_ifindex)
 			break;
 	}
-	if (!pmc)		/* must have a prior join */
+	if (!pmc) {		/* must have a prior join */
+		err = -EINVAL;
 		goto done;
+	}
 	/* if a source filter was set, must be the same mode as before */
 	if (pmc->sflist) {
-		if (pmc->sfmode != omode)
+		if (pmc->sfmode != omode) {
+			err = -EINVAL;
 			goto done;
+		}
 	} else if (pmc->sfmode != omode) {
 		/* allow mode switches for empty-set filters */
 		ip_mc_add_src(in_dev, &mreqs->imr_multiaddr, omode, 0, NULL, 0);
@@ -1765,7 +1769,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	psl = pmc->sflist;
 	if (!add) {
 		if (!psl)
-			goto done;
+			goto done;	/* err = -EADDRNOTAVAIL */
 		rv = !0;
 		for (i=0; i<psl->sl_count; i++) {
 			rv = memcmp(&psl->sl_addr[i], &mreqs->imr_sourceaddr,
@@ -1774,7 +1778,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 				break;
 		}
 		if (rv)		/* source not found */
-			goto done;
+			goto done;	/* err = -EADDRNOTAVAIL */
 
 		/* special case - (INCLUDE, empty) == LEAVE_GROUP */
 		if (psl->sl_count == 1 && omode == MCAST_INCLUDE) {
@@ -1870,15 +1874,16 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 		err = -ENODEV;
 		goto done;
 	}
-	err = -EADDRNOTAVAIL;
 
 	for (pmc=inet->mc_list; pmc; pmc=pmc->next) {
 		if (pmc->multi.imr_multiaddr.s_addr == msf->imsf_multiaddr &&
 		    pmc->multi.imr_ifindex == imr.imr_ifindex)
 			break;
 	}
-	if (!pmc)		/* must have a prior join */
+	if (!pmc) {		/* must have a prior join */
+		err = -EINVAL;
 		goto done;
+	}
 	if (msf->imsf_numsrc) {
 		newpsl = (struct ip_sf_socklist *)sock_kmalloc(sk,
 				IP_SFLSIZE(msf->imsf_numsrc), GFP_KERNEL);
@@ -1907,6 +1912,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 			0, NULL, 0);
 	pmc->sflist = newpsl;
 	pmc->sfmode = msf->imsf_fmode;
+	err = 0;
 done:
 	rtnl_shunlock();
 	return err;
