@@ -509,6 +509,7 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 		return -ENODEV;
 	dev = idev->dev;
 
+	err = 0;
 	if (gsf->gf_fmode == MCAST_INCLUDE && gsf->gf_numsrc == 0) {
 		leavegroup = 1;
 		goto done;
