@@ -1849,13 +1849,14 @@ done:
 
 int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 {
-	int err;
+	int err = 0;
 	struct ip_mreqn	imr;
 	u32 addr = msf->imsf_multiaddr;
 	struct ip_mc_socklist *pmc;
 	struct in_device *in_dev;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_sf_socklist *newpsl, *psl;
+	int leavegroup = 0;
 
 	if (!MULTICAST(addr))
 		return -EINVAL;
@@ -1872,6 +1873,12 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 
 	if (!in_dev) {
 		err = -ENODEV;
+		goto done;
+	}
+
+	/* special case - (INCLUDE, empty) == LEAVE_GROUP */
+	if (msf->imsf_fmode == MCAST_INCLUDE && msf->imsf_numsrc == 0) {
+		leavegroup = 1;
 		goto done;
 	}
 
@@ -1915,6 +1922,8 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	err = 0;
 done:
 	rtnl_shunlock();
+	if (leavegroup)
+		err = ip_mc_leave_group(sk, &imr);
 	return err;
 }
 

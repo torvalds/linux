@@ -281,7 +281,7 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex, struct in6_addr *addr)
 	}
 	write_unlock_bh(&ipv6_sk_mc_lock);
 
-	return -ENOENT;
+	return -EADDRNOTAVAIL;
 }
 
 static struct inet6_dev *ip6_mc_find_dev(struct in6_addr *group, int ifindex)
@@ -492,6 +492,7 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *newpsl, *psl;
+	int leavegroup = 0;
 	int i, err;
 
 	group = &((struct sockaddr_in6 *)&gsf->gf_group)->sin6_addr;
@@ -507,6 +508,11 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 	if (!idev)
 		return -ENODEV;
 	dev = idev->dev;
+
+	if (gsf->gf_fmode == MCAST_INCLUDE && gsf->gf_numsrc == 0) {
+		leavegroup = 1;
+		goto done;
+	}
 
 	for (pmc=inet6->ipv6_mc_list; pmc; pmc=pmc->next) {
 		if (pmc->ifindex != gsf->gf_interface)
@@ -554,6 +560,8 @@ done:
 	read_unlock_bh(&idev->lock);
 	in6_dev_put(idev);
 	dev_put(dev);
+	if (leavegroup)
+		err = ipv6_sock_mc_drop(sk, gsf->gf_interface, group);
 	return err;
 }
 
