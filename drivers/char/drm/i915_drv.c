@@ -34,7 +34,7 @@
 
 #include "drm_pciids.h"
 
-int postinit( struct drm_device *dev, unsigned long flags )
+static int postinit( struct drm_device *dev, unsigned long flags )
 {
 	dev->counters += 4;
 	dev->types[6] = _DRM_STAT_IRQ;
