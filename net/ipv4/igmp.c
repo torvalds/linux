@@ -1615,9 +1615,10 @@ int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
 {
 	int err;
 	u32 addr = imr->imr_multiaddr.s_addr;
-	struct ip_mc_socklist *iml, *i;
+	struct ip_mc_socklist *iml=NULL, *i;
 	struct in_device *in_dev;
 	struct inet_sock *inet = inet_sk(sk);
+	int ifindex;
 	int count = 0;
 
 	if (!MULTICAST(addr))
@@ -1633,37 +1634,30 @@ int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
 		goto done;
 	}
 
-	iml = (struct ip_mc_socklist *)sock_kmalloc(sk, sizeof(*iml), GFP_KERNEL);
-
 	err = -EADDRINUSE;
+	ifindex = imr->imr_ifindex;
 	for (i = inet->mc_list; i; i = i->next) {
-		if (memcmp(&i->multi, imr, sizeof(*imr)) == 0) {
-			/* New style additions are reference counted */
-			if (imr->imr_address.s_addr == 0) {
-				i->count++;
-				err = 0;
-			}
+		if (i->multi.imr_multiaddr.s_addr == addr &&
+		    i->multi.imr_ifindex == ifindex)
 			goto done;
-		}
 		count++;
 	}
 	err = -ENOBUFS;
-	if (iml == NULL || count >= sysctl_igmp_max_memberships)
+	if (count >= sysctl_igmp_max_memberships)
 		goto done;
+	iml = (struct ip_mc_socklist *)sock_kmalloc(sk,sizeof(*iml),GFP_KERNEL);
+	if (iml == NULL)
+		goto done;
+
 	memcpy(&iml->multi, imr, sizeof(*imr));
 	iml->next = inet->mc_list;
-	iml->count = 1;
 	iml->sflist = NULL;
 	iml->sfmode = MCAST_EXCLUDE;
 	inet->mc_list = iml;
 	ip_mc_inc_group(in_dev, addr);
-	iml = NULL;
 	err = 0;
-
 done:
 	rtnl_shunlock();
-	if (iml)
-		sock_kfree_s(sk, iml, sizeof(*iml));
 	return err;
 }
 
@@ -1704,12 +1698,6 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 			in_dev = inetdev_by_index(iml->multi.imr_ifindex);
 			if (in_dev)
 				(void) ip_mc_leave_src(sk, iml, in_dev);
-			if (--iml->count) {
-				rtnl_unlock();
-				if (in_dev)
-					in_dev_put(in_dev);
-				return 0;
-			}
 
 			*imlp = iml->next;
 
@@ -1755,7 +1743,8 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	err = -EADDRNOTAVAIL;
 
 	for (pmc=inet->mc_list; pmc; pmc=pmc->next) {
-		if (memcmp(&pmc->multi, mreqs, 2*sizeof(__u32)) == 0)
+		if (pmc->multi.imr_multiaddr.s_addr == imr.imr_multiaddr.s_addr
+		    && pmc->multi.imr_ifindex == imr.imr_ifindex)
 			break;
 	}
 	if (!pmc)		/* must have a prior join */
