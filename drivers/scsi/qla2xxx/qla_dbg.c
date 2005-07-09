@@ -1526,6 +1526,17 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 		WRT_REG_DWORD(&reg->ctrl_status,
 		    CSRX_ISP_SOFT_RESET|CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
+		RD_REG_DWORD(&reg->ctrl_status);
+
+		/* Wait for firmware to complete NVRAM accesses. */
+		udelay(5);
+		mb[0] = (uint32_t) RD_REG_WORD(&reg->mailbox0);
+		for (cnt = 10000 ; cnt && mb[0]; cnt--) {
+			udelay(5);
+			mb[0] = (uint32_t) RD_REG_WORD(&reg->mailbox0);
+			barrier();
+		}
+
 		udelay(20);
 		for (cnt = 0; cnt < 30000; cnt++) {
 			if ((RD_REG_DWORD(&reg->ctrl_status) &

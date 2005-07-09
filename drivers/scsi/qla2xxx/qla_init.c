@@ -564,19 +564,17 @@ qla2x00_reset_chip(scsi_qla_host_t *ha)
 }
 
 /**
- * qla24xx_reset_chip() - Reset ISP24xx chip.
+ * qla24xx_reset_risc() - Perform full reset of ISP24xx RISC.
  * @ha: HA context
  *
  * Returns 0 on success.
  */
-void
-qla24xx_reset_chip(scsi_qla_host_t *ha)
+static inline void
+qla24xx_reset_risc(scsi_qla_host_t *ha)
 {
 	unsigned long flags = 0;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	uint32_t cnt, d2;
-
-	ha->isp_ops.disable_intrs(ha);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
@@ -591,6 +589,17 @@ qla24xx_reset_chip(scsi_qla_host_t *ha)
 
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    CSRX_ISP_SOFT_RESET|CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
+	RD_REG_DWORD(&reg->ctrl_status);
+
+	/* Wait for firmware to complete NVRAM accesses. */
+	udelay(5);
+	d2 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
+	for (cnt = 10000 ; cnt && d2; cnt--) {
+		udelay(5);
+		d2 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
+		barrier();
+	}
+
 	udelay(20);
 	d2 = RD_REG_DWORD(&reg->ctrl_status);
 	for (cnt = 6000000 ; cnt && (d2 & CSRX_ISP_SOFT_RESET); cnt--) {
@@ -616,6 +625,21 @@ qla24xx_reset_chip(scsi_qla_host_t *ha)
 	}
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+/**
+ * qla24xx_reset_chip() - Reset ISP24xx chip.
+ * @ha: HA context
+ *
+ * Returns 0 on success.
+ */
+void
+qla24xx_reset_chip(scsi_qla_host_t *ha)
+{
+	ha->isp_ops.disable_intrs(ha);
+
+	/* Perform RISC reset. */
+	qla24xx_reset_risc(ha);
 }
 
 /**
@@ -753,49 +777,9 @@ int
 qla24xx_chip_diag(scsi_qla_host_t *ha)
 {
 	int rval;
-	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-	unsigned long flags = 0;
-	uint32_t cnt, d2;
 
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-
-	/* Reset RISC. */
-	WRT_REG_DWORD(&reg->ctrl_status, CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
-	for (cnt = 0; cnt < 30000; cnt++) {
-		if ((RD_REG_DWORD(&reg->ctrl_status) &
-		    CSRX_DMA_ACTIVE) == 0)
-			break;
-
-		udelay(10);
-	}
-
-	WRT_REG_DWORD(&reg->ctrl_status,
-	    CSRX_ISP_SOFT_RESET|CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
-	udelay(20);
-	d2 = RD_REG_DWORD(&reg->ctrl_status);
-	for (cnt = 6000000 ; cnt && (d2 & CSRX_ISP_SOFT_RESET); cnt--) {
-		udelay(5);
-		d2 = RD_REG_DWORD(&reg->ctrl_status);
-		barrier();
-	}
-
-	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_RESET);
-	RD_REG_DWORD(&reg->hccr);
-
-	WRT_REG_DWORD(&reg->hccr, HCCRX_REL_RISC_PAUSE);
-	RD_REG_DWORD(&reg->hccr);
-
-	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_RESET);
-	RD_REG_DWORD(&reg->hccr);
-
-	d2 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
-	for (cnt = 6000000 ; cnt && d2; cnt--) {
-		udelay(5);
-		d2 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
-		barrier();
-	}
-
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	/* Perform RISC reset. */
+	qla24xx_reset_risc(ha);
 
 	ha->fw_transfer_size = REQUEST_ENTRY_SIZE * 1024;
 
