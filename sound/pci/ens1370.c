@@ -685,6 +685,15 @@ static unsigned short snd_es1371_codec_read(ac97_t *ac97,
 	return 0;
 }
 
+static void snd_es1371_codec_wait(ac97_t *ac97)
+{
+	msleep(750);
+	snd_es1371_codec_read(ac97, AC97_RESET);
+	snd_es1371_codec_read(ac97, AC97_VENDOR_ID1);
+	snd_es1371_codec_read(ac97, AC97_VENDOR_ID2);
+	msleep(50);
+}
+
 static void snd_es1371_adc_rate(ensoniq_t * ensoniq, unsigned int rate)
 {
 	unsigned int n, truncm, freq, result;
@@ -1585,6 +1594,7 @@ static int snd_ensoniq_1371_mixer(ensoniq_t * ensoniq)
 	static ac97_bus_ops_t ops = {
 		.write = snd_es1371_codec_write,
 		.read = snd_es1371_codec_read,
+		.wait = snd_es1371_codec_wait,
 	};
 
 	if ((err = snd_ac97_bus(card, 0, &ops, NULL, &pbus)) < 0)
