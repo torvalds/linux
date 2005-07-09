@@ -792,7 +792,7 @@ static int start_urbs(snd_usb_substream_t *subs, snd_pcm_runtime_t *runtime)
  */
 static int wait_clear_urbs(snd_usb_substream_t *subs)
 {
-	int timeout = HZ;
+	unsigned long end_time = jiffies + msecs_to_jiffies(1000);
 	unsigned int i;
 	int alive;
 
@@ -812,7 +812,7 @@ static int wait_clear_urbs(snd_usb_substream_t *subs)
 			break;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
-	} while (--timeout > 0);
+	} while (time_before(jiffies, end_time));
 	if (alive)
 		snd_printk(KERN_ERR "timeout: still %d active urbs..\n", alive);
 	return 0;
