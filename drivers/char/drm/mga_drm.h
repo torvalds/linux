@@ -73,7 +73,8 @@
 
 #define MGA_CARD_TYPE_G200	1
 #define MGA_CARD_TYPE_G400	2
-
+#define MGA_CARD_TYPE_G450	3       /* not currently used */
+#define MGA_CARD_TYPE_G550	4
 
 #define MGA_FRONT		0x1
 #define MGA_BACK		0x2
