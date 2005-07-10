@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/time.c
+ * linux/arch/arm/mach-omap1/time.c
  *
  * OMAP Timers
  *
@@ -58,16 +58,8 @@ struct sys_timer omap_timer;
  * MPU timer
  * ---------------------------------------------------------------------------
  */
-#define OMAP_MPU_TIMER1_BASE		(0xfffec500)
-#define OMAP_MPU_TIMER2_BASE		(0xfffec600)
-#define OMAP_MPU_TIMER3_BASE		(0xfffec700)
 #define OMAP_MPU_TIMER_BASE		OMAP_MPU_TIMER1_BASE
 #define OMAP_MPU_TIMER_OFFSET		0x100
-
-#define MPU_TIMER_FREE			(1 << 6)
-#define MPU_TIMER_CLOCK_ENABLE		(1 << 5)
-#define MPU_TIMER_AR			(1 << 1)
-#define MPU_TIMER_ST			(1 << 0)
 
 /* cycles to nsec conversions taken from arch/i386/kernel/timers/timer_tsc.c,
  * converted to use kHz by Kevin Hilman */
@@ -255,6 +247,13 @@ unsigned long long sched_clock(void)
 #define OMAP_32K_TIMER_TCR		0x04
 
 #define OMAP_32K_TICKS_PER_HZ		(32768 / HZ)
+#if (32768 % HZ) != 0
+/* We cannot ignore modulo.
+ * Potential error can be as high as several percent.
+ */
+#define OMAP_32K_TICK_MODULO		(32768 % HZ)
+static unsigned modulo_count = 0; /* Counts 1/HZ units */
+#endif
 
 /*
  * TRM says 1 / HZ = ( TVR + 1) / 32768, so TRV = (32768 / HZ) - 1
@@ -331,6 +330,19 @@ static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
 	now = omap_32k_sync_timer_read();
 
 	while (now - omap_32k_last_tick >= OMAP_32K_TICKS_PER_HZ) {
+#ifdef OMAP_32K_TICK_MODULO
+		/* Modulo addition may put omap_32k_last_tick ahead of now
+		 * and cause unwanted repetition of the while loop.
+		 */
+		if (unlikely(now - omap_32k_last_tick == ~0))
+			break;
+
+		modulo_count += OMAP_32K_TICK_MODULO;
+		if (modulo_count > HZ) {
+			++omap_32k_last_tick;
+			modulo_count -= HZ;
+		}
+#endif
 		omap_32k_last_tick += OMAP_32K_TICKS_PER_HZ;
 		timer_tick(regs);
 	}
@@ -407,7 +419,7 @@ static __init void omap_init_32k_timer(void)
  * Timer initialization
  * ---------------------------------------------------------------------------
  */
-void __init omap_timer_init(void)
+static void __init omap_timer_init(void)
 {
 #if defined(CONFIG_OMAP_MPU_TIMER)
 	omap_init_mpu_timer();

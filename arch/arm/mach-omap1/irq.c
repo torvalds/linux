@@ -56,6 +56,7 @@
 struct omap_irq_bank {
 	unsigned long base_reg;
 	unsigned long trigger_map;
+	unsigned long wake_enable;
 };
 
 static unsigned int irq_bank_count = 0;
@@ -105,6 +106,19 @@ static void omap_mask_ack_irq(unsigned int irq)
 	omap_ack_irq(irq);
 }
 
+static int omap_wake_irq(unsigned int irq, unsigned int enable)
+{
+	int bank = IRQ_BANK(irq);
+
+	if (enable)
+		irq_banks[bank].wake_enable |= IRQ_BIT(irq);
+	else
+		irq_banks[bank].wake_enable &= ~IRQ_BIT(irq);
+
+	return 0;
+}
+
+
 /*
  * Allows tuning the IRQ type and priority
  *
@@ -145,7 +159,7 @@ static struct omap_irq_bank omap1510_irq_banks[] = {
 static struct omap_irq_bank omap1610_irq_banks[] = {
 	{ .base_reg = OMAP_IH1_BASE, 		.trigger_map = 0xb3fefe8f },
 	{ .base_reg = OMAP_IH2_BASE, 		.trigger_map = 0xfdb7c1fd },
-	{ .base_reg = OMAP_IH2_BASE + 0x100,	.trigger_map = 0xfffff7ff },
+	{ .base_reg = OMAP_IH2_BASE + 0x100,	.trigger_map = 0xffffb7ff },
 	{ .base_reg = OMAP_IH2_BASE + 0x200,	.trigger_map = 0xffffffff },
 };
 #endif
@@ -154,6 +168,7 @@ static struct irqchip omap_irq_chip = {
 	.ack    = omap_mask_ack_irq,
 	.mask   = omap_mask_irq,
 	.unmask = omap_unmask_irq,
+	.wake	= omap_wake_irq,
 };
 
 void __init omap_init_irq(void)
