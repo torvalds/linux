@@ -209,7 +209,8 @@ typedef enum drm_map_type {
 	_DRM_REGISTERS	    = 1,  /**< no caching, no core dump */
 	_DRM_SHM	    = 2,  /**< shared, cached */
 	_DRM_AGP            = 3,  /**< AGP/GART */
-	_DRM_SCATTER_GATHER = 4	  /**< Scatter/gather memory for PCI DMA */
+	_DRM_SCATTER_GATHER = 4,  /**< Scatter/gather memory for PCI DMA */
+	_DRM_CONSISTENT     = 5,  /**< Consistent memory for PCI DMA */
 } drm_map_type_t;
 
 

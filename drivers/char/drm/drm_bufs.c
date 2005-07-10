@@ -180,7 +180,22 @@ int drm_addmap( struct inode *inode, struct file *filp,
 		}
 		map->offset += dev->sg->handle;
 		break;
-
+	case _DRM_CONSISTENT: 
+	{
+		/* dma_addr_t is 64bit on i386 with CONFIG_HIGHMEM64G,
+		 * As we're limit the address to 2^32-1 (or lses),
+		 * casting it down to 32 bits is no problem, but we
+		 * need to point to a 64bit variable first. */
+		dma_addr_t bus_addr;
+		map->handle = drm_pci_alloc(dev, map->size, map->size,
+					    0xffffffffUL, &bus_addr);
+		map->offset = (unsigned long)bus_addr;
+		if (!map->handle) {
+			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
+			return -ENOMEM;
+		}
+		break;
+	}
 	default:
 		drm_free( map, sizeof(*map), DRM_MEM_MAPS );
 		return -EINVAL;
@@ -290,6 +305,9 @@ int drm_rmmap(struct inode *inode, struct file *filp,
 			break;
 		case _DRM_AGP:
 		case _DRM_SCATTER_GATHER:
+			break;
+		case _DRM_CONSISTENT:
+			drm_pci_free(dev, map->size, map->handle, map->offset);
 			break;
 		}
 		drm_free(map, sizeof(*map), DRM_MEM_MAPS);

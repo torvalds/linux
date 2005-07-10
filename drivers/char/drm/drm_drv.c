@@ -228,6 +228,10 @@ int drm_takedown( drm_device_t *dev )
 						dev->sg = NULL;
 					}
 					break;
+				case _DRM_CONSISTENT:
+					drm_pci_free(dev, map->size,
+						     map->handle, map->offset);
+					break;
 				}
 				drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 			}

@@ -228,6 +228,10 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 			case _DRM_AGP:
 			case _DRM_SCATTER_GATHER:
 				break;
+			case _DRM_CONSISTENT:
+				drm_pci_free(dev, map->size, map->handle,
+					     map->offset);
+				break;
 			}
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 		}
@@ -645,6 +649,9 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 		vma->vm_ops = &drm_vm_ops;
 		break;
 	case _DRM_SHM:
+	case _DRM_CONSISTENT:
+		/* Consistent memory is really like shared memory. It's only
+		 * allocate in a different way */
 		vma->vm_ops = &drm_vm_shm_ops;
 		vma->vm_private_data = (void *)map;
 				/* Don't let this area swap.  Change when
