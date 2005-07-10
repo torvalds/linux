@@ -129,14 +129,11 @@ void osk_leds_event(led_event_t evt)
 
 #ifdef	CONFIG_FB_OMAP
 
-#ifdef CONFIG_LEDS_TIMER
 	case led_timer:
 		hw_led_state ^= TIMER_LED;
 		mistral_setled();
 		break;
-#endif
 
-#ifdef CONFIG_LEDS_CPU
 	case led_idle_start:
 		hw_led_state |= IDLE_LED;
 		mistral_setled();
@@ -146,7 +143,6 @@ void osk_leds_event(led_event_t evt)
 		hw_led_state &= ~IDLE_LED;
 		mistral_setled();
 		break;
-#endif
 
 #endif	/* CONFIG_FB_OMAP */
 
