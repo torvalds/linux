@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.97 2005/07/06 15:18:41 dwmw2 Exp $
+ * $Id: nodelist.c,v 1.98 2005/07/10 15:15:32 dedekind Exp $
  *
  */
 
@@ -55,11 +55,11 @@ void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new
 	});
 }
 
-/* Put a new tmp_dnode_info into the list, keeping the list in 
-   order of increasing version
-*/
-
-static void jffs2_add_tn_to_list(struct jffs2_tmp_dnode_info *tn, struct rb_root *list)
+/* 
+ * Put a new tmp_dnode_info into the temporaty RB-tree, keeping the list in 
+ * order of increasing version.
+ */
+static void jffs2_add_tn_to_tree(struct jffs2_tmp_dnode_info *tn, struct rb_root *list)
 {
 	struct rb_node **p = &list->rb_node;
 	struct rb_node * parent = NULL;
@@ -420,7 +420,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			D1(printk(KERN_DEBUG "dnode @%08x: ver %u, offset %04x, dsize %04x\n",
 				  ref_offset(ref), je32_to_cpu(node.i.version),
 				  je32_to_cpu(node.i.offset), je32_to_cpu(node.i.dsize)));
-			jffs2_add_tn_to_list(tn, &ret_tn);
+			jffs2_add_tn_to_tree(tn, &ret_tn);
 			break;
 
 		default:
