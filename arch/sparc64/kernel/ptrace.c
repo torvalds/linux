@@ -630,9 +630,9 @@ out:
 
 asmlinkage void syscall_trace(void)
 {
-#ifdef DEBUG_PTRACE
-	printk("%s [%d]: syscall_trace\n", current->comm, current->pid);
-#endif
+	/* do the secure computing check first */
+	secure_computing(current_thread_info()->kregs->u_regs[UREG_G1]);
+
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
 	if (!(current->ptrace & PT_PTRACED))
@@ -645,12 +645,8 @@ asmlinkage void syscall_trace(void)
 	 * for normal use.  strace only continues with a signal if the
 	 * stopping signal is not SIGTRAP.  -brl
 	 */
-#ifdef DEBUG_PTRACE
-	printk("%s [%d]: syscall_trace exit= %x\n", current->comm,
-		current->pid, current->exit_code);
-#endif
 	if (current->exit_code) {
-		send_sig (current->exit_code, current, 1);
+		send_sig(current->exit_code, current, 1);
 		current->exit_code = 0;
 	}
 }
