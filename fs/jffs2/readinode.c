@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.124 2005/07/07 15:45:29 dedekind Exp $
+ * $Id: readinode.c,v 1.125 2005/07/10 13:13:55 dedekind Exp $
  *
  */
 
@@ -558,7 +558,6 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 		}
 	next_tn:
 		BUG_ON(rb->rb_left);
-		repl_rb = NULL;
 		if (rb->rb_parent && rb->rb_parent->rb_left == rb) {
 			/* We were then left-hand child of our parent. We need
 			   to move our own right-hand child into our place. */
