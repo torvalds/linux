@@ -30,7 +30,7 @@
 #include "csr.h"
 #include "nodemgr.h"
 
-static int ignore_drivers = 0;
+static int ignore_drivers;
 module_param(ignore_drivers, int, 0444);
 MODULE_PARM_DESC(ignore_drivers, "Disable automatic probing for drivers.");
 
