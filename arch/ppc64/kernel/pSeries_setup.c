@@ -37,7 +37,7 @@
 #include <linux/ioport.h>
 #include <linux/console.h>
 #include <linux/pci.h>
-#include <linux/version.h>
+#include <linux/utsname.h>
 #include <linux/adb.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -272,7 +272,7 @@ static int __init pSeries_init_panel(void)
 {
 	/* Manually leave the kernel version on the panel. */
 	ppc_md.progress("Linux ppc64\n", 0);
-	ppc_md.progress(UTS_RELEASE, 0);
+	ppc_md.progress(system_utsname.version, 0);
 
 	return 0;
 }

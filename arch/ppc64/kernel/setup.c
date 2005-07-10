@@ -25,7 +25,7 @@
 #include <linux/seq_file.h>
 #include <linux/ioport.h>
 #include <linux/console.h>
-#include <linux/version.h>
+#include <linux/utsname.h>
 #include <linux/tty.h>
 #include <linux/root_dev.h>
 #include <linux/notifier.h>
@@ -621,7 +621,7 @@ void __init setup_system(void)
 	smp_release_cpus();
 #endif /* defined(CONFIG_SMP) && !defined(CONFIG_PPC_ISERIES) */
 
-	printk("Starting Linux PPC64 %s\n", UTS_RELEASE);
+	printk("Starting Linux PPC64 %s\n", system_utsname.version);
 
 	printk("-----------------------------------------------------\n");
 	printk("ppc64_pft_size                = 0x%lx\n", ppc64_pft_size);
