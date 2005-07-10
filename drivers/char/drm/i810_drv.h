@@ -120,6 +120,7 @@ extern int i810_driver_dma_quiescent(drm_device_t *dev);
 extern void i810_driver_release(drm_device_t *dev, struct file *filp);
 extern void i810_driver_pretakedown(drm_device_t *dev);
 extern void i810_driver_prerelease(drm_device_t *dev, DRMFILE filp);
+extern int i810_driver_device_is_agp(drm_device_t * dev);
 
 #define I810_BASE(reg)		((unsigned long) \
 				dev_priv->mmio_map->handle)

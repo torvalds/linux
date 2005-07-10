@@ -586,7 +586,22 @@ struct drm_driver {
  	int (*kernel_context_switch)(struct drm_device *dev, int old, int new);
 	void (*kernel_context_switch_unlock)(struct drm_device *dev, drm_lock_t *lock);
 	int (*vblank_wait)(struct drm_device *dev, unsigned int *sequence);
+	
+	/**
+	 * Called by \c drm_device_is_agp.  Typically used to determine if a
+	 * card is really attached to AGP or not.
+	 *
+	 * \param dev  DRM device handle
+	 *
+	 * \returns
+	 * One of three values is returned depending on whether or not the
+	 * card is absolutely \b not AGP (return of 0), absolutely \b is AGP
+	 * (return of 1), or may or may not be AGP (return of 2).
+	 */
+	int (*device_is_agp) (struct drm_device * dev);
+
 	/* these have to be filled in */
+  
  	int (*postinit)(struct drm_device *, unsigned long flags);
 	irqreturn_t (*irq_handler)( DRM_IRQ_ARGS );
  	void (*irq_preinstall)(struct drm_device *dev);
@@ -1039,6 +1054,19 @@ static __inline__ struct drm_map *drm_core_findmap(struct drm_device *dev, unsig
 		}
 	}
 	return NULL;
+}
+
+static __inline__ int drm_device_is_agp(drm_device_t *dev)
+{
+	if ( dev->driver->device_is_agp != NULL ) {
+		int err = (*dev->driver->device_is_agp)( dev );
+	
+		if (err != 2) {
+			return err;
+		}
+	}
+
+	return pci_find_capability(dev->pdev, PCI_CAP_ID_AGP);
 }
 
 static __inline__ void drm_core_dropmap(struct drm_map *map)

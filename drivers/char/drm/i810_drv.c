@@ -84,6 +84,7 @@ static struct drm_driver driver = {
 	.dev_priv_size = sizeof(drm_i810_buf_priv_t),
 	.pretakedown = i810_driver_pretakedown,
 	.prerelease = i810_driver_prerelease,
+	.device_is_agp = i810_driver_device_is_agp,
 	.release = i810_driver_release,
 	.dma_quiescent = i810_driver_dma_quiescent,
 	.reclaim_buffers = i810_reclaim_buffers,

@@ -103,6 +103,7 @@ typedef struct drm_i915_private {
 extern void i915_kernel_lost_context(drm_device_t * dev);
 extern void i915_driver_pretakedown(drm_device_t *dev);
 extern void i915_driver_prerelease(drm_device_t *dev, DRMFILE filp);
+extern int i915_driver_device_is_agp(drm_device_t *dev);
 
 /* i915_irq.c */
 extern int i915_irq_emit(DRM_IOCTL_ARGS);

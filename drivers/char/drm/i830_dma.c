@@ -1586,3 +1586,19 @@ drm_ioctl_desc_t i830_ioctls[] = {
 };
 
 int i830_max_ioctl = DRM_ARRAY_SIZE(i830_ioctls);
+
+/**
+ * Determine if the device really is AGP or not.
+ *
+ * All Intel graphics chipsets are treated as AGP, even if they are really
+ * PCI-e.
+ *
+ * \param dev   The device to be tested.
+ *
+ * \returns
+ * A value of 1 is always retured to indictate every i8xx is AGP.
+ */
+int i830_driver_device_is_agp(drm_device_t * dev)
+{
+	return 1;
+}
