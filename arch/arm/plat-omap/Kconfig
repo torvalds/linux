@@ -19,6 +19,19 @@ endchoice
 
 comment "OMAP Feature Selections"
 
+config OMAP_RESET_CLOCKS
+	bool "Reset unused clocks during boot"
+	depends on ARCH_OMAP
+	default n
+	help
+	  Say Y if you want to reset unused clocks during boot.
+	  This option saves power, but assumes all drivers are
+	  using the clock framework. Broken drivers that do not
+	  yet use clock framework may not work with this option.
+	  If you are booting from another operating system, you
+	  probably do not want this option enabled until your
+	  device drivers work properly.
+
 config OMAP_MUX
 	bool "OMAP multiplexing support"
         depends on ARCH_OMAP

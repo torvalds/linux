@@ -52,6 +52,8 @@ struct mpu_rate {
 #define CLOCK_IN_OMAP16XX	64
 #define CLOCK_IN_OMAP1510	128
 #define CLOCK_IN_OMAP730	256
+#define DSP_DOMAIN_CLOCK	512
+#define VIRTUAL_IO_ADDRESS	1024
 
 /* ARM_CKCTL bit shifts */
 #define CKCTL_PERDIV_OFFSET	0
@@ -63,6 +65,8 @@ struct mpu_rate {
 /*#define ARM_TIMXO		12*/
 #define EN_DSPCK		13
 /*#define ARM_INTHCK_SEL	14*/ /* Divide-by-2 for mpu inth_ck */
+/* DSP_CKCTL bit shifts */
+#define CKCTL_DSPPERDIV_OFFSET	0
 
 /* ARM_IDLECT1 bit shifts */
 /*#define IDLWDT_ARM	0*/
@@ -96,6 +100,9 @@ struct mpu_rate {
 #define EN_TC1_CK	2
 #define EN_TC2_CK	4
 
+/* DSP_IDLECT2 bit shifts (0,1,2 are same as for ARM_IDLECT2) */
+#define EN_DSPTIMCK	5
+
 /* Various register defines for clock controls scattered around OMAP chip */
 #define USB_MCLK_EN_BIT		4	/* In ULPD_CLKC_CTRL */
 #define USB_HOST_HHC_UHOST_EN	9	/* In MOD_CONF_CTRL_0 */
@@ -103,7 +110,8 @@ struct mpu_rate {
 #define COM_ULPD_PLL_CLK_REQ	1	/* In COM_CLK_DIV_CTRL_SEL */
 #define SWD_CLK_DIV_CTRL_SEL	0xfffe0874
 #define COM_CLK_DIV_CTRL_SEL	0xfffe0878
-
+#define SOFT_REQ_REG		0xfffe0834
+#define SOFT_REQ_REG2		0xfffe0880
 
 int clk_register(struct clk *clk);
 void clk_unregister(struct clk *clk);

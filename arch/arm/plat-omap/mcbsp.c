@@ -66,6 +66,7 @@ struct omap_mcbsp {
 static struct omap_mcbsp mcbsp[OMAP_MAX_MCBSP_COUNT];
 static struct clk *mcbsp_dsp_ck = 0;
 static struct clk *mcbsp_api_ck = 0;
+static struct clk *mcbsp_dspxor_ck = 0;
 
 
 static void omap_mcbsp_dump_reg(u8 id)
@@ -175,7 +176,7 @@ static int omap_mcbsp_check(unsigned int id)
 		return 0;
 	}
 
-	if (cpu_is_omap1510() || cpu_is_omap1610() || cpu_is_omap1710()) {
+	if (cpu_is_omap1510() || cpu_is_omap16xx()) {
 		if (id > OMAP_MAX_MCBSP_COUNT) {
 			printk(KERN_ERR "OMAP-McBSP: McBSP%d doesn't exist\n", id + 1);
 			return -1;
@@ -191,15 +192,12 @@ static int omap_mcbsp_check(unsigned int id)
 
 static void omap_mcbsp_dsp_request(void)
 {
-	if (cpu_is_omap1510() || cpu_is_omap1610() || cpu_is_omap1710()) {
-		omap_writew((omap_readw(ARM_RSTCT1) | (1 << 1) | (1 << 2)),
-			    ARM_RSTCT1);
-		clk_enable(mcbsp_dsp_ck);
-		clk_enable(mcbsp_api_ck);
+	if (cpu_is_omap1510() || cpu_is_omap16xx()) {
+		clk_use(mcbsp_dsp_ck);
+		clk_use(mcbsp_api_ck);
 
 		/* enable 12MHz clock to mcbsp 1 & 3 */
-		__raw_writew(__raw_readw(DSP_IDLECT2) | (1 << EN_XORPCK),
-			     DSP_IDLECT2);
+		clk_use(mcbsp_dspxor_ck);
 		__raw_writew(__raw_readw(DSP_RSTCT2) | 1 | 1 << 1,
 			     DSP_RSTCT2);
 	}
@@ -207,9 +205,12 @@ static void omap_mcbsp_dsp_request(void)
 
 static void omap_mcbsp_dsp_free(void)
 {
-	/* Useless for now */
+	if (cpu_is_omap1510() || cpu_is_omap16xx()) {
+		clk_unuse(mcbsp_dspxor_ck);
+		clk_unuse(mcbsp_dsp_ck);
+		clk_unuse(mcbsp_api_ck);
+	}
 }
-
 
 int omap_mcbsp_request(unsigned int id)
 {
@@ -349,6 +350,73 @@ void omap_mcbsp_stop(unsigned int id)
 	OMAP_MCBSP_WRITE(io_base, SPCR2, w & ~(1 << 6));
 }
 
+
+/* polled mcbsp i/o operations */
+int omap_mcbsp_pollwrite(unsigned int id, u16 buf)
+{
+	u32 base = mcbsp[id].io_base;
+	writew(buf, base + OMAP_MCBSP_REG_DXR1);
+	/* if frame sync error - clear the error */
+	if (readw(base + OMAP_MCBSP_REG_SPCR2) & XSYNC_ERR) {
+		/* clear error */
+		writew(readw(base + OMAP_MCBSP_REG_SPCR2) & (~XSYNC_ERR),
+		       base + OMAP_MCBSP_REG_SPCR2);
+		/* resend */
+		return -1;
+	} else {
+		/* wait for transmit confirmation */
+		int attemps = 0;
+		while (!(readw(base + OMAP_MCBSP_REG_SPCR2) & XRDY)) {
+			if (attemps++ > 1000) {
+				writew(readw(base + OMAP_MCBSP_REG_SPCR2) &
+				       (~XRST),
+				       base + OMAP_MCBSP_REG_SPCR2);
+				udelay(10);
+				writew(readw(base + OMAP_MCBSP_REG_SPCR2) |
+				       (XRST),
+				       base + OMAP_MCBSP_REG_SPCR2);
+				udelay(10);
+				printk(KERN_ERR
+				       " Could not write to McBSP Register\n");
+				return -2;
+			}
+		}
+	}
+	return 0;
+}
+
+int omap_mcbsp_pollread(unsigned int id, u16 * buf)
+{
+	u32 base = mcbsp[id].io_base;
+	/* if frame sync error - clear the error */
+	if (readw(base + OMAP_MCBSP_REG_SPCR1) & RSYNC_ERR) {
+		/* clear error */
+		writew(readw(base + OMAP_MCBSP_REG_SPCR1) & (~RSYNC_ERR),
+		       base + OMAP_MCBSP_REG_SPCR1);
+		/* resend */
+		return -1;
+	} else {
+		/* wait for recieve confirmation */
+		int attemps = 0;
+		while (!(readw(base + OMAP_MCBSP_REG_SPCR1) & RRDY)) {
+			if (attemps++ > 1000) {
+				writew(readw(base + OMAP_MCBSP_REG_SPCR1) &
+				       (~RRST),
+				       base + OMAP_MCBSP_REG_SPCR1);
+				udelay(10);
+				writew(readw(base + OMAP_MCBSP_REG_SPCR1) |
+				       (RRST),
+				       base + OMAP_MCBSP_REG_SPCR1);
+				udelay(10);
+				printk(KERN_ERR
+				       " Could not read from McBSP Register\n");
+				return -2;
+			}
+		}
+	}
+	*buf = readw(base + OMAP_MCBSP_REG_DRR1);
+	return 0;
+}
 
 /*
  * IRQ based word transmission.
@@ -625,9 +693,14 @@ static int __init omap_mcbsp_init(void)
 		return PTR_ERR(mcbsp_dsp_ck);
 	}
 	mcbsp_api_ck = clk_get(0, "api_ck");
-	if (IS_ERR(mcbsp_dsp_ck)) {
+	if (IS_ERR(mcbsp_api_ck)) {
 		printk(KERN_ERR "mcbsp: could not acquire api_ck handle.\n");
 		return PTR_ERR(mcbsp_api_ck);
+	}
+	mcbsp_dspxor_ck = clk_get(0, "dspxor_ck");
+	if (IS_ERR(mcbsp_dspxor_ck)) {
+		printk(KERN_ERR "mcbsp: could not acquire dspxor_ck handle.\n");
+		return PTR_ERR(mcbsp_dspxor_ck);
 	}
 
 #ifdef CONFIG_ARCH_OMAP730
@@ -643,7 +716,7 @@ static int __init omap_mcbsp_init(void)
 	}
 #endif
 #if defined(CONFIG_ARCH_OMAP16XX)
-	if (cpu_is_omap1610() || cpu_is_omap1710()) {
+	if (cpu_is_omap16xx()) {
 		mcbsp_info = mcbsp_1610;
 		mcbsp_count = ARRAY_SIZE(mcbsp_1610);
 	}

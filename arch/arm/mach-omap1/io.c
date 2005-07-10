@@ -17,6 +17,7 @@
 #include <asm/io.h>
 #include <asm/arch/tc.h>
 
+extern int clk_init(void);
 extern void omap_check_revision(void);
 
 /*
