@@ -127,7 +127,7 @@ static drm_ioctl_desc_t		  drm_ioctls[] = {
  *
  * Frees every resource in \p dev.
  *
- * \sa drm_device and setup().
+ * \sa drm_device
  */
 int drm_takedown( drm_device_t *dev )
 {
@@ -321,7 +321,7 @@ EXPORT_SYMBOL(drm_init);
  *
  * Cleans up all DRM device, calling takedown().
  * 
- * \sa drm_init().
+ * \sa drm_init
  */
 static void drm_cleanup( drm_device_t *dev )
 {
