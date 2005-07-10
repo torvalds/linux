@@ -22,8 +22,6 @@
 #include <asm/estate.h>
 #include <asm/auxio.h>
 
-/* #define SYSCALL_TRACING	1 */
-
 #define curptr      g6
 
 #define NR_SYSCALLS 284      /* Each OS is different... */
@@ -1671,11 +1669,6 @@ linux_sparc_syscall32:
 	bgeu,pn		%xcc, linux_sparc_ni_syscall		! CTI
 	 srl		%i0, 0, %o0				! IEU0
 	sll		%g1, 2, %l4				! IEU0	Group
-#ifdef SYSCALL_TRACING
-	call		syscall_trace_entry
-	 add		%sp, PTREGS_OFF, %o0
-	srl		%i0, 0, %o0
-#endif
 	srl		%i4, 0, %o4				! IEU1
 	lduw		[%l7 + %l4], %l7			! Load
 	srl		%i1, 0, %o1				! IEU0	Group
@@ -1699,11 +1692,6 @@ linux_sparc_syscall:
 	bgeu,pn		%xcc, linux_sparc_ni_syscall		! CTI
 	 mov		%i0, %o0				! IEU0
 	sll		%g1, 2, %l4				! IEU0	Group
-#ifdef SYSCALL_TRACING
-	call		syscall_trace_entry
-	 add		%sp, PTREGS_OFF, %o0
-	mov		%i0, %o0
-#endif
 	mov		%i1, %o1				! IEU1
 	lduw		[%l7 + %l4], %l7			! Load
 4:	mov		%i2, %o2				! IEU0	Group
@@ -1720,12 +1708,6 @@ linux_sparc_syscall:
 
 3:	stx		%o0, [%sp + PTREGS_OFF + PT_V9_I0]
 ret_sys_call:
-#ifdef SYSCALL_TRACING
-	mov		%o0, %o1
-	call		syscall_trace_exit
-	 add		%sp, PTREGS_OFF, %o0
-	mov		%o1, %o0
-#endif
 	ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %g3
 	ldx		[%sp + PTREGS_OFF + PT_V9_TNPC], %l1 ! pc = npc
 	sra		%o0, 0, %o0
