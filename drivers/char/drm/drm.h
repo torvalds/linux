@@ -369,7 +369,8 @@ typedef struct drm_buf_desc {
 	enum {
 		_DRM_PAGE_ALIGN = 0x01, /**< Align on page boundaries for DMA */
 		_DRM_AGP_BUFFER = 0x02, /**< Buffer is in AGP space */
-		_DRM_SG_BUFFER  = 0x04  /**< Scatter/gather memory buffer */
+		_DRM_SG_BUFFER  = 0x04, /**< Scatter/gather memory buffer */
+		_DRM_FB_BUFFER  = 0x08  /**< Buffer is in frame buffer */
 	}	      flags;
 	unsigned long agp_start; /**< 
 				  * Start address of where the AGP buffers are

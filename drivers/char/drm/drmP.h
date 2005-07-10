@@ -96,6 +96,7 @@
 #define DRIVER_IRQ_SHARED  0x80
 #define DRIVER_IRQ_VBL     0x100
 #define DRIVER_DMA_QUEUE   0x200
+#define DRIVER_FB_DMA      0x400
 
 /***********************************************************************/
 /** \name Begin the DRM... */
@@ -474,7 +475,8 @@ typedef struct drm_device_dma {
 	unsigned long	  byte_count;
 	enum {
 		_DRM_DMA_USE_AGP = 0x01,
-		_DRM_DMA_USE_SG  = 0x02
+		_DRM_DMA_USE_SG  = 0x02,
+		_DRM_DMA_USE_FB  = 0x04
 	} flags;
 
 } drm_device_dma_t;
