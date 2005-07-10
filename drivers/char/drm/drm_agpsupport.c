@@ -229,7 +229,7 @@ int drm_agp_alloc(struct inode *inode, struct file *filp,
 	pages = (request.size + PAGE_SIZE - 1) / PAGE_SIZE;
 	type = (u32) request.type;
 
-	if (!(memory = drm_alloc_agp(dev->agp->bridge, pages, type))) {
+	if (!(memory = drm_alloc_agp(dev, pages, type))) {
 		drm_free(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
 		return -ENOMEM;
 	}

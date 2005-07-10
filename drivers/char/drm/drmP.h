@@ -829,7 +829,7 @@ extern void	     *drm_ioremap_nocache(unsigned long offset, unsigned long size,
 					   drm_device_t *dev);
 extern void	     drm_ioremapfree(void *pt, unsigned long size, drm_device_t *dev);
 
-extern DRM_AGP_MEM   *drm_alloc_agp(struct agp_bridge_data *bridge, int pages, u32 type);
+extern DRM_AGP_MEM   *drm_alloc_agp(drm_device_t *dev, int pages, u32 type);
 extern int           drm_free_agp(DRM_AGP_MEM *handle, int pages);
 extern int           drm_bind_agp(DRM_AGP_MEM *handle, unsigned int start);
 extern int           drm_unbind_agp(DRM_AGP_MEM *handle);
