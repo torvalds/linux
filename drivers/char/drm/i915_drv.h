@@ -121,7 +121,7 @@ extern void i915_mem_release(drm_device_t * dev,
 			     DRMFILE filp, struct mem_block *heap);
 
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
-			      unsigned long arg)
+			      unsigned long arg);
 
 
 #define I915_READ(reg)          DRM_READ32(dev_priv->mmio_map, reg)
