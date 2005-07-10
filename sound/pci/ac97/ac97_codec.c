@@ -1078,6 +1078,11 @@ static void check_volume_resolution(ac97_t *ac97, int reg, unsigned char *lo_max
 	for (i = 0 ; i < ARRAY_SIZE(cbit); i++) {
 		unsigned short val;
 		snd_ac97_write(ac97, reg, 0x8080 | cbit[i] | (cbit[i] << 8));
+		/* Do the read twice due to buffers on some ac97 codecs.
+		 * e.g. The STAC9704 returns exactly what you wrote the the register
+		 * if you read it immediately. This causes the detect routine to fail.
+		 */
+		val = snd_ac97_read(ac97, reg);
 		val = snd_ac97_read(ac97, reg);
 		if (! *lo_max && (val & 0x7f) == cbit[i])
 			*lo_max = max[i];
