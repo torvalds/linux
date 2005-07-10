@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/board-generic.c
+ * linux/arch/arm/mach-omap1/board-generic.c
  *
  * Modified from board-innovator1510.c
  *
@@ -26,8 +26,7 @@
 #include <asm/arch/mux.h>
 #include <asm/arch/usb.h>
 #include <asm/arch/board.h>
-
-#include "common.h"
+#include <asm/arch/common.h>
 
 static int __initdata generic_serial_ports[OMAP_MAX_NR_PORTS] = {1, 1, 1};
 
@@ -84,7 +83,7 @@ static void __init omap_generic_init(void)
 
 static void __init omap_generic_map_io(void)
 {
-	omap_map_io();
+	omap_map_common_io()
 }
 
 MACHINE_START(OMAP_GENERIC, "Generic OMAP1510/1610/1710")

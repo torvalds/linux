@@ -1,0 +1,144 @@
+comment "OMAP Core Type"
+	depends on ARCH_OMAP1
+
+config ARCH_OMAP730
+	depends on ARCH_OMAP1
+	bool "OMAP730 Based System"
+	select ARCH_OMAP_OTG
+
+config ARCH_OMAP1510
+	depends on ARCH_OMAP1
+	default y
+	bool "OMAP1510 Based System"
+
+config ARCH_OMAP16XX
+	depends on ARCH_OMAP1
+	bool "OMAP16xx Based System"
+	select ARCH_OMAP_OTG
+
+comment "OMAP Board Type"
+	depends on ARCH_OMAP1
+
+config MACH_OMAP_INNOVATOR
+	bool "TI Innovator"
+	depends on ARCH_OMAP1 && (ARCH_OMAP1510 || ARCH_OMAP16XX)
+	help
+          TI OMAP 1510 or 1610 Innovator board support. Say Y here if you
+          have such a board.
+
+config MACH_OMAP_H2
+	bool "TI H2 Support"
+	depends on ARCH_OMAP1 && ARCH_OMAP16XX
+    	help
+	  TI OMAP 1610/1611B H2 board support. Say Y here if you have such
+	  a board.
+
+config MACH_OMAP_H3
+	bool "TI H3 Support"
+	depends on ARCH_OMAP1 && ARCH_OMAP16XX
+    	help
+	  TI OMAP 1710 H3 board support. Say Y here if you have such
+	  a board.
+
+config MACH_OMAP_OSK
+	bool "TI OSK Support"
+	depends on ARCH_OMAP1 && ARCH_OMAP16XX
+    	help
+	  TI OMAP 5912 OSK (OMAP Starter Kit) board support. Say Y here
+          if you have such a board.
+
+config MACH_OMAP_PERSEUS2
+	bool "TI Perseus2"
+	depends on ARCH_OMAP1 && ARCH_OMAP730
+    	help
+	  Support for TI OMAP 730 Perseus2 board. Say Y here if you have such
+	  a board.
+
+config MACH_VOICEBLUE
+	bool "Voiceblue"
+	depends on ARCH_OMAP1 && ARCH_OMAP1510
+	help
+	  Support for Voiceblue GSM/VoIP gateway. Say Y here if you have
+	  such a board.
+
+config MACH_NETSTAR
+	bool "NetStar"
+	depends on ARCH_OMAP1 && ARCH_OMAP1510
+	help
+	  Support for NetStar PBX. Say Y here if you have such a board.
+
+config MACH_OMAP_GENERIC
+	bool "Generic OMAP board"
+	depends on ARCH_OMAP1 && (ARCH_OMAP1510 || ARCH_OMAP16XX)
+	help
+          Support for generic OMAP-1510, 1610 or 1710 board with
+          no FPGA. Can be used as template for porting Linux to
+          custom OMAP boards. Say Y here if you have a custom
+          board.
+
+comment "OMAP CPU Speed"
+	depends on ARCH_OMAP1
+
+config OMAP_CLOCKS_SET_BY_BOOTLOADER
+	bool "OMAP clocks set by bootloader"
+	depends on ARCH_OMAP1
+	help
+	  Enable this option to prevent the kernel from overriding the clock
+	  frequencies programmed by bootloader for MPU, DSP, MMUs, TC,
+	  internal LCD controller and MPU peripherals.
+
+config OMAP_ARM_216MHZ
+	bool "OMAP ARM 216 MHz CPU (1710 only)"
+        depends on ARCH_OMAP1 && ARCH_OMAP16XX
+        help
+          Enable 216 MHz clock for OMAP1710 CPU. If unsure, say N.
+
+config OMAP_ARM_195MHZ
+	bool "OMAP ARM 195 MHz CPU"
+	depends on ARCH_OMAP1 && ARCH_OMAP730
+	help
+          Enable 195MHz clock for OMAP CPU. If unsure, say N.
+
+config OMAP_ARM_192MHZ
+	bool "OMAP ARM 192 MHz CPU"
+	depends on ARCH_OMAP1 && ARCH_OMAP16XX
+	help
+          Enable 192MHz clock for OMAP CPU. If unsure, say N.
+
+config OMAP_ARM_182MHZ
+	bool "OMAP ARM 182 MHz CPU"
+	depends on ARCH_OMAP1 && ARCH_OMAP730
+	help
+          Enable 182MHz clock for OMAP CPU. If unsure, say N.
+
+config OMAP_ARM_168MHZ
+	bool "OMAP ARM 168 MHz CPU"
+	depends on ARCH_OMAP1 && (ARCH_OMAP1510 || ARCH_OMAP16XX || ARCH_OMAP730)
+	help
+          Enable 168MHz clock for OMAP CPU. If unsure, say N.
+
+config OMAP_ARM_150MHZ
+	bool "OMAP ARM 150 MHz CPU"
+	depends on ARCH_OMAP1 && ARCH_OMAP1510
+	help
+	  Enable 150MHz clock for OMAP CPU. If unsure, say N.
+
+config OMAP_ARM_120MHZ
+	bool "OMAP ARM 120 MHz CPU"
+	depends on ARCH_OMAP1 && (ARCH_OMAP1510 || ARCH_OMAP16XX || ARCH_OMAP730)
+	help
+          Enable 120MHz clock for OMAP CPU. If unsure, say N.
+
+config OMAP_ARM_60MHZ
+	bool "OMAP ARM 60 MHz CPU"
+	depends on ARCH_OMAP1 && (ARCH_OMAP1510 || ARCH_OMAP16XX || ARCH_OMAP730)
+        default y
+	help
+          Enable 60MHz clock for OMAP CPU. If unsure, say Y.
+
+config OMAP_ARM_30MHZ
+	bool "OMAP ARM 30 MHz CPU"
+	depends on ARCH_OMAP1 && (ARCH_OMAP1510 || ARCH_OMAP16XX || ARCH_OMAP730)
+	help
+          Enable 30MHz clock for OMAP CPU. If unsure, say N.
+

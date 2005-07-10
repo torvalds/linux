@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/omap/dma.c
+ * linux/arch/arm/plat-omap/dma.c
  *
  * Copyright (C) 2003 Nokia Corporation
  * Author: Juha Yrjölä <juha.yrjola@nokia.com>
@@ -794,10 +794,6 @@ static void set_b1_regs(void)
 	w = omap_readw(OMAP1610_DMA_LCD_CTRL);
 	/* Always set the source port as SDRAM for now*/
 	w &= ~(0x03 << 6);
-	if (lcd_dma.ext_ctrl)
-		w |= 1 << 8;
-	else
-		w &= ~(1 << 8);
 	if (lcd_dma.callback != NULL)
 		w |= 1 << 1;            /* Block interrupt enable */
 	else
@@ -889,9 +885,15 @@ void omap_enable_lcd_dma(void)
 	 */
 	if (enable_1510_mode || !lcd_dma.ext_ctrl)
 		return;
+
+	w = omap_readw(OMAP1610_DMA_LCD_CTRL);
+	w |= 1 << 8;
+	omap_writew(w, OMAP1610_DMA_LCD_CTRL);
+
 	w = omap_readw(OMAP1610_DMA_LCD_CCR);
 	w |= 1 << 7;
 	omap_writew(w, OMAP1610_DMA_LCD_CCR);
+
 	lcd_dma.active = 1;
 }
 
@@ -922,10 +924,19 @@ void omap_setup_lcd_dma(void)
 
 void omap_stop_lcd_dma(void)
 {
+	u16 w;
+
 	lcd_dma.active = 0;
-	if (!enable_1510_mode && lcd_dma.ext_ctrl)
-		omap_writew(omap_readw(OMAP1610_DMA_LCD_CCR) & ~(1 << 7),
-			    OMAP1610_DMA_LCD_CCR);
+	if (enable_1510_mode || !lcd_dma.ext_ctrl)
+		return;
+
+	w = omap_readw(OMAP1610_DMA_LCD_CCR);
+	w &= ~(1 << 7);
+	omap_writew(w, OMAP1610_DMA_LCD_CCR);
+
+	w = omap_readw(OMAP1610_DMA_LCD_CTRL);
+	w &= ~(1 << 8);
+	omap_writew(w, OMAP1610_DMA_LCD_CTRL);
 }
 
 /*
@@ -970,6 +981,25 @@ dma_addr_t omap_get_dma_dst_pos(int lch)
 {
 	return (dma_addr_t) (OMAP_DMA_CDSA_L(lch) |
 			     (OMAP_DMA_CDSA_U(lch) << 16));
+}
+
+int omap_dma_running(void)
+{
+	int lch;
+
+	/* Check if LCD DMA is running */
+	if (cpu_is_omap16xx())
+		if (omap_readw(OMAP1610_DMA_LCD_CCR) & OMAP_DMA_CCR_EN)
+			return 1;
+
+	for (lch = 0; lch < dma_chan_count; lch++) {
+		u16 w;
+
+		w = omap_readw(OMAP_DMA_CCR(lch));
+		if (w & OMAP_DMA_CCR_EN)
+			return 1;
+	}
+	return 0;
 }
 
 static int __init omap_init_dma(void)

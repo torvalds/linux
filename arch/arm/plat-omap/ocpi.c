@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/ocpi.c
+ * linux/arch/arm/plat-omap/ocpi.c
  *
  * Minimal OCP bus support for omap16xx
  *

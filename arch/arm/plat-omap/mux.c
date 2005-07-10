@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/mux.c
+ * linux/arch/arm/plat-omap/mux.c
  *
  * Utility to set the Omap MUX and PULL_DWN registers from a table in mux.h
  *
@@ -53,19 +53,13 @@ omap_cfg_reg(const reg_cfg_t reg_cfg)
 		return -EINVAL;
 	}
 
-	cfg = &reg_cfg_table[reg_cfg];
-
-	/*
-	 * We do a pretty long section here with lock on, but pin muxing
-	 * should only happen on driver init for each driver, so it's not time
-	 * critical.
-	 */
-	spin_lock_irqsave(&mux_spin_lock, flags);
+	cfg = (reg_cfg_set *)&reg_cfg_table[reg_cfg];
 
 	/* Check the mux register in question */
 	if (cfg->mux_reg) {
 		unsigned	tmp1, tmp2;
 
+		spin_lock_irqsave(&mux_spin_lock, flags);
 		reg_orig = omap_readl(cfg->mux_reg);
 
 		/* The mux registers always seem to be 3 bits long */
@@ -80,11 +74,13 @@ omap_cfg_reg(const reg_cfg_t reg_cfg)
 			warn = 1;
 
 		omap_writel(reg, cfg->mux_reg);
+		spin_unlock_irqrestore(&mux_spin_lock, flags);
 	}
 
 	/* Check for pull up or pull down selection on 1610 */
 	if (!cpu_is_omap1510()) {
 		if (cfg->pu_pd_reg && cfg->pull_val) {
+			spin_lock_irqsave(&mux_spin_lock, flags);
 			pu_pd_orig = omap_readl(cfg->pu_pd_reg);
 			mask = 1 << cfg->pull_bit;
 
@@ -100,11 +96,13 @@ omap_cfg_reg(const reg_cfg_t reg_cfg)
 				pu_pd = pu_pd_orig & ~mask;
 			}
 			omap_writel(pu_pd, cfg->pu_pd_reg);
+			spin_unlock_irqrestore(&mux_spin_lock, flags);
 		}
 	}
 
 	/* Check for an associated pull down register */
 	if (cfg->pull_reg) {
+		spin_lock_irqsave(&mux_spin_lock, flags);
 		pull_orig = omap_readl(cfg->pull_reg);
 		mask = 1 << cfg->pull_bit;
 
@@ -121,6 +119,7 @@ omap_cfg_reg(const reg_cfg_t reg_cfg)
 		}
 
 		omap_writel(pull, cfg->pull_reg);
+		spin_unlock_irqrestore(&mux_spin_lock, flags);
 	}
 
 	if (warn) {
@@ -148,8 +147,6 @@ omap_cfg_reg(const reg_cfg_t reg_cfg)
 			       cfg->pull_name, cfg->pull_reg, pull_orig, pull);
 	}
 #endif
-
-	spin_unlock_irqrestore(&mux_spin_lock, flags);
 
 #ifdef CONFIG_OMAP_MUX_ERRORS
 	return warn ? -ETXTBSY : 0;

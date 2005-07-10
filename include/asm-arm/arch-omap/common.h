@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/common.h
+ * linux/include/asm-arm/arch-omap/common.h
  *
  * Header for code common to all OMAP machines.
  *
@@ -29,7 +29,7 @@
 
 struct sys_timer;
 
-extern void omap_map_io(void);
+extern void omap_map_common_io(void);
 extern struct sys_timer omap_timer;
 extern void omap_serial_init(int ports[]);
 

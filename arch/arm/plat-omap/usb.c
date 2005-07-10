@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-omap/usb.c -- platform level USB initialization
+ * arch/arm/plat-omap/usb.c -- platform level USB initialization
  *
  * Copyright (C) 2004 Texas Instruments, Inc.
  *
@@ -326,7 +326,7 @@ static u64 ohci_dmamask = ~(u32)0;
 static struct resource ohci_resources[] = {
 	{
 		.start	= OMAP_OHCI_BASE,
-		.end	= OMAP_OHCI_BASE + 4096,
+		.end	= OMAP_OHCI_BASE + 4096 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{

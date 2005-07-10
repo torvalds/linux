@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/board-h3.c
+ * linux/arch/arm/mach-omap1/board-h3.c
  *
  * This file contains OMAP1710 H3 specific code.
  *
@@ -37,8 +37,7 @@
 #include <asm/arch/mux.h>
 #include <asm/arch/tc.h>
 #include <asm/arch/usb.h>
-
-#include "common.h"
+#include <asm/arch/common.h>
 
 extern int omap_gpio_init(void);
 
@@ -190,7 +189,7 @@ void h3_init_irq(void)
 
 static void __init h3_map_io(void)
 {
-	omap_map_io();
+	omap_map_common_io();
 	omap_serial_init(h3_serial_ports);
 }
 

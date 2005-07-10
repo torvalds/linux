@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mach-omap/clock.c
+ *  linux/arch/arm/plat-omap/clock.c
  *
  *  Copyright (C) 2004 Nokia corporation
  *  Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 
+#include <asm/io.h>
 #include <asm/semaphore.h>
 #include <asm/hardware/clock.h>
 #include <asm/arch/board.h>
@@ -25,6 +26,8 @@ static LIST_HEAD(clocks);
 static DECLARE_MUTEX(clocks_sem);
 static DEFINE_SPINLOCK(clockfw_lock);
 static void propagate_rate(struct clk *  clk);
+/* UART clock function */
+static int set_uart_rate(struct clk * clk, unsigned long rate);
 /* External clock (MCLK & BCLK) functions */
 static int set_ext_clk_rate(struct clk *  clk, unsigned long rate);
 static long round_ext_clk_rate(struct clk *  clk, unsigned long rate);
@@ -34,7 +37,7 @@ static int select_table_rate(struct clk *  clk, unsigned long rate);
 static long round_to_table_rate(struct clk *  clk, unsigned long rate);
 void clk_setdpll(__u16, __u16);
 
-struct mpu_rate rate_table[] = {
+static struct mpu_rate rate_table[] = {
 	/* MPU MHz, xtal MHz, dpll1 MHz, CKCTL, DPLL_CTL
 	 * armdiv, dspdiv, dspmmu, tcdiv, perdiv, lcddiv
 	 */
@@ -48,7 +51,7 @@ struct mpu_rate rate_table[] = {
 	{ 192000000, 19200000, 192000000, 0x050f, 0x2510 }, /* 1/1/2/2/8/8 */
 	{ 192000000, 12000000, 192000000, 0x050f, 0x2810 }, /* 1/1/2/2/8/8 */
 	{  96000000, 12000000, 192000000, 0x055f, 0x2810 }, /* 2/2/2/2/8/8 */
-	{  48000000, 12000000, 192000000, 0x0ccf, 0x2810 }, /* 4/4/4/4/8/8 */
+	{  48000000, 12000000, 192000000, 0x0baf, 0x2810 }, /* 4/8/4/4/8/8 */
 	{  24000000, 12000000, 192000000, 0x0fff, 0x2810 }, /* 8/8/8/8/8/8 */
 #endif
 #if defined(CONFIG_OMAP_ARM_182MHZ)
@@ -58,7 +61,7 @@ struct mpu_rate rate_table[] = {
 	{ 168000000, 12000000, 168000000, 0x010f, 0x2710 }, /* 1/1/1/2/8/8 */
 #endif
 #if defined(CONFIG_OMAP_ARM_150MHZ)
-	{ 150000000, 12000000, 150000000, 0x150a, 0x2cb0 }, /* 0/0/1/1/2/2 */
+	{ 150000000, 12000000, 150000000, 0x010a, 0x2cb0 }, /* 1/1/1/2/4/4 */
 #endif
 #if defined(CONFIG_OMAP_ARM_120MHZ)
 	{ 120000000, 12000000, 120000000, 0x010a, 0x2510 }, /* 1/1/1/2/4/4 */
@@ -76,19 +79,11 @@ struct mpu_rate rate_table[] = {
 };
 
 
-static void ckctl_recalc(struct clk *  clk)
-{
-	int dsor;
-
-	/* Calculate divisor encoded as 2-bit exponent */
-	dsor = 1 << (3 & (omap_readw(ARM_CKCTL) >> clk->rate_offset));
-	if (unlikely(clk->rate == clk->parent->rate / dsor))
-		return; /* No change, quick exit */
-	clk->rate = clk->parent->rate / dsor;
-
-	if (unlikely(clk->flags & RATE_PROPAGATES))
-		propagate_rate(clk);
-}
+static void ckctl_recalc(struct clk *  clk);
+int __clk_enable(struct clk *clk);
+void __clk_disable(struct clk *clk);
+void __clk_unuse(struct clk *clk);
+int __clk_use(struct clk *clk);
 
 
 static void followparent_recalc(struct clk *  clk)
@@ -102,6 +97,14 @@ static void watchdog_recalc(struct clk *  clk)
 	clk->rate = clk->parent->rate / 14;
 }
 
+static void uart_recalc(struct clk * clk)
+{
+	unsigned int val = omap_readl(clk->enable_reg);
+	if (val & clk->enable_bit)
+		clk->rate = 48000000;
+	else
+		clk->rate = 12000000;
+}
 
 static struct clk ck_ref = {
 	.name		= "ck_ref",
@@ -138,7 +141,7 @@ static struct clk arm_ck = {
 static struct clk armper_ck = {
 	.name		= "armper_ck",
 	.parent		= &ck_dpll1,
-	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
+	.flags		= CLOCK_IN_OMAP730 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
 			  RATE_CKCTL,
 	.enable_reg	= ARM_IDLECT2,
 	.enable_bit	= EN_PERCK,
@@ -185,7 +188,7 @@ static struct clk armwdt_ck = {
 static struct clk arminth_ck16xx = {
 	.name		= "arminth_ck",
 	.parent		= &arm_ck,
-	.flags		= CLOCK_IN_OMAP16XX,
+	.flags		= CLOCK_IN_OMAP16XX | ALWAYS_ENABLED,
 	.recalc		= &followparent_recalc,
 	/* Note: On 16xx the frequency can be divided by 2 by programming
 	 * ARM_CKCTL:ARM_INTHCK_SEL(14) to 1
@@ -214,6 +217,38 @@ static struct clk dspmmu_ck = {
 	.recalc		= &ckctl_recalc,
 };
 
+static struct clk dspper_ck = {
+	.name		= "dspper_ck",
+	.parent		= &ck_dpll1,
+	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
+			  RATE_CKCTL | DSP_DOMAIN_CLOCK | VIRTUAL_IO_ADDRESS,
+	.enable_reg	= DSP_IDLECT2,
+	.enable_bit	= EN_PERCK,
+	.rate_offset	= CKCTL_PERDIV_OFFSET,
+	.recalc		= &followparent_recalc,
+	//.recalc		= &ckctl_recalc,
+};
+
+static struct clk dspxor_ck = {
+	.name		= "dspxor_ck",
+	.parent		= &ck_ref,
+	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
+			  DSP_DOMAIN_CLOCK | VIRTUAL_IO_ADDRESS,
+	.enable_reg	= DSP_IDLECT2,
+	.enable_bit	= EN_XORPCK,
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk dsptim_ck = {
+	.name		= "dsptim_ck",
+	.parent		= &ck_ref,
+	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
+			  DSP_DOMAIN_CLOCK | VIRTUAL_IO_ADDRESS,
+	.enable_reg	= DSP_IDLECT2,
+	.enable_bit	= EN_DSPTIMCK,
+	.recalc		= &followparent_recalc,
+};
+
 static struct clk tc_ck = {
 	.name		= "tc_ck",
 	.parent		= &ck_dpll1,
@@ -226,7 +261,7 @@ static struct clk tc_ck = {
 static struct clk arminth_ck1510 = {
 	.name		= "arminth_ck",
 	.parent		= &tc_ck,
-	.flags		= CLOCK_IN_OMAP1510,
+	.flags		= CLOCK_IN_OMAP1510 | ALWAYS_ENABLED,
 	.recalc		= &followparent_recalc,
 	/* Note: On 1510 the frequency follows TC_CK
 	 *
@@ -237,7 +272,7 @@ static struct clk arminth_ck1510 = {
 static struct clk tipb_ck = {
 	.name		= "tibp_ck",
 	.parent		= &tc_ck,
-	.flags		= CLOCK_IN_OMAP1510,
+	.flags		= CLOCK_IN_OMAP1510 | ALWAYS_ENABLED,
 	.recalc		= &followparent_recalc,
 };
 
@@ -271,14 +306,15 @@ static struct clk tc2_ck = {
 static struct clk dma_ck = {
 	.name		= "dma_ck",
 	.parent		= &tc_ck,
-	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX,
+	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
+			  ALWAYS_ENABLED,
 	.recalc		= &followparent_recalc,
 };
 
 static struct clk dma_lcdfree_ck = {
 	.name		= "dma_lcdfree_ck",
 	.parent		= &tc_ck,
-	.flags		= CLOCK_IN_OMAP16XX,
+	.flags		= CLOCK_IN_OMAP16XX | ALWAYS_ENABLED,
 	.recalc		= &followparent_recalc,
 };
 
@@ -303,14 +339,14 @@ static struct clk lb_ck = {
 static struct clk rhea1_ck = {
 	.name		= "rhea1_ck",
 	.parent		= &tc_ck,
-	.flags		= CLOCK_IN_OMAP16XX,
+	.flags		= CLOCK_IN_OMAP16XX | ALWAYS_ENABLED,
 	.recalc		= &followparent_recalc,
 };
 
 static struct clk rhea2_ck = {
 	.name		= "rhea2_ck",
 	.parent		= &tc_ck,
-	.flags		= CLOCK_IN_OMAP16XX,
+	.flags		= CLOCK_IN_OMAP16XX | ALWAYS_ENABLED,
 	.recalc		= &followparent_recalc,
 };
 
@@ -325,43 +361,55 @@ static struct clk lcd_ck = {
 	.recalc		= &ckctl_recalc,
 };
 
-static struct clk uart1_ck = {
+static struct clk uart1_1510 = {
+	.name		= "uart1_ck",
+	/* Direct from ULPD, no parent */
+	.rate		= 12000000,
+	.flags		= CLOCK_IN_OMAP1510 | ENABLE_REG_32BIT | ALWAYS_ENABLED,
+	.enable_reg	= MOD_CONF_CTRL_0,
+	.enable_bit	= 29,	/* Chooses between 12MHz and 48MHz */
+	.set_rate	= &set_uart_rate,
+	.recalc		= &uart_recalc,
+};
+
+static struct clk uart1_16xx = {
 	.name		= "uart1_ck",
 	/* Direct from ULPD, no parent */
 	.rate		= 48000000,
-	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  RATE_FIXED | ENABLE_REG_32BIT,
+	.flags		= CLOCK_IN_OMAP16XX | RATE_FIXED | ENABLE_REG_32BIT,
 	.enable_reg	= MOD_CONF_CTRL_0,
 	.enable_bit	= 29,
-	/* (Only on 1510)
-	 * The "enable bit" actually chooses between 48MHz and 12MHz.
-	 */
 };
 
 static struct clk uart2_ck = {
 	.name		= "uart2_ck",
 	/* Direct from ULPD, no parent */
-	.rate		= 48000000,
-	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  RATE_FIXED | ENABLE_REG_32BIT,
+	.rate		= 12000000,
+	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX | ENABLE_REG_32BIT,
 	.enable_reg	= MOD_CONF_CTRL_0,
-	.enable_bit	= 30,
-	/* (for both 1510 and 16xx)
-	 * The "enable bit" actually chooses between 48MHz and 12MHz/32kHz.
-	 */
+	.enable_bit	= 30,	/* Chooses between 12MHz and 48MHz */
+	.set_rate	= &set_uart_rate,
+	.recalc		= &uart_recalc,
 };
 
-static struct clk uart3_ck = {
+static struct clk uart3_1510 = {
+	.name		= "uart3_ck",
+	/* Direct from ULPD, no parent */
+	.rate		= 12000000,
+	.flags		= CLOCK_IN_OMAP1510 | ENABLE_REG_32BIT | ALWAYS_ENABLED,
+	.enable_reg	= MOD_CONF_CTRL_0,
+	.enable_bit	= 31,	/* Chooses between 12MHz and 48MHz */
+	.set_rate	= &set_uart_rate,
+	.recalc		= &uart_recalc,
+};
+
+static struct clk uart3_16xx = {
 	.name		= "uart3_ck",
 	/* Direct from ULPD, no parent */
 	.rate		= 48000000,
-	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  RATE_FIXED | ENABLE_REG_32BIT,
+	.flags		= CLOCK_IN_OMAP16XX | RATE_FIXED | ENABLE_REG_32BIT,
 	.enable_reg	= MOD_CONF_CTRL_0,
 	.enable_bit	= 31,
-	/* (Only on 1510)
-	 * The "enable bit" actually chooses between 48MHz and 12MHz.
-	 */
 };
 
 static struct clk usb_clko = {	/* 6 MHz output on W4_USB_CLKO */
@@ -480,6 +528,9 @@ static struct clk *  onchip_clks[] = {
 	/* CK_GEN2 clocks */
 	&dsp_ck,
 	&dspmmu_ck,
+	&dspper_ck,
+	&dspxor_ck,
+	&dsptim_ck,
 	/* CK_GEN3 clocks */
 	&tc_ck,
 	&tipb_ck,
@@ -494,9 +545,11 @@ static struct clk *  onchip_clks[] = {
 	&rhea2_ck,
 	&lcd_ck,
 	/* ULPD clocks */
-	&uart1_ck,
+	&uart1_1510,
+	&uart1_16xx,
 	&uart2_ck,
-	&uart3_ck,
+	&uart3_1510,
+	&uart3_16xx,
 	&usb_clko,
 	&usb_hhc_ck1510, &usb_hhc_ck16xx,
 	&mclk_1510,  &mclk_16xx,
@@ -547,14 +600,34 @@ int __clk_enable(struct clk *clk)
 		return 0;
 	}
 
+	if (clk->flags & DSP_DOMAIN_CLOCK) {
+		__clk_use(&api_ck);
+	}
+
 	if (clk->flags & ENABLE_REG_32BIT) {
-		regval32 = omap_readl(clk->enable_reg);
-		regval32 |= (1 << clk->enable_bit);
-		omap_writel(regval32, clk->enable_reg);
+		if (clk->flags & VIRTUAL_IO_ADDRESS) {
+			regval32 = __raw_readl(clk->enable_reg);
+			regval32 |= (1 << clk->enable_bit);
+			__raw_writel(regval32, clk->enable_reg);
+		} else {
+			regval32 = omap_readl(clk->enable_reg);
+			regval32 |= (1 << clk->enable_bit);
+			omap_writel(regval32, clk->enable_reg);
+		}
 	} else {
-		regval16 = omap_readw(clk->enable_reg);
-		regval16 |= (1 << clk->enable_bit);
-		omap_writew(regval16, clk->enable_reg);
+		if (clk->flags & VIRTUAL_IO_ADDRESS) {
+			regval16 = __raw_readw(clk->enable_reg);
+			regval16 |= (1 << clk->enable_bit);
+			__raw_writew(regval16, clk->enable_reg);
+		} else {
+			regval16 = omap_readw(clk->enable_reg);
+			regval16 |= (1 << clk->enable_bit);
+			omap_writew(regval16, clk->enable_reg);
+		}
+	}
+
+	if (clk->flags & DSP_DOMAIN_CLOCK) {
+		__clk_unuse(&api_ck);
 	}
 
 	return 0;
@@ -569,14 +642,34 @@ void __clk_disable(struct clk *clk)
 	if (clk->enable_reg == 0)
 		return;
 
+	if (clk->flags & DSP_DOMAIN_CLOCK) {
+		__clk_use(&api_ck);
+	}
+
 	if (clk->flags & ENABLE_REG_32BIT) {
-		regval32 = omap_readl(clk->enable_reg);
-		regval32 &= ~(1 << clk->enable_bit);
-		omap_writel(regval32, clk->enable_reg);
+		if (clk->flags & VIRTUAL_IO_ADDRESS) {
+			regval32 = __raw_readl(clk->enable_reg);
+			regval32 &= ~(1 << clk->enable_bit);
+			__raw_writel(regval32, clk->enable_reg);
+		} else {
+			regval32 = omap_readl(clk->enable_reg);
+			regval32 &= ~(1 << clk->enable_bit);
+			omap_writel(regval32, clk->enable_reg);
+		}
 	} else {
-		regval16 = omap_readw(clk->enable_reg);
-		regval16 &= ~(1 << clk->enable_bit);
-		omap_writew(regval16, clk->enable_reg);
+		if (clk->flags & VIRTUAL_IO_ADDRESS) {
+			regval16 = __raw_readw(clk->enable_reg);
+			regval16 &= ~(1 << clk->enable_bit);
+			__raw_writew(regval16, clk->enable_reg);
+		} else {
+			regval16 = omap_readw(clk->enable_reg);
+			regval16 &= ~(1 << clk->enable_bit);
+			omap_writew(regval16, clk->enable_reg);
+		}
+	}
+
+	if (clk->flags & DSP_DOMAIN_CLOCK) {
+		__clk_unuse(&api_ck);
 	}
 }
 
@@ -766,6 +859,33 @@ static int calc_dsor_exp(struct clk *clk, unsigned long rate)
 	return dsor_exp;
 }
 
+
+static void ckctl_recalc(struct clk *  clk)
+{
+	int dsor;
+
+	/* Calculate divisor encoded as 2-bit exponent */
+	if (clk->flags & DSP_DOMAIN_CLOCK) {
+		/* The clock control bits are in DSP domain,
+		 * so api_ck is needed for access.
+		 * Note that DSP_CKCTL virt addr = phys addr, so
+		 * we must use __raw_readw() instead of omap_readw().
+		 */
+		__clk_use(&api_ck);
+		dsor = 1 << (3 & (__raw_readw(DSP_CKCTL) >> clk->rate_offset));
+		__clk_unuse(&api_ck);
+	} else {
+		dsor = 1 << (3 & (omap_readw(ARM_CKCTL) >> clk->rate_offset));
+	}
+	if (unlikely(clk->rate == clk->parent->rate / dsor))
+		return; /* No change, quick exit */
+	clk->rate = clk->parent->rate / dsor;
+
+	if (unlikely(clk->flags & RATE_PROPAGATES))
+		propagate_rate(clk);
+}
+
+
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	int dsor_exp;
@@ -822,6 +942,9 @@ static int select_table_rate(struct clk *  clk, unsigned long rate)
 		if (ptr->rate <= rate)
 			break;
 	}
+
+	if (!ptr->rate)
+		return -EINVAL;
 
 	if (!ptr->rate)
 		return -EINVAL;
@@ -921,6 +1044,23 @@ static unsigned calc_ext_dsor(unsigned long rate)
 	return dsor;
 }
 
+/* Only needed on 1510 */
+static int set_uart_rate(struct clk * clk, unsigned long rate)
+{
+	unsigned int val;
+
+	val = omap_readl(clk->enable_reg);
+	if (rate == 12000000)
+		val &= ~(1 << clk->enable_bit);
+	else if (rate == 48000000)
+		val |= (1 << clk->enable_bit);
+	else
+		return -EINVAL;
+	omap_writel(val, clk->enable_reg);
+	clk->rate = rate;
+
+	return 0;
+}
 
 static int set_ext_clk_rate(struct clk *  clk, unsigned long rate)
 {
@@ -985,13 +1125,26 @@ void clk_unregister(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_unregister);
 
-
+#ifdef CONFIG_OMAP_RESET_CLOCKS
+/*
+ * Resets some clocks that may be left on from bootloader,
+ * but leaves serial clocks on. See also omap_late_clk_reset().
+ */
+static inline void omap_early_clk_reset(void)
+{
+	//omap_writel(0x3 << 29, MOD_CONF_CTRL_0);
+}
+#else
+#define omap_early_clk_reset()	{}
+#endif
 
 int __init clk_init(void)
 {
 	struct clk **  clkp;
 	const struct omap_clock_config *info;
 	int crystal_type = 0; /* Default 12 MHz */
+
+	omap_early_clk_reset();
 
 	for (clkp = onchip_clks; clkp < onchip_clks+ARRAY_SIZE(onchip_clks); clkp++) {
 		if (((*clkp)->flags &CLOCK_IN_OMAP1510) && cpu_is_omap1510()) {
@@ -1023,9 +1176,42 @@ int __init clk_init(void)
 		ck_ref.rate = 19200000;
 #endif
 
+	printk("Clocks: ARM_SYSST: 0x%04x DPLL_CTL: 0x%04x ARM_CKCTL: 0x%04x\n",
+	       omap_readw(ARM_SYSST), omap_readw(DPLL_CTL),
+	       omap_readw(ARM_CKCTL));
+
 	/* We want to be in syncronous scalable mode */
 	omap_writew(0x1000, ARM_SYSST);
 
+#ifdef CONFIG_OMAP_CLOCKS_SET_BY_BOOTLOADER
+	/* Use values set by bootloader. Determine PLL rate and recalculate
+	 * dependent clocks as if kernel had changed PLL or divisors.
+	 */
+	{
+		unsigned pll_ctl_val = omap_readw(DPLL_CTL);
+
+		ck_dpll1.rate = ck_ref.rate; /* Base xtal rate */
+		if (pll_ctl_val & 0x10) {
+			/* PLL enabled, apply multiplier and divisor */
+			if (pll_ctl_val & 0xf80)
+				ck_dpll1.rate *= (pll_ctl_val & 0xf80) >> 7;
+			ck_dpll1.rate /= ((pll_ctl_val & 0x60) >> 5) + 1;
+		} else {
+			/* PLL disabled, apply bypass divisor */
+			switch (pll_ctl_val & 0xc) {
+			case 0:
+				break;
+			case 0x4:
+				ck_dpll1.rate /= 2;
+				break;
+			default:
+				ck_dpll1.rate /= 4;
+				break;
+			}
+		}
+	}
+	propagate_rate(&ck_dpll1);
+#else
 	/* Find the highest supported frequency and enable it */
 	if (select_table_rate(&virtual_ck_mpu, ~0)) {
 		printk(KERN_ERR "System frequencies not set. Check your config.\n");
@@ -1034,12 +1220,13 @@ int __init clk_init(void)
 		omap_writew(0x1005, ARM_CKCTL);
 		ck_dpll1.rate = 60000000;
 		propagate_rate(&ck_dpll1);
-		printk(KERN_INFO "Clocking rate (xtal/DPLL1/MPU): %ld/%ld/%ld\n",
-		       ck_ref.rate, ck_dpll1.rate, arm_ck.rate);
 	}
-
+#endif
 	/* Cache rates for clocks connected to ck_ref (not dpll1) */
 	propagate_rate(&ck_ref);
+	printk(KERN_INFO "Clocking rate (xtal/DPLL1/MPU): %ld.%01ld/%ld/%ld MHz\n",
+	       ck_ref.rate / 1000000, (ck_ref.rate / 100000) % 10,
+	       ck_dpll1.rate, arm_ck.rate);
 
 #ifdef CONFIG_MACH_OMAP_PERSEUS2
 	/* Select slicer output as OMAP input clock */
@@ -1074,3 +1261,63 @@ int __init clk_init(void)
 
 	return 0;
 }
+
+
+#ifdef CONFIG_OMAP_RESET_CLOCKS
+
+static int __init omap_late_clk_reset(void)
+{
+	/* Turn off all unused clocks */
+	struct clk *p;
+	__u32 regval32;
+
+	omap_writew(0, SOFT_REQ_REG);
+	omap_writew(0, SOFT_REQ_REG2);
+
+	list_for_each_entry(p, &clocks, node) {
+		if (p->usecount > 0 || (p->flags & ALWAYS_ENABLED) ||
+			p->enable_reg == 0)
+			continue;
+
+		/* Assume no DSP clocks have been activated by bootloader */
+		if (p->flags & DSP_DOMAIN_CLOCK)
+			continue;
+
+		/* Is the clock already disabled? */
+		if (p->flags & ENABLE_REG_32BIT) {
+			if (p->flags & VIRTUAL_IO_ADDRESS)
+				regval32 = __raw_readl(p->enable_reg);
+			else
+				regval32 = omap_readl(p->enable_reg);
+		} else {
+			if (p->flags & VIRTUAL_IO_ADDRESS)
+				regval32 = __raw_readw(p->enable_reg);
+			else
+				regval32 = omap_readw(p->enable_reg);
+		}
+
+		if ((regval32 & (1 << p->enable_bit)) == 0)
+			continue;
+
+		/* FIXME: This clock seems to be necessary but no-one
+		 * has asked for its activation. */
+		if (p == &tc2_ck         // FIX: pm.c (SRAM), CCP, Camera
+		    || p == &ck_dpll1out // FIX: SoSSI, SSR
+		    || p == &arm_gpio_ck // FIX: GPIO code for 1510
+		    ) {
+			printk(KERN_INFO "FIXME: Clock \"%s\" seems unused\n",
+			       p->name);
+			continue;
+		}
+
+		printk(KERN_INFO "Disabling unused clock \"%s\"... ", p->name);
+		__clk_disable(p);
+		printk(" done\n");
+	}
+
+	return 0;
+}
+
+late_initcall(omap_late_clk_reset);
+
+#endif

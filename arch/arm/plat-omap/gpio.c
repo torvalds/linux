@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mach-omap/gpio.c
+ *  linux/arch/arm/plat-omap/gpio.c
  *
  * Support functions for OMAP GPIO
  *

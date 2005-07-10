@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/sleep.S
+ * linux/arch/arm/plat-omap/sleep.S
  *
  * Low-level OMAP1510/1610 sleep/wakeUp support
  *

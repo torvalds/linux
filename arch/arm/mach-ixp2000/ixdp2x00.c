@@ -303,5 +303,6 @@ void __init ixdp2x00_init_machine(void)
 	gpio_line_config(IXDP2X00_GPIO_I2C_ENABLE, GPIO_OUT);
 
 	platform_add_devices(ixdp2x00_devices, ARRAY_SIZE(ixdp2x00_devices));
+	ixp2000_uart_init();
 }
 
