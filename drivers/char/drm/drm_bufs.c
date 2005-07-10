@@ -410,7 +410,7 @@ static void drm_cleanup_buf_error(drm_device_t *dev, drm_buf_entry_t *entry)
  * reallocates the buffer list of the same size order to accommodate the new
  * buffers.
  */
-static int drm_addbufs_agp(drm_device_t *dev, drm_buf_desc_t *request)
+int drm_addbufs_agp(drm_device_t *dev, drm_buf_desc_t *request)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_entry_t *entry;
@@ -564,7 +564,7 @@ static int drm_addbufs_agp(drm_device_t *dev, drm_buf_desc_t *request)
 EXPORT_SYMBOL(drm_addbufs_agp);
 #endif /* __OS_HAS_AGP */
 
-static int drm_addbufs_pci(drm_device_t *dev, drm_buf_desc_t *request)
+int drm_addbufs_pci(drm_device_t *dev, drm_buf_desc_t *request)
 {
 	drm_device_dma_t *dma = dev->dma;
 	int count;
