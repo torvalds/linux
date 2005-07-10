@@ -32,10 +32,5 @@
 /* At OMAP5912 OSK the Ethernet is directly connected to CS1 */
 #define OMAP_OSK_ETHR_START		0x04800300
 
-/* Micron NOR flash at CS3 mapped to address 0x0 if BM bit is 1 */
-#define OMAP_OSK_NOR_FLASH_BASE		0xD8000000
-#define OMAP_OSK_NOR_FLASH_SIZE		SZ_32M
-#define OMAP_OSK_NOR_FLASH_START	0x00000000
-
 #endif /*  __ASM_ARCH_OMAP_OSK_H */
 
