@@ -14,3 +14,4 @@ obj-$(CONFIG_ARCH_OMAP16XX) += ocpi.o
 # Power Management
 obj-$(CONFIG_PM) += pm.o sleep.o
 
+obj-$(CONFIG_CPU_FREQ) += cpu-omap.o

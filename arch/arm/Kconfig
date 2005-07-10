@@ -516,7 +516,7 @@ config XIP_PHYS_ADDR
 
 endmenu
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR)
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP1)
 
 menu "CPU Frequency scaling"
 
