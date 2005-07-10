@@ -146,23 +146,27 @@ DRM_AGP_MEM *drm_alloc_agp(struct agp_bridge_data *bridge, int pages, u32 type)
 {
 	return drm_agp_allocate_memory(bridge, pages, type);
 }
+EXPORT_SYMBOL(drm_alloc_agp);
 
 /** Wrapper around agp_free_memory() */
 int drm_free_agp(DRM_AGP_MEM *handle, int pages)
 {
 	return drm_agp_free_memory(handle) ? 0 : -EINVAL;
 }
+EXPORT_SYMBOL(drm_free_agp);
 
 /** Wrapper around agp_bind_memory() */
 int drm_bind_agp(DRM_AGP_MEM *handle, unsigned int start)
 {
 	return drm_agp_bind_memory(handle, start);
 }
+EXPORT_SYMBOL(drm_bind_agp);
 
 /** Wrapper around agp_unbind_memory() */
 int drm_unbind_agp(DRM_AGP_MEM *handle)
 {
 	return drm_agp_unbind_memory(handle);
 }
+EXPORT_SYMBOL(drm_unbind_agp);
 #endif /* agp */
 #endif /* debug_memory */

@@ -561,6 +561,7 @@ static int drm_addbufs_agp(drm_device_t *dev, drm_buf_desc_t *request)
 	atomic_dec( &dev->buf_alloc );
 	return 0;
 }
+EXPORT_SYMBOL(drm_addbufs_agp);
 #endif /* __OS_HAS_AGP */
 
 static int drm_addbufs_pci(drm_device_t *dev, drm_buf_desc_t *request)
@@ -781,6 +782,7 @@ static int drm_addbufs_pci(drm_device_t *dev, drm_buf_desc_t *request)
 	return 0;
 
 }
+EXPORT_SYMBOL(drm_addbufs_pci);
 
 static int drm_addbufs_sg(drm_device_t *dev, drm_buf_desc_t *request)
 {
