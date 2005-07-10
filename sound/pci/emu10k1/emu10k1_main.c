@@ -630,6 +630,13 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
 	 .ac97_chip = 1} ,
+	/* Tested by James@superbug.co.uk 8th July 2005. No sound available yet. */
+	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40011102,
+	 .driver = "Audigy2", .name = "E-mu 1212m [4001]", 
+	 .id = "EMU1212m",
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ecard = 1} ,
 	/* Tested by James@superbug.co.uk 3rd July 2005 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20071102,
 	 .driver = "Audigy2", .name = "Audigy 4 PRO [SB0380]", 
