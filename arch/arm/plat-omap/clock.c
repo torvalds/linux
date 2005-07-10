@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mach-omap/clock.c
+ *  linux/arch/arm/plat-omap/clock.c
  *
  *  Copyright (C) 2004 Nokia corporation
  *  Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
