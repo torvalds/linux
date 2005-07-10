@@ -82,26 +82,22 @@ static unsigned int map32_handle = 0x10000000;
  * type.  Adds the map to the map list drm_device::maplist. Adds MTRR's where
  * applicable and if supported by the kernel.
  */
-int drm_addmap( struct inode *inode, struct file *filp,
-		 unsigned int cmd, unsigned long arg )
+int drm_addmap(drm_device_t * dev, unsigned int offset,
+	       unsigned int size, drm_map_type_t type,
+	       drm_map_flags_t flags, drm_local_map_t ** map_ptr)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
 	drm_map_t *map;
-	drm_map_t __user *argp = (void __user *)arg;
 	drm_map_list_t *list;
 	drm_dma_handle_t *dmah;
-
-	if ( !(filp->f_mode & 3) ) return -EACCES; /* Require read/write */
 
 	map = drm_alloc( sizeof(*map), DRM_MEM_MAPS );
 	if ( !map )
 		return -ENOMEM;
 
-	if ( copy_from_user( map, argp, sizeof(*map) ) ) {
-		drm_free( map, sizeof(*map), DRM_MEM_MAPS );
-		return -EFAULT;
-	}
+	map->offset = offset;
+	map->size = size;
+	map->flags = flags;
+	map->type = type;
 
 	/* Only allow shared memory to be removable since we only keep enough
 	 * book keeping information about shared memory to allow for removal
@@ -218,10 +214,42 @@ int drm_addmap( struct inode *inode, struct file *filp,
 #endif
  	up(&dev->struct_sem);
 
-	if ( copy_to_user( argp, map, sizeof(*map) ) )
+	*map_ptr = map;
+	return 0;
+}
+EXPORT_SYMBOL(drm_addmap);
+
+int drm_addmap_ioctl(struct inode *inode, struct file *filp,
+		     unsigned int cmd, unsigned long arg)
+{
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->head->dev;
+	drm_map_t map;
+	drm_map_t *map_ptr;
+	drm_map_t __user *argp = (void __user *)arg;
+	int err;
+
+	if (!(filp->f_mode & 3))
+		return -EACCES;	/* Require read/write */
+
+	if (copy_from_user(& map, argp, sizeof(map))) {
 		return -EFAULT;
-	if (copy_to_user(&argp->handle, &map->offset, sizeof(map->offset)))
+	}
+
+	err = drm_addmap( dev, map.offset, map.size, map.type, map.flags,
+			  &map_ptr );
+
+	if (err) {
+		return err;
+	}
+
+	if (copy_to_user(argp, map_ptr, sizeof(*map_ptr)))
 		return -EFAULT;
+	if (map_ptr->type != _DRM_SHM) {
+		if (copy_to_user(&argp->handle, &map_ptr->offset,
+				 sizeof(map_ptr->offset)))
+			return -EFAULT;
+	}
 	return 0;
 }
 
@@ -240,24 +268,15 @@ int drm_addmap( struct inode *inode, struct file *filp,
  * its being used, and free any associate resource (such as MTRR's) if it's not
  * being on use.
  *
- * \sa addmap().
+ * \sa drm_addmap
  */
-int drm_rmmap(struct inode *inode, struct file *filp,
-	       unsigned int cmd, unsigned long arg)
+int drm_rmmap(drm_device_t *dev, void *handle)
 {
-	drm_file_t	*priv	= filp->private_data;
-	drm_device_t	*dev	= priv->head->dev;
 	struct list_head *list;
 	drm_map_list_t *r_list = NULL;
 	drm_vma_entry_t *pt, *prev;
 	drm_map_t *map;
-	drm_map_t request;
 	int found_maps = 0;
-
-	if (copy_from_user(&request, (drm_map_t __user *)arg,
-			   sizeof(request))) {
-		return -EFAULT;
-	}
 
 	down(&dev->struct_sem);
 	list = &dev->maplist->head;
@@ -265,7 +284,7 @@ int drm_rmmap(struct inode *inode, struct file *filp,
 		r_list = list_entry(list, drm_map_list_t, head);
 
 		if(r_list->map &&
-		   r_list->map->offset == (unsigned long) request.handle &&
+		   r_list->map->handle == handle &&
 		   r_list->map->flags & _DRM_REMOVABLE) break;
 	}
 
@@ -318,6 +337,21 @@ int drm_rmmap(struct inode *inode, struct file *filp,
 	}
 	up(&dev->struct_sem);
 	return 0;
+}
+EXPORT_SYMBOL(drm_rmmap);
+
+int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
+		    unsigned int cmd, unsigned long arg)
+{
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->head->dev;
+	drm_map_t request;
+
+	if (copy_from_user(&request, (drm_map_t __user *)arg, sizeof(request))) {
+		return -EFAULT;
+	}
+
+	return drm_rmmap(dev, request.handle);
 }
 
 /**
