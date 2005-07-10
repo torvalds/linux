@@ -1555,8 +1555,9 @@ sys_ptrace:	add		%sp, PTREGS_OFF, %o0
 		andcc		%l5, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP), %g0
 		be,pt		%icc, rtrap
 		 clr		%l6
+		add		%sp, PTREGS_OFF, %o0
 		call		syscall_trace
-		 nop
+		 mov		1, %o1
 
 		ba,pt		%xcc, rtrap
 		 clr		%l6
@@ -1640,18 +1641,20 @@ linux_sparc_ni_syscall:
 	 or		%l7, %lo(sys_ni_syscall), %l7
 
 linux_syscall_trace32:
+	add		%sp, PTREGS_OFF, %o0
 	call		syscall_trace
-	 nop
+	 clr		%o1
 	srl		%i0, 0, %o0
-	mov		%i4, %o4
+	srl		%i4, 0, %o4
 	srl		%i1, 0, %o1
 	srl		%i2, 0, %o2
 	b,pt		%xcc, 2f
 	 srl		%i3, 0, %o3
 
 linux_syscall_trace:
+	add		%sp, PTREGS_OFF, %o0
 	call		syscall_trace
-	 nop
+	 clr		%o1
 	mov		%i0, %o0
 	mov		%i1, %o1
 	mov		%i2, %o2
@@ -1755,8 +1758,9 @@ ret_sys_call:
 	b,pt		%xcc, rtrap
 	 stx		%l2, [%sp + PTREGS_OFF + PT_V9_TNPC]
 linux_syscall_trace2:
+	add		%sp, PTREGS_OFF, %o0
 	call		syscall_trace
-	 nop
+	 mov		1, %o1
 	stx		%l1, [%sp + PTREGS_OFF + PT_V9_TPC]
 	ba,pt		%xcc, rtrap
 	 stx		%l2, [%sp + PTREGS_OFF + PT_V9_TNPC]

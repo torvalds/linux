@@ -628,10 +628,10 @@ out:
 	unlock_kernel();
 }
 
-asmlinkage void syscall_trace(void)
+asmlinkage void syscall_trace(struct pt_regs *regs, int syscall_exit_p)
 {
 	/* do the secure computing check first */
-	secure_computing(current_thread_info()->kregs->u_regs[UREG_G1]);
+	secure_computing(regs->u_regs[UREG_G1]);
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
