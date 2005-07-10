@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/board-voiceblue.c
+ * linux/arch/arm/mach-omap1/board-voiceblue.c
  *
  * Modified from board-generic.c
  *

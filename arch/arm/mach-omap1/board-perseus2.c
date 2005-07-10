@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/board-perseus2.c
+ * linux/arch/arm/mach-omap1/board-perseus2.c
  *
  * Modified from board-generic.c
  *

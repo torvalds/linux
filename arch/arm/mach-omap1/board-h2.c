@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/board-h2.c
+ * linux/arch/arm/mach-omap1/board-h2.c
  *
  * Board specific inits for OMAP-1610 H2
  *

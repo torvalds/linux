@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/board-osk.c
+ * linux/arch/arm/mach-omap1/board-osk.c
  *
  * Board specific init for OMAP5912 OSK
  *

@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/board-h3.c
+ * linux/arch/arm/mach-omap1/board-h3.c
  *
  * This file contains OMAP1710 H3 specific code.
  *

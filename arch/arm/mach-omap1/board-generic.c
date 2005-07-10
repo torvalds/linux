@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/board-generic.c
+ * linux/arch/arm/mach-omap1/board-generic.c
  *
  * Modified from board-innovator1510.c
  *

@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/board-innovator.c
+ * linux/arch/arm/mach-omap1/board-innovator.c
  *
  * Board specific inits for OMAP-1510 and OMAP-1610 Innovator
  *
