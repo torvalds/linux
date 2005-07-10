@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/plat-omap/common.h
+ * linux/include/asm-arm/arch-omap/common.h
  *
  * Header for code common to all OMAP machines.
  *

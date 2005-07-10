@@ -17,8 +17,6 @@
 #include <asm/io.h>
 #include <asm/arch/tc.h>
 
-#include "../clock.h"
-
 extern void omap_check_revision(void);
 
 /*

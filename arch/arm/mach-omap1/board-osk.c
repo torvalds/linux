@@ -39,8 +39,7 @@
 #include <asm/arch/usb.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/tc.h>
-
-#include "common.h"
+#include <asm/arch/common.h>
 
 static struct map_desc osk5912_io_desc[] __initdata = {
 { OMAP_OSK_NOR_FLASH_BASE, OMAP_OSK_NOR_FLASH_START, OMAP_OSK_NOR_FLASH_SIZE,
@@ -153,7 +152,7 @@ static void __init osk_init(void)
 
 static void __init osk_map_io(void)
 {
-	omap_map_io();
+	omap_map_common_io();
 	iotable_init(osk5912_io_desc, ARRAY_SIZE(osk5912_io_desc));
 	omap_serial_init(osk_serial_ports);
 }

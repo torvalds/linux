@@ -35,8 +35,7 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/tc.h>
 #include <asm/arch/usb.h>
-
-#include "common.h"
+#include <asm/arch/common.h>
 
 extern int omap_gpio_init(void);
 
@@ -172,7 +171,7 @@ static void __init h2_init(void)
 
 static void __init h2_map_io(void)
 {
-	omap_map_io();
+	omap_map_common_io();
 	omap_serial_init(h2_serial_ports);
 }
 

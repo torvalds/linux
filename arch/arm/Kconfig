@@ -223,7 +223,9 @@ source "arch/arm/mach-pxa/Kconfig"
 
 source "arch/arm/mach-sa1100/Kconfig"
 
-source "arch/arm/mach-omap/Kconfig"
+source "arch/arm/plat-omap/Kconfig"
+
+source "arch/arm/mach-omap1/Kconfig"
 
 source "arch/arm/mach-s3c2410/Kconfig"
 

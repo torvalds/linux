@@ -27,8 +27,7 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/fpga.h>
-
-#include "common.h"
+#include <asm/arch/common.h>
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -140,7 +139,7 @@ static struct map_desc omap_perseus2_io_desc[] __initdata = {
 
 static void __init omap_perseus2_map_io(void)
 {
-	omap_map_io();
+	omap_map_common_io();
 	iotable_init(omap_perseus2_io_desc,
 		     ARRAY_SIZE(omap_perseus2_io_desc));
 
