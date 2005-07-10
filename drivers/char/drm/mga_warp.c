@@ -48,65 +48,52 @@ do {									\
 	vcbase += WARP_UCODE_SIZE( which );				\
 } while (0)
 
+static const unsigned int mga_warp_g400_microcode_size =
+	       (WARP_UCODE_SIZE(warp_g400_tgz) +
+		WARP_UCODE_SIZE(warp_g400_tgza) +
+		WARP_UCODE_SIZE(warp_g400_tgzaf) +
+		WARP_UCODE_SIZE(warp_g400_tgzf) +
+		WARP_UCODE_SIZE(warp_g400_tgzs) +
+		WARP_UCODE_SIZE(warp_g400_tgzsa) +
+		WARP_UCODE_SIZE(warp_g400_tgzsaf) +
+		WARP_UCODE_SIZE(warp_g400_tgzsf) +
+		WARP_UCODE_SIZE(warp_g400_t2gz) +
+		WARP_UCODE_SIZE(warp_g400_t2gza) +
+		WARP_UCODE_SIZE(warp_g400_t2gzaf) +
+		WARP_UCODE_SIZE(warp_g400_t2gzf) +
+		WARP_UCODE_SIZE(warp_g400_t2gzs) +
+		WARP_UCODE_SIZE(warp_g400_t2gzsa) +
+		WARP_UCODE_SIZE(warp_g400_t2gzsaf) +
+		WARP_UCODE_SIZE(warp_g400_t2gzsf));
 
-static unsigned int mga_warp_g400_microcode_size( drm_mga_private_t *dev_priv )
+static const unsigned int mga_warp_g200_microcode_size =
+	       (WARP_UCODE_SIZE(warp_g200_tgz) +
+		WARP_UCODE_SIZE(warp_g200_tgza) +
+		WARP_UCODE_SIZE(warp_g200_tgzaf) +
+		WARP_UCODE_SIZE(warp_g200_tgzf) +
+		WARP_UCODE_SIZE(warp_g200_tgzs) +
+		WARP_UCODE_SIZE(warp_g200_tgzsa) +
+		WARP_UCODE_SIZE(warp_g200_tgzsaf) +
+		WARP_UCODE_SIZE(warp_g200_tgzsf));
+
+
+unsigned int mga_warp_microcode_size(const drm_mga_private_t * dev_priv)
 {
-	unsigned int size;
-
-	size = ( WARP_UCODE_SIZE( warp_g400_tgz ) +
-		 WARP_UCODE_SIZE( warp_g400_tgza ) +
-		 WARP_UCODE_SIZE( warp_g400_tgzaf ) +
-		 WARP_UCODE_SIZE( warp_g400_tgzf ) +
-		 WARP_UCODE_SIZE( warp_g400_tgzs ) +
-		 WARP_UCODE_SIZE( warp_g400_tgzsa ) +
-		 WARP_UCODE_SIZE( warp_g400_tgzsaf ) +
-		 WARP_UCODE_SIZE( warp_g400_tgzsf ) +
-		 WARP_UCODE_SIZE( warp_g400_t2gz ) +
-		 WARP_UCODE_SIZE( warp_g400_t2gza ) +
-		 WARP_UCODE_SIZE( warp_g400_t2gzaf ) +
-		 WARP_UCODE_SIZE( warp_g400_t2gzf ) +
-		 WARP_UCODE_SIZE( warp_g400_t2gzs ) +
-		 WARP_UCODE_SIZE( warp_g400_t2gzsa ) +
-		 WARP_UCODE_SIZE( warp_g400_t2gzsaf ) +
-		 WARP_UCODE_SIZE( warp_g400_t2gzsf ) );
-
-	size = PAGE_ALIGN( size );
-
-	DRM_DEBUG( "G400 ucode size = %d bytes\n", size );
-	return size;
-}
-
-static unsigned int mga_warp_g200_microcode_size( drm_mga_private_t *dev_priv )
-{
-	unsigned int size;
-
-	size = ( WARP_UCODE_SIZE( warp_g200_tgz ) +
-		 WARP_UCODE_SIZE( warp_g200_tgza ) +
-		 WARP_UCODE_SIZE( warp_g200_tgzaf ) +
-		 WARP_UCODE_SIZE( warp_g200_tgzf ) +
-		 WARP_UCODE_SIZE( warp_g200_tgzs ) +
-		 WARP_UCODE_SIZE( warp_g200_tgzsa ) +
-		 WARP_UCODE_SIZE( warp_g200_tgzsaf ) +
-		 WARP_UCODE_SIZE( warp_g200_tgzsf ) );
-
-	size = PAGE_ALIGN( size );
-
-	DRM_DEBUG( "G200 ucode size = %d bytes\n", size );
-	return size;
+	switch (dev_priv->chipset) {
+	case MGA_CARD_TYPE_G400:
+	case MGA_CARD_TYPE_G550:
+		return PAGE_ALIGN(mga_warp_g400_microcode_size);
+	case MGA_CARD_TYPE_G200:
+		return PAGE_ALIGN(mga_warp_g200_microcode_size);
+	default:
+		return 0;
+	}
 }
 
 static int mga_warp_install_g400_microcode( drm_mga_private_t *dev_priv )
 {
 	unsigned char *vcbase = dev_priv->warp->handle;
 	unsigned long pcbase = dev_priv->warp->offset;
-	unsigned int size;
-
-	size = mga_warp_g400_microcode_size( dev_priv );
-	if ( size > dev_priv->warp->size ) {
-		DRM_ERROR( "microcode too large! (%u > %lu)\n",
-			   size, dev_priv->warp->size );
-		return DRM_ERR(ENOMEM);
-	}
 
 	memset( dev_priv->warp_pipe_phys, 0,
 		sizeof(dev_priv->warp_pipe_phys) );
@@ -136,35 +123,36 @@ static int mga_warp_install_g200_microcode( drm_mga_private_t *dev_priv )
 {
 	unsigned char *vcbase = dev_priv->warp->handle;
 	unsigned long pcbase = dev_priv->warp->offset;
-	unsigned int size;
 
-	size = mga_warp_g200_microcode_size( dev_priv );
-	if ( size > dev_priv->warp->size ) {
-		DRM_ERROR( "microcode too large! (%u > %lu)\n",
-			   size, dev_priv->warp->size );
-		return DRM_ERR(ENOMEM);
-	}
+	memset(dev_priv->warp_pipe_phys, 0, sizeof(dev_priv->warp_pipe_phys));
 
-	memset( dev_priv->warp_pipe_phys, 0,
-		sizeof(dev_priv->warp_pipe_phys) );
-
-	WARP_UCODE_INSTALL( warp_g200_tgz,	MGA_WARP_TGZ );
-	WARP_UCODE_INSTALL( warp_g200_tgzf,	MGA_WARP_TGZF );
-	WARP_UCODE_INSTALL( warp_g200_tgza,	MGA_WARP_TGZA );
-	WARP_UCODE_INSTALL( warp_g200_tgzaf,	MGA_WARP_TGZAF );
-	WARP_UCODE_INSTALL( warp_g200_tgzs,	MGA_WARP_TGZS );
-	WARP_UCODE_INSTALL( warp_g200_tgzsf,	MGA_WARP_TGZSF );
-	WARP_UCODE_INSTALL( warp_g200_tgzsa,	MGA_WARP_TGZSA );
-	WARP_UCODE_INSTALL( warp_g200_tgzsaf,	MGA_WARP_TGZSAF );
+	WARP_UCODE_INSTALL(warp_g200_tgz, MGA_WARP_TGZ);
+	WARP_UCODE_INSTALL(warp_g200_tgzf, MGA_WARP_TGZF);
+	WARP_UCODE_INSTALL(warp_g200_tgza, MGA_WARP_TGZA);
+	WARP_UCODE_INSTALL(warp_g200_tgzaf, MGA_WARP_TGZAF);
+	WARP_UCODE_INSTALL(warp_g200_tgzs, MGA_WARP_TGZS);
+	WARP_UCODE_INSTALL(warp_g200_tgzsf, MGA_WARP_TGZSF);
+	WARP_UCODE_INSTALL(warp_g200_tgzsa, MGA_WARP_TGZSA);
+	WARP_UCODE_INSTALL(warp_g200_tgzsaf, MGA_WARP_TGZSAF);
 
 	return 0;
 }
 
 int mga_warp_install_microcode(	drm_mga_private_t *dev_priv )
 {
-	switch ( dev_priv->chipset ) {
+	const unsigned int size = mga_warp_microcode_size(dev_priv);
+
+	DRM_DEBUG("MGA ucode size = %d bytes\n", size);
+	if (size > dev_priv->warp->size) {
+		DRM_ERROR("microcode too large! (%u > %lu)\n",
+			  size, dev_priv->warp->size);
+		return DRM_ERR(ENOMEM);
+	}
+
+	switch (dev_priv->chipset) {
 	case MGA_CARD_TYPE_G400:
-		return mga_warp_install_g400_microcode( dev_priv );
+	case MGA_CARD_TYPE_G550:
+		return mga_warp_install_g400_microcode(dev_priv);
 	case MGA_CARD_TYPE_G200:
 		return mga_warp_install_g200_microcode( dev_priv );
 	default:
@@ -182,10 +170,11 @@ int mga_warp_init( drm_mga_private_t *dev_priv )
 	 */
 	switch ( dev_priv->chipset ) {
 	case MGA_CARD_TYPE_G400:
-		MGA_WRITE( MGA_WIADDR2, MGA_WMODE_SUSPEND );
-		MGA_WRITE( MGA_WGETMSB, 0x00000E00 );
-		MGA_WRITE( MGA_WVRTXSZ, 0x00001807 );
-		MGA_WRITE( MGA_WACCEPTSEQ, 0x18000000 );
+	case MGA_CARD_TYPE_G550:
+		MGA_WRITE(MGA_WIADDR2, MGA_WMODE_SUSPEND);
+		MGA_WRITE(MGA_WGETMSB, 0x00000E00);
+		MGA_WRITE(MGA_WVRTXSZ, 0x00001807);
+		MGA_WRITE(MGA_WACCEPTSEQ, 0x18000000);
 		break;
 	case MGA_CARD_TYPE_G200:
 		MGA_WRITE( MGA_WIADDR, MGA_WMODE_SUSPEND );

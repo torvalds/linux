@@ -53,16 +53,16 @@ static void mga_emit_clip_rect( drm_mga_private_t *dev_priv,
 
 	/* Force reset of DWGCTL on G400 (eliminates clip disable bit).
 	 */
-	if ( dev_priv->chipset == MGA_CARD_TYPE_G400 ) {
-		DMA_BLOCK( MGA_DWGCTL,		ctx->dwgctl,
-			   MGA_LEN + MGA_EXEC,	0x80000000,
-			   MGA_DWGCTL,		ctx->dwgctl,
-			   MGA_LEN + MGA_EXEC,	0x80000000 );
+	if (dev_priv->chipset == MGA_CARD_TYPE_G400) {
+		DMA_BLOCK(MGA_DWGCTL, ctx->dwgctl,
+			  MGA_LEN + MGA_EXEC, 0x80000000,
+			  MGA_DWGCTL, ctx->dwgctl,
+			  MGA_LEN + MGA_EXEC, 0x80000000);
 	}
-	DMA_BLOCK( MGA_DMAPAD,	0x00000000,
-		   MGA_CXBNDRY,	(box->x2 << 16) | box->x1,
-		   MGA_YTOP,	box->y1 * pitch,
-		   MGA_YBOT,	box->y2 * pitch );
+	DMA_BLOCK(MGA_DMAPAD, 0x00000000,
+		  MGA_CXBNDRY, ((box->x2 - 1) << 16) | box->x1,
+		  MGA_YTOP, box->y1 * pitch,
+		  MGA_YBOT, (box->y2 - 1) * pitch);
 
 	ADVANCE_DMA();
 }
@@ -260,12 +260,11 @@ static __inline__ void mga_g200_emit_pipe( drm_mga_private_t *dev_priv )
 
 	/* Padding required to to hardware bug.
 	 */
-	DMA_BLOCK( MGA_DMAPAD,	0xffffffff,
-		   MGA_DMAPAD,	0xffffffff,
-		   MGA_DMAPAD,	0xffffffff,
-		   MGA_WIADDR,	(dev_priv->warp_pipe_phys[pipe] |
-				 MGA_WMODE_START |
-				 MGA_WAGP_ENABLE) );
+	DMA_BLOCK(MGA_DMAPAD, 0xffffffff,
+		  MGA_DMAPAD, 0xffffffff,
+		  MGA_DMAPAD, 0xffffffff,
+		  MGA_WIADDR, (dev_priv->warp_pipe_phys[pipe] |
+			       MGA_WMODE_START | dev_priv->wagp_enable));
 
 	ADVANCE_DMA();
 }
@@ -342,12 +341,11 @@ static __inline__ void mga_g400_emit_pipe( drm_mga_private_t *dev_priv )
 		   MGA_WR60,	MGA_G400_WR_MAGIC );	/* tex1 height       */
 
 	/* Padding required to to hardware bug */
-	DMA_BLOCK( MGA_DMAPAD,	0xffffffff,
-		   MGA_DMAPAD,	0xffffffff,
-		   MGA_DMAPAD,	0xffffffff,
-		   MGA_WIADDR2,	(dev_priv->warp_pipe_phys[pipe] |
-				 MGA_WMODE_START |
-				 MGA_WAGP_ENABLE) );
+	DMA_BLOCK(MGA_DMAPAD, 0xffffffff,
+		  MGA_DMAPAD, 0xffffffff,
+		  MGA_DMAPAD, 0xffffffff,
+		  MGA_WIADDR2, (dev_priv->warp_pipe_phys[pipe] |
+				MGA_WMODE_START | dev_priv->wagp_enable));
 
 	ADVANCE_DMA();
 }
@@ -459,9 +457,9 @@ static int mga_verify_state( drm_mga_private_t *dev_priv )
 	if ( dirty & MGA_UPLOAD_TEX0 )
 		ret |= mga_verify_tex( dev_priv, 0 );
 
-	if ( dev_priv->chipset == MGA_CARD_TYPE_G400 ) {
-		if ( dirty & MGA_UPLOAD_TEX1 )
-			ret |= mga_verify_tex( dev_priv, 1 );
+	if (dev_priv->chipset >= MGA_CARD_TYPE_G400) {
+		if (dirty & MGA_UPLOAD_TEX1)
+			ret |= mga_verify_tex(dev_priv, 1);
 
 		if ( dirty & MGA_UPLOAD_PIPE )
 			ret |= ( sarea_priv->warp_pipe > MGA_MAX_G400_PIPES );
@@ -686,12 +684,12 @@ static void mga_dma_dispatch_vertex( drm_device_t *dev, drm_buf_t *buf )
 
 			BEGIN_DMA( 1 );
 
-			DMA_BLOCK( MGA_DMAPAD,		0x00000000,
-				   MGA_DMAPAD,		0x00000000,
-				   MGA_SECADDRESS,	(address |
-							 MGA_DMA_VERTEX),
-				   MGA_SECEND,		((address + length) |
-							 MGA_PAGPXFER) );
+			DMA_BLOCK(MGA_DMAPAD, 0x00000000,
+				  MGA_DMAPAD, 0x00000000,
+				  MGA_SECADDRESS, (address |
+						   MGA_DMA_VERTEX),
+				  MGA_SECEND, ((address + length) |
+					       dev_priv->dma_access));
 
 			ADVANCE_DMA();
 		} while ( ++i < sarea_priv->nbox );
@@ -733,11 +731,11 @@ static void mga_dma_dispatch_indices( drm_device_t *dev, drm_buf_t *buf,
 
 			BEGIN_DMA( 1 );
 
-			DMA_BLOCK( MGA_DMAPAD,		0x00000000,
-				   MGA_DMAPAD,		0x00000000,
-				   MGA_SETUPADDRESS,	address + start,
-				   MGA_SETUPEND,	((address + end) |
-							 MGA_PAGPXFER) );
+			DMA_BLOCK(MGA_DMAPAD, 0x00000000,
+				  MGA_DMAPAD, 0x00000000,
+				  MGA_SETUPADDRESS, address + start,
+				  MGA_SETUPEND, ((address + end) |
+						 dev_priv->dma_access));
 
 			ADVANCE_DMA();
 		} while ( ++i < sarea_priv->nbox );
@@ -764,7 +762,7 @@ static void mga_dma_dispatch_iload( drm_device_t *dev, drm_buf_t *buf,
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_buf_priv_t *buf_priv = buf->dev_private;
 	drm_mga_context_regs_t *ctx = &dev_priv->sarea_priv->context_state;
-	u32 srcorg = buf->bus_address | MGA_SRCACC_AGP | MGA_SRCMAP_SYSMEM;
+	u32 srcorg = buf->bus_address | dev_priv->dma_access | MGA_SRCMAP_SYSMEM;
 	u32 y2;
 	DMA_LOCALS;
 	DRM_DEBUG( "buf=%d used=%d\n", buf->idx, buf->used );
@@ -1095,6 +1093,9 @@ static int mga_getparam( DRM_IOCTL_ARGS )
 	case MGA_PARAM_IRQ_NR:
 		value = dev->irq;
 		break;
+	case MGA_PARAM_CARD_TYPE:
+		value = dev_priv->chipset;
+		break;
 	default:
 		return DRM_ERR(EINVAL);
 	}
@@ -1107,17 +1108,82 @@ static int mga_getparam( DRM_IOCTL_ARGS )
 	return 0;
 }
 
+static int mga_set_fence(DRM_IOCTL_ARGS)
+{
+	DRM_DEVICE;
+	drm_mga_private_t *dev_priv = dev->dev_private;
+	u32 temp;
+	DMA_LOCALS;
+
+	if (!dev_priv) {
+		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		return DRM_ERR(EINVAL);
+	}
+
+	DRM_DEBUG("pid=%d\n", DRM_CURRENTPID);
+
+	/* I would normal do this assignment in the declaration of temp,
+	 * but dev_priv may be NULL.
+	 */
+
+	temp = dev_priv->next_fence_to_post;
+	dev_priv->next_fence_to_post++;
+
+	BEGIN_DMA(1);
+	DMA_BLOCK(MGA_DMAPAD, 0x00000000,
+		  MGA_DMAPAD, 0x00000000,
+		  MGA_DMAPAD, 0x00000000,
+		  MGA_SOFTRAP, 0x00000000);
+	ADVANCE_DMA();
+
+	if (DRM_COPY_TO_USER( (u32 __user *) data, & temp, sizeof(u32))) {
+		DRM_ERROR("copy_to_user\n");
+		return DRM_ERR(EFAULT);
+	}
+
+	return 0;
+}
+
+static int mga_wait_fence(DRM_IOCTL_ARGS)
+{
+	DRM_DEVICE;
+	drm_mga_private_t *dev_priv = dev->dev_private;
+	u32 fence;
+
+	if (!dev_priv) {
+		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		return DRM_ERR(EINVAL);
+	}
+
+	DRM_COPY_FROM_USER_IOCTL(fence, (u32 __user *) data, sizeof(u32));
+
+	DRM_DEBUG("pid=%d\n", DRM_CURRENTPID);
+
+	mga_driver_fence_wait(dev, & fence);
+
+	if (DRM_COPY_TO_USER( (u32 __user *) data, & fence, sizeof(u32))) {
+		DRM_ERROR("copy_to_user\n");
+		return DRM_ERR(EFAULT);
+	}
+
+	return 0;
+}
+
 drm_ioctl_desc_t mga_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_MGA_INIT)]    = { mga_dma_init,    1, 1 },
-	[DRM_IOCTL_NR(DRM_MGA_FLUSH)]   = { mga_dma_flush,   1, 0 },
-	[DRM_IOCTL_NR(DRM_MGA_RESET)]   = { mga_dma_reset,   1, 0 },
-	[DRM_IOCTL_NR(DRM_MGA_SWAP)]    = { mga_dma_swap,    1, 0 },
-	[DRM_IOCTL_NR(DRM_MGA_CLEAR)]   = { mga_dma_clear,   1, 0 },
-	[DRM_IOCTL_NR(DRM_MGA_VERTEX)]  = { mga_dma_vertex,  1, 0 },
-	[DRM_IOCTL_NR(DRM_MGA_INDICES)] = { mga_dma_indices, 1, 0 },
-	[DRM_IOCTL_NR(DRM_MGA_ILOAD)]   = { mga_dma_iload,   1, 0 },
-	[DRM_IOCTL_NR(DRM_MGA_BLIT)]    = { mga_dma_blit,    1, 0 },
-	[DRM_IOCTL_NR(DRM_MGA_GETPARAM)]= { mga_getparam,    1, 0 },
+	[DRM_IOCTL_NR(DRM_MGA_INIT)] = {mga_dma_init, 1, 1},
+	[DRM_IOCTL_NR(DRM_MGA_FLUSH)] = {mga_dma_flush, 1, 0},
+	[DRM_IOCTL_NR(DRM_MGA_RESET)] = {mga_dma_reset, 1, 0},
+	[DRM_IOCTL_NR(DRM_MGA_SWAP)] = {mga_dma_swap, 1, 0},
+	[DRM_IOCTL_NR(DRM_MGA_CLEAR)] = {mga_dma_clear, 1, 0},
+	[DRM_IOCTL_NR(DRM_MGA_VERTEX)] = {mga_dma_vertex, 1, 0},
+	[DRM_IOCTL_NR(DRM_MGA_INDICES)] = {mga_dma_indices, 1, 0},
+	[DRM_IOCTL_NR(DRM_MGA_ILOAD)] = {mga_dma_iload, 1, 0},
+	[DRM_IOCTL_NR(DRM_MGA_BLIT)] = {mga_dma_blit, 1, 0},
+	[DRM_IOCTL_NR(DRM_MGA_GETPARAM)] = {mga_getparam, 1, 0},
+	[DRM_IOCTL_NR(DRM_MGA_SET_FENCE)] = {mga_set_fence, 1, 0},
+	[DRM_IOCTL_NR(DRM_MGA_WAIT_FENCE)] = {mga_wait_fence, 1, 0},
+	[DRM_IOCTL_NR(DRM_MGA_DMA_BOOTSTRAP)] = {mga_dma_bootstrap, 1, 1},
+
 };
 
 int mga_max_ioctl = DRM_ARRAY_SIZE(mga_ioctls);
