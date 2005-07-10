@@ -198,6 +198,8 @@ int drm_takedown( drm_device_t *dev )
 			r_list = (drm_map_list_t *)list;
 
 			if ( ( map = r_list->map ) ) {
+				drm_dma_handle_t dmah;
+
 				switch ( map->type ) {
 				case _DRM_REGISTERS:
 				case _DRM_FRAME_BUFFER:
@@ -229,8 +231,10 @@ int drm_takedown( drm_device_t *dev )
 					}
 					break;
 				case _DRM_CONSISTENT:
-					drm_pci_free(dev, map->size,
-						     map->handle, map->offset);
+					dmah.vaddr = map->handle;
+					dmah.busaddr = map->offset;
+					dmah.size = map->size;
+					__drm_pci_free(dev, &dmah);
 					break;
 				}
 				drm_free(map, sizeof(*map), DRM_MEM_MAPS);

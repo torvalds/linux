@@ -210,6 +210,8 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 		}
 
 		if(!found_maps) {
+			drm_dma_handle_t dmah;
+
 			switch (map->type) {
 			case _DRM_REGISTERS:
 			case _DRM_FRAME_BUFFER:
@@ -229,8 +231,10 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 			case _DRM_SCATTER_GATHER:
 				break;
 			case _DRM_CONSISTENT:
-				drm_pci_free(dev, map->size, map->handle,
-					     map->offset);
+				dmah.vaddr = map->handle;
+				dmah.busaddr = map->offset;
+				dmah.size = map->size;
+				__drm_pci_free(dev, &dmah);
 				break;
 			}
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);

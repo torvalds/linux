@@ -527,6 +527,12 @@ typedef struct drm_sigdata {
 	drm_hw_lock_t *lock;
 } drm_sigdata_t;
 
+typedef struct drm_dma_handle {
+	dma_addr_t busaddr;
+	void *vaddr;
+	size_t size;
+} drm_dma_handle_t;
+
 /**
  * Mappings list
  */
@@ -978,12 +984,10 @@ extern int            drm_ati_pcigart_cleanup(drm_device_t *dev,
 					       unsigned long addr,
 					       dma_addr_t bus_addr);
 
-extern void *drm_pci_alloc(drm_device_t * dev, size_t size,
-			   size_t align, dma_addr_t maxaddr,
-			   dma_addr_t * busaddr);
-
-extern void drm_pci_free(drm_device_t * dev, size_t size,
-			 void *vaddr, dma_addr_t busaddr);
+extern drm_dma_handle_t *drm_pci_alloc(drm_device_t *dev, size_t size,
+				       size_t align, dma_addr_t maxaddr);
+extern void __drm_pci_free(drm_device_t *dev, drm_dma_handle_t *dmah);
+extern void drm_pci_free(drm_device_t *dev, drm_dma_handle_t *dmah);
 
 			       /* sysfs support (drm_sysfs.c) */
 struct drm_sysfs_class;

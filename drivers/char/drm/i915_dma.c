@@ -95,9 +95,8 @@ static int i915_dma_cleanup(drm_device_t * dev)
 			drm_core_ioremapfree( &dev_priv->ring.map, dev);
 		}
 
-		if (dev_priv->hw_status_page) {
-			drm_pci_free(dev, PAGE_SIZE, dev_priv->hw_status_page,
-				     dev_priv->dma_status_page);
+		if (dev_priv->status_page_dmah) {
+			drm_pci_free(dev, dev_priv->status_page_dmah);
 			/* Need to rewrite hardware status page */
 			I915_WRITE(0x02080, 0x1ffff000);
 		}
@@ -174,16 +173,18 @@ static int i915_initialize(drm_device_t * dev,
 	dev_priv->allow_batchbuffer = 1;
 
 	/* Program Hardware Status Page */
-	dev_priv->hw_status_page = drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE,
-						 0xffffffff, 
-						 &dev_priv->dma_status_page);
+	dev_priv->status_page_dmah = drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE,
+						   0xffffffff);
 
-	if (!dev_priv->hw_status_page) {
+	if (!dev_priv->status_page_dmah) {
 		dev->dev_private = (void *)dev_priv;
 		i915_dma_cleanup(dev);
 		DRM_ERROR("Can not allocate hardware status page\n");
 		return DRM_ERR(ENOMEM);
 	}
+	dev_priv->hw_status_page = dev_priv->status_page_dmah->vaddr;
+	dev_priv->dma_status_page = dev_priv->status_page_dmah->busaddr;
+
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 	DRM_DEBUG("hw status page @ %p\n", dev_priv->hw_status_page);
 
