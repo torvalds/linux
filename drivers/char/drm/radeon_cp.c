@@ -2048,6 +2048,27 @@ int radeon_driver_preinit(struct drm_device *dev, unsigned long flags)
 	return ret;
 }
 
+int radeon_presetup(struct drm_device *dev)
+{
+	int ret;
+	drm_local_map_t *map;
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+
+	ret = drm_addmap(dev, drm_get_resource_start(dev, 2),
+			 drm_get_resource_len(dev, 2), _DRM_REGISTERS,
+			 _DRM_READ_ONLY, &dev_priv->mmio);
+	if (ret != 0)
+		return ret;
+
+	ret = drm_addmap(dev, drm_get_resource_start(dev, 0),
+			 drm_get_resource_len(dev, 0), _DRM_FRAME_BUFFER,
+			 _DRM_WRITE_COMBINING, &map);
+	if (ret != 0)
+		return ret;
+
+	return 0;
+}
+
 int radeon_driver_postcleanup(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;

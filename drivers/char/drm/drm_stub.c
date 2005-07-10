@@ -75,6 +75,11 @@ static int drm_fill_in_dev(drm_device_t *dev, struct pci_dev *pdev, const struct
 	dev->pci_func = PCI_FUNC(pdev->devfn);
 	dev->irq = pdev->irq;
 
+	dev->maplist = drm_calloc(1, sizeof(*dev->maplist), DRM_MEM_MAPS);
+	if (dev->maplist == NULL)
+		return -ENOMEM;
+	INIT_LIST_HEAD(&dev->maplist->head);
+
 	/* the DRM has 6 basic counters */
 	dev->counters = 6;
 	dev->types[0]  = _DRM_STAT_LOCK;

@@ -290,6 +290,7 @@ extern int radeon_wait_ring( drm_radeon_private_t *dev_priv, int n );
 extern int radeon_do_cp_idle( drm_radeon_private_t *dev_priv );
 
 extern int radeon_driver_preinit(struct drm_device *dev, unsigned long flags);
+extern int radeon_presetup(struct drm_device *dev);
 extern int radeon_driver_postcleanup(struct drm_device *dev);
 
 extern int radeon_mem_alloc( DRM_IOCTL_ARGS );

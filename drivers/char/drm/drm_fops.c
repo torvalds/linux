@@ -71,12 +71,6 @@ static int drm_setup( drm_device_t *dev )
 		dev->magiclist[i].tail = NULL;
 	}
 
-	dev->maplist = drm_alloc(sizeof(*dev->maplist),
-				  DRM_MEM_MAPS);
-	if(dev->maplist == NULL) return -ENOMEM;
-	memset(dev->maplist, 0, sizeof(*dev->maplist));
-	INIT_LIST_HEAD(&dev->maplist->head);
-
 	dev->ctxlist = drm_alloc(sizeof(*dev->ctxlist),
 				  DRM_MEM_CTXLIST);
 	if(dev->ctxlist == NULL) return -ENOMEM;
