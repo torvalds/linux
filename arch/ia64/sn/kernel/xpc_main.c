@@ -53,6 +53,7 @@
 #include <linux/cache.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/uaccess.h>
@@ -308,8 +309,7 @@ xpc_make_first_contact(struct xpc_partition *part)
 			"partition %d\n", XPC_PARTID(part));
 
 		/* wait a 1/4 of a second or so */
-		set_current_state(TASK_INTERRUPTIBLE);
-		(void) schedule_timeout(0.25 * HZ);
+		msleep_interruptible(250);
 
 		if (part->act_state == XPC_P_DEACTIVATING) {
 			return part->reason;
@@ -841,9 +841,7 @@ xpc_do_exit(void)
 	down(&xpc_discovery_exited);
 
 
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(0.3 * HZ);
-	set_current_state(TASK_RUNNING);
+	msleep_interruptible(300);
 
 
 	/* wait for all partitions to become inactive */
@@ -860,12 +858,8 @@ xpc_do_exit(void)
 			}
 		}
 
-		if (active_part_count) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(0.3 * HZ);
-			set_current_state(TASK_RUNNING);
-		}
-
+		if (active_part_count)
+			msleep_interruptible(300);
 	} while (active_part_count > 0);
 
 
