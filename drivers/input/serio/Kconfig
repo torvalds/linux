@@ -175,7 +175,7 @@ config SERIO_RAW
 	  allocating minor 1 (that historically corresponds to /dev/psaux)
 	  first. To bind this driver to a serio port use sysfs interface:
 
-	      echo -n "serio_raw" > /sys/bus/serio/devices/serioX/driver
+	      echo -n "serio_raw" > /sys/bus/serio/devices/serioX/drvctl
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called serio_raw.
