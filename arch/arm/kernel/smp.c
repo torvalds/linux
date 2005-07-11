@@ -355,7 +355,7 @@ void show_ipi_list(struct seq_file *p)
 
 	seq_puts(p, "IPI:");
 
-	for_each_online_cpu(cpu)
+	for_each_present_cpu(cpu)
 		seq_printf(p, " %10lu", per_cpu(ipi_data, cpu).ipi_count);
 
 	seq_putc(p, '\n');
