@@ -608,6 +608,13 @@ static struct dmi_system_id toshiba_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME , "Satellite"),
 		},
 	},
+	{
+		.ident = "Toshiba Dynabook",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME , "dynabook"),
+		},
+	},
 	{ }
 };
 #endif
@@ -656,7 +663,8 @@ int synaptics_init(struct psmouse *psmouse)
 	 * thye same as rate of standard PS/2 mouse.
 	 */
 	if (psmouse->rate >= 80 && dmi_check_system(toshiba_dmi_table)) {
-		printk(KERN_INFO "synaptics: Toshiba Satellite detected, limiting rate to 40pps.\n");
+		printk(KERN_INFO "synaptics: Toshiba %s detected, limiting rate to 40pps.\n",
+			dmi_get_system_info(DMI_PRODUCT_NAME));
 		psmouse->rate = 40;
 	}
 #endif
