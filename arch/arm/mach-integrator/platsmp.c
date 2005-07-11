@@ -174,11 +174,13 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		max_cpus = ncores;
 
 	/*
-	 * Initialise the present mask - this tells us which CPUs should
-	 * be present.
+	 * Initialise the possible/present maps.
+	 * cpu_possible_map describes the set of CPUs which may be present
+	 * cpu_present_map describes the set of CPUs populated
 	 */
 	for (i = 0; i < max_cpus; i++) {
 		cpu_set(i, cpu_possible_map);
+		cpu_set(i, cpu_present_map);
 	}
 
 	/*

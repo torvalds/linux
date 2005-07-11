@@ -236,6 +236,7 @@ void __init smp_prepare_boot_cpu(void)
 	unsigned int cpu = smp_processor_id();
 
 	cpu_set(cpu, cpu_possible_map);
+	cpu_set(cpu, cpu_present_map);
 	cpu_set(cpu, cpu_online_map);
 }
 
