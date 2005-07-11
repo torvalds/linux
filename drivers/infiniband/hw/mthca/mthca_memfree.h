@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -148,7 +149,7 @@ struct mthca_db_table {
 	struct semaphore      mutex;
 };
 
-enum {
+enum mthca_db_type {
 	MTHCA_DB_TYPE_INVALID   = 0x0,
 	MTHCA_DB_TYPE_CQ_SET_CI = 0x1,
 	MTHCA_DB_TYPE_CQ_ARM    = 0x2,
@@ -157,6 +158,17 @@ enum {
 	MTHCA_DB_TYPE_SRQ       = 0x5,
 	MTHCA_DB_TYPE_GROUP_SEP = 0x7
 };
+
+struct mthca_user_db_table;
+struct mthca_uar;
+
+int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
+		      struct mthca_user_db_table *db_tab, int index, u64 uaddr);
+void mthca_unmap_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
+			 struct mthca_user_db_table *db_tab, int index);
+struct mthca_user_db_table *mthca_init_user_db_tab(struct mthca_dev *dev);
+void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
+			       struct mthca_user_db_table *db_tab);
 
 int mthca_init_db_tab(struct mthca_dev *dev);
 void mthca_cleanup_db_tab(struct mthca_dev *dev);

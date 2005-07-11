@@ -66,7 +66,6 @@ EXPORT_SYMBOL(irq_desc);
 int distribute_irqs = 1;
 int __irq_offset_value;
 int ppc_spurious_interrupts;
-unsigned long lpevent_count;
 u64 ppc64_interrupt_controller;
 
 int show_interrupts(struct seq_file *p, void *v)
@@ -269,7 +268,6 @@ out:
 void do_IRQ(struct pt_regs *regs)
 {
 	struct paca_struct *lpaca;
-	struct ItLpQueue *lpq;
 
 	irq_enter();
 
@@ -295,9 +293,8 @@ void do_IRQ(struct pt_regs *regs)
 		iSeries_smp_message_recv(regs);
 	}
 #endif /* CONFIG_SMP */
-	lpq = lpaca->lpqueue_ptr;
-	if (lpq && ItLpQueue_isLpIntPending(lpq))
-		lpevent_count += ItLpQueue_process(lpq, regs);
+	if (hvlpevent_is_pending())
+		process_hvlpevents(regs);
 
 	irq_exit();
 

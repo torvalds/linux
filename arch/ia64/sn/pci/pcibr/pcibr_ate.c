@@ -8,9 +8,9 @@
 
 #include <linux/types.h>
 #include <asm/sn/sn_sal.h>
+#include <asm/sn/pcibr_provider.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
-#include "pci/pcibr_provider.h"
 
 int pcibr_invalidate_ate = 0;	/* by default don't invalidate ATE on free */
 

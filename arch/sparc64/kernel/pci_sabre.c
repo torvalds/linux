@@ -595,6 +595,23 @@ static int __init sabre_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 	return ret;
 }
 
+/* When a device lives behind a bridge deeper in the PCI bus topology
+ * than APB, a special sequence must run to make sure all pending DMA
+ * transfers at the time of IRQ delivery are visible in the coherency
+ * domain by the cpu.  This sequence is to perform a read on the far
+ * side of the non-APB bridge, then perform a read of Sabre's DMA
+ * write-sync register.
+ */
+static void sabre_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_arg2)
+{
+	struct pci_dev *pdev = _arg1;
+	unsigned long sync_reg = (unsigned long) _arg2;
+	u16 _unused;
+
+	pci_read_config_word(pdev, PCI_VENDOR_ID, &_unused);
+	sabre_read(sync_reg);
+}
+
 static unsigned int __init sabre_irq_build(struct pci_pbm_info *pbm,
 					   struct pci_dev *pdev,
 					   unsigned int ino)
@@ -639,24 +656,14 @@ static unsigned int __init sabre_irq_build(struct pci_pbm_info *pbm,
 	if (pdev) {
 		struct pcidev_cookie *pcp = pdev->sysdata;
 
-		/* When a device lives behind a bridge deeper in the
-		 * PCI bus topology than APB, a special sequence must
-		 * run to make sure all pending DMA transfers at the
-		 * time of IRQ delivery are visible in the coherency
-		 * domain by the cpu.  This sequence is to perform
-		 * a read on the far side of the non-APB bridge, then
-		 * perform a read of Sabre's DMA write-sync register.
-		 *
-		 * Currently, the PCI_CONFIG register for the device
-		 * is used for this read from the far side of the bridge.
-		 */
 		if (pdev->bus->number != pcp->pbm->pci_first_busno) {
-			bucket->flags |= IBF_DMA_SYNC;
-			bucket->synctab_ent = dma_sync_reg_table_entry++;
-			dma_sync_reg_table[bucket->synctab_ent] =
-				(unsigned long) sabre_pci_config_mkaddr(
-					pcp->pbm,
-					pdev->bus->number, pdev->devfn, PCI_COMMAND);
+			struct pci_controller_info *p = pcp->pbm->parent;
+			struct irq_desc *d = bucket->irq_info;
+
+			d->pre_handler = sabre_wsync_handler;
+			d->pre_handler_arg1 = pdev;
+			d->pre_handler_arg2 = (void *)
+				p->pbm_A.controller_regs + SABRE_WRSYNC;
 		}
 	}
 	return __irq(bucket);
@@ -1626,10 +1633,9 @@ void __init sabre_init(int pnode, char *model_name)
 	 */
 	p->pbm_A.controller_regs = pr_regs[0].phys_addr;
 	p->pbm_B.controller_regs = pr_regs[0].phys_addr;
-	pci_dma_wsync = p->pbm_A.controller_regs + SABRE_WRSYNC;
 
-	printk("PCI: Found SABRE, main regs at %016lx, wsync at %016lx\n",
-	       p->pbm_A.controller_regs, pci_dma_wsync);
+	printk("PCI: Found SABRE, main regs at %016lx\n",
+	       p->pbm_A.controller_regs);
 
 	/* Clear interrupts */
 

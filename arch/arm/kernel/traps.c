@@ -230,16 +230,8 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 	do_exit(SIGSEGV);
 }
 
-void die_if_kernel(const char *str, struct pt_regs *regs, int err)
-{
-	if (user_mode(regs))
-    		return;
-
-    	die(str, regs, err);
-}
-
-static void notify_die(const char *str, struct pt_regs *regs, siginfo_t *info,
-		       unsigned long err, unsigned long trap)
+void notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
+		unsigned long err, unsigned long trap)
 {
 	if (user_mode(regs)) {
 		current->thread.error_code = err;

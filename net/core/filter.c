@@ -36,7 +36,7 @@
 #include <linux/filter.h>
 
 /* No hurry in this branch */
-static u8 *load_pointer(struct sk_buff *skb, int k)
+static void *__load_pointer(struct sk_buff *skb, int k)
 {
 	u8 *ptr = NULL;
 
@@ -48,6 +48,18 @@ static u8 *load_pointer(struct sk_buff *skb, int k)
 	if (ptr >= skb->head && ptr < skb->tail)
 		return ptr;
 	return NULL;
+}
+
+static inline void *load_pointer(struct sk_buff *skb, int k,
+                                 unsigned int size, void *buffer)
+{
+	if (k >= 0)
+		return skb_header_pointer(skb, k, size, buffer);
+	else {
+		if (k >= SKF_AD_OFF)
+			return NULL;
+		return __load_pointer(skb, k);
+	}
 }
 
 /**
@@ -64,15 +76,12 @@ static u8 *load_pointer(struct sk_buff *skb, int k)
  
 int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int flen)
 {
-	unsigned char *data = skb->data;
-	/* len is UNSIGNED. Byte wide insns relies only on implicit
-	   type casts to prevent reading arbitrary memory locations.
-	 */
-	unsigned int len = skb->len-skb->data_len;
 	struct sock_filter *fentry;	/* We walk down these */
+	void *ptr;
 	u32 A = 0;	   		/* Accumulator */
 	u32 X = 0;   			/* Index Register */
 	u32 mem[BPF_MEMWORDS];		/* Scratch Memory Store */
+	u32 tmp;
 	int k;
 	int pc;
 
@@ -168,86 +177,35 @@ int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int flen)
 		case BPF_LD|BPF_W|BPF_ABS:
 			k = fentry->k;
  load_w:
-			if (k >= 0 && (unsigned int)(k+sizeof(u32)) <= len) {
-				A = ntohl(*(u32*)&data[k]);
+			ptr = load_pointer(skb, k, 4, &tmp);
+			if (ptr != NULL) {
+				A = ntohl(*(u32 *)ptr);
 				continue;
-			}
-			if (k < 0) {
-				u8 *ptr;
-
-				if (k >= SKF_AD_OFF)
-					break;
-				ptr = load_pointer(skb, k);
-				if (ptr) {
-					A = ntohl(*(u32*)ptr);
-					continue;
-				}
-			} else {
-				u32 _tmp, *p;
-				p = skb_header_pointer(skb, k, 4, &_tmp);
-				if (p != NULL) {
-					A = ntohl(*p);
-					continue;
-				}
 			}
 			return 0;
 		case BPF_LD|BPF_H|BPF_ABS:
 			k = fentry->k;
  load_h:
-			if (k >= 0 && (unsigned int)(k + sizeof(u16)) <= len) {
-				A = ntohs(*(u16*)&data[k]);
+			ptr = load_pointer(skb, k, 2, &tmp);
+			if (ptr != NULL) {
+				A = ntohs(*(u16 *)ptr);
 				continue;
-			}
-			if (k < 0) {
-				u8 *ptr;
-
-				if (k >= SKF_AD_OFF)
-					break;
-				ptr = load_pointer(skb, k);
-				if (ptr) {
-					A = ntohs(*(u16*)ptr);
-					continue;
-				}
-			} else {
-				u16 _tmp, *p;
-				p = skb_header_pointer(skb, k, 2, &_tmp);
-				if (p != NULL) {
-					A = ntohs(*p);
-					continue;
-				}
 			}
 			return 0;
 		case BPF_LD|BPF_B|BPF_ABS:
 			k = fentry->k;
 load_b:
-			if (k >= 0 && (unsigned int)k < len) {
-				A = data[k];
+			ptr = load_pointer(skb, k, 1, &tmp);
+			if (ptr != NULL) {
+				A = *(u8 *)ptr;
 				continue;
-			}
-			if (k < 0) {
-				u8 *ptr;
-
-				if (k >= SKF_AD_OFF)
-					break;
-				ptr = load_pointer(skb, k);
-				if (ptr) {
-					A = *ptr;
-					continue;
-				}
-			} else {
-				u8 _tmp, *p;
-				p = skb_header_pointer(skb, k, 1, &_tmp);
-				if (p != NULL) {
-					A = *p;
-					continue;
-				}
 			}
 			return 0;
 		case BPF_LD|BPF_W|BPF_LEN:
-			A = len;
+			A = skb->len;
 			continue;
 		case BPF_LDX|BPF_W|BPF_LEN:
-			X = len;
+			X = skb->len;
 			continue;
 		case BPF_LD|BPF_W|BPF_IND:
 			k = X + fentry->k;
@@ -259,10 +217,12 @@ load_b:
 			k = X + fentry->k;
 			goto load_b;
 		case BPF_LDX|BPF_B|BPF_MSH:
-			if (fentry->k >= len)
-				return 0;
-			X = (data[fentry->k] & 0xf) << 2;
-			continue;
+			ptr = load_pointer(skb, fentry->k, 1, &tmp);
+			if (ptr != NULL) {
+				X = (*(u8 *)ptr & 0xf) << 2;
+				continue;
+			}
+			return 0;
 		case BPF_LD|BPF_IMM:
 			A = fentry->k;
 			continue;

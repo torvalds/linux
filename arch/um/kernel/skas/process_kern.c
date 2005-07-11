@@ -175,9 +175,12 @@ static int start_kernel_proc(void *unused)
 	return(0);
 }
 
+extern int userspace_pid[];
+
 int start_uml_skas(void)
 {
-	start_userspace(0);
+	if(proc_mm)
+		userspace_pid[0] = start_userspace(0);
 
 	init_new_thread_signals(1);
 
@@ -198,4 +201,32 @@ int thread_pid_skas(struct task_struct *task)
 {
 #warning Need to look up userspace_pid by cpu
 	return(userspace_pid[0]);
+}
+
+void kill_off_processes_skas(void)
+{
+	if(proc_mm)
+#warning need to loop over userspace_pids in kill_off_processes_skas
+		os_kill_ptraced_process(userspace_pid[0], 1);
+	else {
+		struct task_struct *p;
+		int pid, me;
+
+		me = os_getpid();
+		for_each_process(p){
+			if(p->mm == NULL)
+				continue;
+
+			pid = p->mm->context.skas.id.u.pid;
+			os_kill_ptraced_process(pid, 1);
+		}
+	}
+}
+
+unsigned long current_stub_stack(void)
+{
+	if(current->mm == NULL)
+		return(0);
+
+	return(current->mm->context.skas.id.stack);
 }

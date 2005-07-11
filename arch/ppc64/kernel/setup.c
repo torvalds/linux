@@ -96,7 +96,6 @@ extern void udbg_init_maple_realmode(void);
 extern unsigned long klimit;
 
 extern void mm_init_ppc64(void);
-extern int  idle_setup(void);
 extern void stab_initialize(unsigned long stab);
 extern void htab_initialize(void);
 extern void early_init_devtree(void *flat_dt);
@@ -1081,8 +1080,11 @@ void __init setup_arch(char **cmdline_p)
 
 	ppc_md.setup_arch();
 
-	/* Select the correct idle loop for the platform. */
-	idle_setup();
+	/* Use the default idle loop if the platform hasn't provided one. */
+	if (NULL == ppc_md.idle_loop) {
+		ppc_md.idle_loop = default_idle;
+		printk(KERN_INFO "Using default idle loop\n");
+	}
 
 	paging_init();
 	ppc64_boot_msg(0x15, "Setup Done");

@@ -43,6 +43,8 @@ config SPARC64_PAGE_SIZE_4MB
 
 endchoice
 
+source kernel/Kconfig.hz
+
 source "init/Kconfig"
 
 config SYSVIPC_COMPAT
@@ -443,6 +445,24 @@ config PRINTER
 
 	  If you have more than 8 printers, you need to increase the LP_NO
 	  macro in lp.c and the PARPORT_MAX macro in parport.h.
+
+config PPDEV
+	tristate "Support for user-space parallel port device drivers"
+	depends on PARPORT
+	---help---
+	  Saying Y to this adds support for /dev/parport device nodes.  This
+	  is needed for programs that want portable access to the parallel
+	  port, for instance deviceid (which displays Plug-and-Play device
+	  IDs).
+
+	  This is the parallel port equivalent of SCSI generic support (sg).
+	  It is safe to say N to this -- it is not needed for normal printing
+	  or parallel port CD-ROM/disk support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ppdev.
+
+	  If unsure, say N.
 
 config ENVCTRL
 	tristate "SUNW, envctrl support"

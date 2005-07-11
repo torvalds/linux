@@ -108,6 +108,8 @@ void flexcop_device_kfree(struct flexcop_device*);
 int  flexcop_device_initialize(struct flexcop_device*);
 void flexcop_device_exit(struct flexcop_device *fc);
 
+void flexcop_reset_block_300(struct flexcop_device *fc);
+
 /* from flexcop-dma.c */
 int flexcop_dma_allocate(struct pci_dev *pdev, struct flexcop_dma *dma, u32 size);
 void flexcop_dma_free(struct flexcop_dma *dma);
@@ -115,7 +117,8 @@ void flexcop_dma_free(struct flexcop_dma *dma);
 int flexcop_dma_control_timer_irq(struct flexcop_device *fc, flexcop_dma_index_t no, int onoff);
 int flexcop_dma_control_size_irq(struct flexcop_device *fc, flexcop_dma_index_t no, int onoff);
 int flexcop_dma_control_packet_irq(struct flexcop_device *fc, flexcop_dma_index_t no, int onoff);
-int flexcop_dma_config(struct flexcop_device *fc, struct flexcop_dma *dma, flexcop_dma_index_t dma_idx,flexcop_dma_addr_index_t index);
+int flexcop_dma_config(struct flexcop_device *fc, struct flexcop_dma *dma, flexcop_dma_index_t dma_idx);
+int flexcop_dma_xfer_control(struct flexcop_device *fc, flexcop_dma_index_t dma_idx, flexcop_dma_addr_index_t index, int onoff);
 int flexcop_dma_config_timer(struct flexcop_device *fc, flexcop_dma_index_t dma_idx, u8 cycles);
 int flexcop_dma_config_packet_count(struct flexcop_device *fc, flexcop_dma_index_t dma_idx, u8 packets);
 
@@ -151,6 +154,7 @@ int flexcop_sram_init(struct flexcop_device *fc);
 /* from flexcop-misc.c */
 void flexcop_determine_revision(struct flexcop_device *fc);
 void flexcop_device_name(struct flexcop_device *fc,const char *prefix,const char *suffix);
+void flexcop_dump_reg(struct flexcop_device *fc, flexcop_ibi_register reg, int num);
 
 /* from flexcop-hw-filter.c */
 int flexcop_pid_feed_control(struct flexcop_device *fc, struct dvb_demux_feed *dvbdmxfeed, int onoff);

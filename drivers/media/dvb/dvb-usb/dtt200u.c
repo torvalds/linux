@@ -1,7 +1,9 @@
-/* DVB USB library compliant Linux driver for the Yakumo/Hama/Typhoon DVB-T
- * USB2.0 receiver.
+/* DVB USB library compliant Linux driver for the WideView/ Yakumo/ Hama/
+ * Typhoon/ Yuan DVB-T USB2.0 receiver.
  *
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
+ *
+ * Thanks to Steve Chang from WideView for providing support for the WT-220U.
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the Free
@@ -16,14 +18,24 @@ int dvb_usb_dtt200u_debug;
 module_param_named(debug,dvb_usb_dtt200u_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2 (or-able))." DVB_USB_DEBUG_STATUS);
 
+static int dtt200u_power_ctrl(struct dvb_usb_device *d, int onoff)
+{
+	u8 b = SET_INIT;
+
+	if (onoff)
+		dvb_usb_generic_write(d,&b,2);
+
+	return 0;
+}
+
 static int dtt200u_streaming_ctrl(struct dvb_usb_device *d, int onoff)
 {
-	u8 b_streaming[2] = { SET_TS_CTRL, onoff };
+	u8 b_streaming[2] = { SET_STREAMING, onoff };
 	u8 b_rst_pid = RESET_PID_FILTER;
 
 	dvb_usb_generic_write(d,b_streaming,2);
 
-	if (!onoff)
+	if (onoff == 0)
 		dvb_usb_generic_write(d,&b_rst_pid,1);
 	return 0;
 }
@@ -36,7 +48,7 @@ static int dtt200u_pid_filter(struct dvb_usb_device *d, int index, u16 pid, int 
 	b_pid[0] = SET_PID_FILTER;
 	b_pid[1] = index;
 	b_pid[2] = pid & 0xff;
-	b_pid[3] = (pid >> 8) & 0xff;
+	b_pid[3] = (pid >> 8) & 0x1f;
 
 	return dvb_usb_generic_write(d,b_pid,4);
 }
@@ -54,9 +66,9 @@ static struct dvb_usb_rc_key dtt200u_rc_keys[] = {
 	{ 0x80, 0x08, KEY_5 },
 	{ 0x80, 0x09, KEY_6 },
 	{ 0x80, 0x0a, KEY_7 },
-	{ 0x00, 0x0c, KEY_ZOOM },
+	{ 0x80, 0x0c, KEY_ZOOM },
 	{ 0x80, 0x0d, KEY_0 },
-	{ 0x00, 0x0e, KEY_SELECT },
+	{ 0x80, 0x0e, KEY_SELECT },
 	{ 0x80, 0x12, KEY_POWER },
 	{ 0x80, 0x1a, KEY_CHANNELUP },
 	{ 0x80, 0x1b, KEY_8 },
@@ -66,7 +78,7 @@ static struct dvb_usb_rc_key dtt200u_rc_keys[] = {
 
 static int dtt200u_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	u8 key[5],cmd = GET_RC_KEY;
+	u8 key[5],cmd = GET_RC_CODE;
 	dvb_usb_generic_rw(d,&cmd,1,key,5,0);
 	dvb_usb_nec_rc_key_to_event(d,key,event,state);
 	if (key[0] != 0)
@@ -81,32 +93,41 @@ static int dtt200u_frontend_attach(struct dvb_usb_device *d)
 }
 
 static struct dvb_usb_properties dtt200u_properties;
+static struct dvb_usb_properties wt220u_properties;
 
 static int dtt200u_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&dtt200u_properties,THIS_MODULE);
+	if (dvb_usb_device_init(intf,&dtt200u_properties,THIS_MODULE) == 0 ||
+		dvb_usb_device_init(intf,&wt220u_properties,THIS_MODULE) == 0)
+		return 0;
+
+	return -ENODEV;
 }
 
 static struct usb_device_id dtt200u_usb_table [] = {
-	    { USB_DEVICE(USB_VID_AVERMEDIA_UNK, USB_PID_DTT200U_COLD) },
-	    { USB_DEVICE(USB_VID_AVERMEDIA_UNK, USB_PID_DTT200U_WARM) },
+//		{ USB_DEVICE(0x04b4,0x8613) },
+	    { USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_DTT200U_COLD) },
+	    { USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_DTT200U_WARM) },
+		{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_COLD)  },
+		{ USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_WT220U_WARM)  },
 	    { 0 },
 };
 MODULE_DEVICE_TABLE(usb, dtt200u_usb_table);
 
 static struct dvb_usb_properties dtt200u_properties = {
 	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_NEED_PID_FILTERING,
-	.pid_filter_count = 255, /* It is a guess, but there are at least 10 */
+	.pid_filter_count = 15,
 
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-dtt200u-01.fw",
 
+	.power_ctrl      = dtt200u_power_ctrl,
 	.streaming_ctrl  = dtt200u_streaming_ctrl,
 	.pid_filter      = dtt200u_pid_filter,
 	.frontend_attach = dtt200u_frontend_attach,
 
-	.rc_interval     = 200,
+	.rc_interval     = 300,
 	.rc_key_map      = dtt200u_rc_keys,
 	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
 	.rc_query        = dtt200u_rc_query,
@@ -127,9 +148,50 @@ static struct dvb_usb_properties dtt200u_properties = {
 
 	.num_device_descs = 1,
 	.devices = {
-		{ .name = "Yakumo/Hama/Typhoon DVB-T USB2.0)",
-		  .cold_ids = { &dtt200u_usb_table[0], &dtt200u_usb_table[2] },
+		{ .name = "WideView/Yuan/Yakumo/Hama/Typhoon DVB-T USB2.0 (WT-200U)",
+		  .cold_ids = { &dtt200u_usb_table[0], NULL },
 		  .warm_ids = { &dtt200u_usb_table[1], NULL },
+		},
+		{ 0 },
+	}
+};
+
+static struct dvb_usb_properties wt220u_properties = {
+	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_NEED_PID_FILTERING,
+	.pid_filter_count = 15,
+
+	.usb_ctrl = CYPRESS_FX2,
+	.firmware = "dvb-usb-wt220u-01.fw",
+
+	.power_ctrl      = dtt200u_power_ctrl,
+	.streaming_ctrl  = dtt200u_streaming_ctrl,
+	.pid_filter      = dtt200u_pid_filter,
+	.frontend_attach = dtt200u_frontend_attach,
+
+	.rc_interval     = 300,
+	.rc_key_map      = dtt200u_rc_keys,
+	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
+	.rc_query        = dtt200u_rc_query,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	/* parameter for the MPEG2-data transfer */
+	.urb = {
+		.type = DVB_USB_BULK,
+		.count = 7,
+		.endpoint = 0x02,
+		.u = {
+			.bulk = {
+				.buffersize = 4096,
+			}
+		}
+	},
+
+	.num_device_descs = 1,
+	.devices = {
+		{ .name = "WideView WT-220U PenType Receiver (and clones)",
+		  .cold_ids = { &dtt200u_usb_table[2], NULL },
+		  .warm_ids = { &dtt200u_usb_table[3], NULL },
 		},
 		{ 0 },
 	}
@@ -138,7 +200,7 @@ static struct dvb_usb_properties dtt200u_properties = {
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver dtt200u_usb_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "Yakumo/Hama/Typhoon DVB-T USB2.0",
+	.name		= "dvb_usb_dtt200u",
 	.probe 		= dtt200u_usb_probe,
 	.disconnect = dvb_usb_device_exit,
 	.id_table 	= dtt200u_usb_table,
@@ -166,6 +228,6 @@ module_init(dtt200u_usb_module_init);
 module_exit(dtt200u_usb_module_exit);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
-MODULE_DESCRIPTION("Driver for the Yakumo/Hama/Typhoon DVB-T USB2.0 device");
+MODULE_DESCRIPTION("Driver for the WideView/Yakumo/Hama/Typhoon DVB-T USB2.0 devices");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");

@@ -14,6 +14,7 @@ extern int restore_fp_registers(int pid, unsigned long *fp_regs);
 extern void save_registers(int pid, union uml_pt_regs *regs);
 extern void restore_registers(int pid, union uml_pt_regs *regs);
 extern void init_registers(int pid);
+extern void get_safe_registers(unsigned long * regs);
 
 #endif
 

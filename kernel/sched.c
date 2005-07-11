@@ -3877,6 +3877,13 @@ asmlinkage long sys_sched_yield(void)
 
 static inline void __cond_resched(void)
 {
+	/*
+	 * The BKS might be reacquired before we have dropped
+	 * PREEMPT_ACTIVE, which could trigger a second
+	 * cond_resched() call.
+	 */
+	if (unlikely(preempt_count()))
+		return;
 	do {
 		add_preempt_count(PREEMPT_ACTIVE);
 		schedule();

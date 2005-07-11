@@ -112,7 +112,6 @@ void ppc64_enable_pmcs(void)
 	unsigned long hid0;
 #ifdef CONFIG_PPC_PSERIES
 	unsigned long set, reset;
-	int ret;
 #endif /* CONFIG_PPC_PSERIES */
 
 	/* Only need to enable them once */
@@ -145,11 +144,7 @@ void ppc64_enable_pmcs(void)
 	case PLATFORM_PSERIES_LPAR:
 		set = 1UL << 63;
 		reset = 0;
-		ret = plpar_hcall_norets(H_PERFMON, set, reset);
-		if (ret)
-			printk(KERN_ERR "H_PERFMON call on cpu %u "
-			       "returned %d\n",
-			       smp_processor_id(), ret);
+		plpar_hcall_norets(H_PERFMON, set, reset);
 		break;
 #endif /* CONFIG_PPC_PSERIES */
 
@@ -161,13 +156,6 @@ void ppc64_enable_pmcs(void)
 	/* instruct hypervisor to maintain PMCs */
 	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR)
 		get_paca()->lppaca.pmcregs_in_use = 1;
-
-	/*
-	 * On SMT machines we have to set the run latch in the ctrl register
-	 * in order to make PMC6 spin.
-	 */
-	if (cpu_has_feature(CPU_FTR_SMT))
-		ppc64_runlatch_on();
 #endif /* CONFIG_PPC_PSERIES */
 }
 
@@ -400,7 +388,12 @@ static int __init topology_init(void)
 		struct cpu *c = &per_cpu(cpu_devices, cpu);
 
 #ifdef CONFIG_NUMA
-		parent = &node_devices[cpu_to_node(cpu)];
+		/* The node to which a cpu belongs can't be known
+		 * until the cpu is made present.
+		 */
+		parent = NULL;
+		if (cpu_present(cpu))
+			parent = &node_devices[cpu_to_node(cpu)];
 #endif
 		/*
 		 * For now, we just see if the system supports making

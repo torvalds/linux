@@ -46,7 +46,7 @@
 
 int b2c2_flexcop_debug;
 module_param_named(debug, b2c2_flexcop_debug,  int, 0644);
-MODULE_PARM_DESC(debug, "set debug level (1=info,2=tuner,4=i2c,8=ts,16=sram (|-able))." DEBSTATUS);
+MODULE_PARM_DESC(debug, "set debug level (1=info,2=tuner,4=i2c,8=ts,16=sram,32=reg (|-able))." DEBSTATUS);
 #undef DEBSTATUS
 
 /* global zero for ibi values */
@@ -173,9 +173,20 @@ static void flexcop_reset(struct flexcop_device *fc)
 	fc->write_ibi_reg(fc,ctrl_208,ibi_zero);
 
 	v210.raw = 0;
-	v210.sw_reset_210.reset_blocks = 0xff;
+	v210.sw_reset_210.reset_block_000 = 1;
+	v210.sw_reset_210.reset_block_100 = 1;
+	v210.sw_reset_210.reset_block_200 = 1;
+	v210.sw_reset_210.reset_block_300 = 1;
+	v210.sw_reset_210.reset_block_400 = 1;
+	v210.sw_reset_210.reset_block_500 = 1;
+	v210.sw_reset_210.reset_block_600 = 1;
+	v210.sw_reset_210.reset_block_700 = 1;
 	v210.sw_reset_210.Block_reset_enable = 0xb2;
+
+	v210.sw_reset_210.Special_controls = 0xc259;
+
 	fc->write_ibi_reg(fc,sw_reset_210,v210);
+	msleep(1);
 
 /* reset the periphical devices */
 
@@ -185,6 +196,25 @@ static void flexcop_reset(struct flexcop_device *fc)
 	v204.misc_204.Per_reset_sig = 1;
 	fc->write_ibi_reg(fc,misc_204,v204);
 }
+
+void flexcop_reset_block_300(struct flexcop_device *fc)
+{
+	flexcop_ibi_value v208_save = fc->read_ibi_reg(fc,ctrl_208),
+					  v210 = fc->read_ibi_reg(fc,sw_reset_210);
+
+	deb_rdump("208: %08x, 210: %08x\n",v208_save.raw,v210.raw);
+
+	fc->write_ibi_reg(fc,ctrl_208,ibi_zero);
+
+	v210.sw_reset_210.reset_block_300 = 1;
+	v210.sw_reset_210.Block_reset_enable = 0xb2;
+
+	fc->write_ibi_reg(fc,sw_reset_210,v210);
+	msleep(1);
+
+	fc->write_ibi_reg(fc,ctrl_208,v208_save);
+}
+EXPORT_SYMBOL(flexcop_reset_block_300);
 
 struct flexcop_device *flexcop_device_kmalloc(size_t bus_specific_len)
 {

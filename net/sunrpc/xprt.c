@@ -145,8 +145,6 @@ __xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->sockstate)) {
 		if (task == xprt->snd_task)
 			return 1;
-		if (task == NULL)
-			return 0;
 		goto out_sleep;
 	}
 	if (xprt->nocong || __xprt_get_cong(xprt, task)) {

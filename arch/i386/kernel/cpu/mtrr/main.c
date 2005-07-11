@@ -332,6 +332,8 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 
 	error = -EINVAL;
 
+	/* No CPU hotplug when we change MTRR entries */
+	lock_cpu_hotplug();
 	/*  Search for existing MTRR  */
 	down(&main_lock);
 	for (i = 0; i < num_var_ranges; ++i) {
@@ -372,6 +374,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	error = i;
  out:
 	up(&main_lock);
+	unlock_cpu_hotplug();
 	return error;
 }
 
@@ -461,6 +464,8 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 		return -ENXIO;
 
 	max = num_var_ranges;
+	/* No CPU hotplug when we change MTRR entries */
+	lock_cpu_hotplug();
 	down(&main_lock);
 	if (reg < 0) {
 		/*  Search for existing MTRR  */
@@ -501,6 +506,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 	error = reg;
  out:
 	up(&main_lock);
+	unlock_cpu_hotplug();
 	return error;
 }
 /**
@@ -544,21 +550,9 @@ static void __init init_ifs(void)
 	centaur_init_mtrr();
 }
 
-static void __init init_other_cpus(void)
-{
-	if (use_intel())
-		get_mtrr_state();
-
-	/* bring up the other processors */
-	set_mtrr(~0U,0,0,0);
-
-	if (use_intel()) {
-		finalize_mtrr_state();
-		mtrr_state_warn();
-	}
-}
-
-
+/* The suspend/resume methods are only for CPU without MTRR. CPU using generic
+ * MTRR driver doesn't require this
+ */
 struct mtrr_value {
 	mtrr_type	ltype;
 	unsigned long	lbase;
@@ -611,13 +605,13 @@ static struct sysdev_driver mtrr_sysdev_driver = {
 
 
 /**
- * mtrr_init - initialize mtrrs on the boot CPU
+ * mtrr_bp_init - initialize mtrrs on the boot CPU
  *
  * This needs to be called early; before any of the other CPUs are 
  * initialized (i.e. before smp_init()).
  * 
  */
-static int __init mtrr_init(void)
+void __init mtrr_bp_init(void)
 {
 	init_ifs();
 
@@ -674,12 +668,48 @@ static int __init mtrr_init(void)
 	if (mtrr_if) {
 		set_num_var_ranges();
 		init_table();
-		init_other_cpus();
-
-		return sysdev_driver_register(&cpu_sysdev_class,
-					      &mtrr_sysdev_driver);
+		if (use_intel())
+			get_mtrr_state();
 	}
-	return -ENXIO;
 }
 
-subsys_initcall(mtrr_init);
+void mtrr_ap_init(void)
+{
+	unsigned long flags;
+
+	if (!mtrr_if || !use_intel())
+		return;
+	/*
+	 * Ideally we should hold main_lock here to avoid mtrr entries changed,
+	 * but this routine will be called in cpu boot time, holding the lock
+	 * breaks it. This routine is called in two cases: 1.very earily time
+	 * of software resume, when there absolutely isn't mtrr entry changes;
+	 * 2.cpu hotadd time. We let mtrr_add/del_page hold cpuhotplug lock to
+	 * prevent mtrr entry changes
+	 */
+	local_irq_save(flags);
+
+	mtrr_if->set_all();
+
+	local_irq_restore(flags);
+}
+
+static int __init mtrr_init_finialize(void)
+{
+	if (!mtrr_if)
+		return 0;
+	if (use_intel())
+		mtrr_state_warn();
+	else {
+		/* The CPUs haven't MTRR and seemes not support SMP. They have
+		 * specific drivers, we use a tricky method to support
+		 * suspend/resume for them.
+		 * TBD: is there any system with such CPU which supports
+		 * suspend/resume?  if no, we should remove the code.
+		 */
+		sysdev_driver_register(&cpu_sysdev_class,
+			&mtrr_sysdev_driver);
+	}
+	return 0;
+}
+subsys_initcall(mtrr_init_finialize);

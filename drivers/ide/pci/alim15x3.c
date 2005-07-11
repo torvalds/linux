@@ -583,7 +583,7 @@ static int ali15x3_dma_setup(ide_drive_t *drive)
  *	appropriate also sets up the 1533 southbridge.
  */
   
-static unsigned int __init init_chipset_ali15x3 (struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const char *name)
 {
 	unsigned long flags;
 	u8 tmpbyte;
@@ -677,7 +677,7 @@ static unsigned int __init init_chipset_ali15x3 (struct pci_dev *dev, const char
  *	FIXME: frobs bits that are not defined on newer ALi devicea
  */
 
-static unsigned int __init ata66_ali15x3 (ide_hwif_t *hwif)
+static unsigned int __devinit ata66_ali15x3 (ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= hwif->pci_dev;
 	unsigned int ata66	= 0;
@@ -748,7 +748,7 @@ static unsigned int __init ata66_ali15x3 (ide_hwif_t *hwif)
  *	Initialize the IDE structure side of the ALi 15x3 driver.
  */
  
-static void __init init_hwif_common_ali15x3 (ide_hwif_t *hwif)
+static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 {
 	hwif->autodma = 0;
 	hwif->tuneproc = &ali15x3_tune_drive;
@@ -794,7 +794,7 @@ static void __init init_hwif_common_ali15x3 (ide_hwif_t *hwif)
  *	Sparc systems
  */
 
-static void __init init_hwif_ali15x3 (ide_hwif_t *hwif)
+static void __devinit init_hwif_ali15x3 (ide_hwif_t *hwif)
 {
 	u8 ideic, inmir;
 	s8 irq_routing_table[] = { -1,  9, 3, 10, 4,  5, 7,  6,
@@ -847,7 +847,7 @@ static void __init init_hwif_ali15x3 (ide_hwif_t *hwif)
  *	the actual work.
  */
 
-static void __init init_dma_ali15x3 (ide_hwif_t *hwif, unsigned long dmabase)
+static void __devinit init_dma_ali15x3 (ide_hwif_t *hwif, unsigned long dmabase)
 {
 	if (m5229_revision < 0x20)
 		return;

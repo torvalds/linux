@@ -34,7 +34,7 @@ struct vfsmount
 	int mnt_expiry_mark;		/* true if marked for expiry */
 	char *mnt_devname;		/* Name of device e.g. /dev/dsk/hda1 */
 	struct list_head mnt_list;
-	struct list_head mnt_fslink;	/* link in fs-specific expiry list */
+	struct list_head mnt_expire;	/* link in fs-specific expiry list */
 	struct namespace *mnt_namespace; /* containing namespace */
 };
 
@@ -47,7 +47,7 @@ static inline struct vfsmount *mntget(struct vfsmount *mnt)
 
 extern void __mntput(struct vfsmount *mnt);
 
-static inline void _mntput(struct vfsmount *mnt)
+static inline void mntput_no_expire(struct vfsmount *mnt)
 {
 	if (mnt) {
 		if (atomic_dec_and_test(&mnt->mnt_count))
@@ -59,7 +59,7 @@ static inline void mntput(struct vfsmount *mnt)
 {
 	if (mnt) {
 		mnt->mnt_expiry_mark = 0;
-		_mntput(mnt);
+		mntput_no_expire(mnt);
 	}
 }
 

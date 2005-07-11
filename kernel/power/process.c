@@ -59,6 +59,7 @@ int freeze_processes(void)
 	int todo;
 	unsigned long start_time;
 	struct task_struct *g, *p;
+	unsigned long flags;
 
 	printk( "Stopping tasks: " );
 	start_time = jiffies;
@@ -66,12 +67,9 @@ int freeze_processes(void)
 		todo = 0;
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
-			unsigned long flags;
 			if (!freezeable(p))
 				continue;
-			if ((frozen(p)) ||
-			    (p->state == TASK_TRACED) ||
-			    (p->state == TASK_STOPPED))
+			if (frozen(p))
 				continue;
 
 			freeze(p);

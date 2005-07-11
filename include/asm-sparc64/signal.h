@@ -162,21 +162,6 @@ struct sigstack {
 #define MINSIGSTKSZ	4096
 #define SIGSTKSZ	16384
 
-#ifdef __KERNEL__
-/*
- * DJHR
- * SA_STATIC_ALLOC is used for the SPARC system to indicate that this
- * interrupt handler's irq structure should be statically allocated
- * by the request_irq routine.
- * The alternative is that arch/sparc/kernel/irq.c has carnal knowledge
- * of interrupt usage and that sucks. Also without a flag like this
- * it may be possible for the free_irq routine to attempt to free
- * statically allocated data.. which is NOT GOOD.
- *
- */
-#define SA_STATIC_ALLOC		0x80
-#endif
-
 #include <asm-generic/signal.h>
 
 struct __new_sigaction {

@@ -10,6 +10,7 @@ extern void timer(void);
 extern void switch_timers(int to_real);
 extern void idle_sleep(int secs);
 extern void enable_timer(void);
+extern void prepare_timer(void * ptr);
 extern void disable_timer(void);
 extern unsigned long time_lock(void);
 extern void time_unlock(unsigned long);

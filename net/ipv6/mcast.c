@@ -281,7 +281,7 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex, struct in6_addr *addr)
 	}
 	write_unlock_bh(&ipv6_sk_mc_lock);
 
-	return -ENOENT;
+	return -EADDRNOTAVAIL;
 }
 
 static struct inet6_dev *ip6_mc_find_dev(struct in6_addr *group, int ifindex)
@@ -386,12 +386,16 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 		if (ipv6_addr_equal(&pmc->addr, group))
 			break;
 	}
-	if (!pmc)		/* must have a prior join */
+	if (!pmc) {		/* must have a prior join */
+		err = -EINVAL;
 		goto done;
+	}
 	/* if a source filter was set, must be the same mode as before */
 	if (pmc->sflist) {
-		if (pmc->sfmode != omode)
+		if (pmc->sfmode != omode) {
+			err = -EINVAL;
 			goto done;
+		}
 	} else if (pmc->sfmode != omode) {
 		/* allow mode switches for empty-set filters */
 		ip6_mc_add_src(idev, group, omode, 0, NULL, 0);
@@ -402,7 +406,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	psl = pmc->sflist;
 	if (!add) {
 		if (!psl)
-			goto done;
+			goto done;	/* err = -EADDRNOTAVAIL */
 		rv = !0;
 		for (i=0; i<psl->sl_count; i++) {
 			rv = memcmp(&psl->sl_addr[i], source,
@@ -411,7 +415,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 				break;
 		}
 		if (rv)		/* source not found */
-			goto done;
+			goto done;	/* err = -EADDRNOTAVAIL */
 
 		/* special case - (INCLUDE, empty) == LEAVE_GROUP */
 		if (psl->sl_count == 1 && omode == MCAST_INCLUDE) {
@@ -488,6 +492,7 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *newpsl, *psl;
+	int leavegroup = 0;
 	int i, err;
 
 	group = &((struct sockaddr_in6 *)&gsf->gf_group)->sin6_addr;
@@ -503,7 +508,12 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 	if (!idev)
 		return -ENODEV;
 	dev = idev->dev;
-	err = -EADDRNOTAVAIL;
+
+	err = 0;
+	if (gsf->gf_fmode == MCAST_INCLUDE && gsf->gf_numsrc == 0) {
+		leavegroup = 1;
+		goto done;
+	}
 
 	for (pmc=inet6->ipv6_mc_list; pmc; pmc=pmc->next) {
 		if (pmc->ifindex != gsf->gf_interface)
@@ -511,8 +521,10 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 		if (ipv6_addr_equal(&pmc->addr, group))
 			break;
 	}
-	if (!pmc)		/* must have a prior join */
+	if (!pmc) {		/* must have a prior join */
+		err = -EINVAL;
 		goto done;
+	}
 	if (gsf->gf_numsrc) {
 		newpsl = (struct ip6_sf_socklist *)sock_kmalloc(sk,
 				IP6_SFLSIZE(gsf->gf_numsrc), GFP_ATOMIC);
@@ -544,10 +556,13 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 		(void) ip6_mc_del_src(idev, group, pmc->sfmode, 0, NULL, 0);
 	pmc->sflist = newpsl;
 	pmc->sfmode = gsf->gf_fmode;
+	err = 0;
 done:
 	read_unlock_bh(&idev->lock);
 	in6_dev_put(idev);
 	dev_put(dev);
+	if (leavegroup)
+		err = ipv6_sock_mc_drop(sk, gsf->gf_interface, group);
 	return err;
 }
 

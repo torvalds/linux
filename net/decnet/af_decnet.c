@@ -536,7 +536,7 @@ static void dn_keepalive(struct sock *sk)
 	 * we are double checking that we are not sending too
 	 * many of these keepalive frames.
 	 */
-	if (skb_queue_len(&scp->other_xmit_queue) == 0)
+	if (skb_queue_empty(&scp->other_xmit_queue))
 		dn_nsp_send_link(sk, DN_NOCHANGE, 0);
 }
 
@@ -1191,7 +1191,7 @@ static unsigned int dn_poll(struct file *file, struct socket *sock, poll_table  
 	struct dn_scp *scp = DN_SK(sk);
 	int mask = datagram_poll(file, sock, wait);
 
-	if (skb_queue_len(&scp->other_receive_queue))
+	if (!skb_queue_empty(&scp->other_receive_queue))
 		mask |= POLLRDBAND;
 
 	return mask;
@@ -1214,7 +1214,7 @@ static int dn_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 	case SIOCATMARK:
 		lock_sock(sk);
-		val = (skb_queue_len(&scp->other_receive_queue) != 0);
+		val = !skb_queue_empty(&scp->other_receive_queue);
 		if (scp->state != DN_RUN)
 			val = -ENOTCONN;
 		release_sock(sk);
@@ -1630,7 +1630,7 @@ static int dn_data_ready(struct sock *sk, struct sk_buff_head *q, int flags, int
 	int len = 0;
 
 	if (flags & MSG_OOB)
-		return skb_queue_len(q) ? 1 : 0;
+		return !skb_queue_empty(q) ? 1 : 0;
 
 	while(skb != (struct sk_buff *)q) {
 		struct dn_skb_cb *cb = DN_SKB_CB(skb);
@@ -1707,7 +1707,7 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if (sk->sk_err)
 			goto out;
 
-		if (skb_queue_len(&scp->other_receive_queue)) {
+		if (!skb_queue_empty(&scp->other_receive_queue)) {
 			if (!(flags & MSG_OOB)) {
 				msg->msg_flags |= MSG_OOB;
 				if (!scp->other_report) {

@@ -210,7 +210,6 @@
 	x4 ^= x2;
 
 struct serpent_ctx {
-	u8 iv[SERPENT_BLOCK_SIZE];
 	u32 expkey[SERPENT_EXPKEY_WORDS];
 };
 

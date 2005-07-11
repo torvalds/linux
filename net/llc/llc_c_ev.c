@@ -84,7 +84,7 @@ static u16 llc_util_nr_inside_tx_window(struct sock *sk, u8 nr)
 	if (llc->dev->flags & IFF_LOOPBACK)
 		goto out;
 	rc = 1;
-	if (!skb_queue_len(&llc->pdu_unack_q))
+	if (skb_queue_empty(&llc->pdu_unack_q))
 		goto out;
 	skb = skb_peek(&llc->pdu_unack_q);
 	pdu = llc_pdu_sn_hdr(skb);

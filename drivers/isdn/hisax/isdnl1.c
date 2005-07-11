@@ -279,7 +279,8 @@ BChannel_proc_xmt(struct BCState *bcs)
 	if (test_and_clear_bit(FLG_L1_PULL_REQ, &st->l1.Flags))
 		st->l1.l1l2(st, PH_PULL | CONFIRM, NULL);
 	if (!test_bit(BC_FLG_ACTIV, &bcs->Flag)) {
-		if (!test_bit(BC_FLG_BUSY, &bcs->Flag) && (!skb_queue_len(&bcs->squeue))) {
+		if (!test_bit(BC_FLG_BUSY, &bcs->Flag) &&
+		    skb_queue_empty(&bcs->squeue)) {
 			st->l2.l2l1(st, PH_DEACTIVATE | CONFIRM, NULL);
 		}
 	}

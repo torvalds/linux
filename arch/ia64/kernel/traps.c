@@ -90,14 +90,16 @@ die (const char *str, struct pt_regs *regs, long err)
 		.lock_owner_depth =	0
 	};
 	static int die_counter;
+	int cpu = get_cpu();
 
-	if (die.lock_owner != smp_processor_id()) {
+	if (die.lock_owner != cpu) {
 		console_verbose();
 		spin_lock_irq(&die.lock);
-		die.lock_owner = smp_processor_id();
+		die.lock_owner = cpu;
 		die.lock_owner_depth = 0;
 		bust_spinlocks(1);
 	}
+	put_cpu();
 
 	if (++die.lock_owner_depth < 3) {
 		printk("%s[%d]: %s %ld [%d]\n",

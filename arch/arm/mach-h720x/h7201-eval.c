@@ -30,10 +30,12 @@
 #include "common.h"
 
 MACHINE_START(H7201, "Hynix GMS30C7201")
-	MAINTAINER("Robert Schwebel, Pengutronix")
-	BOOT_MEM(0x40000000, 0x80000000, 0xf0000000)
-	BOOT_PARAMS(0xc0001000)
-	MAPIO(h720x_map_io)
-	INITIRQ(h720x_init_irq)
-	.timer = &h7201_timer,
+	/* Maintainer: Robert Schwebel, Pengutronix */
+	.phys_ram	= 0x40000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xf0000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0001000,
+	.map_io		= h720x_map_io,
+	.init_irq	= h720x_init_irq,
+	.timer		= &h7201_timer,
 MACHINE_END

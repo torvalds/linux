@@ -79,10 +79,6 @@ struct inst {
 
       unsigned char run_length;
       unsigned char repeat_byte;
-
-      /* These members manage timeouts for programmed delays */
-      wait_queue_head_t wait_queue;
-      struct timer_list timer_list;
 };
 
 static struct inst instances[BPP_NO];
@@ -297,16 +293,10 @@ static unsigned short get_pins(unsigned minor)
 
 #endif /* __sparc__ */
 
-static void bpp_wake_up(unsigned long val)
-{ wake_up(&instances[val].wait_queue); }
-
 static void snooze(unsigned long snooze_time, unsigned minor)
 {
-      init_timer(&instances[minor].timer_list);
-      instances[minor].timer_list.expires = jiffies + snooze_time + 1;
-      instances[minor].timer_list.data    = minor;
-      add_timer(&instances[minor].timer_list);
-      sleep_on (&instances[minor].wait_queue);
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(snooze_time + 1);
 }
 
 static int wait_for(unsigned short set, unsigned short clr,
@@ -880,11 +870,8 @@ static void probeLptPort(unsigned idx)
       instances[idx].enhanced = 0;
       instances[idx].direction = 0;
       instances[idx].mode = COMPATIBILITY;
-      instances[idx].wait_queue = 0;
       instances[idx].run_length = 0;
       instances[idx].run_flag = 0;
-      init_timer(&instances[idx].timer_list);
-      instances[idx].timer_list.function = bpp_wake_up;
       if (!request_region(lpAddr,3, dev_name)) return;
 
       /*
@@ -977,11 +964,8 @@ static void probeLptPort(unsigned idx)
       instances[idx].enhanced = 0;
       instances[idx].direction = 0;
       instances[idx].mode = COMPATIBILITY;
-      init_waitqueue_head(&instances[idx].wait_queue);
       instances[idx].run_length = 0;
       instances[idx].run_flag = 0;
-      init_timer(&instances[idx].timer_list);
-      instances[idx].timer_list.function = bpp_wake_up;
 
       if (!rp) return;
 

@@ -120,7 +120,7 @@ static unsigned int hci_vhci_chr_poll(struct file *file, poll_table * wait)
 
 	poll_wait(file, &hci_vhci->read_wait, wait);
  
-	if (skb_queue_len(&hci_vhci->readq))
+	if (!skb_queue_empty(&hci_vhci->readq))
 		return POLLIN | POLLRDNORM;
 
 	return POLLOUT | POLLWRNORM;

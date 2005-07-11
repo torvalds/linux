@@ -40,9 +40,9 @@ SECTIONS
   .gcc_except_table	: { *(.gcc_except_table) }
   .fixup		: { *(.fixup) }
 
-  .got ALIGN(4)		: { *(.got.plt) *(.got) }
-
   .dynamic		: { *(.dynamic) }		:text	:dynamic
+  .got : { *(.got) }
+  .plt : { *(.plt) }
 
   _end = .;
   __end = .;

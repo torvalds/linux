@@ -228,10 +228,10 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/desc.h>
+#include <asm/i8253.h>
 
 #include "io_ports.h"
 
-extern spinlock_t i8253_lock;
 extern unsigned long get_cmos_time(void);
 extern void machine_real_restart(unsigned char *, int);
 
@@ -1168,8 +1168,7 @@ static void get_time_diff(void)
 static void reinit_timer(void)
 {
 #ifdef INIT_TIMER_AFTER_SUSPEND
-	unsigned long	flags;
-	extern spinlock_t i8253_lock;
+	unsigned long flags;
 
 	spin_lock_irqsave(&i8253_lock, flags);
 	/* set the clock to 100 Hz */

@@ -1003,6 +1003,7 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *skb,
 		SCTP_DEBUG_PRINTK("chunkifying skb %p w/o an sk\n", skb);
 	}
 
+	INIT_LIST_HEAD(&retval->list);
 	retval->skb		= skb;
 	retval->asoc		= (struct sctp_association *)asoc;
 	retval->resent  	= 0;
@@ -1116,8 +1117,7 @@ static void sctp_chunk_destroy(struct sctp_chunk *chunk)
 /* Possibly, free the chunk.  */
 void sctp_chunk_free(struct sctp_chunk *chunk)
 {
-	/* Make sure that we are not on any list.  */
-	skb_unlink((struct sk_buff *) chunk);
+	BUG_ON(!list_empty(&chunk->list));
 	list_del_init(&chunk->transmitted_list);
 
 	/* Release our reference on the message tracker. */
@@ -2739,8 +2739,12 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 	asoc->addip_last_asconf = NULL;
 
 	/* Send the next asconf chunk from the addip chunk queue. */
-	asconf = (struct sctp_chunk *)__skb_dequeue(&asoc->addip_chunks);
-	if (asconf) {
+	if (!list_empty(&asoc->addip_chunk_list)) {
+		struct list_head *entry = asoc->addip_chunk_list.next;
+		asconf = list_entry(entry, struct sctp_chunk, list);
+
+		list_del_init(entry);
+
 		/* Hold the chunk until an ASCONF_ACK is received. */
 		sctp_chunk_hold(asconf);
 		if (sctp_primitive_ASCONF(asoc, asconf))

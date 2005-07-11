@@ -1053,10 +1053,9 @@ static void handle_barrier_mode(struct super_block *s, unsigned long bits) {
 
 static void handle_attrs( struct super_block *s )
 {
-	struct reiserfs_super_block * rs;
+	struct reiserfs_super_block * rs = SB_DISK_SUPER_BLOCK (s);
 
 	if( reiserfs_attrs( s ) ) {
-		rs = SB_DISK_SUPER_BLOCK (s);
 		if( old_format_only(s) ) {
 			reiserfs_warning(s, "reiserfs: cannot support attributes on 3.5.x disk format" );
 			REISERFS_SB(s) -> s_mount_opt &= ~ ( 1 << REISERFS_ATTRS );

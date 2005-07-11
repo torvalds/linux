@@ -217,4 +217,6 @@ extern int assign_irq_vector(int irq);
 
 void enable_NMI_through_LVT0 (void * dummy);
 
+extern spinlock_t i8259A_lock;
+
 #endif

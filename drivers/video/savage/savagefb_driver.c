@@ -2113,7 +2113,7 @@ static int savagefb_suspend (struct pci_dev* dev, pm_message_t state)
 	printk(KERN_DEBUG "state: %u\n", state);
 
 	acquire_console_sem();
-	fb_set_suspend(info, state);
+	fb_set_suspend(info, pci_choose_state(dev, state));
 	savage_disable_mmio(par);
 	release_console_sem();
 

@@ -18,7 +18,7 @@
 void flush_thread_skas(void)
 {
 	force_flush_all();
-	switch_mm_skas(current->mm->context.skas.mm_fd);
+        switch_mm_skas(&current->mm->context.skas.id);
 }
 
 void start_thread_skas(struct pt_regs *regs, unsigned long eip, 

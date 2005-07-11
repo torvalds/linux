@@ -40,6 +40,10 @@ comment "Supported BT878 Adapters"
 	depends on DVB_CORE && PCI
 source "drivers/media/dvb/bt8xx/Kconfig"
 
+comment "Supported Pluto2 Adapters"
+	depends on DVB_CORE && PCI
+source "drivers/media/dvb/pluto2/Kconfig"
+
 comment "Supported DVB Frontends"
 	depends on DVB_CORE
 source "drivers/media/dvb/frontends/Kconfig"
