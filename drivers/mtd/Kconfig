@@ -1,4 +1,4 @@
-# $Id: Kconfig,v 1.9 2005/06/16 08:49:29 sean Exp $
+# $Id: Kconfig,v 1.10 2005/07/11 10:39:27 gleixner Exp $
 
 menu "Memory Technology Devices (MTD)"
 
@@ -259,9 +259,9 @@ config RFD_FTL
 	---help---
 	  This provides support for the flash translation layer known 
 	  as the Resident Flash Disk (RFD), as used by the Embedded BIOS 
-	  of General Software.
-	  See http://www.gensw.com/pages/prod/bios/rfd.htm for further
-	  information.
+	  of General Software. There is a blurb at:
+
+		http://www.gensw.com/pages/prod/bios/rfd.htm
 
 source "drivers/mtd/chips/Kconfig"
 
@@ -270,6 +270,8 @@ source "drivers/mtd/maps/Kconfig"
 source "drivers/mtd/devices/Kconfig"
 
 source "drivers/mtd/nand/Kconfig"
+
+source "drivers/mtd/onenand/Kconfig"
 
 endmenu
 
