@@ -2231,7 +2231,6 @@ void snd_ac97_restore_iec958(ac97_t *ac97)
  */
 void snd_ac97_resume(ac97_t *ac97)
 {
-	int i;
 	unsigned long end_time;
 
 	if (ac97->bus->ops->reset) {
