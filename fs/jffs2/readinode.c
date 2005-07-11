@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.117 2004/11/20 18:06:54 dwmw2 Exp $
+ * $Id: readinode.c,v 1.120 2005/07/05 21:03:07 dwmw2 Exp $
  *
  */
 
@@ -500,7 +500,9 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 					struct jffs2_inode_info *f,
 					struct jffs2_raw_inode *latest_node)
 {
-	struct jffs2_tmp_dnode_info *tn_list, *tn;
+	struct jffs2_tmp_dnode_info *tn = NULL;
+	struct rb_root tn_list;
+	struct rb_node *rb, *repl_rb;
 	struct jffs2_full_dirent *fd_list;
 	struct jffs2_full_dnode *fn = NULL;
 	uint32_t crc;
@@ -522,9 +524,10 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 	}
 	f->dents = fd_list;
 
-	while (tn_list) {
-		tn = tn_list;
+	rb = rb_first(&tn_list);
 
+	while (rb) {
+		tn = rb_entry(rb, struct jffs2_tmp_dnode_info, rb);
 		fn = tn->fn;
 
 		if (f->metadata) {
@@ -556,7 +559,30 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 			mdata_ver = tn->version;
 		}
 	next_tn:
-		tn_list = tn->next;
+		BUG_ON(rb->rb_left);
+		repl_rb = NULL;
+		if (rb->rb_parent && rb->rb_parent->rb_left == rb) {
+			/* We were then left-hand child of our parent. We need
+			   to move our own right-hand child into our place. */
+			repl_rb = rb->rb_right;
+			if (repl_rb)
+				repl_rb->rb_parent = rb->rb_parent;
+		} else
+			repl_rb = NULL;
+
+		rb = rb_next(rb);
+
+		/* Remove the spent tn from the tree; don't bother rebalancing
+		   but put our right-hand child in our own place. */
+		if (tn->rb.rb_parent) {
+			if (tn->rb.rb_parent->rb_left == &tn->rb)
+				tn->rb.rb_parent->rb_left = repl_rb;
+			else if (tn->rb.rb_parent->rb_right == &tn->rb)
+				tn->rb.rb_parent->rb_right = repl_rb;
+			else BUG();
+		} else if (tn->rb.rb_right)
+			tn->rb.rb_right->rb_parent = NULL;
+
 		jffs2_free_tmp_dnode_info(tn);
 	}
 	D1(jffs2_sanitycheck_fragtree(f));
@@ -623,6 +649,40 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 		   case. */
 		if (!je32_to_cpu(latest_node->isize))
 			latest_node->isize = latest_node->dsize;
+
+		if (f->inocache->state != INO_STATE_CHECKING) {
+			/* Symlink's inode data is the target path. Read it and
+			 * keep in RAM to facilitate quick follow symlink operation.
+			 * We use f->dents field to store the target path, which
+			 * is somewhat ugly. */
+			f->dents = kmalloc(je32_to_cpu(latest_node->csize) + 1, GFP_KERNEL);
+			if (!f->dents) {
+				printk(KERN_WARNING "Can't allocate %d bytes of memory "
+						"for the symlink target path cache\n",
+						je32_to_cpu(latest_node->csize));
+				up(&f->sem);
+				jffs2_do_clear_inode(c, f);
+				return -ENOMEM;
+			}
+			
+			ret = jffs2_flash_read(c, ref_offset(fn->raw) + sizeof(*latest_node),
+						je32_to_cpu(latest_node->csize), &retlen, (char *)f->dents);
+			
+			if (ret  || retlen != je32_to_cpu(latest_node->csize)) {
+				if (retlen != je32_to_cpu(latest_node->csize))
+					ret = -EIO;
+				kfree(f->dents);
+				f->dents = NULL;
+				up(&f->sem);
+				jffs2_do_clear_inode(c, f);
+				return -ret;
+			}
+
+			((char *)f->dents)[je32_to_cpu(latest_node->csize)] = '\0';
+			D1(printk(KERN_DEBUG "jffs2_do_read_inode(): symlink's target '%s' cached\n",
+						(char *)f->dents));
+		}
+		
 		/* fall through... */
 
 	case S_IFBLK:
@@ -672,6 +732,9 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 	down(&f->sem);
 	deleted = f->inocache && !f->inocache->nlink;
 
+	if (f->inocache && f->inocache->state != INO_STATE_CHECKING)
+		jffs2_set_inocache_state(c, f->inocache, INO_STATE_CLEARING);
+
 	if (f->metadata) {
 		if (deleted)
 			jffs2_mark_node_obsolete(c, f->metadata->raw);
@@ -680,16 +743,27 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 
 	jffs2_kill_fragtree(&f->fragtree, deleted?c:NULL);
 
-	fds = f->dents;
+	/* For symlink inodes we us f->dents to store the target path name */
+	if (S_ISLNK(OFNI_EDONI_2SFFJ(f)->i_mode)) {
+		if (f->dents) {
+			kfree(f->dents);
+			f->dents = NULL;
+		}
+	} else {
+		fds = f->dents;
 
-	while(fds) {
-		fd = fds;
-		fds = fd->next;
-		jffs2_free_full_dirent(fd);
+		while(fds) {
+			fd = fds;
+			fds = fd->next;
+			jffs2_free_full_dirent(fd);
+		}
 	}
 
-	if (f->inocache && f->inocache->state != INO_STATE_CHECKING)
+	if (f->inocache && f->inocache->state != INO_STATE_CHECKING) {
 		jffs2_set_inocache_state(c, f->inocache, INO_STATE_CHECKEDABSENT);
+		if (f->inocache->nodes == (void *)f->inocache)
+			jffs2_del_ino_cache(c, f->inocache);
+	}
 
 	up(&f->sem);
 }

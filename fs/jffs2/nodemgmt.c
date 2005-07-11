@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.115 2004/11/22 11:07:21 dwmw2 Exp $
+ * $Id: nodemgmt.c,v 1.122 2005/05/06 09:30:27 dedekind Exp $
  *
  */
 
@@ -75,7 +75,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs
 			dirty = c->dirty_size + c->erasing_size - c->nr_erasing_blocks * c->sector_size + c->unchecked_size;
 			if (dirty < c->nospc_dirty_size) {
 				if (prio == ALLOC_DELETION && c->nr_free_blocks + c->nr_erasing_blocks >= c->resv_blocks_deletion) {
-					printk(KERN_NOTICE "jffs2_reserve_space(): Low on dirty space to GC, but it's a deletion. Allowing...\n");
+					D1(printk(KERN_NOTICE "jffs2_reserve_space(): Low on dirty space to GC, but it's a deletion. Allowing...\n"));
 					break;
 				}
 				D1(printk(KERN_DEBUG "dirty size 0x%08x + unchecked_size 0x%08x < nospc_dirty_size 0x%08x, returning -ENOSPC\n",
@@ -98,7 +98,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs
 			avail = c->free_size + c->dirty_size + c->erasing_size + c->unchecked_size;
 			if ( (avail / c->sector_size) <= blocksneeded) {
 				if (prio == ALLOC_DELETION && c->nr_free_blocks + c->nr_erasing_blocks >= c->resv_blocks_deletion) {
-					printk(KERN_NOTICE "jffs2_reserve_space(): Low on possibly available space, but it's a deletion. Allowing...\n");
+					D1(printk(KERN_NOTICE "jffs2_reserve_space(): Low on possibly available space, but it's a deletion. Allowing...\n"));
 					break;
 				}
 
@@ -308,7 +308,10 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 
 	D1(printk(KERN_DEBUG "jffs2_add_physical_node_ref(): Node at 0x%x(%d), size 0x%x\n", ref_offset(new), ref_flags(new), len));
 #if 1
-	if (jeb != c->nextblock || (ref_offset(new)) != jeb->offset + (c->sector_size - jeb->free_size)) {
+	/* we could get some obsolete nodes after nextblock was refiled
+	   in wbuf.c */
+	if ((c->nextblock || !ref_obsolete(new))
+	    &&(jeb != c->nextblock || ref_offset(new) != jeb->offset + (c->sector_size - jeb->free_size))) {
 		printk(KERN_WARNING "argh. node added in wrong place\n");
 		jffs2_free_raw_node_ref(new);
 		return -EINVAL;
@@ -332,7 +335,7 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 		c->used_size += len;
 	}
 
-	if (!jeb->free_size && !jeb->dirty_size) {
+	if (!jeb->free_size && !jeb->dirty_size && !ISDIRTY(jeb->wasted_size)) {
 		/* If it lives on the dirty_list, jffs2_reserve_space will put it there */
 		D1(printk(KERN_DEBUG "Adding full erase block at 0x%08x to clean_list (free 0x%08x, dirty 0x%08x, used 0x%08x\n",
 			  jeb->offset, jeb->free_size, jeb->dirty_size, jeb->used_size));
@@ -400,7 +403,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	jeb = &c->blocks[blocknr];
 
 	if (jffs2_can_mark_obsolete(c) && !jffs2_is_readonly(c) &&
-	    !(c->flags & JFFS2_SB_FLAG_MOUNTING)) {
+	    !(c->flags & (JFFS2_SB_FLAG_SCANNING | JFFS2_SB_FLAG_BUILDING))) {
 		/* Hm. This may confuse static lock analysis. If any of the above 
 		   three conditions is false, we're going to return from this 
 		   function without actually obliterating any nodes or freeing
@@ -434,7 +437,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 	// Take care, that wasted size is taken into concern
 	if ((jeb->dirty_size || ISDIRTY(jeb->wasted_size + ref_totlen(c, jeb, ref))) && jeb != c->nextblock) {
-		D1(printk("Dirtying\n"));
+		D1(printk(KERN_DEBUG "Dirtying\n"));
 		addedsize = ref_totlen(c, jeb, ref);
 		jeb->dirty_size += ref_totlen(c, jeb, ref);
 		c->dirty_size += ref_totlen(c, jeb, ref);
@@ -456,7 +459,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 			}
 		}
 	} else {
-		D1(printk("Wasting\n"));
+		D1(printk(KERN_DEBUG "Wasting\n"));
 		addedsize = 0;
 		jeb->wasted_size += ref_totlen(c, jeb, ref);
 		c->wasted_size += ref_totlen(c, jeb, ref);	
@@ -467,8 +470,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 	D1(ACCT_PARANOIA_CHECK(jeb));
 
-	if (c->flags & JFFS2_SB_FLAG_MOUNTING) {
-		/* Mount in progress. Don't muck about with the block
+	if (c->flags & JFFS2_SB_FLAG_SCANNING) {
+		/* Flash scanning is in progress. Don't muck about with the block
 		   lists because they're not ready yet, and don't actually
 		   obliterate nodes that look obsolete. If they weren't 
 		   marked obsolete on the flash at the time they _became_
@@ -527,7 +530,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 	spin_unlock(&c->erase_completion_lock);
 
-	if (!jffs2_can_mark_obsolete(c) || jffs2_is_readonly(c)) {
+	if (!jffs2_can_mark_obsolete(c) || jffs2_is_readonly(c) ||
+		(c->flags & JFFS2_SB_FLAG_BUILDING)) {
 		/* We didn't lock the erase_free_sem */
 		return;
 	}
@@ -590,11 +594,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		*p = ref->next_in_ino;
 		ref->next_in_ino = NULL;
 
-		if (ic->nodes == (void *)ic) {
-			D1(printk(KERN_DEBUG "inocache for ino #%u is all gone now. Freeing\n", ic->ino));
+		if (ic->nodes == (void *)ic && ic->nlink == 0)
 			jffs2_del_ino_cache(c, ic);
-			jffs2_free_inode_cache(ic);
-		}
 
 		spin_unlock(&c->erase_completion_lock);
 	}

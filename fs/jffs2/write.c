@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: write.c,v 1.87 2004/11/16 20:36:12 dwmw2 Exp $
+ * $Id: write.c,v 1.92 2005/04/13 13:22:35 dwmw2 Exp $
  *
  */
 
@@ -35,13 +35,12 @@ int jffs2_do_new_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, uint
 	f->inocache = ic;
 	f->inocache->nlink = 1;
 	f->inocache->nodes = (struct jffs2_raw_node_ref *)f->inocache;
-	f->inocache->ino = ++c->highest_ino;
 	f->inocache->state = INO_STATE_PRESENT;
 
-	ri->ino = cpu_to_je32(f->inocache->ino);
 
-	D1(printk(KERN_DEBUG "jffs2_do_new_inode(): Assigned ino# %d\n", f->inocache->ino));
 	jffs2_add_ino_cache(c, f->inocache);
+	D1(printk(KERN_DEBUG "jffs2_do_new_inode(): Assigned ino# %d\n", f->inocache->ino));
+	ri->ino = cpu_to_je32(f->inocache->ino);
 
 	ri->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	ri->nodetype = cpu_to_je16(JFFS2_NODETYPE_INODE);
@@ -135,6 +134,15 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 	raw->flash_offset = flash_ofs;
 	raw->__totlen = PAD(sizeof(*ri)+datalen);
 	raw->next_phys = NULL;
+
+	if ((alloc_mode!=ALLOC_GC) && (je32_to_cpu(ri->version) < f->highest_version)) {
+		BUG_ON(!retried);
+		D1(printk(KERN_DEBUG "jffs2_write_dnode : dnode_version %d, "
+				"highest version %d -> updating dnode\n", 
+				je32_to_cpu(ri->version), f->highest_version));
+		ri->version = cpu_to_je32(++f->highest_version);
+		ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
+	}
 
 	ret = jffs2_flash_writev(c, vecs, cnt, flash_ofs, &retlen,
 				 (alloc_mode==ALLOC_GC)?0:f->inocache->ino);
@@ -279,6 +287,16 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 	raw->flash_offset = flash_ofs;
 	raw->__totlen = PAD(sizeof(*rd)+namelen);
 	raw->next_phys = NULL;
+
+	if ((alloc_mode!=ALLOC_GC) && (je32_to_cpu(rd->version) < f->highest_version)) {
+		BUG_ON(!retried);
+		D1(printk(KERN_DEBUG "jffs2_write_dirent : dirent_version %d, "
+				     "highest version %d -> updating dirent\n",
+				     je32_to_cpu(rd->version), f->highest_version));
+		rd->version = cpu_to_je32(++f->highest_version);
+		fd->version = je32_to_cpu(rd->version);
+		rd->node_crc = cpu_to_je32(crc32(0, rd, sizeof(*rd)-8));
+	}
 
 	ret = jffs2_flash_writev(c, vecs, 2, flash_ofs, &retlen,
 				 (alloc_mode==ALLOC_GC)?0:je32_to_cpu(rd->pino));
@@ -625,20 +643,23 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 
 		down(&dead_f->sem);
 
-		while (dead_f->dents) {
-			/* There can be only deleted ones */
-			fd = dead_f->dents;
-			
-			dead_f->dents = fd->next;
-			
-			if (fd->ino) {
-				printk(KERN_WARNING "Deleting inode #%u with active dentry \"%s\"->ino #%u\n",
-				       dead_f->inocache->ino, fd->name, fd->ino);
-			} else {
-				D1(printk(KERN_DEBUG "Removing deletion dirent for \"%s\" from dir ino #%u\n", fd->name, dead_f->inocache->ino));
+		if (S_ISDIR(OFNI_EDONI_2SFFJ(dead_f)->i_mode)) {
+			while (dead_f->dents) {
+				/* There can be only deleted ones */
+				fd = dead_f->dents;
+				
+				dead_f->dents = fd->next;
+				
+				if (fd->ino) {
+					printk(KERN_WARNING "Deleting inode #%u with active dentry \"%s\"->ino #%u\n",
+					       dead_f->inocache->ino, fd->name, fd->ino);
+				} else {
+					D1(printk(KERN_DEBUG "Removing deletion dirent for \"%s\" from dir ino #%u\n",
+						fd->name, dead_f->inocache->ino));
+				}
+				jffs2_mark_node_obsolete(c, fd->raw);
+				jffs2_free_full_dirent(fd);
 			}
-			jffs2_mark_node_obsolete(c, fd->raw);
-			jffs2_free_full_dirent(fd);
 		}
 
 		dead_f->inocache->nlink--;

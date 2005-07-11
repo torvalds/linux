@@ -1,5 +1,5 @@
 /*
- * $Id: ixp2000.c,v 1.5 2004/11/16 17:15:48 dsaxena Exp $
+ * $Id: ixp2000.c,v 1.6 2005/03/18 14:07:46 gleixner Exp $
  *
  * drivers/mtd/maps/ixp2000.c
  *
@@ -215,11 +215,6 @@ static int ixp2000_flash_probe(struct device *_dev)
 		err = -EIO;
 		goto Error;
 	}
-
-	/*
-	 * Setup read mode for FLASH
-	 */
-	*IXP2000_SLOWPORT_FRM = 1;
 
 #if defined(__ARMEB__)
 	/*

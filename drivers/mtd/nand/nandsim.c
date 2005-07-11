@@ -22,7 +22,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
- * $Id: nandsim.c,v 1.7 2004/12/06 11:53:06 dedekind Exp $
+ * $Id: nandsim.c,v 1.8 2005/03/19 15:33:56 dedekind Exp $
  */
 
 #include <linux/config.h>
@@ -1484,33 +1484,6 @@ ns_nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
 }
 
 /*
- * Having only NAND chip IDs we call nand_scan which detects NAND flash
- * parameters and then calls scan_bbt in order to scan/find/build the
- * NAND flash bad block table. But since at that moment the NAND flash
- * image isn't allocated in the simulator, errors arise. To avoid this
- * we redefine the scan_bbt callback and initialize the nandsim structure
- * before the flash media scanning.
- */
-int ns_scan_bbt(struct mtd_info *mtd)
-{ 
-	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
-	struct nandsim   *ns   = (struct nandsim *)(chip->priv);
-	int retval;
-
-	if (!NS_IS_INITIALIZED(ns))
-		if ((retval = init_nandsim(mtd)) != 0) {
-			NS_ERR("scan_bbt: can't initialize the nandsim structure\n");
-			return retval;
-		}
-	if ((retval = nand_default_bbt(mtd)) != 0) {
-		free_nandsim(ns);
-		return retval;
-	}
-
-	return 0;
-}
-
-/*
  * Module initialization function
  */
 int __init ns_init_module(void)
@@ -1544,7 +1517,6 @@ int __init ns_init_module(void)
 	chip->hwcontrol  = ns_hwcontrol;
 	chip->read_byte  = ns_nand_read_byte;
 	chip->dev_ready  = ns_device_ready;
-	chip->scan_bbt   = ns_scan_bbt;
 	chip->write_byte = ns_nand_write_byte;
 	chip->write_buf  = ns_nand_write_buf;
 	chip->read_buf   = ns_nand_read_buf;
@@ -1552,6 +1524,7 @@ int __init ns_init_module(void)
 	chip->write_word = ns_nand_write_word;
 	chip->read_word  = ns_nand_read_word;
 	chip->eccmode    = NAND_ECC_SOFT;
+	chip->options   |= NAND_SKIP_BBTSCAN;
 
 	/* 
 	 * Perform minimum nandsim structure initialization to handle
@@ -1577,6 +1550,16 @@ int __init ns_init_module(void)
 		NS_ERR("can't register NAND Simulator\n");
 		if (retval > 0)
 			retval = -ENXIO;
+		goto error;
+	}
+
+	if ((retval = init_nandsim(nsmtd)) != 0) {
+		NS_ERR("scan_bbt: can't initialize the nandsim structure\n");
+		goto error;
+	}
+	
+	if ((retval = nand_default_bbt(nsmtd)) != 0) {
+		free_nandsim(nand);
 		goto error;
 	}
 

@@ -3,7 +3,7 @@
  *
  * Author: Jonas Holmberg <jonas.holmberg@axis.com>
  *
- * $Id: amd_flash.c,v 1.26 2004/11/20 12:49:04 dwmw2 Exp $
+ * $Id: amd_flash.c,v 1.27 2005/02/04 07:43:09 jonashg Exp $
  *
  * Copyright (c) 2001 Axis Communications AB
  *
@@ -67,7 +67,6 @@
 #define AM29LV160DT	0x22C4
 #define AM29LV160DB	0x2249
 #define AM29BDS323D     0x22D1
-#define AM29BDS643D	0x227E
 
 /* Atmel */
 #define AT49xV16x	0x00C0
@@ -616,17 +615,6 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 			{ .offset = 0x000000, .erasesize = 0x10000, .numblocks = 48 },
 			{ .offset = 0x300000, .erasesize = 0x10000, .numblocks = 15 },
 			{ .offset = 0x3f0000, .erasesize = 0x02000, .numblocks =  8 },
-		}
-	}, {
-		.mfr_id = MANUFACTURER_AMD,
-		.dev_id = AM29BDS643D,
-		.name = "AMD AM29BDS643D",
-		.size = 0x00800000,
-		.numeraseregions = 3,
-		.regions = {
-			{ .offset = 0x000000, .erasesize = 0x10000, .numblocks = 96 },
-			{ .offset = 0x600000, .erasesize = 0x10000, .numblocks = 31 },
-			{ .offset = 0x7f0000, .erasesize = 0x02000, .numblocks =  8 },
 		}
 	}, {
 		.mfr_id = MANUFACTURER_ATMEL,

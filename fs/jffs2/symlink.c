@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: symlink.c,v 1.14 2004/11/16 20:36:12 dwmw2 Exp $
+ * $Id: symlink.c,v 1.16 2005/03/01 10:50:48 dedekind Exp $
  *
  */
 
@@ -19,27 +19,45 @@
 #include "nodelist.h"
 
 static int jffs2_follow_link(struct dentry *dentry, struct nameidata *nd);
-static void jffs2_put_link(struct dentry *dentry, struct nameidata *nd);
 
 struct inode_operations jffs2_symlink_inode_operations =
 {	
 	.readlink =	generic_readlink,
 	.follow_link =	jffs2_follow_link,
-	.put_link =	jffs2_put_link,
 	.setattr =	jffs2_setattr
 };
 
 static int jffs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	unsigned char *buf;
-	buf = jffs2_getlink(JFFS2_SB_INFO(dentry->d_inode->i_sb), JFFS2_INODE_INFO(dentry->d_inode));
-	nd_set_link(nd, buf);
+	struct jffs2_inode_info *f = JFFS2_INODE_INFO(dentry->d_inode);
+	
+	/*
+	 * We don't acquire the f->sem mutex here since the only data we
+	 * use is f->dents which in case of the symlink inode points to the
+	 * symlink's target path.
+	 *
+	 * 1. If we are here the inode has already built and f->dents has
+	 * to point to the target path.
+	 * 2. Nobody uses f->dents (if the inode is symlink's inode). The
+	 * exception is inode freeing function which frees f->dents. But
+	 * it can't be called while we are here and before VFS has
+	 * stopped using our f->dents string which we provide by means of
+	 * nd_set_link() call.
+	 */
+	
+	if (!f->dents) {
+		printk(KERN_ERR "jffs2_follow_link(): can't find symlink taerget\n");
+		return -EIO;
+	}
+	D1(printk(KERN_DEBUG "jffs2_follow_link(): target path is '%s'\n", (char *) f->dents));
+
+	nd_set_link(nd, (char *)f->dents);
+	
+	/*
+	 * We unlock the f->sem mutex but VFS will use the f->dents string. This is safe
+	 * since the only way that may cause f->dents to be changed is iput() operation.
+	 * But VFS will not use f->dents after iput() has been called.
+	 */
 	return 0;
 }
 
-static void jffs2_put_link(struct dentry *dentry, struct nameidata *nd)
-{
-	char *s = nd_get_link(nd);
-	if (!IS_ERR(s))
-		kfree(s);
-}
