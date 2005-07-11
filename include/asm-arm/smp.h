@@ -23,9 +23,6 @@
 
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
-extern cpumask_t cpu_present_mask;
-#define cpu_possible_map cpu_present_mask
-
 /*
  * at the moment, there's not a big penalty for changing CPUs
  * (the >big< penalty is running SMP in the first place)

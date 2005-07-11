@@ -178,7 +178,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 * be present.
 	 */
 	for (i = 0; i < max_cpus; i++) {
-		cpu_set(i, cpu_present_mask);
+		cpu_set(i, cpu_possible_map);
 	}
 
 	/*

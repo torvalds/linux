@@ -36,7 +36,7 @@
  * The present bitmask indicates that the CPU is physically present.
  * The online bitmask indicates that the CPU is up and running.
  */
-cpumask_t cpu_present_mask;
+cpumask_t cpu_possible_map;
 cpumask_t cpu_online_map;
 
 /*
@@ -235,7 +235,7 @@ void __init smp_prepare_boot_cpu(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-	cpu_set(cpu, cpu_present_mask);
+	cpu_set(cpu, cpu_possible_map);
 	cpu_set(cpu, cpu_online_map);
 }
 
