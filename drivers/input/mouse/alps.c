@@ -358,7 +358,7 @@ static int alps_reconnect(struct psmouse *psmouse)
 	if (!(priv->i = alps_get_model(psmouse, &version)))
 		return -1;
 
-	if (priv->i->flags & ALPS_PASS && alps_passthrough_mode(psmouse, 1))
+	if ((priv->i->flags & ALPS_PASS) && alps_passthrough_mode(psmouse, 1))
 		return -1;
 
 	if (alps_get_status(psmouse, param))
@@ -372,7 +372,7 @@ static int alps_reconnect(struct psmouse *psmouse)
 		return -1;
 	}
 
-	if (priv->i->flags == ALPS_PASS && alps_passthrough_mode(psmouse, 0))
+	if ((priv->i->flags & ALPS_PASS) && alps_passthrough_mode(psmouse, 0))
 		return -1;
 
 	return 0;
