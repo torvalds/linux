@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
-#include <linux/version.h>
 
 #include <asm/io.h>
 #include <asm/hardware.h>

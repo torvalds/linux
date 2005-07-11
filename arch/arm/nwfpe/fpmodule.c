@@ -24,7 +24,6 @@
 #include "fpa11.h"
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/config.h>
 
 /* XXX */
