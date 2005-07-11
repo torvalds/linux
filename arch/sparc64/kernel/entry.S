@@ -1552,7 +1552,7 @@ sys_ptrace:	add		%sp, PTREGS_OFF, %o0
 		nop
 		.align		32
 1:		ldx		[%curptr + TI_FLAGS], %l5
-		andcc		%l5, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP), %g0
+		andcc		%l5, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %g0
 		be,pt		%icc, rtrap
 		 clr		%l6
 		add		%sp, PTREGS_OFF, %o0
@@ -1679,7 +1679,7 @@ linux_sparc_syscall32:
 
 	srl		%i5, 0, %o5				! IEU1
 	srl		%i2, 0, %o2				! IEU0	Group
-	andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP), %g0 ! IEU0	Group
+	andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %g0
 	bne,pn		%icc, linux_syscall_trace32		! CTI
 	 mov		%i0, %l5				! IEU1
 	call		%l7					! CTI	Group brk forced
@@ -1702,7 +1702,7 @@ linux_sparc_syscall:
 
 	mov		%i3, %o3				! IEU1
 	mov		%i4, %o4				! IEU0	Group
-	andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP), %g0 ! IEU1	Group+1 bubble
+	andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %g0
 	bne,pn		%icc, linux_syscall_trace		! CTI	Group
 	 mov		%i0, %l5				! IEU0
 2:	call		%l7					! CTI	Group brk forced
@@ -1730,7 +1730,7 @@ ret_sys_call:
 1:
 	cmp		%o0, -ERESTART_RESTARTBLOCK
 	bgeu,pn		%xcc, 1f
-	 andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP), %l6
+	 andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %l6
 80:
 	/* System call success, clear Carry condition code. */
 	andn		%g3, %g2, %g3
@@ -1745,7 +1745,7 @@ ret_sys_call:
 	/* System call failure, set Carry condition code.
 	 * Also, get abs(errno) to return to the process.
 	 */
-	andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP), %l6	
+	andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %l6	
 	sub		%g0, %o0, %o0
 	or		%g3, %g2, %g3
 	stx		%o0, [%sp + PTREGS_OFF + PT_V9_I0]
