@@ -2,7 +2,7 @@
  * ALPS touchpad PS/2 mouse driver
  *
  * Copyright (c) 2003 Neil Brown <neilb@cse.unsw.edu.au>
- * Copyright (c) 2003 Peter Osterlund <petero2@telia.com>
+ * Copyright (c) 2003-2005 Peter Osterlund <petero2@telia.com>
  * Copyright (c) 2004 Dmitry Torokhov <dtor@mail.ru>
  * Copyright (c) 2005 Vojtech Pavlik <vojtech@suse.cz>
  *
@@ -350,7 +350,6 @@ static int alps_tap_mode(struct psmouse *psmouse, int enable)
 static int alps_reconnect(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
-	unsigned char param[4];
 	int version;
 
 	psmouse_reset(psmouse);
@@ -361,14 +360,13 @@ static int alps_reconnect(struct psmouse *psmouse)
 	if ((priv->i->flags & ALPS_PASS) && alps_passthrough_mode(psmouse, 1))
 		return -1;
 
-	if (alps_get_status(psmouse, param))
+	if (alps_tap_mode(psmouse, 1)) {
+		printk(KERN_WARNING "alps.c: Failed to reenable hardware tapping\n");
 		return -1;
-
-	if (!(param[0] & 0x04))
-		alps_tap_mode(psmouse, 1);
+	}
 
 	if (alps_absolute_mode(psmouse)) {
-		printk(KERN_ERR "alps.c: Failed to enable absolute mode\n");
+		printk(KERN_ERR "alps.c: Failed to reenable absolute mode\n");
 		return -1;
 	}
 
@@ -389,7 +387,6 @@ static void alps_disconnect(struct psmouse *psmouse)
 int alps_init(struct psmouse *psmouse)
 {
 	struct alps_data *priv;
-	unsigned char param[4];
 	int version;
 
 	psmouse->private = priv = kmalloc(sizeof(struct alps_data), GFP_KERNEL);
@@ -403,16 +400,8 @@ int alps_init(struct psmouse *psmouse)
 	if ((priv->i->flags & ALPS_PASS) && alps_passthrough_mode(psmouse, 1))
 		goto init_fail;
 
-	if (alps_get_status(psmouse, param)) {
-		printk(KERN_ERR "alps.c: touchpad status report request failed\n");
-		goto init_fail;
-	}
-
-	if (param[0] & 0x04) {
-		printk(KERN_INFO "alps.c: Enabling hardware tapping\n");
-		if (alps_tap_mode(psmouse, 1))
-			printk(KERN_WARNING "alps.c: Failed to enable hardware tapping\n");
-	}
+	if (alps_tap_mode(psmouse, 1))
+		printk(KERN_WARNING "alps.c: Failed to enable hardware tapping\n");
 
 	if (alps_absolute_mode(psmouse)) {
 		printk(KERN_ERR "alps.c: Failed to enable absolute mode\n");
