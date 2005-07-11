@@ -860,7 +860,8 @@ extern void tcp_send_probe0(struct sock *);
 extern void tcp_send_partial(struct sock *);
 extern int  tcp_write_wakeup(struct sock *);
 extern void tcp_send_fin(struct sock *sk);
-extern void tcp_send_active_reset(struct sock *sk, int priority);
+extern void tcp_send_active_reset(struct sock *sk,
+                                  unsigned int __nocast priority);
 extern int  tcp_send_synack(struct sock *);
 extern void tcp_push_one(struct sock *, unsigned int mss_now);
 extern void tcp_send_ack(struct sock *sk);
@@ -991,7 +992,7 @@ static __inline__ void tcp_fast_path_on(struct tcp_sock *tp)
 
 static inline void tcp_fast_path_check(struct sock *sk, struct tcp_sock *tp)
 {
-	if (skb_queue_len(&tp->out_of_order_queue) == 0 &&
+	if (skb_queue_empty(&tp->out_of_order_queue) &&
 	    tp->rcv_wnd &&
 	    atomic_read(&sk->sk_rmem_alloc) < sk->sk_rcvbuf &&
 	    !tp->urg_data)

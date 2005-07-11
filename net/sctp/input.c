@@ -115,6 +115,17 @@ static void sctp_rcv_set_owner_r(struct sk_buff *skb, struct sock *sk)
 	atomic_add(sizeof(struct sctp_chunk),&sk->sk_rmem_alloc);
 }
 
+struct sctp_input_cb {
+	union {
+		struct inet_skb_parm	h4;
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+		struct inet6_skb_parm	h6;
+#endif
+	} header;
+	struct sctp_chunk *chunk;
+};
+#define SCTP_INPUT_CB(__skb)	((struct sctp_input_cb *)&((__skb)->cb[0]))
+
 /*
  * This is the routine which IP calls when receiving an SCTP packet.
  */
@@ -243,6 +254,7 @@ int sctp_rcv(struct sk_buff *skb)
 		ret = -ENOMEM;
 		goto discard_release;
 	}
+	SCTP_INPUT_CB(skb)->chunk = chunk;
 
 	sctp_rcv_set_owner_r(skb,sk);
 
@@ -265,9 +277,9 @@ int sctp_rcv(struct sk_buff *skb)
 	sctp_bh_lock_sock(sk);
 
 	if (sock_owned_by_user(sk))
-		sk_add_backlog(sk, (struct sk_buff *) chunk);
+		sk_add_backlog(sk, skb);
 	else
-		sctp_backlog_rcv(sk, (struct sk_buff *) chunk);
+		sctp_backlog_rcv(sk, skb);
 
 	/* Release the sock and any reference counts we took in the
 	 * lookup calls.
@@ -302,14 +314,8 @@ discard_release:
  */
 int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
-	struct sctp_chunk *chunk;
-	struct sctp_inq *inqueue;
-
-	/* One day chunk will live inside the skb, but for
-	 * now this works.
-	 */
-	chunk = (struct sctp_chunk *) skb;
-	inqueue = &chunk->rcvr->inqueue;
+	struct sctp_chunk *chunk = SCTP_INPUT_CB(skb)->chunk;
+	struct sctp_inq *inqueue = &chunk->rcvr->inqueue;
 
 	sctp_inq_push(inqueue, chunk);
         return 0;

@@ -42,7 +42,6 @@
 #include <asm/mman.h>
 #include <asm/shmparam.h>
 #include <asm/page.h>
-#include <asm/ipc.h>
 
 extern void do_syscall_trace(void);
 typedef int (*syscall_t)(void *a0,...);

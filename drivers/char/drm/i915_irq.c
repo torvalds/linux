@@ -56,7 +56,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	return IRQ_HANDLED;
 }
 
-int i915_emit_irq(drm_device_t * dev)
+static int i915_emit_irq(drm_device_t * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 ret;
@@ -76,7 +76,7 @@ int i915_emit_irq(drm_device_t * dev)
 	return ret;
 }
 
-int i915_wait_irq(drm_device_t * dev, int irq_nr)
+static int i915_wait_irq(drm_device_t * dev, int irq_nr)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = 0;

@@ -370,6 +370,7 @@ static void __init ixdp2x01_init_machine(void)
 		((*IXDP2X01_CPLD_FLASH_REG & IXDP2X01_CPLD_FLASH_BANK_MASK) + 1);
 
 	platform_add_devices(ixdp2x01_devices, ARRAY_SIZE(ixdp2x01_devices));
+	ixp2000_uart_init();
 }
 
 

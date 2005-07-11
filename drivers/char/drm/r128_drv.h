@@ -156,6 +156,9 @@ extern void r128_driver_irq_uninstall( drm_device_t *dev );
 extern void r128_driver_pretakedown(drm_device_t *dev);
 extern void r128_driver_prerelease(drm_device_t *dev, DRMFILE filp);
 
+extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
+			      unsigned long arg);
+
 /* Register definitions, register access macros and drmAddMap constants
  * for Rage 128 kernel driver.
  */

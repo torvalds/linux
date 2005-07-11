@@ -1613,7 +1613,7 @@ void tcp_send_fin(struct sock *sk)
  * was unread data in the receive queue.  This behavior is recommended
  * by draft-ietf-tcpimpl-prob-03.txt section 3.10.  -DaveM
  */
-void tcp_send_active_reset(struct sock *sk, int priority)
+void tcp_send_active_reset(struct sock *sk, unsigned int __nocast priority)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;

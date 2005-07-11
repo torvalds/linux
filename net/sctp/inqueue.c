@@ -50,7 +50,7 @@
 /* Initialize an SCTP inqueue.  */
 void sctp_inq_init(struct sctp_inq *queue)
 {
-	skb_queue_head_init(&queue->in);
+	INIT_LIST_HEAD(&queue->in_chunk_list);
 	queue->in_progress = NULL;
 
 	/* Create a task for delivering data.  */
@@ -62,11 +62,13 @@ void sctp_inq_init(struct sctp_inq *queue)
 /* Release the memory associated with an SCTP inqueue.  */
 void sctp_inq_free(struct sctp_inq *queue)
 {
-	struct sctp_chunk *chunk;
+	struct sctp_chunk *chunk, *tmp;
 
 	/* Empty the queue.  */
-	while ((chunk = (struct sctp_chunk *) skb_dequeue(&queue->in)) != NULL)
+	list_for_each_entry_safe(chunk, tmp, &queue->in_chunk_list, list) {
+		list_del_init(&chunk->list);
 		sctp_chunk_free(chunk);
+	}
 
 	/* If there is a packet which is currently being worked on,
 	 * free it as well.
@@ -92,7 +94,7 @@ void sctp_inq_push(struct sctp_inq *q, struct sctp_chunk *packet)
 	 * Eventually, we should clean up inqueue to not rely
 	 * on the BH related data structures.
 	 */
-	skb_queue_tail(&(q->in), (struct sk_buff *) packet);
+	list_add_tail(&packet->list, &q->in_chunk_list);
 	q->immediate.func(q->immediate.data);
 }
 
@@ -131,12 +133,16 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 
 	/* Do we need to take the next packet out of the queue to process? */
 	if (!chunk) {
+		struct list_head *entry;
+
 		/* Is the queue empty?  */
-        	if (skb_queue_empty(&queue->in))
+		if (list_empty(&queue->in_chunk_list))
 			return NULL;
 
+		entry = queue->in_chunk_list.next;
 		chunk = queue->in_progress =
-			(struct sctp_chunk *) skb_dequeue(&queue->in);
+			list_entry(entry, struct sctp_chunk, list);
+		list_del_init(entry);
 
 		/* This is the first chunk in the packet.  */
 		chunk->singleton = 1;

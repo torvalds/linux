@@ -219,6 +219,7 @@ static struct platform_device *enp2611_devices[] __initdata = {
 static void __init enp2611_init_machine(void)
 {
 	platform_add_devices(enp2611_devices, ARRAY_SIZE(enp2611_devices));
+	ixp2000_uart_init();
 }
 
 

@@ -2802,7 +2802,7 @@ static void tcp_sack_remove(struct tcp_sock *tp)
 	int this_sack;
 
 	/* Empty ofo queue, hence, all the SACKs are eaten. Clear. */
-	if (skb_queue_len(&tp->out_of_order_queue) == 0) {
+	if (skb_queue_empty(&tp->out_of_order_queue)) {
 		tp->rx_opt.num_sacks = 0;
 		tp->rx_opt.eff_sacks = tp->rx_opt.dsack;
 		return;
@@ -2935,13 +2935,13 @@ queue_and_out:
 		if(th->fin)
 			tcp_fin(skb, sk, th);
 
-		if (skb_queue_len(&tp->out_of_order_queue)) {
+		if (!skb_queue_empty(&tp->out_of_order_queue)) {
 			tcp_ofo_queue(sk);
 
 			/* RFC2581. 4.2. SHOULD send immediate ACK, when
 			 * gap in queue is filled.
 			 */
-			if (!skb_queue_len(&tp->out_of_order_queue))
+			if (skb_queue_empty(&tp->out_of_order_queue))
 				tp->ack.pingpong = 0;
 		}
 
@@ -3249,9 +3249,8 @@ static int tcp_prune_queue(struct sock *sk)
 	 * This must not ever occur. */
 
 	/* First, purge the out_of_order queue. */
-	if (skb_queue_len(&tp->out_of_order_queue)) {
-		NET_ADD_STATS_BH(LINUX_MIB_OFOPRUNED, 
-				 skb_queue_len(&tp->out_of_order_queue));
+	if (!skb_queue_empty(&tp->out_of_order_queue)) {
+		NET_INC_STATS_BH(LINUX_MIB_OFOPRUNED);
 		__skb_queue_purge(&tp->out_of_order_queue);
 
 		/* Reset SACK state.  A conforming SACK implementation will
