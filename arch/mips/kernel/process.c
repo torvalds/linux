@@ -62,9 +62,9 @@ extern int do_signal32(sigset_t *oldset, struct pt_regs *regs);
 /*
  * Native o32 and N64 ABI without DSP ASE
  */
-extern void setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
+extern int setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
         int signr, sigset_t *set);
-extern void setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
+extern int setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
         int signr, sigset_t *set, siginfo_t *info);
 
 struct mips_abi mips_abi = {
@@ -79,9 +79,9 @@ struct mips_abi mips_abi = {
 /*
  * o32 compatibility on 64-bit kernels, without DSP ASE
  */
-extern void setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+extern int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
         int signr, sigset_t *set);
-extern void setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+extern int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
         int signr, sigset_t *set, siginfo_t *info);
 
 struct mips_abi mips_abi_32 = {
@@ -95,7 +95,7 @@ struct mips_abi mips_abi_32 = {
 /*
  * N32 on 64-bit kernels, without DSP ASE
  */
-extern void setup_rt_frame_n32(struct k_sigaction * ka, struct pt_regs *regs,
+extern int setup_rt_frame_n32(struct k_sigaction * ka, struct pt_regs *regs,
         int signr, sigset_t *set, siginfo_t *info);
 
 struct mips_abi mips_abi_n32 = {

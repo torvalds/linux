@@ -769,9 +769,11 @@ give_sigsegv:
 	force_sigsegv(signr, current);
 }
 
-static inline void handle_signal(unsigned long sig, siginfo_t *info,
+static inline int handle_signal(unsigned long sig, siginfo_t *info,
 	struct k_sigaction *ka, sigset_t *oldset, struct pt_regs * regs)
 {
+	int ret;
+
 	switch (regs->regs[0]) {
 	case ERESTART_RESTARTBLOCK:
 	case ERESTARTNOHAND:
@@ -791,9 +793,9 @@ static inline void handle_signal(unsigned long sig, siginfo_t *info,
 	regs->regs[0] = 0;		/* Don't deal with this again.  */
 
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		current->thread.abi->setup_rt_frame(ka, regs, sig, oldset, info);
+		ret = current->thread.abi->setup_rt_frame(ka, regs, sig, oldset, info);
 	else
-		current->thread.abi->setup_frame(ka, regs, sig, oldset);
+		ret = current->thread.abi->setup_frame(ka, regs, sig, oldset);
 
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
@@ -801,6 +803,8 @@ static inline void handle_signal(unsigned long sig, siginfo_t *info,
 		sigaddset(&current->blocked,sig);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
+
+	return ret;
 }
 
 int do_signal32(sigset_t *oldset, struct pt_regs *regs)
@@ -824,10 +828,8 @@ int do_signal32(sigset_t *oldset, struct pt_regs *regs)
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	if (signr > 0) {
-		handle_signal(signr, &info, &ka, oldset, regs);
-		return 1;
-	}
+	if (signr > 0)
+		return handle_signal(signr, &info, &ka, oldset, regs);
 
 no_signal:
 	/*

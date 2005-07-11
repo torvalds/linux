@@ -130,7 +130,7 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-void setup_rt_frame_n32(struct k_sigaction * ka,
+int setup_rt_frame_n32(struct k_sigaction * ka,
 	struct pt_regs *regs, int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe_n32 *frame;
@@ -184,8 +184,9 @@ void setup_rt_frame_n32(struct k_sigaction * ka,
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
 #endif
-	return;
+	return 1;
 
 give_sigsegv:
 	force_sigsegv(signr, current);
+	return 0;
 }
