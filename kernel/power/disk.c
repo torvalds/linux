@@ -16,6 +16,8 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
+#include <linux/mount.h>
+
 #include "power.h"
 
 
