@@ -1244,29 +1244,21 @@ int inode_wait(void *word)
 }
 
 /*
- * If we try to find an inode in the inode hash while it is being deleted, we
- * have to wait until the filesystem completes its deletion before reporting
- * that it isn't found.  This is because iget will immediately call
- * ->read_inode, and we want to be sure that evidence of the deletion is found
- * by ->read_inode.
+ * If we try to find an inode in the inode hash while it is being
+ * deleted, we have to wait until the filesystem completes its
+ * deletion before reporting that it isn't found.  This function waits
+ * until the deletion _might_ have completed.  Callers are responsible
+ * to recheck inode state.
+ *
+ * It doesn't matter if I_LOCK is not set initially, a call to
+ * wake_up_inode() after removing from the hash list will DTRT.
+ *
  * This is called with inode_lock held.
  */
 static void __wait_on_freeing_inode(struct inode *inode)
 {
 	wait_queue_head_t *wq;
 	DEFINE_WAIT_BIT(wait, &inode->i_state, __I_LOCK);
-
-	/*
-	 * I_FREEING and I_CLEAR are cleared in process context under
-	 * inode_lock, so we have to give the tasks who would clear them
-	 * a chance to run and acquire inode_lock.
-	 */
-	if (!(inode->i_state & I_LOCK)) {
-		spin_unlock(&inode_lock);
-		yield();
-		spin_lock(&inode_lock);
-		return;
-	}
 	wq = bit_waitqueue(&inode->i_state, __I_LOCK);
 	prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
 	spin_unlock(&inode_lock);
