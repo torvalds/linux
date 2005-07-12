@@ -752,6 +752,8 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 static void multipath_dtr(struct dm_target *ti)
 {
 	struct multipath *m = (struct multipath *) ti->private;
+
+	flush_workqueue(kmultipathd);
 	free_multipath(m);
 }
 
