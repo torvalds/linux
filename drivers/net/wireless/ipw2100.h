@@ -524,8 +524,6 @@ struct ipw2100_priv {
 
 	int power_mode;
 
-	/* WEP data */
-	struct ieee80211_security sec;
 	int messages_sent;
 
 	int short_retry_limit;

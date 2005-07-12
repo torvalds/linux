@@ -1616,7 +1616,7 @@ static int ipw2100_set_scan_options(struct ipw2100_priv *priv)
 
 	if (!(priv->config & CFG_ASSOCIATE))
 		cmd.host_command_parameters[0] |= IPW_SCAN_NOASSOCIATE;
-	if ((priv->sec.flags & SEC_ENABLED) && priv->sec.enabled)
+	if ((priv->ieee->sec.flags & SEC_ENABLED) && priv->ieee->sec.enabled)
 		cmd.host_command_parameters[0] |= IPW_SCAN_MIXED_CELL;
 	if (priv->config & CFG_PASSIVE_SCAN)
 		cmd.host_command_parameters[0] |= IPW_SCAN_PASSIVE;
@@ -5349,23 +5349,23 @@ static int ipw2100_configure_security(struct ipw2100_priv *priv, int batch_mode)
 			return err;
 	}
 
-	if (!priv->sec.enabled) {
+	if (!priv->ieee->sec.enabled) {
 		err =
 		    ipw2100_set_security_information(priv, IPW_AUTH_OPEN,
 						     SEC_LEVEL_0, 0, 1);
 	} else {
 		auth_mode = IPW_AUTH_OPEN;
-		if ((priv->sec.flags & SEC_AUTH_MODE) &&
-		    (priv->sec.auth_mode == WLAN_AUTH_SHARED_KEY))
+		if ((priv->ieee->sec.flags & SEC_AUTH_MODE) &&
+		    (priv->ieee->sec.auth_mode == WLAN_AUTH_SHARED_KEY))
 			auth_mode = IPW_AUTH_SHARED;
 
 		sec_level = SEC_LEVEL_0;
-		if (priv->sec.flags & SEC_LEVEL)
-			sec_level = priv->sec.level;
+		if (priv->ieee->sec.flags & SEC_LEVEL)
+			sec_level = priv->ieee->sec.level;
 
 		use_group = 0;
-		if (priv->sec.flags & SEC_UNICAST_GROUP)
-			use_group = priv->sec.unicast_uses_group;
+		if (priv->ieee->sec.flags & SEC_UNICAST_GROUP)
+			use_group = priv->ieee->sec.unicast_uses_group;
 
 		err =
 		    ipw2100_set_security_information(priv, auth_mode, sec_level,
@@ -5375,16 +5375,16 @@ static int ipw2100_configure_security(struct ipw2100_priv *priv, int batch_mode)
 	if (err)
 		goto exit;
 
-	if (priv->sec.enabled) {
+	if (priv->ieee->sec.enabled) {
 		for (i = 0; i < 4; i++) {
-			if (!(priv->sec.flags & (1 << i))) {
-				memset(priv->sec.keys[i], 0, WEP_KEY_LEN);
-				priv->sec.key_sizes[i] = 0;
+			if (!(priv->ieee->sec.flags & (1 << i))) {
+				memset(priv->ieee->sec.keys[i], 0, WEP_KEY_LEN);
+				priv->ieee->sec.key_sizes[i] = 0;
 			} else {
 				err = ipw2100_set_key(priv, i,
-						      priv->sec.keys[i],
-						      priv->sec.key_sizes[i],
-						      1);
+						      priv->ieee->sec.keys[i],
+						      priv->ieee->sec.
+						      key_sizes[i], 1);
 				if (err)
 					goto exit;
 			}
@@ -5397,8 +5397,8 @@ static int ipw2100_configure_security(struct ipw2100_priv *priv, int batch_mode)
 	 * encrypted data is sent up */
 	err =
 	    ipw2100_set_wep_flags(priv,
-				  priv->sec.enabled ? IPW_PRIVACY_CAPABLE : 0,
-				  1);
+				  priv->ieee->sec.
+				  enabled ? IPW_PRIVACY_CAPABLE : 0, 1);
 	if (err)
 		goto exit;
 
@@ -5433,58 +5433,61 @@ static void shim__set_security(struct net_device *dev,
 
 	for (i = 0; i < 4; i++) {
 		if (sec->flags & (1 << i)) {
-			priv->sec.key_sizes[i] = sec->key_sizes[i];
+			priv->ieee->sec.key_sizes[i] = sec->key_sizes[i];
 			if (sec->key_sizes[i] == 0)
-				priv->sec.flags &= ~(1 << i);
+				priv->ieee->sec.flags &= ~(1 << i);
 			else
-				memcpy(priv->sec.keys[i], sec->keys[i],
+				memcpy(priv->ieee->sec.keys[i], sec->keys[i],
 				       sec->key_sizes[i]);
-			priv->sec.flags |= (1 << i);
+			priv->ieee->sec.flags |= (1 << i);
 			priv->status |= STATUS_SECURITY_UPDATED;
 		}
 	}
 
 	if ((sec->flags & SEC_ACTIVE_KEY) &&
-	    priv->sec.active_key != sec->active_key) {
+	    priv->ieee->sec.active_key != sec->active_key) {
 		if (sec->active_key <= 3) {
-			priv->sec.active_key = sec->active_key;
-			priv->sec.flags |= SEC_ACTIVE_KEY;
+			priv->ieee->sec.active_key = sec->active_key;
+			priv->ieee->sec.flags |= SEC_ACTIVE_KEY;
 		} else
-			priv->sec.flags &= ~SEC_ACTIVE_KEY;
+			priv->ieee->sec.flags &= ~SEC_ACTIVE_KEY;
 
 		priv->status |= STATUS_SECURITY_UPDATED;
 	}
 
 	if ((sec->flags & SEC_AUTH_MODE) &&
-	    (priv->sec.auth_mode != sec->auth_mode)) {
-		priv->sec.auth_mode = sec->auth_mode;
-		priv->sec.flags |= SEC_AUTH_MODE;
+	    (priv->ieee->sec.auth_mode != sec->auth_mode)) {
+		priv->ieee->sec.auth_mode = sec->auth_mode;
+		priv->ieee->sec.flags |= SEC_AUTH_MODE;
 		priv->status |= STATUS_SECURITY_UPDATED;
 	}
 
-	if (sec->flags & SEC_ENABLED && priv->sec.enabled != sec->enabled) {
-		priv->sec.flags |= SEC_ENABLED;
-		priv->sec.enabled = sec->enabled;
+	if (sec->flags & SEC_ENABLED && priv->ieee->sec.enabled != sec->enabled) {
+		priv->ieee->sec.flags |= SEC_ENABLED;
+		priv->ieee->sec.enabled = sec->enabled;
 		priv->status |= STATUS_SECURITY_UPDATED;
 		force_update = 1;
 	}
 
-	if (sec->flags & SEC_LEVEL && priv->sec.level != sec->level) {
-		priv->sec.level = sec->level;
-		priv->sec.flags |= SEC_LEVEL;
+	if (sec->flags & SEC_ENCRYPT)
+		priv->ieee->sec.encrypt = sec->encrypt;
+
+	if (sec->flags & SEC_LEVEL && priv->ieee->sec.level != sec->level) {
+		priv->ieee->sec.level = sec->level;
+		priv->ieee->sec.flags |= SEC_LEVEL;
 		priv->status |= STATUS_SECURITY_UPDATED;
 	}
 
 	IPW_DEBUG_WEP("Security flags: %c %c%c%c%c %c%c%c%c\n",
-		      priv->sec.flags & (1 << 8) ? '1' : '0',
-		      priv->sec.flags & (1 << 7) ? '1' : '0',
-		      priv->sec.flags & (1 << 6) ? '1' : '0',
-		      priv->sec.flags & (1 << 5) ? '1' : '0',
-		      priv->sec.flags & (1 << 4) ? '1' : '0',
-		      priv->sec.flags & (1 << 3) ? '1' : '0',
-		      priv->sec.flags & (1 << 2) ? '1' : '0',
-		      priv->sec.flags & (1 << 1) ? '1' : '0',
-		      priv->sec.flags & (1 << 0) ? '1' : '0');
+		      priv->ieee->sec.flags & (1 << 8) ? '1' : '0',
+		      priv->ieee->sec.flags & (1 << 7) ? '1' : '0',
+		      priv->ieee->sec.flags & (1 << 6) ? '1' : '0',
+		      priv->ieee->sec.flags & (1 << 5) ? '1' : '0',
+		      priv->ieee->sec.flags & (1 << 4) ? '1' : '0',
+		      priv->ieee->sec.flags & (1 << 3) ? '1' : '0',
+		      priv->ieee->sec.flags & (1 << 2) ? '1' : '0',
+		      priv->ieee->sec.flags & (1 << 1) ? '1' : '0',
+		      priv->ieee->sec.flags & (1 << 0) ? '1' : '0');
 
 /* As a temporary work around to enable WPA until we figure out why
  * wpa_supplicant toggles the security capability of the driver, which
@@ -5995,17 +5998,19 @@ static int ipw2100_wpa_set_encryption(struct net_device *dev,
 		return -EINVAL;
 	}
 
+	sec.flags |= SEC_ENABLED | SEC_ENCRYPT;
 	if (strcmp(param->u.crypt.alg, "none") == 0) {
 		if (crypt) {
 			sec.enabled = 0;
+			sec.encrypt = 0;
 			sec.level = SEC_LEVEL_0;
-			sec.flags |= SEC_ENABLED | SEC_LEVEL;
+			sec.flags |= SEC_LEVEL;
 			ieee80211_crypt_delayed_deinit(ieee, crypt);
 		}
 		goto done;
 	}
 	sec.enabled = 1;
-	sec.flags |= SEC_ENABLED;
+	sec.encrypt = 1;
 
 	ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
 	if (ops == NULL && strcmp(param->u.crypt.alg, "WEP") == 0) {
@@ -8029,7 +8034,7 @@ static int ipw2100_wx_get_auth(struct net_device *dev,
 		break;
 
 	case IW_AUTH_80211_AUTH_ALG:
-		param->value = priv->sec.auth_mode;
+		param->value = priv->ieee->sec.auth_mode;
 		break;
 
 	case IW_AUTH_WPA_ENABLED:
