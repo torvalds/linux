@@ -10,7 +10,7 @@
 #include <linux/file.h>
 #include <linux/uio.h>
 #include <linux/smp_lock.h>
-#include <linux/dnotify.h>
+#include <linux/fsnotify.h>
 #include <linux/security.h>
 #include <linux/module.h>
 #include <linux/syscalls.h>
@@ -252,7 +252,7 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 			else
 				ret = do_sync_read(file, buf, count, pos);
 			if (ret > 0) {
-				dnotify_parent(file->f_dentry, DN_ACCESS);
+				fsnotify_access(file->f_dentry);
 				current->rchar += ret;
 			}
 			current->syscr++;
@@ -303,7 +303,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 			else
 				ret = do_sync_write(file, buf, count, pos);
 			if (ret > 0) {
-				dnotify_parent(file->f_dentry, DN_MODIFY);
+				fsnotify_modify(file->f_dentry);
 				current->wchar += ret;
 			}
 			current->syscw++;
@@ -539,9 +539,12 @@ static ssize_t do_readv_writev(int type, struct file *file,
 out:
 	if (iov != iovstack)
 		kfree(iov);
-	if ((ret + (type == READ)) > 0)
-		dnotify_parent(file->f_dentry,
-				(type == READ) ? DN_ACCESS : DN_MODIFY);
+	if ((ret + (type == READ)) > 0) {
+		if (type == READ)
+			fsnotify_access(file->f_dentry);
+		else
+			fsnotify_modify(file->f_dentry);
+	}
 	return ret;
 Efault:
 	ret = -EFAULT;

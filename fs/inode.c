@@ -21,6 +21,7 @@
 #include <linux/pagemap.h>
 #include <linux/cdev.h>
 #include <linux/bootmem.h>
+#include <linux/inotify.h>
 
 /*
  * This is needed for the following functions:
@@ -202,6 +203,10 @@ void inode_init_once(struct inode *inode)
 	INIT_LIST_HEAD(&inode->i_data.i_mmap_nonlinear);
 	spin_lock_init(&inode->i_lock);
 	i_size_ordered_init(inode);
+#ifdef CONFIG_INOTIFY
+	INIT_LIST_HEAD(&inode->inotify_watches);
+	sema_init(&inode->inotify_sem, 1);
+#endif
 }
 
 EXPORT_SYMBOL(inode_init_once);
@@ -351,6 +356,7 @@ int invalidate_inodes(struct super_block * sb)
 
 	down(&iprune_sem);
 	spin_lock(&inode_lock);
+	inotify_unmount_inodes(&sb->s_inodes);
 	busy = invalidate_list(&sb->s_inodes, &throw_away);
 	spin_unlock(&inode_lock);
 
