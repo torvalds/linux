@@ -1626,7 +1626,7 @@ static struct usb_device_id ttusb_table[] = {
 MODULE_DEVICE_TABLE(usb, ttusb_table);
 
 static struct usb_driver ttusb_driver = {
-      .name		= "Technotrend/Hauppauge USB-Nova",
+      .name		= "ttusb",
       .probe		= ttusb_probe,
       .disconnect	= ttusb_disconnect,
       .id_table		= ttusb_table,
