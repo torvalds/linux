@@ -57,7 +57,7 @@
 /* Initialize a new transport from provided memory.  */
 static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 						  const union sctp_addr *addr,
-						  int gfp)
+						  unsigned int __nocast gfp)
 {
 	/* Copy in the address.  */
 	peer->ipaddr = *addr;
@@ -121,7 +121,8 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 }
 
 /* Allocate and initialize a new transport.  */
-struct sctp_transport *sctp_transport_new(const union sctp_addr *addr, int gfp)
+struct sctp_transport *sctp_transport_new(const union sctp_addr *addr,
+					  unsigned int __nocast gfp)
 {
         struct sctp_transport *transport;
 

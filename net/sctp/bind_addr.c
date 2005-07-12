@@ -53,7 +53,8 @@
 
 /* Forward declarations for internal helpers. */
 static int sctp_copy_one_addr(struct sctp_bind_addr *, union sctp_addr *,
-			      sctp_scope_t scope, int gfp, int flags);
+			      sctp_scope_t scope, unsigned int __nocast gfp,
+			      int flags);
 static void sctp_bind_addr_clean(struct sctp_bind_addr *);
 
 /* First Level Abstractions. */
@@ -63,7 +64,8 @@ static void sctp_bind_addr_clean(struct sctp_bind_addr *);
  */
 int sctp_bind_addr_copy(struct sctp_bind_addr *dest, 
 			const struct sctp_bind_addr *src,
-			sctp_scope_t scope, int gfp, int flags)
+			sctp_scope_t scope, unsigned int __nocast gfp,
+			int flags)
 {
 	struct sctp_sockaddr_entry *addr;
 	struct list_head *pos;
@@ -144,7 +146,7 @@ void sctp_bind_addr_free(struct sctp_bind_addr *bp)
 
 /* Add an address to the bind address list in the SCTP_bind_addr structure. */
 int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
-		       int gfp)
+		       unsigned int __nocast gfp)
 {
 	struct sctp_sockaddr_entry *addr;
 
@@ -197,7 +199,8 @@ int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr)
  * The second argument is the return value for the length.
  */
 union sctp_params sctp_bind_addrs_to_raw(const struct sctp_bind_addr *bp,
-					 int *addrs_len, int gfp)
+					 int *addrs_len,
+					 unsigned int __nocast gfp)
 {
 	union sctp_params addrparms;
 	union sctp_params retval;
@@ -249,7 +252,7 @@ end_raw:
  * address parameters).
  */
 int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw_addr_list,
-			   int addrs_len, __u16 port, int gfp)
+			   int addrs_len, __u16 port, unsigned int __nocast gfp)
 {
 	union sctp_addr_param *rawaddr;
 	struct sctp_paramhdr *param;
@@ -347,7 +350,8 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 /* Copy out addresses from the global local address list. */
 static int sctp_copy_one_addr(struct sctp_bind_addr *dest, 
 			      union sctp_addr *addr,
-			      sctp_scope_t scope, int gfp, int flags)
+			      sctp_scope_t scope, unsigned int __nocast gfp,
+			      int flags)
 {
 	int error = 0;
 
