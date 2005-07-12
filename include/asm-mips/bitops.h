@@ -546,17 +546,60 @@ static inline int test_bit(unsigned long nr, const volatile unsigned long *addr)
 	return 1UL & (addr[nr >> SZLONG_LOG] >> (nr & SZLONG_MASK));
 }
 
+#ifdef CONFIG_CPU_MIPS32_R1
 /*
- * ffz - find first zero in word.
+ * Return the bit position (0..31) of the most significant 1 bit in a word
+ * Returns -1 if no 1 bit exists
+ */
+static __inline__ int __ilog2(unsigned long x)
+{
+	int lz;
+
+	__asm__ (
+	"	.set	push						\n"
+	"	.set	mips32						\n"
+	"	clz	%0, %1						\n"
+	"	.set	pop						\n"
+	: "=r" (lz)
+	: "r" (x));
+
+	return 31 - lz;
+}
+#elif defined(CONFIG_CPU_MIPS64_R1)
+/*
+ * Return the bit position (0..63) of the most significant 1 bit in a word
+ * Returns -1 if no 1 bit exists
+ */
+static __inline__ int __ilog2(unsigned long x)
+{
+	int lz;
+
+	__asm__ (
+	"	.set	push						\n"
+	"	.set	mips64						\n"
+	"	dclz	%0, %1						\n"
+	"	.set	pop						\n"
+	: "=r" (lz)
+	: "r" (x));
+
+	return 63 - lz;
+}
+#endif
+
+/*
+ * __ffs - find first bit in word.
  * @word: The word to search
  *
- * Undefined if no zero exists, so code should check against ~0UL first.
+ * Returns 0..SZLONG-1
+ * Undefined if no bit exists, so code should check against 0 first.
  */
-static inline unsigned long ffz(unsigned long word)
+static inline unsigned long __ffs(unsigned long word)
 {
+#if defined(CONFIG_CPU_MIPS32_R1) || defined(CONFIG_CPU_MIPS64_R1)
+	return __ilog2(word & -word);
+#else
 	int b = 0, s;
 
-	word = ~word;
 #ifdef CONFIG_32BIT
 	s = 16; if (word << 16 != 0) s = 0; b += s; word >>= s;
 	s =  8; if (word << 24 != 0) s = 0; b += s; word >>= s;
@@ -572,26 +615,87 @@ static inline unsigned long ffz(unsigned long word)
 	s =  2; if (word << 62 != 0) s = 0; b += s; word >>= s;
 	s =  1; if (word << 63 != 0) s = 0; b += s;
 #endif
-
 	return b;
+#endif
 }
 
 /*
- * __ffs - find first bit in word.
+ * ffs - find first bit set.
  * @word: The word to search
  *
- * Undefined if no bit exists, so code should check against 0 first.
+ * Returns 1..SZLONG
+ * Returns 0 if no bit exists
  */
-static inline unsigned long __ffs(unsigned long word)
+
+static inline unsigned long ffs(unsigned long word)
 {
-	return ffz(~word);
+	if (!word)
+		return 0;
+
+	return __ffs(word) + 1;
 }
 
 /*
- * fls: find last bit set.
+ * ffz - find first zero in word.
+ * @word: The word to search
+ *
+ * Undefined if no zero exists, so code should check against ~0UL first.
  */
+static inline unsigned long ffz(unsigned long word)
+{
+	return __ffs (~word);
+}
 
-#define fls(x) generic_fls(x)
+/*
+ * flz - find last zero in word.
+ * @word: The word to search
+ *
+ * Returns 0..SZLONG-1
+ * Undefined if no zero exists, so code should check against ~0UL first.
+ */
+static inline unsigned long flz(unsigned long word)
+{
+#if defined(CONFIG_CPU_MIPS32_R1) || defined(CONFIG_CPU_MIPS64_R1)
+	return __ilog2(~word);
+#else
+#if defined(CONFIG_32BIT)
+	int r = 31, s;
+	word = ~word;
+	s = 16; if ((word & 0xffff0000)) s = 0; r -= s; word <<= s;
+	s = 8;  if ((word & 0xff000000)) s = 0; r -= s; word <<= s;
+	s = 4;  if ((word & 0xf0000000)) s = 0; r -= s; word <<= s;
+	s = 2;  if ((word & 0xc0000000)) s = 0; r -= s; word <<= s;
+	s = 1;  if ((word & 0x80000000)) s = 0; r -= s;
+#endif
+#if defined(CONFIG_64BIT)
+	int r = 63, s;
+	word = ~word;
+	s = 32; if ((word & 0xffffffff00000000UL)) s = 0; r -= s; word <<= s;
+	s = 16; if ((word & 0xffff000000000000UL)) s = 0; r -= s; word <<= s;
+	s = 8;  if ((word & 0xff00000000000000UL)) s = 0; r -= s; word <<= s;
+	s = 4;  if ((word & 0xf000000000000000UL)) s = 0; r -= s; word <<= s;
+	s = 2;  if ((word & 0xc000000000000000UL)) s = 0; r -= s; word <<= s;
+	s = 1;  if ((word & 0x8000000000000000UL)) s = 0; r -= s;
+#endif
+	return r;
+#endif
+}
+
+/*
+ * fls - find last bit set.
+ * @word: The word to search
+ *
+ * Returns 1..SZLONG
+ * Returns 0 if no bit exists
+ */
+static inline unsigned long fls(unsigned long word)
+{
+	if (word == 0)
+		return 0;
+
+	return flz(~word) + 1;
+}
+
 
 /*
  * find_next_zero_bit - find the first zero bit in a memory region
@@ -726,17 +830,6 @@ static inline int sched_find_first_bit(const unsigned long *b)
 	return __ffs(b[2]) + 128;
 #endif
 }
-
-/*
- * ffs - find first bit set
- * @x: the word to search
- *
- * This is defined the same way as
- * the libc and compiler builtin ffs routines, therefore
- * differs in spirit from the above ffz (man ffs).
- */
-
-#define ffs(x) generic_ffs(x)
 
 /*
  * hweightN - returns the hamming weight of a N-bit word
