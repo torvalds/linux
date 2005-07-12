@@ -1,5 +1,5 @@
 /*
- * $Id: cx88.h,v 1.67 2005/07/01 12:10:07 mkrufky Exp $
+ * $Id: cx88.h,v 1.68 2005/07/07 14:17:47 mchehab Exp $
  *
  * v4l2 device driver for cx2388x based TV cards
  *
@@ -82,8 +82,8 @@ struct cx88_tvnorm {
 static unsigned int inline norm_maxw(struct cx88_tvnorm *norm)
 {
 	return (norm->id & V4L2_STD_625_50) ? 768 : 640;
-//	return (norm->id & V4L2_STD_625_50) ? 720 : 640;
 }
+
 
 static unsigned int inline norm_maxh(struct cx88_tvnorm *norm)
 {
@@ -220,7 +220,6 @@ struct cx88_subid {
 #define RESOURCE_VBI           4
 
 #define BUFFER_TIMEOUT     (HZ/2)  /* 0.5 seconds */
-//#define BUFFER_TIMEOUT     (HZ*2)
 
 /* buffer for one video frame */
 struct cx88_buffer {
@@ -336,11 +335,6 @@ struct cx8800_dev {
 	struct pci_dev             *pci;
 	unsigned char              pci_rev,pci_lat;
 
-#if 0
-	/* video overlay */
-	struct v4l2_framebuffer    fbuf;
-	struct cx88_buffer         *screen;
-#endif
 
 	/* capture queues */
 	struct cx88_dmaqueue       vidq;
@@ -435,8 +429,6 @@ struct cx8802_dev {
 /* ----------------------------------------------------------- */
 /* cx88-core.c                                                 */
 
-extern char *cx88_vid_irqs[32];
-extern char *cx88_mpeg_irqs[32];
 extern void cx88_print_irqbits(char *name, char *tag, char **strings,
 			       u32 bits, u32 mask);
 extern void cx88_print_ioctl(char *name, unsigned int cmd);

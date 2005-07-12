@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-mpeg.c,v 1.30 2005/07/05 19:44:40 mkrufky Exp $
+ * $Id: cx88-mpeg.c,v 1.31 2005/07/07 14:17:47 mchehab Exp $
  *
  *  Support for the mpeg transport stream transfers
  *  PCI function #2 of the cx2388x.
@@ -64,7 +64,6 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 	/* write TS length to chip */
 	cx_write(MO_TS_LNGTH, buf->vb.width);
 
-#if 1
 	/* FIXME: this needs a review.
 	 * also: move to cx88-blackbird + cx88-dvb source files? */
 
@@ -76,9 +75,9 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		cx_write(TS_HW_SOP_CNTRL,0x47<<16|188<<4|0x01);
 		if ((core->board == CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q) ||
 		    (core->board == CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T)) {
-			cx_write(TS_SOP_STAT, 0<<16 | 0<<14 | 1<<13 | 0<<12);
+			cx_write(TS_SOP_STAT, 1<<13);
 		} else {
-			cx_write(TS_SOP_STAT,0x00);
+			cx_write(TS_SOP_STAT, 0x00);
 		}
 		cx_write(TS_GEN_CNTRL, dev->ts_gen_cntrl);
 		udelay(100);
@@ -98,7 +97,6 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		cx_write(TS_GEN_CNTRL, 0x06); /* punctured clock TS & posedge driven */
 		udelay(100);
 	}
-#endif
 
 	/* reset counter */
 	cx_write(MO_TS_GPCNTRL, GP_COUNT_CONTROL_RESET);
@@ -270,6 +268,15 @@ static void cx8802_timeout(unsigned long data)
 	do_cancel_buffers(dev,"timeout",1);
 }
 
+static char *cx88_mpeg_irqs[32] = {
+	"ts_risci1", NULL, NULL, NULL,
+	"ts_risci2", NULL, NULL, NULL,
+	"ts_oflow",  NULL, NULL, NULL,
+	"ts_sync",   NULL, NULL, NULL,
+	"opc_err", "par_err", "rip_err", "pci_abort",
+	"ts_err?",
+};
+
 static void cx8802_mpeg_irq(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
@@ -282,10 +289,7 @@ static void cx8802_mpeg_irq(struct cx8802_dev *dev)
 		return;
 
 	cx_write(MO_TS_INTSTAT, status);
-#if 0
-	cx88_print_irqbits(core->name, "irq mpeg ",
-			cx88_mpeg_irqs, status, mask);
-#endif
+
 	if (debug || (status & mask & ~0xff))
 		cx88_print_irqbits(core->name, "irq mpeg ",
 				   cx88_mpeg_irqs, status, mask);
@@ -441,10 +445,8 @@ int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
 	}
 	spin_unlock(&dev->slock);
 
-#if 1
 	/* FIXME -- shutdown device */
 	cx88_shutdown(dev->core);
-#endif
 
 	pci_save_state(pci_dev);
 	if (0 != pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state))) {
@@ -466,10 +468,8 @@ int cx8802_resume_common(struct pci_dev *pci_dev)
 	pci_set_power_state(pci_dev, PCI_D0);
 	pci_restore_state(pci_dev);
 
-#if 1
 	/* FIXME: re-initialize hardware */
 	cx88_reset(dev->core);
-#endif
 
 	/* restart video+vbi capture */
 	spin_lock(&dev->slock);
