@@ -1,5 +1,5 @@
 
-/* $Id: tuner.h,v 1.33 2005/06/21 14:58:08 mkrufky Exp $
+/* $Id: tuner.h,v 1.42 2005/07/06 09:42:19 mchehab Exp $
  *
     tuner.h - definition for different tuners
 
@@ -25,8 +25,6 @@
 #define _TUNER_H
 
 #include <linux/videodev2.h>
-
-#include "id.h"
 
 #define ADDR_UNSET (255)
 
@@ -111,8 +109,6 @@
 #define TUNER_TEA5767         62	/* Only FM Radio Tuner */
 #define TUNER_PHILIPS_FMD1216ME_MK3 63
 
-#define TEA5767_TUNER_NAME "Philips TEA5767HN FM Radio"
-
 #define NOTUNER 0
 #define PAL     1	/* PAL_BG */
 #define PAL_I   2
@@ -135,19 +131,8 @@
 #define TCL     11
 #define THOMSON 12
 
-enum v4l_radio_tuner {
-        TEA5767_LOW_LO_32768    = 0,
-        TEA5767_HIGH_LO_32768   = 1,
-        TEA5767_LOW_LO_13MHz    = 2,
-        TEA5767_HIGH_LO_13MHz   = 3,
-};
-
-
-#define TUNER_SET_TYPE               _IOW('t',1,int)    /* set tuner type */
-#define TUNER_SET_TVFREQ             _IOW('t',2,int)    /* set tv freq */
-#define TUNER_SET_TYPE_ADDR          _IOW('T',3,int)	/* set tuner type and I2C addr */
-
-#define  TDA9887_SET_CONFIG          _IOW('t',5,int)
+#define TUNER_SET_TYPE_ADDR          _IOW('T',3,int)
+#define TDA9887_SET_CONFIG           _IOW('t',5,int)
 
 /* tv card specific */
 # define TDA9887_PRESENT             (1<<0)
@@ -169,25 +154,34 @@ enum v4l_radio_tuner {
 #define I2C_ADDR_TDA8290        0x4b
 #define I2C_ADDR_TDA8275        0x61
 
-struct tuner_addr {
-	enum v4l2_tuner_type	v4l2_tuner;
-	unsigned int		type;
+enum tuner_mode {
+	T_UNINITIALIZED = 0,
+	T_RADIO		= 1 << V4L2_TUNER_RADIO,
+	T_ANALOG_TV     = 1 << V4L2_TUNER_ANALOG_TV,
+	T_DIGITAL_TV    = 1 << V4L2_TUNER_DIGITAL_TV,
+	T_STANDBY	= 1 << 31
+};
+
+struct tuner_setup {
 	unsigned short		addr;
+	unsigned int		type;
+	unsigned int		mode_mask;
 };
 
 struct tuner {
 	/* device */
 	struct i2c_client i2c;
 
-	/* state + config */
-	unsigned int initialized;
 	unsigned int type;            /* chip type */
-	unsigned int freq;            /* keep track of the current settings */
-	v4l2_std_id  std;
-	int          using_v4l2;
 
-	enum v4l2_tuner_type mode;
-	unsigned int input;
+	unsigned int          mode;
+	unsigned int          mode_mask; /* Combination of allowable modes */
+
+	unsigned int freq;            /* keep track of the current settings */
+	unsigned int audmode;
+	v4l2_std_id  std;
+
+	int          using_v4l2;
 
 	/* used by MT2032 */
 	unsigned int xogc;
@@ -197,15 +191,11 @@ struct tuner {
 	unsigned char i2c_easy_mode[2];
 	unsigned char i2c_set_freq[8];
 
-	/* used to keep track of audmode */
-	unsigned int audmode;
-
 	/* function ptrs */
 	void (*tv_freq)(struct i2c_client *c, unsigned int freq);
 	void (*radio_freq)(struct i2c_client *c, unsigned int freq);
 	int  (*has_signal)(struct i2c_client *c);
 	int  (*is_stereo)(struct i2c_client *c);
-	int  (*set_tuner)(struct i2c_client *c, struct v4l2_tuner *v);
 };
 
 extern unsigned int tuner_debug;
@@ -215,6 +205,7 @@ extern int microtune_init(struct i2c_client *c);
 extern int tda8290_init(struct i2c_client *c);
 extern int tea5767_tuner_init(struct i2c_client *c);
 extern int default_tuner_init(struct i2c_client *c);
+extern int tea5767_autodetection(struct i2c_client *c);
 
 #define tuner_warn(fmt, arg...) \
 	dev_printk(KERN_WARNING , &t->i2c.dev , fmt , ## arg)
