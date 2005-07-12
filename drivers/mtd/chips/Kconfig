@@ -300,7 +300,7 @@ config MTD_JEDEC
 
 config MTD_XIP
 	bool "XIP aware MTD support"
-	depends on !SMP && (MTD_CFI_INTELEXT || MTD_CFI_AMDSTD) && EXPERIMENTAL
+	depends on !SMP && (MTD_CFI_INTELEXT || MTD_CFI_AMDSTD) && EXPERIMENTAL && ARM
 	default y if XIP_KERNEL
 	help
 	  This allows MTD support to work with flash memory which is also
