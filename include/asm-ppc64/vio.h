@@ -56,6 +56,9 @@ const void * vio_get_attribute(struct vio_dev *vdev, void* which, int* length);
 int vio_get_irq(struct vio_dev *dev);
 int vio_enable_interrupts(struct vio_dev *dev);
 int vio_disable_interrupts(struct vio_dev *dev);
+extern struct vio_dev * __devinit vio_register_device_common(
+		struct vio_dev *viodev, char *name, char *type,
+		uint32_t unit_address, struct iommu_table *iommu_table);
 
 extern struct dma_mapping_ops vio_dma_ops;
 
@@ -95,9 +98,13 @@ struct vio_dev {
 	struct device dev;
 };
 
+extern struct vio_dev vio_bus_device;
+
 static inline struct vio_dev *to_vio_dev(struct device *dev)
 {
 	return container_of(dev, struct vio_dev, dev);
 }
+
+extern int vio_bus_init(void);
 
 #endif /* _ASM_VIO_H */

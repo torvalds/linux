@@ -50,7 +50,9 @@ obj-$(CONFIG_LPARCFG)		+= lparcfg.o
 obj-$(CONFIG_HVC_CONSOLE)	+= hvconsole.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_HVCS)		+= hvcserver.o
-obj-$(CONFIG_IBMVIO)		+= vio.o
+
+vio-obj-$(CONFIG_PPC_ISERIES)	+= iSeries_vio.o
+obj-$(CONFIG_IBMVIO)		+= vio.o $(vio-obj-y)
 obj-$(CONFIG_XICS)		+= xics.o
 obj-$(CONFIG_MPIC)		+= mpic.o
 

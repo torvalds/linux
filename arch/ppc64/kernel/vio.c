@@ -25,10 +25,6 @@
 #include <asm/ppcdebug.h>
 #include <asm/vio.h>
 #include <asm/hvcall.h>
-#include <asm/iSeries/vio.h>
-#include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/HvCallXm.h>
-#include <asm/iSeries/HvLpConfig.h>
 
 #define DBGENTER() pr_debug("%s entered\n", __FUNCTION__)
 
@@ -41,26 +37,14 @@ static const struct vio_device_id *vio_match_device(
 static struct iommu_table *vio_build_iommu_table(struct vio_dev *);
 static int vio_num_address_cells;
 #endif
-#ifdef CONFIG_PPC_ISERIES
-static struct iommu_table veth_iommu_table;
-static struct iommu_table vio_iommu_table;
-#endif
-static struct vio_dev vio_bus_device  = { /* fake "parent" device */
+struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.name = vio_bus_device.dev.bus_id,
 	.type = "",
-#ifdef CONFIG_PPC_ISERIES
-	.iommu_table = &vio_iommu_table,
-#endif
 	.dev.bus_id = "vio",
 	.dev.bus = &vio_bus_type,
 };
 
 #ifdef CONFIG_PPC_ISERIES
-static struct vio_dev *__init vio_register_device_iseries(char *type,
-		uint32_t unit_num);
-
-struct device *iSeries_vio_dev = &vio_bus_device.dev;
-EXPORT_SYMBOL(iSeries_vio_dev);
 
 #define device_is_compatible(a, b)	1
 
@@ -157,48 +141,6 @@ static const struct vio_device_id * vio_match_device(const struct vio_device_id 
 	return NULL;
 }
 
-#ifdef CONFIG_PPC_ISERIES
-void __init iommu_vio_init(void)
-{
-	struct iommu_table *t;
-	struct iommu_table_cb cb;
-	unsigned long cbp;
-	unsigned long itc_entries;
-
-	cb.itc_busno = 255;    /* Bus 255 is the virtual bus */
-	cb.itc_virtbus = 0xff; /* Ask for virtual bus */
-
-	cbp = virt_to_abs(&cb);
-	HvCallXm_getTceTableParms(cbp);
-
-	itc_entries = cb.itc_size * PAGE_SIZE / sizeof(union tce_entry);
-	veth_iommu_table.it_size        = itc_entries / 2;
-	veth_iommu_table.it_busno       = cb.itc_busno;
-	veth_iommu_table.it_offset      = cb.itc_offset;
-	veth_iommu_table.it_index       = cb.itc_index;
-	veth_iommu_table.it_type        = TCE_VB;
-	veth_iommu_table.it_blocksize	= 1;
-
-	t = iommu_init_table(&veth_iommu_table);
-
-	if (!t)
-		printk("Virtual Bus VETH TCE table failed.\n");
-
-	vio_iommu_table.it_size         = itc_entries - veth_iommu_table.it_size;
-	vio_iommu_table.it_busno        = cb.itc_busno;
-	vio_iommu_table.it_offset       = cb.itc_offset +
-					  veth_iommu_table.it_size;
-	vio_iommu_table.it_index        = cb.itc_index;
-	vio_iommu_table.it_type         = TCE_VB;
-	vio_iommu_table.it_blocksize	= 1;
-
-	t = iommu_init_table(&vio_iommu_table);
-
-	if (!t)
-		printk("Virtual Bus VIO TCE table failed.\n");
-}
-#endif
-
 #ifdef CONFIG_PPC_PSERIES
 static void probe_bus_pseries(void)
 {
@@ -223,38 +165,10 @@ static void probe_bus_pseries(void)
 }
 #endif
 
-#ifdef CONFIG_PPC_ISERIES
-static void probe_bus_iseries(void)
-{
-	HvLpIndexMap vlan_map = HvLpConfig_getVirtualLanIndexMap();
-	struct vio_dev *viodev;
-	int i;
-
-	/* there is only one of each of these */
-	vio_register_device_iseries("viocons", 0);
-	vio_register_device_iseries("vscsi", 0);
-
-	vlan_map = HvLpConfig_getVirtualLanIndexMap();
-	for (i = 0; i < HVMAXARCHITECTEDVIRTUALLANS; i++) {
-		if ((vlan_map & (0x8000 >> i)) == 0)
-			continue;
-		viodev = vio_register_device_iseries("vlan", i);
-		/* veth is special and has it own iommu_table */
-		viodev->iommu_table = &veth_iommu_table;
-	}
-	for (i = 0; i < HVMAXARCHITECTEDVIRTUALDISKS; i++)
-		vio_register_device_iseries("viodasd", i);
-	for (i = 0; i < HVMAXARCHITECTEDVIRTUALCDROMS; i++)
-		vio_register_device_iseries("viocd", i);
-	for (i = 0; i < HVMAXARCHITECTEDVIRTUALTAPES; i++)
-		vio_register_device_iseries("viotape", i);
-}
-#endif
-
 /**
  * vio_bus_init: - Initialize the virtual IO bus
  */
-static int __init vio_bus_init(void)
+int __init vio_bus_init(void)
 {
 	int err;
 
@@ -264,25 +178,35 @@ static int __init vio_bus_init(void)
 		return err;
 	}
 
-	/* the fake parent of all vio devices, just to give us a nice directory */
+	/* the fake parent of all vio devices, just to give us
+	 * a nice directory
+	 */
 	err = device_register(&vio_bus_device.dev);
 	if (err) {
-		printk(KERN_WARNING "%s: device_register returned %i\n", __FUNCTION__,
-			err);
+		printk(KERN_WARNING "%s: device_register returned %i\n",
+				__FUNCTION__, err);
 		return err;
 	}
-
-#ifdef CONFIG_PPC_PSERIES
-	probe_bus_pseries();
-#endif
-#ifdef CONFIG_PPC_ISERIES
-	probe_bus_iseries();
-#endif
 
 	return 0;
 }
 
-__initcall(vio_bus_init);
+#ifdef CONFIG_PPC_PSERIES
+/**
+ * vio_bus_init_pseries: - Initialize the pSeries virtual IO bus
+ */
+static int __init vio_bus_init_pseries(void)
+{
+	int err;
+
+	err = vio_bus_init();
+	if (err == 0)
+		probe_bus_pseries();
+	return err;
+}
+
+__initcall(vio_bus_init_pseries);
+#endif
 
 /* vio_dev refcount hit 0 */
 static void __devinit vio_dev_release(struct device *dev)
@@ -312,7 +236,7 @@ static ssize_t viodev_show_name(struct device *dev, struct device_attribute *att
 }
 DEVICE_ATTR(name, S_IRUSR | S_IRGRP | S_IROTH, viodev_show_name, NULL);
 
-static struct vio_dev * __devinit vio_register_device_common(
+struct vio_dev * __devinit vio_register_device_common(
 		struct vio_dev *viodev, char *name, char *type,
 		uint32_t unit_address, struct iommu_table *iommu_table)
 {
@@ -406,31 +330,6 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 	return viodev;
 }
 EXPORT_SYMBOL(vio_register_device_node);
-#endif
-
-#ifdef CONFIG_PPC_ISERIES
-/**
- * vio_register_device: - Register a new vio device.
- * @voidev:	The device to register.
- */
-static struct vio_dev *__init vio_register_device_iseries(char *type,
-		uint32_t unit_num)
-{
-	struct vio_dev *viodev;
-
-	DBGENTER();
-
-	/* allocate a vio_dev for this node */
-	viodev = kmalloc(sizeof(struct vio_dev), GFP_KERNEL);
-	if (!viodev)
-		return NULL;
-	memset(viodev, 0, sizeof(struct vio_dev));
-
-	snprintf(viodev->dev.bus_id, BUS_ID_SIZE, "%s%d", type, unit_num);
-
-	return vio_register_device_common(viodev, viodev->dev.bus_id, type,
-			unit_num, &vio_iommu_table);
-}
 #endif
 
 void __devinit vio_unregister_device(struct vio_dev *viodev)
