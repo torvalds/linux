@@ -102,58 +102,16 @@ acpi_status (*asl_walk_callback) (
 /*
  * dmwalk
  */
-
-void
-acpi_dm_walk_parse_tree (
-	union acpi_parse_object         *op,
-	asl_walk_callback               descending_callback,
-	asl_walk_callback               ascending_callback,
-	void                            *context);
-
-acpi_status
-acpi_dm_descending_op (
-	union acpi_parse_object         *op,
-	u32                             level,
-	void                            *context);
-
-acpi_status
-acpi_dm_ascending_op (
-	union acpi_parse_object         *op,
-	u32                             level,
-	void                            *context);
-
-
-/*
- * dmopcode
- */
-
-void
-acpi_dm_validate_name (
-	char                            *name,
-	union acpi_parse_object         *op);
-
-u32
-acpi_dm_dump_name (
-	char                            *name);
-
-void
-acpi_dm_unicode (
-	union acpi_parse_object         *op);
-
 void
 acpi_dm_disassemble (
 	struct acpi_walk_state          *walk_state,
 	union acpi_parse_object         *origin,
 	u32                             num_opcodes);
 
-void
-acpi_dm_namestring (
-	char                            *name);
 
-void
-acpi_dm_display_path (
-	union acpi_parse_object         *op);
-
+/*
+ * dmopcode
+ */
 void
 acpi_dm_disassemble_one_op (
 	struct acpi_walk_state          *walk_state,
@@ -165,16 +123,7 @@ acpi_dm_decode_internal_object (
 	union acpi_operand_object       *obj_desc);
 
 u32
-acpi_dm_block_type (
-	union acpi_parse_object         *op);
-
-u32
 acpi_dm_list_type (
-	union acpi_parse_object         *op);
-
-acpi_status
-acpi_ps_display_object_pathname (
-	struct acpi_walk_state          *walk_state,
 	union acpi_parse_object         *op);
 
 void
@@ -197,10 +146,6 @@ void
 acpi_dm_match_op (
 	union acpi_parse_object         *op);
 
-void
-acpi_dm_match_keyword (
-	union acpi_parse_object         *op);
-
 u8
 acpi_dm_comma_if_list_member (
 	union acpi_parse_object         *op);
@@ -211,13 +156,25 @@ acpi_dm_comma_if_field_member (
 
 
 /*
- * dmobject
+ * dmnames
  */
+u32
+acpi_dm_dump_name (
+	char                            *name);
+
+acpi_status
+acpi_ps_display_object_pathname (
+	struct acpi_walk_state          *walk_state,
+	union acpi_parse_object         *op);
 
 void
-acpi_dm_decode_node (
-	struct acpi_namespace_node      *node);
+acpi_dm_namestring (
+	char                            *name);
 
+
+/*
+ * dmobject
+ */
 void
 acpi_dm_display_internal_object (
 	union acpi_operand_object       *obj_desc,
@@ -241,6 +198,16 @@ acpi_dm_dump_method_info (
 /*
  * dmbuffer
  */
+void
+acpi_dm_disasm_byte_list (
+	u32                             level,
+	u8                              *byte_data,
+	u32                             byte_count);
+
+void
+acpi_dm_byte_list (
+	struct acpi_op_walk_info        *info,
+	union acpi_parse_object         *op);
 
 void
 acpi_is_eisa_id (
@@ -262,18 +229,6 @@ acpi_dm_is_string_buffer (
 /*
  * dmresrc
  */
-
-void
-acpi_dm_disasm_byte_list (
-	u32                             level,
-	u8                              *byte_data,
-	u32                             byte_count);
-
-void
-acpi_dm_byte_list (
-	struct acpi_op_walk_info        *info,
-	union acpi_parse_object         *op);
-
 void
 acpi_dm_resource_descriptor (
 	struct acpi_op_walk_info        *info,
@@ -296,19 +251,10 @@ void
 acpi_dm_decode_attribute (
 	u8                              attribute);
 
+
 /*
  * dmresrcl
  */
-
-void
-acpi_dm_io_flags (
-		u8                          flags);
-
-void
-acpi_dm_memory_flags (
-	u8                              flags,
-	u8                              specific_flags);
-
 void
 acpi_dm_word_descriptor (
 	struct asl_word_address_desc    *resource,
@@ -373,7 +319,6 @@ acpi_dm_vendor_large_descriptor (
 /*
  * dmresrcs
  */
-
 void
 acpi_dm_irq_descriptor (
 	struct asl_irq_format_desc      *resource,
@@ -420,7 +365,6 @@ acpi_dm_vendor_small_descriptor (
 /*
  * dmutils
  */
-
 void
 acpi_dm_add_to_external_list (
 	char                            *path);

@@ -115,7 +115,6 @@ acpi_ex_system_memory_space_handler (
 		return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
 	}
 
-
 #ifndef ACPI_MISALIGNED_TRANSFERS
 	/*
 	 * Hardware does not support non-aligned data transfers, we must verify
@@ -134,7 +133,8 @@ acpi_ex_system_memory_space_handler (
 	 */
 	if ((address < mem_info->mapped_physical_address) ||
 		(((acpi_integer) address + length) >
-			((acpi_integer) mem_info->mapped_physical_address + mem_info->mapped_length))) {
+			((acpi_integer)
+			mem_info->mapped_physical_address + mem_info->mapped_length))) {
 		/*
 		 * The request cannot be resolved by the current memory mapping;
 		 * Delete the existing mapping and create a new one.
@@ -150,7 +150,9 @@ acpi_ex_system_memory_space_handler (
 		 * Don't attempt to map memory beyond the end of the region, and
 		 * constrain the maximum mapping size to something reasonable.
 		 */
-		window_size = (acpi_size) ((mem_info->address + mem_info->length) - address);
+		window_size = (acpi_size)
+			((mem_info->address + mem_info->length) - address);
+
 		if (window_size > ACPI_SYSMEM_REGION_WINDOW_SIZE) {
 			window_size = ACPI_SYSMEM_REGION_WINDOW_SIZE;
 		}
@@ -160,8 +162,9 @@ acpi_ex_system_memory_space_handler (
 		status = acpi_os_map_memory (address, window_size,
 				  (void **) &mem_info->mapped_logical_address);
 		if (ACPI_FAILURE (status)) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not map memory at %8.8X%8.8X, size %X\n",
-					ACPI_FORMAT_UINT64 (address), (u32) window_size));
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"Could not map memory at %8.8X%8.8X, size %X\n",
+				ACPI_FORMAT_UINT64 (address), (u32) window_size));
 			mem_info->mapped_length = 0;
 			return_ACPI_STATUS (status);
 		}
@@ -177,10 +180,12 @@ acpi_ex_system_memory_space_handler (
 	 * access
 	 */
 	logical_addr_ptr = mem_info->mapped_logical_address +
-			  ((acpi_integer) address - (acpi_integer) mem_info->mapped_physical_address);
+			   ((acpi_integer) address -
+					  (acpi_integer) mem_info->mapped_physical_address);
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-			"system_memory %d (%d width) Address=%8.8X%8.8X\n", function, bit_width,
+			"system_memory %d (%d width) Address=%8.8X%8.8X\n",
+			function, bit_width,
 			ACPI_FORMAT_UINT64 (address)));
 
    /*
@@ -298,13 +303,15 @@ acpi_ex_system_io_space_handler (
 	switch (function) {
 	case ACPI_READ:
 
-		status = acpi_os_read_port ((acpi_io_address) address, &value32, bit_width);
+		status = acpi_os_read_port ((acpi_io_address) address,
+				 &value32, bit_width);
 		*value = value32;
 		break;
 
 	case ACPI_WRITE:
 
-		status = acpi_os_write_port ((acpi_io_address) address, (u32) *value, bit_width);
+		status = acpi_os_write_port ((acpi_io_address) address,
+				 (u32) *value, bit_width);
 		break;
 
 	default:
@@ -375,12 +382,14 @@ acpi_ex_pci_config_space_handler (
 	case ACPI_READ:
 
 		*value = 0;
-		status = acpi_os_read_pci_configuration (pci_id, pci_register, value, bit_width);
+		status = acpi_os_read_pci_configuration (pci_id, pci_register,
+				 value, bit_width);
 		break;
 
 	case ACPI_WRITE:
 
-		status = acpi_os_write_pci_configuration (pci_id, pci_register, *value, bit_width);
+		status = acpi_os_write_pci_configuration (pci_id, pci_register,
+				 *value, bit_width);
 		break;
 
 	default:
@@ -505,8 +514,7 @@ acpi_ex_data_table_space_handler (
 
 	logical_addr_ptr = ACPI_PHYSADDR_TO_PTR (address);
 
-
-   /* Perform the memory read or write */
+	/* Perform the memory read or write */
 
 	switch (function) {
 	case ACPI_READ:

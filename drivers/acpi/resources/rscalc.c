@@ -81,9 +81,8 @@ acpi_rs_get_byte_stream_length (
 
 
 	while (!done) {
-		/*
-		 * Init the variable that will hold the size to add to the total.
-		 */
+		/* Init the variable that will hold the size to add to the total. */
+
 		segment_size = 0;
 
 		switch (linked_list->id) {
@@ -196,7 +195,8 @@ acpi_rs_get_byte_stream_length (
 			segment_size = 16;
 
 			if (linked_list->data.address16.resource_source.string_ptr) {
-				segment_size += linked_list->data.address16.resource_source.string_length;
+				segment_size +=
+					linked_list->data.address16.resource_source.string_length;
 				segment_size++;
 			}
 			break;
@@ -212,7 +212,8 @@ acpi_rs_get_byte_stream_length (
 			segment_size = 26;
 
 			if (linked_list->data.address32.resource_source.string_ptr) {
-				segment_size += linked_list->data.address32.resource_source.string_length;
+				segment_size +=
+					linked_list->data.address32.resource_source.string_length;
 				segment_size++;
 			}
 			break;
@@ -227,7 +228,8 @@ acpi_rs_get_byte_stream_length (
 			segment_size = 46;
 
 			if (linked_list->data.address64.resource_source.string_ptr) {
-				segment_size += linked_list->data.address64.resource_source.string_length;
+				segment_size +=
+					linked_list->data.address64.resource_source.string_length;
 				segment_size++;
 			}
 			break;
@@ -241,38 +243,36 @@ acpi_rs_get_byte_stream_length (
 			 * Index + the length of the null terminated string
 			 * Resource Source + 1 for the null.
 			 */
-			segment_size = 9 +
-				(((acpi_size) linked_list->data.extended_irq.number_of_interrupts - 1) * 4);
+			segment_size = 9 + (((acpi_size)
+				linked_list->data.extended_irq.number_of_interrupts - 1) * 4);
 
 			if (linked_list->data.extended_irq.resource_source.string_ptr) {
-				segment_size += linked_list->data.extended_irq.resource_source.string_length;
+				segment_size +=
+					linked_list->data.extended_irq.resource_source.string_length;
 				segment_size++;
 			}
 			break;
 
 		default:
-			/*
-			 * If we get here, everything is out of sync, exit with error
-			 */
+
+			/* If we get here, everything is out of sync, exit with error */
+
 			return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
 
 		} /* switch (linked_list->Id) */
 
-		/*
-		 * Update the total
-		 */
+		/* Update the total */
+
 		byte_stream_size_needed += segment_size;
 
-		/*
-		 * Point to the next object
-		 */
+		/* Point to the next object */
+
 		linked_list = ACPI_PTR_ADD (struct acpi_resource,
 				  linked_list, linked_list->length);
 	}
 
-	/*
-	 * This is the data the caller needs
-	 */
+	/* This is the data the caller needs */
+
 	*size_needed = byte_stream_size_needed;
 	return_ACPI_STATUS (AE_OK);
 }
@@ -320,9 +320,8 @@ acpi_rs_get_list_length (
 
 
 	while (bytes_parsed < byte_stream_buffer_length) {
-		/*
-		 * The next byte in the stream is the resource type
-		 */
+		/* The next byte in the stream is the resource type */
+
 		resource_type = acpi_rs_get_resource_type (*byte_stream_buffer);
 
 		switch (resource_type) {
@@ -346,9 +345,8 @@ acpi_rs_get_list_length (
 			ACPI_MOVE_16_TO_16 (&temp16, buffer);
 			bytes_consumed = temp16 + 3;
 
-			/*
-			 * Ensure a 32-bit boundary for the structure
-			 */
+			/* Ensure a 32-bit boundary for the structure */
+
 			temp16 = (u16) ACPI_ROUND_UP_to_32_bITS (temp16);
 
 			structure_size = ACPI_SIZEOF_RESOURCE (struct acpi_resource_vendor) +
@@ -416,9 +414,8 @@ acpi_rs_get_list_length (
 				temp8 = 0;
 			}
 
-			/*
-			 * Ensure a 64-bit boundary for the structure
-			 */
+			/* Ensure a 64-bit boundary for the structure */
+
 			temp8 = (u8) ACPI_ROUND_UP_to_64_bITS (temp8);
 
 			structure_size = ACPI_SIZEOF_RESOURCE (struct acpi_resource_address64) +
@@ -452,9 +449,8 @@ acpi_rs_get_list_length (
 				temp8 = 0;
 			}
 
-			/*
-			 * Ensure a 32-bit boundary for the structure
-			 */
+			/* Ensure a 32-bit boundary for the structure */
+
 			temp8 = (u8) ACPI_ROUND_UP_to_32_bITS (temp8);
 
 			structure_size = ACPI_SIZEOF_RESOURCE (struct acpi_resource_address32) +
@@ -488,9 +484,8 @@ acpi_rs_get_list_length (
 				temp8 = 0;
 			}
 
-			/*
-			 * Ensure a 32-bit boundary for the structure
-			 */
+			/* Ensure a 32-bit boundary for the structure */
+
 			temp8 = (u8) ACPI_ROUND_UP_to_32_bITS (temp8);
 
 			structure_size = ACPI_SIZEOF_RESOURCE (struct acpi_resource_address16) +
@@ -537,9 +532,8 @@ acpi_rs_get_list_length (
 				temp8 = 0;
 			}
 
-			/*
-			 * Ensure a 32-bit boundary for the structure
-			 */
+			/* Ensure a 32-bit boundary for the structure */
+
 			temp8 = (u8) ACPI_ROUND_UP_to_32_bITS (temp8);
 
 			structure_size = ACPI_SIZEOF_RESOURCE (struct acpi_resource_ext_irq) +
@@ -567,9 +561,8 @@ acpi_rs_get_list_length (
 
 			++buffer;
 
-			/*
-			 * Look at the number of bits set
-			 */
+			/* Look at the number of bits set */
+
 			ACPI_MOVE_16_TO_16 (&temp16, buffer);
 
 			for (index = 0; index < 16; index++) {
@@ -596,9 +589,8 @@ acpi_rs_get_list_length (
 
 			++buffer;
 
-			/*
-			 * Look at the number of bits set
-			 */
+			/* Look at the number of bits set */
+
 			temp8 = *buffer;
 
 			for(index = 0; index < 8; index++) {
@@ -670,9 +662,8 @@ acpi_rs_get_list_length (
 			temp8 = (u8) (temp8 & 0x7);
 			bytes_consumed = temp8 + 1;
 
-			/*
-			 * Ensure a 32-bit boundary for the structure
-			 */
+			/* Ensure a 32-bit boundary for the structure */
+
 			temp8 = (u8) ACPI_ROUND_UP_to_32_bITS (temp8);
 			structure_size = ACPI_SIZEOF_RESOURCE (struct acpi_resource_vendor) +
 					   (temp8 * sizeof (u8));
@@ -697,21 +688,18 @@ acpi_rs_get_list_length (
 			return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
 		}
 
-		/*
-		 * Update the return value and counter
-		 */
+		/* Update the return value and counter */
+
 		buffer_size += (u32) ACPI_ALIGN_RESOURCE_SIZE (structure_size);
 		bytes_parsed += bytes_consumed;
 
-		/*
-		 * Set the byte stream to point to the next resource
-		 */
+		/* Set the byte stream to point to the next resource */
+
 		byte_stream_buffer += bytes_consumed;
 	}
 
-	/*
-	 * This is the data the caller needs
-	 */
+	/* This is the data the caller needs */
+
 	*size_needed = buffer_size;
 	return_ACPI_STATUS (AE_OK);
 }
@@ -767,9 +755,8 @@ acpi_rs_get_pci_routing_table_length (
 	top_object_list = package_object->package.elements;
 
 	for (index = 0; index < number_of_elements; index++) {
-		/*
-		 * Dereference the sub-package
-		 */
+		/* Dereference the sub-package */
+
 		package_element = *top_object_list;
 
 		/*
@@ -778,37 +765,40 @@ acpi_rs_get_pci_routing_table_length (
 		 */
 		sub_object_list = package_element->package.elements;
 
-		/*
-		 * Scan the irq_table_elements for the Source Name String
-		 */
+		/* Scan the irq_table_elements for the Source Name String */
+
 		name_found = FALSE;
 
 		for (table_index = 0; table_index < 4 && !name_found; table_index++) {
-			if ((ACPI_TYPE_STRING == ACPI_GET_OBJECT_TYPE (*sub_object_list)) ||
-				((ACPI_TYPE_LOCAL_REFERENCE == ACPI_GET_OBJECT_TYPE (*sub_object_list)) &&
-					((*sub_object_list)->reference.opcode == AML_INT_NAMEPATH_OP))) {
+			if ((ACPI_TYPE_STRING ==
+					ACPI_GET_OBJECT_TYPE (*sub_object_list)) ||
+
+				((ACPI_TYPE_LOCAL_REFERENCE ==
+					ACPI_GET_OBJECT_TYPE (*sub_object_list)) &&
+
+					((*sub_object_list)->reference.opcode ==
+						AML_INT_NAMEPATH_OP))) {
 				name_found = TRUE;
 			}
 			else {
-				/*
-				 * Look at the next element
-				 */
+				/* Look at the next element */
+
 				sub_object_list++;
 			}
 		}
 
 		temp_size_needed += (sizeof (struct acpi_pci_routing_table) - 4);
 
-		/*
-		 * Was a String type found?
-		 */
+		/* Was a String type found? */
+
 		if (name_found) {
 			if (ACPI_GET_OBJECT_TYPE (*sub_object_list) == ACPI_TYPE_STRING) {
 				/*
 				 * The length String.Length field does not include the
 				 * terminating NULL, add 1
 				 */
-				temp_size_needed += ((acpi_size) (*sub_object_list)->string.length + 1);
+				temp_size_needed += ((acpi_size)
+					(*sub_object_list)->string.length + 1);
 			}
 			else {
 				temp_size_needed += acpi_ns_get_pathname_length (
@@ -827,14 +817,14 @@ acpi_rs_get_pci_routing_table_length (
 
 		temp_size_needed = ACPI_ROUND_UP_to_64_bITS (temp_size_needed);
 
-		/*
-		 * Point to the next union acpi_operand_object
-		 */
+		/* Point to the next union acpi_operand_object */
+
 		top_object_list++;
 	}
 
 	/*
-	 * Adding an extra element to the end of the list, essentially a NULL terminator
+	 * Adding an extra element to the end of the list, essentially a
+	 * NULL terminator
 	 */
 	*buffer_size_needed = temp_size_needed + sizeof (struct acpi_pci_routing_table);
 	return_ACPI_STATUS (AE_OK);

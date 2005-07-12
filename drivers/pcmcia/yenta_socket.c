@@ -1105,6 +1105,7 @@ static int yenta_dev_suspend (struct pci_dev *dev, pm_message_t state)
 		pci_save_state(dev);
 		pci_read_config_dword(dev, 16*4, &socket->saved_state[0]);
 		pci_read_config_dword(dev, 17*4, &socket->saved_state[1]);
+		pci_disable_device(dev);
 
 		/*
 		 * Some laptops (IBM T22) do not like us putting the Cardbus
@@ -1128,6 +1129,8 @@ static int yenta_dev_resume (struct pci_dev *dev)
 		pci_restore_state(dev);
 		pci_write_config_dword(dev, 16*4, socket->saved_state[0]);
 		pci_write_config_dword(dev, 17*4, socket->saved_state[1]);
+		pci_enable_device(dev);
+		pci_set_master(dev);
 
 		if (socket->type && socket->type->restore_state)
 			socket->type->restore_state(socket);

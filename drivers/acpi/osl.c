@@ -71,6 +71,9 @@ EXPORT_SYMBOL(acpi_in_debugger);
 extern char line_buf[80];
 #endif /*ENABLE_DEBUGGER*/
 
+int acpi_specific_hotkey_enabled;
+EXPORT_SYMBOL(acpi_specific_hotkey_enabled);
+
 static unsigned int acpi_irq_irq;
 static acpi_osd_handler acpi_irq_handler;
 static void *acpi_irq_context;
@@ -1151,6 +1154,15 @@ acpi_wake_gpes_always_on_setup(char *str)
 }
 
 __setup("acpi_wake_gpes_always_on", acpi_wake_gpes_always_on_setup);
+
+int __init
+acpi_hotkey_setup(char *str)
+{
+	acpi_specific_hotkey_enabled = TRUE;
+	return 1;
+}
+
+__setup("acpi_specific_hotkey", acpi_hotkey_setup);
 
 /*
  * max_cstate is defined in the base kernel so modules can

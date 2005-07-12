@@ -58,11 +58,11 @@
  * FUNCTION:    acpi_evaluate_object_typed
  *
  * PARAMETERS:  Handle              - Object handle (optional)
- *              *Pathname           - Object pathname (optional)
- *              **external_params   - List of parameters to pass to method,
+ *              Pathname            - Object pathname (optional)
+ *              external_params     - List of parameters to pass to method,
  *                                    terminated by NULL.  May be NULL
  *                                    if no parameters are being passed.
- *              *return_buffer      - Where to put method's return value (if
+ *              return_buffer       - Where to put method's return value (if
  *                                    any).  If NULL, no value is returned.
  *              return_type         - Expected type of return object
  *
@@ -73,6 +73,7 @@
  *              be valid (non-null)
  *
  ******************************************************************************/
+
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_evaluate_object_typed (
@@ -307,7 +308,8 @@ acpi_evaluate_object (
 				if (ACPI_SUCCESS (status)) {
 					/* Validate/Allocate/Clear caller buffer */
 
-					status = acpi_ut_initialize_buffer (return_buffer, buffer_space_needed);
+					status = acpi_ut_initialize_buffer (return_buffer,
+							  buffer_space_needed);
 					if (ACPI_FAILURE (status)) {
 						/*
 						 * Caller's buffer is too small or a new one can't be allocated
@@ -423,7 +425,8 @@ acpi_walk_namespace (
 		return_ACPI_STATUS (status);
 	}
 
-	status = acpi_ns_walk_namespace (type, start_object, max_depth, ACPI_NS_WALK_UNLOCK,
+	status = acpi_ns_walk_namespace (type, start_object, max_depth,
+			  ACPI_NS_WALK_UNLOCK,
 			  user_function, context, return_value);
 
 	(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
@@ -525,7 +528,8 @@ acpi_ns_get_device_callback (
 		}
 	}
 
-	status = info->user_function (obj_handle, nesting_level, info->context, return_value);
+	status = info->user_function (obj_handle, nesting_level, info->context,
+			 return_value);
 	return (status);
 }
 

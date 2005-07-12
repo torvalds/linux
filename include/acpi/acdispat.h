@@ -50,40 +50,9 @@
 #define NAMEOF_ARG_NTE      "__A0"
 
 
-/* Common interfaces */
-
-acpi_status
-acpi_ds_obj_stack_push (
-	void                            *object,
-	struct acpi_walk_state          *walk_state);
-
-acpi_status
-acpi_ds_obj_stack_pop (
-	u32                             pop_count,
-	struct acpi_walk_state          *walk_state);
-
-#ifdef ACPI_FUTURE_USAGE
-void *
-acpi_ds_obj_stack_get_value (
-	u32                             index,
-	struct acpi_walk_state          *walk_state);
-#endif
-
-acpi_status
-acpi_ds_obj_stack_pop_object (
-	union acpi_operand_object       **object,
-	struct acpi_walk_state          *walk_state);
-
-
-/* dsopcode - support for late evaluation */
-
-acpi_status
-acpi_ds_execute_arguments (
-	struct acpi_namespace_node      *node,
-	struct acpi_namespace_node      *scope_node,
-	u32                             aml_length,
-	u8                              *aml_start);
-
+/*
+ * dsopcode - support for late evaluation
+ */
 acpi_status
 acpi_ds_get_buffer_field_arguments (
 	union acpi_operand_object       *obj_desc);
@@ -99,15 +68,6 @@ acpi_ds_get_buffer_arguments (
 acpi_status
 acpi_ds_get_package_arguments (
 	union acpi_operand_object       *obj_desc);
-
-acpi_status
-acpi_ds_init_buffer_field (
-	u16                             aml_opcode,
-	union acpi_operand_object       *obj_desc,
-	union acpi_operand_object       *buffer_desc,
-	union acpi_operand_object       *offset_desc,
-	union acpi_operand_object       *length_desc,
-	union acpi_operand_object       *result_desc);
 
 acpi_status
 acpi_ds_eval_buffer_field_operands (
@@ -130,9 +90,9 @@ acpi_ds_initialize_region (
 	acpi_handle                     obj_handle);
 
 
-/* dsctrl - Parser/Interpreter interface, control stack routines */
-
-
+/*
+ * dsctrl - Parser/Interpreter interface, control stack routines
+ */
 acpi_status
 acpi_ds_exec_begin_control_op (
 	struct acpi_walk_state          *walk_state,
@@ -144,9 +104,9 @@ acpi_ds_exec_end_control_op (
 	union acpi_parse_object         *op);
 
 
-/* dsexec - Parser/Interpreter interface, method execution callbacks */
-
-
+/*
+ * dsexec - Parser/Interpreter interface, method execution callbacks
+ */
 acpi_status
 acpi_ds_get_predicate_value (
 	struct acpi_walk_state          *walk_state,
@@ -162,14 +122,9 @@ acpi_ds_exec_end_op (
 	struct acpi_walk_state          *state);
 
 
-/* dsfield - Parser/Interpreter interface for AML fields */
-
-acpi_status
-acpi_ds_get_field_names (
-	struct acpi_create_field_info   *info,
-	struct acpi_walk_state          *walk_state,
-	union acpi_parse_object         *arg);
-
+/*
+ * dsfield - Parser/Interpreter interface for AML fields
+ */
 acpi_status
 acpi_ds_create_field (
 	union acpi_parse_object         *op,
@@ -199,8 +154,9 @@ acpi_ds_init_field_objects (
 	struct acpi_walk_state          *walk_state);
 
 
-/* dsload - Parser/Interpreter interface, namespace load callbacks */
-
+/*
+ * dsload - Parser/Interpreter interface, namespace load callbacks
+ */
 acpi_status
 acpi_ds_load1_begin_op (
 	struct acpi_walk_state          *walk_state,
@@ -225,9 +181,9 @@ acpi_ds_init_callbacks (
 	u32                             pass_number);
 
 
-/* dsmthdat - method data (locals/args) */
-
-
+/*
+ * dsmthdat - method data (locals/args)
+ */
 acpi_status
 acpi_ds_store_object_to_local (
 	u16                             opcode,
@@ -250,26 +206,12 @@ u8
 acpi_ds_is_method_value (
 	union acpi_operand_object       *obj_desc);
 
-#ifdef ACPI_FUTURE_USAGE
-acpi_object_type
-acpi_ds_method_data_get_type (
-	u16                             opcode,
-	u32                             index,
-	struct acpi_walk_state          *walk_state);
-#endif
-
 acpi_status
 acpi_ds_method_data_get_value (
 	u16                             opcode,
 	u32                             index,
 	struct acpi_walk_state          *walk_state,
 	union acpi_operand_object       **dest_desc);
-
-void
-acpi_ds_method_data_delete_value (
-	u16                             opcode,
-	u32                             index,
-	struct acpi_walk_state          *walk_state);
 
 acpi_status
 acpi_ds_method_data_init_args (
@@ -288,16 +230,10 @@ void
 acpi_ds_method_data_init (
 	struct acpi_walk_state          *walk_state);
 
-acpi_status
-acpi_ds_method_data_set_value (
-	u16                             opcode,
-	u32                             index,
-	union acpi_operand_object       *object,
-	struct acpi_walk_state          *walk_state);
 
-
-/* dsmethod - Parser/Interpreter interface - control method parsing */
-
+/*
+ * dsmethod - Parser/Interpreter interface - control method parsing
+ */
 acpi_status
 acpi_ds_parse_method (
 	acpi_handle                     obj_handle);
@@ -324,20 +260,18 @@ acpi_ds_begin_method_execution (
 	struct acpi_namespace_node      *calling_method_node);
 
 
-/* dsobj - Parser/Interpreter interface - object initialization and conversion */
-
-acpi_status
-acpi_ds_init_one_object (
-	acpi_handle                     obj_handle,
-	u32                             level,
-	void                            *context,
-	void                            **return_value);
-
+/*
+ * dsinit
+ */
 acpi_status
 acpi_ds_initialize_objects (
 	struct acpi_table_desc          *table_desc,
 	struct acpi_namespace_node      *start_node);
 
+
+/*
+ * dsobject - Parser/Interpreter interface - object initialization and conversion
+ */
 acpi_status
 acpi_ds_build_internal_buffer_obj (
 	struct acpi_walk_state          *walk_state,
@@ -353,12 +287,6 @@ acpi_ds_build_internal_package_obj (
 	union acpi_operand_object       **obj_desc);
 
 acpi_status
-acpi_ds_build_internal_object (
-	struct acpi_walk_state          *walk_state,
-	union acpi_parse_object         *op,
-	union acpi_operand_object       **obj_desc_ptr);
-
-acpi_status
 acpi_ds_init_object_from_op (
 	struct acpi_walk_state          *walk_state,
 	union acpi_parse_object         *op,
@@ -372,8 +300,9 @@ acpi_ds_create_node (
 	union acpi_parse_object         *op);
 
 
-/* dsutils - Parser/Interpreter interface utility routines */
-
+/*
+ * dsutils - Parser/Interpreter interface utility routines
+ */
 void
 acpi_ds_clear_implicit_return (
 	struct acpi_walk_state          *walk_state);
@@ -418,7 +347,6 @@ acpi_ds_clear_operands (
 /*
  * dswscope - Scope Stack manipulation
  */
-
 acpi_status
 acpi_ds_scope_stack_push (
 	struct acpi_namespace_node      *node,
@@ -435,7 +363,18 @@ acpi_ds_scope_stack_clear (
 	struct acpi_walk_state          *walk_state);
 
 
-/* dswstate - parser WALK_STATE management routines */
+/*
+ * dswstate - parser WALK_STATE management routines
+ */
+acpi_status
+acpi_ds_obj_stack_push (
+	void                            *object,
+	struct acpi_walk_state          *walk_state);
+
+acpi_status
+acpi_ds_obj_stack_pop (
+	u32                             pop_count,
+	struct acpi_walk_state          *walk_state);
 
 struct acpi_walk_state *
 acpi_ds_create_walk_state (
@@ -453,12 +392,6 @@ acpi_ds_init_aml_walk (
 	u32                             aml_length,
 	struct acpi_parameter_info      *info,
 	u32                             pass_number);
-
-#ifdef ACPI_FUTURE_USAGE
-acpi_status
-acpi_ds_obj_stack_delete_all (
-	struct acpi_walk_state          *walk_state);
-#endif
 
 acpi_status
 acpi_ds_obj_stack_pop_and_delete (
@@ -494,19 +427,7 @@ struct acpi_walk_state *
 acpi_ds_get_current_walk_state (
 	struct acpi_thread_state        *thread);
 
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-void
-acpi_ds_delete_walk_state_cache (
-	void);
-#endif
-
 #ifdef ACPI_FUTURE_USAGE
-acpi_status
-acpi_ds_result_insert (
-	void                            *object,
-	u32                             index,
-	struct acpi_walk_state          *walk_state);
-
 acpi_status
 acpi_ds_result_remove (
 	union acpi_operand_object       **object,
@@ -528,5 +449,11 @@ acpi_status
 acpi_ds_result_pop_from_bottom (
 	union acpi_operand_object       **object,
 	struct acpi_walk_state          *walk_state);
+
+#ifdef ACPI_ENABLE_OBJECT_CACHE
+void
+acpi_ds_delete_walk_state_cache (
+	void);
+#endif
 
 #endif /* _ACDISPAT_H_ */

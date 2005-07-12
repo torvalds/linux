@@ -75,6 +75,14 @@
  * fully resolved operands.
 !*/
 
+/* Local prototypes */
+
+static u8
+acpi_ex_do_match (
+	u32                             match_op,
+	union acpi_operand_object       *package_obj,
+	union acpi_operand_object       *match_obj);
+
 
 /*******************************************************************************
  *
@@ -92,7 +100,7 @@
  *
  ******************************************************************************/
 
-u8
+static u8
 acpi_ex_do_match (
 	u32                             match_op,
 	union acpi_operand_object       *package_obj,
@@ -216,11 +224,12 @@ acpi_ex_opcode_6A_0T_1R (
 	union acpi_operand_object       **operand = &walk_state->operands[0];
 	union acpi_operand_object       *return_desc = NULL;
 	acpi_status                     status = AE_OK;
-	u32                             index;
+	acpi_integer                    index;
 	union acpi_operand_object       *this_element;
 
 
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_6A_0T_1R", acpi_ps_get_opcode_name (walk_state->opcode));
+	ACPI_FUNCTION_TRACE_STR ("ex_opcode_6A_0T_1R",
+		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
 	switch (walk_state->opcode) {
@@ -241,9 +250,11 @@ acpi_ex_opcode_6A_0T_1R (
 
 		/* Get the package start_index, validate against the package length */
 
-		index = (u32) operand[5]->integer.value;
-		if (index >= (u32) operand[0]->package.count) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Index beyond package end\n"));
+		index = operand[5]->integer.value;
+		if (index >= operand[0]->package.count) {
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"Index (%X%8.8X) beyond package end (%X)\n",
+				ACPI_FORMAT_UINT64 (index), operand[0]->package.count));
 			status = AE_AML_PACKAGE_LIMIT;
 			goto cleanup;
 		}
@@ -314,12 +325,11 @@ acpi_ex_opcode_6A_0T_1R (
 
 	default:
 
-		ACPI_REPORT_ERROR (("acpi_ex_opcode_3A_0T_0R: Unknown opcode %X\n",
+		ACPI_REPORT_ERROR (("acpi_ex_opcode_6A_0T_1R: Unknown opcode %X\n",
 				walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
-
 
 	walk_state->result_obj = return_desc;
 

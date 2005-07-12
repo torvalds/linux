@@ -198,6 +198,7 @@
 #endif
 #endif /* !DEBUGGER_THREADING */
 
+
 /******************************************************************************
  *
  * C library configuration
@@ -209,7 +210,6 @@
  * Use the standard C library headers.
  * We want to keep these to a minimum.
  */
-
 #ifdef ACPI_USE_STANDARD_HEADERS
 /*
  * Use the standard headers from the standard locations
@@ -224,14 +224,8 @@
 /*
  * We will be linking to the standard Clib functions
  */
-
 #define ACPI_STRSTR(s1,s2)      strstr((s1), (s2))
 #define ACPI_STRCHR(s1,c)       strchr((s1), (c))
-
-#ifdef ACPI_FUTURE_USAGE
-#define ACPI_STRUPR(s)          (void) acpi_ut_strupr ((s))
-#endif
-
 #define ACPI_STRLEN(s)          (acpi_size) strlen((s))
 #define ACPI_STRCPY(d,s)        (void) strcpy((d), (s))
 #define ACPI_STRNCPY(d,s,n)     (void) strncpy((d), (s), (acpi_size)(n))
@@ -254,14 +248,15 @@
 #define ACPI_IS_ALPHA           isalpha
 #define ACPI_IS_ASCII           isascii
 
+#else
+
 /******************************************************************************
  *
  * Not using native C library, use local implementations
  *
  *****************************************************************************/
-#else
 
-/*
+ /*
  * Use local definitions of C library macros and functions
  * NOTE: The function implementations may not be as efficient
  * as an inline or assembly code implementation provided by a
@@ -278,14 +273,12 @@ typedef char *va_list;
 /*
  * Storage alignment properties
  */
-
 #define  _AUPBND                (sizeof (acpi_native_int) - 1)
 #define  _ADNBND                (sizeof (acpi_native_int) - 1)
 
 /*
  * Variable argument list macro definitions
  */
-
 #define _bnd(X, bnd)            (((sizeof (X)) + (bnd)) & (~(bnd)))
 #define va_arg(ap, T)           (*(T *)(((ap) += (_bnd (T, _AUPBND))) - (_bnd (T,_ADNBND))))
 #define va_end(ap)              (void) 0
@@ -296,11 +289,6 @@ typedef char *va_list;
 
 #define ACPI_STRSTR(s1,s2)      acpi_ut_strstr ((s1), (s2))
 #define ACPI_STRCHR(s1,c)       acpi_ut_strchr ((s1), (c))
-
-#ifdef ACPI_FUTURE_USAGE
-#define ACPI_STRUPR(s)          (void) acpi_ut_strupr ((s))
-#endif
-
 #define ACPI_STRLEN(s)          (acpi_size) acpi_ut_strlen ((s))
 #define ACPI_STRCPY(d,s)        (void) acpi_ut_strcpy ((d), (s))
 #define ACPI_STRNCPY(d,s,n)     (void) acpi_ut_strncpy ((d), (s), (acpi_size)(n))

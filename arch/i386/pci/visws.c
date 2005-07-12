@@ -21,7 +21,7 @@ static int pci_visws_enable_irq(struct pci_dev *dev) { return 0; }
 
 int (*pcibios_enable_irq)(struct pci_dev *dev) = &pci_visws_enable_irq;
 
-void __init pcibios_penalize_isa_irq(int irq) {}
+void __init pcibios_penalize_isa_irq(int irq, int active) {}
 
 
 unsigned int pci_bus0, pci_bus1;

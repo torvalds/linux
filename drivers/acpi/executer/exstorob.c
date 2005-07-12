@@ -128,7 +128,8 @@ acpi_ex_store_buffer_to_buffer (
 	else {
 		/* Truncate the source, copy only what will fit */
 
-		ACPI_MEMCPY (target_desc->buffer.pointer, buffer, target_desc->buffer.length);
+		ACPI_MEMCPY (target_desc->buffer.pointer, buffer,
+			target_desc->buffer.length);
 
 		ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
 			"Truncating source buffer from %X to %X\n",
@@ -183,7 +184,8 @@ acpi_ex_store_string_to_string (
 		 * String will fit in existing non-static buffer.
 		 * Clear old string and copy in the new one
 		 */
-		ACPI_MEMSET (target_desc->string.pointer, 0, (acpi_size) target_desc->string.length + 1);
+		ACPI_MEMSET (target_desc->string.pointer, 0,
+			(acpi_size) target_desc->string.length + 1);
 		ACPI_MEMCPY (target_desc->string.pointer, buffer, length);
 	}
 	else {
@@ -198,7 +200,8 @@ acpi_ex_store_string_to_string (
 			ACPI_MEM_FREE (target_desc->string.pointer);
 		}
 
-		target_desc->string.pointer = ACPI_MEM_CALLOCATE ((acpi_size) length + 1);
+		target_desc->string.pointer = ACPI_MEM_CALLOCATE (
+				   (acpi_size) length + 1);
 		if (!target_desc->string.pointer) {
 			return_ACPI_STATUS (AE_NO_MEMORY);
 		}

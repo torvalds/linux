@@ -55,7 +55,7 @@
  *
  * PARAMETERS:  resource_start_byte     - Byte 0 of a resource descriptor
  *
- * RETURN:      The Resource Type (Name) with no extraneous bits
+ * RETURN:      The Resource Type with no extraneous bits
  *
  * DESCRIPTION: Extract the Resource Type/Name from the first byte of
  *              a resource descriptor.
@@ -70,28 +70,25 @@ acpi_rs_get_resource_type (
 	ACPI_FUNCTION_ENTRY ();
 
 
-	/*
-	 * Determine if this is a small or large resource
-	 */
+	/* Determine if this is a small or large resource */
+
 	switch (resource_start_byte & ACPI_RDESC_TYPE_MASK) {
 	case ACPI_RDESC_TYPE_SMALL:
 
-		/*
-		 * Small Resource Type -- Only bits 6:3 are valid
-		 */
+		/* Small Resource Type -- Only bits 6:3 are valid */
+
 		return ((u8) (resource_start_byte & ACPI_RDESC_SMALL_MASK));
 
 
 	case ACPI_RDESC_TYPE_LARGE:
 
-		/*
-		 * Large Resource Type -- All bits are valid
-		 */
+		/* Large Resource Type -- All bits are valid */
+
 		return (resource_start_byte);
 
 
 	default:
-		/* No other types of resource descriptor */
+		/* Invalid type */
 		break;
 	}
 
@@ -135,9 +132,8 @@ acpi_rs_byte_stream_to_list (
 
 	while (bytes_parsed < byte_stream_buffer_length &&
 			!end_tag_processed) {
-		/*
-		 * The next byte in the stream is the resource type
-		 */
+		/* The next byte in the stream is the resource type */
+
 		resource_type = acpi_rs_get_resource_type (*byte_stream_buffer);
 
 		switch (resource_type) {
@@ -299,28 +295,23 @@ acpi_rs_byte_stream_to_list (
 			return_ACPI_STATUS (status);
 		}
 
-		/*
-		 * Update the return value and counter
-		 */
+		/* Update the return value and counter */
+
 		bytes_parsed += bytes_consumed;
 
-		/*
-		 * Set the byte stream to point to the next resource
-		 */
+		/* Set the byte stream to point to the next resource */
+
 		byte_stream_buffer += bytes_consumed;
 
-		/*
-		 * Set the Buffer to the next structure
-		 */
+		/* Set the Buffer to the next structure */
+
 		resource = ACPI_CAST_PTR (struct acpi_resource, buffer);
 		resource->length = (u32) ACPI_ALIGN_RESOURCE_SIZE (resource->length);
 		buffer += ACPI_ALIGN_RESOURCE_SIZE (structure_size);
+	}
 
-	} /*  end while */
+	/* Check the reason for exiting the while loop */
 
-	/*
-	 * Check the reason for exiting the while loop
-	 */
 	if (!end_tag_processed) {
 		return_ACPI_STATUS (AE_AML_NO_RESOURCE_END_TAG);
 	}
@@ -424,9 +415,8 @@ acpi_rs_list_to_byte_stream (
 			 */
 			status = acpi_rs_end_tag_stream (linked_list, &buffer, &bytes_consumed);
 
-			/*
-			 * An End Tag indicates the end of the Resource Template
-			 */
+			/* An End Tag indicates the end of the Resource Template */
+
 			done = TRUE;
 			break;
 
@@ -488,27 +478,25 @@ acpi_rs_list_to_byte_stream (
 		default:
 			/*
 			 * If we get here, everything is out of sync,
-			 *  so exit with an error
+			 * so exit with an error
 			 */
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid descriptor type (%X) in resource list\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"Invalid descriptor type (%X) in resource list\n",
 				linked_list->id));
 			status = AE_BAD_DATA;
 			break;
-
-		} /* switch (linked_list->Id) */
+		}
 
 		if (ACPI_FAILURE (status)) {
 			return_ACPI_STATUS (status);
 		}
 
-		/*
-		 * Set the Buffer to point to the open byte
-		 */
+		/* Set the Buffer to point to the open byte */
+
 		buffer += bytes_consumed;
 
-		/*
-		 * Point to the next object
-		 */
+		/* Point to the next object */
+
 		linked_list = ACPI_PTR_ADD (struct acpi_resource,
 				  linked_list, linked_list->length);
 	}

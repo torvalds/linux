@@ -375,7 +375,7 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 	arg0.buffer.pointer = (u8 *) arg0_buf;
 	arg0_buf[0] = ACPI_PDC_REVISION_ID;
 	arg0_buf[1] = 1;
-	arg0_buf[2] = ACPI_PDC_EST_CAPABILITY_SMP | ACPI_PDC_EST_CAPABILITY_MSR;
+	arg0_buf[2] = ACPI_PDC_EST_CAPABILITY_SMP_MSR;
 
 	p.pdc = &arg_list;
 

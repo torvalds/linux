@@ -52,19 +52,33 @@
 #define _COMPONENT          ACPI_NAMESPACE
 	 ACPI_MODULE_NAME    ("nseval")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ns_execute_control_method (
+	struct acpi_parameter_info      *info);
+
+static acpi_status
+acpi_ns_get_object_value (
+	struct acpi_parameter_info      *info);
+
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_evaluate_relative
  *
- * PARAMETERS:  Pathname            - Name of method to execute, If NULL, the
- *                                    handle is the object to execute
- *              Info                - Method info block
+ * PARAMETERS:  Pathname        - Name of method to execute, If NULL, the
+ *                                handle is the object to execute
+ *              Info            - Method info block, contains:
+ *                  return_object   - Where to put method's return value (if
+ *                                    any).  If NULL, no value is returned.
+ *                  Params          - List of parameters to pass to the method,
+ *                                    terminated by NULL.  Params itself may be
+ *                                    NULL if no parameters are being passed.
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Find and execute the requested method using the handle as a
- *              scope
+ * DESCRIPTION: Evaluate the object or find and execute the requested method
  *
  * MUTEX:       Locks Namespace
  *
@@ -157,8 +171,8 @@ cleanup1:
  *
  * FUNCTION:    acpi_ns_evaluate_by_name
  *
- * PARAMETERS:  Pathname            - Fully qualified pathname to the object
- *              Info                - Contains:
+ * PARAMETERS:  Pathname        - Fully qualified pathname to the object
+ *              Info                - Method info block, contains:
  *                  return_object   - Where to put method's return value (if
  *                                    any).  If NULL, no value is returned.
  *                  Params          - List of parameters to pass to the method,
@@ -167,8 +181,8 @@ cleanup1:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Find and execute the requested method passing the given
- *              parameters
+ * DESCRIPTION: Evaluate the object or rind and execute the requested method
+ *              passing the given parameters
  *
  * MUTEX:       Locks Namespace
  *
@@ -241,17 +255,21 @@ cleanup:
  *
  * FUNCTION:    acpi_ns_evaluate_by_handle
  *
- * PARAMETERS:  Handle              - Method Node to execute
- *              Params              - List of parameters to pass to the method,
- *                                    terminated by NULL.  Params itself may be
+ * PARAMETERS:  Info            - Method info block, contains:
+ *                  Node            - Method/Object Node to execute
+ *                  Parameters      - List of parameters to pass to the method,
+ *                                    terminated by NULL. Params itself may be
  *                                    NULL if no parameters are being passed.
- *              param_type          - Type of Parameter list
- *              return_object       - Where to put method's return value (if
- *                                    any).  If NULL, no value is returned.
+ *                  return_object   - Where to put method's return value (if
+ *                                    any). If NULL, no value is returned.
+ *                  parameter_type  - Type of Parameter list
+ *                  return_object   - Where to put method's return value (if
+ *                                    any). If NULL, no value is returned.
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute the requested method passing the given parameters
+ * DESCRIPTION: Evaluate object or execute the requested method passing the
+ *              given parameters
  *
  * MUTEX:       Locks Namespace
  *
@@ -345,7 +363,16 @@ acpi_ns_evaluate_by_handle (
  *
  * FUNCTION:    acpi_ns_execute_control_method
  *
- * PARAMETERS:  Info            - Method info block (w/params)
+ * PARAMETERS:  Info            - Method info block, contains:
+ *                  Node            - Method Node to execute
+ *                  Parameters      - List of parameters to pass to the method,
+ *                                    terminated by NULL. Params itself may be
+ *                                    NULL if no parameters are being passed.
+ *                  return_object   - Where to put method's return value (if
+ *                                    any). If NULL, no value is returned.
+ *                  parameter_type  - Type of Parameter list
+ *                  return_object   - Where to put method's return value (if
+ *                                    any). If NULL, no value is returned.
  *
  * RETURN:      Status
  *
@@ -355,7 +382,7 @@ acpi_ns_evaluate_by_handle (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ns_execute_control_method (
 	struct acpi_parameter_info      *info)
 {
@@ -414,7 +441,10 @@ acpi_ns_execute_control_method (
  *
  * FUNCTION:    acpi_ns_get_object_value
  *
- * PARAMETERS:  Info            - Method info block (w/params)
+ * PARAMETERS:  Info            - Method info block, contains:
+ *                  Node            - Object's NS node
+ *                  return_object   - Where to put object value (if
+ *                                    any). If NULL, no value is returned.
  *
  * RETURN:      Status
  *
@@ -424,7 +454,7 @@ acpi_ns_execute_control_method (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ns_get_object_value (
 	struct acpi_parameter_info      *info)
 {

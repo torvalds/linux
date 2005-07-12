@@ -49,6 +49,19 @@
 #define _COMPONENT          ACPI_TABLES
 	 ACPI_MODULE_NAME    ("tbgetall")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_tb_get_primary_table (
+	struct acpi_pointer             *address,
+	struct acpi_table_desc          *table_info);
+
+static acpi_status
+acpi_tb_get_secondary_table (
+	struct acpi_pointer             *address,
+	acpi_string                     signature,
+	struct acpi_table_desc          *table_info);
+
 
 /*******************************************************************************
  *
@@ -63,7 +76,7 @@
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_tb_get_primary_table (
 	struct acpi_pointer             *address,
 	struct acpi_table_desc          *table_info)
@@ -81,9 +94,8 @@ acpi_tb_get_primary_table (
 		return_ACPI_STATUS (AE_OK);
 	}
 
-	/*
-	 * Get the header in order to get signature and table size
-	 */
+	/* Get the header in order to get signature and table size */
+
 	status = acpi_tb_get_table_header (address, &header);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
@@ -130,7 +142,7 @@ acpi_tb_get_primary_table (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_tb_get_secondary_table (
 	struct acpi_pointer             *address,
 	acpi_string                     signature,
@@ -153,7 +165,8 @@ acpi_tb_get_secondary_table (
 	/* Signature must match request */
 
 	if (ACPI_STRNCMP (header.signature, signature, ACPI_NAME_SIZE)) {
-		ACPI_REPORT_ERROR (("Incorrect table signature - wanted [%s] found [%4.4s]\n",
+		ACPI_REPORT_ERROR ((
+			"Incorrect table signature - wanted [%s] found [%4.4s]\n",
 			signature, header.signature));
 		return_ACPI_STATUS (AE_BAD_SIGNATURE);
 	}
@@ -230,7 +243,8 @@ acpi_tb_get_required_tables (
 	for (i = 0; i < acpi_gbl_rsdt_table_count; i++) {
 		/* Get the table address from the common internal XSDT */
 
-		address.pointer.value = acpi_gbl_XSDT->table_offset_entry[i];
+		address.pointer.value =
+				  acpi_gbl_XSDT->table_offset_entry[i];
 
 		/*
 		 * Get the tables needed by this subsystem (FADT and any SSDTs).
@@ -252,18 +266,18 @@ acpi_tb_get_required_tables (
 	}
 
 	/*
-	 * Convert the FADT to a common format.  This allows earlier revisions of the
-	 * table to coexist with newer versions, using common access code.
+	 * Convert the FADT to a common format.  This allows earlier revisions of
+	 * the table to coexist with newer versions, using common access code.
 	 */
 	status = acpi_tb_convert_table_fadt ();
 	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("Could not convert FADT to internal common format\n"));
+		ACPI_REPORT_ERROR ((
+			"Could not convert FADT to internal common format\n"));
 		return_ACPI_STATUS (status);
 	}
 
-	/*
-	 * Get the FACS (Pointed to by the FADT)
-	 */
+	/* Get the FACS (Pointed to by the FADT) */
+
 	address.pointer.value = acpi_gbl_FADT->xfirmware_ctrl;
 
 	status = acpi_tb_get_secondary_table (&address, FACS_SIG, &table_info);
@@ -282,9 +296,8 @@ acpi_tb_get_required_tables (
 		return_ACPI_STATUS (status);
 	}
 
-	/*
-	 * Get/install the DSDT (Pointed to by the FADT)
-	 */
+	/* Get/install the DSDT (Pointed to by the FADT) */
+
 	address.pointer.value = acpi_gbl_FADT->Xdsdt;
 
 	status = acpi_tb_get_secondary_table (&address, DSDT_SIG, &table_info);

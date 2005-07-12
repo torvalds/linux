@@ -57,13 +57,16 @@
  *
  * FUNCTION:    acpi_psx_execute
  *
- * PARAMETERS:  Info->Node          - A method object containing both the AML
- *                                    address and length.
- *              **Params            - List of parameters to pass to method,
+ * PARAMETERS:  Info            - Method info block, contains:
+ *                  Node            - Method Node to execute
+ *                  Parameters      - List of parameters to pass to the method,
  *                                    terminated by NULL. Params itself may be
  *                                    NULL if no parameters are being passed.
- *              **return_obj_desc   - Return object from execution of the
- *                                    method.
+ *                  return_object   - Where to put method's return value (if
+ *                                    any). If NULL, no value is returned.
+ *                  parameter_type  - Type of Parameter list
+ *                  return_object   - Where to put method's return value (if
+ *                                    any). If NULL, no value is returned.
  *
  * RETURN:      Status
  *
@@ -196,9 +199,8 @@ acpi_psx_execute (
 		goto cleanup3;
 	}
 
-	/*
-	 * The walk of the parse tree is where we actually execute the method
-	 */
+	/* The walk of the parse tree is where we actually execute the method */
+
 	status = acpi_ps_parse_aml (walk_state);
 	goto cleanup2; /* Walk state already deleted */
 
@@ -217,7 +219,8 @@ cleanup1:
 		for (i = 0; info->parameters[i]; i++) {
 			/* Ignore errors, just do them all */
 
-			(void) acpi_ut_update_object_reference (info->parameters[i], REF_DECREMENT);
+			(void) acpi_ut_update_object_reference (
+					 info->parameters[i], REF_DECREMENT);
 		}
 	}
 

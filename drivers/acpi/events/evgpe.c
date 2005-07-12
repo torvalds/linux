@@ -48,6 +48,12 @@
 #define _COMPONENT          ACPI_EVENTS
 	 ACPI_MODULE_NAME    ("evgpe")
 
+/* Local prototypes */
+
+static void ACPI_SYSTEM_XFACE
+acpi_ev_asynch_execute_gpe_method (
+	void                            *context);
+
 
 /*******************************************************************************
  *
@@ -335,8 +341,10 @@ acpi_ev_get_gpe_event_info (
 			gpe_block = acpi_gbl_gpe_fadt_blocks[i];
 			if (gpe_block) {
 				if ((gpe_number >= gpe_block->block_base_number) &&
-					(gpe_number < gpe_block->block_base_number + (gpe_block->register_count * 8))) {
-					return (&gpe_block->event_info[gpe_number - gpe_block->block_base_number]);
+					(gpe_number < gpe_block->block_base_number +
+						(gpe_block->register_count * 8))) {
+					return (&gpe_block->event_info[gpe_number -
+						gpe_block->block_base_number]);
 				}
 			}
 		}
@@ -437,7 +445,7 @@ acpi_ev_gpe_detect (
 				"Read GPE Register at GPE%X: Status=%02X, Enable=%02X\n",
 				gpe_register_info->base_gpe_number, status_reg, enable_reg));
 
-			/* First check if there is anything active at all in this register */
+			/* Check if there is anything active at all in this register */
 
 			enabled_status_byte = (u8) (status_reg & enable_reg);
 			if (!enabled_status_byte) {
@@ -457,8 +465,8 @@ acpi_ev_gpe_detect (
 					 * or method.
 					 */
 					int_status |= acpi_ev_gpe_dispatch (
-							  &gpe_block->event_info[(i * ACPI_GPE_REGISTER_WIDTH) + j],
-							  (u32) j + gpe_register_info->base_gpe_number);
+						&gpe_block->event_info[(i * ACPI_GPE_REGISTER_WIDTH) + j],
+						(u32) j + gpe_register_info->base_gpe_number);
 				}
 			}
 		}
@@ -523,7 +531,8 @@ acpi_ev_asynch_execute_gpe_method (
 	 * Take a snapshot of the GPE info for this level - we copy the
 	 * info to prevent a race condition with remove_handler/remove_block.
 	 */
-	ACPI_MEMCPY (&local_gpe_event_info, gpe_event_info, sizeof (struct acpi_gpe_event_info));
+	ACPI_MEMCPY (&local_gpe_event_info, gpe_event_info,
+		sizeof (struct acpi_gpe_event_info));
 
 	status = acpi_ut_release_mutex (ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE (status)) {
@@ -534,7 +543,8 @@ acpi_ev_asynch_execute_gpe_method (
 	 * Must check for control method type dispatch one more
 	 * time to avoid race with ev_gpe_install_handler
 	 */
-	if ((local_gpe_event_info.flags & ACPI_GPE_DISPATCH_MASK) == ACPI_GPE_DISPATCH_METHOD) {
+	if ((local_gpe_event_info.flags & ACPI_GPE_DISPATCH_MASK) ==
+			ACPI_GPE_DISPATCH_METHOD) {
 		/*
 		 * Invoke the GPE Method (_Lxx, _Exx) i.e., evaluate the _Lxx/_Exx
 		 * control method that corresponds to this GPE
@@ -553,7 +563,8 @@ acpi_ev_asynch_execute_gpe_method (
 		}
 	}
 
-	if ((local_gpe_event_info.flags & ACPI_GPE_XRUPT_TYPE_MASK) == ACPI_GPE_LEVEL_TRIGGERED) {
+	if ((local_gpe_event_info.flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
+			ACPI_GPE_LEVEL_TRIGGERED) {
 		/*
 		 * GPE is level-triggered, we clear the GPE status bit after
 		 * handling the event.
@@ -575,7 +586,7 @@ acpi_ev_asynch_execute_gpe_method (
  *
  * FUNCTION:    acpi_ev_gpe_dispatch
  *
- * PARAMETERS:  gpe_event_info  - info for this GPE
+ * PARAMETERS:  gpe_event_info  - Info for this GPE
  *              gpe_number      - Number relative to the parent GPE block
  *
  * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
@@ -602,10 +613,12 @@ acpi_ev_gpe_dispatch (
 	 * If edge-triggered, clear the GPE status bit now.  Note that
 	 * level-triggered events are cleared after the GPE is serviced.
 	 */
-	if ((gpe_event_info->flags & ACPI_GPE_XRUPT_TYPE_MASK) == ACPI_GPE_EDGE_TRIGGERED) {
+	if ((gpe_event_info->flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
+			ACPI_GPE_EDGE_TRIGGERED) {
 		status = acpi_hw_clear_gpe (gpe_event_info);
 		if (ACPI_FAILURE (status)) {
-			ACPI_REPORT_ERROR (("acpi_ev_gpe_dispatch: %s, Unable to clear GPE[%2X]\n",
+			ACPI_REPORT_ERROR ((
+				"acpi_ev_gpe_dispatch: %s, Unable to clear GPE[%2X]\n",
 				acpi_format_exception (status), gpe_number));
 			return_VALUE (ACPI_INTERRUPT_NOT_HANDLED);
 		}
@@ -639,7 +652,8 @@ acpi_ev_gpe_dispatch (
 
 		/* It is now safe to clear level-triggered events. */
 
-		if ((gpe_event_info->flags & ACPI_GPE_XRUPT_TYPE_MASK) == ACPI_GPE_LEVEL_TRIGGERED) {
+		if ((gpe_event_info->flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
+				ACPI_GPE_LEVEL_TRIGGERED) {
 			status = acpi_hw_clear_gpe (gpe_event_info);
 			if (ACPI_FAILURE (status)) {
 				ACPI_REPORT_ERROR ((
@@ -704,7 +718,6 @@ acpi_ev_gpe_dispatch (
 
 
 #ifdef ACPI_GPE_NOTIFY_CHECK
-
 /*******************************************************************************
  * TBD: NOT USED, PROTOTYPE ONLY AND WILL PROBABLY BE REMOVED
  *
