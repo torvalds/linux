@@ -772,7 +772,7 @@ static struct item_operations errcatch_ops = {
 //
 //
 #if ! (TYPE_STAT_DATA == 0 && TYPE_INDIRECT == 1 && TYPE_DIRECT == 2 && TYPE_DIRENTRY == 3)
-  do not compile
+#error Item types must use disk-format assigned values.
 #endif
 
 struct item_operations * item_ops [TYPE_ANY + 1] = {
