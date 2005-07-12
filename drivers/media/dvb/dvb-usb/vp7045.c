@@ -128,7 +128,7 @@ static struct dvb_usb_rc_key vp7045_rc_keys[] = {
 	{ 0x00, 0x0f, KEY_TEXT } /* Teletext */
 };
 
-static int vp7045_rc_query(struct dvb_usb_device *d, u32 *key_buf, int *state)
+static int vp7045_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 key;
 	int i;
@@ -144,7 +144,7 @@ static int vp7045_rc_query(struct dvb_usb_device *d, u32 *key_buf, int *state)
 	for (i = 0; i < sizeof(vp7045_rc_keys)/sizeof(struct dvb_usb_rc_key); i++)
 		if (vp7045_rc_keys[i].data == key) {
 			*state = REMOTE_KEY_PRESSED;
-			*key_buf = vp7045_rc_keys[i].event;
+			*event = vp7045_rc_keys[i].event;
 			break;
 		}
 	return 0;
