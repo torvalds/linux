@@ -931,6 +931,10 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 		if (!snap->valid)
 			continue;
 
+		/* Nothing to do if writing beyond end of snapshot */
+		if (bio->bi_sector >= dm_table_get_size(snap->table))
+			continue;
+
 		down_write(&snap->lock);
 
 		/*
