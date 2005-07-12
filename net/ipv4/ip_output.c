@@ -107,7 +107,6 @@ static int ip_dev_loopback_xmit(struct sk_buff *newskb)
 	newskb->pkt_type = PACKET_LOOPBACK;
 	newskb->ip_summed = CHECKSUM_UNNECESSARY;
 	BUG_TRAP(newskb->dst);
-	nf_reset(newskb);
 	netif_rx(newskb);
 	return 0;
 }
@@ -187,14 +186,6 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		kfree_skb(skb);
 		skb = skb2;
 	}
-
-#ifdef CONFIG_BRIDGE_NETFILTER
-	/* bridge-netfilter defers calling some IP hooks to the bridge layer
-	 * and still needs the conntrack reference.
-	 */
-	if (skb->nf_bridge == NULL)
-#endif
-		nf_reset(skb);
 
 	if (hh) {
 		int hh_alen;

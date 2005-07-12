@@ -274,6 +274,9 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct 
 	dst_release(skb->dst);
 	skb->dst = NULL;
 
+	/* drop conntrack reference */
+	nf_reset(skb);
+
 	spkt = (struct sockaddr_pkt*)skb->cb;
 
 	skb_push(skb, skb->data-skb->mac.raw);
@@ -516,6 +519,9 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,  struct packe
 	skb->dev = NULL;
 	dst_release(skb->dst);
 	skb->dst = NULL;
+
+	/* drop conntrack reference */
+	nf_reset(skb);
 
 	spin_lock(&sk->sk_receive_queue.lock);
 	po->stats.tp_packets++;
