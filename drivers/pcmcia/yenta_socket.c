@@ -539,13 +539,12 @@ static int yenta_sock_suspend(struct pcmcia_socket *sock)
 #define PCIBIOS_MIN_CARDBUS_IO PCIBIOS_MIN_IO
 #endif
 
-static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type)
+static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type, int addr_start, int addr_end)
 {
 	struct pci_bus *bus;
 	struct resource *root, *res;
 	u32 start, end;
 	u32 align, size, min;
-	unsigned offset;
 	unsigned mask;
 
 	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
@@ -558,13 +557,12 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 	if (type & IORESOURCE_IO)
 		mask = ~3;
 
-	offset = 0x1c + 8*nr;
 	bus = socket->dev->subordinate;
 	res->name = bus->name;
 	res->flags = type;
 
-	start = config_readl(socket, offset) & mask;
-	end = config_readl(socket, offset+4) | ~mask;
+	start = config_readl(socket, addr_start) & mask;
+	end = config_readl(socket, addr_end) | ~mask;
 	if (start && end > start && !override_bios) {
 		res->start = start;
 		res->end = end;
@@ -607,8 +605,8 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 	
 	do {
 		if (allocate_resource(root, res, size, start, end, align, NULL, NULL)==0) {
-			config_writel(socket, offset, res->start);
-			config_writel(socket, offset+4, res->end);
+			config_writel(socket, addr_start, res->start);
+			config_writel(socket, addr_end, res->end);
 			return;
 		}
 		size = size/2;
@@ -624,10 +622,14 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
  */
 static void yenta_allocate_resources(struct yenta_socket *socket)
 {
-	yenta_allocate_res(socket, 0, IORESOURCE_MEM|IORESOURCE_PREFETCH);
-	yenta_allocate_res(socket, 1, IORESOURCE_MEM);
-	yenta_allocate_res(socket, 2, IORESOURCE_IO);
-	yenta_allocate_res(socket, 3, IORESOURCE_IO);
+	yenta_allocate_res(socket, 0, IORESOURCE_IO,
+			   PCI_CB_IO_BASE_0, PCI_CB_IO_LIMIT_0);
+	yenta_allocate_res(socket, 1, IORESOURCE_IO,
+			   PCI_CB_IO_BASE_1, PCI_CB_IO_LIMIT_1);
+	yenta_allocate_res(socket, 2, IORESOURCE_MEM|IORESOURCE_PREFETCH,
+			   PCI_CB_MEMORY_BASE_0, PCI_CB_MEMORY_LIMIT_0);
+	yenta_allocate_res(socket, 3, IORESOURCE_MEM,
+			   PCI_CB_MEMORY_BASE_1, PCI_CB_MEMORY_LIMIT_1);
 }
 
 
