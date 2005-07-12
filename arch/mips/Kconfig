@@ -1055,6 +1055,21 @@ config CPU_MIPS32_R1
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_HAS_PREFETCH
 	help
+	  Choose this option to build a kernel for release 2 or later of the
+	  MIPS32 architecture.  Most modern embedded systems with a 32-bit
+	  MIPS processor are based on a MIPS32 processor.  If you know the
+	  specific type of processor in your system, choose those that one
+	  otherwise CPU_MIPS32_R1 is a safe bet for any MIPS32 system.
+	  Release 2 of the MIPS32 architecture is available since several
+	  years so chances are you even have a MIPS32 Release 2 processor
+	  in which case you should choose CPU_MIPS32_R2 instead for better
+	  performance.
+
+config CPU_MIPS32_R2
+	bool "MIPS32 Release 2"
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_HAS_PREFETCH
+	help
 	  Choose this option to build a kernel for release 1 or later of the
 	  MIPS32 architecture.  Most modern embedded systems with a 32-bit
 	  MIPS processor are based on a MIPS32 processor.  If you know the
@@ -1068,6 +1083,22 @@ config CPU_MIPS64_R1
 	select CPU_HAS_PREFETCH
 	help
 	  Choose this option to build a kernel for release 1 or later of the
+	  MIPS64 architecture.  Many modern embedded systems with a 64-bit
+	  MIPS processor are based on a MIPS64 processor.  If you know the
+	  specific type of processor in your system, choose those that one
+	  otherwise CPU_MIPS64_R1 is a safe bet for any MIPS64 system.
+	  Release 2 of the MIPS64 architecture is available since several
+	  years so chances are you even have a MIPS64 Release 2 processor
+	  in which case you should choose CPU_MIPS64_R2 instead for better
+	  performance.
+
+config CPU_MIPS64_R2
+	bool "MIPS64 Release 2"
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_HAS_PREFETCH
+	help
+	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS64 architecture.  Many modern embedded systems with a 64-bit
 	  MIPS processor are based on a MIPS64 processor.  If you know the
 	  specific type of processor in your system, choose those that one
