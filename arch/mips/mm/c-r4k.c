@@ -529,6 +529,7 @@ static void r4k_flush_icache_range(unsigned long __user start,
 	args.end = end;
 
 	on_each_cpu(local_r4k_flush_icache_range, &args, 1, 1);
+	instruction_hazard();
 }
 
 /*

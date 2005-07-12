@@ -228,6 +228,22 @@ __asm__(
 
 #endif
 
+#if defined(CONFIG_CPU_MIPS32_R2) || defined (CONFIG_CPU_MIPS64_R2)
+#define instruction_hazard()						\
+do {									\
+__label__ __next;							\
+	__asm__ __volatile__(						\
+	"	jr.hb	%0					\n"	\
+	:								\
+	: "r" (&&__next));						\
+__next:									\
+	;								\
+} while (0)
+
+#else
+#define instruction_hazard() do { } while (0)
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_HAZARDS_H */
