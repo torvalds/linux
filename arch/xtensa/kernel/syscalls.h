@@ -42,7 +42,7 @@ SYSCALL(sys_mknod, 3)
 SYSCALL(sys_chmod, 2)			/* 15 */
 SYSCALL(sys_lchown, 3)
 SYSCALL(sys_ni_syscall, 0)
-SYSCALL(sys_stat, 2)
+SYSCALL(sys_newstat, 2)
 SYSCALL(sys_lseek, 3)
 SYSCALL(sys_getpid, 0)			/* 20 */
 SYSCALL(sys_mount, 5)
@@ -52,7 +52,7 @@ SYSCALL(sys_getuid, 0)
 SYSCALL(sys_ni_syscall, 1)		/* 25 */
 SYSCALL(sys_ptrace, 4)
 SYSCALL(sys_ni_syscall, 1)
-SYSCALL(sys_fstat, 2)
+SYSCALL(sys_newfstat, 2)
 SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_utime, 2)			/* 30 */
 SYSCALL(sys_ni_syscall, 0)
@@ -108,7 +108,7 @@ SYSCALL(sys_getgroups, 2)		/* 80 */
 SYSCALL(sys_setgroups, 2)
 SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_symlink, 2)
-SYSCALL(sys_lstat, 2)
+SYSCALL(sys_newlstat, 2)
 SYSCALL(sys_readlink, 3)		/* 85 */
 SYSCALL(sys_uselib, 1)
 SYSCALL(sys_swapon, 2)
