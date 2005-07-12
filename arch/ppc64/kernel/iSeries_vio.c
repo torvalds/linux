@@ -115,13 +115,23 @@ void __init probe_bus_iseries(void)
 }
 
 /**
+ * vio_match_device_iseries: - Tell if a iSeries VIO device matches a
+ *	vio_device_id
+ */
+static int vio_match_device_iseries(const struct vio_device_id *id,
+		const struct vio_dev *dev)
+{
+	return strncmp(dev->type, id->type, strlen(id->type)) == 0;
+}
+
+/**
  * vio_bus_init_iseries: - Initialize the iSeries virtual IO bus
  */
 static int __init vio_bus_init_iseries(void)
 {
 	int err;
 
-	err = vio_bus_init();
+	err = vio_bus_init(vio_match_device_iseries);
 	if (err == 0) {
 		iommu_vio_init();
 		vio_bus_device.iommu_table = &vio_iommu_table;

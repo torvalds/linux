@@ -105,6 +105,7 @@ static inline struct vio_dev *to_vio_dev(struct device *dev)
 	return container_of(dev, struct vio_dev, dev);
 }
 
-extern int vio_bus_init(void);
+extern int vio_bus_init(int (*is_match)(const struct vio_device_id *id,
+			const struct vio_dev *dev));
 
 #endif /* _ASM_VIO_H */

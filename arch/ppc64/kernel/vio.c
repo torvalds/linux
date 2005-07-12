@@ -44,11 +44,8 @@ struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.dev.bus = &vio_bus_type,
 };
 
-#ifdef CONFIG_PPC_ISERIES
-
-#define device_is_compatible(a, b)	1
-
-#endif
+static int (*is_match)(const struct vio_device_id *id,
+		const struct vio_dev *dev);
 
 /* convert from struct device to struct vio_dev and pass to driver.
  * dev->driver has already been set by generic code because vio_bus_match
@@ -133,8 +130,7 @@ static const struct vio_device_id * vio_match_device(const struct vio_device_id 
 	DBGENTER();
 
 	while (ids->type) {
-		if ((strncmp(dev->type, ids->type, strlen(ids->type)) == 0) &&
-			device_is_compatible(dev->dev.platform_data, ids->compat))
+		if (is_match(ids, dev))
 			return ids;
 		ids++;
 	}
@@ -168,9 +164,12 @@ static void probe_bus_pseries(void)
 /**
  * vio_bus_init: - Initialize the virtual IO bus
  */
-int __init vio_bus_init(void)
+int __init vio_bus_init(int (*match_func)(const struct vio_device_id *id,
+			const struct vio_dev *dev))
 {
 	int err;
+
+	is_match = match_func;
 
 	err = bus_register(&vio_bus_type);
 	if (err) {
@@ -193,13 +192,24 @@ int __init vio_bus_init(void)
 
 #ifdef CONFIG_PPC_PSERIES
 /**
+ * vio_match_device_pseries: - Tell if a pSeries VIO device matches a
+ *	vio_device_id
+ */
+static int vio_match_device_pseries(const struct vio_device_id *id,
+		const struct vio_dev *dev)
+{
+	return (strncmp(dev->type, id->type, strlen(id->type)) == 0) &&
+			device_is_compatible(dev->dev.platform_data, id->compat);
+}
+
+/**
  * vio_bus_init_pseries: - Initialize the pSeries virtual IO bus
  */
 static int __init vio_bus_init_pseries(void)
 {
 	int err;
 
-	err = vio_bus_init();
+	err = vio_bus_init(vio_match_device_pseries);
 	if (err == 0)
 		probe_bus_pseries();
 	return err;
