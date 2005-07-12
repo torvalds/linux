@@ -57,9 +57,9 @@
  * FUNCTION:    acpi_get_handle
  *
  * PARAMETERS:  Parent          - Object to search under (search scope).
- *              path_name       - Pointer to an asciiz string containing the
- *                                  name
- *              ret_handle      - Where the return handle is placed
+ *              Pathname        - Pointer to an asciiz string containing the
+ *                                name
+ *              ret_handle      - Where the return handle is returned
  *
  * RETURN:      Status
  *
@@ -220,7 +220,7 @@ EXPORT_SYMBOL(acpi_get_name);
  * FUNCTION:    acpi_get_object_info
  *
  * PARAMETERS:  Handle          - Object Handle
- *              Info            - Where the info is returned
+ *              Buffer          - Where the info is returned
  *
  * RETURN:      Status
  *

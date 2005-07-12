@@ -84,8 +84,9 @@ acpi_tb_verify_rsdp (
 		/*
 		 * Obtain access to the RSDP structure
 		 */
-		status = acpi_os_map_memory (address->pointer.physical, sizeof (struct rsdp_descriptor),
-				  (void *) &rsdp);
+		status = acpi_os_map_memory (address->pointer.physical,
+				 sizeof (struct rsdp_descriptor),
+						   (void *) &rsdp);
 		if (ACPI_FAILURE (status)) {
 			return_ACPI_STATUS (status);
 		}
@@ -154,9 +155,9 @@ cleanup:
  *
  * FUNCTION:    acpi_tb_get_rsdt_address
  *
- * PARAMETERS:  None
+ * PARAMETERS:  out_address         - Where the address is returned
  *
- * RETURN:      RSDT physical address
+ * RETURN:      None, Address
  *
  * DESCRIPTION: Extract the address of the RSDT or XSDT, depending on the
  *              version of the RSDP
@@ -181,7 +182,8 @@ acpi_tb_get_rsdt_address (
 		out_address->pointer.value = acpi_gbl_RSDP->rsdt_physical_address;
 	}
 	else {
-		out_address->pointer.value = acpi_gbl_RSDP->xsdt_physical_address;
+		out_address->pointer.value =
+			acpi_gbl_RSDP->xsdt_physical_address;
 	}
 }
 
@@ -224,7 +226,8 @@ acpi_tb_validate_rsdt (
 	if (no_match) {
 		/* Invalid RSDT or XSDT signature */
 
-		ACPI_REPORT_ERROR (("Invalid signature where RSDP indicates RSDT/XSDT should be located\n"));
+		ACPI_REPORT_ERROR ((
+			"Invalid signature where RSDP indicates RSDT/XSDT should be located\n"));
 
 		ACPI_DUMP_BUFFER (acpi_gbl_RSDP, 20);
 
@@ -282,6 +285,7 @@ acpi_tb_get_table_rsdt (
 	if (ACPI_FAILURE (status)) {
 		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not get the RSDT/XSDT, %s\n",
 			acpi_format_exception (status)));
+
 		return_ACPI_STATUS (status);
 	}
 
@@ -299,7 +303,8 @@ acpi_tb_get_table_rsdt (
 
 	/* Get the number of tables defined in the RSDT or XSDT */
 
-	acpi_gbl_rsdt_table_count = acpi_tb_get_table_count (acpi_gbl_RSDP, table_info.pointer);
+	acpi_gbl_rsdt_table_count = acpi_tb_get_table_count (acpi_gbl_RSDP,
+			  table_info.pointer);
 
 	/* Convert and/or copy to an XSDT structure */
 

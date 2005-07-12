@@ -49,6 +49,12 @@
 #define _COMPONENT          ACPI_EVENTS
 	 ACPI_MODULE_NAME    ("evsci")
 
+/* Local prototypes */
+
+static u32 ACPI_SYSTEM_XFACE
+acpi_ev_sci_xrupt_handler (
+	void                            *context);
+
 
 /*******************************************************************************
  *
@@ -146,7 +152,8 @@ acpi_ev_gpe_xrupt_handler (
  ******************************************************************************/
 
 u32
-acpi_ev_install_sci_handler (void)
+acpi_ev_install_sci_handler (
+	void)
 {
 	u32                             status = AE_OK;
 
@@ -180,7 +187,8 @@ acpi_ev_install_sci_handler (void)
  ******************************************************************************/
 
 acpi_status
-acpi_ev_remove_sci_handler (void)
+acpi_ev_remove_sci_handler (
+	void)
 {
 	acpi_status                     status;
 

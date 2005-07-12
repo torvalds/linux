@@ -176,7 +176,7 @@ struct pm_ops {
 };
 
 extern void pm_set_ops(struct pm_ops *);
-
+extern struct pm_ops *pm_ops;
 extern int pm_suspend(suspend_state_t state);
 
 

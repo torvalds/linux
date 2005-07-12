@@ -120,8 +120,8 @@ acpi_ex_read_data_from_field (
 		 * Note: Smbus protocol value is passed in upper 16-bits of Function
 		 */
 		status = acpi_ex_access_region (obj_desc, 0,
-				  ACPI_CAST_PTR (acpi_integer, buffer_desc->buffer.pointer),
-				  ACPI_READ | (obj_desc->field.attribute << 16));
+				 ACPI_CAST_PTR (acpi_integer, buffer_desc->buffer.pointer),
+				 ACPI_READ | (obj_desc->field.attribute << 16));
 		acpi_ex_release_global_lock (locked);
 		goto exit;
 	}
@@ -196,6 +196,7 @@ exit:
  *
  * PARAMETERS:  source_desc         - Contains data to write
  *              obj_desc            - The named field
+ *              result_desc         - Where the return value is returned, if any
  *
  * RETURN:      Status
  *
@@ -250,12 +251,15 @@ acpi_ex_write_data_to_field (
 		if (ACPI_GET_OBJECT_TYPE (source_desc) != ACPI_TYPE_BUFFER) {
 			ACPI_REPORT_ERROR (("SMBus write requires Buffer, found type %s\n",
 				acpi_ut_get_object_type_name (source_desc)));
+
 			return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
 		}
 
 		if (source_desc->buffer.length < ACPI_SMBUS_BUFFER_SIZE) {
-			ACPI_REPORT_ERROR (("SMBus write requires Buffer of length %X, found length %X\n",
+			ACPI_REPORT_ERROR ((
+				"SMBus write requires Buffer of length %X, found length %X\n",
 				ACPI_SMBUS_BUFFER_SIZE, source_desc->buffer.length));
+
 			return_ACPI_STATUS (AE_AML_BUFFER_LIMIT);
 		}
 
@@ -265,14 +269,16 @@ acpi_ex_write_data_to_field (
 		}
 
 		buffer = buffer_desc->buffer.pointer;
-		ACPI_MEMCPY (buffer, source_desc->buffer.pointer, ACPI_SMBUS_BUFFER_SIZE);
+		ACPI_MEMCPY (buffer, source_desc->buffer.pointer,
+			ACPI_SMBUS_BUFFER_SIZE);
 
 		/* Lock entire transaction if requested */
 
 		locked = acpi_ex_acquire_global_lock (obj_desc->common_field.field_flags);
 
 		/*
-		 * Perform the write (returns status and perhaps data in the same buffer)
+		 * Perform the write (returns status and perhaps data in the
+		 * same buffer)
 		 * Note: SMBus protocol type is passed in upper 16-bits of Function.
 		 */
 		status = acpi_ex_access_region (obj_desc, 0,
@@ -284,9 +290,8 @@ acpi_ex_write_data_to_field (
 		return_ACPI_STATUS (status);
 	}
 
-	/*
-	 * Get a pointer to the data to be written
-	 */
+	/* Get a pointer to the data to be written */
+
 	switch (ACPI_GET_OBJECT_TYPE (source_desc)) {
 	case ACPI_TYPE_INTEGER:
 		buffer = &source_desc->integer.value;
@@ -314,7 +319,8 @@ acpi_ex_write_data_to_field (
 	 * the ACPI specification.
 	 */
 	new_buffer = NULL;
-	required_length = ACPI_ROUND_BITS_UP_TO_BYTES (obj_desc->common_field.bit_length);
+	required_length = ACPI_ROUND_BITS_UP_TO_BYTES (
+			   obj_desc->common_field.bit_length);
 
 	if (length < required_length) {
 		/* We need to create a new buffer */
@@ -338,6 +344,7 @@ acpi_ex_write_data_to_field (
 		"field_write [FROM]: Obj %p (%s:%X), Buf %p, byte_len %X\n",
 		source_desc, acpi_ut_get_type_name (ACPI_GET_OBJECT_TYPE (source_desc)),
 		ACPI_GET_OBJECT_TYPE (source_desc), buffer, length));
+
 	ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
 		"field_write [TO]:  Obj %p (%s:%X), bit_len %X, bit_off %X, byte_off %X\n",
 		obj_desc, acpi_ut_get_type_name (ACPI_GET_OBJECT_TYPE (obj_desc)),

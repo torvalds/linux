@@ -53,13 +53,20 @@
 #define _COMPONENT          ACPI_DISPATCHER
 	 ACPI_MODULE_NAME    ("dsfield")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ds_get_field_names (
+	struct acpi_create_field_info   *info,
+	struct acpi_walk_state          *walk_state,
+	union acpi_parse_object         *arg);
+
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_create_buffer_field
  *
- * PARAMETERS:  Opcode              - The opcode to be executed
- *              Operands            - List of operands for the opcode
+ * PARAMETERS:  Op                  - Current parse op (create_xXField)
  *              walk_state          - Current state
  *
  * RETURN:      Status
@@ -70,7 +77,7 @@
  *              create_word_field_op,
  *              create_dword_field_op,
  *              create_qword_field_op,
- *              create_field_op     (all of which define fields in buffers)
+ *              create_field_op     (all of which define a field in a buffer)
  *
  ******************************************************************************/
 
@@ -119,7 +126,8 @@ acpi_ds_create_buffer_field (
 			flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE;
 		}
 		else {
-			flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_ERROR_IF_FOUND;
+			flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE |
+					ACPI_NS_ERROR_IF_FOUND;
 		}
 
 		/*
@@ -134,16 +142,16 @@ acpi_ds_create_buffer_field (
 		}
 	}
 
-	/* We could put the returned object (Node) on the object stack for later, but
-	 * for now, we will put it in the "op" object that the parser uses, so we
-	 * can get it again at the end of this scope
+	/* We could put the returned object (Node) on the object stack for later,
+	 * but for now, we will put it in the "op" object that the parser uses,
+	 * so we can get it again at the end of this scope
 	 */
 	op->common.node = node;
 
 	/*
-	 * If there is no object attached to the node, this node was just created and
-	 * we need to create the field object.  Otherwise, this was a lookup of an
-	 * existing node and we don't want to create the field object again.
+	 * If there is no object attached to the node, this node was just created
+	 * and we need to create the field object.  Otherwise, this was a lookup
+	 * of an existing node and we don't want to create the field object again.
 	 */
 	obj_desc = acpi_ns_get_attached_object (node);
 	if (obj_desc) {
@@ -205,7 +213,7 @@ cleanup:
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ds_get_field_names (
 	struct acpi_create_field_info   *info,
 	struct acpi_walk_state          *walk_state,
@@ -238,7 +246,8 @@ acpi_ds_get_field_names (
 					 + (acpi_integer) arg->common.value.size;
 
 			if (position > ACPI_UINT32_MAX) {
-				ACPI_REPORT_ERROR (("Bit offset within field too large (> 0xFFFFFFFF)\n"));
+				ACPI_REPORT_ERROR ((
+					"Bit offset within field too large (> 0xFFFFFFFF)\n"));
 				return_ACPI_STATUS (AE_SUPPORT);
 			}
 
@@ -250,12 +259,15 @@ acpi_ds_get_field_names (
 
 			/*
 			 * Get a new access_type and access_attribute -- to be used for all
-			 * field units that follow, until field end or another access_as keyword.
+			 * field units that follow, until field end or another access_as
+			 * keyword.
 			 *
-			 * In field_flags, preserve the flag bits other than the ACCESS_TYPE bits
+			 * In field_flags, preserve the flag bits other than the
+			 * ACCESS_TYPE bits
 			 */
-			info->field_flags = (u8) ((info->field_flags & ~(AML_FIELD_ACCESS_TYPE_MASK)) |
-					  ((u8) ((u32) arg->common.value.integer >> 8)));
+			info->field_flags = (u8)
+				((info->field_flags & ~(AML_FIELD_ACCESS_TYPE_MASK)) |
+				((u8) ((u32) arg->common.value.integer >> 8)));
 
 			info->attribute = (u8) (arg->common.value.integer);
 			break;
@@ -267,7 +279,8 @@ acpi_ds_get_field_names (
 
 			status = acpi_ns_lookup (walk_state->scope_info,
 					  (char *) &arg->named.name,
-					  info->field_type, ACPI_IMODE_EXECUTE, ACPI_NS_DONT_OPEN_SCOPE,
+					  info->field_type, ACPI_IMODE_EXECUTE,
+					  ACPI_NS_DONT_OPEN_SCOPE,
 					  walk_state, &info->field_node);
 			if (ACPI_FAILURE (status)) {
 				ACPI_REPORT_NSERROR ((char *) &arg->named.name, status);
@@ -295,8 +308,9 @@ acpi_ds_get_field_names (
 					 + (acpi_integer) arg->common.value.size;
 
 			if (position > ACPI_UINT32_MAX) {
-				ACPI_REPORT_ERROR (("Field [%4.4s] bit offset too large (> 0xFFFFFFFF)\n",
-						(char *) &info->field_node->name));
+				ACPI_REPORT_ERROR ((
+					"Field [%4.4s] bit offset too large (> 0xFFFFFFFF)\n",
+					(char *) &info->field_node->name));
 				return_ACPI_STATUS (AE_SUPPORT);
 			}
 
@@ -306,7 +320,8 @@ acpi_ds_get_field_names (
 
 		default:
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid opcode in field list: %X\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"Invalid opcode in field list: %X\n",
 				arg->common.aml_opcode));
 			return_ACPI_STATUS (AE_AML_BAD_OPCODE);
 		}
@@ -435,7 +450,8 @@ acpi_ds_init_field_objects (
 			status = acpi_ns_lookup (walk_state->scope_info,
 					  (char *) &arg->named.name,
 					  type, ACPI_IMODE_LOAD_PASS1,
-					  ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_ERROR_IF_FOUND,
+					  ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE |
+					  ACPI_NS_ERROR_IF_FOUND,
 					  walk_state, &node);
 			if (ACPI_FAILURE (status)) {
 				ACPI_REPORT_NSERROR ((char *) &arg->named.name, status);

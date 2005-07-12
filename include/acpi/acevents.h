@@ -45,6 +45,9 @@
 #define __ACEVENTS_H__
 
 
+/*
+ * evevent
+ */
 acpi_status
 acpi_ev_initialize_events (
 	void);
@@ -53,28 +56,14 @@ acpi_status
 acpi_ev_install_xrupt_handlers (
 	void);
 
-
-/*
- * Evfixed - Fixed event handling
- */
-
-acpi_status
-acpi_ev_fixed_event_initialize (
-	void);
-
 u32
 acpi_ev_fixed_event_detect (
 	void);
 
-u32
-acpi_ev_fixed_event_dispatch (
-	u32                             event);
-
 
 /*
- * Evmisc
+ * evmisc
  */
-
 u8
 acpi_ev_is_notify_object (
 	struct acpi_namespace_node      *node);
@@ -100,24 +89,10 @@ acpi_ev_queue_notify_request (
 	struct acpi_namespace_node      *node,
 	u32                             notify_value);
 
-void ACPI_SYSTEM_XFACE
-acpi_ev_notify_dispatch (
-	void                            *context);
-
 
 /*
- * Evgpe - GPE handling and dispatch
+ * evgpe - GPE handling and dispatch
  */
-
-acpi_status
-acpi_ev_walk_gpe_list (
-	ACPI_GPE_CALLBACK       gpe_walk_callback,
-	u32                             flags);
-
-u8
-acpi_ev_valid_gpe_event (
-	struct acpi_gpe_event_info      *gpe_event_info);
-
 acpi_status
 acpi_ev_update_gpe_enable_masks (
 	struct acpi_gpe_event_info      *gpe_event_info,
@@ -137,9 +112,23 @@ acpi_ev_get_gpe_event_info (
 	acpi_handle                     gpe_device,
 	u32                             gpe_number);
 
+
+/*
+ * evgpeblk
+ */
+u8
+acpi_ev_valid_gpe_event (
+	struct acpi_gpe_event_info      *gpe_event_info);
+
 acpi_status
-acpi_ev_gpe_initialize (
-	void);
+acpi_ev_walk_gpe_list (
+	ACPI_GPE_CALLBACK       gpe_walk_callback,
+	u32                             flags);
+
+acpi_status
+acpi_ev_delete_gpe_handlers (
+	struct acpi_gpe_xrupt_info      *gpe_xrupt_info,
+	struct acpi_gpe_block_info      *gpe_block);
 
 acpi_status
 acpi_ev_create_gpe_block (
@@ -152,11 +141,6 @@ acpi_ev_create_gpe_block (
 
 acpi_status
 acpi_ev_delete_gpe_block (
-	struct acpi_gpe_block_info      *gpe_block);
-
-acpi_status
-acpi_ev_delete_gpe_handlers (
-	struct acpi_gpe_xrupt_info      *gpe_xrupt_info,
 	struct acpi_gpe_block_info      *gpe_block);
 
 u32
@@ -177,10 +161,14 @@ acpi_status
 acpi_ev_check_for_wake_only_gpe (
 	struct acpi_gpe_event_info      *gpe_event_info);
 
-/*
- * Evregion - Address Space handling
- */
+acpi_status
+acpi_ev_gpe_initialize (
+	void);
 
+
+/*
+ * evregion - Address Space handling
+ */
 acpi_status
 acpi_ev_install_region_handlers (
 	void);
@@ -196,13 +184,6 @@ acpi_ev_address_space_dispatch (
 	acpi_physical_address           address,
 	u32                             bit_width,
 	void                            *value);
-
-acpi_status
-acpi_ev_install_handler (
-	acpi_handle                     obj_handle,
-	u32                             level,
-	void                            *context,
-	void                            **return_value);
 
 acpi_status
 acpi_ev_attach_region (
@@ -233,17 +214,10 @@ acpi_ev_execute_reg_method (
 	union acpi_operand_object      *region_obj,
 	u32                             function);
 
-acpi_status
-acpi_ev_reg_run (
-	acpi_handle                     obj_handle,
-	u32                             level,
-	void                            *context,
-	void                            **return_value);
 
 /*
- * Evregini - Region initialization and setup
+ * evregini - Region initialization and setup
  */
-
 acpi_status
 acpi_ev_system_memory_region_setup (
 	acpi_handle                     handle,
@@ -293,9 +267,8 @@ acpi_ev_initialize_region (
 
 
 /*
- * Evsci - SCI (System Control Interrupt) handling/dispatch
+ * evsci - SCI (System Control Interrupt) handling/dispatch
  */
-
 u32 ACPI_SYSTEM_XFACE
 acpi_ev_gpe_xrupt_handler (
 	void                            *context);

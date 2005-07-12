@@ -65,6 +65,7 @@ union acpi_parse_object *
 acpi_ps_get_parent_scope (
 	struct acpi_parse_state         *parser_state)
 {
+
 	return (parser_state->scope->parse_scope.op);
 }
 
@@ -87,8 +88,10 @@ u8
 acpi_ps_has_completed_scope (
 	struct acpi_parse_state         *parser_state)
 {
-	return ((u8) ((parser_state->aml >= parser_state->scope->parse_scope.arg_end ||
-			   !parser_state->scope->parse_scope.arg_count)));
+
+	return ((u8)
+			((parser_state->aml >= parser_state->scope->parse_scope.arg_end ||
+			 !parser_state->scope->parse_scope.arg_count)));
 }
 
 
@@ -167,23 +170,23 @@ acpi_ps_push_scope (
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
 
-	scope->common.data_type        = ACPI_DESC_TYPE_STATE_PSCOPE;
-	scope->parse_scope.op          = op;
-	scope->parse_scope.arg_list    = remaining_args;
-	scope->parse_scope.arg_count   = arg_count;
-	scope->parse_scope.pkg_end     = parser_state->pkg_end;
+	scope->common.data_type    = ACPI_DESC_TYPE_STATE_PSCOPE;
+	scope->parse_scope.op      = op;
+	scope->parse_scope.arg_list = remaining_args;
+	scope->parse_scope.arg_count = arg_count;
+	scope->parse_scope.pkg_end = parser_state->pkg_end;
 
 	/* Push onto scope stack */
 
 	acpi_ut_push_generic_state (&parser_state->scope, scope);
 
 	if (arg_count == ACPI_VAR_ARGS) {
-		/* multiple arguments */
+		/* Multiple arguments */
 
 		scope->parse_scope.arg_end = parser_state->pkg_end;
 	}
 	else {
-		/* single argument */
+		/* Single argument */
 
 		scope->parse_scope.arg_end = ACPI_TO_POINTER (ACPI_MAX_PTR);
 	}
@@ -221,18 +224,17 @@ acpi_ps_pop_scope (
 	ACPI_FUNCTION_TRACE ("ps_pop_scope");
 
 
-	/*
-	 * Only pop the scope if there is in fact a next scope
-	 */
+	/* Only pop the scope if there is in fact a next scope */
+
 	if (scope->common.next) {
 		scope = acpi_ut_pop_generic_state (&parser_state->scope);
 
 		/* return to parsing previous op */
 
-		*op                     = scope->parse_scope.op;
-		*arg_list               = scope->parse_scope.arg_list;
-		*arg_count              = scope->parse_scope.arg_count;
-		parser_state->pkg_end   = scope->parse_scope.pkg_end;
+		*op                 = scope->parse_scope.op;
+		*arg_list           = scope->parse_scope.arg_list;
+		*arg_count          = scope->parse_scope.arg_count;
+		parser_state->pkg_end = scope->parse_scope.pkg_end;
 
 		/* All done with this scope state structure */
 
@@ -241,12 +243,13 @@ acpi_ps_pop_scope (
 	else {
 		/* empty parse stack, prepare to fetch next opcode */
 
-		*op                     = NULL;
-		*arg_list               = 0;
-		*arg_count              = 0;
+		*op       = NULL;
+		*arg_list = 0;
+		*arg_count = 0;
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Popped Op %p Args %X\n", *op, *arg_count));
+	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+		"Popped Op %p Args %X\n", *op, *arg_count));
 	return_VOID;
 }
 
@@ -257,7 +260,7 @@ acpi_ps_pop_scope (
  *
  * PARAMETERS:  parser_state        - Current parser state object
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Destroy available list, remaining stack levels, and return
  *              root scope

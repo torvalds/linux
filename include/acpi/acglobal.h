@@ -146,15 +146,15 @@ ACPI_EXTERN struct acpi_table_header           *acpi_gbl_DSDT;
 ACPI_EXTERN FACS_DESCRIPTOR            *acpi_gbl_FACS;
 ACPI_EXTERN struct acpi_common_facs             acpi_gbl_common_fACS;
 /*
- * Since there may be multiple SSDTs and PSDTS, a single pointer is not
+ * Since there may be multiple SSDTs and PSDTs, a single pointer is not
  * sufficient; Therefore, there isn't one!
  */
 
 
 /*
- * Handle both ACPI 1.0 and ACPI 2.0 Integer widths
- * If we are running a method that exists in a 32-bit ACPI table.
- * Use only 32 bits of the Integer for conversion.
+ * Handle both ACPI 1.0 and ACPI 2.0 Integer widths:
+ * If we are executing a method that exists in a 32-bit ACPI table,
+ * use only the lower 32 bits of the (internal) 64-bit Integer.
  */
 ACPI_EXTERN u8                                  acpi_gbl_integer_bit_width;
 ACPI_EXTERN u8                                  acpi_gbl_integer_byte_width;
@@ -246,6 +246,7 @@ ACPI_EXTERN acpi_size                           acpi_gbl_lowest_stack_pointer;
 ACPI_EXTERN u32                                 acpi_gbl_deepest_nesting;
 #endif
 
+
 /*****************************************************************************
  *
  * Interpreter globals
@@ -267,6 +268,7 @@ ACPI_EXTERN u8                                  acpi_gbl_cm_single_step;
  ****************************************************************************/
 
 ACPI_EXTERN union acpi_parse_object            *acpi_gbl_parsed_namespace_root;
+
 
 /*****************************************************************************
  *
@@ -297,7 +299,6 @@ ACPI_EXTERN acpi_handle                         acpi_gbl_gpe_lock;
  * Debugger globals
  *
  ****************************************************************************/
-
 
 ACPI_EXTERN u8                                  acpi_gbl_db_output_flags;
 
@@ -352,6 +353,5 @@ ACPI_EXTERN u32                                 acpi_gbl_size_of_node_entries;
 ACPI_EXTERN u32                                 acpi_gbl_size_of_acpi_objects;
 
 #endif /* ACPI_DEBUGGER */
-
 
 #endif /* __ACGLOBAL_H__ */

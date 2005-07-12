@@ -48,7 +48,6 @@
 /*
  *  Function prototypes called from Acpi* APIs
  */
-
 acpi_status
 acpi_rs_get_prt_method_data (
 	acpi_handle                     handle,
@@ -60,12 +59,12 @@ acpi_rs_get_crs_method_data (
 	acpi_handle                     handle,
 	struct acpi_buffer              *ret_buffer);
 
-#ifdef ACPI_FUTURE_USAGE
+#ifdef	ACPI_FUTURE_USAGE
 acpi_status
 acpi_rs_get_prs_method_data (
 	acpi_handle                     handle,
 	struct acpi_buffer              *ret_buffer);
-#endif
+#endif	/* ACPI_FUTURE_USAGE */
 
 acpi_status
 acpi_rs_get_method_data (
@@ -95,61 +94,9 @@ acpi_rs_create_pci_routing_table (
 
 
 /*
- * Function prototypes called from acpi_rs_create*
+ * rsdump
  */
-#ifdef ACPI_FUTURE_USAGE
-void
-acpi_rs_dump_irq (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_address16 (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_address32 (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_address64 (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_dma (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_io (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_extended_irq (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_fixed_io (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_fixed_memory32 (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_memory24 (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_memory32 (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_start_depend_fns (
-	union acpi_resource_data        *data);
-
-void
-acpi_rs_dump_vendor_specific (
-	union acpi_resource_data        *data);
-
+#ifdef	ACPI_FUTURE_USAGE
 void
 acpi_rs_dump_resource_list (
 	struct acpi_resource            *resource);
@@ -157,8 +104,12 @@ acpi_rs_dump_resource_list (
 void
 acpi_rs_dump_irq_list (
 	u8                              *route_table);
-#endif  /*  ACPI_FUTURE_USAGE  */
+#endif	/* ACPI_FUTURE_USAGE */
 
+
+/*
+ * rscalc
+ */
 acpi_status
 acpi_rs_get_byte_stream_start (
 	u8                              *byte_stream_buffer,

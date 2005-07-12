@@ -1,9 +1,10 @@
 /*
  * File:	pci-acpi.c
- * Purpose:	Provide PCI supports in ACPI
+ * Purpose:	Provide PCI support in ACPI
  *
- * Copyright (C) 2004 Intel
- * Copyright (C) Tom Long Nguyen (tom.l.nguyen@intel.com)
+ * Copyright (C) 2005 David Shaohua Li <shaohua.li@intel.com>
+ * Copyright (C) 2004 Tom Long Nguyen <tom.l.nguyen@intel.com>
+ * Copyright (C) 2004 Intel Corp.
  */
 
 #include <linux/delay.h>
@@ -16,6 +17,7 @@
 #include <acpi/acpi_bus.h>
 
 #include <linux/pci-acpi.h>
+#include "pci.h"
 
 static u32 ctrlset_buf[3] = {0, 0, 0};
 static u32 global_ctrlsets = 0;
@@ -207,3 +209,105 @@ acpi_status pci_osc_control_set(u32 flags)
 	return status;
 }
 EXPORT_SYMBOL(pci_osc_control_set);
+
+/*
+ * _SxD returns the D-state with the highest power
+ * (lowest D-state number) supported in the S-state "x".
+ *
+ * If the devices does not have a _PRW
+ * (Power Resources for Wake) supporting system wakeup from "x"
+ * then the OS is free to choose a lower power (higher number
+ * D-state) than the return value from _SxD.
+ *
+ * But if _PRW is enabled at S-state "x", the OS
+ * must not choose a power lower than _SxD --
+ * unless the device has an _SxW method specifying
+ * the lowest power (highest D-state number) the device
+ * may enter while still able to wake the system.
+ *
+ * ie. depending on global OS policy:
+ *
+ * if (_PRW at S-state x)
+ *	choose from highest power _SxD to lowest power _SxW
+ * else // no _PRW at S-state x
+ * 	choose highest power _SxD or any lower power
+ *
+ * currently we simply return _SxD, if present.
+ */
+
+static int acpi_pci_choose_state(struct pci_dev *pdev, pm_message_t state)
+{
+	/* TBD */
+
+	return -ENODEV;
+}
+
+static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
+{
+	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	static int state_conv[] = {
+		[0] = 0,
+		[1] = 1,
+		[2] = 2,
+		[3] = 3,
+		[4] = 3
+	};
+	int acpi_state = state_conv[(int __force) state];
+
+	if (!handle)
+		return -ENODEV;
+	return acpi_bus_set_power(handle, acpi_state);
+}
+
+
+/* ACPI bus type */
+static int pci_acpi_find_device(struct device *dev, acpi_handle *handle)
+{
+	struct pci_dev * pci_dev;
+	acpi_integer	addr;
+
+	pci_dev = to_pci_dev(dev);
+	/* Please ref to ACPI spec for the syntax of _ADR */
+	addr = (PCI_SLOT(pci_dev->devfn) << 16) | PCI_FUNC(pci_dev->devfn);
+	*handle = acpi_get_child(DEVICE_ACPI_HANDLE(dev->parent), addr);
+	if (!*handle)
+		return -ENODEV;
+	return 0;
+}
+
+static int pci_acpi_find_root_bridge(struct device *dev, acpi_handle *handle)
+{
+	int num;
+	unsigned int seg, bus;
+
+	/*
+	 * The string should be the same as root bridge's name
+	 * Please look at 'pci_scan_bus_parented'
+	 */
+	num = sscanf(dev->bus_id, "pci%04x:%02x", &seg, &bus);
+	if (num != 2)
+		return -ENODEV;
+	*handle = acpi_get_pci_rootbridge_handle(seg, bus);
+	if (!*handle)
+		return -ENODEV;
+	return 0;
+}
+
+static struct acpi_bus_type pci_acpi_bus = {
+	.bus = &pci_bus_type,
+	.find_device = pci_acpi_find_device,
+	.find_bridge = pci_acpi_find_root_bridge,
+};
+
+static int __init pci_acpi_init(void)
+{
+	int ret;
+
+	ret = register_acpi_bus_type(&pci_acpi_bus);
+	if (ret)
+		return 0;
+	platform_pci_choose_state = acpi_pci_choose_state;
+	platform_pci_set_power_state = acpi_pci_set_power_state;
+	return 0;
+}
+arch_initcall(pci_acpi_init);

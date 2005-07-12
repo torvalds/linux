@@ -55,7 +55,7 @@
 
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_create_alias
  *
@@ -65,7 +65,7 @@
  *
  * DESCRIPTION: Create a new named alias
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ex_create_alias (
@@ -140,8 +140,7 @@ acpi_ex_create_alias (
 		 * target node or the alias Node
 		 */
 		status = acpi_ns_attach_object (alias_node,
-				 acpi_ns_get_attached_object (target_node),
-				 target_node->type);
+				 acpi_ns_get_attached_object (target_node), target_node->type);
 		break;
 	}
 
@@ -151,7 +150,7 @@ acpi_ex_create_alias (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_create_event
  *
@@ -161,7 +160,7 @@ acpi_ex_create_alias (
  *
  * DESCRIPTION: Create a new event object
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ex_create_event (
@@ -185,7 +184,7 @@ acpi_ex_create_event (
 	 * that the event is created in an unsignalled state
 	 */
 	status = acpi_os_create_semaphore (ACPI_NO_UNIT_LIMIT, 0,
-			   &obj_desc->event.semaphore);
+			 &obj_desc->event.semaphore);
 	if (ACPI_FAILURE (status)) {
 		goto cleanup;
 	}
@@ -193,7 +192,7 @@ acpi_ex_create_event (
 	/* Attach object to the Node */
 
 	status = acpi_ns_attach_object ((struct acpi_namespace_node *) walk_state->operands[0],
-			   obj_desc, ACPI_TYPE_EVENT);
+			 obj_desc, ACPI_TYPE_EVENT);
 
 cleanup:
 	/*
@@ -205,7 +204,7 @@ cleanup:
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_create_mutex
  *
@@ -217,7 +216,7 @@ cleanup:
  *
  *              Mutex (Name[0], sync_level[1])
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ex_create_mutex (
@@ -267,20 +266,20 @@ cleanup:
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_create_region
  *
  * PARAMETERS:  aml_start           - Pointer to the region declaration AML
  *              aml_length          - Max length of the declaration AML
- *              Operands            - List of operands for the opcode
+ *              region_space        - space_iD for the region
  *              walk_state          - Current state
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Create a new operation region object
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ex_create_region (
@@ -321,7 +320,7 @@ acpi_ex_create_region (
 	}
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "Region Type - %s (%X)\n",
-			  acpi_ut_get_region_name (region_space), region_space));
+		acpi_ut_get_region_name (region_space), region_space));
 
 	/* Create the region descriptor */
 
@@ -360,7 +359,7 @@ cleanup:
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_create_table_region
  *
@@ -370,7 +369,7 @@ cleanup:
  *
  * DESCRIPTION: Create a new data_table_region object
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ex_create_table_region (
@@ -455,7 +454,7 @@ cleanup:
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_create_processor
  *
@@ -467,7 +466,7 @@ cleanup:
  *
  *              Processor (Name[0], cpu_iD[1], pblock_addr[2], pblock_length[3])
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ex_create_processor (
@@ -488,9 +487,8 @@ acpi_ex_create_processor (
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
 
-	/*
-	 * Initialize the processor object from the operands
-	 */
+	/* Initialize the processor object from the operands */
+
 	obj_desc->processor.proc_id = (u8)          operand[1]->integer.value;
 	obj_desc->processor.address = (acpi_io_address) operand[2]->integer.value;
 	obj_desc->processor.length = (u8)           operand[3]->integer.value;
@@ -507,7 +505,7 @@ acpi_ex_create_processor (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_create_power_resource
  *
@@ -519,7 +517,7 @@ acpi_ex_create_processor (
  *
  *              power_resource (Name[0], system_level[1], resource_order[2])
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ex_create_power_resource (
@@ -555,10 +553,10 @@ acpi_ex_create_power_resource (
 	acpi_ut_remove_reference (obj_desc);
 	return_ACPI_STATUS (status);
 }
-
 #endif
 
-/*****************************************************************************
+
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_create_method
  *
@@ -570,7 +568,7 @@ acpi_ex_create_power_resource (
  *
  * DESCRIPTION: Create a new method object
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ex_create_method (
