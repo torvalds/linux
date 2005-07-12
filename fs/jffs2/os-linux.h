@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: os-linux.h,v 1.57 2005/07/06 12:13:09 dwmw2 Exp $
+ * $Id: os-linux.h,v 1.58 2005/07/12 02:34:35 tpoynor Exp $
  *
  */
 
@@ -86,6 +86,8 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #define jffs2_dataflash(c) (0)
 #define jffs2_nor_ecc_flash_setup(c) (0)
 #define jffs2_nor_ecc_flash_cleanup(c) do {} while (0)
+#define jffs2_dataflash_setup(c) (0)
+#define jffs2_dataflash_cleanup(c) do {} while (0)
 
 #else /* NAND and/or ECC'd NOR support present */
 
