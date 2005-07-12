@@ -551,7 +551,7 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
 	/* Already allocated? */
 	if (res->parent)
-		return 0;
+		return;
 
 	/* The granularity of the memory limit is 4kB, on IO it's 4 bytes */
 	mask = ~0xfff;
@@ -562,24 +562,22 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 	bus = socket->dev->subordinate;
 	res->name = bus->name;
 	res->flags = type;
-	res->start = 0;
-	res->end = 0;
-	root = pci_find_parent_resource(socket->dev, res);
-
-	if (!root)
-		return;
 
 	start = config_readl(socket, offset) & mask;
 	end = config_readl(socket, offset+4) | ~mask;
 	if (start && end > start && !override_bios) {
 		res->start = start;
 		res->end = end;
-		if (request_resource(root, res) == 0)
+		root = pci_find_parent_resource(socket->dev, res);
+		if (root && (request_resource(root, res) == 0))
 			return;
-		printk(KERN_INFO "yenta %s: Preassigned resource %d busy, reconfiguring...\n",
+		printk(KERN_INFO "yenta %s: Preassigned resource %d busy or not available, reconfiguring...\n",
 				pci_name(socket->dev), nr);
-		res->start = res->end = 0;
 	}
+
+	res->start = 0;
+	res->end = 0;
+	root = pci_find_parent_resource(socket->dev, res);
 
 	if (type & IORESOURCE_IO) {
 		align = 1024;
@@ -629,7 +627,7 @@ static void yenta_allocate_resources(struct yenta_socket *socket)
 	yenta_allocate_res(socket, 0, IORESOURCE_MEM|IORESOURCE_PREFETCH);
 	yenta_allocate_res(socket, 1, IORESOURCE_MEM);
 	yenta_allocate_res(socket, 2, IORESOURCE_IO);
-	yenta_allocate_res(socket, 3, IORESOURCE_IO);	/* PCI isn't clever enough to use this one yet */
+	yenta_allocate_res(socket, 3, IORESOURCE_IO);
 }
 
 
