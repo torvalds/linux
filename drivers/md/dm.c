@@ -966,23 +966,20 @@ static void __flush_deferred_io(struct mapped_device *md, struct bio *c)
  */
 int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 {
-	int r;
+	int r = -EINVAL;
 
 	down_write(&md->lock);
 
 	/* device must be suspended */
-	if (!test_bit(DMF_SUSPENDED, &md->flags)) {
-		up_write(&md->lock);
-		return -EPERM;
-	}
+	if (!test_bit(DMF_SUSPENDED, &md->flags))
+		goto out;
 
 	__unbind(md);
 	r = __bind(md, table);
-	if (r)
-		return r;
 
+out:
 	up_write(&md->lock);
-	return 0;
+	return r;
 }
 
 /*
