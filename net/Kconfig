@@ -2,7 +2,7 @@
 # Network configuration
 #
 
-menu "Networking support"
+menu "Networking"
 
 config NET
 	bool "Networking support"
@@ -10,7 +10,9 @@ config NET
 	  Unless you really know what you are doing, you should say Y here.
 	  The reason is that some programs need kernel networking support even
 	  when running on a stand-alone machine that isn't connected to any
-	  other computer. If you are upgrading from an older kernel, you
+	  other computer.
+	  
+	  If you are upgrading from an older kernel, you
 	  should consider updating your networking tools too because changes
 	  in the kernel and the tools often go hand in hand. The tools are
 	  contained in the package net-tools, the location and version number
@@ -640,7 +642,5 @@ source "net/irda/Kconfig"
 
 source "net/bluetooth/Kconfig"
 
-source "drivers/net/Kconfig"
-
-endmenu
+endmenu # Networking
 
