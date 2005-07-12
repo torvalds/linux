@@ -516,8 +516,7 @@ struct wan_device {
 /* Public functions available for device drivers */
 extern int register_wan_device(struct wan_device *wandev);
 extern int unregister_wan_device(char *name);
-unsigned short wanrouter_type_trans(struct sk_buff *skb,
-				    struct net_device *dev);
+__be16 wanrouter_type_trans(struct sk_buff *skb, struct net_device *dev);
 int wanrouter_encapsulate(struct sk_buff *skb, struct net_device *dev,
 			  unsigned short type);
 

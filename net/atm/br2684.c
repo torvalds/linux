@@ -289,8 +289,7 @@ xmit will add the additional header part in that case */
  * This is similar to eth_type_trans, which cannot be used because of
  * our dev->hard_header_len
  */
-static inline unsigned short br_type_trans(struct sk_buff *skb,
-					       struct net_device *dev)
+static inline __be16 br_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
 	unsigned char *rawp;

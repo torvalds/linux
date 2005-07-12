@@ -66,8 +66,7 @@ static void ppp_close(struct net_device *dev)
 
 
 
-static unsigned short ppp_type_trans(struct sk_buff *skb,
-				     struct net_device *dev)
+static __be16 ppp_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	return __constant_htons(ETH_P_WAN_PPP);
 }
