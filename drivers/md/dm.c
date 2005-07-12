@@ -384,7 +384,7 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 		/* error the io and bail out */
 		struct dm_io *io = tio->io;
 		free_tio(tio->io->md, tio);
-		dec_pending(io, -EIO);
+		dec_pending(io, r);
 		bio_put(clone);
 	}
 }

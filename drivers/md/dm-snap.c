@@ -777,7 +777,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 
 	/* Full snapshots are not usable */
 	if (!s->valid)
-		return -1;
+		return -EIO;
 
 	/*
 	 * Write to snapshot - higher level takes care of RW/RO

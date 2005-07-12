@@ -765,6 +765,9 @@ static int multipath_map(struct dm_target *ti, struct bio *bio,
 	struct mpath_io *mpio;
 	struct multipath *m = (struct multipath *) ti->private;
 
+	if (bio_barrier(bio))
+		return -EOPNOTSUPP;
+
 	mpio = mempool_alloc(m->mpio_pool, GFP_NOIO);
 	dm_bio_record(&mpio->details, bio);
 
@@ -986,6 +989,9 @@ static int do_end_io(struct multipath *m, struct bio *bio,
 		return 0;	/* I/O complete */
 
 	if ((error == -EWOULDBLOCK) && bio_rw_ahead(bio))
+		return error;
+
+	if (error == -EOPNOTSUPP)
 		return error;
 
 	spin_lock(&m->lock);
