@@ -699,6 +699,8 @@ static void cinergyt2_query_rc (void *data)
 	for (n=0; len>0 && n<(len/sizeof(rc_events[0])); n++) {
 		int i;
 
+/*		dprintk(1,"rc_events[%d].value = %x, type=%x\n",n,le32_to_cpu(rc_events[n].value),rc_events[n].type);*/
+
 		if (rc_events[n].type == CINERGYT2_RC_EVENT_TYPE_NEC &&
 		    rc_events[n].value == ~0)
 		{
@@ -714,7 +716,7 @@ static void cinergyt2_query_rc (void *data)
 			cinergyt2->rc_input_event = KEY_MAX;
 			for (i=0; i<sizeof(rc_keys)/sizeof(rc_keys[0]); i+=3) {
 				if (rc_keys[i+0] == rc_events[n].type &&
-				    rc_keys[i+1] == rc_events[n].value)
+				    rc_keys[i+1] == le32_to_cpu(rc_events[n].value))
 				{
 					cinergyt2->rc_input_event = rc_keys[i+2];
 					break;

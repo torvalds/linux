@@ -1513,7 +1513,7 @@ int irttp_disconnect_request(struct tsap_cb *self, struct sk_buff *userdata,
 	/*
 	 *  Check if there is still data segments in the transmit queue
 	 */
-	if (skb_queue_len(&self->tx_queue) > 0) {
+	if (!skb_queue_empty(&self->tx_queue)) {
 		if (priority == P_HIGH) {
 			/*
 			 *  No need to send the queued data, if we are

@@ -399,7 +399,7 @@ static void __init build_mem_type_table(void)
 		ecc_mask = 0;
 	}
 
-	if (cpu_arch <= CPU_ARCH_ARMv5) {
+	if (cpu_arch <= CPU_ARCH_ARMv5TEJ) {
 		for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
 			if (mem_types[i].prot_l1)
 				mem_types[i].prot_l1 |= PMD_BIT4;
@@ -584,7 +584,7 @@ void setup_mm_for_reboot(char mode)
 		pmdval = (i << PGDIR_SHIFT) |
 			 PMD_SECT_AP_WRITE | PMD_SECT_AP_READ |
 			 PMD_TYPE_SECT;
-		if (cpu_arch <= CPU_ARCH_ARMv5)
+		if (cpu_arch <= CPU_ARCH_ARMv5TEJ)
 			pmdval |= PMD_BIT4;
 		pmd = pmd_off(pgd, i << PGDIR_SHIFT);
 		pmd[0] = __pmd(pmdval);

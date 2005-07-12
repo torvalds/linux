@@ -1,8 +1,5 @@
 #
-# PCMCIA bus subsystem configuration
-#
-# Right now the non-CardBus choices are not supported
-# by the integrated kernel driver.
+# PCCARD (PCMCIA/CardBus) bus subsystem configuration
 #
 
 menu "PCCARD (PCMCIA/CardBus) support"
@@ -32,7 +29,7 @@ config PCMCIA_DEBUG
 
 	  The kernel command line options are:
 	    pcmcia_core.pc_debug=N
-	    ds.pc_debug=N
+	    pcmcia.pc_debug=N
 	    sa11xx_core.pc_debug=N
 
 	  The module option is called pc_debug=N
@@ -73,7 +70,7 @@ config PCMCIA_LOAD_CIS
 	  If unsure, say Y.
 
 config PCMCIA_IOCTL
-	bool
+	bool "PCMCIA control ioctl (obsolete)"
 	depends on PCMCIA
 	default y
 	help
@@ -81,9 +78,8 @@ config PCMCIA_IOCTL
 	  subsystem will be built. It is needed by cardmgr and cardctl
 	  (pcmcia-cs) to function properly.
 
-	  If you do not use the new pcmciautils package, and have a
-	  yenta, Cirrus PD6729, i82092, i82365 or tcic compatible bridge,
-	  you need to say Y here to be able to use 16-bit PCMCIA cards.
+	  You should use the new pcmciautils package instead (see
+	  <file:Documentation/Changes> for location and details).
 
 	  If unsure, say Y.
 
@@ -106,7 +102,8 @@ comment "PC-card bridges"
 
 config YENTA
 	tristate "CardBus yenta-compatible bridge support"
-	depends on CARDBUS
+	depends on PCI
+	select CARDBUS if !EMBEDDED
 	select PCCARD_NONSTATIC
 	---help---
 	  This option enables support for CardBus host bridges.  Virtually

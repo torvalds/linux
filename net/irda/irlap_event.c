@@ -191,7 +191,7 @@ static void irlap_start_poll_timer(struct irlap_cb *self, int timeout)
 	 * Send out the RR frames faster if our own transmit queue is empty, or
 	 * if the peer is busy. The effect is a much faster conversation
 	 */
-	if ((skb_queue_len(&self->txq) == 0) || (self->remote_busy)) {
+	if (skb_queue_empty(&self->txq) || self->remote_busy) {
 		if (self->fast_RR == TRUE) {
 			/*
 			 *  Assert that the fast poll timer has not reached the
@@ -263,7 +263,7 @@ void irlap_do_event(struct irlap_cb *self, IRLAP_EVENT event,
 		IRDA_DEBUG(2, "%s() : queue len = %d\n", __FUNCTION__,
 			   skb_queue_len(&self->txq));
 
-		if (skb_queue_len(&self->txq)) {
+		if (!skb_queue_empty(&self->txq)) {
 			/* Prevent race conditions with irlap_data_request() */
 			self->local_busy = TRUE;
 
@@ -1074,7 +1074,7 @@ static int irlap_state_xmit_p(struct irlap_cb *self, IRLAP_EVENT event,
 #else	/* CONFIG_IRDA_DYNAMIC_WINDOW */
 			/* Window has been adjusted for the max packet
 			 * size, so much simpler... - Jean II */
-			nextfit = (skb_queue_len(&self->txq) > 0);
+			nextfit = !skb_queue_empty(&self->txq);
 #endif	/* CONFIG_IRDA_DYNAMIC_WINDOW */
 			/*
 			 *  Send data with poll bit cleared only if window > 1
@@ -1814,7 +1814,7 @@ static int irlap_state_xmit_s(struct irlap_cb *self, IRLAP_EVENT event,
 #else	/* CONFIG_IRDA_DYNAMIC_WINDOW */
 			/* Window has been adjusted for the max packet
 			 * size, so much simpler... - Jean II */
-			nextfit = (skb_queue_len(&self->txq) > 0);
+			nextfit = !skb_queue_empty(&self->txq);
 #endif /* CONFIG_IRDA_DYNAMIC_WINDOW */
 			/*
 			 *  Send data with final bit cleared only if window > 1
@@ -1937,7 +1937,7 @@ static int irlap_state_nrm_s(struct irlap_cb *self, IRLAP_EVENT event,
 				irlap_data_indication(self, skb, FALSE);
 
 				/* Any pending data requests?  */
-				if ((skb_queue_len(&self->txq) > 0) &&
+				if (!skb_queue_empty(&self->txq) &&
 				    (self->window > 0))
 				{
 					self->ack_required = TRUE;
@@ -2038,7 +2038,7 @@ static int irlap_state_nrm_s(struct irlap_cb *self, IRLAP_EVENT event,
 			/*
 			 *  Any pending data requests?
 			 */
-			if ((skb_queue_len(&self->txq) > 0) &&
+			if (!skb_queue_empty(&self->txq) &&
 			    (self->window > 0) && !self->remote_busy)
 			{
 				irlap_data_indication(self, skb, TRUE);
@@ -2069,7 +2069,7 @@ static int irlap_state_nrm_s(struct irlap_cb *self, IRLAP_EVENT event,
 		 */
 		nr_status = irlap_validate_nr_received(self, info->nr);
 		if (nr_status == NR_EXPECTED) {
-			if ((skb_queue_len( &self->txq) > 0) &&
+			if (!skb_queue_empty(&self->txq) &&
 			    (self->window > 0)) {
 				self->remote_busy = FALSE;
 

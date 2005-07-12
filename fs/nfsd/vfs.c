@@ -733,7 +733,7 @@ nfsd_sync(struct file *filp)
 	up(&inode->i_sem);
 }
 
-static void
+void
 nfsd_sync_dir(struct dentry *dp)
 {
 	nfsd_dosync(NULL, dp, dp->d_inode->i_fop);

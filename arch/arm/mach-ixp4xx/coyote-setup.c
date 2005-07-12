@@ -56,21 +56,24 @@ static struct resource coyote_uart_resource = {
 	.flags	= IORESOURCE_MEM,
 };
 
-static struct plat_serial8250_port coyote_uart_data = {
-	.mapbase	= IXP4XX_UART2_BASE_PHYS,
-	.membase	= (char *)IXP4XX_UART2_BASE_VIRT + REG_OFFSET,
-	.irq		= IRQ_IXP4XX_UART2,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.iotype		= UPIO_MEM,
-	.regshift	= 2,
-	.uartclk	= IXP4XX_UART_XTAL,
+static struct plat_serial8250_port coyote_uart_data[] = {
+	{
+		.mapbase	= IXP4XX_UART2_BASE_PHYS,
+		.membase	= (char *)IXP4XX_UART2_BASE_VIRT + REG_OFFSET,
+		.irq		= IRQ_IXP4XX_UART2,
+		.flags		= UPF_BOOT_AUTOCONF,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+		.uartclk	= IXP4XX_UART_XTAL,
+	},
+	{ },
 };
 
 static struct platform_device coyote_uart = {
 	.name		= "serial8250",
 	.id		= 0,
 	.dev			= {
-		.platform_data	= &coyote_uart_data,
+		.platform_data	= coyote_uart_data,
 	},
 	.num_resources	= 1,
 	.resource	= &coyote_uart_resource,
@@ -87,10 +90,10 @@ static void __init coyote_init(void)
 	*IXP4XX_EXP_CS1 = *IXP4XX_EXP_CS0;
 
 	if (machine_is_ixdpg425()) {
-		coyote_uart_data.membase =
+		coyote_uart_data[0].membase =
 			(char*)(IXP4XX_UART1_BASE_VIRT + REG_OFFSET);
-		coyote_uart_data.mapbase = IXP4XX_UART1_BASE_PHYS;
-		coyote_uart_data.irq = IRQ_IXP4XX_UART1;
+		coyote_uart_data[0].mapbase = IXP4XX_UART1_BASE_PHYS;
+		coyote_uart_data[0].irq = IRQ_IXP4XX_UART1;
 	}
 
 

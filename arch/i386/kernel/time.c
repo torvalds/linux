@@ -91,7 +91,7 @@ EXPORT_SYMBOL(rtc_lock);
 DEFINE_SPINLOCK(i8253_lock);
 EXPORT_SYMBOL(i8253_lock);
 
-struct timer_opts *cur_timer = &timer_none;
+struct timer_opts *cur_timer __read_mostly = &timer_none;
 
 /*
  * This is a special lock that is owned by the CPU and holds the index

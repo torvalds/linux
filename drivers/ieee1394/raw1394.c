@@ -98,7 +98,7 @@ static struct hpsb_address_ops arm_ops = {
 
 static void queue_complete_cb(struct pending_request *req);
 
-static struct pending_request *__alloc_pending_request(int flags)
+static struct pending_request *__alloc_pending_request(unsigned int __nocast flags)
 {
 	struct pending_request *req;
 
@@ -2506,8 +2506,11 @@ static int raw1394_iso_send_packets(struct file_info *fi, void __user * uaddr)
 	if (copy_from_user(&upackets, uaddr, sizeof(upackets)))
 		return -EFAULT;
 
-	if (upackets.n_packets > hpsb_iso_n_ready(fi->iso_handle))
+	if (upackets.n_packets >= fi->iso_handle->buf_packets)
 		return -EINVAL;
+
+	if (upackets.n_packets >= hpsb_iso_n_ready(fi->iso_handle))
+		return -EAGAIN;
 
 	/* ensure user-supplied buffer is accessible and big enough */
 	if (!access_ok(VERIFY_READ, upackets.infos,

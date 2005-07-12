@@ -25,20 +25,19 @@
  */
 
 SYSCALL(0, 0)		                /* 00 */
-
 SYSCALL(sys_exit, 1)
-SYSCALL(sys_fork, 0)
+SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_read, 3)
 SYSCALL(sys_write, 3)
 SYSCALL(sys_open, 3)			/* 05 */
 SYSCALL(sys_close, 1)
-SYSCALL(sys_waitpid, 3)
+SYSCALL(sys_ni_syscall, 3)
 SYSCALL(sys_creat, 2)
 SYSCALL(sys_link, 2)
 SYSCALL(sys_unlink, 1)			/* 10 */
 SYSCALL(sys_execve, 0)
 SYSCALL(sys_chdir, 1)
-SYSCALL(sys_time, 1)
+SYSCALL(sys_ni_syscall, 1)
 SYSCALL(sys_mknod, 3)
 SYSCALL(sys_chmod, 2)			/* 15 */
 SYSCALL(sys_lchown, 3)
@@ -47,19 +46,19 @@ SYSCALL(sys_stat, 2)
 SYSCALL(sys_lseek, 3)
 SYSCALL(sys_getpid, 0)			/* 20 */
 SYSCALL(sys_mount, 5)
-SYSCALL(sys_oldumount, 1)
+SYSCALL(sys_ni_syscall, 1)
 SYSCALL(sys_setuid, 1)
 SYSCALL(sys_getuid, 0)
-SYSCALL(sys_stime, 1)			/* 25 */
+SYSCALL(sys_ni_syscall, 1)		/* 25 */
 SYSCALL(sys_ptrace, 4)
-SYSCALL(sys_alarm, 1)
+SYSCALL(sys_ni_syscall, 1)
 SYSCALL(sys_fstat, 2)
-SYSCALL(sys_pause, 0)
+SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_utime, 2)			/* 30 */
 SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_access, 2)
-SYSCALL(sys_nice, 1)
+SYSCALL(sys_ni_syscall, 1)
 SYSCALL(sys_ni_syscall, 0)		/* 35 */
 SYSCALL(sys_sync, 0)
 SYSCALL(sys_kill, 2)
@@ -73,7 +72,7 @@ SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_brk, 1)			/* 45 */
 SYSCALL(sys_setgid, 1)
 SYSCALL(sys_getgid, 0)
-SYSCALL(sys_ni_syscall, 0)		/* was signal(2) */
+SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_geteuid, 0)
 SYSCALL(sys_getegid, 0)			/* 50 */
 SYSCALL(sys_acct, 1)
@@ -84,21 +83,21 @@ SYSCALL(sys_fcntl, 3)			/* 55 */
 SYSCALL(sys_ni_syscall, 2)
 SYSCALL(sys_setpgid, 2)
 SYSCALL(sys_ni_syscall, 0)
-SYSCALL(sys_olduname, 1)
+SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_umask, 1)			/* 60 */
 SYSCALL(sys_chroot, 1)
 SYSCALL(sys_ustat, 2)
 SYSCALL(sys_dup2, 2)
 SYSCALL(sys_getppid, 0)
-SYSCALL(sys_getpgrp, 0)			/* 65 */
+SYSCALL(sys_ni_syscall, 0)		/* 65 */
 SYSCALL(sys_setsid, 0)
 SYSCALL(sys_sigaction, 3)
-SYSCALL(sys_sgetmask, 0)
-SYSCALL(sys_ssetmask, 1)
+SYSCALL(sys_ni_syscall, 0)
+SYSCALL(sys_ni_syscall, 1)
 SYSCALL(sys_setreuid, 2)		/* 70 */
 SYSCALL(sys_setregid, 2)
 SYSCALL(sys_sigsuspend, 0)
-SYSCALL(sys_sigpending, 1)
+SYSCALL(sys_ni_syscall, 1)
 SYSCALL(sys_sethostname, 2)
 SYSCALL(sys_setrlimit, 2)		/* 75 */
 SYSCALL(sys_getrlimit, 2)
@@ -107,15 +106,15 @@ SYSCALL(sys_gettimeofday, 2)
 SYSCALL(sys_settimeofday, 2)
 SYSCALL(sys_getgroups, 2)		/* 80 */
 SYSCALL(sys_setgroups, 2)
-SYSCALL(sys_ni_syscall, 0)		 /* old_select */
+SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_symlink, 2)
 SYSCALL(sys_lstat, 2)
 SYSCALL(sys_readlink, 3)		/* 85 */
 SYSCALL(sys_uselib, 1)
 SYSCALL(sys_swapon, 2)
 SYSCALL(sys_reboot, 3)
-SYSCALL(old_readdir, 3)
-SYSCALL(old_mmap, 6)			/* 90 */
+SYSCALL(sys_ni_syscall, 3)
+SYSCALL(sys_ni_syscall, 6)		/* 90 */
 SYSCALL(sys_munmap, 2)
 SYSCALL(sys_truncate, 2)
 SYSCALL(sys_ftruncate, 2)
@@ -127,7 +126,7 @@ SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_statfs, 2)
 SYSCALL(sys_fstatfs, 2)			/* 100 */
 SYSCALL(sys_ni_syscall, 3)
-SYSCALL(sys_socketcall, 2)
+SYSCALL(sys_ni_syscall, 2)
 SYSCALL(sys_syslog, 3)
 SYSCALL(sys_setitimer, 3)
 SYSCALL(sys_getitimer, 2)		/* 105 */
@@ -137,32 +136,32 @@ SYSCALL(sys_newfstat, 2)
 SYSCALL(sys_uname, 1)
 SYSCALL(sys_ni_syscall, 0)		/* 110 */
 SYSCALL(sys_vhangup, 0)
-SYSCALL(sys_ni_syscall, 0)		/* was sys_idle() */
+SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_wait4, 4)
 SYSCALL(sys_swapoff, 1)			/* 115 */
 SYSCALL(sys_sysinfo, 1)
-SYSCALL(sys_ipc, 5)   			/* 6 really, but glibc uses only 5) */
+SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_fsync, 1)
 SYSCALL(sys_sigreturn, 0)
 SYSCALL(sys_clone, 0)			/* 120 */
 SYSCALL(sys_setdomainname, 2)
 SYSCALL(sys_newuname, 1)
-SYSCALL(sys_ni_syscall, 0) 		/* sys_modify_ldt */
+SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_adjtimex, 1)
 SYSCALL(sys_mprotect, 3)		/* 125 */
-SYSCALL(sys_sigprocmask, 3)
-SYSCALL(sys_ni_syscall, 2)		/* old sys_create_module */
+SYSCALL(sys_ni_syscall, 3)
+SYSCALL(sys_ni_syscall, 2)
 SYSCALL(sys_init_module, 2)
 SYSCALL(sys_delete_module, 1)
-SYSCALL(sys_ni_syscall, 1)		/* old sys_get_kernel_sysm */	/* 130 */
+SYSCALL(sys_ni_syscall, 1)		/* 130 */
 SYSCALL(sys_quotactl, 0)
 SYSCALL(sys_getpgid, 1)
 SYSCALL(sys_fchdir, 1)
 SYSCALL(sys_bdflush, 2)
 SYSCALL(sys_sysfs, 3)			/* 135 */
 SYSCALL(sys_personality, 1)
-SYSCALL(sys_ni_syscall, 0)		/* for afs_syscall */
+SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_setfsuid, 1)
 SYSCALL(sys_setfsgid, 1)
 SYSCALL(sys_llseek, 5)			/* 140 */
@@ -212,7 +211,7 @@ SYSCALL(sys_socket, 3)
 SYSCALL(sys_socketpair, 4)
 SYSCALL(sys_setresuid, 3)		/* 185 */
 SYSCALL(sys_getresuid, 3)
-SYSCALL(sys_ni_syscall, 5)		/* old sys_query_module */
+SYSCALL(sys_ni_syscall, 5)
 SYSCALL(sys_poll, 3)
 SYSCALL(sys_nfsservctl, 3)
 SYSCALL(sys_setresgid, 3)		/* 190 */
@@ -235,7 +234,7 @@ SYSCALL(sys_sigaltstack, 0)
 SYSCALL(sys_sendfile, 4)
 SYSCALL(sys_ni_syscall, 0)
 SYSCALL(sys_ni_syscall, 0)
-SYSCALL(sys_mmap2, 6)			/* 210 */
+SYSCALL(sys_mmap, 6)			/* 210 */
 SYSCALL(sys_truncate64, 2)
 SYSCALL(sys_ftruncate64, 2)
 SYSCALL(sys_stat64, 2)
@@ -245,4 +244,4 @@ SYSCALL(sys_pivot_root, 2)
 SYSCALL(sys_mincore, 3)
 SYSCALL(sys_madvise, 3)
 SYSCALL(sys_getdents64, 3)
-SYSCALL(sys_vfork, 0)			/* 220 */
+SYSCALL(sys_ni_syscall, 0)		/* 220 */

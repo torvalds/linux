@@ -35,6 +35,11 @@ struct cx22702_config
 	/* the demodulator's i2c address */
 	u8 demod_address;
 
+	/* serial/parallel output */
+#define CX22702_PARALLEL_OUTPUT 0
+#define CX22702_SERIAL_OUTPUT   1
+	u8 output_mode;
+
 	/* PLL maintenance */
 	u8 pll_address;
 	struct dvb_pll_desc *pll_desc;

@@ -33,7 +33,7 @@ static int macio_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct macio_dev * macio_dev = to_macio_device(dev);
 	struct macio_driver * macio_drv = to_macio_driver(drv);
-	const struct of_match * matches = macio_drv->match_table;
+	const struct of_device_id * matches = macio_drv->match_table;
 
 	if (!matches) 
 		return 0;
@@ -66,7 +66,7 @@ static int macio_device_probe(struct device *dev)
 	int error = -ENODEV;
 	struct macio_driver *drv;
 	struct macio_dev *macio_dev;
-	const struct of_match *match;
+	const struct of_device_id *match;
 
 	drv = to_macio_driver(dev->driver);
 	macio_dev = to_macio_device(dev);
@@ -126,11 +126,85 @@ static int macio_device_resume(struct device * dev)
 	return 0;
 }
 
+static int macio_hotplug (struct device *dev, char **envp, int num_envp,
+                          char *buffer, int buffer_size)
+{
+	struct macio_dev * macio_dev;
+	struct of_device * of;
+	char *scratch, *compat;
+	int i = 0;
+	int length = 0;
+	int cplen, seen = 0;
+
+	if (!dev)
+		return -ENODEV;
+
+	macio_dev = to_macio_device(dev);
+	if (!macio_dev)
+		return -ENODEV;
+
+	of = &macio_dev->ofdev;
+	scratch = buffer;
+
+	/* stuff we want to pass to /sbin/hotplug */
+	envp[i++] = scratch;
+	length += scnprintf (scratch, buffer_size - length, "OF_NAME=%s",
+	                     of->node->name);
+	if ((buffer_size - length <= 0) || (i >= num_envp))
+		return -ENOMEM;
+	++length;
+	scratch += length;
+
+	envp[i++] = scratch;
+	length += scnprintf (scratch, buffer_size - length, "OF_TYPE=%s",
+	                     of->node->type);
+	if ((buffer_size - length <= 0) || (i >= num_envp))
+		return -ENOMEM;
+	++length;
+	scratch += length;
+
+        /* Since the compatible field can contain pretty much anything
+         * it's not really legal to split it out with commas. We split it
+         * up using a number of environment variables instead. */
+
+	compat = (char *) get_property(of->node, "compatible", &cplen);
+	while (compat && cplen > 0) {
+		int l;
+                envp[i++] = scratch;
+		length += scnprintf (scratch, buffer_size - length,
+		                     "OF_COMPATIBLE_%d=%s", seen, compat);
+		if ((buffer_size - length <= 0) || (i >= num_envp))
+			return -ENOMEM;
+		length++;
+		scratch += length;
+		l = strlen (compat) + 1;
+		compat += l;
+		cplen -= l;
+		seen++;
+	}
+
+	envp[i++] = scratch;
+	length += scnprintf (scratch, buffer_size - length,
+	                     "OF_COMPATIBLE_N=%d", seen);
+	if ((buffer_size - length <= 0) || (i >= num_envp))
+		return -ENOMEM;
+	++length;
+	scratch += length;
+
+	envp[i] = NULL;
+
+	return 0;
+}
+
+extern struct device_attribute macio_dev_attrs[];
+
 struct bus_type macio_bus_type = {
        .name	= "macio",
        .match	= macio_bus_match,
+       .hotplug = macio_hotplug,
        .suspend	= macio_device_suspend,
        .resume	= macio_device_resume,
+       .dev_attrs = macio_dev_attrs,
 };
 
 static int __init macio_bus_driver_init(void)

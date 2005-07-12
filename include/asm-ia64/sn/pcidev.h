@@ -10,11 +10,11 @@
 
 #include <linux/pci.h>
 
-extern struct sn_irq_info **sn_irq;
-
 #define SN_PCIDEV_INFO(pci_dev) \
         ((struct pcidev_info *)(pci_dev)->sysdata)
 
+#define SN_PCIBUS_BUSSOFT_INFO(pci_bus) \
+	(struct pcibus_info *)((struct pcibus_bussoft *)(PCI_CONTROLLER((pci_bus))->platform_data))
 /*
  * Given a pci_bus, return the sn pcibus_bussoft struct.  Note that
  * this only works for root busses, not for busses represented by PPB's.
@@ -23,6 +23,8 @@ extern struct sn_irq_info **sn_irq;
 #define SN_PCIBUS_BUSSOFT(pci_bus) \
         ((struct pcibus_bussoft *)(PCI_CONTROLLER((pci_bus))->platform_data))
 
+#define SN_PCIBUS_BUSSOFT_INFO(pci_bus) \
+	(struct pcibus_info *)((struct pcibus_bussoft *)(PCI_CONTROLLER((pci_bus))->platform_data))
 /*
  * Given a struct pci_dev, return the sn pcibus_bussoft struct.  Note
  * that this is not equivalent to SN_PCIBUS_BUSSOFT(pci_dev->bus) due
@@ -50,9 +52,17 @@ struct pcidev_info {
 
 	struct sn_irq_info	*pdi_sn_irq_info;
 	struct sn_pcibus_provider *pdi_provider;	/* sn pci ops */
+	struct pci_dev 		*host_pci_dev;		/* host bus link */
 };
 
 extern void sn_irq_fixup(struct pci_dev *pci_dev,
 			 struct sn_irq_info *sn_irq_info);
-
+extern void sn_irq_unfixup(struct pci_dev *pci_dev);
+extern void sn_pci_controller_fixup(int segment, int busnum,
+ 				    struct pci_bus *bus);
+extern void sn_bus_store_sysdata(struct pci_dev *dev);
+extern void sn_bus_free_sysdata(void);
+extern void sn_pci_fixup_slot(struct pci_dev *dev);
+extern void sn_pci_unfixup_slot(struct pci_dev *dev);
+extern void sn_irq_lh_init(void);
 #endif				/* _ASM_IA64_SN_PCI_PCIDEV_H */

@@ -7,6 +7,16 @@ config INFINIBAND
 	  any protocols you wish to use as well as drivers for your
 	  InfiniBand hardware.
 
+config INFINIBAND_USER_VERBS
+	tristate "InfiniBand userspace verbs support"
+	depends on INFINIBAND
+	---help---
+	  Userspace InfiniBand verbs support.  This is the kernel side
+	  of userspace verbs, which allows userspace processes to
+	  directly access InfiniBand hardware for fast-path
+	  operations.  You will also need libibverbs and a hardware
+	  driver library from <http://www.openib.org>.
+
 source "drivers/infiniband/hw/mthca/Kconfig"
 
 source "drivers/infiniband/ulp/ipoib/Kconfig"

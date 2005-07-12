@@ -4684,12 +4684,6 @@ wavelan_attach(void)
 
   /* Register with Card Services */
   client_reg.dev_info = &dev_info;
-  client_reg.EventMask = 
-    CS_EVENT_REGISTRATION_COMPLETE |
-    CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-    CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-    CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-  client_reg.event_handler = &wavelan_event;
   client_reg.Version = 0x0210;
   client_reg.event_callback_args.client_data = link;
 
@@ -4904,6 +4898,7 @@ static struct pcmcia_driver wavelan_driver = {
 		.name	= "wavelan_cs",
 	},
 	.attach		= wavelan_attach,
+	.event		= wavelan_event,
 	.detach		= wavelan_detach,
 	.id_table       = wavelan_ids,
 };

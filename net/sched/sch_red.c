@@ -385,7 +385,7 @@ static int red_change(struct Qdisc *sch, struct rtattr *opt)
 	memcpy(q->Stab, RTA_DATA(tb[TCA_RED_STAB-1]), 256);
 
 	q->qcount = -1;
-	if (skb_queue_len(&sch->q) == 0)
+	if (skb_queue_empty(&sch->q))
 		PSCHED_SET_PASTPERFECT(q->qidlestart);
 	sch_tree_unlock(sch);
 	return 0;

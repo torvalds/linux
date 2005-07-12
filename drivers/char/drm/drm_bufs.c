@@ -356,8 +356,8 @@ static void drm_cleanup_buf_error(drm_device_t *dev, drm_buf_entry_t *entry)
  * reallocates the buffer list of the same size order to accommodate the new
  * buffers.
  */
-int drm_addbufs_agp( struct inode *inode, struct file *filp,
-		      unsigned int cmd, unsigned long arg )
+static int drm_addbufs_agp( struct inode *inode, struct file *filp,
+			    unsigned int cmd, unsigned long arg )
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
@@ -521,8 +521,8 @@ int drm_addbufs_agp( struct inode *inode, struct file *filp,
 }
 #endif /* __OS_HAS_AGP */
 
-int drm_addbufs_pci( struct inode *inode, struct file *filp,
-		      unsigned int cmd, unsigned long arg )
+static int drm_addbufs_pci( struct inode *inode, struct file *filp,
+			    unsigned int cmd, unsigned long arg )
 {
    	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
@@ -751,8 +751,8 @@ int drm_addbufs_pci( struct inode *inode, struct file *filp,
 
 }
 
-int drm_addbufs_sg( struct inode *inode, struct file *filp,
-                     unsigned int cmd, unsigned long arg )
+static int drm_addbufs_sg( struct inode *inode, struct file *filp,
+			   unsigned int cmd, unsigned long arg )
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;

@@ -79,7 +79,7 @@ extern void linux_sparc_syscall(void);
 extern void rtrap(void);
 extern void show_regs(struct pt_regs *);
 extern void solaris_syscall(void);
-extern void syscall_trace(void);
+extern void syscall_trace(struct pt_regs *, int);
 extern u32 sunos_sys_table[], sys_call_table32[];
 extern void tl0_solaris(void);
 extern void sys_sigsuspend(void);

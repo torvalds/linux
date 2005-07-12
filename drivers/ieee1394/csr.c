@@ -28,6 +28,7 @@
 #include "hosts.h"
 #include "ieee1394.h"
 #include "highlevel.h"
+#include "ieee1394_core.h"
 
 /* Module Parameters */
 /* this module parameter can be used to disable mapping of the FCP registers */
@@ -232,7 +233,7 @@ static void add_host(struct hpsb_host *host)
 	host->csr.generation = 2;
 
 	bus_info[1] = __constant_cpu_to_be32(0x31333934);
-	bus_info[2] = cpu_to_be32((1 << CSR_IRMC_SHIFT) |
+	bus_info[2] = cpu_to_be32((hpsb_disable_irm ? 0 : 1 << CSR_IRMC_SHIFT) |
 				  (1 << CSR_CMC_SHIFT) |
 				  (1 << CSR_ISC_SHIFT) |
 				  (0 << CSR_BMC_SHIFT) |

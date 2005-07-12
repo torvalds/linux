@@ -17,12 +17,12 @@
  * Dynamic device IDs are disabled for !CONFIG_HOTPLUG
  */
 
-#ifdef CONFIG_HOTPLUG
-
 struct pci_dynid {
 	struct list_head node;
 	struct pci_device_id id;
 };
+
+#ifdef CONFIG_HOTPLUG
 
 /**
  * store_new_id

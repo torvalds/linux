@@ -869,13 +869,6 @@ extern asmlinkage int swsusp_arch_resume(void);
 
 asmlinkage int swsusp_save(void)
 {
-	int error = 0;
-
-	if ((error = swsusp_swap_check())) {
-		printk(KERN_ERR "swsusp: FATAL: cannot find swap device, try "
-				"swapon -a!\n");
-		return error;
-	}
 	return suspend_prepare_image();
 }
 
@@ -892,14 +885,20 @@ int swsusp_suspend(void)
 	 * at resume time, and evil weirdness ensues.
 	 */
 	if ((error = device_power_down(PMSG_FREEZE))) {
-		printk(KERN_ERR "Some devices failed to power down, aborting suspend\n");
 		local_irq_enable();
-		swsusp_free();
 		return error;
 	}
+
+	if ((error = swsusp_swap_check())) {
+		printk(KERN_ERR "swsusp: FATAL: cannot find swap device, try "
+				"swapon -a!\n");
+		local_irq_enable();
+		return error;
+	}
+
 	save_processor_state();
 	if ((error = swsusp_arch_suspend()))
-		swsusp_free();
+		printk("Error %d suspending\n", error);
 	/* Restore control flow magically appears here */
 	restore_processor_state();
 	BUG_ON (nr_copy_pages_check != nr_copy_pages);
@@ -1166,9 +1165,9 @@ static int bio_write_page(pgoff_t page_off, void * page)
 static const char * sanity_check(void)
 {
 	dump_info();
-	if(swsusp_info.version_code != LINUX_VERSION_CODE)
+	if (swsusp_info.version_code != LINUX_VERSION_CODE)
 		return "kernel version";
-	if(swsusp_info.num_physpages != num_physpages)
+	if (swsusp_info.num_physpages != num_physpages)
 		return "memory size";
 	if (strcmp(swsusp_info.uts.sysname,system_utsname.sysname))
 		return "system type";
@@ -1355,16 +1354,6 @@ static int read_suspend_image(void)
 int swsusp_check(void)
 {
 	int error;
-
-	if (!swsusp_resume_device) {
-		if (!strlen(resume_file))
-			return -ENOENT;
-		swsusp_resume_device = name_to_dev_t(resume_file);
-		pr_debug("swsusp: Resume From Partition %s\n", resume_file);
-	} else {
-		pr_debug("swsusp: Resume From Partition %d:%d\n",
-			 MAJOR(swsusp_resume_device), MINOR(swsusp_resume_device));
-	}
 
 	resume_bdev = open_by_devnum(swsusp_resume_device, FMODE_READ);
 	if (!IS_ERR(resume_bdev)) {

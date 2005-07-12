@@ -31,10 +31,17 @@ static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_device *d)
 	return 0;
 }
 
-/* some of the dibusb 1.1 device aren't equipped with the default tuner
+static int dibusb_thomson_tuner_attach(struct dvb_usb_device *d)
+{
+	d->pll_addr = 0x61;
+	d->pll_desc = &dvb_pll_tua6010xs;
+	return 0;
+}
+
+/* Some of the Artec 1.1 device aren't equipped with the default tuner
  * (Thomson Cable), but with a Panasonic ENV77H11D5.  This function figures
  * this out. */
-static int dibusb_dib3000mb_tuner_attach (struct dvb_usb_device *d)
+static int dibusb_tuner_probe_and_attach(struct dvb_usb_device *d)
 {
 	u8 b[2] = { 0,0 }, b2[1];
 	int ret = 0;
@@ -59,8 +66,7 @@ static int dibusb_dib3000mb_tuner_attach (struct dvb_usb_device *d)
 
 	if (b2[0] == 0xfe) {
 		info("this device has the Thomson Cable onboard. Which is default.");
-		d->pll_addr = 0x61;
-		d->pll_desc = &dvb_pll_tua6010xs;
+		dibusb_thomson_tuner_attach(d);
 	} else {
 		u8 bpll[4] = { 0x0b, 0xf5, 0x85, 0xab };
 		info("this device has the Panasonic ENV77H11D5 onboard.");
@@ -90,8 +96,8 @@ static int dibusb_probe(struct usb_interface *intf,
 
 /* do not change the order of the ID table */
 static struct usb_device_id dibusb_dib3000mb_table [] = {
-/* 00 */	{ USB_DEVICE(USB_VID_AVERMEDIA_UNK,	USB_PID_AVERMEDIA_DVBT_USB_COLD)},
-/* 01 */	{ USB_DEVICE(USB_VID_AVERMEDIA_UNK,	USB_PID_AVERMEDIA_DVBT_USB_WARM)},
+/* 00 */	{ USB_DEVICE(USB_VID_WIDEVIEW,		USB_PID_AVERMEDIA_DVBT_USB_COLD)},
+/* 01 */	{ USB_DEVICE(USB_VID_WIDEVIEW,		USB_PID_AVERMEDIA_DVBT_USB_WARM)},
 /* 02 */	{ USB_DEVICE(USB_VID_COMPRO,		USB_PID_COMPRO_DVBU2000_COLD) },
 /* 03 */	{ USB_DEVICE(USB_VID_COMPRO,		USB_PID_COMPRO_DVBU2000_WARM) },
 /* 04 */	{ USB_DEVICE(USB_VID_COMPRO_UNK,	USB_PID_COMPRO_DVBU2000_UNK_COLD) },
@@ -114,7 +120,17 @@ static struct usb_device_id dibusb_dib3000mb_table [] = {
 /* 21 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ULTIMA_TVBOX_AN2235_COLD) },
 /* 22 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ULTIMA_TVBOX_AN2235_WARM) },
 /* 23 */	{ USB_DEVICE(USB_VID_ADSTECH,		USB_PID_ADSTECH_USB2_COLD) },
+
+/* device ID with default DIBUSB2_0-firmware and with the hacked firmware */
 /* 24 */	{ USB_DEVICE(USB_VID_ADSTECH,		USB_PID_ADSTECH_USB2_WARM) },
+/* 25 */	{ USB_DEVICE(USB_VID_KYE,			USB_PID_KYE_DVB_T_COLD) },
+/* 26 */	{ USB_DEVICE(USB_VID_KYE,			USB_PID_KYE_DVB_T_WARM) },
+
+// #define DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+
+#ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+/* 27 */	{ USB_DEVICE(USB_VID_ANCHOR,		USB_PID_ULTIMA_TVBOX_ANCHOR_COLD) },
+#endif
 			{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, dibusb_dib3000mb_table);
@@ -134,7 +150,7 @@ static struct dvb_usb_properties dibusb1_1_properties = {
 	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
 	.power_ctrl       = dibusb_power_ctrl,
 	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_dib3000mb_tuner_attach,
+	.tuner_attach     = dibusb_tuner_probe_and_attach,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
@@ -156,7 +172,7 @@ static struct dvb_usb_properties dibusb1_1_properties = {
 		}
 	},
 
-	.num_device_descs = 8,
+	.num_device_descs = 9,
 	.devices = {
 		{	"AVerMedia AverTV DVBT USB1.1",
 			{ &dibusb_dib3000mb_table[0],  NULL },
@@ -190,11 +206,17 @@ static struct dvb_usb_properties dibusb1_1_properties = {
 			{ &dibusb_dib3000mb_table[19], NULL },
 			{ &dibusb_dib3000mb_table[20], NULL },
 		},
+		{	"VideoWalker DVB-T USB",
+			{ &dibusb_dib3000mb_table[25], NULL },
+			{ &dibusb_dib3000mb_table[26], NULL },
+		},
 	}
 };
 
 static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
+	.pid_filter_count = 16,
+
 	.usb_ctrl = CYPRESS_AN2235,
 
 	.firmware = "dvb-usb-dibusb-an2235-01.fw",
@@ -206,7 +228,7 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
 	.power_ctrl       = dibusb_power_ctrl,
 	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_dib3000mb_tuner_attach,
+	.tuner_attach     = dibusb_tuner_probe_and_attach,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
@@ -228,20 +250,32 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 		}
 	},
 
+#ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+	.num_device_descs = 2,
+#else
 	.num_device_descs = 1,
+#endif
 	.devices = {
 		{	"Artec T1 USB1.1 TVBOX with AN2235",
 			{ &dibusb_dib3000mb_table[20], NULL },
 			{ &dibusb_dib3000mb_table[21], NULL },
 		},
+#ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+		{	"Artec T1 USB1.1 TVBOX with AN2235 (faulty USB IDs)",
+			{ &dibusb_dib3000mb_table[27], NULL },
+			{ NULL },
+		},
+#endif
 	}
 };
 
 static struct dvb_usb_properties dibusb2_0b_properties = {
 	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
+	.pid_filter_count = 32,
+
 	.usb_ctrl = CYPRESS_FX2,
 
-	.firmware = "dvb-usb-adstech-usb2-01.fw",
+	.firmware = "dvb-usb-adstech-usb2-02.fw",
 
 	.size_of_priv     = sizeof(struct dibusb_state),
 
@@ -250,7 +284,7 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
 	.power_ctrl       = dibusb2_0_power_ctrl,
 	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
-	.tuner_attach     = dibusb_dib3000mb_tuner_attach,
+	.tuner_attach     = dibusb_thomson_tuner_attach,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
@@ -272,18 +306,18 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 		}
 	},
 
-	.num_device_descs = 2,
+	.num_device_descs = 1,
 	.devices = {
 		{	"KWorld/ADSTech Instant DVB-T USB 2.0",
 			{ &dibusb_dib3000mb_table[23], NULL },
-			{ &dibusb_dib3000mb_table[24], NULL }, /* device ID with default DIBUSB2_0-firmware */
+			{ &dibusb_dib3000mb_table[24], NULL },
 		},
 	}
 };
 
 static struct usb_driver dibusb_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "DiBcom based USB DVB-T devices (DiB3000M-B based)",
+	.name		= "dvb_usb_dibusb_mb",
 	.probe		= dibusb_probe,
 	.disconnect = dvb_usb_device_exit,
 	.id_table	= dibusb_dib3000mb_table,

@@ -203,7 +203,9 @@ struct nfs4_stateowner {
 	int			so_is_open_owner; /* 1=openowner,0=lockowner */
 	u32                     so_id;
 	struct nfs4_client *    so_client;
-	u32                     so_seqid;    
+	/* after increment in ENCODE_SEQID_OP_TAIL, represents the next
+	 * sequence id expected from the client: */
+	u32                     so_seqid;
 	struct xdr_netobj       so_owner;     /* open owner name */
 	int                     so_confirmed; /* successful OPEN_CONFIRM? */
 	struct nfs4_replay	so_replay;
@@ -235,6 +237,10 @@ struct nfs4_file {
 *       st_perlockowner: (open stateid) list of lock nfs4_stateowners
 * 	st_access_bmap: used only for open stateid
 * 	st_deny_bmap: used only for open stateid
+*	st_openstp: open stateid lock stateid was derived from
+*
+* XXX: open stateids and lock stateids have diverged sufficiently that
+* we should consider defining separate structs for the two cases.
 */
 
 struct nfs4_stateid {
@@ -248,6 +254,7 @@ struct nfs4_stateid {
 	struct file                 * st_vfs_file;
 	unsigned long                 st_access_bmap;
 	unsigned long                 st_deny_bmap;
+	struct nfs4_stateid         * st_openstp;
 };
 
 /* flags for preprocess_seqid_op() */

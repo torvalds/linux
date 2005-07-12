@@ -291,15 +291,13 @@ static void dump_packet(uint8_t *packet)
 	dump_hex(packet, header->len);
 }
 
-/* can't use hvc_get_chars because that strips CRs */
 static int hvsi_read(struct hvsi_struct *hp, char *buf, int count)
 {
 	unsigned long got;
 
-	if (plpar_hcall(H_GET_TERM_CHAR, hp->vtermno, 0, 0, 0, &got,
-			(unsigned long *)buf, (unsigned long *)buf+1) == H_Success)
-		return got;
-	return 0;
+	got = hvc_get_chars(hp->vtermno, buf, count);
+
+	return got;
 }
 
 static void hvsi_recv_control(struct hvsi_struct *hp, uint8_t *packet,

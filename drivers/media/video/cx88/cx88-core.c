@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-core.c,v 1.28 2005/06/12 04:19:19 mchehab Exp $
+ * $Id: cx88-core.c,v 1.31 2005/06/22 22:58:04 mchehab Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * driver core
@@ -545,12 +545,14 @@ void cx88_sram_channel_dump(struct cx88_core *core,
 	       core->name,cx_read(ch->cnt2_reg));
 }
 
+/* Used only on cx88-core */
 static char *cx88_pci_irqs[32] = {
 	"vid", "aud", "ts", "vip", "hst", "5", "6", "tm1",
 	"src_dma", "dst_dma", "risc_rd_err", "risc_wr_err",
 	"brdg_err", "src_dma_err", "dst_dma_err", "ipb_dma_err",
 	"i2c", "i2c_rack", "ir_smp", "gpio0", "gpio1"
 };
+/* Used only on cx88-video */
 char *cx88_vid_irqs[32] = {
 	"y_risci1", "u_risci1", "v_risci1", "vbi_risc1",
 	"y_risci2", "u_risci2", "v_risci2", "vbi_risc2",
@@ -558,6 +560,7 @@ char *cx88_vid_irqs[32] = {
 	"y_sync",   "u_sync",   "v_sync",   "vbi_sync",
 	"opc_err",  "par_err",  "rip_err",  "pci_abort",
 };
+/* Used only on cx88-mpeg */
 char *cx88_mpeg_irqs[32] = {
 	"ts_risci1", NULL, NULL, NULL,
 	"ts_risci2", NULL, NULL, NULL,
@@ -1006,21 +1009,7 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 	set_tvaudio(core);
 
 	// tell i2c chips
-#ifdef V4L2_I2C_CLIENTS
 	cx88_call_i2c_clients(core,VIDIOC_S_STD,&norm->id);
-#else
-	{
-		struct video_channel c;
-		memset(&c,0,sizeof(c));
-		c.channel = core->input;
-		c.norm = VIDEO_MODE_PAL;
-		if ((norm->id & (V4L2_STD_NTSC_M|V4L2_STD_NTSC_M_JP)))
-			c.norm = VIDEO_MODE_NTSC;
-		if (norm->id & V4L2_STD_SECAM)
-			c.norm = VIDEO_MODE_SECAM;
-		cx88_call_i2c_clients(core,VIDIOCSCHAN,&c);
-	}
-#endif
 
 	// done
 	return 0;

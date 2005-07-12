@@ -8,18 +8,17 @@
 
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <asm/sn/sn_sal.h>
+#include <asm/sn/addrs.h>
 #include <asm/sn/geo.h>
-#include "xtalk/xwidgetdev.h"
-#include "xtalk/hubdev.h"
+#include <asm/sn/pcibr_provider.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
-#include "pci/tiocp.h"
-#include "pci/pic.h"
-#include "pci/pcibr_provider.h"
-#include "pci/tiocp.h"
+#include <asm/sn/pic.h>
+#include <asm/sn/sn_sal.h>
+#include <asm/sn/tiocp.h>
 #include "tio.h"
-#include <asm/sn/addrs.h>
+#include "xtalk/xwidgetdev.h"
+#include "xtalk/hubdev.h"
 
 extern int sn_ioif_inited;
 

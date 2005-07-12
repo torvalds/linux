@@ -203,7 +203,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 */
 	asoc->addip_serial = asoc->c.initial_tsn;
 
-	skb_queue_head_init(&asoc->addip_chunks);
+	INIT_LIST_HEAD(&asoc->addip_chunk_list);
 
 	/* Make an empty list of remote transport addresses.  */
 	INIT_LIST_HEAD(&asoc->peer.transport_addr_list);
