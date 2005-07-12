@@ -45,8 +45,8 @@ extern void calibrate_delay(void);
 /* Please don't make this stuff initdata!!!  --DaveM */
 static unsigned char boot_cpu_id;
 
-cpumask_t cpu_online_map = CPU_MASK_NONE __read_mostly;
-cpumask_t phys_cpu_present_map = CPU_MASK_NONE __read_mostly;
+cpumask_t cpu_online_map __read_mostly = CPU_MASK_NONE;
+cpumask_t phys_cpu_present_map __read_mostly = CPU_MASK_NONE;
 static cpumask_t smp_commenced_mask;
 static cpumask_t cpu_callout_map;
 
