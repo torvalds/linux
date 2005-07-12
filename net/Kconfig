@@ -272,7 +272,7 @@ config ATM_BR2684
 	tristate "RFC1483/2684 Bridged protocols"
 	depends on ATM && INET
 	help
-	  ATM PVCs can carry ethernet PDUs according to rfc2684 (formerly 1483)
+	  ATM PVCs can carry ethernet PDUs according to RFC2684 (formerly 1483)
 	  This device will act like an ethernet from the kernels point of view,
 	  with the traffic being carried by ATM PVCs (currently 1 PVC/device).
 	  This is sometimes used over DSL lines.  If in doubt, say N.
@@ -281,7 +281,7 @@ config ATM_BR2684_IPFILTER
 	bool "Per-VC IP filter kludge"
 	depends on ATM_BR2684
 	help
-	  This is an experimental mechanism for users who need to terminating a
+	  This is an experimental mechanism for users who need to terminate a
 	  large number of IP-only vcc's.  Do not enable this unless you are sure
 	  you know what you are doing.
 
