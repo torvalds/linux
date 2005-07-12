@@ -758,7 +758,7 @@ static inline int todrop_entry(struct ip_vs_conn *cp)
 	return 1;
 }
 
-
+/* Called from keventd and must protect itself from softirqs */
 void ip_vs_random_dropentry(void)
 {
 	int idx;
@@ -773,7 +773,7 @@ void ip_vs_random_dropentry(void)
 		/*
 		 *  Lock is actually needed in this loop.
 		 */
-		ct_write_lock(hash);
+		ct_write_lock_bh(hash);
 
 		list_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
 			if (!cp->cport && !(cp->flags & IP_VS_CONN_F_NO_CPORT))
@@ -806,7 +806,7 @@ void ip_vs_random_dropentry(void)
 				ip_vs_conn_expire_now(cp->control);
 			}
 		}
-		ct_write_unlock(hash);
+		ct_write_unlock_bh(hash);
 	}
 }
 

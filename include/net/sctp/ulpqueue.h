@@ -62,19 +62,22 @@ struct sctp_ulpq *sctp_ulpq_init(struct sctp_ulpq *,
 void sctp_ulpq_free(struct sctp_ulpq *);
 
 /* Add a new DATA chunk for processing. */
-int sctp_ulpq_tail_data(struct sctp_ulpq *, struct sctp_chunk *, int);
+int sctp_ulpq_tail_data(struct sctp_ulpq *, struct sctp_chunk *,
+			unsigned int __nocast);
 
 /* Add a new event for propagation to the ULP. */
 int sctp_ulpq_tail_event(struct sctp_ulpq *, struct sctp_ulpevent *ev);
 
 /* Renege previously received chunks.  */
-void sctp_ulpq_renege(struct sctp_ulpq *, struct sctp_chunk *, int);
+void sctp_ulpq_renege(struct sctp_ulpq *, struct sctp_chunk *,
+		      unsigned int __nocast);
 
 /* Perform partial delivery. */
-void sctp_ulpq_partial_delivery(struct sctp_ulpq *, struct sctp_chunk *, int);
+void sctp_ulpq_partial_delivery(struct sctp_ulpq *, struct sctp_chunk *,
+				unsigned int __nocast);
 
 /* Abort the partial delivery. */
-void sctp_ulpq_abort_pd(struct sctp_ulpq *, int);
+void sctp_ulpq_abort_pd(struct sctp_ulpq *, unsigned int __nocast);
 
 /* Clear the partial data delivery condition on this socket. */
 int sctp_clear_pd(struct sock *sk);

@@ -122,6 +122,8 @@ source arch/cris/arch-v10/Kconfig
 
 endmenu
 
+source "net/Kconfig"
+
 # bring in ETRAX built-in drivers
 menu "Drivers for built-in interfaces"
 source arch/cris/arch-v10/drivers/Kconfig
@@ -149,7 +151,7 @@ source "drivers/ieee1394/Kconfig"
 
 source "drivers/message/i2o/Kconfig"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 source "drivers/isdn/Kconfig"
 

@@ -450,6 +450,8 @@ source "drivers/zorro/Kconfig"
 
 endmenu
 
+source "net/Kconfig"
+
 source "drivers/Kconfig"
 
 menu "Character devices"
