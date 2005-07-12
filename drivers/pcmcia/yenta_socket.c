@@ -527,24 +527,87 @@ static int yenta_sock_suspend(struct pcmcia_socket *sock)
  * Use an adaptive allocation for the memory resource,
  * sometimes the memory behind pci bridges is limited:
  * 1/8 of the size of the io window of the parent.
- * max 4 MB, min 16 kB.
+ * max 4 MB, min 16 kB. We try very hard to not get below
+ * the "ACC" values, though.
  */
 #define BRIDGE_MEM_MAX 4*1024*1024
+#define BRIDGE_MEM_ACC 128*1024
 #define BRIDGE_MEM_MIN 16*1024
 
-#define BRIDGE_IO_MAX 256
+#define BRIDGE_IO_MAX 512
+#define BRIDGE_IO_ACC 256
 #define BRIDGE_IO_MIN 32
 
 #ifndef PCIBIOS_MIN_CARDBUS_IO
 #define PCIBIOS_MIN_CARDBUS_IO PCIBIOS_MIN_IO
 #endif
 
+static int yenta_search_one_res(struct resource *root, struct resource *res,
+				u32 min)
+{
+	u32 align, size, start, end;
+
+	if (res->flags & IORESOURCE_IO) {
+		align = 1024;
+		size = BRIDGE_IO_MAX;
+		start = PCIBIOS_MIN_CARDBUS_IO;
+		end = ~0U;
+	} else {
+		unsigned long avail = root->end - root->start;
+		int i;
+		size = BRIDGE_MEM_MAX;
+		if (size > avail/8) {
+			size=(avail+1)/8;
+			/* round size down to next power of 2 */
+			i = 0;
+			while ((size /= 2) != 0)
+				i++;
+			size = 1 << i;
+		}
+		if (size < min)
+			size = min;
+		align = size;
+		start = PCIBIOS_MIN_MEM;
+		end = ~0U;
+	}
+
+	do {
+		if (allocate_resource(root, res, size, start, end, align,
+				      NULL, NULL)==0) {
+			return 1;
+		}
+		size = size/2;
+		align = size;
+	} while (size >= min);
+
+	return 0;
+}
+
+
+static int yenta_search_res(struct yenta_socket *socket, struct resource *res,
+			    u32 min)
+{
+	int i;
+	for (i=0; i<PCI_BUS_NUM_RESOURCES; i++) {
+		struct resource * root = socket->dev->bus->resource[i];
+		if (!root)
+			continue;
+
+		if ((res->flags ^ root->flags) &
+		    (IORESOURCE_IO | IORESOURCE_MEM | IORESOURCE_PREFETCH))
+			continue; /* Wrong type */
+
+		if (yenta_search_one_res(root, res, min))
+			return 1;
+	}
+	return 0;
+}
+
 static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type, int addr_start, int addr_end)
 {
 	struct pci_bus *bus;
 	struct resource *root, *res;
 	u32 start, end;
-	u32 align, size, min;
 	unsigned mask;
 
 	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
@@ -573,48 +636,35 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 				pci_name(socket->dev), nr);
 	}
 
-	res->start = 0;
-	res->end = 0;
-	root = pci_find_parent_resource(socket->dev, res);
-
 	if (type & IORESOURCE_IO) {
-		align = 1024;
-		size = BRIDGE_IO_MAX;
-		min = BRIDGE_IO_MIN;
-		start = PCIBIOS_MIN_CARDBUS_IO;
-		end = ~0U;
-	} else {
-		unsigned long avail = root->end - root->start;
-		int i;
-		size = BRIDGE_MEM_MAX;
-		if (size > avail/8) {
-			size=(avail+1)/8;
-			/* round size down to next power of 2 */
-			i = 0;
-			while ((size /= 2) != 0)
-				i++;
-			size = 1 << i;
-		}
-		if (size < BRIDGE_MEM_MIN)
-			size = BRIDGE_MEM_MIN;
-		min = BRIDGE_MEM_MIN;
-		align = size;
-		start = PCIBIOS_MIN_MEM;
-		end = ~0U;
-	}
-	
-	do {
-		if (allocate_resource(root, res, size, start, end, align, NULL, NULL)==0) {
+		if ((yenta_search_res(socket, res, BRIDGE_IO_MAX)) ||
+		    (yenta_search_res(socket, res, BRIDGE_IO_ACC)) ||
+		    (yenta_search_res(socket, res, BRIDGE_IO_MIN))) {
 			config_writel(socket, addr_start, res->start);
 			config_writel(socket, addr_end, res->end);
-			return;
 		}
-		size = size/2;
-		align = size;
-	} while (size >= min);
+	} else {
+		if (type & IORESOURCE_PREFETCH) {
+			if ((yenta_search_res(socket, res, BRIDGE_MEM_MAX)) ||
+			    (yenta_search_res(socket, res, BRIDGE_MEM_ACC)) ||
+			    (yenta_search_res(socket, res, BRIDGE_MEM_MIN))) {
+				config_writel(socket, addr_start, res->start);
+				config_writel(socket, addr_end, res->end);
+			}
+			/* Approximating prefetchable by non-prefetchable */
+			res->flags = IORESOURCE_MEM;
+		}
+		if ((yenta_search_res(socket, res, BRIDGE_MEM_MAX)) ||
+		    (yenta_search_res(socket, res, BRIDGE_MEM_ACC)) ||
+		    (yenta_search_res(socket, res, BRIDGE_MEM_MIN))) {
+			config_writel(socket, addr_start, res->start);
+			config_writel(socket, addr_end, res->end);
+		}
+	}
+
 	printk(KERN_INFO "yenta %s: no resource of type %x available, trying to continue...\n",
-			pci_name(socket->dev), type);
-	res->start = res->end = 0;
+	       pci_name(socket->dev), type);
+	res->start = res->end = res->flags = 0;
 }
 
 /*
