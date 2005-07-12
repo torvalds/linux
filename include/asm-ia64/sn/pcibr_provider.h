@@ -128,7 +128,7 @@ pcibr_lock(struct pcibus_info *pcibus_info)
 #define pcibr_unlock(pcibus_info, flag)  spin_unlock_irqrestore(&pcibus_info->pbi_lock, flag)
 
 extern int  pcibr_init_provider(void);
-extern void *pcibr_bus_fixup(struct pcibus_bussoft *);
+extern void *pcibr_bus_fixup(struct pcibus_bussoft *, struct pci_controller *);
 extern dma_addr_t pcibr_dma_map(struct pci_dev *, unsigned long, size_t);
 extern dma_addr_t pcibr_dma_map_consistent(struct pci_dev *, unsigned long, size_t);
 extern void pcibr_dma_unmap(struct pci_dev *, dma_addr_t, int);

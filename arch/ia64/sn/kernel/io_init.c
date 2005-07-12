@@ -61,7 +61,7 @@ sn_default_pci_unmap(struct pci_dev *pdev, dma_addr_t addr, int direction)
 }
 
 static void *
-sn_default_pci_bus_fixup(struct pcibus_bussoft *soft)
+sn_default_pci_bus_fixup(struct pcibus_bussoft *soft, struct pci_controller *controller)
 {
 	return NULL;
 }
@@ -362,7 +362,7 @@ void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 
 	provider_soft = NULL;
 	if (provider->bus_fixup)
-		provider_soft = (*provider->bus_fixup) (prom_bussoft_ptr);
+		provider_soft = (*provider->bus_fixup) (prom_bussoft_ptr, controller);
 
 	if (provider_soft == NULL)
 		return;		/* fixup failed or not applicable */
@@ -380,6 +380,22 @@ void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 	SN_PCIBUS_BUSSOFT(bus)->bs_xwidget_info =
 	    &(hubdev_info->hdi_xwidget_info[SN_PCIBUS_BUSSOFT(bus)->bs_xid]);
 
+	/*
+	 * If the node information we obtained during the fixup phase is invalid
+	 * then set controller->node to -1 (undetermined)
+	 */
+	if (controller->node >= num_online_nodes()) {
+		struct pcibus_bussoft *b = SN_PCIBUS_BUSSOFT(bus);
+
+		printk(KERN_WARNING "Device ASIC=%u XID=%u PBUSNUM=%lu"
+				    "L_IO=%lx L_MEM=%lx BASE=%lx\n",
+			b->bs_asic_type, b->bs_xid, b->bs_persist_busnum,
+			b->bs_legacy_io, b->bs_legacy_mem, b->bs_base);
+		printk(KERN_WARNING "on node %d but only %d nodes online."
+			"Association set to undetermined.\n",
+			controller->node, num_online_nodes());
+		controller->node = -1;
+	}
 	return;
 
 error_return:

@@ -37,6 +37,7 @@ struct pcibus_bussoft {
 	struct xwidget_info	*bs_xwidget_info;
 };
 
+struct pci_controller;
 /*
  * SN pci bus indirection
  */
@@ -45,7 +46,7 @@ struct sn_pcibus_provider {
 	dma_addr_t	(*dma_map)(struct pci_dev *, unsigned long, size_t);
 	dma_addr_t	(*dma_map_consistent)(struct pci_dev *, unsigned long, size_t);
 	void		(*dma_unmap)(struct pci_dev *, dma_addr_t, int);
-	void *		(*bus_fixup)(struct pcibus_bussoft *);
+	void *		(*bus_fixup)(struct pcibus_bussoft *, struct pci_controller *);
 };
 
 extern struct sn_pcibus_provider *sn_pci_provider[];

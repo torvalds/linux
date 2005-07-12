@@ -581,7 +581,7 @@ tioca_error_intr_handler(int irq, void *arg, struct pt_regs *pt)
  * the caller.
  */
 static void *
-tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft)
+tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *controller)
 {
 	struct tioca_common *tioca_common;
 	struct tioca_kernel *tioca_kern;
@@ -646,6 +646,8 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft)
 		       __FUNCTION__, SGI_TIOCA_ERROR,
 		       (int)tioca_common->ca_common.bs_persist_busnum);
 
+	/* Setup locality information */
+	controller->node = tioca_kern->ca_closest_node;
 	return tioca_common;
 }
 
