@@ -686,9 +686,6 @@ void __init mem_init(void)
 
 	mem_init_done = 1;
 
-#ifdef CONFIG_PPC_ISERIES
-	iommu_vio_init();
-#endif
 	/* Initialize the vDSO */
 	vdso_init();
 }

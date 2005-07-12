@@ -27,7 +27,7 @@ EXPORT_SYMBOL(iSeries_vio_dev);
 static struct iommu_table veth_iommu_table;
 static struct iommu_table vio_iommu_table;
 
-void __init iommu_vio_init(void)
+static void __init iommu_vio_init(void)
 {
 	struct iommu_table *t;
 	struct iommu_table_cb cb;
@@ -123,6 +123,7 @@ static int __init vio_bus_init_iseries(void)
 
 	err = vio_bus_init();
 	if (err == 0) {
+		iommu_vio_init();
 		vio_bus_device.iommu_table = &vio_iommu_table;
 		iSeries_vio_dev = &vio_bus_device.dev;
 		probe_bus_iseries();
