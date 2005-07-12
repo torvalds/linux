@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: build.c,v 1.70 2005/02/28 08:21:05 dedekind Exp $
+ * $Id: build.c,v 1.71 2005/07/12 16:37:08 dedekind Exp $
  *
  */
 
@@ -335,13 +335,6 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 		c->blocks[i].last_node = NULL;
 		c->blocks[i].bad_count = 0;
 	}
-
-	init_MUTEX(&c->alloc_sem);
-	init_MUTEX(&c->erase_free_sem);
-	init_waitqueue_head(&c->erase_wait);
-	init_waitqueue_head(&c->inocache_wq);
-	spin_lock_init(&c->erase_completion_lock);
-	spin_lock_init(&c->inocache_lock);
 
 	INIT_LIST_HEAD(&c->clean_list);
 	INIT_LIST_HEAD(&c->very_dirty_list);

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: super.c,v 1.106 2005/05/18 11:37:25 dedekind Exp $
+ * $Id: super.c,v 1.107 2005/07/12 16:37:08 dedekind Exp $
  *
  */
 
@@ -139,6 +139,15 @@ static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
 
 	D1(printk(KERN_DEBUG "jffs2_get_sb_mtd(): New superblock for device %d (\"%s\")\n",
 		  mtd->index, mtd->name));
+
+	/* Initialize JFFS2 superblock locks, the further initialization will be
+	 * done later */
+	init_MUTEX(&c->alloc_sem);
+	init_MUTEX(&c->erase_free_sem);
+	init_waitqueue_head(&c->erase_wait);
+	init_waitqueue_head(&c->inocache_wq);
+	spin_lock_init(&c->erase_completion_lock);
+	spin_lock_init(&c->inocache_lock);
 
 	sb->s_op = &jffs2_super_operations;
 	sb->s_flags = flags | MS_NOATIME;
