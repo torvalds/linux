@@ -27,6 +27,8 @@
 
 #ifndef __ASSEMBLY__
 
+extern void *crash_notes;
+
 struct kimage;
 
 extern void machine_kexec_simple(struct kimage *image);
