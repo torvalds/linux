@@ -195,8 +195,16 @@ cflags-$(CONFIG_CPU_MIPS32_R1)	+= \
 			$(call set_gccflags,mips32,mips32,r4600,mips3,mips2) \
 			-Wa,--trap
 
+cflags-$(CONFIG_CPU_MIPS32_R2)	+= \
+			$(call set_gccflags,mips32r2,mips32r2,r4600,mips3,mips2) \
+			-Wa,--trap
+
 cflags-$(CONFIG_CPU_MIPS64_R1)	+= \
 			$(call set_gccflags,mips64,mips64,r4600,mips3,mips2) \
+			-Wa,--trap
+
+cflags-$(CONFIG_CPU_MIPS64_R2)	+= \
+			$(call set_gccflags,mips64r2,mips64r2,r4600,mips3,mips2) \
 			-Wa,--trap
 
 cflags-$(CONFIG_CPU_R5000)	+= \
