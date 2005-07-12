@@ -30,6 +30,9 @@
 #include <linux/kthread.h>
 #include <linux/suspend.h>
 
+#define CONFIG_DVB_MT352 1
+#define CONFIG_DVB_TDA1004X 1
+
 #include "saa7134-reg.h"
 #include "saa7134.h"
 

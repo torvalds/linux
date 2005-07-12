@@ -30,6 +30,11 @@
 #include <linux/file.h>
 #include <linux/suspend.h>
 
+#define CONFIG_DVB_MT352 1
+#define CONFIG_DVB_CX22702 1
+#define CONFIG_DVB_OR51132 1
+#define CONFIG_DVB_LGDT3302 1
+
 #include "cx88.h"
 #include "dvb-pll.h"
 
