@@ -275,9 +275,16 @@ int pcie_port_device_probe(struct pci_dev *dev)
 
 int pcie_port_device_register(struct pci_dev *dev)
 {
+	struct pcie_port_device_ext *p_ext;
 	int status, type, capabilities, irq_mode, i;
 	int vectors[PCIE_PORT_DEVICE_MAXSERVICES];
 	u16 reg16;
+
+	/* Allocate port device extension */
+	if (!(p_ext = kmalloc(sizeof(struct pcie_port_device_ext), GFP_KERNEL)))
+		return -ENOMEM;
+
+	pci_set_drvdata(dev, p_ext);
 
 	/* Get port type */
 	pci_read_config_word(dev,
@@ -288,6 +295,7 @@ int pcie_port_device_register(struct pci_dev *dev)
 	/* Now get port services */
 	capabilities = get_port_device_capability(dev);
 	irq_mode = assign_interrupt_mode(dev, vectors, capabilities);
+	p_ext->interrupt_mode = irq_mode;
 
 	/* Allocate child services if any */
 	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
@@ -317,7 +325,7 @@ int pcie_port_device_register(struct pci_dev *dev)
 static int suspend_iter(struct device *dev, void *data)
 {
 	struct pcie_port_service_driver *service_driver;
-	u32 state = (u32)data;
+	pm_message_t state = * (pm_message_t *) data;
 
  	if ((dev->bus == &pcie_port_bus_type) &&
  	    (dev->driver)) {
@@ -328,9 +336,9 @@ static int suspend_iter(struct device *dev, void *data)
 	return 0;
 }
 
-int pcie_port_device_suspend(struct pci_dev *dev, u32 state)
+int pcie_port_device_suspend(struct pci_dev *dev, pm_message_t state)
 {
-	device_for_each_child(&dev->dev, (void *)state, suspend_iter);
+	device_for_each_child(&dev->dev, &state, suspend_iter);
 	return 0;
 }
 

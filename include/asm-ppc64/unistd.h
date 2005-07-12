@@ -268,7 +268,7 @@
 #define __NR_rtas		255
 /* Number 256 is reserved for sys_debug_setcontext */
 /* Number 257 is reserved for vserver */
-/* Number 258 is reserved for new sys_remap_file_pages */
+/* 258 currently unused */
 #define __NR_mbind		259
 #define __NR_get_mempolicy	260
 #define __NR_set_mempolicy	261
@@ -283,8 +283,10 @@
 #define __NR_request_key	270
 #define __NR_keyctl		271
 #define __NR_waitid		272
+#define __NR_ioprio_set		273
+#define __NR_ioprio_get		274
 
-#define __NR_syscalls		273
+#define __NR_syscalls		275
 #ifdef __KERNEL__
 #define NR_syscalls	__NR_syscalls
 #endif

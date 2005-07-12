@@ -1124,9 +1124,11 @@ _GLOBAL(sys_call_table32)
 	.llong .compat_sys_mq_getsetattr
 	.llong .compat_sys_kexec_load
 	.llong .sys32_add_key
-	.llong .sys32_request_key
+	.llong .sys32_request_key	/* 270 */
 	.llong .compat_sys_keyctl
 	.llong .compat_sys_waitid
+	.llong .sys32_ioprio_set
+	.llong .sys32_ioprio_get
 
 	.balign 8
 _GLOBAL(sys_call_table)
@@ -1403,3 +1405,5 @@ _GLOBAL(sys_call_table)
 	.llong .sys_request_key		/* 270 */
 	.llong .sys_keyctl
 	.llong .sys_waitid
+	.llong .sys_ioprio_set
+	.llong .sys_ioprio_get

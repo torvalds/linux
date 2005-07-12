@@ -123,10 +123,12 @@ static void __init cerf_init(void)
 }
 
 MACHINE_START(CERF, "Intrinsyc CerfBoard/CerfCube")
-	MAINTAINER("support@intrinsyc.com")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xf8000000)
-	MAPIO(cerf_map_io)
-	INITIRQ(cerf_init_irq)
+	/* Maintainer: support@intrinsyc.com */
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
+	.map_io		= cerf_map_io,
+	.init_irq	= cerf_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= cerf_init,
 MACHINE_END

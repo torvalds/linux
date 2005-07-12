@@ -406,7 +406,7 @@ static int sctp_send_asconf(struct sctp_association *asoc,
 	 * transmission.
 	 */	
 	if (asoc->addip_last_asconf) {
-		__skb_queue_tail(&asoc->addip_chunks, (struct sk_buff *)chunk);
+		list_add_tail(&chunk->list, &asoc->addip_chunk_list);
 		goto out;	
 	}
 

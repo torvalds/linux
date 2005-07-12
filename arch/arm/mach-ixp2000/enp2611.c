@@ -219,17 +219,20 @@ static struct platform_device *enp2611_devices[] __initdata = {
 static void __init enp2611_init_machine(void)
 {
 	platform_add_devices(enp2611_devices, ARRAY_SIZE(enp2611_devices));
+	ixp2000_uart_init();
 }
 
 
 MACHINE_START(ENP2611, "Radisys ENP-2611 PCI network processor board")
-	MAINTAINER("Lennert Buytenhek <buytenh@wantstofly.org>")
-	BOOT_MEM(0x00000000, IXP2000_UART_PHYS_BASE, IXP2000_UART_VIRT_BASE)
-	BOOT_PARAMS(0x00000100)
-	MAPIO(ixp2000_map_io)
-	INITIRQ(ixp2000_init_irq)
+	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
+	.phys_ram	= 0x00000000,
+	.phys_io	= IXP2000_UART_PHYS_BASE,
+	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.map_io		= ixp2000_map_io,
+	.init_irq	= ixp2000_init_irq,
 	.timer		= &enp2611_timer,
-	INIT_MACHINE(enp2611_init_machine)
+	.init_machine	= enp2611_init_machine,
 MACHINE_END
 
 

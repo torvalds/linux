@@ -11,6 +11,7 @@
 #ifndef _ASM_IA64_SN_ARCH_H
 #define _ASM_IA64_SN_ARCH_H
 
+#include <linux/numa.h>
 #include <asm/types.h>
 #include <asm/percpu.h>
 #include <asm/sn/types.h>

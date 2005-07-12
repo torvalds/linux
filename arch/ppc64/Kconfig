@@ -429,6 +429,8 @@ config CMDLINE
 
 endmenu
 
+source "net/Kconfig"
+
 source "drivers/Kconfig"
 
 source "fs/Kconfig"

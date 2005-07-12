@@ -1281,6 +1281,7 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 	if (firmware_size < 60) {
 		printk("%s: firmware size too small for DSP code (%zu < 60).\n",
 			__FUNCTION__, firmware_size);
+		release_firmware(fw_entry);
 		return -1;
 	}
 
@@ -1294,6 +1295,7 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 		printk("%s: crc32 check of DSP code failed (calculated "
 		       "0x%08x != 0x%08x in file), file invalid.\n",
 			__FUNCTION__, crc32_csum, crc32_check);
+		release_firmware(fw_entry);
 		return -1;
 	}
 	memcpy(idstring, &firmware[36], 20);
@@ -1308,15 +1310,19 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 
 	result = ttusb_dec_send_command(dec, 0x41, sizeof(b0), b0, NULL, NULL);
 
-	if (result)
+	if (result) {
+		release_firmware(fw_entry);
 		return result;
+	}
 
 	trans_count = 0;
 	j = 0;
 
 	b = kmalloc(ARM_PACKET_SIZE, GFP_KERNEL);
-	if (b == NULL)
+	if (b == NULL) {
+		release_firmware(fw_entry);
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < firmware_size; i += COMMAND_PACKET_SIZE) {
 		size = firmware_size - i;
@@ -1345,6 +1351,7 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 
 	result = ttusb_dec_send_command(dec, 0x43, sizeof(b1), b1, NULL, NULL);
 
+	release_firmware(fw_entry);
 	kfree(b);
 
 	return result;

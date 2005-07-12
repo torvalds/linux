@@ -62,10 +62,10 @@ static struct hpsb_iso* hpsb_iso_common_init(struct hpsb_host *host, enum hpsb_i
 	if ((dma_mode < HPSB_ISO_DMA_DEFAULT) || (dma_mode > HPSB_ISO_DMA_PACKET_PER_BUFFER))
 		dma_mode=HPSB_ISO_DMA_DEFAULT;
 
+	if ((irq_interval < 0) || (irq_interval > buf_packets / 4))
+ 		irq_interval = buf_packets / 4;
 	if (irq_interval == 0)     /* really interrupt for each packet*/
 		irq_interval = 1;
-	else if ((irq_interval < 0) || (irq_interval > buf_packets / 4))
- 		irq_interval = buf_packets / 4;
 
 	if (channel < -1 || channel >= 64)
 		return NULL;
@@ -106,6 +106,7 @@ static struct hpsb_iso* hpsb_iso_common_init(struct hpsb_host *host, enum hpsb_i
 	}
 
 	atomic_set(&iso->overflows, 0);
+	iso->bytes_discarded = 0;
 	iso->flags = 0;
 	iso->prebuffer = 0;
 
@@ -241,12 +242,12 @@ int hpsb_iso_xmit_start(struct hpsb_iso *iso, int cycle, int prebuffer)
 	iso->xmit_cycle = cycle;
 
 	if (prebuffer < 0)
-		prebuffer = iso->buf_packets;
+		prebuffer = iso->buf_packets - 1;
 	else if (prebuffer == 0)
 		prebuffer = 1;
 
-	if (prebuffer > iso->buf_packets)
-		prebuffer = iso->buf_packets;
+	if (prebuffer >= iso->buf_packets)
+		prebuffer = iso->buf_packets - 1;
 
 	iso->prebuffer = prebuffer;
 
@@ -395,7 +396,7 @@ void hpsb_iso_packet_sent(struct hpsb_iso *iso, int cycle, int error)
 }
 
 void hpsb_iso_packet_received(struct hpsb_iso *iso, u32 offset, u16 len,
-			      u16 cycle, u8 channel, u8 tag, u8 sy)
+			      u16 total_len, u16 cycle, u8 channel, u8 tag, u8 sy)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&iso->lock, flags);
@@ -403,10 +404,13 @@ void hpsb_iso_packet_received(struct hpsb_iso *iso, u32 offset, u16 len,
 	if (iso->n_ready_packets == iso->buf_packets) {
 		/* overflow! */
 		atomic_inc(&iso->overflows);
+		/* Record size of this discarded packet */
+		iso->bytes_discarded += total_len;
 	} else {
 		struct hpsb_iso_packet_info *info = &iso->infos[iso->pkt_dma];
 		info->offset = offset;
 		info->len = len;
+		info->total_len = total_len;
 		info->cycle = cycle;
 		info->channel = channel;
 		info->tag = tag;
@@ -437,6 +441,17 @@ int hpsb_iso_recv_release_packets(struct hpsb_iso *iso, unsigned int n_packets)
 
 		iso->first_packet = (iso->first_packet+1) % iso->buf_packets;
 		iso->n_ready_packets--;
+
+		/* release memory from packets discarded when queue was full  */
+		if (iso->n_ready_packets == 0) { /* Release only after all prior packets handled */
+			if (iso->bytes_discarded != 0) {
+				struct hpsb_iso_packet_info inf;
+				inf.total_len = iso->bytes_discarded;
+				iso->host->driver->isoctl(iso, RECV_RELEASE,
+							(unsigned long) &inf);
+				iso->bytes_discarded = 0;
+			}
+		}
 	}
 	spin_unlock_irqrestore(&iso->lock, flags);
 	return rv;

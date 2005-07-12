@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.90 2004/12/08 17:59:20 dwmw2 Exp $
+ * $Id: nodelist.c,v 1.97 2005/07/06 15:18:41 dwmw2 Exp $
  *
  */
 
@@ -58,27 +58,60 @@ void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new
 /* Put a new tmp_dnode_info into the list, keeping the list in 
    order of increasing version
 */
-static void jffs2_add_tn_to_list(struct jffs2_tmp_dnode_info *tn, struct jffs2_tmp_dnode_info **list)
+
+static void jffs2_add_tn_to_list(struct jffs2_tmp_dnode_info *tn, struct rb_root *list)
 {
-	struct jffs2_tmp_dnode_info **prev = list;
-	
-	while ((*prev) && (*prev)->version < tn->version) {
-		prev = &((*prev)->next);
-	}
-	tn->next = (*prev);
-        *prev = tn;
+	struct rb_node **p = &list->rb_node;
+	struct rb_node * parent = NULL;
+	struct jffs2_tmp_dnode_info *this;
+
+	while (*p) {
+		parent = *p;
+		this = rb_entry(parent, struct jffs2_tmp_dnode_info, rb);
+
+		/* There may actually be a collision here, but it doesn't
+		   actually matter. As long as the two nodes with the same
+		   version are together, it's all fine. */
+		if (tn->version < this->version)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+        }
+
+	rb_link_node(&tn->rb, parent, p);
+	rb_insert_color(&tn->rb, list);
 }
 
-static void jffs2_free_tmp_dnode_info_list(struct jffs2_tmp_dnode_info *tn)
+static void jffs2_free_tmp_dnode_info_list(struct rb_root *list)
 {
-	struct jffs2_tmp_dnode_info *next;
+	struct rb_node *this;
+	struct jffs2_tmp_dnode_info *tn;
 
-	while (tn) {
-		next = tn;
-		tn = tn->next;
-		jffs2_free_full_dnode(next->fn);
-		jffs2_free_tmp_dnode_info(next);
+	this = list->rb_node;
+
+	/* Now at bottom of tree */
+	while (this) {
+		if (this->rb_left)
+			this = this->rb_left;
+		else if (this->rb_right)
+			this = this->rb_right;
+		else {
+			tn = rb_entry(this, struct jffs2_tmp_dnode_info, rb);
+			jffs2_free_full_dnode(tn->fn);
+			jffs2_free_tmp_dnode_info(tn);
+
+			this = this->rb_parent;
+			if (!this)
+				break;
+
+			if (this->rb_left == &tn->rb)
+				this->rb_left = NULL;
+			else if (this->rb_right == &tn->rb)
+				this->rb_right = NULL;
+			else BUG();
+		}
 	}
+	list->rb_node = NULL;
 }
 
 static void jffs2_free_full_dirent_list(struct jffs2_full_dirent *fd)
@@ -108,12 +141,13 @@ static struct jffs2_raw_node_ref *jffs2_first_valid_node(struct jffs2_raw_node_r
    with this ino, returning the former in order of version */
 
 int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
-			  struct jffs2_tmp_dnode_info **tnp, struct jffs2_full_dirent **fdp,
+			  struct rb_root *tnp, struct jffs2_full_dirent **fdp,
 			  uint32_t *highest_version, uint32_t *latest_mctime,
 			  uint32_t *mctime_ver)
 {
 	struct jffs2_raw_node_ref *ref, *valid_ref;
-	struct jffs2_tmp_dnode_info *tn, *ret_tn = NULL;
+	struct jffs2_tmp_dnode_info *tn;
+	struct rb_root ret_tn = RB_ROOT;
 	struct jffs2_full_dirent *fd, *ret_fd = NULL;
 	union jffs2_node_union node;
 	size_t retlen;
@@ -127,7 +161,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 
 	valid_ref = jffs2_first_valid_node(f->inocache->nodes);
 
-	if (!valid_ref)
+	if (!valid_ref && (f->inocache->ino != 1))
 		printk(KERN_WARNING "Eep. No valid nodes for ino #%u\n", f->inocache->ino);
 
 	while (valid_ref) {
@@ -450,7 +484,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 	return 0;
 
  free_out:
-	jffs2_free_tmp_dnode_info_list(ret_tn);
+	jffs2_free_tmp_dnode_info_list(&ret_tn);
 	jffs2_free_full_dirent_list(ret_fd);
 	return err;
 }
@@ -489,9 +523,13 @@ struct jffs2_inode_cache *jffs2_get_ino_cache(struct jffs2_sb_info *c, uint32_t 
 void jffs2_add_ino_cache (struct jffs2_sb_info *c, struct jffs2_inode_cache *new)
 {
 	struct jffs2_inode_cache **prev;
-	D2(printk(KERN_DEBUG "jffs2_add_ino_cache: Add %p (ino #%u)\n", new, new->ino));
+
 	spin_lock(&c->inocache_lock);
-	
+	if (!new->ino)
+		new->ino = ++c->highest_ino;
+
+	D2(printk(KERN_DEBUG "jffs2_add_ino_cache: Add %p (ino #%u)\n", new, new->ino));
+
 	prev = &c->inocache_list[new->ino % INOCACHE_HASHSIZE];
 
 	while ((*prev) && (*prev)->ino < new->ino) {
@@ -506,7 +544,7 @@ void jffs2_add_ino_cache (struct jffs2_sb_info *c, struct jffs2_inode_cache *new
 void jffs2_del_ino_cache(struct jffs2_sb_info *c, struct jffs2_inode_cache *old)
 {
 	struct jffs2_inode_cache **prev;
-	D2(printk(KERN_DEBUG "jffs2_del_ino_cache: Del %p (ino #%u)\n", old, old->ino));
+	D1(printk(KERN_DEBUG "jffs2_del_ino_cache: Del %p (ino #%u)\n", old, old->ino));
 	spin_lock(&c->inocache_lock);
 	
 	prev = &c->inocache_list[old->ino % INOCACHE_HASHSIZE];
@@ -517,6 +555,14 @@ void jffs2_del_ino_cache(struct jffs2_sb_info *c, struct jffs2_inode_cache *old)
 	if ((*prev) == old) {
 		*prev = old->next;
 	}
+
+	/* Free it now unless it's in READING or CLEARING state, which
+	   are the transitions upon read_inode() and clear_inode(). The
+	   rest of the time we know nobody else is looking at it, and 
+	   if it's held by read_inode() or clear_inode() they'll free it
+	   for themselves. */
+	if (old->state != INO_STATE_READING && old->state != INO_STATE_CLEARING)
+		jffs2_free_inode_cache(old);
 
 	spin_unlock(&c->inocache_lock);
 }
@@ -530,7 +576,6 @@ void jffs2_free_ino_caches(struct jffs2_sb_info *c)
 		this = c->inocache_list[i];
 		while (this) {
 			next = this->next;
-			D2(printk(KERN_DEBUG "jffs2_free_ino_caches: Freeing ino #%u at %p\n", this->ino, this));
 			jffs2_free_inode_cache(this);
 			this = next;
 		}

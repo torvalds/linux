@@ -126,6 +126,7 @@ int pxa_cpu_pm_prepare(suspend_state_t state)
 {
 	switch (state) {
 	case PM_SUSPEND_MEM:
+	case PM_SUSPEND_STANDBY:
 		return 0;
 	default:
 		return -EINVAL;
@@ -138,7 +139,10 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 	extern void pxa_cpu_suspend(unsigned int);
 	extern void pxa_cpu_resume(void);
 
-	CKEN = CKEN22_MEMC | CKEN9_OSTIMER;
+	if (state == PM_SUSPEND_STANDBY)
+		CKEN = CKEN22_MEMC | CKEN9_OSTIMER | CKEN16_LCD |CKEN0_PWM0;
+	else
+		CKEN = CKEN22_MEMC | CKEN9_OSTIMER;
 
 	/* ensure voltage-change sequencer not initiated, which hangs */
 	PCFR &= ~PCFR_FVC;
@@ -147,6 +151,9 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 	PEDR = 0xDF12FE1B;
 
 	switch (state) {
+	case PM_SUSPEND_STANDBY:
+		pxa_cpu_standby();
+		break;
 	case PM_SUSPEND_MEM:
 		/* set resume return address */
 		PSPR = virt_to_phys(pxa_cpu_resume);

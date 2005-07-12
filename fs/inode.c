@@ -1052,13 +1052,15 @@ static void generic_forget_inode(struct inode *inode)
  * inode when the usage count drops to zero, and
  * i_nlink is zero.
  */
-static void generic_drop_inode(struct inode *inode)
+void generic_drop_inode(struct inode *inode)
 {
 	if (!inode->i_nlink)
 		generic_delete_inode(inode);
 	else
 		generic_forget_inode(inode);
 }
+
+EXPORT_SYMBOL_GPL(generic_drop_inode);
 
 /*
  * Called when we're dropping the last reference

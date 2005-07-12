@@ -1,5 +1,5 @@
 /*
-    $Id: cx88-i2c.c,v 1.23 2005/06/12 04:19:19 mchehab Exp $
+    $Id: cx88-i2c.c,v 1.24 2005/06/17 18:46:23 mkrufky Exp $
 
     cx88-i2c.c  --  all the i2c code is here
 
@@ -157,6 +157,7 @@ static struct i2c_client cx8800_i2c_client_template = {
 };
 
 static char *i2c_devs[128] = {
+	[ 0x1c >> 1 ] = "lgdt3302",
 	[ 0x86 >> 1 ] = "tda9887/cx22702",
 	[ 0xa0 >> 1 ] = "eeprom",
 	[ 0xc0 >> 1 ] = "tuner (analog)",

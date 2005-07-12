@@ -16,7 +16,7 @@
  *  
  * Interface to generic NAND code for M-Systems DiskOnChip devices
  *
- * $Id: diskonchip.c,v 1.45 2005/01/05 18:05:14 dwmw2 Exp $
+ * $Id: diskonchip.c,v 1.54 2005/04/07 14:22:55 dbrown Exp $
  */
 
 #include <linux/kernel.h>
@@ -35,13 +35,13 @@
 #include <linux/mtd/inftl.h>
 
 /* Where to look for the devices? */
-#ifndef CONFIG_MTD_DISKONCHIP_PROBE_ADDRESS
-#define CONFIG_MTD_DISKONCHIP_PROBE_ADDRESS 0
+#ifndef CONFIG_MTD_NAND_DISKONCHIP_PROBE_ADDRESS
+#define CONFIG_MTD_NAND_DISKONCHIP_PROBE_ADDRESS 0
 #endif
 
 static unsigned long __initdata doc_locations[] = {
 #if defined (__alpha__) || defined(__i386__) || defined(__x86_64__)
-#ifdef CONFIG_MTD_DISKONCHIP_PROBE_HIGH
+#ifdef CONFIG_MTD_NAND_DISKONCHIP_PROBE_HIGH
 	0xfffc8000, 0xfffca000, 0xfffcc000, 0xfffce000, 
 	0xfffd0000, 0xfffd2000, 0xfffd4000, 0xfffd6000,
 	0xfffd8000, 0xfffda000, 0xfffdc000, 0xfffde000, 
@@ -81,11 +81,6 @@ struct doc_priv {
 	struct mtd_info *nextdoc;
 };
 
-/* Max number of eraseblocks to scan (from start of device) for the (I)NFTL
-   MediaHeader.  The spec says to just keep going, I think, but that's just
-   silly. */
-#define MAX_MEDIAHEADER_SCAN 8
-
 /* This is the syndrome computed by the HW ecc generator upon reading an empty
    page, one with all 0xff for data and stored ecc code. */
 static u_char empty_read_syndrome[6] = { 0x26, 0xff, 0x6d, 0x47, 0x73, 0x7a };
@@ -111,10 +106,11 @@ module_param(try_dword, int, 0);
 static int no_ecc_failures=0;
 module_param(no_ecc_failures, int, 0);
 
-#ifdef CONFIG_MTD_PARTITIONS
 static int no_autopart=0;
 module_param(no_autopart, int, 0);
-#endif
+
+static int show_firmware_partition=0;
+module_param(show_firmware_partition, int, 0);
 
 #ifdef MTD_NAND_DISKONCHIP_BBTWRITE
 static int inftl_bbt_write=1;
@@ -123,7 +119,7 @@ static int inftl_bbt_write=0;
 #endif
 module_param(inftl_bbt_write, int, 0);
 
-static unsigned long doc_config_location = CONFIG_MTD_DISKONCHIP_PROBE_ADDRESS;
+static unsigned long doc_config_location = CONFIG_MTD_NAND_DISKONCHIP_PROBE_ADDRESS;
 module_param(doc_config_location, ulong, 0);
 MODULE_PARM_DESC(doc_config_location, "Physical memory address at which to probe for DiskOnChip");
 
@@ -410,7 +406,12 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 	doc200x_hwcontrol(mtd, NAND_CTL_SETALE);
 	this->write_byte(mtd, 0);
 	doc200x_hwcontrol(mtd, NAND_CTL_CLRALE);
-
+	
+	/* We cant' use dev_ready here, but at least we wait for the
+	 * command to complete 
+	 */
+	udelay(50);
+	
 	ret = this->read_byte(mtd) << 8;
 	ret |= this->read_byte(mtd);
 
@@ -428,6 +429,8 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 		doc200x_hwcontrol(mtd, NAND_CTL_SETALE);
 		doc2000_write_byte(mtd, 0);
 		doc200x_hwcontrol(mtd, NAND_CTL_CLRALE);
+
+		udelay(50);
 
 		ident.dword = readl(docptr + DoC_2k_CDSN_IO);
 		if (((ident.byte[0] << 8) | ident.byte[1]) == ret) {
@@ -1046,11 +1049,21 @@ static int doc200x_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_
 		
 //u_char mydatabuf[528];
 
+/* The strange out-of-order .oobfree list below is a (possibly unneeded)
+ * attempt to retain compatibility.  It used to read:
+ * 	.oobfree = { {8, 8} }
+ * Since that leaves two bytes unusable, it was changed.  But the following
+ * scheme might affect existing jffs2 installs by moving the cleanmarker:
+ * 	.oobfree = { {6, 10} }
+ * jffs2 seems to handle the above gracefully, but the current scheme seems
+ * safer.  The only problem with it is that any code that parses oobfree must
+ * be able to handle out-of-order segments.
+ */
 static struct nand_oobinfo doc200x_oobinfo = {
         .useecc = MTD_NANDECC_AUTOPLACE,
         .eccbytes = 6,
         .eccpos = {0, 1, 2, 3, 4, 5},
-        .oobfree = { {8, 8} }
+        .oobfree = { {8, 8}, {6, 2} }
 };
  
 /* Find the (I)NFTL Media Header, and optionally also the mirror media header.
@@ -1064,12 +1077,11 @@ static int __init find_media_headers(struct mtd_info *mtd, u_char *buf,
 {
 	struct nand_chip *this = mtd->priv;
 	struct doc_priv *doc = this->priv;
-	unsigned offs, end = (MAX_MEDIAHEADER_SCAN << this->phys_erase_shift);
+	unsigned offs;
 	int ret;
 	size_t retlen;
 
-	end = min(end, mtd->size); // paranoia
-	for (offs = 0; offs < end; offs += mtd->erasesize) {
+	for (offs = 0; offs < mtd->size; offs += mtd->erasesize) {
 		ret = mtd->read(mtd, offs, mtd->oobblock, &retlen, buf);
 		if (retlen != mtd->oobblock) continue;
 		if (ret) {
@@ -1111,6 +1123,7 @@ static inline int __init nftl_partscan(struct mtd_info *mtd,
 	u_char *buf;
 	struct NFTLMediaHeader *mh;
 	const unsigned psize = 1 << this->page_shift;
+	int numparts = 0;
 	unsigned blocks, maxblocks;
 	int offs, numheaders;
 
@@ -1122,8 +1135,10 @@ static inline int __init nftl_partscan(struct mtd_info *mtd,
 	if (!(numheaders=find_media_headers(mtd, buf, "ANAND", 1))) goto out;
 	mh = (struct NFTLMediaHeader *) buf;
 
-//#ifdef CONFIG_MTD_DEBUG_VERBOSE
-//	if (CONFIG_MTD_DEBUG_VERBOSE >= 2)
+	mh->NumEraseUnits = le16_to_cpu(mh->NumEraseUnits);
+	mh->FirstPhysicalEUN = le16_to_cpu(mh->FirstPhysicalEUN);
+	mh->FormattedSize = le32_to_cpu(mh->FormattedSize);
+
 	printk(KERN_INFO "    DataOrgID        = %s\n"
 			 "    NumEraseUnits    = %d\n"
 			 "    FirstPhysicalEUN = %d\n"
@@ -1132,7 +1147,6 @@ static inline int __init nftl_partscan(struct mtd_info *mtd,
 		mh->DataOrgID, mh->NumEraseUnits,
 		mh->FirstPhysicalEUN, mh->FormattedSize,
 		mh->UnitSizeFactor);
-//#endif
 
 	blocks = mtd->size >> this->phys_erase_shift;
 	maxblocks = min(32768U, mtd->erasesize - psize);
@@ -1175,23 +1189,28 @@ static inline int __init nftl_partscan(struct mtd_info *mtd,
 	offs <<= this->page_shift;
 	offs += mtd->erasesize;
 
-	//parts[0].name = " DiskOnChip Boot / Media Header partition";
-	//parts[0].offset = 0;
-	//parts[0].size = offs;
-
-	parts[0].name = " DiskOnChip BDTL partition";
-	parts[0].offset = offs;
-	parts[0].size = (mh->NumEraseUnits - numheaders) << this->bbt_erase_shift;
-
-	offs += parts[0].size;
-	if (offs < mtd->size) {
-		parts[1].name = " DiskOnChip Remainder partition";
-		parts[1].offset = offs;
-		parts[1].size = mtd->size - offs;
-		ret = 2;
-		goto out;
+	if (show_firmware_partition == 1) {
+		parts[0].name = " DiskOnChip Firmware / Media Header partition";
+		parts[0].offset = 0;
+		parts[0].size = offs;
+		numparts = 1;
 	}
-	ret = 1;
+
+	parts[numparts].name = " DiskOnChip BDTL partition";
+	parts[numparts].offset = offs;
+	parts[numparts].size = (mh->NumEraseUnits - numheaders) << this->bbt_erase_shift;
+
+	offs += parts[numparts].size;
+	numparts++;
+
+	if (offs < mtd->size) {
+		parts[numparts].name = " DiskOnChip Remainder partition";
+		parts[numparts].offset = offs;
+		parts[numparts].size = mtd->size - offs;
+		numparts++;
+	}
+
+	ret = numparts;
 out:
 	kfree(buf);
 	return ret;
@@ -1233,8 +1252,6 @@ static inline int __init inftl_partscan(struct mtd_info *mtd,
 	mh->FormatFlags = le32_to_cpu(mh->FormatFlags);
 	mh->PercentUsed = le32_to_cpu(mh->PercentUsed);
  
-//#ifdef CONFIG_MTD_DEBUG_VERBOSE
-//	if (CONFIG_MTD_DEBUG_VERBOSE >= 2)
 	printk(KERN_INFO "    bootRecordID          = %s\n"
 			 "    NoOfBootImageBlocks   = %d\n"
 			 "    NoOfBinaryPartitions  = %d\n"
@@ -1252,7 +1269,6 @@ static inline int __init inftl_partscan(struct mtd_info *mtd,
 		((unsigned char *) &mh->OsakVersion)[2] & 0xf,
 		((unsigned char *) &mh->OsakVersion)[3] & 0xf,
 		mh->PercentUsed);
-//#endif
 
 	vshift = this->phys_erase_shift + mh->BlockMultiplierBits;
 
@@ -1278,8 +1294,6 @@ static inline int __init inftl_partscan(struct mtd_info *mtd,
 		ip->spareUnits = le32_to_cpu(ip->spareUnits);
 		ip->Reserved0 = le32_to_cpu(ip->Reserved0);
 
-//#ifdef CONFIG_MTD_DEBUG_VERBOSE
-//		if (CONFIG_MTD_DEBUG_VERBOSE >= 2)
 		printk(KERN_INFO	"    PARTITION[%d] ->\n"
 			"        virtualUnits    = %d\n"
 			"        firstUnit       = %d\n"
@@ -1289,16 +1303,14 @@ static inline int __init inftl_partscan(struct mtd_info *mtd,
 			i, ip->virtualUnits, ip->firstUnit,
 			ip->lastUnit, ip->flags,
 			ip->spareUnits);
-//#endif
 
-/*
-		if ((i == 0) && (ip->firstUnit > 0)) {
+		if ((show_firmware_partition == 1) &&
+		    (i == 0) && (ip->firstUnit > 0)) {
 			parts[0].name = " DiskOnChip IPL / Media Header partition";
 			parts[0].offset = 0;
 			parts[0].size = mtd->erasesize * ip->firstUnit;
 			numparts = 1;
 		}
-*/
 
 		if (ip->flags & INFTL_BINARY)
 			parts[numparts].name = " DiskOnChip BDK partition";

@@ -56,6 +56,10 @@ SECTIONS
   .data.cacheline_aligned : AT(ADDR(.data.cacheline_aligned) - LOAD_OFFSET) {
 	*(.data.cacheline_aligned)
   }
+  . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
+  .data.read_mostly : AT(ADDR(.data.read_mostly) - LOAD_OFFSET) {
+  	*(.data.read_mostly)
+  }
 
 #define VSYSCALL_ADDR (-10*1024*1024)
 #define VSYSCALL_PHYS_ADDR ((LOADADDR(.data.cacheline_aligned) + SIZEOF(.data.cacheline_aligned) + 4095) & ~(4095))

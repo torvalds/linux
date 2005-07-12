@@ -223,7 +223,9 @@ source "arch/arm/mach-pxa/Kconfig"
 
 source "arch/arm/mach-sa1100/Kconfig"
 
-source "arch/arm/mach-omap/Kconfig"
+source "arch/arm/plat-omap/Kconfig"
+
+source "arch/arm/mach-omap1/Kconfig"
 
 source "arch/arm/mach-s3c2410/Kconfig"
 
@@ -514,7 +516,7 @@ config XIP_PHYS_ADDR
 
 endmenu
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR)
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP1)
 
 menu "CPU Frequency scaling"
 
@@ -698,6 +700,8 @@ config APM
 
 endmenu
 
+source "net/Kconfig"
+
 menu "Device Drivers"
 
 source "drivers/base/Kconfig"
@@ -730,7 +734,7 @@ source "drivers/ieee1394/Kconfig"
 
 source "drivers/message/i2o/Kconfig"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 source "drivers/isdn/Kconfig"
 

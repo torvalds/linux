@@ -43,7 +43,7 @@ static int set_task_ioprio(struct task_struct *task, int ioprio)
 	return 0;
 }
 
-asmlinkage int sys_ioprio_set(int which, int who, int ioprio)
+asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 {
 	int class = IOPRIO_PRIO_CLASS(ioprio);
 	int data = IOPRIO_PRIO_DATA(ioprio);
@@ -115,7 +115,7 @@ asmlinkage int sys_ioprio_set(int which, int who, int ioprio)
 	return ret;
 }
 
-asmlinkage int sys_ioprio_get(int which, int who)
+asmlinkage long sys_ioprio_get(int which, int who)
 {
 	struct task_struct *g, *p;
 	struct user_struct *user;

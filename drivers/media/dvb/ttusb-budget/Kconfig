@@ -3,6 +3,7 @@ config DVB_TTUSB_BUDGET
 	depends on DVB_CORE && USB
 	select DVB_CX22700
 	select DVB_TDA1004X
+	select DVB_VES1820
 	select DVB_TDA8083
 	select DVB_STV0299
 	help

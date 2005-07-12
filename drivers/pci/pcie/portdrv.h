@@ -27,6 +27,11 @@
 
 #define get_descriptor_id(type, service) (((type - 4) << 4) | service)
 
+struct pcie_port_device_ext {
+	int interrupt_mode;	/* [0:INTx | 1:MSI | 2:MSI-X] */
+	unsigned int saved_msi_config_space[5];
+};
+
 extern struct bus_type pcie_port_bus_type;
 extern int pcie_port_device_probe(struct pci_dev *dev);
 extern int pcie_port_device_register(struct pci_dev *dev);

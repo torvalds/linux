@@ -698,7 +698,7 @@ dispose_iface(struct device *dev)
 }
 
 static int
-create_iface_macio(struct macio_dev* dev, const struct of_match *match)
+create_iface_macio(struct macio_dev* dev, const struct of_device_id *match)
 {
 	return create_iface(dev->ofdev.node, &dev->ofdev.dev);
 }
@@ -710,7 +710,7 @@ dispose_iface_macio(struct macio_dev* dev)
 }
 
 static int
-create_iface_of_platform(struct of_device* dev, const struct of_match *match)
+create_iface_of_platform(struct of_device* dev, const struct of_device_id *match)
 {
 	return create_iface(dev->node, &dev->dev);
 }
@@ -721,10 +721,9 @@ dispose_iface_of_platform(struct of_device* dev)
 	return dispose_iface(&dev->dev);
 }
 
-static struct of_match i2c_keywest_match[] = 
+static struct of_device_id i2c_keywest_match[] = 
 {
 	{
-	.name 		= OF_ANY_MATCH,
 	.type		= "i2c",
 	.compatible	= "keywest"
 	},

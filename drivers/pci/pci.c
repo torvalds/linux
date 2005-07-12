@@ -334,10 +334,6 @@ EXPORT_SYMBOL(pci_choose_state);
 /**
  * pci_save_state - save the PCI configuration space of a device before suspending
  * @dev: - PCI device that we're dealing with
- * @buffer: - buffer to hold config space context
- *
- * @buffer must be large enough to hold the entire PCI 2.2 config space 
- * (>= 64 bytes).
  */
 int
 pci_save_state(struct pci_dev *dev)
@@ -352,8 +348,6 @@ pci_save_state(struct pci_dev *dev)
 /** 
  * pci_restore_state - Restore the saved state of a PCI device
  * @dev: - PCI device that we're dealing with
- * @buffer: - saved PCI config space
- *
  */
 int 
 pci_restore_state(struct pci_dev *dev)

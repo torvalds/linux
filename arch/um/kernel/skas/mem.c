@@ -5,7 +5,9 @@
 
 #include "linux/config.h"
 #include "linux/mm.h"
+#include "asm/pgtable.h"
 #include "mem_user.h"
+#include "skas.h"
 
 unsigned long set_task_sizes_skas(int arg, unsigned long *host_size_out, 
 				  unsigned long *task_size_out)
@@ -18,7 +20,9 @@ unsigned long set_task_sizes_skas(int arg, unsigned long *host_size_out,
 	*task_size_out = CONFIG_HOST_TASK_SIZE;
 #else
 	*host_size_out = top;
-	*task_size_out = top;
+	if (proc_mm && ptrace_faultinfo)
+		*task_size_out = top;
+	else *task_size_out = CONFIG_STUB_START & PGDIR_MASK;
 #endif
 	return(((unsigned long) set_task_sizes_skas) & ~0xffffff);
 }

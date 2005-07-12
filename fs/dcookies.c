@@ -94,12 +94,10 @@ static struct dcookie_struct * alloc_dcookie(struct dentry * dentry,
 	if (!dcs)
 		return NULL;
 
-	atomic_inc(&dentry->d_count);
-	atomic_inc(&vfsmnt->mnt_count);
 	dentry->d_cookie = dcs;
 
-	dcs->dentry = dentry;
-	dcs->vfsmnt = vfsmnt;
+	dcs->dentry = dget(dentry);
+	dcs->vfsmnt = mntget(vfsmnt);
 	hash_dcookie(dcs);
 
 	return dcs;

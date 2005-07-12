@@ -68,21 +68,21 @@ EXPORT_SYMBOL(smp_num_siblings);
 #endif
 
 /* Package ID of each logical CPU */
-int phys_proc_id[NR_CPUS] = {[0 ... NR_CPUS-1] = BAD_APICID};
+int phys_proc_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
 EXPORT_SYMBOL(phys_proc_id);
 
 /* Core ID of each logical CPU */
-int cpu_core_id[NR_CPUS] = {[0 ... NR_CPUS-1] = BAD_APICID};
+int cpu_core_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
 EXPORT_SYMBOL(cpu_core_id);
 
-cpumask_t cpu_sibling_map[NR_CPUS];
+cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_sibling_map);
 
-cpumask_t cpu_core_map[NR_CPUS];
+cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_core_map);
 
 /* bitmap of online cpus */
-cpumask_t cpu_online_map;
+cpumask_t cpu_online_map __read_mostly;
 EXPORT_SYMBOL(cpu_online_map);
 
 cpumask_t cpu_callin_map;
@@ -100,7 +100,7 @@ static int __devinitdata tsc_sync_disabled;
 struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
 EXPORT_SYMBOL(cpu_data);
 
-u8 x86_cpu_to_apicid[NR_CPUS] =
+u8 x86_cpu_to_apicid[NR_CPUS] __read_mostly =
 			{ [0 ... NR_CPUS-1] = 0xff };
 EXPORT_SYMBOL(x86_cpu_to_apicid);
 
@@ -550,10 +550,10 @@ extern struct {
 #ifdef CONFIG_NUMA
 
 /* which logical CPUs are on which nodes */
-cpumask_t node_2_cpu_mask[MAX_NUMNODES] =
+cpumask_t node_2_cpu_mask[MAX_NUMNODES] __read_mostly =
 				{ [0 ... MAX_NUMNODES-1] = CPU_MASK_NONE };
 /* which node each logical CPU is on */
-int cpu_2_node[NR_CPUS] = { [0 ... NR_CPUS-1] = 0 };
+int cpu_2_node[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
 EXPORT_SYMBOL(cpu_2_node);
 
 /* set up a mapping between cpu and node. */
@@ -581,7 +581,7 @@ static inline void unmap_cpu_to_node(int cpu)
 
 #endif /* CONFIG_NUMA */
 
-u8 cpu_2_logical_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
+u8 cpu_2_logical_apicid[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = BAD_APICID };
 
 static void map_cpu_to_logical_apicid(void)
 {

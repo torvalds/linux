@@ -3259,7 +3259,7 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM
-static int skge_suspend(struct pci_dev *pdev, u32 state)
+static int skge_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct skge_hw *hw  = pci_get_drvdata(pdev);
 	int i, wol = 0;
@@ -3279,7 +3279,7 @@ static int skge_suspend(struct pci_dev *pdev, u32 state)
 	}
 
 	pci_save_state(pdev);
-	pci_enable_wake(pdev, state, wol);
+	pci_enable_wake(pdev, pci_choose_state(pdev, state), wol);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 

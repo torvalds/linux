@@ -27,4 +27,7 @@ obj-$(CONFIG_DVB_USB_UMT_010) += dvb-usb-dibusb-common.o dvb-usb-umt-010.o
 dvb-usb-digitv-objs = digitv.o
 obj-$(CONFIG_DVB_USB_DIGITV) += dvb-usb-digitv.o
 
+dvb-usb-cxusb-objs = cxusb.o
+obj-$(CONFIG_DVB_USB_CXUSB) += dvb-usb-cxusb.o
+
 EXTRA_CFLAGS = -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/

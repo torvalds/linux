@@ -41,7 +41,10 @@ extern void fp_enter(void);
  * This has a special calling convention; it doesn't
  * modify any of the usual registers, except for LR.
  */
+#define EXPORT_CRC_ALIAS(sym) __CRC_SYMBOL(sym, "")
+
 #define EXPORT_SYMBOL_ALIAS(sym,orig)		\
+ EXPORT_CRC_ALIAS(sym)				\
  const struct kernel_symbol __ksymtab_##sym	\
   __attribute__((section("__ksymtab"))) =	\
     { (unsigned long)&orig, #sym };

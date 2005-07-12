@@ -191,7 +191,7 @@ simeth_probe1(void)
 	unsigned char mac_addr[ETH_ALEN];
 	struct simeth_local *local;
 	struct net_device *dev;
-	int fd, i, err;
+	int fd, i, err, rc;
 
 	/*
 	 * XXX Fix me
@@ -228,7 +228,9 @@ simeth_probe1(void)
 		return err;
 	}
 
-	dev->irq = assign_irq_vector(AUTO_ASSIGN);
+	if ((rc = assign_irq_vector(AUTO_ASSIGN)) < 0)
+		panic("%s: out of interrupt vectors!\n", __FUNCTION__);
+	dev->irq = rc;
 
 	/*
 	 * attach the interrupt in the simulator, this does enable interrupts

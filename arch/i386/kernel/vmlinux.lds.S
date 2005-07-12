@@ -57,6 +57,9 @@ SECTIONS
 	*(.data.cacheline_aligned)
   }
 
+  /* rarely changed data like cpu maps */
+  . = ALIGN(32);
+  .data.read_mostly : AT(ADDR(.data.read_mostly) - LOAD_OFFSET) { *(.data.read_mostly) }
   _edata = .;			/* End of data section */
 
   . = ALIGN(THREAD_SIZE);	/* init_task */

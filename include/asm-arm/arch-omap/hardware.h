@@ -54,6 +54,19 @@
 
 /*
  * ----------------------------------------------------------------------------
+ * Timers
+ * ----------------------------------------------------------------------------
+ */
+#define OMAP_MPU_TIMER1_BASE	(0xfffec500)
+#define OMAP_MPU_TIMER2_BASE	(0xfffec600)
+#define OMAP_MPU_TIMER3_BASE	(0xfffec700)
+#define MPU_TIMER_FREE		(1 << 6)
+#define MPU_TIMER_CLOCK_ENABLE	(1 << 5)
+#define MPU_TIMER_AR		(1 << 1)
+#define MPU_TIMER_ST		(1 << 0)
+
+/*
+ * ----------------------------------------------------------------------------
  * Clocks
  * ----------------------------------------------------------------------------
  */
@@ -78,6 +91,7 @@
 
 /* DSP clock control */
 #define DSP_CONFIG_REG_BASE     (0xe1008000)
+#define DSP_CKCTL		(DSP_CONFIG_REG_BASE + 0x0)
 #define DSP_IDLECT1		(DSP_CONFIG_REG_BASE + 0x4)
 #define DSP_IDLECT2		(DSP_CONFIG_REG_BASE + 0x8)
 
@@ -88,6 +102,7 @@
  */
 #define ULPD_REG_BASE		(0xfffe0800)
 #define ULPD_IT_STATUS		(ULPD_REG_BASE + 0x14)
+#define ULPD_SETUP_ANALOG_CELL_3	(ULPD_REG_BASE + 0x24)
 #define ULPD_CLOCK_CTRL		(ULPD_REG_BASE + 0x30)
 #	define DIS_USB_PVCI_CLK		(1 << 5)	/* no USB/FAC synch */
 #	define USB_MCLK_EN		(1 << 4)	/* enable W4_USB_CLKO */
@@ -268,17 +283,10 @@
  * Processor specific defines
  * ---------------------------------------------------------------------------
  */
-#ifdef CONFIG_ARCH_OMAP730
+
 #include "omap730.h"
-#endif
-
-#ifdef CONFIG_ARCH_OMAP1510
 #include "omap1510.h"
-#endif
-
-#ifdef CONFIG_ARCH_OMAP16XX
 #include "omap16xx.h"
-#endif
 
 /*
  * ---------------------------------------------------------------------------

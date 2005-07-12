@@ -43,7 +43,6 @@
 #include <asm/hd64465/hd64465.h>
 #include <asm/hd64465/io.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>

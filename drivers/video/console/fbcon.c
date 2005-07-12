@@ -142,7 +142,6 @@ static int fbcon_set_origin(struct vc_data *);
 #define CURSOR_DRAW_DELAY		(1)
 
 /* # VBL ints between cursor state changes */
-#define ARM_CURSOR_BLINK_RATE		(10)
 #define ATARI_CURSOR_BLINK_RATE		(42)
 #define MAC_CURSOR_BLINK_RATE		(32)
 #define DEFAULT_CURSOR_BLINK_RATE	(20)
@@ -288,7 +287,7 @@ static void fb_flashcursor(void *private)
 	release_console_sem();
 }
 
-#if (defined(__arm__) && defined(IRQ_VSYNCPULSE)) || defined(CONFIG_ATARI) || defined(CONFIG_MAC)
+#if defined(CONFIG_ATARI) || defined(CONFIG_MAC)
 static int cursor_blink_rate;
 static irqreturn_t fb_vbl_handler(int irq, void *dev_id, struct pt_regs *fp)
 {
@@ -878,11 +877,6 @@ static const char *fbcon_startup(void)
 	}
 #endif				/* CONFIG_MAC */
 
-#if defined(__arm__) && defined(IRQ_VSYNCPULSE)
-	cursor_blink_rate = ARM_CURSOR_BLINK_RATE;
-	irqres = request_irq(IRQ_VSYNCPULSE, fb_vbl_handler, SA_SHIRQ,
-			     "framebuffer vbl", info);
-#endif
 	/* Initialize the work queue. If the driver provides its
 	 * own work queue this means it will use something besides 
 	 * default timer to flash the cursor. */

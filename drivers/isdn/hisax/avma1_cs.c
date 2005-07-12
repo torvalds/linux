@@ -21,7 +21,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -183,11 +182,6 @@ static dev_link_t *avma1cs_attach(void)
     link->next = dev_list;
     dev_list = link;
     client_reg.dev_info = &dev_info;
-    client_reg.EventMask =
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &avma1cs_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -514,6 +508,7 @@ static struct pcmcia_driver avma1cs_driver = {
 		.name	= "avma1_cs",
 	},
 	.attach		= avma1cs_attach,
+	.event		= avma1cs_event,
 	.detach		= avma1cs_detach,
 	.id_table	= avma1cs_ids,
 };

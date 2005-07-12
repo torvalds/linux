@@ -89,6 +89,6 @@ struct stat64 {
 	unsigned long	st_ctime_nsec;
 
 	unsigned long long	st_ino;
-};
+} __attribute__((packed));
 
 #endif

@@ -3079,7 +3079,9 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	gp->phy_mii.dev = dev;
 	gp->phy_mii.mdio_read = _phy_read;
 	gp->phy_mii.mdio_write = _phy_write;
-
+#ifdef CONFIG_PPC_PMAC
+	gp->phy_mii.platform_data = gp->of_node;
+#endif
 	/* By default, we start with autoneg */
 	gp->want_autoneg = 1;
 

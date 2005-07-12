@@ -270,7 +270,7 @@ void __init sn_setup(char **cmdline_p)
 {
 	long status, ticks_per_sec, drift;
 	int pxm;
-	int major = sn_sal_rev_major(), minor = sn_sal_rev_minor();
+	u32 version = sn_sal_rev();
 	extern void sn_cpu_init(void);
 
 	ia64_sn_plat_set_error_handling_features();
@@ -308,22 +308,21 @@ void __init sn_setup(char **cmdline_p)
 	 * support here so we don't have to listen to failed keyboard probe
 	 * messages.
 	 */
-	if ((major < 2 || (major == 2 && minor <= 9)) &&
-	    acpi_kbd_controller_present) {
+	if (version <= 0x0209 && acpi_kbd_controller_present) {
 		printk(KERN_INFO "Disabling legacy keyboard support as prom "
 		       "is too old and doesn't provide FADT\n");
 		acpi_kbd_controller_present = 0;
 	}
 
-	printk("SGI SAL version %x.%02x\n", major, minor);
+	printk("SGI SAL version %x.%02x\n", version >> 8, version & 0x00FF);
 
 	/*
 	 * Confirm the SAL we're running on is recent enough...
 	 */
-	if ((major < SN_SAL_MIN_MAJOR) || (major == SN_SAL_MIN_MAJOR &&
-					   minor < SN_SAL_MIN_MINOR)) {
+	if (version < SN_SAL_MIN_VERSION) {
 		printk(KERN_ERR "This kernel needs SGI SAL version >= "
-		       "%x.%02x\n", SN_SAL_MIN_MAJOR, SN_SAL_MIN_MINOR);
+		       "%x.%02x\n", SN_SAL_MIN_VERSION >> 8,
+		        SN_SAL_MIN_VERSION & 0x00FF);
 		panic("PROM version too old\n");
 	}
 

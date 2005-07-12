@@ -435,6 +435,11 @@ void __devinit identify_cpu(struct cpuinfo_x86 *c)
 	if (c == &boot_cpu_data)
 		sysenter_setup();
 	enable_sep_cpu();
+
+	if (c == &boot_cpu_data)
+		mtrr_bp_init();
+	else
+		mtrr_ap_init();
 }
 
 #ifdef CONFIG_X86_HT

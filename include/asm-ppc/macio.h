@@ -1,6 +1,7 @@
 #ifndef __MACIO_ASIC_H__
 #define __MACIO_ASIC_H__
 
+#include <linux/mod_devicetable.h>
 #include <asm/of_device.h>
 
 extern struct bus_type macio_bus_type;
@@ -120,10 +121,10 @@ static inline struct pci_dev *macio_get_pci_dev(struct macio_dev *mdev)
 struct macio_driver
 {
 	char			*name;
-	struct of_match		*match_table;
+	struct of_device_id	*match_table;
 	struct module		*owner;
 
-	int	(*probe)(struct macio_dev* dev, const struct of_match *match);
+	int	(*probe)(struct macio_dev* dev, const struct of_device_id *match);
 	int	(*remove)(struct macio_dev* dev);
 
 	int	(*suspend)(struct macio_dev* dev, pm_message_t state);

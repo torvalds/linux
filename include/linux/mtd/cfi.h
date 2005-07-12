@@ -1,7 +1,7 @@
 
 /* Common Flash Interface structures 
  * See http://support.intel.com/design/flash/technote/index.htm
- * $Id: cfi.h,v 1.50 2004/11/20 12:46:51 dwmw2 Exp $
+ * $Id: cfi.h,v 1.54 2005/06/06 23:04:36 tpoynor Exp $
  */
 
 #ifndef __MTD_CFI_H__
@@ -148,6 +148,14 @@ struct cfi_pri_intelext {
 	uint8_t  extra[0];
 } __attribute__((packed));
 
+struct cfi_intelext_otpinfo {
+	uint32_t ProtRegAddr;
+	uint16_t FactGroups;
+	uint8_t  FactProtRegSize;
+	uint16_t UserGroups;
+	uint8_t  UserProtRegSize;
+} __attribute__((packed));
+
 struct cfi_intelext_blockinfo {
 	uint16_t NumIdentBlocks;
 	uint16_t BlockSize;
@@ -244,7 +252,7 @@ static inline uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs, int interleave, int 
  * It looks too long to be inline, but in the common case it should almost all
  * get optimised away. 
  */
-static inline map_word cfi_build_cmd(u_char cmd, struct map_info *map, struct cfi_private *cfi)
+static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cfi_private *cfi)
 {
 	map_word val = { {0} };
 	int wordwidth, words_per_bus, chip_mode, chips_per_word;
@@ -307,6 +315,69 @@ static inline map_word cfi_build_cmd(u_char cmd, struct map_info *map, struct cf
 }
 #define CMD(x)  cfi_build_cmd((x), map, cfi)
 
+
+static inline unsigned char cfi_merge_status(map_word val, struct map_info *map, 
+					   struct cfi_private *cfi)
+{
+	int wordwidth, words_per_bus, chip_mode, chips_per_word;
+	unsigned long onestat, res = 0;
+	int i;
+
+	/* We do it this way to give the compiler a fighting chance 
+	   of optimising away all the crap for 'bankwidth' larger than
+	   an unsigned long, in the common case where that support is
+	   disabled */
+	if (map_bankwidth_is_large(map)) {
+		wordwidth = sizeof(unsigned long);
+		words_per_bus = (map_bankwidth(map)) / wordwidth; // i.e. normally 1
+	} else {
+		wordwidth = map_bankwidth(map);
+		words_per_bus = 1;
+	}
+	
+	chip_mode = map_bankwidth(map) / cfi_interleave(cfi);
+	chips_per_word = wordwidth * cfi_interleave(cfi) / map_bankwidth(map);
+
+	onestat = val.x[0];
+	/* Or all status words together */
+	for (i=1; i < words_per_bus; i++) {
+		onestat |= val.x[i];
+	}
+
+	res = onestat;
+	switch(chips_per_word) {
+	default: BUG();
+#if BITS_PER_LONG >= 64
+	case 8:
+		res |= (onestat >> (chip_mode * 32));
+#endif
+	case 4:
+		res |= (onestat >> (chip_mode * 16));
+	case 2:
+		res |= (onestat >> (chip_mode * 8));
+	case 1:
+		;
+	}
+
+	/* Last, determine what the bit-pattern should be for a single
+	   device, according to chip mode and endianness... */
+	switch (chip_mode) {
+	case 1:
+		break;
+	case 2:
+		res = cfi16_to_cpu(res);
+		break;
+	case 4:
+		res = cfi32_to_cpu(res);
+		break;
+	default: BUG();
+	}
+	return res;
+}
+
+#define MERGESTATUS(x) cfi_merge_status((x), map, cfi)
+
+
 /*
  * Sends a CFI command to a bank of flash for the given geometry.
  *
@@ -355,16 +426,6 @@ static inline void cfi_udelay(int us)
 		udelay(us);
 		cond_resched();
 	}
-}
-
-static inline void cfi_spin_lock(spinlock_t *mutex)
-{
-	spin_lock_bh(mutex);
-}
-
-static inline void cfi_spin_unlock(spinlock_t *mutex)
-{
-	spin_unlock_bh(mutex);
 }
 
 struct cfi_extquery *cfi_read_pri(struct map_info *map, uint16_t adr, uint16_t size,

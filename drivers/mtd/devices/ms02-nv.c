@@ -6,7 +6,7 @@
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  *
- *	$Id: ms02-nv.c,v 1.8 2005/01/05 18:05:12 dwmw2 Exp $
+ *	$Id: ms02-nv.c,v 1.10 2005/06/20 12:24:41 macro Exp $
  */
 
 #include <linux/init.h>
@@ -99,8 +99,8 @@ static inline uint ms02nv_probe_one(ulong addr)
 	 * The firmware writes MS02NV_ID at MS02NV_MAGIC and also
 	 * a diagnostic status at MS02NV_DIAG.
 	 */
-	ms02nv_diagp = (ms02nv_uint *)(KSEG1ADDR(addr + MS02NV_DIAG));
-	ms02nv_magicp = (ms02nv_uint *)(KSEG1ADDR(addr + MS02NV_MAGIC));
+	ms02nv_diagp = (ms02nv_uint *)(CKSEG1ADDR(addr + MS02NV_DIAG));
+	ms02nv_magicp = (ms02nv_uint *)(CKSEG1ADDR(addr + MS02NV_MAGIC));
 	err = get_dbe(ms02nv_magic, ms02nv_magicp);
 	if (err)
 		return 0;
@@ -233,7 +233,7 @@ static int __init ms02nv_init_one(ulong addr)
 		goto err_out_csr_res;
 	}
 
-	printk(KERN_INFO "mtd%d: %s at 0x%08lx, size %uMiB.\n",
+	printk(KERN_INFO "mtd%d: %s at 0x%08lx, size %zuMiB.\n",
 		mtd->index, ms02nv_name, addr, size >> 20);
 
 	mp->next = root_ms02nv_mtd;

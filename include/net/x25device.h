@@ -5,8 +5,7 @@
 #include <linux/if_packet.h>
 #include <linux/skbuff.h>
 
-static inline unsigned short x25_type_trans(struct sk_buff *skb,
-					    struct net_device *dev)
+static inline __be16 x25_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	skb->mac.raw = skb->data;
 	skb->input_dev = skb->dev = dev;

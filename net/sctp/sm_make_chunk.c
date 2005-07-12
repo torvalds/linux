@@ -78,7 +78,7 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 static int sctp_process_param(struct sctp_association *asoc,
 			      union sctp_params param,
 			      const union sctp_addr *peer_addr,
-			      int gfp);
+			      unsigned int __nocast gfp);
 
 /* What was the inbound interface for this chunk? */
 int sctp_chunk_iif(const struct sctp_chunk *chunk)
@@ -174,7 +174,7 @@ void  sctp_init_cause(struct sctp_chunk *chunk, __u16 cause_code,
  */
 struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 			     const struct sctp_bind_addr *bp,
-			     int gfp, int vparam_len)
+			     unsigned int __nocast gfp, int vparam_len)
 {
 	sctp_inithdr_t init;
 	union sctp_params addrs;
@@ -261,7 +261,7 @@ nodata:
 
 struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 				 const struct sctp_chunk *chunk,
-				 int gfp, int unkparam_len)
+				 unsigned int __nocast gfp, int unkparam_len)
 {
 	sctp_inithdr_t initack;
 	struct sctp_chunk *retval;
@@ -1003,6 +1003,7 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *skb,
 		SCTP_DEBUG_PRINTK("chunkifying skb %p w/o an sk\n", skb);
 	}
 
+	INIT_LIST_HEAD(&retval->list);
 	retval->skb		= skb;
 	retval->asoc		= (struct sctp_association *)asoc;
 	retval->resent  	= 0;
@@ -1116,8 +1117,7 @@ static void sctp_chunk_destroy(struct sctp_chunk *chunk)
 /* Possibly, free the chunk.  */
 void sctp_chunk_free(struct sctp_chunk *chunk)
 {
-	/* Make sure that we are not on any list.  */
-	skb_unlink((struct sk_buff *) chunk);
+	BUG_ON(!list_empty(&chunk->list));
 	list_del_init(&chunk->transmitted_list);
 
 	/* Release our reference on the message tracker. */
@@ -1233,7 +1233,8 @@ void sctp_chunk_assign_tsn(struct sctp_chunk *chunk)
 
 /* Create a CLOSED association to use with an incoming packet.  */
 struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *ep,
-					struct sctp_chunk *chunk, int gfp)
+					struct sctp_chunk *chunk,
+					unsigned int __nocast gfp)
 {
 	struct sctp_association *asoc;
 	struct sk_buff *skb;
@@ -1348,7 +1349,7 @@ nodata:
 struct sctp_association *sctp_unpack_cookie(
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	struct sctp_chunk *chunk, int gfp,
+	struct sctp_chunk *chunk, unsigned int __nocast gfp,
 	int *error, struct sctp_chunk **errp)
 {
 	struct sctp_association *retval = NULL;
@@ -1812,7 +1813,7 @@ int sctp_verify_init(const struct sctp_association *asoc,
  */
 int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 		      const union sctp_addr *peer_addr,
-		      sctp_init_chunk_t *peer_init, int gfp)
+		      sctp_init_chunk_t *peer_init, unsigned int __nocast gfp)
 {
 	union sctp_params param;
 	struct sctp_transport *transport;
@@ -1983,7 +1984,7 @@ nomem:
 static int sctp_process_param(struct sctp_association *asoc,
 			      union sctp_params param,
 			      const union sctp_addr *peer_addr,
-			      int gfp)
+			      unsigned int __nocast gfp)
 {
 	union sctp_addr addr;
 	int i;
@@ -2739,8 +2740,12 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 	asoc->addip_last_asconf = NULL;
 
 	/* Send the next asconf chunk from the addip chunk queue. */
-	asconf = (struct sctp_chunk *)__skb_dequeue(&asoc->addip_chunks);
-	if (asconf) {
+	if (!list_empty(&asoc->addip_chunk_list)) {
+		struct list_head *entry = asoc->addip_chunk_list.next;
+		asconf = list_entry(entry, struct sctp_chunk, list);
+
+		list_del_init(entry);
+
 		/* Hold the chunk until an ASCONF_ACK is received. */
 		sctp_chunk_hold(asconf);
 		if (sctp_primitive_ASCONF(asoc, asconf))

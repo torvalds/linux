@@ -615,7 +615,7 @@ static ssize_t do_tcp_sendpages(struct sock *sk, struct page **pages, int poffse
 			 size_t psize, int flags)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	int mss_now;
+	int mss_now, size_goal;
 	int err;
 	ssize_t copied;
 	long timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
@@ -628,6 +628,7 @@ static ssize_t do_tcp_sendpages(struct sock *sk, struct page **pages, int poffse
 	clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
 
 	mss_now = tcp_current_mss(sk, !(flags&MSG_OOB));
+	size_goal = tp->xmit_size_goal;
 	copied = 0;
 
 	err = -EPIPE;
@@ -641,7 +642,7 @@ static ssize_t do_tcp_sendpages(struct sock *sk, struct page **pages, int poffse
 		int offset = poffset % PAGE_SIZE;
 		int size = min_t(size_t, psize, PAGE_SIZE - offset);
 
-		if (!sk->sk_send_head || (copy = mss_now - skb->len) <= 0) {
+		if (!sk->sk_send_head || (copy = size_goal - skb->len) <= 0) {
 new_segment:
 			if (!sk_stream_memory_free(sk))
 				goto wait_for_sndbuf;
@@ -652,7 +653,7 @@ new_segment:
 				goto wait_for_memory;
 
 			skb_entail(sk, tp, skb);
-			copy = mss_now;
+			copy = size_goal;
 		}
 
 		if (copy > size)
@@ -693,7 +694,7 @@ new_segment:
 		if (!(psize -= copy))
 			goto out;
 
-		if (skb->len != mss_now || (flags & MSG_OOB))
+		if (skb->len < mss_now || (flags & MSG_OOB))
 			continue;
 
 		if (forced_push(tp)) {
@@ -713,6 +714,7 @@ wait_for_memory:
 			goto do_error;
 
 		mss_now = tcp_current_mss(sk, !(flags&MSG_OOB));
+		size_goal = tp->xmit_size_goal;
 	}
 
 out:
@@ -754,15 +756,20 @@ ssize_t tcp_sendpage(struct socket *sock, struct page *page, int offset,
 
 static inline int select_size(struct sock *sk, struct tcp_sock *tp)
 {
-	int tmp = tp->mss_cache_std;
+	int tmp = tp->mss_cache;
 
 	if (sk->sk_route_caps & NETIF_F_SG) {
-		int pgbreak = SKB_MAX_HEAD(MAX_TCP_HEADER);
+		if (sk->sk_route_caps & NETIF_F_TSO)
+			tmp = 0;
+		else {
+			int pgbreak = SKB_MAX_HEAD(MAX_TCP_HEADER);
 
-		if (tmp >= pgbreak &&
-		    tmp <= pgbreak + (MAX_SKB_FRAGS - 1) * PAGE_SIZE)
-			tmp = pgbreak;
+			if (tmp >= pgbreak &&
+			    tmp <= pgbreak + (MAX_SKB_FRAGS - 1) * PAGE_SIZE)
+				tmp = pgbreak;
+		}
 	}
+
 	return tmp;
 }
 
@@ -773,7 +780,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	int iovlen, flags;
-	int mss_now;
+	int mss_now, size_goal;
 	int err, copied;
 	long timeo;
 
@@ -792,6 +799,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
 
 	mss_now = tcp_current_mss(sk, !(flags&MSG_OOB));
+	size_goal = tp->xmit_size_goal;
 
 	/* Ok commence sending. */
 	iovlen = msg->msg_iovlen;
@@ -814,7 +822,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			skb = sk->sk_write_queue.prev;
 
 			if (!sk->sk_send_head ||
-			    (copy = mss_now - skb->len) <= 0) {
+			    (copy = size_goal - skb->len) <= 0) {
 
 new_segment:
 				/* Allocate new segment. If the interface is SG,
@@ -837,7 +845,7 @@ new_segment:
 					skb->ip_summed = CHECKSUM_HW;
 
 				skb_entail(sk, tp, skb);
-				copy = mss_now;
+				copy = size_goal;
 			}
 
 			/* Try to append data to the end of skb. */
@@ -872,11 +880,6 @@ new_segment:
 					tcp_mark_push(tp, skb);
 					goto new_segment;
 				} else if (page) {
-					/* If page is cached, align
-					 * offset to L1 cache boundary
-					 */
-					off = (off + L1_CACHE_BYTES - 1) &
-					      ~(L1_CACHE_BYTES - 1);
 					if (off == PAGE_SIZE) {
 						put_page(page);
 						TCP_PAGE(sk) = page = NULL;
@@ -937,7 +940,7 @@ new_segment:
 			if ((seglen -= copy) == 0 && iovlen == 0)
 				goto out;
 
-			if (skb->len != mss_now || (flags & MSG_OOB))
+			if (skb->len < mss_now || (flags & MSG_OOB))
 				continue;
 
 			if (forced_push(tp)) {
@@ -957,6 +960,7 @@ wait_for_memory:
 				goto do_error;
 
 			mss_now = tcp_current_mss(sk, !(flags&MSG_OOB));
+			size_goal = tp->xmit_size_goal;
 		}
 	}
 
@@ -1101,7 +1105,7 @@ static void tcp_prequeue_process(struct sock *sk)
 	struct sk_buff *skb;
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	NET_ADD_STATS_USER(LINUX_MIB_TCPPREQUEUED, skb_queue_len(&tp->ucopy.prequeue));
+	NET_INC_STATS_USER(LINUX_MIB_TCPPREQUEUED);
 
 	/* RX process wants to run with disabled BHs, though it is not
 	 * necessary */
@@ -1365,7 +1369,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			 * is not empty. It is more elegant, but eats cycles,
 			 * unfortunately.
 			 */
-			if (skb_queue_len(&tp->ucopy.prequeue))
+			if (!skb_queue_empty(&tp->ucopy.prequeue))
 				goto do_prequeue;
 
 			/* __ Set realtime policy in scheduler __ */
@@ -1390,7 +1394,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			}
 
 			if (tp->rcv_nxt == tp->copied_seq &&
-			    skb_queue_len(&tp->ucopy.prequeue)) {
+			    !skb_queue_empty(&tp->ucopy.prequeue)) {
 do_prequeue:
 				tcp_prequeue_process(sk);
 
@@ -1472,7 +1476,7 @@ skip_copy:
 	} while (len > 0);
 
 	if (user_recv) {
-		if (skb_queue_len(&tp->ucopy.prequeue)) {
+		if (!skb_queue_empty(&tp->ucopy.prequeue)) {
 			int chunk;
 
 			tp->ucopy.len = copied > 0 ? len : 0;
@@ -2128,7 +2132,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 
 	info->tcpi_rto = jiffies_to_usecs(tp->rto);
 	info->tcpi_ato = jiffies_to_usecs(tp->ack.ato);
-	info->tcpi_snd_mss = tp->mss_cache_std;
+	info->tcpi_snd_mss = tp->mss_cache;
 	info->tcpi_rcv_mss = tp->ack.rcv_mss;
 
 	info->tcpi_unacked = tp->packets_out;
@@ -2178,7 +2182,7 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 
 	switch (optname) {
 	case TCP_MAXSEG:
-		val = tp->mss_cache_std;
+		val = tp->mss_cache;
 		if (!val && ((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)))
 			val = tp->rx_opt.user_mss;
 		break;

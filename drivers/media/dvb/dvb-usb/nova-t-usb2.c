@@ -203,7 +203,7 @@ static struct dvb_usb_properties nova_t_properties = {
 
 static struct usb_driver nova_t_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "Hauppauge WinTV-NOVA-T usb2",
+	.name		= "dvb_usb_nova_t_usb2",
 	.probe		= nova_t_probe,
 	.disconnect = dvb_usb_device_exit,
 	.id_table	= nova_t_table,

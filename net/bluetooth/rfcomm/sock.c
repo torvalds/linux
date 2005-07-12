@@ -590,8 +590,11 @@ static long rfcomm_sock_data_wait(struct sock *sk, long timeo)
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		if (skb_queue_len(&sk->sk_receive_queue) || sk->sk_err || (sk->sk_shutdown & RCV_SHUTDOWN) ||
-				signal_pending(current) || !timeo)
+		if (!skb_queue_empty(&sk->sk_receive_queue) ||
+		    sk->sk_err ||
+		    (sk->sk_shutdown & RCV_SHUTDOWN) ||
+		    signal_pending(current) ||
+		    !timeo)
 			break;
 
 		set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);

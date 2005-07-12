@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-cards.c,v 1.76 2005/06/08 01:28:09 mchehab Exp $
+ * $Id: cx88-cards.c,v 1.85 2005/07/04 19:35:05 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * card-specific stuff.
@@ -401,7 +401,7 @@ struct cx88_board cx88_boards[] = {
 		.dvb            = 1,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1] = {
-		.name           = "DVICO FusionHDTV DVB-T1",
+		.name           = "DViCO FusionHDTV DVB-T1",
 		.tuner_type     = TUNER_ABSENT, /* No analog tuner */
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
@@ -445,8 +445,8 @@ struct cx88_board cx88_boards[] = {
                         .gpio0  = 0x000007f8,
                 },
 	},
-	[CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD] = {
-		.name		= "DViCO - FusionHDTV 3 Gold",
+	[CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q] = {
+		.name		= "DViCO FusionHDTV 3 Gold-Q",
 		.tuner_type     = TUNER_MICROTUNE_4042FI5,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
@@ -464,6 +464,9 @@ struct cx88_board cx88_boards[] = {
 		   GPIO[3] selects RF input connector on tuner module
 		    0 - RF connector labeled CABLE
 		    1 - RF connector labeled ANT
+		   GPIO[4] selects high RF for QAM256 mode
+		    0 - normal RF
+		    1 - high RF
 		*/
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
@@ -482,6 +485,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0	= 0x0f00,
 		}},
+		.dvb            = 1,
 	},
         [CX88_BOARD_HAUPPAUGE_DVB_T1] = {
 		.name           = "Hauppauge Nova-T DVB-T",
@@ -520,7 +524,7 @@ struct cx88_board cx88_boards[] = {
 		.blackbird = 1,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS] = {
-		.name           = "DVICO FusionHDTV DVB-T Plus",
+		.name           = "DViCO FusionHDTV DVB-T Plus",
 		.tuner_type     = TUNER_ABSENT, /* No analog tuner */
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
@@ -700,20 +704,16 @@ struct cx88_board cx88_boards[] = {
 		 },
 	},
         [CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T] = {
-                .name           = "DViCO - FusionHDTV 3 Gold-T",
+		.name           = "DViCO FusionHDTV 3 Gold-T",
 		.tuner_type     = TUNER_THOMSON_DTT7611,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		/*  See DViCO FusionHDTV 3 Gold for GPIO documentation.  */
-                .input          = {{
+		/*  See DViCO FusionHDTV 3 Gold-Q for GPIO documentation.  */
+		.input          = {{
                         .type   = CX88_VMUX_TELEVISION,
                         .vmux   = 0,
                         .gpio0  = 0x0f0d,
-                },{
-                        .type   = CX88_VMUX_CABLE,
-                        .vmux   = 0,
-                        .gpio0  = 0x0f05,
                 },{
                         .type   = CX88_VMUX_COMPOSITE1,
                         .vmux   = 1,
@@ -723,7 +723,36 @@ struct cx88_board cx88_boards[] = {
                         .vmux   = 2,
                         .gpio0  = 0x0f00,
                 }},
+		.dvb            = 1,
         },
+        [CX88_BOARD_ADSTECH_DVB_T_PCI] = {
+                .name           = "ADS Tech Instant TV DVB-T PCI",
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+                        .type   = CX88_VMUX_COMPOSITE1,
+                        .vmux   = 1,
+			.gpio0  = 0x0700,
+			.gpio2  = 0x0101,
+                },{
+                        .type   = CX88_VMUX_SVIDEO,
+                        .vmux   = 2,
+			.gpio0  = 0x0700,
+			.gpio2  = 0x0101,
+                }},
+		.dvb            = 1,
+	},
+	[CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1] = {
+		.name           = "TerraTec Cinergy 1400 DVB-T",
+		.tuner_type     = TUNER_ABSENT,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		}},
+		.dvb            = 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -794,7 +823,7 @@ struct cx88_subid cx88_subids[] = {
 	},{
 		.subvendor = 0x18ac,
 		.subdevice = 0xd810,
-		.card      = CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD,
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q,
 	},{
 		.subvendor = 0x18ac,
 		.subdevice = 0xd820,
@@ -843,7 +872,15 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x10fc,
 		.subdevice = 0xd035,
 		.card      = CX88_BOARD_IODATA_GVBCTV7E,
-	}
+	},{
+		.subvendor = 0x1421,
+		.subdevice = 0x0334,
+		.card      = CX88_BOARD_ADSTECH_DVB_T_PCI,
+ 	},{
+		.subvendor = 0x153b,
+		.subdevice = 0x1166,
+		.card      = CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1,
+	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
 
