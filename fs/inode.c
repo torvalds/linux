@@ -282,6 +282,13 @@ static void dispose_list(struct list_head *head)
 		if (inode->i_data.nrpages)
 			truncate_inode_pages(&inode->i_data, 0);
 		clear_inode(inode);
+
+		spin_lock(&inode_lock);
+		hlist_del_init(&inode->i_hash);
+		list_del_init(&inode->i_sb_list);
+		spin_unlock(&inode_lock);
+
+		wake_up_inode(inode);
 		destroy_inode(inode);
 		nr_disposed++;
 	}
@@ -317,8 +324,6 @@ static int invalidate_list(struct list_head *head, struct list_head *dispose)
 		inode = list_entry(tmp, struct inode, i_sb_list);
 		invalidate_inode_buffers(inode);
 		if (!atomic_read(&inode->i_count)) {
-			hlist_del_init(&inode->i_hash);
-			list_del(&inode->i_sb_list);
 			list_move(&inode->i_list, dispose);
 			inode->i_state |= I_FREEING;
 			count++;
@@ -439,8 +444,6 @@ static void prune_icache(int nr_to_scan)
 			if (!can_unuse(inode))
 				continue;
 		}
-		hlist_del_init(&inode->i_hash);
-		list_del_init(&inode->i_sb_list);
 		list_move(&inode->i_list, &freeable);
 		inode->i_state |= I_FREEING;
 		nr_pruned++;
