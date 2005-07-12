@@ -131,7 +131,7 @@ static int __init vio_bus_init_iseries(void)
 {
 	int err;
 
-	err = vio_bus_init(vio_match_device_iseries);
+	err = vio_bus_init(vio_match_device_iseries, NULL, NULL);
 	if (err == 0) {
 		iommu_vio_init();
 		vio_bus_device.iommu_table = &vio_iommu_table;

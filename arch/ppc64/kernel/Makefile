@@ -51,6 +51,7 @@ obj-$(CONFIG_HVC_CONSOLE)	+= hvconsole.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_HVCS)		+= hvcserver.o
 
+vio-obj-$(CONFIG_PPC_PSERIES)	+= pSeries_vio.o
 vio-obj-$(CONFIG_PPC_ISERIES)	+= iSeries_vio.o
 obj-$(CONFIG_IBMVIO)		+= vio.o $(vio-obj-y)
 obj-$(CONFIG_XICS)		+= xics.o
