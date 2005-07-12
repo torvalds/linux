@@ -1,9 +1,9 @@
 /*
     via686a.c - Part of lm_sensors, Linux kernel modules
-                for hardware monitoring
+		for hardware monitoring
 
     Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,
-                        Kyösti Mälkki <kmalkki@cc.hut.fi>,
+			Kyösti Mälkki <kmalkki@cc.hut.fi>,
 			Mark Studebaker <mdsxyz123@yahoo.com>,
 			and Bob Dougherty <bobd@stanford.edu>
     (Some conversion-factor data were contributed by Jonathan Teh Soon Yew
@@ -171,18 +171,18 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 /******** TEMP CONVERSIONS (Bob Dougherty) *********/
 /* linear fits from HWMon.cpp (Copyright 1998-2000 Jonathan Teh Soon Yew)
       if(temp<169)
-              return double(temp)*0.427-32.08;
+	      return double(temp)*0.427-32.08;
       else if(temp>=169 && temp<=202)
-              return double(temp)*0.582-58.16;
+	      return double(temp)*0.582-58.16;
       else
-              return double(temp)*0.924-127.33;
+	      return double(temp)*0.924-127.33;
 
  A fifth-order polynomial fits the unofficial data (provided by Alex van
  Kaam <darkside@chello.nl>) a bit better.  It also give more reasonable
  numbers on my machine (ie. they agree with what my BIOS tells me).
  Here's the fifth-order fit to the 8-bit data:
  temp = 1.625093e-10*val^5 - 1.001632e-07*val^4 + 2.457653e-05*val^3 -
-        2.967619e-03*val^2 + 2.175144e-01*val - 7.090067e+0.
+	2.967619e-03*val^2 + 2.175144e-01*val - 7.090067e+0.
 
  (2000-10-25- RFD: thanks to Uwe Andersen <uandersen@mayah.com> for
  finding my typos in this formula!)

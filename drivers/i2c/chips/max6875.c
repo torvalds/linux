@@ -37,7 +37,8 @@
 #include <linux/i2c-sensor.h>
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = {0x50, 0x52, I2C_CLIENT_END};
+/* No address scanned by default, as this could corrupt standard EEPROMS. */
+static unsigned short normal_i2c[] = {I2C_CLIENT_END};
 static unsigned int normal_isa[] = {I2C_CLIENT_ISA_END};
 
 /* Insmod parameters */
@@ -368,6 +369,9 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	new_client->adapter = adapter;
 	new_client->driver = &max6875_driver;
 	new_client->flags = 0;
+
+	/* Prevent 24RF08 corruption */
+	i2c_smbus_write_quick(new_client, 0);
 
 	/* Setup the user section */
 	data->blocks[max6875_eeprom_user].type    = max6875_eeprom_user;

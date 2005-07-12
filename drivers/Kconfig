@@ -44,6 +44,8 @@ source "drivers/i2c/Kconfig"
 
 source "drivers/w1/Kconfig"
 
+source "drivers/hwmon/Kconfig"
+
 source "drivers/misc/Kconfig"
 
 source "drivers/media/Kconfig"
