@@ -104,6 +104,7 @@ static inline void check_wait(void)
 /*	case CPU_20KC:*/
 	case CPU_24K:
 	case CPU_25KF:
+	case CPU_34K:
 		cpu_wait = r4k_wait;
 		printk(" available.\n");
 		break;
@@ -537,6 +538,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 		c->cputype = CPU_25KF;
 		/* Probe for L2 cache */
 		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
+		break;
+	case PRID_IMP_34K:
+		c->cputype = CPU_34K;
+		c->isa_level = MIPS_CPU_ISA_M32;
 		break;
 	}
 }
