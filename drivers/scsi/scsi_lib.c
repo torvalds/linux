@@ -614,8 +614,6 @@ static struct scatterlist *scsi_alloc_sgtable(struct scsi_cmnd *cmd, int gfp_mas
 
 	sgp = scsi_sg_pools + cmd->sglist_len;
 	sgl = mempool_alloc(sgp->pool, gfp_mask);
-	if (sgl)
-		memset(sgl, 0, sgp->size);
 	return sgl;
 }
 
