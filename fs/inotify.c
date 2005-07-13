@@ -29,8 +29,6 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/poll.h>
-#include <linux/device.h>
-#include <linux/miscdevice.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/writeback.h>
@@ -934,7 +932,7 @@ asmlinkage long sys_inotify_add_watch(int fd, const char *path, u32 mask)
 
 	dev = filp->private_data;
 
-	ret = find_inode ((const char __user*)path, &nd);
+	ret = find_inode((const char __user*) path, &nd);
 	if (ret)
 		goto fput_and_out;
 
@@ -991,8 +989,9 @@ asmlinkage long sys_inotify_rm_watch(int fd, u32 wd)
 	if (!filp)
 		return -EBADF;
 	dev = filp->private_data;
-	ret = inotify_ignore (dev, wd);
+	ret = inotify_ignore(dev, wd);
 	fput(filp);
+
 	return ret;
 }
 
@@ -1031,8 +1030,6 @@ static int __init inotify_init(void)
 	event_cachep = kmem_cache_create("inotify_event_cache",
 					 sizeof(struct inotify_kernel_event),
 					 0, SLAB_PANIC, NULL, NULL);
-
-	printk(KERN_INFO "inotify syscall\n");
 
 	return 0;
 }
