@@ -7754,10 +7754,10 @@ static inline int is_duplicate_packet(struct ipw_priv *priv,
 		if (*last_frag + 1 != frag)
 			/* out-of-order fragment */
 			goto drop;
-		*last_frag = frag;
 	} else
 		*last_seq = seq;
 
+	*last_frag = frag;
 	*last_time = jiffies;
 	return 0;
 
