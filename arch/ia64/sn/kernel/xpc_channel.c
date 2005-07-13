@@ -72,7 +72,7 @@ xpc_initialize_channels(struct xpc_partition *part, partid_t partid)
 enum xpc_retval
 xpc_setup_infrastructure(struct xpc_partition *part)
 {
-	int ret;
+	int ret, cpuid;
 	struct timer_list *timer;
 	partid_t partid = XPC_PARTID(part);
 
@@ -223,9 +223,9 @@ xpc_setup_infrastructure(struct xpc_partition *part)
 	xpc_vars_part[partid].openclose_args_pa =
 					__pa(part->local_openclose_args);
 	xpc_vars_part[partid].IPI_amo_pa = __pa(part->local_IPI_amo_va);
-	xpc_vars_part[partid].IPI_nasid = cpuid_to_nasid(smp_processor_id());
-	xpc_vars_part[partid].IPI_phys_cpuid =
-					cpu_physical_id(smp_processor_id());
+	cpuid = raw_smp_processor_id();	/* any CPU in this partition will do */
+	xpc_vars_part[partid].IPI_nasid = cpuid_to_nasid(cpuid);
+	xpc_vars_part[partid].IPI_phys_cpuid = cpu_physical_id(cpuid);
 	xpc_vars_part[partid].nchannels = part->nchannels;
 	xpc_vars_part[partid].magic = XPC_VP_MAGIC1;
 
