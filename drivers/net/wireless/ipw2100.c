@@ -5880,9 +5880,27 @@ static int ipw2100_wpa_set_param(struct net_device *dev, u8 name, u32 value)
 
 		break;
 
-	case IPW2100_PARAM_DROP_UNENCRYPTED:
-		priv->ieee->drop_unencrypted = value;
-		break;
+	case IPW2100_PARAM_DROP_UNENCRYPTED:{
+			/* See IW_AUTH_DROP_UNENCRYPTED handling for details */
+			struct ieee80211_security sec = {
+				.flags = SEC_ENABLED,
+				.enabled = value,
+			};
+			priv->ieee->drop_unencrypted = value;
+			/* We only change SEC_LEVEL for open mode. Others
+			 * are set by ipw_wpa_set_encryption.
+			 */
+			if (!value) {
+				sec.flags |= SEC_LEVEL;
+				sec.level = SEC_LEVEL_0;
+			} else {
+				sec.flags |= SEC_LEVEL;
+				sec.level = SEC_LEVEL_1;
+			}
+			if (priv->ieee->set_security)
+				priv->ieee->set_security(priv->ieee->dev, &sec);
+			break;
+		}
 
 	case IPW2100_PARAM_PRIVACY_INVOKED:
 		priv->ieee->privacy_invoked = value;
