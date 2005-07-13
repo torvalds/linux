@@ -37,12 +37,13 @@
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
+#include <asm/cache.h>
 #include <asm/cpu.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/system.h>
 
-struct cpuinfo_mips cpu_data[NR_CPUS];
+struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
 
 EXPORT_SYMBOL(cpu_data);
 
@@ -62,8 +63,8 @@ EXPORT_SYMBOL(PCI_DMA_BUS_IS_PHYS);
  *
  * These are initialized so they are in the .data section
  */
-unsigned long mips_machtype = MACH_UNKNOWN;
-unsigned long mips_machgroup = MACH_GROUP_UNKNOWN;
+unsigned long mips_machtype __read_mostly = MACH_UNKNOWN;
+unsigned long mips_machgroup __read_mostly = MACH_GROUP_UNKNOWN;
 
 EXPORT_SYMBOL(mips_machtype);
 EXPORT_SYMBOL(mips_machgroup);
@@ -77,7 +78,7 @@ static char command_line[CL_SIZE];
  * mips_io_port_base is the begin of the address space to which x86 style
  * I/O ports are mapped.
  */
-const unsigned long mips_io_port_base = -1;
+const unsigned long mips_io_port_base __read_mostly = -1;
 EXPORT_SYMBOL(mips_io_port_base);
 
 /*

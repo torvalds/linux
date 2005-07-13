@@ -16,6 +16,7 @@
 
 #include <asm/bcache.h>
 #include <asm/bootinfo.h>
+#include <asm/cache.h>
 #include <asm/cacheops.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
@@ -28,7 +29,12 @@
 #include <asm/war.h>
 #include <asm/cacheflush.h> /* for run_uncached() */
 
-static unsigned long icache_size, dcache_size, scache_size;
+/*
+ * Must die.
+ */
+static unsigned long icache_size __read_mostly;
+static unsigned long dcache_size __read_mostly;
+static unsigned long scache_size __read_mostly;
 
 /*
  * Dummy cache handling routines for machines without boardcaches
