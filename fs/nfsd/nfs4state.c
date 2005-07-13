@@ -874,6 +874,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 			  * change request correctly. */
 			atomic_set(&conf->cl_callback.cb_set, 0);
 			gen_confirm(conf);
+			nfsd4_remove_clid_dir(unconf);
 			expire_client(unconf);
 			status = nfs_ok;
 
@@ -1159,6 +1160,7 @@ init_stateid(struct nfs4_stateid *stp, struct nfs4_file *fp, struct nfsd4_open *
 	stp->st_deny_bmap = 0;
 	__set_bit(open->op_share_access, &stp->st_access_bmap);
 	__set_bit(open->op_share_deny, &stp->st_deny_bmap);
+	stp->st_openstp = NULL;
 }
 
 static void
@@ -1294,7 +1296,7 @@ nfs4_share_conflict(struct svc_fh *current_fh, unsigned int deny_type)
 	fp = find_file(ino);
 	if (!fp)
 		return nfs_ok;
-	ret = nfserr_share_denied;
+	ret = nfserr_locked;
 	/* Search for conflicting share reservations */
 	list_for_each_entry(stp, &fp->fi_stateids, st_perfile) {
 		if (test_bit(deny_type, &stp->st_deny_bmap) ||
@@ -1482,7 +1484,7 @@ nfsd4_process_open1(struct nfsd4_open *open)
 	if (sop) {
 		open->op_stateowner = sop;
 		/* check for replay */
-		if (open->op_seqid == sop->so_seqid){
+		if (open->op_seqid == sop->so_seqid - 1){
 			if (sop->so_replay.rp_buflen)
 				return NFSERR_REPLAY_ME;
 			else {
@@ -1497,7 +1499,7 @@ nfsd4_process_open1(struct nfsd4_open *open)
 				goto renew;
 			}
 		} else if (sop->so_confirmed) {
-			if (open->op_seqid == sop->so_seqid + 1)
+			if (open->op_seqid == sop->so_seqid)
 				goto renew;
 			status = nfserr_bad_seqid;
 			goto out;
@@ -1530,8 +1532,6 @@ renew:
 	status = nfs_ok;
 	renew_client(sop->so_client);
 out:
-	if (status && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
-		status = nfserr_reclaim_bad;
 	return status;
 }
 
@@ -1685,19 +1685,11 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct svc_fh *cur_fh, struct nfs4_sta
 }
 
 
-/* decrement seqid on successful reclaim, it will be bumped in encode_open */
 static void
-nfs4_set_claim_prev(struct nfsd4_open *open, int *status)
+nfs4_set_claim_prev(struct nfsd4_open *open)
 {
-	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS) {
-		if (*status)
-			*status = nfserr_reclaim_bad;
-		else {
-			open->op_stateowner->so_confirmed = 1;
-			open->op_stateowner->so_client->cl_firststate = 1;
-			open->op_stateowner->so_seqid--;
-		}
-	}
+	open->op_stateowner->so_confirmed = 1;
+	open->op_stateowner->so_client->cl_firststate = 1;
 }
 
 /*
@@ -1789,6 +1781,12 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	struct nfs4_delegation *dp = NULL;
 	int status;
 
+	if (nfs4_in_grace() && open->op_claim_type != NFS4_OPEN_CLAIM_PREVIOUS)
+		return nfserr_grace;
+
+	if (!nfs4_in_grace() && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
+		return nfserr_no_grace;
+
 	status = nfserr_inval;
 	if (!TEST_ACCESS(open->op_share_access) || !TEST_DENY(open->op_share_deny))
 		goto out;
@@ -1823,6 +1821,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		status = nfs4_upgrade_open(rqstp, current_fh, stp, open);
 		if (status)
 			goto out;
+		update_stateid(&stp->st_stateid);
 	} else {
 		/* Stateid was not found, this is a new OPEN */
 		int flags = 0;
@@ -1856,8 +1855,8 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 out:
 	if (fp)
 		put_nfs4_file(fp);
-	/* CLAIM_PREVIOUS has different error returns */
-	nfs4_set_claim_prev(open, &status);
+	if (status == 0 && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
+		nfs4_set_claim_prev(open);
 	/*
 	* To finish the open response, we just need to set the rflags.
 	*/
@@ -1990,14 +1989,11 @@ laundromat_main(void *not_used)
 	queue_delayed_work(laundry_wq, &laundromat_work, t*HZ);
 }
 
-/* search ownerid_hashtbl[] and close_lru for stateid owner
- * (stateid->si_stateownerid)
- */
 static struct nfs4_stateowner *
-find_openstateowner_id(u32 st_id, int flags) {
+search_close_lru(u32 st_id, int flags)
+{
 	struct nfs4_stateowner *local = NULL;
 
-	dprintk("NFSD: find_openstateowner_id %d\n", st_id);
 	if (flags & CLOSE_STATE) {
 		list_for_each_entry(local, &close_lru, so_close_lru) {
 			if (local->so_id == st_id)
@@ -2163,14 +2159,19 @@ out:
 	return status;
 }
 
+static inline int
+setlkflg (int type)
+{
+	return (type == NFS4_READW_LT || type == NFS4_READ_LT) ?
+		RD_STATE : WR_STATE;
+}
 
 /* 
  * Checks for sequence id mutating operations. 
  */
 static int
-nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *stateid, int flags, struct nfs4_stateowner **sopp, struct nfs4_stateid **stpp, clientid_t *lockclid)
+nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *stateid, int flags, struct nfs4_stateowner **sopp, struct nfs4_stateid **stpp, struct nfsd4_lock *lock)
 {
-	int status;
 	struct nfs4_stateid *stp;
 	struct nfs4_stateowner *sop;
 
@@ -2178,53 +2179,65 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 			"stateid = (%08x/%08x/%08x/%08x)\n", seqid,
 		stateid->si_boot, stateid->si_stateownerid, stateid->si_fileid,
 		stateid->si_generation);
-			        
+
 	*stpp = NULL;
 	*sopp = NULL;
 
-	status = nfserr_bad_stateid;
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid)) {
 		printk("NFSD: preprocess_seqid_op: magic stateid!\n");
-		goto out;
+		return nfserr_bad_stateid;
 	}
 
-	status = nfserr_stale_stateid;
 	if (STALE_STATEID(stateid))
-		goto out;
+		return nfserr_stale_stateid;
 	/*
 	* We return BAD_STATEID if filehandle doesn't match stateid, 
 	* the confirmed flag is incorrecly set, or the generation 
 	* number is incorrect.  
-	* If there is no entry in the openfile table for this id, 
-	* we can't always return BAD_STATEID;
-	* this might be a retransmitted CLOSE which has arrived after 
-	* the openfile has been released.
 	*/
-	if (!(stp = find_stateid(stateid, flags)))
-		goto no_nfs4_stateid;
+	stp = find_stateid(stateid, flags);
+	if (stp == NULL) {
+		/*
+		 * Also, we should make sure this isn't just the result of
+		 * a replayed close:
+		 */
+		sop = search_close_lru(stateid->si_stateownerid, flags);
+		if (sop == NULL)
+			return nfserr_bad_stateid;
+		*sopp = sop;
+		goto check_replay;
+	}
 
-	status = nfserr_bad_stateid;
-
-	/* for new lock stateowners:
-	 * check that the lock->v.new.open_stateid
-	 * refers to an open stateowner
-	 *
-	 * check that the lockclid (nfs4_lock->v.new.clientid) is the same
-	 * as the open_stateid->st_stateowner->so_client->clientid
-	 */
-	if (lockclid) {
+	if (lock) {
 		struct nfs4_stateowner *sop = stp->st_stateowner;
+		clientid_t *lockclid = &lock->v.new.clientid;
 		struct nfs4_client *clp = sop->so_client;
+		int lkflg = 0;
+		int status;
 
-		if (!sop->so_is_open_owner)
-			goto out;
-		if (!cmp_clid(&clp->cl_clientid, lockclid))
-			goto out;
+		lkflg = setlkflg(lock->lk_type);
+
+		if (lock->lk_is_new) {
+                       if (!sop->so_is_open_owner)
+			       return nfserr_bad_stateid;
+                       if (!cmp_clid(&clp->cl_clientid, lockclid))
+			       return nfserr_bad_stateid;
+                       /* stp is the open stateid */
+                       status = nfs4_check_openmode(stp, lkflg);
+                       if (status)
+			       return status;
+               } else {
+                       /* stp is the lock stateid */
+                       status = nfs4_check_openmode(stp->st_openstp, lkflg);
+                       if (status)
+			       return status;
+               }
+
 	}
 
 	if ((flags & CHECK_FH) && nfs4_check_fh(current_fh, stp)) {
 		printk("NFSD: preprocess_seqid_op: fh-stateid mismatch!\n");
-		goto out;
+		return nfserr_bad_stateid;
 	}
 
 	*stpp = stp;
@@ -2235,63 +2248,41 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 	*  For the moment, we ignore the possibility of 
 	*  generation number wraparound.
 	*/
-	if (seqid != sop->so_seqid + 1)
+	if (seqid != sop->so_seqid)
 		goto check_replay;
 
-	if (sop->so_confirmed) {
-		if (flags & CONFIRM) {
-			printk("NFSD: preprocess_seqid_op: expected unconfirmed stateowner!\n");
-			goto out;
-		}
+	if (sop->so_confirmed && flags & CONFIRM) {
+		printk("NFSD: preprocess_seqid_op: expected"
+				" unconfirmed stateowner!\n");
+		return nfserr_bad_stateid;
 	}
-	else {
-		if (!(flags & CONFIRM)) {
-			printk("NFSD: preprocess_seqid_op: stateowner not confirmed yet!\n");
-			goto out;
-		}
+	if (!sop->so_confirmed && !(flags & CONFIRM)) {
+		printk("NFSD: preprocess_seqid_op: stateowner not"
+				" confirmed yet!\n");
+		return nfserr_bad_stateid;
 	}
 	if (stateid->si_generation > stp->st_stateid.si_generation) {
 		printk("NFSD: preprocess_seqid_op: future stateid?!\n");
-		goto out;
+		return nfserr_bad_stateid;
 	}
 
-	status = nfserr_old_stateid;
 	if (stateid->si_generation < stp->st_stateid.si_generation) {
 		printk("NFSD: preprocess_seqid_op: old stateid!\n");
-		goto out;
+		return nfserr_old_stateid;
 	}
-	/* XXX renew the client lease here */
-	status = nfs_ok;
-
-out:
-	return status;
-
-no_nfs4_stateid:
-
-	/*
-	* We determine whether this is a bad stateid or a replay, 
-	* starting by trying to look up the stateowner.
-	* If stateowner is not found - stateid is bad.
-	*/
-	if (!(sop = find_openstateowner_id(stateid->si_stateownerid, flags))) {
-		printk("NFSD: preprocess_seqid_op: no stateowner or nfs4_stateid!\n");
-		status = nfserr_bad_stateid;
-		goto out;
-	}
-	*sopp = sop;
+	renew_client(sop->so_client);
+	return nfs_ok;
 
 check_replay:
-	if (seqid == sop->so_seqid) {
+	if (seqid == sop->so_seqid - 1) {
 		printk("NFSD: preprocess_seqid_op: retransmission?\n");
 		/* indicate replay to calling function */
-		status = NFSERR_REPLAY_ME;
-	} else  {
-		printk("NFSD: preprocess_seqid_op: bad seqid (expected %d, got %d\n", sop->so_seqid +1, seqid);
-
-		*sopp = NULL;
-		status = nfserr_bad_seqid;
+		return NFSERR_REPLAY_ME;
 	}
-	goto out;
+	printk("NFSD: preprocess_seqid_op: bad seqid (expected %d, got %d)\n",
+			sop->so_seqid, seqid);
+	*sopp = NULL;
+	return nfserr_bad_seqid;
 }
 
 int
@@ -2609,7 +2600,6 @@ find_lockstateowner_str(struct inode *inode, clientid_t *clid,
  * occured. 
  *
  * strhashval = lock_ownerstr_hashval 
- * so_seqid = lock->lk_new_lock_seqid - 1: it gets bumped in encode 
  */
 
 static struct nfs4_stateowner *
@@ -2634,7 +2624,7 @@ alloc_init_lock_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 	sop->so_is_open_owner = 0;
 	sop->so_id = current_ownerid++;
 	sop->so_client = clp;
-	sop->so_seqid = lock->lk_new_lock_seqid - 1;
+	sop->so_seqid = lock->lk_new_lock_seqid;
 	sop->so_confirmed = 1;
 	rp = &sop->so_replay;
 	rp->rp_status = NFSERR_SERVERFAULT;
@@ -2669,6 +2659,7 @@ alloc_init_lock_stateid(struct nfs4_stateowner *sop, struct nfs4_file *fp, struc
 	stp->st_vfs_file = open_stp->st_vfs_file; /* FIXME refcount?? */
 	stp->st_access_bmap = open_stp->st_access_bmap;
 	stp->st_deny_bmap = open_stp->st_deny_bmap;
+	stp->st_openstp = open_stp;
 
 out:
 	return stp;
@@ -2699,22 +2690,17 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 		(long long) lock->lk_offset,
 		(long long) lock->lk_length);
 
-	if (nfs4_in_grace() && !lock->lk_reclaim)
-		return nfserr_grace;
-	if (!nfs4_in_grace() && lock->lk_reclaim)
-		return nfserr_no_grace;
-
 	if (check_lock_length(lock->lk_offset, lock->lk_length))
 		 return nfserr_inval;
 
 	nfs4_lock_state();
 
 	if (lock->lk_is_new) {
-	/*
-	 * Client indicates that this is a new lockowner.
-	 * Use open owner and open stateid to create lock owner and lock 
-	 * stateid.
-	 */
+		/*
+		 * Client indicates that this is a new lockowner.
+		 * Use open owner and open stateid to create lock owner and
+		 * lock stateid.
+		 */
 		struct nfs4_stateid *open_stp = NULL;
 		struct nfs4_file *fp;
 		
@@ -2724,23 +2710,14 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 			goto out;
 		}
 
-		/* is the new lock seqid presented by the client zero? */
-		status = nfserr_bad_seqid;
-		if (lock->v.new.lock_seqid != 0)
-			goto out;
-
 		/* validate and update open stateid and open seqid */
 		status = nfs4_preprocess_seqid_op(current_fh, 
 				        lock->lk_new_open_seqid,
 		                        &lock->lk_new_open_stateid,
 		                        CHECK_FH | OPEN_STATE,
-		                        &open_sop, &open_stp,
-					&lock->v.new.clientid);
-		if (status) {
-			if (lock->lk_reclaim)
-				status = nfserr_reclaim_bad;
+		                        &open_sop, &open_stp, lock);
+		if (status)
 			goto out;
-		}
 		/* create lockowner and lock stateid */
 		fp = open_stp->st_file;
 		strhashval = lock_ownerstr_hashval(fp->fi_inode, 
@@ -2766,7 +2743,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 				       lock->lk_old_lock_seqid, 
 				       &lock->lk_old_lock_stateid, 
 				       CHECK_FH | LOCK_STATE, 
-				       &lock->lk_stateowner, &lock_stp, NULL);
+				       &lock->lk_stateowner, &lock_stp, lock);
 		if (status)
 			goto out;
 	}
@@ -2777,6 +2754,13 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 		printk("NFSD: nfsd4_lock: permission denied!\n");
 		goto out;
 	}
+
+	status = nfserr_grace;
+	if (nfs4_in_grace() && !lock->lk_reclaim)
+		goto out;
+	status = nfserr_no_grace;
+	if (!nfs4_in_grace() && lock->lk_reclaim)
+		goto out;
 
 	locks_init_lock(&file_lock);
 	switch (lock->lk_type) {
@@ -2844,10 +2828,10 @@ conflicting_lock:
 out_destroy_new_stateid:
 	if (lock->lk_is_new) {
 		dprintk("NFSD: nfsd4_lock: destroy new stateid!\n");
-	/*
-	* An error encountered after instantiation of the new
-	* stateid has forced us to destroy it.
-	*/
+		/*
+		 * An error encountered after instantiation of the new
+		 * stateid has forced us to destroy it.
+		 */
 		if (!seqid_mutating_err(status))
 			open_sop->so_seqid--;
 
@@ -3083,7 +3067,12 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp, struct nfsd4_release_lockowner *
 	 * of the lockowner state released; so don't release any until all
 	 * have been checked. */
 	status = nfs_ok;
-	list_for_each_entry(sop, &matches, so_perclient) {
+	while (!list_empty(&matches)) {
+		sop = list_entry(matches.next, struct nfs4_stateowner,
+								so_perclient);
+		/* unhash_stateowner deletes so_perclient only
+		 * for openowners. */
+		list_del(&sop->so_perclient);
 		release_stateowner(sop);
 	}
 out:

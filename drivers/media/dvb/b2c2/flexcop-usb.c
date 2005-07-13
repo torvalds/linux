@@ -545,7 +545,7 @@ static struct usb_device_id flexcop_usb_table [] = {
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver flexcop_usb_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "Technisat/B2C2 FlexCop II/IIb/III USB",
+	.name		= "b2c2_flexcop_usb",
 	.probe		= flexcop_usb_probe,
 	.disconnect = flexcop_usb_disconnect,
 	.id_table	= flexcop_usb_table,

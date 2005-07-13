@@ -522,13 +522,10 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 static int s3c24xx_serial_startup(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
-	unsigned long flags;
 	int ret;
 
 	dbg("s3c24xx_serial_startup: port=%p (%08lx,%p)\n",
 	    port->mapbase, port->membase);
-
-	local_irq_save(flags);
 
 	rx_enabled(port) = 1;
 
@@ -563,12 +560,10 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 	/* the port reset code should have done the correct
 	 * register setup for the port controls */
 
-	local_irq_restore(flags);
 	return ret;
 
  err:
 	s3c24xx_serial_shutdown(port);
-	local_irq_restore(flags);
 	return ret;
 }
 

@@ -155,10 +155,6 @@ static struct v4l2_mpeg_compression param_defaults =
 		.target  = 256,
 	},
 
-#if 0
-	/* FIXME: size? via S_FMT? */
-	.video_format = MPEG_VIDEO_FORMAT_D1,
-#endif
 };
 
 /* ---------------------------------------------------------------------- */

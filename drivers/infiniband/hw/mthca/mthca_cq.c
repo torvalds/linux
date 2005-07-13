@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2005 Cisco Systems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -742,6 +743,7 @@ err_out:
 }
 
 int mthca_init_cq(struct mthca_dev *dev, int nent,
+		  struct mthca_ucontext *ctx, u32 pdn,
 		  struct mthca_cq *cq)
 {
 	int size = nent * MTHCA_CQ_ENTRY_SIZE;
@@ -753,30 +755,33 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 
 	might_sleep();
 
-	cq->ibcq.cqe = nent - 1;
+	cq->ibcq.cqe  = nent - 1;
+	cq->is_kernel = !ctx;
 
 	cq->cqn = mthca_alloc(&dev->cq_table.alloc);
 	if (cq->cqn == -1)
 		return -ENOMEM;
 
 	if (mthca_is_memfree(dev)) {
-		cq->arm_sn = 1;
-
 		err = mthca_table_get(dev, dev->cq_table.table, cq->cqn);
 		if (err)
 			goto err_out;
 
-		err = -ENOMEM;
+		if (cq->is_kernel) {
+			cq->arm_sn = 1;
 
-		cq->set_ci_db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_CQ_SET_CI,
-						     cq->cqn, &cq->set_ci_db);
-		if (cq->set_ci_db_index < 0)
-			goto err_out_icm;
+			err = -ENOMEM;
 
-		cq->arm_db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_CQ_ARM,
-						  cq->cqn, &cq->arm_db);
-		if (cq->arm_db_index < 0)
-			goto err_out_ci;
+			cq->set_ci_db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_CQ_SET_CI,
+							     cq->cqn, &cq->set_ci_db);
+			if (cq->set_ci_db_index < 0)
+				goto err_out_icm;
+
+			cq->arm_db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_CQ_ARM,
+							  cq->cqn, &cq->arm_db);
+			if (cq->arm_db_index < 0)
+				goto err_out_ci;
+		}
 	}
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
@@ -785,12 +790,14 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 
 	cq_context = mailbox->buf;
 
-	err = mthca_alloc_cq_buf(dev, size, cq);
-	if (err)
-		goto err_out_mailbox;
+	if (cq->is_kernel) {
+		err = mthca_alloc_cq_buf(dev, size, cq);
+		if (err)
+			goto err_out_mailbox;
 
-	for (i = 0; i < nent; ++i)
-		set_cqe_hw(get_cqe(cq, i));
+		for (i = 0; i < nent; ++i)
+			set_cqe_hw(get_cqe(cq, i));
+	}
 
 	spin_lock_init(&cq->lock);
 	atomic_set(&cq->refcount, 1);
@@ -801,11 +808,14 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 						  MTHCA_CQ_STATE_DISARMED |
 						  MTHCA_CQ_FLAG_TR);
 	cq_context->start           = cpu_to_be64(0);
-	cq_context->logsize_usrpage = cpu_to_be32((ffs(nent) - 1) << 24 |
-						  dev->driver_uar.index);
+	cq_context->logsize_usrpage = cpu_to_be32((ffs(nent) - 1) << 24);
+	if (ctx)
+		cq_context->logsize_usrpage |= cpu_to_be32(ctx->uar.index);
+	else
+		cq_context->logsize_usrpage |= cpu_to_be32(dev->driver_uar.index);
 	cq_context->error_eqn       = cpu_to_be32(dev->eq_table.eq[MTHCA_EQ_ASYNC].eqn);
 	cq_context->comp_eqn        = cpu_to_be32(dev->eq_table.eq[MTHCA_EQ_COMP].eqn);
-	cq_context->pd              = cpu_to_be32(dev->driver_pd.pd_num);
+	cq_context->pd              = cpu_to_be32(pdn);
 	cq_context->lkey            = cpu_to_be32(cq->mr.ibmr.lkey);
 	cq_context->cqn             = cpu_to_be32(cq->cqn);
 
@@ -843,18 +853,20 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	return 0;
 
 err_out_free_mr:
-	mthca_free_mr(dev, &cq->mr);
-	mthca_free_cq_buf(dev, cq);
+	if (cq->is_kernel) {
+		mthca_free_mr(dev, &cq->mr);
+		mthca_free_cq_buf(dev, cq);
+	}
 
 err_out_mailbox:
 	mthca_free_mailbox(dev, mailbox);
 
 err_out_arm:
-	if (mthca_is_memfree(dev))
+	if (cq->is_kernel && mthca_is_memfree(dev))
 		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM, cq->arm_db_index);
 
 err_out_ci:
-	if (mthca_is_memfree(dev))
+	if (cq->is_kernel && mthca_is_memfree(dev))
 		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);
 
 err_out_icm:
@@ -892,7 +904,8 @@ void mthca_free_cq(struct mthca_dev *dev,
 		int j;
 
 		printk(KERN_ERR "context for CQN %x (cons index %x, next sw %d)\n",
-		       cq->cqn, cq->cons_index, !!next_cqe_sw(cq));
+		       cq->cqn, cq->cons_index,
+		       cq->is_kernel ? !!next_cqe_sw(cq) : 0);
 		for (j = 0; j < 16; ++j)
 			printk(KERN_ERR "[%2x] %08x\n", j * 4, be32_to_cpu(ctx[j]));
 	}
@@ -910,12 +923,13 @@ void mthca_free_cq(struct mthca_dev *dev,
 	atomic_dec(&cq->refcount);
 	wait_event(cq->wait, !atomic_read(&cq->refcount));
 
-	mthca_free_mr(dev, &cq->mr);
-	mthca_free_cq_buf(dev, cq);
-
-	if (mthca_is_memfree(dev)) {
-		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM,    cq->arm_db_index);
-		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);
+	if (cq->is_kernel) {
+		mthca_free_mr(dev, &cq->mr);
+		mthca_free_cq_buf(dev, cq);
+		if (mthca_is_memfree(dev)) {
+			mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM,    cq->arm_db_index);
+			mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);
+		}
 	}
 
 	mthca_table_put(dev, dev->cq_table.table, cq->cqn);

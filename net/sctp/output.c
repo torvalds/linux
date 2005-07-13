@@ -108,7 +108,7 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 	packet->transport = transport;
 	packet->source_port = sport;
 	packet->destination_port = dport;
-	skb_queue_head_init(&packet->chunks);
+	INIT_LIST_HEAD(&packet->chunk_list);
 	if (asoc) {
 		struct sctp_sock *sp = sctp_sk(asoc->base.sk);	
 		overhead = sp->pf->af->net_header_len; 
@@ -129,12 +129,14 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 /* Free a packet.  */
 void sctp_packet_free(struct sctp_packet *packet)
 {
-	struct sctp_chunk *chunk;
+	struct sctp_chunk *chunk, *tmp;
 
 	SCTP_DEBUG_PRINTK("%s: packet:%p\n", __FUNCTION__, packet);
 
-        while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks)) != NULL)
+	list_for_each_entry_safe(chunk, tmp, &packet->chunk_list, list) {
+		list_del_init(&chunk->list);
 		sctp_chunk_free(chunk);
+	}
 
 	if (packet->malloced)
 		kfree(packet);
@@ -276,7 +278,7 @@ append:
 		packet->has_sack = 1;
 
 	/* It is OK to send this chunk.  */
-	__skb_queue_tail(&packet->chunks, (struct sk_buff *)chunk);
+	list_add_tail(&chunk->list, &packet->chunk_list);
 	packet->size += chunk_len;
 	chunk->transport = packet->transport;
 finish:
@@ -295,7 +297,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	struct sctphdr *sh;
 	__u32 crc32;
 	struct sk_buff *nskb;
-	struct sctp_chunk *chunk;
+	struct sctp_chunk *chunk, *tmp;
 	struct sock *sk;
 	int err = 0;
 	int padding;		/* How much padding do we need?  */
@@ -305,11 +307,11 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	SCTP_DEBUG_PRINTK("%s: packet:%p\n", __FUNCTION__, packet);
 
 	/* Do NOT generate a chunkless packet. */
-	chunk = (struct sctp_chunk *)skb_peek(&packet->chunks);
-	if (unlikely(!chunk))
+	if (list_empty(&packet->chunk_list))
 		return err;
 
 	/* Set up convenience variables... */
+	chunk = list_entry(packet->chunk_list.next, struct sctp_chunk, list);
 	sk = chunk->skb->sk;
 
 	/* Allocate the new skb.  */
@@ -370,7 +372,8 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 * [This whole comment explains WORD_ROUND() below.]
 	 */
 	SCTP_DEBUG_PRINTK("***sctp_transmit_packet***\n");
-	while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks)) != NULL) {
+	list_for_each_entry_safe(chunk, tmp, &packet->chunk_list, list) {
+		list_del_init(&chunk->list);
 		if (sctp_chunk_is_data(chunk)) {
 
 			if (!chunk->has_tsn) {
@@ -511,7 +514,8 @@ err:
 	 * will get resent or dropped later.
 	 */
 
-	while ((chunk = (struct sctp_chunk *)__skb_dequeue(&packet->chunks)) != NULL) {
+	list_for_each_entry_safe(chunk, tmp, &packet->chunk_list, list) {
+		list_del_init(&chunk->list);
 		if (!sctp_chunk_is_data(chunk))
     			sctp_chunk_free(chunk);
 	}

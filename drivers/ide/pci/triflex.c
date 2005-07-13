@@ -130,7 +130,7 @@ static int triflex_config_drive_xfer_rate(ide_drive_t *drive)
 	return hwif->ide_dma_off_quietly(drive);
 }
 
-static void __init init_hwif_triflex(ide_hwif_t *hwif)
+static void __devinit init_hwif_triflex(ide_hwif_t *hwif)
 {
 	hwif->tuneproc = &triflex_tune_drive;
 	hwif->speedproc = &triflex_tune_chipset;

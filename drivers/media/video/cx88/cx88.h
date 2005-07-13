@@ -1,5 +1,5 @@
 /*
- * $Id: cx88.h,v 1.62 2005/06/12 04:19:19 mchehab Exp $
+ * $Id: cx88.h,v 1.68 2005/07/07 14:17:47 mchehab Exp $
  *
  * v4l2 device driver for cx2388x based TV cards
  *
@@ -51,8 +51,6 @@
 /* ----------------------------------------------------------- */
 /* defines and enums                                           */
 
-#define V4L2_I2C_CLIENTS 1
-
 #define FORMAT_FLAGS_PACKED       0x01
 #define FORMAT_FLAGS_PLANAR       0x02
 
@@ -84,8 +82,8 @@ struct cx88_tvnorm {
 static unsigned int inline norm_maxw(struct cx88_tvnorm *norm)
 {
 	return (norm->id & V4L2_STD_625_50) ? 768 : 640;
-//	return (norm->id & V4L2_STD_625_50) ? 720 : 640;
 }
+
 
 static unsigned int inline norm_maxh(struct cx88_tvnorm *norm)
 {
@@ -159,7 +157,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_KWORLD_DVB_T            14
 #define CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1 15
 #define CX88_BOARD_KWORLD_LTV883           16
-#define CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD 17
+#define CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q  17
 #define CX88_BOARD_HAUPPAUGE_DVB_T1        18
 #define CX88_BOARD_CONEXANT_DVB_T1         19
 #define CX88_BOARD_PROVIDEO_PV259          20
@@ -167,10 +165,12 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_PCHDTV_HD3000           22
 #define CX88_BOARD_DNTV_LIVE_DVB_T         23
 #define CX88_BOARD_HAUPPAUGE_ROSLYN        24
-#define CX88_BOARD_DIGITALLOGIC_MEC	       25
+#define CX88_BOARD_DIGITALLOGIC_MEC        25
 #define CX88_BOARD_IODATA_GVBCTV7E         26
 #define CX88_BOARD_PIXELVIEW_PLAYTV_ULTRA_PRO 27
 #define CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T  28
+#define CX88_BOARD_ADSTECH_DVB_T_PCI          29
+#define CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1  30
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -220,7 +220,6 @@ struct cx88_subid {
 #define RESOURCE_VBI           4
 
 #define BUFFER_TIMEOUT     (HZ/2)  /* 0.5 seconds */
-//#define BUFFER_TIMEOUT     (HZ*2)
 
 /* buffer for one video frame */
 struct cx88_buffer {
@@ -336,11 +335,6 @@ struct cx8800_dev {
 	struct pci_dev             *pci;
 	unsigned char              pci_rev,pci_lat;
 
-#if 0
-	/* video overlay */
-	struct v4l2_framebuffer    fbuf;
-	struct cx88_buffer         *screen;
-#endif
 
 	/* capture queues */
 	struct cx88_dmaqueue       vidq;
@@ -435,8 +429,6 @@ struct cx8802_dev {
 /* ----------------------------------------------------------- */
 /* cx88-core.c                                                 */
 
-extern char *cx88_vid_irqs[32];
-extern char *cx88_mpeg_irqs[32];
 extern void cx88_print_irqbits(char *name, char *tag, char **strings,
 			       u32 bits, u32 mask);
 extern void cx88_print_ioctl(char *name, unsigned int cmd);

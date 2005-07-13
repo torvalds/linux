@@ -24,6 +24,8 @@
 
 #include <asm/io.h>
 #include <asm/reboot.h>
+#include <asm/vr41xx/giu.h>
+#include <asm/vr41xx/tb0219.h>
 
 MODULE_AUTHOR("Yoichi Yuasa <yuasa@hh.iij4u.or.jp>");
 MODULE_DESCRIPTION("TANBAC TB0219 base board driver");
@@ -266,6 +268,21 @@ static void tb0219_restart(char *command)
 	tb0219_write(TB0219_RESET, 0);
 }
 
+static void tb0219_pci_irq_init(void)
+{
+	/* PCI Slot 1 */
+	vr41xx_set_irq_trigger(TB0219_PCI_SLOT1_PIN, IRQ_TRIGGER_LEVEL, IRQ_SIGNAL_THROUGH);
+	vr41xx_set_irq_level(TB0219_PCI_SLOT1_PIN, IRQ_LEVEL_LOW);
+
+	/* PCI Slot 2 */
+	vr41xx_set_irq_trigger(TB0219_PCI_SLOT2_PIN, IRQ_TRIGGER_LEVEL, IRQ_SIGNAL_THROUGH);
+	vr41xx_set_irq_level(TB0219_PCI_SLOT2_PIN, IRQ_LEVEL_LOW);
+
+	/* PCI Slot 3 */
+	vr41xx_set_irq_trigger(TB0219_PCI_SLOT3_PIN, IRQ_TRIGGER_LEVEL, IRQ_SIGNAL_THROUGH);
+	vr41xx_set_irq_level(TB0219_PCI_SLOT3_PIN, IRQ_LEVEL_LOW);
+}
+
 static int tb0219_probe(struct device *dev)
 {
 	int retval;
@@ -291,6 +308,8 @@ static int tb0219_probe(struct device *dev)
 
 	old_machine_restart = _machine_restart;
 	_machine_restart = tb0219_restart;
+
+	tb0219_pci_irq_init();
 
 	if (major == 0) {
 		major = retval;

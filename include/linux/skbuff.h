@@ -183,7 +183,6 @@ struct skb_shared_info {
  *	@priority: Packet queueing priority
  *	@users: User count - see {datagram,tcp}.c
  *	@protocol: Packet protocol from driver
- *	@security: Security level of packet
  *	@truesize: Buffer size 
  *	@head: Head of buffer
  *	@data: Data head pointer
@@ -249,18 +248,18 @@ struct sk_buff {
 				data_len,
 				mac_len,
 				csum;
-	unsigned char		local_df,
-				cloned:1,
-				nohdr:1,
-				pkt_type,
-				ip_summed;
 	__u32			priority;
-	unsigned short		protocol,
-				security;
+	__u8			local_df:1,
+				cloned:1,
+				ip_summed:2,
+				nohdr:1;
+				/* 3 bits spare */
+	__u8			pkt_type;
+	__u16			protocol;
 
 	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_NETFILTER
-        unsigned long		nfmark;
+	unsigned long		nfmark;
 	__u32			nfcache;
 	__u32			nfctinfo;
 	struct nf_conntrack	*nfct;
@@ -301,20 +300,26 @@ struct sk_buff {
 #include <asm/system.h>
 
 extern void	       __kfree_skb(struct sk_buff *skb);
-extern struct sk_buff *alloc_skb(unsigned int size, int priority);
+extern struct sk_buff *alloc_skb(unsigned int size,
+				 unsigned int __nocast priority);
 extern struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
-					    unsigned int size, int priority);
+					    unsigned int size,
+					    unsigned int __nocast priority);
 extern void	       kfree_skbmem(struct sk_buff *skb);
-extern struct sk_buff *skb_clone(struct sk_buff *skb, int priority);
-extern struct sk_buff *skb_copy(const struct sk_buff *skb, int priority);
-extern struct sk_buff *pskb_copy(struct sk_buff *skb, int gfp_mask);
+extern struct sk_buff *skb_clone(struct sk_buff *skb,
+				 unsigned int __nocast priority);
+extern struct sk_buff *skb_copy(const struct sk_buff *skb,
+				unsigned int __nocast priority);
+extern struct sk_buff *pskb_copy(struct sk_buff *skb,
+				 unsigned int __nocast gfp_mask);
 extern int	       pskb_expand_head(struct sk_buff *skb,
-					int nhead, int ntail, int gfp_mask);
+					int nhead, int ntail,
+					unsigned int __nocast gfp_mask);
 extern struct sk_buff *skb_realloc_headroom(struct sk_buff *skb,
 					    unsigned int headroom);
 extern struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 				       int newheadroom, int newtailroom,
-				       int priority);
+				       unsigned int __nocast priority);
 extern struct sk_buff *		skb_pad(struct sk_buff *skb, int pad);
 #define dev_kfree_skb(a)	kfree_skb(a)
 extern void	      skb_over_panic(struct sk_buff *skb, int len,
@@ -465,7 +470,8 @@ static inline int skb_shared(const struct sk_buff *skb)
  *
  *	NULL is returned on a memory allocation failure.
  */
-static inline struct sk_buff *skb_share_check(struct sk_buff *skb, int pri)
+static inline struct sk_buff *skb_share_check(struct sk_buff *skb,
+					      unsigned int __nocast pri)
 {
 	might_sleep_if(pri & __GFP_WAIT);
 	if (skb_shared(skb)) {
@@ -1002,7 +1008,7 @@ static inline void __skb_queue_purge(struct sk_buff_head *list)
  *	%NULL is returned in there is no free memory.
  */
 static inline struct sk_buff *__dev_alloc_skb(unsigned int length,
-					      int gfp_mask)
+					      unsigned int __nocast gfp_mask)
 {
 	struct sk_buff *skb = alloc_skb(length + 16, gfp_mask);
 	if (likely(skb))
@@ -1115,8 +1121,8 @@ static inline int skb_can_coalesce(struct sk_buff *skb, int i,
  *	If there is no free memory -ENOMEM is returned, otherwise zero
  *	is returned and the old skb data released.
  */
-extern int __skb_linearize(struct sk_buff *skb, int gfp);
-static inline int skb_linearize(struct sk_buff *skb, int gfp)
+extern int __skb_linearize(struct sk_buff *skb, unsigned int __nocast gfp);
+static inline int skb_linearize(struct sk_buff *skb, unsigned int __nocast gfp)
 {
 	return __skb_linearize(skb, gfp);
 }
@@ -1211,7 +1217,7 @@ static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 {
 	int hlen = skb_headlen(skb);
 
-	if (offset + len <= hlen)
+	if (hlen - offset >= len)
 		return skb->data + offset;
 
 	if (skb_copy_bits(skb, offset, buffer, len) < 0)

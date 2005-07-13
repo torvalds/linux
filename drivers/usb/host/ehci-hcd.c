@@ -960,7 +960,7 @@ static int ehci_urb_enqueue (
 	struct usb_hcd	*hcd,
 	struct usb_host_endpoint *ep,
 	struct urb	*urb,
-	int		mem_flags
+	unsigned	mem_flags
 ) {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	struct list_head	qtd_list;

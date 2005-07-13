@@ -79,12 +79,14 @@ static void __init p720t_map_io(void)
 }
 
 MACHINE_START(P720T, "ARM-Prospector720T")
-	MAINTAINER("ARM Ltd/Deep Blue Solutions Ltd")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xff000000)
-	BOOT_PARAMS(0xc0000100)
-	FIXUP(fixup_p720t)
-	MAPIO(p720t_map_io)
-	INITIRQ(clps711x_init_irq)
+	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xff000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.fixup		= fixup_p720t,
+	.map_io		= p720t_map_io,
+	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
 MACHINE_END
 

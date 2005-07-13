@@ -8,12 +8,12 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/proc_fs.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/addrs.h>
@@ -480,6 +480,9 @@ static int __init tiocx_init(void)
 {
 	cnodeid_t cnodeid;
 	int found_tiocx_device = 0;
+
+	if (!ia64_platform_is("sn2"))
+		return -ENODEV;
 
 	bus_register(&tiocx_bus_type);
 

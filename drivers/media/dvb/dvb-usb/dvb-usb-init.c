@@ -18,6 +18,10 @@ int dvb_usb_debug;
 module_param_named(debug,dvb_usb_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,pll=4,ts=8,err=16,rc=32,fw=64 (or-able))." DVB_USB_DEBUG_STATUS);
 
+int dvb_usb_disable_rc_polling;
+module_param_named(disable_rc_polling, dvb_usb_disable_rc_polling, int, 0644);
+MODULE_PARM_DESC(disable_rc_polling, "disable remote control polling (default: 0).");
+
 /* general initialization functions */
 int dvb_usb_exit(struct dvb_usb_device *d)
 {
@@ -47,17 +51,17 @@ static int dvb_usb_init(struct dvb_usb_device *d)
 
 /* speed - when running at FULL speed we need a HW PID filter */
 	if (d->udev->speed == USB_SPEED_FULL && !(d->props.caps & DVB_USB_HAS_PID_FILTER)) {
-		err("This USB2.0 device cannot be run on a USB1.1 port. (it lacks a HW PID filter)");
+		err("This USB2.0 device cannot be run on a USB1.1 port. (it lacks a hardware PID filter)");
 		return -ENODEV;
 	}
 
 	if ((d->udev->speed == USB_SPEED_FULL && d->props.caps & DVB_USB_HAS_PID_FILTER) ||
 		(d->props.caps & DVB_USB_NEED_PID_FILTERING)) {
-		info("will use the device's hw PID filter.");
+		info("will use the device's hardware PID filter (table count: %d).",d->props.pid_filter_count);
 		d->pid_filtering = 1;
 		d->max_feed_count = d->props.pid_filter_count;
 	} else {
-		info("will pass the complete MPEG2 transport stream to the demuxer.");
+		info("will pass the complete MPEG2 transport stream to the software demuxer.");
 		d->pid_filtering = 0;
 		d->max_feed_count = 255;
 	}

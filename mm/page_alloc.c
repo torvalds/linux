@@ -897,12 +897,6 @@ rebalance:
 	cond_resched();
 
 	if (likely(did_some_progress)) {
-		/*
-		 * Go through the zonelist yet one more time, keep
-		 * very high watermark here, this is only to catch
-		 * a parallel oom killing, we must fail if we're still
-		 * under heavy pressure.
-		 */
 		for (i = 0; (z = zones[i]) != NULL; i++) {
 			if (!zone_watermark_ok(z, order, z->pages_min,
 					       classzone_idx, can_try_harder,
@@ -936,7 +930,7 @@ rebalance:
 				goto got_pg;
 		}
 
-		out_of_memory(gfp_mask);
+		out_of_memory(gfp_mask, order);
 		goto restart;
 	}
 

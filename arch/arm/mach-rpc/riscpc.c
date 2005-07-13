@@ -163,12 +163,14 @@ arch_initcall(rpc_init);
 extern struct sys_timer ioc_timer;
 
 MACHINE_START(RISCPC, "Acorn-RiscPC")
-	MAINTAINER("Russell King")
-	BOOT_MEM(0x10000000, 0x03000000, 0xe0000000)
-	BOOT_PARAMS(0x10000100)
-	DISABLE_PARPORT(0)
-	DISABLE_PARPORT(1)
-	MAPIO(rpc_map_io)
-	INITIRQ(rpc_init_irq)
+	/* Maintainer: Russell King */
+	.phys_ram	= 0x10000000,
+	.phys_io	= 0x03000000,
+	.io_pg_offst	= ((0xe0000000) >> 18) & 0xfffc,
+	.boot_params	= 0x10000100,
+	.reserve_lp0	= 1,
+	.reserve_lp1	= 1,
+	.map_io		= rpc_map_io,
+	.init_irq	= rpc_init_irq,
 	.timer		= &ioc_timer,
 MACHINE_END

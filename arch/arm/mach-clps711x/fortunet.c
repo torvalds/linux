@@ -75,11 +75,13 @@ fortunet_fixup(struct machine_desc *desc, struct tag *tags,
 }
 
 MACHINE_START(FORTUNET, "ARM-FortuNet")
-	MAINTAINER("FortuNet Inc.")
-        BOOT_MEM(0xc0000000, 0x80000000, 0xf0000000)
-	BOOT_PARAMS(0x00000000)
-	FIXUP(fortunet_fixup)
-	MAPIO(clps711x_map_io)
-	INITIRQ(clps711x_init_irq)
+	/* Maintainer: FortuNet Inc. */
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xf0000000) >> 18) & 0xfffc,
+	.boot_params	= 0x00000000,
+	.fixup		= fortunet_fixup,
+	.map_io		= clps711x_map_io,
+	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
 MACHINE_END

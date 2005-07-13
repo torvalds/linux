@@ -51,11 +51,13 @@ fixup_edb7211(struct machine_desc *desc, struct tag *tags,
 }
 
 MACHINE_START(EDB7211, "CL-EDB7211 (EP7211 eval board)")
-	MAINTAINER("Jon McClintock")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xff000000)
-	BOOT_PARAMS(0xc0020100)	/* 0xc0000000 - 0xc001ffff can be video RAM */
-	FIXUP(fixup_edb7211)
-	MAPIO(edb7211_map_io)
-	INITIRQ(clps711x_init_irq)
+	/* Maintainer: Jon McClintock */
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xff000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0020100,	/* 0xc0000000 - 0xc001ffff can be video RAM */
+	.fixup		= fixup_edb7211,
+	.map_io		= edb7211_map_io,
+	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
 MACHINE_END

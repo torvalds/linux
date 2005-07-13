@@ -3227,9 +3227,9 @@ static int usbnet_stop (struct net_device *net)
 	temp = unlink_urbs (dev, &dev->txq) + unlink_urbs (dev, &dev->rxq);
 
 	// maybe wait for deletions to finish.
-	while (skb_queue_len (&dev->rxq)
-			&& skb_queue_len (&dev->txq)
-			&& skb_queue_len (&dev->done)) {
+	while (!skb_queue_empty(&dev->rxq) &&
+	       !skb_queue_empty(&dev->txq) &&
+	       !skb_queue_empty(&dev->done)) {
 		msleep(UNLINK_TIMEOUT_MS);
 		if (netif_msg_ifdown (dev))
 			devdbg (dev, "waited for %d urb completions", temp);

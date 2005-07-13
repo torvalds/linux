@@ -81,11 +81,6 @@
  *
  */
 
-#ifndef CONFIG_SMP
-#define cpu_physical_id(cpuid)			((ia64_getreg(_IA64_REG_CR_LID) >> 16) & 0xffff)
-#endif
-
-
 #define get_node_number(addr)			NASID_GET(addr)
 
 /*

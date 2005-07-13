@@ -48,9 +48,62 @@
 #define _COMPONENT          ACPI_RESOURCES
 	 ACPI_MODULE_NAME    ("rsdump")
 
+/* Local prototypes */
+
+static void
+acpi_rs_dump_irq (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_address16 (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_address32 (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_address64 (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_dma (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_io (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_extended_irq (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_fixed_io (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_fixed_memory32 (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_memory24 (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_memory32 (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_start_depend_fns (
+	union acpi_resource_data        *data);
+
+static void
+acpi_rs_dump_vendor_specific (
+	union acpi_resource_data        *data);
+
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_rs_dump_irq
@@ -63,7 +116,7 @@
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_irq (
 	union acpi_resource_data        *data)
 {
@@ -77,13 +130,13 @@ acpi_rs_dump_irq (
 	acpi_os_printf ("IRQ Resource\n");
 
 	acpi_os_printf ("  %s Triggered\n",
-			 ACPI_LEVEL_SENSITIVE == irq_data->edge_level ? "Level" : "Edge");
+		ACPI_LEVEL_SENSITIVE == irq_data->edge_level ? "Level" : "Edge");
 
 	acpi_os_printf ("  Active %s\n",
-			 ACPI_ACTIVE_LOW == irq_data->active_high_low ? "Low" : "High");
+		ACPI_ACTIVE_LOW == irq_data->active_high_low ? "Low" : "High");
 
 	acpi_os_printf ("  %s\n",
-			 ACPI_SHARED == irq_data->shared_exclusive ? "Shared" : "Exclusive");
+		ACPI_SHARED == irq_data->shared_exclusive ? "Shared" : "Exclusive");
 
 	acpi_os_printf ("  %X Interrupts ( ", irq_data->number_of_interrupts);
 
@@ -108,7 +161,7 @@ acpi_rs_dump_irq (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_dma (
 	union acpi_resource_data        *data)
 {
@@ -144,7 +197,7 @@ acpi_rs_dump_dma (
 	}
 
 	acpi_os_printf ("  %sBus Master\n",
-			 ACPI_BUS_MASTER == dma_data->bus_master ? "" : "Not a ");
+		ACPI_BUS_MASTER == dma_data->bus_master ? "" : "Not a ");
 
 
 	switch (dma_data->transfer) {
@@ -165,7 +218,8 @@ acpi_rs_dump_dma (
 		break;
 	}
 
-	acpi_os_printf ("  Number of Channels: %X ( ", dma_data->number_of_channels);
+	acpi_os_printf ("  Number of Channels: %X ( ",
+		dma_data->number_of_channels);
 
 	for (index = 0; index < dma_data->number_of_channels; index++) {
 		acpi_os_printf ("%X ", dma_data->channels[index]);
@@ -188,7 +242,7 @@ acpi_rs_dump_dma (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_start_depend_fns (
 	union acpi_resource_data        *data)
 {
@@ -232,8 +286,7 @@ acpi_rs_dump_start_depend_fns (
 		break;
 
 	default:
-		acpi_os_printf ("  Invalid performance "
-				  "robustness preference\n");
+		acpi_os_printf ("  Invalid performance robustness preference\n");
 		break;
 	}
 
@@ -253,7 +306,7 @@ acpi_rs_dump_start_depend_fns (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_io (
 	union acpi_resource_data        *data)
 {
@@ -266,19 +319,15 @@ acpi_rs_dump_io (
 	acpi_os_printf ("Io Resource\n");
 
 	acpi_os_printf ("  %d bit decode\n",
-			 ACPI_DECODE_16 == io_data->io_decode ? 16 : 10);
+		ACPI_DECODE_16 == io_data->io_decode ? 16 : 10);
 
-	acpi_os_printf ("  Range minimum base: %08X\n",
-			 io_data->min_base_address);
+	acpi_os_printf ("  Range minimum base: %08X\n", io_data->min_base_address);
 
-	acpi_os_printf ("  Range maximum base: %08X\n",
-			 io_data->max_base_address);
+	acpi_os_printf ("  Range maximum base: %08X\n", io_data->max_base_address);
 
-	acpi_os_printf ("  Alignment: %08X\n",
-			 io_data->alignment);
+	acpi_os_printf ("  Alignment: %08X\n", io_data->alignment);
 
-	acpi_os_printf ("  Range Length: %08X\n",
-			 io_data->range_length);
+	acpi_os_printf ("  Range Length: %08X\n", io_data->range_length);
 
 	return;
 }
@@ -296,7 +345,7 @@ acpi_rs_dump_io (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_fixed_io (
 	union acpi_resource_data        *data)
 {
@@ -307,11 +356,9 @@ acpi_rs_dump_fixed_io (
 
 
 	acpi_os_printf ("Fixed Io Resource\n");
-	acpi_os_printf ("  Range base address: %08X",
-			 fixed_io_data->base_address);
+	acpi_os_printf ("  Range base address: %08X", fixed_io_data->base_address);
 
-	acpi_os_printf ("  Range length: %08X",
-			 fixed_io_data->range_length);
+	acpi_os_printf ("  Range length: %08X", fixed_io_data->range_length);
 
 	return;
 }
@@ -329,7 +376,7 @@ acpi_rs_dump_fixed_io (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_vendor_specific (
 	union acpi_resource_data        *data)
 {
@@ -346,7 +393,7 @@ acpi_rs_dump_vendor_specific (
 
 	for (index = 0; index < vendor_data->length; index++) {
 		acpi_os_printf ("  Byte %X: %08X\n",
-				 index, vendor_data->reserved[index]);
+			index, vendor_data->reserved[index]);
 	}
 
 	return;
@@ -365,7 +412,7 @@ acpi_rs_dump_vendor_specific (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_memory24 (
 	union acpi_resource_data        *data)
 {
@@ -378,21 +425,19 @@ acpi_rs_dump_memory24 (
 	acpi_os_printf ("24-Bit Memory Range Resource\n");
 
 	acpi_os_printf ("  Read%s\n",
-			 ACPI_READ_WRITE_MEMORY ==
-			 memory24_data->read_write_attribute ?
-			 "/Write" : " only");
+		ACPI_READ_WRITE_MEMORY ==
+			memory24_data->read_write_attribute ?
+			"/Write" : " only");
 
 	acpi_os_printf ("  Range minimum base: %08X\n",
-			 memory24_data->min_base_address);
+		memory24_data->min_base_address);
 
 	acpi_os_printf ("  Range maximum base: %08X\n",
-			 memory24_data->max_base_address);
+		memory24_data->max_base_address);
 
-	acpi_os_printf ("  Alignment: %08X\n",
-			 memory24_data->alignment);
+	acpi_os_printf ("  Alignment: %08X\n", memory24_data->alignment);
 
-	acpi_os_printf ("  Range length: %08X\n",
-			 memory24_data->range_length);
+	acpi_os_printf ("  Range length: %08X\n", memory24_data->range_length);
 
 	return;
 }
@@ -410,7 +455,7 @@ acpi_rs_dump_memory24 (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_memory32 (
 	union acpi_resource_data        *data)
 {
@@ -423,21 +468,19 @@ acpi_rs_dump_memory32 (
 	acpi_os_printf ("32-Bit Memory Range Resource\n");
 
 	acpi_os_printf ("  Read%s\n",
-			 ACPI_READ_WRITE_MEMORY ==
-			 memory32_data->read_write_attribute ?
-			 "/Write" : " only");
+		ACPI_READ_WRITE_MEMORY ==
+			memory32_data->read_write_attribute ?
+			"/Write" : " only");
 
 	acpi_os_printf ("  Range minimum base: %08X\n",
-			 memory32_data->min_base_address);
+		memory32_data->min_base_address);
 
 	acpi_os_printf ("  Range maximum base: %08X\n",
-			 memory32_data->max_base_address);
+		memory32_data->max_base_address);
 
-	acpi_os_printf ("  Alignment: %08X\n",
-			 memory32_data->alignment);
+	acpi_os_printf ("  Alignment: %08X\n", memory32_data->alignment);
 
-	acpi_os_printf ("  Range length: %08X\n",
-			 memory32_data->range_length);
+	acpi_os_printf ("  Range length: %08X\n", memory32_data->range_length);
 
 	return;
 }
@@ -455,11 +498,12 @@ acpi_rs_dump_memory32 (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_fixed_memory32 (
 	union acpi_resource_data            *data)
 {
-	struct acpi_resource_fixed_mem32    *fixed_memory32_data = (struct acpi_resource_fixed_mem32 *) data;
+	struct acpi_resource_fixed_mem32    *fixed_memory32_data =
+			   (struct acpi_resource_fixed_mem32 *) data;
 
 
 	ACPI_FUNCTION_ENTRY ();
@@ -468,15 +512,14 @@ acpi_rs_dump_fixed_memory32 (
 	acpi_os_printf ("32-Bit Fixed Location Memory Range Resource\n");
 
 	acpi_os_printf ("  Read%s\n",
-			 ACPI_READ_WRITE_MEMORY ==
-			 fixed_memory32_data->read_write_attribute ?
-			 "/Write" : " Only");
+		ACPI_READ_WRITE_MEMORY ==
+			fixed_memory32_data->read_write_attribute ? "/Write" : " Only");
 
 	acpi_os_printf ("  Range base address: %08X\n",
-			 fixed_memory32_data->range_base_address);
+		fixed_memory32_data->range_base_address);
 
 	acpi_os_printf ("  Range length: %08X\n",
-			 fixed_memory32_data->range_length);
+		fixed_memory32_data->range_length);
 
 	return;
 }
@@ -494,7 +537,7 @@ acpi_rs_dump_fixed_memory32 (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_address16 (
 	union acpi_resource_data        *data)
 {
@@ -514,35 +557,30 @@ acpi_rs_dump_address16 (
 
 		switch (address16_data->attribute.memory.cache_attribute) {
 		case ACPI_NON_CACHEABLE_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Noncacheable memory\n");
+			acpi_os_printf ("  Type Specific: Noncacheable memory\n");
 			break;
 
 		case ACPI_CACHABLE_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Cacheable memory\n");
+			acpi_os_printf ("  Type Specific: Cacheable memory\n");
 			break;
 
 		case ACPI_WRITE_COMBINING_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Write-combining memory\n");
+			acpi_os_printf ("  Type Specific: Write-combining memory\n");
 			break;
 
 		case ACPI_PREFETCHABLE_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Prefetchable memory\n");
+			acpi_os_printf ("  Type Specific: Prefetchable memory\n");
 			break;
 
 		default:
-			acpi_os_printf ("  Type Specific: "
-					  "Invalid cache attribute\n");
+			acpi_os_printf ("  Type Specific: Invalid cache attribute\n");
 			break;
 		}
 
 		acpi_os_printf ("  Type Specific: Read%s\n",
 			ACPI_READ_WRITE_MEMORY ==
-			address16_data->attribute.memory.read_write_attribute ?
-			"/Write" : " Only");
+				address16_data->attribute.memory.read_write_attribute ?
+				"/Write" : " Only");
 		break;
 
 	case ACPI_IO_RANGE:
@@ -551,30 +589,26 @@ acpi_rs_dump_address16 (
 
 		switch (address16_data->attribute.io.range_attribute) {
 		case ACPI_NON_ISA_ONLY_RANGES:
-			acpi_os_printf ("  Type Specific: "
-					  "Non-ISA Io Addresses\n");
+			acpi_os_printf ("  Type Specific: Non-ISA Io Addresses\n");
 			break;
 
 		case ACPI_ISA_ONLY_RANGES:
-			acpi_os_printf ("  Type Specific: "
-					  "ISA Io Addresses\n");
+			acpi_os_printf ("  Type Specific: ISA Io Addresses\n");
 			break;
 
 		case ACPI_ENTIRE_RANGE:
-			acpi_os_printf ("  Type Specific: "
-					  "ISA and non-ISA Io Addresses\n");
+			acpi_os_printf ("  Type Specific: ISA and non-ISA Io Addresses\n");
 			break;
 
 		default:
-			acpi_os_printf ("  Type Specific: "
-					  "Invalid range attribute\n");
+			acpi_os_printf ("  Type Specific: Invalid range attribute\n");
 			break;
 		}
 
 		acpi_os_printf ("  Type Specific: %s Translation\n",
 			ACPI_SPARSE_TRANSLATION ==
-			address16_data->attribute.io.translation_attribute ?
-			"Sparse" : "Dense");
+				address16_data->attribute.io.translation_attribute ?
+				"Sparse" : "Dense");
 		break;
 
 	case ACPI_BUS_NUMBER_RANGE:
@@ -589,41 +623,42 @@ acpi_rs_dump_address16 (
 	}
 
 	acpi_os_printf ("  Resource %s\n",
-			ACPI_CONSUMER == address16_data->producer_consumer ?
+		ACPI_CONSUMER == address16_data->producer_consumer ?
 			"Consumer" : "Producer");
 
 	acpi_os_printf ("  %s decode\n",
-			 ACPI_SUB_DECODE == address16_data->decode ?
-			 "Subtractive" : "Positive");
+		ACPI_SUB_DECODE == address16_data->decode ?
+			"Subtractive" : "Positive");
 
 	acpi_os_printf ("  Min address is %s fixed\n",
-			 ACPI_ADDRESS_FIXED == address16_data->min_address_fixed ?
-			 "" : "not");
+		ACPI_ADDRESS_FIXED == address16_data->min_address_fixed ?
+			"" : "not");
 
 	acpi_os_printf ("  Max address is %s fixed\n",
-			 ACPI_ADDRESS_FIXED == address16_data->max_address_fixed ?
-			 "" : "not");
+		ACPI_ADDRESS_FIXED == address16_data->max_address_fixed ?
+			"" : "not");
 
 	acpi_os_printf ("  Granularity: %08X\n",
-			 address16_data->granularity);
+		address16_data->granularity);
 
 	acpi_os_printf ("  Address range min: %08X\n",
-			 address16_data->min_address_range);
+		address16_data->min_address_range);
 
 	acpi_os_printf ("  Address range max: %08X\n",
-			 address16_data->max_address_range);
+		address16_data->max_address_range);
 
 	acpi_os_printf ("  Address translation offset: %08X\n",
-			 address16_data->address_translation_offset);
+		address16_data->address_translation_offset);
 
 	acpi_os_printf ("  Address Length: %08X\n",
-			 address16_data->address_length);
+		address16_data->address_length);
 
 	if (0xFF != address16_data->resource_source.index) {
 		acpi_os_printf ("  Resource Source Index: %X\n",
-				 address16_data->resource_source.index);
+			address16_data->resource_source.index);
+
 		acpi_os_printf ("  Resource Source: %s\n",
-				 address16_data->resource_source.string_ptr);
+			address16_data->resource_source.string_ptr);
 	}
 
 	return;
@@ -642,7 +677,7 @@ acpi_rs_dump_address16 (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_address32 (
 	union acpi_resource_data        *data)
 {
@@ -661,35 +696,30 @@ acpi_rs_dump_address32 (
 
 		switch (address32_data->attribute.memory.cache_attribute) {
 		case ACPI_NON_CACHEABLE_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Noncacheable memory\n");
+			acpi_os_printf ("  Type Specific: Noncacheable memory\n");
 			break;
 
 		case ACPI_CACHABLE_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Cacheable memory\n");
+			acpi_os_printf ("  Type Specific: Cacheable memory\n");
 			break;
 
 		case ACPI_WRITE_COMBINING_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Write-combining memory\n");
+			acpi_os_printf ("  Type Specific: Write-combining memory\n");
 			break;
 
 		case ACPI_PREFETCHABLE_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Prefetchable memory\n");
+			acpi_os_printf ("  Type Specific: Prefetchable memory\n");
 			break;
 
 		default:
-			acpi_os_printf ("  Type Specific: "
-					  "Invalid cache attribute\n");
+			acpi_os_printf ("  Type Specific: Invalid cache attribute\n");
 			break;
 		}
 
 		acpi_os_printf ("  Type Specific: Read%s\n",
 			ACPI_READ_WRITE_MEMORY ==
-			address32_data->attribute.memory.read_write_attribute ?
-			"/Write" : " Only");
+				address32_data->attribute.memory.read_write_attribute ?
+				"/Write" : " Only");
 		break;
 
 	case ACPI_IO_RANGE:
@@ -698,30 +728,26 @@ acpi_rs_dump_address32 (
 
 		switch (address32_data->attribute.io.range_attribute) {
 		case ACPI_NON_ISA_ONLY_RANGES:
-			acpi_os_printf ("  Type Specific: "
-					  "Non-ISA Io Addresses\n");
+			acpi_os_printf ("  Type Specific: Non-ISA Io Addresses\n");
 			break;
 
 		case ACPI_ISA_ONLY_RANGES:
-			acpi_os_printf ("  Type Specific: "
-					  "ISA Io Addresses\n");
+			acpi_os_printf ("  Type Specific: ISA Io Addresses\n");
 			break;
 
 		case ACPI_ENTIRE_RANGE:
-			acpi_os_printf ("  Type Specific: "
-					  "ISA and non-ISA Io Addresses\n");
+			acpi_os_printf ("  Type Specific: ISA and non-ISA Io Addresses\n");
 			break;
 
 		default:
-			acpi_os_printf ("  Type Specific: "
-					  "Invalid Range attribute");
+			acpi_os_printf ("  Type Specific: Invalid Range attribute");
 			break;
 		}
 
 		acpi_os_printf ("  Type Specific: %s Translation\n",
 			ACPI_SPARSE_TRANSLATION ==
-			address32_data->attribute.io.translation_attribute ?
-			"Sparse" : "Dense");
+				address32_data->attribute.io.translation_attribute ?
+				"Sparse" : "Dense");
 		break;
 
 	case ACPI_BUS_NUMBER_RANGE:
@@ -731,46 +757,48 @@ acpi_rs_dump_address32 (
 
 	default:
 
-		acpi_os_printf ("  Resource Type: 0x%2.2X\n", address32_data->resource_type);
+		acpi_os_printf ("  Resource Type: 0x%2.2X\n",
+			address32_data->resource_type);
 		break;
 	}
 
 	acpi_os_printf ("  Resource %s\n",
-			 ACPI_CONSUMER == address32_data->producer_consumer ?
-			 "Consumer" : "Producer");
+		ACPI_CONSUMER == address32_data->producer_consumer ?
+			"Consumer" : "Producer");
 
 	acpi_os_printf ("  %s decode\n",
-			 ACPI_SUB_DECODE == address32_data->decode ?
-			 "Subtractive" : "Positive");
+		ACPI_SUB_DECODE == address32_data->decode ?
+			"Subtractive" : "Positive");
 
 	acpi_os_printf ("  Min address is %s fixed\n",
-			 ACPI_ADDRESS_FIXED == address32_data->min_address_fixed ?
-			 "" : "not ");
+		ACPI_ADDRESS_FIXED == address32_data->min_address_fixed ?
+			"" : "not ");
 
 	acpi_os_printf ("  Max address is %s fixed\n",
-			 ACPI_ADDRESS_FIXED == address32_data->max_address_fixed ?
-			 "" : "not ");
+		ACPI_ADDRESS_FIXED == address32_data->max_address_fixed ?
+			"" : "not ");
 
 	acpi_os_printf ("  Granularity: %08X\n",
-			 address32_data->granularity);
+		address32_data->granularity);
 
 	acpi_os_printf ("  Address range min: %08X\n",
-			 address32_data->min_address_range);
+		address32_data->min_address_range);
 
 	acpi_os_printf ("  Address range max: %08X\n",
-			 address32_data->max_address_range);
+		address32_data->max_address_range);
 
 	acpi_os_printf ("  Address translation offset: %08X\n",
-			 address32_data->address_translation_offset);
+		address32_data->address_translation_offset);
 
 	acpi_os_printf ("  Address Length: %08X\n",
-			 address32_data->address_length);
+		address32_data->address_length);
 
 	if(0xFF != address32_data->resource_source.index) {
 		acpi_os_printf ("  Resource Source Index: %X\n",
-				 address32_data->resource_source.index);
+			address32_data->resource_source.index);
+
 		acpi_os_printf ("  Resource Source: %s\n",
-				 address32_data->resource_source.string_ptr);
+			address32_data->resource_source.string_ptr);
 	}
 
 	return;
@@ -789,7 +817,7 @@ acpi_rs_dump_address32 (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_address64 (
 	union acpi_resource_data        *data)
 {
@@ -808,35 +836,30 @@ acpi_rs_dump_address64 (
 
 		switch (address64_data->attribute.memory.cache_attribute) {
 		case ACPI_NON_CACHEABLE_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Noncacheable memory\n");
+			acpi_os_printf ("  Type Specific: Noncacheable memory\n");
 			break;
 
 		case ACPI_CACHABLE_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Cacheable memory\n");
+			acpi_os_printf ("  Type Specific: Cacheable memory\n");
 			break;
 
 		case ACPI_WRITE_COMBINING_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Write-combining memory\n");
+			acpi_os_printf ("  Type Specific: Write-combining memory\n");
 			break;
 
 		case ACPI_PREFETCHABLE_MEMORY:
-			acpi_os_printf ("  Type Specific: "
-					  "Prefetchable memory\n");
+			acpi_os_printf ("  Type Specific: Prefetchable memory\n");
 			break;
 
 		default:
-			acpi_os_printf ("  Type Specific: "
-					  "Invalid cache attribute\n");
+			acpi_os_printf ("  Type Specific: Invalid cache attribute\n");
 			break;
 		}
 
 		acpi_os_printf ("  Type Specific: Read%s\n",
 			ACPI_READ_WRITE_MEMORY ==
-			address64_data->attribute.memory.read_write_attribute ?
-			"/Write" : " Only");
+				address64_data->attribute.memory.read_write_attribute ?
+				"/Write" : " Only");
 		break;
 
 	case ACPI_IO_RANGE:
@@ -845,30 +868,26 @@ acpi_rs_dump_address64 (
 
 		switch (address64_data->attribute.io.range_attribute) {
 		case ACPI_NON_ISA_ONLY_RANGES:
-			acpi_os_printf ("  Type Specific: "
-					  "Non-ISA Io Addresses\n");
+			acpi_os_printf ("  Type Specific: Non-ISA Io Addresses\n");
 			break;
 
 		case ACPI_ISA_ONLY_RANGES:
-			acpi_os_printf ("  Type Specific: "
-					  "ISA Io Addresses\n");
+			acpi_os_printf ("  Type Specific: ISA Io Addresses\n");
 			break;
 
 		case ACPI_ENTIRE_RANGE:
-			acpi_os_printf ("  Type Specific: "
-					  "ISA and non-ISA Io Addresses\n");
+			acpi_os_printf ("  Type Specific: ISA and non-ISA Io Addresses\n");
 			break;
 
 		default:
-			acpi_os_printf ("  Type Specific: "
-					  "Invalid Range attribute");
+			acpi_os_printf ("  Type Specific: Invalid Range attribute");
 			break;
 		}
 
 		acpi_os_printf ("  Type Specific: %s Translation\n",
 			ACPI_SPARSE_TRANSLATION ==
-			address64_data->attribute.io.translation_attribute ?
-			"Sparse" : "Dense");
+				address64_data->attribute.io.translation_attribute ?
+				"Sparse" : "Dense");
 		break;
 
 	case ACPI_BUS_NUMBER_RANGE:
@@ -878,49 +897,51 @@ acpi_rs_dump_address64 (
 
 	default:
 
-		acpi_os_printf ("  Resource Type: 0x%2.2X\n", address64_data->resource_type);
+		acpi_os_printf ("  Resource Type: 0x%2.2X\n",
+			address64_data->resource_type);
 		break;
 	}
 
 	acpi_os_printf ("  Resource %s\n",
-			 ACPI_CONSUMER == address64_data->producer_consumer ?
-			 "Consumer" : "Producer");
+		ACPI_CONSUMER == address64_data->producer_consumer ?
+			"Consumer" : "Producer");
 
 	acpi_os_printf ("  %s decode\n",
-			 ACPI_SUB_DECODE == address64_data->decode ?
-			 "Subtractive" : "Positive");
+		ACPI_SUB_DECODE == address64_data->decode ?
+			"Subtractive" : "Positive");
 
 	acpi_os_printf ("  Min address is %s fixed\n",
-			 ACPI_ADDRESS_FIXED == address64_data->min_address_fixed ?
-			 "" : "not ");
+		ACPI_ADDRESS_FIXED == address64_data->min_address_fixed ?
+			"" : "not ");
 
 	acpi_os_printf ("  Max address is %s fixed\n",
-			 ACPI_ADDRESS_FIXED == address64_data->max_address_fixed ?
-			 "" : "not ");
+		ACPI_ADDRESS_FIXED == address64_data->max_address_fixed ?
+			"" : "not ");
 
 	acpi_os_printf ("  Granularity: %8.8X%8.8X\n",
-			 ACPI_FORMAT_UINT64 (address64_data->granularity));
+		ACPI_FORMAT_UINT64 (address64_data->granularity));
 
 	acpi_os_printf ("  Address range min: %8.8X%8.8X\n",
-			 ACPI_FORMAT_UINT64 (address64_data->min_address_range));
+		ACPI_FORMAT_UINT64 (address64_data->min_address_range));
 
 	acpi_os_printf ("  Address range max: %8.8X%8.8X\n",
-			 ACPI_FORMAT_UINT64 (address64_data->max_address_range));
+		ACPI_FORMAT_UINT64 (address64_data->max_address_range));
 
 	acpi_os_printf ("  Address translation offset: %8.8X%8.8X\n",
-			 ACPI_FORMAT_UINT64 (address64_data->address_translation_offset));
+		ACPI_FORMAT_UINT64 (address64_data->address_translation_offset));
 
 	acpi_os_printf ("  Address Length: %8.8X%8.8X\n",
-			 ACPI_FORMAT_UINT64 (address64_data->address_length));
+		ACPI_FORMAT_UINT64 (address64_data->address_length));
 
 	acpi_os_printf ("  Type Specific Attributes: %8.8X%8.8X\n",
-			 ACPI_FORMAT_UINT64 (address64_data->type_specific_attributes));
+		ACPI_FORMAT_UINT64 (address64_data->type_specific_attributes));
 
 	if (0xFF != address64_data->resource_source.index) {
 		acpi_os_printf ("  Resource Source Index: %X\n",
-				 address64_data->resource_source.index);
+			address64_data->resource_source.index);
+
 		acpi_os_printf ("  Resource Source: %s\n",
-				 address64_data->resource_source.string_ptr);
+			address64_data->resource_source.string_ptr);
 	}
 
 	return;
@@ -939,7 +960,7 @@ acpi_rs_dump_address64 (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_rs_dump_extended_irq (
 	union acpi_resource_data        *data)
 {
@@ -953,23 +974,22 @@ acpi_rs_dump_extended_irq (
 	acpi_os_printf ("Extended IRQ Resource\n");
 
 	acpi_os_printf ("  Resource %s\n",
-			 ACPI_CONSUMER == ext_irq_data->producer_consumer ?
-			 "Consumer" : "Producer");
+		ACPI_CONSUMER == ext_irq_data->producer_consumer ?
+			"Consumer" : "Producer");
 
 	acpi_os_printf ("  %s\n",
-			 ACPI_LEVEL_SENSITIVE == ext_irq_data->edge_level ?
-			 "Level" : "Edge");
+		ACPI_LEVEL_SENSITIVE == ext_irq_data->edge_level ?
+			"Level" : "Edge");
 
 	acpi_os_printf ("  Active %s\n",
-			 ACPI_ACTIVE_LOW == ext_irq_data->active_high_low ?
-			 "low" : "high");
+		ACPI_ACTIVE_LOW == ext_irq_data->active_high_low ?
+			"low" : "high");
 
 	acpi_os_printf ("  %s\n",
-			 ACPI_SHARED == ext_irq_data->shared_exclusive ?
-			 "Shared" : "Exclusive");
+		ACPI_SHARED == ext_irq_data->shared_exclusive ?
+			"Shared" : "Exclusive");
 
-	acpi_os_printf ("  Interrupts : %X ( ",
-			 ext_irq_data->number_of_interrupts);
+	acpi_os_printf ("  Interrupts : %X ( ", ext_irq_data->number_of_interrupts);
 
 	for (index = 0; index < ext_irq_data->number_of_interrupts; index++) {
 		acpi_os_printf ("%X ", ext_irq_data->interrupts[index]);
@@ -979,9 +999,10 @@ acpi_rs_dump_extended_irq (
 
 	if(0xFF != ext_irq_data->resource_source.index) {
 		acpi_os_printf ("  Resource Source Index: %X",
-				 ext_irq_data->resource_source.index);
+			ext_irq_data->resource_source.index);
+
 		acpi_os_printf ("  Resource Source: %s",
-				 ext_irq_data->resource_source.string_ptr);
+			ext_irq_data->resource_source.string_ptr);
 	}
 
 	return;
@@ -992,7 +1013,7 @@ acpi_rs_dump_extended_irq (
  *
  * FUNCTION:    acpi_rs_dump_resource_list
  *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
+ * PARAMETERS:  Resource        - pointer to the resource structure to dump.
  *
  * RETURN:      None
  *
@@ -1096,7 +1117,7 @@ acpi_rs_dump_resource_list (
  *
  * FUNCTION:    acpi_rs_dump_irq_list
  *
- * PARAMETERS:  Data            - pointer to the routing table to dump.
+ * PARAMETERS:  route_table     - pointer to the routing table to dump.
  *
  * RETURN:      None
  *
@@ -1124,20 +1145,17 @@ acpi_rs_dump_irq_list (
 			acpi_os_printf ("PCI IRQ Routing Table structure %X.\n", count++);
 
 			acpi_os_printf ("  Address: %8.8X%8.8X\n",
-					 ACPI_FORMAT_UINT64 (prt_element->address));
+				ACPI_FORMAT_UINT64 (prt_element->address));
 
 			acpi_os_printf ("  Pin: %X\n", prt_element->pin);
 
 			acpi_os_printf ("  Source: %s\n", prt_element->source);
 
-			acpi_os_printf ("  source_index: %X\n",
-					 prt_element->source_index);
+			acpi_os_printf ("  source_index: %X\n", prt_element->source_index);
 
 			buffer += prt_element->length;
-
 			prt_element = ACPI_CAST_PTR (struct acpi_pci_routing_table, buffer);
-
-			if(0 == prt_element->length) {
+			if (0 == prt_element->length) {
 				done = TRUE;
 			}
 		}

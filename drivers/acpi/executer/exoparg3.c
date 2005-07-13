@@ -97,11 +97,12 @@ acpi_ex_opcode_3A_0T_0R (
 	acpi_status                     status = AE_OK;
 
 
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_3A_0T_0R", acpi_ps_get_opcode_name (walk_state->opcode));
+	ACPI_FUNCTION_TRACE_STR ("ex_opcode_3A_0T_0R",
+		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
 	switch (walk_state->opcode) {
-	case AML_FATAL_OP:          /* Fatal (fatal_type fatal_code fatal_arg)   */
+	case AML_FATAL_OP:          /* Fatal (fatal_type fatal_code fatal_arg) */
 
 		ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
 			"fatal_op: Type %X Code %X Arg %X <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
@@ -116,9 +117,8 @@ acpi_ex_opcode_3A_0T_0R (
 			fatal->argument = (u32) operand[2]->integer.value;
 		}
 
-		/*
-		 * Always signal the OS!
-		 */
+		/* Always signal the OS! */
+
 		status = acpi_os_signal (ACPI_SIGNAL_FATAL, fatal);
 
 		/* Might return while OS is shutting down, just continue */
@@ -162,21 +162,23 @@ acpi_ex_opcode_3A_1T_1R (
 	union acpi_operand_object       *return_desc = NULL;
 	char                            *buffer;
 	acpi_status                     status = AE_OK;
-	acpi_native_uint                index;
+	acpi_integer                    index;
 	acpi_size                       length;
 
 
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_3A_1T_1R", acpi_ps_get_opcode_name (walk_state->opcode));
+	ACPI_FUNCTION_TRACE_STR ("ex_opcode_3A_1T_1R",
+		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
 	switch (walk_state->opcode) {
-	case AML_MID_OP:        /* Mid  (Source[0], Index[1], Length[2], Result[3]) */
+	case AML_MID_OP:    /* Mid (Source[0], Index[1], Length[2], Result[3]) */
 
 		/*
 		 * Create the return object.  The Source operand is guaranteed to be
 		 * either a String or a Buffer, so just use its type.
 		 */
-		return_desc = acpi_ut_create_internal_object (ACPI_GET_OBJECT_TYPE (operand[0]));
+		return_desc = acpi_ut_create_internal_object (
+				  ACPI_GET_OBJECT_TYPE (operand[0]));
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
@@ -184,7 +186,7 @@ acpi_ex_opcode_3A_1T_1R (
 
 		/* Get the Integer values from the objects */
 
-		index = (acpi_native_uint) operand[1]->integer.value;
+		index = operand[1]->integer.value;
 		length = (acpi_size) operand[2]->integer.value;
 
 		/*
@@ -197,7 +199,8 @@ acpi_ex_opcode_3A_1T_1R (
 
 			if ((index + length) >
 				operand[0]->string.length) {
-				length = (acpi_size) operand[0]->string.length - index;
+				length = (acpi_size) operand[0]->string.length -
+						 (acpi_size) index;
 			}
 
 			/* Allocate a new buffer for the String/Buffer */

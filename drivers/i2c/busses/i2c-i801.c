@@ -194,7 +194,7 @@ static int i801_transaction(void)
 	/* Make sure the SMBus host is ready to start transmitting */
 	/* 0x1f = Failed, Bus_Err, Dev_Err, Intr, Host_Busy */
 	if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
-		dev_dbg(&I801_dev->dev, "SMBus busy (%02x). Resetting... \n",
+		dev_dbg(&I801_dev->dev, "SMBus busy (%02x). Resetting...\n",
 			temp);
 		outb_p(temp, SMBHSTSTS);
 		if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
@@ -315,7 +315,7 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		}
 		if (temp & errmask) {
 			dev_dbg(&I801_dev->dev, "SMBus busy (%02x). "
-				"Resetting... \n", temp);
+				"Resetting...\n", temp);
 			outb_p(temp, SMBHSTSTS);
 			if (((temp = inb_p(SMBHSTSTS)) & errmask) != 0x00) {
 				dev_err(&I801_dev->dev,

@@ -89,7 +89,7 @@
 #define TRACE() printk(KERN_ERR "%s:%s[%d] ---- TRACE\n", driver_name, __FUNCTION__, __LINE__)
 
 static char version[] __devinitdata =
-	"$Rev: 1247 $ Ben Collins <bcollins@debian.org>";
+	"$Rev: 1264 $ Ben Collins <bcollins@debian.org>";
 
 struct fragment_info {
 	struct list_head list;
@@ -706,7 +706,7 @@ static void ether1394_host_reset (struct hpsb_host *host)
 		return;
 
 	dev = hi->dev;
-	priv = netdev_priv(dev);
+	priv = (struct eth1394_priv *)netdev_priv(dev);
 
 	/* Reset our private host data, but not our mtu */
 	netif_stop_queue (dev);
@@ -1770,7 +1770,7 @@ fail:
 static void ether1394_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	strcpy (info->driver, driver_name);
-	strcpy (info->version, "$Rev: 1247 $");
+	strcpy (info->version, "$Rev: 1264 $");
 	/* FIXME XXX provide sane businfo */
 	strcpy (info->bus_info, "ieee1394");
 }

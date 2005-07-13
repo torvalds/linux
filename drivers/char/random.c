@@ -271,7 +271,7 @@ static int random_write_wakeup_thresh = 128;
  * samples to avoid wasting CPU time and reduce lock contention.
  */
 
-static int trickle_thresh = INPUT_POOL_WORDS * 28;
+static int trickle_thresh __read_mostly = INPUT_POOL_WORDS * 28;
 
 static DEFINE_PER_CPU(int, trickle_count) = 0;
 

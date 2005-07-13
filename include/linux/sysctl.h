@@ -61,13 +61,22 @@ enum
 	CTL_DEV=7,		/* Devices */
 	CTL_BUS=8,		/* Busses */
 	CTL_ABI=9,		/* Binary emulation */
-	CTL_CPU=10		/* CPU stuff (speed scaling, etc) */
+	CTL_CPU=10,		/* CPU stuff (speed scaling, etc) */
+	CTL_INOTIFY=11		/* Inotify */
 };
 
 /* CTL_BUS names: */
 enum
 {
 	CTL_BUS_ISA=1		/* ISA */
+};
+
+/* CTL_INOTIFY names: */
+enum
+{
+	INOTIFY_MAX_USER_DEVICES=1,	/* max number of inotify device instances per user */
+	INOTIFY_MAX_USER_WATCHES=2,	/* max number of inotify watches per user */
+	INOTIFY_MAX_QUEUED_EVENTS=3	/* Max number of queued events per inotify device instance */
 };
 
 /* CTL_KERN names: */

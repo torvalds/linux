@@ -1060,6 +1060,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ti->private = ms;
+ 	ti->split_io = ms->rh.region_size;
 
 	r = kcopyd_client_create(DM_IO_PAGES, &ms->kcopyd_client);
 	if (r) {

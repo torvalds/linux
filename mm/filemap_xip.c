@@ -191,7 +191,7 @@ __xip_unmap (struct address_space * mapping,
 					 address);
 		if (!IS_ERR(pte)) {
 			/* Nuke the page table entry. */
-			flush_cache_page(vma, address, pte_pfn(pte));
+			flush_cache_page(vma, address, pte_pfn(*pte));
 			pteval = ptep_clear_flush(vma, address, pte);
 			BUG_ON(pte_dirty(pteval));
 			pte_unmap(pte);

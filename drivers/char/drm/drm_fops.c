@@ -37,6 +37,8 @@
 #include "drmP.h"
 #include <linux/poll.h>
 
+static int drm_open_helper(struct inode *inode, struct file *filp, drm_device_t *dev);
+
 static int drm_setup( drm_device_t *dev )
 {
 	int i;
@@ -251,7 +253,7 @@ int drm_release( struct inode *inode, struct file *filp )
 		}
 	}
 	
-	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
+	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA) && !dev->driver->release)
 	{
 		dev->driver->reclaim_buffers(dev, filp);
 	}
@@ -259,7 +261,7 @@ int drm_release( struct inode *inode, struct file *filp )
 	drm_fasync( -1, filp, 0 );
 
 	down( &dev->ctxlist_sem );
-	if ( !list_empty( &dev->ctxlist->head ) ) {
+	if ( dev->ctxlist && (!list_empty(&dev->ctxlist->head))) {
 		drm_ctx_list_t *pos, *n;
 
 		list_for_each_entry_safe( pos, n, &dev->ctxlist->head, head ) {
@@ -341,7 +343,7 @@ EXPORT_SYMBOL(drm_release);
  * Creates and initializes a drm_file structure for the file private data in \p
  * filp and add it into the double linked list in \p dev.
  */
-int drm_open_helper(struct inode *inode, struct file *filp, drm_device_t *dev)
+static int drm_open_helper(struct inode *inode, struct file *filp, drm_device_t *dev)
 {
 	int	     minor = iminor(inode);
 	drm_file_t   *priv;
@@ -443,9 +445,3 @@ unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait)
 }
 EXPORT_SYMBOL(drm_poll);
 
-
-/** No-op. */
-ssize_t drm_read(struct file *filp, char __user *buf, size_t count, loff_t *off)
-{
-	return 0;
-}

@@ -1127,7 +1127,7 @@ static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 extern void skb_release_data(struct sk_buff *);
 
 /* Keep head the same: replace data */
-int __skb_linearize(struct sk_buff *skb, int gfp_mask)
+int __skb_linearize(struct sk_buff *skb, unsigned int __nocast gfp_mask)
 {
 	unsigned int size;
 	u8 *data;
@@ -2089,10 +2089,11 @@ void dev_set_promiscuity(struct net_device *dev, int inc)
 {
 	unsigned short old_flags = dev->flags;
 
-	dev->flags |= IFF_PROMISC;
 	if ((dev->promiscuity += inc) == 0)
 		dev->flags &= ~IFF_PROMISC;
-	if (dev->flags ^ old_flags) {
+	else
+		dev->flags |= IFF_PROMISC;
+	if (dev->flags != old_flags) {
 		dev_mc_upload(dev);
 		printk(KERN_INFO "device %s %s promiscuous mode\n",
 		       dev->name, (dev->flags & IFF_PROMISC) ? "entered" :

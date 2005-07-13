@@ -81,9 +81,8 @@ acpi_ex_resolve_object (
 	ACPI_FUNCTION_TRACE ("ex_resolve_object");
 
 
-	/*
-	 * Ensure we have a Target that can be stored to
-	 */
+	/* Ensure we have a Target that can be stored to */
+
 	switch (target_type) {
 	case ACPI_TYPE_BUFFER_FIELD:
 	case ACPI_TYPE_LOCAL_REGION_FIELD:
@@ -118,16 +117,14 @@ acpi_ex_resolve_object (
 			break;
 		}
 
-		/*
-		 * Must have a Integer, Buffer, or String
-		 */
+		/* Must have a Integer, Buffer, or String */
+
 		if ((ACPI_GET_OBJECT_TYPE (source_desc) != ACPI_TYPE_INTEGER)   &&
 			(ACPI_GET_OBJECT_TYPE (source_desc) != ACPI_TYPE_BUFFER)    &&
 			(ACPI_GET_OBJECT_TYPE (source_desc) != ACPI_TYPE_STRING)    &&
 			!((ACPI_GET_OBJECT_TYPE (source_desc) == ACPI_TYPE_LOCAL_REFERENCE) && (source_desc->reference.opcode == AML_LOAD_OP))) {
-			/*
-			 * Conversion successful but still not a valid type
-			 */
+			/* Conversion successful but still not a valid type */
+
 			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
 				"Cannot assign type %s to %s (must be type Int/Str/Buf)\n",
 				acpi_ut_get_object_type_name (source_desc),
@@ -140,9 +137,8 @@ acpi_ex_resolve_object (
 	case ACPI_TYPE_LOCAL_ALIAS:
 	case ACPI_TYPE_LOCAL_METHOD_ALIAS:
 
-		/*
-		 * Aliases are resolved by acpi_ex_prep_operands
-		 */
+		/* Aliases are resolved by acpi_ex_prep_operands */
+
 		ACPI_REPORT_ERROR (("Store into Alias - should never happen\n"));
 		status = AE_AML_INTERNAL;
 		break;

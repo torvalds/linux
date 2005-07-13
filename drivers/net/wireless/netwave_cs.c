@@ -62,7 +62,6 @@
 #endif	/* WIRELESS_EXT > 12 */
 #endif
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -491,11 +490,6 @@ static dev_link_t *netwave_attach(void)
     link->next = dev_list;
     dev_list = link;
     client_reg.dev_info = &dev_info;
-    client_reg.EventMask =
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &netwave_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -1680,6 +1674,7 @@ static struct pcmcia_driver netwave_driver = {
 		.name	= "netwave_cs",
 	},
 	.attach		= netwave_attach,
+	.event		= netwave_event,
 	.detach		= netwave_detach,
 	.id_table       = netwave_ids,
 };

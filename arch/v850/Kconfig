@@ -250,6 +250,8 @@ source "fs/Kconfig.binfmt"
 
 endmenu
 
+source "net/Kconfig"
+
 #############################################################################
 
 source "drivers/base/Kconfig"
@@ -283,7 +285,7 @@ source "drivers/ieee1394/Kconfig"
 
 source "drivers/message/i2o/Kconfig"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 source "drivers/isdn/Kconfig"
 

@@ -767,6 +767,7 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 	if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_ASUSTEK)) {
 		if (dev->device == PCI_DEVICE_ID_INTEL_82845_HB)
 			switch(dev->subsystem_device) {
+			case 0x8025: /* P4B-LX */
 			case 0x8070: /* P4B */
 			case 0x8088: /* P4B533 */
 			case 0x1626: /* L3C notebook */

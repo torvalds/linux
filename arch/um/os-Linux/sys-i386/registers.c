@@ -121,6 +121,11 @@ void init_registers(int pid)
 		      err);
 }
 
+void get_safe_registers(unsigned long *regs)
+{
+	memcpy(regs, exec_regs, HOST_FRAME_SIZE * sizeof(unsigned long));
+}
+
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
  * Emacs will notice this stuff at the end of the file and automatically

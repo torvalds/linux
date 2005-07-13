@@ -66,8 +66,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.32"
-#define DRV_MODULE_RELDATE	"June 24, 2005"
+#define DRV_MODULE_VERSION	"3.33"
+#define DRV_MODULE_RELDATE	"July 5, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -5117,7 +5117,7 @@ static void tg3_set_bdinfo(struct tg3 *tp, u32 bdinfo_addr,
 }
 
 static void __tg3_set_rx_mode(struct net_device *);
-static void tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
+static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
 {
 	tw32(HOSTCC_RXCOL_TICKS, ec->rx_coalesce_usecs);
 	tw32(HOSTCC_TXCOL_TICKS, ec->tx_coalesce_usecs);
@@ -5460,7 +5460,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 		udelay(10);
 	}
 
-	tg3_set_coalesce(tp, &tp->coal);
+	__tg3_set_coalesce(tp, &tp->coal);
 
 	/* set status block DMA address */
 	tw32(HOSTCC_STATUS_BLK_HOST_ADDR + TG3_64BIT_REG_HIGH,
@@ -7821,6 +7821,60 @@ static int tg3_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	return 0;
 }
 
+static int tg3_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
+{
+	struct tg3 *tp = netdev_priv(dev);
+	u32 max_rxcoal_tick_int = 0, max_txcoal_tick_int = 0;
+	u32 max_stat_coal_ticks = 0, min_stat_coal_ticks = 0;
+
+	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS)) {
+		max_rxcoal_tick_int = MAX_RXCOAL_TICK_INT;
+		max_txcoal_tick_int = MAX_TXCOAL_TICK_INT;
+		max_stat_coal_ticks = MAX_STAT_COAL_TICKS;
+		min_stat_coal_ticks = MIN_STAT_COAL_TICKS;
+	}
+
+	if ((ec->rx_coalesce_usecs > MAX_RXCOL_TICKS) ||
+	    (ec->tx_coalesce_usecs > MAX_TXCOL_TICKS) ||
+	    (ec->rx_max_coalesced_frames > MAX_RXMAX_FRAMES) ||
+	    (ec->tx_max_coalesced_frames > MAX_TXMAX_FRAMES) ||
+	    (ec->rx_coalesce_usecs_irq > max_rxcoal_tick_int) ||
+	    (ec->tx_coalesce_usecs_irq > max_txcoal_tick_int) ||
+	    (ec->rx_max_coalesced_frames_irq > MAX_RXCOAL_MAXF_INT) ||
+	    (ec->tx_max_coalesced_frames_irq > MAX_TXCOAL_MAXF_INT) ||
+	    (ec->stats_block_coalesce_usecs > max_stat_coal_ticks) ||
+	    (ec->stats_block_coalesce_usecs < min_stat_coal_ticks))
+		return -EINVAL;
+
+	/* No rx interrupts will be generated if both are zero */
+	if ((ec->rx_coalesce_usecs == 0) &&
+	    (ec->rx_max_coalesced_frames == 0))
+		return -EINVAL;
+
+	/* No tx interrupts will be generated if both are zero */
+	if ((ec->tx_coalesce_usecs == 0) &&
+	    (ec->tx_max_coalesced_frames == 0))
+		return -EINVAL;
+
+	/* Only copy relevant parameters, ignore all others. */
+	tp->coal.rx_coalesce_usecs = ec->rx_coalesce_usecs;
+	tp->coal.tx_coalesce_usecs = ec->tx_coalesce_usecs;
+	tp->coal.rx_max_coalesced_frames = ec->rx_max_coalesced_frames;
+	tp->coal.tx_max_coalesced_frames = ec->tx_max_coalesced_frames;
+	tp->coal.rx_coalesce_usecs_irq = ec->rx_coalesce_usecs_irq;
+	tp->coal.tx_coalesce_usecs_irq = ec->tx_coalesce_usecs_irq;
+	tp->coal.rx_max_coalesced_frames_irq = ec->rx_max_coalesced_frames_irq;
+	tp->coal.tx_max_coalesced_frames_irq = ec->tx_max_coalesced_frames_irq;
+	tp->coal.stats_block_coalesce_usecs = ec->stats_block_coalesce_usecs;
+
+	if (netif_running(dev)) {
+		tg3_full_lock(tp, 0);
+		__tg3_set_coalesce(tp, &tp->coal);
+		tg3_full_unlock(tp);
+	}
+	return 0;
+}
+
 static struct ethtool_ops tg3_ethtool_ops = {
 	.get_settings		= tg3_get_settings,
 	.set_settings		= tg3_set_settings,
@@ -7856,6 +7910,7 @@ static struct ethtool_ops tg3_ethtool_ops = {
 	.get_stats_count	= tg3_get_stats_count,
 	.get_ethtool_stats	= tg3_get_ethtool_stats,
 	.get_coalesce		= tg3_get_coalesce,
+	.set_coalesce		= tg3_set_coalesce,
 };
 
 static void __devinit tg3_get_eeprom_size(struct tg3 *tp)
@@ -9799,6 +9854,12 @@ static void __devinit tg3_init_coal(struct tg3 *tp)
 		ec->rx_coalesce_usecs_irq = DEFAULT_RXCOAL_TICK_INT_CLRTCKS;
 		ec->tx_coalesce_usecs = LOW_TXCOL_TICKS_CLRTCKS;
 		ec->tx_coalesce_usecs_irq = DEFAULT_TXCOAL_TICK_INT_CLRTCKS;
+	}
+
+	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS) {
+		ec->rx_coalesce_usecs_irq = 0;
+		ec->tx_coalesce_usecs_irq = 0;
+		ec->stats_block_coalesce_usecs = 0;
 	}
 }
 

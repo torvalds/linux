@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-video.c,v 1.63 2005/06/12 04:19:19 mchehab Exp $
+ * $Id: cx88-video.c,v 1.79 2005/07/07 14:17:47 mchehab Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * video4linux video interface
@@ -86,13 +86,6 @@ static struct cx88_tvnorm tvnorms[] = {
 		.id        = V4L2_STD_NTSC_M_JP,
 		.cxiformat = VideoFormatNTSCJapan,
 		.cxoformat = 0x181f0008,
-#if 0
-	},{
-		.name      = "NTSC-4.43",
-		.id        = FIXME,
-		.cxiformat = VideoFormatNTSC443,
-		.cxoformat = 0x181f0008,
-#endif
 	},{
 		.name      = "PAL-BG",
 		.id        = V4L2_STD_PAL_BG,
@@ -248,6 +241,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.default_value = 0,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
+		.off                   = 0,
 		.reg                   = MO_CONTR_BRIGHT,
 		.mask                  = 0xff00,
 		.shift                 = 8,
@@ -261,7 +255,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.default_value = 0,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
-		.off                   = 0,
+		.off                   = 128,
 		.reg                   = MO_HUE,
 		.mask                  = 0x00ff,
 		.shift                 = 0,
@@ -674,231 +668,6 @@ static struct videobuf_queue_ops cx8800_video_qops = {
 
 /* ------------------------------------------------------------------ */
 
-#if 0 /* overlay support not finished yet */
-static u32* ov_risc_field(struct cx8800_dev *dev, struct cx8800_fh *fh,
-			  u32 *rp, struct btcx_skiplist *skips,
-			  u32 sync_line, int skip_even, int skip_odd)
-{
-	int line,maxy,start,end,skip,nskips;
-	u32 ri,ra;
-	u32 addr;
-
-	/* sync instruction */
-	*(rp++) = cpu_to_le32(RISC_RESYNC | sync_line);
-
-	addr  = (unsigned long)dev->fbuf.base;
-	addr += dev->fbuf.fmt.bytesperline * fh->win.w.top;
-	addr += (fh->fmt->depth >> 3)      * fh->win.w.left;
-
-	/* scan lines */
-	for (maxy = -1, line = 0; line < fh->win.w.height;
-	     line++, addr += dev->fbuf.fmt.bytesperline) {
-		if ((line%2) == 0  &&  skip_even)
-			continue;
-		if ((line%2) == 1  &&  skip_odd)
-			continue;
-
-		/* calculate clipping */
-		if (line > maxy)
-			btcx_calc_skips(line, fh->win.w.width, &maxy,
-					skips, &nskips, fh->clips, fh->nclips);
-
-		/* write out risc code */
-		for (start = 0, skip = 0; start < fh->win.w.width; start = end) {
-			if (skip >= nskips) {
-				ri  = RISC_WRITE;
-				end = fh->win.w.width;
-			} else if (start < skips[skip].start) {
-				ri  = RISC_WRITE;
-				end = skips[skip].start;
-			} else {
-				ri  = RISC_SKIP;
-				end = skips[skip].end;
-				skip++;
-			}
-			if (RISC_WRITE == ri)
-				ra = addr + (fh->fmt->depth>>3)*start;
-			else
-				ra = 0;
-
-			if (0 == start)
-				ri |= RISC_SOL;
-			if (fh->win.w.width == end)
-				ri |= RISC_EOL;
-			ri |= (fh->fmt->depth>>3) * (end-start);
-
-			*(rp++)=cpu_to_le32(ri);
-			if (0 != ra)
-				*(rp++)=cpu_to_le32(ra);
-		}
-	}
-	kfree(skips);
-	return rp;
-}
-
-static int ov_risc_frame(struct cx8800_dev *dev, struct cx8800_fh *fh,
-			 struct cx88_buffer *buf)
-{
-	struct btcx_skiplist *skips;
-	u32 instructions,fields;
-	u32 *rp;
-	int rc;
-
-	/* skip list for window clipping */
-	if (NULL == (skips = kmalloc(sizeof(*skips) * fh->nclips,GFP_KERNEL)))
-		return -ENOMEM;
-
-	fields = 0;
-	if (V4L2_FIELD_HAS_TOP(fh->win.field))
-		fields++;
-	if (V4L2_FIELD_HAS_BOTTOM(fh->win.field))
-		fields++;
-
-        /* estimate risc mem: worst case is (clip+1) * lines instructions
-           + syncs + jump (all 2 dwords) */
-	instructions  = (fh->nclips+1) * fh->win.w.height;
-	instructions += 3 + 4;
-	if ((rc = btcx_riscmem_alloc(dev->pci,&buf->risc,instructions*8)) < 0) {
-		kfree(skips);
-		return rc;
-	}
-
-	/* write risc instructions */
-	rp = buf->risc.cpu;
-	switch (fh->win.field) {
-	case V4L2_FIELD_TOP:
-		rp = ov_risc_field(dev, fh, rp, skips, 0,     0, 0);
-		break;
-	case V4L2_FIELD_BOTTOM:
-		rp = ov_risc_field(dev, fh, rp, skips, 0x200, 0, 0);
-		break;
-	case V4L2_FIELD_INTERLACED:
-		rp = ov_risc_field(dev, fh, rp, skips, 0,     0, 1);
-		rp = ov_risc_field(dev, fh, rp, skips, 0x200, 1, 0);
-		break;
-	default:
-		BUG();
-	}
-
-	/* save pointer to jmp instruction address */
-	buf->risc.jmp = rp;
-	kfree(skips);
-	return 0;
-}
-
-static int verify_window(struct cx8800_dev *dev, struct v4l2_window *win)
-{
-	enum v4l2_field field;
-	int maxw, maxh;
-
-	if (NULL == dev->fbuf.base)
-		return -EINVAL;
-	if (win->w.width < 48 || win->w.height <  32)
-		return -EINVAL;
-	if (win->clipcount > 2048)
-		return -EINVAL;
-
-	field = win->field;
-	maxw  = norm_maxw(core->tvnorm);
-	maxh  = norm_maxh(core->tvnorm);
-
-	if (V4L2_FIELD_ANY == field) {
-                field = (win->w.height > maxh/2)
-                        ? V4L2_FIELD_INTERLACED
-                        : V4L2_FIELD_TOP;
-        }
-        switch (field) {
-        case V4L2_FIELD_TOP:
-        case V4L2_FIELD_BOTTOM:
-                maxh = maxh / 2;
-                break;
-        case V4L2_FIELD_INTERLACED:
-                break;
-        default:
-                return -EINVAL;
-        }
-
-	win->field = field;
-	if (win->w.width > maxw)
-		win->w.width = maxw;
-	if (win->w.height > maxh)
-		win->w.height = maxh;
-	return 0;
-}
-
-static int setup_window(struct cx8800_dev *dev, struct cx8800_fh *fh,
-			struct v4l2_window *win)
-{
-	struct v4l2_clip *clips = NULL;
-	int n,size,retval = 0;
-
-	if (NULL == fh->fmt)
-		return -EINVAL;
-	retval = verify_window(dev,win);
-	if (0 != retval)
-		return retval;
-
-	/* copy clips  --  luckily v4l1 + v4l2 are binary
-	   compatible here ...*/
-	n = win->clipcount;
-	size = sizeof(*clips)*(n+4);
-	clips = kmalloc(size,GFP_KERNEL);
-	if (NULL == clips)
-		return -ENOMEM;
-	if (n > 0) {
-		if (copy_from_user(clips,win->clips,sizeof(struct v4l2_clip)*n)) {
-			kfree(clips);
-			return -EFAULT;
-		}
-	}
-
-	/* clip against screen */
-	if (NULL != dev->fbuf.base)
-		n = btcx_screen_clips(dev->fbuf.fmt.width, dev->fbuf.fmt.height,
-				      &win->w, clips, n);
-	btcx_sort_clips(clips,n);
-
-	/* 4-byte alignments */
-	switch (fh->fmt->depth) {
-	case 8:
-	case 24:
-		btcx_align(&win->w, clips, n, 3);
-		break;
-	case 16:
-		btcx_align(&win->w, clips, n, 1);
-		break;
-	case 32:
-		/* no alignment fixups needed */
-		break;
-	default:
-		BUG();
-	}
-
-	down(&fh->vidq.lock);
-	if (fh->clips)
-		kfree(fh->clips);
-	fh->clips    = clips;
-	fh->nclips   = n;
-	fh->win      = *win;
-#if 0
-	fh->ov.setup_ok = 1;
-#endif
-
-	/* update overlay if needed */
-	retval = 0;
-#if 0
-	if (check_btres(fh, RESOURCE_OVERLAY)) {
-		struct bttv_buffer *new;
-
-		new = videobuf_alloc(sizeof(*new));
-		bttv_overlay_risc(btv, &fh->ov, fh->ovfmt, new);
-		retval = bttv_switch_overlay(btv,fh,new);
-	}
-#endif
-	up(&fh->vidq.lock);
-	return retval;
-}
-#endif
 
 /* ------------------------------------------------------------------ */
 
@@ -1327,9 +1096,6 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	struct cx8800_fh  *fh   = file->private_data;
 	struct cx8800_dev *dev  = fh->dev;
 	struct cx88_core  *core = dev->core;
-#if 0
-	unsigned long flags;
-#endif
 	int err;
 
 	if (video_debug > 1)
@@ -1350,12 +1116,6 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			V4L2_CAP_READWRITE     |
 			V4L2_CAP_STREAMING     |
 			V4L2_CAP_VBI_CAPTURE   |
-#if 0
-			V4L2_TUNER_CAP_LOW     |
-#endif
-#if 0
-			V4L2_CAP_VIDEO_OVERLAY |
-#endif
 			0;
 		if (UNSET != core->tuner_type)
 			cap->capabilities |= V4L2_CAP_TUNER;
@@ -1456,36 +1216,6 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	}
 
 
-#if 0
-	/* needs review */
-	case VIDIOC_G_AUDIO:
-	{
-		struct v4l2_audio *a = arg;
-		unsigned int n = a->index;
-
-		memset(a,0,sizeof(*a));
-		a->index = n;
-		switch (n) {
-		case 0:
-			if ((CX88_VMUX_TELEVISION == INPUT(n)->type)
-			    || (CX88_VMUX_CABLE == INPUT(n)->type)) {
-				strcpy(a->name,"Television");
-				// FIXME figure out if stereo received and set V4L2_AUDCAP_STEREO.
-				return 0;
-			}
-			break;
-		case 1:
-			if (CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD == core->board) {
-				strcpy(a->name,"Line In");
-				a->capability = V4L2_AUDCAP_STEREO;
-				return 0;
-			}
-			break;
-		}
-		// Audio input not available.
-		return -EINVAL;
-	}
-#endif
 
 	/* --- capture ioctls ---------------------------------------- */
 	case VIDIOC_ENUM_FMT:
@@ -1588,13 +1318,16 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct v4l2_frequency *f = arg;
 
+		memset(f,0,sizeof(*f));
+
 		if (UNSET == core->tuner_type)
 			return -EINVAL;
-		if (f->tuner != 0)
-			return -EINVAL;
-		memset(f,0,sizeof(*f));
+
 		f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 		f->frequency = dev->freq;
+
+		cx88_call_i2c_clients(dev->core,VIDIOC_G_FREQUENCY,f);
+
 		return 0;
 	}
 	case VIDIOC_S_FREQUENCY:
@@ -1612,11 +1345,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		down(&dev->lock);
 		dev->freq = f->frequency;
 		cx88_newstation(core);
-#ifdef V4L2_I2C_CLIENTS
 		cx88_call_i2c_clients(dev->core,VIDIOC_S_FREQUENCY,f);
-#else
-		cx88_call_i2c_clients(dev->core,VIDIOCSFREQ,&dev->freq);
-#endif
 		up(&dev->lock);
 		return 0;
 	}
@@ -1714,11 +1443,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 			sizeof(cap->card));
 		sprintf(cap->bus_info,"PCI:%s", pci_name(dev->pci));
 		cap->version = CX88_VERSION_CODE;
-		cap->capabilities = V4L2_CAP_TUNER
-#if 0
-				    | V4L2_TUNER_CAP_LOW
-#endif
-				    ;
+		cap->capabilities = V4L2_CAP_TUNER;
 		return 0;
 	}
 	case VIDIOC_G_TUNER:
@@ -1730,19 +1455,8 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 
 		memset(t,0,sizeof(*t));
 		strcpy(t->name, "Radio");
-                t->rangelow  = (int)(65*16);
-                t->rangehigh = (int)(108*16);
 
-#ifdef V4L2_I2C_CLIENTS
 		cx88_call_i2c_clients(dev->core,VIDIOC_G_TUNER,t);
-#else
-		{
-			struct video_tuner vt;
-			memset(&vt,0,sizeof(vt));
-			cx88_call_i2c_clients(dev,VIDIOCGTUNER,&vt);
-			t->signal = vt.signal;
-		}
-#endif
 		return 0;
 	}
 	case VIDIOC_ENUMINPUT:
@@ -1775,8 +1489,29 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 		*id = 0;
 		return 0;
 	}
-	case VIDIOC_S_AUDIO:
+	case VIDIOCSTUNER:
+	{
+		struct video_tuner *v = arg;
+
+		if (v->tuner) /* Only tuner 0 */
+			return -EINVAL;
+
+		cx88_call_i2c_clients(dev->core,VIDIOCSTUNER,v);
+                return 0;
+	}
 	case VIDIOC_S_TUNER:
+	{
+		struct v4l2_tuner *t = arg;
+
+		if (0 != t->index)
+			return -EINVAL;
+
+		cx88_call_i2c_clients(dev->core,VIDIOC_S_TUNER,t);
+
+		return 0;
+	}
+
+	case VIDIOC_S_AUDIO:
 	case VIDIOC_S_INPUT:
 	case VIDIOC_S_STD:
 		return 0;
@@ -1846,6 +1581,14 @@ static void cx8800_vid_timeout(unsigned long data)
 	restart_video_queue(dev,q);
 	spin_unlock_irqrestore(&dev->slock,flags);
 }
+
+static char *cx88_vid_irqs[32] = {
+	"y_risci1", "u_risci1", "v_risci1", "vbi_risc1",
+	"y_risci2", "u_risci2", "v_risci2", "vbi_risc2",
+	"y_oflow",  "u_oflow",  "v_oflow",  "vbi_oflow",
+	"y_sync",   "u_sync",   "v_sync",   "vbi_sync",
+	"opc_err",  "par_err",  "rip_err",  "pci_abort",
+};
 
 static void cx8800_vid_irq(struct cx8800_dev *dev)
 {
@@ -2014,7 +1757,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 {
 	struct cx8800_dev *dev;
 	struct cx88_core *core;
-	struct tuner_addr tun_addr;
 	int err;
 
 	dev = kmalloc(sizeof(*dev),GFP_KERNEL);
@@ -2088,22 +1830,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		request_module("tuner");
 	if (core->tda9887_conf)
 		request_module("tda9887");
-	if (core->radio_type != UNSET) {
-	        tun_addr.v4l2_tuner = V4L2_TUNER_RADIO;
-		tun_addr.type = core->radio_type;
-		tun_addr.addr = core->radio_addr;
-		cx88_call_i2c_clients(dev->core,TUNER_SET_TYPE_ADDR, &tun_addr);
-	}
-	if (core->tuner_type != UNSET) {
-	        tun_addr.v4l2_tuner = V4L2_TUNER_ANALOG_TV;
-		tun_addr.type = core->tuner_type;
-		tun_addr.addr = core->tuner_addr;
-		cx88_call_i2c_clients(dev->core,TUNER_SET_TYPE_ADDR, &tun_addr);
-	}
-
-	if (core->tda9887_conf)
-		cx88_call_i2c_clients(dev->core,TDA9887_SET_CONFIG,&core->tda9887_conf);
-
 	/* register v4l devices */
 	dev->video_dev = cx88_vdev_init(core,dev->pci,
 					&cx8800_video_template,"video");
@@ -2213,10 +1939,8 @@ static int cx8800_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	}
 	spin_unlock(&dev->slock);
 
-#if 1
 	/* FIXME -- shutdown device */
 	cx88_shutdown(dev->core);
-#endif
 
 	pci_save_state(pci_dev);
 	if (0 != pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state))) {
@@ -2238,10 +1962,8 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 	pci_set_power_state(pci_dev, PCI_D0);
 	pci_restore_state(pci_dev);
 
-#if 1
 	/* FIXME: re-initialize hardware */
 	cx88_reset(dev->core);
-#endif
 
 	/* restart video+vbi capture */
 	spin_lock(&dev->slock);

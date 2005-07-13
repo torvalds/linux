@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134.h,v 1.41 2005/06/07 18:02:26 nsh Exp $
+ * $Id: saa7134.h,v 1.48 2005/07/01 08:22:24 nsh Exp $
  *
  * v4l2 device driver for philips saa7134 based TV cards
  *
@@ -45,8 +45,6 @@
 # define FALSE (1==0)
 #endif
 #define UNSET (-1U)
-
-/* 2.4 / 2.5 driver compatibility stuff */
 
 /* ----------------------------------------------------------- */
 /* enums                                                       */
@@ -159,7 +157,7 @@ struct saa7134_format {
 #define SAA7134_BOARD_AVERMEDIA_DVD_EZMAKER 33
 #define SAA7134_BOARD_NOVAC_PRIMETV7133 34
 #define SAA7134_BOARD_AVERMEDIA_STUDIO_305 35
-#define SAA7133_BOARD_UPMOST_PURPLE_TV 36
+#define SAA7134_BOARD_UPMOST_PURPLE_TV 36
 #define SAA7134_BOARD_ITEMS_MTV005     37
 #define SAA7134_BOARD_CINERGY200       38
 #define SAA7134_BOARD_FLYTVPLATINUM_MINI 39
@@ -176,13 +174,17 @@ struct saa7134_format {
 #define SAA7134_BOARD_PINNACLE_300I_DVBT_PAL 50
 #define SAA7134_BOARD_PROVIDEO_PV952   51
 #define SAA7134_BOARD_AVERMEDIA_305    52
-#define SAA7135_BOARD_ASUSTeK_TVFM7135 53
+#define SAA7134_BOARD_ASUSTeK_TVFM7135 53
 #define SAA7134_BOARD_FLYTVPLATINUM_FM 54
 #define SAA7134_BOARD_FLYDVBTDUO 55
 #define SAA7134_BOARD_AVERMEDIA_307    56
 #define SAA7134_BOARD_AVERMEDIA_GO_007_FM 57
 #define SAA7134_BOARD_ADS_INSTANT_TV 58
 #define SAA7134_BOARD_KWORLD_VSTREAM_XPERT 59
+#define SAA7134_BOARD_THYPHOON_DVBT_DUO_CARDBUS 60
+#define SAA7134_BOARD_PHILIPS_TOUGH 61
+#define SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUSII 62
+#define SAA7134_BOARD_KWORLD_XPERT 63
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -213,6 +215,10 @@ struct saa7134_board {
 
 	/* i2c chip info */
 	unsigned int            tuner_type;
+	unsigned int		radio_type;
+	unsigned char		tuner_addr;
+	unsigned char		radio_addr;
+
 	unsigned int            tda9887_conf;
 
 	/* peripheral I/O */
@@ -403,9 +409,12 @@ struct saa7134_dev {
 	/* config info */
 	unsigned int               board;
 	unsigned int               tuner_type;
+	unsigned int 		   radio_type;
+	unsigned char		   tuner_addr;
+	unsigned char		   radio_addr;
+
 	unsigned int               tda9887_conf;
 	unsigned int               gpio_value;
-	unsigned int               irq2_mask;
 
 	/* i2c i/o */
 	struct i2c_adapter         i2c_adap;

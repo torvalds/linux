@@ -90,10 +90,10 @@ SECTIONS
     *(.literal .text)
     *(.srom.text)
     VMLINUX_SYMBOL(__sched_text_start) = .;
-    *(.sched.text.literal .sched.text)
+    *(.sched.literal .sched.text)
     VMLINUX_SYMBOL(__sched_text_end) = .;
     VMLINUX_SYMBOL(__lock_text_start) = .;
-    *(.spinlock.text.literal .spinlock.text)
+    *(.spinlock.literal .spinlock.text)
     VMLINUX_SYMBOL(__lock_text_end) = .;
 
   }
@@ -164,7 +164,7 @@ SECTIONS
   __init_begin = .;
   .init.text : {
   	_sinittext = .;
-	*(.init.text.literal) *(.init.text)
+	*(.init.literal) *(.init.text)
 	_einittext = .;
   }
 

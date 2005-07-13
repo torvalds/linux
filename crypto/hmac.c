@@ -49,8 +49,7 @@ int crypto_alloc_hmac_block(struct crypto_tfm *tfm)
 
 void crypto_free_hmac_block(struct crypto_tfm *tfm)
 {
-	if (tfm->crt_digest.dit_hmac_block)
-		kfree(tfm->crt_digest.dit_hmac_block);
+	kfree(tfm->crt_digest.dit_hmac_block);
 }
 
 void crypto_hmac_init(struct crypto_tfm *tfm, u8 *key, unsigned int *keylen)

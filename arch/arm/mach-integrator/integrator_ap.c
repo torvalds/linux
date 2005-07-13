@@ -292,11 +292,13 @@ static struct sys_timer ap_timer = {
 };
 
 MACHINE_START(INTEGRATOR, "ARM-Integrator")
-	MAINTAINER("ARM Ltd/Deep Blue Solutions Ltd")
-	BOOT_MEM(0x00000000, 0x16000000, 0xf1600000)
-	BOOT_PARAMS(0x00000100)
-	MAPIO(ap_map_io)
-	INITIRQ(ap_init_irq)
+	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
+	.phys_ram	= 0x00000000,
+	.phys_io	= 0x16000000,
+	.io_pg_offst	= ((0xf1600000) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.map_io		= ap_map_io,
+	.init_irq	= ap_init_irq,
 	.timer		= &ap_timer,
-	INIT_MACHINE(ap_init)
+	.init_machine	= ap_init,
 MACHINE_END

@@ -1906,9 +1906,9 @@ typhoon_sleep(struct typhoon *tp, pci_power_t state, u16 events)
 	 */
 	netif_carrier_off(tp->dev);
 
-	pci_enable_wake(tp->pdev, pci_choose_state(pdev, state), 1);
+	pci_enable_wake(tp->pdev, state, 1);
 	pci_disable_device(pdev);
-	return pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	return pci_set_power_state(pdev, state);
 }
 
 static int
@@ -2274,7 +2274,7 @@ typhoon_suspend(struct pci_dev *pdev, pm_message_t state)
 		goto need_resume;
 	}
 
-	if(typhoon_sleep(tp, state, tp->wol_events) < 0) {
+	if(typhoon_sleep(tp, pci_choose_state(pdev, state), tp->wol_events) < 0) {
 		printk(KERN_ERR "%s: unable to put card to sleep\n", dev->name);
 		goto need_resume;
 	}

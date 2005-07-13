@@ -189,12 +189,13 @@ struct dvb_usb_properties {
 			struct {
 				int framesperurb;
 				int framesize;
+				int interval;
 			} isoc;
 		} u;
 	} urb;
 
 	int num_device_descs;
-	struct dvb_usb_device_description devices[8];
+	struct dvb_usb_device_description devices[9];
 };
 
 
@@ -207,19 +208,28 @@ struct dvb_usb_properties {
  * @udev: pointer to the device's struct usb_device.
  * @urb_list: array of dynamically allocated struct urb for the MPEG2-TS-
  *  streaming.
- * @buffer: buffer used to streaming.
- * @dma_handle: dma_addr_t for buffer.
+ *
+ * @buf_num: number of buffer allocated.
+ * @buf_size: size of each buffer in buf_list.
+ * @buf_list: array containing all allocate buffers for streaming.
+ * @dma_addr: list of dma_addr_t for each buffer in buf_list.
+ *
  * @urbs_initialized: number of URBs initialized.
  * @urbs_submitted: number of URBs submitted.
+ *
  * @feedcount: number of reqested feeds (used for streaming-activation)
  * @pid_filtering: is hardware pid_filtering used or not.
+ *
  * @usb_sem: semaphore of USB control messages (reading needs two messages)
  * @i2c_sem: semaphore for i2c-transfers
+ *
  * @i2c_adap: device's i2c_adapter if it uses I2CoverUSB
  * @pll_addr: I2C address of the tuner for programming
  * @pll_init: array containing the initialization buffer
  * @pll_desc: pointer to the appropriate struct dvb_pll_desc
- * @tuner_pass_ctrl: called to (de)activate tuner passthru of the demod
+ *
+ * @tuner_pass_ctrl: called to (de)activate tuner passthru of the demod or the board
+ *
  * @dvb_adap: device's dvb_adapter.
  * @dmxdev: device's dmxdev.
  * @demux: device's software demuxer.
@@ -253,8 +263,12 @@ struct dvb_usb_device {
 	/* usb */
 	struct usb_device *udev;
 	struct urb **urb_list;
-	u8 *buffer;
-	dma_addr_t dma_handle;
+
+	int buf_num;
+	unsigned long buf_size;
+	u8 **buf_list;
+	dma_addr_t *dma_addr;
+
 	int urbs_initialized;
 	int urbs_submitted;
 

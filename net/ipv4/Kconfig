@@ -3,7 +3,6 @@
 #
 config IP_MULTICAST
 	bool "IP: multicasting"
-	depends on INET
 	help
 	  This is code for addressing several networked computers at once,
 	  enlarging your kernel by about 2 KB. You need multicasting if you
@@ -17,7 +16,6 @@ config IP_MULTICAST
 
 config IP_ADVANCED_ROUTER
 	bool "IP: advanced router"
-	depends on INET
 	---help---
 	  If you intend to run your Linux box mostly as a router, i.e. as a
 	  computer that forwards and redistributes network packets, say Y; you
@@ -183,7 +181,6 @@ config IP_ROUTE_VERBOSE
 
 config IP_PNP
 	bool "IP: kernel level autoconfiguration"
-	depends on INET
 	help
 	  This enables automatic configuration of IP addresses of devices and
 	  of the routing table during kernel boot, based on either information
@@ -242,7 +239,6 @@ config IP_PNP_RARP
 #   bool '    IP: ARP support' CONFIG_IP_PNP_ARP		
 config NET_IPIP
 	tristate "IP: tunneling"
-	depends on INET
 	select INET_TUNNEL
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
@@ -260,7 +256,6 @@ config NET_IPIP
 
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
-	depends on INET
 	select XFRM
 	help
 	  Tunneling means encapsulating data of one protocol type within
@@ -319,7 +314,7 @@ config IP_PIMSM_V2
 
 config ARPD
 	bool "IP: ARP daemon support (EXPERIMENTAL)"
-	depends on INET && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	---help---
 	  Normally, the kernel maintains an internal cache which maps IP
 	  addresses to hardware addresses on the local network, so that
@@ -344,7 +339,6 @@ config ARPD
 
 config SYN_COOKIES
 	bool "IP: TCP syncookie support (disabled per default)"
-	depends on INET
 	---help---
 	  Normal TCP/IP networking is open to an attack known as "SYN
 	  flooding". This denial-of-service attack prevents legitimate remote
@@ -381,7 +375,6 @@ config SYN_COOKIES
 
 config INET_AH
 	tristate "IP: AH transformation"
-	depends on INET
 	select XFRM
 	select CRYPTO
 	select CRYPTO_HMAC
@@ -394,7 +387,6 @@ config INET_AH
 
 config INET_ESP
 	tristate "IP: ESP transformation"
-	depends on INET
 	select XFRM
 	select CRYPTO
 	select CRYPTO_HMAC
@@ -408,7 +400,6 @@ config INET_ESP
 
 config INET_IPCOMP
 	tristate "IP: IPComp transformation"
-	depends on INET
 	select XFRM
 	select INET_TUNNEL
 	select CRYPTO
@@ -421,7 +412,6 @@ config INET_IPCOMP
 
 config INET_TUNNEL
 	tristate "IP: tunnel transformation"
-	depends on INET
 	select XFRM
 	---help---
 	  Support for generic IP tunnel transformation, which is required by
@@ -431,7 +421,6 @@ config INET_TUNNEL
 
 config IP_TCPDIAG
 	tristate "IP: TCP socket monitoring interface"
-	depends on INET
 	default y
 	---help---
 	  Support for TCP socket monitoring interface used by native Linux
@@ -447,7 +436,6 @@ config IP_TCPDIAG_IPV6
 
 config TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"
-	depends on INET
 	---help---
 	  Support for selection of various TCP congestion control
 	  modules.
@@ -463,7 +451,6 @@ menu "TCP congestion control"
 
 config TCP_CONG_BIC
 	tristate "Binary Increase Congestion (BIC) control"
-	depends on INET
 	default y
 	---help---
 	BIC-TCP is a sender-side only change that ensures a linear RTT
@@ -478,7 +465,6 @@ config TCP_CONG_BIC
 
 config TCP_CONG_WESTWOOD
 	tristate "TCP Westwood+"
-	depends on INET
 	default m
 	---help---
 	TCP Westwood+ is a sender-side only modification of the TCP Reno
@@ -493,7 +479,6 @@ config TCP_CONG_WESTWOOD
 
 config TCP_CONG_HTCP
         tristate "H-TCP"
-	depends on INET
         default m
 	---help---
 	H-TCP is a send-side only modifications of the TCP Reno
@@ -505,7 +490,7 @@ config TCP_CONG_HTCP
 
 config TCP_CONG_HSTCP
 	tristate "High Speed TCP"
-	depends on INET && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	default n
 	---help---
 	Sally Floyd's High Speed TCP (RFC 3649) congestion control.
@@ -516,7 +501,7 @@ config TCP_CONG_HSTCP
 
 config TCP_CONG_HYBLA
 	tristate "TCP-Hybla congestion control algorithm"
-	depends on INET && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	default n
 	---help---
 	TCP-Hybla is a sender-side only change that eliminates penalization of
@@ -526,7 +511,7 @@ config TCP_CONG_HYBLA
 
 config TCP_CONG_VEGAS
 	tristate "TCP Vegas"
-	depends on INET && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	default n
 	---help---
 	TCP Vegas is a sender-side only change to TCP that anticipates
@@ -537,7 +522,7 @@ config TCP_CONG_VEGAS
 
 config TCP_CONG_SCALABLE
 	tristate "Scalable TCP"
-	depends on INET && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	default n
 	---help---
 	Scalable TCP is a sender-side only change to TCP which uses a

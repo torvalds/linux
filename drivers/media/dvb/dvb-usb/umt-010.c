@@ -129,7 +129,7 @@ static struct dvb_usb_properties umt_properties = {
 
 static struct usb_driver umt_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "HanfTek UMT-010 USB2.0 DVB-T devices",
+	.name		= "dvb_usb_umt_010",
 	.probe		= umt_probe,
 	.disconnect = dvb_usb_device_exit,
 	.id_table	= umt_table,

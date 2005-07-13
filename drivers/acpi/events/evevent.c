@@ -47,6 +47,16 @@
 #define _COMPONENT          ACPI_EVENTS
 	 ACPI_MODULE_NAME    ("evevent")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ev_fixed_event_initialize (
+	void);
+
+static u32
+acpi_ev_fixed_event_dispatch (
+	u32                             event);
+
 
 /*******************************************************************************
  *
@@ -56,7 +66,7 @@
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Initialize global data structures for events.
+ * DESCRIPTION: Initialize global data structures for ACPI events (Fixed, GPE)
  *
  ******************************************************************************/
 
@@ -78,9 +88,9 @@ acpi_ev_initialize_events (
 	}
 
 	/*
-	 * Initialize the Fixed and General Purpose Events. This is
-	 * done prior to enabling SCIs to prevent interrupts from
-	 * occurring before handers are installed.
+	 * Initialize the Fixed and General Purpose Events. This is done prior to
+	 * enabling SCIs to prevent interrupts from occurring before the handlers are
+	 * installed.
 	 */
 	status = acpi_ev_fixed_event_initialize ();
 	if (ACPI_FAILURE (status)) {
@@ -161,7 +171,7 @@ acpi_ev_install_xrupt_handlers (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ev_fixed_event_initialize (
 	void)
 {
@@ -180,7 +190,8 @@ acpi_ev_fixed_event_initialize (
 		/* Enable the fixed event */
 
 		if (acpi_gbl_fixed_event_info[i].enable_register_id != 0xFF) {
-			status = acpi_set_register (acpi_gbl_fixed_event_info[i].enable_register_id,
+			status = acpi_set_register (
+					 acpi_gbl_fixed_event_info[i].enable_register_id,
 					 0, ACPI_MTX_LOCK);
 			if (ACPI_FAILURE (status)) {
 				return (status);
@@ -200,7 +211,7 @@ acpi_ev_fixed_event_initialize (
  *
  * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
  *
- * DESCRIPTION: Checks the PM status register for fixed events
+ * DESCRIPTION: Checks the PM status register for active fixed events
  *
  ******************************************************************************/
 
@@ -221,8 +232,10 @@ acpi_ev_fixed_event_detect (
 	 * Read the fixed feature status and enable registers, as all the cases
 	 * depend on their values.  Ignore errors here.
 	 */
-	(void) acpi_hw_register_read (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_STATUS, &fixed_status);
-	(void) acpi_hw_register_read (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_ENABLE, &fixed_enable);
+	(void) acpi_hw_register_read (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_STATUS,
+			 &fixed_status);
+	(void) acpi_hw_register_read (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_ENABLE,
+			 &fixed_enable);
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_INTERRUPTS,
 		"Fixed Event Block: Enable %08X Status %08X\n",
@@ -259,7 +272,7 @@ acpi_ev_fixed_event_detect (
  *
  ******************************************************************************/
 
-u32
+static u32
 acpi_ev_fixed_event_dispatch (
 	u32                             event)
 {

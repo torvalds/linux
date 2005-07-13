@@ -34,4 +34,8 @@ MO_OUTPUT_FORMAT (0x310164)
   2: HACTEXT
   1: HSFMT
 
+0x47 is the sync byte for MPEG-2 transport stream packets.
+Datasheet incorrectly states to use 47 decimal. 188 is the length.
+All DVB compliant frontends output packets with this start code.
+
 =================================================================================

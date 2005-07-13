@@ -207,7 +207,7 @@ m41t00_detach(struct i2c_client *client)
 	int	rc;
 
 	if ((rc = i2c_detach_client(client)) == 0) {
-		kfree(i2c_get_clientdata(client));
+		kfree(client);
 		tasklet_kill(&m41t00_tasklet);
 	}
 	return rc;
