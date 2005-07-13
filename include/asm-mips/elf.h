@@ -2,6 +2,8 @@
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
+ *
+ * Much of this is taken from binutils and GNU libc ...
  */
 #ifndef _ASM_ELF_H
 #define _ASM_ELF_H
@@ -105,7 +107,11 @@
 #define R_MIPS_LOVENDOR		100
 #define R_MIPS_HIVENDOR		127
 
-#define SHN_MIPS_ACCOMON	0xff00
+#define SHN_MIPS_ACCOMON	0xff00		/* Allocated common symbols */
+#define SHN_MIPS_TEXT		0xff01		/* Allocated test symbols.  */
+#define SHN_MIPS_DATA		0xff02		/* Allocated data symbols.  */
+#define SHN_MIPS_SCOMMON	0xff03		/* Small common symbols */
+#define SHN_MIPS_SUNDEFINED	0xff04		/* Small undefined symbols */
 
 #define SHT_MIPS_LIST		0x70000000
 #define SHT_MIPS_CONFLICT	0x70000002
