@@ -8,7 +8,7 @@ ifeq ($(CONFIG_MODE_SKAS),y)
   endif
 endif
 
-CFLAGS += -U__$(SUBARCH)__ -U$(SUBARCH)
+CFLAGS += -U__$(SUBARCH)__ -U$(SUBARCH) $(STUB_CFLAGS)
 ARCH_USER_CFLAGS :=
 
 ifneq ($(CONFIG_GPROF),y)

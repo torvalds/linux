@@ -579,7 +579,7 @@ static int __init rng_init (void)
 
 	/* Probe for Intel, AMD RNGs */
 	for_each_pci_dev(pdev) {
-		ent = pci_match_device (rng_pci_tbl, pdev);
+		ent = pci_match_id(rng_pci_tbl, pdev);
 		if (ent) {
 			rng_ops = &rng_vendor_ops[ent->driver_data];
 			goto match;

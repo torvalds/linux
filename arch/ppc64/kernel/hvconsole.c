@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <asm/hvcall.h>
 #include <asm/hvconsole.h>
-#include <asm/prom.h>
 
 /**
  * hvc_get_chars - retrieve characters from firmware for denoted vterm adatper
@@ -42,28 +41,13 @@ int hvc_get_chars(uint32_t vtermno, char *buf, int count)
 	unsigned long got;
 
 	if (plpar_hcall(H_GET_TERM_CHAR, vtermno, 0, 0, 0, &got,
-		(unsigned long *)buf, (unsigned long *)buf+1) == H_Success) {
-		/*
-		 * Work around a HV bug where it gives us a null
-		 * after every \r.  -- paulus
-		 */
-		if (got > 0) {
-			int i;
-			for (i = 1; i < got; ++i) {
-				if (buf[i] == 0 && buf[i-1] == '\r') {
-					--got;
-					if (i < got)
-						memmove(&buf[i], &buf[i+1],
-							got - i);
-				}
-			}
-		}
+		(unsigned long *)buf, (unsigned long *)buf+1) == H_Success)
 		return got;
-	}
 	return 0;
 }
 
 EXPORT_SYMBOL(hvc_get_chars);
+
 
 /**
  * hvc_put_chars: send characters to firmware for denoted vterm adapter
@@ -88,34 +72,3 @@ int hvc_put_chars(uint32_t vtermno, const char *buf, int count)
 }
 
 EXPORT_SYMBOL(hvc_put_chars);
-
-/*
- * We hope/assume that the first vty found corresponds to the first console
- * device.
- */
-int hvc_find_vtys(void)
-{
-	struct device_node *vty;
-	int num_found = 0;
-
-	for (vty = of_find_node_by_name(NULL, "vty"); vty != NULL;
-			vty = of_find_node_by_name(vty, "vty")) {
-		uint32_t *vtermno;
-
-		/* We have statically defined space for only a certain number of
-		 * console adapters. */
-		if (num_found >= MAX_NR_HVC_CONSOLES)
-			break;
-
-		vtermno = (uint32_t *)get_property(vty, "reg", NULL);
-		if (!vtermno)
-			continue;
-
-		if (device_is_compatible(vty, "hvterm1")) {
-			hvc_instantiate(*vtermno, num_found);
-			++num_found;
-		}
-	}
-
-	return num_found;
-}

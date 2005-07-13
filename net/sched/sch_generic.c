@@ -395,24 +395,23 @@ static struct Qdisc_ops pfifo_fast_ops = {
 	.owner		=	THIS_MODULE,
 };
 
-struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops)
+struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops)
 {
 	void *p;
 	struct Qdisc *sch;
-	int size;
+	unsigned int size;
+	int err = -ENOBUFS;
 
 	/* ensure that the Qdisc and the private data are 32-byte aligned */
-	size = ((sizeof(*sch) + QDISC_ALIGN_CONST) & ~QDISC_ALIGN_CONST);
-	size += ops->priv_size + QDISC_ALIGN_CONST;
+	size = QDISC_ALIGN(sizeof(*sch));
+	size += ops->priv_size + (QDISC_ALIGNTO - 1);
 
 	p = kmalloc(size, GFP_KERNEL);
 	if (!p)
-		return NULL;
+		goto errout;
 	memset(p, 0, size);
-
-	sch = (struct Qdisc *)(((unsigned long)p + QDISC_ALIGN_CONST) 
-			       & ~QDISC_ALIGN_CONST);
-	sch->padded = (char *)sch - (char *)p;
+	sch = (struct Qdisc *) QDISC_ALIGN((unsigned long) p);
+	sch->padded = (char *) sch - (char *) p;
 
 	INIT_LIST_HEAD(&sch->list);
 	skb_queue_head_init(&sch->q);
@@ -423,11 +422,24 @@ struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops)
 	dev_hold(dev);
 	sch->stats_lock = &dev->queue_lock;
 	atomic_set(&sch->refcnt, 1);
+
+	return sch;
+errout:
+	return ERR_PTR(-err);
+}
+
+struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops)
+{
+	struct Qdisc *sch;
+	
+	sch = qdisc_alloc(dev, ops);
+	if (IS_ERR(sch))
+		goto errout;
+
 	if (!ops->init || ops->init(sch, NULL) == 0)
 		return sch;
 
-	dev_put(dev);
-	kfree(p);
+errout:
 	return NULL;
 }
 
@@ -591,6 +603,7 @@ EXPORT_SYMBOL(__netdev_watchdog_up);
 EXPORT_SYMBOL(noop_qdisc);
 EXPORT_SYMBOL(noop_qdisc_ops);
 EXPORT_SYMBOL(qdisc_create_dflt);
+EXPORT_SYMBOL(qdisc_alloc);
 EXPORT_SYMBOL(qdisc_destroy);
 EXPORT_SYMBOL(qdisc_reset);
 EXPORT_SYMBOL(qdisc_restart);

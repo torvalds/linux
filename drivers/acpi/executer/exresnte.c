@@ -210,15 +210,15 @@ acpi_ex_resolve_node_to_value (
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "field_read Node=%p source_desc=%p Type=%X\n",
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+			"field_read Node=%p source_desc=%p Type=%X\n",
 			node, source_desc, entry_type));
 
 		status = acpi_ex_read_data_from_field (walk_state, source_desc, &obj_desc);
 		break;
 
-	/*
-	 * For these objects, just return the object attached to the Node
-	 */
+	/* For these objects, just return the object attached to the Node */
+
 	case ACPI_TYPE_MUTEX:
 	case ACPI_TYPE_METHOD:
 	case ACPI_TYPE_POWER:
@@ -233,12 +233,12 @@ acpi_ex_resolve_node_to_value (
 		acpi_ut_add_reference (obj_desc);
 		break;
 
-
 	/* TYPE_ANY is untyped, and thus there is no object associated with it */
 
 	case ACPI_TYPE_ANY:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Untyped entry %p, no attached object!\n",
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+			"Untyped entry %p, no attached object!\n",
 			node));
 
 		return_ACPI_STATUS (AE_AML_OPERAND_TYPE);  /* Cannot be AE_TYPE */
@@ -259,7 +259,8 @@ acpi_ex_resolve_node_to_value (
 		default:
 			/* No named references are allowed here */
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unsupported Reference opcode %X (%s)\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"Unsupported Reference opcode %X (%s)\n",
 				source_desc->reference.opcode,
 				acpi_ps_get_opcode_name (source_desc->reference.opcode)));
 
@@ -268,11 +269,12 @@ acpi_ex_resolve_node_to_value (
 		break;
 
 
-	/* Default case is for unknown types */
-
 	default:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Node %p - Unknown object type %X\n",
+		/* Default case is for unknown types */
+
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+			"Node %p - Unknown object type %X\n",
 			node, entry_type));
 
 		return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
@@ -280,7 +282,7 @@ acpi_ex_resolve_node_to_value (
 	} /* switch (entry_type) */
 
 
-	/* Put the object descriptor on the stack */
+	/* Return the object descriptor */
 
 	*object_ptr = (void *) obj_desc;
 	return_ACPI_STATUS (status);

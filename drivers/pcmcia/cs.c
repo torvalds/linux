@@ -33,7 +33,6 @@
 #include <asm/irq.h>
 
 #define IN_CARD_SERVICES
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
@@ -216,6 +215,13 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 	list_add_tail(&socket->socket_list, &pcmcia_socket_list);
 	up_write(&pcmcia_socket_list_rwsem);
 
+#ifndef CONFIG_CARDBUS
+	/*
+	 * If we do not support Cardbus, ensure that
+	 * the Cardbus socket capability is disabled.
+	 */
+	socket->features &= ~SS_CAP_CARDBUS;
+#endif
 
 	/* set proper values in socket->dev */
 	socket->dev.class_data = socket;
@@ -449,11 +455,11 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 	}
 
 	if (status & SS_CARDBUS) {
+		if (!(skt->features & SS_CAP_CARDBUS)) {
+			cs_err(skt, "cardbus cards are not supported.\n");
+			return CS_BAD_TYPE;
+		}
 		skt->state |= SOCKET_CARDBUS;
-#ifndef CONFIG_CARDBUS
-		cs_err(skt, "cardbus cards are not supported.\n");
-		return CS_BAD_TYPE;
-#endif
 	}
 
 	/*

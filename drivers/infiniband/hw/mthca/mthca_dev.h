@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2005 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -378,7 +379,7 @@ void mthca_unregister_device(struct mthca_dev *dev);
 int mthca_uar_alloc(struct mthca_dev *dev, struct mthca_uar *uar);
 void mthca_uar_free(struct mthca_dev *dev, struct mthca_uar *uar);
 
-int mthca_pd_alloc(struct mthca_dev *dev, struct mthca_pd *pd);
+int mthca_pd_alloc(struct mthca_dev *dev, int privileged, struct mthca_pd *pd);
 void mthca_pd_free(struct mthca_dev *dev, struct mthca_pd *pd);
 
 struct mthca_mtt *mthca_alloc_mtt(struct mthca_dev *dev, int size);
@@ -413,6 +414,7 @@ int mthca_poll_cq(struct ib_cq *ibcq, int num_entries,
 int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify notify);
 int mthca_arbel_arm_cq(struct ib_cq *cq, enum ib_cq_notify notify);
 int mthca_init_cq(struct mthca_dev *dev, int nent,
+		  struct mthca_ucontext *ctx, u32 pdn,
 		  struct mthca_cq *cq);
 void mthca_free_cq(struct mthca_dev *dev,
 		   struct mthca_cq *cq);
@@ -438,12 +440,14 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 		   struct mthca_cq *recv_cq,
 		   enum ib_qp_type type,
 		   enum ib_sig_type send_policy,
+		   struct ib_qp_cap *cap,
 		   struct mthca_qp *qp);
 int mthca_alloc_sqp(struct mthca_dev *dev,
 		    struct mthca_pd *pd,
 		    struct mthca_cq *send_cq,
 		    struct mthca_cq *recv_cq,
 		    enum ib_sig_type send_policy,
+		    struct ib_qp_cap *cap,
 		    int qpn,
 		    int port,
 		    struct mthca_sqp *sqp);

@@ -342,7 +342,8 @@ int dn_nsp_xmit_timeout(struct sock *sk)
 
 	dn_nsp_output(sk);
 
-	if (skb_queue_len(&scp->data_xmit_queue) || skb_queue_len(&scp->other_xmit_queue))
+	if (!skb_queue_empty(&scp->data_xmit_queue) ||
+	    !skb_queue_empty(&scp->other_xmit_queue))
 		scp->persist = dn_nsp_persist(sk);
 
 	return 0;

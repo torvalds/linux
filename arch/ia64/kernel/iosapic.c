@@ -489,8 +489,6 @@ static int iosapic_find_sharable_vector (unsigned long trigger, unsigned long po
 			}
 		}
 	}
-	if (vector < 0)
-		panic("%s: out of interrupt vectors!\n", __FUNCTION__);
 
 	return vector;
 }
@@ -506,6 +504,8 @@ iosapic_reassign_vector (int vector)
 
 	if (!list_empty(&iosapic_intr_info[vector].rtes)) {
 		new_vector = assign_irq_vector(AUTO_ASSIGN);
+		if (new_vector < 0)
+			panic("%s: out of interrupt vectors!\n", __FUNCTION__);
 		printk(KERN_INFO "Reassigning vector %d to %d\n", vector, new_vector);
 		memcpy(&iosapic_intr_info[new_vector], &iosapic_intr_info[vector],
 		       sizeof(struct iosapic_intr_info));
@@ -734,9 +734,12 @@ again:
 	spin_unlock_irqrestore(&iosapic_lock, flags);
 
 	/* If vector is running out, we try to find a sharable vector */
-	vector = assign_irq_vector_nopanic(AUTO_ASSIGN);
-	if (vector < 0)
+	vector = assign_irq_vector(AUTO_ASSIGN);
+	if (vector < 0) {
 		vector = iosapic_find_sharable_vector(trigger, polarity);
+		if (vector < 0)
+			panic("%s: out of interrupt vectors!\n", __FUNCTION__);
+	}
 
 	spin_lock_irqsave(&irq_descp(vector)->lock, flags);
 	spin_lock(&iosapic_lock);
@@ -884,6 +887,8 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 		break;
 	      case ACPI_INTERRUPT_INIT:
 		vector = assign_irq_vector(AUTO_ASSIGN);
+		if (vector < 0)
+			panic("%s: out of interrupt vectors!\n", __FUNCTION__);
 		delivery = IOSAPIC_INIT;
 		break;
 	      case ACPI_INTERRUPT_CPEI:

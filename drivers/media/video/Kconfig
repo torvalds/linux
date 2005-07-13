@@ -7,19 +7,6 @@ menu "Video For Linux"
 
 comment "Video Adapters"
 
-config TUNER_MULTI_I2C
-	bool "Enable support for multiple I2C devices on Video Adapters (EXPERIMENTAL)"
-	depends on VIDEO_DEV && EXPERIMENTAL
-	---help---
-	  Some video adapters have more than one tuner inside. This patch
-	  enables support for using more than one tuner. This is required
-	  for some cards to allow tunning  both video and radio.
-	  It also improves I2C autodetection for these cards.
-
-	  Only few tuners currently is supporting this. More to come.
-
-	  It is safe to say 'Y' here even if your card has only one I2C tuner.
-
 config VIDEO_BT848
 	tristate "BT848 Video For Linux"
 	depends on VIDEO_DEV && PCI && I2C
@@ -344,6 +331,7 @@ config VIDEO_CX88_DVB
 	select DVB_MT352
 	select DVB_OR51132
 	select DVB_CX22702
+	select DVB_LGDT3302
 	---help---
 	  This adds support for DVB/ATSC cards based on the
 	  Connexant 2388x chip.

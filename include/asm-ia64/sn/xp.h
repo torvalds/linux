@@ -16,7 +16,6 @@
 #define _ASM_IA64_SN_XP_H
 
 
-#include <linux/version.h>
 #include <linux/cache.h>
 #include <linux/hardirq.h>
 #include <asm/sn/types.h>

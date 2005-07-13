@@ -55,6 +55,8 @@ source "fs/Kconfig.binfmt"
 
 endmenu
 
+source "net/Kconfig"
+
 source "drivers/base/Kconfig"
 
 source "drivers/mtd/Kconfig"
@@ -65,7 +67,7 @@ source "drivers/ide/Kconfig"
 
 source "arch/h8300/Kconfig.ide"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 #
 # input - input/joystick depends on it. As does USB.
@@ -178,6 +180,8 @@ source "drivers/char/pcmcia/Kconfig"
 source "drivers/serial/Kconfig"
 
 source "drivers/i2c/Kconfig"
+
+source "drivers/hwmon/Kconfig"
 
 source "drivers/usb/Kconfig"
 

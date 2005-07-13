@@ -100,7 +100,7 @@ void scatterwalk_done(struct scatter_walk *walk, int out, int more)
 int scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 			   size_t nbytes, int out)
 {
-	do {
+	while (nbytes > walk->len_this_page) {
 		memcpy_dir(buf, walk->data, walk->len_this_page, out);
 		buf += walk->len_this_page;
 		nbytes -= walk->len_this_page;
@@ -108,7 +108,7 @@ int scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 		scatterwalk_unmap(walk, out);
 		scatterwalk_pagedone(walk, out, 1);
 		scatterwalk_map(walk, out);
-	} while (nbytes > walk->len_this_page);
+	}
 
 	memcpy_dir(buf, walk->data, nbytes, out);
 	return nbytes;

@@ -1,4 +1,4 @@
-	$Id: README.Locking,v 1.9 2004/11/20 10:35:40 dwmw2 Exp $
+	$Id: README.Locking,v 1.12 2005/04/13 13:22:35 dwmw2 Exp $
 
 	JFFS2 LOCKING DOCUMENTATION
 	---------------------------
@@ -107,6 +107,10 @@ This spinlock protects the hashed list (c->inocache_list) of the
 in-core jffs2_inode_cache objects (each inode in JFFS2 has the
 correspondent jffs2_inode_cache object). So, the inocache_lock
 has to be locked while walking the c->inocache_list hash buckets.
+
+This spinlock also covers allocation of new inode numbers, which is
+currently just '++->highest_ino++', but might one day get more complicated
+if we need to deal with wrapping after 4 milliard inode numbers are used.
 
 Note, the f->sem guarantees that the correspondent jffs2_inode_cache
 will not be removed. So, it is allowed to access it without locking

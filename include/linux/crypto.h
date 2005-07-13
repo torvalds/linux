@@ -61,6 +61,15 @@
 #define CRYPTO_DIR_DECRYPT		0
 
 struct scatterlist;
+struct crypto_tfm;
+
+struct cipher_desc {
+	struct crypto_tfm *tfm;
+	void (*crfn)(void *ctx, u8 *dst, const u8 *src);
+	unsigned int (*prfn)(const struct cipher_desc *desc, u8 *dst,
+			     const u8 *src, unsigned int nbytes);
+	void *info;
+};
 
 /*
  * Algorithms: modular crypto algorithm implementations, managed
@@ -73,6 +82,19 @@ struct cipher_alg {
 	                  unsigned int keylen, u32 *flags);
 	void (*cia_encrypt)(void *ctx, u8 *dst, const u8 *src);
 	void (*cia_decrypt)(void *ctx, u8 *dst, const u8 *src);
+
+	unsigned int (*cia_encrypt_ecb)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_decrypt_ecb)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_encrypt_cbc)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_decrypt_cbc)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
 };
 
 struct digest_alg {
@@ -102,6 +124,7 @@ struct crypto_alg {
 	u32 cra_flags;
 	unsigned int cra_blocksize;
 	unsigned int cra_ctxsize;
+	unsigned int cra_alignmask;
 	const char cra_name[CRYPTO_MAX_ALG_NAME];
 
 	union {
@@ -136,7 +159,6 @@ static inline int crypto_alg_available(const char *name, u32 flags)
  * and core processing logic.  Managed via crypto_alloc_tfm() and
  * crypto_free_tfm(), as well as the various helpers below.
  */
-struct crypto_tfm;
 
 struct cipher_tfm {
 	void *cit_iv;
@@ -264,6 +286,16 @@ static inline unsigned int crypto_tfm_alg_digestsize(struct crypto_tfm *tfm)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
 	return tfm->__crt_alg->cra_digest.dia_digestsize;
+}
+
+static inline unsigned int crypto_tfm_alg_alignmask(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_alignmask;
+}
+
+static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm)
+{
+	return (void *)&tfm[1];
 }
 
 /*

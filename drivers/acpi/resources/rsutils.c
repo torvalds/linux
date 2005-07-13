@@ -83,10 +83,10 @@ acpi_rs_get_prt_method_data (
 
 	/* Parameters guaranteed valid by caller */
 
-	/*
-	 * Execute the method, no parameters
-	 */
-	status = acpi_ut_evaluate_object (handle, "_PRT", ACPI_BTYPE_PACKAGE, &obj_desc);
+	/* Execute the method, no parameters */
+
+	status = acpi_ut_evaluate_object (handle, METHOD_NAME__PRT,
+			 ACPI_BTYPE_PACKAGE, &obj_desc);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
 	}
@@ -136,10 +136,10 @@ acpi_rs_get_crs_method_data (
 
 	/* Parameters guaranteed valid by caller */
 
-	/*
-	 * Execute the method, no parameters
-	 */
-	status = acpi_ut_evaluate_object (handle, "_CRS", ACPI_BTYPE_BUFFER, &obj_desc);
+	/* Execute the method, no parameters */
+
+	status = acpi_ut_evaluate_object (handle, METHOD_NAME__CRS,
+			 ACPI_BTYPE_BUFFER, &obj_desc);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
 	}
@@ -175,6 +175,7 @@ acpi_rs_get_crs_method_data (
  *              and the contents of the callers buffer is undefined.
  *
  ******************************************************************************/
+
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_rs_get_prs_method_data (
@@ -190,10 +191,10 @@ acpi_rs_get_prs_method_data (
 
 	/* Parameters guaranteed valid by caller */
 
-	/*
-	 * Execute the method, no parameters
-	 */
-	status = acpi_ut_evaluate_object (handle, "_PRS", ACPI_BTYPE_BUFFER, &obj_desc);
+	/* Execute the method, no parameters */
+
+	status = acpi_ut_evaluate_object (handle, METHOD_NAME__PRS,
+			 ACPI_BTYPE_BUFFER, &obj_desc);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
 	}
@@ -218,6 +219,7 @@ acpi_rs_get_prs_method_data (
  * FUNCTION:    acpi_rs_get_method_data
  *
  * PARAMETERS:  Handle          - a handle to the containing object
+ *              Path            - Path to method, relative to Handle
  *              ret_buffer      - a pointer to a buffer structure for the
  *                                  results
  *
@@ -246,9 +248,8 @@ acpi_rs_get_method_data (
 
 	/* Parameters guaranteed valid by caller */
 
-	/*
-	 * Execute the method, no parameters
-	 */
+	/* Execute the method, no parameters */
+
 	status = acpi_ut_evaluate_object (handle, path, ACPI_BTYPE_BUFFER, &obj_desc);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
@@ -314,18 +315,16 @@ acpi_rs_set_srs_method_data (
 		return_ACPI_STATUS (status);
 	}
 
-	/*
-	 * Init the param object
-	 */
+	/* Init the param object */
+
 	params[0] = acpi_ut_create_internal_object (ACPI_TYPE_BUFFER);
 	if (!params[0]) {
 		acpi_os_free (buffer.pointer);
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
 
-	/*
-	 * Set up the parameter object
-	 */
+	/* Set up the parameter object */
+
 	params[0]->buffer.length  = (u32) buffer.length;
 	params[0]->buffer.pointer = buffer.pointer;
 	params[0]->common.flags   = AOPOBJ_DATA_VALID;
@@ -335,10 +334,9 @@ acpi_rs_set_srs_method_data (
 	info.parameters = params;
 	info.parameter_type = ACPI_PARAM_ARGS;
 
-	/*
-	 * Execute the method, no return value
-	 */
-	status = acpi_ns_evaluate_relative ("_SRS", &info);
+	/* Execute the method, no return value */
+
+	status = acpi_ns_evaluate_relative (METHOD_NAME__SRS, &info);
 	if (ACPI_SUCCESS (status)) {
 		/* Delete any return object (especially if implicit_return is enabled) */
 
@@ -347,9 +345,8 @@ acpi_rs_set_srs_method_data (
 		}
 	}
 
-	/*
-	 * Clean up and return the status from acpi_ns_evaluate_relative
-	 */
+	/* Clean up and return the status from acpi_ns_evaluate_relative */
+
 	acpi_ut_remove_reference (params[0]);
 	return_ACPI_STATUS (status);
 }

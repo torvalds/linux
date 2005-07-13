@@ -320,7 +320,7 @@ int usb_sg_init (
 	struct scatterlist	*sg,
 	int			nents,
 	size_t			length,
-	int			mem_flags
+	unsigned		mem_flags
 )
 {
 	int			i;

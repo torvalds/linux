@@ -81,7 +81,6 @@
 #include <linux/ioport.h>
 #include <linux/bitops.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -619,11 +618,6 @@ xirc2ps_attach(void)
     link->next = dev_list;
     dev_list = link;
     client_reg.dev_info = &dev_info;
-    client_reg.EventMask =
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &xirc2ps_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     if ((err = pcmcia_register_client(&link->handle, &client_reg))) {
@@ -2016,6 +2010,7 @@ static struct pcmcia_driver xirc2ps_cs_driver = {
 		.name	= "xirc2ps_cs",
 	},
 	.attach		= xirc2ps_attach,
+	.event		= xirc2ps_event,
 	.detach		= xirc2ps_detach,
 	.id_table       = xirc2ps_ids,
 };

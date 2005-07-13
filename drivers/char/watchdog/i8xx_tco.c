@@ -401,7 +401,7 @@ static unsigned char __init i8xx_tco_getdevice (void)
 	 */
 
 	while ((dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		if (pci_match_device(i8xx_tco_pci_tbl, dev)) {
+		if (pci_match_id(i8xx_tco_pci_tbl, dev)) {
 			i8xx_tco_pci = dev;
 			break;
 		}

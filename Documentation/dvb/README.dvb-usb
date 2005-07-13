@@ -13,14 +13,17 @@ different way: With the help of a dvb-usb-framework.
 The framework provides generic functions (mostly kernel API calls), such as:
 
 - Transport Stream URB handling in conjunction with dvb-demux-feed-control
-  (bulk and isoc (TODO) are supported)
+  (bulk and isoc are supported)
 - registering the device for the DVB-API
 - registering an I2C-adapter if applicable
 - remote-control/input-device handling
 - firmware requesting and loading (currently just for the Cypress USB
-  controller)
+  controllers)
 - other functions/methods which can be shared by several drivers (such as
   functions for bulk-control-commands)
+- TODO: a I2C-chunker. It creates device-specific chunks of register-accesses
+  depending on length of a register and the number of values that can be
+  multi-written and multi-read.
 
 The source code of the particular DVB USB devices does just the communication
 with the device via the bus. The connection between the DVB-API-functionality
@@ -36,93 +39,18 @@ the dvb-usb-lib.
 TODO: dynamic enabling and disabling of the pid-filter in regard to number of
 feeds requested.
 
-Supported devices USB1.1
+Supported devices
 ========================
 
-Produced and reselled by Twinhan:
----------------------------------
-- TwinhanDTV USB-Ter DVB-T Device (VP7041)
-	http://www.twinhan.com/product_terrestrial_3.asp
+See the LinuxTV DVB Wiki at www.linuxtv.org for a complete list of
+cards/drivers/firmwares:
 
-- TwinhanDTV Magic Box (VP7041e)
-	http://www.twinhan.com/product_terrestrial_4.asp
-
-- HAMA DVB-T USB device
-	http://www.hama.de/portal/articleId*110620/action*2598
-
-- CTS Portable (Chinese Television System) (2)
-	http://www.2cts.tv/ctsportable/
-
-- Unknown USB DVB-T device with vendor ID Hyper-Paltek
-
-
-Produced and reselled by KWorld:
---------------------------------
-- KWorld V-Stream XPERT DTV DVB-T USB
-	http://www.kworld.com.tw/en/product/DVBT-USB/DVBT-USB.html
-
-- JetWay DTV DVB-T USB
-	http://www.jetway.com.tw/evisn/product/lcd-tv/DVT-USB/dtv-usb.htm
-
-- ADSTech Instant TV DVB-T USB
-	http://www.adstech.com/products/PTV-333/intro/PTV-333_intro.asp?pid=PTV-333
-
-
-Others:
--------
-- Ultima Electronic/Artec T1 USB TVBOX (AN2135, AN2235, AN2235 with Panasonic Tuner)
-	http://82.161.246.249/products-tvbox.html
-
-- Compro Videomate DVB-U2000 - DVB-T USB (2)
-	http://www.comprousa.com/products/vmu2000.htm
-
-- Grandtec USB DVB-T
-	http://www.grand.com.tw/
-
-- AVerMedia AverTV DVBT USB
-	http://www.avermedia.com/
-
-- DiBcom USB DVB-T reference device (non-public)
-
-
-Supported devices USB2.0-only
-=============================
-- Twinhan MagicBox II
-	http://www.twinhan.com/product_terrestrial_7.asp
-
-- TwinhanDTV Alpha
-	http://www.twinhan.com/product_terrestrial_8.asp
-
-- DigitalNow TinyUSB 2 DVB-t Receiver
-	http://www.digitalnow.com.au/DigitalNow%20tinyUSB2%20Specifications.html
-
-- Hanftek UMT-010
-	http://www.globalsources.com/si/6008819757082/ProductDetail/Digital-TV/product_id-100046529
-
-
-Supported devices USB2.0 and USB1.1
-=============================
-- Typhoon/Yakumo/HAMA/Yuan DVB-T mobile USB2.0
-	http://www.yakumo.de/produkte/index.php?pid=1&ag=DVB-T
-	http://www.yuan.com.tw/en/products/vdo_ub300.html
-	http://www.hama.de/portal/articleId*114663/action*2563
-	http://www.anubisline.com/english/articlec.asp?id=50502&catid=002
-
-- Artec T1 USB TVBOX (FX2) (2)
-
-- Hauppauge WinTV NOVA-T USB2
-	http://www.hauppauge.com/
-
-- KWorld/ADSTech Instant DVB-T USB2.0 (DiB3000M-B)
-
-- DiBcom USB2.0 DVB-T reference device (non-public)
-
-- AVerMedia AverTV A800 DVB-T USB2.0
-
-1) It is working almost - work-in-progress.
-2) No test reports received yet.
+http://www.linuxtv.org/wiki/index.php/DVB_USB
 
 0. History & News:
+  2005-06-30 - added support for WideView WT-220U (Thanks to Steve Chang)
+  2005-05-30 - added basic isochronous support to the dvb-usb-framework
+               added support for Conexant Hybrid reference design and Nebula DigiTV USB
   2005-04-17 - all dibusb devices ported to make use of the dvb-usb-framework
   2005-04-02 - re-enabled and improved remote control code.
   2005-03-31 - ported the Yakumo/Hama/Typhoon DVB-T USB2.0 device to dvb-usb.
@@ -137,7 +65,7 @@ Supported devices USB2.0 and USB1.1
   2005-01-31 - distorted streaming is gone for USB1.1 devices
   2005-01-13 - moved the mirrored pid_filter_table back to dvb-dibusb
              - first almost working version for HanfTek UMT-010
-             - found out, that Yakumo/HAMA/Typhoon are predessors of the HanfTek UMT-010
+             - found out, that Yakumo/HAMA/Typhoon are predecessors of the HanfTek UMT-010
   2005-01-10 - refactoring completed, now everything is very delightful
              - tuner quirks for some weird devices (Artec T1 AN2235 device has sometimes a
                Panasonic Tuner assembled). Tunerprobing implemented. Thanks a lot to Gunnar Wittich.
@@ -187,25 +115,13 @@ Supported devices USB2.0 and USB1.1
 1. How to use?
 1.1. Firmware
 
-Most of the USB drivers need to download a firmware to start working.
+Most of the USB drivers need to download a firmware to the device before start
+working.
 
-for USB1.1 (AN2135) you need: dvb-usb-dibusb-5.0.0.11.fw
-for USB2.0 HanfTek: dvb-usb-umt-010-02.fw
-for USB2.0 DiBcom: dvb-usb-dibusb-6.0.0.8.fw
-for USB2.0 AVerMedia AverTV DVB-T USB2: dvb-usb-avertv-a800-01.fw
-for USB2.0 TwinhanDTV Alpha/MagicBox II: dvb-usb-vp7045-01.fw
+Have a look at the Wikipage for the DVB-USB-drivers to find out, which firmware
+you need for your device:
 
-The files can be found on http://www.linuxtv.org/download/firmware/ .
-
-We do not have the permission (yet) to publish the following firmware-files.
-You'll need to extract them from the windows drivers.
-
-You should be able to use "get_dvb_firmware dvb-usb" to get the firmware:
-
-for USB1.1 (AN2235) (a few Artec T1 devices): dvb-usb-dibusb-an2235-01.fw
-for USB2.0 Hauppauge: dvb-usb-nova-t-usb2-01.fw
-for USB2.0 ADSTech/Kworld USB2.0: dvb-usb-adstech-usb2-01.fw
-for USB2.0 Yakumo/Typhoon/Hama: dvb-usb-dtt200u-01.fw
+http://www.linuxtv.org/wiki/index.php/DVB_USB
 
 1.2. Compiling
 
@@ -289,6 +205,9 @@ Patches, comments and suggestions are very very welcome.
    Gunnar Wittich and Joachim von Caron for their trust for providing
     root-shells on their machines to implement support for new devices.
 
+   Allan Third and Michael Hutchinson for their help to write the Nebula
+    digitv-driver.
+
    Glen Harris for bringing up, that there is a new dibusb-device and Jiun-Kuei
     Jung from AVerMedia who kindly provided a special firmware to get the device
     up and running in Linux.
@@ -296,7 +215,12 @@ Patches, comments and suggestions are very very welcome.
    Jennifer Chen, Jeff and Jack from Twinhan for kindly supporting by
 	writing the vp7045-driver.
 
-   Some guys on the linux-dvb mailing list for encouraging me
+   Steve Chang from WideView for providing information for new devices and
+	firmware files.
+
+   Michael Paxton for submitting remote control keymaps.
+
+   Some guys on the linux-dvb mailing list for encouraging me.
 
    Peter Schildmann >peter.schildmann-nospam-at-web.de< for his
     user-level firmware loader, which saves a lot of time
@@ -305,4 +229,4 @@ Patches, comments and suggestions are very very welcome.
    Ulf Hermenau for helping me out with traditional chinese.
 
    André Smoktun and Christian Frömmel for supporting me with
-    hardware and listening to my problems very patient.
+    hardware and listening to my problems very patiently.

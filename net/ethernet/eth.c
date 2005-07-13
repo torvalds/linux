@@ -155,7 +155,7 @@ int eth_rebuild_header(struct sk_buff *skb)
  *	This is normal practice and works for any 'now in use' protocol.
  */
  
-unsigned short eth_type_trans(struct sk_buff *skb, struct net_device *dev)
+__be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
 	unsigned char *rawp;

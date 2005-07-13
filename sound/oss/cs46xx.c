@@ -4174,7 +4174,7 @@ static int cs_ioctl_mixdev(struct inode *inode, struct file *file, unsigned int 
 				list_for_each(entry, &cs46xx_devs)
 				{
 					card = list_entry(entry, struct cs_card, list);
-					cs46xx_suspend(card, 0);
+					cs46xx_suspend(card, PMSG_ON);
 				}
 
 			}
@@ -5749,7 +5749,7 @@ static int cs46xx_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data)
 			case PM_SUSPEND:
 				CS_DBGOUT(CS_PM, 2, printk(KERN_INFO
 					"cs46xx: PM suspend request\n"));
-				if(cs46xx_suspend(card, 0))
+				if(cs46xx_suspend(card, PMSG_SUSPEND))
 				{
 				    CS_DBGOUT(CS_ERROR, 2, printk(KERN_INFO
 					"cs46xx: PM suspend request refused\n"));
@@ -5779,7 +5779,7 @@ static int cs46xx_suspend_tbl(struct pci_dev *pcidev, pm_message_t state)
 	struct cs_card *s = PCI_GET_DRIVER_DATA(pcidev);
 	CS_DBGOUT(CS_PM | CS_FUNCTION, 2, 
 		printk(KERN_INFO "cs46xx: cs46xx_suspend_tbl request\n"));
-	cs46xx_suspend(s, 0);
+	cs46xx_suspend(s, state);
 	return 0;
 }
 

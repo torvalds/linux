@@ -433,3 +433,8 @@ int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	return 0;
 }
 
+/* architecture specific initialization */
+int arch_init_kprobes(void)
+{
+	return 0;
+}

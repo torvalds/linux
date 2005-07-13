@@ -31,10 +31,13 @@ _GLOBAL(__970_cpu_preinit)
 	 */
 	mfspr	r0,SPRN_PVR
 	srwi	r0,r0,16
-	cmpwi	cr0,r0,0x39
-	cmpwi	cr1,r0,0x3c
-	cror	4*cr0+eq,4*cr0+eq,4*cr1+eq
+	cmpwi	r0,0x39
+	beq	1f
+	cmpwi	r0,0x3c
+	beq	1f
+	cmpwi	r0,0x44
 	bnelr
+1:
 
 	/* Make sure HID4:rm_ci is off before MMU is turned off, that large
 	 * pages are enabled with HID4:61 and clear HID5:DCBZ_size and
@@ -133,12 +136,14 @@ _GLOBAL(__save_cpu_setup)
 	/* We only deal with 970 for now */
 	mfspr	r0,SPRN_PVR
 	srwi	r0,r0,16
-	cmpwi	cr0,r0,0x39
-	cmpwi	cr1,r0,0x3c
-	cror	4*cr0+eq,4*cr0+eq,4*cr1+eq
-	bne	1f
+	cmpwi	r0,0x39
+	beq	1f
+	cmpwi	r0,0x3c
+	beq	1f
+	cmpwi	r0,0x44
+	bne	2f
 
-	/* Save HID0,1,4 and 5 */
+1:	/* Save HID0,1,4 and 5 */
 	mfspr	r3,SPRN_HID0
 	std	r3,CS_HID0(r5)
 	mfspr	r3,SPRN_HID1
@@ -148,7 +153,7 @@ _GLOBAL(__save_cpu_setup)
 	mfspr	r3,SPRN_HID5
 	std	r3,CS_HID5(r5)
 	
-1:
+2:
 	mtcr	r7
 	blr
 
@@ -165,12 +170,14 @@ _GLOBAL(__restore_cpu_setup)
 	/* We only deal with 970 for now */
 	mfspr	r0,SPRN_PVR
 	srwi	r0,r0,16
-	cmpwi	cr0,r0,0x39
-	cmpwi	cr1,r0,0x3c
-	cror	4*cr0+eq,4*cr0+eq,4*cr1+eq
-	bne	1f
+	cmpwi	r0,0x39
+	beq	1f
+	cmpwi	r0,0x3c
+	beq	1f
+	cmpwi	r0,0x44
+	bnelr
 
-	/* Before accessing memory, we make sure rm_ci is clear */
+1:	/* Before accessing memory, we make sure rm_ci is clear */
 	li	r0,0
 	mfspr	r3,SPRN_HID4
 	rldimi	r3,r0,40,23	/* clear bit 23 (rm_ci) */
@@ -223,6 +230,5 @@ _GLOBAL(__restore_cpu_setup)
 	mtspr	SPRN_HID5,r3
 	sync
 	isync
-1:
 	blr
 

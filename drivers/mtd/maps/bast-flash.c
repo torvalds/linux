@@ -1,14 +1,15 @@
 /* linux/drivers/mtd/maps/bast_flash.c
  *
- * Copyright (c) 2004 Simtec Electronics
- * Ben Dooks <ben@simtec.co.uk>
+ * Copyright (c) 2004-2005 Simtec Electronics
+ *	Ben Dooks <ben@simtec.co.uk>
  *
  * Simtec Bast (EB2410ITX) NOR MTD Mapping driver
  *
  * Changelog:
  *	20-Sep-2004  BJD  Initial version
+ *	17-Jan-2005  BJD  Add whole device if no partitions found
  *
- * $Id: bast-flash.c,v 1.1 2004/09/21 14:29:04 bjd Exp $
+ * $Id: bast-flash.c,v 1.2 2005/01/18 11:13:47 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,9 +47,9 @@
 #include <asm/arch/bast-cpld.h>
 
 #ifdef CONFIG_MTD_BAST_MAXSIZE
-#define AREA_MAXSIZE (CONFIG_MTD_BAST_MAXSIZE * (1024*1024))
+#define AREA_MAXSIZE (CONFIG_MTD_BAST_MAXSIZE * SZ_1M)
 #else
-#define AREA_MAXSIZE (32*1024*1024)
+#define AREA_MAXSIZE (32 * SZ_1M)
 #endif
 
 #define PFX "bast-flash: "
@@ -189,6 +190,8 @@ static int bast_flash_probe(struct device *dev)
 		err = add_mtd_partitions(info->mtd, info->partitions, err);
 		if (err) 
 			printk(KERN_ERR PFX "cannot add/parse partitions\n");
+	} else {
+		err = add_mtd_device(info->mtd);
 	}
 
 	if (err == 0)

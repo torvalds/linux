@@ -46,22 +46,26 @@
 
 
 /* PM Timer ticks per second (HZ) */
+
 #define PM_TIMER_FREQUENCY  3579545
+
+/* Values for the _SST reserved method */
+
+#define ACPI_SST_INDICATOR_OFF  0
+#define ACPI_SST_WORKING        1
+#define ACPI_SST_WAKING         2
+#define ACPI_SST_SLEEPING       3
+#define ACPI_SST_SLEEP_CONTEXT  4
 
 
 /* Prototypes */
 
 
+/*
+ * hwacpi - high level functions
+ */
 acpi_status
 acpi_hw_initialize (
-	void);
-
-acpi_status
-acpi_hw_shutdown (
-	void);
-
-acpi_status
-acpi_hw_initialize_system_info (
 	void);
 
 acpi_status
@@ -72,12 +76,10 @@ u32
 acpi_hw_get_mode (
 	void);
 
-u32
-acpi_hw_get_mode_capabilities (
-	void);
 
-/* Register I/O Prototypes */
-
+/*
+ * hwregs - ACPI Register I/O
+ */
 struct acpi_bit_register_info *
 acpi_hw_get_bit_register_info (
 	u32                             register_id);
@@ -111,8 +113,9 @@ acpi_hw_clear_acpi_status (
 	u32                             flags);
 
 
-/* GPE support */
-
+/*
+ * hwgpe - GPE support
+ */
 acpi_status
 acpi_hw_write_gpe_enable_reg (
 	struct acpi_gpe_event_info      *gpe_event_info);
@@ -131,12 +134,12 @@ acpi_hw_clear_gpe_block (
 	struct acpi_gpe_xrupt_info      *gpe_xrupt_info,
 	struct acpi_gpe_block_info      *gpe_block);
 
-#ifdef ACPI_FUTURE_USAGE
+#ifdef	ACPI_FUTURE_USAGE
 acpi_status
 acpi_hw_get_gpe_status (
 	struct acpi_gpe_event_info      *gpe_event_info,
 	acpi_event_status               *event_status);
-#endif
+#endif	/* ACPI_FUTURE_USAGE */
 
 acpi_status
 acpi_hw_disable_all_gpes (
@@ -155,15 +158,11 @@ acpi_hw_enable_runtime_gpe_block (
 	struct acpi_gpe_xrupt_info      *gpe_xrupt_info,
 	struct acpi_gpe_block_info      *gpe_block);
 
-acpi_status
-acpi_hw_enable_wakeup_gpe_block (
-	struct acpi_gpe_xrupt_info      *gpe_xrupt_info,
-	struct acpi_gpe_block_info      *gpe_block);
 
-
-/* ACPI Timer prototypes */
-
-#ifdef ACPI_FUTURE_USAGE
+#ifdef	ACPI_FUTURE_USAGE
+/*
+ * hwtimer - ACPI Timer prototypes
+ */
 acpi_status
 acpi_get_timer_resolution (
 	u32                             *resolution);
@@ -177,6 +176,7 @@ acpi_get_timer_duration (
 	u32                             start_ticks,
 	u32                             end_ticks,
 	u32                             *time_elapsed);
-#endif  /*  ACPI_FUTURE_USAGE  */
+#endif	/* ACPI_FUTURE_USAGE */
+
 
 #endif /* __ACHWARE_H__ */

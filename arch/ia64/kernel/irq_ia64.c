@@ -63,27 +63,16 @@ EXPORT_SYMBOL(isa_irq_to_vector_map);
 static unsigned long ia64_vector_mask[BITS_TO_LONGS(IA64_NUM_DEVICE_VECTORS)];
 
 int
-assign_irq_vector_nopanic (int irq)
+assign_irq_vector (int irq)
 {
 	int pos, vector;
  again:
 	pos = find_first_zero_bit(ia64_vector_mask, IA64_NUM_DEVICE_VECTORS);
 	vector = IA64_FIRST_DEVICE_VECTOR + pos;
 	if (vector > IA64_LAST_DEVICE_VECTOR)
-		return -1;
+		return -ENOSPC;
 	if (test_and_set_bit(pos, ia64_vector_mask))
 		goto again;
-	return vector;
-}
-
-int
-assign_irq_vector (int irq)
-{
-	int vector = assign_irq_vector_nopanic(irq);
-
-	if (vector < 0)
-		panic("assign_irq_vector: out of interrupt vectors!");
-
 	return vector;
 }
 

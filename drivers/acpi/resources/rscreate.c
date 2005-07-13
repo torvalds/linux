@@ -87,9 +87,8 @@ acpi_rs_create_resource_list (
 	ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "byte_stream_buffer = %p\n",
 		byte_stream_buffer));
 
-	/*
-	 * Params already validated, so we don't re-validate here
-	 */
+	/* Params already validated, so we don't re-validate here */
+
 	byte_stream_buffer_length = byte_stream_buffer->buffer.length;
 	byte_stream_start = byte_stream_buffer->buffer.pointer;
 
@@ -171,9 +170,8 @@ acpi_rs_create_pci_routing_table (
 
 	/* Params already validated, so we don't re-validate here */
 
-	/*
-	 * Get the required buffer length
-	 */
+	/* Get the required buffer length */
+
 	status = acpi_rs_get_pci_routing_table_length (package_object,
 			 &buffer_size_needed);
 	if (ACPI_FAILURE (status)) {
@@ -217,9 +215,8 @@ acpi_rs_create_pci_routing_table (
 		 */
 		user_prt->length = (sizeof (struct acpi_pci_routing_table) - 4);
 
-		/*
-		 * Each element of the top-level package must also be a package
-		 */
+		/* Each element of the top-level package must also be a package */
+
 		if (ACPI_GET_OBJECT_TYPE (*top_object_list) != ACPI_TYPE_PACKAGE) {
 			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
 				"(PRT[%X]) Need sub-package, found %s\n",
@@ -243,9 +240,8 @@ acpi_rs_create_pci_routing_table (
 		 */
 		sub_object_list = (*top_object_list)->package.elements;
 
-		/*
-		 * 1) First subobject: Dereference the PRT.Address
-		 */
+		/* 1) First subobject: Dereference the PRT.Address */
+
 		obj_desc = sub_object_list[0];
 		if (ACPI_GET_OBJECT_TYPE (obj_desc) == ACPI_TYPE_INTEGER) {
 			user_prt->address = obj_desc->integer.value;
@@ -257,9 +253,8 @@ acpi_rs_create_pci_routing_table (
 			return_ACPI_STATUS (AE_BAD_DATA);
 		}
 
-		/*
-		 * 2) Second subobject: Dereference the PRT.Pin
-		 */
+		/* 2) Second subobject: Dereference the PRT.Pin */
+
 		obj_desc = sub_object_list[1];
 		if (ACPI_GET_OBJECT_TYPE (obj_desc) == ACPI_TYPE_INTEGER) {
 			user_prt->pin = (u32) obj_desc->integer.value;
@@ -271,9 +266,8 @@ acpi_rs_create_pci_routing_table (
 			return_ACPI_STATUS (AE_BAD_DATA);
 		}
 
-		/*
-		 * 3) Third subobject: Dereference the PRT.source_name
-		 */
+		/* 3) Third subobject: Dereference the PRT.source_name */
+
 		obj_desc = sub_object_list[2];
 		switch (ACPI_GET_OBJECT_TYPE (obj_desc)) {
 		case ACPI_TYPE_LOCAL_REFERENCE:
@@ -296,7 +290,9 @@ acpi_rs_create_pci_routing_table (
 
 			status = acpi_ns_handle_to_pathname ((acpi_handle) node, &path_buffer);
 
-			user_prt->length += (u32) ACPI_STRLEN (user_prt->source) + 1; /* include null terminator */
+			/* +1 to include null terminator */
+
+			user_prt->length += (u32) ACPI_STRLEN (user_prt->source) + 1;
 			break;
 
 
@@ -304,8 +300,10 @@ acpi_rs_create_pci_routing_table (
 
 			ACPI_STRCPY (user_prt->source, obj_desc->string.pointer);
 
-			/* Add to the Length field the length of the string (add 1 for terminator) */
-
+			/*
+			 * Add to the Length field the length of the string
+			 * (add 1 for terminator)
+			 */
 			user_prt->length += obj_desc->string.length + 1;
 			break;
 
@@ -333,9 +331,8 @@ acpi_rs_create_pci_routing_table (
 
 		user_prt->length = (u32) ACPI_ROUND_UP_to_64_bITS (user_prt->length);
 
-		/*
-		 * 4) Fourth subobject: Dereference the PRT.source_index
-		 */
+		/* 4) Fourth subobject: Dereference the PRT.source_index */
+
 		obj_desc = sub_object_list[3];
 		if (ACPI_GET_OBJECT_TYPE (obj_desc) == ACPI_TYPE_INTEGER) {
 			user_prt->source_index = (u32) obj_desc->integer.value;

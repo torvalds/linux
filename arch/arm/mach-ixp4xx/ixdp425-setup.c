@@ -95,7 +95,8 @@ static struct plat_serial8250_port ixdp425_uart_data[] = {
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= IXP4XX_UART_XTAL,
-	}
+	},
+	{ },
 };
 
 static struct platform_device ixdp425_uart = {

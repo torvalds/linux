@@ -212,7 +212,7 @@
 #define __NR_epoll_create       193 /* Linux Specific                              */
 #define __NR_epoll_ctl          194 /* Linux Specific                              */
 #define __NR_epoll_wait         195 /* Linux Specific                              */
-/* #define __NR_ulimit          196    Linux Specific                              */
+#define __NR_ioprio_set         196 /* Linux Specific                              */
 #define __NR_getppid            197 /* Linux Specific                              */
 #define __NR_sigaction          198 /* Linux Specific                              */
 #define __NR_sgetmask           199 /* Linux Specific                              */
@@ -234,7 +234,7 @@
 #define __NR_ipc                215 /* Linux Specific                              */
 #define __NR_sigreturn          216 /* Linux Specific                              */
 #define __NR_clone              217 /* Linux Specific                              */
-/* #define __NR_modify_ldt      218    Linux Specific - i386 specific, unused      */
+#define __NR_ioprio_get         218 /* Linux Specific                              */
 #define __NR_adjtimex           219 /* Linux Specific                              */
 #define __NR_sigprocmask        220 /* Linux Specific                              */
 #define __NR_create_module      221 /* Linux Specific                              */

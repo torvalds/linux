@@ -23,7 +23,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/bitops.h>
-#include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 #include <linux/mm.h>
 
 #include <asm/types.h>
@@ -125,19 +125,6 @@ static struct map_desc ixp2000_io_desc[] __initdata = {
 	}
 };
 
-static struct uart_port ixp2000_serial_port = {
-	.membase	= (char *)(IXP2000_UART_VIRT_BASE + 3),
-	.mapbase	= IXP2000_UART_PHYS_BASE + 3,
-	.irq		= IRQ_IXP2000_UART,
-	.flags		= UPF_SKIP_TEST,
-	.iotype		= UPIO_MEM,
-	.regshift	= 2,
-	.uartclk	= 50000000,
-	.line		= 0,
-	.type		= PORT_XSCALE,
-	.fifosize	= 16
-};
-
 void __init ixp2000_map_io(void)
 {
 	extern unsigned int processor_id;
@@ -157,11 +144,49 @@ void __init ixp2000_map_io(void)
 	}
 
 	iotable_init(ixp2000_io_desc, ARRAY_SIZE(ixp2000_io_desc));
-	early_serial_setup(&ixp2000_serial_port);
 
 	/* Set slowport to 8-bit mode.  */
 	ixp2000_reg_write(IXP2000_SLOWPORT_FRM, 1);
 }
+
+
+/*************************************************************************
+ * Serial port support for IXP2000
+ *************************************************************************/
+static struct plat_serial8250_port ixp2000_serial_port[] = {
+	{
+		.mapbase	= IXP2000_UART_PHYS_BASE,
+		.membase	= (char *)(IXP2000_UART_VIRT_BASE + 3),
+		.irq		= IRQ_IXP2000_UART,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+		.uartclk	= 50000000,
+	},
+	{ },
+};
+
+static struct resource ixp2000_uart_resource = {
+	.start		= IXP2000_UART_PHYS_BASE,
+	.end		= IXP2000_UART_PHYS_BASE + 0xffff,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device ixp2000_serial_device = {
+	.name		= "serial8250",
+	.id		= 0,
+	.dev		= {
+		.platform_data		= ixp2000_serial_port,
+	},
+	.num_resources	= 1,
+	.resource	= &ixp2000_uart_resource,
+};
+
+void __init ixp2000_uart_init(void)
+{
+	platform_device_register(&ixp2000_serial_device);
+}
+
 
 /*************************************************************************
  * Timer-tick functions for IXP2000

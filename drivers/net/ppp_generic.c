@@ -1237,8 +1237,8 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 		pch = list_entry(list, struct channel, clist);
 		navail += pch->avail = (pch->chan != NULL);
 		if (pch->avail) {
-			if (skb_queue_len(&pch->file.xq) == 0
-			    || !pch->had_frag) {
+			if (skb_queue_empty(&pch->file.xq) ||
+			    !pch->had_frag) {
 				pch->avail = 2;
 				++nfree;
 			}
@@ -1374,8 +1374,8 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 
 		/* try to send it down the channel */
 		chan = pch->chan;
-		if (skb_queue_len(&pch->file.xq)
-		    || !chan->ops->start_xmit(chan, frag))
+		if (!skb_queue_empty(&pch->file.xq) ||
+		    !chan->ops->start_xmit(chan, frag))
 			skb_queue_tail(&pch->file.xq, frag);
 		pch->had_frag = 1;
 		p += flen;
@@ -1412,7 +1412,7 @@ ppp_channel_push(struct channel *pch)
 
 	spin_lock_bh(&pch->downl);
 	if (pch->chan != 0) {
-		while (skb_queue_len(&pch->file.xq) > 0) {
+		while (!skb_queue_empty(&pch->file.xq)) {
 			skb = skb_dequeue(&pch->file.xq);
 			if (!pch->chan->ops->start_xmit(pch->chan, skb)) {
 				/* put the packet back and try again later */
@@ -1426,7 +1426,7 @@ ppp_channel_push(struct channel *pch)
 	}
 	spin_unlock_bh(&pch->downl);
 	/* see if there is anything from the attached unit to be sent */
-	if (skb_queue_len(&pch->file.xq) == 0) {
+	if (skb_queue_empty(&pch->file.xq)) {
 		read_lock_bh(&pch->upl);
 		ppp = pch->ppp;
 		if (ppp != 0)

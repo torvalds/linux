@@ -2374,7 +2374,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 	/*
 	 * Clean out tx queue
 	 */
-	if (test_bit(FLAG_MPI, &ai->flags) && skb_queue_len (&ai->txq) > 0) {
+	if (test_bit(FLAG_MPI, &ai->flags) && !skb_queue_empty(&ai->txq)) {
 		struct sk_buff *skb = NULL;
 		for (;(skb = skb_dequeue(&ai->txq));)
 			dev_kfree_skb(skb);
@@ -3287,7 +3287,7 @@ exitrx:
 				if (status & EV_TXEXC)
 					get_tx_error(apriv, -1);
 				spin_lock_irqsave(&apriv->aux_lock, flags);
-				if (skb_queue_len (&apriv->txq)) {
+				if (!skb_queue_empty(&apriv->txq)) {
 					spin_unlock_irqrestore(&apriv->aux_lock,flags);
 					mpi_send_packet (dev);
 				} else {

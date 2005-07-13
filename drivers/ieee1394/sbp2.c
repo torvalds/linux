@@ -81,7 +81,7 @@
 #include "sbp2.h"
 
 static char version[] __devinitdata =
-	"$Rev: 1219 $ Ben Collins <bcollins@debian.org>";
+	"$Rev: 1306 $ Ben Collins <bcollins@debian.org>";
 
 /*
  * Module load parameter definitions
@@ -104,7 +104,7 @@ MODULE_PARM_DESC(max_speed, "Force max speed (3 = 800mb, 2 = 400mb default, 1 = 
  * down to us at a time (debugging). This might be necessary for very
  * badly behaved sbp2 devices.
  */
-static int serialize_io = 0;
+static int serialize_io;
 module_param(serialize_io, int, 0444);
 MODULE_PARM_DESC(serialize_io, "Serialize all I/O coming down from the scsi drivers (default = 0)");
 
@@ -145,7 +145,7 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device (default = 1)"
  * please submit the logged sbp2_firmware_revision value of this device to
  * the linux1394-devel mailing list.
  */
-static int force_inquiry_hack = 0;
+static int force_inquiry_hack;
 module_param(force_inquiry_hack, int, 0444);
 MODULE_PARM_DESC(force_inquiry_hack, "Force SCSI inquiry hack (default = 0)");
 
@@ -2112,6 +2112,102 @@ static int sbp2_send_command(struct scsi_id_instance_data *scsi_id,
  */
 static void sbp2_check_sbp2_command(struct scsi_id_instance_data *scsi_id, unchar *cmd)
 {
+	unchar new_cmd[16];
+	u8 device_type = SBP2_DEVICE_TYPE (scsi_id->sbp2_device_type_and_lun);
+
+	SBP2_DEBUG("sbp2_check_sbp2_command");
+
+	switch (*cmd) {
+
+		case READ_6:
+
+			if (sbp2_command_conversion_device_type(device_type)) {
+
+				SBP2_DEBUG("Convert READ_6 to READ_10");
+
+				/*
+				 * Need to turn read_6 into read_10
+				 */
+				new_cmd[0] = 0x28;
+				new_cmd[1] = (cmd[1] & 0xe0);
+				new_cmd[2] = 0x0;
+				new_cmd[3] = (cmd[1] & 0x1f);
+				new_cmd[4] = cmd[2];
+				new_cmd[5] = cmd[3];
+				new_cmd[6] = 0x0;
+				new_cmd[7] = 0x0;
+				new_cmd[8] = cmd[4];
+				new_cmd[9] = cmd[5];
+
+				memcpy(cmd, new_cmd, 10);
+
+			}
+
+			break;
+
+		case WRITE_6:
+
+			if (sbp2_command_conversion_device_type(device_type)) {
+
+				SBP2_DEBUG("Convert WRITE_6 to WRITE_10");
+
+				/*
+				 * Need to turn write_6 into write_10
+				 */
+				new_cmd[0] = 0x2a;
+				new_cmd[1] = (cmd[1] & 0xe0);
+				new_cmd[2] = 0x0;
+				new_cmd[3] = (cmd[1] & 0x1f);
+				new_cmd[4] = cmd[2];
+				new_cmd[5] = cmd[3];
+				new_cmd[6] = 0x0;
+				new_cmd[7] = 0x0;
+				new_cmd[8] = cmd[4];
+				new_cmd[9] = cmd[5];
+
+				memcpy(cmd, new_cmd, 10);
+
+			}
+
+			break;
+
+		case MODE_SENSE:
+
+			if (sbp2_command_conversion_device_type(device_type)) {
+
+				SBP2_DEBUG("Convert MODE_SENSE_6 to MODE_SENSE_10");
+
+				/*
+				 * Need to turn mode_sense_6 into mode_sense_10
+				 */
+				new_cmd[0] = 0x5a;
+				new_cmd[1] = cmd[1];
+				new_cmd[2] = cmd[2];
+				new_cmd[3] = 0x0;
+				new_cmd[4] = 0x0;
+				new_cmd[5] = 0x0;
+				new_cmd[6] = 0x0;
+				new_cmd[7] = 0x0;
+				new_cmd[8] = cmd[4];
+				new_cmd[9] = cmd[5];
+
+				memcpy(cmd, new_cmd, 10);
+
+			}
+
+			break;
+
+		case MODE_SELECT:
+
+			/*
+			 * TODO. Probably need to change mode select to 10 byte version
+			 */
+
+		default:
+			break;
+	}
+
+	return;
 }
 
 /*
@@ -2152,6 +2248,7 @@ static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
 				     struct scsi_cmnd *SCpnt)
 {
 	u8 *scsi_buf = SCpnt->request_buffer;
+	u8 device_type = SBP2_DEVICE_TYPE (scsi_id->sbp2_device_type_and_lun);
 
 	SBP2_DEBUG("sbp2_check_sbp2_response");
 
@@ -2176,12 +2273,41 @@ static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
 			}
 
 			/*
+			 * Check for Simple Direct Access Device and change it to TYPE_DISK
+			 */
+			if ((scsi_buf[0] & 0x1f) == TYPE_RBC) {
+				SBP2_DEBUG("Changing TYPE_RBC to TYPE_DISK");
+				scsi_buf[0] &= 0xe0;
+			}
+
+			/*
 			 * Fix ansi revision and response data format
 			 */
 			scsi_buf[2] |= 2;
 			scsi_buf[3] = (scsi_buf[3] & 0xf0) | 2;
 
 			break;
+
+		case MODE_SENSE:
+
+			if (sbp2_command_conversion_device_type(device_type)) {
+
+				SBP2_DEBUG("Modify mode sense response (10 byte version)");
+
+				scsi_buf[0] = scsi_buf[1];	/* Mode data length */
+				scsi_buf[1] = scsi_buf[2];	/* Medium type */
+				scsi_buf[2] = scsi_buf[3];	/* Device specific parameter */
+				scsi_buf[3] = scsi_buf[7];	/* Block descriptor length */
+				memcpy(scsi_buf + 4, scsi_buf + 8, scsi_buf[0]);
+			}
+
+			break;
+
+		case MODE_SELECT:
+
+			/*
+			 * TODO. Probably need to change mode select to 10 byte version
+			 */
 
 		default:
 			break;
@@ -2559,8 +2685,7 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 static int sbp2scsi_slave_configure (struct scsi_device *sdev)
 {
 	blk_queue_dma_alignment(sdev->request_queue, (512 - 1));
-	sdev->use_10_for_rw = 1;
-	sdev->use_10_for_ms = 1;
+
 	return 0;
 }
 

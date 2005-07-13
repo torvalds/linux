@@ -53,10 +53,8 @@ struct machdep_calls {
 	long		(*hpte_insert)(unsigned long hpte_group,
 				       unsigned long va,
 				       unsigned long prpn,
-				       int secondary, 
-				       unsigned long hpteflags, 
-				       int bolted,
-				       int large);
+				       unsigned long vflags,
+				       unsigned long rflags);
 	long		(*hpte_remove)(unsigned long hpte_group);
 	void		(*flush_hash_range)(unsigned long context,
 					    unsigned long number,
@@ -140,7 +138,12 @@ struct machdep_calls {
 						unsigned long size,
 						pgprot_t vma_prot);
 
+	/* Idle loop for this platform, leave empty for default idle loop */
+	int		(*idle_loop)(void);
 };
+
+extern int default_idle(void);
+extern int native_idle(void);
 
 extern struct machdep_calls ppc_md;
 extern char cmd_line[COMMAND_LINE_SIZE];

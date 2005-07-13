@@ -584,7 +584,8 @@ static inline struct array_cache *ac_data(kmem_cache_t *cachep)
 	return cachep->array[smp_processor_id()];
 }
 
-static inline kmem_cache_t *__find_general_cachep(size_t size, int gfpflags)
+static inline kmem_cache_t *__find_general_cachep(size_t size,
+						unsigned int __nocast gfpflags)
 {
 	struct cache_sizes *csizep = malloc_sizes;
 
@@ -608,7 +609,8 @@ static inline kmem_cache_t *__find_general_cachep(size_t size, int gfpflags)
 	return csizep->cs_cachep;
 }
 
-kmem_cache_t *kmem_find_general_cachep(size_t size, int gfpflags)
+kmem_cache_t *kmem_find_general_cachep(size_t size,
+		unsigned int __nocast gfpflags)
 {
 	return __find_general_cachep(size, gfpflags);
 }
@@ -2100,7 +2102,7 @@ cache_alloc_debugcheck_before(kmem_cache_t *cachep, unsigned int __nocast flags)
 #if DEBUG
 static void *
 cache_alloc_debugcheck_after(kmem_cache_t *cachep,
-			unsigned long flags, void *objp, void *caller)
+			unsigned int __nocast flags, void *objp, void *caller)
 {
 	if (!objp)	
 		return objp;
@@ -2372,6 +2374,9 @@ void *kmem_cache_alloc_node(kmem_cache_t *cachep, int flags, int nodeid)
 	struct slab *slabp;
 	kmem_bufctl_t next;
 
+	if (nodeid == -1)
+		return kmem_cache_alloc(cachep, flags);
+
 	for (loop = 0;;loop++) {
 		struct list_head *q;
 
@@ -2439,7 +2444,7 @@ got_slabp:
 }
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 
-void *kmalloc_node(size_t size, int flags, int node)
+void *kmalloc_node(size_t size, unsigned int __nocast flags, int node)
 {
 	kmem_cache_t *cachep;
 
@@ -3091,7 +3096,7 @@ unsigned int ksize(const void *objp)
  * @s: the string to duplicate
  * @gfp: the GFP mask used in the kmalloc() call when allocating memory
  */
-char *kstrdup(const char *s, int gfp)
+char *kstrdup(const char *s, unsigned int __nocast gfp)
 {
 	size_t len;
 	char *buf;

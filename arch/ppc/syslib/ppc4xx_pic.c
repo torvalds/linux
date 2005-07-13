@@ -110,6 +110,10 @@ static int ppc4xx_pic_get_irq(struct pt_regs *regs)
 
 static void __init ppc4xx_pic_impl_init(void)
 {
+#if defined(CONFIG_440GX)
+	/* Disable 440GP compatibility mode if it was enabled in firmware */
+	SDR_WRITE(DCRN_SDR_MFR, SDR_READ(DCRN_SDR_MFR) & ~DCRN_SDR_MFR_PCM);
+#endif
 	/* Configure Base UIC */
 	mtdcr(DCRN_UIC_CR(UICB), 0);
 	mtdcr(DCRN_UIC_TR(UICB), 0);

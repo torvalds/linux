@@ -6,13 +6,13 @@
  * Copyright (C) 2004 Silicon Graphics, Inc. All rights reserved.
  */
 
-#include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/types.h>
+#include <asm/sn/pcibr_provider.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
-#include "pci/tiocp.h"
-#include "pci/pic.h"
-#include "pci/pcibr_provider.h"
+#include <asm/sn/pic.h>
+#include <asm/sn/tiocp.h>
 
 union br_ptr {
 	struct tiocp tio;

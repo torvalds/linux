@@ -67,12 +67,18 @@ static struct fb_fix_screeninfo __devinitdata s1d13xxxfb_fix = {
 static inline u8
 s1d13xxxfb_readreg(struct s1d13xxxfb_par *par, u16 regno)
 {
+#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_OPSPUT) || defined(CONFIG_PLAT_MAPPI3)
+	regno=((regno & 1) ? (regno & ~1L) : (regno + 1));
+#endif
 	return readb(par->regs + regno);
 }
 
 static inline void
 s1d13xxxfb_writereg(struct s1d13xxxfb_par *par, u16 regno, u8 value)
 {
+#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_OPSPUT) || defined(CONFIG_PLAT_MAPPI3)
+	regno=((regno & 1) ? (regno & ~1L) : (regno + 1));
+#endif
 	writeb(value, par->regs + regno);
 }
 
@@ -259,7 +265,11 @@ s1d13xxxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			dbg("s1d13xxxfb_setcolreg: pseudo %d, val %08x\n",
 				    regno, pseudo_val);
 
+#if defined(CONFIG_PLAT_MAPPI)
+			((u32 *)info->pseudo_palette)[regno] = cpu_to_le16(pseudo_val);
+#else
 			((u32 *)info->pseudo_palette)[regno] = pseudo_val;
+#endif
 
 			break;
 		case FB_VISUAL_PSEUDOCOLOR:

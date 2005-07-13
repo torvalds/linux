@@ -1,5 +1,5 @@
 /* 
- * $Id: mtd.h,v 1.56 2004/08/09 18:46:04 dmarlin Exp $
+ * $Id: mtd.h,v 1.59 2005/04/11 10:19:02 gleixner Exp $
  *
  * Copyright (C) 1999-2003 David Woodhouse <dwmw2@infradead.org> et al.
  *
@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/uio.h>
+#include <linux/notifier.h>
 
 #include <linux/mtd/compatmac.h>
 #include <mtd/mtd-abi.h>
@@ -69,7 +70,6 @@ struct mtd_info {
 
 	u_int32_t oobblock;  // Size of OOB blocks (e.g. 512)
 	u_int32_t oobsize;   // Amount of OOB data per block (e.g. 16)
-	u_int32_t oobavail;  // Number of bytes in OOB area available for fs 
 	u_int32_t ecctype;
 	u_int32_t eccsize;
 	
@@ -80,6 +80,7 @@ struct mtd_info {
 
 	// oobinfo is a nand_oobinfo structure, which can be set by iotcl (MEMSETOOBINFO)
 	struct nand_oobinfo oobinfo;
+	u_int32_t oobavail;  // Number of bytes in OOB area available for fs 
 
 	/* Data for variable erase regions. If numeraseregions is zero,
 	 * it means that the whole device has erasesize as given above. 
@@ -113,12 +114,12 @@ struct mtd_info {
 	 * flash devices. The user data is one time programmable but the
 	 * factory data is read only. 
 	 */
-	int (*read_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
-
+	int (*get_fact_prot_info) (struct mtd_info *mtd, struct otp_info *buf, size_t len);
 	int (*read_fact_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
-
-	/* This function is not yet implemented */
+	int (*get_user_prot_info) (struct mtd_info *mtd, struct otp_info *buf, size_t len);
+	int (*read_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
 	int (*write_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
+	int (*lock_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len);
 
 	/* kvec-based read/write methods. We need these especially for NAND flash,
 	   with its limited number of write cycles per erase.
@@ -146,6 +147,8 @@ struct mtd_info {
 	/* Bad block management functions */
 	int (*block_isbad) (struct mtd_info *mtd, loff_t ofs);
 	int (*block_markbad) (struct mtd_info *mtd, loff_t ofs);
+
+	struct notifier_block reboot_notifier;  /* default mode before reboot */
 
 	void *priv;
 

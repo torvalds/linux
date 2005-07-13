@@ -51,7 +51,6 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_ioctl.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -1642,11 +1641,6 @@ static dev_link_t *nsp_cs_attach(void)
 	link->next               = dev_list;
 	dev_list                 = link;
 	client_reg.dev_info	 = &dev_info;
-	client_reg.EventMask	 =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET	|
-		CS_EVENT_PM_SUSPEND	| CS_EVENT_PM_RESUME	 ;
-	client_reg.event_handler = &nsp_cs_event;
 	client_reg.Version	 = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 	ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -2138,12 +2132,13 @@ static struct pcmcia_device_id nsp_cs_ids[] = {
 MODULE_DEVICE_TABLE(pcmcia, nsp_cs_ids);
 
 static struct pcmcia_driver nsp_driver = {
-	.owner          = THIS_MODULE,
-	.drv            = {
-		.name   = "nsp_cs",
+	.owner		= THIS_MODULE,
+	.drv		= {
+		.name	= "nsp_cs",
 	},
-	.attach         = nsp_cs_attach,
-	.detach         = nsp_cs_detach,
+	.attach		= nsp_cs_attach,
+	.event		= nsp_cs_event,
+	.detach		= nsp_cs_detach,
 	.id_table	= nsp_cs_ids,
 };
 #endif
