@@ -45,8 +45,8 @@ static kmem_cache_t *event_cachep;
 
 static struct vfsmount *inotify_mnt;
 
-/* These are configurable via /proc/sys/inotify */
-int inotify_max_user_devices;
+/* these are configurable via /proc/sys/fs/inotify/ */
+int inotify_max_user_instances;
 int inotify_max_user_watches;
 int inotify_max_queued_events;
 
@@ -124,6 +124,47 @@ struct inotify_watch {
 	s32 			wd;	/* watch descriptor */
 	u32			mask;	/* event mask for this watch */
 };
+
+#ifdef CONFIG_SYSCTL
+
+#include <linux/sysctl.h>
+
+static int zero;
+
+ctl_table inotify_table[] = {
+	{
+		.ctl_name	= INOTIFY_MAX_USER_INSTANCES,
+		.procname	= "max_user_instances",
+		.data		= &inotify_max_user_instances,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero,
+	},
+	{
+		.ctl_name	= INOTIFY_MAX_USER_WATCHES,
+		.procname	= "max_user_watches",
+		.data		= &inotify_max_user_watches,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero, 
+	},
+	{
+		.ctl_name	= INOTIFY_MAX_QUEUED_EVENTS,
+		.procname	= "max_queued_events",
+		.data		= &inotify_max_queued_events,
+		.maxlen		= sizeof(int),
+		.mode		= 0644, 
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec, 
+		.extra1		= &zero
+	},
+	{ .ctl_name = 0 }
+};
+#endif /* CONFIG_SYSCTL */
 
 static inline void get_inotify_dev(struct inotify_device *dev)
 {
@@ -842,7 +883,7 @@ asmlinkage long sys_inotify_init(void)
 
 	user = get_uid(current->user);
 
-	if (unlikely(atomic_read(&user->inotify_devs) >= inotify_max_user_devices)) {
+	if (unlikely(atomic_read(&user->inotify_devs) >= inotify_max_user_instances)) {
 		ret = -EMFILE;
 		goto out_err;
 	}
@@ -979,7 +1020,7 @@ static int __init inotify_init(void)
 	inotify_mnt = kern_mount(&inotify_fs_type);
 
 	inotify_max_queued_events = 8192;
-	inotify_max_user_devices = 128;
+	inotify_max_user_instances = 8;
 	inotify_max_user_watches = 8192;
 
 	atomic_set(&inotify_cookie, 0);
