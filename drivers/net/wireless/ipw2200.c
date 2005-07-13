@@ -8756,6 +8756,7 @@ static int ipw_wx_set_txpow(struct net_device *dev,
 			    union iwreq_data *wrqu, char *extra)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
+	const struct ieee80211_geo *geo = ieee80211_get_geo(priv->ieee);
 	struct ipw_tx_power tx_power;
 	int i;
 
@@ -8785,10 +8786,15 @@ static int ipw_wx_set_txpow(struct net_device *dev,
 
 	/* configure device for 'G' band */
 	tx_power.ieee_mode = IPW_G_MODE;
-	tx_power.num_channels = 11;
-	for (i = 0; i < 11; i++) {
+	tx_power.num_channels = geo->bg_channels;
+	for (i = 0; i < geo->bg_channels; i++) {
+		int max_power = geo->bg[i].max_power;
+
 		tx_power.channels_tx_power[i].channel_number = i + 1;
-		tx_power.channels_tx_power[i].tx_power = priv->tx_power;
+		if (max_power != 0 && priv->tx_power > max_power)
+			tx_power.channels_tx_power[i].tx_power = max_power;
+		else
+			tx_power.channels_tx_power[i].tx_power = priv->tx_power;
 	}
 	if (ipw_send_tx_power(priv, &tx_power))
 		goto error;
@@ -8797,6 +8803,25 @@ static int ipw_wx_set_txpow(struct net_device *dev,
 	tx_power.ieee_mode = IPW_B_MODE;
 	if (ipw_send_tx_power(priv, &tx_power))
 		goto error;
+
+	/* configure device to also handle 'A' band */
+	if (priv->ieee->abg_true) {
+		tx_power.ieee_mode = IPW_A_MODE;
+		tx_power.num_channels = geo->a_channels;
+		for (i = 0; i < geo->a_channels; i++) {
+			int max_power = geo->a[i].max_power;
+
+			tx_power.channels_tx_power[i].channel_number = i + 1;
+			if (max_power != 0 && priv->tx_power > max_power)
+				tx_power.channels_tx_power[i].tx_power =
+				    max_power;
+			else
+				tx_power.channels_tx_power[i].tx_power =
+				    priv->tx_power;
+		}
+		if (ipw_send_tx_power(priv, &tx_power))
+			goto error;
+	}
 
 	up(&priv->sem);
 	return 0;
