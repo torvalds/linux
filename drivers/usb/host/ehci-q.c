@@ -898,7 +898,7 @@ submit_async (
 	struct usb_host_endpoint *ep,
 	struct urb		*urb,
 	struct list_head	*qtd_list,
-	int			mem_flags
+	unsigned		mem_flags
 ) {
 	struct ehci_qtd		*qtd;
 	int			epnum;

@@ -275,6 +275,8 @@ endmenu
 
 source "init/Kconfig"
 
+source "net/Kconfig"
+
 source "drivers/base/Kconfig"
 
 source "arch/um/Kconfig_char"
@@ -287,7 +289,7 @@ config NETDEVICES
 
 source "arch/um/Kconfig_net"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 source "fs/Kconfig"
 

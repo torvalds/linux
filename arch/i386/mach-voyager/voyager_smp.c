@@ -10,6 +10,7 @@
  * the voyager hal to provide the functionality
  */
 #include <linux/config.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
 #include <linux/delay.h>
@@ -40,6 +41,7 @@ static unsigned long cpu_irq_affinity[NR_CPUS] __cacheline_aligned = { [0 ... NR
 /* per CPU data structure (for /proc/cpuinfo et al), visible externally
  * indexed physically */
 struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
+EXPORT_SYMBOL(cpu_data);
 
 /* physical ID of the CPU used to boot the system */
 unsigned char boot_cpu_id;
@@ -72,6 +74,7 @@ static volatile unsigned long smp_invalidate_needed;
 /* Bitmask of currently online CPUs - used by setup.c for
    /proc/cpuinfo, visible externally but still physical */
 cpumask_t cpu_online_map = CPU_MASK_NONE;
+EXPORT_SYMBOL(cpu_online_map);
 
 /* Bitmask of CPUs present in the system - exported by i386_syms.c, used
  * by scheduler but indexed physically */
@@ -238,6 +241,7 @@ static cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 /* This is for the new dynamic CPU boot code */
 cpumask_t cpu_callin_map = CPU_MASK_NONE;
 cpumask_t cpu_callout_map = CPU_MASK_NONE;
+EXPORT_SYMBOL(cpu_callout_map);
 
 /* The per processor IRQ masks (these are usually kept in sync) */
 static __u16 vic_irq_mask[NR_CPUS] __cacheline_aligned;
@@ -978,6 +982,7 @@ void flush_tlb_page(struct vm_area_struct * vma, unsigned long va)
 
 	preempt_enable();
 }
+EXPORT_SYMBOL(flush_tlb_page);
 
 /* enable the requested IRQs */
 static void
@@ -1109,6 +1114,7 @@ smp_call_function (void (*func) (void *info), void *info, int retry,
 
 	return 0;
 }
+EXPORT_SYMBOL(smp_call_function);
 
 /* Sorry about the name.  In an APIC based system, the APICs
  * themselves are programmed to send a timer interrupt.  This is used

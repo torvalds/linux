@@ -54,12 +54,31 @@
 #define _COMPONENT          ACPI_DISPATCHER
 	 ACPI_MODULE_NAME    ("dsopcode")
 
+/* Local prototypes */
 
-/*****************************************************************************
+static acpi_status
+acpi_ds_execute_arguments (
+	struct acpi_namespace_node      *node,
+	struct acpi_namespace_node      *scope_node,
+	u32                             aml_length,
+	u8                              *aml_start);
+
+static acpi_status
+acpi_ds_init_buffer_field (
+	u16                             aml_opcode,
+	union acpi_operand_object       *obj_desc,
+	union acpi_operand_object       *buffer_desc,
+	union acpi_operand_object       *offset_desc,
+	union acpi_operand_object       *length_desc,
+	union acpi_operand_object       *result_desc);
+
+
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ds_execute_arguments
  *
- * PARAMETERS:  Node                - Parent NS node
+ * PARAMETERS:  Node                - Object NS node
+ *              scope_node          - Parent NS node
  *              aml_length          - Length of executable AML
  *              aml_start           - Pointer to the AML
  *
@@ -67,9 +86,9 @@
  *
  * DESCRIPTION: Late (deferred) execution of region or field arguments
  *
- ****************************************************************************/
+ ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ds_execute_arguments (
 	struct acpi_namespace_node      *node,
 	struct acpi_namespace_node      *scope_node,
@@ -162,7 +181,7 @@ acpi_ds_execute_arguments (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ds_get_buffer_field_arguments
  *
@@ -173,7 +192,7 @@ acpi_ds_execute_arguments (
  * DESCRIPTION: Get buffer_field Buffer and Index. This implements the late
  *              evaluation of these field attributes.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ds_get_buffer_field_arguments (
@@ -208,7 +227,7 @@ acpi_ds_get_buffer_field_arguments (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ds_get_buffer_arguments
  *
@@ -219,7 +238,7 @@ acpi_ds_get_buffer_field_arguments (
  * DESCRIPTION: Get Buffer length and initializer byte list.  This implements
  *              the late evaluation of these attributes.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ds_get_buffer_arguments (
@@ -255,7 +274,7 @@ acpi_ds_get_buffer_arguments (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ds_get_package_arguments
  *
@@ -266,7 +285,7 @@ acpi_ds_get_buffer_arguments (
  * DESCRIPTION: Get Package length and initializer byte list.  This implements
  *              the late evaluation of these attributes.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ds_get_package_arguments (
@@ -353,17 +372,17 @@ acpi_ds_get_region_arguments (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ds_initialize_region
  *
- * PARAMETERS:  Op              - A valid region Op object
+ * PARAMETERS:  obj_handle      - Region namespace node
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Front end to ev_initialize_region
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ds_initialize_region (
@@ -382,7 +401,7 @@ acpi_ds_initialize_region (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ds_init_buffer_field
  *
@@ -390,16 +409,16 @@ acpi_ds_initialize_region (
  *              obj_desc        - buffer_field object
  *              buffer_desc     - Host Buffer
  *              offset_desc     - Offset into buffer
- *              Length          - Length of field (CREATE_FIELD_OP only)
- *              Result          - Where to store the result
+ *              length_desc     - Length of field (CREATE_FIELD_OP only)
+ *              result_desc     - Where to store the result
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Perform actual initialization of a buffer field
  *
- ****************************************************************************/
+ ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ds_init_buffer_field (
 	u16                             aml_opcode,
 	union acpi_operand_object       *obj_desc,
@@ -435,8 +454,10 @@ acpi_ds_init_buffer_field (
 	 * after resolution in acpi_ex_resolve_operands().
 	 */
 	if (ACPI_GET_DESCRIPTOR_TYPE (result_desc) != ACPI_DESC_TYPE_NAMED) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "(%s) destination not a NS Node [%s]\n",
-				acpi_ps_get_opcode_name (aml_opcode), acpi_ut_get_descriptor_name (result_desc)));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"(%s) destination not a NS Node [%s]\n",
+				acpi_ps_get_opcode_name (aml_opcode),
+				acpi_ut_get_descriptor_name (result_desc)));
 
 		status = AE_AML_OPERAND_TYPE;
 		goto cleanup;
@@ -452,9 +473,18 @@ acpi_ds_init_buffer_field (
 
 		/* Offset is in bits, count is in bits */
 
+		field_flags = AML_FIELD_ACCESS_BYTE;
 		bit_offset = offset;
 		bit_count  = (u32) length_desc->integer.value;
-		field_flags = AML_FIELD_ACCESS_BYTE;
+
+		/* Must have a valid (>0) bit count */
+
+		if (bit_count == 0) {
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"Attempt to create_field of length 0\n"));
+			status = AE_AML_OPERAND_VALUE;
+			goto cleanup;
+		}
 		break;
 
 	case AML_CREATE_BIT_FIELD_OP:
@@ -527,7 +557,8 @@ acpi_ds_init_buffer_field (
 
 	/*
 	 * Initialize areas of the field object that are common to all fields
-	 * For field_flags, use LOCK_RULE = 0 (NO_LOCK), UPDATE_RULE = 0 (UPDATE_PRESERVE)
+	 * For field_flags, use LOCK_RULE = 0 (NO_LOCK),
+	 * UPDATE_RULE = 0 (UPDATE_PRESERVE)
 	 */
 	status = acpi_ex_prep_common_field_object (obj_desc, field_flags, 0,
 			  bit_offset, bit_count);
@@ -539,8 +570,8 @@ acpi_ds_init_buffer_field (
 
 	/* Reference count for buffer_desc inherits obj_desc count */
 
-	buffer_desc->common.reference_count = (u16) (buffer_desc->common.reference_count +
-			  obj_desc->common.reference_count);
+	buffer_desc->common.reference_count = (u16)
+		(buffer_desc->common.reference_count + obj_desc->common.reference_count);
 
 
 cleanup:
@@ -569,7 +600,7 @@ cleanup:
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ds_eval_buffer_field_operands
  *
@@ -581,7 +612,7 @@ cleanup:
  * DESCRIPTION: Get buffer_field Buffer and Index
  *              Called from acpi_ds_exec_end_op during buffer_field parse tree walk
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ds_eval_buffer_field_operands (
@@ -656,7 +687,7 @@ acpi_ds_eval_buffer_field_operands (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ds_eval_region_operands
  *
@@ -668,7 +699,7 @@ acpi_ds_eval_buffer_field_operands (
  * DESCRIPTION: Get region address and length
  *              Called from acpi_ds_exec_end_op during op_region parse tree walk
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ds_eval_region_operands (
@@ -686,7 +717,8 @@ acpi_ds_eval_region_operands (
 
 
 	/*
-	 * This is where we evaluate the address and length fields of the op_region declaration
+	 * This is where we evaluate the address and length fields of the
+	 * op_region declaration
 	 */
 	node =  op->common.node;
 
@@ -707,7 +739,8 @@ acpi_ds_eval_region_operands (
 
 	/* Resolve the length and address operands to numbers */
 
-	status = acpi_ex_resolve_operands (op->common.aml_opcode, ACPI_WALK_OPERANDS, walk_state);
+	status = acpi_ex_resolve_operands (op->common.aml_opcode,
+			 ACPI_WALK_OPERANDS, walk_state);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
 	}
@@ -736,7 +769,8 @@ acpi_ds_eval_region_operands (
 	 */
 	operand_desc = walk_state->operands[walk_state->num_operands - 2];
 
-	obj_desc->region.address = (acpi_physical_address) operand_desc->integer.value;
+	obj_desc->region.address = (acpi_physical_address)
+			  operand_desc->integer.value;
 	acpi_ut_remove_reference (operand_desc);
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "rgn_obj %p Addr %8.8X%8.8X Len %X\n",
@@ -752,7 +786,7 @@ acpi_ds_eval_region_operands (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ds_eval_data_object_operands
  *
@@ -765,7 +799,7 @@ acpi_ds_eval_region_operands (
  * DESCRIPTION: Get the operands and complete the following data object types:
  *              Buffer, Package.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
 acpi_ds_eval_data_object_operands (
@@ -830,7 +864,7 @@ acpi_ds_eval_data_object_operands (
 
 	if (ACPI_SUCCESS (status)) {
 		/*
-		 * Return the object in the walk_state, unless the parent is a package --
+		 * Return the object in the walk_state, unless the parent is a package -
 		 * in this case, the return object will be stored in the parse tree
 		 * for the package.
 		 */
@@ -988,7 +1022,8 @@ acpi_ds_exec_end_control_op (
 			status = AE_CTRL_PENDING;
 		}
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "[WHILE_OP] termination! Op=%p\n", op));
+		ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+			"[WHILE_OP] termination! Op=%p\n",op));
 
 		/* Pop this control state and free it */
 

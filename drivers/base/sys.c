@@ -22,7 +22,6 @@
 #include <linux/string.h>
 #include <linux/pm.h>
 
-
 extern struct subsystem devices_subsys;
 
 #define to_sysdev(k) container_of(k, struct sys_device, kobj)

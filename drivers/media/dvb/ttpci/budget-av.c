@@ -1022,7 +1022,7 @@ static struct pci_device_id pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 static struct saa7146_extension budget_extension = {
-	.name = "budget dvb /w video in\0",
+	.name = "budget_av",
 	.pci_tbl = pci_tbl,
 
 	.module = THIS_MODULE,

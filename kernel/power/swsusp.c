@@ -63,6 +63,7 @@
 #include <linux/console.h>
 #include <linux/highmem.h>
 #include <linux/bio.h>
+#include <linux/mount.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -1259,8 +1260,6 @@ static int data_read(struct pbe *pblist)
 	printk("\b\b\b\bdone\n");
 	return error;
 }
-
-extern dev_t name_to_dev_t(const char *line);
 
 /**
  *	read_pagedir - Read page backup list pages from swap

@@ -69,8 +69,8 @@ int sys_pipe(int __user *userfds)
 /*
  * Common code for old and new mmaps.
  */
-long sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
-	       unsigned long flags, unsigned long fd, unsigned long pgoff)
+long sys_mmap(unsigned long addr, unsigned long len, unsigned long prot,
+	      unsigned long flags, unsigned long fd, unsigned long pgoff)
 {
 	int error = -EBADF;
 	struct file * file = NULL;

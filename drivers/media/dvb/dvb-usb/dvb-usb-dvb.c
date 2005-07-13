@@ -175,7 +175,7 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 int dvb_usb_fe_init(struct dvb_usb_device* d)
 {
 	if (d->props.frontend_attach == NULL) {
-		err("strange '%s' don't want to attach a frontend.",d->desc->name);
+		err("strange '%s' doesn't want to attach a frontend.",d->desc->name);
 		return 0;
 	}
 

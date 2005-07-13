@@ -212,6 +212,12 @@ acpi_bus_set_power (
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Device is not power manageable\n"));
 		return_VALUE(-ENODEV);
 	}
+	/*
+	 * Get device's current power state if it's unknown
+	 * This means device power state isn't initialized or previous setting failed
+	 */
+	if (device->power.state == ACPI_STATE_UNKNOWN)
+		acpi_bus_get_power(device->handle, &device->power.state);
 	if (state == device->power.state) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at D%d\n", state));
 		return_VALUE(0);
@@ -231,7 +237,7 @@ acpi_bus_set_power (
 	 * On transitions to a high-powered state we first apply power (via
 	 * power resources) then evalute _PSx.  Conversly for transitions to
 	 * a lower-powered state.
-	 */ 
+	 */
 	if (state < device->power.state) {
 		if (device->power.flags.power_resources) {
 			result = acpi_power_transition(device, state);

@@ -15,7 +15,6 @@
 #include <asm/processor.h>
 
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/stddef.h>
 #include <linux/thread_info.h>
 #include <linux/ptrace.h>

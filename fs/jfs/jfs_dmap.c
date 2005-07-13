@@ -26,36 +26,6 @@
 #include "jfs_debug.h"
 
 /*
- *	Debug code for double-checking block map
- */
-/* #define	_JFS_DEBUG_DMAP	1 */
-
-#ifdef	_JFS_DEBUG_DMAP
-#define DBINITMAP(size,ipbmap,results) \
-	DBinitmap(size,ipbmap,results)
-#define DBALLOC(dbmap,mapsize,blkno,nblocks) \
-	DBAlloc(dbmap,mapsize,blkno,nblocks)
-#define DBFREE(dbmap,mapsize,blkno,nblocks) \
-	DBFree(dbmap,mapsize,blkno,nblocks)
-#define DBALLOCCK(dbmap,mapsize,blkno,nblocks) \
-	DBAllocCK(dbmap,mapsize,blkno,nblocks)
-#define DBFREECK(dbmap,mapsize,blkno,nblocks) \
-	DBFreeCK(dbmap,mapsize,blkno,nblocks)
-
-static void DBinitmap(s64, struct inode *, u32 **);
-static void DBAlloc(uint *, s64, s64, s64);
-static void DBFree(uint *, s64, s64, s64);
-static void DBAllocCK(uint *, s64, s64, s64);
-static void DBFreeCK(uint *, s64, s64, s64);
-#else
-#define DBINITMAP(size,ipbmap,results)
-#define DBALLOC(dbmap, mapsize, blkno, nblocks)
-#define DBFREE(dbmap, mapsize, blkno, nblocks)
-#define DBALLOCCK(dbmap, mapsize, blkno, nblocks)
-#define DBFREECK(dbmap, mapsize, blkno, nblocks)
-#endif				/* _JFS_DEBUG_DMAP */
-
-/*
  *	SERIALIZATION of the Block Allocation Map.
  *
  *	the working state of the block allocation map is accessed in
@@ -242,7 +212,6 @@ int dbMount(struct inode *ipbmap)
 	JFS_SBI(ipbmap->i_sb)->bmap = bmp;
 
 	memset(bmp->db_active, 0, sizeof(bmp->db_active));
-	DBINITMAP(bmp->db_mapsize, ipbmap, &bmp->db_DBmap);
 
 	/*
 	 * allocate/initialize the bmap lock
@@ -407,16 +376,12 @@ int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
 		 */
 		nb = min(rem, BPERDMAP - (blkno & (BPERDMAP - 1)));
 
-		DBALLOCCK(bmp->db_DBmap, bmp->db_mapsize, blkno, nb);
-
 		/* free the blocks. */
 		if ((rc = dbFreeDmap(bmp, dp, blkno, nb))) {
 			release_metapage(mp);
 			IREAD_UNLOCK(ipbmap);
 			return (rc);
 		}
-
-		DBFREE(bmp->db_DBmap, bmp->db_mapsize, blkno, nb);
 	}
 
 	/* write the last buffer. */
@@ -775,10 +740,6 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 		IWRITE_LOCK(ipbmap);
 
 		rc = dbAllocAny(bmp, nblocks, l2nb, results);
-		if (rc == 0) {
-			DBALLOC(bmp->db_DBmap, bmp->db_mapsize, *results,
-				nblocks);
-		}
 
 		goto write_unlock;
 	}
@@ -836,8 +797,6 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 		    != -ENOSPC) {
 			if (rc == 0) {
 				*results = blkno;
-				DBALLOC(bmp->db_DBmap, bmp->db_mapsize,
-					*results, nblocks);
 				mark_metapage_dirty(mp);
 			}
 
@@ -863,11 +822,8 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 		if ((rc =
 		     dbAllocNear(bmp, dp, blkno, (int) nblocks, l2nb, results))
 		    != -ENOSPC) {
-			if (rc == 0) {
-				DBALLOC(bmp->db_DBmap, bmp->db_mapsize,
-					*results, nblocks);
+			if (rc == 0)
 				mark_metapage_dirty(mp);
-			}
 
 			release_metapage(mp);
 			goto read_unlock;
@@ -878,11 +834,8 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 		 */
 		if ((rc = dbAllocDmapLev(bmp, dp, (int) nblocks, l2nb, results))
 		    != -ENOSPC) {
-			if (rc == 0) {
-				DBALLOC(bmp->db_DBmap, bmp->db_mapsize,
-					*results, nblocks);
+			if (rc == 0)
 				mark_metapage_dirty(mp);
-			}
 
 			release_metapage(mp);
 			goto read_unlock;
@@ -896,13 +849,9 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	 * the same allocation group as the hint.
 	 */
 	IWRITE_LOCK(ipbmap);
-	if ((rc = dbAllocAG(bmp, agno, nblocks, l2nb, results))
-	    != -ENOSPC) {
-		if (rc == 0)
-			DBALLOC(bmp->db_DBmap, bmp->db_mapsize,
-				*results, nblocks);
+	if ((rc = dbAllocAG(bmp, agno, nblocks, l2nb, results)) != -ENOSPC)
 		goto write_unlock;
-	}
+
 	IWRITE_UNLOCK(ipbmap);
 
 
@@ -918,9 +867,6 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	 */
 	if ((rc = dbAllocAG(bmp, agno, nblocks, l2nb, results)) == -ENOSPC)
 		rc = dbAllocAny(bmp, nblocks, l2nb, results);
-	if (rc == 0) {
-		DBALLOC(bmp->db_DBmap, bmp->db_mapsize, *results, nblocks);
-	}
 
       write_unlock:
 	IWRITE_UNLOCK(ipbmap);
@@ -992,10 +938,9 @@ int dbAllocExact(struct inode *ip, s64 blkno, int nblocks)
 
 	IREAD_UNLOCK(ipbmap);
 
-	if (rc == 0) {
-		DBALLOC(bmp->db_DBmap, bmp->db_mapsize, blkno, nblocks);
+	if (rc == 0)
 		mark_metapage_dirty(mp);
-	}
+
 	release_metapage(mp);
 
 	return (rc);
@@ -1144,7 +1089,6 @@ static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
 		return -EIO;
 	}
 
-	DBALLOCCK(bmp->db_DBmap, bmp->db_mapsize, blkno, nblocks);
 	dp = (struct dmap *) mp->data;
 
 	/* try to allocate the blocks immediately following the
@@ -1155,11 +1099,9 @@ static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
 	IREAD_UNLOCK(ipbmap);
 
 	/* were we successful ? */
-	if (rc == 0) {
-		DBALLOC(bmp->db_DBmap, bmp->db_mapsize, extblkno,
-			addnblocks);
+	if (rc == 0)
 		write_metapage(mp);
-	} else
+	else
 		/* we were not successful */
 		release_metapage(mp);
 
@@ -3185,16 +3127,12 @@ int dbAllocBottomUp(struct inode *ip, s64 blkno, s64 nblocks)
 		 */
 		nb = min(rem, BPERDMAP - (blkno & (BPERDMAP - 1)));
 
-		DBFREECK(bmp->db_DBmap, bmp->db_mapsize, blkno, nb);
-
 		/* allocate the blocks. */
 		if ((rc = dbAllocDmapBU(bmp, dp, blkno, nb))) {
 			release_metapage(mp);
 			IREAD_UNLOCK(ipbmap);
 			return (rc);
 		}
-
-		DBALLOC(bmp->db_DBmap, bmp->db_mapsize, blkno, nb);
 	}
 
 	/* write the last buffer. */
@@ -4041,223 +3979,3 @@ s64 dbMapFileSizeToMapSize(struct inode * ipbmap)
 
 	return (nblocks);
 }
-
-
-#ifdef	_JFS_DEBUG_DMAP
-/*
- *	DBinitmap()
- */
-static void DBinitmap(s64 size, struct inode *ipbmap, u32 ** results)
-{
-	int npages;
-	u32 *dbmap, *d;
-	int n;
-	s64 lblkno, cur_block;
-	struct dmap *dp;
-	struct metapage *mp;
-
-	npages = size / 32768;
-	npages += (size % 32768) ? 1 : 0;
-
-	dbmap = (u32 *) xmalloc(npages * 4096, L2PSIZE, kernel_heap);
-	if (dbmap == NULL)
-		BUG();	/* Not robust since this is only unused debug code */
-
-	for (n = 0, d = dbmap; n < npages; n++, d += 1024)
-		bzero(d, 4096);
-
-	/* Need to initialize from disk map pages
-	 */
-	for (d = dbmap, cur_block = 0; cur_block < size;
-	     cur_block += BPERDMAP, d += LPERDMAP) {
-		lblkno = BLKTODMAP(cur_block,
-				   JFS_SBI(ipbmap->i_sb)->bmap->
-				   db_l2nbperpage);
-		mp = read_metapage(ipbmap, lblkno, PSIZE, 0);
-		if (mp == NULL) {
-			jfs_error(ipbmap->i_sb,
-				  "DBinitmap: could not read disk map page");
-			continue;
-		}
-		dp = (struct dmap *) mp->data;
-
-		for (n = 0; n < LPERDMAP; n++)
-			d[n] = le32_to_cpu(dp->wmap[n]);
-
-		release_metapage(mp);
-	}
-
-	*results = dbmap;
-}
-
-
-/*
- *	DBAlloc()
- */
-void DBAlloc(uint * dbmap, s64 mapsize, s64 blkno, s64 nblocks)
-{
-	int word, nb, bitno;
-	u32 mask;
-
-	assert(blkno > 0 && blkno < mapsize);
-	assert(nblocks > 0 && nblocks <= mapsize);
-
-	assert(blkno + nblocks <= mapsize);
-
-	dbmap += (blkno / 32);
-	while (nblocks > 0) {
-		bitno = blkno & (32 - 1);
-		nb = min(nblocks, 32 - bitno);
-
-		mask = (0xffffffff << (32 - nb) >> bitno);
-		assert((mask & *dbmap) == 0);
-		*dbmap |= mask;
-
-		dbmap++;
-		blkno += nb;
-		nblocks -= nb;
-	}
-}
-
-
-/*
- *	DBFree()
- */
-static void DBFree(uint * dbmap, s64 mapsize, s64 blkno, s64 nblocks)
-{
-	int word, nb, bitno;
-	u32 mask;
-
-	assert(blkno > 0 && blkno < mapsize);
-	assert(nblocks > 0 && nblocks <= mapsize);
-
-	assert(blkno + nblocks <= mapsize);
-
-	dbmap += (blkno / 32);
-	while (nblocks > 0) {
-		bitno = blkno & (32 - 1);
-		nb = min(nblocks, 32 - bitno);
-
-		mask = (0xffffffff << (32 - nb) >> bitno);
-		assert((mask & *dbmap) == mask);
-		*dbmap &= ~mask;
-
-		dbmap++;
-		blkno += nb;
-		nblocks -= nb;
-	}
-}
-
-
-/*
- *	DBAllocCK()
- */
-static void DBAllocCK(uint * dbmap, s64 mapsize, s64 blkno, s64 nblocks)
-{
-	int word, nb, bitno;
-	u32 mask;
-
-	assert(blkno > 0 && blkno < mapsize);
-	assert(nblocks > 0 && nblocks <= mapsize);
-
-	assert(blkno + nblocks <= mapsize);
-
-	dbmap += (blkno / 32);
-	while (nblocks > 0) {
-		bitno = blkno & (32 - 1);
-		nb = min(nblocks, 32 - bitno);
-
-		mask = (0xffffffff << (32 - nb) >> bitno);
-		assert((mask & *dbmap) == mask);
-
-		dbmap++;
-		blkno += nb;
-		nblocks -= nb;
-	}
-}
-
-
-/*
- *	DBFreeCK()
- */
-static void DBFreeCK(uint * dbmap, s64 mapsize, s64 blkno, s64 nblocks)
-{
-	int word, nb, bitno;
-	u32 mask;
-
-	assert(blkno > 0 && blkno < mapsize);
-	assert(nblocks > 0 && nblocks <= mapsize);
-
-	assert(blkno + nblocks <= mapsize);
-
-	dbmap += (blkno / 32);
-	while (nblocks > 0) {
-		bitno = blkno & (32 - 1);
-		nb = min(nblocks, 32 - bitno);
-
-		mask = (0xffffffff << (32 - nb) >> bitno);
-		assert((mask & *dbmap) == 0);
-
-		dbmap++;
-		blkno += nb;
-		nblocks -= nb;
-	}
-}
-
-
-/*
- *	dbPrtMap()
- */
-static void dbPrtMap(struct bmap * bmp)
-{
-	printk("   mapsize:   %d%d\n", bmp->db_mapsize);
-	printk("   nfree:     %d%d\n", bmp->db_nfree);
-	printk("   numag:     %d\n", bmp->db_numag);
-	printk("   agsize:    %d%d\n", bmp->db_agsize);
-	printk("   agl2size:  %d\n", bmp->db_agl2size);
-	printk("   agwidth:   %d\n", bmp->db_agwidth);
-	printk("   agstart:   %d\n", bmp->db_agstart);
-	printk("   agheigth:  %d\n", bmp->db_agheigth);
-	printk("   aglevel:   %d\n", bmp->db_aglevel);
-	printk("   maxlevel:  %d\n", bmp->db_maxlevel);
-	printk("   maxag:     %d\n", bmp->db_maxag);
-	printk("   agpref:    %d\n", bmp->db_agpref);
-	printk("   l2nbppg:   %d\n", bmp->db_l2nbperpage);
-}
-
-
-/*
- *	dbPrtCtl()
- */
-static void dbPrtCtl(struct dmapctl * dcp)
-{
-	int i, j, n;
-
-	printk("   height:    %08x\n", le32_to_cpu(dcp->height));
-	printk("   leafidx:   %08x\n", le32_to_cpu(dcp->leafidx));
-	printk("   budmin:    %08x\n", dcp->budmin);
-	printk("   nleafs:    %08x\n", le32_to_cpu(dcp->nleafs));
-	printk("   l2nleafs:  %08x\n", le32_to_cpu(dcp->l2nleafs));
-
-	printk("\n Tree:\n");
-	for (i = 0; i < CTLLEAFIND; i += 8) {
-		n = min(8, CTLLEAFIND - i);
-
-		for (j = 0; j < n; j++)
-			printf("  [%03x]: %02x", i + j,
-			       (char) dcp->stree[i + j]);
-		printf("\n");
-	}
-
-	printk("\n Tree Leaves:\n");
-	for (i = 0; i < LPERCTL; i += 8) {
-		n = min(8, LPERCTL - i);
-
-		for (j = 0; j < n; j++)
-			printf("  [%03x]: %02x",
-			       i + j,
-			       (char) dcp->stree[i + j + CTLLEAFIND]);
-		printf("\n");
-	}
-}
-#endif				/* _JFS_DEBUG_DMAP */

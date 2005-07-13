@@ -21,7 +21,7 @@
 #include <linux/namei.h>
 #include <linux/quotaops.h>
 #include <linux/pagemap.h>
-#include <linux/dnotify.h>
+#include <linux/fsnotify.h>
 #include <linux/smp_lock.h>
 #include <linux/personality.h>
 #include <linux/security.h>
@@ -1312,7 +1312,7 @@ int vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	DQUOT_INIT(dir);
 	error = dir->i_op->create(dir, dentry, mode, nd);
 	if (!error) {
-		inode_dir_notify(dir, DN_CREATE);
+		fsnotify_create(dir, dentry->d_name.name);
 		security_inode_post_create(dir, dentry, mode);
 	}
 	return error;
@@ -1637,7 +1637,7 @@ int vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	DQUOT_INIT(dir);
 	error = dir->i_op->mknod(dir, dentry, mode, dev);
 	if (!error) {
-		inode_dir_notify(dir, DN_CREATE);
+		fsnotify_create(dir, dentry->d_name.name);
 		security_inode_post_mknod(dir, dentry, mode, dev);
 	}
 	return error;
@@ -1710,7 +1710,7 @@ int vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	DQUOT_INIT(dir);
 	error = dir->i_op->mkdir(dir, dentry, mode);
 	if (!error) {
-		inode_dir_notify(dir, DN_CREATE);
+		fsnotify_mkdir(dir, dentry->d_name.name);
 		security_inode_post_mkdir(dir,dentry, mode);
 	}
 	return error;
@@ -1801,7 +1801,7 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 	up(&dentry->d_inode->i_sem);
 	if (!error) {
-		inode_dir_notify(dir, DN_DELETE);
+		fsnotify_rmdir(dentry, dentry->d_inode, dir);
 		d_delete(dentry);
 	}
 	dput(dentry);
@@ -1874,9 +1874,10 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	/* We don't d_delete() NFS sillyrenamed files--they still exist. */
 	if (!error && !(dentry->d_flags & DCACHE_NFSFS_RENAMED)) {
+		fsnotify_unlink(dentry, dir);
 		d_delete(dentry);
-		inode_dir_notify(dir, DN_DELETE);
 	}
+
 	return error;
 }
 
@@ -1950,7 +1951,7 @@ int vfs_symlink(struct inode *dir, struct dentry *dentry, const char *oldname, i
 	DQUOT_INIT(dir);
 	error = dir->i_op->symlink(dir, dentry, oldname);
 	if (!error) {
-		inode_dir_notify(dir, DN_CREATE);
+		fsnotify_create(dir, dentry->d_name.name);
 		security_inode_post_symlink(dir, dentry, oldname);
 	}
 	return error;
@@ -2023,7 +2024,7 @@ int vfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_de
 	error = dir->i_op->link(old_dentry, dir, new_dentry);
 	up(&old_dentry->d_inode->i_sem);
 	if (!error) {
-		inode_dir_notify(dir, DN_CREATE);
+		fsnotify_create(dir, new_dentry->d_name.name);
 		security_inode_post_link(old_dentry, dir, new_dentry);
 	}
 	return error;
@@ -2187,6 +2188,7 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 {
 	int error;
 	int is_dir = S_ISDIR(old_dentry->d_inode->i_mode);
+	const char *old_name;
 
 	if (old_dentry->d_inode == new_dentry->d_inode)
  		return 0;
@@ -2208,18 +2210,18 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	DQUOT_INIT(old_dir);
 	DQUOT_INIT(new_dir);
 
+	old_name = fsnotify_oldname_init(old_dentry->d_name.name);
+
 	if (is_dir)
 		error = vfs_rename_dir(old_dir,old_dentry,new_dir,new_dentry);
 	else
 		error = vfs_rename_other(old_dir,old_dentry,new_dir,new_dentry);
 	if (!error) {
-		if (old_dir == new_dir)
-			inode_dir_notify(old_dir, DN_RENAME);
-		else {
-			inode_dir_notify(old_dir, DN_DELETE);
-			inode_dir_notify(new_dir, DN_CREATE);
-		}
+		const char *new_name = old_dentry->d_name.name;
+		fsnotify_move(old_dir, new_dir, old_name, new_name, is_dir);
 	}
+	fsnotify_oldname_free(old_name);
+
 	return error;
 }
 

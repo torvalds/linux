@@ -100,7 +100,6 @@ acpi_ds_clear_implicit_return (
 
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_do_implicit_return
@@ -205,7 +204,7 @@ acpi_ds_is_result_used (
 	 * NOTE: this is optional because the ASL language does not actually
 	 * support this behavior.
 	 */
-	acpi_ds_do_implicit_return (walk_state->result_obj, walk_state, TRUE);
+	(void) acpi_ds_do_implicit_return (walk_state->result_obj, walk_state, TRUE);
 
 	/*
 	 * Now determine if the parent will use the result
@@ -219,8 +218,9 @@ acpi_ds_is_result_used (
 		(op->common.parent->common.aml_opcode == AML_SCOPE_OP)) {
 		/* No parent, the return value cannot possibly be used */
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "At Method level, result of [%s] not used\n",
-				acpi_ps_get_opcode_name (op->common.aml_opcode)));
+		ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+			"At Method level, result of [%s] not used\n",
+			acpi_ps_get_opcode_name (op->common.aml_opcode)));
 		return_VALUE (FALSE);
 	}
 
@@ -228,7 +228,8 @@ acpi_ds_is_result_used (
 
 	parent_info = acpi_ps_get_opcode_info (op->common.parent->common.aml_opcode);
 	if (parent_info->class == AML_CLASS_UNKNOWN) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown parent opcode. Op=%p\n", op));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+			"Unknown parent opcode. Op=%p\n", op));
 		return_VALUE (FALSE);
 	}
 
@@ -309,17 +310,19 @@ acpi_ds_is_result_used (
 
 
 result_used:
-	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Result of [%s] used by Parent [%s] Op=%p\n",
-			acpi_ps_get_opcode_name (op->common.aml_opcode),
-			acpi_ps_get_opcode_name (op->common.parent->common.aml_opcode), op));
+	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+		"Result of [%s] used by Parent [%s] Op=%p\n",
+		acpi_ps_get_opcode_name (op->common.aml_opcode),
+		acpi_ps_get_opcode_name (op->common.parent->common.aml_opcode), op));
 
 	return_VALUE (TRUE);
 
 
 result_not_used:
-	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Result of [%s] not used by Parent [%s] Op=%p\n",
-			acpi_ps_get_opcode_name (op->common.aml_opcode),
-			acpi_ps_get_opcode_name (op->common.parent->common.aml_opcode), op));
+	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+		"Result of [%s] not used by Parent [%s] Op=%p\n",
+		acpi_ps_get_opcode_name (op->common.aml_opcode),
+		acpi_ps_get_opcode_name (op->common.parent->common.aml_opcode), op));
 
 	return_VALUE (FALSE);
 }
@@ -522,7 +525,8 @@ acpi_ds_create_operand (
 		if ((walk_state->deferred_node) &&
 			(walk_state->deferred_node->type == ACPI_TYPE_BUFFER_FIELD) &&
 			(arg_index != 0)) {
-			obj_desc = ACPI_CAST_PTR (union acpi_operand_object, walk_state->deferred_node);
+			obj_desc = ACPI_CAST_PTR (
+					 union acpi_operand_object, walk_state->deferred_node);
 			status = AE_OK;
 		}
 		else    /* All other opcodes */ {
@@ -565,7 +569,8 @@ acpi_ds_create_operand (
 					 * indicate this to the interpreter, set the
 					 * object to the root
 					 */
-					obj_desc = ACPI_CAST_PTR (union acpi_operand_object, acpi_gbl_root_node);
+					obj_desc = ACPI_CAST_PTR (
+							 union acpi_operand_object, acpi_gbl_root_node);
 					status = AE_OK;
 				}
 				else {
@@ -612,7 +617,8 @@ acpi_ds_create_operand (
 			 */
 			opcode = AML_ZERO_OP;       /* Has no arguments! */
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Null namepath: Arg=%p\n", arg));
+			ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+				"Null namepath: Arg=%p\n", arg));
 		}
 		else {
 			opcode = arg->common.aml_opcode;
@@ -642,7 +648,8 @@ acpi_ds_create_operand (
 				 * Only error is underflow, and this indicates
 				 * a missing or null operand!
 				 */
-				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Missing or null operand, %s\n",
+				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+					"Missing or null operand, %s\n",
 					acpi_format_exception (status)));
 				return_ACPI_STATUS (status);
 			}
@@ -657,8 +664,8 @@ acpi_ds_create_operand (
 
 			/* Initialize the new object */
 
-			status = acpi_ds_init_object_from_op (walk_state, arg,
-					 opcode, &obj_desc);
+			status = acpi_ds_init_object_from_op (
+					 walk_state, arg, opcode, &obj_desc);
 			if (ACPI_FAILURE (status)) {
 				acpi_ut_delete_object_desc (obj_desc);
 				return_ACPI_STATUS (status);
