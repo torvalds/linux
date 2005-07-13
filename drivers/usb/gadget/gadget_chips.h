@@ -5,6 +5,7 @@
  *
  * This could eventually work like the ARM mach_is_*() stuff, driven by
  * some config file that gets updated as new hardware is supported.
+ * (And avoiding the runtime comparisons in typical one-choice cases.)
  *
  * NOTE:  some of these controller drivers may not be available yet.
  */
@@ -86,7 +87,61 @@
 #define gadget_is_at91(g)	0
 #endif
 
+#ifdef CONFIG_USB_GADGET_IMX
+#define gadget_is_imx(g)	!strcmp("imx_udc", (g)->name)
+#else
+#define gadget_is_imx(g)	0
+#endif
+
 // CONFIG_USB_GADGET_SX2
 // CONFIG_USB_GADGET_AU1X00
 // ...
 
+
+/**
+ * usb_gadget_controller_number - support bcdDevice id convention
+ * @gadget: the controller being driven
+ *
+ * Return a 2-digit BCD value associated with the peripheral controller,
+ * suitable for use as part of a bcdDevice value, or a negative error code.
+ *
+ * NOTE:  this convention is purely optional, and has no meaning in terms of
+ * any USB specification.  If you want to use a different convention in your
+ * gadget driver firmware -- maybe a more formal revision ID -- feel free.
+ *
+ * Hosts see these bcdDevice numbers, and are allowed (but not encouraged!)
+ * to change their behavior accordingly.  For example it might help avoiding
+ * some chip bug.
+ */
+static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
+{
+	if (gadget_is_net2280(gadget))
+		return 0x01;
+	else if (gadget_is_dummy(gadget))
+		return 0x02;
+	else if (gadget_is_pxa(gadget))
+		return 0x03;
+	else if (gadget_is_sh(gadget))
+		return 0x04;
+	else if (gadget_is_sa1100(gadget))
+		return 0x05;
+	else if (gadget_is_goku(gadget))
+		return 0x06;
+	else if (gadget_is_mq11xx(gadget))
+		return 0x07;
+	else if (gadget_is_omap(gadget))
+		return 0x08;
+	else if (gadget_is_lh7a40x(gadget))
+		return 0x09;
+	else if (gadget_is_n9604(gadget))
+		return 0x10;
+	else if (gadget_is_pxa27x(gadget))
+		return 0x11;
+	else if (gadget_is_s3c2410(gadget))
+		return 0x12;
+	else if (gadget_is_at91(gadget))
+		return 0x13;
+	else if (gadget_is_imx(gadget))
+		return 0x14;
+	return -ENOENT;
+}
