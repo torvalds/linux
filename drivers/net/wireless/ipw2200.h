@@ -1205,6 +1205,7 @@ struct ipw_priv {
 	struct work_struct adhoc_check;
 	struct work_struct associate;
 	struct work_struct disassociate;
+	struct work_struct system_config;
 	struct work_struct rx_replenish;
 	struct work_struct request_scan;
 	struct work_struct adapter_restart;

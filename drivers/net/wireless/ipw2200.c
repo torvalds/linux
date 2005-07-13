@@ -3589,6 +3589,12 @@ static void ipw_bg_disassociate(void *data)
 	up(&priv->sem);
 }
 
+static void ipw_system_config(void *data)
+{
+	struct ipw_priv *priv = data;
+	ipw_send_system_config(priv, &priv->sys_config);
+}
+
 struct ipw_status_code {
 	u16 status;
 	const char *reason;
@@ -4060,6 +4066,8 @@ static inline void ipw_rx_notification(struct ipw_priv *priv,
 
 					priv->status &= ~STATUS_ASSOCIATING;
 					priv->status |= STATUS_ASSOCIATED;
+					queue_work(priv->workqueue,
+						   &priv->system_config);
 
 #ifdef CONFIG_IPW_QOS
 #define IPW_GET_PACKET_STYPE(x) WLAN_FC_GET_STYPE( \
@@ -5553,45 +5561,36 @@ static void ipw_set_hwcrypto_keys(struct ipw_priv *priv)
 {
 	switch (priv->ieee->sec.level) {
 	case SEC_LEVEL_3:
-		if (!(priv->ieee->sec.flags & SEC_ACTIVE_KEY))
-			break;
+		if (priv->ieee->sec.flags & SEC_ACTIVE_KEY)
+			ipw_send_tgi_tx_key(priv,
+					    DCT_FLAG_EXT_SECURITY_CCM,
+					    priv->ieee->sec.active_key);
 
-		ipw_send_tgi_tx_key(priv, DCT_FLAG_EXT_SECURITY_CCM,
-				    priv->ieee->sec.active_key);
 		ipw_send_wep_keys(priv, DCW_WEP_KEY_SEC_TYPE_CCM);
-
 		priv->sys_config.disable_unicast_decryption = 0;
 		priv->sys_config.disable_multicast_decryption = 0;
 		priv->ieee->host_decrypt = 0;
-		if (ipw_send_system_config(priv, &priv->sys_config))
-			IPW_ERROR("ipw_send_system_config failed\n");
-
 		break;
 	case SEC_LEVEL_2:
-		if (!(priv->ieee->sec.flags & SEC_ACTIVE_KEY))
-			break;
-
-		ipw_send_tgi_tx_key(priv, DCT_FLAG_EXT_SECURITY_TKIP,
-				    priv->ieee->sec.active_key);
+		if (priv->ieee->sec.flags & SEC_ACTIVE_KEY)
+			ipw_send_tgi_tx_key(priv,
+					    DCT_FLAG_EXT_SECURITY_TKIP,
+					    priv->ieee->sec.active_key);
 
 		priv->sys_config.disable_unicast_decryption = 1;
 		priv->sys_config.disable_multicast_decryption = 1;
 		priv->ieee->host_decrypt = 1;
-		if (ipw_send_system_config(priv, &priv->sys_config))
-			IPW_ERROR("ipw_send_system_config failed\n");
-
 		break;
 	case SEC_LEVEL_1:
 		ipw_send_wep_keys(priv, DCW_WEP_KEY_SEC_TYPE_WEP);
-
 		priv->sys_config.disable_unicast_decryption = 0;
 		priv->sys_config.disable_multicast_decryption = 0;
 		priv->ieee->host_decrypt = 0;
-		if (ipw_send_system_config(priv, &priv->sys_config))
-			IPW_ERROR("ipw_send_system_config failed\n");
-
 		break;
 	case SEC_LEVEL_0:
+		priv->sys_config.disable_unicast_decryption = 1;
+		priv->sys_config.disable_multicast_decryption = 1;
+		break;
 	default:
 		break;
 	}
@@ -10113,6 +10112,7 @@ static int ipw_setup_deferred_work(struct ipw_priv *priv)
 	INIT_WORK(&priv->adhoc_check, ipw_bg_adhoc_check, priv);
 	INIT_WORK(&priv->associate, ipw_bg_associate, priv);
 	INIT_WORK(&priv->disassociate, ipw_bg_disassociate, priv);
+	INIT_WORK(&priv->system_config, ipw_system_config, priv);
 	INIT_WORK(&priv->rx_replenish, ipw_bg_rx_queue_replenish, priv);
 	INIT_WORK(&priv->adapter_restart, ipw_bg_adapter_restart, priv);
 	INIT_WORK(&priv->rf_kill, ipw_bg_rf_kill, priv);
@@ -10206,10 +10206,10 @@ static void shim__set_security(struct net_device *dev,
 		priv->ieee->sec.level = sec->level;
 		priv->ieee->sec.flags |= SEC_LEVEL;
 		priv->status |= STATUS_SECURITY_UPDATED;
-	}
 
-	if (!priv->ieee->host_encrypt)
-		ipw_set_hwcrypto_keys(priv);
+		if (!priv->ieee->host_encrypt && (sec->flags & SEC_ENCRYPT))
+			ipw_set_hwcrypto_keys(priv);
+	}
 
 	/* To match current functionality of ipw2100 (which works well w/
 	 * various supplicants, we don't force a disassociate if the
