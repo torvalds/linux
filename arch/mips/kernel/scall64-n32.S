@@ -364,3 +364,6 @@ EXPORT(sysn32_call_table)
 	PTR	sys_request_key
 	PTR	sys_keyctl			/* 6245 */
 	PTR	sys_set_thread_area
+	sys	sys_inotify_init
+	sys	sys_inotify_add_watch
+	sys	sys_inotify_rm_watch

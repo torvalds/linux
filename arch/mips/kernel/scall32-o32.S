@@ -624,7 +624,9 @@ einval:	li	v0, -EINVAL
 	sys	sys_request_key		4
 	sys	sys_keyctl		5
 	sys	sys_set_thread_area	1
-
+	sys	sys_inotify_init	0
+	sys	sys_inotify_add_watch	3	/* 4285 */
+	sys	sys_inotify_rm_watch	2
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to
