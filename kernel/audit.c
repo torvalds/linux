@@ -564,7 +564,7 @@ static void audit_buffer_free(struct audit_buffer *ab)
 }
 
 static struct audit_buffer * audit_buffer_alloc(struct audit_context *ctx,
-						int gfp_mask, int type)
+						unsigned int __nocast gfp_mask, int type)
 {
 	unsigned long flags;
 	struct audit_buffer *ab = NULL;
