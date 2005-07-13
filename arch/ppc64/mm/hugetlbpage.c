@@ -583,7 +583,7 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 	pte_t *ptep;
 	unsigned long va, vpn;
 	pte_t old_pte, new_pte;
-	unsigned long hpteflags, prpn;
+	unsigned long rflags, prpn;
 	long slot;
 	int err = 1;
 
@@ -626,9 +626,9 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 	old_pte = *ptep;
 	new_pte = old_pte;
 
-	hpteflags = 0x2 | (! (pte_val(new_pte) & _PAGE_RW));
+	rflags = 0x2 | (! (pte_val(new_pte) & _PAGE_RW));
  	/* _PAGE_EXEC -> HW_NO_EXEC since it's inverted */
-	hpteflags |= ((pte_val(new_pte) & _PAGE_EXEC) ? 0 : HW_NO_EXEC);
+	rflags |= ((pte_val(new_pte) & _PAGE_EXEC) ? 0 : HW_NO_EXEC);
 
 	/* Check if pte already has an hpte (case 2) */
 	if (unlikely(pte_val(old_pte) & _PAGE_HASHPTE)) {
@@ -641,7 +641,7 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += (pte_val(old_pte) & _PAGE_GROUP_IX) >> 12;
 
-		if (ppc_md.hpte_updatepp(slot, hpteflags, va, 1, local) == -1)
+		if (ppc_md.hpte_updatepp(slot, rflags, va, 1, local) == -1)
 			pte_val(old_pte) &= ~_PAGE_HPTEFLAGS;
 	}
 
@@ -661,10 +661,10 @@ repeat:
 
 		/* Add in WIMG bits */
 		/* XXX We should store these in the pte */
-		hpteflags |= _PAGE_COHERENT;
+		rflags |= _PAGE_COHERENT;
 
-		slot = ppc_md.hpte_insert(hpte_group, va, prpn, 0,
-					  hpteflags, 0, 1);
+		slot = ppc_md.hpte_insert(hpte_group, va, prpn,
+					  HPTE_V_LARGE, rflags);
 
 		/* Primary is full, try the secondary */
 		if (unlikely(slot == -1)) {
@@ -672,7 +672,7 @@ repeat:
 			hpte_group = ((~hash & htab_hash_mask) *
 				      HPTES_PER_GROUP) & ~0x7UL; 
 			slot = ppc_md.hpte_insert(hpte_group, va, prpn,
-						  1, hpteflags, 0, 1);
+						  HPTE_V_LARGE, rflags);
 			if (slot == -1) {
 				if (mftb() & 0x1)
 					hpte_group = ((hash & htab_hash_mask) * HPTES_PER_GROUP) & ~0x7UL;

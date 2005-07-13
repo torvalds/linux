@@ -180,9 +180,10 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
 		/* Panic if a pte grpup is full */
-		if (ppc_md.hpte_insert(hpteg, va, pa >> PAGE_SHIFT, 0,
-				       _PAGE_NO_CACHE|_PAGE_GUARDED|PP_RWXX,
-				       1, 0) == -1) {
+		if (ppc_md.hpte_insert(hpteg, va, pa >> PAGE_SHIFT,
+				       HPTE_V_BOLTED,
+				       _PAGE_NO_CACHE|_PAGE_GUARDED|PP_RWXX)
+		    == -1) {
 			panic("map_io_page: could not insert mapping");
 		}
 	}
