@@ -96,6 +96,16 @@
 #define CP0_S1_INTCONTROL $20
 
 /*
+ * Coprocessor 0 Set 2 register names
+ */
+#define CP0_S2_SRSCTL	  $12	/* MIPSR2 */
+
+/*
+ * Coprocessor 0 Set 3 register names
+ */
+#define CP0_S3_SRSMAP	  $12	/* MIPSR2 */
+
+/*
  *  TX39 Series
  */
 #define CP0_TX39_CACHE	$7
@@ -984,6 +994,22 @@ do {									\
 #define read_c0_errorepc()	__read_ulong_c0_register($30, 0)
 #define write_c0_errorepc(val)	__write_ulong_c0_register($30, 0, val)
 
+/* MIPSR2 */
+#define read_c0_hwrena()	__read_32bit_c0_register($7,0)
+#define write_c0_hwrena(val)	__write_32bit_c0_register($7, 0, val)
+
+#define read_c0_intctl()	__read_32bit_c0_register($12, 1)
+#define write_c0_intctl(val)	__write_32bit_c0_register($12, 1, val)
+
+#define read_c0_srsctl()	__read_32bit_c0_register($12, 2)
+#define write_c0_srsctl(val)	__write_32bit_c0_register($12, 2, val)
+
+#define read_c0_srsmap()	__read_32bit_c0_register($12, 3)
+#define write_c0_srsmap(val)	__write_32bit_c0_register($12, 3, val)
+
+#define read_c0_ebase()		__read_32bit_c0_register($15,1)
+#define write_c0_ebase(val)	__write_32bit_c0_register($15, 1, val)
+
 /*
  * Macros to access the floating point coprocessor control registers
  */
@@ -1357,6 +1383,8 @@ __BUILD_SET_C0(status)
 __BUILD_SET_C0(cause)
 __BUILD_SET_C0(config)
 __BUILD_SET_C0(intcontrol)
+__BUILD_SET_C0(intctl)
+__BUILD_SET_C0(srsmap)
 
 #endif /* !__ASSEMBLY__ */
 
