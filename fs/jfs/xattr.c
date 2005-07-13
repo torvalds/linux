@@ -781,7 +781,7 @@ static int can_set_xattr(struct inode *inode, const char *name,
 	if (IS_RDONLY(inode))
 		return -EROFS;
 
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode) || S_ISLNK(inode->i_mode))
+	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		return -EPERM;
 
 	if(strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) == 0)
@@ -790,12 +790,12 @@ static int can_set_xattr(struct inode *inode, const char *name,
 		 */
 		return can_set_system_xattr(inode, name, value, value_len);
 
-	if(strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) != 0)
+	if(strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) == 0)
 		return (capable(CAP_SYS_ADMIN) ? 0 : -EPERM);
 
 #ifdef CONFIG_JFS_SECURITY
 	if (strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN)
-	    != 0)
+	    == 0)
 		return 0;	/* Leave it to the security module */
 #endif
 		
