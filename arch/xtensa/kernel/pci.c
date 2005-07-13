@@ -57,50 +57,6 @@ struct pci_controller** pci_ctrl_tail = &pci_ctrl_head;
 
 static int pci_bus_count;
 
-static void pcibios_fixup_resources(struct pci_dev* dev);
-
-#if 0 // FIXME
-struct pci_fixup pcibios_fixups[] = {
-	{ DECLARE_PCI_FIXUP_HEADER, PCI_ANY_ID, PCI_ANY_ID, pcibios_fixup_resources },
-	{ 0 }
-};
-#endif
-
-void
-pcibios_update_resource(struct pci_dev *dev, struct resource *root,
-			struct resource *res, int resource)
-{
-	u32 new, check, mask;
-	int reg;
-	struct pci_controller* pci_ctrl = dev->sysdata;
-
-	new = res->start;
-	if (pci_ctrl && res->flags & IORESOURCE_IO) {
-		new -= pci_ctrl->io_space.base;
-	}
-	new |= (res->flags & PCI_REGION_FLAG_MASK);
-	if (resource < 6) {
-		reg = PCI_BASE_ADDRESS_0 + 4*resource;
-	} else if (resource == PCI_ROM_RESOURCE) {
-		res->flags |= PCI_ROM_ADDRESS_ENABLE;
-		reg = dev->rom_base_reg;
-	} else {
-	/* Somebody might have asked allocation of a non-standard resource */
-		return;
-	}
-
-	pci_write_config_dword(dev, reg, new);
-	pci_read_config_dword(dev, reg, &check);
-	mask = (new & PCI_BASE_ADDRESS_SPACE_IO) ?
-		PCI_BASE_ADDRESS_IO_MASK : PCI_BASE_ADDRESS_MEM_MASK;
-
-	if ((new ^ check) & mask) {
-		printk(KERN_ERR "PCI: Error while updating region "
-		       "%s/%d (%08x != %08x)\n", dev->slot_name, resource,
-		       new, check);
-	}
-}
-
 /*
  * We need to avoid collisions with `mirrored' VGA ports
  * and other strange ISA hardware, so we always want the
@@ -125,7 +81,7 @@ pcibios_align_resource(void *data, struct resource *res, unsigned long size,
 
 		if (size > 0x100) {
 			printk(KERN_ERR "PCI: I/O Region %s/%d too large"
-			       " (%ld bytes)\n", dev->slot_name,
+			       " (%ld bytes)\n", pci_name(dev),
 			       dev->resource - res, size);
 		}
 
@@ -149,7 +105,7 @@ pcibios_enable_resources(struct pci_dev *dev, int mask)
 		r = &dev->resource[idx];
 		if (!r->start && r->end) {
 			printk (KERN_ERR "PCI: Device %s not available because "
-				"of resource collisions\n", dev->slot_name);
+				"of resource collisions\n", pci_name(dev));
 			return -EINVAL;
 		}
 		if (r->flags & IORESOURCE_IO)
@@ -161,7 +117,7 @@ pcibios_enable_resources(struct pci_dev *dev, int mask)
 		cmd |= PCI_COMMAND_MEMORY;
 	if (cmd != old_cmd) {
 		printk("PCI: Enabling device %s (%04x -> %04x)\n",
-			dev->slot_name, old_cmd, cmd);
+			pci_name(dev), old_cmd, cmd);
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 	return 0;
@@ -293,7 +249,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 		r = &dev->resource[idx];
 		if (!r->start && r->end) {
 			printk(KERN_ERR "PCI: Device %s not available because "
-			       "of resource collisions\n", dev->slot_name);
+			       "of resource collisions\n", pci_name(dev));
 			return -EINVAL;
 		}
 		if (r->flags & IORESOURCE_IO)
@@ -303,7 +259,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	}
 	if (cmd != old_cmd) {
 		printk("PCI: Enabling device %s (%04x -> %04x)\n",
-		       dev->slot_name, old_cmd, cmd);
+		       pci_name(dev), old_cmd, cmd);
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 
@@ -324,47 +280,6 @@ pci_controller_num(struct pci_dev *dev)
 }
 
 #endif /* CONFIG_PROC_FS */
-
-
-static void
-pcibios_fixup_resources(struct pci_dev *dev)
-{
-	struct pci_controller* pci_ctrl = (struct pci_controller *)dev->sysdata;
-	int i;
-	unsigned long offset;
-
-	if (!pci_ctrl) {
-		printk(KERN_ERR "No pci_ctrl for PCI dev %s!\n",dev->slot_name);
-		return;
-	}
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		struct resource *res = dev->resource + i;
-		if (!res->start || !res->flags)
-			continue;
-		if (res->end == 0xffffffff) {
-			DBG("PCI:%s Resource %d [%08lx-%08lx] is unassigned\n",
-			    dev->slot_name, i, res->start, res->end);
-			res->end -= res->start;
-			res->start = 0;
-			continue;
-		}
-		offset = 0;
-		if (res->flags & IORESOURCE_IO)
-			offset = (unsigned long) pci_ctrl->io_space.base;
-		else if (res->flags & IORESOURCE_MEM)
-			offset = (unsigned long) pci_ctrl->mem_space.base;
-
-		if (offset != 0) {
-			res->start += offset;
-			res->end += offset;
-#ifdef DEBUG
-			printk("Fixup res %d (%lx) of dev %s: %lx -> %lx\n",
-			       i, res->flags, dev->slot_name,
-			       res->start - offset, res->start);
-#endif
-		}
-	}
-}
 
 /*
  * Platform support for /proc/bus/pci/X/Y mmap()s,

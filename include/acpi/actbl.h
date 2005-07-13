@@ -133,7 +133,6 @@ struct acpi_table_header         /* ACPI common table header */
 #define DUAL_PIC                0
 #define MULTIPLE_APIC           1
 
-
 /* Master MADT */
 
 struct multiple_apic_table
@@ -143,7 +142,6 @@ struct multiple_apic_table
 	u32                             PCATcompat      : 1;    /* A one indicates system also has dual 8259s */
 	u32                             reserved1       : 31;
 };
-
 
 /* Values for Type in APIC_HEADER_DEF */
 

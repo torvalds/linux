@@ -1276,7 +1276,7 @@ int fcntl_getlease(struct file *filp)
  */
 static int __setlease(struct file *filp, long arg, struct file_lock **flp)
 {
-	struct file_lock *fl, **before, **my_before = NULL, *lease = *flp;
+	struct file_lock *fl, **before, **my_before = NULL, *lease;
 	struct dentry *dentry = filp->f_dentry;
 	struct inode *inode = dentry->d_inode;
 	int error, rdlease_count = 0, wrlease_count = 0;
@@ -1286,6 +1286,8 @@ static int __setlease(struct file *filp, long arg, struct file_lock **flp)
 	error = -EINVAL;
 	if (!flp || !(*flp) || !(*flp)->fl_lmops || !(*flp)->fl_lmops->fl_break)
 		goto out;
+
+	lease = *flp;
 
 	error = -EAGAIN;
 	if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))

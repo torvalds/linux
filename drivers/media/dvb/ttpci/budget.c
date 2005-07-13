@@ -40,6 +40,7 @@
 #include "ves1820.h"
 #include "l64781.h"
 #include "tda8083.h"
+#include "s5h1420.h"
 
 static void Set22K (struct budget *budget, int state)
 {
@@ -175,6 +176,62 @@ static int budget_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t m
 	SendDiSEqCMsg (budget, 0, NULL, minicmd);
 
 	return 0;
+}
+
+static int lnbp21_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
+{
+	struct budget* budget = (struct budget*) fe->dvb->priv;
+	u8 buf;
+	struct i2c_msg msg = { .addr = 0x08, .flags = I2C_M_RD, .buf = &buf, .len = sizeof(buf) };
+
+	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+
+	switch(voltage) {
+	case SEC_VOLTAGE_13:
+		buf = (buf & 0xf7) | 0x04;
+		break;
+
+	case SEC_VOLTAGE_18:
+		buf = (buf & 0xf7) | 0x0c;
+		break;
+
+	case SEC_VOLTAGE_OFF:
+		buf = buf & 0xf0;
+		break;
+	}
+
+	msg.flags = 0;
+	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+
+	return 0;
+}
+
+static int lnbp21_enable_high_lnb_voltage(struct dvb_frontend* fe, int arg)
+{
+	struct budget* budget = (struct budget*) fe->dvb->priv;
+	u8 buf;
+	struct i2c_msg msg = { .addr = 0x08, .flags = I2C_M_RD, .buf = &buf, .len = sizeof(buf) };
+
+	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+
+	if (arg) {
+		buf = buf | 0x10;
+	} else {
+		buf = buf & 0xef;
+	}
+
+	msg.flags = 0;
+	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+
+	return 0;
+}
+
+static void lnbp21_init(struct budget* budget)
+{
+	u8 buf = 0x00;
+	struct i2c_msg msg = { .addr = 0x08, .flags = 0, .buf = &buf, .len = sizeof(buf) };
+
+	i2c_transfer (&budget->i2c_adap, &msg, 1);
 }
 
 static int alps_bsrv2_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
@@ -395,6 +452,38 @@ static struct tda8083_config grundig_29504_451_config = {
 	.pll_set = grundig_29504_451_pll_set,
 };
 
+static int s5h1420_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u32* freqout)
+{
+	struct budget* budget = (struct budget*) fe->dvb->priv;
+	u32 div;
+	u8 data[4];
+	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = data, .len = sizeof(data) };
+
+	div = params->frequency / 1000;
+	data[0] = (div >> 8) & 0x7f;
+	data[1] = div & 0xff;
+	data[2] = 0xc2;
+
+	if (div < 1450)
+		data[3] = 0x00;
+	else if (div < 1850)
+		data[3] = 0x40;
+	else if (div < 2000)
+		data[3] = 0x80;
+	else
+		data[3] = 0xc0;
+
+	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+
+	*freqout = div * 1000;
+	return 0;
+}
+
+static struct s5h1420_config s5h1420_config = {
+	.demod_address = 0x53,
+	.pll_set = s5h1420_pll_set,
+};
+
 static u8 read_pwm(struct budget* budget)
 {
 	u8 b = 0xff;
@@ -459,6 +548,15 @@ static void frontend_init(struct budget *budget)
 			break;
 		}
 		break;
+
+	case 0x1016: // Hauppauge/TT Nova-S SE (samsung s5h1420/????(tda8260))
+		budget->dvb_frontend = s5h1420_attach(&s5h1420_config, &budget->i2c_adap);
+		if (budget->dvb_frontend) {
+			budget->dvb_frontend->ops->set_voltage = lnbp21_set_voltage;
+			budget->dvb_frontend->ops->enable_high_lnb_voltage = lnbp21_enable_high_lnb_voltage;
+			lnbp21_init(budget);
+			break;
+		}
 	}
 
 	if (budget->dvb_frontend == NULL) {
@@ -532,6 +630,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbc,  0x13c2, 0x1004),
 	MAKE_EXTENSION_PCI(ttbt,  0x13c2, 0x1005),
 	MAKE_EXTENSION_PCI(satel, 0x13c2, 0x1013),
+	MAKE_EXTENSION_PCI(ttbs,  0x13c2, 0x1016),
 	MAKE_EXTENSION_PCI(fsacs1,0x1131, 0x4f60),
 	MAKE_EXTENSION_PCI(fsacs0,0x1131, 0x4f61),
 	{

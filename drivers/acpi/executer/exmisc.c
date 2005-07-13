@@ -139,8 +139,9 @@ acpi_ex_get_object_reference (
 	reference_obj->reference.object = referenced_obj;
 	*return_desc = reference_obj;
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Object %p Type [%s], returning Reference %p\n",
-			obj_desc, acpi_ut_get_object_type_name (obj_desc), *return_desc));
+	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+		"Object %p Type [%s], returning Reference %p\n",
+		obj_desc, acpi_ut_get_object_type_name (obj_desc), *return_desc));
 
 	return_ACPI_STATUS (AE_OK);
 }
@@ -456,7 +457,7 @@ acpi_ex_do_math_op (
 		return (integer0 * integer1);
 
 
-	case AML_SHIFT_LEFT_OP:         /* shift_left (Operand, shift_count, Result) */
+	case AML_SHIFT_LEFT_OP:         /* shift_left (Operand, shift_count, Result)*/
 
 		return (integer0 << integer1);
 

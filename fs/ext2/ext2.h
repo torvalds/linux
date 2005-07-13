@@ -2,6 +2,15 @@
 #include <linux/ext2_fs.h>
 
 /*
+ * ext2 mount options
+ */
+struct ext2_mount_options {
+	unsigned long s_mount_opt;
+	uid_t s_resuid;
+	gid_t s_resgid;
+};
+
+/*
  * second extended file system inode data in memory
  */
 struct ext2_inode_info {

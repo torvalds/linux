@@ -4,6 +4,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/file.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -491,7 +492,7 @@ static int hppfs_open(struct inode *inode, struct file *file)
 		fd = open_host_sock(host_file, &filter);
 		if(fd > 0){
 			data->contents = hppfs_get_data(fd, filter,
-							&data->proc_file,
+							data->proc_file,
 							file, &data->len);
 			if(!IS_ERR(data->contents))
 				data->host_fd = fd;
@@ -543,7 +544,7 @@ static int hppfs_dir_open(struct inode *inode, struct file *file)
 static loff_t hppfs_llseek(struct file *file, loff_t off, int where)
 {
 	struct hppfs_private *data = file->private_data;
-	struct file *proc_file = &data->proc_file;
+	struct file *proc_file = data->proc_file;
 	loff_t (*llseek)(struct file *, loff_t, int);
 	loff_t ret;
 
@@ -586,7 +587,7 @@ static int hppfs_filldir(void *d, const char *name, int size,
 static int hppfs_readdir(struct file *file, void *ent, filldir_t filldir)
 {
 	struct hppfs_private *data = file->private_data;
-	struct file *proc_file = &data->proc_file;
+	struct file *proc_file = data->proc_file;
 	int (*readdir)(struct file *, void *, filldir_t);
 	struct hppfs_dirent dirent = ((struct hppfs_dirent)
 		                      { .vfs_dirent  	= ent,

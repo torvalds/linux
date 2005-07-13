@@ -1,7 +1,7 @@
 #
 # linux/drivers/maps/Makefile
 #
-# $Id: Makefile.common,v 1.23 2005/01/05 17:06:36 dwmw2 Exp $
+# $Id: Makefile.common,v 1.30 2005/07/02 01:53:24 tpoynor Exp $
 
 ifeq ($(CONFIG_MTD_COMPLEX_MAPPINGS),y)
 obj-$(CONFIG_MTD)		+= map_funcs.o
@@ -15,7 +15,6 @@ obj-$(CONFIG_MTD_CFI_FLAGADM)	+= cfi_flagadm.o
 obj-$(CONFIG_MTD_CSTM_MIPS_IXX)	+= cstm_mips_ixx.o
 obj-$(CONFIG_MTD_DC21285)	+= dc21285.o
 obj-$(CONFIG_MTD_DILNETPC)	+= dilnetpc.o
-obj-$(CONFIG_MTD_ELAN_104NC)	+= elan-104nc.o
 obj-$(CONFIG_MTD_EPXA10DB)	+= epxa10db-flash.o
 obj-$(CONFIG_MTD_IQ80310)	+= iq80310.o
 obj-$(CONFIG_MTD_L440GX)	+= l440gx.o
@@ -23,6 +22,7 @@ obj-$(CONFIG_MTD_AMD76XROM)	+= amd76xrom.o
 obj-$(CONFIG_MTD_ICHXROM)	+= ichxrom.o
 obj-$(CONFIG_MTD_TSUNAMI)	+= tsunami_flash.o
 obj-$(CONFIG_MTD_LUBBOCK)	+= lubbock-flash.o
+obj-$(CONFIG_MTD_MAINSTONE)	+= mainstone-flash.o
 obj-$(CONFIG_MTD_MBX860)	+= mbx860.o
 obj-$(CONFIG_MTD_CEIVA)		+= ceiva.o
 obj-$(CONFIG_MTD_OCTAGON)	+= octagon-5066.o
@@ -44,10 +44,7 @@ obj-$(CONFIG_MTD_DBOX2)		+= dbox2-flash.o
 obj-$(CONFIG_MTD_OCELOT)	+= ocelot.o
 obj-$(CONFIG_MTD_SOLUTIONENGINE)+= solutionengine.o
 obj-$(CONFIG_MTD_PCI)		+= pci.o
-obj-$(CONFIG_MTD_PB1XXX)	+= pb1xxx-flash.o
-obj-$(CONFIG_MTD_DB1X00)        += db1x00-flash.o
-obj-$(CONFIG_MTD_PB1550)        += pb1550-flash.o
-obj-$(CONFIG_MTD_DB1550)        += db1550-flash.o
+obj-$(CONFIG_MTD_ALCHEMY)       += alchemy-flash.o
 obj-$(CONFIG_MTD_LASAT)		+= lasat.o
 obj-$(CONFIG_MTD_AUTCPU12)	+= autcpu12-nvram.o
 obj-$(CONFIG_MTD_EDB7312)	+= edb7312.o
@@ -71,3 +68,5 @@ obj-$(CONFIG_MTD_IXP2000)	+= ixp2000.o
 obj-$(CONFIG_MTD_WRSBC8260)	+= wr_sbc82xx_flash.o
 obj-$(CONFIG_MTD_DMV182)	+= dmv182.o
 obj-$(CONFIG_MTD_SHARP_SL)	+= sharpsl-flash.o
+obj-$(CONFIG_MTD_PLATRAM)	+= plat-ram.o
+obj-$(CONFIG_MTD_OMAP_NOR)	+= omap_nor.o

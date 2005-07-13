@@ -1,66 +1,55 @@
-How to get the Nebula, PCTV and Twinhan DST cards working
-=========================================================
+How to get the Nebula Electronics DigiTV, Pinnacle PCTV Sat, Twinhan DST + clones working
+=========================================================================================
 
-This class of cards has a bt878a as the PCI interface, and
-require the bttv driver.
+1) General information
+======================
 
-Please pay close attention to the warning about the bttv module
-options below for the DST card.
+This class of cards has a bt878a chip as the PCI interface.
+The different card drivers require the bttv driver to provide the means
+to access the i2c bus and the gpio pins of the bt8xx chipset.
 
-1) General informations
-=======================
+2) Compilation rules for Kernel >= 2.6.12
+=========================================
 
-These drivers require the bttv driver to provide the means to access
-the i2c bus and the gpio pins of the bt8xx chipset.
+Enable the following options:
 
-Because of this, you need to enable
 "Device drivers" => "Multimedia devices"
-  => "Video For Linux" => "BT848 Video For Linux"
-
-Furthermore you need to enable
+ => "Video For Linux" => "BT848 Video For Linux"
 "Device drivers" => "Multimedia devices" => "Digital Video Broadcasting Devices"
-  => "DVB for Linux" "DVB Core Support" "Nebula/Pinnacle PCTV/TwinHan PCI Cards"
+ => "DVB for Linux" "DVB Core Support" "Nebula/Pinnacle PCTV/TwinHan PCI Cards"
 
-2) Loading Modules
-==================
+3) Loading Modules, described by two approaches
+===============================================
 
 In general you need to load the bttv driver, which will handle the gpio and
-i2c communication for us, plus the common dvb-bt8xx device driver.
-The frontends for Nebula (nxt6000), Pinnacle PCTV (cx24110) and
-TwinHan (dst) are loaded automatically by the dvb-bt8xx device driver.
+i2c communication for us, plus the common dvb-bt8xx device driver,
+which is called the backend.
+The frontends for Nebula DigiTV (nxt6000), Pinnacle PCTV Sat (cx24110),
+TwinHan DST + clones (dst and dst-ca) are loaded automatically by the backend.
+For further details about TwinHan DST + clones see /Documentation/dvb/ci.txt.
 
-3a) Nebula / Pinnacle PCTV
+3a) The manual approach
+-----------------------
+
+Loading modules:
+modprobe bttv
+modprobe dvb-bt8xx
+
+Unloading modules:
+modprobe -r dvb-bt8xx
+modprobe -r bttv
+
+3b) The automatic approach
 --------------------------
 
-   $ modprobe bttv (normally bttv is being loaded automatically by kmod)
-   $ modprobe dvb-bt8xx (or just place dvb-bt8xx in /etc/modules for automatic loading)
+If not already done by installation, place a line either in
+/etc/modules.conf or in /etc/modprobe.conf containing this text:
+alias char-major-81	bttv
 
+Then place a line in /etc/modules containing this text:
+dvb-bt8xx
 
-3b) TwinHan and Clones
---------------------------
-
-   $ modprobe bttv i2c_hw=1 card=0x71
-   $ modprobe dvb-bt8xx
-   $ modprobe dst
-
-The value 0x71 will override the PCI type detection for dvb-bt8xx,
-which is necessary for TwinHan cards.
-
-If you're having an older card (blue color circuit) and card=0x71 locks
-your machine, try using 0x68, too. If that does not work, ask on the
-mailing list.
-
-The DST module takes a couple of useful parameters:
-
-a. verbose takes values 0 to 5. These values control the verbosity level.
-b. debug takes values 0 and 1. You can either disable or enable debugging.
-c. dst_addons takes values 0 and 0x20:
-- A value of 0 means it is a FTA card.
-- A value of 0x20 means it has a Conditional Access slot.
-
-The autodetected values are determined by the "response string"
-of the card, which you can see in your logs:
-e.g.: dst_get_device_id: Recognize [DSTMCI]
+Reboot your system and have fun!
 
 --
 Authors: Richard Walker, Jamie Honan, Michael Hunold, Manu Abraham, Uwe Bugla

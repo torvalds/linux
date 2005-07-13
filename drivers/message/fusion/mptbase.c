@@ -1363,19 +1363,7 @@ mpt_suspend(struct pci_dev *pdev, pm_message_t state)
 	u32 device_state;
 	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
 
-	switch(state)
-	{
-		case 1: /* S1 */
-			device_state=1; /* D1 */;
-			break;
-		case 3: /* S3 */
-		case 4: /* S4 */
-			device_state=3; /* D3 */;
-			break;
-		default:
-			return -EAGAIN /*FIXME*/;
-			break;
-	}
+	device_state=pci_choose_state(pdev, state);
 
 	printk(MYIOC_s_INFO_FMT
 	"pci-suspend: pdev=0x%p, slot=%s, Entering operating state [D%d]\n",

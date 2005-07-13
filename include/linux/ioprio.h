@@ -34,9 +34,6 @@ enum {
  */
 #define IOPRIO_BE_NR	(8)
 
-asmlinkage int sys_ioprio_set(int, int, int);
-asmlinkage int sys_ioprio_get(int, int);
-
 enum {
 	IOPRIO_WHO_PROCESS = 1,
 	IOPRIO_WHO_PGRP,

@@ -48,6 +48,13 @@ void enable_timer(void)
 	set_interval(ITIMER_VIRTUAL);
 }
 
+void prepare_timer(void * ptr)
+{
+	int usec = 1000000/hz();
+	*(struct itimerval *)ptr = ((struct itimerval) { { 0, usec },
+							 { 0, usec }});
+}
+
 void disable_timer(void)
 {
 	struct itimerval disable = ((struct itimerval) { { 0, 0 }, { 0, 0 }});

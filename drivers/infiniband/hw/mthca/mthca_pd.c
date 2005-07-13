@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -37,23 +38,27 @@
 
 #include "mthca_dev.h"
 
-int mthca_pd_alloc(struct mthca_dev *dev, struct mthca_pd *pd)
+int mthca_pd_alloc(struct mthca_dev *dev, int privileged, struct mthca_pd *pd)
 {
-	int err;
+	int err = 0;
 
 	might_sleep();
+
+	pd->privileged = privileged;
 
 	atomic_set(&pd->sqp_count, 0);
 	pd->pd_num = mthca_alloc(&dev->pd_table.alloc);
 	if (pd->pd_num == -1)
 		return -ENOMEM;
 
-	err = mthca_mr_alloc_notrans(dev, pd->pd_num,
-				     MTHCA_MPT_FLAG_LOCAL_READ |
-				     MTHCA_MPT_FLAG_LOCAL_WRITE,
-				     &pd->ntmr);
-	if (err)
-		mthca_free(&dev->pd_table.alloc, pd->pd_num);
+	if (privileged) {
+		err = mthca_mr_alloc_notrans(dev, pd->pd_num,
+					     MTHCA_MPT_FLAG_LOCAL_READ |
+					     MTHCA_MPT_FLAG_LOCAL_WRITE,
+					     &pd->ntmr);
+		if (err)
+			mthca_free(&dev->pd_table.alloc, pd->pd_num);
+	}
 
 	return err;
 }
@@ -61,7 +66,8 @@ int mthca_pd_alloc(struct mthca_dev *dev, struct mthca_pd *pd)
 void mthca_pd_free(struct mthca_dev *dev, struct mthca_pd *pd)
 {
 	might_sleep();
-	mthca_free_mr(dev, &pd->ntmr);
+	if (pd->privileged)
+		mthca_free_mr(dev, &pd->ntmr);
 	mthca_free(&dev->pd_table.alloc, pd->pd_num);
 }
 

@@ -130,13 +130,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 	lines   = norm->vbi_v_stop_0 - norm->vbi_v_start_0 +1;
 	if (lines > VBI_LINE_COUNT)
 		lines = VBI_LINE_COUNT;
-#if 1
 	llength = VBI_LINE_LENGTH;
-#else
-	llength = (norm->h_stop - norm->h_start +1) * 2;
-	if (llength > VBI_LINE_LENGTH)
-		llength = VBI_LINE_LENGTH;
-#endif
 	size = lines * llength * 2;
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < size)
 		return -EINVAL;
@@ -178,13 +172,7 @@ buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 	int llength,lines;
 
 	lines   = dev->tvnorm->vbi_v_stop_0 - dev->tvnorm->vbi_v_start_0 +1;
-#if 1
 	llength = VBI_LINE_LENGTH;
-#else
-	llength = (norm->h_stop - norm->h_start +1) * 2;
-	if (llength > VBI_LINE_LENGTH)
-		llength = VBI_LINE_LENGTH;
-#endif
 	*size = lines * llength * 2;
 	if (0 == *count)
 		*count = vbibufs;

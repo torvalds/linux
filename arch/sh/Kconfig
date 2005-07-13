@@ -784,6 +784,8 @@ config EMBEDDED_RAMDISK_IMAGE
 
 endmenu
 
+source "net/Kconfig"
+
 source "drivers/Kconfig"
 
 source "fs/Kconfig"

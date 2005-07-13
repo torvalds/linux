@@ -284,12 +284,14 @@ void ixdp2800_init_irq(void)
 }
 
 MACHINE_START(IXDP2800, "Intel IXDP2800 Development Platform")
-	MAINTAINER("MontaVista Software, Inc.")
-	BOOT_MEM(0x00000000, IXP2000_UART_PHYS_BASE, IXP2000_UART_VIRT_BASE)
-	BOOT_PARAMS(0x00000100)
-	MAPIO(ixdp2x00_map_io)
-	INITIRQ(ixdp2800_init_irq)
+	/* Maintainer: MontaVista Software, Inc. */
+	.phys_ram	= 0x00000000,
+	.phys_io	= IXP2000_UART_PHYS_BASE,
+	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.map_io		= ixdp2x00_map_io,
+	.init_irq	= ixdp2800_init_irq,
 	.timer		= &ixdp2800_timer,
-	INIT_MACHINE(ixdp2x00_init_machine)
+	.init_machine	= ixdp2x00_init_machine,
 MACHINE_END
 

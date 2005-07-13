@@ -540,7 +540,7 @@ plip_receive(unsigned short nibble_timeout, struct net_device *dev,
  *	in far too many old systems not all even running Linux.
  */
  
-static unsigned short plip_type_trans(struct sk_buff *skb, struct net_device *dev)
+static __be16 plip_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
 	unsigned char *rawp;

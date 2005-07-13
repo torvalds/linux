@@ -54,28 +54,6 @@
 #define DBGF(x...)	do { } while (0)
 #endif
 
-#ifdef CONFIG_MMC_DEBUG
-void DBG_REG(int reg, u8 value)
-{
-	int i;
-	
-	printk(KERN_DEBUG "wbsd: Register %d: 0x%02X %3d '%c' ",
-		reg, (int)value, (int)value, (value < 0x20)?'.':value);
-	
-	for (i = 7;i >= 0;i--)
-	{
-		if (value & (1 << i))
-			printk("x");
-		else
-			printk(".");
-	}
-	
-	printk("\n");
-}
-#else
-#define DBG_REG(r, v) do {}  while (0)
-#endif
-
 /*
  * Device resources
  */
@@ -91,6 +69,13 @@ static const struct pnp_device_id pnp_dev_table[] = {
 MODULE_DEVICE_TABLE(pnp, pnp_dev_table);
 
 #endif /* CONFIG_PNP */
+
+static const int config_ports[] = { 0x2E, 0x4E };
+static const int unlock_codes[] = { 0x83, 0x87 };
+
+static const int valid_ids[] = {
+	0x7112,
+	};
 
 #ifdef CONFIG_PNP
 static unsigned int nopnp = 0;
@@ -1051,6 +1036,20 @@ static struct mmc_host_ops wbsd_ops = {
 \*****************************************************************************/
 
 /*
+ * Helper function for card detection
+ */
+static void wbsd_detect_card(unsigned long data)
+{
+	struct wbsd_host *host = (struct wbsd_host*)data;
+	
+	BUG_ON(host == NULL);
+	
+	DBG("Executing card detection\n");
+	
+	mmc_detect_change(host->mmc);	
+}
+
+/*
  * Tasklets
  */
 
@@ -1075,7 +1074,6 @@ static void wbsd_tasklet_card(unsigned long param)
 {
 	struct wbsd_host* host = (struct wbsd_host*)param;
 	u8 csr;
-	int change = 0;
 	
 	spin_lock(&host->lock);
 	
@@ -1094,14 +1092,20 @@ static void wbsd_tasklet_card(unsigned long param)
 		{
 			DBG("Card inserted\n");
 			host->flags |= WBSD_FCARD_PRESENT;
-			change = 1;
+			
+			/*
+			 * Delay card detection to allow electrical connections
+			 * to stabilise.
+			 */
+			mod_timer(&host->timer, jiffies + HZ/2);
 		}
+		
+		spin_unlock(&host->lock);
 	}
 	else if (host->flags & WBSD_FCARD_PRESENT)
 	{
 		DBG("Card removed\n");
 		host->flags &= ~WBSD_FCARD_PRESENT;
-		change = 1;
 		
 		if (host->mrq)
 		{
@@ -1112,15 +1116,14 @@ static void wbsd_tasklet_card(unsigned long param)
 			host->mrq->cmd->error = MMC_ERR_FAILED;
 			tasklet_schedule(&host->finish_tasklet);
 		}
-	}
-	
-	/*
-	 * Unlock first since we might get a call back.
-	 */
-	spin_unlock(&host->lock);
+		
+		/*
+		 * Unlock first since we might get a call back.
+		 */
+		spin_unlock(&host->lock);
 
-	if (change)
 		mmc_detect_change(host->mmc);
+	}
 }
 
 static void wbsd_tasklet_fifo(unsigned long param)
@@ -1325,6 +1328,13 @@ static int __devinit wbsd_alloc_mmc(struct device* dev)
 	spin_lock_init(&host->lock);
 	
 	/*
+	 * Set up detection timer
+	 */
+	init_timer(&host->timer);
+	host->timer.data = (unsigned long)host;
+	host->timer.function = wbsd_detect_card;
+	
+	/*
 	 * Maximum number of segments. Worst case is one sector per segment
 	 * so this will be 64kB/512.
 	 */
@@ -1351,10 +1361,16 @@ static int __devinit wbsd_alloc_mmc(struct device* dev)
 static void __devexit wbsd_free_mmc(struct device* dev)
 {
 	struct mmc_host* mmc;
+	struct wbsd_host* host;
 	
 	mmc = dev_get_drvdata(dev);
 	if (!mmc)
 		return;
+	
+	host = mmc_priv(mmc);
+	BUG_ON(host == NULL);
+	
+	del_timer_sync(&host->timer);
 	
 	mmc_free_host(mmc);
 	

@@ -99,23 +99,11 @@ static inline void cs_socket_put(struct pcmcia_socket *skt)
 	}
 }
 
-#define CHECK_HANDLE(h) \
-    (((h) == NULL) || ((h)->client_magic != CLIENT_MAGIC))
-
 #define CHECK_SOCKET(s) \
     (((s) >= sockets) || (socket_table[s]->ops == NULL))
 
-#define SOCKET(h) (h->Socket)
-#define CONFIG(h) (&SOCKET(h)->config[(h)->Function])
-
-#define CHECK_REGION(r) \
-    (((r) == NULL) || ((r)->region_magic != REGION_MAGIC))
-
-#define CHECK_ERASEQ(q) \
-    (((q) == NULL) || ((q)->eraseq_magic != ERASEQ_MAGIC))
-
-#define EVENT(h, e, p) \
-    ((h)->event_handler((e), (p), &(h)->event_callback_args))
+#define SOCKET(h) (h->socket)
+#define CONFIG(h) (&SOCKET(h)->config[(h)->func])
 
 /* In cardbus.c */
 int cb_alloc(struct pcmcia_socket *s);

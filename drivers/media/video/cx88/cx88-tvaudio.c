@@ -1,5 +1,5 @@
 /*
-    $Id: cx88-tvaudio.c,v 1.36 2005/06/05 05:53:45 mchehab Exp $
+    $Id: cx88-tvaudio.c,v 1.37 2005/07/07 13:58:38 mchehab Exp $
 
     cx88x-audio.c - Conexant CX23880/23881 audio downstream driver driver
 
@@ -278,80 +278,6 @@ static void set_audio_standard_BTSC(struct cx88_core *core, unsigned int sap)
 	set_audio_finish(core);
 }
 
-#if 0
-static void set_audio_standard_NICAM(struct cx88_core *core)
-{
-	static const struct rlist nicam_common[] = {
-		/* from dscaler */
-    		{ AUD_RATE_ADJ1,           0x00000010 },
-    		{ AUD_RATE_ADJ2,           0x00000040 },
-    		{ AUD_RATE_ADJ3,           0x00000100 },
-    		{ AUD_RATE_ADJ4,           0x00000400 },
-    		{ AUD_RATE_ADJ5,           0x00001000 },
-    //		{ AUD_DMD_RA_DDS,          0x00c0d5ce },
-
-		// Deemphasis 1:
-		{ AUD_DEEMPHGAIN_R,        0x000023c2 },
-		{ AUD_DEEMPHNUMER1_R,      0x0002a7bc },
-		{ AUD_DEEMPHNUMER2_R,      0x0003023e },
-		{ AUD_DEEMPHDENOM1_R,      0x0000f3d0 },
-		{ AUD_DEEMPHDENOM2_R,      0x00000000 },
-
-#if 0
-		// Deemphasis 2: (other tv norm?)
-		{ AUD_DEEMPHGAIN_R,        0x0000c600 },
-		{ AUD_DEEMPHNUMER1_R,      0x00066738 },
-		{ AUD_DEEMPHNUMER2_R,      0x00066739 },
-		{ AUD_DEEMPHDENOM1_R,      0x0001e88c },
-		{ AUD_DEEMPHDENOM2_R,      0x0001e88c },
-#endif
-
-		{ AUD_DEEMPHDENOM2_R,      0x00000000 },
-		{ AUD_ERRLOGPERIOD_R,      0x00000fff },
-		{ AUD_ERRINTRPTTHSHLD1_R,  0x000003ff },
-		{ AUD_ERRINTRPTTHSHLD2_R,  0x000000ff },
-		{ AUD_ERRINTRPTTHSHLD3_R,  0x0000003f },
-		{ AUD_POLYPH80SCALEFAC,    0x00000003 },
-
-		// setup QAM registers
-		{ AUD_PDF_DDS_CNST_BYTE2,  0x06 },
-		{ AUD_PDF_DDS_CNST_BYTE1,  0x82 },
-		{ AUD_PDF_DDS_CNST_BYTE0,  0x16 },
-		{ AUD_QAM_MODE,            0x05 },
-
-                { /* end of list */ },
-        };
-	static const struct rlist nicam_pal_i[] = {
-		{ AUD_PDF_DDS_CNST_BYTE0,  0x12 },
-		{ AUD_PHACC_FREQ_8MSB,     0x3a },
-		{ AUD_PHACC_FREQ_8LSB,     0x93 },
-
-                { /* end of list */ },
-	};
-	static const struct rlist nicam_default[] = {
-		{ AUD_PDF_DDS_CNST_BYTE0,  0x16 },
-		{ AUD_PHACC_FREQ_8MSB,     0x34 },
-		{ AUD_PHACC_FREQ_8LSB,     0x4c },
-
-                { /* end of list */ },
-	};
-
-        set_audio_start(core, 0x0010,
-			EN_DMTRX_LR | EN_DMTRX_BYPASS | EN_NICAM_AUTO_STEREO);
-        set_audio_registers(core, nicam_common);
-	switch (core->tvaudio) {
-	case WW_NICAM_I:
-		dprintk("%s PAL-I NICAM (status: unknown)\n",__FUNCTION__);
-		set_audio_registers(core, nicam_pal_i);
-		break;
-	case WW_NICAM_BGDKL:
-		dprintk("%s PAL-BGDK NICAM (status: unknown)\n",__FUNCTION__);
-		set_audio_registers(core, nicam_default);
-		break;
-	};
-        set_audio_finish(core);
-}
-#endif
 
 static void set_audio_standard_NICAM_L(struct cx88_core *core, int stereo)
 {

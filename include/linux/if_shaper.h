@@ -23,7 +23,7 @@ struct shaper
 	__u32 shapeclock;
 	unsigned long recovery;	/* Time we can next clock a packet out on
 				   an empty queue */
-	struct semaphore sem;
+	spinlock_t lock;
         struct net_device_stats stats;
 	struct net_device *dev;
 	int  (*hard_start_xmit) (struct sk_buff *skb,

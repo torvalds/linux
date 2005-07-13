@@ -206,7 +206,10 @@ struct acpi_table_plat_int_src {
 	u8			eid;
 	u8			iosapic_vector;
 	u32			global_irq;
-	u32			reserved;
+	struct {
+		u32			cpei_override_flag:1;
+		u32			reserved:31;
+	}			plint_flags;
 } __attribute__ ((packed));
 
 enum acpi_interrupt_id {
@@ -475,7 +478,7 @@ struct acpi_prt_list {
 struct pci_dev;
 
 int acpi_pci_irq_enable (struct pci_dev *dev);
-void acpi_penalize_isa_irq(int irq);
+void acpi_penalize_isa_irq(int irq, int active);
 
 #ifdef CONFIG_ACPI_DEALLOCATE_IRQ
 void acpi_pci_irq_disable (struct pci_dev *dev);

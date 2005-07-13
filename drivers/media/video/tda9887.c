@@ -569,15 +569,6 @@ static int tda9887_configure(struct tda9887 *t)
 	tda9887_set_config(t,buf);
 	tda9887_set_insmod(t,buf);
 
-#if 0
-	/* This as-is breaks some cards, must be fixed in a
-	 * card-specific way, probably using TDA9887_SET_CONFIG to
-	 * turn on/off port2 */
-	if (t->std & V4L2_STD_SECAM_L) {
-		/* secam fixup (FIXME: move this to tvnorms array?) */
-		buf[1] &= ~cOutputPort2Inactive;
-	}
-#endif
 
 	dprintk(PREFIX "writing: b=0x%02x c=0x%02x e=0x%02x\n",
 		buf[1],buf[2],buf[3]);

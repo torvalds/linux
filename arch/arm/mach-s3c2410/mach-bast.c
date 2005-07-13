@@ -407,10 +407,11 @@ void __init bast_map_io(void)
 
 
 MACHINE_START(BAST, "Simtec-BAST")
-     MAINTAINER("Ben Dooks <ben@simtec.co.uk>")
-     BOOT_MEM(S3C2410_SDRAM_PA, S3C2410_PA_UART, (u32)S3C24XX_VA_UART)
-     BOOT_PARAMS(S3C2410_SDRAM_PA + 0x100)
-
+	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
+	.phys_ram	= S3C2410_SDRAM_PA,
+	.phys_io	= S3C2410_PA_UART,
+	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
+	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= bast_map_io,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,

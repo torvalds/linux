@@ -119,3 +119,19 @@ Why:	Match the other drivers' name for the same function, duplicate names
 	will be available until removal of old names.
 Who:	Grant Coady <gcoady@gmail.com>
 
+---------------------------
+
+What:	PCMCIA control ioctl (needed for pcmcia-cs [cardmgr, cardctl])
+When:	November 2005
+Files:	drivers/pcmcia/: pcmcia_ioctl.c
+Why:	With the 16-bit PCMCIA subsystem now behaving (almost) like a
+	normal hotpluggable bus, and with it using the default kernel
+	infrastructure (hotplug, driver core, sysfs) keeping the PCMCIA
+	control ioctl needed by cardmgr and cardctl from pcmcia-cs is
+	unnecessary, and makes further cleanups and integration of the
+	PCMCIA subsystem into the Linux kernel device driver model more
+	difficult. The features provided by cardmgr and cardctl are either
+	handled by the kernel itself now or are available in the new
+	pcmciautils package available at
+	http://kernel.org/pub/linux/utils/kernel/pcmcia/
+Who:	Dominik Brodowski <linux@brodo.de>

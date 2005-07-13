@@ -61,9 +61,7 @@ struct argument_info
 
 
 #define PARAM_LIST(pl)                  pl
-
 #define DBTEST_OUTPUT_LEVEL(lvl)        if (acpi_gbl_db_opt_verbose)
-
 #define VERBOSE_PRINT(fp)               DBTEST_OUTPUT_LEVEL(lvl) {\
 			  acpi_os_printf PARAM_LIST(fp);}
 
@@ -71,13 +69,9 @@ struct argument_info
 #define EX_SINGLE_STEP                  2
 
 
-/* Prototypes */
-
-
 /*
  * dbxface - external debugger interfaces
  */
-
 acpi_status
 acpi_db_initialize (
 	void);
@@ -92,20 +86,10 @@ acpi_db_single_step (
 	union acpi_parse_object         *op,
 	u32                             op_type);
 
-acpi_status
-acpi_db_start_command (
-	struct acpi_walk_state          *walk_state,
-	union acpi_parse_object         *op);
-
-void
-acpi_db_method_end (
-	struct acpi_walk_state          *walk_state);
-
 
 /*
  * dbcmds - debug commands and output routines
  */
-
 acpi_status
 acpi_db_disassemble_method (
 	char                            *name);
@@ -177,57 +161,30 @@ acpi_db_find_references (
 	char                            *object_arg);
 
 void
-acpi_db_display_locks (void);
-
+acpi_db_display_locks (
+	void);
 
 void
 acpi_db_display_resources (
 	char                            *object_arg);
 
 void
-acpi_db_display_gpes (void);
+acpi_db_display_gpes (
+	void);
 
 void
 acpi_db_check_integrity (
 	void);
-
-acpi_status
-acpi_db_integrity_walk (
-	acpi_handle                     obj_handle,
-	u32                             nesting_level,
-	void                            *context,
-	void                            **return_value);
-
-acpi_status
-acpi_db_walk_and_match_name (
-	acpi_handle                     obj_handle,
-	u32                             nesting_level,
-	void                            *context,
-	void                            **return_value);
-
-acpi_status
-acpi_db_walk_for_references (
-	acpi_handle                     obj_handle,
-	u32                             nesting_level,
-	void                            *context,
-	void                            **return_value);
-
-acpi_status
-acpi_db_walk_for_specific_objects (
-	acpi_handle                     obj_handle,
-	u32                             nesting_level,
-	void                            *context,
-	void                            **return_value);
 
 void
 acpi_db_generate_gpe (
 	char                            *gpe_arg,
 	char                            *block_arg);
 
+
 /*
  * dbdisply - debug display commands
  */
-
 void
 acpi_db_display_method_info (
 	union acpi_parse_object         *op);
@@ -271,19 +228,10 @@ acpi_db_display_argument_object (
 	union acpi_operand_object       *obj_desc,
 	struct acpi_walk_state          *walk_state);
 
-void
-acpi_db_dump_parser_descriptor (
-	union acpi_parse_object         *op);
-
-void *
-acpi_db_get_pointer (
-	void                            *target);
-
 
 /*
  * dbexec - debugger control method execution
  */
-
 void
 acpi_db_execute (
 	char                            *name,
@@ -296,43 +244,14 @@ acpi_db_create_execution_threads (
 	char                            *num_loops_arg,
 	char                            *method_name_arg);
 
-acpi_status
-acpi_db_execute_method (
-	struct acpi_db_method_info      *info,
-	struct acpi_buffer              *return_obj);
-
-void
-acpi_db_execute_setup (
-	struct acpi_db_method_info      *info);
-
-u32
-acpi_db_get_outstanding_allocations (
-	void);
-
-void ACPI_SYSTEM_XFACE
-acpi_db_method_thread (
-	void                            *context);
-
-acpi_status
-acpi_db_execution_walk (
-	acpi_handle                     obj_handle,
-	u32                             nesting_level,
-	void                            *context,
-	void                            **return_value);
-
 
 /*
  * dbfileio - Debugger file I/O commands
  */
-
 acpi_object_type
 acpi_db_match_argument (
 	char                            *user_argument,
 	struct argument_info            *arguments);
-
-acpi_status
-ae_local_load_table (
-	struct acpi_table_header        *table_ptr);
 
 void
 acpi_db_close_debug_file (
@@ -356,16 +275,17 @@ acpi_db_read_table_from_file (
 	char                            *filename,
 	struct acpi_table_header        **table);
 
+
 /*
  * dbhistry - debugger HISTORY command
  */
-
 void
 acpi_db_add_to_history (
 	char                            *command_line);
 
 void
-acpi_db_display_history (void);
+acpi_db_display_history (
+	void);
 
 char *
 acpi_db_get_from_history (
@@ -375,7 +295,6 @@ acpi_db_get_from_history (
 /*
  * dbinput - user front-end to the AML debugger
  */
-
 acpi_status
 acpi_db_command_dispatch (
 	char                            *input_buffer,
@@ -386,69 +305,26 @@ void ACPI_SYSTEM_XFACE
 acpi_db_execute_thread (
 	void                            *context);
 
-void
-acpi_db_display_help (
-	char                            *help_type);
-
-char *
-acpi_db_get_next_token (
-	char                            *string,
-	char                            **next);
-
-u32
-acpi_db_get_line (
-	char                            *input_buffer);
-
-u32
-acpi_db_match_command (
-	char                            *user_command);
-
-void
-acpi_db_single_thread (
-	void);
-
 
 /*
  * dbstats - Generation and display of ACPI table statistics
  */
-
 void
 acpi_db_generate_statistics (
 	union acpi_parse_object         *root,
 	u8                              is_method);
 
-
 acpi_status
 acpi_db_display_statistics (
 	char                            *type_arg);
-
-acpi_status
-acpi_db_classify_one_object (
-	acpi_handle                     obj_handle,
-	u32                             nesting_level,
-	void                            *context,
-	void                            **return_value);
-
-void
-acpi_db_count_namespace_objects (
-	void);
-
-void
-acpi_db_enumerate_object (
-	union acpi_operand_object       *obj_desc);
 
 
 /*
  * dbutils - AML debugger utilities
  */
-
 void
 acpi_db_set_output_destination (
 	u32                             where);
-
-void
-acpi_db_dump_buffer (
-	u32                             address);
 
 void
 acpi_db_dump_object (
@@ -459,14 +335,8 @@ void
 acpi_db_prep_namestring (
 	char                            *name);
 
-
-acpi_status
-acpi_db_second_pass_parse (
-	union acpi_parse_object         *root);
-
 struct acpi_namespace_node *
 acpi_db_local_ns_lookup (
 	char                            *name);
-
 
 #endif  /* __ACDEBUG_H__ */

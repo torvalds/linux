@@ -117,10 +117,12 @@ void __init h1940_init_irq(void)
 }
 
 MACHINE_START(H1940, "IPAQ-H1940")
-     MAINTAINER("Ben Dooks <ben@fluff.org>")
-     BOOT_MEM(S3C2410_SDRAM_PA, S3C2410_PA_UART, (u32)S3C24XX_VA_UART)
-     BOOT_PARAMS(S3C2410_SDRAM_PA + 0x100)
-     MAPIO(h1940_map_io)
-     INITIRQ(h1940_init_irq)
+	/* Maintainer: Ben Dooks <ben@fluff.org> */
+	.phys_ram	= S3C2410_SDRAM_PA,
+	.phys_io	= S3C2410_PA_UART,
+	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
+	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.map_io		= h1940_map_io,
+	.init_irq	= h1940_init_irq,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

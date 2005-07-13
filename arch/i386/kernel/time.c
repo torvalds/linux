@@ -68,7 +68,8 @@
 
 #include "io_ports.h"
 
-extern spinlock_t i8259A_lock;
+#include <asm/i8259.h>
+
 int pit_latch_buggy;              /* extern */
 
 #include "do_timer.h"
@@ -85,10 +86,12 @@ extern unsigned long wall_jiffies;
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
+#include <asm/i8253.h>
+
 DEFINE_SPINLOCK(i8253_lock);
 EXPORT_SYMBOL(i8253_lock);
 
-struct timer_opts *cur_timer = &timer_none;
+struct timer_opts *cur_timer __read_mostly = &timer_none;
 
 /*
  * This is a special lock that is owned by the CPU and holds the index

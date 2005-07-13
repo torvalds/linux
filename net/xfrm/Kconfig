@@ -1,6 +1,10 @@
 #
 # XFRM configuration
 #
+config XFRM
+       bool
+       depends on NET
+
 config XFRM_USER
 	tristate "IPsec user configuration interface"
 	depends on INET && XFRM
@@ -9,4 +13,15 @@ config XFRM_USER
 	  by native Linux tools.
 
 	  If unsure, say Y.
+
+config NET_KEY
+	tristate "PF_KEY sockets"
+	select XFRM
+	---help---
+	  PF_KEYv2 socket family, compatible to KAME ones.
+	  They are required if you are going to use IPsec tools ported
+	  from KAME.
+
+	  Say Y unless you know what you are doing.
+
 

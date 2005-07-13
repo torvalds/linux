@@ -36,6 +36,13 @@ int arch_register_cpu(int num)
 	parent = &sysfs_nodes[cpu_to_node(num)];
 #endif /* CONFIG_NUMA */
 
+	/*
+	 * If CPEI cannot be re-targetted, and this is
+	 * CPEI target, then dont create the control file
+	 */
+	if (!can_cpei_retarget() && is_cpu_cpei_target(num))
+		sysfs_cpus[num].cpu.no_control = 1;
+
 	return register_cpu(&sysfs_cpus[num].cpu, num, parent);
 }
 

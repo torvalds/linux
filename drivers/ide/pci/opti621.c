@@ -326,7 +326,7 @@ static void opti621_tune_drive (ide_drive_t *drive, u8 pio)
 /*
  * init_hwif_opti621() is called once for each hwif found at boot.
  */
-static void __init init_hwif_opti621 (ide_hwif_t *hwif)
+static void __devinit init_hwif_opti621 (ide_hwif_t *hwif)
 {
 	hwif->autodma = 0;
 	hwif->drives[0].drive_data = PIO_DONT_KNOW;

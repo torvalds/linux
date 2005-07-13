@@ -133,6 +133,58 @@ static struct kobj_type ktype_bus = {
 decl_subsys(bus, &ktype_bus, NULL);
 
 
+/* Manually detach a device from it's associated driver. */
+static int driver_helper(struct device *dev, void *data)
+{
+	const char *name = data;
+
+	if (strcmp(name, dev->bus_id) == 0)
+		return 1;
+	return 0;
+}
+
+static ssize_t driver_unbind(struct device_driver *drv,
+			     const char *buf, size_t count)
+{
+	struct bus_type *bus = get_bus(drv->bus);
+	struct device *dev;
+	int err = -ENODEV;
+
+	dev = bus_find_device(bus, NULL, (void *)buf, driver_helper);
+	if ((dev) &&
+	    (dev->driver == drv)) {
+		device_release_driver(dev);
+		err = count;
+	}
+	return err;
+}
+static DRIVER_ATTR(unbind, S_IWUSR, NULL, driver_unbind);
+
+/*
+ * Manually attach a device to a driver.
+ * Note: the driver must want to bind to the device,
+ * it is not possible to override the driver's id table.
+ */
+static ssize_t driver_bind(struct device_driver *drv,
+			   const char *buf, size_t count)
+{
+	struct bus_type *bus = get_bus(drv->bus);
+	struct device *dev;
+	int err = -ENODEV;
+
+	dev = bus_find_device(bus, NULL, (void *)buf, driver_helper);
+	if ((dev) &&
+	    (dev->driver == NULL)) {
+		down(&dev->sem);
+		err = driver_probe_device(drv, dev);
+		up(&dev->sem);
+		put_device(dev);
+	}
+	return err;
+}
+static DRIVER_ATTR(bind, S_IWUSR, NULL, driver_bind);
+
+
 static struct device * next_device(struct klist_iter * i)
 {
 	struct klist_node * n = klist_next(i);
@@ -177,6 +229,39 @@ int bus_for_each_dev(struct bus_type * bus, struct device * start,
 	return error;
 }
 
+/**
+ * bus_find_device - device iterator for locating a particular device.
+ * @bus: bus type
+ * @start: Device to begin with
+ * @data: Data to pass to match function
+ * @match: Callback function to check device
+ *
+ * This is similar to the bus_for_each_dev() function above, but it
+ * returns a reference to a device that is 'found' for later use, as
+ * determined by the @match callback.
+ *
+ * The callback should return 0 if the device doesn't match and non-zero
+ * if it does.  If the callback returns non-zero, this function will
+ * return to the caller and not iterate over any more devices.
+ */
+struct device * bus_find_device(struct bus_type *bus,
+				struct device *start, void *data,
+				int (*match)(struct device *, void *))
+{
+	struct klist_iter i;
+	struct device *dev;
+
+	if (!bus)
+		return NULL;
+
+	klist_iter_init_node(&bus->klist_devices, &i,
+			     (start ? &start->knode_bus : NULL));
+	while ((dev = next_device(&i)))
+		if (match(dev, data) && get_device(dev))
+			break;
+	klist_iter_exit(&i);
+	return dev;
+}
 
 
 static struct device_driver * next_driver(struct klist_iter * i)
@@ -363,6 +448,8 @@ int bus_add_driver(struct device_driver * drv)
 		module_add_driver(drv->owner, drv);
 
 		driver_add_attrs(bus, drv);
+		driver_create_file(drv, &driver_attr_unbind);
+		driver_create_file(drv, &driver_attr_bind);
 	}
 	return error;
 }
@@ -380,6 +467,8 @@ int bus_add_driver(struct device_driver * drv)
 void bus_remove_driver(struct device_driver * drv)
 {
 	if (drv->bus) {
+		driver_remove_file(drv, &driver_attr_bind);
+		driver_remove_file(drv, &driver_attr_unbind);
 		driver_remove_attrs(drv->bus, drv);
 		klist_remove(&drv->knode_bus);
 		pr_debug("bus %s: remove driver %s\n", drv->bus->name, drv->name);
@@ -394,31 +483,22 @@ void bus_remove_driver(struct device_driver * drv)
 /* Helper for bus_rescan_devices's iter */
 static int bus_rescan_devices_helper(struct device *dev, void *data)
 {
-	int *count = data;
-
-	if (!dev->driver && (device_attach(dev) > 0))
-		(*count)++;
-
+	if (!dev->driver)
+		device_attach(dev);
 	return 0;
 }
 
-
 /**
- *	bus_rescan_devices - rescan devices on the bus for possible drivers
- *	@bus:	the bus to scan.
+ * bus_rescan_devices - rescan devices on the bus for possible drivers
+ * @bus: the bus to scan.
  *
- *	This function will look for devices on the bus with no driver
- *	attached and rescan it against existing drivers to see if it
- *	matches any. Calls device_attach(). Returns the number of devices
- *	that were sucessfully bound to a driver.
+ * This function will look for devices on the bus with no driver
+ * attached and rescan it against existing drivers to see if it matches
+ * any by calling device_attach() for the unbound devices.
  */
-int bus_rescan_devices(struct bus_type * bus)
+void bus_rescan_devices(struct bus_type * bus)
 {
-	int count = 0;
-
-	bus_for_each_dev(bus, NULL, &count, bus_rescan_devices_helper);
-
-	return count;
+	bus_for_each_dev(bus, NULL, NULL, bus_rescan_devices_helper);
 }
 
 
@@ -557,6 +637,7 @@ int __init buses_init(void)
 
 
 EXPORT_SYMBOL_GPL(bus_for_each_dev);
+EXPORT_SYMBOL_GPL(bus_find_device);
 EXPORT_SYMBOL_GPL(bus_for_each_drv);
 
 EXPORT_SYMBOL_GPL(bus_add_device);

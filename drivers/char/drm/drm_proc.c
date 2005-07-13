@@ -57,7 +57,7 @@ static int	   drm_vma_info(char *buf, char **start, off_t offset,
 /**
  * Proc file list.
  */
-struct drm_proc_list {
+static struct drm_proc_list {
 	const char *name;	/**< file name */
 	int	   (*f)(char *, char **, off_t, int, int *, void *);	/**< proc callback*/
 } drm_proc_list[] = {

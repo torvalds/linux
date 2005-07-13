@@ -21,23 +21,17 @@ export CPU
 
 # Platform configuration
 
-platform-y					:= common
 platform-$(CONFIG_XTENSA_PLATFORM_XT2000)	:= xt2000
 platform-$(CONFIG_XTENSA_PLATFORM_ISS)		:= iss
 
 PLATFORM = $(platform-y)
 export PLATFORM
 
-#LDFLAGS_vmlinux		:= -T$(word 1,$(LINKSCRIPT))
-AFLAGS_vmlinux.lds.o	:= -Uxtensa
-CPPFLAGS		+= -Iarch/xtensa -Iinclude/asm  -mlongcalls  -g
-AFLAGS			+= -Iarch/xtensa -Iinclude/asm
-CPP			= $(CC) -E $(CFLAGS)
+CPPFLAGS	+= $(if $(KBUILD_SRC),-I$(srctree)/include/asm-xtensa/)
+CPPFLAGS	+= -Iinclude/asm
+CFLAGS		+= -pipe -mlongcalls
 
-cflags-y	+= -Iarch/xtensa -pipe -mlongcalls
-
-
-KBUILD_DEFCONFIG := common_defconfig
+KBUILD_DEFCONFIG := iss_defconfig
 
 # ramdisk/initrd support
 # You need a compressed ramdisk image, named ramdisk.gz in
@@ -62,30 +56,36 @@ endif
 LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
 
 head-y		:= arch/xtensa/kernel/head.o
-core-y		+= arch/xtensa/kernel/ \
-		   arch/xtensa/mm/ arch/xtensa/platform-$(PLATFORM)/
+core-y		+= arch/xtensa/kernel/ arch/xtensa/mm/
+ifneq ($(PLATFORM),)
+core-y		+= arch/xtensa/platform-$(PLATFORM)/
+endif
 libs-y		+= arch/xtensa/lib/ $(LIBGCC)
 
-boot	:= arch/xtensa/boot
+boot		:= arch/xtensa/boot
+
+archinc		:= include/asm-xtensa
 
 arch/xtensa/kernel/asm-offsets.s: \
-	arch/xtensa/kernel/asm-offsets.c \
-	include/asm-xtensa/.platform
+	arch/xtensa/kernel/asm-offsets.c $(archinc)/.platform
 
 include/asm-xtensa/offsets.h: arch/xtensa/kernel/asm-offsets.s
 	$(call filechk,gen-asm-offsets)
 
-prepare: include/asm-xtensa/.platform include/asm-xtensa/offsets.h
+prepare: $(archinc)/.platform $(archinc)/offsets.h
 
 # Update machine cpu and platform symlinks if something which affects
 # them changed.
 
-include/asm-xtensa/.platform: $(wildcard include/config/arch/*.h)
-	@echo '  Setting up cpu ($(CPU)) and platform ($(PLATFORM)) symlinks'
-	$(Q)rm -f include/asm-xtensa/platform
-	$(Q)rm -f include/asm-xtensa/xtensa/config
-	$(Q)(cd include/asm-xtensa/; ln -sf platform-$(PLATFORM) platform)
-	$(Q)(cd include/asm-xtensa/xtensa; ln -sf config-$(CPU) config)
+$(archinc)/.platform: $(wildcard include/config/arch/*.h) include/config/MARKER
+	@echo '  SYMLINK $(archinc)/xtensa/config -> $(archinc)/xtensa/config-$(CPU)'
+	$(Q)mkdir -p $(archinc)
+	$(Q)mkdir -p $(archinc)/xtensa
+	$(Q)ln -fsn $(srctree)/$(archinc)/xtensa/config-$(CPU) $(archinc)/xtensa/config
+	@echo '  SYMLINK $(archinc)/platform -> $(archinc)/platform-$(PLATFORM)'
+	$(Q)ln -fsn $(srctree)/$(archinc)/platform-$(PLATFORM) $(archinc)/platform
+	@touch $@
+
 
 all: zImage
 
@@ -94,7 +94,9 @@ bzImage : zImage
 zImage zImage.initrd: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
-CLEAN_FILES	+= arch/xtensa/vmlinux.lds include/asm-xtensa/offset.h
+CLEAN_FILES	+= arch/xtensa/vmlinux.lds $(archinc)/offset.h \
+		   $(archinc)/platform $(archinc)/xtensa/config \
+		   $(archinc)/.platform
 
 define archhelp
   @echo '* zImage      - Compressed kernel image (arch/xtensa/boot/images/zImage.*)'

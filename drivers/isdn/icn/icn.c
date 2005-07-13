@@ -304,12 +304,12 @@ icn_pollbchan_send(int channel, icn_card * card)
 	isdn_ctrl cmd;
 
 	if (!(card->sndcount[channel] || card->xskb[channel] ||
-	      skb_queue_len(&card->spqueue[channel])))
+	      !skb_queue_empty(&card->spqueue[channel])))
 		return;
 	if (icn_trymaplock_channel(card, mch)) {
 		while (sbfree && 
 		       (card->sndcount[channel] ||
-			skb_queue_len(&card->spqueue[channel]) ||
+			!skb_queue_empty(&card->spqueue[channel]) ||
 			card->xskb[channel])) {
 			spin_lock_irqsave(&card->lock, flags);
 			if (card->xmit_lock[channel]) {

@@ -69,7 +69,7 @@ struct bus_type {
 extern int bus_register(struct bus_type * bus);
 extern void bus_unregister(struct bus_type * bus);
 
-extern int bus_rescan_devices(struct bus_type * bus);
+extern void bus_rescan_devices(struct bus_type * bus);
 
 extern struct bus_type * get_bus(struct bus_type * bus);
 extern void put_bus(struct bus_type * bus);
@@ -80,6 +80,8 @@ extern struct bus_type * find_bus(char * name);
 
 int bus_for_each_dev(struct bus_type * bus, struct device * start, void * data,
 		     int (*fn)(struct device *, void *));
+struct device * bus_find_device(struct bus_type *bus, struct device *start,
+				void *data, int (*match)(struct device *, void *));
 
 int bus_for_each_drv(struct bus_type * bus, struct device_driver * start, 
 		     void * data, int (*fn)(struct device_driver *, void *));
@@ -142,6 +144,9 @@ extern void driver_remove_file(struct device_driver *, struct driver_attribute *
 
 extern int driver_for_each_device(struct device_driver * drv, struct device * start,
 				  void * data, int (*fn)(struct device *, void *));
+struct device * driver_find_device(struct device_driver *drv,
+				   struct device *start, void *data,
+				   int (*match)(struct device *, void *));
 
 
 /*
@@ -279,8 +284,10 @@ struct device {
 	struct device_driver *driver;	/* which driver has allocated this
 					   device */
 	void		*driver_data;	/* data private to the driver */
-	void		*platform_data;	/* Platform specific data (e.g. ACPI,
-					   BIOS data relevant to device) */
+	void		*platform_data;	/* Platform specific data, device
+					   core doesn't touch it */
+	void		*firmware_data; /* Firmware specific data (e.g. ACPI,
+					   BIOS data),reserved for device core*/
 	struct dev_pm_info	power;
 
 	u64		*dma_mask;	/* dma mask (if dma'able device) */

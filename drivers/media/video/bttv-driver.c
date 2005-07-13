@@ -1,5 +1,5 @@
 /*
-    $Id: bttv-driver.c,v 1.40 2005/06/16 21:38:45 nsh Exp $
+    $Id: bttv-driver.c,v 1.42 2005/07/05 17:37:35 nsh Exp $
 
     bttv - Bt848 frame grabber driver
 
@@ -35,6 +35,7 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/kdev_t.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/byteorder.h>
@@ -698,12 +699,10 @@ int locked_btres(struct bttv *btv, int bit)
 static
 void free_btres(struct bttv *btv, struct bttv_fh *fh, int bits)
 {
-#if 1 /* DEBUG */
 	if ((fh->resources & bits) != bits) {
 		/* trying to free ressources not allocated by us ... */
 		printk("bttv: BUG! (btres)\n");
 	}
-#endif
 	down(&btv->reslock);
 	fh->resources  &= ~bits;
 	btv->resources &= ~bits;
@@ -943,11 +942,6 @@ audio_mux(struct bttv *btv, int mode)
 	i2c_mux = mux = (btv->audio & AUDIO_MUTE) ? AUDIO_OFF : btv->audio;
 	if (btv->opt_automute && !signal && !btv->radio_user)
 		mux = AUDIO_OFF;
-#if 0
-	printk("bttv%d: amux: mode=%d audio=%d signal=%s mux=%d/%d irq=%s\n",
-	       btv->c.nr, mode, btv->audio, signal ? "yes" : "no",
-	       mux, i2c_mux, in_interrupt() ? "yes" : "no");
-#endif
 
 	val = bttv_tvcards[btv->c.type].audiomux[mux];
 	gpio_bits(bttv_tvcards[btv->c.type].gpiomask,val);
@@ -994,11 +988,6 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 	case BTTV_VOODOOTV_FM:
 		bttv_tda9880_setnorm(btv,norm);
 		break;
-#if 0
-	case BTTV_OSPREY540:
-		osprey_540_set_norm(btv,norm);
-		break;
-#endif
 	}
 	return 0;
 }
@@ -1849,7 +1838,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 
 		if (unlikely(f->tuner != 0))
 			return -EINVAL;
-		if (unlikely(f->type != V4L2_TUNER_ANALOG_TV))
+		if (unlikely (f->type != V4L2_TUNER_ANALOG_TV))
 			return -EINVAL;
 		down(&btv->lock);
 		btv->freq = f->frequency;
@@ -3865,7 +3854,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 		       btv->c.nr);
 		return -EIO;
 	}
-        if (pci_set_dma_mask(dev, 0xffffffff)) {
+        if (pci_set_dma_mask(dev, DMA_32BIT_MASK)) {
                 printk(KERN_WARNING "bttv%d: No suitable DMA available.\n",
 		       btv->c.nr);
 		return -EIO;

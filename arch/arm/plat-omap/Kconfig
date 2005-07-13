@@ -1,0 +1,112 @@
+if ARCH_OMAP
+
+menu "TI OMAP Implementations"
+
+config ARCH_OMAP_OTG
+	bool
+
+choice
+	prompt "OMAP System Type"
+	default ARCH_OMAP1
+
+config ARCH_OMAP1
+	bool "TI OMAP1"
+
+config ARCH_OMAP2
+	bool "TI OMAP2"
+
+endchoice
+
+comment "OMAP Feature Selections"
+
+config OMAP_RESET_CLOCKS
+	bool "Reset unused clocks during boot"
+	depends on ARCH_OMAP
+	default n
+	help
+	  Say Y if you want to reset unused clocks during boot.
+	  This option saves power, but assumes all drivers are
+	  using the clock framework. Broken drivers that do not
+	  yet use clock framework may not work with this option.
+	  If you are booting from another operating system, you
+	  probably do not want this option enabled until your
+	  device drivers work properly.
+
+config OMAP_MUX
+	bool "OMAP multiplexing support"
+        depends on ARCH_OMAP
+	default y
+        help
+          Pin multiplexing support for OMAP boards. If your bootloader
+          sets the multiplexing correctly, say N. Otherwise, or if unsure,
+          say Y.
+
+config OMAP_MUX_DEBUG
+	bool "Multiplexing debug output"
+        depends on OMAP_MUX
+        default n
+        help
+          Makes the multiplexing functions print out a lot of debug info.
+          This is useful if you want to find out the correct values of the
+          multiplexing registers.
+
+config OMAP_MUX_WARNINGS
+	bool "Warn about pins the bootloader didn't set up"
+        depends on OMAP_MUX
+        default y
+        help
+	  Choose Y here to warn whenever driver initialization logic needs
+	  to change the pin multiplexing setup.  When there are no warnings
+	  printed, it's safe to deselect OMAP_MUX for your product.
+
+choice
+        prompt "System timer"
+	default OMAP_MPU_TIMER
+
+config OMAP_MPU_TIMER
+	bool "Use mpu timer"
+	help
+	  Select this option if you want to use the OMAP mpu timer. This
+	  timer provides more intra-tick resolution than the 32KHz timer,
+	  but consumes more power.
+
+config OMAP_32K_TIMER
+	bool "Use 32KHz timer"
+	depends on ARCH_OMAP16XX
+	help
+	  Select this option if you want to enable the OMAP 32KHz timer.
+	  This timer saves power compared to the OMAP_MPU_TIMER, and has
+	  support for no tick during idle. The 32KHz timer provides less
+	  intra-tick resolution than OMAP_MPU_TIMER. The 32KHz timer is
+	  currently only available for OMAP-16xx.
+
+endchoice
+
+config OMAP_32K_TIMER_HZ
+       int "Kernel internal timer frequency for 32KHz timer"
+       range 32 1024
+       depends on OMAP_32K_TIMER
+       default "128"
+       help
+	  Kernel internal timer frequency should be a divisor of 32768,
+	  such as 64 or 128.
+
+choice
+	prompt "Low-level debug console UART"
+	depends on ARCH_OMAP
+	default OMAP_LL_DEBUG_UART1
+
+config OMAP_LL_DEBUG_UART1
+	bool "UART1"
+
+config OMAP_LL_DEBUG_UART2
+	bool "UART2"
+
+config OMAP_LL_DEBUG_UART3
+	bool "UART3"
+
+endchoice
+
+endmenu
+
+endif

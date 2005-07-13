@@ -231,11 +231,10 @@ static void tcp_delack_timer(unsigned long data)
 	}
 	tp->ack.pending &= ~TCP_ACK_TIMER;
 
-	if (skb_queue_len(&tp->ucopy.prequeue)) {
+	if (!skb_queue_empty(&tp->ucopy.prequeue)) {
 		struct sk_buff *skb;
 
-		NET_ADD_STATS_BH(LINUX_MIB_TCPSCHEDULERFAILED, 
-				 skb_queue_len(&tp->ucopy.prequeue));
+		NET_INC_STATS_BH(LINUX_MIB_TCPSCHEDULERFAILED);
 
 		while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
 			sk->sk_backlog_rcv(sk, skb);

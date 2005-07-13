@@ -589,8 +589,7 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft)
 
 	/* sanity check prom rev */
 
-	if (sn_sal_rev_major() < 4 ||
-	    (sn_sal_rev_major() == 4 && sn_sal_rev_minor() < 6)) {
+	if (sn_sal_rev() < 0x0406) {
 		printk
 		    (KERN_ERR "%s:  SGI prom rev 4.06 or greater required "
 		     "for tioca support\n", __FUNCTION__);

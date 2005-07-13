@@ -138,25 +138,13 @@ int bt832_init(struct i2c_client *i2c_client_s)
 
         bt832_hexdump(i2c_client_s,buf);
 
-#if 0
-	// Full 30/25 Frame rate
-	printk("Full 30/25 Frame rate\n");
-	buf[0]=BT832_VP_CONTROL0; // Reg.39
-        buf[1]= 0x00;
-        if (2 != (rc = i2c_master_send(i2c_client_s,buf,2)))
-                printk("bt832: i2c i/o error FFR: rc == %d (should be 2)\n",rc);
 
-        bt832_hexdump(i2c_client_s,buf);
-#endif
-
-#if 1
 	// for testing (even works when no camera attached)
 	printk("bt832: *** Generate NTSC M Bars *****\n");
 	buf[0]=BT832_VP_TESTCONTROL0; // Reg. 42
 	buf[1]=3; // Generate NTSC System M bars, Generate Frame timing internally
         if (2 != (rc = i2c_master_send(i2c_client_s,buf,2)))
                 printk("bt832: i2c i/o error MBAR: rc == %d (should be 2)\n",rc);
-#endif
 
 	printk("Bt832: Camera Present: %s\n",
 		(buf[1+BT832_CAM_STATUS] & BT832_56_CAMERA_PRESENT) ? "yes":"no");
