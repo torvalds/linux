@@ -1,5 +1,5 @@
 # drivers/mtd/nand/Kconfig
-# $Id: Kconfig,v 1.26 2005/01/05 12:42:24 dwmw2 Exp $
+# $Id: Kconfig,v 1.31 2005/06/20 12:03:21 bjd Exp $
 
 menu "NAND Flash Device Drivers"
 	depends on MTD!=n
@@ -58,20 +58,6 @@ config MTD_NAND_TOTO
 config MTD_NAND_IDS
 	tristate
 
-config MTD_NAND_TX4925NDFMC
-	tristate "SmartMedia Card on Toshiba RBTX4925 reference board"
-	depends on TOSHIBA_RBTX4925 && MTD_NAND && TOSHIBA_RBTX4925_MPLEX_NAND
-	help
-	  This enables the driver for the NAND flash device found on the
-	  Toshiba RBTX4925 reference board, which is a SmartMediaCard.
-
-config MTD_NAND_TX4938NDFMC
-	tristate "NAND Flash device on Toshiba RBTX4938 reference board"
-	depends on TOSHIBA_RBTX4938 && MTD_NAND && TOSHIBA_RBTX4938_MPLEX_NAND 
-	help
-	  This enables the driver for the NAND flash device found on the
-	  Toshiba RBTX4938 reference board.
-
 config MTD_NAND_AU1550
 	tristate "Au1550 NAND support"
 	depends on SOC_AU1550 && MTD_NAND
@@ -95,10 +81,11 @@ config MTD_NAND_PPCHAMELEONEVB
 	  This enables the NAND flash driver on the PPChameleon EVB Board.
 
 config MTD_NAND_S3C2410
-	tristate "NAND Flash support for S3C2410 SoC"
+	tristate "NAND Flash support for S3C2410/S3C2440 SoC"
 	depends on ARCH_S3C2410 && MTD_NAND
 	help
-	  This enables the NAND flash controller on the S3C2410.
+	  This enables the NAND flash controller on the S3C2410 and S3C2440
+	  SoCs
 
 	  No board specfic support is done by this driver, each board
 	  must advertise a platform_device for the driver to attach. 

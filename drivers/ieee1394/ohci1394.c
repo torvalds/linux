@@ -162,7 +162,7 @@ printk(level "%s: " fmt "\n" , OHCI1394_DRIVER_NAME , ## args)
 printk(level "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->id , ## args)
 
 static char version[] __devinitdata =
-	"$Rev: 1250 $ Ben Collins <bcollins@debian.org>";
+	"$Rev: 1299 $ Ben Collins <bcollins@debian.org>";
 
 /* Module Parameters */
 static int phys_dma = 1;
@@ -483,7 +483,9 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	/* Put some defaults to these undefined bus options */
 	buf = reg_read(ohci, OHCI1394_BusOptions);
 	buf |=  0x60000000; /* Enable CMC and ISC */
-	if (!hpsb_disable_irm)
+	if (hpsb_disable_irm)
+		buf &= ~0x80000000;
+	else
 		buf |=  0x80000000; /* Enable IRMC */
 	buf &= ~0x00ff0000; /* XXX: Set cyc_clk_acc to zero for now */
 	buf &= ~0x18000000; /* Disable PMC and BMC */
@@ -503,8 +505,12 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	reg_write(ohci, OHCI1394_LinkControlSet,
 		  OHCI1394_LinkControl_CycleTimerEnable |
 		  OHCI1394_LinkControl_CycleMaster);
-	set_phy_reg_mask(ohci, 4, PHY_04_LCTRL |
-			 (hpsb_disable_irm ? 0 : PHY_04_CONTENDER));
+	i = get_phy_reg(ohci, 4) | PHY_04_LCTRL;
+	if (hpsb_disable_irm)
+		i &= ~PHY_04_CONTENDER;
+	else
+		i |= PHY_04_CONTENDER;
+	set_phy_reg(ohci, 4, i);
 
 	/* Set up self-id dma buffer */
 	reg_write(ohci, OHCI1394_SelfIDBuffer, ohci->selfid_buf_bus);
@@ -1566,6 +1572,10 @@ static void ohci_iso_recv_release_block(struct ohci_iso_recv *recv, int block)
 
 	struct dma_cmd *next = &recv->block[next_i];
 	struct dma_cmd *prev = &recv->block[prev_i];
+	
+	/* ignore out-of-range requests */
+	if ((block < 0) || (block > recv->nblocks))
+		return;
 
 	/* 'next' becomes the new end of the DMA chain,
 	   so disable branch and enable interrupt */
@@ -1593,19 +1603,8 @@ static void ohci_iso_recv_release_block(struct ohci_iso_recv *recv, int block)
 static void ohci_iso_recv_bufferfill_release(struct ohci_iso_recv *recv,
 					     struct hpsb_iso_packet_info *info)
 {
-	int len;
-
 	/* release the memory where the packet was */
-	len = info->len;
-
-	/* add the wasted space for padding to 4 bytes */
-	if (len % 4)
-		len += 4 - (len % 4);
-
-	/* add 8 bytes for the OHCI DMA data format overhead */
-	len += 8;
-
-	recv->released_bytes += len;
+	recv->released_bytes += info->total_len;
 
 	/* have we released enough memory for one block? */
 	while (recv->released_bytes > recv->buf_stride) {
@@ -1637,7 +1636,7 @@ static void ohci_iso_recv_bufferfill_parse(struct hpsb_iso *iso, struct ohci_iso
 		/* note: packet layout is as shown in section 10.6.1.1 of the OHCI spec */
 
 		unsigned int offset;
-		unsigned short len, cycle;
+		unsigned short len, cycle, total_len;
 		unsigned char channel, tag, sy;
 
 		unsigned char *p = iso->data_buf.kvirt;
@@ -1688,9 +1687,11 @@ static void ohci_iso_recv_bufferfill_parse(struct hpsb_iso *iso, struct ohci_iso
 		/* advance to xferStatus/timeStamp */
 		recv->dma_offset += len;
 
+		total_len = len + 8; /* 8 bytes header+trailer in OHCI packet */
 		/* payload is padded to 4 bytes */
 		if (len % 4) {
 			recv->dma_offset += 4 - (len%4);
+			total_len += 4 - (len%4);
 		}
 
 		/* check for wrap-around */
@@ -1724,7 +1725,7 @@ static void ohci_iso_recv_bufferfill_parse(struct hpsb_iso *iso, struct ohci_iso
 			recv->dma_offset -= recv->buf_stride*recv->nblocks;
 		}
 
-		hpsb_iso_packet_received(iso, offset, len, cycle, channel, tag, sy);
+		hpsb_iso_packet_received(iso, offset, len, total_len, cycle, channel, tag, sy);
 	}
 
 	if (wake)
@@ -1850,7 +1851,8 @@ static void ohci_iso_recv_packetperbuf_task(struct hpsb_iso *iso, struct ohci_is
 			tag = hdr[5] >> 6;
 			sy = hdr[4] & 0xF;
 
-			hpsb_iso_packet_received(iso, offset, packet_len, cycle, channel, tag, sy);
+			hpsb_iso_packet_received(iso, offset, packet_len,
+					recv->buf_stride, cycle, channel, tag, sy);
 		}
 
 		/* reset the DMA descriptor */
@@ -3538,8 +3540,8 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 
 static int ohci1394_pci_resume (struct pci_dev *pdev)
 {
-#ifdef CONFIG_PMAC_PBOOK
-	{
+#ifdef CONFIG_PPC_PMAC
+	if (_machine == _MACH_Pmac) {
 		struct device_node *of_node;
 
 		/* Re-enable 1394 */
@@ -3547,7 +3549,7 @@ static int ohci1394_pci_resume (struct pci_dev *pdev)
 		if (of_node)
 			pmac_call_feature (PMAC_FTR_1394_ENABLE, of_node, 0, 1);
 	}
-#endif
+#endif /* CONFIG_PPC_PMAC */
 
 	pci_enable_device(pdev);
 
@@ -3557,8 +3559,8 @@ static int ohci1394_pci_resume (struct pci_dev *pdev)
 
 static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 {
-#ifdef CONFIG_PMAC_PBOOK
-	{
+#ifdef CONFIG_PPC_PMAC
+	if (_machine == _MACH_Pmac) {
 		struct device_node *of_node;
 
 		/* Disable 1394 */

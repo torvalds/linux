@@ -1926,7 +1926,7 @@ static void refill_rx(struct net_device *dev)
 				break; /* Better luck next round. */
 			skb->dev = dev; /* Mark as being used by this device. */
 			np->rx_dma[entry] = pci_map_single(np->pci_dev,
-				skb->tail, buflen, PCI_DMA_FROMDEVICE);
+				skb->data, buflen, PCI_DMA_FROMDEVICE);
 			np->rx_ring[entry].addr = cpu_to_le32(np->rx_dma[entry]);
 		}
 		np->rx_ring[entry].cmd_status = cpu_to_le32(np->rx_buf_sz);
@@ -2280,7 +2280,7 @@ static void netdev_rx(struct net_device *dev)
 					buflen,
 					PCI_DMA_FROMDEVICE);
 				eth_copy_and_sum(skb,
-					np->rx_skbuff[entry]->tail, pkt_len, 0);
+					np->rx_skbuff[entry]->data, pkt_len, 0);
 				skb_put(skb, pkt_len);
 				pci_dma_sync_single_for_device(np->pci_dev,
 					np->rx_dma[entry],

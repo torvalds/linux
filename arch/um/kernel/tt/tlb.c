@@ -17,7 +17,7 @@
 #include "os.h"
 #include "tlb.h"
 
-static void do_ops(int unused, struct host_vm_op *ops, int last)
+static void do_ops(union mm_context *mmu, struct host_vm_op *ops, int last)
 {
 	struct host_vm_op *op;
 	int i;
@@ -55,7 +55,7 @@ static void fix_range(struct mm_struct *mm, unsigned long start_addr,
                 panic("fix_range fixing wrong address space, current = 0x%p",
                       current);
 
-        fix_range_common(mm, start_addr, end_addr, force, 0, do_ops);
+        fix_range_common(mm, start_addr, end_addr, force, do_ops);
 }
 
 atomic_t vmchange_seq = ATOMIC_INIT(1);

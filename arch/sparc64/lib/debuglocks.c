@@ -252,8 +252,9 @@ wlock_again:
 "		andn	%%g1, %%g3, %%g7\n"
 "		casx	[%0], %%g1, %%g7\n"
 "		cmp	%%g1, %%g7\n"
+"		membar	#StoreLoad | #StoreStore\n"
 "		bne,pn	%%xcc, 1b\n"
-"		 membar	#StoreLoad | #StoreStore"
+"		 nop"
 		: /* no outputs */
 		: "r" (&(rw->lock))
 		: "g3", "g1", "g7", "cc", "memory");
@@ -351,8 +352,9 @@ int _do_write_trylock (rwlock_t *rw, char *str)
 "		andn	%%g1, %%g3, %%g7\n"
 "		casx	[%0], %%g1, %%g7\n"
 "		cmp	%%g1, %%g7\n"
+"		membar	#StoreLoad | #StoreStore\n"
 "		bne,pn	%%xcc, 1b\n"
-"		 membar	#StoreLoad | #StoreStore"
+"		 nop"
 		: /* no outputs */
 		: "r" (&(rw->lock))
 		: "g3", "g1", "g7", "cc", "memory");

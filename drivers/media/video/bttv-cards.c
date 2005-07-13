@@ -1,5 +1,5 @@
 /*
-    $Id: bttv-cards.c,v 1.47 2005/02/22 14:06:32 kraxel Exp $
+    $Id: bttv-cards.c,v 1.53 2005/07/05 17:37:35 nsh Exp $
 
     bttv-cards.c
 
@@ -39,9 +39,6 @@
 #include <asm/io.h>
 
 #include "bttvp.h"
-#if 0 /* not working yet */
-#include "bt832.h"
-#endif
 
 /* fwd decl */
 static void boot_msp34xx(struct bttv *btv, int pin);
@@ -51,6 +48,7 @@ static void avermedia_eeprom(struct bttv *btv);
 static void osprey_eeprom(struct bttv *btv);
 static void modtec_eeprom(struct bttv *btv);
 static void init_PXC200(struct bttv *btv);
+static void init_RTV24(struct bttv *btv);
 
 static void winview_audio(struct bttv *btv, struct video_audio *v, int set);
 static void lt9415_audio(struct bttv *btv, struct video_audio *v, int set);
@@ -512,13 +510,8 @@ struct tvcard bttv_tvcards[] = {
 	.svhs		= 2,
 	.gpiomask	= 0x01fe00,
 	.muxsel		= { 2, 3, 1, 1},
-#if 0
-	// old
-	.audiomux	= { 0x01c000, 0, 0x018000, 0x014000, 0x002000, 0 },
-#else
 	// 2003-10-20 by "Anton A. Arapov" <arapov@mail.ru>
 	.audiomux       = { 0x001e00, 0, 0x018000, 0x014000, 0x002000, 0 },
-#endif
 	.needs_tvaudio	= 1,
 	.pll		= PLL_28,
 	.tuner_type	= -1,
@@ -765,14 +758,9 @@ struct tvcard bttv_tvcards[] = {
 	.tuner		= 0,
 	.svhs		= 2,
 	.muxsel		= { 2, 3, 1, 1, 0}, // TV, CVid, SVid, CVid over SVid connector
-#if 0
-	.gpiomask	= 0xc33000,
-	.audiomux	= { 0x422000,0x1000,0x0000,0x620000,0x800000 },
-#else
 	/* Alexander Varakin <avarakin@hotmail.com> [stereo version] */
 	.gpiomask	= 0xb33000,
 	.audiomux	= { 0x122000,0x1000,0x0000,0x620000,0x800000 },
-#endif
 	/* Audio Routing for "WinFast 2000 XP" (no tv stereo !)
 		gpio23 -- hef4052:nEnable (0x800000)
 		gpio12 -- hef4052:A1
@@ -1602,20 +1590,11 @@ struct tvcard bttv_tvcards[] = {
        .video_inputs   = 4,
        .audio_inputs   = 1,
        .tuner          = -1,
-#if 0 /* TODO ... */
-       .svhs           = OSPREY540_SVID_ANALOG,
-       .muxsel         = {       [OSPREY540_COMP_ANALOG] = 2,
-                               [OSPREY540_SVID_ANALOG] = 3, },
-#endif
        .pll            = PLL_28,
        .tuner_type     = -1,
        .no_msp34xx     = 1,
        .no_tda9875     = 1,
        .no_tda7432     = 1,
-#if 0 /* TODO ... */
-       .muxsel_hook    = osprey_540_muxsel,
-       .picture_hook   = osprey_540_set_picture,
-#endif
 },{
 
 	/* ---- card 0x5C ---------------------------------- */
@@ -2251,6 +2230,20 @@ struct tvcard bttv_tvcards[] = {
 	.no_tda7432	= 1,
 	.no_tda9875	= 1,
 	.muxsel_hook	= kodicom4400r_muxsel,
+},
+{
+        /* ---- card 0x85---------------------------------- */
+        /* Michael Henson <mhenson@clarityvi.com> */
+        /* Adlink RTV24 with special unlock codes */
+        .name           = "Adlink RTV24",
+        .video_inputs   = 4,
+        .audio_inputs   = 1,
+        .tuner          = 0,
+        .svhs           = 2,
+        .muxsel         = { 2, 3, 1, 0},
+        .tuner_type     = -1,
+        .pll            = PLL_28,
+
 }};
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
@@ -2531,21 +2524,12 @@ static void eagle_muxsel(struct bttv *btv, unsigned int input)
 	btaor((2)<<5, ~(3<<5), BT848_IFORM);
 	gpio_bits(3,bttv_tvcards[btv->c.type].muxsel[input&7]);
 
-#if 0
-       /* svhs */
-       /* wake chroma ADC */
-       btand(~BT848_ADC_C_SLEEP, BT848_ADC);
-       /* set to YC video */
-       btor(BT848_CONTROL_COMP, BT848_E_CONTROL);
-       btor(BT848_CONTROL_COMP, BT848_O_CONTROL);
-#else
        /* composite */
        /* set chroma ADC to sleep */
        btor(BT848_ADC_C_SLEEP, BT848_ADC);
        /* set to composite video */
        btand(~BT848_CONTROL_COMP, BT848_E_CONTROL);
        btand(~BT848_CONTROL_COMP, BT848_O_CONTROL);
-#endif
 
        /* switch sync drive off */
        gpio_bits(LM1882_SYNC_DRIVE,LM1882_SYNC_DRIVE);
@@ -2636,6 +2620,10 @@ void __devinit bttv_init_card1(struct bttv *btv)
 	case BTTV_AVDVBT_771:
 		btv->use_i2c_hw = 1;
 		break;
+        case BTTV_ADLINK_RTV24:
+                init_RTV24( btv );
+                break;
+
 	}
 	if (!bttv_tvcards[btv->c.type].has_dvb)
 		bttv_reset_audio(btv);
@@ -2784,6 +2772,8 @@ void __devinit bttv_init_card2(struct bttv *btv)
         }
 	btv->pll.pll_current = -1;
 
+	bttv_reset_audio(btv);
+
 	/* tuner configuration (from card list / autodetect / insmod option) */
  	if (UNSET != bttv_tvcards[btv->c.type].tuner_type)
 		if(UNSET == btv->tuner_type)
@@ -2792,10 +2782,18 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		btv->tuner_type = tuner[btv->c.nr];
 	printk("bttv%d: using tuner=%d\n",btv->c.nr,btv->tuner_type);
 	if (btv->pinnacle_id != UNSET)
-		bttv_call_i2c_clients(btv,AUDC_CONFIG_PINNACLE,
+		bttv_call_i2c_clients(btv, AUDC_CONFIG_PINNACLE,
 				      &btv->pinnacle_id);
-	if (btv->tuner_type != UNSET)
-		bttv_call_i2c_clients(btv,TUNER_SET_TYPE,&btv->tuner_type);
+	if (btv->tuner_type != UNSET) {
+	        struct tuner_setup tun_setup;
+
+	        tun_setup.mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
+		tun_setup.type = btv->tuner_type;
+		tun_setup.addr = ADDR_UNSET;
+
+		bttv_call_i2c_clients(btv, TUNER_SET_TYPE_ADDR, &tun_setup);
+	}
+
 	btv->svhs = bttv_tvcards[btv->c.type].svhs;
 	if (svhs[btv->c.nr] != UNSET)
 		btv->svhs = svhs[btv->c.nr];
@@ -3104,14 +3102,6 @@ static int tuner_0_table[] = {
         TUNER_PHILIPS_SECAM, TUNER_PHILIPS_SECAM,
         TUNER_PHILIPS_SECAM, TUNER_PHILIPS_PAL,
 	TUNER_PHILIPS_FM1216ME_MK3 };
-#if 0
-int tuner_0_fm_table[] = {
-        PHILIPS_FR1236_NTSC,  PHILIPS_FR1216_PAL,
-        PHILIPS_FR1216_PAL,   PHILIPS_FR1216_PAL,
-        PHILIPS_FR1216_PAL,   PHILIPS_FR1216_PAL,
-        PHILIPS_FR1236_SECAM, PHILIPS_FR1236_SECAM,
-        PHILIPS_FR1236_SECAM, PHILIPS_FR1216_PAL};
-#endif
 
 static int tuner_1_table[] = {
         TUNER_TEMIC_NTSC,  TUNER_TEMIC_PAL,
@@ -3197,36 +3187,6 @@ static void __devinit boot_msp34xx(struct bttv *btv, int pin)
 
 static void __devinit boot_bt832(struct bttv *btv)
 {
-#if 0 /* not working yet */
-	int resetbit=0;
-
-	switch (btv->c.type) {
-	case BTTV_PXELVWPLTVPAK:
-		resetbit = 0x400000;
-		break;
-	case BTTV_MODTEC_205:
-		resetbit = 1<<9;
-		break;
-	default:
-		BUG();
-	}
-
-	request_module("bt832");
-	bttv_call_i2c_clients(btv, BT832_HEXDUMP, NULL);
-
-	printk("bttv%d: Reset Bt832 [line=0x%x]\n",btv->c.nr,resetbit);
-	gpio_write(0);
-	gpio_inout(resetbit, resetbit);
-	udelay(5);
-	gpio_bits(resetbit, resetbit);
-	udelay(5);
-	gpio_bits(resetbit, 0);
-	udelay(5);
-
-	// bt832 on pixelview changes from i2c 0x8a to 0x88 after
-	// being reset as above. So we must follow by this:
-	bttv_call_i2c_clients(btv, BT832_REATTACH, NULL);
-#endif
 }
 
 /* ----------------------------------------------------------------------- */
@@ -3302,6 +3262,83 @@ static void __devinit init_PXC200(struct bttv *btv)
 
 	printk(KERN_INFO "PXC200 Initialised.\n");
 }
+
+
+
+/* ----------------------------------------------------------------------- */
+/*
+ *  The Adlink RTV-24 (aka Angelo) has some special initialisation to unlock
+ *  it. This apparently involves the following procedure for each 878 chip:
+ *
+ *  1) write 0x00C3FEFF to the GPIO_OUT_EN register
+ *
+ *  2)  write to GPIO_DATA
+ *      - 0x0E
+ *      - sleep 1ms
+ *      - 0x10 + 0x0E
+ *      - sleep 10ms
+ *      - 0x0E
+ *     read from GPIO_DATA into buf (uint_32)
+ *      - if ( data>>18 & 0x01 != 0) || ( buf>>19 & 0x01 != 1 )
+ *                 error. ERROR_CPLD_Check_Failed stop.
+ *
+ *  3) write to GPIO_DATA
+ *      - write 0x4400 + 0x0E
+ *      - sleep 10ms
+ *      - write 0x4410 + 0x0E
+ *      - sleep 1ms
+ *      - write 0x0E
+ *     read from GPIO_DATA into buf (uint_32)
+ *      - if ( buf>>18 & 0x01 ) || ( buf>>19 && 0x01 != 0 )
+ *                error. ERROR_CPLD_Check_Failed.
+ */
+/* ----------------------------------------------------------------------- */
+void
+init_RTV24 (struct bttv *btv)
+{
+	uint32_t dataRead = 0;
+	long watchdog_value = 0x0E;
+
+	printk (KERN_INFO
+		"bttv%d: Adlink RTV-24 initialisation in progress ...\n",
+		btv->c.nr);
+
+	btwrite (0x00c3feff, BT848_GPIO_OUT_EN);
+
+	btwrite (0 + watchdog_value, BT848_GPIO_DATA);
+	msleep (1);
+	btwrite (0x10 + watchdog_value, BT848_GPIO_DATA);
+	msleep (10);
+	btwrite (0 + watchdog_value, BT848_GPIO_DATA);
+
+	dataRead = btread (BT848_GPIO_DATA);
+
+	if ((((dataRead >> 18) & 0x01) != 0) || (((dataRead >> 19) & 0x01) != 1)) {
+		printk (KERN_INFO
+			"bttv%d: Adlink RTV-24 initialisation(1) ERROR_CPLD_Check_Failed (read %d)\n",
+			btv->c.nr, dataRead);
+	}
+
+	btwrite (0x4400 + watchdog_value, BT848_GPIO_DATA);
+	msleep (10);
+	btwrite (0x4410 + watchdog_value, BT848_GPIO_DATA);
+	msleep (1);
+	btwrite (watchdog_value, BT848_GPIO_DATA);
+	msleep (1);
+	dataRead = btread (BT848_GPIO_DATA);
+
+	if ((((dataRead >> 18) & 0x01) != 0) || (((dataRead >> 19) & 0x01) != 0)) {
+		printk (KERN_INFO
+			"bttv%d: Adlink RTV-24 initialisation(2) ERROR_CPLD_Check_Failed (read %d)\n",
+			btv->c.nr, dataRead);
+
+		return;
+	}
+
+	printk (KERN_INFO
+		"bttv%d: Adlink RTV-24 initialisation complete.\n", btv->c.nr);
+}
+
 
 
 /* ----------------------------------------------------------------------- */
@@ -3474,11 +3511,6 @@ void tea5757_set_freq(struct bttv *btv, unsigned short freq)
 {
 	dprintk("tea5757_set_freq %d\n",freq);
 	tea5757_write(btv, 5 * freq + 0x358); /* add 10.7MHz (see docs) */
-#if 0
-	/* breaks Miro PCTV */
-	value = tea5757_read(btv);
-	dprintk("bttv%d: tea5757 readback=0x%x\n",btv->c.nr,value);
-#endif
 }
 
 
@@ -3558,13 +3590,8 @@ gvbctv5pci_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	unsigned int val, con;
 
-#if BTTV_VERSION_CODE > KERNEL_VERSION(0,8,0)
 	if (btv->radio_user)
 		return;
-#else
-	if (btv->radio)
-		return;
-#endif
 
 	val = gpio_read();
 	if (set) {
@@ -3753,13 +3780,8 @@ pvbt878p9b_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	unsigned int val = 0;
 
-#if BTTV_VERSION_CODE > KERNEL_VERSION(0,8,0)
 	if (btv->radio_user)
 		return;
-#else
-	if (btv->radio)
-		return;
-#endif
 
 	if (set) {
 		if (v->mode & VIDEO_SOUND_MONO)	{
@@ -3790,13 +3812,8 @@ fv2000s_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	unsigned int val = 0xffff;
 
-#if BTTV_VERSION_CODE > KERNEL_VERSION(0,8,0)
 	if (btv->radio_user)
 		return;
-#else
-	if (btv->radio)
-		return;
-#endif
 	if (set) {
 		if (v->mode & VIDEO_SOUND_MONO)	{
 			val = 0x0000;
@@ -4273,11 +4290,6 @@ void __devinit bttv_check_chipset(void)
 		latency = 0x0A;
 #endif
 
-#if 0
-	/* print which chipset we have */
-	while ((dev = pci_find_class(PCI_CLASS_BRIDGE_HOST << 8,dev)))
-		printk(KERN_INFO "bttv: Host bridge is %s\n",pci_name(dev));
-#endif
 
 	/* print warnings about any quirks found */
 	if (triton1)

@@ -54,16 +54,23 @@ struct as_io_context {
 
 struct cfq_queue;
 struct cfq_io_context {
-	void (*dtor)(struct cfq_io_context *);
-	void (*exit)(struct cfq_io_context *);
-
-	struct io_context *ioc;
-
 	/*
 	 * circular list of cfq_io_contexts belonging to a process io context
 	 */
 	struct list_head list;
 	struct cfq_queue *cfqq;
+	void *key;
+
+	struct io_context *ioc;
+
+	unsigned long last_end_request;
+	unsigned long last_queue;
+	unsigned long ttime_total;
+	unsigned long ttime_samples;
+	unsigned long ttime_mean;
+
+	void (*dtor)(struct cfq_io_context *);
+	void (*exit)(struct cfq_io_context *);
 };
 
 /*
@@ -73,7 +80,9 @@ struct cfq_io_context {
  */
 struct io_context {
 	atomic_t refcount;
-	pid_t pid;
+	struct task_struct *task;
+
+	int (*set_ioprio)(struct io_context *, unsigned int);
 
 	/*
 	 * For request batching
@@ -81,14 +90,13 @@ struct io_context {
 	unsigned long last_waited; /* Time last woken after wait for request */
 	int nr_batch_requests;     /* Number of requests left in the batch */
 
-	spinlock_t lock;
-
 	struct as_io_context *aic;
 	struct cfq_io_context *cic;
 };
 
 void put_io_context(struct io_context *ioc);
 void exit_io_context(void);
+struct io_context *current_io_context(int gfp_flags);
 struct io_context *get_io_context(int gfp_flags);
 void copy_io_context(struct io_context **pdst, struct io_context **psrc);
 void swap_io_context(struct io_context **ioc1, struct io_context **ioc2);
@@ -133,6 +141,8 @@ struct request {
 	struct bio *biotail;
 
 	void *elevator_private;
+
+	unsigned short ioprio;
 
 	int rq_status;	/* should split this into a few status bits */
 	struct gendisk *rq_disk;
@@ -539,15 +549,12 @@ extern void generic_make_request(struct bio *bio);
 extern void blk_put_request(struct request *);
 extern void blk_end_sync_rq(struct request *rq);
 extern void blk_attempt_remerge(request_queue_t *, struct request *);
-extern void __blk_attempt_remerge(request_queue_t *, struct request *);
 extern struct request *blk_get_request(request_queue_t *, int, int);
 extern void blk_insert_request(request_queue_t *, struct request *, int, void *);
 extern void blk_requeue_request(request_queue_t *, struct request *);
 extern void blk_plug_device(request_queue_t *);
 extern int blk_remove_plug(request_queue_t *);
 extern void blk_recount_segments(request_queue_t *, struct bio *);
-extern int blk_phys_contig_segment(request_queue_t *q, struct bio *, struct bio *);
-extern int blk_hw_contig_segment(request_queue_t *q, struct bio *, struct bio *);
 extern int scsi_cmd_ioctl(struct file *, struct gendisk *, unsigned int, void __user *);
 extern void blk_start_queue(request_queue_t *q);
 extern void blk_stop_queue(request_queue_t *q);
@@ -631,7 +638,6 @@ extern void blk_queue_dma_alignment(request_queue_t *, int);
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
 extern void blk_queue_ordered(request_queue_t *, int);
 extern void blk_queue_issue_flush_fn(request_queue_t *, issue_flush_fn *);
-extern int blkdev_scsi_issue_flush_fn(request_queue_t *, struct gendisk *, sector_t *);
 extern struct request *blk_start_pre_flush(request_queue_t *,struct request *);
 extern int blk_complete_barrier_rq(request_queue_t *, struct request *, int);
 extern int blk_complete_barrier_rq_locked(request_queue_t *, struct request *, int);
@@ -674,8 +680,6 @@ extern int blkdev_issue_flush(struct block_device *, sector_t *);
 #define MAX_SEGMENT_SIZE	65536
 
 #define blkdev_entry_to_request(entry) list_entry((entry), struct request, queuelist)
-
-extern void drive_stat_acct(struct request *, int, int);
 
 static inline int queue_hardsect_size(request_queue_t *q)
 {

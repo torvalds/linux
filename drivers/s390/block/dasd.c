@@ -176,7 +176,7 @@ dasd_state_known_to_basic(struct dasd_device * device)
 		return rc;
 
 	/* register 'device' debug area, used for all DBF_DEV_XXX calls */
-	device->debug_area = debug_register(device->cdev->dev.bus_id, 0, 2,
+	device->debug_area = debug_register(device->cdev->dev.bus_id, 1, 2,
 					    8 * sizeof (long));
 	debug_register_view(device->debug_area, &debug_sprintf_view);
 	debug_set_level(device->debug_area, DBF_EMERG);
@@ -1952,26 +1952,24 @@ dasd_generic_notify(struct ccw_device *cdev, int event)
  * Automatically online either all dasd devices (dasd_autodetect) or
  * all devices specified with dasd= parameters.
  */
+static int
+__dasd_auto_online(struct device *dev, void *data)
+{
+	struct ccw_device *cdev;
+
+	cdev = to_ccwdev(dev);
+	if (dasd_autodetect || dasd_busid_known(cdev->dev.bus_id) == 0)
+		ccw_device_set_online(cdev);
+	return 0;
+}
+
 void
 dasd_generic_auto_online (struct ccw_driver *dasd_discipline_driver)
 {
 	struct device_driver *drv;
-	struct device *d, *dev;
-	struct ccw_device *cdev;
 
 	drv = get_driver(&dasd_discipline_driver->driver);
-	down_read(&drv->bus->subsys.rwsem);
-	dev = NULL;
-	list_for_each_entry(d, &drv->devices, driver_list) {
-		dev = get_device(d);
-		if (!dev)
-			continue;
-		cdev = to_ccwdev(dev);
-		if (dasd_autodetect || dasd_busid_known(cdev->dev.bus_id) == 0)
-			ccw_device_set_online(cdev);
-		put_device(dev);
-	}
-	up_read(&drv->bus->subsys.rwsem);
+	driver_for_each_device(drv, NULL, NULL, __dasd_auto_online);
 	put_driver(drv);
 }
 
@@ -1983,7 +1981,7 @@ dasd_init(void)
 	init_waitqueue_head(&dasd_init_waitq);
 
 	/* register 'common' DASD debug area, used for all DBF_XXX calls */
-	dasd_debug_area = debug_register("dasd", 0, 2, 8 * sizeof (long));
+	dasd_debug_area = debug_register("dasd", 1, 2, 8 * sizeof (long));
 	if (dasd_debug_area == NULL) {
 		rc = -ENOMEM;
 		goto failed;

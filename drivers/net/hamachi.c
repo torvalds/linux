@@ -1149,7 +1149,7 @@ static void hamachi_tx_timeout(struct net_device *dev)
 		skb->dev = dev;         /* Mark as being used by this device. */
 		skb_reserve(skb, 2); /* 16 byte align the IP header. */
                 hmp->rx_ring[i].addr = cpu_to_leXX(pci_map_single(hmp->pci_dev, 
-			skb->tail, hmp->rx_buf_sz, PCI_DMA_FROMDEVICE));
+			skb->data, hmp->rx_buf_sz, PCI_DMA_FROMDEVICE));
 		hmp->rx_ring[i].status_n_length = cpu_to_le32(DescOwn | 
 			DescEndPacket | DescIntr | (hmp->rx_buf_sz - 2));
 	}
@@ -1210,7 +1210,7 @@ static void hamachi_init_ring(struct net_device *dev)
 		skb->dev = dev;         /* Mark as being used by this device. */
 		skb_reserve(skb, 2); /* 16 byte align the IP header. */
                 hmp->rx_ring[i].addr = cpu_to_leXX(pci_map_single(hmp->pci_dev, 
-			skb->tail, hmp->rx_buf_sz, PCI_DMA_FROMDEVICE));
+			skb->data, hmp->rx_buf_sz, PCI_DMA_FROMDEVICE));
 		/* -2 because it doesn't REALLY have that first 2 bytes -KDU */
 		hmp->rx_ring[i].status_n_length = cpu_to_le32(DescOwn | 
 			DescEndPacket | DescIntr | (hmp->rx_buf_sz -2));
@@ -1509,7 +1509,7 @@ static int hamachi_rx(struct net_device *dev)
 					    desc->addr,
 					    hmp->rx_buf_sz,
 					    PCI_DMA_FROMDEVICE);
-		buf_addr = (u8 *) hmp->rx_skbuff[entry]->tail;
+		buf_addr = (u8 *) hmp->rx_skbuff[entry]->data;
 		frame_status = le32_to_cpu(get_unaligned((s32*)&(buf_addr[data_size - 12])));
 		if (hamachi_debug > 4)
 			printk(KERN_DEBUG "  hamachi_rx() status was %8.8x.\n",
@@ -1678,7 +1678,7 @@ static int hamachi_rx(struct net_device *dev)
 			skb->dev = dev;		/* Mark as being used by this device. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
                 	desc->addr = cpu_to_leXX(pci_map_single(hmp->pci_dev, 
-				skb->tail, hmp->rx_buf_sz, PCI_DMA_FROMDEVICE));
+				skb->data, hmp->rx_buf_sz, PCI_DMA_FROMDEVICE));
 		}
 		desc->status_n_length = cpu_to_le32(hmp->rx_buf_sz);
 		if (entry >= RX_RING_SIZE-1)
@@ -1772,9 +1772,9 @@ static int hamachi_close(struct net_device *dev)
 				   readl(ioaddr + RxCurPtr) == (long)&hmp->rx_ring[i] ? '>' : ' ',
 				   i, hmp->rx_ring[i].status_n_length, hmp->rx_ring[i].addr);
 			if (hamachi_debug > 6) {
-				if (*(u8*)hmp->rx_skbuff[i]->tail != 0x69) {
+				if (*(u8*)hmp->rx_skbuff[i]->data != 0x69) {
 					u16 *addr = (u16 *)
-						hmp->rx_skbuff[i]->tail;
+						hmp->rx_skbuff[i]->data;
 					int j;
 
 					for (j = 0; j < 0x50; j++)

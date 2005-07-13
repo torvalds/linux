@@ -146,7 +146,6 @@ Include Files
 #include <linux/ioport.h>
 #include <linux/bitops.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cisreg.h>
@@ -502,11 +501,6 @@ static dev_link_t *nmclan_attach(void)
     link->next = dev_list;
     dev_list = link;
     client_reg.dev_info = &dev_info;
-    client_reg.EventMask =
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &nmclan_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -1675,13 +1669,22 @@ static void set_multicast_list(struct net_device *dev)
 
 } /* set_multicast_list */
 
+static struct pcmcia_device_id nmclan_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("New Media Corporation", "Ethernet", 0x085a850b, 0x00b2e941),
+	PCMCIA_DEVICE_PROD_ID12("Portable Add-ons", "Ethernet", 0x0ebf1d60, 0x00b2e941),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, nmclan_ids);
+
 static struct pcmcia_driver nmclan_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "nmclan_cs",
 	},
 	.attach		= nmclan_attach,
+	.event		= nmclan_event,
 	.detach		= nmclan_detach,
+	.id_table       = nmclan_ids,
 };
 
 static int __init init_nmclan_cs(void)

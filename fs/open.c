@@ -10,7 +10,7 @@
 #include <linux/file.h>
 #include <linux/smp_lock.h>
 #include <linux/quotaops.h>
-#include <linux/dnotify.h>
+#include <linux/fsnotify.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
@@ -808,7 +808,9 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 
 	/* NB: we're sure to have correct a_ops only after f_op->open */
 	if (f->f_flags & O_DIRECT) {
-		if (!f->f_mapping->a_ops || !f->f_mapping->a_ops->direct_IO) {
+		if (!f->f_mapping->a_ops ||
+		    ((!f->f_mapping->a_ops->direct_IO) &&
+		    (!f->f_mapping->a_ops->get_xip_page))) {
 			fput(f);
 			f = ERR_PTR(-EINVAL);
 		}
@@ -949,6 +951,7 @@ asmlinkage long sys_open(const char __user * filename, int flags, int mode)
 				put_unused_fd(fd);
 				fd = PTR_ERR(f);
 			} else {
+				fsnotify_open(f->f_dentry);
 				fd_install(fd, f);
 			}
 		}

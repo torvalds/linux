@@ -56,7 +56,7 @@
  * FUNCTION:    acpi_get_type
  *
  * PARAMETERS:  Handle          - Handle of object whose type is desired
- *              *ret_type       - Where the type will be placed
+ *              ret_type        - Where the type will be placed
  *
  * RETURN:      Status
  *
@@ -258,5 +258,5 @@ unlock_and_exit:
 	(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
 	return (status);
 }
-EXPORT_SYMBOL(acpi_get_next_object);
 
+EXPORT_SYMBOL(acpi_get_next_object);

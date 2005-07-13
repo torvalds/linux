@@ -145,8 +145,6 @@ __xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->sockstate)) {
 		if (task == xprt->snd_task)
 			return 1;
-		if (task == NULL)
-			return 0;
 		goto out_sleep;
 	}
 	if (xprt->nocong || __xprt_get_cong(xprt, task)) {
@@ -970,7 +968,7 @@ tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc)
 		goto out;
 	}
 
-	dprintk("RPC:      XID %08x read %u bytes\n",
+	dprintk("RPC:      XID %08x read %Zd bytes\n",
 			ntohl(xprt->tcp_xid), r);
 	dprintk("RPC:      xprt = %p, tcp_copied = %lu, tcp_offset = %u, tcp_reclen = %u\n",
 			xprt, xprt->tcp_copied, xprt->tcp_offset, xprt->tcp_reclen);
@@ -1006,7 +1004,7 @@ tcp_read_discard(struct rpc_xprt *xprt, skb_reader_t *desc)
 	desc->count -= len;
 	desc->offset += len;
 	xprt->tcp_offset += len;
-	dprintk("RPC:      discarded %u bytes\n", len);
+	dprintk("RPC:      discarded %Zu bytes\n", len);
 	tcp_check_recm(xprt);
 }
 

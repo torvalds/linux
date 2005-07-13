@@ -1,8 +1,8 @@
 /*
  * include/asm-v850/checksum.h -- Checksum ops
  *
- *  Copyright (C) 2001  NEC Corporation
- *  Copyright (C) 2001  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2001,2005  NEC Corporation
+ *  Copyright (C) 2001,2005  Miles Bader <miles@gnu.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -36,8 +36,8 @@ extern unsigned int csum_partial (const unsigned char * buff, int len,
  * here even more important to align src and dst on a 32-bit (or even
  * better 64-bit) boundary
  */
-extern unsigned csum_partial_copy (const char *src, char *dst, int len,
-				   unsigned sum);
+extern unsigned csum_partial_copy (const unsigned char *src,
+				   unsigned char *dst, int len, unsigned sum);
 
 
 /*
@@ -46,7 +46,8 @@ extern unsigned csum_partial_copy (const char *src, char *dst, int len,
  * here even more important to align src and dst on a 32-bit (or even
  * better 64-bit) boundary
  */
-extern unsigned csum_partial_copy_from_user (const char *src, char *dst,
+extern unsigned csum_partial_copy_from_user (const unsigned char *src,
+					     unsigned char *dst,
 					     int len, unsigned sum,
 					     int *csum_err);
 

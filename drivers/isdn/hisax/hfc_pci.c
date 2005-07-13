@@ -70,7 +70,7 @@ static const PCI_ENTRY id_list[] =
 /******************************************/
 /* free hardware resources used by driver */
 /******************************************/
-void
+static void
 release_io_hfcpci(struct IsdnCardState *cs)
 {
 	printk(KERN_INFO "HiSax: release hfcpci at %p\n",
@@ -394,7 +394,7 @@ receive_dmsg(struct IsdnCardState *cs)
 /*******************************************************************************/
 /* check for transparent receive data and read max one threshold size if avail */
 /*******************************************************************************/
-int
+static int
 hfcpci_empty_fifo_trans(struct BCState *bcs, bzfifo_type * bz, u_char * bdata)
 {
 	unsigned short *z1r, *z2r;
@@ -446,7 +446,7 @@ hfcpci_empty_fifo_trans(struct BCState *bcs, bzfifo_type * bz, u_char * bdata)
 /**********************************/
 /* B-channel main receive routine */
 /**********************************/
-void
+static void
 main_rec_hfcpci(struct BCState *bcs)
 {
 	struct IsdnCardState *cs = bcs->cs;
@@ -1244,7 +1244,7 @@ HFCPCI_l1hw(struct PStack *st, int pr, void *arg)
 /***********************************************/
 /* called during init setting l1 stack pointer */
 /***********************************************/
-void
+static void
 setstack_hfcpci(struct PStack *st, struct IsdnCardState *cs)
 {
 	st->l1.l1hw = HFCPCI_l1hw;
@@ -1268,7 +1268,7 @@ hfcpci_send_data(struct BCState *bcs)
 /***************************************************************/
 /* activate/deactivate hardware for selected channels and mode */
 /***************************************************************/
-void
+static void
 mode_hfcpci(struct BCState *bcs, int mode, int bc)
 {
 	struct IsdnCardState *cs = bcs->cs;
@@ -1579,7 +1579,7 @@ hfcpci_bh(struct IsdnCardState *cs)
 /********************************/
 /* called for card init message */
 /********************************/
-void __init
+static void __init
 inithfcpci(struct IsdnCardState *cs)
 {
 	cs->bcs[0].BC_SetStack = setstack_2b;

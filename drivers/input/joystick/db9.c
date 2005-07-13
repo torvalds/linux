@@ -87,7 +87,7 @@ __obsolete_setup("db9_3=");
 #define DB9_NORMAL		0x0a
 #define DB9_NOSELECT		0x08
 
-#define DB9_MAX_DEVICES 2
+#define DB9_MAX_DEVICES		2
 
 #define DB9_GENESIS6_DELAY	14
 #define DB9_REFRESH_TIME	HZ/100
@@ -98,6 +98,7 @@ struct db9 {
 	struct pardevice *pd;
 	int mode;
 	int used;
+	struct semaphore sem;
 	char phys[2][32];
 };
 
@@ -503,6 +504,11 @@ static int db9_open(struct input_dev *dev)
 {
 	struct db9 *db9 = dev->private;
 	struct parport *port = db9->pd->port;
+	int err;
+
+	err = down_interruptible(&db9->sem);
+	if (err)
+		return err;
 
 	if (!db9->used++) {
 		parport_claim(db9->pd);
@@ -514,6 +520,7 @@ static int db9_open(struct input_dev *dev)
 		mod_timer(&db9->timer, jiffies + DB9_REFRESH_TIME);
 	}
 
+	up(&db9->sem);
 	return 0;
 }
 
@@ -522,12 +529,14 @@ static void db9_close(struct input_dev *dev)
 	struct db9 *db9 = dev->private;
 	struct parport *port = db9->pd->port;
 
+	down(&db9->sem);
 	if (!--db9->used) {
-		del_timer(&db9->timer);
+		del_timer_sync(&db9->timer);
 		parport_write_control(port, 0x00);
 		parport_data_forward(port);
 		parport_release(db9->pd);
 	}
+	up(&db9->sem);
 }
 
 static struct db9 __init *db9_probe(int *config, int nargs)
@@ -563,12 +572,12 @@ static struct db9 __init *db9_probe(int *config, int nargs)
 		}
 	}
 
-	if (!(db9 = kmalloc(sizeof(struct db9), GFP_KERNEL))) {
+	if (!(db9 = kcalloc(1, sizeof(struct db9), GFP_KERNEL))) {
 		parport_put_port(pp);
 		return NULL;
 	}
-	memset(db9, 0, sizeof(struct db9));
 
+	init_MUTEX(&db9->sem);
 	db9->mode = config[1];
 	init_timer(&db9->timer);
 	db9->timer.data = (long) db9;

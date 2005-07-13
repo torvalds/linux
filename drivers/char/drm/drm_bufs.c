@@ -60,6 +60,15 @@ int drm_order( unsigned long size )
 }
 EXPORT_SYMBOL(drm_order);
 
+#ifdef CONFIG_COMPAT
+/*
+ * Used to allocate 32-bit handles for _DRM_SHM regions
+ * The 0x10000000 value is chosen to be out of the way of
+ * FB/register and GART physical addresses.
+ */
+static unsigned int map32_handle = 0x10000000;
+#endif
+
 /**
  * Ioctl to specify a range of memory that is available for mapping by a non-root process.
  *
@@ -187,16 +196,18 @@ int drm_addmap( struct inode *inode, struct file *filp,
 
 	down(&dev->struct_sem);
 	list_add(&list->head, &dev->maplist->head);
+#ifdef CONFIG_COMPAT
+	/* Assign a 32-bit handle for _DRM_SHM mappings */
+	/* We do it here so that dev->struct_sem protects the increment */
+	if (map->type == _DRM_SHM)
+		map->offset = map32_handle += PAGE_SIZE;
+#endif
  	up(&dev->struct_sem);
 
 	if ( copy_to_user( argp, map, sizeof(*map) ) )
 		return -EFAULT;
-	if ( map->type != _DRM_SHM ) {
-		if ( copy_to_user( &argp->handle,
-				   &map->offset,
-				   sizeof(map->offset) ) )
-			return -EFAULT;
-	}
+	if (copy_to_user(&argp->handle, &map->offset, sizeof(map->offset)))
+		return -EFAULT;
 	return 0;
 }
 
@@ -240,7 +251,7 @@ int drm_rmmap(struct inode *inode, struct file *filp,
 		r_list = list_entry(list, drm_map_list_t, head);
 
 		if(r_list->map &&
-		   r_list->map->handle == request.handle &&
+		   r_list->map->offset == (unsigned long) request.handle &&
 		   r_list->map->flags & _DRM_REMOVABLE) break;
 	}
 
@@ -345,8 +356,8 @@ static void drm_cleanup_buf_error(drm_device_t *dev, drm_buf_entry_t *entry)
  * reallocates the buffer list of the same size order to accommodate the new
  * buffers.
  */
-int drm_addbufs_agp( struct inode *inode, struct file *filp,
-		      unsigned int cmd, unsigned long arg )
+static int drm_addbufs_agp( struct inode *inode, struct file *filp,
+			    unsigned int cmd, unsigned long arg )
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
@@ -510,8 +521,8 @@ int drm_addbufs_agp( struct inode *inode, struct file *filp,
 }
 #endif /* __OS_HAS_AGP */
 
-int drm_addbufs_pci( struct inode *inode, struct file *filp,
-		      unsigned int cmd, unsigned long arg )
+static int drm_addbufs_pci( struct inode *inode, struct file *filp,
+			    unsigned int cmd, unsigned long arg )
 {
    	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
@@ -740,8 +751,8 @@ int drm_addbufs_pci( struct inode *inode, struct file *filp,
 
 }
 
-int drm_addbufs_sg( struct inode *inode, struct file *filp,
-                     unsigned int cmd, unsigned long arg )
+static int drm_addbufs_sg( struct inode *inode, struct file *filp,
+			   unsigned int cmd, unsigned long arg )
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;

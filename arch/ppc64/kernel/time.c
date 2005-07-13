@@ -91,6 +91,7 @@ unsigned long tb_to_xs;
 unsigned      tb_to_us;
 unsigned long processor_freq;
 DEFINE_SPINLOCK(rtc_lock);
+EXPORT_SYMBOL_GPL(rtc_lock);
 
 unsigned long tb_to_ns_scale;
 unsigned long tb_to_ns_shift;
@@ -98,7 +99,6 @@ unsigned long tb_to_ns_shift;
 struct gettimeofday_struct do_gtod;
 
 extern unsigned long wall_jiffies;
-extern unsigned long lpevent_count;
 extern int smp_tb_synchronized;
 
 extern struct timezone sys_tz;
@@ -366,11 +366,8 @@ int timer_interrupt(struct pt_regs * regs)
 	set_dec(next_dec);
 
 #ifdef CONFIG_PPC_ISERIES
-	{
-		struct ItLpQueue *lpq = lpaca->lpqueue_ptr;
-		if (lpq && ItLpQueue_isLpIntPending(lpq))
-			lpevent_count += ItLpQueue_process(lpq, regs);
-	}
+	if (hvlpevent_is_pending())
+		process_hvlpevents(regs);
 #endif
 
 /* collect purr register values often, for accurate calculations */

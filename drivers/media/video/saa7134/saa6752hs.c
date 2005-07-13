@@ -41,16 +41,16 @@ enum saa6752hs_videoformat {
 
 static const struct v4l2_format v4l2_format_table[] =
 {
-	[SAA6752HS_VF_D1] = {
-		.fmt = { .pix = { .width = 720, .height = 576 }, }, },
-	[SAA6752HS_VF_2_3_D1] = {
-		.fmt = { .pix = { .width = 480, .height = 576 }, }, },
-	[SAA6752HS_VF_1_2_D1] = {
-		.fmt = { .pix = { .width = 352, .height = 576 }, }, },
-	[SAA6752HS_VF_SIF] = {
-		.fmt = { .pix = { .width = 352, .height = 288 }, }, },
-	[SAA6752HS_VF_UNKNOWN] = {
-		.fmt = { .pix = { .width = 0, .height = 0 }, }, },
+	[SAA6752HS_VF_D1] =
+		{ .fmt = { .pix = { .width = 720, .height = 576 }}},
+	[SAA6752HS_VF_2_3_D1] =
+		{ .fmt = { .pix = { .width = 480, .height = 576 }}},
+	[SAA6752HS_VF_1_2_D1] =
+		{ .fmt = { .pix = { .width = 352, .height = 576 }}},
+	[SAA6752HS_VF_SIF] =
+		{ .fmt = { .pix = { .width = 352, .height = 288 }}},
+	[SAA6752HS_VF_UNKNOWN] =
+		{ .fmt = { .pix = { .width = 0, .height = 0}}},
 };
 
 struct saa6752hs_state {
@@ -155,10 +155,6 @@ static struct v4l2_mpeg_compression param_defaults =
 		.target  = 256,
 	},
 
-#if 0
-	/* FIXME: size? via S_FMT? */
-	.video_format = MPEG_VIDEO_FORMAT_D1,
-#endif
 };
 
 /* ---------------------------------------------------------------------- */

@@ -32,6 +32,7 @@
 #include "uml-config.h"
 #include "choose-mode.h"
 #include "mode.h"
+#include "tempfile.h"
 #ifdef UML_CONFIG_MODE_SKAS
 #include "skas.h"
 #include "skas_ptrace.h"
@@ -358,11 +359,16 @@ void forward_pending_sigio(int target)
 		kill(target, SIGIO);
 }
 
+int ptrace_faultinfo = 0;
+int proc_mm = 1;
+
+extern void *__syscall_stub_start, __syscall_stub_end;
+
 #ifdef UML_CONFIG_MODE_SKAS
-static inline int check_skas3_ptrace_support(void)
+static inline void check_skas3_ptrace_support(void)
 {
 	struct ptrace_faultinfo fi;
-	int pid, n, ret = 1;
+	int pid, n;
 
 	printf("Checking for the skas3 patch in the host...");
 	pid = start_ptraced_child();
@@ -374,33 +380,31 @@ static inline int check_skas3_ptrace_support(void)
 		else {
 			perror("not found");
 		}
-		ret = 0;
-	} else {
+	}
+	else {
+		ptrace_faultinfo = 1;
 		printf("found\n");
 	}
 
 	init_registers(pid);
 	stop_ptraced_child(pid, 1, 1);
-
-	return(ret);
 }
 
 int can_do_skas(void)
 {
-	int ret = 1;
-
 	printf("Checking for /proc/mm...");
 	if (os_access("/proc/mm", OS_ACC_W_OK) < 0) {
+		proc_mm = 0;
 		printf("not found\n");
-		ret = 0;
 		goto out;
-	} else {
+	}
+	else {
 		printf("found\n");
 	}
 
-	ret = check_skas3_ptrace_support();
 out:
-	return ret;
+	check_skas3_ptrace_support();
+	return 1;
 }
 #else
 int can_do_skas(void)

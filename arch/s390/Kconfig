@@ -455,7 +455,17 @@ config NO_IDLE_HZ_INIT
 	  The HZ timer is switched off in idle by default. That means the
 	  HZ timer is already disabled at boot time.
 
+config KEXEC
+	bool "kexec system call (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but is independent of hardware/microcode support.
+
 endmenu
+
+source "net/Kconfig"
 
 config PCMCIA
 	bool
@@ -467,7 +477,7 @@ source "drivers/scsi/Kconfig"
 
 source "drivers/s390/Kconfig"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 source "fs/Kconfig"
 

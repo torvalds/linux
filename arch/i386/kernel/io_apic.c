@@ -37,6 +37,7 @@
 #include <asm/smp.h>
 #include <asm/desc.h>
 #include <asm/timer.h>
+#include <asm/i8259.h>
 
 #include <mach_apic.h>
 
@@ -573,12 +574,14 @@ static int balanced_irq(void *unused)
 	for ( ; ; ) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		time_remaining = schedule_timeout(time_remaining);
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 		if (time_after(jiffies,
 				prev_balance_time+balanced_irq_interval)) {
+			preempt_disable();
 			do_irq_balance();
 			prev_balance_time = jiffies;
 			time_remaining = balanced_irq_interval;
+			preempt_enable();
 		}
 	}
 	return 0;
@@ -630,10 +633,8 @@ static int __init balanced_irq_init(void)
 		printk(KERN_ERR "balanced_irq_init: failed to spawn balanced_irq");
 failed:
 	for (i = 0; i < NR_CPUS; i++) {
-		if(irq_cpu_data[i].irq_delta)
-			kfree(irq_cpu_data[i].irq_delta);
-		if(irq_cpu_data[i].last_irq)
-			kfree(irq_cpu_data[i].last_irq);
+		kfree(irq_cpu_data[i].irq_delta);
+		kfree(irq_cpu_data[i].last_irq);
 	}
 	return 0;
 }
@@ -1566,7 +1567,6 @@ void print_all_local_APICs (void)
 
 void /*__init*/ print_PIC(void)
 {
-	extern spinlock_t i8259A_lock;
 	unsigned int v;
 	unsigned long flags;
 
@@ -1634,12 +1634,43 @@ static void __init enable_IO_APIC(void)
  */
 void disable_IO_APIC(void)
 {
+	int pin;
 	/*
 	 * Clear the IO-APIC before rebooting:
 	 */
 	clear_IO_APIC();
 
-	disconnect_bsp_APIC();
+	/*
+	 * If the i82559 is routed through an IOAPIC
+	 * Put that IOAPIC in virtual wire mode
+	 * so legacy interrups can be delivered.
+	 */
+	pin = find_isa_irq_pin(0, mp_ExtINT);
+	if (pin != -1) {
+		struct IO_APIC_route_entry entry;
+		unsigned long flags;
+
+		memset(&entry, 0, sizeof(entry));
+		entry.mask            = 0; /* Enabled */
+		entry.trigger         = 0; /* Edge */
+		entry.irr             = 0;
+		entry.polarity        = 0; /* High */
+		entry.delivery_status = 0;
+		entry.dest_mode       = 0; /* Physical */
+		entry.delivery_mode   = 7; /* ExtInt */
+		entry.vector          = 0;
+		entry.dest.physical.physical_dest = 0;
+
+
+		/*
+		 * Add it to the IO-APIC irq-routing table:
+		 */
+		spin_lock_irqsave(&ioapic_lock, flags);
+		io_apic_write(0, 0x11+2*pin, *(((int *)&entry)+1));
+		io_apic_write(0, 0x10+2*pin, *(((int *)&entry)+0));
+		spin_unlock_irqrestore(&ioapic_lock, flags);
+	}
+	disconnect_bsp_APIC(pin != -1);
 }
 
 /*

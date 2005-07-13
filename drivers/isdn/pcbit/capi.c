@@ -627,16 +627,6 @@ int capi_decode_disc_ind(struct pcbit_chan *chan, struct sk_buff *skb)
         return 0;
 }
 
-int capi_decode_disc_conf(struct pcbit_chan *chan, struct sk_buff *skb)
-{
-        ushort errcode;
-
-        errcode = *((ushort*) skb->data);
-        skb_pull(skb, 2);
-
-        return errcode;                
-}
-
 #ifdef DEBUG
 int capi_decode_debug_188(u_char *hdr, ushort hdrlen)
 {

@@ -47,6 +47,8 @@
 #define DST_TYPE_HAS_FW_2	16
 #define DST_TYPE_HAS_FW_3	32
 #define DST_TYPE_HAS_FW_BUILD	64
+#define DST_TYPE_HAS_OBS_REGS	128
+#define DST_TYPE_HAS_INC_COUNT	256
 
 /*	Card capability list	*/
 
@@ -110,6 +112,7 @@ struct dst_state {
 	u32 dst_hw_cap;
 	u8 dst_fw_version;
 	fe_sec_mini_cmd_t minicmd;
+	fe_modulation_t modulation;
 	u8 messages[256];
 };
 

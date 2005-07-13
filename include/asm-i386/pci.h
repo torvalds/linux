@@ -27,7 +27,7 @@ void pcibios_config_init(void);
 struct pci_bus * pcibios_scan_root(int bus);
 
 void pcibios_set_master(struct pci_dev *dev);
-void pcibios_penalize_isa_irq(int irq);
+void pcibios_penalize_isa_irq(int irq, int active);
 struct irq_routing_table *pcibios_get_irq_routing_table(void);
 int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
 
@@ -98,6 +98,16 @@ extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 static inline void pcibios_add_platform_entries(struct pci_dev *dev)
 {
 }
+
+#ifdef CONFIG_PCI
+static inline void pci_dma_burst_advice(struct pci_dev *pdev,
+					enum pci_dma_burst_strategy *strat,
+					unsigned long *strategy_parameter)
+{
+	*strat = PCI_DMA_BURST_INFINITY;
+	*strategy_parameter = ~0UL;
+}
+#endif
 
 #endif /* __KERNEL__ */
 

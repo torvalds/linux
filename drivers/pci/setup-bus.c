@@ -72,7 +72,11 @@ pbus_assign_resources_sorted(struct pci_bus *bus)
 	for (list = head.next; list;) {
 		res = list->res;
 		idx = res - &list->dev->resource[0];
-		pci_assign_resource(list->dev, idx);
+		if (pci_assign_resource(list->dev, idx)) {
+			res->start = 0;
+			res->end = 0;
+			res->flags = 0;
+		}
 		tmp = list;
 		list = list->next;
 		kfree(tmp);
@@ -270,6 +274,8 @@ find_free_bus_resource(struct pci_bus *bus, unsigned long type)
 
 	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
 		r = bus->resource[i];
+		if (r == &ioport_resource || r == &iomem_resource)
+			continue;
 		if (r && (r->flags & type_mask) == type && !r->parent)
 			return r;
 	}

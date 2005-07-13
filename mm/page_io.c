@@ -127,7 +127,7 @@ out:
 	return ret;
 }
 
-#if defined(CONFIG_SOFTWARE_SUSPEND) || defined(CONFIG_PM_DISK)
+#ifdef CONFIG_SOFTWARE_SUSPEND
 /*
  * A scruffy utility function to read or write an arbitrary swap page
  * and wait on the I/O.  The caller must have a ref on the page.

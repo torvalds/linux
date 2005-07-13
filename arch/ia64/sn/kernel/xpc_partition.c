@@ -253,7 +253,7 @@ xpc_rsvd_page_init(void)
 	 * This signifies to the remote partition that our reserved
 	 * page is initialized.
 	 */
-	(volatile u64) rp->vars_pa = __pa(xpc_vars);
+	rp->vars_pa = __pa(xpc_vars);
 
 	return rp;
 }

@@ -1705,11 +1705,9 @@ out:
 err:
 	if (*names) {
 		for (i = 0; i < *len; i++)
-			if ((*names)[i])
-				kfree((*names)[i]);
+			kfree((*names)[i]);
 	}
-	if (*values)
-		kfree(*values);
+	kfree(*values);
 	goto out;
 }
 

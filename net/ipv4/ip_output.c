@@ -107,7 +107,6 @@ static int ip_dev_loopback_xmit(struct sk_buff *newskb)
 	newskb->pkt_type = PACKET_LOOPBACK;
 	newskb->ip_summed = CHECKSUM_UNNECESSARY;
 	BUG_TRAP(newskb->dst);
-	nf_reset(newskb);
 	netif_rx(newskb);
 	return 0;
 }
@@ -187,8 +186,6 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		kfree_skb(skb);
 		skb = skb2;
 	}
-
-	nf_reset(skb);
 
 	if (hh) {
 		int hh_alen;
@@ -383,7 +380,6 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	to->pkt_type = from->pkt_type;
 	to->priority = from->priority;
 	to->protocol = from->protocol;
-	to->security = from->security;
 	dst_release(to->dst);
 	to->dst = dst_clone(from->dst);
 	to->dev = from->dev;
@@ -1323,23 +1319,8 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 	ip_rt_put(rt);
 }
 
-/*
- *	IP protocol layer initialiser
- */
-
-static struct packet_type ip_packet_type = {
-	.type = __constant_htons(ETH_P_IP),
-	.func = ip_rcv,
-};
-
-/*
- *	IP registers the packet type and then calls the subprotocol initialisers
- */
-
 void __init ip_init(void)
 {
-	dev_add_pack(&ip_packet_type);
-
 	ip_rt_init();
 	inet_initpeers();
 

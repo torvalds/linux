@@ -39,8 +39,6 @@ static void *midi_mem = NULL;
  */
 
 
-void            (*midi_input_intr) (int dev, unsigned char data);
-
 static int v_midi_open (int dev, int mode,
 	      void            (*input) (int dev, unsigned char data),
 	      void            (*output) (int dev)

@@ -156,7 +156,7 @@ struct in6_flowlabel_req
 #define IPV6_CHECKSUM		7
 #define IPV6_HOPLIMIT		8
 #define IPV6_NEXTHOP		9
-#define IPV6_AUTHHDR		10
+#define IPV6_AUTHHDR		10	/* obsolete */
 #define IPV6_FLOWINFO		11
 
 #define IPV6_UNICAST_HOPS	16

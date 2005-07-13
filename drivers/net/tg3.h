@@ -879,31 +879,41 @@
 #define  LOW_RXCOL_TICKS_CLRTCKS	 0x00000014
 #define  DEFAULT_RXCOL_TICKS		 0x00000048
 #define  HIGH_RXCOL_TICKS		 0x00000096
+#define  MAX_RXCOL_TICKS		 0x000003ff
 #define HOSTCC_TXCOL_TICKS		0x00003c0c
 #define  LOW_TXCOL_TICKS		 0x00000096
 #define  LOW_TXCOL_TICKS_CLRTCKS	 0x00000048
 #define  DEFAULT_TXCOL_TICKS		 0x0000012c
 #define  HIGH_TXCOL_TICKS		 0x00000145
+#define  MAX_TXCOL_TICKS		 0x000003ff
 #define HOSTCC_RXMAX_FRAMES		0x00003c10
 #define  LOW_RXMAX_FRAMES		 0x00000005
 #define  DEFAULT_RXMAX_FRAMES		 0x00000008
 #define  HIGH_RXMAX_FRAMES		 0x00000012
+#define  MAX_RXMAX_FRAMES		 0x000000ff
 #define HOSTCC_TXMAX_FRAMES		0x00003c14
 #define  LOW_TXMAX_FRAMES		 0x00000035
 #define  DEFAULT_TXMAX_FRAMES		 0x0000004b
 #define  HIGH_TXMAX_FRAMES		 0x00000052
+#define  MAX_TXMAX_FRAMES		 0x000000ff
 #define HOSTCC_RXCOAL_TICK_INT		0x00003c18
 #define  DEFAULT_RXCOAL_TICK_INT	 0x00000019
 #define  DEFAULT_RXCOAL_TICK_INT_CLRTCKS 0x00000014
+#define  MAX_RXCOAL_TICK_INT		 0x000003ff
 #define HOSTCC_TXCOAL_TICK_INT		0x00003c1c
 #define  DEFAULT_TXCOAL_TICK_INT	 0x00000019
 #define  DEFAULT_TXCOAL_TICK_INT_CLRTCKS 0x00000014
+#define  MAX_TXCOAL_TICK_INT		 0x000003ff
 #define HOSTCC_RXCOAL_MAXF_INT		0x00003c20
 #define  DEFAULT_RXCOAL_MAXF_INT	 0x00000005
+#define  MAX_RXCOAL_MAXF_INT		 0x000000ff
 #define HOSTCC_TXCOAL_MAXF_INT		0x00003c24
 #define  DEFAULT_TXCOAL_MAXF_INT	 0x00000005
+#define  MAX_TXCOAL_MAXF_INT		 0x000000ff
 #define HOSTCC_STAT_COAL_TICKS		0x00003c28
 #define  DEFAULT_STAT_COAL_TICKS	 0x000f4240
+#define  MAX_STAT_COAL_TICKS		 0xd693d400
+#define  MIN_STAT_COAL_TICKS		 0x00000064
 /* 0x3c2c --> 0x3c30 unused */
 #define HOSTCC_STATS_BLK_HOST_ADDR	0x00003c30 /* 64-bit */
 #define HOSTCC_STATUS_BLK_HOST_ADDR	0x00003c38 /* 64-bit */
@@ -2006,17 +2016,31 @@ struct tg3_ethtool_stats {
 struct tg3 {
 	/* begin "general, frequently-used members" cacheline section */
 
+	/* If the IRQ handler (which runs lockless) needs to be
+	 * quiesced, the following bitmask state is used.  The
+	 * SYNC flag is set by non-IRQ context code to initiate
+	 * the quiescence.
+	 *
+	 * When the IRQ handler notices that SYNC is set, it
+	 * disables interrupts and returns.
+	 *
+	 * When all outstanding IRQ handlers have returned after
+	 * the SYNC flag has been set, the setter can be assured
+	 * that interrupts will no longer get run.
+	 *
+	 * In this way all SMP driver locks are never acquired
+	 * in hw IRQ context, only sw IRQ context or lower.
+	 */
+	unsigned int			irq_sync;
+
 	/* SMP locking strategy:
 	 *
 	 * lock: Held during all operations except TX packet
 	 *       processing.
 	 *
-	 * tx_lock: Held during tg3_start_xmit{,_4gbug} and tg3_tx
+	 * tx_lock: Held during tg3_start_xmit and tg3_tx
 	 *
-	 * If you want to shut up all asynchronous processing you must
-	 * acquire both locks, 'lock' taken before 'tx_lock'.  IRQs must
-	 * be disabled to take 'lock' but only softirq disabling is
-	 * necessary for acquisition of 'tx_lock'.
+	 * Both of these locks are to be held with BH safety.
 	 */
 	spinlock_t			lock;
 	spinlock_t			indirect_lock;

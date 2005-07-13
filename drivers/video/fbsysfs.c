@@ -228,8 +228,6 @@ static ssize_t store_virtual(struct class_device *class_device,
 	if (last - buf >= count)
 		return -EINVAL;
 	var.yres_virtual = simple_strtoul(last, &last, 0);
-	printk(KERN_ERR "fb: xres %d yres %d\n", var.xres_virtual,
-	       var.yres_virtual);
 
 	if ((err = activate(fb_info, &var)))
 		return err;
@@ -258,7 +256,7 @@ static ssize_t show_cmap(struct class_device *class_device, char *buf)
 	unsigned int offset = 0, i;
 
 	if (!fb_info->cmap.red || !fb_info->cmap.blue ||
-	    fb_info->cmap.green || fb_info->cmap.transp)
+	    !fb_info->cmap.green || !fb_info->cmap.transp)
 		return -EINVAL;
 
 	for (i = 0; i < fb_info->cmap.len; i++) {

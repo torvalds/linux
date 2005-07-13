@@ -9,6 +9,7 @@ obj-$(CONFIG_USB_EMI26)		+= emi26.o
 obj-$(CONFIG_USB_EMI62)		+= emi62.o
 obj-$(CONFIG_USB_IDMOUSE)	+= idmouse.o
 obj-$(CONFIG_USB_LCD)		+= usblcd.o
+obj-$(CONFIG_USB_LD)		+= ldusb.o
 obj-$(CONFIG_USB_LED)		+= usbled.o
 obj-$(CONFIG_USB_LEGOTOWER)	+= legousbtower.o
 obj-$(CONFIG_USB_PHIDGETKIT)	+= phidgetkit.o

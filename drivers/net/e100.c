@@ -143,6 +143,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
@@ -1092,11 +1093,16 @@ static int e100_phy_init(struct nic *nic)
 	}
 
 	if((nic->mac >= mac_82550_D102) || ((nic->flags & ich) && 
-		(mdio_read(netdev, nic->mii.phy_id, MII_TPISTATUS) & 0x8000) && 
-		(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled)))
-		/* enable/disable MDI/MDI-X auto-switching */
-		mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG,
-			nic->mii.force_media ? 0 : NCONFIG_AUTO_SWITCH);
+	   (mdio_read(netdev, nic->mii.phy_id, MII_TPISTATUS) & 0x8000))) {
+		/* enable/disable MDI/MDI-X auto-switching.
+		   MDI/MDI-X auto-switching is disabled for 82551ER/QM chips */
+		if((nic->mac == mac_82551_E) || (nic->mac == mac_82551_F) ||
+		   (nic->mac == mac_82551_10) || (nic->mii.force_media) || 
+		   !(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled)) 
+			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, 0);
+		else
+			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, NCONFIG_AUTO_SWITCH);
+	}
 
 	return 0;
 }
@@ -1665,8 +1671,10 @@ static irqreturn_t e100_intr(int irq, void *dev_id, struct pt_regs *regs)
 	if(stat_ack & stat_ack_rnr)
 		nic->ru_running = RU_SUSPENDED;
 
-	e100_disable_irq(nic);
-	netif_rx_schedule(netdev);
+	if(likely(netif_rx_schedule_prep(netdev))) {
+		e100_disable_irq(nic);
+		__netif_rx_schedule(netdev);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -2286,7 +2294,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		goto err_out_disable_pdev;
 	}
 
-	if((err = pci_set_dma_mask(pdev, 0xFFFFFFFFULL))) {
+	if((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK))) {
 		DPRINTK(PROBE, ERR, "No usable DMA configuration, aborting.\n");
 		goto err_out_free_res;
 	}
@@ -2334,10 +2342,10 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
-	e100_phy_init(nic);
-
 	if((err = e100_eeprom_load(nic)))
 		goto err_out_free;
+
+	e100_phy_init(nic);
 
 	memcpy(netdev->dev_addr, nic->eeprom, ETH_ALEN);
 	if(!is_valid_ether_addr(netdev->dev_addr)) {
@@ -2439,9 +2447,8 @@ static int e100_resume(struct pci_dev *pdev)
 #endif
 
 
-static void e100_shutdown(struct device *dev)
+static void e100_shutdown(struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
 
@@ -2462,11 +2469,7 @@ static struct pci_driver e100_driver = {
 	.suspend =      e100_suspend,
 	.resume =       e100_resume,
 #endif
-
-	.driver = {
-		.shutdown = e100_shutdown,
-	}
-
+	.shutdown =	e100_shutdown,
 };
 
 static int __init e100_init_module(void)

@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-core.c,v 1.28 2005/02/22 09:56:29 kraxel Exp $
+ * $Id: saa7134-core.c,v 1.39 2005/07/05 17:37:35 nsh Exp $
  *
  * device driver for philips saa7134 based TV cards
  * driver core
@@ -183,46 +183,6 @@ void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
 
 /* ------------------------------------------------------------------ */
 
-#if 0
-static char *dec1_bits[8] = {
-	"DCSTD0", "DCSCT1", "WIPA", "GLIMB",
-	"GLIMT", "SLTCA", "HLCK"
-};
-static char *dec2_bits[8] = {
-	"RDCAP", "COPRO", "COLSTR", "TYPE3",
-	NULL, "FIDT", "HLVLN", "INTL"
-};
-static char *scale1_bits[8] = {
-	"VID_A", "VBI_A", NULL, NULL, "VID_B", "VBI_B"
-};
-static char *scale2_bits[8] = {
-	"TRERR", "CFERR", "LDERR", "WASRST",
-	"FIDSCI", "FIDSCO", "D6^D5", "TASK"
-};
-
-static void dump_statusreg(struct saa7134_dev *dev, int reg,
-			   char *regname, char **bits)
-{
-	int value,i;
-
-	value = saa_readb(reg);
-	printk(KERN_DEBUG "%s: %s:", dev->name, regname);
-	for (i = 7; i >= 0; i--) {
-		if (NULL == bits[i])
-			continue;
-		printk(" %s=%d", bits[i], (value & (1 << i)) ? 1 : 0);
-	}
-	printk("\n");
-}
-
-static void dump_statusregs(struct saa7134_dev *dev)
-{
-	dump_statusreg(dev,SAA7134_STATUS_VIDEO1,"dec1",dec1_bits);
-	dump_statusreg(dev,SAA7134_STATUS_VIDEO2,"dec2",dec2_bits);
-	dump_statusreg(dev,SAA7134_SCALER_STATUS0,"scale0",scale1_bits);
-	dump_statusreg(dev,SAA7134_SCALER_STATUS1,"scale1",scale2_bits);
-}
-#endif
 
 /* ----------------------------------------------------------- */
 /* delayed request_module                                      */
@@ -316,7 +276,7 @@ unsigned long saa7134_buffer_base(struct saa7134_buf *buf)
 
 int saa7134_pgtable_alloc(struct pci_dev *pci, struct saa7134_pgtable *pt)
 {
-        u32          *cpu;
+        __le32       *cpu;
         dma_addr_t   dma_addr;
 
 	cpu = pci_alloc_consistent(pci, SAA7134_PGTABLE_SIZE, &dma_addr);
@@ -332,7 +292,7 @@ int saa7134_pgtable_build(struct pci_dev *pci, struct saa7134_pgtable *pt,
 			  struct scatterlist *list, unsigned int length,
 			  unsigned int startpage)
 {
-	u32           *ptr;
+	__le32        *ptr;
 	unsigned int  i,p;
 
 	BUG_ON(NULL == pt || NULL == pt->cpu);
@@ -340,7 +300,7 @@ int saa7134_pgtable_build(struct pci_dev *pci, struct saa7134_pgtable *pt,
 	ptr = pt->cpu + startpage;
 	for (i = 0; i < length; i++, list++)
 		for (p = 0; p * 4096 < list->length; p++, ptr++)
-			*ptr = sg_dma_address(list) - list->offset;
+			*ptr = cpu_to_le32(sg_dma_address(list) - list->offset);
 	return 0;
 }
 
@@ -616,10 +576,6 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id, struct pt_regs *regs)
 		if (irq_debug)
 			print_irqstatus(dev,loop,report,status);
 
-#if 0
-		if (report & SAA7134_IRQ_REPORT_CONF_ERR)
-			dump_statusregs(dev);
-#endif
 
 		if (report & SAA7134_IRQ_REPORT_RDCAP /* _INTL */)
 			saa7134_irq_video_intl(dev);
@@ -711,7 +667,6 @@ static int saa7134_hwinit1(struct saa7134_dev *dev)
 		   SAA7134_MAIN_CTRL_EVFE1 |
 		   SAA7134_MAIN_CTRL_EVFE2 |
 		   SAA7134_MAIN_CTRL_ESFE  |
-		   SAA7134_MAIN_CTRL_EBADC |
 		   SAA7134_MAIN_CTRL_EBDAC);
 
 	/* enable peripheral devices */
@@ -726,14 +681,28 @@ static int saa7134_hwinit1(struct saa7134_dev *dev)
 /* late init (with i2c + irq) */
 static int saa7134_hwinit2(struct saa7134_dev *dev)
 {
+	unsigned int irq2_mask;
 	dprintk("hwinit2\n");
 
 	saa7134_video_init2(dev);
 	saa7134_tvaudio_init2(dev);
 
 	/* enable IRQ's */
+   	irq2_mask =
+		SAA7134_IRQ2_INTE_DEC3    |
+		SAA7134_IRQ2_INTE_DEC2    |
+		SAA7134_IRQ2_INTE_DEC1    |
+		SAA7134_IRQ2_INTE_DEC0    |
+		SAA7134_IRQ2_INTE_PE      |
+		SAA7134_IRQ2_INTE_AR;
+
+	if (dev->has_remote)
+		irq2_mask |= (SAA7134_IRQ2_INTE_GPIO18  |
+			      SAA7134_IRQ2_INTE_GPIO18A |
+			      SAA7134_IRQ2_INTE_GPIO16  );
+
 	saa_writel(SAA7134_IRQ1, 0);
-	saa_writel(SAA7134_IRQ2, dev->irq2_mask);
+	saa_writel(SAA7134_IRQ2, irq2_mask);
 
 	return 0;
 }
@@ -954,13 +923,6 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	}
 
 	/* initialize hardware #1 */
-   	dev->irq2_mask =
-		SAA7134_IRQ2_INTE_DEC3    |
-		SAA7134_IRQ2_INTE_DEC2    |
-		SAA7134_IRQ2_INTE_DEC1    |
-		SAA7134_IRQ2_INTE_DEC0    |
-		SAA7134_IRQ2_INTE_PE      |
-		SAA7134_IRQ2_INTE_AR;
 	saa7134_board_init1(dev);
 	saa7134_hwinit1(dev);
 
@@ -990,6 +952,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		request_module("saa6752hs");
 		request_module_depend("saa7134-empress",&need_empress);
 	}
+
   	if (card_is_dvb(dev))
 		request_module_depend("saa7134-dvb",&need_dvb);
 
@@ -1144,9 +1107,6 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 	release_mem_region(pci_resource_start(pci_dev,0),
 			   pci_resource_len(pci_dev,0));
 
-#if 0  /* causes some trouble when reinserting the driver ... */
-	pci_disable_device(pci_dev);
-#endif
 	pci_set_drvdata(pci_dev, NULL);
 
 	/* free memory */

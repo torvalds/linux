@@ -27,6 +27,7 @@
 #include <linux/efi.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/kprobes.h>
 
 #include <asm/cpu.h>
 #include <asm/delay.h>
@@ -195,6 +196,7 @@ update_pal_halt_status(int status)
 void
 default_idle (void)
 {
+	local_irq_enable();
 	while (!need_resched())
 		if (can_do_pal_halt)
 			safe_halt();
@@ -707,6 +709,13 @@ kernel_thread_helper (int (*fn)(void *), void *arg)
 void
 flush_thread (void)
 {
+	/*
+	 * Remove function-return probe instances associated with this task
+	 * and put them back on the free list. Do not insert an exit probe for
+	 * this function, it will be disabled by kprobe_flush_task if you do.
+	 */
+	kprobe_flush_task(current);
+
 	/* drop floating-point and debug-register state if it exists: */
 	current->thread.flags &= ~(IA64_THREAD_FPH_VALID | IA64_THREAD_DBG_VALID);
 	ia64_drop_fpu(current);
@@ -721,6 +730,14 @@ flush_thread (void)
 void
 exit_thread (void)
 {
+
+	/*
+	 * Remove function-return probe instances associated with this task
+	 * and put them back on the free list. Do not insert an exit probe for
+	 * this function, it will be disabled by kprobe_flush_task if you do.
+	 */
+	kprobe_flush_task(current);
+
 	ia64_drop_fpu(current);
 #ifdef CONFIG_PERFMON
        /* if needed, stop monitoring and flush state to perfmon context */

@@ -49,8 +49,6 @@ int jffs_garbage_collect_thread(void *c);
 void jffs_garbage_collect_trigger(struct jffs_control *c);
 
 /* For debugging purposes.  */
-void jffs_print_node(struct jffs_node *n);
-void jffs_print_raw_inode(struct jffs_raw_inode *raw_inode);
 #if 0
 int jffs_print_file(struct jffs_file *f);
 #endif  /*  0  */

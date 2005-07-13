@@ -16,7 +16,7 @@ arch_prepare_suspend(void)
 struct saved_context {
   	u16 ds, es, fs, gs, ss;
 	unsigned long gs_base, gs_kernel_base, fs_base;
-	unsigned long cr0, cr2, cr3, cr4;
+	unsigned long cr0, cr2, cr3, cr4, cr8;
 	u16 gdt_pad;
 	u16 gdt_limit;
 	unsigned long gdt_base;

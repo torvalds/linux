@@ -43,7 +43,12 @@
 #include <linux/init.h>
 #include <linux/edd.h>
 #include <linux/nodemask.h>
+#include <linux/kexec.h>
+#include <linux/crash_dump.h>
+
 #include <video/edid.h>
+
+#include <asm/apic.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
@@ -55,12 +60,15 @@
 #include "setup_arch_pre.h"
 #include <bios_ebda.h>
 
+/* Forward Declaration. */
+void __init find_max_pfn(void);
+
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
    address, and must not be in the .bss segment! */
 unsigned long init_pg_tables_end __initdata = ~0UL;
 
-int disable_pse __initdata = 0;
+int disable_pse __devinitdata = 0;
 
 /*
  * Machine setup..
@@ -732,6 +740,15 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 			if (to != command_line)
 				to--;
 			if (!memcmp(from+7, "exactmap", 8)) {
+#ifdef CONFIG_CRASH_DUMP
+				/* If we are doing a crash dump, we
+				 * still need to know the real mem
+				 * size before original memory map is
+				 * reset.
+				 */
+				find_max_pfn();
+				saved_max_pfn = max_pfn;
+#endif
 				from += 8+7;
 				e820.nr_map = 0;
 				userdef = 1;
@@ -834,6 +851,44 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 			disable_ioapic_setup();
 #endif /* CONFIG_X86_LOCAL_APIC */
 #endif /* CONFIG_ACPI_BOOT */
+
+#ifdef CONFIG_X86_LOCAL_APIC
+		/* enable local APIC */
+		else if (!memcmp(from, "lapic", 5))
+			lapic_enable();
+
+		/* disable local APIC */
+		else if (!memcmp(from, "nolapic", 6))
+			lapic_disable();
+#endif /* CONFIG_X86_LOCAL_APIC */
+
+#ifdef CONFIG_KEXEC
+		/* crashkernel=size@addr specifies the location to reserve for
+		 * a crash kernel.  By reserving this memory we guarantee
+		 * that linux never set's it up as a DMA target.
+		 * Useful for holding code to do something appropriate
+		 * after a kernel panic.
+		 */
+		else if (!memcmp(from, "crashkernel=", 12)) {
+			unsigned long size, base;
+			size = memparse(from+12, &from);
+			if (*from == '@') {
+				base = memparse(from+1, &from);
+				/* FIXME: Do I want a sanity check
+				 * to validate the memory range?
+				 */
+				crashk_res.start = base;
+				crashk_res.end   = base + size - 1;
+			}
+		}
+#endif
+#ifdef CONFIG_CRASH_DUMP
+		/* elfcorehdr= specifies the location of elf core header
+		 * stored by the crashed kernel.
+		 */
+		else if (!memcmp(from, "elfcorehdr=", 11))
+			elfcorehdr_addr = memparse(from+11, &from);
+#endif
 
 		/*
 		 * highmem=size forces highmem to be exactly 'size' bytes.
@@ -1113,8 +1168,8 @@ void __init setup_bootmem_allocator(void)
 	 * the (very unlikely) case of us accidentally initializing the
 	 * bootmem allocator with an invalid RAM area.
 	 */
-	reserve_bootmem(HIGH_MEMORY, (PFN_PHYS(min_low_pfn) +
-			 bootmap_size + PAGE_SIZE-1) - (HIGH_MEMORY));
+	reserve_bootmem(__PHYSICAL_START, (PFN_PHYS(min_low_pfn) +
+			 bootmap_size + PAGE_SIZE-1) - (__PHYSICAL_START));
 
 	/*
 	 * reserve physical page 0 - it's a special BIOS page on many boxes,
@@ -1170,6 +1225,11 @@ void __init setup_bootmem_allocator(void)
 		}
 	}
 #endif
+#ifdef CONFIG_KEXEC
+	if (crashk_res.start != crashk_res.end)
+		reserve_bootmem(crashk_res.start,
+			crashk_res.end - crashk_res.start + 1);
+#endif
 }
 
 /*
@@ -1223,6 +1283,9 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 			 */
 			request_resource(res, code_resource);
 			request_resource(res, data_resource);
+#ifdef CONFIG_KEXEC
+			request_resource(res, &crashk_res);
+#endif
 		}
 	}
 }

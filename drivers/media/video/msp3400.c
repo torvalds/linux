@@ -567,10 +567,6 @@ static void msp3400c_set_audmode(struct i2c_client *client, int audmode)
 	switch (audmode) {
 	case V4L2_TUNER_MODE_STEREO:
 		src = 0x0020 | nicam;
-#if 0
-		/* spatial effect */
-		msp3400c_write(client,I2C_MSP3400C_DFP, 0x0005,0x4000);
-#endif
 		break;
 	case V4L2_TUNER_MODE_MONO:
 		if (msp->mode == MSP_MODE_AM_NICAM) {
@@ -735,28 +731,21 @@ static int msp34xx_sleep(struct msp3400c *msp, int timeout)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
-again:
 	add_wait_queue(&msp->wq, &wait);
 	if (!kthread_should_stop()) {
 		if (timeout < 0) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule();
 		} else {
-#if 0
-			/* hmm, that one doesn't return on wakeup ... */
-			msleep_interruptible(timeout);
-#else
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(msecs_to_jiffies(timeout));
-#endif
 		}
+	}
+	if (current->flags & PF_FREEZE) {
+		refrigerator ();
 	}
 
 	remove_wait_queue(&msp->wq, &wait);
-
-	if (try_to_freeze(PF_FREEZE))
-		goto again;
-
 	return msp->restart;
 }
 
@@ -1159,17 +1148,10 @@ static int msp3410d_thread(void *data)
 					    MSP_CARRIER(10.7));
 			/* scart routing */
 			msp3400c_set_scart(client,SCART_IN2,0);
-#if 0
-			/* radio from SCART_IN2 */
-			msp3400c_write(client,I2C_MSP3400C_DFP, 0x08, 0x0220);
-			msp3400c_write(client,I2C_MSP3400C_DFP, 0x09, 0x0220);
-			msp3400c_write(client,I2C_MSP3400C_DFP, 0x0b, 0x0220);
-#else
 			/* msp34xx does radio decoding */
 			msp3400c_write(client,I2C_MSP3400C_DFP, 0x08, 0x0020);
 			msp3400c_write(client,I2C_MSP3400C_DFP, 0x09, 0x0020);
 			msp3400c_write(client,I2C_MSP3400C_DFP, 0x0b, 0x0020);
-#endif
 			break;
 		case 0x0003:
 		case 0x0004:
@@ -1436,7 +1418,7 @@ static int msp_detach(struct i2c_client *client);
 static int msp_probe(struct i2c_adapter *adap);
 static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg);
 
-static int msp_suspend(struct device * dev, pm_message_t state, u32 level);
+static int msp_suspend(struct device * dev, u32 state, u32 level);
 static int msp_resume(struct device * dev, u32 level);
 
 static void msp_wake_thread(struct i2c_client *client);
@@ -1512,10 +1494,6 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 		return -1;
 	}
 
-#if 0
-	/* this will turn on a 1kHz beep - might be useful for debugging... */
-	msp3400c_write(c,I2C_MSP3400C_DFP, 0x0014, 0x1040);
-#endif
 	msp3400c_setvolume(c, msp->muted, msp->volume, msp->balance);
 
 	snprintf(c->name, sizeof(c->name), "MSP34%02d%c-%c%d",
@@ -1841,7 +1819,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int msp_suspend(struct device * dev, pm_message_t state, u32 level)
+static int msp_suspend(struct device * dev, u32 state, u32 level)
 {
 	struct i2c_client *c = container_of(dev, struct i2c_client, dev);
 

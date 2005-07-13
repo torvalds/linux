@@ -154,8 +154,6 @@
 #define ENE_TEST_C9			0xc9	/* 8bit */
 #define ENE_TEST_C9_TLTENABLE		0x02
 
-#ifdef CONFIG_CARDBUS
-
 /*
  * Texas Instruments CardBus controller overrides.
  */
@@ -842,8 +840,6 @@ static int ti1250_override(struct yenta_socket *socket)
 
 	return ti12xx_override(socket);
 }
-
-#endif /* CONFIG_CARDBUS */
 
 #endif /* _LINUX_TI113X_H */
 

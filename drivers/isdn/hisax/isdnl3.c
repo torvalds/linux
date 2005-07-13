@@ -302,7 +302,7 @@ release_l3_process(struct l3_process *p)
 				!test_bit(FLG_PTP, &p->st->l2.flag)) {
 				if (p->debug)
 					l3_debug(p->st, "release_l3_process: last process");
-				if (!skb_queue_len(&p->st->l3.squeue)) {
+				if (skb_queue_empty(&p->st->l3.squeue)) {
 					if (p->debug)
 						l3_debug(p->st, "release_l3_process: release link");
 					if (p->st->protocol != ISDN_PTYPE_NI1)
@@ -390,7 +390,7 @@ setstack_l3dc(struct PStack *st, struct Channel *chanp)
 	}
 }
 
-void
+static void
 isdnl3_trans(struct PStack *st, int pr, void *arg) {
 	st->l3.l3l2(st, pr, arg);
 }

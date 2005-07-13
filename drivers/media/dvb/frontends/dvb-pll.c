@@ -1,6 +1,4 @@
 /*
- * $Id: dvb-pll.c,v 1.7 2005/02/10 11:52:02 kraxel Exp $
- *
  * descriptions + helper functions for simple dvb plls.
  *
  * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
@@ -57,7 +55,7 @@ struct dvb_pll_desc dvb_pll_thomson_dtt7610 = {
 };
 EXPORT_SYMBOL(dvb_pll_thomson_dtt7610);
 
-static void thomson_dtt759x_bw(u8 *buf, int bandwidth)
+static void thomson_dtt759x_bw(u8 *buf, u32 freq, int bandwidth)
 {
 	if (BANDWIDTH_7_MHZ == bandwidth)
 		buf[3] |= 0x10;
@@ -95,6 +93,32 @@ struct dvb_pll_desc dvb_pll_lg_z201 = {
 };
 EXPORT_SYMBOL(dvb_pll_lg_z201);
 
+struct dvb_pll_desc dvb_pll_microtune_4042 = {
+	.name  = "Microtune 4042 FI5",
+	.min   =  57000000,
+	.max   = 858000000,
+	.count = 3,
+	.entries = {
+		{ 162000000, 44000000, 62500, 0x8e, 0xa1 },
+		{ 457000000, 44000000, 62500, 0x8e, 0x91 },
+		{ 999999999, 44000000, 62500, 0x8e, 0x31 },
+	},
+};
+EXPORT_SYMBOL(dvb_pll_microtune_4042);
+
+struct dvb_pll_desc dvb_pll_thomson_dtt7611 = {
+	.name  = "Thomson dtt7611",
+	.min   =  44000000,
+	.max   = 958000000,
+	.count = 3,
+	.entries = {
+		{ 157250000, 44000000, 62500, 0x8e, 0x39 },
+		{ 454000000, 44000000, 62500, 0x8e, 0x3a },
+		{ 999999999, 44000000, 62500, 0x8e, 0x3c },
+	},
+};
+EXPORT_SYMBOL(dvb_pll_thomson_dtt7611);
+
 struct dvb_pll_desc dvb_pll_unknown_1 = {
 	.name  = "unknown 1", /* used by dntv live dvb-t */
 	.min   = 174000000,
@@ -113,6 +137,143 @@ struct dvb_pll_desc dvb_pll_unknown_1 = {
 	},
 };
 EXPORT_SYMBOL(dvb_pll_unknown_1);
+
+/* Infineon TUA6010XS
+ * used in Thomson Cable Tuner
+ */
+struct dvb_pll_desc dvb_pll_tua6010xs = {
+	.name  = "Infineon TUA6010XS",
+	.min   =  44250000,
+	.max   = 858000000,
+	.count = 3,
+	.entries = {
+		{  115750000, 36125000, 62500, 0x8e, 0x03 },
+		{  403250000, 36125000, 62500, 0x8e, 0x06 },
+		{  999999999, 36125000, 62500, 0x8e, 0x85 },
+	},
+};
+EXPORT_SYMBOL(dvb_pll_tua6010xs);
+
+/* Panasonic env57h1xd5 (some Philips PLL ?) */
+struct dvb_pll_desc dvb_pll_env57h1xd5 = {
+	.name  = "Panasonic ENV57H1XD5",
+	.min   =  44250000,
+	.max   = 858000000,
+	.count = 4,
+	.entries = {
+		{  153000000, 36291666, 166666, 0xc2, 0x41 },
+		{  470000000, 36291666, 166666, 0xc2, 0x42 },
+		{  526000000, 36291666, 166666, 0xc2, 0x84 },
+		{  999999999, 36291666, 166666, 0xc2, 0xa4 },
+	},
+};
+EXPORT_SYMBOL(dvb_pll_env57h1xd5);
+
+/* Philips TDA6650/TDA6651
+ * used in Panasonic ENV77H11D5
+ */
+static void tda665x_bw(u8 *buf, u32 freq, int bandwidth)
+{
+	if (bandwidth == BANDWIDTH_8_MHZ)
+		buf[3] |= 0x08;
+}
+
+struct dvb_pll_desc dvb_pll_tda665x = {
+	.name  = "Philips TDA6650/TDA6651",
+	.min   =  44250000,
+	.max   = 858000000,
+	.setbw = tda665x_bw,
+	.count = 12,
+	.entries = {
+		{   93834000, 36249333, 166667, 0xca, 0x61 /* 011 0 0 0  01 */ },
+		{  123834000, 36249333, 166667, 0xca, 0xa1 /* 101 0 0 0  01 */ },
+		{  161000000, 36249333, 166667, 0xca, 0xa1 /* 101 0 0 0  01 */ },
+		{  163834000, 36249333, 166667, 0xca, 0xc2 /* 110 0 0 0  10 */ },
+		{  253834000, 36249333, 166667, 0xca, 0x62 /* 011 0 0 0  10 */ },
+		{  383834000, 36249333, 166667, 0xca, 0xa2 /* 101 0 0 0  10 */ },
+		{  443834000, 36249333, 166667, 0xca, 0xc2 /* 110 0 0 0  10 */ },
+		{  444000000, 36249333, 166667, 0xca, 0xc3 /* 110 0 0 0  11 */ },
+		{  583834000, 36249333, 166667, 0xca, 0x63 /* 011 0 0 0  11 */ },
+		{  793834000, 36249333, 166667, 0xca, 0xa3 /* 101 0 0 0  11 */ },
+		{  444834000, 36249333, 166667, 0xca, 0xc3 /* 110 0 0 0  11 */ },
+		{  861000000, 36249333, 166667, 0xca, 0xe3 /* 111 0 0 0  11 */ },
+	}
+};
+EXPORT_SYMBOL(dvb_pll_tda665x);
+
+/* Infineon TUA6034
+ * used in LG TDTP E102P
+ */
+static void tua6034_bw(u8 *buf, u32 freq, int bandwidth)
+{
+	if (BANDWIDTH_7_MHZ != bandwidth)
+		buf[3] |= 0x08;
+}
+
+struct dvb_pll_desc dvb_pll_tua6034 = {
+	.name  = "Infineon TUA6034",
+	.min   =  44250000,
+	.max   = 858000000,
+	.count = 3,
+	.setbw = tua6034_bw,
+	.entries = {
+		{  174500000, 36166667, 62500, 0xce, 0x01 },
+		{  230000000, 36166667, 62500, 0xce, 0x02 },
+		{  999999999, 36166667, 62500, 0xce, 0x04 },
+	},
+};
+EXPORT_SYMBOL(dvb_pll_tua6034);
+
+/* Philips FMD1216ME
+ * used in Medion Hybrid PCMCIA card and USB Box
+ */
+static void fmd1216me_bw(u8 *buf, u32 freq, int bandwidth)
+{
+	if (bandwidth == BANDWIDTH_8_MHZ && freq >= 158870000)
+		buf[3] |= 0x08;
+}
+
+struct dvb_pll_desc dvb_pll_fmd1216me = {
+	.name = "Philips FMD1216ME",
+	.min = 50870000,
+	.max = 858000000,
+	.setbw = fmd1216me_bw,
+	.count = 7,
+	.entries = {
+		{ 143870000, 36213333, 166667, 0xbc, 0x41 },
+		{ 158870000, 36213333, 166667, 0xf4, 0x41 },
+		{ 329870000, 36213333, 166667, 0xbc, 0x42 },
+		{ 441870000, 36213333, 166667, 0xf4, 0x42 },
+		{ 625870000, 36213333, 166667, 0xbc, 0x44 },
+		{ 803870000, 36213333, 166667, 0xf4, 0x44 },
+		{ 999999999, 36213333, 166667, 0xfc, 0x44 },
+	}
+};
+EXPORT_SYMBOL(dvb_pll_fmd1216me);
+
+/* ALPS TDED4
+ * used in Nebula-Cards and USB boxes
+ */
+static void tded4_bw(u8 *buf, u32 freq, int bandwidth)
+{
+	if (bandwidth == BANDWIDTH_8_MHZ)
+		buf[3] |= 0x04;
+}
+
+struct dvb_pll_desc dvb_pll_tded4 = {
+	.name = "ALPS TDED4",
+	.min = 47000000,
+	.max = 863000000,
+	.setbw = tded4_bw,
+	.count = 4,
+	.entries = {
+		{ 153000000, 36166667, 166667, 0x85, 0x01 },
+		{ 470000000, 36166667, 166667, 0x85, 0x02 },
+		{ 823000000, 36166667, 166667, 0x85, 0x08 },
+		{ 999999999, 36166667, 166667, 0x85, 0x88 },
+	}
+};
+EXPORT_SYMBOL(dvb_pll_tded4);
 
 /* ----------------------------------------------------------- */
 /* code                                                        */
@@ -147,7 +308,7 @@ int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 	buf[3] = desc->entries[i].cb2;
 
 	if (desc->setbw)
-		desc->setbw(buf, bandwidth);
+		desc->setbw(buf, freq, bandwidth);
 
 	if (debug)
 		printk("pll: %s: div=%d | buf=0x%02x,0x%02x,0x%02x,0x%02x\n",
@@ -160,9 +321,3 @@ EXPORT_SYMBOL(dvb_pll_configure);
 MODULE_DESCRIPTION("dvb pll library");
 MODULE_AUTHOR("Gerd Knorr");
 MODULE_LICENSE("GPL");
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

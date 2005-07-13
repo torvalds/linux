@@ -273,7 +273,7 @@ isdn_tty_rcv_skb(int i, int di, int channel, struct sk_buff *skb)
 	return 1;
 }
 
-void
+static void
 isdn_tty_cleanup_xmit(modem_info * info)
 {
 	skb_queue_purge(&info->xmit_queue);
@@ -560,7 +560,7 @@ isdn_tty_modem_ncarrier(modem_info * info)
 /*
  * return the usage calculated by si and layer 2 protocol
  */
-int
+static int
 isdn_calc_usage(int si, int l2)
 {
 	int usg = ISDN_USAGE_MODEM;
@@ -1223,7 +1223,7 @@ isdn_tty_write(struct tty_struct *tty, const u_char * buf, int count)
 		total += c;
 	}
 	atomic_dec(&info->xmit_lock);
-	if ((info->xmit_count) || (skb_queue_len(&info->xmit_queue))) {
+	if ((info->xmit_count) || !skb_queue_empty(&info->xmit_queue)) {
 		if (m->mdmreg[REG_DXMT] & BIT_DXMT) {
 			isdn_tty_senddown(info);
 			isdn_tty_tint(info);
@@ -1284,7 +1284,7 @@ isdn_tty_flush_chars(struct tty_struct *tty)
 
 	if (isdn_tty_paranoia_check(info, tty->name, "isdn_tty_flush_chars"))
 		return;
-	if ((info->xmit_count) || (skb_queue_len(&info->xmit_queue)))
+	if ((info->xmit_count) || !skb_queue_empty(&info->xmit_queue))
 		isdn_timer_ctrl(ISDN_TIMER_MODEMXMIT, 1);
 }
 

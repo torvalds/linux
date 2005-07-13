@@ -51,12 +51,23 @@
 #define _COMPONENT          ACPI_UTILITIES
 	 ACPI_MODULE_NAME    ("utdelete")
 
+/* Local prototypes */
+
+static void
+acpi_ut_delete_internal_obj (
+	union acpi_operand_object       *object);
+
+static void
+acpi_ut_update_ref_count (
+	union acpi_operand_object       *object,
+	u32                             action);
+
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_delete_internal_obj
  *
- * PARAMETERS:  *Object        - Pointer to the list to be deleted
+ * PARAMETERS:  Object         - Object to be deleted
  *
  * RETURN:      None
  *
@@ -65,7 +76,7 @@
  *
  ******************************************************************************/
 
-void
+static void
 acpi_ut_delete_internal_obj (
 	union acpi_operand_object       *object)
 {
@@ -152,7 +163,8 @@ acpi_ut_delete_internal_obj (
 
 	case ACPI_TYPE_MUTEX:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "***** Mutex %p, Semaphore %p\n",
+		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+			"***** Mutex %p, Semaphore %p\n",
 			object, object->mutex.semaphore));
 
 		acpi_ex_unlink_mutex (object);
@@ -162,7 +174,8 @@ acpi_ut_delete_internal_obj (
 
 	case ACPI_TYPE_EVENT:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "***** Event %p, Semaphore %p\n",
+		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+			"***** Event %p, Semaphore %p\n",
 			object, object->event.semaphore));
 
 		(void) acpi_os_delete_semaphore (object->event.semaphore);
@@ -172,7 +185,8 @@ acpi_ut_delete_internal_obj (
 
 	case ACPI_TYPE_METHOD:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "***** Method %p\n", object));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+			"***** Method %p\n", object));
 
 		/* Delete the method semaphore if it exists */
 
@@ -185,7 +199,8 @@ acpi_ut_delete_internal_obj (
 
 	case ACPI_TYPE_REGION:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "***** Region %p\n", object));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+			"***** Region %p\n", object));
 
 		second_desc = acpi_ns_get_secondary_object (object);
 		if (second_desc) {
@@ -212,7 +227,8 @@ acpi_ut_delete_internal_obj (
 
 	case ACPI_TYPE_BUFFER_FIELD:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "***** Buffer Field %p\n", object));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+			"***** Buffer Field %p\n", object));
 
 		second_desc = acpi_ns_get_secondary_object (object);
 		if (second_desc) {
@@ -247,7 +263,7 @@ acpi_ut_delete_internal_obj (
  *
  * FUNCTION:    acpi_ut_delete_internal_object_list
  *
- * PARAMETERS:  *obj_list       - Pointer to the list to be deleted
+ * PARAMETERS:  obj_list        - Pointer to the list to be deleted
  *
  * RETURN:      None
  *
@@ -283,7 +299,7 @@ acpi_ut_delete_internal_object_list (
  *
  * FUNCTION:    acpi_ut_update_ref_count
  *
- * PARAMETERS:  *Object         - Object whose ref count is to be updated
+ * PARAMETERS:  Object          - Object whose ref count is to be updated
  *              Action          - What to do
  *
  * RETURN:      New ref count
@@ -312,7 +328,8 @@ acpi_ut_update_ref_count (
 	new_count = count;
 
 	/*
-	 * Perform the reference count action (increment, decrement, or force delete)
+	 * Perform the reference count action
+	 * (increment, decrement, or force delete)
 	 */
 	switch (action) {
 
@@ -321,7 +338,8 @@ acpi_ut_update_ref_count (
 		new_count++;
 		object->common.reference_count = new_count;
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Obj %p Refs=%X, [Incremented]\n",
+		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+			"Obj %p Refs=%X, [Incremented]\n",
 			object, new_count));
 		break;
 
@@ -329,7 +347,8 @@ acpi_ut_update_ref_count (
 	case REF_DECREMENT:
 
 		if (count < 1) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Obj %p Refs=%X, can't decrement! (Set to 0)\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+				"Obj %p Refs=%X, can't decrement! (Set to 0)\n",
 				object, new_count));
 
 			new_count = 0;
@@ -337,12 +356,14 @@ acpi_ut_update_ref_count (
 		else {
 			new_count--;
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Obj %p Refs=%X, [Decremented]\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+				"Obj %p Refs=%X, [Decremented]\n",
 				object, new_count));
 		}
 
 		if (ACPI_GET_OBJECT_TYPE (object) == ACPI_TYPE_METHOD) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Method Obj %p Refs=%X, [Decremented]\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+				"Method Obj %p Refs=%X, [Decremented]\n",
 				object, new_count));
 		}
 
@@ -356,7 +377,8 @@ acpi_ut_update_ref_count (
 
 	case REF_FORCE_DELETE:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Obj %p Refs=%X, Force delete! (Set to 0)\n",
+		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+			"Obj %p Refs=%X, Force delete! (Set to 0)\n",
 			object, count));
 
 		new_count = 0;
@@ -390,7 +412,7 @@ acpi_ut_update_ref_count (
  *
  * FUNCTION:    acpi_ut_update_object_reference
  *
- * PARAMETERS:  *Object             - Increment ref count for this object
+ * PARAMETERS:  Object              - Increment ref count for this object
  *                                    and all sub-objects
  *              Action              - Either REF_INCREMENT or REF_DECREMENT or
  *                                    REF_FORCE_DELETE
@@ -431,7 +453,8 @@ acpi_ut_update_object_reference (
 	/* Make sure that this isn't a namespace handle */
 
 	if (ACPI_GET_DESCRIPTOR_TYPE (object) == ACPI_DESC_TYPE_NAMED) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Object %p is NS handle\n", object));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+			"Object %p is NS handle\n", object));
 		return_ACPI_STATUS (AE_OK);
 	}
 
@@ -614,8 +637,8 @@ error_exit:
  *
  * FUNCTION:    acpi_ut_add_reference
  *
- * PARAMETERS:  *Object        - Object whose reference count is to be
- *                                  incremented
+ * PARAMETERS:  Object          - Object whose reference count is to be
+ *                                incremented
  *
  * RETURN:      None
  *
@@ -652,7 +675,7 @@ acpi_ut_add_reference (
  *
  * FUNCTION:    acpi_ut_remove_reference
  *
- * PARAMETERS:  *Object        - Object whose ref count will be decremented
+ * PARAMETERS:  Object         - Object whose ref count will be decremented
  *
  * RETURN:      None
  *

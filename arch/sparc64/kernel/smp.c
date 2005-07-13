@@ -45,8 +45,8 @@ extern void calibrate_delay(void);
 /* Please don't make this stuff initdata!!!  --DaveM */
 static unsigned char boot_cpu_id;
 
-cpumask_t cpu_online_map = CPU_MASK_NONE;
-cpumask_t phys_cpu_present_map = CPU_MASK_NONE;
+cpumask_t cpu_online_map __read_mostly = CPU_MASK_NONE;
+cpumask_t phys_cpu_present_map __read_mostly = CPU_MASK_NONE;
 static cpumask_t smp_commenced_mask;
 static cpumask_t cpu_callout_map;
 
@@ -155,7 +155,7 @@ void cpu_panic(void)
 	panic("SMP bolixed\n");
 }
 
-static unsigned long current_tick_offset;
+static unsigned long current_tick_offset __read_mostly;
 
 /* This tick register synchronization scheme is taken entirely from
  * the ia64 port, see arch/ia64/kernel/smpboot.c for details and credit.
@@ -1193,8 +1193,8 @@ void smp_send_stop(void)
 {
 }
 
-unsigned long __per_cpu_base;
-unsigned long __per_cpu_shift;
+unsigned long __per_cpu_base __read_mostly;
+unsigned long __per_cpu_shift __read_mostly;
 
 EXPORT_SYMBOL(__per_cpu_base);
 EXPORT_SYMBOL(__per_cpu_shift);

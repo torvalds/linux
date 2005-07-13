@@ -13,7 +13,6 @@ extern unsigned long exec_fp_regs[];
 extern unsigned long exec_fpx_regs[];
 extern int have_fpx_regs;
 
-extern void user_time_init_skas(void);
 extern void sig_handler_common_skas(int sig, void *sc_ptr);
 extern void halt_skas(void);
 extern void reboot_skas(void);

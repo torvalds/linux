@@ -9,20 +9,27 @@
 #include <linux/bootmem.h>
 #include <linux/nodemask.h>
 #include <asm/sn/types.h>
-#include <asm/sn/sn_sal.h>
 #include <asm/sn/addrs.h>
+#include <asm/sn/geo.h>
+#include <asm/sn/io.h>
+#include <asm/sn/pcibr_provider.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
-#include "pci/pcibr_provider.h"
-#include "xtalk/xwidgetdev.h"
-#include <asm/sn/geo.h>
-#include "xtalk/hubdev.h"
-#include <asm/sn/io.h>
 #include <asm/sn/simulator.h>
+#include <asm/sn/sn_sal.h>
 #include <asm/sn/tioca_provider.h>
+#include "xtalk/hubdev.h"
+#include "xtalk/xwidgetdev.h"
 
-char master_baseio_wid;
 nasid_t master_nasid = INVALID_NASID;	/* Partition Master */
+
+static struct list_head sn_sysdata_list;
+
+/* sysdata list struct */
+struct sysdata_el {
+	struct list_head entry;
+	void *sysdata;
+};
 
 struct slab_info {
 	struct hubdev_info hubdev;
@@ -138,23 +145,6 @@ sal_get_pcidev_info(u64 segment, u64 bus_number, u64 devfn, u64 pci_dev,
 }
 
 /*
- * sn_alloc_pci_sysdata() - This routine allocates a pci controller
- *	which is expected as the pci_dev and pci_bus sysdata by the Linux
- *	PCI infrastructure.
- */
-static inline struct pci_controller *sn_alloc_pci_sysdata(void)
-{
-	struct pci_controller *pci_sysdata;
-
-	pci_sysdata = kmalloc(sizeof(*pci_sysdata), GFP_KERNEL);
-	if (!pci_sysdata)
-		BUG();
-
-	memset(pci_sysdata, 0, sizeof(*pci_sysdata));
-	return pci_sysdata;
-}
-
-/*
  * sn_fixup_ionodes() - This routine initializes the HUB data strcuture for 
  *	each node in the system.
  */
@@ -221,22 +211,34 @@ static void sn_fixup_ionodes(void)
 
 }
 
+void sn_pci_unfixup_slot(struct pci_dev *dev)
+{
+	struct pci_dev *host_pci_dev = SN_PCIDEV_INFO(dev)->host_pci_dev;
+
+	sn_irq_unfixup(dev);
+	pci_dev_put(host_pci_dev);
+	pci_dev_put(dev);
+}
+
 /*
  * sn_pci_fixup_slot() - This routine sets up a slot's resources
  * consistent with the Linux PCI abstraction layer.  Resources acquired
  * from our PCI provider include PIO maps to BAR space and interrupt
  * objects.
  */
-static void sn_pci_fixup_slot(struct pci_dev *dev)
+void sn_pci_fixup_slot(struct pci_dev *dev)
 {
 	int idx;
 	int segment = 0;
-	uint64_t size;
-	struct sn_irq_info *sn_irq_info;
-	struct pci_dev *host_pci_dev;
 	int status = 0;
 	struct pcibus_bussoft *bs;
+ 	struct pci_bus *host_pci_bus;
+ 	struct pci_dev *host_pci_dev;
+ 	struct sn_irq_info *sn_irq_info;
+ 	unsigned long size;
+ 	unsigned int bus_no, devfn;
 
+	pci_dev_get(dev); /* for the sysdata pointer */
 	dev->sysdata = kmalloc(sizeof(struct pcidev_info), GFP_KERNEL);
 	if (SN_PCIDEV_INFO(dev) <= 0)
 		BUG();		/* Cannot afford to run out of memory */
@@ -253,7 +255,7 @@ static void sn_pci_fixup_slot(struct pci_dev *dev)
 				     (u64) __pa(SN_PCIDEV_INFO(dev)),
 				     (u64) __pa(sn_irq_info));
 	if (status)
-		BUG();		/* Cannot get platform pci device information information */
+		BUG(); /* Cannot get platform pci device information */
 
 	/* Copy over PIO Mapped Addresses */
 	for (idx = 0; idx <= PCI_ROM_RESOURCE; idx++) {
@@ -275,15 +277,21 @@ static void sn_pci_fixup_slot(struct pci_dev *dev)
 			dev->resource[idx].parent = &iomem_resource;
 	}
 
-	/* set up host bus linkages */
-	bs = SN_PCIBUS_BUSSOFT(dev->bus);
-	host_pci_dev =
-	    pci_find_slot(SN_PCIDEV_INFO(dev)->pdi_slot_host_handle >> 32,
-			  SN_PCIDEV_INFO(dev)->
-			  pdi_slot_host_handle & 0xffffffff);
+	/*
+	 * Using the PROMs values for the PCI host bus, get the Linux
+ 	 * PCI host_pci_dev struct and set up host bus linkages
+ 	 */
+
+ 	bus_no = SN_PCIDEV_INFO(dev)->pdi_slot_host_handle >> 32;
+ 	devfn = SN_PCIDEV_INFO(dev)->pdi_slot_host_handle & 0xffffffff;
+ 	host_pci_bus = pci_find_bus(pci_domain_nr(dev->bus), bus_no);
+ 	host_pci_dev = pci_get_slot(host_pci_bus, devfn);
+
+	SN_PCIDEV_INFO(dev)->host_pci_dev = host_pci_dev;
 	SN_PCIDEV_INFO(dev)->pdi_host_pcidev_info =
-	    SN_PCIDEV_INFO(host_pci_dev);
+	    					SN_PCIDEV_INFO(host_pci_dev);
 	SN_PCIDEV_INFO(dev)->pdi_linux_pcidev = dev;
+	bs = SN_PCIBUS_BUSSOFT(dev->bus);
 	SN_PCIDEV_INFO(dev)->pdi_pcibus_info = bs;
 
 	if (bs && bs->bs_asic_type < PCIIO_ASIC_MAX_TYPES) {
@@ -297,6 +305,9 @@ static void sn_pci_fixup_slot(struct pci_dev *dev)
 		SN_PCIDEV_INFO(dev)->pdi_sn_irq_info = sn_irq_info;
 		dev->irq = SN_PCIDEV_INFO(dev)->pdi_sn_irq_info->irq_irq;
 		sn_irq_fixup(dev, sn_irq_info);
+	} else {
+		SN_PCIDEV_INFO(dev)->pdi_sn_irq_info = NULL;
+		kfree(sn_irq_info);
 	}
 }
 
@@ -304,55 +315,57 @@ static void sn_pci_fixup_slot(struct pci_dev *dev)
  * sn_pci_controller_fixup() - This routine sets up a bus's resources
  * consistent with the Linux PCI abstraction layer.
  */
-static void sn_pci_controller_fixup(int segment, int busnum)
+void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 {
 	int status = 0;
 	int nasid, cnode;
-	struct pci_bus *bus;
 	struct pci_controller *controller;
 	struct pcibus_bussoft *prom_bussoft_ptr;
 	struct hubdev_info *hubdev_info;
 	void *provider_soft;
 	struct sn_pcibus_provider *provider;
 
-	status =
-	    sal_get_pcibus_info((u64) segment, (u64) busnum,
-				(u64) ia64_tpa(&prom_bussoft_ptr));
-	if (status > 0) {
-		return;		/* bus # does not exist */
-	}
-
+ 	status = sal_get_pcibus_info((u64) segment, (u64) busnum,
+ 				     (u64) ia64_tpa(&prom_bussoft_ptr));
+ 	if (status > 0)
+		return;		/*bus # does not exist */
 	prom_bussoft_ptr = __va(prom_bussoft_ptr);
-	controller = sn_alloc_pci_sysdata();
-	/* controller non-zero is BUG'd in sn_alloc_pci_sysdata */
 
-	bus = pci_scan_bus(busnum, &pci_root_ops, controller);
+ 	controller = kcalloc(1,sizeof(struct pci_controller), GFP_KERNEL);
+ 	if (!controller)
+ 		BUG();
+
 	if (bus == NULL) {
-		return;		/* error, or bus already scanned */
+ 		bus = pci_scan_bus(busnum, &pci_root_ops, controller);
+ 		if (bus == NULL)
+ 			return;	/* error, or bus already scanned */
+ 		bus->sysdata = NULL;
 	}
+
+	if (bus->sysdata)
+		goto error_return; /* sysdata already alloc'd */
 
 	/*
 	 * Per-provider fixup.  Copies the contents from prom to local
 	 * area and links SN_PCIBUS_BUSSOFT().
 	 */
 
-	if (prom_bussoft_ptr->bs_asic_type >= PCIIO_ASIC_MAX_TYPES) {
+	if (prom_bussoft_ptr->bs_asic_type >= PCIIO_ASIC_MAX_TYPES)
 		return;		/* unsupported asic type */
-	}
+
+	if (prom_bussoft_ptr->bs_asic_type == PCIIO_ASIC_TYPE_PPB)
+		goto error_return; /* no further fixup necessary */
 
 	provider = sn_pci_provider[prom_bussoft_ptr->bs_asic_type];
-	if (provider == NULL) {
+	if (provider == NULL)
 		return;		/* no provider registerd for this asic */
-	}
 
 	provider_soft = NULL;
-	if (provider->bus_fixup) {
+	if (provider->bus_fixup)
 		provider_soft = (*provider->bus_fixup) (prom_bussoft_ptr);
-	}
 
-	if (provider_soft == NULL) {
+	if (provider_soft == NULL)
 		return;		/* fixup failed or not applicable */
-	}
 
 	/*
 	 * Generic bus fixup goes here.  Don't reference prom_bussoft_ptr
@@ -361,12 +374,47 @@ static void sn_pci_controller_fixup(int segment, int busnum)
 
 	bus->sysdata = controller;
 	PCI_CONTROLLER(bus)->platform_data = provider_soft;
-
 	nasid = NASID_GET(SN_PCIBUS_BUSSOFT(bus)->bs_base);
 	cnode = nasid_to_cnodeid(nasid);
 	hubdev_info = (struct hubdev_info *)(NODEPDA(cnode)->pdinfo);
 	SN_PCIBUS_BUSSOFT(bus)->bs_xwidget_info =
 	    &(hubdev_info->hdi_xwidget_info[SN_PCIBUS_BUSSOFT(bus)->bs_xid]);
+
+	return;
+
+error_return:
+
+	kfree(controller);
+	return;
+}
+
+void sn_bus_store_sysdata(struct pci_dev *dev)
+{
+	struct sysdata_el *element;
+
+	element = kcalloc(1, sizeof(struct sysdata_el), GFP_KERNEL);
+	if (!element) {
+		dev_dbg(dev, "%s: out of memory!\n", __FUNCTION__);
+		return;
+	}
+	element->sysdata = dev->sysdata;
+	list_add(&element->entry, &sn_sysdata_list);
+}
+
+void sn_bus_free_sysdata(void)
+{
+	struct sysdata_el *element;
+	struct list_head *list;
+
+sn_sysdata_free_start:
+	list_for_each(list, &sn_sysdata_list) {
+		element = list_entry(list, struct sysdata_el, entry);
+		list_del(&element->entry);
+		kfree(element->sysdata);
+		kfree(element);
+		goto sn_sysdata_free_start;
+	}
+	return;
 }
 
 /*
@@ -384,7 +432,7 @@ static int __init sn_pci_init(void)
 	extern void register_sn_procfs(void);
 #endif
 
-	if (!ia64_platform_is("sn2") || IS_RUNNING_ON_SIMULATOR())
+	if (!ia64_platform_is("sn2") || IS_RUNNING_ON_FAKE_PROM())
 		return 0;
 
 	/*
@@ -403,20 +451,17 @@ static int __init sn_pci_init(void)
 	 */
 	ia64_max_iommu_merge_mask = ~PAGE_MASK;
 	sn_fixup_ionodes();
-	sn_irq = kmalloc(sizeof(struct sn_irq_info *) * NR_IRQS, GFP_KERNEL);
-	if (sn_irq <= 0)
-		BUG();		/* Canno afford to run out of memory. */
-	memset(sn_irq, 0, sizeof(struct sn_irq_info *) * NR_IRQS);
-
+	sn_irq_lh_init();
+	INIT_LIST_HEAD(&sn_sysdata_list);
 	sn_init_cpei_timer();
 
 #ifdef CONFIG_PROC_FS
 	register_sn_procfs();
 #endif
 
-	for (i = 0; i < PCI_BUSES_TO_SCAN; i++) {
-		sn_pci_controller_fixup(0, i);
-	}
+	/* busses are not known yet ... */
+	for (i = 0; i < PCI_BUSES_TO_SCAN; i++)
+		sn_pci_controller_fixup(0, i, NULL);
 
 	/*
 	 * Generic Linux PCI Layer has created the pci_bus and pci_dev 
@@ -425,9 +470,8 @@ static int __init sn_pci_init(void)
 	 */
 
 	while ((pci_dev =
-		pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) != NULL) {
+		pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) != NULL)
 		sn_pci_fixup_slot(pci_dev);
-	}
 
 	sn_ioif_inited = 1;	/* sn I/O infrastructure now initialized */
 
@@ -469,3 +513,8 @@ cnodeid_get_geoid(cnodeid_t cnode)
 }
 
 subsys_initcall(sn_pci_init);
+EXPORT_SYMBOL(sn_pci_fixup_slot);
+EXPORT_SYMBOL(sn_pci_unfixup_slot);
+EXPORT_SYMBOL(sn_pci_controller_fixup);
+EXPORT_SYMBOL(sn_bus_store_sysdata);
+EXPORT_SYMBOL(sn_bus_free_sysdata);

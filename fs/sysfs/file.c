@@ -3,7 +3,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/dnotify.h>
+#include <linux/fsnotify.h>
 #include <linux/kobject.h>
 #include <linux/namei.h>
 #include <asm/uaccess.h>
@@ -14,7 +14,7 @@
 #define to_subsys(k) container_of(k,struct subsystem,kset.kobj)
 #define to_sattr(a) container_of(a,struct subsys_attribute,attr)
 
-/**
+/*
  * Subsystem file operations.
  * These operations allow subsystems to have files that can be 
  * read/written. 
@@ -192,8 +192,9 @@ fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t 
 
 /**
  *	flush_write_buffer - push buffer to kobject.
- *	@file:		file pointer.
+ *	@dentry:	dentry to the attribute
  *	@buffer:	data buffer for file.
+ *	@count:		number of bytes
  *
  *	Get the correct pointers for the kobject and the attribute we're
  *	dealing with, then call the store() method for the attribute, 
@@ -390,9 +391,6 @@ int sysfs_create_file(struct kobject * kobj, const struct attribute * attr)
  * sysfs_update_file - update the modified timestamp on an object attribute.
  * @kobj: object we're acting for.
  * @attr: attribute descriptor.
- *
- * Also call dnotify for the dentry, which lots of userspace programs
- * use.
  */
 int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 {
@@ -407,7 +405,7 @@ int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 		if (victim->d_inode && 
 		    (victim->d_parent->d_inode == dir->d_inode)) {
 			victim->d_inode->i_mtime = CURRENT_TIME;
-			dnotify_parent(victim, DN_MODIFY);
+			fsnotify_modify(victim);
 
 			/**
 			 * Drop reference from initial sysfs_get_dentry().

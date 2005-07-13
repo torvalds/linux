@@ -43,6 +43,7 @@
 #include <asm/system.h>
 #include <asm/sections.h>
 #include <asm/of_device.h>
+#include <asm/macio.h>
 
 #define LOG_TEMP		0			/* continously log temperature */
 
@@ -450,7 +451,7 @@ do_probe( struct i2c_adapter *adapter, int addr, int kind )
 /************************************************************************/
 
 static int
-therm_of_probe( struct of_device *dev, const struct of_match *match )
+therm_of_probe( struct of_device *dev, const struct of_device_id *match )
 {
 	return i2c_add_driver( &g4fan_driver );
 }
@@ -461,9 +462,8 @@ therm_of_remove( struct of_device *dev )
 	return i2c_del_driver( &g4fan_driver );
 }
 
-static struct of_match therm_of_match[] = {{
+static struct of_device_id therm_of_match[] = {{
 	.name		= "fan",
-	.type		= OF_ANY_MATCH,
 	.compatible	= "adm1030"
     }, {}
 };

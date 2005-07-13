@@ -181,7 +181,7 @@ static int omap_start_hc(struct ohci_hcd *ohci, struct platform_device *pdev)
 	if (config->otg) {
 		ohci_to_hcd(ohci)->self.otg_port = config->otg;
 		/* default/minimum OTG power budget:  8 mA */
-		ohci->power_budget = 8;
+		ohci_to_hcd(ohci)->power_budget = 8;
 	}
 
 	/* boards can use OTG transceivers in non-OTG modes */
@@ -230,7 +230,7 @@ static int omap_start_hc(struct ohci_hcd *ohci, struct platform_device *pdev)
 
 		/* TPS2045 switch for internal transceiver (port 1) */
 		if (machine_is_omap_osk()) {
-			ohci->power_budget = 250;
+			ohci_to_hcd(ohci)->power_budget = 250;
 
 			rh &= ~RH_A_NOCP;
 
@@ -456,34 +456,22 @@ static int ohci_hcd_omap_drv_remove(struct device *dev)
 
 #ifdef	CONFIG_PM
 
-/* states match PCI usage, always suspending the root hub except that
- * 4 ~= D3cold (ACPI D3) with clock off (resume sees reset).
- *
- * FIXME: above comment is not right, and code is wrong, too :-(.
- */
-
-static int ohci_omap_suspend(struct device *dev, pm_message_t state, u32 level)
+static int ohci_omap_suspend(struct device *dev, pm_message_t message, u32 level)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci(dev_get_drvdata(dev));
 	int		status = -EINVAL;
 
 	if (level != SUSPEND_POWER_DOWN)
 		return 0;
-	if (state <= dev->power.power_state)
-		return 0;
 
-	dev_dbg(dev, "suspend to %d\n", state);
 	down(&ohci_to_hcd(ohci)->self.root_hub->serialize);
 	status = ohci_hub_suspend(ohci_to_hcd(ohci));
 	if (status == 0) {
-		if (state >= 4) {
-			omap_ohci_clock_power(0);
-			ohci_to_hcd(ohci)->self.root_hub->state =
-					USB_STATE_SUSPENDED;
-			state = 4;
-		}
+		omap_ohci_clock_power(0);
+		ohci_to_hcd(ohci)->self.root_hub->state =
+			USB_STATE_SUSPENDED;
 		ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
-		dev->power.power_state = state;
+		dev->power.power_state = PMSG_SUSPEND;
 	}
 	up(&ohci_to_hcd(ohci)->self.root_hub->serialize);
 	return status;
@@ -497,29 +485,20 @@ static int ohci_omap_resume(struct device *dev, u32 level)
 	if (level != RESUME_POWER_ON)
 		return 0;
 
-	switch (dev->power.power_state) {
-	case 0:
-		break;
-	case 4:
-		if (time_before(jiffies, ohci->next_statechange))
-			msleep(5);
-		ohci->next_statechange = jiffies;
-		omap_ohci_clock_power(1);
-		/* FALLTHROUGH */
-	default:
-		dev_dbg(dev, "resume from %d\n", dev->power.power_state);
+	if (time_before(jiffies, ohci->next_statechange))
+		msleep(5);
+	ohci->next_statechange = jiffies;
+	omap_ohci_clock_power(1);
 #ifdef	CONFIG_USB_SUSPEND
-		/* get extra cleanup even if remote wakeup isn't in use */
-		status = usb_resume_device(ohci_to_hcd(ohci)->self.root_hub);
+	/* get extra cleanup even if remote wakeup isn't in use */
+	status = usb_resume_device(ohci_to_hcd(ohci)->self.root_hub);
 #else
-		down(&ohci_to_hcd(ohci)->self.root_hub->serialize);
-		status = ohci_hub_resume(ohci_to_hcd(ohci));
-		up(&ohci_to_hcd(ohci)->self.root_hub->serialize);
+	down(&ohci_to_hcd(ohci)->self.root_hub->serialize);
+	status = ohci_hub_resume(ohci_to_hcd(ohci));
+	up(&ohci_to_hcd(ohci)->self.root_hub->serialize);
 #endif
-		if (status == 0)
-			dev->power.power_state = 0;
-		break;
-	}
+	if (status == 0)
+		dev->power.power_state = PMSG_ON;
 	return status;
 }
 

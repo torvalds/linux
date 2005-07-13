@@ -6,6 +6,7 @@ config DVB_B2C2_FLEXCOP
 	select DVB_MT312
 	select DVB_NXT2002
 	select DVB_STV0297
+	select DVB_BCM3510
 	help
 	  Support for the digital TV receiver chip made by B2C2 Inc. included in
 	  Technisats PCI cards and USB boxes.
@@ -34,17 +35,3 @@ config DVB_B2C2_FLEXCOP_DEBUG
 	help
 	  Say Y if you want to enable the module option to control debug messages
 	  of all B2C2 FlexCop drivers.
-
-config DVB_B2C2_SKYSTAR
-	tristate "B2C2/Technisat Air/Sky/CableStar 2 PCI"
-	depends on DVB_CORE && PCI
-	select DVB_STV0299
-	select DVB_MT352
-	select DVB_MT312
-	select DVB_NXT2002
-	help
-	  Support for the Skystar2 PCI DVB card by Technisat, which
-	  is equipped with the FlexCopII chipset by B2C2, and
-	  for the B2C2/BBTI Air2PC-ATSC card.
-
-	  Say Y if you own such a device and want to use it.

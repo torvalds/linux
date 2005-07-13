@@ -56,7 +56,6 @@
  * Walk state - current state of a parse tree walk.  Used for both a leisurely stroll through
  * the tree (for whatever reason), and for control method execution.
  */
-
 #define ACPI_NEXT_OP_DOWNWARD       1
 #define ACPI_NEXT_OP_UPWARD         2
 

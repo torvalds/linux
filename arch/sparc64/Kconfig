@@ -43,6 +43,25 @@ config SPARC64_PAGE_SIZE_4MB
 
 endchoice
 
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	default y
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y. Only embedded should say N here.
+
+source kernel/Kconfig.hz
+
 source "init/Kconfig"
 
 config SYSVIPC_COMPAT
@@ -444,6 +463,24 @@ config PRINTER
 	  If you have more than 8 printers, you need to increase the LP_NO
 	  macro in lp.c and the PARPORT_MAX macro in parport.h.
 
+config PPDEV
+	tristate "Support for user-space parallel port device drivers"
+	depends on PARPORT
+	---help---
+	  Saying Y to this adds support for /dev/parport device nodes.  This
+	  is needed for programs that want portable access to the parallel
+	  port, for instance deviceid (which displays Plug-and-Play device
+	  IDs).
+
+	  This is the parallel port equivalent of SCSI generic support (sg).
+	  It is safe to say N to this -- it is not needed for normal printing
+	  or parallel port CD-ROM/disk support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ppdev.
+
+	  If unsure, say N.
+
 config ENVCTRL
 	tristate "SUNW, envctrl support"
 	depends on PCI
@@ -488,6 +525,8 @@ source "mm/Kconfig"
 
 endmenu
 
+source "net/Kconfig"
+
 source "drivers/base/Kconfig"
 
 source "drivers/video/Kconfig"
@@ -514,7 +553,7 @@ endif
 
 source "drivers/ieee1394/Kconfig"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 source "drivers/isdn/Kconfig"
 
@@ -609,6 +648,8 @@ endmenu
 source "drivers/input/Kconfig"
 
 source "drivers/i2c/Kconfig"
+
+source "drivers/hwmon/Kconfig"
 
 source "fs/Kconfig"
 

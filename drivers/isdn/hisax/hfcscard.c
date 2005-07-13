@@ -52,7 +52,7 @@ hfcs_Timer(struct IsdnCardState *cs)
 */
 }
 
-void
+static void
 release_io_hfcs(struct IsdnCardState *cs)
 {
 	release2bds0(cs);

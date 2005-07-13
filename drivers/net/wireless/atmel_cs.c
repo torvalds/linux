@@ -43,7 +43,6 @@
 #include <linux/moduleparam.h>
 #include <linux/device.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -218,11 +217,6 @@ static dev_link_t *atmel_attach(void)
 	link->next = dev_list;
 	dev_list = link;
 	client_reg.dev_info = &dev_info;
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &atmel_event;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 	ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -646,13 +640,36 @@ static int atmel_event(event_t event, int priority,
 } /* atmel_event */
 
 /*====================================================================*/
+static struct pcmcia_device_id atmel_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0620),
+	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0696),
+	PCMCIA_DEVICE_MANF_CARD(0x01bf, 0x3302),
+	PCMCIA_DEVICE_MANF_CARD(0xd601, 0x0007),
+	PCMCIA_DEVICE_PROD_ID12("11WAVE", "11WP611AL-E", 0x9eb2da1f, 0xc9a0d3f9),
+	PCMCIA_DEVICE_PROD_ID12("ATMEL", "AT76C502AR", 0xabda4164, 0x41b37e1f),
+	PCMCIA_DEVICE_PROD_ID12("ATMEL", "AT76C504", 0xabda4164, 0x5040670a),
+	PCMCIA_DEVICE_PROD_ID12("ATMEL", "AT76C504A", 0xabda4164, 0xe15ed87f),
+	PCMCIA_DEVICE_PROD_ID12("BT", "Voyager 1020 Laptop Adapter", 0xae49b86a, 0x1e957cd5),
+	PCMCIA_DEVICE_PROD_ID12("CNet", "CNWLC 11Mbps Wireless PC Card V-5", 0xbc477dde, 0x502fae6b),
+	PCMCIA_DEVICE_PROD_ID12("IEEE 802.11b", "Wireless LAN PC Card", 0x5b878724, 0x122f1df6),
+	PCMCIA_DEVICE_PROD_ID12("OEM", "11Mbps Wireless LAN PC Card V-3", 0xfea54c90, 0x1c5b0f68),
+	PCMCIA_DEVICE_PROD_ID12("SMC", "2632W", 0xc4f8b18b, 0x30f38774),
+	PCMCIA_DEVICE_PROD_ID12("SMC", "2632W-V2", 0xc4f8b18b, 0x172d1377),
+	PCMCIA_DEVICE_PROD_ID12("Wireless", "PC", 0xa407ecdd, 0x556e4d7e),
+	PCMCIA_DEVICE_PROD_ID12("WLAN", "802.11b PC CARD", 0x575c516c, 0xb1f6dbc4),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, atmel_ids);
+
 static struct pcmcia_driver atmel_driver = {
-        .owner          = THIS_MODULE,
-        .drv            = {
-                .name   = "atmel_cs",
+	.owner		= THIS_MODULE,
+	.drv		= {
+		.name	= "atmel_cs",
         },
-        .attach         = atmel_attach,
-        .detach         = atmel_detach,
+	.attach         = atmel_attach,
+	.event		= atmel_event,
+	.detach		= atmel_detach,
+	.id_table	= atmel_ids,
 };
 
 static int atmel_cs_init(void)

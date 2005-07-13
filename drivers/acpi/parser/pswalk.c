@@ -90,17 +90,15 @@ acpi_ps_delete_parse_tree (
 			}
 		}
 
-		/*
-		 * No more children, this Op is complete.
-		 */
+		/* No more children, this Op is complete. */
+
 		next = op->common.next;
 		parent = op->common.parent;
 
 		acpi_ps_free_op (op);
 
-		/*
-		 * If we are back to the starting point, the walk is complete.
-		 */
+		/* If we are back to the starting point, the walk is complete. */
+
 		if (op == subtree_root) {
 			return_VOID;
 		}
@@ -111,5 +109,6 @@ acpi_ps_delete_parse_tree (
 			op = parent;
 		}
 	}
+
 	return_VOID;
 }

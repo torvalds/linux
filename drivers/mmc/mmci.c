@@ -20,6 +20,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/protocol.h>
 
+#include <asm/div64.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/scatterlist.h>
@@ -70,6 +71,7 @@ static void mmci_stop_data(struct mmci_host *host)
 static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 {
 	unsigned int datactrl, timeout, irqmask;
+	unsigned long long clks;
 	void __iomem *base;
 
 	DBG(host, "blksz %04x blks %04x flags %08x\n",
@@ -81,9 +83,10 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 
 	mmci_init_sg(host, data);
 
-	timeout = data->timeout_clks +
-		  ((unsigned long long)data->timeout_ns * host->cclk) /
-		   1000000000ULL;
+	clks = (unsigned long long)data->timeout_ns * host->cclk;
+	do_div(clks, 1000000000UL);
+
+	timeout = data->timeout_clks + (unsigned int)clks;
 
 	base = host->base;
 	writel(timeout, base + MMCIDATATIMER);

@@ -27,6 +27,7 @@
 #include <linux/ptrace.h>
 #include <linux/utsname.h>
 #include <linux/kprobes.h>
+#include <linux/kexec.h>
 
 #ifdef CONFIG_EISA
 #include <linux/ioport.h>
@@ -234,22 +235,22 @@ void show_registers(struct pt_regs *regs)
 	 * time of the fault..
 	 */
 	if (in_kernel) {
-		u8 *eip;
+		u8 __user *eip;
 
 		printk("\nStack: ");
 		show_stack(NULL, (unsigned long*)esp);
 
 		printk("Code: ");
 
-		eip = (u8 *)regs->eip - 43;
+		eip = (u8 __user *)regs->eip - 43;
 		for (i = 0; i < 64; i++, eip++) {
 			unsigned char c;
 
-			if (eip < (u8 *)PAGE_OFFSET || __get_user(c, eip)) {
+			if (eip < (u8 __user *)PAGE_OFFSET || __get_user(c, eip)) {
 				printk(" Bad EIP value.");
 				break;
 			}
-			if (eip == (u8 *)regs->eip)
+			if (eip == (u8 __user *)regs->eip)
 				printk("<%02x> ", c);
 			else
 				printk("%02x ", c);
@@ -273,13 +274,13 @@ static void handle_BUG(struct pt_regs *regs)
 
 	if (eip < PAGE_OFFSET)
 		goto no_bug;
-	if (__get_user(ud2, (unsigned short *)eip))
+	if (__get_user(ud2, (unsigned short __user *)eip))
 		goto no_bug;
 	if (ud2 != 0x0b0f)
 		goto no_bug;
-	if (__get_user(line, (unsigned short *)(eip + 2)))
+	if (__get_user(line, (unsigned short __user *)(eip + 2)))
 		goto bug;
-	if (__get_user(file, (char **)(eip + 4)) ||
+	if (__get_user(file, (char * __user *)(eip + 4)) ||
 		(unsigned long)file < PAGE_OFFSET || __get_user(c, file))
 		file = "<bad filename>";
 
@@ -294,6 +295,9 @@ bug:
 	printk("Kernel BUG\n");
 }
 
+/* This is gone through when something in the kernel
+ * has done something bad and is about to be terminated.
+*/
 void die(const char * str, struct pt_regs * regs, long err)
 {
 	static struct {
@@ -341,6 +345,10 @@ void die(const char * str, struct pt_regs * regs, long err)
 	bust_spinlocks(0);
 	die.lock_owner = -1;
 	spin_unlock_irq(&die.lock);
+
+	if (kexec_should_crash(current))
+		crash_kexec(regs);
+
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 
@@ -361,6 +369,10 @@ static inline void die_if_kernel(const char * str, struct pt_regs * regs, long e
 static void do_trap(int trapnr, int signr, char *str, int vm86,
 			   struct pt_regs * regs, long error_code, siginfo_t *info)
 {
+	struct task_struct *tsk = current;
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = trapnr;
+
 	if (regs->eflags & VM_MASK) {
 		if (vm86)
 			goto vm86_trap;
@@ -371,9 +383,6 @@ static void do_trap(int trapnr, int signr, char *str, int vm86,
 		goto kernel_trap;
 
 	trap_signal: {
-		struct task_struct *tsk = current;
-		tsk->thread.error_code = error_code;
-		tsk->thread.trap_no = trapnr;
 		if (info)
 			force_sig_info(signr, info, tsk);
 		else
@@ -486,6 +495,9 @@ fastcall void do_general_protection(struct pt_regs * regs, long error_code)
 	}
 	put_cpu();
 
+	current->thread.error_code = error_code;
+	current->thread.trap_no = 13;
+
 	if (regs->eflags & VM_MASK)
 		goto gp_in_vm86;
 
@@ -570,6 +582,15 @@ void die_nmi (struct pt_regs *regs, const char *msg)
 	console_silent();
 	spin_unlock(&nmi_print_lock);
 	bust_spinlocks(0);
+
+	/* If we are in kernel we are probably nested up pretty bad
+	 * and might aswell get out now while we still can.
+	*/
+	if (!user_mode(regs)) {
+		current->thread.trap_no = 2;
+		crash_kexec(regs);
+	}
+
 	do_exit(SIGSEGV);
 }
 
@@ -625,6 +646,14 @@ fastcall void do_nmi(struct pt_regs * regs, long error_code)
 	nmi_enter();
 
 	cpu = smp_processor_id();
+
+#ifdef CONFIG_HOTPLUG_CPU
+	if (!cpu_online(cpu)) {
+		nmi_exit();
+		return;
+	}
+#endif
+
 	++nmi_count(cpu);
 
 	if (!nmi_callback(regs, cpu))
@@ -872,9 +901,9 @@ fastcall void do_simd_coprocessor_error(struct pt_regs * regs,
 					  error_code);
 			return;
 		}
-		die_if_kernel("cache flush denied", regs, error_code);
 		current->thread.trap_no = 19;
 		current->thread.error_code = error_code;
+		die_if_kernel("cache flush denied", regs, error_code);
 		force_sig(SIGSEGV, current);
 	}
 }

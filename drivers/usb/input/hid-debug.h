@@ -67,7 +67,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
       {0, 0x44, "Vbry"},
       {0, 0x45, "Vbrz"},
       {0, 0x46, "Vno"},
-    {0, 0x80, "SystemControl"}, 
+    {0, 0x80, "SystemControl"},
       {0, 0x81, "SystemPowerDown"},
       {0, 0x82, "SystemSleep"},
       {0, 0x83, "SystemWakeUp"},
@@ -347,7 +347,7 @@ __inline__ static void tab(int n) {
 
 static void hid_dump_field(struct hid_field *field, int n) {
 	int j;
-	
+
 	if (field->physical) {
 		tab(n);
 		printk("Physical(");
@@ -408,7 +408,7 @@ static void hid_dump_field(struct hid_field *field, int n) {
 					printk("%s", units[sys][i]);
 					if(nibble != 1) {
 						/* This is a _signed_ nibble(!) */
-	
+
 						int val = nibble & 0x7;
 						if(nibble & 0x08)
 							val = -((0x7 & ~val) +1);
@@ -443,7 +443,7 @@ static void __attribute__((unused)) hid_dump_device(struct hid_device *device) {
 	struct list_head *list;
 	unsigned i,k;
 	static char *table[] = {"INPUT", "OUTPUT", "FEATURE"};
-	
+
 	for (i = 0; i < HID_REPORT_TYPES; i++) {
 		report_enum = device->report_enum + i;
 		list = report_enum->report_list.next;
@@ -664,8 +664,8 @@ static char *keys[KEY_MAX + 1] = {
 static char *relatives[REL_MAX + 1] = {
 	[REL_X] = "X",			[REL_Y] = "Y",
 	[REL_Z] = "Z",			[REL_HWHEEL] = "HWheel",
-	[REL_DIAL] = "Dial",		[REL_WHEEL] = "Wheel", 
-	[REL_MISC] = "Misc",	
+	[REL_DIAL] = "Dial",		[REL_WHEEL] = "Wheel",
+	[REL_MISC] = "Misc",
 };
 
 static char *absolutes[ABS_MAX + 1] = {
@@ -690,9 +690,9 @@ static char *misc[MSC_MAX + 1] = {
 };
 
 static char *leds[LED_MAX + 1] = {
-	[LED_NUML] = "NumLock",		[LED_CAPSL] = "CapsLock", 
+	[LED_NUML] = "NumLock",		[LED_CAPSL] = "CapsLock",
 	[LED_SCROLLL] = "ScrollLock",	[LED_COMPOSE] = "Compose",
-	[LED_KANA] = "Kana",		[LED_SLEEP] = "Sleep", 
+	[LED_KANA] = "Kana",		[LED_SLEEP] = "Sleep",
 	[LED_SUSPEND] = "Suspend",	[LED_MUTE] = "Mute",
 	[LED_MISC] = "Misc",
 };

@@ -150,7 +150,7 @@ __unregister_chrdev_region(unsigned major, unsigned baseminor, int minorct)
 	struct char_device_struct *cd = NULL, **cp;
 	int i = major_to_index(major);
 
-	up(&chrdevs_lock);
+	down(&chrdevs_lock);
 	for (cp = &chrdevs[i]; *cp; cp = &(*cp)->next)
 		if ((*cp)->major == major &&
 		    (*cp)->baseminor == baseminor &&
@@ -277,8 +277,9 @@ static struct kobject *cdev_get(struct cdev *p)
 void cdev_put(struct cdev *p)
 {
 	if (p) {
+		struct module *owner = p->owner;
 		kobject_put(&p->kobj);
-		module_put(p->owner);
+		module_put(owner);
 	}
 }
 

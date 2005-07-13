@@ -17,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/bootmem.h>
 #include <linux/mv643xx.h>
 
 #include <asm/byteorder.h>

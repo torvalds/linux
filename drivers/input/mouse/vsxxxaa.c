@@ -1,7 +1,7 @@
 /*
  * Driver for	DEC VSXXX-AA mouse (hockey-puck mouse, ball or two rollers)
- * 		DEC VSXXX-GA mouse (rectangular mouse, with ball)
- * 		DEC VSXXX-AB tablet (digitizer with hair cross or stylus)
+ *		DEC VSXXX-GA mouse (rectangular mouse, with ball)
+ *		DEC VSXXX-AB tablet (digitizer with hair cross or stylus)
  *
  * Copyright (C) 2003-2004 by Jan-Benedict Glaw <jbglaw@lug-owl.de>
  *

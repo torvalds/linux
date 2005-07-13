@@ -3,8 +3,8 @@
  *
  *  Setup routines for Renesas MAPPI-III(M3A-2170) Board
  *
- *  Copyright (c) 2001-2005   Hiroyuki Kondo, Hirokazu Takata,
- *                            Hitoshi Yamamoto, Mamoru Sakugawa
+ *  Copyright (c) 2001-2005  Hiroyuki Kondo, Hirokazu Takata,
+ *                           Hitoshi Yamamoto, Mamoru Sakugawa
  */
 
 #include <linux/config.h>
@@ -178,6 +178,8 @@ void __init init_IRQ(void)
 #endif /* CONFIG_M32R_CFC */
 }
 
+#if defined(CONFIG_SMC91X)
+
 #define LAN_IOSTART     0x300
 #define LAN_IOEND       0x320
 static struct resource smc91x_resources[] = {
@@ -200,9 +202,55 @@ static struct platform_device smc91x_device = {
 	.resource       = smc91x_resources,
 };
 
+#endif
+
+#if defined(CONFIG_FB_S1D13XXX)
+
+#include <video/s1d13xxxfb.h>
+#include <asm/s1d13806.h>
+
+static struct s1d13xxxfb_pdata s1d13xxxfb_data = {
+	.initregs		= s1d13xxxfb_initregs,
+	.initregssize		= ARRAY_SIZE(s1d13xxxfb_initregs),
+	.platform_init_video	= NULL,
+#ifdef CONFIG_PM
+	.platform_suspend_video	= NULL,
+	.platform_resume_video	= NULL,
+#endif
+};
+
+static struct resource s1d13xxxfb_resources[] = {
+	[0] = {
+		.start  = 0x1d600000UL,
+		.end    = 0x1d73FFFFUL,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 0x1d400000UL,
+		.end    = 0x1d4001FFUL,
+		.flags  = IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device s1d13xxxfb_device = {
+	.name		= S1D_DEVICENAME,
+	.id		= 0,
+	.dev            = {
+		.platform_data  = &s1d13xxxfb_data,
+	},
+	.num_resources  = ARRAY_SIZE(s1d13xxxfb_resources),
+	.resource       = s1d13xxxfb_resources,
+};
+#endif
+
 static int __init platform_init(void)
 {
+#if defined(CONFIG_SMC91X)
 	platform_device_register(&smc91x_device);
+#endif
+#if defined(CONFIG_FB_S1D13XXX)
+	platform_device_register(&s1d13xxxfb_device);
+#endif
 	return 0;
 }
 arch_initcall(platform_init);

@@ -216,7 +216,7 @@ fast_ata_pio:
 	return 0;
 }
 
-static unsigned int __init init_chipset_it8172 (struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_it8172 (struct pci_dev *dev, const char *name)
 {
 	unsigned char progif;
     
@@ -230,7 +230,7 @@ static unsigned int __init init_chipset_it8172 (struct pci_dev *dev, const char 
 }
 
 
-static void __init init_hwif_it8172 (ide_hwif_t *hwif)
+static void __devinit init_hwif_it8172 (ide_hwif_t *hwif)
 {
 	struct pci_dev* dev = hwif->pci_dev;
 	unsigned long cmdBase, ctrlBase;

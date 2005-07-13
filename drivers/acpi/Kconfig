@@ -3,6 +3,7 @@
 #
 
 menu "ACPI (Advanced Configuration and Power Interface) Support"
+	depends on PM
 	depends on !X86_VISWS
 	depends on !IA64_HP_SIM
 	depends on IA64 || X86
@@ -48,14 +49,13 @@ config ACPI_BOOT
 
 config ACPI_INTERPRETER
 	bool
-	depends on !IA64_SGI_SN
 	default y
 
 if ACPI_INTERPRETER
 
 config ACPI_SLEEP
 	bool "Sleep States (EXPERIMENTAL)"
-	depends on X86
+	depends on X86 && (!SMP || SUSPEND_SMP)
 	depends on EXPERIMENTAL && PM
 	default y
 	---help---
@@ -79,6 +79,14 @@ config ACPI_SLEEP_PROC_FS
 	depends on ACPI_SLEEP && PROC_FS
 	default y
 
+config ACPI_SLEEP_PROC_SLEEP
+	bool "/proc/acpi/sleep (deprecated)"
+	depends on ACPI_SLEEP_PROC_FS
+	default n
+	---help---
+	  Create /proc/acpi/sleep
+	  Deprecated by /sys/power/state
+
 config ACPI_AC
 	tristate "AC Adapter"
 	depends on X86
@@ -99,7 +107,6 @@ config ACPI_BATTERY
 
 config ACPI_BUTTON
 	tristate "Button"
-	depends on !IA64_SGI_SN
 	default m
 	help
 	  This driver registers for events based on buttons, such as the
@@ -111,7 +118,6 @@ config ACPI_BUTTON
 config ACPI_VIDEO
 	tristate "Video"
 	depends on EXPERIMENTAL
-	depends on !IA64_SGI_SN
 	default m
 	help
 	  This driver implement the ACPI Extensions For Display Adapters
@@ -122,9 +128,17 @@ config ACPI_VIDEO
 	  Note that this is an ref. implementation only.  It may or may not work
 	  for your integrated video device.
 
+config ACPI_HOTKEY
+	tristate "Generic Hotkey"
+	depends on ACPI_INTERPRETER
+	depends on EXPERIMENTAL
+	depends on !IA64_SGI_SN
+	default m
+	help
+	ACPI generic hotkey
+
 config ACPI_FAN
 	tristate "Fan"
-	depends on !IA64_SGI_SN
 	default m
 	help
 	  This driver adds support for ACPI fan devices, allowing user-mode 
@@ -132,7 +146,6 @@ config ACPI_FAN
 
 config ACPI_PROCESSOR
 	tristate "Processor"
-	depends on !IA64_SGI_SN
 	default m
 	help
 	  This driver installs ACPI as the idle handler for Linux, and uses
@@ -142,7 +155,6 @@ config ACPI_PROCESSOR
 config ACPI_HOTPLUG_CPU
 	bool "Processor Hotplug (EXPERIMENTAL)"
 	depends on ACPI_PROCESSOR && HOTPLUG_CPU && EXPERIMENTAL
-	depends on !IA64_SGI_SN
 	select ACPI_CONTAINER
 	default n
 	 ---help---
@@ -262,7 +274,6 @@ config ACPI_BLACKLIST_YEAR
 
 config ACPI_DEBUG
 	bool "Debug Statements"
-	depends on !IA64_SGI_SN
 	default n
 	help
 	  The ACPI driver can optionally report errors with a great deal
@@ -271,7 +282,6 @@ config ACPI_DEBUG
 
 config ACPI_BUS
 	bool
-	depends on !IA64_SGI_SN
 	default y
 
 config ACPI_EC
@@ -285,17 +295,14 @@ config ACPI_EC
 
 config ACPI_POWER
 	bool
-	depends on !IA64_SGI_SN
 	default y
 
 config ACPI_PCI
 	bool
-	depends on !IA64_SGI_SN
 	default PCI
 
 config ACPI_SYSTEM
 	bool
-	depends on !IA64_SGI_SN
 	default y
 	help
 	  This driver will enable your system to shut down using ACPI, and
@@ -327,8 +334,13 @@ config ACPI_CONTAINER
 	depends on EXPERIMENTAL
 	default (ACPI_HOTPLUG_MEMORY || ACPI_HOTPLUG_CPU || ACPI_HOTPLUG_IO)
 	 ---help---
-	 	This is the ACPI generic container driver which supports
-		ACPI0004, PNP0A05 and PNP0A06 devices
+	  This allows _physical_ insertion and removal of CPUs and memory.
+	  This can be useful, for example, on NUMA machines that support
+	  ACPI based physical hotplug of nodes, or non-NUMA machines that
+	  support physical cpu/memory hot-plug.
+
+	  If one selects "m", this driver can be loaded with
+	  "modprobe acpi_container".
 
 config ACPI_HOTPLUG_MEMORY
 	tristate "Memory Hotplug"

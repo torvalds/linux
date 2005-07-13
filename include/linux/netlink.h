@@ -16,6 +16,7 @@
 #define NETLINK_AUDIT		9	/* auditing */
 #define NETLINK_FIB_LOOKUP	10	
 #define NETLINK_ROUTE6		11	/* af_inet6 route comm channel */
+#define NETLINK_NETFILTER	12	/* netfilter subsystem */
 #define NETLINK_IP6_FW		13
 #define NETLINK_DNRTMSG		14	/* DECnet routing messages */
 #define NETLINK_KOBJECT_UEVENT	15	/* Kernel messages to userspace */
@@ -168,6 +169,7 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 	nlh->nlmsg_flags = flags;
 	nlh->nlmsg_pid = pid;
 	nlh->nlmsg_seq = seq;
+	memset(NLMSG_DATA(nlh) + len, 0, NLMSG_ALIGN(size) - size);
 	return nlh;
 }
 

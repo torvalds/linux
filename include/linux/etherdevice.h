@@ -25,6 +25,7 @@
 #define _LINUX_ETHERDEVICE_H
 
 #include <linux/if_ether.h>
+#include <linux/netdevice.h>
 #include <linux/random.h>
 
 #ifdef __KERNEL__
@@ -32,7 +33,7 @@ extern int		eth_header(struct sk_buff *skb, struct net_device *dev,
 				   unsigned short type, void *daddr,
 				   void *saddr, unsigned len);
 extern int		eth_rebuild_header(struct sk_buff *skb);
-extern unsigned short	eth_type_trans(struct sk_buff *skb, struct net_device *dev);
+extern __be16		eth_type_trans(struct sk_buff *skb, struct net_device *dev);
 extern void		eth_header_cache_update(struct hh_cache *hh, struct net_device *dev,
 						unsigned char * haddr);
 extern int		eth_header_cache(struct neighbour *neigh,
@@ -65,7 +66,7 @@ static inline int is_zero_ether_addr(const u8 *addr)
  */
 static inline int is_multicast_ether_addr(const u8 *addr)
 {
-	return addr[0] & 0x01;
+	return ((addr[0] != 0xff) && (0x01 & addr[0]));
 }
 
 /**

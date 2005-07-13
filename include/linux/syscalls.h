@@ -159,8 +159,9 @@ asmlinkage long sys_shutdown(int, int);
 asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd,
 				void __user *arg);
 asmlinkage long sys_restart_syscall(void);
-asmlinkage long sys_kexec_load(void *entry, unsigned long nr_segments,
-			struct kexec_segment *segments, unsigned long flags);
+asmlinkage long sys_kexec_load(unsigned long entry, unsigned long nr_segments,
+				struct kexec_segment __user *segments,
+				unsigned long flags);
 
 asmlinkage long sys_exit(int error_code);
 asmlinkage void sys_exit_group(int error_code);
@@ -504,5 +505,8 @@ asmlinkage long sys_request_key(const char __user *_type,
 
 asmlinkage long sys_keyctl(int cmd, unsigned long arg2, unsigned long arg3,
 			   unsigned long arg4, unsigned long arg5);
+
+asmlinkage long sys_ioprio_set(int which, int who, int ioprio);
+asmlinkage long sys_ioprio_get(int which, int who);
 
 #endif

@@ -4,7 +4,7 @@
 
 obj-y	:= sch_generic.o
 
-obj-$(CONFIG_NET_SCHED)		+= sch_api.o sch_fifo.o
+obj-$(CONFIG_NET_SCHED)		+= sch_api.o sch_fifo.o sch_blackhole.o
 obj-$(CONFIG_NET_CLS)		+= cls_api.o
 obj-$(CONFIG_NET_CLS_ACT)	+= act_api.o
 obj-$(CONFIG_NET_ACT_POLICE)	+= police.o
@@ -40,3 +40,4 @@ obj-$(CONFIG_NET_EMATCH_CMP)	+= em_cmp.o
 obj-$(CONFIG_NET_EMATCH_NBYTE)	+= em_nbyte.o
 obj-$(CONFIG_NET_EMATCH_U32)	+= em_u32.o
 obj-$(CONFIG_NET_EMATCH_META)	+= em_meta.o
+obj-$(CONFIG_NET_EMATCH_TEXT)	+= em_text.o

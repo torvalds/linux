@@ -177,6 +177,8 @@ void __init maple_setup_arch(void)
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
+
+	printk(KERN_INFO "Using native/NAP idle loop\n");
 }
 
 /* 
@@ -297,4 +299,5 @@ struct machdep_calls __initdata maple_md = {
        	.get_rtc_time		= maple_get_rtc_time,
       	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= maple_progress,
+	.idle_loop		= native_idle,
 };

@@ -47,7 +47,7 @@ pcibios_set_master (struct pci_dev *dev)
 }
 
 static inline void
-pcibios_penalize_isa_irq (int irq)
+pcibios_penalize_isa_irq (int irq, int active)
 {
 	/* We don't do dynamic PCI IRQ allocation */
 }
@@ -81,6 +81,25 @@ extern int pcibios_prep_mwi (struct pci_dev *);
 
 #define sg_dma_len(sg)		((sg)->dma_length)
 #define sg_dma_address(sg)	((sg)->dma_address)
+
+#ifdef CONFIG_PCI
+static inline void pci_dma_burst_advice(struct pci_dev *pdev,
+					enum pci_dma_burst_strategy *strat,
+					unsigned long *strategy_parameter)
+{
+	unsigned long cacheline_size;
+	u8 byte;
+
+	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &byte);
+	if (byte == 0)
+		cacheline_size = 1024;
+	else
+		cacheline_size = (int) byte * 4;
+
+	*strat = PCI_DMA_BURST_MULTIPLE;
+	*strategy_parameter = cacheline_size;
+}
+#endif
 
 #define HAVE_PCI_MMAP
 extern int pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,

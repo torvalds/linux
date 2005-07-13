@@ -1,5 +1,5 @@
 # drivers/mtd/maps/Kconfig
-# $Id: Kconfig,v 1.42 2005/01/05 16:59:50 dwmw2 Exp $
+# $Id: Kconfig,v 1.55 2005/07/02 01:53:24 tpoynor Exp $
 
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
@@ -122,22 +122,20 @@ config MTD_SBC_GXX
 	  More info at
 	  <http://www.arcomcontrols.com/products/icp/pc104/processors/SBC_GX1.htm>.
 
-config MTD_ELAN_104NC
-	tristate "CFI Flash device mapped on Arcom ELAN-104NC"
-	depends on X86 && MTD_CFI_INTELEXT && MTD_PARTITIONS && MTD_COMPLEX_MAPPINGS
-	help
-	  This provides a driver for the on-board flash of the Arcom Control
-	  System's ELAN-104NC development board. By default the flash
-	  is split into 3 partitions which are accessed as separate MTD
-	  devices. This board utilizes Intel StrataFlash. More info at
-	  <http://www.arcomcontrols.com/products/icp/pc104/processors/ELAN104NC.htm>.
-
 config MTD_LUBBOCK
 	tristate "CFI Flash device mapped on Intel Lubbock XScale eval board"
 	depends on ARCH_LUBBOCK && MTD_CFI_INTELEXT && MTD_PARTITIONS
 	help
 	  This provides a driver for the on-board flash of the Intel
 	  'Lubbock' XScale evaluation board.
+
+config MTD_MAINSTONE
+	tristate "CFI Flash device mapped on Intel Mainstone XScale eval board"
+	depends on MACH_MAINSTONE && MTD_CFI_INTELEXT
+	select MTD_PARTITIONS
+	help
+	  This provides a driver for the on-board flash of the Intel
+	  'Mainstone PXA27x evaluation board.
 
 config MTD_OCTAGON
 	tristate "JEDEC Flash device mapped on Octagon 5066 SBC"
@@ -213,74 +211,11 @@ config MTD_NETtel
 	help
 	  Support for flash chips on NETtel/SecureEdge/SnapGear boards.
 
-config MTD_PB1XXX
-	tristate "Flash devices on Alchemy PB1xxx boards"
-	depends on MIPS && ( MIPS_PB1000 || MIPS_PB1100 || MIPS_PB1500 )
+config MTD_ALCHEMY
+	tristate '  AMD Alchemy Pb1xxx/Db1xxx/RDK MTD support' 
+	depends on MIPS && SOC_AU1X00
 	help
-	  Flash memory access on Alchemy Pb1000/Pb1100/Pb1500 boards
-
-config MTD_PB1XXX_BOOT
-	bool "PB1x00 boot flash device"
-	depends on MTD_PB1XXX && ( MIPS_PB1100 || MIPS_PB1500 )
-	help
-	  Use the first of the two 32MiB flash banks on Pb1100/Pb1500 board.
-	  You can say 'Y' to both this and 'MTD_PB1XXX_USER' below, to use
-	  both banks.
-
-config MTD_PB1XXX_USER
-	bool "PB1x00 user flash device"
-	depends on MTD_PB1XXX && ( MIPS_PB1100 || MIPS_PB1500 )
-	default y if MTD_PB1XX_BOOT = n
-	help
-	  Use the second of the two 32MiB flash banks on Pb1100/Pb1500 board.
-	  You can say 'Y' to both this and 'MTD_PB1XXX_BOOT' above, to use
-	  both banks.
-
-config MTD_PB1550
-	tristate "Flash devices on Alchemy PB1550 board"
-	depends on MIPS && MIPS_PB1550
-	help
-	  Flash memory access on Alchemy Pb1550 board
-
-config MTD_PB1550_BOOT
-	bool "PB1550 boot flash device"
-	depends on MTD_PB1550
-	help
-	  Use the first of the two 64MiB flash banks on Pb1550 board.
-	  You can say 'Y' to both this and 'MTD_PB1550_USER' below, to use
-	  both banks.
-
-config MTD_PB1550_USER
-	bool "PB1550 user flash device"
-	depends on MTD_PB1550
-	default y if MTD_PB1550_BOOT = n
-	help
-	  Use the second of the two 64MiB flash banks on Pb1550 board.
-	  You can say 'Y' to both this and 'MTD_PB1550_BOOT' above, to use
-	  both banks.
-
-config MTD_DB1550
-	tristate "Flash devices on Alchemy DB1550 board"
-	depends on MIPS && MIPS_DB1550
-	help
-	  Flash memory access on Alchemy Db1550 board
-
-config MTD_DB1550_BOOT
-	bool "DB1550 boot flash device"
-	depends on MTD_DB1550
-	help
-	  Use the first of the two 64MiB flash banks on Db1550 board.
-	  You can say 'Y' to both this and 'MTD_DB1550_USER' below, to use
-	  both banks.
-
-config MTD_DB1550_USER
-	bool "DB1550 user flash device"
-	depends on MTD_DB1550
-	default y if MTD_DB1550_BOOT = n
-	help
-	  Use the second of the two 64MiB flash banks on Db1550 board.
-	  You can say 'Y' to both this and 'MTD_DB1550_BOOT' above, to use
-	  both banks.
+	  Flash memory access on AMD Alchemy Pb/Db/RDK Reference Boards
 
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
@@ -588,6 +523,15 @@ config MTD_MPC1211
 	  This enables access to the flash chips on the Interface MPC-1211(CTP/PCI/MPC-SH02).
 	  If you have such a board, say 'Y'.
 
+config MTD_OMAP_NOR
+	tristate "TI OMAP board mappings"
+	depends on MTD_CFI && ARCH_OMAP
+	help
+	  This enables access to the NOR flash chips on TI OMAP-based
+	  boards defining flash platform devices and flash platform data.
+	  These boards include the Innovator, H2, H3, OSK, Perseus2, and
+	  more.  If you have such a board, say 'Y'.
+
 # This needs CFI or JEDEC, depending on the cards found.
 config MTD_PCI
 	tristate "PCI MTD driver"
@@ -606,6 +550,16 @@ config MTD_PCMCIA
 	  Map driver for accessing PCMCIA linear flash memory cards. These
 	  cards are usually around 4-16MiB in size. This does not include
 	  Compact Flash cards which are treated as IDE devices.
+
+config MTD_PCMCIA_ANONYMOUS
+	bool "Use PCMCIA MTD drivers for anonymous PCMCIA cards"
+	depends on MTD_PCMCIA
+	default N
+	help
+	  If this option is enabled, PCMCIA cards which do not report
+	  anything about themselves are assumed to be MTD cards.
+
+	  If unsure, say N.
 
 config MTD_UCLINUX
 	tristate "Generic uClinux RAM/ROM filesystem support"
@@ -637,13 +591,14 @@ config MTD_DMV182
           Map driver for Dy-4 SVME/DMV-182 board.
 
 config MTD_BAST
-	tristate "Map driver for Simtec BAST (EB2410ITX)"
-	depends on ARCH_BAST
+	tristate "Map driver for Simtec BAST (EB2410ITX) or Thorcom VR1000"
+	depends on ARCH_BAST || MACH_VR1000
 	select MTD_PARTITIONS
 	select MTD_MAP_BANK_WIDTH_16
 	select MTD_JEDECPROBE
 	help
-	  Map driver for NOR flash on the Simtec BAST (EB2410ITX).
+	  Map driver for NOR flash on the Simtec BAST (EB2410ITX), or the
+	  Thorcom VR1000
 
 	  Note, this driver *cannot* over-ride the WP link on the
 	  board, or currently detect the state of the link.
@@ -658,6 +613,16 @@ config MTD_SHARP_SL
 	depends on MTD && ARCH_PXA
 	help
 	  This enables access to the flash chip on the Sharp SL Series of PDAs.
+
+config MTD_PLATRAM
+	tristate "Map driver for platform device RAM (mtd-ram)"
+	depends on MTD
+	select MTD_RAM
+	help
+	  Map driver for RAM areas described via the platform device
+	  system.
+
+	  This selection automatically selects the map_ram driver.
 
 endmenu
 

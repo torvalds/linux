@@ -2788,9 +2788,9 @@ int jfs_lazycommit(void *arg)
 		/* In case a wakeup came while all threads were active */
 		jfs_commit_thread_waking = 0;
 
-		if (current->flags & PF_FREEZE) {
+		if (freezing(current)) {
 			LAZY_UNLOCK(flags);
-			refrigerator(PF_FREEZE);
+			refrigerator();
 		} else {
 			DECLARE_WAITQUEUE(wq, current);
 
@@ -2987,9 +2987,9 @@ int jfs_sync(void *arg)
 		/* Add anon_list2 back to anon_list */
 		list_splice_init(&TxAnchor.anon_list2, &TxAnchor.anon_list);
 
-		if (current->flags & PF_FREEZE) {
+		if (freezing(current)) {
 			TXN_UNLOCK();
-			refrigerator(PF_FREEZE);
+			refrigerator();
 		} else {
 			DECLARE_WAITQUEUE(wq, current);
 

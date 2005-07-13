@@ -4,8 +4,6 @@
 #include <linux/pci.h>
 #include <linux/i2o.h>
 
-extern struct i2o_driver **i2o_drivers;
-extern unsigned int i2o_max_drivers;
 static void i2o_report_util_cmd(u8 cmd);
 static void i2o_report_exec_cmd(u8 cmd);
 static void i2o_report_fail_status(u8 req_status, u32 * msg);
@@ -23,7 +21,6 @@ void i2o_report_status(const char *severity, const char *str,
 	u8 cmd = (msg[1] >> 24) & 0xFF;
 	u8 req_status = (msg[4] >> 24) & 0xFF;
 	u16 detailed_status = msg[4] & 0xFFFF;
-	//struct i2o_driver *h = i2o_drivers[msg[2] & (i2o_max_drivers-1)];
 
 	if (cmd == I2O_CMD_UTIL_EVT_REGISTER)
 		return;		// No status in this reply

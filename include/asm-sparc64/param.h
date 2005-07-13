@@ -1,9 +1,10 @@
-/* $Id: param.h,v 1.2 2000/10/30 21:01:41 davem Exp $ */
 #ifndef _ASMSPARC64_PARAM_H
 #define _ASMSPARC64_PARAM_H
 
+#include <linux/config.h>
+
 #ifdef __KERNEL__
-# define HZ		1000	/* Internal kernel timer frequency */
+# define HZ		CONFIG_HZ	/* Internal kernel timer frequency */
 # define USER_HZ	100	/* .. some user interfaces are in "ticks" */
 # define CLOCKS_PER_SEC (USER_HZ)
 #endif

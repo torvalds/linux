@@ -112,6 +112,7 @@
 #include	<linux/moduleparam.h>
 #include	<linux/init.h>
 #include 	<linux/proc_fs.h>
+#include	<linux/dma-mapping.h>
 
 #include	"h/skdrv1st.h"
 #include	"h/skdrv2nd.h"
@@ -4912,8 +4913,8 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 		goto out;
  
 	/* Configure DMA attributes. */
-	if (pci_set_dma_mask(pdev, (u64) 0xffffffffffffffffULL) &&
-	    pci_set_dma_mask(pdev, (u64) 0xffffffff))
+	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) &&
+	    pci_set_dma_mask(pdev, DMA_32BIT_MASK))
 		goto out_disable_device;
 
 

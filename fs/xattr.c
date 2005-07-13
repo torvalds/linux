@@ -16,6 +16,7 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/module.h>
+#include <linux/fsnotify.h>
 #include <asm/uaccess.h>
 
 /*
@@ -57,8 +58,10 @@ setxattr(struct dentry *d, char __user *name, void __user *value,
 		if (error)
 			goto out;
 		error = d->d_inode->i_op->setxattr(d, kname, kvalue, size, flags);
-		if (!error)
+		if (!error) {
+			fsnotify_xattr(d);
 			security_inode_post_setxattr(d, kname, kvalue, size, flags);
+		}
 out:
 		up(&d->d_inode->i_sem);
 	}

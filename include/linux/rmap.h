@@ -93,6 +93,12 @@ int page_referenced(struct page *, int is_locked, int ignore_token);
 int try_to_unmap(struct page *);
 
 /*
+ * Called from mm/filemap_xip.c to unmap empty zero page
+ */
+pte_t *page_check_address(struct page *, struct mm_struct *, unsigned long);
+
+
+/*
  * Used by swapoff to help locate where page is expected in vma.
  */
 unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);

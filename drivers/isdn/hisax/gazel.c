@@ -21,7 +21,7 @@
 #include <linux/pci.h>
 
 extern const char *CardType[];
-const char *gazel_revision = "$Revision: 2.19.2.4 $";
+static const char *gazel_revision = "$Revision: 2.19.2.4 $";
 
 #define R647      1
 #define R685      2
@@ -317,7 +317,8 @@ gazel_interrupt_ipac(int intno, void *dev_id, struct pt_regs *regs)
 	spin_unlock_irqrestore(&cs->lock, flags);
 	return IRQ_HANDLED;
 }
-void
+
+static void
 release_io_gazel(struct IsdnCardState *cs)
 {
 	unsigned int i;

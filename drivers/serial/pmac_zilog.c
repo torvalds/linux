@@ -604,7 +604,7 @@ static void pmz_set_mctrl(struct uart_port *port, unsigned int mctrl)
 /* 
  * Get Modem Control bits (only the input ones, the core will
  * or that with a cached value of the control ones)
- * The port lock is not held.
+ * The port lock is held and interrupts are disabled.
  */
 static unsigned int pmz_get_mctrl(struct uart_port *port)
 {
@@ -615,7 +615,7 @@ static unsigned int pmz_get_mctrl(struct uart_port *port)
 	if (ZS_IS_ASLEEP(uap) || uap->node == NULL)
 		return 0;
 
-	status = pmz_peek_status(to_pmz(port));
+	status = read_zsreg(uap, R0);
 
 	ret = 0;
 	if (status & DCD)
@@ -1545,7 +1545,7 @@ static void pmz_dispose_port(struct uart_pmac_port *uap)
 /*
  * Called upon match with an escc node in the devive-tree.
  */
-static int pmz_attach(struct macio_dev *mdev, const struct of_match *match)
+static int pmz_attach(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	int i;
 	
@@ -1850,20 +1850,17 @@ err_out:
 	return rc;
 }
 
-static struct of_match pmz_match[] = 
+static struct of_device_id pmz_match[] = 
 {
 	{
 	.name 		= "ch-a",
-	.type		= OF_ANY_MATCH,
-	.compatible	= OF_ANY_MATCH
 	},
 	{
 	.name 		= "ch-b",
-	.type		= OF_ANY_MATCH,
-	.compatible	= OF_ANY_MATCH
 	},
 	{},
 };
+MODULE_DEVICE_TABLE (of, pmz_match);
 
 static struct macio_driver pmz_driver = 
 {

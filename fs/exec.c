@@ -642,6 +642,18 @@ static inline int de_thread(struct task_struct *tsk)
 	count = 2;
 	if (thread_group_leader(current))
 		count = 1;
+	else {
+		/*
+		 * The SIGALRM timer survives the exec, but needs to point
+		 * at us as the new group leader now.  We have a race with
+		 * a timer firing now getting the old leader, so we need to
+		 * synchronize with any firing (by calling del_timer_sync)
+		 * before we can safely let the old group leader die.
+		 */
+		sig->real_timer.data = (unsigned long)current;
+		if (del_timer_sync(&sig->real_timer))
+			add_timer(&sig->real_timer);
+	}
 	while (atomic_read(&sig->count) > count) {
 		sig->group_exit_task = current;
 		sig->notify_count = count;

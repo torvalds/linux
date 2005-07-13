@@ -213,7 +213,7 @@ static int cmtp_send_frame(struct cmtp_session *session, unsigned char *data, in
 	return kernel_sendmsg(sock, &msg, &iv, 1, len);
 }
 
-static int cmtp_process_transmit(struct cmtp_session *session)
+static void cmtp_process_transmit(struct cmtp_session *session)
 {
 	struct sk_buff *skb, *nskb;
 	unsigned char *hdr;
@@ -223,7 +223,7 @@ static int cmtp_process_transmit(struct cmtp_session *session)
 
 	if (!(nskb = alloc_skb(session->mtu, GFP_ATOMIC))) {
 		BT_ERR("Can't allocate memory for new frame");
-		return -ENOMEM;
+		return;
 	}
 
 	while ((skb = skb_dequeue(&session->transmit))) {
@@ -275,8 +275,6 @@ static int cmtp_process_transmit(struct cmtp_session *session)
 	cmtp_send_frame(session, nskb->data, nskb->len);
 
 	kfree_skb(nskb);
-
-	return skb_queue_len(&session->transmit);
 }
 
 static int cmtp_session(void *arg)

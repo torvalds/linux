@@ -22,7 +22,6 @@
 #define __ASM_AU1000_PCMCIA_H
 
 /* include the world */
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>

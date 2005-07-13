@@ -899,7 +899,7 @@ static void xircom_init_ring(struct net_device *dev)
 			break;
 		skb->dev = dev;			/* Mark as being used by this device. */
 		tp->rx_ring[i].status = Rx0DescOwned;	/* Owned by Xircom chip */
-		tp->rx_ring[i].buffer1 = virt_to_bus(skb->tail);
+		tp->rx_ring[i].buffer1 = virt_to_bus(skb->data);
 	}
 	tp->dirty_rx = (unsigned int)(i - RX_RING_SIZE);
 
@@ -1291,7 +1291,7 @@ xircom_rx(struct net_device *dev)
 			if (skb == NULL)
 				break;
 			skb->dev = dev;			/* Mark as being used by this device. */
-			tp->rx_ring[entry].buffer1 = virt_to_bus(skb->tail);
+			tp->rx_ring[entry].buffer1 = virt_to_bus(skb->data);
 			work_done++;
 		}
 		tp->rx_ring[entry].status = Rx0DescOwned;

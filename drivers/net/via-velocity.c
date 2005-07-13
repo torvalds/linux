@@ -1335,7 +1335,7 @@ static inline int velocity_rx_copy(struct sk_buff **rx_skb, int pkt_size,
 			if (vptr->flags & VELOCITY_FLAGS_IP_ALIGN)
 				skb_reserve(new_skb, 2);
 
-			memcpy(new_skb->data, rx_skb[0]->tail, pkt_size);
+			memcpy(new_skb->data, rx_skb[0]->data, pkt_size);
 			*rx_skb = new_skb;
 			ret = 0;
 		}
@@ -1456,9 +1456,9 @@ static int velocity_alloc_rx_buf(struct velocity_info *vptr, int idx)
 	 *	Do the gymnastics to get the buffer head for data at
 	 *	64byte alignment.
 	 */
-	skb_reserve(rd_info->skb, (unsigned long) rd_info->skb->tail & 63);
+	skb_reserve(rd_info->skb, (unsigned long) rd_info->skb->data & 63);
 	rd_info->skb->dev = vptr->dev;
-	rd_info->skb_dma = pci_map_single(vptr->pdev, rd_info->skb->tail, vptr->rx_buf_sz, PCI_DMA_FROMDEVICE);
+	rd_info->skb_dma = pci_map_single(vptr->pdev, rd_info->skb->data, vptr->rx_buf_sz, PCI_DMA_FROMDEVICE);
 	
 	/*
 	 *	Fill in the descriptor to match

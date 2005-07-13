@@ -17,7 +17,6 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>

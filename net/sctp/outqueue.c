@@ -75,7 +75,7 @@ static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 sack_ctsn);
 static inline void sctp_outq_head_data(struct sctp_outq *q,
 					struct sctp_chunk *ch)
 {
-	__skb_queue_head(&q->out, (struct sk_buff *)ch);
+	list_add(&ch->list, &q->out_chunk_list);
 	q->out_qlen += ch->skb->len;
 	return;
 }
@@ -83,17 +83,22 @@ static inline void sctp_outq_head_data(struct sctp_outq *q,
 /* Take data from the front of the queue. */
 static inline struct sctp_chunk *sctp_outq_dequeue_data(struct sctp_outq *q)
 {
-	struct sctp_chunk *ch;
-	ch = (struct sctp_chunk *)__skb_dequeue(&q->out);
-	if (ch)
+	struct sctp_chunk *ch = NULL;
+
+	if (!list_empty(&q->out_chunk_list)) {
+		struct list_head *entry = q->out_chunk_list.next;
+
+		ch = list_entry(entry, struct sctp_chunk, list);
+		list_del_init(entry);
 		q->out_qlen -= ch->skb->len;
+	}
 	return ch;
 }
 /* Add data chunk to the end of the queue. */
 static inline void sctp_outq_tail_data(struct sctp_outq *q,
 				       struct sctp_chunk *ch)
 {
-	__skb_queue_tail(&q->out, (struct sk_buff *)ch);
+	list_add_tail(&ch->list, &q->out_chunk_list);
 	q->out_qlen += ch->skb->len;
 	return;
 }
@@ -197,8 +202,8 @@ static inline int sctp_cacc_skip(struct sctp_transport *primary,
 void sctp_outq_init(struct sctp_association *asoc, struct sctp_outq *q)
 {
 	q->asoc = asoc;
-	skb_queue_head_init(&q->out);
-	skb_queue_head_init(&q->control);
+	INIT_LIST_HEAD(&q->out_chunk_list);
+	INIT_LIST_HEAD(&q->control_chunk_list);
 	INIT_LIST_HEAD(&q->retransmit);
 	INIT_LIST_HEAD(&q->sacked);
 	INIT_LIST_HEAD(&q->abandoned);
@@ -217,7 +222,7 @@ void sctp_outq_teardown(struct sctp_outq *q)
 {
 	struct sctp_transport *transport;
 	struct list_head *lchunk, *pos, *temp;
-	struct sctp_chunk *chunk;
+	struct sctp_chunk *chunk, *tmp;
 
 	/* Throw away unacknowledged chunks. */
 	list_for_each(pos, &q->asoc->peer.transport_addr_list) {
@@ -269,8 +274,10 @@ void sctp_outq_teardown(struct sctp_outq *q)
 	q->error = 0;
 
 	/* Throw away any leftover control chunks. */
-	while ((chunk = (struct sctp_chunk *) skb_dequeue(&q->control)) != NULL)
+	list_for_each_entry_safe(chunk, tmp, &q->control_chunk_list, list) {
+		list_del_init(&chunk->list);
 		sctp_chunk_free(chunk);
+	}
 }
 
 /* Free the outqueue structure and any related pending chunks.  */
@@ -333,7 +340,7 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
 			break;
 		};
 	} else {
-		__skb_queue_tail(&q->control, (struct sk_buff *) chunk);
+		list_add_tail(&chunk->list, &q->control_chunk_list);
 		SCTP_INC_STATS(SCTP_MIB_OUTCTRLCHUNKS);
 	}
 
@@ -650,10 +657,9 @@ int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 	__u16 sport = asoc->base.bind_addr.port;
 	__u16 dport = asoc->peer.port;
 	__u32 vtag = asoc->peer.i.init_tag;
-	struct sk_buff_head *queue;
 	struct sctp_transport *transport = NULL;
 	struct sctp_transport *new_transport;
-	struct sctp_chunk *chunk;
+	struct sctp_chunk *chunk, *tmp;
 	sctp_xmit_t status;
 	int error = 0;
 	int start_timer = 0;
@@ -675,8 +681,9 @@ int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 	 *   ...
 	 */
 
-	queue = &q->control;
-	while ((chunk = (struct sctp_chunk *)skb_dequeue(queue)) != NULL) {
+	list_for_each_entry_safe(chunk, tmp, &q->control_chunk_list, list) {
+		list_del_init(&chunk->list);
+
 		/* Pick the right transport to use. */
 		new_transport = chunk->transport;
 
@@ -814,8 +821,6 @@ int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 
 		/* Finally, transmit new packets.  */
 		start_timer = 0;
-		queue = &q->out;
-
 		while ((chunk = sctp_outq_dequeue_data(q)) != NULL) {
 			/* RFC 2960 6.5 Every DATA chunk MUST carry a valid
 			 * stream identifier.
@@ -1149,8 +1154,9 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	/* See if all chunks are acked.
 	 * Make sure the empty queue handler will get run later.
 	 */
-	q->empty = skb_queue_empty(&q->out) && skb_queue_empty(&q->control) &&
-			list_empty(&q->retransmit);
+	q->empty = (list_empty(&q->out_chunk_list) &&
+		    list_empty(&q->control_chunk_list) &&
+		    list_empty(&q->retransmit));
 	if (!q->empty)
 		goto finish;
 
@@ -1679,9 +1685,9 @@ static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 ctsn)
 		if (TSN_lte(tsn, ctsn)) {
 			list_del_init(lchunk);
 			if (!chunk->tsn_gap_acked) {
-			chunk->transport->flight_size -=
-						 sctp_data_size(chunk);
-			q->outstanding_bytes -= sctp_data_size(chunk);
+				chunk->transport->flight_size -=
+					sctp_data_size(chunk);
+				q->outstanding_bytes -= sctp_data_size(chunk);
 			}
 			sctp_chunk_free(chunk);
 		} else {
@@ -1729,7 +1735,7 @@ static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 ctsn)
 					      nskips, &ftsn_skip_arr[0]); 
 
 	if (ftsn_chunk) {
-		__skb_queue_tail(&q->control, (struct sk_buff *)ftsn_chunk);
+		list_add_tail(&ftsn_chunk->list, &q->control_chunk_list);
 		SCTP_INC_STATS(SCTP_MIB_OUTCTRLCHUNKS);
 	}
 }

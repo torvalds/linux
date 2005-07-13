@@ -735,7 +735,7 @@ void __init trap_init(void)
 						    &ext_int_pfault);
 #endif
 #ifndef CONFIG_ARCH_S390X
-		cpcmd("SET PAGEX ON", NULL, 0);
+		cpcmd("SET PAGEX ON", NULL, 0, NULL);
 #endif
 	}
 }

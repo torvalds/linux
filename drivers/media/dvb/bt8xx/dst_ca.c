@@ -32,7 +32,7 @@
 #include "dst_ca.h"
 #include "dst_common.h"
 
-static unsigned int verbose = 1;
+static unsigned int verbose = 5;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (yes)");
 
@@ -295,34 +295,28 @@ static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, 
 	return 0;
 }
 
-static int handle_en50221_tag(struct dst_state *state, struct ca_msg *p_ca_message, struct ca_msg *hw_buffer)
+static int handle_dst_tag(struct dst_state *state, struct ca_msg *p_ca_message, struct ca_msg *hw_buffer, u32 length)
 {
 	if (state->dst_hw_cap & DST_TYPE_HAS_SESSION) {
 		hw_buffer->msg[2] = p_ca_message->msg[1];		/*		MSB			*/
 		hw_buffer->msg[3] = p_ca_message->msg[2];		/*		LSB			*/
 	}
 	else {
+		hw_buffer->msg[0] = (length & 0xff) + 7;
+		hw_buffer->msg[1] = 0x40;
 		hw_buffer->msg[2] = 0x03;
 		hw_buffer->msg[3] = 0x00;
+		hw_buffer->msg[4] = 0x03;
+		hw_buffer->msg[5] = length & 0xff;
+		hw_buffer->msg[6] = 0x00;
 	}
 	return 0;
 }
 
-static int debug_8820_buffer(struct ca_msg *hw_buffer)
+
+static int write_to_8820(struct dst_state *state, struct ca_msg *hw_buffer, u8 length, u8 reply)
 {
-	unsigned int i;
-
-	dprintk("%s:Debug=[", __FUNCTION__);
-	for (i = 0; i < (hw_buffer->msg[0] + 1); i++)
-		dprintk(" %02x", hw_buffer->msg[i]);
-	dprintk("]\n");
-
-	return 0;
-}
-
-static int write_to_8820(struct dst_state *state, struct ca_msg *hw_buffer, u8 reply)
-{
-	if ((dst_put_ci(state, hw_buffer->msg, (hw_buffer->length + 1), hw_buffer->msg, reply)) < 0) {
+	if ((dst_put_ci(state, hw_buffer->msg, length, hw_buffer->msg, reply)) < 0) {
 		dprintk("%s: DST-CI Command failed.\n", __FUNCTION__);
 		dprintk("%s: Resetting DST.\n", __FUNCTION__);
 		rdc_reset_state(state);
@@ -334,233 +328,140 @@ static int write_to_8820(struct dst_state *state, struct ca_msg *hw_buffer, u8 r
 	return 0;
 }
 
-
-static int ca_set_pmt(struct dst_state *state, struct ca_msg *p_ca_message, struct ca_msg *hw_buffer, u8 reply, u8 query)
+u32 asn_1_decode(u8 *asn_1_array)
 {
-	u32 hw_offset, buf_offset, i, k;
-	u32 program_info_length = 0, es_info_length = 0, length = 0, words = 0;
-	u8 found_prog_ca_desc = 0, found_stream_ca_desc = 0, error_condition = 0, hw_buffer_length = 0;
+	u8 length_field = 0, word_count = 0, count = 0;
+	u32 length = 0;
 
-	if (verbose > 3)
-		dprintk("%s, p_ca_message length %d (0x%x)\n", __FUNCTION__,p_ca_message->length,p_ca_message->length );
-
-	handle_en50221_tag(state, p_ca_message, hw_buffer);			/*	EN50221 tag		*/
-
-	/*	Handle the length field (variable)	*/
-	if (!(p_ca_message->msg[3] & 0x80)) {				/*	Length = 1		*/
-		length = p_ca_message->msg[3] & 0x7f;
-		words = 0;						/*	domi's suggestion	*/
-	}
-	else {								/*	Length = words		*/
-		words = p_ca_message->msg[3] & 0x7f;
-		for (i = 0; i < words; i++) {
-			length = length << 8;
-			length = length | p_ca_message->msg[4 + i];
+	length_field = asn_1_array[0];
+	dprintk("%s: Length field=[%02x]\n", __FUNCTION__, length_field);
+	if (length_field < 0x80) {
+		length = length_field & 0x7f;
+		dprintk("%s: Length=[%02x]\n", __FUNCTION__, length);
+	} else {
+		word_count = length_field & 0x7f;
+		for (count = 0; count < word_count; count++) {
+			length = (length | asn_1_array[count + 1]) << 8;
+			dprintk("%s: Length=[%04x]\n", __FUNCTION__, length);
 		}
 	}
-	if (verbose > 4) {
-		dprintk("%s:Length=[%d (0x%x)], Words=[%d]\n", __FUNCTION__, length,length, words);
+	return length;
+}
 
-		/*	Debug Input string		*/
-		for (i = 0; i < length; i++)
-			dprintk(" %02x", p_ca_message->msg[i]);
-		dprintk("]\n");
-	}
-
-	hw_offset = 7;
-	buf_offset = words + 4;
-
-	/*		Program Header			*/
-	if (verbose > 4)
-		dprintk("\n%s:Program Header=[", __FUNCTION__);
-	for (i = 0; i < 6; i++) {
-		hw_buffer->msg[hw_offset] = p_ca_message->msg[buf_offset];
-		if (verbose > 4)
-			dprintk(" %02x", p_ca_message->msg[buf_offset]);
-		hw_offset++, buf_offset++, hw_buffer_length++;
-	}
-	if (verbose > 4)
-		dprintk("]\n");
-
-	program_info_length = 0;
-	program_info_length = (((program_info_length | p_ca_message->msg[words + 8]) & 0x0f) << 8) | p_ca_message->msg[words + 9];
-	if (verbose > 4)
-		dprintk("%s:Program info Length=[%d][%02x], hw_offset=[%d], buf_offset=[%d] \n",
-			__FUNCTION__, program_info_length, program_info_length, hw_offset, buf_offset);
-
-	if (program_info_length && (program_info_length < 256)) {	/*	If program_info_length		*/
-		hw_buffer->msg[11] = hw_buffer->msg[11] & 0x0f;		/*	req only 4 bits			*/
-		hw_buffer->msg[12] = hw_buffer->msg[12] + 1;		/*	increment! ASIC bug!		*/
-
-		if (p_ca_message->msg[buf_offset + 1] == 0x09) {	/*	Check CA descriptor		*/
-			found_prog_ca_desc = 1;
-			if (verbose > 4)
-				dprintk("%s: Found CA descriptor @ Program level\n", __FUNCTION__);
-		}
-
-		if (found_prog_ca_desc) {				/*	Command only if CA descriptor	*/
-			hw_buffer->msg[13] = p_ca_message->msg[buf_offset];	/*	CA PMT command ID	*/
-			hw_offset++, buf_offset++, hw_buffer_length++;
-		}
-
-		/*			Program descriptors				*/
-		if (verbose > 4) {
-			dprintk("%s:**********>buf_offset=[%d], hw_offset=[%d]\n", __FUNCTION__, buf_offset, hw_offset);
-			dprintk("%s:Program descriptors=[", __FUNCTION__);
-		}
-		while (program_info_length && !error_condition) {		/*	Copy prog descriptors	*/
-			if (program_info_length > p_ca_message->length) {	/*	Error situation		*/
-				dprintk ("%s:\"WARNING\" Length error, line=[%d], prog_info_length=[%d]\n",
-								__FUNCTION__, __LINE__, program_info_length);
-				dprintk("%s:\"WARNING\" Bailing out of possible loop\n", __FUNCTION__);
-				error_condition = 1;
-				break;
-			}
-
-			hw_buffer->msg[hw_offset] = p_ca_message->msg[buf_offset];
-			dprintk(" %02x", p_ca_message->msg[buf_offset]);
-			hw_offset++, buf_offset++, hw_buffer_length++, program_info_length--;
-		}
-		if (verbose > 4) {
-			dprintk("]\n");
-			dprintk("%s:**********>buf_offset=[%d], hw_offset=[%d]\n", __FUNCTION__, buf_offset, hw_offset);
-		}
-		if (found_prog_ca_desc) {
-			if (!reply) {
-				hw_buffer->msg[13] = 0x01;		/*	OK descrambling			*/
-				if (verbose > 1)
-					dprintk("CA PMT Command = OK Descrambling\n");
-			}
-			else {
-				hw_buffer->msg[13] = 0x02;		/*	Ok MMI				*/
-				if (verbose > 1)
-					dprintk("CA PMT Command = Ok MMI\n");
-			}
-			if (query) {
-				hw_buffer->msg[13] = 0x03;		/*	Query				*/
-				if (verbose > 1)
-					dprintk("CA PMT Command = CA PMT query\n");
-			}
-		}
-	}
-	else {
-		hw_buffer->msg[11] = hw_buffer->msg[11] & 0xf0;		/*	Don't write to ASIC		*/
-		hw_buffer->msg[12] = hw_buffer->msg[12] = 0x00;
-	}
-	if (verbose > 4)
-		dprintk("%s:**********>p_ca_message->length=[%d], buf_offset=[%d], hw_offset=[%d]\n",
-					__FUNCTION__, p_ca_message->length, buf_offset, hw_offset);
-
-	while ((buf_offset  < p_ca_message->length)  && !error_condition) {
-		/*	Bail out in case of an indefinite loop		*/
-		if ((es_info_length > p_ca_message->length) || (buf_offset > p_ca_message->length)) {
-			dprintk("%s:\"WARNING\" Length error, line=[%d], prog_info_length=[%d], buf_offset=[%d]\n",
-							__FUNCTION__, __LINE__, program_info_length, buf_offset);
-
-			dprintk("%s:\"WARNING\" Bailing out of possible loop\n", __FUNCTION__);
-			error_condition = 1;
-			break;
-		}
-
-		/*		Stream Header				*/
-
-		for (k = 0; k < 5; k++) {
-			hw_buffer->msg[hw_offset + k] = p_ca_message->msg[buf_offset + k];
-		}
-
-		es_info_length = 0;
-		es_info_length = (es_info_length | (p_ca_message->msg[buf_offset + 3] & 0x0f)) << 8 | p_ca_message->msg[buf_offset + 4];
-
-		if (verbose > 4) {
-			dprintk("\n%s:----->Stream header=[%02x %02x %02x %02x %02x]\n", __FUNCTION__,
-				p_ca_message->msg[buf_offset + 0], p_ca_message->msg[buf_offset + 1],
-				p_ca_message->msg[buf_offset + 2], p_ca_message->msg[buf_offset + 3],
-				p_ca_message->msg[buf_offset + 4]);
-
-			dprintk("%s:----->Stream type=[%02x], es length=[%d (0x%x)], Chars=[%02x] [%02x], buf_offset=[%d]\n", __FUNCTION__,
-				p_ca_message->msg[buf_offset + 0], es_info_length, es_info_length,
-				p_ca_message->msg[buf_offset + 3], p_ca_message->msg[buf_offset + 4], buf_offset);
-		}
-
-		hw_buffer->msg[hw_offset + 3] &= 0x0f;			/*	req only 4 bits			*/
-
-		if (found_prog_ca_desc) {
-			hw_buffer->msg[hw_offset + 3] = 0x00;
-			hw_buffer->msg[hw_offset + 4] = 0x00;
-		}
-
-		hw_offset += 5, buf_offset += 5, hw_buffer_length += 5;
-
-		/*		Check for CA descriptor			*/
-		if (p_ca_message->msg[buf_offset + 1] == 0x09) {
-			if (verbose > 4)
-				dprintk("%s:Found CA descriptor @ Stream level\n", __FUNCTION__);
-			found_stream_ca_desc = 1;
-		}
-
-		/*		ES descriptors				*/
-
-		if (es_info_length && !error_condition && !found_prog_ca_desc && found_stream_ca_desc) {
-//			if (!ca_pmt_done) {
-				hw_buffer->msg[hw_offset] = p_ca_message->msg[buf_offset];	/*	CA PMT cmd(es)	*/
-				if (verbose > 4)
-					printk("%s:----->CA PMT Command ID=[%02x]\n", __FUNCTION__, p_ca_message->msg[buf_offset]);
-//				hw_offset++, buf_offset++, hw_buffer_length++, es_info_length--, ca_pmt_done = 1;
-				hw_offset++, buf_offset++, hw_buffer_length++, es_info_length--;
-//			}
-			if (verbose > 4)
-				dprintk("%s:----->ES descriptors=[", __FUNCTION__);
-
-			while (es_info_length && !error_condition) {	/*	ES descriptors			*/
-				if ((es_info_length > p_ca_message->length) || (buf_offset > p_ca_message->length)) {
-					if (verbose > 4) {
-						dprintk("%s:\"WARNING\" ES Length error, line=[%d], es_info_length=[%d], buf_offset=[%d]\n",
-										__FUNCTION__, __LINE__, es_info_length, buf_offset);
-
-						dprintk("%s:\"WARNING\" Bailing out of possible loop\n", __FUNCTION__);
-					}
-					error_condition = 1;
-					break;
-				}
-
-				hw_buffer->msg[hw_offset] = p_ca_message->msg[buf_offset];
-				if (verbose > 3)
-					dprintk("%02x ", hw_buffer->msg[hw_offset]);
-				hw_offset++, buf_offset++, hw_buffer_length++, es_info_length--;
-			}
-			found_stream_ca_desc = 0;			/*	unset for new streams		*/
-			dprintk("]\n");
-		}
-	}
-
-	/*		MCU Magic words					*/
-
-	hw_buffer_length += 7;
-	hw_buffer->msg[0] = hw_buffer_length;
-	hw_buffer->msg[1] = 64;
-	hw_buffer->msg[4] = 3;
-	hw_buffer->msg[5] = hw_buffer->msg[0] - 7;
-	hw_buffer->msg[6] = 0;
-
-
-	/*      Fix length      */
-	hw_buffer->length = hw_buffer->msg[0];
-
-	put_checksum(&hw_buffer->msg[0], hw_buffer->msg[0]);
-	/*      Do the actual write     */
-	if (verbose > 4) {
-		dprintk("%s:======================DEBUGGING================================\n", __FUNCTION__);
-		dprintk("%s: Actual Length=[%d]\n", __FUNCTION__, hw_buffer_length);
-	}
-	/*      Only for debugging!     */
-	if (verbose > 2)
-		debug_8820_buffer(hw_buffer);
-	if (verbose > 3)
-		dprintk("%s: Reply = [%d]\n", __FUNCTION__, reply);
-	write_to_8820(state, hw_buffer, reply);
+static int init_buffer(u8 *buffer, u32 length)
+{
+	u32 i;
+	for (i = 0; i < length; i++)
+		buffer[i] = 0;
 
 	return 0;
 }
+
+static int debug_string(u8 *msg, u32 length, u32 offset)
+{
+	u32 i;
+
+	dprintk(" String=[ ");
+	for (i = offset; i < length; i++)
+		dprintk("%02x ", msg[i]);
+	dprintk("]\n");
+
+	return 0;
+}
+
+static int copy_string(u8 *destination, u8 *source, u32 dest_offset, u32 source_offset, u32 length)
+{
+	u32 i;
+	dprintk("%s: Copying [", __FUNCTION__);
+	for (i = 0; i < length; i++) {
+		destination[i + dest_offset] = source[i + source_offset];
+		dprintk(" %02x", source[i + source_offset]);
+	}
+	dprintk("]\n");
+
+	return i;
+}
+
+static int modify_4_bits(u8 *message, u32 pos)
+{
+	message[pos] &= 0x0f;
+
+	return 0;
+}
+
+
+
+static int ca_set_pmt(struct dst_state *state, struct ca_msg *p_ca_message, struct ca_msg *hw_buffer, u8 reply, u8 query)
+{
+	u32 length = 0, count = 0;
+	u8 asn_1_words, program_header_length;
+	u16 program_info_length = 0, es_info_length = 0;
+	u32 hw_offset = 0, buf_offset = 0, i;
+	u8 dst_tag_length;
+
+	length = asn_1_decode(&p_ca_message->msg[3]);
+	dprintk("%s: CA Message length=[%d]\n", __FUNCTION__, length);
+	dprintk("%s: ASN.1 ", __FUNCTION__);
+	debug_string(&p_ca_message->msg[4], length, 0); // length does not include tag and length
+
+	init_buffer(hw_buffer->msg, length);
+	handle_dst_tag(state, p_ca_message, hw_buffer, length);
+
+	hw_offset = 7;
+	asn_1_words = 1; // just a hack to test, should compute this one
+	buf_offset = 3;
+	program_header_length = 6;
+	dst_tag_length = 7;
+
+//	debug_twinhan_ca_params(state, p_ca_message, hw_buffer, reply, query, length, hw_offset, buf_offset);
+//	dprintk("%s: Program Header(BUF)", __FUNCTION__);
+//	debug_string(&p_ca_message->msg[4], program_header_length, 0);
+//	dprintk("%s: Copying Program header\n", __FUNCTION__);
+	copy_string(hw_buffer->msg, p_ca_message->msg, hw_offset, (buf_offset + asn_1_words), program_header_length);
+	buf_offset += program_header_length, hw_offset += program_header_length;
+	modify_4_bits(hw_buffer->msg, (hw_offset - 2));
+	if (state->type_flags & DST_TYPE_HAS_INC_COUNT) {	// workaround
+		dprintk("%s: Probably an ASIC bug !!!\n", __FUNCTION__);
+		debug_string(hw_buffer->msg, (hw_offset + program_header_length), 0);
+		hw_buffer->msg[hw_offset - 1] += 1;
+	}
+
+//	dprintk("%s: Program Header(HW), Count=[%d]", __FUNCTION__, count);
+//	debug_string(hw_buffer->msg, hw_offset, 0);
+
+	program_info_length =  ((program_info_length | (p_ca_message->msg[buf_offset - 1] & 0x0f)) << 8) | p_ca_message->msg[buf_offset];
+	dprintk("%s: Program info length=[%02x]\n", __FUNCTION__, program_info_length);
+	if (program_info_length) {
+		count = copy_string(hw_buffer->msg, p_ca_message->msg, hw_offset, (buf_offset + 1), (program_info_length + 1) ); // copy next elem, not current
+		buf_offset += count, hw_offset += count;
+//		dprintk("%s: Program level ", __FUNCTION__);
+//		debug_string(hw_buffer->msg, hw_offset, 0);
+	}
+
+	buf_offset += 1;// hw_offset += 1;
+	for (i = buf_offset; i < length; i++) {
+//		dprintk("%s: Stream Header ", __FUNCTION__);
+		count = copy_string(hw_buffer->msg, p_ca_message->msg, hw_offset, buf_offset, 5);
+		modify_4_bits(hw_buffer->msg, (hw_offset + 3));
+
+		hw_offset += 5, buf_offset += 5, i += 4;
+//		debug_string(hw_buffer->msg, hw_offset, (hw_offset - 5));
+		es_info_length = ((es_info_length | (p_ca_message->msg[buf_offset - 1] & 0x0f)) << 8) | p_ca_message->msg[buf_offset];
+		dprintk("%s: ES info length=[%02x]\n", __FUNCTION__, es_info_length);
+		if (es_info_length) {
+			// copy descriptors @ STREAM level
+			dprintk("%s: Descriptors @ STREAM level...!!! \n", __FUNCTION__);
+		}
+
+	}
+	hw_buffer->msg[length + dst_tag_length] = dst_check_sum(hw_buffer->msg, (length + dst_tag_length));
+//	dprintk("%s: Total length=[%d], Checksum=[%02x]\n", __FUNCTION__, (length + dst_tag_length), hw_buffer->msg[length + dst_tag_length]);
+	debug_string(hw_buffer->msg, (length + dst_tag_length + 1), 0);	// dst tags also
+	write_to_8820(state, hw_buffer, (length + dst_tag_length + 1), reply);	// checksum
+
+	return 0;
+}
+
 
 /*	Board supports CA PMT reply ?		*/
 static int dst_check_ca_pmt(struct dst_state *state, struct ca_msg *p_ca_message, struct ca_msg *hw_buffer)
@@ -605,7 +506,7 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 	struct ca_msg *hw_buffer;
 
 	if ((hw_buffer = (struct ca_msg *) kmalloc(sizeof (struct ca_msg), GFP_KERNEL)) == NULL) {
-		printk("%s: Memory allocation failure\n", __FUNCTION__);
+		dprintk("%s: Memory allocation failure\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 	if (verbose > 3)
@@ -630,8 +531,10 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 		switch (command) {
 			case CA_PMT:
 				if (verbose > 3)
+//					dprintk("Command = SEND_CA_PMT\n");
 					dprintk("Command = SEND_CA_PMT\n");
-				if ((ca_set_pmt(state, p_ca_message, hw_buffer, 0, 0)) < 0) {
+//				if ((ca_set_pmt(state, p_ca_message, hw_buffer, 0, 0)) < 0) {
+				if ((ca_set_pmt(state, p_ca_message, hw_buffer, 0, 0)) < 0) {	// code simplification started
 					dprintk("%s: -->CA_PMT Failed !\n", __FUNCTION__);
 					return -1;
 				}
@@ -664,7 +567,7 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 					return -1;
 				}
 				if (verbose > 3)
-					printk("%s: -->CA_APP_INFO_ENQUIRY Success !\n", __FUNCTION__);
+					dprintk("%s: -->CA_APP_INFO_ENQUIRY Success !\n", __FUNCTION__);
 
 				break;
 		}
@@ -681,17 +584,17 @@ static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 	struct ca_msg *p_ca_message;
 
 	if ((p_ca_message = (struct ca_msg *) kmalloc(sizeof (struct ca_msg), GFP_KERNEL)) == NULL) {
-		printk("%s: Memory allocation failure\n", __FUNCTION__);
+		dprintk("%s: Memory allocation failure\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 
 	if ((p_ca_slot_info = (struct ca_slot_info *) kmalloc(sizeof (struct ca_slot_info), GFP_KERNEL)) == NULL) {
-		printk("%s: Memory allocation failure\n", __FUNCTION__);
+		dprintk("%s: Memory allocation failure\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 
 	if ((p_ca_caps = (struct ca_caps *) kmalloc(sizeof (struct ca_caps), GFP_KERNEL)) == NULL) {
-		printk("%s: Memory allocation failure\n", __FUNCTION__);
+		dprintk("%s: Memory allocation failure\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 

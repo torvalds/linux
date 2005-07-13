@@ -132,8 +132,8 @@ ENTRY(cpu_v6_switch_mm)
  *	  100x   1   0   1	r/o	no acc
  *	  10x0   1   0   1	r/o	no acc
  *	  1011   0   0   1	r/w	no acc
- *	  110x   1   1   0	r/o	r/o
- *	  11x0   1   1   0	r/o	r/o
+ *	  110x   0   1   0	r/w	r/o
+ *	  11x0   0   1   0	r/w	r/o
  *	  1111   0   1   1	r/w	r/w
  */
 ENTRY(cpu_v6_set_pte)
@@ -150,7 +150,7 @@ ENTRY(cpu_v6_set_pte)
 	tst	r1, #L_PTE_USER
 	orrne	r2, r2, #AP1 | nG
 	tstne	r2, #APX
-	eorne	r2, r2, #AP0
+	bicne	r2, r2, #APX | AP0
 
 	tst	r1, #L_PTE_YOUNG
 	biceq	r2, r2, #APX | AP1 | AP0
@@ -200,7 +200,7 @@ __v6_setup:
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 #ifdef CONFIG_VFP
 	mrc	p15, 0, r0, c1, c0, 2
-	orr	r0, r0, #(3 << 20)
+	orr	r0, r0, #(0xf << 20)
 	mcr	p15, 0, r0, c1, c0, 2		@ Enable full access to VFP
 #endif
 	mrc	p15, 0, r0, c1, c0, 0		@ read control register

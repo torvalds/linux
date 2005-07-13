@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2005 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -46,8 +48,8 @@
 
 #define DRV_NAME	"ib_mthca"
 #define PFX		DRV_NAME ": "
-#define DRV_VERSION	"0.06-pre"
-#define DRV_RELDATE	"November 8, 2004"
+#define DRV_VERSION	"0.06"
+#define DRV_RELDATE	"June 23, 2005"
 
 enum {
 	MTHCA_FLAG_DDR_HIDDEN = 1 << 1,
@@ -98,6 +100,7 @@ enum {
 };
 
 struct mthca_cmd {
+	struct pci_pool          *pool;
 	int                       use_events;
 	struct semaphore          hcr_sem;
 	struct semaphore 	  poll_sem;
@@ -376,9 +379,15 @@ void mthca_unregister_device(struct mthca_dev *dev);
 int mthca_uar_alloc(struct mthca_dev *dev, struct mthca_uar *uar);
 void mthca_uar_free(struct mthca_dev *dev, struct mthca_uar *uar);
 
-int mthca_pd_alloc(struct mthca_dev *dev, struct mthca_pd *pd);
+int mthca_pd_alloc(struct mthca_dev *dev, int privileged, struct mthca_pd *pd);
 void mthca_pd_free(struct mthca_dev *dev, struct mthca_pd *pd);
 
+struct mthca_mtt *mthca_alloc_mtt(struct mthca_dev *dev, int size);
+void mthca_free_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt);
+int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
+		    int start_index, u64 *buffer_list, int list_len);
+int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
+		   u64 iova, u64 total_size, u32 access, struct mthca_mr *mr);
 int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
 			   u32 access, struct mthca_mr *mr);
 int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
@@ -405,6 +414,7 @@ int mthca_poll_cq(struct ib_cq *ibcq, int num_entries,
 int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify notify);
 int mthca_arbel_arm_cq(struct ib_cq *cq, enum ib_cq_notify notify);
 int mthca_init_cq(struct mthca_dev *dev, int nent,
+		  struct mthca_ucontext *ctx, u32 pdn,
 		  struct mthca_cq *cq);
 void mthca_free_cq(struct mthca_dev *dev,
 		   struct mthca_cq *cq);
@@ -430,12 +440,14 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 		   struct mthca_cq *recv_cq,
 		   enum ib_qp_type type,
 		   enum ib_sig_type send_policy,
+		   struct ib_qp_cap *cap,
 		   struct mthca_qp *qp);
 int mthca_alloc_sqp(struct mthca_dev *dev,
 		    struct mthca_pd *pd,
 		    struct mthca_cq *send_cq,
 		    struct mthca_cq *recv_cq,
 		    enum ib_sig_type send_policy,
+		    struct ib_qp_cap *cap,
 		    int qpn,
 		    int port,
 		    struct mthca_sqp *sqp);

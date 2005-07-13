@@ -50,6 +50,24 @@
 #define _COMPONENT          ACPI_TABLES
 	 ACPI_MODULE_NAME    ("tbconvrt")
 
+/* Local prototypes */
+
+static void
+acpi_tb_init_generic_address (
+	struct acpi_generic_address     *new_gas_struct,
+	u8                              register_bit_width,
+	acpi_physical_address           address);
+
+static void
+acpi_tb_convert_fadt1 (
+	struct fadt_descriptor_rev2    *local_fadt,
+	struct fadt_descriptor_rev1    *original_fadt);
+
+static void
+acpi_tb_convert_fadt2 (
+	struct fadt_descriptor_rev2    *local_fadt,
+	struct fadt_descriptor_rev2    *original_fadt);
+
 
 u8 acpi_fadt_is_v1;
 EXPORT_SYMBOL(acpi_fadt_is_v1);
@@ -142,11 +160,13 @@ acpi_tb_convert_to_xsdt (
 	for (i = 0; i < acpi_gbl_rsdt_table_count; i++) {
 		if (acpi_gbl_RSDP->revision < 2) {
 			ACPI_STORE_ADDRESS (new_table->table_offset_entry[i],
-				(ACPI_CAST_PTR (struct rsdt_descriptor_rev1, table_info->pointer))->table_offset_entry[i]);
+				(ACPI_CAST_PTR (struct rsdt_descriptor_rev1,
+					table_info->pointer))->table_offset_entry[i]);
 		}
 		else {
 			new_table->table_offset_entry[i] =
-				(ACPI_CAST_PTR (XSDT_DESCRIPTOR, table_info->pointer))->table_offset_entry[i];
+				(ACPI_CAST_PTR (XSDT_DESCRIPTOR,
+					table_info->pointer))->table_offset_entry[i];
 		}
 	}
 
@@ -164,7 +184,7 @@ acpi_tb_convert_to_xsdt (
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_tb_init_generic_address
  *
@@ -201,7 +221,7 @@ acpi_tb_init_generic_address (
  * PARAMETERS:  local_fadt      - Pointer to new FADT
  *              original_fadt   - Pointer to old FADT
  *
- * RETURN:      Populates local_fadt
+ * RETURN:      None, populates local_fadt
  *
  * DESCRIPTION: Convert an ACPI 1.0 FADT to common internal format
  *
@@ -212,7 +232,6 @@ acpi_tb_convert_fadt1 (
 	struct fadt_descriptor_rev2    *local_fadt,
 	struct fadt_descriptor_rev1    *original_fadt)
 {
-
 
 	/* ACPI 1.0 FACS */
 	/* The BIOS stored FADT should agree with Revision 1.0 */
@@ -232,7 +251,8 @@ acpi_tb_convert_fadt1 (
 	ACPI_STORE_ADDRESS (local_fadt->Xdsdt, local_fadt->V1_dsdt);
 
 	/*
-	 * System Interrupt Model isn't used in ACPI 2.0 (local_fadt->Reserved1 = 0;)
+	 * System Interrupt Model isn't used in ACPI 2.0
+	 * (local_fadt->Reserved1 = 0;)
 	 */
 
 	/*
@@ -269,7 +289,8 @@ acpi_tb_convert_fadt1 (
 		 * that immediately follows.
 		 */
 		ACPI_MEMCPY (&local_fadt->reset_register,
-			&(ACPI_CAST_PTR (struct fadt_descriptor_rev2_minus, original_fadt))->reset_register,
+			&(ACPI_CAST_PTR (struct fadt_descriptor_rev2_minus,
+				original_fadt))->reset_register,
   			sizeof (struct acpi_generic_address) + 1);
 	}
 	else {
@@ -304,7 +325,8 @@ acpi_tb_convert_fadt1 (
 
 	acpi_tb_init_generic_address (&acpi_gbl_xpm1a_enable,
 		 (u8) ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len),
-		 (acpi_physical_address) (local_fadt->xpm1a_evt_blk.address +
+		 (acpi_physical_address)
+			(local_fadt->xpm1a_evt_blk.address +
 			ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len)));
 
 	/* PM1B is optional; leave null if not present */
@@ -312,7 +334,8 @@ acpi_tb_convert_fadt1 (
 	if (local_fadt->xpm1b_evt_blk.address) {
 		acpi_tb_init_generic_address (&acpi_gbl_xpm1b_enable,
 			 (u8) ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len),
-			 (acpi_physical_address) (local_fadt->xpm1b_evt_blk.address +
+			 (acpi_physical_address)
+				(local_fadt->xpm1b_evt_blk.address +
 				ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len)));
 	}
 }
@@ -325,7 +348,7 @@ acpi_tb_convert_fadt1 (
  * PARAMETERS:  local_fadt      - Pointer to new FADT
  *              original_fadt   - Pointer to old FADT
  *
- * RETURN:      Populates local_fadt
+ * RETURN:      None, populates local_fadt
  *
  * DESCRIPTION: Convert an ACPI 2.0 FADT to common internal format.
  *              Handles optional "X" fields.
@@ -348,7 +371,8 @@ acpi_tb_convert_fadt2 (
 	 * is zero.
 	 */
 	if (!(local_fadt->xfirmware_ctrl)) {
-		ACPI_STORE_ADDRESS (local_fadt->xfirmware_ctrl, local_fadt->V1_firmware_ctrl);
+		ACPI_STORE_ADDRESS (local_fadt->xfirmware_ctrl,
+			local_fadt->V1_firmware_ctrl);
 	}
 
 	if (!(local_fadt->Xdsdt)) {
@@ -357,32 +381,38 @@ acpi_tb_convert_fadt2 (
 
 	if (!(local_fadt->xpm1a_evt_blk.address)) {
 		acpi_tb_init_generic_address (&local_fadt->xpm1a_evt_blk,
-			local_fadt->pm1_evt_len, (acpi_physical_address) local_fadt->V1_pm1a_evt_blk);
+			local_fadt->pm1_evt_len,
+			(acpi_physical_address) local_fadt->V1_pm1a_evt_blk);
 	}
 
 	if (!(local_fadt->xpm1b_evt_blk.address)) {
 		acpi_tb_init_generic_address (&local_fadt->xpm1b_evt_blk,
-			local_fadt->pm1_evt_len, (acpi_physical_address) local_fadt->V1_pm1b_evt_blk);
+			local_fadt->pm1_evt_len,
+			(acpi_physical_address) local_fadt->V1_pm1b_evt_blk);
 	}
 
 	if (!(local_fadt->xpm1a_cnt_blk.address)) {
 		acpi_tb_init_generic_address (&local_fadt->xpm1a_cnt_blk,
-			local_fadt->pm1_cnt_len, (acpi_physical_address) local_fadt->V1_pm1a_cnt_blk);
+			local_fadt->pm1_cnt_len,
+			(acpi_physical_address) local_fadt->V1_pm1a_cnt_blk);
 	}
 
 	if (!(local_fadt->xpm1b_cnt_blk.address)) {
 		acpi_tb_init_generic_address (&local_fadt->xpm1b_cnt_blk,
-			local_fadt->pm1_cnt_len, (acpi_physical_address) local_fadt->V1_pm1b_cnt_blk);
+			local_fadt->pm1_cnt_len,
+			(acpi_physical_address) local_fadt->V1_pm1b_cnt_blk);
 	}
 
 	if (!(local_fadt->xpm2_cnt_blk.address)) {
 		acpi_tb_init_generic_address (&local_fadt->xpm2_cnt_blk,
-			local_fadt->pm2_cnt_len, (acpi_physical_address) local_fadt->V1_pm2_cnt_blk);
+			local_fadt->pm2_cnt_len,
+			(acpi_physical_address) local_fadt->V1_pm2_cnt_blk);
 	}
 
 	if (!(local_fadt->xpm_tmr_blk.address)) {
 		acpi_tb_init_generic_address (&local_fadt->xpm_tmr_blk,
-			local_fadt->pm_tm_len, (acpi_physical_address) local_fadt->V1_pm_tmr_blk);
+			local_fadt->pm_tm_len,
+			(acpi_physical_address) local_fadt->V1_pm_tmr_blk);
 	}
 
 	if (!(local_fadt->xgpe0_blk.address)) {
@@ -399,18 +429,24 @@ acpi_tb_convert_fadt2 (
 
 	acpi_tb_init_generic_address (&acpi_gbl_xpm1a_enable,
 		(u8) ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len),
-		(acpi_physical_address) (local_fadt->xpm1a_evt_blk.address +
+		(acpi_physical_address)
+			(local_fadt->xpm1a_evt_blk.address +
 			ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len)));
-	acpi_gbl_xpm1a_enable.address_space_id = local_fadt->xpm1a_evt_blk.address_space_id;
+
+	acpi_gbl_xpm1a_enable.address_space_id =
+		local_fadt->xpm1a_evt_blk.address_space_id;
 
 	/* PM1B is optional; leave null if not present */
 
 	if (local_fadt->xpm1b_evt_blk.address) {
 		acpi_tb_init_generic_address (&acpi_gbl_xpm1b_enable,
 			(u8) ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len),
-			(acpi_physical_address) (local_fadt->xpm1b_evt_blk.address +
+			(acpi_physical_address)
+				(local_fadt->xpm1b_evt_blk.address +
 				ACPI_DIV_2 (acpi_gbl_FADT->pm1_evt_len)));
-		acpi_gbl_xpm1b_enable.address_space_id = local_fadt->xpm1b_evt_blk.address_space_id;
+
+		acpi_gbl_xpm1b_enable.address_space_id =
+			local_fadt->xpm1b_evt_blk.address_space_id;
 	}
 }
 
@@ -432,7 +468,8 @@ acpi_tb_convert_fadt2 (
  ******************************************************************************/
 
 acpi_status
-acpi_tb_convert_table_fadt (void)
+acpi_tb_convert_table_fadt (
+	void)
 {
 	struct fadt_descriptor_rev2    *local_fadt;
 	struct acpi_table_desc         *table_desc;
@@ -446,7 +483,8 @@ acpi_tb_convert_table_fadt (void)
 	 * at least as long as the version 1.0 FADT
 	 */
 	if (acpi_gbl_FADT->length < sizeof (struct fadt_descriptor_rev1)) {
-		ACPI_REPORT_ERROR (("FADT is invalid, too short: 0x%X\n", acpi_gbl_FADT->length));
+		ACPI_REPORT_ERROR (("FADT is invalid, too short: 0x%X\n",
+			acpi_gbl_FADT->length));
 		return_ACPI_STATUS (AE_INVALID_TABLE_LENGTH);
 	}
 
@@ -461,8 +499,9 @@ acpi_tb_convert_table_fadt (void)
 		if (acpi_gbl_FADT->length < sizeof (struct fadt_descriptor_rev2)) {
 			/* Length is too short to be a V2.0 table */
 
-			ACPI_REPORT_WARNING (("Inconsistent FADT length (0x%X) and revision (0x%X), using FADT V1.0 portion of table\n",
-					 acpi_gbl_FADT->length, acpi_gbl_FADT->revision));
+			ACPI_REPORT_WARNING ((
+				"Inconsistent FADT length (0x%X) and revision (0x%X), using FADT V1.0 portion of table\n",
+				acpi_gbl_FADT->length, acpi_gbl_FADT->revision));
 
 			acpi_tb_convert_fadt1 (local_fadt, (void *) acpi_gbl_FADT);
 		}
@@ -478,9 +517,8 @@ acpi_tb_convert_table_fadt (void)
 		acpi_tb_convert_fadt1 (local_fadt, (void *) acpi_gbl_FADT);
 	}
 
-	/*
-	 * Global FADT pointer will point to the new common V2.0 FADT
-	 */
+	/* Global FADT pointer will point to the new common V2.0 FADT */
+
 	acpi_gbl_FADT = local_fadt;
 	acpi_gbl_FADT->length = sizeof (FADT_DESCRIPTOR);
 
@@ -508,7 +546,7 @@ acpi_tb_convert_table_fadt (void)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_tb_convert_table_facs
+ * FUNCTION:    acpi_tb_build_common_facs
  *
  * PARAMETERS:  table_info      - Info for currently installed FACS
  *
@@ -530,12 +568,14 @@ acpi_tb_build_common_facs (
 	/* Absolute minimum length is 24, but the ACPI spec says 64 */
 
 	if (acpi_gbl_FACS->length < 24) {
-		ACPI_REPORT_ERROR (("Invalid FACS table length: 0x%X\n", acpi_gbl_FACS->length));
+		ACPI_REPORT_ERROR (("Invalid FACS table length: 0x%X\n",
+			acpi_gbl_FACS->length));
 		return_ACPI_STATUS (AE_INVALID_TABLE_LENGTH);
 	}
 
 	if (acpi_gbl_FACS->length < 64) {
-		ACPI_REPORT_WARNING (("FACS is shorter than the ACPI specification allows: 0x%X, using anyway\n",
+		ACPI_REPORT_WARNING ((
+			"FACS is shorter than the ACPI specification allows: 0x%X, using anyway\n",
 			acpi_gbl_FACS->length));
 	}
 
@@ -548,7 +588,8 @@ acpi_tb_build_common_facs (
 		(!(acpi_gbl_FACS->xfirmware_waking_vector))) {
 		/* ACPI 1.0 FACS or short table or optional X_ field is zero */
 
-		acpi_gbl_common_fACS.firmware_waking_vector = ACPI_CAST_PTR (u64, &(acpi_gbl_FACS->firmware_waking_vector));
+		acpi_gbl_common_fACS.firmware_waking_vector = ACPI_CAST_PTR (u64,
+				&(acpi_gbl_FACS->firmware_waking_vector));
 		acpi_gbl_common_fACS.vector_width = 32;
 	}
 	else {

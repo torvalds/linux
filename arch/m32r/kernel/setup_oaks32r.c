@@ -3,8 +3,8 @@
  *
  *  Setup routines for OAKS32R Board
  *
- *  Copyright (c) 2002-2004   Hiroyuki Kondo, Hirokazu Takata,
- *                            Hitoshi Yamamoto, Mamoru Sakugawa
+ *  Copyright (c) 2002-2005  Hiroyuki Kondo, Hirokazu Takata,
+ *                           Hitoshi Yamamoto, Mamoru Sakugawa
  */
 
 #include <linux/config.h>
@@ -139,5 +139,4 @@ void __init init_IRQ(void)
 	icu_data[M32R_IRQ_SIO1_S].icucr = 0;
 	disable_oaks32r_irq(M32R_IRQ_SIO1_S);
 #endif /* CONFIG_SERIAL_M32R_SIO */
-
 }

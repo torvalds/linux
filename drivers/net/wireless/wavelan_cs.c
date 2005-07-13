@@ -4684,12 +4684,6 @@ wavelan_attach(void)
 
   /* Register with Card Services */
   client_reg.dev_info = &dev_info;
-  client_reg.EventMask = 
-    CS_EVENT_REGISTRATION_COMPLETE |
-    CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-    CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-    CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-  client_reg.event_handler = &wavelan_event;
   client_reg.Version = 0x0210;
   client_reg.event_callback_args.client_data = link;
 
@@ -4889,13 +4883,24 @@ wavelan_event(event_t		event,		/* The event received */
   return 0;
 }
 
+static struct pcmcia_device_id wavelan_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("AT&T","WaveLAN/PCMCIA", 0xe7c5affd, 0x1bc50975),
+	PCMCIA_DEVICE_PROD_ID12("Digital", "RoamAbout/DS", 0x9999ab35, 0x00d05e06),
+	PCMCIA_DEVICE_PROD_ID12("Lucent Technologies", "WaveLAN/PCMCIA", 0x23eb9949, 0x1bc50975),
+	PCMCIA_DEVICE_PROD_ID12("NCR", "WaveLAN/PCMCIA", 0x24358cd4, 0x1bc50975),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, wavelan_ids);
+
 static struct pcmcia_driver wavelan_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "wavelan_cs",
 	},
 	.attach		= wavelan_attach,
+	.event		= wavelan_event,
 	.detach		= wavelan_detach,
+	.id_table       = wavelan_ids,
 };
 
 static int __init

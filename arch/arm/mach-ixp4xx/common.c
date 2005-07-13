@@ -141,7 +141,15 @@ static struct map_desc ixp4xx_io_desc[] __initdata = {
 		.physical	= IXP4XX_PCI_CFG_BASE_PHYS,
 		.length		= IXP4XX_PCI_CFG_REGION_SIZE,
 		.type		= MT_DEVICE
+	},
+#ifdef CONFIG_DEBUG_LL
+	{	/* Debug UART mapping */
+		.virtual	= IXP4XX_DEBUG_UART_BASE_VIRT,
+		.physical	= IXP4XX_DEBUG_UART_BASE_PHYS,
+		.length		= IXP4XX_DEBUG_UART_REGION_SIZE,
+		.type		= MT_DEVICE
 	}
+#endif
 };
 
 void __init ixp4xx_map_io(void)
@@ -290,8 +298,8 @@ static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id, struct pt_regs 
 
 static struct irqaction ixp4xx_timer_irq = {
 	.name		= "IXP4xx Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= ixp4xx_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= ixp4xx_timer_interrupt,
 };
 
 static void __init ixp4xx_timer_init(void)

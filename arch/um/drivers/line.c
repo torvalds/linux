@@ -602,11 +602,26 @@ int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
 	return n;
 }
 
-int line_remove(struct line *lines, unsigned int num, char *str)
+int line_id(char **str, int *start_out, int *end_out)
+{
+	char *end;
+        int n;
+
+	n = simple_strtoul(*str, &end, 0);
+	if((*end != '\0') || (end == *str))
+                return -1;
+
+        *str = end;
+        *start_out = n;
+        *end_out = n;
+        return n;
+}
+
+int line_remove(struct line *lines, unsigned int num, int n)
 {
 	char config[sizeof("conxxxx=none\0")];
 
-	sprintf(config, "%s=none", str);
+	sprintf(config, "%d=none", n);
 	return !line_setup(lines, num, config, 0);
 }
 
@@ -648,11 +663,15 @@ struct tty_driver *line_register_devfs(struct lines *set,
 	return driver;
 }
 
+static spinlock_t winch_handler_lock;
+LIST_HEAD(winch_handlers);
+
 void lines_init(struct line *lines, int nlines)
 {
 	struct line *line;
 	int i;
 
+	spin_lock_init(&winch_handler_lock);
 	for(i = 0; i < nlines; i++){
 		line = &lines[i];
 		INIT_LIST_HEAD(&line->chan_list);
@@ -709,31 +728,30 @@ irqreturn_t winch_interrupt(int irq, void *data, struct pt_regs *unused)
 	return IRQ_HANDLED;
 }
 
-DECLARE_MUTEX(winch_handler_sem);
-LIST_HEAD(winch_handlers);
-
 void register_winch_irq(int fd, int tty_fd, int pid, struct tty_struct *tty)
 {
 	struct winch *winch;
 
-	down(&winch_handler_sem);
 	winch = kmalloc(sizeof(*winch), GFP_KERNEL);
 	if (winch == NULL) {
 		printk("register_winch_irq - kmalloc failed\n");
-		goto out;
+		return;
 	}
+
 	*winch = ((struct winch) { .list  	= LIST_HEAD_INIT(winch->list),
 				   .fd  	= fd,
 				   .tty_fd 	= tty_fd,
 				   .pid  	= pid,
 				   .tty 	= tty });
+
+	spin_lock(&winch_handler_lock);
 	list_add(&winch->list, &winch_handlers);
+	spin_unlock(&winch_handler_lock);
+
 	if(um_request_irq(WINCH_IRQ, fd, IRQ_READ, winch_interrupt,
 			  SA_INTERRUPT | SA_SHIRQ | SA_SAMPLE_RANDOM, 
 			  "winch", winch) < 0)
 		printk("register_winch_irq - failed to register IRQ\n");
- out:
-	up(&winch_handler_sem);
 }
 
 static void unregister_winch(struct tty_struct *tty)
@@ -741,7 +759,7 @@ static void unregister_winch(struct tty_struct *tty)
 	struct list_head *ele;
 	struct winch *winch, *found = NULL;
 
-	down(&winch_handler_sem);
+	spin_lock(&winch_handler_lock);
 	list_for_each(ele, &winch_handlers){
 		winch = list_entry(ele, struct winch, list);
                 if(winch->tty == tty){
@@ -749,20 +767,25 @@ static void unregister_winch(struct tty_struct *tty)
                         break;
                 }
         }
-
         if(found == NULL)
-                goto out;
+		goto err;
+
+	list_del(&winch->list);
+	spin_unlock(&winch_handler_lock);
 
         if(winch->pid != -1)
                 os_kill_process(winch->pid, 1);
 
         free_irq(WINCH_IRQ, winch);
-        list_del(&winch->list);
         kfree(winch);
- out:
-	up(&winch_handler_sem);
+
+	return;
+err:
+	spin_unlock(&winch_handler_lock);
 }
 
+/* XXX: No lock as it's an exitcall... is this valid? Depending on cleanup
+ * order... are we sure that nothing else is done on the list? */
 static void winch_cleanup(void)
 {
 	struct list_head *ele;
@@ -771,6 +794,9 @@ static void winch_cleanup(void)
 	list_for_each(ele, &winch_handlers){
 		winch = list_entry(ele, struct winch, list);
 		if(winch->fd != -1){
+			/* Why is this different from the above free_irq(),
+			 * which deactivates SIGIO? This searches the FD
+			 * somewhere else and removes it from the list... */
 			deactivate_fd(winch->fd, WINCH_IRQ);
 			os_close_file(winch->fd);
 		}

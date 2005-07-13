@@ -47,7 +47,6 @@
 #include <scsi/scsi_host.h>
 #include "fdomain.h"
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -120,11 +119,6 @@ static dev_link_t *fdomain_attach(void)
     link->next = dev_list;
     dev_list = link;
     client_reg.dev_info = &dev_info;
-    client_reg.event_handler = &fdomain_event;
-    client_reg.EventMask =
-	CS_EVENT_RESET_REQUEST | CS_EVENT_CARD_RESET |
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -299,13 +293,24 @@ static int fdomain_event(event_t event, int priority,
     return 0;
 } /* fdomain_event */
 
+
+static struct pcmcia_device_id fdomain_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("IBM Corp.", "SCSI PCMCIA Card", 0xe3736c88, 0x859cad20),
+	PCMCIA_DEVICE_PROD_ID1("SCSI PCMCIA Adapter Card", 0x8dacb57e),
+	PCMCIA_DEVICE_PROD_ID12(" SIMPLE TECHNOLOGY Corporation", "SCSI PCMCIA Credit Card Controller", 0x182bdafe, 0xc80d106f),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, fdomain_ids);
+
 static struct pcmcia_driver fdomain_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "fdomain_cs",
 	},
 	.attach		= fdomain_attach,
+	.event		= fdomain_event,
 	.detach		= fdomain_detach,
+	.id_table       = fdomain_ids,
 };
 
 static int __init init_fdomain_cs(void)

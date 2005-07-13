@@ -298,8 +298,8 @@ clps7500_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction clps7500_timer_irq = {
 	.name		= "CLPS7500 Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= clps7500_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= clps7500_timer_interrupt,
 };
 
 /*
@@ -366,11 +366,13 @@ static void __init clps7500_init(void)
 }
 
 MACHINE_START(CLPS7500, "CL-PS7500")
-	MAINTAINER("Philip Blundell")
-	BOOT_MEM(0x10000000, 0x03000000, 0xe0000000)
-	MAPIO(clps7500_map_io)
-	INITIRQ(clps7500_init_irq)
-		.init_machine	= clps7500_init,
-		.timer		= &clps7500_timer,
+	/* Maintainer: Philip Blundell */
+	.phys_ram	= 0x10000000,
+	.phys_io	= 0x03000000,
+	.io_pg_offst	= ((0xe0000000) >> 18) & 0xfffc,
+	.map_io		= clps7500_map_io,
+	.init_irq	= clps7500_init_irq,
+	.init_machine	= clps7500_init,
+	.timer		= &clps7500_timer,
 MACHINE_END
 

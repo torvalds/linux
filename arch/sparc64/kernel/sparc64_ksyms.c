@@ -79,7 +79,7 @@ extern void linux_sparc_syscall(void);
 extern void rtrap(void);
 extern void show_regs(struct pt_regs *);
 extern void solaris_syscall(void);
-extern void syscall_trace(void);
+extern void syscall_trace(struct pt_regs *, int);
 extern u32 sunos_sys_table[], sys_call_table32[];
 extern void tl0_solaris(void);
 extern void sys_sigsuspend(void);
@@ -227,7 +227,6 @@ EXPORT_SYMBOL(__flush_dcache_range);
 
 EXPORT_SYMBOL(mostek_lock);
 EXPORT_SYMBOL(mstk48t02_regs);
-EXPORT_SYMBOL(request_fast_irq);
 #ifdef CONFIG_SUN_AUXIO
 EXPORT_SYMBOL(auxio_set_led);
 EXPORT_SYMBOL(auxio_set_lte);

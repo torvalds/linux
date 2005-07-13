@@ -242,8 +242,8 @@ static __inline__ struct net_device_stats *hdlc_stats(struct net_device *dev)
 }
 
 
-static __inline__ unsigned short hdlc_type_trans(struct sk_buff *skb,
-						 struct net_device *dev)
+static __inline__ __be16 hdlc_type_trans(struct sk_buff *skb,
+					 struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 

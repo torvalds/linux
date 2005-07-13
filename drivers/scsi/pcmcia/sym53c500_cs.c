@@ -979,10 +979,6 @@ SYM53C500_attach(void)
 	link->next = dev_list;
 	dev_list = link;
 	client_reg.dev_info = &dev_info;
-	client_reg.event_handler = &SYM53C500_event;
-	client_reg.EventMask = CS_EVENT_RESET_REQUEST | CS_EVENT_CARD_RESET |
-	    CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	    CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 	ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -999,13 +995,23 @@ MODULE_AUTHOR("Bob Tracy <rct@frus.com>");
 MODULE_DESCRIPTION("SYM53C500 PCMCIA SCSI driver");
 MODULE_LICENSE("GPL");
 
+static struct pcmcia_device_id sym53c500_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("BASICS by New Media Corporation", "SCSI Sym53C500", 0x23c78a9d, 0x0099e7f7),
+	PCMCIA_DEVICE_PROD_ID12("New Media Corporation", "SCSI Bus Toaster Sym53C500", 0x085a850b, 0x45432eb8),
+	PCMCIA_DEVICE_PROD_ID2("SCSI9000", 0x21648f44),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, sym53c500_ids);
+
 static struct pcmcia_driver sym53c500_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "sym53c500_cs",
 	},
 	.attach		= SYM53C500_attach,
+	.event		= SYM53C500_event,
 	.detach		= SYM53C500_detach,
+	.id_table       = sym53c500_ids,
 };
 
 static int __init

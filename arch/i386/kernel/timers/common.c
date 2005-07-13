@@ -86,7 +86,7 @@ bad_ctc:
 #define CALIBRATE_CNT_HPET 	(5 * hpet_tick)
 #define CALIBRATE_TIME_HPET 	(5 * KERNEL_TICK_USEC)
 
-unsigned long __init calibrate_tsc_hpet(unsigned long *tsc_hpet_quotient_ptr)
+unsigned long __devinit calibrate_tsc_hpet(unsigned long *tsc_hpet_quotient_ptr)
 {
 	unsigned long tsc_startlow, tsc_starthigh;
 	unsigned long tsc_endlow, tsc_endhigh;

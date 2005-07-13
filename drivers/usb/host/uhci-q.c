@@ -32,6 +32,8 @@ static void uhci_free_pending_tds(struct uhci_hcd *uhci);
  */
 static inline void uhci_set_next_interrupt(struct uhci_hcd *uhci)
 {
+	if (uhci->is_stopped)
+		mod_timer(&uhci->stall_timer, jiffies);
 	uhci->term_td->status |= cpu_to_le32(TD_CTRL_IOC); 
 }
 
@@ -46,7 +48,7 @@ static inline void uhci_moveto_complete(struct uhci_hcd *uhci,
 	list_move_tail(&urbp->urb_list, &uhci->complete_list);
 }
 
-static struct uhci_td *uhci_alloc_td(struct uhci_hcd *uhci, struct usb_device *dev)
+static struct uhci_td *uhci_alloc_td(struct uhci_hcd *uhci)
 {
 	dma_addr_t dma_handle;
 	struct uhci_td *td;
@@ -61,13 +63,10 @@ static struct uhci_td *uhci_alloc_td(struct uhci_hcd *uhci, struct usb_device *d
 	td->buffer = 0;
 
 	td->frame = -1;
-	td->dev = dev;
 
 	INIT_LIST_HEAD(&td->list);
 	INIT_LIST_HEAD(&td->remove_list);
 	INIT_LIST_HEAD(&td->fl_list);
-
-	usb_get_dev(dev);
 
 	return td;
 }
@@ -168,13 +167,10 @@ static void uhci_free_td(struct uhci_hcd *uhci, struct uhci_td *td)
 	if (!list_empty(&td->fl_list))
 		dev_warn(uhci_dev(uhci), "td %p still in fl_list!\n", td);
 
-	if (td->dev)
-		usb_put_dev(td->dev);
-
 	dma_pool_free(uhci->td_pool, td, td->dma_handle);
 }
 
-static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci, struct usb_device *dev)
+static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci)
 {
 	dma_addr_t dma_handle;
 	struct uhci_qh *qh;
@@ -188,13 +184,10 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci, struct usb_device *d
 	qh->element = UHCI_PTR_TERM;
 	qh->link = UHCI_PTR_TERM;
 
-	qh->dev = dev;
 	qh->urbp = NULL;
 
 	INIT_LIST_HEAD(&qh->list);
 	INIT_LIST_HEAD(&qh->remove_list);
-
-	usb_get_dev(dev);
 
 	return qh;
 }
@@ -205,9 +198,6 @@ static void uhci_free_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		dev_warn(uhci_dev(uhci), "qh %p list not empty!\n", qh);
 	if (!list_empty(&qh->remove_list))
 		dev_warn(uhci_dev(uhci), "qh %p still in remove_list!\n", qh);
-
-	if (qh->dev)
-		usb_put_dev(qh->dev);
 
 	dma_pool_free(uhci->qh_pool, qh, qh->dma_handle);
 }
@@ -597,7 +587,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 	/*
 	 * Build the TD for the control request setup packet
 	 */
-	td = uhci_alloc_td(uhci, urb->dev);
+	td = uhci_alloc_td(uhci);
 	if (!td)
 		return -ENOMEM;
 
@@ -626,7 +616,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 		if (pktsze > maxsze)
 			pktsze = maxsze;
 
-		td = uhci_alloc_td(uhci, urb->dev);
+		td = uhci_alloc_td(uhci);
 		if (!td)
 			return -ENOMEM;
 
@@ -644,7 +634,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 	/*
 	 * Build the final TD for control status 
 	 */
-	td = uhci_alloc_td(uhci, urb->dev);
+	td = uhci_alloc_td(uhci);
 	if (!td)
 		return -ENOMEM;
 
@@ -666,7 +656,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 	uhci_fill_td(td, status | TD_CTRL_IOC,
 		destination | uhci_explen(UHCI_NULL_DATA_SIZE), 0);
 
-	qh = uhci_alloc_qh(uhci, urb->dev);
+	qh = uhci_alloc_qh(uhci);
 	if (!qh)
 		return -ENOMEM;
 
@@ -865,7 +855,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb, struct urb
 				status &= ~TD_CTRL_SPD;
 		}
 
-		td = uhci_alloc_td(uhci, urb->dev);
+		td = uhci_alloc_td(uhci);
 		if (!td)
 			return -ENOMEM;
 
@@ -891,7 +881,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb, struct urb
 	 */
 	if (usb_pipeout(urb->pipe) && (urb->transfer_flags & URB_ZERO_PACKET) &&
 	    !len && urb->transfer_buffer_length) {
-		td = uhci_alloc_td(uhci, urb->dev);
+		td = uhci_alloc_td(uhci);
 		if (!td)
 			return -ENOMEM;
 
@@ -913,7 +903,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb, struct urb
 	 * flag setting. */
 	td->status |= cpu_to_le32(TD_CTRL_IOC);
 
-	qh = uhci_alloc_qh(uhci, urb->dev);
+	qh = uhci_alloc_qh(uhci);
 	if (!qh)
 		return -ENOMEM;
 
@@ -1096,7 +1086,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 		if (!urb->iso_frame_desc[i].length)
 			continue;
 
-		td = uhci_alloc_td(uhci, urb->dev);
+		td = uhci_alloc_td(uhci);
 		if (!td)
 			return -ENOMEM;
 
@@ -1174,7 +1164,7 @@ static struct urb *uhci_find_urb_ep(struct uhci_hcd *uhci, struct urb *urb)
 
 static int uhci_urb_enqueue(struct usb_hcd *hcd,
 		struct usb_host_endpoint *ep,
-		struct urb *urb, int mem_flags)
+		struct urb *urb, unsigned mem_flags)
 {
 	int ret;
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
@@ -1497,6 +1487,7 @@ static void uhci_scan_schedule(struct uhci_hcd *uhci, struct pt_regs *regs)
  rescan:
 	uhci->need_rescan = 0;
 
+	uhci_clear_next_interrupt(uhci);
 	uhci_get_current_frame_number(uhci);
 
 	if (uhci->frame_number + uhci->is_stopped != uhci->qh_remove_age)
@@ -1536,4 +1527,27 @@ static void uhci_scan_schedule(struct uhci_hcd *uhci, struct pt_regs *regs)
 
 	/* Wake up anyone waiting for an URB to complete */
 	wake_up_all(&uhci->waitqh);
+}
+
+static void check_fsbr(struct uhci_hcd *uhci)
+{
+	struct urb_priv *up;
+
+	list_for_each_entry(up, &uhci->urb_list, urb_list) {
+		struct urb *u = up->urb;
+
+		spin_lock(&u->lock);
+
+		/* Check if the FSBR timed out */
+		if (up->fsbr && !up->fsbr_timeout && time_after_eq(jiffies, up->fsbrtime + IDLE_TIMEOUT))
+			uhci_fsbr_timeout(uhci, u);
+
+		spin_unlock(&u->lock);
+	}
+
+	/* Really disable FSBR */
+	if (!uhci->fsbr && uhci->fsbrtimeout && time_after_eq(jiffies, uhci->fsbrtimeout)) {
+		uhci->fsbrtimeout = 0;
+		uhci->skel_term_qh->link = UHCI_PTR_TERM;
+	}
 }

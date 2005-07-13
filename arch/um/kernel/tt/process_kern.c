@@ -266,10 +266,10 @@ int copy_thread_tt(int nr, unsigned long clone_flags, unsigned long sp,
 	}
 
 	if(current->thread.forking){
-		sc_to_sc(UPT_SC(&p->thread.regs.regs), 
-			 UPT_SC(&current->thread.regs.regs));
+		sc_to_sc(UPT_SC(&p->thread.regs.regs), UPT_SC(&regs->regs));
 		SC_SET_SYSCALL_RETURN(UPT_SC(&p->thread.regs.regs), 0);
-		if(sp != 0) SC_SP(UPT_SC(&p->thread.regs.regs)) = sp;
+		if(sp != 0)
+			SC_SP(UPT_SC(&p->thread.regs.regs)) = sp;
 	}
 	p->thread.mode.tt.extern_pid = new_pid;
 
@@ -459,14 +459,3 @@ int is_valid_pid(int pid)
 	read_unlock(&tasklist_lock);
 	return(0);
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

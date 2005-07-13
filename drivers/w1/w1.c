@@ -516,6 +516,7 @@ static void w1_slave_found(unsigned long data, u64 rn)
 	struct w1_reg_num *tmp;
 	int family_found = 0;
 	struct w1_master *dev;
+	u64 rn_le = cpu_to_le64(rn);
 
 	dev = w1_search_master(data);
 	if (!dev) {
@@ -544,10 +545,8 @@ static void w1_slave_found(unsigned long data, u64 rn)
 		slave_count++;
 	}
 
-	rn = cpu_to_le64(rn);
-
 	if (slave_count == dev->slave_count &&
-		rn && ((le64_to_cpu(rn) >> 56) & 0xff) == w1_calc_crc8((u8 *)&rn, 7)) {
+		rn && ((rn >> 56) & 0xff) == w1_calc_crc8((u8 *)&rn_le, 7)) {
 		w1_attach_slave_device(dev, tmp);
 	}
 
@@ -646,7 +645,7 @@ static int w1_control(void *data)
 	while (!control_needs_exit || have_to_wait) {
 		have_to_wait = 0;
 
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 		msleep_interruptible(w1_timeout * 1000);
 
 		if (signal_pending(current))
@@ -725,7 +724,7 @@ int w1_process(void *data)
 	allow_signal(SIGTERM);
 
 	while (!test_bit(W1_MASTER_NEED_EXIT, &dev->flags)) {
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 		msleep_interruptible(w1_timeout * 1000);
 
 		if (signal_pending(current))

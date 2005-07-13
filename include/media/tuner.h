@@ -1,5 +1,6 @@
 
-/*
+/* $Id: tuner.h,v 1.42 2005/07/06 09:42:19 mchehab Exp $
+ *
     tuner.h - definition for different tuners
 
     Copyright (C) 1997 Markus Schroeder (schroedm@uni-duesseldorf.de)
@@ -23,7 +24,9 @@
 #ifndef _TUNER_H
 #define _TUNER_H
 
-#include "id.h"
+#include <linux/videodev2.h>
+
+#define ADDR_UNSET (255)
 
 #define TUNER_TEMIC_PAL     0        /* 4002 FH5 (3X 7756, 9483) */
 #define TUNER_PHILIPS_PAL_I 1
@@ -86,7 +89,7 @@
 #define TUNER_LG_NTSC_TAPE       47
 
 #define TUNER_TNF_8831BGFF       48
-#define TUNER_MICROTUNE_4042FI5  49	/* FusionHDTV 3 Gold - 4042 FI5 (3X 8147) */
+#define TUNER_MICROTUNE_4042FI5  49	/* DViCO FusionHDTV 3 Gold-Q - 4042 FI5 (3X 8147) */
 #define TUNER_TCL_2002N          50
 #define TUNER_PHILIPS_FM1256_IH3   51
 
@@ -96,7 +99,15 @@
 #define TUNER_LG_PAL_TAPE        55    /* Hauppauge PVR-150 PAL */
 
 #define TUNER_PHILIPS_FQ1216AME_MK4 56 /* Hauppauge PVR-150 PAL */
-#define TUNER_PHILIPS_FQ1236A_MK4 57   /* Hauppauge PVR-500MCE NTSC */
+#define TUNER_PHILIPS_FQ1236A_MK4   57   /* Hauppauge PVR-500MCE NTSC */
+
+#define TUNER_YMEC_TVF_8531MF 58
+#define TUNER_YMEC_TVF_5533MF 59	/* Pixelview Pro Ultra NTSC */
+#define TUNER_THOMSON_DTT7611 60	/* DViCO FusionHDTV 3 Gold-T */
+#define TUNER_TENA_9533_DI    61
+
+#define TUNER_TEA5767         62	/* Only FM Radio Tuner */
+#define TUNER_PHILIPS_FMD1216ME_MK3 63
 
 #define NOTUNER 0
 #define PAL     1	/* PAL_BG */
@@ -104,6 +115,7 @@
 #define NTSC    3
 #define SECAM   4
 #define ATSC    5
+#define RADIO	6
 
 #define NoTuner 0
 #define Philips 1
@@ -119,10 +131,9 @@
 #define TCL     11
 #define THOMSON 12
 
-#define TUNER_SET_TYPE               _IOW('t',1,int)    /* set tuner type */
-#define TUNER_SET_TVFREQ             _IOW('t',2,int)    /* set tv freq */
+#define TUNER_SET_TYPE_ADDR          _IOW('T',3,int)
+#define TDA9887_SET_CONFIG           _IOW('t',5,int)
 
-#define  TDA9887_SET_CONFIG          _IOW('t',5,int)
 /* tv card specific */
 # define TDA9887_PRESENT             (1<<0)
 # define TDA9887_PORT1_INACTIVE      (1<<1)
@@ -143,19 +154,34 @@
 #define I2C_ADDR_TDA8290        0x4b
 #define I2C_ADDR_TDA8275        0x61
 
+enum tuner_mode {
+	T_UNINITIALIZED = 0,
+	T_RADIO		= 1 << V4L2_TUNER_RADIO,
+	T_ANALOG_TV     = 1 << V4L2_TUNER_ANALOG_TV,
+	T_DIGITAL_TV    = 1 << V4L2_TUNER_DIGITAL_TV,
+	T_STANDBY	= 1 << 31
+};
+
+struct tuner_setup {
+	unsigned short		addr;
+	unsigned int		type;
+	unsigned int		mode_mask;
+};
+
 struct tuner {
 	/* device */
 	struct i2c_client i2c;
 
-	/* state + config */
-	unsigned int initialized;
 	unsigned int type;            /* chip type */
-	unsigned int freq;            /* keep track of the current settings */
-	v4l2_std_id  std;
-	int          using_v4l2;
 
-	enum v4l2_tuner_type mode;
-	unsigned int input;
+	unsigned int          mode;
+	unsigned int          mode_mask; /* Combination of allowable modes */
+
+	unsigned int freq;            /* keep track of the current settings */
+	unsigned int audmode;
+	v4l2_std_id  std;
+
+	int          using_v4l2;
 
 	/* used by MT2032 */
 	unsigned int xogc;
@@ -177,7 +203,9 @@ extern unsigned const int tuner_count;
 
 extern int microtune_init(struct i2c_client *c);
 extern int tda8290_init(struct i2c_client *c);
+extern int tea5767_tuner_init(struct i2c_client *c);
 extern int default_tuner_init(struct i2c_client *c);
+extern int tea5767_autodetection(struct i2c_client *c);
 
 #define tuner_warn(fmt, arg...) \
 	dev_printk(KERN_WARNING , &t->i2c.dev , fmt , ## arg)

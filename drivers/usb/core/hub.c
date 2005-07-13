@@ -26,6 +26,7 @@
 #include <linux/ioctl.h>
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
+#include <linux/kthread.h>
 
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
@@ -47,8 +48,7 @@ static LIST_HEAD(hub_event_list);	/* List of hubs needing servicing */
 /* Wakes up khubd */
 static DECLARE_WAIT_QUEUE_HEAD(khubd_wait);
 
-static pid_t khubd_pid = 0;			/* PID of khubd */
-static DECLARE_COMPLETION(khubd_exited);
+static struct task_struct *khubd_task;
 
 /* cycle leds on hubs that aren't blinking for attention */
 static int blinkenlights = 0;
@@ -643,15 +643,21 @@ static int hub_configure(struct usb_hub *hub,
 		message = "can't get hub status";
 		goto fail;
 	}
-	cpu_to_le16s(&hubstatus);
-	if ((hubstatus & (1 << USB_DEVICE_SELF_POWERED)) == 0) {
+	le16_to_cpus(&hubstatus);
+	if (hdev == hdev->bus->root_hub) {
+		struct usb_hcd *hcd =
+				container_of(hdev->bus, struct usb_hcd, self);
+
+		hub->power_budget = min(500u, hcd->power_budget) / 2;
+	} else if ((hubstatus & (1 << USB_DEVICE_SELF_POWERED)) == 0) {
 		dev_dbg(hub_dev, "hub controller current requirement: %dmA\n",
 			hub->descriptor->bHubContrCurrent);
 		hub->power_budget = (501 - hub->descriptor->bHubContrCurrent)
 					/ 2;
+	}
+	if (hub->power_budget)
 		dev_dbg(hub_dev, "%dmA bus power budget for children\n",
 			hub->power_budget * 2);
-	}
 
 
 	ret = hub_hub_status(hub, &hubstatus, &hubchange);
@@ -1727,7 +1733,7 @@ static int finish_port_resume(struct usb_device *udev)
 			struct usb_driver	*driver;
 
 			intf = udev->actconfig->interface[i];
-			if (intf->dev.power.power_state == PMSG_SUSPEND)
+			if (intf->dev.power.power_state == PMSG_ON)
 				continue;
 			if (!intf->dev.driver) {
 				/* FIXME maybe force to alt 0 */
@@ -2787,6 +2793,11 @@ static void hub_events(void)
 
 		hub->activating = 0;
 
+		/* If this is a root hub, tell the HCD it's okay to
+		 * re-enable port-change interrupts now. */
+		if (!hdev->parent)
+			usb_enable_root_hub_irq(hdev->bus);
+
 loop:
 		usb_unlock_device(hdev);
 		usb_put_intf(intf);
@@ -2796,23 +2807,16 @@ loop:
 
 static int hub_thread(void *__unused)
 {
-	/*
-	 * This thread doesn't need any user-level access,
-	 * so get rid of all our resources
-	 */
-
-	daemonize("khubd");
-	allow_signal(SIGKILL);
-
-	/* Send me a signal to get me die (for debugging) */
 	do {
 		hub_events();
-		wait_event_interruptible(khubd_wait, !list_empty(&hub_event_list)); 
-		try_to_freeze(PF_FREEZE);
-	} while (!signal_pending(current));
+		wait_event_interruptible(khubd_wait,
+				!list_empty(&hub_event_list) ||
+				kthread_should_stop());
+		try_to_freeze();
+	} while (!kthread_should_stop() || !list_empty(&hub_event_list));
 
-	pr_debug ("%s: khubd exiting\n", usbcore_name);
-	complete_and_exit(&khubd_exited, 0);
+	pr_debug("%s: khubd exiting\n", usbcore_name);
+	return 0;
 }
 
 static struct usb_device_id hub_id_table [] = {
@@ -2838,20 +2842,15 @@ static struct usb_driver hub_driver = {
 
 int usb_hub_init(void)
 {
-	pid_t pid;
-
 	if (usb_register(&hub_driver) < 0) {
 		printk(KERN_ERR "%s: can't register hub driver\n",
 			usbcore_name);
 		return -1;
 	}
 
-	pid = kernel_thread(hub_thread, NULL, CLONE_KERNEL);
-	if (pid >= 0) {
-		khubd_pid = pid;
-
+	khubd_task = kthread_run(hub_thread, NULL, "khubd");
+	if (!IS_ERR(khubd_task))
 		return 0;
-	}
 
 	/* Fall through if kernel_thread failed */
 	usb_deregister(&hub_driver);
@@ -2862,12 +2861,7 @@ int usb_hub_init(void)
 
 void usb_hub_cleanup(void)
 {
-	int ret;
-
-	/* Kill the thread */
-	ret = kill_proc(khubd_pid, SIGKILL, 1);
-
-	wait_for_completion(&khubd_exited);
+	kthread_stop(khubd_task);
 
 	/*
 	 * Hub resources are freed for us by usb_deregister. It calls
@@ -2878,7 +2872,6 @@ void usb_hub_cleanup(void)
 	 */
 	usb_deregister(&hub_driver);
 } /* usb_hub_cleanup() */
-
 
 static int config_descriptors_changed(struct usb_device *udev)
 {

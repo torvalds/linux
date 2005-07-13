@@ -133,6 +133,7 @@ struct acpi_object_integer
 	acpi_integer                            value;
 };
 
+
 /*
  * Note: The String and Buffer object must be identical through the Pointer
  * element.  There is code that depends on this.
@@ -467,7 +468,6 @@ union acpi_operand_object
  * union acpi_descriptor - objects that share a common descriptor identifier
  *
  *****************************************************************************/
-
 
 /* Object descriptor types */
 

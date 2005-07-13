@@ -49,6 +49,23 @@
 #define _COMPONENT          ACPI_RESOURCES
 	 ACPI_MODULE_NAME    ("rsxface")
 
+/* Local macros for 16,32-bit to 64-bit conversion */
+
+#define ACPI_COPY_FIELD(out, in, field)  ((out)->field = (in)->field)
+#define ACPI_COPY_ADDRESS(out, in)                      \
+	ACPI_COPY_FIELD(out, in, resource_type);             \
+	ACPI_COPY_FIELD(out, in, producer_consumer);         \
+	ACPI_COPY_FIELD(out, in, decode);                    \
+	ACPI_COPY_FIELD(out, in, min_address_fixed);         \
+	ACPI_COPY_FIELD(out, in, max_address_fixed);         \
+	ACPI_COPY_FIELD(out, in, attribute);                 \
+	ACPI_COPY_FIELD(out, in, granularity);               \
+	ACPI_COPY_FIELD(out, in, min_address_range);         \
+	ACPI_COPY_FIELD(out, in, max_address_range);         \
+	ACPI_COPY_FIELD(out, in, address_translation_offset); \
+	ACPI_COPY_FIELD(out, in, address_length);            \
+	ACPI_COPY_FIELD(out, in, resource_source);
+
 
 /*******************************************************************************
  *
@@ -180,6 +197,7 @@ EXPORT_SYMBOL(acpi_get_current_resources);
  *              and the value of ret_buffer is undefined.
  *
  ******************************************************************************/
+
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_get_possible_resources (
@@ -346,9 +364,8 @@ acpi_set_current_resources (
 	ACPI_FUNCTION_TRACE ("acpi_set_current_resources");
 
 
-	/*
-	 * Must have a valid handle and buffer
-	 */
+	/* Must have a valid handle and buffer */
+
 	if ((!device_handle)      ||
 		(!in_buffer)          ||
 		(!in_buffer->pointer) ||
@@ -361,21 +378,6 @@ acpi_set_current_resources (
 }
 EXPORT_SYMBOL(acpi_set_current_resources);
 
-
-#define ACPI_COPY_FIELD(out, in, field)  ((out)->field = (in)->field)
-#define ACPI_COPY_ADDRESS(out, in)                      \
-	ACPI_COPY_FIELD(out, in, resource_type);             \
-	ACPI_COPY_FIELD(out, in, producer_consumer);         \
-	ACPI_COPY_FIELD(out, in, decode);                    \
-	ACPI_COPY_FIELD(out, in, min_address_fixed);         \
-	ACPI_COPY_FIELD(out, in, max_address_fixed);         \
-	ACPI_COPY_FIELD(out, in, attribute);                 \
-	ACPI_COPY_FIELD(out, in, granularity);               \
-	ACPI_COPY_FIELD(out, in, min_address_range);         \
-	ACPI_COPY_FIELD(out, in, max_address_range);         \
-	ACPI_COPY_FIELD(out, in, address_translation_offset); \
-	ACPI_COPY_FIELD(out, in, address_length);            \
-	ACPI_COPY_FIELD(out, in, resource_source);
 
 /******************************************************************************
  *
@@ -408,14 +410,14 @@ acpi_resource_to_address64 (
 	case ACPI_RSTYPE_ADDRESS16:
 
 		address16 = (struct acpi_resource_address16 *) &resource->data;
-		ACPI_COPY_ADDRESS(out, address16);
+		ACPI_COPY_ADDRESS (out, address16);
 		break;
 
 
 	case ACPI_RSTYPE_ADDRESS32:
 
 		address32 = (struct acpi_resource_address32 *) &resource->data;
-		ACPI_COPY_ADDRESS(out, address32);
+		ACPI_COPY_ADDRESS (out, address32);
 		break;
 
 
@@ -434,4 +436,3 @@ acpi_resource_to_address64 (
 	return (AE_OK);
 }
 EXPORT_SYMBOL(acpi_resource_to_address64);
-

@@ -137,6 +137,8 @@ extern irqreturn_t mga_driver_irq_handler( DRM_IRQ_ARGS );
 extern void mga_driver_irq_preinstall( drm_device_t *dev );
 extern void mga_driver_irq_postinstall( drm_device_t *dev );
 extern void mga_driver_irq_uninstall( drm_device_t *dev );
+extern long mga_compat_ioctl(struct file *filp, unsigned int cmd,
+			     unsigned long arg);
 
 #define mga_flush_write_combine()	DRM_WRITEMEMORYBARRIER()
 

@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 12
-EXTRAVERSION =
+SUBLEVEL = 13
+EXTRAVERSION =-rc3
 NAME=Woozy Numbat
 
 # *DOCUMENTATION*
@@ -281,7 +281,7 @@ export quiet Q KBUILD_VERBOSE
 # See documentation in Documentation/kbuild/makefiles.txt
 
 # cc-option
-# Usage: cflags-y += $(call gcc-option, -march=winchip-c6, -march=i586)
+# Usage: cflags-y += $(call cc-option, -march=winchip-c6, -march=i586)
 
 cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
              > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
@@ -792,6 +792,9 @@ export CPPFLAGS_vmlinux.lds += -P -C -U$(ARCH)
 	$(Q)$(MAKE) $(build)=$(@D) $@
 %.o: %.c scripts FORCE
 	$(Q)$(MAKE) $(build)=$(@D) $@
+%.ko: scripts FORCE
+	$(Q)$(MAKE) KBUILD_MODULES=$(if $(CONFIG_MODULES),1) $(build)=$(@D) $(@:.ko=.o)
+	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
 %/:      scripts prepare FORCE
 	$(Q)$(MAKE) KBUILD_MODULES=$(if $(CONFIG_MODULES),1) $(build)=$(@D)
 %.lst: %.c scripts FORCE
@@ -1033,6 +1036,7 @@ help:
 	@echo  '  modules_install - Install all modules'
 	@echo  '  dir/            - Build all files in dir and below'
 	@echo  '  dir/file.[ois]  - Build specified target only'
+	@echo  '  dir/file.ko     - Build module including final link'
 	@echo  '  rpm		  - Build a kernel as an RPM package'
 	@echo  '  tags/TAGS	  - Generate tags file for editors'
 	@echo  '  cscope	  - Generate cscope index'
@@ -1149,7 +1153,7 @@ endif # KBUILD_EXTMOD
 #(which is the most common case IMHO) to avoid unneeded clutter in the big tags file.
 #Adding $(srctree) adds about 20M on i386 to the size of the output file!
 
-ifeq ($(KBUILD_OUTPUT),)
+ifeq ($(src),$(obj))
 __srctree =
 else
 __srctree = $(srctree)/

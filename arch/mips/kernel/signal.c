@@ -457,7 +457,7 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	if (!user_mode(regs))
 		return 1;
 
-	if (try_to_freeze(0))
+	if (try_to_freeze())
 		goto no_signal;
 
 	if (!oldset)

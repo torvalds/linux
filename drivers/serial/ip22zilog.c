@@ -518,16 +518,11 @@ static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id, struct pt_regs *re
 static __inline__ unsigned char ip22zilog_read_channel_status(struct uart_port *port)
 {
 	struct zilog_channel *channel;
-	unsigned long flags;
 	unsigned char status;
-
-	spin_lock_irqsave(&port->lock, flags);
 
 	channel = ZILOG_CHANNEL_FROM_PORT(port);
 	status = readb(&channel->control);
 	ZSDELAY();
-
-	spin_unlock_irqrestore(&port->lock, flags);
 
 	return status;
 }
@@ -535,10 +530,16 @@ static __inline__ unsigned char ip22zilog_read_channel_status(struct uart_port *
 /* The port lock is not held.  */
 static unsigned int ip22zilog_tx_empty(struct uart_port *port)
 {
+	unsigned long flags;
 	unsigned char status;
 	unsigned int ret;
 
+	spin_lock_irqsave(&port->lock, flags);
+
 	status = ip22zilog_read_channel_status(port);
+
+	spin_unlock_irqrestore(&port->lock, flags);
+
 	if (status & Tx_BUF_EMP)
 		ret = TIOCSER_TEMT;
 	else
@@ -547,7 +548,7 @@ static unsigned int ip22zilog_tx_empty(struct uart_port *port)
 	return ret;
 }
 
-/* The port lock is not held.  */
+/* The port lock is held and interrupts are disabled.  */
 static unsigned int ip22zilog_get_mctrl(struct uart_port *port)
 {
 	unsigned char status;

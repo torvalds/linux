@@ -1597,7 +1597,7 @@ void msleep(unsigned int msecs)
 EXPORT_SYMBOL(msleep);
 
 /**
- * msleep_interruptible - sleep waiting for waitqueue interruptions
+ * msleep_interruptible - sleep waiting for signals
  * @msecs: Time in milliseconds to sleep for
  */
 unsigned long msleep_interruptible(unsigned int msecs)

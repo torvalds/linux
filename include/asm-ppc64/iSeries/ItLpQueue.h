@@ -41,7 +41,7 @@ struct HvLpEvent;
 #define LpEventMaxSize		256
 #define LpEventAlign		64
 
-struct ItLpQueue {
+struct hvlpevent_queue {
 /*
  * The xSlicCurEventPtr is the pointer to the next event stack entry
  * that will become valid.  The OS must peek at this entry to determine
@@ -69,16 +69,13 @@ struct ItLpQueue {
 	char	*xSlicEventStackPtr;	// 0x20
 	u8	xIndex;			// 0x28 unique sequential index.
 	u8	xSlicRsvd[3];		// 0x29-2b
-	u32	xInUseWord;		// 0x2C
-	u64	xLpIntCount;		// 0x30 Total Lp Int msgs processed
-	u64	xLpIntCountByType[9];	// 0x38-0x7F Event counts by type
+	spinlock_t	lock;
 };
 
-extern struct ItLpQueue xItLpQueue;
+extern struct hvlpevent_queue hvlpevent_queue;
 
-extern struct HvLpEvent *ItLpQueue_getNextLpEvent(struct ItLpQueue *);
-extern int ItLpQueue_isLpIntPending(struct ItLpQueue *);
-extern unsigned ItLpQueue_process(struct ItLpQueue *, struct pt_regs *);
-extern void ItLpQueue_clearValid(struct HvLpEvent *);
+extern int hvlpevent_is_pending(void);
+extern void process_hvlpevents(struct pt_regs *);
+extern void setup_hvlpevent_queue(void);
 
 #endif /* _ITLPQUEUE_H */

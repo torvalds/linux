@@ -1,6 +1,26 @@
 #
 # IPv6 configuration
-# 
+#
+
+#   IPv6 as module will cause a CRASH if you try to unload it
+config IPV6
+	tristate "The IPv6 protocol"
+	default m
+	select CRYPTO if IPV6_PRIVACY
+	select CRYPTO_MD5 if IPV6_PRIVACY
+	---help---
+	  This is complemental support for the IP version 6.
+	  You will still be able to do traditional IPv4 networking as well.
+
+	  For general information about IPv6, see
+	  <http://playground.sun.com/pub/ipng/html/ipng-main.html>.
+	  For Linux IPv6 development information, see <http://www.linux-ipv6.org>.
+	  For specific information about IPv6 under Linux, read the HOWTO at
+	  <http://www.bieringer.de/linux/IPv6/>.
+
+	  To compile this protocol support as a module, choose M here: the 
+	  module will be called ipv6.
+
 config IPV6_PRIVACY
 	bool "IPv6: Privacy Extensions (RFC 3041) support"
 	depends on IPV6

@@ -152,7 +152,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 	switch (cmd) 
 	{
-		case TUNER_SET_TVFREQ:
+		case VIDIOCSFREQ:
 			set_tv_freq(client, *iarg);
 			break;
 	    

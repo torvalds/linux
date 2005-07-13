@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2005 Cisco Systems. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -33,9 +35,12 @@
  */
 
 #include <ib_smi.h>
+#include <linux/mm.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
+#include "mthca_user.h"
+#include "mthca_memfree.h"
 
 static int mthca_query_device(struct ib_device *ibdev,
 			      struct ib_device_attr *props)
@@ -52,7 +57,7 @@ static int mthca_query_device(struct ib_device *ibdev,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	memset(props, 0, sizeof props);
+	memset(props, 0, sizeof *props);
 
 	props->fw_ver              = mdev->fw_ver;
 
@@ -283,7 +288,78 @@ static int mthca_query_gid(struct ib_device *ibdev, u8 port,
 	return err;
 }
 
-static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev)
+static struct ib_ucontext *mthca_alloc_ucontext(struct ib_device *ibdev,
+						struct ib_udata *udata)
+{
+	struct mthca_alloc_ucontext_resp uresp;
+	struct mthca_ucontext           *context;
+	int                              err;
+
+	memset(&uresp, 0, sizeof uresp);
+
+	uresp.qp_tab_size = to_mdev(ibdev)->limits.num_qps;
+	if (mthca_is_memfree(to_mdev(ibdev)))
+		uresp.uarc_size = to_mdev(ibdev)->uar_table.uarc_size;
+	else
+		uresp.uarc_size = 0;
+
+	context = kmalloc(sizeof *context, GFP_KERNEL);
+	if (!context)
+		return ERR_PTR(-ENOMEM);
+
+	err = mthca_uar_alloc(to_mdev(ibdev), &context->uar);
+	if (err) {
+		kfree(context);
+		return ERR_PTR(err);
+	}
+
+	context->db_tab = mthca_init_user_db_tab(to_mdev(ibdev));
+	if (IS_ERR(context->db_tab)) {
+		err = PTR_ERR(context->db_tab);
+		mthca_uar_free(to_mdev(ibdev), &context->uar);
+		kfree(context);
+		return ERR_PTR(err);
+	}
+
+	if (ib_copy_to_udata(udata, &uresp, sizeof uresp)) {
+		mthca_cleanup_user_db_tab(to_mdev(ibdev), &context->uar, context->db_tab);
+		mthca_uar_free(to_mdev(ibdev), &context->uar);
+		kfree(context);
+		return ERR_PTR(-EFAULT);
+	}
+
+	return &context->ibucontext;
+}
+
+static int mthca_dealloc_ucontext(struct ib_ucontext *context)
+{
+	mthca_cleanup_user_db_tab(to_mdev(context->device), &to_mucontext(context)->uar,
+				  to_mucontext(context)->db_tab);
+	mthca_uar_free(to_mdev(context->device), &to_mucontext(context)->uar);
+	kfree(to_mucontext(context));
+
+	return 0;
+}
+
+static int mthca_mmap_uar(struct ib_ucontext *context,
+			  struct vm_area_struct *vma)
+{
+	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (remap_pfn_range(vma, vma->vm_start,
+			    to_mucontext(context)->uar.pfn,
+			    PAGE_SIZE, vma->vm_page_prot))
+		return -EAGAIN;
+
+	return 0;
+}
+
+static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev,
+				    struct ib_ucontext *context,
+				    struct ib_udata *udata)
 {
 	struct mthca_pd *pd;
 	int err;
@@ -292,10 +368,18 @@ static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev)
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	err = mthca_pd_alloc(to_mdev(ibdev), pd);
+	err = mthca_pd_alloc(to_mdev(ibdev), !context, pd);
 	if (err) {
 		kfree(pd);
 		return ERR_PTR(err);
+	}
+
+	if (context) {
+		if (ib_copy_to_udata(udata, &pd->pd_num, sizeof (__u32))) {
+			mthca_pd_free(to_mdev(ibdev), pd);
+			kfree(pd);
+			return ERR_PTR(-EFAULT);
+		}
 	}
 
 	return &pd->ibpd;
@@ -337,8 +421,10 @@ static int mthca_ah_destroy(struct ib_ah *ah)
 }
 
 static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
-				     struct ib_qp_init_attr *init_attr)
+				     struct ib_qp_init_attr *init_attr,
+				     struct ib_udata *udata)
 {
+	struct mthca_create_qp ucmd;
 	struct mthca_qp *qp;
 	int err;
 
@@ -347,41 +433,82 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	case IB_QPT_UC:
 	case IB_QPT_UD:
 	{
+		struct mthca_ucontext *context;
+
 		qp = kmalloc(sizeof *qp, GFP_KERNEL);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 
-		qp->sq.max    = init_attr->cap.max_send_wr;
-		qp->rq.max    = init_attr->cap.max_recv_wr;
-		qp->sq.max_gs = init_attr->cap.max_send_sge;
-		qp->rq.max_gs = init_attr->cap.max_recv_sge;
+		if (pd->uobject) {
+			context = to_mucontext(pd->uobject->context);
+
+			if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
+				return ERR_PTR(-EFAULT);
+
+			err = mthca_map_user_db(to_mdev(pd->device), &context->uar,
+						context->db_tab,
+						ucmd.sq_db_index, ucmd.sq_db_page);
+			if (err) {
+				kfree(qp);
+				return ERR_PTR(err);
+			}
+
+			err = mthca_map_user_db(to_mdev(pd->device), &context->uar,
+						context->db_tab,
+						ucmd.rq_db_index, ucmd.rq_db_page);
+			if (err) {
+				mthca_unmap_user_db(to_mdev(pd->device),
+						    &context->uar,
+						    context->db_tab,
+						    ucmd.sq_db_index);
+				kfree(qp);
+				return ERR_PTR(err);
+			}
+
+			qp->mr.ibmr.lkey = ucmd.lkey;
+			qp->sq.db_index  = ucmd.sq_db_index;
+			qp->rq.db_index  = ucmd.rq_db_index;
+		}
 
 		err = mthca_alloc_qp(to_mdev(pd->device), to_mpd(pd),
 				     to_mcq(init_attr->send_cq),
 				     to_mcq(init_attr->recv_cq),
 				     init_attr->qp_type, init_attr->sq_sig_type,
-				     qp);
+				     &init_attr->cap, qp);
+
+		if (err && pd->uobject) {
+			context = to_mucontext(pd->uobject->context);
+
+			mthca_unmap_user_db(to_mdev(pd->device),
+					    &context->uar,
+					    context->db_tab,
+					    ucmd.sq_db_index);
+			mthca_unmap_user_db(to_mdev(pd->device),
+					    &context->uar,
+					    context->db_tab,
+					    ucmd.rq_db_index);
+		}
+
 		qp->ibqp.qp_num = qp->qpn;
 		break;
 	}
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	{
+		/* Don't allow userspace to create special QPs */
+		if (pd->uobject)
+			return ERR_PTR(-EINVAL);
+
 		qp = kmalloc(sizeof (struct mthca_sqp), GFP_KERNEL);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
-
-		qp->sq.max    = init_attr->cap.max_send_wr;
-		qp->rq.max    = init_attr->cap.max_recv_wr;
-		qp->sq.max_gs = init_attr->cap.max_send_sge;
-		qp->rq.max_gs = init_attr->cap.max_recv_sge;
 
 		qp->ibqp.qp_num = init_attr->qp_type == IB_QPT_SMI ? 0 : 1;
 
 		err = mthca_alloc_sqp(to_mdev(pd->device), to_mpd(pd),
 				      to_mcq(init_attr->send_cq),
 				      to_mcq(init_attr->recv_cq),
-				      init_attr->sq_sig_type,
+				      init_attr->sq_sig_type, &init_attr->cap,
 				      qp->ibqp.qp_num, init_attr->port_num,
 				      to_msqp(qp));
 		break;
@@ -396,42 +523,115 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 		return ERR_PTR(err);
 	}
 
-        init_attr->cap.max_inline_data = 0;
+	init_attr->cap.max_inline_data = 0;
+	init_attr->cap.max_send_wr     = qp->sq.max;
+	init_attr->cap.max_recv_wr     = qp->rq.max;
+	init_attr->cap.max_send_sge    = qp->sq.max_gs;
+	init_attr->cap.max_recv_sge    = qp->rq.max_gs;
 
 	return &qp->ibqp;
 }
 
 static int mthca_destroy_qp(struct ib_qp *qp)
 {
+	if (qp->uobject) {
+		mthca_unmap_user_db(to_mdev(qp->device),
+				    &to_mucontext(qp->uobject->context)->uar,
+				    to_mucontext(qp->uobject->context)->db_tab,
+				    to_mqp(qp)->sq.db_index);
+		mthca_unmap_user_db(to_mdev(qp->device),
+				    &to_mucontext(qp->uobject->context)->uar,
+				    to_mucontext(qp->uobject->context)->db_tab,
+				    to_mqp(qp)->rq.db_index);
+	}
 	mthca_free_qp(to_mdev(qp->device), to_mqp(qp));
 	kfree(qp);
 	return 0;
 }
 
-static struct ib_cq *mthca_create_cq(struct ib_device *ibdev, int entries)
+static struct ib_cq *mthca_create_cq(struct ib_device *ibdev, int entries,
+				     struct ib_ucontext *context,
+				     struct ib_udata *udata)
 {
+	struct mthca_create_cq ucmd;
 	struct mthca_cq *cq;
 	int nent;
 	int err;
 
+	if (context) {
+		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
+			return ERR_PTR(-EFAULT);
+
+		err = mthca_map_user_db(to_mdev(ibdev), &to_mucontext(context)->uar,
+					to_mucontext(context)->db_tab,
+					ucmd.set_db_index, ucmd.set_db_page);
+		if (err)
+			return ERR_PTR(err);
+
+		err = mthca_map_user_db(to_mdev(ibdev), &to_mucontext(context)->uar,
+					to_mucontext(context)->db_tab,
+					ucmd.arm_db_index, ucmd.arm_db_page);
+		if (err)
+			goto err_unmap_set;
+	}
+
 	cq = kmalloc(sizeof *cq, GFP_KERNEL);
-	if (!cq)
-		return ERR_PTR(-ENOMEM);
+	if (!cq) {
+		err = -ENOMEM;
+		goto err_unmap_arm;
+	}
+
+	if (context) {
+		cq->mr.ibmr.lkey    = ucmd.lkey;
+		cq->set_ci_db_index = ucmd.set_db_index;
+		cq->arm_db_index    = ucmd.arm_db_index;
+	}
 
 	for (nent = 1; nent <= entries; nent <<= 1)
 		; /* nothing */
 
-	err = mthca_init_cq(to_mdev(ibdev), nent, cq);
-	if (err) {
-		kfree(cq);
-		cq = ERR_PTR(err);
+	err = mthca_init_cq(to_mdev(ibdev), nent,
+			    context ? to_mucontext(context) : NULL,
+			    context ? ucmd.pdn : to_mdev(ibdev)->driver_pd.pd_num,
+			    cq);
+	if (err)
+		goto err_free;
+
+	if (context && ib_copy_to_udata(udata, &cq->cqn, sizeof (__u32))) {
+		mthca_free_cq(to_mdev(ibdev), cq);
+		goto err_free;
 	}
 
 	return &cq->ibcq;
+
+err_free:
+	kfree(cq);
+
+err_unmap_arm:
+	if (context)
+		mthca_unmap_user_db(to_mdev(ibdev), &to_mucontext(context)->uar,
+				    to_mucontext(context)->db_tab, ucmd.arm_db_index);
+
+err_unmap_set:
+	if (context)
+		mthca_unmap_user_db(to_mdev(ibdev), &to_mucontext(context)->uar,
+				    to_mucontext(context)->db_tab, ucmd.set_db_index);
+
+	return ERR_PTR(err);
 }
 
 static int mthca_destroy_cq(struct ib_cq *cq)
 {
+	if (cq->uobject) {
+		mthca_unmap_user_db(to_mdev(cq->device),
+				    &to_mucontext(cq->uobject->context)->uar,
+				    to_mucontext(cq->uobject->context)->db_tab,
+				    to_mcq(cq)->arm_db_index);
+		mthca_unmap_user_db(to_mdev(cq->device),
+				    &to_mucontext(cq->uobject->context)->uar,
+				    to_mucontext(cq->uobject->context)->db_tab,
+				    to_mcq(cq)->set_ci_db_index);
+	}
 	mthca_free_cq(to_mdev(cq->device), to_mcq(cq));
 	kfree(cq);
 
@@ -558,12 +758,94 @@ static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
 				  convert_access(acc), mr);
 
 	if (err) {
+		kfree(page_list);
 		kfree(mr);
 		return ERR_PTR(err);
 	}
 
 	kfree(page_list);
 	return &mr->ibmr;
+}
+
+static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
+				       int acc, struct ib_udata *udata)
+{
+	struct mthca_dev *dev = to_mdev(pd->device);
+	struct ib_umem_chunk *chunk;
+	struct mthca_mr *mr;
+	u64 *pages;
+	int shift, n, len;
+	int i, j, k;
+	int err = 0;
+
+	shift = ffs(region->page_size) - 1;
+
+	mr = kmalloc(sizeof *mr, GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
+
+	n = 0;
+	list_for_each_entry(chunk, &region->chunk_list, list)
+		n += chunk->nents;
+
+	mr->mtt = mthca_alloc_mtt(dev, n);
+	if (IS_ERR(mr->mtt)) {
+		err = PTR_ERR(mr->mtt);
+		goto err;
+	}
+
+	pages = (u64 *) __get_free_page(GFP_KERNEL);
+	if (!pages) {
+		err = -ENOMEM;
+		goto err_mtt;
+	}
+
+	i = n = 0;
+
+	list_for_each_entry(chunk, &region->chunk_list, list)
+		for (j = 0; j < chunk->nmap; ++j) {
+			len = sg_dma_len(&chunk->page_list[j]) >> shift;
+			for (k = 0; k < len; ++k) {
+				pages[i++] = sg_dma_address(&chunk->page_list[j]) +
+					region->page_size * k;
+				/*
+				 * Be friendly to WRITE_MTT command
+				 * and leave two empty slots for the
+				 * index and reserved fields of the
+				 * mailbox.
+				 */
+				if (i == PAGE_SIZE / sizeof (u64) - 2) {
+					err = mthca_write_mtt(dev, mr->mtt,
+							      n, pages, i);
+					if (err)
+						goto mtt_done;
+					n += i;
+					i = 0;
+				}
+			}
+		}
+
+	if (i)
+		err = mthca_write_mtt(dev, mr->mtt, n, pages, i);
+mtt_done:
+	free_page((unsigned long) pages);
+	if (err)
+		goto err_mtt;
+
+	err = mthca_mr_alloc(dev, to_mpd(pd)->pd_num, shift, region->virt_base,
+			     region->length, convert_access(acc), mr);
+
+	if (err)
+		goto err_mtt;
+
+	return &mr->ibmr;
+
+err_mtt:
+	mthca_free_mtt(dev, mr->mtt);
+
+err:
+	kfree(mr);
+	return ERR_PTR(err);
 }
 
 static int mthca_dereg_mr(struct ib_mr *mr)
@@ -690,6 +972,8 @@ int mthca_register_device(struct mthca_dev *dev)
 	int i;
 
 	strlcpy(dev->ib_dev.name, "mthca%d", IB_DEVICE_NAME_MAX);
+	dev->ib_dev.owner                = THIS_MODULE;
+
 	dev->ib_dev.node_type            = IB_NODE_CA;
 	dev->ib_dev.phys_port_cnt        = dev->limits.num_ports;
 	dev->ib_dev.dma_device           = &dev->pdev->dev;
@@ -699,6 +983,9 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.modify_port          = mthca_modify_port;
 	dev->ib_dev.query_pkey           = mthca_query_pkey;
 	dev->ib_dev.query_gid            = mthca_query_gid;
+	dev->ib_dev.alloc_ucontext       = mthca_alloc_ucontext;
+	dev->ib_dev.dealloc_ucontext     = mthca_dealloc_ucontext;
+	dev->ib_dev.mmap                 = mthca_mmap_uar;
 	dev->ib_dev.alloc_pd             = mthca_alloc_pd;
 	dev->ib_dev.dealloc_pd           = mthca_dealloc_pd;
 	dev->ib_dev.create_ah            = mthca_ah_create;
@@ -711,6 +998,7 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.poll_cq              = mthca_poll_cq;
 	dev->ib_dev.get_dma_mr           = mthca_get_dma_mr;
 	dev->ib_dev.reg_phys_mr          = mthca_reg_phys_mr;
+	dev->ib_dev.reg_user_mr          = mthca_reg_user_mr;
 	dev->ib_dev.dereg_mr             = mthca_dereg_mr;
 
 	if (dev->mthca_flags & MTHCA_FLAG_FMR) {

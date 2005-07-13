@@ -126,9 +126,12 @@ extern int page_is_ram(unsigned long pagenr);
 
 #ifdef __ASSEMBLY__
 #define __PAGE_OFFSET		(0xC0000000)
+#define __PHYSICAL_START	CONFIG_PHYSICAL_START
 #else
 #define __PAGE_OFFSET		(0xC0000000UL)
+#define __PHYSICAL_START	((unsigned long)CONFIG_PHYSICAL_START)
 #endif
+#define __KERNEL_START		(__PAGE_OFFSET + __PHYSICAL_START)
 
 
 #define PAGE_OFFSET		((unsigned long)__PAGE_OFFSET)

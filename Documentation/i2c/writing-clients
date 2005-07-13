@@ -27,7 +27,6 @@ address.
 static struct i2c_driver foo_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "Foo version 2.3 driver",
-	.id		= I2C_DRIVERID_FOO, /* from i2c-id.h, optional */
 	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= &foo_attach_adapter,
 	.detach_client	= &foo_detach_client,
@@ -36,12 +35,6 @@ static struct i2c_driver foo_driver = {
  
 The name can be chosen freely, and may be upto 40 characters long. Please
 use something descriptive here.
-
-If used, the id should be a unique ID. The range 0xf000 to 0xffff is
-reserved for local use, and you can use one of those until you start
-distributing the driver, at which time you should contact the i2c authors
-to get your own ID(s). Note that most of the time you don't need an ID
-at all so you can just omit it.
 
 Don't worry about the flags field; just put I2C_DF_NOTIFY into it. This
 means that your driver will be notified when new adapters are found.

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -54,18 +55,26 @@ struct mthca_uar {
 	int           index;
 };
 
+struct mthca_user_db_table;
+
+struct mthca_ucontext {
+	struct ib_ucontext          ibucontext;
+	struct mthca_uar            uar;
+	struct mthca_user_db_table *db_tab;
+};
+
+struct mthca_mtt;
+
 struct mthca_mr {
-	struct ib_mr ibmr;
-	int order;
-	u32 first_seg;
+	struct ib_mr      ibmr;
+	struct mthca_mtt *mtt;
 };
 
 struct mthca_fmr {
-	struct ib_fmr ibmr;
+	struct ib_fmr      ibmr;
 	struct ib_fmr_attr attr;
-	int order;
-	u32 first_seg;
-	int maps;
+	struct mthca_mtt  *mtt;
+	int                maps;
 	union {
 		struct {
 			struct mthca_mpt_entry __iomem *mpt;
@@ -83,6 +92,7 @@ struct mthca_pd {
 	u32             pd_num;
 	atomic_t        sqp_count;
 	struct mthca_mr ntmr;
+	int             privileged;
 };
 
 struct mthca_eq {
@@ -167,6 +177,7 @@ struct mthca_cq {
 	int                    cqn;
 	u32                    cons_index;
 	int                    is_direct;
+	int                    is_kernel;
 
 	/* Next fields are Arbel only */
 	int                    set_ci_db_index;
@@ -235,6 +246,11 @@ struct mthca_sqp {
 	void           *header_buf;
 	dma_addr_t      header_dma;
 };
+
+static inline struct mthca_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
+{
+	return container_of(ibucontext, struct mthca_ucontext, ibucontext);
+}
 
 static inline struct mthca_fmr *to_mfmr(struct ib_fmr *ibmr)
 {

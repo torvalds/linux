@@ -422,16 +422,10 @@ extern void __die_if_kernel(const char *, struct pt_regs *, const char *file,
 extern int stop_a_enabled;
 
 /*
- * Taken from include/asm-ia64/system.h; prevents deadlock on SMP
+ * See include/asm-ia64/system.h; prevents deadlock on SMP
  * systems.
  */
-#define prepare_arch_switch(rq, next)		\
-do {						\
-	spin_lock(&(next)->switch_lock);	\
-	spin_unlock(&(rq)->lock);		\
-} while (0)
-#define finish_arch_switch(rq, prev)	spin_unlock_irq(&(prev)->switch_lock)
-#define task_running(rq, p) 		((rq)->curr == (p) || spin_is_locked(&(p)->switch_lock))
+#define __ARCH_WANT_UNLOCKED_CTXSW
 
 #define arch_align_stack(x) (x)
 

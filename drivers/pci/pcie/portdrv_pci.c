@@ -29,6 +29,78 @@ MODULE_LICENSE("GPL");
 /* global data */
 static const char device_name[] = "pcieport-driver";
 
+static void pci_save_msi_state(struct pci_dev *dev)
+{
+	struct pcie_port_device_ext *p_ext = pci_get_drvdata(dev);
+	int i = 0, pos;
+	u16 control;
+
+   	if ((pos = pci_find_capability(dev, PCI_CAP_ID_MSI)) <= 0)
+		return;
+
+	pci_read_config_dword(dev, pos, &p_ext->saved_msi_config_space[i++]);
+	control = p_ext->saved_msi_config_space[0] >> 16;
+	pci_read_config_dword(dev, pos + PCI_MSI_ADDRESS_LO,
+		&p_ext->saved_msi_config_space[i++]);
+	if (control & PCI_MSI_FLAGS_64BIT) {
+		pci_read_config_dword(dev, pos + PCI_MSI_ADDRESS_HI,
+			&p_ext->saved_msi_config_space[i++]);
+		pci_read_config_dword(dev, pos + PCI_MSI_DATA_64,
+			&p_ext->saved_msi_config_space[i++]);
+	} else
+		pci_read_config_dword(dev, pos + PCI_MSI_DATA_32,
+			&p_ext->saved_msi_config_space[i++]);
+	if (control & PCI_MSI_FLAGS_MASKBIT)
+		pci_read_config_dword(dev, pos + PCI_MSI_MASK_BIT,
+			&p_ext->saved_msi_config_space[i++]);
+}
+
+static void pci_restore_msi_state(struct pci_dev *dev)
+{
+	struct pcie_port_device_ext *p_ext = pci_get_drvdata(dev);
+	int i = 0, pos;
+	u16 control;
+
+   	if ((pos = pci_find_capability(dev, PCI_CAP_ID_MSI)) <= 0)
+		return;
+
+	control = p_ext->saved_msi_config_space[i++] >> 16;
+	pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
+	pci_write_config_dword(dev, pos + PCI_MSI_ADDRESS_LO,
+		p_ext->saved_msi_config_space[i++]);
+	if (control & PCI_MSI_FLAGS_64BIT) {
+		pci_write_config_dword(dev, pos + PCI_MSI_ADDRESS_HI,
+			p_ext->saved_msi_config_space[i++]);
+		pci_write_config_dword(dev, pos + PCI_MSI_DATA_64,
+			p_ext->saved_msi_config_space[i++]);
+	} else
+		pci_write_config_dword(dev, pos + PCI_MSI_DATA_32,
+			p_ext->saved_msi_config_space[i++]);
+	if (control & PCI_MSI_FLAGS_MASKBIT)
+		pci_write_config_dword(dev, pos + PCI_MSI_MASK_BIT,
+			p_ext->saved_msi_config_space[i++]);
+}
+
+static void pcie_portdrv_save_config(struct pci_dev *dev)
+{
+	struct pcie_port_device_ext *p_ext = pci_get_drvdata(dev);
+
+	pci_save_state(dev);
+	if (p_ext->interrupt_mode == PCIE_PORT_MSI_MODE)
+		pci_save_msi_state(dev);
+}
+
+static void pcie_portdrv_restore_config(struct pci_dev *dev)
+{
+	struct pcie_port_device_ext *p_ext = pci_get_drvdata(dev);
+
+	pci_restore_state(dev);
+	if (p_ext->interrupt_mode == PCIE_PORT_MSI_MODE)
+		pci_restore_msi_state(dev);
+	pci_enable_device(dev);
+	pci_set_master(dev);
+}
+
 /*
  * pcie_portdrv_probe - Probe PCI-Express port devices
  * @dev: PCI-Express port device being probed
@@ -64,16 +136,21 @@ static int __devinit pcie_portdrv_probe (struct pci_dev *dev,
 static void pcie_portdrv_remove (struct pci_dev *dev)
 {
 	pcie_port_device_remove(dev);
+	kfree(pci_get_drvdata(dev));
 }
 
 #ifdef CONFIG_PM
 static int pcie_portdrv_suspend (struct pci_dev *dev, pm_message_t state)
 {
-	return pcie_port_device_suspend(dev, state);
+	int ret = pcie_port_device_suspend(dev, state);
+
+	pcie_portdrv_save_config(dev);
+	return ret;
 }
 
 static int pcie_portdrv_resume (struct pci_dev *dev)
 {
+	pcie_portdrv_restore_config(dev);
 	return pcie_port_device_resume(dev);
 }
 #endif

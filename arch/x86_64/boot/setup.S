@@ -33,7 +33,7 @@
  * Transcribed from Intel (as86) -> AT&T (gas) by Chris Noe, May 1999.
  * <stiker@northlink.com>
  *
- * Fix to work around buggy BIOSes which dont use carry bit correctly
+ * Fix to work around buggy BIOSes which don't use carry bit correctly
  * and/or report extended memory in CX/DX for e801h memory size detection 
  * call.  As a result the kernel got wrong figures.  The int15/e801h docs
  * from Ralf Brown interrupt list seem to indicate AX/BX should be used
@@ -383,7 +383,7 @@ sse_ok:
 # a whole bunch of different types, and allows memory holes and
 # everything.  We scan through this memory map and build a list
 # of the first 32 memory areas, which we return at [E820MAP].
-# This is documented at http://www.teleport.com/~acpi/acpihtml/topic245.htm
+# This is documented at http://www.acpi.info/, in the ACPI 2.0 specification.
 
 #define SMAP  0x534d4150
 
@@ -436,7 +436,7 @@ bail820:
 
 meme801:
 	stc					# fix to work around buggy
-	xorw	%cx,%cx				# BIOSes which dont clear/set
+	xorw	%cx,%cx				# BIOSes which don't clear/set
 	xorw	%dx,%dx				# carry on pass/error of
 						# e801h memory size call
 						# or merely pass cx,dx though
@@ -733,7 +733,7 @@ flush_instr:
 #
 #	but we yet haven't reloaded the CS register, so the default size 
 #	of the target offset still is 16 bit.
-#       However, using an operant prefix (0x66), the CPU will properly
+#	However, using an operand prefix (0x66), the CPU will properly
 #	take our 48 bit far pointer. (INTeL 80386 Programmer's Reference
 #	Manual, Mixing 16-bit and 32-bit code, page 16-6)
 

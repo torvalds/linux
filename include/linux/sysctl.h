@@ -61,13 +61,22 @@ enum
 	CTL_DEV=7,		/* Devices */
 	CTL_BUS=8,		/* Busses */
 	CTL_ABI=9,		/* Binary emulation */
-	CTL_CPU=10		/* CPU stuff (speed scaling, etc) */
+	CTL_CPU=10,		/* CPU stuff (speed scaling, etc) */
+	CTL_INOTIFY=11		/* Inotify */
 };
 
 /* CTL_BUS names: */
 enum
 {
 	CTL_BUS_ISA=1		/* ISA */
+};
+
+/* CTL_INOTIFY names: */
+enum
+{
+	INOTIFY_MAX_USER_DEVICES=1,	/* max number of inotify device instances per user */
+	INOTIFY_MAX_USER_WATCHES=2,	/* max number of inotify watches per user */
+	INOTIFY_MAX_QUEUED_EVENTS=3	/* Max number of queued events per inotify device instance */
 };
 
 /* CTL_KERN names: */
@@ -243,6 +252,7 @@ enum
 	NET_CORE_MOD_CONG=16,
 	NET_CORE_DEV_WEIGHT=17,
 	NET_CORE_SOMAXCONN=18,
+	NET_CORE_BUDGET=19,
 };
 
 /* /proc/sys/net/ethernet */
@@ -333,21 +343,14 @@ enum
 	NET_TCP_FRTO=92,
 	NET_TCP_LOW_LATENCY=93,
 	NET_IPV4_IPFRAG_SECRET_INTERVAL=94,
-	NET_TCP_WESTWOOD=95,
 	NET_IPV4_IGMP_MAX_MSF=96,
 	NET_TCP_NO_METRICS_SAVE=97,
-	NET_TCP_VEGAS=98,
-	NET_TCP_VEGAS_ALPHA=99,
-	NET_TCP_VEGAS_BETA=100,
-	NET_TCP_VEGAS_GAMMA=101,
- 	NET_TCP_BIC=102,
- 	NET_TCP_BIC_FAST_CONVERGENCE=103,
-	NET_TCP_BIC_LOW_WINDOW=104,
 	NET_TCP_DEFAULT_WIN_SCALE=105,
 	NET_TCP_MODERATE_RCVBUF=106,
 	NET_TCP_TSO_WIN_DIVISOR=107,
 	NET_TCP_BIC_BETA=108,
 	NET_IPV4_ICMP_ERRORS_USE_INBOUND_IFADDR=109,
+	NET_TCP_CONG_CONTROL=110,
 };
 
 enum {
@@ -647,6 +650,7 @@ enum {
 	NET_SCTP_ADDIP_ENABLE		 = 13,
 	NET_SCTP_PRSCTP_ENABLE		 = 14,
 	NET_SCTP_SNDBUF_POLICY		 = 15,
+	NET_SCTP_SACK_TIMEOUT		 = 16,
 };
 
 /* /proc/sys/net/bridge */

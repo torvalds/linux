@@ -92,10 +92,9 @@ int eth_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
 	 *	Set the source hardware address. 
 	 */
 	 
-	if(saddr)
-		memcpy(eth->h_source,saddr,dev->addr_len);
-	else
-		memcpy(eth->h_source,dev->dev_addr,dev->addr_len);
+	if(!saddr)
+		saddr = dev->dev_addr;
+	memcpy(eth->h_source,saddr,dev->addr_len);
 
 	/*
 	 *	Anyway, the loopback-device should never use this function... 
@@ -156,7 +155,7 @@ int eth_rebuild_header(struct sk_buff *skb)
  *	This is normal practice and works for any 'now in use' protocol.
  */
  
-unsigned short eth_type_trans(struct sk_buff *skb, struct net_device *dev)
+__be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
 	unsigned char *rawp;

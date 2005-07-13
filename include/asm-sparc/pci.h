@@ -20,7 +20,7 @@ extern inline void pcibios_set_master(struct pci_dev *dev)
 	/* No special bus mastering setup handling */
 }
 
-extern inline void pcibios_penalize_isa_irq(int irq)
+extern inline void pcibios_penalize_isa_irq(int irq, int active)
 {
 	/* We don't do dynamic PCI IRQ allocation */
 }
@@ -143,6 +143,16 @@ extern inline int pci_dma_supported(struct pci_dev *hwdev, u64 mask)
 }
 
 #define pci_dac_dma_supported(dev, mask)	(0)
+
+#ifdef CONFIG_PCI
+static inline void pci_dma_burst_advice(struct pci_dev *pdev,
+					enum pci_dma_burst_strategy *strat,
+					unsigned long *strategy_parameter)
+{
+	*strat = PCI_DMA_BURST_INFINITY;
+	*strategy_parameter = ~0UL;
+}
+#endif
 
 static inline void pcibios_add_platform_entries(struct pci_dev *dev)
 {

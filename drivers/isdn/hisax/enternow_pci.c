@@ -65,7 +65,6 @@
 #include "isac.h"
 #include "isdnl1.h"
 #include "amd7930_fn.h"
-#include "enternow.h"
 #include <linux/interrupt.h>
 #include <linux/ppp_defs.h>
 #include <linux/pci.h>
@@ -74,58 +73,72 @@
 
 
 
-const char *enternow_pci_rev = "$Revision: 1.1.4.5 $";
+static const char *enternow_pci_rev = "$Revision: 1.1.4.5 $";
+
+
+/* für PowerISDN PCI */
+#define TJ_AMD_IRQ                                              0x20
+#define TJ_LED1                                                 0x40
+#define TJ_LED2                                                 0x80
+
+
+/* Das Fenster zum AMD...
+ * Ab Adresse hw.njet.base + TJ_AMD_PORT werden vom AMD jeweils 8 Bit in
+ * den TigerJet i/o-Raum gemappt
+ * -> 0x01 des AMD bei hw.njet.base + 0C4 */
+#define TJ_AMD_PORT                                             0xC0
+
 
 
 /* *************************** I/O-Interface functions ************************************* */
 
 
 /* cs->readisac, macro rByteAMD */
-BYTE
-ReadByteAmd7930(struct IsdnCardState *cs, BYTE offset)
+static unsigned char
+ReadByteAmd7930(struct IsdnCardState *cs, unsigned char offset)
 {
 	/* direktes Register */
 	if(offset < 8)
-		return (InByte(cs->hw.njet.isac + 4*offset));
+		return (inb(cs->hw.njet.isac + 4*offset));
 
 	/* indirektes Register */
 	else {
-		OutByte(cs->hw.njet.isac + 4*AMD_CR, offset);
-		return(InByte(cs->hw.njet.isac + 4*AMD_DR));
+		outb(offset, cs->hw.njet.isac + 4*AMD_CR);
+		return(inb(cs->hw.njet.isac + 4*AMD_DR));
 	}
 }
 
 /* cs->writeisac, macro wByteAMD */
-void
-WriteByteAmd7930(struct IsdnCardState *cs, BYTE offset, BYTE value)
+static void
+WriteByteAmd7930(struct IsdnCardState *cs, unsigned char offset, unsigned char value)
 {
 	/* direktes Register */
 	if(offset < 8)
-		OutByte(cs->hw.njet.isac + 4*offset, value);
+		outb(value, cs->hw.njet.isac + 4*offset);
 
 	/* indirektes Register */
 	else {
-		OutByte(cs->hw.njet.isac + 4*AMD_CR, offset);
-		OutByte(cs->hw.njet.isac + 4*AMD_DR, value);
+		outb(offset, cs->hw.njet.isac + 4*AMD_CR);
+		outb(value, cs->hw.njet.isac + 4*AMD_DR);
 	}
 }
 
 
-void
-enpci_setIrqMask(struct IsdnCardState *cs, BYTE val) {
+static void
+enpci_setIrqMask(struct IsdnCardState *cs, unsigned char val) {
         if (!val)
-	        OutByte(cs->hw.njet.base+NETJET_IRQMASK1, 0x00);
+	        outb(0x00, cs->hw.njet.base+NETJET_IRQMASK1);
         else
-	        OutByte(cs->hw.njet.base+NETJET_IRQMASK1, TJ_AMD_IRQ);
+	        outb(TJ_AMD_IRQ, cs->hw.njet.base+NETJET_IRQMASK1);
 }
 
 
-static BYTE dummyrr(struct IsdnCardState *cs, int chan, BYTE off)
+static unsigned char dummyrr(struct IsdnCardState *cs, int chan, unsigned char off)
 {
         return(5);
 }
 
-static void dummywr(struct IsdnCardState *cs, int chan, BYTE off, BYTE value)
+static void dummywr(struct IsdnCardState *cs, int chan, unsigned char off, unsigned char value)
 {
 
 }
@@ -142,18 +155,18 @@ reset_enpci(struct IsdnCardState *cs)
 
 	/* Reset on, (also for AMD) */
 	cs->hw.njet.ctrl_reg = 0x07;
-	OutByte(cs->hw.njet.base + NETJET_CTRL, cs->hw.njet.ctrl_reg);
+	outb(cs->hw.njet.ctrl_reg, cs->hw.njet.base + NETJET_CTRL);
 	mdelay(20);
 	/* Reset off */
 	cs->hw.njet.ctrl_reg = 0x30;
-	OutByte(cs->hw.njet.base + NETJET_CTRL, cs->hw.njet.ctrl_reg);
+	outb(cs->hw.njet.ctrl_reg, cs->hw.njet.base + NETJET_CTRL);
 	/* 20ms delay */
 	mdelay(20);
 	cs->hw.njet.auxd = 0;  // LED-status
 	cs->hw.njet.dmactrl = 0;
-	OutByte(cs->hw.njet.base + NETJET_AUXCTRL, ~TJ_AMD_IRQ);
-	OutByte(cs->hw.njet.base + NETJET_IRQMASK1, TJ_AMD_IRQ);
-	OutByte(cs->hw.njet.auxa, cs->hw.njet.auxd); // LED off
+	outb(~TJ_AMD_IRQ, cs->hw.njet.base + NETJET_AUXCTRL);
+	outb(TJ_AMD_IRQ, cs->hw.njet.base + NETJET_IRQMASK1);
+	outb(cs->hw.njet.auxd, cs->hw.njet.auxa); // LED off
 }
 
 
@@ -161,7 +174,7 @@ static int
 enpci_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 {
 	u_long flags;
-        BYTE *chan;
+        unsigned char *chan;
 
 	if (cs->debug & L1_DEB_ISAC)
 		debugl1(cs, "enter:now PCI: card_msg: 0x%04X", mt);
@@ -187,16 +200,16 @@ enpci_card_msg(struct IsdnCardState *cs, int mt, void *arg)
                 case MDL_ASSIGN:
                         /* TEI assigned, LED1 on */
                         cs->hw.njet.auxd = TJ_AMD_IRQ << 1;
-                        OutByte(cs->hw.njet.base + NETJET_AUXDATA, cs->hw.njet.auxd);
+                        outb(cs->hw.njet.auxd, cs->hw.njet.base + NETJET_AUXDATA);
                         break;
                 case MDL_REMOVE:
                         /* TEI removed, LEDs off */
 	                cs->hw.njet.auxd = 0;
-                        OutByte(cs->hw.njet.base + NETJET_AUXDATA, 0x00);
+                        outb(0x00, cs->hw.njet.base + NETJET_AUXDATA);
                         break;
                 case MDL_BC_ASSIGN:
                         /* activate B-channel */
-                        chan = (BYTE *)arg;
+                        chan = (unsigned char *)arg;
 
                         if (cs->debug & L1_DEB_ISAC)
 		                debugl1(cs, "enter:now PCI: assign phys. BC %d in AMD LMR1", *chan);
@@ -204,11 +217,11 @@ enpci_card_msg(struct IsdnCardState *cs, int mt, void *arg)
                         cs->dc.amd7930.ph_command(cs, (cs->dc.amd7930.lmr1 | (*chan + 1)), "MDL_BC_ASSIGN");
                         /* at least one b-channel in use, LED 2 on */
                         cs->hw.njet.auxd |= TJ_AMD_IRQ << 2;
-                        OutByte(cs->hw.njet.base + NETJET_AUXDATA, cs->hw.njet.auxd);
+                        outb(cs->hw.njet.auxd, cs->hw.njet.base + NETJET_AUXDATA);
                         break;
                 case MDL_BC_RELEASE:
                         /* deactivate B-channel */
-                        chan = (BYTE *)arg;
+                        chan = (unsigned char *)arg;
 
                         if (cs->debug & L1_DEB_ISAC)
 		                debugl1(cs, "enter:now PCI: release phys. BC %d in Amd LMR1", *chan);
@@ -217,7 +230,7 @@ enpci_card_msg(struct IsdnCardState *cs, int mt, void *arg)
                         /* no b-channel active -> LED2 off */
                         if (!(cs->dc.amd7930.lmr1 & 3)) {
                                 cs->hw.njet.auxd &= ~(TJ_AMD_IRQ << 2);
-                                OutByte(cs->hw.njet.base + NETJET_AUXDATA, cs->hw.njet.auxd);
+                                outb(cs->hw.njet.auxd, cs->hw.njet.base + NETJET_AUXDATA);
                         }
                         break;
                 default:
@@ -231,11 +244,11 @@ static irqreturn_t
 enpci_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 {
 	struct IsdnCardState *cs = dev_id;
-	BYTE s0val, s1val, ir;
+	unsigned char s0val, s1val, ir;
 	u_long flags;
 
 	spin_lock_irqsave(&cs->lock, flags);
-	s1val = InByte(cs->hw.njet.base + NETJET_IRQSTAT1);
+	s1val = inb(cs->hw.njet.base + NETJET_IRQSTAT1);
 
         /* AMD threw an interrupt */
 	if (!(s1val & TJ_AMD_IRQ)) {
@@ -245,13 +258,13 @@ enpci_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 		s1val = 1;
 	} else
 		s1val = 0;
-	s0val = InByte(cs->hw.njet.base + NETJET_IRQSTAT0);
+	s0val = inb(cs->hw.njet.base + NETJET_IRQSTAT0);
 	if ((s0val | s1val)==0) { // shared IRQ
 		spin_unlock_irqrestore(&cs->lock, flags);
 		return IRQ_NONE;
 	} 
 	if (s0val)
-		OutByte(cs->hw.njet.base + NETJET_IRQSTAT0, s0val);
+		outb(s0val, cs->hw.njet.base + NETJET_IRQSTAT0);
 
 	/* DMA-Interrupt: B-channel-stuff */
 	/* set bits in sval to indicate which page is free */
@@ -342,20 +355,20 @@ setup_enternow_pci(struct IsdnCard *card)
 
 		/* Reset an */
 		cs->hw.njet.ctrl_reg = 0x07;  // geändert von 0xff
-		OutByte(cs->hw.njet.base + NETJET_CTRL, cs->hw.njet.ctrl_reg);
+		outb(cs->hw.njet.ctrl_reg, cs->hw.njet.base + NETJET_CTRL);
 		/* 20 ms Pause */
 		mdelay(20);
 
 		cs->hw.njet.ctrl_reg = 0x30;  /* Reset Off and status read clear */
-		OutByte(cs->hw.njet.base + NETJET_CTRL, cs->hw.njet.ctrl_reg);
+		outb(cs->hw.njet.ctrl_reg, cs->hw.njet.base + NETJET_CTRL);
 		mdelay(10);
 
 		cs->hw.njet.auxd = 0x00; // war 0xc0
 		cs->hw.njet.dmactrl = 0;
 
-		OutByte(cs->hw.njet.base + NETJET_AUXCTRL, ~TJ_AMD_IRQ);
-		OutByte(cs->hw.njet.base + NETJET_IRQMASK1, TJ_AMD_IRQ);
-		OutByte(cs->hw.njet.auxa, cs->hw.njet.auxd);
+		outb(~TJ_AMD_IRQ, cs->hw.njet.base + NETJET_AUXCTRL);
+		outb(TJ_AMD_IRQ, cs->hw.njet.base + NETJET_IRQMASK1);
+		outb(cs->hw.njet.auxd, cs->hw.njet.auxa);
 
 		break;
 	}

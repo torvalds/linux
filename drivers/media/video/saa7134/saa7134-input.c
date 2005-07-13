@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-input.c,v 1.16 2004/12/10 12:33:39 kraxel Exp $
+ * $Id: saa7134-input.c,v 1.21 2005/06/22 23:37:34 nsh Exp $
  *
  * handle saa7134 IR remotes via linux kernel input layer.
  *
@@ -68,10 +68,8 @@ static IR_KEYTAB_TYPE flyvideo_codes[IR_KEYTAB_SIZE] = {
 	[    6 ] = KEY_AGAIN,        // Recal
 	[   16 ] = KEY_KPENTER,      // Enter
 
-#if 1 /* FIXME */
 	[   26 ] = KEY_F22,          // Stereo
 	[   24 ] = KEY_EDIT,         // AV Source
-#endif
 };
 
 static IR_KEYTAB_TYPE cinergy_codes[IR_KEYTAB_SIZE] = {
@@ -172,45 +170,45 @@ static IR_KEYTAB_TYPE eztv_codes[IR_KEYTAB_SIZE] = {
 };
 
 static IR_KEYTAB_TYPE avacssmart_codes[IR_KEYTAB_SIZE] = {
-        [ 30 ] = KEY_POWER,		// power
+	[ 30 ] = KEY_POWER,		// power
 	[ 28 ] = KEY_SEARCH,		// scan
-        [  7 ] = KEY_SELECT,		// source
+	[  7 ] = KEY_SELECT,		// source
 
 	[ 22 ] = KEY_VOLUMEUP,
 	[ 20 ] = KEY_VOLUMEDOWN,
-        [ 31 ] = KEY_CHANNELUP,
+	[ 31 ] = KEY_CHANNELUP,
 	[ 23 ] = KEY_CHANNELDOWN,
 	[ 24 ] = KEY_MUTE,
 
 	[  2 ] = KEY_KP0,
-        [  1 ] = KEY_KP1,
-        [ 11 ] = KEY_KP2,
-        [ 27 ] = KEY_KP3,
-        [  5 ] = KEY_KP4,
-        [  9 ] = KEY_KP5,
-        [ 21 ] = KEY_KP6,
+	[  1 ] = KEY_KP1,
+	[ 11 ] = KEY_KP2,
+	[ 27 ] = KEY_KP3,
+	[  5 ] = KEY_KP4,
+	[  9 ] = KEY_KP5,
+	[ 21 ] = KEY_KP6,
 	[  6 ] = KEY_KP7,
-        [ 10 ] = KEY_KP8,
+	[ 10 ] = KEY_KP8,
 	[ 18 ] = KEY_KP9,
 	[ 16 ] = KEY_KPDOT,
 
 	[  3 ] = KEY_TUNER,		// tv/fm
-        [  4 ] = KEY_REWIND,		// fm tuning left or function left
-        [ 12 ] = KEY_FORWARD,		// fm tuning right or function right
+	[  4 ] = KEY_REWIND,		// fm tuning left or function left
+	[ 12 ] = KEY_FORWARD,		// fm tuning right or function right
 
 	[  0 ] = KEY_RECORD,
-        [  8 ] = KEY_STOP,
-        [ 17 ] = KEY_PLAY,
+	[  8 ] = KEY_STOP,
+	[ 17 ] = KEY_PLAY,
 
 	[ 25 ] = KEY_ZOOM,
 	[ 14 ] = KEY_MENU,		// function
 	[ 19 ] = KEY_AGAIN,		// recall
 	[ 29 ] = KEY_RESTART,		// reset
+	[ 26 ] = KEY_SHUFFLE,		// snapshot/shuffle
 
 // FIXME
 	[ 13 ] = KEY_F21,		// mts
-        [ 15 ] = KEY_F22,		// min
-	[ 26 ] = KEY_F23,		// freeze
+	[ 15 ] = KEY_F22,		// min
 };
 
 /* Alex Hermann <gaaf@gmx.net> */
@@ -308,6 +306,102 @@ static IR_KEYTAB_TYPE videomate_tv_pvr_codes[IR_KEYTAB_SIZE] = {
 	[ 32 ] = KEY_LANGUAGE,
 	[ 33 ] = KEY_SLEEP,
 };
+
+/* Michael Tokarev <mjt@tls.msk.ru>
+   http://www.corpit.ru/mjt/beholdTV/remote_control.jpg
+   keytable is used by MANLI MTV00[12] and BeholdTV 40[13] at
+   least, and probably other cards too.
+   The "ascii-art picture" below (in comments, first row
+   is the keycode in hex, and subsequent row(s) shows
+   the button labels (several variants when appropriate)
+   helps to descide which keycodes to assign to the buttons.
+ */
+static IR_KEYTAB_TYPE manli_codes[IR_KEYTAB_SIZE] = {
+
+	/*  0x1c            0x12  *
+	 * FUNCTION         POWER *
+	 *   FM              (|)  *
+	 *                        */
+	[ 0x1c ] = KEY_RADIO,	/*XXX*/
+	[ 0x12 ] = KEY_POWER,
+
+	/*  0x01    0x02    0x03  *
+	 *   1       2       3    *
+	 *                        *
+	 *  0x04    0x05    0x06  *
+	 *   4       5       6    *
+	 *                        *
+	 *  0x07    0x08    0x09  *
+	 *   7       8       9    *
+	 *                        */
+	[ 0x01 ] = KEY_KP1,
+	[ 0x02 ] = KEY_KP2,
+	[ 0x03 ] = KEY_KP3,
+	[ 0x04 ] = KEY_KP4,
+	[ 0x05 ] = KEY_KP5,
+	[ 0x06 ] = KEY_KP6,
+	[ 0x07 ] = KEY_KP7,
+	[ 0x08 ] = KEY_KP8,
+	[ 0x09 ] = KEY_KP9,
+
+	/*  0x0a    0x00    0x17  *
+	 * RECALL    0      +100  *
+	 *                  PLUS  *
+	 *                        */
+	[ 0x0a ] = KEY_AGAIN,	/*XXX KEY_REWIND? */
+	[ 0x00 ] = KEY_KP0,
+	[ 0x17 ] = KEY_DIGITS,	/*XXX*/
+
+	/*  0x14            0x10  *
+	 *  MENU            INFO  *
+	 *  OSD                   */
+	[ 0x14 ] = KEY_MENU,
+	[ 0x10 ] = KEY_INFO,
+
+	/*          0x0b          *
+	 *           Up           *
+	 *                        *
+	 *  0x18    0x16    0x0c  *
+	 *  Left     Ok     Right *
+	 *                        *
+	 *         0x015          *
+	 *         Down           *
+	 *                        */
+	[ 0x0b ] = KEY_UP,	/*XXX KEY_SCROLLUP? */
+	[ 0x18 ] = KEY_LEFT,	/*XXX KEY_BACK? */
+	[ 0x16 ] = KEY_OK,	/*XXX KEY_SELECT? KEY_ENTER? */
+	[ 0x0c ] = KEY_RIGHT,	/*XXX KEY_FORWARD? */
+	[ 0x15 ] = KEY_DOWN,	/*XXX KEY_SCROLLDOWN? */
+
+	/*  0x11            0x0d  *
+	 *  TV/AV           MODE  *
+	 *  SOURCE         STEREO *
+	 *                        */
+	[ 0x11 ] = KEY_TV,	/*XXX*/
+	[ 0x0d ] = KEY_MODE,	/*XXX there's no KEY_STEREO */
+
+	/*  0x0f    0x1b    0x1a  *
+	 *  AUDIO   Vol+    Chan+ *
+	 *        TIMESHIFT???    *
+	 *                        *
+	 *  0x0e    0x1f    0x1e  *
+	 *  SLEEP   Vol-    Chan- *
+	 *                        */
+	[ 0x0f ] = KEY_AUDIO,
+	[ 0x1b ] = KEY_VOLUMEUP,
+	[ 0x1a ] = KEY_CHANNELUP,
+	[ 0x0e ] = KEY_SLEEP,	/*XXX maybe KEY_PAUSE */
+	[ 0x1f ] = KEY_VOLUMEDOWN,
+	[ 0x1e ] = KEY_CHANNELDOWN,
+
+	/*         0x13     0x19  *
+	 *         MUTE   SNAPSHOT*
+	 *                        */
+	[ 0x13 ] = KEY_MUTE,
+	[ 0x19 ] = KEY_RECORD,	/*XXX*/
+
+	// 0x1d unused ?
+};
 /* ---------------------------------------------------------------------- */
 
 static int build_key(struct saa7134_dev *dev)
@@ -379,7 +473,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	switch (dev->board) {
 	case SAA7134_BOARD_FLYVIDEO2000:
 	case SAA7134_BOARD_FLYVIDEO3000:
-	case SAA7134_BOARD_FLYTVPLATINUM_FM:
+        case SAA7134_BOARD_FLYTVPLATINUM_FM:
 		ir_codes     = flyvideo_codes;
 		mask_keycode = 0xEC00000;
 		mask_keydown = 0x0040000;
@@ -393,20 +487,25 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_ECS_TVP3XP:
 	case SAA7134_BOARD_ECS_TVP3XP_4CB5:
-                ir_codes     = eztv_codes;
-                mask_keycode = 0x00017c;
-                mask_keyup   = 0x000002;
+		ir_codes     = eztv_codes;
+		mask_keycode = 0x00017c;
+		mask_keyup   = 0x000002;
 		polling      = 50; // ms
-                break;
+		break;
+	case SAA7134_BOARD_KWORLD_XPERT:
 	case SAA7134_BOARD_AVACSSMARTTV:
-	        ir_codes     = avacssmart_codes;
+		ir_codes     = avacssmart_codes;
 		mask_keycode = 0x00001F;
 		mask_keyup   = 0x000020;
 		polling      = 50; // ms
 		break;
 	case SAA7134_BOARD_MD2819:
+	case SAA7134_BOARD_KWORLD_VSTREAM_XPERT:
 	case SAA7134_BOARD_AVERMEDIA_305:
 	case SAA7134_BOARD_AVERMEDIA_307:
+	case SAA7134_BOARD_AVERMEDIA_STUDIO_305:
+	case SAA7134_BOARD_AVERMEDIA_STUDIO_307:
+	case SAA7134_BOARD_AVERMEDIA_GO_007_FM:
 		ir_codes     = md2819_codes;
 		mask_keycode = 0x0007C8;
 		mask_keydown = 0x000010;
@@ -415,7 +514,16 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		saa_setb(SAA7134_GPIO_GPMODE0, 0x4);
 		saa_setb(SAA7134_GPIO_GPSTATUS0, 0x4);
 		break;
+	case SAA7134_BOARD_MANLI_MTV001:
+	case SAA7134_BOARD_MANLI_MTV002:
+		ir_codes     = manli_codes;
+		mask_keycode = 0x001f00;
+		mask_keyup   = 0x004000;
+		mask_keydown = 0x002000;
+		polling      = 50; // ms
+		break;
 	case SAA7134_BOARD_VIDEOMATE_TV_PVR:
+	case SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUSII:
 		ir_codes     = videomate_tv_pvr_codes;
 		mask_keycode = 0x00003F;
 		mask_keyup   = 0x400000;

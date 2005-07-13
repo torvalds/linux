@@ -96,7 +96,6 @@ extern void udbg_init_maple_realmode(void);
 extern unsigned long klimit;
 
 extern void mm_init_ppc64(void);
-extern int  idle_setup(void);
 extern void stab_initialize(unsigned long stab);
 extern void htab_initialize(void);
 extern void early_init_devtree(void *flat_dt);
@@ -677,11 +676,16 @@ void __init setup_system(void)
 	DBG(" <- setup_system()\n");
 }
 
-
-void machine_restart(char *cmd)
+/* also used by kexec */
+void machine_shutdown(void)
 {
 	if (ppc_md.nvram_sync)
 		ppc_md.nvram_sync();
+}
+
+void machine_restart(char *cmd)
+{
+	machine_shutdown();
 	ppc_md.restart(cmd);
 #ifdef CONFIG_SMP
 	smp_send_stop();
@@ -690,13 +694,11 @@ void machine_restart(char *cmd)
 	local_irq_disable();
 	while (1) ;
 }
-
 EXPORT_SYMBOL(machine_restart);
-  
+
 void machine_power_off(void)
 {
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
+	machine_shutdown();
 	ppc_md.power_off();
 #ifdef CONFIG_SMP
 	smp_send_stop();
@@ -705,13 +707,11 @@ void machine_power_off(void)
 	local_irq_disable();
 	while (1) ;
 }
-
 EXPORT_SYMBOL(machine_power_off);
-  
+
 void machine_halt(void)
 {
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
+	machine_shutdown();
 	ppc_md.halt();
 #ifdef CONFIG_SMP
 	smp_send_stop();
@@ -720,7 +720,6 @@ void machine_halt(void)
 	local_irq_disable();
 	while (1) ;
 }
-
 EXPORT_SYMBOL(machine_halt);
 
 static int ppc64_panic_event(struct notifier_block *this,
@@ -1081,8 +1080,11 @@ void __init setup_arch(char **cmdline_p)
 
 	ppc_md.setup_arch();
 
-	/* Select the correct idle loop for the platform. */
-	idle_setup();
+	/* Use the default idle loop if the platform hasn't provided one. */
+	if (NULL == ppc_md.idle_loop) {
+		ppc_md.idle_loop = default_idle;
+		printk(KERN_INFO "Using default idle loop\n");
+	}
 
 	paging_init();
 	ppc64_boot_msg(0x15, "Setup Done");

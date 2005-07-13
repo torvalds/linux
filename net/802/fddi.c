@@ -122,10 +122,10 @@ static int fddi_rebuild_header(struct sk_buff	*skb)
  * the proper pointer to the start of packet data (skb->data).
  */
  
-unsigned short fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
+__be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fddihdr *fddi = (struct fddihdr *)skb->data;
-	unsigned short type;
+	__be16 type;
 	
 	/*
 	 * Set mac.raw field to point to FC byte, set data field to point

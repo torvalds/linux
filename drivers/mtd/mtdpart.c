@@ -5,7 +5,7 @@
  *
  * This code is GPL
  *
- * $Id: mtdpart.c,v 1.51 2004/11/16 18:28:59 dwmw2 Exp $
+ * $Id: mtdpart.c,v 1.53 2005/02/08 17:11:13 nico Exp $
  *
  * 	02-21-2002	Thomas Gleixner <gleixner@autronix.de>
  *			added support for read_oob, write_oob
@@ -116,12 +116,26 @@ static int part_read_user_prot_reg (struct mtd_info *mtd, loff_t from, size_t le
 					len, retlen, buf);
 }
 
+static int part_get_user_prot_info (struct mtd_info *mtd,
+				    struct otp_info *buf, size_t len)
+{
+	struct mtd_part *part = PART(mtd);
+	return part->master->get_user_prot_info (part->master, buf, len);
+}
+
 static int part_read_fact_prot_reg (struct mtd_info *mtd, loff_t from, size_t len, 
 			size_t *retlen, u_char *buf)
 {
 	struct mtd_part *part = PART(mtd);
 	return part->master->read_fact_prot_reg (part->master, from, 
 					len, retlen, buf);
+}
+
+static int part_get_fact_prot_info (struct mtd_info *mtd,
+				    struct otp_info *buf, size_t len)
+{
+	struct mtd_part *part = PART(mtd);
+	return part->master->get_fact_prot_info (part->master, buf, len);
 }
 
 static int part_write (struct mtd_info *mtd, loff_t to, size_t len,
@@ -180,6 +194,12 @@ static int part_write_user_prot_reg (struct mtd_info *mtd, loff_t from, size_t l
 	struct mtd_part *part = PART(mtd);
 	return part->master->write_user_prot_reg (part->master, from, 
 					len, retlen, buf);
+}
+
+static int part_lock_user_prot_reg (struct mtd_info *mtd, loff_t from, size_t len) 
+{
+	struct mtd_part *part = PART(mtd);
+	return part->master->lock_user_prot_reg (part->master, from, len);
 }
 
 static int part_writev (struct mtd_info *mtd,  const struct kvec *vecs,
@@ -409,6 +429,12 @@ int add_mtd_partitions(struct mtd_info *master,
 			slave->mtd.read_fact_prot_reg = part_read_fact_prot_reg;
 		if(master->write_user_prot_reg)
 			slave->mtd.write_user_prot_reg = part_write_user_prot_reg;
+		if(master->lock_user_prot_reg)
+			slave->mtd.lock_user_prot_reg = part_lock_user_prot_reg;
+		if(master->get_user_prot_info)
+			slave->mtd.get_user_prot_info = part_get_user_prot_info;
+		if(master->get_fact_prot_info)
+			slave->mtd.get_fact_prot_info = part_get_fact_prot_info;
 		if (master->sync)
 			slave->mtd.sync = part_sync;
 		if (!i && master->suspend && master->resume) {

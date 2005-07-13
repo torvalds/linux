@@ -507,7 +507,13 @@ retry:
 		spin_unlock_irqrestore(&idr_lock, flags);
 	}
 
-	return ret;
+	/*
+	 * It's not safe to dereference query any more, because the
+	 * send may already have completed and freed the query in
+	 * another context.  So use wr.wr_id, which has a copy of the
+	 * query's id.
+	 */
+	return ret ? ret : wr.wr_id;
 }
 
 static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
@@ -598,14 +604,15 @@ int ib_sa_path_rec_get(struct ib_device *device, u8 port_num,
 		rec, query->sa_query.mad->data);
 
 	*sa_query = &query->sa_query;
+
 	ret = send_mad(&query->sa_query, timeout_ms);
-	if (ret) {
+	if (ret < 0) {
 		*sa_query = NULL;
 		kfree(query->sa_query.mad);
 		kfree(query);
 	}
 
-	return ret ? ret : query->sa_query.id;
+	return ret;
 }
 EXPORT_SYMBOL(ib_sa_path_rec_get);
 
@@ -674,14 +681,15 @@ int ib_sa_mcmember_rec_query(struct ib_device *device, u8 port_num,
 		rec, query->sa_query.mad->data);
 
 	*sa_query = &query->sa_query;
+
 	ret = send_mad(&query->sa_query, timeout_ms);
-	if (ret) {
+	if (ret < 0) {
 		*sa_query = NULL;
 		kfree(query->sa_query.mad);
 		kfree(query);
 	}
 
-	return ret ? ret : query->sa_query.id;
+	return ret;
 }
 EXPORT_SYMBOL(ib_sa_mcmember_rec_query);
 

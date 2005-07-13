@@ -389,10 +389,11 @@ static int __init vesafb_probe(struct device *device)
 		unsigned int temp_size = size_total;
 		/* Find the largest power-of-two */
 		while (temp_size & (temp_size - 1))
-                	temp_size &= (temp_size - 1);
-                        
-                /* Try and find a power of two to add */
-		while (temp_size && mtrr_add(vesafb_fix.smem_start, temp_size, MTRR_TYPE_WRCOMB, 1)==-EINVAL) {
+			temp_size &= (temp_size - 1);
+
+		/* Try and find a power of two to add */
+		while (temp_size > PAGE_SIZE &&
+			mtrr_add(vesafb_fix.smem_start, temp_size, MTRR_TYPE_WRCOMB, 1)==-EINVAL) {
 			temp_size >>= 1;
 		}
 	}

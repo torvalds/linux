@@ -5,7 +5,8 @@
 obj-y     := utils.o route.o inetpeer.o protocol.o \
 	     ip_input.o ip_fragment.o ip_forward.o ip_options.o \
 	     ip_output.o ip_sockglue.o \
-	     tcp.o tcp_input.o tcp_output.o tcp_timer.o tcp_ipv4.o tcp_minisocks.o \
+	     tcp.o tcp_input.o tcp_output.o tcp_timer.o tcp_ipv4.o \
+	     tcp_minisocks.o tcp_cong.o \
 	     datagram.o raw.o udp.o arp.o icmp.o devinet.o af_inet.o igmp.o \
 	     sysctl_net_ipv4.o fib_frontend.o fib_semantics.o
 
@@ -30,6 +31,13 @@ obj-$(CONFIG_NETFILTER)	+= netfilter/
 obj-$(CONFIG_IP_VS) += ipvs/
 obj-$(CONFIG_IP_TCPDIAG) += tcp_diag.o 
 obj-$(CONFIG_IP_ROUTE_MULTIPATH_CACHED) += multipath.o
+obj-$(CONFIG_TCP_CONG_BIC) += tcp_bic.o
+obj-$(CONFIG_TCP_CONG_WESTWOOD) += tcp_westwood.o
+obj-$(CONFIG_TCP_CONG_HSTCP) += tcp_highspeed.o
+obj-$(CONFIG_TCP_CONG_HYBLA) += tcp_hybla.o
+obj-$(CONFIG_TCP_CONG_HTCP) += tcp_htcp.o
+obj-$(CONFIG_TCP_CONG_VEGAS) += tcp_vegas.o
+obj-$(CONFIG_TCP_CONG_SCALABLE) += tcp_scalable.o
 
 obj-$(CONFIG_XFRM) += xfrm4_policy.o xfrm4_state.o xfrm4_input.o \
 		      xfrm4_output.o

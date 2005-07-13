@@ -552,7 +552,7 @@ __SYSCALL(__NR_mq_notify, sys_mq_notify)
 #define __NR_mq_getsetattr 	245
 __SYSCALL(__NR_mq_getsetattr, sys_mq_getsetattr)
 #define __NR_kexec_load 	246
-__SYSCALL(__NR_kexec_load, sys_ni_syscall)
+__SYSCALL(__NR_kexec_load, sys_kexec_load)
 #define __NR_waitid		247
 __SYSCALL(__NR_waitid, sys_waitid)
 #define __NR_add_key		248
@@ -561,8 +561,12 @@ __SYSCALL(__NR_add_key, sys_add_key)
 __SYSCALL(__NR_request_key, sys_request_key)
 #define __NR_keyctl		250
 __SYSCALL(__NR_keyctl, sys_keyctl)
+#define __NR_ioprio_set		251
+__SYSCALL(__NR_ioprio_set, sys_ioprio_set)
+#define __NR_ioprio_get		252
+__SYSCALL(__NR_ioprio_get, sys_ioprio_get)
 
-#define __NR_syscall_max __NR_keyctl
+#define __NR_syscall_max __NR_ioprio_get
 #ifndef __NO_STUBS
 
 /* user-visible error numbers are in the range -1 - -4095 */

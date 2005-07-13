@@ -900,7 +900,7 @@ typedef struct aironet_ioctl {
 	unsigned char __user *data;	// d-data
 } aironet_ioctl;
 
-static char *swversion = "2.1";
+static char swversion[] = "2.1";
 #endif /* CISCO_EXT */
 
 #define NUM_MODULES       2
@@ -1209,7 +1209,7 @@ struct airo_info {
 	unsigned char		__iomem *pciaux;
 	unsigned char		*shared;
 	dma_addr_t		shared_dma;
-	int			power;
+	pm_message_t		power;
 	SsidRid			*SSID;
 	APListRid		*APList;
 #define	PCI_SHARED_LEN		2*MPI_MAX_FIDS*PKTSIZE+RIDSIZE
@@ -2374,7 +2374,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 	/*
 	 * Clean out tx queue
 	 */
-	if (test_bit(FLAG_MPI, &ai->flags) && skb_queue_len (&ai->txq) > 0) {
+	if (test_bit(FLAG_MPI, &ai->flags) && !skb_queue_empty(&ai->txq)) {
 		struct sk_buff *skb = NULL;
 		for (;(skb = skb_dequeue(&ai->txq));)
 			dev_kfree_skb(skb);
@@ -2918,7 +2918,7 @@ static int airo_thread(void *data) {
 			flush_signals(current);
 
 		/* make swsusp happy with our thread */
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 
 		if (test_bit(JOB_DIE, &ai->flags))
 			break;
@@ -3287,7 +3287,7 @@ exitrx:
 				if (status & EV_TXEXC)
 					get_tx_error(apriv, -1);
 				spin_lock_irqsave(&apriv->aux_lock, flags);
-				if (skb_queue_len (&apriv->txq)) {
+				if (!skb_queue_empty(&apriv->txq)) {
 					spin_unlock_irqrestore(&apriv->aux_lock,flags);
 					mpi_send_packet (dev);
 				} else {
@@ -5499,9 +5499,9 @@ static int airo_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	cmd.cmd=HOSTSLEEP;
 	issuecommand(ai, &cmd, &rsp);
 
-	pci_enable_wake(pdev, state, 1);
+	pci_enable_wake(pdev, pci_choose_state(pdev, state), 1);
 	pci_save_state(pdev);
-	return pci_set_power_state(pdev, state);
+	return pci_set_power_state(pdev, pci_choose_state(pdev, state));
 }
 
 static int airo_pci_resume(struct pci_dev *pdev)
@@ -5512,7 +5512,7 @@ static int airo_pci_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
-	pci_enable_wake(pdev, ai->power, 0);
+	pci_enable_wake(pdev, pci_choose_state(pdev, ai->power), 0);
 
 	if (ai->power > 1) {
 		reset_card(dev, 0);
@@ -5541,7 +5541,7 @@ static int airo_pci_resume(struct pci_dev *pdev)
 	}
 	writeConfigRid(ai, 0);
 	enable_MAC(ai, &rsp, 0);
-	ai->power = 0;
+	ai->power = PMSG_ON;
 	netif_device_attach(dev);
 	netif_wake_queue(dev);
 	enable_interrupts(ai);

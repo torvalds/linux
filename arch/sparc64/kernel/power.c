@@ -4,6 +4,8 @@
  * Copyright (C) 1999 David S. Miller (davem@redhat.com)
  */
 
+#define __KERNEL_SYSCALLS__
+
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -17,7 +19,6 @@
 #include <asm/ebus.h>
 #include <asm/auxio.h>
 
-#define __KERNEL_SYSCALLS__
 #include <linux/unistd.h>
 
 /*

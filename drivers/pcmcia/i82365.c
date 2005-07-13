@@ -53,7 +53,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
@@ -669,11 +668,13 @@ static int __init is_alive(u_short sock)
     if ((stat & I365_CS_DETECT) && (stat & I365_CS_POWERON) &&
 	(i365_get(sock, I365_INTCTL) & I365_PC_IOCARD) &&
 	(i365_get(sock, I365_ADDRWIN) & I365_ENA_IO(0)) &&
-	(check_region(start, stop-start+1) != 0) &&
-	((start & 0xfeef) != 0x02e8))
-	return 1;
-    else
-	return 0;
+	((start & 0xfeef) != 0x02e8)) {
+	if (!request_region(start, stop-start+1, "i82365"))
+	    return 1;
+	release_region(start, stop-start+1);
+    }
+
+    return 0;
 }
 
 /*====================================================================*/
@@ -696,8 +697,6 @@ static void __init add_pcic(int ns, int type)
     struct i82365_socket *t = &socket[sockets-ns];
 
     base = sockets-ns;
-    if (t->ioaddr > 0) request_region(t->ioaddr, 2, "i82365");
-    
     if (base == 0) printk("\n");
     printk(KERN_INFO "  %s", pcic[type].name);
     printk(" ISA-to-PCMCIA at port %#lx ofs 0x%02x",
@@ -803,7 +802,7 @@ static void __init isa_probe(void)
     }
 #endif
 
-    if (check_region(i365_base, 2) != 0) {
+    if (!request_region(i365_base, 2, "i82365")) {
 	if (sockets == 0)
 	    printk("port conflict at %#lx\n", i365_base);
 	return;
@@ -1441,6 +1440,7 @@ static void __exit exit_i82365(void)
 	i365_set(i, I365_CSCINT, 0);
 	release_region(socket[i].ioaddr, 2);
     }
+    release_region(i365_base, 2);
 #ifdef CONFIG_PNP
     if (i82365_pnpdev)
     		pnp_disable_dev(i82365_pnpdev);

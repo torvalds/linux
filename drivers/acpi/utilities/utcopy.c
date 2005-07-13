@@ -49,21 +49,69 @@
 #define _COMPONENT          ACPI_UTILITIES
 	 ACPI_MODULE_NAME    ("utcopy")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ut_copy_isimple_to_esimple (
+	union acpi_operand_object       *internal_object,
+	union acpi_object               *external_object,
+	u8                              *data_space,
+	acpi_size                       *buffer_space_used);
+
+static acpi_status
+acpi_ut_copy_ielement_to_ielement (
+	u8                              object_type,
+	union acpi_operand_object       *source_object,
+	union acpi_generic_state        *state,
+	void                            *context);
+
+static acpi_status
+acpi_ut_copy_ipackage_to_epackage (
+	union acpi_operand_object       *internal_object,
+	u8                              *buffer,
+	acpi_size                       *space_used);
+
+static acpi_status
+acpi_ut_copy_esimple_to_isimple(
+	union acpi_object               *user_obj,
+	union acpi_operand_object       **return_obj);
+
+static acpi_status
+acpi_ut_copy_simple_object (
+	union acpi_operand_object       *source_desc,
+	union acpi_operand_object       *dest_desc);
+
+static acpi_status
+acpi_ut_copy_ielement_to_eelement (
+	u8                              object_type,
+	union acpi_operand_object       *source_object,
+	union acpi_generic_state        *state,
+	void                            *context);
+
+static acpi_status
+acpi_ut_copy_ipackage_to_ipackage (
+	union acpi_operand_object       *source_obj,
+	union acpi_operand_object       *dest_obj,
+	struct acpi_walk_state          *walk_state);
+
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_copy_isimple_to_esimple
  *
- * PARAMETERS:  *internal_object    - Pointer to the object we are examining
- *              *Buffer             - Where the object is returned
- *              *space_used         - Where the data length is returned
+ * PARAMETERS:  internal_object     - Source object to be copied
+ *              external_object     - Where to return the copied object
+ *              data_space          - Where object data is returned (such as
+ *                                    buffer and string data)
+ *              buffer_space_used   - Length of data_space that was used
  *
  * RETURN:      Status
  *
- * DESCRIPTION: This function is called to place a simple object in a user
- *              buffer.
+ * DESCRIPTION: This function is called to copy a simple internal object to
+ *              an external object.
  *
- *              The buffer is assumed to have sufficient space for the object.
+ *              The data_space buffer is assumed to have sufficient space for
+ *              the object.
  *
  ******************************************************************************/
 
@@ -107,10 +155,12 @@ acpi_ut_copy_isimple_to_esimple (
 
 		external_object->string.pointer = (char *) data_space;
 		external_object->string.length = internal_object->string.length;
-		*buffer_space_used = ACPI_ROUND_UP_TO_NATIVE_WORD ((acpi_size) internal_object->string.length + 1);
+		*buffer_space_used = ACPI_ROUND_UP_TO_NATIVE_WORD (
+				   (acpi_size) internal_object->string.length + 1);
 
-		ACPI_MEMCPY ((void *) data_space, (void *) internal_object->string.pointer,
-				 (acpi_size) internal_object->string.length + 1);
+		ACPI_MEMCPY ((void *) data_space,
+			(void *) internal_object->string.pointer,
+			(acpi_size) internal_object->string.length + 1);
 		break;
 
 
@@ -118,10 +168,12 @@ acpi_ut_copy_isimple_to_esimple (
 
 		external_object->buffer.pointer = data_space;
 		external_object->buffer.length = internal_object->buffer.length;
-		*buffer_space_used = ACPI_ROUND_UP_TO_NATIVE_WORD (internal_object->string.length);
+		*buffer_space_used = ACPI_ROUND_UP_TO_NATIVE_WORD (
+				   internal_object->string.length);
 
-		ACPI_MEMCPY ((void *) data_space, (void *) internal_object->buffer.pointer,
-				 internal_object->buffer.length);
+		ACPI_MEMCPY ((void *) data_space,
+			(void *) internal_object->buffer.pointer,
+			internal_object->buffer.length);
 		break;
 
 
@@ -194,7 +246,7 @@ acpi_ut_copy_isimple_to_esimple (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ut_copy_ielement_to_eelement (
 	u8                              object_type,
 	union acpi_operand_object       *source_object,
@@ -213,7 +265,7 @@ acpi_ut_copy_ielement_to_eelement (
 
 	this_index   = state->pkg.index;
 	target_object = (union acpi_object *)
-			  &((union acpi_object *)(state->pkg.dest_object))->package.elements[this_index];
+		&((union acpi_object *)(state->pkg.dest_object))->package.elements[this_index];
 
 	switch (object_type) {
 	case ACPI_COPY_TYPE_SIMPLE:
@@ -236,7 +288,8 @@ acpi_ut_copy_ielement_to_eelement (
 		 */
 		target_object->type             = ACPI_TYPE_PACKAGE;
 		target_object->package.count    = source_object->package.count;
-		target_object->package.elements = ACPI_CAST_PTR (union acpi_object, info->free_space);
+		target_object->package.elements =
+			ACPI_CAST_PTR (union acpi_object, info->free_space);
 
 		/*
 		 * Pass the new package object back to the package walk routine
@@ -248,7 +301,8 @@ acpi_ut_copy_ielement_to_eelement (
 		 * update the buffer length counter
 		 */
 		object_space = ACPI_ROUND_UP_TO_NATIVE_WORD (
-				   (acpi_size) target_object->package.count * sizeof (union acpi_object));
+				   (acpi_size) target_object->package.count *
+				   sizeof (union acpi_object));
 		break;
 
 
@@ -266,9 +320,9 @@ acpi_ut_copy_ielement_to_eelement (
  *
  * FUNCTION:    acpi_ut_copy_ipackage_to_epackage
  *
- * PARAMETERS:  *internal_object    - Pointer to the object we are returning
- *              *Buffer             - Where the object is returned
- *              *space_used         - Where the object length is returned
+ * PARAMETERS:  internal_object     - Pointer to the object we are returning
+ *              Buffer              - Where the object is returned
+ *              space_used          - Where the object length is returned
  *
  * RETURN:      Status
  *
@@ -304,13 +358,15 @@ acpi_ut_copy_ipackage_to_epackage (
 	 * Free space begins right after the first package
 	 */
 	info.length      = ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (union acpi_object));
-	info.free_space  = buffer + ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (union acpi_object));
+	info.free_space  = buffer + ACPI_ROUND_UP_TO_NATIVE_WORD (
+			   sizeof (union acpi_object));
 	info.object_space = 0;
 	info.num_packages = 1;
 
 	external_object->type            = ACPI_GET_OBJECT_TYPE (internal_object);
 	external_object->package.count   = internal_object->package.count;
-	external_object->package.elements = ACPI_CAST_PTR (union acpi_object, info.free_space);
+	external_object->package.elements = ACPI_CAST_PTR (union acpi_object,
+			  info.free_space);
 
 	/*
 	 * Leave room for an array of ACPI_OBJECTS in the buffer
@@ -333,8 +389,8 @@ acpi_ut_copy_ipackage_to_epackage (
  *
  * FUNCTION:    acpi_ut_copy_iobject_to_eobject
  *
- * PARAMETERS:  *internal_object    - The internal object to be converted
- *              *buffer_ptr         - Where the object is returned
+ * PARAMETERS:  internal_object     - The internal object to be converted
+ *              buffer_ptr          - Where the object is returned
  *
  * RETURN:      Status
  *
@@ -367,10 +423,10 @@ acpi_ut_copy_iobject_to_eobject (
 		 * Build a simple object (no nested objects)
 		 */
 		status = acpi_ut_copy_isimple_to_esimple (internal_object,
-				  (union acpi_object *) ret_buffer->pointer,
-				  ((u8 *) ret_buffer->pointer +
-				  ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (union acpi_object))),
-				  &ret_buffer->length);
+				 (union acpi_object *) ret_buffer->pointer,
+				 ((u8 *) ret_buffer->pointer +
+				 ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (union acpi_object))),
+				 &ret_buffer->length);
 		/*
 		 * build simple does not include the object size in the length
 		 * so we add it in here
@@ -386,8 +442,8 @@ acpi_ut_copy_iobject_to_eobject (
  *
  * FUNCTION:    acpi_ut_copy_esimple_to_isimple
  *
- * PARAMETERS:  *external_object   - The external object to be converted
- *              *internal_object   - Where the internal object is returned
+ * PARAMETERS:  external_object     - The external object to be converted
+ *              ret_internal_object - Where the internal object is returned
  *
  * RETURN:      Status
  *
@@ -398,7 +454,7 @@ acpi_ut_copy_iobject_to_eobject (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ut_copy_esimple_to_isimple (
 	union acpi_object               *external_object,
 	union acpi_operand_object       **ret_internal_object)
@@ -417,7 +473,8 @@ acpi_ut_copy_esimple_to_isimple (
 	case ACPI_TYPE_BUFFER:
 	case ACPI_TYPE_INTEGER:
 
-		internal_object = acpi_ut_create_internal_object ((u8) external_object->type);
+		internal_object = acpi_ut_create_internal_object (
+				   (u8) external_object->type);
 		if (!internal_object) {
 			return_ACPI_STATUS (AE_NO_MEMORY);
 		}
@@ -486,7 +543,6 @@ error_exit:
 
 
 #ifdef ACPI_FUTURE_IMPLEMENTATION
-
 /* Code to convert packages that are parameters to control methods */
 
 /*******************************************************************************
@@ -614,7 +670,7 @@ acpi_ut_copy_eobject_to_iobject (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ut_copy_simple_object (
 	union acpi_operand_object       *source_desc,
 	union acpi_operand_object       *dest_desc)
@@ -724,7 +780,7 @@ acpi_ut_copy_simple_object (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ut_copy_ielement_to_ielement (
 	u8                              object_type,
 	union acpi_operand_object       *source_object,
@@ -837,7 +893,7 @@ error_exit:
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ut_copy_ipackage_to_ipackage (
 	union acpi_operand_object       *source_obj,
 	union acpi_operand_object       *dest_obj,

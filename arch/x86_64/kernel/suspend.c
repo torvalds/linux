@@ -44,7 +44,6 @@ void __save_processor_state(struct saved_context *ctxt)
 	 */
 	asm volatile ("sgdt %0" : "=m" (ctxt->gdt_limit));
 	asm volatile ("sidt %0" : "=m" (ctxt->idt_limit));
-	asm volatile ("sldt %0" : "=m" (ctxt->ldt));
 	asm volatile ("str %0"  : "=m" (ctxt->tr));
 
 	/* XMM0..XMM15 should be handled by kernel_fpu_begin(). */
@@ -69,6 +68,7 @@ void __save_processor_state(struct saved_context *ctxt)
 	asm volatile ("movq %%cr2, %0" : "=r" (ctxt->cr2));
 	asm volatile ("movq %%cr3, %0" : "=r" (ctxt->cr3));
 	asm volatile ("movq %%cr4, %0" : "=r" (ctxt->cr4));
+	asm volatile ("movq %%cr8, %0" : "=r" (ctxt->cr8));
 }
 
 void save_processor_state(void)
@@ -90,10 +90,18 @@ void __restore_processor_state(struct saved_context *ctxt)
 	/*
 	 * control registers
 	 */
+	asm volatile ("movq %0, %%cr8" :: "r" (ctxt->cr8));
 	asm volatile ("movq %0, %%cr4" :: "r" (ctxt->cr4));
 	asm volatile ("movq %0, %%cr3" :: "r" (ctxt->cr3));
 	asm volatile ("movq %0, %%cr2" :: "r" (ctxt->cr2));
 	asm volatile ("movq %0, %%cr0" :: "r" (ctxt->cr0));
+
+	/*
+	 * now restore the descriptor tables to their proper values
+	 * ltr is done i fix_processor_context().
+	 */
+	asm volatile ("lgdt %0" :: "m" (ctxt->gdt_limit));
+	asm volatile ("lidt %0" :: "m" (ctxt->idt_limit));
 
 	/*
 	 * segment registers
@@ -108,17 +116,10 @@ void __restore_processor_state(struct saved_context *ctxt)
 	wrmsrl(MSR_GS_BASE, ctxt->gs_base);
 	wrmsrl(MSR_KERNEL_GS_BASE, ctxt->gs_kernel_base);
 
-	/*
-	 * now restore the descriptor tables to their proper values
-	 * ltr is done i fix_processor_context().
-	 */
-	asm volatile ("lgdt %0" :: "m" (ctxt->gdt_limit));
-	asm volatile ("lidt %0" :: "m" (ctxt->idt_limit));
-	asm volatile ("lldt %0" :: "m" (ctxt->ldt));
-
 	fix_processor_context();
 
 	do_fpu_end();
+	mtrr_ap_init();
 }
 
 void restore_processor_state(void)

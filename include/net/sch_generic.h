@@ -164,6 +164,19 @@ extern void qdisc_unlock_tree(struct net_device *dev);
 #define tcf_tree_lock(tp)	qdisc_lock_tree((tp)->q->dev)
 #define tcf_tree_unlock(tp)	qdisc_unlock_tree((tp)->q->dev)
 
+extern struct Qdisc noop_qdisc;
+extern struct Qdisc_ops noop_qdisc_ops;
+
+extern void dev_init_scheduler(struct net_device *dev);
+extern void dev_shutdown(struct net_device *dev);
+extern void dev_activate(struct net_device *dev);
+extern void dev_deactivate(struct net_device *dev);
+extern void qdisc_reset(struct Qdisc *qdisc);
+extern void qdisc_destroy(struct Qdisc *qdisc);
+extern struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops);
+extern struct Qdisc *qdisc_create_dflt(struct net_device *dev,
+				       struct Qdisc_ops *ops);
+
 static inline void
 tcf_destroy(struct tcf_proto *tp)
 {

@@ -22,9 +22,11 @@
 #include <linux/device.h>
 #include <linux/suspend.h>
 #include <linux/acpi.h>
+
 #include <asm/uaccess.h>
 #include <asm/acpi.h>
 #include <asm/tlbflush.h>
+#include <asm/processor.h>
 
 static struct saved_context saved_context;
 
@@ -32,8 +34,6 @@ unsigned long saved_context_ebx;
 unsigned long saved_context_esp, saved_context_ebp;
 unsigned long saved_context_esi, saved_context_edi;
 unsigned long saved_context_eflags;
-
-extern void enable_sep_cpu(void *);
 
 void __save_processor_state(struct saved_context *ctxt)
 {
@@ -44,7 +44,6 @@ void __save_processor_state(struct saved_context *ctxt)
 	 */
 	asm volatile ("sgdt %0" : "=m" (ctxt->gdt_limit));
 	asm volatile ("sidt %0" : "=m" (ctxt->idt_limit));
-	asm volatile ("sldt %0" : "=m" (ctxt->ldt));
 	asm volatile ("str %0"  : "=m" (ctxt->tr));
 
 	/*
@@ -107,7 +106,6 @@ static void fix_processor_context(void)
 
 void __restore_processor_state(struct saved_context *ctxt)
 {
-
 	/*
 	 * control registers
 	 */
@@ -115,6 +113,13 @@ void __restore_processor_state(struct saved_context *ctxt)
 	asm volatile ("movl %0, %%cr3" :: "r" (ctxt->cr3));
 	asm volatile ("movl %0, %%cr2" :: "r" (ctxt->cr2));
 	asm volatile ("movl %0, %%cr0" :: "r" (ctxt->cr0));
+
+	/*
+	 * now restore the descriptor tables to their proper values
+	 * ltr is done i fix_processor_context().
+	 */
+	asm volatile ("lgdt %0" :: "m" (ctxt->gdt_limit));
+	asm volatile ("lidt %0" :: "m" (ctxt->idt_limit));
 
 	/*
 	 * segment registers
@@ -125,21 +130,14 @@ void __restore_processor_state(struct saved_context *ctxt)
 	asm volatile ("movw %0, %%ss" :: "r" (ctxt->ss));
 
 	/*
-	 * now restore the descriptor tables to their proper values
-	 * ltr is done i fix_processor_context().
-	 */
-	asm volatile ("lgdt %0" :: "m" (ctxt->gdt_limit));
-	asm volatile ("lidt %0" :: "m" (ctxt->idt_limit));
-	asm volatile ("lldt %0" :: "m" (ctxt->ldt));
-
-	/*
 	 * sysenter MSRs
 	 */
 	if (boot_cpu_has(X86_FEATURE_SEP))
-		enable_sep_cpu(NULL);
+		enable_sep_cpu();
 
 	fix_processor_context();
 	do_fpu_end();
+	mtrr_ap_init();
 }
 
 void restore_processor_state(void)

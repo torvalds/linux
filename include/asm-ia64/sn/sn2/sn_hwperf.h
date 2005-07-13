@@ -223,4 +223,6 @@ struct sn_hwperf_ioctl_args {
 #define SN_HWPERF_OP_RECONFIGURE	253
 #define SN_HWPERF_OP_INVAL		254
 
+int sn_topology_open(struct inode *inode, struct file *file);
+int sn_topology_release(struct inode *inode, struct file *file);
 #endif				/* SN_HWPERF_H */

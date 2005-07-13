@@ -50,7 +50,6 @@
 #include <scsi/scsi_host.h>
 #include "aha152x.h"
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -134,11 +133,6 @@ static dev_link_t *aha152x_attach(void)
     link->next = dev_list;
     dev_list = link;
     client_reg.dev_info = &dev_info;
-    client_reg.event_handler = &aha152x_event;
-    client_reg.EventMask =
-	CS_EVENT_RESET_REQUEST | CS_EVENT_CARD_RESET |
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -318,13 +312,25 @@ static int aha152x_event(event_t event, int priority,
     return 0;
 }
 
+static struct pcmcia_device_id aha152x_ids[] = {
+	PCMCIA_DEVICE_PROD_ID123("New Media", "SCSI", "Bus Toaster", 0xcdf7e4cc, 0x35f26476, 0xa8851d6e),
+	PCMCIA_DEVICE_PROD_ID123("NOTEWORTHY", "SCSI", "Bus Toaster", 0xad89c6e8, 0x35f26476, 0xa8851d6e),
+	PCMCIA_DEVICE_PROD_ID12("Adaptec, Inc.", "APA-1460 SCSI Host Adapter", 0x24ba9738, 0x3a3c3d20),
+	PCMCIA_DEVICE_PROD_ID12("New Media Corporation", "Multimedia Sound/SCSI", 0x085a850b, 0x80a6535c),
+	PCMCIA_DEVICE_PROD_ID12("NOTEWORTHY", "NWCOMB02 SCSI/AUDIO COMBO CARD", 0xad89c6e8, 0x5f9a615b),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, aha152x_ids);
+
 static struct pcmcia_driver aha152x_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "aha152x_cs",
 	},
 	.attach		= aha152x_attach,
+	.event		= aha152x_event,
 	.detach		= aha152x_detach,
+	.id_table       = aha152x_ids,
 };
 
 static int __init init_aha152x_cs(void)

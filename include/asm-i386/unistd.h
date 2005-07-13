@@ -294,8 +294,13 @@
 #define __NR_add_key		286
 #define __NR_request_key	287
 #define __NR_keyctl		288
+#define __NR_ioprio_set		289
+#define __NR_ioprio_get		290
+#define __NR_inotify_init	291
+#define __NR_inotify_add_watch	292
+#define __NR_inotify_rm_watch	293
 
-#define NR_syscalls 289
+#define NR_syscalls 294
 
 /*
  * user-visible error numbers are in the range -1 - -128: see

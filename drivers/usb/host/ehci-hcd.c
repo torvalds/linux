@@ -304,30 +304,31 @@ static void ehci_watchdog (unsigned long param)
  */
 static int bios_handoff (struct ehci_hcd *ehci, int where, u32 cap)
 {
+	struct pci_dev *pdev = to_pci_dev(ehci_to_hcd(ehci)->self.controller);
+
+	/* always say Linux will own the hardware */
+	pci_write_config_byte(pdev, where + 3, 1);
+
+	/* maybe wait a while for BIOS to respond */
 	if (cap & (1 << 16)) {
 		int msec = 5000;
-		struct pci_dev *pdev =
-				to_pci_dev(ehci_to_hcd(ehci)->self.controller);
 
-		/* request handoff to OS */
-		cap |= 1 << 24;
-		pci_write_config_dword(pdev, where, cap);
-
-		/* and wait a while for it to happen */
 		do {
 			msleep(10);
 			msec -= 10;
 			pci_read_config_dword(pdev, where, &cap);
 		} while ((cap & (1 << 16)) && msec);
 		if (cap & (1 << 16)) {
-			ehci_err (ehci, "BIOS handoff failed (%d, %04x)\n",
+			ehci_err(ehci, "BIOS handoff failed (%d, %08x)\n",
 				where, cap);
 			// some BIOS versions seem buggy...
 			// return 1;
 			ehci_warn (ehci, "continuing after BIOS bug...\n");
-			return 0;
-		} 
-		ehci_dbg (ehci, "BIOS handoff succeeded\n");
+			/* disable all SMIs, and clear "BIOS owns" flag */
+			pci_write_config_dword(pdev, where + 4, 0);
+			pci_write_config_byte(pdev, where + 2, 0);
+		} else
+			ehci_dbg(ehci, "BIOS handoff succeeded\n");
 	}
 	return 0;
 }
@@ -492,8 +493,6 @@ static int ehci_start (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			temp;
-	struct usb_device	*udev;
-	struct usb_bus		*bus;
 	int			retval;
 	u32			hcc_params;
 	u8                      sbrn = 0;
@@ -588,8 +587,8 @@ static int ehci_start (struct usb_hcd *hcd)
 		writel (0, &ehci->regs->segment);
 #if 0
 // this is deeply broken on almost all architectures
-		if (!pci_set_dma_mask (to_pci_dev(hcd->self.controller), 0xffffffffffffffffULL))
-			ehci_info (ehci, "enabled 64bit PCI DMA\n");
+		if (!dma_set_mask (hcd->self.controller, DMA_64BIT_MASK))
+			ehci_info (ehci, "enabled 64bit DMA\n");
 #endif
 	}
 
@@ -631,17 +630,6 @@ static int ehci_start (struct usb_hcd *hcd)
 
 	/* set async sleep time = 10 us ... ? */
 
-	/* wire up the root hub */
-	bus = hcd_to_bus (hcd);
-	udev = first ? usb_alloc_dev (NULL, bus, 0) : bus->root_hub;
-	if (!udev) {
-done2:
-		ehci_mem_cleanup (ehci);
-		return -ENOMEM;
-	}
-	udev->speed = USB_SPEED_HIGH;
-	udev->state = first ? USB_STATE_ATTACHED : USB_STATE_CONFIGURED;
-
 	/*
 	 * Start, enabling full USB 2.0 functionality ... usb 1.1 devices
 	 * are explicitly handed to companion controller(s), so no TT is
@@ -663,24 +651,6 @@ done2:
 		((sbrn & 0xf0)>>4), (sbrn & 0x0f),
 		first ? "initialized" : "restarted",
 		temp >> 8, temp & 0xff, DRIVER_VERSION);
-
-	/*
-	 * From here on, khubd concurrently accesses the root
-	 * hub; drivers will be talking to enumerated devices.
-	 * (On restart paths, khubd already knows about the root
-	 * hub and could find work as soon as we wrote FLAG_CF.)
-	 *
-	 * Before this point the HC was idle/ready.  After, khubd
-	 * and device drivers may start it running.
-	 */
-	if (first && usb_hcd_register_root_hub (udev, hcd) != 0) {
-		if (hcd->state == HC_STATE_RUNNING)
-			ehci_quiesce (ehci);
-		ehci_reset (ehci);
-		usb_put_dev (udev); 
-		retval = -ENODEV;
-		goto done2;
-	}
 
 	writel (INTR_MASK, &ehci->regs->intr_enable); /* Turn On Interrupts */
 
@@ -990,7 +960,7 @@ static int ehci_urb_enqueue (
 	struct usb_hcd	*hcd,
 	struct usb_host_endpoint *ep,
 	struct urb	*urb,
-	int		mem_flags
+	unsigned	mem_flags
 ) {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	struct list_head	qtd_list;

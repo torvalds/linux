@@ -54,7 +54,6 @@ extern int capi_tdata_resp(struct pcbit_chan *chan, struct sk_buff ** skb);
 
 /* Connection Termination */
 extern int capi_disc_req(ushort callref, struct sk_buff **skb, u_char cause);
-extern int capi_decode_disc_conf(struct pcbit_chan *chan, struct sk_buff *skb);
 
 extern int capi_decode_disc_ind(struct pcbit_chan *chan, struct sk_buff *skb);
 extern int capi_disc_resp(struct pcbit_chan *chan, struct sk_buff **skb);

@@ -98,7 +98,7 @@ static unsigned int nmi_p4_cccr_val;
 	(P4_CCCR_OVF_PMI0|P4_CCCR_THRESHOLD(15)|P4_CCCR_COMPLEMENT|	\
 	 P4_CCCR_COMPARE|P4_CCCR_REQUIRED|P4_CCCR_ESCR_SELECT(4)|P4_CCCR_ENABLE)
 
-static __init inline int nmi_known_cpu(void)
+static __cpuinit inline int nmi_known_cpu(void)
 {
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
@@ -110,7 +110,7 @@ static __init inline int nmi_known_cpu(void)
 }
 
 /* Run after command line and cpu_init init, but before all other checks */
-void __init nmi_watchdog_default(void)
+void __cpuinit nmi_watchdog_default(void)
 {
 	if (nmi_watchdog != NMI_DEFAULT)
 		return;

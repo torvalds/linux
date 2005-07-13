@@ -142,6 +142,23 @@ config PPC_SPLPAR
 	  processors, that is, which share physical processors between
 	  two or more partitions.
 
+config KEXEC
+	bool "kexec system call (EXPERIMENTAL)"
+	depends on PPC_MULTIPLATFORM && EXPERIMENTAL
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is indepedent of the system firmware.  And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  The name comes from the similiarity to the exec system call.
+
+	  It is an ongoing process to be certain the hardware in a machine
+	  is properly shutdown, so do not be surprised if this code does not
+	  initially work for you.  It may help to enable device hotplugging
+	  support.  As of this writing the exact hardware interface is
+	  strongly in flux, so no good recommendation can be made.
+
 config IBMVIO
 	depends on PPC_PSERIES || PPC_ISERIES
 	bool
@@ -270,26 +287,7 @@ config SCHED_SMT
 	  when dealing with POWER5 cpus at a cost of slightly increased
 	  overhead in some places. If unsure say N here.
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	help
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-
-	  Say Y here if you are building a kernel for a desktop, embedded
-	  or real-time system.  Say N if you are unsure.
-
-config PREEMPT_BKL
-	bool "Preempt The Big Kernel Lock"
-	depends on PREEMPT
-	default y
-	help
-	  This option reduces the latency of the kernel by making the
-	  big kernel lock preemptible.
-
-	  Say Y here if you are building a kernel for a desktop system.
-	  Say N if you are unsure.
+source "kernel/Kconfig.preempt"
 
 config EEH
 	bool "PCI Extended Error Handling (EEH)" if EMBEDDED
@@ -430,6 +428,8 @@ config CMDLINE
 	  most cases you will need to specify the root device here.
 
 endmenu
+
+source "net/Kconfig"
 
 source "drivers/Kconfig"
 

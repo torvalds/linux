@@ -74,7 +74,7 @@ jade_write_indirect(struct IsdnCardState *cs, u_char reg, u_char value)
 
 
 
-void
+static void
 modejade(struct BCState *bcs, int mode, int bc)
 {
     struct IsdnCardState *cs = bcs->cs;
@@ -190,7 +190,7 @@ jade_l2l1(struct PStack *st, int pr, void *arg)
     }
 }
 
-void
+static void
 close_jadestate(struct BCState *bcs)
 {
     modejade(bcs, 0, bcs->channel);
@@ -243,7 +243,7 @@ open_jadestate(struct IsdnCardState *cs, struct BCState *bcs)
 }
 
 
-int
+static int
 setstack_jade(struct PStack *st, struct BCState *bcs)
 {
 	bcs->channel = st->l1.bc;

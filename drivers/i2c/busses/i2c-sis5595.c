@@ -228,7 +228,7 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 	/* Make sure the SMBus host is ready to start transmitting */
 	temp = sis5595_read(SMB_STS_LO) + (sis5595_read(SMB_STS_HI) << 8);
 	if (temp != 0x00) {
-		dev_dbg(&adap->dev, "SMBus busy (%04x). Resetting... \n", temp);
+		dev_dbg(&adap->dev, "SMBus busy (%04x). Resetting...\n", temp);
 		sis5595_write(SMB_STS_LO, temp & 0xff);
 		sis5595_write(SMB_STS_HI, temp >> 8);
 		if ((temp = sis5595_read(SMB_STS_LO) + (sis5595_read(SMB_STS_HI) << 8)) != 0x00) {

@@ -861,8 +861,7 @@ fst_tx_dma_complete(struct fst_card_info *card, struct fst_port_info *port,
 /*
  * Mark it for our own raw sockets interface
  */
-static unsigned short farsync_type_trans(struct sk_buff *skb,
-					 struct net_device *dev)
+static __be16 farsync_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	skb->dev = dev;
 	skb->mac.raw = skb->data;
@@ -981,6 +980,7 @@ fst_issue_cmd(struct fst_port_info *port, unsigned short cmd)
 	/* Wait for any previous command to complete */
 	while (mbval > NAK) {
 		spin_unlock_irqrestore(&card->card_lock, flags);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
 		spin_lock_irqsave(&card->card_lock, flags);
 

@@ -33,7 +33,6 @@
 #include <linux/timer.h>
 #include <linux/netdevice.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -210,11 +209,6 @@ static dev_link_t *airo_attach(void)
 	link->next = dev_list;
 	dev_list = link;
 	client_reg.dev_info = &dev_info;
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &airo_event;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 	ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -559,13 +553,24 @@ static int airo_event(event_t event, int priority,
 	return 0;
 } /* airo_event */
 
+static struct pcmcia_device_id airo_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x015f, 0x000a),
+	PCMCIA_DEVICE_MANF_CARD(0x015f, 0x0005),
+	PCMCIA_DEVICE_MANF_CARD(0x015f, 0x0007),
+	PCMCIA_DEVICE_MANF_CARD(0x0105, 0x0007),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, airo_ids);
+
 static struct pcmcia_driver airo_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "airo_cs",
 	},
 	.attach		= airo_attach,
+	.event		= airo_event,
 	.detach		= airo_detach,
+	.id_table       = airo_ids,
 };
 
 static int airo_cs_init(void)

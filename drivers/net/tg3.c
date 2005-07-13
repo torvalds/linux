@@ -66,8 +66,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.31"
-#define DRV_MODULE_RELDATE	"June 8, 2005"
+#define DRV_MODULE_VERSION	"3.33"
+#define DRV_MODULE_RELDATE	"July 5, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -337,12 +337,10 @@ static struct {
 static void tg3_write_indirect_reg32(struct tg3 *tp, u32 off, u32 val)
 {
 	if ((tp->tg3_flags & TG3_FLAG_PCIX_TARGET_HWBUG) != 0) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&tp->indirect_lock, flags);
+		spin_lock_bh(&tp->indirect_lock);
 		pci_write_config_dword(tp->pdev, TG3PCI_REG_BASE_ADDR, off);
 		pci_write_config_dword(tp->pdev, TG3PCI_REG_DATA, val);
-		spin_unlock_irqrestore(&tp->indirect_lock, flags);
+		spin_unlock_bh(&tp->indirect_lock);
 	} else {
 		writel(val, tp->regs + off);
 		if ((tp->tg3_flags & TG3_FLAG_5701_REG_WRITE_BUG) != 0)
@@ -353,12 +351,10 @@ static void tg3_write_indirect_reg32(struct tg3 *tp, u32 off, u32 val)
 static void _tw32_flush(struct tg3 *tp, u32 off, u32 val)
 {
 	if ((tp->tg3_flags & TG3_FLAG_PCIX_TARGET_HWBUG) != 0) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&tp->indirect_lock, flags);
+		spin_lock_bh(&tp->indirect_lock);
 		pci_write_config_dword(tp->pdev, TG3PCI_REG_BASE_ADDR, off);
 		pci_write_config_dword(tp->pdev, TG3PCI_REG_DATA, val);
-		spin_unlock_irqrestore(&tp->indirect_lock, flags);
+		spin_unlock_bh(&tp->indirect_lock);
 	} else {
 		void __iomem *dest = tp->regs + off;
 		writel(val, dest);
@@ -398,28 +394,24 @@ static inline void _tw32_tx_mbox(struct tg3 *tp, u32 off, u32 val)
 
 static void tg3_write_mem(struct tg3 *tp, u32 off, u32 val)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&tp->indirect_lock, flags);
+	spin_lock_bh(&tp->indirect_lock);
 	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
 	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
 
 	/* Always leave this as zero. */
 	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
-	spin_unlock_irqrestore(&tp->indirect_lock, flags);
+	spin_unlock_bh(&tp->indirect_lock);
 }
 
 static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&tp->indirect_lock, flags);
+	spin_lock_bh(&tp->indirect_lock);
 	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
 	pci_read_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
 
 	/* Always leave this as zero. */
 	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
-	spin_unlock_irqrestore(&tp->indirect_lock, flags);
+	spin_unlock_bh(&tp->indirect_lock);
 }
 
 static void tg3_disable_ints(struct tg3 *tp)
@@ -438,12 +430,14 @@ static inline void tg3_cond_int(struct tg3 *tp)
 
 static void tg3_enable_ints(struct tg3 *tp)
 {
+	tp->irq_sync = 0;
+	wmb();
+
 	tw32(TG3PCI_MISC_HOST_CTRL,
 	     (tp->misc_host_ctrl & ~MISC_HOST_CTRL_MASK_PCI_INT));
 	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 		     (tp->last_tag << 24));
 	tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
-
 	tg3_cond_int(tp);
 }
 
@@ -492,6 +486,7 @@ static void tg3_restart_ints(struct tg3 *tp)
 
 static inline void tg3_netif_stop(struct tg3 *tp)
 {
+	tp->dev->trans_start = jiffies;	/* prevent tx timeout */
 	netif_poll_disable(tp->dev);
 	netif_tx_disable(tp->dev);
 }
@@ -504,7 +499,8 @@ static inline void tg3_netif_start(struct tg3 *tp)
 	 * (such as after tg3_init_hw)
 	 */
 	netif_poll_enable(tp->dev);
-	tg3_cond_int(tp);
+	tp->hw_status->status |= SD_STATUS_UPDATED;
+	tg3_enable_ints(tp);
 }
 
 static void tg3_switch_clocks(struct tg3 *tp)
@@ -2578,7 +2574,7 @@ static void tg3_tx(struct tg3 *tp)
 			sw_idx = NEXT_TX(sw_idx);
 		}
 
-		dev_kfree_skb_irq(skb);
+		dev_kfree_skb(skb);
 	}
 
 	tp->tx_cons = sw_idx;
@@ -2884,10 +2880,7 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 {
 	struct tg3 *tp = netdev_priv(netdev);
 	struct tg3_hw_status *sblk = tp->hw_status;
-	unsigned long flags;
 	int done;
-
-	spin_lock_irqsave(&tp->lock, flags);
 
 	/* handle link change and other phy events */
 	if (!(tp->tg3_flags &
@@ -2896,7 +2889,9 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 		if (sblk->status & SD_STATUS_LINK_CHG) {
 			sblk->status = SD_STATUS_UPDATED |
 				(sblk->status & ~SD_STATUS_LINK_CHG);
+			spin_lock(&tp->lock);
 			tg3_setup_phy(tp, 0);
+			spin_unlock(&tp->lock);
 		}
 	}
 
@@ -2906,8 +2901,6 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 		tg3_tx(tp);
 		spin_unlock(&tp->tx_lock);
 	}
-
-	spin_unlock_irqrestore(&tp->lock, flags);
 
 	/* run RX thread, within the bounds set by NAPI.
 	 * All RX "locking" is done by ensuring outside
@@ -2929,17 +2922,52 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 	if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)
 		tp->last_tag = sblk->status_tag;
 	rmb();
+	sblk->status &= ~SD_STATUS_UPDATED;
 
 	/* if no more work, tell net stack and NIC we're done */
 	done = !tg3_has_work(tp);
 	if (done) {
-		spin_lock_irqsave(&tp->lock, flags);
-		__netif_rx_complete(netdev);
+		spin_lock(&tp->lock);
+		netif_rx_complete(netdev);
 		tg3_restart_ints(tp);
-		spin_unlock_irqrestore(&tp->lock, flags);
+		spin_unlock(&tp->lock);
 	}
 
 	return (done ? 0 : 1);
+}
+
+static void tg3_irq_quiesce(struct tg3 *tp)
+{
+	BUG_ON(tp->irq_sync);
+
+	tp->irq_sync = 1;
+	smp_mb();
+
+	synchronize_irq(tp->pdev->irq);
+}
+
+static inline int tg3_irq_sync(struct tg3 *tp)
+{
+	return tp->irq_sync;
+}
+
+/* Fully shutdown all tg3 driver activity elsewhere in the system.
+ * If irq_sync is non-zero, then the IRQ handler must be synchronized
+ * with as well.  Most of the time, this is not necessary except when
+ * shutting down the device.
+ */
+static inline void tg3_full_lock(struct tg3 *tp, int irq_sync)
+{
+	if (irq_sync)
+		tg3_irq_quiesce(tp);
+	spin_lock_bh(&tp->lock);
+	spin_lock(&tp->tx_lock);
+}
+
+static inline void tg3_full_unlock(struct tg3 *tp)
+{
+	spin_unlock(&tp->tx_lock);
+	spin_unlock_bh(&tp->lock);
 }
 
 /* MSI ISR - No need to check for interrupt sharing and no need to
@@ -2951,9 +2979,6 @@ static irqreturn_t tg3_msi(int irq, void *dev_id, struct pt_regs *regs)
 	struct net_device *dev = dev_id;
 	struct tg3 *tp = netdev_priv(dev);
 	struct tg3_hw_status *sblk = tp->hw_status;
-	unsigned long flags;
-
-	spin_lock_irqsave(&tp->lock, flags);
 
 	/*
 	 * Writing any value to intr-mbox-0 clears PCI INTA# and
@@ -2964,6 +2989,9 @@ static irqreturn_t tg3_msi(int irq, void *dev_id, struct pt_regs *regs)
 	 */
 	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
 	tp->last_tag = sblk->status_tag;
+	rmb();
+	if (tg3_irq_sync(tp))
+		goto out;
 	sblk->status &= ~SD_STATUS_UPDATED;
 	if (likely(tg3_has_work(tp)))
 		netif_rx_schedule(dev);		/* schedule NAPI poll */
@@ -2972,9 +3000,7 @@ static irqreturn_t tg3_msi(int irq, void *dev_id, struct pt_regs *regs)
 		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 			     tp->last_tag << 24);
 	}
-
-	spin_unlock_irqrestore(&tp->lock, flags);
-
+out:
 	return IRQ_RETVAL(1);
 }
 
@@ -2983,10 +3009,7 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	struct net_device *dev = dev_id;
 	struct tg3 *tp = netdev_priv(dev);
 	struct tg3_hw_status *sblk = tp->hw_status;
-	unsigned long flags;
 	unsigned int handled = 1;
-
-	spin_lock_irqsave(&tp->lock, flags);
 
 	/* In INTx mode, it is possible for the interrupt to arrive at
 	 * the CPU before the status block posted prior to the interrupt.
@@ -3004,6 +3027,8 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		 */
 		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 			     0x00000001);
+		if (tg3_irq_sync(tp))
+			goto out;
 		sblk->status &= ~SD_STATUS_UPDATED;
 		if (likely(tg3_has_work(tp)))
 			netif_rx_schedule(dev);		/* schedule NAPI poll */
@@ -3018,9 +3043,7 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	} else {	/* shared interrupt */
 		handled = 0;
 	}
-
-	spin_unlock_irqrestore(&tp->lock, flags);
-
+out:
 	return IRQ_RETVAL(handled);
 }
 
@@ -3029,10 +3052,7 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id, struct pt_regs *r
 	struct net_device *dev = dev_id;
 	struct tg3 *tp = netdev_priv(dev);
 	struct tg3_hw_status *sblk = tp->hw_status;
-	unsigned long flags;
 	unsigned int handled = 1;
-
-	spin_lock_irqsave(&tp->lock, flags);
 
 	/* In INTx mode, it is possible for the interrupt to arrive at
 	 * the CPU before the status block posted prior to the interrupt.
@@ -3051,6 +3071,9 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id, struct pt_regs *r
 		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 			     0x00000001);
 		tp->last_tag = sblk->status_tag;
+		rmb();
+		if (tg3_irq_sync(tp))
+			goto out;
 		sblk->status &= ~SD_STATUS_UPDATED;
 		if (likely(tg3_has_work(tp)))
 			netif_rx_schedule(dev);		/* schedule NAPI poll */
@@ -3065,9 +3088,7 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id, struct pt_regs *r
 	} else {	/* shared interrupt */
 		handled = 0;
 	}
-
-	spin_unlock_irqrestore(&tp->lock, flags);
-
+out:
 	return IRQ_RETVAL(handled);
 }
 
@@ -3106,8 +3127,7 @@ static void tg3_reset_task(void *_data)
 
 	tg3_netif_stop(tp);
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 1);
 
 	restart_timer = tp->tg3_flags2 & TG3_FLG2_RESTART_TIMER;
 	tp->tg3_flags2 &= ~TG3_FLG2_RESTART_TIMER;
@@ -3117,8 +3137,7 @@ static void tg3_reset_task(void *_data)
 
 	tg3_netif_start(tp);
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 
 	if (restart_timer)
 		mod_timer(&tp->timer, jiffies + 1);
@@ -3224,39 +3243,21 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int i;
 	u32 len, entry, base_flags, mss;
 	int would_hit_hwbug;
-	unsigned long flags;
 
 	len = skb_headlen(skb);
 
 	/* No BH disabling for tx_lock here.  We are running in BH disabled
 	 * context and TX reclaim runs via tp->poll inside of a software
-	 * interrupt.  Rejoice!
-	 *
-	 * Actually, things are not so simple.  If we are to take a hw
-	 * IRQ here, we can deadlock, consider:
-	 *
-	 *       CPU1		CPU2
-	 *   tg3_start_xmit
-	 *   take tp->tx_lock
-	 *			tg3_timer
-	 *			take tp->lock
-	 *   tg3_interrupt
-	 *   spin on tp->lock
-	 *			spin on tp->tx_lock
-	 *
-	 * So we really do need to disable interrupts when taking
-	 * tx_lock here.
+	 * interrupt.  Furthermore, IRQ processing runs lockless so we have
+	 * no IRQ context deadlocks to worry about either.  Rejoice!
 	 */
-	local_irq_save(flags);
-	if (!spin_trylock(&tp->tx_lock)) { 
-		local_irq_restore(flags);
+	if (!spin_trylock(&tp->tx_lock))
 		return NETDEV_TX_LOCKED; 
-	} 
 
 	/* This is a hard error, log it. */
 	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
 		netif_stop_queue(dev);
-		spin_unlock_irqrestore(&tp->tx_lock, flags);
+		spin_unlock(&tp->tx_lock);
 		printk(KERN_ERR PFX "%s: BUG! Tx Ring full when queue awake!\n",
 		       dev->name);
 		return NETDEV_TX_BUSY;
@@ -3421,7 +3422,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 out_unlock:
     	mmiowb();
-	spin_unlock_irqrestore(&tp->tx_lock, flags);
+	spin_unlock(&tp->tx_lock);
 
 	dev->trans_start = jiffies;
 
@@ -3455,8 +3456,8 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 	}
 
 	tg3_netif_stop(tp);
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+
+	tg3_full_lock(tp, 1);
 
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 
@@ -3466,8 +3467,7 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 
 	tg3_netif_start(tp);
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 
 	return 0;
 }
@@ -5088,9 +5088,9 @@ static int tg3_set_mac_addr(struct net_device *dev, void *p)
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
-	spin_lock_irq(&tp->lock);
+	spin_lock_bh(&tp->lock);
 	__tg3_set_mac_addr(tp);
-	spin_unlock_irq(&tp->lock);
+	spin_unlock_bh(&tp->lock);
 
 	return 0;
 }
@@ -5117,7 +5117,7 @@ static void tg3_set_bdinfo(struct tg3 *tp, u32 bdinfo_addr,
 }
 
 static void __tg3_set_rx_mode(struct net_device *);
-static void tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
+static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
 {
 	tw32(HOSTCC_RXCOL_TICKS, ec->rx_coalesce_usecs);
 	tw32(HOSTCC_TXCOL_TICKS, ec->tx_coalesce_usecs);
@@ -5460,7 +5460,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 		udelay(10);
 	}
 
-	tg3_set_coalesce(tp, &tp->coal);
+	__tg3_set_coalesce(tp, &tp->coal);
 
 	/* set status block DMA address */
 	tw32(HOSTCC_STATUS_BLK_HOST_ADDR + TG3_64BIT_REG_HIGH,
@@ -5727,9 +5727,6 @@ static int tg3_reset_hw(struct tg3 *tp)
 
 	tg3_write_sig_post_reset(tp, RESET_KIND_INIT);
 
-	if (tp->tg3_flags & TG3_FLAG_INIT_COMPLETE)
-		tg3_enable_ints(tp);
-
 	return 0;
 }
 
@@ -5802,10 +5799,8 @@ static void tg3_periodic_fetch_stats(struct tg3 *tp)
 static void tg3_timer(unsigned long __opaque)
 {
 	struct tg3 *tp = (struct tg3 *) __opaque;
-	unsigned long flags;
 
-	spin_lock_irqsave(&tp->lock, flags);
-	spin_lock(&tp->tx_lock);
+	spin_lock(&tp->lock);
 
 	if (!(tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)) {
 		/* All of this garbage is because when using non-tagged
@@ -5822,8 +5817,7 @@ static void tg3_timer(unsigned long __opaque)
 
 		if (!(tr32(WDMAC_MODE) & WDMAC_MODE_ENABLE)) {
 			tp->tg3_flags2 |= TG3_FLG2_RESTART_TIMER;
-			spin_unlock(&tp->tx_lock);
-			spin_unlock_irqrestore(&tp->lock, flags);
+			spin_unlock(&tp->lock);
 			schedule_work(&tp->reset_task);
 			return;
 		}
@@ -5891,8 +5885,7 @@ static void tg3_timer(unsigned long __opaque)
 		tp->asf_counter = tp->asf_multiplier;
 	}
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irqrestore(&tp->lock, flags);
+	spin_unlock(&tp->lock);
 
 	tp->timer.expires = jiffies + tp->timer_offset;
 	add_timer(&tp->timer);
@@ -6007,14 +6000,12 @@ static int tg3_test_msi(struct tg3 *tp)
 	/* Need to reset the chip because the MSI cycle may have terminated
 	 * with Master Abort.
 	 */
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 1);
 
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 	err = tg3_init_hw(tp);
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 
 	if (err)
 		free_irq(tp->pdev->irq, dev);
@@ -6027,14 +6018,12 @@ static int tg3_open(struct net_device *dev)
 	struct tg3 *tp = netdev_priv(dev);
 	int err;
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 0);
 
 	tg3_disable_ints(tp);
 	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 
 	/* The placement of this call is tied
 	 * to the setup and use of Host TX descriptors.
@@ -6081,8 +6070,7 @@ static int tg3_open(struct net_device *dev)
 		return err;
 	}
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 0);
 
 	err = tg3_init_hw(tp);
 	if (err) {
@@ -6106,8 +6094,7 @@ static int tg3_open(struct net_device *dev)
 		tp->timer.function = tg3_timer;
 	}
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 
 	if (err) {
 		free_irq(tp->pdev->irq, dev);
@@ -6123,8 +6110,7 @@ static int tg3_open(struct net_device *dev)
 		err = tg3_test_msi(tp);
 
 		if (err) {
-			spin_lock_irq(&tp->lock);
-			spin_lock(&tp->tx_lock);
+			tg3_full_lock(tp, 0);
 
 			if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
 				pci_disable_msi(tp->pdev);
@@ -6134,22 +6120,19 @@ static int tg3_open(struct net_device *dev)
 			tg3_free_rings(tp);
 			tg3_free_consistent(tp);
 
-			spin_unlock(&tp->tx_lock);
-			spin_unlock_irq(&tp->lock);
+			tg3_full_unlock(tp);
 
 			return err;
 		}
 	}
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 0);
 
 	add_timer(&tp->timer);
 	tp->tg3_flags |= TG3_FLAG_INIT_COMPLETE;
 	tg3_enable_ints(tp);
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 
 	netif_start_queue(dev);
 
@@ -6395,8 +6378,7 @@ static int tg3_close(struct net_device *dev)
 
 	del_timer_sync(&tp->timer);
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 1);
 #if 0
 	tg3_dump_state(tp);
 #endif
@@ -6410,8 +6392,7 @@ static int tg3_close(struct net_device *dev)
 		  TG3_FLAG_GOT_SERDES_FLOWCTL);
 	netif_carrier_off(tp->dev);
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 
 	free_irq(tp->pdev->irq, dev);
 	if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
@@ -6448,16 +6429,15 @@ static unsigned long calc_crc_errors(struct tg3 *tp)
 	if (!(tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) &&
 	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
 	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)) {
-		unsigned long flags;
 		u32 val;
 
-		spin_lock_irqsave(&tp->lock, flags);
+		spin_lock_bh(&tp->lock);
 		if (!tg3_readphy(tp, 0x1e, &val)) {
 			tg3_writephy(tp, 0x1e, val | 0x8000);
 			tg3_readphy(tp, 0x14, &val);
 		} else
 			val = 0;
-		spin_unlock_irqrestore(&tp->lock, flags);
+		spin_unlock_bh(&tp->lock);
 
 		tp->phy_crc_errors += val;
 
@@ -6719,11 +6699,9 @@ static void tg3_set_rx_mode(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 0);
 	__tg3_set_rx_mode(dev);
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 }
 
 #define TG3_REGDUMP_LEN		(32 * 1024)
@@ -6745,8 +6723,7 @@ static void tg3_get_regs(struct net_device *dev,
 
 	memset(p, 0, TG3_REGDUMP_LEN);
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 0);
 
 #define __GET_REG32(reg)	(*(p)++ = tr32(reg))
 #define GET_REG32_LOOP(base,len)		\
@@ -6796,8 +6773,7 @@ do {	p = (u32 *)(orig_p + (reg));		\
 #undef GET_REG32_LOOP
 #undef GET_REG32_1
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 }
 
 static int tg3_get_eeprom_len(struct net_device *dev)
@@ -6973,8 +6949,7 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			return -EINVAL;
 	}
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 0);
 
 	tp->link_config.autoneg = cmd->autoneg;
 	if (cmd->autoneg == AUTONEG_ENABLE) {
@@ -6990,8 +6965,7 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (netif_running(dev))
 		tg3_setup_phy(tp, 1);
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
   
 	return 0;
 }
@@ -7027,12 +7001,12 @@ static int tg3_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	    !(tp->tg3_flags & TG3_FLAG_SERDES_WOL_CAP))
 		return -EINVAL;
   
-	spin_lock_irq(&tp->lock);
+	spin_lock_bh(&tp->lock);
 	if (wol->wolopts & WAKE_MAGIC)
 		tp->tg3_flags |= TG3_FLAG_WOL_ENABLE;
 	else
 		tp->tg3_flags &= ~TG3_FLAG_WOL_ENABLE;
-	spin_unlock_irq(&tp->lock);
+	spin_unlock_bh(&tp->lock);
   
 	return 0;
 }
@@ -7072,7 +7046,7 @@ static int tg3_nway_reset(struct net_device *dev)
 	if (!netif_running(dev))
 		return -EAGAIN;
 
-	spin_lock_irq(&tp->lock);
+	spin_lock_bh(&tp->lock);
 	r = -EINVAL;
 	tg3_readphy(tp, MII_BMCR, &bmcr);
 	if (!tg3_readphy(tp, MII_BMCR, &bmcr) &&
@@ -7080,7 +7054,7 @@ static int tg3_nway_reset(struct net_device *dev)
 		tg3_writephy(tp, MII_BMCR, bmcr | BMCR_ANRESTART);
 		r = 0;
 	}
-	spin_unlock_irq(&tp->lock);
+	spin_unlock_bh(&tp->lock);
   
 	return r;
 }
@@ -7102,17 +7076,19 @@ static void tg3_get_ringparam(struct net_device *dev, struct ethtool_ringparam *
 static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
 	struct tg3 *tp = netdev_priv(dev);
+	int irq_sync = 0;
   
 	if ((ering->rx_pending > TG3_RX_RING_SIZE - 1) ||
 	    (ering->rx_jumbo_pending > TG3_RX_JUMBO_RING_SIZE - 1) ||
 	    (ering->tx_pending > TG3_TX_RING_SIZE - 1))
 		return -EINVAL;
   
-	if (netif_running(dev))
+	if (netif_running(dev)) {
 		tg3_netif_stop(tp);
+		irq_sync = 1;
+	}
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, irq_sync);
   
 	tp->rx_pending = ering->rx_pending;
 
@@ -7128,8 +7104,7 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 		tg3_netif_start(tp);
 	}
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
   
 	return 0;
 }
@@ -7146,12 +7121,15 @@ static void tg3_get_pauseparam(struct net_device *dev, struct ethtool_pauseparam
 static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam *epause)
 {
 	struct tg3 *tp = netdev_priv(dev);
+	int irq_sync = 0;
   
-	if (netif_running(dev))
+	if (netif_running(dev)) {
 		tg3_netif_stop(tp);
+		irq_sync = 1;
+	}
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, irq_sync);
+
 	if (epause->autoneg)
 		tp->tg3_flags |= TG3_FLAG_PAUSE_AUTONEG;
 	else
@@ -7170,8 +7148,8 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 		tg3_init_hw(tp);
 		tg3_netif_start(tp);
 	}
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+
+	tg3_full_unlock(tp);
   
 	return 0;
 }
@@ -7192,12 +7170,12 @@ static int tg3_set_rx_csum(struct net_device *dev, u32 data)
   		return 0;
   	}
   
-	spin_lock_irq(&tp->lock);
+	spin_lock_bh(&tp->lock);
 	if (data)
 		tp->tg3_flags |= TG3_FLAG_RX_CHECKSUMS;
 	else
 		tp->tg3_flags &= ~TG3_FLAG_RX_CHECKSUMS;
-	spin_unlock_irq(&tp->lock);
+	spin_unlock_bh(&tp->lock);
   
 	return 0;
 }
@@ -7606,8 +7584,6 @@ static int tg3_test_loopback(struct tg3 *tp)
 
 	tg3_abort_hw(tp, 1);
 
-	/* Clearing this flag to keep interrupts disabled */
-	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
 	tg3_reset_hw(tp);
 
 	mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
@@ -7716,11 +7692,14 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 		data[1] = 1;
 	}
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
-		if (netif_running(dev))
-			tg3_netif_stop(tp);
+		int irq_sync = 0;
 
-		spin_lock_irq(&tp->lock);
-		spin_lock(&tp->tx_lock);
+		if (netif_running(dev)) {
+			tg3_netif_stop(tp);
+			irq_sync = 1;
+		}
+
+		tg3_full_lock(tp, irq_sync);
 
 		tg3_halt(tp, RESET_KIND_SUSPEND, 1);
 		tg3_nvram_lock(tp);
@@ -7742,14 +7721,14 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 			data[4] = 1;
 		}
 
-		spin_unlock(&tp->tx_lock);
-		spin_unlock_irq(&tp->lock);
+		tg3_full_unlock(tp);
+
 		if (tg3_test_interrupt(tp) != 0) {
 			etest->flags |= ETH_TEST_FL_FAILED;
 			data[5] = 1;
 		}
-		spin_lock_irq(&tp->lock);
-		spin_lock(&tp->tx_lock);
+
+		tg3_full_lock(tp, 0);
 
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 		if (netif_running(dev)) {
@@ -7757,8 +7736,8 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 			tg3_init_hw(tp);
 			tg3_netif_start(tp);
 		}
-		spin_unlock(&tp->tx_lock);
-		spin_unlock_irq(&tp->lock);
+
+		tg3_full_unlock(tp);
 	}
 }
 
@@ -7779,9 +7758,9 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
 			break;			/* We have no PHY */
 
-		spin_lock_irq(&tp->lock);
+		spin_lock_bh(&tp->lock);
 		err = tg3_readphy(tp, data->reg_num & 0x1f, &mii_regval);
-		spin_unlock_irq(&tp->lock);
+		spin_unlock_bh(&tp->lock);
 
 		data->val_out = mii_regval;
 
@@ -7795,9 +7774,9 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
-		spin_lock_irq(&tp->lock);
+		spin_lock_bh(&tp->lock);
 		err = tg3_writephy(tp, data->reg_num & 0x1f, data->val_in);
-		spin_unlock_irq(&tp->lock);
+		spin_unlock_bh(&tp->lock);
 
 		return err;
 
@@ -7813,28 +7792,24 @@ static void tg3_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 0);
 
 	tp->vlgrp = grp;
 
 	/* Update RX_MODE_KEEP_VLAN_TAG bit in RX_MODE register. */
 	__tg3_set_rx_mode(dev);
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 }
 
 static void tg3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 0);
 	if (tp->vlgrp)
 		tp->vlgrp->vlan_devices[vid] = NULL;
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 }
 #endif
 
@@ -7843,6 +7818,60 @@ static int tg3_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	struct tg3 *tp = netdev_priv(dev);
 
 	memcpy(ec, &tp->coal, sizeof(*ec));
+	return 0;
+}
+
+static int tg3_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
+{
+	struct tg3 *tp = netdev_priv(dev);
+	u32 max_rxcoal_tick_int = 0, max_txcoal_tick_int = 0;
+	u32 max_stat_coal_ticks = 0, min_stat_coal_ticks = 0;
+
+	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS)) {
+		max_rxcoal_tick_int = MAX_RXCOAL_TICK_INT;
+		max_txcoal_tick_int = MAX_TXCOAL_TICK_INT;
+		max_stat_coal_ticks = MAX_STAT_COAL_TICKS;
+		min_stat_coal_ticks = MIN_STAT_COAL_TICKS;
+	}
+
+	if ((ec->rx_coalesce_usecs > MAX_RXCOL_TICKS) ||
+	    (ec->tx_coalesce_usecs > MAX_TXCOL_TICKS) ||
+	    (ec->rx_max_coalesced_frames > MAX_RXMAX_FRAMES) ||
+	    (ec->tx_max_coalesced_frames > MAX_TXMAX_FRAMES) ||
+	    (ec->rx_coalesce_usecs_irq > max_rxcoal_tick_int) ||
+	    (ec->tx_coalesce_usecs_irq > max_txcoal_tick_int) ||
+	    (ec->rx_max_coalesced_frames_irq > MAX_RXCOAL_MAXF_INT) ||
+	    (ec->tx_max_coalesced_frames_irq > MAX_TXCOAL_MAXF_INT) ||
+	    (ec->stats_block_coalesce_usecs > max_stat_coal_ticks) ||
+	    (ec->stats_block_coalesce_usecs < min_stat_coal_ticks))
+		return -EINVAL;
+
+	/* No rx interrupts will be generated if both are zero */
+	if ((ec->rx_coalesce_usecs == 0) &&
+	    (ec->rx_max_coalesced_frames == 0))
+		return -EINVAL;
+
+	/* No tx interrupts will be generated if both are zero */
+	if ((ec->tx_coalesce_usecs == 0) &&
+	    (ec->tx_max_coalesced_frames == 0))
+		return -EINVAL;
+
+	/* Only copy relevant parameters, ignore all others. */
+	tp->coal.rx_coalesce_usecs = ec->rx_coalesce_usecs;
+	tp->coal.tx_coalesce_usecs = ec->tx_coalesce_usecs;
+	tp->coal.rx_max_coalesced_frames = ec->rx_max_coalesced_frames;
+	tp->coal.tx_max_coalesced_frames = ec->tx_max_coalesced_frames;
+	tp->coal.rx_coalesce_usecs_irq = ec->rx_coalesce_usecs_irq;
+	tp->coal.tx_coalesce_usecs_irq = ec->tx_coalesce_usecs_irq;
+	tp->coal.rx_max_coalesced_frames_irq = ec->rx_max_coalesced_frames_irq;
+	tp->coal.tx_max_coalesced_frames_irq = ec->tx_max_coalesced_frames_irq;
+	tp->coal.stats_block_coalesce_usecs = ec->stats_block_coalesce_usecs;
+
+	if (netif_running(dev)) {
+		tg3_full_lock(tp, 0);
+		__tg3_set_coalesce(tp, &tp->coal);
+		tg3_full_unlock(tp);
+	}
 	return 0;
 }
 
@@ -7881,6 +7910,7 @@ static struct ethtool_ops tg3_ethtool_ops = {
 	.get_stats_count	= tg3_get_stats_count,
 	.get_ethtool_stats	= tg3_get_ethtool_stats,
 	.get_coalesce		= tg3_get_coalesce,
+	.set_coalesce		= tg3_set_coalesce,
 };
 
 static void __devinit tg3_get_eeprom_size(struct tg3 *tp)
@@ -9825,6 +9855,12 @@ static void __devinit tg3_init_coal(struct tg3 *tp)
 		ec->tx_coalesce_usecs = LOW_TXCOL_TICKS_CLRTCKS;
 		ec->tx_coalesce_usecs_irq = DEFAULT_TXCOAL_TICK_INT_CLRTCKS;
 	}
+
+	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS) {
+		ec->rx_coalesce_usecs_irq = 0;
+		ec->tx_coalesce_usecs_irq = 0;
+		ec->stats_block_coalesce_usecs = 0;
+	}
 }
 
 static int __devinit tg3_init_one(struct pci_dev *pdev,
@@ -10165,24 +10201,19 @@ static int tg3_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	del_timer_sync(&tp->timer);
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 1);
 	tg3_disable_ints(tp);
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 
 	netif_device_detach(dev);
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 0);
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 
 	err = tg3_set_power_state(tp, pci_choose_state(pdev, state));
 	if (err) {
-		spin_lock_irq(&tp->lock);
-		spin_lock(&tp->tx_lock);
+		tg3_full_lock(tp, 0);
 
 		tg3_init_hw(tp);
 
@@ -10192,8 +10223,7 @@ static int tg3_suspend(struct pci_dev *pdev, pm_message_t state)
 		netif_device_attach(dev);
 		tg3_netif_start(tp);
 
-		spin_unlock(&tp->tx_lock);
-		spin_unlock_irq(&tp->lock);
+		tg3_full_unlock(tp);
 	}
 
 	return err;
@@ -10216,20 +10246,16 @@ static int tg3_resume(struct pci_dev *pdev)
 
 	netif_device_attach(dev);
 
-	spin_lock_irq(&tp->lock);
-	spin_lock(&tp->tx_lock);
+	tg3_full_lock(tp, 0);
 
 	tg3_init_hw(tp);
 
 	tp->timer.expires = jiffies + tp->timer_offset;
 	add_timer(&tp->timer);
 
-	tg3_enable_ints(tp);
-
 	tg3_netif_start(tp);
 
-	spin_unlock(&tp->tx_lock);
-	spin_unlock_irq(&tp->lock);
+	tg3_full_unlock(tp);
 
 	return 0;
 }

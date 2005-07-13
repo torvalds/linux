@@ -132,7 +132,6 @@ static const struct drive_list_entry drive_blacklist [] = {
 	{ "SAMSUNG CD-ROM SC-148C",	"ALL"		},
 	{ "SAMSUNG CD-ROM SC",	"ALL"		},
 	{ "SanDisk SDP3B-64"	,	"ALL"		},
-	{ "SAMSUNG CD-ROM SN-124",	"ALL"		},
 	{ "ATAPI CD-ROM DRIVE 40X MAXIMUM",	"ALL"		},
 	{ "_NEC DV5800A",               "ALL"           },  
 	{ NULL			,	NULL		}

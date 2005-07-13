@@ -370,6 +370,10 @@ W:	http://www.thekelleys.org.uk/atmel
 W:	http://atmelwlandriver.sourceforge.net/
 S:	Maintained
 
+AUDIT SUBSYSTEM
+L:	linux-audit@redhat.com (subscribers-only)
+S:	Maintained
+
 AX.25 NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
@@ -512,11 +516,11 @@ W:	http://linuxppc64.org
 S:	Supported
 
 BTTV VIDEO4LINUX DRIVER
-P:	Gerd Knorr
-M:	kraxel@bytesex.org
+P:	Mauro Carvalho Chehab
+M:	mchehab@brturbo.com.br
 L:	video4linux-list@redhat.com
-W:	http://bytesex.org/bttv/
-S:	Orphan
+W:	http://linuxtv.org
+S:	Maintained
 
 BUSLOGIC SCSI DRIVER
 P:	Leonard N. Zubkoff
@@ -576,10 +580,9 @@ S:	Supported
 
 COMPUTONE INTELLIPORT MULTIPORT CARD
 P:	Michael H. Warfield
-M:	Michael H. Warfield <mhw@wittsend.com>
+M:	mhw@wittsend.com
 W:	http://www.wittsend.com/computone.html
-L:	linux-computone@lazuli.wittsend.com
-S:	Orphaned
+S:	Maintained
 
 COSA/SRP SYNC SERIAL DRIVER
 P:	Jan "Yenya" Kasprzak
@@ -1150,7 +1153,7 @@ S:	Maintained
 
 INFINIBAND SUBSYSTEM
 P:	Roland Dreier
-M:	roland@topspin.com
+M:	rolandd@cisco.com
 P:	Sean Hefty
 M:	mshefty@ichips.intel.com
 P:	Hal Rosenstock
@@ -1237,7 +1240,7 @@ S:	Maintained
 
 IRDA SUBSYSTEM
 P:	Jean Tourrilhes
-L:	irda-users@lists.sourceforge.net
+L:	irda-users@lists.sourceforge.net (subscribers-only)
 W:	http://irda.sourceforge.net/
 S:	Maintained
 
@@ -1328,6 +1331,16 @@ KERNEL EVENT LAYER (KOBJECT_UEVENT)
 P:	Robert Love
 M:	rml@novell.com
 L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+KEXEC
+P:	Eric Biederman
+P:	Randy Dunlap
+M:	ebiederm@xmission.com
+M:	rddunlap@osdl.org
+W:	http://www.xmission.com/~ebiederm/files/kexec/
+L:	linux-kernel@vger.kernel.org
+L:	fastboot@osdl.org
 S:	Maintained
 
 LANMEDIA WAN CARD DRIVER
@@ -1794,8 +1807,9 @@ M:	greg@kroah.com
 S:	Maintained
 
 PCMCIA SUBSYSTEM
+P:	Linux PCMCIA Team
 L:	http://lists.infradead.org/mailman/listinfo/linux-pcmcia
-S:	Unmaintained
+S:	Maintained
 
 PCNET32 NETWORK DRIVER
 P:	Thomas Bogendörfer
@@ -2115,9 +2129,7 @@ S:	Maintained
 SOFTWARE SUSPEND:
 P:	Pavel Machek
 M:	pavel@suse.cz
-M:	pavel@ucw.cz
-L:	http://lister.fornax.hu/mailman/listinfo/swsusp
-W:	http://swsusp.sf.net/
+L:	linux-pm@osdl.org
 S:	Maintained
 
 SONIC NETWORK DRIVER
@@ -2145,11 +2157,16 @@ W:	http://tpmdd.sourceforge.net
 L:	tpmdd-devel@lists.sourceforge.net
 S:	Maintained
 
+TENSILICA XTENSA PORT (xtensa):
+P:	Chris Zankel
+M:	chris@zankel.net
+S:	Maintained
+
 UltraSPARC (sparc64):
 P:	David S. Miller
 M:	davem@davemloft.net
 P:	Eddie C. Dost
-M:	ecd@skynet.be
+M:	ecd@brainaid.de
 P:	Jakub Jelinek
 M:	jj@sunsite.ms.mff.cuni.cz
 P:	Anton Blanchard
@@ -2589,7 +2606,7 @@ M:	davidm@snapgear.com
 P:	D. Jeff Dionne (created first uClinux port)
 M:	jeff@uclinux.org
 W:	http://www.uclinux.org/
-L:	uclinux-dev@uclinux.org
+L:	uclinux-dev@uclinux.org  (subscribers-only)
 S:	Maintained
 
 UCLINUX FOR NEC V850
@@ -2613,10 +2630,11 @@ W:	http://rio500.sourceforge.net
 S:	Maintained
 
 VIDEO FOR LINUX
-P:	Gerd Knorr
-M:	kraxel@bytesex.org
+P:	Mauro Carvalho Chehab
+M:	mchehab@brturbo.com.br
 L:	video4linux-list@redhat.com
-S:	Orphan
+W:	http://linuxtv.org
+S:	Maintained
 
 W1 DALLAS'S 1-WIRE BUS
 P:	Evgeniy Polyakov

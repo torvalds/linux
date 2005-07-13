@@ -148,7 +148,6 @@ struct ip_sf_socklist
 struct ip_mc_socklist
 {
 	struct ip_mc_socklist	*next;
-	int			count;
 	struct ip_mreqn		multi;
 	unsigned int		sfmode;		/* MCAST_{INCLUDE,EXCLUDE} */
 	struct ip_sf_socklist	*sflist;

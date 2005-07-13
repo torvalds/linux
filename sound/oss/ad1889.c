@@ -277,8 +277,7 @@ static void ad1889_free_dev(ad1889_dev_t *dev)
 
 	for (j = 0; j < AD_MAX_STATES; j++) {
 		dmabuf = &dev->state[j].dmabuf;
-		if (dmabuf->rawbuf != NULL) 
-			kfree(dmabuf->rawbuf);
+		kfree(dmabuf->rawbuf);
 	}
 
 	kfree(dev);

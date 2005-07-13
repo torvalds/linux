@@ -183,6 +183,8 @@ source "mm/Kconfig"
 
 endmenu
 
+source "net/Kconfig"
+
 source "drivers/base/Kconfig"
 
 source "drivers/parport/Kconfig"
@@ -193,7 +195,7 @@ source "drivers/block/Kconfig"
 
 source "drivers/md/Kconfig"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 source "drivers/ide/Kconfig"
 

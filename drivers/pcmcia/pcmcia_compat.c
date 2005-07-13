@@ -18,7 +18,6 @@
 #include <linux/init.h>
 
 #define IN_CARD_SERVICES
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/bulkmem.h>
@@ -28,98 +27,39 @@
 
 #include "cs_internal.h"
 
-int pcmcia_get_first_tuple(client_handle_t handle, tuple_t *tuple)
+int pcmcia_get_first_tuple(struct pcmcia_device *p_dev, tuple_t *tuple)
 {
-	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
-	s = SOCKET(handle);
-	return pccard_get_first_tuple(s, handle->Function, tuple);
+	return pccard_get_first_tuple(p_dev->socket, p_dev->func, tuple);
 }
 EXPORT_SYMBOL(pcmcia_get_first_tuple);
 
-int pcmcia_get_next_tuple(client_handle_t handle, tuple_t *tuple)
+int pcmcia_get_next_tuple(struct pcmcia_device *p_dev, tuple_t *tuple)
 {
-	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
-	s = SOCKET(handle);
-	return pccard_get_next_tuple(s, handle->Function, tuple);
+	return pccard_get_next_tuple(p_dev->socket, p_dev->func, tuple);
 }
 EXPORT_SYMBOL(pcmcia_get_next_tuple);
 
-int pcmcia_get_tuple_data(client_handle_t handle, tuple_t *tuple)
+int pcmcia_get_tuple_data(struct pcmcia_device *p_dev, tuple_t *tuple)
 {
-	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
-	s = SOCKET(handle);
-	return pccard_get_tuple_data(s, tuple);
+	return pccard_get_tuple_data(p_dev->socket, tuple);
 }
 EXPORT_SYMBOL(pcmcia_get_tuple_data);
 
-int pcmcia_parse_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
+int pcmcia_parse_tuple(struct pcmcia_device *p_dev, tuple_t *tuple, cisparse_t *parse)
 {
 	return pccard_parse_tuple(tuple, parse);
 }
 EXPORT_SYMBOL(pcmcia_parse_tuple);
 
-int pcmcia_validate_cis(client_handle_t handle, cisinfo_t *info)
+int pcmcia_validate_cis(struct pcmcia_device *p_dev, cisinfo_t *info)
 {
-	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
-	s = SOCKET(handle);
-	return pccard_validate_cis(s, handle->Function, info);
+	return pccard_validate_cis(p_dev->socket, p_dev->func, info);
 }
 EXPORT_SYMBOL(pcmcia_validate_cis);
 
-int pcmcia_get_configuration_info(client_handle_t handle,
-				  config_info_t *config)
+
+int pcmcia_reset_card(struct pcmcia_device *p_dev, client_req_t *req)
 {
-	struct pcmcia_socket *s;
-
-	if ((CHECK_HANDLE(handle)) || !config)
-		return CS_BAD_HANDLE;
-	s = SOCKET(handle);
-	if (!s)
-		return CS_BAD_HANDLE;
-	return pccard_get_configuration_info(s, handle->Function, config);
-}
-EXPORT_SYMBOL(pcmcia_get_configuration_info);
-
-int pcmcia_reset_card(client_handle_t handle, client_req_t *req)
-{
-	struct pcmcia_socket *skt;
-    
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
-	skt = SOCKET(handle);
-	if (!skt)
-		return CS_BAD_HANDLE;
-
-	return pccard_reset_card(skt);
+	return pccard_reset_card(p_dev->socket);
 }
 EXPORT_SYMBOL(pcmcia_reset_card);
-
-int pcmcia_get_status(client_handle_t handle, cs_status_t *status)
-{
-	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
-	s = SOCKET(handle);
-	return pccard_get_status(s, handle->Function, status);
-}
-EXPORT_SYMBOL(pcmcia_get_status);
-
-int pcmcia_access_configuration_register(client_handle_t handle,
-					 conf_reg_t *reg)
-{
-	struct pcmcia_socket *s;
-	if (CHECK_HANDLE(handle))
-		return CS_BAD_HANDLE;
-	s = SOCKET(handle);
-	return pccard_access_configuration_register(s, handle->Function, reg);
-}
-EXPORT_SYMBOL(pcmcia_access_configuration_register);
-

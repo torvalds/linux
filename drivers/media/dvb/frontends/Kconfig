@@ -40,6 +40,12 @@ config DVB_VES1X93
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_S5H1420
+	tristate "Samsung S5H1420 based"
+	depends on DVB_CORE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
 comment "DVB-T (terrestrial) frontends"
 	depends on DVB_CORE
 
@@ -169,6 +175,21 @@ config DVB_OR51132
 	tristate "OR51132 based (pcHDTV HD3000 card)"
 	depends on DVB_CORE
 	select FW_LOADER
+	help
+	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
+	  to support this frontend.
+
+config DVB_BCM3510
+	tristate "Broadcom BCM3510"
+	depends on DVB_CORE
+	select FW_LOADER
+	help
+	  An ATSC 8VSB/16VSB and QAM64/256 tuner module. Say Y when you want to
+	  support this frontend.
+
+config DVB_LGDT3302
+	tristate "LGDT3302 based (DViCO FusionHDTV3 Gold)"
+	depends on DVB_CORE
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.

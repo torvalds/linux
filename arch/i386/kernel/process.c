@@ -13,6 +13,7 @@
 
 #include <stdarg.h>
 
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
@@ -54,6 +55,9 @@
 
 #include <linux/irq.h>
 #include <linux/err.h>
+
+#include <asm/tlbflush.h>
+#include <asm/cpu.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
@@ -143,14 +147,42 @@ static void poll_idle (void)
 	}
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+#include <asm/nmi.h>
+/* We don't actually take CPU down, just spin without interrupts. */
+static inline void play_dead(void)
+{
+	/* This must be done before dead CPU ack */
+	cpu_exit_clear();
+	wbinvd();
+	mb();
+	/* Ack it */
+	__get_cpu_var(cpu_state) = CPU_DEAD;
+
+	/*
+	 * With physical CPU hotplug, we should halt the cpu
+	 */
+	local_irq_disable();
+	while (1)
+		__asm__ __volatile__("hlt":::"memory");
+}
+#else
+static inline void play_dead(void)
+{
+	BUG();
+}
+#endif /* CONFIG_HOTPLUG_CPU */
+
 /*
  * The idle thread. There's no useful work to be
  * done, so just try to conserve power and have a
  * low exit latency (ie sit in a loop waiting for
  * somebody to say that they'd like to reschedule)
  */
-void cpu_idle (void)
+void cpu_idle(void)
 {
+	int cpu = raw_smp_processor_id();
+
 	/* endless idle loop with no priority at all */
 	while (1) {
 		while (!need_resched()) {
@@ -164,6 +196,9 @@ void cpu_idle (void)
 
 			if (!idle)
 				idle = default_idle;
+
+			if (cpu_is_offline(cpu))
+				play_dead();
 
 			__get_cpu_var(irq_stat).idle_timestamp = jiffies;
 			idle();
@@ -223,7 +258,7 @@ static void mwait_idle(void)
 	}
 }
 
-void __init select_idle_routine(const struct cpuinfo_x86 *c)
+void __devinit select_idle_routine(const struct cpuinfo_x86 *c)
 {
 	if (cpu_has(c, X86_FEATURE_MWAIT)) {
 		printk("monitor/mwait feature present.\n");
@@ -582,6 +617,33 @@ handle_io_bitmap(struct thread_struct *next, struct tss_struct *tss)
 }
 
 /*
+ * This function selects if the context switch from prev to next
+ * has to tweak the TSC disable bit in the cr4.
+ */
+static inline void disable_tsc(struct task_struct *prev_p,
+			       struct task_struct *next_p)
+{
+	struct thread_info *prev, *next;
+
+	/*
+	 * gcc should eliminate the ->thread_info dereference if
+	 * has_secure_computing returns 0 at compile time (SECCOMP=n).
+	 */
+	prev = prev_p->thread_info;
+	next = next_p->thread_info;
+
+	if (has_secure_computing(prev) || has_secure_computing(next)) {
+		/* slow path here */
+		if (has_secure_computing(prev) &&
+		    !has_secure_computing(next)) {
+			write_cr4(read_cr4() & ~X86_CR4_TSD);
+		} else if (!has_secure_computing(prev) &&
+			   has_secure_computing(next))
+			write_cr4(read_cr4() | X86_CR4_TSD);
+	}
+}
+
+/*
  *	switch_to(x,yn) should switch tasks from x to y.
  *
  * We fsave/fwait so that an exception goes off at the right time
@@ -659,6 +721,8 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 
 	if (unlikely(prev->io_bitmap_ptr || next->io_bitmap_ptr))
 		handle_io_bitmap(next, tss);
+
+	disable_tsc(prev_p, next_p);
 
 	return prev_p;
 }

@@ -92,16 +92,7 @@ static int i830_freelist_put(drm_device_t *dev, drm_buf_t *buf)
    	return 0;
 }
 
-static struct file_operations i830_buffer_fops = {
-	.open	 = drm_open,
-	.flush	 = drm_flush,
-	.release = drm_release,
-	.ioctl	 = drm_ioctl,
-	.mmap	 = i830_mmap_buffers,
-	.fasync  = drm_fasync,
-};
-
-int i830_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
+static int i830_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 {
 	drm_file_t	    *priv	  = filp->private_data;
 	drm_device_t	    *dev;
@@ -127,6 +118,15 @@ int i830_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 			     vma->vm_page_prot)) return -EAGAIN;
 	return 0;
 }
+
+static struct file_operations i830_buffer_fops = {
+	.open	 = drm_open,
+	.flush	 = drm_flush,
+	.release = drm_release,
+	.ioctl	 = drm_ioctl,
+	.mmap	 = i830_mmap_buffers,
+	.fasync  = drm_fasync,
+};
 
 static int i830_map_buffer(drm_buf_t *buf, struct file *filp)
 {

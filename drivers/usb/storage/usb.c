@@ -847,10 +847,8 @@ retry:
 		wait_event_interruptible_timeout(us->delay_wait,
 				test_bit(US_FLIDX_DISCONNECTING, &us->flags),
 				delay_use * HZ);
-		if (current->flags & PF_FREEZE) {
-			refrigerator(PF_FREEZE);
+		if (try_to_freeze())
 			goto retry;
-		}
 	}
 
 	/* If the device is still connected, perform the scanning */

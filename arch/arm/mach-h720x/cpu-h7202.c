@@ -171,8 +171,8 @@ static struct irqchip h7202_timerx_chip = {
 
 static struct irqaction h7202_timer_irq = {
 	.name		= "h7202 Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= h7202_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= h7202_timer_interrupt,
 };
 
 /*

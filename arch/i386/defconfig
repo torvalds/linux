@@ -126,7 +126,6 @@ CONFIG_HAVE_DEC_LOCK=y
 #
 CONFIG_PM=y
 CONFIG_SOFTWARE_SUSPEND=y
-# CONFIG_PM_DISK is not set
 
 #
 # ACPI (Advanced Configuration and Power Interface) Support

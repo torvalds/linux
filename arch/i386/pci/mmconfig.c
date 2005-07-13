@@ -11,10 +11,8 @@
 
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/acpi.h>
 #include "pci.h"
-
-/* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
-u32 pci_mmcfg_base_addr;
 
 #define mmcfg_virt_addr ((void __iomem *) fix_to_virt(FIX_PCIE_MCFG))
 
@@ -24,10 +22,31 @@ static u32 mmcfg_last_accessed_device;
 /*
  * Functions for accessing PCI configuration space with MMCONFIG accesses
  */
-
-static inline void pci_exp_set_dev_base(int bus, int devfn)
+static u32 get_base_addr(unsigned int seg, int bus)
 {
-	u32 dev_base = pci_mmcfg_base_addr | (bus << 20) | (devfn << 12);
+	int cfg_num = -1;
+	struct acpi_table_mcfg_config *cfg;
+
+	while (1) {
+		++cfg_num;
+		if (cfg_num >= pci_mmcfg_config_num) {
+			/* something bad is going on, no cfg table is found. */
+			/* so we fall back to the old way we used to do this */
+			/* and just rely on the first entry to be correct. */
+			return pci_mmcfg_config[0].base_address;
+		}
+		cfg = &pci_mmcfg_config[cfg_num];
+		if (cfg->pci_segment_group_number != seg)
+			continue;
+		if ((cfg->start_bus_number <= bus) &&
+		    (cfg->end_bus_number >= bus))
+			return cfg->base_address;
+	}
+}
+
+static inline void pci_exp_set_dev_base(unsigned int seg, int bus, int devfn)
+{
+	u32 dev_base = get_base_addr(seg, bus) | (bus << 20) | (devfn << 12);
 	if (dev_base != mmcfg_last_accessed_device) {
 		mmcfg_last_accessed_device = dev_base;
 		set_fixmap_nocache(FIX_PCIE_MCFG, dev_base);
@@ -44,7 +63,7 @@ static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 
 	spin_lock_irqsave(&pci_config_lock, flags);
 
-	pci_exp_set_dev_base(bus, devfn);
+	pci_exp_set_dev_base(seg, bus, devfn);
 
 	switch (len) {
 	case 1:
@@ -73,7 +92,7 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 
 	spin_lock_irqsave(&pci_config_lock, flags);
 
-	pci_exp_set_dev_base(bus, devfn);
+	pci_exp_set_dev_base(seg, bus, devfn);
 
 	switch (len) {
 	case 1:
@@ -101,7 +120,11 @@ static int __init pci_mmcfg_init(void)
 {
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		goto out;
-	if (!pci_mmcfg_base_addr)
+
+	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
+	if ((pci_mmcfg_config_num == 0) ||
+	    (pci_mmcfg_config == NULL) ||
+	    (pci_mmcfg_config[0].base_address == 0))
 		goto out;
 
 	/* Kludge for now. Don't use mmconfig on AMD systems because

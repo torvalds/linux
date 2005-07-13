@@ -1,5 +1,5 @@
 /*
- * $Id: tuner-simple.c,v 1.10 2005/03/08 08:38:00 kraxel Exp $
+ * $Id: tuner-simple.c,v 1.39 2005/07/07 01:49:30 mkrufky Exp $
  *
  * i2c tv tuner chip device driver
  * controls all those simple 4-control-bytes style tuners.
@@ -54,6 +54,27 @@
 #define PHILIPS_MF_SET_PAL_L	0x03 // France
 #define PHILIPS_MF_SET_PAL_L2	0x02 // L'
 
+/* Control byte */
+
+#define TUNER_RATIO_MASK        0x06 /* Bit cb1:cb2 */
+#define TUNER_RATIO_SELECT_50   0x00
+#define TUNER_RATIO_SELECT_32   0x02
+#define TUNER_RATIO_SELECT_166  0x04
+#define TUNER_RATIO_SELECT_62   0x06
+
+#define TUNER_CHARGE_PUMP       0x40  /* Bit cb6 */
+
+/* Status byte */
+
+#define TUNER_POR	  0x80
+#define TUNER_FL          0x40
+#define TUNER_MODE        0x38
+#define TUNER_AFC         0x07
+#define TUNER_SIGNAL      0x07
+#define TUNER_STEREO      0x10
+
+#define TUNER_PLL_LOCKED   0x40
+#define TUNER_STEREO_MK3   0x04
 
 /* ---------------------------------------------------------------------- */
 
@@ -207,12 +228,25 @@ static struct tunertype tuners[] = {
 	{ "LG PAL (TAPE series)", LGINNOTEK, PAL,
           16*170.00, 16*450.00, 0x01,0x02,0x08,0xce,623},
 
-        { "Philips PAL/SECAM multi (FQ1216AME MK4)", Philips, PAL,
-          16*160.00,16*442.00,0x01,0x02,0x04,0xce,623 },
-        { "Philips FQ1236A MK4", Philips, NTSC,
-          16*160.00,16*442.00,0x01,0x02,0x04,0x8e,732 },
+	{ "Philips PAL/SECAM multi (FQ1216AME MK4)", Philips, PAL,
+	  16*160.00,16*442.00,0x01,0x02,0x04,0xce,623 },
+	{ "Philips FQ1236A MK4", Philips, NTSC,
+	  16*160.00,16*442.00,0x01,0x02,0x04,0x8e,732 },
+	{ "Ymec TVision TVF-8531MF/8831MF/8731MF", Philips, NTSC,
+	  16*160.00,16*454.00,0xa0,0x90,0x30,0x8e,732},
+	{ "Ymec TVision TVF-5533MF", Philips, NTSC,
+	  16*160.00,16*454.00,0x01,0x02,0x04,0x8e,732},
 
+	{ "Thomson DDT 7611 (ATSC/NTSC)", THOMSON, ATSC,
+	  16*157.25,16*454.00,0x39,0x3a,0x3c,0x8e,732},
+	{ "Tena TNF9533-D/IF/TNF9533-B/DF", Philips, PAL,
+          16*160.25,16*464.25,0x01,0x02,0x04,0x8e,623},
+	{ "Philips TEA5767HN FM Radio", Philips, RADIO,
+          /* see tea5767.c for details */},
+	{ "Philips FMD1216ME MK3 Hybrid Tuner", Philips, PAL,
+	  16*160.00,16*442.00,0x51,0x52,0x54,0x86,623 },
 };
+
 unsigned const int tuner_count = ARRAY_SIZE(tuners);
 
 /* ---------------------------------------------------------------------- */
@@ -223,43 +257,35 @@ static int tuner_getstatus(struct i2c_client *c)
 
 	if (1 != i2c_master_recv(c,&byte,1))
 		return 0;
+
 	return byte;
 }
 
-#define TUNER_POR       0x80
-#define TUNER_FL        0x40
-#define TUNER_MODE      0x38
-#define TUNER_AFC       0x07
-
-#define TUNER_STEREO    0x10 /* radio mode */
-#define TUNER_SIGNAL    0x07 /* radio mode */
-
 static int tuner_signal(struct i2c_client *c)
 {
-	return (tuner_getstatus(c) & TUNER_SIGNAL)<<13;
+	return (tuner_getstatus(c) & TUNER_SIGNAL) << 13;
 }
 
 static int tuner_stereo(struct i2c_client *c)
 {
-	return (tuner_getstatus (c) & TUNER_STEREO);
+	int stereo, status;
+	struct tuner *t = i2c_get_clientdata(c);
+
+	status = tuner_getstatus (c);
+
+	switch (t->type) {
+        	case TUNER_PHILIPS_FM1216ME_MK3:
+    		case TUNER_PHILIPS_FM1236_MK3:
+		case TUNER_PHILIPS_FM1256_IH3:
+			stereo = ((status & TUNER_SIGNAL) == TUNER_STEREO_MK3);
+			break;
+		default:
+			stereo = status & TUNER_STEREO;
+	}
+
+	return stereo;
 }
 
-#if 0 /* unused */
-static int tuner_islocked (struct i2c_client *c)
-{
-        return (tuner_getstatus (c) & TUNER_FL);
-}
-
-static int tuner_afcstatus (struct i2c_client *c)
-{
-        return (tuner_getstatus (c) & TUNER_AFC) - 2;
-}
-
-static int tuner_mode (struct i2c_client *c)
-{
-        return (tuner_getstatus (c) & TUNER_MODE) >> 3;
-}
-#endif
 
 /* ---------------------------------------------------------------------- */
 
@@ -342,7 +368,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 
 	case TUNER_MICROTUNE_4042FI5:
 		/* Set the charge pump for fast tuning */
-		tun->config |= 0x40;
+		tun->config |= TUNER_CHARGE_PUMP;
 		break;
 	}
 
@@ -391,14 +417,13 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 				tuner_warn("i2c i/o read error: rc == %d (should be 1)\n",rc);
 				break;
 			}
-			/* bit 6 is PLL locked indicator */
-			if (status_byte & 0x40)
+			if (status_byte & TUNER_PLL_LOCKED)
 				break;
 			udelay(10);
 		}
 
 		/* Set the charge pump for optimized phase noise figure */
-		tun->config &= ~0x40;
+		tun->config &= ~TUNER_CHARGE_PUMP;
 		buffer[0] = (div>>8) & 0x7f;
 		buffer[1] = div      & 0xff;
 		buffer[2] = tun->config;
@@ -419,18 +444,22 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	unsigned div;
 	int rc;
 
-	tun=&tuners[t->type];
-	div = freq + (int)(16*10.7);
-	buffer[2] = tun->config;
+	tun = &tuners[t->type];
+	div = (20 * freq / 16000) + (int)(20*10.7); /* IF 10.7 MHz */
+	buffer[2] = (tun->config & ~TUNER_RATIO_MASK) | TUNER_RATIO_SELECT_50; /* 50 kHz step */
 
 	switch (t->type) {
+	case TUNER_TENA_9533_DI:
+	case TUNER_YMEC_TVF_5533MF:
+		tuner_dbg ("This tuner doesn't have FM. Most cards has a TEA5767 for FM\n");
+		return;
 	case TUNER_PHILIPS_FM1216ME_MK3:
 	case TUNER_PHILIPS_FM1236_MK3:
+	case TUNER_PHILIPS_FMD1216ME_MK3:
 		buffer[3] = 0x19;
 		break;
 	case TUNER_PHILIPS_FM1256_IH3:
-		div = (20 * freq)/16 + 333 * 2;
-	        buffer[2] = 0x80;
+		div = (20 * freq) / 16000 + (int)(33.3 * 20);  /* IF 33.3 MHz */
 		buffer[3] = 0x19;
 		break;
 	case TUNER_LG_PAL_FM:
@@ -462,6 +491,7 @@ int default_tuner_init(struct i2c_client *c)
 	t->radio_freq = default_set_radio_freq;
 	t->has_signal = tuner_signal;
 	t->is_stereo  = tuner_stereo;
+
 	return 0;
 }
 

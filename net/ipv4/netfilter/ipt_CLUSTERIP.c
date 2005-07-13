@@ -30,7 +30,7 @@
 #include <linux/netfilter_ipv4/ipt_CLUSTERIP.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 
-#define CLUSTERIP_VERSION "0.6"
+#define CLUSTERIP_VERSION "0.7"
 
 #define DEBUG_CLUSTERIP
 
@@ -524,8 +524,9 @@ arp_mangle(unsigned int hook,
 	    || arp->ar_pln != 4 || arp->ar_hln != ETH_ALEN)
 		return NF_ACCEPT;
 
-	/* we only want to mangle arp replies */
-	if (arp->ar_op != htons(ARPOP_REPLY))
+	/* we only want to mangle arp requests and replies */
+	if (arp->ar_op != htons(ARPOP_REPLY)
+	    && arp->ar_op != htons(ARPOP_REQUEST))
 		return NF_ACCEPT;
 
 	payload = (void *)(arp+1);

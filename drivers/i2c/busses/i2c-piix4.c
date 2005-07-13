@@ -243,7 +243,7 @@ static int piix4_transaction(void)
 	/* Make sure the SMBus host is ready to start transmitting */
 	if ((temp = inb_p(SMBHSTSTS)) != 0x00) {
 		dev_dbg(&piix4_adapter.dev, "SMBus busy (%02x). "
-			"Resetting... \n", temp);
+			"Resetting...\n", temp);
 		outb_p(temp, SMBHSTSTS);
 		if ((temp = inb_p(SMBHSTSTS)) != 0x00) {
 			dev_err(&piix4_adapter.dev, "Failed! (%02x)\n", temp);

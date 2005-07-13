@@ -7,7 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- *  $Id: pci.c,v 1.9 2004/11/28 09:40:40 dwmw2 Exp $
+ *  $Id: pci.c,v 1.10 2005/03/18 14:04:35 gleixner Exp $
  * 
  * Generic PCI memory map driver.  We support the following boards:
  *  - Intel IQ80310 ATU.
@@ -370,7 +370,7 @@ static struct pci_driver mtd_pci_driver = {
 
 static int __init mtd_pci_maps_init(void)
 {
-	return pci_module_init(&mtd_pci_driver);
+	return pci_register_driver(&mtd_pci_driver);
 }
 
 static void __exit mtd_pci_maps_exit(void)

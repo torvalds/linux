@@ -196,6 +196,7 @@ usb_descriptor_attr (bDeviceClass, "%02x\n")
 usb_descriptor_attr (bDeviceSubClass, "%02x\n")
 usb_descriptor_attr (bDeviceProtocol, "%02x\n")
 usb_descriptor_attr (bNumConfigurations, "%d\n")
+usb_descriptor_attr (bMaxPacketSize0, "%d\n")
 
 static struct attribute *dev_attrs[] = {
 	/* current configuration's attributes */
@@ -211,6 +212,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_bDeviceSubClass.attr,
 	&dev_attr_bDeviceProtocol.attr,
 	&dev_attr_bNumConfigurations.attr,
+	&dev_attr_bMaxPacketSize0.attr,
 	&dev_attr_speed.attr,
 	&dev_attr_devnum.attr,
 	&dev_attr_version.attr,

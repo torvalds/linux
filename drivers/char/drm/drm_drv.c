@@ -51,8 +51,11 @@
 #include "drmP.h"
 #include "drm_core.h"
 
+static int drm_version(struct inode *inode, struct file *filp,
+		       unsigned int cmd, unsigned long arg);
+
 /** Ioctl table */
-drm_ioctl_desc_t		  drm_ioctls[] = {
+static drm_ioctl_desc_t		  drm_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_IOCTL_VERSION)]       = { drm_version,     0, 0 },
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_UNIQUE)]    = { drm_getunique,   0, 0 },
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAGIC)]     = { drm_getmagic,    0, 0 },
@@ -447,8 +450,8 @@ module_exit( drm_core_exit );
  *
  * Fills in the version information in \p arg.
  */
-int drm_version( struct inode *inode, struct file *filp,
-		  unsigned int cmd, unsigned long arg )
+static int drm_version( struct inode *inode, struct file *filp,
+			unsigned int cmd, unsigned long arg )
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;

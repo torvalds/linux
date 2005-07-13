@@ -86,7 +86,6 @@ earlier 3Com products.
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -312,11 +311,6 @@ static dev_link_t *tc574_attach(void)
 	link->next = dev_list;
 	dev_list = link;
 	client_reg.dev_info = &dev_info;
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-			CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-				CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &tc574_event;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 	ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -1286,13 +1280,22 @@ static int el3_close(struct net_device *dev)
 	return 0;
 }
 
+static struct pcmcia_device_id tc574_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0574),
+	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(0, 0x0101, 0x0556, "3CCFEM556.cis"),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, tc574_ids);
+
 static struct pcmcia_driver tc574_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "3c574_cs",
 	},
 	.attach		= tc574_attach,
+	.event		= tc574_event,
 	.detach		= tc574_detach,
+	.id_table       = tc574_ids,
 };
 
 static int __init init_tc574(void)

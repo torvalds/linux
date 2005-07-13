@@ -140,7 +140,7 @@ static int proc_keys_show(struct seq_file *m, void *v)
 
 	now = current_kernel_time();
 
-	read_lock(&key->lock);
+	rcu_read_lock();
 
 	/* come up with a suitable timeout value */
 	if (key->expiry == 0) {
@@ -164,14 +164,17 @@ static int proc_keys_show(struct seq_file *m, void *v)
 			sprintf(xbuf, "%luw", timo / (60*60*24*7));
 	}
 
+#define showflag(KEY, LETTER, FLAG) \
+	(test_bit(FLAG,	&(KEY)->flags) ? LETTER : '-')
+
 	seq_printf(m, "%08x %c%c%c%c%c%c %5d %4s %06x %5d %5d %-9.9s ",
 		   key->serial,
-		   key->flags & KEY_FLAG_INSTANTIATED	? 'I' : '-',
-		   key->flags & KEY_FLAG_REVOKED	? 'R' : '-',
-		   key->flags & KEY_FLAG_DEAD		? 'D' : '-',
-		   key->flags & KEY_FLAG_IN_QUOTA	? 'Q' : '-',
-		   key->flags & KEY_FLAG_USER_CONSTRUCT	? 'U' : '-',
-		   key->flags & KEY_FLAG_NEGATIVE	? 'N' : '-',
+		   showflag(key, 'I', KEY_FLAG_INSTANTIATED),
+		   showflag(key, 'R', KEY_FLAG_REVOKED),
+		   showflag(key, 'D', KEY_FLAG_DEAD),
+		   showflag(key, 'Q', KEY_FLAG_IN_QUOTA),
+		   showflag(key, 'U', KEY_FLAG_USER_CONSTRUCT),
+		   showflag(key, 'N', KEY_FLAG_NEGATIVE),
 		   atomic_read(&key->usage),
 		   xbuf,
 		   key->perm,
@@ -179,11 +182,13 @@ static int proc_keys_show(struct seq_file *m, void *v)
 		   key->gid,
 		   key->type->name);
 
+#undef showflag
+
 	if (key->type->describe)
 		key->type->describe(key, m);
 	seq_putc(m, '\n');
 
-	read_unlock(&key->lock);
+	rcu_read_unlock();
 
 	return 0;
 

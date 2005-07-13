@@ -49,6 +49,7 @@
  * We put them here because we don't want to duplicate them
  * in the rest of the source code again and again.
  */
+#include "acnames.h"            /* Global ACPI names and strings */
 #include "acconfig.h"           /* Configuration constants */
 #include "platform/acenv.h"     /* Target environment specific items */
 #include "actypes.h"            /* Fundamental common data types */

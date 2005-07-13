@@ -209,6 +209,11 @@ struct kernel_ipmi_msg
 #include <linux/list.h>
 #include <linux/module.h>
 
+#ifdef CONFIG_PROC_FS
+#include <linux/proc_fs.h>
+extern struct proc_dir_entry *proc_ipmi_root;
+#endif /* CONFIG_PROC_FS */
+
 /* Opaque type for a IPMI message user.  One of these is needed to
    send and receive messages. */
 typedef struct ipmi_user *ipmi_user_t;

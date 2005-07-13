@@ -304,6 +304,50 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long va,
 	local_irq_restore(flags);
 }
 
+/*
+ * clear all mappings on kexec.  All cpus are in real mode (or they will
+ * be when they isi), and we are the only one left.  We rely on our kernel
+ * mapping being 0xC0's and the hardware ignoring those two real bits.
+ *
+ * TODO: add batching support when enabled.  remember, no dynamic memory here,
+ * athough there is the control page available...
+ */
+static void native_hpte_clear(void)
+{
+	unsigned long slot, slots, flags;
+	HPTE *hptep = htab_address;
+	Hpte_dword0 dw0;
+	unsigned long pteg_count;
+
+	pteg_count = htab_hash_mask + 1;
+
+	local_irq_save(flags);
+
+	/* we take the tlbie lock and hold it.  Some hardware will
+	 * deadlock if we try to tlbie from two processors at once.
+	 */
+	spin_lock(&native_tlbie_lock);
+
+	slots = pteg_count * HPTES_PER_GROUP;
+
+	for (slot = 0; slot < slots; slot++, hptep++) {
+		/*
+		 * we could lock the pte here, but we are the only cpu
+		 * running,  right?  and for crash dump, we probably
+		 * don't want to wait for a maybe bad cpu.
+		 */
+		dw0 = hptep->dw0.dw0;
+
+		if (dw0.v) {
+			hptep->dw0.dword0 = 0;
+			tlbie(slot2va(dw0.avpn, dw0.l, dw0.h, slot), dw0.l);
+		}
+	}
+
+	spin_unlock(&native_tlbie_lock);
+	local_irq_restore(flags);
+}
+
 static void native_flush_hash_range(unsigned long context,
 				    unsigned long number, int local)
 {
@@ -415,7 +459,8 @@ void hpte_init_native(void)
 	ppc_md.hpte_updatepp	= native_hpte_updatepp;
 	ppc_md.hpte_updateboltedpp = native_hpte_updateboltedpp;
 	ppc_md.hpte_insert	= native_hpte_insert;
-	ppc_md.hpte_remove     	= native_hpte_remove;
+	ppc_md.hpte_remove	= native_hpte_remove;
+	ppc_md.hpte_clear_all	= native_hpte_clear;
 	if (tlb_batching_enabled())
 		ppc_md.flush_hash_range = native_flush_hash_range;
 	htab_finish_init();

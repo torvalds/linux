@@ -16,6 +16,8 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
+#include <linux/mount.h>
+
 #include "power.h"
 
 
@@ -117,8 +119,8 @@ static void finish(void)
 {
 	device_resume();
 	platform_finish();
-	enable_nonboot_cpus();
 	thaw_processes();
+	enable_nonboot_cpus();
 	pm_restore_console();
 }
 
@@ -131,28 +133,35 @@ static int prepare_processes(void)
 
 	sys_sync();
 
+	disable_nonboot_cpus();
+
 	if (freeze_processes()) {
 		error = -EBUSY;
-		return error;
+		goto thaw;
 	}
 
 	if (pm_disk_mode == PM_DISK_PLATFORM) {
 		if (pm_ops && pm_ops->prepare) {
 			if ((error = pm_ops->prepare(PM_SUSPEND_DISK)))
-				return error;
+				goto thaw;
 		}
 	}
 
 	/* Free memory before shutting down devices. */
 	free_some_memory();
-
 	return 0;
+thaw:
+	thaw_processes();
+	enable_nonboot_cpus();
+	pm_restore_console();
+	return error;
 }
 
 static void unprepare_processes(void)
 {
-	enable_nonboot_cpus();
+	platform_finish();
 	thaw_processes();
+	enable_nonboot_cpus();
 	pm_restore_console();
 }
 
@@ -160,15 +169,9 @@ static int prepare_devices(void)
 {
 	int error;
 
-	disable_nonboot_cpus();
-	if ((error = device_suspend(PMSG_FREEZE))) {
+	if ((error = device_suspend(PMSG_FREEZE)))
 		printk("Some devices failed to suspend\n");
-		platform_finish();
-		enable_nonboot_cpus();
-		return error;
-	}
-
-	return 0;
+	return error;
 }
 
 /**
@@ -185,9 +188,9 @@ int pm_suspend_disk(void)
 	int error;
 
 	error = prepare_processes();
-	if (!error) {
-		error = prepare_devices();
-	}
+	if (error)
+		return error;
+	error = prepare_devices();
 
 	if (error) {
 		unprepare_processes();
@@ -233,6 +236,16 @@ static int software_resume(void)
 {
 	int error;
 
+	if (!swsusp_resume_device) {
+		if (!strlen(resume_file))
+			return -ENOENT;
+		swsusp_resume_device = name_to_dev_t(resume_file);
+		pr_debug("swsusp: Resume From Partition %s\n", resume_file);
+	} else {
+		pr_debug("swsusp: Resume From Partition %d:%d\n",
+			 MAJOR(swsusp_resume_device), MINOR(swsusp_resume_device));
+	}
+
 	if (noresume) {
 		/**
 		 * FIXME: If noresume is specified, we need to find the partition
@@ -250,7 +263,7 @@ static int software_resume(void)
 
 	if ((error = prepare_processes())) {
 		swsusp_close();
-		goto Cleanup;
+		goto Done;
 	}
 
 	pr_debug("PM: Reading swsusp image.\n");

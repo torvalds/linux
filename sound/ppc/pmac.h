@@ -167,7 +167,7 @@ struct snd_pmac {
 	void (*set_format)(pmac_t *chip);
 	void (*update_automute)(pmac_t *chip, int do_notify);
 	int (*detect_headphone)(pmac_t *chip);
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	void (*suspend)(pmac_t *chip);
 	void (*resume)(pmac_t *chip);
 #endif

@@ -20,7 +20,6 @@
 #include <linux/timer.h>
 #include <linux/ioport.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -67,13 +66,6 @@ module_param(pc_debug, int, 0644);
 static const char driver_name[DEV_NAME_LEN]  = "sl811_cs";
 
 static dev_link_t *dev_list = NULL;
-
-static int irq_list[4] = { -1 };
-static int irq_list_count;
-
-module_param_array(irq_list, int, &irq_list_count, 0444);
-
-INT_MODULE_PARM(irq_mask, 0xdeb8);
 
 typedef struct local_info_t {
 	dev_link_t		link;
@@ -373,7 +365,7 @@ static dev_link_t *sl811_cs_attach(void)
 	local_info_t *local;
 	dev_link_t *link;
 	client_reg_t client_reg;
-	int ret, i;
+	int ret;
 
 	local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local)
@@ -385,11 +377,6 @@ static dev_link_t *sl811_cs_attach(void)
 	/* Initialize */
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 	link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
-	if (irq_list[0] == -1)
-		link->irq.IRQInfo2 = irq_mask;
-	else
-		for (i = 0; i < irq_list_count; i++)
-			link->irq.IRQInfo2 |= 1 << irq_list[i];
 	link->irq.Handler = NULL;
 
 	link->conf.Attributes = 0;
@@ -401,11 +388,6 @@ static dev_link_t *sl811_cs_attach(void)
 	dev_list = link;
 	client_reg.dev_info = (dev_info_t *) &driver_name;
 	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &sl811_cs_event;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 	ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -418,13 +400,21 @@ static dev_link_t *sl811_cs_attach(void)
 	return link;
 }
 
+static struct pcmcia_device_id sl811_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0xc015, 0x0001), /* RATOC USB HOST CF+ Card */
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, sl811_ids);
+
 static struct pcmcia_driver sl811_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= (char *)driver_name,
 	},
 	.attach		= sl811_cs_attach,
+	.event		= sl811_cs_event,
 	.detach		= sl811_cs_detach,
+	.id_table	= sl811_ids,
 };
 
 /*====================================================================*/

@@ -68,6 +68,7 @@ void acpi_pci_irq_del_prt (int segment, int bus);
 
 struct pci_bus;
 
+acpi_status acpi_get_pci_id (acpi_handle handle, struct acpi_pci_id *id);
 int acpi_pci_bind (struct acpi_device *device);
 int acpi_pci_unbind (struct acpi_device *device);
 int acpi_pci_bind_root (struct acpi_device *device, struct acpi_pci_id *id, struct pci_bus *bus);
@@ -108,5 +109,10 @@ int acpi_ec_ecdt_probe (void);
 
 int acpi_processor_set_thermal_limit(acpi_handle handle, int type);
 
+/* --------------------------------------------------------------------------
+                                    Hot Keys
+   -------------------------------------------------------------------------- */
+
+extern int acpi_specific_hotkey_enabled;
 
 #endif /*__ACPI_DRIVERS_H__*/

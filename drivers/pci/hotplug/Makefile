@@ -14,6 +14,7 @@ obj-$(CONFIG_HOTPLUG_PCI_PCIE)		+= pciehp.o
 obj-$(CONFIG_HOTPLUG_PCI_SHPC)		+= shpchp.o
 obj-$(CONFIG_HOTPLUG_PCI_RPA)		+= rpaphp.o
 obj-$(CONFIG_HOTPLUG_PCI_RPA_DLPAR)	+= rpadlpar_io.o
+obj-$(CONFIG_HOTPLUG_PCI_SGI)		+= sgi_hotplug.o
 
 pci_hotplug-objs	:=	pci_hotplug_core.o
 
@@ -36,9 +37,7 @@ ibmphp-objs		:=	ibmphp_core.o	\
 				ibmphp_hpc.o
 
 acpiphp-objs		:=	acpiphp_core.o	\
-				acpiphp_glue.o	\
-				acpiphp_pci.o	\
-				acpiphp_res.o
+				acpiphp_glue.o
 
 rpaphp-objs		:=	rpaphp_core.o	\
 				rpaphp_pci.o	\

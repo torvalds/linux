@@ -7,38 +7,13 @@
 /* PCI config registers */
 #define PCI_DEV_REG1	0x40
 #define PCI_DEV_REG2	0x44
-#ifndef PCI_VPD
-#define PCI_VPD		0x50
-#endif
-
-/*	PCI_OUR_REG_2		32 bit	Our Register 2 */
-enum {
-	PCI_VPD_WR_THR  = 0xff<<24, /* Bit 31..24:	VPD Write Threshold */
-	PCI_DEV_SEL	= 0x7f<<17, /* Bit 23..17:	EEPROM Device Select */
-	PCI_VPD_ROM_SZ  = 7   <<14, /* Bit 16..14:	VPD ROM Size	*/
- 				    /* Bit 13..12:	reserved	*/
-	PCI_EN_DUMMY_RD = 1<<3, /* Enable Dummy Read */
-	PCI_REV_DESC    = 1<<2, /* Reverse Desc. Bytes */
-	PCI_USEDATA64   = 1<<0, /* Use 64Bit Data bus ext */
-};
-
-/*	PCI_VPD_ADR_REG		16 bit	VPD Address Register */
-enum {
-	PCI_VPD_FLAG	= 1<<15,  /* starts VPD rd/wr cycle */
-	PCI_VPD_ADR_MSK =0x7fffL, /* Bit 14.. 0:	VPD Address Mask */
-	VPD_RES_ID	= 0x82,
-	VPD_RES_READ	= 0x90,
-	VPD_RES_WRITE	= 0x81,
-	VPD_RES_END	= 0x78,
-};
-
+#define  PCI_REV_DESC	 0x4
 
 #define PCI_STATUS_ERROR_BITS (PCI_STATUS_DETECTED_PARITY | \
 			       PCI_STATUS_SIG_SYSTEM_ERROR | \
 			       PCI_STATUS_REC_MASTER_ABORT | \
 			       PCI_STATUS_REC_TARGET_ABORT | \
 			       PCI_STATUS_PARITY)
-
 
 enum csr_regs {
 	B0_RAP	= 0x0000,
@@ -229,8 +204,11 @@ enum {
 	IS_XA2_F	= 1<<1,		/* Q_XA2 End of Frame */
 	IS_XA2_C	= 1<<0,		/* Q_XA2 Encoding Error */
 
-	IS_PORT_1	= IS_XA1_F| IS_R1_F| IS_MAC1,
-	IS_PORT_2	= IS_XA2_F| IS_R2_F| IS_MAC2,
+	IS_TO_PORT1	= IS_PA_TO_RX1 | IS_PA_TO_TX1,
+	IS_TO_PORT2	= IS_PA_TO_RX2 | IS_PA_TO_TX2,
+
+	IS_PORT_1	= IS_XA1_F| IS_R1_F | IS_TO_PORT1 | IS_MAC1,
+	IS_PORT_2	= IS_XA2_F| IS_R2_F | IS_TO_PORT2 | IS_MAC2,
 };
 
 
@@ -288,14 +266,6 @@ enum {
 	CHIP_REV_YU_LITE_A3  = 7,	/* Chip Rev. for YUKON-Lite A3 */
 };
 
-/*	B2_LD_TEST		 8 bit	EPROM loader test register */
-enum {
-	LD_T_ON		= 1<<3,	/* Loader Test mode on */
-	LD_T_OFF	= 1<<2,	/* Loader Test mode off */
-	LD_T_STEP	= 1<<1,	/* Decrement FPROM addr. Counter */
-	LD_START	= 1<<0,	/* Start loading FPROM */
-};
-
 /*	B2_TI_CTRL		 8 bit	Timer control */
 /*	B2_IRQM_CTRL	 8 bit	IRQ Moderation Timer Control */
 enum {
@@ -311,16 +281,6 @@ enum {
 	TIM_T_ON	= 1<<2,	/* Test mode on */
 	TIM_T_OFF	= 1<<1,	/* Test mode off */
 	TIM_T_STEP	= 1<<0,	/* Test step */
-};
-
-/*	B28_DPT_INI	32 bit	Descriptor Poll Timer Init Val */
-/*	B28_DPT_VAL	32 bit	Descriptor Poll Timer Curr Val */
-/*	B28_DPT_CTRL	 8 bit	Descriptor Poll Timer Ctrl Reg */
-enum {
-	DPT_MSK	= 0x00ffffffL,	/* Bit 23.. 0:	Desc Poll Timer Bits */
-
-	DPT_START	= 1<<1,	/* Start Descriptor Poll Timer */
-	DPT_STOP	= 1<<0,	/* Stop  Descriptor Poll Timer */
 };
 
 /*	B2_GP_IO		32 bit	General Purpose I/O Register */
@@ -346,30 +306,6 @@ enum {
 	GP_IO_2	= 1<<2,	/* IO_2 pin */
 	GP_IO_1	= 1<<1,	/* IO_1 pin */
 	GP_IO_0	= 1<<0,	/* IO_0 pin */
-};
-
-/* Rx/Tx Path related Arbiter Test Registers */
-/*	B3_MA_TO_TEST	16 bit	MAC Arbiter Timeout Test Reg */
-/*	B3_MA_RC_TEST	16 bit	MAC Arbiter Recovery Test Reg */
-/*	B3_PA_TEST		16 bit	Packet Arbiter Test Register */
-/*			Bit 15, 11, 7, and 3 are reserved in B3_PA_TEST */
-enum {
-	TX2_T_EV	= 1<<15,/* TX2 Timeout/Recv Event occured */
-	TX2_T_ON	= 1<<14,/* TX2 Timeout/Recv Timer Test On */
-	TX2_T_OFF	= 1<<13,/* TX2 Timeout/Recv Timer Tst Off */
-	TX2_T_STEP	= 1<<12,/* TX2 Timeout/Recv Timer Step */
-	TX1_T_EV	= 1<<11,/* TX1 Timeout/Recv Event occured */
-	TX1_T_ON	= 1<<10,/* TX1 Timeout/Recv Timer Test On */
-	TX1_T_OFF	= 1<<9,	/* TX1 Timeout/Recv Timer Tst Off */
-	TX1_T_STEP	= 1<<8,	/* TX1 Timeout/Recv Timer Step */
-	RX2_T_EV	= 1<<7,	/* RX2 Timeout/Recv Event occured */
-	RX2_T_ON	= 1<<6,	/* RX2 Timeout/Recv Timer Test On */
-	RX2_T_OFF	= 1<<5,	/* RX2 Timeout/Recv Timer Tst Off */
-	RX2_T_STEP	= 1<<4,	/* RX2 Timeout/Recv Timer Step */
-	RX1_T_EV	= 1<<3,	/* RX1 Timeout/Recv Event occured */
-	RX1_T_ON	= 1<<2,	/* RX1 Timeout/Recv Timer Test On */
-	RX1_T_OFF	= 1<<1,	/* RX1 Timeout/Recv Timer Tst Off */
-	RX1_T_STEP	= 1<<0,	/* RX1 Timeout/Recv Timer Step */
 };
 
 /* Descriptor Bit Definition */
@@ -428,14 +364,6 @@ enum {
 	RI_RST_SET	= 1<<0,	/* Set   RAM Interface Reset */
 };
 
-/*	B3_RI_TEST		 8 bit	RAM Iface Test Register */
-enum {
-	RI_T_EV	= 1<<3,	/* Timeout Event occured */
-	RI_T_ON	= 1<<2,	/* Timeout Timer Test On */
-	RI_T_OFF	= 1<<1,	/* Timeout Timer Test Off */
-	RI_T_STEP	= 1<<0,	/* Timeout Timer Step */
-};
-
 /* MAC Arbiter Registers */
 /*	B3_MA_TO_CTRL	16 bit	MAC Arbiter Timeout Ctrl Reg */
 enum {
@@ -451,19 +379,6 @@ enum {
 #define SK_PKT_TO_53	0x2000		/* Packet arbiter timeout */
 #define SK_PKT_TO_MAX	0xffff		/* Maximum value */
 #define SK_RI_TO_53	36		/* RAM interface timeout */
-
-
-/*	B3_MA_RC_CTRL	16 bit	MAC Arbiter Recovery Ctrl Reg */
-enum {
-	MA_ENA_REC_TX2	= 1<<7,	/* Enable  Recovery Timer TX2 */
-	MA_DIS_REC_TX2	= 1<<6,	/* Disable Recovery Timer TX2 */
-	MA_ENA_REC_TX1	= 1<<5,	/* Enable  Recovery Timer TX1 */
-	MA_DIS_REC_TX1	= 1<<4,	/* Disable Recovery Timer TX1 */
-	MA_ENA_REC_RX2	= 1<<3,	/* Enable  Recovery Timer RX2 */
-	MA_DIS_REC_RX2	= 1<<2,	/* Disable Recovery Timer RX2 */
-	MA_ENA_REC_RX1	= 1<<1,	/* Enable  Recovery Timer RX1 */
-	MA_DIS_REC_RX1	= 1<<0,	/* Disable Recovery Timer RX1 */
-};
 
 /* Packet Arbiter Registers */
 /*	B3_PA_CTRL		16 bit	Packet Arbiter Ctrl Register */
@@ -488,7 +403,7 @@ enum {
 						PA_ENA_TO_TX1 | PA_ENA_TO_TX2)
 
 
-/* Transmit Arbiter Registers MAC 1 and 2, use MR_ADDR() to access */
+/* Transmit Arbiter Registers MAC 1 and 2, use SK_REG() to access */
 /*	TXA_ITI_INI		32 bit	Tx Arb Interval Timer Init Val */
 /*	TXA_ITI_VAL		32 bit	Tx Arb Interval Timer Value */
 /*	TXA_LIM_INI		32 bit	Tx Arb Limit Counter Init Val */
@@ -511,7 +426,7 @@ enum {
 /*
  *	Bank 4 - 5
  */
-/* Transmit Arbiter Registers MAC 1 and 2, use MR_ADDR() to access */
+/* Transmit Arbiter Registers MAC 1 and 2, use SK_REG() to access */
 enum {
 	TXA_ITI_INI	= 0x0200,/* 32 bit	Tx Arb Interval Timer Init Val*/
 	TXA_ITI_VAL	= 0x0204,/* 32 bit	Tx Arb Interval Timer Value */
@@ -537,7 +452,7 @@ enum {
 
 /* Queue Register Offsets, use Q_ADDR() to access */
 enum {
-	B8_Q_REGS = 0x0400, /* base of Queue registers */	
+	B8_Q_REGS = 0x0400, /* base of Queue registers */
 	Q_D	= 0x00,	/* 8*32	bit	Current Descriptor */
 	Q_DA_L	= 0x20,	/* 32 bit	Current Descriptor Address Low dWord */
 	Q_DA_H	= 0x24,	/* 32 bit	Current Descriptor Address High dWord */
@@ -618,8 +533,7 @@ enum {
 enum {
 	PHY_ADDR_XMAC	= 0<<8,
 	PHY_ADDR_BCOM	= 1<<8,
-	PHY_ADDR_LONE	= 3<<8,
-	PHY_ADDR_NAT	= 0<<8,
+
 /* GPHY address (bits 15..11 of SMI control reg) */
 	PHY_ADDR_MARV	= 0,
 };
@@ -986,7 +900,7 @@ enum {
 	LINKLED_BLINK_OFF    = 0x10,
 	LINKLED_BLINK_ON     = 0x20,
 };
-	
+
 /* GMAC and GPHY Control Registers (YUKON only) */
 enum {
 	GMAC_CTRL	= 0x0f00,/* 32 bit	GMAC Control Reg */
@@ -1151,54 +1065,6 @@ enum {
 	PHY_MARV_FE_SPEC_2	= 0x1c,/* 16 bit r/w	Specific Control Reg. 2 */
 };
 
-/* Level One-PHY Registers, indirect addressed over XMAC */
-enum {
-	PHY_LONE_CTRL		= 0x00,/* 16 bit r/w	PHY Control Register */
-	PHY_LONE_STAT		= 0x01,/* 16 bit r/o	PHY Status Register */
-	PHY_LONE_ID0		= 0x02,/* 16 bit r/o	PHY ID0 Register */
-	PHY_LONE_ID1		= 0x03,/* 16 bit r/o	PHY ID1 Register */
-	PHY_LONE_AUNE_ADV	= 0x04,/* 16 bit r/w	Auto-Neg. Advertisement */
-	PHY_LONE_AUNE_LP	= 0x05,/* 16 bit r/o	Link Part Ability Reg */
-	PHY_LONE_AUNE_EXP	= 0x06,/* 16 bit r/o	Auto-Neg. Expansion Reg */
-	PHY_LONE_NEPG		= 0x07,/* 16 bit r/w	Next Page Register */
-	PHY_LONE_NEPG_LP	= 0x08,/* 16 bit r/o	Next Page Link Partner */
-	/* Level One-specific registers */
-	PHY_LONE_1000T_CTRL	= 0x09,/* 16 bit r/w	1000Base-T Control Reg */
-	PHY_LONE_1000T_STAT	= 0x0a,/* 16 bit r/o	1000Base-T Status Reg */
-	PHY_LONE_EXT_STAT	= 0x0f,/* 16 bit r/o	Extended Status Reg */
-	PHY_LONE_PORT_CFG	= 0x10,/* 16 bit r/w	Port Configuration Reg*/
-	PHY_LONE_Q_STAT		= 0x11,/* 16 bit r/o	Quick Status Reg */
-	PHY_LONE_INT_ENAB	= 0x12,/* 16 bit r/w	Interrupt Enable Reg */
-	PHY_LONE_INT_STAT	= 0x13,/* 16 bit r/o	Interrupt Status Reg */
-	PHY_LONE_LED_CFG	= 0x14,/* 16 bit r/w	LED Configuration Reg */
-	PHY_LONE_PORT_CTRL	= 0x15,/* 16 bit r/w	Port Control Reg */
-	PHY_LONE_CIM		= 0x16,/* 16 bit r/o	CIM Reg */
-};
-
-/* National-PHY Registers, indirect addressed over XMAC */
-enum {
-	PHY_NAT_CTRL		= 0x00,/* 16 bit r/w	PHY Control Register */
-	PHY_NAT_STAT		= 0x01,/* 16 bit r/w	PHY Status Register */
-	PHY_NAT_ID0		= 0x02,/* 16 bit r/o	PHY ID0 Register */
-	PHY_NAT_ID1		= 0x03,/* 16 bit r/o	PHY ID1 Register */
-	PHY_NAT_AUNE_ADV	= 0x04,/* 16 bit r/w	Auto-Neg. Advertisement */
-	PHY_NAT_AUNE_LP		= 0x05,/* 16 bit r/o	Link Partner Ability Reg */
-	PHY_NAT_AUNE_EXP	= 0x06,/* 16 bit r/o	Auto-Neg. Expansion Reg */
-	PHY_NAT_NEPG		= 0x07,/* 16 bit r/w	Next Page Register */
-	PHY_NAT_NEPG_LP		= 0x08,/* 16 bit r/o	Next Page Link Partner Reg */
-	/* National-specific registers */
-	PHY_NAT_1000T_CTRL	= 0x09,/* 16 bit r/w	1000Base-T Control Reg */
-	PHY_NAT_1000T_STAT	= 0x0a,/* 16 bit r/o	1000Base-T Status Reg */
-	PHY_NAT_EXT_STAT	= 0x0f,/* 16 bit r/o	Extended Status Register */
-	PHY_NAT_EXT_CTRL1	= 0x10,/* 16 bit r/o	Extended Control Reg1 */
-	PHY_NAT_Q_STAT1		= 0x11,/* 16 bit r/o	Quick Status Reg1 */
-	PHY_NAT_10B_OP		= 0x12,/* 16 bit r/o	10Base-T Operations Reg */
-	PHY_NAT_EXT_CTRL2	= 0x13,/* 16 bit r/o	Extended Control Reg1 */
-	PHY_NAT_Q_STAT2		= 0x14,/* 16 bit r/o	Quick Status Reg2 */
-
-	PHY_NAT_PHY_ADDR	= 0x19,/* 16 bit r/o	PHY Address Register */
-};
-
 enum {
 	PHY_CT_RESET	= 1<<15, /* Bit 15: (sc)	clear all PHY related regs */
 	PHY_CT_LOOP	= 1<<14, /* Bit 14:	enable Loopback over PHY */
@@ -1253,90 +1119,35 @@ enum {
 	PHY_MARV_ID1_Y2	= 0x0C91, /* Yukon-2 (PHY 88E1112) */
 };
 
+/* Advertisement register bits */
 enum {
 	PHY_AN_NXT_PG	= 1<<15, /* Bit 15:	Request Next Page */
+	PHY_AN_ACK	= 1<<14, /* Bit 14:	(ro) Acknowledge Received */
+	PHY_AN_RF	= 1<<13, /* Bit 13:	Remote Fault Bits */
+
+	PHY_AN_PAUSE_ASYM = 1<<11,/* Bit 11:	Try for asymmetric */
+	PHY_AN_PAUSE_CAP = 1<<10, /* Bit 10:	Try for pause */
+	PHY_AN_100BASE4	= 1<<9, /* Bit 9:	Try for 100mbps 4k packets */
+	PHY_AN_100FULL	= 1<<8, /* Bit 8:	Try for 100mbps full-duplex */
+	PHY_AN_100HALF	= 1<<7, /* Bit 7:	Try for 100mbps half-duplex */
+	PHY_AN_10FULL	= 1<<6, /* Bit 6:	Try for 10mbps full-duplex */
+	PHY_AN_10HALF	= 1<<5, /* Bit 5:	Try for 10mbps half-duplex */
+	PHY_AN_CSMA	= 1<<0, /* Bit 0:	Only selector supported */
+	PHY_AN_SEL	= 0x1f, /* Bit 4..0:	Selector Field, 00001=Ethernet*/
+	PHY_AN_FULL	= PHY_AN_100FULL | PHY_AN_10FULL | PHY_AN_CSMA,
+	PHY_AN_ALL	= PHY_AN_10HALF | PHY_AN_10FULL |
+		  	  PHY_AN_100HALF | PHY_AN_100FULL,
+};
+
+/* Xmac Specific */
+enum {
+	PHY_X_AN_NXT_PG	= 1<<15, /* Bit 15:	Request Next Page */
 	PHY_X_AN_ACK	= 1<<14, /* Bit 14:	(ro) Acknowledge Received */
 	PHY_X_AN_RFB	= 3<<12,/* Bit 13..12:	Remote Fault Bits */
 
 	PHY_X_AN_PAUSE	= 3<<7,/* Bit  8.. 7:	Pause Bits */
 	PHY_X_AN_HD	= 1<<6, /* Bit  6:	Half Duplex */
 	PHY_X_AN_FD	= 1<<5, /* Bit  5:	Full Duplex */
-};
-
-enum {
-	PHY_B_AN_RF	= 1<<13, /* Bit 13:	Remote Fault */
-
-	PHY_B_AN_ASP	= 1<<11, /* Bit 11:	Asymmetric Pause */
-	PHY_B_AN_PC	= 1<<10, /* Bit 10:	Pause Capable */
-	PHY_B_AN_SEL	= 0x1f, /* Bit 4..0:	Selector Field, 00001=Ethernet*/
-};
-
-enum {
-	PHY_L_AN_RF	= 1<<13, /* Bit 13:	Remote Fault */
-								/* Bit 12:	reserved */
-	PHY_L_AN_ASP	= 1<<11, /* Bit 11:	Asymmetric Pause */
-	PHY_L_AN_PC	= 1<<10, /* Bit 10:	Pause Capable */
-
-	PHY_L_AN_SEL	= 0x1f, /* Bit 4..0:	Selector Field, 00001=Ethernet*/
-};
-
-/*  PHY_NAT_AUNE_ADV	16 bit r/w	Auto-Negotiation Advertisement */
-/*  PHY_NAT_AUNE_LP	16 bit r/o	Link Partner Ability Reg *****/
-/*  PHY_AN_NXT_PG	(see XMAC) Bit 15:	Request Next Page */
-enum {
-	PHY_N_AN_RF	= 1<<13, /* Bit 13:	Remote Fault */
-
-	PHY_N_AN_100F	= 1<<11, /* Bit 11:	100Base-T2 FD Support */
-	PHY_N_AN_100H	= 1<<10, /* Bit 10:	100Base-T2 HD Support */
-
-	PHY_N_AN_SEL	= 0x1f, /* Bit 4..0:	Selector Field, 00001=Ethernet*/
-};
-
-/* field type definition for PHY_x_AN_SEL */
-enum {
-	PHY_SEL_TYPE	 = 1,	/* 00001 = Ethernet */
-};
-
-enum {
-	PHY_ANE_LP_NP	= 1<<3, /* Bit  3:	Link Partner can Next Page */
-	PHY_ANE_LOC_NP	= 1<<2, /* Bit  2:	Local PHY can Next Page */
-	PHY_ANE_RX_PG	= 1<<1, /* Bit  1:	Page Received */
-};
-
-enum {
-	PHY_ANE_PAR_DF	= 1<<4, /* Bit  4:	Parallel Detection Fault */
-
-	PHY_ANE_LP_CAP	= 1<<0, /* Bit  0:	Link Partner Auto-Neg. Cap. */ 	
-};
-
-enum {
-	PHY_NP_MORE	= 1<<15, /* Bit 15:	More, Next Pages to follow */
-	PHY_NP_ACK1	= 1<<14, /* Bit 14: (ro)	Ack1, for receiving a message */
-	PHY_NP_MSG_VAL	= 1<<13, /* Bit 13:	Message Page valid */
-	PHY_NP_ACK2	= 1<<12, /* Bit 12:	Ack2, comply with msg content */
-	PHY_NP_TOG	= 1<<11, /* Bit 11:	Toggle Bit, ensure sync */
-	PHY_NP_MSG	= 0x07ff, /* Bit 10..0:	Message from/to Link Partner */
-};
-
-enum {
-	PHY_X_EX_FD	= 1<<15, /* Bit 15:	Device Supports Full Duplex */
-	PHY_X_EX_HD	= 1<<14, /* Bit 14:	Device Supports Half Duplex */
-};
-
-enum {
-	PHY_X_RS_PAUSE	= 3<<7,/* Bit  8..7:	selected Pause Mode */
-	PHY_X_RS_HD	= 1<<6, /* Bit  6:	Half Duplex Mode selected */
-	PHY_X_RS_FD	= 1<<5, /* Bit  5:	Full Duplex Mode selected */
-	PHY_X_RS_ABLMIS	= 1<<4, /* Bit  4:	duplex or pause cap mismatch */
-	PHY_X_RS_PAUMIS	= 1<<3, /* Bit  3:	pause capability mismatch */
-};
-
-/** Remote Fault Bits (PHY_X_AN_RFB) encoding  */
-enum {
-	X_RFB_OK	= 0<<12,/* Bit 13..12	No errors, Link OK */
-	X_RFB_LF	= 1<<12, /* Bit 13..12	Link Failure */
-	X_RFB_OFF	= 2<<12,/* Bit 13..12	Offline */
-	X_RFB_AN_ERR	= 3<<12,/* Bit 13..12	Auto-Negotiation Error */
 };
 
 /* Pause Bits (PHY_X_AN_PAUSE and PHY_X_RS_PAUSE) encoding */
@@ -1418,6 +1229,16 @@ enum {
 	PHY_B_PES_MLT3_ER	= 1<<0, /* Bit  0:	MLT3 code Error */
 };
 
+/*  PHY_BCOM_AUNE_ADV	16 bit r/w	Auto-Negotiation Advertisement *****/
+/*  PHY_BCOM_AUNE_LP	16 bit r/o	Link Partner Ability Reg *****/
+enum {
+	PHY_B_AN_RF	= 1<<13, /* Bit 13:	Remote Fault */
+
+	PHY_B_AN_ASP	= 1<<11, /* Bit 11:	Asymmetric Pause */
+	PHY_B_AN_PC	= 1<<10, /* Bit 10:	Pause Capable */
+};
+
+
 /*****  PHY_BCOM_FC_CTR		16 bit r/w	False Carrier Counter *****/
 enum {
 	PHY_B_FC_CTR	= 0xff, /* Bit  7..0:	False Carrier Counter */
@@ -1478,7 +1299,9 @@ enum {
 	PHY_B_IS_LST_CHANGE	= 1<<1, /* Bit  1:	Link Status Changed */
 	PHY_B_IS_CRC_ER	= 1<<0, /* Bit  0:	CRC Error */
 };
-#define PHY_B_DEF_MSK	(~(PHY_B_IS_AN_PR | PHY_B_IS_LST_CHANGE))
+#define PHY_B_DEF_MSK	\
+	(~(PHY_B_IS_PSE | PHY_B_IS_AN_PR | PHY_B_IS_DUP_CHANGE | \
+	    PHY_B_IS_LSP_CHANGE | PHY_B_IS_LST_CHANGE))
 
 /* Pause Bits (PHY_B_AN_ASP and PHY_B_AN_PC) encoding */
 enum {
@@ -1493,166 +1316,6 @@ enum {
 enum {
 	PHY_B_RES_1000FD	= 7<<8,/* Bit 10..8:	1000Base-T Full Dup. */
 	PHY_B_RES_1000HD	= 6<<8,/* Bit 10..8:	1000Base-T Half Dup. */
-};
-
-/*
- * Level One-Specific
- */
-/*****  PHY_LONE_1000T_CTRL	16 bit r/w	1000Base-T Control Reg *****/
-enum {
-	PHY_L_1000C_TEST	= 7<<13,/* Bit 15..13:	Test Modes */
-	PHY_L_1000C_MSE	= 1<<12, /* Bit 12:	Master/Slave Enable */
-	PHY_L_1000C_MSC	= 1<<11, /* Bit 11:	M/S Configuration */
-	PHY_L_1000C_RD	= 1<<10, /* Bit 10:	Repeater/DTE */
-	PHY_L_1000C_AFD	= 1<<9, /* Bit  9:	Advertise Full Duplex */
-	PHY_L_1000C_AHD	= 1<<8, /* Bit  8:	Advertise Half Duplex */
-};
-
-/*****  PHY_LONE_1000T_STAT	16 bit r/o	1000Base-T Status Reg *****/
-enum {
-	PHY_L_1000S_MSF	= 1<<15, /* Bit 15:	Master/Slave Fault */
-	PHY_L_1000S_MSR	= 1<<14, /* Bit 14:	Master/Slave Result */
-	PHY_L_1000S_LRS	= 1<<13, /* Bit 13:	Local Receiver Status */
-	PHY_L_1000S_RRS	= 1<<12, /* Bit 12:	Remote Receiver Status */
-	PHY_L_1000S_LP_FD = 1<<11, /* Bit 11:	Link Partner can FD */
-	PHY_L_1000S_LP_HD = 1<<10, /* Bit 10:	Link Partner can HD */
-
-	PHY_L_1000S_IEC	 = 0xff, /* Bit  7..0:	Idle Error Count */
-
-/*****  PHY_LONE_EXT_STAT	16 bit r/o	Extended Status Register *****/
-	PHY_L_ES_X_FD_CAP = 1<<15, /* Bit 15:	1000Base-X FD capable */
-	PHY_L_ES_X_HD_CAP = 1<<14, /* Bit 14:	1000Base-X HD capable */
-	PHY_L_ES_T_FD_CAP = 1<<13, /* Bit 13:	1000Base-T FD capable */
-	PHY_L_ES_T_HD_CAP = 1<<12, /* Bit 12:	1000Base-T HD capable */
-};
-
-/*****  PHY_LONE_PORT_CFG	16 bit r/w	Port Configuration Reg *****/
-enum {
-	PHY_L_PC_REP_MODE	= 1<<15, /* Bit 15:	Repeater Mode */
-
-	PHY_L_PC_TX_DIS	= 1<<13, /* Bit 13:	Tx output Disabled */
-	PHY_L_PC_BY_SCR	= 1<<12, /* Bit 12:	Bypass Scrambler */
-	PHY_L_PC_BY_45	= 1<<11, /* Bit 11:	Bypass 4B5B-Decoder */
-	PHY_L_PC_JAB_DIS	= 1<<10, /* Bit 10:	Jabber Disabled */
-	PHY_L_PC_SQE	= 1<<9, /* Bit  9:	Enable Heartbeat */
-	PHY_L_PC_TP_LOOP	= 1<<8, /* Bit  8:	TP Loopback */
-	PHY_L_PC_SSS	= 1<<7, /* Bit  7:	Smart Speed Selection */
-	PHY_L_PC_FIFO_SIZE	= 1<<6, /* Bit  6:	FIFO Size */
-	PHY_L_PC_PRE_EN	= 1<<5, /* Bit  5:	Preamble Enable */
-	PHY_L_PC_CIM	= 1<<4, /* Bit  4:	Carrier Integrity Mon */
-	PHY_L_PC_10_SER	= 1<<3, /* Bit  3:	Use Serial Output */
-	PHY_L_PC_ANISOL	= 1<<2, /* Bit  2:	Unisolate Port */
-	PHY_L_PC_TEN_BIT	= 1<<1, /* Bit  1:	10bit iface mode on */
-	PHY_L_PC_ALTCLOCK	= 1<<0, /* Bit  0: (ro)	ALTCLOCK Mode on */
-};
-
-/*****  PHY_LONE_Q_STAT		16 bit r/o	Quick Status Reg *****/
-enum {
-	PHY_L_QS_D_RATE	= 3<<14,/* Bit 15..14:	Data Rate */
-	PHY_L_QS_TX_STAT	= 1<<13, /* Bit 13:	Transmitting */
-	PHY_L_QS_RX_STAT	= 1<<12, /* Bit 12:	Receiving */
-	PHY_L_QS_COL_STAT	= 1<<11, /* Bit 11:	Collision */
-	PHY_L_QS_L_STAT	= 1<<10, /* Bit 10:	Link is up */
-	PHY_L_QS_DUP_MOD	= 1<<9, /* Bit  9:	Full/Half Duplex */
-	PHY_L_QS_AN	= 1<<8, /* Bit  8:	AutoNeg is On */
-	PHY_L_QS_AN_C	= 1<<7, /* Bit  7:	AN is Complete */
-	PHY_L_QS_LLE	= 7<<4,/* Bit  6..4:	Line Length Estim. */
-	PHY_L_QS_PAUSE	= 1<<3, /* Bit  3:	LP advertised Pause */
-	PHY_L_QS_AS_PAUSE	= 1<<2, /* Bit  2:	LP adv. asym. Pause */
-	PHY_L_QS_ISOLATE	= 1<<1, /* Bit  1:	CIM Isolated */
-	PHY_L_QS_EVENT	= 1<<0, /* Bit  0:	Event has occurred */
-};
-
-/*****  PHY_LONE_INT_ENAB	16 bit r/w	Interrupt Enable Reg *****/
-/*****  PHY_LONE_INT_STAT	16 bit r/o	Interrupt Status Reg *****/
-enum {
-	PHY_L_IS_AN_F	= 1<<13, /* Bit 13:	Auto-Negotiation fault */
-	PHY_L_IS_CROSS	= 1<<11, /* Bit 11:	Crossover used */
-	PHY_L_IS_POL	= 1<<10, /* Bit 10:	Polarity correct. used */
-	PHY_L_IS_SS	= 1<<9, /* Bit  9:	Smart Speed Downgrade */
-	PHY_L_IS_CFULL	= 1<<8, /* Bit  8:	Counter Full */
-	PHY_L_IS_AN_C	= 1<<7, /* Bit  7:	AutoNeg Complete */
-	PHY_L_IS_SPEED	= 1<<6, /* Bit  6:	Speed Changed */
-	PHY_L_IS_DUP	= 1<<5, /* Bit  5:	Duplex Changed */
-	PHY_L_IS_LS	= 1<<4, /* Bit  4:	Link Status Changed */
-	PHY_L_IS_ISOL	= 1<<3, /* Bit  3:	Isolate Occured */
-	PHY_L_IS_MDINT	= 1<<2, /* Bit  2: (ro)	STAT: MII Int Pending */
-	PHY_L_IS_INTEN	= 1<<1, /* Bit  1:	ENAB: Enable IRQs */
-	PHY_L_IS_FORCE	= 1<<0, /* Bit  0:	ENAB: Force Interrupt */
-};
-
-/* int. mask */
-#define PHY_L_DEF_MSK	(PHY_L_IS_LS | PHY_L_IS_ISOL | PHY_L_IS_INTEN)
-
-/*****  PHY_LONE_LED_CFG	16 bit r/w	LED Configuration Reg *****/
-enum {
-	PHY_L_LC_LEDC	= 3<<14,/* Bit 15..14:	Col/Blink/On/Off */
-	PHY_L_LC_LEDR	= 3<<12,/* Bit 13..12:	Rx/Blink/On/Off */
-	PHY_L_LC_LEDT	= 3<<10,/* Bit 11..10:	Tx/Blink/On/Off */
-	PHY_L_LC_LEDG	= 3<<8,/* Bit  9..8:	Giga/Blink/On/Off */
-	PHY_L_LC_LEDS	= 3<<6,/* Bit  7..6:	10-100/Blink/On/Off */
-	PHY_L_LC_LEDL	= 3<<4,/* Bit  5..4:	Link/Blink/On/Off */
-	PHY_L_LC_LEDF	= 3<<2,/* Bit  3..2:	Duplex/Blink/On/Off */
-	PHY_L_LC_PSTRECH= 1<<1, /* Bit  1:	Strech LED Pulses */
-	PHY_L_LC_FREQ	= 1<<0, /* Bit  0:	30/100 ms */
-};
-
-/*****  PHY_LONE_PORT_CTRL	16 bit r/w	Port Control Reg *****/
-enum {
-	PHY_L_PC_TX_TCLK = 1<<15, /* Bit 15:	Enable TX_TCLK */
-	PHY_L_PC_ALT_NP	 = 1<<13, /* Bit 14:	Alternate Next Page */
-	PHY_L_PC_GMII_ALT= 1<<12, /* Bit 13:	Alternate GMII driver */
-	PHY_L_PC_TEN_CRS = 1<<10, /* Bit 10:	Extend CRS*/
-};
-
-/*****  PHY_LONE_CIM		16 bit r/o	CIM Reg *****/
-enum {
-	PHY_L_CIM_ISOL	    = 0xff<<8,/* Bit 15..8:	Isolate Count */
-	PHY_L_CIM_FALSE_CAR = 0xff,   /* Bit  7..0:	False Carrier Count */
-};
-
-/*
- * Pause Bits (PHY_L_AN_ASP and PHY_L_AN_PC) encoding
- */
-enum {
-	PHY_L_P_NO_PAUSE= 0<<10,/* Bit 11..10:	no Pause Mode */
-	PHY_L_P_SYM_MD	= 1<<10, /* Bit 11..10:	symmetric Pause Mode */
-	PHY_L_P_ASYM_MD	= 2<<10,/* Bit 11..10:	asymmetric Pause Mode */
-	PHY_L_P_BOTH_MD	= 3<<10,/* Bit 11..10:	both Pause Mode */
-};
-
-/*
- * National-Specific
- */
-/*****  PHY_NAT_1000T_CTRL	16 bit r/w	1000Base-T Control Reg *****/
-enum {
-	PHY_N_1000C_TEST= 7<<13,/* Bit 15..13:	Test Modes */
-	PHY_N_1000C_MSE	= 1<<12, /* Bit 12:	Master/Slave Enable */
-	PHY_N_1000C_MSC	= 1<<11, /* Bit 11:	M/S Configuration */
-	PHY_N_1000C_RD	= 1<<10, /* Bit 10:	Repeater/DTE */
-	PHY_N_1000C_AFD	= 1<<9, /* Bit  9:	Advertise Full Duplex */
-	PHY_N_1000C_AHD	= 1<<8, /* Bit  8:	Advertise Half Duplex */
-	PHY_N_1000C_APC	= 1<<7, /* Bit  7:	Asymmetric Pause Cap. */};
-
-
-/*****  PHY_NAT_1000T_STAT	16 bit r/o	1000Base-T Status Reg *****/
-enum {
-	PHY_N_1000S_MSF	= 1<<15, /* Bit 15:	Master/Slave Fault */
-	PHY_N_1000S_MSR	= 1<<14, /* Bit 14:	Master/Slave Result */
-	PHY_N_1000S_LRS	= 1<<13, /* Bit 13:	Local Receiver Status */
-	PHY_N_1000S_RRS	= 1<<12, /* Bit 12:	Remote Receiver Status*/
-	PHY_N_1000S_LP_FD= 1<<11, /* Bit 11:	Link Partner can FD */
-	PHY_N_1000S_LP_HD= 1<<10, /* Bit 10:	Link Partner can HD */
-	PHY_N_1000C_LP_APC= 1<<9, /* Bit  9:	LP Asym. Pause Cap. */
-	PHY_N_1000S_IEC	= 0xff, /* Bit  7..0:	Idle Error Count */
-};
-
-/*****  PHY_NAT_EXT_STAT	16 bit r/o	Extended Status Register *****/
-enum {
-	PHY_N_ES_X_FD_CAP= 1<<15, /* Bit 15:	1000Base-X FD capable */
-	PHY_N_ES_X_HD_CAP= 1<<14, /* Bit 14:	1000Base-X HD capable */
-	PHY_N_ES_T_FD_CAP= 1<<13, /* Bit 13:	1000Base-T FD capable */
-	PHY_N_ES_T_HD_CAP= 1<<12, /* Bit 12:	1000Base-T HD capable */
 };
 
 /** Marvell-Specific */
@@ -1718,7 +1381,7 @@ enum {
 	PHY_M_PC_EN_DET_PLUS	= 3<<8, /* Energy Detect Plus (Mode 2) */
 };
 
-#define PHY_M_PC_MDI_XMODE(x)	(((x)<<5) & PHY_M_PC_MDIX_MSK)	
+#define PHY_M_PC_MDI_XMODE(x)	(((x)<<5) & PHY_M_PC_MDIX_MSK)
 
 enum {
 	PHY_M_PC_MAN_MDI	= 0, /* 00 = Manual MDI configuration */
@@ -2105,7 +1768,7 @@ enum {
 	GM_GPSR_FC_RX_DIS	= 1<<2,	/* Bit  2:	Rx Flow-Control Mode Disabled */
 	GM_GPSR_PROM_EN		= 1<<1,	/* Bit  1:	Promiscuous Mode Enabled */
 };
-	
+
 /*	GM_GP_CTRL	16 bit r/w	General Purpose Control Register */
 enum {
 	GM_GPCR_PROM_ENA	= 1<<14,	/* Bit 14:	Enable Promiscuous Mode */
@@ -2127,7 +1790,7 @@ enum {
 
 #define GM_GPCR_SPEED_1000	(GM_GPCR_GIGS_ENA | GM_GPCR_SPEED_100)
 #define GM_GPCR_AU_ALL_DIS	(GM_GPCR_AU_DUP_DIS | GM_GPCR_AU_FCT_DIS|GM_GPCR_AU_SPD_DIS)
-	
+
 /*	GM_TX_CTRL			16 bit r/w	Transmit Control Register */
 enum {
 	GM_TXCR_FORCE_JAM	= 1<<15, /* Bit 15:	Force Jam / Flow-Control */
@@ -2138,7 +1801,7 @@ enum {
 
 #define TX_COL_THR(x)		(((x)<<10) & GM_TXCR_COL_THR_MSK)
 #define TX_COL_DEF		0x04
-	
+
 /*	GM_RX_CTRL			16 bit r/w	Receive Control Register */
 enum {
 	GM_RXCR_UCF_ENA	= 1<<15, /* Bit 15:	Enable Unicast filtering */
@@ -2146,7 +1809,7 @@ enum {
 	GM_RXCR_CRC_DIS	= 1<<13, /* Bit 13:	Remove 4-byte CRC */
 	GM_RXCR_PASS_FC	= 1<<12, /* Bit 12:	Pass FC packets to FIFO */
 };
-	
+
 /*	GM_TX_PARAM		16 bit r/w	Transmit Parameter Register */
 enum {
 	GM_TXPA_JAMLEN_MSK	= 0x03<<14,	/* Bit 15..14:	Jam Length */
@@ -2171,7 +1834,7 @@ enum {
 	GM_SMOD_JUMBO_ENA	= 1<<8,	/* Bit  8:	Enable Jumbo (Max. Frame Len) */
 	 GM_SMOD_IPG_MSK	= 0x1f	/* Bit 4..0:	Inter-Packet Gap (IPG) */
 };
-	
+
 #define DATA_BLIND_VAL(x)	(((x)<<11) & GM_SMOD_DATABL_MSK)
 #define DATA_BLIND_DEF		0x04
 
@@ -2186,7 +1849,7 @@ enum {
 	GM_SMI_CT_RD_VAL	= 1<<4,	/* Bit  4:	Read Valid (Read completed) */
 	GM_SMI_CT_BUSY		= 1<<3,	/* Bit  3:	Busy (Operation in progress) */
 };
-	
+
 #define GM_SMI_CT_PHY_AD(x)	(((x)<<11) & GM_SMI_CT_PHY_A_MSK)
 #define GM_SMI_CT_REG_AD(x)	(((x)<<6) & GM_SMI_CT_REG_A_MSK)
 
@@ -2195,7 +1858,7 @@ enum {
 	GM_PAR_MIB_CLR	= 1<<5,	/* Bit  5:	Set MIB Clear Counter Mode */
 	GM_PAR_MIB_TST	= 1<<4,	/* Bit  4:	MIB Load Counter (Test Mode) */
 };
-	
+
 /* Receive Frame Status Encoding */
 enum {
 	GMR_FS_LEN	= 0xffff<<16, /* Bit 31..16:	Rx Frame Length */
@@ -2217,12 +1880,12 @@ enum {
 /*
  * GMR_FS_ANY_ERR (analogous to XMR_FS_ANY_ERR)
  */
-	GMR_FS_ANY_ERR	= GMR_FS_CRC_ERR | GMR_FS_LONG_ERR | 
-		  	  GMR_FS_MII_ERR | GMR_FS_BAD_FC | GMR_FS_GOOD_FC | 
+	GMR_FS_ANY_ERR	= GMR_FS_CRC_ERR | GMR_FS_LONG_ERR |
+		  	  GMR_FS_MII_ERR | GMR_FS_BAD_FC | GMR_FS_GOOD_FC |
 			  GMR_FS_JABBER,
 /* Rx GMAC FIFO Flush Mask (default) */
 	RX_FF_FL_DEF_MSK = GMR_FS_CRC_ERR | GMR_FS_RX_FF_OV |GMR_FS_MII_ERR |
-			   GMR_FS_BAD_FC | GMR_FS_GOOD_FC | GMR_FS_UN_SIZE | 
+			   GMR_FS_BAD_FC | GMR_FS_GOOD_FC | GMR_FS_UN_SIZE |
 			   GMR_FS_JABBER,
 };
 
@@ -2540,10 +2203,6 @@ enum {
 };
 
 
-/*	XM_PHY_ADDR	16 bit r/w	PHY Address Register */
-#define XM_PHY_ADDR_SZ	0x1f	/* Bit  4..0:	PHY Address bits */
-
-
 /*	XM_GP_PORT	32 bit r/w	General Purpose Port Register */
 enum {
 	XM_GP_ANIP	= 1<<6,	/* Bit  6: (ro)	Auto-Neg. in progress */
@@ -2662,8 +2321,8 @@ enum {
 };
 
 #define XM_PAUSE_MODE	(XM_MD_SPOE_E | XM_MD_SPOL_I | XM_MD_SPOH_I)
-#define XM_DEF_MODE		(XM_MD_RX_RUNT | XM_MD_RX_IRLE | XM_MD_RX_LONG |\
-				XM_MD_RX_CRCE | XM_MD_RX_ERR | XM_MD_CSA | XM_MD_CAA)
+#define XM_DEF_MODE	(XM_MD_RX_RUNT | XM_MD_RX_IRLE | XM_MD_RX_LONG |\
+			 XM_MD_RX_CRCE | XM_MD_RX_ERR | XM_MD_CSA)
 
 /*	XM_STAT_CMD	16 bit r/w	Statistics Command Register */
 enum {
@@ -2793,28 +2452,20 @@ struct skge_hw {
 	u32		     intr_mask;
 	struct net_device    *dev[2];
 
-	u8		     mac_cfg;
 	u8	     	     chip_id;
+	u8		     chip_rev;
 	u8		     phy_type;
 	u8		     pmd_type;
 	u16		     phy_addr;
+	u8		     ports;
 
 	u32	     	     ram_size;
 	u32	     	     ram_offset;
-	
+
 	struct tasklet_struct ext_tasklet;
 	spinlock_t	     phy_lock;
 };
 
-static inline int isdualport(const struct skge_hw *hw)
-{
-	return !(hw->mac_cfg & CFG_SNG_MAC);
-}
-
-static inline u8 chip_rev(const struct skge_hw *hw)
-{
-	return (hw->mac_cfg & CFG_CHIP_R_MSK) >> 4;
-}
 
 static inline int iscopper(const struct skge_hw *hw)
 {
@@ -2827,7 +2478,7 @@ enum {
 	FLOW_MODE_REM_SEND	= 2, /* Symmetric or just remote */
 	FLOW_MODE_SYMMETRIC	= 3, /* Both stations may send PAUSE */
 };
-	
+
 struct skge_port {
 	u32		     msg_enable;
 	struct skge_hw	     *hw;
@@ -2853,8 +2504,8 @@ struct skge_port {
 	void		     *mem;	/* PCI memory for rings */
 	dma_addr_t	     dma;
 	unsigned long	     mem_size;
+	unsigned int	     rx_buf_size;
 
-	struct timer_list    link_check;
 	struct timer_list    led_blink;
 };
 
@@ -2863,7 +2514,6 @@ struct skge_port {
 static inline u32 skge_read32(const struct skge_hw *hw, int reg)
 {
 	return readl(hw->regs + reg);
-
 }
 
 static inline u16 skge_read16(const struct skge_hw *hw, int reg)
@@ -2892,114 +2542,87 @@ static inline void skge_write8(const struct skge_hw *hw, int reg, u8 val)
 }
 
 /* MAC Related Registers inside the device. */
-#define SKGEMAC_REG(port,reg)	(((port)<<7)+(reg))
-
-/* PCI config space can be accessed via memory mapped space */
-#define SKGEPCI_REG(reg) ((reg)+ 0x380)
-
-#define SKGEXM_REG(port, reg) \
+#define SK_REG(port,reg)	(((port)<<7)+(reg))
+#define SK_XMAC_REG(port, reg) \
 	((BASE_XMAC_1 + (port) * (BASE_XMAC_2 - BASE_XMAC_1)) | (reg) << 1)
 
-static inline u32 skge_xm_read32(const struct skge_hw *hw, int port, int reg)
+static inline u32 xm_read32(const struct skge_hw *hw, int port, int reg)
 {
-	return skge_read32(hw, SKGEXM_REG(port,reg));
+	u32 v;
+	v = skge_read16(hw, SK_XMAC_REG(port, reg));
+	v |= (u32)skge_read16(hw, SK_XMAC_REG(port, reg+2)) << 16;
+	return v;
 }
 
-static inline u16 skge_xm_read16(const struct skge_hw *hw, int port, int reg)
+static inline u16 xm_read16(const struct skge_hw *hw, int port, int reg)
 {
-	return skge_read16(hw, SKGEXM_REG(port,reg));
+	return skge_read16(hw, SK_XMAC_REG(port,reg));
 }
 
-static inline u8 skge_xm_read8(const struct skge_hw *hw, int port, int reg)
+static inline void xm_write32(const struct skge_hw *hw, int port, int r, u32 v)
 {
-	return skge_read8(hw, SKGEXM_REG(port,reg));
+	skge_write16(hw, SK_XMAC_REG(port,r), v & 0xffff);
+	skge_write16(hw, SK_XMAC_REG(port,r+2), v >> 16);
 }
 
-static inline void skge_xm_write32(const struct skge_hw *hw, int port, int r, u32 v)
+static inline void xm_write16(const struct skge_hw *hw, int port, int r, u16 v)
 {
-	skge_write32(hw, SKGEXM_REG(port,r), v);
+	skge_write16(hw, SK_XMAC_REG(port,r), v);
 }
 
-static inline void skge_xm_write16(const struct skge_hw *hw, int port, int r, u16 v)
-{
-	skge_write16(hw, SKGEXM_REG(port,r), v);
-}
-
-static inline void skge_xm_write8(const struct skge_hw *hw, int port, int r, u8 v)
-{
-	skge_write8(hw, SKGEXM_REG(port,r), v);
-}
-
-static inline void skge_xm_outhash(const struct skge_hw *hw, int port, int reg,
+static inline void xm_outhash(const struct skge_hw *hw, int port, int reg,
 				   const u8 *hash)
 {
-	skge_xm_write16(hw, port, reg, 
-			(u16)hash[0] | ((u16)hash[1] << 8));
-	skge_xm_write16(hw, port, reg+2, 
-			(u16)hash[2] | ((u16)hash[3] << 8));
-	skge_xm_write16(hw, port, reg+4, 
-			(u16)hash[4] | ((u16)hash[5] << 8));
-	skge_xm_write16(hw, port, reg+6, 
-			(u16)hash[6] | ((u16)hash[7] << 8));
+	xm_write16(hw, port, reg,   (u16)hash[0] | ((u16)hash[1] << 8));
+	xm_write16(hw, port, reg+2, (u16)hash[2] | ((u16)hash[3] << 8));
+	xm_write16(hw, port, reg+4, (u16)hash[4] | ((u16)hash[5] << 8));
+	xm_write16(hw, port, reg+6, (u16)hash[6] | ((u16)hash[7] << 8));
 }
 
-static inline void skge_xm_outaddr(const struct skge_hw *hw, int port, int reg,
+static inline void xm_outaddr(const struct skge_hw *hw, int port, int reg,
 				   const u8 *addr)
 {
-	skge_xm_write16(hw, port, reg, 
-			(u16)addr[0] | ((u16)addr[1] << 8));
-	skge_xm_write16(hw, port, reg, 
-			(u16)addr[2] | ((u16)addr[3] << 8));
-	skge_xm_write16(hw, port, reg, 
-			(u16)addr[4] | ((u16)addr[5] << 8));
+	xm_write16(hw, port, reg,   (u16)addr[0] | ((u16)addr[1] << 8));
+	xm_write16(hw, port, reg+2, (u16)addr[2] | ((u16)addr[3] << 8));
+	xm_write16(hw, port, reg+4, (u16)addr[4] | ((u16)addr[5] << 8));
 }
 
+#define SK_GMAC_REG(port,reg) \
+	(BASE_GMAC_1 + (port) * (BASE_GMAC_2-BASE_GMAC_1) + (reg))
 
-#define SKGEGMA_REG(port,reg) \
-	((reg) + BASE_GMAC_1 + \
-	 (port) * (BASE_GMAC_2-BASE_GMAC_1))
-
-static inline u16 skge_gma_read16(const struct skge_hw *hw, int port, int reg)
+static inline u16 gma_read16(const struct skge_hw *hw, int port, int reg)
 {
-	return skge_read16(hw, SKGEGMA_REG(port,reg));
+	return skge_read16(hw, SK_GMAC_REG(port,reg));
 }
 
-static inline u32 skge_gma_read32(const struct skge_hw *hw, int port, int reg)
+static inline u32 gma_read32(const struct skge_hw *hw, int port, int reg)
 {
-	return (u32) skge_read16(hw, SKGEGMA_REG(port,reg))
-		| ((u32)skge_read16(hw, SKGEGMA_REG(port,reg+4)) << 16);
+	return (u32) skge_read16(hw, SK_GMAC_REG(port,reg))
+		| ((u32)skge_read16(hw, SK_GMAC_REG(port,reg+4)) << 16);
 }
 
-static inline u8 skge_gma_read8(const struct skge_hw *hw, int port, int reg)
+static inline void gma_write16(const struct skge_hw *hw, int port, int r, u16 v)
 {
-	return skge_read8(hw, SKGEGMA_REG(port,reg));
+	skge_write16(hw, SK_GMAC_REG(port,r), v);
 }
 
-static inline void skge_gma_write16(const struct skge_hw *hw, int port, int r, u16 v)
+static inline void gma_write32(const struct skge_hw *hw, int port, int r, u32 v)
 {
-	skge_write16(hw, SKGEGMA_REG(port,r), v);
+	skge_write16(hw, SK_GMAC_REG(port, r), (u16) v);
+	skge_write32(hw, SK_GMAC_REG(port, r+4), (u16)(v >> 16));
 }
 
-static inline void skge_gma_write32(const struct skge_hw *hw, int port, int r, u32 v)
+static inline void gma_write8(const struct skge_hw *hw, int port, int r, u8 v)
 {
-	skge_write16(hw, SKGEGMA_REG(port, r), (u16) v);
-	skge_write32(hw, SKGEGMA_REG(port, r+4), (u16)(v >> 16));
+	skge_write8(hw, SK_GMAC_REG(port,r), v);
 }
 
-static inline void skge_gma_write8(const struct skge_hw *hw, int port, int r, u8 v)
-{
-	skge_write8(hw, SKGEGMA_REG(port,r), v);
-}
-
-static inline void skge_gm_set_addr(struct skge_hw *hw, int port, int reg,
+static inline void gma_set_addr(struct skge_hw *hw, int port, int reg,
 				    const u8 *addr)
 {
-	skge_gma_write16(hw, port, reg,
-			 (u16) addr[0] | ((u16) addr[1] << 8));
-	skge_gma_write16(hw, port, reg+4,
-			 (u16) addr[2] | ((u16) addr[3] << 8));
-	skge_gma_write16(hw, port, reg+8,
-			 (u16) addr[4] | ((u16) addr[5] << 8));
+	gma_write16(hw, port, reg,  (u16) addr[0] | ((u16) addr[1] << 8));
+	gma_write16(hw, port, reg+4,(u16) addr[2] | ((u16) addr[3] << 8));
+	gma_write16(hw, port, reg+8,(u16) addr[4] | ((u16) addr[5] << 8));
 }
-		
+
 #endif

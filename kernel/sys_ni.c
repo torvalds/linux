@@ -18,6 +18,8 @@ cond_syscall(sys_acct);
 cond_syscall(sys_lookup_dcookie);
 cond_syscall(sys_swapon);
 cond_syscall(sys_swapoff);
+cond_syscall(sys_kexec_load);
+cond_syscall(compat_sys_kexec_load);
 cond_syscall(sys_init_module);
 cond_syscall(sys_delete_module);
 cond_syscall(sys_socketpair);
@@ -78,6 +80,9 @@ cond_syscall(sys_keyctl);
 cond_syscall(compat_sys_keyctl);
 cond_syscall(compat_sys_socketcall);
 cond_syscall(sys_set_zone_reclaim);
+cond_syscall(sys_inotify_init);
+cond_syscall(sys_inotify_add_watch);
+cond_syscall(sys_inotify_rm_watch);
 
 /* arch-specific weak syscall entries */
 cond_syscall(sys_pciconfig_read);

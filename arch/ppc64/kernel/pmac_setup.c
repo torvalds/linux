@@ -186,6 +186,8 @@ void __init pmac_setup_arch(void)
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
+
+	printk(KERN_INFO "Using native/NAP idle loop\n");
 }
 
 #ifdef CONFIG_SCSI
@@ -507,5 +509,6 @@ struct machdep_calls __initdata pmac_md = {
       	.calibrate_decr		= pmac_calibrate_decr,
 	.feature_call		= pmac_do_feature_call,
 	.progress		= pmac_progress,
-	.check_legacy_ioport	= pmac_check_legacy_ioport
+	.check_legacy_ioport	= pmac_check_legacy_ioport,
+	.idle_loop		= native_idle,
 };

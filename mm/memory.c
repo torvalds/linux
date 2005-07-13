@@ -1139,7 +1139,7 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 {
 	pgd_t *pgd;
 	unsigned long next;
-	unsigned long end = addr + size;
+	unsigned long end = addr + PAGE_ALIGN(size);
 	struct mm_struct *mm = vma->vm_mm;
 	int err;
 
@@ -1458,7 +1458,7 @@ restart:
  * unmap_mapping_range - unmap the portion of all mmaps
  * in the specified address_space corresponding to the specified
  * page range in the underlying file.
- * @address_space: the address space containing mmaps to be unmapped.
+ * @mapping: the address space containing mmaps to be unmapped.
  * @holebegin: byte in first page to unmap, relative to the start of
  * the underlying file.  This will be rounded down to a PAGE_SIZE
  * boundary.  Note that this is different from vmtruncate(), which

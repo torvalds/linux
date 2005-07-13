@@ -132,43 +132,30 @@
 #define SALRET_INVALID_ARG	(-2)
 #define SALRET_ERROR		(-3)
 
+#define SN_SAL_FAKE_PROM			   0x02009999
 
 /**
- * sn_sal_rev_major - get the major SGI SAL revision number
- *
- * The SGI PROM stores its version in sal_[ab]_rev_(major|minor).
- * This routine simply extracts the major value from the
- * @ia64_sal_systab structure constructed by ia64_sal_init().
- */
-static inline int
-sn_sal_rev_major(void)
+  * sn_sal_revision - get the SGI SAL revision number
+  *
+  * The SGI PROM stores its version in the sal_[ab]_rev_(major|minor).
+  * This routine simply extracts the major and minor values and
+  * presents them in a u32 format.
+  *
+  * For example, version 4.05 would be represented at 0x0405.
+  */
+static inline u32
+sn_sal_rev(void)
 {
 	struct ia64_sal_systab *systab = efi.sal_systab;
 
-	return (int)systab->sal_b_rev_major;
-}
-
-/**
- * sn_sal_rev_minor - get the minor SGI SAL revision number
- *
- * The SGI PROM stores its version in sal_[ab]_rev_(major|minor).
- * This routine simply extracts the minor value from the
- * @ia64_sal_systab structure constructed by ia64_sal_init().
- */
-static inline int
-sn_sal_rev_minor(void)
-{
-	struct ia64_sal_systab *systab = efi.sal_systab;
-	
-	return (int)systab->sal_b_rev_minor;
+	return (u32)(systab->sal_b_rev_major << 8 | systab->sal_b_rev_minor);
 }
 
 /*
  * Specify the minimum PROM revsion required for this kernel.
  * Note that they're stored in hex format...
  */
-#define SN_SAL_MIN_MAJOR	0x4  /* SN2 kernels need at least PROM 4.0 */
-#define SN_SAL_MIN_MINOR	0x0
+#define SN_SAL_MIN_VERSION	0x0404
 
 /*
  * Returns the master console nasid, if the call fails, return an illegal
@@ -1103,6 +1090,14 @@ ia64_sn_bte_recovery(nasid_t nasid)
 	if (rv.status == SALRET_NOT_IMPLEMENTED)
 		return 0;
 	return (int) rv.status;
+}
+
+static inline int
+ia64_sn_is_fake_prom(void)
+{
+	struct ia64_sal_retval rv;
+	SAL_CALL_NOLOCK(rv, SN_SAL_FAKE_PROM, 0, 0, 0, 0, 0, 0, 0);
+	return (rv.status == 0);
 }
 
 #endif /* _ASM_IA64_SN_SN_SAL_H */

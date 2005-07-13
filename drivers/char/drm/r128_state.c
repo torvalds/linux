@@ -1307,7 +1307,7 @@ static int r128_do_init_pageflip( drm_device_t *dev )
 	return 0;
 }
 
-int r128_do_cleanup_pageflip( drm_device_t *dev )
+static int r128_do_cleanup_pageflip( drm_device_t *dev )
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG( "\n" );

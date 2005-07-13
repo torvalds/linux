@@ -255,7 +255,7 @@ static int awacs_burgundy_read_mvolume(unsigned address);
 
 static volatile struct dbdma_cmd *emergency_dbdma_cmd;
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /*
  * Stuff for restoring after a sleep.
  */
@@ -263,7 +263,7 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when);
 struct pmu_sleep_notifier awacs_sleep_notifier = {
 	awacs_sleep_notify, SLEEP_LEVEL_SOUND,
 };
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 /* for (soft) sample rate translations */
 int expand_bal;		/* Balance factor for expanding (not volume!) */
@@ -671,15 +671,11 @@ static void PMacIrqCleanup(void)
 	release_OF_resource(awacs_node, 1);
 	release_OF_resource(awacs_node, 2);
 
-	if (awacs_tx_cmd_space)
-		kfree(awacs_tx_cmd_space);
-	if (awacs_rx_cmd_space)
-		kfree(awacs_rx_cmd_space);
-	if (beep_dbdma_cmd_space)
-		kfree(beep_dbdma_cmd_space);
-	if (beep_buf)
-		kfree(beep_buf);
-#ifdef CONFIG_PMAC_PBOOK
+	kfree(awacs_tx_cmd_space);
+	kfree(awacs_rx_cmd_space);
+	kfree(beep_dbdma_cmd_space);
+	kfree(beep_buf);
+#ifdef CONFIG_PM
 	pmu_unregister_sleep_notifier(&awacs_sleep_notifier);
 #endif
 }
@@ -1419,7 +1415,7 @@ load_awacs(void)
 	}
 }
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /*
  * Save state when going to sleep, restore it afterwards.
  */
@@ -1555,7 +1551,7 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when)
 	}
 	return PBOOK_SLEEP_OK;
 }
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 
 /* All the burgundy functions: */
@@ -2301,8 +2297,7 @@ if (count <= 0)
 #endif
 
 	if ((write_sq.max_count + 1) > number_of_tx_cmd_buffers) {
-		if (awacs_tx_cmd_space)
-			kfree(awacs_tx_cmd_space);
+		kfree(awacs_tx_cmd_space);
 		number_of_tx_cmd_buffers = 0;
 
 		/* we need nbufs + 1 (for the loop) and we should request + 1
@@ -2360,8 +2355,7 @@ if (count <= 0)
 #endif
 
 	if ((read_sq.max_count+1) > number_of_rx_cmd_buffers ) {
-		if (awacs_rx_cmd_space)
-			kfree(awacs_rx_cmd_space);
+		kfree(awacs_rx_cmd_space);
 		number_of_rx_cmd_buffers = 0;
 
 		/* we need nbufs + 1 (for the loop) and we should request + 1 again
@@ -2805,7 +2799,7 @@ __init setup_beep(void)
 	beep_buf = (short *) kmalloc(BEEP_BUFLEN * 4, GFP_KERNEL);
 	if (beep_buf == NULL) {
 		printk(KERN_ERR "dmasound_pmac: no memory for beep buffer\n");
-		if( beep_dbdma_cmd_space ) kfree(beep_dbdma_cmd_space) ;
+		kfree(beep_dbdma_cmd_space) ;
 		return -ENOMEM ;
 	}
 	return 0 ;
@@ -3059,9 +3053,9 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 	if ((res=setup_beep()))
 		return res ;
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	pmu_register_sleep_notifier(&awacs_sleep_notifier);
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 	/* Powerbooks have odd ways of enabling inputs such as
 	   an expansion-bay CD or sound from an internal modem

@@ -139,18 +139,12 @@ extern void __flushw_user(void);
 #define flush_user_windows flushw_user
 #define flush_register_windows flushw_all
 
-#define prepare_arch_switch(rq, next)		\
-do {	spin_lock(&(next)->switch_lock);	\
-	spin_unlock(&(rq)->lock);		\
+/* Don't hold the runqueue lock over context switch */
+#define __ARCH_WANT_UNLOCKED_CTXSW
+#define prepare_arch_switch(next)		\
+do {						\
 	flushw_all();				\
 } while (0)
-
-#define finish_arch_switch(rq, prev)		\
-do {	spin_unlock_irq(&(prev)->switch_lock);	\
-} while (0)
-
-#define task_running(rq, p) \
-	((rq)->curr == (p) || spin_is_locked(&(p)->switch_lock))
 
 	/* See what happens when you design the chip correctly?
 	 *

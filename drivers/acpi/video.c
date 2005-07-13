@@ -564,12 +564,13 @@ acpi_video_device_find_cap (struct acpi_video_device *device)
 		int count = 0;
 		union acpi_object *o;
 		
-		br = kmalloc(sizeof &br, GFP_KERNEL);
+		br = kmalloc(sizeof(*br), GFP_KERNEL);
 		if (!br) {
 			printk(KERN_ERR "can't allocate memory\n");
 		} else {
-			memset(br, 0, sizeof &br);
-			br->levels = kmalloc(obj->package.count * sizeof &br->levels, GFP_KERNEL);
+			memset(br, 0, sizeof(*br));
+			br->levels = kmalloc(obj->package.count *
+					sizeof *(br->levels), GFP_KERNEL);
 			if (!br->levels)
 				goto out;
 
@@ -584,8 +585,7 @@ acpi_video_device_find_cap (struct acpi_video_device *device)
 			}
 out:
 			if (count < 2) {
-				if (br->levels)
-					kfree(br->levels);
+				kfree(br->levels);
 				kfree(br);
 			} else {
 				br->count = count;
@@ -595,8 +595,7 @@ out:
 		}
 	}
 
-	if (obj)
-		kfree(obj);
+	kfree(obj);
 
 	return_VOID;
 }
@@ -1585,7 +1584,7 @@ acpi_video_switch_output(
 	ACPI_FUNCTION_TRACE("acpi_video_switch_output");
 
 	list_for_each_safe(node, next, &video->video_device_list) {
-		struct acpi_video_device * dev = container_of(node, struct acpi_video_device, entry);
+		dev = container_of(node, struct acpi_video_device, entry);
 		status = acpi_video_device_get_state(dev, &state);
 		if (state & 0x2){
 			dev_next = container_of(node->next, struct acpi_video_device, entry);

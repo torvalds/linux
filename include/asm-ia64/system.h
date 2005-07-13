@@ -183,8 +183,6 @@ do {								\
 
 #ifdef __KERNEL__
 
-#define prepare_to_switch()    do { } while(0)
-
 #ifdef CONFIG_IA32_SUPPORT
 # define IS_IA32_PROCESS(regs)	(ia64_psr(regs)->is != 0)
 #else
@@ -274,13 +272,7 @@ extern void ia64_load_extra (struct task_struct *task);
  * of that CPU which will not be released, because there we wait for the
  * tasklist_lock to become available.
  */
-#define prepare_arch_switch(rq, next)		\
-do {						\
-	spin_lock(&(next)->switch_lock);	\
-	spin_unlock(&(rq)->lock);		\
-} while (0)
-#define finish_arch_switch(rq, prev)	spin_unlock_irq(&(prev)->switch_lock)
-#define task_running(rq, p) 		((rq)->curr == (p) || spin_is_locked(&(p)->switch_lock))
+#define __ARCH_WANT_UNLOCKED_CTXSW
 
 #define ia64_platform_is(x) (strcmp(x, platform_name) == 0)
 

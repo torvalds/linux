@@ -49,14 +49,20 @@
 #define _COMPONENT          ACPI_NAMESPACE
 	 ACPI_MODULE_NAME    ("nsalloc")
 
+/* Local prototypes */
+
+static void
+acpi_ns_remove_reference (
+	struct acpi_namespace_node      *node);
+
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_create_node
  *
- * PARAMETERS:  acpi_name       - Name of the new node
+ * PARAMETERS:  Name            - Name of the new node (4 char ACPI name)
  *
- * RETURN:      None
+ * RETURN:      New namespace node (Null on failure)
  *
  * DESCRIPTION: Create a namespace node
  *
@@ -145,7 +151,6 @@ acpi_ns_delete_node (
 		}
 	}
 
-
 	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_NSNODE].total_freed++);
 
 	/*
@@ -155,57 +160,6 @@ acpi_ns_delete_node (
 	ACPI_MEM_FREE (node);
 	return_VOID;
 }
-
-
-#ifdef ACPI_ALPHABETIC_NAMESPACE
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ns_compare_names
- *
- * PARAMETERS:  Name1           - First name to compare
- *              Name2           - Second name to compare
- *
- * RETURN:      value from strncmp
- *
- * DESCRIPTION: Compare two ACPI names.  Names that are prefixed with an
- *              underscore are forced to be alphabetically first.
- *
- ******************************************************************************/
-
-int
-acpi_ns_compare_names (
-	char                            *name1,
-	char                            *name2)
-{
-	char                            reversed_name1[ACPI_NAME_SIZE];
-	char                            reversed_name2[ACPI_NAME_SIZE];
-	u32                             i;
-	u32                             j;
-
-
-	/*
-	 * Replace all instances of "underscore" with a value that is smaller so
-	 * that all names that are prefixed with underscore(s) are alphabetically
-	 * first.
-	 *
-	 * Reverse the name bytewise so we can just do a 32-bit compare instead
-	 * of a strncmp.
-	 */
-	for (i = 0, j= (ACPI_NAME_SIZE - 1); i < ACPI_NAME_SIZE; i++, j--) {
-		reversed_name1[j] = name1[i];
-		if (name1[i] == '_') {
-			reversed_name1[j] = '*';
-		}
-
-		reversed_name2[j] = name2[i];
-		if (name2[i] == '_') {
-			reversed_name2[j] = '*';
-		}
-	}
-
-	return (*(int *) reversed_name1 - *(int *) reversed_name2);
-}
-#endif
 
 
 /*******************************************************************************
@@ -271,7 +225,8 @@ acpi_ns_install_node (
 		 * alphabetic placement.
 		 */
 		previous_child_node = NULL;
-		while (acpi_ns_compare_names (acpi_ut_get_node_name (child_node), acpi_ut_get_node_name (node)) < 0) {
+		while (acpi_ns_compare_names (acpi_ut_get_node_name (child_node),
+				 acpi_ut_get_node_name (node)) < 0) {
 			if (child_node->flags & ANOBJ_END_OF_PEER_LIST) {
 				/* Last peer;  Clear end-of-list flag */
 
@@ -429,7 +384,8 @@ acpi_ns_delete_children (
 		/* There should be only one reference remaining on this node */
 
 		if (child_node->reference_count != 1) {
-			ACPI_REPORT_WARNING (("Existing references (%d) on node being deleted (%p)\n",
+			ACPI_REPORT_WARNING ((
+				"Existing references (%d) on node being deleted (%p)\n",
 				child_node->reference_count, child_node));
 		}
 
@@ -548,7 +504,7 @@ acpi_ns_delete_namespace_subtree (
  *
  ******************************************************************************/
 
-void
+static void
 acpi_ns_remove_reference (
 	struct acpi_namespace_node      *node)
 {
@@ -681,5 +637,56 @@ acpi_ns_delete_namespace_by_owner (
 
 	return_VOID;
 }
+
+
+#ifdef ACPI_ALPHABETIC_NAMESPACE
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_compare_names
+ *
+ * PARAMETERS:  Name1           - First name to compare
+ *              Name2           - Second name to compare
+ *
+ * RETURN:      value from strncmp
+ *
+ * DESCRIPTION: Compare two ACPI names.  Names that are prefixed with an
+ *              underscore are forced to be alphabetically first.
+ *
+ ******************************************************************************/
+
+int
+acpi_ns_compare_names (
+	char                            *name1,
+	char                            *name2)
+{
+	char                            reversed_name1[ACPI_NAME_SIZE];
+	char                            reversed_name2[ACPI_NAME_SIZE];
+	u32                             i;
+	u32                             j;
+
+
+	/*
+	 * Replace all instances of "underscore" with a value that is smaller so
+	 * that all names that are prefixed with underscore(s) are alphabetically
+	 * first.
+	 *
+	 * Reverse the name bytewise so we can just do a 32-bit compare instead
+	 * of a strncmp.
+	 */
+	for (i = 0, j= (ACPI_NAME_SIZE - 1); i < ACPI_NAME_SIZE; i++, j--) {
+		reversed_name1[j] = name1[i];
+		if (name1[i] == '_') {
+			reversed_name1[j] = '*';
+		}
+
+		reversed_name2[j] = name2[i];
+		if (name2[i] == '_') {
+			reversed_name2[j] = '*';
+		}
+	}
+
+	return (*(int *) reversed_name1 - *(int *) reversed_name2);
+}
+#endif
 
 

@@ -157,7 +157,8 @@ struct dvb_frontend* ttusbdecfe_dvbt_attach(const struct ttusbdecfe_config* conf
 
 	/* allocate memory for the internal state */
 	state = (struct ttusbdecfe_state*) kmalloc(sizeof(struct ttusbdecfe_state), GFP_KERNEL);
-	if (state == NULL) goto error;
+	if (state == NULL)
+		return NULL;
 
 	/* setup the state */
 	state->config = config;
@@ -167,10 +168,6 @@ struct dvb_frontend* ttusbdecfe_dvbt_attach(const struct ttusbdecfe_config* conf
 	state->frontend.ops = &state->ops;
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
-
-error:
-	kfree(state);
-	return NULL;
 }
 
 static struct dvb_frontend_ops ttusbdecfe_dvbs_ops;
@@ -181,7 +178,8 @@ struct dvb_frontend* ttusbdecfe_dvbs_attach(const struct ttusbdecfe_config* conf
 
 	/* allocate memory for the internal state */
 	state = (struct ttusbdecfe_state*) kmalloc(sizeof(struct ttusbdecfe_state), GFP_KERNEL);
-	if (state == NULL) goto error;
+	if (state == NULL)
+		return NULL;
 
 	/* setup the state */
 	state->config = config;
@@ -193,10 +191,6 @@ struct dvb_frontend* ttusbdecfe_dvbs_attach(const struct ttusbdecfe_config* conf
 	state->frontend.ops = &state->ops;
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
-
-error:
-	kfree(state);
-	return NULL;
 }
 
 static struct dvb_frontend_ops ttusbdecfe_dvbt_ops = {

@@ -1,5 +1,5 @@
 /*
-    $Id: cx88-tvaudio.c,v 1.34 2005/03/07 16:10:51 kraxel Exp $
+    $Id: cx88-tvaudio.c,v 1.37 2005/07/07 13:58:38 mchehab Exp $
 
     cx88x-audio.c - Conexant CX23880/23881 audio downstream driver driver
 
@@ -127,7 +127,8 @@ static void set_audio_start(struct cx88_core *core,
 	cx_write(AUD_VOL_CTL,       (1 << 6));
 
 	//  increase level of input by 12dB
-	cx_write(AUD_AFE_12DB_EN,   0x0001);
+//	cx_write(AUD_AFE_12DB_EN,   0x0001);
+	cx_write(AUD_AFE_12DB_EN,   0x0000);
 
 	// start programming
 	cx_write(AUD_CTL,           0x0000);
@@ -143,9 +144,15 @@ static void set_audio_finish(struct cx88_core *core)
 	u32 volume;
 
 	if (cx88_boards[core->board].blackbird) {
+		// sets sound input from external adc
+		cx_set(AUD_CTL, EN_I2SIN_ENABLE);
+		//cx_write(AUD_I2SINPUTCNTL, 0);
+		cx_write(AUD_I2SINPUTCNTL, 4);
+		cx_write(AUD_BAUDRATE, 1);
 		// 'pass-thru mode': this enables the i2s output to the mpeg encoder
-		cx_set(AUD_CTL, 0x2000);
+		cx_set(AUD_CTL, EN_I2SOUT_ENABLE);
 		cx_write(AUD_I2SOUTPUTCNTL, 1);
+		cx_write(AUD_I2SCNTL, 0);
 		//cx_write(AUD_APB_IN_RATE_ADJ, 0);
 	}
 
@@ -271,80 +278,6 @@ static void set_audio_standard_BTSC(struct cx88_core *core, unsigned int sap)
 	set_audio_finish(core);
 }
 
-#if 0
-static void set_audio_standard_NICAM(struct cx88_core *core)
-{
-	static const struct rlist nicam_common[] = {
-		/* from dscaler */
-    		{ AUD_RATE_ADJ1,           0x00000010 },
-    		{ AUD_RATE_ADJ2,           0x00000040 },
-    		{ AUD_RATE_ADJ3,           0x00000100 },
-    		{ AUD_RATE_ADJ4,           0x00000400 },
-    		{ AUD_RATE_ADJ5,           0x00001000 },
-    //		{ AUD_DMD_RA_DDS,          0x00c0d5ce },
-
-		// Deemphasis 1:
-		{ AUD_DEEMPHGAIN_R,        0x000023c2 },
-		{ AUD_DEEMPHNUMER1_R,      0x0002a7bc },
-		{ AUD_DEEMPHNUMER2_R,      0x0003023e },
-		{ AUD_DEEMPHDENOM1_R,      0x0000f3d0 },
-		{ AUD_DEEMPHDENOM2_R,      0x00000000 },
-
-#if 0
-		// Deemphasis 2: (other tv norm?)
-		{ AUD_DEEMPHGAIN_R,        0x0000c600 },
-		{ AUD_DEEMPHNUMER1_R,      0x00066738 },
-		{ AUD_DEEMPHNUMER2_R,      0x00066739 },
-		{ AUD_DEEMPHDENOM1_R,      0x0001e88c },
-		{ AUD_DEEMPHDENOM2_R,      0x0001e88c },
-#endif
-
-		{ AUD_DEEMPHDENOM2_R,      0x00000000 },
-		{ AUD_ERRLOGPERIOD_R,      0x00000fff },
-		{ AUD_ERRINTRPTTHSHLD1_R,  0x000003ff },
-		{ AUD_ERRINTRPTTHSHLD2_R,  0x000000ff },
-		{ AUD_ERRINTRPTTHSHLD3_R,  0x0000003f },
-		{ AUD_POLYPH80SCALEFAC,    0x00000003 },
-
-		// setup QAM registers
-		{ AUD_PDF_DDS_CNST_BYTE2,  0x06 },
-		{ AUD_PDF_DDS_CNST_BYTE1,  0x82 },
-		{ AUD_PDF_DDS_CNST_BYTE0,  0x16 },
-		{ AUD_QAM_MODE,            0x05 },
-
-                { /* end of list */ },
-        };
-	static const struct rlist nicam_pal_i[] = {
-		{ AUD_PDF_DDS_CNST_BYTE0,  0x12 },
-		{ AUD_PHACC_FREQ_8MSB,     0x3a },
-		{ AUD_PHACC_FREQ_8LSB,     0x93 },
-
-                { /* end of list */ },
-	};
-	static const struct rlist nicam_default[] = {
-		{ AUD_PDF_DDS_CNST_BYTE0,  0x16 },
-		{ AUD_PHACC_FREQ_8MSB,     0x34 },
-		{ AUD_PHACC_FREQ_8LSB,     0x4c },
-
-                { /* end of list */ },
-	};
-
-        set_audio_start(core, 0x0010,
-			EN_DMTRX_LR | EN_DMTRX_BYPASS | EN_NICAM_AUTO_STEREO);
-        set_audio_registers(core, nicam_common);
-	switch (core->tvaudio) {
-	case WW_NICAM_I:
-		dprintk("%s PAL-I NICAM (status: unknown)\n",__FUNCTION__);
-		set_audio_registers(core, nicam_pal_i);
-		break;
-	case WW_NICAM_BGDKL:
-		dprintk("%s PAL-BGDK NICAM (status: unknown)\n",__FUNCTION__);
-		set_audio_registers(core, nicam_default);
-		break;
-	};
-        set_audio_finish(core);
-}
-#endif
 
 static void set_audio_standard_NICAM_L(struct cx88_core *core, int stereo)
 {
@@ -707,50 +640,65 @@ static void set_audio_standard_EIAJ(struct cx88_core *core)
 	set_audio_finish(core);
 }
 
-static void set_audio_standard_FM(struct cx88_core *core)
+static void set_audio_standard_FM(struct cx88_core *core, enum cx88_deemph_type deemph)
 {
-#if 0 /* FIXME */
-	switch (dev->audio_properties.FM_deemphasis)
-	{
-		case WW_FM_DEEMPH_50:
-			//Set De-emphasis filter coefficients for 50 usec
-			cx_write(AUD_DEEMPH0_G0, 0x0C45);
-			cx_write(AUD_DEEMPH0_A0, 0x6262);
-			cx_write(AUD_DEEMPH0_B0, 0x1C29);
-			cx_write(AUD_DEEMPH0_A1, 0x3FC66);
-			cx_write(AUD_DEEMPH0_B1, 0x399A);
+	static const struct rlist fm_deemph_50[] = {
+		{ AUD_DEEMPH0_G0,	0x0C45 },
+		{ AUD_DEEMPH0_A0,	0x6262 },
+		{ AUD_DEEMPH0_B0,	0x1C29 },
+		{ AUD_DEEMPH0_A1,	0x3FC66},
+		{ AUD_DEEMPH0_B1,	0x399A },
 
-			cx_write(AUD_DEEMPH1_G0, 0x0D80);
-			cx_write(AUD_DEEMPH1_A0, 0x6262);
-			cx_write(AUD_DEEMPH1_B0, 0x1C29);
-			cx_write(AUD_DEEMPH1_A1, 0x3FC66);
-			cx_write(AUD_DEEMPH1_B1, 0x399A);
+		{ AUD_DEEMPH1_G0,	0x0D80 },
+		{ AUD_DEEMPH1_A0,	0x6262 },
+		{ AUD_DEEMPH1_B0,	0x1C29 },
+		{ AUD_DEEMPH1_A1,	0x3FC66},
+		{ AUD_DEEMPH1_B1,	0x399A},
 
-			break;
+		{ AUD_POLYPH80SCALEFAC,	0x0003},
+		{ /* end of list */ },
+	};
+	static const struct rlist fm_deemph_75[] = {
+		{ AUD_DEEMPH0_G0,	0x091B },
+		{ AUD_DEEMPH0_A0,	0x6B68 },
+		{ AUD_DEEMPH0_B0,	0x11EC },
+		{ AUD_DEEMPH0_A1,	0x3FC66},
+		{ AUD_DEEMPH0_B1,	0x399A },
 
-		case WW_FM_DEEMPH_75:
-			//Set De-emphasis filter coefficients for 75 usec
-			cx_write(AUD_DEEMPH0_G0, 0x91B );
-			cx_write(AUD_DEEMPH0_A0, 0x6B68);
-			cx_write(AUD_DEEMPH0_B0, 0x11EC);
-			cx_write(AUD_DEEMPH0_A1, 0x3FC66);
-			cx_write(AUD_DEEMPH0_B1, 0x399A);
+		{ AUD_DEEMPH1_G0,	0x0AA0 },
+		{ AUD_DEEMPH1_A0,	0x6B68 },
+		{ AUD_DEEMPH1_B0,	0x11EC },
+		{ AUD_DEEMPH1_A1,	0x3FC66},
+		{ AUD_DEEMPH1_B1,	0x399A},
 
-			cx_write(AUD_DEEMPH1_G0, 0xAA0 );
-			cx_write(AUD_DEEMPH1_A0, 0x6B68);
-			cx_write(AUD_DEEMPH1_B0, 0x11EC);
-			cx_write(AUD_DEEMPH1_A1, 0x3FC66);
-			cx_write(AUD_DEEMPH1_B1, 0x399A);
+		{ AUD_POLYPH80SCALEFAC,	0x0003},
+		{ /* end of list */ },
+	};
 
-			break;
-	}
-#endif
+	/* It is enough to leave default values? */
+	static const struct rlist fm_no_deemph[] = {
+
+		{ AUD_POLYPH80SCALEFAC,	0x0003},
+		{ /* end of list */ },
+	};
 
 	dprintk("%s (status: unknown)\n",__FUNCTION__);
 	set_audio_start(core, 0x0020, EN_FMRADIO_AUTO_STEREO);
 
-	// AB: 10/2/01: this register is not being reset appropriately on occasion.
-	cx_write(AUD_POLYPH80SCALEFAC,3);
+	switch (deemph)
+	{
+		case FM_NO_DEEMPH:
+			set_audio_registers(core, fm_no_deemph);
+			break;
+
+		case FM_DEEMPH_50:
+			set_audio_registers(core, fm_deemph_50);
+			break;
+
+		case FM_DEEMPH_75:
+			set_audio_registers(core, fm_deemph_75);
+			break;
+	}
 
 	set_audio_finish(core);
 }
@@ -778,7 +726,7 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		set_audio_standard_EIAJ(core);
 		break;
 	case WW_FM:
-		set_audio_standard_FM(core);
+		set_audio_standard_FM(core,FM_NO_DEEMPH);
 		break;
 	case WW_SYSTEM_L_AM:
 		set_audio_standard_NICAM_L(core, 1);
@@ -1029,4 +977,5 @@ EXPORT_SYMBOL(cx88_audio_thread);
  * Local variables:
  * c-basic-offset: 8
  * End:
+ * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
  */

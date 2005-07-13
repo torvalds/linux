@@ -232,5 +232,4 @@ typedef union {
 #define Read_hfc(a,b) (*(((u_char *)a->hw.hfcpci.pci_io)+b))
 
 extern void main_irq_hcpci(struct BCState *bcs);
-extern void inithfcpci(struct IsdnCardState *cs);
 extern void releasehfcpci(struct IsdnCardState *cs);

@@ -20,6 +20,7 @@
 #include <asm/ptrace.h>
 #include <asm/types.h>
 #include <asm/systemcfg.h>
+#include <asm/cputable.h>
 
 /* Machine State Register (MSR) Fields */
 #define MSR_SF_LG	63              /* Enable 64 bit mode */
@@ -501,23 +502,36 @@ static inline void ppc64_runlatch_on(void)
 {
 	unsigned long ctrl;
 
-	ctrl = mfspr(SPRN_CTRLF);
-	ctrl |= CTRL_RUNLATCH;
-	mtspr(SPRN_CTRLT, ctrl);
+	if (cpu_has_feature(CPU_FTR_CTRL)) {
+		ctrl = mfspr(SPRN_CTRLF);
+		ctrl |= CTRL_RUNLATCH;
+		mtspr(SPRN_CTRLT, ctrl);
+	}
 }
 
 static inline void ppc64_runlatch_off(void)
 {
 	unsigned long ctrl;
 
-	ctrl = mfspr(SPRN_CTRLF);
-	ctrl &= ~CTRL_RUNLATCH;
-	mtspr(SPRN_CTRLT, ctrl);
+	if (cpu_has_feature(CPU_FTR_CTRL)) {
+		ctrl = mfspr(SPRN_CTRLF);
+		ctrl &= ~CTRL_RUNLATCH;
+		mtspr(SPRN_CTRLT, ctrl);
+	}
 }
 
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
+
+#ifdef __KERNEL__
+#define RUNLATCH_ON(REG)			\
+BEGIN_FTR_SECTION				\
+	mfspr	(REG),SPRN_CTRLF;		\
+	ori	(REG),(REG),CTRL_RUNLATCH;	\
+	mtspr	SPRN_CTRLT,(REG);		\
+END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
+#endif
 
 /*
  * Number of entries in the SLB. If this ever changes we should handle

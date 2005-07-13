@@ -1661,7 +1661,7 @@ typhoon_alloc_rx_skb(struct typhoon *tp, u32 idx)
 #endif
 
 	skb->dev = tp->dev;
-	dma_addr = pci_map_single(tp->pdev, skb->tail,
+	dma_addr = pci_map_single(tp->pdev, skb->data,
 				  PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 
 	/* Since no card does 64 bit DAC, the high bits will never
@@ -1721,7 +1721,7 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile u32 * ready,
 			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr,
 						    PKT_BUF_SZ,
 						    PCI_DMA_FROMDEVICE);
-			eth_copy_and_sum(new_skb, skb->tail, pkt_len, 0);
+			eth_copy_and_sum(new_skb, skb->data, pkt_len, 0);
 			pci_dma_sync_single_for_device(tp->pdev, dma_addr,
 						       PKT_BUF_SZ,
 						       PCI_DMA_FROMDEVICE);
@@ -1906,9 +1906,9 @@ typhoon_sleep(struct typhoon *tp, pci_power_t state, u16 events)
 	 */
 	netif_carrier_off(tp->dev);
 
-	pci_enable_wake(tp->pdev, pci_choose_state(pdev, state), 1);
+	pci_enable_wake(tp->pdev, state, 1);
 	pci_disable_device(pdev);
-	return pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	return pci_set_power_state(pdev, state);
 }
 
 static int
@@ -2274,7 +2274,7 @@ typhoon_suspend(struct pci_dev *pdev, pm_message_t state)
 		goto need_resume;
 	}
 
-	if(typhoon_sleep(tp, state, tp->wol_events) < 0) {
+	if(typhoon_sleep(tp, pci_choose_state(pdev, state), tp->wol_events) < 0) {
 		printk(KERN_ERR "%s: unable to put card to sleep\n", dev->name);
 		goto need_resume;
 	}

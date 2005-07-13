@@ -128,7 +128,7 @@ static unsigned long blocks_for_truncate(struct inode *inode)
 	if (needed > EXT3_MAX_TRANS_DATA) 
 		needed = EXT3_MAX_TRANS_DATA;
 
-	return EXT3_DATA_TRANS_BLOCKS + needed;
+	return EXT3_DATA_TRANS_BLOCKS(inode->i_sb) + needed;
 }
 
 /* 
@@ -2663,7 +2663,7 @@ static int ext3_do_update_inode(handle_t *handle,
 	} else for (block = 0; block < EXT3_N_BLOCKS; block++)
 		raw_inode->i_block[block] = ei->i_data[block];
 
-	if (EXT3_INODE_SIZE(inode->i_sb) > EXT3_GOOD_OLD_INODE_SIZE)
+	if (ei->i_extra_isize)
 		raw_inode->i_extra_isize = cpu_to_le16(ei->i_extra_isize);
 
 	BUFFER_TRACE(bh, "call ext3_journal_dirty_metadata");
@@ -2763,7 +2763,8 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 
 		/* (user+group)*(old+new) structure, inode write (sb,
 		 * inode block, ? - but truncate inode update has it) */
-		handle = ext3_journal_start(inode, 4*EXT3_QUOTA_INIT_BLOCKS+3);
+		handle = ext3_journal_start(inode, 2*(EXT3_QUOTA_INIT_BLOCKS(inode->i_sb)+
+					EXT3_QUOTA_DEL_BLOCKS(inode->i_sb))+3);
 		if (IS_ERR(handle)) {
 			error = PTR_ERR(handle);
 			goto err_out;
@@ -2861,7 +2862,7 @@ static int ext3_writepage_trans_blocks(struct inode *inode)
 #ifdef CONFIG_QUOTA
 	/* We know that structure was already allocated during DQUOT_INIT so
 	 * we will be updating only the data blocks + inodes */
-	ret += 2*EXT3_QUOTA_TRANS_BLOCKS;
+	ret += 2*EXT3_QUOTA_TRANS_BLOCKS(inode->i_sb);
 #endif
 
 	return ret;

@@ -67,6 +67,12 @@ extern int printk_ratelimit_jiffies;
 extern int printk_ratelimit_burst;
 extern int pid_max_min, pid_max_max;
 
+#ifdef CONFIG_INOTIFY
+extern int inotify_max_user_devices;
+extern int inotify_max_user_watches;
+extern int inotify_max_queued_events;
+#endif
+
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86)
 int unknown_nmi_panic;
 extern int proc_unknown_nmi_panic(ctl_table *, int, struct file *,
@@ -218,6 +224,7 @@ static ctl_table root_table[] = {
 		.mode		= 0555,
 		.child		= dev_table,
 	},
+
 	{ .ctl_name = 0 }
 };
 
@@ -959,6 +966,40 @@ static ctl_table fs_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+#ifdef CONFIG_INOTIFY
+	{
+		.ctl_name	= INOTIFY_MAX_USER_DEVICES,
+		.procname	= "max_user_devices",
+		.data		= &inotify_max_user_devices,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero,
+	},
+
+	{
+		.ctl_name	= INOTIFY_MAX_USER_WATCHES,
+		.procname	= "max_user_watches",
+		.data		= &inotify_max_user_watches,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero, 
+	},
+
+	{
+		.ctl_name	= INOTIFY_MAX_QUEUED_EVENTS,
+		.procname	= "max_queued_events",
+		.data		= &inotify_max_queued_events,
+		.maxlen		= sizeof(int),
+		.mode		= 0644, 
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec, 
+		.extra1		= &zero
+	},
+#endif
 	{ .ctl_name = 0 }
 };
 
@@ -968,7 +1009,7 @@ static ctl_table debug_table[] = {
 
 static ctl_table dev_table[] = {
 	{ .ctl_name = 0 }
-};  
+};
 
 extern void init_irq_proc (void);
 
@@ -1000,8 +1041,7 @@ int do_sysctl(int __user *name, int nlen, void __user *oldval, size_t __user *ol
 		int error = parse_table(name, nlen, oldval, oldlenp, 
 					newval, newlen, head->ctl_table,
 					&context);
-		if (context)
-			kfree(context);
+		kfree(context);
 		if (error != -ENOTDIR)
 			return error;
 		tmp = tmp->next;

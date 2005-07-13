@@ -1,5 +1,5 @@
 /*
-    $Id: bttvp.h,v 1.17 2005/02/16 12:14:10 kraxel Exp $
+    $Id: bttvp.h,v 1.19 2005/06/16 21:38:45 nsh Exp $
 
     bttv - Bt848 frame grabber driver
 
@@ -226,10 +226,6 @@ extern int fini_bttv_i2c(struct bttv *btv);
 #define dprintk  if (bttv_debug >= 1) printk
 #define d2printk if (bttv_debug >= 2) printk
 
-/* our devices */
-#define BTTV_MAX 16
-extern unsigned int bttv_num;
-
 #define BTTV_MAX_FBUF   0x208000
 #define VBIBUF_SIZE     (2048*VBI_MAXLINES*2)
 #define BTTV_TIMEOUT    (HZ/2) /* 0.5 seconds */
@@ -330,6 +326,9 @@ struct bttv {
 	int opt_vcr_hack;
 	int opt_whitecrush_upper;
 	int opt_whitecrush_lower;
+	int opt_uv_ratio;
+	int opt_full_luma_range;
+	int opt_coring;
 
 	/* radio data/state */
 	int has_radio;
@@ -375,6 +374,10 @@ struct bttv {
 	unsigned int users;
 	struct bttv_fh init;
 };
+
+/* our devices */
+#define BTTV_MAX 16
+extern unsigned int bttv_num;
 extern struct bttv bttvs[BTTV_MAX];
 
 /* private ioctls */

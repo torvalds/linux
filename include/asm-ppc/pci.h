@@ -37,7 +37,7 @@ extern inline void pcibios_set_master(struct pci_dev *dev)
 	/* No special bus mastering setup handling */
 }
 
-extern inline void pcibios_penalize_isa_irq(int irq)
+extern inline void pcibios_penalize_isa_irq(int irq, int active)
 {
 	/* We don't do dynamic PCI IRQ allocation */
 }
@@ -68,6 +68,16 @@ extern unsigned long pci_bus_to_phys(unsigned int ba, int busnr);
 #define pci_unmap_addr_set(PTR, ADDR_NAME, VAL)	do { } while (0)
 #define pci_unmap_len(PTR, LEN_NAME)		(0)
 #define pci_unmap_len_set(PTR, LEN_NAME, VAL)	do { } while (0)
+
+#ifdef CONFIG_PCI
+static inline void pci_dma_burst_advice(struct pci_dev *pdev,
+					enum pci_dma_burst_strategy *strat,
+					unsigned long *strategy_parameter)
+{
+	*strat = PCI_DMA_BURST_INFINITY;
+	*strategy_parameter = ~0UL;
+}
+#endif
 
 /*
  * At present there are very few 32-bit PPC machines that can have
@@ -102,6 +112,12 @@ extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
 					 unsigned long offset,
 					 unsigned long size,
 					 pgprot_t prot);
+
+#define HAVE_ARCH_PCI_RESOURCE_TO_USER
+extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
+				 const struct resource *rsrc,
+				 u64 *start, u64 *end);
+
 
 #endif	/* __KERNEL__ */
 

@@ -6,7 +6,7 @@
  *   projects 1572D, 1484D, 1386D, 1226DT
  * disk signature read by Matt Domsch <Matt_Domsch@dell.com>
  *	and Andrew Wilks <Andrew_Wilks@dell.com> September 2003, June 2004
- * legacy CHS retreival by Patrick J. LoPresti <patl@users.sourceforge.net>
+ * legacy CHS retrieval by Patrick J. LoPresti <patl@users.sourceforge.net>
  *      March 2004
  * Command line option parsing, Matt Domsch, November 2004
  */

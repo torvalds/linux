@@ -697,7 +697,7 @@ UNUSUAL_DEV(  0x07af, 0x0004, 0x0100, 0x0133,
 UNUSUAL_DEV(  0x07af, 0x0005, 0x0100, 0x0100, 
 		"Microtech",
 		"USB-SCSI-HD50",
-		US_SC_SCSI, US_PR_BULK, usb_stor_euscsi_init,
+		US_SC_DEVICE, US_PR_DEVICE, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ), 
 
 #ifdef CONFIG_USB_STORAGE_DPCM
