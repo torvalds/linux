@@ -40,11 +40,13 @@ static int mips_cpu_irq_base;
 static inline void unmask_mips_irq(unsigned int irq)
 {
 	set_c0_status(0x100 << (irq - mips_cpu_irq_base));
+	irq_enable_hazard();
 }
 
 static inline void mask_mips_irq(unsigned int irq)
 {
 	clear_c0_status(0x100 << (irq - mips_cpu_irq_base));
+	irq_disable_hazard();
 }
 
 static inline void mips_cpu_irq_enable(unsigned int irq)
