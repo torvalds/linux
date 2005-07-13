@@ -463,7 +463,8 @@ static void etrax_usb_free_epid(int epid);
 
 static int etrax_remove_from_sb_list(struct urb *urb);
 
-static void* etrax_usb_buffer_alloc(struct usb_bus* bus, size_t size, int mem_flags, dma_addr_t *dma);
+static void* etrax_usb_buffer_alloc(struct usb_bus* bus, size_t size,
+	unsigned mem_flags, dma_addr_t *dma);
 static void etrax_usb_buffer_free(struct usb_bus *bus, size_t size, void *addr, dma_addr_t dma);
 
 static void etrax_usb_add_to_bulk_sb_list(struct urb *urb, int epid);
@@ -476,7 +477,7 @@ static int etrax_usb_submit_ctrl_urb(struct urb *urb);
 static int etrax_usb_submit_intr_urb(struct urb *urb);
 static int etrax_usb_submit_isoc_urb(struct urb *urb);
 
-static int etrax_usb_submit_urb(struct urb *urb, int mem_flags);
+static int etrax_usb_submit_urb(struct urb *urb, unsigned mem_flags);
 static int etrax_usb_unlink_urb(struct urb *urb, int status);
 static int etrax_usb_get_frame_number(struct usb_device *usb_dev);
 
@@ -1262,7 +1263,7 @@ static int etrax_usb_allocate_epid(void)
 	return -1;
 }
 
-static int etrax_usb_submit_urb(struct urb *urb, int mem_flags)
+static int etrax_usb_submit_urb(struct urb *urb, unsigned mem_flags)
 {
 	etrax_hc_t *hc;
 	int ret = -EINVAL;
@@ -4277,7 +4278,8 @@ etrax_usb_bulk_eot_timer_func(unsigned long dummy)
 }
 
 static void*
-etrax_usb_buffer_alloc(struct usb_bus* bus, size_t size, int mem_flags, dma_addr_t *dma)
+etrax_usb_buffer_alloc(struct usb_bus* bus, size_t size,
+	unsigned mem_flags, dma_addr_t *dma)
 {
   return kmalloc(size, mem_flags);
 }

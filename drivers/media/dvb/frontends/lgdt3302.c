@@ -1,6 +1,4 @@
 /*
- * $Id: lgdt3302.c,v 1.5 2005/07/07 03:47:15 mkrufky Exp $
- *
  *    Support for LGDT3302 (DViCO FustionHDTV 3 Gold) - VSB/QAM
  *
  *    Copyright (C) 2005 Wilson Michaels <wilsonmichaels@earthlink.net>
@@ -83,7 +81,10 @@ static int i2c_writebytes (struct lgdt3302_state* state,
 
 		if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
 			printk(KERN_WARNING "lgdt3302: %s error (addr %02x <- %02x, err == %i)\n", __FUNCTION__, addr, buf[0], err);
-			return -EREMOTEIO;
+			if (err < 0)
+				return err;
+			else
+				return -EREMOTEIO;
 		}
 	} else {
 		u8 tmp[] = { buf[0], buf[1] };
@@ -96,7 +97,10 @@ static int i2c_writebytes (struct lgdt3302_state* state,
 			tmp[1] = buf[i];
 			if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
 				printk(KERN_WARNING "lgdt3302: %s error (addr %02x <- %02x, err == %i)\n", __FUNCTION__, addr, buf[0], err);
-				return -EREMOTEIO;
+				if (err < 0)
+					return err;
+				else
+					return -EREMOTEIO;
 			}
 			tmp[0]++;
 		}
@@ -218,6 +222,8 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 
 	/* Change only if we are actually changing the modulation */
 	if (state->current_modulation != param->u.vsb.modulation) {
+		int value;
+
 		switch(param->u.vsb.modulation) {
 		case VSB_8:
 			dprintk("%s: VSB_8 MODE\n", __FUNCTION__);
@@ -266,36 +272,29 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 		i2c_writebytes(state, state->config->demod_address,
 			       demux_ctrl_cfg, sizeof(demux_ctrl_cfg));
 
-		if (param->u.vsb.modulation == VSB_8) {
-			/* Initialization for VSB modes only */
-			/* Change the value of NCOCTFV[25:0]of carrier
-			   recovery center frequency register for VSB */
-			i2c_writebytes(state, state->config->demod_address,
+		/* Change the value of NCOCTFV[25:0] of carrier
+		   recovery center frequency register */
+		i2c_writebytes(state, state->config->demod_address,
 				       vsb_freq_cfg, sizeof(vsb_freq_cfg));
-		} else {
-			/* Initialization for QAM modes only */
-			/* Set the value of 'INLVTHD' register 0x2a/0x2c
-			   to value from 'IFACC' register 0x39/0x3b -1 */
-			int value;
-			i2c_selectreadbytes(state, AGC_RFIF_ACC0,
-					    &agc_delay_cfg[1], 3);
-			value = ((agc_delay_cfg[1] & 0x0f) << 8) | agc_delay_cfg[3];
-			value = value -1;
-			dprintk("%s IFACC -1 = 0x%03x\n", __FUNCTION__, value);
-			agc_delay_cfg[1] = (value >> 8) & 0x0f;
-			agc_delay_cfg[2] = 0x00;
-			agc_delay_cfg[3] = value & 0xff;
-			i2c_writebytes(state, state->config->demod_address,
-				       agc_delay_cfg, sizeof(agc_delay_cfg));
+		/* Set the value of 'INLVTHD' register 0x2a/0x2c
+		   to value from 'IFACC' register 0x39/0x3b -1 */
+		i2c_selectreadbytes(state, AGC_RFIF_ACC0,
+				    &agc_delay_cfg[1], 3);
+		value = ((agc_delay_cfg[1] & 0x0f) << 8) | agc_delay_cfg[3];
+		value = value -1;
+		dprintk("%s IFACC -1 = 0x%03x\n", __FUNCTION__, value);
+		agc_delay_cfg[1] = (value >> 8) & 0x0f;
+		agc_delay_cfg[2] = 0x00;
+		agc_delay_cfg[3] = value & 0xff;
+		i2c_writebytes(state, state->config->demod_address,
+			       agc_delay_cfg, sizeof(agc_delay_cfg));
 
-			/* Change the value of IAGCBW[15:8]
-			   of inner AGC loop filter bandwith */
-			i2c_writebytes(state, state->config->demod_address,
-				       agc_loop_cfg, sizeof(agc_loop_cfg));
-		}
+		/* Change the value of IAGCBW[15:8]
+		   of inner AGC loop filter bandwith */
+		i2c_writebytes(state, state->config->demod_address,
+			       agc_loop_cfg, sizeof(agc_loop_cfg));
 
 		state->config->set_ts_params(fe, 0);
-		lgdt3302_SwReset(state);
 		state->current_modulation = param->u.vsb.modulation;
 	}
 
@@ -311,11 +310,10 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 		i2c_readbytes(state, state->config->pll_address, buf, 1);
 		dprintk("%s: tuner status byte = 0x%02x\n", __FUNCTION__, buf[0]);
 
-		lgdt3302_SwReset(state);
-
 		/* Update current frequency */
 		state->current_frequency = param->frequency;
 	}
+	lgdt3302_SwReset(state);
 	return 0;
 }
 

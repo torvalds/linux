@@ -400,14 +400,6 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee, unsigned char *eeprom_data
 		}
 	}
 
-#if 0
-	if (t_format < sizeof(hauppauge_tuner_fmt)/sizeof(struct HAUPPAUGE_TUNER_FMT)) {
-		tvee->tuner_formats = hauppauge_tuner_fmt[t_format].id;
-		t_fmt_name = hauppauge_tuner_fmt[t_format].name;
-	} else {
-		t_fmt_name = "<unknown>";
-	}
-#endif
 
 	TVEEPROM_KERN_INFO("Hauppauge: model = %d, rev = %s, serial# = %d\n",
 		   tvee->model,
@@ -482,6 +474,7 @@ static unsigned short normal_i2c[] = {
 	0xa0 >> 1,
 	I2C_CLIENT_END,
 };
+
 I2C_CLIENT_INSMOD;
 
 struct i2c_driver i2c_driver_tveeprom;

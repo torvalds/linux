@@ -422,6 +422,17 @@ bail_out:
 	return -EIO;
 }
 
+static void acm_tty_unregister(struct acm *acm)
+{
+	tty_unregister_device(acm_tty_driver, acm->minor);
+	usb_put_intf(acm->control);
+	acm_table[acm->minor] = NULL;
+	usb_free_urb(acm->ctrlurb);
+	usb_free_urb(acm->readurb);
+	usb_free_urb(acm->writeurb);
+	kfree(acm);
+}
+
 static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 {
 	struct acm *acm = tty->driver_data;
@@ -436,14 +447,8 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 			usb_kill_urb(acm->ctrlurb);
 			usb_kill_urb(acm->writeurb);
 			usb_kill_urb(acm->readurb);
-		} else {
-			tty_unregister_device(acm_tty_driver, acm->minor);
-			acm_table[acm->minor] = NULL;
-			usb_free_urb(acm->ctrlurb);
-			usb_free_urb(acm->readurb);
-			usb_free_urb(acm->writeurb);
-			kfree(acm);
-		}
+		} else
+			acm_tty_unregister(acm);
 	}
 	up(&open_sem);
 }
@@ -905,7 +910,8 @@ skip_normal_probe:
 
 	usb_driver_claim_interface(&acm_driver, data_interface, acm);
 
-	tty_register_device(acm_tty_driver, minor, &intf->dev);
+	usb_get_intf(control_interface);
+	tty_register_device(acm_tty_driver, minor, &control_interface->dev);
 
 	acm_table[minor] = acm;
 	usb_set_intfdata (intf, acm);
@@ -954,12 +960,7 @@ static void acm_disconnect(struct usb_interface *intf)
 	usb_driver_release_interface(&acm_driver, acm->data);
 
 	if (!acm->used) {
-		tty_unregister_device(acm_tty_driver, acm->minor);
-		acm_table[acm->minor] = NULL;
-		usb_free_urb(acm->ctrlurb);
-		usb_free_urb(acm->readurb);
-		usb_free_urb(acm->writeurb);
-		kfree(acm);
+		acm_tty_unregister(acm);
 		up(&open_sem);
 		return;
 	}

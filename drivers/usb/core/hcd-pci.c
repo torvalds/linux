@@ -380,6 +380,7 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 		usb_hc_died (hcd);
 	}
 
+	pci_enable_device(dev);
 	return retval;
 }
 EXPORT_SYMBOL (usb_hcd_pci_resume);

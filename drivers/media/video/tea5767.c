@@ -2,7 +2,7 @@
  * For Philips TEA5767 FM Chip used on some TV Cards like Prolink Pixelview
  * I2C address is allways 0xC0.
  *
- * $Id: tea5767.c,v 1.11 2005/06/21 15:40:33 mchehab Exp $
+ * $Id: tea5767.c,v 1.18 2005/07/07 03:02:55 mchehab Exp $
  *
  * Copyright (c) 2005 Mauro Carvalho Chehab (mchehab@brturbo.com.br)
  * This code is placed under the terms of the GNU General Public License
@@ -11,23 +11,11 @@
  * from their contributions on DScaler.
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/string.h>
-#include <linux/timer.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/slab.h>
-#include <linux/videodev.h>
 #include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
-
+#include <linux/videodev.h>
+#include <linux/delay.h>
 #include <media/tuner.h>
-
-/* Declared at tuner-core.c */
-extern unsigned int tuner_debug;
+#include <media/tuner.h>
 
 #define PREFIX "TEA5767 "
 
@@ -38,8 +26,8 @@ extern unsigned int tuner_debug;
  ******************************/
 
 /* First register */
-#define TEA5767_MUTE		0x80 /* Mutes output */
-#define TEA5767_SEARCH		0x40 /* Activates station search */
+#define TEA5767_MUTE		0x80	/* Mutes output */
+#define TEA5767_SEARCH		0x40	/* Activates station search */
 /* Bits 0-5 for divider MSB */
 
 /* Second register */
@@ -130,6 +118,14 @@ extern unsigned int tuner_debug;
 /* Reserved for future extensions */
 #define TEA5767_RESERVED_MASK	0xff
 
+enum tea5767_xtal_freq {
+        TEA5767_LOW_LO_32768    = 0,
+        TEA5767_HIGH_LO_32768   = 1,
+        TEA5767_LOW_LO_13MHz    = 2,
+        TEA5767_HIGH_LO_13MHz   = 3,
+};
+
+
 /*****************************************************************************/
 
 static void set_tv_freq(struct i2c_client *c, unsigned int freq)
@@ -153,103 +149,112 @@ static void tea5767_status_dump(unsigned char *buffer)
 	else
 		printk(PREFIX "Tuner not at band limit\n");
 
-	div=((buffer[0]&0x3f)<<8) | buffer[1];
+	div = ((buffer[0] & 0x3f) << 8) | buffer[1];
 
 	switch (TEA5767_HIGH_LO_32768) {
 	case TEA5767_HIGH_LO_13MHz:
-		frq = 1000*(div*50-700-225)/4; /* Freq in KHz */
+		frq = 1000 * (div * 50 - 700 - 225) / 4;	/* Freq in KHz */
 		break;
 	case TEA5767_LOW_LO_13MHz:
-		frq = 1000*(div*50+700+225)/4; /* Freq in KHz */
+		frq = 1000 * (div * 50 + 700 + 225) / 4;	/* Freq in KHz */
 		break;
 	case TEA5767_LOW_LO_32768:
-		frq = 1000*(div*32768/1000+700+225)/4; /* Freq in KHz */
+		frq = 1000 * (div * 32768 / 1000 + 700 + 225) / 4;	/* Freq in KHz */
 		break;
 	case TEA5767_HIGH_LO_32768:
 	default:
-		frq = 1000*(div*32768/1000-700-225)/4; /* Freq in KHz */
+		frq = 1000 * (div * 32768 / 1000 - 700 - 225) / 4;	/* Freq in KHz */
 		break;
 	}
-        buffer[0] = (div>>8) & 0x3f;
-        buffer[1] = div      & 0xff;
+	buffer[0] = (div >> 8) & 0x3f;
+	buffer[1] = div & 0xff;
 
 	printk(PREFIX "Frequency %d.%03d KHz (divider = 0x%04x)\n",
-						frq/1000,frq%1000,div);
+	       frq / 1000, frq % 1000, div);
 
 	if (TEA5767_STEREO_MASK & buffer[2])
 		printk(PREFIX "Stereo\n");
 	else
 		printk(PREFIX "Mono\n");
 
-	printk(PREFIX "IF Counter = %d\n",buffer[2] & TEA5767_IF_CNTR_MASK);
+	printk(PREFIX "IF Counter = %d\n", buffer[2] & TEA5767_IF_CNTR_MASK);
 
-	printk(PREFIX "ADC Level = %d\n",(buffer[3] & TEA5767_ADC_LEVEL_MASK)>>4);
+	printk(PREFIX "ADC Level = %d\n",
+	       (buffer[3] & TEA5767_ADC_LEVEL_MASK) >> 4);
 
-	printk(PREFIX "Chip ID = %d\n",(buffer[3] & TEA5767_CHIP_ID_MASK));
+	printk(PREFIX "Chip ID = %d\n", (buffer[3] & TEA5767_CHIP_ID_MASK));
 
-	printk(PREFIX "Reserved = 0x%02x\n",(buffer[4] & TEA5767_RESERVED_MASK));
+	printk(PREFIX "Reserved = 0x%02x\n",
+	       (buffer[4] & TEA5767_RESERVED_MASK));
 }
 
 /* Freq should be specifyed at 62.5 Hz */
 static void set_radio_freq(struct i2c_client *c, unsigned int frq)
 {
 	struct tuner *t = i2c_get_clientdata(c);
-        unsigned char buffer[5];
+	unsigned char buffer[5];
 	unsigned div;
 	int rc;
 
-	if ( tuner_debug )
-		printk(PREFIX "radio freq counter %d\n",frq);
+	tuner_dbg (PREFIX "radio freq counter %d\n", frq);
 
 	/* Rounds freq to next decimal value - for 62.5 KHz step */
 	/* frq = 20*(frq/16)+radio_frq[frq%16]; */
 
 	buffer[2] = TEA5767_PORT1_HIGH;
-	buffer[3] = TEA5767_PORT2_HIGH | TEA5767_HIGH_CUT_CTRL | TEA5767_ST_NOISE_CTL | TEA5767_JAPAN_BAND;
-	buffer[4]=0;
+	buffer[3] = TEA5767_PORT2_HIGH | TEA5767_HIGH_CUT_CTRL |
+		    TEA5767_ST_NOISE_CTL | TEA5767_JAPAN_BAND;
+	buffer[4] = 0;
+
+	if (t->mode == T_STANDBY) {
+		tuner_dbg("TEA5767 set to standby mode\n");
+		buffer[3] |= TEA5767_STDBY;
+	}
 
 	if (t->audmode == V4L2_TUNER_MODE_MONO) {
 		tuner_dbg("TEA5767 set to mono\n");
 		buffer[2] |= TEA5767_MONO;
-	} else
- 		tuner_dbg("TEA5767 set to stereo\n");
+	} else {
+		tuner_dbg("TEA5767 set to stereo\n");
+	}
 
-	switch (t->type) {
+	/* Should be replaced */
+	switch (TEA5767_HIGH_LO_32768) {
 	case TEA5767_HIGH_LO_13MHz:
-		tuner_dbg("TEA5767 radio HIGH LO inject xtal @ 13 MHz\n");
+		tuner_dbg ("TEA5767 radio HIGH LO inject xtal @ 13 MHz\n");
 		buffer[2] |= TEA5767_HIGH_LO_INJECT;
 		buffer[4] |= TEA5767_PLLREF_ENABLE;
-		div = (frq*4/16+700+225+25)/50;
+		div = (frq * 4 / 16 + 700 + 225 + 25) / 50;
 		break;
 	case TEA5767_LOW_LO_13MHz:
-		tuner_dbg("TEA5767 radio LOW LO inject xtal @ 13 MHz\n");
+		tuner_dbg ("TEA5767 radio LOW LO inject xtal @ 13 MHz\n");
 
 		buffer[4] |= TEA5767_PLLREF_ENABLE;
-		div = (frq*4/16-700-225+25)/50;
+		div = (frq * 4 / 16 - 700 - 225 + 25) / 50;
 		break;
 	case TEA5767_LOW_LO_32768:
-		tuner_dbg("TEA5767 radio LOW LO inject xtal @ 32,768 MHz\n");
+		tuner_dbg ("TEA5767 radio LOW LO inject xtal @ 32,768 MHz\n");
 		buffer[3] |= TEA5767_XTAL_32768;
 		/* const 700=4000*175 Khz - to adjust freq to right value */
-		div = (1000*(frq*4/16-700-225)+16384)>>15;
+		div = (1000 * (frq * 4 / 16 - 700 - 225) + 16384) >> 15;
 		break;
 	case TEA5767_HIGH_LO_32768:
 	default:
-		tuner_dbg("TEA5767 radio HIGH LO inject xtal @ 32,768 MHz\n");
+		tuner_dbg ("TEA5767 radio HIGH LO inject xtal @ 32,768 MHz\n");
 
 		buffer[2] |= TEA5767_HIGH_LO_INJECT;
 		buffer[3] |= TEA5767_XTAL_32768;
-		div = (1000*(frq*4/16+700+225)+16384)>>15;
+		div = (1000 * (frq * 4 / 16 + 700 + 225) + 16384) >> 15;
 		break;
 	}
-        buffer[0] = (div>>8) & 0x3f;
-        buffer[1] = div      & 0xff;
+	buffer[0] = (div >> 8) & 0x3f;
+	buffer[1] = div & 0xff;
 
-	if ( tuner_debug )
+	if (tuner_debug)
 		tea5767_status_dump(buffer);
 
-        if (5 != (rc = i2c_master_send(c,buffer,5)))
-		tuner_warn("i2c i/o error: rc == %d (should be 5)\n",rc);
+	if (5 != (rc = i2c_master_send(c, buffer, 5)))
+		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 }
 
 static int tea5767_signal(struct i2c_client *c)
@@ -258,11 +263,11 @@ static int tea5767_signal(struct i2c_client *c)
 	int rc;
 	struct tuner *t = i2c_get_clientdata(c);
 
-	memset(buffer,0,sizeof(buffer));
-        if (5 != (rc = i2c_master_recv(c,buffer,5)))
-                tuner_warn ( "i2c i/o error: rc == %d (should be 5)\n",rc);
+	memset(buffer, 0, sizeof(buffer));
+	if (5 != (rc = i2c_master_recv(c, buffer, 5)))
+		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 
-	return ((buffer[3] & TEA5767_ADC_LEVEL_MASK) <<(13-4));
+	return ((buffer[3] & TEA5767_ADC_LEVEL_MASK) << (13 - 4));
 }
 
 static int tea5767_stereo(struct i2c_client *c)
@@ -271,47 +276,46 @@ static int tea5767_stereo(struct i2c_client *c)
 	int rc;
 	struct tuner *t = i2c_get_clientdata(c);
 
-	memset(buffer,0,sizeof(buffer));
-        if (5 != (rc = i2c_master_recv(c,buffer,5)))
-                tuner_warn ( "i2c i/o error: rc == %d (should be 5)\n",rc);
+	memset(buffer, 0, sizeof(buffer));
+	if (5 != (rc = i2c_master_recv(c, buffer, 5)))
+		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 
 	rc = buffer[2] & TEA5767_STEREO_MASK;
 
-	if ( tuner_debug )
-		tuner_dbg("TEA5767 radio ST GET = %02x\n", rc);
+	tuner_dbg("TEA5767 radio ST GET = %02x\n", rc);
 
-	return ( (buffer[2] & TEA5767_STEREO_MASK) ? V4L2_TUNER_SUB_STEREO: 0);
+	return ((buffer[2] & TEA5767_STEREO_MASK) ? V4L2_TUNER_SUB_STEREO : 0);
 }
 
-int tea_detection(struct i2c_client *c)
+int tea5767_autodetection(struct i2c_client *c)
 {
-	unsigned char buffer[5]= { 0xff, 0xff, 0xff, 0xff, 0xff };
+	unsigned char buffer[5] = { 0xff, 0xff, 0xff, 0xff, 0xff };
 	int rc;
 	struct tuner *t = i2c_get_clientdata(c);
 
-        if (5 != (rc = i2c_master_recv(c,buffer,5))) {
-                tuner_warn ( "it is not a TEA5767. Received %i chars.\n",rc );
+	if (5 != (rc = i2c_master_recv(c, buffer, 5))) {
+		tuner_warn("it is not a TEA5767. Received %i chars.\n", rc);
 		return EINVAL;
 	}
 
 	/* If all bytes are the same then it's a TV tuner and not a tea5767 chip. */
-	if (buffer[0] == buffer[1] &&  buffer[0] == buffer[2] &&
-	    buffer[0] == buffer[3] &&  buffer[0] == buffer[4]) {
-                tuner_warn ( "All bytes are equal. It is not a TEA5767\n" );
+	if (buffer[0] == buffer[1] && buffer[0] == buffer[2] &&
+	    buffer[0] == buffer[3] && buffer[0] == buffer[4]) {
+		tuner_warn("All bytes are equal. It is not a TEA5767\n");
 		return EINVAL;
 	}
 
 	/*  Status bytes:
 	 *  Byte 4: bit 3:1 : CI (Chip Identification) == 0
-	 *	    bit 0   : internally set to 0
+	 *          bit 0   : internally set to 0
 	 *  Byte 5: bit 7:0 : == 0
 	 */
 
 	if (!((buffer[3] & 0x0f) == 0x00) && (buffer[4] == 0x00)) {
-                tuner_warn ( "Chip ID is not zero. It is not a TEA5767\n" );
+		tuner_warn("Chip ID is not zero. It is not a TEA5767\n");
 		return EINVAL;
 	}
-	tuner_warn ( "TEA5767 detected.\n" );
+	tuner_warn("TEA5767 detected.\n");
 	return 0;
 }
 
@@ -319,16 +323,16 @@ int tea5767_tuner_init(struct i2c_client *c)
 {
 	struct tuner *t = i2c_get_clientdata(c);
 
-	if (tea_detection(c)==EINVAL) return EINVAL;
+	if (tea5767_autodetection(c) == EINVAL)
+		return EINVAL;
 
-        tuner_info("type set to %d (%s)\n",
-                   t->type, TEA5767_TUNER_NAME);
-        strlcpy(c->name, TEA5767_TUNER_NAME, sizeof(c->name));
+	tuner_info("type set to %d (%s)\n", t->type, "Philips TEA5767HN FM Radio");
+	strlcpy(c->name, "tea5767", sizeof(c->name));
 
-	t->tv_freq    = set_tv_freq;
+	t->tv_freq = set_tv_freq;
 	t->radio_freq = set_radio_freq;
 	t->has_signal = tea5767_signal;
-	t->is_stereo  = tea5767_stereo;
+	t->is_stereo = tea5767_stereo;
 
 	return (0);
 }

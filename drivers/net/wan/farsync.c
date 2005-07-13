@@ -861,8 +861,7 @@ fst_tx_dma_complete(struct fst_card_info *card, struct fst_port_info *port,
 /*
  * Mark it for our own raw sockets interface
  */
-static unsigned short farsync_type_trans(struct sk_buff *skb,
-					 struct net_device *dev)
+static __be16 farsync_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	skb->dev = dev;
 	skb->mac.raw = skb->data;

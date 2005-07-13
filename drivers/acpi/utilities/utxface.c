@@ -73,6 +73,7 @@ acpi_initialize_subsystem (
 {
 	acpi_status                     status;
 
+
 	ACPI_FUNCTION_TRACE ("acpi_initialize_subsystem");
 
 
@@ -105,14 +106,12 @@ acpi_initialize_subsystem (
 	 * Initialize the namespace manager and
 	 * the root of the namespace tree
 	 */
-
 	status = acpi_ns_root_initialize ();
 	if (ACPI_FAILURE (status)) {
 		ACPI_REPORT_ERROR (("Namespace initialization failure, %s\n",
 			acpi_format_exception (status)));
 		return_ACPI_STATUS (status);
 	}
-
 
 	/* If configured, initialize the AML debugger */
 
@@ -150,7 +149,8 @@ acpi_enable_subsystem (
 	 * The values from the FADT are validated here.
 	 */
 	if (!(flags & ACPI_NO_HARDWARE_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Initializing ACPI hardware\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+			"[Init] Initializing ACPI hardware\n"));
 
 		status = acpi_hw_initialize ();
 		if (ACPI_FAILURE (status)) {
@@ -178,7 +178,8 @@ acpi_enable_subsystem (
 	 * install_address_space_handler interface.
 	 */
 	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Installing default address space handlers\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+			"[Init] Installing default address space handlers\n"));
 
 		status = acpi_ev_install_region_handlers ();
 		if (ACPI_FAILURE (status)) {
@@ -189,12 +190,14 @@ acpi_enable_subsystem (
 	/*
 	 * Initialize ACPI Event handling (Fixed and General Purpose)
 	 *
-	 * NOTE: We must have the hardware AND events initialized before we can execute
-	 * ANY control methods SAFELY.  Any control method can require ACPI hardware
-	 * support, so the hardware MUST be initialized before execution!
+	 * NOTE: We must have the hardware AND events initialized before we can
+	 * execute ANY control methods SAFELY.  Any control method can require
+	 * ACPI hardware support, so the hardware MUST be initialized before
+	 * execution!
 	 */
 	if (!(flags & ACPI_NO_EVENT_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Initializing ACPI events\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+			"[Init] Initializing ACPI events\n"));
 
 		status = acpi_ev_initialize_events ();
 		if (ACPI_FAILURE (status)) {
@@ -205,7 +208,8 @@ acpi_enable_subsystem (
 	/* Install the SCI handler and Global Lock handler */
 
 	if (!(flags & ACPI_NO_HANDLER_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Installing SCI/GL handlers\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+			"[Init] Installing SCI/GL handlers\n"));
 
 		status = acpi_ev_install_xrupt_handlers ();
 		if (ACPI_FAILURE (status)) {
@@ -247,7 +251,8 @@ acpi_initialize_objects (
 	 * contain executable AML (see call to acpi_ns_initialize_objects below).
 	 */
 	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Executing _REG op_region methods\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+			"[Init] Executing _REG op_region methods\n"));
 
 		status = acpi_ev_initialize_op_regions ();
 		if (ACPI_FAILURE (status)) {
@@ -261,7 +266,8 @@ acpi_initialize_objects (
 	 * objects: operation_regions, buffer_fields, Buffers, and Packages.
 	 */
 	if (!(flags & ACPI_NO_OBJECT_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Completing Initialization of ACPI Objects\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+			"[Init] Completing Initialization of ACPI Objects\n"));
 
 		status = acpi_ns_initialize_objects ();
 		if (ACPI_FAILURE (status)) {
@@ -274,7 +280,8 @@ acpi_initialize_objects (
 	 * This runs the _STA and _INI methods.
 	 */
 	if (!(flags & ACPI_NO_DEVICE_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Initializing ACPI Devices\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+			"[Init] Initializing ACPI Devices\n"));
 
 		status = acpi_ns_initialize_devices ();
 		if (ACPI_FAILURE (status)) {
@@ -307,7 +314,8 @@ acpi_initialize_objects (
  ******************************************************************************/
 
 acpi_status
-acpi_terminate (void)
+acpi_terminate (
+	void)
 {
 	acpi_status                 status;
 
@@ -344,8 +352,7 @@ acpi_terminate (void)
 
 
 #ifdef ACPI_FUTURE_USAGE
-
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_subsystem_status
  *
@@ -354,14 +361,16 @@ acpi_terminate (void)
  * RETURN:      Status of the ACPI subsystem
  *
  * DESCRIPTION: Other drivers that use the ACPI subsystem should call this
- *              before making any other calls, to ensure the subsystem initial-
- *              ized successfully.
+ *              before making any other calls, to ensure the subsystem
+ *              initialized successfully.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 acpi_status
-acpi_subsystem_status (void)
+acpi_subsystem_status (
+	void)
 {
+
 	if (acpi_gbl_startup_flags & ACPI_INITIALIZED_OK) {
 		return (AE_OK);
 	}
@@ -371,13 +380,12 @@ acpi_subsystem_status (void)
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_get_system_info
  *
- * PARAMETERS:  out_buffer      - a pointer to a buffer to receive the
- *                                resources for the device
- *              buffer_length   - the number of bytes available in the buffer
+ * PARAMETERS:  out_buffer      - A buffer to receive the resources for the
+ *                                device
  *
  * RETURN:      Status          - the status of the call
  *
@@ -395,8 +403,8 @@ acpi_get_system_info (
 	struct acpi_buffer              *out_buffer)
 {
 	struct acpi_system_info         *info_ptr;
-	u32                             i;
 	acpi_status                     status;
+	u32                             i;
 
 
 	ACPI_FUNCTION_TRACE ("acpi_get_system_info");
@@ -466,6 +474,7 @@ EXPORT_SYMBOL(acpi_get_system_info);
  * FUNCTION:    acpi_install_initialization_handler
  *
  * PARAMETERS:  Handler             - Callback procedure
+ *              Function            - Not (currently) used, see below
  *
  * RETURN:      Status
  *
@@ -495,7 +504,6 @@ acpi_install_initialization_handler (
 
 #endif  /*  ACPI_FUTURE_USAGE  */
 
-
 /*****************************************************************************
  *
  * FUNCTION:    acpi_purge_cached_objects
@@ -509,7 +517,8 @@ acpi_install_initialization_handler (
  ****************************************************************************/
 
 acpi_status
-acpi_purge_cached_objects (void)
+acpi_purge_cached_objects (
+	void)
 {
 	ACPI_FUNCTION_TRACE ("acpi_purge_cached_objects");
 

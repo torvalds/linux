@@ -14,9 +14,12 @@ C example
 =========
 
 So let's say you want to access an i2c adapter from a C program. The
-first thing to do is `#include <linux/i2c.h>" and "#include <linux/i2c-dev.h>. 
-Yes, I know, you should never include kernel header files, but until glibc 
-knows about i2c, there is not much choice.
+first thing to do is "#include <linux/i2c-dev.h>". Please note that
+there are two files named "i2c-dev.h" out there, one is distributed
+with the Linux kernel and is meant to be included from kernel
+driver code, the other one is distributed with lm_sensors and is
+meant to be included from user-space programs. You obviously want
+the second one here.
 
 Now, you have to decide which adapter you want to access. You should
 inspect /sys/class/i2c-dev/ to decide this. Adapter numbers are assigned
@@ -78,7 +81,7 @@ Full interface description
 ==========================
 
 The following IOCTLs are defined and fully supported 
-(see also i2c-dev.h and i2c.h):
+(see also i2c-dev.h):
 
 ioctl(file,I2C_SLAVE,long addr)
   Change slave address. The address is passed in the 7 lower bits of the
@@ -97,10 +100,10 @@ ioctl(file,I2C_PEC,long select)
 ioctl(file,I2C_FUNCS,unsigned long *funcs)
   Gets the adapter functionality and puts it in *funcs.
 
-ioctl(file,I2C_RDWR,struct i2c_ioctl_rdwr_data *msgset)
+ioctl(file,I2C_RDWR,struct i2c_rdwr_ioctl_data *msgset)
 
   Do combined read/write transaction without stop in between.
-  The argument is a pointer to a struct i2c_ioctl_rdwr_data {
+  The argument is a pointer to a struct i2c_rdwr_ioctl_data {
 
       struct i2c_msg *msgs;  /* ptr to array of simple messages */
       int nmsgs;             /* number of messages to exchange */

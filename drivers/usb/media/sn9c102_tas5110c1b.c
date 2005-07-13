@@ -24,8 +24,6 @@
 
 static struct sn9c102_sensor tas5110c1b;
 
-static struct v4l2_control tas5110c1b_gain;
-
 
 static int tas5110c1b_init(struct sn9c102_device* cam)
 {
@@ -46,21 +44,6 @@ static int tas5110c1b_init(struct sn9c102_device* cam)
 }
 
 
-static int tas5110c1b_get_ctrl(struct sn9c102_device* cam, 
-                               struct v4l2_control* ctrl)
-{
-	switch (ctrl->id) {
-	case V4L2_CID_GAIN:
-		ctrl->value = tas5110c1b_gain.value;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-
 static int tas5110c1b_set_ctrl(struct sn9c102_device* cam, 
                                const struct v4l2_control* ctrl)
 {
@@ -68,8 +51,7 @@ static int tas5110c1b_set_ctrl(struct sn9c102_device* cam,
 
 	switch (ctrl->id) {
 	case V4L2_CID_GAIN:
-		if (!(err += sn9c102_i2c_write(cam, 0x20, 0xf6 - ctrl->value)))
-			tas5110c1b_gain.value = ctrl->value;
+		err += sn9c102_i2c_write(cam, 0x20, 0xf6 - ctrl->value);
 		break;
 	default:
 		return -EINVAL;
@@ -147,7 +129,6 @@ static struct sn9c102_sensor tas5110c1b = {
 			.height = 288,
 		},
 	},
-	.get_ctrl = &tas5110c1b_get_ctrl,
 	.set_crop = &tas5110c1b_set_crop,
 	.pix_format = {
 		.width = 352,

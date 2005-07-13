@@ -45,7 +45,6 @@
 #include <acpi/acpi.h>
 #include <acpi/acparser.h>
 #include <acpi/amlcode.h>
-#include <acpi/acnamesp.h>
 
 #define _COMPONENT          ACPI_PARSER
 	 ACPI_MODULE_NAME    ("psutils")
@@ -57,7 +56,7 @@
  *
  * PARAMETERS:  None
  *
- * RETURN:      scope_op
+ * RETURN:      A new Scope object, null on failure
  *
  * DESCRIPTION: Create a Scope and associated namepath op with the root name
  *
@@ -75,7 +74,6 @@ acpi_ps_create_scope_op (
 		return (NULL);
 	}
 
-
 	scope_op->named.name = ACPI_ROOT_NAME;
 	return (scope_op);
 }
@@ -88,10 +86,9 @@ acpi_ps_create_scope_op (
  * PARAMETERS:  Op              - A newly allocated Op object
  *              Opcode          - Opcode to store in the Op
  *
- * RETURN:      Status
+ * RETURN:      None
  *
- * DESCRIPTION: Allocate an acpi_op, choose op type (and thus size) based on
- *              opcode
+ * DESCRIPTION: Initialize a parse (Op) object
  *
  ******************************************************************************/
 
@@ -107,7 +104,8 @@ acpi_ps_init_op (
 	op->common.aml_opcode = opcode;
 
 	ACPI_DISASM_ONLY_MEMBERS (ACPI_STRNCPY (op->common.aml_op_name,
-			(acpi_ps_get_opcode_info (opcode))->name, sizeof (op->common.aml_op_name)));
+			(acpi_ps_get_opcode_info (opcode))->name,
+				sizeof (op->common.aml_op_name)));
 }
 
 
@@ -117,7 +115,7 @@ acpi_ps_init_op (
  *
  * PARAMETERS:  Opcode          - Opcode that will be stored in the new Op
  *
- * RETURN:      Pointer to the new Op.
+ * RETURN:      Pointer to the new Op, null on failure
  *
  * DESCRIPTION: Allocate an acpi_op, choose op type (and thus size) based on
  *              opcode.  A cache of opcodes is available for the pure
@@ -274,7 +272,6 @@ u32
 acpi_ps_get_name (
 	union acpi_parse_object         *op)
 {
-
 
 	/* The "generic" object has no name associated with it */
 

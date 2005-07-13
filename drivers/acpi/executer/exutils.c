@@ -67,14 +67,22 @@
 #define _COMPONENT          ACPI_EXECUTER
 	 ACPI_MODULE_NAME    ("exutils")
 
+/* Local prototypes */
+
+static u32
+acpi_ex_digits_needed (
+	acpi_integer                    value,
+	u32                             base);
+
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ex_enter_interpreter
  *
  * PARAMETERS:  None
+ *
+ * RETURN:      Status
  *
  * DESCRIPTION: Enter the interpreter execution region.  Failure to enter
  *              the interpreter region is a fatal system error
@@ -82,7 +90,8 @@
  ******************************************************************************/
 
 acpi_status
-acpi_ex_enter_interpreter (void)
+acpi_ex_enter_interpreter (
+	void)
 {
 	acpi_status                     status;
 
@@ -104,6 +113,8 @@ acpi_ex_enter_interpreter (void)
  *
  * PARAMETERS:  None
  *
+ * RETURN:      None
+ *
  * DESCRIPTION: Exit the interpreter execution region
  *
  * Cases where the interpreter is unlocked:
@@ -119,7 +130,8 @@ acpi_ex_enter_interpreter (void)
  ******************************************************************************/
 
 void
-acpi_ex_exit_interpreter (void)
+acpi_ex_exit_interpreter (
+	void)
 {
 	acpi_status                     status;
 
@@ -212,7 +224,8 @@ acpi_ex_acquire_global_lock (
 			locked = TRUE;
 		}
 		else {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not acquire Global Lock, %s\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"Could not acquire Global Lock, %s\n",
 				acpi_format_exception (status)));
 		}
 	}
@@ -228,7 +241,7 @@ acpi_ex_acquire_global_lock (
  * PARAMETERS:  locked_by_me    - Return value from corresponding call to
  *                                acquire_global_lock.
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Release the global lock if it is locked.
  *
@@ -269,11 +282,14 @@ acpi_ex_release_global_lock (
  * PARAMETERS:  Value           - Value to be represented
  *              Base            - Base of representation
  *
- * RETURN:      the number of digits needed to represent Value in Base
+ * RETURN:      The number of digits.
+ *
+ * DESCRIPTION: Calculate the number of digits needed to represent the Value
+ *              in the given Base (Radix)
  *
  ******************************************************************************/
 
-u32
+static u32
 acpi_ex_digits_needed (
 	acpi_integer                    value,
 	u32                             base)
@@ -312,6 +328,8 @@ acpi_ex_digits_needed (
  * PARAMETERS:  numeric_id      - EISA ID to be converted
  *              out_string      - Where to put the converted string (8 bytes)
  *
+ * RETURN:      None
+ *
  * DESCRIPTION: Convert a numeric EISA ID to string representation
  *
  ******************************************************************************/
@@ -349,7 +367,10 @@ acpi_ex_eisa_id_to_string (
  * PARAMETERS:  Value           - Value to be converted
  *              out_string      - Where to put the converted string (8 bytes)
  *
- * RETURN:      Convert a number to string representation
+ * RETURN:      None, string
+ *
+ * DESCRIPTOIN: Convert a number to string representation. Assumes string
+ *              buffer is large enough to hold the string.
  *
  ******************************************************************************/
 

@@ -58,6 +58,22 @@ static u8                   acpi_gbl_default_address_spaces[ACPI_NUM_DEFAULT_SPA
 			 ACPI_ADR_SPACE_PCI_CONFIG,
 			 ACPI_ADR_SPACE_DATA_TABLE};
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ev_reg_run (
+	acpi_handle                     obj_handle,
+	u32                             level,
+	void                            *context,
+	void                            **return_value);
+
+static acpi_status
+acpi_ev_install_handler (
+	acpi_handle                     obj_handle,
+	u32                             level,
+	void                            *context,
+	void                            **return_value);
+
 
 /*******************************************************************************
  *
@@ -179,8 +195,8 @@ acpi_ev_initialize_op_regions (
  *
  * FUNCTION:    acpi_ev_execute_reg_method
  *
- * PARAMETERS:  region_obj          - Object structure
- *              Function            - Passed to _REG:  On (1) or Off (0)
+ * PARAMETERS:  region_obj          - Region object
+ *              Function            - Passed to _REG: On (1) or Off (0)
  *
  * RETURN:      Status
  *
@@ -323,14 +339,16 @@ acpi_ev_address_space_dispatch (
 		if (!region_setup) {
 			/* No initialization routine, exit with error */
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No init routine for region(%p) [%s]\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"No init routine for region(%p) [%s]\n",
 				region_obj, acpi_ut_get_region_name (region_obj->region.space_id)));
 			return_ACPI_STATUS (AE_NOT_EXIST);
 		}
 
 		/*
-		 * We must exit the interpreter because the region setup will potentially
-		 * execute control methods (e.g., _REG method for this region)
+		 * We must exit the interpreter because the region
+		 * setup will potentially execute control methods
+		 * (e.g., _REG method for this region)
 		 */
 		acpi_ex_exit_interpreter ();
 
@@ -621,7 +639,7 @@ acpi_ev_attach_region (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ev_install_handler (
 	acpi_handle                     obj_handle,
 	u32                             level,
@@ -848,7 +866,8 @@ acpi_ev_install_space_handler (
 				if (handler_obj->address_space.handler == handler) {
 					/*
 					 * It is (relatively) OK to attempt to install the SAME
-					 * handler twice. This can easily happen with PCI_Config space.
+					 * handler twice. This can easily happen
+					 * with PCI_Config space.
 					 */
 					status = AE_SAME_HANDLER;
 					goto unlock_and_exit;
@@ -1011,7 +1030,7 @@ acpi_ev_execute_reg_methods (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ev_reg_run (
 	acpi_handle                     obj_handle,
 	u32                             level,

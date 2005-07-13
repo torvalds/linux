@@ -1129,7 +1129,7 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 void *usb_buffer_alloc (
 	struct usb_device *dev,
 	size_t size,
-	int mem_flags,
+	unsigned mem_flags,
 	dma_addr_t *dma
 )
 {
@@ -1531,6 +1531,9 @@ module_exit(usb_exit);
 EXPORT_SYMBOL(usb_register);
 EXPORT_SYMBOL(usb_deregister);
 EXPORT_SYMBOL(usb_disabled);
+
+EXPORT_SYMBOL_GPL(usb_get_intf);
+EXPORT_SYMBOL_GPL(usb_put_intf);
 
 EXPORT_SYMBOL(usb_alloc_dev);
 EXPORT_SYMBOL(usb_put_dev);

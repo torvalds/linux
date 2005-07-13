@@ -1204,6 +1204,10 @@ static int __init asus_acpi_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
+	if (!acpi_specific_hotkey_enabled){
+		printk(KERN_ERR "Using generic hotkey driver\n");
+		return -ENODEV;	
+	}
 	asus_proc_dir = proc_mkdir(PROC_ASUS, acpi_root_dir);
 	if (!asus_proc_dir) {
 		printk(KERN_ERR "Asus ACPI: Unable to create /proc entry\n");

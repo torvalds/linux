@@ -180,7 +180,7 @@ static int ohci_urb_enqueue (
 	struct usb_hcd	*hcd,
 	struct usb_host_endpoint *ep,
 	struct urb	*urb,
-	int		mem_flags
+	unsigned	mem_flags
 ) {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	struct ed	*ed;
@@ -673,8 +673,10 @@ retry:
 
 	ohci_dump (ohci, 1);
 
-	if (ohci_to_hcd(ohci)->self.root_hub == NULL)
+	if (ohci_to_hcd(ohci)->self.root_hub == NULL) {
+		register_reboot_notifier (&ohci->reboot_notifier);
 		create_debug_files (ohci);
+	}
 
 	return 0;
 }

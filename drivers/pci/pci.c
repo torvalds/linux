@@ -235,7 +235,7 @@ pci_find_parent_resource(const struct pci_dev *dev, struct resource *res)
  * -EIO if device does not support PCI PM.
  * 0 if we can successfully change the power state.
  */
-
+int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t t);
 int
 pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
@@ -299,11 +299,20 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		msleep(10);
 	else if (state == PCI_D2 || dev->current_state == PCI_D2)
 		udelay(200);
-	dev->current_state = state;
 
+	/*
+	 * Give firmware a chance to be called, such as ACPI _PRx, _PSx
+	 * Firmware method after natice method ?
+	 */
+	if (platform_pci_set_power_state)
+		platform_pci_set_power_state(dev, state);
+
+	dev->current_state = state;
 	return 0;
 }
 
+int (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state);
+ 
 /**
  * pci_choose_state - Choose the power state of a PCI device
  * @dev: PCI device to be suspended
@@ -316,10 +325,17 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 {
+	int ret;
+
 	if (!pci_find_capability(dev, PCI_CAP_ID_PM))
 		return PCI_D0;
 
-	switch (state) {
+	if (platform_pci_choose_state) {
+		ret = platform_pci_choose_state(dev, state);
+		if (ret >= 0)
+			state = ret;
+	}
+ 	switch (state) {
 	case 0: return PCI_D0;
 	case 3: return PCI_D3hot;
 	default:

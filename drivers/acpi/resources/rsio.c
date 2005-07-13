@@ -81,67 +81,60 @@ acpi_rs_io_resource (
 	struct acpi_resource            *output_struct = (void *) *output_buffer;
 	u16                             temp16 = 0;
 	u8                              temp8 = 0;
-	acpi_size                       struct_size = ACPI_SIZEOF_RESOURCE (struct acpi_resource_io);
+	acpi_size                       struct_size = ACPI_SIZEOF_RESOURCE (
+			  struct acpi_resource_io);
 
 
 	ACPI_FUNCTION_TRACE ("rs_io_resource");
 
 
-	/*
-	 * The number of bytes consumed are Constant
-	 */
+	/* The number of bytes consumed are Constant */
+
 	*bytes_consumed = 8;
 
 	output_struct->id = ACPI_RSTYPE_IO;
 
-	/*
-	 * Check Decode
-	 */
+	/* Check Decode */
+
 	buffer += 1;
 	temp8 = *buffer;
 
 	output_struct->data.io.io_decode = temp8 & 0x01;
 
-	/*
-	 * Check min_base Address
-	 */
+	/* Check min_base Address */
+
 	buffer += 1;
 	ACPI_MOVE_16_TO_16 (&temp16, buffer);
 
 	output_struct->data.io.min_base_address = temp16;
 
-	/*
-	 * Check max_base Address
-	 */
+	/* Check max_base Address */
+
 	buffer += 2;
 	ACPI_MOVE_16_TO_16 (&temp16, buffer);
 
 	output_struct->data.io.max_base_address = temp16;
 
-	/*
-	 * Check Base alignment
-	 */
+	/* Check Base alignment */
+
 	buffer += 2;
 	temp8 = *buffer;
 
 	output_struct->data.io.alignment = temp8;
 
-	/*
-	 * Check range_length
-	 */
+	/* Check range_length */
+
 	buffer += 1;
 	temp8 = *buffer;
 
 	output_struct->data.io.range_length = temp8;
 
-	/*
-	 * Set the Length parameter
-	 */
+	/* Set the Length parameter */
+
 	output_struct->length = (u32) struct_size;
 
-	/*
-	 * Return the final size of the structure
-	 */
+	/* Return the final size of the structure */
+
 	*structure_size = struct_size;
 	return_ACPI_STATUS (AE_OK);
 }
@@ -179,43 +172,39 @@ acpi_rs_fixed_io_resource (
 	struct acpi_resource            *output_struct = (void *) *output_buffer;
 	u16                             temp16 = 0;
 	u8                              temp8 = 0;
-	acpi_size                       struct_size = ACPI_SIZEOF_RESOURCE (struct acpi_resource_fixed_io);
+	acpi_size                       struct_size = ACPI_SIZEOF_RESOURCE (
+			  struct acpi_resource_fixed_io);
 
 
 	ACPI_FUNCTION_TRACE ("rs_fixed_io_resource");
 
 
-	/*
-	 * The number of bytes consumed are Constant
-	 */
+	/* The number of bytes consumed are Constant */
+
 	*bytes_consumed = 4;
 
 	output_struct->id = ACPI_RSTYPE_FIXED_IO;
 
-	/*
-	 * Check Range Base Address
-	 */
+	/* Check Range Base Address */
+
 	buffer += 1;
 	ACPI_MOVE_16_TO_16 (&temp16, buffer);
 
 	output_struct->data.fixed_io.base_address = temp16;
 
-	/*
-	 * Check range_length
-	 */
+	/* Check range_length */
+
 	buffer += 2;
 	temp8 = *buffer;
 
 	output_struct->data.fixed_io.range_length = temp8;
 
-	/*
-	 * Set the Length parameter
-	 */
+	/* Set the Length parameter */
+
 	output_struct->length = (u32) struct_size;
 
-	/*
-	 * Return the final size of the structure
-	 */
+	/* Return the final size of the structure */
+
 	*structure_size = struct_size;
 	return_ACPI_STATUS (AE_OK);
 }
@@ -251,55 +240,48 @@ acpi_rs_io_stream (
 	ACPI_FUNCTION_TRACE ("rs_io_stream");
 
 
-	/*
-	 * The descriptor field is static
-	 */
+	/* The descriptor field is static */
+
 	*buffer = 0x47;
 	buffer += 1;
 
-	/*
-	 * Io Information Byte
-	 */
+	/* Io Information Byte */
+
 	temp8 = (u8) (linked_list->data.io.io_decode & 0x01);
 
 	*buffer = temp8;
 	buffer += 1;
 
-	/*
-	 * Set the Range minimum base address
-	 */
+	/* Set the Range minimum base address */
+
 	temp16 = (u16) linked_list->data.io.min_base_address;
 
 	ACPI_MOVE_16_TO_16 (buffer, &temp16);
 	buffer += 2;
 
-	/*
-	 * Set the Range maximum base address
-	 */
+	/* Set the Range maximum base address */
+
 	temp16 = (u16) linked_list->data.io.max_base_address;
 
 	ACPI_MOVE_16_TO_16 (buffer, &temp16);
 	buffer += 2;
 
-	/*
-	 * Set the base alignment
-	 */
+	/* Set the base alignment */
+
 	temp8 = (u8) linked_list->data.io.alignment;
 
 	*buffer = temp8;
 	buffer += 1;
 
-	/*
-	 * Set the range length
-	 */
+	/* Set the range length */
+
 	temp8 = (u8) linked_list->data.io.range_length;
 
 	*buffer = temp8;
 	buffer += 1;
 
-	/*
-	 * Return the number of bytes consumed in this operation
-	 */
+	/* Return the number of bytes consumed in this operation */
+
 	*bytes_consumed = ACPI_PTR_DIFF (buffer, *output_buffer);
 	return_ACPI_STATUS (AE_OK);
 }
@@ -335,32 +317,28 @@ acpi_rs_fixed_io_stream (
 	ACPI_FUNCTION_TRACE ("rs_fixed_io_stream");
 
 
-	/*
-	 * The descriptor field is static
-	 */
+	/* The descriptor field is static */
+
 	*buffer = 0x4B;
 
 	buffer += 1;
 
-	/*
-	 * Set the Range base address
-	 */
+	/* Set the Range base address */
+
 	temp16 = (u16) linked_list->data.fixed_io.base_address;
 
 	ACPI_MOVE_16_TO_16 (buffer, &temp16);
 	buffer += 2;
 
-	/*
-	 * Set the range length
-	 */
+	/* Set the range length */
+
 	temp8 = (u8) linked_list->data.fixed_io.range_length;
 
 	*buffer = temp8;
 	buffer += 1;
 
-	/*
-	 * Return the number of bytes consumed in this operation
-	 */
+	/* Return the number of bytes consumed in this operation */
+
 	*bytes_consumed = ACPI_PTR_DIFF (buffer, *output_buffer);
 	return_ACPI_STATUS (AE_OK);
 }
@@ -399,21 +377,20 @@ acpi_rs_dma_resource (
 	u8                              temp8 = 0;
 	u8                              index;
 	u8                              i;
-	acpi_size                       struct_size = ACPI_SIZEOF_RESOURCE (struct acpi_resource_dma);
+	acpi_size                       struct_size = ACPI_SIZEOF_RESOURCE (
+			  struct acpi_resource_dma);
 
 
 	ACPI_FUNCTION_TRACE ("rs_dma_resource");
 
 
-	/*
-	 * The number of bytes consumed are Constant
-	 */
+	/* The number of bytes consumed are Constant */
+
 	*bytes_consumed = 3;
 	output_struct->id = ACPI_RSTYPE_DMA;
 
-	/*
-	 * Point to the 8-bits of Byte 1
-	 */
+	/* Point to the 8-bits of Byte 1 */
+
 	buffer += 1;
 	temp8 = *buffer;
 
@@ -430,46 +407,40 @@ acpi_rs_dma_resource (
 
 	output_struct->data.dma.number_of_channels = i;
 	if (i > 0) {
-		/*
-		 * Calculate the structure size based upon the number of interrupts
-		 */
+		/* Calculate the structure size based upon the number of interrupts */
+
 		struct_size += ((acpi_size) i - 1) * 4;
 	}
 
-	/*
-	 * Point to Byte 2
-	 */
+	/* Point to Byte 2 */
+
 	buffer += 1;
 	temp8 = *buffer;
 
-	/*
-	 * Check for transfer preference (Bits[1:0])
-	 */
+	/* Check for transfer preference (Bits[1:0]) */
+
 	output_struct->data.dma.transfer = temp8 & 0x03;
 
 	if (0x03 == output_struct->data.dma.transfer) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid DMA.Transfer preference (3)\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+			"Invalid DMA.Transfer preference (3)\n"));
 		return_ACPI_STATUS (AE_BAD_DATA);
 	}
 
-	/*
-	 * Get bus master preference (Bit[2])
-	 */
+	/* Get bus master preference (Bit[2]) */
+
 	output_struct->data.dma.bus_master = (temp8 >> 2) & 0x01;
 
-	/*
-	 * Get channel speed support (Bits[6:5])
-	 */
+	/* Get channel speed support (Bits[6:5]) */
+
 	output_struct->data.dma.type = (temp8 >> 5) & 0x03;
 
-	/*
-	 * Set the Length parameter
-	 */
+	/* Set the Length parameter */
+
 	output_struct->length = (u32) struct_size;
 
-	/*
-	 * Return the final size of the structure
-	 */
+	/* Return the final size of the structure */
+
 	*structure_size = struct_size;
 	return_ACPI_STATUS (AE_OK);
 }
@@ -506,16 +477,14 @@ acpi_rs_dma_stream (
 	ACPI_FUNCTION_TRACE ("rs_dma_stream");
 
 
-	/*
-	 * The descriptor field is static
-	 */
+	/* The descriptor field is static */
+
 	*buffer = 0x2A;
 	buffer += 1;
 	temp8 = 0;
 
-	/*
-	 * Loop through all of the Channels and set the mask bits
-	 */
+	/* Loop through all of the Channels and set the mask bits */
+
 	for (index = 0;
 		 index < linked_list->data.dma.number_of_channels;
 		 index++) {
@@ -526,9 +495,8 @@ acpi_rs_dma_stream (
 	*buffer = temp8;
 	buffer += 1;
 
-	/*
-	 * Set the DMA Info
-	 */
+	/* Set the DMA Info */
+
 	temp8 = (u8) ((linked_list->data.dma.type & 0x03) << 5);
 	temp8 |= ((linked_list->data.dma.bus_master & 0x01) << 2);
 	temp8 |= (linked_list->data.dma.transfer & 0x03);
@@ -536,9 +504,8 @@ acpi_rs_dma_stream (
 	*buffer = temp8;
 	buffer += 1;
 
-	/*
-	 * Return the number of bytes consumed in this operation
-	 */
+	/* Return the number of bytes consumed in this operation */
+
 	*bytes_consumed = ACPI_PTR_DIFF (buffer, *output_buffer);
 	return_ACPI_STATUS (AE_OK);
 }

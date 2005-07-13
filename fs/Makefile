@@ -12,6 +12,7 @@ obj-y :=	open.o read_write.o file_table.o buffer.o  bio.o super.o \
 		seq_file.o xattr.o libfs.o fs-writeback.o mpage.o direct-io.o \
 		ioprio.o
 
+obj-$(CONFIG_INOTIFY)		+= inotify.o
 obj-$(CONFIG_EPOLL)		+= eventpoll.o
 obj-$(CONFIG_COMPAT)		+= compat.o
 

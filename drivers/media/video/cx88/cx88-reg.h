@@ -1,5 +1,5 @@
 /*
-    $Id: cx88-reg.h,v 1.7 2005/06/03 13:31:51 mchehab Exp $
+    $Id: cx88-reg.h,v 1.8 2005/07/07 13:58:38 mchehab Exp $
 
     cx88x-hw.h - CX2388x register offsets
 
@@ -604,20 +604,11 @@
 #define EN_I2SIN_STR2DAC        0x00004000
 #define EN_I2SIN_ENABLE         0x00008000
 
-#if 0
-/* old */
-#define EN_DMTRX_SUMDIFF        0x00000800
-#define EN_DMTRX_SUMR           0x00000880
-#define EN_DMTRX_LR             0x00000900
-#define EN_DMTRX_MONO           0x00000980
-#else
-/* dscaler cvs */
 #define EN_DMTRX_SUMDIFF        (0 << 7)
 #define EN_DMTRX_SUMR           (1 << 7)
 #define EN_DMTRX_LR             (2 << 7)
 #define EN_DMTRX_MONO           (3 << 7)
 #define EN_DMTRX_BYPASS         (1 << 11)
-#endif
 
 // Video
 #define VID_CAPTURE_CONTROL		0x310180

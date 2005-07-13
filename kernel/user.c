@@ -120,6 +120,10 @@ struct user_struct * alloc_uid(uid_t uid)
 		atomic_set(&new->processes, 0);
 		atomic_set(&new->files, 0);
 		atomic_set(&new->sigpending, 0);
+#ifdef CONFIG_INOTIFY
+		atomic_set(&new->inotify_watches, 0);
+		atomic_set(&new->inotify_devs, 0);
+#endif
 
 		new->mq_bytes = 0;
 		new->locked_shm = 0;

@@ -1,0 +1,26 @@
+#
+# Packet configuration
+#
+
+config PACKET
+	tristate "Packet socket"
+	---help---
+	  The Packet protocol is used by applications which communicate
+	  directly with network devices without an intermediate network
+	  protocol implemented in the kernel, e.g. tcpdump.  If you want them
+	  to work, choose Y.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called af_packet.
+
+	  If unsure, say Y.
+
+config PACKET_MMAP
+	bool "Packet socket: mmapped IO"
+	depends on PACKET
+	help
+	  If you say Y here, the Packet protocol driver will use an IO
+	  mechanism that results in faster communication.
+
+	  If unsure, say N.
+

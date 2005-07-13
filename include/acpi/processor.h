@@ -4,6 +4,8 @@
 #include <linux/kernel.h>
 #include <linux/config.h>
 
+#include <asm/acpi.h>
+
 #define ACPI_PROCESSOR_BUSY_METRIC	10
 
 #define ACPI_PROCESSOR_MAX_POWER	8
@@ -13,6 +15,8 @@
 #define ACPI_PROCESSOR_MAX_THROTTLING	16
 #define ACPI_PROCESSOR_MAX_THROTTLE	250	/* 25% */
 #define ACPI_PROCESSOR_MAX_DUTY_WIDTH	4
+
+#define ACPI_PDC_REVISION_ID		0x1
 
 /* Power Management */
 
@@ -59,6 +63,9 @@ struct acpi_processor_power {
 	u32			bm_activity;
 	int			count;
 	struct acpi_processor_cx states[ACPI_PROCESSOR_MAX_POWER];
+
+	/* the _PDC objects passed by the driver, if any */
+	struct acpi_object_list *pdc;
 };
 
 /* Performance Management */
@@ -81,8 +88,6 @@ struct acpi_processor_px {
 	acpi_integer		control;		/* control value */
 	acpi_integer		status;			/* success indicator */
 };
-
-#define ACPI_PDC_REVISION_ID                   0x1
 
 struct acpi_processor_performance {
 	unsigned int		 state;
@@ -179,7 +184,32 @@ int acpi_processor_notify_smm(struct module *calling_module);
 extern struct acpi_processor	*processors[NR_CPUS];
 extern struct acpi_processor_errata errata;
 
+int acpi_processor_set_pdc(struct acpi_processor *pr,
+		struct acpi_object_list *pdc_in);
+
+#ifdef ARCH_HAS_POWER_PDC_INIT
+void acpi_processor_power_init_pdc(struct acpi_processor_power *pow,
+		unsigned int cpu);
+void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
+		unsigned int cpu);
+#else
+static inline void acpi_processor_power_init_pdc(
+		struct acpi_processor_power *pow, unsigned int cpu)
+{
+	pow->pdc = NULL;
+	return;
+}
+
+static inline void acpi_processor_power_init_bm_check(
+		struct acpi_processor_flags *flags, unsigned int cpu)
+{
+	flags->bm_check = 1;
+	return;
+}
+#endif
+
 /* in processor_perflib.c */
+
 #ifdef CONFIG_CPU_FREQ
 void acpi_processor_ppc_init(void);
 void acpi_processor_ppc_exit(void);

@@ -74,7 +74,7 @@ SCTP_STATIC void sctp_ulpevent_init(struct sctp_ulpevent *event, int msg_flags)
 
 /* Create a new sctp_ulpevent.  */
 SCTP_STATIC struct sctp_ulpevent *sctp_ulpevent_new(int size, int msg_flags,
-						    int gfp)
+						    unsigned int __nocast gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sk_buff *skb;
@@ -136,7 +136,7 @@ static inline void sctp_ulpevent_release_owner(struct sctp_ulpevent *event)
 struct sctp_ulpevent  *sctp_ulpevent_make_assoc_change(
 	const struct sctp_association *asoc,
 	__u16 flags, __u16 state, __u16 error, __u16 outbound,
-	__u16 inbound, int gfp)
+	__u16 inbound, unsigned int __nocast gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_assoc_change *sac;
@@ -237,7 +237,7 @@ fail:
 struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
 	const struct sctp_association *asoc,
 	const struct sockaddr_storage *aaddr,
-	int flags, int state, int error, int gfp)
+	int flags, int state, int error, unsigned int __nocast gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_paddr_change  *spc;
@@ -350,7 +350,7 @@ fail:
  */
 struct sctp_ulpevent *sctp_ulpevent_make_remote_error(
 	const struct sctp_association *asoc, struct sctp_chunk *chunk,
-	__u16 flags, int gfp)
+	__u16 flags, unsigned int __nocast gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_remote_error *sre;
@@ -448,7 +448,7 @@ fail:
  */
 struct sctp_ulpevent *sctp_ulpevent_make_send_failed(
 	const struct sctp_association *asoc, struct sctp_chunk *chunk,
-	__u16 flags, __u32 error, int gfp)
+	__u16 flags, __u32 error, unsigned int __nocast gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_send_failed *ssf;
@@ -557,7 +557,7 @@ fail:
  */
 struct sctp_ulpevent *sctp_ulpevent_make_shutdown_event(
 	const struct sctp_association *asoc,
-	__u16 flags, int gfp)
+	__u16 flags, unsigned int __nocast gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_shutdown_event *sse;
@@ -620,7 +620,7 @@ fail:
  * 5.3.1.6 SCTP_ADAPTION_INDICATION
  */
 struct sctp_ulpevent *sctp_ulpevent_make_adaption_indication(
-	const struct sctp_association *asoc, int gfp)
+	const struct sctp_association *asoc, unsigned int __nocast gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_adaption_event *sai;
@@ -657,7 +657,7 @@ fail:
  */
 struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 						struct sctp_chunk *chunk,
-						int gfp)
+						unsigned int __nocast gfp)
 {
 	struct sctp_ulpevent *event = NULL;
 	struct sk_buff *skb;
@@ -718,7 +718,8 @@ fail:
  *   various events.
  */
 struct sctp_ulpevent *sctp_ulpevent_make_pdapi(
-	const struct sctp_association *asoc, __u32 indication, int gfp)
+	const struct sctp_association *asoc, __u32 indication,
+	unsigned int __nocast gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_pdapi_event *pd;

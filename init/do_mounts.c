@@ -7,6 +7,7 @@
 #include <linux/root_dev.h>
 #include <linux/security.h>
 #include <linux/delay.h>
+#include <linux/mount.h>
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_fs_sb.h>

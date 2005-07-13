@@ -20,7 +20,7 @@ All other cards only differ by additional components as tuners, sound
 decoders, EEPROMs, teletext decoders ...
 
 
-Unsupported Cards: 
+Unsupported Cards:
 ------------------
 
 Cards with Zoran (ZR) or Philips (SAA) or ISA are not supported by
@@ -50,11 +50,11 @@ Bt848a/Bt849 single crytal operation support possible!!!
 Miro/Pinnacle PCTV
 ------------------
 
-- Bt848 
-  some (all??) come with 2 crystals for PAL/SECAM and NTSC 
+- Bt848
+  some (all??) come with 2 crystals for PAL/SECAM and NTSC
 - PAL, SECAM or NTSC TV tuner (Philips or TEMIC)
 - MSP34xx sound decoder on add on board
-  decoder is supported but AFAIK does not yet work 
+  decoder is supported but AFAIK does not yet work
   (other sound MUX setting in GPIO port needed??? somebody who fixed this???)
 - 1 tuner, 1 composite and 1 S-VHS input
 - tuner type is autodetected
@@ -70,7 +70,7 @@ in 1997!
 Hauppauge Win/TV pci
 --------------------
 
-There are many different versions of the Hauppauge cards with different 
+There are many different versions of the Hauppauge cards with different
 tuners (TV+Radio ...), teletext decoders.
 Note that even cards with same model numbers have (depending on the revision)
 different chips on it.
@@ -80,22 +80,22 @@ different chips on it.
 - PAL, SECAM, NTSC or tuner with or without Radio support
 
 e.g.:
-  PAL: 
+  PAL:
   TDA5737: VHF, hyperband and UHF mixer/oscillator for TV and VCR 3-band tuners
   TSA5522: 1.4 GHz I2C-bus controlled synthesizer, I2C 0xc2-0xc3
-  
+
   NTSC:
   TDA5731: VHF, hyperband and UHF mixer/oscillator for TV and VCR 3-band tuners
   TSA5518: no datasheet available on Philips site
-- Philips SAA5246 or SAA5284 ( or no) Teletext decoder chip	
+- Philips SAA5246 or SAA5284 ( or no) Teletext decoder chip
   with buffer RAM (e.g. Winbond W24257AS-35: 32Kx8 CMOS static RAM)
   SAA5246 (I2C 0x22) is supported
-- 256 bytes EEPROM: Microchip 24LC02B or Philips 8582E2Y 
+- 256 bytes EEPROM: Microchip 24LC02B or Philips 8582E2Y
   with configuration information
   I2C address 0xa0 (24LC02B also responds to 0xa2-0xaf)
 - 1 tuner, 1 composite and (depending on model) 1 S-VHS input
 - 14052B: mux for selection of sound source
-- sound decoder: TDA9800, MSP34xx (stereo cards) 
+- sound decoder: TDA9800, MSP34xx (stereo cards)
 
 
 Askey CPH-Series
@@ -108,17 +108,17 @@ Developed by TelSignal(?), OEMed by many vendors (Typhoon, Anubis, Dynalink)
     CPH05x: BT878 with FM
     CPH06x: BT878 (w/o FM)
     CPH07x: BT878 capture only
- 
+
   TV standards:
      CPH0x0: NTSC-M/M
      CPH0x1: PAL-B/G
      CPH0x2: PAL-I/I
      CPH0x3: PAL-D/K
-     CPH0x4: SECAM-L/L 
-     CPH0x5: SECAM-B/G 
-     CPH0x6: SECAM-D/K 
-     CPH0x7: PAL-N/N 
-     CPH0x8: PAL-B/H 
+     CPH0x4: SECAM-L/L
+     CPH0x5: SECAM-B/G
+     CPH0x6: SECAM-D/K
+     CPH0x7: PAL-N/N
+     CPH0x8: PAL-B/H
      CPH0x9: PAL-M/M
 
   CPH03x was often sold as "TV capturer".
@@ -174,7 +174,7 @@ Lifeview Flyvideo Series:
       "The FlyVideo2000 and FlyVideo2000s product name have renamed to FlyVideo98."
       Their Bt8x8 cards are listed as discontinued.
       Flyvideo 2000S was probably sold as Flyvideo 3000 in some contries(Europe?).
-      The new Flyvideo 2000/3000 are SAA7130/SAA7134 based. 
+      The new Flyvideo 2000/3000 are SAA7130/SAA7134 based.
 
   "Flyvideo II" had been the name for the 848 cards, nowadays (in Germany)
   this name is re-used for LR50 Rev.W.
@@ -235,12 +235,12 @@ Prolink
    Multimedia TV packages (card + software pack):
    PixelView Play TV Theater - (Model: PV-M4200) =  PixelView Play TV pro + Software
    PixelView Play TV PAK -     (Model: PV-BT878P+ REV 4E)
-   PixelView Play TV/VCR -     (Model: PV-M3200 REV 4C / 8D / 10A ) 
+   PixelView Play TV/VCR -     (Model: PV-M3200 REV 4C / 8D / 10A )
    PixelView Studio PAK -      (Model:    M2200 REV 4C / 8D / 10A )
    PixelView PowerStudio PAK - (Model: PV-M3600 REV 4E)
    PixelView DigitalVCR PAK -  (Model: PV-M2400 REV 4C / 8D / 10A )
 
-   PixelView PlayTV PAK II (TV/FM card + usb camera)  PV-M3800 
+   PixelView PlayTV PAK II (TV/FM card + usb camera)  PV-M3800
    PixelView PlayTV XP PV-M4700,PV-M4700(w/FM)
    PixelView PlayTV DVR PV-M4600  package contents:PixelView PlayTV pro, windvr & videoMail s/w
 
@@ -254,7 +254,7 @@ Prolink
 
    DTV3000 PV-DTV3000P+ DVB-S CI = Twinhan VP-1030
    DTV2000 DVB-S = Twinhan VP-1020
-   
+
    Video Conferencing:
    PixelView Meeting PAK - (Model: PV-BT878P)
    PixelView Meeting PAK Lite - (Model: PV-BT878P)
@@ -308,7 +308,7 @@ KNC One
 
    newer Cards have saa7134, but model name stayed the same?
 
-Provideo 
+Provideo
 --------
   PV951 or PV-951 (also are sold as:
    Boeder TV-FM Video Capture Card
@@ -353,7 +353,7 @@ AVerMedia
    AVerTV
    AVerTV Stereo
    AVerTV Studio (w/FM)
-   AVerMedia TV98 with Remote 
+   AVerMedia TV98 with Remote
    AVerMedia TV/FM98 Stereo
    AVerMedia TVCAM98
    TVCapture (Bt848)
@@ -373,7 +373,7 @@ AVerMedia
    (1) Daughterboard MB68-A with TDA9820T and TDA9840T
    (2) Sony NE41S soldered (stereo sound?)
    (3) Daughterboard M118-A w/ pic 16c54 and 4 MHz quartz
- 
+
    US site has different drivers for (as of 09/2002):
    EZ Capture/InterCam PCI (BT-848 chip)
    EZ Capture/InterCam PCI (BT-878 chip)
@@ -437,7 +437,7 @@ Terratec
    Terra TValueRadio,             "LR102 Rev.C" printed on the PCB
    Terra TV/Radio+ Version 1.0,   "80-CP2830100-0" TTTV3 printed on the PCB,
 				     "CPH010-E83" on the back, SAA6588T, TDA9873H
-   Terra TValue Version BT878,    "80-CP2830110-0 TTTV4" printed on the PCB, 
+   Terra TValue Version BT878,    "80-CP2830110-0 TTTV4" printed on the PCB,
 				     "CPH011-D83" on back
    Terra TValue Version 1.0       "ceb105.PCB" (really identical to Terra TV+ Version 1.0)
    Terra TValue New Revision	  "LR102 Rec.C"
@@ -528,7 +528,7 @@ Koutech
    KW-606RSF
    KW-607A (capture only)
    KW-608 (Zoran capture only)
- 
+
 IODATA (jp)
 ------
    GV-BCTV/PCI
@@ -542,15 +542,15 @@ Canopus (jp)
 -------
    WinDVR	= Kworld "KW-TVL878RF"
 
-www.sigmacom.co.kr 
+www.sigmacom.co.kr
 ------------------
-   Sigma Cyber TV II 
+   Sigma Cyber TV II
 
 www.sasem.co.kr
 ---------------
    Litte OnAir TV
 
-hama 
+hama
 ----
    TV/Radio-Tuner Card, PCI (Model 44677) = CPH051
 
@@ -638,7 +638,7 @@ Media-Surfer  (esc-kathrein.de)
 
 Jetway (www.jetway.com.tw)
 --------------------------
-   JW-TV 878M 
+   JW-TV 878M
    JW-TV 878  = KWorld KW-TV878RF
 
 Galaxis
@@ -715,7 +715,7 @@ Hauppauge
   809 MyVideo
   872 MyTV2Go FM
 
- 
+
   546 WinTV Nova-S CI
   543 WinTV Nova
   907 Nova-S USB
@@ -739,7 +739,7 @@ Hauppauge
   832 MyTV2Go
   869 MyTV2Go-FM
   805 MyVideo (USB)
-  
+
 
 Matrix-Vision
 -------------
@@ -764,7 +764,7 @@ Gallant  (www.gallantcom.com) www.minton.com.tw
    Intervision IV-550 (bt8x8)
    Intervision IV-100 (zoran)
    Intervision IV-1000 (bt8x8)
-   
+
 Asonic (www.asonic.com.cn) (website down)
 -----------------------------------------
    SkyEye tv 878
@@ -804,11 +804,11 @@ Kworld (www.kworld.com.tw)
 
 JTT/ Justy Corp.http://www.justy.co.jp/ (www.jtt.com.jp website down)
 ---------------------------------------------------------------------
-   JTT-02 (JTT TV) "TV watchmate pro" (bt848) 
+   JTT-02 (JTT TV) "TV watchmate pro" (bt848)
 
 ADS www.adstech.com
 -------------------
-   Channel Surfer TV ( CHX-950 ) 
+   Channel Surfer TV ( CHX-950 )
    Channel Surfer TV+FM ( CHX-960FM )
 
 AVEC www.prochips.com
@@ -874,7 +874,7 @@ www.ids-imaging.de
 ------------------
    Falcon Series (capture only)
  In USA: http://www.theimagingsource.com/
-   DFG/LC1	
+   DFG/LC1
 
 www.sknet-web.co.jp
 -------------------
@@ -890,7 +890,7 @@ Cybertainment
    CyberMail Xtreme
   These are Flyvideo
 
-VCR (http://www.vcrinc.com/) 
+VCR (http://www.vcrinc.com/)
 ---
   Video Catcher 16
 
@@ -920,7 +920,7 @@ Sdisilk www.sdisilk.com/
     SDI Silk 200 SDI Input Card
 
 www.euresys.com
-    PICOLO series 
+    PICOLO series
 
 PMC/Pace
 www.pacecom.co.uk website closed
