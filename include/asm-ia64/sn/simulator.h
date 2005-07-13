@@ -13,16 +13,9 @@
 #define SNMAGIC 0xaeeeeeee8badbeefL
 #define IS_MEDUSA()			({long sn; asm("mov %0=cpuid[%1]" : "=r"(sn) : "r"(2)); sn == SNMAGIC;})
 
-#ifdef CONFIG_IA64_SGI_SN_SIM
 #define SIMULATOR_SLEEP()		asm("nop.i 0x8beef")
-#define IS_RUNNING_ON_SIMULATOR() 	(sn_prom_type)
+#define IS_RUNNING_ON_SIMULATOR()	(sn_prom_type)
 #define IS_RUNNING_ON_FAKE_PROM()	(sn_prom_type == 2)
 extern int sn_prom_type;		/* 0=hardware, 1=medusa/realprom, 2=medusa/fakeprom */
-#else
-#define IS_RUNNING_ON_SIMULATOR()	(0)
-#define IS_RUNNING_ON_FAKE_PROM()	(0)
-#define SIMULATOR_SLEEP()
-
-#endif
 
 #endif /* _ASM_IA64_SN_SIMULATOR_H */

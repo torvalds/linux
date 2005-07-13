@@ -40,6 +40,11 @@
  */
 #define node_to_first_cpu(node) (__ffs(node_to_cpumask(node)))
 
+/*
+ * Determines the node for a given pci bus
+ */
+#define pcibus_to_node(bus) PCI_CONTROLLER(bus)->node
+
 void build_cpu_to_node_map(void);
 
 #define SD_CPU_INIT (struct sched_domain) {		\
