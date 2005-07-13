@@ -405,7 +405,7 @@ static void prism2_pci_remove(struct pci_dev *pdev)
 
 
 #ifdef CONFIG_PM
-static int prism2_pci_suspend(struct pci_dev *pdev, u32 state)
+static int prism2_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
