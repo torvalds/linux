@@ -41,6 +41,7 @@
 #include <linux/time.h>
 #include <linux/kthread.h>
 #include <linux/netlink.h>
+#include <linux/compiler.h>
 #include <asm/unistd.h>
 
 /* 0 = no checking
@@ -778,13 +779,13 @@ static void audit_log_task_info(struct audit_buffer *ab)
 	up_read(&mm->mmap_sem);
 }
 
-static void audit_log_exit(struct audit_context *context)
+static void audit_log_exit(struct audit_context *context, unsigned int gfp_mask)
 {
 	int i;
 	struct audit_buffer *ab;
 	struct audit_aux_data *aux;
 
-	ab = audit_log_start(context, GFP_KERNEL, AUDIT_SYSCALL);
+	ab = audit_log_start(context, gfp_mask, AUDIT_SYSCALL);
 	if (!ab)
 		return;		/* audit_panic has been called */
 	audit_log_format(ab, "arch=%x syscall=%d",
@@ -900,9 +901,11 @@ void audit_free(struct task_struct *tsk)
 		return;
 
 	/* Check for system calls that do not go through the exit
-	 * function (e.g., exit_group), then free context block. */
+	 * function (e.g., exit_group), then free context block. 
+	 * We use GFP_ATOMIC here because we might be doing this 
+	 * in the context of the idle thread */
 	if (context->in_syscall && context->auditable)
-		audit_log_exit(context);
+		audit_log_exit(context, GFP_ATOMIC);
 
 	audit_free_context(context);
 }
@@ -1007,7 +1010,7 @@ void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 		return;
 
 	if (context->in_syscall && context->auditable)
-		audit_log_exit(context);
+		audit_log_exit(context, GFP_KERNEL);
 
 	context->in_syscall = 0;
 	context->auditable  = 0;
