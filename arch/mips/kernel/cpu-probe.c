@@ -71,11 +71,27 @@ static void au1k_wait(void)
 		: : "r" (au1k_wait));
 }
 
+static int __initdata nowait = 0;
+
+int __init wait_disable(char *s)
+{
+	nowait = 1;
+
+	return 1;
+}
+
+__setup("nowait", wait_disable);
+
 static inline void check_wait(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 
 	printk("Checking for 'wait' instruction... ");
+	if (nowait) {
+		printk (" disabled.\n");
+		return;
+	}
+
 	switch (c->cputype) {
 	case CPU_R3081:
 	case CPU_R3081E:
