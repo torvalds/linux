@@ -516,7 +516,7 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 	int		   word = AUDIT_WORD(ctx->major);
 	int		   bit  = AUDIT_BIT(ctx->major);
 
-	if (audit_pid && tsk->pid == audit_pid)
+	if (audit_pid && tsk->tgid == audit_tgid)
 		return AUDIT_DISABLED;
 
 	rcu_read_lock();
@@ -1255,7 +1255,7 @@ void audit_signal_info(int sig, struct task_struct *t)
 	extern pid_t audit_sig_pid;
 	extern uid_t audit_sig_uid;
 
-	if (unlikely(audit_pid && t->pid == audit_pid)) {
+	if (unlikely(audit_pid && t->tgid == audit_pid)) {
 		if (sig == SIGTERM || sig == SIGHUP) {
 			struct audit_context *ctx = current->audit_context;
 			audit_sig_pid = current->pid;
