@@ -5102,6 +5102,10 @@ static int ipw2100_set_tx_power(struct ipw2100_priv *priv, u32 tx_power)
 	};
 	int err = 0;
 
+	if (tx_power != IPW_TX_POWER_DEFAULT)
+		tx_power = (tx_power - IPW_TX_POWER_MIN_DBM) * 16 /
+		    (IPW_TX_POWER_MAX_DBM - IPW_TX_POWER_MIN_DBM);
+
 	cmd.host_command_parameters[0] = tx_power;
 
 	if (priv->ieee->iw_mode == IW_MODE_ADHOC)
@@ -7523,8 +7527,7 @@ static int ipw2100_wx_set_txpow(struct net_device *dev,
 		    wrqu->txpower.value > IPW_TX_POWER_MAX_DBM)
 			return -EINVAL;
 
-		value = (wrqu->txpower.value - IPW_TX_POWER_MIN_DBM) * 16 /
-		    (IPW_TX_POWER_MAX_DBM - IPW_TX_POWER_MIN_DBM);
+		value = wrqu->txpower.value;
 	}
 
 	down(&priv->action_sem);
@@ -7564,11 +7567,7 @@ static int ipw2100_wx_get_txpow(struct net_device *dev,
 	} else {
 		wrqu->power.disabled = 0;
 		wrqu->power.fixed = 1;
-		wrqu->power.value =
-		    (priv->tx_power *
-		     (IPW_TX_POWER_MAX_DBM - IPW_TX_POWER_MIN_DBM)) /
-		    (IPW_TX_POWER_MAX - IPW_TX_POWER_MIN) +
-		    IPW_TX_POWER_MIN_DBM;
+		wrqu->power.value = priv->tx_power;
 	}
 
 	wrqu->power.flags = IW_TXPOW_DBM;
