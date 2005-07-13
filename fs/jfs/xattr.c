@@ -781,7 +781,7 @@ static int can_set_xattr(struct inode *inode, const char *name,
 	if (IS_RDONLY(inode))
 		return -EROFS;
 
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode) || S_ISLNK(inode->i_mode))
+	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		return -EPERM;
 
 	if(strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) == 0)
