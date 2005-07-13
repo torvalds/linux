@@ -159,6 +159,7 @@
 #define INT_1610_GPIO_BANK3	(41 + IH2_BASE)
 #define INT_1610_MMC2		(42 + IH2_BASE)
 #define INT_1610_CF		(43 + IH2_BASE)
+#define INT_1610_WAKE_UP_REQ	(46 + IH2_BASE)
 #define INT_1610_GPIO_BANK4	(48 + IH2_BASE)
 #define INT_1610_SPI		(49 + IH2_BASE)
 #define INT_1610_DMA_CH6	(53 + IH2_BASE)
@@ -237,6 +238,8 @@
 #define IH_GPIO_BASE		(128 + IH2_BASE)
 #define IH_MPUIO_BASE		(OMAP_MAX_GPIO_LINES + IH_GPIO_BASE)
 #define IH_BOARD_BASE		(16 + IH_MPUIO_BASE)
+
+#define OMAP_IRQ_BIT(irq)	(1 << ((irq) % 32))
 
 #ifndef __ASSEMBLY__
 extern void omap_init_irq(void);

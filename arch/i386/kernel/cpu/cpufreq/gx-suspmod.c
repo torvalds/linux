@@ -190,7 +190,7 @@ static __init struct pci_dev *gx_detect_chipset(void)
 
 	/* detect which companion chip is used */
 	while ((gx_pci = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, gx_pci)) != NULL) {
-		if ((pci_match_device (gx_chipset_tbl, gx_pci)) != NULL) {
+		if ((pci_match_id(gx_chipset_tbl, gx_pci)) != NULL) {
 			return gx_pci;
 		}
 	}

@@ -18,7 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#undef	DEBUG
 
 #include <linux/config.h>
 #include <linux/kernel.h>
@@ -49,11 +48,7 @@
 MODULE_DESCRIPTION("TPS6501x Power Management Driver");
 MODULE_LICENSE("GPL");
 
-/* only two addresses possible */
-#define	TPS_BASE	0x48
-static unsigned short normal_i2c[] = {
-	TPS_BASE,
-	I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { 0x48, /* 0x49, */ I2C_CLIENT_END };
 static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
 
 I2C_CLIENT_INSMOD;
@@ -102,7 +97,7 @@ struct tps65010 {
 	u8			chgstatus, regstatus, chgconf;
 	u8			nmask1, nmask2;
 
-	/* plus four GPIOs, probably used to switch power */
+	/* not currently tracking GPIO state */
 };
 
 #define	POWER_POLL_DELAY	msecs_to_jiffies(800)
@@ -135,7 +130,7 @@ static void dbg_regstat(char *buf, size_t len, u8 regstatus)
 		(regstatus & TPS_REG_COVER) ? " uncover" : "",
 		(regstatus & TPS_REG_UVLO) ? " UVLO" : "",
 		(regstatus & TPS_REG_NO_CHG) ? " NO_CHG" : "",
-		(regstatus & TPS_REG_PG_LD02) ? " ld01_bad" : "",
+		(regstatus & TPS_REG_PG_LD02) ? " ld02_bad" : "",
 		(regstatus & TPS_REG_PG_LD01) ? " ld01_bad" : "",
 		(regstatus & TPS_REG_PG_MAIN) ? " main_bad" : "",
 		(regstatus & TPS_REG_PG_CORE) ? " core_bad" : "");
@@ -143,7 +138,7 @@ static void dbg_regstat(char *buf, size_t len, u8 regstatus)
 
 static void dbg_chgconf(int por, char *buf, size_t len, u8 chgconfig)
 {
-	char *hibit;
+	const char *hibit;
 
 	if (por)
 		hibit = (chgconfig & TPS_CHARGE_POR)
@@ -295,7 +290,7 @@ static int dbg_show(struct seq_file *s, void *_)
 	seq_printf(s, "defgpio %02x mask3 %02x\n", value, v2);
 
 	for (i = 0; i < 4; i++) {
-		if (value & (1 << (4 +i)))
+		if (value & (1 << (4 + i)))
 			seq_printf(s, "  gpio%d-out %s\n", i + 1,
 				(value & (1 << i)) ? "low" : "hi ");
 		else
@@ -481,7 +476,7 @@ static int __exit tps65010_detach_client(struct i2c_client *client)
 	debugfs_remove(tps->file);
 	if (i2c_detach_client(client) == 0)
 		kfree(tps);
-	the_tps = 0;
+	the_tps = NULL;
 	return 0;
 }
 
@@ -514,7 +509,6 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 	INIT_WORK(&tps->work, tps65010_work, tps);
 	tps->irq = -1;
 	tps->client.addr = address;
-	i2c_set_clientdata(&tps->client, tps);
 	tps->client.adapter = bus;
 	tps->client.driver = &tps65010_driver;
 	strlcpy(tps->client.name, DRIVER_NAME, I2C_NAME_SIZE);
@@ -523,9 +517,7 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 	if (status < 0) {
 		dev_dbg(&bus->dev, "can't attach %s to device %d, err %d\n",
 				DRIVER_NAME, address, status);
-fail1:
-		kfree(tps);
-		return 0;
+		goto fail1;
 	}
 
 #ifdef	CONFIG_ARM
@@ -535,7 +527,7 @@ fail1:
 		tps->irq = OMAP_GPIO_IRQ(58);
 		omap_request_gpio(58);
 		omap_set_gpio_direction(58, 1);
-		omap_set_gpio_edge_ctrl(58, OMAP_GPIO_FALLING_EDGE);
+		set_irq_type(tps->irq, IRQT_FALLING);
 	}
 	if (machine_is_omap_osk()) {
 		tps->model = TPS65010;
@@ -543,7 +535,7 @@ fail1:
 		tps->irq = OMAP_GPIO_IRQ(OMAP_MPUIO(1));
 		omap_request_gpio(OMAP_MPUIO(1));
 		omap_set_gpio_direction(OMAP_MPUIO(1), 1);
-		omap_set_gpio_edge_ctrl(OMAP_MPUIO(1), OMAP_GPIO_FALLING_EDGE);
+		set_irq_type(tps->irq, IRQT_FALLING);
 	}
 	if (machine_is_omap_h3()) {
 		tps->model = TPS65013;
@@ -633,6 +625,9 @@ fail1:
 	tps->file = debugfs_create_file(DRIVER_NAME, S_IRUGO, NULL,
 				tps, DEBUG_FOPS);
 	return 0;
+fail1:
+	kfree(tps);
+	return 0;
 }
 
 static int __init tps65010_scan_bus(struct i2c_adapter *bus)
@@ -645,7 +640,6 @@ static int __init tps65010_scan_bus(struct i2c_adapter *bus)
 static struct i2c_driver tps65010_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "tps65010",
-	.id		= 888,		/* FIXME assign "official" value */
 	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= tps65010_scan_bus,
 	.detach_client	= __exit_p(tps65010_detach_client),
@@ -744,7 +738,7 @@ int tps65010_set_led(unsigned led, unsigned mode)
 	if (!the_tps)
 		return -ENODEV;
 
-	if(led == LED1)
+	if (led == LED1)
 		offs = 0;
 	else {
 		offs = 2;
@@ -753,11 +747,13 @@ int tps65010_set_led(unsigned led, unsigned mode)
 
 	down(&the_tps->lock);
 
-	dev_dbg (&the_tps->client.dev, "led%i_on   0x%02x\n", led,
-		i2c_smbus_read_byte_data(&the_tps->client, TPS_LED1_ON + offs));
+	pr_debug("%s: led%i_on   0x%02x\n", DRIVER_NAME, led,
+		i2c_smbus_read_byte_data(&the_tps->client,
+				TPS_LED1_ON + offs));
 
-	dev_dbg (&the_tps->client.dev, "led%i_per  0x%02x\n", led,
-		i2c_smbus_read_byte_data(&the_tps->client, TPS_LED1_PER + offs));
+	pr_debug("%s: led%i_per  0x%02x\n", DRIVER_NAME, led,
+		i2c_smbus_read_byte_data(&the_tps->client,
+				TPS_LED1_PER + offs));
 
 	switch (mode) {
 	case OFF:
@@ -773,7 +769,7 @@ int tps65010_set_led(unsigned led, unsigned mode)
 		led_per = 0x08 | (1 << 7);
 		break;
 	default:
-		printk(KERN_ERR "%s: Wrong mode parameter for tps65010_set_led()\n",
+		printk(KERN_ERR "%s: Wrong mode parameter for set_led()\n",
 		       DRIVER_NAME);
 		up(&the_tps->lock);
 		return -EINVAL;
@@ -789,7 +785,7 @@ int tps65010_set_led(unsigned led, unsigned mode)
 		return status;
 	}
 
-	dev_dbg (&the_tps->client.dev, "led%i_on   0x%02x\n", led,
+	pr_debug("%s: led%i_on   0x%02x\n", DRIVER_NAME, led,
 		i2c_smbus_read_byte_data(&the_tps->client, TPS_LED1_ON + offs));
 
 	status = i2c_smbus_write_byte_data(&the_tps->client,
@@ -802,8 +798,9 @@ int tps65010_set_led(unsigned led, unsigned mode)
 		return status;
 	}
 
-	dev_dbg (&the_tps->client.dev, "led%i_per  0x%02x\n", led,
-		i2c_smbus_read_byte_data(&the_tps->client, TPS_LED1_PER + offs));
+	pr_debug("%s: led%i_per  0x%02x\n", DRIVER_NAME, led,
+		i2c_smbus_read_byte_data(&the_tps->client,
+				TPS_LED1_PER + offs));
 
 	up(&the_tps->lock);
 
@@ -874,7 +871,7 @@ int tps65010_set_low_pwr(unsigned mode)
 
 	if (status != 0)
 		printk(KERN_ERR "%s: Failed to write vdcdc1 register\n",
-		       DRIVER_NAME);
+			DRIVER_NAME);
 	else
 		pr_debug("%s: vdcdc1 0x%02x\n", DRIVER_NAME,
 			i2c_smbus_read_byte_data(&the_tps->client, TPS_VDCDC1));
@@ -900,14 +897,14 @@ int tps65010_config_vregs1(unsigned value)
 	down(&the_tps->lock);
 
 	pr_debug("%s: vregs1 0x%02x\n", DRIVER_NAME,
-		        i2c_smbus_read_byte_data(&the_tps->client, TPS_VREGS1));
+			i2c_smbus_read_byte_data(&the_tps->client, TPS_VREGS1));
 
 	status = i2c_smbus_write_byte_data(&the_tps->client,
 			TPS_VREGS1, value);
 
 	if (status != 0)
 		printk(KERN_ERR "%s: Failed to write vregs1 register\n",
-		        DRIVER_NAME);
+			DRIVER_NAME);
 	else
 		pr_debug("%s: vregs1 0x%02x\n", DRIVER_NAME,
 			i2c_smbus_read_byte_data(&the_tps->client, TPS_VREGS1));
@@ -1009,7 +1006,7 @@ static int __init tps_init(void)
 		msleep(10);
 	}
 
-#if defined(CONFIG_ARM)
+#ifdef	CONFIG_ARM
 	if (machine_is_omap_osk()) {
 
 		// FIXME: More should be placed in the initialization code

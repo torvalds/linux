@@ -253,14 +253,16 @@ static struct mm_struct *oom_kill_process(struct task_struct *p)
  * OR try to be smart about which process to kill. Note that we
  * don't have to be perfect here, we just have to be good.
  */
-void out_of_memory(unsigned int __nocast gfp_mask)
+void out_of_memory(unsigned int __nocast gfp_mask, int order)
 {
 	struct mm_struct *mm = NULL;
 	task_t * p;
 
-	printk("oom-killer: gfp_mask=0x%x\n", gfp_mask);
-	/* print memory stats */
-	show_mem();
+	if (printk_ratelimit()) {
+		printk("oom-killer: gfp_mask=0x%x, order=%d\n",
+			gfp_mask, order);
+		show_mem();
+	}
 
 	read_lock(&tasklist_lock);
 retry:

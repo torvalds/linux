@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: super.c,v 1.104 2004/11/23 15:37:31 gleixner Exp $
+ * $Id: super.c,v 1.106 2005/05/18 11:37:25 dedekind Exp $
  *
  */
 
@@ -270,8 +270,6 @@ static void jffs2_put_super (struct super_block *sb)
 
 	D2(printk(KERN_DEBUG "jffs2: jffs2_put_super()\n"));
 
-	if (!(sb->s_flags & MS_RDONLY))
-		jffs2_stop_garbage_collect_thread(c);
 	down(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
 	up(&c->alloc_sem);
@@ -292,6 +290,8 @@ static void jffs2_put_super (struct super_block *sb)
 static void jffs2_kill_sb(struct super_block *sb)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
+	if (!(sb->s_flags & MS_RDONLY))
+		jffs2_stop_garbage_collect_thread(c);
 	generic_shutdown_super(sb);
 	put_mtd_device(c->mtd);
 	kfree(c);
@@ -309,7 +309,7 @@ static int __init init_jffs2_fs(void)
 	int ret;
 
 	printk(KERN_INFO "JFFS2 version 2.2."
-#ifdef CONFIG_JFFS2_FS_NAND
+#ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	       " (NAND)"
 #endif
 	       " (C) 2001-2003 Red Hat, Inc.\n");

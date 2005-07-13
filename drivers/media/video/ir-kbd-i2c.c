@@ -1,5 +1,5 @@
 /*
- * $Id: ir-kbd-i2c.c,v 1.10 2004/12/09 12:51:35 kraxel Exp $
+ * $Id: ir-kbd-i2c.c,v 1.11 2005/07/07 16:42:11 mchehab Exp $
  *
  * keyboard input driver for i2c IR remote controls
  *
@@ -66,26 +66,26 @@ static IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE] = {
 	[ 29 ] = KEY_PAGEDOWN,
 	[ 19 ] = KEY_SOUND,
 
-	[ 24 ] = KEY_KPPLUSMINUS,	// CH +/-
-	[ 22 ] = KEY_SUBTITLE,		// CC
-	[ 13 ] = KEY_TEXT,		// TTX
-	[ 11 ] = KEY_TV,		// AIR/CBL
-	[ 17 ] = KEY_PC,		// PC/TV
-	[ 23 ] = KEY_OK,		// CH RTN
-	[ 25 ] = KEY_MODE, 		// FUNC
-	[ 12 ] = KEY_SEARCH, 		// AUTOSCAN
+	[ 24 ] = KEY_KPPLUSMINUS,	/* CH +/- */
+	[ 22 ] = KEY_SUBTITLE,		/* CC */
+	[ 13 ] = KEY_TEXT,		/* TTX */
+	[ 11 ] = KEY_TV,		/* AIR/CBL */
+	[ 17 ] = KEY_PC,		/* PC/TV */
+	[ 23 ] = KEY_OK,		/* CH RTN */
+	[ 25 ] = KEY_MODE, 		/* FUNC */
+	[ 12 ] = KEY_SEARCH, 		/* AUTOSCAN */
 
 	/* Not sure what to do with these ones! */
-	[ 15 ] = KEY_SELECT, 		// SOURCE
-	[ 10 ] = KEY_KPPLUS,		// +100
-	[ 20 ] = KEY_KPEQUAL,		// SYNC
-	[ 28 ] = KEY_MEDIA,             // PC/TV
+	[ 15 ] = KEY_SELECT, 		/* SOURCE */
+	[ 10 ] = KEY_KPPLUS,		/* +100 */
+	[ 20 ] = KEY_KPEQUAL,		/* SYNC */
+	[ 28 ] = KEY_MEDIA,             /* PC/TV */
 };
 
 static IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
 	[ 0x3  ] = KEY_POWER,
 	[ 0x6f ] = KEY_MUTE,
-	[ 0x10 ] = KEY_BACKSPACE,	// Recall
+	[ 0x10 ] = KEY_BACKSPACE,	/* Recall */
 
 	[ 0x11 ] = KEY_KP0,
 	[ 0x4  ] = KEY_KP1,
@@ -97,7 +97,7 @@ static IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
 	[ 0xc  ] = KEY_KP7,
 	[ 0xd  ] = KEY_KP8,
 	[ 0xe  ] = KEY_KP9,
-	[ 0x12 ] = KEY_KPDOT,		// 100+
+	[ 0x12 ] = KEY_KPDOT,		/* 100+ */
 
 	[ 0x7  ] = KEY_VOLUMEUP,
 	[ 0xb  ] = KEY_VOLUMEDOWN,
@@ -109,25 +109,16 @@ static IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
 	[ 0x13 ] = KEY_CHANNELDOWN,
 	[ 0x48 ] = KEY_ZOOM,
 
-	[ 0x1b ] = KEY_VIDEO,		// Video source
-#if 0
-	[ 0x1f ] = KEY_S,       	// Snapshot
-#endif
-	[ 0x49 ] = KEY_LANGUAGE,	// MTS Select
-	[ 0x19 ] = KEY_SEARCH,		// Auto Scan
+	[ 0x1b ] = KEY_VIDEO,		/* Video source */
+	[ 0x49 ] = KEY_LANGUAGE,	/* MTS Select */
+	[ 0x19 ] = KEY_SEARCH,		/* Auto Scan */
 
 	[ 0x4b ] = KEY_RECORD,
 	[ 0x46 ] = KEY_PLAY,
-	[ 0x45 ] = KEY_PAUSE,   	// Pause
+	[ 0x45 ] = KEY_PAUSE,   	/* Pause */
 	[ 0x44 ] = KEY_STOP,
-#if 0
-	[ 0x43 ] = KEY_T,    		// Time Shift
-	[ 0x47 ] = KEY_Y,    		// Time Shift OFF
-	[ 0x4a ] = KEY_O,    		// TOP
-	[ 0x17 ] = KEY_F,    		// SURF CH
-#endif
-	[ 0x40 ] = KEY_FORWARD,   	// Forward ?
-	[ 0x42 ] = KEY_REWIND,   	// Backward ?
+	[ 0x40 ] = KEY_FORWARD,   	/* Forward ? */
+	[ 0x42 ] = KEY_REWIND,   	/* Backward ? */
 
 };
 

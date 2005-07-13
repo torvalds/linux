@@ -2,11 +2,11 @@
 # IP Virtual Server configuration
 #
 menu	"IP: Virtual Server Configuration"
-	depends on INET && NETFILTER
+	depends on NETFILTER
 
 config	IP_VS
 	tristate "IP virtual server support (EXPERIMENTAL)"
-	depends on INET && NETFILTER
+	depends on NETFILTER
 	---help---
 	  IP Virtual Server support will let you build a high-performance
 	  virtual server based on cluster of two or more real servers. This

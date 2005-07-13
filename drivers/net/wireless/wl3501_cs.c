@@ -49,7 +49,6 @@
 
 #include <net/iw_handler.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -2005,13 +2004,6 @@ static dev_link_t *wl3501_attach(void)
 	link->next		 = wl3501_dev_list;
 	wl3501_dev_list		 = link;
 	client_reg.dev_info	 = &wl3501_dev_info;
-	client_reg.EventMask	 = CS_EVENT_CARD_INSERTION |
-				   CS_EVENT_RESET_PHYSICAL |
-				   CS_EVENT_CARD_RESET |
-				   CS_EVENT_CARD_REMOVAL |
-				   CS_EVENT_PM_SUSPEND |
-				   CS_EVENT_PM_RESUME;
-	client_reg.event_handler = wl3501_event;
 	client_reg.Version	 = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 	ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -2246,12 +2238,13 @@ static struct pcmcia_device_id wl3501_ids[] = {
 MODULE_DEVICE_TABLE(pcmcia, wl3501_ids);
 
 static struct pcmcia_driver wl3501_driver = {
-	.owner          = THIS_MODULE,
-	.drv            = {
-		.name   = "wl3501_cs",
+	.owner		= THIS_MODULE,
+	.drv		= {
+		.name	= "wl3501_cs",
 	},
-	.attach         = wl3501_attach,
-	.detach         = wl3501_detach,
+	.attach		= wl3501_attach,
+	.event		= wl3501_event,
+	.detach		= wl3501_detach,
 	.id_table	= wl3501_ids,
 };
 

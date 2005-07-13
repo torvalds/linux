@@ -101,7 +101,7 @@ config CPU_ARM922T
 
 # ARM925T
 config CPU_ARM925T
- 	bool "Support ARM925T processor" if ARCH_OMAP
+ 	bool "Support ARM925T processor" if ARCH_OMAP1
  	depends on ARCH_OMAP1510
  	default y if ARCH_OMAP1510
 	select CPU_32v4

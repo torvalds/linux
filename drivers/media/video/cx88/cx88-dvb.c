@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-dvb.c,v 1.33 2005/06/12 04:19:19 mchehab Exp $
+ * $Id: cx88-dvb.c,v 1.41 2005/07/04 19:35:05 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
@@ -30,19 +30,26 @@
 #include <linux/file.h>
 #include <linux/suspend.h>
 
-/* those two frontends need merging via linuxtv cvs ... */
-#define HAVE_CX22702 1
-#define HAVE_OR51132 1
+#define CONFIG_DVB_MT352 1
+#define CONFIG_DVB_CX22702 1
+#define CONFIG_DVB_OR51132 1
+#define CONFIG_DVB_LGDT3302 1
 
 #include "cx88.h"
 #include "dvb-pll.h"
-#include "mt352.h"
-#include "mt352_priv.h"
-#if HAVE_CX22702
+
+#if CONFIG_DVB_MT352
+# include "mt352.h"
+# include "mt352_priv.h"
+#endif
+#if CONFIG_DVB_CX22702
 # include "cx22702.h"
 #endif
-#if HAVE_OR51132
+#if CONFIG_DVB_OR51132
 # include "or51132.h"
+#endif
+#if CONFIG_DVB_LGDT3302
+# include "lgdt3302.h"
 #endif
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
@@ -100,6 +107,7 @@ static struct videobuf_queue_ops dvb_qops = {
 
 /* ------------------------------------------------------------------ */
 
+#if CONFIG_DVB_MT352
 static int dvico_fusionhdtv_demod_init(struct dvb_frontend* fe)
 {
 	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x39 };
@@ -167,8 +175,9 @@ static struct mt352_config dntv_live_dvbt_config = {
 	.demod_init    = dntv_live_dvbt_demod_init,
 	.pll_set       = mt352_pll_set,
 };
+#endif
 
-#if HAVE_CX22702
+#if CONFIG_DVB_CX22702
 static struct cx22702_config connexant_refboard_config = {
 	.demod_address = 0x43,
 	.pll_address   = 0x60,
@@ -182,7 +191,7 @@ static struct cx22702_config hauppauge_novat_config = {
 };
 #endif
 
-#if HAVE_OR51132
+#if CONFIG_DVB_OR51132
 static int or51132_set_ts_param(struct dvb_frontend* fe,
 				int is_punctured)
 {
@@ -199,6 +208,32 @@ static struct or51132_config pchdtv_hd3000 = {
 };
 #endif
 
+#if CONFIG_DVB_LGDT3302
+static int lgdt3302_set_ts_param(struct dvb_frontend* fe, int is_punctured)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	if (is_punctured)
+		dev->ts_gen_cntrl |= 0x04;
+	else
+		dev->ts_gen_cntrl &= ~0x04;
+	return 0;
+}
+
+static struct lgdt3302_config fusionhdtv_3_gold_q = {
+	.demod_address    = 0x0e,
+	.pll_address      = 0x61,
+	.pll_desc         = &dvb_pll_microtune_4042,
+	.set_ts_params    = lgdt3302_set_ts_param,
+};
+
+static struct lgdt3302_config fusionhdtv_3_gold_t = {
+	.demod_address    = 0x0e,
+	.pll_address      = 0x61,
+	.pll_desc         = &dvb_pll_thomson_dtt7611,
+	.set_ts_params    = lgdt3302_set_ts_param,
+};
+#endif
+
 static int dvb_register(struct cx8802_dev *dev)
 {
 	/* init struct videobuf_dvb */
@@ -207,16 +242,18 @@ static int dvb_register(struct cx8802_dev *dev)
 
 	/* init frontend */
 	switch (dev->core->board) {
-#if HAVE_CX22702
+#if CONFIG_DVB_CX22702
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
 		dev->dvb.frontend = cx22702_attach(&hauppauge_novat_config,
 						   &dev->core->i2c_adap);
 		break;
+	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
 	case CX88_BOARD_CONEXANT_DVB_T1:
 		dev->dvb.frontend = cx22702_attach(&connexant_refboard_config,
 						   &dev->core->i2c_adap);
 		break;
 #endif
+#if CONFIG_DVB_MT352
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 		dev->core->pll_addr = 0x61;
 		dev->core->pll_desc = &dvb_pll_lg_z201;
@@ -231,15 +268,47 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	case CX88_BOARD_KWORLD_DVB_T:
 	case CX88_BOARD_DNTV_LIVE_DVB_T:
+	case CX88_BOARD_ADSTECH_DVB_T_PCI:
 		dev->core->pll_addr = 0x61;
 		dev->core->pll_desc = &dvb_pll_unknown_1;
 		dev->dvb.frontend = mt352_attach(&dntv_live_dvbt_config,
 						 &dev->core->i2c_adap);
 		break;
-#if HAVE_OR51132
+#endif
+#if CONFIG_DVB_OR51132
 	case CX88_BOARD_PCHDTV_HD3000:
 		dev->dvb.frontend = or51132_attach(&pchdtv_hd3000,
 						 &dev->core->i2c_adap);
+		break;
+#endif
+#if CONFIG_DVB_LGDT3302
+	case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q:
+		dev->ts_gen_cntrl = 0x08;
+		{
+		/* Do a hardware reset of chip before using it. */
+		struct cx88_core *core = dev->core;
+
+		cx_clear(MO_GP0_IO, 1);
+		mdelay(100);
+		cx_set(MO_GP0_IO, 9); // ANT connector too FIXME
+		mdelay(200);
+		dev->dvb.frontend = lgdt3302_attach(&fusionhdtv_3_gold_q,
+						    &dev->core->i2c_adap);
+		}
+		break;
+	case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T:
+		dev->ts_gen_cntrl = 0x08;
+		{
+		/* Do a hardware reset of chip before using it. */
+		struct cx88_core *core = dev->core;
+
+		cx_clear(MO_GP0_IO, 1);
+		mdelay(100);
+		cx_set(MO_GP0_IO, 9); /* ANT connector too FIXME */
+		mdelay(200);
+		dev->dvb.frontend = lgdt3302_attach(&fusionhdtv_3_gold_t,
+						    &dev->core->i2c_adap);
+		}
 		break;
 #endif
 	default:

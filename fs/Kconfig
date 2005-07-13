@@ -29,6 +29,7 @@ config EXT2_FS_XATTR
 config EXT2_FS_POSIX_ACL
 	bool "Ext2 POSIX Access Control Lists"
 	depends on EXT2_FS_XATTR
+	select FS_POSIX_ACL
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
@@ -114,6 +115,7 @@ config EXT3_FS_XATTR
 config EXT3_FS_POSIX_ACL
 	bool "Ext3 POSIX Access Control Lists"
 	depends on EXT3_FS_XATTR
+	select FS_POSIX_ACL
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
@@ -241,6 +243,7 @@ config REISERFS_FS_XATTR
 config REISERFS_FS_POSIX_ACL
 	bool "ReiserFS POSIX Access Control Lists"
 	depends on REISERFS_FS_XATTR
+	select FS_POSIX_ACL
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
@@ -274,6 +277,7 @@ config JFS_FS
 config JFS_POSIX_ACL
 	bool "JFS POSIX Access Control Lists"
 	depends on JFS_FS
+	select FS_POSIX_ACL
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
@@ -318,8 +322,7 @@ config FS_POSIX_ACL
 # 	Never use this symbol for ifdefs.
 #
 	bool
-	depends on EXT2_FS_POSIX_ACL || EXT3_FS_POSIX_ACL || JFS_POSIX_ACL || REISERFS_FS_POSIX_ACL || NFSD_V4
-	default y
+	default n
 
 source "fs/xfs/Kconfig"
 
@@ -355,6 +358,19 @@ config ROMFS_FS
 
 	  If you don't know whether you need it, then you don't need it:
 	  answer N.
+
+config INOTIFY
+	bool "Inotify file change notification support"
+	default y
+	---help---
+	  Say Y here to enable inotify support and the /dev/inotify character
+	  device.  Inotify is a file change notification system and a
+	  replacement for dnotify.  Inotify fixes numerous shortcomings in
+	  dnotify and introduces several new features.  It allows monitoring
+	  of both files and directories via a single open fd.  Multiple file
+	  events are supported.
+
+	  If unsure, say Y.
 
 config QUOTA
 	bool "Quota support"
@@ -1036,26 +1052,18 @@ config JFFS2_FS_DEBUG
 	  If reporting bugs, please try to have available a full dump of the
 	  messages at debug level 1 while the misbehaviour was occurring.
 
-config JFFS2_FS_NAND
-	bool "JFFS2 support for NAND flash"
+config JFFS2_FS_WRITEBUFFER
+	bool "JFFS2 write-buffering support"
 	depends on JFFS2_FS
-	default n
+	default y
 	help
-	  This enables the support for NAND flash in JFFS2. NAND is a newer
-	  type of flash chip design than the traditional NOR flash, with
-	  higher density but a handful of characteristics which make it more
-	  interesting for the file system to use.
+	  This enables the write-buffering support in JFFS2.
 
-	  Say 'N' unless you have NAND flash.
-
-config JFFS2_FS_NOR_ECC
-        bool "JFFS2 support for ECC'd NOR flash (EXPERIMENTAL)"
-        depends on JFFS2_FS && EXPERIMENTAL
-        default n
-        help
-          This enables the experimental support for NOR flash with transparent
-          ECC for JFFS2. This type of flash chip is not common, however it is
-          available from ST Microelectronics.
+	  This functionality is required to support JFFS2 on the following
+	  types of flash devices:
+	    - NAND flash
+	    - NOR flash with transparent ECC
+	    - DataFlash
 
 config JFFS2_COMPRESSION_OPTIONS
 	bool "Advanced compression options for JFFS2"
@@ -1438,6 +1446,7 @@ config NFSD_V4
 	select NFSD_TCP
 	select CRYPTO_MD5
 	select CRYPTO
+	select FS_POSIX_ACL
 	help
 	  If you would like to include the NFSv4 server as well as the NFSv2
 	  and NFSv3 servers, say Y here.  This feature is experimental, and

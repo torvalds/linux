@@ -979,10 +979,6 @@ SYM53C500_attach(void)
 	link->next = dev_list;
 	dev_list = link;
 	client_reg.dev_info = &dev_info;
-	client_reg.event_handler = &SYM53C500_event;
-	client_reg.EventMask = CS_EVENT_RESET_REQUEST | CS_EVENT_CARD_RESET |
-	    CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	    CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 	ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -1013,6 +1009,7 @@ static struct pcmcia_driver sym53c500_cs_driver = {
 		.name	= "sym53c500_cs",
 	},
 	.attach		= SYM53C500_attach,
+	.event		= SYM53C500_event,
 	.detach		= SYM53C500_detach,
 	.id_table       = sym53c500_ids,
 };

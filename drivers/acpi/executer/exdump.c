@@ -51,23 +51,48 @@
 #define _COMPONENT          ACPI_EXECUTER
 	 ACPI_MODULE_NAME    ("exdump")
 
+/* Local prototypes */
+
+#ifdef ACPI_FUTURE_USAGE
+static void
+acpi_ex_out_string (
+	char                            *title,
+	char                            *value);
+
+static void
+acpi_ex_out_pointer (
+	char                            *title,
+	void                            *value);
+
+static void
+acpi_ex_out_integer (
+	char                            *title,
+	u32                             value);
+
+static void
+acpi_ex_out_address (
+	char                            *title,
+	acpi_physical_address           value);
+#endif	/* ACPI_FUTURE_USAGE */
+
 
 /*
  * The following routines are used for debug output only
  */
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_dump_operand
  *
- * PARAMETERS:  *obj_desc         - Pointer to entry to be dumped
+ * PARAMETERS:  *obj_desc       - Pointer to entry to be dumped
+ *              Depth           - Current nesting depth
  *
  * RETURN:      None
  *
  * DESCRIPTION: Dump an operand object
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ex_dump_operand (
@@ -86,9 +111,8 @@ acpi_ex_dump_operand (
 	}
 
 	if (!obj_desc) {
-		/*
-		 * This could be a null element of a package
-		 */
+		/* This could be a null element of a package */
+
 		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Null Object Descriptor\n"));
 		return;
 	}
@@ -116,6 +140,8 @@ acpi_ex_dump_operand (
 	else {
 		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%p ", obj_desc));
 	}
+
+	/* Decode object type */
 
 	switch (ACPI_GET_OBJECT_TYPE (obj_desc)) {
 	case ACPI_TYPE_LOCAL_REFERENCE:
@@ -274,7 +300,9 @@ acpi_ex_dump_operand (
 	case ACPI_TYPE_STRING:
 
 		acpi_os_printf ("String length %X @ %p ",
-			obj_desc->string.length, obj_desc->string.pointer);
+			obj_desc->string.length,
+			obj_desc->string.pointer);
+
 		acpi_ut_print_string (obj_desc->string.pointer, ACPI_UINT8_MAX);
 		acpi_os_printf ("\n");
 		break;
@@ -290,10 +318,13 @@ acpi_ex_dump_operand (
 
 		acpi_os_printf (
 			"region_field: Bits=%X acc_width=%X Lock=%X Update=%X at byte=%X bit=%X of below:\n",
-			obj_desc->field.bit_length, obj_desc->field.access_byte_width,
+			obj_desc->field.bit_length,
+			obj_desc->field.access_byte_width,
 			obj_desc->field.field_flags & AML_FIELD_LOCK_RULE_MASK,
 			obj_desc->field.field_flags & AML_FIELD_UPDATE_RULE_MASK,
-			obj_desc->field.base_byte_offset, obj_desc->field.start_field_bit_offset);
+			obj_desc->field.base_byte_offset,
+			obj_desc->field.start_field_bit_offset);
+
 		acpi_ex_dump_operand (obj_desc->field.region_obj, depth+1);
 		break;
 
@@ -308,13 +339,15 @@ acpi_ex_dump_operand (
 
 		acpi_os_printf (
 			"buffer_field: %X bits at byte %X bit %X of \n",
-			obj_desc->buffer_field.bit_length, obj_desc->buffer_field.base_byte_offset,
+			obj_desc->buffer_field.bit_length,
+			obj_desc->buffer_field.base_byte_offset,
 			obj_desc->buffer_field.start_field_bit_offset);
 
 		if (!obj_desc->buffer_field.buffer_obj) {
 			ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "*NULL* \n"));
 		}
-		else if (ACPI_GET_OBJECT_TYPE (obj_desc->buffer_field.buffer_obj) != ACPI_TYPE_BUFFER) {
+		else if (ACPI_GET_OBJECT_TYPE (obj_desc->buffer_field.buffer_obj) !=
+				 ACPI_TYPE_BUFFER) {
 			acpi_os_printf ("*not a Buffer* \n");
 		}
 		else {
@@ -331,10 +364,10 @@ acpi_ex_dump_operand (
 
 	case ACPI_TYPE_METHOD:
 
-		acpi_os_printf (
-			"Method(%X) @ %p:%X\n",
+		acpi_os_printf ("Method(%X) @ %p:%X\n",
 			obj_desc->method.param_count,
-			obj_desc->method.aml_start, obj_desc->method.aml_length);
+			obj_desc->method.aml_start,
+			obj_desc->method.aml_length);
 		break;
 
 
@@ -379,7 +412,7 @@ acpi_ex_dump_operand (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_dump_operands
  *
@@ -393,7 +426,7 @@ acpi_ex_dump_operand (
  *
  * DESCRIPTION: Dump the object stack
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ex_dump_operands (
@@ -441,10 +474,9 @@ acpi_ex_dump_operands (
 
 
 #ifdef ACPI_FUTURE_USAGE
-
-/*****************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    acpi_ex_out*
+ * FUNCTION:    acpi_ex_out* functions
  *
  * PARAMETERS:  Title               - Descriptive text
  *              Value               - Value to be displayed
@@ -453,9 +485,9 @@ acpi_ex_dump_operands (
  *              reduce the number of format strings required and keeps them
  *              all in one place for easy modification.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
-void
+static void
 acpi_ex_out_string (
 	char                            *title,
 	char                            *value)
@@ -463,7 +495,7 @@ acpi_ex_out_string (
 	acpi_os_printf ("%20s : %s\n", title, value);
 }
 
-void
+static void
 acpi_ex_out_pointer (
 	char                            *title,
 	void                            *value)
@@ -471,7 +503,7 @@ acpi_ex_out_pointer (
 	acpi_os_printf ("%20s : %p\n", title, value);
 }
 
-void
+static void
 acpi_ex_out_integer (
 	char                            *title,
 	u32                             value)
@@ -479,7 +511,7 @@ acpi_ex_out_integer (
 	acpi_os_printf ("%20s : %X\n", title, value);
 }
 
-void
+static void
 acpi_ex_out_address (
 	char                            *title,
 	acpi_physical_address           value)
@@ -493,16 +525,16 @@ acpi_ex_out_address (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_dump_node
  *
  * PARAMETERS:  *Node               - Descriptor to dump
- *              Flags               - Force display
+ *              Flags               - Force display if TRUE
  *
  * DESCRIPTION: Dumps the members of the given.Node
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ex_dump_node (
@@ -531,16 +563,16 @@ acpi_ex_dump_node (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ex_dump_object_descriptor
  *
  * PARAMETERS:  *Object             - Descriptor to dump
- *              Flags               - Force display
+ *              Flags               - Force display if TRUE
  *
  * DESCRIPTION: Dumps the members of the object descriptor given.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ex_dump_object_descriptor (
@@ -552,6 +584,10 @@ acpi_ex_dump_object_descriptor (
 
 	ACPI_FUNCTION_TRACE ("ex_dump_object_descriptor");
 
+
+	if (!obj_desc) {
+		return_VOID;
+	}
 
 	if (!flags) {
 		if (!((ACPI_LV_OBJECTS & acpi_dbg_level) && (_COMPONENT & acpi_dbg_layer))) {
@@ -747,11 +783,17 @@ acpi_ex_dump_object_descriptor (
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
 		acpi_ex_out_integer ("target_type", obj_desc->reference.target_type);
-		acpi_ex_out_string ("Opcode",       (acpi_ps_get_opcode_info (obj_desc->reference.opcode))->name);
+		acpi_ex_out_string ("Opcode",       (acpi_ps_get_opcode_info (
+				  obj_desc->reference.opcode))->name);
 		acpi_ex_out_integer ("Offset",      obj_desc->reference.offset);
 		acpi_ex_out_pointer ("obj_desc",    obj_desc->reference.object);
 		acpi_ex_out_pointer ("Node",        obj_desc->reference.node);
 		acpi_ex_out_pointer ("Where",       obj_desc->reference.where);
+
+		if (obj_desc->reference.object) {
+			acpi_os_printf ("\nReferenced Object:\n");
+			acpi_ex_dump_object_descriptor (obj_desc->reference.object, flags);
+		}
 		break;
 
 
@@ -788,6 +830,5 @@ acpi_ex_dump_object_descriptor (
 }
 
 #endif  /*  ACPI_FUTURE_USAGE  */
-
 #endif
 

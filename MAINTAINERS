@@ -377,6 +377,10 @@ W:	http://www.thekelleys.org.uk/atmel
 W:	http://atmelwlandriver.sourceforge.net/
 S:	Maintained
 
+AUDIT SUBSYSTEM
+L:	linux-audit@redhat.com (subscribers-only)
+S:	Maintained
+
 AX.25 NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
@@ -1243,7 +1247,7 @@ S:	Maintained
 
 IRDA SUBSYSTEM
 P:	Jean Tourrilhes
-L:	irda-users@lists.sourceforge.net
+L:	irda-users@lists.sourceforge.net (subscribers-only)
 W:	http://irda.sourceforge.net/
 S:	Maintained
 
@@ -1810,8 +1814,9 @@ M:	greg@kroah.com
 S:	Maintained
 
 PCMCIA SUBSYSTEM
+P:	Linux PCMCIA Team
 L:	http://lists.infradead.org/mailman/listinfo/linux-pcmcia
-S:	Unmaintained
+S:	Maintained
 
 PCNET32 NETWORK DRIVER
 P:	Thomas Bogendörfer
@@ -2168,7 +2173,7 @@ UltraSPARC (sparc64):
 P:	David S. Miller
 M:	davem@davemloft.net
 P:	Eddie C. Dost
-M:	ecd@skynet.be
+M:	ecd@brainaid.de
 P:	Jakub Jelinek
 M:	jj@sunsite.ms.mff.cuni.cz
 P:	Anton Blanchard

@@ -22,6 +22,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/config.h>
 #include <linux/console.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
@@ -40,7 +41,6 @@
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/hvconsole.h>
-#include <asm/vio.h>
 
 #define HVC_MAJOR	229
 #define HVC_MINOR	0
@@ -61,15 +61,20 @@
  */
 #define HVC_ALLOC_TTY_ADAPTERS	8
 
-static struct tty_driver *hvc_driver;
-#ifdef CONFIG_MAGIC_SYSRQ
-static int sysrq_pressed;
-#endif
-
 #define N_OUTBUF	16
 #define N_INBUF		16
 
 #define __ALIGNED__	__attribute__((__aligned__(8)))
+
+static struct tty_driver *hvc_driver;
+static struct task_struct *hvc_task;
+
+/* Picks up late kicks after list walk but before schedule() */
+static int hvc_kicked;
+
+#ifdef CONFIG_MAGIC_SYSRQ
+static int sysrq_pressed;
+#endif
 
 struct hvc_struct {
 	spinlock_t lock;
@@ -80,11 +85,11 @@ struct hvc_struct {
 	char outbuf[N_OUTBUF] __ALIGNED__;
 	int n_outbuf;
 	uint32_t vtermno;
+	struct hv_ops *ops;
 	int irq_requested;
 	int irq;
 	struct list_head next;
 	struct kobject kobj; /* ref count & hvc_struct lifetime */
-	struct vio_dev *vdev;
 };
 
 /* dynamic list of hvc_struct instances */
@@ -97,48 +102,11 @@ static struct list_head hvc_structs = LIST_HEAD_INIT(hvc_structs);
 static DEFINE_SPINLOCK(hvc_structs_lock);
 
 /*
- * Initial console vtermnos for console API usage prior to full console
- * initialization.  Any vty adapter outside this range will not have usable
- * console interfaces but can still be used as a tty device.  This has to be
- * static because kmalloc will not work during early console init.
+ * This value is used to assign a tty->index value to a hvc_struct based
+ * upon order of exposure via hvc_probe(), when we can not match it to
+ * a console canidate registered with hvc_instantiate().
  */
-static uint32_t vtermnos[MAX_NR_HVC_CONSOLES];
-
-/* Used for accounting purposes */
-static int num_vterms = 0;
-
-static struct task_struct *hvc_task;
-
-/*
- * This value is used to associate a tty->index value to a hvc_struct based
- * upon order of exposure via hvc_probe().
- */
-static int hvc_count = -1;
-
-/* Picks up late kicks after list walk but before schedule() */
-static int hvc_kicked;
-
-/* Wake the sleeping khvcd */
-static void hvc_kick(void)
-{
-	hvc_kicked = 1;
-	wake_up_process(hvc_task);
-}
-
-/*
- * NOTE: This API isn't used if the console adapter doesn't support interrupts.
- * In this case the console is poll driven.
- */
-static irqreturn_t hvc_handle_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
-{
-	hvc_kick();
-	return IRQ_HANDLED;
-}
-
-static void hvc_unthrottle(struct tty_struct *tty)
-{
-	hvc_kick();
-}
+static int last_hvc = -1;
 
 /*
  * Do not call this function with either the hvc_strucst_lock or the hvc_struct
@@ -166,6 +134,178 @@ struct hvc_struct *hvc_get_by_index(int index)
 
 	spin_unlock(&hvc_structs_lock);
 	return hp;
+}
+
+
+/*
+ * Initial console vtermnos for console API usage prior to full console
+ * initialization.  Any vty adapter outside this range will not have usable
+ * console interfaces but can still be used as a tty device.  This has to be
+ * static because kmalloc will not work during early console init.
+ */
+static struct hv_ops *cons_ops[MAX_NR_HVC_CONSOLES];
+static uint32_t vtermnos[MAX_NR_HVC_CONSOLES] =
+	{[0 ... MAX_NR_HVC_CONSOLES - 1] = -1};
+
+/*
+ * Console APIs, NOT TTY.  These APIs are available immediately when
+ * hvc_console_setup() finds adapters.
+ */
+
+void hvc_console_print(struct console *co, const char *b, unsigned count)
+{
+	char c[16] __ALIGNED__;
+	unsigned i = 0, n = 0;
+	int r, donecr = 0, index = co->index;
+
+	/* Console access attempt outside of acceptable console range. */
+	if (index >= MAX_NR_HVC_CONSOLES)
+		return;
+
+	/* This console adapter was removed so it is not useable. */
+	if (vtermnos[index] < 0)
+		return;
+
+	while (count > 0 || i > 0) {
+		if (count > 0 && i < sizeof(c)) {
+			if (b[n] == '\n' && !donecr) {
+				c[i++] = '\r';
+				donecr = 1;
+			} else {
+				c[i++] = b[n++];
+				donecr = 0;
+				--count;
+			}
+		} else {
+			r = cons_ops[index]->put_chars(vtermnos[index], c, i);
+			if (r < 0) {
+				/* throw away chars on error */
+				i = 0;
+			} else if (r > 0) {
+				i -= r;
+				if (i > 0)
+					memmove(c, c+r, i);
+			}
+		}
+	}
+}
+
+static struct tty_driver *hvc_console_device(struct console *c, int *index)
+{
+	if (vtermnos[c->index] == -1)
+		return NULL;
+
+	*index = c->index;
+	return hvc_driver;
+}
+
+static int __init hvc_console_setup(struct console *co, char *options)
+{
+	if (co->index < 0 || co->index >= MAX_NR_HVC_CONSOLES)
+		return -ENODEV;
+
+	if (vtermnos[co->index] == -1)
+		return -ENODEV;
+
+	return 0;
+}
+
+struct console hvc_con_driver = {
+	.name		= "hvc",
+	.write		= hvc_console_print,
+	.device		= hvc_console_device,
+	.setup		= hvc_console_setup,
+	.flags		= CON_PRINTBUFFER,
+	.index		= -1,
+};
+
+/*
+ * Early console initialization.  Preceeds driver initialization.
+ *
+ * (1) we are first, and the user specified another driver
+ * -- index will remain -1
+ * (2) we are first and the user specified no driver
+ * -- index will be set to 0, then we will fail setup.
+ * (3)  we are first and the user specified our driver
+ * -- index will be set to user specified driver, and we will fail
+ * (4) we are after driver, and this initcall will register us
+ * -- if the user didn't specify a driver then the console will match
+ *
+ * Note that for cases 2 and 3, we will match later when the io driver
+ * calls hvc_instantiate() and call register again.
+ */
+static int __init hvc_console_init(void)
+{
+	register_console(&hvc_con_driver);
+	return 0;
+}
+console_initcall(hvc_console_init);
+
+/*
+ * hvc_instantiate() is an early console discovery method which locates
+ * consoles * prior to the vio subsystem discovering them.  Hotplugged
+ * vty adapters do NOT get an hvc_instantiate() callback since they
+ * appear after early console init.
+ */
+int hvc_instantiate(uint32_t vtermno, int index, struct hv_ops *ops)
+{
+	struct hvc_struct *hp;
+
+	if (index < 0 || index >= MAX_NR_HVC_CONSOLES)
+		return -1;
+
+	if (vtermnos[index] != -1)
+		return -1;
+
+	/* make sure no no tty has been registerd in this index */
+	hp = hvc_get_by_index(index);
+	if (hp) {
+		kobject_put(&hp->kobj);
+		return -1;
+	}
+
+	vtermnos[index] = vtermno;
+	cons_ops[index] = ops;
+
+	/* reserve all indices upto and including this index */
+	if (last_hvc < index)
+		last_hvc = index;
+
+	/* if this index is what the user requested, then register
+	 * now (setup won't fail at this point).  It's ok to just
+	 * call register again if previously .setup failed.
+	 */
+	if (index == hvc_con_driver.index)
+		register_console(&hvc_con_driver);
+
+	return 0;
+}
+EXPORT_SYMBOL(hvc_instantiate);
+
+/* Wake the sleeping khvcd */
+static void hvc_kick(void)
+{
+	hvc_kicked = 1;
+	wake_up_process(hvc_task);
+}
+
+static int hvc_poll(struct hvc_struct *hp);
+
+/*
+ * NOTE: This API isn't used if the console adapter doesn't support interrupts.
+ * In this case the console is poll driven.
+ */
+static irqreturn_t hvc_handle_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+{
+	/* if hvc_poll request a repoll, then kick the hvcd thread */
+	if (hvc_poll(dev_instance))
+		hvc_kick();
+	return IRQ_HANDLED;
+}
+
+static void hvc_unthrottle(struct tty_struct *tty)
+{
+	hvc_kick();
 }
 
 /*
@@ -329,7 +469,7 @@ static void hvc_push(struct hvc_struct *hp)
 {
 	int n;
 
-	n = hvc_put_chars(hp->vtermno, hp->outbuf, hp->n_outbuf);
+	n = hp->ops->put_chars(hp->vtermno, hp->outbuf, hp->n_outbuf);
 	if (n <= 0) {
 		if (n == 0)
 			return;
@@ -467,7 +607,7 @@ static int hvc_poll(struct hvc_struct *hp)
 			break;
 		}
 
-		n = hvc_get_chars(hp->vtermno, buf, count);
+		n = hp->ops->get_chars(hp->vtermno, buf, count);
 		if (n <= 0) {
 			/* Hangup the tty when disconnected from host */
 			if (n == -EPIPE) {
@@ -479,14 +619,17 @@ static int hvc_poll(struct hvc_struct *hp)
 		}
 		for (i = 0; i < n; ++i) {
 #ifdef CONFIG_MAGIC_SYSRQ
-			/* Handle the SysRq Hack */
-			if (buf[i] == '\x0f') {	/* ^O -- should support a sequence */
-				sysrq_pressed = 1;
-				continue;
-			} else if (sysrq_pressed) {
-				handle_sysrq(buf[i], NULL, tty);
-				sysrq_pressed = 0;
-				continue;
+			if (hp->index == hvc_con_driver.index) {
+				/* Handle the SysRq Hack */
+				/* XXX should support a sequence */
+				if (buf[i] == '\x0f') {	/* ^O */
+					sysrq_pressed = 1;
+					continue;
+				} else if (sysrq_pressed) {
+					handle_sysrq(buf[i], NULL, tty);
+					sysrq_pressed = 0;
+					continue;
+				}
 			}
 #endif /* CONFIG_MAGIC_SYSRQ */
 			tty_insert_flip_char(tty, buf[i], 0);
@@ -497,8 +640,8 @@ static int hvc_poll(struct hvc_struct *hp)
 
 		/*
 		 * Account for the total amount read in one loop, and if above
-		 * 64 bytes, we do a quick schedule loop to let the tty grok the
-		 * data and eventually throttle us.
+		 * 64 bytes, we do a quick schedule loop to let the tty grok
+		 * the data and eventually throttle us.
 		 */
 		read_total += n;
 		if (read_total >= 64) {
@@ -542,7 +685,6 @@ int khvcd(void *unused)
 		if (cpus_empty(cpus_in_xmon)) {
 			spin_lock(&hvc_structs_lock);
 			list_for_each_entry(hp, &hvc_structs, next) {
-				/*hp = list_entry(node, struct hvc_struct, * next); */
 				poll_mask |= hvc_poll(hp);
 			}
 			spin_unlock(&hvc_structs_lock);
@@ -577,14 +719,6 @@ static struct tty_operations hvc_ops = {
 	.chars_in_buffer = hvc_chars_in_buffer,
 };
 
-char hvc_driver_name[] = "hvc_console";
-
-static struct vio_device_id hvc_driver_table[] __devinitdata= {
-	{"serial", "hvterm1"},
-	{ NULL, }
-};
-MODULE_DEVICE_TABLE(vio, hvc_driver_table);
-
 /* callback when the kboject ref count reaches zero. */
 static void destroy_hvc_struct(struct kobject *kobj)
 {
@@ -606,41 +740,51 @@ static struct kobj_type hvc_kobj_type = {
 	.release = destroy_hvc_struct,
 };
 
-static int __devinit hvc_probe(
-		struct vio_dev *dev,
-		const struct vio_device_id *id)
+struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq,
+					struct hv_ops *ops)
 {
 	struct hvc_struct *hp;
-
-	/* probed with invalid parameters. */
-	if (!dev || !id)
-		return -EPERM;
+	int i;
 
 	hp = kmalloc(sizeof(*hp), GFP_KERNEL);
 	if (!hp)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	memset(hp, 0x00, sizeof(*hp));
-	hp->vtermno = dev->unit_address;
-	hp->vdev = dev;
-	hp->vdev->dev.driver_data = hp;
-	hp->irq = dev->irq;
+
+	hp->vtermno = vtermno;
+	hp->irq = irq;
+	hp->ops = ops;
 
 	kobject_init(&hp->kobj);
 	hp->kobj.ktype = &hvc_kobj_type;
 
 	spin_lock_init(&hp->lock);
 	spin_lock(&hvc_structs_lock);
-	hp->index = ++hvc_count;
+
+	/*
+	 * find index to use:
+	 * see if this vterm id matches one registered for console.
+	 */
+	for (i=0; i < MAX_NR_HVC_CONSOLES; i++)
+		if (vtermnos[i] == hp->vtermno)
+			break;
+
+	/* no matching slot, just use a counter */
+	if (i >= MAX_NR_HVC_CONSOLES)
+		i = ++last_hvc;
+
+	hp->index = i;
+
 	list_add_tail(&(hp->next), &hvc_structs);
 	spin_unlock(&hvc_structs_lock);
 
-	return 0;
+	return hp;
 }
+EXPORT_SYMBOL(hvc_alloc);
 
-static int __devexit hvc_remove(struct vio_dev *dev)
+int __devexit hvc_remove(struct hvc_struct *hp)
 {
-	struct hvc_struct *hp = dev->dev.driver_data;
 	unsigned long flags;
 	struct kobject *kobjp;
 	struct tty_struct *tty;
@@ -673,23 +817,14 @@ static int __devexit hvc_remove(struct vio_dev *dev)
 		tty_hangup(tty);
 	return 0;
 }
-
-static struct vio_driver hvc_vio_driver = {
-	.name		= hvc_driver_name,
-	.id_table	= hvc_driver_table,
-	.probe		= hvc_probe,
-	.remove		= hvc_remove,
-};
+EXPORT_SYMBOL(hvc_remove);
 
 /* Driver initialization.  Follow console initialization.  This is where the TTY
  * interfaces start to become available. */
 int __init hvc_init(void)
 {
-	int rc;
-
-	/* We need more than num_vterms adapters due to hotplug additions. */
+	/* We need more than hvc_count adapters due to hotplug additions. */
 	hvc_driver = alloc_tty_driver(HVC_ALLOC_TTY_ADAPTERS);
-	/* hvc_driver = alloc_tty_driver(num_vterms); */
 	if (!hvc_driver)
 		return -ENOMEM;
 
@@ -716,116 +851,20 @@ int __init hvc_init(void)
 		return -EIO;
 	}
 
-	/* Register as a vio device to receive callbacks */
-	rc = vio_register_driver(&hvc_vio_driver);
-
-	return rc;
+	return 0;
 }
+module_init(hvc_init);
 
-/* This isn't particularily necessary due to this being a console driver but it
- * is nice to be thorough */
+/* This isn't particularily necessary due to this being a console driver
+ * but it is nice to be thorough.
+ */
 static void __exit hvc_exit(void)
 {
 	kthread_stop(hvc_task);
 
-	vio_unregister_driver(&hvc_vio_driver);
 	tty_unregister_driver(hvc_driver);
 	/* return tty_struct instances allocated in hvc_init(). */
 	put_tty_driver(hvc_driver);
+	unregister_console(&hvc_con_driver);
 }
-
-/*
- * Console APIs, NOT TTY.  These APIs are available immediately when
- * hvc_console_setup() finds adapters.
- */
-
-/*
- * hvc_instantiate() is an early console discovery method which locates consoles
- * prior to the vio subsystem discovering them.  Hotplugged vty adapters do NOT
- * get an hvc_instantiate() callback since the appear after early console init.
- */
-int hvc_instantiate(uint32_t vtermno, int index)
-{
-	if (index < 0 || index >= MAX_NR_HVC_CONSOLES)
-		return -1;
-
-	if (vtermnos[index] != -1)
-		return -1;
-
-	vtermnos[index] = vtermno;
-	return 0;
-}
-
-void hvc_console_print(struct console *co, const char *b, unsigned count)
-{
-	char c[16] __ALIGNED__;
-	unsigned i = 0, n = 0;
-	int r, donecr = 0;
-
-	/* Console access attempt outside of acceptable console range. */
-	if (co->index >= MAX_NR_HVC_CONSOLES)
-		return;
-
-	/* This console adapter was removed so it is not useable. */
-	if (vtermnos[co->index] < 0)
-		return;
-
-	while (count > 0 || i > 0) {
-		if (count > 0 && i < sizeof(c)) {
-			if (b[n] == '\n' && !donecr) {
-				c[i++] = '\r';
-				donecr = 1;
-			} else {
-				c[i++] = b[n++];
-				donecr = 0;
-				--count;
-			}
-		} else {
-			r = hvc_put_chars(vtermnos[co->index], c, i);
-			if (r < 0) {
-				/* throw away chars on error */
-				i = 0;
-			} else if (r > 0) {
-				i -= r;
-				if (i > 0)
-					memmove(c, c+r, i);
-			}
-		}
-	}
-}
-
-static struct tty_driver *hvc_console_device(struct console *c, int *index)
-{
-	*index = c->index;
-	return hvc_driver;
-}
-
-static int __init hvc_console_setup(struct console *co, char *options)
-{
-	return 0;
-}
-
-struct console hvc_con_driver = {
-	.name		= "hvc",
-	.write		= hvc_console_print,
-	.device		= hvc_console_device,
-	.setup		= hvc_console_setup,
-	.flags		= CON_PRINTBUFFER,
-	.index		= -1,
-};
-
-/* Early console initialization.  Preceeds driver initialization. */
-static int __init hvc_console_init(void)
-{
-	int i;
-
-	for (i=0; i<MAX_NR_HVC_CONSOLES; i++)
-		vtermnos[i] = -1;
-	num_vterms = hvc_find_vtys();
-	register_console(&hvc_con_driver);
-	return 0;
-}
-console_initcall(hvc_console_init);
-
-module_init(hvc_init);
 module_exit(hvc_exit);

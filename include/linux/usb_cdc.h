@@ -34,6 +34,7 @@
 #define USB_CDC_ACM_TYPE		0x02		/* acm_descriptor */
 #define USB_CDC_UNION_TYPE		0x06		/* union_desc */
 #define USB_CDC_COUNTRY_TYPE		0x07
+#define USB_CDC_NETWORK_TERMINAL_TYPE	0x0a		/* network_terminal_desc */
 #define USB_CDC_ETHERNET_TYPE		0x0f		/* ether_desc */
 #define USB_CDC_WHCM_TYPE		0x11
 #define USB_CDC_MDLM_TYPE		0x12		/* mdlm_desc */
@@ -81,6 +82,18 @@ struct usb_cdc_union_desc {
 	__u8	bMasterInterface0;
 	__u8	bSlaveInterface0;
 	/* ... and there could be other slave interfaces */
+} __attribute__ ((packed));
+
+/* "Network Channel Terminal Functional Descriptor" from CDC spec 5.2.3.11 */
+struct usb_cdc_network_terminal_desc {
+	__u8	bLength;
+	__u8	bDescriptorType;
+	__u8	bDescriptorSubType;
+
+	__u8	bEntityId;
+	__u8	iName;
+	__u8	bChannelIndex;
+	__u8	bPhysicalInterface;
 } __attribute__ ((packed));
 
 /* "Ethernet Networking Functional Descriptor" from CDC spec 5.2.3.16 */

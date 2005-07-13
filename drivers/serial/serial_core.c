@@ -1808,6 +1808,12 @@ uart_set_options(struct uart_port *port, struct console *co,
 	struct termios termios;
 	int i;
 
+	/*
+	 * Ensure that the serial console lock is initialised
+	 * early.
+	 */
+	spin_lock_init(&port->lock);
+
 	memset(&termios, 0, sizeof(struct termios));
 
 	termios.c_cflag = CREAD | HUPCL | CLOCAL;
@@ -2196,9 +2202,15 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 
 	state->port = port;
 
-	spin_lock_init(&port->lock);
 	port->cons = drv->cons;
 	port->info = state->info;
+
+	/*
+	 * If this port is a console, then the spinlock is already
+	 * initialised.
+	 */
+	if (!uart_console(port))
+		spin_lock_init(&port->lock);
 
 	uart_configure_port(drv, state, port);
 

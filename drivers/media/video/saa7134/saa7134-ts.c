@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-ts.c,v 1.14 2005/02/03 10:24:33 kraxel Exp $
+ * $Id: saa7134-ts.c,v 1.15 2005/06/14 22:48:18 hhackmann Exp $
  *
  * device driver for philips saa7134 based TV cards
  * video4linux video interface
@@ -221,10 +221,10 @@ void saa7134_irq_ts_done(struct saa7134_dev *dev, unsigned long status)
 	if (dev->ts_q.curr) {
 		field = dev->ts_q.curr->vb.field;
 		if (field == V4L2_FIELD_TOP) {
-			if ((status & 0x100000) != 0x000000)
+			if ((status & 0x100000) != 0x100000)
 				goto done;
 		} else {
-			if ((status & 0x100000) != 0x100000)
+			if ((status & 0x100000) != 0x000000)
 				goto done;
 		}
 		saa7134_buffer_finish(dev,&dev->ts_q,STATE_DONE);

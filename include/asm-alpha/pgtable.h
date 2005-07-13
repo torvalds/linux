@@ -133,6 +133,12 @@
 #define __S111	_PAGE_S(0)
 
 /*
+ * pgprot_noncached() is only for infiniband pci support, and a real
+ * implementation for RAM would be more complicated.
+ */
+#define pgprot_noncached(prot)	(prot)
+
+/*
  * BAD_PAGETABLE is used when we need a bogus page-table, while
  * BAD_PAGE is used for a bogus page.
  *

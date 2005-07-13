@@ -4,7 +4,7 @@
 SUBARCH_LIBS := arch/um/sys-x86_64/
 START := 0x60000000
 
-CFLAGS += -U__$(SUBARCH)__ -fno-builtin
+CFLAGS += -U__$(SUBARCH)__ -fno-builtin $(STUB_CFLAGS)
 ARCH_USER_CFLAGS := -D__x86_64__
 
 ELF_ARCH := i386:x86-64

@@ -205,11 +205,6 @@ META_COLLECTOR(int_protocol)
 	dst->value = skb->protocol;
 }
 
-META_COLLECTOR(int_security)
-{
-	dst->value = skb->security;
-}
-
 META_COLLECTOR(int_pkttype)
 {
 	dst->value = skb->pkt_type;
@@ -524,7 +519,6 @@ static struct meta_ops __meta_ops[TCF_META_TYPE_MAX+1][TCF_META_ID_MAX+1] = {
 		[META_ID(REALDEV)]		= META_FUNC(int_realdev),
 		[META_ID(PRIORITY)]		= META_FUNC(int_priority),
 		[META_ID(PROTOCOL)]		= META_FUNC(int_protocol),
-		[META_ID(SECURITY)]		= META_FUNC(int_security),
 		[META_ID(PKTTYPE)]		= META_FUNC(int_pkttype),
 		[META_ID(PKTLEN)]		= META_FUNC(int_pktlen),
 		[META_ID(DATALEN)]		= META_FUNC(int_datalen),

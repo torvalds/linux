@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-input.c,v 1.19 2005/06/07 18:02:26 nsh Exp $
+ * $Id: saa7134-input.c,v 1.21 2005/06/22 23:37:34 nsh Exp $
  *
  * handle saa7134 IR remotes via linux kernel input layer.
  *
@@ -68,10 +68,8 @@ static IR_KEYTAB_TYPE flyvideo_codes[IR_KEYTAB_SIZE] = {
 	[    6 ] = KEY_AGAIN,        // Recal
 	[   16 ] = KEY_KPENTER,      // Enter
 
-#if 1 /* FIXME */
 	[   26 ] = KEY_F22,          // Stereo
 	[   24 ] = KEY_EDIT,         // AV Source
-#endif
 };
 
 static IR_KEYTAB_TYPE cinergy_codes[IR_KEYTAB_SIZE] = {
@@ -172,45 +170,45 @@ static IR_KEYTAB_TYPE eztv_codes[IR_KEYTAB_SIZE] = {
 };
 
 static IR_KEYTAB_TYPE avacssmart_codes[IR_KEYTAB_SIZE] = {
-        [ 30 ] = KEY_POWER,		// power
+	[ 30 ] = KEY_POWER,		// power
 	[ 28 ] = KEY_SEARCH,		// scan
-        [  7 ] = KEY_SELECT,		// source
+	[  7 ] = KEY_SELECT,		// source
 
 	[ 22 ] = KEY_VOLUMEUP,
 	[ 20 ] = KEY_VOLUMEDOWN,
-        [ 31 ] = KEY_CHANNELUP,
+	[ 31 ] = KEY_CHANNELUP,
 	[ 23 ] = KEY_CHANNELDOWN,
 	[ 24 ] = KEY_MUTE,
 
 	[  2 ] = KEY_KP0,
-        [  1 ] = KEY_KP1,
-        [ 11 ] = KEY_KP2,
-        [ 27 ] = KEY_KP3,
-        [  5 ] = KEY_KP4,
-        [  9 ] = KEY_KP5,
-        [ 21 ] = KEY_KP6,
+	[  1 ] = KEY_KP1,
+	[ 11 ] = KEY_KP2,
+	[ 27 ] = KEY_KP3,
+	[  5 ] = KEY_KP4,
+	[  9 ] = KEY_KP5,
+	[ 21 ] = KEY_KP6,
 	[  6 ] = KEY_KP7,
-        [ 10 ] = KEY_KP8,
+	[ 10 ] = KEY_KP8,
 	[ 18 ] = KEY_KP9,
 	[ 16 ] = KEY_KPDOT,
 
 	[  3 ] = KEY_TUNER,		// tv/fm
-        [  4 ] = KEY_REWIND,		// fm tuning left or function left
-        [ 12 ] = KEY_FORWARD,		// fm tuning right or function right
+	[  4 ] = KEY_REWIND,		// fm tuning left or function left
+	[ 12 ] = KEY_FORWARD,		// fm tuning right or function right
 
 	[  0 ] = KEY_RECORD,
-        [  8 ] = KEY_STOP,
-        [ 17 ] = KEY_PLAY,
+	[  8 ] = KEY_STOP,
+	[ 17 ] = KEY_PLAY,
 
 	[ 25 ] = KEY_ZOOM,
 	[ 14 ] = KEY_MENU,		// function
 	[ 19 ] = KEY_AGAIN,		// recall
 	[ 29 ] = KEY_RESTART,		// reset
+	[ 26 ] = KEY_SHUFFLE,		// snapshot/shuffle
 
 // FIXME
 	[ 13 ] = KEY_F21,		// mts
-        [ 15 ] = KEY_F22,		// min
-	[ 26 ] = KEY_F23,		// freeze
+	[ 15 ] = KEY_F22,		// min
 };
 
 /* Alex Hermann <gaaf@gmx.net> */
@@ -489,13 +487,14 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_ECS_TVP3XP:
 	case SAA7134_BOARD_ECS_TVP3XP_4CB5:
-                ir_codes     = eztv_codes;
-                mask_keycode = 0x00017c;
-                mask_keyup   = 0x000002;
+		ir_codes     = eztv_codes;
+		mask_keycode = 0x00017c;
+		mask_keyup   = 0x000002;
 		polling      = 50; // ms
-                break;
+		break;
+	case SAA7134_BOARD_KWORLD_XPERT:
 	case SAA7134_BOARD_AVACSSMARTTV:
-	        ir_codes     = avacssmart_codes;
+		ir_codes     = avacssmart_codes;
 		mask_keycode = 0x00001F;
 		mask_keyup   = 0x000020;
 		polling      = 50; // ms
@@ -524,6 +523,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		polling      = 50; // ms
 		break;
 	case SAA7134_BOARD_VIDEOMATE_TV_PVR:
+	case SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUSII:
 		ir_codes     = videomate_tv_pvr_codes;
 		mask_keycode = 0x00003F;
 		mask_keyup   = 0x400000;

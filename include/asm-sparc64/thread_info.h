@@ -220,8 +220,8 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define TIF_NEWSIGNALS		6	/* wants new-style signals */
 #define TIF_32BIT		7	/* 32-bit binary */
 #define TIF_NEWCHILD		8	/* just-spawned child process */
-/* TIF_* value 9 is available */
-#define TIF_POLLING_NRFLAG	10
+#define TIF_SECCOMP		9	/* secure computing */
+#define TIF_SYSCALL_AUDIT	10	/* syscall auditing active */
 #define TIF_SYSCALL_SUCCESS	11
 /* NOTE: Thread flags >= 12 should be ones we have no interest
  *       in using in assembly, else we can't use the mask as
@@ -229,6 +229,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
  */
 #define TIF_ABI_PENDING		12
 #define TIF_MEMDIE		13
+#define TIF_POLLING_NRFLAG	14
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
@@ -239,9 +240,11 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define _TIF_NEWSIGNALS		(1<<TIF_NEWSIGNALS)
 #define _TIF_32BIT		(1<<TIF_32BIT)
 #define _TIF_NEWCHILD		(1<<TIF_NEWCHILD)
-#define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
-#define _TIF_ABI_PENDING	(1<<TIF_ABI_PENDING)
+#define _TIF_SECCOMP		(1<<TIF_SECCOMP)
+#define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SYSCALL_SUCCESS	(1<<TIF_SYSCALL_SUCCESS)
+#define _TIF_ABI_PENDING	(1<<TIF_ABI_PENDING)
+#define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 
 #define _TIF_USER_WORK_MASK	((0xff << TI_FLAG_WSAVED_SHIFT) | \
 				 (_TIF_NOTIFY_RESUME | _TIF_SIGPENDING | \

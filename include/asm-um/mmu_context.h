@@ -7,18 +7,22 @@
 #define __UM_MMU_CONTEXT_H
 
 #include "linux/sched.h"
+#include "linux/config.h"
 #include "choose-mode.h"
+#include "um_mmu.h"
 
 #define get_mmu_context(task) do ; while(0)
 #define activate_context(tsk) do ; while(0)
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
 
+extern void force_flush_all(void);
+
 static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 {
+	if (old != new)
+		force_flush_all();
 }
-
-extern void switch_mm_skas(int mm_fd);
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
 			     struct task_struct *tsk)
@@ -30,7 +34,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		cpu_set(cpu, next->cpu_vm_mask);
 		if(next != &init_mm)
 			CHOOSE_MODE((void) 0, 
-				    switch_mm_skas(next->context.skas.mm_fd));
+				    switch_mm_skas(&next->context.skas.id));
 	}
 }
 

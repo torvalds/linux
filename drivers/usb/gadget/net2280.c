@@ -376,7 +376,7 @@ static int net2280_disable (struct usb_ep *_ep)
 /*-------------------------------------------------------------------------*/
 
 static struct usb_request *
-net2280_alloc_request (struct usb_ep *_ep, int gfp_flags)
+net2280_alloc_request (struct usb_ep *_ep, unsigned gfp_flags)
 {
 	struct net2280_ep	*ep;
 	struct net2280_request	*req;
@@ -463,7 +463,7 @@ net2280_alloc_buffer (
 	struct usb_ep		*_ep,
 	unsigned		bytes,
 	dma_addr_t		*dma,
-	int			gfp_flags
+	unsigned		gfp_flags
 )
 {
 	void			*retval;
@@ -897,7 +897,7 @@ done (struct net2280_ep *ep, struct net2280_request *req, int status)
 /*-------------------------------------------------------------------------*/
 
 static int
-net2280_queue (struct usb_ep *_ep, struct usb_request *_req, int gfp_flags)
+net2280_queue (struct usb_ep *_ep, struct usb_request *_req, unsigned gfp_flags)
 {
 	struct net2280_request	*req;
 	struct net2280_ep	*ep;
@@ -1490,7 +1490,7 @@ show_registers (struct device *_dev, struct device_attribute *attr, char *buf)
 	unsigned long		flags;
 	int			i;
 	u32			t1, t2;
-	char			*s;
+	const char		*s;
 
 	dev = dev_get_drvdata (_dev);
 	next = buf;

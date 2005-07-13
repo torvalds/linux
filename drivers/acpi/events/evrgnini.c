@@ -61,7 +61,7 @@
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling, a nop for now
+ * DESCRIPTION: Setup a system_memory operation region
  *
  ******************************************************************************/
 
@@ -115,7 +115,7 @@ acpi_ev_system_memory_region_setup (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling
+ * DESCRIPTION: Setup a IO operation region
  *
  ******************************************************************************/
 
@@ -144,14 +144,14 @@ acpi_ev_io_space_region_setup (
  *
  * FUNCTION:    acpi_ev_pci_config_region_setup
  *
- * PARAMETERS:  Handle             - Region we are interested in
+ * PARAMETERS:  Handle              - Region we are interested in
  *              Function            - Start or stop
  *              handler_context     - Address space handler context
  *              region_context      - Region specific context
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling
+ * DESCRIPTION: Setup a PCI_Config operation region
  *
  * MUTEX:       Assumes namespace is not locked
  *
@@ -324,7 +324,7 @@ acpi_ev_pci_config_region_setup (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling
+ * DESCRIPTION: Setup a pci_bAR operation region
  *
  * MUTEX:       Assumes namespace is not locked
  *
@@ -355,7 +355,7 @@ acpi_ev_pci_bar_region_setup (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling
+ * DESCRIPTION: Setup a CMOS operation region
  *
  * MUTEX:       Assumes namespace is not locked
  *
@@ -386,7 +386,7 @@ acpi_ev_cmos_region_setup (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Do any prep work for region handling
+ * DESCRIPTION: Default region initialization
  *
  ******************************************************************************/
 

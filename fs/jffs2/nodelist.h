@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.h,v 1.126 2004/11/19 15:06:29 dedekind Exp $
+ * $Id: nodelist.h,v 1.131 2005/07/05 21:03:07 dwmw2 Exp $
  *
  */
 
@@ -135,6 +135,7 @@ struct jffs2_inode_cache {
 #define INO_STATE_CHECKEDABSENT	3	/* Checked, cleared again */
 #define INO_STATE_GC		4	/* GCing a 'pristine' node */
 #define INO_STATE_READING	5	/* In read_inode() */
+#define INO_STATE_CLEARING	6	/* In clear_inode() */
 
 #define INOCACHE_HASHSIZE 128
 
@@ -160,7 +161,7 @@ struct jffs2_full_dnode
 */
 struct jffs2_tmp_dnode_info
 {
-	struct jffs2_tmp_dnode_info *next;
+	struct rb_node rb;
 	struct jffs2_full_dnode *fn;
 	uint32_t version;
 };       
@@ -362,6 +363,18 @@ static inline struct jffs2_node_frag *frag_first(struct rb_root *root)
 		node = node->rb_left;
 	return rb_entry(node, struct jffs2_node_frag, rb);
 }
+
+static inline struct jffs2_node_frag *frag_last(struct rb_root *root)
+{
+	struct rb_node *node = root->rb_node;
+
+	if (!node)
+		return NULL;
+	while(node->rb_right)
+		node = node->rb_right;
+	return rb_entry(node, struct jffs2_node_frag, rb);
+}
+
 #define rb_parent(rb) ((rb)->rb_parent)
 #define frag_next(frag) rb_entry(rb_next(&(frag)->rb), struct jffs2_node_frag, rb)
 #define frag_prev(frag) rb_entry(rb_prev(&(frag)->rb), struct jffs2_node_frag, rb)
@@ -374,7 +387,7 @@ static inline struct jffs2_node_frag *frag_first(struct rb_root *root)
 D2(void jffs2_print_frag_list(struct jffs2_inode_info *f));
 void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new, struct jffs2_full_dirent **list);
 int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
-			  struct jffs2_tmp_dnode_info **tnp, struct jffs2_full_dirent **fdp,
+			  struct rb_root *tnp, struct jffs2_full_dirent **fdp,
 			  uint32_t *highest_version, uint32_t *latest_mctime,
 			  uint32_t *mctime_ver);
 void jffs2_set_inocache_state(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic, int state);
@@ -462,7 +475,7 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c);
 /* erase.c */
 void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count);
 
-#ifdef CONFIG_JFFS2_FS_NAND
+#ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 /* wbuf.c */
 int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino);
 int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c);

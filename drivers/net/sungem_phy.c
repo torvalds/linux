@@ -32,6 +32,10 @@
 #include <linux/ethtool.h>
 #include <linux/delay.h>
 
+#ifdef CONFIG_PPC_PMAC
+#include <asm/prom.h>
+#endif
+
 #include "sungem_phy.h"
 
 /* Link modes of the BCM5400 PHY */
@@ -281,10 +285,12 @@ static int bcm5411_suspend(struct mii_phy* phy)
 static int bcm5421_init(struct mii_phy* phy)
 {
 	u16 data;
-	int rev;
+	unsigned int id;
 
-	rev = phy_read(phy, MII_PHYSID2) & 0x000f;
-	if (rev == 0) {
+	id = (phy_read(phy, MII_PHYSID1) << 16 | phy_read(phy, MII_PHYSID2));
+
+	/* Revision 0 of 5421 needs some fixups */
+	if (id == 0x002060e0) {
 		/* This is borrowed from MacOS
 		 */
 		phy_write(phy, 0x18, 0x1007);
@@ -297,21 +303,28 @@ static int bcm5421_init(struct mii_phy* phy)
 		data = phy_read(phy, 0x15);
 		phy_write(phy, 0x15, data | 0x0200);
 	}
-#if 0
-	/* This has to be verified before I enable it */
-	/* Enable automatic low-power */
-	phy_write(phy, 0x1c, 0x9002);
-	phy_write(phy, 0x1c, 0xa821);
-	phy_write(phy, 0x1c, 0x941d);
-#endif
-	return 0;
-}
 
-static int bcm5421k2_init(struct mii_phy* phy)
-{
-	/* Init code borrowed from OF */
-	phy_write(phy, 4, 0x01e1);
-	phy_write(phy, 9, 0x0300);
+	/* Pick up some init code from OF for K2 version */
+	if ((id & 0xfffffff0) == 0x002062e0) {
+		phy_write(phy, 4, 0x01e1);
+		phy_write(phy, 9, 0x0300);
+	}
+
+	/* Check if we can enable automatic low power */
+#ifdef CONFIG_PPC_PMAC
+	if (phy->platform_data) {
+		struct device_node *np = of_get_parent(phy->platform_data);
+		int can_low_power = 1;
+		if (np == NULL || get_property(np, "no-autolowpower", NULL))
+			can_low_power = 0;
+		if (can_low_power) {
+			/* Enable automatic low-power */
+			phy_write(phy, 0x1c, 0x9002);
+			phy_write(phy, 0x1c, 0xa821);
+			phy_write(phy, 0x1c, 0x941d);
+		}
+	}
+#endif /* CONFIG_PPC_PMAC */
 
 	return 0;
 }
@@ -762,7 +775,7 @@ static struct mii_phy_def bcm5421_phy_def = {
 
 /* Broadcom BCM 5421 built-in K2 */
 static struct mii_phy_ops bcm5421k2_phy_ops = {
-	.init		= bcm5421k2_init,
+	.init		= bcm5421_init,
 	.suspend	= bcm5411_suspend,
 	.setup_aneg	= bcm54xx_setup_aneg,
 	.setup_forced	= bcm54xx_setup_forced,
@@ -777,6 +790,25 @@ static struct mii_phy_def bcm5421k2_phy_def = {
 	.features	= MII_GBIT_FEATURES,
 	.magic_aneg	= 1,
 	.ops		= &bcm5421k2_phy_ops
+};
+
+/* Broadcom BCM 5462 built-in Vesta */
+static struct mii_phy_ops bcm5462V_phy_ops = {
+	.init		= bcm5421_init,
+	.suspend	= bcm5411_suspend,
+	.setup_aneg	= bcm54xx_setup_aneg,
+	.setup_forced	= bcm54xx_setup_forced,
+	.poll_link	= genmii_poll_link,
+	.read_link	= bcm54xx_read_link,
+};
+
+static struct mii_phy_def bcm5462V_phy_def = {
+	.phy_id		= 0x002060d0,
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "BCM5462-Vesta",
+	.features	= MII_GBIT_FEATURES,
+	.magic_aneg	= 1,
+	.ops		= &bcm5462V_phy_ops
 };
 
 /* Marvell 88E1101 (Apple seem to deal with 2 different revs,
@@ -824,6 +856,7 @@ static struct mii_phy_def* mii_phy_table[] = {
 	&bcm5411_phy_def,
 	&bcm5421_phy_def,
 	&bcm5421k2_phy_def,
+	&bcm5462V_phy_def,
 	&marvell_phy_def,
 	&genmii_phy_def,
 	NULL

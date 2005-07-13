@@ -50,9 +50,24 @@
 #define _COMPONENT          ACPI_NAMESPACE
 	 ACPI_MODULE_NAME    ("nsload")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ns_load_table_by_type (
+	acpi_table_type                 table_type);
+
+#ifdef ACPI_FUTURE_IMPLEMENTATION
+acpi_status
+acpi_ns_unload_namespace (
+	acpi_handle                     handle);
+
+static acpi_status
+acpi_ns_delete_subtree (
+	acpi_handle                     start_handle);
+#endif
+
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_load_table
@@ -159,7 +174,7 @@ acpi_ns_load_table (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ns_load_table_by_type (
 	acpi_table_type                 table_type)
 {
@@ -321,8 +336,7 @@ acpi_ns_load_namespace (
 }
 
 
-#ifdef ACPI_FUTURE_USAGE
-
+#ifdef ACPI_FUTURE_IMPLEMENTATION
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_delete_subtree
@@ -339,7 +353,7 @@ acpi_ns_load_namespace (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ns_delete_subtree (
 	acpi_handle                     start_handle)
 {
@@ -453,8 +467,6 @@ acpi_ns_unload_namespace (
 
 	return_ACPI_STATUS (status);
 }
-
-#endif  /*  ACPI_FUTURE_USAGE  */
-
+#endif
 #endif
 

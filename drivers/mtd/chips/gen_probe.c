@@ -2,7 +2,7 @@
  * Routines common to all CFI-type probes.
  * (C) 2001-2003 Red Hat, Inc.
  * GPL'd
- * $Id: gen_probe.c,v 1.21 2004/08/14 15:14:05 dwmw2 Exp $
+ * $Id: gen_probe.c,v 1.22 2005/01/24 23:49:50 rmk Exp $
  */
 
 #include <linux/kernel.h>
@@ -162,7 +162,7 @@ static int genprobe_new_chip(struct map_info *map, struct chip_probe *cp,
 	int max_chips = map_bankwidth(map); /* And minimum 1 */
 	int nr_chips, type;
 
-	for (nr_chips = min_chips; nr_chips <= max_chips; nr_chips <<= 1) {
+	for (nr_chips = max_chips; nr_chips >= min_chips; nr_chips >>= 1) {
 
 		if (!cfi_interleave_supported(nr_chips))
 		    continue;

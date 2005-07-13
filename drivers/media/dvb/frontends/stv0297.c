@@ -617,7 +617,7 @@ static int stv0297_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 
 	/* wait for WGAGC lock */
 	starttime = jiffies;
-	timeout = jiffies + (200 * HZ) / 1000;
+	timeout = jiffies + msecs_to_jiffies(2000);
 	while (time_before(jiffies, timeout)) {
 		msleep(10);
 		if (stv0297_readreg(state, 0x43) & 0x08)
@@ -629,7 +629,7 @@ static int stv0297_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	msleep(20);
 
 	/* wait for equaliser partial convergence */
-	timeout = jiffies + (50 * HZ) / 1000;
+	timeout = jiffies + msecs_to_jiffies(500);
 	while (time_before(jiffies, timeout)) {
 		msleep(10);
 
@@ -642,7 +642,7 @@ static int stv0297_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	}
 
 	/* wait for equaliser full convergence */
-	timeout = jiffies + (delay * HZ) / 1000;
+	timeout = jiffies + msecs_to_jiffies(delay);
 	while (time_before(jiffies, timeout)) {
 		msleep(10);
 
@@ -659,7 +659,7 @@ static int stv0297_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	stv0297_writereg_mask(state, 0x88, 8, 0);
 
 	/* wait for main lock */
-	timeout = jiffies + (20 * HZ) / 1000;
+	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
 		msleep(10);
 

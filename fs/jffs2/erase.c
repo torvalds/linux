@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: erase.c,v 1.66 2004/11/16 20:36:11 dwmw2 Exp $
+ * $Id: erase.c,v 1.76 2005/05/03 15:11:40 dedekind Exp $
  *
  */
 
@@ -48,6 +48,7 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 #else /* Linux */
 	struct erase_info *instr;
 
+	D1(printk(KERN_DEBUG "jffs2_erase_block(): erase block %#x (range %#x-%#x)\n", jeb->offset, jeb->offset, jeb->offset + c->sector_size));
 	instr = kmalloc(sizeof(struct erase_info) + sizeof(struct erase_priv_struct), GFP_KERNEL);
 	if (!instr) {
 		printk(KERN_WARNING "kmalloc for struct erase_info in jffs2_erase_block failed. Refiling block for later\n");
@@ -233,7 +234,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 			continue;
 		} 
 
-		if (((*prev)->flash_offset & ~(c->sector_size -1)) == jeb->offset) {
+		if (SECTOR_ADDR((*prev)->flash_offset) == jeb->offset) {
 			/* It's in the block we're erasing */
 			struct jffs2_raw_node_ref *this;
 
@@ -277,11 +278,8 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 		printk("\n");
 	});
 
-	if (ic->nodes == (void *)ic) {
-		D1(printk(KERN_DEBUG "inocache for ino #%u is all gone now. Freeing\n", ic->ino));
+	if (ic->nodes == (void *)ic && ic->nlink == 0)
 		jffs2_del_ino_cache(c, ic);
-		jffs2_free_inode_cache(ic);
-	}
 }
 
 static void jffs2_free_all_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
@@ -310,7 +308,7 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	int ret;
 	uint32_t bad_offset;
 
-	if (!jffs2_cleanmarker_oob(c)) {
+	if ((!jffs2_cleanmarker_oob(c)) && (c->cleanmarker_size > 0)) {
 		marker_ref = jffs2_alloc_raw_node_ref();
 		if (!marker_ref) {
 			printk(KERN_WARNING "Failed to allocate raw node ref for clean marker\n");
@@ -335,7 +333,8 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 
 			bad_offset = ofs;
 
-			ret = jffs2_flash_read(c, ofs, readlen, &retlen, ebuf);
+			ret = c->mtd->read(c->mtd, ofs, readlen, &retlen, ebuf);
+
 			if (ret) {
 				printk(KERN_WARNING "Read of newly-erased block at 0x%08x failed: %d. Putting on bad_list\n", ofs, ret);
 				goto bad;
@@ -351,7 +350,7 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 					bad_offset += i;
 					printk(KERN_WARNING "Newly-erased block contained word 0x%lx at offset 0x%08x\n", datum, bad_offset);
 				bad: 
-					if (!jffs2_cleanmarker_oob(c))
+					if ((!jffs2_cleanmarker_oob(c)) && (c->cleanmarker_size > 0))
 						jffs2_free_raw_node_ref(marker_ref);
 					kfree(ebuf);
 				bad2:
@@ -381,6 +380,13 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 		if (jffs2_write_nand_cleanmarker(c, jeb))
 			goto bad2;
 			
+		jeb->first_node = jeb->last_node = NULL;
+
+		jeb->free_size = c->sector_size;
+		jeb->used_size = 0;
+		jeb->dirty_size = 0;
+		jeb->wasted_size = 0;
+	} else if (c->cleanmarker_size == 0) {
 		jeb->first_node = jeb->last_node = NULL;
 
 		jeb->free_size = c->sector_size;

@@ -79,7 +79,6 @@ struct acpi_signal_fatal_info
 /*
  * OSL Initialization and shutdown primitives
  */
-
 acpi_status
 acpi_os_initialize (
 	void);
@@ -92,7 +91,6 @@ acpi_os_terminate (
 /*
  * ACPI Table interfaces
  */
-
 acpi_status
 acpi_os_get_root_pointer (
 	u32                             flags,
@@ -112,7 +110,6 @@ acpi_os_table_override (
 /*
  * Synchronization primitives
  */
-
 acpi_status
 acpi_os_create_semaphore (
 	u32                             max_units,
@@ -156,7 +153,6 @@ acpi_os_release_lock (
 /*
  * Memory allocation and mapping
  */
-
 void *
 acpi_os_allocate (
 	acpi_size                       size);
@@ -187,7 +183,6 @@ acpi_os_get_physical_address (
 /*
  * Interrupt handlers
  */
-
 acpi_status
 acpi_os_install_interrupt_handler (
 	u32                             gsi,
@@ -203,7 +198,6 @@ acpi_os_remove_interrupt_handler (
 /*
  * Threads and Scheduling
  */
-
 u32
 acpi_os_get_thread_id (
 	void);
@@ -234,7 +228,6 @@ acpi_os_stall (
 /*
  * Platform and hardware-independent I/O interfaces
  */
-
 acpi_status
 acpi_os_read_port (
 	acpi_io_address                 address,
@@ -251,7 +244,6 @@ acpi_os_write_port (
 /*
  * Platform and hardware-independent physical memory interfaces
  */
-
 acpi_status
 acpi_os_read_memory (
 	acpi_physical_address           address,
@@ -270,7 +262,6 @@ acpi_os_write_memory (
  * Note: Can't use "Register" as a parameter, changed to "Reg" --
  * certain compilers complain.
  */
-
 acpi_status
 acpi_os_read_pci_configuration (
 	struct acpi_pci_id              *pci_id,
@@ -288,7 +279,6 @@ acpi_os_write_pci_configuration (
 /*
  * Interim function needed for PCI IRQ routing
  */
-
 void
 acpi_os_derive_pci_id(
 	acpi_handle                     rhandle,
@@ -298,7 +288,6 @@ acpi_os_derive_pci_id(
 /*
  * Miscellaneous
  */
-
 u8
 acpi_os_readable (
 	void                            *pointer,
@@ -323,7 +312,6 @@ acpi_os_signal (
 /*
  * Debug print routines
  */
-
 void ACPI_INTERNAL_VAR_XFACE
 acpi_os_printf (
 	const char                      *format,
@@ -339,11 +327,10 @@ acpi_os_redirect_output (
 	void                            *destination);
 
 
+#ifdef ACPI_FUTURE_USAGE
 /*
  * Debug input
  */
-
-#ifdef ACPI_FUTURE_USAGE
 u32
 acpi_os_get_line (
 	char                            *buffer);
@@ -353,7 +340,6 @@ acpi_os_get_line (
 /*
  * Directory manipulation
  */
-
 void *
 acpi_os_open_directory (
 	char                            *pathname,
@@ -377,13 +363,11 @@ acpi_os_close_directory (
 /*
  * Debug
  */
-
 void
 acpi_os_dbg_assert(
 	void                            *failed_assertion,
 	void                            *file_name,
 	u32                             line_number,
 	char                            *message);
-
 
 #endif /* __ACPIOSXF_H__ */

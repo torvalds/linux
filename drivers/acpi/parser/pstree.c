@@ -49,6 +49,14 @@
 #define _COMPONENT          ACPI_PARSER
 	 ACPI_MODULE_NAME    ("pstree")
 
+/* Local prototypes */
+
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+union acpi_parse_object *
+acpi_ps_get_child (
+	union acpi_parse_object         *op);
+#endif
+
 
 /*******************************************************************************
  *
@@ -57,7 +65,7 @@
  * PARAMETERS:  Op              - Get an argument for this op
  *              Argn            - Nth argument to get
  *
- * RETURN:      The argument (as an Op object).  NULL if argument does not exist
+ * RETURN:      The argument (as an Op object). NULL if argument does not exist
  *
  * DESCRIPTION: Get the specified op's argument.
  *
@@ -152,7 +160,6 @@ acpi_ps_append_arg (
 		return;
 	}
 
-
 	/* Append the argument to the linked argument list */
 
 	if (op->common.value.arg) {
@@ -164,13 +171,11 @@ acpi_ps_append_arg (
 		}
 		prev_arg->common.next = arg;
 	}
-
 	else {
 		/* No argument list, this will be the first argument */
 
 		op->common.value.arg = arg;
 	}
-
 
 	/* Set the parent in this arg and any args linked after it */
 
@@ -182,7 +187,82 @@ acpi_ps_append_arg (
 
 
 #ifdef ACPI_FUTURE_USAGE
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ps_get_depth_next
+ *
+ * PARAMETERS:  Origin          - Root of subtree to search
+ *              Op              - Last (previous) Op that was found
+ *
+ * RETURN:      Next Op found in the search.
+ *
+ * DESCRIPTION: Get next op in tree (walking the tree in depth-first order)
+ *              Return NULL when reaching "origin" or when walking up from root
+ *
+ ******************************************************************************/
 
+union acpi_parse_object *
+acpi_ps_get_depth_next (
+	union acpi_parse_object         *origin,
+	union acpi_parse_object         *op)
+{
+	union acpi_parse_object         *next = NULL;
+	union acpi_parse_object         *parent;
+	union acpi_parse_object         *arg;
+
+
+	ACPI_FUNCTION_ENTRY ();
+
+
+	if (!op) {
+		return (NULL);
+	}
+
+	/* Look for an argument or child */
+
+	next = acpi_ps_get_arg (op, 0);
+	if (next) {
+		return (next);
+	}
+
+	/* Look for a sibling */
+
+	next = op->common.next;
+	if (next) {
+		return (next);
+	}
+
+	/* Look for a sibling of parent */
+
+	parent = op->common.parent;
+
+	while (parent) {
+		arg = acpi_ps_get_arg (parent, 0);
+		while (arg && (arg != origin) && (arg != op)) {
+			arg = arg->common.next;
+		}
+
+		if (arg == origin) {
+			/* Reached parent of origin, end search */
+
+			return (NULL);
+		}
+
+		if (parent->common.next) {
+			/* Found sibling of parent */
+
+			return (parent->common.next);
+		}
+
+		op = parent;
+		parent = parent->common.parent;
+	}
+
+	return (next);
+}
+
+
+#ifdef ACPI_OBSOLETE_FUNCTIONS
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ps_get_child
@@ -194,6 +274,7 @@ acpi_ps_append_arg (
  * DESCRIPTION: Get op's children or NULL if none
  *
  ******************************************************************************/
+
 union acpi_parse_object *
 acpi_ps_get_child (
 	union acpi_parse_object         *op)
@@ -247,81 +328,7 @@ acpi_ps_get_child (
 
 	return (child);
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ps_get_depth_next
- *
- * PARAMETERS:  Origin          - Root of subtree to search
- *              Op              - Last (previous) Op that was found
- *
- * RETURN:      Next Op found in the search.
- *
- * DESCRIPTION: Get next op in tree (walking the tree in depth-first order)
- *              Return NULL when reaching "origin" or when walking up from root
- *
- ******************************************************************************/
-
-union acpi_parse_object *
-acpi_ps_get_depth_next (
-	union acpi_parse_object         *origin,
-	union acpi_parse_object         *op)
-{
-	union acpi_parse_object         *next = NULL;
-	union acpi_parse_object         *parent;
-	union acpi_parse_object         *arg;
-
-
-	ACPI_FUNCTION_ENTRY ();
-
-
-	if (!op) {
-		return (NULL);
-	}
-
-	/* look for an argument or child */
-
-	next = acpi_ps_get_arg (op, 0);
-	if (next) {
-		return (next);
-	}
-
-	/* look for a sibling */
-
-	next = op->common.next;
-	if (next) {
-		return (next);
-	}
-
-	/* look for a sibling of parent */
-
-	parent = op->common.parent;
-
-	while (parent) {
-		arg = acpi_ps_get_arg (parent, 0);
-		while (arg && (arg != origin) && (arg != op)) {
-			arg = arg->common.next;
-		}
-
-		if (arg == origin) {
-			/* reached parent of origin, end search */
-
-			return (NULL);
-		}
-
-		if (parent->common.next) {
-			/* found sibling of parent */
-
-			return (parent->common.next);
-		}
-
-		op = parent;
-		parent = parent->common.parent;
-	}
-
-	return (next);
-}
+#endif
 
 #endif  /*  ACPI_FUTURE_USAGE  */
 

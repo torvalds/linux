@@ -834,6 +834,92 @@ static int __init iSeries_src_init(void)
 
 late_initcall(iSeries_src_init);
 
+static inline void process_iSeries_events(void)
+{
+	asm volatile ("li 0,0x5555; sc" : : : "r0", "r3");
+}
+
+static void yield_shared_processor(void)
+{
+	unsigned long tb;
+
+	HvCall_setEnabledInterrupts(HvCall_MaskIPI |
+				    HvCall_MaskLpEvent |
+				    HvCall_MaskLpProd |
+				    HvCall_MaskTimeout);
+
+	tb = get_tb();
+	/* Compute future tb value when yield should expire */
+	HvCall_yieldProcessor(HvCall_YieldTimed, tb+tb_ticks_per_jiffy);
+
+	/*
+	 * The decrementer stops during the yield.  Force a fake decrementer
+	 * here and let the timer_interrupt code sort out the actual time.
+	 */
+	get_paca()->lppaca.int_dword.fields.decr_int = 1;
+	process_iSeries_events();
+}
+
+static int iseries_shared_idle(void)
+{
+	while (1) {
+		while (!need_resched() && !hvlpevent_is_pending()) {
+			local_irq_disable();
+			ppc64_runlatch_off();
+
+			/* Recheck with irqs off */
+			if (!need_resched() && !hvlpevent_is_pending())
+				yield_shared_processor();
+
+			HMT_medium();
+			local_irq_enable();
+		}
+
+		ppc64_runlatch_on();
+
+		if (hvlpevent_is_pending())
+			process_iSeries_events();
+
+		schedule();
+	}
+
+	return 0;
+}
+
+static int iseries_dedicated_idle(void)
+{
+	long oldval;
+
+	while (1) {
+		oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
+
+		if (!oldval) {
+			set_thread_flag(TIF_POLLING_NRFLAG);
+
+			while (!need_resched()) {
+				ppc64_runlatch_off();
+				HMT_low();
+
+				if (hvlpevent_is_pending()) {
+					HMT_medium();
+					ppc64_runlatch_on();
+					process_iSeries_events();
+				}
+			}
+
+			HMT_medium();
+			clear_thread_flag(TIF_POLLING_NRFLAG);
+		} else {
+			set_need_resched();
+		}
+
+		ppc64_runlatch_on();
+		schedule();
+	}
+
+	return 0;
+}
+
 #ifndef CONFIG_PCI
 void __init iSeries_init_IRQ(void) { }
 #endif
@@ -859,5 +945,13 @@ void __init iSeries_early_setup(void)
 	ppc_md.get_rtc_time = iSeries_get_rtc_time;
 	ppc_md.calibrate_decr = iSeries_calibrate_decr;
 	ppc_md.progress = iSeries_progress;
+
+	if (get_paca()->lppaca.shared_proc) {
+		ppc_md.idle_loop = iseries_shared_idle;
+		printk(KERN_INFO "Using shared processor idle loop\n");
+	} else {
+		ppc_md.idle_loop = iseries_dedicated_idle;
+		printk(KERN_INFO "Using dedicated idle loop\n");
+	}
 }
 

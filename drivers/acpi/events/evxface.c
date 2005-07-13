@@ -64,6 +64,7 @@
  * DESCRIPTION: Saves the pointer to the handler function
  *
  ******************************************************************************/
+
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_install_exception_handler (
@@ -457,7 +458,8 @@ acpi_remove_notify_handler (
 	/* Root Object */
 
 	if (device == ACPI_ROOT_OBJECT) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Removing notify handler for ROOT object.\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+			"Removing notify handler for ROOT object.\n"));
 
 		if (((handler_type & ACPI_SYSTEM_NOTIFY) &&
 			  !acpi_gbl_system_notify.handler)      ||
@@ -564,8 +566,9 @@ EXPORT_SYMBOL(acpi_remove_notify_handler);
  *
  * FUNCTION:    acpi_install_gpe_handler
  *
- * PARAMETERS:  gpe_number      - The GPE number within the GPE block
- *              gpe_block       - GPE block (NULL == FADT GPEs)
+ * PARAMETERS:  gpe_device      - Namespace node for the GPE (NULL for FADT
+ *                                defined GPEs)
+ *              gpe_number      - The GPE number within the GPE block
  *              Type            - Whether this GPE should be treated as an
  *                                edge- or level-triggered interrupt.
  *              Address         - Address of the handler
@@ -662,8 +665,9 @@ EXPORT_SYMBOL(acpi_install_gpe_handler);
  *
  * FUNCTION:    acpi_remove_gpe_handler
  *
- * PARAMETERS:  gpe_number      - The event to remove a handler
- *              gpe_block       - GPE block (NULL == FADT GPEs)
+ * PARAMETERS:  gpe_device      - Namespace node for the GPE (NULL for FADT
+ *                                defined GPEs)
+ *              gpe_number      - The event to remove a handler
  *              Address         - Address of the handler
  *
  * RETURN:      Status
@@ -766,7 +770,8 @@ EXPORT_SYMBOL(acpi_remove_gpe_handler);
  * FUNCTION:    acpi_acquire_global_lock
  *
  * PARAMETERS:  Timeout         - How long the caller is willing to wait
- *              out_handle      - A handle to the lock if acquired
+ *              Handle          - Where the handle to the lock is returned
+ *                                (if acquired)
  *
  * RETURN:      Status
  *
@@ -812,7 +817,7 @@ EXPORT_SYMBOL(acpi_acquire_global_lock);
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Release the ACPI Global Lock
+ * DESCRIPTION: Release the ACPI Global Lock. The handle must be valid.
  *
  ******************************************************************************/
 

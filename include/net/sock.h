@@ -684,16 +684,17 @@ extern void FASTCALL(release_sock(struct sock *sk));
 #define bh_lock_sock(__sk)	spin_lock(&((__sk)->sk_lock.slock))
 #define bh_unlock_sock(__sk)	spin_unlock(&((__sk)->sk_lock.slock))
 
-extern struct sock		*sk_alloc(int family, int priority,
+extern struct sock		*sk_alloc(int family,
+					  unsigned int __nocast priority,
 					  struct proto *prot, int zero_it);
 extern void			sk_free(struct sock *sk);
 
 extern struct sk_buff		*sock_wmalloc(struct sock *sk,
 					      unsigned long size, int force,
-					      int priority);
+					      unsigned int __nocast priority);
 extern struct sk_buff		*sock_rmalloc(struct sock *sk,
 					      unsigned long size, int force,
-					      int priority);
+					      unsigned int __nocast priority);
 extern void			sock_wfree(struct sk_buff *skb);
 extern void			sock_rfree(struct sk_buff *skb);
 
@@ -708,7 +709,8 @@ extern struct sk_buff 		*sock_alloc_send_skb(struct sock *sk,
 						     unsigned long size,
 						     int noblock,
 						     int *errcode);
-extern void *sock_kmalloc(struct sock *sk, int size, int priority);
+extern void *sock_kmalloc(struct sock *sk, int size,
+			  unsigned int __nocast priority);
 extern void sock_kfree_s(struct sock *sk, void *mem, int size);
 extern void sk_send_sigurg(struct sock *sk);
 
@@ -1132,15 +1134,19 @@ static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 }
 
 static inline struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
-						   int size, int mem, int gfp)
+						   int size, int mem,
+						   unsigned int __nocast gfp)
 {
-	struct sk_buff *skb = alloc_skb(size + sk->sk_prot->max_header, gfp);
+	struct sk_buff *skb;
+	int hdr_len;
 
+	hdr_len = SKB_DATA_ALIGN(sk->sk_prot->max_header);
+	skb = alloc_skb(size + hdr_len, gfp);
 	if (skb) {
 		skb->truesize += mem;
 		if (sk->sk_forward_alloc >= (int)skb->truesize ||
 		    sk_stream_mem_schedule(sk, skb->truesize, 0)) {
-			skb_reserve(skb, sk->sk_prot->max_header);
+			skb_reserve(skb, hdr_len);
 			return skb;
 		}
 		__kfree_skb(skb);
@@ -1152,7 +1158,8 @@ static inline struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
 }
 
 static inline struct sk_buff *sk_stream_alloc_skb(struct sock *sk,
-						  int size, int gfp)
+						  int size,
+						  unsigned int __nocast gfp)
 {
 	return sk_stream_alloc_pskb(sk, size, 0, gfp);
 }
@@ -1185,7 +1192,7 @@ static inline int sock_writeable(const struct sock *sk)
 	return atomic_read(&sk->sk_wmem_alloc) < (sk->sk_sndbuf / 2);
 }
 
-static inline int gfp_any(void)
+static inline unsigned int __nocast gfp_any(void)
 {
 	return in_softirq() ? GFP_ATOMIC : GFP_KERNEL;
 }

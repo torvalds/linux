@@ -37,22 +37,90 @@ void flexcop_dma_free(struct flexcop_dma *dma)
 }
 EXPORT_SYMBOL(flexcop_dma_free);
 
-int flexcop_dma_control_timer_irq(struct flexcop_device *fc, flexcop_dma_index_t no, int onoff)
+int flexcop_dma_config(struct flexcop_device *fc,
+		struct flexcop_dma *dma,
+		flexcop_dma_index_t dma_idx)
 {
-	flexcop_ibi_value v = fc->read_ibi_reg(fc,ctrl_208);
+	flexcop_ibi_value v0x0,v0x4,v0xc;
+	v0x0.raw = v0x4.raw = v0xc.raw = 0;
 
-	if (no & FC_DMA_1)
-		v.ctrl_208.DMA1_Timer_Enable_sig = onoff;
+	v0x0.dma_0x0.dma_address0        = dma->dma_addr0 >> 2;
+	v0xc.dma_0xc.dma_address1        = dma->dma_addr1 >> 2;
+	v0x4.dma_0x4_write.dma_addr_size = dma->size / 4;
 
-	if (no & FC_DMA_2)
-		v.ctrl_208.DMA2_Timer_Enable_sig = onoff;
+	if ((dma_idx & FC_DMA_1) == dma_idx) {
+		fc->write_ibi_reg(fc,dma1_000,v0x0);
+		fc->write_ibi_reg(fc,dma1_004,v0x4);
+		fc->write_ibi_reg(fc,dma1_00c,v0xc);
+	} else if ((dma_idx & FC_DMA_2) == dma_idx) {
+		fc->write_ibi_reg(fc,dma2_010,v0x0);
+		fc->write_ibi_reg(fc,dma2_014,v0x4);
+		fc->write_ibi_reg(fc,dma2_01c,v0xc);
+	} else {
+		err("either DMA1 or DMA2 can be configured at the within one flexcop_dma_config call.");
+		return -EINVAL;
+	}
 
-	fc->write_ibi_reg(fc,ctrl_208,v);
 	return 0;
 }
-EXPORT_SYMBOL(flexcop_dma_control_timer_irq);
+EXPORT_SYMBOL(flexcop_dma_config);
 
-int flexcop_dma_control_size_irq(struct flexcop_device *fc, flexcop_dma_index_t no, int onoff)
+/* start the DMA transfers, but not the DMA IRQs */
+int flexcop_dma_xfer_control(struct flexcop_device *fc,
+		flexcop_dma_index_t dma_idx,
+		flexcop_dma_addr_index_t index,
+		int onoff)
+{
+	flexcop_ibi_value v0x0,v0xc;
+	flexcop_ibi_register r0x0,r0xc;
+
+	if ((dma_idx & FC_DMA_1) == dma_idx) {
+		r0x0 = dma1_000;
+		r0xc = dma1_00c;
+	} else if ((dma_idx & FC_DMA_2) == dma_idx) {
+		r0x0 = dma2_010;
+		r0xc = dma2_01c;
+	} else {
+		err("either transfer DMA1 or DMA2 can be started within one flexcop_dma_xfer_control call.");
+		return -EINVAL;
+	}
+
+	v0x0 = fc->read_ibi_reg(fc,r0x0);
+	v0xc = fc->read_ibi_reg(fc,r0xc);
+
+	deb_rdump("reg: %03x: %x\n",r0x0,v0x0.raw);
+	deb_rdump("reg: %03x: %x\n",r0xc,v0xc.raw);
+
+	if (index & FC_DMA_SUBADDR_0)
+		v0x0.dma_0x0.dma_0start = onoff;
+
+	if (index & FC_DMA_SUBADDR_1)
+		v0xc.dma_0xc.dma_1start = onoff;
+
+	fc->write_ibi_reg(fc,r0x0,v0x0);
+	fc->write_ibi_reg(fc,r0xc,v0xc);
+
+	deb_rdump("reg: %03x: %x\n",r0x0,v0x0.raw);
+	deb_rdump("reg: %03x: %x\n",r0xc,v0xc.raw);
+	return 0;
+}
+EXPORT_SYMBOL(flexcop_dma_xfer_control);
+
+static int flexcop_dma_remap(struct flexcop_device *fc,
+		flexcop_dma_index_t dma_idx,
+		int onoff)
+{
+	flexcop_ibi_register r = (dma_idx & FC_DMA_1) ? dma1_00c : dma2_01c;
+	flexcop_ibi_value v = fc->read_ibi_reg(fc,r);
+	deb_info("%s\n",__FUNCTION__);
+	v.dma_0xc.remap_enable = onoff;
+	fc->write_ibi_reg(fc,r,v);
+	return 0;
+}
+
+int flexcop_dma_control_size_irq(struct flexcop_device *fc,
+		flexcop_dma_index_t no,
+		int onoff)
 {
 	flexcop_ibi_value v = fc->read_ibi_reg(fc,ctrl_208);
 
@@ -67,10 +135,48 @@ int flexcop_dma_control_size_irq(struct flexcop_device *fc, flexcop_dma_index_t 
 }
 EXPORT_SYMBOL(flexcop_dma_control_size_irq);
 
-int flexcop_dma_control_packet_irq(struct flexcop_device *fc, flexcop_dma_index_t no, int onoff)
+int flexcop_dma_control_timer_irq(struct flexcop_device *fc,
+		flexcop_dma_index_t no,
+		int onoff)
 {
 	flexcop_ibi_value v = fc->read_ibi_reg(fc,ctrl_208);
 
+	if (no & FC_DMA_1)
+		v.ctrl_208.DMA1_Timer_Enable_sig = onoff;
+
+	if (no & FC_DMA_2)
+		v.ctrl_208.DMA2_Timer_Enable_sig = onoff;
+
+	fc->write_ibi_reg(fc,ctrl_208,v);
+	return 0;
+}
+EXPORT_SYMBOL(flexcop_dma_control_timer_irq);
+
+/* 1 cycles = 1.97 msec */
+int flexcop_dma_config_timer(struct flexcop_device *fc,
+		flexcop_dma_index_t dma_idx,
+		u8 cycles)
+{
+	flexcop_ibi_register r = (dma_idx & FC_DMA_1) ? dma1_004 : dma2_014;
+	flexcop_ibi_value v = fc->read_ibi_reg(fc,r);
+
+	flexcop_dma_remap(fc,dma_idx,0);
+
+	deb_info("%s\n",__FUNCTION__);
+	v.dma_0x4_write.dmatimer = cycles;
+	fc->write_ibi_reg(fc,r,v);
+	return 0;
+}
+EXPORT_SYMBOL(flexcop_dma_config_timer);
+
+/* packet IRQ does not exist in FCII or FCIIb - according to data book and tests */
+int flexcop_dma_control_packet_irq(struct flexcop_device *fc,
+		flexcop_dma_index_t no,
+		int onoff)
+{
+	flexcop_ibi_value v = fc->read_ibi_reg(fc,ctrl_208);
+
+	deb_rdump("reg: %03x: %x\n",ctrl_208,v.raw);
 	if (no & FC_DMA_1)
 		v.ctrl_208.DMA1_Size_IRQ_Enable_sig = onoff;
 
@@ -78,64 +184,15 @@ int flexcop_dma_control_packet_irq(struct flexcop_device *fc, flexcop_dma_index_
 		v.ctrl_208.DMA2_Size_IRQ_Enable_sig = onoff;
 
 	fc->write_ibi_reg(fc,ctrl_208,v);
+	deb_rdump("reg: %03x: %x\n",ctrl_208,v.raw);
+
 	return 0;
 }
 EXPORT_SYMBOL(flexcop_dma_control_packet_irq);
 
-int flexcop_dma_config(struct flexcop_device *fc, struct flexcop_dma *dma, flexcop_dma_index_t dma_idx,flexcop_dma_addr_index_t index)
-{
-
-	flexcop_ibi_value v0x0,v0x4,v0xc;
-	v0x0.raw = v0x4.raw = v0xc.raw = 0;
-
-	v0x0.dma_0x0.dma_address0        = dma->dma_addr0 >> 2;
-	v0xc.dma_0xc.dma_address1        = dma->dma_addr1 >> 2;
-	v0x4.dma_0x4_write.dma_addr_size = dma->size / 4;
-
-	if (index & FC_DMA_SUBADDR_0)
-		v0x0.dma_0x0.dma_0start = 1;
-
-	if (index & FC_DMA_SUBADDR_1)
-		v0xc.dma_0xc.dma_1start = 1;
-
-	if (dma_idx & FC_DMA_1) {
-		fc->write_ibi_reg(fc,dma1_000,v0x0);
-		fc->write_ibi_reg(fc,dma1_004,v0x4);
-		fc->write_ibi_reg(fc,dma1_00c,v0xc);
-	} else { /* (dma_idx & FC_DMA_2) */
-		fc->write_ibi_reg(fc,dma2_010,v0x0);
-		fc->write_ibi_reg(fc,dma2_014,v0x4);
-		fc->write_ibi_reg(fc,dma2_01c,v0xc);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(flexcop_dma_config);
-
-static int flexcop_dma_remap(struct flexcop_device *fc, flexcop_dma_index_t dma_idx, int onoff)
-{
-	flexcop_ibi_register r = (dma_idx & FC_DMA_1) ? dma1_00c : dma2_01c;
-	flexcop_ibi_value v = fc->read_ibi_reg(fc,r);
-	v.dma_0xc.remap_enable = onoff;
-	fc->write_ibi_reg(fc,r,v);
-	return 0;
-}
-
-/* 1 cycles = 1.97 msec */
-int flexcop_dma_config_timer(struct flexcop_device *fc, flexcop_dma_index_t dma_idx, u8 cycles)
-{
-	flexcop_ibi_register r = (dma_idx & FC_DMA_1) ? dma1_004 : dma2_014;
-	flexcop_ibi_value v = fc->read_ibi_reg(fc,r);
-
-	flexcop_dma_remap(fc,dma_idx,0);
-
-	v.dma_0x4_write.dmatimer = cycles >> 1;
-	fc->write_ibi_reg(fc,r,v);
-	return 0;
-}
-EXPORT_SYMBOL(flexcop_dma_config_timer);
-
-int flexcop_dma_config_packet_count(struct flexcop_device *fc, flexcop_dma_index_t dma_idx, u8 packets)
+int flexcop_dma_config_packet_count(struct flexcop_device *fc,
+		flexcop_dma_index_t dma_idx,
+		u8 packets)
 {
 	flexcop_ibi_register r = (dma_idx & FC_DMA_1) ? dma1_004 : dma2_014;
 	flexcop_ibi_value v = fc->read_ibi_reg(fc,r);

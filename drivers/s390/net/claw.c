@@ -428,7 +428,7 @@ claw_pack_skb(struct claw_privbk *privptr)
 	new_skb = NULL;		/* assume no dice */
 	pkt_cnt = 0;
 	CLAW_DBF_TEXT(4,trace,"PackSKBe");
-	if (skb_queue_len(&p_ch->collect_queue) > 0) {
+	if (!skb_queue_empty(&p_ch->collect_queue)) {
 	/* some data */
 		held_skb = skb_dequeue(&p_ch->collect_queue);
 		if (p_env->packing != DO_PACKED)
@@ -1254,7 +1254,7 @@ claw_write_next ( struct chbk * p_ch )
 	privptr = (struct claw_privbk *) dev->priv;
         claw_free_wrt_buf( dev );
 	if ((privptr->write_free_count > 0) &&
-	    (skb_queue_len(&p_ch->collect_queue) > 0)) {
+	    !skb_queue_empty(&p_ch->collect_queue)) {
 	  	pk_skb = claw_pack_skb(privptr);
 		while (pk_skb != NULL) {
 			rc = claw_hw_tx( pk_skb, dev,1);

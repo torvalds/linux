@@ -13,12 +13,15 @@
 #include "common.h"
 
 MACHINE_START(EBSA285, "EBSA285")
-	MAINTAINER("Russell King")
-	BOOT_MEM(0x00000000, DC21285_ARMCSR_BASE, 0xfe000000)
-	BOOT_PARAMS(0x00000100)
-	VIDEO(0x000a0000, 0x000bffff)
-	MAPIO(footbridge_map_io)
-	INITIRQ(footbridge_init_irq)
+	/* Maintainer: Russell King */
+	.phys_ram	= 0x00000000,
+	.phys_io	= DC21285_ARMCSR_BASE,
+	.io_pg_offst	= ((0xfe000000) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.video_start	= 0x000a0000,
+	.video_end	= 0x000bffff,
+	.map_io		= footbridge_map_io,
+	.init_irq	= footbridge_init_irq,
 	.timer		= &footbridge_timer,
 MACHINE_END
 

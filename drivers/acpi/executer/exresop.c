@@ -52,6 +52,14 @@
 #define _COMPONENT          ACPI_EXECUTER
 	 ACPI_MODULE_NAME    ("exresop")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ex_check_object_type (
+	acpi_object_type                type_needed,
+	acpi_object_type                this_type,
+	void                            *object);
+
 
 /*******************************************************************************
  *
@@ -67,7 +75,7 @@
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ex_check_object_type (
 	acpi_object_type                type_needed,
 	acpi_object_type                this_type,
@@ -142,6 +150,7 @@ acpi_ex_resolve_operands (
 	const struct acpi_opcode_info   *op_info;
 	u32                             this_arg_type;
 	acpi_object_type                type_needed;
+	u16                             target_op = 0;
 
 
 	ACPI_FUNCTION_TRACE_U32 ("ex_resolve_operands", opcode);
@@ -160,7 +169,8 @@ acpi_ex_resolve_operands (
 		return_ACPI_STATUS (AE_AML_INTERNAL);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Opcode %X [%s] required_operand_types=%8.8X \n",
+	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+		"Opcode %X [%s] required_operand_types=%8.8X \n",
 		opcode, op_info->name, arg_types));
 
 	/*
@@ -187,7 +197,7 @@ acpi_ex_resolve_operands (
 		switch (ACPI_GET_DESCRIPTOR_TYPE (obj_desc)) {
 		case ACPI_DESC_TYPE_NAMED:
 
-			/* Node */
+			/* Namespace Node */
 
 			object_type = ((struct acpi_namespace_node *) obj_desc)->type;
 			break;
@@ -202,16 +212,16 @@ acpi_ex_resolve_operands (
 			/* Check for bad acpi_object_type */
 
 			if (!acpi_ut_valid_object_type (object_type)) {
-				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Bad operand object type [%X]\n",
+				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+					"Bad operand object type [%X]\n",
 					object_type));
 
 				return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
 			}
 
 			if (object_type == (u8) ACPI_TYPE_LOCAL_REFERENCE) {
-				/*
-				 * Decode the Reference
-				 */
+				/* Decode the Reference */
+
 				op_info = acpi_ps_get_opcode_info (opcode);
 				if (op_info->class == AML_CLASS_UNKNOWN) {
 					return_ACPI_STATUS (AE_AML_BAD_OPCODE);
@@ -219,12 +229,17 @@ acpi_ex_resolve_operands (
 
 				switch (obj_desc->reference.opcode) {
 				case AML_DEBUG_OP:
+					target_op = AML_DEBUG_OP;
+
+					/*lint -fallthrough */
+
 				case AML_NAME_OP:
 				case AML_INDEX_OP:
 				case AML_REF_OF_OP:
 				case AML_ARG_OP:
 				case AML_LOCAL_OP:
-				case AML_LOAD_OP:   /* ddb_handle from LOAD_OP or LOAD_TABLE_OP */
+				case AML_LOAD_OP: /* ddb_handle from LOAD_OP or LOAD_TABLE_OP */
+				case AML_INT_NAMEPATH_OP: /* Reference to a named object */
 
 					ACPI_DEBUG_ONLY_MEMBERS (ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
 						"Operand is a Reference, ref_opcode [%s]\n",
@@ -254,10 +269,8 @@ acpi_ex_resolve_operands (
 			return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
 		}
 
+		/* Get one argument type, point to the next */
 
-		/*
-		 * Get one argument type, point to the next
-		 */
 		this_arg_type = GET_CURRENT_ARG_TYPE (arg_types);
 		INCREMENT_ARG_LIST (arg_types);
 
@@ -271,26 +284,31 @@ acpi_ex_resolve_operands (
 			if ((ACPI_GET_DESCRIPTOR_TYPE (obj_desc) == ACPI_DESC_TYPE_OPERAND) &&
 				(ACPI_GET_OBJECT_TYPE (obj_desc) == ACPI_TYPE_STRING)) {
 				/*
-				 * String found - the string references a named object and must be
-				 * resolved to a node
+				 * String found - the string references a named object and
+				 * must be resolved to a node
 				 */
 				goto next_operand;
 			}
 
-			/* Else not a string - fall through to the normal Reference case below */
+			/*
+			 * Else not a string - fall through to the normal Reference
+			 * case below
+			 */
 			/*lint -fallthrough */
 
 		case ARGI_REFERENCE:            /* References: */
 		case ARGI_INTEGER_REF:
 		case ARGI_OBJECT_REF:
 		case ARGI_DEVICE_REF:
-		case ARGI_TARGETREF:            /* Allows implicit conversion rules before store */
-		case ARGI_FIXED_TARGET:         /* No implicit conversion before store to target */
-		case ARGI_SIMPLE_TARGET:        /* Name, Local, or Arg - no implicit conversion  */
+		case ARGI_TARGETREF:     /* Allows implicit conversion rules before store */
+		case ARGI_FIXED_TARGET:  /* No implicit conversion before store to target */
+		case ARGI_SIMPLE_TARGET: /* Name, Local, or Arg - no implicit conversion  */
 
-			/* Need an operand of type ACPI_TYPE_LOCAL_REFERENCE */
-
-			if (ACPI_GET_DESCRIPTOR_TYPE (obj_desc) == ACPI_DESC_TYPE_NAMED) /* Node (name) ptr OK as-is */ {
+			/*
+			 * Need an operand of type ACPI_TYPE_LOCAL_REFERENCE
+			 * A Namespace Node is OK as-is
+			 */
+			if (ACPI_GET_DESCRIPTOR_TYPE (obj_desc) == ACPI_DESC_TYPE_NAMED) {
 				goto next_operand;
 			}
 
@@ -300,11 +318,9 @@ acpi_ex_resolve_operands (
 				return_ACPI_STATUS (status);
 			}
 
-			if (AML_NAME_OP == obj_desc->reference.opcode) {
-				/*
-				 * Convert an indirect name ptr to direct name ptr and put
-				 * it on the stack
-				 */
+			if (obj_desc->reference.opcode == AML_NAME_OP) {
+				/* Convert a named reference to the actual named object */
+
 				temp_node = obj_desc->reference.object;
 				acpi_ut_remove_reference (obj_desc);
 				(*stack_ptr) = temp_node;
@@ -331,7 +347,6 @@ acpi_ex_resolve_operands (
 			/* All cases covered above */
 			break;
 		}
-
 
 		/*
 		 * Resolve this object to a value
@@ -392,7 +407,7 @@ acpi_ex_resolve_operands (
 		/*
 		 * The more complex cases allow multiple resolved object types
 		 */
-		case ARGI_INTEGER:   /* Number */
+		case ARGI_INTEGER:
 
 			/*
 			 * Need an operand of type ACPI_TYPE_INTEGER,
@@ -563,7 +578,7 @@ acpi_ex_resolve_operands (
 
 		case ARGI_REGION_OR_FIELD:
 
-			/* Need an operand of type ACPI_TYPE_REGION or a FIELD in a region */
+			/* Need an operand of type REGION or a FIELD in a region */
 
 			switch (ACPI_GET_OBJECT_TYPE (obj_desc)) {
 			case ACPI_TYPE_REGION:
@@ -614,6 +629,12 @@ acpi_ex_resolve_operands (
 					break;
 				}
 
+				if (target_op == AML_DEBUG_OP) {
+					/* Allow store of any object to the Debug object */
+
+					break;
+				}
+
 				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
 					"Needed Integer/Buffer/String/Package/Ref/Ddb], found [%s] %p\n",
 					acpi_ut_get_object_type_name (obj_desc), obj_desc));
@@ -652,8 +673,7 @@ next_operand:
 		if (GET_CURRENT_ARG_TYPE (arg_types)) {
 			stack_ptr--;
 		}
-
-	}   /* while (*Types) */
+	}
 
 	return_ACPI_STATUS (status);
 }

@@ -291,3 +291,6 @@ ENTRY(sys_call_table)
 	.long sys_keyctl
 	.long sys_ioprio_set
 	.long sys_ioprio_get		/* 290 */
+	.long sys_inotify_init
+	.long sys_inotify_add_watch
+	.long sys_inotify_rm_watch

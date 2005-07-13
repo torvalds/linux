@@ -49,6 +49,14 @@
 #define _COMPONENT          ACPI_TABLES
 	 ACPI_MODULE_NAME    ("tbinstal")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_tb_match_signature (
+	char                            *signature,
+	struct acpi_table_desc          *table_info,
+	u8                              search_type);
+
 
 /*******************************************************************************
  *
@@ -56,6 +64,7 @@
  *
  * PARAMETERS:  Signature           - Table signature to match
  *              table_info          - Return data
+ *              search_type         - Table type to match (primary/secondary)
  *
  * RETURN:      Status
  *
@@ -64,7 +73,7 @@
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_tb_match_signature (
 	char                            *signature,
 	struct acpi_table_desc          *table_info,
@@ -76,9 +85,8 @@ acpi_tb_match_signature (
 	ACPI_FUNCTION_TRACE ("tb_match_signature");
 
 
-	/*
-	 * Search for a signature match among the known table types
-	 */
+	/* Search for a signature match among the known table types */
+
 	for (i = 0; i < NUM_ACPI_TABLE_TYPES; i++) {
 		if (!(acpi_gbl_table_data[i].flags & search_type)) {
 			continue;
@@ -161,6 +169,7 @@ acpi_tb_install_table (
  * FUNCTION:    acpi_tb_recognize_table
  *
  * PARAMETERS:  table_info          - Return value from acpi_tb_get_table_body
+ *              search_type         - Table type to match (primary/secondary)
  *
  * RETURN:      Status
  *
@@ -203,7 +212,8 @@ acpi_tb_recognize_table (
 	 * This can be any one of many valid ACPI tables, it just isn't one of
 	 * the tables that is consumed by the core subsystem
 	 */
-	status = acpi_tb_match_signature (table_header->signature, table_info, search_type);
+	status = acpi_tb_match_signature (table_header->signature,
+			 table_info, search_type);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
 	}
@@ -253,9 +263,8 @@ acpi_tb_init_table_descriptor (
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
 
-	/*
-	 * Install the table into the global data structure
-	 */
+	/* Install the table into the global data structure */
+
 	list_head = &acpi_gbl_table_lists[table_type];
 
 	/*
@@ -316,7 +325,8 @@ acpi_tb_init_table_descriptor (
 	table_desc->aml_start           = (u8 *) (table_desc->pointer + 1),
 	table_desc->aml_length          = (u32) (table_desc->length -
 			 (u32) sizeof (struct acpi_table_header));
-	table_desc->table_id            = acpi_ut_allocate_owner_id (ACPI_OWNER_TYPE_TABLE);
+	table_desc->table_id            = acpi_ut_allocate_owner_id (
+			 ACPI_OWNER_TYPE_TABLE);
 	table_desc->loaded_into_namespace = FALSE;
 
 	/*
@@ -349,7 +359,8 @@ acpi_tb_init_table_descriptor (
  ******************************************************************************/
 
 void
-acpi_tb_delete_all_tables (void)
+acpi_tb_delete_all_tables (
+	void)
 {
 	acpi_table_type                 type;
 

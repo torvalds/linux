@@ -284,6 +284,9 @@ endmenu
 
 menu "Platform options"
 
+config FADS
+	bool
+
 choice
 	prompt "8xx Machine Type"
 	depends on 8xx
@@ -399,8 +402,25 @@ config BSEIP
 	  26MB DRAM, 4MB flash, Ethernet, a 16K-gate FPGA, USB, an LCD/video
 	  controller, and two RS232 ports.
 
-config FADS
+config MPC8XXFADS
 	bool "FADS"
+	select FADS
+
+config MPC86XADS
+	bool "MPC86XADS"
+	help
+	  MPC86x Application Development System by Freescale Semiconductor.
+	  The MPC86xADS is meant to serve as a platform for s/w and h/w
+	  development around the MPC86X processor families.
+	select FADS
+
+config MPC885ADS
+	bool "MPC885ADS"
+	help
+	  Freescale Semiconductor MPC885 Application Development System (ADS).
+	  Also known as DUET.
+	  The MPC885ADS is meant to serve as a platform for s/w and h/w
+	  development around the MPC885 processor family.
 
 config TQM823L
 	bool "TQM823L"
@@ -1334,6 +1354,8 @@ config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"
 	depends on ADVANCED_OPTIONS && 8xx
 endmenu
+
+source "net/Kconfig"
 
 source "drivers/Kconfig"
 

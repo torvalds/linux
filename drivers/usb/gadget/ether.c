@@ -945,15 +945,16 @@ config_buf (enum usb_device_speed speed,
 
 /*-------------------------------------------------------------------------*/
 
-static void eth_start (struct eth_dev *dev, int gfp_flags);
-static int alloc_requests (struct eth_dev *dev, unsigned n, int gfp_flags);
+static void eth_start (struct eth_dev *dev, unsigned gfp_flags);
+static int alloc_requests (struct eth_dev *dev, unsigned n, unsigned gfp_flags);
 
 static int
-set_ether_config (struct eth_dev *dev, int gfp_flags)
+set_ether_config (struct eth_dev *dev, unsigned gfp_flags)
 {
 	int					result = 0;
 	struct usb_gadget			*gadget = dev->gadget;
 
+#if defined(DEV_CONFIG_CDC) || defined(CONFIG_USB_ETH_RNDIS)
 	/* status endpoint used for RNDIS and (optionally) CDC */
 	if (!subset_active(dev) && dev->status_ep) {
 		dev->status = ep_desc (gadget, &hs_status_desc,
@@ -967,6 +968,7 @@ set_ether_config (struct eth_dev *dev, int gfp_flags)
 			goto done;
 		}
 	}
+#endif
 
 	dev->in = ep_desc (dev->gadget, &hs_source_desc, &fs_source_desc);
 	dev->in_ep->driver_data = dev;
@@ -1079,7 +1081,7 @@ static void eth_reset_config (struct eth_dev *dev)
  * that returns config descriptors, and altsetting code.
  */
 static int
-eth_set_config (struct eth_dev *dev, unsigned number, int gfp_flags)
+eth_set_config (struct eth_dev *dev, unsigned number, unsigned gfp_flags)
 {
 	int			result = 0;
 	struct usb_gadget	*gadget = dev->gadget;
@@ -1596,7 +1598,7 @@ static void defer_kevent (struct eth_dev *dev, int flag)
 static void rx_complete (struct usb_ep *ep, struct usb_request *req);
 
 static int
-rx_submit (struct eth_dev *dev, struct usb_request *req, int gfp_flags)
+rx_submit (struct eth_dev *dev, struct usb_request *req, unsigned gfp_flags)
 {
 	struct sk_buff		*skb;
 	int			retval = -ENOMEM;
@@ -1722,7 +1724,7 @@ clean:
 }
 
 static int prealloc (struct list_head *list, struct usb_ep *ep,
-			unsigned n, int gfp_flags)
+			unsigned n, unsigned gfp_flags)
 {
 	unsigned		i;
 	struct usb_request	*req;
@@ -1761,7 +1763,7 @@ extra:
 	return 0;
 }
 
-static int alloc_requests (struct eth_dev *dev, unsigned n, int gfp_flags)
+static int alloc_requests (struct eth_dev *dev, unsigned n, unsigned gfp_flags)
 {
 	int status;
 
@@ -1777,7 +1779,7 @@ fail:
 	return status;
 }
 
-static void rx_fill (struct eth_dev *dev, int gfp_flags)
+static void rx_fill (struct eth_dev *dev, unsigned gfp_flags)
 {
 	struct usb_request	*req;
 	unsigned long		flags;
@@ -2022,7 +2024,7 @@ static int rndis_control_ack (struct net_device *net)
 
 #endif	/* RNDIS */
 
-static void eth_start (struct eth_dev *dev, int gfp_flags)
+static void eth_start (struct eth_dev *dev, unsigned gfp_flags)
 {
 	DEBUG (dev, "%s\n", __FUNCTION__);
 
@@ -2428,7 +2430,7 @@ autoconf_fail:
 	dev->req->complete = eth_setup_complete;
 
 	/* ... and maybe likewise for status transfer */
-#ifdef DEV_CONFIG_CDC
+#if defined(DEV_CONFIG_CDC) || defined(CONFIG_USB_ETH_RNDIS)
 	if (dev->status_ep) {
 		dev->stat_req = eth_req_alloc (dev->status_ep,
 					STATUS_BYTECOUNT, GFP_KERNEL);

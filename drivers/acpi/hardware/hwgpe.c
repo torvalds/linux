@@ -48,6 +48,13 @@
 #define _COMPONENT          ACPI_HARDWARE
 	 ACPI_MODULE_NAME    ("hwgpe")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_hw_enable_wakeup_gpe_block (
+	struct acpi_gpe_xrupt_info      *gpe_xrupt_info,
+	struct acpi_gpe_block_info      *gpe_block);
+
 
 /******************************************************************************
  *
@@ -135,6 +142,7 @@ acpi_hw_clear_gpe (
  * DESCRIPTION: Return the status of a single GPE.
  *
  ******************************************************************************/
+
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_hw_get_gpe_status (
@@ -206,7 +214,7 @@ unlock_and_exit:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Disable all GPEs within a GPE block
+ * DESCRIPTION: Disable all GPEs within a single GPE block
  *
  ******************************************************************************/
 
@@ -244,7 +252,7 @@ acpi_hw_disable_gpe_block (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Clear status bits for all GPEs within a GPE block
+ * DESCRIPTION: Clear status bits for all GPEs within a single GPE block
  *
  ******************************************************************************/
 
@@ -282,8 +290,8 @@ acpi_hw_clear_gpe_block (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Enable all "runtime" GPEs within a GPE block. (Includes
- *              combination wake/run GPEs.)
+ * DESCRIPTION: Enable all "runtime" GPEs within a single GPE block. Includes
+ *              combination wake/run GPEs.
  *
  ******************************************************************************/
 
@@ -327,12 +335,12 @@ acpi_hw_enable_runtime_gpe_block (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Enable all "wake" GPEs within a GPE block.  (Includes
- *              combination wake/run GPEs.)
+ * DESCRIPTION: Enable all "wake" GPEs within a single GPE block. Includes
+ *              combination wake/run GPEs.
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_hw_enable_wakeup_gpe_block (
 	struct acpi_gpe_xrupt_info      *gpe_xrupt_info,
 	struct acpi_gpe_block_info      *gpe_block)
@@ -350,7 +358,8 @@ acpi_hw_enable_wakeup_gpe_block (
 
 		/* Enable all "wake" GPEs in this register */
 
-		status = acpi_hw_low_level_write (8, gpe_block->register_info[i].enable_for_wake,
+		status = acpi_hw_low_level_write (8,
+				 gpe_block->register_info[i].enable_for_wake,
 				 &gpe_block->register_info[i].enable_address);
 		if (ACPI_FAILURE (status)) {
 			return (status);
@@ -369,7 +378,7 @@ acpi_hw_enable_wakeup_gpe_block (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Disable and clear all GPEs
+ * DESCRIPTION: Disable and clear all GPEs in all GPE blocks
  *
  ******************************************************************************/
 
@@ -397,7 +406,7 @@ acpi_hw_disable_all_gpes (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Enable all GPEs of the given type
+ * DESCRIPTION: Enable all "runtime" GPEs, in all GPE blocks
  *
  ******************************************************************************/
 
@@ -424,7 +433,7 @@ acpi_hw_enable_all_runtime_gpes (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Enable all GPEs of the given type
+ * DESCRIPTION: Enable all "wakeup" GPEs, in all GPE blocks
  *
  ******************************************************************************/
 

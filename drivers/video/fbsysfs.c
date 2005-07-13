@@ -256,7 +256,7 @@ static ssize_t show_cmap(struct class_device *class_device, char *buf)
 	unsigned int offset = 0, i;
 
 	if (!fb_info->cmap.red || !fb_info->cmap.blue ||
-	    fb_info->cmap.green || fb_info->cmap.transp)
+	    !fb_info->cmap.green || !fb_info->cmap.transp)
 		return -EINVAL;
 
 	for (i = 0; i < fb_info->cmap.len; i++) {

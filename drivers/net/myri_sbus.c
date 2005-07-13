@@ -369,7 +369,7 @@ static void myri_tx(struct myri_eth *mp, struct net_device *dev)
  * assume 802.3 if the type field is short enough to be a length.
  * This is normal practice and works for any 'now in use' protocol.
  */
-static unsigned short myri_type_trans(struct sk_buff *skb, struct net_device *dev)
+static __be16 myri_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ethhdr *eth;
 	unsigned char *rawp;

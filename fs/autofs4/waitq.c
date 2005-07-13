@@ -231,8 +231,8 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		int type = (notify == NFY_MOUNT ?
 			autofs_ptype_missing : autofs_ptype_expire_multi);
 
-		DPRINTK(("new wait id = 0x%08lx, name = %.*s, nfy=%d\n",
-			(unsigned long) wq->wait_queue_token, wq->len, wq->name, notify));
+		DPRINTK("new wait id = 0x%08lx, name = %.*s, nfy=%d\n",
+			(unsigned long) wq->wait_queue_token, wq->len, wq->name, notify);
 
 		/* autofs4_notify_daemon() may block */
 		autofs4_notify_daemon(sbi, wq, type);

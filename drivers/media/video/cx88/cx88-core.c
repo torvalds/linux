@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-core.c,v 1.28 2005/06/12 04:19:19 mchehab Exp $
+ * $Id: cx88-core.c,v 1.33 2005/07/07 14:17:47 mchehab Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * driver core
@@ -470,25 +470,6 @@ int cx88_risc_decode(u32 risc)
 	return incr[risc >> 28] ? incr[risc >> 28] : 1;
 }
 
-#if 0 /* currently unused, but useful for debugging */
-void cx88_risc_disasm(struct cx88_core *core,
-		      struct btcx_riscmem *risc)
-{
-	unsigned int i,j,n;
-
-	printk("%s: risc disasm: %p [dma=0x%08lx]\n",
-	       core->name, risc->cpu, (unsigned long)risc->dma);
-	for (i = 0; i < (risc->size >> 2); i += n) {
-		printk("%s:   %04d: ", core->name, i);
-		n = cx88_risc_decode(risc->cpu[i]);
-		for (j = 1; j < n; j++)
-			printk("%s:   %04d: 0x%08x [ arg #%d ]\n",
-			       core->name, i+j, risc->cpu[i+j], j);
-		if (risc->cpu[i] == RISC_JUMP)
-			break;
-	}
-}
-#endif
 
 void cx88_sram_channel_dump(struct cx88_core *core,
 			    struct sram_channel *ch)
@@ -551,21 +532,6 @@ static char *cx88_pci_irqs[32] = {
 	"brdg_err", "src_dma_err", "dst_dma_err", "ipb_dma_err",
 	"i2c", "i2c_rack", "ir_smp", "gpio0", "gpio1"
 };
-char *cx88_vid_irqs[32] = {
-	"y_risci1", "u_risci1", "v_risci1", "vbi_risc1",
-	"y_risci2", "u_risci2", "v_risci2", "vbi_risc2",
-	"y_oflow",  "u_oflow",  "v_oflow",  "vbi_oflow",
-	"y_sync",   "u_sync",   "v_sync",   "vbi_sync",
-	"opc_err",  "par_err",  "rip_err",  "pci_abort",
-};
-char *cx88_mpeg_irqs[32] = {
-	"ts_risci1", NULL, NULL, NULL,
-	"ts_risci2", NULL, NULL, NULL,
-	"ts_oflow",  NULL, NULL, NULL,
-	"ts_sync",   NULL, NULL, NULL,
-	"opc_err", "par_err", "rip_err", "pci_abort",
-	"ts_err?",
-};
 
 void cx88_print_irqbits(char *name, char *tag, char **strings,
 			u32 bits, u32 mask)
@@ -615,16 +581,11 @@ void cx88_wakeup(struct cx88_core *core,
 			break;
 		buf = list_entry(q->active.next,
 				 struct cx88_buffer, vb.queue);
-#if 0
-		if (buf->count > count)
-			break;
-#else
 		/* count comes from the hw and is is 16bit wide --
 		 * this trick handles wrap-arounds correctly for
 		 * up to 32767 buffers in flight... */
 		if ((s16) (count - buf->count) < 0)
 			break;
-#endif
 		do_gettimeofday(&buf->vb.ts);
 		dprintk(2,"[%p/%d] wakeup reg=%d buf=%d\n",buf,buf->vb.i,
 			count, buf->count);
@@ -952,12 +913,10 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 		norm->cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
 	cx_andor(MO_INPUT_FORMAT, 0xf, norm->cxiformat);
 
-#if 1
 	// FIXME: as-is from DScaler
 	dprintk(1,"set_tvnorm: MO_OUTPUT_FORMAT 0x%08x [old=0x%08x]\n",
 		norm->cxoformat, cx_read(MO_OUTPUT_FORMAT));
 	cx_write(MO_OUTPUT_FORMAT, norm->cxoformat);
-#endif
 
 	// MO_SCONV_REG = adc clock / video dec clock * 2^17
 	tmp64  = adc_clock * (u64)(1 << 17);
@@ -1006,21 +965,7 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 	set_tvaudio(core);
 
 	// tell i2c chips
-#ifdef V4L2_I2C_CLIENTS
 	cx88_call_i2c_clients(core,VIDIOC_S_STD,&norm->id);
-#else
-	{
-		struct video_channel c;
-		memset(&c,0,sizeof(c));
-		c.channel = core->input;
-		c.norm = VIDEO_MODE_PAL;
-		if ((norm->id & (V4L2_STD_NTSC_M|V4L2_STD_NTSC_M_JP)))
-			c.norm = VIDEO_MODE_NTSC;
-		if (norm->id & V4L2_STD_SECAM)
-			c.norm = VIDEO_MODE_SECAM;
-		cx88_call_i2c_clients(core,VIDIOCSCHAN,&c);
-	}
-#endif
 
 	// done
 	return 0;
@@ -1230,8 +1175,6 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 /* ------------------------------------------------------------------ */
 
 EXPORT_SYMBOL(cx88_print_ioctl);
-EXPORT_SYMBOL(cx88_vid_irqs);
-EXPORT_SYMBOL(cx88_mpeg_irqs);
 EXPORT_SYMBOL(cx88_print_irqbits);
 
 EXPORT_SYMBOL(cx88_core_irq);

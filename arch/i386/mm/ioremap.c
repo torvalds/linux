@@ -228,7 +228,8 @@ EXPORT_SYMBOL(ioremap_nocache);
 void iounmap(volatile void __iomem *addr)
 {
 	struct vm_struct *p;
-	if ((void __force *) addr <= high_memory) 
+
+	if ((void __force *)addr <= high_memory)
 		return;
 
 	/*
@@ -241,9 +242,10 @@ void iounmap(volatile void __iomem *addr)
 		return;
 
 	write_lock(&vmlist_lock);
-	p = __remove_vm_area((void *) (PAGE_MASK & (unsigned long __force) addr));
+	p = __remove_vm_area((void *)(PAGE_MASK & (unsigned long __force)addr));
 	if (!p) { 
 		printk(KERN_WARNING "iounmap: bad address %p\n", addr);
+		dump_stack();
 		goto out_unlock;
 	}
 

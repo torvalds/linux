@@ -94,12 +94,42 @@ void smc1_lineif(struct uart_cpm_port *pinfo)
 		((immap_t *)IMAP_ADDR)->im_ioport.iop_paodr &= ~iobits;
 	}
 
+#ifdef CONFIG_MPC885ADS
+	/* Enable SMC1 transceivers */
+	{
+		volatile uint __iomem *bcsr1 = ioremap(BCSR1, 4);
+		uint tmp;
+
+		tmp = in_be32(bcsr1);
+		tmp &= ~BCSR1_RS232EN_1;
+		out_be32(bcsr1, tmp);
+		iounmap(bcsr1);
+	}
+#endif
+
 	pinfo->brg = 1;
 }
 
 void smc2_lineif(struct uart_cpm_port *pinfo)
 {
-	/* XXX SMC2: insert port configuration here */
+#ifdef CONFIG_MPC885ADS
+	volatile cpm8xx_t *cp = cpmp;
+	volatile uint __iomem *bcsr1;
+	uint tmp;
+
+	cp->cp_pepar |= 0x00000c00;
+	cp->cp_pedir &= ~0x00000c00;
+	cp->cp_peso &= ~0x00000400;
+	cp->cp_peso |= 0x00000800;
+
+	/* Enable SMC2 transceivers */
+	bcsr1 = ioremap(BCSR1, 4);
+	tmp = in_be32(bcsr1);
+	tmp &= ~BCSR1_RS232EN_2;
+	out_be32(bcsr1, tmp);
+	iounmap(bcsr1);
+#endif
+
 	pinfo->brg = 2;
 }
 

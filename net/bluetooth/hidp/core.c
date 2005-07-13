@@ -428,7 +428,7 @@ static int hidp_send_frame(struct socket *sock, unsigned char *data, int len)
 	return kernel_sendmsg(sock, &msg, &iv, 1, len);
 }
 
-static int hidp_process_transmit(struct hidp_session *session)
+static void hidp_process_transmit(struct hidp_session *session)
 {
 	struct sk_buff *skb;
 
@@ -453,9 +453,6 @@ static int hidp_process_transmit(struct hidp_session *session)
 		hidp_set_timer(session);
 		kfree_skb(skb);
 	}
-
-	return skb_queue_len(&session->ctrl_transmit) +
-				skb_queue_len(&session->intr_transmit);
 }
 
 static int hidp_session(void *arg)

@@ -1210,16 +1210,15 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	save = resp->p;
 
 /*
- * Routine for encoding the result of a
- * "seqid-mutating" NFSv4 operation.  This is
- * where seqids are incremented, and the
- * replay cache is filled.
+ * Routine for encoding the result of a "seqid-mutating" NFSv4 operation.  This
+ * is where sequence id's are incremented, and the replay cache is filled.
+ * Note that we increment sequence id's here, at the last moment, so we're sure
+ * we know whether the error to be returned is a sequence id mutating error.
  */
 
 #define ENCODE_SEQID_OP_TAIL(stateowner) do {			\
 	if (seqid_mutating_err(nfserr) && stateowner) { 	\
-		if (stateowner->so_confirmed)			\
-			stateowner->so_seqid++;			\
+		stateowner->so_seqid++;				\
 		stateowner->so_replay.rp_status = nfserr;   	\
 		stateowner->so_replay.rp_buflen = 		\
 			  (((char *)(resp)->p - (char *)save)); \
@@ -1367,9 +1366,9 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 		if ((buflen -= 4) < 0)
 			goto out_resource;
 		if (exp->ex_flags & NFSEXP_NOSUBTREECHECK)
-			WRITE32(NFS4_FH_VOLATILE_ANY);
+			WRITE32(NFS4_FH_PERSISTENT);
 		else
-			WRITE32(NFS4_FH_VOLATILE_ANY|NFS4_FH_VOL_RENAME);
+			WRITE32(NFS4_FH_PERSISTENT|NFS4_FH_VOL_RENAME);
 	}
 	if (bmval0 & FATTR4_WORD0_CHANGE) {
 		/*

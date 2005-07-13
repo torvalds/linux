@@ -90,7 +90,8 @@ int ip_vs_get_debug_level(void)
 #endif
 
 /*
- *	update_defense_level is called from keventd and from sysctl.
+ *	update_defense_level is called from keventd and from sysctl,
+ *	so it needs to protect itself from softirqs
  */
 static void update_defense_level(void)
 {
@@ -109,6 +110,8 @@ static void update_defense_level(void)
 	/* availmem = availmem - (i.totalswap - i.freeswap); */
 
 	nomem = (availmem < sysctl_ip_vs_amemthresh);
+
+	local_bh_disable();
 
 	/* drop_entry */
 	spin_lock(&__ip_vs_dropentry_lock);
@@ -206,6 +209,8 @@ static void update_defense_level(void)
 	if (to_change >= 0)
 		ip_vs_protocol_timeout_change(sysctl_ip_vs_secure_tcp>1);
 	write_unlock(&__ip_vs_securetcp_lock);
+
+	local_bh_enable();
 }
 
 
@@ -1360,9 +1365,7 @@ proc_do_defense_mode(ctl_table *table, int write, struct file * filp,
 			/* Restore the correct value */
 			*valp = val;
 		} else {
-			local_bh_disable();
 			update_defense_level();
-			local_bh_enable();
 		}
 	}
 	return rc;

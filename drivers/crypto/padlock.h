@@ -13,18 +13,18 @@
 #ifndef _CRYPTO_PADLOCK_H
 #define _CRYPTO_PADLOCK_H
 
+#define PADLOCK_ALIGNMENT 16
+
 /* Control word. */
-union cword {
-	uint32_t cword[4];
-	struct {
-		int rounds:4;
-		int algo:3;
-		int keygen:1;
-		int interm:1;
-		int encdec:1;
-		int ksize:2;
-	} b;
-};
+struct cword {
+	int __attribute__ ((__packed__))
+		rounds:4,
+		algo:3,
+		keygen:1,
+		interm:1,
+		encdec:1,
+		ksize:2;
+} __attribute__ ((__aligned__(PADLOCK_ALIGNMENT)));
 
 #define PFX	"padlock: "
 

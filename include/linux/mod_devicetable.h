@@ -174,6 +174,17 @@ struct serio_device_id {
 	__u8 proto;
 };
 
+/*
+ * Struct used for matching a device
+ */
+struct of_device_id
+{
+	char	name[32];
+	char	type[32];
+	char	compatible[128];
+	void	*data;
+};
+
 
 /* PCMCIA */
 

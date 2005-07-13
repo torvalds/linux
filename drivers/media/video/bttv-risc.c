@@ -334,10 +334,6 @@ bttv_calc_geo(struct bttv *btv, struct bttv_geometry *geo,
 	}
 
 	vdelay = tvnorm->vdelay;
-#if 0 /* FIXME */
-	if (vdelay < btv->vbi.lines*2)
-		vdelay = btv->vbi.lines*2;
-#endif
 
         xsf = (width*scaledtwidth)/swidth;
         geo->hscale =  ((totalwidth*4096UL)/xsf-4096);
@@ -776,13 +772,8 @@ bttv_overlay_risc(struct bttv *btv,
 		bttv_risc_overlay(btv, &buf->bottom, fmt, ov, 0, 0);
 		break;
 	case V4L2_FIELD_INTERLACED:
-#if 0
-		bttv_risc_overlay(btv, &buf->top,    fmt, ov, 1, 0);
-		bttv_risc_overlay(btv, &buf->bottom, fmt, ov, 0, 1);
-#else
 		bttv_risc_overlay(btv, &buf->top,    fmt, ov, 0, 1);
 		bttv_risc_overlay(btv, &buf->bottom, fmt, ov, 1, 0);
-#endif
 		break;
 	default:
 		BUG();

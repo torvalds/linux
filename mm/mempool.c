@@ -205,7 +205,7 @@ void * mempool_alloc(mempool_t *pool, unsigned int __nocast gfp_mask)
 	void *element;
 	unsigned long flags;
 	wait_queue_t wait;
-	int gfp_temp;
+	unsigned int gfp_temp;
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 

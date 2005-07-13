@@ -304,7 +304,7 @@ static inline void scc_discard_buffers(struct scc_channel *scc)
 		scc->tx_buff = NULL;
 	}
 	
-	while (skb_queue_len(&scc->tx_queue))
+	while (!skb_queue_empty(&scc->tx_queue))
 		dev_kfree_skb(skb_dequeue(&scc->tx_queue));
 
 	spin_unlock_irqrestore(&scc->lock, flags);
@@ -1126,8 +1126,7 @@ static void t_dwait(unsigned long channel)
 	
 	if (scc->stat.tx_state == TXS_WAIT)	/* maxkeyup or idle timeout */
 	{
-		if (skb_queue_len(&scc->tx_queue) == 0)	/* nothing to send */
-		{
+		if (skb_queue_empty(&scc->tx_queue)) {	/* nothing to send */
 			scc->stat.tx_state = TXS_IDLE;
 			netif_wake_queue(scc->dev);	/* t_maxkeyup locked it. */
 			return;

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: gc.c,v 1.144 2004/12/21 11:18:50 dwmw2 Exp $
+ * $Id: gc.c,v 1.148 2005/04/09 10:47:00 dedekind Exp $
  *
  */
 
@@ -50,6 +50,7 @@ static struct jffs2_eraseblock *jffs2_find_gc_block(struct jffs2_sb_info *c)
 	   put the clever wear-levelling algorithms. Eventually.  */
 	/* We possibly want to favour the dirtier blocks more when the
 	   number of free blocks is low. */
+again:
 	if (!list_empty(&c->bad_used_list) && c->nr_free_blocks > c->resv_blocks_gcbad) {
 		D1(printk(KERN_DEBUG "Picking block from bad_used_list to GC next\n"));
 		nextlist = &c->bad_used_list;
@@ -79,6 +80,13 @@ static struct jffs2_eraseblock *jffs2_find_gc_block(struct jffs2_sb_info *c)
 		D1(printk(KERN_DEBUG "Picking block from erasable_list to GC next (clean_list and {very_,}dirty_list were empty)\n"));
 
 		nextlist = &c->erasable_list;
+	} else if (!list_empty(&c->erasable_pending_wbuf_list)) {
+		/* There are blocks are wating for the wbuf sync */
+		D1(printk(KERN_DEBUG "Synching wbuf in order to reuse erasable_pending_wbuf_list blocks\n"));
+		spin_unlock(&c->erase_completion_lock);
+		jffs2_flush_wbuf_pad(c);
+		spin_lock(&c->erase_completion_lock);
+		goto again;
 	} else {
 		/* Eep. All were empty */
 		D1(printk(KERN_NOTICE "jffs2: No clean, dirty _or_ erasable blocks to GC from! Where are they all?\n"));
@@ -661,9 +669,10 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 {
 	struct jffs2_full_dnode *new_fn;
 	struct jffs2_raw_inode ri;
+	struct jffs2_node_frag *last_frag;
 	jint16_t dev;
 	char *mdata = NULL, mdatalen = 0;
-	uint32_t alloclen, phys_ofs;
+	uint32_t alloclen, phys_ofs, ilen;
 	int ret;
 
 	if (S_ISBLK(JFFS2_F_I_MODE(f)) ||
@@ -699,6 +708,14 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 		goto out;
 	}
 	
+	last_frag = frag_last(&f->fragtree);
+	if (last_frag)
+		/* Fetch the inode length from the fragtree rather then
+		 * from i_size since i_size may have not been updated yet */
+		ilen = last_frag->ofs + last_frag->size;
+	else
+		ilen = JFFS2_F_I_SIZE(f);
+	
 	memset(&ri, 0, sizeof(ri));
 	ri.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	ri.nodetype = cpu_to_je16(JFFS2_NODETYPE_INODE);
@@ -710,7 +727,7 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 	ri.mode = cpu_to_jemode(JFFS2_F_I_MODE(f));
 	ri.uid = cpu_to_je16(JFFS2_F_I_UID(f));
 	ri.gid = cpu_to_je16(JFFS2_F_I_GID(f));
-	ri.isize = cpu_to_je32(JFFS2_F_I_SIZE(f));
+	ri.isize = cpu_to_je32(ilen);
 	ri.atime = cpu_to_je32(JFFS2_F_I_ATIME(f));
 	ri.ctime = cpu_to_je32(JFFS2_F_I_CTIME(f));
 	ri.mtime = cpu_to_je32(JFFS2_F_I_MTIME(f));
@@ -816,8 +833,7 @@ static int jffs2_garbage_collect_deletion_dirent(struct jffs2_sb_info *c, struct
 
 			/* Doesn't matter if there's one in the same erase block. We're going to 
 			   delete it too at the same time. */
-			if ((raw->flash_offset & ~(c->sector_size-1)) ==
-			    (fd->raw->flash_offset & ~(c->sector_size-1)))
+			if (SECTOR_ADDR(raw->flash_offset) == SECTOR_ADDR(fd->raw->flash_offset))
 				continue;
 
 			D1(printk(KERN_DEBUG "Check potential deletion dirent at %08x\n", ref_offset(raw)));
@@ -891,7 +907,7 @@ static int jffs2_garbage_collect_hole(struct jffs2_sb_info *c, struct jffs2_eras
 	struct jffs2_raw_inode ri;
 	struct jffs2_node_frag *frag;
 	struct jffs2_full_dnode *new_fn;
-	uint32_t alloclen, phys_ofs;
+	uint32_t alloclen, phys_ofs, ilen;
 	int ret;
 
 	D1(printk(KERN_DEBUG "Writing replacement hole node for ino #%u from offset 0x%x to 0x%x\n",
@@ -951,10 +967,19 @@ static int jffs2_garbage_collect_hole(struct jffs2_sb_info *c, struct jffs2_eras
 		ri.csize = cpu_to_je32(0);
 		ri.compr = JFFS2_COMPR_ZERO;
 	}
+	
+	frag = frag_last(&f->fragtree);
+	if (frag)
+		/* Fetch the inode length from the fragtree rather then
+		 * from i_size since i_size may have not been updated yet */
+		ilen = frag->ofs + frag->size;
+	else
+		ilen = JFFS2_F_I_SIZE(f);
+
 	ri.mode = cpu_to_jemode(JFFS2_F_I_MODE(f));
 	ri.uid = cpu_to_je16(JFFS2_F_I_UID(f));
 	ri.gid = cpu_to_je16(JFFS2_F_I_GID(f));
-	ri.isize = cpu_to_je32(JFFS2_F_I_SIZE(f));
+	ri.isize = cpu_to_je32(ilen);
 	ri.atime = cpu_to_je32(JFFS2_F_I_ATIME(f));
 	ri.ctime = cpu_to_je32(JFFS2_F_I_CTIME(f));
 	ri.mtime = cpu_to_je32(JFFS2_F_I_MTIME(f));
@@ -1161,7 +1186,7 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		D1(printk(KERN_DEBUG "Expanded dnode to write from (0x%x-0x%x) to (0x%x-0x%x)\n", 
 			  orig_start, orig_end, start, end));
 
-		BUG_ON(end > JFFS2_F_I_SIZE(f));
+		D1(BUG_ON(end > frag_last(&f->fragtree)->ofs + frag_last(&f->fragtree)->size));
 		BUG_ON(end < orig_end);
 		BUG_ON(start > orig_start);
 	}

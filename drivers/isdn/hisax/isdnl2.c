@@ -108,7 +108,8 @@ static int l2addrsize(struct Layer2 *l2);
 static void
 set_peer_busy(struct Layer2 *l2) {
 	test_and_set_bit(FLG_PEER_BUSY, &l2->flag);
-	if (skb_queue_len(&l2->i_queue) || skb_queue_len(&l2->ui_queue))
+	if (!skb_queue_empty(&l2->i_queue) ||
+	    !skb_queue_empty(&l2->ui_queue))
 		test_and_set_bit(FLG_L2BLOCK, &l2->flag);
 }
 
@@ -754,7 +755,7 @@ l2_restart_multi(struct FsmInst *fi, int event, void *arg)
 		st->l2.l2l3(st, DL_ESTABLISH | INDICATION, NULL);
 
 	if ((ST_L2_7==state) || (ST_L2_8 == state))
-		if (skb_queue_len(&st->l2.i_queue) && cansend(st))
+		if (!skb_queue_empty(&st->l2.i_queue) && cansend(st))
 			st->l2.l2l1(st, PH_PULL | REQUEST, NULL);
 }
 
@@ -810,7 +811,7 @@ l2_connected(struct FsmInst *fi, int event, void *arg)
 	if (pr != -1)
 		st->l2.l2l3(st, pr, NULL);
 
-	if (skb_queue_len(&st->l2.i_queue) && cansend(st))
+	if (!skb_queue_empty(&st->l2.i_queue) && cansend(st))
 		st->l2.l2l1(st, PH_PULL | REQUEST, NULL);
 }
 
@@ -1014,7 +1015,7 @@ l2_st7_got_super(struct FsmInst *fi, int event, void *arg)
 			if(typ != RR) FsmDelTimer(&st->l2.t203, 9);
 			restart_t200(st, 12);
 		}
-		if (skb_queue_len(&st->l2.i_queue) && (typ == RR))
+		if (!skb_queue_empty(&st->l2.i_queue) && (typ == RR))
 			st->l2.l2l1(st, PH_PULL | REQUEST, NULL);
 	} else
 		nrerrorrecovery(fi);
@@ -1120,7 +1121,7 @@ l2_got_iframe(struct FsmInst *fi, int event, void *arg)
 		return;
 	}
 
-	if (skb_queue_len(&st->l2.i_queue) && (fi->state == ST_L2_7))
+	if (!skb_queue_empty(&st->l2.i_queue) && (fi->state == ST_L2_7))
 		st->l2.l2l1(st, PH_PULL | REQUEST, NULL);
 	if (test_and_clear_bit(FLG_ACK_PEND, &st->l2.flag))
 		enquiry_cr(st, RR, RSP, 0);
@@ -1138,7 +1139,7 @@ l2_got_tei(struct FsmInst *fi, int event, void *arg)
 		test_and_set_bit(FLG_L3_INIT, &st->l2.flag);
 	} else
 		FsmChangeState(fi, ST_L2_4);
-	if (skb_queue_len(&st->l2.ui_queue))
+	if (!skb_queue_empty(&st->l2.ui_queue))
 		tx_ui(st);
 }
 
@@ -1301,7 +1302,7 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 		FsmDelTimer(&st->l2.t203, 13);
 		FsmAddTimer(&st->l2.t200, st->l2.T200, EV_L2_T200, NULL, 11);
 	}
-	if (skb_queue_len(&l2->i_queue) && cansend(st))
+	if (!skb_queue_empty(&l2->i_queue) && cansend(st))
 		st->l2.l2l1(st, PH_PULL | REQUEST, NULL);
 }
 
@@ -1347,7 +1348,7 @@ l2_st8_got_super(struct FsmInst *fi, int event, void *arg)
 			}
 			invoke_retransmission(st, nr);
 			FsmChangeState(fi, ST_L2_7);
-			if (skb_queue_len(&l2->i_queue) && cansend(st))
+			if (!skb_queue_empty(&l2->i_queue) && cansend(st))
 				st->l2.l2l1(st, PH_PULL | REQUEST, NULL);
 		} else
 			nrerrorrecovery(fi);

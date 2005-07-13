@@ -139,6 +139,16 @@ config USB_IDMOUSE
 
 source "drivers/usb/misc/sisusbvga/Kconfig"
 
+config USB_LD
+	tristate "USB LD driver"
+	depends on USB && EXPERIMENTAL
+	help
+	  This driver is for generic USB devices that use interrupt transfers,
+	  like LD Didactic's USB devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ldusb.
+
 config USB_TEST
 	tristate "USB testing driver (DEVELOPMENT)"
 	depends on USB && USB_DEVICEFS && EXPERIMENTAL

@@ -578,6 +578,14 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (!vlandev)
 				continue;
 
+			if (netif_carrier_ok(dev)) {
+				if (!netif_carrier_ok(vlandev))
+					netif_carrier_on(vlandev);
+			} else {
+				if (netif_carrier_ok(vlandev))
+					netif_carrier_off(vlandev);
+			}
+
 			if ((vlandev->state & VLAN_LINK_STATE_MASK) != flgs) {
 				vlandev->state = (vlandev->state &~ VLAN_LINK_STATE_MASK) 
 					| flgs;

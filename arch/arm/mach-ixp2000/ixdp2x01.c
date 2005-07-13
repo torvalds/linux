@@ -370,30 +370,35 @@ static void __init ixdp2x01_init_machine(void)
 		((*IXDP2X01_CPLD_FLASH_REG & IXDP2X01_CPLD_FLASH_BANK_MASK) + 1);
 
 	platform_add_devices(ixdp2x01_devices, ARRAY_SIZE(ixdp2x01_devices));
+	ixp2000_uart_init();
 }
 
 
 #ifdef CONFIG_ARCH_IXDP2401
 MACHINE_START(IXDP2401, "Intel IXDP2401 Development Platform")
-	MAINTAINER("MontaVista Software, Inc.")
-	BOOT_MEM(0x00000000, IXP2000_UART_PHYS_BASE, IXP2000_UART_VIRT_BASE)
-	BOOT_PARAMS(0x00000100)
-	MAPIO(ixdp2x01_map_io)
-	INITIRQ(ixdp2x01_init_irq)
+	/* Maintainer: MontaVista Software, Inc. */
+	.phys_ram	= 0x00000000,
+	.phys_io	= IXP2000_UART_PHYS_BASE,
+	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.map_io		= ixdp2x01_map_io,
+	.init_irq	= ixdp2x01_init_irq,
 	.timer		= &ixdp2x01_timer,
-	INIT_MACHINE(ixdp2x01_init_machine)
+	.init_machine	= ixdp2x01_init_machine,
 MACHINE_END
 #endif
 
 #ifdef CONFIG_ARCH_IXDP2801
 MACHINE_START(IXDP2801, "Intel IXDP2801 Development Platform")
-	MAINTAINER("MontaVista Software, Inc.")
-	BOOT_MEM(0x00000000, IXP2000_UART_PHYS_BASE, IXP2000_UART_VIRT_BASE)
-	BOOT_PARAMS(0x00000100)
-	MAPIO(ixdp2x01_map_io)
-	INITIRQ(ixdp2x01_init_irq)
+	/* Maintainer: MontaVista Software, Inc. */
+	.phys_ram	= 0x00000000,
+	.phys_io	= IXP2000_UART_PHYS_BASE,
+	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.map_io		= ixdp2x01_map_io,
+	.init_irq	= ixdp2x01_init_irq,
 	.timer		= &ixdp2x01_timer,
-	INIT_MACHINE(ixdp2x01_init_machine)
+	.init_machine	= ixdp2x01_init_machine,
 MACHINE_END
 #endif
 

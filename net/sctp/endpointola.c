@@ -67,7 +67,8 @@ static void sctp_endpoint_bh_rcv(struct sctp_endpoint *ep);
  * Initialize the base fields of the endpoint structure.
  */
 static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
-						struct sock *sk, int gfp)
+						struct sock *sk,
+						unsigned int __nocast gfp)
 {
 	struct sctp_sock *sp = sctp_sk(sk);
 	memset(ep, 0, sizeof(struct sctp_endpoint));
@@ -137,7 +138,8 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 /* Create a sctp_endpoint with all that boring stuff initialized.
  * Returns NULL if there isn't enough memory.
  */
-struct sctp_endpoint *sctp_endpoint_new(struct sock *sk, int gfp)
+struct sctp_endpoint *sctp_endpoint_new(struct sock *sk,
+					unsigned int __nocast gfp)
 {
 	struct sctp_endpoint *ep;
 

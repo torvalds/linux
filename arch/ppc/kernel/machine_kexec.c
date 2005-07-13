@@ -28,6 +28,12 @@ typedef NORET_TYPE void (*relocate_new_kernel_t)(
 const extern unsigned char relocate_new_kernel[];
 const extern unsigned int relocate_new_kernel_size;
 
+/*
+ * Provide a dummy crash_notes definition while crash dump arrives to ppc.
+ * This prevents breakage of crash_notes attribute in kernel/ksysfs.c.
+ */
+void *crash_notes = NULL;
+
 void machine_shutdown(void)
 {
 	if (ppc_md.machine_shutdown)

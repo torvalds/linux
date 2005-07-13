@@ -25,7 +25,7 @@ extern int trap_init_f00f_bug(void);
 /*
  * Alignment at which movsl is preferred for bulk memory copies.
  */
-struct movsl_mask movsl_mask;
+struct movsl_mask movsl_mask __read_mostly;
 #endif
 
 void __devinit early_intel_workaround(struct cpuinfo_x86 *c)

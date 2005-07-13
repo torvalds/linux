@@ -890,7 +890,10 @@ clear_qf_name:
 					"quota turned on.\n");
 				return 0;
 			}
-			kfree(sbi->s_qf_names[qtype]);
+			/*
+			 * The space will be released later when all options
+			 * are confirmed to be correct
+			 */
 			sbi->s_qf_names[qtype] = NULL;
 			break;
 		case Opt_jqfmt_vfsold:
@@ -939,7 +942,7 @@ clear_qf_name:
 		case Opt_ignore:
 			break;
 		case Opt_resize:
-			if (!n_blocks_count) {
+			if (!is_remount) {
 				printk("EXT3-fs: resize option only available "
 					"for remount\n");
 				return 0;
@@ -2109,14 +2112,33 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 {
 	struct ext3_super_block * es;
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
-	unsigned long tmp;
 	unsigned long n_blocks_count = 0;
+	unsigned long old_sb_flags;
+	struct ext3_mount_options old_opts;
+	int err;
+#ifdef CONFIG_QUOTA
+	int i;
+#endif
+
+	/* Store the original options */
+	old_sb_flags = sb->s_flags;
+	old_opts.s_mount_opt = sbi->s_mount_opt;
+	old_opts.s_resuid = sbi->s_resuid;
+	old_opts.s_resgid = sbi->s_resgid;
+	old_opts.s_commit_interval = sbi->s_commit_interval;
+#ifdef CONFIG_QUOTA
+	old_opts.s_jquota_fmt = sbi->s_jquota_fmt;
+	for (i = 0; i < MAXQUOTAS; i++)
+		old_opts.s_qf_names[i] = sbi->s_qf_names[i];
+#endif
 
 	/*
 	 * Allow the "check" option to be passed as a remount option.
 	 */
-	if (!parse_options(data, sb, &tmp, &n_blocks_count, 1))
-		return -EINVAL;
+	if (!parse_options(data, sb, NULL, &n_blocks_count, 1)) {
+		err = -EINVAL;
+		goto restore_opts;
+	}
 
 	if (sbi->s_mount_opt & EXT3_MOUNT_ABORT)
 		ext3_abort(sb, __FUNCTION__, "Abort forced by user");
@@ -2130,8 +2152,10 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 
 	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY) ||
 		n_blocks_count > le32_to_cpu(es->s_blocks_count)) {
-		if (sbi->s_mount_opt & EXT3_MOUNT_ABORT)
-			return -EROFS;
+		if (sbi->s_mount_opt & EXT3_MOUNT_ABORT) {
+			err = -EROFS;
+			goto restore_opts;
+		}
 
 		if (*flags & MS_RDONLY) {
 			/*
@@ -2158,7 +2182,8 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 				       "remount RDWR because of unsupported "
 				       "optional features (%x).\n",
 				       sb->s_id, le32_to_cpu(ret));
-				return -EROFS;
+				err = -EROFS;
+				goto restore_opts;
 			}
 			/*
 			 * Mounting a RDONLY partition read-write, so reread
@@ -2168,13 +2193,38 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 			 */
 			ext3_clear_journal_err(sb, es);
 			sbi->s_mount_state = le16_to_cpu(es->s_state);
-			if ((ret = ext3_group_extend(sb, es, n_blocks_count)))
-				return ret;
+			if ((ret = ext3_group_extend(sb, es, n_blocks_count))) {
+				err = ret;
+				goto restore_opts;
+			}
 			if (!ext3_setup_super (sb, es, 0))
 				sb->s_flags &= ~MS_RDONLY;
 		}
 	}
+#ifdef CONFIG_QUOTA
+	/* Release old quota file names */
+	for (i = 0; i < MAXQUOTAS; i++)
+		if (old_opts.s_qf_names[i] &&
+		    old_opts.s_qf_names[i] != sbi->s_qf_names[i])
+			kfree(old_opts.s_qf_names[i]);
+#endif
 	return 0;
+restore_opts:
+	sb->s_flags = old_sb_flags;
+	sbi->s_mount_opt = old_opts.s_mount_opt;
+	sbi->s_resuid = old_opts.s_resuid;
+	sbi->s_resgid = old_opts.s_resgid;
+	sbi->s_commit_interval = old_opts.s_commit_interval;
+#ifdef CONFIG_QUOTA
+	sbi->s_jquota_fmt = old_opts.s_jquota_fmt;
+	for (i = 0; i < MAXQUOTAS; i++) {
+		if (sbi->s_qf_names[i] &&
+		    old_opts.s_qf_names[i] != sbi->s_qf_names[i])
+			kfree(sbi->s_qf_names[i]);
+		sbi->s_qf_names[i] = old_opts.s_qf_names[i];
+	}
+#endif
+	return err;
 }
 
 static int ext3_statfs (struct super_block * sb, struct kstatfs * buf)

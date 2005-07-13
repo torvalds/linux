@@ -13,6 +13,10 @@ static int enable_pid_filtering = 1;
 module_param(enable_pid_filtering, int, 0444);
 MODULE_PARM_DESC(enable_pid_filtering, "enable hardware pid filtering: supported values: 0 (fullts), 1");
 
+static int irq_chk_intv;
+module_param(irq_chk_intv, int, 0644);
+MODULE_PARM_DESC(irq_chk_intv, "set the interval for IRQ watchdog (currently just debugging).");
+
 #ifdef CONFIG_DVB_B2C2_FLEXCOP_DEBUG
 #define dprintk(level,args...) \
 	do { if ((debug & level)) printk(args); } while (0)
@@ -26,6 +30,7 @@ MODULE_PARM_DESC(enable_pid_filtering, "enable hardware pid filtering: supported
 #define deb_reg(args...)   dprintk(0x02,args)
 #define deb_ts(args...)    dprintk(0x04,args)
 #define deb_irq(args...)   dprintk(0x08,args)
+#define deb_chk(args...)   dprintk(0x10,args)
 
 static int debug = 0;
 module_param(debug, int, 0644);
@@ -55,6 +60,10 @@ struct flexcop_pci {
 	int count;
 
 	spinlock_t irq_lock;
+
+	unsigned long last_irq;
+
+	struct work_struct irq_check_work;
 
 	struct flexcop_device *fc_dev;
 };
@@ -88,17 +97,54 @@ static int flexcop_pci_write_ibi_reg(struct flexcop_device *fc, flexcop_ibi_regi
 	return 0;
 }
 
+static void flexcop_pci_irq_check_work(void *data)
+{
+	struct flexcop_pci *fc_pci = data;
+	struct flexcop_device *fc = fc_pci->fc_dev;
+
+	flexcop_ibi_value v = fc->read_ibi_reg(fc,sram_dest_reg_714);
+
+	flexcop_dump_reg(fc_pci->fc_dev,dma1_000,4);
+
+	if (v.sram_dest_reg_714.net_ovflow_error)
+		deb_chk("sram net_ovflow_error\n");
+	if (v.sram_dest_reg_714.media_ovflow_error)
+		deb_chk("sram media_ovflow_error\n");
+	if (v.sram_dest_reg_714.cai_ovflow_error)
+		deb_chk("sram cai_ovflow_error\n");
+	if (v.sram_dest_reg_714.cai_ovflow_error)
+		deb_chk("sram cai_ovflow_error\n");
+
+	schedule_delayed_work(&fc_pci->irq_check_work,
+			msecs_to_jiffies(irq_chk_intv < 100 ? 100 : irq_chk_intv));
+}
+
 /* When PID filtering is turned on, we use the timer IRQ, because small amounts
  * of data need to be passed to the user space instantly as well. When PID
  * filtering is turned off, we use the page-change-IRQ */
-static irqreturn_t flexcop_pci_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t flexcop_pci_isr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct flexcop_pci *fc_pci = dev_id;
 	struct flexcop_device *fc = fc_pci->fc_dev;
-	flexcop_ibi_value v = fc->read_ibi_reg(fc,irq_20c);
+	flexcop_ibi_value v;
 	irqreturn_t ret = IRQ_HANDLED;
 
 	spin_lock_irq(&fc_pci->irq_lock);
+
+	v = fc->read_ibi_reg(fc,irq_20c);
+
+   /* errors */
+	if (v.irq_20c.Data_receiver_error)
+		deb_chk("data receiver error\n");
+	if (v.irq_20c.Continuity_error_flag)
+		deb_chk("Contunuity error flag is set\n");
+	if (v.irq_20c.LLC_SNAP_FLAG_set)
+		deb_chk("LLC_SNAP_FLAG_set is set\n");
+	if (v.irq_20c.Transport_Error)
+		deb_chk("Transport error\n");
+
+	if ((fc_pci->count % 1000) == 0)
+		deb_chk("%d valid irq took place so far\n",fc_pci->count);
 
 	if (v.irq_20c.DMA1_IRQ_Status == 1) {
 		if (fc_pci->active_dma1_addr == 0)
@@ -115,8 +161,9 @@ static irqreturn_t flexcop_pci_irq(int irq, void *dev_id, struct pt_regs *regs)
 			fc->read_ibi_reg(fc,dma1_008).dma_0x8.dma_cur_addr << 2;
 		u32 cur_pos = cur_addr - fc_pci->dma[0].dma_addr0;
 
-		deb_irq("irq: %08x cur_addr: %08x: cur_pos: %08x, last_cur_pos: %08x ",
-				v.raw,cur_addr,cur_pos,fc_pci->last_dma1_cur_pos);
+		deb_irq("%u irq: %08x cur_addr: %08x: cur_pos: %08x, last_cur_pos: %08x ",
+				jiffies_to_usecs(jiffies - fc_pci->last_irq),v.raw,cur_addr,cur_pos,fc_pci->last_dma1_cur_pos);
+		fc_pci->last_irq = jiffies;
 
 		/* buffer end was reached, restarted from the beginning
 		 * pass the data from last_cur_pos to the buffer end to the demux
@@ -127,7 +174,6 @@ static irqreturn_t flexcop_pci_irq(int irq, void *dev_id, struct pt_regs *regs)
 					fc_pci->dma[0].cpu_addr0 + fc_pci->last_dma1_cur_pos,
 					(fc_pci->dma[0].size*2) - fc_pci->last_dma1_cur_pos);
 			fc_pci->last_dma1_cur_pos = 0;
-			fc_pci->count = 0;
 		}
 
 		if (cur_pos > fc_pci->last_dma1_cur_pos) {
@@ -139,15 +185,13 @@ static irqreturn_t flexcop_pci_irq(int irq, void *dev_id, struct pt_regs *regs)
 		deb_irq("\n");
 
 		fc_pci->last_dma1_cur_pos = cur_pos;
-	} else
+		fc_pci->count++;
+	} else {
+		deb_irq("isr for flexcop called, apparently without reason (%08x)\n",v.raw);
 		ret = IRQ_NONE;
+	}
 
 	spin_unlock_irq(&fc_pci->irq_lock);
-
-/* packet count would be ideal for hw filtering, but it isn't working. Either
- * the data book is wrong, or I'm unable to read it correctly */
-
-/*	if (v.irq_20c.DMA1_Size_IRQ_Status == 1) { packet counter */
 
 	return ret;
 }
@@ -156,30 +200,35 @@ static int flexcop_pci_stream_control(struct flexcop_device *fc, int onoff)
 {
 	struct flexcop_pci *fc_pci = fc->bus_specific;
 	if (onoff) {
-		flexcop_dma_config(fc,&fc_pci->dma[0],FC_DMA_1,FC_DMA_SUBADDR_0 | FC_DMA_SUBADDR_1);
-		flexcop_dma_config(fc,&fc_pci->dma[1],FC_DMA_2,FC_DMA_SUBADDR_0 | FC_DMA_SUBADDR_1);
-		flexcop_dma_config_timer(fc,FC_DMA_1,1);
+		flexcop_dma_config(fc,&fc_pci->dma[0],FC_DMA_1);
+		flexcop_dma_config(fc,&fc_pci->dma[1],FC_DMA_2);
 
-		if (fc_pci->fc_dev->pid_filtering) {
-			fc_pci->last_dma1_cur_pos = 0;
-			flexcop_dma_control_timer_irq(fc,FC_DMA_1,1);
-		} else {
-			fc_pci->active_dma1_addr = 0;
-			flexcop_dma_control_size_irq(fc,FC_DMA_1,1);
-		}
+		flexcop_dma_config_timer(fc,FC_DMA_1,0);
 
-/*		flexcop_dma_config_packet_count(fc,FC_DMA_1,0xc0);
-		flexcop_dma_control_packet_irq(fc,FC_DMA_1,1); */
+		flexcop_dma_xfer_control(fc,FC_DMA_1,FC_DMA_SUBADDR_0 | FC_DMA_SUBADDR_1,1);
+		deb_irq("DMA xfer enabled\n");
 
-		deb_irq("irqs enabled\n");
+		fc_pci->last_dma1_cur_pos = 0;
+		flexcop_dma_control_timer_irq(fc,FC_DMA_1,1);
+		deb_irq("IRQ enabled\n");
+
+//		fc_pci->active_dma1_addr = 0;
+//		flexcop_dma_control_size_irq(fc,FC_DMA_1,1);
+
+		if (irq_chk_intv > 0)
+			schedule_delayed_work(&fc_pci->irq_check_work,
+					msecs_to_jiffies(irq_chk_intv < 100 ? 100 : irq_chk_intv));
 	} else {
-		if (fc_pci->fc_dev->pid_filtering)
-			flexcop_dma_control_timer_irq(fc,FC_DMA_1,0);
-		else
-			flexcop_dma_control_size_irq(fc,FC_DMA_1,0);
+		if (irq_chk_intv > 0)
+			cancel_delayed_work(&fc_pci->irq_check_work);
 
-//		flexcop_dma_control_packet_irq(fc,FC_DMA_1,0);
-		deb_irq("irqs disabled\n");
+		flexcop_dma_control_timer_irq(fc,FC_DMA_1,0);
+		deb_irq("IRQ disabled\n");
+
+//		flexcop_dma_control_size_irq(fc,FC_DMA_1,0);
+
+		flexcop_dma_xfer_control(fc,FC_DMA_1,FC_DMA_SUBADDR_0 | FC_DMA_SUBADDR_1,0);
+		deb_irq("DMA xfer disabled\n");
 	}
 
 	return 0;
@@ -198,6 +247,7 @@ static int flexcop_pci_dma_init(struct flexcop_pci *fc_pci)
 	flexcop_sram_set_dest(fc_pci->fc_dev,FC_SRAM_DEST_CAO   | FC_SRAM_DEST_CAI, FC_SRAM_DEST_TARGET_DMA2);
 
 	fc_pci->init_state |= FC_PCI_DMA_INIT;
+
 	goto success;
 dma1_free:
 	flexcop_dma_free(&fc_pci->dma[0]);
@@ -244,7 +294,7 @@ static int flexcop_pci_init(struct flexcop_pci *fc_pci)
 
 	pci_set_drvdata(fc_pci->pdev, fc_pci);
 
-	if ((ret = request_irq(fc_pci->pdev->irq, flexcop_pci_irq,
+	if ((ret = request_irq(fc_pci->pdev->irq, flexcop_pci_isr,
 					SA_SHIRQ, DRIVER_NAME, fc_pci)) != 0)
 		goto err_pci_iounmap;
 
@@ -324,6 +374,8 @@ static int flexcop_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	if ((ret = flexcop_pci_dma_init(fc_pci)) != 0)
 		goto err_fc_exit;
 
+	INIT_WORK(&fc_pci->irq_check_work, flexcop_pci_irq_check_work, fc_pci);
+
 	goto success;
 err_fc_exit:
 	flexcop_device_exit(fc);
@@ -350,17 +402,17 @@ static void flexcop_pci_remove(struct pci_dev *pdev)
 
 static struct pci_device_id flexcop_pci_tbl[] = {
 	{ PCI_DEVICE(0x13d0, 0x2103) },
-/*	{ PCI_DEVICE(0x13d0, 0x2200) }, PCI FlexCopIII ? */
+/*	{ PCI_DEVICE(0x13d0, 0x2200) }, ? */
 	{ },
 };
 
 MODULE_DEVICE_TABLE(pci, flexcop_pci_tbl);
 
 static struct pci_driver flexcop_pci_driver = {
-	.name = "Technisat/B2C2 FlexCop II/IIb/III PCI",
+	.name     = "b2c2_flexcop_pci",
 	.id_table = flexcop_pci_tbl,
-	.probe = flexcop_pci_probe,
-	.remove = flexcop_pci_remove,
+	.probe    = flexcop_pci_probe,
+	.remove   = flexcop_pci_remove,
 };
 
 static int __init flexcop_pci_module_init(void)

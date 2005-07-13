@@ -427,7 +427,7 @@ static void cxacru_poll_status(struct cxacru_data *instance)
 		atm_dev->link_rate = buf[CXINF_DOWNSTREAM_RATE] * 1000 / 424;
 		atm_dev->signal = ATM_PHY_SIG_FOUND;
 
-		dev_info(dev, "ADSL line: up (%d Kib/s down | %d Kib/s up)\n",
+		dev_info(dev, "ADSL line: up (%d kb/s down | %d kb/s up)\n",
 		     buf[CXINF_DOWNSTREAM_RATE], buf[CXINF_UPSTREAM_RATE]);
 		break;
 

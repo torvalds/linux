@@ -2210,7 +2210,7 @@ no_mem:
 	return NULL;
 }
 
-static inline unsigned short
+static inline __be16
 qeth_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct qeth_card *card;

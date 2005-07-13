@@ -89,7 +89,7 @@ int drm_irq_by_busid(struct inode *inode, struct file *filp,
  * \c drm_driver_irq_preinstall() and \c drm_driver_irq_postinstall() functions
  * before and after the installation.
  */
-int drm_irq_install( drm_device_t *dev )
+static int drm_irq_install( drm_device_t *dev )
 {
 	int ret;
 	unsigned long sh_flags=0;

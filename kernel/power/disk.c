@@ -16,6 +16,8 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
+#include <linux/mount.h>
+
 #include "power.h"
 
 
@@ -233,6 +235,16 @@ int pm_suspend_disk(void)
 static int software_resume(void)
 {
 	int error;
+
+	if (!swsusp_resume_device) {
+		if (!strlen(resume_file))
+			return -ENOENT;
+		swsusp_resume_device = name_to_dev_t(resume_file);
+		pr_debug("swsusp: Resume From Partition %s\n", resume_file);
+	} else {
+		pr_debug("swsusp: Resume From Partition %d:%d\n",
+			 MAJOR(swsusp_resume_device), MINOR(swsusp_resume_device));
+	}
 
 	if (noresume) {
 		/**

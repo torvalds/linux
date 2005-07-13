@@ -777,7 +777,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 
 	/* Full snapshots are not usable */
 	if (!s->valid)
-		return -1;
+		return -EIO;
 
 	/*
 	 * Write to snapshot - higher level takes care of RW/RO
@@ -929,6 +929,10 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 
 		/* Only deal with valid snapshots */
 		if (!snap->valid)
+			continue;
+
+		/* Nothing to do if writing beyond end of snapshot */
+		if (bio->bi_sector >= dm_table_get_size(snap->table))
 			continue;
 
 		down_write(&snap->lock);

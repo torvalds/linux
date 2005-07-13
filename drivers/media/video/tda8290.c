@@ -1,5 +1,5 @@
 /*
- * $Id: tda8290.c,v 1.11 2005/06/18 06:09:06 nsh Exp $
+ * $Id: tda8290.c,v 1.15 2005/07/08 20:21:33 mchehab Exp $
  *
  * i2c tv tuner chip device driver
  * controls the philips tda8290+75 tuner chip combo.
@@ -136,15 +136,12 @@ static int tda8290_tune(struct i2c_client *c)
 	return 0;
 }
 
-static void set_frequency(struct tuner *t, u16 ifc)
+static void set_frequency(struct tuner *t, u16 ifc, unsigned int freq)
 {
-	u32 freq;
 	u32 N;
 
 	if (t->mode == V4L2_TUNER_RADIO)
-		freq = t->freq / 1000;
-	else
-		freq = t->freq;
+		freq = freq / 1000;
 
 	N = (((freq<<3)+ifc)&0x3fffc);
 
@@ -187,14 +184,14 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 	struct tuner *t = i2c_get_clientdata(c);
 
 	set_audio(t);
-	set_frequency(t, 864);
+	set_frequency(t, 864, freq);
 	tda8290_tune(c);
 }
 
 static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 {
 	struct tuner *t = i2c_get_clientdata(c);
-	set_frequency(t, 704);
+	set_frequency(t, 704, freq);
 	tda8290_tune(c);
 }
 

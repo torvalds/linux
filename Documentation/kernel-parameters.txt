@@ -37,7 +37,7 @@ restrictions referred to are that the relevant option is valid if:
 	IA-32	IA-32 aka i386 architecture is enabled.
 	IA-64	IA-64 architecture is enabled.
 	IOSCHED	More than one I/O scheduler is enabled.
-	IP_PNP	IP DCHP, BOOTP, or RARP is enabled.
+	IP_PNP	IP DHCP, BOOTP, or RARP is enabled.
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
 	JOY	Appropriate joystick support is enabled.
@@ -757,6 +757,9 @@ running once the system is up.
 
 	maxcpus=	[SMP] Maximum number of processors that	an SMP kernel
 			should make use of
+
+	max_addr=[KMG]	[KNL,BOOT,ia64] All physical memory greater than or
+			equal to this physical address is ignored.
 
 	max_luns=	[SCSI] Maximum number of LUNs to probe
 			Should be between 1 and 2^32-1.

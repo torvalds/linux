@@ -982,7 +982,7 @@ static struct tty_operations hp_ops = {
 static int __init
 simrs_init (void)
 {
-	int			i;
+	int			i, rc;
 	struct serial_state	*state;
 
 	if (!ia64_platform_is("hpsim"))
@@ -1017,7 +1017,10 @@ simrs_init (void)
 		if (state->type == PORT_UNKNOWN) continue;
 
 		if (!state->irq) {
-			state->irq = assign_irq_vector(AUTO_ASSIGN);
+			if ((rc = assign_irq_vector(AUTO_ASSIGN)) < 0)
+				panic("%s: out of interrupt vectors!\n",
+				      __FUNCTION__);
+			state->irq = rc;
 			ia64_ssc_connect_irq(KEYBOARD_INTR, state->irq);
 		}
 

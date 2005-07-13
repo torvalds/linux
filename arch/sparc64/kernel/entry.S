@@ -22,8 +22,6 @@
 #include <asm/estate.h>
 #include <asm/auxio.h>
 
-/* #define SYSCALL_TRACING	1 */
-
 #define curptr      g6
 
 #define NR_SYSCALLS 284      /* Each OS is different... */
@@ -553,13 +551,11 @@ do_ivec:
 	sllx		%g3, 5, %g3
 	or		%g2, %lo(ivector_table), %g2
 	add		%g2, %g3, %g3
-	ldx		[%g3 + 0x08], %g2	/* irq_info */
 	ldub		[%g3 + 0x04], %g4	/* pil */
-	brz,pn		%g2, do_ivec_spurious
-	 mov		1, %g2
-
+	mov		1, %g2
 	sllx		%g2, %g4, %g2
 	sllx		%g4, 2, %g4
+
 	lduw		[%g6 + %g4], %g5	/* g5 = irq_work(cpu, pil) */
 	stw		%g5, [%g3 + 0x00]	/* bucket->irq_chain = g5 */
 	stw		%g3, [%g6 + %g4]	/* irq_work(cpu, pil) = bucket */
@@ -567,9 +563,9 @@ do_ivec:
 	retry
 do_ivec_xcall:
 	mov		0x50, %g1
-
 	ldxa		[%g1 + %g0] ASI_INTR_R, %g1
 	srl		%g3, 0, %g3
+
 	mov		0x60, %g7
 	ldxa		[%g7 + %g0] ASI_INTR_R, %g7
 	stxa		%g0, [%g0] ASI_INTR_RECEIVE
@@ -580,19 +576,6 @@ do_ivec_xcall:
 	.align		32
 1:	jmpl		%g3, %g0
 	 nop
-
-do_ivec_spurious:
-	stw		%g3, [%g6 + 0x00]	/* irq_work(cpu, 0) = bucket */
-	rdpr		%pstate, %g5
-
-	wrpr		%g5, PSTATE_IG | PSTATE_AG, %pstate
-	sethi		%hi(109f), %g7
-	ba,pt		%xcc, etrap
-109:	 or		%g7, %lo(109b), %g7
-	call		catch_disabled_ivec
-	 add		%sp, PTREGS_OFF, %o0
-	ba,pt		%xcc, rtrap
-	 clr		%l6
 
 	.globl		save_alternate_globals
 save_alternate_globals: /* %o0 = save_area */
@@ -1569,11 +1552,12 @@ sys_ptrace:	add		%sp, PTREGS_OFF, %o0
 		nop
 		.align		32
 1:		ldx		[%curptr + TI_FLAGS], %l5
-		andcc		%l5, _TIF_SYSCALL_TRACE, %g0
+		andcc		%l5, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %g0
 		be,pt		%icc, rtrap
 		 clr		%l6
+		add		%sp, PTREGS_OFF, %o0
 		call		syscall_trace
-		 nop
+		 mov		1, %o1
 
 		ba,pt		%xcc, rtrap
 		 clr		%l6
@@ -1657,18 +1641,20 @@ linux_sparc_ni_syscall:
 	 or		%l7, %lo(sys_ni_syscall), %l7
 
 linux_syscall_trace32:
+	add		%sp, PTREGS_OFF, %o0
 	call		syscall_trace
-	 nop
+	 clr		%o1
 	srl		%i0, 0, %o0
-	mov		%i4, %o4
+	srl		%i4, 0, %o4
 	srl		%i1, 0, %o1
 	srl		%i2, 0, %o2
 	b,pt		%xcc, 2f
 	 srl		%i3, 0, %o3
 
 linux_syscall_trace:
+	add		%sp, PTREGS_OFF, %o0
 	call		syscall_trace
-	 nop
+	 clr		%o1
 	mov		%i0, %o0
 	mov		%i1, %o1
 	mov		%i2, %o2
@@ -1686,11 +1672,6 @@ linux_sparc_syscall32:
 	bgeu,pn		%xcc, linux_sparc_ni_syscall		! CTI
 	 srl		%i0, 0, %o0				! IEU0
 	sll		%g1, 2, %l4				! IEU0	Group
-#ifdef SYSCALL_TRACING
-	call		syscall_trace_entry
-	 add		%sp, PTREGS_OFF, %o0
-	srl		%i0, 0, %o0
-#endif
 	srl		%i4, 0, %o4				! IEU1
 	lduw		[%l7 + %l4], %l7			! Load
 	srl		%i1, 0, %o1				! IEU0	Group
@@ -1698,7 +1679,7 @@ linux_sparc_syscall32:
 
 	srl		%i5, 0, %o5				! IEU1
 	srl		%i2, 0, %o2				! IEU0	Group
-	andcc		%l0, _TIF_SYSCALL_TRACE, %g0		! IEU0	Group
+	andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %g0
 	bne,pn		%icc, linux_syscall_trace32		! CTI
 	 mov		%i0, %l5				! IEU1
 	call		%l7					! CTI	Group brk forced
@@ -1714,11 +1695,6 @@ linux_sparc_syscall:
 	bgeu,pn		%xcc, linux_sparc_ni_syscall		! CTI
 	 mov		%i0, %o0				! IEU0
 	sll		%g1, 2, %l4				! IEU0	Group
-#ifdef SYSCALL_TRACING
-	call		syscall_trace_entry
-	 add		%sp, PTREGS_OFF, %o0
-	mov		%i0, %o0
-#endif
 	mov		%i1, %o1				! IEU1
 	lduw		[%l7 + %l4], %l7			! Load
 4:	mov		%i2, %o2				! IEU0	Group
@@ -1726,7 +1702,7 @@ linux_sparc_syscall:
 
 	mov		%i3, %o3				! IEU1
 	mov		%i4, %o4				! IEU0	Group
-	andcc		%l0, _TIF_SYSCALL_TRACE, %g0		! IEU1	Group+1 bubble
+	andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %g0
 	bne,pn		%icc, linux_syscall_trace		! CTI	Group
 	 mov		%i0, %l5				! IEU0
 2:	call		%l7					! CTI	Group brk forced
@@ -1735,12 +1711,6 @@ linux_sparc_syscall:
 
 3:	stx		%o0, [%sp + PTREGS_OFF + PT_V9_I0]
 ret_sys_call:
-#ifdef SYSCALL_TRACING
-	mov		%o0, %o1
-	call		syscall_trace_exit
-	 add		%sp, PTREGS_OFF, %o0
-	mov		%o1, %o0
-#endif
 	ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %g3
 	ldx		[%sp + PTREGS_OFF + PT_V9_TNPC], %l1 ! pc = npc
 	sra		%o0, 0, %o0
@@ -1760,7 +1730,7 @@ ret_sys_call:
 1:
 	cmp		%o0, -ERESTART_RESTARTBLOCK
 	bgeu,pn		%xcc, 1f
-	 andcc		%l0, _TIF_SYSCALL_TRACE, %l6	
+	 andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %l6
 80:
 	/* System call success, clear Carry condition code. */
 	andn		%g3, %g2, %g3
@@ -1775,7 +1745,7 @@ ret_sys_call:
 	/* System call failure, set Carry condition code.
 	 * Also, get abs(errno) to return to the process.
 	 */
-	andcc		%l0, _TIF_SYSCALL_TRACE, %l6	
+	andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %l6	
 	sub		%g0, %o0, %o0
 	or		%g3, %g2, %g3
 	stx		%o0, [%sp + PTREGS_OFF + PT_V9_I0]
@@ -1788,8 +1758,9 @@ ret_sys_call:
 	b,pt		%xcc, rtrap
 	 stx		%l2, [%sp + PTREGS_OFF + PT_V9_TNPC]
 linux_syscall_trace2:
+	add		%sp, PTREGS_OFF, %o0
 	call		syscall_trace
-	 nop
+	 mov		1, %o1
 	stx		%l1, [%sp + PTREGS_OFF + PT_V9_TPC]
 	ba,pt		%xcc, rtrap
 	 stx		%l2, [%sp + PTREGS_OFF + PT_V9_TNPC]
