@@ -359,6 +359,19 @@ config ROMFS_FS
 	  If you don't know whether you need it, then you don't need it:
 	  answer N.
 
+config INOTIFY
+	bool "Inotify file change notification support"
+	default y
+	---help---
+	  Say Y here to enable inotify support and the /dev/inotify character
+	  device.  Inotify is a file change notification system and a
+	  replacement for dnotify.  Inotify fixes numerous shortcomings in
+	  dnotify and introduces several new features.  It allows monitoring
+	  of both files and directories via a single open fd.  Multiple file
+	  events are supported.
+
+	  If unsure, say Y.
+
 config QUOTA
 	bool "Quota support"
 	help

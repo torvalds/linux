@@ -690,11 +690,9 @@ static void blackbird_codec_settings(struct cx8802_dev *dev)
 	int bitrate_mode = 1;
 	int bitrate = 7500000;
 	int bitrate_peak = 7500000;
-#if 1
 	bitrate_mode = BLACKBIRD_VIDEO_CBR;
 	bitrate = 4000*1024;
 	bitrate_peak = 4000*1024;
-#endif
 
 	/* assign stream type */
 	blackbird_api_cmd(dev, BLACKBIRD_API_SET_STREAM_TYPE, 1, 0, BLACKBIRD_STREAM_PROGRAM);
@@ -810,9 +808,6 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	cx_write(MO_VBOS_CONTROL, 0x84A00); /* no 656 mode, 8-bit pixels, disable VBI */
 	cx_clear(MO_OUTPUT_FORMAT, 0x0008); /* Normal Y-limits to let the mpeg encoder sync */
 
-#if 0 /* FIXME */
-	set_scale(dev, 720, 480, V4L2_FIELD_INTERLACED);
-#endif
 	blackbird_codec_settings(dev);
 	msleep(1);
 

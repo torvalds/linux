@@ -243,19 +243,6 @@ static int tda7432_write(struct i2c_client *client, int subaddr, int val)
 }
 
 /* I don't think we ever actually _read_ the chip... */
-#if 0
-static int tda7432_read(struct i2c_client *client)
-{
-	unsigned char buffer;
-	d2printk("tda7432: In tda7432_read\n");
-	if (1 != i2c_master_recv(client,&buffer,1)) {
-		printk(KERN_WARNING "tda7432: I/O error, trying (read)\n");
-		return -1;
-	}
-	dprintk("tda7432: Read 0x%02x\n", buffer);
-	return buffer;
-}
-#endif
 
 static int tda7432_set(struct i2c_client *client)
 {

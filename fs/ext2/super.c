@@ -936,12 +936,23 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 	struct ext2_sb_info * sbi = EXT2_SB(sb);
 	struct ext2_super_block * es;
 	unsigned long old_mount_opt = sbi->s_mount_opt;
+	struct ext2_mount_options old_opts;
+	unsigned long old_sb_flags;
+	int err;
+
+	/* Store the old options */
+	old_sb_flags = sb->s_flags;
+	old_opts.s_mount_opt = sbi->s_mount_opt;
+	old_opts.s_resuid = sbi->s_resuid;
+	old_opts.s_resgid = sbi->s_resgid;
 
 	/*
 	 * Allow the "check" option to be passed as a remount option.
 	 */
-	if (!parse_options (data, sbi))
-		return -EINVAL;
+	if (!parse_options (data, sbi)) {
+		err = -EINVAL;
+		goto restore_opts;
+	}
 
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
 		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
@@ -971,7 +982,8 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 			printk("EXT2-fs: %s: couldn't remount RDWR because of "
 			       "unsupported optional features (%x).\n",
 			       sb->s_id, le32_to_cpu(ret));
-			return -EROFS;
+			err = -EROFS;
+			goto restore_opts;
 		}
 		/*
 		 * Mounting a RDONLY partition read-write, so reread and
@@ -984,6 +996,12 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 	}
 	ext2_sync_super(sb, es);
 	return 0;
+restore_opts:
+	sbi->s_mount_opt = old_opts.s_mount_opt;
+	sbi->s_resuid = old_opts.s_resuid;
+	sbi->s_resgid = old_opts.s_resgid;
+	sb->s_flags = old_sb_flags;
+	return err;
 }
 
 static int ext2_statfs (struct super_block * sb, struct kstatfs * buf)

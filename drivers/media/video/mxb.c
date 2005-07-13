@@ -326,6 +326,7 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	struct mxb* mxb = (struct mxb*)dev->ext_priv;
 	struct video_decoder_init init;
 	struct i2c_msg msg;
+	struct tuner_setup tun_setup;
 
 	int i = 0, err = 0;
 	struct	tea6415c_multiplex vm;	
@@ -349,8 +350,10 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	mxb->saa7111a->driver->command(mxb->saa7111a,DECODER_SET_VBI_BYPASS, &i);
 
 	/* select a tuner type */
-	i = 5; 
-	mxb->tuner->driver->command(mxb->tuner,TUNER_SET_TYPE, &i);
+	tun_setup.mode_mask = T_ANALOG_TV;
+	tun_setup.addr = ADDR_UNSET;
+	tun_setup.type = 5;
+	mxb->tuner->driver->command(mxb->tuner,TUNER_SET_TYPE_ADDR, &tun_setup);
 	
 	/* mute audio on tea6420s */
 	mxb->tea6420_1->driver->command(mxb->tea6420_1,TEA6420_SWITCH, &TEA6420_line[6][0]);

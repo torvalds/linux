@@ -67,7 +67,8 @@
  ******************************************************************************/
 
 acpi_status
-acpi_load_tables (void)
+acpi_load_tables (
+	void)
 {
 	struct acpi_pointer             rsdp_address;
 	acpi_status                     status;
@@ -82,7 +83,7 @@ acpi_load_tables (void)
 			  &rsdp_address);
 	if (ACPI_FAILURE (status)) {
 		ACPI_REPORT_ERROR (("acpi_load_tables: Could not get RSDP, %s\n",
-				  acpi_format_exception (status)));
+			acpi_format_exception (status)));
 		goto error_exit;
 	}
 
@@ -93,7 +94,7 @@ acpi_load_tables (void)
 	status = acpi_tb_verify_rsdp (&rsdp_address);
 	if (ACPI_FAILURE (status)) {
 		ACPI_REPORT_ERROR (("acpi_load_tables: RSDP Failed validation: %s\n",
-				  acpi_format_exception (status)));
+			acpi_format_exception (status)));
 		goto error_exit;
 	}
 
@@ -102,7 +103,7 @@ acpi_load_tables (void)
 	status = acpi_tb_get_table_rsdt ();
 	if (ACPI_FAILURE (status)) {
 		ACPI_REPORT_ERROR (("acpi_load_tables: Could not load RSDT: %s\n",
-				  acpi_format_exception (status)));
+			acpi_format_exception (status)));
 		goto error_exit;
 	}
 
@@ -110,20 +111,20 @@ acpi_load_tables (void)
 
 	status = acpi_tb_get_required_tables ();
 	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("acpi_load_tables: Error getting required tables (DSDT/FADT/FACS): %s\n",
-				  acpi_format_exception (status)));
+		ACPI_REPORT_ERROR ((
+			"acpi_load_tables: Error getting required tables (DSDT/FADT/FACS): %s\n",
+			acpi_format_exception (status)));
 		goto error_exit;
 	}
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "ACPI Tables successfully acquired\n"));
-
 
 	/* Load the namespace from the tables */
 
 	status = acpi_ns_load_namespace ();
 	if (ACPI_FAILURE (status)) {
 		ACPI_REPORT_ERROR (("acpi_load_tables: Could not load namespace: %s\n",
-				  acpi_format_exception (status)));
+			acpi_format_exception (status)));
 		goto error_exit;
 	}
 
@@ -139,7 +140,6 @@ error_exit:
 
 
 #ifdef ACPI_FUTURE_USAGE
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_load_table
@@ -250,7 +250,6 @@ acpi_unload_table (
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
-
 	/* Find all tables of the requested type */
 
 	table_desc = acpi_gbl_table_lists[table_type].next;
@@ -321,7 +320,6 @@ acpi_get_table_header (
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
-
 	/* Get a pointer to the entire table */
 
 	status = acpi_tb_get_table_ptr (table_type, instance, &tbl_ptr);
@@ -329,22 +327,19 @@ acpi_get_table_header (
 		return_ACPI_STATUS (status);
 	}
 
-	/*
-	 * The function will return a NULL pointer if the table is not loaded
-	 */
+	/* The function will return a NULL pointer if the table is not loaded */
+
 	if (tbl_ptr == NULL) {
 		return_ACPI_STATUS (AE_NOT_EXIST);
 	}
 
-	/*
-	 * Copy the header to the caller's buffer
-	 */
+	/* Copy the header to the caller's buffer */
+
 	ACPI_MEMCPY ((void *) out_table_header, (void *) tbl_ptr,
-			 sizeof (struct acpi_table_header));
+		sizeof (struct acpi_table_header));
 
 	return_ACPI_STATUS (status);
 }
-
 
 #endif  /*  ACPI_FUTURE_USAGE  */
 
@@ -404,7 +399,6 @@ acpi_get_table (
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
-
 	/* Get a pointer to the entire table */
 
 	status = acpi_tb_get_table_ptr (table_type, instance, &tbl_ptr);
@@ -423,9 +417,8 @@ acpi_get_table (
 	/* Get the table length */
 
 	if (table_type == ACPI_TABLE_RSDP) {
-		/*
-		 *  RSD PTR is the only "table" without a header
-		 */
+		/* RSD PTR is the only "table" without a header */
+
 		table_length = sizeof (struct rsdp_descriptor);
 	}
 	else {

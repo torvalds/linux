@@ -13,13 +13,17 @@
 
 #include "sleep.h"
 
+#ifdef	CONFIG_ACPI_SLEEP_PROC_SLEEP
 #define ACPI_SYSTEM_FILE_SLEEP		"sleep"
+#endif
+
 #define ACPI_SYSTEM_FILE_ALARM		"alarm"
 #define ACPI_SYSTEM_FILE_WAKEUP_DEVICE   "wakeup"
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME		("sleep")
 
+#ifdef	CONFIG_ACPI_SLEEP_PROC_SLEEP
 
 static int acpi_system_sleep_seq_show(struct seq_file *seq, void *offset)
 {
@@ -78,6 +82,7 @@ acpi_system_write_sleep (
  Done:
 	return error ? error : count;
 }
+#endif	/* CONFIG_ACPI_SLEEP_PROC_SLEEP */
 
 static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 {
@@ -452,6 +457,7 @@ static struct file_operations acpi_system_wakeup_device_fops = {
 	.release	= single_release,
 };
 
+#ifdef	CONFIG_ACPI_SLEEP_PROC_SLEEP
 static struct file_operations acpi_system_sleep_fops = {
 	.open		= acpi_system_sleep_open_fs,
 	.read		= seq_read,
@@ -459,6 +465,7 @@ static struct file_operations acpi_system_sleep_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+#endif	/* CONFIG_ACPI_SLEEP_PROC_SLEEP */
 
 static struct file_operations acpi_system_alarm_fops = {
 	.open		= acpi_system_alarm_open_fs,
@@ -484,11 +491,13 @@ static int acpi_sleep_proc_init(void)
 	if (acpi_disabled)
 		return 0;
  
+#ifdef	CONFIG_ACPI_SLEEP_PROC_SLEEP
 	/* 'sleep' [R/W]*/
 	entry = create_proc_entry(ACPI_SYSTEM_FILE_SLEEP,
 				  S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_sleep_fops;
+#endif
 
 	/* 'alarm' [R/W] */
 	entry = create_proc_entry(ACPI_SYSTEM_FILE_ALARM,

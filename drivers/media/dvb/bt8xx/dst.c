@@ -928,7 +928,7 @@ static int dst_get_signal(struct dst_state* state)
 {
 	int retval;
 	u8 get_signal[] = { 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfb };
-	printk("%s: Getting Signal strength and other parameters !!!!!!!!\n", __FUNCTION__);
+	dprintk("%s: Getting Signal strength and other parameters\n", __FUNCTION__);
 	if ((state->diseq_flags & ATTEMPT_TUNE) == 0) {
 		state->decode_lock = state->decode_strength = state->decode_snr = 0;
 		return 0;

@@ -384,7 +384,7 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 		/* error the io and bail out */
 		struct dm_io *io = tio->io;
 		free_tio(tio->io->md, tio);
-		dec_pending(io, -EIO);
+		dec_pending(io, r);
 		bio_put(clone);
 	}
 }
@@ -966,23 +966,20 @@ static void __flush_deferred_io(struct mapped_device *md, struct bio *c)
  */
 int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 {
-	int r;
+	int r = -EINVAL;
 
 	down_write(&md->lock);
 
 	/* device must be suspended */
-	if (!test_bit(DMF_SUSPENDED, &md->flags)) {
-		up_write(&md->lock);
-		return -EPERM;
-	}
+	if (!test_bit(DMF_SUSPENDED, &md->flags))
+		goto out;
 
 	__unbind(md);
 	r = __bind(md, table);
-	if (r)
-		return r;
 
+out:
 	up_write(&md->lock);
-	return 0;
+	return r;
 }
 
 /*
@@ -1055,13 +1052,16 @@ int dm_suspend(struct mapped_device *md)
 	if (test_bit(DMF_BLOCK_IO, &md->flags))
 		goto out_read_unlock;
 
-	error = __lock_fs(md);
-	if (error)
-		goto out_read_unlock;
-
 	map = dm_get_table(md);
 	if (map)
+		/* This does not get reverted if there's an error later. */
 		dm_table_presuspend_targets(map);
+
+	error = __lock_fs(md);
+	if (error) {
+		dm_table_put(map);
+		goto out_read_unlock;
+	}
 
 	up_read(&md->lock);
 
@@ -1121,7 +1121,6 @@ int dm_suspend(struct mapped_device *md)
 	return 0;
 
 out_unfreeze:
-	/* FIXME Undo dm_table_presuspend_targets */
 	__unlock_fs(md);
 	clear_bit(DMF_BLOCK_IO, &md->flags);
 out_write_unlock:

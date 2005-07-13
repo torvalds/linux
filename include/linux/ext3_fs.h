@@ -239,6 +239,20 @@ struct ext3_new_group_data {
 #define EXT3_IOC_SETRSVSZ		_IOW('f', 6, long)
 
 /*
+ *  Mount options
+ */
+struct ext3_mount_options {
+	unsigned long s_mount_opt;
+	uid_t s_resuid;
+	gid_t s_resgid;
+	unsigned long s_commit_interval;
+#ifdef CONFIG_QUOTA
+	int s_jquota_fmt;
+	char *s_qf_names[MAXQUOTAS];
+#endif
+};
+
+/*
  * Structure of an inode on the disk
  */
 struct ext3_inode {

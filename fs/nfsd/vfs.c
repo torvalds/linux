@@ -45,7 +45,7 @@
 #endif /* CONFIG_NFSD_V3 */
 #include <linux/nfsd/nfsfh.h>
 #include <linux/quotaops.h>
-#include <linux/dnotify.h>
+#include <linux/fsnotify.h>
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
 #ifdef CONFIG_NFSD_V4
@@ -860,7 +860,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		nfsdstats.io_read += err;
 		*count = err;
 		err = 0;
-		dnotify_parent(file->f_dentry, DN_ACCESS);
+		fsnotify_access(file->f_dentry);
 	} else 
 		err = nfserrno(err);
 out:
@@ -916,7 +916,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	set_fs(oldfs);
 	if (err >= 0) {
 		nfsdstats.io_write += cnt;
-		dnotify_parent(file->f_dentry, DN_MODIFY);
+		fsnotify_modify(file->f_dentry);
 	}
 
 	/* clear setuid/setgid flag after write */

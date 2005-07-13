@@ -51,17 +51,17 @@ static int dvb_usb_init(struct dvb_usb_device *d)
 
 /* speed - when running at FULL speed we need a HW PID filter */
 	if (d->udev->speed == USB_SPEED_FULL && !(d->props.caps & DVB_USB_HAS_PID_FILTER)) {
-		err("This USB2.0 device cannot be run on a USB1.1 port. (it lacks a HW PID filter)");
+		err("This USB2.0 device cannot be run on a USB1.1 port. (it lacks a hardware PID filter)");
 		return -ENODEV;
 	}
 
 	if ((d->udev->speed == USB_SPEED_FULL && d->props.caps & DVB_USB_HAS_PID_FILTER) ||
 		(d->props.caps & DVB_USB_NEED_PID_FILTERING)) {
-		info("will use the device's hw PID filter.");
+		info("will use the device's hardware PID filter (table count: %d).",d->props.pid_filter_count);
 		d->pid_filtering = 1;
 		d->max_feed_count = d->props.pid_filter_count;
 	} else {
-		info("will pass the complete MPEG2 transport stream to the demuxer.");
+		info("will pass the complete MPEG2 transport stream to the software demuxer.");
 		d->pid_filtering = 0;
 		d->max_feed_count = 255;
 	}

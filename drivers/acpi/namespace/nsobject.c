@@ -60,6 +60,8 @@
  *              Type                - Type of object, or ACPI_TYPE_ANY if not
  *                                    known
  *
+ * RETURN:      Status
+ *
  * DESCRIPTION: Record the given object as the value associated with the
  *              name whose acpi_handle is passed.  If Object is NULL
  *              and Type is ACPI_TYPE_ANY, set the name as having no value.
@@ -97,7 +99,8 @@ acpi_ns_attach_object (
 	if (!object && (ACPI_TYPE_ANY != type)) {
 		/* Null object */
 
-		ACPI_REPORT_ERROR (("ns_attach_object: Null object, but type not ACPI_TYPE_ANY\n"));
+		ACPI_REPORT_ERROR ((
+			"ns_attach_object: Null object, but type not ACPI_TYPE_ANY\n"));
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
@@ -112,7 +115,8 @@ acpi_ns_attach_object (
 	/* Check if this object is already attached */
 
 	if (node->object == object) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj %p already installed in name_obj %p\n",
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+			"Obj %p already installed in name_obj %p\n",
 			object, node));
 
 		return_ACPI_STATUS (AE_OK);
@@ -192,7 +196,7 @@ acpi_ns_attach_object (
  *
  * FUNCTION:    acpi_ns_detach_object
  *
- * PARAMETERS:  Node           - An node whose object will be detached
+ * PARAMETERS:  Node           - A Namespace node whose object will be detached
  *
  * RETURN:      None.
  *
@@ -248,7 +252,7 @@ acpi_ns_detach_object (
  *
  * FUNCTION:    acpi_ns_get_attached_object
  *
- * PARAMETERS:  Node             - Parent Node to be examined
+ * PARAMETERS:  Node             - Namespace node
  *
  * RETURN:      Current value of the object field from the Node whose
  *              handle is passed
@@ -284,7 +288,7 @@ acpi_ns_get_attached_object (
  *
  * FUNCTION:    acpi_ns_get_secondary_object
  *
- * PARAMETERS:  Node             - Parent Node to be examined
+ * PARAMETERS:  Node             - Namespace node
  *
  * RETURN:      Current value of the object field from the Node whose
  *              handle is passed.

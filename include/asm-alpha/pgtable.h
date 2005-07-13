@@ -132,6 +132,10 @@
 #define __S110	_PAGE_S(0)
 #define __S111	_PAGE_S(0)
 
+/*
+ * pgprot_noncached() is only for infiniband pci support, and a real
+ * implementation for RAM would be more complicated.
+ */
 #define pgprot_noncached(prot)	(prot)
 
 /*

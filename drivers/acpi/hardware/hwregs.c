@@ -87,8 +87,9 @@ acpi_hw_clear_acpi_status (
 		}
 	}
 
-	status = acpi_hw_register_write (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_STATUS,
-			  ACPI_BITMASK_ALL_FIXED_STATUS);
+	status = acpi_hw_register_write (ACPI_MTX_DO_NOT_LOCK,
+			 ACPI_REGISTER_PM1_STATUS,
+			 ACPI_BITMASK_ALL_FIXED_STATUS);
 	if (ACPI_FAILURE (status)) {
 		goto unlock_and_exit;
 	}
@@ -138,28 +139,30 @@ acpi_get_sleep_type_data (
 {
 	acpi_status                     status = AE_OK;
 	struct acpi_parameter_info      info;
+	char                            *sleep_state_name;
 
 
 	ACPI_FUNCTION_TRACE ("acpi_get_sleep_type_data");
 
 
-	/*
-	 * Validate parameters
-	 */
+	/* Validate parameters */
+
 	if ((sleep_state > ACPI_S_STATES_MAX) ||
 		!sleep_type_a || !sleep_type_b) {
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
-	/*
-	 * Evaluate the namespace object containing the values for this state
-	 */
+	/* Evaluate the namespace object containing the values for this state */
+
 	info.parameters = NULL;
-	status = acpi_ns_evaluate_by_name ((char *) acpi_gbl_sleep_state_names[sleep_state],
-			  &info);
+	info.return_object = NULL;
+	sleep_state_name = (char *) acpi_gbl_sleep_state_names[sleep_state];
+
+	status = acpi_ns_evaluate_by_name (sleep_state_name, &info);
 	if (ACPI_FAILURE (status)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s while evaluating sleep_state [%s]\n",
-			acpi_format_exception (status), acpi_gbl_sleep_state_names[sleep_state]));
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+			"%s while evaluating sleep_state [%s]\n",
+			acpi_format_exception (status), sleep_state_name));
 
 		return_ACPI_STATUS (status);
 	}
@@ -167,45 +170,57 @@ acpi_get_sleep_type_data (
 	/* Must have a return object */
 
 	if (!info.return_object) {
-		ACPI_REPORT_ERROR (("Missing Sleep State object\n"));
+		ACPI_REPORT_ERROR (("No Sleep State object returned from [%s]\n",
+			sleep_state_name));
 		status = AE_NOT_EXIST;
 	}
 
 	/* It must be of type Package */
 
 	else if (ACPI_GET_OBJECT_TYPE (info.return_object) != ACPI_TYPE_PACKAGE) {
-		ACPI_REPORT_ERROR (("Sleep State object not a Package\n"));
+		ACPI_REPORT_ERROR (("Sleep State return object is not a Package\n"));
 		status = AE_AML_OPERAND_TYPE;
 	}
 
-	/* The package must have at least two elements */
-
+	/*
+	 * The package must have at least two elements.  NOTE (March 2005): This
+	 * goes against the current ACPI spec which defines this object as a
+	 * package with one encoded DWORD element.  However, existing practice
+	 * by BIOS vendors seems to be to have 2 or more elements, at least
+	 * one per sleep type (A/B).
+	 */
 	else if (info.return_object->package.count < 2) {
-		ACPI_REPORT_ERROR (("Sleep State package does not have at least two elements\n"));
+		ACPI_REPORT_ERROR ((
+			"Sleep State return package does not have at least two elements\n"));
 		status = AE_AML_NO_OPERAND;
 	}
 
 	/* The first two elements must both be of type Integer */
 
-	else if ((ACPI_GET_OBJECT_TYPE (info.return_object->package.elements[0]) != ACPI_TYPE_INTEGER) ||
-			 (ACPI_GET_OBJECT_TYPE (info.return_object->package.elements[1]) != ACPI_TYPE_INTEGER)) {
-		ACPI_REPORT_ERROR (("Sleep State package elements are not both Integers (%s, %s)\n",
+	else if ((ACPI_GET_OBJECT_TYPE (info.return_object->package.elements[0])
+			 != ACPI_TYPE_INTEGER) ||
+			 (ACPI_GET_OBJECT_TYPE (info.return_object->package.elements[1])
+				!= ACPI_TYPE_INTEGER)) {
+		ACPI_REPORT_ERROR ((
+			"Sleep State return package elements are not both Integers (%s, %s)\n",
 			acpi_ut_get_object_type_name (info.return_object->package.elements[0]),
 			acpi_ut_get_object_type_name (info.return_object->package.elements[1])));
 		status = AE_AML_OPERAND_TYPE;
 	}
 	else {
-		/*
-		 * Valid _Sx_ package size, type, and value
-		 */
-		*sleep_type_a = (u8) (info.return_object->package.elements[0])->integer.value;
-		*sleep_type_b = (u8) (info.return_object->package.elements[1])->integer.value;
+		/* Valid _Sx_ package size, type, and value */
+
+		*sleep_type_a = (u8)
+			(info.return_object->package.elements[0])->integer.value;
+		*sleep_type_b = (u8)
+			(info.return_object->package.elements[1])->integer.value;
 	}
 
 	if (ACPI_FAILURE (status)) {
 		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"While evaluating sleep_state [%s], bad Sleep object %p type %s\n",
-			acpi_gbl_sleep_state_names[sleep_state], info.return_object,
+			"%s While evaluating sleep_state [%s], bad Sleep object %p type %s\n",
+			acpi_format_exception (status),
+			sleep_state_name, info.return_object,
 			acpi_ut_get_object_type_name (info.return_object)));
 	}
 
@@ -221,9 +236,9 @@ EXPORT_SYMBOL(acpi_get_sleep_type_data);
  *
  * PARAMETERS:  register_id         - Index of ACPI Register to access
  *
- * RETURN:      The bit mask to be used when accessing the register
+ * RETURN:      The bitmask to be used when accessing the register
  *
- * DESCRIPTION: Map register_id into a register bit mask.
+ * DESCRIPTION: Map register_id into a register bitmask.
  *
  ******************************************************************************/
 
@@ -359,7 +374,7 @@ acpi_set_register (
 	/* Always do a register read first so we can insert the new bits  */
 
 	status = acpi_hw_register_read (ACPI_MTX_DO_NOT_LOCK,
-			  bit_reg_info->parent_register, &register_value);
+			 bit_reg_info->parent_register, &register_value);
 	if (ACPI_FAILURE (status)) {
 		goto unlock_and_exit;
 	}
@@ -396,7 +411,7 @@ acpi_set_register (
 				bit_reg_info->access_bit_mask, value);
 
 		status = acpi_hw_register_write (ACPI_MTX_DO_NOT_LOCK,
-				  ACPI_REGISTER_PM1_ENABLE, (u16) register_value);
+				 ACPI_REGISTER_PM1_ENABLE, (u16) register_value);
 		break;
 
 
@@ -413,7 +428,7 @@ acpi_set_register (
 				bit_reg_info->access_bit_mask, value);
 
 		status = acpi_hw_register_write (ACPI_MTX_DO_NOT_LOCK,
-				  ACPI_REGISTER_PM1_CONTROL, (u16) register_value);
+				 ACPI_REGISTER_PM1_CONTROL, (u16) register_value);
 		break;
 
 
@@ -427,17 +442,19 @@ acpi_set_register (
 
 		ACPI_DEBUG_PRINT ((ACPI_DB_IO, "PM2 control: Read %X from %8.8X%8.8X\n",
 			register_value,
-			ACPI_FORMAT_UINT64 (acpi_gbl_FADT->xpm2_cnt_blk.address)));
+			ACPI_FORMAT_UINT64 (
+				acpi_gbl_FADT->xpm2_cnt_blk.address)));
 
 		ACPI_REGISTER_INSERT_VALUE (register_value, bit_reg_info->bit_position,
 				bit_reg_info->access_bit_mask, value);
 
 		ACPI_DEBUG_PRINT ((ACPI_DB_IO, "About to write %4.4X to %8.8X%8.8X\n",
 			register_value,
-			ACPI_FORMAT_UINT64 (acpi_gbl_FADT->xpm2_cnt_blk.address)));
+			ACPI_FORMAT_UINT64 (
+				acpi_gbl_FADT->xpm2_cnt_blk.address)));
 
 		status = acpi_hw_register_write (ACPI_MTX_DO_NOT_LOCK,
-				   ACPI_REGISTER_PM2_CONTROL, (u8) (register_value));
+				 ACPI_REGISTER_PM2_CONTROL, (u8) (register_value));
 		break;
 
 
@@ -454,7 +471,9 @@ unlock_and_exit:
 
 	/* Normalize the value that was read */
 
-	ACPI_DEBUG_EXEC (register_value = ((register_value & bit_reg_info->access_bit_mask) >> bit_reg_info->bit_position));
+	ACPI_DEBUG_EXEC (register_value =
+		((register_value & bit_reg_info->access_bit_mask) >>
+			bit_reg_info->bit_position));
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_IO, "Set bits: %8.8X actual %8.8X register %X\n",
 			value, register_value, bit_reg_info->parent_register));
@@ -469,7 +488,7 @@ EXPORT_SYMBOL(acpi_set_register);
  *
  * PARAMETERS:  use_lock            - Mutex hw access
  *              register_id         - register_iD + Offset
- *              return_value        - Value that was read from the register
+ *              return_value        - Where the register value is returned
  *
  * RETURN:      Status and the value read.
  *
@@ -557,7 +576,8 @@ acpi_hw_register_read (
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown Register ID: %X\n", register_id));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown Register ID: %X\n",
+			register_id));
 		status = AE_BAD_PARAMETER;
 		break;
 	}
@@ -763,10 +783,11 @@ acpi_hw_low_level_read (
 		return (AE_BAD_PARAMETER);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_IO, "Read:  %8.8X width %2d from %8.8X%8.8X (%s)\n",
-			*value, width,
-			ACPI_FORMAT_UINT64 (address),
-			acpi_ut_get_region_name (reg->address_space_id)));
+	ACPI_DEBUG_PRINT ((ACPI_DB_IO,
+		"Read:  %8.8X width %2d from %8.8X%8.8X (%s)\n",
+		*value, width,
+		ACPI_FORMAT_UINT64 (address),
+		acpi_ut_get_region_name (reg->address_space_id)));
 
 	return (status);
 }
@@ -841,10 +862,11 @@ acpi_hw_low_level_write (
 		return (AE_BAD_PARAMETER);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_IO, "Wrote: %8.8X width %2d   to %8.8X%8.8X (%s)\n",
-			value, width,
-			ACPI_FORMAT_UINT64 (address),
-			acpi_ut_get_region_name (reg->address_space_id)));
+	ACPI_DEBUG_PRINT ((ACPI_DB_IO,
+		"Wrote: %8.8X width %2d   to %8.8X%8.8X (%s)\n",
+		value, width,
+		ACPI_FORMAT_UINT64 (address),
+		acpi_ut_get_region_name (reg->address_space_id)));
 
 	return (status);
 }

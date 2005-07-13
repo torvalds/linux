@@ -55,8 +55,8 @@
  *
  * FUNCTION:    acpi_ex_system_wait_semaphore
  *
- * PARAMETERS:  Semaphore           - OSD semaphore to wait on
- *              Timeout             - Max time to wait
+ * PARAMETERS:  Semaphore       - Semaphore to wait on
+ *              Timeout         - Max time to wait
  *
  * RETURN:      Status
  *
@@ -90,7 +90,8 @@ acpi_ex_system_wait_semaphore (
 
 		status = acpi_os_wait_semaphore (semaphore, 1, timeout);
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "*** Thread awake after blocking, %s\n",
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+			"*** Thread awake after blocking, %s\n",
 			acpi_format_exception (status)));
 
 		/* Reacquire the interpreter */
@@ -111,8 +112,8 @@ acpi_ex_system_wait_semaphore (
  *
  * FUNCTION:    acpi_ex_system_do_stall
  *
- * PARAMETERS:  how_long            - The amount of time to stall,
- *                                    in microseconds
+ * PARAMETERS:  how_long        - The amount of time to stall,
+ *                                in microseconds
  *
  * RETURN:      Status
  *
@@ -141,7 +142,8 @@ acpi_ex_system_do_stall (
 		 * (ACPI specifies 100 usec as max, but this gives some slack in
 		 * order to support existing BIOSs)
 		 */
-		ACPI_REPORT_ERROR (("Stall: Time parameter is too large (%d)\n", how_long));
+		ACPI_REPORT_ERROR (("Stall: Time parameter is too large (%d)\n",
+			how_long));
 		status = AE_AML_OPERAND_VALUE;
 	}
 	else {
@@ -156,8 +158,8 @@ acpi_ex_system_do_stall (
  *
  * FUNCTION:    acpi_ex_system_do_suspend
  *
- * PARAMETERS:  how_long            - The amount of time to suspend,
- *                                    in milliseconds
+ * PARAMETERS:  how_long        - The amount of time to suspend,
+ *                                in milliseconds
  *
  * RETURN:      None
  *
@@ -192,8 +194,8 @@ acpi_ex_system_do_suspend (
  *
  * FUNCTION:    acpi_ex_system_acquire_mutex
  *
- * PARAMETERS:  *time_desc          - The 'time to delay' object descriptor
- *              *obj_desc           - The object descriptor for this op
+ * PARAMETERS:  time_desc       - The 'time to delay' object descriptor
+ *              obj_desc        - The object descriptor for this op
  *
  * RETURN:      Status
  *
@@ -218,16 +220,15 @@ acpi_ex_system_acquire_mutex (
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
-	/*
-	 * Support for the _GL_ Mutex object -- go get the global lock
-	 */
+	/* Support for the _GL_ Mutex object -- go get the global lock */
+
 	if (obj_desc->mutex.semaphore == acpi_gbl_global_lock_semaphore) {
 		status = acpi_ev_acquire_global_lock ((u16) time_desc->integer.value);
 		return_ACPI_STATUS (status);
 	}
 
 	status = acpi_ex_system_wait_semaphore (obj_desc->mutex.semaphore,
-			  (u16) time_desc->integer.value);
+			 (u16) time_desc->integer.value);
 	return_ACPI_STATUS (status);
 }
 
@@ -236,7 +237,7 @@ acpi_ex_system_acquire_mutex (
  *
  * FUNCTION:    acpi_ex_system_release_mutex
  *
- * PARAMETERS:  *obj_desc           - The object descriptor for this op
+ * PARAMETERS:  obj_desc        - The object descriptor for this op
  *
  * RETURN:      Status
  *
@@ -261,9 +262,8 @@ acpi_ex_system_release_mutex (
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
-	/*
-	 * Support for the _GL_ Mutex object -- release the global lock
-	 */
+	/* Support for the _GL_ Mutex object -- release the global lock */
+
 	if (obj_desc->mutex.semaphore == acpi_gbl_global_lock_semaphore) {
 		status = acpi_ev_release_global_lock ();
 		return_ACPI_STATUS (status);
@@ -278,9 +278,9 @@ acpi_ex_system_release_mutex (
  *
  * FUNCTION:    acpi_ex_system_signal_event
  *
- * PARAMETERS:  *obj_desc           - The object descriptor for this op
+ * PARAMETERS:  obj_desc        - The object descriptor for this op
  *
- * RETURN:      AE_OK
+ * RETURN:      Status
  *
  * DESCRIPTION: Provides an access point to perform synchronization operations
  *              within the AML.
@@ -309,8 +309,8 @@ acpi_ex_system_signal_event (
  *
  * FUNCTION:    acpi_ex_system_wait_event
  *
- * PARAMETERS:  *time_desc          - The 'time to delay' object descriptor
- *              *obj_desc           - The object descriptor for this op
+ * PARAMETERS:  time_desc       - The 'time to delay' object descriptor
+ *              obj_desc        - The object descriptor for this op
  *
  * RETURN:      Status
  *
@@ -333,7 +333,7 @@ acpi_ex_system_wait_event (
 
 	if (obj_desc) {
 		status = acpi_ex_system_wait_semaphore (obj_desc->event.semaphore,
-				  (u16) time_desc->integer.value);
+				 (u16) time_desc->integer.value);
 	}
 
 	return_ACPI_STATUS (status);
@@ -344,7 +344,7 @@ acpi_ex_system_wait_event (
  *
  * FUNCTION:    acpi_ex_system_reset_event
  *
- * PARAMETERS:  *obj_desc           - The object descriptor for this op
+ * PARAMETERS:  obj_desc        - The object descriptor for this op
  *
  * RETURN:      Status
  *

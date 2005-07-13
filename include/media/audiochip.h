@@ -1,5 +1,5 @@
 /*
- * $Id: audiochip.h,v 1.3 2005/06/12 04:19:19 mchehab Exp $
+ * $Id: audiochip.h,v 1.5 2005/06/16 22:59:16 hhackmann Exp $
  */
 
 #ifndef AUDIOCHIP_H
@@ -35,5 +35,4 @@
 
 /* misc stuff to pass around config info to i2c chips */
 #define AUDC_CONFIG_PINNACLE  _IOW('m',32,int)
-
 #endif /* AUDIOCHIP_H */

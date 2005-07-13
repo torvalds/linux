@@ -16,10 +16,13 @@
 #ifndef _LINUX_DS_H
 #define _LINUX_DS_H
 
+#ifdef __KERNEL__
+#include <linux/mod_devicetable.h>
+#endif
+
 #include <pcmcia/bulkmem.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/device_id.h>
-#include <linux/mod_devicetable.h>
 
 typedef struct tuple_parse_t {
     tuple_t		tuple;

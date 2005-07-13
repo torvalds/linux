@@ -67,7 +67,8 @@
  ******************************************************************************/
 
 acpi_status
-acpi_ns_root_initialize (void)
+acpi_ns_root_initialize (
+	void)
 {
 	acpi_status                         status;
 	const struct acpi_predefined_names *init_val = NULL;
@@ -265,7 +266,7 @@ unlock_and_exit:
  *
  * FUNCTION:    acpi_ns_lookup
  *
- * PARAMETERS:  prefix_node     - Search scope if name is not fully qualified
+ * PARAMETERS:  scope_info      - Current scope info block
  *              Pathname        - Search pathname, in internal format
  *                                (as represented in the AML stream)
  *              Type            - Type associated with name

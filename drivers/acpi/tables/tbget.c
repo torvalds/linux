@@ -49,6 +49,19 @@
 #define _COMPONENT          ACPI_TABLES
 	 ACPI_MODULE_NAME    ("tbget")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_tb_get_this_table (
+	struct acpi_pointer             *address,
+	struct acpi_table_header        *header,
+	struct acpi_table_desc          *table_info);
+
+static acpi_status
+acpi_tb_table_override (
+	struct acpi_table_header        *header,
+	struct acpi_table_desc          *table_info);
+
 
 /*******************************************************************************
  *
@@ -76,9 +89,8 @@ acpi_tb_get_table (
 	ACPI_FUNCTION_TRACE ("tb_get_table");
 
 
-	/*
-	 * Get the header in order to get signature and table size
-	 */
+	/* Get the header in order to get signature and table size */
+
 	status = acpi_tb_get_table_header (address, &header);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
@@ -127,8 +139,8 @@ acpi_tb_get_table_header (
 
 
 	/*
-	 * Flags contains the current processor mode (Virtual or Physical addressing)
-	 * The pointer_type is either Logical or Physical
+	 * Flags contains the current processor mode (Virtual or Physical
+	 * addressing) The pointer_type is either Logical or Physical
 	 */
 	switch (address->pointer_type) {
 	case ACPI_PHYSMODE_PHYSPTR:
@@ -136,7 +148,8 @@ acpi_tb_get_table_header (
 
 		/* Pointer matches processor mode, copy the header */
 
-		ACPI_MEMCPY (return_header, address->pointer.logical, sizeof (struct acpi_table_header));
+		ACPI_MEMCPY (return_header, address->pointer.logical,
+			sizeof (struct acpi_table_header));
 		break;
 
 
@@ -144,10 +157,11 @@ acpi_tb_get_table_header (
 
 		/* Create a logical address for the physical pointer*/
 
-		status = acpi_os_map_memory (address->pointer.physical, sizeof (struct acpi_table_header),
-				  (void *) &header);
+		status = acpi_os_map_memory (address->pointer.physical,
+				 sizeof (struct acpi_table_header), (void *) &header);
 		if (ACPI_FAILURE (status)) {
-			ACPI_REPORT_ERROR (("Could not map memory at %8.8X%8.8X for length %X\n",
+			ACPI_REPORT_ERROR ((
+				"Could not map memory at %8.8X%8.8X for length %X\n",
 				ACPI_FORMAT_UINT64 (address->pointer.physical),
 				sizeof (struct acpi_table_header)));
 			return_ACPI_STATUS (status);
@@ -210,9 +224,8 @@ acpi_tb_get_table_body (
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
-	/*
-	 * Attempt table override.
-	 */
+	/* Attempt table override. */
+
 	status = acpi_tb_table_override (header, table_info);
 	if (ACPI_SUCCESS (status)) {
 		/* Table was overridden by the host OS */
@@ -241,7 +254,7 @@ acpi_tb_get_table_body (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_tb_table_override (
 	struct acpi_table_header        *header,
 	struct acpi_table_desc          *table_info)
@@ -315,7 +328,7 @@ acpi_tb_table_override (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_tb_get_this_table (
 	struct acpi_pointer             *address,
 	struct acpi_table_header        *header,
@@ -330,8 +343,8 @@ acpi_tb_get_this_table (
 
 
 	/*
-	 * Flags contains the current processor mode (Virtual or Physical addressing)
-	 * The pointer_type is either Logical or Physical
+	 * Flags contains the current processor mode (Virtual or Physical
+	 * addressing) The pointer_type is either Logical or Physical
 	 */
 	switch (address->pointer_type) {
 	case ACPI_PHYSMODE_PHYSPTR:
@@ -341,7 +354,8 @@ acpi_tb_get_this_table (
 
 		full_table = ACPI_MEM_ALLOCATE (header->length);
 		if (!full_table) {
-			ACPI_REPORT_ERROR (("Could not allocate table memory for [%4.4s] length %X\n",
+			ACPI_REPORT_ERROR ((
+				"Could not allocate table memory for [%4.4s] length %X\n",
 				header->signature, header->length));
 			return_ACPI_STATUS (AE_NO_MEMORY);
 		}
@@ -362,12 +376,14 @@ acpi_tb_get_this_table (
 		 * Just map the table's physical memory
 		 * into our address space.
 		 */
-		status = acpi_os_map_memory (address->pointer.physical, (acpi_size) header->length,
-				  (void *) &full_table);
+		status = acpi_os_map_memory (address->pointer.physical,
+				 (acpi_size) header->length, (void *) &full_table);
 		if (ACPI_FAILURE (status)) {
-			ACPI_REPORT_ERROR (("Could not map memory for table [%4.4s] at %8.8X%8.8X for length %X\n",
+			ACPI_REPORT_ERROR ((
+				"Could not map memory for table [%4.4s] at %8.8X%8.8X for length %X\n",
 				header->signature,
-				ACPI_FORMAT_UINT64 (address->pointer.physical), header->length));
+				ACPI_FORMAT_UINT64 (address->pointer.physical),
+				header->length));
 			return (status);
 		}
 
@@ -465,9 +481,8 @@ acpi_tb_get_table_ptr (
 		return_ACPI_STATUS (AE_OK);
 	}
 
-	/*
-	 * Check for instance out of range
-	 */
+	/* Check for instance out of range */
+
 	if (instance > acpi_gbl_table_lists[table_type].count) {
 		return_ACPI_STATUS (AE_NOT_EXIST);
 	}

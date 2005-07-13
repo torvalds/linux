@@ -37,7 +37,7 @@
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/dirent.h>
-#include <linux/dnotify.h>
+#include <linux/fsnotify.h>
 #include <linux/highuid.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
@@ -1307,9 +1307,13 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 out:
 	if (iov != iovstack)
 		kfree(iov);
-	if ((ret + (type == READ)) > 0)
-		dnotify_parent(file->f_dentry,
-				(type == READ) ? DN_ACCESS : DN_MODIFY);
+	if ((ret + (type == READ)) > 0) {
+		struct dentry *dentry = file->f_dentry;
+		if (type == READ)
+			fsnotify_access(dentry);
+		else
+			fsnotify_modify(dentry);
+	}
 	return ret;
 }
 

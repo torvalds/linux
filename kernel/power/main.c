@@ -19,6 +19,9 @@
 
 #include "power.h"
 
+/*This is just an arbitrary number */
+#define FREE_PAGE_NUMBER (100)
+
 DECLARE_MUTEX(pm_sem);
 
 struct pm_ops * pm_ops = NULL;
@@ -49,6 +52,7 @@ void pm_set_ops(struct pm_ops * ops)
 static int suspend_prepare(suspend_state_t state)
 {
 	int error = 0;
+	unsigned int free_pages;
 
 	if (!pm_ops || !pm_ops->enter)
 		return -EPERM;
@@ -65,6 +69,16 @@ static int suspend_prepare(suspend_state_t state)
 	if (freeze_processes()) {
 		error = -EAGAIN;
 		goto Thaw;
+	}
+
+	if ((free_pages = nr_free_pages()) < FREE_PAGE_NUMBER) {
+		pr_debug("PM: free some memory\n");
+		shrink_all_memory(FREE_PAGE_NUMBER - free_pages);
+		if (nr_free_pages() < FREE_PAGE_NUMBER) {
+			error = -ENOMEM;
+			printk(KERN_ERR "PM: No enough memory\n");
+			goto Thaw;
+		}
 	}
 
 	if (pm_ops->prepare) {
@@ -194,7 +208,7 @@ int software_suspend(void)
 
 int pm_suspend(suspend_state_t state)
 {
-	if (state > PM_SUSPEND_ON && state < PM_SUSPEND_MAX)
+	if (state > PM_SUSPEND_ON && state <= PM_SUSPEND_MAX)
 		return enter_state(state);
 	return -EINVAL;
 }

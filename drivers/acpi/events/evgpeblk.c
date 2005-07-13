@@ -48,6 +48,39 @@
 #define _COMPONENT          ACPI_EVENTS
 	 ACPI_MODULE_NAME    ("evgpeblk")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ev_save_method_info (
+	acpi_handle                     obj_handle,
+	u32                             level,
+	void                            *obj_desc,
+	void                            **return_value);
+
+static acpi_status
+acpi_ev_match_prw_and_gpe (
+	acpi_handle                     obj_handle,
+	u32                             level,
+	void                            *info,
+	void                            **return_value);
+
+static struct acpi_gpe_xrupt_info *
+acpi_ev_get_gpe_xrupt_block (
+	u32                             interrupt_level);
+
+static acpi_status
+acpi_ev_delete_gpe_xrupt (
+	struct acpi_gpe_xrupt_info      *gpe_xrupt);
+
+static acpi_status
+acpi_ev_install_gpe_block (
+	struct acpi_gpe_block_info      *gpe_block,
+	u32                             interrupt_level);
+
+static acpi_status
+acpi_ev_create_gpe_info_blocks (
+	struct acpi_gpe_block_info      *gpe_block);
+
 
 /*******************************************************************************
  *
@@ -155,7 +188,7 @@ unlock_and_exit:
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ev_delete_gpe_handlers
  *
@@ -190,7 +223,8 @@ acpi_ev_delete_gpe_handlers (
 		for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
 			gpe_event_info = &gpe_block->event_info[(i * ACPI_GPE_REGISTER_WIDTH) + j];
 
-			if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) == ACPI_GPE_DISPATCH_HANDLER) {
+			if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
+					ACPI_GPE_DISPATCH_HANDLER) {
 				ACPI_MEM_FREE (gpe_event_info->dispatch.handler);
 				gpe_event_info->dispatch.handler = NULL;
 				gpe_event_info->flags &= ~ACPI_GPE_DISPATCH_MASK;
@@ -471,7 +505,7 @@ acpi_ev_get_gpe_xrupt_block (
 	ACPI_FUNCTION_TRACE ("ev_get_gpe_xrupt_block");
 
 
-	/* No need for spin lock since we are not changing any list elements here */
+	/* No need for lock since we are not changing any list elements here */
 
 	next_gpe_xrupt = acpi_gbl_gpe_xrupt_list_head;
 	while (next_gpe_xrupt) {
@@ -619,7 +653,7 @@ acpi_ev_install_gpe_block (
 		goto unlock_and_exit;
 	}
 
-	/* Install the new block at the end of the list for this interrupt with lock */
+	/* Install the new block at the end of the list with lock */
 
 	acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
 	if (gpe_xrupt_block->gpe_block_list_head) {
@@ -756,10 +790,12 @@ acpi_ev_create_gpe_info_blocks (
 	 * per register.  Initialization to zeros is sufficient.
 	 */
 	gpe_event_info = ACPI_MEM_CALLOCATE (
-			   ((acpi_size) gpe_block->register_count * ACPI_GPE_REGISTER_WIDTH) *
+			   ((acpi_size) gpe_block->register_count *
+			   ACPI_GPE_REGISTER_WIDTH) *
 			   sizeof (struct acpi_gpe_event_info));
 	if (!gpe_event_info) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not allocate the gpe_event_info table\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+			"Could not allocate the gpe_event_info table\n"));
 		status = AE_NO_MEMORY;
 		goto error_exit;
 	}
@@ -899,7 +935,8 @@ acpi_ev_create_gpe_block (
 	gpe_block->block_base_number = gpe_block_base_number;
 	gpe_block->node           = gpe_device;
 
-	ACPI_MEMCPY (&gpe_block->block_address, gpe_block_address, sizeof (struct acpi_generic_address));
+	ACPI_MEMCPY (&gpe_block->block_address, gpe_block_address,
+		sizeof (struct acpi_generic_address));
 
 	/* Create the register_info and event_info sub-structures */
 
@@ -1061,8 +1098,9 @@ acpi_ev_gpe_initialize (
 
 		/* Install GPE Block 0 */
 
-		status = acpi_ev_create_gpe_block (acpi_gbl_fadt_gpe_device, &acpi_gbl_FADT->xgpe0_blk,
-				 register_count0, 0, acpi_gbl_FADT->sci_int, &acpi_gbl_gpe_fadt_blocks[0]);
+		status = acpi_ev_create_gpe_block (acpi_gbl_fadt_gpe_device,
+				 &acpi_gbl_FADT->xgpe0_blk, register_count0, 0,
+				 acpi_gbl_FADT->sci_int, &acpi_gbl_gpe_fadt_blocks[0]);
 
 		if (ACPI_FAILURE (status)) {
 			ACPI_REPORT_ERROR ((
@@ -1094,8 +1132,9 @@ acpi_ev_gpe_initialize (
 		else {
 			/* Install GPE Block 1 */
 
-			status = acpi_ev_create_gpe_block (acpi_gbl_fadt_gpe_device, &acpi_gbl_FADT->xgpe1_blk,
-					 register_count1, acpi_gbl_FADT->gpe1_base,
+			status = acpi_ev_create_gpe_block (acpi_gbl_fadt_gpe_device,
+					 &acpi_gbl_FADT->xgpe1_blk, register_count1,
+					 acpi_gbl_FADT->gpe1_base,
 					 acpi_gbl_FADT->sci_int, &acpi_gbl_gpe_fadt_blocks[1]);
 
 			if (ACPI_FAILURE (status)) {
@@ -1109,7 +1148,7 @@ acpi_ev_gpe_initialize (
 			 * space. However, GPE0 always starts at GPE number zero.
 			 */
 			gpe_number_max = acpi_gbl_FADT->gpe1_base +
-					   ((register_count1 * ACPI_GPE_REGISTER_WIDTH) - 1);
+					  ((register_count1 * ACPI_GPE_REGISTER_WIDTH) - 1);
 		}
 	}
 
