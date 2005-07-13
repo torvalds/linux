@@ -1,8 +1,8 @@
 /*
  * arch/v850/vmlinux.lds.S -- kernel linker script for v850 platforms
  *
- *  Copyright (C) 2002,03,04  NEC Electronics Corporation
- *  Copyright (C) 2002,03,04  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2002,03,04,05  NEC Electronics Corporation
+ *  Copyright (C) 2002,03,04,05  Miles Bader <miles@gnu.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -61,6 +61,7 @@
 			*(__kcrctab_gpl)				      \
 		___stop___kcrctab_gpl = .;				      \
 		/* Built-in module parameters */			      \
+		. = ALIGN (4) ;						      \
 		___start___param = .;					      \
 		*(__param)						      \
 		___stop___param = .;
