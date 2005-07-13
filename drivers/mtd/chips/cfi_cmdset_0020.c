@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0020.c,v 1.17 2004/11/20 12:49:04 dwmw2 Exp $
+ * $Id: cfi_cmdset_0020.c,v 1.19 2005/07/13 15:52:45 dwmw2 Exp $
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
  * 	- completely revamped method functions so they are aware and
@@ -16,6 +16,8 @@
  *	- modified Intel Command Set 0x0001 to support ST Advanced Architecture
  *	  (command set 0x0020)
  *	- added a writev function
+ * 07/13/2005	Joern Engel <joern@wh.fh-wedel.de>
+ * 	- Plugged memory leak in cfi_staa_writev().
  */
 
 #include <linux/version.h>
@@ -719,6 +721,7 @@ cfi_staa_writev(struct mtd_info *mtd, const struct kvec *vecs,
 write_error:
 	if (retlen)
 		*retlen = totlen;
+	kfree(buffer);
 	return ret;
 }
 
