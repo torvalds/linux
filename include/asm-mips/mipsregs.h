@@ -528,6 +528,7 @@
 
 #define MIPS_CONF3_TL		(_ULCAST_(1) <<  0)
 #define MIPS_CONF3_SM		(_ULCAST_(1) <<  1)
+#define MIPS_CONF3_MT		(_ULCAST_(1) <<  2)
 #define MIPS_CONF3_SP		(_ULCAST_(1) <<  4)
 #define MIPS_CONF3_VINT		(_ULCAST_(1) <<  5)
 #define MIPS_CONF3_VEIC		(_ULCAST_(1) <<  6)

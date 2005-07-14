@@ -109,6 +109,14 @@
 #define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
 #endif
 
+#ifdef CONFIG_MIPS_MT
+#ifndef cpu_has_mipsmt
+# define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
+#endif
+#else
+# define cpu_has_mipsmt		0
+#endif
+
 #ifdef CONFIG_32BIT
 # ifndef cpu_has_nofpuex
 # define cpu_has_nofpuex	(cpu_data[0].options & MIPS_CPU_NOFPUEX)
@@ -143,6 +151,22 @@
 # ifndef cpu_has_64bit_addresses
 # define cpu_has_64bit_addresses	1
 # endif
+#endif
+
+#ifdef CONFIG_CPU_MIPSR2
+# if defined(CONFIG_CPU_MIPSR2_IRQ_VI) && !defined(cpu_has_vint)
+#  define cpu_has_vint		(cpu_data[0].options & MIPS_CPU_VINT)
+# else
+#  define cpu_has_vint			0
+# endif
+# if defined(CONFIG_CPU_MIPSR2_IRQ_EI) && !defined(cpu_has_veic)
+#  define cpu_has_veic		(cpu_data[0].options & MIPS_CPU_VEIC)
+# else
+#  define cpu_has_veic			0
+# endif
+#else
+# define cpu_has_vint			0
+# define cpu_has_veic			0
 #endif
 
 #ifndef cpu_has_subset_pcaches

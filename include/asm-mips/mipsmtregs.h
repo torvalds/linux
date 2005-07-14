@@ -175,8 +175,8 @@ static inline unsigned int dvpe(void)
 	"	.set	noreorder					\n"
 	"	.set	noat						\n"
 	"	.set	mips32r2					\n"
-	"	move	$1, %0						\n"
 	"	.word	0x41610001		# dvpe $1		\n"
+	"	move	%0, $1						\n"
 	"	ehb							\n"
 	"	.set	pop						\n"
 	: "=r" (res));
@@ -214,12 +214,13 @@ static inline unsigned int dmt(void)
 	int res;
 
 	__asm__ __volatile__(
-	"	.set	noreorder					\n"
+	"	.set	push						\n"
 	"	.set	mips32r2					\n"
-	"	dmt	%0						\n"
+	"	.set	noat						\n"
+	"	.word	0x41610BC1			# dmt $1	\n"
 	"	ehb							\n"
-	"	.set mips0						\n"
-	"	.set reorder						\n"
+	"	move	%0, $1						\n"
+	"	.set	pop						\n"
 	: "=r" (res));
 
 	instruction_hazard();
@@ -251,7 +252,10 @@ static inline void emt(int previous)
 
 static inline void ehb(void)
 {
-	__asm__ __volatile__("ehb");
+	__asm__ __volatile__(
+	"	.set	mips32r2				\n"
+	"	ehb						\n"
+	"	.set	mips0					\n");
 }
 
 #define mftc0(rt,sel)							\
@@ -259,10 +263,14 @@ static inline void ehb(void)
 	 unsigned long  __res;						\
 									\
 	__asm__ __volatile__(						\
-	 "	.set noat\n\t"						\
-	 "	mftc0\t%0," #rt ", " #sel "\n\t"			\
-	 "	.set at\n\t"						\
-	 : "=r" (__res));						\
+	"	.set	push					\n"	\
+	"	.set	mips32r2				\n"	\
+	"	.set	noat					\n"	\
+	"	# mftc0	$1, $" #rt ", " #sel "			\n"	\
+	"	.word	0x41000800 | (" #rt " << 16) | " #sel "	\n"	\
+	"	move	%0, $1					\n"	\
+	"	.set	pop					\n"	\
+	: "=r" (__res));						\
 									\
 	__res;								\
 })
@@ -272,9 +280,10 @@ static inline void ehb(void)
 	unsigned long __res;						\
 									\
 	__asm__ __volatile__(						\
-	"	.set	noat					\n"	\
+	"	.set	push					\n"	\
+	"	.set	mips32r2				\n"	\
 	"	mftgpr	%0," #rt "				\n"	\
-	"	.set	at					\n"	\
+	"	.set	pop					\n"	\
 	: "=r" (__res));						\
 									\
 	__res;								\
@@ -294,17 +303,30 @@ static inline void ehb(void)
 })
 
 #define mttgpr(rd,v)							\
-({									\
+do {									\
 	__asm__ __volatile__(						\
-	"mttgpr	%0," #rd						\
+	"	.set	push					\n"	\
+	"	.set	mips32r2				\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mttgpr $1, " #rd "				\n"	\
+	"	.word	0x41810020 | (" #rd " << 11)		\n"	\
+	"	.set	pop					\n"	\
 	: : "r" (v));							\
-})
+} while (0)
 
 #define mttc0(rd,sel,v)							\
 ({									\
 	__asm__ __volatile__(						\
-	"mttc0\t %0," #rd ", " #sel					\
-	: : "r" (v));							\
+	"	.set	push					\n"	\
+	"	.set	mips32r2				\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mttc0 %0," #rd ", " #sel "			\n"	\
+	"	.word	0x41810000 | (" #rd " << 11) | " #sel "	\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (v));							\
 })
 
 
@@ -324,42 +346,42 @@ do {									\
 
 
 /* you *must* set the target tc (settc) before trying to use these */
-#define read_vpe_c0_vpecontrol()	mftc0($1, 1)
-#define write_vpe_c0_vpecontrol(val)	mttc0($1, 1, val)
-#define read_vpe_c0_vpeconf0()		mftc0($1, 2)
-#define write_vpe_c0_vpeconf0(val)	mttc0($1, 2, val)
-#define read_vpe_c0_status()		mftc0($12, 0)
-#define write_vpe_c0_status(val)	mttc0($12, 0, val)
-#define read_vpe_c0_cause()		mftc0($13, 0)
-#define write_vpe_c0_cause(val)		mttc0($13, 0, val)
-#define read_vpe_c0_config()		mftc0($16, 0)
-#define write_vpe_c0_config(val)	mttc0($16, 0, val)
-#define read_vpe_c0_config1()		mftc0($16, 1)
-#define write_vpe_c0_config1(val)	mttc0($16, 1, val)
-#define read_vpe_c0_config7()		mftc0($16, 7)
-#define write_vpe_c0_config7(val)	mttc0($16, 7, val)
-#define read_vpe_c0_ebase()		mftc0($15,1)
-#define write_vpe_c0_ebase(val)		mttc0($15, 1, val)
-#define write_vpe_c0_compare(val)	mttc0($11, 0, val)
+#define read_vpe_c0_vpecontrol()	mftc0(1, 1)
+#define write_vpe_c0_vpecontrol(val)	mttc0(1, 1, val)
+#define read_vpe_c0_vpeconf0()		mftc0(1, 2)
+#define write_vpe_c0_vpeconf0(val)	mttc0(1, 2, val)
+#define read_vpe_c0_status()		mftc0(12, 0)
+#define write_vpe_c0_status(val)	mttc0(12, 0, val)
+#define read_vpe_c0_cause()		mftc0(13, 0)
+#define write_vpe_c0_cause(val)		mttc0(13, 0, val)
+#define read_vpe_c0_config()		mftc0(16, 0)
+#define write_vpe_c0_config(val)	mttc0(16, 0, val)
+#define read_vpe_c0_config1()		mftc0(16, 1)
+#define write_vpe_c0_config1(val)	mttc0(16, 1, val)
+#define read_vpe_c0_config7()		mftc0(16, 7)
+#define write_vpe_c0_config7(val)	mttc0(16, 7, val)
+#define read_vpe_c0_ebase()		mftc0(15,1)
+#define write_vpe_c0_ebase(val)		mttc0(15, 1, val)
+#define write_vpe_c0_compare(val)	mttc0(11, 0, val)
 
 
 /* TC */
-#define read_tc_c0_tcstatus()		mftc0($2, 1)
-#define write_tc_c0_tcstatus(val)	mttc0($2,1,val)
-#define read_tc_c0_tcbind()		mftc0($2, 2)
-#define write_tc_c0_tcbind(val)		mttc0($2,2,val)
-#define read_tc_c0_tcrestart()		mftc0($2, 3)
-#define write_tc_c0_tcrestart(val)	mttc0($2,3,val)
-#define read_tc_c0_tchalt()		mftc0($2, 4)
-#define write_tc_c0_tchalt(val)		mttc0($2,4,val)
-#define read_tc_c0_tccontext()		mftc0($2, 5)
-#define write_tc_c0_tccontext(val)	mttc0($2,5,val)
+#define read_tc_c0_tcstatus()		mftc0(2, 1)
+#define write_tc_c0_tcstatus(val)	mttc0(2,1,val)
+#define read_tc_c0_tcbind()		mftc0(2, 2)
+#define write_tc_c0_tcbind(val)		mttc0(2,2,val)
+#define read_tc_c0_tcrestart()		mftc0(2, 3)
+#define write_tc_c0_tcrestart(val)	mttc0(2,3,val)
+#define read_tc_c0_tchalt()		mftc0(2, 4)
+#define write_tc_c0_tchalt(val)		mttc0(2,4,val)
+#define read_tc_c0_tccontext()		mftc0(2, 5)
+#define write_tc_c0_tccontext(val)	mttc0(2,5,val)
 
 /* GPR */
-#define read_tc_gpr_sp()		mftgpr($29)
-#define write_tc_gpr_sp(val)		mttgpr($29, val)
-#define read_tc_gpr_gp()		mftgpr($28)
-#define write_tc_gpr_gp(val)		mttgpr($28, val)
+#define read_tc_gpr_sp()		mftgpr(29)
+#define write_tc_gpr_sp(val)		mttgpr(29, val)
+#define read_tc_gpr_gp()		mftgpr(28)
+#define write_tc_gpr_gp(val)		mttgpr(28, val)
 
 
 #endif /* Not __ASSEMBLY__ */

@@ -501,6 +501,12 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->ases |= MIPS_ASE_SMARTMIPS;
 	if (config3 & MIPS_CONF3_DSP)
 		c->ases |= MIPS_ASE_DSP;
+	if (config3 & MIPS_CONF3_VINT)
+		c->options |= MIPS_CPU_VINT;
+	if (config3 & MIPS_CONF3_VEIC)
+		c->options |= MIPS_CPU_VEIC;
+	if (config3 & MIPS_CONF3_MT)
+                c->ases |= MIPS_ASE_MIPSMT;
 
 	return config3 & MIPS_CONF_M;
 }
