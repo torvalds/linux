@@ -169,7 +169,7 @@ cmd_modversions =							\
 			-T $(@D)/.tmp_$(@F:.o=.ver);			\
 		rm -f $(@D)/.tmp_$(@F) $(@D)/.tmp_$(@F:.o=.ver);	\
 	else								\
-		mv $(@D)/.tmp_$(@F) $@;					\
+		mv -f $(@D)/.tmp_$(@F) $@;				\
 	fi;
 endif
 
