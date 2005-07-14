@@ -148,15 +148,13 @@ __asm__(
 #endif
 
 /*
- * mtc0->mfc0 hazard
- * The 24K has a 2 cycle mtc0/mfc0 execution hazard.
- * It is a MIPS32R2 processor so ehb will clear the hazard.
+ * Interrupt enable/disable hazards
+ * Some processors have hazards when modifying
+ * the status register to change the interrupt state
  */
 
 #ifdef CONFIG_CPU_MIPSR2
-/*
- * Use a macro for ehb unless explicit support for MIPSR2 is enabled
- */
+
 __asm__(
 	"	.macro\tirq_enable_hazard			\n\t"
 	"	_ehb						\n\t"
@@ -164,19 +162,23 @@ __asm__(
 	"							\n\t"
 	"	.macro\tirq_disable_hazard			\n\t"
 	"	_ehb						\n\t"
+	"	.endm						\n\t"
+	"							\n\t"
+	"	.macro\tback_to_back_c0_hazard			\n\t"
+	"	_ehb						\n\t"
 	"	.endm");
 
 #define irq_enable_hazard()						\
 	__asm__ __volatile__(						\
-	"_ehb\t\t\t\t# irq_enable_hazard")
+	"irq_enable_hazard")
 
 #define irq_disable_hazard()						\
 	__asm__ __volatile__(						\
-	"_ehb\t\t\t\t# irq_disable_hazard")
+	"irq_disable_hazard")
 
 #define back_to_back_c0_hazard()					\
 	__asm__ __volatile__(						\
-	"_ehb\t\t\t\t# back_to_back_c0_hazard")
+	"back_to_back_c0_hazard")
 
 #elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000)
 
@@ -218,7 +220,7 @@ __asm__(
 #define irq_enable_hazard()	do { } while (0)
 #define irq_disable_hazard()						\
 	__asm__ __volatile__(						\
-	"_ssnop; _ssnop; _ssnop;\t\t# irq_disable_hazard")
+	"irq_disable_hazard")
 
 #define back_to_back_c0_hazard()					\
 	__asm__ __volatile__(						\
