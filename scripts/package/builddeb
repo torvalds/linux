@@ -41,7 +41,7 @@ else
 fi
 
 if grep -q '^CONFIG_MODULES=y' .config ; then
-	INSTALL_MOD_PATH="$tmpdir" make modules_install
+	INSTALL_MOD_PATH="$tmpdir" make KBUILD_SRC= modules_install
 	if [ "$ARCH" == "um" ] ; then
 		mv "$tmpdir/lib/modules/$version"/* "$tmpdir/usr/lib/uml/modules/$version/"
 		rmdir "$tmpdir/lib/modules/$version"

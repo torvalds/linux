@@ -59,7 +59,7 @@ $(objtree)/binkernel.spec: $(MKSPEC) $(srctree)/Makefile
 	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $@
 	
 binrpm-pkg: $(objtree)/binkernel.spec
-	$(MAKE)
+	$(MAKE) KBUILD_SRC=
 	set -e; \
 	$(CONFIG_SHELL) $(srctree)/scripts/mkversion > $(objtree)/.tmp_version
 	set -e; \
@@ -74,7 +74,7 @@ clean-files += $(objtree)/binkernel.spec
 #
 .PHONY: deb-pkg
 deb-pkg:
-	$(MAKE)
+	$(MAKE) KBUILD_SRC=
 	$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
 
 clean-dirs += $(objtree)/debian/
