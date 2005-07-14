@@ -9,7 +9,7 @@
 struct request_queue;
 struct scsi_cmnd;
 struct scsi_mode_data;
-
+struct scsi_lun;
 
 /*
  * sdev state: If you alter this, you also need to alter scsi_sysfs.c
