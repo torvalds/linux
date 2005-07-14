@@ -75,6 +75,7 @@ struct smb_vol {
 	unsigned direct_io:1;
 	unsigned remap:1;   /* set to remap seven reserved chars in filenames */
 	unsigned posix_paths:1;   /* unset to not ask for posix pathnames. */
+	unsigned sfu_emul:1;
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int sockopt;
@@ -1027,6 +1028,10 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			vol->remap = 1;
 		} else if (strnicmp(data, "nomapchars", 10) == 0) {
 			vol->remap = 0;
+                } else if (strnicmp(data, "sfu", 3) == 0) {
+                        vol->sfu_emul = 1;
+                } else if (strnicmp(data, "nosfu", 5) == 0) {
+                        vol->sfu_emul = 0;
 		} else if (strnicmp(data, "posixpaths", 10) == 0) {
 			vol->posix_paths = 1;
 		} else if (strnicmp(data, "noposixpaths", 12) == 0) {
@@ -1687,6 +1692,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SPECIAL_CHR;
 		if(volume_info.no_xattr)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_XATTR;
+		if(volume_info.sfu_emul)
+			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
 
 		if(volume_info.direct_io) {
 			cERROR(1,("mounting share using direct i/o"));

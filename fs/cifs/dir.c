@@ -209,7 +209,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			}
 		else {
-			/* BB implement via Windows security descriptors */
+			/* BB implement mode setting via Windows security descriptors */
 			/* eg CIFSSMBWinSetPerms(xid,pTcon,full_path,mode,-1,-1,local_nls);*/
 			/* could set r/o dos attribute if mode & 0222 == 0 */
 		}
@@ -325,6 +325,16 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 			direntry->d_op = &cifs_dentry_ops;
 			if(rc == 0)
 				d_instantiate(direntry, newinode);
+		}
+	} else {
+		if((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) && 
+			(special_file(mode))) {
+
+			cFYI(1,("sfu compat create special file"));
+			/*	Attributes = cpu_to_le32(ATTR_SYSTEM); 
+				rc = CIFSSMBOpen(xid, pTcon, full_path, disposition, ...); */
+
+			/* add code here to set EAs */
 		}
 	}
 
