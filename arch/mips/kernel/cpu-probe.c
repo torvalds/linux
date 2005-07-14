@@ -121,6 +121,7 @@ static inline void check_wait(void)
 	case CPU_24K:
 	case CPU_25KF:
 	case CPU_34K:
+ 	case CPU_PR4450:
 		cpu_wait = r4k_wait;
 		printk(" available.\n");
 		break;
@@ -624,6 +625,21 @@ static inline void cpu_probe_sandcraft(struct cpuinfo_mips *c)
 	}
 }
 
+static inline void cpu_probe_philips(struct cpuinfo_mips *c)
+{
+	decode_configs(c);
+	switch (c->processor_id & 0xff00) {
+	case PRID_IMP_PR4450:
+		c->cputype = CPU_PR4450;
+		c->isa_level = MIPS_CPU_ISA_M32;
+		break;
+	default:
+		panic("Unknown Philips Core!"); /* REVISIT: die? */
+		break;
+	}
+}
+
+
 __init void cpu_probe(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -649,6 +665,9 @@ __init void cpu_probe(void)
 	case PRID_COMP_SANDCRAFT:
 		cpu_probe_sandcraft(c);
 		break;
+ 	case PRID_COMP_PHILIPS:
+		cpu_probe_philips(c);
+ 		break;
 	default:
 		c->cputype = CPU_UNKNOWN;
 	}

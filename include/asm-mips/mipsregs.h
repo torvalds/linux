@@ -841,11 +841,23 @@ do {									\
 #define read_c0_count()		__read_32bit_c0_register($9, 0)
 #define write_c0_count(val)	__write_32bit_c0_register($9, 0, val)
 
+#define read_c0_count2()	__read_32bit_c0_register($9, 6) /* pnx8550 */
+#define write_c0_count2(val)	__write_32bit_c0_register($9, 6, val)
+
+#define read_c0_count3()	__read_32bit_c0_register($9, 7) /* pnx8550 */
+#define write_c0_count3(val)	__write_32bit_c0_register($9, 7, val)
+
 #define read_c0_entryhi()	__read_ulong_c0_register($10, 0)
 #define write_c0_entryhi(val)	__write_ulong_c0_register($10, 0, val)
 
 #define read_c0_compare()	__read_32bit_c0_register($11, 0)
 #define write_c0_compare(val)	__write_32bit_c0_register($11, 0, val)
+
+#define read_c0_compare2()	__read_32bit_c0_register($11, 6) /* pnx8550 */
+#define write_c0_compare2(val)	__write_32bit_c0_register($11, 6, val)
+
+#define read_c0_compare3()	__read_32bit_c0_register($11, 7) /* pnx8550 */
+#define write_c0_compare3(val)	__write_32bit_c0_register($11, 7, val)
 
 #define read_c0_status()	__read_32bit_c0_register($12, 0)
 #define write_c0_status(val)	__write_32bit_c0_register($12, 0, val)

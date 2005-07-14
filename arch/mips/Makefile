@@ -228,6 +228,7 @@ cflags-$(CONFIG_CPU_RM9000)	+= \
 			$(call set_gccflags,rm9000,mips4,r5000,mips4,mips2) \
 			-Wa,--trap
 
+
 cflags-$(CONFIG_CPU_SB1)	+= \
 			$(call set_gccflags,sb1,mips64,r5000,mips4,mips2) \
 			-Wa,--trap
@@ -559,6 +560,19 @@ load-$(CONFIG_CASIO_E55)	+= 0xffffffff80004000
 # TANBAC VR4131 multichip module(TB0225) and TANBAC VR4131DIMM(TB0229) (VR4131)
 #
 load-$(CONFIG_TANBAC_TB022X)	+= 0xffffffff80000000
+
+#
+# Common Philips PNX8550
+#
+core-$(CONFIG_SOC_PNX8550)	+= arch/mips/philips/pnx8550/common/
+cflags-$(CONFIG_SOC_PNX8550)	+= -Iinclude/asm-mips/mach-pnx8550
+
+#
+# Philips PNX8550 JBS board
+#
+libs-$(CONFIG_PNX8550_JBS)	+= arch/mips/philips/pnx8550/jbs/
+#cflags-$(CONFIG_PNX8550_JBS)	+= -Iinclude/asm-mips/mach-pnx8550
+load-$(CONFIG_PNX8550_JBS)	+= 0xffffffff80060000
 
 #
 # SGI IP22 (Indy/Indigo2)

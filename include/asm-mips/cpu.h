@@ -52,6 +52,7 @@
 #define PRID_IMP_VR41XX		0x0c00
 #define PRID_IMP_R12000		0x0e00
 #define PRID_IMP_R8000		0x1000
+#define PRID_IMP_PR4450		0x1200
 #define PRID_IMP_R4600		0x2000
 #define PRID_IMP_R4700		0x2100
 #define PRID_IMP_TX39		0x2200
@@ -187,7 +188,8 @@
 #define CPU_24K			58
 #define CPU_AU1200		59
 #define CPU_34K			60
-#define CPU_LAST		60
+#define CPU_PR4450		61
+#define CPU_LAST		61
 
 /*
  * ISA Level encodings
