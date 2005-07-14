@@ -2420,6 +2420,12 @@ L:	linux-usb-users@lists.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Maintained
 
+USB OPTION-CARD DRIVER
+P:	Matthias Urlichs
+M:	smurf@smurf.noris.de
+L:	linux-usb-devel@lists.sourceforge.net
+S:	Maintained
+
 USB OV511 DRIVER
 P:	Mark McClelland
 M:	mmcclell@bigfoot.com
