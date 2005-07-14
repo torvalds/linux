@@ -6,6 +6,9 @@
 #define VMLINUX_SYMBOL(_sym_) _sym_
 #endif
 
+/* Align . to a 8 byte boundary equals to maximum function alignment. */
+#define ALIGN_FUNCTION()  . = ALIGN(8)
+
 #define RODATA								\
 	.rodata           : AT(ADDR(.rodata) - LOAD_OFFSET) {		\
 		*(.rodata) *(.rodata.*)					\
@@ -79,12 +82,18 @@
 		VMLINUX_SYMBOL(__security_initcall_end) = .;		\
 	}
 
+/* sched.text is aling to function alignment to secure we have same
+ * address even at second ld pass when generating System.map */
 #define SCHED_TEXT							\
+		ALIGN_FUNCTION();					\
 		VMLINUX_SYMBOL(__sched_text_start) = .;			\
 		*(.sched.text)						\
 		VMLINUX_SYMBOL(__sched_text_end) = .;
 
+/* spinlock.text is aling to function alignment to secure we have same
+ * address even at second ld pass when generating System.map */
 #define LOCK_TEXT							\
+		ALIGN_FUNCTION();					\
 		VMLINUX_SYMBOL(__lock_text_start) = .;			\
 		*(.spinlock.text)					\
 		VMLINUX_SYMBOL(__lock_text_end) = .;
