@@ -37,6 +37,8 @@
 #define _ULCAST_ (unsigned long)
 #endif
 
+#include <asm/mipsmtregs.h>
+
 /*
  * Coprocessor 0 register names
  */
