@@ -1039,12 +1039,12 @@ void adel(void)
  * malloc is needed by gdb client in "call func()", even a private one
  * will make gdb happy
  */
-static void *malloc(size_t size)
+static void * __attribute_used__ malloc(size_t size)
 {
 	return kmalloc(size, GFP_ATOMIC);
 }
 
-static void free(void *where)
+static void __attribute_used__ free (void *where)
 {
 	kfree(where);
 }
