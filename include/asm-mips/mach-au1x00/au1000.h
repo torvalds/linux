@@ -90,29 +90,6 @@ static inline u32 au_readl(unsigned long reg)
 	return (*(volatile u32 *)reg);
 }
 
-/* These next three functions should be a generic part of the MIPS
- * kernel (with the 'au_' removed from the name) and selected for
- * processors that support the instructions.
- * Taken from PPC tree.  -- Dan
- */
-/* Return the bit position of the most significant 1 bit in a word */
-static __inline__ int __ilog2(unsigned int x)
-{
-	int lz;
-
-	asm volatile (
-		".set\tnoreorder\n\t"
-		".set\tnoat\n\t"
-		".set\tmips32\n\t"
-		"clz\t%0,%1\n\t"
-		".set\tmips0\n\t"
-		".set\tat\n\t"
-		".set\treorder"
-		: "=r" (lz)
-		: "r" (x));
-
-	return 31 - lz;
-}
 
 static __inline__ int au_ffz(unsigned int x)
 {
