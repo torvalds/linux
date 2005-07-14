@@ -82,6 +82,8 @@ foreach $object (keys(%object)) {
 		}
 		if (($line =~ /\.text\.exit$/ ||
 		     $line =~ /\.exit\.text$/ ||
+		     $line =~ /\.text\.init$/ ||
+		     $line =~ /\.init\.text$/ ||
 		     $line =~ /\.data\.exit$/ ||
 		     $line =~ /\.exit\.data$/ ||
 		     $line =~ /\.exitcall\.exit$/) &&
@@ -96,6 +98,7 @@ foreach $object (keys(%object)) {
 		     $from !~ /\.debug_ranges$/ &&
 		     $from !~ /\.debug_line$/ &&
 		     $from !~ /\.debug_frame$/ &&
+		     $from !~ /\.debug_loc$/ &&
 		     $from !~ /\.exitcall\.exit$/ &&
 		     $from !~ /\.eh_frame$/ &&
 		     $from !~ /\.stab$/)) {
