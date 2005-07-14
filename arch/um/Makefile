@@ -56,17 +56,21 @@ include $(srctree)/$(ARCH_DIR)/Makefile-$(SUBARCH)
 core-y += $(SUBARCH_CORE)
 libs-y += $(SUBARCH_LIBS)
 
+# -Dvmap=kernel_vmap affects everything, and prevents anything from
+# referencing the libpcap.o symbol so named.
+
+CFLAGS += $(CFLAGS-y) -D__arch_um__ -DSUBARCH=\"$(SUBARCH)\" \
+	$(ARCH_INCLUDE) $(MODE_INCLUDE) -Dvmap=kernel_vmap
+
+USER_CFLAGS := $(patsubst -I%,,$(CFLAGS))
+USER_CFLAGS := $(patsubst -D__KERNEL__,,$(USER_CFLAGS)) $(ARCH_INCLUDE) \
+	$(MODE_INCLUDE) $(ARCH_USER_CFLAGS)
+
 # -Derrno=kernel_errno - This turns all kernel references to errno into
 # kernel_errno to separate them from the libc errno.  This allows -fno-common
 # in CFLAGS.  Otherwise, it would cause ld to complain about the two different
 # errnos.
 
-CFLAGS += $(CFLAGS-y) -D__arch_um__ -DSUBARCH=\"$(SUBARCH)\" \
-	$(ARCH_INCLUDE) $(MODE_INCLUDE)
-
-USER_CFLAGS := $(patsubst -I%,,$(CFLAGS))
-USER_CFLAGS := $(patsubst -D__KERNEL__,,$(USER_CFLAGS)) $(ARCH_INCLUDE) \
-	$(MODE_INCLUDE) $(ARCH_USER_CFLAGS)
 CFLAGS += -Derrno=kernel_errno -Dsigprocmask=kernel_sigprocmask
 CFLAGS += $(call cc-option,-fno-unit-at-a-time,)
 
