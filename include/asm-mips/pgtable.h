@@ -16,6 +16,7 @@
 #include <asm/pgtable-64.h>
 #endif
 
+#include <asm/io.h>
 #include <asm/pgtable-bits.h>
 
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _CACHE_CACHABLE_NONCOHERENT)
@@ -362,7 +363,6 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 #endif
 
 #ifdef CONFIG_64BIT_PHYS_ADDR
-extern phys_t fixup_bigphys_addr(phys_t phys_addr, phys_t size);
 extern int remap_pfn_range(struct vm_area_struct *vma, unsigned long from, unsigned long pfn, unsigned long size, pgprot_t prot);
 
 static inline int io_remap_pfn_range(struct vm_area_struct *vma,

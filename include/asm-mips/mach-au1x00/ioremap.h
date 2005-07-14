@@ -12,7 +12,9 @@
 #include <linux/config.h>
 #include <linux/types.h>
 
-#ifndef CONFIG_64BIT_PHYS_ADDR
+#ifdef CONFIG_64BIT_PHYS_ADDR
+extern phys_t __fixup_bigphys_addr(phys_t, phys_t);
+#else
 static inline phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 {
 	return phys_addr;
