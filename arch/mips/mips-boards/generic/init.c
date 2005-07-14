@@ -28,6 +28,8 @@
 #include <asm/gt64120.h>
 #include <asm/io.h>
 #include <asm/system.h>
+#include <asm/cacheflush.h>
+#include <asm/traps.h>
 
 #include <asm/mips-boards/prom.h>
 #include <asm/mips-boards/generic.h>
@@ -224,6 +226,30 @@ void __init kgdb_config (void)
 }
 #endif
 
+void __init mips_nmi_setup (void)
+{
+	void *base;
+	extern char except_vec_nmi;
+
+	base = cpu_has_veic ?
+		(void *)(CAC_BASE + 0xa80) :
+		(void *)(CAC_BASE + 0x380);
+	memcpy(base, &except_vec_nmi, 0x80);
+	flush_icache_range((unsigned long)base, (unsigned long)base + 0x80);
+}
+
+void __init mips_ejtag_setup (void)
+{
+	void *base;
+	extern char except_vec_ejtag_debug;
+
+	base = cpu_has_veic ?
+		(void *)(CAC_BASE + 0xa00) :
+		(void *)(CAC_BASE + 0x300);
+	memcpy(base, &except_vec_ejtag_debug, 0x80);
+	flush_icache_range((unsigned long)base, (unsigned long)base + 0x80);
+}
+
 void __init prom_init(void)
 {
 	u32 start, map, mask, data;
@@ -353,6 +379,9 @@ void __init prom_init(void)
 		while(1);   /* We die here... */
 	}
 #endif
+	board_nmi_handler_setup = mips_nmi_setup;
+	board_ejtag_handler_setup = mips_ejtag_setup;
+
 	prom_printf("\nLINUX started...\n");
 	prom_init_cmdline();
 	prom_meminit();

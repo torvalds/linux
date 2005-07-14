@@ -431,6 +431,10 @@ static inline unsigned long __cmpxchg(volatile void * ptr, unsigned long old,
 
 #define cmpxchg(ptr,old,new) ((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(old), (unsigned long)(new),sizeof(*(ptr))))
 
+extern void set_handler (unsigned long offset, void *addr, unsigned long len);
+extern void set_uncached_handler (unsigned long offset, void *addr, unsigned long len);
+extern void *set_vi_handler (int n, void *addr);
+extern void *set_vi_srs_handler (int n, void *addr, int regset);
 extern void *set_except_vector(int n, void *addr);
 extern void per_cpu_trap_init(void);
 

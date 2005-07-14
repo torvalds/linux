@@ -148,6 +148,38 @@ NESTED(except_vec_ejtag_debug, 0, sp)
 	__FINIT
 
 /*
+ * Vectored interrupt handler.
+ * This prototype is copied to ebase + n*IntCtl.VS and patched
+ * to invoke the handler
+ */
+NESTED(except_vec_vi, 0, sp)
+	SAVE_SOME
+	SAVE_AT
+	.set	push
+	.set	noreorder
+EXPORT(except_vec_vi_lui)
+	lui	v0, 0		/* Patched */
+	j	except_vec_vi_handler
+EXPORT(except_vec_vi_ori)
+	 ori	v0, 0		/* Patched */
+	.set	pop
+	END(except_vec_vi)
+EXPORT(except_vec_vi_end)
+
+/*
+ * Common Vectored Interrupt code
+ * Complete the register saves and invoke the handler which is passed in $v0
+ */
+NESTED(except_vec_vi_handler, 0, sp)
+	SAVE_TEMP
+	SAVE_STATIC
+	CLI
+	move	a0, sp
+	jalr	v0
+	j	ret_from_irq
+	END(except_vec_vi_handler)
+
+/*
  * EJTAG debug exception handler.
  */
 NESTED(ejtag_debug_handler, PT_SIZE, sp)

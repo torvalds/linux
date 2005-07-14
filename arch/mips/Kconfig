@@ -13,6 +13,22 @@ mainmenu "Linux/MIPS Kernel Configuration"
 
 source "init/Kconfig"
 
+config CPU_MIPS32
+	bool
+	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2
+
+config CPU_MIPS64
+	bool
+	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2
+
+config CPU_MIPSR1
+	bool
+	default y if CPU_MIPS32_R1 || CPU_MIPS64_R1
+
+config CPU_MIPSR2
+	bool
+	default y if CPU_MIPS32_R2 || CPU_MIPS64_R2
+
 config SYS_SUPPORTS_32BIT_KERNEL
 	bool
 config SYS_SUPPORTS_64BIT_KERNEL
@@ -233,6 +249,7 @@ config MIPS_EV64120
 	bool "Support for Galileo EV64120 Evaluation board (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 	select DMA_NONCOHERENT
+	select IRQ_CPU
 	select HW_HAS_PCI
 	select MIPS_GT64120
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -344,6 +361,7 @@ config MIPS_MALTA
 	select BOOT_ELF32
 	select HAVE_STD_PC_SERIAL_PORT
 	select DMA_NONCOHERENT
+	select IRQ_CPU
 	select GENERIC_ISA_DMA
 	select HW_HAS_PCI
 	select I8259
@@ -1277,6 +1295,31 @@ config CPU_HAS_PREFETCH
 	bool "Enable prefetches" if CPU_SB1 && !CPU_SB1_PASS_2
 	default y if CPU_MIPS32 || CPU_MIPS64 || CPU_RM7000 || CPU_RM9000 || CPU_R10000
 
+config MIPS_MT
+	bool "Enable MIPS MT"
+
+config MIPS_VPE_LOADER
+	bool "VPE loader support."
+	depends on MIPS_MT
+	help
+	  Includes a loader for loading an elf relocatable object
+	  onto another VPE and running it.
+
+config MIPS_VPE_LOADER_TOM
+	bool "Load VPE program into memory hidden from linux"
+	depends on MIPS_VPE_LOADER
+	default y
+	help
+	  The loader can use memory that is present but has been hidden from
+	  Linux using the kernel command line option "mem=xxMB". It's up to
+	  you to ensure the amount you put in the option and the space your
+	  program requires is less or equal to the amount physically present.
+
+# this should possibly be in drivers/char, but it is rather cpu related. Hmmm
+config MIPS_VPE_APSP_API
+      bool "Enable support for AP/SP API (RTLX)"
+      depends on MIPS_VPE_LOADER
+
 config VTAG_ICACHE
 	bool "Support for Virtual Tagged I-cache" if CPU_MIPS64 || CPU_MIPS32
 	default y if CPU_SB1
@@ -1334,6 +1377,35 @@ config CPU_HAS_WB
 	  Say N here for slightly better performance.  You must say Y here for
 	  machines which require flushing of write buffers in software.  Saying
 	  Y is the safe option; N may result in kernel malfunction and crashes.
+
+menu "MIPSR2 Interrupt handling"
+	depends on CPU_MIPSR2 && CPU_ADVANCED
+
+config CPU_MIPSR2_IRQ_VI
+	bool "Vectored interrupt mode"
+	help
+	   Vectored interrupt mode allowing faster dispatching of interrupts.
+	   The board support code needs to be written to take advantage of this
+	   mode.  Compatibility code is included to allow the kernel to run on
+	   a CPU that does not support vectored interrupts.  It's safe to
+	   say Y here.
+
+config CPU_MIPSR2_IRQ_EI
+	bool "External interrupt controller mode"
+	help
+	   Extended interrupt mode takes advantage of an external interrupt
+	   controller to allow fast dispatching from many possible interrupt
+	   sources. Say N unless you know that external interrupt support is
+	   required.
+
+config CPU_MIPSR2_SRS
+	bool "Make shadow set registers available for interrupt handlers"
+	depends on CPU_MIPSR2_IRQ_VI || CPU_MIPSR2_IRQ_EI
+	help
+	   Allow the kernel to use shadow register sets for fast interrupts.
+	   Interrupt handlers must be specially written to use shadow sets.
+	   Say N unless you know that shadow register set upport is needed.
+endmenu
 
 config CPU_HAS_SYNC
 	bool

@@ -31,21 +31,20 @@
 
 #include <asm/mipsregs.h>
 #include <asm/ptrace.h>
+#include <asm/hardirq.h>
+#include <asm/irq.h>
 #include <asm/div64.h>
 #include <asm/cpu.h>
 #include <asm/time.h>
 #include <asm/mc146818-time.h>
+#include <asm/msc01_ic.h>
 
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
+#include <asm/mips-boards/maltaint.h>
+#include <asm/mc146818-time.h>
 
 unsigned long cpu_khz;
-
-#if defined(CONFIG_MIPS_SEAD)
-#define ALLINTS (IE_IRQ0 | IE_IRQ1 | IE_IRQ5)
-#else
-#define ALLINTS (IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3 | IE_IRQ4 | IE_IRQ5)
-#endif
 
 #if defined(CONFIG_MIPS_ATLAS)
 static char display_string[] = "        LINUX ON ATLAS       ";
@@ -59,20 +58,27 @@ static char display_string[] = "        LINUX ON SEAD       ";
 static unsigned int display_count = 0;
 #define MAX_DISPLAY_COUNT (sizeof(display_string) - 8)
 
-#define MIPS_CPU_TIMER_IRQ (NR_IRQS-1)
-
 static unsigned int timer_tick_count=0;
+static int mips_cpu_timer_irq;
 
-void mips_timer_interrupt(struct pt_regs *regs)
+static void mips_timer_dispatch (struct pt_regs *regs)
 {
+	do_IRQ (mips_cpu_timer_irq, regs);
+}
+
+irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+{
+	irqreturn_t r;
+
+	r = timer_interrupt(irq, dev_id, regs);
+
 	if ((timer_tick_count++ % HZ) == 0) {
 		mips_display_message(&display_string[display_count++]);
 		if (display_count == MAX_DISPLAY_COUNT)
-		        display_count = 0;
-
+			display_count = 0;
 	}
 
-	ll_timer_interrupt(MIPS_CPU_TIMER_IRQ, regs);
+	return r;
 }
 
 /*
@@ -140,10 +146,8 @@ void __init mips_time_init(void)
 
 	local_irq_save(flags);
 
-#if defined(CONFIG_MIPS_ATLAS) || defined(CONFIG_MIPS_MALTA)
         /* Set Data mode - binary. */
         CMOS_WRITE(CMOS_READ(RTC_CONTROL) | RTC_DM_BINARY, RTC_CONTROL);
-#endif
 
 	est_freq = estimate_cpu_frequency ();
 
@@ -157,11 +161,22 @@ void __init mips_time_init(void)
 
 void __init mips_timer_setup(struct irqaction *irq)
 {
+	if (cpu_has_veic) {
+		set_vi_handler (MSC01E_INT_CPUCTR, mips_timer_dispatch);
+		mips_cpu_timer_irq = MSC01E_INT_BASE + MSC01E_INT_CPUCTR;
+	}
+	else {
+		if (cpu_has_vint)
+			set_vi_handler (MIPSCPU_INT_CPUCTR, mips_timer_dispatch);
+		mips_cpu_timer_irq = MIPSCPU_INT_BASE + MIPSCPU_INT_CPUCTR;
+	}
+
+
 	/* we are using the cpu counter for timer interrupts */
-	irq->handler = no_action;     /* we use our own handler */
-	setup_irq(MIPS_CPU_TIMER_IRQ, irq);
+	irq->handler = mips_timer_interrupt;	/* we use our own handler */
+	setup_irq(mips_cpu_timer_irq, irq);
+
 
         /* to generate the first timer interrupt */
 	write_c0_compare (read_c0_count() + mips_hpt_frequency/HZ);
-	set_c0_status(ALLINTS);
 }

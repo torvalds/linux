@@ -74,7 +74,7 @@ static void disable_msc_irq(unsigned int irq)
 static void level_mask_and_ack_msc_irq(unsigned int irq)
 {
 	mask_msc_irq(irq);
-	if (!cpu_has_ei)
+	if (!cpu_has_veic)
 		MSCIC_WRITE(MSC01_IC_EOI, 0);
 }
 
@@ -84,7 +84,7 @@ static void level_mask_and_ack_msc_irq(unsigned int irq)
 static void edge_mask_and_ack_msc_irq(unsigned int irq)
 {
 	mask_msc_irq(irq);
-	if (!cpu_has_ei)
+	if (!cpu_has_veic)
 		MSCIC_WRITE(MSC01_IC_EOI, 0);
 	else {
 		u32 r;
@@ -166,14 +166,14 @@ void __init init_msc_irqs(unsigned int base, msc_irqmap_t *imp, int nirq)
 		switch (imp->im_type) {
 		case MSC01_IRQ_EDGE:
 			irq_desc[base+n].handler = &msc_edgeirq_type;
-			if (cpu_has_ei)
+			if (cpu_has_veic)
 				MSCIC_WRITE(MSC01_IC_SUP+n*8, MSC01_IC_SUP_EDGE_BIT);
 			else
 				MSCIC_WRITE(MSC01_IC_SUP+n*8, MSC01_IC_SUP_EDGE_BIT | imp->im_lvl);
 			break;
 		case MSC01_IRQ_LEVEL:
 			irq_desc[base+n].handler = &msc_levelirq_type;
-			if (cpu_has_ei)
+			if (cpu_has_veic)
 				MSCIC_WRITE(MSC01_IC_SUP+n*8, 0);
 			else
 				MSCIC_WRITE(MSC01_IC_SUP+n*8, imp->im_lvl);

@@ -20,6 +20,7 @@
 #include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
+#include <linux/bootmem.h>
 
 #include <asm/bootinfo.h>
 #include <asm/branch.h>
@@ -64,6 +65,9 @@ extern int fpu_emulator_cop1Handler(int xcptno, struct pt_regs *xcp,
 
 void (*board_be_init)(void);
 int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
+void (*board_nmi_handler_setup)(void);
+void (*board_ejtag_handler_setup)(void);
+void (*board_bind_eic_interrupt)(int irq, int regset);
 
 /*
  * These constant is for searching for possible module text segments.
@@ -813,6 +817,12 @@ asmlinkage void do_reserved(struct pt_regs *regs)
 	      (regs->cp0_cause & 0x7f) >> 2);
 }
 
+asmlinkage void do_default_vi(struct pt_regs *regs)
+{
+	show_regs(regs);
+	panic("Caught unexpected vectored interrupt.");
+}
+
 /*
  * Some MIPS CPUs can enable/disable for cache parity detection, but do
  * it different ways.
@@ -921,7 +931,11 @@ void nmi_exception_handler(struct pt_regs *regs)
 	while(1) ;
 }
 
+#define VECTORSPACING 0x100	/* for EI/VI mode */
+
+unsigned long ebase;
 unsigned long exception_handlers[32];
+unsigned long vi_handlers[64];
 
 /*
  * As a side effect of the way this is implemented we're limited
@@ -935,12 +949,155 @@ void *set_except_vector(int n, void *addr)
 
 	exception_handlers[n] = handler;
 	if (n == 0 && cpu_has_divec) {
-		*(volatile u32 *)(CAC_BASE + 0x200) = 0x08000000 |
+		*(volatile u32 *)(ebase + 0x200) = 0x08000000 |
 		                                 (0x03ffffff & (handler >> 2));
-		flush_icache_range(CAC_BASE + 0x200, CAC_BASE + 0x204);
+		flush_icache_range(ebase + 0x200, ebase + 0x204);
 	}
 	return (void *)old_handler;
 }
+
+#ifdef CONFIG_CPU_MIPSR2
+/*
+ * Shadow register allocation
+ * FIXME: SMP...
+ */
+
+/* MIPSR2 shadow register sets */
+struct shadow_registers {
+	spinlock_t sr_lock;	/*  */
+	int sr_supported;	/* Number of shadow register sets supported */
+	int sr_allocated;	/* Bitmap of allocated shadow registers */
+} shadow_registers;
+
+void mips_srs_init(void)
+{
+#ifdef CONFIG_CPU_MIPSR2_SRS
+	shadow_registers.sr_supported = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
+	printk ("%d MIPSR2 register sets available\n", shadow_registers.sr_supported);
+#else
+	shadow_registers.sr_supported = 1;
+#endif
+	shadow_registers.sr_allocated = 1;	/* Set 0 used by kernel */
+	spin_lock_init(&shadow_registers.sr_lock);
+}
+
+int mips_srs_max(void)
+{
+	return shadow_registers.sr_supported;
+}
+
+int mips_srs_alloc (void)
+{
+	struct shadow_registers *sr = &shadow_registers;
+	unsigned long flags;
+	int set;
+
+	spin_lock_irqsave(&sr->sr_lock, flags);
+
+	for (set = 0; set < sr->sr_supported; set++) {
+		if ((sr->sr_allocated & (1 << set)) == 0) {
+			sr->sr_allocated |= 1 << set;
+			spin_unlock_irqrestore(&sr->sr_lock, flags);
+			return set;
+		}
+	}
+
+	/* None available */
+	spin_unlock_irqrestore(&sr->sr_lock, flags);
+	return -1;
+}
+
+void mips_srs_free (int set)
+{
+	struct shadow_registers *sr = &shadow_registers;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sr->sr_lock, flags);
+	sr->sr_allocated &= ~(1 << set);
+	spin_unlock_irqrestore(&sr->sr_lock, flags);
+}
+
+void *set_vi_srs_handler (int n, void *addr, int srs)
+{
+	unsigned long handler;
+	unsigned long old_handler = vi_handlers[n];
+	u32 *w;
+	unsigned char *b;
+
+	if (!cpu_has_veic && !cpu_has_vint)
+		BUG();
+
+	if (addr == NULL) {
+		handler = (unsigned long) do_default_vi;
+		srs = 0;
+	}
+	else
+		handler = (unsigned long) addr;
+	vi_handlers[n] = (unsigned long) addr;
+
+	b = (unsigned char *)(ebase + 0x200 + n*VECTORSPACING);
+
+	if (srs >= mips_srs_max())
+		panic("Shadow register set %d not supported", srs);
+
+	if (cpu_has_veic) {
+		if (board_bind_eic_interrupt)
+			board_bind_eic_interrupt (n, srs);
+	}
+	else if (cpu_has_vint) {
+		/* SRSMap is only defined if shadow sets are implemented */
+		if (mips_srs_max() > 1)
+			change_c0_srsmap (0xf << n*4, srs << n*4);
+	}
+
+	if (srs == 0) {
+		/*
+		 * If no shadow set is selected then use the default handler
+		 * that does normal register saving and a standard interrupt exit
+		 */
+
+		extern char except_vec_vi, except_vec_vi_lui;
+		extern char except_vec_vi_ori, except_vec_vi_end;
+		const int handler_len = &except_vec_vi_end - &except_vec_vi;
+		const int lui_offset = &except_vec_vi_lui - &except_vec_vi;
+		const int ori_offset = &except_vec_vi_ori - &except_vec_vi;
+
+		if (handler_len > VECTORSPACING) {
+			/*
+			 * Sigh... panicing won't help as the console
+			 * is probably not configured :(
+			 */
+			panic ("VECTORSPACING too small");
+		}
+
+		memcpy (b, &except_vec_vi, handler_len);
+		w = (u32 *)(b + lui_offset);
+		*w = (*w & 0xffff0000) | (((u32)handler >> 16) & 0xffff);
+		w = (u32 *)(b + ori_offset);
+		*w = (*w & 0xffff0000) | ((u32)handler & 0xffff);
+		flush_icache_range((unsigned long)b, (unsigned long)(b+handler_len));
+	}
+	else {
+		/*
+		 * In other cases jump directly to the interrupt handler
+		 *
+		 * It is the handlers responsibility to save registers if required
+		 * (eg hi/lo) and return from the exception using "eret"
+		 */
+		w = (u32 *)b;
+		*w++ = 0x08000000 | (((u32)handler >> 2) & 0x03fffff); /* j handler */
+		*w = 0;
+		flush_icache_range((unsigned long)b, (unsigned long)(b+8));
+	}
+
+	return (void *)old_handler;
+}
+
+void *set_vi_handler (int n, void *addr)
+{
+	return set_vi_srs_handler (n, addr, 0);
+}
+#endif
 
 /*
  * This is used by native signal handling
@@ -1016,10 +1173,18 @@ void __init per_cpu_trap_init(void)
 	if (cpu_has_dsp)
 		set_c0_status(ST0_MX);
 
+#ifdef CONFIG_CPU_MIPSR2
+	write_c0_hwrena (0x0000000f); /* Allow rdhwr to all registers */
+#endif
+
 	/*
-	 * Some MIPS CPUs have a dedicated interrupt vector which reduces the
-	 * interrupt processing overhead.  Use it where available.
+	 * Interrupt handling.
 	 */
+	if (cpu_has_veic || cpu_has_vint) {
+		write_c0_ebase (ebase);
+		/* Setting vector spacing enables EI/VI mode  */
+		change_c0_intctl (0x3e0, VECTORSPACING);
+	}
 	if (cpu_has_divec)
 		set_c0_cause(CAUSEF_IV);
 
@@ -1035,12 +1200,40 @@ void __init per_cpu_trap_init(void)
 	tlb_init();
 }
 
+/* Install CPU exception handler */
+void __init set_handler (unsigned long offset, void *addr, unsigned long size)
+{
+	memcpy((void *)(ebase + offset), addr, size);
+	flush_icache_range(ebase + offset, ebase + offset + size);
+}
+
+/* Install uncached CPU exception handler */
+void __init set_uncached_handler (unsigned long offset, void *addr, unsigned long size)
+{
+#ifdef CONFIG_32BIT
+	unsigned long uncached_ebase = KSEG1ADDR(ebase);
+#endif
+#ifdef CONFIG_64BIT
+	unsigned long uncached_ebase = TO_UNCAC(ebase);
+#endif
+
+	memcpy((void *)(uncached_ebase + offset), addr, size);
+}
+
 void __init trap_init(void)
 {
 	extern char except_vec3_generic, except_vec3_r4000;
-	extern char except_vec_ejtag_debug;
 	extern char except_vec4;
 	unsigned long i;
+
+	if (cpu_has_veic || cpu_has_vint)
+		ebase = (unsigned long) alloc_bootmem_low_pages (0x200 + VECTORSPACING*64);
+	else
+		ebase = CAC_BASE;
+
+#ifdef CONFIG_CPU_MIPSR2
+	mips_srs_init();
+#endif
 
 	per_cpu_trap_init();
 
@@ -1049,7 +1242,7 @@ void __init trap_init(void)
 	 * This will be overriden later as suitable for a particular
 	 * configuration.
 	 */
-	memcpy((void *)(CAC_BASE + 0x180), &except_vec3_generic, 0x80);
+	set_handler(0x180, &except_vec3_generic, 0x80);
 
 	/*
 	 * Setup default vectors
@@ -1061,8 +1254,8 @@ void __init trap_init(void)
 	 * Copy the EJTAG debug exception vector handler code to it's final
 	 * destination.
 	 */
-	if (cpu_has_ejtag)
-		memcpy((void *)(CAC_BASE + 0x300), &except_vec_ejtag_debug, 0x80);
+	if (cpu_has_ejtag && board_ejtag_handler_setup)
+		board_ejtag_handler_setup ();
 
 	/*
 	 * Only some CPUs have the watch exceptions.
@@ -1071,11 +1264,15 @@ void __init trap_init(void)
 		set_except_vector(23, handle_watch);
 
 	/*
-	 * Some MIPS CPUs have a dedicated interrupt vector which reduces the
-	 * interrupt processing overhead.  Use it where available.
+	 * Initialise interrupt handlers
 	 */
-	if (cpu_has_divec)
-		memcpy((void *)(CAC_BASE + 0x200), &except_vec4, 0x8);
+	if (cpu_has_veic || cpu_has_vint) {
+		int nvec = cpu_has_veic ? 64 : 8;
+		for (i = 0; i < nvec; i++)
+			set_vi_handler (i, NULL);
+	}
+	else if (cpu_has_divec)
+		set_handler(0x200, &except_vec4, 0x8);
 
 	/*
 	 * Some CPUs can enable/disable for cache parity detection, but does
@@ -1122,6 +1319,10 @@ void __init trap_init(void)
 		//set_except_vector(15, handle_ndc);
 	}
 
+
+	if (board_nmi_handler_setup)
+		board_nmi_handler_setup();
+
 	if (cpu_has_fpu && !cpu_has_nofpuex)
 		set_except_vector(15, handle_fpe);
 
@@ -1146,5 +1347,5 @@ void __init trap_init(void)
 	signal32_init();
 #endif
 
-	flush_icache_range(CAC_BASE, CAC_BASE + 0x400);
+	flush_icache_range(ebase, ebase + 0x400);
 }

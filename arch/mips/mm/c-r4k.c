@@ -1228,8 +1228,7 @@ void __init ld_mmu_r4xx0(void)
 	struct cpuinfo_mips *c = &current_cpu_data;
 
 	/* Default cache error handler for R4000 and R5000 family */
-	memcpy((void *)(CAC_BASE   + 0x100), &except_vec2_generic, 0x80);
-	memcpy((void *)(UNCAC_BASE + 0x100), &except_vec2_generic, 0x80);
+	set_uncached_handler (0x100, &except_vec2_generic, 0x80);
 
 	probe_pcache();
 	setup_scache();
