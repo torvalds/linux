@@ -82,8 +82,6 @@ foreach $object (keys(%object)) {
 		}
 		if (($line =~ /\.text\.exit$/ ||
 		     $line =~ /\.exit\.text$/ ||
-		     $line =~ /\.text\.init$/ ||
-		     $line =~ /\.init\.text$/ ||
 		     $line =~ /\.data\.exit$/ ||
 		     $line =~ /\.exit\.data$/ ||
 		     $line =~ /\.exitcall\.exit$/) &&
