@@ -73,6 +73,8 @@ linux ($version) unstable; urgency=low
 EOF
 
 # Generate a control file
+if [ "$ARCH" == "um" ]; then
+
 cat <<EOF > debian/control
 Source: linux
 Section: base
@@ -82,10 +84,32 @@ Standards-Version: 3.6.1
 
 Package: $packagename
 Architecture: any
-Description: Linux kernel, version $packagename
+Description: User Mode Linux kernel, version $version
+ User-mode Linux is a port of the Linux kernel to its own system call
+ interface.  It provides a kind of virtual machine, which runs Linux
+ as a user process under another Linux kernel.  This is useful for
+ kernel development, sandboxes, jails, experimentation, and
+ many other things.
+ .
  This package contains the Linux kernel, modules and corresponding other
- files version $packagename
+ files version $version
 EOF
+
+else
+cat <<EOF > debian/control
+Source: linux
+Section: base
+Priority: optional
+Maintainer: $name
+Standards-Version: 3.6.1
+
+Package: $packagename
+Architecture: any
+Description: Linux kernel, version $version
+ This package contains the Linux kernel, modules and corresponding other
+ files version $version
+EOF
+fi
 
 # Fix some ownership and permissions
 chown -R root:root "$tmpdir"
