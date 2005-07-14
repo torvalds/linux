@@ -22,11 +22,8 @@
 #include <asm/page.h>
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
-#ifdef CONFIG_SGI_IP27
-#include <asm/sn/addrs.h>
-#include <asm/sn/sn0/hubni.h>
-#include <asm/sn/klkernvars.h>
-#endif
+
+#include <kernel-entry-init.h>
 
 	.macro	ARC64_TWIDDLE_PC
 #if defined(CONFIG_ARC64) || defined(CONFIG_MAPPED_KERNEL)
@@ -37,18 +34,6 @@
 \@:
 #endif
 	.endm
-
-#ifdef CONFIG_SGI_IP27
-	/*
-	 * outputs the local nasid into res.  IP27 stuff.
-	 */
-	.macro GET_NASID_ASM res
-	dli	\res, LOCAL_HUB_ADDR(NI_STATUS_REV_ID)
-	ld	\res, (\res)
-	and	\res, NSRI_NODEID_MASK
-	dsrl	\res, NSRI_NODEID_SHFT
-	.endm
-#endif /* CONFIG_SGI_IP27 */
 
 	/*
 	 * inputs are the text nasid in t1, data nasid in t2.
@@ -142,13 +127,10 @@ EXPORT(_stext)
 	__INIT
 
 NESTED(kernel_entry, 16, sp)			# kernel entry point
-	setup_c0_status_pri
 
-#ifdef CONFIG_SGI_IP27
-	GET_NASID_ASM	t1
-	move	t2, t1				# text and data are here
-	MAPPED_KERNEL_SETUP_TLB
-#endif /* IP27 */
+	kernel_entry_setup			# cpu specific setup
+
+	setup_c0_status_pri
 
 	ARC64_TWIDDLE_PC
 
@@ -185,20 +167,7 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
  */
 NESTED(smp_bootstrap, 16, sp)
 	setup_c0_status_sec
-
-#ifdef CONFIG_SGI_IP27
-	GET_NASID_ASM	t1
-	dli	t0, KLDIR_OFFSET + (KLI_KERN_VARS * KLDIR_ENT_SIZE) + \
-		    KLDIR_OFF_POINTER + CAC_BASE
-	dsll	t1, NASID_SHFT
-	or	t0, t0, t1
-	ld	t0, 0(t0)			# t0 points to kern_vars struct
-	lh	t1, KV_RO_NASID_OFFSET(t0)
-	lh	t2, KV_RW_NASID_OFFSET(t0)
-	MAPPED_KERNEL_SETUP_TLB
-	ARC64_TWIDDLE_PC
-#endif /* CONFIG_SGI_IP27 */
-
+	smp_slave_setup
 	j	start_secondary
 	END(smp_bootstrap)
 #endif /* CONFIG_SMP */
