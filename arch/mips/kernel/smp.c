@@ -142,6 +142,11 @@ int smp_call_function (void (*func) (void *info), void *info, int retry,
 	int i, cpus = num_online_cpus() - 1;
 	int cpu = smp_processor_id();
 
+	/*
+	 * Can die spectacularly if this CPU isn't yet marked online
+	 */
+	BUG_ON(!cpu_online(cpu));
+
 	if (!cpus)
 		return 0;
 
