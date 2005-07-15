@@ -1150,6 +1150,7 @@ static inline void signal32_init(void)
 
 extern void cpu_cache_init(void);
 extern void tlb_init(void);
+extern void flush_tlb_handlers(void);
 
 void __init per_cpu_trap_init(void)
 {
@@ -1348,4 +1349,5 @@ void __init trap_init(void)
 #endif
 
 	flush_icache_range(ebase, ebase + 0x400);
+	flush_tlb_handlers();
 }

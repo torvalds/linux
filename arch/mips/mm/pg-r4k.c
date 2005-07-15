@@ -404,9 +404,6 @@ dest = label();
 
 	build_jr_ra();
 
-	flush_icache_range((unsigned long)&clear_page_array,
-	                   (unsigned long) epc);
-
 	BUG_ON(epc > clear_page_array + ARRAY_SIZE(clear_page_array));
 }
 
@@ -481,9 +478,6 @@ dest = label();
 	}
 
 	build_jr_ra();
-
-	flush_icache_range((unsigned long)&copy_page_array,
-	                   (unsigned long) epc);
 
 	BUG_ON(epc > copy_page_array + ARRAY_SIZE(copy_page_array));
 }

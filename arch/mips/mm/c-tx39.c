@@ -492,4 +492,5 @@ void __init ld_mmu_tx39(void)
 
 	build_clear_page();
 	build_copy_page();
+	tx39h_flush_icache_all();
 }

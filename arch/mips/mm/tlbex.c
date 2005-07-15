@@ -743,7 +743,6 @@ static void __init build_r3000_tlb_refill_handler(void)
 #endif
 
 	memcpy((void *)CAC_BASE, tlb_handler, 0x80);
-	flush_icache_range(CAC_BASE, CAC_BASE + 0x80);
 }
 
 /*
@@ -1258,7 +1257,6 @@ static void __init build_r4000_tlb_refill_handler(void)
 #endif
 
 	memcpy((void *)CAC_BASE, final_handler, 0x100);
-	flush_icache_range(CAC_BASE, CAC_BASE + 0x100);
 }
 
 /*
@@ -1519,9 +1517,6 @@ static void __init build_r3000_tlb_load_handler(void)
 			printk("%08x\n", handle_tlbl[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbl,
-			   (unsigned long)handle_tlbl + FASTPATH_SIZE * sizeof(u32));
 }
 
 static void __init build_r3000_tlb_store_handler(void)
@@ -1559,9 +1554,6 @@ static void __init build_r3000_tlb_store_handler(void)
 			printk("%08x\n", handle_tlbs[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbs,
-			   (unsigned long)handle_tlbs + FASTPATH_SIZE * sizeof(u32));
 }
 
 static void __init build_r3000_tlb_modify_handler(void)
@@ -1599,9 +1591,6 @@ static void __init build_r3000_tlb_modify_handler(void)
 			printk("%08x\n", handle_tlbm[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbm,
-			   (unsigned long)handle_tlbm + FASTPATH_SIZE * sizeof(u32));
 }
 
 /*
@@ -1691,9 +1680,6 @@ static void __init build_r4000_tlb_load_handler(void)
 			printk("%08x\n", handle_tlbl[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbl,
-			   (unsigned long)handle_tlbl + FASTPATH_SIZE * sizeof(u32));
 }
 
 static void __init build_r4000_tlb_store_handler(void)
@@ -1730,9 +1716,6 @@ static void __init build_r4000_tlb_store_handler(void)
 			printk("%08x\n", handle_tlbs[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbs,
-			   (unsigned long)handle_tlbs + FASTPATH_SIZE * sizeof(u32));
 }
 
 static void __init build_r4000_tlb_modify_handler(void)
@@ -1770,9 +1753,6 @@ static void __init build_r4000_tlb_modify_handler(void)
 			printk("%08x\n", handle_tlbm[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbm,
-			   (unsigned long)handle_tlbm + FASTPATH_SIZE * sizeof(u32));
 }
 
 void __init build_tlb_refill_handler(void)
@@ -1819,4 +1799,14 @@ void __init build_tlb_refill_handler(void)
 			run_once++;
 		}
 	}
+}
+
+void __init flush_tlb_handlers(void)
+{
+	flush_icache_range((unsigned long)handle_tlbl,
+			   (unsigned long)handle_tlbl + sizeof(handle_tlbl));
+	flush_icache_range((unsigned long)handle_tlbs,
+			   (unsigned long)handle_tlbs + sizeof(handle_tlbs));
+	flush_icache_range((unsigned long)handle_tlbm,
+			   (unsigned long)handle_tlbm + sizeof(handle_tlbm));
 }

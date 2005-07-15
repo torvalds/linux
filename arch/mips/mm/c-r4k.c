@@ -1270,9 +1270,8 @@ void __init ld_mmu_r4xx0(void)
 	_dma_cache_inv		= r4k_dma_cache_inv;
 #endif
 
-	__flush_cache_all();
-	coherency_setup();
-
 	build_clear_page();
 	build_copy_page();
+	local_r4k___flush_cache_all(NULL);
+	coherency_setup();
 }
