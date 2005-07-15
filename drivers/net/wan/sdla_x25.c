@@ -91,6 +91,7 @@
 #include <linux/wanrouter.h>	/* WAN router definitions */
 #include <linux/wanpipe.h>	/* WANPIPE common user API definitions */
 #include <linux/workqueue.h>
+#include <linux/jiffies.h>	/* time_after() macro */
 #include <asm/byteorder.h>	/* htons(), etc. */
 #include <asm/atomic.h>
 #include <linux/delay.h>	/* Experimental delay */
@@ -867,7 +868,7 @@ static int update(struct wan_device* wandev)
 		if (!(card->u.x.timer_int_enabled & TMR_INT_ENABLED_UPDATE)){	
 			break;
 		}
-		if ((jiffies-timeout) > 1*HZ){
+		if (time_after(jiffies, timeout + 1*HZ)){
 			card->u.x.timer_int_enabled &= ~TMR_INT_ENABLED_UPDATE;
 			return -EAGAIN;
 		}
