@@ -217,13 +217,11 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 	static u8 demux_ctrl_cfg[] = { DEMUX_CONTROL, 0xfb };
 	static u8 agc_rf_cfg[]     = { AGC_RF_BANDWIDTH0, 0x40, 0x93, 0x00 };
 	static u8 agc_ctrl_cfg[]   = { AGC_FUNC_CTRL2, 0xc6, 0x40 };
-	static u8 agc_delay_cfg[]  = { AGC_DELAY0, 0x00, 0x00, 0x00 };
+	static u8 agc_delay_cfg[]  = { AGC_DELAY0, 0x07, 0x00, 0xfe };
 	static u8 agc_loop_cfg[]   = { AGC_LOOP_BANDWIDTH0, 0x08, 0x9a };
 
 	/* Change only if we are actually changing the modulation */
 	if (state->current_modulation != param->u.vsb.modulation) {
-		int value;
-
 		switch(param->u.vsb.modulation) {
 		case VSB_8:
 			dprintk("%s: VSB_8 MODE\n", __FUNCTION__);
@@ -276,16 +274,8 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 		   recovery center frequency register */
 		i2c_writebytes(state, state->config->demod_address,
 				       vsb_freq_cfg, sizeof(vsb_freq_cfg));
-		/* Set the value of 'INLVTHD' register 0x2a/0x2c
-		   to value from 'IFACC' register 0x39/0x3b -1 */
-		i2c_selectreadbytes(state, AGC_RFIF_ACC0,
-				    &agc_delay_cfg[1], 3);
-		value = ((agc_delay_cfg[1] & 0x0f) << 8) | agc_delay_cfg[3];
-		value = value -1;
-		dprintk("%s IFACC -1 = 0x%03x\n", __FUNCTION__, value);
-		agc_delay_cfg[1] = (value >> 8) & 0x0f;
-		agc_delay_cfg[2] = 0x00;
-		agc_delay_cfg[3] = value & 0xff;
+
+		/* Set the value of 'INLVTHD' register 0x2a/0x2c to 0x7fe */
 		i2c_writebytes(state, state->config->demod_address,
 			       agc_delay_cfg, sizeof(agc_delay_cfg));
 
