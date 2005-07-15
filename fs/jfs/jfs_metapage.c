@@ -640,7 +640,7 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 	} else {
 		page = read_cache_page(mapping, page_index,
 			    (filler_t *)mapping->a_ops->readpage, NULL);
-		if (IS_ERR(page)) {
+		if (IS_ERR(page) || !PageUptodate(mp->page)) {
 			jfs_err("read_cache_page failed!");
 			return NULL;
 		}
