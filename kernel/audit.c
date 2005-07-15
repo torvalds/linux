@@ -610,26 +610,25 @@ err:
  * (timestamp,serial) tuple is unique for each syscall and is live from
  * syscall entry to syscall exit.
  *
- * Atomic values are only guaranteed to be 24-bit, so we count down.
- *
  * NOTE: Another possibility is to store the formatted records off the
  * audit context (for those records that have a context), and emit them
  * all at syscall exit.  However, this could delay the reporting of
  * significant errors until syscall exit (or never, if the system
  * halts). */
+
 unsigned int audit_serial(void)
 {
-	static atomic_t serial = ATOMIC_INIT(0xffffff);
-	unsigned int a, b;
+	static spinlock_t serial_lock = SPIN_LOCK_UNLOCKED;
+	static unsigned int serial = 0;
 
-	do {
-		a = atomic_read(&serial);
-		if (atomic_dec_and_test(&serial))
-			atomic_set(&serial, 0xffffff);
-		b = atomic_read(&serial);
-	} while (b != a - 1);
+	unsigned long flags;
+	unsigned int ret;
 
-	return 0xffffff - b;
+	spin_lock_irqsave(&serial_lock, flags);
+	ret = serial++;
+	spin_unlock_irqrestore(&serial_lock, flags);
+
+	return ret;
 }
 
 static inline void audit_get_stamp(struct audit_context *ctx, 
