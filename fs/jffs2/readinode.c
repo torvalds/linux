@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.120 2005/07/05 21:03:07 dwmw2 Exp $
+ * $Id: readinode.c,v 1.125 2005/07/10 13:13:55 dedekind Exp $
  *
  */
 
@@ -151,6 +151,9 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 
 	D1(printk(KERN_DEBUG "jffs2_add_full_dnode_to_inode(ino #%u, f %p, fn %p)\n", f->inocache->ino, f, fn));
 
+	if (unlikely(!fn->size))
+		return 0;
+
 	newfrag = jffs2_alloc_node_frag();
 	if (unlikely(!newfrag))
 		return -ENOMEM;
@@ -158,11 +161,6 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 	D2(printk(KERN_DEBUG "adding node %04x-%04x @0x%08x on flash, newfrag *%p\n",
 		  fn->ofs, fn->ofs+fn->size, ref_offset(fn->raw), newfrag));
 	
-	if (unlikely(!fn->size)) {
-		jffs2_free_node_frag(newfrag);
-		return 0;
-	}
-
 	newfrag->ofs = fn->ofs;
 	newfrag->size = fn->size;
 	newfrag->node = fn;
@@ -560,7 +558,6 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 		}
 	next_tn:
 		BUG_ON(rb->rb_left);
-		repl_rb = NULL;
 		if (rb->rb_parent && rb->rb_parent->rb_left == rb) {
 			/* We were then left-hand child of our parent. We need
 			   to move our own right-hand child into our place. */

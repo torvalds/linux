@@ -77,27 +77,26 @@ static inline u64 HvCallHpt_invalidateSetSwBitsGet(u32 hpteIndex, u8 bitson,
 	return compressedStatus;
 }
 
-static inline u64 HvCallHpt_findValid(HPTE *hpte, u64 vpn)
+static inline u64 HvCallHpt_findValid(hpte_t *hpte, u64 vpn)
 {
 	return HvCall3Ret16(HvCallHptFindValid, hpte, vpn, 0, 0);
 }
 
-static inline u64 HvCallHpt_findNextValid(HPTE *hpte, u32 hpteIndex,
+static inline u64 HvCallHpt_findNextValid(hpte_t *hpte, u32 hpteIndex,
 		u8 bitson, u8 bitsoff)
 {
 	return HvCall3Ret16(HvCallHptFindNextValid, hpte, hpteIndex,
 			bitson, bitsoff);
 }
 
-static inline void HvCallHpt_get(HPTE *hpte, u32 hpteIndex)
+static inline void HvCallHpt_get(hpte_t *hpte, u32 hpteIndex)
 {
 	HvCall2Ret16(HvCallHptGet, hpte, hpteIndex, 0);
 }
 
-static inline void HvCallHpt_addValidate(u32 hpteIndex, u32 hBit, HPTE *hpte)
+static inline void HvCallHpt_addValidate(u32 hpteIndex, u32 hBit, hpte_t *hpte)
 {
-	HvCall4(HvCallHptAddValidate, hpteIndex, hBit, (*((u64 *)hpte)),
-			(*(((u64 *)hpte)+1)));
+	HvCall4(HvCallHptAddValidate, hpteIndex, hBit, hpte->v, hpte->r);
 }
 
 #endif /* _HVCALLHPT_H */

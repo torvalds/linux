@@ -1,5 +1,5 @@
 /*
- * $Id: cx88.h,v 1.68 2005/07/07 14:17:47 mchehab Exp $
+ * $Id: cx88.h,v 1.69 2005/07/13 17:25:25 mchehab Exp $
  *
  * v4l2 device driver for cx2388x based TV cards
  *
@@ -35,8 +35,8 @@
 #include "btcx-risc.h"
 #include "cx88-reg.h"
 
-#include <linux/version.h>
-#define CX88_VERSION_CODE KERNEL_VERSION(0,0,4)
+#include <linux/utsname.h>
+#define CX88_VERSION_CODE KERNEL_VERSION(0,0,5)
 
 #ifndef TRUE
 # define TRUE (1==1)
