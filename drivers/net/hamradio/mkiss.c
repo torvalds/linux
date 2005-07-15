@@ -46,6 +46,7 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
+#include <linux/jiffies.h>
 
 #include <net/ax25.h>
 
@@ -429,7 +430,7 @@ static int ax_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * May be we must check transmitter timeout here ?
 		 *      14 Oct 1994 Dmitry Gorodchanin.
 		 */
-		if (jiffies - dev->trans_start  < 20 * HZ) {
+		if (time_before(jiffies, dev->trans_start + 20 * HZ)) {
 			/* 20 sec timeout not reached */
 			return 1;
 		}
