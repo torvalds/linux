@@ -207,9 +207,9 @@ symbol_valid(struct sym_entry *s)
 		 * move then they may get dropped in pass 2, which breaks the
 		 * kallsyms rules.
 		 */
-		if ((s->addr == _etext && strcmp(s->sym + offset, "_etext")) ||
-		    (s->addr == _einittext && strcmp(s->sym + offset, "_einittext")) ||
-		    (s->addr == _eextratext && strcmp(s->sym + offset, "_eextratext")))
+		if ((s->addr == _etext && strcmp((char*)s->sym + offset, "_etext")) ||
+		    (s->addr == _einittext && strcmp((char*)s->sym + offset, "_einittext")) ||
+		    (s->addr == _eextratext && strcmp((char*)s->sym + offset, "_eextratext")))
 			return 0;
 	}
 
