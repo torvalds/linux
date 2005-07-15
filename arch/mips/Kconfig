@@ -1071,11 +1071,6 @@ config BOOT_ELF64
 #	depends on SGI_IP27
 #	default y
 
-config QL_ISP_A64
-	bool
-	depends on SGI_IP27
-	default y
-
 config TOSHIBA_BOARDS
 	bool
 	depends on TOSHIBA_JMR3927 || TOSHIBA_RBTX4927
