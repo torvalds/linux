@@ -2,7 +2,7 @@
  * For Philips TEA5767 FM Chip used on some TV Cards like Prolink Pixelview
  * I2C address is allways 0xC0.
  *
- * $Id: tea5767.c,v 1.18 2005/07/07 03:02:55 mchehab Exp $
+ * $Id: tea5767.c,v 1.21 2005/07/14 03:06:43 mchehab Exp $
  *
  * Copyright (c) 2005 Mauro Carvalho Chehab (mchehab@brturbo.com.br)
  * This code is placed under the terms of the GNU General Public License
@@ -153,17 +153,17 @@ static void tea5767_status_dump(unsigned char *buffer)
 
 	switch (TEA5767_HIGH_LO_32768) {
 	case TEA5767_HIGH_LO_13MHz:
-		frq = 1000 * (div * 50 - 700 - 225) / 4;	/* Freq in KHz */
+		frq = (div * 50000 - 700000 - 225000) / 4;	/* Freq in KHz */
 		break;
 	case TEA5767_LOW_LO_13MHz:
-		frq = 1000 * (div * 50 + 700 + 225) / 4;	/* Freq in KHz */
+		frq = (div * 50000 + 700000 + 225000) / 4;	/* Freq in KHz */
 		break;
 	case TEA5767_LOW_LO_32768:
-		frq = 1000 * (div * 32768 / 1000 + 700 + 225) / 4;	/* Freq in KHz */
+		frq = (div * 32768 + 700000 + 225000) / 4;	/* Freq in KHz */
 		break;
 	case TEA5767_HIGH_LO_32768:
 	default:
-		frq = 1000 * (div * 32768 / 1000 - 700 - 225) / 4;	/* Freq in KHz */
+		frq = (div * 32768 - 700000 - 225000) / 4;	/* Freq in KHz */
 		break;
 	}
 	buffer[0] = (div >> 8) & 0x3f;
@@ -196,7 +196,7 @@ static void set_radio_freq(struct i2c_client *c, unsigned int frq)
 	unsigned div;
 	int rc;
 
-	tuner_dbg (PREFIX "radio freq counter %d\n", frq);
+	tuner_dbg (PREFIX "radio freq = %d.%03d MHz\n", frq/16000,(frq/16)%1000);
 
 	/* Rounds freq to next decimal value - for 62.5 KHz step */
 	/* frq = 20*(frq/16)+radio_frq[frq%16]; */
@@ -224,19 +224,19 @@ static void set_radio_freq(struct i2c_client *c, unsigned int frq)
 		tuner_dbg ("TEA5767 radio HIGH LO inject xtal @ 13 MHz\n");
 		buffer[2] |= TEA5767_HIGH_LO_INJECT;
 		buffer[4] |= TEA5767_PLLREF_ENABLE;
-		div = (frq * 4 / 16 + 700 + 225 + 25) / 50;
+		div = (frq * 4000 / 16 + 700000 + 225000 + 25000) / 50000;
 		break;
 	case TEA5767_LOW_LO_13MHz:
 		tuner_dbg ("TEA5767 radio LOW LO inject xtal @ 13 MHz\n");
 
 		buffer[4] |= TEA5767_PLLREF_ENABLE;
-		div = (frq * 4 / 16 - 700 - 225 + 25) / 50;
+		div = (frq * 4000 / 16 - 700000 - 225000 + 25000) / 50000;
 		break;
 	case TEA5767_LOW_LO_32768:
 		tuner_dbg ("TEA5767 radio LOW LO inject xtal @ 32,768 MHz\n");
 		buffer[3] |= TEA5767_XTAL_32768;
 		/* const 700=4000*175 Khz - to adjust freq to right value */
-		div = (1000 * (frq * 4 / 16 - 700 - 225) + 16384) >> 15;
+		div = ((frq * 4000 / 16 - 700000 - 225000) + 16384) >> 15;
 		break;
 	case TEA5767_HIGH_LO_32768:
 	default:
@@ -244,17 +244,21 @@ static void set_radio_freq(struct i2c_client *c, unsigned int frq)
 
 		buffer[2] |= TEA5767_HIGH_LO_INJECT;
 		buffer[3] |= TEA5767_XTAL_32768;
-		div = (1000 * (frq * 4 / 16 + 700 + 225) + 16384) >> 15;
+		div = ((frq * (4000 / 16) + 700000 + 225000) + 16384) >> 15;
 		break;
 	}
 	buffer[0] = (div >> 8) & 0x3f;
 	buffer[1] = div & 0xff;
 
-	if (tuner_debug)
-		tea5767_status_dump(buffer);
-
 	if (5 != (rc = i2c_master_send(c, buffer, 5)))
 		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
+
+	if (tuner_debug) {
+		if (5 != (rc = i2c_master_recv(c, buffer, 5)))
+			tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
+		else
+			tea5767_status_dump(buffer);
+	}
 }
 
 static int tea5767_signal(struct i2c_client *c)
@@ -294,7 +298,7 @@ int tea5767_autodetection(struct i2c_client *c)
 	struct tuner *t = i2c_get_clientdata(c);
 
 	if (5 != (rc = i2c_master_recv(c, buffer, 5))) {
-		tuner_warn("it is not a TEA5767. Received %i chars.\n", rc);
+		tuner_warn("It is not a TEA5767. Received %i bytes.\n", rc);
 		return EINVAL;
 	}
 
@@ -310,11 +314,11 @@ int tea5767_autodetection(struct i2c_client *c)
 	 *          bit 0   : internally set to 0
 	 *  Byte 5: bit 7:0 : == 0
 	 */
-
 	if (!((buffer[3] & 0x0f) == 0x00) && (buffer[4] == 0x00)) {
 		tuner_warn("Chip ID is not zero. It is not a TEA5767\n");
 		return EINVAL;
 	}
+
 	tuner_warn("TEA5767 detected.\n");
 	return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-dvb.c,v 1.41 2005/07/04 19:35:05 mkrufky Exp $
+ * $Id: cx88-dvb.c,v 1.42 2005/07/12 15:44:55 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
