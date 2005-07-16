@@ -57,6 +57,7 @@ int syscall32_setup_pages(struct linux_binprm *bprm, int exstack)
 	int npages = (VSYSCALL32_END - VSYSCALL32_BASE) >> PAGE_SHIFT;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
+	int ret;
 
 	vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
 	if (!vma)
@@ -78,7 +79,11 @@ int syscall32_setup_pages(struct linux_binprm *bprm, int exstack)
 	vma->vm_mm = mm;
 
 	down_write(&mm->mmap_sem);
-	insert_vm_struct(mm, vma);
+	if ((ret = insert_vm_struct(mm, vma))) {
+		up_write(&mm->mmap_sem);
+		kmem_cache_free(vm_area_cachep, vma);
+		return ret;
+	}
 	mm->total_vm += npages;
 	up_write(&mm->mmap_sem);
 	return 0;
