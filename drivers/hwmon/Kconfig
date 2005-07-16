@@ -12,7 +12,12 @@ config HWMON
 	  of a system. Most modern motherboards include such a device. It
 	  can include temperature sensors, voltage sensors, fan speed
 	  sensors and various additional features such as the ability to
-	  control the speed of the fans.
+	  control the speed of the fans.  If you want this support you
+	  should say Y here and also to the specific driver(s) for your
+	  sensors chip(s) below.
+
+	  This support can also be built as a module.  If so, the module
+	  will be called hwmon.
 
 config SENSORS_ADM1021
 	tristate "Analog Devices ADM1021 and compatibles"
