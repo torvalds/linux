@@ -32,7 +32,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
-
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 static unsigned short normal_i2c[] = { 0x18, 0x19, 0x1a,
 					0x29, 0x2a, 0x2b,
@@ -104,6 +105,7 @@ static struct i2c_driver max1619_driver = {
 
 struct max1619_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
@@ -275,6 +277,12 @@ static int max1619_detect(struct i2c_adapter *adapter, int address, int kind)
 	max1619_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_temp1_input);
 	device_create_file(&new_client->dev, &dev_attr_temp2_input);
 	device_create_file(&new_client->dev, &dev_attr_temp2_min);
@@ -285,6 +293,8 @@ static int max1619_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -308,7 +318,10 @@ static void max1619_init_client(struct i2c_client *client)
 
 static int max1619_detach_client(struct i2c_client *client)
 {
+	struct max1619_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev, "Client deregistration failed, "
@@ -316,7 +329,7 @@ static int max1619_detach_client(struct i2c_client *client)
 		return err;
 	}
 
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 	return 0;
 }
 

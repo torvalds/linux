@@ -44,6 +44,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <asm/io.h>
 #include "lm75.h"
 
@@ -277,6 +279,7 @@ static inline u8 DIV_TO_REG(long val)
    dynamically allocated, at the same time when a new client is allocated. */
 struct w83627hf_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -1102,6 +1105,12 @@ int w83627hf_detect(struct i2c_adapter *adapter, int address,
 	data->fan_min[2] = w83627hf_read_value(new_client, W83781D_REG_FAN_MIN(3));
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR3;
+	}
+
 	device_create_file_in(new_client, 0);
 	if (kind != w83697hf)
 		device_create_file_in(new_client, 1);
@@ -1152,6 +1161,8 @@ int w83627hf_detect(struct i2c_adapter *adapter, int address,
 
 	return 0;
 
+      ERROR3:
+	i2c_detach_client(new_client);
       ERROR2:
 	kfree(data);
       ERROR1:
@@ -1162,7 +1173,10 @@ int w83627hf_detect(struct i2c_adapter *adapter, int address,
 
 static int w83627hf_detach_client(struct i2c_client *client)
 {
+	struct w83627hf_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev,
@@ -1171,7 +1185,7 @@ static int w83627hf_detach_client(struct i2c_client *client)
 	}
 
 	release_region(client->addr, WINB_EXTENT);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }

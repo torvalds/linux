@@ -30,6 +30,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
@@ -339,6 +341,7 @@ struct lm85_autofan {
 
 struct lm85_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -1166,6 +1169,12 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 	lm85_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR2;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_fan1_input);
 	device_create_file(&new_client->dev, &dev_attr_fan2_input);
 	device_create_file(&new_client->dev, &dev_attr_fan3_input);
@@ -1235,6 +1244,8 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 	return 0;
 
 	/* Error out and cleanup code */
+    ERROR2:
+	i2c_detach_client(new_client);
     ERROR1:
 	kfree(data);
     ERROR0:
@@ -1243,8 +1254,10 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 
 int lm85_detach_client(struct i2c_client *client)
 {
+	struct lm85_data *data = i2c_get_clientdata(client);
+	hwmon_device_unregister(data->class_dev);
 	i2c_detach_client(client);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 	return 0;
 }
 

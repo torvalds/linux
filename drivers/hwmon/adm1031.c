@@ -27,6 +27,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 /* Following macros takes channel parameter starting from 0 to 2 */
 #define ADM1031_REG_FAN_SPEED(nr)	(0x08 + (nr))
@@ -69,6 +71,7 @@ typedef u8 auto_chan_table_t[8][2];
 /* Each client has this additional data */
 struct adm1031_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	int chip_type;
 	char valid;		/* !=0 if following fields are valid */
@@ -788,6 +791,12 @@ static int adm1031_detect(struct i2c_adapter *adapter, int address, int kind)
 	adm1031_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_fan1_input);
 	device_create_file(&new_client->dev, &dev_attr_fan1_div);
 	device_create_file(&new_client->dev, &dev_attr_fan1_min);
@@ -833,6 +842,8 @@ static int adm1031_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -841,11 +852,14 @@ exit:
 
 static int adm1031_detach_client(struct i2c_client *client)
 {
+	struct adm1031_data *data = i2c_get_clientdata(client);
 	int ret;
+
+	hwmon_device_unregister(data->class_dev);
 	if ((ret = i2c_detach_client(client)) != 0) {
 		return ret;
 	}
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 	return 0;
 }
 

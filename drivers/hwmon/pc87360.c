@@ -40,6 +40,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <asm/io.h>
 
 static unsigned short normal_i2c[] = { I2C_CLIENT_END };
@@ -186,6 +188,7 @@ static inline u8 PWM_TO_REG(int val, int inv)
 
 struct pc87360_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	struct semaphore update_lock;
 	char valid;		/* !=0 if following fields are valid */
@@ -838,6 +841,12 @@ int pc87360_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR3;
+	}
+
 	if (data->innr) {
 		device_create_file(&new_client->dev, &dev_attr_in0_input);
 		device_create_file(&new_client->dev, &dev_attr_in1_input);
@@ -974,6 +983,8 @@ int pc87360_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+ERROR3:
+	i2c_detach_client(new_client);
 ERROR2:
 	for (i = 0; i < 3; i++) {
 		if (data->address[i]) {
@@ -989,6 +1000,8 @@ static int pc87360_detach_client(struct i2c_client *client)
 {
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	int i;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((i = i2c_detach_client(client))) {
 		dev_err(&client->dev, "Client deregistration failed, "

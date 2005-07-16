@@ -31,6 +31,8 @@
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
@@ -259,6 +261,7 @@ struct pwm_data {
 
 struct adm1026_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -324,8 +327,10 @@ int adm1026_attach_adapter(struct i2c_adapter *adapter)
 
 int adm1026_detach_client(struct i2c_client *client)
 {
+	struct adm1026_data *data = i2c_get_clientdata(client);
+	hwmon_device_unregister(data->class_dev);
 	i2c_detach_client(client);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 	return 0;
 }
 
@@ -1555,6 +1560,12 @@ int adm1026_detect(struct i2c_adapter *adapter, int address,
 	adm1026_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exitdetach;
+	}
+
 	device_create_file(&new_client->dev, &sensor_dev_attr_in0_input.dev_attr);
 	device_create_file(&new_client->dev, &sensor_dev_attr_in0_max.dev_attr);
 	device_create_file(&new_client->dev, &sensor_dev_attr_in0_min.dev_attr);
@@ -1690,6 +1701,8 @@ int adm1026_detect(struct i2c_adapter *adapter, int address,
 	return 0;
 
 	/* Error out and cleanup code */
+exitdetach:
+	i2c_detach_client(new_client);
 exitfree:
 	kfree(data);
 exit:

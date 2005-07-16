@@ -25,6 +25,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 
 /* Addresses to scan */
@@ -89,6 +91,7 @@ clearing it.  Weird, ey?   --Phil  */
 /* Each client has this additional data */
 struct adm1021_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	enum chips type;
 
 	struct semaphore update_lock;
@@ -295,6 +298,12 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 		adm1021_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto error2;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_temp1_max);
 	device_create_file(&new_client->dev, &dev_attr_temp1_min);
 	device_create_file(&new_client->dev, &dev_attr_temp1_input);
@@ -305,6 +314,8 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+error2:
+	i2c_detach_client(new_client);
 error1:
 	kfree(data);
 error0:
@@ -322,14 +333,17 @@ static void adm1021_init_client(struct i2c_client *client)
 
 static int adm1021_detach_client(struct i2c_client *client)
 {
+	struct adm1021_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev, "Client deregistration failed, client not detached.\n");
 		return err;
 	}
 
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 	return 0;
 }
 

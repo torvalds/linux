@@ -40,6 +40,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <asm/io.h>
 #include "lm75.h"
 
@@ -218,6 +220,7 @@ DIV_TO_REG(long val, enum chips type)
    allocated. */
 struct w83781d_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -961,10 +964,10 @@ w83781d_detect_subclients(struct i2c_adapter *adapter, int address, int kind,
 ERROR_SC_3:
 	i2c_detach_client(data->lm75[0]);
 ERROR_SC_2:
-	if (NULL != data->lm75[1])
+	if (data->lm75[1])
 		kfree(data->lm75[1]);
 ERROR_SC_1:
-	if (NULL != data->lm75[0])
+	if (data->lm75[0])
 		kfree(data->lm75[0]);
 ERROR_SC_0:
 	return err;
@@ -1189,6 +1192,12 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 			data->pwmenable[i] = 1;
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR4;
+	}
+
 	device_create_file_in(new_client, 0);
 	if (kind != w83783s)
 		device_create_file_in(new_client, 1);
@@ -1241,6 +1250,15 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+ERROR4:
+	if (data->lm75[1]) {
+		i2c_detach_client(data->lm75[1]);
+		kfree(data->lm75[1]);
+	}
+	if (data->lm75[0]) {
+		i2c_detach_client(data->lm75[0]);
+		kfree(data->lm75[0]);
+	}
 ERROR3:
 	i2c_detach_client(new_client);
 ERROR2:
@@ -1255,7 +1273,12 @@ ERROR0:
 static int
 w83781d_detach_client(struct i2c_client *client)
 {
+	struct w83781d_data *data = i2c_get_clientdata(client);
 	int err;
+
+	/* main client */
+	if (data)
+		hwmon_device_unregister(data->class_dev);
 
 	if (i2c_is_isa_client(client))
 		release_region(client->addr, W83781D_EXTENT);
@@ -1266,13 +1289,13 @@ w83781d_detach_client(struct i2c_client *client)
 		return err;
 	}
 
-	if (i2c_get_clientdata(client)==NULL) {
-		/* subclients */
+	/* main client */
+	if (data)
+		kfree(data);
+
+	/* subclient */
+	else
 		kfree(client);
-	} else {
-		/* main client */
-		kfree(i2c_get_clientdata(client));
-	}
 
 	return 0;
 }

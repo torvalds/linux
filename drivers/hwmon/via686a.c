@@ -36,6 +36,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <asm/io.h>
 
@@ -297,6 +299,7 @@ static inline long TEMP_FROM_REG10(u16 val)
    via686a client is allocated. */
 struct via686a_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
@@ -637,7 +640,7 @@ static int via686a_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	if (!(data = kmalloc(sizeof(struct via686a_data), GFP_KERNEL))) {
 		err = -ENOMEM;
-		goto ERROR0;
+		goto exit_release;
 	}
 	memset(data, 0, sizeof(struct via686a_data));
 
@@ -655,12 +658,18 @@ static int via686a_detect(struct i2c_adapter *adapter, int address, int kind)
 	init_MUTEX(&data->update_lock);
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
-		goto ERROR3;
+		goto exit_free;
 
 	/* Initialize the VIA686A chip */
 	via686a_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_in0_input);
 	device_create_file(&new_client->dev, &dev_attr_in1_input);
 	device_create_file(&new_client->dev, &dev_attr_in2_input);
@@ -695,16 +704,21 @@ static int via686a_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
-ERROR3:
+exit_detach:
+	i2c_detach_client(new_client);
+exit_free:
 	kfree(data);
-ERROR0:
+exit_release:
 	release_region(address, VIA686A_EXTENT);
 	return err;
 }
 
 static int via686a_detach_client(struct i2c_client *client)
 {
+	struct via686a_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev,
@@ -713,7 +727,7 @@ static int via686a_detach_client(struct i2c_client *client)
 	}
 
 	release_region(client->addr, VIA686A_EXTENT);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }

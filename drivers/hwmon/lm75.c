@@ -24,6 +24,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include "lm75.h"
 
 
@@ -46,6 +48,7 @@ SENSORS_INSMOD_1(lm75);
 /* Each client has this additional data */
 struct lm75_data {
 	struct i2c_client	client;
+	struct class_device *class_dev;
 	struct semaphore	update_lock;
 	char			valid;		/* !=0 if following fields are valid */
 	unsigned long		last_updated;	/* In jiffies */
@@ -208,12 +211,20 @@ static int lm75_detect(struct i2c_adapter *adapter, int address, int kind)
 	lm75_init_client(new_client);
 	
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_temp1_max);
 	device_create_file(&new_client->dev, &dev_attr_temp1_max_hyst);
 	device_create_file(&new_client->dev, &dev_attr_temp1_input);
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -222,8 +233,10 @@ exit:
 
 static int lm75_detach_client(struct i2c_client *client)
 {
+	struct lm75_data *data = i2c_get_clientdata(client);
+	hwmon_device_unregister(data->class_dev);
 	i2c_detach_client(client);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 	return 0;
 }
 

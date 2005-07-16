@@ -52,6 +52,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 /*
  * Addresses to scan
@@ -132,6 +134,7 @@ static struct i2c_driver adm1025_driver = {
 
 struct adm1025_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
@@ -416,6 +419,12 @@ static int adm1025_detect(struct i2c_adapter *adapter, int address, int kind)
 	adm1025_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_in0_input);
 	device_create_file(&new_client->dev, &dev_attr_in1_input);
 	device_create_file(&new_client->dev, &dev_attr_in2_input);
@@ -452,6 +461,8 @@ static int adm1025_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -502,7 +513,10 @@ static void adm1025_init_client(struct i2c_client *client)
 
 static int adm1025_detach_client(struct i2c_client *client)
 {
+	struct adm1025_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev, "Client deregistration failed, "
@@ -510,7 +524,7 @@ static int adm1025_detach_client(struct i2c_client *client)
 		return err;
 	}
 
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 	return 0;
 }
 

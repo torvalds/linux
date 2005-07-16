@@ -56,6 +56,8 @@
 #include <linux/pci.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <asm/io.h>
@@ -168,6 +170,7 @@ static inline u8 DIV_TO_REG(int val)
    allocated. */
 struct sis5595_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 
 	struct semaphore update_lock;
@@ -578,6 +581,12 @@ int sis5595_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_in0_input);
 	device_create_file(&new_client->dev, &dev_attr_in0_min);
 	device_create_file(&new_client->dev, &dev_attr_in0_max);
@@ -608,7 +617,9 @@ int sis5595_detect(struct i2c_adapter *adapter, int address, int kind)
 		device_create_file(&new_client->dev, &dev_attr_temp1_max_hyst);
 	}
 	return 0;
-	
+
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit_release:
@@ -619,7 +630,10 @@ exit:
 
 static int sis5595_detach_client(struct i2c_client *client)
 {
+	struct sis5595_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev,
@@ -630,7 +644,7 @@ static int sis5595_detach_client(struct i2c_client *client)
 	if (i2c_is_isa_client(client))
 		release_region(client->addr, SIS5595_EXTENT);
 
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }

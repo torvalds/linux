@@ -24,6 +24,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <asm/io.h>
 
 /* Addresses to scan */
@@ -134,6 +136,7 @@ static inline int VID_FROM_REG(u8 val)
    allocated. */
 struct lm78_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -602,6 +605,12 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR3;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_in0_input);
 	device_create_file(&new_client->dev, &dev_attr_in0_min);
 	device_create_file(&new_client->dev, &dev_attr_in0_max);
@@ -640,6 +649,8 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+ERROR3:
+	i2c_detach_client(new_client);
 ERROR2:
 	kfree(data);
 ERROR1:
@@ -651,7 +662,10 @@ ERROR0:
 
 static int lm78_detach_client(struct i2c_client *client)
 {
+	struct lm78_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev,
@@ -662,7 +676,7 @@ static int lm78_detach_client(struct i2c_client *client)
 	if(i2c_is_isa_client(client))
 		release_region(client->addr, LM78_EXTENT);
 
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }

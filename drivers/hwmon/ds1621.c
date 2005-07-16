@@ -27,6 +27,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include "lm75.h"
 
 /* Addresses to scan */
@@ -71,6 +73,7 @@ MODULE_PARM_DESC(polarity, "Output's polarity: 0 = active high, 1 = active low")
 /* Each client has this additional data */
 struct ds1621_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	char valid;			/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
@@ -250,6 +253,12 @@ int ds1621_detect(struct i2c_adapter *adapter, int address,
 	ds1621_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_alarms);
 	device_create_file(&new_client->dev, &dev_attr_temp1_input);
 	device_create_file(&new_client->dev, &dev_attr_temp1_min);
@@ -259,6 +268,8 @@ int ds1621_detect(struct i2c_adapter *adapter, int address,
 
 /* OK, this is not exactly good programming practice, usually. But it is
    very code-efficient in this case. */
+      exit_detach:
+	i2c_detach_client(new_client);
       exit_free:
 	kfree(data);
       exit:
@@ -267,7 +278,10 @@ int ds1621_detect(struct i2c_adapter *adapter, int address,
 
 static int ds1621_detach_client(struct i2c_client *client)
 {
+	struct ds1621_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev, "Client deregistration failed, "
@@ -275,7 +289,7 @@ static int ds1621_detach_client(struct i2c_client *client)
 		return err;
 	}
 
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }

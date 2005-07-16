@@ -32,6 +32,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <asm/io.h>
 
@@ -100,6 +102,7 @@ static u8 smsc47b397_reg_temp[] = {0x25, 0x26, 0x27, 0x80};
 
 struct smsc47b397_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 
 	struct semaphore update_lock;
@@ -226,7 +229,10 @@ static int smsc47b397_attach_adapter(struct i2c_adapter *adapter)
 
 static int smsc47b397_detach_client(struct i2c_client *client)
 {
+	struct smsc47b397_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev, "Client deregistration failed, "
@@ -235,7 +241,7 @@ static int smsc47b397_detach_client(struct i2c_client *client)
 	}
 
 	release_region(client->addr, SMSC_EXTENT);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }
@@ -285,6 +291,12 @@ static int smsc47b397_detect(struct i2c_adapter *adapter, int addr, int kind)
 	if ((err = i2c_attach_client(new_client)))
 		goto error_free;
 
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto error_detach;
+	}
+
 	device_create_file_temp(new_client, 1);
 	device_create_file_temp(new_client, 2);
 	device_create_file_temp(new_client, 3);
@@ -297,6 +309,8 @@ static int smsc47b397_detect(struct i2c_adapter *adapter, int addr, int kind)
 
 	return 0;
 
+error_detach:
+	i2c_detach_client(new_client);
 error_free:
 	kfree(data);
 error_release:

@@ -42,6 +42,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
@@ -117,6 +119,7 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 /* Each client has this additional data */
 struct gl518_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	enum chips type;
 
 	struct semaphore update_lock;
@@ -419,6 +422,12 @@ static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
 	gl518_init_client((struct i2c_client *) new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_in0_input);
 	device_create_file(&new_client->dev, &dev_attr_in1_input);
 	device_create_file(&new_client->dev, &dev_attr_in2_input);
@@ -450,6 +459,8 @@ static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
 /* OK, this is not exactly good programming practice, usually. But it is
    very code-efficient in this case. */
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -477,7 +488,10 @@ static void gl518_init_client(struct i2c_client *client)
 
 static int gl518_detach_client(struct i2c_client *client)
 {
+	struct gl518_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev, "Client deregistration failed, "
@@ -485,8 +499,7 @@ static int gl518_detach_client(struct i2c_client *client)
 		return err;
 	}
 
-	kfree(i2c_get_clientdata(client));
-
+	kfree(data);
 	return 0;
 }
 

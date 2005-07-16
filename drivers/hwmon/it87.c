@@ -39,6 +39,8 @@
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <asm/io.h>
 
 
@@ -192,6 +194,7 @@ static int DIV_TO_REG(int val)
    allocated. */
 struct it87_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -840,6 +843,12 @@ int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 	it87_init_client(new_client, data);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR3;
+	}
+
 	device_create_file(&new_client->dev, &sensor_dev_attr_in0_input.dev_attr);
 	device_create_file(&new_client->dev, &sensor_dev_attr_in1_input.dev_attr);
 	device_create_file(&new_client->dev, &sensor_dev_attr_in2_input.dev_attr);
@@ -904,6 +913,8 @@ int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+ERROR3:
+	i2c_detach_client(new_client);
 ERROR2:
 	kfree(data);
 ERROR1:
@@ -915,7 +926,10 @@ ERROR0:
 
 static int it87_detach_client(struct i2c_client *client)
 {
+	struct it87_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev,
@@ -925,7 +939,7 @@ static int it87_detach_client(struct i2c_client *client)
 
 	if(i2c_is_isa_client(client))
 		release_region(client->addr, IT87_EXTENT);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }

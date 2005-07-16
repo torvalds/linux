@@ -34,6 +34,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 /*
  * Addresses to scan
@@ -138,6 +140,7 @@ static struct i2c_driver lm83_driver = {
 
 struct lm83_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
@@ -312,6 +315,12 @@ static int lm83_detect(struct i2c_adapter *adapter, int address, int kind)
 	 */
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp1_input.dev_attr);
 	device_create_file(&new_client->dev,
@@ -340,6 +349,8 @@ static int lm83_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -348,7 +359,10 @@ exit:
 
 static int lm83_detach_client(struct i2c_client *client)
 {
+	struct lm83_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev,
@@ -356,7 +370,7 @@ static int lm83_detach_client(struct i2c_client *client)
 		return err;
 	}
 
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 	return 0;
 }
 

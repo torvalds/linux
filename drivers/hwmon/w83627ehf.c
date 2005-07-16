@@ -41,6 +41,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/err.h>
 #include <asm/io.h>
 #include "lm75.h"
 
@@ -177,6 +179,7 @@ temp1_to_reg(int temp)
 
 struct w83627ehf_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 
 	struct semaphore update_lock;
@@ -723,6 +726,12 @@ static int w83627ehf_detect(struct i2c_adapter *adapter, int address, int kind)
 		data->has_fan |= (1 << 4);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&client->dev, &dev_attr_fan1_input);
 	device_create_file(&client->dev, &dev_attr_fan1_min);
 	device_create_file(&client->dev, &dev_attr_fan1_div);
@@ -756,6 +765,8 @@ static int w83627ehf_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(client);
 exit_free:
 	kfree(data);
 exit_release:
@@ -773,7 +784,10 @@ static int w83627ehf_attach_adapter(struct i2c_adapter *adapter)
 
 static int w83627ehf_detach_client(struct i2c_client *client)
 {
+	struct w83627ehf_data *data = i2c_get_clientdata(client);
 	int err;
+
+	hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev, "Client deregistration failed, "
@@ -781,7 +795,7 @@ static int w83627ehf_detach_client(struct i2c_client *client)
 		return err;
 	}
 	release_region(client->addr, REGION_LENGTH);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 
 	return 0;
 }

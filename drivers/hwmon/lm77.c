@@ -31,7 +31,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
-
+#include <linux/hwmon.h>
+#include <linux/err.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, I2C_CLIENT_END };
@@ -51,6 +52,7 @@ SENSORS_INSMOD_1(lm77);
 /* Each client has this additional data */
 struct lm77_data {
 	struct i2c_client	client;
+	struct class_device *class_dev;
 	struct semaphore	update_lock;
 	char			valid;
 	unsigned long		last_updated;	/* In jiffies */
@@ -317,6 +319,12 @@ static int lm77_detect(struct i2c_adapter *adapter, int address, int kind)
 	lm77_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
 	device_create_file(&new_client->dev, &dev_attr_temp1_input);
 	device_create_file(&new_client->dev, &dev_attr_temp1_crit);
 	device_create_file(&new_client->dev, &dev_attr_temp1_min);
@@ -327,6 +335,8 @@ static int lm77_detect(struct i2c_adapter *adapter, int address, int kind)
 	device_create_file(&new_client->dev, &dev_attr_alarms);
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -335,8 +345,10 @@ exit:
 
 static int lm77_detach_client(struct i2c_client *client)
 {
+	struct lm77_data *data = i2c_get_clientdata(client);
+	hwmon_device_unregister(data->class_dev);
 	i2c_detach_client(client);
-	kfree(i2c_get_clientdata(client));
+	kfree(data);
 	return 0;
 }
 
