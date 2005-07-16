@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-video.c,v 1.79 2005/07/07 14:17:47 mchehab Exp $
+ * $Id: cx88-video.c,v 1.80 2005/07/13 08:49:08 mchehab Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * video4linux video interface
@@ -1346,6 +1346,11 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		dev->freq = f->frequency;
 		cx88_newstation(core);
 		cx88_call_i2c_clients(dev->core,VIDIOC_S_FREQUENCY,f);
+
+		/* When changing channels it is required to reset TVAUDIO */
+		msleep (10);
+		cx88_set_tvaudio(core);
+
 		up(&dev->lock);
 		return 0;
 	}

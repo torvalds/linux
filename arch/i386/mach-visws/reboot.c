@@ -7,6 +7,7 @@
 #include "piix4.h"
 
 void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
 
 void machine_restart(char * __unused)
 {
