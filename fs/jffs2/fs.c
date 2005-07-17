@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: fs.c,v 1.57 2005/07/17 06:56:21 dedekind Exp $
+ * $Id: fs.c,v 1.58 2005/07/17 12:01:42 dedekind Exp $
  *
  */
 
@@ -203,7 +203,7 @@ int jffs2_statfs(struct super_block *sb, struct kstatfs *buf)
 
 	buf->f_bavail = buf->f_bfree = avail >> PAGE_SHIFT;
 
-	D2(jffs2_dbg_dump_block_lists(c));
+	jffs2_dbg_dump_block_lists(c);
 
 	spin_unlock(&c->erase_completion_lock);
 

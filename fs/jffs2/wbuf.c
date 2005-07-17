@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.93 2005/07/17 06:56:21 dedekind Exp $
+ * $Id: wbuf.c,v 1.94 2005/07/17 12:01:43 dedekind Exp $
  *
  */
 
@@ -139,7 +139,7 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 {
 	D1(printk("About to refile bad block at %08x\n", jeb->offset));
 
-	D2(jffs2_dbg_dump_block_lists(c));
+	jffs2_dbg_dump_block_lists(c);
 	/* File the existing block on the bad_used_list.... */
 	if (c->nextblock == jeb)
 		c->nextblock = NULL;
@@ -156,7 +156,7 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		c->nr_erasing_blocks++;
 		jffs2_erase_pending_trigger(c);
 	}
-	D2(jffs2_dbg_dump_block_lists(c));
+	jffs2_dbg_dump_block_lists(c);
 
 	/* Adjust its size counts accordingly */
 	c->wasted_size += jeb->free_size;

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.127 2005/07/17 11:13:46 dedekind Exp $
+ * $Id: readinode.c,v 1.128 2005/07/17 12:01:43 dedekind Exp $
  *
  */
 
@@ -92,8 +92,8 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 				mark_ref_normal(next->node->raw);
 		}
 	}
-	D2(jffs2_dbg_fragtree_paranoia_check(f));
-	D2(jffs2_dbg_dump_fragtree(f));
+	jffs2_dbg_fragtree_paranoia_check(f);
+	jffs2_dbg_dump_fragtree(f);
 	return 0;
 }
 
