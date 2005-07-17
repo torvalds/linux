@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: read.c,v 1.39 2005/03/01 10:34:03 dedekind Exp $
+ * $Id: read.c,v 1.40 2005/07/17 06:56:21 dedekind Exp $
  *
  */
 
@@ -174,7 +174,7 @@ int jffs2_read_inode_range(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			if (frag) {
 				D1(printk(KERN_NOTICE "Eep. Hole in ino #%u fraglist. frag->ofs = 0x%08x, offset = 0x%08x\n", f->inocache->ino, frag->ofs, offset));
 				holesize = min(holesize, frag->ofs - offset);
-				D2(jffs2_print_frag_list(f));
+				D2(jffs2_dbg_dump_fragtree(f));
 			}
 			D1(printk(KERN_DEBUG "Filling non-frag hole from %d-%d\n", offset, offset+holesize));
 			memset(buf, 0, holesize);

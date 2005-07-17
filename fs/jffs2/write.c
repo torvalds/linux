@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: write.c,v 1.92 2005/04/13 13:22:35 dwmw2 Exp $
+ * $Id: write.c,v 1.93 2005/07/17 06:56:21 dedekind Exp $
  *
  */
 
@@ -54,34 +54,6 @@ int jffs2_do_new_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, uint
 	return 0;
 }
 
-#if CONFIG_JFFS2_FS_DEBUG > 0
-static void writecheck(struct jffs2_sb_info *c, uint32_t ofs)
-{
-	unsigned char buf[16];
-	size_t retlen;
-	int ret, i;
-
-	ret = jffs2_flash_read(c, ofs, 16, &retlen, buf);
-	if (ret || (retlen != 16)) {
-		D1(printk(KERN_DEBUG "read failed or short in writecheck(). ret %d, retlen %zd\n", ret, retlen));
-		return;
-	}
-	ret = 0;
-	for (i=0; i<16; i++) {
-		if (buf[i] != 0xff)
-			ret = 1;
-	}
-	if (ret) {
-		printk(KERN_WARNING "ARGH. About to write node to 0x%08x on flash, but there are data already there:\n", ofs);
-		printk(KERN_WARNING "0x%08x: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n", 
-		       ofs,
-		       buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7],
-		       buf[8], buf[9], buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]);
-	}
-}
-#endif
-
-
 /* jffs2_write_dnode - given a raw_inode, allocate a full_dnode for it, 
    write it to the flash, link it into the existing inode/fragment list */
 
@@ -106,7 +78,7 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 	vecs[1].iov_base = (unsigned char *)data;
 	vecs[1].iov_len = datalen;
 
-	D1(writecheck(c, flash_ofs));
+	jffs2_dbg_prewrite_paranoia_check(c, flash_ofs, vecs[0].iov_len + vecs[1].iov_len);
 
 	if (je32_to_cpu(ri->totlen) != sizeof(*ri) + datalen) {
 		printk(KERN_WARNING "jffs2_write_dnode: ri->totlen (0x%08x) != sizeof(*ri) (0x%08zx) + datalen (0x%08x)\n", je32_to_cpu(ri->totlen), sizeof(*ri), datalen);
@@ -177,8 +149,8 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 
 			D1(printk(KERN_DEBUG "Retrying failed write.\n"));
 			
-			ACCT_SANITY_CHECK(c,jeb);
-			D1(ACCT_PARANOIA_CHECK(jeb));
+			jffs2_dbg_acct_sanity_check(c,jeb);
+			jffs2_dbg_acct_paranoia_check(c, jeb);
 
 			if (alloc_mode == ALLOC_GC) {
 				ret = jffs2_reserve_space_gc(c, sizeof(*ri) + datalen, &flash_ofs, &dummy);
@@ -194,8 +166,8 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 			if (!ret) {
 				D1(printk(KERN_DEBUG "Allocated space at 0x%08x to retry failed write.\n", flash_ofs));
 
-				ACCT_SANITY_CHECK(c,jeb);
-				D1(ACCT_PARANOIA_CHECK(jeb));
+				jffs2_dbg_acct_sanity_check(c,jeb);
+				jffs2_dbg_acct_paranoia_check(c, jeb);
 
 				goto retry;
 			}
@@ -232,7 +204,7 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 		  je32_to_cpu(ri->data_crc), je32_to_cpu(ri->totlen)));
 
 	if (retried) {
-		ACCT_SANITY_CHECK(c,NULL);
+		jffs2_dbg_acct_sanity_check(c,NULL);
 	}
 
 	return fn;
@@ -250,7 +222,8 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 	D1(printk(KERN_DEBUG "jffs2_write_dirent(ino #%u, name at *0x%p \"%s\"->ino #%u, name_crc 0x%08x)\n", 
 		  je32_to_cpu(rd->pino), name, name, je32_to_cpu(rd->ino),
 		  je32_to_cpu(rd->name_crc)));
-	D1(writecheck(c, flash_ofs));
+
+	jffs2_dbg_prewrite_paranoia_check(c, flash_ofs, vecs[0].iov_len + vecs[1].iov_len);
 
 	D1(if(je32_to_cpu(rd->hdr_crc) != crc32(0, rd, sizeof(struct jffs2_unknown_node)-4)) {
 		printk(KERN_CRIT "Eep. CRC not correct in jffs2_write_dirent()\n");
@@ -322,8 +295,8 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 
 			D1(printk(KERN_DEBUG "Retrying failed write.\n"));
 
-			ACCT_SANITY_CHECK(c,jeb);
-			D1(ACCT_PARANOIA_CHECK(jeb));
+			jffs2_dbg_acct_sanity_check(c,jeb);
+			jffs2_dbg_acct_paranoia_check(c, jeb);
 
 			if (alloc_mode == ALLOC_GC) {
 				ret = jffs2_reserve_space_gc(c, sizeof(*rd) + namelen, &flash_ofs, &dummy);
@@ -338,8 +311,8 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 
 			if (!ret) {
 				D1(printk(KERN_DEBUG "Allocated space at 0x%08x to retry failed write.\n", flash_ofs));
-				ACCT_SANITY_CHECK(c,jeb);
-				D1(ACCT_PARANOIA_CHECK(jeb));
+				jffs2_dbg_acct_sanity_check(c,jeb);
+				jffs2_dbg_acct_paranoia_check(c, jeb);
 				goto retry;
 			}
 			D1(printk(KERN_DEBUG "Failed to allocate space to retry failed write: %d!\n", ret));
@@ -359,7 +332,7 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 	spin_unlock(&c->erase_completion_lock);
 
 	if (retried) {
-		ACCT_SANITY_CHECK(c,NULL);
+		jffs2_dbg_acct_sanity_check(c,NULL);
 	}
 
 	return fd;

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: erase.c,v 1.80 2005/07/14 19:46:24 joern Exp $
+ * $Id: erase.c,v 1.81 2005/07/17 06:56:20 dedekind Exp $
  *
  */
 
@@ -429,8 +429,8 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	c->free_size += jeb->free_size;
 	c->used_size += jeb->used_size;
 
-	ACCT_SANITY_CHECK(c,jeb);
-	D1(ACCT_PARANOIA_CHECK(jeb));
+	jffs2_dbg_acct_sanity_check(c,jeb);
+	jffs2_dbg_acct_paranoia_check(c, jeb);
 
 	list_add_tail(&jeb->list, &c->free_list);
 	c->nr_erasing_blocks--;

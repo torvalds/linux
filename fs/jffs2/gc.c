@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: gc.c,v 1.148 2005/04/09 10:47:00 dedekind Exp $
+ * $Id: gc.c,v 1.149 2005/07/17 06:56:21 dedekind Exp $
  *
  */
 
@@ -111,7 +111,7 @@ again:
 		ret->wasted_size = 0;
 	}
 
-	D2(jffs2_dump_block_lists(c));
+	D2(jffs2_dbg_dump_block_lists(c));
 	return ret;
 }
 
@@ -142,7 +142,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		if (c->checked_ino > c->highest_ino) {
 			printk(KERN_CRIT "Checked all inodes but still 0x%x bytes of unchecked space?\n",
 			       c->unchecked_size);
-			D2(jffs2_dump_block_lists(c));
+			D2(jffs2_dbg_dump_block_lists(c));
 			spin_unlock(&c->erase_completion_lock);
 			BUG();
 		}
@@ -619,16 +619,16 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 
 			D1(printk(KERN_DEBUG "Retrying failed write of REF_PRISTINE node.\n"));
 			
-			ACCT_SANITY_CHECK(c,jeb);
-			D1(ACCT_PARANOIA_CHECK(jeb));
+			jffs2_dbg_acct_sanity_check(c,jeb);
+			jffs2_dbg_acct_paranoia_check(c, jeb);
 
 			ret = jffs2_reserve_space_gc(c, rawlen, &phys_ofs, &dummy);
 
 			if (!ret) {
 				D1(printk(KERN_DEBUG "Allocated space at 0x%08x to retry failed write.\n", phys_ofs));
 
-				ACCT_SANITY_CHECK(c,jeb);
-				D1(ACCT_PARANOIA_CHECK(jeb));
+				jffs2_dbg_acct_sanity_check(c,jeb);
+				jffs2_dbg_acct_paranoia_check(c, jeb);
 
 				goto retry;
 			}

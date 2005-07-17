@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.92 2005/04/05 12:51:54 dedekind Exp $
+ * $Id: wbuf.c,v 1.93 2005/07/17 06:56:21 dedekind Exp $
  *
  */
 
@@ -139,7 +139,7 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 {
 	D1(printk("About to refile bad block at %08x\n", jeb->offset));
 
-	D2(jffs2_dump_block_lists(c));
+	D2(jffs2_dbg_dump_block_lists(c));
 	/* File the existing block on the bad_used_list.... */
 	if (c->nextblock == jeb)
 		c->nextblock = NULL;
@@ -156,7 +156,7 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		c->nr_erasing_blocks++;
 		jffs2_erase_pending_trigger(c);
 	}
-	D2(jffs2_dump_block_lists(c));
+	D2(jffs2_dbg_dump_block_lists(c));
 
 	/* Adjust its size counts accordingly */
 	c->wasted_size += jeb->free_size;
@@ -164,8 +164,8 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 	jeb->wasted_size += jeb->free_size;
 	jeb->free_size = 0;
 
-	ACCT_SANITY_CHECK(c,jeb);
-	D1(ACCT_PARANOIA_CHECK(jeb));
+	jffs2_dbg_acct_sanity_check(c,jeb);
+	jffs2_dbg_acct_paranoia_check(c, jeb);
 }
 
 /* Recover from failure to write wbuf. Recover the nodes up to the
@@ -392,11 +392,11 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	else
 		jeb->last_node = container_of(first_raw, struct jffs2_raw_node_ref, next_phys);
 
-	ACCT_SANITY_CHECK(c,jeb);
-        D1(ACCT_PARANOIA_CHECK(jeb));
+	jffs2_dbg_acct_sanity_check(c,jeb);
+        jffs2_dbg_acct_paranoia_check(c, jeb);
 
-	ACCT_SANITY_CHECK(c,new_jeb);
-        D1(ACCT_PARANOIA_CHECK(new_jeb));
+	jffs2_dbg_acct_sanity_check(c,new_jeb);
+        jffs2_dbg_acct_paranoia_check(c, new_jeb);
 
 	spin_unlock(&c->erase_completion_lock);
 
@@ -973,7 +973,7 @@ int jffs2_check_oob_empty( struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 
 		if (buf[i] != 0xFF) {
 			D2(printk(KERN_DEBUG "Found %02x at %x in OOB for %08x\n",
-				  buf[page+i], page+i, jeb->offset));
+				  buf[i], i, jeb->offset));
 			ret = 1; 
 			goto out;
 		}

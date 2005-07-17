@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.122 2005/05/06 09:30:27 dedekind Exp $
+ * $Id: nodemgmt.c,v 1.123 2005/07/17 06:56:21 dedekind Exp $
  *
  */
 
@@ -349,8 +349,8 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 		list_add_tail(&jeb->list, &c->clean_list);
 		c->nextblock = NULL;
 	}
-	ACCT_SANITY_CHECK(c,jeb);
-	D1(ACCT_PARANOIA_CHECK(jeb));
+	jffs2_dbg_acct_sanity_check(c,jeb);
+	jffs2_dbg_acct_paranoia_check(c, jeb);
 
 	spin_unlock(&c->erase_completion_lock);
 
@@ -466,9 +466,9 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	}
 	ref->flash_offset = ref_offset(ref) | REF_OBSOLETE;
 	
-	ACCT_SANITY_CHECK(c, jeb);
+	jffs2_dbg_acct_sanity_check(c, jeb);
 
-	D1(ACCT_PARANOIA_CHECK(jeb));
+	jffs2_dbg_acct_paranoia_check(c, jeb);
 
 	if (c->flags & JFFS2_SB_FLAG_SCANNING) {
 		/* Flash scanning is in progress. Don't muck about with the block
@@ -648,164 +648,6 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
  out_erase_sem:
 	up(&c->erase_free_sem);
 }
-
-#if CONFIG_JFFS2_FS_DEBUG >= 2
-void jffs2_dump_block_lists(struct jffs2_sb_info *c)
-{
-
-
-	printk(KERN_DEBUG "jffs2_dump_block_lists:\n");
-	printk(KERN_DEBUG "flash_size: %08x\n", c->flash_size);
-	printk(KERN_DEBUG "used_size: %08x\n", c->used_size);
-	printk(KERN_DEBUG "dirty_size: %08x\n", c->dirty_size);
-	printk(KERN_DEBUG "wasted_size: %08x\n", c->wasted_size);
-	printk(KERN_DEBUG "unchecked_size: %08x\n", c->unchecked_size);
-	printk(KERN_DEBUG "free_size: %08x\n", c->free_size);
-	printk(KERN_DEBUG "erasing_size: %08x\n", c->erasing_size);
-	printk(KERN_DEBUG "bad_size: %08x\n", c->bad_size);
-	printk(KERN_DEBUG "sector_size: %08x\n", c->sector_size);
-	printk(KERN_DEBUG "jffs2_reserved_blocks size: %08x\n",c->sector_size * c->resv_blocks_write);
-
-	if (c->nextblock) {
-		printk(KERN_DEBUG "nextblock: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n",
-		       c->nextblock->offset, c->nextblock->used_size, c->nextblock->dirty_size, c->nextblock->wasted_size, c->nextblock->unchecked_size, c->nextblock->free_size);
-	} else {
-		printk(KERN_DEBUG "nextblock: NULL\n");
-	}
-	if (c->gcblock) {
-		printk(KERN_DEBUG "gcblock: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n",
-		       c->gcblock->offset, c->gcblock->used_size, c->gcblock->dirty_size, c->gcblock->wasted_size, c->gcblock->unchecked_size, c->gcblock->free_size);
-	} else {
-		printk(KERN_DEBUG "gcblock: NULL\n");
-	}
-	if (list_empty(&c->clean_list)) {
-		printk(KERN_DEBUG "clean_list: empty\n");
-	} else {
-		struct list_head *this;
-		int	numblocks = 0;
-		uint32_t dirty = 0;
-
-		list_for_each(this, &c->clean_list) {
-			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
-			numblocks ++;
-			dirty += jeb->wasted_size;
-			printk(KERN_DEBUG "clean_list: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n", jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size, jeb->unchecked_size, jeb->free_size);
-		}
-		printk (KERN_DEBUG "Contains %d blocks with total wasted size %u, average wasted size: %u\n", numblocks, dirty, dirty / numblocks);
-	}
-	if (list_empty(&c->very_dirty_list)) {
-		printk(KERN_DEBUG "very_dirty_list: empty\n");
-	} else {
-		struct list_head *this;
-		int	numblocks = 0;
-		uint32_t dirty = 0;
-
-		list_for_each(this, &c->very_dirty_list) {
-			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
-			numblocks ++;
-			dirty += jeb->dirty_size;
-			printk(KERN_DEBUG "very_dirty_list: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n",
-			       jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size, jeb->unchecked_size, jeb->free_size);
-		}
-		printk (KERN_DEBUG "Contains %d blocks with total dirty size %u, average dirty size: %u\n",
-			numblocks, dirty, dirty / numblocks);
-	}
-	if (list_empty(&c->dirty_list)) {
-		printk(KERN_DEBUG "dirty_list: empty\n");
-	} else {
-		struct list_head *this;
-		int	numblocks = 0;
-		uint32_t dirty = 0;
-
-		list_for_each(this, &c->dirty_list) {
-			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
-			numblocks ++;
-			dirty += jeb->dirty_size;
-			printk(KERN_DEBUG "dirty_list: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n",
-			       jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size, jeb->unchecked_size, jeb->free_size);
-		}
-		printk (KERN_DEBUG "Contains %d blocks with total dirty size %u, average dirty size: %u\n",
-			numblocks, dirty, dirty / numblocks);
-	}
-	if (list_empty(&c->erasable_list)) {
-		printk(KERN_DEBUG "erasable_list: empty\n");
-	} else {
-		struct list_head *this;
-
-		list_for_each(this, &c->erasable_list) {
-			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
-			printk(KERN_DEBUG "erasable_list: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n",
-			       jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size, jeb->unchecked_size, jeb->free_size);
-		}
-	}
-	if (list_empty(&c->erasing_list)) {
-		printk(KERN_DEBUG "erasing_list: empty\n");
-	} else {
-		struct list_head *this;
-
-		list_for_each(this, &c->erasing_list) {
-			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
-			printk(KERN_DEBUG "erasing_list: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n",
-			       jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size, jeb->unchecked_size, jeb->free_size);
-		}
-	}
-	if (list_empty(&c->erase_pending_list)) {
-		printk(KERN_DEBUG "erase_pending_list: empty\n");
-	} else {
-		struct list_head *this;
-
-		list_for_each(this, &c->erase_pending_list) {
-			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
-			printk(KERN_DEBUG "erase_pending_list: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n",
-			       jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size, jeb->unchecked_size, jeb->free_size);
-		}
-	}
-	if (list_empty(&c->erasable_pending_wbuf_list)) {
-		printk(KERN_DEBUG "erasable_pending_wbuf_list: empty\n");
-	} else {
-		struct list_head *this;
-
-		list_for_each(this, &c->erasable_pending_wbuf_list) {
-			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
-			printk(KERN_DEBUG "erasable_pending_wbuf_list: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n",
-			       jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size, jeb->unchecked_size, jeb->free_size);
-		}
-	}
-	if (list_empty(&c->free_list)) {
-		printk(KERN_DEBUG "free_list: empty\n");
-	} else {
-		struct list_head *this;
-
-		list_for_each(this, &c->free_list) {
-			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
-			printk(KERN_DEBUG "free_list: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n",
-			       jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size, jeb->unchecked_size, jeb->free_size);
-		}
-	}
-	if (list_empty(&c->bad_list)) {
-		printk(KERN_DEBUG "bad_list: empty\n");
-	} else {
-		struct list_head *this;
-
-		list_for_each(this, &c->bad_list) {
-			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
-			printk(KERN_DEBUG "bad_list: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n",
-			       jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size, jeb->unchecked_size, jeb->free_size);
-		}
-	}
-	if (list_empty(&c->bad_used_list)) {
-		printk(KERN_DEBUG "bad_used_list: empty\n");
-	} else {
-		struct list_head *this;
-
-		list_for_each(this, &c->bad_used_list) {
-			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
-			printk(KERN_DEBUG "bad_used_list: %08x (used %08x, dirty %08x, wasted %08x, unchecked %08x, free %08x)\n",
-			       jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size, jeb->unchecked_size, jeb->free_size);
-		}
-	}
-}
-#endif /* CONFIG_JFFS2_FS_DEBUG */
 
 int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 {
