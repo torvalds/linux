@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: os-linux.h,v 1.58 2005/07/12 02:34:35 tpoynor Exp $
+ * $Id: os-linux.h,v 1.59 2005/07/17 11:13:46 dedekind Exp $
  *
  */
 
@@ -57,6 +57,7 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 	f->fragtree = RB_ROOT;
 	f->metadata = NULL;
 	f->dents = NULL;
+	f->target = NULL;
 	f->flags = 0;
 	f->usercompr = 0;
 }

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: dir.c,v 1.86 2005/07/06 12:13:09 dwmw2 Exp $
+ * $Id: dir.c,v 1.87 2005/07/17 11:13:46 dedekind Exp $
  *
  */
 
@@ -344,9 +344,9 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 		return PTR_ERR(fn);
 	}
 
-	/* We use f->dents field to store the target path. */
-	f->dents = kmalloc(targetlen + 1, GFP_KERNEL);
-	if (!f->dents) {
+	/* We use f->target field to store the target path. */
+	f->target = kmalloc(targetlen + 1, GFP_KERNEL);
+	if (!f->target) {
 		printk(KERN_WARNING "Can't allocate %d bytes of memory\n", targetlen + 1);
 		up(&f->sem);
 		jffs2_complete_reservation(c);
@@ -354,8 +354,8 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 		return -ENOMEM;
 	}
 
-	memcpy(f->dents, target, targetlen + 1);
-	D1(printk(KERN_DEBUG "jffs2_symlink: symlink's target '%s' cached\n", (char *)f->dents));
+	memcpy(f->target, target, targetlen + 1);
+	D1(printk(KERN_DEBUG "jffs2_symlink: symlink's target '%s' cached\n", (char *)f->target));
 
 	/* No data here. Only a metadata node, which will be 
 	   obsoleted by the first data write

@@ -1,4 +1,4 @@
-/* $Id: jffs2_fs_i.h,v 1.17 2004/11/11 23:51:27 dwmw2 Exp $ */
+/* $Id: jffs2_fs_i.h,v 1.18 2005/07/17 11:13:48 dedekind Exp $ */
 
 #ifndef _JFFS2_FS_I
 #define _JFFS2_FS_I
@@ -31,6 +31,9 @@ struct jffs2_inode_info {
 
 	/* Directory entries */
 	struct jffs2_full_dirent *dents;
+
+	/* The target path if this is the inode of a symlink */
+	unsigned char *target;
 
 	/* Some stuff we just have to keep in-core at all times, for each inode. */
 	struct jffs2_inode_cache *inocache;
