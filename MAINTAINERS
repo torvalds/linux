@@ -1813,13 +1813,6 @@ M:	hch@infradead.org
 L:	linux-abi-devel@lists.sourceforge.net
 S:	Maintained
 
-PCI ID DATABASE
-P:	Martin Mares
-M:	mj@ucw.cz
-L:	pciids-devel@lists.sourceforge.net
-W:	http://pciids.sourceforge.net/
-S:	Maintained
-
 PCI SOUND DRIVERS (ES1370, ES1371 and SONICVIBES)
 P:	Thomas Sailer
 M:	sailer@ife.ee.ethz.ch

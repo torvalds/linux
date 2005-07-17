@@ -1936,10 +1936,6 @@ static int __devinit rivafb_probe(struct pci_dev *pd,
 	default_par->Chipset = (pd->vendor << 16) | pd->device;
 	printk(KERN_INFO PFX "nVidia device/chipset %X\n",default_par->Chipset);
 	
-#ifdef CONFIG_PCI_NAMES
-	printk(KERN_INFO PFX "%s\n", pd->pretty_name);
-#endif
-
 	if(default_par->riva.Architecture == 0) {
 		printk(KERN_ERR PFX "unknown NV_ARCH\n");
 		ret=-ENODEV;

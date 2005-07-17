@@ -562,11 +562,6 @@ struct pci_dev {
 	struct bin_attribute *rom_attr; /* attribute descriptor for sysfs ROM entry */
 	int rom_attr_enabled;		/* has display of the rom attribute been enabled? */
 	struct bin_attribute *res_attr[DEVICE_COUNT_RESOURCE]; /* sysfs file for resources */
-#ifdef CONFIG_PCI_NAMES
-#define PCI_NAME_SIZE	255
-#define PCI_NAME_HALF	__stringify(43)	/* less than half to handle slop */
-	char		pretty_name[PCI_NAME_SIZE];	/* pretty name for users to see */
-#endif
 };
 
 #define pci_dev_g(n) list_entry(n, struct pci_dev, global_list)
@@ -749,8 +744,6 @@ int pci_scan_slot(struct pci_bus *bus, int devfn);
 struct pci_dev * pci_scan_single_device(struct pci_bus *bus, int devfn);
 unsigned int pci_scan_child_bus(struct pci_bus *bus);
 void pci_bus_add_device(struct pci_dev *dev);
-void pci_name_device(struct pci_dev *dev);
-char *pci_class_name(u32 class);
 void pci_read_bridge_bases(struct pci_bus *child);
 struct resource *pci_find_parent_resource(const struct pci_dev *dev, struct resource *res);
 int pci_get_interrupt_pin(struct pci_dev *dev, struct pci_dev **bridge);
@@ -1024,13 +1017,6 @@ static inline char *pci_name(struct pci_dev *pdev)
 {
 	return pdev->dev.bus_id;
 }
-
-/* Some archs want to see the pretty pci name, so use this macro */
-#ifdef CONFIG_PCI_NAMES
-#define pci_pretty_name(dev) ((dev)->pretty_name)
-#else
-#define pci_pretty_name(dev) ""
-#endif
 
 
 /* Some archs don't want to expose struct resource to userland as-is

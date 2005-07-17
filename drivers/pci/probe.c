@@ -757,8 +757,6 @@ pci_scan_device(struct pci_bus *bus, int devfn)
 	dev->dev.release = pci_release_dev;
 	pci_dev_get(dev);
 
-	pci_name_device(dev);
-
 	dev->dev.dma_mask = &dev->dma_mask;
 	dev->dev.coherent_dma_mask = 0xffffffffull;
 

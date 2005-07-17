@@ -121,10 +121,6 @@ int usb_hcd_pci_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		}
 	}
 
-#ifdef CONFIG_PCI_NAMES
-	hcd->product_desc = dev->pretty_name;
-#endif
-
 	pci_set_master (dev);
 
 	retval = usb_add_hcd (hcd, dev->irq, SA_SHIRQ);

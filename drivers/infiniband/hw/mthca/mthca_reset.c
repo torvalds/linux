@@ -71,8 +71,8 @@ int mthca_reset(struct mthca_dev *mdev)
 						bridge)) != NULL) {
 			if (bridge->hdr_type    == PCI_HEADER_TYPE_BRIDGE &&
 			    bridge->subordinate == mdev->pdev->bus) {
-				mthca_dbg(mdev, "Found bridge: %s (%s)\n",
-					  pci_pretty_name(bridge), pci_name(bridge));
+				mthca_dbg(mdev, "Found bridge: %s\n",
+					  pci_name(bridge));
 				break;
 			}
 		}
@@ -83,8 +83,8 @@ int mthca_reset(struct mthca_dev *mdev)
 			 * assume we're in no-bridge mode and hope for
 			 * the best.
 			 */
-			mthca_warn(mdev, "No bridge found for %s (%s)\n",
-				  pci_pretty_name(mdev->pdev), pci_name(mdev->pdev));
+			mthca_warn(mdev, "No bridge found for %s\n",
+				  pci_name(mdev->pdev));
 		}
 
 	}
