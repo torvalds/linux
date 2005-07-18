@@ -984,7 +984,7 @@ void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
 	if (likely(state == AUDIT_DISABLED))
 		return;
 
-	context->serial     = audit_serial();
+	context->serial     = 0;
 	context->ctime      = CURRENT_TIME;
 	context->in_syscall = 1;
 	context->auditable  = !!(state == AUDIT_RECORD_CONTEXT);
@@ -1138,6 +1138,8 @@ void audit_inode(const char *name, const struct inode *inode, unsigned flags)
 void auditsc_get_stamp(struct audit_context *ctx,
 		       struct timespec *t, unsigned int *serial)
 {
+	if (!ctx->serial)
+		ctx->serial = audit_serial();
 	t->tv_sec  = ctx->ctime.tv_sec;
 	t->tv_nsec = ctx->ctime.tv_nsec;
 	*serial    = ctx->serial;

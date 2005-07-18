@@ -625,7 +625,9 @@ unsigned int audit_serial(void)
 	unsigned int ret;
 
 	spin_lock_irqsave(&serial_lock, flags);
-	ret = serial++;
+	do {
+		ret = ++serial;
+	} while (unlikely(!ret));
 	spin_unlock_irqrestore(&serial_lock, flags);
 
 	return ret;
