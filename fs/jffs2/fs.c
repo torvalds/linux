@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: fs.c,v 1.58 2005/07/17 12:01:42 dedekind Exp $
+ * $Id: fs.c,v 1.59 2005/07/18 11:21:19 dedekind Exp $
  *
  */
 
@@ -517,7 +517,7 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	root_i = iget(sb, 1);
 	if (is_bad_inode(root_i)) {
 		D1(printk(KERN_WARNING "get root inode failed\n"));
-		goto out_nodes;
+		goto out_root_i;
 	}
 
 	D1(printk(KERN_DEBUG "jffs2_do_fill_super(): d_alloc_root()\n"));
@@ -535,7 +535,6 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 
  out_root_i:
 	iput(root_i);
- out_nodes:
 	jffs2_free_ino_caches(c);
 	jffs2_free_raw_node_refs(c);
 	if (c->mtd->flags & MTD_NO_VIRTBLOCKS)
