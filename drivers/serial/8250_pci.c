@@ -389,6 +389,9 @@ static void __devexit sbs_exit(struct pci_dev *dev)
  *     - 10x cards have control registers in IO and/or memory space;
  *     - 20x cards have control registers in standard PCI configuration space.
  *
+ * There are also Quartet Serial cards which use Oxford Semiconductor
+ * 16954 quad UART PCI chip clocked by 18.432 MHz quartz.
+ *
  * Note: some SIIG cards are probed by the parport_serial object.
  */
 
@@ -1026,6 +1029,8 @@ enum pci_board_num_t {
 	pbn_b0_2_921600,
 	pbn_b0_4_921600,
 
+	pbn_b0_4_1152000,
+
 	pbn_b0_bt_1_115200,
 	pbn_b0_bt_2_115200,
 	pbn_b0_bt_8_115200,
@@ -1156,6 +1161,12 @@ static struct pci_board pci_boards[] __devinitdata = {
 		.flags		= FL_BASE0,
 		.num_ports	= 4,
 		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[pbn_b0_4_1152000] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 4,
+		.base_baud	= 1152000,
 		.uart_offset	= 8,
 	},
 
@@ -1977,6 +1988,9 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_SPECIALIX, PCI_DEVICE_ID_OXSEMI_16PCI954,
 		PCI_VENDOR_ID_SPECIALIX, PCI_SUBDEVICE_ID_SPECIALIX_SPEED4, 0, 0,
 		pbn_b0_4_921600 },
+	{	PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_16PCI954,
+		PCI_SUBVENDOR_ID_SIIG, PCI_SUBDEVICE_ID_SIIG_QUARTET_SERIAL, 0, 0,
+		pbn_b0_4_1152000 },
 	{	PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_16PCI954,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b0_4_115200 },
