@@ -2,7 +2,7 @@
  * aops.c - NTFS kernel address space operations and page cache handling.
  *	    Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -66,19 +66,22 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	ni = NTFS_I(page->mapping->host);
 
 	if (likely(uptodate)) {
-		s64 file_ofs;
+		s64 file_ofs, initialized_size;
 
 		set_buffer_uptodate(bh);
 
 		file_ofs = ((s64)page->index << PAGE_CACHE_SHIFT) +
 				bh_offset(bh);
+		read_lock_irqsave(&ni->size_lock, flags);
+		initialized_size = ni->initialized_size;
+		read_unlock_irqrestore(&ni->size_lock, flags);
 		/* Check for the current buffer head overflowing. */
-		if (file_ofs + bh->b_size > ni->initialized_size) {
+		if (file_ofs + bh->b_size > initialized_size) {
 			char *addr;
 			int ofs = 0;
 
-			if (file_ofs < ni->initialized_size)
-				ofs = ni->initialized_size - file_ofs;
+			if (file_ofs < initialized_size)
+				ofs = initialized_size - file_ofs;
 			addr = kmap_atomic(page, KM_BIO_SRC_IRQ);
 			memset(addr + bh_offset(bh) + ofs, 0, bh->b_size - ofs);
 			flush_dcache_page(page);
@@ -132,7 +135,7 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 					i * rec_size), rec_size);
 		flush_dcache_page(page);
 		kunmap_atomic(addr, KM_BIO_SRC_IRQ);
-		if (likely(!PageError(page) && page_uptodate))
+		if (likely(page_uptodate && !PageError(page)))
 			SetPageUptodate(page);
 	}
 	unlock_page(page);
@@ -168,6 +171,7 @@ static int ntfs_read_block(struct page *page)
 	runlist_element *rl;
 	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
 	sector_t iblock, lblock, zblock;
+	unsigned long flags;
 	unsigned int blocksize, vcn_ofs;
 	int i, nr;
 	unsigned char blocksize_bits;
@@ -190,8 +194,10 @@ static int ntfs_read_block(struct page *page)
 	}
 
 	iblock = (s64)page->index << (PAGE_CACHE_SHIFT - blocksize_bits);
+	read_lock_irqsave(&ni->size_lock, flags);
 	lblock = (ni->allocated_size + blocksize - 1) >> blocksize_bits;
 	zblock = (ni->initialized_size + blocksize - 1) >> blocksize_bits;
+	read_unlock_irqrestore(&ni->size_lock, flags);
 
 	/* Loop through all the buffers in the page. */
 	rl = NULL;
@@ -258,7 +264,8 @@ lock_retry_remap:
 					goto lock_retry_remap;
 				rl = NULL;
 				lcn = err;
-			}
+			} else if (!rl)
+				up_read(&ni->runlist.lock);
 			/* Hard error, zero out region. */
 			bh->b_blocknr = -1;
 			SetPageError(page);
@@ -341,14 +348,15 @@ handle_zblock:
  */
 static int ntfs_readpage(struct file *file, struct page *page)
 {
-	loff_t i_size;
 	ntfs_inode *ni, *base_ni;
 	u8 *kaddr;
 	ntfs_attr_search_ctx *ctx;
 	MFT_RECORD *mrec;
+	unsigned long flags;
 	u32 attr_len;
 	int err = 0;
 
+retry_readpage:
 	BUG_ON(!PageLocked(page));
 	/*
 	 * This can potentially happen because we clear PageUptodate() during
@@ -383,9 +391,9 @@ static int ntfs_readpage(struct file *file, struct page *page)
 	 * Attribute is resident, implying it is not compressed or encrypted.
 	 * This also means the attribute is smaller than an mft record and
 	 * hence smaller than a page, so can simply zero out any pages with
-	 * index above 0.  We can also do this if the file size is 0.
+	 * index above 0.
 	 */
-	if (unlikely(page->index > 0 || !i_size_read(VFS_I(ni)))) {
+	if (unlikely(page->index > 0)) {
 		kaddr = kmap_atomic(page, KM_USER0);
 		memset(kaddr, 0, PAGE_CACHE_SIZE);
 		flush_dcache_page(page);
@@ -402,6 +410,14 @@ static int ntfs_readpage(struct file *file, struct page *page)
 		err = PTR_ERR(mrec);
 		goto err_out;
 	}
+	/*
+	 * If a parallel write made the attribute non-resident, drop the mft
+	 * record and retry the readpage.
+	 */
+	if (unlikely(NInoNonResident(ni))) {
+		unmap_mft_record(base_ni);
+		goto retry_readpage;
+	}
 	ctx = ntfs_attr_get_search_ctx(base_ni, mrec);
 	if (unlikely(!ctx)) {
 		err = -ENOMEM;
@@ -412,9 +428,10 @@ static int ntfs_readpage(struct file *file, struct page *page)
 	if (unlikely(err))
 		goto put_unm_err_out;
 	attr_len = le32_to_cpu(ctx->attr->data.resident.value_length);
-	i_size = i_size_read(VFS_I(ni));
-	if (unlikely(attr_len > i_size))
-		attr_len = i_size;
+	read_lock_irqsave(&ni->size_lock, flags);
+	if (unlikely(attr_len > ni->initialized_size))
+		attr_len = ni->initialized_size;
+	read_unlock_irqrestore(&ni->size_lock, flags);
 	kaddr = kmap_atomic(page, KM_USER0);
 	/* Copy the data to the page. */
 	memcpy(kaddr, (u8*)ctx->attr +
@@ -463,12 +480,15 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 {
 	VCN vcn;
 	LCN lcn;
+	s64 initialized_size;
+	loff_t i_size;
 	sector_t block, dblock, iblock;
 	struct inode *vi;
 	ntfs_inode *ni;
 	ntfs_volume *vol;
 	runlist_element *rl;
 	struct buffer_head *bh, *head;
+	unsigned long flags;
 	unsigned int blocksize, vcn_ofs;
 	int err;
 	BOOL need_end_writeback;
@@ -510,11 +530,16 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 	/* The first block in the page. */
 	block = (s64)page->index << (PAGE_CACHE_SHIFT - blocksize_bits);
 
+	read_lock_irqsave(&ni->size_lock, flags);
+	i_size = i_size_read(vi);
+	initialized_size = ni->initialized_size;
+	read_unlock_irqrestore(&ni->size_lock, flags);
+
 	/* The first out of bounds block for the data size. */
-	dblock = (vi->i_size + blocksize - 1) >> blocksize_bits;
+	dblock = (i_size + blocksize - 1) >> blocksize_bits;
 
 	/* The last (fully or partially) initialized block. */
-	iblock = ni->initialized_size >> blocksize_bits;
+	iblock = initialized_size >> blocksize_bits;
 
 	/*
 	 * Be very careful.  We have no exclusion from __set_page_dirty_buffers
@@ -559,7 +584,7 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 
 		/* Make sure we have enough initialized size. */
 		if (unlikely((block >= iblock) &&
-				(ni->initialized_size < vi->i_size))) {
+				(initialized_size < i_size))) {
 			/*
 			 * If this page is fully outside initialized size, zero
 			 * out all pages between the current initialized size
@@ -666,7 +691,8 @@ lock_retry_remap:
 				goto lock_retry_remap;
 			rl = NULL;
 			lcn = err;
-		}
+		} else if (!rl)
+			up_read(&ni->runlist.lock);
 		/* Failed to map the buffer, even after retrying. */
 		bh->b_blocknr = -1;
 		ntfs_error(vol->sb, "Failed to write to inode 0x%lx, "
@@ -801,17 +827,15 @@ static int ntfs_write_mst_block(struct page *page,
 	ntfs_inode *ni = NTFS_I(vi);
 	ntfs_volume *vol = ni->vol;
 	u8 *kaddr;
-	unsigned char bh_size_bits = vi->i_blkbits;
-	unsigned int bh_size = 1 << bh_size_bits;
 	unsigned int rec_size = ni->itype.index.block_size;
 	ntfs_inode *locked_nis[PAGE_CACHE_SIZE / rec_size];
 	struct buffer_head *bh, *head, *tbh, *rec_start_bh;
-	int max_bhs = PAGE_CACHE_SIZE / bh_size;
-	struct buffer_head *bhs[max_bhs];
+	struct buffer_head *bhs[MAX_BUF_PER_PAGE];
 	runlist_element *rl;
-	int i, nr_locked_nis, nr_recs, nr_bhs, bhs_per_rec, err, err2;
-	unsigned rec_size_bits;
+	int i, nr_locked_nis, nr_recs, nr_bhs, max_bhs, bhs_per_rec, err, err2;
+	unsigned bh_size, rec_size_bits;
 	BOOL sync, is_mft, page_is_dirty, rec_is_dirty;
+	unsigned char bh_size_bits;
 
 	ntfs_debug("Entering for inode 0x%lx, attribute type 0x%x, page index "
 			"0x%lx.", vi->i_ino, ni->type, page->index);
@@ -826,7 +850,11 @@ static int ntfs_write_mst_block(struct page *page,
 	 */
 	BUG_ON(!(is_mft || S_ISDIR(vi->i_mode) ||
 			(NInoAttr(ni) && ni->type == AT_INDEX_ALLOCATION)));
+	bh_size_bits = vi->i_blkbits;
+	bh_size = 1 << bh_size_bits;
+	max_bhs = PAGE_CACHE_SIZE / bh_size;
 	BUG_ON(!max_bhs);
+	BUG_ON(max_bhs > MAX_BUF_PER_PAGE);
 
 	/* Were we called for sync purposes? */
 	sync = (wbc->sync_mode == WB_SYNC_ALL);
@@ -846,7 +874,7 @@ static int ntfs_write_mst_block(struct page *page,
 			(PAGE_CACHE_SHIFT - bh_size_bits);
 
 	/* The first out of bounds block for the data size. */
-	dblock = (vi->i_size + bh_size - 1) >> bh_size_bits;
+	dblock = (i_size_read(vi) + bh_size - 1) >> bh_size_bits;
 
 	rl = NULL;
 	err = err2 = nr_bhs = nr_recs = nr_locked_nis = 0;
@@ -858,6 +886,7 @@ static int ntfs_write_mst_block(struct page *page,
 		if (likely(block < rec_block)) {
 			if (unlikely(block >= dblock)) {
 				clear_buffer_dirty(bh);
+				set_buffer_uptodate(bh);
 				continue;
 			}
 			/*
@@ -938,8 +967,11 @@ lock_retry_remap:
 					if (err2 == -ENOMEM)
 						page_is_dirty = TRUE;
 					lcn = err2;
-				} else
+				} else {
 					err2 = -EIO;
+					if (!rl)
+						up_read(&ni->runlist.lock);
+				}
 				/* Hard error.  Abort writing this record. */
 				if (!err || err == -ENOMEM)
 					err = err2;
@@ -949,7 +981,8 @@ lock_retry_remap:
 						"attribute type 0x%x) because "
 						"its location on disk could "
 						"not be determined (error "
-						"code %lli).", (s64)block <<
+						"code %lli).",
+						(long long)block <<
 						bh_size_bits >>
 						vol->mft_record_size_bits,
 						ni->mft_no, ni->type,
@@ -1223,19 +1256,17 @@ done:
 static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	loff_t i_size;
-	struct inode *vi;
-	ntfs_inode *ni, *base_ni;
+	struct inode *vi = page->mapping->host;
+	ntfs_inode *base_ni = NULL, *ni = NTFS_I(vi);
 	char *kaddr;
-	ntfs_attr_search_ctx *ctx;
-	MFT_RECORD *m;
+	ntfs_attr_search_ctx *ctx = NULL;
+	MFT_RECORD *m = NULL;
 	u32 attr_len;
 	int err;
 
+retry_writepage:
 	BUG_ON(!PageLocked(page));
-
-	vi = page->mapping->host;
 	i_size = i_size_read(vi);
-
 	/* Is the page fully outside i_size? (truncate in progress) */
 	if (unlikely(page->index >= (i_size + PAGE_CACHE_SIZE - 1) >>
 			PAGE_CACHE_SHIFT)) {
@@ -1248,8 +1279,6 @@ static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 		ntfs_debug("Write outside i_size - truncated?");
 		return 0;
 	}
-	ni = NTFS_I(vi);
-
 	/* NInoNonResident() == NInoIndexAllocPresent() */
 	if (NInoNonResident(ni)) {
 		/*
@@ -1326,6 +1355,14 @@ static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 		ctx = NULL;
 		goto err_out;
 	}
+	/*
+	 * If a parallel write made the attribute non-resident, drop the mft
+	 * record and retry the writepage.
+	 */
+	if (unlikely(NInoNonResident(ni))) {
+		unmap_mft_record(base_ni);
+		goto retry_writepage;
+	}
 	ctx = ntfs_attr_get_search_ctx(base_ni, m);
 	if (unlikely(!ctx)) {
 		err = -ENOMEM;
@@ -1367,15 +1404,12 @@ static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 	 */
 
 	attr_len = le32_to_cpu(ctx->attr->data.resident.value_length);
-	i_size = i_size_read(VFS_I(ni));
-	kaddr = kmap_atomic(page, KM_USER0);
+	i_size = i_size_read(vi);
 	if (unlikely(attr_len > i_size)) {
-		/* Zero out of bounds area in the mft record. */
-		memset((u8*)ctx->attr + le16_to_cpu(
-				ctx->attr->data.resident.value_offset) +
-				i_size, 0, attr_len - i_size);
 		attr_len = i_size;
+		ctx->attr->data.resident.value_length = cpu_to_le32(attr_len);
 	}
+	kaddr = kmap_atomic(page, KM_USER0);
 	/* Copy the data from the page to the mft record. */
 	memcpy((u8*)ctx->attr +
 			le16_to_cpu(ctx->attr->data.resident.value_offset),
@@ -1405,8 +1439,10 @@ err_out:
 		err = 0;
 	} else {
 		ntfs_error(vi->i_sb, "Resident attribute write failed with "
-				"error %i.  Setting page error flag.", err);
+				"error %i.", err);
 		SetPageError(page);
+		NVolSetErrors(ni->vol);
+		make_bad_inode(vi);
 	}
 	unlock_page(page);
 	if (ctx)
@@ -1425,12 +1461,15 @@ static int ntfs_prepare_nonresident_write(struct page *page,
 {
 	VCN vcn;
 	LCN lcn;
+	s64 initialized_size;
+	loff_t i_size;
 	sector_t block, ablock, iblock;
 	struct inode *vi;
 	ntfs_inode *ni;
 	ntfs_volume *vol;
 	runlist_element *rl;
 	struct buffer_head *bh, *head, *wait[2], **wait_bh = wait;
+	unsigned long flags;
 	unsigned int vcn_ofs, block_start, block_end, blocksize;
 	int err;
 	BOOL is_retry;
@@ -1462,16 +1501,20 @@ static int ntfs_prepare_nonresident_write(struct page *page,
 	/* The first block in the page. */
 	block = (s64)page->index << (PAGE_CACHE_SHIFT - blocksize_bits);
 
+	read_lock_irqsave(&ni->size_lock, flags);
 	/*
-	 * The first out of bounds block for the allocated size. No need to
+	 * The first out of bounds block for the allocated size.  No need to
 	 * round up as allocated_size is in multiples of cluster size and the
 	 * minimum cluster size is 512 bytes, which is equal to the smallest
 	 * blocksize.
 	 */
 	ablock = ni->allocated_size >> blocksize_bits;
+	i_size = i_size_read(vi);
+	initialized_size = ni->initialized_size;
+	read_unlock_irqrestore(&ni->size_lock, flags);
 
 	/* The last (fully or partially) initialized block. */
-	iblock = ni->initialized_size >> blocksize_bits;
+	iblock = initialized_size >> blocksize_bits;
 
 	/* Loop through all the buffers in the page. */
 	block_start = 0;
@@ -1518,7 +1561,7 @@ static int ntfs_prepare_nonresident_write(struct page *page,
 		 * request, i.e. block < ablock is true.
 		 */
 		if (unlikely((block >= iblock) &&
-				(ni->initialized_size < vi->i_size))) {
+				(initialized_size < i_size))) {
 			/*
 			 * If this page is fully outside initialized size, zero
 			 * out all pages between the current initialized size
@@ -1622,6 +1665,8 @@ lock_retry_remap:
 							"not supported yet. "
 							"Sorry.");
 					err = -EOPNOTSUPP;
+					if (!rl)
+						up_read(&ni->runlist.lock);
 					goto err_out;
 				} else if (!is_retry &&
 						lcn == LCN_RL_NOT_MAPPED) {
@@ -1636,7 +1681,8 @@ lock_retry_remap:
 						goto lock_retry_remap;
 					rl = NULL;
 					lcn = err;
-				}
+				} else if (!rl)
+					up_read(&ni->runlist.lock);
 				/*
 				 * Failed to map the buffer, even after
 				 * retrying.
@@ -1797,6 +1843,7 @@ static int ntfs_prepare_write(struct file *file, struct page *page,
 		unsigned from, unsigned to)
 {
 	s64 new_size;
+	loff_t i_size;
 	struct inode *vi = page->mapping->host;
 	ntfs_inode *base_ni = NULL, *ni = NTFS_I(vi);
 	ntfs_volume *vol = ni->vol;
@@ -1868,14 +1915,8 @@ static int ntfs_prepare_write(struct file *file, struct page *page,
 	BUG_ON(page_has_buffers(page));
 	new_size = ((s64)page->index << PAGE_CACHE_SHIFT) + to;
 	/* If we do not need to resize the attribute allocation we are done. */
-	if (new_size <= vi->i_size)
+	if (new_size <= i_size_read(vi))
 		goto done;
-
-	// FIXME: We abort for now as this code is not safe.
-	ntfs_error(vi->i_sb, "Changing the file size is not supported yet.  "
-			"Sorry.");
-	return -EOPNOTSUPP;
-
 	/* Map, pin, and lock the (base) mft record. */
 	if (!NInoAttr(ni))
 		base_ni = ni;
@@ -1904,7 +1945,15 @@ static int ntfs_prepare_write(struct file *file, struct page *page,
 	a = ctx->attr;
 	/* The total length of the attribute value. */
 	attr_len = le32_to_cpu(a->data.resident.value_length);
-	BUG_ON(vi->i_size != attr_len);
+	/* Fix an eventual previous failure of ntfs_commit_write(). */
+	i_size = i_size_read(vi);
+	if (unlikely(attr_len > i_size)) {
+		attr_len = i_size;
+		a->data.resident.value_length = cpu_to_le32(attr_len);
+	}
+	/* If we do not need to resize the attribute allocation we are done. */
+	if (new_size <= attr_len)
+		goto done_unm;
 	/* Check if new size is allowed in $AttrDef. */
 	err = ntfs_attr_size_bounds_check(vol, ni->type, new_size);
 	if (unlikely(err)) {
@@ -1962,6 +2011,7 @@ static int ntfs_prepare_write(struct file *file, struct page *page,
 	}
 	flush_dcache_mft_record_page(ctx->ntfs_ino);
 	mark_mft_record_dirty(ctx->ntfs_ino);
+done_unm:
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(base_ni);
 	/*
@@ -2047,7 +2097,7 @@ static int ntfs_commit_nonresident_write(struct page *page,
 	 * now we know ntfs_prepare_write() would have failed in the write
 	 * exceeds i_size case, so this will never trigger which is fine.
 	 */
-	if (pos > vi->i_size) {
+	if (pos > i_size_read(vi)) {
 		ntfs_error(vi->i_sb, "Writing beyond the existing file size is "
 				"not supported yet.  Sorry.");
 		return -EOPNOTSUPP;
@@ -2183,9 +2233,13 @@ static int ntfs_commit_write(struct file *file, struct page *page,
 	}
 	kunmap_atomic(kaddr, KM_USER0);
 	/* Update i_size if necessary. */
-	if (vi->i_size < attr_len) {
+	if (i_size_read(vi) < attr_len) {
+		unsigned long flags;
+
+		write_lock_irqsave(&ni->size_lock, flags);
 		ni->allocated_size = ni->initialized_size = attr_len;
 		i_size_write(vi, attr_len);
+		write_unlock_irqrestore(&ni->size_lock, flags);
 	}
 	/* Mark the mft record dirty, so it gets written back. */
 	flush_dcache_mft_record_page(ctx->ntfs_ino);

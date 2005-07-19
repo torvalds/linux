@@ -1,7 +1,7 @@
 /**
  * attrib.c - NTFS attribute operations.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -21,13 +21,87 @@
  */
 
 #include <linux/buffer_head.h>
+#include <linux/swap.h>
 
 #include "attrib.h"
 #include "debug.h"
 #include "layout.h"
+#include "lcnalloc.h"
+#include "malloc.h"
 #include "mft.h"
 #include "ntfs.h"
 #include "types.h"
+
+/**
+ * ntfs_map_runlist_nolock - map (a part of) a runlist of an ntfs inode
+ * @ni:		ntfs inode for which to map (part of) a runlist
+ * @vcn:	map runlist part containing this vcn
+ *
+ * Map the part of a runlist containing the @vcn of the ntfs inode @ni.
+ *
+ * Return 0 on success and -errno on error.  There is one special error code
+ * which is not an error as such.  This is -ENOENT.  It means that @vcn is out
+ * of bounds of the runlist.
+ *
+ * Locking: - The runlist must be locked for writing.
+ *	    - This function modifies the runlist.
+ */
+int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn)
+{
+	VCN end_vcn;
+	ntfs_inode *base_ni;
+	MFT_RECORD *m;
+	ATTR_RECORD *a;
+	ntfs_attr_search_ctx *ctx;
+	runlist_element *rl;
+	int err = 0;
+
+	ntfs_debug("Mapping runlist part containing vcn 0x%llx.",
+			(unsigned long long)vcn);
+	if (!NInoAttr(ni))
+		base_ni = ni;
+	else
+		base_ni = ni->ext.base_ntfs_ino;
+	m = map_mft_record(base_ni);
+	if (IS_ERR(m))
+		return PTR_ERR(m);
+	ctx = ntfs_attr_get_search_ctx(base_ni, m);
+	if (unlikely(!ctx)) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+	err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
+			CASE_SENSITIVE, vcn, NULL, 0, ctx);
+	if (unlikely(err)) {
+		if (err == -ENOENT)
+			err = -EIO;
+		goto err_out;
+	}
+	a = ctx->attr;
+	/*
+	 * Only decompress the mapping pairs if @vcn is inside it.  Otherwise
+	 * we get into problems when we try to map an out of bounds vcn because
+	 * we then try to map the already mapped runlist fragment and
+	 * ntfs_mapping_pairs_decompress() fails.
+	 */
+	end_vcn = sle64_to_cpu(a->data.non_resident.highest_vcn) + 1;
+	if (unlikely(!a->data.non_resident.lowest_vcn && end_vcn <= 1))
+		end_vcn = ni->allocated_size >> ni->vol->cluster_size_bits;
+	if (unlikely(vcn >= end_vcn)) {
+		err = -ENOENT;
+		goto err_out;
+	}
+	rl = ntfs_mapping_pairs_decompress(ni->vol, a, ni->runlist.rl);
+	if (IS_ERR(rl))
+		err = PTR_ERR(rl);
+	else
+		ni->runlist.rl = rl;
+err_out:
+	if (likely(ctx))
+		ntfs_attr_put_search_ctx(ctx);
+	unmap_mft_record(base_ni);
+	return err;
+}
 
 /**
  * ntfs_map_runlist - map (a part of) a runlist of an ntfs inode
@@ -36,73 +110,128 @@
  *
  * Map the part of a runlist containing the @vcn of the ntfs inode @ni.
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -errno on error.  There is one special error code
+ * which is not an error as such.  This is -ENOENT.  It means that @vcn is out
+ * of bounds of the runlist.
  *
  * Locking: - The runlist must be unlocked on entry and is unlocked on return.
- *	    - This function takes the lock for writing and modifies the runlist.
+ *	    - This function takes the runlist lock for writing and modifies the
+ *	      runlist.
  */
 int ntfs_map_runlist(ntfs_inode *ni, VCN vcn)
 {
-	ntfs_inode *base_ni;
-	ntfs_attr_search_ctx *ctx;
-	MFT_RECORD *mrec;
 	int err = 0;
-
-	ntfs_debug("Mapping runlist part containing vcn 0x%llx.",
-			(unsigned long long)vcn);
-
-	if (!NInoAttr(ni))
-		base_ni = ni;
-	else
-		base_ni = ni->ext.base_ntfs_ino;
-
-	mrec = map_mft_record(base_ni);
-	if (IS_ERR(mrec))
-		return PTR_ERR(mrec);
-	ctx = ntfs_attr_get_search_ctx(base_ni, mrec);
-	if (unlikely(!ctx)) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
-			CASE_SENSITIVE, vcn, NULL, 0, ctx);
-	if (unlikely(err))
-		goto put_err_out;
 
 	down_write(&ni->runlist.lock);
 	/* Make sure someone else didn't do the work while we were sleeping. */
 	if (likely(ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn) <=
-			LCN_RL_NOT_MAPPED)) {
-		runlist_element *rl;
-
-		rl = ntfs_mapping_pairs_decompress(ni->vol, ctx->attr,
-				ni->runlist.rl);
-		if (IS_ERR(rl))
-			err = PTR_ERR(rl);
-		else
-			ni->runlist.rl = rl;
-	}
+			LCN_RL_NOT_MAPPED))
+		err = ntfs_map_runlist_nolock(ni, vcn);
 	up_write(&ni->runlist.lock);
-
-put_err_out:
-	ntfs_attr_put_search_ctx(ctx);
-err_out:
-	unmap_mft_record(base_ni);
 	return err;
 }
 
 /**
- * ntfs_find_vcn - find a vcn in the runlist described by an ntfs inode
- * @ni:		ntfs inode describing the runlist to search
- * @vcn:	vcn to find
- * @need_write:	if false, lock for reading and if true, lock for writing
+ * ntfs_attr_vcn_to_lcn_nolock - convert a vcn into a lcn given an ntfs inode
+ * @ni:			ntfs inode of the attribute whose runlist to search
+ * @vcn:		vcn to convert
+ * @write_locked:	true if the runlist is locked for writing
+ *
+ * Find the virtual cluster number @vcn in the runlist of the ntfs attribute
+ * described by the ntfs inode @ni and return the corresponding logical cluster
+ * number (lcn).
+ *
+ * If the @vcn is not mapped yet, the attempt is made to map the attribute
+ * extent containing the @vcn and the vcn to lcn conversion is retried.
+ *
+ * If @write_locked is true the caller has locked the runlist for writing and
+ * if false for reading.
+ *
+ * Since lcns must be >= 0, we use negative return codes with special meaning:
+ *
+ * Return code	Meaning / Description
+ * ==========================================
+ *  LCN_HOLE	Hole / not allocated on disk.
+ *  LCN_ENOENT	There is no such vcn in the runlist, i.e. @vcn is out of bounds.
+ *  LCN_ENOMEM	Not enough memory to map runlist.
+ *  LCN_EIO	Critical error (runlist/file is corrupt, i/o error, etc).
+ *
+ * Locking: - The runlist must be locked on entry and is left locked on return.
+ *	    - If @write_locked is FALSE, i.e. the runlist is locked for reading,
+ *	      the lock may be dropped inside the function so you cannot rely on
+ *	      the runlist still being the same when this function returns.
+ */
+LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
+		const BOOL write_locked)
+{
+	LCN lcn;
+	BOOL is_retry = FALSE;
+
+	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, %s_locked.",
+			ni->mft_no, (unsigned long long)vcn,
+			write_locked ? "write" : "read");
+	BUG_ON(!ni);
+	BUG_ON(!NInoNonResident(ni));
+	BUG_ON(vcn < 0);
+retry_remap:
+	/* Convert vcn to lcn.  If that fails map the runlist and retry once. */
+	lcn = ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn);
+	if (likely(lcn >= LCN_HOLE)) {
+		ntfs_debug("Done, lcn 0x%llx.", (long long)lcn);
+		return lcn;
+	}
+	if (lcn != LCN_RL_NOT_MAPPED) {
+		if (lcn != LCN_ENOENT)
+			lcn = LCN_EIO;
+	} else if (!is_retry) {
+		int err;
+
+		if (!write_locked) {
+			up_read(&ni->runlist.lock);
+			down_write(&ni->runlist.lock);
+			if (unlikely(ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn) !=
+					LCN_RL_NOT_MAPPED)) {
+				up_write(&ni->runlist.lock);
+				down_read(&ni->runlist.lock);
+				goto retry_remap;
+			}
+		}
+		err = ntfs_map_runlist_nolock(ni, vcn);
+		if (!write_locked) {
+			up_write(&ni->runlist.lock);
+			down_read(&ni->runlist.lock);
+		}
+		if (likely(!err)) {
+			is_retry = TRUE;
+			goto retry_remap;
+		}
+		if (err == -ENOENT)
+			lcn = LCN_ENOENT;
+		else if (err == -ENOMEM)
+			lcn = LCN_ENOMEM;
+		else
+			lcn = LCN_EIO;
+	}
+	if (lcn != LCN_ENOENT)
+		ntfs_error(ni->vol->sb, "Failed with error code %lli.",
+				(long long)lcn);
+	return lcn;
+}
+
+/**
+ * ntfs_attr_find_vcn_nolock - find a vcn in the runlist of an ntfs inode
+ * @ni:			ntfs inode describing the runlist to search
+ * @vcn:		vcn to find
+ * @write_locked:	true if the runlist is locked for writing
  *
  * Find the virtual cluster number @vcn in the runlist described by the ntfs
  * inode @ni and return the address of the runlist element containing the @vcn.
- * The runlist is left locked and the caller has to unlock it.  If @need_write
- * is true, the runlist is locked for writing and if @need_write is false, the
- * runlist is locked for reading.  In the error case, the runlist is not left
- * locked.
+ *
+ * If the @vcn is not mapped yet, the attempt is made to map the attribute
+ * extent containing the @vcn and the vcn to lcn conversion is retried.
+ *
+ * If @write_locked is true the caller has locked the runlist for writing and
+ * if false for reading.
  *
  * Note you need to distinguish between the lcn of the returned runlist element
  * being >= 0 and LCN_HOLE.  In the later case you have to return zeroes on
@@ -118,34 +247,29 @@ err_out:
  *	-ENOMEM - Not enough memory to map runlist.
  *	-EIO	- Critical error (runlist/file is corrupt, i/o error, etc).
  *
- * Locking: - The runlist must be unlocked on entry.
- *	    - On failing return, the runlist is unlocked.
- *	    - On successful return, the runlist is locked.  If @need_write us
- *	      true, it is locked for writing.  Otherwise is is locked for
- *	      reading.
+ * Locking: - The runlist must be locked on entry and is left locked on return.
+ *	    - If @write_locked is FALSE, i.e. the runlist is locked for reading,
+ *	      the lock may be dropped inside the function so you cannot rely on
+ *	      the runlist still being the same when this function returns.
  */
-runlist_element *ntfs_find_vcn(ntfs_inode *ni, const VCN vcn,
-		const BOOL need_write)
+runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
+		const BOOL write_locked)
 {
 	runlist_element *rl;
 	int err = 0;
 	BOOL is_retry = FALSE;
 
-	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, lock for %sing.",
+	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, %s_locked.",
 			ni->mft_no, (unsigned long long)vcn,
-			!need_write ? "read" : "writ");
+			write_locked ? "write" : "read");
 	BUG_ON(!ni);
 	BUG_ON(!NInoNonResident(ni));
 	BUG_ON(vcn < 0);
-lock_retry_remap:
-	if (!need_write)
-		down_read(&ni->runlist.lock);
-	else
-		down_write(&ni->runlist.lock);
+retry_remap:
 	rl = ni->runlist.rl;
 	if (likely(rl && vcn >= rl[0].vcn)) {
 		while (likely(rl->length)) {
-			if (likely(vcn < rl[1].vcn)) {
+			if (unlikely(vcn < rl[1].vcn)) {
 				if (likely(rl->lcn >= LCN_HOLE)) {
 					ntfs_debug("Done.");
 					return rl;
@@ -161,30 +285,41 @@ lock_retry_remap:
 				err = -EIO;
 		}
 	}
-	if (!need_write)
-		up_read(&ni->runlist.lock);
-	else
-		up_write(&ni->runlist.lock);
 	if (!err && !is_retry) {
 		/*
 		 * The @vcn is in an unmapped region, map the runlist and
 		 * retry.
 		 */
-		err = ntfs_map_runlist(ni, vcn);
+		if (!write_locked) {
+			up_read(&ni->runlist.lock);
+			down_write(&ni->runlist.lock);
+			if (unlikely(ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn) !=
+					LCN_RL_NOT_MAPPED)) {
+				up_write(&ni->runlist.lock);
+				down_read(&ni->runlist.lock);
+				goto retry_remap;
+			}
+		}
+		err = ntfs_map_runlist_nolock(ni, vcn);
+		if (!write_locked) {
+			up_write(&ni->runlist.lock);
+			down_read(&ni->runlist.lock);
+		}
 		if (likely(!err)) {
 			is_retry = TRUE;
-			goto lock_retry_remap;
+			goto retry_remap;
 		}
 		/*
-		 * -EINVAL and -ENOENT coming from a failed mapping attempt are
-		 * equivalent to i/o errors for us as they should not happen in
-		 * our code paths.
+		 * -EINVAL coming from a failed mapping attempt is equivalent
+		 * to i/o error for us as it should not happen in our code
+		 * paths.
 		 */
-		if (err == -EINVAL || err == -ENOENT)
+		if (err == -EINVAL)
 			err = -EIO;
 	} else if (!err)
 		err = -EIO;
-	ntfs_error(ni->vol->sb, "Failed with error code %i.", err);
+	if (err != -ENOENT)
+		ntfs_error(ni->vol->sb, "Failed with error code %i.", err);
 	return ERR_PTR(err);
 }
 
@@ -870,15 +1005,14 @@ int ntfs_attr_lookup(const ATTR_TYPE type, const ntfschar *name,
 static inline void ntfs_attr_init_search_ctx(ntfs_attr_search_ctx *ctx,
 		ntfs_inode *ni, MFT_RECORD *mrec)
 {
-	ctx->mrec = mrec;
-	/* Sanity checks are performed elsewhere. */
-	ctx->attr = (ATTR_RECORD*)((u8*)mrec + le16_to_cpu(mrec->attrs_offset));
-	ctx->is_first = TRUE;
-	ctx->ntfs_ino = ni;
-	ctx->al_entry = NULL;
-	ctx->base_ntfs_ino = NULL;
-	ctx->base_mrec = NULL;
-	ctx->base_attr = NULL;
+	*ctx = (ntfs_attr_search_ctx) {
+		.mrec = mrec,
+		/* Sanity checks are performed elsewhere. */
+		.attr = (ATTR_RECORD*)((u8*)mrec +
+				le16_to_cpu(mrec->attrs_offset)),
+		.is_first = TRUE,
+		.ntfs_ino = ni,
+	};
 }
 
 /**
@@ -944,6 +1078,8 @@ void ntfs_attr_put_search_ctx(ntfs_attr_search_ctx *ctx)
 	kmem_cache_free(ntfs_attr_ctx_cache, ctx);
 	return;
 }
+
+#ifdef NTFS_RW
 
 /**
  * ntfs_attr_find_in_attrdef - find an attribute in the $AttrDef system file
@@ -1024,27 +1160,21 @@ int ntfs_attr_size_bounds_check(const ntfs_volume *vol, const ATTR_TYPE type,
  * Check whether the attribute of @type on the ntfs volume @vol is allowed to
  * be non-resident.  This information is obtained from $AttrDef system file.
  *
- * Return 0 if the attribute is allowed to be non-resident, -EPERM if not, or
+ * Return 0 if the attribute is allowed to be non-resident, -EPERM if not, and
  * -ENOENT if the attribute is not listed in $AttrDef.
  */
 int ntfs_attr_can_be_non_resident(const ntfs_volume *vol, const ATTR_TYPE type)
 {
 	ATTR_DEF *ad;
 
-	/*
-	 * $DATA is always allowed to be non-resident even if $AttrDef does not
-	 * specify this in the flags of the $DATA attribute definition record.
-	 */
-	if (type == AT_DATA)
-		return 0;
 	/* Find the attribute definition record in $AttrDef. */
 	ad = ntfs_attr_find_in_attrdef(vol, type);
 	if (unlikely(!ad))
 		return -ENOENT;
 	/* Check the flags and return the result. */
-	if (ad->flags & CAN_BE_NON_RESIDENT)
-		return 0;
-	return -EPERM;
+	if (ad->flags & ATTR_DEF_RESIDENT)
+		return -EPERM;
+	return 0;
 }
 
 /**
@@ -1067,9 +1197,9 @@ int ntfs_attr_can_be_non_resident(const ntfs_volume *vol, const ATTR_TYPE type)
  */
 int ntfs_attr_can_be_resident(const ntfs_volume *vol, const ATTR_TYPE type)
 {
-	if (type != AT_INDEX_ALLOCATION && type != AT_EA)
-		return 0;
-	return -EPERM;
+	if (type == AT_INDEX_ALLOCATION || type == AT_EA)
+		return -EPERM;
+	return 0;
 }
 
 /**
@@ -1117,6 +1247,328 @@ int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size)
 }
 
 /**
+ * ntfs_attr_make_non_resident - convert a resident to a non-resident attribute
+ * @ni:		ntfs inode describing the attribute to convert
+ *
+ * Convert the resident ntfs attribute described by the ntfs inode @ni to a
+ * non-resident one.
+ *
+ * Return 0 on success and -errno on error.  The following error return codes
+ * are defined:
+ *	-EPERM	- The attribute is not allowed to be non-resident.
+ *	-ENOMEM	- Not enough memory.
+ *	-ENOSPC	- Not enough disk space.
+ *	-EINVAL	- Attribute not defined on the volume.
+ *	-EIO	- I/o error or other error.
+ * Note that -ENOSPC is also returned in the case that there is not enough
+ * space in the mft record to do the conversion.  This can happen when the mft
+ * record is already very full.  The caller is responsible for trying to make
+ * space in the mft record and trying again.  FIXME: Do we need a separate
+ * error return code for this kind of -ENOSPC or is it always worth trying
+ * again in case the attribute may then fit in a resident state so no need to
+ * make it non-resident at all?  Ho-hum...  (AIA)
+ *
+ * NOTE to self: No changes in the attribute list are required to move from
+ *		 a resident to a non-resident attribute.
+ *
+ * Locking: - The caller must hold i_sem on the inode.
+ */
+int ntfs_attr_make_non_resident(ntfs_inode *ni)
+{
+	s64 new_size;
+	struct inode *vi = VFS_I(ni);
+	ntfs_volume *vol = ni->vol;
+	ntfs_inode *base_ni;
+	MFT_RECORD *m;
+	ATTR_RECORD *a;
+	ntfs_attr_search_ctx *ctx;
+	struct page *page;
+	runlist_element *rl;
+	u8 *kaddr;
+	unsigned long flags;
+	int mp_size, mp_ofs, name_ofs, arec_size, err, err2;
+	u32 attr_size;
+	u8 old_res_attr_flags;
+
+	/* Check that the attribute is allowed to be non-resident. */
+	err = ntfs_attr_can_be_non_resident(vol, ni->type);
+	if (unlikely(err)) {
+		if (err == -EPERM)
+			ntfs_debug("Attribute is not allowed to be "
+					"non-resident.");
+		else
+			ntfs_debug("Attribute not defined on the NTFS "
+					"volume!");
+		return err;
+	}
+	/*
+	 * The size needs to be aligned to a cluster boundary for allocation
+	 * purposes.
+	 */
+	new_size = (i_size_read(vi) + vol->cluster_size - 1) &
+			~(vol->cluster_size - 1);
+	if (new_size > 0) {
+		runlist_element *rl2;
+
+		/*
+		 * Will need the page later and since the page lock nests
+		 * outside all ntfs locks, we need to get the page now.
+		 */
+		page = find_or_create_page(vi->i_mapping, 0,
+				mapping_gfp_mask(vi->i_mapping));
+		if (unlikely(!page))
+			return -ENOMEM;
+		/* Start by allocating clusters to hold the attribute value. */
+		rl = ntfs_cluster_alloc(vol, 0, new_size >>
+				vol->cluster_size_bits, -1, DATA_ZONE);
+		if (IS_ERR(rl)) {
+			err = PTR_ERR(rl);
+			ntfs_debug("Failed to allocate cluster%s, error code "
+					"%i.", (new_size >>
+					vol->cluster_size_bits) > 1 ? "s" : "",
+					err);
+			goto page_err_out;
+		}
+		/* Change the runlist terminator to LCN_ENOENT. */
+		rl2 = rl;
+		while (rl2->length)
+			rl2++;
+		BUG_ON(rl2->lcn != LCN_RL_NOT_MAPPED);
+		rl2->lcn = LCN_ENOENT;
+	} else {
+		rl = NULL;
+		page = NULL;
+	}
+	/* Determine the size of the mapping pairs array. */
+	mp_size = ntfs_get_size_for_mapping_pairs(vol, rl, 0, -1);
+	if (unlikely(mp_size < 0)) {
+		err = mp_size;
+		ntfs_debug("Failed to get size for mapping pairs array, error "
+				"code %i.", err);
+		goto rl_err_out;
+	}
+	down_write(&ni->runlist.lock);
+	if (!NInoAttr(ni))
+		base_ni = ni;
+	else
+		base_ni = ni->ext.base_ntfs_ino;
+	m = map_mft_record(base_ni);
+	if (IS_ERR(m)) {
+		err = PTR_ERR(m);
+		m = NULL;
+		ctx = NULL;
+		goto err_out;
+	}
+	ctx = ntfs_attr_get_search_ctx(base_ni, m);
+	if (unlikely(!ctx)) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+	err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
+			CASE_SENSITIVE, 0, NULL, 0, ctx);
+	if (unlikely(err)) {
+		if (err == -ENOENT)
+			err = -EIO;
+		goto err_out;
+	}
+	m = ctx->mrec;
+	a = ctx->attr;
+	BUG_ON(NInoNonResident(ni));
+	BUG_ON(a->non_resident);
+	/*
+	 * Calculate new offsets for the name and the mapping pairs array.
+	 * We assume the attribute is not compressed or sparse.
+	 */
+	name_ofs = (offsetof(ATTR_REC,
+			data.non_resident.compressed_size) + 7) & ~7;
+	mp_ofs = (name_ofs + a->name_length * sizeof(ntfschar) + 7) & ~7;
+	/*
+	 * Determine the size of the resident part of the now non-resident
+	 * attribute record.
+	 */
+	arec_size = (mp_ofs + mp_size + 7) & ~7;
+	/*
+	 * If the page is not uptodate bring it uptodate by copying from the
+	 * attribute value.
+	 */
+	attr_size = le32_to_cpu(a->data.resident.value_length);
+	BUG_ON(attr_size != i_size_read(vi));
+	if (page && !PageUptodate(page)) {
+		kaddr = kmap_atomic(page, KM_USER0);
+		memcpy(kaddr, (u8*)a +
+				le16_to_cpu(a->data.resident.value_offset),
+				attr_size);
+		memset(kaddr + attr_size, 0, PAGE_CACHE_SIZE - attr_size);
+		kunmap_atomic(kaddr, KM_USER0);
+		flush_dcache_page(page);
+		SetPageUptodate(page);
+	}
+	/* Backup the attribute flag. */
+	old_res_attr_flags = a->data.resident.flags;
+	/* Resize the resident part of the attribute record. */
+	err = ntfs_attr_record_resize(m, a, arec_size);
+	if (unlikely(err))
+		goto err_out;
+	/*
+	 * Convert the resident part of the attribute record to describe a
+	 * non-resident attribute.
+	 */
+	a->non_resident = 1;
+	/* Move the attribute name if it exists and update the offset. */
+	if (a->name_length)
+		memmove((u8*)a + name_ofs, (u8*)a + le16_to_cpu(a->name_offset),
+				a->name_length * sizeof(ntfschar));
+	a->name_offset = cpu_to_le16(name_ofs);
+	/*
+	 * FIXME: For now just clear all of these as we do not support them
+	 * when writing.
+	 */
+	a->flags &= cpu_to_le16(0xffff & ~le16_to_cpu(ATTR_IS_SPARSE |
+			ATTR_IS_ENCRYPTED | ATTR_COMPRESSION_MASK));
+	/* Setup the fields specific to non-resident attributes. */
+	a->data.non_resident.lowest_vcn = 0;
+	a->data.non_resident.highest_vcn = cpu_to_sle64((new_size - 1) >>
+			vol->cluster_size_bits);
+	a->data.non_resident.mapping_pairs_offset = cpu_to_le16(mp_ofs);
+	a->data.non_resident.compression_unit = 0;
+	memset(&a->data.non_resident.reserved, 0,
+			sizeof(a->data.non_resident.reserved));
+	a->data.non_resident.allocated_size = cpu_to_sle64(new_size);
+	a->data.non_resident.data_size =
+			a->data.non_resident.initialized_size =
+			cpu_to_sle64(attr_size);
+	/* Generate the mapping pairs array into the attribute record. */
+	err = ntfs_mapping_pairs_build(vol, (u8*)a + mp_ofs,
+			arec_size - mp_ofs, rl, 0, -1, NULL);
+	if (unlikely(err)) {
+		ntfs_debug("Failed to build mapping pairs, error code %i.",
+				err);
+		goto undo_err_out;
+	}
+	/* Setup the in-memory attribute structure to be non-resident. */
+	/*
+	 * FIXME: For now just clear all of these as we do not support them
+	 * when writing.
+	 */
+	NInoClearSparse(ni);
+	NInoClearEncrypted(ni);
+	NInoClearCompressed(ni);
+	ni->runlist.rl = rl;
+	write_lock_irqsave(&ni->size_lock, flags);
+	ni->allocated_size = new_size;
+	write_unlock_irqrestore(&ni->size_lock, flags);
+	/*
+	 * This needs to be last since the address space operations ->readpage
+	 * and ->writepage can run concurrently with us as they are not
+	 * serialized on i_sem.  Note, we are not allowed to fail once we flip
+	 * this switch, which is another reason to do this last.
+	 */
+	NInoSetNonResident(ni);
+	/* Mark the mft record dirty, so it gets written back. */
+	flush_dcache_mft_record_page(ctx->ntfs_ino);
+	mark_mft_record_dirty(ctx->ntfs_ino);
+	ntfs_attr_put_search_ctx(ctx);
+	unmap_mft_record(base_ni);
+	up_write(&ni->runlist.lock);
+	if (page) {
+		set_page_dirty(page);
+		unlock_page(page);
+		mark_page_accessed(page);
+		page_cache_release(page);
+	}
+	ntfs_debug("Done.");
+	return 0;
+undo_err_out:
+	/* Convert the attribute back into a resident attribute. */
+	a->non_resident = 0;
+	/* Move the attribute name if it exists and update the offset. */
+	name_ofs = (offsetof(ATTR_RECORD, data.resident.reserved) +
+			sizeof(a->data.resident.reserved) + 7) & ~7;
+	if (a->name_length)
+		memmove((u8*)a + name_ofs, (u8*)a + le16_to_cpu(a->name_offset),
+				a->name_length * sizeof(ntfschar));
+	mp_ofs = (name_ofs + a->name_length * sizeof(ntfschar) + 7) & ~7;
+	a->name_offset = cpu_to_le16(name_ofs);
+	arec_size = (mp_ofs + attr_size + 7) & ~7;
+	/* Resize the resident part of the attribute record. */
+	err2 = ntfs_attr_record_resize(m, a, arec_size);
+	if (unlikely(err2)) {
+		/*
+		 * This cannot happen (well if memory corruption is at work it
+		 * could happen in theory), but deal with it as well as we can.
+		 * If the old size is too small, truncate the attribute,
+		 * otherwise simply give it a larger allocated size.
+		 * FIXME: Should check whether chkdsk complains when the
+		 * allocated size is much bigger than the resident value size.
+		 */
+		arec_size = le32_to_cpu(a->length);
+		if ((mp_ofs + attr_size) > arec_size) {
+			err2 = attr_size;
+			attr_size = arec_size - mp_ofs;
+			ntfs_error(vol->sb, "Failed to undo partial resident "
+					"to non-resident attribute "
+					"conversion.  Truncating inode 0x%lx, "
+					"attribute type 0x%x from %i bytes to "
+					"%i bytes to maintain metadata "
+					"consistency.  THIS MEANS YOU ARE "
+					"LOSING %i BYTES DATA FROM THIS %s.",
+					vi->i_ino,
+					(unsigned)le32_to_cpu(ni->type),
+					err2, attr_size, err2 - attr_size,
+					((ni->type == AT_DATA) &&
+					!ni->name_len) ? "FILE": "ATTRIBUTE");
+			write_lock_irqsave(&ni->size_lock, flags);
+			ni->initialized_size = attr_size;
+			i_size_write(vi, attr_size);
+			write_unlock_irqrestore(&ni->size_lock, flags);
+		}
+	}
+	/* Setup the fields specific to resident attributes. */
+	a->data.resident.value_length = cpu_to_le32(attr_size);
+	a->data.resident.value_offset = cpu_to_le16(mp_ofs);
+	a->data.resident.flags = old_res_attr_flags;
+	memset(&a->data.resident.reserved, 0,
+			sizeof(a->data.resident.reserved));
+	/* Copy the data from the page back to the attribute value. */
+	if (page) {
+		kaddr = kmap_atomic(page, KM_USER0);
+		memcpy((u8*)a + mp_ofs, kaddr, attr_size);
+		kunmap_atomic(kaddr, KM_USER0);
+	}
+	/* Setup the allocated size in the ntfs inode in case it changed. */
+	write_lock_irqsave(&ni->size_lock, flags);
+	ni->allocated_size = arec_size - mp_ofs;
+	write_unlock_irqrestore(&ni->size_lock, flags);
+	/* Mark the mft record dirty, so it gets written back. */
+	flush_dcache_mft_record_page(ctx->ntfs_ino);
+	mark_mft_record_dirty(ctx->ntfs_ino);
+err_out:
+	if (ctx)
+		ntfs_attr_put_search_ctx(ctx);
+	if (m)
+		unmap_mft_record(base_ni);
+	ni->runlist.rl = NULL;
+	up_write(&ni->runlist.lock);
+rl_err_out:
+	if (rl) {
+		if (ntfs_cluster_free_from_rl(vol, rl) < 0) {
+			ntfs_error(vol->sb, "Failed to release allocated "
+					"cluster(s) in error code path.  Run "
+					"chkdsk to recover the lost "
+					"cluster(s).");
+			NVolSetErrors(vol);
+		}
+		ntfs_free(rl);
+page_err_out:
+		unlock_page(page);
+		page_cache_release(page);
+	}
+	if (err == -EINVAL)
+		err = -EIO;
+	return err;
+}
+
+/**
  * ntfs_attr_set - fill (a part of) an attribute with a byte
  * @ni:		ntfs inode describing the attribute to fill
  * @ofs:	offset inside the attribute at which to start to fill
@@ -1127,6 +1579,10 @@ int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size)
  * byte offset @ofs inside the attribute with the constant byte @val.
  *
  * This function is effectively like memset() applied to an ntfs attribute.
+ * Note thie function actually only operates on the page cache pages belonging
+ * to the ntfs attribute and it marks them dirty after doing the memset().
+ * Thus it relies on the vm dirty page write code paths to cause the modified
+ * pages to be written to the mft record/disk.
  *
  * Return 0 on success and -errno on error.  An error code of -ESPIPE means
  * that @ofs + @cnt were outside the end of the attribute and no write was
@@ -1155,7 +1611,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 	end = ofs + cnt;
 	end_ofs = end & ~PAGE_CACHE_MASK;
 	/* If the end is outside the inode size return -ESPIPE. */
-	if (unlikely(end > VFS_I(ni)->i_size)) {
+	if (unlikely(end > i_size_read(VFS_I(ni)))) {
 		ntfs_error(vol->sb, "Request exceeds end of attribute.");
 		return -ESPIPE;
 	}
@@ -1256,3 +1712,5 @@ done:
 	ntfs_debug("Done.");
 	return 0;
 }
+
+#endif /* NTFS_RW */
