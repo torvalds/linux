@@ -2544,7 +2544,7 @@ config SHAPER
 
 config NETCONSOLE
 	tristate "Network console logging support (EXPERIMENTAL)"
-	depends on NETDEVICES && EXPERIMENTAL
+	depends on NETDEVICES && INET && EXPERIMENTAL
 	---help---
 	If you want to log kernel messages over the network, enable this.
 	See <file:Documentation/networking/netconsole.txt> for details.
