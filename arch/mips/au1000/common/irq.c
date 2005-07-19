@@ -83,7 +83,7 @@ inline void local_disable_irq(unsigned int irq_nr);
 void	(*board_init_irq)(void);
 
 #ifdef CONFIG_PM
-extern void counter0_irq(int irq, void *dev_id, struct pt_regs *regs);
+extern irqreturn_t counter0_irq(int irq, void *dev_id, struct pt_regs *regs);
 #endif
 
 static DEFINE_SPINLOCK(irq_lock);
@@ -293,29 +293,31 @@ static struct hw_interrupt_type level_irq_type = {
 };
 
 #ifdef CONFIG_PM
-void startup_match20_interrupt(void (*handler)(int, void *, struct pt_regs *))
+void startup_match20_interrupt(irqreturn_t (*handler)(int, void *, struct pt_regs *))
 {
+	struct irq_desc *desc = &irq_desc[AU1000_TOY_MATCH2_INT];
+
 	static struct irqaction action;
+	memset(&action, 0, sizeof(struct irqaction));
+
 	/* This is a big problem.... since we didn't use request_irq
-	   when kernel/irq.c calls probe_irq_xxx this interrupt will
-	   be probed for usage. This will end up disabling the device :(
-
-       Give it a bogus "action" pointer -- this will keep it from
-	   getting auto-probed!
-
-       By setting the status to match that of request_irq() we
-       can avoid it.  --cgray
+	 * when kernel/irq.c calls probe_irq_xxx this interrupt will
+	 * be probed for usage. This will end up disabling the device :(
+	 * Give it a bogus "action" pointer -- this will keep it from
+	 * getting auto-probed!
+	 *
+	 * By setting the status to match that of request_irq() we
+	 * can avoid it.  --cgray
 	*/
 	action.dev_id = handler;
-	action.flags = 0;
-	action.mask = 0;
+	action.flags = SA_INTERRUPT;
+	cpus_clear(action.mask);
 	action.name = "Au1xxx TOY";
 	action.handler = handler;
 	action.next = NULL;
 
-	irq_desc[AU1000_TOY_MATCH2_INT].action = &action; 
-	irq_desc[AU1000_TOY_MATCH2_INT].status 
-		 &= ~(IRQ_DISABLED | IRQ_AUTODETECT | IRQ_WAITING | IRQ_INPROGRESS);
+	desc->action = &action;
+	desc->status &= ~(IRQ_DISABLED | IRQ_AUTODETECT | IRQ_WAITING | IRQ_INPROGRESS);
 
 	local_enable_irq(AU1000_TOY_MATCH2_INT);
 }

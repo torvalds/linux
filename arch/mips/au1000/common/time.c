@@ -63,8 +63,11 @@ extern int allow_au1k_wait; /* default off for CP0 Counter */
 static unsigned int timerhi = 0, timerlo = 0;
 
 #ifdef CONFIG_PM
-#define MATCH20_INC 328
-extern void startup_match20_interrupt(void (*handler)(int, void *, struct pt_regs *));
+#if HZ < 100 || HZ > 1000
+#error "unsupported HZ value! Must be in [100,1000]"
+#endif
+#define MATCH20_INC (328*100/HZ) /* magic number 328 is for HZ=100... */
+extern void startup_match20_interrupt(irqreturn_t (*handler)(int, void *, struct pt_regs *));
 static unsigned long last_pc0, last_match20;
 #endif
 
@@ -116,17 +119,16 @@ null:
 }
 
 #ifdef CONFIG_PM
-void counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
 	unsigned long pc0;
 	int time_elapsed;
 	static int jiffie_drift = 0;
 
-	kstat.irqs[0][irq]++;
 	if (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_M20) {
 		/* should never happen! */
-		printk(KERN_WARNING "counter 0 w status eror\n");
-		return;
+		printk(KERN_WARNING "counter 0 w status error\n");
+		return IRQ_NONE;
 	}
 
 	pc0 = au_readl(SYS_TOYREAD);
@@ -163,6 +165,8 @@ void counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
 		update_process_times(user_mode(regs));
 #endif
 	}
+
+	return IRQ_HANDLED;
 }
 
 /* When we wakeup from sleep, we have to "catch up" on all of the
@@ -439,7 +443,7 @@ void au1xxx_timer_setup(struct irqaction *irq)
 		au_sync();
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_M20);
 
-		/* setup match20 to interrupt once every 10ms */
+		/* setup match20 to interrupt once every HZ */
 		last_pc0 = last_match20 = au_readl(SYS_TOYREAD);
 		au_writel(last_match20 + MATCH20_INC, SYS_TOYMATCH2);
 		au_sync();
