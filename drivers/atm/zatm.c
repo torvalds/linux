@@ -1339,7 +1339,7 @@ static int __init zatm_start(struct atm_dev *dev)
 	return 0;
     out:
 	for (i = 0; i < NR_MBX; i++)
-		kfree(zatm_dev->mbx_start[i]);
+		kfree(&zatm_dev->mbx_start[i]);
 	kfree(zatm_dev->rx_map);
 	kfree(zatm_dev->tx_map);
 	free_irq(zatm_dev->irq, dev);
