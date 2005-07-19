@@ -6,7 +6,7 @@
  *   
  *  Copyright (C) 2004 Thomas Gleixner (tglx@linutronix.de)
  *
- * $Id: nand_bbt.c,v 1.33 2005/06/14 15:47:56 gleixner Exp $
+ * $Id: nand_bbt.c,v 1.35 2005/07/15 13:53:47 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -109,24 +109,21 @@ static int check_pattern (uint8_t *buf, int len, int paglen, struct nand_bbt_des
 /** 
  * check_short_pattern - [GENERIC] check if a pattern is in the buffer
  * @buf:	the buffer to search
- * @len:	the length of buffer to search
- * @paglen:	the pagelength
  * @td:		search pattern descriptor
  *
  * Check for a pattern at the given place. Used to search bad block
  * tables and good / bad block identifiers. Same as check_pattern, but 
- * no optional empty check and the pattern is expected to start
- * at offset 0.
+ * no optional empty check
  *
 */
-static int check_short_pattern (uint8_t *buf, int len, int paglen, struct nand_bbt_descr *td)
+static int check_short_pattern (uint8_t *buf, struct nand_bbt_descr *td)
 {
 	int i;
 	uint8_t *p = buf;
 
 	/* Compare the pattern */
 	for (i = 0; i < td->len; i++) {
-		if (p[i] != td->pattern[i])
+		if (p[td->offs + i] != td->pattern[i])
 			return -1;
 	}
 	return 0;
@@ -337,13 +334,14 @@ static int create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr
 			if (!(bd->options & NAND_BBT_SCANEMPTY)) {
 				size_t retlen;
 				
-				/* No need to read pages fully, just read required OOB bytes */
-				ret = mtd->read_oob(mtd, from + j * mtd->oobblock + bd->offs,
-							readlen, &retlen, &buf[0]);
+				/* Read the full oob until read_oob is fixed to 
+				 * handle single byte reads for 16 bit buswidth */
+				ret = mtd->read_oob(mtd, from + j * mtd->oobblock,
+							mtd->oobsize, &retlen, buf);
 				if (ret)
 					return ret;
 
-				if (check_short_pattern (&buf[j * scanlen], scanlen, mtd->oobblock, bd)) {
+				if (check_short_pattern (buf, bd)) {
 					this->bbt[i >> 3] |= 0x03 << (i & 0x6);
 					printk (KERN_WARNING "Bad eraseblock %d at 0x%08x\n", 
 						i >> 1, (unsigned int) from);

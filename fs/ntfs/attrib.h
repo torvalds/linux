@@ -2,7 +2,7 @@
  * attrib.h - Defines for attribute handling in NTFS Linux kernel driver.
  *	      Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -60,10 +60,14 @@ typedef struct {
 	ATTR_RECORD *base_attr;
 } ntfs_attr_search_ctx;
 
+extern int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn);
 extern int ntfs_map_runlist(ntfs_inode *ni, VCN vcn);
 
-extern runlist_element *ntfs_find_vcn(ntfs_inode *ni, const VCN vcn,
-		const BOOL need_write);
+extern LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
+		const BOOL write_locked);
+
+extern runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni,
+		const VCN vcn, const BOOL write_locked);
 
 int ntfs_attr_lookup(const ATTR_TYPE type, const ntfschar *name,
 		const u32 name_len, const IGNORE_CASE_BOOL ic,
@@ -85,6 +89,8 @@ extern ntfs_attr_search_ctx *ntfs_attr_get_search_ctx(ntfs_inode *ni,
 		MFT_RECORD *mrec);
 extern void ntfs_attr_put_search_ctx(ntfs_attr_search_ctx *ctx);
 
+#ifdef NTFS_RW
+
 extern int ntfs_attr_size_bounds_check(const ntfs_volume *vol,
 		const ATTR_TYPE type, const s64 size);
 extern int ntfs_attr_can_be_non_resident(const ntfs_volume *vol,
@@ -94,7 +100,11 @@ extern int ntfs_attr_can_be_resident(const ntfs_volume *vol,
 
 extern int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size);
 
+extern int ntfs_attr_make_non_resident(ntfs_inode *ni);
+
 extern int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt,
 		const u8 val);
+
+#endif /* NTFS_RW */
 
 #endif /* _LINUX_NTFS_ATTRIB_H */

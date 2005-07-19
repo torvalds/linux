@@ -1,5 +1,5 @@
 /*
- * $Id: tuner-core.c,v 1.55 2005/07/08 13:20:33 mchehab Exp $
+ * $Id: tuner-core.c,v 1.58 2005/07/14 03:06:43 mchehab Exp $
  *
  * i2c tv tuner chip device driver
  * core core, i.e. kernel interfaces, registering and so on
@@ -38,6 +38,9 @@ I2C_CLIENT_INSMOD;
 /* insmod options used at init time => read/only */
 static unsigned int addr = 0;
 module_param(addr, int, 0444);
+
+static unsigned int no_autodetect = 0;
+module_param(no_autodetect, int, 0444);
 
 /* insmod options used at runtime => read/write */
 unsigned int tuner_debug = 0;
@@ -318,17 +321,19 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
 
 	/* TEA5767 autodetection code - only for addr = 0xc0 */
-	if (addr == 0x60) {
-		if (tea5767_autodetection(&t->i2c) != EINVAL) {
-			t->type = TUNER_TEA5767;
-			t->mode_mask = T_RADIO;
-			t->mode = T_STANDBY;
-			t->freq = 87.5 * 16; /* Sets freq to FM range */
-			default_mode_mask &= ~T_RADIO;
+	if (!no_autodetect) {
+		if (addr == 0x60) {
+			if (tea5767_autodetection(&t->i2c) != EINVAL) {
+				t->type = TUNER_TEA5767;
+				t->mode_mask = T_RADIO;
+				t->mode = T_STANDBY;
+				t->freq = 87.5 * 16; /* Sets freq to FM range */
+				default_mode_mask &= ~T_RADIO;
 
-			i2c_attach_client (&t->i2c);
-			set_type(&t->i2c,t->type, t->mode_mask);
-			return 0;
+				i2c_attach_client (&t->i2c);
+				set_type(&t->i2c,t->type, t->mode_mask);
+				return 0;
+			}
 		}
 	}
 
@@ -631,7 +636,9 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 		}
 	default:
-		tuner_dbg("Unimplemented IOCTL 0x%08x called to tuner.\n", cmd);
+		tuner_dbg("Unimplemented IOCTL 0x%08x(dir=%d,tp=0x%02x,nr=%d,sz=%d)\n",
+					 cmd, _IOC_DIR(cmd), _IOC_TYPE(cmd),
+					_IOC_NR(cmd), _IOC_SIZE(cmd));
 		break;
 	}
 

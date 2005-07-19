@@ -15,7 +15,6 @@
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
 #include <linux/list.h>
-#include <linux/root_dev.h>
 #include <linux/statfs.h>
 #include <linux/kdev_t.h>
 #include <asm/uaccess.h>
@@ -160,8 +159,6 @@ static int read_name(struct inode *ino, char *name)
 	ino->i_size = i_size;
 	ino->i_blksize = i_blksize;
 	ino->i_blocks = i_blocks;
-	if((ino->i_sb->s_dev == ROOT_DEV) && (ino->i_uid == getuid()))
-		ino->i_uid = 0;
 	return(0);
 }
 
@@ -841,16 +838,10 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 		attrs.ia_mode = attr->ia_mode;
 	}
 	if(attr->ia_valid & ATTR_UID){
-		if((dentry->d_inode->i_sb->s_dev == ROOT_DEV) &&
-		   (attr->ia_uid == 0))
-			attr->ia_uid = getuid();
 		attrs.ia_valid |= HOSTFS_ATTR_UID;
 		attrs.ia_uid = attr->ia_uid;
 	}
 	if(attr->ia_valid & ATTR_GID){
-		if((dentry->d_inode->i_sb->s_dev == ROOT_DEV) &&
-		   (attr->ia_gid == 0))
-			attr->ia_gid = getgid();
 		attrs.ia_valid |= HOSTFS_ATTR_GID;
 		attrs.ia_gid = attr->ia_gid;
 	}

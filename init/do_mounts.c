@@ -26,8 +26,6 @@ static char __initdata saved_root_name[64];
 /* this is initialized in init/main.c */
 dev_t ROOT_DEV;
 
-EXPORT_SYMBOL(ROOT_DEV);
-
 static int __init load_ramdisk(char *str)
 {
 	rd_doload = simple_strtol(str,NULL,0) & 3;

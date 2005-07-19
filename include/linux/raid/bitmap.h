@@ -262,7 +262,7 @@ void bitmap_write_all(struct bitmap *bitmap);
 int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sectors);
 void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long sectors,
 		     int success);
-int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks);
+int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks, int degraded);
 void bitmap_end_sync(struct bitmap *bitmap, sector_t offset, int *blocks, int aborted);
 void bitmap_close_sync(struct bitmap *bitmap);
 

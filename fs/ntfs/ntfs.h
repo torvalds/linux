@@ -2,7 +2,7 @@
  * ntfs.h - Defines for NTFS Linux kernel driver. Part of the Linux-NTFS
  *	    project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (C) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -31,6 +31,7 @@
 #include <linux/fs.h>
 #include <linux/nls.h>
 #include <linux/smp.h>
+#include <linux/pagemap.h>
 
 #include "types.h"
 #include "volume.h"
@@ -41,6 +42,9 @@ typedef enum {
 	NTFS_BLOCK_SIZE_BITS	= 9,
 	NTFS_SB_MAGIC		= 0x5346544e,	/* 'NTFS' */
 	NTFS_MAX_NAME_LEN	= 255,
+	NTFS_MAX_ATTR_NAME_LEN	= 255,
+	NTFS_MAX_CLUSTER_SIZE	= 64 * 1024,	/* 64kiB */
+	NTFS_MAX_PAGES_PER_CLUSTER = NTFS_MAX_CLUSTER_SIZE / PAGE_CACHE_SIZE,
 } NTFS_CONSTANTS;
 
 /* Global variables. */
@@ -64,6 +68,8 @@ extern struct inode_operations ntfs_dir_inode_ops;
 
 extern struct  file_operations ntfs_empty_file_ops;
 extern struct inode_operations ntfs_empty_inode_ops;
+
+extern struct export_operations ntfs_export_ops;
 
 /**
  * NTFS_SB - return the ntfs volume given a vfs super block

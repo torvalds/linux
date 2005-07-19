@@ -1345,7 +1345,8 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 	}
 }
 
-int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks)
+int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
+			int degraded)
 {
 	bitmap_counter_t *bmc;
 	int rv;
@@ -1362,8 +1363,10 @@ int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks)
 			rv = 1;
 		else if (NEEDED(*bmc)) {
 			rv = 1;
-			*bmc |= RESYNC_MASK;
-			*bmc &= ~NEEDED_MASK;
+			if (!degraded) { /* don't set/clear bits if degraded */
+				*bmc |= RESYNC_MASK;
+				*bmc &= ~NEEDED_MASK;
+			}
 		}
 	}
 	spin_unlock_irq(&bitmap->lock);

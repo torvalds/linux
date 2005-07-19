@@ -68,13 +68,12 @@ do_xip_mapping_read(struct address_space *mapping,
 		if (unlikely(IS_ERR(page))) {
 			if (PTR_ERR(page) == -ENODATA) {
 				/* sparse */
-				page = virt_to_page(empty_zero_page);
+				page = ZERO_PAGE(0);
 			} else {
 				desc->error = PTR_ERR(page);
 				goto out;
 			}
-		} else
-			BUG_ON(!PageUptodate(page));
+		}
 
 		/* If users can be writing to this page using arbitrary
 		 * virtual addresses, take care about potential aliasing
@@ -84,8 +83,7 @@ do_xip_mapping_read(struct address_space *mapping,
 			flush_dcache_page(page);
 
 		/*
-		 * Ok, we have the page, and it's up-to-date, so
-		 * now we can copy it to user space...
+		 * Ok, we have the page, so now we can copy it to user space...
 		 *
 		 * The actor routine returns how many bytes were actually used..
 		 * NOTE! This may not be the same as how much of a user buffer
@@ -164,7 +162,7 @@ EXPORT_SYMBOL_GPL(xip_file_sendfile);
  * xip_write
  *
  * This function walks all vmas of the address_space and unmaps the
- * empty_zero_page when found at pgoff. Should it go in rmap.c?
+ * ZERO_PAGE when found at pgoff. Should it go in rmap.c?
  */
 static void
 __xip_unmap (struct address_space * mapping,
@@ -187,7 +185,7 @@ __xip_unmap (struct address_space * mapping,
 		 * We need the page_table_lock to protect us from page faults,
 		 * munmap, fork, etc...
 		 */
-		pte = page_check_address(virt_to_page(empty_zero_page), mm,
+		pte = page_check_address(ZERO_PAGE(address), mm,
 					 address);
 		if (!IS_ERR(pte)) {
 			/* Nuke the page table entry. */
@@ -230,7 +228,6 @@ xip_file_nopage(struct vm_area_struct * area,
 
 	page = mapping->a_ops->get_xip_page(mapping, pgoff*(PAGE_SIZE/512), 0);
 	if (!IS_ERR(page)) {
-		BUG_ON(!PageUptodate(page));
 		return page;
 	}
 	if (PTR_ERR(page) != -ENODATA)
@@ -245,12 +242,11 @@ xip_file_nopage(struct vm_area_struct * area,
 			pgoff*(PAGE_SIZE/512), 1);
 		if (IS_ERR(page))
 			return NULL;
-		BUG_ON(!PageUptodate(page));
 		/* unmap page at pgoff from all other vmas */
 		__xip_unmap(mapping, pgoff);
 	} else {
-		/* not shared and writable, use empty_zero_page */
-		page = virt_to_page(empty_zero_page);
+		/* not shared and writable, use ZERO_PAGE() */
+		page = ZERO_PAGE(address);
 	}
 
 	return page;
@@ -318,8 +314,6 @@ __xip_file_write(struct file *filp, const char __user *buf,
 			status = PTR_ERR(page);
 			break;
 		}
-
-		BUG_ON(!PageUptodate(page));
 
 		copied = filemap_copy_from_user(page, offset, buf, bytes);
 		flush_dcache_page(page);
@@ -435,8 +429,7 @@ xip_truncate_page(struct address_space *mapping, loff_t from)
 			return 0;
 		else
 			return PTR_ERR(page);
-	} else
-		BUG_ON(!PageUptodate(page));
+	}
 	kaddr = kmap_atomic(page, KM_USER0);
 	memset(kaddr + offset, 0, length);
 	kunmap_atomic(kaddr, KM_USER0);
