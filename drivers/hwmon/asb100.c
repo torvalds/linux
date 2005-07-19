@@ -56,9 +56,6 @@
 /* I2C addresses to scan */
 static unsigned short normal_i2c[] = { 0x2d, I2C_CLIENT_END };
 
-/* ISA addresses to scan (none) */
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
-
 /* Insmod parameters */
 SENSORS_INSMOD_1(asb100);
 I2C_CLIENT_MODULE_PARM(force_subclients, "List of subclient addresses: "

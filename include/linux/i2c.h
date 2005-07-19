@@ -150,12 +150,9 @@ struct i2c_driver {
  */
 struct i2c_client {
 	unsigned int flags;		/* div., see below		*/
-	unsigned int addr;		/* chip address - NOTE: 7bit 	*/
+	unsigned short addr;		/* chip address - NOTE: 7bit 	*/
 					/* addresses are stored in the	*/
-					/* _LOWER_ 7 bits of this char	*/
-	/* addr: unsigned int to make lm_sensors i2c-isa adapter work
-	  more cleanly. It does not take any more memory space, due to
-	  alignment considerations */
+					/* _LOWER_ 7 bits		*/
 	struct i2c_adapter *adapter;	/* the adapter we sit on	*/
 	struct i2c_driver *driver;	/* and our access routines	*/
 	int usage_count;		/* How many accesses currently  */
@@ -309,7 +306,6 @@ struct i2c_client_address_data {
 
 /* Internal numbers to terminate lists */
 #define I2C_CLIENT_END		0xfffeU
-#define I2C_CLIENT_ISA_END	0xfffefffeU
 
 /* The numbers to use to set I2C bus address */
 #define ANY_I2C_BUS		0xffff

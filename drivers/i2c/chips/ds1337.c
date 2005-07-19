@@ -39,7 +39,6 @@
  * Functions declaration
  */
 static unsigned short normal_i2c[] = { 0x68, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 SENSORS_INSMOD_1(ds1337);
 

@@ -29,8 +29,8 @@ Technical changes:
   Please respect this inclusion order. Some extra headers may be
   required for a given driver (e.g. "lm75.h").
 
-* [Addresses] SENSORS_I2C_END becomes I2C_CLIENT_END, SENSORS_ISA_END
-  becomes I2C_CLIENT_ISA_END.
+* [Addresses] SENSORS_I2C_END becomes I2C_CLIENT_END, ISA addresses
+  are no more handled by the i2c core.
 
 * [Client data] Get rid of sysctl_id. Try using standard names for
   register values (for example, temp_os becomes temp_max). You're
@@ -72,7 +72,8 @@ Technical changes:
   name string, which will be filled with a lowercase, short string
   (typically the driver name, e.g. "lm75").
   In i2c-only drivers, drop the i2c_is_isa_adapter check, it's
-  useless.
+  useless. Same for isa-only drivers, as the test would always be
+  true. Only hybrid drivers (which are quite rare) still need it.
   The errorN labels are reduced to the number needed. If that number
   is 2 (i2c-only drivers), it is advised that the labels are named
   exit and exit_free. For i2c+isa drivers, labels should be named

@@ -42,7 +42,6 @@ MODULE_AUTHOR("Sebastian Witt <se.witt@gmx.net>");
 #define ATXP1_GPIO1MASK	0x0f
 
 static unsigned short normal_i2c[] = { 0x37, 0x4e, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 SENSORS_INSMOD_1(atxp1);
 

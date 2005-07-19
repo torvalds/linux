@@ -54,8 +54,6 @@
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 					I2C_CLIENT_END };
 
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
-
 /* Insmod parameters */
 SENSORS_INSMOD_3(adm9240, ds1780, lm81);
 

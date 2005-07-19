@@ -27,11 +27,10 @@
    that place. If a specific chip is given, the module blindly assumes this
    chip type is present; if a general force (kind == 0) is given, the module
    will still try to figure out what type of chip is present. This is useful
-   if for some reasons the detect for SMBus or ISA address space filled
-   fails.
-   probe: insmod parameter. Initialize this list with I2C_CLIENT_ISA_END values.
-     A list of pairs. The first value is a bus number (ANY_I2C_ISA_BUS for
-     the ISA bus, -1 for any I2C bus), the second is the address. 
+   if for some reasons the detect for SMBus address space filled fails.
+   probe: insmod parameter. Initialize this list with I2C_CLIENT_END values.
+     A list of pairs. The first value is a bus number (ANY_I2C_BUS for any
+     I2C bus), the second is the address.
    kind: The kind of chip. 0 equals any chip.
 */
 struct i2c_force_data {
@@ -40,25 +39,22 @@ struct i2c_force_data {
 };
 
 /* A structure containing the detect information.
-   normal_i2c: filled in by the module writer. Terminated by I2C_CLIENT_ISA_END.
+   normal_i2c: filled in by the module writer. Terminated by I2C_CLIENT_END.
      A list of I2C addresses which should normally be examined.
-   normal_isa: filled in by the module writer. Terminated by SENSORS_ISA_END.
-     A list of ISA addresses which should normally be examined.
-   probe: insmod parameter. Initialize this list with I2C_CLIENT_ISA_END values.
-     A list of pairs. The first value is a bus number (ANY_I2C_ISA_BUS for
-     the ISA bus, -1 for any I2C bus), the second is the address. These
-     addresses are also probed, as if they were in the 'normal' list.
-   ignore: insmod parameter. Initialize this list with I2C_CLIENT_ISA_END values.
-     A list of pairs. The first value is a bus number (ANY_I2C_ISA_BUS for
-     the ISA bus, -1 for any I2C bus), the second is the I2C address. These
-     addresses are never probed. This parameter overrules 'normal' and 
-     'probe', but not the 'force' lists.
+   probe: insmod parameter. Initialize this list with I2C_CLIENT_END values.
+     A list of pairs. The first value is a bus number (ANY_I2C_BUS for any
+     I2C bus), the second is the address. These addresses are also probed,
+     as if they were in the 'normal' list.
+   ignore: insmod parameter. Initialize this list with I2C_CLIENT_END values.
+     A list of pairs. The first value is a bus number (ANY_I2C_BUS for any
+     I2C bus), the second is the I2C address. These addresses are never
+     probed. This parameter overrules 'normal' and  probe', but not the
+    'force' lists.
    force_data: insmod parameters. A list, ending with an element of which
      the force field is NULL.
 */
 struct i2c_address_data {
 	unsigned short *normal_i2c;
-	unsigned int *normal_isa;
 	unsigned short *probe;
 	unsigned short *ignore;
 	struct i2c_force_data *forces;
@@ -78,7 +74,6 @@ struct i2c_address_data {
                       "List of adapter,address pairs not to scan"); \
 	static struct i2c_address_data addr_data = {			\
 			.normal_i2c =		normal_i2c,		\
-			.normal_isa =		normal_isa,		\
 			.probe =		probe,			\
 			.ignore =		ignore,			\
 			.forces =		forces,			\
@@ -242,8 +237,7 @@ struct i2c_address_data {
 
 /* Detect function. It iterates over all possible addresses itself. For
    SMBus addresses, it will only call found_proc if some client is connected
-   to the SMBus (unless a 'force' matched); for ISA detections, this is not
-   done. */
+   to the SMBus (unless a 'force' matched). */
 extern int i2c_detect(struct i2c_adapter *adapter,
 		      struct i2c_address_data *address_data,
 		      int (*found_proc) (struct i2c_adapter *, int, int));

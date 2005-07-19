@@ -195,31 +195,28 @@ Probing classes (sensors)
 -------------------------
 
 If you write a `sensors' driver, you use a slightly different interface.
-As well as I2C addresses, we have to cope with ISA addresses. Also, we
-use a enum of chip types. Don't forget to include `sensors.h'.
+Also, we use a enum of chip types. Don't forget to include `sensors.h'.
 
 The following lists are used internally. They are all lists of integers.
 
-   normal_i2c: filled in by the module writer. Terminated by SENSORS_I2C_END.
+   normal_i2c: filled in by the module writer. Terminated by I2C_CLIENT_END.
      A list of I2C addresses which should normally be examined.
-   normal_isa: filled in by the module writer. Terminated by SENSORS_ISA_END.
-     A list of ISA addresses which should normally be examined.
-   probe: insmod parameter. Initialize this list with SENSORS_I2C_END values.
-     A list of pairs. The first value is a bus number (SENSORS_ISA_BUS for
-     the ISA bus, -1 for any I2C bus), the second is the address. These
-     addresses are also probed, as if they were in the 'normal' list.
-   ignore: insmod parameter. Initialize this list with SENSORS_I2C_END values.
-     A list of pairs. The first value is a bus number (SENSORS_ISA_BUS for
-     the ISA bus, -1 for any I2C bus), the second is the I2C address. These
-     addresses are never probed. This parameter overrules 'normal' and 
-     'probe', but not the 'force' lists.
+   probe: insmod parameter. Initialize this list with I2C_CLIENT_END values.
+     A list of pairs. The first value is a bus number (ANY_I2C_BUS for any
+     I2C bus), the second is the address. These addresses are also probed,
+     as if they were in the 'normal' list.
+   ignore: insmod parameter. Initialize this list with I2C_CLIENT_END values.
+     A list of pairs. The first value is a bus number (ANY_I2C_BUS for any
+     I2C bus), the second is the I2C address. These addresses are never
+     probed. This parameter overrules 'normal' and 'probe', but not the
+     'force' lists.
 
 Also used is a list of pointers to sensors_force_data structures:
    force_data: insmod parameters. A list, ending with an element of which
      the force field is NULL.
      Each element contains the type of chip and a list of pairs.
-     The first value is a bus number (SENSORS_ISA_BUS for the ISA bus, 
-     -1 for any I2C bus), the second is the address. 
+     The first value is a bus number (ANY_I2C_BUS for any I2C bus), the
+     second is the address.
      These are automatically translated to insmod variables of the form
      force_foo.
 
@@ -227,13 +224,11 @@ So we have a generic insmod variabled `force', and chip-specific variables
 `force_CHIPNAME'.
 
 Fortunately, as a module writer, you just have to define the `normal_i2c' 
-and `normal_isa' parameters, and define what chip names are used. 
-The complete declaration could look like this:
+parameter, and define what chip names are used. The complete declaration
+could look like this:
   /* Scan i2c addresses 0x37, and 0x48 to 0x4f */
   static unsigned short normal_i2c[] = { 0x37, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
                                          0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
-  /* Scan ISA address 0x290 */
-  static unsigned int normal_isa[] = {0x0290,SENSORS_ISA_END};
 
   /* Define chips foo and bar, as well as all module parameters and things */
   SENSORS_INSMOD_2(foo,bar);
