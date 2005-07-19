@@ -41,19 +41,13 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/i2c-isa.h>
-#include <linux/i2c-sensor.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <asm/io.h>
 #include "lm75.h"
 
-/* Addresses to scan
-   The actual ISA address is read from Super-I/O configuration space */
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0, I2C_CLIENT_ISA_END };
-
-/* Insmod parameters */
-SENSORS_INSMOD_1(w83627ehf);
+/* The actual ISA address is read from Super-I/O configuration space */
+static unsigned short address;
 
 /*
  * Super-I/O constants and functions
@@ -673,14 +667,11 @@ static void w83627ehf_init_client(struct i2c_client *client)
 	}
 }
 
-static int w83627ehf_detect(struct i2c_adapter *adapter, int address, int kind)
+static int w83627ehf_detect(struct i2c_adapter *adapter)
 {
 	struct i2c_client *client;
 	struct w83627ehf_data *data;
 	int i, err = 0;
-
-	if (!i2c_is_isa_adapter(adapter))
-		return 0;
 
 	if (!request_region(address, REGION_LENGTH, w83627ehf_driver.name)) {
 		err = -EBUSY;
@@ -776,13 +767,6 @@ exit:
 	return err;
 }
 
-static int w83627ehf_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_detect(adapter, &addr_data, w83627ehf_detect);
-}
-
 static int w83627ehf_detach_client(struct i2c_client *client)
 {
 	struct w83627ehf_data *data = i2c_get_clientdata(client);
@@ -804,12 +788,11 @@ static int w83627ehf_detach_client(struct i2c_client *client)
 static struct i2c_driver w83627ehf_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "w83627ehf",
-	.flags		= I2C_DF_NOTIFY,
-	.attach_adapter	= w83627ehf_attach_adapter,
+	.attach_adapter	= w83627ehf_detect,
 	.detach_client	= w83627ehf_detach_client,
 };
 
-static int __init w83627ehf_find(int sioaddr, int *address)
+static int __init w83627ehf_find(int sioaddr, unsigned short *addr)
 {
 	u16 val;
 
@@ -827,8 +810,8 @@ static int __init w83627ehf_find(int sioaddr, int *address)
 	superio_select(W83627EHF_LD_HWM);
 	val = (superio_inb(SIO_REG_ADDR) << 8)
 	    | superio_inb(SIO_REG_ADDR + 1);
-	*address = val & ~(REGION_LENGTH - 1);
-	if (*address == 0) {
+	*addr = val & ~(REGION_LENGTH - 1);
+	if (*addr == 0) {
 		superio_exit();
 		return -ENODEV;
 	}
@@ -844,8 +827,8 @@ static int __init w83627ehf_find(int sioaddr, int *address)
 
 static int __init sensors_w83627ehf_init(void)
 {
-	if (w83627ehf_find(0x2e, &normal_isa[0])
-	 && w83627ehf_find(0x4e, &normal_isa[0]))
+	if (w83627ehf_find(0x2e, &address)
+	 && w83627ehf_find(0x4e, &address))
 		return -ENODEV;
 
 	return i2c_isa_add_driver(&w83627ehf_driver);

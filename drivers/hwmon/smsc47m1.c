@@ -37,17 +37,8 @@
 #include <linux/init.h>
 #include <asm/io.h>
 
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
 /* Address is autodetected, there is no default value */
-static unsigned int normal_isa[] = { 0x0000, I2C_CLIENT_ISA_END };
-static struct i2c_force_data forces[] = {{NULL}};
-
-enum chips { any_chip, smsc47m1 };
-static struct i2c_address_data addr_data = {
-	.normal_i2c		= normal_i2c,
-	.normal_isa		= normal_isa,
-	.forces			= forces,
-};
+static unsigned short address;
 
 /* Super-I/0 registers and commands */
 
@@ -125,9 +116,7 @@ struct smsc47m1_data {
 };
 
 
-static int smsc47m1_attach_adapter(struct i2c_adapter *adapter);
-static int smsc47m1_find(int *address);
-static int smsc47m1_detect(struct i2c_adapter *adapter, int address, int kind);
+static int smsc47m1_detect(struct i2c_adapter *adapter);
 static int smsc47m1_detach_client(struct i2c_client *client);
 
 static int smsc47m1_read_value(struct i2c_client *client, u8 reg);
@@ -140,9 +129,7 @@ static struct smsc47m1_data *smsc47m1_update_device(struct device *dev,
 static struct i2c_driver smsc47m1_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "smsc47m1",
-	.id		= I2C_DRIVERID_SMSC47M1,
-	.flags		= I2C_DF_NOTIFY,
-	.attach_adapter	= smsc47m1_attach_adapter,
+	.attach_adapter	= smsc47m1_detect,
 	.detach_client	= smsc47m1_detach_client,
 };
 
@@ -358,14 +345,7 @@ fan_present(2);
 
 static DEVICE_ATTR(alarms, S_IRUGO, get_alarms, NULL);
 
-static int smsc47m1_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_detect(adapter, &addr_data, smsc47m1_detect);
-}
-
-static int smsc47m1_find(int *address)
+static int smsc47m1_find(unsigned short *addr)
 {
 	u8 val;
 
@@ -392,10 +372,10 @@ static int smsc47m1_find(int *address)
 	}
 
 	superio_select();
-	*address = (superio_inb(SUPERIO_REG_BASE) << 8)
-		 |  superio_inb(SUPERIO_REG_BASE + 1);
+	*addr = (superio_inb(SUPERIO_REG_BASE) << 8)
+	      |  superio_inb(SUPERIO_REG_BASE + 1);
 	val = superio_inb(SUPERIO_REG_ACT);
-	if (*address == 0 || (val & 0x01) == 0) {
+	if (*addr == 0 || (val & 0x01) == 0) {
 		printk(KERN_INFO "smsc47m1: Device is disabled, will not use\n");
 		superio_exit();
 		return -ENODEV;
@@ -405,16 +385,12 @@ static int smsc47m1_find(int *address)
 	return 0;
 }
 
-static int smsc47m1_detect(struct i2c_adapter *adapter, int address, int kind)
+static int smsc47m1_detect(struct i2c_adapter *adapter)
 {
 	struct i2c_client *new_client;
 	struct smsc47m1_data *data;
 	int err = 0;
 	int fan1, fan2, pwm1, pwm2;
-
-	if (!i2c_is_isa_adapter(adapter)) {
-		return 0;
-	}
 
 	if (!request_region(address, SMSC_EXTENT, smsc47m1_driver.name)) {
 		dev_err(&adapter->dev, "Region 0x%x already in use!\n", address);
@@ -589,7 +565,7 @@ static struct smsc47m1_data *smsc47m1_update_device(struct device *dev,
 
 static int __init sm_smsc47m1_init(void)
 {
-	if (smsc47m1_find(normal_isa)) {
+	if (smsc47m1_find(&address)) {
 		return -ENODEV;
 	}
 

@@ -50,14 +50,10 @@ module_param(force_addr, ushort, 0);
 MODULE_PARM_DESC(force_addr,
 		 "Initialize the base address of the sensors");
 
-/* Addresses to scan.
+/* Device address
    Note that we can't determine the ISA address until we have initialized
    our module */
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0x0000, I2C_CLIENT_ISA_END };
-
-/* Insmod parameters */
-SENSORS_INSMOD_1(via686a);
+static unsigned short address;
 
 /*
    The Via 686a southbridge has a LM78-like chip integrated on the same IC.
@@ -319,8 +315,7 @@ struct via686a_data {
 
 static struct pci_dev *s_bridge;	/* pointer to the (only) via686a */
 
-static int via686a_attach_adapter(struct i2c_adapter *adapter);
-static int via686a_detect(struct i2c_adapter *adapter, int address, int kind);
+static int via686a_detect(struct i2c_adapter *adapter);
 static int via686a_detach_client(struct i2c_client *client);
 
 static inline int via686a_read_value(struct i2c_client *client, u8 reg)
@@ -580,35 +575,19 @@ static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 static struct i2c_driver via686a_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "via686a",
-	.id		= I2C_DRIVERID_VIA686A,
-	.flags		= I2C_DF_NOTIFY,
-	.attach_adapter	= via686a_attach_adapter,
+	.attach_adapter	= via686a_detect,
 	.detach_client	= via686a_detach_client,
 };
 
 
 /* This is called when the module is loaded */
-static int via686a_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_detect(adapter, &addr_data, via686a_detect);
-}
-
-static int via686a_detect(struct i2c_adapter *adapter, int address, int kind)
+static int via686a_detect(struct i2c_adapter *adapter)
 {
 	struct i2c_client *new_client;
 	struct via686a_data *data;
 	int err = 0;
 	const char client_name[] = "via686a";
 	u16 val;
-
-	/* Make sure we are probing the ISA bus!!  */
-	if (!i2c_is_isa_adapter(adapter)) {
-		dev_err(&adapter->dev,
-		"via686a_detect called for an I2C bus adapter?!?\n");
-		return 0;
-	}
 
 	/* 8231 requires multiple of 256, we enforce that on 686 as well */
 	if (force_addr)
@@ -825,26 +804,22 @@ static int __devinit via686a_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *id)
 {
 	u16 val;
-	int addr = 0;
 
 	if (PCIBIOS_SUCCESSFUL !=
 	    pci_read_config_word(dev, VIA686A_BASE_REG, &val))
 		return -ENODEV;
 
-	addr = val & ~(VIA686A_EXTENT - 1);
-	if (addr == 0 && force_addr == 0) {
+	address = val & ~(VIA686A_EXTENT - 1);
+	if (address == 0 && force_addr == 0) {
 		dev_err(&dev->dev, "base address not set - upgrade BIOS "
 			"or use force_addr=0xaddr\n");
 		return -ENODEV;
 	}
-	if (force_addr)
-		addr = force_addr;	/* so detect will get called */
 
-	if (!addr) {
+	if (!address) {
 		dev_err(&dev->dev, "No Via 686A sensors found.\n");
 		return -ENODEV;
 	}
-	normal_isa[0] = addr;
 
 	s_bridge = pci_dev_get(dev);
 	if (i2c_isa_add_driver(&via686a_driver)) {

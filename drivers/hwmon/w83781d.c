@@ -50,7 +50,8 @@
 static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
 					0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b,
 					0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0x0290, I2C_CLIENT_ISA_END };
+static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
+static unsigned short isa_address = 0x290;
 
 /* Insmod parameters */
 SENSORS_INSMOD_5(w83781d, w83782d, w83783s, w83627hf, as99127f);
@@ -259,6 +260,7 @@ struct w83781d_data {
 };
 
 static int w83781d_attach_adapter(struct i2c_adapter *adapter);
+static int w83781d_isa_attach_adapter(struct i2c_adapter *adapter);
 static int w83781d_detect(struct i2c_adapter *adapter, int address, int kind);
 static int w83781d_detach_client(struct i2c_client *client);
 
@@ -280,7 +282,7 @@ static struct i2c_driver w83781d_driver = {
 static struct i2c_driver w83781d_isa_driver = {
 	.owner = THIS_MODULE,
 	.name = "w83781d-isa",
-	.attach_adapter = w83781d_attach_adapter,
+	.attach_adapter = w83781d_isa_attach_adapter,
 	.detach_client = w83781d_detach_client,
 };
 
@@ -869,6 +871,12 @@ w83781d_attach_adapter(struct i2c_adapter *adapter)
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
 	return i2c_detect(adapter, &addr_data, w83781d_detect);
+}
+
+static int
+w83781d_isa_attach_adapter(struct i2c_adapter *adapter)
+{
+	return w83781d_detect(adapter, isa_address, -1);
 }
 
 /* Assumes that adapter is of I2C, not ISA variety.

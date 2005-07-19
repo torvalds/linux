@@ -59,12 +59,11 @@ module_param(force_i2c, byte, 0);
 MODULE_PARM_DESC(force_i2c,
 		 "Initialize the i2c address of the sensors");
 
-/* Addresses to scan */
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0, I2C_CLIENT_ISA_END };
+/* The actual ISA address is read from Super-I/O configuration space */
+static unsigned short address;
 
 /* Insmod parameters */
-SENSORS_INSMOD_4(w83627hf, w83627thf, w83697hf, w83637hf);
+enum chips { any_chip, w83627hf, w83627thf, w83697hf, w83637hf };
 
 static int init = 1;
 module_param(init, bool, 0);
@@ -318,9 +317,7 @@ struct w83627hf_data {
 };
 
 
-static int w83627hf_attach_adapter(struct i2c_adapter *adapter);
-static int w83627hf_detect(struct i2c_adapter *adapter, int address,
-			  int kind);
+static int w83627hf_detect(struct i2c_adapter *adapter);
 static int w83627hf_detach_client(struct i2c_client *client);
 
 static int w83627hf_read_value(struct i2c_client *client, u16 register);
@@ -332,9 +329,7 @@ static void w83627hf_init_client(struct i2c_client *client);
 static struct i2c_driver w83627hf_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "w83627hf",
-	.id		= I2C_DRIVERID_W83627HF,
-	.flags		= I2C_DF_NOTIFY,
-	.attach_adapter	= w83627hf_attach_adapter,
+	.attach_adapter	= w83627hf_detect,
 	.detach_client	= w83627hf_detach_client,
 };
 
@@ -963,16 +958,7 @@ device_create_file(&client->dev, &dev_attr_temp##offset##_type); \
 } while (0)
 
 
-/* This function is called when:
-     * w83627hf_driver is inserted (when this module is loaded), for each
-       available adapter
-     * when a new adapter is inserted (and w83627hf_driver is still present) */
-static int w83627hf_attach_adapter(struct i2c_adapter *adapter)
-{
-	return i2c_detect(adapter, &addr_data, w83627hf_detect);
-}
-
-static int w83627hf_find(int sioaddr, int *address)
+static int w83627hf_find(int sioaddr, unsigned short *addr)
 {
 	u16 val;
 
@@ -992,31 +978,23 @@ static int w83627hf_find(int sioaddr, int *address)
 	superio_select(W83627HF_LD_HWM);
 	val = (superio_inb(WINB_BASE_REG) << 8) |
 	       superio_inb(WINB_BASE_REG + 1);
-	*address = val & ~(WINB_EXTENT - 1);
-	if (*address == 0 && force_addr == 0) {
+	*addr = val & ~(WINB_EXTENT - 1);
+	if (*addr == 0 && force_addr == 0) {
 		superio_exit();
 		return -ENODEV;
 	}
-	if (force_addr)
-		*address = force_addr;	/* so detect will get called */
 
 	superio_exit();
 	return 0;
 }
 
-int w83627hf_detect(struct i2c_adapter *adapter, int address,
-		   int kind)
+static int w83627hf_detect(struct i2c_adapter *adapter)
 {
-	int val;
+	int val, kind;
 	struct i2c_client *new_client;
 	struct w83627hf_data *data;
 	int err = 0;
 	const char *client_name = "";
-
-	if (!i2c_is_isa_adapter(adapter)) {
-		err = -ENODEV;
-		goto ERROR0;
-	}
 
 	if(force_addr)
 		address = force_addr & ~(WINB_EXTENT - 1);
@@ -1500,13 +1478,10 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev)
 
 static int __init sensors_w83627hf_init(void)
 {
-	int addr;
-
-	if (w83627hf_find(0x2e, &addr)
-	 && w83627hf_find(0x4e, &addr)) {
+	if (w83627hf_find(0x2e, &address)
+	 && w83627hf_find(0x4e, &address)) {
 		return -ENODEV;
 	}
-	normal_isa[0] = addr;
 
 	return i2c_isa_add_driver(&w83627hf_driver);
 }

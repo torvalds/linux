@@ -48,7 +48,8 @@
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 					0x2e, 0x2f, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0x0290, I2C_CLIENT_ISA_END };
+static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
+static unsigned short isa_address = 0x290;
 
 /* Insmod parameters */
 SENSORS_INSMOD_2(it87, it8712);
@@ -222,7 +223,7 @@ struct it87_data {
 
 
 static int it87_attach_adapter(struct i2c_adapter *adapter);
-static int it87_find(int *address);
+static int it87_isa_attach_adapter(struct i2c_adapter *adapter);
 static int it87_detect(struct i2c_adapter *adapter, int address, int kind);
 static int it87_detach_client(struct i2c_client *client);
 
@@ -246,7 +247,7 @@ static struct i2c_driver it87_driver = {
 static struct i2c_driver it87_isa_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "it87-isa",
-	.attach_adapter	= it87_attach_adapter,
+	.attach_adapter	= it87_isa_attach_adapter,
 	.detach_client	= it87_detach_client,
 };
 
@@ -701,7 +702,12 @@ static int it87_attach_adapter(struct i2c_adapter *adapter)
 	return i2c_detect(adapter, &addr_data, it87_detect);
 }
 
-/* SuperIO detection - will change normal_isa[0] if a chip is found */
+static int it87_isa_attach_adapter(struct i2c_adapter *adapter)
+{
+	return it87_detect(adapter, isa_address, -1);
+}
+
+/* SuperIO detection - will change isa_address if a chip is found */
 static int it87_find(int *address)
 {
 	int err = -ENODEV;
@@ -1184,7 +1190,7 @@ static int __init sm_it87_init(void)
 	int addr, res;
 
 	if (!it87_find(&addr)) {
-		normal_isa[0] = addr;
+		isa_address = addr;
 	}
 
 	res = i2c_add_driver(&it87_driver);

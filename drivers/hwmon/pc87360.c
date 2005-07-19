@@ -39,25 +39,17 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-isa.h>
-#include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <asm/io.h>
 
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0, I2C_CLIENT_ISA_END };
-static struct i2c_force_data forces[] = {{ NULL }};
 static u8 devid;
-static unsigned int extra_isa[3];
+static unsigned short address;
+static unsigned short extra_isa[3];
 static u8 confreg[4];
 
 enum chips { any_chip, pc87360, pc87363, pc87364, pc87365, pc87366 };
-static struct i2c_address_data addr_data = {
-	.normal_i2c		= normal_i2c,
-	.normal_isa		= normal_isa,
-	.forces			= forces,
-};
 
 static int init = 1;
 module_param(init, int, 0);
@@ -228,8 +220,7 @@ struct pc87360_data {
  * Functions declaration
  */
 
-static int pc87360_attach_adapter(struct i2c_adapter *adapter);
-static int pc87360_detect(struct i2c_adapter *adapter, int address, int kind);
+static int pc87360_detect(struct i2c_adapter *adapter);
 static int pc87360_detach_client(struct i2c_client *client);
 
 static int pc87360_read_value(struct pc87360_data *data, u8 ldi, u8 bank,
@@ -246,8 +237,7 @@ static struct pc87360_data *pc87360_update_device(struct device *dev);
 static struct i2c_driver pc87360_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "pc87360",
-	.flags		= I2C_DF_NOTIFY,
-	.attach_adapter	= pc87360_attach_adapter,
+	.attach_adapter	= pc87360_detect,
 	.detach_client	= pc87360_detach_client,
 };
 
@@ -636,12 +626,7 @@ static DEVICE_ATTR(alarms_temp, S_IRUGO, show_temp_alarms, NULL);
  * Device detection, registration and update
  */
 
-static int pc87360_attach_adapter(struct i2c_adapter *adapter)
-{
-	return i2c_detect(adapter, &addr_data, pc87360_detect);
-}
-
-static int pc87360_find(int sioaddr, u8 *devid, int *address)
+static int pc87360_find(int sioaddr, u8 *devid, unsigned short *addresses)
 {
 	u16 val;
 	int i;
@@ -687,7 +672,7 @@ static int pc87360_find(int sioaddr, u8 *devid, int *address)
 			continue;
 		}
 
-		address[i] = val;
+		addresses[i] = val;
 
 		if (i==0) { /* Fans */
 			confreg[0] = superio_inb(sioaddr, 0xF0);
@@ -731,9 +716,7 @@ static int pc87360_find(int sioaddr, u8 *devid, int *address)
 	return 0;
 }
 
-/* We don't really care about the address.
-   Read from extra_isa instead. */
-int pc87360_detect(struct i2c_adapter *adapter, int address, int kind)
+static int pc87360_detect(struct i2c_adapter *adapter)
 {
 	int i;
 	struct i2c_client *new_client;
@@ -741,9 +724,6 @@ int pc87360_detect(struct i2c_adapter *adapter, int address, int kind)
 	int err = 0;
 	const char *name = "pc87360";
 	int use_thermistors = 0;
-
-	if (!i2c_is_isa_adapter(adapter))
-		return -ENODEV;
 
 	if (!(data = kmalloc(sizeof(struct pc87360_data), GFP_KERNEL)))
 		return -ENOMEM;
@@ -1334,12 +1314,12 @@ static int __init pc87360_init(void)
 	/* Arbitrarily pick one of the addresses */
 	for (i = 0; i < 3; i++) {
 		if (extra_isa[i] != 0x0000) {
-			normal_isa[0] = extra_isa[i];
+			address = extra_isa[i];
 			break;
 		}
 	}
 
-	if (normal_isa[0] == 0x0000) {
+	if (address == 0x0000) {
 		printk(KERN_WARNING "pc87360: No active logical device, "
 		       "module not inserted.\n");
 		return -ENODEV;

@@ -34,7 +34,8 @@ static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24,
 					0x25, 0x26, 0x27, 0x28, 0x29,
 					0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
 					0x2f, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { 0x0290, I2C_CLIENT_ISA_END };
+static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
+static unsigned short isa_address = 0x290;
 
 /* Insmod parameters */
 SENSORS_INSMOD_2(lm78, lm79);
@@ -160,6 +161,7 @@ struct lm78_data {
 
 
 static int lm78_attach_adapter(struct i2c_adapter *adapter);
+static int lm78_isa_attach_adapter(struct i2c_adapter *adapter);
 static int lm78_detect(struct i2c_adapter *adapter, int address, int kind);
 static int lm78_detach_client(struct i2c_client *client);
 
@@ -181,7 +183,7 @@ static struct i2c_driver lm78_driver = {
 static struct i2c_driver lm78_isa_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "lm78-isa",
-	.attach_adapter	= lm78_attach_adapter,
+	.attach_adapter	= lm78_isa_attach_adapter,
 	.detach_client	= lm78_detach_client,
 };
 
@@ -478,6 +480,11 @@ static int lm78_attach_adapter(struct i2c_adapter *adapter)
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
 	return i2c_detect(adapter, &addr_data, lm78_detect);
+}
+
+static int lm78_isa_attach_adapter(struct i2c_adapter *adapter)
+{
+	return lm78_detect(adapter, isa_address, -1);
 }
 
 /* This function is called by i2c_detect */
