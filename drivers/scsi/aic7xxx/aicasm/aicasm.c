@@ -369,7 +369,7 @@ output_code()
 
 		fprintf(ofile, "%s\t0x%02x, 0x%02x, 0x%02x, 0x%02x",
 			cur_instr == STAILQ_FIRST(&seq_program) ? "" : ",\n",
-#if BYTE_ORDER == LITTLE_ENDIAN
+#ifdef __LITTLE_ENDIAN
 			cur_instr->format.bytes[0],
 			cur_instr->format.bytes[1],
 			cur_instr->format.bytes[2],
@@ -613,7 +613,7 @@ output_listing(char *ifilename)
 				line++;
 		}
 		fprintf(listfile, "%03x %02x%02x%02x%02x", instrptr,
-#if BYTE_ORDER == LITTLE_ENDIAN
+#ifdef __LITTLE_ENDIAN
 			cur_instr->format.bytes[0],
 			cur_instr->format.bytes[1],
 			cur_instr->format.bytes[2],
