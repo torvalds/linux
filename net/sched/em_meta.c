@@ -250,11 +250,6 @@ META_COLLECTOR(int_tcverd)
 {
 	dst->value = skb->tc_verd;
 }
-
-META_COLLECTOR(int_tcclassid)
-{
-	dst->value = skb->tc_classid;
-}
 #endif
 
 /**************************************************************************
@@ -529,7 +524,6 @@ static struct meta_ops __meta_ops[TCF_META_TYPE_MAX+1][TCF_META_ID_MAX+1] = {
 		[META_ID(TCINDEX)]		= META_FUNC(int_tcindex),
 #ifdef CONFIG_NET_CLS_ACT
 		[META_ID(TCVERDICT)]		= META_FUNC(int_tcverd),
-		[META_ID(TCCLASSID)]		= META_FUNC(int_tcclassid),
 #endif
 #ifdef CONFIG_NET_CLS_ROUTE
 		[META_ID(RTCLASSID)]		= META_FUNC(int_rtclassid),
