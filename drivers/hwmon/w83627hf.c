@@ -42,6 +42,7 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
+#include <linux/i2c-isa.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
@@ -1507,12 +1508,12 @@ static int __init sensors_w83627hf_init(void)
 	}
 	normal_isa[0] = addr;
 
-	return i2c_add_driver(&w83627hf_driver);
+	return i2c_isa_add_driver(&w83627hf_driver);
 }
 
 static void __exit sensors_w83627hf_exit(void)
 {
-	i2c_del_driver(&w83627hf_driver);
+	i2c_isa_del_driver(&w83627hf_driver);
 }
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>, "

@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
+#include <linux/i2c-isa.h>
 #include <linux/i2c-sensor.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
@@ -176,6 +177,14 @@ static struct i2c_driver lm78_driver = {
 	.attach_adapter	= lm78_attach_adapter,
 	.detach_client	= lm78_detach_client,
 };
+
+static struct i2c_driver lm78_isa_driver = {
+	.owner		= THIS_MODULE,
+	.name		= "lm78-isa",
+	.attach_adapter	= lm78_attach_adapter,
+	.detach_client	= lm78_detach_client,
+};
+
 
 /* 7 Voltages */
 static ssize_t show_in(struct device *dev, char *buf, int nr)
@@ -488,7 +497,8 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Reserve the ISA region */
 	if (is_isa)
-		if (!request_region(address, LM78_EXTENT, lm78_driver.name)) {
+		if (!request_region(address, LM78_EXTENT,
+				    lm78_isa_driver.name)) {
 			err = -EBUSY;
 			goto ERROR0;
 		}
@@ -543,7 +553,7 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
 	new_client->adapter = adapter;
-	new_client->driver = &lm78_driver;
+	new_client->driver = is_isa ? &lm78_isa_driver : &lm78_driver;
 	new_client->flags = 0;
 
 	/* Now, we do the remaining detection. */
@@ -788,11 +798,24 @@ static struct lm78_data *lm78_update_device(struct device *dev)
 
 static int __init sm_lm78_init(void)
 {
-	return i2c_add_driver(&lm78_driver);
+	int res;
+
+	res = i2c_add_driver(&lm78_driver);
+	if (res)
+		return res;
+
+	res = i2c_isa_add_driver(&lm78_isa_driver);
+	if (res) {
+		i2c_del_driver(&lm78_driver);
+		return res;
+	}
+
+	return 0;
 }
 
 static void __exit sm_lm78_exit(void)
 {
+	i2c_isa_del_driver(&lm78_isa_driver);
 	i2c_del_driver(&lm78_driver);
 }
 

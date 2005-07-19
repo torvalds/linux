@@ -55,6 +55,7 @@
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/i2c.h>
+#include <linux/i2c-isa.h>
 #include <linux/i2c-sensor.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
@@ -790,7 +791,7 @@ static int __devinit sis5595_pci_probe(struct pci_dev *dev,
 	normal_isa[0] = addr;
 
 	s_bridge = pci_dev_get(dev);
-	if (i2c_add_driver(&sis5595_driver)) {
+	if (i2c_isa_add_driver(&sis5595_driver)) {
 		pci_dev_put(s_bridge);
 		s_bridge = NULL;
 	}
@@ -817,7 +818,7 @@ static void __exit sm_sis5595_exit(void)
 {
 	pci_unregister_driver(&sis5595_pci_driver);
 	if (s_bridge != NULL) {
-		i2c_del_driver(&sis5595_driver);
+		i2c_isa_del_driver(&sis5595_driver);
 		pci_dev_put(s_bridge);
 		s_bridge = NULL;
 	}

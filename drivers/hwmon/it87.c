@@ -36,6 +36,7 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
+#include <linux/i2c-isa.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon-sysfs.h>
@@ -241,6 +242,14 @@ static struct i2c_driver it87_driver = {
 	.attach_adapter	= it87_attach_adapter,
 	.detach_client	= it87_detach_client,
 };
+
+static struct i2c_driver it87_isa_driver = {
+	.owner		= THIS_MODULE,
+	.name		= "it87-isa",
+	.attach_adapter	= it87_attach_adapter,
+	.detach_client	= it87_detach_client,
+};
+
 
 static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -741,7 +750,7 @@ int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Reserve the ISA region */
 	if (is_isa)
-		if (!request_region(address, IT87_EXTENT, it87_driver.name))
+		if (!request_region(address, IT87_EXTENT, it87_isa_driver.name))
 			goto ERROR0;
 
 	/* Probe whether there is anything available on this address. Already
@@ -787,7 +796,7 @@ int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
 	new_client->adapter = adapter;
-	new_client->driver = &it87_driver;
+	new_client->driver = is_isa ? &it87_isa_driver : &it87_driver;
 	new_client->flags = 0;
 
 	/* Now, we do the remaining detection. */
@@ -1172,16 +1181,28 @@ static struct it87_data *it87_update_device(struct device *dev)
 
 static int __init sm_it87_init(void)
 {
-	int addr;
+	int addr, res;
 
 	if (!it87_find(&addr)) {
 		normal_isa[0] = addr;
 	}
-	return i2c_add_driver(&it87_driver);
+
+	res = i2c_add_driver(&it87_driver);
+	if (res)
+		return res;
+
+	res = i2c_isa_add_driver(&it87_isa_driver);
+	if (res) {
+		i2c_del_driver(&it87_driver);
+		return res;
+	}
+
+	return 0;
 }
 
 static void __exit sm_it87_exit(void)
 {
+	i2c_isa_del_driver(&it87_isa_driver);
 	i2c_del_driver(&it87_driver);
 }
 

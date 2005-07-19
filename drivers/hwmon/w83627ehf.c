@@ -40,6 +40,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/i2c-isa.h>
 #include <linux/i2c-sensor.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
@@ -847,12 +848,12 @@ static int __init sensors_w83627ehf_init(void)
 	 && w83627ehf_find(0x4e, &normal_isa[0]))
 		return -ENODEV;
 
-	return i2c_add_driver(&w83627ehf_driver);
+	return i2c_isa_add_driver(&w83627ehf_driver);
 }
 
 static void __exit sensors_w83627ehf_exit(void)
 {
-	i2c_del_driver(&w83627ehf_driver);
+	i2c_isa_del_driver(&w83627ehf_driver);
 }
 
 MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");

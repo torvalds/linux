@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
+#include <linux/i2c-isa.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
@@ -275,6 +276,14 @@ static struct i2c_driver w83781d_driver = {
 	.attach_adapter = w83781d_attach_adapter,
 	.detach_client = w83781d_detach_client,
 };
+
+static struct i2c_driver w83781d_isa_driver = {
+	.owner = THIS_MODULE,
+	.name = "w83781d-isa",
+	.attach_adapter = w83781d_attach_adapter,
+	.detach_client = w83781d_detach_client,
+};
+
 
 /* following are the sysfs callback functions */
 #define show_in_reg(reg) \
@@ -1002,7 +1011,7 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 	
 	if (is_isa)
 		if (!request_region(address, W83781D_EXTENT,
-				    w83781d_driver.name)) {
+				    w83781d_isa_driver.name)) {
 			dev_dbg(&adapter->dev, "Request of region "
 				"0x%x-0x%x for w83781d failed\n", address,
 				address + W83781D_EXTENT - 1);
@@ -1060,7 +1069,7 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 	new_client->addr = address;
 	init_MUTEX(&data->lock);
 	new_client->adapter = adapter;
-	new_client->driver = &w83781d_driver;
+	new_client->driver = is_isa ? &w83781d_isa_driver : &w83781d_driver;
 	new_client->flags = 0;
 
 	/* Now, we do the remaining detection. */
@@ -1636,12 +1645,25 @@ static struct w83781d_data *w83781d_update_device(struct device *dev)
 static int __init
 sensors_w83781d_init(void)
 {
-	return i2c_add_driver(&w83781d_driver);
+	int res;
+
+	res = i2c_add_driver(&w83781d_driver);
+	if (res)
+		return res;
+
+	res = i2c_isa_add_driver(&w83781d_isa_driver);
+	if (res) {
+		i2c_del_driver(&w83781d_driver);
+		return res;
+	}
+
+	return 0;
 }
 
 static void __exit
 sensors_w83781d_exit(void)
 {
+	i2c_isa_del_driver(&w83781d_isa_driver);
 	i2c_del_driver(&w83781d_driver);
 }
 

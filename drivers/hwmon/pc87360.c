@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
+#include <linux/i2c-isa.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
@@ -1344,12 +1345,12 @@ static int __init pc87360_init(void)
 		return -ENODEV;
 	}
 
-	return i2c_add_driver(&pc87360_driver);
+	return i2c_isa_add_driver(&pc87360_driver);
 }
 
 static void __exit pc87360_exit(void)
 {
-	i2c_del_driver(&pc87360_driver);
+	i2c_isa_del_driver(&pc87360_driver);
 }
 
 

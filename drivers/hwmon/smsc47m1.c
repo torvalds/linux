@@ -30,6 +30,7 @@
 #include <linux/ioport.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
+#include <linux/i2c-isa.h>
 #include <linux/i2c-sensor.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
@@ -592,12 +593,12 @@ static int __init sm_smsc47m1_init(void)
 		return -ENODEV;
 	}
 
-	return i2c_add_driver(&smsc47m1_driver);
+	return i2c_isa_add_driver(&smsc47m1_driver);
 }
 
 static void __exit sm_smsc47m1_exit(void)
 {
-	i2c_del_driver(&smsc47m1_driver);
+	i2c_isa_del_driver(&smsc47m1_driver);
 }
 
 MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>");
