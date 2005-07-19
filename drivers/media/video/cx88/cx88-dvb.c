@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-dvb.c,v 1.41 2005/07/04 19:35:05 mkrufky Exp $
+ * $Id: cx88-dvb.c,v 1.42 2005/07/12 15:44:55 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
@@ -180,12 +180,14 @@ static struct mt352_config dntv_live_dvbt_config = {
 #if CONFIG_DVB_CX22702
 static struct cx22702_config connexant_refboard_config = {
 	.demod_address = 0x43,
+	.output_mode   = CX22702_SERIAL_OUTPUT,
 	.pll_address   = 0x60,
 	.pll_desc      = &dvb_pll_thomson_dtt7579,
 };
 
 static struct cx22702_config hauppauge_novat_config = {
 	.demod_address = 0x43,
+	.output_mode   = CX22702_SERIAL_OUTPUT,
 	.pll_address   = 0x61,
 	.pll_desc      = &dvb_pll_thomson_dtt759x,
 };
