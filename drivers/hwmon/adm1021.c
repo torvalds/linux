@@ -198,15 +198,6 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 	int err = 0;
 	const char *type_name = "";
 
-	/* Make sure we aren't probing the ISA bus!! This is just a safety check
-	   at this moment; i2c_detect really won't call us. */
-#ifdef DEBUG
-	if (i2c_is_isa_adapter(adapter)) {
-		dev_dbg(&adapter->dev, "adm1021_detect called for an ISA bus adapter?!?\n");
-		return 0;
-	}
-#endif
-
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		goto error0;
 

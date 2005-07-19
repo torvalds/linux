@@ -714,14 +714,6 @@ static int asb100_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *new_client;
 	struct asb100_data *data;
 
-	/* asb100 is SMBus only */
-	if (i2c_is_isa_adapter(adapter)) {
-		pr_debug("asb100.o: detect failed, "
-				"cannot attach to legacy adapter!\n");
-		err = -ENODEV;
-		goto ERROR0;
-	}
-
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_debug("asb100.o: detect failed, "
 				"smbus byte data not supported!\n");

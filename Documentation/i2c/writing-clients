@@ -315,11 +315,10 @@ For now, you can ignore the `flags' parameter. It is there for future use.
     const char *type_name = "";
     int is_isa = i2c_is_isa_adapter(adapter);
 
-    if (is_isa) {
+    /* Do this only if the chip can additionally be found on the ISA bus
+       (hybrid chip). */
 
-      /* If this client can't be on the ISA bus at all, we can stop now
-         (call `goto ERROR0'). But for kicks, we will assume it is all
-         right. */
+    if (is_isa) {
 
       /* Discard immediately if this ISA range is already used */
       if (check_region(address,FOO_EXTENT))
@@ -495,10 +494,10 @@ much simpler than the attachment code, fortunately!
       return err;
     }
 
-    /* SENSORS ONLY START */
+    /* HYBRID SENSORS CHIP ONLY START */
     if i2c_is_isa_client(client)
       release_region(client->addr,LM78_EXTENT);
-    /* SENSORS ONLY END */
+    /* HYBRID SENSORS CHIP ONLY END */
 
     kfree(client); /* Frees client data too, if allocated at the same time */
     return 0;

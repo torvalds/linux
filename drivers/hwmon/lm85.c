@@ -1033,11 +1033,6 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 	int err = 0;
 	const char *type_name = "";
 
-	if (i2c_is_isa_adapter(adapter)) {
-		/* This chip has no ISA interface */
-		goto ERROR0 ;
-	};
-
 	if (!i2c_check_functionality(adapter,
 					I2C_FUNC_SMBUS_BYTE_DATA)) {
 		/* We need to be able to do byte I/O */
