@@ -91,7 +91,6 @@ config INET6_TUNNEL
 config IPV6_TUNNEL
 	tristate "IPv6: IPv6-in-IPv6 tunnel"
 	depends on IPV6
-	select INET6_TUNNEL
 	---help---
 	  Support for IPv6-in-IPv6 tunnels described in RFC 2473.
 

@@ -235,7 +235,6 @@ config IP_PNP_RARP
 #   bool '    IP: ARP support' CONFIG_IP_PNP_ARP		
 config NET_IPIP
 	tristate "IP: tunneling"
-	select INET_TUNNEL
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
