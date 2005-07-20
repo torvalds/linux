@@ -7,7 +7,7 @@
  *
  * This code is covered by the GPL.
  *
- * $Id: cfi_util.c,v 1.8 2004/12/14 19:55:56 nico Exp $
+ * $Id: cfi_util.c,v 1.9 2005/07/20 21:01:14 tpoynor Exp $
  *
  */
 
@@ -69,15 +69,6 @@ __xipram cfi_read_pri(struct map_info *map, __u16 adr, __u16 size, const char* n
 	asm volatile (".rep 8; nop; .endr");
 	local_irq_enable();
 #endif
-
-	if (extp->MajorVersion != '1' || 
-	    (extp->MinorVersion < '0' || extp->MinorVersion > '3')) {
-		printk(KERN_WARNING "  Unknown %s Extended Query "
-		       "version %c.%c.\n",  name, extp->MajorVersion,
-		       extp->MinorVersion);
-		kfree(extp);
-		extp = NULL;
-	}
 
  out:	return extp;
 }

@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0020.c,v 1.19 2005/07/13 15:52:45 dwmw2 Exp $
+ * $Id: cfi_cmdset_0020.c,v 1.20 2005/07/20 21:01:14 tpoynor Exp $
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
  * 	- completely revamped method functions so they are aware and
@@ -132,6 +132,15 @@ struct mtd_info *cfi_cmdset_0020(struct map_info *map, int primary)
 		extp = (struct cfi_pri_intelext*)cfi_read_pri(map, adr, sizeof(*extp), "ST Microelectronics");
 		if (!extp)
 			return NULL;
+
+		if (extp->MajorVersion != '1' ||
+		    (extp->MinorVersion < '0' || extp->MinorVersion > '3')) {
+			printk(KERN_ERR "  Unknown ST Microelectronics"
+			       " Extended Query version %c.%c.\n",
+			       extp->MajorVersion, extp->MinorVersion);
+			kfree(extp);
+			return NULL;
+		}
 
 		/* Do some byteswapping if necessary */
 		extp->FeatureSupport = cfi32_to_cpu(extp->FeatureSupport);

@@ -17,7 +17,7 @@
  *
  * This code is GPL
  *
- * $Id: cfi_cmdset_0002.c,v 1.118 2005/07/04 22:34:29 gleixner Exp $
+ * $Id: cfi_cmdset_0002.c,v 1.120 2005/07/20 21:01:13 tpoynor Exp $
  *
  */
 
@@ -249,6 +249,16 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 
 		extp = (struct cfi_pri_amdstd*)cfi_read_pri(map, adr, sizeof(*extp), "Amd/Fujitsu");
 		if (!extp) {
+			kfree(mtd);
+			return NULL;
+		}
+
+		if (extp->MajorVersion != '1' ||
+		    (extp->MinorVersion < '0' || extp->MinorVersion > '4')) {
+			printk(KERN_ERR "  Unknown Amd/Fujitsu Extended Query "
+			       "version %c.%c.\n",  extp->MajorVersion,
+			       extp->MinorVersion);
+			kfree(extp);
 			kfree(mtd);
 			return NULL;
 		}

@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.178 2005/05/19 17:05:43 nico Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.180 2005/07/20 21:01:13 tpoynor Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -251,6 +251,15 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 	extp = (struct cfi_pri_intelext *)cfi_read_pri(map, adr, extp_size, "Intel/Sharp");
 	if (!extp)
 		return NULL;
+
+	if (extp->MajorVersion != '1' ||
+	    (extp->MinorVersion < '0' || extp->MinorVersion > '3')) {
+		printk(KERN_ERR "  Unknown Intel/Sharp Extended Query "
+		       "version %c.%c.\n",  extp->MajorVersion,
+		       extp->MinorVersion);
+		kfree(extp);
+		return NULL;
+	}
 
 	/* Do some byteswapping if necessary */
 	extp->FeatureSupport = le32_to_cpu(extp->FeatureSupport);
