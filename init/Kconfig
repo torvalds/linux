@@ -260,8 +260,8 @@ config KALLSYMS_ALL
 	help
 	   Normally kallsyms only contains the symbols of functions, for nicer
 	   OOPS messages.  Some debuggers can use kallsyms for other
-	   symbols too: say Y here to include all symbols, and you
-	   don't care about adding 300k to the size of your kernel.
+	   symbols too: say Y here to include all symbols, if you need them 
+	   and you don't care about adding 300k to the size of your kernel.
 
 	   Say N.
 
