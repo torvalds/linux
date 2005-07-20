@@ -61,7 +61,7 @@ static int i2c_bus_resume(struct device * dev)
 	return rc;
 }
 
-static struct bus_type i2c_bus_type = {
+struct bus_type i2c_bus_type = {
 	.name =		"i2c",
 	.match =	i2c_device_match,
 	.suspend =      i2c_bus_suspend,
@@ -78,13 +78,13 @@ static int i2c_device_remove(struct device *dev)
 	return 0;
 }
 
-static void i2c_adapter_dev_release(struct device *dev)
+void i2c_adapter_dev_release(struct device *dev)
 {
 	struct i2c_adapter *adap = dev_to_i2c_adapter(dev);
 	complete(&adap->dev_released);
 }
 
-static struct device_driver i2c_adapter_driver = {
+struct device_driver i2c_adapter_driver = {
 	.name =	"i2c_adapter",
 	.bus = &i2c_bus_type,
 	.probe = i2c_device_probe,
@@ -97,7 +97,7 @@ static void i2c_adapter_class_dev_release(struct class_device *dev)
 	complete(&adap->class_dev_released);
 }
 
-static struct class i2c_adapter_class = {
+struct class i2c_adapter_class = {
 	.name =		"i2c-adapter",
 	.release =	&i2c_adapter_class_dev_release,
 };
@@ -1170,6 +1170,12 @@ s32 i2c_smbus_xfer(struct i2c_adapter * adapter, u16 addr, unsigned short flags,
 	return res;
 }
 
+
+/* Next four are needed by i2c-isa */
+EXPORT_SYMBOL_GPL(i2c_adapter_dev_release);
+EXPORT_SYMBOL_GPL(i2c_adapter_driver);
+EXPORT_SYMBOL_GPL(i2c_adapter_class);
+EXPORT_SYMBOL_GPL(i2c_bus_type);
 
 EXPORT_SYMBOL(i2c_add_adapter);
 EXPORT_SYMBOL(i2c_del_adapter);

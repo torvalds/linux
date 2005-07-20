@@ -34,6 +34,13 @@
 #include <linux/device.h>	/* for struct device */
 #include <asm/semaphore.h>
 
+/* --- For i2c-isa ---------------------------------------------------- */
+
+extern void i2c_adapter_dev_release(struct device *dev);
+extern struct device_driver i2c_adapter_driver;
+extern struct class i2c_adapter_class;
+extern struct bus_type i2c_bus_type;
+
 /* --- General options ------------------------------------------------	*/
 
 struct i2c_msg;
