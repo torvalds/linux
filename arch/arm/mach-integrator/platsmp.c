@@ -27,8 +27,8 @@ extern void integrator_secondary_startup(void);
  * control for which core is the next to come out of the secondary
  * boot "holding pen"
  */
-volatile int __initdata pen_release = -1;
-unsigned long __initdata phys_pen_release = 0;
+volatile int __cpuinitdata pen_release = -1;
+unsigned long __cpuinitdata phys_pen_release = 0;
 
 static DEFINE_SPINLOCK(boot_lock);
 
