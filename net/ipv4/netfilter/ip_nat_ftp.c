@@ -143,10 +143,8 @@ static unsigned int ip_nat_ftp(struct sk_buff **pskb,
 			break;
 	}
 
-	if (port == 0) {
-		ip_conntrack_expect_free(exp);
+	if (port == 0)
 		return NF_DROP;
-	}
 
 	if (!mangle[type](pskb, newip, port, matchoff, matchlen, ct, ctinfo,
 			  seq)) {
