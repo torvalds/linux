@@ -203,7 +203,7 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC  	= gcc
 HOSTCXX  	= g++
-HOSTCFLAGS	= -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
+HOSTCFLAGS	= -Wall -Wundef -Wstrict-prototypes -O2 -fomit-frame-pointer
 HOSTCXXFLAGS	= -O2
 
 # 	Decide whether to build built-in, modular, or both.
@@ -348,7 +348,7 @@ LINUXINCLUDE    := -Iinclude \
 
 CPPFLAGS        := -D__KERNEL__ $(LINUXINCLUDE)
 
-CFLAGS 		:= -Wall -Wstrict-prototypes -Wno-trigraphs \
+CFLAGS 		:= -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 	  	   -fno-strict-aliasing -fno-common \
 		   -ffreestanding
 AFLAGS		:= -D__ASSEMBLY__
