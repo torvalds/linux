@@ -148,6 +148,13 @@ static void fill_in_inode(struct inode *tmp_inode,
 			tmp_inode->i_mode = cifs_sb->mnt_dir_mode;
 		}
 		tmp_inode->i_mode |= S_IFDIR;
+	} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) && 
+		   (attr & ATTR_SYSTEM) && (end_of_file == 0)) {
+		*pobject_type = DT_FIFO;
+		tmp_inode->i_mode |= S_IFIFO;
+/* BB Finish for SFU style symlinks and devies */
+/*	} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) &&
+		(attr & ATTR_SYSTEM) && ) { */
 /* we no longer mark these because we could not follow them */
 /*        } else if (attr & ATTR_REPARSE) {
                 *pobject_type = DT_LNK;

@@ -320,6 +320,16 @@ int cifs_get_inode_info(struct inode **pinode,
 		   on dirs */
 			inode->i_mode = cifs_sb->mnt_dir_mode;
 			inode->i_mode |= S_IFDIR;
+		} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) &&
+			   (cifsInfo->cifsAttrs & ATTR_SYSTEM) &&
+			   /* No need to le64 convert size of zero */
+			   (pfindData->EndOfFile == 0)) {
+			inode->i_mode = cifs_sb->mnt_file_mode;
+			inode->i_mode |= S_IFIFO;
+/* BB Finish for SFU style symlinks and devies */
+/*		} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) &&
+			   (cifsInfo->cifsAttrs & ATTR_SYSTEM) && ) */
+
 		} else {
 			inode->i_mode |= S_IFREG;
 			/* treat the dos attribute of read-only as read-only

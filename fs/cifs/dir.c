@@ -327,13 +327,39 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 				d_instantiate(direntry, newinode);
 		}
 	} else {
-		if((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) && 
-			(special_file(mode))) {
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
+			int oplock = 0;
+			u16 fileHandle;
+			FILE_ALL_INFO * buf;
 
 			cFYI(1,("sfu compat create special file"));
-			/*	Attributes = cpu_to_le32(ATTR_SYSTEM); 
-				rc = CIFSSMBOpen(xid, pTcon, full_path, disposition, ...); */
 
+			buf = kmalloc(sizeof(FILE_ALL_INFO),GFP_KERNEL);
+			if(buf == NULL) {
+				kfree(full_path);
+				FreeXid(xid);
+				return -ENOMEM;
+			}
+
+			rc = CIFSSMBOpen(xid, pTcon, full_path,
+					 FILE_CREATE, /* fail if exists */
+					 GENERIC_WRITE /* BB would 
+					  WRITE_OWNER | WRITE_DAC be better? */,
+					 /* Create a file and set the
+					    file attribute to SYSTEM */
+					 CREATE_NOT_DIR | CREATE_OPTION_SPECIAL,
+					 &fileHandle, &oplock, buf,
+					 cifs_sb->local_nls,
+					 cifs_sb->mnt_cifs_flags & 
+					    CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+			if(!rc) {
+				/* BB Do not bother to decode buf since no
+				   local inode yet to put timestamps in */
+				CIFSSMBClose(xid, pTcon, fileHandle);
+				d_drop(direntry);
+			}
+			kfree(buf);
 			/* add code here to set EAs */
 		}
 	}

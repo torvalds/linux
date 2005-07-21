@@ -268,10 +268,18 @@
 /* CreateOptions */
 #define CREATE_NOT_FILE		0x00000001	/* if set must not be file */
 #define CREATE_WRITE_THROUGH	0x00000002
-#define CREATE_NOT_DIR		0x00000040	/* if set must not be directory */
+#define CREATE_SEQUENTIAL       0x00000004
+#define CREATE_SYNC_ALERT       0x00000010
+#define CREATE_ASYNC_ALERT      0x00000020
+#define CREATE_NOT_DIR		0x00000040    /* if set must not be directory */
+#define CREATE_NO_EA_KNOWLEDGE  0x00000200
+#define CREATE_EIGHT_DOT_THREE  0x00000400
 #define CREATE_RANDOM_ACCESS	0x00000800
 #define CREATE_DELETE_ON_CLOSE	0x00001000
+#define CREATE_OPEN_BY_ID       0x00002000
 #define OPEN_REPARSE_POINT	0x00200000
+#define CREATE_OPTIONS_MASK     0x007FFFFF 
+#define CREATE_OPTION_SPECIAL   0x20000000   /* system. NB not sent over wire */
 
 /* ImpersonationLevel flags */
 #define SECURITY_ANONYMOUS      0
