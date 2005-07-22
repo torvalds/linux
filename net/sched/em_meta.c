@@ -180,16 +180,6 @@ META_COLLECTOR(var_indev)
 	*err = var_dev(skb->input_dev, dst);
 }
 
-META_COLLECTOR(int_realdev)
-{
-	*err = int_dev(skb->real_dev, dst);
-}
-
-META_COLLECTOR(var_realdev)
-{
-	*err = var_dev(skb->real_dev, dst);
-}
-
 /**************************************************************************
  * skb attributes
  **************************************************************************/
@@ -501,7 +491,6 @@ static struct meta_ops __meta_ops[TCF_META_TYPE_MAX+1][TCF_META_ID_MAX+1] = {
 	[TCF_META_TYPE_VAR] = {
 		[META_ID(DEV)]			= META_FUNC(var_dev),
 		[META_ID(INDEV)]		= META_FUNC(var_indev),
-		[META_ID(REALDEV)]		= META_FUNC(var_realdev),
 		[META_ID(SK_BOUND_IF)] 		= META_FUNC(var_sk_bound_if),
 	},
 	[TCF_META_TYPE_INT] = {
@@ -511,7 +500,6 @@ static struct meta_ops __meta_ops[TCF_META_TYPE_MAX+1][TCF_META_ID_MAX+1] = {
 		[META_ID(LOADAVG_2)]		= META_FUNC(int_loadavg_2),
 		[META_ID(DEV)]			= META_FUNC(int_dev),
 		[META_ID(INDEV)]		= META_FUNC(int_indev),
-		[META_ID(REALDEV)]		= META_FUNC(int_realdev),
 		[META_ID(PRIORITY)]		= META_FUNC(int_priority),
 		[META_ID(PROTOCOL)]		= META_FUNC(int_protocol),
 		[META_ID(PKTTYPE)]		= META_FUNC(int_pkttype),
