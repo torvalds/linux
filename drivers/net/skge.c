@@ -2633,11 +2633,17 @@ static inline void skge_tx_intr(struct net_device *dev)
 	spin_unlock(&skge->tx_lock);
 }
 
+/* Parity errors seem to happen when Genesis is connected to a switch
+ * with no other ports present. Heartbeat error??
+ */
 static void skge_mac_parity(struct skge_hw *hw, int port)
 {
-	printk(KERN_ERR PFX "%s: mac data parity error\n",
-	       hw->dev[port] ? hw->dev[port]->name
-	       : (port == 0 ? "(port A)": "(port B"));
+	struct net_device *dev = hw->dev[port];
+
+	if (dev) {
+		struct skge_port *skge = netdev_priv(dev);
+		++skge->net_stats.tx_heartbeat_errors;
+	}
 
 	if (hw->chip_id == CHIP_ID_GENESIS)
 		skge_write16(hw, SK_REG(port, TX_MFF_CTRL1),
