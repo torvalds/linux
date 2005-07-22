@@ -668,14 +668,13 @@ static void skge_blink_timer(unsigned long data)
 {
 	struct skge_port *skge = (struct skge_port *) data;
 	struct skge_hw *hw = skge->hw;
-	unsigned long flags;
 
-	spin_lock_irqsave(&hw->phy_lock, flags);
+	spin_lock_bh(&hw->phy_lock);
 	if (skge->blink_on)
 		skge_led_on(hw, skge->port);
 	else
 		skge_led_off(hw, skge->port);
-	spin_unlock_irqrestore(&hw->phy_lock, flags);
+	spin_unlock_bh(&hw->phy_lock);
 
 	skge->blink_on = !skge->blink_on;
 	mod_timer(&skge->led_blink, jiffies + BLINK_HZ);
@@ -1208,7 +1207,6 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	 * namely for the 1000baseTX cards that use the XMAC's
 	 * GMII mode.
 	 */
-	spin_lock_bh(&hw->phy_lock);
 	/* Take external Phy out of reset */
 	r = skge_read32(hw, B2_GP_IO);
 	if (port == 0)
@@ -1218,7 +1216,6 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 
 	skge_write32(hw, B2_GP_IO, r);
 	skge_read32(hw, B2_GP_IO);
-	spin_unlock_bh(&hw->phy_lock);
 
 	/* Enable GMII interfac */
 	xm_write16(hw, port, XM_HW_CFG, XM_HW_GMII_MD);
@@ -1744,9 +1741,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	gma_write16(hw, port, GM_GP_CTRL, reg);
 	skge_read16(hw, GMAC_IRQ_SRC);
 
-	spin_lock_bh(&hw->phy_lock);
 	yukon_init(hw, port);
-	spin_unlock_bh(&hw->phy_lock);
 
 	/* MIB clear */
 	reg = gma_read16(hw, port, GM_PHY_ADDR);
@@ -2096,10 +2091,12 @@ static int skge_up(struct net_device *dev)
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
 
 	/* Initialze MAC */
+	spin_lock_bh(&hw->phy_lock);
 	if (hw->chip_id == CHIP_ID_GENESIS)
 		genesis_mac_init(hw, port);
 	else
 		yukon_mac_init(hw, port);
+	spin_unlock_bh(&hw->phy_lock);
 
 	/* Configure RAMbuffers */
 	chunk = hw->ram_size / ((hw->ports + 1)*2);
