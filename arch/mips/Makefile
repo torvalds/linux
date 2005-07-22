@@ -774,9 +774,16 @@ ifdef CONFIG_MIPS_SEAD
 all:	vmlinux.srec
 endif
 
+ifdef CONFIG_QEMU
+all:	vmlinux.bin
+endif
+
 ifdef CONFIG_SNI_RM200_PCI
 all:	vmlinux.ecoff
 endif
+
+vmlinux.bin: $(vmlinux-32)
+	+@$(call makeboot,$@)
 
 vmlinux.ecoff vmlinux.rm200: $(vmlinux-32)
 	+@$(call makeboot,$@)
@@ -792,7 +799,6 @@ CLEAN_FILES += vmlinux.ecoff \
 archclean:
 	@$(MAKE) $(clean)=arch/mips/boot
 	@$(MAKE) $(clean)=arch/mips/lasat
-
 
 CLEAN_FILES += vmlinux.32 \
 	       vmlinux.64 \
