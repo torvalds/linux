@@ -19,10 +19,21 @@
 
 extern void mxcsr_feature_mask_init(void);
 extern void init_fpu(struct task_struct *);
+
 /*
  * FPU lazy state save handling...
  */
-extern void restore_fpu( struct task_struct *tsk );
+
+/*
+ * The "nop" is needed to make the instructions the same
+ * length.
+ */
+#define restore_fpu(tsk)			\
+	alternative_input(			\
+		"nop ; frstor %1",		\
+		"fxrstor %1",			\
+		X86_FEATURE_FXSR,		\
+		"m" ((tsk)->thread.i387.fsave))
 
 extern void kernel_fpu_begin(void);
 #define kernel_fpu_end() do { stts(); preempt_enable(); } while(0)
