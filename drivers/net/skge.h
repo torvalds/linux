@@ -2507,8 +2507,6 @@ struct skge_port {
 	dma_addr_t	     dma;
 	unsigned long	     mem_size;
 	unsigned int	     rx_buf_size;
-
-	struct timer_list    led_blink;
 };
 
 

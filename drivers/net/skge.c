@@ -55,7 +55,7 @@
 #define ETH_JUMBO_MTU		9000
 #define TX_WATCHDOG		(5 * HZ)
 #define NAPI_WEIGHT		64
-#define BLINK_HZ		(HZ/4)
+#define BLINK_MS		250
 
 MODULE_DESCRIPTION("SysKonnect Gigabit Ethernet driver");
 MODULE_AUTHOR("Stephen Hemminger <shemminger@osdl.org>");
@@ -619,83 +619,98 @@ static int skge_set_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static void skge_led_on(struct skge_hw *hw, int port)
+enum led_mode { LED_MODE_OFF, LED_MODE_ON, LED_MODE_TST };
+static void skge_led(struct skge_port *skge, enum led_mode mode)
 {
-	if (hw->chip_id == CHIP_ID_GENESIS) {
-		skge_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_ON);
-		skge_write8(hw, B0_LED, LED_STAT_ON);
-
-		skge_write8(hw, SK_REG(port, RX_LED_TST), LED_T_ON);
-		skge_write32(hw, SK_REG(port, RX_LED_VAL), 100);
-		skge_write8(hw, SK_REG(port, RX_LED_CTRL), LED_START);
-
-		/* For Broadcom Phy only */
-		xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL, PHY_B_PEC_LED_ON);
-	} else {
-		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, 0);
-		gm_phy_write(hw, port, PHY_MARV_LED_OVER,
-				  PHY_M_LED_MO_DUP(MO_LED_ON)  |
-				  PHY_M_LED_MO_10(MO_LED_ON)   |
-				  PHY_M_LED_MO_100(MO_LED_ON)  |
-				  PHY_M_LED_MO_1000(MO_LED_ON) |
-				  PHY_M_LED_MO_RX(MO_LED_ON));
-	}
-}
-
-static void skge_led_off(struct skge_hw *hw, int port)
-{
-	if (hw->chip_id == CHIP_ID_GENESIS) {
-		skge_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_OFF);
-		skge_write8(hw, B0_LED, LED_STAT_OFF);
-
-		skge_write32(hw, SK_REG(port, RX_LED_VAL), 0);
-		skge_write8(hw, SK_REG(port, RX_LED_CTRL), LED_T_OFF);
-
-		/* Broadcom only */
-		xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL, PHY_B_PEC_LED_OFF);
-	} else {
-		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, 0);
-		gm_phy_write(hw, port, PHY_MARV_LED_OVER,
-				  PHY_M_LED_MO_DUP(MO_LED_OFF)  |
-				  PHY_M_LED_MO_10(MO_LED_OFF)   |
-				  PHY_M_LED_MO_100(MO_LED_OFF)  |
-				  PHY_M_LED_MO_1000(MO_LED_OFF) |
-				  PHY_M_LED_MO_RX(MO_LED_OFF));
-	}
-}
-
-static void skge_blink_timer(unsigned long data)
-{
-	struct skge_port *skge = (struct skge_port *) data;
 	struct skge_hw *hw = skge->hw;
+	int port = skge->port;
 
 	spin_lock_bh(&hw->phy_lock);
-	if (skge->blink_on)
-		skge_led_on(hw, skge->port);
-	else
-		skge_led_off(hw, skge->port);
-	spin_unlock_bh(&hw->phy_lock);
+	if (hw->chip_id == CHIP_ID_GENESIS) {
+		switch (mode) {
+		case LED_MODE_OFF:
+			xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL, PHY_B_PEC_LED_OFF);
+			skge_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_OFF);
+			skge_write32(hw, SK_REG(port, RX_LED_VAL), 0);
+			skge_write8(hw, SK_REG(port, RX_LED_CTRL), LED_T_OFF);
+			break;
 
-	skge->blink_on = !skge->blink_on;
-	mod_timer(&skge->led_blink, jiffies + BLINK_HZ);
+		case LED_MODE_ON:
+			skge_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_ON);
+			skge_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_LINKSYNC_ON);
+
+			skge_write8(hw, SK_REG(port, RX_LED_CTRL), LED_START);
+			skge_write8(hw, SK_REG(port, TX_LED_CTRL), LED_START);
+
+			break;
+
+		case LED_MODE_TST:
+			skge_write8(hw, SK_REG(port, RX_LED_TST), LED_T_ON);
+			skge_write32(hw, SK_REG(port, RX_LED_VAL), 100);
+			skge_write8(hw, SK_REG(port, RX_LED_CTRL), LED_START);
+
+			xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL, PHY_B_PEC_LED_ON);
+			break;
+		}
+	} else {
+		switch (mode) {
+		case LED_MODE_OFF:
+			gm_phy_write(hw, port, PHY_MARV_LED_CTRL, 0);
+			gm_phy_write(hw, port, PHY_MARV_LED_OVER,
+				     PHY_M_LED_MO_DUP(MO_LED_OFF)  |
+				     PHY_M_LED_MO_10(MO_LED_OFF)   |
+				     PHY_M_LED_MO_100(MO_LED_OFF)  |
+				     PHY_M_LED_MO_1000(MO_LED_OFF) |
+				     PHY_M_LED_MO_RX(MO_LED_OFF));
+			break;
+		case LED_MODE_ON:
+			gm_phy_write(hw, port, PHY_MARV_LED_CTRL,
+				     PHY_M_LED_PULS_DUR(PULS_170MS) |
+				     PHY_M_LED_BLINK_RT(BLINK_84MS) |
+				     PHY_M_LEDC_TX_CTRL |
+				     PHY_M_LEDC_DP_CTRL);
+		
+			gm_phy_write(hw, port, PHY_MARV_LED_OVER,
+				     PHY_M_LED_MO_RX(MO_LED_OFF) |
+				     (skge->speed == SPEED_100 ?
+				      PHY_M_LED_MO_100(MO_LED_ON) : 0));
+			break;
+		case LED_MODE_TST:
+			gm_phy_write(hw, port, PHY_MARV_LED_CTRL, 0);
+			gm_phy_write(hw, port, PHY_MARV_LED_OVER,
+				     PHY_M_LED_MO_DUP(MO_LED_ON)  |
+				     PHY_M_LED_MO_10(MO_LED_ON)   |
+				     PHY_M_LED_MO_100(MO_LED_ON)  |
+				     PHY_M_LED_MO_1000(MO_LED_ON) |
+				     PHY_M_LED_MO_RX(MO_LED_ON));
+		}
+	}
+	spin_unlock_bh(&hw->phy_lock);
 }
 
 /* blink LED's for finding board */
 static int skge_phys_id(struct net_device *dev, u32 data)
 {
 	struct skge_port *skge = netdev_priv(dev);
+	unsigned long ms;
+	enum led_mode mode = LED_MODE_TST;
 
 	if (!data || data > (u32)(MAX_SCHEDULE_TIMEOUT / HZ))
-		data = (u32)(MAX_SCHEDULE_TIMEOUT / HZ);
+		ms = jiffies_to_msecs(MAX_SCHEDULE_TIMEOUT / HZ) * 1000;
+	else
+		ms = data * 1000;
 
-	/* start blinking */
-	skge->blink_on = 1;
-	mod_timer(&skge->led_blink, jiffies+1);
+	while (ms > 0) {
+		skge_led(skge, mode);
+		mode ^= LED_MODE_TST;
 
-	msleep_interruptible(data * 1000);
-	del_timer_sync(&skge->led_blink);
+		if (msleep_interruptible(BLINK_MS))
+			break;
+		ms -= BLINK_MS;
+	}
 
-	skge_led_off(skge->hw, skge->port);
+	/* back to regular LED state */
+	skge_led(skge, netif_running(dev) ? LED_MODE_ON : LED_MODE_OFF);
 
 	return 0;
 }
@@ -1192,13 +1207,6 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	xm_write16(hw, port, XM_STAT_CMD,
 			XM_SC_CLR_RXC | XM_SC_CLR_TXC);
 
-	/* initialize Rx, Tx and Link LED */
-	skge_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_ON);
-	skge_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_LINKSYNC_ON);
-
-	skge_write8(hw, SK_REG(port, RX_LED_CTRL), LED_START);
-	skge_write8(hw, SK_REG(port, TX_LED_CTRL), LED_START);
-
 	/* Unreset the XMAC. */
 	skge_write16(hw, SK_REG(port, TX_MFF_CTRL1), MFF_CLR_MAC_RST);
 
@@ -1565,7 +1573,6 @@ static void yukon_init(struct skge_hw *hw, int port)
 {
 	struct skge_port *skge = netdev_priv(hw->dev[port]);
 	u16 ctrl, ct1000, adv;
-	u16 ledctrl, ledover;
 
 	pr_debug("yukon_init\n");
 	if (skge->autoneg == AUTONEG_ENABLE) {
@@ -1636,27 +1643,6 @@ static void yukon_init(struct skge_hw *hw, int port)
 
 	gm_phy_write(hw, port, PHY_MARV_AUNE_ADV, adv);
 	gm_phy_write(hw, port, PHY_MARV_CTRL, ctrl);
-
-	/* Setup Phy LED's */
-	ledctrl = PHY_M_LED_PULS_DUR(PULS_170MS);
-	ledover = 0;
-
-	ledctrl |= PHY_M_LED_BLINK_RT(BLINK_84MS) | PHY_M_LEDC_TX_CTRL;
-
-	/* turn off the Rx LED (LED_RX) */
-	ledover |= PHY_M_LED_MO_RX(MO_LED_OFF);
-
-	/* disable blink mode (LED_DUPLEX) on collisions */
-	ctrl |= PHY_M_LEDC_DP_CTRL;
-	gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
-
-	if (skge->autoneg == AUTONEG_DISABLE || skge->speed == SPEED_100) {
-		/* turn on 100 Mbps LED (LED_LINK100) */
-		ledover |= PHY_M_LED_MO_100(MO_LED_ON);
-	}
-
-	if (ledover)
-		gm_phy_write(hw, port, PHY_MARV_LED_OVER, ledover);
 
 	/* Enable phy interrupt on autonegotiation complete (or link up) */
 	if (skge->autoneg == AUTONEG_ENABLE)
@@ -2115,6 +2101,7 @@ static int skge_up(struct net_device *dev)
 	/* Start receiver BMU */
 	wmb();
 	skge_write8(hw, Q_ADDR(rxqaddr[port], Q_CSR), CSR_START | CSR_IRQ_CL_F);
+	skge_led(skge, LED_MODE_ON);
 
 	pr_debug("skge_up completed\n");
 	return 0;
@@ -2138,8 +2125,6 @@ static int skge_down(struct net_device *dev)
 		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
 
 	netif_stop_queue(dev);
-
-	del_timer_sync(&skge->led_blink);
 
 	/* Stop transmitter */
 	skge_write8(hw, Q_ADDR(txqaddr[port], Q_CSR), CSR_STOP);
@@ -2174,15 +2159,12 @@ static int skge_down(struct net_device *dev)
 	if (hw->chip_id == CHIP_ID_GENESIS) {
 		skge_write8(hw, SK_REG(port, TX_MFF_CTRL2), MFF_RST_SET);
 		skge_write8(hw, SK_REG(port, RX_MFF_CTRL2), MFF_RST_SET);
-		skge_write8(hw, SK_REG(port, TX_LED_CTRL), LED_STOP);
-		skge_write8(hw, SK_REG(port, RX_LED_CTRL), LED_STOP);
 	} else {
 		skge_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
 		skge_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_SET);
 	}
 
-	/* turn off led's */
-	skge_write16(hw, B0_LED, LED_STAT_OFF);
+	skge_led(skge, LED_MODE_OFF);
 
 	skge_tx_clean(skge);
 	skge_rx_clean(skge);
@@ -3087,10 +3069,6 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	skge->port = port;
 
 	spin_lock_init(&skge->tx_lock);
-
-	init_timer(&skge->led_blink);
-	skge->led_blink.function = skge_blink_timer;
-	skge->led_blink.data = (unsigned long) skge;
 
 	if (hw->chip_id != CHIP_ID_GENESIS) {
 		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
