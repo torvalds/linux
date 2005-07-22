@@ -1509,7 +1509,7 @@ enum {
 	PHY_M_LEDC_TX_C_MSB	= 1<<0, /* Tx Control (MSB, 88E1111 only) */
 };
 
-#define PHY_M_LED_PULS_DUR(x)	(	((x)<<12) & PHY_M_LEDC_PULS_MSK)
+#define PHY_M_LED_PULS_DUR(x)	(((x)<<12) & PHY_M_LEDC_PULS_MSK)
 
 enum {
 	PULS_NO_STR	= 0,/* no pulse stretching */
@@ -1522,7 +1522,7 @@ enum {
 	PULS_1300MS	= 7,/* 1.3 s to 2.7 s */
 };
 
-#define PHY_M_LED_BLINK_RT(x)	(	((x)<<8) & PHY_M_LEDC_BL_R_MSK)
+#define PHY_M_LED_BLINK_RT(x)	(((x)<<8) & PHY_M_LEDC_BL_R_MSK)
 
 enum {
 	BLINK_42MS	= 0,/* 42 ms */
@@ -1602,9 +1602,9 @@ enum {
 	PHY_M_FELP_LED0_MSK = 0xf, /* Bit  3.. 0: LED0 Mask (SPEED) */
 };
 
-#define PHY_M_FELP_LED2_CTRL(x)	(	((x)<<8) & PHY_M_FELP_LED2_MSK)
-#define PHY_M_FELP_LED1_CTRL(x)	(	((x)<<4) & PHY_M_FELP_LED1_MSK)
-#define PHY_M_FELP_LED0_CTRL(x)	(	((x)<<0) & PHY_M_FELP_LED0_MSK)
+#define PHY_M_FELP_LED2_CTRL(x)	(((x)<<8) & PHY_M_FELP_LED2_MSK)
+#define PHY_M_FELP_LED1_CTRL(x)	(((x)<<4) & PHY_M_FELP_LED1_MSK)
+#define PHY_M_FELP_LED0_CTRL(x)	(((x)<<0) & PHY_M_FELP_LED0_MSK)
 
 enum {
 	LED_PAR_CTRL_COLX	= 0x00,
@@ -1640,7 +1640,7 @@ enum {
 	PHY_M_MAC_MD_COPPER	= 5,/* Copper only */
 	PHY_M_MAC_MD_1000BX	= 7,/* 1000Base-X only */
 };
-#define PHY_M_MAC_MODE_SEL(x)	(	((x)<<7) & PHY_M_MAC_MD_MSK)
+#define PHY_M_MAC_MODE_SEL(x)	(((x)<<7) & PHY_M_MAC_MD_MSK)
 
 /*****  PHY_MARV_PHY_CTRL (page 3)		16 bit r/w	LED Control Reg. *****/
 enum {
@@ -1650,10 +1650,10 @@ enum {
 	PHY_M_LEDC_STA0_MSK	= 0xf, /* Bit  3.. 0: STAT0 LED Ctrl. Mask */
 };
 
-#define PHY_M_LEDC_LOS_CTRL(x)	(	((x)<<12) & PHY_M_LEDC_LOS_MSK)
-#define PHY_M_LEDC_INIT_CTRL(x)	(	((x)<<8) & PHY_M_LEDC_INIT_MSK)
-#define PHY_M_LEDC_STA1_CTRL(x)	(	((x)<<4) & PHY_M_LEDC_STA1_MSK)
-#define PHY_M_LEDC_STA0_CTRL(x)	(	((x)<<0) & PHY_M_LEDC_STA0_MSK)
+#define PHY_M_LEDC_LOS_CTRL(x)	(((x)<<12) & PHY_M_LEDC_LOS_MSK)
+#define PHY_M_LEDC_INIT_CTRL(x)	(((x)<<8) & PHY_M_LEDC_INIT_MSK)
+#define PHY_M_LEDC_STA1_CTRL(x)	(((x)<<4) & PHY_M_LEDC_STA1_MSK)
+#define PHY_M_LEDC_STA0_CTRL(x)	(((x)<<0) & PHY_M_LEDC_STA0_MSK)
 
 /* GMAC registers  */
 /* Port Registers */

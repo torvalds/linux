@@ -248,7 +248,7 @@ static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	} else {
 		u32 setting;
 
-		switch(ecmd->speed) {
+		switch (ecmd->speed) {
 		case SPEED_1000:
 			if (ecmd->duplex == DUPLEX_FULL)
 				setting = SUPPORTED_1000baseT_Full;
@@ -1026,7 +1026,7 @@ static void bcom_check_link(struct skge_hw *hw, int port)
 			}
 
 			/* Check Duplex mismatch */
-			switch(aux & PHY_B_AS_AN_RES_MSK) {
+			switch (aux & PHY_B_AS_AN_RES_MSK) {
 			case PHY_B_RES_1000FD:
 				skge->duplex = DUPLEX_FULL;
 				break;
@@ -1097,7 +1097,7 @@ static void bcom_phy_init(struct skge_port *skge, int jumbo)
 	r |=  XM_MMU_NO_PRE;
 	xm_write16(hw, port, XM_MMU_CMD,r);
 
-	switch(id1) {
+	switch (id1) {
 	case PHY_BCOM_ID1_C0:
 		/*
 		 * Workaround BCOM Errata for the C0 type.
