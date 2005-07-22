@@ -252,11 +252,7 @@ ahd_scb_timer_reset(struct scb *scb, u_int usec)
 /***************************** SMP support ************************************/
 #include <linux/spinlock.h>
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) || defined(SCSI_HAS_HOST_LOCK))
 #define AHD_SCSI_HAS_HOST_LOCK 1
-#else
-#define AHD_SCSI_HAS_HOST_LOCK 0
-#endif
 
 #define AIC79XX_DRIVER_VERSION "1.3.11"
 
@@ -297,12 +293,11 @@ struct ahd_cmd {
  * after a successfully completed inquiry command to the target when
  * that inquiry data indicates a lun is present.
  */
-TAILQ_HEAD(ahd_busyq, ahd_cmd);
+
 typedef enum {
 	AHD_DEV_UNCONFIGURED	 = 0x01,
 	AHD_DEV_FREEZE_TIL_EMPTY = 0x02, /* Freeze queue until active == 0 */
 	AHD_DEV_TIMER_ACTIVE	 = 0x04, /* Our timer is active */
-	AHD_DEV_ON_RUN_LIST	 = 0x08, /* Queued to be run later */
 	AHD_DEV_Q_BASIC		 = 0x10, /* Allow basic device queuing */
 	AHD_DEV_Q_TAGGED	 = 0x20, /* Allow full SCSI2 command queueing */
 	AHD_DEV_PERIODIC_OTAG	 = 0x40, /* Send OTAG to prevent starvation */
@@ -312,7 +307,6 @@ typedef enum {
 struct ahd_linux_target;
 struct ahd_linux_device {
 	TAILQ_ENTRY(ahd_linux_device) links;
-	struct			ahd_busyq busyq;
 
 	/*
 	 * The number of transactions currently
@@ -453,18 +447,7 @@ struct ahd_linux_target {
  * manner and are allocated below 4GB, the number of S/G segments is
  * unrestricted.
  */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-/*
- * We dynamically adjust the number of segments in pre-2.5 kernels to
- * avoid fragmentation issues in the SCSI mid-layer's private memory
- * allocator.  See aic79xx_osm.c ahd_linux_size_nseg() for details.
- */
-extern u_int ahd_linux_nseg;
-#define	AHD_NSEG ahd_linux_nseg
-#define	AHD_LINUX_MIN_NSEG 64
-#else
 #define	AHD_NSEG 128
-#endif
 
 /*
  * Per-SCB OSM storage.
@@ -502,11 +485,9 @@ struct ahd_platform_data {
 	 * Fields accessed from interrupt context.
 	 */
 	struct ahd_linux_target *targets[AHD_NUM_TARGETS]; 
-	TAILQ_HEAD(, ahd_linux_device) device_runq;
 	struct ahd_completeq	 completeq;
 
 	spinlock_t		 spin_lock;
-	struct tasklet_struct	 runq_tasklet;
 	u_int			 qfrozen;
 	pid_t			 dv_pid;
 	struct timer_list	 completeq_timer;
@@ -925,12 +906,8 @@ ahd_flush_device_writes(struct ahd_softc *ahd)
 }
 
 /**************************** Proc FS Support *********************************/
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-int	ahd_linux_proc_info(char *, char **, off_t, int, int, int);
-#else
 int	ahd_linux_proc_info(struct Scsi_Host *, char *, char **,
 			    off_t, int, int);
-#endif
 
 /*************************** Domain Validation ********************************/
 #define AHD_DV_CMD(cmd) ((cmd)->scsi_done == ahd_linux_dv_complete)
@@ -1117,7 +1094,6 @@ void	ahd_done(struct ahd_softc*, struct scb*);
 void	ahd_send_async(struct ahd_softc *, char channel,
 		       u_int target, u_int lun, ac_code, void *);
 void	ahd_print_path(struct ahd_softc *, struct scb *);
-void	ahd_platform_dump_card_state(struct ahd_softc *ahd);
 
 #ifdef CONFIG_PCI
 #define AHD_PCI_CONFIG 1
