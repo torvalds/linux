@@ -42,7 +42,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"0.7"
+#define DRV_VERSION		"0.8"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
