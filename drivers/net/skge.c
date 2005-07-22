@@ -1819,7 +1819,7 @@ static void yukon_stop(struct skge_port *skge)
 
 	gma_write16(hw, port, GM_GP_CTRL,
 			 gma_read16(hw, port, GM_GP_CTRL)
-			 & ~(GM_GPCR_RX_ENA|GM_GPCR_RX_ENA));
+			 & ~(GM_GPCR_TX_ENA|GM_GPCR_RX_ENA));
 	gma_read16(hw, port, GM_GP_CTRL);
 
 	/* set GPHY Control reset */
