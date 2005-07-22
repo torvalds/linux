@@ -35,16 +35,17 @@ icmp_unique_tuple(struct ip_conntrack_tuple *tuple,
 		  const struct ip_conntrack *conntrack)
 {
 	static u_int16_t id;
-	unsigned int range_size
-		= (unsigned int)range->max.icmp.id - range->min.icmp.id + 1;
+	unsigned int range_size;
 	unsigned int i;
 
+	range_size = ntohs(range->max.icmp.id) - ntohs(range->min.icmp.id) + 1;
 	/* If no range specified... */
 	if (!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED))
 		range_size = 0xFFFF;
 
 	for (i = 0; i < range_size; i++, id++) {
-		tuple->src.u.icmp.id = range->min.icmp.id + (id % range_size);
+		tuple->src.u.icmp.id = htons(ntohs(range->min.icmp.id) +
+		                             (id % range_size));
 		if (!ip_nat_used_tuple(tuple, conntrack))
 			return 1;
 	}

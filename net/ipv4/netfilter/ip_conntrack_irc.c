@@ -197,7 +197,7 @@ static int help(struct sk_buff **pskb,
 				continue;
 			}
 
-			exp = ip_conntrack_expect_alloc();
+			exp = ip_conntrack_expect_alloc(ct);
 			if (exp == NULL) {
 				ret = NF_DROP;
 				goto out;
@@ -221,16 +221,14 @@ static int help(struct sk_buff **pskb,
 				{ { 0, { 0 } },
 				  { 0xFFFFFFFF, { .tcp = { 0xFFFF } }, 0xFF }});
 			exp->expectfn = NULL;
-			exp->master = ct;
 			if (ip_nat_irc_hook)
 				ret = ip_nat_irc_hook(pskb, ctinfo, 
 						      addr_beg_p - ib_ptr,
 						      addr_end_p - addr_beg_p,
 						      exp);
-			else if (ip_conntrack_expect_related(exp) != 0) {
-				ip_conntrack_expect_free(exp);
+			else if (ip_conntrack_expect_related(exp) != 0)
 				ret = NF_DROP;
-			}
+			ip_conntrack_expect_put(exp);
 			goto out;
 		} /* for .. NUM_DCCPROTO */
 	} /* while data < ... */

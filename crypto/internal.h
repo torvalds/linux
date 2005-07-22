@@ -75,7 +75,7 @@ static inline unsigned int crypto_cipher_ctxsize(struct crypto_alg *alg,
 	
 	switch (flags & CRYPTO_TFM_MODE_MASK) {
 	case CRYPTO_TFM_MODE_CBC:
-		len = ALIGN(len, alg->cra_alignmask + 1);
+		len = ALIGN(len, (unsigned long)alg->cra_alignmask + 1);
 		len += alg->cra_blocksize;
 		break;
 	}

@@ -101,14 +101,13 @@ static int help(struct sk_buff **pskb,
 		if (port == 0 || len > 5)
 			break;
 
-		exp = ip_conntrack_expect_alloc();
+		exp = ip_conntrack_expect_alloc(ct);
 		if (exp == NULL) {
 			ret = NF_DROP;
 			goto out;
 		}
 
 		exp->expectfn = NULL;
-		exp->master = ct;
 
 		exp->tuple.src.ip = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip;
 		exp->tuple.src.u.tcp.port = 0;
@@ -126,10 +125,9 @@ static int help(struct sk_buff **pskb,
 			ret = ip_nat_amanda_hook(pskb, ctinfo,
 						 tmp - amanda_buffer,
 						 len, exp);
-		else if (ip_conntrack_expect_related(exp) != 0) {
-			ip_conntrack_expect_free(exp);
+		else if (ip_conntrack_expect_related(exp) != 0)
 			ret = NF_DROP;
-		}
+		ip_conntrack_expect_put(exp);
 	}
 
 out:
