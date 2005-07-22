@@ -1660,9 +1660,9 @@ static void yukon_init(struct skge_hw *hw, int port)
 
 	/* Enable phy interrupt on autonegotiation complete (or link up) */
 	if (skge->autoneg == AUTONEG_ENABLE)
-		gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_IS_AN_COMPL);
+		gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_IS_AN_MSK);
 	else
-		gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_DEF_MSK);
+		gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_IS_DEF_MSK);
 }
 
 static void yukon_reset(struct skge_hw *hw, int port)
@@ -1891,7 +1891,7 @@ static void yukon_link_up(struct skge_port *skge)
 	reg |= GM_GPCR_RX_ENA | GM_GPCR_TX_ENA;
 	gma_write16(hw, port, GM_GP_CTRL, reg);
 
-	gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_DEF_MSK);
+	gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_IS_DEF_MSK);
 	skge_link_up(skge);
 }
 

@@ -1449,10 +1449,12 @@ enum {
 	PHY_M_IS_DTE_CHANGE	= 1<<2, /* DTE Power Det. Status Changed */
 	PHY_M_IS_POL_CHANGE	= 1<<1, /* Polarity Changed */
 	PHY_M_IS_JABBER		= 1<<0, /* Jabber */
-};
 
-#define PHY_M_DEF_MSK	( PHY_M_IS_AN_ERROR | PHY_M_IS_LSP_CHANGE | \
-			  PHY_M_IS_LST_CHANGE | PHY_M_IS_FIFO_ERROR)
+	PHY_M_IS_DEF_MSK	= PHY_M_IS_AN_ERROR | PHY_M_IS_LSP_CHANGE |
+				  PHY_M_IS_LST_CHANGE | PHY_M_IS_FIFO_ERROR,
+
+	PHY_M_IS_AN_MSK		= PHY_M_IS_AN_ERROR | PHY_M_IS_AN_COMPL,
+};
 
 /*****  PHY_MARV_EXT_CTRL	16 bit r/w	Ext. PHY Specific Ctrl *****/
 enum {
