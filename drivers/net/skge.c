@@ -1687,7 +1687,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 
 	/* WA code for COMA mode -- set PHY reset */
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    hw->chip_rev == CHIP_REV_YU_LITE_A3)
+	    hw->chip_rev >= CHIP_REV_YU_LITE_A3)
 		skge_write32(hw, B2_GP_IO,
 			     (skge_read32(hw, B2_GP_IO) | GP_DIR_9 | GP_IO_9));
 
@@ -1697,7 +1697,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 
 	/* WA code for COMA mode -- clear PHY reset */
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    hw->chip_rev == CHIP_REV_YU_LITE_A3)
+	    hw->chip_rev >= CHIP_REV_YU_LITE_A3)
 		skge_write32(hw, B2_GP_IO,
 			     (skge_read32(hw, B2_GP_IO) | GP_DIR_9)
 			     & ~GP_IO_9);
@@ -1790,7 +1790,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	skge_write16(hw, SK_REG(port, RX_GMF_FL_MSK), RX_FF_FL_DEF_MSK);
 	reg = GMF_OPER_ON | GMF_RX_F_FL_ON;
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    hw->chip_rev == CHIP_REV_YU_LITE_A3)
+	    hw->chip_rev >= CHIP_REV_YU_LITE_A3)
 		reg &= ~GMF_RX_F_FL_ON;
 	skge_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
 	skge_write16(hw, SK_REG(port, RX_GMF_CTRL_T), reg);
@@ -1807,7 +1807,7 @@ static void yukon_stop(struct skge_port *skge)
 	int port = skge->port;
 
 	if (hw->chip_id == CHIP_ID_YUKON_LITE &&
-	    hw->chip_rev == CHIP_REV_YU_LITE_A3) {
+	    hw->chip_rev >= CHIP_REV_YU_LITE_A3) {
 		skge_write32(hw, B2_GP_IO,
 			     skge_read32(hw, B2_GP_IO) | GP_DIR_9 | GP_IO_9);
 	}
