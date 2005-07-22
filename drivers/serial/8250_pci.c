@@ -1766,33 +1766,30 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 static void __devexit pciserial_remove_one(struct pci_dev *dev)
 {
 	struct serial_private *priv = pci_get_drvdata(dev);
+	struct pci_serial_quirk *quirk;
+	int i;
 
 	pci_set_drvdata(dev, NULL);
 
-	if (priv) {
-		struct pci_serial_quirk *quirk;
-		int i;
+	for (i = 0; i < priv->nr; i++)
+		serial8250_unregister_port(priv->line[i]);
 
-		for (i = 0; i < priv->nr; i++)
-			serial8250_unregister_port(priv->line[i]);
-
-		for (i = 0; i < PCI_NUM_BAR_RESOURCES; i++) {
-			if (priv->remapped_bar[i])
-				iounmap(priv->remapped_bar[i]);
-			priv->remapped_bar[i] = NULL;
-		}
-
-		/*
-		 * Find the exit quirks.
-		 */
-		quirk = find_quirk(dev);
-		if (quirk->exit)
-			quirk->exit(dev);
-
-		pci_disable_device(dev);
-
-		kfree(priv);
+	for (i = 0; i < PCI_NUM_BAR_RESOURCES; i++) {
+		if (priv->remapped_bar[i])
+			iounmap(priv->remapped_bar[i]);
+		priv->remapped_bar[i] = NULL;
 	}
+
+	/*
+	 * Find the exit quirks.
+	 */
+	quirk = find_quirk(dev);
+	if (quirk->exit)
+		quirk->exit(dev);
+
+	pci_disable_device(dev);
+
+	kfree(priv);
 }
 
 static int pciserial_suspend_one(struct pci_dev *dev, pm_message_t state)
