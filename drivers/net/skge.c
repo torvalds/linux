@@ -1818,8 +1818,8 @@ static void yukon_stop(struct skge_port *skge)
 	gma_read16(hw, port, GM_GP_CTRL);
 
 	/* set GPHY Control reset */
-	gma_write32(hw, port, GPHY_CTRL, GPC_RST_SET);
-	gma_write32(hw, port, GMAC_CTRL, GMC_RST_SET);
+	skge_write32(hw, SK_REG(port, GPHY_CTRL), GPC_RST_SET);
+	skge_write32(hw, SK_REG(port, GMAC_CTRL), GMC_RST_SET);
 }
 
 static void yukon_get_stats(struct skge_port *skge, u64 *data)
@@ -1850,11 +1850,12 @@ static void yukon_mac_intr(struct skge_hw *hw, int port)
 
 	if (status & GM_IS_RX_FF_OR) {
 		++skge->net_stats.rx_fifo_errors;
-		gma_write8(hw, port, RX_GMF_CTRL_T, GMF_CLI_RX_FO);
+		skge_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_CLI_RX_FO);
 	}
+
 	if (status & GM_IS_TX_FF_UR) {
 		++skge->net_stats.tx_fifo_errors;
-		gma_write8(hw, port, TX_GMF_CTRL_T, GMF_CLI_TX_FU);
+		skge_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_CLI_TX_FU);
 	}
 
 }
@@ -1898,12 +1899,14 @@ static void yukon_link_down(struct skge_port *skge)
 {
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
+	u16 ctrl;
 
 	pr_debug("yukon_link_down\n");
 	gm_phy_write(hw, port, PHY_MARV_INT_MASK, 0);
-	gm_phy_write(hw, port, GM_GP_CTRL,
-			  gm_phy_read(hw, port, GM_GP_CTRL)
-			  & ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA));
+
+	ctrl = gma_read16(hw, port, GM_GP_CTRL);
+	ctrl &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
+	gma_write16(hw, port, GM_GP_CTRL, ctrl);
 
 	if (skge->flow_control == FLOW_MODE_REM_SEND) {
 		/* restore Asymmetric Pause bit */

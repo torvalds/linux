@@ -2606,17 +2606,6 @@ static inline void gma_write16(const struct skge_hw *hw, int port, int r, u16 v)
 	skge_write16(hw, SK_GMAC_REG(port,r), v);
 }
 
-static inline void gma_write32(const struct skge_hw *hw, int port, int r, u32 v)
-{
-	skge_write16(hw, SK_GMAC_REG(port, r), (u16) v);
-	skge_write32(hw, SK_GMAC_REG(port, r+4), (u16)(v >> 16));
-}
-
-static inline void gma_write8(const struct skge_hw *hw, int port, int r, u8 v)
-{
-	skge_write8(hw, SK_GMAC_REG(port,r), v);
-}
-
 static inline void gma_set_addr(struct skge_hw *hw, int port, int reg,
 				    const u8 *addr)
 {
