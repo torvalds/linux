@@ -3528,7 +3528,8 @@ recheck:
 	 */
 	if (!capable(CAP_SYS_NICE)) {
 		/* can't change policy */
-		if (policy != p->policy)
+		if (policy != p->policy &&
+			!p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
 			return -EPERM;
 		/* can't increase priority */
 		if (policy != SCHED_NORMAL &&
