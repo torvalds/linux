@@ -132,7 +132,7 @@ void float_raise(signed char flags)
 	printk(KERN_DEBUG
 	       "NWFPE: %s[%d] takes exception %08x at %p from %08lx\n",
 	       current->comm, current->pid, flags,
-	       __builtin_return_address(0), GET_USERREG()[15]);
+	       __builtin_return_address(0), GET_USERREG()->ARM_pc);
 #endif
 
 	/* Keep SoftFloat exception flags up to date.  */
