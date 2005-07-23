@@ -170,22 +170,19 @@ acpi_ec_enter_burst_mode (
 	status = acpi_ec_read_status(ec);
 	if (status != -EINVAL &&
 		!(status & ACPI_EC_FLAG_BURST)){
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,"entering burst mode \n"));
 		acpi_hw_low_level_write(8, ACPI_EC_BURST_ENABLE, &ec->command_addr);
 		status = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
 		if (status){
 			acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR," status = %d\n", status));
 			return_VALUE(-EINVAL);
 		}
 		acpi_hw_low_level_read(8, &tmp, &ec->data_addr);
 		acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
 		if(tmp != 0x90 ) {/* Burst ACK byte*/
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,"Ack failed \n"));
 			return_VALUE(-EINVAL);
 		}
-	} else
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,"already be in burst mode \n"));
+	}
+
 	atomic_set(&ec->leaving_burst , 0);
 	return_VALUE(0);
 }
@@ -202,7 +199,6 @@ acpi_ec_leave_burst_mode (
 	status = acpi_ec_read_status(ec);
 	if (status != -EINVAL &&
 		(status & ACPI_EC_FLAG_BURST)){
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,"leaving burst mode\n"));
 		acpi_hw_low_level_write(8, ACPI_EC_BURST_DISABLE, &ec->command_addr);
 		status = acpi_ec_wait(ec, ACPI_EC_FLAG_IBF);
 		if (status){
@@ -212,14 +208,7 @@ acpi_ec_leave_burst_mode (
 		}
 		acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
 		status = acpi_ec_read_status(ec);
-		if (status != -EINVAL &&
-			(status & ACPI_EC_FLAG_BURST)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,"------->status fail\n"));
-			return_VALUE(-EINVAL);
-		}
-	}else
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,"already be in Non-burst mode \n"));
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,"leaving burst mode\n"));
+	}
 
 	return_VALUE(0);
 }
