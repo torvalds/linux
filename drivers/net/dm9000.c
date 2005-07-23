@@ -48,6 +48,10 @@
  *                        net_device_stats
  *                      * introduced tx_timeout function
  *                      * reworked locking
+ *
+ *	  01-Jul-2005   Ben Dooks <ben@simtec.co.uk>
+ *			* fixed spinlock call without pointer
+ *			* ensure spinlock is initialised
  */
 
 #include <linux/module.h>
@@ -322,7 +326,7 @@ static void dm9000_timeout(struct net_device *dev)
 
 	/* Save previous register address */
 	reg_save = readb(db->io_addr);
-	spin_lock_irqsave(db->lock,flags);
+	spin_lock_irqsave(&db->lock,flags);
 
 	netif_stop_queue(dev);
 	dm9000_reset(db);
@@ -333,7 +337,7 @@ static void dm9000_timeout(struct net_device *dev)
 
 	/* Restore previous register address */
 	writeb(reg_save, db->io_addr);
-	spin_unlock_irqrestore(db->lock,flags);
+	spin_unlock_irqrestore(&db->lock,flags);
 }
 
 
@@ -404,6 +408,8 @@ dm9000_probe(struct device *dev)
 	/* setup board info structure */
 	db = (struct board_info *) ndev->priv;
 	memset(db, 0, sizeof (*db));
+
+	spin_lock_init(&db->lock);
 
 	if (pdev->num_resources < 2) {
 		ret = -ENODEV;
@@ -612,7 +618,7 @@ dm9000_open(struct net_device *dev)
 
 	/* set and active a timer process */
 	init_timer(&db->timer);
-	db->timer.expires  = DM9000_TIMER_WUT * 2;
+	db->timer.expires  = DM9000_TIMER_WUT;
 	db->timer.data     = (unsigned long) dev;
 	db->timer.function = &dm9000_timer;
 	add_timer(&db->timer);
@@ -864,20 +870,10 @@ dm9000_timer(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *) data;
 	board_info_t *db = (board_info_t *) dev->priv;
-	u8 reg_save;
-	unsigned long flags;
 
 	PRINTK3("dm9000_timer()\n");
 
-	spin_lock_irqsave(db->lock,flags);
-	/* Save previous register address */
-	reg_save = readb(db->io_addr);
-
 	mii_check_media(&db->mii, netif_msg_link(db), 0);
-
-	/* Restore previous register address */
-	writeb(reg_save, db->io_addr);
-	spin_unlock_irqrestore(db->lock,flags);
 
 	/* Set timer again */
 	db->timer.expires = DM9000_TIMER_WUT;
@@ -1098,9 +1094,14 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 {
 	board_info_t *db = (board_info_t *) dev->priv;
 	unsigned long flags;
+	unsigned int reg_save;
 	int ret;
 
 	spin_lock_irqsave(&db->lock,flags);
+
+	/* Save previous register address */
+	reg_save = readb(db->io_addr);
+
 	/* Fill the phyxcer register into REG_0C */
 	iow(db, DM9000_EPAR, DM9000_PHY | reg);
 
@@ -1110,6 +1111,9 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 
 	/* The read data keeps on REG_0D & REG_0E */
 	ret = (ior(db, DM9000_EPDRH) << 8) | ior(db, DM9000_EPDRL);
+
+	/* restore the previous address */
+	writeb(reg_save, db->io_addr);
 
 	spin_unlock_irqrestore(&db->lock,flags);
 
@@ -1124,8 +1128,12 @@ dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value)
 {
 	board_info_t *db = (board_info_t *) dev->priv;
 	unsigned long flags;
+	unsigned long reg_save;
 
 	spin_lock_irqsave(&db->lock,flags);
+
+	/* Save previous register address */
+	reg_save = readb(db->io_addr);
 
 	/* Fill the phyxcer register into REG_0C */
 	iow(db, DM9000_EPAR, DM9000_PHY | reg);
@@ -1137,6 +1145,9 @@ dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value)
 	iow(db, DM9000_EPCR, 0xa);	/* Issue phyxcer write command */
 	udelay(500);		/* Wait write complete */
 	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer write command */
+
+	/* restore the previous address */
+	writeb(reg_save, db->io_addr);
 
 	spin_unlock_irqrestore(&db->lock,flags);
 }
