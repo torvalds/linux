@@ -152,7 +152,6 @@ static int dm9000_probe(struct device *);
 static int dm9000_open(struct net_device *);
 static int dm9000_start_xmit(struct sk_buff *, struct net_device *);
 static int dm9000_stop(struct net_device *);
-static int dm9000_do_ioctl(struct net_device *, struct ifreq *, int);
 
 
 static void dm9000_timer(unsigned long);
@@ -391,8 +390,6 @@ dm9000_probe(struct device *dev)
 	int i;
 	u32 id_val;
 
-	printk(KERN_INFO "%s Ethernet Driver\n", CARDNAME);
-
 	/* Init network device */
 	ndev = alloc_etherdev(sizeof (struct board_info));
 	if (!ndev) {
@@ -547,7 +544,6 @@ dm9000_probe(struct device *dev)
 	ndev->stop		 = &dm9000_stop;
 	ndev->get_stats		 = &dm9000_get_stats;
 	ndev->set_multicast_list = &dm9000_hash_table;
-	ndev->do_ioctl		 = &dm9000_do_ioctl;
 
 #ifdef DM9000_PROGRAM_EEPROM
 	program_eeprom(db);
@@ -851,15 +847,6 @@ dm9000_get_stats(struct net_device *dev)
 	return &db->stats;
 }
 
-/*
- *  Process the upper socket ioctl command
- */
-static int
-dm9000_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	PRINTK1("entering %s\n",__FUNCTION__);
-	return 0;
-}
 
 /*
  *  A periodic timer routine
@@ -1213,6 +1200,8 @@ static struct device_driver dm9000_driver = {
 static int __init
 dm9000_init(void)
 {
+	printk(KERN_INFO "%s Ethernet Driver\n", CARDNAME);
+
 	return driver_register(&dm9000_driver);	/* search board and register */
 }
 
