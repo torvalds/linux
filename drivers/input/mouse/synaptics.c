@@ -219,7 +219,7 @@ static void synaptics_pass_pt_packet(struct serio *ptport, unsigned char *packet
 		serio_interrupt(ptport, packet[1], 0, NULL);
 		serio_interrupt(ptport, packet[4], 0, NULL);
 		serio_interrupt(ptport, packet[5], 0, NULL);
-		if (child->type >= PSMOUSE_GENPS)
+		if (child->pktsize == 4)
 			serio_interrupt(ptport, packet[2], 0, NULL);
 	} else
 		serio_interrupt(ptport, packet[1], 0, NULL);
@@ -233,7 +233,7 @@ static void synaptics_pt_activate(struct psmouse *psmouse)
 
 	/* adjust the touchpad to child's choice of protocol */
 	if (child) {
-		if (child->type >= PSMOUSE_GENPS)
+		if (child->pktsize == 4)
 			priv->mode |= SYN_BIT_FOUR_BYTE_CLIENT;
 		else
 			priv->mode &= ~SYN_BIT_FOUR_BYTE_CLIENT;
