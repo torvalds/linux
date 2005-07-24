@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.99 2005/07/15 10:13:54 dedekind Exp $
+ * $Id: nodelist.c,v 1.100 2005/07/22 10:32:08 dedekind Exp $
  *
  */
 
@@ -203,7 +203,7 @@ read_direntry(struct jffs2_sb_info *c,
 			return -EIO;
 			
 		if (unlikely(err)) {
-			printk(KERN_WARNING "Read remainder of name in jffs2_get_inode_nodes(): error %d\n", err);
+			printk(KERN_WARNING "Read remainder of name: error %d\n", err);
 			jffs2_free_full_dirent(fd);
 			return -EIO;
 		}

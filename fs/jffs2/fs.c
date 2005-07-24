@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: fs.c,v 1.59 2005/07/18 11:21:19 dedekind Exp $
+ * $Id: fs.c,v 1.60 2005/07/22 10:32:08 dedekind Exp $
  *
  */
 
@@ -194,18 +194,14 @@ int jffs2_statfs(struct super_block *sb, struct kstatfs *buf)
 	buf->f_namelen = JFFS2_MAX_NAME_LEN;
 
 	spin_lock(&c->erase_completion_lock);
-
 	avail = c->dirty_size + c->free_size;
 	if (avail > c->sector_size * c->resv_blocks_write)
 		avail -= c->sector_size * c->resv_blocks_write;
 	else
 		avail = 0;
+	spin_unlock(&c->erase_completion_lock);
 
 	buf->f_bavail = buf->f_bfree = avail >> PAGE_SHIFT;
-
-	jffs2_dbg_dump_block_lists(c);
-
-	spin_unlock(&c->erase_completion_lock);
 
 	return 0;
 }

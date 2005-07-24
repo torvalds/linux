@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.128 2005/07/17 12:01:43 dedekind Exp $
+ * $Id: readinode.c,v 1.129 2005/07/22 10:32:08 dedekind Exp $
  *
  */
 
@@ -92,8 +92,8 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 				mark_ref_normal(next->node->raw);
 		}
 	}
-	jffs2_dbg_fragtree_paranoia_check(f);
-	jffs2_dbg_dump_fragtree(f);
+	jffs2_dbg_fragtree_paranoia_check_nolock(f);
+	jffs2_dbg_dump_fragtree_nolock(f);
 	return 0;
 }
 
@@ -480,7 +480,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 
 		jffs2_free_tmp_dnode_info(tn);
 	}
-	jffs2_dbg_fragtree_paranoia_check(f);
+	jffs2_dbg_fragtree_paranoia_check_nolock(f);
 
 	if (!fn) {
 		/* No data nodes for this inode. */

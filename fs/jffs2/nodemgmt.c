@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.123 2005/07/17 06:56:21 dedekind Exp $
+ * $Id: nodemgmt.c,v 1.124 2005/07/20 15:32:28 dedekind Exp $
  *
  */
 
@@ -349,8 +349,8 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 		list_add_tail(&jeb->list, &c->clean_list);
 		c->nextblock = NULL;
 	}
-	jffs2_dbg_acct_sanity_check(c,jeb);
-	jffs2_dbg_acct_paranoia_check(c, jeb);
+	jffs2_dbg_acct_sanity_check_nolock(c,jeb);
+	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 
 	spin_unlock(&c->erase_completion_lock);
 
@@ -430,7 +430,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 			       ref_totlen(c, jeb, ref), blocknr, ref->flash_offset, jeb->used_size);
 			BUG();
 		})
-		D1(printk(KERN_DEBUG "Obsoleting node at 0x%08x of len %x: ", ref_offset(ref), ref_totlen(c, jeb, ref)));
+		D1(printk(KERN_DEBUG "Obsoleting node at 0x%08x of len %#x: ", ref_offset(ref), ref_totlen(c, jeb, ref)));
 		jeb->used_size -= ref_totlen(c, jeb, ref);
 		c->used_size -= ref_totlen(c, jeb, ref);
 	}
@@ -466,9 +466,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	}
 	ref->flash_offset = ref_offset(ref) | REF_OBSOLETE;
 	
-	jffs2_dbg_acct_sanity_check(c, jeb);
-
-	jffs2_dbg_acct_paranoia_check(c, jeb);
+	jffs2_dbg_acct_sanity_check_nolock(c, jeb);
+	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 
 	if (c->flags & JFFS2_SB_FLAG_SCANNING) {
 		/* Flash scanning is in progress. Don't muck about with the block

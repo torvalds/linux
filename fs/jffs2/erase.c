@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: erase.c,v 1.81 2005/07/17 06:56:20 dedekind Exp $
+ * $Id: erase.c,v 1.83 2005/07/22 10:32:08 dedekind Exp $
  *
  */
 
@@ -48,7 +48,8 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 #else /* Linux */
 	struct erase_info *instr;
 
-	D1(printk(KERN_DEBUG "jffs2_erase_block(): erase block %#x (range %#x-%#x)\n", jeb->offset, jeb->offset, jeb->offset + c->sector_size));
+	D1(printk(KERN_DEBUG "jffs2_erase_block(): erase block %#08x (range %#08x-%#08x)\n",
+				jeb->offset, jeb->offset, jeb->offset + c->sector_size));
 	instr = kmalloc(sizeof(struct erase_info) + sizeof(struct erase_priv_struct), GFP_KERNEL);
 	if (!instr) {
 		printk(KERN_WARNING "kmalloc for struct erase_info in jffs2_erase_block failed. Refiling block for later\n");
@@ -429,8 +430,8 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	c->free_size += jeb->free_size;
 	c->used_size += jeb->used_size;
 
-	jffs2_dbg_acct_sanity_check(c,jeb);
-	jffs2_dbg_acct_paranoia_check(c, jeb);
+	jffs2_dbg_acct_sanity_check_nolock(c,jeb);
+	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 
 	list_add_tail(&jeb->list, &c->free_list);
 	c->nr_erasing_blocks--;

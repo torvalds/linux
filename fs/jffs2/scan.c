@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: scan.c,v 1.120 2005/07/17 06:56:21 dedekind Exp $
+ * $Id: scan.c,v 1.121 2005/07/20 15:32:28 dedekind Exp $
  *
  */
 #include <linux/kernel.h>
@@ -130,7 +130,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 		if (ret < 0)
 			goto out;
 
-		jffs2_dbg_acct_paranoia_check(c, jeb);
+		jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 
 		/* Now decide which list to put it on */
 		switch(ret) {
@@ -370,7 +370,7 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 scan_more:	
 	while(ofs < jeb->offset + c->sector_size) {
 
-		jffs2_dbg_acct_paranoia_check(c, jeb);
+		jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 
 		cond_resched();
 

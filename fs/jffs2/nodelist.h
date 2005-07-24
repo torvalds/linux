@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.h,v 1.132 2005/07/17 06:56:21 dedekind Exp $
+ * $Id: nodelist.h,v 1.133 2005/07/22 10:32:08 dedekind Exp $
  *
  */
 
@@ -236,7 +236,7 @@ static inline uint32_t ref_totlen(struct jffs2_sb_info *c,
 		       ret, ref->__totlen);
 		if (!jeb)
 			jeb = &c->blocks[ref->flash_offset / c->sector_size];
-		jffs2_dbg_dump_node_refs(c, jeb);
+		jffs2_dbg_dump_node_refs_nolock(c, jeb);
 		BUG();
 	}
 #endif

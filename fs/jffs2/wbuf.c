@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.94 2005/07/17 12:01:43 dedekind Exp $
+ * $Id: wbuf.c,v 1.96 2005/07/22 10:32:08 dedekind Exp $
  *
  */
 
@@ -139,7 +139,6 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 {
 	D1(printk("About to refile bad block at %08x\n", jeb->offset));
 
-	jffs2_dbg_dump_block_lists(c);
 	/* File the existing block on the bad_used_list.... */
 	if (c->nextblock == jeb)
 		c->nextblock = NULL;
@@ -156,7 +155,6 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		c->nr_erasing_blocks++;
 		jffs2_erase_pending_trigger(c);
 	}
-	jffs2_dbg_dump_block_lists(c);
 
 	/* Adjust its size counts accordingly */
 	c->wasted_size += jeb->free_size;
@@ -164,8 +162,9 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 	jeb->wasted_size += jeb->free_size;
 	jeb->free_size = 0;
 
-	jffs2_dbg_acct_sanity_check(c,jeb);
-	jffs2_dbg_acct_paranoia_check(c, jeb);
+	jffs2_dbg_dump_block_lists_nolock(c);
+	jffs2_dbg_acct_sanity_check_nolock(c,jeb);
+	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 }
 
 /* Recover from failure to write wbuf. Recover the nodes up to the
@@ -392,11 +391,11 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	else
 		jeb->last_node = container_of(first_raw, struct jffs2_raw_node_ref, next_phys);
 
-	jffs2_dbg_acct_sanity_check(c,jeb);
-        jffs2_dbg_acct_paranoia_check(c, jeb);
+	jffs2_dbg_acct_sanity_check_nolock(c, jeb);
+        jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 
-	jffs2_dbg_acct_sanity_check(c,new_jeb);
-        jffs2_dbg_acct_paranoia_check(c, new_jeb);
+	jffs2_dbg_acct_sanity_check_nolock(c, new_jeb);
+        jffs2_dbg_acct_paranoia_check_nolock(c, new_jeb);
 
 	spin_unlock(&c->erase_completion_lock);
 
