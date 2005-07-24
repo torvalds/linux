@@ -61,7 +61,7 @@
 "	strex	ip, lr, [%0]\n"			\
 "	teq	ip, #0\n"			\
 "	bne	1b\n"				\
-"	teq	lr, #0\n"			\
+"	cmp	lr, #0\n"			\
 "	movle	ip, %0\n"			\
 "	blle	" #wake				\
 	:					\
@@ -100,7 +100,7 @@
 	__asm__ __volatile__(			\
 	"@ up_op_read\n"			\
 "1:	ldrex	lr, [%0]\n"			\
-"	add	lr, lr, %1\n"			\
+"	adds	lr, lr, %1\n"			\
 "	strex	ip, lr, [%0]\n"			\
 "	teq	ip, #0\n"			\
 "	bne	1b\n"				\
