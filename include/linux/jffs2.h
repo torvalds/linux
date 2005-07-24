@@ -8,7 +8,7 @@
  * For licensing information, see the file 'LICENCE' in the 
  * jffs2 directory.
  *
- * $Id: jffs2.h,v 1.34 2004/11/16 20:36:14 dwmw2 Exp $
+ * $Id: jffs2.h,v 1.35 2005/07/24 15:15:51 dedekind Exp $
  *
  */
 
@@ -101,7 +101,7 @@ struct jffs2_unknown_node
 struct jffs2_raw_dirent
 {
 	jint16_t magic;
-	jint16_t nodetype;	/* == JFFS_NODETYPE_DIRENT */
+	jint16_t nodetype;	/* == JFFS2_NODETYPE_DIRENT */
 	jint32_t totlen;
 	jint32_t hdr_crc;
 	jint32_t pino;
@@ -125,7 +125,7 @@ struct jffs2_raw_dirent
 struct jffs2_raw_inode
 {
 	jint16_t magic;      /* A constant magic number.  */
-	jint16_t nodetype;   /* == JFFS_NODETYPE_INODE */
+	jint16_t nodetype;   /* == JFFS2_NODETYPE_INODE */
 	jint32_t totlen;     /* Total length of this node (inc data, etc.) */
 	jint32_t hdr_crc;
 	jint32_t ino;        /* Inode number.  */

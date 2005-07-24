@@ -7,32 +7,13 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.h,v 1.5 2005/07/24 15:14:14 dedekind Exp $
+ * $Id: debug.h,v 1.6 2005/07/24 15:18:26 dedekind Exp $
  *
  */
 #ifndef _JFFS2_DEBUG_H_
 #define _JFFS2_DEBUG_H_
 
 #include <linux/config.h>
-
-/* ------------------------------------------------ */
-/* TODO: remove */
-#undef CONFIG_JFFS2_FS_DEBUG
-#define CONFIG_JFFS2_FS_DEBUG 0
-//#define JFFS2_DBG_PARANOIA_CHECKS
-//#define JFFS2_DBG_DUMPS
-#define JFFS2_DBG_READINODE_MESSAGES
-//#define JFFS2_DBG_FRAGTREE_MESSAGES
-//#define JFFS2_DBG_FRAGTREE2_MESSAGES
-#undef KERN_DEBUG
-#undef KERN_WARNING
-#undef KERN_NOTICE
-#undef KERN_ERR
-#define KERN_DEBUG   KERN_CRIT
-#define KERN_WARNING KERN_CRIT
-#define KERN_NOTICE  KERN_CRIT
-#define KERN_ERR     KERN_CRIT
-/* ------------------------------------------------ */
 
 #ifndef CONFIG_JFFS2_FS_DEBUG
 #define CONFIG_JFFS2_FS_DEBUG 1

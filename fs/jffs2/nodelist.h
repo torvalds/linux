@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.h,v 1.133 2005/07/22 10:32:08 dedekind Exp $
+ * $Id: nodelist.h,v 1.134 2005/07/24 15:29:56 dedekind Exp $
  *
  */
 
@@ -336,7 +336,7 @@ int jffs2_do_link (struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint
 
 
 /* readinode.c */
-void jffs2_truncate_fraglist (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size);
+void jffs2_truncate_fragtree (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size);
 int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_full_dnode *fn);
 int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, 
 			uint32_t ino, struct jffs2_raw_inode *latest_node);

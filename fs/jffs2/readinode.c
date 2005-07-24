@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.129 2005/07/22 10:32:08 dedekind Exp $
+ * $Id: readinode.c,v 1.130 2005/07/24 15:29:56 dedekind Exp $
  *
  */
 
@@ -273,7 +273,7 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *l
 	return 0;
 }
 
-void jffs2_truncate_fraglist (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size)
+void jffs2_truncate_fragtree (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size)
 {
 	struct jffs2_node_frag *frag = jffs2_lookup_node_frag(list, size);
 
@@ -534,7 +534,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 			
 	case S_IFREG:
 		/* If it was a regular file, truncate it to the latest node's isize */
-		jffs2_truncate_fraglist(c, &f->fragtree, je32_to_cpu(latest_node->isize));
+		jffs2_truncate_fragtree(c, &f->fragtree, je32_to_cpu(latest_node->isize));
 		break;
 
 	case S_IFLNK:

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: fs.c,v 1.60 2005/07/22 10:32:08 dedekind Exp $
+ * $Id: fs.c,v 1.61 2005/07/24 15:29:56 dedekind Exp $
  *
  */
 
@@ -147,7 +147,7 @@ static int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	old_metadata = f->metadata;
 
 	if (ivalid & ATTR_SIZE && inode->i_size > iattr->ia_size)
-		jffs2_truncate_fraglist (c, &f->fragtree, iattr->ia_size);
+		jffs2_truncate_fragtree (c, &f->fragtree, iattr->ia_size);
 
 	if (ivalid & ATTR_SIZE && inode->i_size < iattr->ia_size) {
 		jffs2_add_full_dnode_to_inode(c, f, new_metadata);
