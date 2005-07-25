@@ -72,11 +72,6 @@ extern int debug;
 #define	CONFIGURED	1
 #define	EMPTY		0
 
-struct rpaphp_pci_func {
-	struct pci_dev *pci_dev;
-	struct list_head sibling;
-};
-
 /*
  * struct slot - slot information for each *physical* slot
  */
@@ -113,7 +108,6 @@ extern int rpaphp_enable_pci_slot(struct slot *slot);
 extern int register_pci_slot(struct slot *slot);
 extern int rpaphp_unconfig_pci_adapter(struct slot *slot);
 extern int rpaphp_get_pci_adapter_status(struct slot *slot, int is_init, u8 * value);
-extern struct hotplug_slot *rpaphp_find_hotplug_slot(struct pci_dev *dev);
 
 /* rpaphp_core.c */
 extern int rpaphp_add_slot(struct device_node *dn);

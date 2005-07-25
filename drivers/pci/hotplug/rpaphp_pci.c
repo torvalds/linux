@@ -186,39 +186,6 @@ rpaphp_fixup_new_pci_devices(struct pci_bus *bus, int fix_bus)
 	}
 }
 
-static int rpaphp_pci_config_bridge(struct pci_dev *dev);
-
-/*****************************************************************************
- rpaphp_pci_config_slot() will  configure all devices under the 
- given slot->dn and return the the first pci_dev.
- *****************************************************************************/
-static struct pci_dev *
-rpaphp_pci_config_slot(struct device_node *dn, struct pci_bus *bus)
-{
-	struct device_node *eads_first_child = dn->child;
-	struct pci_dev *dev = NULL;
-	int num;
-	
-	dbg("Enter %s: dn=%s bus=%s\n", __FUNCTION__, dn->full_name, bus->name);
-
-	if (eads_first_child) {
-		/* pci_scan_slot should find all children of EADs */
-		num = pci_scan_slot(bus, PCI_DEVFN(PCI_SLOT(eads_first_child->devfn), 0));
-		if (num) {
-			rpaphp_fixup_new_pci_devices(bus, 1); 
-			pci_bus_add_devices(bus);
-		}
-		dev = rpaphp_find_pci_dev(eads_first_child);
-		if (!dev) {
-			err("No new device found\n");
-			return NULL;
-		}
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) 
-			rpaphp_pci_config_bridge(dev);
-	}
-	return dev;
-}
-
 static int rpaphp_pci_config_bridge(struct pci_dev *dev)
 {
 	u8 sec_busno;
@@ -250,6 +217,37 @@ static int rpaphp_pci_config_bridge(struct pci_dev *dev)
 	/* Make the discovered devices available */
 	pci_bus_add_devices(child_bus);
 	return 0;
+}
+
+/*****************************************************************************
+ rpaphp_pci_config_slot() will  configure all devices under the
+ given slot->dn and return the the first pci_dev.
+ *****************************************************************************/
+static struct pci_dev *
+rpaphp_pci_config_slot(struct device_node *dn, struct pci_bus *bus)
+{
+	struct device_node *eads_first_child = dn->child;
+	struct pci_dev *dev = NULL;
+	int num;
+
+	dbg("Enter %s: dn=%s bus=%s\n", __FUNCTION__, dn->full_name, bus->name);
+
+	if (eads_first_child) {
+		/* pci_scan_slot should find all children of EADs */
+		num = pci_scan_slot(bus, PCI_DEVFN(PCI_SLOT(eads_first_child->devfn), 0));
+		if (num) {
+			rpaphp_fixup_new_pci_devices(bus, 1);
+			pci_bus_add_devices(bus);
+		}
+		dev = rpaphp_find_pci_dev(eads_first_child);
+		if (!dev) {
+			err("No new device found\n");
+			return NULL;
+		}
+		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
+			rpaphp_pci_config_bridge(dev);
+	}
+	return dev;
 }
 
 static void enable_eeh(struct device_node *dn)
@@ -502,37 +500,3 @@ exit:
 	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
 	return retval;
 }
-
-struct hotplug_slot *rpaphp_find_hotplug_slot(struct pci_dev *dev)
-{
-	struct list_head	*tmp, *n;
-	struct slot		*slot;
-
-	list_for_each_safe(tmp, n, &rpaphp_slot_head) {
-		struct pci_bus *bus;
-		struct list_head *ln;
-
-		slot = list_entry(tmp, struct slot, rpaphp_slot_list);
-		if (slot->bridge == NULL) {
-			if (slot->dev_type == PCI_DEV) {
-				printk(KERN_WARNING "PCI slot missing bridge %s %s \n", 
-				                    slot->name, slot->location);
-			}
-			continue;
-		}
-
-		bus = slot->bridge->subordinate;
-		if (!bus) {
-			continue;  /* should never happen? */
-		}
-		for (ln = bus->devices.next; ln != &bus->devices; ln = ln->next) {
-                                struct pci_dev *pdev = pci_dev_b(ln);
-				if (pdev == dev)
-					return slot->hotplug_slot;
-		}
-	}
-
-	return NULL;
-}
-
-EXPORT_SYMBOL_GPL(rpaphp_find_hotplug_slot);
