@@ -2735,7 +2735,8 @@ static int create_standard_interface_quirk(snd_usb_audio_t *chip,
  * to detect the sample rate is by looking at wMaxPacketSize.
  */
 static int create_ua700_ua25_quirk(snd_usb_audio_t *chip,
-				   struct usb_interface *iface)
+				   struct usb_interface *iface,
+				   const snd_usb_audio_quirk_t *quirk)
 {
 	static const struct audioformat ua_format = {
 		.format = SNDRV_PCM_FORMAT_S24_3LE,
@@ -2826,7 +2827,9 @@ static int create_ua700_ua25_quirk(snd_usb_audio_t *chip,
 /*
  * Create a stream for an Edirol UA-1000 interface.
  */
-static int create_ua1000_quirk(snd_usb_audio_t *chip, struct usb_interface *iface)
+static int create_ua1000_quirk(snd_usb_audio_t *chip,
+			       struct usb_interface *iface,
+			       const snd_usb_audio_quirk_t *quirk)
 {
 	static const struct audioformat ua1000_format = {
 		.format = SNDRV_PCM_FORMAT_S32_LE,
@@ -2903,6 +2906,13 @@ static int create_composite_quirk(snd_usb_audio_t *chip,
 	return 0;
 }
 
+static int ignore_interface_quirk(snd_usb_audio_t *chip,
+				  struct usb_interface *iface,
+				  const snd_usb_audio_quirk_t *quirk)
+{
+	return 0;
+}
+
 
 /*
  * boot quirks
@@ -2965,29 +2975,28 @@ static int snd_usb_create_quirk(snd_usb_audio_t *chip,
 				struct usb_interface *iface,
 				const snd_usb_audio_quirk_t *quirk)
 {
-	switch (quirk->type) {
-	case QUIRK_MIDI_FIXED_ENDPOINT:
-	case QUIRK_MIDI_YAMAHA:
-	case QUIRK_MIDI_MIDIMAN:
-	case QUIRK_MIDI_NOVATION:
-	case QUIRK_MIDI_RAW:
-	case QUIRK_MIDI_EMAGIC:
-	case QUIRK_MIDI_MIDITECH:
-		return snd_usb_create_midi_interface(chip, iface, quirk);
-	case QUIRK_COMPOSITE:
-		return create_composite_quirk(chip, iface, quirk);
-	case QUIRK_AUDIO_FIXED_ENDPOINT:
-		return create_fixed_stream_quirk(chip, iface, quirk);
-	case QUIRK_AUDIO_STANDARD_INTERFACE:
-	case QUIRK_MIDI_STANDARD_INTERFACE:
-		return create_standard_interface_quirk(chip, iface, quirk);
-	case QUIRK_AUDIO_EDIROL_UA700_UA25:
-		return create_ua700_ua25_quirk(chip, iface);
-	case QUIRK_AUDIO_EDIROL_UA1000:
-		return create_ua1000_quirk(chip, iface);
-	case QUIRK_IGNORE_INTERFACE:
-		return 0;
-	default:
+	typedef int (*quirk_func_t)(snd_usb_audio_t *, struct usb_interface *,
+				    const snd_usb_audio_quirk_t *);
+	static const quirk_func_t quirk_funcs[] = {
+		[QUIRK_IGNORE_INTERFACE] = ignore_interface_quirk,
+		[QUIRK_COMPOSITE] = create_composite_quirk,
+		[QUIRK_MIDI_STANDARD_INTERFACE] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_FIXED_ENDPOINT] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_YAMAHA] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_MIDIMAN] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_NOVATION] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_RAW] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_EMAGIC] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_MIDITECH] = snd_usb_create_midi_interface,
+		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_interface_quirk,
+		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
+		[QUIRK_AUDIO_EDIROL_UA700_UA25] = create_ua700_ua25_quirk,
+		[QUIRK_AUDIO_EDIROL_UA1000] = create_ua1000_quirk,
+	};
+
+	if (quirk->type < QUIRK_TYPE_COUNT) {
+		return quirk_funcs[quirk->type](chip, iface, quirk);
+	} else {
 		snd_printd(KERN_ERR "invalid quirk type %d\n", quirk->type);
 		return -ENXIO;
 	}
