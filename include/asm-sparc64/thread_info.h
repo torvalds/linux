@@ -47,7 +47,9 @@ struct thread_info {
 	struct pt_regs		*kregs;
 	struct exec_domain	*exec_domain;
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
-	int			__pad;
+	__u8			new_child;
+	__u8			syscall_noerror;
+	__u16			__pad;
 
 	unsigned long		*utraps;
 
@@ -87,6 +89,8 @@ struct thread_info {
 #define TI_KREGS	0x00000028
 #define TI_EXEC_DOMAIN	0x00000030
 #define TI_PRE_COUNT	0x00000038
+#define TI_NEW_CHILD	0x0000003c
+#define TI_SYS_NOERROR	0x0000003d
 #define TI_UTRAPS	0x00000040
 #define TI_REG_WINDOW	0x00000048
 #define TI_RWIN_SPTRS	0x000003c8	
@@ -219,10 +223,10 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define TIF_UNALIGNED		5	/* allowed to do unaligned accesses */
 #define TIF_NEWSIGNALS		6	/* wants new-style signals */
 #define TIF_32BIT		7	/* 32-bit binary */
-#define TIF_NEWCHILD		8	/* just-spawned child process */
+/* flag bit 8 is available */
 #define TIF_SECCOMP		9	/* secure computing */
 #define TIF_SYSCALL_AUDIT	10	/* syscall auditing active */
-#define TIF_SYSCALL_SUCCESS	11
+/* flag bit 11 is available */
 /* NOTE: Thread flags >= 12 should be ones we have no interest
  *       in using in assembly, else we can't use the mask as
  *       an immediate value in instructions such as andcc.
@@ -239,10 +243,8 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define _TIF_UNALIGNED		(1<<TIF_UNALIGNED)
 #define _TIF_NEWSIGNALS		(1<<TIF_NEWSIGNALS)
 #define _TIF_32BIT		(1<<TIF_32BIT)
-#define _TIF_NEWCHILD		(1<<TIF_NEWCHILD)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
-#define _TIF_SYSCALL_SUCCESS	(1<<TIF_SYSCALL_SUCCESS)
 #define _TIF_ABI_PENDING	(1<<TIF_ABI_PENDING)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 

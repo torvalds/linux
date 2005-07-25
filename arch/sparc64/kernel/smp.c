@@ -137,7 +137,7 @@ void __init smp_callin(void)
 	/* Clear this or we will die instantly when we
 	 * schedule back to this idler...
 	 */
-	clear_thread_flag(TIF_NEWCHILD);
+	current_thread_info()->new_child = 0;
 
 	/* Attach to the address space of init_task. */
 	atomic_inc(&init_mm.mm_count);

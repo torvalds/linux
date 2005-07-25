@@ -94,8 +94,9 @@ struct sparc_trapf {
 #define STACKFRAME32_SZ	sizeof(struct sparc_stackf32)
 
 #ifdef __KERNEL__
-#define force_successful_syscall_return()	\
-	set_thread_flag(TIF_SYSCALL_SUCCESS)
+#define force_successful_syscall_return()	    \
+do {	current_thread_info()->syscall_noerror = 1; \
+} while (0)
 #define user_mode(regs) (!((regs)->tstate & TSTATE_PRIV))
 #define instruction_pointer(regs) ((regs)->tpc)
 #ifdef CONFIG_SMP
