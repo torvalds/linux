@@ -9826,19 +9826,35 @@ static void __devinit tg3_init_link_config(struct tg3 *tp)
 
 static void __devinit tg3_init_bufmgr_config(struct tg3 *tp)
 {
-	tp->bufmgr_config.mbuf_read_dma_low_water =
-		DEFAULT_MB_RDMA_LOW_WATER;
-	tp->bufmgr_config.mbuf_mac_rx_low_water =
-		DEFAULT_MB_MACRX_LOW_WATER;
-	tp->bufmgr_config.mbuf_high_water =
-		DEFAULT_MB_HIGH_WATER;
+	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS) {
+		tp->bufmgr_config.mbuf_read_dma_low_water =
+			DEFAULT_MB_RDMA_LOW_WATER_5705;
+		tp->bufmgr_config.mbuf_mac_rx_low_water =
+			DEFAULT_MB_MACRX_LOW_WATER_5705;
+		tp->bufmgr_config.mbuf_high_water =
+			DEFAULT_MB_HIGH_WATER_5705;
 
-	tp->bufmgr_config.mbuf_read_dma_low_water_jumbo =
-		DEFAULT_MB_RDMA_LOW_WATER_JUMBO;
-	tp->bufmgr_config.mbuf_mac_rx_low_water_jumbo =
-		DEFAULT_MB_MACRX_LOW_WATER_JUMBO;
-	tp->bufmgr_config.mbuf_high_water_jumbo =
-		DEFAULT_MB_HIGH_WATER_JUMBO;
+		tp->bufmgr_config.mbuf_read_dma_low_water_jumbo =
+			DEFAULT_MB_RDMA_LOW_WATER_JUMBO_5780;
+		tp->bufmgr_config.mbuf_mac_rx_low_water_jumbo =
+			DEFAULT_MB_MACRX_LOW_WATER_JUMBO_5780;
+		tp->bufmgr_config.mbuf_high_water_jumbo =
+			DEFAULT_MB_HIGH_WATER_JUMBO_5780;
+	} else {
+		tp->bufmgr_config.mbuf_read_dma_low_water =
+			DEFAULT_MB_RDMA_LOW_WATER;
+		tp->bufmgr_config.mbuf_mac_rx_low_water =
+			DEFAULT_MB_MACRX_LOW_WATER;
+		tp->bufmgr_config.mbuf_high_water =
+			DEFAULT_MB_HIGH_WATER;
+
+		tp->bufmgr_config.mbuf_read_dma_low_water_jumbo =
+			DEFAULT_MB_RDMA_LOW_WATER_JUMBO;
+		tp->bufmgr_config.mbuf_mac_rx_low_water_jumbo =
+			DEFAULT_MB_MACRX_LOW_WATER_JUMBO;
+		tp->bufmgr_config.mbuf_high_water_jumbo =
+			DEFAULT_MB_HIGH_WATER_JUMBO;
+	}
 
 	tp->bufmgr_config.dma_low_water = DEFAULT_DMA_LOW_WATER;
 	tp->bufmgr_config.dma_high_water = DEFAULT_DMA_HIGH_WATER;
@@ -10052,8 +10068,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 	tg3_init_link_config(tp);
 
-	tg3_init_bufmgr_config(tp);
-
 	tp->rx_pending = TG3_DEF_RX_RING_PENDING;
 	tp->rx_jumbo_pending = TG3_DEF_RX_JUMBO_RING_PENDING;
 	tp->tx_pending = TG3_DEF_TX_RING_PENDING;
@@ -10082,14 +10096,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
-	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS) {
-		tp->bufmgr_config.mbuf_read_dma_low_water =
-			DEFAULT_MB_RDMA_LOW_WATER_5705;
-		tp->bufmgr_config.mbuf_mac_rx_low_water =
-			DEFAULT_MB_MACRX_LOW_WATER_5705;
-		tp->bufmgr_config.mbuf_high_water =
-			DEFAULT_MB_HIGH_WATER_5705;
-	}
+	tg3_init_bufmgr_config(tp);
 
 #if TG3_TSO_SUPPORT != 0
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
