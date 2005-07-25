@@ -220,13 +220,8 @@ int register_slot(struct slot *slot)
 	    __FUNCTION__, slot->name);
 
 	list_add(&slot->rpaphp_slot_list, &rpaphp_slot_head);
-
-	if (slot->dev_type == VIO_DEV)
-		info("Slot [%s](VIO location=%s) registered\n",
-		     slot->name, slot->location);
-	else
-		info("Slot [%s](PCI location=%s) registered\n",
-		     slot->name, slot->location);
+	info("Slot [%s](PCI location=%s) registered\n", slot->name,
+			slot->location);
 	num_slots++;
 	return 0;
 }

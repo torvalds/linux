@@ -265,11 +265,9 @@ static void print_slot_pci_funcs(struct slot *slot)
 {
 	struct pci_dev *dev;
 
-	if (slot->dev_type == PCI_DEV) {
-		dbg("%s: pci_devs of slot[%s]\n", __FUNCTION__, slot->name);
-		list_for_each_entry (dev, slot->dev.pci_devs, bus_list)
-			dbg("\t%s\n", pci_name(dev));
-	}
+	dbg("%s: pci_devs of slot[%s]\n", __FUNCTION__, slot->name);
+	list_for_each_entry (dev, slot->pci_devs, bus_list)
+		dbg("\t%s\n", pci_name(dev));
 	return;
 }
 
@@ -328,7 +326,7 @@ int rpaphp_unconfig_pci_adapter(struct slot *slot)
 	struct pci_dev *dev;
 	int retval = 0;
 
-	list_for_each_entry(dev, slot->dev.pci_devs, bus_list)
+	list_for_each_entry(dev, slot->pci_devs, bus_list)
 		rpaphp_eeh_remove_bus_device(dev);
 
 	pci_remove_behind_bridge(slot->bridge);
@@ -401,7 +399,7 @@ static int setup_pci_slot(struct slot *slot)
 		bus = slot->bridge->subordinate;
 		if (!bus)
 			goto exit_rc;
-		slot->dev.pci_devs = &bus->devices;
+		slot->pci_devs = &bus->devices;
 
 		dbg("%s set slot->name to %s\n",  __FUNCTION__,
 				pci_name(slot->bridge));
@@ -434,7 +432,7 @@ static int setup_pci_slot(struct slot *slot)
 			goto exit_rc;
 		}
 		print_slot_pci_funcs(slot);
-		if (!list_empty(slot->dev.pci_devs)) {
+		if (!list_empty(slot->pci_devs)) {
 			slot->state = CONFIGURED;
 		} else {
 			/* DLPAR add as opposed to 
@@ -452,7 +450,6 @@ int register_pci_slot(struct slot *slot)
 {
 	int rc = -EINVAL;
 
-	slot->dev_type = PCI_DEV;
 	if ((slot->type == EMBEDDED) || (slot->type == PHB))
 		slot->removable = 0;
 	else

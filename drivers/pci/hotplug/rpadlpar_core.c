@@ -19,6 +19,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/semaphore.h>
 #include <asm/rtas.h>
+#include <asm/vio.h>
 #include "../pci.h"
 #include "rpaphp.h"
 #include "rpadlpar.h"
@@ -29,23 +30,23 @@ static DECLARE_MUTEX(rpadlpar_sem);
 #define NODE_TYPE_SLOT 2
 #define NODE_TYPE_PHB  3
 
-static struct device_node *find_php_slot_vio_node(char *drc_name)
+static struct device_node *find_vio_slot_node(char *drc_name)
 {
-	struct device_node *child;
 	struct device_node *parent = of_find_node_by_name(NULL, "vdevice");
-	char *loc_code;
+	struct device_node *dn = NULL;
+	char *name;
+	int rc;
 
 	if (!parent)
 		return NULL;
 
-	for (child = of_get_next_child(parent, NULL);
-		child; child = of_get_next_child(parent, child)) {
-		loc_code = get_property(child, "ibm,loc-code", NULL);
-		if (loc_code && !strncmp(loc_code, drc_name, strlen(drc_name)))
-			return child;
+	while ((dn = of_get_next_child(parent, dn))) {
+		rc = rpaphp_get_drc_props(dn, NULL, &name, NULL, NULL);
+		if ((rc == 0) && (!strcmp(drc_name, name)))
+			break;
 	}
 
-	return NULL;
+	return dn;
 }
 
 /* Find dlpar-capable pci node that contains the specified name and type */
@@ -67,7 +68,7 @@ static struct device_node *find_php_slot_pci_node(char *drc_name,
 	return np;
 }
 
-static struct device_node *find_newly_added_node(char *drc_name, int *node_type)
+static struct device_node *find_dlpar_node(char *drc_name, int *node_type)
 {
 	struct device_node *dn;
 
@@ -83,7 +84,7 @@ static struct device_node *find_newly_added_node(char *drc_name, int *node_type)
 		return dn;
 	}
 
-	dn = find_php_slot_vio_node(drc_name);
+	dn = find_vio_slot_node(drc_name);
 	if (dn) {
 		*node_type = NODE_TYPE_VIO;
 		return dn;
@@ -231,6 +232,12 @@ static inline int dlpar_add_pci_slot(char *drc_name, struct device_node *dn)
 		return -EIO;
 	}
 
+	/* Add hotplug slot */
+	if (rpaphp_add_slot(dn)) {
+		printk(KERN_ERR "%s: unable to add hotplug slot %s\n",
+			__FUNCTION__, drc_name);
+		return -EIO;
+	}
 	return 0;
 }
 
@@ -288,7 +295,7 @@ static int dlpar_remove_phb(struct slot *slot)
 	return 0;
 }
 
-static int dlpar_add_phb(struct device_node *dn)
+static int dlpar_add_phb(char *drc_name, struct device_node *dn)
 {
 	struct pci_controller *phb;
 
@@ -296,6 +303,11 @@ static int dlpar_add_phb(struct device_node *dn)
 	if (!phb)
 		return -EINVAL;
 
+	if (rpaphp_add_slot(dn)) {
+		printk(KERN_ERR "%s: unable to add hotplug slot %s\n",
+			__FUNCTION__, drc_name);
+		return -EIO;
+	}
 	return 0;
 }
 
@@ -316,7 +328,7 @@ int dlpar_add_slot(char *drc_name)
 {
 	struct device_node *dn = NULL;
 	int node_type;
-	int rc = 0;
+	int rc;
 
 	if (down_interruptible(&rpadlpar_sem))
 		return -ERESTARTSYS;
@@ -327,32 +339,39 @@ int dlpar_add_slot(char *drc_name)
 		goto exit;
 	}
 
-	dn = find_newly_added_node(drc_name, &node_type);
+	/* Find newly added node */
+	dn = find_dlpar_node(drc_name, &node_type);
 	if (!dn) {
 		rc = -ENODEV;
 		goto exit;
 	}
 
+	rc = -EIO;
 	switch (node_type) {
 		case NODE_TYPE_VIO:
-			/* Just add hotplug slot */
+			if (!vio_register_device_node(dn)) {
+				printk(KERN_ERR
+					"%s: failed to register vio node %s\n",
+					__FUNCTION__, drc_name);
+				goto exit;
+			}
 			break;
 		case NODE_TYPE_SLOT:
 			rc = dlpar_add_pci_slot(drc_name, dn);
+			if (rc)
+				goto exit;
 			break;
 		case NODE_TYPE_PHB:
-			rc = dlpar_add_phb(dn);
+			rc = dlpar_add_phb(drc_name, dn);
+			if (rc)
+				goto exit;
 			break;
 		default:
 			printk("%s: unexpected node type\n", __FUNCTION__);
-			return -EIO;
+			goto exit;
 	}
 
-	if (!rc && rpaphp_add_slot(dn)) {
-		printk(KERN_ERR "%s: unable to add hotplug slot %s\n",
-			__FUNCTION__, drc_name);
-		rc = -EIO;
-	}
+	rc = 0;
 exit:
 	up(&rpadlpar_sem);
 	return rc;
@@ -368,15 +387,18 @@ exit:
  * 0			Success
  * -EIO			Internal  Error
  */
-int dlpar_remove_vio_slot(struct slot *slot, char *drc_name)
+static int dlpar_remove_vio_slot(struct device_node *dn, char *drc_name)
 {
-	/* Remove hotplug slot */
+	struct vio_dev *vio_dev;
 
-	if (rpaphp_remove_slot(slot)) {
-		printk(KERN_ERR "%s: unable to remove hotplug slot %s\n",
-			__FUNCTION__, drc_name);
+	vio_dev = vio_find_node(dn);
+	if (!vio_dev) {
+		printk(KERN_ERR "%s: %s does not correspond to a vio dev\n",
+				__FUNCTION__, drc_name);
 		return -EIO;
 	}
+
+	vio_unregister_device(vio_dev);
 	return 0;
 }
 
@@ -434,36 +456,34 @@ int dlpar_remove_pci_slot(struct slot *slot, char *drc_name)
  */
 int dlpar_remove_slot(char *drc_name)
 {
+	struct device_node *dn;
 	struct slot *slot;
+	int node_type;
 	int rc = 0;
 
 	if (down_interruptible(&rpadlpar_sem))
 		return -ERESTARTSYS;
 
-	if (!find_php_slot_vio_node(drc_name) &&
-	    !find_php_slot_pci_node(drc_name, "SLOT") &&
-	    !find_php_slot_pci_node(drc_name, "PHB")) {
+	dn = find_dlpar_node(drc_name, &node_type);
+	if (!dn) {
 		rc = -ENODEV;
 		goto exit;
 	}
 
-	slot = find_slot(drc_name);
-	if (!slot) {
-		rc = -EINVAL;
-		goto exit;
-	}
-	
-	if (slot->type == PHB) {
-		rc = dlpar_remove_phb(slot);
+	if (node_type == NODE_TYPE_VIO) {
+		rc = dlpar_remove_vio_slot(dn, drc_name);
 	} else {
-		switch (slot->dev_type) {
-			case PCI_DEV:
-				rc = dlpar_remove_pci_slot(slot, drc_name);
-				break;
+		slot = find_slot(drc_name);
+		if (!slot) {
+			rc = -EINVAL;
+			goto exit;
+		}
 
-			case VIO_DEV:
-				rc = dlpar_remove_vio_slot(slot, drc_name);
-				break;
+		if (node_type == NODE_TYPE_PHB)
+			rc = dlpar_remove_phb(slot);
+		else {
+			/* NODE_TYPE_SLOT */
+			rc = dlpar_remove_pci_slot(slot, drc_name);
 		}
 	}
 exit:
