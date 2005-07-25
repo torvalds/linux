@@ -209,12 +209,14 @@ META_COLLECTOR(int_maclen)
  * Netfilter
  **************************************************************************/
 
-#ifdef CONFIG_NETFILTER
 META_COLLECTOR(int_nfmark)
 {
+#ifdef CONFIG_NETFILTER
 	dst->value = skb->nfmark;
-}
+#else
+	dst->value = 0;
 #endif
+}
 
 /**************************************************************************
  * Traffic Control
@@ -229,15 +231,17 @@ META_COLLECTOR(int_tcindex)
  * Routing
  **************************************************************************/
 
-#ifdef CONFIG_NET_CLS_ROUTE
 META_COLLECTOR(int_rtclassid)
 {
 	if (unlikely(skb->dst == NULL))
 		*err = -1;
 	else
+#ifdef CONFIG_NET_CLS_ROUTE
 		dst->value = skb->dst->tclassid;
-}
+#else
+		dst->value = 0;
 #endif
+}
 
 META_COLLECTOR(int_rtiif)
 {
@@ -487,13 +491,9 @@ static struct meta_ops __meta_ops[TCF_META_TYPE_MAX+1][TCF_META_ID_MAX+1] = {
 		[META_ID(PKTLEN)]		= META_FUNC(int_pktlen),
 		[META_ID(DATALEN)]		= META_FUNC(int_datalen),
 		[META_ID(MACLEN)]		= META_FUNC(int_maclen),
-#ifdef CONFIG_NETFILTER
 		[META_ID(NFMARK)]		= META_FUNC(int_nfmark),
-#endif
 		[META_ID(TCINDEX)]		= META_FUNC(int_tcindex),
-#ifdef CONFIG_NET_CLS_ROUTE
 		[META_ID(RTCLASSID)]		= META_FUNC(int_rtclassid),
-#endif
 		[META_ID(RTIIF)]		= META_FUNC(int_rtiif),
 		[META_ID(SK_FAMILY)]		= META_FUNC(int_sk_family),
 		[META_ID(SK_STATE)]		= META_FUNC(int_sk_state),

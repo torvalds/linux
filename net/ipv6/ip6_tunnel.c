@@ -1123,7 +1123,7 @@ static inline int ip6ip6_register(void)
 
 static inline int ip6ip6_unregister(void)
 {
-	return xfrm6_tunnel_unregister(&ip6ip6_handler);
+	return xfrm6_tunnel_deregister(&ip6ip6_handler);
 }
 #else
 static struct inet6_protocol xfrm6_tunnel_protocol = {
