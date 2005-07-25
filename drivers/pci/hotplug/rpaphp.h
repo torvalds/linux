@@ -93,7 +93,6 @@ extern int num_slots;
 /* function prototypes */
 
 /* rpaphp_pci.c */
-extern struct pci_dev *rpaphp_find_pci_dev(struct device_node *dn);
 extern int rpaphp_claim_resource(struct pci_dev *dev, int resource);
 extern int rpaphp_enable_pci_slot(struct slot *slot);
 extern int register_pci_slot(struct slot *slot);

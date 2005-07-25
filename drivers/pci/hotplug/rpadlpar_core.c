@@ -165,6 +165,20 @@ static int pci_add_secondary_bus(struct device_node *dn,
 	return 0;
 }
 
+static struct pci_dev *dlpar_find_new_dev(struct pci_bus *parent,
+					struct device_node *dev_dn)
+{
+	struct pci_dev *tmp = NULL;
+	struct device_node *child_dn;
+
+	list_for_each_entry(tmp, &parent->devices, bus_list) {
+		child_dn = pci_device_to_OF_node(tmp);
+		if (child_dn == dev_dn)
+			return tmp;
+	}
+	return NULL;
+}
+
 static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 {
 	struct pci_controller *hose = dn->phb;
@@ -180,20 +194,17 @@ static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 	pci_bus_add_devices(hose->bus);
 
 	/* Confirm new bridge dev was created */
-	dev = rpaphp_find_pci_dev(dn);
-	if (!dev) {
-		printk(KERN_ERR "%s: failed to add pci device\n", __FUNCTION__);
-		return NULL;
-	}
+	dev = dlpar_find_new_dev(hose->bus, dn);
+	if (dev) {
+		if (dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
+			printk(KERN_ERR "%s: unexpected header type %d\n",
+				__FUNCTION__, dev->hdr_type);
+			return NULL;
+		}
 
-	if (dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
-		printk(KERN_ERR "%s: unexpected header type %d\n",
-			__FUNCTION__, dev->hdr_type);
-		return NULL;
+		if (pci_add_secondary_bus(dn, dev))
+			return NULL;
 	}
-
-	if (pci_add_secondary_bus(dn, dev))
-		return NULL;
 
 	return dev;
 }

@@ -30,22 +30,7 @@
 
 #include "rpaphp.h"
 
-struct pci_dev *rpaphp_find_pci_dev(struct device_node *dn)
-{
-	struct pci_dev *dev = NULL;
-	char bus_id[BUS_ID_SIZE];
-
-	sprintf(bus_id, "%04x:%02x:%02x.%d", dn->phb->global_number,
-		dn->busno, PCI_SLOT(dn->devfn), PCI_FUNC(dn->devfn));
-	for_each_pci_dev(dev) {
-		if (!strcmp(pci_name(dev), bus_id)) {
-			break;
-		}
-	}
-	return dev;
-}
-
-struct pci_bus *find_bus_among_children(struct pci_bus *bus,
+static struct pci_bus *find_bus_among_children(struct pci_bus *bus,
 					struct device_node *dn)
 {
 	struct pci_bus *child = NULL;
@@ -64,14 +49,13 @@ struct pci_bus *find_bus_among_children(struct pci_bus *bus,
 	return child;
 }
 
-struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn)
+static struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn)
 {
-	BUG_ON(!dn->phb || !dn->phb->bus);
+	if (!dn->phb || !dn->phb->bus)
+		return NULL;
 
 	return find_bus_among_children(dn->phb->bus, dn);
 }
-
-EXPORT_SYMBOL_GPL(rpaphp_find_pci_dev);
 
 int rpaphp_claim_resource(struct pci_dev *dev, int resource)
 {
@@ -137,9 +121,8 @@ static int rpaphp_get_sensor_state(struct slot *slot, int *state)
  */
 int rpaphp_get_pci_adapter_status(struct slot *slot, int is_init, u8 * value)
 {
+	struct pci_bus *bus;
 	int state, rc;
- 	struct device_node *child_dn;
- 	struct pci_dev *child_dev = NULL;
 
 	*value = NOT_VALID;
 	rc = rpaphp_get_sensor_state(slot, &state);
@@ -156,20 +139,11 @@ int rpaphp_get_pci_adapter_status(struct slot *slot, int is_init, u8 * value)
 			/* config/unconfig adapter */
 			*value = slot->state;
 		} else {
- 			child_dn = slot->dn->child;
- 			if (child_dn)
- 				child_dev = rpaphp_find_pci_dev(child_dn);
-
- 			if (child_dev)
- 				*value = CONFIGURED;
- 			else if (!child_dn)
-				dbg("%s: %s is not valid OFDT node\n",
-				    __FUNCTION__, slot->dn->full_name);
-			else {
-				err("%s: can't find pdev of adapter in slot[%s]\n", 
-					__FUNCTION__, slot->dn->full_name);
+			bus = rpaphp_find_pci_bus(slot->dn);
+			if (bus && !list_empty(&bus->devices))
+				*value = CONFIGURED;
+			else
 				*value = NOT_CONFIGURED;
-			}
 		}
 	}
 exit:
@@ -252,24 +226,26 @@ rpaphp_pci_config_slot(struct device_node *dn, struct pci_bus *bus)
 	int num;
 
 	dbg("Enter %s: dn=%s bus=%s\n", __FUNCTION__, dn->full_name, bus->name);
+	if (!dn->child)
+		return NULL;
 
-	if (dn->child) {
-		slotno = PCI_SLOT(dn->child->devfn);
+	slotno = PCI_SLOT(dn->child->devfn);
 
-		/* pci_scan_slot should find all children */
-		num = pci_scan_slot(bus, PCI_DEVFN(slotno, 0));
-		if (num) {
-			rpaphp_fixup_new_pci_devices(bus, 1);
-			pci_bus_add_devices(bus);
-		}
-		dev = rpaphp_find_pci_dev(dn->child);
-		if (!dev) {
-			err("No new device found\n");
-			return NULL;
-		}
+	/* pci_scan_slot should find all children */
+	num = pci_scan_slot(bus, PCI_DEVFN(slotno, 0));
+	if (num) {
+		rpaphp_fixup_new_pci_devices(bus, 1);
+		pci_bus_add_devices(bus);
+	}
+	if (list_empty(&bus->devices)) {
+		err("%s: No new device found\n", __FUNCTION__);
+		return NULL;
+	}
+	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
 			rpaphp_pci_config_bridge(dev);
 	}
+
 	return dev;
 }
 
