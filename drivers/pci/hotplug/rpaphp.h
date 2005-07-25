@@ -80,10 +80,9 @@ struct slot {
 	char *name;
 	char *location;
 	u8 removable;
-	struct device_node *dn;	/* slot's device_node in OFDT */
-				/* dn has phb info */
-	struct pci_dev *bridge;	/* slot's pci_dev in pci_devices */
-	struct list_head *pci_devs; /* pci_devs in PCI slot */
+	struct device_node *dn;
+	struct pci_bus *bus;
+	struct list_head *pci_devs;
 	struct hotplug_slot *hotplug_slot;
 };
 

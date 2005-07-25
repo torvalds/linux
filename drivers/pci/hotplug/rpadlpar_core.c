@@ -198,28 +198,6 @@ static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 	return dev;
 }
 
-static int dlpar_pci_remove_bus(struct pci_dev *bridge_dev)
-{
-	struct pci_bus *secondary_bus;
-
-	if (!bridge_dev) {
-		printk(KERN_ERR "%s: unexpected null device\n",
-			__FUNCTION__);
-		return -EINVAL;
-	}
-
-	secondary_bus = bridge_dev->subordinate;
-
-	if (unmap_bus_range(secondary_bus)) {
-		printk(KERN_ERR "%s: failed to unmap bus range\n",
-			__FUNCTION__);
-		return -ERANGE;
-	}
-
-	pci_remove_bus_device(bridge_dev);
-	return 0;
-}
-
 static inline int dlpar_add_pci_slot(char *drc_name, struct device_node *dn)
 {
 	struct pci_dev *dev;
@@ -415,14 +393,7 @@ static int dlpar_remove_vio_slot(struct device_node *dn, char *drc_name)
  */
 int dlpar_remove_pci_slot(struct slot *slot, char *drc_name)
 {
-	struct pci_dev *bridge_dev;
-
-	bridge_dev = slot->bridge;
-	if (!bridge_dev) {
-		printk(KERN_ERR "%s: unexpected null bridge device\n",
-			__FUNCTION__);
-		return -EIO;
-	}
+	struct pci_bus *bus = slot->bus;
 
 	/* Remove hotplug slot */
 	if (rpaphp_remove_slot(slot)) {
@@ -431,13 +402,14 @@ int dlpar_remove_pci_slot(struct slot *slot, char *drc_name)
 		return -EIO;
 	}
 
-	/* Remove pci bus */
-
-	if (dlpar_pci_remove_bus(bridge_dev)) {
-		printk(KERN_ERR "%s: unable to remove pci bus %s\n",
-			__FUNCTION__, drc_name);
-		return -EIO;
+	if (unmap_bus_range(bus)) {
+		printk(KERN_ERR "%s: failed to unmap bus range\n",
+			__FUNCTION__);
+		return -ERANGE;
 	}
+
+	BUG_ON(!bus->self);
+	pci_remove_bus_device(bus->self);
 	return 0;
 }
 

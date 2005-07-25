@@ -45,6 +45,32 @@ struct pci_dev *rpaphp_find_pci_dev(struct device_node *dn)
 	return dev;
 }
 
+struct pci_bus *find_bus_among_children(struct pci_bus *bus,
+					struct device_node *dn)
+{
+	struct pci_bus *child = NULL;
+	struct list_head *tmp;
+	struct device_node *busdn;
+
+	busdn = pci_bus_to_OF_node(bus);
+	if (busdn == dn)
+		return bus;
+
+	list_for_each(tmp, &bus->children) {
+		child = find_bus_among_children(pci_bus_b(tmp), dn);
+		if (child)
+			break;
+	}
+	return child;
+}
+
+struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn)
+{
+	BUG_ON(!dn->phb || !dn->phb->bus);
+
+	return find_bus_among_children(dn->phb->bus, dn);
+}
+
 EXPORT_SYMBOL_GPL(rpaphp_find_pci_dev);
 
 int rpaphp_claim_resource(struct pci_dev *dev, int resource)
@@ -68,11 +94,6 @@ int rpaphp_claim_resource(struct pci_dev *dev, int resource)
 }
 
 EXPORT_SYMBOL_GPL(rpaphp_claim_resource);
-
-static struct pci_dev *rpaphp_find_bridge_pdev(struct slot *slot)
-{
-	return rpaphp_find_pci_dev(slot->dn);
-}
 
 static int rpaphp_get_sensor_state(struct slot *slot, int *state)
 {
@@ -226,20 +247,22 @@ static int rpaphp_pci_config_bridge(struct pci_dev *dev)
 static struct pci_dev *
 rpaphp_pci_config_slot(struct device_node *dn, struct pci_bus *bus)
 {
-	struct device_node *eads_first_child = dn->child;
 	struct pci_dev *dev = NULL;
+	int slotno;
 	int num;
 
 	dbg("Enter %s: dn=%s bus=%s\n", __FUNCTION__, dn->full_name, bus->name);
 
-	if (eads_first_child) {
-		/* pci_scan_slot should find all children of EADs */
-		num = pci_scan_slot(bus, PCI_DEVFN(PCI_SLOT(eads_first_child->devfn), 0));
+	if (dn->child) {
+		slotno = PCI_SLOT(dn->child->devfn);
+
+		/* pci_scan_slot should find all children */
+		num = pci_scan_slot(bus, PCI_DEVFN(slotno, 0));
 		if (num) {
 			rpaphp_fixup_new_pci_devices(bus, 1);
 			pci_bus_add_devices(bus);
 		}
-		dev = rpaphp_find_pci_dev(eads_first_child);
+		dev = rpaphp_find_pci_dev(dn->child);
 		if (!dev) {
 			err("No new device found\n");
 			return NULL;
@@ -273,31 +296,19 @@ static void print_slot_pci_funcs(struct slot *slot)
 
 static int rpaphp_config_pci_adapter(struct slot *slot)
 {
-	struct pci_bus *pci_bus;
 	struct pci_dev *dev;
 	int rc = -ENODEV;
 
 	dbg("Entry %s: slot[%s]\n", __FUNCTION__, slot->name);
 
-	if (slot->bridge) {
-
-		pci_bus = slot->bridge->subordinate;
-		if (!pci_bus) {
-			err("%s: can't find bus structure\n", __FUNCTION__);
-			goto exit;
-		}
-		enable_eeh(slot->dn);
-		dev = rpaphp_pci_config_slot(slot->dn, pci_bus);
-		if (!dev) {
-			err("%s: can't find any devices.\n", __FUNCTION__);
-			goto exit;
-		}
-		print_slot_pci_funcs(slot);
-		rc = 0;
-	} else {
-		/* slot is not enabled */
-		err("slot doesn't have pci_dev structure\n");
+	enable_eeh(slot->dn);
+	dev = rpaphp_pci_config_slot(slot->dn, slot->bus);
+	if (!dev) {
+		err("%s: can't find any devices.\n", __FUNCTION__);
+		goto exit;
 	}
+	print_slot_pci_funcs(slot);
+	rc = 0;
 exit:
 	dbg("Exit %s:  rc=%d\n", __FUNCTION__, rc);
 	return rc;
@@ -323,13 +334,14 @@ static void rpaphp_eeh_remove_bus_device(struct pci_dev *dev)
 
 int rpaphp_unconfig_pci_adapter(struct slot *slot)
 {
-	struct pci_dev *dev;
+	struct pci_dev *dev, *tmp;
 	int retval = 0;
 
-	list_for_each_entry(dev, slot->pci_devs, bus_list)
+	list_for_each_entry_safe(dev, tmp, slot->pci_devs, bus_list) {
 		rpaphp_eeh_remove_bus_device(dev);
+		pci_remove_bus_device(dev);
+	}
 
-	pci_remove_behind_bridge(slot->bridge);
 	slot->state = NOT_CONFIGURED;
 	info("%s: devices in slot[%s] unconfigured.\n", __FUNCTION__,
 	     slot->name);
@@ -352,66 +364,41 @@ static int setup_pci_hotplug_slot_info(struct slot *slot)
 	return 0;
 }
 
-static int set_phb_slot_name(struct slot *slot)
+static void set_slot_name(struct slot *slot)
 {
-	struct device_node *dn;
-	struct pci_controller *phb;
-	struct pci_bus *bus;
+	struct pci_bus *bus = slot->bus;
+	struct pci_dev *bridge;
 
-	dn = slot->dn;
-	if (!dn) {
-		return -EINVAL;
-	}
-	phb = dn->phb;
-	if (!phb) {
-		return -EINVAL;
-	}
-	bus = phb->bus;
-	if (!bus) {
-		return -EINVAL;
-	}
-
-	sprintf(slot->name, "%04x:%02x:%02x.%x", pci_domain_nr(bus),
-			bus->number, 0, 0);
-	return 0;
+	bridge = bus->self;
+	if (bridge)
+		strcpy(slot->name, pci_name(bridge));
+	else
+		sprintf(slot->name, "%04x:%02x:00.0", pci_domain_nr(bus),
+			bus->number);
 }
 
 static int setup_pci_slot(struct slot *slot)
 {
+	struct device_node *dn = slot->dn;
 	struct pci_bus *bus;
-	int rc;
 
-	if (slot->type == PHB) {
-		rc = set_phb_slot_name(slot);
-		if (rc < 0) {
-			err("%s: failed to set phb slot name\n", __FUNCTION__);
-			goto exit_rc;
-		}
-	} else {
-		slot->bridge = rpaphp_find_bridge_pdev(slot);
-		if (!slot->bridge) {
-			/* slot being added doesn't have pci_dev yet */
-			err("%s: no pci_dev for bridge dn %s\n",
-					__FUNCTION__, slot->name);
-			goto exit_rc;
-		}
-
-		bus = slot->bridge->subordinate;
-		if (!bus)
-			goto exit_rc;
-		slot->pci_devs = &bus->devices;
-
-		dbg("%s set slot->name to %s\n",  __FUNCTION__,
-				pci_name(slot->bridge));
-		strcpy(slot->name, pci_name(slot->bridge));
+	BUG_ON(!dn);
+	bus = rpaphp_find_pci_bus(dn);
+	if (!bus) {
+		err("%s: no pci_bus for dn %s\n", __FUNCTION__, dn->full_name);
+		goto exit_rc;
 	}
+
+	slot->bus = bus;
+	slot->pci_devs = &bus->devices;
+	set_slot_name(slot);
 
 	/* find slot's pci_dev if it's not empty */
 	if (slot->hotplug_slot->info->adapter_status == EMPTY) {
 		slot->state = EMPTY;	/* slot is empty */
 	} else {
 		/* slot is occupied */
-		if (!(slot->dn->child)) {
+		if (!dn->child) {
 			/* non-empty slot has to have child */
 			err("%s: slot[%s]'s device_node doesn't have child for adapter\n", 
 				__FUNCTION__, slot->name);
