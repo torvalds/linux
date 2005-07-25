@@ -3443,10 +3443,18 @@ static inline void tg3_set_mtu(struct net_device *dev, struct tg3 *tp,
 {
 	dev->mtu = new_mtu;
 
-	if (new_mtu > ETH_DATA_LEN)
-		tp->tg3_flags |= TG3_FLAG_JUMBO_RING_ENABLE;
-	else
+	if (new_mtu > ETH_DATA_LEN) {
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780) {
+			tp->tg3_flags2 &= ~TG3_FLG2_TSO_CAPABLE;
+			ethtool_op_set_tso(dev, 0);
+		}
+		else
+			tp->tg3_flags |= TG3_FLAG_JUMBO_RING_ENABLE;
+	} else {
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)
+			tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE;
 		tp->tg3_flags &= ~TG3_FLAG_JUMBO_RING_ENABLE;
+	}
 }
 
 static int tg3_change_mtu(struct net_device *dev, int new_mtu)
