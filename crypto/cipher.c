@@ -41,7 +41,7 @@ static unsigned int crypt_slow(const struct cipher_desc *desc,
 			       struct scatter_walk *in,
 			       struct scatter_walk *out, unsigned int bsize)
 {
-	unsigned int alignmask = crypto_tfm_alg_alignmask(desc->tfm);
+	unsigned long alignmask = crypto_tfm_alg_alignmask(desc->tfm);
 	u8 buffer[bsize * 2 + alignmask];
 	u8 *src = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	u8 *dst = src + bsize;
@@ -160,7 +160,7 @@ static int crypt_iv_unaligned(struct cipher_desc *desc,
 			      unsigned int nbytes)
 {
 	struct crypto_tfm *tfm = desc->tfm;
-	unsigned int alignmask = crypto_tfm_alg_alignmask(tfm);
+	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
 	u8 *iv = desc->info;
 
 	if (unlikely(((unsigned long)iv & alignmask))) {
@@ -424,7 +424,7 @@ int crypto_init_cipher_ops(struct crypto_tfm *tfm)
 	}
 	
 	if (ops->cit_mode == CRYPTO_TFM_MODE_CBC) {
-		unsigned int align;
+		unsigned long align;
 		unsigned long addr;
 	    	
 	    	switch (crypto_tfm_alg_blocksize(tfm)) {

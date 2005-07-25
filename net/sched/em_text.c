@@ -55,9 +55,6 @@ static int em_text_change(struct tcf_proto *tp, void *data, int len,
 	struct ts_config *ts_conf;
 	int flags = 0;
 
-	printk("Configuring text: %s from %d:%d to %d:%d len %d\n", conf->algo, conf->from_offset,
-	    conf->from_layer, conf->to_offset, conf->to_layer, conf->pattern_len);
-
 	if (len < sizeof(*conf) || len < (sizeof(*conf) + conf->pattern_len))
 		return -EINVAL;
 

@@ -41,6 +41,7 @@
 #include <linux/ioport.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
+#include <linux/jiffies.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -2092,7 +2093,7 @@ static void media_check(u_long arg)
     }
 
     /* Ignore collisions unless we've had no rx's recently */
-    if (jiffies - dev->last_rx > HZ) {
+    if (time_after(jiffies, dev->last_rx + HZ)) {
 	if (smc->tx_err || (smc->media_status & EPH_16COL))
 	    media |= EPH_16COL;
     }

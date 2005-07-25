@@ -985,7 +985,7 @@ EXPORT_SYMBOL(ip_ct_refresh_acct);
 EXPORT_SYMBOL(ip_ct_protos);
 EXPORT_SYMBOL(ip_ct_find_proto);
 EXPORT_SYMBOL(ip_conntrack_expect_alloc);
-EXPORT_SYMBOL(ip_conntrack_expect_free);
+EXPORT_SYMBOL(ip_conntrack_expect_put);
 EXPORT_SYMBOL(ip_conntrack_expect_related);
 EXPORT_SYMBOL(ip_conntrack_unexpect_related);
 EXPORT_SYMBOL(ip_conntrack_tuple_taken);

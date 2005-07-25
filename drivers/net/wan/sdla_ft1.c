@@ -29,6 +29,7 @@
 #include <linux/wanrouter.h>	/* WAN router definitions */
 #include <linux/wanpipe.h>	/* WANPIPE common user API definitions */
 #include <linux/if_arp.h>	/* ARPHRD_* defines */
+#include <linux/jiffies.h>	/* time_after() macro */
 
 #include <linux/inetdevice.h>
 #include <asm/uaccess.h>
@@ -164,7 +165,7 @@ int wpft1_init (sdla_t* card, wandev_conf_t* conf)
 
 		timeout = jiffies;
 		while (mb->return_code != 'I')	/* Wait 1s for board to initialize */
-			if ((jiffies - timeout) > 1*HZ) break;
+			if (time_after(jiffies, timeout + 1*HZ)) break;
 
 		if (mb->return_code != 'I') {
 			printk(KERN_INFO

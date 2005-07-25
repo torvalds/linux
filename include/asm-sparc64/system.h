@@ -190,24 +190,23 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	"wrpr	%%g1, %%cwp\n\t"					\
 	"ldx	[%%g6 + %3], %%o6\n\t"					\
 	"ldub	[%%g6 + %2], %%o5\n\t"					\
-	"ldx	[%%g6 + %4], %%o7\n\t"					\
+	"ldub	[%%g6 + %4], %%o7\n\t"					\
 	"mov	%%g6, %%l2\n\t"						\
 	"wrpr	%%o5, 0x0, %%wstate\n\t"				\
 	"ldx	[%%sp + 2047 + 0x70], %%i6\n\t"				\
 	"ldx	[%%sp + 2047 + 0x78], %%i7\n\t"				\
 	"wrpr	%%g0, 0x94, %%pstate\n\t"				\
 	"mov	%%l2, %%g6\n\t"						\
-	"ldx	[%%g6 + %7], %%g4\n\t"					\
+	"ldx	[%%g6 + %6], %%g4\n\t"					\
 	"wrpr	%%g0, 0x96, %%pstate\n\t"				\
-	"andcc	%%o7, %6, %%g0\n\t"					\
-	"beq,pt %%icc, 1f\n\t"						\
+	"brz,pt %%o7, 1f\n\t"						\
 	" mov	%%g7, %0\n\t"						\
 	"b,a ret_from_syscall\n\t"					\
 	"1:\n\t"							\
 	: "=&r" (last)							\
 	: "0" (next->thread_info),					\
-	  "i" (TI_WSTATE), "i" (TI_KSP), "i" (TI_FLAGS), "i" (TI_CWP),	\
-	  "i" (_TIF_NEWCHILD), "i" (TI_TASK)				\
+	  "i" (TI_WSTATE), "i" (TI_KSP), "i" (TI_NEW_CHILD),            \
+	  "i" (TI_CWP), "i" (TI_TASK)					\
 	: "cc",								\
 	        "g1", "g2", "g3",                   "g7",		\
 	              "l2", "l3", "l4", "l5", "l6", "l7",		\

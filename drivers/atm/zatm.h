@@ -73,6 +73,7 @@ struct zatm_dev {
 	int chans;			/* map size, must be 2^n */
 	/*-------------------------------- mailboxes */
 	unsigned long mbx_start[NR_MBX];/* start addresses */
+	dma_addr_t mbx_dma[NR_MBX];
 	u16 mbx_end[NR_MBX];		/* end offset (in bytes) */
 	/*-------------------------------- other pointers */
 	u32 pool_base;			/* Free buffer pool dsc (word addr) */

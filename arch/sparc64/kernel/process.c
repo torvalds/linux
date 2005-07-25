@@ -621,8 +621,8 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	memcpy(child_trap_frame, (((struct sparc_stackf *)regs)-1), (TRACEREG_SZ+STACKFRAME_SZ));
 
 	t->flags = (t->flags & ~((0xffUL << TI_FLAG_CWP_SHIFT) | (0xffUL << TI_FLAG_CURRENT_DS_SHIFT))) |
-		_TIF_NEWCHILD |
 		(((regs->tstate + 1) & TSTATE_CWP) << TI_FLAG_CWP_SHIFT);
+	t->new_child = 1;
 	t->ksp = ((unsigned long) child_trap_frame) - STACK_BIAS;
 	t->kregs = (struct pt_regs *)(child_trap_frame+sizeof(struct sparc_stackf));
 	t->fpsaved[0] = 0;

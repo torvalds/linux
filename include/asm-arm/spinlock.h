@@ -79,7 +79,8 @@ typedef struct {
 } rwlock_t;
 
 #define RW_LOCK_UNLOCKED	(rwlock_t) { 0 }
-#define rwlock_init(x)		do { *(x) + RW_LOCK_UNLOCKED; } while (0)
+#define rwlock_init(x)		do { *(x) = RW_LOCK_UNLOCKED; } while (0)
+#define rwlock_is_locked(x)	(*((volatile unsigned int *)(x)) != 0)
 
 /*
  * Write locks are easy - we just set bit 31.  When unlocking, we can
@@ -98,6 +99,21 @@ static inline void _raw_write_lock(rwlock_t *rw)
 	: "=&r" (tmp)
 	: "r" (&rw->lock), "r" (0x80000000)
 	: "cc", "memory");
+}
+
+static inline int _raw_write_trylock(rwlock_t *rw)
+{
+	unsigned long tmp;
+
+	__asm__ __volatile__(
+"1:	ldrex	%0, [%1]\n"
+"	teq	%0, #0\n"
+"	strexeq	%0, %2, [%1]"
+	: "=&r" (tmp)
+	: "r" (&rw->lock), "r" (0x80000000)
+	: "cc", "memory");
+
+	return tmp == 0;
 }
 
 static inline void _raw_write_unlock(rwlock_t *rw)
@@ -138,6 +154,8 @@ static inline void _raw_read_lock(rwlock_t *rw)
 
 static inline void _raw_read_unlock(rwlock_t *rw)
 {
+	unsigned long tmp, tmp2;
+
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%2]\n"
 "	sub	%0, %0, #1\n"
@@ -150,20 +168,5 @@ static inline void _raw_read_unlock(rwlock_t *rw)
 }
 
 #define _raw_read_trylock(lock) generic_raw_read_trylock(lock)
-
-static inline int _raw_write_trylock(rwlock_t *rw)
-{
-	unsigned long tmp;
-
-	__asm__ __volatile__(
-"1:	ldrex	%0, [%1]\n"
-"	teq	%0, #0\n"
-"	strexeq	%0, %2, [%1]"
-	: "=&r" (tmp)
-	: "r" (&rw->lock), "r" (0x80000000)
-	: "cc", "memory");
-
-	return tmp == 0;
-}
 
 #endif /* __ASM_SPINLOCK_H */

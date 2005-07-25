@@ -78,7 +78,7 @@ struct smp_call_struct {
 static struct smp_call_struct * volatile smp_call_function_data;
 static DEFINE_SPINLOCK(smp_call_function_lock);
 
-int __init __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu)
 {
 	struct task_struct *idle;
 	pgd_t *pgd;
@@ -159,7 +159,7 @@ int __init __cpu_up(unsigned int cpu)
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
  */
-asmlinkage void __init secondary_start_kernel(void)
+asmlinkage void __cpuinit secondary_start_kernel(void)
 {
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu = smp_processor_id();
@@ -209,7 +209,7 @@ asmlinkage void __init secondary_start_kernel(void)
  * Called by both boot and secondaries to move global data into
  * per-processor storage.
  */
-void __init smp_store_cpu_info(unsigned int cpuid)
+void __cpuinit smp_store_cpu_info(unsigned int cpuid)
 {
 	struct cpuinfo_arm *cpu_info = &per_cpu(cpu_data, cpuid);
 

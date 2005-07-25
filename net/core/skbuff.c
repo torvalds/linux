@@ -377,8 +377,8 @@ struct sk_buff *skb_clone(struct sk_buff *skb, unsigned int __nocast gfp_mask)
 	C(tc_index);
 #ifdef CONFIG_NET_CLS_ACT
 	n->tc_verd = SET_TC_VERD(skb->tc_verd,0);
-	n->tc_verd = CLR_TC_OK2MUNGE(skb->tc_verd);
-	n->tc_verd = CLR_TC_MUNGED(skb->tc_verd);
+	n->tc_verd = CLR_TC_OK2MUNGE(n->tc_verd);
+	n->tc_verd = CLR_TC_MUNGED(n->tc_verd);
 	C(input_dev);
 	C(tc_classid);
 #endif
