@@ -2621,7 +2621,7 @@ static int tg3_alloc_rx_skb(struct tg3 *tp, u32 opaque_key,
 		map = &tp->rx_std_buffers[dest_idx];
 		if (src_idx >= 0)
 			src_map = &tp->rx_std_buffers[src_idx];
-		skb_size = RX_PKT_BUF_SZ;
+		skb_size = tp->rx_pkt_buf_sz;
 		break;
 
 	case RXD_OPAQUE_RING_JUMBO:
@@ -3500,7 +3500,7 @@ static void tg3_free_rings(struct tg3 *tp)
 			continue;
 		pci_unmap_single(tp->pdev,
 				 pci_unmap_addr(rxp, mapping),
-				 RX_PKT_BUF_SZ - tp->rx_offset,
+				 tp->rx_pkt_buf_sz - tp->rx_offset,
 				 PCI_DMA_FROMDEVICE);
 		dev_kfree_skb_any(rxp->skb);
 		rxp->skb = NULL;
@@ -3573,6 +3573,11 @@ static void tg3_init_rings(struct tg3 *tp)
 	memset(tp->rx_rcb, 0, TG3_RX_RCB_RING_BYTES(tp));
 	memset(tp->tx_ring, 0, TG3_TX_RING_BYTES);
 
+	tp->rx_pkt_buf_sz = RX_PKT_BUF_SZ;
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780) &&
+	    (tp->dev->mtu > ETH_DATA_LEN))
+		tp->rx_pkt_buf_sz = RX_JUMBO_PKT_BUF_SZ;
+
 	/* Initialize invariants of the rings, we only set this
 	 * stuff once.  This works because the card does not
 	 * write into the rx buffer posting rings.
@@ -3581,7 +3586,7 @@ static void tg3_init_rings(struct tg3 *tp)
 		struct tg3_rx_buffer_desc *rxd;
 
 		rxd = &tp->rx_std[i];
-		rxd->idx_len = (RX_PKT_BUF_SZ - tp->rx_offset - 64)
+		rxd->idx_len = (tp->rx_pkt_buf_sz - tp->rx_offset - 64)
 			<< RXD_LEN_SHIFT;
 		rxd->type_flags = (RXD_FLAG_END << RXD_FLAGS_SHIFT);
 		rxd->opaque = (RXD_OPAQUE_RING_STD |
