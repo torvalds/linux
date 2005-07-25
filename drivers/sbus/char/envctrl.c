@@ -19,6 +19,8 @@
  *              Daniele Bellucci <bellucda@tiscali.it>
  */
 
+#define __KERNEL_SYSCALLS__
+
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -35,7 +37,6 @@
 #include <asm/uaccess.h>
 #include <asm/envctrl.h>
 
-#define __KERNEL_SYSCALLS__
 static int errno;
 #include <asm/unistd.h>
 
