@@ -12,6 +12,7 @@ __build:
 
 include $(if $(wildcard $(obj)/Kbuild), $(obj)/Kbuild, $(obj)/Makefile)
 
+include scripts/Kbuild.include
 include scripts/Makefile.lib
 
 ifdef host-progs

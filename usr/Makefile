@@ -27,7 +27,7 @@ quotefixed_initramfs_source := $(shell echo $(CONFIG_INITRAMFS_SOURCE))
 filechk_initramfs_list = $(CONFIG_SHELL) \
  $(srctree)/scripts/gen_initramfs_list.sh $(gen_initramfs_args) $(quotefixed_initramfs_source)
 
-$(obj)/initramfs_list: FORCE
+$(obj)/initramfs_list: $(obj)/Makefile FORCE
 	$(call filechk,initramfs_list)
 
 quiet_cmd_cpio = CPIO    $@

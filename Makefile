@@ -309,6 +309,9 @@ cc-version = $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh \
 # Look for make include files relative to root of kernel src
 MAKEFLAGS += --include-dir=$(srctree)
 
+# We need some generic definitions
+include scripts/Kbuild.include
+
 # For maximum performance (+ possibly random breakage, uncomment
 # the following)
 
@@ -366,11 +369,6 @@ export AFLAGS AFLAGS_KERNEL AFLAGS_MODULE
 # tree rather than in the kernel tree. The kernel tree might
 # even be read-only.
 export MODVERDIR := $(if $(KBUILD_EXTMOD),$(firstword $(KBUILD_EXTMOD))/).tmp_versions
-
-# The temporary file to save gcc -MD generated dependencies must not
-# contain a comma
-comma := ,
-depfile = $(subst $(comma),_,$(@D)/.$(@F).d)
 
 # Files to ignore in find ... statements
 
@@ -1284,72 +1282,6 @@ ifneq ($(cmd_files),)
   $(cmd_files): ;	# Do not try to update included dependency files
   include $(cmd_files)
 endif
-
-# Execute command and generate cmd file
-if_changed = $(if $(strip $? \
-		          $(filter-out $(cmd_$(1)),$(cmd_$@))\
-			  $(filter-out $(cmd_$@),$(cmd_$(1)))),\
-	@set -e; \
-	$(if $($(quiet)cmd_$(1)),echo '  $(subst ','\'',$($(quiet)cmd_$(1)))';) \
-	$(cmd_$(1)); \
-	echo 'cmd_$@ := $(subst $$,$$$$,$(subst ','\'',$(cmd_$(1))))' > $(@D)/.$(@F).cmd)
-
-
-# execute the command and also postprocess generated .d dependencies
-# file
-if_changed_dep = $(if $(strip $? $(filter-out FORCE $(wildcard $^),$^)\
-		          $(filter-out $(cmd_$(1)),$(cmd_$@))\
-			  $(filter-out $(cmd_$@),$(cmd_$(1)))),\
-	$(Q)set -e; \
-	$(if $($(quiet)cmd_$(1)),echo '  $(subst ','\'',$($(quiet)cmd_$(1)))';) \
-	$(cmd_$(1)); \
-	scripts/basic/fixdep $(depfile) $@ '$(subst $$,$$$$,$(subst ','\'',$(cmd_$(1))))' > $(@D)/.$(@F).tmp; \
-	rm -f $(depfile); \
-	mv -f $(@D)/.$(@F).tmp $(@D)/.$(@F).cmd)
-
-# Usage: $(call if_changed_rule,foo)
-# will check if $(cmd_foo) changed, or any of the prequisites changed,
-# and if so will execute $(rule_foo)
-
-if_changed_rule = $(if $(strip $? \
-		               $(filter-out $(cmd_$(1)),$(cmd_$(@F)))\
-			       $(filter-out $(cmd_$(@F)),$(cmd_$(1)))),\
-	               $(Q)$(rule_$(1)))
-
-# If quiet is set, only print short version of command
-
-cmd = @$(if $($(quiet)cmd_$(1)),echo '  $($(quiet)cmd_$(1))' &&) $(cmd_$(1))
-
-# filechk is used to check if the content of a generated file is updated.
-# Sample usage:
-# define filechk_sample
-#	echo $KERNELRELEASE
-# endef
-# version.h : Makefile
-#	$(call filechk,sample)
-# The rule defined shall write to stdout the content of the new file.
-# The existing file will be compared with the new one.
-# - If no file exist it is created
-# - If the content differ the new file is used
-# - If they are equal no change, and no timestamp update
-
-define filechk
-	@set -e;				\
-	echo '  CHK     $@';			\
-	mkdir -p $(dir $@);			\
-	$(filechk_$(1)) < $< > $@.tmp;		\
-	if [ -r $@ ] && cmp -s $@ $@.tmp; then	\
-		rm -f $@.tmp;			\
-	else					\
-		echo '  UPD     $@';		\
-		mv -f $@.tmp $@;		\
-	fi
-endef
-
-# Shorthand for $(Q)$(MAKE) -f scripts/Makefile.build obj=dir
-# Usage:
-# $(Q)$(MAKE) $(build)=dir
-build := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj
 
 # Shorthand for $(Q)$(MAKE) -f scripts/Makefile.clean obj=dir
 # Usage:
