@@ -1307,7 +1307,7 @@ local int huft_build(
   {
     *t = (inflate_huft *)Z_NULL;
     *m = 0;
-    return Z_OK;
+    return Z_DATA_ERROR;
   }
 
 
@@ -1351,6 +1351,7 @@ local int huft_build(
     if ((j = *p++) != 0)
       v[x[j]++] = i;
   } while (++i < n);
+  n = x[g];			/* set n to length of v */
 
 
   /* Generate the Huffman codes and for each, make the table entries */
