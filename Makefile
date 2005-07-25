@@ -310,7 +310,7 @@ cc-version = $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh \
 MAKEFLAGS += --include-dir=$(srctree)
 
 # We need some generic definitions
-include scripts/Kbuild.include
+include  $(srctree)/scripts/Kbuild.include
 
 # For maximum performance (+ possibly random breakage, uncomment
 # the following)

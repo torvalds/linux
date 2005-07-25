@@ -7,7 +7,9 @@ src := $(obj)
 .PHONY: __clean
 __clean:
 
-include $(if $(wildcard $(obj)/Kbuild), $(obj)/Kbuild, $(obj)/Makefile)
+# The filename Kbuild has precedence over Makefile
+include $(if $(wildcard $(srctree)/$(src)/Kbuild), \
+                        $(srctree)/$(src)/Kbuild, $(srctree)/$(src)/Makefile)
 
 # Figure out what we need to build from the various variables
 # ==========================================================================

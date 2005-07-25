@@ -10,7 +10,9 @@ __build:
 # Read .config if it exist, otherwise ignore
 -include .config
 
-include $(if $(wildcard $(obj)/Kbuild), $(obj)/Kbuild, $(obj)/Makefile)
+# The filename Kbuild has precedence over Makefile
+include $(if $(wildcard $(srctree)/$(src)/Kbuild), \
+                        $(srctree)/$(src)/Kbuild, $(srctree)/$(src)/Makefile)
 
 include scripts/Kbuild.include
 include scripts/Makefile.lib
