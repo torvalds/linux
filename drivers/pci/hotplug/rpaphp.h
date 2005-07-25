@@ -30,10 +30,6 @@
 #include <linux/pci.h>
 #include "pci_hotplug.h"
 
-#define	PHB     2
-#define	HOTPLUG	1
-#define	EMBEDDED 0
-
 #define DR_INDICATOR 9002
 #define DR_ENTITY_SENSE 9003
 
@@ -79,7 +75,6 @@ struct slot {
 	u32 power_domain;
 	char *name;
 	char *location;
-	u8 removable;
 	struct device_node *dn;
 	struct pci_bus *bus;
 	struct list_head *pci_devs;
@@ -93,6 +88,7 @@ extern int num_slots;
 /* function prototypes */
 
 /* rpaphp_pci.c */
+extern struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn);
 extern int rpaphp_claim_resource(struct pci_dev *dev, int resource);
 extern int rpaphp_enable_pci_slot(struct slot *slot);
 extern int register_pci_slot(struct slot *slot);

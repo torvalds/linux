@@ -307,34 +307,6 @@ static int is_php_dn(struct device_node *dn, int **indexes, int **names,
 	return 0;
 }
 
-static int is_dr_dn(struct device_node *dn, int **indexes, int **names,
-		int **types, int **power_domains, int **my_drc_index)
-{
-	int rc;
-
-	*my_drc_index = (int *) get_property(dn, "ibm,my-drc-index", NULL);
-	if(!*my_drc_index)
-		return (0);
-
-	if (!dn->parent)
-		return (0);
-
-	rc = get_children_props(dn->parent, indexes, names, types,
-				power_domains);
-	return (rc >= 0);
-}
-
-static inline int is_vdevice_root(struct device_node *dn)
-{
-	return !strcmp(dn->name, "vdevice");
-}
-
-int is_dlpar_type(const char *type_str)
-{
-	/* Only register DLPAR-capable nodes of drc-type PHB or SLOT */
-	return (!strcmp(type_str, "PHB") || !strcmp(type_str, "SLOT"));
-}
-
 /****************************************************************
  *	rpaphp not only registers PCI hotplug slots(HOTPLUG), 
  *	but also logical DR slots(EMBEDDED).
@@ -346,7 +318,7 @@ int rpaphp_add_slot(struct device_node *dn)
 {
 	struct slot *slot;
 	int retval = 0;
-	int i, *my_drc_index, slot_type;
+	int i;
 	int *indexes, *names, *types, *power_domains;
 	char *name, *type;
 
@@ -354,40 +326,25 @@ int rpaphp_add_slot(struct device_node *dn)
 
 	/* register PCI devices */
 	if (dn->name != 0 && strcmp(dn->name, "pci") == 0) {
-		if (is_php_dn(dn, &indexes, &names, &types, &power_domains))  
-			slot_type = HOTPLUG;
-		else if (is_dr_dn(dn, &indexes, &names, &types, &power_domains, &my_drc_index)) 
-			slot_type = EMBEDDED;
-		else goto exit;
+		if (!is_php_dn(dn, &indexes, &names, &types, &power_domains))
+			goto exit;
 
 		name = (char *) &names[1];
 		type = (char *) &types[1];
 		for (i = 0; i < indexes[0]; i++,
-	     		name += (strlen(name) + 1), type += (strlen(type) + 1)) {
+	     		name += (strlen(name) + 1), type += (strlen(type) + 1)) 		{
 
-			if (slot_type == HOTPLUG ||
-			    (slot_type == EMBEDDED &&
-			     indexes[i + 1] == my_drc_index[0] &&
-			     is_dlpar_type(type))) {
-				if (!(slot = alloc_slot_struct(dn, indexes[i + 1], name,
-					       power_domains[i + 1]))) {
-					retval = -ENOMEM;
-					goto exit;
-				}
-				if (!strcmp(type, "PHB"))
-					slot->type = PHB;
-				else if (slot_type == EMBEDDED)
-					slot->type = EMBEDDED;
-				else
-					slot->type = simple_strtoul(type, NULL, 10);
+			if (!(slot = alloc_slot_struct(dn, indexes[i + 1], name,
+				       power_domains[i + 1]))) {
+				retval = -ENOMEM;
+				goto exit;
+			}
+			slot->type = simple_strtoul(type, NULL, 10);
 				
-				dbg("    Found drc-index:0x%x drc-name:%s drc-type:%s\n",
+			dbg("Found drc-index:0x%x drc-name:%s drc-type:%s\n",
 					indexes[i + 1], name, type);
 
-				retval = register_pci_slot(slot);
-				if (slot_type == EMBEDDED)
-					goto exit;
-			}
+			retval = register_pci_slot(slot);
 		}
 	}
 exit:

@@ -49,13 +49,14 @@ static struct pci_bus *find_bus_among_children(struct pci_bus *bus,
 	return child;
 }
 
-static struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn)
+struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn)
 {
 	if (!dn->phb || !dn->phb->bus)
 		return NULL;
 
 	return find_bus_among_children(dn->phb->bus, dn);
 }
+EXPORT_SYMBOL_GPL(rpaphp_find_pci_bus);
 
 int rpaphp_claim_resource(struct pci_dev *dev, int resource)
 {
@@ -129,10 +130,8 @@ int rpaphp_get_pci_adapter_status(struct slot *slot, int is_init, u8 * value)
 	if (rc)
 		goto exit;
 
- 	if ((state == EMPTY) || (slot->type == PHB)) {
- 		dbg("slot is empty\n");
+ 	if (state == EMPTY)
  		*value = EMPTY;
- 	}
  	else if (state == PRESENT) {
 		if (!is_init) {
 			/* at run-time slot->state can be changed by */
@@ -423,10 +422,6 @@ int register_pci_slot(struct slot *slot)
 {
 	int rc = -EINVAL;
 
-	if ((slot->type == EMBEDDED) || (slot->type == PHB))
-		slot->removable = 0;
-	else
-		slot->removable = 1;
 	if (setup_pci_hotplug_slot_info(slot))
 		goto exit_rc;
 	if (setup_pci_slot(slot))
