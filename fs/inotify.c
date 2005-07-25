@@ -1025,8 +1025,15 @@ static struct file_system_type inotify_fs_type = {
  */
 static int __init inotify_setup(void)
 {
-	register_filesystem(&inotify_fs_type);
+	int ret;
+
+	ret = register_filesystem(&inotify_fs_type);
+	if (unlikely(ret))
+		panic("inotify: register_filesystem returned %d!\n", ret);
+
 	inotify_mnt = kern_mount(&inotify_fs_type);
+	if (unlikely(PTR_ERR(inotify_mnt)))
+		panic("inotify: kern_mount ret %ld!\n", PTR_ERR(inotify_mnt));
 
 	inotify_max_queued_events = 16384;
 	inotify_max_user_instances = 128;
