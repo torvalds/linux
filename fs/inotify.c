@@ -923,10 +923,10 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	struct inotify_device *dev;
 	struct nameidata nd;
 	struct file *filp;
-	int ret;
+	int ret, fput_needed;
 
-	filp = fget(fd);
-	if (!filp)
+	filp = fget_light(fd, &fput_needed);
+	if (unlikely(!filp))
 		return -EBADF;
 
 	ret = find_inode(path, &nd);
@@ -973,7 +973,7 @@ out:
 	up(&dev->sem);
 	up(&inode->inotify_sem);
 fput_and_out:
-	fput(filp);
+	fput_light(filp, fput_needed);
 	return ret;
 }
 
@@ -981,14 +981,14 @@ asmlinkage long sys_inotify_rm_watch(int fd, u32 wd)
 {
 	struct file *filp;
 	struct inotify_device *dev;
-	int ret;
+	int ret, fput_needed;
 
-	filp = fget(fd);
-	if (!filp)
+	filp = fget_light(fd, &fput_needed);
+	if (unlikely(!filp))
 		return -EBADF;
 	dev = filp->private_data;
 	ret = inotify_ignore(dev, wd);
-	fput(filp);
+	fput_light(filp, fput_needed);
 
 	return ret;
 }
