@@ -1379,6 +1379,25 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 },
 
 {
+	USB_DEVICE(0x4752, 0x0011),
+	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
+		.vendor_name = "Miditech",
+		.product_name = "Midistart-2",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_MIDITECH
+	}
+},
+{
+	USB_DEVICE(0x7104, 0x2202),
+	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
+		.vendor_name = "Miditech",
+		.product_name = "MidiStudio-2",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_MIDITECH
+	}
+},
+
+{
 	/*
 	 * Some USB MIDI devices don't have an audio control interface,
 	 * so we have to grab MIDI streaming interfaces here.

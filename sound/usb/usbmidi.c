@@ -1515,6 +1515,9 @@ int snd_usb_create_midi_interface(snd_usb_audio_t* chip,
 			       sizeof(snd_usb_midi_endpoint_info_t));
 			err = snd_usbmidi_detect_endpoints(umidi, &endpoints[0], 1);
 			break;
+		case QUIRK_MIDI_MIDITECH:
+			err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
+			break;
 		default:
 			snd_printd(KERN_ERR "invalid quirk type %d\n", quirk->type);
 			err = -ENXIO;
