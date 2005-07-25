@@ -219,14 +219,15 @@ static int rpaphp_pci_config_bridge(struct pci_dev *dev)
  given slot->dn and return the the first pci_dev.
  *****************************************************************************/
 static struct pci_dev *
-rpaphp_pci_config_slot(struct device_node *dn, struct pci_bus *bus)
+rpaphp_pci_config_slot(struct pci_bus *bus)
 {
+	struct device_node *dn = pci_bus_to_OF_node(bus);
 	struct pci_dev *dev = NULL;
 	int slotno;
 	int num;
 
 	dbg("Enter %s: dn=%s bus=%s\n", __FUNCTION__, dn->full_name, bus->name);
-	if (!dn->child)
+	if (!dn || !dn->child)
 		return NULL;
 
 	slotno = PCI_SLOT(dn->child->devfn);
@@ -260,35 +261,44 @@ static void enable_eeh(struct device_node *dn)
 	
 }
 
-static void print_slot_pci_funcs(struct slot *slot)
+static void print_slot_pci_funcs(struct pci_bus *bus)
 {
+	struct device_node *dn;
 	struct pci_dev *dev;
 
-	dbg("%s: pci_devs of slot[%s]\n", __FUNCTION__, slot->name);
-	list_for_each_entry (dev, slot->pci_devs, bus_list)
+	dn = pci_bus_to_OF_node(bus);
+	if (!dn)
+		return;
+
+	dbg("%s: pci_devs of slot[%s]\n", __FUNCTION__, dn->full_name);
+	list_for_each_entry (dev, &bus->devices, bus_list)
 		dbg("\t%s\n", pci_name(dev));
 	return;
 }
 
-static int rpaphp_config_pci_adapter(struct slot *slot)
+int rpaphp_config_pci_adapter(struct pci_bus *bus)
 {
+	struct device_node *dn = pci_bus_to_OF_node(bus);
 	struct pci_dev *dev;
 	int rc = -ENODEV;
 
-	dbg("Entry %s: slot[%s]\n", __FUNCTION__, slot->name);
+	dbg("Entry %s: slot[%s]\n", __FUNCTION__, dn->full_name);
+	if (!dn)
+		goto exit;
 
-	enable_eeh(slot->dn);
-	dev = rpaphp_pci_config_slot(slot->dn, slot->bus);
+	enable_eeh(dn);
+	dev = rpaphp_pci_config_slot(bus);
 	if (!dev) {
 		err("%s: can't find any devices.\n", __FUNCTION__);
 		goto exit;
 	}
-	print_slot_pci_funcs(slot);
+	print_slot_pci_funcs(bus);
 	rc = 0;
 exit:
 	dbg("Exit %s:  rc=%d\n", __FUNCTION__, rc);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(rpaphp_config_pci_adapter);
 
 static void rpaphp_eeh_remove_bus_device(struct pci_dev *dev)
 {
@@ -384,7 +394,7 @@ static int setup_pci_slot(struct slot *slot)
 		if (slot->hotplug_slot->info->adapter_status == NOT_CONFIGURED) {
 			dbg("%s CONFIGURING pci adapter in slot[%s]\n",  
 				__FUNCTION__, slot->name);
-			if (rpaphp_config_pci_adapter(slot)) {
+			if (rpaphp_config_pci_adapter(slot->bus)) {
 				err("%s: CONFIG pci adapter failed\n", __FUNCTION__);
 				goto exit_rc;		
 			}
@@ -394,7 +404,7 @@ static int setup_pci_slot(struct slot *slot)
 				__FUNCTION__, slot->name);
 			goto exit_rc;
 		}
-		print_slot_pci_funcs(slot);
+		print_slot_pci_funcs(slot->bus);
 		if (!list_empty(slot->pci_devs)) {
 			slot->state = CONFIGURED;
 		} else {
@@ -437,7 +447,7 @@ int rpaphp_enable_pci_slot(struct slot *slot)
 	/* if slot is not empty, enable the adapter */
 	if (state == PRESENT) {
 		dbg("%s : slot[%s] is occupied.\n", __FUNCTION__, slot->name);
-		retval = rpaphp_config_pci_adapter(slot);
+		retval = rpaphp_config_pci_adapter(slot->bus);
 		if (!retval) {
 			slot->state = CONFIGURED;
 			dbg("%s: PCI devices in slot[%s] has been configured\n", 

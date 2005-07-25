@@ -209,9 +209,10 @@ static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 	return dev;
 }
 
-static inline int dlpar_add_pci_slot(char *drc_name, struct device_node *dn)
+static int dlpar_add_pci_slot(char *drc_name, struct device_node *dn)
 {
 	struct pci_dev *dev;
+	int rc;
 
 	/* Add pci bus */
 	dev = dlpar_pci_add_bus(dn);
@@ -219,6 +220,15 @@ static inline int dlpar_add_pci_slot(char *drc_name, struct device_node *dn)
 		printk(KERN_ERR "%s: unable to add bus %s\n", __FUNCTION__,
 			drc_name);
 		return -EIO;
+	}
+
+	if (dn->child) {
+		rc = rpaphp_config_pci_adapter(dev->subordinate);
+		if (rc < 0) {
+			printk(KERN_ERR "%s: unable to enable slot %s\n",
+				__FUNCTION__, drc_name);
+			return -EIO;
+		}
 	}
 
 	/* Add hotplug slot */
