@@ -1028,8 +1028,8 @@ static int __init inotify_setup(void)
 	register_filesystem(&inotify_fs_type);
 	inotify_mnt = kern_mount(&inotify_fs_type);
 
-	inotify_max_queued_events = 8192;
-	inotify_max_user_instances = 8;
+	inotify_max_queued_events = 16384;
+	inotify_max_user_instances = 128;
 	inotify_max_user_watches = 8192;
 
 	atomic_set(&inotify_cookie, 0);
