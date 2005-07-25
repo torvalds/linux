@@ -695,6 +695,24 @@ config SOC_AU1500
 config SOC_AU1550
 	bool "SOC_AU1550"
 
+config TOSHIBA_RBTX4938
+	bool "Support for Toshiba RBTX4938 board"
+	select HAVE_STD_PC_SERIAL_PORT
+	select DMA_NONCOHERENT
+	select GENERIC_ISA_DMA
+	select HAS_TXX9_SERIAL
+	select HW_HAS_PCI
+	select I8259
+	select ISA
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select TOSHIBA_BOARDS
+	help
+	  This Toshiba board is based on the TX4938 processor. Say Y here to
+	  support this machine type
+
 endchoice
 
 choice
@@ -837,6 +855,7 @@ config TOSHIBA_FPCIB0
 
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
+source "arch/mips/tx4938/Kconfig"
 source "arch/mips/philips/pnx8550/common/Kconfig"
 
 config RWSEM_GENERIC_SPINLOCK

@@ -690,6 +690,13 @@ core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/tx4927/toshiba_rbtx4927/
 core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/tx4927/common/
 load-$(CONFIG_TOSHIBA_RBTX4927)	+= 0xffffffff80020000
 
+#
+# Toshiba RBTX4938 board
+#
+core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/tx4938/toshiba_rbtx4938/
+core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/tx4938/common/
+load-$(CONFIG_TOSHIBA_RBTX4938) += 0xffffffff80100000
+
 cflags-y			+= -Iinclude/asm-mips/mach-generic
 drivers-$(CONFIG_PCI)		+= arch/mips/pci/
 
