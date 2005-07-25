@@ -1356,11 +1356,6 @@ build := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj
 # $(Q)$(MAKE) $(clean)=dir
 clean := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.clean obj
 
-#	$(call descend,<dir>,<target>)
-#	Recursively call a sub-make in <dir> with target <target>
-# Usage is deprecated, because make does not see this as an invocation of make.
-descend =$(Q)$(MAKE) -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj=$(1) $(2)
-
 endif	# skip-makefile
 
 FORCE:
