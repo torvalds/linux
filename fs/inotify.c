@@ -929,6 +929,12 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	if (unlikely(!filp))
 		return -EBADF;
 
+	/* verify that this is indeed an inotify instance */
+	if (unlikely(filp->f_op != &inotify_fops)) {
+		ret = -EINVAL;
+		goto fput_and_out;
+	}
+
 	ret = find_inode(path, &nd);
 	if (unlikely(ret))
 		goto fput_and_out;
@@ -986,10 +992,18 @@ asmlinkage long sys_inotify_rm_watch(int fd, u32 wd)
 	filp = fget_light(fd, &fput_needed);
 	if (unlikely(!filp))
 		return -EBADF;
+
+	/* verify that this is indeed an inotify instance */
+	if (unlikely(filp->f_op != &inotify_fops)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	dev = filp->private_data;
 	ret = inotify_ignore(dev, wd);
-	fput_light(filp, fput_needed);
 
+out:
+	fput_light(filp, fput_needed);
 	return ret;
 }
 
