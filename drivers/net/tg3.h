@@ -136,6 +136,7 @@
 #define   ASIC_REV_5705			 0x03
 #define   ASIC_REV_5750			 0x04
 #define   ASIC_REV_5752			 0x06
+#define   ASIC_REV_5780			 0x08
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71
@@ -2187,6 +2188,7 @@ struct tg3 {
 	u8				pci_bist;
 
 	int				pm_cap;
+	int				msi_cap;
 
 	/* PHY info */
 	u32				phy_id;
@@ -2200,6 +2202,7 @@ struct tg3 {
 #define PHY_ID_BCM5705			0x600081a0
 #define PHY_ID_BCM5750			0x60008180
 #define PHY_ID_BCM5752			0x60008100
+#define PHY_ID_BCM5780			0x60008350
 #define PHY_ID_BCM8002			0x60010140
 #define PHY_ID_INVALID			0xffffffff
 #define PHY_ID_REV_MASK			0x0000000f
