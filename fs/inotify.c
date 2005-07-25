@@ -865,23 +865,21 @@ asmlinkage long sys_inotify_init(void)
 
 	filp = get_empty_filp();
 	if (!filp) {
-		put_unused_fd(fd);
 		ret = -ENFILE;
-		goto out;
+		goto out_put_fd;
 	}
 
 	user = get_uid(current->user);
-
 	if (unlikely(atomic_read(&user->inotify_devs) >=
 			inotify_max_user_instances)) {
 		ret = -EMFILE;
-		goto out_err;
+		goto out_free_uid;
 	}
 
 	dev = kmalloc(sizeof(struct inotify_device), GFP_KERNEL);
 	if (unlikely(!dev)) {
 		ret = -ENOMEM;
-		goto out_err;
+		goto out_free_uid;
 	}
 
 	filp->f_op = &inotify_fops;
@@ -908,11 +906,11 @@ asmlinkage long sys_inotify_init(void)
 	fd_install(fd, filp);
 
 	return fd;
-out_err:
-	put_unused_fd (fd);
-	put_filp (filp);
+out_free_uid:
 	free_uid(user);
-out:
+	put_filp(filp);
+out_put_fd:
+	put_unused_fd(fd);
 	return ret;
 }
 
@@ -975,9 +973,9 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	list_add(&watch->i_list, &inode->inotify_watches);
 	ret = watch->wd;
 out:
-	path_release (&nd);
 	up(&dev->sem);
 	up(&inode->inotify_sem);
+	path_release(&nd);
 fput_and_out:
 	fput_light(filp, fput_needed);
 	return ret;
