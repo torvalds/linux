@@ -1030,7 +1030,8 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
 	 * starting until all current transactions are completed
 	 * by setting syncbarrier flag.
 	 */
-	if (written > LOGSYNC_BARRIER(logsize) && logsize > 32 * LOGPSIZE) {
+	if (!test_bit(log_SYNCBARRIER, &log->flag) &&
+	    (written > LOGSYNC_BARRIER(logsize)) && log->active) {
 		set_bit(log_SYNCBARRIER, &log->flag);
 		jfs_info("log barrier on: lsn=0x%x syncpt=0x%x", lsn,
 			 log->syncpt);
