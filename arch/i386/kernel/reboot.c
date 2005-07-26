@@ -284,7 +284,7 @@ void machine_shutdown(void)
 	reboot_cpu_id = 0;
 
 	/* See if there has been given a command line override */
-	if ((reboot_cpu_id != -1) && (reboot_cpu < NR_CPUS) &&
+	if ((reboot_cpu != -1) && (reboot_cpu < NR_CPUS) &&
 		cpu_isset(reboot_cpu, cpu_online_map)) {
 		reboot_cpu_id = reboot_cpu;
 	}
