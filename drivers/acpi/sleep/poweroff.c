@@ -54,7 +54,6 @@ void acpi_power_off(void)
 	acpi_sleep_prepare(ACPI_STATE_S5);
 	local_irq_disable();
 	/* Some SMP machines only can poweroff in boot CPU */
-	set_cpus_allowed(current, cpumask_of_cpu(0));
 	acpi_enter_sleep_state(ACPI_STATE_S5);
 }
 
