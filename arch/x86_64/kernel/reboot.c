@@ -115,15 +115,8 @@ void machine_restart(char * __unused)
 
 	printk("machine restart\n");
 
-	machine_shutdown();
-
 	if (!reboot_force) {
-		local_irq_disable();
-#ifndef CONFIG_SMP
-		disable_local_APIC();
-#endif
-		disable_IO_APIC();
-		local_irq_enable();
+		machine_shutdown();
 	}
 	
 	/* Tell the BIOS if we want cold or warm reboot */
