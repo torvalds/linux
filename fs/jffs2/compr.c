@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: compr.c,v 1.42 2004/08/07 21:56:08 dwmw2 Exp $
+ * $Id: compr.c,v 1.45 2005/07/26 13:24:40 havasi Exp $
  *
  */
 
@@ -425,12 +425,6 @@ int jffs2_compressors_init(void)
         jffs2_rubinmips_init();
         jffs2_dynrubin_init();
 #endif
-#ifdef CONFIG_JFFS2_LZARI
-        jffs2_lzari_init();
-#endif
-#ifdef CONFIG_JFFS2_LZO
-        jffs2_lzo_init();
-#endif
 /* Setting default compression mode */
 #ifdef CONFIG_JFFS2_CMODE_NONE
         jffs2_compression_mode = JFFS2_COMPR_MODE_NONE;
@@ -449,12 +443,6 @@ int jffs2_compressors_init(void)
 int jffs2_compressors_exit(void) 
 {
 /* Unregistering compressors */
-#ifdef CONFIG_JFFS2_LZO
-        jffs2_lzo_exit();
-#endif
-#ifdef CONFIG_JFFS2_LZARI
-        jffs2_lzari_exit();
-#endif
 #ifdef CONFIG_JFFS2_RUBIN
         jffs2_dynrubin_exit();
         jffs2_rubinmips_exit();
