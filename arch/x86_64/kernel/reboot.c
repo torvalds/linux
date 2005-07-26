@@ -150,13 +150,9 @@ void machine_restart(char * __unused)
 	}      
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_halt(void)
 {
 }
-
-EXPORT_SYMBOL(machine_halt);
 
 void machine_power_off(void)
 {
@@ -164,4 +160,3 @@ void machine_power_off(void)
 		pm_power_off();
 }
 
-EXPORT_SYMBOL(machine_power_off);

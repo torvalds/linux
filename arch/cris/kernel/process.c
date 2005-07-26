@@ -214,8 +214,6 @@ void machine_restart(char *cmd)
 	hard_reset_now();
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 /*
  * Similar to machine_power_off, but don't shut off power.  Add code
  * here to freeze the system for e.g. post-mortem debug purpose when
@@ -226,15 +224,11 @@ void machine_halt(void)
 {
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 /* If or when software power-off is implemented, add code here.  */
 
 void machine_power_off(void)
 {
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 /*
  * When a process does an "exec", machine state like FPU and debug
