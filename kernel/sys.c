@@ -361,6 +361,62 @@ out_unlock:
 	return retval;
 }
 
+void kernel_restart(char *cmd)
+{
+	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
+	system_state = SYSTEM_RESTART;
+	device_suspend(PMSG_FREEZE);
+	device_shutdown();
+	if (!cmd) {
+		printk(KERN_EMERG "Restarting system.\n");
+	} else {
+		printk(KERN_EMERG "Restarting system with command '%s'.\n", cmd);
+	}
+	printk(".\n");
+	machine_restart(cmd);
+}
+EXPORT_SYMBOL_GPL(kernel_restart);
+
+void kernel_kexec(void)
+{
+#ifdef CONFIG_KEXEC
+	struct kimage *image;
+	image = xchg(&kexec_image, 0);
+	if (!image) {
+		return;
+	}
+	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, NULL);
+	system_state = SYSTEM_RESTART;
+	device_suspend(PMSG_FREEZE);
+	device_shutdown();
+	printk(KERN_EMERG "Starting new kernel\n");
+	machine_shutdown();
+	machine_kexec(image);
+#endif
+}
+EXPORT_SYMBOL_GPL(kernel_kexec);
+
+void kernel_halt(void)
+{
+	notifier_call_chain(&reboot_notifier_list, SYS_HALT, NULL);
+	system_state = SYSTEM_HALT;
+	device_suspend(PMSG_SUSPEND);
+	device_shutdown();
+	printk(KERN_EMERG "System halted.\n");
+	machine_halt();
+}
+EXPORT_SYMBOL_GPL(kernel_halt);
+
+void kernel_power_off(void)
+{
+	notifier_call_chain(&reboot_notifier_list, SYS_POWER_OFF, NULL);
+	system_state = SYSTEM_POWER_OFF;
+	device_suspend(PMSG_SUSPEND);
+	device_shutdown();
+	printk(KERN_EMERG "Power down.\n");
+	machine_power_off();
+}
+EXPORT_SYMBOL_GPL(kernel_power_off);
 
 /*
  * Reboot system call: for obvious reasons only root may call it,
@@ -389,12 +445,7 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 	lock_kernel();
 	switch (cmd) {
 	case LINUX_REBOOT_CMD_RESTART:
-		notifier_call_chain(&reboot_notifier_list, SYS_RESTART, NULL);
-		system_state = SYSTEM_RESTART;
-		device_suspend(PMSG_FREEZE);
-		device_shutdown();
-		printk(KERN_EMERG "Restarting system.\n");
-		machine_restart(NULL);
+		kernel_restart(NULL);
 		break;
 
 	case LINUX_REBOOT_CMD_CAD_ON:
@@ -406,23 +457,13 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 		break;
 
 	case LINUX_REBOOT_CMD_HALT:
-		notifier_call_chain(&reboot_notifier_list, SYS_HALT, NULL);
-		system_state = SYSTEM_HALT;
-		device_suspend(PMSG_SUSPEND);
-		device_shutdown();
-		printk(KERN_EMERG "System halted.\n");
-		machine_halt();
+		kernel_halt();
 		unlock_kernel();
 		do_exit(0);
 		break;
 
 	case LINUX_REBOOT_CMD_POWER_OFF:
-		notifier_call_chain(&reboot_notifier_list, SYS_POWER_OFF, NULL);
-		system_state = SYSTEM_POWER_OFF;
-		device_suspend(PMSG_SUSPEND);
-		device_shutdown();
-		printk(KERN_EMERG "Power down.\n");
-		machine_power_off();
+		kernel_power_off();
 		unlock_kernel();
 		do_exit(0);
 		break;
@@ -434,33 +475,14 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 		}
 		buffer[sizeof(buffer) - 1] = '\0';
 
-		notifier_call_chain(&reboot_notifier_list, SYS_RESTART, buffer);
-		system_state = SYSTEM_RESTART;
-		device_suspend(PMSG_FREEZE);
-		device_shutdown();
-		printk(KERN_EMERG "Restarting system with command '%s'.\n", buffer);
-		machine_restart(buffer);
+		kernel_restart(buffer);
 		break;
 
-#ifdef CONFIG_KEXEC
 	case LINUX_REBOOT_CMD_KEXEC:
-	{
-		struct kimage *image;
-		image = xchg(&kexec_image, 0);
-		if (!image) {
-			unlock_kernel();
-			return -EINVAL;
-		}
-		notifier_call_chain(&reboot_notifier_list, SYS_RESTART, NULL);
-		system_state = SYSTEM_RESTART;
-		device_suspend(PMSG_FREEZE);
-		device_shutdown();
-		printk(KERN_EMERG "Starting new kernel\n");
-		machine_shutdown();
-		machine_kexec(image);
-		break;
-	}
-#endif
+		kernel_kexec();
+		unlock_kernel();
+		return -EINVAL;
+
 #ifdef CONFIG_SOFTWARE_SUSPEND
 	case LINUX_REBOOT_CMD_SW_SUSPEND:
 		{
