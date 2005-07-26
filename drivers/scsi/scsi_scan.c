@@ -870,8 +870,12 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
  out_free_sdev:
 	if (res == SCSI_SCAN_LUN_PRESENT) {
 		if (sdevp) {
-			scsi_device_get(sdev);
-			*sdevp = sdev;
+			if (scsi_device_get(sdev) == 0) {
+				*sdevp = sdev;
+			} else {
+				__scsi_remove_device(sdev);
+				res = SCSI_SCAN_NO_RESPONSE;
+			}
 		}
 	} else {
 		if (sdev->host->hostt->slave_destroy)
