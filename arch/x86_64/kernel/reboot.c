@@ -109,16 +109,10 @@ void machine_shutdown(void)
 	local_irq_enable();
 }
 
-void machine_restart(char * __unused)
+void machine_emergency_restart(void)
 {
 	int i;
 
-	printk("machine restart\n");
-
-	if (!reboot_force) {
-		machine_shutdown();
-	}
-	
 	/* Tell the BIOS if we want cold or warm reboot */
 	*((unsigned short *)__va(0x472)) = reboot_mode;
        
@@ -141,6 +135,16 @@ void machine_restart(char * __unused)
 			break;
 		}      
 	}      
+}
+
+void machine_restart(char * __unused)
+{
+	printk("machine restart\n");
+
+	if (!reboot_force) {
+		machine_shutdown();
+	}
+	machine_emergency_restart();
 }
 
 void machine_halt(void)
