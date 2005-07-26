@@ -139,7 +139,12 @@ extern unsigned int user_debug;
 #define vectors_high()	(0)
 #endif
 
+#if __LINUX_ARM_ARCH__ >= 6
+#define mb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" \
+                                   : : "r" (0) : "memory")
+#else
 #define mb() __asm__ __volatile__ ("" : : : "memory")
+#endif
 #define rmb() mb()
 #define wmb() mb()
 #define read_barrier_depends() do { } while(0)

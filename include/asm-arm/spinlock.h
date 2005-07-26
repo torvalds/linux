@@ -8,9 +8,10 @@
 /*
  * ARMv6 Spin-locking.
  *
- * We (exclusively) read the old value, and decrement it.  If it
- * hits zero, we may have won the lock, so we try (exclusively)
- * storing it.
+ * We exclusively read the old value.  If it is zero, we may have
+ * won the lock, so we try exclusively storing it.  A memory barrier
+ * is required after we get a lock, and before we release it, because
+ * V6 CPUs are assumed to have weakly ordered memory.
  *
  * Unlocked value: 0
  * Locked value: 1
@@ -41,7 +42,9 @@ static inline void _raw_spin_lock(spinlock_t *lock)
 "	bne	1b"
 	: "=&r" (tmp)
 	: "r" (&lock->lock), "r" (1)
-	: "cc", "memory");
+	: "cc");
+
+	smp_mb();
 }
 
 static inline int _raw_spin_trylock(spinlock_t *lock)
@@ -54,18 +57,25 @@ static inline int _raw_spin_trylock(spinlock_t *lock)
 "	strexeq	%0, %2, [%1]"
 	: "=&r" (tmp)
 	: "r" (&lock->lock), "r" (1)
-	: "cc", "memory");
+	: "cc");
 
-	return tmp == 0;
+	if (tmp == 0) {
+		smp_mb();
+		return 1;
+	} else {
+		return 0;
+	}
 }
 
 static inline void _raw_spin_unlock(spinlock_t *lock)
 {
+	smp_mb();
+
 	__asm__ __volatile__(
 "	str	%1, [%0]"
 	:
 	: "r" (&lock->lock), "r" (0)
-	: "cc", "memory");
+	: "cc");
 }
 
 /*
@@ -98,7 +108,9 @@ static inline void _raw_write_lock(rwlock_t *rw)
 "	bne	1b"
 	: "=&r" (tmp)
 	: "r" (&rw->lock), "r" (0x80000000)
-	: "cc", "memory");
+	: "cc");
+
+	smp_mb();
 }
 
 static inline int _raw_write_trylock(rwlock_t *rw)
@@ -111,18 +123,25 @@ static inline int _raw_write_trylock(rwlock_t *rw)
 "	strexeq	%0, %2, [%1]"
 	: "=&r" (tmp)
 	: "r" (&rw->lock), "r" (0x80000000)
-	: "cc", "memory");
+	: "cc");
 
-	return tmp == 0;
+	if (tmp == 0) {
+		smp_mb();
+		return 1;
+	} else {
+		return 0;
+	}
 }
 
 static inline void _raw_write_unlock(rwlock_t *rw)
 {
+	smp_mb();
+
 	__asm__ __volatile__(
 	"str	%1, [%0]"
 	:
 	: "r" (&rw->lock), "r" (0)
-	: "cc", "memory");
+	: "cc");
 }
 
 /*
@@ -149,12 +168,16 @@ static inline void _raw_read_lock(rwlock_t *rw)
 "	bmi	1b"
 	: "=&r" (tmp), "=&r" (tmp2)
 	: "r" (&rw->lock)
-	: "cc", "memory");
+	: "cc");
+
+	smp_mb();
 }
 
 static inline void _raw_read_unlock(rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
+
+	smp_mb();
 
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%2]\n"
@@ -164,7 +187,7 @@ static inline void _raw_read_unlock(rwlock_t *rw)
 "	bne	1b"
 	: "=&r" (tmp), "=&r" (tmp2)
 	: "r" (&rw->lock)
-	: "cc", "memory");
+	: "cc");
 }
 
 #define _raw_read_trylock(lock) generic_raw_read_trylock(lock)
