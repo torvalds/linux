@@ -1,26 +1,23 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
+ * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id: lpfc_mbox.c 1.85 2005/04/13 11:59:11EDT sf_support Exp  $
- */
 
 #include <linux/blkdev.h>
 #include <linux/pci.h>
@@ -422,7 +419,6 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 	uint32_t iocbCnt;
 	int i;
 
-	psli->MBhostaddr = (uint32_t *)&phba->slim2p->mbx;
 	pcbp->maxRing = (psli->num_rings - 1);
 
 	iocbCnt = 0;
@@ -528,7 +524,7 @@ lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	dma_addr_t pdma_addr;
 	uint32_t bar_low, bar_high;
 	size_t offset;
-	HGP hgp;
+	struct lpfc_hgp hgp;
 	void __iomem *to_slim;
 
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
@@ -584,9 +580,9 @@ lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	else
 		phba->slim2p->pcb.hgpAddrHigh = 0;
 	/* write HGP data to SLIM at the required longword offset */
-	memset(&hgp, 0, sizeof(HGP));
+	memset(&hgp, 0, sizeof(struct lpfc_hgp));
 	to_slim = phba->MBslimaddr + (SLIMOFF*sizeof (uint32_t));
-	lpfc_memcpy_to_slim(to_slim, &hgp, sizeof (HGP));
+	lpfc_memcpy_to_slim(to_slim, &hgp, sizeof(struct lpfc_hgp));
 
 	/* Setup Port Group ring pointer */
 	offset = (uint8_t *)&phba->slim2p->mbx.us.s2.port -
