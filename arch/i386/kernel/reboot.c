@@ -347,10 +347,8 @@ void machine_halt(void)
 
 void machine_power_off(void)
 {
-	lapic_shutdown();
+	machine_shutdown();
 
-	if (efi_enabled)
-		efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
 	if (pm_power_off)
 		pm_power_off();
 }
