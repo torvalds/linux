@@ -1350,6 +1350,9 @@ static struct xfrm_policy *xfrm_compile_policy(u16 family, int opt,
 	if (nr > XFRM_MAX_DEPTH)
 		return NULL;
 
+	if (p->dir > XFRM_POLICY_OUT)
+		return NULL;
+
 	xp = xfrm_policy_alloc(GFP_KERNEL);
 	if (xp == NULL) {
 		*dir = -ENOBUFS;
