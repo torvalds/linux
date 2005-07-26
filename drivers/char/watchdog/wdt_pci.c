@@ -311,7 +311,7 @@ static irqreturn_t wdtpci_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		printk(KERN_CRIT PFX "Would Reboot.\n");
 #else
 		printk(KERN_CRIT PFX "Initiating system reboot.\n");
-		machine_restart(NULL);
+		emergency_restart(NULL);
 #endif
 #else
 		printk(KERN_CRIT PFX "Reset in 5ms.\n");

@@ -97,7 +97,7 @@ static void watchdog_fire(unsigned long data)
 	else
 	{
 		printk(KERN_CRIT PFX "Initiating system reboot.\n");
-		machine_restart(NULL);
+		emergency_restart(NULL);
 		printk(KERN_CRIT PFX "Reboot didn't ?????\n");
 	}
 }
