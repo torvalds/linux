@@ -64,6 +64,13 @@ extern void kernel_halt(void);
 extern void kernel_power_off(void);
 extern void kernel_kexec(void);
 
+/*
+ * Emergency restart, callable from an interrupt handler.
+ */
+
+extern void emergency_restart(void);
+#include <asm/emergency-restart.h>
+
 #endif
 
 #endif /* _LINUX_REBOOT_H */

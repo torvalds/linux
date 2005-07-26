@@ -361,6 +361,12 @@ out_unlock:
 	return retval;
 }
 
+void emergency_restart(void)
+{
+	machine_emergency_restart();
+}
+EXPORT_SYMBOL_GPL(emergency_restart);
+
 void kernel_restart(char *cmd)
 {
 	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
