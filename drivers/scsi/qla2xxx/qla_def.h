@@ -451,11 +451,9 @@ struct device_reg_2xxx {
 	} u_end;
 };
 
-typedef struct {
-	union {
+typedef union {
 		struct device_reg_2xxx isp;
 		struct device_reg_24xx isp24;
-	};
 } device_reg_t;
 
 #define ISP_REQ_Q_IN(ha, reg) \
