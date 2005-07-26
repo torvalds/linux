@@ -65,10 +65,8 @@ static unsigned int help(struct sk_buff **pskb,
 			break;
 	}
 
-	if (port == 0) {
-		ip_conntrack_expect_free(exp);
+	if (port == 0)
 		return NF_DROP;
-	}
 
 	/*      strlen("\1DCC CHAT chat AAAAAAAA P\1\n")=27
 	 *      strlen("\1DCC SCHAT chat AAAAAAAA P\1\n")=28

@@ -28,6 +28,7 @@
  *     14-Mar-2006 BJD  Updated for __iomem changes
  *     22-Jun-2006 BJD  Added DM9000 platform information
  *     28-Jun-2006 BJD  Moved pm functionality out to common code
+ *     17-Jul-2006 BJD  Changed to platform device for SuperIO 16550s
 */
 
 #include <linux/kernel.h>
@@ -63,6 +64,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
+
+#include <linux/serial_8250.h>
 
 #include "clock.h"
 #include "devs.h"
@@ -351,6 +354,39 @@ static struct platform_device bast_device_dm9k = {
 	}
 };
 
+/* serial devices */
+
+#define SERIAL_BASE  (S3C2410_CS2 + BAST_PA_SUPERIO)
+#define SERIAL_FLAGS (UPF_BOOT_AUTOCONF | UPF_IOREMAP | UPF_SHARE_IRQ)
+#define SERIAL_CLK   (1843200)
+
+static struct plat_serial8250_port bast_sio_data[] = {
+	[0] = {
+		.mapbase	= SERIAL_BASE + 0x2f8,
+		.irq		= IRQ_PCSERIAL1,
+		.flags		= SERIAL_FLAGS,
+		.iotype		= UPIO_MEM,
+		.regshift	= 0,
+		.uartclk	= SERIAL_CLK,
+	},
+	[1] = {
+		.mapbase	= SERIAL_BASE + 0x3f8,
+		.irq		= IRQ_PCSERIAL2,
+		.flags		= SERIAL_FLAGS,
+		.iotype		= UPIO_MEM,
+		.regshift	= 0,
+		.uartclk	= SERIAL_CLK,
+	},
+	{ }
+};
+
+static struct platform_device bast_sio = {
+	.name			= "serial8250",
+	.id			= 0,
+	.dev			= {
+		.platform_data	= &bast_sio_data,
+	},
+};
 
 /* Standard BAST devices */
 
@@ -364,6 +400,7 @@ static struct platform_device *bast_devices[] __initdata = {
 	&s3c_device_nand,
 	&bast_device_nor,
 	&bast_device_dm9k,
+	&bast_sio,
 };
 
 static struct clk *bast_clocks[] = {

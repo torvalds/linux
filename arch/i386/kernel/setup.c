@@ -1414,7 +1414,7 @@ static struct nop {
    This runs before SMP is initialized to avoid SMP problems with
    self modifying code. This implies that assymetric systems where
    APs have less capabilities than the boot processor are not handled. 
-   In this case boot with "noreplacement". */ 
+   Tough. Make sure you disable such features by hand. */ 
 void apply_alternatives(void *start, void *end) 
 { 
 	struct alt_instr *a; 
@@ -1442,23 +1442,11 @@ void apply_alternatives(void *start, void *end)
 	}
 } 
 
-static int no_replacement __initdata = 0; 
- 
 void __init alternative_instructions(void)
 {
 	extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
-	if (no_replacement) 
-		return;
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
 }
-
-static int __init noreplacement_setup(char *s)
-{ 
-     no_replacement = 1; 
-     return 0; 
-} 
-
-__setup("noreplacement", noreplacement_setup); 
 
 static char * __init machine_specific_memory_setup(void);
 

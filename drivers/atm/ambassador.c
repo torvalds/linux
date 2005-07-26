@@ -794,7 +794,9 @@ static void drain_rx_pools (amb_dev * dev) {
     drain_rx_pool (dev, pool);
 }
 
-static inline void fill_rx_pool (amb_dev * dev, unsigned char pool, int priority) {
+static inline void fill_rx_pool (amb_dev * dev, unsigned char pool,
+                                 unsigned int __nocast priority)
+{
   rx_in rx;
   amb_rxq * rxq;
   

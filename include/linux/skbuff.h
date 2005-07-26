@@ -502,7 +502,8 @@ static inline struct sk_buff *skb_share_check(struct sk_buff *skb,
  *
  *	%NULL is returned on a memory allocation failure.
  */
-static inline struct sk_buff *skb_unshare(struct sk_buff *skb, int pri)
+static inline struct sk_buff *skb_unshare(struct sk_buff *skb,
+					  unsigned int __nocast pri)
 {
 	might_sleep_if(pri & __GFP_WAIT);
 	if (skb_cloned(skb)) {

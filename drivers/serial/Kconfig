@@ -306,13 +306,6 @@ config SERIAL_S3C2410_CONSOLE
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
 
-config SERIAL_BAST_SIO
-	bool "Support for BAST SuperIO serial ports"
-	depends on ARCH_BAST && SERIAL_8250=y
-	help
-	  Support for registerin the SuperIO chip on BAST board with
-	  the 8250/16550 uart code.
-
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
 	depends on MACH_DECSTATION && MIPS32

@@ -448,19 +448,19 @@ static void speedtch_check_status(struct speedtch_instance_data *instance)
 		case 0:
 			atm_dev->signal = ATM_PHY_SIG_LOST;
 			if (instance->last_status)
-				atm_info(usbatm, "ADSL line is down\n");
+				atm_info(usbatm, "%s\n", "ADSL line is down");
 			/* It may never resync again unless we ask it to... */
 			ret = speedtch_start_synchro(instance);
 			break;
 
 		case 0x08:
 			atm_dev->signal = ATM_PHY_SIG_UNKNOWN;
-			atm_info(usbatm, "ADSL line is blocked?\n");
+			atm_info(usbatm, "%s\n", "ADSL line is blocked?");
 			break;
 
 		case 0x10:
 			atm_dev->signal = ATM_PHY_SIG_LOST;
-			atm_info(usbatm, "ADSL line is synchronising\n");
+			atm_info(usbatm, "%s\n", "ADSL line is synchronising");
 			break;
 
 		case 0x20:
@@ -502,7 +502,7 @@ static void speedtch_status_poll(unsigned long data)
 	if (instance->poll_delay < MAX_POLL_DELAY)
 		mod_timer(&instance->status_checker.timer, jiffies + msecs_to_jiffies(instance->poll_delay));
 	else
-		atm_warn(instance->usbatm, "Too many failures - disabling line status polling\n");
+		atm_warn(instance->usbatm, "%s\n", "Too many failures - disabling line status polling");
 }
 
 static void speedtch_resubmit_int(unsigned long data)
@@ -545,9 +545,9 @@ static void speedtch_handle_int(struct urb *int_urb, struct pt_regs *regs)
 
 	if ((count == 6) && !memcmp(up_int, instance->int_data, 6)) {
 		del_timer(&instance->status_checker.timer);
-		atm_info(usbatm, "DSL line goes up\n");
+		atm_info(usbatm, "%s\n", "DSL line goes up");
 	} else if ((count == 6) && !memcmp(down_int, instance->int_data, 6)) {
-		atm_info(usbatm, "DSL line goes down\n");
+		atm_info(usbatm, "%s\n", "DSL line goes down");
 	} else {
 		int i;
 

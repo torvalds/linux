@@ -1157,7 +1157,7 @@ static int __init ipv4_proc_init(void)
 #ifdef CONFIG_IP_FIB_TRIE
          if (fib_stat_proc_init())
                  goto out_fib_stat;
- #endif
+#endif
 	if (ip_misc_proc_init())
 		goto out_misc;
 out:

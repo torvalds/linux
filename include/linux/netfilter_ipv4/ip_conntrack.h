@@ -197,6 +197,9 @@ struct ip_conntrack_expect
 	/* Timer function; deletes the expectation. */
 	struct timer_list timeout;
 
+	/* Usage count. */
+	atomic_t use;
+
 #ifdef CONFIG_IP_NF_NAT_NEEDED
 	/* This is the original per-proto part, used to map the
 	 * expected connection the way the recipient expects. */
