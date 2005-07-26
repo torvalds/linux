@@ -748,7 +748,7 @@ qla24xx_start_scsi(srb_t *sp)
 	uint16_t	cnt;
 	uint16_t	req_cnt;
 	uint16_t	tot_dsds;
-	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+	struct device_reg_24xx __iomem *reg;
 	char		tag[2];
 
 	/* Setup device pointers. */
