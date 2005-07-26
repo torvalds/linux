@@ -311,10 +311,8 @@ void machine_shutdown(void)
 #endif
 }
 
-void machine_restart(char * __unused)
+void machine_emergency_restart(void)
 {
-	machine_shutdown();
-
 	if (!reboot_thru_bios) {
 		if (efi_enabled) {
 			efi.reset_system(EFI_RESET_COLD, EFI_SUCCESS, 0, NULL);
@@ -335,6 +333,12 @@ void machine_restart(char * __unused)
 		efi.reset_system(EFI_RESET_WARM, EFI_SUCCESS, 0, NULL);
 
 	machine_real_restart(jump_to_bios, sizeof(jump_to_bios));
+}
+
+void machine_restart(char * __unused)
+{
+	machine_shutdown();
+	machine_emergency_restart();
 }
 
 void machine_halt(void)
