@@ -113,6 +113,7 @@
 #include <linux/user.h>
 #include <linux/elfcore.h>
 #include <linux/mqueue.h>
+#include <linux/reboot.h>
 
 //#define DEBUG
 
@@ -208,7 +209,7 @@ void cpu_idle (void)
 
 void hard_reset_now (void);
 
-void machine_restart(void)
+void machine_restart(char *cmd)
 {
 	hard_reset_now();
 }
