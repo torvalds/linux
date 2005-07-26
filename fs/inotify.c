@@ -1032,7 +1032,7 @@ static int __init inotify_setup(void)
 		panic("inotify: register_filesystem returned %d!\n", ret);
 
 	inotify_mnt = kern_mount(&inotify_fs_type);
-	if (unlikely(PTR_ERR(inotify_mnt)))
+	if (IS_ERR(inotify_mnt))
 		panic("inotify: kern_mount ret %ld!\n", PTR_ERR(inotify_mnt));
 
 	inotify_max_queued_events = 16384;
