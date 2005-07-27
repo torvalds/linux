@@ -408,7 +408,7 @@ static int cmi9880_fill_multi_dac_nids(struct hda_codec *codec, const struct aut
 		/* search for an empty channel */
 		for (j = 0; j < cfg->line_outs; j++) {
 			if (! assigned[j]) {
-				spec->dac_nids[i] = i + 0x03;
+				spec->dac_nids[i] = j + 0x03;
 				assigned[j] = 1;
 				break;
 			}
@@ -444,11 +444,10 @@ static int cmi9880_fill_multi_init(struct hda_codec *codec, const struct auto_pi
 			len = snd_hda_get_connections(codec, nid, conn, 4);
 			for (k = 0; k < len; k++)
 				if (conn[k] == spec->dac_nids[i]) {
-					spec->multi_init[j].param = j;
+					spec->multi_init[j].param = k;
 					break;
 				}
 			j++;
-			break;
 		}
 	}
 	return 0;
