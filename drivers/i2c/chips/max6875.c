@@ -93,8 +93,7 @@ static void max6875_update_slice(struct i2c_client *client, int slice)
 	if (!(data->valid & (1 << slice)) ||
 	    time_after(jiffies, data->last_updated[slice])) {
 
-		dev_dbg(&client->dev, "Starting update of slice %u\n",
-			slice, blk->base);
+		dev_dbg(&client->dev, "Starting update of slice %u\n", slice);
 
 		data->valid &= ~(1 << slice);
 
