@@ -958,7 +958,7 @@ device_create_file(&client->dev, &dev_attr_temp##offset##_type); \
 } while (0)
 
 
-static int w83627hf_find(int sioaddr, unsigned short *addr)
+static int __init w83627hf_find(int sioaddr, unsigned short *addr)
 {
 	u16 val;
 

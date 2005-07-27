@@ -707,7 +707,7 @@ static int it87_isa_attach_adapter(struct i2c_adapter *adapter)
 }
 
 /* SuperIO detection - will change isa_address if a chip is found */
-static int it87_find(int *address)
+static int __init it87_find(int *address)
 {
 	int err = -ENODEV;
 

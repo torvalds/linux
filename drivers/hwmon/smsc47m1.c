@@ -345,7 +345,7 @@ fan_present(2);
 
 static DEVICE_ATTR(alarms, S_IRUGO, get_alarms, NULL);
 
-static int smsc47m1_find(unsigned short *addr)
+static int __init smsc47m1_find(unsigned short *addr)
 {
 	u8 val;
 

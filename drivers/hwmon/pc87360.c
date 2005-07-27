@@ -626,7 +626,7 @@ static DEVICE_ATTR(alarms_temp, S_IRUGO, show_temp_alarms, NULL);
  * Device detection, registration and update
  */
 
-static int pc87360_find(int sioaddr, u8 *devid, unsigned short *addresses)
+static int __init pc87360_find(int sioaddr, u8 *devid, unsigned short *addresses)
 {
 	u16 val;
 	int i;
