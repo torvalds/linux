@@ -34,7 +34,7 @@ static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24,
 static unsigned int normal_isa[] = { 0x0290, I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_3(lm78, lm78j, lm79);
+SENSORS_INSMOD_2(lm78, lm79);
 
 /* Many LM78 constants specified below */
 
@@ -559,10 +559,9 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* Determine the chip type. */
 	if (kind <= 0) {
 		i = lm78_read_value(new_client, LM78_REG_CHIPID);
-		if (i == 0x00 || i == 0x20)
+		if (i == 0x00 || i == 0x20	/* LM78 */
+		 || i == 0x40)			/* LM78-J */
 			kind = lm78;
-		else if (i == 0x40)
-			kind = lm78j;
 		else if ((i & 0xfe) == 0xc0)
 			kind = lm79;
 		else {
@@ -578,8 +577,6 @@ int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	if (kind == lm78) {
 		client_name = "lm78";
-	} else if (kind == lm78j) {
-		client_name = "lm78-j";
 	} else if (kind == lm79) {
 		client_name = "lm79";
 	}
@@ -788,7 +785,7 @@ static void __exit sm_lm78_exit(void)
 
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");
-MODULE_DESCRIPTION("LM78, LM78-J and LM79 driver");
+MODULE_DESCRIPTION("LM78/LM79 driver");
 MODULE_LICENSE("GPL");
 
 module_init(sm_lm78_init);
