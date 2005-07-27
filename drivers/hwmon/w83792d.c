@@ -42,7 +42,9 @@
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
+#include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/err.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END };
@@ -267,6 +269,7 @@ DIV_TO_REG(long val)
 
 struct w83792d_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -1289,6 +1292,11 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto ERROR3;
+	}
 	device_create_file_in(new_client, 0);
 	device_create_file_in(new_client, 1);
 	device_create_file_in(new_client, 2);
@@ -1361,6 +1369,15 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	return 0;
 
+ERROR3:
+	if (data->lm75[0] != NULL) {
+		i2c_detach_client(data->lm75[0]);
+		kfree(data->lm75[0]);
+	}
+	if (data->lm75[1] != NULL) {
+		i2c_detach_client(data->lm75[1]);
+		kfree(data->lm75[1]);
+	}
 ERROR2:
 	i2c_detach_client(new_client);
 ERROR1:
@@ -1372,7 +1389,12 @@ ERROR0:
 static int
 w83792d_detach_client(struct i2c_client *client)
 {
+	struct w83792d_data *data = i2c_get_clientdata(client);
 	int err;
+
+	/* main client */
+	if (data)
+		hwmon_device_unregister(data->class_dev);
 
 	if ((err = i2c_detach_client(client))) {
 		dev_err(&client->dev,
@@ -1380,13 +1402,12 @@ w83792d_detach_client(struct i2c_client *client)
 		return err;
 	}
 
-	if (i2c_get_clientdata(client)==NULL) {
-		/* subclients */
+	/* main client */
+	if (data)
+		kfree(data);
+	/* subclient */
+	else
 		kfree(client);
-	} else {
-		/* main client */
-		kfree(i2c_get_clientdata(client));
-	}
 
 	return 0;
 }
