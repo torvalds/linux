@@ -1553,7 +1553,7 @@ ahd_linux_dev_reset(Scsi_Cmnd *cmd)
 	ahd_queue_scb(ahd, scb);
 
 	scb->platform_data->flags |= AHD_SCB_UP_EH_SEM;
-	spin_unlock_irq(&ahd->platform_data->spin_lock);
+	ahd_unlock(ahd, &s);
 	init_timer(&timer);
 	timer.data = (u_long)scb;
 	timer.expires = jiffies + (5 * HZ);
@@ -1567,7 +1567,7 @@ ahd_linux_dev_reset(Scsi_Cmnd *cmd)
 		printf("Timer Expired\n");
 		retval = FAILED;
 	}
-	spin_lock_irq(&ahd->platform_data->spin_lock);
+	ahd_lock(ahd, &s);
 	ahd_schedule_runq(ahd);
 	ahd_linux_run_complete_queue(ahd);
 	ahd_unlock(ahd, &s);

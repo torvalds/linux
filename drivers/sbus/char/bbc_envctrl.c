@@ -4,13 +4,14 @@
  * Copyright (C) 2001 David S. Miller (davem@redhat.com)
  */
 
+#define __KERNEL_SYSCALLS__
+
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <asm/oplib.h>
 #include <asm/ebus.h>
-#define __KERNEL_SYSCALLS__
 static int errno;
 #include <asm/unistd.h>
 

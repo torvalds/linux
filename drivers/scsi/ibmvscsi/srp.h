@@ -28,6 +28,8 @@
 #ifndef SRP_H
 #define SRP_H
 
+#define SRP_VERSION "16.a"
+
 #define PACKED __attribute__((packed))
 
 enum srp_types {

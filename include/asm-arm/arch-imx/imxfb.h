@@ -25,6 +25,7 @@ struct imxfb_mach_info {
 	u_int		pcr;
 	u_int		pwmr;
 	u_int		lscr1;
+	u_int		dmacr;
 
 	u_char * fixed_screen_cpu;
 	dma_addr_t fixed_screen_dma;

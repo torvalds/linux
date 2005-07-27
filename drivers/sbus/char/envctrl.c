@@ -19,6 +19,8 @@
  *              Daniele Bellucci <bellucda@tiscali.it>
  */
 
+#define __KERNEL_SYSCALLS__
+
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -35,7 +37,6 @@
 #include <asm/uaccess.h>
 #include <asm/envctrl.h>
 
-#define __KERNEL_SYSCALLS__
 static int errno;
 #include <asm/unistd.h>
 
@@ -1007,7 +1008,7 @@ static int kenvctrld(void *__unused)
 		return -ENODEV;
 	}
 
-	poll_interval = 5 * HZ; /* TODO env_mon_interval */
+	poll_interval = 5000; /* TODO env_mon_interval */
 
 	daemonize("kenvctrld");
 	allow_signal(SIGKILL);
@@ -1016,10 +1017,7 @@ static int kenvctrld(void *__unused)
 
 	printk(KERN_INFO "envctrl: %s starting...\n", current->comm);
 	for (;;) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(poll_interval);
-
-		if(signal_pending(current))
+		if(msleep_interruptible(poll_interval))
 			break;
 
 		for (whichcpu = 0; whichcpu < ENVCTRL_MAX_CPU; ++whichcpu) {

@@ -373,9 +373,10 @@ ip6t_log_packet(unsigned int hooknum,
 		in ? in->name : "",
 		out ? out->name : "");
 	if (in && !out) {
+		unsigned int len;
 		/* MAC logging for input chain only. */
 		printk("MAC=");
-		if (skb->dev && skb->dev->hard_header_len &&
+		if (skb->dev && (len = skb->dev->hard_header_len) &&
 		    skb->mac.raw != skb->nh.raw) {
 			unsigned char *p = skb->mac.raw;
 			int i;
@@ -384,9 +385,11 @@ ip6t_log_packet(unsigned int hooknum,
 			    (p -= ETH_HLEN) < skb->head)
 				p = NULL;
 
-			if (p != NULL)
-				for (i = 0; i < skb->dev->hard_header_len; i++)
-					printk("%02x", p[i]);
+			if (p != NULL) {
+				for (i = 0; i < len; i++)
+					printk("%02x%s", p[i],
+					       i == len - 1 ? "" : ":");
+			}
 			printk(" ");
 
 			if (skb->dev->type == ARPHRD_SIT) {

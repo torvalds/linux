@@ -27,17 +27,17 @@
  * 	         lvalue                                   rvalue
  * 	      +-----------+                           +-----------+
  * 	      | type: INT |                           | type: INT |
- * 	 def  | id: INDEV |                           | id: VALUE |
+ * 	 def  | id: DEV   |                           | id: VALUE |
  * 	      | data:     |                           | data: 3   |
  * 	      +-----------+                           +-----------+
  * 	            |                                       |
- * 	            ---> meta_ops[INT][INDEV](...)          |
+ * 	            ---> meta_ops[INT][DEV](...)            |
  *	                      |                             |
  * 	            -----------                             |
  * 	            V                                       V
  * 	      +-----------+                           +-----------+
  * 	      | type: INT |                           | type: INT |
- * 	 obj  | id: INDEV |                           | id: VALUE |
+ * 	 obj  | id: DEV |                             | id: VALUE |
  * 	      | data: 2   |<--data got filled out     | data: 3   |
  * 	      +-----------+                           +-----------+
  * 	            |                                         |
@@ -170,26 +170,6 @@ META_COLLECTOR(var_dev)
 	*err = var_dev(skb->dev, dst);
 }
 
-META_COLLECTOR(int_indev)
-{
-	*err = int_dev(skb->input_dev, dst);
-}
-
-META_COLLECTOR(var_indev)
-{
-	*err = var_dev(skb->input_dev, dst);
-}
-
-META_COLLECTOR(int_realdev)
-{
-	*err = int_dev(skb->real_dev, dst);
-}
-
-META_COLLECTOR(var_realdev)
-{
-	*err = var_dev(skb->real_dev, dst);
-}
-
 /**************************************************************************
  * skb attributes
  **************************************************************************/
@@ -229,12 +209,14 @@ META_COLLECTOR(int_maclen)
  * Netfilter
  **************************************************************************/
 
-#ifdef CONFIG_NETFILTER
 META_COLLECTOR(int_nfmark)
 {
+#ifdef CONFIG_NETFILTER
 	dst->value = skb->nfmark;
-}
+#else
+	dst->value = 0;
 #endif
+}
 
 /**************************************************************************
  * Traffic Control
@@ -245,31 +227,21 @@ META_COLLECTOR(int_tcindex)
 	dst->value = skb->tc_index;
 }
 
-#ifdef CONFIG_NET_CLS_ACT
-META_COLLECTOR(int_tcverd)
-{
-	dst->value = skb->tc_verd;
-}
-
-META_COLLECTOR(int_tcclassid)
-{
-	dst->value = skb->tc_classid;
-}
-#endif
-
 /**************************************************************************
  * Routing
  **************************************************************************/
 
-#ifdef CONFIG_NET_CLS_ROUTE
 META_COLLECTOR(int_rtclassid)
 {
 	if (unlikely(skb->dst == NULL))
 		*err = -1;
 	else
+#ifdef CONFIG_NET_CLS_ROUTE
 		dst->value = skb->dst->tclassid;
-}
+#else
+		dst->value = 0;
 #endif
+}
 
 META_COLLECTOR(int_rtiif)
 {
@@ -505,8 +477,6 @@ struct meta_ops
 static struct meta_ops __meta_ops[TCF_META_TYPE_MAX+1][TCF_META_ID_MAX+1] = {
 	[TCF_META_TYPE_VAR] = {
 		[META_ID(DEV)]			= META_FUNC(var_dev),
-		[META_ID(INDEV)]		= META_FUNC(var_indev),
-		[META_ID(REALDEV)]		= META_FUNC(var_realdev),
 		[META_ID(SK_BOUND_IF)] 		= META_FUNC(var_sk_bound_if),
 	},
 	[TCF_META_TYPE_INT] = {
@@ -515,25 +485,15 @@ static struct meta_ops __meta_ops[TCF_META_TYPE_MAX+1][TCF_META_ID_MAX+1] = {
 		[META_ID(LOADAVG_1)]		= META_FUNC(int_loadavg_1),
 		[META_ID(LOADAVG_2)]		= META_FUNC(int_loadavg_2),
 		[META_ID(DEV)]			= META_FUNC(int_dev),
-		[META_ID(INDEV)]		= META_FUNC(int_indev),
-		[META_ID(REALDEV)]		= META_FUNC(int_realdev),
 		[META_ID(PRIORITY)]		= META_FUNC(int_priority),
 		[META_ID(PROTOCOL)]		= META_FUNC(int_protocol),
 		[META_ID(PKTTYPE)]		= META_FUNC(int_pkttype),
 		[META_ID(PKTLEN)]		= META_FUNC(int_pktlen),
 		[META_ID(DATALEN)]		= META_FUNC(int_datalen),
 		[META_ID(MACLEN)]		= META_FUNC(int_maclen),
-#ifdef CONFIG_NETFILTER
 		[META_ID(NFMARK)]		= META_FUNC(int_nfmark),
-#endif
 		[META_ID(TCINDEX)]		= META_FUNC(int_tcindex),
-#ifdef CONFIG_NET_CLS_ACT
-		[META_ID(TCVERDICT)]		= META_FUNC(int_tcverd),
-		[META_ID(TCCLASSID)]		= META_FUNC(int_tcclassid),
-#endif
-#ifdef CONFIG_NET_CLS_ROUTE
 		[META_ID(RTCLASSID)]		= META_FUNC(int_rtclassid),
-#endif
 		[META_ID(RTIIF)]		= META_FUNC(int_rtiif),
 		[META_ID(SK_FAMILY)]		= META_FUNC(int_sk_family),
 		[META_ID(SK_STATE)]		= META_FUNC(int_sk_state),

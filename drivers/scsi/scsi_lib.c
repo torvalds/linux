@@ -146,12 +146,6 @@ int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 		device->device_blocked = device->max_device_blocked;
 
 	/*
-	 * Register the fact that we own the thing for now.
-	 */
-	cmd->state = SCSI_STATE_MLQUEUE;
-	cmd->owner = SCSI_OWNER_MIDLEVEL;
-
-	/*
 	 * Decrement the counters, since these commands are no longer
 	 * active on the host/device.
 	 */
@@ -299,9 +293,7 @@ EXPORT_SYMBOL(scsi_wait_req);
  */
 static int scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 {
-	cmd->owner = SCSI_OWNER_MIDLEVEL;
 	cmd->serial_number = 0;
-	cmd->abort_reason = 0;
 
 	memset(cmd->sense_buffer, 0, sizeof cmd->sense_buffer);
 
@@ -322,7 +314,6 @@ static int scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 	memcpy(cmd->data_cmnd, cmd->cmnd, sizeof(cmd->cmnd));
 	cmd->buffer = cmd->request_buffer;
 	cmd->bufflen = cmd->request_bufflen;
-	cmd->abort_reason = 0;
 
 	return 1;
 }
@@ -623,8 +614,6 @@ static struct scatterlist *scsi_alloc_sgtable(struct scsi_cmnd *cmd, int gfp_mas
 
 	sgp = scsi_sg_pools + cmd->sglist_len;
 	sgl = mempool_alloc(sgp->pool, gfp_mask);
-	if (sgl)
-		memset(sgl, 0, sgp->size);
 	return sgl;
 }
 

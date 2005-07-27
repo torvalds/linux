@@ -30,9 +30,10 @@ extern int ip_conntrack_helper_register(struct ip_conntrack_helper *);
 extern void ip_conntrack_helper_unregister(struct ip_conntrack_helper *);
 
 /* Allocate space for an expectation: this is mandatory before calling 
-   ip_conntrack_expect_related. */
-extern struct ip_conntrack_expect *ip_conntrack_expect_alloc(void);
-extern void ip_conntrack_expect_free(struct ip_conntrack_expect *exp);
+   ip_conntrack_expect_related.  You will have to call put afterwards. */
+extern struct ip_conntrack_expect *
+ip_conntrack_expect_alloc(struct ip_conntrack *master);
+extern void ip_conntrack_expect_put(struct ip_conntrack_expect *exp);
 
 /* Add an expected connection: can have more than one per connection */
 extern int ip_conntrack_expect_related(struct ip_conntrack_expect *exp);

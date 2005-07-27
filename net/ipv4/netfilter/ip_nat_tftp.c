@@ -45,10 +45,8 @@ static unsigned int help(struct sk_buff **pskb,
 	exp->saved_proto.udp.port = exp->tuple.dst.u.tcp.port;
 	exp->dir = IP_CT_DIR_REPLY;
 	exp->expectfn = ip_nat_follow_master;
-	if (ip_conntrack_expect_related(exp) != 0) {
-		ip_conntrack_expect_free(exp);
+	if (ip_conntrack_expect_related(exp) != 0)
 		return NF_DROP;
-	}
 	return NF_ACCEPT;
 }
 

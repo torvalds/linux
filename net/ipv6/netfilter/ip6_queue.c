@@ -76,7 +76,9 @@ static DECLARE_MUTEX(ipqnl_sem);
 static void
 ipq_issue_verdict(struct ipq_queue_entry *entry, int verdict)
 {
+	local_bh_disable();
 	nf_reinject(entry->skb, entry->info, verdict);
+	local_bh_enable();
 	kfree(entry);
 }
 

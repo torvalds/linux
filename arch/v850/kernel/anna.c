@@ -132,8 +132,6 @@ void machine_restart (char *__unused)
 	asm ("jmp r0"); /* Jump to the reset vector.  */
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_halt (void)
 {
 #ifdef CONFIG_RESET_GUARD
@@ -145,14 +143,10 @@ void machine_halt (void)
 		asm ("halt; nop; nop; nop; nop; nop");
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off (void)
 {
 	machine_halt ();
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 /* Called before configuring an on-chip UART.  */
 void anna_uart_pre_configure (unsigned chan, unsigned cflags, unsigned baud)
