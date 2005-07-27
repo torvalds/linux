@@ -763,6 +763,82 @@ out:
 	return ret;
 }
 
+static int get_buf_length(int hdr_len, int data_len)
+{
+	int seg_size, pad;
+
+	seg_size = sizeof(struct ib_mad) - hdr_len;
+	if (data_len && seg_size) {
+		pad = seg_size - data_len % seg_size;
+		if (pad == seg_size)
+			pad = 0;
+	} else
+		pad = seg_size;
+	return hdr_len + data_len + pad;
+}
+
+struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
+					    u32 remote_qpn, u16 pkey_index,
+					    struct ib_ah *ah,
+					    int hdr_len, int data_len,
+					    unsigned int __nocast gfp_mask)
+{
+	struct ib_mad_agent_private *mad_agent_priv;
+	struct ib_mad_send_buf *send_buf;
+	int buf_size;
+	void *buf;
+
+	mad_agent_priv = container_of(mad_agent,
+				      struct ib_mad_agent_private, agent);
+	buf_size = get_buf_length(hdr_len, data_len);
+
+	buf = kmalloc(sizeof *send_buf + buf_size, gfp_mask);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	send_buf = buf + buf_size;
+	memset(send_buf, 0, sizeof *send_buf);
+	send_buf->mad = buf;
+
+	send_buf->sge.addr = dma_map_single(mad_agent->device->dma_device,
+					    buf, buf_size, DMA_TO_DEVICE);
+	pci_unmap_addr_set(send_buf, mapping, send_buf->sge.addr);
+	send_buf->sge.length = buf_size;
+	send_buf->sge.lkey = mad_agent->mr->lkey;
+
+	send_buf->send_wr.wr_id = (unsigned long) send_buf;
+	send_buf->send_wr.sg_list = &send_buf->sge;
+	send_buf->send_wr.num_sge = 1;
+	send_buf->send_wr.opcode = IB_WR_SEND;
+	send_buf->send_wr.send_flags = IB_SEND_SIGNALED;
+	send_buf->send_wr.wr.ud.ah = ah;
+	send_buf->send_wr.wr.ud.mad_hdr = &send_buf->mad->mad_hdr;
+	send_buf->send_wr.wr.ud.remote_qpn = remote_qpn;
+	send_buf->send_wr.wr.ud.remote_qkey = IB_QP_SET_QKEY;
+	send_buf->send_wr.wr.ud.pkey_index = pkey_index;
+	send_buf->mad_agent = mad_agent;
+	atomic_inc(&mad_agent_priv->refcount);
+	return send_buf;
+}
+EXPORT_SYMBOL(ib_create_send_mad);
+
+void ib_free_send_mad(struct ib_mad_send_buf *send_buf)
+{
+	struct ib_mad_agent_private *mad_agent_priv;
+
+	mad_agent_priv = container_of(send_buf->mad_agent,
+				      struct ib_mad_agent_private, agent);
+
+	dma_unmap_single(send_buf->mad_agent->device->dma_device,
+			 pci_unmap_addr(send_buf, mapping),
+			 send_buf->sge.length, DMA_TO_DEVICE);
+	kfree(send_buf->mad);
+
+	if (atomic_dec_and_test(&mad_agent_priv->refcount))
+		wake_up(&mad_agent_priv->wait);
+}
+EXPORT_SYMBOL(ib_free_send_mad);
+
 static int ib_send_mad(struct ib_mad_agent_private *mad_agent_priv,
 		       struct ib_mad_send_wr_private *mad_send_wr)
 {

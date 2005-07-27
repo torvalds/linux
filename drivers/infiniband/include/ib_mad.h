@@ -39,6 +39,8 @@
 #if !defined( IB_MAD_H )
 #define IB_MAD_H
 
+#include <linux/pci.h>
+
 #include <ib_verbs.h>
 
 /* Management base version */
@@ -73,6 +75,7 @@
 #define IB_QP0		0
 #define IB_QP1		__constant_htonl(1)
 #define IB_QP1_QKEY	0x80010000
+#define IB_QP_SET_QKEY	0x80000000
 
 struct ib_grh {
 	u32		version_tclass_flow;
@@ -123,6 +126,30 @@ struct ib_vendor_mad {
 	u8			oui[3];
 	u8			data[216];
 } __attribute__ ((packed));
+
+/**
+ * ib_mad_send_buf - MAD data buffer and work request for sends.
+ * @mad: References an allocated MAD data buffer.  The size of the data
+ *   buffer is specified in the @send_wr.length field.
+ * @mapping: DMA mapping information.
+ * @mad_agent: MAD agent that allocated the buffer.
+ * @context: User-controlled context fields.
+ * @send_wr: An initialized work request structure used when sending the MAD.
+ *   The wr_id field of the work request is initialized to reference this
+ *   data structure.
+ * @sge: A scatter-gather list referenced by the work request.
+ *
+ * Users are responsible for initializing the MAD buffer itself, with the
+ * exception of specifying the payload length field in any RMPP MAD.
+ */
+struct ib_mad_send_buf {
+	struct ib_mad		*mad;
+	DECLARE_PCI_UNMAP_ADDR(mapping)
+	struct ib_mad_agent	*mad_agent;
+	void			*context[2];
+	struct ib_send_wr	send_wr;
+	struct ib_sge		sge;
+};
 
 struct ib_mad_agent;
 struct ib_mad_send_wc;
@@ -401,5 +428,38 @@ struct ib_mad_agent *ib_redirect_mad_qp(struct ib_qp *qp,
  */
 int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
 		      struct ib_wc *wc);
+
+/**
+ * ib_create_send_mad - Allocate and initialize a data buffer and work request
+ *   for sending a MAD.
+ * @mad_agent: Specifies the registered MAD service to associate with the MAD.
+ * @remote_qpn: Specifies the QPN of the receiving node.
+ * @pkey_index: Specifies which PKey the MAD will be sent using.  This field
+ *   is valid only if the remote_qpn is QP 1.
+ * @ah: References the address handle used to transfer to the remote node.
+ * @hdr_len: Indicates the size of the data header of the MAD.  This length
+ *   should include the common MAD header, RMPP header, plus any class
+ *   specific header.
+ * @data_len: Indicates the size of any user-transfered data.  The call will
+ *   automatically adjust the allocated buffer size to account for any
+ *   additional padding that may be necessary.
+ * @gfp_mask: GFP mask used for the memory allocation.
+ *
+ * This is a helper routine that may be used to allocate a MAD.  Users are
+ * not required to allocate outbound MADs using this call.  The returned
+ * MAD send buffer will reference a data buffer usable for sending a MAD, along
+ * with an intialized work request structure.
+ */
+struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
+					    u32 remote_qpn, u16 pkey_index,
+					    struct ib_ah *ah,
+					    int hdr_len, int data_len,
+					    unsigned int __nocast gfp_mask);
+
+/**
+ * ib_free_send_mad - Returns data buffers used to send a MAD.
+ * @send_buf: Previously allocated send data buffer.
+ */
+void ib_free_send_mad(struct ib_mad_send_buf *send_buf);
 
 #endif /* IB_MAD_H */
