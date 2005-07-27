@@ -449,8 +449,12 @@ int i2c_detach_client(struct i2c_client *client)
 	struct i2c_adapter *adapter = client->adapter;
 	int res = 0;
 	
-	if ((client->flags & I2C_CLIENT_ALLOW_USE) && (client->usage_count > 0))
+	if ((client->flags & I2C_CLIENT_ALLOW_USE)
+	 && (client->usage_count > 0)) {
+		dev_warn(&client->dev, "Client [%s] still busy, "
+			 "can't detach\n", client->name);
 		return -EBUSY;
+	}
 
 	if (adapter->client_unregister)  {
 		res = adapter->client_unregister(client);

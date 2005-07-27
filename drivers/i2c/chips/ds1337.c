@@ -353,11 +353,8 @@ static int ds1337_detach_client(struct i2c_client *client)
 	int err;
 	struct ds1337_data *data = i2c_get_clientdata(client);
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, "
-			"client not detached.\n");
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
 	list_del(&data->list);
 	kfree(data);

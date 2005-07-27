@@ -242,10 +242,8 @@ static int max6875_detach_client(struct i2c_client *client)
 	int err;
 
 	err = i2c_detach_client(client);
-	if (err) {
-		dev_err(&client->dev, "i2c_detach_client() failed\n");
+	if (err)
 		return err;
-	}
 	kfree(i2c_get_clientdata(client));
 	return 0;
 }

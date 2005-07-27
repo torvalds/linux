@@ -645,11 +645,8 @@ static int adm9240_detach_client(struct i2c_client *client)
 
 	hwmon_device_unregister(data->class_dev);
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, "
-				"client not detached.\n");
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
 	kfree(data);
 	return 0;

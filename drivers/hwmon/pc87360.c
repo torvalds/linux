@@ -984,11 +984,8 @@ static int pc87360_detach_client(struct i2c_client *client)
 
 	hwmon_device_unregister(data->class_dev);
 
-	if ((i = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, "
-			"client not detached.\n");
+	if ((i = i2c_detach_client(client)))
 		return i;
-	}
 
 	for (i = 0; i < 3; i++) {
 		if (data->address[i]) {

@@ -489,10 +489,8 @@ much simpler than the attachment code, fortunately!
     /* SENSORS ONLY END */
 
     /* Try to detach the client from i2c space */
-    if ((err = i2c_detach_client(client))) {
-      printk("foo.o: Client deregistration failed, client not detached.\n");
+    if ((err = i2c_detach_client(client)))
       return err;
-    }
 
     /* HYBRID SENSORS CHIP ONLY START */
     if i2c_is_isa_client(client)

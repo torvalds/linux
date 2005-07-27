@@ -230,10 +230,8 @@ static int eeprom_detach_client(struct i2c_client *client)
 	int err;
 
 	err = i2c_detach_client(client);
-	if (err) {
-		dev_err(&client->dev, "Client deregistration failed, client not detached.\n");
+	if (err)
 		return err;
-	}
 
 	kfree(i2c_get_clientdata(client));
 

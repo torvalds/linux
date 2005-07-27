@@ -1299,11 +1299,8 @@ w83781d_detach_client(struct i2c_client *client)
 	if (i2c_is_isa_client(client))
 		release_region(client->addr, W83781D_EXTENT);
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev,
-		       "Client deregistration failed, client not detached.\n");
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
 	/* main client */
 	if (data)

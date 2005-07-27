@@ -94,7 +94,8 @@ Technical changes:
   limited to the strictly necessary steps.
 
 * [Detach] Get rid of data, remove the call to
-  i2c_deregister_entry.
+  i2c_deregister_entry. Do not log an error message if
+  i2c_detach_client fails, as i2c-core will now do it for you.
 
 * [Update] Don't access client->data directly, use
   i2c_get_clientdata(client) instead.
