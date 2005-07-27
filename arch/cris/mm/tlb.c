@@ -29,18 +29,6 @@
 struct mm_struct *page_id_map[NUM_PAGEID];
 static int map_replace_ptr = 1;  /* which page_id_map entry to replace next */
 
-/*
- * Initialize the context related info for a new mm_struct
- * instance.
- */
-
-int
-init_new_context(struct task_struct *tsk, struct mm_struct *mm)
-{
-	mm->context = NO_CONTEXT;
-	return 0;
-}
-
 /* the following functions are similar to those used in the PPC port */
 
 static inline void
@@ -60,12 +48,12 @@ alloc_context(struct mm_struct *mm)
 		 */
 		flush_tlb_mm(old_mm);
 
-		old_mm->context = NO_CONTEXT;
+		old_mm->context.page_id = NO_CONTEXT;
 	}
 
 	/* insert it into the page_id_map */
 
-	mm->context = map_replace_ptr;
+	mm->context.page_id = map_replace_ptr;
 	page_id_map[map_replace_ptr] = mm;
 
 	map_replace_ptr++;
@@ -81,7 +69,7 @@ alloc_context(struct mm_struct *mm)
 void
 get_mmu_context(struct mm_struct *mm)
 {
-	if(mm->context == NO_CONTEXT)
+	if(mm->context.page_id == NO_CONTEXT)
 		alloc_context(mm);
 }
 
@@ -96,11 +84,10 @@ get_mmu_context(struct mm_struct *mm)
 void
 destroy_context(struct mm_struct *mm)
 {
-	if(mm->context != NO_CONTEXT) {
-		D(printk("destroy_context %d (%p)\n", mm->context, mm));
+	if(mm->context.page_id != NO_CONTEXT) {
+		D(printk("destroy_context %d (%p)\n", mm->context.page_id, mm));
 		flush_tlb_mm(mm);  /* TODO this might be redundant ? */
-		page_id_map[mm->context] = NULL;
-		/* mm->context = NO_CONTEXT; redundant.. mm will be freed */
+		page_id_map[mm->context.page_id] = NULL;
 	}
 }
 
