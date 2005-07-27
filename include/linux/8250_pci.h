@@ -35,6 +35,3 @@ pciserial_init_ports(struct pci_dev *dev, struct pciserial_board *board);
 void pciserial_remove_ports(struct serial_private *priv);
 void pciserial_suspend_ports(struct serial_private *priv);
 void pciserial_resume_ports(struct serial_private *priv);
-
-int pci_siig10x_fn(struct pci_dev *dev, int enable);
-int pci_siig20x_fn(struct pci_dev *dev, int enable);

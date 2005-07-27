@@ -46,7 +46,7 @@ struct pci_serial_quirk {
 	u32	subdevice;
 	int	(*init)(struct pci_dev *dev);
 	int	(*setup)(struct serial_private *, struct pciserial_board *,
-			 struct uart_port *port, int idx);
+			 struct uart_port *, int);
 	void	(*exit)(struct pci_dev *dev);
 };
 
@@ -435,25 +435,6 @@ static int pci_siig_init(struct pci_dev *dev)
 	moan_device("Unknown SIIG card", dev);
 	return -ENODEV;
 }
-
-int pci_siig10x_fn(struct pci_dev *dev, int enable)
-{
-	int ret = 0;
-	if (enable)
-		ret = pci_siig10x_init(dev);
-	return ret;
-}
-
-int pci_siig20x_fn(struct pci_dev *dev, int enable)
-{
-	int ret = 0;
-	if (enable)
-		ret = pci_siig20x_init(dev);
-	return ret;
-}
-
-EXPORT_SYMBOL(pci_siig10x_fn);
-EXPORT_SYMBOL(pci_siig20x_fn);
 
 /*
  * Timedia has an explosion of boards, and to avoid the PCI table from
