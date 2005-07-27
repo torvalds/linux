@@ -2487,14 +2487,6 @@ static int ib_mad_port_open(struct ib_device *device,
 	unsigned long flags;
 	char name[sizeof "ib_mad123"];
 
-	/* First, check if port already open at MAD layer */
-	port_priv = ib_get_mad_port(device, port_num);
-	if (port_priv) {
-		printk(KERN_DEBUG PFX "%s port %d already open\n",
-		       device->name, port_num);
-		return 0;
-	}
-
 	/* Create new device info */
 	port_priv = kmalloc(sizeof *port_priv, GFP_KERNEL);
 	if (!port_priv) {
@@ -2619,7 +2611,7 @@ static int ib_mad_port_close(struct ib_device *device, int port_num)
 
 static void ib_mad_init_device(struct ib_device *device)
 {
-	int ret, num_ports, cur_port, i, ret2;
+	int num_ports, cur_port, i;
 
 	if (device->node_type == IB_NODE_SWITCH) {
 		num_ports = 1;
@@ -2629,47 +2621,37 @@ static void ib_mad_init_device(struct ib_device *device)
 		cur_port = 1;
 	}
 	for (i = 0; i < num_ports; i++, cur_port++) {
-		ret = ib_mad_port_open(device, cur_port);
-		if (ret) {
+		if (ib_mad_port_open(device, cur_port)) {
 			printk(KERN_ERR PFX "Couldn't open %s port %d\n",
 			       device->name, cur_port);
 			goto error_device_open;
 		}
-		ret = ib_agent_port_open(device, cur_port);
-		if (ret) {
+		if (ib_agent_port_open(device, cur_port)) {
 			printk(KERN_ERR PFX "Couldn't open %s port %d "
 			       "for agents\n",
 			       device->name, cur_port);
 			goto error_device_open;
 		}
 	}
-
-	goto error_device_query;
+	return;
 
 error_device_open:
 	while (i > 0) {
 		cur_port--;
-		ret2 = ib_agent_port_close(device, cur_port);
-		if (ret2) {
+		if (ib_agent_port_close(device, cur_port))
 			printk(KERN_ERR PFX "Couldn't close %s port %d "
 			       "for agents\n",
 			       device->name, cur_port);
-		}
-		ret2 = ib_mad_port_close(device, cur_port);
-		if (ret2) {
+		if (ib_mad_port_close(device, cur_port))
 			printk(KERN_ERR PFX "Couldn't close %s port %d\n",
 			       device->name, cur_port);
-		}
 		i--;
 	}
-
-error_device_query:
-	return;
 }
 
 static void ib_mad_remove_device(struct ib_device *device)
 {
-	int ret = 0, i, num_ports, cur_port, ret2;
+	int i, num_ports, cur_port;
 
 	if (device->node_type == IB_NODE_SWITCH) {
 		num_ports = 1;
@@ -2679,21 +2661,13 @@ static void ib_mad_remove_device(struct ib_device *device)
 		cur_port = 1;
 	}
 	for (i = 0; i < num_ports; i++, cur_port++) {
-		ret2 = ib_agent_port_close(device, cur_port);
-		if (ret2) {
+		if (ib_agent_port_close(device, cur_port))
 			printk(KERN_ERR PFX "Couldn't close %s port %d "
 			       "for agents\n",
 			       device->name, cur_port);
-			if (!ret)
-				ret = ret2;
-		}
-		ret2 = ib_mad_port_close(device, cur_port);
-		if (ret2) {
+		if (ib_mad_port_close(device, cur_port))
 			printk(KERN_ERR PFX "Couldn't close %s port %d\n",
 			       device->name, cur_port);
-			if (!ret)
-				ret = ret2;
-		}
 	}
 }
 
