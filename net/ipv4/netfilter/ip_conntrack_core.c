@@ -510,7 +510,7 @@ init_conntrack(const struct ip_conntrack_tuple *tuple,
 		/* Welcome, Mr. Bond.  We've been expecting you... */
 		__set_bit(IPS_EXPECTED_BIT, &conntrack->status);
 		conntrack->master = exp->master;
-#if CONFIG_IP_NF_CONNTRACK_MARK
+#ifdef CONFIG_IP_NF_CONNTRACK_MARK
 		conntrack->mark = exp->master->mark;
 #endif
 		nf_conntrack_get(&conntrack->master->ct_general);
