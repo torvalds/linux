@@ -404,6 +404,9 @@ config SENSORS_W83627EHF
 	  Only fan and temperature inputs are supported at the moment, while
 	  the chip does much more than that.
 
+	  This driver also supports the W83627EHG, which is the lead-free
+	  version of the W83627EHF.
+
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627ehf.
 

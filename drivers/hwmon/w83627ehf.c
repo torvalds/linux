@@ -9,6 +9,9 @@
     Thanks to Leon Moonen, Steve Cliffe and Grant Coady for their help
     in testing and debugging this driver.
 
+    This driver also supports the W83627EHG, which is the lead-free
+    version of the W83627EHF.
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
