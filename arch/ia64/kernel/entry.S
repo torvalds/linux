@@ -1574,8 +1574,8 @@ sys_call_table:
 	data8 sys_ioprio_set
 	data8 sys_ioprio_get			// 1275
 	data8 sys_set_zone_reclaim
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall
+	data8 sys_inotify_init
+	data8 sys_inotify_add_watch
+	data8 sys_inotify_rm_watch
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
