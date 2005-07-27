@@ -10,8 +10,8 @@ EXTRA_CFLAGS += -I$(src)/..
 EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/frontends
 ifneq ($(CONFIG_DVB_MT352),n)
- EXTRA_CFLAGS += -DCONFIG_DVB_MT352=1
+ EXTRA_CFLAGS += -DHAVE_MT352=1
 endif
 ifneq ($(CONFIG_DVB_TDA1004X),n)
- EXTRA_CFLAGS += -DCONFIG_DVB_TDA1004X=1
+ EXTRA_CFLAGS += -DHAVE_TDA1004X=1
 endif
