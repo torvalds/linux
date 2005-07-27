@@ -878,6 +878,13 @@ config MPC10X_STORE_GATHERING
 	bool "Enable MPC10x store gathering"
 	depends on MPC10X_BRIDGE
 
+config SANDPOINT_ENABLE_UART1
+	bool "Enable DUART mode on Sandpoint"
+	depends on SANDPOINT
+	help
+	  If this option is enabled then the MPC824x processor will run
+	  in DUART mode instead of UART mode.
+
 config CPC710_DATA_GATHERING
 	bool "Enable CPC710 data gathering"
 	depends on K2
