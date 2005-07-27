@@ -236,7 +236,7 @@ config VIDEO_MEYE
 
 config VIDEO_SAA7134
 	tristate "Philips SAA7134 support"
-	depends on VIDEO_DEV && PCI && I2C
+	depends on VIDEO_DEV && PCI && I2C && SOUND
 	select VIDEO_BUF
 	select VIDEO_IR
 	select VIDEO_TUNER
