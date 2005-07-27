@@ -89,7 +89,7 @@ enum {
 #define WRITEBUFLEN	((4096) + 4)
 #define MYFLIPLEN	N_TTY_BUF_SIZE
 
-#define JSM_VERSION	"jsm: 1.1-1-INKERNEL"
+#define JSM_VERSION	"jsm: 1.2-1-INKERNEL"
 #define JSM_PARTNUM	"40002438_A-INKERNEL"
 
 struct jsm_board;

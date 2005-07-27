@@ -22,6 +22,7 @@
  * Scott H Kilau <Scott_Kilau@digi.com>
  * Wendy Xiong   <wendyx@us.ltcfwd.linux.ibm.com>
  *
+ *
  ***********************************************************************/
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
