@@ -431,12 +431,6 @@ setup_lowcore(void)
 		ctl_set_bit(14, 29);
 	}
 #endif
-#ifdef CONFIG_ARCH_S390X
-	if (MACHINE_HAS_DIAG44)
-		lc->diag44_opcode = 0x83000044;
-	else
-		lc->diag44_opcode = 0x07000700;
-#endif /* CONFIG_ARCH_S390X */
 	set_prefix((u32)(unsigned long) lc);
 }
 
