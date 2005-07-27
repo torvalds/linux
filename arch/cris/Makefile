@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.23 2004/10/19 13:07:34 starvik Exp $
+# $Id: Makefile,v 1.28 2005/03/17 10:44:37 larsv Exp $
 # cris/Makefile
 #
 # This file is included by the global makefile so that you can add your own
@@ -15,6 +15,7 @@
 
 arch-y := v10
 arch-$(CONFIG_ETRAX_ARCH_V10) := v10
+arch-$(CONFIG_ETRAX_ARCH_V32) := v32
 
 # No config avaiable for make clean etc
 ifneq ($(arch-y),)
@@ -46,6 +47,21 @@ core-y		+= arch/$(ARCH)/$(SARCH)/kernel/ arch/$(ARCH)/$(SARCH)/mm/
 drivers-y	+= arch/$(ARCH)/$(SARCH)/drivers/
 libs-y		+= arch/$(ARCH)/$(SARCH)/lib/ $(LIBGCC)
 
+# cris source path
+SRC_ARCH              = $(srctree)/arch/$(ARCH)
+# cris object files path
+OBJ_ARCH              = $(objtree)/arch/$(ARCH)
+
+target_boot_arch_dir  = $(OBJ_ARCH)/$(SARCH)/boot
+target_boot_dir       = $(OBJ_ARCH)/boot
+src_boot_dir          = $(SRC_ARCH)/boot
+target_compressed_dir = $(OBJ_ARCH)/boot/compressed
+src_compressed_dir    = $(SRC_ARCH)/boot/compressed
+target_rescue_dir     = $(OBJ_ARCH)/boot/rescue
+src_rescue_dir        = $(SRC_ARCH)/boot/rescue
+
+export target_boot_arch_dir target_boot_dir src_boot_dir target_compressed_dir src_compressed_dir target_rescue_dir src_rescue_dir
+
 vmlinux.bin: vmlinux
 	$(OBJCOPY) $(OBJCOPYFLAGS) vmlinux vmlinux.bin
 
@@ -65,44 +81,52 @@ cramfs:
 
 clinux: vmlinux.bin decompress.bin rescue.bin
 
-decompress.bin: FORCE
-	@make -C arch/$(ARCH)/boot/compressed decompress.bin
+decompress.bin: $(target_boot_dir)
+	@$(MAKE) -f $(src_compressed_dir)/Makefile $(target_compressed_dir)/decompress.bin
 
-rescue.bin: FORCE
-	@make -C arch/$(ARCH)/boot/rescue rescue.bin
+$(target_rescue_dir)/rescue.bin: $(target_boot_dir)
+	@$(MAKE) -f $(src_rescue_dir)/Makefile $(target_rescue_dir)/rescue.bin
 
-zImage: vmlinux.bin rescue.bin
+zImage: $(target_boot_dir) vmlinux.bin $(target_rescue_dir)/rescue.bin
 ## zImage     - Compressed kernel (gzip)
-	@make -C arch/$(ARCH)/boot/ zImage
+	@$(MAKE) -f $(src_boot_dir)/Makefile zImage
+
+$(target_boot_dir): $(target_boot_arch_dir)
+	ln -sfn $< $@
+
+$(target_boot_arch_dir):
+	mkdir -p $@
 
 compressed: zImage
 
 archmrproper:
 archclean:
-	$(Q)$(MAKE) $(clean)=arch/$(ARCH)/boot
+	@if [ -d arch/$(ARCH)/boot ]; then \
+		$(MAKE) $(clean)=arch/$(ARCH)/boot ; \
+	fi
 	rm -f timage vmlinux.bin decompress.bin rescue.bin cramfs.img
 	rm -rf $(LD_SCRIPT).tmp
 
-prepare: arch/$(ARCH)/.links include/asm-$(ARCH)/.arch \
+prepare: $(SRC_ARCH)/.links $(srctree)/include/asm-$(ARCH)/.arch \
 	 include/asm-$(ARCH)/$(SARCH)/offset.h
 
 # Create some links to make all tools happy
-arch/$(ARCH)/.links:
-	@rm -rf arch/$(ARCH)/drivers
-	@ln -sfn $(SARCH)/drivers arch/$(ARCH)/drivers
-	@rm -rf arch/$(ARCH)/boot
-	@ln -sfn $(SARCH)/boot arch/$(ARCH)/boot
-	@rm -rf arch/$(ARCH)/lib
-	@ln -sfn $(SARCH)/lib arch/$(ARCH)/lib
-	@ln -sfn $(SARCH) arch/$(ARCH)/arch
-	@ln -sfn ../$(SARCH)/vmlinux.lds.S arch/$(ARCH)/kernel/vmlinux.lds.S
+$(SRC_ARCH)/.links:
+	@rm -rf $(SRC_ARCH)/drivers
+	@ln -sfn $(SRC_ARCH)/$(SARCH)/drivers $(SRC_ARCH)/drivers
+	@rm -rf $(SRC_ARCH)/boot
+	@ln -sfn $(SRC_ARCH)/$(SARCH)/boot $(SRC_ARCH)/boot
+	@rm -rf $(SRC_ARCH)/lib
+	@ln -sfn $(SRC_ARCH)/$(SARCH)/lib $(SRC_ARCH)/lib
+	@ln -sfn $(SRC_ARCH)/$(SARCH) $(SRC_ARCH)/arch
+	@ln -sfn $(SRC_ARCH)/$(SARCH)/vmlinux.lds.S $(SRC_ARCH)/kernel/vmlinux.lds.S
 	@touch $@
 
 # Create link to sub arch includes
-include/asm-$(ARCH)/.arch: $(wildcard include/config/arch/*.h)
-	@echo '  Making asm-$(ARCH)/arch -> asm-$(ARCH)/$(SARCH) symlink'
+$(srctree)/include/asm-$(ARCH)/.arch: $(wildcard include/config/arch/*.h)
+	@echo '  Making $(srctree)/include/asm-$(ARCH)/arch -> $(srctree)/include/asm-$(ARCH)/$(SARCH) symlink'
 	@rm -f include/asm-$(ARCH)/arch
-	@ln -sf $(SARCH) include/asm-$(ARCH)/arch
+	@ln -sf $(srctree)/include/asm-$(ARCH)/$(SARCH) $(srctree)/include/asm-$(ARCH)/arch
 	@touch $@
 
 arch/$(ARCH)/$(SARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
