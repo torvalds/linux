@@ -77,15 +77,6 @@
 #define IB_QP1_QKEY	0x80010000
 #define IB_QP_SET_QKEY	0x80000000
 
-struct ib_grh {
-	u32		version_tclass_flow;
-	u16		paylen;
-	u8		next_hdr;
-	u8		hop_limit;
-	union ib_gid	sgid;
-	union ib_gid	dgid;
-} __attribute__ ((packed));
-
 struct ib_mad_hdr {
 	u8	base_version;
 	u8	mgmt_class;
