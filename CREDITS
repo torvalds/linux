@@ -1624,10 +1624,10 @@ E: ajoshi@shell.unixbox.com
 D: fbdev hacking
 
 N: Jesper Juhl
-E: juhl-lkml@dif.dk
-D: Various small janitor fixes, cleanups etc.
+E: jesper.juhl@gmail.com
+D: Various fixes, cleanups and minor features.
 S: Lemnosvej 1, 3.tv
-S: 2300 Copenhagen S
+S: 2300 Copenhagen S.
 S: Denmark
 
 N: Jozsef Kadlecsik

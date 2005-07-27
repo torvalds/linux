@@ -18,7 +18,7 @@
  *
  *     19 June 2004     -- check_region() converted to request_region()
  *                         and return statement cleanups.
- *                         Jesper Juhl <juhl-lkml@dif.dk>
+ *                          - Jesper Juhl
  *
  *    Detect cdrom interface on ISP16 sound card.
  *    Configure cdrom interface.
