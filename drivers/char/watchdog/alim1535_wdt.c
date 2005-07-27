@@ -317,7 +317,7 @@ static int ali_notify_sys(struct notifier_block *this, unsigned long code, void 
  */
 
 static struct pci_device_id ali_pci_tbl[] = {
-	{ PCI_VENDOR_ID_AL, 1535, PCI_ANY_ID, PCI_ANY_ID,},
+	{ PCI_VENDOR_ID_AL, 0x1535, PCI_ANY_ID, PCI_ANY_ID,},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, ali_pci_tbl);
