@@ -92,6 +92,7 @@ struct ib_mad_agent_private {
 	spinlock_t lock;
 	struct list_head send_list;
 	struct list_head wait_list;
+	struct list_head done_list;
 	struct work_struct timed_work;
 	unsigned long timeout;
 	struct list_head local_list;

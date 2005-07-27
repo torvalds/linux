@@ -341,6 +341,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	spin_lock_init(&mad_agent_priv->lock);
 	INIT_LIST_HEAD(&mad_agent_priv->send_list);
 	INIT_LIST_HEAD(&mad_agent_priv->wait_list);
+	INIT_LIST_HEAD(&mad_agent_priv->done_list);
 	INIT_WORK(&mad_agent_priv->timed_work, timeout_sends, mad_agent_priv);
 	INIT_LIST_HEAD(&mad_agent_priv->local_list);
 	INIT_WORK(&mad_agent_priv->local_work, local_completions,
@@ -1559,6 +1560,16 @@ find_send_req(struct ib_mad_agent_private *mad_agent_priv,
 	return NULL;
 }
 
+static void ib_mark_req_done(struct ib_mad_send_wr_private *mad_send_wr)
+{
+	mad_send_wr->timeout = 0;
+	if (mad_send_wr->refcount == 1) {
+		list_del(&mad_send_wr->agent_list);
+		list_add_tail(&mad_send_wr->agent_list,
+			      &mad_send_wr->mad_agent_priv->done_list);
+	}
+}
+
 static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 				 struct ib_mad_recv_wc *mad_recv_wc)
 {
@@ -1580,8 +1591,7 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 				wake_up(&mad_agent_priv->wait);
 			return;
 		}
-		/* Timeout = 0 means that we won't wait for a response */
-		mad_send_wr->timeout = 0;
+		ib_mark_req_done(mad_send_wr);
 		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 
 		/* Defined behavior is to complete response before request */
