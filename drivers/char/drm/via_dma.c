@@ -231,7 +231,7 @@ int via_dma_init(DRM_IOCTL_ARGS)
 	drm_via_dma_init_t init;
 	int retcode = 0;
 
-	DRM_COPY_FROM_USER_IOCTL(init, (drm_via_dma_init_t *) data,
+	DRM_COPY_FROM_USER_IOCTL(init, (drm_via_dma_init_t __user *) data,
 				 sizeof(init));
 
 	switch (init.func) {
@@ -343,7 +343,7 @@ int via_cmdbuffer(DRM_IOCTL_ARGS)
 
 	LOCK_TEST_WITH_RETURN( dev, filp );
 
-	DRM_COPY_FROM_USER_IOCTL(cmdbuf, (drm_via_cmdbuffer_t *) data,
+	DRM_COPY_FROM_USER_IOCTL(cmdbuf, (drm_via_cmdbuffer_t __user *) data,
 				 sizeof(cmdbuf));
 
 	DRM_DEBUG("via cmdbuffer, buf %p size %lu\n", cmdbuf.buf, cmdbuf.size);
@@ -386,7 +386,7 @@ int via_pci_cmdbuffer(DRM_IOCTL_ARGS)
 
 	LOCK_TEST_WITH_RETURN( dev, filp );
 
-	DRM_COPY_FROM_USER_IOCTL(cmdbuf, (drm_via_cmdbuffer_t *) data,
+	DRM_COPY_FROM_USER_IOCTL(cmdbuf, (drm_via_cmdbuffer_t __user *) data,
 				 sizeof(cmdbuf));
 
 	DRM_DEBUG("via_pci_cmdbuffer, buf %p size %lu\n", cmdbuf.buf,
@@ -701,7 +701,7 @@ via_cmdbuf_size(DRM_IOCTL_ARGS)
 		return DRM_ERR(EFAULT);
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(d_siz, (drm_via_cmdbuf_size_t *) data,
+	DRM_COPY_FROM_USER_IOCTL(d_siz, (drm_via_cmdbuf_size_t __user *) data,
 				 sizeof(d_siz));
 
 
@@ -735,7 +735,7 @@ via_cmdbuf_size(DRM_IOCTL_ARGS)
 	}
 	d_siz.size = tmp_size;
 
-	DRM_COPY_TO_USER_IOCTL((drm_via_cmdbuf_size_t *) data, d_siz,
+	DRM_COPY_TO_USER_IOCTL((drm_via_cmdbuf_size_t __user *) data, d_siz,
 			       sizeof(d_siz));
 	return ret;
 }
