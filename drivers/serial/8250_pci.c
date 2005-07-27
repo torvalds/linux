@@ -110,8 +110,9 @@ setup_port(struct pci_dev *dev, struct uart_port *port,
 	if (bar >= PCI_NUM_BAR_RESOURCES)
 		return -EINVAL;
 
+	base = pci_resource_start(dev, bar);
+
 	if (pci_resource_flags(dev, bar) & IORESOURCE_MEM) {
-		base = pci_resource_start(dev, bar);
 		len =  pci_resource_len(dev, bar);
 
 		if (!priv->remapped_bar[bar])
@@ -120,13 +121,16 @@ setup_port(struct pci_dev *dev, struct uart_port *port,
 			return -ENOMEM;
 
 		port->iotype = UPIO_MEM;
+		port->iobase = 0;
 		port->mapbase = base + offset;
 		port->membase = priv->remapped_bar[bar] + offset;
 		port->regshift = regshift;
 	} else {
-		base = pci_resource_start(dev, bar) + offset;
 		port->iotype = UPIO_PORT;
-		port->iobase = base;
+		port->iobase = base + offset;
+		port->mapbase = 0;
+		port->membase = NULL;
+		port->regshift = 0;
 	}
 	return 0;
 }
@@ -991,7 +995,7 @@ static struct pci_serial_quirk *find_quirk(struct pci_dev *dev)
 }
 
 static _INLINE_ int
-get_pci_irq(struct pci_dev *dev, struct pciserial_board *board, int idx)
+get_pci_irq(struct pci_dev *dev, struct pciserial_board *board)
 {
 	if (board->flags & FL_NOIRQ)
 		return 0;
@@ -1649,6 +1653,7 @@ serial_pci_matches(struct pciserial_board *board,
 static int __devinit
 pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 {
+	struct uart_port serial_port;
 	struct serial_private *priv;
 	struct pciserial_board *board, tmp;
 	struct pci_serial_quirk *quirk;
@@ -1731,17 +1736,16 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	priv->quirk = quirk;
 	pci_set_drvdata(dev, priv);
 
-	for (i = 0; i < nr_ports; i++) {
-		struct uart_port serial_port;
-		memset(&serial_port, 0, sizeof(struct uart_port));
+	memset(&serial_port, 0, sizeof(struct uart_port));
+	serial_port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
+	serial_port.uartclk = board->base_baud * 16;
+	serial_port.irq = get_pci_irq(dev, board);
+	serial_port.dev = &dev->dev;
 
-		serial_port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF |
-				    UPF_SHARE_IRQ;
-		serial_port.uartclk = board->base_baud * 16;
-		serial_port.irq = get_pci_irq(dev, board, i);
-		serial_port.dev = &dev->dev;
+	for (i = 0; i < nr_ports; i++) {
 		if (quirk->setup(dev, board, &serial_port, i))
 			break;
+
 #ifdef SERIAL_DEBUG_PCI
 		printk("Setup PCI port: port %x, irq %d, type %d\n",
 		       serial_port.iobase, serial_port.irq, serial_port.iotype);
