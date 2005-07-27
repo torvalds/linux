@@ -59,16 +59,13 @@ static void power_down(suspend_disk_method_t mode)
 		error = pm_ops->enter(PM_SUSPEND_DISK);
 		break;
 	case PM_DISK_SHUTDOWN:
-		printk("Powering off system\n");
-		device_shutdown();
-		machine_power_off();
+		kernel_power_off();
 		break;
 	case PM_DISK_REBOOT:
-		device_shutdown();
-		machine_restart(NULL);
+		kernel_restart(NULL);
 		break;
 	}
-	machine_halt();
+	kernel_halt();
 	/* Valid image is on the disk, if we continue we risk serious data corruption
 	   after resume. */
 	printk(KERN_CRIT "Please power me down manually\n");

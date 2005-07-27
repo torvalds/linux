@@ -132,7 +132,6 @@ typedef struct scsi_cmnd      *ahc_io_ctx_t;
 /************************* Configuration Data *********************************/
 extern u_int aic7xxx_no_probe;
 extern u_int aic7xxx_allow_memio;
-extern int aic7xxx_detect_complete;
 extern struct scsi_host_template aic7xxx_driver_template;
 
 /***************************** Bus Space/DMA **********************************/
@@ -510,15 +509,6 @@ void	ahc_format_transinfo(struct info_str *info,
 
 /******************************** Locking *************************************/
 /* Lock protecting internal data structures */
-static __inline void ahc_lockinit(struct ahc_softc *);
-static __inline void ahc_lock(struct ahc_softc *, unsigned long *flags);
-static __inline void ahc_unlock(struct ahc_softc *, unsigned long *flags);
-
-/* Lock held during ahc_list manipulation and ahc softc frees */
-extern spinlock_t ahc_list_spinlock;
-static __inline void ahc_list_lockinit(void);
-static __inline void ahc_list_lock(unsigned long *flags);
-static __inline void ahc_list_unlock(unsigned long *flags);
 
 static __inline void
 ahc_lockinit(struct ahc_softc *ahc)
@@ -536,24 +526,6 @@ static __inline void
 ahc_unlock(struct ahc_softc *ahc, unsigned long *flags)
 {
 	spin_unlock_irqrestore(&ahc->platform_data->spin_lock, *flags);
-}
-
-static __inline void
-ahc_list_lockinit(void)
-{
-	spin_lock_init(&ahc_list_spinlock);
-}
-
-static __inline void
-ahc_list_lock(unsigned long *flags)
-{
-	spin_lock_irqsave(&ahc_list_spinlock, *flags);
-}
-
-static __inline void
-ahc_list_unlock(unsigned long *flags)
-{
-	spin_unlock_irqrestore(&ahc_list_spinlock, *flags);
 }
 
 /******************************* PCI Definitions ******************************/
@@ -892,7 +864,6 @@ int	ahc_platform_abort_scbs(struct ahc_softc *ahc, int target,
 irqreturn_t
 	ahc_linux_isr(int irq, void *dev_id, struct pt_regs * regs);
 void	ahc_platform_flushwork(struct ahc_softc *ahc);
-int	ahc_softc_comp(struct ahc_softc *, struct ahc_softc *);
 void	ahc_done(struct ahc_softc*, struct scb*);
 void	ahc_send_async(struct ahc_softc *, char channel,
 		       u_int target, u_int lun, ac_code, void *);

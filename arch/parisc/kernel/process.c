@@ -150,8 +150,6 @@ void machine_restart(char *cmd)
 
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_halt(void)
 {
 	/*
@@ -159,8 +157,6 @@ void machine_halt(void)
 	** function, called by the reboot notifier chain.
 	*/
 }
-
-EXPORT_SYMBOL(machine_halt);
 
 
 /*
@@ -186,8 +182,6 @@ void machine_power_off(void)
 	printk(KERN_EMERG "System shut down completed.\n"
 	       KERN_EMERG "Please power this system off now.");
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 
 /*

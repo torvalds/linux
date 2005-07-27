@@ -45,6 +45,9 @@
  *
  *   28-Jun-2005  Ben Dooks
  *		  Mark IRQ_LCD valid
+ *
+ *   25-Jul-2005  Ben Dooks
+ *		  Split the S3C2440 IRQ code to seperate file
 */
 
 #include <linux/init.h>
@@ -65,11 +68,7 @@
 
 #include "cpu.h"
 #include "pm.h"
-
-#define irqdbf(x...)
-#define irqdbf2(x...)
-
-#define EXTINT_OFF (IRQ_EINT4 - 4)
+#include "irq.h"
 
 /* wakeup irq control */
 
@@ -181,7 +180,7 @@ s3c_irq_unmask(unsigned int irqno)
 	__raw_writel(mask, S3C2410_INTMSK);
 }
 
-static struct irqchip s3c_irq_level_chip = {
+struct irqchip s3c_irq_level_chip = {
 	.ack	   = s3c_irq_maskack,
 	.mask	   = s3c_irq_mask,
 	.unmask	   = s3c_irq_unmask,
@@ -370,84 +369,6 @@ static struct irqchip s3c_irq_eint0t4 = {
 #define INTMSK_UART2	 (1UL << (IRQ_UART2 - IRQ_EINT0))
 #define INTMSK_ADCPARENT (1UL << (IRQ_ADCPARENT - IRQ_EINT0))
 
-static inline void
-s3c_irqsub_mask(unsigned int irqno, unsigned int parentbit,
-		int subcheck)
-{
-	unsigned long mask;
-	unsigned long submask;
-
-	submask = __raw_readl(S3C2410_INTSUBMSK);
-	mask = __raw_readl(S3C2410_INTMSK);
-
-	submask |= (1UL << (irqno - IRQ_S3CUART_RX0));
-
-	/* check to see if we need to mask the parent IRQ */
-
-	if ((submask  & subcheck) == subcheck) {
-		__raw_writel(mask | parentbit, S3C2410_INTMSK);
-	}
-
-	/* write back masks */
-	__raw_writel(submask, S3C2410_INTSUBMSK);
-
-}
-
-static inline void
-s3c_irqsub_unmask(unsigned int irqno, unsigned int parentbit)
-{
-	unsigned long mask;
-	unsigned long submask;
-
-	submask = __raw_readl(S3C2410_INTSUBMSK);
-	mask = __raw_readl(S3C2410_INTMSK);
-
-	submask &= ~(1UL << (irqno - IRQ_S3CUART_RX0));
-	mask &= ~parentbit;
-
-	/* write back masks */
-	__raw_writel(submask, S3C2410_INTSUBMSK);
-	__raw_writel(mask, S3C2410_INTMSK);
-}
-
-
-static inline void
-s3c_irqsub_maskack(unsigned int irqno, unsigned int parentmask, unsigned int group)
-{
-	unsigned int bit = 1UL << (irqno - IRQ_S3CUART_RX0);
-
-	s3c_irqsub_mask(irqno, parentmask, group);
-
-	__raw_writel(bit, S3C2410_SUBSRCPND);
-
-	/* only ack parent if we've got all the irqs (seems we must
-	 * ack, all and hope that the irq system retriggers ok when
-	 * the interrupt goes off again)
-	 */
-
-	if (1) {
-		__raw_writel(parentmask, S3C2410_SRCPND);
-		__raw_writel(parentmask, S3C2410_INTPND);
-	}
-}
-
-static inline void
-s3c_irqsub_ack(unsigned int irqno, unsigned int parentmask, unsigned int group)
-{
-	unsigned int bit = 1UL << (irqno - IRQ_S3CUART_RX0);
-
-	__raw_writel(bit, S3C2410_SUBSRCPND);
-
-	/* only ack parent if we've got all the irqs (seems we must
-	 * ack, all and hope that the irq system retriggers ok when
-	 * the interrupt goes off again)
-	 */
-
-	if (1) {
-		__raw_writel(parentmask, S3C2410_SRCPND);
-		__raw_writel(parentmask, S3C2410_INTPND);
-	}
-}
 
 /* UART0 */
 
@@ -794,174 +715,3 @@ void __init s3c24xx_init_irq(void)
 
 	irqdbf("s3c2410: registered interrupt handlers\n");
 }
-
-/* s3c2440 irq code
-*/
-
-#ifdef CONFIG_CPU_S3C2440
-
-/* WDT/AC97 */
-
-static void s3c_irq_demux_wdtac97(unsigned int irq,
-				  struct irqdesc *desc,
-				  struct pt_regs *regs)
-{
-	unsigned int subsrc, submsk;
-	struct irqdesc *mydesc;
-
-	/* read the current pending interrupts, and the mask
-	 * for what it is available */
-
-	subsrc = __raw_readl(S3C2410_SUBSRCPND);
-	submsk = __raw_readl(S3C2410_INTSUBMSK);
-
-	subsrc &= ~submsk;
-	subsrc >>= 13;
-	subsrc &= 3;
-
-	if (subsrc != 0) {
-		if (subsrc & 1) {
-			mydesc = irq_desc + IRQ_S3C2440_WDT;
-			mydesc->handle( IRQ_S3C2440_WDT, mydesc, regs);
-		}
-		if (subsrc & 2) {
-			mydesc = irq_desc + IRQ_S3C2440_AC97;
-			mydesc->handle(IRQ_S3C2440_AC97, mydesc, regs);
-		}
-	}
-}
-
-
-#define INTMSK_WDT	 (1UL << (IRQ_WDT - IRQ_EINT0))
-
-static void
-s3c_irq_wdtac97_mask(unsigned int irqno)
-{
-	s3c_irqsub_mask(irqno, INTMSK_WDT, 3<<13);
-}
-
-static void
-s3c_irq_wdtac97_unmask(unsigned int irqno)
-{
-	s3c_irqsub_unmask(irqno, INTMSK_WDT);
-}
-
-static void
-s3c_irq_wdtac97_ack(unsigned int irqno)
-{
-	s3c_irqsub_maskack(irqno, INTMSK_WDT, 3<<13);
-}
-
-static struct irqchip s3c_irq_wdtac97 = {
-	.mask	    = s3c_irq_wdtac97_mask,
-	.unmask	    = s3c_irq_wdtac97_unmask,
-	.ack	    = s3c_irq_wdtac97_ack,
-};
-
-/* camera irq */
-
-static void s3c_irq_demux_cam(unsigned int irq,
-			      struct irqdesc *desc,
-			      struct pt_regs *regs)
-{
-	unsigned int subsrc, submsk;
-	struct irqdesc *mydesc;
-
-	/* read the current pending interrupts, and the mask
-	 * for what it is available */
-
-	subsrc = __raw_readl(S3C2410_SUBSRCPND);
-	submsk = __raw_readl(S3C2410_INTSUBMSK);
-
-	subsrc &= ~submsk;
-	subsrc >>= 11;
-	subsrc &= 3;
-
-	if (subsrc != 0) {
-		if (subsrc & 1) {
-			mydesc = irq_desc + IRQ_S3C2440_CAM_C;
-			mydesc->handle( IRQ_S3C2440_WDT, mydesc, regs);
-		}
-		if (subsrc & 2) {
-			mydesc = irq_desc + IRQ_S3C2440_CAM_P;
-			mydesc->handle(IRQ_S3C2440_AC97, mydesc, regs);
-		}
-	}
-}
-
-#define INTMSK_CAM (1UL << (IRQ_CAM - IRQ_EINT0))
-
-static void
-s3c_irq_cam_mask(unsigned int irqno)
-{
-	s3c_irqsub_mask(irqno, INTMSK_CAM, 3<<11);
-}
-
-static void
-s3c_irq_cam_unmask(unsigned int irqno)
-{
-	s3c_irqsub_unmask(irqno, INTMSK_CAM);
-}
-
-static void
-s3c_irq_cam_ack(unsigned int irqno)
-{
-	s3c_irqsub_maskack(irqno, INTMSK_CAM, 3<<11);
-}
-
-static struct irqchip s3c_irq_cam = {
-	.mask	    = s3c_irq_cam_mask,
-	.unmask	    = s3c_irq_cam_unmask,
-	.ack	    = s3c_irq_cam_ack,
-};
-
-static int s3c2440_irq_add(struct sys_device *sysdev)
-{
-	unsigned int irqno;
-
-	printk("S3C2440: IRQ Support\n");
-
-	set_irq_chip(IRQ_NFCON, &s3c_irq_level_chip);
-	set_irq_handler(IRQ_NFCON, do_level_IRQ);
-	set_irq_flags(IRQ_NFCON, IRQF_VALID);
-
-	/* add new chained handler for wdt, ac7 */
-
-	set_irq_chip(IRQ_WDT, &s3c_irq_level_chip);
-	set_irq_handler(IRQ_WDT, do_level_IRQ);
-	set_irq_chained_handler(IRQ_WDT, s3c_irq_demux_wdtac97);
-
-	for (irqno = IRQ_S3C2440_WDT; irqno <= IRQ_S3C2440_AC97; irqno++) {
-		set_irq_chip(irqno, &s3c_irq_wdtac97);
-		set_irq_handler(irqno, do_level_IRQ);
-		set_irq_flags(irqno, IRQF_VALID);
-	}
-
-	/* add chained handler for camera */
-
-	set_irq_chip(IRQ_CAM, &s3c_irq_level_chip);
-	set_irq_handler(IRQ_CAM, do_level_IRQ);
-	set_irq_chained_handler(IRQ_CAM, s3c_irq_demux_cam);
-
-	for (irqno = IRQ_S3C2440_CAM_C; irqno <= IRQ_S3C2440_CAM_P; irqno++) {
-		set_irq_chip(irqno, &s3c_irq_cam);
-		set_irq_handler(irqno, do_level_IRQ);
-		set_irq_flags(irqno, IRQF_VALID);
-	}
-
-	return 0;
-}
-
-static struct sysdev_driver s3c2440_irq_driver = {
-	.add	= s3c2440_irq_add,
-};
-
-static int s3c24xx_irq_driver(void)
-{
-	return sysdev_driver_register(&s3c2440_sysclass, &s3c2440_irq_driver);
-}
-
-arch_initcall(s3c24xx_irq_driver);
-
-#endif /* CONFIG_CPU_S3C2440 */
-
