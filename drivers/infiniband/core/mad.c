@@ -1754,14 +1754,18 @@ static void wait_for_response(struct ib_mad_send_wr_private *mad_send_wr)
 	delay = mad_send_wr->timeout;
 	mad_send_wr->timeout += jiffies;
 
-	list_for_each_prev(list_item, &mad_agent_priv->wait_list) {
-		temp_mad_send_wr = list_entry(list_item,
-					      struct ib_mad_send_wr_private,
-					      agent_list);
-		if (time_after(mad_send_wr->timeout,
-			       temp_mad_send_wr->timeout))
-			break;
+	if (delay) {
+		list_for_each_prev(list_item, &mad_agent_priv->wait_list) {
+			temp_mad_send_wr = list_entry(list_item,
+						struct ib_mad_send_wr_private,
+						agent_list);
+			if (time_after(mad_send_wr->timeout,
+				       temp_mad_send_wr->timeout))
+				break;
+		}
 	}
+	else
+		list_item = &mad_agent_priv->wait_list;
 	list_add(&mad_send_wr->agent_list, list_item);
 
 	/* Reschedule a work item if we have a shorter timeout */
@@ -2197,7 +2201,8 @@ static void timeout_sends(void *data)
 		}
 
 		list_del(&mad_send_wr->agent_list);
-		if (!retry_send(mad_send_wr))
+		if (mad_send_wr->status == IB_WC_SUCCESS &&
+		    !retry_send(mad_send_wr))
 			continue;
 
 		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
