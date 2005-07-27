@@ -9,3 +9,15 @@ obj-$(CONFIG_VIDEO_CX88_DVB) += cx88-dvb.o
 EXTRA_CFLAGS += -I$(src)/..
 EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/frontends
+ifneq ($(CONFIG_DVB_CX22702),n)
+ EXTRA_CFLAGS += -DCONFIG_DVB_CX22702=1
+endif
+ifneq ($(CONFIG_DVB_OR51132),n)
+ EXTRA_CFLAGS += -DCONFIG_DVB_OR51132=1
+endif
+ifneq ($(CONFIG_DVB_LGDT3302),n)
+ EXTRA_CFLAGS += -DCONFIG_DVB_LGDT3302=1
+endif
+ifneq ($(CONFIG_DVB_MT352),n)
+ EXTRA_CFLAGS += -DCONFIG_DVB_MT352=1
+endif

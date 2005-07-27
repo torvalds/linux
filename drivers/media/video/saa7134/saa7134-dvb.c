@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-dvb.c,v 1.18 2005/07/04 16:05:50 mkrufky Exp $
+ * $Id: saa7134-dvb.c,v 1.22 2005/07/23 10:08:00 mkrufky Exp $
  *
  * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *
@@ -29,9 +29,8 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/suspend.h>
+#include <linux/config.h>
 
-#define CONFIG_DVB_MT352 1
-#define CONFIG_DVB_TDA1004X 1
 
 #include "saa7134-reg.h"
 #include "saa7134.h"

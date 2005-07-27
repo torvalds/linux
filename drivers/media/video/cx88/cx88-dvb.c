@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-dvb.c,v 1.49 2005/07/20 05:38:09 mkrufky Exp $
+ * $Id: cx88-dvb.c,v 1.50 2005/07/23 10:08:00 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
@@ -29,11 +29,8 @@
 #include <linux/kthread.h>
 #include <linux/file.h>
 #include <linux/suspend.h>
+#include <linux/config.h>
 
-#define CONFIG_DVB_MT352 1
-#define CONFIG_DVB_CX22702 1
-#define CONFIG_DVB_OR51132 1
-#define CONFIG_DVB_LGDT3302 1
 
 #include "cx88.h"
 #include "dvb-pll.h"
