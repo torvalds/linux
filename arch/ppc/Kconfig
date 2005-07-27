@@ -935,19 +935,11 @@ config NR_CPUS
 	depends on SMP
 	default "4"
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	help
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-
-	  Say Y here if you are building a kernel for a desktop, embedded
-	  or real-time system.  Say N if you are unsure.
-
 config HIGHMEM
 	bool "High memory support"
 
+source kernel/Kconfig.hz
+source kernel/Kconfig.preempt
 source "mm/Kconfig"
 
 source "fs/Kconfig.binfmt"

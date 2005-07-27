@@ -288,6 +288,7 @@ config SCHED_SMT
 	  overhead in some places. If unsure say N here.
 
 source "kernel/Kconfig.preempt"
+source kernel/Kconfig.hz
 
 config EEH
 	bool "PCI Extended Error Handling (EEH)" if EMBEDDED
