@@ -1339,7 +1339,7 @@ static struct file_operations ib_ucm_fops = {
 };
 
 
-static struct class_simple *ib_ucm_class;
+static struct class *ib_ucm_class;
 static struct cdev	  ib_ucm_cdev;
 
 static int __init ib_ucm_init(void)
@@ -1360,17 +1360,14 @@ static int __init ib_ucm_init(void)
 		goto err_cdev;
 	}
 
-	ib_ucm_class = class_simple_create(THIS_MODULE, "infiniband_cm");
+	ib_ucm_class = class_create(THIS_MODULE, "infiniband_cm");
 	if (IS_ERR(ib_ucm_class)) {
 		result = PTR_ERR(ib_ucm_class);
 		printk(KERN_ERR "UCM: Error <%d> creating class\n", result);
 		goto err_class;
 	}
 
-	class_simple_device_add(ib_ucm_class,
-				IB_UCM_DEV,
-				NULL,
-				"ucm");
+	class_device_create(ib_ucm_class, IB_UCM_DEV, NULL, "ucm");
 
 	idr_init(&ctx_id_table);
 	init_MUTEX(&ctx_id_mutex);
@@ -1386,8 +1383,8 @@ err_chr:
 
 static void __exit ib_ucm_cleanup(void)
 {
-	class_simple_device_remove(IB_UCM_DEV);
-	class_simple_destroy(ib_ucm_class);
+	class_device_destroy(ib_ucm_class, IB_UCM_DEV);
+	class_destroy(ib_ucm_class);
 	cdev_del(&ib_ucm_cdev);
 	unregister_chrdev_region(IB_UCM_DEV, 1);
 }
