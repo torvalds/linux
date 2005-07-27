@@ -277,7 +277,8 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 	case PRID_IMP_R4600:
 		c->cputype = CPU_R4600;
 		c->isa_level = MIPS_CPU_ISA_III;
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_LLSC;
+		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
+			     MIPS_CPU_LLSC;
 		c->tlbsize = 48;
 		break;
 	#if 0
