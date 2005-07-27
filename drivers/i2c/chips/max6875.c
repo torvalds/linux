@@ -131,11 +131,6 @@ exit_up:
 	up(&data->update_lock);
 }
 
-static inline struct i2c_client *kobj_to_i2c_client(struct kobject *kobj)
-{
-	return to_i2c_client(container_of(kobj, struct device, kobj));
-}
-
 static ssize_t max6875_read(struct kobject *kobj, char *buf, loff_t off,
 			    size_t count)
 {

@@ -160,6 +160,11 @@ struct i2c_client {
 };
 #define to_i2c_client(d) container_of(d, struct i2c_client, dev)
 
+static inline struct i2c_client *kobj_to_i2c_client(struct kobject *kobj)
+{
+	return to_i2c_client(container_of(kobj, struct device, kobj));
+}
+
 static inline void *i2c_get_clientdata (struct i2c_client *dev)
 {
 	return dev_get_drvdata (&dev->dev);
