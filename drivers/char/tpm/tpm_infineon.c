@@ -75,7 +75,7 @@ enum infineon_tpm_status_bits {
 enum infineon_tpm_values {
 	CHIP_ID1 = 0x20,
 	CHIP_ID2 = 0x21,
-	DAR = 0x30,
+	TPM_DAR = 0x30,
 	RESET_LP_IRQC_DISABLE = 0x41,
 	ENABLE_REGISTER_PAIR = 0x55,
 	IOLIMH = 0x60,
@@ -390,7 +390,7 @@ static int __devinit tpm_inf_probe(struct pci_dev *pci_dev,
 		}
 
 		/* activate register */
-		outb(DAR, TPM_ADDR);
+		outb(TPM_DAR, TPM_ADDR);
 		outb(0x01, TPM_DATA);
 		outb(DISABLE_REGISTER_PAIR, TPM_ADDR);
 
