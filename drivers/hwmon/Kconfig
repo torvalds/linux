@@ -377,6 +377,16 @@ config SENSORS_W83781D
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83781d.
 
+config SENSORS_W83792D
+	tristate "Winbond W83792D"
+	depends on HWMON && I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	help
+	  If you say yes here you get support for the Winbond W83792D chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called w83792d.
+
 config SENSORS_W83L785TS
 	tristate "Winbond W83L785TS-S"
 	depends on HWMON && I2C && EXPERIMENTAL
