@@ -462,7 +462,8 @@ static int send_mad(struct ib_sa_query *query, int timeout_ms)
 				 .mad_hdr     = &query->mad->mad_hdr,
 				 .remote_qpn  = 1,
 				 .remote_qkey = IB_QP1_QKEY,
-				 .timeout_ms  = timeout_ms
+				 .timeout_ms  = timeout_ms,
+				 .retries     = 0
 			 }
 		 }
 	};

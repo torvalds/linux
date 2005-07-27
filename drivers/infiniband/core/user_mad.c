@@ -322,6 +322,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	wr.wr.ud.remote_qpn  = be32_to_cpu(packet->mad.qpn);
 	wr.wr.ud.remote_qkey = be32_to_cpu(packet->mad.qkey);
 	wr.wr.ud.timeout_ms  = packet->mad.timeout_ms;
+	wr.wr.ud.retries     = 0;
 
 	wr.wr_id            = (unsigned long) packet;
 

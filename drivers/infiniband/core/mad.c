@@ -954,7 +954,7 @@ int ib_post_send_mad(struct ib_mad_agent *mad_agent,
 		/* Timeout will be updated after send completes */
 		mad_send_wr->timeout = msecs_to_jiffies(send_wr->wr.
 							ud.timeout_ms);
-		mad_send_wr->retry = 0;
+		mad_send_wr->retries = mad_send_wr->send_wr.wr.ud.retries;
 		/* One reference for each work request to QP + response */
 		mad_send_wr->refcount = 1 + (mad_send_wr->timeout > 0);
 		mad_send_wr->status = IB_WC_SUCCESS;
@@ -2174,6 +2174,27 @@ local_send_completion:
 	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 }
 
+static int retry_send(struct ib_mad_send_wr_private *mad_send_wr)
+{
+	int ret;
+
+	if (!mad_send_wr->retries--)
+		return -ETIMEDOUT;
+
+	mad_send_wr->timeout = msecs_to_jiffies(mad_send_wr->send_wr.
+						wr.ud.timeout_ms);
+
+	ret = ib_send_mad(mad_send_wr);
+
+	if (!ret) {
+		mad_send_wr->refcount++;
+		list_del(&mad_send_wr->agent_list);
+		list_add_tail(&mad_send_wr->agent_list,
+			      &mad_send_wr->mad_agent_priv->send_list);
+	}
+	return ret;
+}
+
 static void timeout_sends(void *data)
 {
 	struct ib_mad_agent_private *mad_agent_priv;
@@ -2201,6 +2222,9 @@ static void timeout_sends(void *data)
 					   &mad_agent_priv->timed_work, delay);
 			break;
 		}
+
+		if (!retry_send(mad_send_wr))
+			continue;
 
 		list_del(&mad_send_wr->agent_list);
 		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);

@@ -123,6 +123,7 @@ struct ib_mad_send_wr_private {
 	u64 wr_id;			/* client WR ID */
 	u64 tid;
 	unsigned long timeout;
+	int retries;
 	int retry;
 	int refcount;
 	enum ib_wc_status status;
@@ -136,6 +137,7 @@ struct ib_mad_local_private {
 	struct ib_sge sg_list[IB_MAD_SEND_REQ_MAX_SG];
 	u64 wr_id;			/* client WR ID */
 	u64 tid;
+	int retries;
 };
 
 struct ib_mad_mgmt_method_table {

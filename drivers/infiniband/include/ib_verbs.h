@@ -566,6 +566,7 @@ struct ib_send_wr {
 			u32	remote_qpn;
 			u32	remote_qkey;
 			int	timeout_ms; /* valid for MADs only */
+			int	retries;    /* valid for MADs only */
 			u16	pkey_index; /* valid for GSI only */
 			u8	port_num;   /* valid for DR SMPs on switch only */
 		} ud;
