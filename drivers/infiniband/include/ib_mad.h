@@ -385,8 +385,18 @@ void ib_free_recv_mad(struct ib_mad_recv_wc *mad_recv_wc);
  * MADs will be returned to the user through the corresponding
  * ib_mad_send_handler.
  */
-void ib_cancel_mad(struct ib_mad_agent *mad_agent,
-		   u64 wr_id);
+void ib_cancel_mad(struct ib_mad_agent *mad_agent, u64 wr_id);
+
+/**
+ * ib_modify_mad - Modifies an outstanding send MAD operation.
+ * @mad_agent: Specifies the registration associated with sent MAD.
+ * @wr_id: Indicates the work request identifier of the MAD to modify.
+ * @timeout_ms: New timeout value for sent MAD.
+ *
+ * This call will reset the timeout value for a sent MAD to the specified
+ * value.
+ */
+int ib_modify_mad(struct ib_mad_agent *mad_agent, u64 wr_id, u32 timeout_ms);
 
 /**
  * ib_redirect_mad_qp - Registers a QP for MAD services.

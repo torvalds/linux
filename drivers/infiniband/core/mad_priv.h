@@ -97,8 +97,6 @@ struct ib_mad_agent_private {
 	unsigned long timeout;
 	struct list_head local_list;
 	struct work_struct local_work;
-	struct list_head canceled_list;
-	struct work_struct canceled_work;
 
 	atomic_t refcount;
 	wait_queue_head_t wait;
