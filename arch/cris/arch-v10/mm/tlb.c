@@ -139,53 +139,6 @@ flush_tlb_page(struct vm_area_struct *vma,
 	local_irq_restore(flags);
 }
 
-/* invalidate a page range */
-
-void
-flush_tlb_range(struct vm_area_struct *vma, 
-		unsigned long start,
-		unsigned long end)
-{
-	struct mm_struct *mm = vma->vm_mm;
-	int page_id = mm->context.page_id;
-	int i;
-	unsigned long flags;
-
-	D(printk("tlb: flush range %p<->%p in context %d (%p)\n",
-		 start, end, page_id, mm));
-
-	if(page_id == NO_CONTEXT)
-		return;
-
-	start &= PAGE_MASK;  /* probably not necessary */
-	end &= PAGE_MASK;    /* dito */
-
-	/* invalidate those TLB entries that match both the mm context
-	 * and the virtual address range
-	 */
-
-	local_save_flags(flags);
-	local_irq_disable();
-	for(i = 0; i < NUM_TLB_ENTRIES; i++) {
-		unsigned long tlb_hi, vpn;
-		*R_TLB_SELECT = IO_FIELD(R_TLB_SELECT, index, i);
-		tlb_hi = *R_TLB_HI;
-		vpn = tlb_hi & PAGE_MASK;
-		if (IO_EXTRACT(R_TLB_HI, page_id, tlb_hi) == page_id &&
-		    vpn >= start && vpn < end) {
-			*R_TLB_HI = ( IO_FIELD(R_TLB_HI, page_id, INVALID_PAGEID ) |
-				      IO_FIELD(R_TLB_HI, vpn,     i & 0xf ) );
-			
-			*R_TLB_LO = ( IO_STATE(R_TLB_LO, global,no  ) |
-				      IO_STATE(R_TLB_LO, valid, no  ) |
-				      IO_STATE(R_TLB_LO, kernel,no  ) |
-				      IO_STATE(R_TLB_LO, we,    no  ) |
-				      IO_FIELD(R_TLB_LO, pfn,   0   ) );
-		}
-	}
-	local_irq_restore(flags);
-}
-
 /* dump the entire TLB for debug purposes */
 
 #if 0
@@ -237,7 +190,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 * the pgd.
 	 */
 
-	current_pgd = next->pgd;
+	per_cpu(current_pgd, smp_processor_id()) = next->pgd;
 
 	/* switch context in the MMU */
 	
