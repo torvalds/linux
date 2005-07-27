@@ -94,6 +94,7 @@ static int i2c_writebytes (struct lgdt3302_state* state,
 	return 0;
 }
 
+#if 0
 static int i2c_readbytes (struct lgdt3302_state* state,
 			  u8 addr, /* demod_address or pll_address */
 			  u8 *buf, /* holds data bytes read */
@@ -109,6 +110,7 @@ static int i2c_readbytes (struct lgdt3302_state* state,
 	}
 	return 0;
 }
+#endif
 
 /*
  * This routine writes the register (reg) to the demod bus
