@@ -365,8 +365,7 @@ int ib_post_send_mad(struct ib_mad_agent *mad_agent,
  * This call copies a chain of received RMPP MADs into a single data buffer,
  * removing duplicated headers.
  */
-void ib_coalesce_recv_mad(struct ib_mad_recv_wc *mad_recv_wc,
-			  void *buf);
+void ib_coalesce_recv_mad(struct ib_mad_recv_wc *mad_recv_wc, void *buf);
 
 /**
  * ib_free_recv_mad - Returns data buffers used to receive a MAD to the

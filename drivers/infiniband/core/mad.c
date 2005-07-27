@@ -796,9 +796,9 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 	buf = kmalloc(sizeof *send_buf + buf_size, gfp_mask);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
+	memset(buf, 0, sizeof *send_buf + buf_size);
 
 	send_buf = buf + buf_size;
-	memset(send_buf, 0, sizeof *send_buf);
 	send_buf->mad = buf;
 
 	send_buf->sge.addr = dma_map_single(mad_agent->device->dma_device,
@@ -1020,13 +1020,6 @@ void ib_free_recv_mad(struct ib_mad_recv_wc *mad_recv_wc)
 	kmem_cache_free(ib_mad_cache, priv);
 }
 EXPORT_SYMBOL(ib_free_recv_mad);
-
-void ib_coalesce_recv_mad(struct ib_mad_recv_wc *mad_recv_wc,
-			  void *buf)
-{
-	printk(KERN_ERR PFX "ib_coalesce_recv_mad() not implemented yet\n");
-}
-EXPORT_SYMBOL(ib_coalesce_recv_mad);
 
 struct ib_mad_agent *ib_redirect_mad_qp(struct ib_qp *qp,
 					u8 rmpp_version,
