@@ -29,7 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: mad_priv.h 1389 2004-12-27 22:56:47Z roland $
+ * $Id: mad_priv.h 1980 2005-03-11 22:33:53Z sean.hefty $
  */
 
 #ifndef __IB_MAD_PRIV_H__
@@ -116,7 +116,7 @@ struct ib_mad_snoop_private {
 struct ib_mad_send_wr_private {
 	struct ib_mad_list_head mad_list;
 	struct list_head agent_list;
-	struct ib_mad_agent *agent;
+	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_send_wr send_wr;
 	struct ib_sge sg_list[IB_MAD_SEND_REQ_MAX_SG];
 	u64 wr_id;			/* client WR ID */

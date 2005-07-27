@@ -839,8 +839,7 @@ void ib_free_send_mad(struct ib_mad_send_buf *send_buf)
 }
 EXPORT_SYMBOL(ib_free_send_mad);
 
-static int ib_send_mad(struct ib_mad_agent_private *mad_agent_priv,
-		       struct ib_mad_send_wr_private *mad_send_wr)
+static int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 {
 	struct ib_mad_qp_info *qp_info;
 	struct ib_send_wr *bad_send_wr;
@@ -848,7 +847,7 @@ static int ib_send_mad(struct ib_mad_agent_private *mad_agent_priv,
 	int ret;
 
 	/* Set WR ID to find mad_send_wr upon completion */
-	qp_info = mad_agent_priv->qp_info;
+	qp_info = mad_send_wr->mad_agent_priv->qp_info;
 	mad_send_wr->send_wr.wr_id = (unsigned long)&mad_send_wr->mad_list;
 	mad_send_wr->mad_list.mad_queue = &qp_info->send_queue;
 
@@ -857,7 +856,7 @@ static int ib_send_mad(struct ib_mad_agent_private *mad_agent_priv,
 		list_add_tail(&mad_send_wr->mad_list.list,
 			      &qp_info->send_queue.list);
 		spin_unlock_irqrestore(&qp_info->send_queue.lock, flags);
-		ret = ib_post_send(mad_agent_priv->agent.qp,
+		ret = ib_post_send(mad_send_wr->mad_agent_priv->agent.qp,
 				   &mad_send_wr->send_wr, &bad_send_wr);
 		if (ret) {
 			printk(KERN_ERR PFX "ib_post_send failed: %d\n", ret);
@@ -950,7 +949,7 @@ int ib_post_send_mad(struct ib_mad_agent *mad_agent,
 		mad_send_wr->wr_id = mad_send_wr->send_wr.wr_id;
 		mad_send_wr->send_wr.next = NULL;
 		mad_send_wr->tid = send_wr->wr.ud.mad_hdr->tid;
-		mad_send_wr->agent = mad_agent;
+		mad_send_wr->mad_agent_priv = mad_agent_priv;
 		/* Timeout will be updated after send completes */
 		mad_send_wr->timeout = msecs_to_jiffies(send_wr->wr.
 							ud.timeout_ms);
@@ -966,7 +965,7 @@ int ib_post_send_mad(struct ib_mad_agent *mad_agent,
 			      &mad_agent_priv->send_list);
 		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 
-		ret = ib_send_mad(mad_agent_priv, mad_send_wr);
+		ret = ib_send_mad(mad_send_wr);
 		if (ret) {
 			/* Fail send request */
 			spin_lock_irqsave(&mad_agent_priv->lock, flags);
@@ -1742,13 +1741,14 @@ static void adjust_timeout(struct ib_mad_agent_private *mad_agent_priv)
 	}
 }
 
-static void wait_for_response(struct ib_mad_agent_private *mad_agent_priv,
-			      struct ib_mad_send_wr_private *mad_send_wr )
+static void wait_for_response(struct ib_mad_send_wr_private *mad_send_wr)
 {
+	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_mad_send_wr_private *temp_mad_send_wr;
 	struct list_head *list_item;
 	unsigned long delay;
 
+	mad_agent_priv = mad_send_wr->mad_agent_priv;
 	list_del(&mad_send_wr->agent_list);
 
 	delay = mad_send_wr->timeout;
@@ -1781,9 +1781,7 @@ static void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 	struct ib_mad_agent_private	*mad_agent_priv;
 	unsigned long			flags;
 
-	mad_agent_priv = container_of(mad_send_wr->agent,
-				      struct ib_mad_agent_private, agent);
-
+	mad_agent_priv = mad_send_wr->mad_agent_priv;
 	spin_lock_irqsave(&mad_agent_priv->lock, flags);
 	if (mad_send_wc->status != IB_WC_SUCCESS &&
 	    mad_send_wr->status == IB_WC_SUCCESS) {
@@ -1794,7 +1792,7 @@ static void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 	if (--mad_send_wr->refcount > 0) {
 		if (mad_send_wr->refcount == 1 && mad_send_wr->timeout &&
 		    mad_send_wr->status == IB_WC_SUCCESS) {
-			wait_for_response(mad_agent_priv, mad_send_wr);
+			wait_for_response(mad_send_wr);
 		}
 		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 		return;
