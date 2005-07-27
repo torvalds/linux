@@ -19,9 +19,9 @@
 	mov	r3, r2, lsl r3		@ create mask
 1:	ldrexb	r2, [r1]
 	ands	r0, r2, r3		@ save old value of bit
-	\instr	ip, r2, r3			@ toggle bit
-	strexb	r2, ip, [r1]
-	cmp	r2, #0
+	\instr	r2, r2, r3			@ toggle bit
+	strexb	ip, r2, [r1]
+	cmp	ip, #0
 	bne	1b
 	cmp	r0, #0
 	movne	r0, #1
