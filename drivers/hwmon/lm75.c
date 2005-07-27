@@ -251,8 +251,12 @@ static int lm75_write_value(struct i2c_client *client, u8 reg, u16 value)
 
 static void lm75_init_client(struct i2c_client *client)
 {
-	/* Initialize the LM75 chip */
-	lm75_write_value(client, LM75_REG_CONF, 0);
+	int reg;
+
+	/* Enable if in shutdown mode */
+	reg = lm75_read_value(client, LM75_REG_CONF);
+	if (reg >= 0 && (reg & 0x01))
+		lm75_write_value(client, LM75_REG_CONF, reg & 0xfe);
 }
 
 static struct lm75_data *lm75_update_device(struct device *dev)
