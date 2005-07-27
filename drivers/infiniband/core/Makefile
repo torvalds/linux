@@ -6,7 +6,7 @@ obj-$(CONFIG_INFINIBAND_USER_VERBS) +=	ib_uverbs.o
 ib_core-y :=			packer.o ud_header.o verbs.o sysfs.o \
 				device.o fmr_pool.o cache.o
 
-ib_mad-y :=			mad.o smi.o agent.o
+ib_mad-y :=			mad.o smi.o agent.o mad_rmpp.o
 
 ib_sa-y :=			sa_query.o
 

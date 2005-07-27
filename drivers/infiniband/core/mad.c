@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Voltaire, Inc. All rights reserved.
+ * Copyright (c) 2005 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,12 +31,12 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: mad.c 1389 2004-12-27 22:56:47Z roland $
+ * $Id: mad.c 2817 2005-07-07 11:29:26Z halr $
  */
-
 #include <linux/dma-mapping.h>
 
 #include "mad_priv.h"
+#include "mad_rmpp.h"
 #include "smi.h"
 #include "agent.h"
 
@@ -45,6 +47,7 @@ MODULE_AUTHOR("Sean Hefty");
 
 
 kmem_cache_t *ib_mad_cache;
+
 static struct list_head ib_mad_port_list;
 static u32 ib_mad_client_id = 0;
 
@@ -62,8 +65,6 @@ static struct ib_mad_agent_private *find_mad_agent(
 static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 				    struct ib_mad_private *mad);
 static void cancel_mads(struct ib_mad_agent_private *mad_agent_priv);
-static void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
-				    struct ib_mad_send_wc *mad_send_wc);
 static void timeout_sends(void *data);
 static void local_completions(void *data);
 static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
@@ -195,8 +196,8 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	if (qpn == -1)
 		goto error1;
 
-	if (rmpp_version)
-		goto error1;	/* XXX: until RMPP implemented */
+	if (rmpp_version && rmpp_version != IB_MGMT_RMPP_VERSION)
+		goto error1;
 
 	/* Validate MAD registration request if supplied */
 	if (mad_reg_req) {
@@ -281,7 +282,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	/* Now, fill in the various structures */
 	mad_agent_priv->qp_info = &port_priv->qp_info[qpn];
 	mad_agent_priv->reg_req = reg_req;
-	mad_agent_priv->rmpp_version = rmpp_version;
+	mad_agent_priv->agent.rmpp_version = rmpp_version;
 	mad_agent_priv->agent.device = device;
 	mad_agent_priv->agent.recv_handler = recv_handler;
 	mad_agent_priv->agent.send_handler = send_handler;
@@ -341,6 +342,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	INIT_LIST_HEAD(&mad_agent_priv->send_list);
 	INIT_LIST_HEAD(&mad_agent_priv->wait_list);
 	INIT_LIST_HEAD(&mad_agent_priv->done_list);
+	INIT_LIST_HEAD(&mad_agent_priv->rmpp_list);
 	INIT_WORK(&mad_agent_priv->timed_work, timeout_sends, mad_agent_priv);
 	INIT_LIST_HEAD(&mad_agent_priv->local_list);
 	INIT_WORK(&mad_agent_priv->local_work, local_completions,
@@ -502,6 +504,7 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 	spin_unlock_irqrestore(&port_priv->reg_lock, flags);
 
 	flush_workqueue(port_priv->wq);
+	ib_cancel_rmpp_recvs(mad_agent_priv);
 
 	atomic_dec(&mad_agent_priv->refcount);
 	wait_event(mad_agent_priv->wait,
@@ -786,11 +789,14 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 	int buf_size;
 	void *buf;
 
-	if (rmpp_active)
-		return ERR_PTR(-EINVAL);	/* until RMPP implemented */
 	mad_agent_priv = container_of(mad_agent,
 				      struct ib_mad_agent_private, agent);
 	buf_size = get_buf_length(hdr_len, data_len);
+
+	if ((!mad_agent->rmpp_version &&
+	     (rmpp_active || buf_size > sizeof(struct ib_mad))) ||
+	    (!rmpp_active && buf_size > sizeof(struct ib_mad)))
+		return ERR_PTR(-EINVAL);
 
 	buf = kmalloc(sizeof *send_buf + buf_size, gfp_mask);
 	if (!buf)
@@ -816,6 +822,18 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 	send_buf->send_wr.wr.ud.remote_qpn = remote_qpn;
 	send_buf->send_wr.wr.ud.remote_qkey = IB_QP_SET_QKEY;
 	send_buf->send_wr.wr.ud.pkey_index = pkey_index;
+
+	if (rmpp_active) {
+		struct ib_rmpp_mad *rmpp_mad;
+		rmpp_mad = (struct ib_rmpp_mad *)send_buf->mad;
+		rmpp_mad->rmpp_hdr.paylen_newwin = cpu_to_be32(hdr_len -
+			offsetof(struct ib_rmpp_mad, data) + data_len);
+		rmpp_mad->rmpp_hdr.rmpp_version = mad_agent->rmpp_version;
+		rmpp_mad->rmpp_hdr.rmpp_type = IB_MGMT_RMPP_TYPE_DATA;
+		ib_set_rmpp_flags(&rmpp_mad->rmpp_hdr,
+				  IB_MGMT_RMPP_FLAG_ACTIVE);
+	}
+
 	send_buf->mad_agent = mad_agent;
 	atomic_inc(&mad_agent_priv->refcount);
 	return send_buf;
@@ -839,7 +857,7 @@ void ib_free_send_mad(struct ib_mad_send_buf *send_buf)
 }
 EXPORT_SYMBOL(ib_free_send_mad);
 
-static int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
+int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 {
 	struct ib_mad_qp_info *qp_info;
 	struct ib_send_wr *bad_send_wr;
@@ -940,13 +958,13 @@ int ib_post_send_mad(struct ib_mad_agent *mad_agent,
 			ret = -ENOMEM;
 			goto error2;
 		}
+		memset(mad_send_wr, 0, sizeof *mad_send_wr);
 
 		mad_send_wr->send_wr = *send_wr;
 		mad_send_wr->send_wr.sg_list = mad_send_wr->sg_list;
 		memcpy(mad_send_wr->sg_list, send_wr->sg_list,
 		       sizeof *send_wr->sg_list * send_wr->num_sge);
-		mad_send_wr->wr_id = mad_send_wr->send_wr.wr_id;
-		mad_send_wr->send_wr.next = NULL;
+		mad_send_wr->wr_id = send_wr->wr_id;
 		mad_send_wr->tid = send_wr->wr.ud.mad_hdr->tid;
 		mad_send_wr->mad_agent_priv = mad_agent_priv;
 		/* Timeout will be updated after send completes */
@@ -964,8 +982,13 @@ int ib_post_send_mad(struct ib_mad_agent *mad_agent,
 			      &mad_agent_priv->send_list);
 		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 
-		ret = ib_send_mad(mad_send_wr);
-		if (ret) {
+		if (mad_agent_priv->agent.rmpp_version) {
+			ret = ib_send_rmpp_mad(mad_send_wr);
+			if (ret >= 0 && ret != IB_RMPP_RESULT_CONSUMED)
+				ret = ib_send_mad(mad_send_wr);
+		} else
+			ret = ib_send_mad(mad_send_wr);
+		if (ret < 0) {
 			/* Fail send request */
 			spin_lock_irqsave(&mad_agent_priv->lock, flags);
 			list_del(&mad_send_wr->agent_list);
@@ -991,31 +1014,25 @@ EXPORT_SYMBOL(ib_post_send_mad);
  */
 void ib_free_recv_mad(struct ib_mad_recv_wc *mad_recv_wc)
 {
-	struct ib_mad_recv_buf *entry;
+	struct ib_mad_recv_buf *mad_recv_buf, *temp_recv_buf;
 	struct ib_mad_private_header *mad_priv_hdr;
 	struct ib_mad_private *priv;
+	struct list_head free_list;
 
-	mad_priv_hdr = container_of(mad_recv_wc,
-				    struct ib_mad_private_header,
-				    recv_wc);
-	priv = container_of(mad_priv_hdr, struct ib_mad_private, header);
+	INIT_LIST_HEAD(&free_list);
+	list_splice_init(&mad_recv_wc->rmpp_list, &free_list);
 
-	/*
-	 * Walk receive buffer list associated with this WC
-	 * No need to remove them from list of receive buffers
-	 */
-	list_for_each_entry(entry, &mad_recv_wc->recv_buf.list, list) {
-		/* Free previous receive buffer */
-		kmem_cache_free(ib_mad_cache, priv);
+	list_for_each_entry_safe(mad_recv_buf, temp_recv_buf,
+					&free_list, list) {
+		mad_recv_wc = container_of(mad_recv_buf, struct ib_mad_recv_wc,
+					   recv_buf);
 		mad_priv_hdr = container_of(mad_recv_wc,
 					    struct ib_mad_private_header,
 					    recv_wc);
 		priv = container_of(mad_priv_hdr, struct ib_mad_private,
 				    header);
+		kmem_cache_free(ib_mad_cache, priv);
 	}
-
-	/* Free last buffer */
-	kmem_cache_free(ib_mad_cache, priv);
 }
 EXPORT_SYMBOL(ib_free_recv_mad);
 
@@ -1524,9 +1541,20 @@ out:
 	return valid;
 }
 
-static struct ib_mad_send_wr_private*
-find_send_req(struct ib_mad_agent_private *mad_agent_priv,
-	      u64 tid)
+static int is_data_mad(struct ib_mad_agent_private *mad_agent_priv,
+		       struct ib_mad_hdr *mad_hdr)
+{
+	struct ib_rmpp_mad *rmpp_mad;
+
+	rmpp_mad = (struct ib_rmpp_mad *)mad_hdr;
+	return !mad_agent_priv->agent.rmpp_version ||
+		!(ib_get_rmpp_flags(&rmpp_mad->rmpp_hdr) &
+				    IB_MGMT_RMPP_FLAG_ACTIVE) ||
+		(rmpp_mad->rmpp_hdr.rmpp_type == IB_MGMT_RMPP_TYPE_DATA);
+}
+
+struct ib_mad_send_wr_private*
+ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv, u64 tid)
 {
 	struct ib_mad_send_wr_private *mad_send_wr;
 
@@ -1542,7 +1570,9 @@ find_send_req(struct ib_mad_agent_private *mad_agent_priv,
 	 */
 	list_for_each_entry(mad_send_wr, &mad_agent_priv->send_list,
 			    agent_list) {
-		if (mad_send_wr->tid == tid && mad_send_wr->timeout) {
+		if (is_data_mad(mad_agent_priv,
+				mad_send_wr->send_wr.wr.ud.mad_hdr) &&
+		    mad_send_wr->tid == tid && mad_send_wr->timeout) {
 			/* Verify request has not been canceled */
 			return (mad_send_wr->status == IB_WC_SUCCESS) ?
 				mad_send_wr : NULL;
@@ -1551,7 +1581,7 @@ find_send_req(struct ib_mad_agent_private *mad_agent_priv,
 	return NULL;
 }
 
-static void ib_mark_req_done(struct ib_mad_send_wr_private *mad_send_wr)
+void ib_mark_mad_done(struct ib_mad_send_wr_private *mad_send_wr)
 {
 	mad_send_wr->timeout = 0;
 	if (mad_send_wr->refcount == 1) {
@@ -1569,12 +1599,23 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 	unsigned long flags;
 	u64 tid;
 
-	INIT_LIST_HEAD(&mad_recv_wc->recv_buf.list);
+	INIT_LIST_HEAD(&mad_recv_wc->rmpp_list);
+	list_add(&mad_recv_wc->recv_buf.list, &mad_recv_wc->rmpp_list);
+	if (mad_agent_priv->agent.rmpp_version) {
+		mad_recv_wc = ib_process_rmpp_recv_wc(mad_agent_priv,
+						      mad_recv_wc);
+		if (!mad_recv_wc) {
+			if (atomic_dec_and_test(&mad_agent_priv->refcount))
+				wake_up(&mad_agent_priv->wait);
+			return;
+		}
+	}
+
 	/* Complete corresponding request */
 	if (response_mad(mad_recv_wc->recv_buf.mad)) {
 		tid = mad_recv_wc->recv_buf.mad->mad_hdr.tid;
 		spin_lock_irqsave(&mad_agent_priv->lock, flags);
-		mad_send_wr = find_send_req(mad_agent_priv, tid);
+		mad_send_wr = ib_find_send_mad(mad_agent_priv, tid);
 		if (!mad_send_wr) {
 			spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 			ib_free_recv_mad(mad_recv_wc);
@@ -1582,7 +1623,7 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 				wake_up(&mad_agent_priv->wait);
 			return;
 		}
-		ib_mark_req_done(mad_send_wr);
+		ib_mark_mad_done(mad_send_wr);
 		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 
 		/* Defined behavior is to complete response before request */
@@ -1787,14 +1828,22 @@ void ib_reset_mad_timeout(struct ib_mad_send_wr_private *mad_send_wr,
 /*
  * Process a send work completion
  */
-static void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
-				    struct ib_mad_send_wc *mad_send_wc)
+void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
+			     struct ib_mad_send_wc *mad_send_wc)
 {
 	struct ib_mad_agent_private	*mad_agent_priv;
 	unsigned long			flags;
+	int				ret;
 
 	mad_agent_priv = mad_send_wr->mad_agent_priv;
 	spin_lock_irqsave(&mad_agent_priv->lock, flags);
+	if (mad_agent_priv->agent.rmpp_version) {
+		ret = ib_process_rmpp_send_wc(mad_send_wr, mad_send_wc);
+		if (ret == IB_RMPP_RESULT_CONSUMED)
+			goto done;
+	} else
+		ret = IB_RMPP_RESULT_UNHANDLED;
+
 	if (mad_send_wc->status != IB_WC_SUCCESS &&
 	    mad_send_wr->status == IB_WC_SUCCESS) {
 		mad_send_wr->status = mad_send_wc->status;
@@ -1806,8 +1855,7 @@ static void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 		    mad_send_wr->status == IB_WC_SUCCESS) {
 			wait_for_response(mad_send_wr);
 		}
-		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
-		return;
+		goto done;
 	}
 
 	/* Remove send from MAD agent and notify client of completion */
@@ -1817,14 +1865,18 @@ static void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 
 	if (mad_send_wr->status != IB_WC_SUCCESS )
 		mad_send_wc->status = mad_send_wr->status;
-	mad_agent_priv->agent.send_handler(&mad_agent_priv->agent,
-					    mad_send_wc);
+	if (ret != IB_RMPP_RESULT_INTERNAL)
+		mad_agent_priv->agent.send_handler(&mad_agent_priv->agent,
+						   mad_send_wc);
 
 	/* Release reference on agent taken when sending */
 	if (atomic_dec_and_test(&mad_agent_priv->refcount))
 		wake_up(&mad_agent_priv->wait);
 
 	kfree(mad_send_wr);
+	return;
+done:
+	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 }
 
 static void ib_mad_send_done_handler(struct ib_mad_port_private *port_priv,
@@ -2036,7 +2088,9 @@ find_send_by_wr_id(struct ib_mad_agent_private *mad_agent_priv, u64 wr_id)
 
 	list_for_each_entry(mad_send_wr, &mad_agent_priv->send_list,
 			    agent_list) {
-		if (mad_send_wr->wr_id == wr_id)
+		if (is_data_mad(mad_agent_priv,
+				mad_send_wr->send_wr.wr.ud.mad_hdr) &&
+		    mad_send_wr->wr_id == wr_id)
 			return mad_send_wr;
 	}
 	return NULL;
@@ -2118,7 +2172,9 @@ static void local_completions(void *data)
 			local->mad_priv->header.recv_wc.wc = &wc;
 			local->mad_priv->header.recv_wc.mad_len =
 						sizeof(struct ib_mad);
-			INIT_LIST_HEAD(&local->mad_priv->header.recv_wc.recv_buf.list);
+			INIT_LIST_HEAD(&local->mad_priv->header.recv_wc.rmpp_list);
+			list_add(&local->mad_priv->header.recv_wc.recv_buf.list,
+				 &local->mad_priv->header.recv_wc.rmpp_list);
 			local->mad_priv->header.recv_wc.recv_buf.grh = NULL;
 			local->mad_priv->header.recv_wc.recv_buf.mad =
 						&local->mad_priv->mad.mad;
@@ -2166,7 +2222,21 @@ static int retry_send(struct ib_mad_send_wr_private *mad_send_wr)
 	mad_send_wr->timeout = msecs_to_jiffies(mad_send_wr->send_wr.
 						wr.ud.timeout_ms);
 
-	ret = ib_send_mad(mad_send_wr);
+	if (mad_send_wr->mad_agent_priv->agent.rmpp_version) {
+		ret = ib_retry_rmpp(mad_send_wr);
+		switch (ret) {
+		case IB_RMPP_RESULT_UNHANDLED:
+			ret = ib_send_mad(mad_send_wr);
+			break;
+		case IB_RMPP_RESULT_CONSUMED:
+			ret = 0;
+			break;
+		default:
+			ret = -ECOMM;
+			break;
+		}
+	} else
+		ret = ib_send_mad(mad_send_wr);
 
 	if (!ret) {
 		mad_send_wr->refcount++;
@@ -2724,3 +2794,4 @@ static void __exit ib_mad_cleanup_module(void)
 
 module_init(ib_mad_init_module);
 module_exit(ib_mad_cleanup_module);
+

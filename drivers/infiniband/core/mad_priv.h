@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004, 2005, Voltaire, Inc. All rights reserved.
+ * Copyright (c) 2005 Intel Corporation. All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,7 +31,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: mad_priv.h 1980 2005-03-11 22:33:53Z sean.hefty $
+ * $Id: mad_priv.h 2730 2005-06-28 16:43:03Z sean.hefty $
  */
 
 #ifndef __IB_MAD_PRIV_H__
@@ -97,10 +99,10 @@ struct ib_mad_agent_private {
 	unsigned long timeout;
 	struct list_head local_list;
 	struct work_struct local_work;
+	struct list_head rmpp_list;
 
 	atomic_t refcount;
 	wait_queue_head_t wait;
-	u8 rmpp_version;
 };
 
 struct ib_mad_snoop_private {
@@ -125,6 +127,14 @@ struct ib_mad_send_wr_private {
 	int retry;
 	int refcount;
 	enum ib_wc_status status;
+
+	/* RMPP control */
+	int last_ack;
+	int seg_num;
+	int newwin;
+	int total_seg;
+	int data_offset;
+	int pad;
 };
 
 struct ib_mad_local_private {
@@ -135,7 +145,6 @@ struct ib_mad_local_private {
 	struct ib_sge sg_list[IB_MAD_SEND_REQ_MAX_SG];
 	u64 wr_id;			/* client WR ID */
 	u64 tid;
-	int retries;
 };
 
 struct ib_mad_mgmt_method_table {
@@ -197,5 +206,18 @@ struct ib_mad_port_private {
 };
 
 extern kmem_cache_t *ib_mad_cache;
+
+int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr);
+
+struct ib_mad_send_wr_private *
+ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv, u64 tid);
+
+void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
+			     struct ib_mad_send_wc *mad_send_wc);
+
+void ib_mark_mad_done(struct ib_mad_send_wr_private *mad_send_wr);
+
+void ib_reset_mad_timeout(struct ib_mad_send_wr_private *mad_send_wr,
+			  int timeout_ms);
 
 #endif	/* __IB_MAD_PRIV_H__ */
