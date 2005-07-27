@@ -81,7 +81,6 @@ static void max6875_update_slice(struct i2c_client *client, int slice)
 	struct max6875_data *data = i2c_get_clientdata(client);
 	int i, j, addr;
 	u8 *buf;
-	int retval = 0;
 
 	if (slice >= USER_EEPROM_SLICES)
 		return;
@@ -102,7 +101,6 @@ static void max6875_update_slice(struct i2c_client *client, int slice)
 		/* select the eeprom address */
 		if (i2c_smbus_write_byte_data(client, addr >> 8, addr & 0xFF)) {
 			dev_err(&client->dev, "address set failed\n");
-			retval = -1;
 			goto exit_up;
 		}
 
@@ -111,14 +109,12 @@ static void max6875_update_slice(struct i2c_client *client, int slice)
 			if (i2c_smbus_read_i2c_block_data(client,
 							  MAX6875_CMD_BLK_READ,
 							  buf) != SLICE_SIZE) {
-				retval = -1;
 				goto exit_up;
 			}
 		} else {
 			for (i = 0; i < SLICE_SIZE; i++) {
 				j = i2c_smbus_read_byte(client);
 				if (j < 0) {
-					retval = -1;
 					goto exit_up;
 				}
 				buf[i] = j;
@@ -182,7 +178,7 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 		i2c_smbus_xfer(adapter, address, 0, 0, 0,
 			       I2C_SMBUS_QUICK, NULL);
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WRITE_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_BYTE))
 		return 0;
 
@@ -218,7 +214,7 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	fake_client->adapter = adapter;
 	fake_client->driver = &max6875_driver;
 	fake_client->flags = 0;
-	strlcpy(fake_client->name, "max6875-dummy", I2C_NAME_SIZE);
+	strlcpy(fake_client->name, "max6875 subclient", I2C_NAME_SIZE);
 
 	/* Prevent 24RF08 corruption (in case of user error) */
 	i2c_smbus_write_quick(real_client, 0);
