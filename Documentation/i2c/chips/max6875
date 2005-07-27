@@ -49,14 +49,14 @@ $ modprobe max6875 force=0,0x50
 
 The MAX6874/MAX6875 ignores address bit 0, so this driver attaches to multiple
 addresses.  For example, for address 0x50, it also reserves 0x51.
-The even-address instance is called 'max6875', the odd one is 'max6875-dummy'.
+The even-address instance is called 'max6875', the odd one is 'max6875 subclient'.
 
 
 Programming the chip using i2c-dev
 ----------------------------------
 
 Use the i2c-dev interface to access and program the chips.
-Reads and write are performed differently depending on the address range.
+Reads and writes are performed differently depending on the address range.
 
 The configuration registers are at addresses 0x00 - 0x45.
 Use i2c_smbus_write_byte_data() to write a register and
