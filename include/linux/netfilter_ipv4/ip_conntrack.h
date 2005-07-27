@@ -239,7 +239,7 @@ ip_conntrack_get(const struct sk_buff *skb, enum ip_conntrack_info *ctinfo)
 }
 
 /* decrement reference count on a conntrack */
-extern inline void ip_conntrack_put(struct ip_conntrack *ct);
+extern void ip_conntrack_put(struct ip_conntrack *ct);
 
 /* call to create an explicit dependency on ip_conntrack. */
 extern void need_ip_conntrack(void);

@@ -299,23 +299,17 @@ void machine_restart(char *command)
 	_machine_restart(command);
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_halt(void)
 {
 	console_unblank();
 	_machine_halt();
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off(void)
 {
 	console_unblank();
 	_machine_power_off();
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 static void __init
 add_memory_hole(unsigned long start, unsigned long end)

@@ -80,8 +80,6 @@ void machine_restart(char * __unused)
 		     "mov.l @%1, %0" : : "r" (0x10000000), "r" (0x80000001));
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_halt(void)
 {
 #if defined(CONFIG_SH_HS7751RVOIP)
@@ -96,8 +94,6 @@ void machine_halt(void)
 		cpu_sleep();
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off(void)
 {
 #if defined(CONFIG_SH_HS7751RVOIP)
@@ -109,8 +105,6 @@ void machine_power_off(void)
 	ctrl_outw(0x0001, PA_POWOFF);
 #endif
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 void show_regs(struct pt_regs * regs)
 {

@@ -113,6 +113,7 @@
 #include <linux/user.h>
 #include <linux/elfcore.h>
 #include <linux/mqueue.h>
+#include <linux/reboot.h>
 
 //#define DEBUG
 
@@ -208,12 +209,10 @@ void cpu_idle (void)
 
 void hard_reset_now (void);
 
-void machine_restart(void)
+void machine_restart(char *cmd)
 {
 	hard_reset_now();
 }
-
-EXPORT_SYMBOL(machine_restart);
 
 /*
  * Similar to machine_power_off, but don't shut off power.  Add code
@@ -225,15 +224,11 @@ void machine_halt(void)
 {
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 /* If or when software power-off is implemented, add code here.  */
 
 void machine_power_off(void)
 {
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 /*
  * When a process does an "exec", machine state like FPU and debug

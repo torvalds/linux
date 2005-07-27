@@ -4521,9 +4521,7 @@ static int __init gdth_detect(Scsi_Host_Template *shtp)
             ha->virt_bus = hdr_channel;
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-            scsi_set_device(shp, &pcistr[ctr].pdev->dev);
-#else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
             scsi_set_pci_device(shp, pcistr[ctr].pdev);
 #endif
             if (!(ha->cache_feat & ha->raw_feat & ha->screen_feat &GDT_64BIT)||

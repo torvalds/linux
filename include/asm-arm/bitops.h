@@ -21,8 +21,8 @@
 
 #include <asm/system.h>
 
-#define smp_mb__before_clear_bit()	do { } while (0)
-#define smp_mb__after_clear_bit()	do { } while (0)
+#define smp_mb__before_clear_bit()	mb()
+#define smp_mb__after_clear_bit()	mb()
 
 /*
  * These functions are the basis of our bit ops.

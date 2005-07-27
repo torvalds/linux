@@ -344,7 +344,7 @@ static int pcwd_get_status(int *status)
 			*status |= WDIOF_OVERHEAT;
 			if (temp_panic) {
 				printk (KERN_INFO PFX "Temperature overheat trip!\n");
-				machine_power_off();
+				kernel_power_off();
 			}
 		}
 	} else {
@@ -355,7 +355,7 @@ static int pcwd_get_status(int *status)
 			*status |= WDIOF_OVERHEAT;
 			if (temp_panic) {
 				printk (KERN_INFO PFX "Temperature overheat trip!\n");
-				machine_power_off();
+				kernel_power_off();
 			}
 		}
 	}

@@ -316,7 +316,7 @@ static _INLINE_ void receive_chars(struct m68k_serial *info, struct pt_regs *reg
 /*				show_net_buffers(); */
 				return;
 			} else if (ch == 0x12) { /* ^R */
-				machine_restart(NULL);
+				emergency_restart();
 				return;
 #endif /* CONFIG_MAGIC_SYSRQ */
 			}

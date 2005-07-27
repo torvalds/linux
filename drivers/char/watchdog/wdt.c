@@ -266,7 +266,7 @@ static irqreturn_t wdt_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		printk(KERN_CRIT "Would Reboot.\n");
 #else
 		printk(KERN_CRIT "Initiating system reboot.\n");
-		machine_restart(NULL);
+		emergency_restart();
 #endif
 #else
 		printk(KERN_CRIT "Reset in 5ms.\n");

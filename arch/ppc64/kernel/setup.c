@@ -694,7 +694,6 @@ void machine_restart(char *cmd)
 	local_irq_disable();
 	while (1) ;
 }
-EXPORT_SYMBOL(machine_restart);
 
 void machine_power_off(void)
 {
@@ -707,7 +706,6 @@ void machine_power_off(void)
 	local_irq_disable();
 	while (1) ;
 }
-EXPORT_SYMBOL(machine_power_off);
 
 void machine_halt(void)
 {
@@ -720,7 +718,6 @@ void machine_halt(void)
 	local_irq_disable();
 	while (1) ;
 }
-EXPORT_SYMBOL(machine_halt);
 
 static int ppc64_panic_event(struct notifier_block *this,
                              unsigned long event, void *ptr)

@@ -719,7 +719,6 @@ megaraid_io_attach(adapter_t *adapter)
 
 	// export the parameters required by the mid-layer
 	scsi_assign_lock(host, adapter->host_lock);
-	scsi_set_device(host, &adapter->pdev->dev);
 
 	host->irq		= adapter->irq;
 	host->unique_id		= adapter->unique_id;
