@@ -2188,7 +2188,6 @@ static int retry_send(struct ib_mad_send_wr_private *mad_send_wr)
 
 	if (!ret) {
 		mad_send_wr->refcount++;
-		list_del(&mad_send_wr->agent_list);
 		list_add_tail(&mad_send_wr->agent_list,
 			      &mad_send_wr->mad_agent_priv->send_list);
 	}
@@ -2223,10 +2222,10 @@ static void timeout_sends(void *data)
 			break;
 		}
 
+		list_del(&mad_send_wr->agent_list);
 		if (!retry_send(mad_send_wr))
 			continue;
 
-		list_del(&mad_send_wr->agent_list);
 		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 
 		mad_send_wc.wr_id = mad_send_wr->wr_id;
