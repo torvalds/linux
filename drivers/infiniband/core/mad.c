@@ -847,9 +847,8 @@ static int ib_send_mad(struct ib_mad_agent_private *mad_agent_priv,
 	unsigned long flags;
 	int ret;
 
-	/* Replace user's WR ID with our own to find WR upon completion */
+	/* Set WR ID to find mad_send_wr upon completion */
 	qp_info = mad_agent_priv->qp_info;
-	mad_send_wr->wr_id = mad_send_wr->send_wr.wr_id;
 	mad_send_wr->send_wr.wr_id = (unsigned long)&mad_send_wr->mad_list;
 	mad_send_wr->mad_list.mad_queue = &qp_info->send_queue;
 
@@ -948,6 +947,7 @@ int ib_post_send_mad(struct ib_mad_agent *mad_agent,
 		mad_send_wr->send_wr.sg_list = mad_send_wr->sg_list;
 		memcpy(mad_send_wr->sg_list, send_wr->sg_list,
 		       sizeof *send_wr->sg_list * send_wr->num_sge);
+		mad_send_wr->wr_id = mad_send_wr->send_wr.wr_id;
 		mad_send_wr->send_wr.next = NULL;
 		mad_send_wr->tid = send_wr->wr.ud.mad_hdr->tid;
 		mad_send_wr->agent = mad_agent;
