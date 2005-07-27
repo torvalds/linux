@@ -13,8 +13,8 @@ __clean:
 clean := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.clean obj
 
 # The filename Kbuild has precedence over Makefile
-include $(if $(wildcard $(srctree)/$(src)/Kbuild), \
-                        $(srctree)/$(src)/Kbuild, $(srctree)/$(src)/Makefile)
+kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
+include $(if $(wildcard $(kbuild-dir)/Kbuild), $(kbuild-dir)/Kbuild, $(kbuild-dir)/Makefile)
 
 # Figure out what we need to build from the various variables
 # ==========================================================================

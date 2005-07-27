@@ -11,8 +11,8 @@ __build:
 -include .config
 
 # The filename Kbuild has precedence over Makefile
-include $(if $(wildcard $(srctree)/$(src)/Kbuild), \
-                        $(srctree)/$(src)/Kbuild, $(srctree)/$(src)/Makefile)
+kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
+include $(if $(wildcard $(kbuild-dir)/Kbuild), $(kbuild-dir)/Kbuild, $(kbuild-dir)/Makefile)
 
 include scripts/Kbuild.include
 include scripts/Makefile.lib
