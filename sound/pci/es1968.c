@@ -636,7 +636,7 @@ static void __maestro_write(es1968_t *chip, u16 reg, u16 data)
 	chip->maestro_map[reg] = data;
 }
 
-inline static void maestro_write(es1968_t *chip, u16 reg, u16 data)
+static inline void maestro_write(es1968_t *chip, u16 reg, u16 data)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -654,7 +654,7 @@ static u16 __maestro_read(es1968_t *chip, u16 reg)
 	return chip->maestro_map[reg];
 }
 
-inline static u16 maestro_read(es1968_t *chip, u16 reg)
+static inline u16 maestro_read(es1968_t *chip, u16 reg)
 {
 	unsigned long flags;
 	u16 result;
@@ -755,7 +755,7 @@ static void __apu_set_register(es1968_t *chip, u16 channel, u8 reg, u16 data)
 	apu_data_set(chip, data);
 }
 
-inline static void apu_set_register(es1968_t *chip, u16 channel, u8 reg, u16 data)
+static inline void apu_set_register(es1968_t *chip, u16 channel, u8 reg, u16 data)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -771,7 +771,7 @@ static u16 __apu_get_register(es1968_t *chip, u16 channel, u8 reg)
 	return __maestro_read(chip, IDR0_DATA_PORT);
 }
 
-inline static u16 apu_get_register(es1968_t *chip, u16 channel, u8 reg)
+static inline u16 apu_get_register(es1968_t *chip, u16 channel, u8 reg)
 {
 	unsigned long flags;
 	u16 v;
@@ -957,7 +957,7 @@ static u32 snd_es1968_compute_rate(es1968_t *chip, u32 freq)
 }
 
 /* get current pointer */
-inline static unsigned int
+static inline unsigned int
 snd_es1968_get_dma_ptr(es1968_t *chip, esschan_t *es)
 {
 	unsigned int offset;
@@ -978,7 +978,7 @@ static void snd_es1968_apu_set_freq(es1968_t *chip, int apu, int freq)
 }
 
 /* spin lock held */
-inline static void snd_es1968_trigger_apu(es1968_t *esm, int apu, int mode)
+static inline void snd_es1968_trigger_apu(es1968_t *esm, int apu, int mode)
 {
 	/* set the APU mode */
 	__apu_set_register(esm, apu, 0,

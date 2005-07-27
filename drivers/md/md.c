@@ -284,7 +284,7 @@ static mdk_rdev_t * find_rdev(mddev_t * mddev, dev_t dev)
 	return NULL;
 }
 
-inline static sector_t calc_dev_sboffset(struct block_device *bdev)
+static inline sector_t calc_dev_sboffset(struct block_device *bdev)
 {
 	sector_t size = bdev->bd_inode->i_size >> BLOCK_SIZE_BITS;
 	return MD_NEW_SIZE_BLOCKS(size);

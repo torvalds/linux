@@ -166,7 +166,7 @@ static int get_tune(__u16 io)
 }
 
 
-inline static int radio_function(struct inode *inode, struct file *file,
+static inline int radio_function(struct inode *inode, struct file *file,
 				 unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);

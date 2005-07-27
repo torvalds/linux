@@ -363,7 +363,7 @@ struct pktgen_thread {
  * All Rights Reserved.
  *
  */
-inline static s64 divremdi3(s64 x, s64 y, int type) 
+static inline s64 divremdi3(s64 x, s64 y, int type)
 {
         u64 a = (x < 0) ? -x : x;
         u64 b = (y < 0) ? -y : y;
