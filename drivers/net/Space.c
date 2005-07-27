@@ -323,12 +323,6 @@ extern struct net_device *proteon_probe(int unit);
 extern struct net_device *smctr_probe(int unit);
 
 static struct devprobe2 tr_probes2[] __initdata = {
-#ifdef CONFIG_SKISA
-	{sk_isa_probe, 0},
-#endif
-#ifdef CONFIG_PROTEON
-	{proteon_probe, 0},
-#endif
 #ifdef CONFIG_SMCTR
 	{smctr_probe, 0},
 #endif
