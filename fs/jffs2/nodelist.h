@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.h,v 1.134 2005/07/24 15:29:56 dedekind Exp $
+ * $Id: nodelist.h,v 1.135 2005/07/27 14:46:11 dedekind Exp $
  *
  */
 
@@ -297,10 +297,6 @@ static inline struct jffs2_node_frag *frag_last(struct rb_root *root)
 
 /* nodelist.c */
 void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new, struct jffs2_full_dirent **list);
-int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
-			  struct rb_root *tnp, struct jffs2_full_dirent **fdp,
-			  uint32_t *highest_version, uint32_t *latest_mctime,
-			  uint32_t *mctime_ver);
 void jffs2_set_inocache_state(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic, int state);
 struct jffs2_inode_cache *jffs2_get_ino_cache(struct jffs2_sb_info *c, uint32_t ino);
 void jffs2_add_ino_cache (struct jffs2_sb_info *c, struct jffs2_inode_cache *new);
@@ -309,10 +305,11 @@ void jffs2_free_ino_caches(struct jffs2_sb_info *c);
 void jffs2_free_raw_node_refs(struct jffs2_sb_info *c);
 struct jffs2_node_frag *jffs2_lookup_node_frag(struct rb_root *fragtree, uint32_t offset);
 void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c_delete);
-void jffs2_fragtree_insert(struct jffs2_node_frag *newfrag, struct jffs2_node_frag *base);
 struct rb_node *rb_next(struct rb_node *);
 struct rb_node *rb_prev(struct rb_node *);
 void rb_replace_node(struct rb_node *victim, struct rb_node *new, struct rb_root *root);
+void jffs2_obsolete_node_frag(struct jffs2_sb_info *c, struct jffs2_node_frag *this);
+int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_full_dnode *fn);
 
 /* nodemgmt.c */
 int jffs2_thread_should_wake(struct jffs2_sb_info *c);
@@ -337,7 +334,6 @@ int jffs2_do_link (struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint
 
 /* readinode.c */
 void jffs2_truncate_fragtree (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size);
-int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_full_dnode *fn);
 int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, 
 			uint32_t ino, struct jffs2_raw_inode *latest_node);
 int jffs2_do_crccheck_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic);
