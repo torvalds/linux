@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-dvb.c,v 1.47 2005/07/20 05:20:37 mkrufky Exp $
+ * $Id: cx88-dvb.c,v 1.48 2005/07/20 05:33:33 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
@@ -223,6 +223,19 @@ static int lgdt3302_pll_set(struct dvb_frontend* fe,
 	return 0;
 }
 
+static int lgdt3302_pll_rf_set(struct dvb_frontend* fe, int index)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx88_core *core = dev->core;
+
+	dprintk(1, "%s: index = %d\n", __FUNCTION__, index);
+	if (index == 0)
+		cx_clear(MO_GP0_IO, 8);
+	else
+		cx_set(MO_GP0_IO, 8);
+	return 0;
+}
+
 static int lgdt3302_set_ts_param(struct dvb_frontend* fe, int is_punctured)
 {
 	struct cx8802_dev *dev= fe->dvb->priv;
@@ -296,8 +309,11 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		cx_clear(MO_GP0_IO, 1);
 		mdelay(100);
-		cx_set(MO_GP0_IO, 9); // ANT connector too FIXME
+		cx_set(MO_GP0_IO, 1);
 		mdelay(200);
+
+		/* Select RF connector callback */
+		fusionhdtv_3_gold.pll_rf_set = lgdt3302_pll_rf_set;
 		dev->core->pll_addr = 0x61;
 		dev->core->pll_desc = &dvb_pll_microtune_4042;
 		dev->dvb.frontend = lgdt3302_attach(&fusionhdtv_3_gold,

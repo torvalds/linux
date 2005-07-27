@@ -30,6 +30,7 @@ struct lgdt3302_config
 	u8 demod_address;
 
 	/* PLL interface */
+	int (*pll_rf_set) (struct dvb_frontend* fe, int index);
 	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pll_address);
 
 	/* Need to set device param for start_dma */

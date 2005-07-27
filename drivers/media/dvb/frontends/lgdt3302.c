@@ -214,6 +214,10 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 
 			/* Select VSB mode and serial MPEG interface */
 			top_ctrl_cfg[1] = 0x07;
+
+			/* Select ANT connector if supported by card */
+			if (state->config->pll_rf_set)
+				state->config->pll_rf_set(fe, 1);
 			break;
 
 		case QAM_64:
@@ -221,6 +225,10 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 
 			/* Select QAM_64 mode and serial MPEG interface */
 			top_ctrl_cfg[1] = 0x04;
+
+			/* Select CABLE connector if supported by card */
+			if (state->config->pll_rf_set)
+				state->config->pll_rf_set(fe, 0);
 			break;
 
 		case QAM_256:
@@ -228,6 +236,10 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 
 			/* Select QAM_256 mode and serial MPEG interface */
 			top_ctrl_cfg[1] = 0x05;
+
+			/* Select CABLE connector if supported by card */
+			if (state->config->pll_rf_set)
+				state->config->pll_rf_set(fe, 0);
 			break;
 		default:
 			printk(KERN_WARNING "lgdt3302: %s: Modulation type(%d) UNSUPPORTED\n", __FUNCTION__, param->u.vsb.modulation);
