@@ -229,7 +229,7 @@ static __cpuinit void sync_master(void *arg)
 {
 	unsigned long flags, i;
 
-	if (smp_processor_id() != boot_cpu_id)
+	if (smp_processor_id() != 0)
 		return;
 
 	go[MASTER] = 0;
