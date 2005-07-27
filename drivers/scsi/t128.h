@@ -43,6 +43,7 @@
 
 #define T128_PUBLIC_RELEASE 3
 
+#define TDEBUG		0
 #define TDEBUG_INIT	0x1
 #define TDEBUG_TRANSFER 0x2
 

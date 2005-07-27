@@ -716,7 +716,7 @@ static int init_tulip(HCS * pCurHcb, SCB * scbp, int tul_num_scb,
 	pCurHcb->HCS_SCSI_ID = i91unvramp->NVM_SCSIInfo[0].NVM_ChSCSIID;
 	pCurHcb->HCS_IdMask = ~(1 << pCurHcb->HCS_SCSI_ID);
 
-#if CHK_PARITY
+#ifdef CHK_PARITY
 	/* Enable parity error response */
 	TUL_WR(pCurHcb->HCS_Base + TUL_PCMD, TUL_RD(pCurHcb->HCS_Base, TUL_PCMD) | 0x40);
 #endif

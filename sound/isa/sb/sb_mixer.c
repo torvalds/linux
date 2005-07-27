@@ -688,7 +688,7 @@ static struct sbmix_elem snd_als4000_ctl_3d_poweroff_switch =
 	SB_SINGLE("3D PowerOff Switch", SB_ALS4000_3D_TIME_DELAY, 4, 0x01);
 static struct sbmix_elem snd_als4000_ctl_3d_delay =
 	SB_SINGLE("3D Delay", SB_ALS4000_3D_TIME_DELAY, 0, 0x0f);
-#if NOT_AVAILABLE
+#ifdef NOT_AVAILABLE
 static struct sbmix_elem snd_als4000_ctl_fmdac =
 	SB_SINGLE("FMDAC Switch (Option ?)", SB_ALS4000_FMDAC, 0, 0x01);
 static struct sbmix_elem snd_als4000_ctl_qsound =
@@ -723,7 +723,7 @@ static struct sbmix_elem *snd_als4000_controls[] = {
 	&snd_als4000_ctl_3d_output_ratio,
 	&snd_als4000_ctl_3d_delay,
 	&snd_als4000_ctl_3d_poweroff_switch,
-#if NOT_AVAILABLE
+#ifdef NOT_AVAILABLE
 	&snd_als4000_ctl_fmdac,
 	&snd_als4000_ctl_qsound,
 #endif
