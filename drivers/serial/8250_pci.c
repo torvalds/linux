@@ -63,6 +63,8 @@ struct pciserial_board {
 	unsigned int first_offset;
 };
 
+struct serial_private;
+
 /*
  * init function returns:
  *  > 0 - number of ports
@@ -75,7 +77,7 @@ struct pci_serial_quirk {
 	u32	subvendor;
 	u32	subdevice;
 	int	(*init)(struct pci_dev *dev);
-	int	(*setup)(struct pci_dev *dev, struct pciserial_board *,
+	int	(*setup)(struct serial_private *, struct pciserial_board *,
 			 struct uart_port *port, int idx);
 	void	(*exit)(struct pci_dev *dev);
 };
@@ -83,6 +85,7 @@ struct pci_serial_quirk {
 #define PCI_NUM_BAR_RESOURCES	6
 
 struct serial_private {
+	struct pci_dev		*dev;
 	unsigned int		nr;
 	void __iomem		*remapped_bar[PCI_NUM_BAR_RESOURCES];
 	struct pci_serial_quirk	*quirk;
@@ -101,10 +104,10 @@ static void moan_device(const char *str, struct pci_dev *dev)
 }
 
 static int
-setup_port(struct pci_dev *dev, struct uart_port *port,
+setup_port(struct serial_private *priv, struct uart_port *port,
 	   int bar, int offset, int regshift)
 {
-	struct serial_private *priv = pci_get_drvdata(dev);
+	struct pci_dev *dev = priv->dev;
 	unsigned long base, len;
 
 	if (bar >= PCI_NUM_BAR_RESOURCES)
@@ -140,7 +143,7 @@ setup_port(struct pci_dev *dev, struct uart_port *port,
  * Not that ugly ;) -- HW
  */
 static int
-afavlab_setup(struct pci_dev *dev, struct pciserial_board *board,
+afavlab_setup(struct serial_private *priv, struct pciserial_board *board,
 	      struct uart_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset;
@@ -153,7 +156,7 @@ afavlab_setup(struct pci_dev *dev, struct pciserial_board *board,
 		offset += (idx - 4) * board->uart_offset;
 	}
 
-	return setup_port(dev, port, bar, offset, board->reg_shift);
+	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
 /*
@@ -193,13 +196,13 @@ static int __devinit pci_hp_diva_init(struct pci_dev *dev)
  * some serial ports are supposed to be hidden on certain models.
  */
 static int
-pci_hp_diva_setup(struct pci_dev *dev, struct pciserial_board *board,
+pci_hp_diva_setup(struct serial_private *priv, struct pciserial_board *board,
 	      struct uart_port *port, int idx)
 {
 	unsigned int offset = board->first_offset;
 	unsigned int bar = FL_GET_BASE(board->flags);
 
-	switch (dev->subsystem_device) {
+	switch (priv->dev->subsystem_device) {
 	case PCI_DEVICE_ID_HP_DIVA_MAESTRO:
 		if (idx == 3)
 			idx++;
@@ -216,7 +219,7 @@ pci_hp_diva_setup(struct pci_dev *dev, struct pciserial_board *board,
 
 	offset += idx * board->uart_offset;
 
-	return setup_port(dev, port, bar, offset, board->reg_shift);
+	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
 /*
@@ -311,7 +314,7 @@ static void __devexit pci_plx9050_exit(struct pci_dev *dev)
 
 /* SBS Technologies Inc. PMC-OCTPRO and P-OCTAL cards */
 static int
-sbs_setup(struct pci_dev *dev, struct pciserial_board *board,
+sbs_setup(struct serial_private *priv, struct pciserial_board *board,
 		struct uart_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset;
@@ -327,7 +330,7 @@ sbs_setup(struct pci_dev *dev, struct pciserial_board *board,
 	} else /* we have only 8 ports on PMC-OCTALPRO */
 		return 1;
 
-	return setup_port(dev, port, bar, offset, board->reg_shift);
+	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
 /*
@@ -543,7 +546,7 @@ static int __devinit pci_timedia_init(struct pci_dev *dev)
  * Ugh, this is ugly as all hell --- TYT
  */
 static int
-pci_timedia_setup(struct pci_dev *dev, struct pciserial_board *board,
+pci_timedia_setup(struct serial_private *priv, struct pciserial_board *board,
 		  struct uart_port *port, int idx)
 {
 	unsigned int bar = 0, offset = board->first_offset;
@@ -569,14 +572,14 @@ pci_timedia_setup(struct pci_dev *dev, struct pciserial_board *board,
 		bar = idx - 2;
 	}
 
-	return setup_port(dev, port, bar, offset, board->reg_shift);
+	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
 /*
  * Some Titan cards are also a little weird
  */
 static int
-titan_400l_800l_setup(struct pci_dev *dev,
+titan_400l_800l_setup(struct serial_private *priv,
 		      struct pciserial_board *board,
 		      struct uart_port *port, int idx)
 {
@@ -594,7 +597,7 @@ titan_400l_800l_setup(struct pci_dev *dev,
 		offset = (idx - 2) * board->uart_offset;
 	}
 
-	return setup_port(dev, port, bar, offset, board->reg_shift);
+	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
 static int __devinit pci_xircom_init(struct pci_dev *dev)
@@ -614,7 +617,7 @@ static int __devinit pci_netmos_init(struct pci_dev *dev)
 }
 
 static int
-pci_default_setup(struct pci_dev *dev, struct pciserial_board *board,
+pci_default_setup(struct serial_private *priv, struct pciserial_board *board,
 		  struct uart_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset, maxnr;
@@ -625,13 +628,13 @@ pci_default_setup(struct pci_dev *dev, struct pciserial_board *board,
 	else
 		offset += idx * board->uart_offset;
 
-	maxnr = (pci_resource_len(dev, bar) - board->first_offset) /
+	maxnr = (pci_resource_len(priv->dev, bar) - board->first_offset) /
 		(8 << board->reg_shift);
 
 	if (board->flags & FL_REGION_SZ_CAP && idx >= maxnr)
 		return 1;
 			
-	return setup_port(dev, port, bar, offset, board->reg_shift);
+	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
 /* This should be in linux/pci_ids.h */
@@ -1612,6 +1615,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	memset(priv, 0, sizeof(struct serial_private) +
 			sizeof(unsigned int) * nr_ports);
 
+	priv->dev = dev;
 	priv->quirk = quirk;
 	pci_set_drvdata(dev, priv);
 
@@ -1622,7 +1626,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	serial_port.dev = &dev->dev;
 
 	for (i = 0; i < nr_ports; i++) {
-		if (quirk->setup(dev, board, &serial_port, i))
+		if (quirk->setup(priv, board, &serial_port, i))
 			break;
 
 #ifdef SERIAL_DEBUG_PCI
