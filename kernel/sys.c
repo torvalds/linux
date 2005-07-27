@@ -371,7 +371,6 @@ void kernel_restart(char *cmd)
 {
 	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;
-	device_suspend(PMSG_FREEZE);
 	device_shutdown();
 	if (!cmd) {
 		printk(KERN_EMERG "Restarting system.\n");
