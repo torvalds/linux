@@ -756,7 +756,8 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	 * register it and tell the rest of the kernel
 	 * about it.
 	 */
-	scsi_sysfs_add_sdev(sdev);
+	if (scsi_sysfs_add_sdev(sdev) != 0)
+		return SCSI_SCAN_NO_RESPONSE;
 
 	return SCSI_SCAN_LUN_PRESENT;
 }
