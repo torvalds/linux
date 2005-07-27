@@ -34,38 +34,6 @@
 #undef SERIAL_DEBUG_PCI
 
 /*
- * Definitions for PCI support.
- */
-#define FL_BASE_MASK		0x0007
-#define FL_BASE0		0x0000
-#define FL_BASE1		0x0001
-#define FL_BASE2		0x0002
-#define FL_BASE3		0x0003
-#define FL_BASE4		0x0004
-#define FL_GET_BASE(x)		(x & FL_BASE_MASK)
-
-/* Use successive BARs (PCI base address registers),
-   else use offset into some specified BAR */
-#define FL_BASE_BARS		0x0008
-
-/* do not assign an irq */
-#define FL_NOIRQ		0x0080
-
-/* Use the Base address register size to cap number of ports */
-#define FL_REGION_SZ_CAP	0x0100
-
-struct pciserial_board {
-	unsigned int flags;
-	unsigned int num_ports;
-	unsigned int base_baud;
-	unsigned int uart_offset;
-	unsigned int reg_shift;
-	unsigned int first_offset;
-};
-
-struct serial_private;
-
-/*
  * init function returns:
  *  > 0 - number of ports
  *  = 0 - use board->num_ports
@@ -1528,6 +1496,137 @@ serial_pci_matches(struct pciserial_board *board,
 	    board->first_offset == guessed->first_offset;
 }
 
+struct serial_private *
+pciserial_init_ports(struct pci_dev *dev, struct pciserial_board *board)
+{
+	struct uart_port serial_port;
+	struct serial_private *priv;
+	struct pci_serial_quirk *quirk;
+	int rc, nr_ports, i;
+
+	nr_ports = board->num_ports;
+
+	/*
+	 * Find an init and setup quirks.
+	 */
+	quirk = find_quirk(dev);
+
+	/*
+	 * Run the new-style initialization function.
+	 * The initialization function returns:
+	 *  <0  - error
+	 *   0  - use board->num_ports
+	 *  >0  - number of ports
+	 */
+	if (quirk->init) {
+		rc = quirk->init(dev);
+		if (rc < 0) {
+			priv = ERR_PTR(rc);
+			goto err_out;
+		}
+		if (rc)
+			nr_ports = rc;
+	}
+
+	priv = kmalloc(sizeof(struct serial_private) +
+		       sizeof(unsigned int) * nr_ports,
+		       GFP_KERNEL);
+	if (!priv) {
+		priv = ERR_PTR(-ENOMEM);
+		goto err_deinit;
+	}
+
+	memset(priv, 0, sizeof(struct serial_private) +
+			sizeof(unsigned int) * nr_ports);
+
+	priv->dev = dev;
+	priv->quirk = quirk;
+
+	memset(&serial_port, 0, sizeof(struct uart_port));
+	serial_port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
+	serial_port.uartclk = board->base_baud * 16;
+	serial_port.irq = get_pci_irq(dev, board);
+	serial_port.dev = &dev->dev;
+
+	for (i = 0; i < nr_ports; i++) {
+		if (quirk->setup(priv, board, &serial_port, i))
+			break;
+
+#ifdef SERIAL_DEBUG_PCI
+		printk("Setup PCI port: port %x, irq %d, type %d\n",
+		       serial_port.iobase, serial_port.irq, serial_port.iotype);
+#endif
+		
+		priv->line[i] = serial8250_register_port(&serial_port);
+		if (priv->line[i] < 0) {
+			printk(KERN_WARNING "Couldn't register serial port %s: %d\n", pci_name(dev), priv->line[i]);
+			break;
+		}
+	}
+
+	priv->nr = i;
+
+	return priv;
+
+ err_deinit:
+	if (quirk->exit)
+		quirk->exit(dev);
+ err_out:
+	return priv;
+}
+EXPORT_SYMBOL_GPL(pciserial_init_ports);
+
+void pciserial_remove_ports(struct serial_private *priv)
+{
+	struct pci_serial_quirk *quirk;
+	int i;
+
+	for (i = 0; i < priv->nr; i++)
+		serial8250_unregister_port(priv->line[i]);
+
+	for (i = 0; i < PCI_NUM_BAR_RESOURCES; i++) {
+		if (priv->remapped_bar[i])
+			iounmap(priv->remapped_bar[i]);
+		priv->remapped_bar[i] = NULL;
+	}
+
+	/*
+	 * Find the exit quirks.
+	 */
+	quirk = find_quirk(priv->dev);
+	if (quirk->exit)
+		quirk->exit(priv->dev);
+
+	kfree(priv);
+}
+EXPORT_SYMBOL_GPL(pciserial_remove_ports);
+
+void pciserial_suspend_ports(struct serial_private *priv)
+{
+	int i;
+
+	for (i = 0; i < priv->nr; i++)
+		if (priv->line[i] >= 0)
+			serial8250_suspend_port(priv->line[i]);
+}
+EXPORT_SYMBOL_GPL(pciserial_suspend_ports);
+
+void pciserial_resume_ports(struct serial_private *priv)
+{
+	int i;
+
+	/*
+	 * Ensure that the board is correctly configured.
+	 */
+	if (priv->quirk->init)
+		priv->quirk->init(priv->dev);
+
+	for (i = 0; i < priv->nr; i++)
+		if (priv->line[i] >= 0)
+			serial8250_resume_port(priv->line[i]);
+}
+EXPORT_SYMBOL_GPL(pciserial_resume_ports);
+
 /*
  * Probe one serial board.  Unfortunately, there is no rhyme nor reason
  * to the arrangement of serial ports on a PCI card.
@@ -1535,11 +1634,9 @@ serial_pci_matches(struct pciserial_board *board,
 static int __devinit
 pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 {
-	struct uart_port serial_port;
 	struct serial_private *priv;
 	struct pciserial_board *board, tmp;
-	struct pci_serial_quirk *quirk;
-	int rc, nr_ports, i;
+	int rc;
 
 	if (ent->driver_data >= ARRAY_SIZE(pci_boards)) {
 		printk(KERN_ERR "pci_init_one: invalid driver_data: %ld\n",
@@ -1582,72 +1679,14 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 				    dev);
 	}
 
-	nr_ports = board->num_ports;
-
-	/*
-	 * Find an init and setup quirks.
-	 */
-	quirk = find_quirk(dev);
-
-	/*
-	 * Run the new-style initialization function.
-	 * The initialization function returns:
-	 *  <0  - error
-	 *   0  - use board->num_ports
-	 *  >0  - number of ports
-	 */
-	if (quirk->init) {
-		rc = quirk->init(dev);
-		if (rc < 0)
-			goto disable;
-		if (rc)
-			nr_ports = rc;
+	priv = pciserial_init_ports(dev, board);
+	if (!IS_ERR(priv)) {
+		pci_set_drvdata(dev, priv);
+		return 0;
 	}
 
-	priv = kmalloc(sizeof(struct serial_private) +
-		       sizeof(unsigned int) * nr_ports,
-		       GFP_KERNEL);
-	if (!priv) {
-		rc = -ENOMEM;
-		goto deinit;
-	}
+	rc = PTR_ERR(priv);
 
-	memset(priv, 0, sizeof(struct serial_private) +
-			sizeof(unsigned int) * nr_ports);
-
-	priv->dev = dev;
-	priv->quirk = quirk;
-	pci_set_drvdata(dev, priv);
-
-	memset(&serial_port, 0, sizeof(struct uart_port));
-	serial_port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
-	serial_port.uartclk = board->base_baud * 16;
-	serial_port.irq = get_pci_irq(dev, board);
-	serial_port.dev = &dev->dev;
-
-	for (i = 0; i < nr_ports; i++) {
-		if (quirk->setup(priv, board, &serial_port, i))
-			break;
-
-#ifdef SERIAL_DEBUG_PCI
-		printk("Setup PCI port: port %x, irq %d, type %d\n",
-		       serial_port.iobase, serial_port.irq, serial_port.iotype);
-#endif
-		
-		priv->line[i] = serial8250_register_port(&serial_port);
-		if (priv->line[i] < 0) {
-			printk(KERN_WARNING "Couldn't register serial port %s: %d\n", pci_name(dev), priv->line[i]);
-			break;
-		}
-	}
-
-	priv->nr = i;
-
-	return 0;
-
- deinit:
-	if (quirk->exit)
-		quirk->exit(dev);
  disable:
 	pci_disable_device(dev);
 	return rc;
@@ -1656,42 +1695,21 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 static void __devexit pciserial_remove_one(struct pci_dev *dev)
 {
 	struct serial_private *priv = pci_get_drvdata(dev);
-	struct pci_serial_quirk *quirk;
-	int i;
 
 	pci_set_drvdata(dev, NULL);
 
-	for (i = 0; i < priv->nr; i++)
-		serial8250_unregister_port(priv->line[i]);
-
-	for (i = 0; i < PCI_NUM_BAR_RESOURCES; i++) {
-		if (priv->remapped_bar[i])
-			iounmap(priv->remapped_bar[i]);
-		priv->remapped_bar[i] = NULL;
-	}
-
-	/*
-	 * Find the exit quirks.
-	 */
-	quirk = find_quirk(dev);
-	if (quirk->exit)
-		quirk->exit(dev);
+	pciserial_remove_ports(priv);
 
 	pci_disable_device(dev);
-
-	kfree(priv);
 }
 
 static int pciserial_suspend_one(struct pci_dev *dev, pm_message_t state)
 {
 	struct serial_private *priv = pci_get_drvdata(dev);
 
-	if (priv) {
-		int i;
+	if (priv)
+		pciserial_suspend_ports(priv);
 
-		for (i = 0; i < priv->nr; i++)
-			serial8250_suspend_port(priv->line[i]);
-	}
 	pci_save_state(dev);
 	pci_set_power_state(dev, pci_choose_state(dev, state));
 	return 0;
@@ -1705,21 +1723,12 @@ static int pciserial_resume_one(struct pci_dev *dev)
 	pci_restore_state(dev);
 
 	if (priv) {
-		int i;
-
 		/*
 		 * The device may have been disabled.  Re-enable it.
 		 */
 		pci_enable_device(dev);
 
-		/*
-		 * Ensure that the board is correctly configured.
-		 */
-		if (priv->quirk->init)
-			priv->quirk->init(dev);
-
-		for (i = 0; i < priv->nr; i++)
-			serial8250_resume_port(priv->line[i]);
+		pciserial_resume_ports(priv);
 	}
 	return 0;
 }
