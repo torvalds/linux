@@ -167,7 +167,7 @@ static irqreturn_t eurwdt_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	printk(KERN_CRIT "Would Reboot.\n");
 #else
 	printk(KERN_CRIT "Initiating system reboot.\n");
-	emergency_restart(NULL);
+	emergency_restart();
 #endif
 	return IRQ_HANDLED;
 }
