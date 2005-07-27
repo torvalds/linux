@@ -152,7 +152,7 @@ struct termios {
 #define  B921600   0010005
 #define  B1843200  0010006
 #define  B6250000  0010007
-/* etrax 200 supports this as well */
+/* ETRAX FS supports this as well */
 #define  B12500000 0010010
 #define CIBAUD	  002003600000	/* input baud rate (used in v32) */
 /* The values for CIBAUD bits are the same as the values for CBAUD and CBAUDEX
