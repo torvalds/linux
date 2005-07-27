@@ -393,6 +393,9 @@ static void __devexit sbs_exit(struct pci_dev *dev)
  *     - 10x cards have control registers in IO and/or memory space;
  *     - 20x cards have control registers in standard PCI configuration space.
  *
+ * Note: all 10x cards have PCI device ids 0x10..
+ *       all 20x cards have PCI device ids 0x20..
+ *
  * There are also Quartet Serial cards which use Oxford Semiconductor
  * 16954 quad UART PCI chip clocked by 18.432 MHz quartz.
  *
@@ -447,6 +450,19 @@ static int pci_siig20x_init(struct pci_dev *dev)
 		pci_write_config_byte(dev, 0x73, data & 0xef);
 	}
 	return 0;
+}
+
+static int pci_siig_init(struct pci_dev *dev)
+{
+	unsigned int type = dev->device & 0xff00;
+
+	if (type == 0x1000)
+		return pci_siig10x_init(dev);
+	else if (type == 0x2000)
+		return pci_siig20x_init(dev);
+
+	moan_device("Unknown SIIG card", dev);
+	return -ENODEV;
 }
 
 int pci_siig10x_fn(struct pci_dev *dev, int enable)
@@ -759,152 +775,15 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 		.setup		= sbs_setup,
 		.exit		= __devexit_p(sbs_exit),
 	},
-
 	/*
 	 * SIIG cards.
-	 *  It is not clear whether these could be collapsed.
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_1S_10x_550,
+		.device		= PCI_ANY_ID,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig10x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_1S_10x_650,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig10x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_1S_10x_850,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig10x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_2S_10x_550,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig10x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_2S_10x_650,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig10x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_2S_10x_850,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig10x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_4S_10x_550,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig10x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_4S_10x_650,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig10x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_4S_10x_850,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig10x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_1S_20x_550,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig20x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_1S_20x_650,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig20x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_1S_20x_850,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig20x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_2S_20x_550,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig20x_init,
-		.setup		= pci_default_setup,
-	},
-	{	.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_2S_20x_650,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig20x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_2S_20x_850,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig20x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_4S_20x_550,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig20x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_4S_20x_650,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig20x_init,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_SIIG,
-		.device		= PCI_DEVICE_ID_SIIG_4S_20x_850,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.init		= pci_siig20x_init,
+		.init		= pci_siig_init,
 		.setup		= pci_default_setup,
 	},
 	/*
