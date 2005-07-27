@@ -1,7 +1,5 @@
 /*
- * $Id: lgdt3302_priv.h,v 1.2 2005/06/28 23:50:48 mkrufky Exp $
- *
- *    Support for LGDT3302 (DViCO FustionHDTV 3 Gold) - VSB/QAM
+ *    Support for LGDT3302 & LGDT3303 (DViCO FustionHDTV Gold) - VSB/QAM
  *
  *    Copyright (C) 2005 Wilson Michaels <wilsonmichaels@earthlink.net>
  *
@@ -21,8 +19,8 @@
  *
  */
 
-#ifndef _LGDT3302_PRIV_
-#define _LGDT3302_PRIV_
+#ifndef _LGDT330X_PRIV_
+#define _LGDT330X_PRIV_
 
 /* i2c control register addresses */
 enum I2C_REG {
@@ -63,7 +61,7 @@ enum I2C_REG {
 	PACKET_ERR_COUNTER2= 0x6b,
 };
 
-#endif /* _LGDT3302_PRIV_ */
+#endif /* _LGDT330X_PRIV_ */
 
 /*
  * Local variables:

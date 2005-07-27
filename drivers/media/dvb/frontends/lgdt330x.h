@@ -1,5 +1,5 @@
 /*
- *    Support for LGDT3302 (DViCO FustionHDTV 3 Gold) - VSB/QAM
+ *    Support for LGDT3302 & LGDT3303 (DViCO FustionHDTV Gold) - VSB/QAM
  *
  *    Copyright (C) 2005 Wilson Michaels <wilsonmichaels@earthlink.net>
  *
@@ -19,12 +19,12 @@
  *
  */
 
-#ifndef LGDT3302_H
-#define LGDT3302_H
+#ifndef LGDT330X_H
+#define LGDT330X_H
 
 #include <linux/dvb/frontend.h>
 
-struct lgdt3302_config
+struct lgdt330x_config
 {
 	/* The demodulator's i2c address */
 	u8 demod_address;
@@ -37,10 +37,10 @@ struct lgdt3302_config
 	int (*set_ts_params)(struct dvb_frontend* fe, int is_punctured);
 };
 
-extern struct dvb_frontend* lgdt3302_attach(const struct lgdt3302_config* config,
+extern struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,
 					    struct i2c_adapter* i2c);
 
-#endif /* LGDT3302_H */
+#endif /* LGDT330X_H */
 
 /*
  * Local variables:

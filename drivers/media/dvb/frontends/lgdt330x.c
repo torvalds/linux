@@ -1,5 +1,5 @@
 /*
- *    Support for LGDT3302 (DViCO FustionHDTV 3 Gold) - VSB/QAM
+ *    Support for LGDT3302 & LGDT3303 (DViCO FusionHDTV Gold) - VSB/QAM
  *
  *    Copyright (C) 2005 Wilson Michaels <wilsonmichaels@earthlink.net>
  *
@@ -25,10 +25,11 @@
 /*
  *                      NOTES ABOUT THIS DRIVER
  *
- * This driver supports DViCO FusionHDTV 3 Gold under Linux.
+ * This driver supports DViCO FusionHDTV Gold under Linux.
  *
  * TODO:
  * BER and signal strength always return 0.
+ * Include support for LGDT3303
  *
  */
 
@@ -41,24 +42,24 @@
 
 #include "dvb_frontend.h"
 #include "dvb-pll.h"
-#include "lgdt3302_priv.h"
-#include "lgdt3302.h"
+#include "lgdt330x_priv.h"
+#include "lgdt330x.h"
 
 static int debug = 0;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug,"Turn on/off lgdt3302 frontend debugging (default:off).");
+MODULE_PARM_DESC(debug,"Turn on/off lgdt330x frontend debugging (default:off).");
 #define dprintk(args...) \
 do { \
-if (debug) printk(KERN_DEBUG "lgdt3302: " args); \
+if (debug) printk(KERN_DEBUG "lgdt330x: " args); \
 } while (0)
 
-struct lgdt3302_state
+struct lgdt330x_state
 {
 	struct i2c_adapter* i2c;
 	struct dvb_frontend_ops ops;
 
 	/* Configuration settings */
-	const struct lgdt3302_config* config;
+	const struct lgdt330x_config* config;
 
 	struct dvb_frontend frontend;
 
@@ -69,7 +70,7 @@ struct lgdt3302_state
 	u32 current_frequency;
 };
 
-static int i2c_writebytes (struct lgdt3302_state* state,
+static int i2c_writebytes (struct lgdt330x_state* state,
 			   u8 addr, /* demod_address or pll_address */
 			   u8 *buf, /* data bytes to send */
 			   int len  /* number of bytes to send */ )
@@ -83,7 +84,7 @@ static int i2c_writebytes (struct lgdt3302_state* state,
 	for (i=1; i<len; i++) {
 		tmp[1] = buf[i];
 		if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
-			printk(KERN_WARNING "lgdt3302: %s error (addr %02x <- %02x, err == %i)\n", __FUNCTION__, addr, buf[0], err);
+			printk(KERN_WARNING "lgdt330x: %s error (addr %02x <- %02x, err == %i)\n", __FUNCTION__, addr, buf[0], err);
 			if (err < 0)
 				return err;
 			else
@@ -95,7 +96,7 @@ static int i2c_writebytes (struct lgdt3302_state* state,
 }
 
 #if 0
-static int i2c_readbytes (struct lgdt3302_state* state,
+static int i2c_readbytes (struct lgdt330x_state* state,
 			  u8 addr, /* demod_address or pll_address */
 			  u8 *buf, /* holds data bytes read */
 			  int len  /* number of bytes to read */ )
@@ -105,7 +106,7 @@ static int i2c_readbytes (struct lgdt3302_state* state,
 	int err;
 
 	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
-		printk(KERN_WARNING "lgdt3302: %s error (addr %02x, err == %i)\n", __FUNCTION__, addr, err);
+		printk(KERN_WARNING "lgdt330x: %s error (addr %02x, err == %i)\n", __FUNCTION__, addr, err);
 		return -EREMOTEIO;
 	}
 	return 0;
@@ -117,7 +118,7 @@ static int i2c_readbytes (struct lgdt3302_state* state,
  * then reads the data returned for (len) bytes.
  */
 
-static u8 i2c_selectreadbytes (struct lgdt3302_state* state,
+static u8 i2c_selectreadbytes (struct lgdt330x_state* state,
 			       enum I2C_REG reg, u8* buf, int len)
 {
 	u8 wr [] = { reg };
@@ -130,7 +131,7 @@ static u8 i2c_selectreadbytes (struct lgdt3302_state* state,
 	int ret;
 	ret = i2c_transfer(state->i2c, msg, 2);
 	if (ret != 2) {
-		printk(KERN_WARNING "lgdt3302: %s: addr 0x%02x select 0x%02x error (ret == %i)\n", __FUNCTION__, state->config->demod_address, reg, ret);
+		printk(KERN_WARNING "lgdt330x: %s: addr 0x%02x select 0x%02x error (ret == %i)\n", __FUNCTION__, state->config->demod_address, reg, ret);
 	} else {
 		ret = 0;
 	}
@@ -138,7 +139,7 @@ static u8 i2c_selectreadbytes (struct lgdt3302_state* state,
 }
 
 /* Software reset */
-int lgdt3302_SwReset(struct lgdt3302_state* state)
+int lgdt330x_SwReset(struct lgdt330x_state* state)
 {
 	u8 ret;
 	u8 reset[] = {
@@ -164,7 +165,7 @@ int lgdt3302_SwReset(struct lgdt3302_state* state)
 	return ret;
 }
 
-static int lgdt3302_init(struct dvb_frontend* fe)
+static int lgdt330x_init(struct dvb_frontend* fe)
 {
 	/* Hardware reset is done using gpio[0] of cx23880x chip.
 	 * I'd like to do it here, but don't know how to find chip address.
@@ -173,18 +174,18 @@ static int lgdt3302_init(struct dvb_frontend* fe)
 	 * the caller of this function needs to do it. */
 
 	dprintk("%s entered\n", __FUNCTION__);
-	return lgdt3302_SwReset((struct lgdt3302_state*) fe->demodulator_priv);
+	return lgdt330x_SwReset((struct lgdt330x_state*) fe->demodulator_priv);
 }
 
-static int lgdt3302_read_ber(struct dvb_frontend* fe, u32* ber)
+static int lgdt330x_read_ber(struct dvb_frontend* fe, u32* ber)
 {
 	*ber = 0; /* Dummy out for now */
 	return 0;
 }
 
-static int lgdt3302_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
+static int lgdt330x_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 {
-	struct lgdt3302_state* state = (struct lgdt3302_state*) fe->demodulator_priv;
+	struct lgdt330x_state* state = (struct lgdt330x_state*) fe->demodulator_priv;
 	u8 buf[2];
 
 	i2c_selectreadbytes(state, PACKET_ERR_COUNTER1, buf, sizeof(buf));
@@ -193,11 +194,11 @@ static int lgdt3302_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int lgdt3302_set_parameters(struct dvb_frontend* fe,
+static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 				   struct dvb_frontend_parameters *param)
 {
-	struct lgdt3302_state* state =
-		(struct lgdt3302_state*) fe->demodulator_priv;
+	struct lgdt330x_state* state =
+		(struct lgdt330x_state*) fe->demodulator_priv;
 
 	/* Use 50MHz parameter values from spec sheet since xtal is 50 */
 	static u8 top_ctrl_cfg[]   = { TOP_CONTROL, 0x03 };
@@ -244,7 +245,7 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 				state->config->pll_rf_set(fe, 0);
 			break;
 		default:
-			printk(KERN_WARNING "lgdt3302: %s: Modulation type(%d) UNSUPPORTED\n", __FUNCTION__, param->u.vsb.modulation);
+			printk(KERN_WARNING "lgdt330x: %s: Modulation type(%d) UNSUPPORTED\n", __FUNCTION__, param->u.vsb.modulation);
 			return -1;
 		}
 		/* Initializations common to all modes */
@@ -291,19 +292,17 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 	/* Change only if we are actually changing the channel */
 	if (state->current_frequency != param->frequency) {
 		u8 buf[5];
-
-		/* This must be done before the initialized msg is declared */
-		state->config->pll_set(fe, param, buf);
-
-		struct i2c_msg msg =
-			{ .addr = buf[0], .flags = 0, .buf = &buf[1], .len = 4 };
+		struct i2c_msg msg = { .flags = 0, .buf = &buf[1], .len = 4 };
 		int err;
+
+		state->config->pll_set(fe, param, buf);
+		msg.addr = buf[0];
 
 		dprintk("%s: tuner at 0x%02x bytes: 0x%02x 0x%02x "
 			"0x%02x 0x%02x\n", __FUNCTION__,
 			buf[0],buf[1],buf[2],buf[3],buf[4]);
 		if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
-			printk(KERN_WARNING "lgdt3302: %s error (addr %02x <- %02x, err = %i)\n", __FUNCTION__, buf[0], buf[1], err);
+			printk(KERN_WARNING "lgdt330x: %s error (addr %02x <- %02x, err = %i)\n", __FUNCTION__, buf[0], buf[1], err);
 			if (err < 0)
 				return err;
 			else
@@ -317,21 +316,21 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 		/* Update current frequency */
 		state->current_frequency = param->frequency;
 	}
-	lgdt3302_SwReset(state);
+	lgdt330x_SwReset(state);
 	return 0;
 }
 
-static int lgdt3302_get_frontend(struct dvb_frontend* fe,
+static int lgdt330x_get_frontend(struct dvb_frontend* fe,
 				 struct dvb_frontend_parameters* param)
 {
-	struct lgdt3302_state *state = fe->demodulator_priv;
+	struct lgdt330x_state *state = fe->demodulator_priv;
 	param->frequency = state->current_frequency;
 	return 0;
 }
 
-static int lgdt3302_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int lgdt330x_read_status(struct dvb_frontend* fe, fe_status_t* status)
 {
-	struct lgdt3302_state* state = (struct lgdt3302_state*) fe->demodulator_priv;
+	struct lgdt330x_state* state = (struct lgdt330x_state*) fe->demodulator_priv;
 	u8 buf[3];
 
 	*status = 0; /* Reset status result */
@@ -391,19 +390,19 @@ static int lgdt3302_read_status(struct dvb_frontend* fe, fe_status_t* status)
 			*status |= FE_HAS_CARRIER;
 		break;
 	default:
-		printk("KERN_WARNING lgdt3302: %s: Modulation set to unsupported value\n", __FUNCTION__);
+		printk("KERN_WARNING lgdt330x: %s: Modulation set to unsupported value\n", __FUNCTION__);
 	}
 
 	return 0;
 }
 
-static int lgdt3302_read_signal_strength(struct dvb_frontend* fe, u16* strength)
+static int lgdt330x_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 {
 	/* not directly available. */
 	return 0;
 }
 
-static int lgdt3302_read_snr(struct dvb_frontend* fe, u16* snr)
+static int lgdt330x_read_snr(struct dvb_frontend* fe, u16* snr)
 {
 #ifdef SNR_IN_DB
 	/*
@@ -458,7 +457,7 @@ static int lgdt3302_read_snr(struct dvb_frontend* fe, u16* snr)
 	static u8 buf[5];/* read data buffer */
 	static u32 noise;   /* noise value */
 	static u32 snr_db;  /* index into SNR_EQ[] */
-	struct lgdt3302_state* state = (struct lgdt3302_state*) fe->demodulator_priv;
+	struct lgdt330x_state* state = (struct lgdt330x_state*) fe->demodulator_priv;
 
 	/* read both equalizer and pase tracker noise data */
 	i2c_selectreadbytes(state, EQPH_ERR0, buf, sizeof(buf));
@@ -494,7 +493,7 @@ static int lgdt3302_read_snr(struct dvb_frontend* fe, u16* snr)
 	/* Return the raw noise value */
 	static u8 buf[5];/* read data buffer */
 	static u32 noise;   /* noise value */
-	struct lgdt3302_state* state = (struct lgdt3302_state*) fe->demodulator_priv;
+	struct lgdt330x_state* state = (struct lgdt330x_state*) fe->demodulator_priv;
 
 	/* read both equalizer and pase tracker noise data */
 	i2c_selectreadbytes(state, EQPH_ERR0, buf, sizeof(buf));
@@ -517,7 +516,7 @@ static int lgdt3302_read_snr(struct dvb_frontend* fe, u16* snr)
 	return 0;
 }
 
-static int lgdt3302_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fe_tune_settings)
+static int lgdt330x_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fe_tune_settings)
 {
 	/* I have no idea about this - it may not be needed */
 	fe_tune_settings->min_delay_ms = 500;
@@ -526,22 +525,22 @@ static int lgdt3302_get_tune_settings(struct dvb_frontend* fe, struct dvb_fronte
 	return 0;
 }
 
-static void lgdt3302_release(struct dvb_frontend* fe)
+static void lgdt330x_release(struct dvb_frontend* fe)
 {
-	struct lgdt3302_state* state = (struct lgdt3302_state*) fe->demodulator_priv;
+	struct lgdt330x_state* state = (struct lgdt330x_state*) fe->demodulator_priv;
 	kfree(state);
 }
 
-static struct dvb_frontend_ops lgdt3302_ops;
+static struct dvb_frontend_ops lgdt330x_ops;
 
-struct dvb_frontend* lgdt3302_attach(const struct lgdt3302_config* config,
+struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,
 				     struct i2c_adapter* i2c)
 {
-	struct lgdt3302_state* state = NULL;
+	struct lgdt330x_state* state = NULL;
 	u8 buf[1];
 
 	/* Allocate memory for the internal state */
-	state = (struct lgdt3302_state*) kmalloc(sizeof(struct lgdt3302_state), GFP_KERNEL);
+	state = (struct lgdt330x_state*) kmalloc(sizeof(struct lgdt330x_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 	memset(state,0,sizeof(*state));
@@ -549,7 +548,7 @@ struct dvb_frontend* lgdt3302_attach(const struct lgdt3302_config* config,
 	/* Setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &lgdt3302_ops, sizeof(struct dvb_frontend_ops));
+	memcpy(&state->ops, &lgdt330x_ops, sizeof(struct dvb_frontend_ops));
 	/* Verify communication with demod chip */
 	if (i2c_selectreadbytes(state, 2, buf, 1))
 		goto error;
@@ -569,9 +568,9 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops lgdt3302_ops = {
+static struct dvb_frontend_ops lgdt330x_ops = {
 	.info = {
-		.name= "LG Electronics LGDT3302 VSB/QAM Frontend",
+		.name= "LG Electronics lgdt330x VSB/QAM Frontend",
 		.type = FE_ATSC,
 		.frequency_min= 54000000,
 		.frequency_max= 858000000,
@@ -581,23 +580,23 @@ static struct dvb_frontend_ops lgdt3302_ops = {
 		.symbol_rate_max    = 10762000,
 		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
-	.init                 = lgdt3302_init,
-	.set_frontend         = lgdt3302_set_parameters,
-	.get_frontend         = lgdt3302_get_frontend,
-	.get_tune_settings    = lgdt3302_get_tune_settings,
-	.read_status          = lgdt3302_read_status,
-	.read_ber             = lgdt3302_read_ber,
-	.read_signal_strength = lgdt3302_read_signal_strength,
-	.read_snr             = lgdt3302_read_snr,
-	.read_ucblocks        = lgdt3302_read_ucblocks,
-	.release              = lgdt3302_release,
+	.init                 = lgdt330x_init,
+	.set_frontend         = lgdt330x_set_parameters,
+	.get_frontend         = lgdt330x_get_frontend,
+	.get_tune_settings    = lgdt330x_get_tune_settings,
+	.read_status          = lgdt330x_read_status,
+	.read_ber             = lgdt330x_read_ber,
+	.read_signal_strength = lgdt330x_read_signal_strength,
+	.read_snr             = lgdt330x_read_snr,
+	.read_ucblocks        = lgdt330x_read_ucblocks,
+	.release              = lgdt330x_release,
 };
 
-MODULE_DESCRIPTION("LGDT3302 [DViCO FusionHDTV 3 Gold] (ATSC 8VSB & ITU-T J.83 AnnexB 64/256 QAM) Demodulator Driver");
+MODULE_DESCRIPTION("lgdt330x [DViCO FusionHDTV 3 Gold] (ATSC 8VSB & ITU-T J.83 AnnexB 64/256 QAM) Demodulator Driver");
 MODULE_AUTHOR("Wilson Michaels");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(lgdt3302_attach);
+EXPORT_SYMBOL(lgdt330x_attach);
 
 /*
  * Local variables:
