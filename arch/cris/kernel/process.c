@@ -1,4 +1,4 @@
-/* $Id: process.c,v 1.17 2004/04/05 13:53:48 starvik Exp $
+/* $Id: process.c,v 1.21 2005/03/04 08:16:17 starvik Exp $
  * 
  *  linux/arch/cris/kernel/process.c
  *
@@ -8,6 +8,18 @@
  *  Authors:   Bjorn Wesen (bjornw@axis.com)
  *
  *  $Log: process.c,v $
+ *  Revision 1.21  2005/03/04 08:16:17  starvik
+ *  Merge of Linux 2.6.11.
+ *
+ *  Revision 1.20  2005/01/18 05:57:22  starvik
+ *  Renamed hlt_counter to cris_hlt_counter and made it global.
+ *
+ *  Revision 1.19  2004/10/19 13:07:43  starvik
+ *  Merge of Linux 2.6.9
+ *
+ *  Revision 1.18  2004/08/16 12:37:23  starvik
+ *  Merge of Linux 2.6.8
+ *
  *  Revision 1.17  2004/04/05 13:53:48  starvik
  *  Merge of Linux 2.6.5
  *
@@ -161,18 +173,18 @@ EXPORT_SYMBOL(init_task);
  * region by enable_hlt/disable_hlt.
  */
 
-static int hlt_counter=0;
+int cris_hlt_counter=0;
 
 void disable_hlt(void)
 {
-	hlt_counter++;
+	cris_hlt_counter++;
 }
 
 EXPORT_SYMBOL(disable_hlt);
 
 void enable_hlt(void)
 {
-	hlt_counter--;
+	cris_hlt_counter--;
 }
 
 EXPORT_SYMBOL(enable_hlt);
@@ -195,16 +207,19 @@ void cpu_idle (void)
 	/* endless idle loop with no priority at all */
 	while (1) {
 		while (!need_resched()) {
-			void (*idle)(void) = pm_idle;
-
+			void (*idle)(void);
+			/*
+			 * Mark this as an RCU critical section so that
+			 * synchronize_kernel() in the unload path waits
+			 * for our completion.
+			 */
+			idle = pm_idle;
 			if (!idle)
 				idle = default_idle;
-
 			idle();
 		}
 		schedule();
 	}
-
 }
 
 void hard_reset_now (void);
