@@ -113,7 +113,7 @@ struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, struct ib_wc *wc,
 			return ERR_PTR(ret);
 
 		ah_attr.grh.sgid_index = (u8) gid_index;
-		flow_class = be32_to_cpu(&grh->version_tclass_flow);
+		flow_class = be32_to_cpu(grh->version_tclass_flow);
 		ah_attr.grh.flow_label = flow_class & 0xFFFFF;
 		ah_attr.grh.traffic_class = (flow_class >> 20) & 0xFF;
 		ah_attr.grh.hop_limit = grh->hop_limit;

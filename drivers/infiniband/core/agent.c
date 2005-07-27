@@ -156,10 +156,10 @@ static int agent_mad_send(struct ib_mad_agent *mad_agent,
 			/* Should sgid be looked up ? */
 			ah_attr.grh.sgid_index = 0;
 			ah_attr.grh.hop_limit = grh->hop_limit;
-			ah_attr.grh.flow_label = be32_to_cpup(
-				&grh->version_tclass_flow)  & 0xfffff;
-			ah_attr.grh.traffic_class = (be32_to_cpup(
-				&grh->version_tclass_flow) >> 20) & 0xff;
+			ah_attr.grh.flow_label = be32_to_cpu(
+				grh->version_tclass_flow)  & 0xfffff;
+			ah_attr.grh.traffic_class = (be32_to_cpu(
+				grh->version_tclass_flow) >> 20) & 0xff;
 			memcpy(ah_attr.grh.dgid.raw,
 			       grh->sgid.raw,
 			       sizeof(ah_attr.grh.dgid));
