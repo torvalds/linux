@@ -841,6 +841,7 @@ static int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 {
 	struct ib_mad_qp_info *qp_info;
 	struct ib_send_wr *bad_send_wr;
+	struct list_head *list;
 	unsigned long flags;
 	int ret;
 
@@ -850,22 +851,20 @@ static int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 	mad_send_wr->mad_list.mad_queue = &qp_info->send_queue;
 
 	spin_lock_irqsave(&qp_info->send_queue.lock, flags);
-	if (qp_info->send_queue.count++ < qp_info->send_queue.max_active) {
-		list_add_tail(&mad_send_wr->mad_list.list,
-			      &qp_info->send_queue.list);
-		spin_unlock_irqrestore(&qp_info->send_queue.lock, flags);
+	if (qp_info->send_queue.count < qp_info->send_queue.max_active) {
 		ret = ib_post_send(mad_send_wr->mad_agent_priv->agent.qp,
 				   &mad_send_wr->send_wr, &bad_send_wr);
-		if (ret) {
-			printk(KERN_ERR PFX "ib_post_send failed: %d\n", ret);
-			dequeue_mad(&mad_send_wr->mad_list);
-		}
+		list = &qp_info->send_queue.list;
 	} else {
-		list_add_tail(&mad_send_wr->mad_list.list,
-			      &qp_info->overflow_list);
-		spin_unlock_irqrestore(&qp_info->send_queue.lock, flags);
 		ret = 0;
+		list = &qp_info->overflow_list;
 	}
+
+	if (!ret) {
+		qp_info->send_queue.count++;
+		list_add_tail(&mad_send_wr->mad_list.list, list);
+	}
+	spin_unlock_irqrestore(&qp_info->send_queue.lock, flags);
 	return ret;
 }
 
@@ -2023,8 +2022,7 @@ static void cancel_mads(struct ib_mad_agent_private *mad_agent_priv)
 }
 
 static struct ib_mad_send_wr_private*
-find_send_by_wr_id(struct ib_mad_agent_private *mad_agent_priv,
-		   u64 wr_id)
+find_send_by_wr_id(struct ib_mad_agent_private *mad_agent_priv, u64 wr_id)
 {
 	struct ib_mad_send_wr_private *mad_send_wr;
 
@@ -2047,6 +2045,7 @@ int ib_modify_mad(struct ib_mad_agent *mad_agent, u64 wr_id, u32 timeout_ms)
 	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_mad_send_wr_private *mad_send_wr;
 	unsigned long flags;
+	int active;
 
 	mad_agent_priv = container_of(mad_agent, struct ib_mad_agent_private,
 				      agent);
@@ -2057,13 +2056,14 @@ int ib_modify_mad(struct ib_mad_agent *mad_agent, u64 wr_id, u32 timeout_ms)
 		return -EINVAL;
 	}
 
+	active = (!mad_send_wr->timeout || mad_send_wr->refcount > 1);
 	if (!timeout_ms) {
 		mad_send_wr->status = IB_WC_WR_FLUSH_ERR;
 		mad_send_wr->refcount -= (mad_send_wr->timeout > 0);
 	}
 
 	mad_send_wr->send_wr.wr.ud.timeout_ms = timeout_ms;
-	if (!mad_send_wr->timeout || mad_send_wr->refcount > 1)
+	if (active)
 		mad_send_wr->timeout = msecs_to_jiffies(timeout_ms);
 	else
 		ib_reset_mad_timeout(mad_send_wr, timeout_ms);
