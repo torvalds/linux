@@ -38,17 +38,17 @@
 #include "cx88.h"
 #include "dvb-pll.h"
 
-#if CONFIG_DVB_MT352
+#ifdef CONFIG_DVB_MT352
 # include "mt352.h"
 # include "mt352_priv.h"
 #endif
-#if CONFIG_DVB_CX22702
+#ifdef CONFIG_DVB_CX22702
 # include "cx22702.h"
 #endif
-#if CONFIG_DVB_OR51132
+#ifdef CONFIG_DVB_OR51132
 # include "or51132.h"
 #endif
-#if CONFIG_DVB_LGDT3302
+#ifdef CONFIG_DVB_LGDT3302
 # include "lgdt3302.h"
 #endif
 
@@ -107,7 +107,7 @@ static struct videobuf_queue_ops dvb_qops = {
 
 /* ------------------------------------------------------------------ */
 
-#if CONFIG_DVB_MT352
+#ifdef CONFIG_DVB_MT352
 static int dvico_fusionhdtv_demod_init(struct dvb_frontend* fe)
 {
 	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x39 };
@@ -177,7 +177,7 @@ static struct mt352_config dntv_live_dvbt_config = {
 };
 #endif
 
-#if CONFIG_DVB_CX22702
+#ifdef CONFIG_DVB_CX22702
 static struct cx22702_config connexant_refboard_config = {
 	.demod_address = 0x43,
 	.output_mode   = CX22702_SERIAL_OUTPUT,
@@ -193,7 +193,7 @@ static struct cx22702_config hauppauge_novat_config = {
 };
 #endif
 
-#if CONFIG_DVB_OR51132
+#ifdef CONFIG_DVB_OR51132
 static int or51132_set_ts_param(struct dvb_frontend* fe,
 				int is_punctured)
 {
@@ -210,7 +210,7 @@ static struct or51132_config pchdtv_hd3000 = {
 };
 #endif
 
-#if CONFIG_DVB_LGDT3302
+#ifdef CONFIG_DVB_LGDT3302
 static int lgdt3302_pll_set(struct dvb_frontend* fe,
 			    struct dvb_frontend_parameters* params,
 			    u8* pllbuf)
@@ -261,7 +261,7 @@ static int dvb_register(struct cx8802_dev *dev)
 
 	/* init frontend */
 	switch (dev->core->board) {
-#if CONFIG_DVB_CX22702
+#ifdef CONFIG_DVB_CX22702
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
 		dev->dvb.frontend = cx22702_attach(&hauppauge_novat_config,
 						   &dev->core->i2c_adap);
@@ -272,7 +272,7 @@ static int dvb_register(struct cx8802_dev *dev)
 						   &dev->core->i2c_adap);
 		break;
 #endif
-#if CONFIG_DVB_MT352
+#ifdef CONFIG_DVB_MT352
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 		dev->core->pll_addr = 0x61;
 		dev->core->pll_desc = &dvb_pll_lg_z201;
@@ -294,13 +294,13 @@ static int dvb_register(struct cx8802_dev *dev)
 						 &dev->core->i2c_adap);
 		break;
 #endif
-#if CONFIG_DVB_OR51132
+#ifdef CONFIG_DVB_OR51132
 	case CX88_BOARD_PCHDTV_HD3000:
 		dev->dvb.frontend = or51132_attach(&pchdtv_hd3000,
 						 &dev->core->i2c_adap);
 		break;
 #endif
-#if CONFIG_DVB_LGDT3302
+#ifdef CONFIG_DVB_LGDT3302
 	case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q:
 		dev->ts_gen_cntrl = 0x08;
 		{
