@@ -57,10 +57,36 @@ void w1_netlink_send(struct w1_master *dev, struct w1_netlink_msg *msg)
 nlmsg_failure:
 	return;
 }
+
+int dev_init_netlink(struct w1_master *dev)
+{
+	dev->nls = netlink_kernel_create(NETLINK_W1, 1, NULL, THIS_MODULE);
+	if (!dev->nls) {
+		printk(KERN_ERR "Failed to create new netlink socket(%u) for w1 master %s.\n",
+			NETLINK_W1, dev->dev.bus_id);
+	}
+
+	return 0;
+}
+
+void dev_fini_netlink(struct w1_master *dev)
+{
+	if (dev->nls && dev->nls->sk_socket)
+		sock_release(dev->nls->sk_socket);
+}
 #else
 #warning Netlink support is disabled. Please compile with NET support enabled.
 
 void w1_netlink_send(struct w1_master *dev, struct w1_netlink_msg *msg)
+{
+}
+
+int dev_init_netlink(struct w1_master *dev)
+{
+	return 0;
+}
+
+void dev_fini_netlink(struct w1_master *dev)
 {
 }
 #endif
