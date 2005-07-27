@@ -77,7 +77,6 @@ struct ib_sa_sm_ah {
 
 struct ib_sa_port {
 	struct ib_mad_agent *agent;
-	struct ib_mr        *mr;
 	struct ib_sa_sm_ah  *sm_ah;
 	struct work_struct   update_task;
 	spinlock_t           ah_lock;
@@ -492,7 +491,7 @@ retry:
 					    sizeof (struct ib_sa_mad),
 					    DMA_TO_DEVICE);
 	gather_list.length = sizeof (struct ib_sa_mad);
-	gather_list.lkey   = port->mr->lkey;
+	gather_list.lkey   = port->agent->mr->lkey;
 	pci_unmap_addr_set(query, mapping, gather_list.addr);
 
 	ret = ib_post_send_mad(port->agent, &wr, &bad_wr);
@@ -780,7 +779,6 @@ static void ib_sa_add_one(struct ib_device *device)
 	sa_dev->end_port   = e;
 
 	for (i = 0; i <= e - s; ++i) {
-		sa_dev->port[i].mr       = NULL;
 		sa_dev->port[i].sm_ah    = NULL;
 		sa_dev->port[i].port_num = i + s;
 		spin_lock_init(&sa_dev->port[i].ah_lock);
@@ -791,13 +789,6 @@ static void ib_sa_add_one(struct ib_device *device)
 					      recv_handler, sa_dev);
 		if (IS_ERR(sa_dev->port[i].agent))
 			goto err;
-
-		sa_dev->port[i].mr = ib_get_dma_mr(sa_dev->port[i].agent->qp->pd,
-						   IB_ACCESS_LOCAL_WRITE);
-		if (IS_ERR(sa_dev->port[i].mr)) {
-			ib_unregister_mad_agent(sa_dev->port[i].agent);
-			goto err;
-		}
 
 		INIT_WORK(&sa_dev->port[i].update_task,
 			  update_sm_ah, &sa_dev->port[i]);
@@ -822,10 +813,8 @@ static void ib_sa_add_one(struct ib_device *device)
 	return;
 
 err:
-	while (--i >= 0) {
-		ib_dereg_mr(sa_dev->port[i].mr);
+	while (--i >= 0)
 		ib_unregister_mad_agent(sa_dev->port[i].agent);
-	}
 
 	kfree(sa_dev);
 

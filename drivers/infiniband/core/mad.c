@@ -261,19 +261,26 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 		ret = ERR_PTR(-ENOMEM);
 		goto error1;
 	}
+	memset(mad_agent_priv, 0, sizeof *mad_agent_priv);
+
+	mad_agent_priv->agent.mr = ib_get_dma_mr(port_priv->qp_info[qpn].qp->pd,
+						 IB_ACCESS_LOCAL_WRITE);
+	if (IS_ERR(mad_agent_priv->agent.mr)) {
+		ret = ERR_PTR(-ENOMEM);
+		goto error2;
+	}
 
 	if (mad_reg_req) {
 		reg_req = kmalloc(sizeof *reg_req, GFP_KERNEL);
 		if (!reg_req) {
 			ret = ERR_PTR(-ENOMEM);
-			goto error2;
+			goto error3;
 		}
 		/* Make a copy of the MAD registration request */
 		memcpy(reg_req, mad_reg_req, sizeof *reg_req);
 	}
 
 	/* Now, fill in the various structures */
-	memset(mad_agent_priv, 0, sizeof *mad_agent_priv);
 	mad_agent_priv->qp_info = &port_priv->qp_info[qpn];
 	mad_agent_priv->reg_req = reg_req;
 	mad_agent_priv->rmpp_version = rmpp_version;
@@ -301,7 +308,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 				if (method) {
 					if (method_in_use(&method,
 							   mad_reg_req))
-						goto error3;
+						goto error4;
 				}
 			}
 			ret2 = add_nonoui_reg_req(mad_reg_req, mad_agent_priv,
@@ -317,14 +324,14 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 					if (is_vendor_method_in_use(
 							vendor_class,
 							mad_reg_req))
-						goto error3;
+						goto error4;
 				}
 			}
 			ret2 = add_oui_reg_req(mad_reg_req, mad_agent_priv);
 		}
 		if (ret2) {
 			ret = ERR_PTR(ret2);
-			goto error3;
+			goto error4;
 		}
 	}
 
@@ -346,11 +353,13 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 
 	return &mad_agent_priv->agent;
 
-error3:
+error4:
 	spin_unlock_irqrestore(&port_priv->reg_lock, flags);
 	kfree(reg_req);
-error2:
+error3:
 	kfree(mad_agent_priv);
+error2:
+	ib_dereg_mr(mad_agent_priv->agent.mr);
 error1:
 	return ret;
 }
@@ -487,18 +496,15 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 	 * MADs, preventing us from queuing additional work
 	 */
 	cancel_mads(mad_agent_priv);
-
 	port_priv = mad_agent_priv->qp_info->port_priv;
-
 	cancel_delayed_work(&mad_agent_priv->timed_work);
-	flush_workqueue(port_priv->wq);
 
 	spin_lock_irqsave(&port_priv->reg_lock, flags);
 	remove_mad_reg_req(mad_agent_priv);
 	list_del(&mad_agent_priv->agent_list);
 	spin_unlock_irqrestore(&port_priv->reg_lock, flags);
 
-	/* XXX: Cleanup pending RMPP receives for this agent */
+	flush_workqueue(port_priv->wq);
 
 	atomic_dec(&mad_agent_priv->refcount);
 	wait_event(mad_agent_priv->wait,
@@ -506,6 +512,7 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 
 	if (mad_agent_priv->reg_req)
 		kfree(mad_agent_priv->reg_req);
+	ib_dereg_mr(mad_agent_priv->agent.mr);
 	kfree(mad_agent_priv);
 }
 
@@ -750,7 +757,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	list_add_tail(&local->completion_list, &mad_agent_priv->local_list);
 	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 	queue_work(mad_agent_priv->qp_info->port_priv->wq,
-		  &mad_agent_priv->local_work);
+		   &mad_agent_priv->local_work);
 	ret = 1;
 out:
 	return ret;
