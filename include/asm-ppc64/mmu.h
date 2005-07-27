@@ -338,6 +338,9 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea)
 			     | (ea >> SID_SHIFT));
 }
 
+#define VSID_SCRAMBLE(pvsid)	(((pvsid) * VSID_MULTIPLIER) % VSID_MODULUS)
+#define KERNEL_VSID(ea)		VSID_SCRAMBLE(GET_ESID(ea))
+
 #endif /* __ASSEMBLY */
 
 #endif /* _PPC64_MMU_H_ */
