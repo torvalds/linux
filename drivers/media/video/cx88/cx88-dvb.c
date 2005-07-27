@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-dvb.c,v 1.48 2005/07/20 05:33:33 mkrufky Exp $
+ * $Id: cx88-dvb.c,v 1.49 2005/07/20 05:38:09 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
@@ -328,7 +328,7 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		cx_clear(MO_GP0_IO, 1);
 		mdelay(100);
-		cx_set(MO_GP0_IO, 9); /* ANT connector too FIXME */
+		cx_set(MO_GP0_IO, 9);
 		mdelay(200);
 		dev->core->pll_addr = 0x61;
 		dev->core->pll_desc = &dvb_pll_thomson_dtt7611;
