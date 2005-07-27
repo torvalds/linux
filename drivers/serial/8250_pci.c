@@ -54,7 +54,7 @@
 /* Use the Base address register size to cap number of ports */
 #define FL_REGION_SZ_CAP	0x0100
 
-struct pci_board {
+struct pciserial_board {
 	unsigned int flags;
 	unsigned int num_ports;
 	unsigned int base_baud;
@@ -75,7 +75,7 @@ struct pci_serial_quirk {
 	u32	subvendor;
 	u32	subdevice;
 	int	(*init)(struct pci_dev *dev);
-	int	(*setup)(struct pci_dev *dev, struct pci_board *board,
+	int	(*setup)(struct pci_dev *dev, struct pciserial_board *,
 			 struct uart_port *port, int idx);
 	void	(*exit)(struct pci_dev *dev);
 };
@@ -136,7 +136,7 @@ setup_port(struct pci_dev *dev, struct uart_port *port,
  * Not that ugly ;) -- HW
  */
 static int
-afavlab_setup(struct pci_dev *dev, struct pci_board *board,
+afavlab_setup(struct pci_dev *dev, struct pciserial_board *board,
 	      struct uart_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset;
@@ -189,7 +189,7 @@ static int __devinit pci_hp_diva_init(struct pci_dev *dev)
  * some serial ports are supposed to be hidden on certain models.
  */
 static int
-pci_hp_diva_setup(struct pci_dev *dev, struct pci_board *board,
+pci_hp_diva_setup(struct pci_dev *dev, struct pciserial_board *board,
 	      struct uart_port *port, int idx)
 {
 	unsigned int offset = board->first_offset;
@@ -307,7 +307,7 @@ static void __devexit pci_plx9050_exit(struct pci_dev *dev)
 
 /* SBS Technologies Inc. PMC-OCTPRO and P-OCTAL cards */
 static int
-sbs_setup(struct pci_dev *dev, struct pci_board *board,
+sbs_setup(struct pci_dev *dev, struct pciserial_board *board,
 		struct uart_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset;
@@ -523,7 +523,7 @@ static int __devinit pci_timedia_init(struct pci_dev *dev)
  * Ugh, this is ugly as all hell --- TYT
  */
 static int
-pci_timedia_setup(struct pci_dev *dev, struct pci_board *board,
+pci_timedia_setup(struct pci_dev *dev, struct pciserial_board *board,
 		  struct uart_port *port, int idx)
 {
 	unsigned int bar = 0, offset = board->first_offset;
@@ -556,7 +556,8 @@ pci_timedia_setup(struct pci_dev *dev, struct pci_board *board,
  * Some Titan cards are also a little weird
  */
 static int
-titan_400l_800l_setup(struct pci_dev *dev, struct pci_board *board,
+titan_400l_800l_setup(struct pci_dev *dev,
+		      struct pciserial_board *board,
 		      struct uart_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset;
@@ -593,7 +594,7 @@ static int __devinit pci_netmos_init(struct pci_dev *dev)
 }
 
 static int
-pci_default_setup(struct pci_dev *dev, struct pci_board *board,
+pci_default_setup(struct pci_dev *dev, struct pciserial_board *board,
 		  struct uart_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset, maxnr;
@@ -990,7 +991,7 @@ static struct pci_serial_quirk *find_quirk(struct pci_dev *dev)
 }
 
 static _INLINE_ int
-get_pci_irq(struct pci_dev *dev, struct pci_board *board, int idx)
+get_pci_irq(struct pci_dev *dev, struct pciserial_board *board, int idx)
 {
 	if (board->flags & FL_NOIRQ)
 		return 0;
@@ -1113,7 +1114,7 @@ enum pci_board_num_t {
  * see first lines of serial_in() and serial_out() in 8250.c
 */
 
-static struct pci_board pci_boards[] __devinitdata = {
+static struct pciserial_board pci_boards[] __devinitdata = {
 	[pbn_default] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 1,
@@ -1565,7 +1566,7 @@ static struct pci_board pci_boards[] __devinitdata = {
  * serial specs.  Returns 0 on success, 1 on failure.
  */
 static int __devinit
-serial_pci_guess_board(struct pci_dev *dev, struct pci_board *board)
+serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 {
 	int num_iomem, num_port, first_port = -1, i;
 	
@@ -1630,7 +1631,8 @@ serial_pci_guess_board(struct pci_dev *dev, struct pci_board *board)
 }
 
 static inline int
-serial_pci_matches(struct pci_board *board, struct pci_board *guessed)
+serial_pci_matches(struct pciserial_board *board,
+		   struct pciserial_board *guessed)
 {
 	return
 	    board->num_ports == guessed->num_ports &&
@@ -1648,7 +1650,7 @@ static int __devinit
 pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct serial_private *priv;
-	struct pci_board *board, tmp;
+	struct pciserial_board *board, tmp;
 	struct pci_serial_quirk *quirk;
 	int rc, nr_ports, i;
 
@@ -1669,7 +1671,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 		 * Use a copy of the pci_board entry for this;
 		 * avoid changing entries in the table.
 		 */
-		memcpy(&tmp, board, sizeof(struct pci_board));
+		memcpy(&tmp, board, sizeof(struct pciserial_board));
 		board = &tmp;
 
 		/*
@@ -1685,7 +1687,8 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 		 * detect this boards settings with our heuristic,
 		 * then we no longer need this entry.
 		 */
-		memcpy(&tmp, &pci_boards[pbn_default], sizeof(struct pci_board));
+		memcpy(&tmp, &pci_boards[pbn_default],
+		       sizeof(struct pciserial_board));
 		rc = serial_pci_guess_board(dev, &tmp);
 		if (rc == 0 && serial_pci_matches(board, &tmp))
 			moan_device("Redundant entry in serial pci_table.",
