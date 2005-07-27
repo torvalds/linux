@@ -1994,6 +1994,8 @@ static void cancel_mads(struct ib_mad_agent_private *mad_agent_priv)
 
 	/* Empty wait list to prevent receives from finding a request */
 	list_splice_init(&mad_agent_priv->wait_list, &cancel_list);
+	/* Empty local completion list as well */
+	list_splice_init(&mad_agent_priv->local_list, &cancel_list);
 	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 
 	/* Report all cancelled requests */
@@ -2108,6 +2110,7 @@ static void local_completions(void *data)
 	struct ib_mad_local_private *local;
 	struct ib_mad_agent_private *recv_mad_agent;
 	unsigned long flags;
+	int recv = 0;
 	struct ib_wc wc;
 	struct ib_mad_send_wc mad_send_wc;
 
@@ -2123,10 +2126,10 @@ static void local_completions(void *data)
 			recv_mad_agent = local->recv_mad_agent;
 			if (!recv_mad_agent) {
 				printk(KERN_ERR PFX "No receive MAD agent for local completion\n");
-				kmem_cache_free(ib_mad_cache, local->mad_priv);
 				goto local_send_completion;
 			}
 
+			recv = 1;
 			/*
 			 * Defined behavior is to complete response
 			 * before request
@@ -2169,6 +2172,8 @@ local_send_completion:
 		spin_lock_irqsave(&mad_agent_priv->lock, flags);
 		list_del(&local->completion_list);
 		atomic_dec(&mad_agent_priv->refcount);
+		if (!recv)
+			kmem_cache_free(ib_mad_cache, local->mad_priv);
 		kfree(local);
 	}
 	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
