@@ -74,11 +74,14 @@ static int i2c_writebytes (struct lgdt3302_state* state,
 			   u8 *buf, /* data bytes to send */
 			   int len  /* number of bytes to send */ )
 {
-	if (addr == state->config->pll_address) {
-		struct i2c_msg msg =
-			{ .addr = addr, .flags = 0, .buf = buf,  .len = len };
-		int err;
+	u8 tmp[] = { buf[0], buf[1] };
+	struct i2c_msg msg =
+		{ .addr = addr, .flags = 0, .buf = tmp,  .len = 2 };
+	int err;
+	int i;
 
+	for (i=1; i<len; i++) {
+		tmp[1] = buf[i];
 		if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
 			printk(KERN_WARNING "lgdt3302: %s error (addr %02x <- %02x, err == %i)\n", __FUNCTION__, addr, buf[0], err);
 			if (err < 0)
@@ -86,27 +89,11 @@ static int i2c_writebytes (struct lgdt3302_state* state,
 			else
 				return -EREMOTEIO;
 		}
-	} else {
-		u8 tmp[] = { buf[0], buf[1] };
-		struct i2c_msg msg =
-			{ .addr = addr, .flags = 0, .buf = tmp,  .len = 2 };
-		int err;
-		int i;
-
-		for (i=1; i<len; i++) {
-			tmp[1] = buf[i];
-			if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
-				printk(KERN_WARNING "lgdt3302: %s error (addr %02x <- %02x, err == %i)\n", __FUNCTION__, addr, buf[0], err);
-				if (err < 0)
-					return err;
-				else
-					return -EREMOTEIO;
-			}
-			tmp[0]++;
-		}
+		tmp[0]++;
 	}
 	return 0;
 }
+
 static int i2c_readbytes (struct lgdt3302_state* state,
 			  u8 addr, /* demod_address or pll_address */
 			  u8 *buf, /* holds data bytes read */
@@ -207,7 +194,6 @@ static int lgdt3302_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 				   struct dvb_frontend_parameters *param)
 {
-	u8 buf[4];
 	struct lgdt3302_state* state =
 		(struct lgdt3302_state*) fe->demodulator_priv;
 
@@ -290,16 +276,30 @@ static int lgdt3302_set_parameters(struct dvb_frontend* fe,
 
 	/* Change only if we are actually changing the channel */
 	if (state->current_frequency != param->frequency) {
-		dvb_pll_configure(state->config->pll_desc, buf,
-				  param->frequency, 0);
-		dprintk("%s: tuner bytes: 0x%02x 0x%02x "
-			"0x%02x 0x%02x\n", __FUNCTION__, buf[0],buf[1],buf[2],buf[3]);
-		i2c_writebytes(state, state->config->pll_address ,buf, 4);
+		u8 buf[5];
 
+		/* This must be done before the initialized msg is declared */
+		state->config->pll_set(fe, param, buf);
+
+		struct i2c_msg msg =
+			{ .addr = buf[0], .flags = 0, .buf = &buf[1], .len = 4 };
+		int err;
+
+		dprintk("%s: tuner at 0x%02x bytes: 0x%02x 0x%02x "
+			"0x%02x 0x%02x\n", __FUNCTION__,
+			buf[0],buf[1],buf[2],buf[3],buf[4]);
+		if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
+			printk(KERN_WARNING "lgdt3302: %s error (addr %02x <- %02x, err = %i)\n", __FUNCTION__, buf[0], buf[1], err);
+			if (err < 0)
+				return err;
+			else
+				return -EREMOTEIO;
+		}
+#if 0
 		/* Check the status of the tuner pll */
-		i2c_readbytes(state, state->config->pll_address, buf, 1);
-		dprintk("%s: tuner status byte = 0x%02x\n", __FUNCTION__, buf[0]);
-
+		i2c_readbytes(state, buf[0], &buf[1], 1);
+		dprintk("%s: tuner status byte = 0x%02x\n", __FUNCTION__, buf[1]);
+#endif
 		/* Update current frequency */
 		state->current_frequency = param->frequency;
 	}
@@ -321,12 +321,6 @@ static int lgdt3302_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	u8 buf[3];
 
 	*status = 0; /* Reset status result */
-
-	/* Check the status of the tuner pll */
-	i2c_readbytes(state, state->config->pll_address, buf, 1);
-	dprintk("%s: tuner status byte = 0x%02x\n", __FUNCTION__, buf[0]);
-	if ((buf[0] & 0xc0) != 0x40)
-		return 0; /* Tuner PLL not locked or not powered on */
 
 	/*
 	 * You must set the Mask bits to 1 in the IRQ_MASK in order

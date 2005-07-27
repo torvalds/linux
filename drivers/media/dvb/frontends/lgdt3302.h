@@ -1,6 +1,4 @@
 /*
- * $Id: lgdt3302.h,v 1.2 2005/06/28 23:50:48 mkrufky Exp $
- *
  *    Support for LGDT3302 (DViCO FustionHDTV 3 Gold) - VSB/QAM
  *
  *    Copyright (C) 2005 Wilson Michaels <wilsonmichaels@earthlink.net>
@@ -30,8 +28,9 @@ struct lgdt3302_config
 {
 	/* The demodulator's i2c address */
 	u8 demod_address;
-	u8 pll_address;
-	struct dvb_pll_desc *pll_desc;
+
+	/* PLL interface */
+	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pll_address);
 
 	/* Need to set device param for start_dma */
 	int (*set_ts_params)(struct dvb_frontend* fe, int is_punctured);
