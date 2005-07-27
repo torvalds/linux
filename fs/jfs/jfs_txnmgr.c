@@ -552,6 +552,11 @@ void txEnd(tid_t tid)
 		 * synchronize with logsync barrier
 		 */
 		if (test_bit(log_SYNCBARRIER, &log->flag)) {
+			TXN_UNLOCK();
+
+			/* write dirty metadata & forward log syncpt */
+			jfs_syncpt(log, 1);
+
 			jfs_info("log barrier off: 0x%x", log->lsn);
 
 			/* enable new transactions start */
@@ -559,11 +564,6 @@ void txEnd(tid_t tid)
 
 			/* wakeup all waitors for logsync barrier */
 			TXN_WAKEUP(&log->syncwait);
-
-			TXN_UNLOCK();
-
-			/* forward log syncpt */
-			jfs_syncpt(log);
 
 			goto wakeup;
 		}

@@ -531,7 +531,7 @@ static int jfs_sync_fs(struct super_block *sb, int wait)
 	/* log == NULL indicates read-only mount */
 	if (log) {
 		jfs_flush_journal(log, wait);
-		jfs_syncpt(log);
+		jfs_syncpt(log, 0);
 	}
 
 	return 0;
