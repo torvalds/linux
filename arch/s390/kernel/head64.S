@@ -762,7 +762,7 @@ _stext:	basr  %r13,0                    # get base
 
 # check control registers
         stctg  %c0,%c15,0(%r15)
-	oi     6(%r15),0x20             # enable sigp external interrupts
+	oi     6(%r15),0x40             # enable sigp emergency signal
 	oi     4(%r15),0x10             # switch on low address proctection
         lctlg  %c0,%c15,0(%r15)
 
