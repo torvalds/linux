@@ -777,7 +777,7 @@ static int get_buf_length(int hdr_len, int data_len)
 
 struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 					    u32 remote_qpn, u16 pkey_index,
-					    struct ib_ah *ah,
+					    struct ib_ah *ah, int rmpp_active,
 					    int hdr_len, int data_len,
 					    unsigned int __nocast gfp_mask)
 {
@@ -786,6 +786,8 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 	int buf_size;
 	void *buf;
 
+	if (rmpp_active)
+		return ERR_PTR(-EINVAL);	/* until RMPP implemented */
 	mad_agent_priv = container_of(mad_agent,
 				      struct ib_mad_agent_private, agent);
 	buf_size = get_buf_length(hdr_len, data_len);

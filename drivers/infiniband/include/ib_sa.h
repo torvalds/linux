@@ -87,10 +87,6 @@ static inline int ib_sa_rate_enum_to_int(enum ib_sa_rate rate)
 	}
 }
 
-typedef u64 __bitwise ib_sa_comp_mask;
-
-#define IB_SA_COMP_MASK(n)	((__force ib_sa_comp_mask) cpu_to_be64(1ull << n))
-
 /*
  * Structures for SA records are named "struct ib_sa_xxx_rec."  No
  * attempt is made to pack structures to match the physical layout of

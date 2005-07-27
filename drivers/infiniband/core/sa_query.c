@@ -50,26 +50,6 @@ MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand subnet administration query support");
 MODULE_LICENSE("Dual BSD/GPL");
 
-/*
- * These two structures must be packed because they have 64-bit fields
- * that are only 32-bit aligned.  64-bit architectures will lay them
- * out wrong otherwise.  (And unfortunately they are sent on the wire
- * so we can't change the layout)
- */
-struct ib_sa_hdr {
-	u64			sm_key;
-	u16			attr_offset;
-	u16			reserved;
-	ib_sa_comp_mask		comp_mask;
-} __attribute__ ((packed));
-
-struct ib_sa_mad {
-	struct ib_mad_hdr	mad_hdr;
-	struct ib_rmpp_hdr	rmpp_hdr;
-	struct ib_sa_hdr	sa_hdr;
-	u8			data[200];
-} __attribute__ ((packed));
-
 struct ib_sa_sm_ah {
 	struct ib_ah        *ah;
 	struct kref          ref;
