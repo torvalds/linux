@@ -2131,13 +2131,6 @@ empty_zero_page:
 swapper_pg_dir:
 	.space	4096
 
-#ifdef CONFIG_SMP
-/* 1 page segment table per cpu (max 48, cpu0 allocated at STAB0_PHYS_ADDR) */
-	.globl	stab_array
-stab_array:
-	.space	4096 * 48
-#endif
-	
 /*
  * This space gets a copy of optional info passed to us by the bootstrap
  * Used to pass parameters into the kernel like root=/dev/sda1, etc.
