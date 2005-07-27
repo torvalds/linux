@@ -85,7 +85,6 @@ config POWER4
 	bool "POWER4 and 970 (G5)"
 
 config 8xx
-	depends on BROKEN
 	bool "8xx"
 
 config E200
