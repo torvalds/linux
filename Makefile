@@ -688,8 +688,10 @@ endef
 
 # Update vmlinux version before link
 # Use + in front of this rule to silent warning about make -j1
+# First command is ':' to allow us to use + in front of this rule
 cmd_ksym_ld = $(cmd_vmlinux__)
 define rule_ksym_ld
+	: 
 	+$(call cmd,vmlinux_version)
 	$(call cmd,vmlinux__)
 	$(Q)echo 'cmd_$@ := $(cmd_vmlinux__)' > $(@D)/.$(@F).cmd
