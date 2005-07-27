@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.h,v 1.6 2005/07/24 15:18:26 dedekind Exp $
+ * $Id: debug.h,v 1.7 2005/07/27 13:06:56 dedekind Exp $
  *
  */
 #ifndef _JFFS2_DEBUG_H_
@@ -16,7 +16,7 @@
 #include <linux/config.h>
 
 #ifndef CONFIG_JFFS2_FS_DEBUG
-#define CONFIG_JFFS2_FS_DEBUG 1
+#define CONFIG_JFFS2_FS_DEBUG 0
 #endif
 
 #if CONFIG_JFFS2_FS_DEBUG == 1
@@ -119,19 +119,27 @@
 #define JFFS2_DBG_FRAGTREE2(fmt, ...)
 #endif
 
-/* Plays with node_refs */
+/* Print the messages about manipulating node_refs */
 #ifdef JFFS2_DBG_NODEREF_MESSAGES
 #define JFFS2_DBG_NODEREF(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
 #define JFFS2_DBG_NODEREF(fmt, ...)
 #endif
 
-/* Plays with the list of inodes (JFFS2 inocache) */
+/* Manipulations with the list of inodes (JFFS2 inocache) */
 #ifdef JFFS2_DBG_INOCACHE_MESSAGES
 #define JFFS2_DBG_INOCACHE(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
 #define JFFS2_DBG_INOCACHE(fmt, ...)
 #endif
+
+/* Watch the object allocations */
+#ifdef JFFS2_DBG_MEMALLOC_MESSAGES
+#define JFFS2_DBG_MEMALLOC(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#else
+#define JFFS2_DBG_MEMALLOC(fmt, ...)
+#endif
+
 
 /* "Paranoia" checks */
 void
