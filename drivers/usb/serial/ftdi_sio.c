@@ -269,6 +269,8 @@
 #define DRIVER_DESC "USB FTDI Serial Converters Driver"
 
 static int debug;
+static __u16 vendor = FTDI_VID;
+static __u16 product;
 
 /* struct ftdi_sio_quirk is used by devices requiring special attention. */
 struct ftdi_sio_quirk {
@@ -432,7 +434,8 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_Y6_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_Y8_PID) },
 	{ USB_DEVICE(EVOLUTION_VID, EVOLUTION_ER1_PID) },
-	{ }						/* Terminating entry */
+	{ },					/* Optional parameter entry */
+	{ }					/* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE (usb, id_table_combined);
@@ -2030,6 +2033,15 @@ static int __init ftdi_init (void)
 	int retval;
 
 	dbg("%s", __FUNCTION__);
+	if (vendor > 0 && product > 0) {
+		/* Add user specified VID/PID to reserved element of table. */
+		int i;
+		for (i = 0; id_table_combined[i].idVendor; i++)
+			;
+		id_table_combined[i].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
+		id_table_combined[i].idVendor = vendor;
+		id_table_combined[i].idProduct = product;
+	}
 	retval = usb_serial_register(&ftdi_sio_device);
 	if (retval)
 		goto failed_sio_register;
@@ -2066,4 +2078,9 @@ MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
+module_param(vendor, ushort, 0);
+MODULE_PARM_DESC(vendor, "User specified vendor ID (default="
+		__MODULE_STRING(FTDI_VID)")");
+module_param(product, ushort, 0);
+MODULE_PARM_DESC(vendor, "User specified product ID");
 
