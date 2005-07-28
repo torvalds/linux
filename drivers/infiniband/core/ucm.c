@@ -49,12 +49,25 @@ MODULE_AUTHOR("Libor Michalek");
 MODULE_DESCRIPTION("InfiniBand userspace Connection Manager access");
 MODULE_LICENSE("Dual BSD/GPL");
 
+static int ucm_debug_level;
+
+module_param_named(debug_level, ucm_debug_level, int, 0644);
+MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
+
 enum {
 	IB_UCM_MAJOR = 231,
 	IB_UCM_MINOR = 255
 };
 
 #define IB_UCM_DEV MKDEV(IB_UCM_MAJOR, IB_UCM_MINOR)
+
+#define PFX "UCM: "
+
+#define ucm_dbg(format, arg...)			\
+	do {					\
+		if (ucm_debug_level > 0)	\
+			printk(KERN_DEBUG PFX format, ## arg); \
+	} while (0)
 
 static struct semaphore ctx_id_mutex;
 static struct idr       ctx_id_table;
@@ -107,7 +120,7 @@ static void ib_ucm_ctx_put(struct ib_ucm_context *ctx)
 
 	up(&ctx->file->mutex);
 
-	printk(KERN_ERR "UCM: Destroyed CM ID <%d>\n", ctx->id);
+	ucm_dbg("Destroyed CM ID <%d>\n", ctx->id);
 
 	ib_destroy_cm_id(ctx->cm_id);
 	kfree(ctx);
@@ -145,7 +158,7 @@ retry:
 	if (result)
 		goto error;
 
-	printk(KERN_ERR "UCM: Allocated CM ID <%d>\n", ctx->id);
+	ucm_dbg("Allocated CM ID <%d>\n", ctx->id);
 
 	return ctx;
 error:
@@ -378,10 +391,8 @@ static int ib_ucm_event_process(struct ib_cm_event *evt,
 
 	return 0;
 error:
-	if (uvt->info)
-		kfree(uvt->info);
-	if (uvt->data)
-		kfree(uvt->data);
+	kfree(uvt->info);
+	kfree(uvt->data);
 	return result;
 }
 
@@ -407,8 +418,7 @@ static int ib_ucm_event_handler(struct ib_cm_id *cm_id,
 		break;
 	}
 
-	printk(KERN_ERR "UCM: Event. CM ID <%d> event <%d>\n",
-	       id, event->event);
+	ucm_dbg("Event. CM ID <%d> event <%d>\n", id, event->event);
 
 	ctx = ib_ucm_ctx_get(id);
 	if (!ctx)
@@ -551,10 +561,8 @@ user:
 	list_del(&uevent->file_list);
 	list_del(&uevent->ctx_list);
 
-	if (uevent->data)
-		kfree(uevent->data);
-	if (uevent->info)
-		kfree(uevent->info);
+	kfree(uevent->data);
+	kfree(uevent->info);
 	kfree(uevent);
 done:
 	up(&file->mutex);
@@ -846,12 +854,9 @@ static ssize_t ib_ucm_send_req(struct ib_ucm_file *file,
 	up(&ctx->file->mutex);
 	ib_ucm_ctx_put(ctx); /* func reference */
 done:
-	if (param.private_data)
-		kfree(param.private_data);
-	if (param.primary_path)
-		kfree(param.primary_path);
-	if (param.alternate_path)
-		kfree(param.alternate_path);
+	kfree(param.private_data);
+	kfree(param.primary_path);
+	kfree(param.alternate_path);
 
 	return result;
 }
@@ -900,8 +905,7 @@ static ssize_t ib_ucm_send_rep(struct ib_ucm_file *file,
 	up(&ctx->file->mutex);
 	ib_ucm_ctx_put(ctx); /* func reference */
 done:
-	if (param.private_data)
-		kfree(param.private_data);
+	kfree(param.private_data);
 
 	return result;
 }
@@ -939,8 +943,7 @@ static ssize_t ib_ucm_send_private_data(struct ib_ucm_file *file,
 	up(&ctx->file->mutex);
 	ib_ucm_ctx_put(ctx); /* func reference */
 done:
-	if (private_data)
-		kfree(private_data);
+	kfree(private_data);
 
 	return result;
 }
@@ -1009,10 +1012,8 @@ static ssize_t ib_ucm_send_info(struct ib_ucm_file *file,
 	up(&ctx->file->mutex);
 	ib_ucm_ctx_put(ctx); /* func reference */
 done:
-	if (data)
-		kfree(data);
-	if (info)
-		kfree(info);
+	kfree(data);
+	kfree(info);
 
 	return result;
 }
@@ -1063,8 +1064,7 @@ static ssize_t ib_ucm_send_mra(struct ib_ucm_file *file,
 	up(&ctx->file->mutex);
 	ib_ucm_ctx_put(ctx); /* func reference */
 done:
-	if (data)
-		kfree(data);
+	kfree(data);
 
 	return result;
 }
@@ -1105,10 +1105,8 @@ static ssize_t ib_ucm_send_lap(struct ib_ucm_file *file,
 	up(&ctx->file->mutex);
 	ib_ucm_ctx_put(ctx); /* func reference */
 done:
-	if (data)
-		kfree(data);
-	if (path)
-		kfree(path);
+	kfree(data);
+	kfree(path);
 
 	return result;
 }
@@ -1157,10 +1155,8 @@ static ssize_t ib_ucm_send_sidr_req(struct ib_ucm_file *file,
 	up(&ctx->file->mutex);
 	ib_ucm_ctx_put(ctx); /* func reference */
 done:
-	if (param.private_data)
-		kfree(param.private_data);
-	if (param.path)
-		kfree(param.path);
+	kfree(param.private_data);
+	kfree(param.path);
 
 	return result;
 }
@@ -1209,10 +1205,8 @@ static ssize_t ib_ucm_send_sidr_rep(struct ib_ucm_file *file,
 	up(&ctx->file->mutex);
 	ib_ucm_ctx_put(ctx); /* func reference */
 done:
-	if (param.private_data)
-		kfree(param.private_data);
-	if (param.info)
-		kfree(param.info);
+	kfree(param.private_data);
+	kfree(param.info);
 
 	return result;
 }
@@ -1252,8 +1246,8 @@ static ssize_t ib_ucm_write(struct file *filp, const char __user *buf,
 	if (copy_from_user(&hdr, buf, sizeof(hdr)))
 		return -EFAULT;
 
-	printk(KERN_ERR "UCM: Write. cmd <%d> in <%d> out <%d> len <%Zu>\n",
-	       hdr.cmd, hdr.in, hdr.out, len);
+	ucm_dbg("Write. cmd <%d> in <%d> out <%d> len <%Zu>\n",
+		hdr.cmd, hdr.in, hdr.out, len);
 
 	if (hdr.cmd < 0 || hdr.cmd >= ARRAY_SIZE(ucm_cmd_table))
 		return -EINVAL;
@@ -1300,7 +1294,7 @@ static int ib_ucm_open(struct inode *inode, struct file *filp)
 	filp->private_data = file;
 	file->filp = filp;
 
-	printk(KERN_ERR "UCM: Created struct\n");
+	ucm_dbg("Created struct\n");
 
 	return 0;
 }
@@ -1326,7 +1320,7 @@ static int ib_ucm_close(struct inode *inode, struct file *filp)
 
 	kfree(file);
 
-	printk(KERN_ERR "UCM: Deleted struct\n");
+	ucm_dbg("Deleted struct\n");
 	return 0;
 }
 
@@ -1348,7 +1342,7 @@ static int __init ib_ucm_init(void)
 
 	result = register_chrdev_region(IB_UCM_DEV, 1, "infiniband_cm");
 	if (result) {
-		printk(KERN_ERR "UCM: Error <%d> registering dev\n", result);
+		ucm_dbg("Error <%d> registering dev\n", result);
 		goto err_chr;
 	}
 
@@ -1356,14 +1350,14 @@ static int __init ib_ucm_init(void)
 
 	result = cdev_add(&ib_ucm_cdev, IB_UCM_DEV, 1);
 	if (result) {
-		printk(KERN_ERR "UCM: Error <%d> adding cdev\n", result);
+ 		ucm_dbg("Error <%d> adding cdev\n", result);
 		goto err_cdev;
 	}
 
 	ib_ucm_class = class_create(THIS_MODULE, "infiniband_cm");
 	if (IS_ERR(ib_ucm_class)) {
 		result = PTR_ERR(ib_ucm_class);
-		printk(KERN_ERR "UCM: Error <%d> creating class\n", result);
+ 		ucm_dbg("Error <%d> creating class\n", result);
 		goto err_class;
 	}
 
