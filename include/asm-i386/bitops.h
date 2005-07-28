@@ -311,6 +311,20 @@ static inline int find_first_zero_bit(const unsigned long *addr, unsigned size)
 int find_next_zero_bit(const unsigned long *addr, int size, int offset);
 
 /**
+ * __ffs - find first bit in word.
+ * @word: The word to search
+ *
+ * Undefined if no bit exists, so code should check against 0 first.
+ */
+static inline unsigned long __ffs(unsigned long word)
+{
+	__asm__("bsfl %1,%0"
+		:"=r" (word)
+		:"rm" (word));
+	return word;
+}
+
+/**
  * find_first_bit - find the first set bit in a memory region
  * @addr: The address to start the search at
  * @size: The maximum size to search
@@ -320,22 +334,16 @@ int find_next_zero_bit(const unsigned long *addr, int size, int offset);
  */
 static inline int find_first_bit(const unsigned long *addr, unsigned size)
 {
-	int d0, d1;
-	int res;
-
-	/* This looks at memory. Mark it volatile to tell gcc not to move it around */
-	__asm__ __volatile__(
-		"xorl %%eax,%%eax\n\t"
-		"repe; scasl\n\t"
-		"jz 1f\n\t"
-		"leal -4(%%edi),%%edi\n\t"
-		"bsfl (%%edi),%%eax\n"
-		"1:\tsubl %%ebx,%%edi\n\t"
-		"shll $3,%%edi\n\t"
-		"addl %%edi,%%eax"
-		:"=a" (res), "=&c" (d0), "=&D" (d1)
-		:"1" ((size + 31) >> 5), "2" (addr), "b" (addr) : "memory");
-	return res;
+	int x = 0;
+	do {
+		if (*addr)
+			return __ffs(*addr) + x;
+		addr++;
+		if (x >= size)
+			break;
+		x += (sizeof(*addr)<<3);
+	} while (1);
+	return x;
 }
 
 /**
@@ -357,20 +365,6 @@ static inline unsigned long ffz(unsigned long word)
 	__asm__("bsfl %1,%0"
 		:"=r" (word)
 		:"r" (~word));
-	return word;
-}
-
-/**
- * __ffs - find first bit in word.
- * @word: The word to search
- *
- * Undefined if no bit exists, so code should check against 0 first.
- */
-static inline unsigned long __ffs(unsigned long word)
-{
-	__asm__("bsfl %1,%0"
-		:"=r" (word)
-		:"rm" (word));
 	return word;
 }
 
