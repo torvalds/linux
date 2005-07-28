@@ -759,14 +759,6 @@ int i2c_probe(struct i2c_adapter *adapter,
 	return 0;
 }
 
-/*
- * return id number for a specific adapter
- */
-int i2c_adapter_id(struct i2c_adapter *adap)
-{
-	return adap->nr;
-}
-
 struct i2c_adapter* i2c_get_adapter(int id)
 {
 	struct i2c_adapter *adapter;
@@ -1196,7 +1188,6 @@ EXPORT_SYMBOL(i2c_master_send);
 EXPORT_SYMBOL(i2c_master_recv);
 EXPORT_SYMBOL(i2c_control);
 EXPORT_SYMBOL(i2c_transfer);
-EXPORT_SYMBOL(i2c_adapter_id);
 EXPORT_SYMBOL(i2c_get_adapter);
 EXPORT_SYMBOL(i2c_put_adapter);
 EXPORT_SYMBOL(i2c_probe);

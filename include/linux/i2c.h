@@ -364,10 +364,6 @@ extern int i2c_probe(struct i2c_adapter *adapter,
  */
 extern int i2c_control(struct i2c_client *,unsigned int, unsigned long);
 
-/* This call returns a unique low identifier for each registered adapter,
- * or -1 if the adapter was not registered. 
- */
-extern int i2c_adapter_id(struct i2c_adapter *adap);
 extern struct i2c_adapter* i2c_get_adapter(int id);
 extern void i2c_put_adapter(struct i2c_adapter *adap);
 
@@ -382,6 +378,12 @@ static inline u32 i2c_get_functionality(struct i2c_adapter *adap)
 static inline int i2c_check_functionality(struct i2c_adapter *adap, u32 func)
 {
 	return (func & i2c_get_functionality(adap)) == func;
+}
+
+/* Return id number for a specific adapter */
+static inline int i2c_adapter_id(struct i2c_adapter *adap)
+{
+	return adap->nr;
 }
 
 /*
