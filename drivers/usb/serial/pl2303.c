@@ -810,7 +810,7 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	u8 status_idx = UART_STATE;
-	u8 length = UART_STATE;
+	u8 length = UART_STATE + 1;
 
 	if ((le16_to_cpu(port->serial->dev->descriptor.idVendor) == SIEMENS_VENDOR_ID) &&
 	    (le16_to_cpu(port->serial->dev->descriptor.idProduct) == SIEMENS_PRODUCT_ID_X65 ||
