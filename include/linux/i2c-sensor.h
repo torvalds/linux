@@ -242,16 +242,4 @@ extern int i2c_detect(struct i2c_adapter *adapter,
 		      struct i2c_address_data *address_data,
 		      int (*found_proc) (struct i2c_adapter *, int, int));
 
-
-/* This macro is used to scale user-input to sensible values in almost all
-   chip drivers. */
-static inline int SENSORS_LIMIT(long value, long low, long high)
-{
-	if (value < low)
-		return low;
-	else if (value > high)
-		return high;
-	else
-		return value;
-}
 #endif				/* def _LINUX_I2C_SENSOR_H */
