@@ -826,7 +826,8 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			sid = sbsec->def_sid;
 			rc = 0;
 		} else {
-			rc = security_context_to_sid(context, rc, &sid);
+			rc = security_context_to_sid_default(context, rc, &sid,
+			                                     sbsec->def_sid);
 			if (rc) {
 				printk(KERN_WARNING "%s:  context_to_sid(%s) "
 				       "returned %d for dev=%s ino=%ld\n",
