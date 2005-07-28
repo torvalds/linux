@@ -50,16 +50,11 @@ extern cpumask_t cpu_online_map;
 extern int smp_num_cpus;
 #define cpu_possible_map	cpu_present_mask
 
-int smp_call_function_on_cpu(void (*) (void *), void *, int, int, cpumask_t);
+int smp_call_function_on_cpu(void (*func) (void *info), void *info,int retry, int wait, cpumask_t cpu);
 
 #else /* CONFIG_SMP */
 
-static inline int
-smp_call_function_on_cpu (void (*func) (void *), void *info, int retry,
-			  int wait, cpumask_t cpu)
-{
-	return 0;
-}
+#define smp_call_function_on_cpu(func,info,retry,wait,cpu)    ({ 0; })
 
 #endif /* CONFIG_SMP */
 
