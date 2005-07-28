@@ -499,6 +499,14 @@ config SCSI_SATA_SIL
 
 	  If unsure, say N.
 
+config SCSI_SATA_SIL24
+	tristate "Silicon Image 3124/3132 SATA support"
+	depends on SCSI_SATA && PCI && EXPERIMENTAL
+	help
+	  This option enables support for Silicon Image 3124/3132 Serial ATA.
+
+	  If unsure, say N.
+
 config SCSI_SATA_SIS
 	tristate "SiS 964/180 SATA support"
 	depends on SCSI_SATA && PCI && EXPERIMENTAL
