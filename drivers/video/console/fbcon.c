@@ -275,7 +275,8 @@ static void fb_flashcursor(void *private)
 
 	if (!vc || !CON_IS_VISIBLE(vc) ||
 	    fbcon_is_inactive(vc, info) ||
- 	    registered_fb[con2fb_map[vc->vc_num]] != info)
+ 	    registered_fb[con2fb_map[vc->vc_num]] != info ||
+	    vc_cons[ops->currcon].d->vc_deccm != 1)
 		return;
 	acquire_console_sem();
 	p = &fb_display[vc->vc_num];

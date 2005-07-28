@@ -212,11 +212,25 @@ static int stop_ptraced_child(int pid, int exitcode, int mustexit)
 
 static int force_sysemu_disabled = 0;
 
+int ptrace_faultinfo = 1;
+int proc_mm = 1;
+
+static int __init skas0_cmd_param(char *str, int* add)
+{
+	ptrace_faultinfo = proc_mm = 0;
+	return 0;
+}
+
 static int __init nosysemu_cmd_param(char *str, int* add)
 {
 	force_sysemu_disabled = 1;
 	return 0;
 }
+
+__uml_setup("skas0", skas0_cmd_param,
+		"skas0\n"
+		"    Disables SKAS3 usage, so that SKAS0 is used, unless you \n"
+		"    specify mode=tt.\n\n");
 
 __uml_setup("nosysemu", nosysemu_cmd_param,
 		"nosysemu\n"
@@ -359,12 +373,10 @@ void forward_pending_sigio(int target)
 		kill(target, SIGIO);
 }
 
-int ptrace_faultinfo = 0;
-int proc_mm = 1;
-
 extern void *__syscall_stub_start, __syscall_stub_end;
 
 #ifdef UML_CONFIG_MODE_SKAS
+
 static inline void check_skas3_ptrace_support(void)
 {
 	struct ptrace_faultinfo fi;
@@ -375,6 +387,7 @@ static inline void check_skas3_ptrace_support(void)
 
 	n = ptrace(PTRACE_FAULTINFO, pid, 0, &fi);
 	if (n < 0) {
+		ptrace_faultinfo = 0;
 		if(errno == EIO)
 			printf("not found\n");
 		else {
@@ -382,8 +395,10 @@ static inline void check_skas3_ptrace_support(void)
 		}
 	}
 	else {
-		ptrace_faultinfo = 1;
-		printf("found\n");
+		if (!ptrace_faultinfo)
+			printf("found but disabled on command line\n");
+		else
+			printf("found\n");
 	}
 
 	init_registers(pid);
@@ -396,13 +411,13 @@ int can_do_skas(void)
 	if (os_access("/proc/mm", OS_ACC_W_OK) < 0) {
 		proc_mm = 0;
 		printf("not found\n");
-		goto out;
-	}
-	else {
-		printf("found\n");
+	} else {
+		if (!proc_mm)
+			printf("found but disabled on command line\n");
+		else
+			printf("found\n");
 	}
 
-out:
 	check_skas3_ptrace_support();
 	return 1;
 }

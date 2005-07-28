@@ -5,7 +5,8 @@
 #ifndef _CRIS_PGTABLE_H
 #define _CRIS_PGTABLE_H
 
-#include <asm-generic/4level-fixup.h>
+#include <asm/page.h>
+#include <asm-generic/pgtable-nopmd.h>
 
 #ifndef __ASSEMBLY__
 #include <linux/config.h>
@@ -41,22 +42,14 @@ extern void paging_init(void);
  * but the define is needed for a generic inline function.)
  */
 #define set_pmd(pmdptr, pmdval) (*(pmdptr) = pmdval)
-#define set_pgd(pgdptr, pgdval) (*(pgdptr) = pgdval)
+#define set_pgu(pudptr, pudval) (*(pudptr) = pudval)
 
-/* PMD_SHIFT determines the size of the area a second-level page table can
+/* PGDIR_SHIFT determines the size of the area a second-level page table can
  * map. It is equal to the page size times the number of PTE's that fit in
  * a PMD page. A PTE is 4-bytes in CRIS. Hence the following number.
  */
 
-#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-2))
-#define PMD_SIZE	(1UL << PMD_SHIFT)
-#define PMD_MASK	(~(PMD_SIZE-1))
-
-/* PGDIR_SHIFT determines what a third-level page table entry can map.
- * Since we fold into a two-level structure, this is the same as PMD_SHIFT.
- */
-
-#define PGDIR_SHIFT	PMD_SHIFT
+#define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-2))
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
@@ -67,7 +60,6 @@ extern void paging_init(void);
  * divide it by 4 (shift by 2).
  */
 #define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-2))
-#define PTRS_PER_PMD	1
 #define PTRS_PER_PGD	(1UL << (PAGE_SHIFT-2))
 
 /* calculate how many PGD entries a user-level program can use
@@ -105,7 +97,7 @@ extern unsigned long empty_zero_page;
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
 #define pte_clear(mm,addr,xp)	do { pte_val(*(xp)) = 0; } while (0)
 
-#define pmd_none(x)	(!pmd_val(x))
+#define pmd_none(x)     (!pmd_val(x))
 /* by removing the _PAGE_KERNEL bit from the comparision, the same pmd_bad
  * works for both _PAGE_TABLE and _KERNPG_TABLE pmd entries.
  */
@@ -114,16 +106,6 @@ extern unsigned long empty_zero_page;
 #define pmd_clear(xp)	do { pmd_val(*(xp)) = 0; } while (0)
 
 #ifndef __ASSEMBLY__
-
-/*
- * The "pgd_xxx()" functions here are trivial for a folded two-level
- * setup: the pgd is never bad, and a pmd always exists (as it's folded
- * into the pgd entry)
- */
-extern inline int pgd_none(pgd_t pgd)		{ return 0; }
-extern inline int pgd_bad(pgd_t pgd)		{ return 0; }
-extern inline int pgd_present(pgd_t pgd)	{ return 1; }
-extern inline void pgd_clear(pgd_t * pgdp)	{ }
 
 /*
  * The following only work if pte_present() is true.
@@ -275,7 +257,7 @@ extern inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
 #define pmd_page_kernel(pmd)	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 
 /* to find an entry in a page-table-directory. */
-#define pgd_index(address) ((address >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
+#define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
 
 /* to find an entry in a page-table-directory */
 extern inline pgd_t * pgd_offset(struct mm_struct * mm, unsigned long address)
@@ -285,12 +267,6 @@ extern inline pgd_t * pgd_offset(struct mm_struct * mm, unsigned long address)
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
-
-/* Find an entry in the second-level page table.. */
-extern inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
-{
-	return (pmd_t *) dir;
-}
 
 /* Find an entry in the third-level page table.. */
 #define __pte_offset(address) \
@@ -308,8 +284,6 @@ extern inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 
 #define pte_ERROR(e) \
         printk("%s:%d: bad pte %p(%08lx).\n", __FILE__, __LINE__, &(e), pte_val(e))
-#define pmd_ERROR(e) \
-        printk("%s:%d: bad pmd %p(%08lx).\n", __FILE__, __LINE__, &(e), pmd_val(e))
 #define pgd_ERROR(e) \
         printk("%s:%d: bad pgd %p(%08lx).\n", __FILE__, __LINE__, &(e), pgd_val(e))
 
@@ -347,6 +321,8 @@ extern inline void update_mmu_cache(struct vm_area_struct * vma,
 
 #define pte_to_pgoff(x)	(pte_val(x) >> 6)
 #define pgoff_to_pte(x)	__pte(((x) << 6) | _PAGE_FILE)
+
+typedef pte_t *pte_addr_t;
 
 #endif /* __ASSEMBLY__ */
 #endif /* _CRIS_PGTABLE_H */

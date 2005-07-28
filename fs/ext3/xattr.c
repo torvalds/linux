@@ -1106,7 +1106,7 @@ cleanup:
 void
 ext3_xattr_put_super(struct super_block *sb)
 {
-	mb_cache_shrink(ext3_xattr_cache, sb->s_bdev);
+	mb_cache_shrink(sb->s_bdev);
 }
 
 /*

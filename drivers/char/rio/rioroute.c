@@ -1023,7 +1023,7 @@ RIOFreeDisconnected(struct rio_info *p, struct Host *HostP, int unit)
     if (link < LINKS_PER_UNIT)
 	    return 1;
 
-#if NEED_TO_FIX_THIS
+#ifdef NEED_TO_FIX_THIS
     /* Ok so all the links are disconnected. But we may have only just
     ** made this slot tentative and not yet received a topology update.
     ** Lets check how long ago we made it tentative.

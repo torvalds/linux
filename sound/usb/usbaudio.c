@@ -212,7 +212,7 @@ static snd_usb_audio_t *usb_chip[SNDRV_CARDS];
  * convert a sampling rate into our full speed format (fs/1000 in Q16.16)
  * this will overflow at approx 524 kHz
  */
-inline static unsigned get_usb_full_speed_rate(unsigned int rate)
+static inline unsigned get_usb_full_speed_rate(unsigned int rate)
 {
 	return ((rate << 13) + 62) / 125;
 }
@@ -221,19 +221,19 @@ inline static unsigned get_usb_full_speed_rate(unsigned int rate)
  * convert a sampling rate into USB high speed format (fs/8000 in Q16.16)
  * this will overflow at approx 4 MHz
  */
-inline static unsigned get_usb_high_speed_rate(unsigned int rate)
+static inline unsigned get_usb_high_speed_rate(unsigned int rate)
 {
 	return ((rate << 10) + 62) / 125;
 }
 
 /* convert our full speed USB rate into sampling rate in Hz */
-inline static unsigned get_full_speed_hz(unsigned int usb_rate)
+static inline unsigned get_full_speed_hz(unsigned int usb_rate)
 {
 	return (usb_rate * 125 + (1 << 12)) >> 13;
 }
 
 /* convert our high speed USB rate into sampling rate in Hz */
-inline static unsigned get_high_speed_hz(unsigned int usb_rate)
+static inline unsigned get_high_speed_hz(unsigned int usb_rate)
 {
 	return (usb_rate * 125 + (1 << 9)) >> 10;
 }

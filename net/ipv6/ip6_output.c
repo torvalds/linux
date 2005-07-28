@@ -792,13 +792,8 @@ int ip6_dst_lookup(struct sock *sk, struct dst_entry **dst, struct flowi *fl)
 	if (ipv6_addr_any(&fl->fl6_src)) {
 		err = ipv6_get_saddr(*dst, &fl->fl6_dst, &fl->fl6_src);
 
-		if (err) {
-#if IP6_DEBUG >= 2
-			printk(KERN_DEBUG "ip6_dst_lookup: "
-			       "no available source address\n");
-#endif
+		if (err)
 			goto out_err_release;
-		}
 	}
 
 	return 0;

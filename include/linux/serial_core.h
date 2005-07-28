@@ -104,7 +104,7 @@
 #define PORT_MPSC	63
 
 /* TXX9 type number */
-#define PORT_TXX9       64
+#define PORT_TXX9	64
 
 /* NEC VR4100 series SIU/DSIU */
 #define PORT_VR41XX_SIU		65

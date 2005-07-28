@@ -25,7 +25,7 @@
 #define THREAD_usp 4 /* offsetof(struct thread_struct, usp) */
 #define THREAD_dccr 8 /* offsetof(struct thread_struct, dccr) */
 
-#define TASK_pid 133 /* offsetof(struct task_struct, pid) */
+#define TASK_pid 141 /* offsetof(struct task_struct, pid) */
 
 #define LCLONE_VM 256 /* CLONE_VM */
 #define LCLONE_UNTRACED 8388608 /* CLONE_UNTRACED */

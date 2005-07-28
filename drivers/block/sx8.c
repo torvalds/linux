@@ -1582,7 +1582,7 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto err_out;
 
-#if IF_64BIT_DMA_IS_POSSIBLE /* grrrr... */
+#ifdef IF_64BIT_DMA_IS_POSSIBLE /* grrrr... */
 	rc = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
 	if (!rc) {
 		rc = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
@@ -1601,7 +1601,7 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto err_out_regions;
 		}
 		pci_dac = 0;
-#if IF_64BIT_DMA_IS_POSSIBLE /* grrrr... */
+#ifdef IF_64BIT_DMA_IS_POSSIBLE /* grrrr... */
 	}
 #endif
 

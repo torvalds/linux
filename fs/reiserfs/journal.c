@@ -556,14 +556,14 @@ static inline void insert_journal_hash(struct reiserfs_journal_cnode **table,
 }
 
 /* lock the current transaction */
-inline static void lock_journal(struct super_block *p_s_sb)
+static inline void lock_journal(struct super_block *p_s_sb)
 {
 	PROC_INFO_INC(p_s_sb, journal.lock_journal);
 	down(&SB_JOURNAL(p_s_sb)->j_lock);
 }
 
 /* unlock the current transaction */
-inline static void unlock_journal(struct super_block *p_s_sb)
+static inline void unlock_journal(struct super_block *p_s_sb)
 {
 	up(&SB_JOURNAL(p_s_sb)->j_lock);
 }

@@ -158,7 +158,7 @@ typedef struct _drm_via_dma_init {
 } drm_via_dma_init_t;
 
 typedef struct _drm_via_cmdbuffer {
-	char *buf;
+	char __user *buf;
 	unsigned long size;
 } drm_via_cmdbuffer_t;
 

@@ -18,6 +18,8 @@
 #include <asm/mmu_context.h>
 #include <asm/paca.h>
 #include <asm/cputable.h>
+#include <asm/lmb.h>
+#include <asm/abs_addr.h>
 
 struct stab_entry {
 	unsigned long esid_data;
@@ -222,6 +224,39 @@ void switch_stab(struct task_struct *tsk, struct mm_struct *mm)
 }
 
 extern void slb_initialize(void);
+
+/*
+ * Allocate segment tables for secondary CPUs.  These must all go in
+ * the first (bolted) segment, so that do_stab_bolted won't get a
+ * recursive segment miss on the segment table itself.
+ */
+void stabs_alloc(void)
+{
+	int cpu;
+
+	if (cpu_has_feature(CPU_FTR_SLB))
+		return;
+
+	for_each_cpu(cpu) {
+		unsigned long newstab;
+
+		if (cpu == 0)
+			continue; /* stab for CPU 0 is statically allocated */
+
+		newstab = lmb_alloc_base(PAGE_SIZE, PAGE_SIZE, 1<<SID_SHIFT);
+		if (! newstab)
+			panic("Unable to allocate segment table for CPU %d.\n",
+			      cpu);
+
+		newstab += KERNELBASE;
+
+		memset((void *)newstab, 0, PAGE_SIZE);
+
+		paca[cpu].stab_addr = newstab;
+		paca[cpu].stab_real = virt_to_abs(newstab);
+		printk(KERN_DEBUG "Segment table for CPU %d at 0x%lx virtual, 0x%lx absolute\n", cpu, paca[cpu].stab_addr, paca[cpu].stab_real);
+	}
+}
 
 /*
  * Build an entry for the base kernel segment and put it into

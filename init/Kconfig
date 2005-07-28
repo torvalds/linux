@@ -231,7 +231,7 @@ config CPUSETS
 	bool "Cpuset support"
 	depends on SMP
 	help
-	  This options will let you create and manage CPUSET's which
+	  This option will let you create and manage CPUSETs which
 	  allow dynamically partitioning a system into sets of CPUs and
 	  Memory Nodes and assigning tasks to run only within those sets.
 	  This is primarily useful on large SMP or NUMA systems.

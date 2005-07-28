@@ -42,7 +42,7 @@ paging_init(void)
 	 *  switch_mm)
 	 */
 
-	current_pgd = init_mm.pgd;
+	per_cpu(current_pgd, smp_processor_id()) = init_mm.pgd;
 
 	/* initialise the TLB (tlb.c) */
 

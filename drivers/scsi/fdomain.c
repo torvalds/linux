@@ -570,7 +570,7 @@ static void do_pause(unsigned amount)	/* Pause for amount*10 milliseconds */
 	mdelay(10*amount);
 }
 
-inline static void fdomain_make_bus_idle( void )
+static inline void fdomain_make_bus_idle( void )
 {
    outb(0, port_base + SCSI_Cntl);
    outb(0, port_base + SCSI_Mode_Cntl);

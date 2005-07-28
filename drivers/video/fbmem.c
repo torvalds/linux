@@ -1164,6 +1164,7 @@ static void __exit
 fbmem_exit(void)
 {
 	class_destroy(fb_class);
+	unregister_chrdev(FB_MAJOR, "fb");
 }
 
 module_exit(fbmem_exit);

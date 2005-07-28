@@ -11,7 +11,7 @@
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
 #else
-inline void pcibios_penalize_isa_irq(int irq) {}
+inline void pcibios_penalize_isa_irq(int irq, int active) {}
 #endif /* CONFIG_PCI */
 
 #include "pnpbios.h"

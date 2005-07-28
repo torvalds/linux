@@ -1,8 +1,8 @@
 /*
  * arch/v850/kernel/mb_a_pci.c -- PCI support for Midas lab RTE-MOTHER-A board
  *
- *  Copyright (C) 2001,02,03  NEC Electronics Corporation
- *  Copyright (C) 2001,02,03  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2001,02,03,05  NEC Electronics Corporation
+ *  Copyright (C) 2001,02,03,05  Miles Bader <miles@gnu.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -743,15 +743,17 @@ pci_unmap_sg (struct pci_dev *pdev, struct scatterlist *sg, int sg_len,int dir)
    for a scatter-gather list, same rules and usage.  */
 
 void
-pci_dma_sync_sg_for_cpu (struct pci_dev *dev, struct scatterlist *sg, int sg_len,
-		 int dir)
+pci_dma_sync_sg_for_cpu (struct pci_dev *dev,
+			 struct scatterlist *sg, int sg_len,
+			 int dir)
 {
 	BUG ();
 }
 
 void
-pci_dma_sync_sg_for_device (struct pci_dev *dev, struct scatterlist *sg, int sg_len,
-		 int dir)
+pci_dma_sync_sg_for_device (struct pci_dev *dev,
+			    struct scatterlist *sg, int sg_len,
+			    int dir)
 {
 	BUG ();
 }
@@ -786,6 +788,27 @@ pci_free_consistent (struct pci_dev *pdev, size_t size, void *cpu_addr,
 }
 
 
+/* iomap/iomap */
+
+void __iomem *pci_iomap (struct pci_dev *dev, int bar, unsigned long max)
+{
+	unsigned long start = pci_resource_start (dev, bar);
+	unsigned long len = pci_resource_len (dev, bar);
+
+	if (!start || len == 0)
+		return 0;
+
+	/* None of the ioremap functions actually do anything, other than
+	   re-casting their argument, so don't bother differentiating them.  */
+	return ioremap (start, len);
+}
+
+void pci_iounmap (struct pci_dev *dev, void __iomem *addr)
+{
+	/* nothing */
+}
+
+
 /* symbol exports (for modules) */
 
 EXPORT_SYMBOL (pci_map_single);
@@ -794,3 +817,5 @@ EXPORT_SYMBOL (pci_alloc_consistent);
 EXPORT_SYMBOL (pci_free_consistent);
 EXPORT_SYMBOL (pci_dma_sync_single_for_cpu);
 EXPORT_SYMBOL (pci_dma_sync_single_for_device);
+EXPORT_SYMBOL (pci_iomap);
+EXPORT_SYMBOL (pci_iounmap);

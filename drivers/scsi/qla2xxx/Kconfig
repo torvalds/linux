@@ -2,7 +2,6 @@ config SCSI_QLA2XXX
 	tristate
 	default (SCSI && PCI)
 	depends on SCSI && PCI
-	select SCSI_FC_ATTRS
 
 config SCSI_QLA21XX
 	tristate "QLogic ISP2100 host adapter family support"

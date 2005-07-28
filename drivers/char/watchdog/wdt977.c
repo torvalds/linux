@@ -53,12 +53,7 @@ MODULE_PARM_DESC(timeout,"Watchdog timeout in seconds (60..15300), default=" __M
 module_param(testmode, int, 0);
 MODULE_PARM_DESC(testmode,"Watchdog testmode (1 = no reboot), default=0");
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
-
+static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 

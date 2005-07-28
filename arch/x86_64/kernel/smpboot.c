@@ -229,7 +229,7 @@ static __cpuinit void sync_master(void *arg)
 {
 	unsigned long flags, i;
 
-	if (smp_processor_id() != boot_cpu_id)
+	if (smp_processor_id() != 0)
 		return;
 
 	go[MASTER] = 0;
@@ -285,7 +285,7 @@ static __cpuinit void sync_tsc(void)
 	int i, done = 0;
 	long delta, adj, adjust_latency = 0;
 	unsigned long flags, rt, master_time_stamp, bound;
-#if DEBUG_TSC_SYNC
+#ifdef DEBUG_TSC_SYNC
 	static struct syncdebug {
 		long rt;	/* roundtrip time */
 		long master;	/* master's timestamp */
@@ -321,7 +321,7 @@ static __cpuinit void sync_tsc(void)
 				rdtscll(t);
 				wrmsrl(MSR_IA32_TSC, t + adj);
 			}
-#if DEBUG_TSC_SYNC
+#ifdef DEBUG_TSC_SYNC
 			t[i].rt = rt;
 			t[i].master = master_time_stamp;
 			t[i].diff = delta;
@@ -331,7 +331,7 @@ static __cpuinit void sync_tsc(void)
 	}
 	spin_unlock_irqrestore(&tsc_sync_lock, flags);
 
-#if DEBUG_TSC_SYNC
+#ifdef DEBUG_TSC_SYNC
 	for (i = 0; i < NUM_ROUNDS; ++i)
 		printk("rt=%5ld master=%5ld diff=%5ld adjlat=%5ld\n",
 		       t[i].rt, t[i].master, t[i].diff, t[i].lat);
@@ -537,7 +537,7 @@ void __cpuinit start_secondary(void)
 extern volatile unsigned long init_rsp;
 extern void (*initial_code)(void);
 
-#if APIC_DEBUG
+#ifdef APIC_DEBUG
 static void inquire_remote_apic(int apicid)
 {
 	unsigned i, regs[] = { APIC_ID >> 4, APIC_LVR >> 4, APIC_SPIV >> 4 };
@@ -841,7 +841,7 @@ do_rest:
 			else
 				/* trampoline code not run */
 				printk("Not responding.\n");
-#if APIC_DEBUG
+#ifdef APIC_DEBUG
 			inquire_remote_apic(apicid);
 #endif
 		}

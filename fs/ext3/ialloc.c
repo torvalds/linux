@@ -604,12 +604,14 @@ got:
 	err = ext3_init_acl(handle, inode, dir);
 	if (err) {
 		DQUOT_FREE_INODE(inode);
+		DQUOT_DROP(inode);
 		goto fail2;
   	}
 	err = ext3_mark_inode_dirty(handle, inode);
 	if (err) {
 		ext3_std_error(sb, err);
 		DQUOT_FREE_INODE(inode);
+		DQUOT_DROP(inode);
 		goto fail2;
 	}
 
