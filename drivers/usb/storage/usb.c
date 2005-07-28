@@ -90,7 +90,9 @@
 #ifdef CONFIG_USB_STORAGE_JUMPSHOT
 #include "jumpshot.h"
 #endif
-
+#ifdef CONFIG_USB_STORAGE_ONETOUCH
+#include "onetouch.h"
+#endif
 
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
