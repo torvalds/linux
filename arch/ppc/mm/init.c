@@ -562,6 +562,9 @@ void flush_dcache_icache_page(struct page *page)
 #ifdef CONFIG_BOOKE
 	__flush_dcache_icache(kmap(page));
 	kunmap(page);
+#elif CONFIG_8xx
+	/* On 8xx there is no need to kmap since highmem is not supported */
+	__flush_dcache_icache(page_address(page)); 
 #else
 	__flush_dcache_icache_phys(page_to_pfn(page) << PAGE_SHIFT);
 #endif

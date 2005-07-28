@@ -206,13 +206,14 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	 */
 
 #ifdef SO_DONTLINGER		/* Compatibility item... */
-	switch (optname) {
-		case SO_DONTLINGER:
-			sock_reset_flag(sk, SOCK_LINGER);
-			return 0;
+	if (optname == SO_DONTLINGER) {
+		lock_sock(sk);
+		sock_reset_flag(sk, SOCK_LINGER);
+		release_sock(sk);
+		return 0;
 	}
-#endif	
-		
+#endif
+	
   	if(optlen<sizeof(int))
   		return(-EINVAL);
   	

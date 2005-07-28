@@ -145,6 +145,7 @@ enum
 	KERN_BOOTLOADER_TYPE=67, /* int: boot loader type */
 	KERN_RANDOMIZE=68, /* int: randomize virtual address space */
 	KERN_SETUID_DUMPABLE=69, /* int: behaviour of dumps for setuid core */
+	KERN_SPIN_RETRY=70,	/* int: number of spinlock retries */
 };
 
 

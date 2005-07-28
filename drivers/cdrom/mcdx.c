@@ -51,7 +51,7 @@
  */
 
 
-#if RCS
+#ifdef RCS
 static const char *mcdx_c_version
     = "$Id: mcdx.c,v 1.21 1997/01/26 07:12:59 davem Exp $";
 #endif
@@ -706,7 +706,7 @@ static int mcdx_open(struct cdrom_device_info *cdi, int purpose)
 		xtrace(OPENCLOSE, "open() init irq generation\n");
 		if (-1 == mcdx_config(stuffp, 1))
 			return -EIO;
-#if FALLBACK
+#ifdef FALLBACK
 		/* Set the read speed */
 		xwarn("AAA %x AAA\n", stuffp->readcmd);
 		if (stuffp->readerrs)
@@ -1216,7 +1216,7 @@ static int __init mcdx_init_drive(int drive)
 	}
 
 
-#if WE_KNOW_WHY
+#ifdef WE_KNOW_WHY
 	/* irq 11 -> channel register */
 	outb(0x50, stuffp->wreg_chn);
 #endif
@@ -1294,7 +1294,7 @@ static int mcdx_transfer(struct s_drive_stuff *stuffp,
 
 	ans = mcdx_xfer(stuffp, p, sector, nr_sectors);
 	return ans;
-#if FALLBACK
+#ifdef FALLBACK
 	if (-1 == ans)
 		stuffp->readerrs++;
 	else

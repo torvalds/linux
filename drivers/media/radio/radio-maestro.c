@@ -154,7 +154,7 @@ static void radio_bits_set(struct radio_device *dev, __u32 data)
 	msleep(125);
 }
 
-inline static int radio_function(struct inode *inode, struct file *file,
+static inline int radio_function(struct inode *inode, struct file *file,
 				 unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
@@ -283,7 +283,7 @@ static int __init maestro_radio_init(void)
 module_init(maestro_radio_init);
 module_exit(maestro_radio_exit);
 
-inline static __u16 radio_power_on(struct radio_device *dev)
+static inline __u16 radio_power_on(struct radio_device *dev)
 {
 	register __u16 io=dev->io;
 	register __u32 ofreq;

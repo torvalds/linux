@@ -432,7 +432,7 @@ tiqdio_clear_global_summary(void)
 
 /************************* OUTBOUND ROUTINES *******************************/
 
-inline static int
+static inline int
 qdio_get_outbound_buffer_frontier(struct qdio_q *q)
 {
 	int f,f_mod_no;
@@ -510,7 +510,7 @@ out:
 }
 
 /* all buffers are processed */
-inline static int
+static inline int
 qdio_is_outbound_q_done(struct qdio_q *q)
 {
 	int no_used;
@@ -532,7 +532,7 @@ qdio_is_outbound_q_done(struct qdio_q *q)
 	return (no_used==0);
 }
 
-inline static int
+static inline int
 qdio_has_outbound_q_moved(struct qdio_q *q)
 {
 	int i;
@@ -552,7 +552,7 @@ qdio_has_outbound_q_moved(struct qdio_q *q)
 	}
 }
 
-inline static void
+static inline void
 qdio_kick_outbound_q(struct qdio_q *q)
 {
 	int result;
@@ -641,7 +641,7 @@ qdio_kick_outbound_q(struct qdio_q *q)
 		}
 }
 
-inline static void
+static inline void
 qdio_kick_outbound_handler(struct qdio_q *q)
 {
 	int start, end, real_end, count;
@@ -740,7 +740,7 @@ qdio_outbound_processing(struct qdio_q *q)
 /************************* INBOUND ROUTINES *******************************/
 
 
-inline static int
+static inline int
 qdio_get_inbound_buffer_frontier(struct qdio_q *q)
 {
 	int f,f_mod_no;
@@ -865,7 +865,7 @@ out:
 	return q->first_to_check;
 }
 
-inline static int
+static inline int
 qdio_has_inbound_q_moved(struct qdio_q *q)
 {
 	int i;
@@ -898,7 +898,7 @@ qdio_has_inbound_q_moved(struct qdio_q *q)
 }
 
 /* means, no more buffers to be filled */
-inline static int
+static inline int
 tiqdio_is_inbound_q_done(struct qdio_q *q)
 {
 	int no_used;
@@ -951,7 +951,7 @@ tiqdio_is_inbound_q_done(struct qdio_q *q)
 	return 0;
 }
 
-inline static int
+static inline int
 qdio_is_inbound_q_done(struct qdio_q *q)
 {
 	int no_used;
@@ -1010,7 +1010,7 @@ qdio_is_inbound_q_done(struct qdio_q *q)
 	}
 }
 
-inline static void
+static inline void
 qdio_kick_inbound_handler(struct qdio_q *q)
 {
 	int count, start, end, real_end, i;

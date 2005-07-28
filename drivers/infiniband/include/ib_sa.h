@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Voltaire, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,7 +30,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: ib_sa.h 1389 2004-12-27 22:56:47Z roland $
+ * $Id: ib_sa.h 2811 2005-07-06 18:11:43Z halr $
  */
 
 #ifndef IB_SA_H
@@ -41,9 +42,11 @@
 #include <ib_mad.h>
 
 enum {
-	IB_SA_CLASS_VERSION	= 2,	/* IB spec version 1.1/1.2 */
+	IB_SA_CLASS_VERSION		= 2,	/* IB spec version 1.1/1.2 */
 
-	IB_SA_METHOD_DELETE	= 0x15
+	IB_SA_METHOD_GET_TABLE		= 0x12,
+	IB_SA_METHOD_GET_TABLE_RESP	= 0x92,
+	IB_SA_METHOD_DELETE		= 0x15
 };
 
 enum ib_sa_selector {
@@ -86,10 +89,6 @@ static inline int ib_sa_rate_enum_to_int(enum ib_sa_rate rate)
 	default: 	          return -1;
 	}
 }
-
-typedef u64 __bitwise ib_sa_comp_mask;
-
-#define IB_SA_COMP_MASK(n)	((__force ib_sa_comp_mask) cpu_to_be64(1ull << n))
 
 /*
  * Structures for SA records are named "struct ib_sa_xxx_rec."  No
@@ -195,6 +194,61 @@ struct ib_sa_mcmember_rec {
 	int          proxy_join;
 };
 
+/* Service Record Component Mask Sec 15.2.5.14 Ver 1.1	*/
+#define IB_SA_SERVICE_REC_SERVICE_ID			IB_SA_COMP_MASK( 0)
+#define IB_SA_SERVICE_REC_SERVICE_GID			IB_SA_COMP_MASK( 1)
+#define IB_SA_SERVICE_REC_SERVICE_PKEY			IB_SA_COMP_MASK( 2)
+/* reserved:								 3 */
+#define IB_SA_SERVICE_REC_SERVICE_LEASE			IB_SA_COMP_MASK( 4)
+#define IB_SA_SERVICE_REC_SERVICE_KEY			IB_SA_COMP_MASK( 5)
+#define IB_SA_SERVICE_REC_SERVICE_NAME			IB_SA_COMP_MASK( 6)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_0		IB_SA_COMP_MASK( 7)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_1		IB_SA_COMP_MASK( 8)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_2		IB_SA_COMP_MASK( 9)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_3		IB_SA_COMP_MASK(10)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_4		IB_SA_COMP_MASK(11)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_5		IB_SA_COMP_MASK(12)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_6		IB_SA_COMP_MASK(13)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_7		IB_SA_COMP_MASK(14)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_8		IB_SA_COMP_MASK(15)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_9		IB_SA_COMP_MASK(16)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_10		IB_SA_COMP_MASK(17)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_11		IB_SA_COMP_MASK(18)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_12		IB_SA_COMP_MASK(19)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_13		IB_SA_COMP_MASK(20)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_14		IB_SA_COMP_MASK(21)
+#define IB_SA_SERVICE_REC_SERVICE_DATA8_15		IB_SA_COMP_MASK(22)
+#define IB_SA_SERVICE_REC_SERVICE_DATA16_0		IB_SA_COMP_MASK(23)
+#define IB_SA_SERVICE_REC_SERVICE_DATA16_1		IB_SA_COMP_MASK(24)
+#define IB_SA_SERVICE_REC_SERVICE_DATA16_2		IB_SA_COMP_MASK(25)
+#define IB_SA_SERVICE_REC_SERVICE_DATA16_3		IB_SA_COMP_MASK(26)
+#define IB_SA_SERVICE_REC_SERVICE_DATA16_4		IB_SA_COMP_MASK(27)
+#define IB_SA_SERVICE_REC_SERVICE_DATA16_5		IB_SA_COMP_MASK(28)
+#define IB_SA_SERVICE_REC_SERVICE_DATA16_6		IB_SA_COMP_MASK(29)
+#define IB_SA_SERVICE_REC_SERVICE_DATA16_7		IB_SA_COMP_MASK(30)
+#define IB_SA_SERVICE_REC_SERVICE_DATA32_0		IB_SA_COMP_MASK(31)
+#define IB_SA_SERVICE_REC_SERVICE_DATA32_1		IB_SA_COMP_MASK(32)
+#define IB_SA_SERVICE_REC_SERVICE_DATA32_2		IB_SA_COMP_MASK(33)
+#define IB_SA_SERVICE_REC_SERVICE_DATA32_3		IB_SA_COMP_MASK(34)
+#define IB_SA_SERVICE_REC_SERVICE_DATA64_0		IB_SA_COMP_MASK(35)
+#define IB_SA_SERVICE_REC_SERVICE_DATA64_1		IB_SA_COMP_MASK(36)
+
+#define IB_DEFAULT_SERVICE_LEASE 	0xFFFFFFFF
+
+struct ib_sa_service_rec {
+	u64		id;
+	union ib_gid	gid;
+	u16 		pkey;
+	/* reserved */
+	u32		lease;
+	u8		key[16];
+	u8		name[64];
+	u8		data8[16];
+	u16		data16[8];
+	u32		data32[4];
+	u64		data64[2];
+};
+
 struct ib_sa_query;
 
 void ib_sa_cancel_query(int id, struct ib_sa_query *query);
@@ -202,7 +256,7 @@ void ib_sa_cancel_query(int id, struct ib_sa_query *query);
 int ib_sa_path_rec_get(struct ib_device *device, u8 port_num,
 		       struct ib_sa_path_rec *rec,
 		       ib_sa_comp_mask comp_mask,
-		       int timeout_ms, int gfp_mask,
+		       int timeout_ms, unsigned int __nocast gfp_mask,
 		       void (*callback)(int status,
 					struct ib_sa_path_rec *resp,
 					void *context),
@@ -213,12 +267,23 @@ int ib_sa_mcmember_rec_query(struct ib_device *device, u8 port_num,
 			     u8 method,
 			     struct ib_sa_mcmember_rec *rec,
 			     ib_sa_comp_mask comp_mask,
-			     int timeout_ms, int gfp_mask,
+			     int timeout_ms, unsigned int __nocast gfp_mask,
 			     void (*callback)(int status,
 					      struct ib_sa_mcmember_rec *resp,
 					      void *context),
 			     void *context,
 			     struct ib_sa_query **query);
+
+int ib_sa_service_rec_query(struct ib_device *device, u8 port_num,
+			 u8 method,
+			 struct ib_sa_service_rec *rec,
+			 ib_sa_comp_mask comp_mask,
+			 int timeout_ms, unsigned int __nocast gfp_mask,
+			 void (*callback)(int status,
+					  struct ib_sa_service_rec *resp,
+					  void *context),
+			 void *context,
+			 struct ib_sa_query **sa_query);
 
 /**
  * ib_sa_mcmember_rec_set - Start an MCMember set query
@@ -248,7 +313,7 @@ static inline int
 ib_sa_mcmember_rec_set(struct ib_device *device, u8 port_num,
 		       struct ib_sa_mcmember_rec *rec,
 		       ib_sa_comp_mask comp_mask,
-		       int timeout_ms, int gfp_mask,
+		       int timeout_ms, unsigned int __nocast gfp_mask,
 		       void (*callback)(int status,
 					struct ib_sa_mcmember_rec *resp,
 					void *context),
@@ -290,7 +355,7 @@ static inline int
 ib_sa_mcmember_rec_delete(struct ib_device *device, u8 port_num,
 			  struct ib_sa_mcmember_rec *rec,
 			  ib_sa_comp_mask comp_mask,
-			  int timeout_ms, int gfp_mask,
+			  int timeout_ms, unsigned int __nocast gfp_mask,
 			  void (*callback)(int status,
 					   struct ib_sa_mcmember_rec *resp,
 					   void *context),

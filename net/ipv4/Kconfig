@@ -124,7 +124,7 @@ config IP_ROUTE_MULTIPATH
 
 config IP_ROUTE_MULTIPATH_CACHED
 	bool "IP: equal cost multipath with caching support (EXPERIMENTAL)"
-	depends on: IP_ROUTE_MULTIPATH
+	depends on IP_ROUTE_MULTIPATH
 	help
 	  Normally, equal cost multipath routing is not supported by the
 	  routing cache. If you say Y here, alternative routes are cached

@@ -213,7 +213,7 @@ sethdraddr(struct Layer2 *l2, u_char * header, int rsp)
 	}
 }
 
-inline static void
+static inline void
 enqueue_super(struct PStack *st,
 	      struct sk_buff *skb)
 {

@@ -233,37 +233,37 @@ irqreturn_t snd_vx_irq_handler(int irq, void *dev, struct pt_regs *regs);
 /*
  * lowlevel functions
  */
-inline static int vx_test_and_ack(vx_core_t *chip)
+static inline int vx_test_and_ack(vx_core_t *chip)
 {
 	snd_assert(chip->ops->test_and_ack, return -ENXIO);
 	return chip->ops->test_and_ack(chip);
 }
 
-inline static void vx_validate_irq(vx_core_t *chip, int enable)
+static inline void vx_validate_irq(vx_core_t *chip, int enable)
 {
 	snd_assert(chip->ops->validate_irq, return);
 	chip->ops->validate_irq(chip, enable);
 }
 
-inline static unsigned char snd_vx_inb(vx_core_t *chip, int reg)
+static inline unsigned char snd_vx_inb(vx_core_t *chip, int reg)
 {
 	snd_assert(chip->ops->in8, return 0);
 	return chip->ops->in8(chip, reg);
 }
 
-inline static unsigned int snd_vx_inl(vx_core_t *chip, int reg)
+static inline unsigned int snd_vx_inl(vx_core_t *chip, int reg)
 {
 	snd_assert(chip->ops->in32, return 0);
 	return chip->ops->in32(chip, reg);
 }
 
-inline static void snd_vx_outb(vx_core_t *chip, int reg, unsigned char val)
+static inline void snd_vx_outb(vx_core_t *chip, int reg, unsigned char val)
 {
 	snd_assert(chip->ops->out8, return);
 	chip->ops->out8(chip, reg, val);
 }
 
-inline static void snd_vx_outl(vx_core_t *chip, int reg, unsigned int val)
+static inline void snd_vx_outl(vx_core_t *chip, int reg, unsigned int val)
 {
 	snd_assert(chip->ops->out32, return);
 	chip->ops->out32(chip, reg, val);
@@ -303,14 +303,14 @@ int snd_vx_check_reg_bit(vx_core_t *chip, int reg, int mask, int bit, int time);
 /*
  * pseudo-DMA transfer
  */
-inline static void vx_pseudo_dma_write(vx_core_t *chip, snd_pcm_runtime_t *runtime,
+static inline void vx_pseudo_dma_write(vx_core_t *chip, snd_pcm_runtime_t *runtime,
 				       vx_pipe_t *pipe, int count)
 {
 	snd_assert(chip->ops->dma_write, return);
 	chip->ops->dma_write(chip, runtime, pipe, count);
 }
 
-inline static void vx_pseudo_dma_read(vx_core_t *chip, snd_pcm_runtime_t *runtime,
+static inline void vx_pseudo_dma_read(vx_core_t *chip, snd_pcm_runtime_t *runtime,
 				      vx_pipe_t *pipe, int count)
 {
 	snd_assert(chip->ops->dma_read, return);

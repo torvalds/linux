@@ -61,8 +61,8 @@ struct mem_block_t {
 	struct mem_block_t *heap;
 	int ofs, size;
 	int align;
-	int free:1;
-	int reserved:1;
+	unsigned int free:1;
+	unsigned int reserved:1;
 };
 typedef struct mem_block_t TMemBlock;
 typedef struct mem_block_t *PMemBlock;

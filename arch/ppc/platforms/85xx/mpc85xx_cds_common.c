@@ -49,7 +49,7 @@
 #include <asm/mpc85xx.h>
 #include <asm/irq.h>
 #include <asm/immap_85xx.h>
-#include <asm/immap_cpm2.h>
+#include <asm/cpm2.h>
 #include <asm/ppc_sys.h>
 #include <asm/kgdb.h>
 

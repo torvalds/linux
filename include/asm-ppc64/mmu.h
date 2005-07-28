@@ -200,6 +200,8 @@ extern long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 			       unsigned long prpn,
 			       unsigned long vflags, unsigned long rflags);
 
+extern void stabs_alloc(void);
+
 #endif /* __ASSEMBLY__ */
 
 /*
@@ -335,6 +337,9 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea)
 	return vsid_scramble((context << USER_ESID_BITS)
 			     | (ea >> SID_SHIFT));
 }
+
+#define VSID_SCRAMBLE(pvsid)	(((pvsid) * VSID_MULTIPLIER) % VSID_MODULUS)
+#define KERNEL_VSID(ea)		VSID_SCRAMBLE(GET_ESID(ea))
 
 #endif /* __ASSEMBLY */
 

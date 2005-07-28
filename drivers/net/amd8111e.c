@@ -1290,7 +1290,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id, struct pt_regs *reg
 	writel(intr0, mmio + INT0);
 
 	/* Check if Receive Interrupt has occurred. */
-#if CONFIG_AMD8111E_NAPI
+#ifdef CONFIG_AMD8111E_NAPI
 	if(intr0 & RINT0){
 		if(netif_rx_schedule_prep(dev)){
 			/* Disable receive interupts */

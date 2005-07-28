@@ -658,10 +658,8 @@ startup:basr  %r13,0                     # get base
 #
 	la     %r1,0f-.LPG1(%r13)	# set program check address
 	stg    %r1,__LC_PGM_NEW_PSW+8
-	mvc    __LC_DIAG44_OPCODE(8),.Lnop-.LPG1(%r13)
 	diag   0,0,0x44			# test diag 0x44
 	oi     7(%r12),32		# set diag44 flag
-	mvc    __LC_DIAG44_OPCODE(8),.Ldiag44-.LPG1(%r13)
 0:	
 
 #
@@ -702,7 +700,6 @@ startup:basr  %r13,0                     # get base
 .L4malign:.quad 0xffffffffffc00000
 .Lscan2g:.quad 0x80000000 + 0x20000 - 8 # 2GB + 128K - 8
 .Lnop:	.long  0x07000700
-.Ldiag44:.long 0x83000044
 
 	.org PARMAREA-64
 .Lduct:	.long 0,0,0,0,0,0,0,0
@@ -765,7 +762,7 @@ _stext:	basr  %r13,0                    # get base
 
 # check control registers
         stctg  %c0,%c15,0(%r15)
-	oi     6(%r15),0x20             # enable sigp external interrupts
+	oi     6(%r15),0x40             # enable sigp emergency signal
 	oi     4(%r15),0x10             # switch on low address proctection
         lctlg  %c0,%c15,0(%r15)
 

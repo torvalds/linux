@@ -167,12 +167,12 @@
 #define __NR_pciconfig_read	148 /* ENOSYS under SunOS                          */
 #define __NR_pciconfig_write	149 /* ENOSYS under SunOS                          */
 #define __NR_getsockname        150 /* Common                                      */
-/* #define __NR_getmsg          151    SunOS Specific                              */
-/* #define __NR_putmsg          152    SunOS Specific                              */
+#define __NR_inotify_init       151 /* Linux specific                              */
+#define __NR_inotify_add_watch  152 /* Linux specific                              */
 #define __NR_poll               153 /* Common                                      */
 #define __NR_getdents64		154 /* Linux specific				   */
 #define __NR_fcntl64		155 /* Linux sparc32 Specific                      */
-/* #define __NR_getdirentires 	156    SunOS Specific                              */
+#define __NR_inotify_rm_watch   156 /* Linux specific				   */
 #define __NR_statfs             157 /* Common                                      */
 #define __NR_fstatfs            158 /* Common                                      */
 #define __NR_umount             159 /* Common                                      */

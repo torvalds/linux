@@ -158,21 +158,21 @@ void snd_seq_oss_readq_info_read(seq_oss_readq_t *q, snd_info_buffer_t *buf);
 #define is_nonblock_mode(mode)	((mode) & SNDRV_SEQ_OSS_FILE_NONBLOCK)
 
 /* dispatch event */
-inline static int
+static inline int
 snd_seq_oss_dispatch(seq_oss_devinfo_t *dp, snd_seq_event_t *ev, int atomic, int hop)
 {
 	return snd_seq_kernel_client_dispatch(dp->cseq, ev, atomic, hop);
 }
 
 /* ioctl */
-inline static int
+static inline int
 snd_seq_oss_control(seq_oss_devinfo_t *dp, unsigned int type, void *arg)
 {
 	return snd_seq_kernel_client_ctl(dp->cseq, type, arg);
 }
 
 /* fill the addresses in header */
-inline static void
+static inline void
 snd_seq_oss_fill_addr(seq_oss_devinfo_t *dp, snd_seq_event_t *ev,
 		     int dest_client, int dest_port)
 {

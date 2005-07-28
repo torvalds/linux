@@ -1,8 +1,8 @@
 /*
  * include/asm-v850/bitops.h -- Bit operations
  *
- *  Copyright (C) 2001,02,03,04  NEC Electronics Corporation
- *  Copyright (C) 2001,02,03,04  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2001,02,03,04,05  NEC Electronics Corporation
+ *  Copyright (C) 2001,02,03,04,05  Miles Bader <miles@gnu.org>
  *  Copyright (C) 1992  Linus Torvalds.
  *
  * This file is subject to the terms and conditions of the GNU General
@@ -157,7 +157,7 @@ extern __inline__ int __test_bit (int nr, const void *addr)
 #define find_first_zero_bit(addr, size) \
   find_next_zero_bit ((addr), (size), 0)
 
-extern __inline__ int find_next_zero_bit (void *addr, int size, int offset)
+extern __inline__ int find_next_zero_bit(const void *addr, int size, int offset)
 {
 	unsigned long *p = ((unsigned long *) addr) + (offset >> 5);
 	unsigned long result = offset & ~31UL;

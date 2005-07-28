@@ -13,6 +13,7 @@
 #include "user.h"
 #include "kern_util.h"
 #include "user_util.h"
+#include "helper.h"
 #include "os.h"
 
 struct helper_data {
@@ -149,7 +150,7 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 	return(pid);
 }
 
-int helper_wait(int pid, int block)
+int helper_wait(int pid)
 {
 	int ret;
 
@@ -160,14 +161,3 @@ int helper_wait(int pid, int block)
 	}
 	return(ret);
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
