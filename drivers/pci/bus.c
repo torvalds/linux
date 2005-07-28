@@ -140,10 +140,11 @@ void __devinit pci_bus_add_devices(struct pci_bus *bus)
 void pci_enable_bridges(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
+	int retval;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (dev->subordinate) {
-			pci_enable_device(dev);
+			retval = pci_enable_device(dev);
 			pci_set_master(dev);
 			pci_enable_bridges(dev->subordinate);
 		}

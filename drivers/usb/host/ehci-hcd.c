@@ -549,7 +549,9 @@ static int ehci_start (struct usb_hcd *hcd)
 		hcd->can_wakeup = (port_wake & 1) != 0;
 
 		/* help hc dma work well with cachelines */
-		pci_set_mwi (pdev);
+		retval = pci_set_mwi(pdev);
+		if (retval)
+			ehci_dbg(ehci, "unable to enable MWI - not fatal.\n");
 	}
 #endif
 
