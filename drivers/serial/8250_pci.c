@@ -1029,6 +1029,8 @@ enum pci_board_num_t {
 	pbn_b0_2_921600,
 	pbn_b0_4_921600,
 
+	pbn_b0_2_1130000,
+
 	pbn_b0_4_1152000,
 
 	pbn_b0_bt_1_115200,
@@ -1163,6 +1165,14 @@ static struct pci_board pci_boards[] __devinitdata = {
 		.base_baud	= 921600,
 		.uart_offset	= 8,
 	},
+
+	[pbn_b0_2_1130000] = {
+		.flags          = FL_BASE0,
+		.num_ports      = 2,
+		.base_baud      = 1130000,
+		.uart_offset    = 8,
+	},
+
 	[pbn_b0_4_1152000] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 4,
@@ -1988,6 +1998,16 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_16PCI954,
 		PCI_SUBVENDOR_ID_SIIG, PCI_SUBDEVICE_ID_SIIG_QUARTET_SERIAL, 0, 0,
 		pbn_b0_4_1152000 },
+
+		/*
+		 * The below card is a little controversial since it is the
+		 * subject of a PCI vendor/device ID clash.  (See
+		 * www.ussg.iu.edu/hypermail/linux/kernel/0303.1/0516.html).
+		 * For now just used the hex ID 0x950a.
+		 */
+	{	PCI_VENDOR_ID_OXSEMI, 0x950a,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b0_2_1130000 },
 	{	PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_16PCI954,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b0_4_115200 },

@@ -138,27 +138,27 @@ static struct fb_var_screeninfo pm2fb_var __devinitdata = {
  * Utility functions
  */
 
-inline static u32 RD32(unsigned char __iomem *base, s32 off)
+static inline u32 RD32(unsigned char __iomem *base, s32 off)
 {
 	return fb_readl(base + off);
 }
 
-inline static void WR32(unsigned char __iomem *base, s32 off, u32 v)
+static inline void WR32(unsigned char __iomem *base, s32 off, u32 v)
 {
 	fb_writel(v, base + off);
 }
 
-inline static u32 pm2_RD(struct pm2fb_par* p, s32 off)
+static inline u32 pm2_RD(struct pm2fb_par* p, s32 off)
 {
 	return RD32(p->v_regs, off);
 }
 
-inline static void pm2_WR(struct pm2fb_par* p, s32 off, u32 v)
+static inline void pm2_WR(struct pm2fb_par* p, s32 off, u32 v)
 {
 	WR32(p->v_regs, off, v);
 }
 
-inline static u32 pm2_RDAC_RD(struct pm2fb_par* p, s32 idx)
+static inline u32 pm2_RDAC_RD(struct pm2fb_par* p, s32 idx)
 {
 	int index = PM2R_RD_INDEXED_DATA;
 	switch (p->type) {
@@ -174,7 +174,7 @@ inline static u32 pm2_RDAC_RD(struct pm2fb_par* p, s32 idx)
 	return pm2_RD(p, index);
 }
 
-inline static void pm2_RDAC_WR(struct pm2fb_par* p, s32 idx, u32 v)
+static inline void pm2_RDAC_WR(struct pm2fb_par* p, s32 idx, u32 v)
 {
 	int index = PM2R_RD_INDEXED_DATA;
 	switch (p->type) {
@@ -190,7 +190,7 @@ inline static void pm2_RDAC_WR(struct pm2fb_par* p, s32 idx, u32 v)
 	pm2_WR(p, index, v);
 }
 
-inline static void pm2v_RDAC_WR(struct pm2fb_par* p, s32 idx, u32 v)
+static inline void pm2v_RDAC_WR(struct pm2fb_par* p, s32 idx, u32 v)
 {
 	pm2_WR(p, PM2VR_RD_INDEX_LOW, idx & 0xff);
 	mb();
@@ -200,7 +200,7 @@ inline static void pm2v_RDAC_WR(struct pm2fb_par* p, s32 idx, u32 v)
 #ifdef CONFIG_FB_PM2_FIFO_DISCONNECT
 #define WAIT_FIFO(p,a)
 #else
-inline static void WAIT_FIFO(struct pm2fb_par* p, u32 a)
+static inline void WAIT_FIFO(struct pm2fb_par* p, u32 a)
 {
 	while( pm2_RD(p, PM2R_IN_FIFO_SPACE) < a );
 	mb();

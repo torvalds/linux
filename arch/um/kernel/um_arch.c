@@ -38,6 +38,9 @@
 #include "choose-mode.h"
 #include "mode_kern.h"
 #include "mode.h"
+#ifdef UML_CONFIG_MODE_SKAS
+#include "skas.h"
+#endif
 
 #define DEFAULT_COMMAND_LINE "root=98:0"
 
@@ -318,6 +321,7 @@ int linux_main(int argc, char **argv)
 	unsigned long avail, diff;
 	unsigned long virtmem_size, max_physmem;
 	unsigned int i, add;
+	char * mode;
 
 	for (i = 1; i < argc; i++){
 		if((i == 1) && (argv[i][0] == ' ')) continue;
@@ -338,6 +342,21 @@ int linux_main(int argc, char **argv)
 		exit(1);
 	}
 #endif
+
+#ifndef CONFIG_MODE_SKAS
+	mode = "TT";
+#else
+	/* Show to the user the result of selection */
+	if (mode_tt)
+		mode = "TT";
+	else if (proc_mm && ptrace_faultinfo)
+		mode = "SKAS3";
+	else
+		mode = "SKAS0";
+#endif
+
+	printf("UML running in %s mode\n", mode);
+
 	uml_start = CHOOSE_MODE_PROC(set_task_sizes_tt, set_task_sizes_skas, 0,
 				     &host_task_size, &task_size);
 

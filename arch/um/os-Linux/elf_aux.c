@@ -11,6 +11,7 @@
 #include <stddef.h>
 #include "init.h"
 #include "elf_user.h"
+#include <asm/elf.h>
 
 #if ELF_CLASS == ELFCLASS32
 typedef Elf32_auxv_t elf_auxv_t;

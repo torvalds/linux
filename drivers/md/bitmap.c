@@ -108,7 +108,7 @@ static unsigned char *bitmap_alloc_page(struct bitmap *bitmap)
 {
 	unsigned char *page;
 
-#if INJECT_FAULTS_1
+#ifdef INJECT_FAULTS_1
 	page = NULL;
 #else
 	page = kmalloc(PAGE_SIZE, GFP_NOIO);
@@ -843,7 +843,7 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, int in_sync)
 
 	BUG_ON(!file && !bitmap->offset);
 
-#if INJECT_FAULTS_3
+#ifdef INJECT_FAULTS_3
 	outofdate = 1;
 #else
 	outofdate = bitmap->flags & BITMAP_STALE;
@@ -1187,7 +1187,7 @@ static int bitmap_start_daemon(struct bitmap *bitmap, mdk_thread_t **ptr,
 
 	spin_unlock_irqrestore(&bitmap->lock, flags);
 
-#if INJECT_FATAL_FAULT_2
+#ifdef INJECT_FATAL_FAULT_2
 	daemon = NULL;
 #else
 	sprintf(namebuf, "%%s_%s", name);
@@ -1552,7 +1552,7 @@ int bitmap_create(mddev_t *mddev)
 
 	bitmap->syncchunk = ~0UL;
 
-#if INJECT_FATAL_FAULT_1
+#ifdef INJECT_FATAL_FAULT_1
 	bitmap->bp = NULL;
 #else
 	bitmap->bp = kmalloc(pages * sizeof(*bitmap->bp), GFP_KERNEL);

@@ -1241,6 +1241,8 @@ int fb_validate_mode(const struct fb_var_screeninfo *var, struct fb_info *info)
 		vtotal *= 2;
 
 	hfreq = pixclock/htotal;
+	hfreq = (hfreq + 500) / 1000 * 1000;
+
 	vfreq = hfreq/vtotal;
 
 	return (vfreq < vfmin || vfreq > vfmax || 

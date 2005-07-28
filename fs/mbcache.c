@@ -316,11 +316,10 @@ fail:
  * currently in use cannot be freed, and thus remain in the cache. All others
  * are freed.
  *
- * @cache: which cache to shrink
  * @bdev: which device's cache entries to shrink
  */
 void
-mb_cache_shrink(struct mb_cache *cache, struct block_device *bdev)
+mb_cache_shrink(struct block_device *bdev)
 {
 	LIST_HEAD(free_list);
 	struct list_head *l, *ltmp;

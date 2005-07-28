@@ -289,6 +289,15 @@ struct ib_global_route {
 	u8		traffic_class;
 };
 
+struct ib_grh {
+	u32		version_tclass_flow;
+	u16		paylen;
+	u8		next_hdr;
+	u8		hop_limit;
+	union ib_gid	sgid;
+	union ib_gid	dgid;
+};
+
 enum {
 	IB_MULTICAST_QPN = 0xffffff
 };
@@ -566,6 +575,7 @@ struct ib_send_wr {
 			u32	remote_qpn;
 			u32	remote_qkey;
 			int	timeout_ms; /* valid for MADs only */
+			int	retries;    /* valid for MADs only */
 			u16	pkey_index; /* valid for GSI only */
 			u8	port_num;   /* valid for DR SMPs on switch only */
 		} ud;
@@ -988,6 +998,21 @@ int ib_dealloc_pd(struct ib_pd *pd);
  * in all UD QP post sends.
  */
 struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr);
+
+/**
+ * ib_create_ah_from_wc - Creates an address handle associated with the
+ *   sender of the specified work completion.
+ * @pd: The protection domain associated with the address handle.
+ * @wc: Work completion information associated with a received message.
+ * @grh: References the received global route header.  This parameter is
+ *   ignored unless the work completion indicates that the GRH is valid.
+ * @port_num: The outbound port number to associate with the address.
+ *
+ * The address handle is used to reference a local or global destination
+ * in all UD QP post sends.
+ */
+struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, struct ib_wc *wc,
+				   struct ib_grh *grh, u8 port_num);
 
 /**
  * ib_modify_ah - Modifies the address vector associated with an address

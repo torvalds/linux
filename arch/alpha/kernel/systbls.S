@@ -461,6 +461,11 @@ sys_call_table:
 	.quad sys_add_key
 	.quad sys_request_key			/* 440 */
 	.quad sys_keyctl
+	.quad sys_ioprio_set
+	.quad sys_ioprio_get
+	.quad sys_inotify_init
+	.quad sys_inotify_add_watch		/* 445 */
+	.quad sys_inotify_rm_watch
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

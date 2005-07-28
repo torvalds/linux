@@ -1,8 +1,8 @@
 #
 # arch/v850/Makefile
 #
-#  Copyright (C) 2001,02,03  NEC Corporation
-#  Copyright (C) 2001,02,03  Miles Bader <miles@gnu.org>
+#  Copyright (C) 2001,02,03,05  NEC Corporation
+#  Copyright (C) 2001,02,03,05  Miles Bader <miles@gnu.org>
 #
 # This file is included by the global makefile so that you can add your own
 # architecture-specific flags and dependencies. Remember to do have actions
@@ -21,6 +21,9 @@ CFLAGS += -mv850e
 CFLAGS += -ffixed-r16 -mno-prolog-function
 CFLAGS += -fno-builtin
 CFLAGS += -D__linux__ -DUTS_SYSNAME=\"uClinux\"
+
+# By default, build a kernel that runs on the gdb v850 simulator.
+KBUILD_DEFCONFIG := sim_defconfig
 
 # This prevents the linker from consolidating the .gnu.linkonce.this_module
 # section into .text (which the v850 default linker script for -r does for

@@ -169,6 +169,7 @@ MODULE_DEVICE_TABLE(ieee1394, sbp2_id_table);
  * Debug levels, configured via kernel config, or enable here.
  */
 
+#define CONFIG_IEEE1394_SBP2_DEBUG 0
 /* #define CONFIG_IEEE1394_SBP2_DEBUG_ORBS */
 /* #define CONFIG_IEEE1394_SBP2_DEBUG_DMA */
 /* #define CONFIG_IEEE1394_SBP2_DEBUG 1 */

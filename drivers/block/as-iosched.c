@@ -1935,23 +1935,15 @@ struct as_fs_entry {
 static ssize_t
 as_var_show(unsigned int var, char *page)
 {
-	var = (var * 1000) / HZ;
 	return sprintf(page, "%d\n", var);
 }
 
 static ssize_t
 as_var_store(unsigned long *var, const char *page, size_t count)
 {
-	unsigned long tmp;
 	char *p = (char *) page;
 
-	tmp = simple_strtoul(p, &p, 10);
-	if (tmp != 0) {
-		tmp = (tmp * HZ) / 1000;
-		if (tmp == 0)
-			tmp = 1;
-	}
-	*var = tmp;
+	*var = simple_strtoul(p, &p, 10);
 	return count;
 }
 

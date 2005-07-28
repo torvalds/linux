@@ -14,6 +14,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/arch/svinto.h>
+#include <asm/mmu_context.h>
 
 /* debug of low-level TLB reload */
 #undef DEBUG
@@ -23,8 +24,6 @@
 #else
 #define D(x)
 #endif
-
-extern volatile pgd_t *current_pgd;
 
 extern const struct exception_table_entry
 	*search_exception_tables(unsigned long addr);
@@ -46,7 +45,7 @@ handle_mmu_bus_fault(struct pt_regs *regs)
 	int page_id;
 	int acc, inv;
 #endif
-	pgd_t* pgd = (pgd_t*)current_pgd;
+	pgd_t* pgd = (pgd_t*)per_cpu(current_pgd, smp_processor_id());
 	pmd_t *pmd;
 	pte_t pte;
 	int miss, we, writeac;
@@ -93,25 +92,4 @@ handle_mmu_bus_fault(struct pt_regs *regs)
 	*R_TLB_HI = cause;
 	*R_TLB_LO = pte_val(pte);
 	local_irq_restore(flags);
-}
-
-/* Called from arch/cris/mm/fault.c to find fixup code. */
-int
-find_fixup_code(struct pt_regs *regs)
-{
-	const struct exception_table_entry *fixup;
-
-	if ((fixup = search_exception_tables(regs->irp)) != 0) {
-		/* Adjust the instruction pointer in the stackframe. */
-		regs->irp = fixup->fixup;
-		
-		/* 
-		 * Don't return by restoring the CPU state, so switch
-		 * frame-type. 
-		 */
-		regs->frametype = CRIS_FRAME_NORMAL;
-		return 1;
-	}
-
-	return 0;
 }

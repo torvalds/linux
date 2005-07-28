@@ -163,7 +163,8 @@ enum ppc_sys_devices {
 	MPC10X_IIC1,
 	MPC10X_DMA0,
 	MPC10X_DMA1,
-	MPC10X_DUART,
+	MPC10X_UART0,
+	MPC10X_UART1,
 };
 
 int mpc10x_bridge_init(struct pci_controller *hose,

@@ -121,15 +121,24 @@ __inline__ void flush_dcache_page_impl(struct page *page)
 }
 
 #define PG_dcache_dirty		PG_arch_1
+#define PG_dcache_cpu_shift	24
+#define PG_dcache_cpu_mask	(256 - 1)
+
+#if NR_CPUS > 256
+#error D-cache dirty tracking and thread_info->cpu need fixing for > 256 cpus
+#endif
 
 #define dcache_dirty_cpu(page) \
-	(((page)->flags >> 24) & (NR_CPUS - 1UL))
+	(((page)->flags >> PG_dcache_cpu_shift) & PG_dcache_cpu_mask)
 
 static __inline__ void set_dcache_dirty(struct page *page, int this_cpu)
 {
 	unsigned long mask = this_cpu;
-	unsigned long non_cpu_bits = ~((NR_CPUS - 1UL) << 24UL);
-	mask = (mask << 24) | (1UL << PG_dcache_dirty);
+	unsigned long non_cpu_bits;
+
+	non_cpu_bits = ~(PG_dcache_cpu_mask << PG_dcache_cpu_shift);
+	mask = (mask << PG_dcache_cpu_shift) | (1UL << PG_dcache_dirty);
+
 	__asm__ __volatile__("1:\n\t"
 			     "ldx	[%2], %%g7\n\t"
 			     "and	%%g7, %1, %%g1\n\t"
@@ -151,7 +160,7 @@ static __inline__ void clear_dcache_dirty_cpu(struct page *page, unsigned long c
 	__asm__ __volatile__("! test_and_clear_dcache_dirty\n"
 			     "1:\n\t"
 			     "ldx	[%2], %%g7\n\t"
-			     "srlx	%%g7, 24, %%g1\n\t"
+			     "srlx	%%g7, %4, %%g1\n\t"
 			     "and	%%g1, %3, %%g1\n\t"
 			     "cmp	%%g1, %0\n\t"
 			     "bne,pn	%%icc, 2f\n\t"
@@ -164,7 +173,8 @@ static __inline__ void clear_dcache_dirty_cpu(struct page *page, unsigned long c
 			     "2:"
 			     : /* no outputs */
 			     : "r" (cpu), "r" (mask), "r" (&page->flags),
-			       "i" (NR_CPUS - 1UL)
+			       "i" (PG_dcache_cpu_mask),
+			       "i" (PG_dcache_cpu_shift)
 			     : "g1", "g7");
 }
 
@@ -180,7 +190,8 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 	if (pfn_valid(pfn) &&
 	    (page = pfn_to_page(pfn), page_mapping(page)) &&
 	    ((pg_flags = page->flags) & (1UL << PG_dcache_dirty))) {
-		int cpu = ((pg_flags >> 24) & (NR_CPUS - 1UL));
+		int cpu = ((pg_flags >> PG_dcache_cpu_shift) &
+			   PG_dcache_cpu_mask);
 		int this_cpu = get_cpu();
 
 		/* This is just to optimize away some function calls

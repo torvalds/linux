@@ -375,7 +375,7 @@ static void smp_ext_bitcall(int cpu, ec_bit_sig sig)
          * Set signaling bit in lowcore of target cpu and kick it
          */
 	set_bit(sig, (unsigned long *) &lowcore_ptr[cpu]->ext_call_fast);
-	while(signal_processor(cpu, sigp_external_call) == sigp_busy)
+	while(signal_processor(cpu, sigp_emergency_signal) == sigp_busy)
 		udelay(10);
 }
 
@@ -394,7 +394,7 @@ static void smp_ext_bitcall_others(ec_bit_sig sig)
                  * Set signaling bit in lowcore of target cpu and kick it
                  */
 		set_bit(sig, (unsigned long *) &lowcore_ptr[cpu]->ext_call_fast);
-		while (signal_processor(cpu, sigp_external_call) == sigp_busy)
+		while (signal_processor(cpu, sigp_emergency_signal) == sigp_busy)
 			udelay(10);
         }
 }
@@ -751,9 +751,9 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	unsigned int cpu;
         int i;
 
-        /* request the 0x1202 external interrupt */
-        if (register_external_interrupt(0x1202, do_ext_call_interrupt) != 0)
-                panic("Couldn't request external interrupt 0x1202");
+        /* request the 0x1201 emergency signal external interrupt */
+        if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
+                panic("Couldn't request external interrupt 0x1201");
         smp_check_cpus(max_cpus);
         memset(lowcore_ptr,0,sizeof(lowcore_ptr));  
         /*

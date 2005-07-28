@@ -311,19 +311,22 @@ sandpoint_setup_arch(void)
 	{
 		bd_t *bp = (bd_t *)__res;
 		struct plat_serial8250_port *pdata;
-		pdata = (struct plat_serial8250_port *) ppc_sys_get_pdata(MPC10X_DUART);
 
+		pdata = (struct plat_serial8250_port *) ppc_sys_get_pdata(MPC10X_UART0);
 		if (pdata)
 		{
 			pdata[0].uartclk = bp->bi_busfreq;
-			pdata[0].membase = ioremap(pdata[0].mapbase, 0x100);
-
-			/* this disables the 2nd serial port on the DUART
-			 * since the sandpoint does not have it connected */
-			pdata[1].uartclk = 0;
-			pdata[1].irq = 0;
-			pdata[1].mapbase = 0;
 		}
+
+#ifdef CONFIG_SANDPOINT_ENABLE_UART1
+		pdata = (struct plat_serial8250_port *) ppc_sys_get_pdata(MPC10X_UART1);
+		if (pdata)
+		{
+			pdata[0].uartclk = bp->bi_busfreq;
+		}
+#else
+		ppc_sys_device_remove(MPC10X_UART1);
+#endif
 	}
 
 	printk(KERN_INFO "Motorola SPS Sandpoint Test Platform\n");

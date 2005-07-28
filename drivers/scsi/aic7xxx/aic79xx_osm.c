@@ -1505,7 +1505,7 @@ ahd_linux_dev_reset(Scsi_Cmnd *cmd)
 	memset(recovery_cmd, 0, sizeof(struct scsi_cmnd));
 	recovery_cmd->device = cmd->device;
 	recovery_cmd->scsi_done = ahd_linux_dev_reset_complete;
-#if AHD_DEBUG
+#ifdef AHD_DEBUG
 	if ((ahd_debug & AHD_SHOW_RECOVERY) != 0)
 		printf("%s:%d:%d:%d: Device reset called for cmd %p\n",
 		       ahd_name(ahd), cmd->device->channel, cmd->device->id,

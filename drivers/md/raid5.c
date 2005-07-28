@@ -1931,6 +1931,7 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	}
 	mddev->size = sectors /2;
+	mddev->resync_max_sectors = sectors;
 	return 0;
 }
 

@@ -112,28 +112,11 @@ asmlinkage long sys_getitimer(int which, struct itimerval __user *value)
 	return error;
 }
 
-/*
- * Called with P->sighand->siglock held and P->signal->real_timer inactive.
- * If interval is nonzero, arm the timer for interval ticks from now.
- */
-static inline void it_real_arm(struct task_struct *p, unsigned long interval)
-{
-	p->signal->it_real_value = interval; /* XXX unnecessary field?? */
-	if (interval == 0)
-		return;
-	if (interval > (unsigned long) LONG_MAX)
-		interval = LONG_MAX;
-	/* the "+ 1" below makes sure that the timer doesn't go off before
-	 * the interval requested. This could happen if
-	 * time requested % (usecs per jiffy) is more than the usecs left
-	 * in the current jiffy */
-	p->signal->real_timer.expires = jiffies + interval + 1;
-	add_timer(&p->signal->real_timer);
-}
 
 void it_real_fn(unsigned long __data)
 {
 	struct task_struct * p = (struct task_struct *) __data;
+	unsigned long inc = p->signal->it_real_incr;
 
 	send_group_sig_info(SIGALRM, SEND_SIG_PRIV, p);
 
@@ -141,14 +124,23 @@ void it_real_fn(unsigned long __data)
 	 * Now restart the timer if necessary.  We don't need any locking
 	 * here because do_setitimer makes sure we have finished running
 	 * before it touches anything.
+	 * Note, we KNOW we are (or should be) at a jiffie edge here so
+	 * we don't need the +1 stuff.  Also, we want to use the prior
+	 * expire value so as to not "slip" a jiffie if we are late.
+	 * Deal with requesting a time prior to "now" here rather than
+	 * in add_timer.
 	 */
-	it_real_arm(p, p->signal->it_real_incr);
+	if (!inc)
+		return;
+	while (time_before_eq(p->signal->real_timer.expires, jiffies))
+		p->signal->real_timer.expires += inc;
+	add_timer(&p->signal->real_timer);
 }
 
 int do_setitimer(int which, struct itimerval *value, struct itimerval *ovalue)
 {
 	struct task_struct *tsk = current;
- 	unsigned long val, interval;
+ 	unsigned long val, interval, expires;
 	cputime_t cval, cinterval, nval, ninterval;
 
 	switch (which) {
@@ -164,7 +156,10 @@ again:
 		}
 		tsk->signal->it_real_incr =
 			timeval_to_jiffies(&value->it_interval);
-		it_real_arm(tsk, timeval_to_jiffies(&value->it_value));
+		expires = timeval_to_jiffies(&value->it_value);
+		if (expires)
+			mod_timer(&tsk->signal->real_timer,
+				  jiffies + 1 + expires);
 		spin_unlock_irq(&tsk->sighand->siglock);
 		if (ovalue) {
 			jiffies_to_timeval(val, &ovalue->it_value);

@@ -488,32 +488,34 @@ struct snd_stru_cmipci {
 
 
 /* read/write operations for dword register */
-inline static void snd_cmipci_write(cmipci_t *cm, unsigned int cmd, unsigned int data)
+static inline void snd_cmipci_write(cmipci_t *cm, unsigned int cmd, unsigned int data)
 {
 	outl(data, cm->iobase + cmd);
 }
-inline static unsigned int snd_cmipci_read(cmipci_t *cm, unsigned int cmd)
+
+static inline unsigned int snd_cmipci_read(cmipci_t *cm, unsigned int cmd)
 {
 	return inl(cm->iobase + cmd);
 }
 
 /* read/write operations for word register */
-inline static void snd_cmipci_write_w(cmipci_t *cm, unsigned int cmd, unsigned short data)
+static inline void snd_cmipci_write_w(cmipci_t *cm, unsigned int cmd, unsigned short data)
 {
 	outw(data, cm->iobase + cmd);
 }
-inline static unsigned short snd_cmipci_read_w(cmipci_t *cm, unsigned int cmd)
+
+static inline unsigned short snd_cmipci_read_w(cmipci_t *cm, unsigned int cmd)
 {
 	return inw(cm->iobase + cmd);
 }
 
 /* read/write operations for byte register */
-inline static void snd_cmipci_write_b(cmipci_t *cm, unsigned int cmd, unsigned char data)
+static inline void snd_cmipci_write_b(cmipci_t *cm, unsigned int cmd, unsigned char data)
 {
 	outb(data, cm->iobase + cmd);
 }
 
-inline static unsigned char snd_cmipci_read_b(cmipci_t *cm, unsigned int cmd)
+static inline unsigned char snd_cmipci_read_b(cmipci_t *cm, unsigned int cmd)
 {
 	return inb(cm->iobase + cmd);
 }

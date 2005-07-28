@@ -85,7 +85,6 @@ config POWER4
 	bool "POWER4 and 970 (G5)"
 
 config 8xx
-	depends on BROKEN
 	bool "8xx"
 
 config E200
@@ -878,6 +877,13 @@ config MPC10X_STORE_GATHERING
 	bool "Enable MPC10x store gathering"
 	depends on MPC10X_BRIDGE
 
+config SANDPOINT_ENABLE_UART1
+	bool "Enable DUART mode on Sandpoint"
+	depends on SANDPOINT
+	help
+	  If this option is enabled then the MPC824x processor will run
+	  in DUART mode instead of UART mode.
+
 config CPC710_DATA_GATHERING
 	bool "Enable CPC710 data gathering"
 	depends on K2
@@ -935,19 +941,11 @@ config NR_CPUS
 	depends on SMP
 	default "4"
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	help
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-
-	  Say Y here if you are building a kernel for a desktop, embedded
-	  or real-time system.  Say N if you are unsure.
-
 config HIGHMEM
 	bool "High memory support"
 
+source kernel/Kconfig.hz
+source kernel/Kconfig.preempt
 source "mm/Kconfig"
 
 source "fs/Kconfig.binfmt"

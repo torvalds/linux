@@ -690,9 +690,9 @@ mcck_int_handler:
 	bo	BASED(0f)
 	spt	__LC_LAST_UPDATE_TIMER	# revalidate cpu timer
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
-	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
-	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_EXIT_TIMER
+	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_LAST_UPDATE_TIMER
+	mvc	__LC_SYNC_ENTER_TIMER(8),__LC_LAST_UPDATE_TIMER
+	mvc	__LC_EXIT_TIMER(8),__LC_LAST_UPDATE_TIMER
 0:	tm	__LC_MCCK_CODE+2,0x08   # mwp of old psw valid?
 	bno	BASED(mcck_no_vtime)	# no -> skip cleanup critical
 	tm	__LC_MCK_OLD_PSW+1,0x01 # interrupting from user ?

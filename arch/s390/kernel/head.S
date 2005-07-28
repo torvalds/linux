@@ -535,8 +535,13 @@ startup:basr  %r13,0                     # get base
 	lhi   %r1,0
 	icm   %r1,3,.Lscpincr1-PARMAREA(%r4) # use this one if != 0
 	jnz   .Lscnd
-	l     %r1,.Lscpincr2-PARMAREA+4(%r4) # otherwise use this one
+	lhi   %r1,0x800			# otherwise report 2GB
 .Lscnd:
+	lhi   %r3,0x800			# limit reported memory size to 2GB
+	cr    %r1,%r3
+	jl    .Lno2gb
+	lr    %r1,%r3
+.Lno2gb:
 	xr    %r3,%r3			# same logic
 	ic    %r3,.Lscpa1-PARMAREA(%r4)
 	chi   %r3,0x00
@@ -765,7 +770,7 @@ _stext:	basr  %r13,0                    # get base
 
 # check control registers
         stctl  %c0,%c15,0(%r15)
-	oi     2(%r15),0x20             # enable sigp external interrupts
+	oi     2(%r15),0x40             # enable sigp emergency signal
 	oi     0(%r15),0x10             # switch on low address protection
         lctl   %c0,%c15,0(%r15)
 

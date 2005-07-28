@@ -115,9 +115,9 @@ vmcp_write(struct file *file, const char __user * buff, size_t count,
 		return -ENOMEM;
 	}
 	debug_text_event(vmcp_debug, 1, cmd);
-	session->resp_size = cpcmd(cmd, session->response,
-				   session->bufsize,
-				   &session->resp_code);
+	session->resp_size = __cpcmd(cmd, session->response,
+				     session->bufsize,
+				     &session->resp_code);
 	up(&session->mutex);
 	kfree(cmd);
 	*ppos = 0;		/* reset the file pointer after a command */

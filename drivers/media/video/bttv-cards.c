@@ -1,5 +1,5 @@
 /*
-    $Id: bttv-cards.c,v 1.53 2005/07/05 17:37:35 nsh Exp $
+    $Id: bttv-cards.c,v 1.54 2005/07/19 18:26:46 mkrufky Exp $
 
     bttv-cards.c
 
@@ -2771,8 +2771,6 @@ void __devinit bttv_init_card2(struct bttv *btv)
                 }
         }
 	btv->pll.pll_current = -1;
-
-	bttv_reset_audio(btv);
 
 	/* tuner configuration (from card list / autodetect / insmod option) */
  	if (UNSET != bttv_tvcards[btv->c.type].tuner_type)

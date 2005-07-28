@@ -23,9 +23,9 @@
 #include <linux/percpu.h>
 #include <linux/init.h>
 
+#include <asm/byteorder.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
-
 
 /*
   This is a maximally equidistributed combined Tausworthe generator
@@ -153,3 +153,38 @@ int net_ratelimit(void)
 EXPORT_SYMBOL(net_random);
 EXPORT_SYMBOL(net_ratelimit);
 EXPORT_SYMBOL(net_srandom);
+
+/*
+ * Convert an ASCII string to binary IP.
+ * This is outside of net/ipv4/ because various code that uses IP addresses
+ * is otherwise not dependent on the TCP/IP stack.
+ */
+
+__u32 in_aton(const char *str)
+{
+	unsigned long l;
+	unsigned int val;
+	int i;
+
+	l = 0;
+	for (i = 0; i < 4; i++)
+	{
+		l <<= 8;
+		if (*str != '\0')
+		{
+			val = 0;
+			while (*str != '\0' && *str != '.')
+			{
+				val *= 10;
+				val += *str - '0';
+				str++;
+			}
+			l |= val;
+			if (*str != '\0')
+				str++;
+		}
+	}
+	return(htonl(l));
+}
+
+EXPORT_SYMBOL(in_aton);

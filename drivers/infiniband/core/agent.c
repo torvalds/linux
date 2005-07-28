@@ -134,7 +134,7 @@ static int agent_mad_send(struct ib_mad_agent *mad_agent,
 					  sizeof(mad_priv->mad),
 					  DMA_TO_DEVICE);
 	gather_list.length = sizeof(mad_priv->mad);
-	gather_list.lkey = (*port_priv->mr).lkey;
+	gather_list.lkey = mad_agent->mr->lkey;
 
 	send_wr.next = NULL;
 	send_wr.opcode = IB_WR_SEND;
@@ -156,10 +156,10 @@ static int agent_mad_send(struct ib_mad_agent *mad_agent,
 			/* Should sgid be looked up ? */
 			ah_attr.grh.sgid_index = 0;
 			ah_attr.grh.hop_limit = grh->hop_limit;
-			ah_attr.grh.flow_label = be32_to_cpup(
-				&grh->version_tclass_flow)  & 0xfffff;
-			ah_attr.grh.traffic_class = (be32_to_cpup(
-				&grh->version_tclass_flow) >> 20) & 0xff;
+			ah_attr.grh.flow_label = be32_to_cpu(
+				grh->version_tclass_flow)  & 0xfffff;
+			ah_attr.grh.traffic_class = (be32_to_cpu(
+				grh->version_tclass_flow) >> 20) & 0xff;
 			memcpy(ah_attr.grh.dgid.raw,
 			       grh->sgid.raw,
 			       sizeof(ah_attr.grh.dgid));
@@ -322,22 +322,12 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 		goto error3;
 	}
 
-	port_priv->mr = ib_get_dma_mr(port_priv->smp_agent->qp->pd,
-				      IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(port_priv->mr)) {
-		printk(KERN_ERR SPFX "Couldn't get DMA MR\n");
-		ret = PTR_ERR(port_priv->mr);
-		goto error4;
-	}
-
 	spin_lock_irqsave(&ib_agent_port_list_lock, flags);
 	list_add_tail(&port_priv->port_list, &ib_agent_port_list);
 	spin_unlock_irqrestore(&ib_agent_port_list_lock, flags);
 
 	return 0;
 
-error4:
-	ib_unregister_mad_agent(port_priv->perf_mgmt_agent);
 error3:
 	ib_unregister_mad_agent(port_priv->smp_agent);
 error2:
@@ -360,8 +350,6 @@ int ib_agent_port_close(struct ib_device *device, int port_num)
 	}
 	list_del(&port_priv->port_list);
 	spin_unlock_irqrestore(&ib_agent_port_list_lock, flags);
-
-	ib_dereg_mr(port_priv->mr);
 
 	ib_unregister_mad_agent(port_priv->perf_mgmt_agent);
 	ib_unregister_mad_agent(port_priv->smp_agent);
