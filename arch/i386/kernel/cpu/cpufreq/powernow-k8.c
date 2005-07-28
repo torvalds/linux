@@ -110,14 +110,13 @@ static int query_current_values_with_pending_wait(struct powernow_k8_data *data)
 	u32 lo, hi;
 	u32 i = 0;
 
-	lo = MSR_S_LO_CHANGE_PENDING;
-	while (lo & MSR_S_LO_CHANGE_PENDING) {
+	do {
 		if (i++ > 0x1000000) {
 			printk(KERN_ERR PFX "detected change pending stuck\n");
 			return 1;
 		}
 		rdmsr(MSR_FIDVID_STATUS, lo, hi);
-	}
+	} while (lo & MSR_S_LO_CHANGE_PENDING);
 
 	data->currvid = hi & MSR_S_HI_CURRENT_VID;
 	data->currfid = lo & MSR_S_LO_CURRENT_FID;
