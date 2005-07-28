@@ -408,8 +408,7 @@ static void snd_via82xx_codec_wait(ac97_t *ac97)
 	int err;
 	err = snd_via82xx_codec_ready(chip, ac97->num);
 	/* here we need to wait fairly for long time.. */
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ/2);
+	msleep(500);
 }
 
 static void snd_via82xx_codec_write(ac97_t *ac97,
@@ -923,7 +922,7 @@ static void __devinit snd_via82xx_proc_init(via82xx_t *chip)
 static int snd_via82xx_chip_init(via82xx_t *chip)
 {
 	unsigned int val;
-	int max_count;
+	unsigned long end_time;
 	unsigned char pval;
 
 	pci_read_config_byte(chip->pci, VIA_MC97_CTRL, &pval);
@@ -962,14 +961,14 @@ static int snd_via82xx_chip_init(via82xx_t *chip)
 	}
 
 	/* wait until codec ready */
-	max_count = ((3 * HZ) / 4) + 1;
+	end_time = jiffies + msecs_to_jiffies(750);
 	do {
 		pci_read_config_byte(chip->pci, VIA_ACLINK_STAT, &pval);
 		if (pval & VIA_ACLINK_C00_READY) /* primary codec ready */
 			break;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
-	} while (--max_count > 0);
+	} while (time_before(jiffies, end_time));
 
 	if ((val = snd_via82xx_codec_xread(chip)) & VIA_REG_AC97_BUSY)
 		snd_printk("AC'97 codec is not ready [0x%x]\n", val);
@@ -977,7 +976,7 @@ static int snd_via82xx_chip_init(via82xx_t *chip)
 	snd_via82xx_codec_xwrite(chip, VIA_REG_AC97_READ |
 				 VIA_REG_AC97_SECONDARY_VALID |
 				 (VIA_REG_AC97_CODEC_ID_SECONDARY << VIA_REG_AC97_CODEC_ID_SHIFT));
-	max_count = ((3 * HZ) / 4) + 1;
+	end_time = jiffies + msecs_to_jiffies(750);
 	snd_via82xx_codec_xwrite(chip, VIA_REG_AC97_READ |
 				 VIA_REG_AC97_SECONDARY_VALID |
 				 (VIA_REG_AC97_CODEC_ID_SECONDARY << VIA_REG_AC97_CODEC_ID_SHIFT));
@@ -988,7 +987,7 @@ static int snd_via82xx_chip_init(via82xx_t *chip)
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(1);
-	} while (--max_count > 0);
+	} while (time_before(jiffies, end_time));
 	/* This is ok, the most of motherboards have only one codec */
 
       __ac97_ok2:

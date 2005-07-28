@@ -265,6 +265,7 @@ struct snd_atiixp {
  */
 static struct pci_device_id snd_atiixp_ids[] = {
 	{ 0x1002, 0x434d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* SB200 */
+	{ 0x1002, 0x4378, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* SB400 */
 	{ 0, }
 };
 

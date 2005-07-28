@@ -685,6 +685,15 @@ static unsigned short snd_es1371_codec_read(ac97_t *ac97,
 	return 0;
 }
 
+static void snd_es1371_codec_wait(ac97_t *ac97)
+{
+	msleep(750);
+	snd_es1371_codec_read(ac97, AC97_RESET);
+	snd_es1371_codec_read(ac97, AC97_VENDOR_ID1);
+	snd_es1371_codec_read(ac97, AC97_VENDOR_ID2);
+	msleep(50);
+}
+
 static void snd_es1371_adc_rate(ensoniq_t * ensoniq, unsigned int rate)
 {
 	unsigned int n, truncm, freq, result;
@@ -1585,6 +1594,7 @@ static int snd_ensoniq_1371_mixer(ensoniq_t * ensoniq)
 	static ac97_bus_ops_t ops = {
 		.write = snd_es1371_codec_write,
 		.read = snd_es1371_codec_read,
+		.wait = snd_es1371_codec_wait,
 	};
 
 	if ((err = snd_ac97_bus(card, 0, &ops, NULL, &pbus)) < 0)
@@ -2008,21 +2018,11 @@ static int __devinit snd_ensoniq_create(snd_card_t * card,
 		if (pci->vendor == es1371_ac97_reset_hack[idx].vid &&
 		    pci->device == es1371_ac97_reset_hack[idx].did &&
 		    ensoniq->rev == es1371_ac97_reset_hack[idx].rev) {
-		        unsigned long tmo;
-			signed long tmo2;
-
 			ensoniq->cssr |= ES_1371_ST_AC97_RST;
 			outl(ensoniq->cssr, ES_REG(ensoniq, STATUS));
 			/* need to delay around 20ms(bleech) to give
 			some CODECs enough time to wakeup */
-			tmo = jiffies + (HZ / 50) + 1;
-			while (1) {
-				tmo2 = tmo - jiffies;
-				if (tmo2 <= 0)
-					break;
-				set_current_state(TASK_UNINTERRUPTIBLE);
-				schedule_timeout(tmo2);
-			}
+			msleep(20);
 			break;
 		}
 	/* AC'97 warm reset to start the bitclk */
