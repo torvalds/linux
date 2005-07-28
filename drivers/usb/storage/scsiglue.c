@@ -156,6 +156,14 @@ static int slave_configure(struct scsi_device *sdev)
 		if (us->flags & US_FL_FIX_CAPACITY)
 			sdev->fix_capacity = 1;
 
+		/* Some devices report a SCSI revision level above 2 but are
+		 * unable to handle the REPORT LUNS command (for which
+		 * support is mandatory at level 3).  Since we already have
+		 * a Get-Max-LUN request, we won't lose much by setting the
+		 * revision level down to 2.  The only devices that would be
+		 * affected are those with sparse LUNs. */
+		sdev->scsi_level = SCSI_2;
+
 		/* USB-IDE bridges tend to report SK = 0x04 (Non-recoverable
 		 * Hardware Error) when any low-level error occurs,
 		 * recoverable or not.  Setting this flag tells the SCSI
