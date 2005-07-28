@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.101 2005/07/27 14:46:11 dedekind Exp $
+ * $Id: nodelist.c,v 1.102 2005/07/28 12:45:10 dedekind Exp $
  *
  */
 
@@ -24,35 +24,31 @@
 void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new, struct jffs2_full_dirent **list)
 {
 	struct jffs2_full_dirent **prev = list;
-	D1(printk(KERN_DEBUG "jffs2_add_fd_to_list( %p, %p (->%p))\n", new, list, *list));
+	
+	JFFS2_DBG_DENTLIST("add dirent \"%s\", ino #%u\n", new->name, new->ino);
 
 	while ((*prev) && (*prev)->nhash <= new->nhash) {
 		if ((*prev)->nhash == new->nhash && !strcmp((*prev)->name, new->name)) {
 			/* Duplicate. Free one */
 			if (new->version < (*prev)->version) {
-				D1(printk(KERN_DEBUG "Eep! Marking new dirent node obsolete\n"));
-				D1(printk(KERN_DEBUG "New dirent is \"%s\"->ino #%u. Old is \"%s\"->ino #%u\n", new->name, new->ino, (*prev)->name, (*prev)->ino));
+				JFFS2_DBG_DENTLIST("Eep! Marking new dirent node is obsolete, old is \"%s\", ino #%u\n",
+					(*prev)->name, (*prev)->ino);
 				jffs2_mark_node_obsolete(c, new->raw);
 				jffs2_free_full_dirent(new);
 			} else {
-				D1(printk(KERN_DEBUG "Marking old dirent node (ino #%u) obsolete\n", (*prev)->ino));
+				JFFS2_DBG_DENTLIST("marking old dirent \"%s\", ino #%u bsolete\n",
+					(*prev)->name, (*prev)->ino);
 				new->next = (*prev)->next;
 				jffs2_mark_node_obsolete(c, ((*prev)->raw));
 				jffs2_free_full_dirent(*prev);
 				*prev = new;
 			}
-			goto out;
+			return;
 		}
 		prev = &((*prev)->next);
 	}
 	new->next = *prev;
 	*prev = new;
-
- out:
-	D2(while(*list) {
-		printk(KERN_DEBUG "Dirent \"%s\" (hash 0x%08x, ino #%u\n", (*list)->name, (*list)->nhash, (*list)->ino);
-		list = &(*list)->next;
-	});
 }
 
 void jffs2_obsolete_node_frag(struct jffs2_sb_info *c, struct jffs2_node_frag *this)
@@ -61,14 +57,13 @@ void jffs2_obsolete_node_frag(struct jffs2_sb_info *c, struct jffs2_node_frag *t
 		this->node->frags--;
 		if (!this->node->frags) {
 			/* The node has no valid frags left. It's totally obsoleted */
-			D2(printk(KERN_DEBUG "Marking old node @0x%08x (0x%04x-0x%04x) obsolete\n",
-				  ref_offset(this->node->raw), this->node->ofs, this->node->ofs+this->node->size));
+			JFFS2_DBG_FRAGTREE2("marking old node @0x%08x (0x%04x-0x%04x) obsolete\n",
+				ref_offset(this->node->raw), this->node->ofs, this->node->ofs+this->node->size);
 			jffs2_mark_node_obsolete(c, this->node->raw);
 			jffs2_free_full_dnode(this->node);
 		} else {
-			D2(printk(KERN_DEBUG "Marking old node @0x%08x (0x%04x-0x%04x) REF_NORMAL. frags is %d\n",
-				  ref_offset(this->node->raw), this->node->ofs, this->node->ofs+this->node->size,
-				  this->node->frags));
+			JFFS2_DBG_FRAGTREE2("marking old node @0x%08x (0x%04x-0x%04x) REF_NORMAL. frags is %d\n",
+				ref_offset(this->node->raw), this->node->ofs, this->node->ofs+this->node->size, this->node->frags);
 			mark_ref_normal(this->node->raw);
 		}
 		
@@ -81,20 +76,19 @@ static void jffs2_fragtree_insert(struct jffs2_node_frag *newfrag, struct jffs2_
 	struct rb_node *parent = &base->rb;
 	struct rb_node **link = &parent;
 
-	D2(printk(KERN_DEBUG "jffs2_fragtree_insert(%p; %d-%d, %p)\n", newfrag, 
-		  newfrag->ofs, newfrag->ofs+newfrag->size, base));
+	JFFS2_DBG_FRAGTREE2("insert frag (0x%04x-0x%04x)\n", newfrag->ofs, newfrag->ofs + newfrag->size);
 
 	while (*link) {
 		parent = *link;
 		base = rb_entry(parent, struct jffs2_node_frag, rb);
 	
-		D2(printk(KERN_DEBUG "fragtree_insert considering frag at 0x%x\n", base->ofs));
+		JFFS2_DBG_FRAGTREE2("considering frag at 0x%08x\n", base->ofs);
 		if (newfrag->ofs > base->ofs)
 			link = &base->rb.rb_right;
 		else if (newfrag->ofs < base->ofs)
 			link = &base->rb.rb_left;
 		else {
-			printk(KERN_CRIT "Duplicate frag at %08x (%p,%p)\n", newfrag->ofs, newfrag, base);
+			JFFS2_ERROR("duplicate frag at %08x (%p,%p)\n", newfrag->ofs, newfrag, base);
 			BUG();
 		}
 	}
@@ -112,11 +106,11 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *l
 	this = jffs2_lookup_node_frag(list, newfrag->node->ofs);
 
 	if (this) {
-		D2(printk(KERN_DEBUG "j_a_f_d_t_f: Lookup gave frag 0x%04x-0x%04x; phys 0x%08x (*%p)\n",
-			  this->ofs, this->ofs+this->size, this->node?(ref_offset(this->node->raw)):0xffffffff, this));
+		JFFS2_DBG_FRAGTREE2("lookup gave frag 0x%04x-0x%04x; phys 0x%08x (*%p)\n",
+			  this->ofs, this->ofs+this->size, this->node?(ref_offset(this->node->raw)):0xffffffff, this);
 		lastend = this->ofs + this->size;
 	} else {
-		D2(printk(KERN_DEBUG "j_a_f_d_t_f: Lookup gave no frag\n"));
+		JFFS2_DBG_FRAGTREE2("lookup gave no frag\n");
 		lastend = 0;
 	}
 			  
@@ -148,10 +142,10 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *l
 				/* By definition, the 'this' node has no right-hand child, 
 				   because there are no frags with offset greater than it.
 				   So that's where we want to put the hole */
-				D2(printk(KERN_DEBUG "Adding hole frag (%p) on right of node at (%p)\n", holefrag, this));
+				JFFS2_DBG_FRAGTREE2("adding hole frag (%p) on right of node at (%p)\n", holefrag, this);
 				rb_link_node(&holefrag->rb, &this->rb, &this->rb.rb_right);
 			} else {
-				D2(printk(KERN_DEBUG "Adding hole frag (%p) at root of tree\n", holefrag));
+				JFFS2_DBG_FRAGTREE2("adding hole frag (%p) at root of tree\n", holefrag);
 				rb_link_node(&holefrag->rb, NULL, &list->rb_node);
 			}
 			rb_insert_color(&holefrag->rb, list);
@@ -161,18 +155,18 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *l
 			/* By definition, the 'this' node has no right-hand child, 
 			   because there are no frags with offset greater than it.
 			   So that's where we want to put new fragment */
-			D2(printk(KERN_DEBUG "Adding new frag (%p) on right of node at (%p)\n", newfrag, this));
+			JFFS2_DBG_FRAGTREE2("adding new frag (%p) on right of node at (%p)\n", newfrag, this);
 			rb_link_node(&newfrag->rb, &this->rb, &this->rb.rb_right);			
 		} else {
-			D2(printk(KERN_DEBUG "Adding new frag (%p) at root of tree\n", newfrag));
+			JFFS2_DBG_FRAGTREE2("adding new frag (%p) at root of tree\n", newfrag);
 			rb_link_node(&newfrag->rb, NULL, &list->rb_node);
 		}
 		rb_insert_color(&newfrag->rb, list);
 		return 0;
 	}
 
-	D2(printk(KERN_DEBUG "j_a_f_d_t_f: dealing with frag 0x%04x-0x%04x; phys 0x%08x (*%p)\n", 
-		  this->ofs, this->ofs+this->size, this->node?(ref_offset(this->node->raw)):0xffffffff, this));
+	JFFS2_DBG_FRAGTREE2("dealing with frag 0x%04x-0x%04x; phys 0x%08x (*%p)\n", 
+		  this->ofs, this->ofs+this->size, this->node?(ref_offset(this->node->raw)):0xffffffff, this);
 
 	/* OK. 'this' is pointing at the first frag that newfrag->ofs at least partially obsoletes,
 	 * - i.e. newfrag->ofs < this->ofs+this->size && newfrag->ofs >= this->ofs  
@@ -193,12 +187,12 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *l
 				jffs2_free_node_frag(newfrag);
 				return -ENOMEM;
 			}
-			D2(printk(KERN_DEBUG "split old frag 0x%04x-0x%04x -->", this->ofs, this->ofs+this->size);
 			if (this->node)
-				printk("phys 0x%08x\n", ref_offset(this->node->raw));
+				JFFS2_DBG_FRAGTREE2("split old frag 0x%04x-0x%04x, phys 0x%08x\n",
+					this->ofs, this->ofs+this->size, ref_offset(this->node->raw));
 			else 
-				printk("hole\n");
-			   )
+				JFFS2_DBG_FRAGTREE2("split old hole frag 0x%04x-0x%04x\n",
+					this->ofs, this->ofs+this->size, ref_offset(this->node->raw));
 			
 			/* New second frag pointing to this's node */
 			newfrag2->ofs = newfrag->ofs + newfrag->size;
@@ -233,14 +227,13 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *l
 	} else {
 		/* New frag starts at the same point as 'this' used to. Replace 
 		   it in the tree without doing a delete and insertion */
-		D2(printk(KERN_DEBUG "Inserting newfrag (*%p),%d-%d in before 'this' (*%p),%d-%d\n",
-			  newfrag, newfrag->ofs, newfrag->ofs+newfrag->size,
-			  this, this->ofs, this->ofs+this->size));
+		JFFS2_DBG_FRAGTREE2("inserting newfrag (*%p),%d-%d in before 'this' (*%p),%d-%d\n",
+			  newfrag, newfrag->ofs, newfrag->ofs+newfrag->size, this, this->ofs, this->ofs+this->size);
 	
 		rb_replace_node(&this->rb, &newfrag->rb, list);
 		
 		if (newfrag->ofs + newfrag->size >= this->ofs+this->size) {
-			D2(printk(KERN_DEBUG "Obsoleting node frag %p (%x-%x)\n", this, this->ofs, this->ofs+this->size));
+			JFFS2_DBG_FRAGTREE2("obsoleting node frag %p (%x-%x)\n", this, this->ofs, this->ofs+this->size);
 			jffs2_obsolete_node_frag(c, this);
 		} else {
 			this->ofs += newfrag->size;
@@ -256,7 +249,8 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *l
 	*/
 	while ((this = frag_next(newfrag)) && newfrag->ofs + newfrag->size >= this->ofs + this->size) {
 		/* 'this' frag is obsoleted completely. */
-		D2(printk(KERN_DEBUG "Obsoleting node frag %p (%x-%x) and removing from tree\n", this, this->ofs, this->ofs+this->size));
+		JFFS2_DBG_FRAGTREE2("obsoleting node frag %p (%x-%x) and removing from tree\n",
+			this, this->ofs, this->ofs+this->size);
 		rb_erase(&this->rb, list);
 		jffs2_obsolete_node_frag(c, this);
 	}
@@ -286,8 +280,6 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 	int ret;
 	struct jffs2_node_frag *newfrag;
 
-	D1(printk(KERN_DEBUG "jffs2_add_full_dnode_to_inode(ino #%u, f %p, fn %p)\n", f->inocache->ino, f, fn));
-
 	if (unlikely(!fn->size))
 		return 0;
 
@@ -295,8 +287,8 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 	if (unlikely(!newfrag))
 		return -ENOMEM;
 
-	D2(printk(KERN_DEBUG "adding node %04x-%04x @0x%08x on flash, newfrag *%p\n",
-		  fn->ofs, fn->ofs+fn->size, ref_offset(fn->raw), newfrag));
+	JFFS2_DBG_FRAGTREE("adding node %#04x-%#04x @0x%08x on flash, newfrag *%p\n",
+		  fn->ofs, fn->ofs+fn->size, ref_offset(fn->raw), newfrag);
 	
 	newfrag->ofs = fn->ofs;
 	newfrag->size = fn->size;
@@ -350,8 +342,6 @@ struct jffs2_inode_cache *jffs2_get_ino_cache(struct jffs2_sb_info *c, uint32_t 
 {
 	struct jffs2_inode_cache *ret;
 
-	D2(printk(KERN_DEBUG "jffs2_get_ino_cache(): ino %u\n", ino));
-
 	ret = c->inocache_list[ino % INOCACHE_HASHSIZE];
 	while (ret && ret->ino < ino) {
 		ret = ret->next;
@@ -360,7 +350,6 @@ struct jffs2_inode_cache *jffs2_get_ino_cache(struct jffs2_sb_info *c, uint32_t 
 	if (ret && ret->ino != ino)
 		ret = NULL;
 
-	D2(printk(KERN_DEBUG "jffs2_get_ino_cache found %p for ino %u\n", ret, ino));
 	return ret;
 }
 
@@ -372,7 +361,7 @@ void jffs2_add_ino_cache (struct jffs2_sb_info *c, struct jffs2_inode_cache *new
 	if (!new->ino)
 		new->ino = ++c->highest_ino;
 
-	D2(printk(KERN_DEBUG "jffs2_add_ino_cache: Add %p (ino #%u)\n", new, new->ino));
+	JFFS2_DBG_INOCACHE("add %p (ino #%u)\n", new, new->ino);
 
 	prev = &c->inocache_list[new->ino % INOCACHE_HASHSIZE];
 
@@ -388,7 +377,8 @@ void jffs2_add_ino_cache (struct jffs2_sb_info *c, struct jffs2_inode_cache *new
 void jffs2_del_ino_cache(struct jffs2_sb_info *c, struct jffs2_inode_cache *old)
 {
 	struct jffs2_inode_cache **prev;
-	D1(printk(KERN_DEBUG "jffs2_del_ino_cache: Del %p (ino #%u)\n", old, old->ino));
+
+	JFFS2_DBG_INOCACHE("del %p (ino #%u)\n", old, old->ino);
 	spin_lock(&c->inocache_lock);
 	
 	prev = &c->inocache_list[old->ino % INOCACHE_HASHSIZE];
@@ -451,29 +441,29 @@ struct jffs2_node_frag *jffs2_lookup_node_frag(struct rb_root *fragtree, uint32_
 	struct jffs2_node_frag *prev = NULL;
 	struct jffs2_node_frag *frag = NULL;
 
-	D2(printk(KERN_DEBUG "jffs2_lookup_node_frag(%p, %d)\n", fragtree, offset));
+	JFFS2_DBG_FRAGTREE2("root %p, offset %d\n", fragtree, offset);
 
 	next = fragtree->rb_node;
 
 	while(next) {
 		frag = rb_entry(next, struct jffs2_node_frag, rb);
 
-		D2(printk(KERN_DEBUG "Considering frag %d-%d (%p). left %p, right %p\n",
-			  frag->ofs, frag->ofs+frag->size, frag, frag->rb.rb_left, frag->rb.rb_right));
+		JFFS2_DBG_FRAGTREE2("considering frag %#04x-%#04x (%p). left %p, right %p\n",
+			  frag->ofs, frag->ofs+frag->size, frag, frag->rb.rb_left, frag->rb.rb_right);
 		if (frag->ofs + frag->size <= offset) {
-			D2(printk(KERN_DEBUG "Going right from frag %d-%d, before the region we care about\n",
-				  frag->ofs, frag->ofs+frag->size));
+			JFFS2_DBG_FRAGTREE2("going right from frag %#04x-%#04x, before the region we care about\n",
+				  frag->ofs, frag->ofs+frag->size);
 			/* Remember the closest smaller match on the way down */
 			if (!prev || frag->ofs > prev->ofs)
 				prev = frag;
 			next = frag->rb.rb_right;
 		} else if (frag->ofs > offset) {
-			D2(printk(KERN_DEBUG "Going left from frag %d-%d, after the region we care about\n",
-				  frag->ofs, frag->ofs+frag->size));
+			JFFS2_DBG_FRAGTREE2("going left from frag %#04x-%#04x, after the region we care about\n",
+				  frag->ofs, frag->ofs+frag->size);
 			next = frag->rb.rb_left;
 		} else {
-			D2(printk(KERN_DEBUG "Returning frag %d,%d, matched\n",
-				  frag->ofs, frag->ofs+frag->size));
+			JFFS2_DBG_FRAGTREE2("returning frag %#04x-%#04x, matched\n",
+				  frag->ofs, frag->ofs+frag->size);
 			return frag;
 		}
 	}
@@ -482,10 +472,10 @@ struct jffs2_node_frag *jffs2_lookup_node_frag(struct rb_root *fragtree, uint32_
 	   and return the closest smaller one */
 
 	if (prev)
-		D2(printk(KERN_DEBUG "No match. Returning frag %d,%d, closest previous\n",
-			  prev->ofs, prev->ofs+prev->size));
+		JFFS2_DBG_FRAGTREE2("no match. Returning frag %#04x-%#04x, closest previous\n",
+			  prev->ofs, prev->ofs+prev->size);
 	else 
-		D2(printk(KERN_DEBUG "Returning NULL, empty fragtree\n"));
+		JFFS2_DBG_FRAGTREE2("returning NULL, empty fragtree\n");
 	
 	return prev;
 }
@@ -500,25 +490,25 @@ void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 	if (!root->rb_node)
 		return;
 
+	JFFS2_DBG_FRAGTREE("killing\n");
+	
 	frag = (rb_entry(root->rb_node, struct jffs2_node_frag, rb));
-
 	while(frag) {
 		if (frag->rb.rb_left) {
-			D2(printk(KERN_DEBUG "Going left from frag (%p) %d-%d\n", 
-				  frag, frag->ofs, frag->ofs+frag->size));
+			JFFS2_DBG_FRAGTREE2("going left from frag (%p) %#04x-%#04x\n",
+				frag, frag->ofs, frag->ofs+frag->size);
 			frag = frag_left(frag);
 			continue;
 		}
 		if (frag->rb.rb_right) {
-			D2(printk(KERN_DEBUG "Going right from frag (%p) %d-%d\n", 
-				  frag, frag->ofs, frag->ofs+frag->size));
+			JFFS2_DBG_FRAGTREE2("going right from frag (%p) %#04x-%#04x\n", 
+				  frag, frag->ofs, frag->ofs+frag->size);
 			frag = frag_right(frag);
 			continue;
 		}
 
-		D2(printk(KERN_DEBUG "jffs2_kill_fragtree: frag at 0x%x-0x%x: node %p, frags %d--\n",
-			  frag->ofs, frag->ofs+frag->size, frag->node,
-			  frag->node?frag->node->frags:0));
+		JFFS2_DBG_FRAGTREE2("frag %#04x-%#04x: node %p, frags %d\n",
+			  frag->ofs, frag->ofs+frag->size, frag->node, frag->node?frag->node->frags:0);
 			
 		if (frag->node && !(--frag->node->frags)) {
 			/* Not a hole, and it's the final remaining frag 
