@@ -833,6 +833,19 @@ static void quiesce_and_remove_host(struct us_data *us)
 	/* Wait for the current command to finish, then remove the host */
 	down(&us->dev_semaphore);
 	up(&us->dev_semaphore);
+
+	/* queuecommand won't accept any new commands and the control
+	 * thread won't execute a previously-queued command.  If there
+	 * is such a command pending, complete it with an error. */
+	if (us->srb) {
+		us->srb->result = DID_NO_CONNECT << 16;
+		scsi_lock(us_to_host(us));
+		us->srb->scsi_done(us->srb);
+		us->srb = NULL;
+		scsi_unlock(us_to_host(us));
+	}
+
+	/* Now we own no commands so it's safe to remove the SCSI host */
 	scsi_remove_host(us_to_host(us));
 }
 
