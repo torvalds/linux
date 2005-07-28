@@ -1203,9 +1203,15 @@ cscope: FORCE
 	$(call cmd,cscope)
 
 quiet_cmd_TAGS = MAKE   $@
-cmd_TAGS = $(all-sources) | etags -
+define cmd_TAGS
+	rm -f $@; \
+	ETAGSF=`etags --version | grep -i exuberant >/dev/null && echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_GPL --extra=+f"`; \
+	$(all-sources) | xargs etags $$ETAGSF -a
+endef
 
-# 	Exuberant ctags works better with -I
+TAGS: FORCE
+	$(call cmd,TAGS)
+
 
 quiet_cmd_tags = MAKE   $@
 define cmd_tags
@@ -1213,9 +1219,6 @@ define cmd_tags
 	CTAGSF=`ctags --version | grep -i exuberant >/dev/null && echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_GPL --extra=+f"`; \
 	$(all-sources) | xargs ctags $$CTAGSF -a
 endef
-
-TAGS: FORCE
-	$(call cmd,TAGS)
 
 tags: FORCE
 	$(call cmd,tags)
