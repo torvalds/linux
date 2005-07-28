@@ -4193,17 +4193,16 @@ static int __init floppy_setup(char *str)
 
 static int have_no_fdc = -ENODEV;
 
-static ssize_t floppy_cmos_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t floppy_cmos_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
-	struct platform_device *p = container_of(dev,struct platform_device,dev);
-	int drive = p->id;
-	ssize_t retval;
+	struct platform_device *p;
+	int drive;
 
-	retval = sprintf(buf,"%X\n", UDP->cmos);
-
-	return retval;
+	p = container_of(dev, struct platform_device,dev);
+	drive = p->id;
+	return sprintf(buf, "%X\n", UDP->cmos);
 }
-
 DEVICE_ATTR(cmos,S_IRUGO,floppy_cmos_show,NULL);
 
 static void floppy_device_release(struct device *dev)
