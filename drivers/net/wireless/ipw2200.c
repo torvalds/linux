@@ -9654,8 +9654,8 @@ modify to send one tfd per fragment instead of using chunking.  otherwise
 we need to heavily modify the ieee80211_skb_to_txb.
 */
 
-static inline void ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
-			      int pri)
+static inline int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
+			     int pri)
 {
 	struct ieee80211_hdr_3addr *hdr = (struct ieee80211_hdr_3addr *)
 	    txb->fragments[0]->data;
@@ -9671,6 +9671,11 @@ static inline void ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 	u8 id, hdr_len, unicast;
 	u16 remaining_bytes;
 	int fc;
+
+	/* If there isn't room in the queue, we return busy and let the
+	 * network stack requeue the packet for us */
+	if (ipw_queue_space(q) < q->high_mark)
+		return NETDEV_TX_BUSY;
 
 	switch (priv->ieee->iw_mode) {
 	case IW_MODE_ADHOC:
@@ -9837,14 +9842,28 @@ static inline void ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 	q->first_empty = ipw_queue_inc_wrap(q->first_empty, q->n_bd);
 	ipw_write32(priv, q->reg_w, q->first_empty);
 
-	if (ipw_queue_space(q) < q->high_mark)
-		netif_stop_queue(priv->net_dev);
-
-	return;
+	return NETDEV_TX_OK;
 
       drop:
 	IPW_DEBUG_DROP("Silently dropping Tx packet.\n");
 	ieee80211_txb_free(txb);
+	return NETDEV_TX_OK;
+}
+
+static int ipw_net_is_queue_full(struct net_device *dev, int pri)
+{
+	struct ipw_priv *priv = ieee80211_priv(dev);
+#ifdef CONFIG_IPW_QOS
+	int tx_id = ipw_get_tx_queue_number(priv, pri);
+	struct clx2_tx_queue *txq = &priv->txq[tx_id];
+#else
+	struct clx2_tx_queue *txq = &priv->txq[0];
+#endif				/* CONFIG_IPW_QOS */
+
+	if (ipw_queue_space(&txq->q) < txq->q.high_mark)
+		return 1;
+
+	return 0;
 }
 
 static int ipw_net_hard_start_xmit(struct ieee80211_txb *txb,
@@ -9852,6 +9871,7 @@ static int ipw_net_hard_start_xmit(struct ieee80211_txb *txb,
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	unsigned long flags;
+	int ret;
 
 	IPW_DEBUG_TX("dev->xmit(%d bytes)\n", txb->payload_size);
 	spin_lock_irqsave(&priv->lock, flags);
@@ -9863,11 +9883,12 @@ static int ipw_net_hard_start_xmit(struct ieee80211_txb *txb,
 		goto fail_unlock;
 	}
 
-	ipw_tx_skb(priv, txb, pri);
-	__ipw_led_activity_on(priv);
+	ret = ipw_tx_skb(priv, txb, pri);
+	if (ret == NETDEV_TX_OK)
+		__ipw_led_activity_on(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return 0;
+	return ret;
 
       fail_unlock:
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -10706,6 +10727,7 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	priv->ieee->hard_start_xmit = ipw_net_hard_start_xmit;
 	priv->ieee->set_security = shim__set_security;
+	priv->ieee->is_queue_full = ipw_net_is_queue_full;
 
 #ifdef CONFIG_IPW_QOS
 	priv->ieee->handle_management_frame = ipw_handle_management_frame;
