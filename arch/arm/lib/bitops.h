@@ -7,7 +7,7 @@
 1:	ldrexb	r2, [r1]
 	\instr	r2, r2, r3
 	strexb	r0, r2, [r1]
-	cmpne	r0, #0
+	cmp	r0, #0
 	bne	1b
 	mov	pc, lr
 	.endm
