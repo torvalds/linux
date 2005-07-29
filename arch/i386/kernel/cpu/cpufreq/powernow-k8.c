@@ -735,12 +735,15 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 	}
 
 	for (i = 0; i < data->acpi_data.state_count; i++) {
-	    	if (data->exttype) {
-		    	u32 fid = data->acpi_data.states[i].status & FID_MASK;
-			u32 vid = (data->acpi_data.states[i].status >> VID_SHIFT) & VID_MASK;
+		u32 fid;
+		u32 vid;
+
+		if (data->exttype) {
+			fid = data->acpi_data.states[i].status & FID_MASK;
+			vid = (data->acpi_data.states[i].status >> VID_SHIFT) & VID_MASK;
 		} else {
-		    	u32 fid = data->acpi_data.states[i].control & FID_MASK;
-			u32 vid = (data->acpi_data.states[i].control >> VID_SHIFT) & VID_MASK;
+			fid = data->acpi_data.states[i].control & FID_MASK;
+			vid = (data->acpi_data.states[i].control >> VID_SHIFT) & VID_MASK;
 		}
 
 		dprintk("   %d : fid 0x%x, vid 0x%x\n", i, fid, vid);
