@@ -3126,12 +3126,12 @@ static int selinux_socket_connect(struct socket *sock, struct sockaddr *address,
 
 		if (sk->sk_family == PF_INET) {
 			addr4 = (struct sockaddr_in *)address;
-			if (addrlen != sizeof(struct sockaddr_in))
+			if (addrlen < sizeof(struct sockaddr_in))
 				return -EINVAL;
 			snum = ntohs(addr4->sin_port);
 		} else {
 			addr6 = (struct sockaddr_in6 *)address;
-			if (addrlen != sizeof(struct sockaddr_in6))
+			if (addrlen < SIN6_LEN_RFC2133)
 				return -EINVAL;
 			snum = ntohs(addr6->sin6_port);
 		}
