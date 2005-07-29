@@ -825,18 +825,13 @@ static void event_callback(void *context)
 	wake_up(&md->eventq);
 }
 
-static void __set_size(struct gendisk *disk, sector_t size)
+static void __set_size(struct mapped_device *md, sector_t size)
 {
-	struct block_device *bdev;
+	set_capacity(md->disk, size);
 
-	set_capacity(disk, size);
-	bdev = bdget_disk(disk, 0);
-	if (bdev) {
-		down(&bdev->bd_inode->i_sem);
-		i_size_write(bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
-		up(&bdev->bd_inode->i_sem);
-		bdput(bdev);
-	}
+	down(&md->frozen_bdev->bd_inode->i_sem);
+	i_size_write(md->frozen_bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
+	up(&md->frozen_bdev->bd_inode->i_sem);
 }
 
 static int __bind(struct mapped_device *md, struct dm_table *t)
@@ -845,7 +840,7 @@ static int __bind(struct mapped_device *md, struct dm_table *t)
 	sector_t size;
 
 	size = dm_table_get_size(t);
-	__set_size(md->disk, size);
+	__set_size(md, size);
 	if (size == 0)
 		return 0;
 
