@@ -320,6 +320,7 @@ static long evdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (t < 0 || t >= dev->keycodemax || !dev->keycodesize) return -EINVAL;
 			if (get_user(v, ip + 1)) return -EFAULT;
 			if (v < 0 || v > KEY_MAX) return -EINVAL;
+			if (v >> (dev->keycodesize * 8)) return -EINVAL;
 			u = SET_INPUT_KEYCODE(dev, t, v);
 			clear_bit(u, dev->keybit);
 			set_bit(v, dev->keybit);

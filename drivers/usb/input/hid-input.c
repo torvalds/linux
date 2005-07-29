@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/input.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 #undef DEBUG
 
@@ -581,10 +582,7 @@ int hidinput_connect(struct hid_device *hid)
 				hidinput->input.name = hid->name;
 				hidinput->input.phys = hid->phys;
 				hidinput->input.uniq = hid->uniq;
-				hidinput->input.id.bustype = BUS_USB;
-				hidinput->input.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
-				hidinput->input.id.product = le16_to_cpu(dev->descriptor.idProduct);
-				hidinput->input.id.version = le16_to_cpu(dev->descriptor.bcdDevice);
+				usb_to_input_id(dev, &hidinput->input.id);
 				hidinput->input.dev = &hid->intf->dev;
 			}
 
