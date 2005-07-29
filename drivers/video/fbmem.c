@@ -80,10 +80,12 @@ EXPORT_SYMBOL(fb_get_color_depth);
  */
 void fb_pad_aligned_buffer(u8 *dst, u32 d_pitch, u8 *src, u32 s_pitch, u32 height)
 {
-	int i;
+	int i, j;
 
 	for (i = height; i--; ) {
-		memcpy(dst, src, s_pitch);
+		/* s_pitch is a few bytes at the most, memcpy is suboptimal */
+		for (j = 0; j < s_pitch; j++)
+			dst[j] = src[j];
 		src += s_pitch;
 		dst += d_pitch;
 	}
