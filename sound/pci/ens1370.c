@@ -1446,7 +1446,7 @@ static int snd_es1371_spdif_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 static snd_kcontrol_new_t snd_es1371_mixer_spdif[] __devinitdata = {
 	ES1371_SPDIF("IEC958 Playback Switch"),
 	{
-		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
+		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 		.info =		snd_ens1373_spdif_info,
 		.get =		snd_ens1373_spdif_default_get,
@@ -1454,13 +1454,13 @@ static snd_kcontrol_new_t snd_es1371_mixer_spdif[] __devinitdata = {
 	},
 	{
 		.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
+		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,MASK),
 		.info =		snd_ens1373_spdif_info,
 		.get =		snd_ens1373_spdif_mask_get
 	},
 	{
-		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
+		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,PCM_STREAM),
 		.info =		snd_ens1373_spdif_info,
 		.get =		snd_ens1373_spdif_stream_get,

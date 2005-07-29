@@ -2440,7 +2440,7 @@ static int __devinit cs46xx_detect_codec(cs46xx_t *chip, int codec)
 	return -ENXIO;
 }
 
-int __devinit snd_cs46xx_mixer(cs46xx_t *chip)
+int __devinit snd_cs46xx_mixer(cs46xx_t *chip, int spdif_device)
 {
 	snd_card_t *card = chip->card;
 	snd_ctl_elem_id_t id;
@@ -2476,6 +2476,8 @@ int __devinit snd_cs46xx_mixer(cs46xx_t *chip)
 	for (idx = 0; idx < ARRAY_SIZE(snd_cs46xx_controls); idx++) {
 		snd_kcontrol_t *kctl;
 		kctl = snd_ctl_new1(&snd_cs46xx_controls[idx], chip);
+		if (kctl && kctl->id.iface == SNDRV_CTL_ELEM_IFACE_PCM)
+			kctl->id.device = spdif_device;
 		if ((err = snd_ctl_add(card, kctl)) < 0)
 			return err;
 	}
