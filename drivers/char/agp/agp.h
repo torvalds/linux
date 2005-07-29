@@ -143,6 +143,7 @@ struct agp_bridge_data {
 	char major_version;
 	char minor_version;
 	struct list_head list;
+	u32 apbase_config;
 };
 
 #define KB(x)	((x) * 1024)
