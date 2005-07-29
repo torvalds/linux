@@ -113,24 +113,6 @@ struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
 #define set_idle_for_cpu(x,p)   (idle_thread_array[(x)] = (p))
 
 /*
- * cpu_possible_map should be static, it cannot change as cpu's
- * are onlined, or offlined. The reason is per-cpu data-structures
- * are allocated by some modules at init time, and dont expect to
- * do this dynamically on cpu arrival/departure.
- * cpu_present_map on the other hand can change dynamically.
- * In case when cpu_hotplug is not compiled, then we resort to current
- * behaviour, which is cpu_possible == cpu_present.
- * If cpu-hotplug is supported, then we need to preallocate for all
- * those NR_CPUS, hence cpu_possible_map represents entire NR_CPUS range.
- * - Ashok Raj
- */
-#ifdef CONFIG_HOTPLUG_CPU
-#define fixup_cpu_possible_map(x)	cpu_set((x), cpu_possible_map)
-#else
-#define fixup_cpu_possible_map(x)
-#endif
-
-/*
  * Currently trivial. Write the real->protected mode
  * bootstrap into the page concerned. The caller
  * has made sure it's suitably aligned.
@@ -924,6 +906,27 @@ static __init void enforce_max_cpus(unsigned max_cpus)
 	}
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * cpu_possible_map should be static, it cannot change as cpu's
+ * are onlined, or offlined. The reason is per-cpu data-structures
+ * are allocated by some modules at init time, and dont expect to
+ * do this dynamically on cpu arrival/departure.
+ * cpu_present_map on the other hand can change dynamically.
+ * In case when cpu_hotplug is not compiled, then we resort to current
+ * behaviour, which is cpu_possible == cpu_present.
+ * If cpu-hotplug is supported, then we need to preallocate for all
+ * those NR_CPUS, hence cpu_possible_map represents entire NR_CPUS range.
+ * - Ashok Raj
+ */
+static void prefill_possible_map(void)
+{
+	int i;
+	for (i = 0; i < NR_CPUS; i++)
+		cpu_set(i, cpu_possible_map);
+}
+#endif
+
 /*
  * Various sanity checks.
  */
@@ -987,25 +990,15 @@ static int __init smp_sanity_check(unsigned max_cpus)
  */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int i;
-
 	nmi_watchdog_default();
 	current_cpu_data = boot_cpu_data;
 	current_thread_info()->cpu = 0;  /* needed? */
 
 	enforce_max_cpus(max_cpus);
 
-	/*
-	 * Fill in cpu_present_mask
-	 */
-	for (i = 0; i < NR_CPUS; i++) {
-		int apicid = cpu_present_to_apicid(i);
-		if (physid_isset(apicid, phys_cpu_present_map)) {
-			cpu_set(i, cpu_present_map);
-			cpu_set(i, cpu_possible_map);
-		}
-		fixup_cpu_possible_map(i);
-	}
+#ifdef CONFIG_HOTPLUG_CPU
+	prefill_possible_map();
+#endif
 
 	if (smp_sanity_check(max_cpus) < 0) {
 		printk(KERN_INFO "SMP disabled\n");
