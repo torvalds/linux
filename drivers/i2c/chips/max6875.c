@@ -343,6 +343,11 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct max6875_data *data;
 	int err = 0;
 
+	/* Prevent 24RF08 corruption (in case of user error) */
+	if (kind < 0)
+		i2c_smbus_xfer(adapter, address, 0, 0, 0,
+			       I2C_SMBUS_QUICK, NULL);
+
 	/* There are three ways we can read the EEPROM data:
 	   (1) I2C block reads (faster, but unsupported by most adapters)
 	   (2) Consecutive byte reads (100% overhead)
@@ -369,9 +374,6 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	new_client->adapter = adapter;
 	new_client->driver = &max6875_driver;
 	new_client->flags = 0;
-
-	/* Prevent 24RF08 corruption */
-	i2c_smbus_write_quick(new_client, 0);
 
 	/* Setup the user section */
 	data->blocks[max6875_eeprom_user].type    = max6875_eeprom_user;
