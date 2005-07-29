@@ -392,7 +392,6 @@ void kernel_kexec(void)
 	}
 	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, NULL);
 	system_state = SYSTEM_RESTART;
-	device_suspend(PMSG_FREEZE);
 	device_shutdown();
 	printk(KERN_EMERG "Starting new kernel\n");
 	machine_shutdown();
