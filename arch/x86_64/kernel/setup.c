@@ -1081,8 +1081,7 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	else
 		mtrr_ap_init();
 #ifdef CONFIG_NUMA
-	if (c != &boot_cpu_data)
-		numa_add_cpu(c - cpu_data);
+	numa_add_cpu(smp_processor_id());
 #endif
 }
  
