@@ -78,7 +78,6 @@ static void
 acpi_ex_out_address (
 	char                            *title,
 	acpi_physical_address           value);
-#endif	/* ACPI_FUTURE_USAGE */
 
 static void
 acpi_ex_dump_reference (
@@ -89,7 +88,7 @@ acpi_ex_dump_package (
 	union acpi_operand_object       *obj_desc,
 	u32                             level,
 	u32                             index);
-
+#endif	/* ACPI_FUTURE_USAGE */
 
 /*******************************************************************************
  *
