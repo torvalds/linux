@@ -124,7 +124,6 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 
 	if (srat_disabled() || ma->flags.enabled == 0)
 		return;
-	/* hotplug bit is ignored for now */
 	pxm = ma->proximity_domain;
 	node = setup_node(pxm);
 	if (node < 0) {
@@ -134,6 +133,10 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 	}
 	start = ma->base_addr_lo | ((u64)ma->base_addr_hi << 32);
 	end = start + (ma->length_lo | ((u64)ma->length_hi << 32));
+	/* It is fine to add this area to the nodes data it will be used later*/
+	if (ma->flags.hot_pluggable == 1)
+		printk(KERN_INFO "SRAT: hot plug zone found %lx - %lx \n",
+				start, end);
 	i = conflicting_nodes(start, end);
 	if (i >= 0) {
 		printk(KERN_ERR
