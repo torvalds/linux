@@ -755,8 +755,9 @@ do_rest:
 	initial_code = start_secondary;
 	clear_ti_thread_flag(c_idle.idle->thread_info, TIF_FORK);
 
-	printk(KERN_INFO "Booting processor %d/%d rip %lx rsp %lx\n", cpu, apicid,
-	       start_rip, init_rsp);
+	printk(KERN_INFO "Booting processor %d/%d APIC 0x%x\n", cpu,
+		cpus_weight(cpu_present_map),
+		apicid);
 
 	/*
 	 * This grunge runs the startup process for
