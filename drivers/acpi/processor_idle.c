@@ -842,7 +842,7 @@ static int acpi_processor_get_power_info (
 	result = acpi_processor_get_power_info_cst(pr);
 	if ((result) || (acpi_processor_power_verify(pr) < 2)) {
 		result = acpi_processor_get_power_info_fadt(pr);
-		if (result)
+		if ((result) || (acpi_processor_power_verify(pr) < 2))
 			result = acpi_processor_get_power_info_default_c1(pr);
 	}
 
