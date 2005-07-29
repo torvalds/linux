@@ -765,8 +765,6 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	int cpu = smp_processor_id();
 	int node = 0;
 	unsigned bits;
-	if (c->x86_num_cores == 1)
-		return;
 
 	bits = 0;
 	while ((1 << bits) < c->x86_num_cores)
