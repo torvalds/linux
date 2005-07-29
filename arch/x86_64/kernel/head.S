@@ -137,14 +137,14 @@ startup_64:
 	wrmsr
 
 	/* Setup cr0 */
-	xorq	%rax, %rax
-	btsq	$31, %rax			/* Enable paging */
-	btsq	$0, %rax			/* Enable protected mode */
-	btsq	$1, %rax			/* Enable MP */
-	btsq	$4, %rax			/* Enable ET */
-	btsq	$5, %rax			/* Enable NE */
-	btsq	$16, %rax			/* Enable WP */
-	btsq	$18, %rax			/* Enable AM */
+#define CR0_PM				1		/* protected mode */
+#define CR0_MP				(1<<1)
+#define CR0_ET				(1<<4)
+#define CR0_NE				(1<<5)
+#define CR0_WP				(1<<16)
+#define CR0_AM				(1<<18)
+#define CR0_PAGING 			(1<<31)
+	movl $CR0_PM|CR0_MP|CR0_ET|CR0_NE|CR0_WP|CR0_AM|CR0_PAGING,%eax
 	/* Make changes effective */
 	movq	%rax, %cr0
 
