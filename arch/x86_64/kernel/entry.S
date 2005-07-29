@@ -918,3 +918,15 @@ ENTRY(machine_check)
 ENTRY(call_debug)
        zeroentry do_call_debug
 
+ENTRY(call_softirq)
+	movq %gs:pda_irqstackptr,%rax
+	pushq %r15
+	movq %rsp,%r15
+	incl %gs:pda_irqcount
+	cmove %rax,%rsp
+	call __do_softirq
+	movq %r15,%rsp
+	decl %gs:pda_irqcount
+	popq %r15
+	ret
+
