@@ -64,7 +64,7 @@ void wait_stub_done(int pid, int sig, char * fname)
                 (WSTOPSIG(status) == SIGVTALRM));
 
         if((n < 0) || !WIFSTOPPED(status) ||
-           (WSTOPSIG(status) != SIGUSR1 && WSTOPSIG(status != SIGTRAP))){
+           (WSTOPSIG(status) != SIGUSR1 && WSTOPSIG(status) != SIGTRAP)){
                 panic("%s : failed to wait for SIGUSR1/SIGTRAP, "
                       "pid = %d, n = %d, errno = %d, status = 0x%x\n",
                       fname, pid, n, errno, status);
