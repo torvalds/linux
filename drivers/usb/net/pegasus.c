@@ -825,7 +825,6 @@ static void pegasus_tx_timeout(struct net_device *net)
 	pegasus_t *pegasus = netdev_priv(net);
 	if (netif_msg_timer(pegasus))
 		printk(KERN_WARNING "%s: tx timeout\n", net->name);
-	pegasus->tx_urb->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(pegasus->tx_urb);
 	pegasus->stats.tx_errors++;
 }

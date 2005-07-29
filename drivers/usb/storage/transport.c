@@ -96,8 +96,8 @@
  * or before the URB_ACTIVE bit was set.  If so, it's essential to cancel
  * the URB if it hasn't been cancelled already (i.e., if the URB_ACTIVE bit
  * is still set).  Either way, the function must then wait for the URB to
- * finish.  Note that because the URB_ASYNC_UNLINK flag is set, the URB can
- * still be in progress even after a call to usb_unlink_urb() returns.
+ * finish.  Note that the URB can still be in progress even after a call to
+ * usb_unlink_urb() returns.
  *
  * The idea is that (1) once the ABORTING or DISCONNECTING bit is set,
  * either the stop_transport() function or the submitting function
@@ -158,8 +158,7 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 	 * hasn't been mapped for DMA.  Yes, this is clunky, but it's
 	 * easier than always having the caller tell us whether the
 	 * transfer buffer has already been mapped. */
-	us->current_urb->transfer_flags =
-			URB_ASYNC_UNLINK | URB_NO_SETUP_DMA_MAP;
+	us->current_urb->transfer_flags = URB_NO_SETUP_DMA_MAP;
 	if (us->current_urb->transfer_buffer == us->iobuf)
 		us->current_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	us->current_urb->transfer_dma = us->iobuf_dma;

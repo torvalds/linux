@@ -2987,7 +2987,6 @@ static void rx_submit (struct usbnet *dev, struct urb *urb, unsigned flags)
 
 	usb_fill_bulk_urb (urb, dev->udev, dev->in,
 		skb->data, size, rx_complete, skb);
-	urb->transfer_flags |= URB_ASYNC_UNLINK;
 
 	spin_lock_irqsave (&dev->rxq.lock, lockflags);
 
@@ -3561,7 +3560,6 @@ static int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 
 	usb_fill_bulk_urb (urb, dev->udev, dev->out,
 			skb->data, skb->len, tx_complete, skb);
-	urb->transfer_flags |= URB_ASYNC_UNLINK;
 
 	/* don't assume the hardware handles USB_ZERO_PACKET
 	 * NOTE:  strictly conforming cdc-ether devices should expect
