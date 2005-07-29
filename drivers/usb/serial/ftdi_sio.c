@@ -548,6 +548,7 @@ static struct usb_serial_device_type ftdi_sio_device = {
 
 
 #define WDR_TIMEOUT 5000 /* default urb timeout */
+#define WDR_SHORT_TIMEOUT 1000	/* shorter urb timeout */
 
 /* High and low are for DTR, RTS etc etc */
 #define HIGH 1
@@ -681,7 +682,7 @@ static int change_speed(struct usb_serial_port *port)
 			    FTDI_SIO_SET_BAUDRATE_REQUEST,
 			    FTDI_SIO_SET_BAUDRATE_REQUEST_TYPE,
 			    urb_value, urb_index,
-			    buf, 0, 100);
+			    buf, 0, WDR_SHORT_TIMEOUT);
 
 	kfree(buf);
 	return rv;
@@ -1786,7 +1787,7 @@ static void ftdi_set_termios (struct usb_serial_port *port, struct termios *old_
 			    FTDI_SIO_SET_DATA_REQUEST, 
 			    FTDI_SIO_SET_DATA_REQUEST_TYPE,
 			    urb_value , priv->interface,
-			    buf, 0, 100) < 0) {
+			    buf, 0, WDR_SHORT_TIMEOUT) < 0) {
 		err("%s FAILED to set databits/stopbits/parity", __FUNCTION__);
 	}	   
 
