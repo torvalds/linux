@@ -1307,16 +1307,18 @@ static int snd_ac97_mixer_build(ac97_t * ac97)
 	}
 	
 	/* build master tone controls */
-	if (snd_ac97_try_volume_mix(ac97, AC97_MASTER_TONE)) {
-		for (idx = 0; idx < 2; idx++) {
-			if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_controls_tone[idx], ac97))) < 0)
-				return err;
-			if (ac97->id == AC97_ID_YMF753) {
-				kctl->private_value &= ~(0xff << 16);
-				kctl->private_value |= 7 << 16;
+	if (!(ac97->flags & AC97_HAS_NO_TONE)) {
+		if (snd_ac97_try_volume_mix(ac97, AC97_MASTER_TONE)) {
+			for (idx = 0; idx < 2; idx++) {
+				if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_controls_tone[idx], ac97))) < 0)
+					return err;
+				if (ac97->id == AC97_ID_YMF753) {
+					kctl->private_value &= ~(0xff << 16);
+					kctl->private_value |= 7 << 16;
+				}
 			}
+			snd_ac97_write_cache(ac97, AC97_MASTER_TONE, 0x0f0f);
 		}
-		snd_ac97_write_cache(ac97, AC97_MASTER_TONE, 0x0f0f);
 	}
 	
 	/* build PC Speaker controls */
@@ -1339,11 +1341,13 @@ static int snd_ac97_mixer_build(ac97_t * ac97)
 	}
 	
 	/* build MIC controls */
-	if (snd_ac97_try_volume_mix(ac97, AC97_MIC)) {
-		if ((err = snd_ac97_cmix_new(card, "Mic Playback", AC97_MIC, ac97)) < 0)
-			return err;
-		if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_mic_boost, ac97))) < 0)
-			return err;
+	if (!(ac97->flags & AC97_HAS_NO_MIC)) {
+		if (snd_ac97_try_volume_mix(ac97, AC97_MIC)) {
+			if ((err = snd_ac97_cmix_new(card, "Mic Playback", AC97_MIC, ac97)) < 0)
+				return err;
+			if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_mic_boost, ac97))) < 0)
+				return err;
+		}
 	}
 
 	/* build Line controls */
@@ -1402,12 +1406,14 @@ static int snd_ac97_mixer_build(ac97_t * ac97)
 		}
 		snd_ac97_write_cache(ac97, AC97_PCM, init_val);
 	} else {
-		if (ac97->flags & AC97_HAS_NO_PCM_VOL)
-			err = snd_ac97_cmute_new(card, "PCM Playback Switch", AC97_PCM, ac97);
-		else
-			err = snd_ac97_cmix_new(card, "PCM Playback", AC97_PCM, ac97);
-		if (err < 0)
-			return err;
+		if (!(ac97->flags & AC97_HAS_NO_STD_PCM)) {
+			if (ac97->flags & AC97_HAS_NO_PCM_VOL)
+				err = snd_ac97_cmute_new(card, "PCM Playback Switch", AC97_PCM, ac97);
+			else
+				err = snd_ac97_cmix_new(card, "PCM Playback", AC97_PCM, ac97);
+			if (err < 0)
+				return err;
+		}
 	}
 
 	/* build Capture controls */
