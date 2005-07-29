@@ -252,7 +252,7 @@ struct driver_info {
 
 	/* fixup tx packet (add framing) */
 	struct sk_buff	*(*tx_fixup)(struct usbnet *dev,
-				struct sk_buff *skb, int flags);
+				struct sk_buff *skb, unsigned flags);
 
 	// FIXME -- also an interrupt mechanism
 	// useful for at least PL2301/2302 and GL620USB-A
@@ -1144,7 +1144,7 @@ static int ax88772_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 }
 
 static struct sk_buff *ax88772_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
-					int flags)
+					unsigned flags)
 {
 	int padlen;
 	int headroom = skb_headroom(skb);
@@ -1945,7 +1945,7 @@ static int genelink_rx_fixup (struct usbnet *dev, struct sk_buff *skb)
 }
 
 static struct sk_buff *
-genelink_tx_fixup (struct usbnet *dev, struct sk_buff *skb, int flags)
+genelink_tx_fixup (struct usbnet *dev, struct sk_buff *skb, unsigned flags)
 {
 	int 	padlen;
 	int	length = skb->len;
@@ -2468,7 +2468,7 @@ static int net1080_rx_fixup (struct usbnet *dev, struct sk_buff *skb)
 }
 
 static struct sk_buff *
-net1080_tx_fixup (struct usbnet *dev, struct sk_buff *skb, int flags)
+net1080_tx_fixup (struct usbnet *dev, struct sk_buff *skb, unsigned flags)
 {
 	int			padlen;
 	struct sk_buff		*skb2;
@@ -2662,7 +2662,7 @@ static const struct driver_info	blob_info = {
  *-------------------------------------------------------------------------*/
 
 static struct sk_buff *
-zaurus_tx_fixup (struct usbnet *dev, struct sk_buff *skb, int flags)
+zaurus_tx_fixup (struct usbnet *dev, struct sk_buff *skb, unsigned flags)
 {
 	int			padlen;
 	struct sk_buff		*skb2;
@@ -2935,7 +2935,7 @@ static void defer_kevent (struct usbnet *dev, int work)
 
 static void rx_complete (struct urb *urb, struct pt_regs *regs);
 
-static void rx_submit (struct usbnet *dev, struct urb *urb, int flags)
+static void rx_submit (struct usbnet *dev, struct urb *urb, unsigned flags)
 {
 	struct sk_buff		*skb;
 	struct skb_data		*entry;
