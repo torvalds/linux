@@ -9,9 +9,10 @@
  */
 #include <elf.h>
 #include <stddef.h>
+#include <asm/elf.h>
 #include "init.h"
 #include "elf_user.h"
-#include <asm/elf.h>
+#include "mem_user.h"
 
 #if ELF_CLASS == ELFCLASS32
 typedef Elf32_auxv_t elf_auxv_t;
@@ -41,6 +42,9 @@ __init void scan_elf_aux( char **envp)
 				break;
 			case AT_SYSINFO_EHDR:
 				vsyscall_ehdr = auxv->a_un.a_val;
+				/* See if the page is under TASK_SIZE */
+				if (vsyscall_ehdr < (unsigned long) envp)
+					vsyscall_ehdr = 0;
 				break;
 			case AT_HWCAP:
 				elf_aux_hwcap = auxv->a_un.a_val;
