@@ -244,15 +244,15 @@ static ssize_t show_virtual(struct class_device *class_device, char *buf)
 
 /* Format for cmap is "%02x%c%4x%4x%4x\n" */
 /* %02x entry %c transp %4x red %4x blue %4x green \n */
-/* 255 rows at 16 chars equals 4096 */
-/* PAGE_SIZE can be 4096 or larger */
+/* 256 rows at 16 chars equals 4096, the normal page size */
+/* the code will automatically adjust for different page sizes */
 static ssize_t store_cmap(struct class_device *class_device, const char *buf,
 			  size_t count)
 {
 	struct fb_info *fb_info = (struct fb_info *)class_get_devdata(class_device);
 	int rc, i, start, length, transp = 0;
 
-	if ((count > 4096) || ((count % 16) != 0) || (PAGE_SIZE < 4096))
+	if ((count > PAGE_SIZE) || ((count % 16) != 0))
 		return -EINVAL;
 
 	if (!fb_info->fbops->fb_setcolreg && !fb_info->fbops->fb_setcmap)
@@ -317,18 +317,18 @@ static ssize_t show_cmap(struct class_device *class_device, char *buf)
 	   !fb_info->cmap.green)
 		return -EINVAL;
 
-	if (PAGE_SIZE < 4096)
+	if (fb_info->cmap.len > PAGE_SIZE / 16)
 		return -EINVAL;
 
 	/* don't mess with the format, the buffer is PAGE_SIZE */
-	/* 255 entries at 16 chars per line equals 4096 = PAGE_SIZE */
+	/* 256 entries at 16 chars per line equals 4096 = PAGE_SIZE */
 	for (i = 0; i < fb_info->cmap.len; i++) {
-		sprintf(&buf[ i * 16], "%02x%c%4x%4x%4x\n", i + fb_info->cmap.start,
+		snprintf(&buf[ i * 16], PAGE_SIZE - i * 16, "%02x%c%4x%4x%4x\n", i + fb_info->cmap.start,
 			((fb_info->cmap.transp && fb_info->cmap.transp[i]) ? '*' : ' '),
 			fb_info->cmap.red[i], fb_info->cmap.blue[i],
 			fb_info->cmap.green[i]);
 	}
-	return 4096;
+	return 16 * fb_info->cmap.len;
 }
 
 static ssize_t store_blank(struct class_device *class_device, const char * buf,
