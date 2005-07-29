@@ -896,21 +896,10 @@ static int adjust_abs_time(struct k_clock *clock, struct timespec *tp,
 			jiffies_64_f = get_jiffies_64();
 		}
 		/*
-		 * Take away now to get delta
+		 * Take away now to get delta and normalize
 		 */
-		oc.tv_sec -= now.tv_sec;
-		oc.tv_nsec -= now.tv_nsec;
-		/*
-		 * Normalize...
-		 */
-		while ((oc.tv_nsec - NSEC_PER_SEC) >= 0) {
-			oc.tv_nsec -= NSEC_PER_SEC;
-			oc.tv_sec++;
-		}
-		while ((oc.tv_nsec) < 0) {
-			oc.tv_nsec += NSEC_PER_SEC;
-			oc.tv_sec--;
-		}
+		set_normalized_timespec(&oc, oc.tv_sec - now.tv_sec,
+					oc.tv_nsec - now.tv_nsec);
 	}else{
 		jiffies_64_f = get_jiffies_64();
 	}
