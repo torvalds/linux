@@ -46,7 +46,7 @@
 
 /* Function name is used for debug output. Non-ANSI, compiler-dependent */
 
-#define ACPI_GET_FUNCTION_NAME          __FUNCTION__
+#define ACPI_GET_FUNCTION_NAME          (char *) __FUNCTION__
 
 /* This macro is used to tag functions as "printf-like" because
  * some compilers (like GCC) can catch printf format string problems.
