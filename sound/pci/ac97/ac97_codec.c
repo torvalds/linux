@@ -1813,6 +1813,39 @@ int snd_ac97_bus(snd_card_t *card, int num, ac97_bus_ops_t *ops,
 	return 0;
 }
 
+/* stop no dev release warning */
+static void ac97_device_release(struct device * dev)
+{
+}
+
+/* register ac97 codec to bus */
+static int snd_ac97_dev_register(snd_device_t *device)
+{
+	ac97_t *ac97 = device->device_data;
+	int err;
+
+	ac97->dev.bus = &ac97_bus_type;
+	ac97->dev.parent = ac97->bus->card->dev;
+	ac97->dev.platform_data = ac97;
+	ac97->dev.release = ac97_device_release;
+	strncpy(ac97->dev.bus_id, snd_ac97_get_short_name(ac97), BUS_ID_SIZE);
+	if ((err = device_register(&ac97->dev)) < 0) {
+		snd_printk(KERN_ERR "Can't register ac97 bus\n");
+		ac97->dev.bus = NULL;
+		return err;
+	}
+	return 0;
+}
+
+/* unregister ac97 codec */
+static int snd_ac97_dev_unregister(snd_device_t *device)
+{
+	ac97_t *ac97 = device->device_data;
+	if (ac97->dev.bus)
+		device_unregister(&ac97->dev);
+	return snd_ac97_free(ac97);
+}
+
 /* build_ops to do nothing */
 static struct snd_ac97_build_ops null_build_ops;
 
@@ -1846,6 +1879,8 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 	const ac97_codec_id_t *pid;
 	static snd_device_ops_t ops = {
 		.dev_free =	snd_ac97_dev_free,
+		.dev_register =	snd_ac97_dev_register,
+		.dev_unregister =	snd_ac97_dev_unregister,
 	};
 
 	snd_assert(rac97 != NULL, return -EINVAL);
