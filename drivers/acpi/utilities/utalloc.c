@@ -76,7 +76,7 @@ static acpi_status
 acpi_ut_create_list (
 	char                            *list_name,
 	u16                             object_size,
-	acpi_handle                     *return_cache);
+	struct acpi_memory_list         **return_cache);
 #endif
 
 
@@ -428,7 +428,7 @@ static acpi_status
 acpi_ut_create_list (
 	char                            *list_name,
 	u16                             object_size,
-	acpi_handle                     *return_cache)
+	struct acpi_memory_list         **return_cache)
 {
 	struct acpi_memory_list         *cache;
 

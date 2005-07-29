@@ -85,6 +85,9 @@ acpi_ns_print_pathname (
 	u32                             num_segments,
 	char                            *pathname)
 {
+	acpi_native_uint                i;
+
+
 	ACPI_FUNCTION_NAME ("ns_print_pathname");
 
 
@@ -97,9 +100,13 @@ acpi_ns_print_pathname (
 	ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "["));
 
 	while (num_segments) {
-		acpi_os_printf ("%4.4s", pathname);
-		pathname += ACPI_NAME_SIZE;
+		for (i = 0; i < 4; i++) {
+			ACPI_IS_PRINT (pathname[i]) ?
+				acpi_os_printf ("%c", pathname[i]) :
+				acpi_os_printf ("?");
+		}
 
+		pathname += ACPI_NAME_SIZE;
 		num_segments--;
 		if (num_segments) {
 			acpi_os_printf (".");

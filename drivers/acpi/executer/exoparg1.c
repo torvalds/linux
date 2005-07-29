@@ -955,7 +955,7 @@ acpi_ex_opcode_1A_0T_1R (
 					 */
 					return_desc = *(operand[0]->reference.where);
 					if (return_desc) {
-	                    acpi_ut_add_reference (return_desc);
+						acpi_ut_add_reference (return_desc);
 					}
 
 					break;

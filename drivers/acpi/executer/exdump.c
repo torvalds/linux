@@ -598,7 +598,7 @@ acpi_ex_dump_reference (
 			acpi_os_printf ("Could not convert name to pathname\n");
 		}
 		else {
-		   acpi_os_printf ("%s\n", ret_buf.pointer);
+		   acpi_os_printf ("%s\n", (char *) ret_buf.pointer);
 		   ACPI_MEM_FREE (ret_buf.pointer);
 		}
 	}

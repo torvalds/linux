@@ -302,14 +302,14 @@ acpi_ut_track_stack_ptr (
 void
 acpi_ut_trace (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id);
 
 void
 acpi_ut_trace_ptr (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	void                            *pointer);
@@ -317,7 +317,7 @@ acpi_ut_trace_ptr (
 void
 acpi_ut_trace_u32 (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	u32                             integer);
@@ -325,7 +325,7 @@ acpi_ut_trace_u32 (
 void
 acpi_ut_trace_str (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	char                            *string);
@@ -333,14 +333,14 @@ acpi_ut_trace_str (
 void
 acpi_ut_exit (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id);
 
 void
 acpi_ut_status_exit (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	acpi_status                     status);
@@ -348,7 +348,7 @@ acpi_ut_status_exit (
 void
 acpi_ut_value_exit (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	acpi_integer                    value);
@@ -356,7 +356,7 @@ acpi_ut_value_exit (
 void
 acpi_ut_ptr_exit (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	u8                              *ptr);
@@ -390,7 +390,7 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print (
 	u32                             requested_debug_level,
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	char                            *format,
@@ -400,7 +400,7 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print_raw (
 	u32                             requested_debug_level,
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	char                            *format,
@@ -598,9 +598,9 @@ acpi_status
 acpi_ut_allocate_owner_id (
 	acpi_owner_id                   *owner_id);
 
-acpi_status
+void
 acpi_ut_release_owner_id (
-	acpi_owner_id                   owner_id);
+	acpi_owner_id                   *owner_id);
 
 acpi_status
 acpi_ut_walk_package_tree (
@@ -609,7 +609,7 @@ acpi_ut_walk_package_tree (
 	acpi_pkg_callback               walk_callback,
 	void                            *context);
 
-char *
+void
 acpi_ut_strupr (
 	char                            *src_string);
 

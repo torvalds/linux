@@ -411,6 +411,9 @@ acpi_ev_init_global_lock_handler (
 	 * with an error.
 	 */
 	if (status == AE_NO_HARDWARE_RESPONSE) {
+		ACPI_REPORT_ERROR ((
+			"No response from Global Lock hardware, disabling lock\n"));
+
 		acpi_gbl_global_lock_present = FALSE;
 		status = AE_OK;
 	}

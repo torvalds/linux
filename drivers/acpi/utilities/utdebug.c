@@ -55,6 +55,12 @@ static u32   acpi_gbl_prev_thread_id = 0xFFFFFFFF;
 static char     *acpi_gbl_fn_entry_str = "----Entry";
 static char     *acpi_gbl_fn_exit_str = "----Exit-";
 
+/* Local prototypes */
+
+static const char *
+acpi_ut_trim_function_name (
+	const char                      *function_name);
+
 
 /*******************************************************************************
  *
@@ -72,7 +78,7 @@ void
 acpi_ut_init_stack_ptr_trace (
 	void)
 {
-	u32                         current_sp;
+	u32                             current_sp;
 
 
 	acpi_gbl_entry_stack_pointer = ACPI_PTR_DIFF (&current_sp, NULL);
@@ -95,7 +101,7 @@ void
 acpi_ut_track_stack_ptr (
 	void)
 {
-	acpi_size                   current_sp;
+	acpi_size                       current_sp;
 
 
 	current_sp = ACPI_PTR_DIFF (&current_sp, NULL);
@@ -107,6 +113,43 @@ acpi_ut_track_stack_ptr (
 	if (acpi_gbl_nesting_level > acpi_gbl_deepest_nesting) {
 		acpi_gbl_deepest_nesting = acpi_gbl_nesting_level;
 	}
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_trim_function_name
+ *
+ * PARAMETERS:  function_name       - Ascii string containing a procedure name
+ *
+ * RETURN:      Updated pointer to the function name
+ *
+ * DESCRIPTION: Remove the "Acpi" prefix from the function name, if present.
+ *              This allows compiler macros such as __FUNCTION__ to be used
+ *              with no change to the debug output.
+ *
+ ******************************************************************************/
+
+static const char *
+acpi_ut_trim_function_name (
+	const char                      *function_name)
+{
+
+	/* All Function names are longer than 4 chars, check is safe */
+
+	if (*(ACPI_CAST_PTR (u32, function_name)) == ACPI_FUNCTION_PREFIX1) {
+		/* This is the case where the original source has not been modified */
+
+		return (function_name + 4);
+	}
+
+	if (*(ACPI_CAST_PTR (u32, function_name)) == ACPI_FUNCTION_PREFIX2) {
+		/* This is the case where the source has been 'linuxized' */
+
+		return (function_name + 5);
+	}
+
+	return (function_name);
 }
 
 
@@ -133,7 +176,7 @@ void  ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print (
 	u32                             requested_debug_level,
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	char                            *format,
@@ -177,7 +220,7 @@ acpi_ut_debug_print (
 	}
 
 	acpi_os_printf ("[%02ld] %-22.22s: ",
-		acpi_gbl_nesting_level, function_name);
+		acpi_gbl_nesting_level, acpi_ut_trim_function_name (function_name));
 
 	va_start (args, format);
 	acpi_os_vprintf (format, args);
@@ -208,7 +251,7 @@ void  ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print_raw (
 	u32                             requested_debug_level,
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	char                            *format,
@@ -247,7 +290,7 @@ EXPORT_SYMBOL(acpi_ut_debug_print_raw);
 void
 acpi_ut_trace (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id)
 {
@@ -282,7 +325,7 @@ EXPORT_SYMBOL(acpi_ut_trace);
 void
 acpi_ut_trace_ptr (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	void                            *pointer)
@@ -316,7 +359,7 @@ acpi_ut_trace_ptr (
 void
 acpi_ut_trace_str (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	char                            *string)
@@ -351,7 +394,7 @@ acpi_ut_trace_str (
 void
 acpi_ut_trace_u32 (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	u32                             integer)
@@ -385,7 +428,7 @@ acpi_ut_trace_u32 (
 void
 acpi_ut_exit (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id)
 {
@@ -419,7 +462,7 @@ EXPORT_SYMBOL(acpi_ut_exit);
 void
 acpi_ut_status_exit (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	acpi_status                     status)
@@ -463,7 +506,7 @@ EXPORT_SYMBOL(acpi_ut_status_exit);
 void
 acpi_ut_value_exit (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	acpi_integer                    value)
@@ -499,7 +542,7 @@ EXPORT_SYMBOL(acpi_ut_value_exit);
 void
 acpi_ut_ptr_exit (
 	u32                             line_number,
-	char                            *function_name,
+	const char                      *function_name,
 	char                            *module_name,
 	u32                             component_id,
 	u8                              *ptr)
@@ -607,8 +650,8 @@ acpi_ut_dump_buffer (
 		}
 
 		/*
-		 * Print the ASCII equivalent characters
-		 * But watch out for the bad unprintable ones...
+		 * Print the ASCII equivalent characters but watch out for the bad
+		 * unprintable ones (printable chars are 0x20 through 0x7E)
 		 */
 		acpi_os_printf (" ");
 		for (j = 0; j < 16; j++) {
@@ -618,9 +661,7 @@ acpi_ut_dump_buffer (
 			}
 
 			buf_char = buffer[i + j];
-			if ((buf_char > 0x1F && buf_char < 0x2E) ||
-				(buf_char > 0x2F && buf_char < 0x61) ||
-				(buf_char > 0x60 && buf_char < 0x7F)) {
+			if (ACPI_IS_PRINT (buf_char)) {
 				acpi_os_printf ("%c", buf_char);
 			}
 			else {

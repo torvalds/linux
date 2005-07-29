@@ -58,12 +58,11 @@
  *
  * FUNCTION:    acpi_ds_parse_method
  *
- * PARAMETERS:  obj_handle      - Method node
+ * PARAMETERS:  Node        - Method node
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Call the parser and parse the AML that is associated with the
- *              method.
+ * DESCRIPTION: Parse the AML that is associated with the method.
  *
  * MUTEX:       Assumes parser is locked
  *
@@ -71,30 +70,28 @@
 
 acpi_status
 acpi_ds_parse_method (
-	acpi_handle                     obj_handle)
+	struct acpi_namespace_node      *node)
 {
 	acpi_status                     status;
 	union acpi_operand_object       *obj_desc;
 	union acpi_parse_object         *op;
-	struct acpi_namespace_node      *node;
 	struct acpi_walk_state          *walk_state;
 
 
-	ACPI_FUNCTION_TRACE_PTR ("ds_parse_method", obj_handle);
+	ACPI_FUNCTION_TRACE_PTR ("ds_parse_method", node);
 
 
 	/* Parameter Validation */
 
-	if (!obj_handle) {
+	if (!node) {
 		return_ACPI_STATUS (AE_NULL_ENTRY);
 	}
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "**** Parsing [%4.4s] **** named_obj=%p\n",
-		acpi_ut_get_node_name (obj_handle), obj_handle));
+		acpi_ut_get_node_name (node), node));
 
 	/* Extract the method object from the method Node */
 
-	node = (struct acpi_namespace_node *) obj_handle;
 	obj_desc = acpi_ns_get_attached_object (node);
 	if (!obj_desc) {
 		return_ACPI_STATUS (AE_NULL_OBJECT);
@@ -169,10 +166,18 @@ acpi_ds_parse_method (
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
 		"**** [%4.4s] Parsed **** named_obj=%p Op=%p\n",
-		acpi_ut_get_node_name (obj_handle), obj_handle, op));
+		acpi_ut_get_node_name (node), node, op));
+
+	/*
+	 * Delete the parse tree. We simply re-parse the method for every
+	 * execution since there isn't much overhead (compared to keeping lots
+	 * of parse trees around)
+	 */
+	acpi_ns_delete_namespace_subtree (node);
+	acpi_ns_delete_namespace_by_owner (obj_desc->method.owner_id);
 
 cleanup2:
-	(void) acpi_ut_release_owner_id (obj_desc->method.owner_id);
+	acpi_ut_release_owner_id (&obj_desc->method.owner_id);
 
 cleanup:
 	acpi_ps_delete_parse_tree (op);
@@ -391,7 +396,7 @@ acpi_ds_call_control_method (
 	/* On error, we must delete the new walk state */
 
 cleanup:
-	(void) acpi_ut_release_owner_id (obj_desc->method.owner_id);
+	acpi_ut_release_owner_id (&obj_desc->method.owner_id);
 	if (next_walk_state && (next_walk_state->method_desc)) {
 		/* Decrement the thread count on the method parse tree */
 
@@ -563,8 +568,7 @@ acpi_ds_terminate_control_method (
 		 */
 		if ((walk_state->method_desc->method.concurrency == 1) &&
 			(!walk_state->method_desc->method.semaphore)) {
-			status = acpi_os_create_semaphore (1,
-					 1,
+			status = acpi_os_create_semaphore (1, 1,
 					 &walk_state->method_desc->method.semaphore);
 		}
 
@@ -595,6 +599,8 @@ acpi_ds_terminate_control_method (
 		 */
 		acpi_ns_delete_namespace_by_owner (walk_state->method_desc->method.owner_id);
 		status = acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
+		acpi_ut_release_owner_id (&walk_state->method_desc->method.owner_id);
+
 		if (ACPI_FAILURE (status)) {
 			return_ACPI_STATUS (status);
 		}

@@ -241,15 +241,15 @@
 #define ACPI_MEMCPY(d,s,n)      (void) memcpy((d), (s), (acpi_size)(n))
 #define ACPI_MEMSET(d,s,n)      (void) memset((d), (s), (acpi_size)(n))
 
-#define ACPI_TOUPPER            toupper
-#define ACPI_TOLOWER            tolower
-#define ACPI_IS_XDIGIT          isxdigit
-#define ACPI_IS_DIGIT           isdigit
-#define ACPI_IS_SPACE           isspace
-#define ACPI_IS_UPPER           isupper
-#define ACPI_IS_PRINT           isprint
-#define ACPI_IS_ALPHA           isalpha
-#define ACPI_IS_ASCII           isascii
+#define ACPI_TOUPPER(i)         toupper((int) (i))
+#define ACPI_TOLOWER(i)         tolower((int) (i))
+#define ACPI_IS_XDIGIT(i)       isxdigit((int) (i))
+#define ACPI_IS_DIGIT(i)        isdigit((int) (i))
+#define ACPI_IS_SPACE(i)        isspace((int) (i))
+#define ACPI_IS_UPPER(i)        isupper((int) (i))
+#define ACPI_IS_PRINT(i)        isprint((int) (i))
+#define ACPI_IS_ALPHA(i)        isalpha((int) (i))
+#define ACPI_IS_ASCII(i)        isascii((int) (i))
 
 #else
 

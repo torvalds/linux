@@ -182,10 +182,23 @@ acpi_load_table (
 		return_ACPI_STATUS (status);
 	}
 
+	/* Check signature for a valid table type */
+
+	status = acpi_tb_recognize_table (&table_info, ACPI_TABLE_ALL);
+	if (ACPI_FAILURE (status)) {
+		return_ACPI_STATUS (status);
+	}
+
 	/* Install the new table into the local data structures */
 
 	status = acpi_tb_install_table (&table_info);
 	if (ACPI_FAILURE (status)) {
+		if (status == AE_ALREADY_EXISTS) {
+			/* Table already exists, no error */
+
+			status = AE_OK;
+		}
+
 		/* Free table allocated by acpi_tb_get_table_body */
 
 		acpi_tb_delete_single_table (&table_info);
@@ -261,6 +274,7 @@ acpi_unload_table (
 		 * simply a position within the hierarchy
 		 */
 		acpi_ns_delete_namespace_by_owner (table_desc->owner_id);
+		acpi_ut_release_owner_id (&table_desc->owner_id);
 		table_desc = table_desc->next;
 	}
 

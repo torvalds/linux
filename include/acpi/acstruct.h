@@ -153,6 +153,7 @@ struct acpi_device_walk_info
 struct acpi_walk_info
 {
 	u32                             debug_level;
+	u32                             count;
 	acpi_owner_id                   owner_id;
 	u8                              display_type;
 };
@@ -209,8 +210,10 @@ union acpi_aml_operands
 struct acpi_parameter_info
 {
 	struct acpi_namespace_node      *node;
+	union acpi_operand_object       *obj_desc;
 	union acpi_operand_object       **parameters;
 	union acpi_operand_object       *return_object;
+	u8                              pass_number;
 	u8                              parameter_type;
 	u8                              return_object_type;
 };

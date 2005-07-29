@@ -99,6 +99,11 @@ acpi_ex_add_table (
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
 
+	/* Init the table handle */
+
+	obj_desc->reference.opcode = AML_LOAD_OP;
+	*ddb_handle = obj_desc;
+
 	/* Install the new table into the local data structures */
 
 	ACPI_MEMSET (&table_info, 0, sizeof (struct acpi_table_desc));
@@ -109,7 +114,14 @@ acpi_ex_add_table (
 	table_info.allocation = ACPI_MEM_ALLOCATED;
 
 	status = acpi_tb_install_table (&table_info);
+	obj_desc->reference.object = table_info.installed_desc;
+
 	if (ACPI_FAILURE (status)) {
+		if (status == AE_ALREADY_EXISTS) {
+			/* Table already exists, just return the handle */
+
+			return_ACPI_STATUS (AE_OK);
+		}
 		goto cleanup;
 	}
 
@@ -123,16 +135,12 @@ acpi_ex_add_table (
 		goto cleanup;
 	}
 
-	/* Init the table handle */
-
-	obj_desc->reference.opcode = AML_LOAD_OP;
-	obj_desc->reference.object = table_info.installed_desc;
-	*ddb_handle = obj_desc;
 	return_ACPI_STATUS (AE_OK);
 
 
 cleanup:
 	acpi_ut_remove_reference (obj_desc);
+	*ddb_handle = NULL;
 	return_ACPI_STATUS (status);
 }
 
@@ -488,6 +496,7 @@ acpi_ex_unload_table (
 	 * (Offset contains the table_id)
 	 */
 	acpi_ns_delete_namespace_by_owner (table_info->owner_id);
+	acpi_ut_release_owner_id (&table_info->owner_id);
 
 	/* Delete the table itself */
 

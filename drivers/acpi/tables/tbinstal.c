@@ -124,9 +124,7 @@ acpi_tb_match_signature (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Load and validate all tables other than the RSDT.  The RSDT must
- *              already be loaded and validated.
- *              Install the table into the global data structs.
+ * DESCRIPTION: Install the table into the global data structures.
  *
  ******************************************************************************/
 
@@ -136,6 +134,7 @@ acpi_tb_install_table (
 {
 	acpi_status                     status;
 
+
 	ACPI_FUNCTION_TRACE ("tb_install_table");
 
 
@@ -143,22 +142,33 @@ acpi_tb_install_table (
 
 	status = acpi_ut_acquire_mutex (ACPI_MTX_TABLES);
 	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("Could not acquire table mutex for [%4.4s], %s\n",
-			table_info->pointer->signature, acpi_format_exception (status)));
+		ACPI_REPORT_ERROR (("Could not acquire table mutex, %s\n",
+			acpi_format_exception (status)));
 		return_ACPI_STATUS (status);
+	}
+
+	/*
+	 * Ignore a table that is already installed. For example, some BIOS
+	 * ASL code will repeatedly attempt to load the same SSDT.
+	 */
+	status = acpi_tb_is_table_installed (table_info);
+	if (ACPI_FAILURE (status)) {
+		goto unlock_and_exit;
 	}
 
 	/* Install the table into the global data structure */
 
 	status = acpi_tb_init_table_descriptor (table_info->type, table_info);
 	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("Could not install ACPI table [%4.4s], %s\n",
+		ACPI_REPORT_ERROR (("Could not install table [%4.4s], %s\n",
 			table_info->pointer->signature, acpi_format_exception (status)));
 	}
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s located at %p\n",
 		acpi_gbl_table_data[table_info->type].name, table_info->pointer));
 
+
+unlock_and_exit:
 	(void) acpi_ut_release_mutex (ACPI_MTX_TABLES);
 	return_ACPI_STATUS (status);
 }

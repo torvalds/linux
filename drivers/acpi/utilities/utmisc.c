@@ -56,7 +56,11 @@
  *
  * PARAMETERS:  owner_id        - Where the new owner ID is returned
  *
- * DESCRIPTION: Allocate a table or method owner id
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Allocate a table or method owner ID. The owner ID is used to
+ *              track objects created by the table or method, to be deleted
+ *              when the method exits or the table is unloaded.
  *
  ******************************************************************************/
 
@@ -71,6 +75,8 @@ acpi_ut_allocate_owner_id (
 	ACPI_FUNCTION_TRACE ("ut_allocate_owner_id");
 
 
+	/* Mutex for the global ID mask */
+
 	status = acpi_ut_acquire_mutex (ACPI_MTX_CACHES);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
@@ -81,7 +87,7 @@ acpi_ut_allocate_owner_id (
 	for (i = 0; i < 32; i++) {
 		if (!(acpi_gbl_owner_id_mask & (1 << i))) {
 			acpi_gbl_owner_id_mask |= (1 << i);
-			*owner_id = (acpi_owner_id) i;
+			*owner_id = (acpi_owner_id) (i + 1);
 			goto exit;
 		}
 	}
@@ -93,6 +99,7 @@ acpi_ut_allocate_owner_id (
 	 * they are released when a table is unloaded or a method completes
 	 * execution.
 	 */
+	*owner_id = 0;
 	status = AE_OWNER_ID_LIMIT;
 	ACPI_REPORT_ERROR ((
 		"Could not allocate new owner_id (32 max), AE_OWNER_ID_LIMIT\n"));
@@ -107,40 +114,55 @@ exit:
  *
  * FUNCTION:    acpi_ut_release_owner_id
  *
- * PARAMETERS:  owner_id        - A previously allocated owner ID
+ * PARAMETERS:  owner_id_ptr        - Pointer to a previously allocated owner_iD
  *
- * DESCRIPTION: Release a table or method owner id
+ * RETURN:      None. No error is returned because we are either exiting a
+ *              control method or unloading a table. Either way, we would
+ *              ignore any error anyway.
+ *
+ * DESCRIPTION: Release a table or method owner ID.  Valid IDs are 1 - 32
  *
  ******************************************************************************/
 
-acpi_status
+void
 acpi_ut_release_owner_id (
-	acpi_owner_id                   owner_id)
+	acpi_owner_id                   *owner_id_ptr)
 {
+	acpi_owner_id                   owner_id = *owner_id_ptr;
 	acpi_status                     status;
 
 
 	ACPI_FUNCTION_TRACE ("ut_release_owner_id");
 
 
-	status = acpi_ut_acquire_mutex (ACPI_MTX_CACHES);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	/* Always clear the input owner_id (zero is an invalid ID) */
+
+	*owner_id_ptr = 0;
+
+	/* Zero is not a valid owner_iD */
+
+	if ((owner_id == 0) || (owner_id > 32)) {
+		ACPI_REPORT_ERROR (("Invalid owner_id: %2.2X\n", owner_id));
+		return_VOID;
 	}
 
-	/* Free the owner ID */
+	/* Mutex for the global ID mask */
+
+	status = acpi_ut_acquire_mutex (ACPI_MTX_CACHES);
+	if (ACPI_FAILURE (status)) {
+		return_VOID;
+	}
+
+	owner_id--; /* Normalize to zero */
+
+	/* Free the owner ID only if it is valid */
 
 	if (acpi_gbl_owner_id_mask & (1 << owner_id)) {
 		acpi_gbl_owner_id_mask ^= (1 << owner_id);
 	}
-	else {
-		/* This owner_id has not been allocated */
-
-		status = AE_NOT_EXIST;
-	}
 
 	(void) acpi_ut_release_mutex (ACPI_MTX_CACHES);
-	return_ACPI_STATUS (status);
+	return_VOID;
 }
 
 
@@ -150,7 +172,7 @@ acpi_ut_release_owner_id (
  *
  * PARAMETERS:  src_string      - The source string to convert
  *
- * RETURN:      Converted src_string (same as input pointer)
+ * RETURN:      None
  *
  * DESCRIPTION: Convert string to uppercase
  *
@@ -158,7 +180,7 @@ acpi_ut_release_owner_id (
  *
  ******************************************************************************/
 
-char *
+void
 acpi_ut_strupr (
 	char                            *src_string)
 {
@@ -169,7 +191,7 @@ acpi_ut_strupr (
 
 
 	if (!src_string) {
-		return (NULL);
+		return;
 	}
 
 	/* Walk entire string, uppercasing the letters */
@@ -178,7 +200,7 @@ acpi_ut_strupr (
 		*string = (char) ACPI_TOUPPER (*string);
 	}
 
-	return (src_string);
+	return;
 }
 
 

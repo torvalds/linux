@@ -178,11 +178,15 @@ acpi_tb_validate_rsdp (
  * tbutils - common table utilities
  */
 acpi_status
+acpi_tb_is_table_installed (
+	struct acpi_table_desc          *new_table_desc);
+
+acpi_status
 acpi_tb_verify_table_checksum (
 	struct acpi_table_header        *table_header);
 
 u8
-acpi_tb_checksum (
+acpi_tb_generate_checksum (
 	void                            *buffer,
 	u32                             length);
 

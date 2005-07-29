@@ -124,7 +124,7 @@ acpi_ns_parse_table (
 
 acpi_status
 acpi_ns_one_complete_parse (
-	u32                             pass_number,
+	u8                              pass_number,
 	struct acpi_table_desc          *table_desc);
 
 

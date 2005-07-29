@@ -77,12 +77,7 @@
  * psxface - Parser external interfaces
  */
 acpi_status
-acpi_psx_load_table (
-	u8                              *pcode_addr,
-	u32                             pcode_length);
-
-acpi_status
-acpi_psx_execute (
+acpi_ps_execute_method (
 	struct acpi_parameter_info      *info);
 
 

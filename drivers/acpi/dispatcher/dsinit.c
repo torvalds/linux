@@ -86,20 +86,20 @@ acpi_ds_init_one_object (
 	void                            *context,
 	void                            **return_value)
 {
+	struct acpi_init_walk_info      *info = (struct acpi_init_walk_info *) context;
+	struct acpi_namespace_node      *node = (struct acpi_namespace_node *) obj_handle;
 	acpi_object_type                type;
 	acpi_status                     status;
-	struct acpi_init_walk_info      *info = (struct acpi_init_walk_info *) context;
 
 
 	ACPI_FUNCTION_NAME ("ds_init_one_object");
 
 
 	/*
-	 * We are only interested in objects owned by the table that
+	 * We are only interested in NS nodes owned by the table that
 	 * was just loaded
 	 */
-	if (((struct acpi_namespace_node *) obj_handle)->owner_id !=
-			info->table_desc->owner_id) {
+	if (node->owner_id != info->table_desc->owner_id) {
 		return (AE_OK);
 	}
 
@@ -126,8 +126,6 @@ acpi_ds_init_one_object (
 
 	case ACPI_TYPE_METHOD:
 
-		info->method_count++;
-
 		/*
 		 * Print a dot for each method unless we are going to print
 		 * the entire pathname
@@ -143,7 +141,7 @@ acpi_ds_init_one_object (
 		 * on a per-table basis. Currently, we just use a global for the width.
 		 */
 		if (info->table_desc->pointer->revision == 1) {
-			((struct acpi_namespace_node *) obj_handle)->flags |= ANOBJ_DATA_WIDTH_32;
+			node->flags |= ANOBJ_DATA_WIDTH_32;
 		}
 
 		/*
@@ -153,22 +151,14 @@ acpi_ds_init_one_object (
 		status = acpi_ds_parse_method (obj_handle);
 		if (ACPI_FAILURE (status)) {
 			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-				"Method %p [%4.4s] - parse failure, %s\n",
+				"\n+Method %p [%4.4s] - parse failure, %s\n",
 				obj_handle, acpi_ut_get_node_name (obj_handle),
 				acpi_format_exception (status)));
 
 			/* This parse failed, but we will continue parsing more methods */
-
-			break;
 		}
 
-		/*
-		 * Delete the parse tree.  We simply re-parse the method
-		 * for every execution since there isn't much overhead
-		 */
-		acpi_ns_delete_namespace_subtree (obj_handle);
-		acpi_ns_delete_namespace_by_owner (
-			((struct acpi_namespace_node *) obj_handle)->object->method.owner_id);
+		info->method_count++;
 		break;
 
 

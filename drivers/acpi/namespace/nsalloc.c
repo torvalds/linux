@@ -176,10 +176,9 @@ acpi_ns_delete_node (
  * DESCRIPTION: Initialize a new namespace node and install it amongst
  *              its peers.
  *
- *              Note: Current namespace lookup is linear search.  However, the
- *              nodes are linked in alphabetical order to 1) put all reserved
- *              names (start with underscore) first, and to 2) make a readable
- *              namespace dump.
+ *              Note: Current namespace lookup is linear search. This appears
+ *              to be sufficient as namespace searches consume only a small
+ *              fraction of the execution time of the ACPI subsystem.
  *
  ******************************************************************************/
 
@@ -192,10 +191,6 @@ acpi_ns_install_node (
 {
 	acpi_owner_id                   owner_id = 0;
 	struct acpi_namespace_node      *child_node;
-#ifdef ACPI_ALPHABETIC_NAMESPACE
-
-	struct acpi_namespace_node      *previous_child_node;
-#endif
 
 
 	ACPI_FUNCTION_TRACE ("ns_install_node");
@@ -219,57 +214,6 @@ acpi_ns_install_node (
 		node->peer = parent_node;
 	}
 	else {
-#ifdef ACPI_ALPHABETIC_NAMESPACE
-		/*
-		 * Walk the list whilst searching for the correct
-		 * alphabetic placement.
-		 */
-		previous_child_node = NULL;
-		while (acpi_ns_compare_names (acpi_ut_get_node_name (child_node),
-				 acpi_ut_get_node_name (node)) < 0) {
-			if (child_node->flags & ANOBJ_END_OF_PEER_LIST) {
-				/* Last peer;  Clear end-of-list flag */
-
-				child_node->flags &= ~ANOBJ_END_OF_PEER_LIST;
-
-				/* This node is the new peer to the child node */
-
-				child_node->peer = node;
-
-				/* This node is the new end-of-list */
-
-				node->flags |= ANOBJ_END_OF_PEER_LIST;
-				node->peer = parent_node;
-				break;
-			}
-
-			/* Get next peer */
-
-			previous_child_node = child_node;
-			child_node = child_node->peer;
-		}
-
-		/* Did the node get inserted at the end-of-list? */
-
-		if (!(node->flags & ANOBJ_END_OF_PEER_LIST)) {
-			/*
-			 * Loop above terminated without reaching the end-of-list.
-			 * Insert the new node at the current location
-			 */
-			if (previous_child_node) {
-				/* Insert node alphabetically */
-
-				node->peer = child_node;
-				previous_child_node->peer = node;
-			}
-			else {
-				/* Insert node alphabetically at start of list */
-
-				node->peer = child_node;
-				parent_node->child = node;
-			}
-		}
-#else
 		while (!(child_node->flags & ANOBJ_END_OF_PEER_LIST)) {
 			child_node = child_node->peer;
 		}
@@ -279,9 +223,8 @@ acpi_ns_install_node (
 		/* Clear end-of-list flag */
 
 		child_node->flags &= ~ANOBJ_END_OF_PEER_LIST;
-		node->flags     |= ANOBJ_END_OF_PEER_LIST;
+		node->flags |= ANOBJ_END_OF_PEER_LIST;
 		node->peer = parent_node;
-#endif
 	}
 
 	/* Init the new entry */
@@ -570,6 +513,10 @@ acpi_ns_delete_namespace_by_owner (
 	ACPI_FUNCTION_TRACE_U32 ("ns_delete_namespace_by_owner", owner_id);
 
 
+	if (owner_id == 0) {
+		return_VOID;
+	}
+
 	parent_node   = acpi_gbl_root_node;
 	child_node    = NULL;
 	deletion_node = NULL;
@@ -635,59 +582,7 @@ acpi_ns_delete_namespace_by_owner (
 		}
 	}
 
-	(void) acpi_ut_release_owner_id (owner_id);
 	return_VOID;
 }
-
-
-#ifdef ACPI_ALPHABETIC_NAMESPACE
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ns_compare_names
- *
- * PARAMETERS:  Name1           - First name to compare
- *              Name2           - Second name to compare
- *
- * RETURN:      value from strncmp
- *
- * DESCRIPTION: Compare two ACPI names.  Names that are prefixed with an
- *              underscore are forced to be alphabetically first.
- *
- ******************************************************************************/
-
-int
-acpi_ns_compare_names (
-	char                            *name1,
-	char                            *name2)
-{
-	char                            reversed_name1[ACPI_NAME_SIZE];
-	char                            reversed_name2[ACPI_NAME_SIZE];
-	u32                             i;
-	u32                             j;
-
-
-	/*
-	 * Replace all instances of "underscore" with a value that is smaller so
-	 * that all names that are prefixed with underscore(s) are alphabetically
-	 * first.
-	 *
-	 * Reverse the name bytewise so we can just do a 32-bit compare instead
-	 * of a strncmp.
-	 */
-	for (i = 0, j= (ACPI_NAME_SIZE - 1); i < ACPI_NAME_SIZE; i++, j--) {
-		reversed_name1[j] = name1[i];
-		if (name1[i] == '_') {
-			reversed_name1[j] = '*';
-		}
-
-		reversed_name2[j] = name2[i];
-		if (name2[i] == '_') {
-			reversed_name2[j] = '*';
-		}
-	}
-
-	return (*(int *) reversed_name1 - *(int *) reversed_name2);
-}
-#endif
 
 

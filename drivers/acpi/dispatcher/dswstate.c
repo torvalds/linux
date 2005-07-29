@@ -744,7 +744,7 @@ acpi_ds_init_aml_walk (
 	u8                              *aml_start,
 	u32                             aml_length,
 	struct acpi_parameter_info      *info,
-	u32                             pass_number)
+	u8                              pass_number)
 {
 	acpi_status                     status;
 	struct acpi_parse_state         *parser_state = &walk_state->parser_state;
@@ -762,7 +762,7 @@ acpi_ds_init_aml_walk (
 	/* The next_op of the next_walk will be the beginning of the method */
 
 	walk_state->next_op = NULL;
-	walk_state->pass_number = (u8) pass_number;
+	walk_state->pass_number = pass_number;
 
 	if (info) {
 		if (info->parameter_type == ACPI_PARAM_GPE) {

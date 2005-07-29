@@ -505,8 +505,10 @@
  * The Name parameter should be the procedure name as a quoted string.
  * This is declared as a local string ("my_function_name") so that it can
  * be also used by the function exit macros below.
+ * Note: (const char) is used to be compatible with the debug interfaces
+ * and macros such as __FUNCTION__.
  */
-#define ACPI_FUNCTION_NAME(name)        char *_acpi_function_name = name;
+#define ACPI_FUNCTION_NAME(name)        const char *_acpi_function_name = name;
 
 #else
 /* Compiler supports __FUNCTION__ (or equivalent) -- Ignore this macro */

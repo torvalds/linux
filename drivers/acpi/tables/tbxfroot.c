@@ -93,14 +93,14 @@ acpi_tb_validate_rsdp (
 
 	/* Check the standard checksum */
 
-	if (acpi_tb_checksum (rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0) {
+	if (acpi_tb_generate_checksum (rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0) {
 		return (AE_BAD_CHECKSUM);
 	}
 
 	/* Check extended checksum if table version >= 2 */
 
 	if ((rsdp->revision >= 2) &&
-		(acpi_tb_checksum (rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0)) {
+		(acpi_tb_generate_checksum (rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0)) {
 		return (AE_BAD_CHECKSUM);
 	}
 

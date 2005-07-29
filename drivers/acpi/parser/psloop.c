@@ -55,8 +55,6 @@
 #include <acpi/acparser.h>
 #include <acpi/acdispat.h>
 #include <acpi/amlcode.h>
-#include <acpi/acnamesp.h>
-#include <acpi/acinterp.h>
 
 #define _COMPONENT          ACPI_PARSER
 	 ACPI_MODULE_NAME    ("psloop")
@@ -410,11 +408,9 @@ acpi_ps_parse_loop (
 
 				/* Special processing for certain opcodes */
 
-#define ACPI_NO_MODULE_LEVEL_CODE
-
 	/* TBD (remove): Temporary mechanism to disable this code if needed */
 
-#ifndef ACPI_NO_MODULE_LEVEL_CODE
+#ifdef ACPI_ENABLE_MODULE_LEVEL_CODE
 
 			 if ((walk_state->pass_number <= ACPI_IMODE_LOAD_PASS1) &&
 				   ((walk_state->parse_flags & ACPI_PARSE_DISASSEMBLE) == 0)) {
@@ -430,6 +426,9 @@ acpi_ps_parse_loop (
 					case AML_IF_OP:
 					case AML_ELSE_OP:
 					case AML_WHILE_OP:
+
+						ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+							"Pass1: Skipping an If/Else/While body\n"));
 
 						/* Skip body of if/else/while in pass 1 */
 

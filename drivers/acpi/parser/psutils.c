@@ -200,10 +200,10 @@ acpi_ps_free_op (
 	}
 
 	if (op->common.flags & ACPI_PARSEOP_GENERIC) {
-		acpi_os_release_object (acpi_gbl_ps_node_cache, op);
+		(void) acpi_os_release_object (acpi_gbl_ps_node_cache, op);
 	}
 	else {
-		acpi_os_release_object (acpi_gbl_ps_node_ext_cache, op);
+		(void) acpi_os_release_object (acpi_gbl_ps_node_ext_cache, op);
 	}
 }
 

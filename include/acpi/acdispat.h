@@ -236,7 +236,7 @@ acpi_ds_method_data_init (
  */
 acpi_status
 acpi_ds_parse_method (
-	acpi_handle                     obj_handle);
+	struct acpi_namespace_node      *node);
 
 acpi_status
 acpi_ds_call_control_method (
@@ -391,7 +391,7 @@ acpi_ds_init_aml_walk (
 	u8                              *aml_start,
 	u32                             aml_length,
 	struct acpi_parameter_info      *info,
-	u32                             pass_number);
+	u8                              pass_number);
 
 acpi_status
 acpi_ds_obj_stack_pop_and_delete (
