@@ -273,12 +273,9 @@ static int option_write(struct usb_serial_port *port,
 
 		this_urb = portdata->out_urbs[i];
 		if (this_urb->status == -EINPROGRESS) {
-			if (this_urb->transfer_flags & URB_ASYNC_UNLINK)
-				continue;
 			if (time_before(jiffies,
 					portdata->tx_start_time[i] + 10 * HZ))
 				continue;
-			this_urb->transfer_flags |= URB_ASYNC_UNLINK;
 			usb_unlink_urb(this_urb);
 			continue;
 		}
@@ -293,7 +290,6 @@ static int option_write(struct usb_serial_port *port,
 		memcpy (this_urb->transfer_buffer, buf, todo);
 		this_urb->transfer_buffer_length = todo;
 
-		this_urb->transfer_flags &= ~URB_ASYNC_UNLINK;
 		this_urb->dev = port->serial->dev;
 		err = usb_submit_urb(this_urb, GFP_ATOMIC);
 		if (err) {
@@ -513,10 +509,8 @@ static int option_open(struct usb_serial_port *port, struct file *filp)
 
 static inline void stop_urb(struct urb *urb)
 {
-	if (urb && urb->status == -EINPROGRESS) {
-		urb->transfer_flags &= ~URB_ASYNC_UNLINK;
+	if (urb && urb->status == -EINPROGRESS)
 		usb_kill_urb(urb);
-	}
 }
 
 static void option_close(struct usb_serial_port *port, struct file *filp)
