@@ -125,12 +125,14 @@ struct powernow_k8_data {
                                                                                                     
 #define IRT_SHIFT      30
 #define RVO_SHIFT      28
+#define EXT_TYPE_SHIFT 27
 #define PLL_L_SHIFT    20
 #define MVS_SHIFT      18
 #define VST_SHIFT      11
 #define VID_SHIFT       6
 #define IRT_MASK        3
 #define RVO_MASK        3
+#define EXT_TYPE_MASK   1
 #define PLL_L_MASK   0x7f
 #define MVS_MASK        3
 #define VST_MASK     0x7f
