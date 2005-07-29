@@ -125,7 +125,9 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 		image += readw(pds + 16) * 512;
 	} while (!last_image);
 
-	*size = image - rom;
+	/* never return a size larger than the PCI resource window */
+	/* there are known ROMs that get the size wrong */
+	*size = min((size_t)(image - rom), *size);
 
 	return rom;
 }
