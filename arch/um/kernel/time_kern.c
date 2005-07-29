@@ -137,7 +137,10 @@ long um_stime(int __user *tptr)
 void timer_handler(int sig, union uml_pt_regs *regs)
 {
 	local_irq_disable();
-	update_process_times(CHOOSE_MODE(user_context(UPT_SP(regs)), (regs)->skas.is_user));
+	irq_enter();
+	update_process_times(CHOOSE_MODE(user_context(UPT_SP(regs)),
+					 (regs)->skas.is_user));
+	irq_exit();
 	local_irq_enable();
 	if(current_thread->cpu == 0)
 		timer_irq(regs);
