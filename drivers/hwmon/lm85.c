@@ -282,15 +282,6 @@ static int ZONE_TO_REG( int zone )
 #define PPR_TO_REG(val,fan) (SENSORS_LIMIT((val)-1,0,3)<<(fan *2))
 #define PPR_FROM_REG(val,fan) ((((val)>>(fan * 2))&0x03)+1)
 
-/* i2c-vid.h defines vid_from_reg() */
-#define VID_FROM_REG(val,vrm) (vid_from_reg((val),(vrm)))
-
-/* Unlike some other drivers we DO NOT set initial limits.  Use
- * the config file to set limits.  Some users have reported
- * motherboards shutting down when we set limits in a previous
- * version of the driver.
- */
-
 /* Chip sampling rates
  *
  * Some sensors are not updated more frequently than once per second
