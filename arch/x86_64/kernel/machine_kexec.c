@@ -122,45 +122,43 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 
 static void set_idt(void *newidt, u16 limit)
 {
-	unsigned char curidt[10];
+	struct desc_ptr curidt;
 
 	/* x86-64 supports unaliged loads & stores */
-	(*(u16 *)(curidt)) = limit;
-	(*(u64 *)(curidt +2)) = (unsigned long)(newidt);
+	curidt.size    = limit;
+	curidt.address = (unsigned long)newidt;
 
 	__asm__ __volatile__ (
-		"lidt %0\n"
-		: "=m" (curidt)
+		"lidtq %0\n"
+		: : "m" (curidt)
 		);
 };
 
 
 static void set_gdt(void *newgdt, u16 limit)
 {
-	unsigned char curgdt[10];
+	struct desc_ptr curgdt;
 
 	/* x86-64 supports unaligned loads & stores */
-	(*(u16 *)(curgdt)) = limit;
-	(*(u64 *)(curgdt +2)) = (unsigned long)(newgdt);
+	curgdt.size    = limit;
+	curgdt.address = (unsigned long)newgdt;
 
 	__asm__ __volatile__ (
-		"lgdt %0\n"
-		: "=m" (curgdt)
+		"lgdtq %0\n"
+		: : "m" (curgdt)
 		);
 };
 
 static void load_segments(void)
 {
 	__asm__ __volatile__ (
-		"\tmovl $"STR(__KERNEL_DS)",%eax\n"
-		"\tmovl %eax,%ds\n"
-		"\tmovl %eax,%es\n"
-		"\tmovl %eax,%ss\n"
-		"\tmovl %eax,%fs\n"
-		"\tmovl %eax,%gs\n"
+		"\tmovl %0,%%ds\n"
+		"\tmovl %0,%%es\n"
+		"\tmovl %0,%%ss\n"
+		"\tmovl %0,%%fs\n"
+		"\tmovl %0,%%gs\n"
+		: : "a" (__KERNEL_DS)
 		);
-#undef STR
-#undef __STR
 }
 
 typedef NORET_TYPE void (*relocate_new_kernel_t)(unsigned long indirection_page,
