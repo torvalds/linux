@@ -549,7 +549,8 @@ static int acpi_processor_get_power_info_default_c1 (struct acpi_processor *pr)
 	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_default_c1");
 
 	for (i = 0; i < ACPI_PROCESSOR_MAX_POWER; i++)
-		memset(pr->power.states, 0, sizeof(struct acpi_processor_cx));
+		memset(&(pr->power.states[i]), 0, 
+		       sizeof(struct acpi_processor_cx));
 
 	/* if info is obtained from pblk/fadt, type equals state */
 	pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
@@ -580,7 +581,8 @@ static int acpi_processor_get_power_info_cst (struct acpi_processor *pr)
 
 	pr->power.count = 0;
 	for (i = 0; i < ACPI_PROCESSOR_MAX_POWER; i++)
-		memset(pr->power.states, 0, sizeof(struct acpi_processor_cx));
+		memset(&(pr->power.states[i]), 0, 
+		       sizeof(struct acpi_processor_cx));
 
 	status = acpi_evaluate_object(pr->handle, "_CST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
