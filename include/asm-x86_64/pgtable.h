@@ -176,6 +176,8 @@ extern inline void pgd_clear (pgd_t * pgd)
 	(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED | _PAGE_PCD)
 #define __PAGE_KERNEL_LARGE \
 	(__PAGE_KERNEL | _PAGE_PSE)
+#define __PAGE_KERNEL_LARGE_EXEC \
+	(__PAGE_KERNEL_EXEC | _PAGE_PSE)
 
 #define MAKE_GLOBAL(x) __pgprot((x) | _PAGE_GLOBAL)
 
