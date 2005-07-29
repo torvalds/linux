@@ -647,6 +647,7 @@ static struct hda_board_config cmi9880_cfg_tbl[] = {
 	{ .modelname = "min_fp", .config = CMI_MIN_FP },
 	{ .modelname = "full", .config = CMI_FULL },
 	{ .modelname = "full_dig", .config = CMI_FULL_DIG },
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x813d, .config = CMI_FULL_DIG }, /* ASUS P5AD2 */
 	{ .modelname = "allout", .config = CMI_ALLOUT },
 	{ .modelname = "auto", .config = CMI_AUTO },
 	{} /* terminator */
