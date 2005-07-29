@@ -410,6 +410,8 @@ acpi_ps_parse_loop (
 
 				/* Special processing for certain opcodes */
 
+#define ACPI_NO_MODULE_LEVEL_CODE
+
 	/* TBD (remove): Temporary mechanism to disable this code if needed */
 
 #ifndef ACPI_NO_MODULE_LEVEL_CODE
