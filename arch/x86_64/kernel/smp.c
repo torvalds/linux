@@ -129,10 +129,9 @@ asmlinkage void smp_invalidate_interrupt (void)
 		} else
 			leave_mm(cpu);
 	}
+out:
 	ack_APIC_irq();
 	cpu_clear(cpu, flush_cpumask);
-
-out:
 	put_cpu_no_resched();
 }
 
