@@ -1,5 +1,5 @@
 /*
- * $Id: mtd_blkdevs.c,v 1.24 2004/11/16 18:28:59 dwmw2 Exp $
+ * $Id: mtd_blkdevs.c,v 1.25 2005/07/29 01:57:55 tpoynor Exp $
  *
  * (C) 2003 David Woodhouse <dwmw2@infradead.org>
  *
@@ -21,7 +21,6 @@
 #include <linux/init.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
-#include <linux/devfs_fs_kernel.h>
 
 static LIST_HEAD(blktrans_majors);
 
@@ -292,8 +291,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	
 	snprintf(gd->disk_name, sizeof(gd->disk_name),
 		 "%s%c", tr->name, (tr->part_bits?'a':'0') + new->devnum);
-	snprintf(gd->devfs_name, sizeof(gd->devfs_name),
-		 "%s/%c", tr->name, (tr->part_bits?'a':'0') + new->devnum);
 
 	/* 2.5 has capacity in units of 512 bytes while still
 	   having BLOCK_SIZE_BITS set to 10. Just to keep us amused. */
@@ -411,8 +408,6 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 		return ret;
 	} 
 
-	devfs_mk_dir(tr->name);
-
 	INIT_LIST_HEAD(&tr->devs);
 	list_add(&tr->list, &blktrans_majors);
 
@@ -445,7 +440,6 @@ int deregister_mtd_blktrans(struct mtd_blktrans_ops *tr)
 		tr->remove_dev(dev);
 	}
 
-	devfs_remove(tr->name);
 	blk_cleanup_queue(tr->blkcore_priv->rq);
 	unregister_blkdev(tr->major, tr->name);
 
