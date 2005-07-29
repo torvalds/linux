@@ -749,12 +749,14 @@ int snd_hda_mixer_amp_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	long *valp = ucontrol->value.integer.value;
 	int change = 0;
 
-	if (chs & 1)
+	if (chs & 1) {
 		change = snd_hda_codec_amp_update(codec, nid, 0, dir, idx,
 						  0x7f, *valp);
+		valp++;
+	}
 	if (chs & 2)
 		change |= snd_hda_codec_amp_update(codec, nid, 1, dir, idx,
-						   0x7f, valp[1]);
+						   0x7f, *valp);
 	return change;
 }
 
@@ -796,12 +798,15 @@ int snd_hda_mixer_amp_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	long *valp = ucontrol->value.integer.value;
 	int change = 0;
 
-	if (chs & 1)
+	if (chs & 1) {
 		change = snd_hda_codec_amp_update(codec, nid, 0, dir, idx,
 						  0x80, *valp ? 0 : 0x80);
+		valp++;
+	}
 	if (chs & 2)
 		change |= snd_hda_codec_amp_update(codec, nid, 1, dir, idx,
-						   0x80, valp[1] ? 0 : 0x80);
+						   0x80, *valp ? 0 : 0x80);
+	
 	return change;
 }
 
