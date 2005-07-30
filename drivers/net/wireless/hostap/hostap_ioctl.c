@@ -1182,7 +1182,8 @@ static int prism2_ioctl_siwmode(struct net_device *dev,
 	if (local->iw_mode == IW_MODE_MONITOR)
 		hostap_monitor_mode_disable(local);
 
-	if (local->iw_mode == IW_MODE_ADHOC && *mode == IW_MODE_MASTER) {
+	if ((local->iw_mode == IW_MODE_ADHOC ||
+	     local->iw_mode == IW_MODE_MONITOR) && *mode == IW_MODE_MASTER) {
 		/* There seems to be a firmware bug in at least STA f/w v1.5.6
 		 * that leaves beacon frames to use IBSS type when moving from
 		 * IBSS to Host AP mode. Doing double Port0 reset seems to be
