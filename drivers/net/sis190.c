@@ -191,17 +191,17 @@ enum sis190_register_content {
 };
 
 struct TxDesc {
-	u32 PSize;
-	u32 status;
-	u32 addr;
-	u32 size;
+	__le32 PSize;
+	__le32 status;
+	__le32 addr;
+	__le32 size;
 };
 
 struct RxDesc {
-	u32 PSize;
-	u32 status;
-	u32 addr;
-	u32 size;
+	__le32 PSize;
+	__le32 status;
+	__le32 addr;
+	__le32 size;
 };
 
 enum _DescStatusBit {
@@ -1322,7 +1322,7 @@ static int __devinit sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
 
 	/* Get MAC address from EEPROM */
 	for (i = 0; i < MAC_ADDR_LEN / 2; i++) {
-		u16 w = sis190_read_eeprom(ioaddr, EEPROMMACAddr + i);
+		__le16 w = sis190_read_eeprom(ioaddr, EEPROMMACAddr + i);
 
 		((u16 *)dev->dev_addr)[0] = le16_to_cpu(w);
 	}
