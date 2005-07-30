@@ -43,6 +43,10 @@
 #define net_tx_err(p, arg...)	if (netif_msg_tx_err(p)) \
 					printk(arg)
 
+#define PHY_MAX_ADDR		32
+#define PHY_ID_ANY		0x1f
+#define MII_REG_ANY		0x1f
+
 #ifdef CONFIG_SIS190_NAPI
 #define NAPI_SUFFIX	"-NAPI"
 #else
@@ -295,6 +299,33 @@ struct sis190_private {
 	struct timer_list timer;
 	u32 msg_enable;
 	struct mii_if_info mii_if;
+	struct list_head first_phy;
+};
+
+struct sis190_phy {
+	struct list_head list;
+	int phy_id;
+	u16 id[2];
+	u16 status;
+	u8  type;
+};
+
+enum sis190_phy_type {
+	UNKNOWN	= 0x00,
+	HOME	= 0x01,
+	LAN	= 0x02,
+	MIX	= 0x03
+};
+
+static struct mii_chip_info {
+        const char *name;
+        u16 id[2];
+        unsigned int type;
+} mii_chip_table[] = {
+	{ "Broadcom PHY BCM5461", { 0x0020, 0x60c0 }, LAN },
+	{ "Agere PHY ET1101B",    { 0x0282, 0xf010 }, LAN },
+	{ "Marvell PHY 88E1111",  { 0x0141, 0x0cc0 }, LAN },
+	{ NULL, }
 };
 
 const static struct {
@@ -1174,6 +1205,177 @@ static struct net_device_stats *sis190_get_stats(struct net_device *dev)
 	return &tp->stats;
 }
 
+static void sis190_free_phy(struct list_head *first_phy)
+{
+	struct sis190_phy *cur, *next;
+
+	list_for_each_entry_safe(cur, next, first_phy, list) {
+		kfree(cur);
+	}
+}
+
+/**
+ *	sis190_default_phy - Select default PHY for sis190 mac.
+ *	@dev: the net device to probe for
+ *
+ *	Select first detected PHY with link as default.
+ *	If no one is link on, select PHY whose types is HOME as default.
+ *	If HOME doesn't exist, select LAN.
+ */
+static u16 sis190_default_phy(struct net_device *dev)
+{
+	struct sis190_phy *phy, *phy_home, *phy_default, *phy_lan;
+	struct sis190_private *tp = netdev_priv(dev);
+	struct mii_if_info *mii_if = &tp->mii_if;
+	void __iomem *ioaddr = tp->mmio_addr;
+	u16 status;
+
+	phy_home = phy_default = phy_lan = NULL;
+
+	list_for_each_entry(phy, &tp->first_phy, list) {
+		status = mdio_read_latched(ioaddr, phy->phy_id, MII_BMSR);
+
+		// Link ON & Not select default PHY & not ghost PHY.
+		if ((status & BMSR_LSTATUS) &&
+		    !phy_default &&
+		    (phy->type != UNKNOWN)) {
+			phy_default = phy;
+		} else {
+			status = mdio_read(ioaddr, phy->phy_id, MII_BMCR);
+			mdio_write(ioaddr, phy->phy_id, MII_BMCR,
+				   status | BMCR_ANENABLE | BMCR_ISOLATE);
+			if (phy->type == HOME)
+				phy_home = phy;
+			else if (phy->type == LAN)
+				phy_lan = phy;
+		}
+	}
+
+	if (!phy_default) {
+		if (phy_home)
+			phy_default = phy_home;
+		else if (phy_lan)
+			phy_default = phy_lan;
+		else
+			phy_default = list_entry(&tp->first_phy,
+						 struct sis190_phy, list);
+	}
+
+	if (mii_if->phy_id != phy_default->phy_id) {
+		mii_if->phy_id = phy_default->phy_id;
+		net_probe(tp, KERN_INFO
+		       "%s: Using transceiver at address %d as default.\n",
+		       dev->name, mii_if->phy_id);
+	}
+
+	status = mdio_read(ioaddr, mii_if->phy_id, MII_BMCR);
+	status &= (~BMCR_ISOLATE);
+
+	mdio_write(ioaddr, mii_if->phy_id, MII_BMCR, status);
+	status = mdio_read_latched(ioaddr, mii_if->phy_id, MII_BMSR);
+
+	return status;
+}
+
+static void sis190_init_phy(struct net_device *dev, struct sis190_private *tp,
+			    struct sis190_phy *phy, unsigned int phy_id,
+			    u16 mii_status)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+	struct mii_chip_info *p;
+
+	INIT_LIST_HEAD(&phy->list);
+	phy->status = mii_status;
+	phy->phy_id = phy_id;
+
+	phy->id[0] = mdio_read(ioaddr, phy_id, MII_PHYSID1);
+	phy->id[1] = mdio_read(ioaddr, phy_id, MII_PHYSID2);
+
+	for (p = mii_chip_table; p->type; p++) {
+		if ((p->id[0] == phy->id[0]) &&
+		    (p->id[1] == (phy->id[1] & 0xfff0))) {
+			break;
+		}
+	}
+
+	if (p->id[1]) {
+		phy->type = (p->type == MIX) ?
+			((mii_status & (BMSR_100FULL | BMSR_100HALF)) ?
+				LAN : HOME) : p->type;
+	} else
+		phy->type = UNKNOWN;
+
+	net_probe(tp, KERN_INFO "%s: %s transceiver at address %d.\n",
+		  dev->name, (phy->type == UNKNOWN) ? "Unknown PHY" : p->name,
+		  phy_id);
+}
+
+/**
+ *	sis190_mii_probe - Probe MII PHY for sis190
+ *	@dev: the net device to probe for
+ *
+ *	Search for total of 32 possible mii phy addresses.
+ *	Identify and set current phy if found one,
+ *	return error if it failed to found.
+ */
+static int __devinit sis190_mii_probe(struct net_device *dev)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+	struct mii_if_info *mii_if = &tp->mii_if;
+	void __iomem *ioaddr = tp->mmio_addr;
+	int phy_id;
+	int rc = 0;
+
+	INIT_LIST_HEAD(&tp->first_phy);
+
+	for (phy_id = 0; phy_id < PHY_MAX_ADDR; phy_id++) {
+		struct sis190_phy *phy;
+		u16 status;
+
+		status = mdio_read_latched(ioaddr, phy_id, MII_BMSR);
+
+		// Try next mii if the current one is not accessible.
+		if (status == 0xffff || status == 0x0000)
+			continue;
+
+		phy = kmalloc(sizeof(*phy), GFP_KERNEL);
+		if (!phy) {
+			sis190_free_phy(&tp->first_phy);
+			rc = -ENOMEM;
+			goto out;
+		}
+
+		sis190_init_phy(dev, tp, phy, phy_id, status);
+
+		list_add(&tp->first_phy, &phy->list);
+	}
+
+	if (list_empty(&tp->first_phy)) {
+		net_probe(tp, KERN_INFO "%s: No MII transceivers found!\n",
+			  dev->name);
+		rc = -EIO;
+		goto out;
+	}
+
+	/* Select default PHY for mac */
+	sis190_default_phy(dev);
+
+	mii_if->dev = dev;
+	mii_if->mdio_read = __mdio_read;
+	mii_if->mdio_write = __mdio_write;
+	mii_if->phy_id_mask = PHY_ID_ANY;
+	mii_if->reg_num_mask = MII_REG_ANY;
+out:
+	return rc;
+}
+
+static void __devexit sis190_mii_remove(struct net_device *dev)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+
+	sis190_free_phy(&tp->first_phy);
+}
+
 static void sis190_release_board(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
@@ -1250,13 +1452,6 @@ static struct net_device * __devinit sis190_init_board(struct pci_dev *pdev)
 
 	tp->pci_dev = pdev;
 	tp->mmio_addr = ioaddr;
-
-	tp->mii_if.dev = dev;
-	tp->mii_if.mdio_read = __mdio_read;
-	tp->mii_if.mdio_write = __mdio_write;
-	tp->mii_if.phy_id = 1;
-	tp->mii_if.phy_id_mask = 0x1f;
-	tp->mii_if.reg_num_mask = 0x1f;
 
 	sis190_irq_mask_and_ack(ioaddr);
 
@@ -1585,6 +1780,10 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
+	rc = sis190_mii_probe(dev);
+	if (rc < 0)
+		goto err_unregister_dev;
+
 	net_probe(tp, KERN_INFO "%s: %s at %p (IRQ: %d), "
 	       "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
 	       pci_name(pdev), sis_chip_info[ent->driver_data].name,
@@ -1599,6 +1798,8 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 out:
 	return rc;
 
+err_unregister_dev:
+	unregister_netdev(dev);
 err_release_board:
 	sis190_release_board(pdev);
 	goto out;
@@ -1608,6 +1809,7 @@ static void __devexit sis190_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
+	sis190_mii_remove(dev);
 	unregister_netdev(dev);
 	sis190_release_board(pdev);
 	pci_set_drvdata(pdev, NULL);
