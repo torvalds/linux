@@ -1061,20 +1061,19 @@ unsigned int nr_free_pages_pgdat(pg_data_t *pgdat)
 
 static unsigned int nr_free_zone_pages(int offset)
 {
-	pg_data_t *pgdat;
+	/* Just pick one node, since fallback list is circular */
+	pg_data_t *pgdat = NODE_DATA(numa_node_id());
 	unsigned int sum = 0;
 
-	for_each_pgdat(pgdat) {
-		struct zonelist *zonelist = pgdat->node_zonelists + offset;
-		struct zone **zonep = zonelist->zones;
-		struct zone *zone;
+	struct zonelist *zonelist = pgdat->node_zonelists + offset;
+	struct zone **zonep = zonelist->zones;
+	struct zone *zone;
 
-		for (zone = *zonep++; zone; zone = *zonep++) {
-			unsigned long size = zone->present_pages;
-			unsigned long high = zone->pages_high;
-			if (size > high)
-				sum += size - high;
-		}
+	for (zone = *zonep++; zone; zone = *zonep++) {
+		unsigned long size = zone->present_pages;
+		unsigned long high = zone->pages_high;
+		if (size > high)
+			sum += size - high;
 	}
 
 	return sum;
