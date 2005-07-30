@@ -453,6 +453,19 @@ static void handle_info_queue_scanresults(local_info_t *local)
 {
 	if (local->host_roaming == 1 && local->iw_mode == IW_MODE_INFRA)
 		prism2_host_roaming(local);
+
+	if (local->host_roaming == 2 && local->iw_mode == IW_MODE_INFRA &&
+	    memcmp(local->preferred_ap, "\x00\x00\x00\x00\x00\x00",
+		   ETH_ALEN) != 0) {
+		/*
+		 * Firmware seems to be getting into odd state in host_roaming
+		 * mode 2 when hostscan is used without join command, so try
+		 * to fix this by re-joining the current AP. This does not
+		 * actually trigger a new association if the current AP is
+		 * still in the scan results.
+		 */
+		prism2_host_roaming(local);
+	}
 }
 
 
