@@ -37,6 +37,7 @@
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP common routines");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(PRISM2_VERSION);
 
 /* Old hostap_crypt module is now part of hostap module. */
 #include "hostap_crypt.c"

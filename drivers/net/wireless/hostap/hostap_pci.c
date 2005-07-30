@@ -31,6 +31,7 @@ MODULE_DESCRIPTION("Support for Intersil Prism2.5-based 802.11 wireless LAN "
 		   "PCI cards.");
 MODULE_SUPPORTED_DEVICE("Intersil Prism2.5-based WLAN PCI cards");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(PRISM2_VERSION);
 
 
 /* FIX: do we need mb/wmb/rmb with memory operations? */

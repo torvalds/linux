@@ -34,6 +34,7 @@ MODULE_DESCRIPTION("Support for Intersil Prism2-based 802.11 wireless LAN "
 		   "cards (PLX).");
 MODULE_SUPPORTED_DEVICE("Intersil Prism2-based WLAN cards (PLX)");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(PRISM2_VERSION);
 
 
 static int ignore_cis;

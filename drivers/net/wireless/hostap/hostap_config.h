@@ -1,7 +1,7 @@
 #ifndef HOSTAP_CONFIG_H
 #define HOSTAP_CONFIG_H
 
-#define PRISM2_VERSION "CVS"
+#define PRISM2_VERSION "0.4.1-kernel"
 
 /* In the previous versions of Host AP driver, support for user space version
  * of IEEE 802.11 management (hostapd) used to be disabled in the default

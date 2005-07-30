@@ -19,6 +19,7 @@
 #include <asm/string.h>
 
 #include "hostap_crypt.h"
+#include "hostap_config.h"
 
 #ifndef CONFIG_CRYPTO
 #error CONFIG_CRYPTO is required to build this module.
@@ -30,6 +31,7 @@
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP crypt: WEP");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(PRISM2_VERSION);
 
 
 struct prism2_wep_data {
