@@ -92,10 +92,6 @@
 
 #define DTC_PUBLIC_RELEASE 2
 
-/*#define DTCDEBUG 0x1*/
-#define DTCDEBUG_INIT	0x1
-#define DTCDEBUG_TRANSFER 0x2
-
 /*
  * The DTC3180 & 3280 boards are memory mapped.
  * 

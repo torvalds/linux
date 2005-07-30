@@ -353,7 +353,7 @@ l3dss1_parse_facility(struct PStack *st, struct l3_process *pc,
 			         { l3dss1_dummy_invoke(st, cr, id, ident, p, nlen);
                                    return;
                                  } 
-#if HISAX_DE_AOC
+#ifdef HISAX_DE_AOC
 			{
 
 #define FOO1(s,a,b) \
@@ -977,7 +977,7 @@ l3dss1_release_cmpl(struct l3_process *pc, u_char pr, void *arg)
 	dss1_release_l3_process(pc);
 }
 
-#if EXT_BEARER_CAPS
+#ifdef EXT_BEARER_CAPS
 
 static u_char *
 EncodeASyncParams(u_char * p, u_char si2)
@@ -1369,7 +1369,7 @@ l3dss1_setup_req(struct l3_process *pc, u_char pr,
 				*p++ = *sub++ & 0x7f;
 		}
         }
-#if EXT_BEARER_CAPS
+#ifdef EXT_BEARER_CAPS
 	if ((pc->para.setup.si2 >= 160) && (pc->para.setup.si2 <= 175)) {	// sync. Bitratenadaption, V.110/X.30
 
 		*p++ = IE_LLC;
@@ -1609,7 +1609,7 @@ l3dss1_setup(struct l3_process *pc, u_char pr, void *arg)
 				case 0x08: /* Unrestricted digital information */
 					pc->para.setup.si1 = 7;
 /* JIM, 05.11.97 I wanna set service indicator 2 */
-#if EXT_BEARER_CAPS
+#ifdef EXT_BEARER_CAPS
 					pc->para.setup.si2 = DecodeSI2(skb);
 #endif
 					break;

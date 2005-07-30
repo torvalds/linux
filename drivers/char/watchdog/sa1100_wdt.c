@@ -42,11 +42,7 @@ static unsigned long sa1100wdt_users;
 static int expect_close;
 static int pre_margin;
 static int boot_status;
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
+static int nowayout = WATCHDOG_NOWAYOUT;
 
 /*
  *	Allow only one person to hold it open

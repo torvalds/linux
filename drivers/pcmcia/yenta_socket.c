@@ -1107,6 +1107,8 @@ static int yenta_dev_suspend (struct pci_dev *dev, pm_message_t state)
 		pci_read_config_dword(dev, 17*4, &socket->saved_state[1]);
 		pci_disable_device(dev);
 
+		free_irq(dev->irq, socket);
+
 		/*
 		 * Some laptops (IBM T22) do not like us putting the Cardbus
 		 * bridge into D3.  At a guess, some other laptop will
@@ -1131,6 +1133,13 @@ static int yenta_dev_resume (struct pci_dev *dev)
 		pci_write_config_dword(dev, 17*4, socket->saved_state[1]);
 		pci_enable_device(dev);
 		pci_set_master(dev);
+
+		if (socket->cb_irq)
+			if (request_irq(socket->cb_irq, yenta_interrupt,
+			                SA_SHIRQ, "yenta", socket)) {
+				printk(KERN_WARNING "Yenta: request_irq() failed on resume!\n");
+				socket->cb_irq = 0;
+			}
 
 		if (socket->type && socket->type->restore_state)
 			socket->type->restore_state(socket);

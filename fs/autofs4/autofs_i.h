@@ -92,6 +92,7 @@ struct autofs_wait_queue {
 
 struct autofs_sb_info {
 	u32 magic;
+	struct dentry *root;
 	struct file *pipe;
 	pid_t oz_pgrp;
 	int catatonic;

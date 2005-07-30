@@ -28,7 +28,8 @@
 "	blmi	" #fail				\
 	:					\
 	: "r" (ptr), "I" (1)			\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
+	smp_mb();				\
 	})
 
 #define __down_op_ret(ptr,fail)			\
@@ -48,12 +49,14 @@
 "	mov	%0, ip"				\
 	: "=&r" (ret)				\
 	: "r" (ptr), "I" (1)			\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
+	smp_mb();				\
 	ret;					\
 	})
 
 #define __up_op(ptr,wake)			\
 	({					\
+	smp_mb();				\
 	__asm__ __volatile__(			\
 	"@ up_op\n"				\
 "1:	ldrex	lr, [%0]\n"			\
@@ -61,12 +64,12 @@
 "	strex	ip, lr, [%0]\n"			\
 "	teq	ip, #0\n"			\
 "	bne	1b\n"				\
-"	teq	lr, #0\n"			\
+"	cmp	lr, #0\n"			\
 "	movle	ip, %0\n"			\
 "	blle	" #wake				\
 	:					\
 	: "r" (ptr), "I" (1)			\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
 	})
 
 /*
@@ -92,15 +95,17 @@
 "	blne	" #fail				\
 	:					\
 	: "r" (ptr), "I" (RW_LOCK_BIAS)		\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
+	smp_mb();				\
 	})
 
 #define __up_op_write(ptr,wake)			\
 	({					\
+	smp_mb();				\
 	__asm__ __volatile__(			\
 	"@ up_op_read\n"			\
 "1:	ldrex	lr, [%0]\n"			\
-"	add	lr, lr, %1\n"			\
+"	adds	lr, lr, %1\n"			\
 "	strex	ip, lr, [%0]\n"			\
 "	teq	ip, #0\n"			\
 "	bne	1b\n"				\
@@ -108,7 +113,7 @@
 "	blcs	" #wake				\
 	:					\
 	: "r" (ptr), "I" (RW_LOCK_BIAS)		\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
 	})
 
 #define __down_op_read(ptr,fail)		\
@@ -116,6 +121,7 @@
 
 #define __up_op_read(ptr,wake)			\
 	({					\
+	smp_mb();				\
 	__asm__ __volatile__(			\
 	"@ up_op_read\n"			\
 "1:	ldrex	lr, [%0]\n"			\
@@ -128,7 +134,7 @@
 "	bleq	" #wake				\
 	:					\
 	: "r" (ptr), "I" (1)			\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
 	})
 
 #else
@@ -148,7 +154,8 @@
 "	blmi	" #fail				\
 	:					\
 	: "r" (ptr), "I" (1)			\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
+	smp_mb();				\
 	})
 
 #define __down_op_ret(ptr,fail)			\
@@ -169,12 +176,14 @@
 "	mov	%0, ip"				\
 	: "=&r" (ret)				\
 	: "r" (ptr), "I" (1)			\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
+	smp_mb();				\
 	ret;					\
 	})
 
 #define __up_op(ptr,wake)			\
 	({					\
+	smp_mb();				\
 	__asm__ __volatile__(			\
 	"@ up_op\n"				\
 "	mrs	ip, cpsr\n"			\
@@ -188,7 +197,7 @@
 "	blle	" #wake				\
 	:					\
 	: "r" (ptr), "I" (1)			\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
 	})
 
 /*
@@ -215,7 +224,8 @@
 "	blne	" #fail				\
 	:					\
 	: "r" (ptr), "I" (RW_LOCK_BIAS)		\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
+	smp_mb();				\
 	})
 
 #define __up_op_write(ptr,wake)			\
@@ -233,7 +243,8 @@
 "	blcs	" #wake				\
 	:					\
 	: "r" (ptr), "I" (RW_LOCK_BIAS)		\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
+	smp_mb();				\
 	})
 
 #define __down_op_read(ptr,fail)		\
@@ -241,6 +252,7 @@
 
 #define __up_op_read(ptr,wake)			\
 	({					\
+	smp_mb();				\
 	__asm__ __volatile__(			\
 	"@ up_op_read\n"			\
 "	mrs	ip, cpsr\n"			\
@@ -254,7 +266,7 @@
 "	bleq	" #wake				\
 	:					\
 	: "r" (ptr), "I" (1)			\
-	: "ip", "lr", "cc", "memory");		\
+	: "ip", "lr", "cc");			\
 	})
 
 #endif

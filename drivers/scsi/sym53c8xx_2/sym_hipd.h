@@ -151,6 +151,16 @@
  */
 #define	SYM_CONF_MIN_ASYNC (40)
 
+
+/*
+ * MEMORY ALLOCATOR.
+ */
+
+#define SYM_MEM_WARN	1	/* Warn on failed operations */
+
+#define SYM_MEM_PAGE_ORDER 0	/* 1 PAGE  maximum */
+#define SYM_MEM_CLUSTER_SHIFT	(PAGE_SHIFT+SYM_MEM_PAGE_ORDER)
+#define SYM_MEM_FREE_UNUSED	/* Free unused pages immediately */
 /*
  *  Shortest memory chunk is (1<<SYM_MEM_SHIFT), currently 16.
  *  Actual allocations happen as SYM_MEM_CLUSTER_SIZE sized.
@@ -1191,12 +1201,6 @@ static inline void sym_setup_data_pointers(struct sym_hcb *np,
 /*
  *  MEMORY ALLOCATOR.
  */
-
-#define SYM_MEM_PAGE_ORDER 0	/* 1 PAGE  maximum */
-#define SYM_MEM_CLUSTER_SHIFT	(PAGE_SHIFT+SYM_MEM_PAGE_ORDER)
-#define SYM_MEM_FREE_UNUSED	/* Free unused pages immediately */
-
-#define SYM_MEM_WARN	1	/* Warn on failed operations */
 
 #define sym_get_mem_cluster()	\
 	(void *) __get_free_pages(GFP_ATOMIC, SYM_MEM_PAGE_ORDER)

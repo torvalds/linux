@@ -891,7 +891,7 @@ typedef struct {
 	Scsi_Cmnd		int_scmd;
 	struct semaphore	int_mtx;	/* To synchronize the internal
 						commands */
-	wait_queue_head_t	int_waitq;	/* wait queue for internal
+	struct completion	int_waitq;	/* wait queue for internal
 						 cmds */
 
 	int	has_cluster;	/* cluster support on this HBA */

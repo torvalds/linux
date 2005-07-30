@@ -272,7 +272,7 @@ static inline void set_hsf(struct net_device *dev, int hsf)
 
 static int start_receive(struct net_device *, pcb_struct *);
 
-inline static void adapter_reset(struct net_device *dev)
+static inline void adapter_reset(struct net_device *dev)
 {
 	unsigned long timeout;
 	elp_device *adapter = dev->priv;

@@ -16,8 +16,8 @@ SECTIONS
   __binary_start = .;
 
 #ifdef MODE_TT
-  .remap_data : { arch/um/sys-SUBARCH/unmap_fin.o (.data .bss) }
-  .remap : { arch/um/sys-SUBARCH/unmap_fin.o (.text) }
+  .remap_data : { UNMAP_PATH (.data .bss) }
+  .remap : { UNMAP_PATH (.text) }
 
   . = ALIGN(4096);		/* Init code and data */
 #endif

@@ -158,8 +158,6 @@ void machine_halt(void)
 	panic("Halt failed!");
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_restart(char * cmd)
 {
 	char *p;
@@ -180,8 +178,6 @@ void machine_restart(char * cmd)
 	panic("Reboot failed!");
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_power_off(void)
 {
 #ifdef CONFIG_SUN_AUXIO
@@ -190,8 +186,6 @@ void machine_power_off(void)
 #endif
 	machine_halt();
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 static DEFINE_SPINLOCK(sparc_backtrace_lock);
 

@@ -58,7 +58,7 @@ config TOUCHSCREEN_ELO
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called gunze.
+	  module will be called elo.
 
 config TOUCHSCREEN_MTOUCH
 	tristate "MicroTouch serial touchscreens"

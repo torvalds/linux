@@ -1126,21 +1126,19 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		 * only be one in raid1 resync.
 		 * We can find the current addess in mddev->curr_resync
 		 */
-		if (!conf->fullsync) {
-			if (mddev->curr_resync < max_sector)
-				bitmap_end_sync(mddev->bitmap,
-						mddev->curr_resync,
+		if (mddev->curr_resync < max_sector) /* aborted */
+			bitmap_end_sync(mddev->bitmap, mddev->curr_resync,
 						&sync_blocks, 1);
-			bitmap_close_sync(mddev->bitmap);
-		}
-		if (mddev->curr_resync >= max_sector)
+		else /* completed sync */
 			conf->fullsync = 0;
+
+		bitmap_close_sync(mddev->bitmap);
 		close_sync(conf);
 		return 0;
 	}
 
-	if (!conf->fullsync &&
-	    !bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks)) {
+	if (!bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks, mddev->degraded) &&
+	    !conf->fullsync) {
 		/* We can skip this block, and probably several more */
 		*skipped = 1;
 		return sync_blocks;
@@ -1243,15 +1241,15 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 			len = (max_sector - sector_nr) << 9;
 		if (len == 0)
 			break;
-		if (!conf->fullsync) {
-			if (sync_blocks == 0) {
-				if (!bitmap_start_sync(mddev->bitmap,
-						       sector_nr, &sync_blocks))
-					break;
-				if (sync_blocks < (PAGE_SIZE>>9))
-					BUG();
-				if (len > (sync_blocks<<9)) len = sync_blocks<<9;
-			}
+		if (sync_blocks == 0) {
+			if (!bitmap_start_sync(mddev->bitmap, sector_nr,
+					&sync_blocks, mddev->degraded) &&
+					!conf->fullsync)
+				break;
+			if (sync_blocks < (PAGE_SIZE>>9))
+				BUG();
+			if (len > (sync_blocks<<9))
+				len = sync_blocks<<9;
 		}
 
 		for (i=0 ; i < conf->raid_disks; i++) {
@@ -1264,7 +1262,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 					while (i > 0) {
 						i--;
 						bio = r1_bio->bios[i];
-						if (bio->bi_end_io==NULL) continue;
+						if (bio->bi_end_io==NULL)
+							continue;
 						/* remove last page from this bio */
 						bio->bi_vcnt--;
 						bio->bi_size -= len;
@@ -1469,6 +1468,7 @@ static int raid1_resize(mddev_t *mddev, sector_t sectors)
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	}
 	mddev->size = mddev->array_size;
+	mddev->resync_max_sectors = sectors;
 	return 0;
 }
 

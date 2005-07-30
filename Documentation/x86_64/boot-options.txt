@@ -47,7 +47,7 @@ Timing
   notsc
   Don't use the CPU time stamp counter to read the wall time.
   This can be used to work around timing problems on multiprocessor systems
-  with not properly synchronized CPUs. Only useful with a SMP kernel
+  with not properly synchronized CPUs.
 
   report_lost_ticks
   Report when timer interrupts are lost because some code turned off
@@ -74,6 +74,9 @@ Idle loop
   event. This will make the CPUs eat a lot more power, but may be useful
   to get slightly better performance in multiprocessor benchmarks. It also
   makes some profiling using performance counters more accurate.
+  Please note that on systems with MONITOR/MWAIT support (like Intel EM64T
+  CPUs) this option has no performance advantage over the normal idle loop.
+  It may also interact badly with hyperthreading.
 
 Rebooting
 
@@ -178,6 +181,5 @@ Debugging
 Misc
 
   noreplacement  Don't replace instructions with more appropiate ones
-  				 for the CPU. This may be useful on asymmetric MP systems
-				 where some CPU have less capabilities than the others.
-
+		 for the CPU. This may be useful on asymmetric MP systems
+		 where some CPU have less capabilities than the others.

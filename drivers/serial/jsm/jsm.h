@@ -28,7 +28,6 @@
 #define __JSM_DRIVER_H
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/types.h>	/* To pick up the varions Linux types */
 #include <linux/tty.h>
 #include <linux/serial_core.h>
@@ -90,7 +89,7 @@ enum {
 #define WRITEBUFLEN	((4096) + 4)
 #define MYFLIPLEN	N_TTY_BUF_SIZE
 
-#define JSM_VERSION	"jsm: 1.1-1-INKERNEL"
+#define JSM_VERSION	"jsm: 1.2-1-INKERNEL"
 #define JSM_PARTNUM	"40002438_A-INKERNEL"
 
 struct jsm_board;

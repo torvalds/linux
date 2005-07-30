@@ -46,54 +46,14 @@ extern void __up_read(struct rw_semaphore *sem);
 extern void __up_write(struct rw_semaphore *sem);
 extern void __downgrade_write(struct rw_semaphore *sem);
 
-static __inline__ int rwsem_atomic_update(int delta, struct rw_semaphore *sem)
+static inline int rwsem_atomic_update(int delta, struct rw_semaphore *sem)
 {
-	int tmp = delta;
-
-	__asm__ __volatile__(
-		"1:\tlduw	[%2], %%g1\n\t"
-		"add		%%g1, %1, %%g7\n\t"
-		"cas		[%2], %%g1, %%g7\n\t"
-		"cmp		%%g1, %%g7\n\t"
-		"membar		#StoreLoad | #StoreStore\n\t"
-		"bne,pn		%%icc, 1b\n\t"
-		" nop\n\t"
-		"mov		%%g7, %0\n\t"
-		: "=&r" (tmp)
-		: "0" (tmp), "r" (sem)
-		: "g1", "g7", "memory", "cc");
-
-	return tmp + delta;
+	return atomic_add_return(delta, (atomic_t *)(&sem->count));
 }
 
-#define rwsem_atomic_add rwsem_atomic_update
-
-static __inline__ __u16 rwsem_cmpxchgw(struct rw_semaphore *sem, __u16 __old, __u16 __new)
+static inline void rwsem_atomic_add(int delta, struct rw_semaphore *sem)
 {
-	u32 old = (sem->count & 0xffff0000) | (u32) __old;
-	u32 new = (old & 0xffff0000) | (u32) __new;
-	u32 prev;
-
-again:
-	__asm__ __volatile__("cas	[%2], %3, %0\n\t"
-			     "membar	#StoreLoad | #StoreStore"
-			     : "=&r" (prev)
-			     : "0" (new), "r" (sem), "r" (old)
-			     : "memory");
-
-	/* To give the same semantics as x86 cmpxchgw, keep trying
-	 * if only the upper 16-bits changed.
-	 */
-	if (prev != old &&
-	    ((prev & 0xffff) == (old & 0xffff)))
-		goto again;
-
-	return prev & 0xffff;
-}
-
-static __inline__ signed long rwsem_cmpxchg(struct rw_semaphore *sem, signed long old, signed long new)
-{
-	return cmpxchg(&sem->count,old,new);
+	atomic_add(delta, (atomic_t *)(&sem->count));
 }
 
 #endif /* __KERNEL__ */

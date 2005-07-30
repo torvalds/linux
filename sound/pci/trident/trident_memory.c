@@ -118,7 +118,7 @@ static inline void set_silent_tlb(trident_t *trident, int page)
 #endif /* PAGE_SIZE */
 
 /* calculate buffer pointer from offset address */
-inline static void *offset_ptr(trident_t *trident, int offset)
+static inline void *offset_ptr(trident_t *trident, int offset)
 {
 	char *ptr;
 	ptr = page_to_ptr(trident, get_aligned_page(offset));

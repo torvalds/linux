@@ -1,8 +1,8 @@
 /*
  * include/asm-v850/page.h -- VM ops
  *
- *  Copyright (C) 2001,02,03  NEC Electronics Corporation
- *  Copyright (C) 2001,02,03  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2001,02,03,05  NEC Electronics Corporation
+ *  Copyright (C) 2001,02,03,05  Miles Bader <miles@gnu.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -132,6 +132,7 @@ extern __inline__ int get_order (unsigned long size)
 
 #define pfn_to_page(pfn)	virt_to_page (pfn_to_virt (pfn))
 #define page_to_pfn(page)	virt_to_pfn (page_to_virt (page))
+#define pfn_valid(pfn)	        ((pfn) < max_mapnr)
 
 #define	virt_addr_valid(kaddr)						\
   (((void *)(kaddr) >= (void *)PAGE_OFFSET) && MAP_NR (kaddr) < max_mapnr)

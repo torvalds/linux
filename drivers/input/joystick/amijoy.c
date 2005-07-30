@@ -105,7 +105,7 @@ out:
 
 static void amijoy_close(struct input_dev *dev)
 {
-	down(&amijoysem);
+	down(&amijoy_sem);
 	if (!--amijoy_used)
 		free_irq(IRQ_AMIGA_VERTB, amijoy_interrupt);
 	up(&amijoy_sem);

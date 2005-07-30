@@ -425,6 +425,9 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_ROM].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_MINICLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_CACHECLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
+
+		mem_types[MT_DEVICE].prot_pte |= L_PTE_BUFFERABLE;
+		mem_types[MT_DEVICE].prot_sect |= PMD_SECT_BUFFERED;
 	}
 
 	cp = &cache_policies[cachepolicy];

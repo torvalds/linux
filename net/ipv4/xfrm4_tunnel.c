@@ -78,10 +78,9 @@ static int ipip_rcv(struct sk_buff *skb)
 static void ipip_err(struct sk_buff *skb, u32 info)
 {
 	struct xfrm_tunnel *handler = ipip_handler;
-	u32 arg = info;
 
 	if (handler)
-		handler->err_handler(skb, &arg);
+		handler->err_handler(skb, info);
 }
 
 static int ipip_init_state(struct xfrm_state *x)

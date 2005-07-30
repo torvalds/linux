@@ -249,9 +249,6 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 	/* disable hardware cursor */
 	LCDC_CPOS	&= ~(CPOS_CC0 | CPOS_CC1);
 
-	/* fixed burst length (see erratum 11) */
-	LCDC_DMACR = DMACR_BURST | DMACR_HM(8) | DMACR_TM(2);
-
 	LCDC_RMCR = RMCR_LCDC_EN;
 
 	if(fbi->backlight_power)
@@ -359,6 +356,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	LCDC_PCR	= fbi->pcr;
 	LCDC_PWMR	= fbi->pwmr;
 	LCDC_LSCR1	= fbi->lscr1;
+	LCDC_DMACR	= fbi->dmacr;
 
 	return 0;
 }
@@ -509,6 +507,7 @@ static int __init imxfb_init_fbinfo(struct device *dev)
 	fbi->cmap_inverse		= inf->cmap_inverse;
 	fbi->pcr			= inf->pcr;
 	fbi->lscr1			= inf->lscr1;
+	fbi->dmacr			= inf->dmacr;
 	fbi->pwmr			= inf->pwmr;
 	fbi->lcd_power			= inf->lcd_power;
 	fbi->backlight_power		= inf->backlight_power;
@@ -642,12 +641,12 @@ static int imxfb_remove(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct fb_info *info = dev_get_drvdata(dev);
+	struct imxfb_info *fbi = info->par;
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	/* disable LCD controller */
-	LCDC_RMCR &= ~RMCR_LCDC_EN;
+	imxfb_disable_controller(fbi);
 
 	unregister_framebuffer(info);
 
@@ -663,8 +662,9 @@ static int imxfb_remove(struct device *dev)
 
 void  imxfb_shutdown(struct device * dev)
 {
-	/* disable LCD Controller */
-	LCDC_RMCR &= ~RMCR_LCDC_EN;
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct imxfb_info *fbi = info->par;
+	imxfb_disable_controller(fbi);
 }
 
 static struct device_driver imxfb_driver = {

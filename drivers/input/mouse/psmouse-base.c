@@ -344,6 +344,7 @@ static int intellimouse_detect(struct psmouse *psmouse, int set_properties)
 		return -1;
 
 	if (set_properties) {
+		set_bit(BTN_MIDDLE, psmouse->dev.keybit);
 		set_bit(REL_WHEEL, psmouse->dev.relbit);
 
 		if (!psmouse->vendor) psmouse->vendor = "Generic";
@@ -376,6 +377,7 @@ static int im_explorer_detect(struct psmouse *psmouse, int set_properties)
 		return -1;
 
 	if (set_properties) {
+		set_bit(BTN_MIDDLE, psmouse->dev.keybit);
 		set_bit(REL_WHEEL, psmouse->dev.relbit);
 		set_bit(BTN_SIDE, psmouse->dev.keybit);
 		set_bit(BTN_EXTRA, psmouse->dev.keybit);

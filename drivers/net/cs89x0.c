@@ -1450,6 +1450,7 @@ static int net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	/* Write the contents of the packet */
 	outsw(dev->base_addr + TX_FRAME_PORT,skb->data,(skb->len+1) >>1);
 	spin_unlock_irq(&lp->lock);
+	lp->stats.tx_bytes += skb->len;
 	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
 

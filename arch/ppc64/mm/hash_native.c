@@ -27,9 +27,9 @@
 
 static DEFINE_SPINLOCK(native_tlbie_lock);
 
-static inline void native_lock_hpte(HPTE *hptep)
+static inline void native_lock_hpte(hpte_t *hptep)
 {
-	unsigned long *word = &hptep->dw0.dword0;
+	unsigned long *word = &hptep->v;
 
 	while (1) {
 		if (!test_and_set_bit(HPTE_LOCK_BIT, word))
@@ -39,32 +39,28 @@ static inline void native_lock_hpte(HPTE *hptep)
 	}
 }
 
-static inline void native_unlock_hpte(HPTE *hptep)
+static inline void native_unlock_hpte(hpte_t *hptep)
 {
-	unsigned long *word = &hptep->dw0.dword0;
+	unsigned long *word = &hptep->v;
 
 	asm volatile("lwsync":::"memory");
 	clear_bit(HPTE_LOCK_BIT, word);
 }
 
 long native_hpte_insert(unsigned long hpte_group, unsigned long va,
-			unsigned long prpn, int secondary,
-			unsigned long hpteflags, int bolted, int large)
+			unsigned long prpn, unsigned long vflags,
+			unsigned long rflags)
 {
 	unsigned long arpn = physRpn_to_absRpn(prpn);
-	HPTE *hptep = htab_address + hpte_group;
-	Hpte_dword0 dw0;
-	HPTE lhpte;
+	hpte_t *hptep = htab_address + hpte_group;
+	unsigned long hpte_v, hpte_r;
 	int i;
 
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
-		dw0 = hptep->dw0.dw0;
-
-		if (!dw0.v) {
+		if (! (hptep->v & HPTE_V_VALID)) {
 			/* retry with lock held */
 			native_lock_hpte(hptep);
-			dw0 = hptep->dw0.dw0;
-			if (!dw0.v)
+			if (! (hptep->v & HPTE_V_VALID))
 				break;
 			native_unlock_hpte(hptep);
 		}
@@ -75,56 +71,45 @@ long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 	if (i == HPTES_PER_GROUP)
 		return -1;
 
-	lhpte.dw1.dword1      = 0;
-	lhpte.dw1.dw1.rpn     = arpn;
-	lhpte.dw1.flags.flags = hpteflags;
+	hpte_v = (va >> 23) << HPTE_V_AVPN_SHIFT | vflags | HPTE_V_VALID;
+	if (vflags & HPTE_V_LARGE)
+		va &= ~(1UL << HPTE_V_AVPN_SHIFT);
+	hpte_r = (arpn << HPTE_R_RPN_SHIFT) | rflags;
 
-	lhpte.dw0.dword0      = 0;
-	lhpte.dw0.dw0.avpn    = va >> 23;
-	lhpte.dw0.dw0.h       = secondary;
-	lhpte.dw0.dw0.bolted  = bolted;
-	lhpte.dw0.dw0.v       = 1;
-
-	if (large) {
-		lhpte.dw0.dw0.l = 1;
-		lhpte.dw0.dw0.avpn &= ~0x1UL;
-	}
-
-	hptep->dw1.dword1 = lhpte.dw1.dword1;
-
+	hptep->r = hpte_r;
 	/* Guarantee the second dword is visible before the valid bit */
 	__asm__ __volatile__ ("eieio" : : : "memory");
-
 	/*
 	 * Now set the first dword including the valid bit
 	 * NOTE: this also unlocks the hpte
 	 */
-	hptep->dw0.dword0 = lhpte.dw0.dword0;
+	hptep->v = hpte_v;
 
 	__asm__ __volatile__ ("ptesync" : : : "memory");
 
-	return i | (secondary << 3);
+	return i | (!!(vflags & HPTE_V_SECONDARY) << 3);
 }
 
 static long native_hpte_remove(unsigned long hpte_group)
 {
-	HPTE *hptep;
-	Hpte_dword0 dw0;
+	hpte_t *hptep;
 	int i;
 	int slot_offset;
+	unsigned long hpte_v;
 
 	/* pick a random entry to start at */
 	slot_offset = mftb() & 0x7;
 
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
 		hptep = htab_address + hpte_group + slot_offset;
-		dw0 = hptep->dw0.dw0;
+		hpte_v = hptep->v;
 
-		if (dw0.v && !dw0.bolted) {
+		if ((hpte_v & HPTE_V_VALID) && !(hpte_v & HPTE_V_BOLTED)) {
 			/* retry with lock held */
 			native_lock_hpte(hptep);
-			dw0 = hptep->dw0.dw0;
-			if (dw0.v && !dw0.bolted)
+			hpte_v = hptep->v;
+			if ((hpte_v & HPTE_V_VALID)
+			    && !(hpte_v & HPTE_V_BOLTED))
 				break;
 			native_unlock_hpte(hptep);
 		}
@@ -137,15 +122,15 @@ static long native_hpte_remove(unsigned long hpte_group)
 		return -1;
 
 	/* Invalidate the hpte. NOTE: this also unlocks it */
-	hptep->dw0.dword0 = 0;
+	hptep->v = 0;
 
 	return i;
 }
 
-static inline void set_pp_bit(unsigned long pp, HPTE *addr)
+static inline void set_pp_bit(unsigned long pp, hpte_t *addr)
 {
 	unsigned long old;
-	unsigned long *p = &addr->dw1.dword1;
+	unsigned long *p = &addr->r;
 
 	__asm__ __volatile__(
 	"1:	ldarx	%0,0,%3\n\
@@ -163,11 +148,11 @@ static inline void set_pp_bit(unsigned long pp, HPTE *addr)
  */
 static long native_hpte_find(unsigned long vpn)
 {
-	HPTE *hptep;
+	hpte_t *hptep;
 	unsigned long hash;
 	unsigned long i, j;
 	long slot;
-	Hpte_dword0 dw0;
+	unsigned long hpte_v;
 
 	hash = hpt_hash(vpn, 0);
 
@@ -175,10 +160,11 @@ static long native_hpte_find(unsigned long vpn)
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		for (i = 0; i < HPTES_PER_GROUP; i++) {
 			hptep = htab_address + slot;
-			dw0 = hptep->dw0.dw0;
+			hpte_v = hptep->v;
 
-			if ((dw0.avpn == (vpn >> 11)) && dw0.v &&
-			    (dw0.h == j)) {
+			if ((HPTE_V_AVPN_VAL(hpte_v) == (vpn >> 11))
+			    && (hpte_v & HPTE_V_VALID)
+			    && ( !!(hpte_v & HPTE_V_SECONDARY) == j)) {
 				/* HPTE matches */
 				if (j)
 					slot = -slot;
@@ -195,20 +181,21 @@ static long native_hpte_find(unsigned long vpn)
 static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 				 unsigned long va, int large, int local)
 {
-	HPTE *hptep = htab_address + slot;
-	Hpte_dword0 dw0;
+	hpte_t *hptep = htab_address + slot;
+	unsigned long hpte_v;
 	unsigned long avpn = va >> 23;
 	int ret = 0;
 
 	if (large)
-		avpn &= ~0x1UL;
+		avpn &= ~1;
 
 	native_lock_hpte(hptep);
 
-	dw0 = hptep->dw0.dw0;
+	hpte_v = hptep->v;
 
 	/* Even if we miss, we need to invalidate the TLB */
-	if ((dw0.avpn != avpn) || !dw0.v) {
+	if ((HPTE_V_AVPN_VAL(hpte_v) != avpn)
+	    || !(hpte_v & HPTE_V_VALID)) {
 		native_unlock_hpte(hptep);
 		ret = -1;
 	} else {
@@ -244,7 +231,7 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea)
 {
 	unsigned long vsid, va, vpn, flags = 0;
 	long slot;
-	HPTE *hptep;
+	hpte_t *hptep;
 	int lock_tlbie = !cpu_has_feature(CPU_FTR_LOCKLESS_TLBIE);
 
 	vsid = get_kernel_vsid(ea);
@@ -269,26 +256,27 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea)
 static void native_hpte_invalidate(unsigned long slot, unsigned long va,
 				    int large, int local)
 {
-	HPTE *hptep = htab_address + slot;
-	Hpte_dword0 dw0;
+	hpte_t *hptep = htab_address + slot;
+	unsigned long hpte_v;
 	unsigned long avpn = va >> 23;
 	unsigned long flags;
 	int lock_tlbie = !cpu_has_feature(CPU_FTR_LOCKLESS_TLBIE);
 
 	if (large)
-		avpn &= ~0x1UL;
+		avpn &= ~1;
 
 	local_irq_save(flags);
 	native_lock_hpte(hptep);
 
-	dw0 = hptep->dw0.dw0;
+	hpte_v = hptep->v;
 
 	/* Even if we miss, we need to invalidate the TLB */
-	if ((dw0.avpn != avpn) || !dw0.v) {
+	if ((HPTE_V_AVPN_VAL(hpte_v) != avpn)
+	    || !(hpte_v & HPTE_V_VALID)) {
 		native_unlock_hpte(hptep);
 	} else {
 		/* Invalidate the hpte. NOTE: this also unlocks it */
-		hptep->dw0.dword0 = 0;
+		hptep->v = 0;
 	}
 
 	/* Invalidate the tlb */
@@ -315,8 +303,8 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long va,
 static void native_hpte_clear(void)
 {
 	unsigned long slot, slots, flags;
-	HPTE *hptep = htab_address;
-	Hpte_dword0 dw0;
+	hpte_t *hptep = htab_address;
+	unsigned long hpte_v;
 	unsigned long pteg_count;
 
 	pteg_count = htab_hash_mask + 1;
@@ -336,11 +324,11 @@ static void native_hpte_clear(void)
 		 * running,  right?  and for crash dump, we probably
 		 * don't want to wait for a maybe bad cpu.
 		 */
-		dw0 = hptep->dw0.dw0;
+		hpte_v = hptep->v;
 
-		if (dw0.v) {
-			hptep->dw0.dword0 = 0;
-			tlbie(slot2va(dw0.avpn, dw0.l, dw0.h, slot), dw0.l);
+		if (hpte_v & HPTE_V_VALID) {
+			hptep->v = 0;
+			tlbie(slot2va(hpte_v, slot), hpte_v & HPTE_V_LARGE);
 		}
 	}
 
@@ -353,8 +341,8 @@ static void native_flush_hash_range(unsigned long context,
 {
 	unsigned long vsid, vpn, va, hash, secondary, slot, flags, avpn;
 	int i, j;
-	HPTE *hptep;
-	Hpte_dword0 dw0;
+	hpte_t *hptep;
+	unsigned long hpte_v;
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
 
 	/* XXX fix for large ptes */
@@ -390,14 +378,15 @@ static void native_flush_hash_range(unsigned long context,
 
 		native_lock_hpte(hptep);
 
-		dw0 = hptep->dw0.dw0;
+		hpte_v = hptep->v;
 
 		/* Even if we miss, we need to invalidate the TLB */
-		if ((dw0.avpn != avpn) || !dw0.v) {
+		if ((HPTE_V_AVPN_VAL(hpte_v) != avpn)
+		    || !(hpte_v & HPTE_V_VALID)) {
 			native_unlock_hpte(hptep);
 		} else {
 			/* Invalidate the hpte. NOTE: this also unlocks it */
-			hptep->dw0.dword0 = 0;
+			hptep->v = 0;
 		}
 
 		j++;

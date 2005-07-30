@@ -546,8 +546,9 @@ setup_gazelpci(struct IsdnCardState *cs)
 
 	found = 0;
 	seekcard = PCI_DEVICE_ID_PLX_R685;
-	for (nbseek = 0; nbseek < 3; nbseek++) {
-		if ((dev_tel = pci_find_device(PCI_VENDOR_ID_PLX, seekcard, dev_tel))) {
+	for (nbseek = 0; nbseek < 4; nbseek++) {
+		if ((dev_tel = pci_find_device(PCI_VENDOR_ID_PLX,
+					seekcard, dev_tel))) {
 			if (pci_enable_device(dev_tel))
 				return 1;
 			pci_irq = dev_tel->irq;
@@ -564,6 +565,9 @@ setup_gazelpci(struct IsdnCardState *cs)
 					break;
 				case PCI_DEVICE_ID_PLX_R753:
 					seekcard = PCI_DEVICE_ID_PLX_DJINN_ITOO;
+					break;
+				case PCI_DEVICE_ID_PLX_DJINN_ITOO:
+					seekcard = PCI_DEVICE_ID_PLX_OLITEC;
 					break;
 			}
 		}
@@ -605,6 +609,7 @@ setup_gazelpci(struct IsdnCardState *cs)
 			break;
 		case PCI_DEVICE_ID_PLX_R753:
 		case PCI_DEVICE_ID_PLX_DJINN_ITOO:
+		case PCI_DEVICE_ID_PLX_OLITEC:
 			printk(KERN_INFO "Gazel: Card PCI R753 found\n");
 			cs->subtyp = R753;
 			test_and_set_bit(HW_IPAC, &cs->HW_Flags);

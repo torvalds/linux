@@ -56,7 +56,6 @@
 #include <syslib/ppc85xx_common.h>
 #include <syslib/ppc85xx_setup.h>
 
-extern void cpm2_reset(void);
 
 /* ************************************************************************
  *

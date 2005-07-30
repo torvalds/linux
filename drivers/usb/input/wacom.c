@@ -69,6 +69,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
 
@@ -823,10 +824,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	wacom->dev.name = wacom->features->name;
 	wacom->dev.phys = wacom->phys;
-	wacom->dev.id.bustype = BUS_USB;
-	wacom->dev.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
-	wacom->dev.id.product = le16_to_cpu(dev->descriptor.idProduct);
-	wacom->dev.id.version = le16_to_cpu(dev->descriptor.bcdDevice);
+	usb_to_input_id(dev, &wacom->dev.id);
 	wacom->dev.dev = &intf->dev;
 	wacom->usbdev = dev;
 

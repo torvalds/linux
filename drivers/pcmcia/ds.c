@@ -206,8 +206,8 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 	u32 hash;
 
 	if (!p_drv->attach || !p_drv->event || !p_drv->detach)
-		printk(KERN_DEBUG "pcmcia: %s does misses a callback function",
-		       p_drv->drv.name);
+		printk(KERN_DEBUG "pcmcia: %s lacks a requisite callback "
+		       "function\n", p_drv->drv.name);
 
 	while (did && did->match_flags) {
 		for (i=0; i<4; i++) {

@@ -248,16 +248,20 @@ static DEFINE_SPINLOCK(undef_lock);
 
 void register_undef_hook(struct undef_hook *hook)
 {
-	spin_lock_irq(&undef_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&undef_lock, flags);
 	list_add(&hook->node, &undef_hook);
-	spin_unlock_irq(&undef_lock);
+	spin_unlock_irqrestore(&undef_lock, flags);
 }
 
 void unregister_undef_hook(struct undef_hook *hook)
 {
-	spin_lock_irq(&undef_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&undef_lock, flags);
 	list_del(&hook->node);
-	spin_unlock_irq(&undef_lock);
+	spin_unlock_irqrestore(&undef_lock, flags);
 }
 
 asmlinkage void do_undefinstr(struct pt_regs *regs)

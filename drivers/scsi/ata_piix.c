@@ -38,6 +38,7 @@ enum {
 	PIIX_IOCFG		= 0x54, /* IDE I/O configuration register */
 	ICH5_PMR		= 0x90, /* port mapping register */
 	ICH5_PCS		= 0x92,	/* port control and status */
+	PIIX_SCC		= 0x0A, /* sub-class code register */
 
 	PIIX_FLAG_AHCI		= (1 << 28), /* AHCI possible */
 	PIIX_FLAG_CHECKINTR	= (1 << 29), /* make sure PCI INTx enabled */
@@ -62,6 +63,8 @@ enum {
 	ich6_sata_rm		= 4,
 	ich7_sata		= 5,
 	esb2_sata		= 6,
+
+	PIIX_AHCI_DEVICE	= 6,
 };
 
 static int piix_init_one (struct pci_dev *pdev,
@@ -574,11 +577,11 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 	addr = pci_resource_start(pdev, AHCI_PCI_BAR);
 	if (!addr || !pci_resource_len(pdev, AHCI_PCI_BAR))
 		return 0;
-	
+
 	mmio = ioremap(addr, 64);
 	if (!mmio)
 		return -ENOMEM;
-	
+
 	tmp = readl(mmio + AHCI_GLOBAL_CTL);
 	if (tmp & AHCI_ENABLE) {
 		tmp &= ~AHCI_ENABLE;
@@ -588,7 +591,7 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 		if (tmp & AHCI_ENABLE)
 			rc = -EIO;
 	}
-	
+
 	iounmap(mmio);
 	return rc;
 }
@@ -626,9 +629,13 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	port_info[1] = NULL;
 
 	if (port_info[0]->host_flags & PIIX_FLAG_AHCI) {
-		int rc = piix_disable_ahci(pdev);
-		if (rc)
-			return rc;
+               u8 tmp;
+               pci_read_config_byte(pdev, PIIX_SCC, &tmp);
+               if (tmp == PIIX_AHCI_DEVICE) {
+                       int rc = piix_disable_ahci(pdev);
+                       if (rc)
+                           return rc;
+               }
 	}
 
 	if (port_info[0]->host_flags & PIIX_FLAG_COMBINED) {

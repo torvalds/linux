@@ -17,6 +17,7 @@
 #include <asm/pgtable.h>
 #include <linux/seq_file.h>
 #include <linux/tty.h>
+#include <linux/utsname.h>
 
 #include <asm/setup.h>
 
@@ -29,7 +30,7 @@ struct screen_info screen_info;
 extern int root_mountflags;
 extern char _etext, _edata, _end;
 
-static char command_line[COMMAND_LINE_SIZE] = { 0, };
+char cris_command_line[COMMAND_LINE_SIZE] = { 0, };
 
 extern const unsigned long text_start, edata; /* set by the linker script */
 extern unsigned long dram_start, dram_end;
@@ -147,34 +148,35 @@ setup_arch(char **cmdline_p)
 
 	paging_init();
 
-	/* We don't use a command line yet, so just re-initialize it without
-	   saving anything that might be there.  */
-
-	*cmdline_p = command_line;
+	*cmdline_p = cris_command_line;
 
 #ifdef CONFIG_ETRAX_CMDLINE
-	strlcpy(command_line, CONFIG_ETRAX_CMDLINE, COMMAND_LINE_SIZE);
-	command_line[COMMAND_LINE_SIZE - 1] = '\0';
+        if (!strcmp(cris_command_line, "")) {
+		strlcpy(cris_command_line, CONFIG_ETRAX_CMDLINE, COMMAND_LINE_SIZE);
+		cris_command_line[COMMAND_LINE_SIZE - 1] = '\0';
+	}
+#endif
 
 	/* Save command line for future references. */
-	memcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
+	memcpy(saved_command_line, cris_command_line, COMMAND_LINE_SIZE);
 	saved_command_line[COMMAND_LINE_SIZE - 1] = '\0';
-#endif
 
 	/* give credit for the CRIS port */
 	show_etrax_copyright();
+
+	/* Setup utsname */
+	strcpy(system_utsname.machine, cris_machine_name);
 }
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	/* We only got one CPU... */
-	return *pos < 1 ? (void *)1 : NULL;
+	return *pos < NR_CPUS ? (void *)(int)(*pos + 1): NULL;
 }
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	++*pos;
-	return NULL;
+	return c_start(m, pos);
 }
 
 static void c_stop(struct seq_file *m, void *v)

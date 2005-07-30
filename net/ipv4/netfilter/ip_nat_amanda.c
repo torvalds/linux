@@ -56,10 +56,8 @@ static unsigned int help(struct sk_buff **pskb,
 			break;
 	}
 
-	if (port == 0) {
-		ip_conntrack_expect_free(exp);
+	if (port == 0)
 		return NF_DROP;
-	}
 
 	sprintf(buffer, "%u", port);
 	ret = ip_nat_mangle_udp_packet(pskb, exp->master, ctinfo,

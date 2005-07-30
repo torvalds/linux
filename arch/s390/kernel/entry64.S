@@ -727,9 +727,9 @@ mcck_int_handler:
 	jo	0f
 	spt	__LC_LAST_UPDATE_TIMER
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
-	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
-	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_EXIT_TIMER
+	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_LAST_UPDATE_TIMER
+	mvc	__LC_SYNC_ENTER_TIMER(8),__LC_LAST_UPDATE_TIMER
+	mvc	__LC_EXIT_TIMER(8),__LC_LAST_UPDATE_TIMER
 0:	tm	__LC_MCCK_CODE+2,0x08	# mwp of old psw valid?
 	jno	mcck_no_vtime		# no -> no timer update
 	tm      __LC_MCK_OLD_PSW+1,0x01 # interrupting from user ?

@@ -87,6 +87,16 @@ INSTALLING the kernel:
    kernel source.  Patches are applied from the current directory, but
    an alternative directory can be specified as the second argument.
 
+ - If you are upgrading between releases using the stable series patches
+   (for example, patch-2.6.xx.y), note that these "dot-releases" are
+   not incremental and must be applied to the 2.6.xx base tree. For
+   example, if your base kernel is 2.6.12 and you want to apply the
+   2.6.12.3 patch, you do not and indeed must not first apply the
+   2.6.12.1 and 2.6.12.2 patches. Similarly, if you are running kernel
+   version 2.6.12.2 and want to jump to 2.6.12.3, you must first
+   reverse the 2.6.12.2 patch (that is, patch -R) _before_ applying
+   the 2.6.12.3 patch.
+
  - Make sure you have no stale .o files and dependencies lying around:
 
 		cd linux

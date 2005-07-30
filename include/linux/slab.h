@@ -111,7 +111,7 @@ static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, int flags, int n
 {
 	return kmem_cache_alloc(cachep, flags);
 }
-static inline void *kmalloc_node(size_t size, int flags, int node)
+static inline void *kmalloc_node(size_t size, unsigned int __nocast flags, int node)
 {
 	return kmalloc(size, flags);
 }

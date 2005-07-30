@@ -153,20 +153,24 @@ struct snd_usb_audio {
 #define QUIRK_NO_INTERFACE		-2
 #define QUIRK_ANY_INTERFACE		-1
 
-/* quirk type */
-#define QUIRK_MIDI_FIXED_ENDPOINT	0
-#define QUIRK_MIDI_YAMAHA		1
-#define QUIRK_MIDI_MIDIMAN		2
-#define QUIRK_COMPOSITE			3
-#define QUIRK_AUDIO_FIXED_ENDPOINT	4
-#define QUIRK_AUDIO_STANDARD_INTERFACE	5
-#define QUIRK_MIDI_STANDARD_INTERFACE	6
-#define QUIRK_AUDIO_EDIROL_UA700_UA25	7
-#define QUIRK_AUDIO_EDIROL_UA1000	8
-#define QUIRK_IGNORE_INTERFACE		9
-#define QUIRK_MIDI_NOVATION		10
-#define QUIRK_MIDI_MOTU			11
-#define QUIRK_MIDI_EMAGIC		12
+enum quirk_type {
+	QUIRK_IGNORE_INTERFACE,
+	QUIRK_COMPOSITE,
+	QUIRK_MIDI_STANDARD_INTERFACE,
+	QUIRK_MIDI_FIXED_ENDPOINT,
+	QUIRK_MIDI_YAMAHA,
+	QUIRK_MIDI_MIDIMAN,
+	QUIRK_MIDI_NOVATION,
+	QUIRK_MIDI_RAW,
+	QUIRK_MIDI_EMAGIC,
+	QUIRK_MIDI_MIDITECH,
+	QUIRK_AUDIO_STANDARD_INTERFACE,
+	QUIRK_AUDIO_FIXED_ENDPOINT,
+	QUIRK_AUDIO_EDIROL_UA700_UA25,
+	QUIRK_AUDIO_EDIROL_UA1000,
+
+	QUIRK_TYPE_COUNT
+};
 
 typedef struct snd_usb_audio_quirk snd_usb_audio_quirk_t;
 typedef struct snd_usb_midi_endpoint_info snd_usb_midi_endpoint_info_t;
@@ -175,7 +179,7 @@ struct snd_usb_audio_quirk {
 	const char *vendor_name;
 	const char *product_name;
 	int16_t ifnum;
-	int16_t type;
+	uint16_t type;
 	const void *data;
 };
 
@@ -205,10 +209,12 @@ struct snd_usb_midi_endpoint_info {
 
 /* for QUIRK_IGNORE_INTERFACE, data is NULL */
 
-/* for QUIRK_MIDI_NOVATION and _MOTU, data is NULL */
+/* for QUIRK_MIDI_NOVATION and _RAW, data is NULL */
 
 /* for QUIRK_MIDI_EMAGIC, data points to a snd_usb_midi_endpoint_info
  * structure (out_cables and in_cables only) */
+
+/* for QUIRK_MIDI_MIDITECH, data is NULL */
 
 /*
  */

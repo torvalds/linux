@@ -28,8 +28,8 @@ static inline unsigned long readRegister(const unsigned int nReg)
 	   for this in this routine.  LDF/STF instructions with Rn = PC
 	   depend on the PC being correct, as they use PC+8 in their
 	   address calculations. */
-	unsigned long *userRegisters = GET_USERREG();
-	unsigned int val = userRegisters[nReg];
+	struct pt_regs *regs = GET_USERREG();
+	unsigned int val = regs->uregs[nReg];
 	if (REG_PC == nReg)
 		val -= 4;
 	return val;
@@ -38,8 +38,8 @@ static inline unsigned long readRegister(const unsigned int nReg)
 static inline void
 writeRegister(const unsigned int nReg, const unsigned long val)
 {
-	unsigned long *userRegisters = GET_USERREG();
-	userRegisters[nReg] = val;
+	struct pt_regs *regs = GET_USERREG();
+	regs->uregs[nReg] = val;
 }
 
 static inline unsigned long readCPSR(void)
@@ -63,12 +63,12 @@ static inline unsigned long readConditionCodes(void)
 
 static inline void writeConditionCodes(const unsigned long val)
 {
-	unsigned long *userRegisters = GET_USERREG();
+	struct pt_regs *regs = GET_USERREG();
 	unsigned long rval;
 	/*
 	 * Operate directly on userRegisters since
 	 * the CPSR may be the PC register itself.
 	 */
-	rval = userRegisters[REG_CPSR] & ~CC_MASK;
-	userRegisters[REG_CPSR] = rval | (val & CC_MASK);
+	rval = regs->ARM_cpsr & ~CC_MASK;
+	regs->ARM_cpsr = rval | (val & CC_MASK);
 }

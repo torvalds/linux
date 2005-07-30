@@ -138,7 +138,7 @@ config BRIDGE_EBT_VLAN
 #
 config BRIDGE_EBT_ARPREPLY
 	tristate "ebt: arp reply target support"
-	depends on BRIDGE_NF_EBTABLES
+	depends on BRIDGE_NF_EBTABLES && INET
 	help
 	  This option adds the arp reply target, which allows
 	  automatically sending arp replies to arp requests.

@@ -803,7 +803,7 @@ struct xfrm_algo_desc {
 /* XFRM tunnel handlers.  */
 struct xfrm_tunnel {
 	int (*handler)(struct sk_buff *skb);
-	void (*err_handler)(struct sk_buff *skb, void *info);
+	void (*err_handler)(struct sk_buff *skb, __u32 info);
 };
 
 struct xfrm6_tunnel {

@@ -120,11 +120,16 @@
 #define  O2_MODE_E_LED_OUT	0x08
 #define  O2_MODE_E_SKTA_ACTV	0x10
 
+#define O2_RESERVED1		0x94
+#define O2_RESERVED2		0xD4
+#define O2_RES_READ_PREFETCH	0x02
+#define O2_RES_WRITE_BURST	0x08
+
 static int o2micro_override(struct yenta_socket *socket)
 {
 	/*
-	 * 'reserved' register at 0x94/D4. chaning it to 0xCA (8 bit) enables
-	 * read prefetching which for example makes the RME Hammerfall DSP
+	 * 'reserved' register at 0x94/D4. allows setting read prefetch and write
+	 * bursting. read prefetching for example makes the RME Hammerfall DSP
 	 * working. for some bridges it is at 0x94, for others at 0xD4. it's
 	 * ok to write to both registers on all O2 bridges.
 	 * from Eric Still, 02Micro.
@@ -132,20 +137,35 @@ static int o2micro_override(struct yenta_socket *socket)
 	u8 a, b;
 
 	if (PCI_FUNC(socket->dev->devfn) == 0) {
-		a = config_readb(socket, 0x94);
-		b = config_readb(socket, 0xD4);
+		a = config_readb(socket, O2_RESERVED1);
+		b = config_readb(socket, O2_RESERVED2);
 
 		printk(KERN_INFO "Yenta O2: res at 0x94/0xD4: %02x/%02x\n", a, b);
 
 		switch (socket->dev->device) {
+		/*
+		 * older bridges have problems with both read prefetch and write
+		 * bursting depending on the combination of the chipset, bridge
+		 * and the cardbus card. so disable them to be on the safe side.
+		 */
+		case PCI_DEVICE_ID_O2_6729:
+		case PCI_DEVICE_ID_O2_6730:
+		case PCI_DEVICE_ID_O2_6812:
 		case PCI_DEVICE_ID_O2_6832:
-			printk(KERN_INFO "Yenta O2: old bridge, not enabling read prefetch / write burst\n");
+		case PCI_DEVICE_ID_O2_6836:
+			printk(KERN_INFO "Yenta O2: old bridge, disabling read prefetch/write burst\n");
+			config_writeb(socket, O2_RESERVED1,
+			              a & ~(O2_RES_READ_PREFETCH | O2_RES_WRITE_BURST));
+			config_writeb(socket, O2_RESERVED2,
+			              b & ~(O2_RES_READ_PREFETCH | O2_RES_WRITE_BURST));
 			break;
 
 		default:
 			printk(KERN_INFO "Yenta O2: enabling read prefetch/write burst\n");
-			config_writeb(socket, 0x94, a | 0x0a);
-			config_writeb(socket, 0xD4, b | 0x0a);
+			config_writeb(socket, O2_RESERVED1,
+			              a | O2_RES_READ_PREFETCH | O2_RES_WRITE_BURST);
+			config_writeb(socket, O2_RESERVED2,
+			              b | O2_RES_READ_PREFETCH | O2_RES_WRITE_BURST);
 		}
 	}
 

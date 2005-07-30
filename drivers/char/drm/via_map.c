@@ -95,7 +95,8 @@ int via_map_init(DRM_IOCTL_ARGS)
 
 	DRM_DEBUG("%s\n", __FUNCTION__);
 
-	DRM_COPY_FROM_USER_IOCTL(init, (drm_via_init_t *) data, sizeof(init));
+	DRM_COPY_FROM_USER_IOCTL(init, (drm_via_init_t __user *) data,
+				 sizeof(init));
 
 	switch (init.func) {
 	case VIA_INIT_MAP:

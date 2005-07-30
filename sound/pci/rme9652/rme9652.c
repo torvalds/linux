@@ -1470,7 +1470,7 @@ static int snd_rme9652_get_tc_valid(snd_kcontrol_t * kcontrol, snd_ctl_elem_valu
 	return 0;
 }
 
-#if ALSA_HAS_STANDARD_WAY_OF_RETURNING_TIMECODE
+#ifdef ALSA_HAS_STANDARD_WAY_OF_RETURNING_TIMECODE
 
 /* FIXME: this routine needs a port to the new control API --jk */
 

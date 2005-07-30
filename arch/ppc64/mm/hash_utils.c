@@ -75,8 +75,8 @@
 extern unsigned long dart_tablebase;
 #endif /* CONFIG_U3_DART */
 
-HPTE		*htab_address;
-unsigned long	htab_hash_mask;
+hpte_t *htab_address;
+unsigned long htab_hash_mask;
 
 extern unsigned long _SDR1;
 
@@ -97,11 +97,15 @@ static inline void create_pte_mapping(unsigned long start, unsigned long end,
 	unsigned long addr;
 	unsigned int step;
 	unsigned long tmp_mode;
+	unsigned long vflags;
 
-	if (large)
+	if (large) {
 		step = 16*MB;
-	else
+		vflags = HPTE_V_BOLTED | HPTE_V_LARGE;
+	} else {
 		step = 4*KB;
+		vflags = HPTE_V_BOLTED;
+	}
 
 	for (addr = start; addr < end; addr += step) {
 		unsigned long vpn, hash, hpteg;
@@ -129,12 +133,12 @@ static inline void create_pte_mapping(unsigned long start, unsigned long end,
 		if (systemcfg->platform & PLATFORM_LPAR)
 			ret = pSeries_lpar_hpte_insert(hpteg, va,
 				virt_to_abs(addr) >> PAGE_SHIFT,
-				0, tmp_mode, 1, large);
+				vflags, tmp_mode);
 		else
 #endif /* CONFIG_PPC_PSERIES */
 			ret = native_hpte_insert(hpteg, va,
 				virt_to_abs(addr) >> PAGE_SHIFT,
-				0, tmp_mode, 1, large);
+				vflags, tmp_mode);
 
 		if (ret == -1) {
 			ppc64_terminate_msg(0x20, "create_pte_mapping");

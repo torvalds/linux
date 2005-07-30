@@ -1251,12 +1251,12 @@ sys32_fadvise64_wrapper:
 	or	%r3,%r4			# get low word of 64bit loff_t
 	llgfr	%r4,%r5			# size_t (unsigned long)
 	lgfr	%r5,%r6			# int
-	jg	sys_fadvise64
+	jg	sys32_fadvise64
 
 	.globl	sys32_fadvise64_64_wrapper
 sys32_fadvise64_64_wrapper:
 	llgtr	%r2,%r2			# struct fadvise64_64_args *
-	jg	s390_fadvise64_64
+	jg	sys32_fadvise64_64
 
 	.globl	sys32_clock_settime_wrapper
 sys32_clock_settime_wrapper:

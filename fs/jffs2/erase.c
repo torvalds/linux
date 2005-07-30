@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: erase.c,v 1.76 2005/05/03 15:11:40 dedekind Exp $
+ * $Id: erase.c,v 1.80 2005/07/14 19:46:24 joern Exp $
  *
  */
 
@@ -300,100 +300,86 @@ static void jffs2_free_all_node_refs(struct jffs2_sb_info *c, struct jffs2_erase
 	jeb->last_node = NULL;
 }
 
+static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, uint32_t *bad_offset)
+{
+	void *ebuf;
+	uint32_t ofs;
+	size_t retlen;
+	int ret = -EIO;
+	
+	ebuf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!ebuf) {
+		printk(KERN_WARNING "Failed to allocate page buffer for verifying erase at 0x%08x. Refiling\n", jeb->offset);
+		return -EAGAIN;
+	}
+
+	D1(printk(KERN_DEBUG "Verifying erase at 0x%08x\n", jeb->offset));
+
+	for (ofs = jeb->offset; ofs < jeb->offset + c->sector_size; ) {
+		uint32_t readlen = min((uint32_t)PAGE_SIZE, jeb->offset + c->sector_size - ofs);
+		int i;
+
+		*bad_offset = ofs;
+
+		ret = jffs2_flash_read(c, ofs, readlen, &retlen, ebuf);
+		if (ret) {
+			printk(KERN_WARNING "Read of newly-erased block at 0x%08x failed: %d. Putting on bad_list\n", ofs, ret);
+			goto fail;
+		}
+		if (retlen != readlen) {
+			printk(KERN_WARNING "Short read from newly-erased block at 0x%08x. Wanted %d, got %zd\n", ofs, readlen, retlen);
+			goto fail;
+		}
+		for (i=0; i<readlen; i += sizeof(unsigned long)) {
+			/* It's OK. We know it's properly aligned */
+			unsigned long *datum = ebuf + i;
+			if (*datum + 1) {
+				*bad_offset += i;
+				printk(KERN_WARNING "Newly-erased block contained word 0x%lx at offset 0x%08x\n", *datum, *bad_offset);
+				goto fail;
+			}
+		}
+		ofs += readlen;
+		cond_resched();
+	}
+	ret = 0;
+fail:
+	kfree(ebuf);
+	return ret;
+}
+
 static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
 	struct jffs2_raw_node_ref *marker_ref = NULL;
-	unsigned char *ebuf;
 	size_t retlen;
 	int ret;
 	uint32_t bad_offset;
 
-	if ((!jffs2_cleanmarker_oob(c)) && (c->cleanmarker_size > 0)) {
-		marker_ref = jffs2_alloc_raw_node_ref();
-		if (!marker_ref) {
-			printk(KERN_WARNING "Failed to allocate raw node ref for clean marker\n");
-			/* Stick it back on the list from whence it came and come back later */
-			jffs2_erase_pending_trigger(c);
-			spin_lock(&c->erase_completion_lock);
-			list_add(&jeb->list, &c->erase_complete_list);
-			spin_unlock(&c->erase_completion_lock);
-			return;
-		}
+	switch (jffs2_block_check_erase(c, jeb, &bad_offset)) {
+	case -EAGAIN:	goto refile;
+	case -EIO:	goto filebad;
 	}
-	ebuf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!ebuf) {
-		printk(KERN_WARNING "Failed to allocate page buffer for verifying erase at 0x%08x. Assuming it worked\n", jeb->offset);
-	} else {
-		uint32_t ofs = jeb->offset;
-
-		D1(printk(KERN_DEBUG "Verifying erase at 0x%08x\n", jeb->offset));
-		while(ofs < jeb->offset + c->sector_size) {
-			uint32_t readlen = min((uint32_t)PAGE_SIZE, jeb->offset + c->sector_size - ofs);
-			int i;
-
-			bad_offset = ofs;
-
-			ret = c->mtd->read(c->mtd, ofs, readlen, &retlen, ebuf);
-
-			if (ret) {
-				printk(KERN_WARNING "Read of newly-erased block at 0x%08x failed: %d. Putting on bad_list\n", ofs, ret);
-				goto bad;
-			}
-			if (retlen != readlen) {
-				printk(KERN_WARNING "Short read from newly-erased block at 0x%08x. Wanted %d, got %zd\n", ofs, readlen, retlen);
-				goto bad;
-			}
-			for (i=0; i<readlen; i += sizeof(unsigned long)) {
-				/* It's OK. We know it's properly aligned */
-				unsigned long datum = *(unsigned long *)(&ebuf[i]);
-				if (datum + 1) {
-					bad_offset += i;
-					printk(KERN_WARNING "Newly-erased block contained word 0x%lx at offset 0x%08x\n", datum, bad_offset);
-				bad: 
-					if ((!jffs2_cleanmarker_oob(c)) && (c->cleanmarker_size > 0))
-						jffs2_free_raw_node_ref(marker_ref);
-					kfree(ebuf);
-				bad2:
-					spin_lock(&c->erase_completion_lock);
-					/* Stick it on a list (any list) so
-					   erase_failed can take it right off
-					   again.  Silly, but shouldn't happen
-					   often. */
-					list_add(&jeb->list, &c->erasing_list);
-					spin_unlock(&c->erase_completion_lock);
-					jffs2_erase_failed(c, jeb, bad_offset);
-					return;
-				}
-			}
-			ofs += readlen;
-			cond_resched();
-		}
-		kfree(ebuf);
-	}
-
-	bad_offset = jeb->offset;
 
 	/* Write the erase complete marker */	
 	D1(printk(KERN_DEBUG "Writing erased marker to block at 0x%08x\n", jeb->offset));
-	if (jffs2_cleanmarker_oob(c)) {
+	bad_offset = jeb->offset;
 
-		if (jffs2_write_nand_cleanmarker(c, jeb))
-			goto bad2;
-			
+	/* Cleanmarker in oob area or no cleanmarker at all ? */
+	if (jffs2_cleanmarker_oob(c) || c->cleanmarker_size == 0) {
+
+		if (jffs2_cleanmarker_oob(c)) {
+			if (jffs2_write_nand_cleanmarker(c, jeb))
+				goto filebad;
+		}
+
 		jeb->first_node = jeb->last_node = NULL;
-
 		jeb->free_size = c->sector_size;
 		jeb->used_size = 0;
 		jeb->dirty_size = 0;
 		jeb->wasted_size = 0;
-	} else if (c->cleanmarker_size == 0) {
-		jeb->first_node = jeb->last_node = NULL;
 
-		jeb->free_size = c->sector_size;
-		jeb->used_size = 0;
-		jeb->dirty_size = 0;
-		jeb->wasted_size = 0;
 	} else {
+
 		struct kvec vecs[1];
 		struct jffs2_unknown_node marker = {
 			.magic =	cpu_to_je16(JFFS2_MAGIC_BITMASK),
@@ -401,21 +387,28 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 			.totlen =	cpu_to_je32(c->cleanmarker_size)
 		};
 
+		marker_ref = jffs2_alloc_raw_node_ref();
+		if (!marker_ref) {
+			printk(KERN_WARNING "Failed to allocate raw node ref for clean marker. Refiling\n");
+			goto refile;
+		}
+
 		marker.hdr_crc = cpu_to_je32(crc32(0, &marker, sizeof(struct jffs2_unknown_node)-4));
 
 		vecs[0].iov_base = (unsigned char *) &marker;
 		vecs[0].iov_len = sizeof(marker);
 		ret = jffs2_flash_direct_writev(c, vecs, 1, jeb->offset, &retlen);
 		
-		if (ret) {
-			printk(KERN_WARNING "Write clean marker to block at 0x%08x failed: %d\n",
-			       jeb->offset, ret);
-			goto bad2;
-		}
-		if (retlen != sizeof(marker)) {
-			printk(KERN_WARNING "Short write to newly-erased block at 0x%08x: Wanted %zd, got %zd\n",
-			       jeb->offset, sizeof(marker), retlen);
-			goto bad2;
+		if (ret || retlen != sizeof(marker)) {
+			if (ret)
+				printk(KERN_WARNING "Write clean marker to block at 0x%08x failed: %d\n",
+				       jeb->offset, ret);
+			else
+				printk(KERN_WARNING "Short write to newly-erased block at 0x%08x: Wanted %zd, got %zd\n",
+				       jeb->offset, sizeof(marker), retlen);
+
+			jffs2_free_raw_node_ref(marker_ref);
+			goto filebad;
 		}
 
 		marker_ref->next_in_ino = NULL;
@@ -444,5 +437,22 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	c->nr_free_blocks++;
 	spin_unlock(&c->erase_completion_lock);
 	wake_up(&c->erase_wait);
-}
+	return;
 
+filebad:
+	spin_lock(&c->erase_completion_lock);
+	/* Stick it on a list (any list) so erase_failed can take it
+	   right off again.  Silly, but shouldn't happen often. */
+	list_add(&jeb->list, &c->erasing_list);
+	spin_unlock(&c->erase_completion_lock);
+	jffs2_erase_failed(c, jeb, bad_offset);
+	return;
+
+refile:
+	/* Stick it back on the list from whence it came and come back later */
+	jffs2_erase_pending_trigger(c);
+	spin_lock(&c->erase_completion_lock);
+	list_add(&jeb->list, &c->erase_complete_list);
+	spin_unlock(&c->erase_completion_lock);
+	return;
+}

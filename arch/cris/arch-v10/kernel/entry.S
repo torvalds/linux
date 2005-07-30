@@ -1,4 +1,4 @@
-/* $Id: entry.S,v 1.23 2004/10/19 13:07:37 starvik Exp $
+/* $Id: entry.S,v 1.28 2005/06/20 05:06:30 starvik Exp $
  *
  *  linux/arch/cris/entry.S
  *
@@ -7,6 +7,22 @@
  *  Authors:	Bjorn Wesen (bjornw@axis.com)
  *
  *  $Log: entry.S,v $
+ *  Revision 1.28  2005/06/20 05:06:30  starvik
+ *  Remove unnecessary diff to kernel.org tree
+ *
+ *  Revision 1.27  2005/03/04 08:16:16  starvik
+ *  Merge of Linux 2.6.11.
+ *
+ *  Revision 1.26  2005/01/11 13:49:47  starvik
+ *  Added NMI handler.
+ *
+ *  Revision 1.25  2004/12/27 11:18:32  starvik
+ *  Merge of Linux 2.6.10 (not functional yet).
+ *
+ *  Revision 1.24  2004/12/22 10:41:23  starvik
+ *  Updates to make v10 compile with the latest SMP aware generic code (even
+ *  though v10 will never have SMP).
+ *
  *  Revision 1.23  2004/10/19 13:07:37  starvik
  *  Merge of Linux 2.6.9
  *
@@ -279,6 +295,7 @@
 #ifdef CONFIG_PREEMPT	
 	; Check if preemptive kernel scheduling should be done
 _resume_kernel:
+	di
 	; Load current task struct
 	movs.w	-8192, $r0	;  THREAD_SIZE = 8192
 	and.d	$sp, $r0
@@ -291,12 +308,7 @@ _need_resched:
 	bpl	_Rexit
 	nop
 	; Ok, lets's do some preemptive kernel scheduling
-	move.d	PREEMPT_ACTIVE, $r10
-	move.d	$r10, [$r0+TI_preempt_count] ; Mark as active
-	ei
-	jsr	schedule
-	clear.d	[$r0+TI_preempt_count] ;  Mark as inactive
-	di
+	jsr	preempt_schedule_irq
 	; Load new task struct
 	movs.w	-8192, $r0	;  THREAD_SIZE = 8192
 	and.d	$sp, $r0
@@ -590,15 +602,15 @@ mmu_bus_fault:
 	move.d	$r0, [$sp+16]
 1:	btstq	12, $r1		   ; Refill?
 	bpl	2f
-	lsrq	PMD_SHIFT, $r1     ; Get PMD index into PGD (bit 24-31)
-	move.d  [current_pgd], $r0 ; PGD for the current process
+	lsrq	24, $r1     ; Get PGD index (bit 24-31)
+	move.d  [per_cpu__current_pgd], $r0 ; PGD for the current process
 	move.d	[$r0+$r1.d], $r0   ; Get PMD
 	beq	2f
 	nop
 	and.w	PAGE_MASK, $r0	   ; Remove PMD flags
 	move.d  [R_MMU_CAUSE], $r1
 	lsrq	PAGE_SHIFT, $r1
-	and.d	0x7ff, $r1         ; Get PTE index into PMD (bit 13-24)
+	and.d	0x7ff, $r1         ; Get PTE index into PGD (bit 13-23)
 	move.d	[$r0+$r1.d], $r1   ; Get PTE
 	beq	2f
 	nop
@@ -656,11 +668,6 @@ hwbreakpoint:
 	nop
 	
 IRQ1_interrupt:
-
-#if defined(CONFIG_ETRAX_WATCHDOG) && !defined(CONFIG_SVINTO_SIM)
-;; If we receive a watchdog interrupt while it is not expected, then set
-;; up a canonical frame and dump register contents before dying.
-
 	;; this prologue MUST match the one in irq.h and the struct in ptregs.h!!!
 	move	$brp,[$sp=$sp-16]; instruction pointer and room for a fake SBFS frame
 	push	$srp
@@ -672,9 +679,16 @@ IRQ1_interrupt:
 	push	$r10		; push orig_r10
 	clear.d [$sp=$sp-4]	; frametype == 0, normal frame
 
-;; We don't check that we actually were bit by the watchdog as opposed to
-;; an external NMI, since there is currently no handler for external NMI.
-
+	move.d	[R_IRQ_MASK0_RD], $r1 ; External NMI or watchdog?
+	and.d   0x80000000, $r1
+	beq	wdog
+	move.d  $sp, $r10
+	jsr	handle_nmi
+	setf m			; Enable NMI again
+	retb			; Return from NMI
+	nop
+wdog:
+#if defined(CONFIG_ETRAX_WATCHDOG) && !defined(CONFIG_SVINTO_SIM)
 ;; Check if we're waiting for reset to happen, as signalled by
 ;; hard_reset_now setting cause_of_death to a magic value.  If so, just
 ;; get stuck until reset happens.
@@ -1118,6 +1132,10 @@ sys_call_table:
 	.long sys_mq_getsetattr
 	.long sys_ni_syscall		/* reserved for kexec */
 	.long sys_waitid
+	.long sys_ni_syscall		/* 285 */ /* available */
+	.long sys_add_key
+	.long sys_request_key
+	.long sys_keyctl
 
         /*
          * NOTE!! This doesn't have to be exact - we just have

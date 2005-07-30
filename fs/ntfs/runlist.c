@@ -1,7 +1,7 @@
 /**
  * runlist.c - NTFS runlist handling code.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -59,7 +59,7 @@ static inline void ntfs_rl_mc(runlist_element *dstbase, int dst,
  *
  * As the runlists grow, more memory will be required.  To prevent the
  * kernel having to allocate and reallocate large numbers of small bits of
- * memory, this function returns and entire page of memory.
+ * memory, this function returns an entire page of memory.
  *
  * It is up to the caller to serialize access to the runlist @rl.
  *
@@ -113,8 +113,11 @@ static inline BOOL ntfs_are_rl_mergeable(runlist_element *dst,
 	BUG_ON(!dst);
 	BUG_ON(!src);
 
-	if ((dst->lcn < 0) || (src->lcn < 0))     /* Are we merging holes? */
+	if ((dst->lcn < 0) || (src->lcn < 0)) {   /* Are we merging holes? */
+		if (dst->lcn == LCN_HOLE && src->lcn == LCN_HOLE)
+			return TRUE;
 		return FALSE;
+	}
 	if ((dst->lcn + dst->length) != src->lcn) /* Are the runs contiguous? */
 		return FALSE;
 	if ((dst->vcn + dst->length) != src->vcn) /* Are the runs misaligned? */
@@ -855,30 +858,42 @@ mpa_err:
 	if (!attr->data.non_resident.lowest_vcn) {
 		VCN max_cluster;
 
-		max_cluster = (sle64_to_cpu(
+		max_cluster = ((sle64_to_cpu(
 				attr->data.non_resident.allocated_size) +
 				vol->cluster_size - 1) >>
-				vol->cluster_size_bits;
+				vol->cluster_size_bits) - 1;
 		/*
-		 * If there is a difference between the highest_vcn and the
-		 * highest cluster, the runlist is either corrupt or, more
-		 * likely, there are more extents following this one.
+		 * A highest_vcn of zero means this is a single extent
+		 * attribute so simply terminate the runlist with LCN_ENOENT).
 		 */
-		if (deltaxcn < --max_cluster) {
-			ntfs_debug("More extents to follow; deltaxcn = 0x%llx, "
-					"max_cluster = 0x%llx",
-					(unsigned long long)deltaxcn,
-					(unsigned long long)max_cluster);
-			rl[rlpos].vcn = vcn;
-			vcn += rl[rlpos].length = max_cluster - deltaxcn;
-			rl[rlpos].lcn = LCN_RL_NOT_MAPPED;
-			rlpos++;
-		} else if (unlikely(deltaxcn > max_cluster)) {
-			ntfs_error(vol->sb, "Corrupt attribute. deltaxcn = "
-					"0x%llx, max_cluster = 0x%llx",
-					(unsigned long long)deltaxcn,
-					(unsigned long long)max_cluster);
-			goto mpa_err;
+		if (deltaxcn) {
+			/*
+			 * If there is a difference between the highest_vcn and
+			 * the highest cluster, the runlist is either corrupt
+			 * or, more likely, there are more extents following
+			 * this one.
+			 */
+			if (deltaxcn < max_cluster) {
+				ntfs_debug("More extents to follow; deltaxcn "
+						"= 0x%llx, max_cluster = "
+						"0x%llx",
+						(unsigned long long)deltaxcn,
+						(unsigned long long)
+						max_cluster);
+				rl[rlpos].vcn = vcn;
+				vcn += rl[rlpos].length = max_cluster -
+						deltaxcn;
+				rl[rlpos].lcn = LCN_RL_NOT_MAPPED;
+				rlpos++;
+			} else if (unlikely(deltaxcn > max_cluster)) {
+				ntfs_error(vol->sb, "Corrupt attribute.  "
+						"deltaxcn = 0x%llx, "
+						"max_cluster = 0x%llx",
+						(unsigned long long)deltaxcn,
+						(unsigned long long)
+						max_cluster);
+				goto mpa_err;
+			}
 		}
 		rl[rlpos].lcn = LCN_ENOENT;
 	} else /* Not the base extent. There may be more extents to follow. */
@@ -918,17 +933,18 @@ err_out:
  *
  * It is up to the caller to serialize access to the runlist @rl.
  *
- * Since lcns must be >= 0, we use negative return values with special meaning:
+ * Since lcns must be >= 0, we use negative return codes with special meaning:
  *
- * Return value			Meaning / Description
+ * Return code		Meaning / Description
  * ==================================================
- *  -1 = LCN_HOLE		Hole / not allocated on disk.
- *  -2 = LCN_RL_NOT_MAPPED	This is part of the runlist which has not been
- *				inserted into the runlist yet.
- *  -3 = LCN_ENOENT		There is no such vcn in the attribute.
+ *  LCN_HOLE		Hole / not allocated on disk.
+ *  LCN_RL_NOT_MAPPED	This is part of the runlist which has not been
+ *			inserted into the runlist yet.
+ *  LCN_ENOENT		There is no such vcn in the attribute.
  *
  * Locking: - The caller must have locked the runlist (for reading or writing).
- *	    - This function does not touch the lock.
+ *	    - This function does not touch the lock, nor does it modify the
+ *	      runlist.
  */
 LCN ntfs_rl_vcn_to_lcn(const runlist_element *rl, const VCN vcn)
 {
@@ -962,6 +978,39 @@ LCN ntfs_rl_vcn_to_lcn(const runlist_element *rl, const VCN vcn)
 		return rl[i].lcn;
 	/* Just in case... We could replace this with BUG() some day. */
 	return LCN_ENOENT;
+}
+
+#ifdef NTFS_RW
+
+/**
+ * ntfs_rl_find_vcn_nolock - find a vcn in a runlist
+ * @rl:		runlist to search
+ * @vcn:	vcn to find
+ *
+ * Find the virtual cluster number @vcn in the runlist @rl and return the
+ * address of the runlist element containing the @vcn on success.
+ *
+ * Return NULL if @rl is NULL or @vcn is in an unmapped part/out of bounds of
+ * the runlist.
+ *
+ * Locking: The runlist must be locked on entry.
+ */
+runlist_element *ntfs_rl_find_vcn_nolock(runlist_element *rl, const VCN vcn)
+{
+	BUG_ON(vcn < 0);
+	if (unlikely(!rl || vcn < rl[0].vcn))
+		return NULL;
+	while (likely(rl->length)) {
+		if (unlikely(vcn < rl[1].vcn)) {
+			if (likely(rl->lcn >= LCN_HOLE))
+				return rl;
+			return NULL;
+		}
+		rl++;
+	}
+	if (likely(rl->lcn == LCN_ENOENT))
+		return rl;
+	return NULL;
 }
 
 /**
@@ -999,10 +1048,17 @@ static inline int ntfs_get_nr_significant_bytes(const s64 n)
  * ntfs_get_size_for_mapping_pairs - get bytes needed for mapping pairs array
  * @vol:	ntfs volume (needed for the ntfs version)
  * @rl:		locked runlist to determine the size of the mapping pairs of
- * @start_vcn:	vcn at which to start the mapping pairs array
+ * @first_vcn:	first vcn which to include in the mapping pairs array
+ * @last_vcn:	last vcn which to include in the mapping pairs array
  *
  * Walk the locked runlist @rl and calculate the size in bytes of the mapping
- * pairs array corresponding to the runlist @rl, starting at vcn @start_vcn.
+ * pairs array corresponding to the runlist @rl, starting at vcn @first_vcn and
+ * finishing with vcn @last_vcn.
+ *
+ * A @last_vcn of -1 means end of runlist and in that case the size of the
+ * mapping pairs array corresponding to the runlist starting at vcn @first_vcn
+ * and finishing at the end of the runlist is determined.
+ *
  * This for example allows us to allocate a buffer of the right size when
  * building the mapping pairs array.
  *
@@ -1018,34 +1074,50 @@ static inline int ntfs_get_nr_significant_bytes(const s64 n)
  *	    remains locked throughout, and is left locked upon return.
  */
 int ntfs_get_size_for_mapping_pairs(const ntfs_volume *vol,
-		const runlist_element *rl, const VCN start_vcn)
+		const runlist_element *rl, const VCN first_vcn,
+		const VCN last_vcn)
 {
 	LCN prev_lcn;
 	int rls;
+	BOOL the_end = FALSE;
 
-	BUG_ON(start_vcn < 0);
+	BUG_ON(first_vcn < 0);
+	BUG_ON(last_vcn < -1);
+	BUG_ON(last_vcn >= 0 && first_vcn > last_vcn);
 	if (!rl) {
-		BUG_ON(start_vcn);
+		BUG_ON(first_vcn);
+		BUG_ON(last_vcn > 0);
 		return 1;
 	}
-	/* Skip to runlist element containing @start_vcn. */
-	while (rl->length && start_vcn >= rl[1].vcn)
+	/* Skip to runlist element containing @first_vcn. */
+	while (rl->length && first_vcn >= rl[1].vcn)
 		rl++;
-	if ((!rl->length && start_vcn > rl->vcn) || start_vcn < rl->vcn)
+	if (unlikely((!rl->length && first_vcn > rl->vcn) ||
+			first_vcn < rl->vcn))
 		return -EINVAL;
 	prev_lcn = 0;
 	/* Always need the termining zero byte. */
 	rls = 1;
 	/* Do the first partial run if present. */
-	if (start_vcn > rl->vcn) {
-		s64 delta;
+	if (first_vcn > rl->vcn) {
+		s64 delta, length = rl->length;
 
 		/* We know rl->length != 0 already. */
-		if (rl->length < 0 || rl->lcn < LCN_HOLE)
+		if (unlikely(length < 0 || rl->lcn < LCN_HOLE))
 			goto err_out;
-		delta = start_vcn - rl->vcn;
+		/*
+		 * If @stop_vcn is given and finishes inside this run, cap the
+		 * run length.
+		 */
+		if (unlikely(last_vcn >= 0 && rl[1].vcn > last_vcn)) {
+			s64 s1 = last_vcn + 1;
+			if (unlikely(rl[1].vcn > s1))
+				length = s1 - rl->vcn;
+			the_end = TRUE;
+		}
+		delta = first_vcn - rl->vcn;
 		/* Header byte + length. */
-		rls += 1 + ntfs_get_nr_significant_bytes(rl->length - delta);
+		rls += 1 + ntfs_get_nr_significant_bytes(length - delta);
 		/*
 		 * If the logical cluster number (lcn) denotes a hole and we
 		 * are on NTFS 3.0+, we don't store it at all, i.e. we need
@@ -1053,9 +1125,9 @@ int ntfs_get_size_for_mapping_pairs(const ntfs_volume *vol,
 		 * Note: this assumes that on NTFS 1.2-, holes are stored with
 		 * an lcn of -1 and not a delta_lcn of -1 (unless both are -1).
 		 */
-		if (rl->lcn >= 0 || vol->major_ver < 3) {
+		if (likely(rl->lcn >= 0 || vol->major_ver < 3)) {
 			prev_lcn = rl->lcn;
-			if (rl->lcn >= 0)
+			if (likely(rl->lcn >= 0))
 				prev_lcn += delta;
 			/* Change in lcn. */
 			rls += ntfs_get_nr_significant_bytes(prev_lcn);
@@ -1064,11 +1136,23 @@ int ntfs_get_size_for_mapping_pairs(const ntfs_volume *vol,
 		rl++;
 	}
 	/* Do the full runs. */
-	for (; rl->length; rl++) {
-		if (rl->length < 0 || rl->lcn < LCN_HOLE)
+	for (; rl->length && !the_end; rl++) {
+		s64 length = rl->length;
+
+		if (unlikely(length < 0 || rl->lcn < LCN_HOLE))
 			goto err_out;
+		/*
+		 * If @stop_vcn is given and finishes inside this run, cap the
+		 * run length.
+		 */
+		if (unlikely(last_vcn >= 0 && rl[1].vcn > last_vcn)) {
+			s64 s1 = last_vcn + 1;
+			if (unlikely(rl[1].vcn > s1))
+				length = s1 - rl->vcn;
+			the_end = TRUE;
+		}
 		/* Header byte + length. */
-		rls += 1 + ntfs_get_nr_significant_bytes(rl->length);
+		rls += 1 + ntfs_get_nr_significant_bytes(length);
 		/*
 		 * If the logical cluster number (lcn) denotes a hole and we
 		 * are on NTFS 3.0+, we don't store it at all, i.e. we need
@@ -1076,7 +1160,7 @@ int ntfs_get_size_for_mapping_pairs(const ntfs_volume *vol,
 		 * Note: this assumes that on NTFS 1.2-, holes are stored with
 		 * an lcn of -1 and not a delta_lcn of -1 (unless both are -1).
 		 */
-		if (rl->lcn >= 0 || vol->major_ver < 3) {
+		if (likely(rl->lcn >= 0 || vol->major_ver < 3)) {
 			/* Change in lcn. */
 			rls += ntfs_get_nr_significant_bytes(rl->lcn -
 					prev_lcn);
@@ -1119,7 +1203,7 @@ static inline int ntfs_write_significant_bytes(s8 *dst, const s8 *dst_max,
 
 	i = 0;
 	do {
-		if (dst > dst_max)
+		if (unlikely(dst > dst_max))
 			goto err_out;
 		*dst++ = l & 0xffll;
 		l >>= 8;
@@ -1128,12 +1212,12 @@ static inline int ntfs_write_significant_bytes(s8 *dst, const s8 *dst_max,
 	j = (n >> 8 * (i - 1)) & 0xff;
 	/* If the sign bit is wrong, we need an extra byte. */
 	if (n < 0 && j >= 0) {
-		if (dst > dst_max)
+		if (unlikely(dst > dst_max))
 			goto err_out;
 		i++;
 		*dst = (s8)-1;
 	} else if (n > 0 && j < 0) {
-		if (dst > dst_max)
+		if (unlikely(dst > dst_max))
 			goto err_out;
 		i++;
 		*dst = (s8)0;
@@ -1149,13 +1233,18 @@ err_out:
  * @dst:	destination buffer to which to write the mapping pairs array
  * @dst_len:	size of destination buffer @dst in bytes
  * @rl:		locked runlist for which to build the mapping pairs array
- * @start_vcn:	vcn at which to start the mapping pairs array
+ * @first_vcn:	first vcn which to include in the mapping pairs array
+ * @last_vcn:	last vcn which to include in the mapping pairs array
  * @stop_vcn:	first vcn outside destination buffer on success or -ENOSPC
  *
  * Create the mapping pairs array from the locked runlist @rl, starting at vcn
- * @start_vcn and save the array in @dst.  @dst_len is the size of @dst in
- * bytes and it should be at least equal to the value obtained by calling
- * ntfs_get_size_for_mapping_pairs().
+ * @first_vcn and finishing with vcn @last_vcn and save the array in @dst.
+ * @dst_len is the size of @dst in bytes and it should be at least equal to the
+ * value obtained by calling ntfs_get_size_for_mapping_pairs().
+ *
+ * A @last_vcn of -1 means end of runlist and in that case the mapping pairs
+ * array corresponding to the runlist starting at vcn @first_vcn and finishing
+ * at the end of the runlist is created.
  *
  * If @rl is NULL, just write a single terminator byte to @dst.
  *
@@ -1164,7 +1253,7 @@ err_out:
  * been filled with all the mapping pairs that will fit, thus it can be treated
  * as partial success, in that a new attribute extent needs to be created or
  * the next extent has to be used and the mapping pairs build has to be
- * continued with @start_vcn set to *@stop_vcn.
+ * continued with @first_vcn set to *@stop_vcn.
  *
  * Return 0 on success and -errno on error.  The following error codes are
  * defined:
@@ -1178,27 +1267,32 @@ err_out:
  */
 int ntfs_mapping_pairs_build(const ntfs_volume *vol, s8 *dst,
 		const int dst_len, const runlist_element *rl,
-		const VCN start_vcn, VCN *const stop_vcn)
+		const VCN first_vcn, const VCN last_vcn, VCN *const stop_vcn)
 {
 	LCN prev_lcn;
 	s8 *dst_max, *dst_next;
 	int err = -ENOSPC;
+	BOOL the_end = FALSE;
 	s8 len_len, lcn_len;
 
-	BUG_ON(start_vcn < 0);
+	BUG_ON(first_vcn < 0);
+	BUG_ON(last_vcn < -1);
+	BUG_ON(last_vcn >= 0 && first_vcn > last_vcn);
 	BUG_ON(dst_len < 1);
 	if (!rl) {
-		BUG_ON(start_vcn);
+		BUG_ON(first_vcn);
+		BUG_ON(last_vcn > 0);
 		if (stop_vcn)
 			*stop_vcn = 0;
 		/* Terminator byte. */
 		*dst = 0;
 		return 0;
 	}
-	/* Skip to runlist element containing @start_vcn. */
-	while (rl->length && start_vcn >= rl[1].vcn)
+	/* Skip to runlist element containing @first_vcn. */
+	while (rl->length && first_vcn >= rl[1].vcn)
 		rl++;
-	if ((!rl->length && start_vcn > rl->vcn) || start_vcn < rl->vcn)
+	if (unlikely((!rl->length && first_vcn > rl->vcn) ||
+			first_vcn < rl->vcn))
 		return -EINVAL;
 	/*
 	 * @dst_max is used for bounds checking in
@@ -1207,17 +1301,27 @@ int ntfs_mapping_pairs_build(const ntfs_volume *vol, s8 *dst,
 	dst_max = dst + dst_len - 1;
 	prev_lcn = 0;
 	/* Do the first partial run if present. */
-	if (start_vcn > rl->vcn) {
-		s64 delta;
+	if (first_vcn > rl->vcn) {
+		s64 delta, length = rl->length;
 
 		/* We know rl->length != 0 already. */
-		if (rl->length < 0 || rl->lcn < LCN_HOLE)
+		if (unlikely(length < 0 || rl->lcn < LCN_HOLE))
 			goto err_out;
-		delta = start_vcn - rl->vcn;
+		/*
+		 * If @stop_vcn is given and finishes inside this run, cap the
+		 * run length.
+		 */
+		if (unlikely(last_vcn >= 0 && rl[1].vcn > last_vcn)) {
+			s64 s1 = last_vcn + 1;
+			if (unlikely(rl[1].vcn > s1))
+				length = s1 - rl->vcn;
+			the_end = TRUE;
+		}
+		delta = first_vcn - rl->vcn;
 		/* Write length. */
 		len_len = ntfs_write_significant_bytes(dst + 1, dst_max,
-				rl->length - delta);
-		if (len_len < 0)
+				length - delta);
+		if (unlikely(len_len < 0))
 			goto size_err;
 		/*
 		 * If the logical cluster number (lcn) denotes a hole and we
@@ -1228,19 +1332,19 @@ int ntfs_mapping_pairs_build(const ntfs_volume *vol, s8 *dst,
 		 * case on NT4. - We assume that we just need to write the lcn
 		 * change until someone tells us otherwise... (AIA)
 		 */
-		if (rl->lcn >= 0 || vol->major_ver < 3) {
+		if (likely(rl->lcn >= 0 || vol->major_ver < 3)) {
 			prev_lcn = rl->lcn;
-			if (rl->lcn >= 0)
+			if (likely(rl->lcn >= 0))
 				prev_lcn += delta;
 			/* Write change in lcn. */
 			lcn_len = ntfs_write_significant_bytes(dst + 1 +
 					len_len, dst_max, prev_lcn);
-			if (lcn_len < 0)
+			if (unlikely(lcn_len < 0))
 				goto size_err;
 		} else
 			lcn_len = 0;
 		dst_next = dst + len_len + lcn_len + 1;
-		if (dst_next > dst_max)
+		if (unlikely(dst_next > dst_max))
 			goto size_err;
 		/* Update header byte. */
 		*dst = lcn_len << 4 | len_len;
@@ -1250,13 +1354,25 @@ int ntfs_mapping_pairs_build(const ntfs_volume *vol, s8 *dst,
 		rl++;
 	}
 	/* Do the full runs. */
-	for (; rl->length; rl++) {
-		if (rl->length < 0 || rl->lcn < LCN_HOLE)
+	for (; rl->length && !the_end; rl++) {
+		s64 length = rl->length;
+
+		if (unlikely(length < 0 || rl->lcn < LCN_HOLE))
 			goto err_out;
+		/*
+		 * If @stop_vcn is given and finishes inside this run, cap the
+		 * run length.
+		 */
+		if (unlikely(last_vcn >= 0 && rl[1].vcn > last_vcn)) {
+			s64 s1 = last_vcn + 1;
+			if (unlikely(rl[1].vcn > s1))
+				length = s1 - rl->vcn;
+			the_end = TRUE;
+		}
 		/* Write length. */
 		len_len = ntfs_write_significant_bytes(dst + 1, dst_max,
-				rl->length);
-		if (len_len < 0)
+				length);
+		if (unlikely(len_len < 0))
 			goto size_err;
 		/*
 		 * If the logical cluster number (lcn) denotes a hole and we
@@ -1267,17 +1383,17 @@ int ntfs_mapping_pairs_build(const ntfs_volume *vol, s8 *dst,
 		 * case on NT4. - We assume that we just need to write the lcn
 		 * change until someone tells us otherwise... (AIA)
 		 */
-		if (rl->lcn >= 0 || vol->major_ver < 3) {
+		if (likely(rl->lcn >= 0 || vol->major_ver < 3)) {
 			/* Write change in lcn. */
 			lcn_len = ntfs_write_significant_bytes(dst + 1 +
 					len_len, dst_max, rl->lcn - prev_lcn);
-			if (lcn_len < 0)
+			if (unlikely(lcn_len < 0))
 				goto size_err;
 			prev_lcn = rl->lcn;
 		} else
 			lcn_len = 0;
 		dst_next = dst + len_len + lcn_len + 1;
-		if (dst_next > dst_max)
+		if (unlikely(dst_next > dst_max))
 			goto size_err;
 		/* Update header byte. */
 		*dst = lcn_len << 4 | len_len;
@@ -1436,3 +1552,5 @@ int ntfs_rl_truncate_nolock(const ntfs_volume *vol, runlist *const runlist,
 	ntfs_debug("Done.");
 	return 0;
 }
+
+#endif /* NTFS_RW */

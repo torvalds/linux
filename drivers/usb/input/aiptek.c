@@ -77,6 +77,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 #include <linux/sched.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
@@ -2125,10 +2126,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	aiptek->inputdev.absflat[ABS_WHEEL] = 0;
 	aiptek->inputdev.name = "Aiptek";
 	aiptek->inputdev.phys = aiptek->features.usbPath;
-	aiptek->inputdev.id.bustype = BUS_USB;
-	aiptek->inputdev.id.vendor = le16_to_cpu(usbdev->descriptor.idVendor);
-	aiptek->inputdev.id.product = le16_to_cpu(usbdev->descriptor.idProduct);
-	aiptek->inputdev.id.version = le16_to_cpu(usbdev->descriptor.bcdDevice);
+	usb_to_input_id(usbdev, &aiptek->inputdev.id);
 	aiptek->inputdev.dev = &intf->dev;
 
 	aiptek->usbdev = usbdev;

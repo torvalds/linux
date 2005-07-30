@@ -49,22 +49,16 @@ void machine_restart(char * __unused)
 	CHOOSE_MODE(reboot_tt(), reboot_skas());
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_power_off(void)
 {
         uml_cleanup();
 	CHOOSE_MODE(halt_tt(), halt_skas());
 }
 
-EXPORT_SYMBOL(machine_power_off);
-
 void machine_halt(void)
 {
 	machine_power_off();
 }
-
-EXPORT_SYMBOL(machine_halt);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
