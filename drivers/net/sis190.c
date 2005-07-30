@@ -354,21 +354,17 @@ static void __mdio_cmd(void __iomem *ioaddr, u32 ctl)
 		printk(KERN_ERR PFX "PHY command failed !\n");
 }
 
-static void mdio_write(void __iomem *ioaddr, int reg, int val)
+static void mdio_write(void __iomem *ioaddr, int phy_id, int reg, int val)
 {
-	u32 pmd = 1;
-
 	__mdio_cmd(ioaddr, EhnMIIreq | EhnMIIwrite |
-		(((u32) reg) << EhnMIIregShift) | (pmd << EhnMIIpmdShift) |
+		(((u32) reg) << EhnMIIregShift) | (phy_id << EhnMIIpmdShift) |
 		(((u32) val) << EhnMIIdataShift));
 }
 
-static int mdio_read(void __iomem *ioaddr, int reg)
+static int mdio_read(void __iomem *ioaddr, int phy_id, int reg)
 {
-	u32 pmd = 1;
-
 	__mdio_cmd(ioaddr, EhnMIIreq | EhnMIIread |
-		(((u32) reg) << EhnMIIregShift) | (pmd << EhnMIIpmdShift));
+		(((u32) reg) << EhnMIIregShift) | (phy_id << EhnMIIpmdShift));
 
 	return (u16) (SIS_R32(GMIIControl) >> EhnMIIdataShift);
 }
@@ -377,14 +373,14 @@ static void __mdio_write(struct net_device *dev, int phy_id, int reg, int val)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
-	mdio_write(tp->mmio_addr, reg, val);
+	mdio_write(tp->mmio_addr, phy_id, reg, val);
 }
 
 static int __mdio_read(struct net_device *dev, int phy_id, int reg)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
-	return mdio_read(tp->mmio_addr, reg);
+	return mdio_read(tp->mmio_addr, phy_id, reg);
 }
 
 static u16 __devinit sis190_read_eeprom(void __iomem *ioaddr, u32 reg)
@@ -876,18 +872,19 @@ static void sis190_phy_task(void * data)
 	struct net_device *dev = data;
 	struct sis190_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
+	int phy_id = tp->mii_if.phy_id;
 	u16 val;
 
 	rtnl_lock();
 
-	val = mdio_read(ioaddr, MII_BMCR);
+	val = mdio_read(ioaddr, phy_id, MII_BMCR);
 	if (val & BMCR_RESET) {
 		// FIXME: needlessly high ?  -- FR 02/07/2005
 		mod_timer(&tp->timer, jiffies + HZ/10);
-	} else if (!(mdio_read(ioaddr, MII_BMSR) & BMSR_ANEGCOMPLETE)) {
+	} else if (!(mdio_read(ioaddr, phy_id, MII_BMSR) & BMSR_ANEGCOMPLETE)) {
 		net_link(tp, KERN_WARNING "%s: PHY reset until link up.\n",
 			 dev->name);
-		mdio_write(ioaddr, MII_BMCR, val | BMCR_RESET);
+		mdio_write(ioaddr, phy_id, MII_BMCR, val | BMCR_RESET);
 		mod_timer(&tp->timer, jiffies + SIS190_PHY_TIMEOUT);
 	} else {
 		/* Rejoice ! */
@@ -917,10 +914,10 @@ static void sis190_phy_task(void * data)
 			{ 0, "unknown", 0x0000 }
 		}, *p;
 
-		val = mdio_read(ioaddr, 0x1f);
+		val = mdio_read(ioaddr, phy_id, 0x1f);
 		net_link(tp, KERN_INFO "%s: mii ext = %04x.\n", dev->name, val);
 
-		val = mdio_read(ioaddr, MII_LPA);
+		val = mdio_read(ioaddr, phy_id, MII_LPA);
 		net_link(tp, KERN_INFO "%s: mii lpa = %04x.\n", dev->name, val);
 
 		for (p = reg31; p->ctl; p++) {
@@ -1250,7 +1247,7 @@ static struct net_device * __devinit sis190_init_board(struct pci_dev *pdev)
 	tp->mii_if.dev = dev;
 	tp->mii_if.mdio_read = __mdio_read;
 	tp->mii_if.mdio_write = __mdio_write;
-	// tp->mii_if.phy_id = XXX;
+	tp->mii_if.phy_id = 1;
 	tp->mii_if.phy_id_mask = 0x1f;
 	tp->mii_if.reg_num_mask = 0x1f;
 
@@ -1423,23 +1420,24 @@ static void sis190_set_speed_auto(struct net_device *dev)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
+	int phy_id = tp->mii_if.phy_id;
 	int val;
 
 	net_link(tp, KERN_INFO "%s: Enabling Auto-negotiation.\n", dev->name);
 
-	val = mdio_read(ioaddr, MII_ADVERTISE);
+	val = mdio_read(ioaddr, phy_id, MII_ADVERTISE);
 
 	// Enable 10/100 Full/Half Mode, leave MII_ADVERTISE bit4:0
 	// unchanged.
-	mdio_write(ioaddr, MII_ADVERTISE, (val & ADVERTISE_SLCT) |
+	mdio_write(ioaddr, phy_id, MII_ADVERTISE, (val & ADVERTISE_SLCT) |
 		   ADVERTISE_100FULL | ADVERTISE_10FULL |
 		   ADVERTISE_100HALF | ADVERTISE_10HALF);
 
 	// Enable 1000 Full Mode.
-	mdio_write(ioaddr, MII_CTRL1000, ADVERTISE_1000FULL);
+	mdio_write(ioaddr, phy_id, MII_CTRL1000, ADVERTISE_1000FULL);
 
 	// Enable auto-negotiation and restart auto-negotiation.
-	mdio_write(ioaddr, MII_BMCR,
+	mdio_write(ioaddr, phy_id, MII_BMCR,
 		   BMCR_ANENABLE | BMCR_ANRESTART | BMCR_RESET);
 }
 
