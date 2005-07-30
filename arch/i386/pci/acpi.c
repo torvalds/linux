@@ -30,6 +30,7 @@ static int __init pci_acpi_init(void)
 	acpi_irq_penalty_init();
 	pcibios_scanned++;
 	pcibios_enable_irq = acpi_pci_irq_enable;
+	pcibios_disable_irq = acpi_pci_irq_disable;
 
 	if (pci_routeirq) {
 		/*
