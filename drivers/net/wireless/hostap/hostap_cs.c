@@ -34,12 +34,6 @@ MODULE_SUPPORTED_DEVICE("Intersil Prism2-based WLAN cards (PC Card)");
 MODULE_LICENSE("GPL");
 
 
-static int irq_mask = 0xdeb8;
-module_param(irq_mask, int, 0444);
-
-static int irq_list[4] = { -1 };
-module_param_array(irq_list, int, NULL, 0444);
-
 static int ignore_cis_vcc;
 module_param(ignore_cis_vcc, int, 0444);
 MODULE_PARM_DESC(ignore_cis_vcc, "Ignore broken CIS VCC entry");
@@ -742,14 +736,8 @@ static int prism2_config(dev_link_t *link)
 	 * irq structure is initialized.
 	 */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		int i;
 		link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-		link->irq.IRQInfo1 = IRQ_INFO2_VALID | IRQ_LEVEL_ID;
-		if (irq_list[0] == -1)
-			link->irq.IRQInfo2 = irq_mask;
-		else
-			for (i = 0; i < 4; i++)
-				link->irq.IRQInfo2 |= 1 << irq_list[i];
+		link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 		link->irq.Handler = prism2_interrupt;
 		link->irq.Instance = dev;
 		CS_CHECK(RequestIRQ,
