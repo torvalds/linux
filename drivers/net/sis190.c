@@ -629,6 +629,18 @@ out:
 	return IRQ_RETVAL(handled);
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void sis190_netpoll(struct net_device *dev)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+	struct pci_dev *pdev = tp->pci_dev;
+
+	disable_irq(pdev->irq);
+	sis190_interrupt(pdev->irq, dev, NULL);
+	enable_irq(pdev->irq);
+}
+#endif
+
 static void sis190_free_rx_skb(struct sis190_private *tp,
 			       struct sk_buff **sk_buff, struct RxDesc *desc)
 {
@@ -1300,6 +1312,9 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	dev->tx_timeout = sis190_tx_timeout;
 	dev->watchdog_timeo = SIS190_TX_TIMEOUT;
 	dev->hard_start_xmit = sis190_start_xmit;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = sis190_netpoll;
+#endif
 	dev->set_multicast_list = sis190_set_rx_mode;
 	SET_ETHTOOL_OPS(dev, &sis190_ethtool_ops);
 	dev->irq = pdev->irq;
