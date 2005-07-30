@@ -64,8 +64,8 @@
 
 #define MAC_ADDR_LEN		6
 
-#define NUM_TX_DESC		64
-#define NUM_RX_DESC		64
+#define NUM_TX_DESC		64	/* [8..1024] */
+#define NUM_RX_DESC		64	/* [8..8192] */
 #define TX_RING_BYTES		(NUM_TX_DESC * sizeof(struct TxDesc))
 #define RX_RING_BYTES		(NUM_RX_DESC * sizeof(struct RxDesc))
 #define RX_BUF_SIZE		1536
@@ -149,12 +149,6 @@ enum sis190_register_content {
 	RxHalt			= 0x00000002,
 	TxHalt			= 0x00000001,
 
-	/* RxStatusDesc */
-	RxRES			= 0x00200000,	// unused
-	RxCRC			= 0x00080000,
-	RxRUNT			= 0x00100000,	// unused
-	RxRWT			= 0x00400000,	// unused
-
 	/* {Rx/Tx}CmdBits */
 	CmdReset		= 0x10,
 	CmdRxEnb		= 0x08,		// unused
@@ -212,15 +206,55 @@ struct RxDesc {
 
 enum _DescStatusBit {
 	/* _Desc.status */
-	OWNbit		= 0x80000000,
-	INTbit		= 0x40000000,
-	DEFbit		= 0x00200000,
-	CRCbit		= 0x00020000,
-	PADbit		= 0x00010000,
+	OWNbit		= 0x80000000, // RXOWN/TXOWN
+	INTbit		= 0x40000000, // RXINT/TXINT
+	CRCbit		= 0x00020000, // CRCOFF/CRCEN
+	PADbit		= 0x00010000, // PREADD/PADEN
 	/* _Desc.size */
-	RingEnd		= (1 << 31),
-	/* _Desc.PSize */
+	RingEnd		= 0x80000000,
+	/* TxDesc.status */
+	LSEN		= 0x08000000, // TSO ? -- FR
+	IPCS		= 0x04000000,
+	TCPCS		= 0x02000000,
+	UDPCS		= 0x01000000,
+	BSTEN		= 0x00800000,
+	EXTEN		= 0x00400000,
+	DEFEN		= 0x00200000,
+	BKFEN		= 0x00100000,
+	CRSEN		= 0x00080000,
+	COLEN		= 0x00040000,
+	THOL3		= 0x30000000,
+	THOL2		= 0x20000000,
+	THOL1		= 0x10000000,
+	THOL0		= 0x00000000,
+	/* RxDesc.status */
+	IPON		= 0x20000000,
+	TCPON		= 0x10000000,
+	UDPON		= 0x08000000,
+	Wakup		= 0x00400000,
+	Magic		= 0x00200000,
+	Pause		= 0x00100000,
+	DEFbit		= 0x00200000,
+	BCAST		= 0x000c0000,
+	MCAST		= 0x00080000,
+	UCAST		= 0x00040000,
+	/* RxDesc.PSize */
+	TAGON		= 0x80000000,
+	RxDescCountMask	= 0x7f000000, // multi-desc pkt when > 1 ? -- FR
+	ABORT		= 0x00800000,
+	SHORT		= 0x00400000,
+	LIMIT		= 0x00200000,
+	MIIER		= 0x00100000,
+	OVRUN		= 0x00080000,
+	NIBON		= 0x00040000,
+	COLON		= 0x00020000,
+	CRCOK		= 0x00010000,
 	RxSizeMask	= 0x0000ffff
+	/*
+	 * The asic could apparently do vlan, TSO, jumbo (sis191 only) and
+	 * provide two (unused with Linux) Tx queues. No publically
+	 * available documentation alas.
+	 */
 };
 
 enum sis190_eeprom_access_register_bits {
@@ -487,6 +521,26 @@ static inline int sis190_try_rx_copy(struct sk_buff **sk_buff, int pkt_size,
 	return ret;
 }
 
+static inline int sis190_rx_pkt_err(u32 status, struct net_device_stats *stats)
+{
+#define ErrMask	(OVRUN | SHORT | LIMIT | MIIER | NIBON | COLON | ABORT)
+
+	if ((status & CRCOK) && !(status & ErrMask))
+		return 0;
+
+	if (!(status & CRCOK))
+		stats->rx_crc_errors++;
+	else if (status & OVRUN)
+		stats->rx_over_errors++;
+	else if (status & (SHORT | LIMIT))
+		stats->rx_length_errors++;
+	else if (status & (MIIER | NIBON | COLON))
+		stats->rx_frame_errors++;
+
+	stats->rx_errors++;
+	return -1;
+}
+
 static int sis190_rx_interrupt(struct net_device *dev,
 			       struct sis190_private *tp, void __iomem *ioaddr)
 {
@@ -510,19 +564,9 @@ static int sis190_rx_interrupt(struct net_device *dev,
 		// net_intr(tp, KERN_INFO "%s: Rx PSize = %08x.\n", dev->name,
 		//	 status);
 
-		if (status & RxCRC) {
-			net_intr(tp, KERN_INFO "%s: bad crc. status = %08x.\n",
-				 dev->name, status);
-			stats->rx_errors++;
-			stats->rx_crc_errors++;
+		if (sis190_rx_pkt_err(status, stats) < 0)
 			sis190_give_to_asic(desc, tp->rx_buf_sz);
-		} else if (!(status & PADbit)) {
-			net_intr(tp, KERN_INFO "%s: bad pad. status = %08x.\n",
-				 dev->name, status);
-			stats->rx_errors++;
-			stats->rx_length_errors++;
-			sis190_give_to_asic(desc, tp->rx_buf_sz);
-		} else {
+		else {
 			struct sk_buff *skb = tp->Rx_skbuff[entry];
 			int pkt_size = (status & RxSizeMask) - 4;
 			void (*pci_action)(struct pci_dev *, dma_addr_t,
@@ -559,8 +603,10 @@ static int sis190_rx_interrupt(struct net_device *dev,
 			sis190_rx_skb(skb);
 
 			dev->last_rx = jiffies;
-			stats->rx_bytes += pkt_size;
 			stats->rx_packets++;
+			stats->rx_bytes += pkt_size;
+			if ((status & BCAST) == MCAST)
+				stats->multicast++;
 		}
 	}
 	count = cur_rx - tp->cur_rx;
