@@ -69,6 +69,7 @@
 #define TX_RING_BYTES		(NUM_TX_DESC * sizeof(struct TxDesc))
 #define RX_RING_BYTES		(NUM_RX_DESC * sizeof(struct RxDesc))
 #define RX_BUF_SIZE		1536
+#define RX_BUF_MASK		0xfff8
 
 #define SIS190_REGS_SIZE	0x80
 #define SIS190_TX_TIMEOUT	(6*HZ)
@@ -400,7 +401,7 @@ static inline void sis190_give_to_asic(struct RxDesc *desc, u32 rx_buf_sz)
 	u32 eor = le32_to_cpu(desc->size) & RingEnd;
 
 	desc->PSize = 0x0;
-	desc->size = cpu_to_le32(rx_buf_sz | eor);
+	desc->size = cpu_to_le32((rx_buf_sz & RX_BUF_MASK) | eor);
 	wmb();
 	desc->status = cpu_to_le32(OWNbit | INTbit);
 }
@@ -924,6 +925,11 @@ static void sis190_set_rxbufsize(struct sis190_private *tp,
 	unsigned int mtu = dev->mtu;
 
 	tp->rx_buf_sz = (mtu > RX_BUF_SIZE) ? mtu + ETH_HLEN + 8 : RX_BUF_SIZE;
+	/* RxDesc->size has a licence to kill the lower bits */
+	if (tp->rx_buf_sz & 0x07) {
+		tp->rx_buf_sz += 8;
+		tp->rx_buf_sz &= RX_BUF_MASK;
+	}
 }
 
 static int sis190_open(struct net_device *dev)
