@@ -154,12 +154,10 @@ config ACPI_PROCESSOR
 	  support it.
 
 config ACPI_HOTPLUG_CPU
-	bool "Processor Hotplug (EXPERIMENTAL)"
-	depends on ACPI_PROCESSOR && HOTPLUG_CPU && EXPERIMENTAL
+	bool
+	depends on ACPI_PROCESSOR && HOTPLUG_CPU
 	select ACPI_CONTAINER
-	default n
-	 ---help---
-	 Select this option if your platform support physical CPU hotplug.
+	default y
 
 config ACPI_THERMAL
 	tristate "Thermal Zone"
