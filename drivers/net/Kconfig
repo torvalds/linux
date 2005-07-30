@@ -131,6 +131,8 @@ config NET_SB1000
 
 	source "drivers/net/arcnet/Kconfig"
 
+source "drivers/net/phy/Kconfig"
+
 #
 #	Ethernet
 #
