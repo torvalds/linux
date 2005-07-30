@@ -45,24 +45,29 @@
 #define MPC10X_DMA0_IRQ (EPIC_IRQ_BASE + 1 + NUM_8259_INTERRUPTS)
 #define MPC10X_DMA1_IRQ (EPIC_IRQ_BASE + 2 + NUM_8259_INTERRUPTS)
 #define MPC10X_UART0_IRQ (EPIC_IRQ_BASE + 4 + NUM_8259_INTERRUPTS)
+#define MPC10X_UART1_IRQ (EPIC_IRQ_BASE + 5 + NUM_8259_INTERRUPTS)
 #else
 #define MPC10X_I2C_IRQ -1
 #define MPC10X_DMA0_IRQ -1
 #define MPC10X_DMA1_IRQ -1
 #define MPC10X_UART0_IRQ -1
+#define MPC10X_UART1_IRQ -1
 #endif
 
 static struct fsl_i2c_platform_data mpc10x_i2c_pdata = {
 	.device_flags		= 0,
 };
 
-static struct plat_serial8250_port serial_platform_data[] = {
+static struct plat_serial8250_port serial_plat_uart0[] = {
 	[0] = {
 		.mapbase	= 0x4500,
 		.iotype		= UPIO_MEM,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 	},
-	[1] = {
+	{ },
+};
+static struct plat_serial8250_port serial_plat_uart1[] = {
+	[0] = {
 		.mapbase	= 0x4600,
 		.iotype		= UPIO_MEM,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
@@ -133,11 +138,17 @@ struct platform_device ppc_sys_platform_devices[] = {
 			},
 		},
 	},
-	[MPC10X_DUART] = {
+	[MPC10X_UART0] = {
 		.name = "serial8250",
 		.id	= 0,
-		.dev.platform_data = serial_platform_data,
+		.dev.platform_data = serial_plat_uart0,
 	},
+	[MPC10X_UART1] = {
+		.name = "serial8250",
+		.id	= 1,
+		.dev.platform_data = serial_plat_uart1,
+	},
+
 };
 
 /* We use the PCI ID to match on */
@@ -147,10 +158,10 @@ struct ppc_sys_spec ppc_sys_specs[] = {
 		.ppc_sys_name 	= "8245",
 		.mask		= 0xFFFFFFFF,
 		.value		= MPC10X_BRIDGE_8245,
-		.num_devices	= 4,
+		.num_devices	= 5,
 		.device_list	= (enum ppc_sys_devices[])
 		{
-			MPC10X_IIC1, MPC10X_DMA0, MPC10X_DMA1, MPC10X_DUART,
+			MPC10X_IIC1, MPC10X_DMA0, MPC10X_DMA1, MPC10X_UART0, MPC10X_UART1,
 		},
 	},
 	{
@@ -179,6 +190,25 @@ struct ppc_sys_spec ppc_sys_specs[] = {
 		.value          = 0x00000000,
 	},
 };
+
+/*
+ * mach_mpc10x_fixup: This function enables DUART mode if it detects
+ * if it detects two UARTS in the platform device entries.
+ */
+static int __init mach_mpc10x_fixup(struct platform_device *pdev)
+{
+	if (strncmp (pdev->name, "serial8250", 10) == 0 && pdev->id == 1)
+		writeb(readb(serial_plat_uart1[0].membase + 0x11) | 0x1,
+				serial_plat_uart1[0].membase + 0x11);
+	return 0;
+}
+
+static int __init mach_mpc10x_init(void)
+{
+	ppc_sys_device_fixup = mach_mpc10x_fixup;
+	return 0;
+}
+postcore_initcall(mach_mpc10x_init);
 
 /* Set resources to match bridge memory map */
 void __init
@@ -219,6 +249,7 @@ mpc10x_bridge_set_resources(int map, struct pci_controller *hose)
 				ppc_md.progress("mpc10x:exit1", 0x100);
 	}
 }
+
 /*
  * Do some initialization and put the EUMB registers at the specified address
  * (also map the EPIC registers into virtual space--OpenPIC_Addr will be set).
@@ -411,11 +442,13 @@ mpc10x_bridge_init(struct pci_controller *hose,
 	ppc_sys_platform_devices[MPC10X_DMA1].resource[1].start = MPC10X_DMA1_IRQ;
 	ppc_sys_platform_devices[MPC10X_DMA1].resource[1].end = MPC10X_DMA1_IRQ;
 
-	serial_platform_data[0].mapbase += phys_eumb_base;
-	serial_platform_data[0].irq = MPC10X_UART0_IRQ;
+	serial_plat_uart0[0].mapbase += phys_eumb_base;
+	serial_plat_uart0[0].irq = MPC10X_UART0_IRQ;
+	serial_plat_uart0[0].membase = ioremap(serial_plat_uart0[0].mapbase, 0x100);
 
-	serial_platform_data[1].mapbase += phys_eumb_base;
-	serial_platform_data[1].irq = MPC10X_UART0_IRQ + 1;
+	serial_plat_uart1[0].mapbase += phys_eumb_base;
+	serial_plat_uart1[0].irq = MPC10X_UART1_IRQ;
+	serial_plat_uart1[0].membase = ioremap(serial_plat_uart1[0].mapbase, 0x100);
 
 	/*
 	 * 8240 erratum 26, 8241/8245 erratum 29, 107 erratum 23: speculative

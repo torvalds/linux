@@ -697,11 +697,13 @@ extern struct list_head file_lock_list;
 #include <linux/fcntl.h>
 
 extern int fcntl_getlk(struct file *, struct flock __user *);
-extern int fcntl_setlk(struct file *, unsigned int, struct flock __user *);
+extern int fcntl_setlk(unsigned int, struct file *, unsigned int,
+			struct flock __user *);
 
 #if BITS_PER_LONG == 32
 extern int fcntl_getlk64(struct file *, struct flock64 __user *);
-extern int fcntl_setlk64(struct file *, unsigned int, struct flock64 __user *);
+extern int fcntl_setlk64(unsigned int, struct file *, unsigned int,
+			struct flock64 __user *);
 #endif
 
 extern void send_sigio(struct fown_struct *fown, int fd, int band);
@@ -1441,6 +1443,9 @@ extern int inode_needs_sync(struct inode *inode);
 extern void generic_delete_inode(struct inode *inode);
 extern void generic_drop_inode(struct inode *inode);
 
+extern struct inode *ilookup5_nowait(struct super_block *sb,
+		unsigned long hashval, int (*test)(struct inode *, void *),
+		void *data);
 extern struct inode *ilookup5(struct super_block *sb, unsigned long hashval,
 		int (*test)(struct inode *, void *), void *data);
 extern struct inode *ilookup(struct super_block *sb, unsigned long ino);

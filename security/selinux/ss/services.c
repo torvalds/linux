@@ -601,18 +601,7 @@ out:
 
 }
 
-/**
- * security_context_to_sid - Obtain a SID for a given security context.
- * @scontext: security context
- * @scontext_len: length in bytes
- * @sid: security identifier, SID
- *
- * Obtains a SID associated with the security context that
- * has the string representation specified by @scontext.
- * Returns -%EINVAL if the context is invalid, -%ENOMEM if insufficient
- * memory is available, or 0 on success.
- */
-int security_context_to_sid(char *scontext, u32 scontext_len, u32 *sid)
+static int security_context_to_sid_core(char *scontext, u32 scontext_len, u32 *sid, u32 def_sid)
 {
 	char *scontext2;
 	struct context context;
@@ -703,7 +692,7 @@ int security_context_to_sid(char *scontext, u32 scontext_len, u32 *sid)
 
 	context.type = typdatum->value;
 
-	rc = mls_context_to_sid(oldc, &p, &context);
+	rc = mls_context_to_sid(oldc, &p, &context, &sidtab, def_sid);
 	if (rc)
 		goto out_unlock;
 
@@ -725,6 +714,46 @@ out_unlock:
 	kfree(scontext2);
 out:
 	return rc;
+}
+
+/**
+ * security_context_to_sid - Obtain a SID for a given security context.
+ * @scontext: security context
+ * @scontext_len: length in bytes
+ * @sid: security identifier, SID
+ *
+ * Obtains a SID associated with the security context that
+ * has the string representation specified by @scontext.
+ * Returns -%EINVAL if the context is invalid, -%ENOMEM if insufficient
+ * memory is available, or 0 on success.
+ */
+int security_context_to_sid(char *scontext, u32 scontext_len, u32 *sid)
+{
+	return security_context_to_sid_core(scontext, scontext_len,
+	                                    sid, SECSID_NULL);
+}
+
+/**
+ * security_context_to_sid_default - Obtain a SID for a given security context,
+ * falling back to specified default if needed.
+ *
+ * @scontext: security context
+ * @scontext_len: length in bytes
+ * @sid: security identifier, SID
+ * @def_sid: default SID to assign on errror
+ *
+ * Obtains a SID associated with the security context that
+ * has the string representation specified by @scontext.
+ * The default SID is passed to the MLS layer to be used to allow
+ * kernel labeling of the MLS field if the MLS field is not present
+ * (for upgrading to MLS without full relabel).
+ * Returns -%EINVAL if the context is invalid, -%ENOMEM if insufficient
+ * memory is available, or 0 on success.
+ */
+int security_context_to_sid_default(char *scontext, u32 scontext_len, u32 *sid, u32 def_sid)
+{
+	return security_context_to_sid_core(scontext, scontext_len,
+	                                    sid, def_sid);
 }
 
 static int compute_sid_handle_invalid_context(

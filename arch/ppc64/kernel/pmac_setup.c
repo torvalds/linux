@@ -97,7 +97,7 @@ EXPORT_SYMBOL(smu_cmdbuf_abs);
 
 extern void udbg_init_scc(struct device_node *np);
 
-void __pmac pmac_show_cpuinfo(struct seq_file *m)
+static void __pmac pmac_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *np;
 	char *pp;
@@ -144,7 +144,7 @@ void __pmac pmac_show_cpuinfo(struct seq_file *m)
 }
 
 
-void __init pmac_setup_arch(void)
+static void __init pmac_setup_arch(void)
 {
 	/* init to some ~sane value until calibrate_delay() runs */
 	loops_per_jiffy = 50000000;
@@ -230,7 +230,7 @@ void __pmac note_bootable_part(dev_t dev, int part, int goodness)
 	}
 }
 
-void __pmac pmac_restart(char *cmd)
+static void __pmac pmac_restart(char *cmd)
 {
 	switch(sys_ctrler) {
 #ifdef CONFIG_ADB_PMU
@@ -249,7 +249,7 @@ void __pmac pmac_restart(char *cmd)
 	}
 }
 
-void __pmac pmac_power_off(void)
+static void __pmac pmac_power_off(void)
 {
 	switch(sys_ctrler) {
 #ifdef CONFIG_ADB_PMU
@@ -267,7 +267,7 @@ void __pmac pmac_power_off(void)
 	}
 }
 
-void __pmac pmac_halt(void)
+static void __pmac pmac_halt(void)
 {
 	pmac_power_off();
 }
@@ -327,7 +327,7 @@ static void __init init_boot_display(void)
 /* 
  * Early initialization.
  */
-void __init pmac_init_early(void)
+static void __init pmac_init_early(void)
 {
 	DBG(" -> pmac_init_early\n");
 

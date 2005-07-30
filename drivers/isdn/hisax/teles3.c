@@ -143,7 +143,7 @@ teles3_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-inline static void
+static inline void
 release_ioregs(struct IsdnCardState *cs, int mask)
 {
 	if (mask & 1)

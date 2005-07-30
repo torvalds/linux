@@ -911,14 +911,7 @@ static void apm_power_off(void)
 		0xcd, 0x15		/* int   $0x15       */
 	};
 
-	/*
-	 * This may be called on an SMP machine.
-	 */
-#ifdef CONFIG_SMP
 	/* Some bioses don't like being called from CPU != 0 */
-	set_cpus_allowed(current, cpumask_of_cpu(0));
-	BUG_ON(smp_processor_id() != 0);
-#endif
 	if (apm_info.realmode_power_off)
 	{
 		(void)apm_save_cpus();

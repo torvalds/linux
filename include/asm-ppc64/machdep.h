@@ -53,10 +53,8 @@ struct machdep_calls {
 	long		(*hpte_insert)(unsigned long hpte_group,
 				       unsigned long va,
 				       unsigned long prpn,
-				       int secondary, 
-				       unsigned long hpteflags, 
-				       int bolted,
-				       int large);
+				       unsigned long vflags,
+				       unsigned long rflags);
 	long		(*hpte_remove)(unsigned long hpte_group);
 	void		(*flush_hash_range)(unsigned long context,
 					    unsigned long number,

@@ -101,6 +101,7 @@
 #include <linux/if_arp.h>	/* ARPHRD_* defines */
 #include <asm/byteorder.h>	/* htons(), etc. */
 #include <linux/in.h>		/* sockaddr_in */
+#include <linux/jiffies.h>	/* time_after() macro */
 
 
 #include <asm/uaccess.h>
@@ -482,7 +483,7 @@ static int update(struct wan_device *wandev)
 		if(ppp_priv_area->update_comms_stats == 0){
 			break;
 		}
-                if ((jiffies - timeout) > (1 * HZ)){
+                if (time_after(jiffies, timeout + 1 * HZ)){
     			ppp_priv_area->update_comms_stats = 0;
  			ppp_priv_area->timer_int_enabled &=
 				~TMR_INT_ENABLED_UPDATE; 

@@ -116,12 +116,12 @@ struct alt_instr {
 /*
  * Alternative inline assembly with input.
  * 
- * Pecularities:
+ * Peculiarities:
  * No memory clobber here. 
  * Argument numbers start with 1.
  * Best is to use constraints that are fixed size (like (%1) ... "r")
  * If you use variable sized constraints like "m" or "g" in the 
- * replacement maake sure to pad to the worst case length.
+ * replacement make sure to pad to the worst case length.
  */
 #define alternative_input(oldinstr, newinstr, feature, input...)	\
 	asm volatile ("661:\n\t" oldinstr "\n662:\n"			\
@@ -334,9 +334,6 @@ void cpu_idle_wait(void);
 #define HAVE_DISABLE_HLT
 void disable_hlt(void);
 void enable_hlt(void);
-
-#define HAVE_EAT_KEY
-void eat_key(void);
 
 extern unsigned long arch_align_stack(unsigned long sp);
 

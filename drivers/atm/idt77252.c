@@ -46,6 +46,7 @@ static char const rcsid[] =
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/wait.h>
+#include <linux/jiffies.h>
 #include <asm/semaphore.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -780,7 +781,7 @@ push_on_scq(struct idt77252_dev *card, struct vc_map *vc, struct sk_buff *skb)
 	return 0;
 
 out:
-	if (jiffies - scq->trans_start > HZ) {
+	if (time_after(jiffies, scq->trans_start + HZ)) {
 		printk("%s: Error pushing TBD for %d.%d\n",
 		       card->name, vc->tx_vcc->vpi, vc->tx_vcc->vci);
 #ifdef CONFIG_ATM_IDT77252_DEBUG

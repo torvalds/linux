@@ -2,7 +2,7 @@
  *                  QLOGIC LINUX SOFTWARE
  *
  * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2004 QLogic Corporation
+ * Copyright (C) 2003-2005 QLogic Corporation
  * (www.qlogic.com)
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@ static __inline__ uint16_t qla2x00_debounce_register(volatile uint16_t __iomem *
  *      register value.
  */
 static __inline__ uint16_t
-qla2x00_debounce_register(volatile uint16_t __iomem *addr) 
+qla2x00_debounce_register(volatile uint16_t __iomem *addr)
 {
 	volatile uint16_t first;
 	volatile uint16_t second;
@@ -78,7 +78,7 @@ static __inline__ int qla2x00_normalize_dma_addr(
  *	ffffabc1ffffeeee	(0x100000000 + e_addr)
  *	ffffabc100000000	(0x100000000 + e_addr) & ~(0xffffffff)
  *	ffffabc100000000	(ne_addr)
- *	
+ *
  * Compute length of second DMA segment:
  *
  *	00000000ffffeeee	(e_addr & 0xffffffff)
@@ -114,77 +114,10 @@ qla2x00_normalize_dma_addr(
 }
 
 static __inline__ void qla2x00_poll(scsi_qla_host_t *);
-static inline void 
+static inline void
 qla2x00_poll(scsi_qla_host_t *ha)
 {
-	if (IS_QLA2100(ha) || IS_QLA2200(ha))
-		qla2100_intr_handler(0, ha, NULL);
-	else
-		qla2300_intr_handler(0, ha, NULL);
-}
-
-
-static __inline__ void qla2x00_enable_intrs(scsi_qla_host_t *);
-static __inline__ void qla2x00_disable_intrs(scsi_qla_host_t *);
-
-static inline void 
-qla2x00_enable_intrs(scsi_qla_host_t *ha)
-{
-	unsigned long flags = 0;
-	device_reg_t __iomem *reg = ha->iobase;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->interrupts_on = 1;
-	/* enable risc and host interrupts */
-	WRT_REG_WORD(&reg->ictrl, ICR_EN_INT | ICR_EN_RISC);
-	RD_REG_WORD(&reg->ictrl);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-}
-
-static inline void 
-qla2x00_disable_intrs(scsi_qla_host_t *ha)
-{
-	unsigned long flags = 0;
-	device_reg_t __iomem *reg = ha->iobase;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->interrupts_on = 0;
-	/* disable risc and host interrupts */
-	WRT_REG_WORD(&reg->ictrl, 0);
-	RD_REG_WORD(&reg->ictrl);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-}
-
-
-static __inline__ int qla2x00_is_wwn_zero(uint8_t *);
-
-/*
- * qla2x00_is_wwn_zero - Check for zero node name
- *
- * Input:
- *      wwn = Pointer to WW name to check
- *
- * Returns:
- *      1 if name is 0x00 else 0
- *
- * Context:
- *      Kernel context.
- */
-static __inline__ int
-qla2x00_is_wwn_zero(uint8_t *wwn)
-{
-	int cnt;
-
-	for (cnt = 0; cnt < WWN_SIZE ; cnt++, wwn++) {
-		if (*wwn != 0)
-			break;
-	}
-	/* if zero return 1 */
-	if (cnt == WWN_SIZE)
-		return (1);
-	else
-		return (0);
+	ha->isp_ops.intr_handler(0, ha, NULL);
 }
 
 static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *);
@@ -192,7 +125,7 @@ static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *);
  * This routine will wait for fabric devices for
  * the reset delay.
  */
-static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *ha) 
+static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *ha)
 {
 	uint16_t	fw_state;
 
@@ -225,51 +158,27 @@ qla2x00_issue_marker(scsi_qla_host_t *ha, int ha_locked)
 	return (QLA_SUCCESS);
 }
 
-static __inline__ void qla2x00_add_timer_to_cmd(srb_t *, int);
-static __inline__ void qla2x00_delete_timer_from_cmd(srb_t *);
-
-/**************************************************************************
-*   qla2x00_add_timer_to_cmd
-*
-* Description:
-*       Creates a timer for the specified command. The timeout is usually
-*       the command time from kernel minus 2 secs.
-*
-* Input:
-*     sp - pointer to validate
-*
-* Returns:
-*     None.
-**************************************************************************/
-static inline void
-qla2x00_add_timer_to_cmd(srb_t *sp, int timeout)
+static inline uint8_t *host_to_fcp_swap(uint8_t *, uint32_t);
+static inline uint8_t *
+host_to_fcp_swap(uint8_t *fcp, uint32_t bsize)
 {
-	init_timer(&sp->timer);
-	sp->timer.expires = jiffies + timeout * HZ;
-	sp->timer.data = (unsigned long) sp;
-	sp->timer.function = (void (*) (unsigned long))qla2x00_cmd_timeout;
-	add_timer(&sp->timer);
+       uint32_t *ifcp = (uint32_t *) fcp;
+       uint32_t *ofcp = (uint32_t *) fcp;
+       uint32_t iter = bsize >> 2;
+
+       for (; iter ; iter--)
+               *ofcp++ = swab32(*ifcp++);
+
+       return fcp;
 }
 
-/**************************************************************************
-*   qla2x00_delete_timer_from_cmd
-*
-* Description:
-*       Delete the timer for the specified command.
-*
-* Input:
-*     sp - pointer to validate
-*
-* Returns:
-*     None.
-**************************************************************************/
-static inline void 
-qla2x00_delete_timer_from_cmd(srb_t *sp)
+static inline int qla2x00_is_reserved_id(scsi_qla_host_t *, uint16_t);
+static inline int
+qla2x00_is_reserved_id(scsi_qla_host_t *ha, uint16_t loop_id)
 {
-	if (sp->timer.function != NULL) {
-		del_timer(&sp->timer);
-		sp->timer.function =  NULL;
-		sp->timer.data = (unsigned long) NULL;
-	}
-}
+	if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+		return (loop_id > NPH_LAST_HANDLE);
 
+	return ((loop_id > ha->last_loop_id && loop_id < SNS_FIRST_LOOP_ID) ||
+	    loop_id == MANAGEMENT_SERVER || loop_id == BROADCAST);
+};

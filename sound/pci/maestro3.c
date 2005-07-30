@@ -1050,27 +1050,22 @@ static struct m3_hv_quirk m3_hv_quirk_list[] = {
  * lowlevel functions
  */
 
-#define big_mdelay(msec) do {\
-	set_current_state(TASK_UNINTERRUPTIBLE);\
-	schedule_timeout(((msec) * HZ) / 1000);\
-} while (0)
-	
-inline static void snd_m3_outw(m3_t *chip, u16 value, unsigned long reg)
+static inline void snd_m3_outw(m3_t *chip, u16 value, unsigned long reg)
 {
 	outw(value, chip->iobase + reg);
 }
 
-inline static u16 snd_m3_inw(m3_t *chip, unsigned long reg)
+static inline u16 snd_m3_inw(m3_t *chip, unsigned long reg)
 {
 	return inw(chip->iobase + reg);
 }
 
-inline static void snd_m3_outb(m3_t *chip, u8 value, unsigned long reg)
+static inline void snd_m3_outb(m3_t *chip, u8 value, unsigned long reg)
 {
 	outb(value, chip->iobase + reg);
 }
 
-inline static u8 snd_m3_inb(m3_t *chip, unsigned long reg)
+static inline u8 snd_m3_inb(m3_t *chip, unsigned long reg)
 {
 	return inb(chip->iobase + reg);
 }
@@ -1096,7 +1091,7 @@ static void snd_m3_assp_write(m3_t *chip, u16 region, u16 index, u16 data)
 static void snd_m3_assp_halt(m3_t *chip)
 {
 	chip->reset_state = snd_m3_inb(chip, DSP_PORT_CONTROL_REG_B) & ~REGB_STOP_CLOCK;
-	big_mdelay(10);
+	msleep(10);
 	snd_m3_outb(chip, chip->reset_state & ~REGB_ENABLE_RESET, DSP_PORT_CONTROL_REG_B);
 }
 
@@ -2108,9 +2103,9 @@ static void snd_m3_ac97_reset(m3_t *chip)
 	 */
 	tmp = inw(io + RING_BUS_CTRL_A);
 	outw(RAC_SDFS_ENABLE|LAC_SDFS_ENABLE, io + RING_BUS_CTRL_A);
-	big_mdelay(20);
+	msleep(20);
 	outw(tmp, io + RING_BUS_CTRL_A);
-	big_mdelay(50);
+	msleep(50);
 #endif
 }
 
@@ -2525,9 +2520,13 @@ static void
 snd_m3_enable_ints(m3_t *chip)
 {
 	unsigned long io = chip->iobase;
+	unsigned short val;
 
 	/* TODO: MPU401 not supported yet */
-	outw(ASSP_INT_ENABLE | HV_INT_ENABLE /*| MPU401_INT_ENABLE*/, io + HOST_INT_CTRL);
+	val = ASSP_INT_ENABLE /*| MPU401_INT_ENABLE*/;
+	if (chip->hv_quirk && (chip->hv_quirk->config & HV_CTRL_ENABLE))
+		val |= HV_INT_ENABLE;
+	outw(val, io + HOST_INT_CTRL);
 	outb(inb(io + ASSP_CONTROL_C) | ASSP_HOST_INT_ENABLE,
 	     io + ASSP_CONTROL_C);
 }
@@ -2589,7 +2588,7 @@ static int m3_suspend(snd_card_t *card, pm_message_t state)
 	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 
-	big_mdelay(10); /* give the assp a chance to idle.. */
+	msleep(10); /* give the assp a chance to idle.. */
 
 	snd_m3_assp_halt(chip);
 
@@ -2697,6 +2696,8 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 	}
 
 	spin_lock_init(&chip->reg_lock);
+	spin_lock_init(&chip->ac97_lock);
+
 	switch (pci->device) {
 	case PCI_DEVICE_ID_ESS_ALLEGRO:
 	case PCI_DEVICE_ID_ESS_ALLEGRO_1:
@@ -2765,6 +2766,8 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 	snd_m3_assp_init(chip);
 	snd_m3_amp_enable(chip, 1);
 
+	tasklet_init(&chip->hwvol_tq, snd_m3_update_hw_volume, (unsigned long)chip);
+
 	if (request_irq(pci->irq, snd_m3_interrupt, SA_INTERRUPT|SA_SHIRQ,
 			card->driver, (void *)chip)) {
 		snd_printk("unable to grab IRQ %d\n", pci->irq);
@@ -2785,9 +2788,6 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 		snd_m3_free(chip);
 		return err;
 	}
-
-	spin_lock_init(&chip->ac97_lock);
-	tasklet_init(&chip->hwvol_tq, snd_m3_update_hw_volume, (unsigned long)chip);
 
 	if ((err = snd_m3_mixer(chip)) < 0)
 		return err;

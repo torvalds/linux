@@ -18,6 +18,10 @@
 *! Jul 21 1999  Bjorn Wesen     eLinux port
 *!
 *! $Log: kgdb.c,v $
+*! Revision 1.6  2005/01/14 10:12:17  starvik
+*! KGDB on separate port.
+*! Console fixes from 2.4.
+*!
 *! Revision 1.5  2004/10/07 13:59:08  starvik
 *! Corrected call to set_int_vector
 *!
@@ -71,7 +75,7 @@
 *!
 *!---------------------------------------------------------------------------
 *!
-*! $Id: kgdb.c,v 1.5 2004/10/07 13:59:08 starvik Exp $
+*! $Id: kgdb.c,v 1.6 2005/01/14 10:12:17 starvik Exp $
 *!
 *! (C) Copyright 1999, Axis Communications AB, LUND, SWEDEN
 *!
@@ -225,6 +229,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/linkage.h>
+#include <linux/reboot.h>
 
 #include <asm/setup.h>
 #include <asm/ptrace.h>
@@ -1344,12 +1349,11 @@ handle_exception (int sigval)
 	}
 }
 
-/* The jump is to the address 0x00000002. Performs a complete re-start
-   from scratch. */
+/* Performs a complete re-start from scratch. */
 static void
 kill_restart ()
 {
-	__asm__ volatile ("jump 2");
+	machine_restart("");
 }
 
 /********************************** Breakpoint *******************************/
@@ -1504,6 +1508,11 @@ kgdb_handle_serial:
   jsr getDebugChar
   cmp.b 3, $r10
   bne goback
+  nop
+
+  move.d  [reg+0x5E], $r10		; Get DCCR
+  btstq	   8, $r10			; Test the U-flag.
+  bmi	   goback
   nop
 
 ;;

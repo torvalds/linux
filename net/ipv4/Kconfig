@@ -54,9 +54,9 @@ config IP_ADVANCED_ROUTER
 choice 
 	prompt "Choose IP: FIB lookup algorithm (choose FIB_HASH if unsure)"
 	depends on IP_ADVANCED_ROUTER
-	default IP_FIB_HASH
+	default ASK_IP_FIB_HASH
 
-config IP_FIB_HASH
+config ASK_IP_FIB_HASH
 	bool "FIB_HASH"
 	---help---
 	Current FIB is very proven and good enough for most users.
@@ -82,12 +82,8 @@ config IP_FIB_TRIE
        
 endchoice
 
-# If the user does not enable advanced routing, he gets the safe
-# default of the fib-hash algorithm.
 config IP_FIB_HASH
-	bool
-	depends on !IP_ADVANCED_ROUTER
-	default y
+	def_bool ASK_IP_FIB_HASH || !IP_ADVANCED_ROUTER
 
 config IP_MULTIPLE_TABLES
 	bool "IP: policy routing"
@@ -128,7 +124,7 @@ config IP_ROUTE_MULTIPATH
 
 config IP_ROUTE_MULTIPATH_CACHED
 	bool "IP: equal cost multipath with caching support (EXPERIMENTAL)"
-	depends on: IP_ROUTE_MULTIPATH
+	depends on IP_ROUTE_MULTIPATH
 	help
 	  Normally, equal cost multipath routing is not supported by the
 	  routing cache. If you say Y here, alternative routes are cached
@@ -239,7 +235,6 @@ config IP_PNP_RARP
 #   bool '    IP: ARP support' CONFIG_IP_PNP_ARP		
 config NET_IPIP
 	tristate "IP: tunneling"
-	select INET_TUNNEL
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -256,7 +251,6 @@ config NET_IPIP
 
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
-	select XFRM
 	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the

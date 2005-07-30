@@ -141,7 +141,7 @@ void udbg_init_scc(struct device_node *np)
 
 #endif /* CONFIG_PPC_PMAC */
 
-#if CONFIG_PPC_PMAC
+#ifdef CONFIG_PPC_PMAC
 static void udbg_real_putc(unsigned char c)
 {
 	while ((real_readb(sccc) & SCC_TXRDY) == 0)

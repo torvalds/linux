@@ -125,8 +125,8 @@ static inline void fsnotify_open(struct dentry *dentry)
 	if (S_ISDIR(inode->i_mode))
 		mask |= IN_ISDIR;
 
-	inotify_inode_queue_event(inode, mask, 0, NULL);
 	inotify_dentry_parent_queue_event(dentry, mask, 0, dentry->d_name.name);
+	inotify_inode_queue_event(inode, mask, 0, NULL);	
 }
 
 /*

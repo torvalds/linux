@@ -2,7 +2,7 @@
  * inode.h - Defines for inode structures NTFS Linux kernel driver. Part of
  *	     the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -44,6 +44,7 @@ typedef struct _ntfs_inode ntfs_inode;
  * fields already provided in the VFS inode.
  */
 struct _ntfs_inode {
+	rwlock_t size_lock;	/* Lock serializing access to inode sizes. */
 	s64 initialized_size;	/* Copy from the attribute record. */
 	s64 allocated_size;	/* Copy from the attribute record. */
 	unsigned long state;	/* NTFS specific flags describing this inode.
@@ -109,7 +110,7 @@ struct _ntfs_inode {
 			u8 block_size_bits; 	/* Log2 of the above. */
 			u8 vcn_size_bits;	/* Log2 of the above. */
 		} index;
-		struct { /* It is a compressed file or an attribute inode. */
+		struct { /* It is a compressed/sparse file/attribute inode. */
 			s64 size;		/* Copy of compressed_size from
 						   $DATA. */
 			u32 block_size;		/* Size of a compression block
@@ -165,6 +166,7 @@ typedef enum {
 	NI_Sparse,		/* 1: Unnamed data attr is sparse (f).
 				   1: Create sparse files by default (d).
 				   1: Attribute is sparse (a). */
+	NI_SparseDisabled,	/* 1: May not create sparse regions. */
 	NI_TruncateFailed,	/* 1: Last ntfs_truncate() call failed. */
 } ntfs_inode_state_bits;
 
@@ -217,6 +219,7 @@ NINO_FNS(IndexAllocPresent)
 NINO_FNS(Compressed)
 NINO_FNS(Encrypted)
 NINO_FNS(Sparse)
+NINO_FNS(SparseDisabled)
 NINO_FNS(TruncateFailed)
 
 /*

@@ -233,7 +233,7 @@ static ssize_t read_proc(struct file *file, char *buf, ssize_t count,
 		set_fs(USER_DS);
 
 	if(ppos) *ppos = file->f_pos;
-	return(n);
+	return n;
 }
 
 static ssize_t hppfs_read_file(int fd, char *buf, ssize_t count)
@@ -254,7 +254,7 @@ static ssize_t hppfs_read_file(int fd, char *buf, ssize_t count)
 		err = os_read_file(fd, new_buf, cur);
 		if(err < 0){
 			printk("hppfs_read : read failed, errno = %d\n",
-			       count);
+			       err);
 			n = err;
 			goto out_free;
 		}
@@ -271,7 +271,7 @@ static ssize_t hppfs_read_file(int fd, char *buf, ssize_t count)
  out_free:
 	kfree(new_buf);
  out:
-	return(n);
+	return n;
 }
 
 static ssize_t hppfs_read(struct file *file, char *buf, size_t count,

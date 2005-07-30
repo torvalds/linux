@@ -636,7 +636,7 @@ static void __maestro_write(es1968_t *chip, u16 reg, u16 data)
 	chip->maestro_map[reg] = data;
 }
 
-inline static void maestro_write(es1968_t *chip, u16 reg, u16 data)
+static inline void maestro_write(es1968_t *chip, u16 reg, u16 data)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -654,7 +654,7 @@ static u16 __maestro_read(es1968_t *chip, u16 reg)
 	return chip->maestro_map[reg];
 }
 
-inline static u16 maestro_read(es1968_t *chip, u16 reg)
+static inline u16 maestro_read(es1968_t *chip, u16 reg)
 {
 	unsigned long flags;
 	u16 result;
@@ -664,11 +664,6 @@ inline static u16 maestro_read(es1968_t *chip, u16 reg)
 	return result;
 }
 
-#define big_mdelay(msec) do {\
-	set_current_state(TASK_UNINTERRUPTIBLE);\
-	schedule_timeout(((msec) * HZ + 999) / 1000);\
-} while (0)
-	
 /* Wait for the codec bus to be free */
 static int snd_es1968_ac97_wait(es1968_t *chip)
 {
@@ -755,7 +750,7 @@ static void __apu_set_register(es1968_t *chip, u16 channel, u8 reg, u16 data)
 	apu_data_set(chip, data);
 }
 
-inline static void apu_set_register(es1968_t *chip, u16 channel, u8 reg, u16 data)
+static inline void apu_set_register(es1968_t *chip, u16 channel, u8 reg, u16 data)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -771,7 +766,7 @@ static u16 __apu_get_register(es1968_t *chip, u16 channel, u8 reg)
 	return __maestro_read(chip, IDR0_DATA_PORT);
 }
 
-inline static u16 apu_get_register(es1968_t *chip, u16 channel, u8 reg)
+static inline u16 apu_get_register(es1968_t *chip, u16 channel, u8 reg)
 {
 	unsigned long flags;
 	u16 v;
@@ -957,7 +952,7 @@ static u32 snd_es1968_compute_rate(es1968_t *chip, u32 freq)
 }
 
 /* get current pointer */
-inline static unsigned int
+static inline unsigned int
 snd_es1968_get_dma_ptr(es1968_t *chip, esschan_t *es)
 {
 	unsigned int offset;
@@ -978,7 +973,7 @@ static void snd_es1968_apu_set_freq(es1968_t *chip, int apu, int freq)
 }
 
 /* spin lock held */
-inline static void snd_es1968_trigger_apu(es1968_t *esm, int apu, int mode)
+static inline void snd_es1968_trigger_apu(es1968_t *esm, int apu, int mode)
 {
 	/* set the APU mode */
 	__apu_set_register(esm, apu, 0,
@@ -1809,8 +1804,7 @@ static void __devinit es1968_measure_clock(es1968_t *chip)
 	snd_es1968_trigger_apu(chip, apu, ESM_APU_16BITLINEAR);
 	do_gettimeofday(&start_time);
 	spin_unlock_irq(&chip->reg_lock);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ / 20); /* 50 msec */
+	msleep(50);
 	spin_lock_irq(&chip->reg_lock);
 	offset = __apu_get_register(chip, apu, 5);
 	do_gettimeofday(&stop_time);
@@ -2093,7 +2087,7 @@ static void snd_es1968_ac97_reset(es1968_t *chip)
 	outw(0x0000, ioaddr + 0x60);	/* write 0 to gpio 0 */
 	udelay(20);
 	outw(0x0001, ioaddr + 0x60);	/* write 1 to gpio 1 */
-	big_mdelay(20);
+	msleep(20);
 
 	outw(save_68 | 0x1, ioaddr + 0x68);	/* now restore .. */
 	outw((inw(ioaddr + 0x38) & 0xfffc) | 0x1, ioaddr + 0x38);
@@ -2109,7 +2103,7 @@ static void snd_es1968_ac97_reset(es1968_t *chip)
 	outw(0x0001, ioaddr + 0x60);	/* write 1 to gpio */
 	udelay(20);
 	outw(0x0009, ioaddr + 0x60);	/* write 9 to gpio */
-	big_mdelay(500);
+	msleep(500);
 	//outw(inw(ioaddr + 0x38) & 0xfffc, ioaddr + 0x38);
 	outw(inw(ioaddr + 0x3a) & 0xfffc, ioaddr + 0x3a);
 	outw(inw(ioaddr + 0x3c) & 0xfffc, ioaddr + 0x3c);
@@ -2135,7 +2129,7 @@ static void snd_es1968_ac97_reset(es1968_t *chip)
 
 		if (w > 10000) {
 			outb(inb(ioaddr + 0x37) | 0x08, ioaddr + 0x37);	/* do a software reset */
-			big_mdelay(500);	/* oh my.. */
+			msleep(500);	/* oh my.. */
 			outb(inb(ioaddr + 0x37) & ~0x08,
 				ioaddr + 0x37);
 			udelay(1);

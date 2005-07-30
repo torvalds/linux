@@ -67,12 +67,6 @@ extern int printk_ratelimit_jiffies;
 extern int printk_ratelimit_burst;
 extern int pid_max_min, pid_max_max;
 
-#ifdef CONFIG_INOTIFY
-extern int inotify_max_user_devices;
-extern int inotify_max_user_watches;
-extern int inotify_max_queued_events;
-#endif
-
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86)
 int unknown_nmi_panic;
 extern int proc_unknown_nmi_panic(ctl_table *, int, struct file *,
@@ -120,6 +114,7 @@ extern int unaligned_enabled;
 extern int sysctl_ieee_emulation_warnings;
 #endif
 extern int sysctl_userprocess_debug;
+extern int spin_retry;
 #endif
 
 extern int sysctl_hz_timer;
@@ -151,6 +146,9 @@ static ctl_table dev_table[];
 extern ctl_table random_table[];
 #ifdef CONFIG_UNIX98_PTYS
 extern ctl_table pty_table[];
+#endif
+#ifdef CONFIG_INOTIFY
+extern ctl_table inotify_table[];
 #endif
 
 #ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
@@ -650,7 +648,16 @@ static ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
-
+#if defined(CONFIG_ARCH_S390)
+	{
+		.ctl_name	= KERN_SPIN_RETRY,
+		.procname	= "spin_retry",
+		.data		= &spin_retry,
+		.maxlen		= sizeof (int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
 	{ .ctl_name = 0 }
 };
 
@@ -957,6 +964,14 @@ static ctl_table fs_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+#ifdef CONFIG_INOTIFY
+	{
+		.ctl_name	= FS_INOTIFY,
+		.procname	= "inotify",
+		.mode		= 0555,
+		.child		= inotify_table,
+	},
+#endif	
 #endif
 	{
 		.ctl_name	= KERN_SETUID_DUMPABLE,
@@ -966,40 +981,6 @@ static ctl_table fs_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
-#ifdef CONFIG_INOTIFY
-	{
-		.ctl_name	= INOTIFY_MAX_USER_DEVICES,
-		.procname	= "max_user_devices",
-		.data		= &inotify_max_user_devices,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
-		.extra1		= &zero,
-	},
-
-	{
-		.ctl_name	= INOTIFY_MAX_USER_WATCHES,
-		.procname	= "max_user_watches",
-		.data		= &inotify_max_user_watches,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
-		.extra1		= &zero, 
-	},
-
-	{
-		.ctl_name	= INOTIFY_MAX_QUEUED_EVENTS,
-		.procname	= "max_queued_events",
-		.data		= &inotify_max_queued_events,
-		.maxlen		= sizeof(int),
-		.mode		= 0644, 
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec, 
-		.extra1		= &zero
-	},
-#endif
 	{ .ctl_name = 0 }
 };
 

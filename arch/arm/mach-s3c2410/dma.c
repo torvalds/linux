@@ -436,7 +436,7 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 
 	buf = kmem_cache_alloc(dma_kmem, GFP_ATOMIC);
 	if (buf == NULL) {
-		pr_debug("%s: out of memory (%d alloc)\n",
+		pr_debug("%s: out of memory (%ld alloc)\n",
 			 __FUNCTION__, sizeof(*buf));
 		return -ENOMEM;
 	}

@@ -61,8 +61,7 @@ enum
 	CTL_DEV=7,		/* Devices */
 	CTL_BUS=8,		/* Busses */
 	CTL_ABI=9,		/* Binary emulation */
-	CTL_CPU=10,		/* CPU stuff (speed scaling, etc) */
-	CTL_INOTIFY=11		/* Inotify */
+	CTL_CPU=10		/* CPU stuff (speed scaling, etc) */
 };
 
 /* CTL_BUS names: */
@@ -71,12 +70,12 @@ enum
 	CTL_BUS_ISA=1		/* ISA */
 };
 
-/* CTL_INOTIFY names: */
+/* /proc/sys/fs/inotify/ */
 enum
 {
-	INOTIFY_MAX_USER_DEVICES=1,	/* max number of inotify device instances per user */
-	INOTIFY_MAX_USER_WATCHES=2,	/* max number of inotify watches per user */
-	INOTIFY_MAX_QUEUED_EVENTS=3	/* Max number of queued events per inotify device instance */
+	INOTIFY_MAX_USER_INSTANCES=1,	/* max instances per user */
+	INOTIFY_MAX_USER_WATCHES=2,	/* max watches per user */
+	INOTIFY_MAX_QUEUED_EVENTS=3	/* max queued events per instance */
 };
 
 /* CTL_KERN names: */
@@ -146,6 +145,7 @@ enum
 	KERN_BOOTLOADER_TYPE=67, /* int: boot loader type */
 	KERN_RANDOMIZE=68, /* int: randomize virtual address space */
 	KERN_SETUID_DUMPABLE=69, /* int: behaviour of dumps for setuid core */
+	KERN_SPIN_RETRY=70,	/* int: number of spinlock retries */
 };
 
 
@@ -685,6 +685,7 @@ enum
 	FS_XFS=17,	/* struct: control xfs parameters */
 	FS_AIO_NR=18,	/* current system-wide number of aio requests */
 	FS_AIO_MAX_NR=19,	/* system-wide maximum number of aio requests */
+	FS_INOTIFY=20,	/* inotify submenu */
 };
 
 /* /proc/sys/fs/quota/ */

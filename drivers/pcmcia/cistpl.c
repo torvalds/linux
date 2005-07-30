@@ -88,31 +88,38 @@ EXPORT_SYMBOL(release_cis_mem);
 static void __iomem *
 set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flags)
 {
-    pccard_mem_map *mem = &s->cis_mem;
-    int ret;
+	pccard_mem_map *mem = &s->cis_mem;
+	int ret;
 
-    if (!(s->features & SS_CAP_STATIC_MAP) && mem->res == NULL) {
-	mem->res = pcmcia_find_mem_region(0, s->map_size, s->map_size, 0, s);
-	if (mem->res == NULL) {
-	    printk(KERN_NOTICE "cs: unable to map card memory!\n");
-	    return NULL;
+	if (!(s->features & SS_CAP_STATIC_MAP) && (mem->res == NULL)) {
+		mem->res = pcmcia_find_mem_region(0, s->map_size, s->map_size, 0, s);
+		if (mem->res == NULL) {
+			printk(KERN_NOTICE "cs: unable to map card memory!\n");
+			return NULL;
+		}
+		s->cis_virt = NULL;
 	}
-	s->cis_virt = ioremap(mem->res->start, s->map_size);
-    }
-    mem->card_start = card_offset;
-    mem->flags = flags;
-    ret = s->ops->set_mem_map(s, mem);
-    if (ret) {
-	iounmap(s->cis_virt);
-	return NULL;
-    }
 
-    if (s->features & SS_CAP_STATIC_MAP) {
-	if (s->cis_virt)
-	    iounmap(s->cis_virt);
-	s->cis_virt = ioremap(mem->static_start, s->map_size);
-    }
-    return s->cis_virt;
+	if (!(s->features & SS_CAP_STATIC_MAP) && (!s->cis_virt))
+		s->cis_virt = ioremap(mem->res->start, s->map_size);
+
+	mem->card_start = card_offset;
+	mem->flags = flags;
+
+	ret = s->ops->set_mem_map(s, mem);
+	if (ret) {
+		iounmap(s->cis_virt);
+		s->cis_virt = NULL;
+		return NULL;
+	}
+
+	if (s->features & SS_CAP_STATIC_MAP) {
+		if (s->cis_virt)
+			iounmap(s->cis_virt);
+		s->cis_virt = ioremap(mem->static_start, s->map_size);
+	}
+
+	return s->cis_virt;
 }
 
 /*======================================================================

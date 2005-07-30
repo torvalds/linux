@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/input.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 #undef DEBUG
 
@@ -397,11 +398,12 @@ ignore:
 
 void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value, struct pt_regs *regs)
 {
-	struct input_dev *input = &field->hidinput->input;
+	struct input_dev *input;
 	int *quirks = &hid->quirks;
 
-	if (!input)
+	if (!field->hidinput)
 		return;
+	input = &field->hidinput->input;
 
 	input_regs(input, regs);
 
@@ -581,10 +583,7 @@ int hidinput_connect(struct hid_device *hid)
 				hidinput->input.name = hid->name;
 				hidinput->input.phys = hid->phys;
 				hidinput->input.uniq = hid->uniq;
-				hidinput->input.id.bustype = BUS_USB;
-				hidinput->input.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
-				hidinput->input.id.product = le16_to_cpu(dev->descriptor.idProduct);
-				hidinput->input.id.version = le16_to_cpu(dev->descriptor.bcdDevice);
+				usb_to_input_id(dev, &hidinput->input.id);
 				hidinput->input.dev = &hid->intf->dev;
 			}
 

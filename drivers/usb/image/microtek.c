@@ -361,8 +361,7 @@ int mts_scsi_queuecommand (Scsi_Cmnd *srb, mts_scsi_cmnd_callback callback );
 static void mts_transfer_cleanup( struct urb *transfer );
 static void mts_do_sg(struct urb * transfer, struct pt_regs *regs);
 
-
-inline static
+static inline
 void mts_int_submit_urb (struct urb* transfer,
 			int pipe,
 			void* data,

@@ -7,6 +7,15 @@
 *! Functions exported: ds1302_readreg, ds1302_writereg, ds1302_init
 *!
 *! $Log: ds1302.c,v $
+*! Revision 1.18  2005/01/24 09:11:26  mikaelam
+*! Minor changes to get DS1302 RTC chip driver to work
+*!
+*! Revision 1.17  2005/01/05 06:11:22  starvik
+*! No need to do local_irq_disable after local_irq_save.
+*!
+*! Revision 1.16  2004/12/13 12:21:52  starvik
+*! Added I/O and DMA allocators from Linux 2.4
+*!
 *! Revision 1.14  2004/08/24 06:48:43  starvik
 *! Whitespace cleanup
 *!
@@ -124,9 +133,9 @@
 *!
 *! ---------------------------------------------------------------------------
 *!
-*! (C) Copyright 1999, 2000, 2001  Axis Communications AB, LUND, SWEDEN
+*! (C) Copyright 1999, 2000, 2001, 2002, 2003, 2004  Axis Communications AB, LUND, SWEDEN
 *!
-*! $Id: ds1302.c,v 1.14 2004/08/24 06:48:43 starvik Exp $
+*! $Id: ds1302.c,v 1.18 2005/01/24 09:11:26 mikaelam Exp $
 *!
 *!***************************************************************************/
 
@@ -145,6 +154,7 @@
 #include <asm/arch/svinto.h>
 #include <asm/io.h>
 #include <asm/rtc.h>
+#include <asm/arch/io_interface_mux.h>
 
 #define RTC_MAJOR_NR 121 /* local major, change later */
 
@@ -320,7 +330,6 @@ get_rtc_time(struct rtc_time *rtc_tm)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	local_irq_disable();
 
 	rtc_tm->tm_sec = CMOS_READ(RTC_SECONDS);
 	rtc_tm->tm_min = CMOS_READ(RTC_MINUTES);
@@ -358,7 +367,7 @@ static int
 rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	  unsigned long arg) 
 {
-        unsigned long flags;
+	unsigned long flags;
 
 	switch(cmd) {
 		case RTC_RD_TIME:	/* read the time/date from RTC	*/
@@ -382,7 +391,7 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 				return -EPERM;
 
 			if (copy_from_user(&rtc_tm, (struct rtc_time*)arg, sizeof(struct rtc_time)))
-				return -EFAULT;    	
+				return -EFAULT;
 
 			yrs = rtc_tm.tm_year + 1900;
 			mon = rtc_tm.tm_mon + 1;   /* tm_mon starts at zero */
@@ -419,7 +428,6 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			BIN_TO_BCD(yrs);
 
 			local_irq_save(flags);
-			local_irq_disable();
 			CMOS_WRITE(yrs, RTC_YEAR);
 			CMOS_WRITE(mon, RTC_MONTH);
 			CMOS_WRITE(day, RTC_DAY_OF_MONTH);
@@ -438,7 +446,7 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 		case RTC_SET_CHARGE: /* set the RTC TRICKLE CHARGE register */
 		{
-			int tcs_val;                        
+			int tcs_val;
 
 			if (!capable(CAP_SYS_TIME))
 				return -EPERM;
@@ -492,8 +500,8 @@ print_rtc_status(void)
 /* The various file operations we support. */
 
 static struct file_operations rtc_fops = {
-        .owner          = THIS_MODULE,
-        .ioctl          = rtc_ioctl,	
+	.owner =	THIS_MODULE,
+	.ioctl =	rtc_ioctl,
 }; 
 
 /* Probe for the chip by writing something to its RAM and try reading it back. */
@@ -532,7 +540,7 @@ ds1302_probe(void)
 		       "PB",
 #endif
 		       CONFIG_ETRAX_DS1302_RSTBIT);
-                print_rtc_status();
+		       print_rtc_status();
 		retval = 1;
 	} else {
 		stop();
@@ -548,7 +556,9 @@ ds1302_probe(void)
 int __init
 ds1302_init(void) 
 {
+#ifdef CONFIG_ETRAX_I2C
 	i2c_init();
+#endif
 
 	if (!ds1302_probe()) {
 #ifdef CONFIG_ETRAX_DS1302_RST_ON_GENERIC_PORT
@@ -558,25 +568,42 @@ ds1302_init(void)
 		 *
 		 * Make sure that R_GEN_CONFIG is setup correct.
 		 */
-    		genconfig_shadow = ((genconfig_shadow &
-				     ~IO_MASK(R_GEN_CONFIG, ata)) | 
-				   (IO_STATE(R_GEN_CONFIG, ata, select)));    
-    		*R_GEN_CONFIG = genconfig_shadow;
+		/* Allocating the ATA interface will grab almost all
+		 * pins in I/O groups a, b, c and d.  A consequence of
+		 * allocating the ATA interface is that the fixed
+		 * interfaces shared RAM, parallel port 0, parallel
+		 * port 1, parallel port W, SCSI-8 port 0, SCSI-8 port
+		 * 1, SCSI-W, serial port 2, serial port 3,
+		 * synchronous serial port 3 and USB port 2 and almost
+		 * all GPIO pins on port g cannot be used.
+		 */
+		if (cris_request_io_interface(if_ata, "ds1302/ATA")) {
+			printk(KERN_WARNING "ds1302: Failed to get IO interface\n");
+			return -1;
+		}
+
 #elif CONFIG_ETRAX_DS1302_RSTBIT == 0
-		
-		/* Set the direction of this bit to out. */		
-    		genconfig_shadow = ((genconfig_shadow &
-				     ~IO_MASK(R_GEN_CONFIG, g0dir)) | 
-				   (IO_STATE(R_GEN_CONFIG, g0dir, out)));    
-    		*R_GEN_CONFIG = genconfig_shadow;
+		if (cris_io_interface_allocate_pins(if_gpio_grp_a,
+						    'g',
+						    CONFIG_ETRAX_DS1302_RSTBIT,
+						    CONFIG_ETRAX_DS1302_RSTBIT)) {
+			printk(KERN_WARNING "ds1302: Failed to get IO interface\n");
+			return -1;
+		}
+
+		/* Set the direction of this bit to out. */
+		genconfig_shadow = ((genconfig_shadow &
+ 				     ~IO_MASK(R_GEN_CONFIG, g0dir)) |
+ 				   (IO_STATE(R_GEN_CONFIG, g0dir, out)));
+		*R_GEN_CONFIG = genconfig_shadow;
 #endif
 		if (!ds1302_probe()) {
 			printk(KERN_WARNING "%s: RTC not found.\n", ds1302_name);
-      			return -1;
+			return -1;
 		}
 #else
 		printk(KERN_WARNING "%s: RTC not found.\n", ds1302_name);
-    		return -1;
+		return -1;
 #endif
   	}
 	/* Initialise trickle charger */

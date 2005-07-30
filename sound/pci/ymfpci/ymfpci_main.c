@@ -84,16 +84,16 @@ static inline void snd_ymfpci_writel(ymfpci_t *chip, u32 offset, u32 val)
 
 static int snd_ymfpci_codec_ready(ymfpci_t *chip, int secondary)
 {
-	signed long end_time;
+	unsigned long end_time;
 	u32 reg = secondary ? YDSXGR_SECSTATUSADR : YDSXGR_PRISTATUSADR;
 	
-	end_time = (jiffies + ((3 * HZ) / 4)) + 1;
+	end_time = jiffies + msecs_to_jiffies(750);
 	do {
 		if ((snd_ymfpci_readw(chip, reg) & 0x8000) == 0)
 			return 0;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
-	} while (end_time - (signed long)jiffies >= 0);
+	} while (time_before(jiffies, end_time));
 	snd_printk("codec_ready: codec %i is not ready [0x%x]\n", secondary, snd_ymfpci_readw(chip, reg));
 	return -EBUSY;
 }

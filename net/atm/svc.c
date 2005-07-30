@@ -118,10 +118,6 @@ static int svc_bind(struct socket *sock,struct sockaddr *sockaddr,
 		goto out;
 	}
 	vcc = ATM_SD(sock);
-	if (test_bit(ATM_VF_SESSION, &vcc->flags)) {
-		error = -EINVAL;
-		goto out;
-	}
 	addr = (struct sockaddr_atmsvc *) sockaddr;
 	if (addr->sas_family != AF_ATMSVC) {
 		error = -EAFNOSUPPORT;

@@ -29,6 +29,7 @@ typedef struct _drive_info_struct
 {
  	__u32   LunID;	
 	int 	usage_count;
+	struct request_queue *queue;
 	sector_t nr_blocks;
 	int	block_size;
 	int 	heads;
@@ -72,7 +73,6 @@ struct ctlr_info
 	unsigned int maxQsinceinit;
 	unsigned int maxSG;
 	spinlock_t lock;
-	struct request_queue *queue;
 
 	//* pointers to command and error info pool */ 
 	CommandList_struct 	*cmd_pool;
@@ -260,7 +260,7 @@ struct board_type {
 	struct access_method *access;
 };
 
-#define CCISS_LOCK(i)	(hba[i]->queue->queue_lock)
+#define CCISS_LOCK(i)	(&hba[i]->lock)
 
 #endif /* CCISS_H */
 

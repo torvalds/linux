@@ -550,6 +550,13 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 static __init int via_router_probe(struct irq_router *r, struct pci_dev *router, u16 device)
 {
 	/* FIXME: We should move some of the quirk fixup stuff here */
+
+	if (router->device == PCI_DEVICE_ID_VIA_82C686 &&
+			device == PCI_DEVICE_ID_VIA_82C586_0) {
+		/* Asus k7m bios wrongly reports 82C686A as 586-compatible */
+		device = PCI_DEVICE_ID_VIA_82C686;
+	}
+
 	switch(device)
 	{
 		case PCI_DEVICE_ID_VIA_82C586_0:

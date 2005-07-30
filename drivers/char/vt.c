@@ -2796,7 +2796,7 @@ void do_blank_screen(int entering_gfx)
 		return;
 
 	if (vesa_off_interval) {
-		blank_state = blank_vesa_wait,
+		blank_state = blank_vesa_wait;
 		mod_timer(&console_timer, jiffies + vesa_off_interval);
 	}
 

@@ -273,7 +273,7 @@ static void ipip_tunnel_uninit(struct net_device *dev)
 	dev_put(dev);
 }
 
-static void ipip_err(struct sk_buff *skb, void *__unused)
+static void ipip_err(struct sk_buff *skb, u32 info)
 {
 #ifndef I_WISH_WORLD_WERE_PERFECT
 
@@ -852,10 +852,38 @@ static int __init ipip_fb_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_INET_TUNNEL
 static struct xfrm_tunnel ipip_handler = {
 	.handler	=	ipip_rcv,
 	.err_handler	=	ipip_err,
 };
+
+static inline int ipip_register(void)
+{
+	return xfrm4_tunnel_register(&ipip_handler);
+}
+
+static inline int ipip_unregister(void)
+{
+	return xfrm4_tunnel_deregister(&ipip_handler);
+}
+#else
+static struct net_protocol ipip_protocol = {
+	.handler	=	ipip_rcv,
+	.err_handler	=	ipip_err,
+	.no_policy	=	1,
+};
+
+static inline int ipip_register(void)
+{
+	return inet_add_protocol(&ipip_protocol, IPPROTO_IPIP);
+}
+
+static inline int ipip_unregister(void)
+{
+	return inet_del_protocol(&ipip_protocol, IPPROTO_IPIP);
+}
+#endif
 
 static char banner[] __initdata =
 	KERN_INFO "IPv4 over IPv4 tunneling driver\n";
@@ -866,7 +894,7 @@ static int __init ipip_init(void)
 
 	printk(banner);
 
-	if (xfrm4_tunnel_register(&ipip_handler) < 0) {
+	if (ipip_register() < 0) {
 		printk(KERN_INFO "ipip init: can't register tunnel\n");
 		return -EAGAIN;
 	}
@@ -888,13 +916,13 @@ static int __init ipip_init(void)
  err2:
 	free_netdev(ipip_fb_tunnel_dev);
  err1:
-	xfrm4_tunnel_deregister(&ipip_handler);
+	ipip_unregister();
 	goto out;
 }
 
 static void __exit ipip_fini(void)
 {
-	if (xfrm4_tunnel_deregister(&ipip_handler) < 0)
+	if (ipip_unregister() < 0)
 		printk(KERN_INFO "ipip close: can't deregister tunnel\n");
 
 	unregister_netdev(ipip_fb_tunnel_dev);

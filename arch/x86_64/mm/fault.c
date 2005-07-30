@@ -23,7 +23,6 @@
 #include <linux/vt_kern.h>		/* For unblank_screen() */
 #include <linux/compiler.h>
 #include <linux/module.h>
-#include <linux/kprobes.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>

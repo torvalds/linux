@@ -1,26 +1,23 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
+ * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id: lpfc_els.c 1.186 2005/04/13 14:26:55EDT sf_support Exp  $
- */
 
 #include <linux/blkdev.h>
 #include <linux/pci.h>
@@ -3139,7 +3136,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PLOGI:
 		phba->fc_stat.elsRcvPLOGI++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PLOGI);
@@ -3154,7 +3151,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_LOGO:
 		phba->fc_stat.elsRcvLOGO++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_LOGO);
@@ -3162,7 +3159,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PRLO:
 		phba->fc_stat.elsRcvPRLO++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PRLO);
@@ -3177,7 +3174,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_ADISC:
 		phba->fc_stat.elsRcvADISC++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_ADISC);
@@ -3185,7 +3182,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PDISC:
 		phba->fc_stat.elsRcvPDISC++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PDISC);
@@ -3209,7 +3206,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PRLI:
 		phba->fc_stat.elsRcvPRLI++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PRLI);
@@ -3220,7 +3217,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 		break;
 	default:
 		/* Unsupported ELS command, reject */
-		rjt_err = LSEXP_NOTHING_MORE;
+		rjt_err = 1;
 
 		/* Unknown ELS command <elsCmd> received from NPORT <did> */
 		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
@@ -3236,7 +3233,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	if (rjt_err) {
 		stat.un.b.lsRjtRsvd0 = 0;
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
-		stat.un.b.lsRjtRsnCodeExp = rjt_err;
+		stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
 		stat.un.b.vendorUnique = 0;
 		lpfc_els_rsp_reject(phba, stat.un.lsRjtError, elsiocb, ndlp);
 	}

@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.146 2005/06/17 15:02:06 gleixner Exp $
+ * $Id: nand_base.c,v 1.147 2005/07/15 07:18:06 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1409,16 +1409,6 @@ static int nand_read_oob (struct mtd_info *mtd, loff_t from, size_t len, size_t 
 		thislen = min_t(int, thislen, len);
 		this->read_buf(mtd, &buf[i], thislen);
 		i += thislen;
-		
-		/* Apply delay or wait for ready/busy pin 
-		 * Do this before the AUTOINCR check, so no problems
-		 * arise if a chip which does auto increment
-		 * is marked as NOAUTOINCR by the board driver.
-		*/
-		if (!this->dev_ready) 
-			udelay (this->chip_delay);
-		else
-			nand_wait_ready(mtd);
 
 		/* Read more ? */
 		if (i < len) {
@@ -1432,6 +1422,16 @@ static int nand_read_oob (struct mtd_info *mtd, loff_t from, size_t len, size_t 
 				this->select_chip(mtd, chipnr);
 			}
 				
+			/* Apply delay or wait for ready/busy pin 
+			 * Do this before the AUTOINCR check, so no problems
+			 * arise if a chip which does auto increment
+			 * is marked as NOAUTOINCR by the board driver.
+			 */
+			if (!this->dev_ready) 
+				udelay (this->chip_delay);
+			else
+				nand_wait_ready(mtd);
+
 			/* Check, if the chip supports auto page increment 
 			 * or if we have hit a block boundary. 
 			*/ 

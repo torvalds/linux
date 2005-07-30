@@ -173,7 +173,7 @@ static void hangcheck_fire(unsigned long data)
 		}
 		if (hangcheck_reboot) {
 			printk(KERN_CRIT "Hangcheck: hangcheck is restarting the machine.\n");
-			machine_restart(NULL);
+			emergency_restart();
 		} else {
 			printk(KERN_CRIT "Hangcheck: hangcheck value past margin!\n");
 		}

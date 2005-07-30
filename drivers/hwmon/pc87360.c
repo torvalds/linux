@@ -1043,7 +1043,7 @@ static void pc87360_init_client(struct i2c_client *client, int use_thermistors)
 	if (init >= 2 && data->innr) {
 		reg = pc87360_read_value(data, LD_IN, NO_BANK,
 					 PC87365_REG_IN_CONVRATE);
-		dev_info(&client->dev, "VLM conversion set to"
+		dev_info(&client->dev, "VLM conversion set to "
 			 "1s period, 160us delay\n");
 		pc87360_write_value(data, LD_IN, NO_BANK,
 				    PC87365_REG_IN_CONVRATE,

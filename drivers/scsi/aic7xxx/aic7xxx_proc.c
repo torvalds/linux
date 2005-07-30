@@ -155,9 +155,9 @@ ahc_dump_target_state(struct ahc_softc *ahc, struct info_str *info,
 	copy_info(info, "\tUser: ");
 	ahc_format_transinfo(info, &tinfo->user);
 	starget = ahc->platform_data->starget[target_offset];
-	targ = scsi_transport_target_data(starget);
-	if (targ == NULL)
+	if (!starget)
 		return;
+	targ = scsi_transport_target_data(starget);
 
 	copy_info(info, "\tGoal: ");
 	ahc_format_transinfo(info, &tinfo->goal);

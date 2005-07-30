@@ -236,7 +236,7 @@ config VIDEO_MEYE
 
 config VIDEO_SAA7134
 	tristate "Philips SAA7134 support"
-	depends on VIDEO_DEV && PCI && I2C
+	depends on VIDEO_DEV && PCI && I2C && SOUND
 	select VIDEO_BUF
 	select VIDEO_IR
 	select VIDEO_TUNER
@@ -331,7 +331,7 @@ config VIDEO_CX88_DVB
 	select DVB_MT352
 	select DVB_OR51132
 	select DVB_CX22702
-	select DVB_LGDT3302
+	select DVB_LGDT330X
 	---help---
 	  This adds support for DVB/ATSC cards based on the
 	  Connexant 2388x chip.

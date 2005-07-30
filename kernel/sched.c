@@ -3486,7 +3486,7 @@ static void __setscheduler(struct task_struct *p, int policy, int prio)
 	p->policy = policy;
 	p->rt_priority = prio;
 	if (policy != SCHED_NORMAL)
-		p->prio = MAX_USER_RT_PRIO-1 - p->rt_priority;
+		p->prio = MAX_RT_PRIO-1 - p->rt_priority;
 	else
 		p->prio = p->static_prio;
 }
@@ -3518,7 +3518,8 @@ recheck:
 	 * 1..MAX_USER_RT_PRIO-1, valid priority for SCHED_NORMAL is 0.
 	 */
 	if (param->sched_priority < 0 ||
-	    param->sched_priority > MAX_USER_RT_PRIO-1)
+	    (p->mm &&  param->sched_priority > MAX_USER_RT_PRIO-1) ||
+	    (!p->mm && param->sched_priority > MAX_RT_PRIO-1))
 		return -EINVAL;
 	if ((policy == SCHED_NORMAL) != (param->sched_priority == 0))
 		return -EINVAL;
@@ -3528,7 +3529,8 @@ recheck:
 	 */
 	if (!capable(CAP_SYS_NICE)) {
 		/* can't change policy */
-		if (policy != p->policy)
+		if (policy != p->policy &&
+			!p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
 			return -EPERM;
 		/* can't increase priority */
 		if (policy != SCHED_NORMAL &&

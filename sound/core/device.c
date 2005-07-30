@@ -28,7 +28,7 @@
 /**
  * snd_device_new - create an ALSA device component
  * @card: the card instance
- * @type: the device type, SNDRV_DEV_TYPE_XXX
+ * @type: the device type, SNDRV_DEV_XXX
  * @device_data: the data pointer of this device
  * @ops: the operator table
  *
@@ -46,7 +46,9 @@ int snd_device_new(snd_card_t *card, snd_device_type_t type,
 {
 	snd_device_t *dev;
 
-	snd_assert(card != NULL && device_data != NULL && ops != NULL, return -ENXIO);
+	snd_assert(card != NULL, return -ENXIO);
+	snd_assert(device_data != NULL, return -ENXIO);
+	snd_assert(ops != NULL, return -ENXIO);
 	dev = kcalloc(1, sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL)
 		return -ENOMEM;
@@ -102,7 +104,7 @@ int snd_device_free(snd_card_t *card, void *device_data)
 }
 
 /**
- * snd_device_free - disconnect the device
+ * snd_device_disconnect - disconnect the device
  * @card: the card instance
  * @device_data: the data pointer to disconnect
  *
@@ -118,7 +120,7 @@ int snd_device_disconnect(snd_card_t *card, void *device_data)
 {
 	struct list_head *list;
 	snd_device_t *dev;
-	
+
 	snd_assert(card != NULL, return -ENXIO);
 	snd_assert(device_data != NULL, return -ENXIO);
 	list_for_each(list, &card->devices) {
@@ -154,8 +156,9 @@ int snd_device_register(snd_card_t *card, void *device_data)
 	struct list_head *list;
 	snd_device_t *dev;
 	int err;
-	
-	snd_assert(card != NULL && device_data != NULL, return -ENXIO);
+
+	snd_assert(card != NULL, return -ENXIO);
+	snd_assert(device_data != NULL, return -ENXIO);
 	list_for_each(list, &card->devices) {
 		dev = snd_device(list);
 		if (dev->device_data != device_data)

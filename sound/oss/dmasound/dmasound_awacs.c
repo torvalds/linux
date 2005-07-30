@@ -1557,7 +1557,7 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when)
 /* All the burgundy functions: */
 
 /* Waits for busy flag to clear */
-inline static void
+static inline void
 awacs_burgundy_busy_wait(void)
 {
 	int count = 50; /* > 2 samples at 44k1 */
@@ -1565,7 +1565,7 @@ awacs_burgundy_busy_wait(void)
 		udelay(1) ;
 }
 
-inline static void
+static inline void
 awacs_burgundy_extend_wait(void)
 {
 	int count = 50 ; /* > 2 samples at 44k1 */

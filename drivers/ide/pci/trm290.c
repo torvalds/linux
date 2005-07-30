@@ -5,7 +5,7 @@
  *  May be copied or modified under the terms of the GNU General Public License
  *
  *  June 22, 2004 - get rid of check_region
- *                  Jesper Juhl <juhl-lkml@dif.dk>
+ *                   - Jesper Juhl
  *
  */
 

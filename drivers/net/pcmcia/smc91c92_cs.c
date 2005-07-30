@@ -41,6 +41,7 @@
 #include <linux/ioport.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
+#include <linux/jiffies.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -2092,7 +2093,7 @@ static void media_check(u_long arg)
     }
 
     /* Ignore collisions unless we've had no rx's recently */
-    if (jiffies - dev->last_rx > HZ) {
+    if (time_after(jiffies, dev->last_rx + HZ)) {
 	if (smc->tx_err || (smc->media_status & EPH_16COL))
 	    media |= EPH_16COL;
     }
@@ -2331,8 +2332,8 @@ static struct pcmcia_device_id smc91c92_ids[] = {
 	PCMCIA_PFC_DEVICE_PROD_ID123(0, "MEGAHERTZ", "XJEM1144/CCEM1144", "PCMCIA MODEM", 0xf510db04, 0x52d21e1e, 0xbd6c43ef),
 	PCMCIA_PFC_DEVICE_PROD_ID12(0, "Gateway 2000", "XJEM3336", 0xdd9989be, 0x662c394c),
 	PCMCIA_PFC_DEVICE_PROD_ID12(0, "MEGAHERTZ", "XJEM1144/CCEM1144", 0xf510db04, 0x52d21e1e),
-	PCMCIA_PFC_DEVICE_PROD_ID12(0, "Ositech", "Trumpcard", 0x0c2f80cd, 0x0573c29f),
-	PCMCIA_PFC_DEVICE_PROD_ID12(0, "Ositech", "Trumpcard", 0x0c2f80cd, 0x0573c29f),
+	PCMCIA_PFC_DEVICE_PROD_ID12(0, "Ositech", "Trumpcard:Jack of Diamonds Modem+Ethernet", 0xc2f80cd, 0x656947b9),
+	PCMCIA_PFC_DEVICE_PROD_ID12(0, "Ositech", "Trumpcard:Jack of Hearts Modem+Ethernet", 0xc2f80cd, 0xdc9ba5ed),
 	PCMCIA_MFC_DEVICE_MANF_CARD(0, 0x016c, 0x0020),
 	PCMCIA_DEVICE_MANF_CARD(0x016c, 0x0023),
 	PCMCIA_DEVICE_PROD_ID123("BASICS by New Media Corporation", "Ethernet", "SMC91C94", 0x23c78a9d, 0x00b2e941, 0xcef397fb),
@@ -2342,8 +2343,8 @@ static struct pcmcia_device_id smc91c92_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Farallon", "Farallon Enet", 0x58d93fc4, 0x244734e9),
 	PCMCIA_DEVICE_PROD_ID12("Megahertz", "CC10BT/2", 0x33234748, 0x3c95b953),
 	PCMCIA_DEVICE_PROD_ID12("MELCO/SMC", "LPC-TX", 0xa2cd8e6d, 0x42da662a),
-	PCMCIA_DEVICE_PROD_ID12("Ositech", "Trumpcard", 0x0c2f80cd, 0x0573c29f),
-	PCMCIA_DEVICE_PROD_ID12("Ositech", "Trumpcard", 0x0c2f80cd, 0x0573c29f),
+	PCMCIA_DEVICE_PROD_ID12("Ositech", "Trumpcard:Four of Diamonds Ethernet", 0xc2f80cd, 0xb3466314),
+	PCMCIA_DEVICE_PROD_ID12("Ositech", "Trumpcard:Seven of Diamonds Ethernet", 0xc2f80cd, 0x194b650a),
 	PCMCIA_DEVICE_PROD_ID12("PCMCIA", "Fast Ethernet PCCard", 0x281f1c5d, 0xdcea68bc),
 	PCMCIA_DEVICE_PROD_ID12("Psion", "10Mb Ethernet", 0x4ef00b21, 0x844be9e9),
 	PCMCIA_DEVICE_PROD_ID12("SMC", "EtherEZ Ethernet 8020", 0xc4f8b18b, 0x4a0eeb2d),

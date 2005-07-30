@@ -1726,7 +1726,7 @@ static int dmi_table(u32 base, int len, int num)
 	return status;
 }
 
-inline static int dmi_checksum(u8 *buf)
+static inline int dmi_checksum(u8 *buf)
 {
 	u8   sum=0;
 	int  a;

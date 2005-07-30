@@ -700,23 +700,27 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 
 	/*
 	 * Restore %fs and %gs if needed.
+	 *
+	 * Glibc normally makes %fs be zero, and %gs is one of
+	 * the TLS segments.
 	 */
-	if (unlikely(prev->fs | prev->gs | next->fs | next->gs)) {
+	if (unlikely(prev->fs | next->fs))
 		loadsegment(fs, next->fs);
+
+	if (prev->gs | next->gs)
 		loadsegment(gs, next->gs);
-	}
 
 	/*
 	 * Now maybe reload the debug registers
 	 */
 	if (unlikely(next->debugreg[7])) {
-		set_debugreg(current->thread.debugreg[0], 0);
-		set_debugreg(current->thread.debugreg[1], 1);
-		set_debugreg(current->thread.debugreg[2], 2);
-		set_debugreg(current->thread.debugreg[3], 3);
+		set_debugreg(next->debugreg[0], 0);
+		set_debugreg(next->debugreg[1], 1);
+		set_debugreg(next->debugreg[2], 2);
+		set_debugreg(next->debugreg[3], 3);
 		/* no 4 and 5 */
-		set_debugreg(current->thread.debugreg[6], 6);
-		set_debugreg(current->thread.debugreg[7], 7);
+		set_debugreg(next->debugreg[6], 6);
+		set_debugreg(next->debugreg[7], 7);
 	}
 
 	if (unlikely(prev->io_bitmap_ptr || next->io_bitmap_ptr))
@@ -912,6 +916,8 @@ asmlinkage int sys_get_thread_area(struct user_desc __user *u_info)
 		return -EFAULT;
 	if (idx < GDT_ENTRY_TLS_MIN || idx > GDT_ENTRY_TLS_MAX)
 		return -EINVAL;
+
+	memset(&info, 0, sizeof(info));
 
 	desc = current->thread.tls_array + idx - GDT_ENTRY_TLS_MIN;
 

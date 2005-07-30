@@ -103,11 +103,11 @@ Who:	Jody McIntyre <scjody@steamballoon.com>
 ---------------------------
 
 What:	register_serial/unregister_serial
-When:	December 2005
+When:	September 2005
 Why:	This interface does not allow serial ports to be registered against
 	a struct device, and as such does not allow correct power management
 	of such ports.  8250-based ports should use serial8250_register_port
-	and serial8250_unregister_port instead.
+	and serial8250_unregister_port, or platform devices instead.
 Who:	Russell King <rmk@arm.linux.org.uk>
 
 ---------------------------

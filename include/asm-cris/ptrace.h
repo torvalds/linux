@@ -9,4 +9,6 @@
 #define PTRACE_SETREGS            13
 #endif
 
+#define profile_pc(regs) instruction_pointer(regs)
+
 #endif /* _CRIS_PTRACE_H */

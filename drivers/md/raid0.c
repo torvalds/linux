@@ -314,16 +314,16 @@ static int raid0_run (mddev_t *mddev)
 		sector_t space = conf->hash_spacing;
 		int round;
 		conf->preshift = 0;
-		if (sizeof(sector_t) > sizeof(unsigned long)) {
+		if (sizeof(sector_t) > sizeof(u32)) {
 			/*shift down space and s so that sector_div will work */
-			while (space > (sector_t) (~(unsigned long)0)) {
+			while (space > (sector_t) (~(u32)0)) {
 				s >>= 1;
 				space >>= 1;
 				s += 1; /* force round-up */
 				conf->preshift++;
 			}
 		}
-		round = sector_div(s, (unsigned long)space) ? 1 : 0;
+		round = sector_div(s, (u32)space) ? 1 : 0;
 		nb_zone = s + round;
 	}
 	printk("raid0 : nb_zone is %d.\n", nb_zone);
@@ -443,7 +443,7 @@ static int raid0_make_request (request_queue_t *q, struct bio *bio)
 		volatile
 #endif
 		sector_t x = block >> conf->preshift;
-		sector_div(x, (unsigned long)conf->hash_spacing);
+		sector_div(x, (u32)conf->hash_spacing);
 		zone = conf->hash_table[x];
 	}
  

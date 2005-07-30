@@ -55,6 +55,22 @@ extern void machine_shutdown(void);
 struct pt_regs;
 extern void machine_crash_shutdown(struct pt_regs *);
 
+/* 
+ * Architecture independent implemenations of sys_reboot commands.
+ */
+
+extern void kernel_restart(char *cmd);
+extern void kernel_halt(void);
+extern void kernel_power_off(void);
+extern void kernel_kexec(void);
+
+/*
+ * Emergency restart, callable from an interrupt handler.
+ */
+
+extern void emergency_restart(void);
+#include <asm/emergency-restart.h>
+
 #endif
 
 #endif /* _LINUX_REBOOT_H */

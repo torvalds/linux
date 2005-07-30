@@ -1169,6 +1169,12 @@ L:	linux-input@atrey.karlin.mff.cuni.cz
 L:	linux-joystick@atrey.karlin.mff.cuni.cz
 S:	Maintained
 
+INOTIFY
+P:	John McCutchan and Robert Love
+M:	ttb@tentacle.dhs.org and rml@novell.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 INTEL 810/815 FRAMEBUFFER DRIVER
 P:      Antonino Daplas
 M:      adaplas@pol.net
@@ -1410,9 +1416,16 @@ W:	http://www.penguinppc.org/
 L:	linuxppc-embedded@ozlabs.org
 S:	Maintained
 
-LINUX FOR POWERPC EMBEDDED PPC8XX AND BOOT CODE
+LINUX FOR POWERPC BOOT CODE
 P:	Tom Rini
 M:	trini@kernel.crashing.org
+W:	http://www.penguinppc.org/
+L:	linuxppc-embedded@ozlabs.org
+S:	Maintained
+
+LINUX FOR POWERPC EMBEDDED PPC8XX
+P:	Marcelo Tosatti
+M:	marcelo.tosatti@cyclades.com
 W:	http://www.penguinppc.org/
 L:	linuxppc-embedded@ozlabs.org
 S:	Maintained
@@ -2417,6 +2430,12 @@ USB OHCI DRIVER
 P:	Roman Weissgaerber
 M:	weissg@vienna.at
 L:	linux-usb-users@lists.sourceforge.net
+L:	linux-usb-devel@lists.sourceforge.net
+S:	Maintained
+
+USB OPTION-CARD DRIVER
+P:	Matthias Urlichs
+M:	smurf@smurf.noris.de
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Maintained
 

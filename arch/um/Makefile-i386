@@ -1,4 +1,4 @@
-SUBARCH_CORE := arch/um/sys-i386/ arch/i386/crypto/
+core-y += arch/um/sys-i386/ arch/i386/crypto/
 
 TOP_ADDR := $(CONFIG_TOP_ADDR)
 
@@ -8,21 +8,33 @@ ifeq ($(CONFIG_MODE_SKAS),y)
   endif
 endif
 
+LDFLAGS			+= -m elf_i386
+ELF_ARCH		:= $(SUBARCH)
+ELF_FORMAT 		:= elf32-$(SUBARCH)
+OBJCOPYFLAGS  		:= -O binary -R .note -R .comment -S
+
+ifeq ("$(origin SUBARCH)", "command line")
+ifneq ("$(shell uname -m | sed -e s/i.86/i386/)", "$(SUBARCH)")
+CFLAGS			+= $(call cc-option,-m32)
+USER_CFLAGS		+= $(call cc-option,-m32)
+HOSTCFLAGS		+= $(call cc-option,-m32)
+HOSTLDFLAGS		+= $(call cc-option,-m32)
+AFLAGS			+= $(call cc-option,-m32)
+LINK-y			+= $(call cc-option,-m32)
+UML_OBJCOPYFLAGS	+= -F $(ELF_FORMAT)
+
+export LDFLAGS HOSTCFLAGS HOSTLDFLAGS UML_OBJCOPYFLAGS
+endif
+endif
+
 CFLAGS += -U__$(SUBARCH)__ -U$(SUBARCH) $(STUB_CFLAGS)
-ARCH_USER_CFLAGS :=
 
 ifneq ($(CONFIG_GPROF),y)
 ARCH_CFLAGS += -DUM_FASTCALL
 endif
 
-ELF_ARCH := $(SUBARCH)
-ELF_FORMAT := elf32-$(SUBARCH)
-
-OBJCOPYFLAGS  := -O binary -R .note -R .comment -S
-
 SYS_UTIL_DIR	:= $(ARCH_DIR)/sys-i386/util
-
-SYS_HEADERS := $(SYS_DIR)/sc.h $(SYS_DIR)/thread.h
+SYS_HEADERS	:= $(SYS_DIR)/sc.h $(SYS_DIR)/thread.h
 
 prepare: $(SYS_HEADERS)
 

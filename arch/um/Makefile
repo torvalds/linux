@@ -51,24 +51,25 @@ MRPROPER_DIRS	+= $(ARCH_DIR)/include2
 endif
 SYS_DIR		:= $(ARCH_DIR)/include/sysdep-$(SUBARCH)
 
-include $(srctree)/$(ARCH_DIR)/Makefile-$(SUBARCH)
+# -Dvmap=kernel_vmap affects everything, and prevents anything from
+# referencing the libpcap.o symbol so named.
 
-core-y += $(SUBARCH_CORE)
-libs-y += $(SUBARCH_LIBS)
+CFLAGS += $(CFLAGS-y) -D__arch_um__ -DSUBARCH=\"$(SUBARCH)\" \
+	$(ARCH_INCLUDE) $(MODE_INCLUDE) -Dvmap=kernel_vmap
+
+USER_CFLAGS := $(patsubst -I%,,$(CFLAGS))
+USER_CFLAGS := $(patsubst -D__KERNEL__,,$(USER_CFLAGS)) $(ARCH_INCLUDE) \
+	$(MODE_INCLUDE)
 
 # -Derrno=kernel_errno - This turns all kernel references to errno into
 # kernel_errno to separate them from the libc errno.  This allows -fno-common
 # in CFLAGS.  Otherwise, it would cause ld to complain about the two different
 # errnos.
 
-CFLAGS += $(CFLAGS-y) -D__arch_um__ -DSUBARCH=\"$(SUBARCH)\" \
-	$(ARCH_INCLUDE) $(MODE_INCLUDE)
-
-USER_CFLAGS := $(patsubst -I%,,$(CFLAGS))
-USER_CFLAGS := $(patsubst -D__KERNEL__,,$(USER_CFLAGS)) $(ARCH_INCLUDE) \
-	$(MODE_INCLUDE) $(ARCH_USER_CFLAGS)
 CFLAGS += -Derrno=kernel_errno -Dsigprocmask=kernel_sigprocmask
 CFLAGS += $(call cc-option,-fno-unit-at-a-time,)
+
+include $(srctree)/$(ARCH_DIR)/Makefile-$(SUBARCH)
 
 #This will adjust *FLAGS accordingly to the platform.
 include $(srctree)/$(ARCH_DIR)/Makefile-os-$(OS)
@@ -116,18 +117,19 @@ CONFIG_KERNEL_STACK_ORDER ?= 2
 STACK_SIZE := $(shell echo $$[ 4096 * (1 << $(CONFIG_KERNEL_STACK_ORDER)) ] )
 
 ifndef START
-  START = $$(($(TOP_ADDR) - $(SIZE)))
+  START = $(shell echo $$[ $(TOP_ADDR) - $(SIZE) ] )
 endif
 
-CPPFLAGS_vmlinux.lds = $(shell echo -U$(SUBARCH) \
+CPPFLAGS_vmlinux.lds = -U$(SUBARCH) \
 	-DSTART=$(START) -DELF_ARCH=$(ELF_ARCH) \
-	-DELF_FORMAT=\"$(ELF_FORMAT)\" $(CPP_MODE-y) \
-	-DKERNEL_STACK_SIZE=$(STACK_SIZE) -DSUBARCH=$(SUBARCH))
+	-DELF_FORMAT="$(ELF_FORMAT)" $(CPP_MODE-y) \
+	-DKERNEL_STACK_SIZE=$(STACK_SIZE) \
+	-DUNMAP_PATH=arch/um/sys-$(SUBARCH)/unmap_fin.o
 
 #The wrappers will select whether using "malloc" or the kernel allocator.
 LINK_WRAPS = -Wl,--wrap,malloc -Wl,--wrap,free -Wl,--wrap,calloc
 
-CFLAGS_vmlinux = $(LINK-y) $(LINK_WRAPS)
+CFLAGS_vmlinux := $(LINK-y) $(LINK_WRAPS)
 define cmd_vmlinux__
 	$(CC) $(CFLAGS_vmlinux) -o $@ \
 	-Wl,-T,$(vmlinux-lds) $(vmlinux-init) \
@@ -243,7 +245,7 @@ $(ARCH_DIR)/util: scripts_basic $(SYS_DIR)/sc.h $(ARCH_DIR)/kernel-offsets.h FOR
 $(ARCH_DIR)/kernel/skas/util: scripts_basic $(ARCH_DIR)/user-offsets.h FORCE
 	$(Q)$(MAKE) $(build)=$@
 
-$(ARCH_DIR)/os-$(OS)/util: scripts_basic FORCE
+$(ARCH_DIR)/os-$(OS)/util: scripts_basic $(ARCH_DIR)/user-offsets.h FORCE
 	$(Q)$(MAKE) $(build)=$@
 
 export SUBARCH USER_CFLAGS OS

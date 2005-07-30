@@ -7,7 +7,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
  *
- * $Revision: 1.164 $
+ * $Revision: 1.165 $
  */
 
 #include <linux/config.h>
@@ -1740,6 +1740,10 @@ dasd_exit(void)
 	dasd_proc_exit();
 #endif
 	dasd_ioctl_exit();
+        if (dasd_page_cache != NULL) {
+		kmem_cache_destroy(dasd_page_cache);
+		dasd_page_cache = NULL;
+	}
 	dasd_gendisk_exit();
 	dasd_devmap_exit();
 	devfs_remove("dasd");

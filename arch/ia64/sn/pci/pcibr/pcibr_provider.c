@@ -85,7 +85,7 @@ pcibr_error_intr_handler(int irq, void *arg, struct pt_regs *regs)
 }
 
 void *
-pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft)
+pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *controller)
 {
 	int nasid, cnode, j;
 	struct hubdev_info *hubdev_info;
@@ -158,6 +158,14 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft)
 	memset(soft->pbi_int_ate_resource.ate, 0,
  	       (soft->pbi_int_ate_size * sizeof(uint64_t)));
 
+	if (prom_bussoft->bs_asic_type == PCIIO_ASIC_TYPE_TIOCP)
+		/*
+		 * TIO PCI Bridge with no closest node information.
+		 * FIXME: Find another way to determine the closest node
+		 */
+		controller->node = -1;
+	else
+		controller->node = cnode;
 	return soft;
 }
 

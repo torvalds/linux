@@ -985,8 +985,10 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 		for (i = 0; i < dev->actconfig->desc.bNumInterfaces; i++) {
 			struct usb_interface	*interface;
 
-			/* remove this interface */
+			/* remove this interface if it has been registered */
 			interface = dev->actconfig->interface[i];
+			if (!klist_node_attached(&interface->dev.knode_bus))
+				continue;
 			dev_dbg (&dev->dev, "unregistering interface %s\n",
 				interface->dev.bus_id);
 			usb_remove_sysfs_intf_files(interface);
@@ -1439,7 +1441,7 @@ free_interfaces:
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 // synchronous request completion model

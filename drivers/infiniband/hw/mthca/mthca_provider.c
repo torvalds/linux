@@ -349,9 +349,9 @@ static int mthca_mmap_uar(struct ib_ucontext *context,
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	if (remap_pfn_range(vma, vma->vm_start,
-			    to_mucontext(context)->uar.pfn,
-			    PAGE_SIZE, vma->vm_page_prot))
+	if (io_remap_pfn_range(vma, vma->vm_start,
+			       to_mucontext(context)->uar.pfn,
+			       PAGE_SIZE, vma->vm_page_prot))
 		return -EAGAIN;
 
 	return 0;
