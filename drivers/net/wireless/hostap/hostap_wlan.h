@@ -824,10 +824,8 @@ struct local_info {
 
 	int host_roaming;
 	unsigned long last_join_time; /* time of last JoinRequest */
-	struct hfa384x_scan_result *last_scan_results;
+	struct hfa384x_hostscan_result *last_scan_results;
 	int last_scan_results_count;
-	struct hfa384x_hostscan_result *last_hostscan_results;
-	int last_hostscan_results_count;
 	enum { PRISM2_SCAN, PRISM2_HOSTSCAN } last_scan_type;
 	struct work_struct info_queue;
 	long pending_info; /* bit field of pending info_queue items */

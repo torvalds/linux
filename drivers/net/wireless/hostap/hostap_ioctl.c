@@ -663,7 +663,7 @@ static int hostap_join_ap(struct net_device *dev)
 	struct hfa384x_join_request req;
 	unsigned long flags;
 	int i;
-	struct hfa384x_scan_result *entry;
+	struct hfa384x_hostscan_result *entry;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
@@ -1795,10 +1795,8 @@ static int prism2_ioctl_siwscan(struct net_device *dev,
 
 #ifndef PRISM2_NO_STATION_MODES
 static char * __prism2_translate_scan(local_info_t *local,
-				      struct hfa384x_scan_result *scan,
-				      struct hfa384x_hostscan_result *hscan,
-				      int hostscan,
-				      struct hostap_bss_info *bss, u8 *bssid,
+				      struct hfa384x_hostscan_result *scan,
+				      struct hostap_bss_info *bss,
 				      char *current_ev, char *end_buf)
 {
 	int i, chan;
@@ -1806,17 +1804,18 @@ static char * __prism2_translate_scan(local_info_t *local,
 	char *current_val;
 	u16 capabilities;
 	u8 *pos;
-	u8 *ssid;
+	u8 *ssid, *bssid;
 	size_t ssid_len;
 	char *buf;
 
 	if (bss) {
 		ssid = bss->ssid;
 		ssid_len = bss->ssid_len;
+		bssid = bss->bssid;
 	} else {
-		ssid = hostscan ? hscan->ssid : scan->ssid;
-		ssid_len = le16_to_cpu(hostscan ? hscan->ssid_len :
-				       scan->ssid_len);
+		ssid = scan->ssid;
+		ssid_len = le16_to_cpu(scan->ssid_len);
+		bssid = scan->bssid;
 	}
 	if (ssid_len > 32)
 		ssid_len = 32;
@@ -1850,8 +1849,7 @@ static char * __prism2_translate_scan(local_info_t *local,
 	if (bss) {
 		capabilities = bss->capab_info;
 	} else {
-		capabilities = le16_to_cpu(hostscan ? hscan->capability :
-					   scan->capability);
+		capabilities = le16_to_cpu(scan->capability);
 	}
 	if (capabilities & (WLAN_CAPABILITY_ESS |
 			    WLAN_CAPABILITY_IBSS)) {
@@ -1866,8 +1864,8 @@ static char * __prism2_translate_scan(local_info_t *local,
 
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = SIOCGIWFREQ;
-	if (hscan || scan) {
-		chan = hostscan ? hscan->chid : scan->chid;
+	if (scan) {
+		chan = scan->chid;
 	} else if (bss) {
 		chan = bss->chan;
 	} else {
@@ -1882,12 +1880,12 @@ static char * __prism2_translate_scan(local_info_t *local,
 						  IW_EV_FREQ_LEN);
 	}
 
-	if (scan || hscan) {
+	if (scan) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVQUAL;
-		if (hostscan) {
-			iwe.u.qual.level = le16_to_cpu(hscan->sl);
-			iwe.u.qual.noise = le16_to_cpu(hscan->anl);
+		if (local->last_scan_type == PRISM2_HOSTSCAN) {
+			iwe.u.qual.level = le16_to_cpu(scan->sl);
+			iwe.u.qual.noise = le16_to_cpu(scan->anl);
 		} else {
 			iwe.u.qual.level =
 				HFA384X_LEVEL_TO_dBm(le16_to_cpu(scan->sl));
@@ -1910,11 +1908,11 @@ static char * __prism2_translate_scan(local_info_t *local,
 	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, "");
 
 	/* TODO: add SuppRates into BSS table */
-	if (scan || hscan) {
+	if (scan) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = SIOCGIWRATE;
 		current_val = current_ev + IW_EV_LCP_LEN;
-		pos = hostscan ? hscan->sup_rates : scan->sup_rates;
+		pos = scan->sup_rates;
 		for (i = 0; i < sizeof(scan->sup_rates); i++) {
 			if (pos[i] == 0)
 				break;
@@ -1931,29 +1929,26 @@ static char * __prism2_translate_scan(local_info_t *local,
 
 	/* TODO: add BeaconInt,resp_rate,atim into BSS table */
 	buf = kmalloc(MAX_WPA_IE_LEN * 2 + 30, GFP_KERNEL);
-	if (buf && (scan || hscan)) {
+	if (buf && scan) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVCUSTOM;
-		sprintf(buf, "bcn_int=%d",
-			le16_to_cpu(hostscan ? hscan->beacon_interval :
-				    scan->beacon_interval));
+		sprintf(buf, "bcn_int=%d", le16_to_cpu(scan->beacon_interval));
 		iwe.u.data.length = strlen(buf);
 		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
 						  buf);
 
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVCUSTOM;
-		sprintf(buf, "resp_rate=%d", le16_to_cpu(hostscan ?
-							 hscan->rate :
-							 scan->rate));
+		sprintf(buf, "resp_rate=%d", le16_to_cpu(scan->rate));
 		iwe.u.data.length = strlen(buf);
 		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
 						  buf);
 
-		if (hostscan && (capabilities & WLAN_CAPABILITY_IBSS)) {
+		if (local->last_scan_type == PRISM2_HOSTSCAN &&
+		    (capabilities & WLAN_CAPABILITY_IBSS)) {
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVCUSTOM;
-			sprintf(buf, "atim=%d", le16_to_cpu(hscan->atim));
+			sprintf(buf, "atim=%d", le16_to_cpu(scan->atim));
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(current_ev, end_buf,
 							  &iwe, buf);
@@ -1986,12 +1981,10 @@ static char * __prism2_translate_scan(local_info_t *local,
 static inline int prism2_translate_scan(local_info_t *local,
 					char *buffer, int buflen)
 {
-	struct hfa384x_scan_result *scan;
-	struct hfa384x_hostscan_result *hscan;
-	int entries, entry, hostscan;
+	struct hfa384x_hostscan_result *scan;
+	int entry, hostscan;
 	char *current_ev = buffer;
 	char *end_buf = buffer + buflen;
-	u8 *bssid;
 	struct list_head *ptr;
 
 	spin_lock_bh(&local->lock);
@@ -2003,14 +1996,9 @@ static inline int prism2_translate_scan(local_info_t *local,
 	}
 
 	hostscan = local->last_scan_type == PRISM2_HOSTSCAN;
-	entries = hostscan ? local->last_hostscan_results_count :
-		local->last_scan_results_count;
-	for (entry = 0; entry < entries; entry++) {
+	for (entry = 0; entry < local->last_scan_results_count; entry++) {
 		int found = 0;
 		scan = &local->last_scan_results[entry];
-		hscan = &local->last_hostscan_results[entry];
-
-		bssid = hostscan ? hscan->bssid : scan->bssid;
 
 		/* Report every SSID if the AP is using multiple SSIDs. If no
 		 * BSS record is found (e.g., when WPA mode is disabled),
@@ -2018,18 +2006,16 @@ static inline int prism2_translate_scan(local_info_t *local,
 		list_for_each(ptr, &local->bss_list) {
 			struct hostap_bss_info *bss;
 			bss = list_entry(ptr, struct hostap_bss_info, list);
-			if (memcmp(bss->bssid, bssid, ETH_ALEN) == 0) {
+			if (memcmp(bss->bssid, scan->bssid, ETH_ALEN) == 0) {
 				bss->included = 1;
 				current_ev = __prism2_translate_scan(
-					local, scan, hscan, hostscan, bss,
-					bssid, current_ev, end_buf);
+					local, scan, bss, current_ev, end_buf);
 				found++;
 			}
 		}
 		if (!found) {
 			current_ev = __prism2_translate_scan(
-				local, scan, hscan, hostscan, NULL, bssid,
-				current_ev, end_buf);
+				local, scan, NULL, current_ev, end_buf);
 		}
 		/* Check if there is space for one more entry */
 		if ((end_buf - current_ev) <= IW_EV_ADDR_LEN) {
@@ -2047,9 +2033,8 @@ static inline int prism2_translate_scan(local_info_t *local,
 		bss = list_entry(ptr, struct hostap_bss_info, list);
 		if (bss->included)
 			continue;
-		current_ev = __prism2_translate_scan(local, NULL, NULL, 0, bss,
-						     bss->bssid, current_ev,
-						     end_buf);
+		current_ev = __prism2_translate_scan(local, NULL, bss,
+						     current_ev, end_buf);
 		/* Check if there is space for one more entry */
 		if ((end_buf - current_ev) <= IW_EV_ADDR_LEN) {
 			/* Ask user space to try again with a bigger buffer */

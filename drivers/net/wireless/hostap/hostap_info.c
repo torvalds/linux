@@ -160,7 +160,7 @@ static void prism2_host_roaming(local_info_t *local)
 {
 	struct hfa384x_join_request req;
 	struct net_device *dev = local->dev;
-	struct hfa384x_scan_result *selected, *entry;
+	struct hfa384x_hostscan_result *selected, *entry;
 	int i;
 	unsigned long flags;
 
@@ -244,9 +244,10 @@ static void prism2_info_scanresults(local_info_t *local, unsigned char *buf,
 				    int left)
 {
 	u16 *pos;
-	int new_count;
+	int new_count, i;
 	unsigned long flags;
-	struct hfa384x_scan_result *results, *prev;
+	struct hfa384x_scan_result *res;
+	struct hfa384x_hostscan_result *results, *prev;
 
 	if (left < 4) {
 		printk(KERN_DEBUG "%s: invalid scanresult info frame "
@@ -260,11 +261,18 @@ static void prism2_info_scanresults(local_info_t *local, unsigned char *buf,
 	left -= 4;
 
 	new_count = left / sizeof(struct hfa384x_scan_result);
-	results = kmalloc(new_count * sizeof(struct hfa384x_scan_result),
+	results = kmalloc(new_count * sizeof(struct hfa384x_hostscan_result),
 			  GFP_ATOMIC);
 	if (results == NULL)
 		return;
-	memcpy(results, pos, new_count * sizeof(struct hfa384x_scan_result));
+
+	/* Convert to hostscan result format. */
+	res = (struct hfa384x_scan_result *) pos;
+	for (i = 0; i < new_count; i++) {
+		memcpy(&results[i], &res[i],
+		       sizeof(struct hfa384x_scan_result));
+		results[i].atim = 0;
+	}
 
 	spin_lock_irqsave(&local->lock, flags);
 	local->last_scan_type = PRISM2_SCAN;
@@ -335,9 +343,9 @@ static void prism2_info_hostscanresults(local_info_t *local,
 
 	spin_lock_irqsave(&local->lock, flags);
 	local->last_scan_type = PRISM2_HOSTSCAN;
-	prev = local->last_hostscan_results;
-	local->last_hostscan_results = results;
-	local->last_hostscan_results_count = new_count;
+	prev = local->last_scan_results;
+	local->last_scan_results = results;
+	local->last_scan_results_count = new_count;
 	spin_unlock_irqrestore(&local->lock, flags);
 	kfree(prev);
 

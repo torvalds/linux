@@ -302,20 +302,15 @@ static int prism2_scan_results_proc_read(char *page, char **start, off_t off,
 {
 	char *p = page;
 	local_info_t *local = (local_info_t *) data;
-	int entries, entry, i, len, total = 0, hostscan;
-	struct hfa384x_scan_result *scanres;
-	struct hfa384x_hostscan_result *hscanres;
+	int entry, i, len, total = 0;
+	struct hfa384x_hostscan_result *scanres;
 	u8 *pos;
 
 	p += sprintf(p, "CHID ANL SL BcnInt Capab Rate BSSID ATIM SupRates "
 		     "SSID\n");
 
 	spin_lock_bh(&local->lock);
-	hostscan = local->last_scan_type == PRISM2_HOSTSCAN;
-	entries = hostscan ? local->last_hostscan_results_count :
-		local->last_scan_results_count;
-	for (entry = 0; entry < entries; entry++) {
-		hscanres = &local->last_hostscan_results[entry];
+	for (entry = 0; entry < local->last_scan_results_count; entry++) {
 		scanres = &local->last_scan_results[entry];
 
 		if (total + (p - page) <= off) {
@@ -327,39 +322,26 @@ static int prism2_scan_results_proc_read(char *page, char **start, off_t off,
 		if ((p - page) > (PAGE_SIZE - 200))
 			break;
 
-		if (hostscan) {
-			p += sprintf(p, "%d %d %d %d 0x%02x %d " MACSTR " %d ",
-				     le16_to_cpu(hscanres->chid),
-				     (s16) le16_to_cpu(hscanres->anl),
-				     (s16) le16_to_cpu(hscanres->sl),
-				     le16_to_cpu(hscanres->beacon_interval),
-				     le16_to_cpu(hscanres->capability),
-				     le16_to_cpu(hscanres->rate),
-				     MAC2STR(hscanres->bssid),
-				     le16_to_cpu(hscanres->atim));
-		} else {
-			p += sprintf(p, "%d %d %d %d 0x%02x %d " MACSTR
-				     " N/A ",
-				     le16_to_cpu(scanres->chid),
-				     (s16) le16_to_cpu(scanres->anl),
-				     (s16) le16_to_cpu(scanres->sl),
-				     le16_to_cpu(scanres->beacon_interval),
-				     le16_to_cpu(scanres->capability),
-				     le16_to_cpu(scanres->rate),
-				     MAC2STR(scanres->bssid));
-		}
+		p += sprintf(p, "%d %d %d %d 0x%02x %d " MACSTR " %d ",
+			     le16_to_cpu(scanres->chid),
+			     (s16) le16_to_cpu(scanres->anl),
+			     (s16) le16_to_cpu(scanres->sl),
+			     le16_to_cpu(scanres->beacon_interval),
+			     le16_to_cpu(scanres->capability),
+			     le16_to_cpu(scanres->rate),
+			     MAC2STR(scanres->bssid),
+			     le16_to_cpu(scanres->atim));
 
-		pos = hostscan ? hscanres->sup_rates : scanres->sup_rates;
-		for (i = 0; i < sizeof(hscanres->sup_rates); i++) {
+		pos = scanres->sup_rates;
+		for (i = 0; i < sizeof(scanres->sup_rates); i++) {
 			if (pos[i] == 0)
 				break;
 			p += sprintf(p, "<%02x>", pos[i]);
 		}
 		p += sprintf(p, " ");
 
-		pos = hostscan ? hscanres->ssid : scanres->ssid;
-		len = le16_to_cpu(hostscan ? hscanres->ssid_len :
-				  scanres->ssid_len);
+		pos = scanres->ssid;
+		len = le16_to_cpu(scanres->ssid_len);
 		if (len > 32)
 			len = 32;
 		for (i = 0; i < len; i++) {
