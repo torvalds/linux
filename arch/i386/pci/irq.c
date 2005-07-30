@@ -56,6 +56,7 @@ struct irq_router_handler {
 };
 
 int (*pcibios_enable_irq)(struct pci_dev *dev) = NULL;
+void (*pcibios_disable_irq)(struct pci_dev *dev) = NULL;
 
 /*
  *  Check passed address for the PCI IRQ Routing Table signature
