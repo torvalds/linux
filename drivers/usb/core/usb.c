@@ -1478,13 +1478,18 @@ static int __init usb_init(void)
 	retval = usb_major_init();
 	if (retval)
 		goto major_init_failed;
+	retval = usb_register(&usbfs_driver);
+	if (retval)
+		goto driver_register_failed;
+	retval = usbdev_init();
+	if (retval)
+		goto usbdevice_init_failed;
 	retval = usbfs_init();
 	if (retval)
 		goto fs_init_failed;
 	retval = usb_hub_init();
 	if (retval)
 		goto hub_init_failed;
-
 	retval = driver_register(&usb_generic_driver);
 	if (!retval)
 		goto out;
@@ -1493,7 +1498,11 @@ static int __init usb_init(void)
 hub_init_failed:
 	usbfs_cleanup();
 fs_init_failed:
-	usb_major_cleanup();	
+	usbdev_cleanup();
+usbdevice_init_failed:
+	usb_deregister(&usbfs_driver);
+driver_register_failed:
+	usb_major_cleanup();
 major_init_failed:
 	usb_host_cleanup();
 host_init_failed:
@@ -1514,6 +1523,8 @@ static void __exit usb_exit(void)
 	driver_unregister(&usb_generic_driver);
 	usb_major_cleanup();
 	usbfs_cleanup();
+	usb_deregister(&usbfs_driver);
+	usbdev_cleanup();
 	usb_hub_cleanup();
 	usb_host_cleanup();
 	bus_unregister(&usb_bus_type);

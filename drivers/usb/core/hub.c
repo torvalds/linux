@@ -1051,6 +1051,7 @@ void usb_disconnect(struct usb_device **pdev)
 	dev_dbg (&udev->dev, "unregistering device\n");
 	release_address(udev);
 	usbfs_remove_device(udev);
+	usbdev_remove(udev);
 	usb_remove_sysfs_dev_files(udev);
 
 	/* Avoid races with recursively_mark_NOTATTACHED() */
@@ -1290,6 +1291,7 @@ int usb_new_device(struct usb_device *udev)
 	/* USB device state == configured ... usable */
 
 	/* add a /proc/bus/usb entry */
+	usbdev_add(udev);
 	usbfs_add_device(udev);
 	return 0;
 

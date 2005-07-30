@@ -5,6 +5,7 @@
 #include <linux/usb_ch9.h>
 
 #define USB_MAJOR			180
+#define USB_DEVICE_MAJOR		189
 
 
 #ifdef __KERNEL__
@@ -349,6 +350,7 @@ struct usb_device {
 	char *manufacturer;
 	char *serial;			/* static strings from the device */
 	struct list_head filelist;
+	struct class_device *class_dev;
 	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the device */
 
 	/*
