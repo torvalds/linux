@@ -232,6 +232,14 @@ enum sis190_eeprom_access_register_bits {
 	EEWOP	= 0x00000100	// unused
 };
 
+/* EEPROM Addresses */
+enum sis190_eeprom_address {
+	EEPROMSignature	= 0x00,
+	EEPROMCLK	= 0x01,	// unused
+	EEPROMInfo	= 0x02,
+	EEPROMMACAddr	= 0x03
+};
+
 struct sis190_private {
 	void __iomem *mmio_addr;
 	struct pci_dev *pci_dev;
@@ -1240,6 +1248,125 @@ static void sis190_tx_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
+static int __devinit sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
+						     struct net_device *dev)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+	u16 sig;
+	int i;
+
+	net_probe(tp, KERN_INFO "%s: Read MAC address from EEPROM\n",
+		  pci_name(pdev));
+
+	/* Check to see if there is a sane EEPROM */
+	sig = (u16) sis190_read_eeprom(ioaddr, EEPROMSignature);
+
+	if ((sig == 0xffff) || (sig == 0x0000)) {
+		net_probe(tp, KERN_INFO "%s: Error EEPROM read %x.\n",
+			  pci_name(pdev), sig);
+		return -EIO;
+	}
+
+	/* Get MAC address from EEPROM */
+	for (i = 0; i < MAC_ADDR_LEN / 2; i++) {
+		u16 w = sis190_read_eeprom(ioaddr, EEPROMMACAddr + i);
+
+		((u16 *)dev->dev_addr)[0] = le16_to_cpu(w);
+	}
+
+	return 0;
+}
+
+/**
+ *	sis190_get_mac_addr_from_apc - Get MAC address for SiS965 model
+ *	@pdev: PCI device
+ *	@dev:  network device to get address for
+ *
+ *	SiS965 model, use APC CMOS RAM to store MAC address.
+ *	APC CMOS RAM is accessed through ISA bridge.
+ *	MAC address is read into @net_dev->dev_addr.
+ */
+static int __devinit sis190_get_mac_addr_from_apc(struct pci_dev *pdev,
+						  struct net_device *dev)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+	struct pci_dev *isa_bridge;
+	u8 reg, tmp8;
+	int i;
+
+	net_probe(tp, KERN_INFO "%s: Read MAC address from APC.\n",
+		  pci_name(pdev));
+
+	isa_bridge = pci_get_device(PCI_VENDOR_ID_SI, 0x0965, NULL);
+	if (!isa_bridge) {
+		net_probe(tp, KERN_INFO "%s: Can not find ISA bridge.\n",
+			  pci_name(pdev));
+		return -EIO;
+	}
+
+	/* Enable port 78h & 79h to access APC Registers. */
+	pci_read_config_byte(isa_bridge, 0x48, &tmp8);
+	reg = (tmp8 & ~0x02);
+	pci_write_config_byte(isa_bridge, 0x48, reg);
+	udelay(50);
+	pci_read_config_byte(isa_bridge, 0x48, &reg);
+
+        for (i = 0; i < MAC_ADDR_LEN; i++) {
+                outb(0x9 + i, 0x78);
+                dev->dev_addr[i] = inb(0x79);
+        }
+
+	outb(0x12, 0x78);
+	reg = inb(0x79);
+
+	/* Restore the value to ISA Bridge */
+	pci_write_config_byte(isa_bridge, 0x48, tmp8);
+	pci_dev_put(isa_bridge);
+
+	return 0;
+}
+
+/**
+ *      sis190_init_rxfilter - Initialize the Rx filter
+ *      @dev: network device to initialize
+ *
+ *      Set receive filter address to our MAC address
+ *      and enable packet filtering.
+ */
+static inline void sis190_init_rxfilter(struct net_device *dev)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+	u16 ctl;
+	int i;
+
+	ctl = SIS_R16(RxMacControl);
+	/*
+	 * Disable packet filtering before setting filter.
+	 * Note: SiS's driver writes 32 bits but RxMacControl is 16 bits
+	 * only and followed by RxMacAddr (6 bytes). Strange. -- FR
+	 */
+	SIS_W16(RxMacControl, ctl & ~0x0f00);
+
+	for (i = 0; i < MAC_ADDR_LEN; i++)
+		SIS_W8(RxMacAddr + i, dev->dev_addr[i]);
+
+	SIS_W16(RxMacControl, ctl);
+	SIS_PCI_COMMIT();
+}
+
+static int sis190_get_mac_addr(struct pci_dev *pdev, struct net_device *dev)
+{
+	u8 from;
+
+	pci_read_config_byte(pdev, 0x73, &from);
+
+	return (from & 0x00000001) ?
+		sis190_get_mac_addr_from_apc(pdev, dev) :
+		sis190_get_mac_addr_from_eeprom(pdev, dev);
+}
+
 static void sis190_set_speed_auto(struct net_device *dev)
 {
 	struct sis190_private *tp = netdev_priv(dev);
@@ -1355,7 +1482,7 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	struct sis190_private *tp;
 	struct net_device *dev;
 	void __iomem *ioaddr;
-	int i, rc;
+	int rc;
 
 	if (!printed_version) {
 		net_drv(&debug, KERN_INFO SIS190_DRIVER_NAME " loaded.\n");
@@ -1371,18 +1498,11 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	tp = netdev_priv(dev);
 	ioaddr = tp->mmio_addr;
 
-	/* Get MAC address */
-	/* Read node address from the EEPROM */
+	rc = sis190_get_mac_addr(pdev, dev);
+	if (rc < 0)
+		goto err_release_board;
 
-	if (SIS_R32(ROMControl) & 0x4) {
-		for (i = 0; i < 3; i++) {
-			SIS_W16(RxMacAddr + 2*i,
-				sis190_read_eeprom(ioaddr, 3 + i));
-		}
-	}
-
-	for (i = 0; i < MAC_ADDR_LEN; i++)
-		dev->dev_addr[i] = SIS_R8(RxMacAddr + i);
+	sis190_init_rxfilter(dev);
 
 	INIT_WORK(&tp->phy_task, sis190_phy_task, dev);
 
@@ -1403,10 +1523,8 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 
 	spin_lock_init(&tp->lock);
 	rc = register_netdev(dev);
-	if (rc < 0) {
-		sis190_release_board(pdev);
-		goto out;
-	}
+	if (rc < 0)
+		goto err_release_board;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -1423,6 +1541,10 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	sis190_set_speed_auto(dev);
 out:
 	return rc;
+
+err_release_board:
+	sis190_release_board(pdev);
+	goto out;
 }
 
 static void __devexit sis190_remove_one(struct pci_dev *pdev)
