@@ -786,10 +786,7 @@ end:
 	return_VALUE(result);
 }
 
-static int
-irqrouter_suspend(
-	struct sys_device *dev,
-	u32	state)
+static int irqrouter_suspend(struct sys_device *dev, pm_message_t state)
 {
 	struct list_head        *node = NULL;
 	struct acpi_pci_link    *link = NULL;
