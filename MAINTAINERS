@@ -2080,6 +2080,12 @@ M:	support@simtec.co.uk
 W:	http://www.simtec.co.uk/products/EB2410ITX/
 S:	Supported
 
+SIS 190 ETHERNET DRIVER
+P:	Francois Romieu
+M:	romieu@fr.zoreil.com
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 SIS 5513 IDE CONTROLLER DRIVER
 P:	Lionel Bouton
 M:	Lionel.Bouton@inet6.fr
