@@ -98,27 +98,36 @@
 enum sis190_registers {
 	TxControl		= 0x00,
 	TxDescStartAddr		= 0x04,
-	TxNextDescAddr		= 0x0c,	// unused
+	rsv0			= 0x08,	// reserved
+	TxSts			= 0x0c,	// unused (Control/Status)
 	RxControl		= 0x10,
 	RxDescStartAddr		= 0x14,
-	RxNextDescAddr		= 0x1c,	// unused
+	rsv1			= 0x18,	// reserved
+	RxSts			= 0x1c,	// unused
 	IntrStatus		= 0x20,
 	IntrMask		= 0x24,
 	IntrControl		= 0x28,
-	IntrTimer		= 0x2c,	// unused
-	PMControl		= 0x30,	// unused
+	IntrTimer		= 0x2c,	// unused (Interupt Timer)
+	PMControl		= 0x30,	// unused (Power Mgmt Control/Status)
+	rsv2			= 0x34,	// reserved
 	ROMControl		= 0x38,
 	ROMInterface		= 0x3c,
 	StationControl		= 0x40,
 	GMIIControl		= 0x44,
+	GIoCR			= 0x48, // unused (GMAC IO Compensation)
+	GIoCtrl			= 0x4c, // unused (GMAC IO Control)
 	TxMacControl		= 0x50,
+	TxLimit			= 0x54, // unused (Tx MAC Timer/TryLimit)
+	RGDelay			= 0x58, // unused (RGMII Tx Internal Delay)
+	rsv3			= 0x5c, // reserved
 	RxMacControl		= 0x60,
 	RxMacAddr		= 0x62,
 	RxHashTable		= 0x68,
 	// Undocumented		= 0x6c,
-	RxWakeOnLan		= 0x70,
-	// Undocumented		= 0x74,
-	RxMPSControl		= 0x78,	// unused
+	RxWolCtrl		= 0x70,
+	RxWolData		= 0x74, // unused (Rx WOL Data Access)
+	RxMPSControl		= 0x78,	// unused (Rx MPS Control)
+	rsv4			= 0x7c, // reserved
 };
 
 enum sis190_register_content {
@@ -783,8 +792,8 @@ static void sis190_hw_start(struct net_device *dev)
 	SIS_W16(RxMacControl, 0x02);
 	SIS_W32(RxHashTable, 0x0);
 	SIS_W32(0x6c, 0x0);
-	SIS_W32(RxWakeOnLan, 0x0);
-	SIS_W32(0x74, 0x0);
+	SIS_W32(RxWolCtrl, 0x0);
+	SIS_W32(RxWolData, 0x0);
 
 	SIS_PCI_COMMIT();
 
@@ -1204,6 +1213,10 @@ static void sis190_tx_timeout(struct net_device *dev)
 	tmp8 = SIS_R8(TxControl);
 	if (tmp8 & CmdTxEnb)
 		SIS_W8(TxControl, tmp8 & ~CmdTxEnb);
+
+
+	net_tx_err(tp, KERN_INFO "%s: Transmit timeout, status %08x %08x.\n",
+		   dev->name, SIS_R32(TxControl), SIS_R32(TxSts));
 
 	/* Disable interrupts by clearing the interrupt mask. */
 	SIS_W32(IntrMask, 0x0000);
