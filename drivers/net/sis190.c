@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
+#include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
@@ -230,6 +231,7 @@ struct sis190_private {
 	struct work_struct phy_task;
 	struct timer_list timer;
 	u32 msg_enable;
+	struct mii_if_info mii_if;
 };
 
 const static struct {
@@ -306,6 +308,20 @@ static int mdio_read(void __iomem *ioaddr, int reg)
 		(((u32) reg) << EhnMIIregShift) | (pmd << EhnMIIpmdShift));
 
 	return (u16) (SIS_R32(GMIIControl) >> EhnMIIdataShift);
+}
+
+static void __mdio_write(struct net_device *dev, int phy_id, int reg, int val)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+
+	mdio_write(tp->mmio_addr, reg, val);
+}
+
+static int __mdio_read(struct net_device *dev, int phy_id, int reg)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+
+	return mdio_read(tp->mmio_addr, reg);
 }
 
 static int sis190_read_eeprom(void __iomem *ioaddr, u32 reg)
@@ -790,6 +806,8 @@ static void sis190_phy_task(void * data)
 	void __iomem *ioaddr = tp->mmio_addr;
 	u16 val;
 
+	rtnl_lock();
+
 	val = mdio_read(ioaddr, MII_BMCR);
 	if (val & BMCR_RESET) {
 		// FIXME: needlessly high ?  -- FR 02/07/2005
@@ -843,6 +861,8 @@ static void sis190_phy_task(void * data)
 			 p->msg);
 		netif_carrier_on(dev);
 	}
+
+	rtnl_unlock();
 }
 
 static void sis190_phy_timer(unsigned long __opaque)
@@ -1150,6 +1170,13 @@ static struct net_device * __devinit sis190_init_board(struct pci_dev *pdev)
 	tp->pci_dev = pdev;
 	tp->mmio_addr = ioaddr;
 
+	tp->mii_if.dev = dev;
+	tp->mii_if.mdio_read = __mdio_read;
+	tp->mii_if.mdio_write = __mdio_write;
+	// tp->mii_if.phy_id = XXX;
+	tp->mii_if.phy_id_mask = 0x1f;
+	tp->mii_if.reg_num_mask = 0x1f;
+
 	sis190_irq_mask_and_ack(ioaddr);
 
 	sis190_soft_reset(ioaddr);
@@ -1216,6 +1243,20 @@ static void sis190_set_speed_auto(struct net_device *dev)
 		   BMCR_ANENABLE | BMCR_ANRESTART | BMCR_RESET);
 }
 
+static int sis190_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+
+	return mii_ethtool_gset(&tp->mii_if, cmd);
+}
+
+static int sis190_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+
+	return mii_ethtool_sset(&tp->mii_if, cmd);
+}
+
 static void sis190_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
@@ -1245,6 +1286,13 @@ static void sis190_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	spin_unlock_irqrestore(&tp->lock, flags);
 }
 
+static int sis190_nway_reset(struct net_device *dev)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+
+	return mii_nway_restart(&tp->mii_if);
+}
+
 static u32 sis190_get_msglevel(struct net_device *dev)
 {
 	struct sis190_private *tp = netdev_priv(dev);
@@ -1260,13 +1308,24 @@ static void sis190_set_msglevel(struct net_device *dev, u32 value)
 }
 
 static struct ethtool_ops sis190_ethtool_ops = {
+	.get_settings	= sis190_get_settings,
+	.set_settings	= sis190_set_settings,
 	.get_drvinfo	= sis190_get_drvinfo,
 	.get_regs_len	= sis190_get_regs_len,
 	.get_regs	= sis190_get_regs,
 	.get_link	= ethtool_op_get_link,
 	.get_msglevel	= sis190_get_msglevel,
 	.set_msglevel	= sis190_set_msglevel,
+	.nway_reset	= sis190_nway_reset,
 };
+
+static int sis190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct sis190_private *tp = netdev_priv(dev);
+
+	return !netif_running(dev) ? -EINVAL :
+		generic_mii_ioctl(&tp->mii_if, if_mii(ifr), cmd, NULL);
+}
 
 static int __devinit sis190_init_one(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
@@ -1308,6 +1367,7 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 
 	dev->open = sis190_open;
 	dev->stop = sis190_close;
+	dev->do_ioctl = sis190_ioctl;
 	dev->get_stats = sis190_get_stats;
 	dev->tx_timeout = sis190_tx_timeout;
 	dev->watchdog_timeo = SIS190_TX_TIMEOUT;
