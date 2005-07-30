@@ -81,30 +81,33 @@ module_param(bm_history, uint, 0644);
  *
  * To skip this limit, boot/load with a large max_cstate limit.
  */
-static int no_c2c3(struct dmi_system_id *id)
+static int set_max_cstate(struct dmi_system_id *id)
 {
 	if (max_cstate > ACPI_PROCESSOR_MAX_POWER)
 		return 0;
 
-	printk(KERN_NOTICE PREFIX "%s detected - C2,C3 disabled."
+	printk(KERN_NOTICE PREFIX "%s detected - %s disabled."
 		" Override with \"processor.max_cstate=%d\"\n", id->ident,
+		((int)id->driver_data == 1)? "C2,C3":"C3",
 	       ACPI_PROCESSOR_MAX_POWER + 1);
 
-	max_cstate = 1;
+	max_cstate = (int)id->driver_data;
 
 	return 0;
 }
 
 
-
-
 static struct dmi_system_id __initdata processor_power_dmi_table[] = {
-	{ no_c2c3, "IBM ThinkPad R40e", {
+	{ set_max_cstate, "IBM ThinkPad R40e", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"IBM"),
-	  DMI_MATCH(DMI_BIOS_VERSION,"1SET60WW") }},
-	{ no_c2c3, "Medion 41700", {
+	  DMI_MATCH(DMI_BIOS_VERSION,"1SET60WW") }, (void*)1},
+	{ set_max_cstate, "Medion 41700", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"Phoenix Technologies LTD"),
-	  DMI_MATCH(DMI_BIOS_VERSION,"R01-A1J") }},
+	  DMI_MATCH(DMI_BIOS_VERSION,"R01-A1J") }, (void*)1},
+	{ set_max_cstate, "Clevo 5600D", {
+	  DMI_MATCH(DMI_BIOS_VENDOR,"Phoenix Technologies LTD"),
+	  DMI_MATCH(DMI_BIOS_VERSION,"SHE845M0.86C.0013.D.0302131307") },
+	  (void*)2},
 	{},
 };
 
@@ -549,7 +552,8 @@ static int acpi_processor_get_power_info_default_c1 (struct acpi_processor *pr)
 	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_default_c1");
 
 	for (i = 0; i < ACPI_PROCESSOR_MAX_POWER; i++)
-		memset(pr->power.states, 0, sizeof(struct acpi_processor_cx));
+		memset(&(pr->power.states[i]), 0, 
+		       sizeof(struct acpi_processor_cx));
 
 	/* if info is obtained from pblk/fadt, type equals state */
 	pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
@@ -580,7 +584,8 @@ static int acpi_processor_get_power_info_cst (struct acpi_processor *pr)
 
 	pr->power.count = 0;
 	for (i = 0; i < ACPI_PROCESSOR_MAX_POWER; i++)
-		memset(pr->power.states, 0, sizeof(struct acpi_processor_cx));
+		memset(&(pr->power.states[i]), 0, 
+		       sizeof(struct acpi_processor_cx));
 
 	status = acpi_evaluate_object(pr->handle, "_CST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -763,7 +768,6 @@ static void acpi_processor_power_verify_c3(
 	}
 
 	if (pr->flags.bm_check) {
-		printk("Disabling BM access before entering C3\n");
 		/* bus mastering control is necessary */
 		if (!pr->flags.bm_control) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -771,7 +775,6 @@ static void acpi_processor_power_verify_c3(
 			return_VOID;
 		}
 	} else {
-		printk("Invalidating cache before entering C3\n");
 		/*
 		 * WBINVD should be set in fadt, for C3 state to be
 		 * supported on when bm_check is not required.
@@ -842,7 +845,7 @@ static int acpi_processor_get_power_info (
 	result = acpi_processor_get_power_info_cst(pr);
 	if ((result) || (acpi_processor_power_verify(pr) < 2)) {
 		result = acpi_processor_get_power_info_fadt(pr);
-		if (result)
+		if ((result) || (acpi_processor_power_verify(pr) < 2))
 			result = acpi_processor_get_power_info_default_c1(pr);
 	}
 
