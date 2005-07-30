@@ -5141,17 +5141,18 @@ static int skge_suspend(struct pci_dev *pdev, pm_message_t state)
 	SK_AC *pAC = pNet->pAC;
 	struct net_device *otherdev = pAC->dev[1];
 
-	if (pNet->Up) {
-		pAC->WasIfUp[0] = SK_TRUE;
+	if (netif_running(dev)) {
+		netif_carrier_off(dev);
 		DoPrintInterfaceChange = SK_FALSE;
 		SkDrvDeInitAdapter(pAC, 0);  /* performs SkGeClose */
+		netif_device_detach(dev);
 	}
 	if (otherdev != dev) {
-		pNet = netdev_priv(otherdev);
-		if (pNet->Up) {
-			pAC->WasIfUp[1] = SK_TRUE;
+		if (netif_running(otherdev)) {
+			netif_carrier_off(otherdev);
 			DoPrintInterfaceChange = SK_FALSE;
 			SkDrvDeInitAdapter(pAC, 1);  /* performs SkGeClose */
+			netif_device_detach(otherdev);
 		}
 	}
 
@@ -5171,23 +5172,36 @@ static int skge_resume(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	DEV_NET *pNet = netdev_priv(dev);
 	SK_AC *pAC = pNet->pAC;
+	struct net_device *otherdev = pAC->dev[1];
+	int ret;
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	pci_enable_device(pdev);
 	pci_set_master(pdev);
 	if (pAC->GIni.GIMacsFound == 2)
-		request_irq(dev->irq, SkGeIsr, SA_SHIRQ, pAC->Name, dev);
+		ret = request_irq(dev->irq, SkGeIsr, SA_SHIRQ, pAC->Name, dev);
 	else
-		request_irq(dev->irq, SkGeIsrOnePort, SA_SHIRQ, pAC->Name, dev);
+		ret = request_irq(dev->irq, SkGeIsrOnePort, SA_SHIRQ, pAC->Name, dev);
+	if (ret) {
+		printk(KERN_WARNING "sk98lin: unable to acquire IRQ %d\n", dev->irq);
+		pAC->AllocFlag &= ~SK_ALLOC_IRQ;
+		dev->irq = 0;
+		pci_disable_device(pdev);
+		return -EBUSY;
+	}
 
-        if (pAC->WasIfUp[0] == SK_TRUE) {
+	netif_device_attach(dev);
+	if (netif_running(dev)) {
 		DoPrintInterfaceChange = SK_FALSE;
 		SkDrvInitAdapter(pAC, 0);    /* first device  */
-        }
-	if (pAC->dev[1] != dev && pAC->WasIfUp[1] == SK_TRUE) {
-		DoPrintInterfaceChange = SK_FALSE;
-		SkDrvInitAdapter(pAC, 1);    /* first device  */
+	}
+	if (otherdev != dev) {
+		netif_device_attach(otherdev);
+		if (netif_running(otherdev)) {
+			DoPrintInterfaceChange = SK_FALSE;
+			SkDrvInitAdapter(pAC, 1);    /* second device  */
+		}
 	}
 
 	return 0;
