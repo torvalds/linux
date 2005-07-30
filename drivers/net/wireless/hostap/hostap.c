@@ -12,10 +12,6 @@
  * more details.
  */
 
-#ifndef EXPORT_SYMTAB
-#define EXPORT_SYMTAB
-#endif
-
 #include <linux/config.h>
 #include <linux/version.h>
 #include <linux/module.h>
