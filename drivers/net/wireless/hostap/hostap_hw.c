@@ -3374,6 +3374,7 @@ prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 				   * cnfDbmAdjust, if available */
 	local->auth_algs = PRISM2_AUTH_OPEN | PRISM2_AUTH_SHARED_KEY;
 	local->sram_type = -1;
+	local->scan_channel_mask = 0xffff;
 #if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
 	local->bus_master_threshold_rx = GET_INT_PARM(bus_master_threshold_rx,
 						      card_idx);

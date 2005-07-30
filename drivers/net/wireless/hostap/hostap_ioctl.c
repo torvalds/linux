@@ -1664,7 +1664,8 @@ static int prism2_request_hostscan(struct net_device *dev,
 	local = iface->local;
 
 	memset(&scan_req, 0, sizeof(scan_req));
-	scan_req.channel_list = __constant_cpu_to_le16(local->channel_mask);
+	scan_req.channel_list = cpu_to_le16(local->channel_mask &
+					    local->scan_channel_mask);
 	scan_req.txrate = __constant_cpu_to_le16(HFA384X_RATES_1MBPS);
 	if (ssid) {
 		if (ssid_len > 32)
@@ -1693,7 +1694,8 @@ static int prism2_request_scan(struct net_device *dev)
 	local = iface->local;
 
 	memset(&scan_req, 0, sizeof(scan_req));
-	scan_req.channel_list = __constant_cpu_to_le16(local->channel_mask);
+	scan_req.channel_list = cpu_to_le16(local->channel_mask &
+					    local->scan_channel_mask);
 	scan_req.txrate = __constant_cpu_to_le16(HFA384X_RATES_1MBPS);
 
 	/* FIX:
@@ -2338,6 +2340,10 @@ static const struct iw_priv_args prism2_priv[] = {
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "drop_unencrypte" },
 	{ PRISM2_PARAM_DROP_UNENCRYPTED,
 	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getdrop_unencry" },
+	{ PRISM2_PARAM_SCAN_CHANNEL_MASK,
+	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "scan_channels" },
+	{ PRISM2_PARAM_SCAN_CHANNEL_MASK,
+	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getscan_channel" },
 };
 
 
@@ -2699,6 +2705,10 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 		local->drop_unencrypted = value;
 		break;
 
+	case PRISM2_PARAM_SCAN_CHANNEL_MASK:
+		local->scan_channel_mask = value;
+		break;
+
 	default:
 		printk(KERN_DEBUG "%s: prism2_param: unknown param %d\n",
 		       dev->name, param);
@@ -2888,6 +2898,10 @@ static int prism2_ioctl_priv_get_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_DROP_UNENCRYPTED:
 		*param = local->drop_unencrypted;
+		break;
+
+	case PRISM2_PARAM_SCAN_CHANNEL_MASK:
+		*param = local->scan_channel_mask;
 		break;
 
 	default:

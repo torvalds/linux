@@ -680,7 +680,8 @@ struct local_info {
 	char essid[MAX_SSID_LEN + 1];
 	char name[MAX_NAME_LEN + 1];
 	int name_set;
-	u16 channel_mask;
+	u16 channel_mask; /* mask of allowed channels */
+	u16 scan_channel_mask; /* mask of channels to be scanned */
 	struct comm_tallies_sums comm_tallies;
 	struct net_device_stats stats;
 	struct proc_dir_entry *proc;
