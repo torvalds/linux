@@ -1665,6 +1665,7 @@ static int
 acpi_video_bus_put_one_device(
 	struct acpi_video_device	*device)
 {
+	acpi_status status;
 	struct acpi_video_bus *video;
 
 	ACPI_FUNCTION_TRACE("acpi_video_bus_put_one_device");
@@ -1678,6 +1679,12 @@ acpi_video_bus_put_one_device(
 	list_del(&device->entry);
 	up(&video->sem);
 	acpi_video_device_remove_fs(device->dev);
+
+	status = acpi_remove_notify_handler(device->handle,
+		ACPI_DEVICE_NOTIFY, acpi_video_device_notify);
+	if (ACPI_FAILURE(status))
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+			"Error removing notify handler\n"));
 
 	return_VALUE(0);
 }
