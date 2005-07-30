@@ -5,7 +5,8 @@
    Copyright (c) 2003, 2004 Jeff Garzik <jgarzik@pobox.com>
    Copyright (c) 2003, 2004, 2005 Francois Romieu <romieu@fr.zoreil.com>
 
-   Based on r8169.c, tg3.c, 8139cp.c, skge.c and probably even epic100.c.
+   Based on r8169.c, tg3.c, 8139cp.c, skge.c, epic100.c and SiS 190/191
+   genuine driver.
 
    This software may be used and distributed according to the terms of
    the GNU General Public License (GPL), incorporated herein by reference.
@@ -221,6 +222,16 @@ enum _DescStatusBit {
 	RxSizeMask	= 0x0000ffff
 };
 
+enum sis190_eeprom_access_register_bits {
+	EECS	= 0x00000001,	// unused
+	EECLK	= 0x00000002,	// unused
+	EEDO	= 0x00000008,	// unused
+	EEDI	= 0x00000004,	// unused
+	EEREQ	= 0x00000080,
+	EEROP	= 0x00000200,
+	EEWOP	= 0x00000100	// unused
+};
+
 struct sis190_private {
 	void __iomem *mmio_addr;
 	struct pci_dev *pci_dev;
@@ -333,26 +344,23 @@ static int __mdio_read(struct net_device *dev, int phy_id, int reg)
 	return mdio_read(tp->mmio_addr, reg);
 }
 
-static int sis190_read_eeprom(void __iomem *ioaddr, u32 reg)
+static u16 __devinit sis190_read_eeprom(void __iomem *ioaddr, u32 reg)
 {
+	u16 data = 0xffff;
 	unsigned int i;
-	u16 data;
-	u32 val;
 
 	if (!(SIS_R32(ROMControl) & 0x0002))
 		return 0;
 
-	val = (0x0080 | (0x2 << 8) | (reg << 10));
-
-	SIS_W32(ROMInterface, val);
+	SIS_W32(ROMInterface, EEREQ | EEROP | (reg << 10));
 
 	for (i = 0; i < 200; i++) {
-		if (!(SIS_R32(ROMInterface) & 0x0080))
+		if (!(SIS_R32(ROMInterface) & EEREQ)) {
+			data = (SIS_R32(ROMInterface) & 0xffff0000) >> 16;
 			break;
+		}
 		msleep(1);
 	}
-
-	data = (u16) ((SIS_R32(ROMInterface) & 0xffff0000) >> 16);
 
 	return data;
 }
