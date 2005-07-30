@@ -1921,6 +1921,16 @@ config R8169_VLAN
 	  
 	  If in doubt, say Y.
 
+config SIS190
+      tristate "SiS190 gigabit ethernet support"
+      depends on PCI
+      select CRC32
+      ---help---
+        Say Y here if you have a SiS 190 PCI Gigabit Ethernet adapter.
+
+        To compile this driver as a module, choose M here: the module
+        will be called sis190.  This is recommended.
+
 config SKGE
 	tristate "New SysKonnect GigaEthernet support (EXPERIMENTAL)"
 	depends on PCI && EXPERIMENTAL
