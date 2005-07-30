@@ -23,11 +23,7 @@
 static char vmwdt_cmd[MAX_CMDLEN] = "IPL";
 static int vmwdt_conceal;
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int vmwdt_nowayout = 1;
-#else
-static int vmwdt_nowayout = 0;
-#endif
+static int vmwdt_nowayout = WATCHDOG_NOWAYOUT;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arnd Bergmann <arndb@de.ibm.com>");

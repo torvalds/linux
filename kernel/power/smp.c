@@ -38,7 +38,7 @@ void disable_nonboot_cpus(void)
 		}
 		printk("Error taking cpu %d down: %d\n", cpu, error);
 	}
-	BUG_ON(smp_processor_id() != 0);
+	BUG_ON(raw_smp_processor_id() != 0);
 	if (error)
 		panic("cpus not sleeping");
 }

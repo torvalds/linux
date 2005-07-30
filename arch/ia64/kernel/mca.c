@@ -271,7 +271,7 @@ ia64_mca_log_sal_error_record(int sal_info_type)
 
 #ifdef CONFIG_ACPI
 
-static int cpe_vector = -1;
+int cpe_vector = -1;
 
 static irqreturn_t
 ia64_mca_cpe_int_handler (int cpe_irq, void *arg, struct pt_regs *ptregs)

@@ -50,6 +50,22 @@
 #define _COMPONENT          ACPI_NAMESPACE
 	 ACPI_MODULE_NAME    ("nsinit")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ns_init_one_object (
+	acpi_handle                     obj_handle,
+	u32                             level,
+	void                            *context,
+	void                            **return_value);
+
+static acpi_status
+acpi_ns_init_one_device (
+	acpi_handle                     obj_handle,
+	u32                             nesting_level,
+	void                            *context,
+	void                            **return_value);
+
 
 /*******************************************************************************
  *
@@ -191,7 +207,7 @@ acpi_ns_initialize_devices (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ns_init_one_object (
 	acpi_handle                     obj_handle,
 	u32                             level,
@@ -331,7 +347,7 @@ acpi_ns_init_one_object (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ns_init_one_device (
 	acpi_handle                     obj_handle,
 	u32                             nesting_level,
@@ -374,7 +390,8 @@ acpi_ns_init_one_device (
 	/*
 	 * Run _STA to determine if we can run _INI on the device.
 	 */
-	ACPI_DEBUG_EXEC (acpi_ut_display_init_pathname (ACPI_TYPE_METHOD, pinfo.node, "_STA"));
+	ACPI_DEBUG_EXEC (acpi_ut_display_init_pathname (ACPI_TYPE_METHOD,
+			   pinfo.node, METHOD_NAME__STA));
 	status = acpi_ut_execute_STA (pinfo.node, &flags);
 
 	if (ACPI_FAILURE (status)) {
@@ -399,8 +416,9 @@ acpi_ns_init_one_device (
 	/*
 	 * The device is present. Run _INI.
 	 */
-	ACPI_DEBUG_EXEC (acpi_ut_display_init_pathname (ACPI_TYPE_METHOD, pinfo.node, "_INI"));
-	status = acpi_ns_evaluate_relative ("_INI", &pinfo);
+	ACPI_DEBUG_EXEC (acpi_ut_display_init_pathname (ACPI_TYPE_METHOD,
+			   pinfo.node, METHOD_NAME__INI));
+	status = acpi_ns_evaluate_relative (METHOD_NAME__INI, &pinfo);
 	if (ACPI_FAILURE (status)) {
 		/* No _INI (AE_NOT_FOUND) means device requires no initialization */
 

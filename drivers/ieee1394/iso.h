@@ -47,6 +47,14 @@ struct hpsb_iso_packet_info {
 	/* 2-bit 'tag' and 4-bit 'sy' fields of the isochronous header */
 	__u8 tag;
 	__u8 sy;
+
+	/*
+	 * length in bytes of the packet including header/trailer.
+	 * MUST be at structure end, since the first part of this structure is also 
+	 * defined in raw1394.h (i.e. struct raw1394_iso_packet_info), is copied to 
+	 * userspace and is accessed there through libraw1394. 
+	 */
+	__u16 total_len;
 };
 
 enum hpsb_iso_type { HPSB_ISO_RECV = 0, HPSB_ISO_XMIT = 1 };
@@ -110,6 +118,9 @@ struct hpsb_iso {
 
 	/* how many times the buffer has overflowed or underflowed */
 	atomic_t overflows;
+
+	/* Current number of bytes lost in discarded packets */
+	int bytes_discarded;
 
 	/* private flags to track initialization progress */
 #define HPSB_ISO_DRIVER_INIT     (1<<0)
@@ -193,7 +204,7 @@ void hpsb_iso_packet_sent(struct hpsb_iso *iso, int cycle, int error);
 
 /* call after a packet has been received (interrupt context OK) */
 void hpsb_iso_packet_received(struct hpsb_iso *iso, u32 offset, u16 len,
-			      u16 cycle, u8 channel, u8 tag, u8 sy);
+			      u16 total_len, u16 cycle, u8 channel, u8 tag, u8 sy);
 
 /* call to wake waiting processes after buffer space has opened up. */
 void hpsb_iso_wake(struct hpsb_iso *iso);

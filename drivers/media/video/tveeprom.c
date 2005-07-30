@@ -400,14 +400,6 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee, unsigned char *eeprom_data
 		}
 	}
 
-#if 0
-	if (t_format < sizeof(hauppauge_tuner_fmt)/sizeof(struct HAUPPAUGE_TUNER_FMT)) {
-		tvee->tuner_formats = hauppauge_tuner_fmt[t_format].id;
-		t_fmt_name = hauppauge_tuner_fmt[t_format].name;
-	} else {
-		t_fmt_name = "<unknown>";
-	}
-#endif
 
 	TVEEPROM_KERN_INFO("Hauppauge: model = %d, rev = %s, serial# = %d\n",
 		   tvee->model,
@@ -453,6 +445,7 @@ int tveeprom_read(struct i2c_client *c, unsigned char *eedata, int len)
 }
 EXPORT_SYMBOL(tveeprom_read);
 
+#if 0
 int tveeprom_dump(unsigned char *eedata, int len)
 {
 	int i;
@@ -468,6 +461,7 @@ int tveeprom_dump(unsigned char *eedata, int len)
 	return 0;
 }
 EXPORT_SYMBOL(tveeprom_dump);
+#endif  /*  0  */
 
 /* ----------------------------------------------------------------------- */
 /* needed for ivtv.sf.net at the moment.  Should go away in the long       */
@@ -482,9 +476,10 @@ static unsigned short normal_i2c[] = {
 	0xa0 >> 1,
 	I2C_CLIENT_END,
 };
+
 I2C_CLIENT_INSMOD;
 
-struct i2c_driver i2c_driver_tveeprom;
+static struct i2c_driver i2c_driver_tveeprom;
 
 static int
 tveeprom_command(struct i2c_client *client,
@@ -556,7 +551,7 @@ tveeprom_detach_client (struct i2c_client *client)
 	return 0;
 }
 
-struct i2c_driver i2c_driver_tveeprom = {
+static struct i2c_driver i2c_driver_tveeprom = {
 	.owner          = THIS_MODULE,
 	.name           = "tveeprom",
 	.id             = I2C_DRIVERID_TVEEPROM,

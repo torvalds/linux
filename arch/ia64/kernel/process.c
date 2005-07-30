@@ -196,6 +196,7 @@ update_pal_halt_status(int status)
 void
 default_idle (void)
 {
+	local_irq_enable();
 	while (!need_resched())
 		if (can_do_pal_halt)
 			safe_halt();
@@ -806,15 +807,11 @@ machine_restart (char *restart_cmd)
 	(*efi.reset_system)(EFI_RESET_WARM, 0, 0, NULL);
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void
 machine_halt (void)
 {
 	cpu_halt();
 }
-
-EXPORT_SYMBOL(machine_halt);
 
 void
 machine_power_off (void)
@@ -824,4 +821,3 @@ machine_power_off (void)
 	machine_halt();
 }
 
-EXPORT_SYMBOL(machine_power_off);

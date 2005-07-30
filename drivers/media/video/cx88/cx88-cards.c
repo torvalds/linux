@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-cards.c,v 1.85 2005/07/04 19:35:05 mkrufky Exp $
+ * $Id: cx88-cards.c,v 1.86 2005/07/14 03:06:43 mchehab Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * card-specific stuff.
@@ -682,9 +682,9 @@ struct cx88_board cx88_boards[] = {
 		.name           = "PixelView PlayTV Ultra Pro (Stereo)",
 		/* May be also TUNER_YMEC_TVF_5533MF for NTSC/M or PAL/M */
 		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
-		.radio_type     = TUNER_TEA5767,
-		.tuner_addr	= 0xc2>>1,
-		.radio_addr	= 0xc0>>1,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,

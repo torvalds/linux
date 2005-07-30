@@ -547,8 +547,7 @@ static void snd_via82xx_codec_wait(ac97_t *ac97)
 	int err;
 	err = snd_via82xx_codec_ready(chip, ac97->num);
 	/* here we need to wait fairly for long time.. */
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ/2);
+	msleep(500);
 }
 
 static void snd_via82xx_codec_write(ac97_t *ac97,
@@ -1847,7 +1846,7 @@ static void __devinit snd_via82xx_proc_init(via82xx_t *chip)
 static int snd_via82xx_chip_init(via82xx_t *chip)
 {
 	unsigned int val;
-	int max_count;
+	unsigned long end_time;
 	unsigned char pval;
 
 #if 0 /* broken on K7M? */
@@ -1889,14 +1888,14 @@ static int snd_via82xx_chip_init(via82xx_t *chip)
 	}
 
 	/* wait until codec ready */
-	max_count = ((3 * HZ) / 4) + 1;
+	end_time = jiffies + msecs_to_jiffies(750);
 	do {
 		pci_read_config_byte(chip->pci, VIA_ACLINK_STAT, &pval);
 		if (pval & VIA_ACLINK_C00_READY) /* primary codec ready */
 			break;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
-	} while (--max_count > 0);
+	} while (time_before(jiffies, end_time));
 
 	if ((val = snd_via82xx_codec_xread(chip)) & VIA_REG_AC97_BUSY)
 		snd_printk("AC'97 codec is not ready [0x%x]\n", val);
@@ -1905,7 +1904,7 @@ static int snd_via82xx_chip_init(via82xx_t *chip)
 	snd_via82xx_codec_xwrite(chip, VIA_REG_AC97_READ |
 				 VIA_REG_AC97_SECONDARY_VALID |
 				 (VIA_REG_AC97_CODEC_ID_SECONDARY << VIA_REG_AC97_CODEC_ID_SHIFT));
-	max_count = ((3 * HZ) / 4) + 1;
+	end_time = jiffies + msecs_to_jiffies(750);
 	snd_via82xx_codec_xwrite(chip, VIA_REG_AC97_READ |
 				 VIA_REG_AC97_SECONDARY_VALID |
 				 (VIA_REG_AC97_CODEC_ID_SECONDARY << VIA_REG_AC97_CODEC_ID_SHIFT));
@@ -1916,7 +1915,7 @@ static int snd_via82xx_chip_init(via82xx_t *chip)
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(1);
-	} while (--max_count > 0);
+	} while (time_before(jiffies, end_time));
 	/* This is ok, the most of motherboards have only one codec */
 
       __ac97_ok2:
@@ -2178,7 +2177,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 		{ .subvendor = 0x147b, .subdevice = 0x1413, .action = VIA_DXS_ENABLE }, /* ABIT KV8 Pro */
 		{ .subvendor = 0x147b, .subdevice = 0x1415, .action = VIA_DXS_NO_VRA }, /* Abit AV8 */
 		{ .subvendor = 0x14ff, .subdevice = 0x0403, .action = VIA_DXS_ENABLE }, /* Twinhead mobo */
-		{ .subvendor = 0x14ff, .subdevice = 0x0408, .action = VIA_DXS_NO_VRA }, /* Twinhead mobo */
+		{ .subvendor = 0x14ff, .subdevice = 0x0408, .action = VIA_DXS_SRC }, /* Twinhead laptop */
 		{ .subvendor = 0x1584, .subdevice = 0x8120, .action = VIA_DXS_ENABLE }, /* Gericom/Targa/Vobis/Uniwill laptop */
 		{ .subvendor = 0x1584, .subdevice = 0x8123, .action = VIA_DXS_NO_VRA }, /* Uniwill (Targa Visionary XP-210) */
 		{ .subvendor = 0x161f, .subdevice = 0x202b, .action = VIA_DXS_NO_VRA }, /* Amira Note book */
@@ -2187,6 +2186,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 		{ .subvendor = 0x1695, .subdevice = 0x3005, .action = VIA_DXS_ENABLE }, /* EPoX EP-8K9A */
 		{ .subvendor = 0x1849, .subdevice = 0x3059, .action = VIA_DXS_NO_VRA }, /* ASRock K7VM2 */
 		{ .subvendor = 0x1919, .subdevice = 0x200a, .action = VIA_DXS_NO_VRA }, /* Soltek SL-K8Tpro-939 */
+		{ .subvendor = 0x4005, .subdevice = 0x4710, .action = VIA_DXS_SRC },	/* MSI K7T266 Pro2 (MS-6380 V2.0) BIOS 3.7 */
 		{ } /* terminator */
 	};
 	struct dxs_whitelist *w;

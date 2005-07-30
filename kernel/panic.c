@@ -111,12 +111,11 @@ NORET_TYPE void panic(const char * fmt, ...)
 			mdelay(1);
 			i++;
 		}
-		/*
-		 *	Should we run the reboot notifier. For the moment Im
-		 *	choosing not too. It might crash, be corrupt or do
-		 *	more harm than good for other reasons.
+		/*	This will not be a clean reboot, with everything
+		 *	shutting down.  But if there is a chance of
+		 *	rebooting the system it will be rebooted.
 		 */
-		machine_restart(NULL);
+		emergency_restart();
 	}
 #ifdef __sparc__
 	{

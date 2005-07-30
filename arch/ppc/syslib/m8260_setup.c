@@ -24,7 +24,7 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/mpc8260.h>
-#include <asm/immap_cpm2.h>
+#include <asm/cpm2.h>
 #include <asm/machdep.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
@@ -33,7 +33,6 @@
 
 unsigned char __res[sizeof(bd_t)];
 
-extern void cpm2_reset(void);
 extern void pq2_find_bridges(void);
 extern void pq2pci_init_irq(void);
 extern void idma_pci9_init(void);

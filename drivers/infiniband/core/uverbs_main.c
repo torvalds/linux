@@ -257,11 +257,19 @@ static void ib_uverbs_event_release(struct ib_uverbs_event_file *file)
 	spin_unlock_irq(&file->lock);
 }
 
+static int ib_uverbs_event_fasync(int fd, struct file *filp, int on)
+{
+	struct ib_uverbs_event_file *file = filp->private_data;
+
+	return fasync_helper(fd, filp, on, &file->async_queue);
+}
+
 static int ib_uverbs_event_close(struct inode *inode, struct file *filp)
 {
 	struct ib_uverbs_event_file *file = filp->private_data;
 
 	ib_uverbs_event_release(file);
+	ib_uverbs_event_fasync(-1, filp, 0);
 	kref_put(&file->uverbs_file->ref, ib_uverbs_release_file);
 
 	return 0;
@@ -276,7 +284,8 @@ static struct file_operations uverbs_event_fops = {
 	 */
 	.read 	 = ib_uverbs_event_read,
 	.poll    = ib_uverbs_event_poll,
-	.release = ib_uverbs_event_close
+	.release = ib_uverbs_event_close,
+	.fasync  = ib_uverbs_event_fasync
 };
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
@@ -296,6 +305,7 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 	spin_unlock_irqrestore(&file->comp_file[0].lock, flags);
 
 	wake_up_interruptible(&file->comp_file[0].poll_wait);
+	kill_fasync(&file->comp_file[0].async_queue, SIGIO, POLL_IN);
 }
 
 static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
@@ -316,6 +326,7 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 	spin_unlock_irqrestore(&file->async_file.lock, flags);
 
 	wake_up_interruptible(&file->async_file.poll_wait);
+	kill_fasync(&file->async_file.async_queue, SIGIO, POLL_IN);
 }
 
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr)
@@ -350,6 +361,7 @@ static int ib_uverbs_event_init(struct ib_uverbs_event_file *file,
 	INIT_LIST_HEAD(&file->event_list);
 	init_waitqueue_head(&file->poll_wait);
 	file->uverbs_file = uverbs_file;
+	file->async_queue = NULL;
 
 	file->fd = get_unused_fd();
 	if (file->fd < 0)

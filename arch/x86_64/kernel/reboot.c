@@ -109,23 +109,10 @@ void machine_shutdown(void)
 	local_irq_enable();
 }
 
-void machine_restart(char * __unused)
+void machine_emergency_restart(void)
 {
 	int i;
 
-	printk("machine restart\n");
-
-	machine_shutdown();
-
-	if (!reboot_force) {
-		local_irq_disable();
-#ifndef CONFIG_SMP
-		disable_local_APIC();
-#endif
-		disable_IO_APIC();
-		local_irq_enable();
-	}
-	
 	/* Tell the BIOS if we want cold or warm reboot */
 	*((unsigned short *)__va(0x472)) = reboot_mode;
        
@@ -150,18 +137,26 @@ void machine_restart(char * __unused)
 	}      
 }
 
-EXPORT_SYMBOL(machine_restart);
+void machine_restart(char * __unused)
+{
+	printk("machine restart\n");
+
+	if (!reboot_force) {
+		machine_shutdown();
+	}
+	machine_emergency_restart();
+}
 
 void machine_halt(void)
 {
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off(void)
 {
+	if (!reboot_force) {
+		machine_shutdown();
+	}
 	if (pm_power_off)
 		pm_power_off();
 }
 
-EXPORT_SYMBOL(machine_power_off);

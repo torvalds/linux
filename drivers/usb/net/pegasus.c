@@ -59,7 +59,6 @@ static const char driver_name[] = "pegasus";
 
 static int loopback = 0;
 static int mii_mode = 0;
-static int multicast_filter_limit = 32;
 
 static struct usb_eth_dev usb_dev_id[] = {
 #define	PEGASUS_DEV(pn, vid, pid, flags)	\

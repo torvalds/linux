@@ -178,6 +178,9 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define ICH6_INT_CTRL_EN	0x40000000	/* controller interrupt enable bit */
 #define ICH6_INT_GLOBAL_EN	0x80000000	/* global interrupt enable bit */
 
+/* GCTL unsolicited response enable bit */
+#define ICH6_GCTL_UREN		(1<<8)
+
 /* GCTL reset bit */
 #define ICH6_GCTL_RESET		(1<<0)
 
@@ -561,6 +564,9 @@ static int azx_reset(azx_t *chip)
 		snd_printd("azx_reset: controller not ready!\n");
 		return -EBUSY;
 	}
+
+	/* Accept unsolicited responses */
+	azx_writel(chip, GCTL, azx_readl(chip, GCTL) | ICH6_GCTL_UREN);
 
 	/* detect codecs */
 	if (! chip->codec_mask) {

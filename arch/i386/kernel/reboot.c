@@ -284,7 +284,7 @@ void machine_shutdown(void)
 	reboot_cpu_id = 0;
 
 	/* See if there has been given a command line override */
-	if ((reboot_cpu_id != -1) && (reboot_cpu < NR_CPUS) &&
+	if ((reboot_cpu != -1) && (reboot_cpu < NR_CPUS) &&
 		cpu_isset(reboot_cpu, cpu_online_map)) {
 		reboot_cpu_id = reboot_cpu;
 	}
@@ -311,10 +311,8 @@ void machine_shutdown(void)
 #endif
 }
 
-void machine_restart(char * __unused)
+void machine_emergency_restart(void)
 {
-	machine_shutdown();
-
 	if (!reboot_thru_bios) {
 		if (efi_enabled) {
 			efi.reset_system(EFI_RESET_COLD, EFI_SUCCESS, 0, NULL);
@@ -337,23 +335,22 @@ void machine_restart(char * __unused)
 	machine_real_restart(jump_to_bios, sizeof(jump_to_bios));
 }
 
-EXPORT_SYMBOL(machine_restart);
+void machine_restart(char * __unused)
+{
+	machine_shutdown();
+	machine_emergency_restart();
+}
 
 void machine_halt(void)
 {
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off(void)
 {
-	lapic_shutdown();
+	machine_shutdown();
 
-	if (efi_enabled)
-		efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
 	if (pm_power_off)
 		pm_power_off();
 }
 
-EXPORT_SYMBOL(machine_power_off);
 

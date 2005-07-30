@@ -465,6 +465,8 @@ config KEXEC
 
 endmenu
 
+source "net/Kconfig"
+
 config PCMCIA
 	bool
 	default n
@@ -475,7 +477,7 @@ source "drivers/scsi/Kconfig"
 
 source "drivers/s390/Kconfig"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 source "fs/Kconfig"
 

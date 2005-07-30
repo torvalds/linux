@@ -61,6 +61,7 @@ struct ib_uverbs_event_file {
 	int					fd;
 	int					is_async;
 	wait_queue_head_t			poll_wait;
+	struct fasync_struct		       *async_queue;
 	struct list_head			event_list;
 };
 

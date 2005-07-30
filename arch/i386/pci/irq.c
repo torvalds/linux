@@ -550,6 +550,13 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 static __init int via_router_probe(struct irq_router *r, struct pci_dev *router, u16 device)
 {
 	/* FIXME: We should move some of the quirk fixup stuff here */
+
+	if (router->device == PCI_DEVICE_ID_VIA_82C686 &&
+			device == PCI_DEVICE_ID_VIA_82C586_0) {
+		/* Asus k7m bios wrongly reports 82C686A as 586-compatible */
+		device = PCI_DEVICE_ID_VIA_82C686;
+	}
+
 	switch(device)
 	{
 		case PCI_DEVICE_ID_VIA_82C586_0:
@@ -1051,24 +1058,28 @@ static int __init pcibios_irq_init(void)
 subsys_initcall(pcibios_irq_init);
 
 
-static void pirq_penalize_isa_irq(int irq)
+static void pirq_penalize_isa_irq(int irq, int active)
 {
 	/*
 	 *  If any ISAPnP device reports an IRQ in its list of possible
 	 *  IRQ's, we try to avoid assigning it to PCI devices.
 	 */
-	if (irq < 16)
-		pirq_penalty[irq] += 100;
+	if (irq < 16) {
+		if (active)
+			pirq_penalty[irq] += 1000;
+		else
+			pirq_penalty[irq] += 100;
+	}
 }
 
-void pcibios_penalize_isa_irq(int irq)
+void pcibios_penalize_isa_irq(int irq, int active)
 {
 #ifdef CONFIG_ACPI_PCI
 	if (!acpi_noirq)
-		acpi_penalize_isa_irq(irq);
+		acpi_penalize_isa_irq(irq, active);
 	else
 #endif
-		pirq_penalize_isa_irq(irq);
+		pirq_penalize_isa_irq(irq, active);
 }
 
 static int pirq_enable_irq(struct pci_dev *dev)

@@ -47,7 +47,7 @@ pcibios_set_master (struct pci_dev *dev)
 }
 
 static inline void
-pcibios_penalize_isa_irq (int irq)
+pcibios_penalize_isa_irq (int irq, int active)
 {
 	/* We don't do dynamic PCI IRQ allocation */
 }
@@ -128,6 +128,7 @@ struct pci_controller {
 	void *acpi_handle;
 	void *iommu;
 	int segment;
+	int node;		/* nearest node with memory or -1 for global allocation */
 
 	unsigned int windows;
 	struct pci_window *window;

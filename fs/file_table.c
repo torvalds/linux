@@ -16,6 +16,7 @@
 #include <linux/eventpoll.h>
 #include <linux/mount.h>
 #include <linux/cdev.h>
+#include <linux/fsnotify.h>
 
 /* sysctl tunables... */
 struct files_stat_struct files_stat = {
@@ -126,6 +127,8 @@ void fastcall __fput(struct file *file)
 	struct inode *inode = dentry->d_inode;
 
 	might_sleep();
+
+	fsnotify_close(file);
 	/*
 	 * The function eventpoll_release() should be the first called
 	 * in the file cleanup chain.

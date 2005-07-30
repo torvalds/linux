@@ -15,7 +15,7 @@
  *
  * Author: Tobias Anderberg <tobiasa@axis.com>.
  *
- * $Id: pcf8563.c,v 1.8 2004/08/24 06:42:51 starvik Exp $
+ * $Id: pcf8563.c,v 1.11 2005/03/07 13:13:07 starvik Exp $
  */
 
 #include <linux/config.h>
@@ -40,7 +40,7 @@
 #define PCF8563_MAJOR 121		/* Local major number. */
 #define DEVICE_NAME "rtc"		/* Name which is registered in /proc/devices. */
 #define PCF8563_NAME "PCF8563"
-#define DRIVER_VERSION "$Revision: 1.8 $"
+#define DRIVER_VERSION "$Revision: 1.11 $"
 
 /* I2C bus slave registers. */
 #define RTC_I2C_READ		0xa3
@@ -49,6 +49,8 @@
 /* Two simple wrapper macros, saves a few keystrokes. */
 #define rtc_read(x) i2c_readreg(RTC_I2C_READ, x)
 #define rtc_write(x,y) i2c_writereg(RTC_I2C_WRITE, x, y)
+
+static DEFINE_SPINLOCK(rtc_lock); /* Protect state etc */
 	
 static const unsigned char days_in_month[] =
 	{ 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
@@ -125,9 +127,12 @@ get_rtc_time(struct rtc_time *tm)
 int __init
 pcf8563_init(void)
 {
-	unsigned char ret;
+	int ret;
 
-	i2c_init();
+	if ((ret = i2c_init())) {
+		printk(KERN_CRIT "pcf8563_init: failed to init i2c\n");
+		return ret;
+	}
 
 	/*
 	 * First of all we need to reset the chip. This is done by
@@ -200,12 +205,15 @@ pcf8563_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned
 			{
 				struct rtc_time tm;
 
+				spin_lock(&rtc_lock);
 				get_rtc_time(&tm);
 
 				if (copy_to_user((struct rtc_time *) arg, &tm, sizeof(struct rtc_time))) {
+					spin_unlock(&rtc_lock);
 					return -EFAULT;
 				}
 
+				spin_unlock(&rtc_lock);
 				return 0;
 			}
 			break;
@@ -250,6 +258,8 @@ pcf8563_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned
 				BIN_TO_BCD(tm.tm_min);
 				BIN_TO_BCD(tm.tm_sec);
 				tm.tm_mon |= century;
+
+				spin_lock(&rtc_lock);
 				
 				rtc_write(RTC_YEAR, tm.tm_year);
 				rtc_write(RTC_MONTH, tm.tm_mon);
@@ -257,6 +267,8 @@ pcf8563_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned
 				rtc_write(RTC_HOURS, tm.tm_hour);
 				rtc_write(RTC_MINUTES, tm.tm_min);
 				rtc_write(RTC_SECONDS, tm.tm_sec);
+
+				spin_unlock(&rtc_lock);
 
 				return 0;
 #endif /* !CONFIG_ETRAX_RTC_READONLY */

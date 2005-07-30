@@ -91,8 +91,7 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 
 
 
-static unsigned short cisco_type_trans(struct sk_buff *skb,
-				       struct net_device *dev)
+static __be16 cisco_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	hdlc_header *data = (hdlc_header*)skb->data;
 

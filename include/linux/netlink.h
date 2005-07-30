@@ -5,7 +5,7 @@
 #include <linux/types.h>
 
 #define NETLINK_ROUTE		0	/* Routing/device hook				*/
-#define NETLINK_SKIP		1	/* Reserved for ENskip  			*/
+#define NETLINK_W1		1	/* 1-wire subsystem				*/
 #define NETLINK_USERSOCK	2	/* Reserved for user mode socket protocols 	*/
 #define NETLINK_FIREWALL	3	/* Firewalling hook				*/
 #define NETLINK_TCPDIAG		4	/* TCP socket monitoring			*/
@@ -16,6 +16,7 @@
 #define NETLINK_AUDIT		9	/* auditing */
 #define NETLINK_FIB_LOOKUP	10	
 #define NETLINK_ROUTE6		11	/* af_inet6 route comm channel */
+#define NETLINK_NETFILTER	12	/* netfilter subsystem */
 #define NETLINK_IP6_FW		13
 #define NETLINK_DNRTMSG		14	/* DECnet routing messages */
 #define NETLINK_KOBJECT_UEVENT	15	/* Kernel messages to userspace */

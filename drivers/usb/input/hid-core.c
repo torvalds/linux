@@ -789,12 +789,12 @@ static __inline__ int search(__s32 *array, __s32 value, unsigned n)
 	return -1;
 }
 
-static void hid_process_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value, struct pt_regs *regs)
+static void hid_process_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value, int interrupt, struct pt_regs *regs)
 {
 	hid_dump_input(usage, value);
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_hid_event(hid, field, usage, value, regs);
-	if (hid->claimed & HID_CLAIMED_HIDDEV)
+	if (hid->claimed & HID_CLAIMED_HIDDEV && interrupt)
 		hiddev_hid_event(hid, field, usage, value, regs);
 }
 
@@ -804,7 +804,7 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field, s
  * reporting to the layer).
  */
 
-static void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, struct pt_regs *regs)
+static void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt, struct pt_regs *regs)
 {
 	unsigned n;
 	unsigned count = field->report_count;
@@ -831,19 +831,19 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field, __u
 	for (n = 0; n < count; n++) {
 
 		if (HID_MAIN_ITEM_VARIABLE & field->flags) {
-			hid_process_event(hid, field, &field->usage[n], value[n], regs);
+			hid_process_event(hid, field, &field->usage[n], value[n], interrupt, regs);
 			continue;
 		}
 
 		if (field->value[n] >= min && field->value[n] <= max
 			&& field->usage[field->value[n] - min].hid
 			&& search(value, field->value[n], count))
-				hid_process_event(hid, field, &field->usage[field->value[n] - min], 0, regs);
+				hid_process_event(hid, field, &field->usage[field->value[n] - min], 0, interrupt, regs);
 
 		if (value[n] >= min && value[n] <= max
 			&& field->usage[value[n] - min].hid
 			&& search(field->value, value[n], count))
-				hid_process_event(hid, field, &field->usage[value[n] - min], 1, regs);
+				hid_process_event(hid, field, &field->usage[value[n] - min], 1, interrupt, regs);
 	}
 
 	memcpy(field->value, value, count * sizeof(__s32));
@@ -851,7 +851,7 @@ exit:
 	kfree(value);
 }
 
-static int hid_input_report(int type, struct urb *urb, struct pt_regs *regs)
+static int hid_input_report(int type, struct urb *urb, int interrupt, struct pt_regs *regs)
 {
 	struct hid_device *hid = urb->context;
 	struct hid_report_enum *report_enum = hid->report_enum + type;
@@ -899,7 +899,7 @@ static int hid_input_report(int type, struct urb *urb, struct pt_regs *regs)
 		hiddev_report_event(hid, report);
 
 	for (n = 0; n < report->maxfield; n++)
-		hid_input_field(hid, report->field[n], data, regs);
+		hid_input_field(hid, report->field[n], data, interrupt, regs);
 
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_report_event(hid, report);
@@ -918,7 +918,7 @@ static void hid_irq_in(struct urb *urb, struct pt_regs *regs)
 
 	switch (urb->status) {
 		case 0:			/* success */
-			hid_input_report(HID_INPUT_REPORT, urb, regs);
+			hid_input_report(HID_INPUT_REPORT, urb, 1, regs);
 			break;
 		case -ECONNRESET:	/* unlink */
 		case -ENOENT:
@@ -1142,7 +1142,7 @@ static void hid_ctrl(struct urb *urb, struct pt_regs *regs)
 	switch (urb->status) {
 		case 0:			/* success */
 			if (hid->ctrl[hid->ctrltail].dir == USB_DIR_IN)
-				hid_input_report(hid->ctrl[hid->ctrltail].report->type, urb, regs);
+				hid_input_report(hid->ctrl[hid->ctrltail].report->type, urb, 0, regs);
 		case -ESHUTDOWN:	/* unplug */
 		case -EILSEQ:		/* unplug timectrl on uhci */
 			unplug = 1;
@@ -1372,6 +1372,9 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_VENDOR_ID_A4TECH		0x09da
 #define USB_DEVICE_ID_A4TECH_WCP32PU	0x0006
 
+#define USB_VENDOR_ID_AASHIMA		0x06D6
+#define USB_DEVICE_ID_AASHIMA_GAMEPAD	0x0025
+
 #define USB_VENDOR_ID_CYPRESS		0x04b4
 #define USB_DEVICE_ID_CYPRESS_MOUSE	0x0001
 #define USB_DEVICE_ID_CYPRESS_HIDCOM	0x5500
@@ -1428,6 +1431,19 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_DEVICE_ID_VERNIER_SKIP	0x0003
 #define USB_DEVICE_ID_VERNIER_CYCLOPS	0x0004
 
+#define USB_VENDOR_ID_LD		0x0f11
+#define USB_DEVICE_ID_CASSY        	0x1000
+#define USB_DEVICE_ID_POCKETCASSY	0x1010
+#define USB_DEVICE_ID_MOBILECASSY	0x1020
+#define USB_DEVICE_ID_JWM		0x1080
+#define USB_DEVICE_ID_DMMP		0x1081
+#define USB_DEVICE_ID_UMIP		0x1090
+#define USB_DEVICE_ID_VIDEOCOM		0x1200
+#define USB_DEVICE_ID_COM3LAB		0x2000
+#define USB_DEVICE_ID_TELEPORT		0x2010
+#define USB_DEVICE_ID_NETWORKANALYSER	0x2020
+#define USB_DEVICE_ID_POWERCONTROL	0x2030
+
 
 /*
  * Alphabetically sorted blacklist by quirk type.
@@ -1463,6 +1479,17 @@ static struct hid_blacklist {
 	{ USB_VENDOR_ID_GRIFFIN, USB_DEVICE_ID_POWERMATE, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_GRIFFIN, USB_DEVICE_ID_SOUNDKNOB, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_KBGEAR, USB_DEVICE_ID_KBGEAR_JAMSTUDIO, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_CASSY, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_POCKETCASSY, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_MOBILECASSY, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_JWM, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_DMMP, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_UMIP, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_VIDEOCOM, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_COM3LAB, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_TELEPORT, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_NETWORKANALYSER, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_LD, USB_DEVICE_ID_POWERCONTROL, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_MCC, USB_DEVICE_ID_MCC_PMD1024LS, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_MCC, USB_DEVICE_ID_MCC_PMD1208LS, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_MGE, USB_DEVICE_ID_MGE_UPS, HID_QUIRK_IGNORE },
@@ -1524,6 +1551,7 @@ static struct hid_blacklist {
 	{ USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_WCP32PU, HID_QUIRK_2WHEEL_MOUSE_HACK_7 },
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_MOUSE, HID_QUIRK_2WHEEL_MOUSE_HACK_5 },
 
+	{ USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_GAMEPAD, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_ALPS, USB_DEVICE_ID_IBM_GAMEPAD, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_CHIC, USB_DEVICE_ID_CHIC_GAMEPAD, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_HAPP, USB_DEVICE_ID_UGCI_DRIVING, HID_QUIRK_BADPAD | HID_QUIRK_MULTI_INPUT },

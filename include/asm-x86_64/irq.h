@@ -57,4 +57,6 @@ int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
 extern void fixup_irqs(cpumask_t map);
 #endif
 
+#define __ARCH_HAS_DO_SOFTIRQ 1
+
 #endif /* _ASM_IRQ_H */

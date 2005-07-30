@@ -82,17 +82,6 @@ void kernel_fpu_begin(void)
 }
 EXPORT_SYMBOL_GPL(kernel_fpu_begin);
 
-void restore_fpu( struct task_struct *tsk )
-{
-	if ( cpu_has_fxsr ) {
-		asm volatile( "fxrstor %0"
-			      : : "m" (tsk->thread.i387.fxsave) );
-	} else {
-		asm volatile( "frstor %0"
-			      : : "m" (tsk->thread.i387.fsave) );
-	}
-}
-
 /*
  * FPU tag word conversions.
  */

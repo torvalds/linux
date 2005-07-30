@@ -3,6 +3,8 @@
 # Network device configuration
 #
 
+menu "Network device support"
+
 config NETDEVICES
 	depends on NET
 	bool "Network device support"
@@ -21,9 +23,12 @@ config NETDEVICES
 
 	  If unsure, say Y.
 
+# All the following symbols are dependent on NETDEVICES - do not repeat
+# that for each of the symbols.
+if NETDEVICES
+
 config DUMMY
 	tristate "Dummy net driver support"
-	depends on NETDEVICES
 	---help---
 	  This is essentially a bit-bucket device (i.e. traffic you send to
 	  this device is consigned into oblivion) with a configurable IP
@@ -43,7 +48,6 @@ config DUMMY
 
 config BONDING
 	tristate "Bonding driver support"
-	depends on NETDEVICES
 	depends on INET
 	---help---
 	  Say 'Y' or 'M' if you wish to be able to 'bond' multiple Ethernet
@@ -61,7 +65,6 @@ config BONDING
 
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
-	depends on NETDEVICES
 	---help---
 	  If you have two serial connections to some other computer (this
 	  usually requires two modems and two telephone lines) and you use
@@ -81,7 +84,6 @@ config EQUALIZER
 
 config TUN
 	tristate "Universal TUN/TAP device driver support"
-	depends on NETDEVICES
 	select CRC32
 	---help---
 	  TUN/TAP provides packet reception and transmission for user space
@@ -105,7 +107,7 @@ config TUN
 
 config NET_SB1000
 	tristate "General Instruments Surfboard 1000"
-	depends on NETDEVICES && PNP
+	depends on PNP
 	---help---
 	  This is a driver for the General Instrument (also known as
 	  NextLevel) SURFboard 1000 internal
@@ -127,16 +129,14 @@ config NET_SB1000
 
 	  If you don't have this card, of course say N.
 
-if NETDEVICES
 	source "drivers/net/arcnet/Kconfig"
-endif
 
 #
 #	Ethernet
 #
 
 menu "Ethernet (10 or 100Mbit)"
-	depends on NETDEVICES && !UML
+	depends on !UML
 
 config NET_ETHERNET
 	bool "Ethernet (10 or 100Mbit)"
@@ -1135,7 +1135,7 @@ config IBMLANA
 
 config IBMVETH
 	tristate "IBM LAN Virtual Ethernet support"
-	depends on NETDEVICES && NET_ETHERNET && PPC_PSERIES
+	depends on NET_ETHERNET && PPC_PSERIES
 	---help---
 	  This driver supports virtual ethernet adapters on newer IBM iSeries
 	  and pSeries systems.
@@ -1758,7 +1758,7 @@ endmenu
 #
 
 menu "Ethernet (1000 Mbit)"
-	depends on NETDEVICES && !UML
+	depends on !UML
 
 config ACENIC
 	tristate "Alteon AceNIC/3Com 3C985/NetGear GA620 Gigabit support"
@@ -2089,7 +2089,7 @@ endmenu
 #
 
 menu "Ethernet (10000 Mbit)"
-	depends on NETDEVICES && !UML
+	depends on !UML
 
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
@@ -2184,11 +2184,11 @@ source "drivers/s390/net/Kconfig"
 
 config ISERIES_VETH
 	tristate "iSeries Virtual Ethernet driver support"
-	depends on NETDEVICES && PPC_ISERIES
+	depends on PPC_ISERIES
 
 config FDDI
 	bool "FDDI driver support"
-	depends on NETDEVICES && (PCI || EISA)
+	depends on (PCI || EISA)
 	help
 	  Fiber Distributed Data Interface is a high speed local area network
 	  design; essentially a replacement for high speed Ethernet. FDDI can
@@ -2237,7 +2237,7 @@ config SKFP
 
 config HIPPI
 	bool "HIPPI driver support (EXPERIMENTAL)"
-	depends on NETDEVICES && EXPERIMENTAL && INET && PCI
+	depends on EXPERIMENTAL && INET && PCI
 	help
 	  HIgh Performance Parallel Interface (HIPPI) is a 800Mbit/sec and
 	  1600Mbit/sec dual-simplex switched or point-to-point network. HIPPI
@@ -2269,7 +2269,7 @@ config ROADRUNNER_LARGE_RINGS
 
 config PLIP
 	tristate "PLIP (parallel port) support"
-	depends on NETDEVICES && PARPORT
+	depends on PARPORT
 	---help---
 	  PLIP (Parallel Line Internet Protocol) is used to create a
 	  reasonably fast mini network consisting of two (or, rarely, more)
@@ -2305,7 +2305,6 @@ config PLIP
 
 config PPP
 	tristate "PPP (point-to-point protocol) support"
-	depends on NETDEVICES
 	---help---
 	  PPP (Point to Point Protocol) is a newer and better SLIP.  It serves
 	  the same purpose: sending Internet traffic over telephone (and other
@@ -2441,7 +2440,6 @@ config PPPOATM
 
 config SLIP
 	tristate "SLIP (serial line) support"
-	depends on NETDEVICES
 	---help---
 	  Say Y if you intend to use SLIP or CSLIP (compressed SLIP) to
 	  connect to your Internet service provider or to connect to some
@@ -2508,7 +2506,7 @@ config SLIP_MODE_SLIP6
 
 config NET_FC
 	bool "Fibre Channel driver support"
-	depends on NETDEVICES && SCSI && PCI
+	depends on SCSI && PCI
 	help
 	  Fibre Channel is a high speed serial protocol mainly used to connect
 	  large storage devices to the computer; it is compatible with and
@@ -2521,7 +2519,7 @@ config NET_FC
 
 config SHAPER
 	tristate "Traffic Shaper (EXPERIMENTAL)"
-	depends on NETDEVICES && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	---help---
 	  The traffic shaper is a virtual network device that allows you to
 	  limit the rate of outgoing data flow over some other network device.
@@ -2542,8 +2540,27 @@ config SHAPER
 
 config NETCONSOLE
 	tristate "Network console logging support (EXPERIMENTAL)"
-	depends on NETDEVICES && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	---help---
 	If you want to log kernel messages over the network, enable this.
 	See <file:Documentation/networking/netconsole.txt> for details.
 
+endif #NETDEVICES
+
+config NETPOLL
+	def_bool NETCONSOLE
+
+config NETPOLL_RX
+	bool "Netpoll support for trapping incoming packets"
+	default n
+	depends on NETPOLL
+
+config NETPOLL_TRAP
+	bool "Netpoll traffic trapping"
+	default n
+	depends on NETPOLL
+
+config NET_POLL_CONTROLLER
+	def_bool NETPOLL
+
+endmenu

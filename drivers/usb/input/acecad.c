@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 /*
  * Version Information
@@ -87,8 +88,8 @@ static void usb_acecad_irq(struct urb *urb, struct pt_regs *regs)
 	if (prox) {
 		int x = data[1] | (data[2] << 8);
 		int y = data[3] | (data[4] << 8);
-		/*Pressure should compute the same way for flair and 302*/
-		int pressure = data[5] | ((int)data[6] << 8);
+		/* Pressure should compute the same way for flair and 302 */
+		int pressure = data[5] | (data[6] << 8);
 		int touch = data[0] & 0x01;
 		int stylus = (data[0] & 0x10) >> 4;
 		int stylus2 = (data[0] & 0x20) >> 5;
@@ -104,9 +105,9 @@ static void usb_acecad_irq(struct urb *urb, struct pt_regs *regs)
 	input_sync(dev);
 
 resubmit:
-	status = usb_submit_urb (urb, GFP_ATOMIC);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status)
-		err ("can't resubmit intr, %s-%s/input0, status %d",
+		err("can't resubmit intr, %s-%s/input0, status %d",
 			acecad->usbdev->bus->bus_name, acecad->usbdev->devpath, status);
 }
 
@@ -212,10 +213,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 
 	acecad->dev.name = acecad->name;
 	acecad->dev.phys = acecad->phys;
-	acecad->dev.id.bustype = BUS_USB;
-	acecad->dev.id.vendor = le16_to_cpu(dev->descriptor.idVendor);
-	acecad->dev.id.product = le16_to_cpu(dev->descriptor.idProduct);
-	acecad->dev.id.version = le16_to_cpu(dev->descriptor.bcdDevice);
+	usb_to_input_id(dev, &acecad->dev.id);
 	acecad->dev.dev = &intf->dev;
 
 	usb_fill_int_urb(acecad->irq, dev, pipe,

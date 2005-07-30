@@ -285,6 +285,7 @@ static int chip_thread(void *data)
 			schedule();
 		}
 		remove_wait_queue(&chip->wq, &wait);
+		try_to_freeze();
 		if (chip->done || signal_pending(current))
 			break;
 		dprintk("%s: thread wakeup\n", i2c_clientname(&chip->c));
@@ -864,13 +865,8 @@ static int tda9874a_getmode(struct CHIPSTATE *chip)
 		 * But changing the mode to VIDEO_SOUND_MONO would switch
 		 * external 4052 multiplexer in audio_hook().
 		 */
-#if 0
-		if((nsr & 0x02) && !(dsr & 0x10)) /* NSR.S/MB=1 and DSR.AMSTAT=0 */
-			mode |= VIDEO_SOUND_STEREO;
-#else
 		if(nsr & 0x02) /* NSR.S/MB=1 */
 			mode |= VIDEO_SOUND_STEREO;
-#endif
 		if(nsr & 0x01) /* NSR.D/SB=1 */
 			mode |= VIDEO_SOUND_LANG1 | VIDEO_SOUND_LANG2;
 	} else {

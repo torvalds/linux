@@ -11,6 +11,8 @@ extern inline unsigned long rdvr(void) {
 	return vr;
 }
 
+#define cris_machine_name "cris"
+
 /* read/write the user-mode stackpointer */
 
 extern inline unsigned long rdusp(void) {

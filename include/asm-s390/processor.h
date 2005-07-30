@@ -203,7 +203,10 @@ unsigned long get_wchan(struct task_struct *p);
 # define cpu_relax()	asm volatile ("diag 0,0,68" : : : "memory")
 #else /* __s390x__ */
 # define cpu_relax() \
-	asm volatile ("ex 0,%0" : : "i" (__LC_DIAG44_OPCODE) : "memory")
+	do { \
+		if (MACHINE_HAS_DIAG44) \
+			asm volatile ("diag 0,0,68" : : : "memory"); \
+	} while (0)
 #endif /* __s390x__ */
 
 /*

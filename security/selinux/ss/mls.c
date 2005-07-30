@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include "sidtab.h"
 #include "mls.h"
 #include "policydb.h"
 #include "services.h"
@@ -208,6 +209,26 @@ int mls_context_isvalid(struct policydb *p, struct context *c)
 }
 
 /*
+ * Copies the MLS range from `src' into `dst'.
+ */
+static inline int mls_copy_context(struct context *dst,
+				   struct context *src)
+{
+	int l, rc = 0;
+
+	/* Copy the MLS range from the source context */
+	for (l = 0; l < 2; l++) {
+		dst->range.level[l].sens = src->range.level[l].sens;
+		rc = ebitmap_cpy(&dst->range.level[l].cat,
+				 &src->range.level[l].cat);
+		if (rc)
+			break;
+	}
+
+	return rc;
+}
+
+/*
  * Set the MLS fields in the security context structure
  * `context' based on the string representation in
  * the string `*scontext'.  Update `*scontext' to
@@ -216,10 +237,20 @@ int mls_context_isvalid(struct policydb *p, struct context *c)
  *
  * This function modifies the string in place, inserting
  * NULL characters to terminate the MLS fields.
+ *
+ * If a def_sid is provided and no MLS field is present,
+ * copy the MLS field of the associated default context.
+ * Used for upgraded to MLS systems where objects may lack
+ * MLS fields.
+ *
+ * Policy read-lock must be held for sidtab lookup.
+ *
  */
 int mls_context_to_sid(char oldc,
 		       char **scontext,
-		       struct context *context)
+		       struct context *context,
+		       struct sidtab *s,
+		       u32 def_sid)
 {
 
 	char delim;
@@ -231,9 +262,23 @@ int mls_context_to_sid(char oldc,
 	if (!selinux_mls_enabled)
 		return 0;
 
-	/* No MLS component to the security context. */
-	if (!oldc)
+	/*
+	 * No MLS component to the security context, try and map to
+	 * default if provided.
+	 */
+	if (!oldc) {
+		struct context *defcon;
+
+		if (def_sid == SECSID_NULL)
+			goto out;
+
+		defcon = sidtab_search(s, def_sid);
+		if (!defcon)
+			goto out;
+
+		rc = mls_copy_context(context, defcon);
 		goto out;
+	}
 
 	/* Extract low sensitivity. */
 	scontextp = p = *scontext;
@@ -330,26 +375,6 @@ int mls_context_to_sid(char oldc,
 	*scontext = ++p;
 	rc = 0;
 out:
-	return rc;
-}
-
-/*
- * Copies the MLS range from `src' into `dst'.
- */
-static inline int mls_copy_context(struct context *dst,
-				   struct context *src)
-{
-	int l, rc = 0;
-
-	/* Copy the MLS range from the source context */
-	for (l = 0; l < 2; l++) {
-		dst->range.level[l].sens = src->range.level[l].sens;
-		rc = ebitmap_cpy(&dst->range.level[l].cat,
-				 &src->range.level[l].cat);
-		if (rc)
-			break;
-	}
-
 	return rc;
 }
 

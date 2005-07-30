@@ -431,7 +431,7 @@ void cdrom_analyze_sense_data(ide_drive_t *drive,
 #if VERBOSE_IDE_CD_ERRORS
 	{
 		int i;
-		const char *s;
+		const char *s = "bad sense key!";
 		char buf[80];
 
 		printk ("ATAPI device %s:\n", drive->name);
@@ -446,8 +446,6 @@ void cdrom_analyze_sense_data(ide_drive_t *drive,
 
 		if (sense->sense_key < ARY_LEN(sense_key_texts))
 			s = sense_key_texts[sense->sense_key];
-		else
-			s = "bad sense key!";
 
 		printk("%s -- (Sense key=0x%02x)\n", s, sense->sense_key);
 

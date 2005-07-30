@@ -20,6 +20,7 @@ config USB_ARCH_HAS_OHCI
 	default y if SA1111
 	default y if ARCH_OMAP
 	default y if ARCH_LH7A404
+	default y if ARCH_S3C2410
 	default y if PXA27x
 	# PPC:
 	default y if STB03xxx

@@ -76,7 +76,8 @@ int via_agp_init(DRM_IOCTL_ARGS)
 {
 	drm_via_agp_t agp;
 
-	DRM_COPY_FROM_USER_IOCTL(agp, (drm_via_agp_t *) data, sizeof(agp));
+	DRM_COPY_FROM_USER_IOCTL(agp, (drm_via_agp_t __user *) data,
+				 sizeof(agp));
 
 	AgpHeap = via_mmInit(agp.offset, agp.size);
 
@@ -92,7 +93,7 @@ int via_fb_init(DRM_IOCTL_ARGS)
 {
 	drm_via_fb_t fb;
 
-	DRM_COPY_FROM_USER_IOCTL(fb, (drm_via_fb_t *) data, sizeof(fb));
+	DRM_COPY_FROM_USER_IOCTL(fb, (drm_via_fb_t __user *) data, sizeof(fb));
 
 	FBHeap = via_mmInit(fb.offset, fb.size);
 
@@ -193,19 +194,20 @@ int via_mem_alloc(DRM_IOCTL_ARGS)
 {
 	drm_via_mem_t mem;
 
-	DRM_COPY_FROM_USER_IOCTL(mem, (drm_via_mem_t *) data, sizeof(mem));
+	DRM_COPY_FROM_USER_IOCTL(mem, (drm_via_mem_t __user *) data,
+				 sizeof(mem));
 
 	switch (mem.type) {
 	case VIDEO:
 		if (via_fb_alloc(&mem) < 0)
 			return -EFAULT;
-		DRM_COPY_TO_USER_IOCTL((drm_via_mem_t *) data, mem,
+		DRM_COPY_TO_USER_IOCTL((drm_via_mem_t __user *) data, mem,
 				       sizeof(mem));
 		return 0;
 	case AGP:
 		if (via_agp_alloc(&mem) < 0)
 			return -EFAULT;
-		DRM_COPY_TO_USER_IOCTL((drm_via_mem_t *) data, mem,
+		DRM_COPY_TO_USER_IOCTL((drm_via_mem_t __user *) data, mem,
 				       sizeof(mem));
 		return 0;
 	}
@@ -289,7 +291,8 @@ int via_mem_free(DRM_IOCTL_ARGS)
 {
 	drm_via_mem_t mem;
 
-	DRM_COPY_FROM_USER_IOCTL(mem, (drm_via_mem_t *) data, sizeof(mem));
+	DRM_COPY_FROM_USER_IOCTL(mem, (drm_via_mem_t __user *) data,
+				 sizeof(mem));
 
 	switch (mem.type) {
 

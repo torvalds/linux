@@ -38,11 +38,12 @@ static inline void iSeries_hunlock(unsigned long slot)
 }
 
 static long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
-			 unsigned long prpn, int secondary,
-			 unsigned long hpteflags, int bolted, int large)
+				unsigned long prpn, unsigned long vflags,
+				unsigned long rflags)
 {
 	long slot;
-	HPTE lhpte;
+	hpte_t lhpte;
+	int secondary = 0;
 
 	/*
 	 * The hypervisor tries both primary and secondary.
@@ -50,13 +51,13 @@ static long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 	 * it means we have already tried both primary and secondary,
 	 * so we return failure immediately.
 	 */
-	if (secondary)
+	if (vflags & HPTE_V_SECONDARY)
 		return -1;
 
 	iSeries_hlock(hpte_group);
 
 	slot = HvCallHpt_findValid(&lhpte, va >> PAGE_SHIFT);
-	BUG_ON(lhpte.dw0.dw0.v);
+	BUG_ON(lhpte.v & HPTE_V_VALID);
 
 	if (slot == -1)	{ /* No available entry found in either group */
 		iSeries_hunlock(hpte_group);
@@ -64,19 +65,13 @@ static long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 	}
 
 	if (slot < 0) {		/* MSB set means secondary group */
+		vflags |= HPTE_V_VALID;
 		secondary = 1;
 		slot &= 0x7fffffffffffffff;
 	}
 
-	lhpte.dw1.dword1      = 0;
-	lhpte.dw1.dw1.rpn     = physRpn_to_absRpn(prpn);
-	lhpte.dw1.flags.flags = hpteflags;
-
-	lhpte.dw0.dword0      = 0;
-	lhpte.dw0.dw0.avpn    = va >> 23;
-	lhpte.dw0.dw0.h       = secondary;
-	lhpte.dw0.dw0.bolted  = bolted;
-	lhpte.dw0.dw0.v       = 1;
+	lhpte.v = (va >> 23) << HPTE_V_AVPN_SHIFT | vflags | HPTE_V_VALID;
+	lhpte.r = (physRpn_to_absRpn(prpn) << HPTE_R_RPN_SHIFT) | rflags;
 
 	/* Now fill in the actual HPTE */
 	HvCallHpt_addValidate(slot, secondary, &lhpte);
@@ -88,20 +83,17 @@ static long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 
 static unsigned long iSeries_hpte_getword0(unsigned long slot)
 {
-	unsigned long dword0;
-	HPTE hpte;
+	hpte_t hpte;
 
 	HvCallHpt_get(&hpte, slot);
-	dword0 = hpte.dw0.dword0;
-
-	return dword0;
+	return hpte.v;
 }
 
 static long iSeries_hpte_remove(unsigned long hpte_group)
 {
 	unsigned long slot_offset;
 	int i;
-	HPTE lhpte;
+	unsigned long hpte_v;
 
 	/* Pick a random slot to start at */
 	slot_offset = mftb() & 0x7;
@@ -109,10 +101,9 @@ static long iSeries_hpte_remove(unsigned long hpte_group)
 	iSeries_hlock(hpte_group);
 
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
-		lhpte.dw0.dword0 = 
-			iSeries_hpte_getword0(hpte_group + slot_offset);
+		hpte_v = iSeries_hpte_getword0(hpte_group + slot_offset);
 
-		if (!lhpte.dw0.dw0.bolted) {
+		if (! (hpte_v & HPTE_V_BOLTED)) {
 			HvCallHpt_invalidateSetSwBitsGet(hpte_group + 
 							 slot_offset, 0, 0);
 			iSeries_hunlock(hpte_group);
@@ -137,13 +128,13 @@ static long iSeries_hpte_remove(unsigned long hpte_group)
 static long iSeries_hpte_updatepp(unsigned long slot, unsigned long newpp,
 				  unsigned long va, int large, int local)
 {
-	HPTE hpte;
+	hpte_t hpte;
 	unsigned long avpn = va >> 23;
 
 	iSeries_hlock(slot);
 
 	HvCallHpt_get(&hpte, slot);
-	if ((hpte.dw0.dw0.avpn == avpn) && (hpte.dw0.dw0.v)) {
+	if ((HPTE_V_AVPN_VAL(hpte.v) == avpn) && (hpte.v & HPTE_V_VALID)) {
 		/*
 		 * Hypervisor expects bits as NPPP, which is
 		 * different from how they are mapped in our PP.
@@ -167,7 +158,7 @@ static long iSeries_hpte_updatepp(unsigned long slot, unsigned long newpp,
  */
 static long iSeries_hpte_find(unsigned long vpn)
 {
-	HPTE hpte;
+	hpte_t hpte;
 	long slot;
 
 	/*
@@ -177,7 +168,7 @@ static long iSeries_hpte_find(unsigned long vpn)
 	 * 0x80000000xxxxxxxx : Entry found in secondary group, slot x
 	 */
 	slot = HvCallHpt_findValid(&hpte, vpn); 
-	if (hpte.dw0.dw0.v) {
+	if (hpte.v & HPTE_V_VALID) {
 		if (slot < 0) {
 			slot &= 0x7fffffffffffffff;
 			slot = -slot;
@@ -212,7 +203,7 @@ static void iSeries_hpte_updateboltedpp(unsigned long newpp, unsigned long ea)
 static void iSeries_hpte_invalidate(unsigned long slot, unsigned long va,
 				    int large, int local)
 {
-	HPTE lhpte;
+	unsigned long hpte_v;
 	unsigned long avpn = va >> 23;
 	unsigned long flags;
 
@@ -220,9 +211,9 @@ static void iSeries_hpte_invalidate(unsigned long slot, unsigned long va,
 
 	iSeries_hlock(slot);
 
-	lhpte.dw0.dword0 = iSeries_hpte_getword0(slot);
+	hpte_v = iSeries_hpte_getword0(slot);
 	
-	if ((lhpte.dw0.dw0.avpn == avpn) && lhpte.dw0.dw0.v)
+	if ((HPTE_V_AVPN_VAL(hpte_v) == avpn) && (hpte_v & HPTE_V_VALID))
 		HvCallHpt_invalidateSetSwBitsGet(slot, 0, 0);
 
 	iSeries_hunlock(slot);

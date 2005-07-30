@@ -127,8 +127,12 @@ done:
 /* Initialize the objcount in the proc filesystem.  */
 void sctp_dbg_objcnt_init(void)
 {
-	create_proc_read_entry("sctp_dbg_objcnt", 0, proc_net_sctp,
+	struct proc_dir_entry *ent;
+	ent = create_proc_read_entry("sctp_dbg_objcnt", 0, proc_net_sctp,
 			       sctp_dbg_objcnt_read, NULL);
+	if (!ent)
+		printk(KERN_WARNING 
+			"sctp_dbg_objcnt: Unable to create /proc entry.\n");
 }
 
 /* Cleanup the objcount entry in the proc filesystem.  */

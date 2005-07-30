@@ -137,19 +137,12 @@ ip_ct_invert_tuple(struct ip_conntrack_tuple *inverse,
 
 
 /* ip_conntrack_expect helper functions */
-static void destroy_expect(struct ip_conntrack_expect *exp)
-{
-	ip_conntrack_put(exp->master);
-	IP_NF_ASSERT(!timer_pending(&exp->timeout));
-	kmem_cache_free(ip_conntrack_expect_cachep, exp);
-	CONNTRACK_STAT_INC(expect_delete);
-}
-
 static void unlink_expect(struct ip_conntrack_expect *exp)
 {
 	ASSERT_WRITE_LOCK(&ip_conntrack_lock);
+	IP_NF_ASSERT(!timer_pending(&exp->timeout));
 	list_del(&exp->list);
-	/* Logically in destroy_expect, but we hold the lock here. */
+	CONNTRACK_STAT_INC(expect_delete);
 	exp->master->expecting--;
 }
 
@@ -160,7 +153,7 @@ static void expectation_timed_out(unsigned long ul_expect)
 	write_lock_bh(&ip_conntrack_lock);
 	unlink_expect(exp);
 	write_unlock_bh(&ip_conntrack_lock);
-	destroy_expect(exp);
+	ip_conntrack_expect_put(exp);
 }
 
 /* If an expectation for this connection is found, it gets delete from
@@ -198,7 +191,7 @@ static void remove_expectations(struct ip_conntrack *ct)
 	list_for_each_entry_safe(i, tmp, &ip_conntrack_expect_list, list) {
 		if (i->master == ct && del_timer(&i->timeout)) {
 			unlink_expect(i);
-			destroy_expect(i);
+			ip_conntrack_expect_put(i);
 		}
 	}
 }
@@ -517,7 +510,7 @@ init_conntrack(const struct ip_conntrack_tuple *tuple,
 		/* Welcome, Mr. Bond.  We've been expecting you... */
 		__set_bit(IPS_EXPECTED_BIT, &conntrack->status);
 		conntrack->master = exp->master;
-#if CONFIG_IP_NF_CONNTRACK_MARK
+#ifdef CONFIG_IP_NF_CONNTRACK_MARK
 		conntrack->mark = exp->master->mark;
 #endif
 		nf_conntrack_get(&conntrack->master->ct_general);
@@ -537,7 +530,7 @@ init_conntrack(const struct ip_conntrack_tuple *tuple,
 	if (exp) {
 		if (exp->expectfn)
 			exp->expectfn(conntrack, exp);
-		destroy_expect(exp);
+		ip_conntrack_expect_put(exp);
 	}
 
 	return &conntrack->tuplehash[IP_CT_DIR_ORIGINAL];
@@ -729,14 +722,14 @@ void ip_conntrack_unexpect_related(struct ip_conntrack_expect *exp)
 		if (expect_matches(i, exp) && del_timer(&i->timeout)) {
 			unlink_expect(i);
 			write_unlock_bh(&ip_conntrack_lock);
-			destroy_expect(i);
+			ip_conntrack_expect_put(i);
 			return;
 		}
 	}
 	write_unlock_bh(&ip_conntrack_lock);
 }
 
-struct ip_conntrack_expect *ip_conntrack_expect_alloc(void)
+struct ip_conntrack_expect *ip_conntrack_expect_alloc(struct ip_conntrack *me)
 {
 	struct ip_conntrack_expect *new;
 
@@ -745,18 +738,23 @@ struct ip_conntrack_expect *ip_conntrack_expect_alloc(void)
 		DEBUGP("expect_related: OOM allocating expect\n");
 		return NULL;
 	}
-	new->master = NULL;
+	new->master = me;
+	atomic_inc(&new->master->ct_general.use);
+	atomic_set(&new->use, 1);
 	return new;
 }
 
-void ip_conntrack_expect_free(struct ip_conntrack_expect *expect)
+void ip_conntrack_expect_put(struct ip_conntrack_expect *exp)
 {
-	kmem_cache_free(ip_conntrack_expect_cachep, expect);
+	if (atomic_dec_and_test(&exp->use)) {
+		ip_conntrack_put(exp->master);
+		kmem_cache_free(ip_conntrack_expect_cachep, exp);
+	}
 }
 
 static void ip_conntrack_expect_insert(struct ip_conntrack_expect *exp)
 {
-	atomic_inc(&exp->master->ct_general.use);
+	atomic_inc(&exp->use);
 	exp->master->expecting++;
 	list_add(&exp->list, &ip_conntrack_expect_list);
 
@@ -778,7 +776,7 @@ static void evict_oldest_expect(struct ip_conntrack *master)
 		if (i->master == master) {
 			if (del_timer(&i->timeout)) {
 				unlink_expect(i);
-				destroy_expect(i);
+				ip_conntrack_expect_put(i);
 			}
 			break;
 		}
@@ -810,8 +808,6 @@ int ip_conntrack_expect_related(struct ip_conntrack_expect *expect)
 			/* Refresh timer: if it's dying, ignore.. */
 			if (refresh_timer(i)) {
 				ret = 0;
-				/* We don't need the one they've given us. */
-				ip_conntrack_expect_free(expect);
 				goto out;
 			}
 		} else if (expect_clash(i, expect)) {
@@ -881,7 +877,7 @@ void ip_conntrack_helper_unregister(struct ip_conntrack_helper *me)
 	list_for_each_entry_safe(exp, tmp, &ip_conntrack_expect_list, list) {
 		if (exp->master->helper == me && del_timer(&exp->timeout)) {
 			unlink_expect(exp);
-			destroy_expect(exp);
+			ip_conntrack_expect_put(exp);
 		}
 	}
 	/* Get rid of expecteds, set helpers to NULL. */
@@ -1111,6 +1107,9 @@ void ip_conntrack_cleanup(void)
 		schedule();
 		goto i_see_dead_people;
 	}
+	/* wait until all references to ip_conntrack_untracked are dropped */
+	while (atomic_read(&ip_conntrack_untracked.ct_general.use) > 1)
+		schedule();
 
 	kmem_cache_destroy(ip_conntrack_cachep);
 	kmem_cache_destroy(ip_conntrack_expect_cachep);

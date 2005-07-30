@@ -306,7 +306,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_REG_FM_PCI		0x50
 
 /*
- * for CMI-8338 .. this is not valid for CMI-8738.
+ * access from SB-mixer port
  */
 #define CM_REG_EXTENT_IND	0xf0
 #define CM_VPHONE_MASK		0xe0	/* Phone volume control (0-3) << 5 */
@@ -315,6 +315,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_VSPKM		0x08	/* Speaker mute control, default high */
 #define CM_RLOOPREN		0x04    /* Rec. R-channel enable */
 #define CM_RLOOPLEN		0x02	/* Rec. L-channel enable */
+#define CM_VADMIC3		0x01	/* Mic record boost */
 
 /*
  * CMI-8338 spec ver 0.5 (this is not valid for CMI-8738):
@@ -488,32 +489,34 @@ struct snd_stru_cmipci {
 
 
 /* read/write operations for dword register */
-inline static void snd_cmipci_write(cmipci_t *cm, unsigned int cmd, unsigned int data)
+static inline void snd_cmipci_write(cmipci_t *cm, unsigned int cmd, unsigned int data)
 {
 	outl(data, cm->iobase + cmd);
 }
-inline static unsigned int snd_cmipci_read(cmipci_t *cm, unsigned int cmd)
+
+static inline unsigned int snd_cmipci_read(cmipci_t *cm, unsigned int cmd)
 {
 	return inl(cm->iobase + cmd);
 }
 
 /* read/write operations for word register */
-inline static void snd_cmipci_write_w(cmipci_t *cm, unsigned int cmd, unsigned short data)
+static inline void snd_cmipci_write_w(cmipci_t *cm, unsigned int cmd, unsigned short data)
 {
 	outw(data, cm->iobase + cmd);
 }
-inline static unsigned short snd_cmipci_read_w(cmipci_t *cm, unsigned int cmd)
+
+static inline unsigned short snd_cmipci_read_w(cmipci_t *cm, unsigned int cmd)
 {
 	return inw(cm->iobase + cmd);
 }
 
 /* read/write operations for byte register */
-inline static void snd_cmipci_write_b(cmipci_t *cm, unsigned int cmd, unsigned char data)
+static inline void snd_cmipci_write_b(cmipci_t *cm, unsigned int cmd, unsigned char data)
 {
 	outb(data, cm->iobase + cmd);
 }
 
-inline static unsigned char snd_cmipci_read_b(cmipci_t *cm, unsigned int cmd)
+static inline unsigned char snd_cmipci_read_b(cmipci_t *cm, unsigned int cmd)
 {
 	return inb(cm->iobase + cmd);
 }
@@ -2133,8 +2136,12 @@ static snd_kcontrol_new_t snd_cmipci_mixers[] __devinitdata = {
 	CMIPCI_MIXER_VOL_STEREO("Aux Playback Volume", CM_REG_AUX_VOL, 4, 0, 15),
 	CMIPCI_MIXER_SW_STEREO("Aux Playback Switch", CM_REG_MIXER2, CM_VAUXLM_SHIFT, CM_VAUXRM_SHIFT, 0),
 	CMIPCI_MIXER_SW_STEREO("Aux Capture Switch", CM_REG_MIXER2, CM_RAUXLEN_SHIFT, CM_RAUXREN_SHIFT, 0),
-	CMIPCI_MIXER_SW_MONO("Mic Boost", CM_REG_MIXER2, CM_MICGAINZ_SHIFT, 1),
+	CMIPCI_MIXER_SW_MONO("Mic Boost Playback Switch", CM_REG_MIXER2, CM_MICGAINZ_SHIFT, 1),
 	CMIPCI_MIXER_VOL_MONO("Mic Capture Volume", CM_REG_MIXER2, CM_VADMIC_SHIFT, 7),
+	CMIPCI_SB_VOL_MONO("Phone Playback Volume", CM_REG_EXTENT_IND, 5, 7),
+	CMIPCI_DOUBLE("Phone Playback Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 4, 4, 1, 0, 0),
+	CMIPCI_DOUBLE("PC Speaker Playnack Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 3, 3, 1, 0, 0),
+	CMIPCI_DOUBLE("Mic Boost Capture Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 0, 0, 1, 0, 0),
 };
 
 /*

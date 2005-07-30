@@ -297,6 +297,7 @@ Vendor ID  Product ID
 0x0c45     0x602a
 0x0c45     0x602b
 0x0c45     0x602c
+0x0c45     0x602d
 0x0c45     0x6030
 0x0c45     0x6080
 0x0c45     0x6082
@@ -333,6 +334,7 @@ Model       Manufacturer
 -----       ------------
 HV7131D     Hynix Semiconductor, Inc.
 MI-0343     Micron Technology, Inc.
+OV7630      OmniVision Technologies, Inc.
 PAS106B     PixArt Imaging, Inc.
 PAS202BCB   PixArt Imaging, Inc.
 TAS5110C1B  Taiwan Advanced Sensor Corporation
@@ -470,9 +472,11 @@ order):
 - Luca Capello for the donation of a webcam;
 - Joao Rodrigo Fuzaro, Joao Limirio, Claudio Filho and Caio Begotti for the
   donation of a webcam;
+- Jon Hollstrom for the donation of a webcam;
 - Carlos Eduardo Medaglia Dyonisio, who added the support for the PAS202BCB
   image sensor;
 - Stefano Mozzi, who donated 45 EU;
+- Andrew Pearce for the donation of a webcam;
 - Bertrik Sikken, who reverse-engineered and documented the Huffman compression
   algorithm used in the SN9C10x controllers and implemented the first decoder;
 - Mizuno Takafumi for the donation of a webcam;

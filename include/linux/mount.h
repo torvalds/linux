@@ -12,6 +12,7 @@
 #define _LINUX_MOUNT_H
 #ifdef __KERNEL__
 
+#include <linux/types.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <asm/atomic.h>
@@ -76,6 +77,7 @@ extern int do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
 extern void mark_mounts_for_expiry(struct list_head *mounts);
 
 extern spinlock_t vfsmount_lock;
+extern dev_t name_to_dev_t(char *name);
 
 #endif
 #endif /* _LINUX_MOUNT_H */

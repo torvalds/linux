@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-video.c,v 1.30 2005/06/07 19:00:38 nsh Exp $
+ * $Id: saa7134-video.c,v 1.36 2005/06/28 23:41:47 mkrufky Exp $
  *
  * device driver for philips saa7134 based TV cards
  * video4linux video interface
@@ -274,7 +274,7 @@ static struct saa7134_tvnorm tvnorms[] = {
 
 		.h_start       = 0,
 		.h_stop        = 719,
-		.video_v_start = 23,
+  		.video_v_start = 23,
   		.video_v_stop  = 262,
   		.vbi_v_start_0 = 10,
   		.vbi_v_stop_0  = 21,
@@ -1204,7 +1204,6 @@ static int video_open(struct inode *inode, struct file *file)
 	struct list_head *list;
 	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	int radio = 0;
-
 	list_for_each(list,&saa7134_devlist) {
 		h = list_entry(list, struct saa7134_dev, devlist);
 		if (h->video_dev && (h->video_dev->minor == minor))
@@ -1256,12 +1255,12 @@ static int video_open(struct inode *inode, struct file *file)
 	if (fh->radio) {
 		/* switch to radio mode */
 		saa7134_tvaudio_setinput(dev,&card(dev).radio);
-		saa7134_i2c_call_clients(dev,AUDC_SET_RADIO,NULL);
+		saa7134_i2c_call_clients(dev,AUDC_SET_RADIO, NULL);
 	} else {
 		/* switch to video/vbi mode */
 		video_mux(dev,dev->ctl_input);
 	}
-        return 0;
+	return 0;
 }
 
 static ssize_t
@@ -1304,10 +1303,10 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 	} else {
 		down(&fh->cap.lock);
 		if (UNSET == fh->cap.read_off) {
-                        /* need to capture a new frame */
+			/* need to capture a new frame */
 			if (res_locked(fh->dev,RESOURCE_VIDEO)) {
-                                up(&fh->cap.lock);
-                                return POLLERR;
+				up(&fh->cap.lock);
+				return POLLERR;
                         }
                         if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,fh->cap.field)) {
                                 up(&fh->cap.lock);
@@ -1363,6 +1362,36 @@ static int video_release(struct inode *inode, struct file *file)
 		res_free(dev,fh,RESOURCE_VBI);
 	}
 
+	/* ts-capture will not work in planar mode, so turn it off Hac: 04.05*/
+	saa_andorb(SAA7134_OFMT_VIDEO_A, 0x1f, 0);
+	saa_andorb(SAA7134_OFMT_VIDEO_B, 0x1f, 0);
+	saa_andorb(SAA7134_OFMT_DATA_A, 0x1f, 0);
+	saa_andorb(SAA7134_OFMT_DATA_B, 0x1f, 0);
+
+	if (dev->tuner_type == TUNER_PHILIPS_TDA8290) {
+		u8 data[2];
+		int ret;
+		struct i2c_msg msg = {.addr=I2C_ADDR_TDA8290, .flags=0, .buf=data, .len = 2};
+		data[0] = 0x21;
+		data[1] = 0xc0;
+		ret = i2c_transfer(&dev->i2c_adap, &msg, 1);
+		if (ret != 1)
+			printk(KERN_ERR "TDA8290 access failure\n");
+		msg.addr = I2C_ADDR_TDA8275;
+		data[0] = 0x30;
+		data[1] = 0xd0;
+		ret = i2c_transfer(&dev->i2c_adap, &msg, 1);
+		if (ret != 1)
+			printk(KERN_ERR "TDA8275 access failure\n");
+		msg.addr = I2C_ADDR_TDA8290;
+		data[0] = 0x21;
+		data[1] = 0x80;
+		i2c_transfer(&dev->i2c_adap, &msg, 1);
+		data[0] = 0x00;
+		data[1] = 0x02;
+		i2c_transfer(&dev->i2c_adap, &msg, 1);
+	}
+
 	/* free stuff */
 	videobuf_mmap_free(&fh->cap);
 	videobuf_mmap_free(&fh->vbi);
@@ -1399,13 +1428,6 @@ static void saa7134_vbi_fmt(struct saa7134_dev *dev, struct v4l2_format *f)
 	f->fmt.vbi.count[1] = f->fmt.vbi.count[0];
 	f->fmt.vbi.flags = 0; /* VBI_UNSYNC VBI_INTERLACED */
 
-#if 0
-	if (V4L2_STD_PAL == norm->id) {
-		/* FIXME */
-		f->fmt.vbi.start[0] += 3;
-		f->fmt.vbi.start[1] += 3*2;
-	}
-#endif
 }
 
 static int saa7134_g_fmt(struct saa7134_dev *dev, struct saa7134_fh *fh,
@@ -2120,8 +2142,6 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 
 		memset(t,0,sizeof(*t));
 		strcpy(t->name, "Radio");
-                t->rangelow  = (int)(65*16);
-                t->rangehigh = (int)(108*16);
 
 		saa7134_i2c_call_clients(dev, VIDIOC_G_TUNER, t);
 

@@ -76,7 +76,7 @@
 
 	.macro FAKE_STACK_FRAME child_rip
 	/* push in order ss, rsp, eflags, cs, rip */
-	xorq %rax, %rax
+	xorl %eax, %eax
 	pushq %rax /* ss */
 	CFI_ADJUST_CFA_OFFSET	8
 	pushq %rax /* rsp */
@@ -423,7 +423,7 @@ ENTRY(stub_rt_sigreturn)
 	testl $3,CS(%rdi)
 	je 1f
 	swapgs	
-1:	addl $1,%gs:pda_irqcount	# RED-PEN should check preempt count
+1:	incl	%gs:pda_irqcount	# RED-PEN should check preempt count
 	movq %gs:pda_irqstackptr,%rax
 	cmoveq %rax,%rsp							
 	pushq %rdi			# save old stack	
@@ -436,7 +436,7 @@ ENTRY(common_interrupt)
 ret_from_intr:		
 	popq  %rdi
 	cli	
-	subl $1,%gs:pda_irqcount
+	decl %gs:pda_irqcount
 #ifdef CONFIG_DEBUG_INFO
 	movq RBP(%rdi),%rbp
 #endif
@@ -494,7 +494,7 @@ retint_signal:
 	sti
 	SAVE_REST
 	movq $-1,ORIG_RAX(%rsp) 			
-	xorq %rsi,%rsi		# oldset
+	xorl %esi,%esi		# oldset
 	movq %rsp,%rdi		# &pt_regs
 	call do_notify_resume
 	RESTORE_REST
@@ -752,7 +752,7 @@ child_rip:
 	movq %rsi, %rdi
 	call *%rax
 	# exit
-	xorq %rdi, %rdi
+	xorl %edi, %edi
 	call do_exit
 
 /*
@@ -917,4 +917,16 @@ ENTRY(machine_check)
 
 ENTRY(call_debug)
        zeroentry do_call_debug
+
+ENTRY(call_softirq)
+	movq %gs:pda_irqstackptr,%rax
+	pushq %r15
+	movq %rsp,%r15
+	incl %gs:pda_irqcount
+	cmove %rax,%rsp
+	call __do_softirq
+	movq %r15,%rsp
+	decl %gs:pda_irqcount
+	popq %r15
+	ret
 

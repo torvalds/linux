@@ -744,7 +744,7 @@ static void free_tag(struct DeviceCtlBlk *dcb, struct ScsiReqBlk *srb)
 
 
 /* Find cmd in SRB list */
-inline static struct ScsiReqBlk *find_cmd(struct scsi_cmnd *cmd, 
+static inline struct ScsiReqBlk *find_cmd(struct scsi_cmnd *cmd,
 		struct list_head *head)
 {
 	struct ScsiReqBlk *i;

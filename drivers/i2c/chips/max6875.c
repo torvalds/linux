@@ -37,7 +37,8 @@
 #include <linux/i2c-sensor.h>
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = {0x50, 0x52, I2C_CLIENT_END};
+/* No address scanned by default, as this could corrupt standard EEPROMS. */
+static unsigned short normal_i2c[] = {I2C_CLIENT_END};
 static unsigned int normal_isa[] = {I2C_CLIENT_ISA_END};
 
 /* Insmod parameters */
@@ -341,6 +342,11 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *new_client;
 	struct max6875_data *data;
 	int err = 0;
+
+	/* Prevent 24RF08 corruption (in case of user error) */
+	if (kind < 0)
+		i2c_smbus_xfer(adapter, address, 0, 0, 0,
+			       I2C_SMBUS_QUICK, NULL);
 
 	/* There are three ways we can read the EEPROM data:
 	   (1) I2C block reads (faster, but unsupported by most adapters)

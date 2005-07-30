@@ -50,14 +50,13 @@
 	 ACPI_MODULE_NAME    ("dswscope")
 
 
-#define STACK_POP(head) head
-
-
 /****************************************************************************
  *
  * FUNCTION:    acpi_ds_scope_stack_clear
  *
- * PARAMETERS:  None
+ * PARAMETERS:  walk_state      - Current state
+ *
+ * RETURN:      None
  *
  * DESCRIPTION: Pop (and free) everything on the scope stack except the
  *              root scope object (which remains at the stack top.)
@@ -80,7 +79,8 @@ acpi_ds_scope_stack_clear (
 		walk_state->scope_info = scope_info->scope.next;
 
 		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"Popped object type (%s)\n", acpi_ut_get_type_name (scope_info->common.value)));
+			"Popped object type (%s)\n",
+			acpi_ut_get_type_name (scope_info->common.value)));
 		acpi_ut_delete_generic_state (scope_info);
 	}
 }
@@ -90,8 +90,11 @@ acpi_ds_scope_stack_clear (
  *
  * FUNCTION:    acpi_ds_scope_stack_push
  *
- * PARAMETERS:  *Node,              - Name to be made current
- *              Type,               - Type of frame being pushed
+ * PARAMETERS:  Node            - Name to be made current
+ *              Type            - Type of frame being pushed
+ *              walk_state      - Current state
+ *
+ * RETURN:      Status
  *
  * DESCRIPTION: Push the current scope on the scope stack, and make the
  *              passed Node current.
@@ -121,7 +124,8 @@ acpi_ds_scope_stack_push (
 	/* Make sure object type is valid */
 
 	if (!acpi_ut_valid_object_type (type)) {
-		ACPI_REPORT_WARNING (("ds_scope_stack_push: Invalid object type: 0x%X\n", type));
+		ACPI_REPORT_WARNING ((
+			"ds_scope_stack_push: Invalid object type: 0x%X\n", type));
 	}
 
 	/* Allocate a new scope object */
@@ -170,16 +174,11 @@ acpi_ds_scope_stack_push (
  *
  * FUNCTION:    acpi_ds_scope_stack_pop
  *
- * PARAMETERS:  Type                - The type of frame to be found
+ * PARAMETERS:  walk_state      - Current state
  *
- * DESCRIPTION: Pop the scope stack until a frame of the requested type
- *              is found.
+ * RETURN:      Status
  *
- * RETURN:      Count of frames popped.  If no frame of the requested type
- *              was found, the count is returned as a negative number and
- *              the scope stack is emptied (which sets the current scope
- *              to the root).  If the scope stack was empty at entry, the
- *              function is a no-op and returns 0.
+ * DESCRIPTION: Pop the scope stack once.
  *
  ***************************************************************************/
 

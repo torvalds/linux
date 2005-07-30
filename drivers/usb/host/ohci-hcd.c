@@ -180,7 +180,7 @@ static int ohci_urb_enqueue (
 	struct usb_hcd	*hcd,
 	struct usb_host_endpoint *ep,
 	struct urb	*urb,
-	int		mem_flags
+	unsigned	mem_flags
 ) {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	struct ed	*ed;
@@ -673,8 +673,10 @@ retry:
 
 	ohci_dump (ohci, 1);
 
-	if (ohci_to_hcd(ohci)->self.root_hub == NULL)
+	if (ohci_to_hcd(ohci)->self.root_hub == NULL) {
+		register_reboot_notifier (&ohci->reboot_notifier);
 		create_debug_files (ohci);
+	}
 
 	return 0;
 }
@@ -885,6 +887,10 @@ MODULE_LICENSE ("GPL");
 #include "ohci-sa1111.c"
 #endif
 
+#ifdef CONFIG_ARCH_S3C2410
+#include "ohci-s3c2410.c"
+#endif
+
 #ifdef CONFIG_ARCH_OMAP
 #include "ohci-omap.c"
 #endif
@@ -907,6 +913,7 @@ MODULE_LICENSE ("GPL");
 
 #if !(defined(CONFIG_PCI) \
       || defined(CONFIG_SA1111) \
+      || defined(CONFIG_ARCH_S3C2410) \
       || defined(CONFIG_ARCH_OMAP) \
       || defined (CONFIG_ARCH_LH7A404) \
       || defined (CONFIG_PXA27x) \

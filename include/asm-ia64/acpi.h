@@ -98,6 +98,15 @@ const char *acpi_get_sysname (void);
 int acpi_request_vector (u32 int_type);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
 
+/*
+ * Record the cpei override flag and current logical cpu. This is
+ * useful for CPU removal.
+ */
+extern unsigned int can_cpei_retarget(void);
+extern unsigned int is_cpu_cpei_target(unsigned int cpu);
+extern void set_cpei_target_cpu(unsigned int cpu);
+extern unsigned int get_cpei_target_cpu(void);
+
 #ifdef CONFIG_ACPI_NUMA
 /* Proximity bitmap length; _PXM is at most 255 (8 bit)*/
 #define MAX_PXM_DOMAINS (256)

@@ -47,8 +47,35 @@
 #define _COMPONENT          ACPI_UTILITIES
 	 ACPI_MODULE_NAME    ("utalloc")
 
+/* Local prototypes */
 
-/******************************************************************************
+#ifdef	ACPI_DBG_TRACK_ALLOCATIONS
+static struct acpi_debug_mem_block *
+acpi_ut_find_allocation (
+	u32                             list_id,
+	void                            *allocation);
+
+static acpi_status
+acpi_ut_track_allocation (
+	u32                             list_id,
+	struct acpi_debug_mem_block     *address,
+	acpi_size                       size,
+	u8                              alloc_type,
+	u32                             component,
+	char                            *module,
+	u32                             line);
+
+static acpi_status
+acpi_ut_remove_allocation (
+	u32                             list_id,
+	struct acpi_debug_mem_block     *address,
+	u32                             component,
+	char                            *module,
+	u32                             line);
+#endif	/* ACPI_DBG_TRACK_ALLOCATIONS */
+
+
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_release_to_cache
  *
@@ -98,7 +125,8 @@ acpi_ut_release_to_cache (
 
 		/* Put the object at the head of the cache list */
 
-		* (ACPI_CAST_INDIRECT_PTR (char, &(((char *) object)[cache_info->link_offset]))) = cache_info->list_head;
+		* (ACPI_CAST_INDIRECT_PTR (char,
+			&(((char *) object)[cache_info->link_offset]))) = cache_info->list_head;
 		cache_info->list_head = object;
 		cache_info->cache_depth++;
 
@@ -115,7 +143,7 @@ acpi_ut_release_to_cache (
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_acquire_from_cache
  *
@@ -156,7 +184,8 @@ acpi_ut_acquire_from_cache (
 		/* There is an object available, use it */
 
 		object = cache_info->list_head;
-		cache_info->list_head = *(ACPI_CAST_INDIRECT_PTR (char, &(((char *) object)[cache_info->link_offset])));
+		cache_info->list_head = *(ACPI_CAST_INDIRECT_PTR (char,
+				 &(((char *) object)[cache_info->link_offset])));
 
 		ACPI_MEM_TRACKING (cache_info->cache_hits++);
 		cache_info->cache_depth--;
@@ -201,7 +230,7 @@ acpi_ut_acquire_from_cache (
 
 
 #ifdef ACPI_ENABLE_OBJECT_CACHE
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_delete_generic_cache
  *
@@ -228,7 +257,8 @@ acpi_ut_delete_generic_cache (
 	while (cache_info->list_head) {
 		/* Delete one cached state object */
 
-		next = *(ACPI_CAST_INDIRECT_PTR (char, &(((char *) cache_info->list_head)[cache_info->link_offset])));
+		next = *(ACPI_CAST_INDIRECT_PTR (char,
+				 &(((char *) cache_info->list_head)[cache_info->link_offset])));
 		ACPI_MEM_FREE (cache_info->list_head);
 
 		cache_info->list_head = next;
@@ -497,8 +527,8 @@ acpi_ut_allocate_and_track (
 	acpi_status                     status;
 
 
-	allocation = acpi_ut_allocate (size + sizeof (struct acpi_debug_mem_header), component,
-			  module, line);
+	allocation = acpi_ut_allocate (size + sizeof (struct acpi_debug_mem_header),
+			  component, module, line);
 	if (!allocation) {
 		return (NULL);
 	}
@@ -543,8 +573,8 @@ acpi_ut_callocate_and_track (
 	acpi_status                     status;
 
 
-	allocation = acpi_ut_callocate (size + sizeof (struct acpi_debug_mem_header), component,
-			  module, line);
+	allocation = acpi_ut_callocate (size + sizeof (struct acpi_debug_mem_header),
+			  component, module, line);
 	if (!allocation) {
 		/* Report allocation error */
 
@@ -637,7 +667,7 @@ acpi_ut_free_and_track (
  *
  ******************************************************************************/
 
-struct acpi_debug_mem_block *
+static struct acpi_debug_mem_block *
 acpi_ut_find_allocation (
 	u32                             list_id,
 	void                            *allocation)
@@ -686,7 +716,7 @@ acpi_ut_find_allocation (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ut_track_allocation (
 	u32                             list_id,
 	struct acpi_debug_mem_block     *allocation,
@@ -721,10 +751,12 @@ acpi_ut_track_allocation (
 
 	element = acpi_ut_find_allocation (list_id, allocation);
 	if (element) {
-		ACPI_REPORT_ERROR (("ut_track_allocation: Allocation already present in list! (%p)\n",
+		ACPI_REPORT_ERROR ((
+			"ut_track_allocation: Allocation already present in list! (%p)\n",
 			allocation));
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Element %p Address %p\n", element, allocation));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Element %p Address %p\n",
+			element, allocation));
 
 		goto unlock_and_exit;
 	}
@@ -773,7 +805,7 @@ unlock_and_exit:
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ut_remove_allocation (
 	u32                             list_id,
 	struct acpi_debug_mem_block     *allocation,
@@ -797,7 +829,7 @@ acpi_ut_remove_allocation (
 		/* No allocations! */
 
 		_ACPI_REPORT_ERROR (module, line, component,
-				("ut_remove_allocation: Empty allocation list, nothing to free!\n"));
+			("ut_remove_allocation: Empty allocation list, nothing to free!\n"));
 
 		return_ACPI_STATUS (AE_OK);
 	}
@@ -824,7 +856,8 @@ acpi_ut_remove_allocation (
 
 	ACPI_MEMSET (&allocation->user_space, 0xEA, allocation->size);
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Freeing size 0%X\n", allocation->size));
+	ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Freeing size 0%X\n",
+		allocation->size));
 
 	status = acpi_ut_release_mutex (ACPI_MTX_MEMORY);
 	return_ACPI_STATUS (status);
@@ -842,6 +875,7 @@ acpi_ut_remove_allocation (
  * DESCRIPTION: Print some info about the outstanding allocations.
  *
  ******************************************************************************/
+
 #ifdef ACPI_FUTURE_USAGE
 void
 acpi_ut_dump_allocation_info (
@@ -884,7 +918,8 @@ acpi_ut_dump_allocation_info (
 	ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
 			  ("%30s: %4d (%3d Kb)\n", "Max Nodes",
 			  acpi_gbl_max_concurrent_node_count,
-			  ROUND_UP_TO_1K ((acpi_gbl_max_concurrent_node_count * sizeof (struct acpi_namespace_node)))));
+			  ROUND_UP_TO_1K ((acpi_gbl_max_concurrent_node_count *
+					 sizeof (struct acpi_namespace_node)))));
 */
 	return_VOID;
 }
@@ -933,26 +968,26 @@ acpi_ut_dump_allocations (
 			descriptor = ACPI_CAST_PTR (union acpi_descriptor, &element->user_space);
 			if (descriptor->descriptor_id != ACPI_DESC_TYPE_CACHED) {
 				acpi_os_printf ("%p Len %04X %9.9s-%d [%s] ",
-						 descriptor, element->size, element->module,
-						 element->line, acpi_ut_get_descriptor_name (descriptor));
+					descriptor, element->size, element->module,
+					element->line, acpi_ut_get_descriptor_name (descriptor));
 
 				/* Most of the elements will be Operand objects. */
 
 				switch (ACPI_GET_DESCRIPTOR_TYPE (descriptor)) {
 				case ACPI_DESC_TYPE_OPERAND:
 					acpi_os_printf ("%12.12s R%hd",
-							acpi_ut_get_type_name (descriptor->object.common.type),
-							descriptor->object.common.reference_count);
+						acpi_ut_get_type_name (descriptor->object.common.type),
+						descriptor->object.common.reference_count);
 					break;
 
 				case ACPI_DESC_TYPE_PARSER:
 					acpi_os_printf ("aml_opcode %04hX",
-							descriptor->op.asl.aml_opcode);
+						descriptor->op.asl.aml_opcode);
 					break;
 
 				case ACPI_DESC_TYPE_NAMED:
 					acpi_os_printf ("%4.4s",
-							acpi_ut_get_node_name (&descriptor->node));
+						acpi_ut_get_node_name (&descriptor->node));
 					break;
 
 				default:
@@ -982,7 +1017,6 @@ acpi_ut_dump_allocations (
 
 	return_VOID;
 }
-
 
 #endif  /* #ifdef ACPI_DBG_TRACK_ALLOCATIONS */
 

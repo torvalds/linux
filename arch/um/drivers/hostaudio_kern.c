@@ -57,10 +57,10 @@ __uml_setup("mixer=", set_mixer, "mixer=<mixer device>\n" MIXER_HELP);
 
 #else /*MODULE*/
 
-MODULE_PARM(dsp, "s");
+module_param(dsp, charp, 0644);
 MODULE_PARM_DESC(dsp, DSP_HELP);
 
-MODULE_PARM(mixer, "s");
+module_param(mixer, charp, 0644);
 MODULE_PARM_DESC(mixer, MIXER_HELP);
 
 #endif

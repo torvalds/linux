@@ -30,11 +30,6 @@
 /* In OMAP1710 H3 the Ethernet is directly connected to CS1 */
 #define OMAP1710_ETHR_START		0x04000300
 
-/* Intel STRATA NOR flash at CS3 or CS2B(NAND Boot) */
-#define OMAP_NOR_FLASH_SIZE             SZ_32M
-#define OMAP_NOR_FLASH_START1 		0x0C000000 /* CS3 */
-#define OMAP_NOR_FLASH_START2 		0x0A000000 /* CS2B */
-
 /* Samsung NAND flash at CS2B or CS3(NAND Boot) */
 #define OMAP_NAND_FLASH_START1           0x0A000000 /* CS2B */
 #define OMAP_NAND_FLASH_START2           0x0C000000 /* CS3 */

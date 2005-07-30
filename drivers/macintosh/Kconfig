@@ -4,7 +4,7 @@ menu "Macintosh device drivers"
 
 config ADB
 	bool "Apple Desktop Bus (ADB) support"
-	depends on MAC || PPC_PMAC
+	depends on MAC || (PPC_PMAC && PPC32)
 	help
 	  Apple Desktop Bus (ADB) support is for support of devices which
 	  are connected to an ADB port.  ADB devices tend to have 4 pins.

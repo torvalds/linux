@@ -1249,7 +1249,7 @@ ENTRY(sys_rt_sigreturn)
  	stf.spill [r17]=f11
 	adds out0=16,sp				// out0 = &sigscratch
 	br.call.sptk.many rp=ia64_rt_sigreturn
-.ret19:	.restore sp 0
+.ret19:	.restore sp,0
 	adds sp=16,sp
 	;;
 	ld8 r9=[sp]				// load new ar.unat
@@ -1574,8 +1574,8 @@ sys_call_table:
 	data8 sys_ioprio_set
 	data8 sys_ioprio_get			// 1275
 	data8 sys_set_zone_reclaim
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall
-	data8 sys_ni_syscall
+	data8 sys_inotify_init
+	data8 sys_inotify_add_watch
+	data8 sys_inotify_rm_watch
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls

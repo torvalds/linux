@@ -52,6 +52,8 @@ struct pcdp_uart {
 	u32				clock_rate;
 	u8				pci_prog_intfc;
 	u8				flags;
+	u16				conout_index;
+	u32				reserved;
 } __attribute__((packed));
 
 #define PCDP_IF_PCI	1

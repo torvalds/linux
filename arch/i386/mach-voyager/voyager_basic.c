@@ -36,6 +36,7 @@
  * Power off function, if any
  */
 void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
 
 int voyager_level = 0;
 
@@ -277,8 +278,6 @@ machine_restart(char *cmd)
 	}
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void
 mca_nmi_hook(void)
 {
@@ -314,12 +313,9 @@ machine_halt(void)
 	machine_power_off();
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off(void)
 {
 	if (pm_power_off)
 		pm_power_off();
 }
 
-EXPORT_SYMBOL(machine_power_off);

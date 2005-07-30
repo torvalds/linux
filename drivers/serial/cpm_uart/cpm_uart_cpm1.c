@@ -185,7 +185,7 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 	memsz = L1_CACHE_ALIGN(pinfo->rx_nrfifos * pinfo->rx_fifosize) +
 	    L1_CACHE_ALIGN(pinfo->tx_nrfifos * pinfo->tx_fifosize);
 	if (is_con) {
-		mem_addr = (u8 *) m8xx_cpm_hostalloc(memsz);
+		mem_addr = (u8 *) cpm_dpram_addr(cpm_dpalloc(memsz, 8));
 		dma_addr = 0;
 	} else
 		mem_addr = dma_alloc_coherent(NULL, memsz, &dma_addr,

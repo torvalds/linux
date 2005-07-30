@@ -5013,7 +5013,7 @@ static void proc_SSID_on_close( struct inode *inode, struct file *file ) {
 	enable_MAC(ai, &rsp, 1);
 }
 
-inline static u8 hexVal(char c) {
+static inline u8 hexVal(char c) {
 	if (c>='0' && c<='9') return c -= '0';
 	if (c>='a' && c<='f') return c -= 'a'-10;
 	if (c>='A' && c<='F') return c -= 'A'-10;

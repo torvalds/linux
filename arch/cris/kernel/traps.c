@@ -1,4 +1,4 @@
-/* $Id: traps.c,v 1.9 2004/05/11 12:28:26 starvik Exp $
+/* $Id: traps.c,v 1.11 2005/01/24 16:03:19 orjanf Exp $
  *
  *  linux/arch/cris/traps.c
  *
@@ -20,13 +20,15 @@
 
 static int kstack_depth_to_print = 24;
 
+extern int raw_printk(const char *fmt, ...);
+
 void show_trace(unsigned long * stack)
 {
 	unsigned long addr, module_start, module_end;
 	extern char _stext, _etext;
 	int i;
 
-        printk("\nCall Trace: ");
+        raw_printk("\nCall Trace: ");
 
         i = 1;
         module_start = VMALLOC_START;
@@ -37,7 +39,7 @@ void show_trace(unsigned long * stack)
 			/* This message matches "failing address" marked
 			   s390 in ksymoops, so lines containing it will
 			   not be filtered out by ksymoops.  */
-			printk ("Failing address 0x%lx\n", (unsigned long)stack);
+			raw_printk ("Failing address 0x%lx\n", (unsigned long)stack);
 			break;
 		}
 		stack++;
@@ -54,8 +56,8 @@ void show_trace(unsigned long * stack)
                      (addr <= (unsigned long) &_etext)) ||
                     ((addr >= module_start) && (addr <= module_end))) {
                         if (i && ((i % 8) == 0))
-                                printk("\n       ");
-                        printk("[<%08lx>] ", addr);
+                                raw_printk("\n       ");
+                        raw_printk("[<%08lx>] ", addr);
                         i++;
                 }
         }
@@ -96,24 +98,58 @@ show_stack(struct task_struct *task, unsigned long *sp)
 
         stack = sp;
 
-	printk("\nStack from %08lx:\n       ", (unsigned long)stack);
+	raw_printk("\nStack from %08lx:\n       ", (unsigned long)stack);
         for(i = 0; i < kstack_depth_to_print; i++) {
                 if (((long) stack & (THREAD_SIZE-1)) == 0)
                         break;
                 if (i && ((i % 8) == 0))
-                        printk("\n       ");
+                        raw_printk("\n       ");
 		if (__get_user (addr, stack)) {
 			/* This message matches "failing address" marked
 			   s390 in ksymoops, so lines containing it will
 			   not be filtered out by ksymoops.  */
-			printk ("Failing address 0x%lx\n", (unsigned long)stack);
+			raw_printk ("Failing address 0x%lx\n", (unsigned long)stack);
 			break;
 		}
 		stack++;
-		printk("%08lx ", addr);
+		raw_printk("%08lx ", addr);
         }
 	show_trace(sp);
 }
+
+static void (*nmi_handler)(struct pt_regs*);
+extern void arch_enable_nmi(void);
+
+void set_nmi_handler(void (*handler)(struct pt_regs*))
+{
+  nmi_handler = handler;
+  arch_enable_nmi();
+}
+
+void handle_nmi(struct pt_regs* regs)
+{
+  if (nmi_handler)
+    nmi_handler(regs);
+}
+
+#ifdef CONFIG_DEBUG_NMI_OOPS
+void oops_nmi_handler(struct pt_regs* regs)
+{
+  stop_watchdog();
+  raw_printk("NMI!\n");
+  show_registers(regs);
+}
+
+static int
+__init oops_nmi_register(void)
+{
+  set_nmi_handler(oops_nmi_handler);
+  return 0;
+}
+
+__initcall(oops_nmi_register);
+
+#endif
 
 #if 0
 /* displays a short stack trace */
@@ -123,9 +159,9 @@ show_stack()
 {
 	unsigned long *sp = (unsigned long *)rdusp();
 	int i;
-	printk("Stack dump [0x%08lx]:\n", (unsigned long)sp);
+	raw_printk("Stack dump [0x%08lx]:\n", (unsigned long)sp);
 	for(i = 0; i < 16; i++)
-		printk("sp + %d: 0x%08lx\n", i*4, sp[i]);
+		raw_printk("sp + %d: 0x%08lx\n", i*4, sp[i]);
 	return 0;
 }
 #endif
@@ -141,4 +177,10 @@ void __init
 trap_init(void)
 {
 	/* Nothing needs to be done */
+}
+
+void spinning_cpu(void* addr)
+{
+  raw_printk("CPU %d spinning on %X\n", smp_processor_id(), addr);
+  dump_stack();
 }

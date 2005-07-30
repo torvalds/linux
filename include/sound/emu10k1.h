@@ -1167,6 +1167,7 @@ int snd_emu10k1_create(snd_card_t * card,
 		       unsigned short extout_mask,
 		       long max_cache_bytes,
 		       int enable_ir,
+		       uint subsystem,
 		       emu10k1_t ** remu);
 
 int snd_emu10k1_pcm(emu10k1_t * emu, int device, snd_pcm_t ** rpcm);

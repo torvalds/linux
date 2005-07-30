@@ -265,9 +265,23 @@
 #define MOBILITY_USB_SERIAL_PID		0x0202	/* EasiDock USB 200 serial */
 
 /*
+ * microHAM product IDs (http://www.microham.com).
+ * Submitted by Justin Burket (KL1RL) <zorton@jtan.com>.
+ */
+#define FTDI_MHAM_Y6_PID 0xEEEA		/* USB-Y6 interface */
+#define FTDI_MHAM_Y8_PID 0xEEEB		/* USB-Y8 interface */
+
+/*
  * Active Robots product ids.
  */
 #define FTDI_ACTIVE_ROBOTS_PID	0xE548	/* USB comms board */
+
+/*
+ * Evolution Robotics products (http://www.evolution.com/).
+ * Submitted by Shawn M. Lavelle.
+ */
+#define EVOLUTION_VID		0xDEEE	/* Vendor ID */
+#define EVOLUTION_ER1_PID	0x0300	/* ER1 Control Module */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */

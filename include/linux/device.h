@@ -284,8 +284,10 @@ struct device {
 	struct device_driver *driver;	/* which driver has allocated this
 					   device */
 	void		*driver_data;	/* data private to the driver */
-	void		*platform_data;	/* Platform specific data (e.g. ACPI,
-					   BIOS data relevant to device) */
+	void		*platform_data;	/* Platform specific data, device
+					   core doesn't touch it */
+	void		*firmware_data; /* Firmware specific data (e.g. ACPI,
+					   BIOS data),reserved for device core*/
 	struct dev_pm_info	power;
 
 	u64		*dma_mask;	/* dma mask (if dma'able device) */

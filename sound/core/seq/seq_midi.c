@@ -134,7 +134,7 @@ static int event_process_midi(snd_seq_event_t * ev, int direct,
 	seq_midisynth_t *msynth = (seq_midisynth_t *) private_data;
 	unsigned char msg[10];	/* buffer for constructing midi messages */
 	snd_rawmidi_substream_t *substream;
-	int res;
+	int len;
 
 	snd_assert(msynth != NULL, return -EINVAL);
 	substream = msynth->output_rfile.output;
@@ -146,20 +146,16 @@ static int event_process_midi(snd_seq_event_t * ev, int direct,
 			snd_printd("seq_midi: invalid sysex event flags = 0x%x\n", ev->flags);
 			return 0;
 		}
-		res = snd_seq_dump_var_event(ev, (snd_seq_dump_func_t)dump_midi, substream);
+		snd_seq_dump_var_event(ev, (snd_seq_dump_func_t)dump_midi, substream);
 		snd_midi_event_reset_decode(msynth->parser);
-		if (res < 0)
-			return res;
 	} else {
 		if (msynth->parser == NULL)
 			return -EIO;
-		res = snd_midi_event_decode(msynth->parser, msg, sizeof(msg), ev);
-		if (res < 0)
-			return res;
-		if ((res = dump_midi(substream, msg, res)) < 0) {
+		len = snd_midi_event_decode(msynth->parser, msg, sizeof(msg), ev);
+		if (len < 0)
+			return 0;
+		if (dump_midi(substream, msg, len) < 0)
 			snd_midi_event_reset_decode(msynth->parser);
-			return res;
-		}
 	}
 	return 0;
 }

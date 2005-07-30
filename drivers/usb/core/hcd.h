@@ -142,12 +142,12 @@ struct hcd_timeout {	/* timeouts we allocate */
 
 struct usb_operations {
 	int (*get_frame_number) (struct usb_device *usb_dev);
-	int (*submit_urb) (struct urb *urb, int mem_flags);
+	int (*submit_urb) (struct urb *urb, unsigned mem_flags);
 	int (*unlink_urb) (struct urb *urb, int status);
 
 	/* allocate dma-consistent buffer for URB_DMA_NOMAPPING */
 	void *(*buffer_alloc)(struct usb_bus *bus, size_t size,
-			int mem_flags,
+			unsigned mem_flags,
 			dma_addr_t *dma);
 	void (*buffer_free)(struct usb_bus *bus, size_t size,
 			void *addr, dma_addr_t dma);
@@ -200,7 +200,7 @@ struct hc_driver {
 	int	(*urb_enqueue) (struct usb_hcd *hcd,
 					struct usb_host_endpoint *ep,
 					struct urb *urb,
-					int mem_flags);
+					unsigned mem_flags);
 	int	(*urb_dequeue) (struct usb_hcd *hcd, struct urb *urb);
 
 	/* hw synch, freeing endpoint resources that urb_dequeue can't */
@@ -247,7 +247,7 @@ int hcd_buffer_create (struct usb_hcd *hcd);
 void hcd_buffer_destroy (struct usb_hcd *hcd);
 
 void *hcd_buffer_alloc (struct usb_bus *bus, size_t size,
-	int mem_flags, dma_addr_t *dma);
+	unsigned mem_flags, dma_addr_t *dma);
 void hcd_buffer_free (struct usb_bus *bus, size_t size,
 	void *addr, dma_addr_t dma);
 
@@ -334,17 +334,19 @@ extern void usb_release_bandwidth (struct usb_device *dev, struct urb *urb,
 extern int usb_check_bandwidth (struct usb_device *dev, struct urb *urb);
 
 /*
- * Ceiling microseconds (typical) for that many bytes at high speed
+ * Ceiling [nano/micro]seconds (typical) for that many bytes at high speed
  * ISO is a bit less, no ACK ... from USB 2.0 spec, 5.11.3 (and needed
  * to preallocate bandwidth)
  */
 #define USB2_HOST_DELAY	5	/* nsec, guess */
-#define HS_USECS(bytes) NS_TO_US ( ((55 * 8 * 2083)/1000) \
+#define HS_NSECS(bytes) ( ((55 * 8 * 2083)/1000) \
 	+ ((2083UL * (3167 + BitTime (bytes)))/1000) \
 	+ USB2_HOST_DELAY)
-#define HS_USECS_ISO(bytes) NS_TO_US ( ((38 * 8 * 2083)/1000) \
+#define HS_NSECS_ISO(bytes) ( ((38 * 8 * 2083)/1000) \
 	+ ((2083UL * (3167 + BitTime (bytes)))/1000) \
 	+ USB2_HOST_DELAY)
+#define HS_USECS(bytes) NS_TO_US (HS_NSECS(bytes))
+#define HS_USECS_ISO(bytes) NS_TO_US (HS_NSECS_ISO(bytes))
 
 extern long usb_calc_bus_time (int speed, int is_input,
 			int isoc, int bytecount);

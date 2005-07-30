@@ -800,7 +800,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	} else {
 		int try;
 		u32 mask = s->irq_mask;
-		void *data = NULL;
+		void *data = &p_dev->dev.driver; /* something unique to this device */
 
 		for (try = 0; try < 64; try++) {
 			irq = try % 32;
