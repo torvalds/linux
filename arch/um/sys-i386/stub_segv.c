@@ -21,10 +21,10 @@ stub_segv_handler(int sig)
 	__asm__("movl %0, %%eax ; int $0x80": : "g" (__NR_getpid));
 	__asm__("movl %%eax, %%ebx ; movl %0, %%eax ; movl %1, %%ecx ;"
 		"int $0x80": : "g" (__NR_kill), "g" (SIGUSR1));
-	/* Pop the frame pointer and return address since we need to leave
+	/* Load pointer to sigcontext into esp, since we need to leave
 	 * the stack in its original form when we do the sigreturn here, by
 	 * hand.
 	 */
-	__asm__("popl %%eax ; popl %%eax ; popl %%eax ; movl %0, %%eax ; "
-		"int $0x80" : : "g" (__NR_sigreturn));
+	__asm__("mov %0,%%esp ; movl %1, %%eax ; "
+		"int $0x80" : : "a" (sc), "g" (__NR_sigreturn));
 }

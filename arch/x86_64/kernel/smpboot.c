@@ -113,24 +113,6 @@ struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
 #define set_idle_for_cpu(x,p)   (idle_thread_array[(x)] = (p))
 
 /*
- * cpu_possible_map should be static, it cannot change as cpu's
- * are onlined, or offlined. The reason is per-cpu data-structures
- * are allocated by some modules at init time, and dont expect to
- * do this dynamically on cpu arrival/departure.
- * cpu_present_map on the other hand can change dynamically.
- * In case when cpu_hotplug is not compiled, then we resort to current
- * behaviour, which is cpu_possible == cpu_present.
- * If cpu-hotplug is supported, then we need to preallocate for all
- * those NR_CPUS, hence cpu_possible_map represents entire NR_CPUS range.
- * - Ashok Raj
- */
-#ifdef CONFIG_HOTPLUG_CPU
-#define fixup_cpu_possible_map(x)	cpu_set((x), cpu_possible_map)
-#else
-#define fixup_cpu_possible_map(x)
-#endif
-
-/*
  * Currently trivial. Write the real->protected mode
  * bootstrap into the page concerned. The caller
  * has made sure it's suitably aligned.
@@ -229,9 +211,6 @@ static __cpuinit void sync_master(void *arg)
 {
 	unsigned long flags, i;
 
-	if (smp_processor_id() != 0)
-		return;
-
 	go[MASTER] = 0;
 
 	local_irq_save(flags);
@@ -280,7 +259,7 @@ get_delta(long *rt, long *master)
 	return tcenter - best_tm;
 }
 
-static __cpuinit void sync_tsc(void)
+static __cpuinit void sync_tsc(unsigned int master)
 {
 	int i, done = 0;
 	long delta, adj, adjust_latency = 0;
@@ -294,9 +273,17 @@ static __cpuinit void sync_tsc(void)
 	} t[NUM_ROUNDS] __cpuinitdata;
 #endif
 
+	printk(KERN_INFO "CPU %d: Syncing TSC to CPU %u.\n",
+		smp_processor_id(), master);
+
 	go[MASTER] = 1;
 
-	smp_call_function(sync_master, NULL, 1, 0);
+	/* It is dangerous to broadcast IPI as cpus are coming up,
+	 * as they may not be ready to accept them.  So since
+	 * we only need to send the ipi to the boot cpu direct
+	 * the message, and avoid the race.
+	 */
+	smp_call_function_single(master, sync_master, NULL, 1, 0);
 
 	while (go[MASTER])	/* wait for master to be ready */
 		no_cpu_relax();
@@ -340,16 +327,14 @@ static __cpuinit void sync_tsc(void)
 	printk(KERN_INFO
 	       "CPU %d: synchronized TSC with CPU %u (last diff %ld cycles, "
 	       "maxerr %lu cycles)\n",
-	       smp_processor_id(), boot_cpu_id, delta, rt);
+	       smp_processor_id(), master, delta, rt);
 }
 
 static void __cpuinit tsc_sync_wait(void)
 {
 	if (notscsync || !cpu_has_tsc)
 		return;
-	printk(KERN_INFO "CPU %d: Syncing TSC to CPU %u.\n", smp_processor_id(),
-			boot_cpu_id);
-	sync_tsc();
+	sync_tsc(boot_cpu_id);
 }
 
 static __init int notscsync_setup(char *s)
@@ -773,8 +758,9 @@ do_rest:
 	initial_code = start_secondary;
 	clear_ti_thread_flag(c_idle.idle->thread_info, TIF_FORK);
 
-	printk(KERN_INFO "Booting processor %d/%d rip %lx rsp %lx\n", cpu, apicid,
-	       start_rip, init_rsp);
+	printk(KERN_INFO "Booting processor %d/%d APIC 0x%x\n", cpu,
+		cpus_weight(cpu_present_map),
+		apicid);
 
 	/*
 	 * This grunge runs the startup process for
@@ -924,6 +910,27 @@ static __init void enforce_max_cpus(unsigned max_cpus)
 	}
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * cpu_possible_map should be static, it cannot change as cpu's
+ * are onlined, or offlined. The reason is per-cpu data-structures
+ * are allocated by some modules at init time, and dont expect to
+ * do this dynamically on cpu arrival/departure.
+ * cpu_present_map on the other hand can change dynamically.
+ * In case when cpu_hotplug is not compiled, then we resort to current
+ * behaviour, which is cpu_possible == cpu_present.
+ * If cpu-hotplug is supported, then we need to preallocate for all
+ * those NR_CPUS, hence cpu_possible_map represents entire NR_CPUS range.
+ * - Ashok Raj
+ */
+static void prefill_possible_map(void)
+{
+	int i;
+	for (i = 0; i < NR_CPUS; i++)
+		cpu_set(i, cpu_possible_map);
+}
+#endif
+
 /*
  * Various sanity checks.
  */
@@ -987,25 +994,15 @@ static int __init smp_sanity_check(unsigned max_cpus)
  */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int i;
-
 	nmi_watchdog_default();
 	current_cpu_data = boot_cpu_data;
 	current_thread_info()->cpu = 0;  /* needed? */
 
 	enforce_max_cpus(max_cpus);
 
-	/*
-	 * Fill in cpu_present_mask
-	 */
-	for (i = 0; i < NR_CPUS; i++) {
-		int apicid = cpu_present_to_apicid(i);
-		if (physid_isset(apicid, phys_cpu_present_map)) {
-			cpu_set(i, cpu_present_map);
-			cpu_set(i, cpu_possible_map);
-		}
-		fixup_cpu_possible_map(i);
-	}
+#ifdef CONFIG_HOTPLUG_CPU
+	prefill_possible_map();
+#endif
 
 	if (smp_sanity_check(max_cpus) < 0) {
 		printk(KERN_INFO "SMP disabled\n");
@@ -1189,8 +1186,7 @@ void __cpu_die(unsigned int cpu)
 			printk ("CPU %d is now offline\n", cpu);
 			return;
 		}
-		current->state = TASK_UNINTERRUPTIBLE;
-		schedule_timeout(HZ/10);
+		msleep(100);
 	}
  	printk(KERN_ERR "CPU %u didn't die...\n", cpu);
 }

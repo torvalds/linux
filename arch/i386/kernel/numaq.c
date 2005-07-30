@@ -31,6 +31,7 @@
 #include <linux/nodemask.h>
 #include <asm/numaq.h>
 #include <asm/topology.h>
+#include <asm/processor.h>
 
 #define	MB_TO_PAGES(addr) ((addr) << (20 - PAGE_SHIFT))
 
@@ -77,3 +78,11 @@ int __init get_memcfg_numaq(void)
 	smp_dump_qct();
 	return 1;
 }
+
+static int __init numaq_dsc_disable(void)
+{
+	printk(KERN_DEBUG "NUMAQ: disabling TSC\n");
+	tsc_disable = 1;
+	return 0;
+}
+core_initcall(numaq_dsc_disable);

@@ -135,3 +135,22 @@ void fixup_irqs(cpumask_t map)
 	local_irq_disable();
 }
 #endif
+
+extern void call_softirq(void);
+
+asmlinkage void do_softirq(void)
+{
+ 	__u32 pending;
+ 	unsigned long flags;
+
+ 	if (in_interrupt())
+ 		return;
+
+ 	local_irq_save(flags);
+ 	pending = local_softirq_pending();
+ 	/* Switch to interrupt stack */
+ 	if (pending)
+		call_softirq();
+ 	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(do_softirq);

@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 
 #include <asm/atomic.h>
+#include <asm/cacheflush.h>
 #include <asm/delay.h>
 #include <asm/mmu_context.h>
 #include <asm/procinfo.h>
@@ -80,6 +81,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * "cpu" is Linux's internal ID.
 	 */
 	pen_release = cpu;
+	flush_cache_all();
 
 	/*
 	 * XXX

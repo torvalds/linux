@@ -971,6 +971,8 @@ static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int en
 
 #define	isa_bridge	((struct pci_dev *)NULL)
 
+#define pci_dma_burst_advice(pdev, strat, strategy_parameter) do { } while (0)
+
 #else
 
 /*
@@ -985,9 +987,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 	return 0;
 }
 #endif
-
-#define pci_dma_burst_advice(pdev, strat, strategy_parameter) do { } while (0)
-
 #endif /* !CONFIG_PCI */
 
 /* these helpers provide future and backwards compatibility

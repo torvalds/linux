@@ -429,6 +429,9 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_2_PID) },
 	{ USB_DEVICE(MOBILITY_VID, MOBILITY_USB_SERIAL_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ACTIVE_ROBOTS_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_Y6_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_Y8_PID) },
+	{ USB_DEVICE(EVOLUTION_VID, EVOLUTION_ER1_PID) },
 	{ }						/* Terminating entry */
 };
 
@@ -545,6 +548,7 @@ static struct usb_serial_device_type ftdi_sio_device = {
 
 
 #define WDR_TIMEOUT 5000 /* default urb timeout */
+#define WDR_SHORT_TIMEOUT 1000	/* shorter urb timeout */
 
 /* High and low are for DTR, RTS etc etc */
 #define HIGH 1
@@ -593,62 +597,59 @@ static __u32 ftdi_232bm_baud_to_divisor(int baud)
 	 return(ftdi_232bm_baud_base_to_divisor(baud, 48000000));
 }
 
-static int set_rts(struct usb_serial_port *port, int high_or_low)
+#define set_mctrl(port, set)		update_mctrl((port), (set), 0)
+#define clear_mctrl(port, clear)	update_mctrl((port), 0, (clear))
+
+static int update_mctrl(struct usb_serial_port *port, unsigned int set, unsigned int clear)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	char *buf;
-	unsigned ftdi_high_or_low;
+	unsigned urb_value;
 	int rv;
-	
-	buf = kmalloc(1, GFP_NOIO);
-	if (!buf)
-		return -ENOMEM;
-	
-	if (high_or_low) {
-		ftdi_high_or_low = FTDI_SIO_SET_RTS_HIGH;
-		priv->last_dtr_rts |= TIOCM_RTS;
-	} else {
-		ftdi_high_or_low = FTDI_SIO_SET_RTS_LOW;
-		priv->last_dtr_rts &= ~TIOCM_RTS;
+
+	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0) {
+		dbg("%s - DTR|RTS not being set|cleared", __FUNCTION__);
+		return 0;	/* no change */
 	}
+
+	buf = kmalloc(1, GFP_NOIO);
+	if (!buf) {
+		return -ENOMEM;
+	}
+
+	clear &= ~set;	/* 'set' takes precedence over 'clear' */
+	urb_value = 0;
+	if (clear & TIOCM_DTR)
+		urb_value |= FTDI_SIO_SET_DTR_LOW;
+	if (clear & TIOCM_RTS)
+		urb_value |= FTDI_SIO_SET_RTS_LOW;
+	if (set & TIOCM_DTR)
+		urb_value |= FTDI_SIO_SET_DTR_HIGH;
+	if (set & TIOCM_RTS)
+		urb_value |= FTDI_SIO_SET_RTS_HIGH;
 	rv = usb_control_msg(port->serial->dev,
 			       usb_sndctrlpipe(port->serial->dev, 0),
 			       FTDI_SIO_SET_MODEM_CTRL_REQUEST, 
 			       FTDI_SIO_SET_MODEM_CTRL_REQUEST_TYPE,
-			       ftdi_high_or_low, priv->interface, 
+			       urb_value, priv->interface,
 			       buf, 0, WDR_TIMEOUT);
 
 	kfree(buf);
-	return rv;
-}
-
-
-static int set_dtr(struct usb_serial_port *port, int high_or_low)
-{
-	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	char *buf;
-	unsigned ftdi_high_or_low;
-	int rv;
-	
-	buf = kmalloc(1, GFP_NOIO);
-	if (!buf)
-		return -ENOMEM;
-
-	if (high_or_low) {
-		ftdi_high_or_low = FTDI_SIO_SET_DTR_HIGH;
-		priv->last_dtr_rts |= TIOCM_DTR;
+	if (rv < 0) {
+		err("%s Error from MODEM_CTRL urb: DTR %s, RTS %s",
+				__FUNCTION__,
+				(set & TIOCM_DTR) ? "HIGH" :
+				(clear & TIOCM_DTR) ? "LOW" : "unchanged",
+				(set & TIOCM_RTS) ? "HIGH" :
+				(clear & TIOCM_RTS) ? "LOW" : "unchanged");
 	} else {
-		ftdi_high_or_low = FTDI_SIO_SET_DTR_LOW;
-		priv->last_dtr_rts &= ~TIOCM_DTR;
+		dbg("%s - DTR %s, RTS %s", __FUNCTION__,
+				(set & TIOCM_DTR) ? "HIGH" :
+				(clear & TIOCM_DTR) ? "LOW" : "unchanged",
+				(set & TIOCM_RTS) ? "HIGH" :
+				(clear & TIOCM_RTS) ? "LOW" : "unchanged");
+		priv->last_dtr_rts = (priv->last_dtr_rts & ~clear) | set;
 	}
-	rv = usb_control_msg(port->serial->dev,
-			       usb_sndctrlpipe(port->serial->dev, 0),
-			       FTDI_SIO_SET_MODEM_CTRL_REQUEST, 
-			       FTDI_SIO_SET_MODEM_CTRL_REQUEST_TYPE,
-			       ftdi_high_or_low, priv->interface, 
-			       buf, 0, WDR_TIMEOUT);
-
-	kfree(buf);
 	return rv;
 }
 
@@ -681,7 +682,7 @@ static int change_speed(struct usb_serial_port *port)
 			    FTDI_SIO_SET_BAUDRATE_REQUEST,
 			    FTDI_SIO_SET_BAUDRATE_REQUEST_TYPE,
 			    urb_value, urb_index,
-			    buf, 0, 100);
+			    buf, 0, WDR_SHORT_TIMEOUT);
 
 	kfree(buf);
 	return rv;
@@ -1219,12 +1220,7 @@ static int  ftdi_open (struct usb_serial_port *port, struct file *filp)
 	/* FIXME: Flow control might be enabled, so it should be checked -
 	   we have no control of defaults! */
 	/* Turn on RTS and DTR since we are not flow controlling by default */
-	if (set_dtr(port, HIGH) < 0) {
-		err("%s Error from DTR HIGH urb", __FUNCTION__);
-	}
-	if (set_rts(port, HIGH) < 0){
-		err("%s Error from RTS HIGH urb", __FUNCTION__);
-	}
+	set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 
 	/* Not throttled */
 	spin_lock_irqsave(&priv->rx_lock, flags);
@@ -1274,14 +1270,8 @@ static void ftdi_close (struct usb_serial_port *port, struct file *filp)
 			err("error from flowcontrol urb");
 		}	    
 
-		/* drop DTR */
-		if (set_dtr(port, LOW) < 0){
-			err("Error from DTR LOW urb");
-		}
-		/* drop RTS */
-		if (set_rts(port, LOW) < 0) {
-			err("Error from RTS LOW urb");
-		}
+		/* drop RTS and DTR */
+		clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	} /* Note change no line if hupcl is off */
 
 	/* cancel any scheduled reading */
@@ -1797,7 +1787,7 @@ static void ftdi_set_termios (struct usb_serial_port *port, struct termios *old_
 			    FTDI_SIO_SET_DATA_REQUEST, 
 			    FTDI_SIO_SET_DATA_REQUEST_TYPE,
 			    urb_value , priv->interface,
-			    buf, 0, 100) < 0) {
+			    buf, 0, WDR_SHORT_TIMEOUT) < 0) {
 		err("%s FAILED to set databits/stopbits/parity", __FUNCTION__);
 	}	   
 
@@ -1812,25 +1802,14 @@ static void ftdi_set_termios (struct usb_serial_port *port, struct termios *old_
 			err("%s error from disable flowcontrol urb", __FUNCTION__);
 		}	    
 		/* Drop RTS and DTR */
-		if (set_dtr(port, LOW) < 0){
-			err("%s Error from DTR LOW urb", __FUNCTION__);
-		}
-		if (set_rts(port, LOW) < 0){
-			err("%s Error from RTS LOW urb", __FUNCTION__);
-		}	
-		
+		clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	} else {
 		/* set the baudrate determined before */
 		if (change_speed(port)) {
 			err("%s urb failed to set baurdrate", __FUNCTION__);
 		}
 		/* Ensure  RTS and DTR are raised */
-		else if (set_dtr(port, HIGH) < 0){
-			err("%s Error from DTR HIGH urb", __FUNCTION__);
-		}
-		else if (set_rts(port, HIGH) < 0){
-			err("%s Error from RTS HIGH urb", __FUNCTION__);
-		}	
+		set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	}
 
 	/* Set flow control */
@@ -1942,35 +1921,8 @@ static int ftdi_tiocmget (struct usb_serial_port *port, struct file *file)
 
 static int ftdi_tiocmset(struct usb_serial_port *port, struct file * file, unsigned int set, unsigned int clear)
 {
-	int ret;
-	
 	dbg("%s TIOCMSET", __FUNCTION__);
-	if (set & TIOCM_DTR){
-		if ((ret = set_dtr(port, HIGH)) < 0) {
-			err("Urb to set DTR failed");
-			return(ret);
-		}
-	}
-	if (set & TIOCM_RTS) {
-		if ((ret = set_rts(port, HIGH)) < 0){
-			err("Urb to set RTS failed");
-			return(ret);
-		}
-	}
-	
-	if (clear & TIOCM_DTR){
-		if ((ret = set_dtr(port, LOW)) < 0){
-			err("Urb to unset DTR failed");
-			return(ret);
-		}
-	}	
-	if (clear & TIOCM_RTS) {
-		if ((ret = set_rts(port, LOW)) < 0){
-			err("Urb to unset RTS failed");
-			return(ret);
-		}
-	}
-	return(0);
+	return update_mctrl(port, set, clear);
 }
 
 

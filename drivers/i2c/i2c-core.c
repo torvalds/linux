@@ -231,8 +231,8 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 		if (driver->detach_adapter)
 			if ((res = driver->detach_adapter(adap))) {
 				dev_warn(&adap->dev, "can't detach adapter "
-					 "while detaching driver %s: driver not "
-					 "detached!", driver->name);
+					 "while detaching driver %s: driver "
+					 "not detached!\n", driver->name);
 				goto out_unlock;
 			}
 	}
@@ -456,8 +456,8 @@ int i2c_detach_client(struct i2c_client *client)
 		res = adapter->client_unregister(client);
 		if (res) {
 			dev_err(&client->dev,
-			       "client_unregister [%s] failed, "
-			       "client not detached", client->name);
+				"client_unregister [%s] failed, "
+				"client not detached\n", client->name);
 			goto out;
 		}
 	}

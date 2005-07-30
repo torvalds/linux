@@ -56,3 +56,12 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
    memory regions in-use. The name argument should be a pointer to
    your driver name. Eg, for pcnet_cs, name should point to the
    string "pcnet_cs".
+
+* CardServices is gone
+  CardServices() in 2.4 is just a big switch statement to call various
+  services.  In 2.6, all of those entry points are exported and called
+  directly (except for pcmcia_report_error(), just use cs_error() instead).
+
+* struct pcmcia_driver
+  You need to use struct pcmcia_driver and pcmcia_{un,}register_driver
+  instead of {un,}register_pccard_driver

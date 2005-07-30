@@ -382,7 +382,7 @@ int hostfs_file_open(struct inode *ino, struct file *file)
 
 int hostfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
-	return(0);
+	return fsync_file(HOSTFS_I(dentry->d_inode)->fd, datasync);
 }
 
 static struct file_operations hostfs_file_fops = {

@@ -15,6 +15,8 @@
 #include <linux/sysdev.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
+#include <linux/cpu.h>
+#include <linux/percpu.h>
 #include <asm/processor.h> 
 #include <asm/msr.h>
 #include <asm/mce.h>
@@ -514,10 +516,7 @@ static struct sysdev_class mce_sysclass = {
 	set_kset_name("machinecheck"),
 };
 
-static struct sys_device device_mce = {
-	.id	= 0,
-	.cls	= &mce_sysclass,
-};
+static DEFINE_PER_CPU(struct sys_device, device_mce);
 
 /* Why are there no generic functions for this? */
 #define ACCESSOR(name, var, start) \
@@ -542,27 +541,83 @@ ACCESSOR(bank4ctl,bank[4],mce_restart())
 ACCESSOR(tolerant,tolerant,)
 ACCESSOR(check_interval,check_interval,mce_restart())
 
-static __cpuinit int mce_init_device(void)
+/* Per cpu sysdev init.  All of the cpus still share the same ctl bank */
+static __cpuinit int mce_create_device(unsigned int cpu)
 {
 	int err;
+	if (!mce_available(&cpu_data[cpu]))
+		return -EIO;
+
+	per_cpu(device_mce,cpu).id = cpu;
+	per_cpu(device_mce,cpu).cls = &mce_sysclass;
+
+	err = sysdev_register(&per_cpu(device_mce,cpu));
+
+	if (!err) {
+		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_bank0ctl);
+		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_bank1ctl);
+		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_bank2ctl);
+		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_bank3ctl);
+		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_bank4ctl);
+		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_tolerant);
+		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_check_interval);
+	}
+	return err;
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+static __cpuinit void mce_remove_device(unsigned int cpu)
+{
+	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_bank0ctl);
+	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_bank1ctl);
+	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_bank2ctl);
+	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_bank3ctl);
+	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_bank4ctl);
+	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_tolerant);
+	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_check_interval);
+	sysdev_unregister(&per_cpu(device_mce,cpu));
+}
+#endif
+
+/* Get notified when a cpu comes on/off. Be hotplug friendly. */
+static __cpuinit int
+mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (unsigned long)hcpu;
+
+	switch (action) {
+	case CPU_ONLINE:
+		mce_create_device(cpu);
+		break;
+#ifdef CONFIG_HOTPLUG_CPU
+	case CPU_DEAD:
+		mce_remove_device(cpu);
+		break;
+#endif
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block mce_cpu_notifier = {
+	.notifier_call = mce_cpu_callback,
+};
+
+static __init int mce_init_device(void)
+{
+	int err;
+	int i = 0;
+
 	if (!mce_available(&boot_cpu_data))
 		return -EIO;
 	err = sysdev_class_register(&mce_sysclass);
-	if (!err)
-		err = sysdev_register(&device_mce);
-	if (!err) { 
-		/* could create per CPU objects, but it is not worth it. */
-		sysdev_create_file(&device_mce, &attr_bank0ctl); 
-		sysdev_create_file(&device_mce, &attr_bank1ctl); 
-		sysdev_create_file(&device_mce, &attr_bank2ctl); 
-		sysdev_create_file(&device_mce, &attr_bank3ctl); 
-		sysdev_create_file(&device_mce, &attr_bank4ctl); 
-		sysdev_create_file(&device_mce, &attr_tolerant); 
-		sysdev_create_file(&device_mce, &attr_check_interval);
-	} 
-	
+
+	for_each_online_cpu(i) {
+		mce_create_device(i);
+	}
+
+	register_cpu_notifier(&mce_cpu_notifier);
 	misc_register(&mce_log_device);
 	return err;
-
 }
+
 device_initcall(mce_init_device);

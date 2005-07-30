@@ -385,8 +385,6 @@ int ps2pp_init(struct psmouse *psmouse, int set_properties)
 
 		if (buttons < 3)
 			clear_bit(BTN_MIDDLE, psmouse->dev.keybit);
-		if (buttons < 2)
-			clear_bit(BTN_RIGHT, psmouse->dev.keybit);
 
 		if (model_info)
 			ps2pp_set_model_properties(psmouse, model_info, use_ps2pp);

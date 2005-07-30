@@ -132,7 +132,7 @@ to extra work for the USB developers.  Since all Linux USB developers do
 their work on their own time, asking programmers to do extra work for no
 gain, for free, is not a possibility.
 
-Security issues are also a very important for Linux.  When a
+Security issues are also very important for Linux.  When a
 security issue is found, it is fixed in a very short amount of time.  A
 number of times this has caused internal kernel interfaces to be
 reworked to prevent the security problem from occurring.  When this

@@ -23,7 +23,9 @@ int mls_context_isvalid(struct policydb *p, struct context *c);
 
 int mls_context_to_sid(char oldc,
 	               char **scontext,
-		       struct context *context);
+		       struct context *context,
+		       struct sidtab *s,
+		       u32 def_sid);
 
 int mls_convert_context(struct policydb *oldp,
 			struct policydb *newp,

@@ -94,6 +94,7 @@
 #include <linux/moduleparam.h>
 #include <linux/input.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 #include <linux/wait.h>
 
 /*
@@ -635,11 +636,8 @@ static void ati_remote_input_init(struct ati_remote *ati_remote)
 	idev->name = ati_remote->name;
 	idev->phys = ati_remote->phys;
 
-	idev->id.bustype = BUS_USB;
-	idev->id.vendor = le16_to_cpu(ati_remote->udev->descriptor.idVendor);
-	idev->id.product = le16_to_cpu(ati_remote->udev->descriptor.idProduct);
-	idev->id.version = le16_to_cpu(ati_remote->udev->descriptor.bcdDevice);
-	idev->dev = &(ati_remote->udev->dev);
+	usb_to_input_id(ati_remote->udev, &idev->id);
+	idev->dev = &ati_remote->udev->dev;
 }
 
 static int ati_remote_initialize(struct ati_remote *ati_remote)

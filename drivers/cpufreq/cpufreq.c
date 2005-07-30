@@ -1130,7 +1130,7 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 			  unsigned int target_freq,
 			  unsigned int relation)
 {
-	unsigned int ret;
+	int ret;
 
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
@@ -1151,7 +1151,7 @@ EXPORT_SYMBOL_GPL(cpufreq_driver_target);
 
 static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event)
 {
-	int ret = -EINVAL;
+	int ret;
 
 	if (!try_module_get(policy->governor->owner))
 		return -EINVAL;

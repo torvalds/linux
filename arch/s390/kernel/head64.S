@@ -345,6 +345,13 @@ iplstart:
         la    %r2,.Lreset              
         lhi   %r3,26
 	diag  %r2,%r3,8
+	la    %r5,.Lirb
+	stsch 0(%r5)			       # check if irq is pending
+	tm    30(%r5),0x0f		       # by verifying if any of the
+	bnz   .Lwaitforirq		       # activity or status control
+	tm    31(%r5),0xff		       # bits is set in the schib
+	bz    .Lnoreset
+.Lwaitforirq:
 	mvc   0x78(8),.Lrdrnewpsw	       # set up IO interrupt psw
 .Lwaitrdrirq:
 	lpsw  .Lrdrwaitpsw

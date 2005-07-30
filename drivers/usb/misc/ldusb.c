@@ -23,6 +23,7 @@
  *
  * V0.1  (mh) Initial version
  * V0.11 (mh) Added raw support for HID 1.0 devices (no interrupt out endpoint)
+ * V0.12 (mh) Added kmalloc check for string buffer
  */
 
 #include <linux/config.h>
@@ -84,7 +85,7 @@ static struct usb_device_id ld_usb_table [] = {
 	{ }					/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, ld_usb_table);
-MODULE_VERSION("V0.11");
+MODULE_VERSION("V0.12");
 MODULE_AUTHOR("Michael Hund <mhund@ld-didactic.de>");
 MODULE_DESCRIPTION("LD USB Driver");
 MODULE_LICENSE("GPL");
@@ -635,6 +636,10 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	     (le16_to_cpu(udev->descriptor.idProduct) == USB_DEVICE_ID_COM3LAB)) &&
 	    (le16_to_cpu(udev->descriptor.bcdDevice) <= 0x103)) {
 		buffer = kmalloc(256, GFP_KERNEL);
+		if (buffer == NULL) {
+			dev_err(&intf->dev, "Couldn't allocate string buffer\n");
+			goto error;
+		}
 		/* usb_string makes SETUP+STALL to leave always ControlReadLoop */
 		usb_string(udev, 255, buffer, 256);
 		kfree(buffer);

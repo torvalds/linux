@@ -243,6 +243,14 @@ static unsigned long calculate_numa_remap_pages(void)
 		/* now the roundup is correct, convert to PAGE_SIZE pages */
 		size = size * PTRS_PER_PTE;
 
+		if (node_end_pfn[nid] & (PTRS_PER_PTE-1)) {
+			/*
+			 * Adjust size if node_end_pfn is not on a proper
+			 * pmd boundary. remap_numa_kva will barf otherwise.
+			 */
+			size +=  node_end_pfn[nid] & (PTRS_PER_PTE-1);
+		}
+
 		/*
 		 * Validate the region we are allocating only contains valid
 		 * pages.

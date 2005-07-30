@@ -1,5 +1,5 @@
 /*
- *   (c) 2003, 2004 Advanced Micro Devices, Inc.
+ *   (c) 2003, 2004, 2005 Advanced Micro Devices, Inc.
  *  Your use of this code is subject to the terms and conditions of the
  *  GNU general public license version 2. See "COPYING" or
  *  http://www.gnu.org/licenses/gpl.html
@@ -44,7 +44,7 @@
 
 #define PFX "powernow-k8: "
 #define BFX PFX "BIOS error: "
-#define VERSION "version 1.40.2"
+#define VERSION "version 1.50.3"
 #include "powernow-k8.h"
 
 /* serialize freq changes  */
@@ -231,7 +231,7 @@ static int write_new_vid(struct powernow_k8_data *data, u32 vid)
 /*
  * Reduce the vid by the max of step or reqvid.
  * Decreasing vid codes represent increasing voltages:
- * vid of 0 is 1.550V, vid of 0x1e is 0.800V, vid of 0x1f is off.
+ * vid of 0 is 1.550V, vid of 0x1e is 0.800V, vid of VID_OFF is off.
  */
 static int decrease_vid_code_by_step(struct powernow_k8_data *data, u32 reqvid, u32 step)
 {
@@ -466,7 +466,7 @@ static int check_supported_cpu(unsigned int cpu)
 	eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
 	if (((eax & CPUID_USE_XFAM_XMOD) != CPUID_USE_XFAM_XMOD) ||
 	    ((eax & CPUID_XFAM) != CPUID_XFAM_K8) ||
-	    ((eax & CPUID_XMOD) > CPUID_XMOD_REV_E)) {
+	    ((eax & CPUID_XMOD) > CPUID_XMOD_REV_F)) {
 		printk(KERN_INFO PFX "Processor cpuid %x not supported\n", eax);
 		goto out;
 	}
@@ -695,6 +695,7 @@ static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data, unsigned 
 
 	data->irt = (data->acpi_data.states[index].control >> IRT_SHIFT) & IRT_MASK;
 	data->rvo = (data->acpi_data.states[index].control >> RVO_SHIFT) & RVO_MASK;
+	data->exttype = (data->acpi_data.states[index].control >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK;
 	data->plllock = (data->acpi_data.states[index].control >> PLL_L_SHIFT) & PLL_L_MASK;
 	data->vidmvs = 1 << ((data->acpi_data.states[index].control >> MVS_SHIFT) & MVS_MASK);
 	data->vstable = (data->acpi_data.states[index].control >> VST_SHIFT) & VST_MASK;
@@ -734,8 +735,16 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 	}
 
 	for (i = 0; i < data->acpi_data.state_count; i++) {
-		u32 fid = data->acpi_data.states[i].control & FID_MASK;
-		u32 vid = (data->acpi_data.states[i].control >> VID_SHIFT) & VID_MASK;
+		u32 fid;
+		u32 vid;
+
+		if (data->exttype) {
+			fid = data->acpi_data.states[i].status & FID_MASK;
+			vid = (data->acpi_data.states[i].status >> VID_SHIFT) & VID_MASK;
+		} else {
+			fid = data->acpi_data.states[i].control & FID_MASK;
+			vid = (data->acpi_data.states[i].control >> VID_SHIFT) & VID_MASK;
+		}
 
 		dprintk("   %d : fid 0x%x, vid 0x%x\n", i, fid, vid);
 
@@ -752,7 +761,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 		}
 
 		/* verify voltage is OK - BIOSs are using "off" to indicate invalid */
-		if (vid == 0x1f) {
+		if (vid == VID_OFF) {
 			dprintk("invalid vid %u, ignoring\n", vid);
 			powernow_table[i].frequency = CPUFREQ_ENTRY_INVALID;
 			continue;
@@ -929,15 +938,6 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 
 	down(&fidvid_sem);
 
-	for_each_cpu_mask(i, cpu_core_map[pol->cpu]) {
-		/* make sure the sibling is initialized */
-		if (!powernow_data[i]) {
-                        ret = 0;
-                        up(&fidvid_sem);
-                        goto err_out;
-                }
-	}
-
 	powernow_k8_acpi_pst_values(data, newstate);
 
 	if (transition_frequency(data, newstate)) {
@@ -977,7 +977,7 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data;
 	cpumask_t oldmask = CPU_MASK_ALL;
-	int rc;
+	int rc, i;
 
 	if (!check_supported_cpu(pol->cpu))
 		return -ENODEV;
@@ -1063,7 +1063,9 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 	printk("cpu_init done, current fid 0x%x, vid 0x%x\n",
 	       data->currfid, data->currvid);
 
-	powernow_data[pol->cpu] = data;
+	for_each_cpu_mask(i, cpu_core_map[pol->cpu]) {
+		powernow_data[i] = data;
+	}
 
 	return 0;
 
