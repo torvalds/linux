@@ -1451,3 +1451,6 @@ _GLOBAL(sys_call_table)
 	.long sys_waitid
 	.long sys_ioprio_set
 	.long sys_ioprio_get
+	.long sys_inotify_init		/* 275 */
+	.long sys_inotify_add_watch
+	.long sys_inotify_rm_watch
