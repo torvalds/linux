@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: build.c,v 1.75 2005/07/22 10:32:07 dedekind Exp $
+ * $Id: build.c,v 1.76 2005/07/30 15:29:27 lunn Exp $
  *
  */
 
@@ -317,9 +317,11 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 
 	c->free_size = c->flash_size;
 	c->nr_blocks = c->flash_size / c->sector_size;
+#ifndef __ECOS
  	if (c->mtd->flags & MTD_NO_VIRTBLOCKS)
 		c->blocks = vmalloc(sizeof(struct jffs2_eraseblock) * c->nr_blocks);
 	else
+#endif
 		c->blocks = kmalloc(sizeof(struct jffs2_eraseblock) * c->nr_blocks, GFP_KERNEL);
 	if (!c->blocks)
 		return -ENOMEM;
@@ -353,11 +355,13 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 		D1(printk(KERN_DEBUG "build_fs failed\n"));
 		jffs2_free_ino_caches(c);
 		jffs2_free_raw_node_refs(c);
-		if (c->mtd->flags & MTD_NO_VIRTBLOCKS) {
-			vfree(c->blocks);
-		} else {
-			kfree(c->blocks);
-		}
+#ifndef __ECOS
+		if (c->mtd->flags & MTD_NO_VIRTBLOCKS) 
+                    vfree(c->blocks);
+		else 
+#endif
+                    kfree(c->blocks);
+		
 		return -EIO;
 	}
 

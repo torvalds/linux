@@ -7,11 +7,12 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.132 2005/07/28 14:46:40 dedekind Exp $
+ * $Id: readinode.c,v 1.133 2005/07/30 15:28:24 lunn Exp $
  *
  */
 
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/crc32.h>
@@ -249,7 +250,7 @@ read_dnode(struct jffs2_sb_info *c,
 		if (unlikely(je32_to_cpu(rd->offset) > je32_to_cpu(rd->isize)) ||
 		    unlikely(PAD(je32_to_cpu(rd->csize) + sizeof(*rd)) != PAD(je32_to_cpu(rd->totlen)))) {
 				JFFS2_WARNING("inode node header CRC is corrupted at %#08x\n", ref_offset(ref));
-				__jffs2_dbg_dump_node(c, ref_offset(ref));
+				jffs2_dbg_dump_node(c, ref_offset(ref));
 			return 1;
 		}
 
@@ -384,7 +385,7 @@ read_unknown(struct jffs2_sb_info *c,
 	if (crc32(0, un, sizeof(struct jffs2_unknown_node) - 4) != je32_to_cpu(un->hdr_crc)) {
 		/* Hmmm. This should have been caught at scan time. */
 		JFFS2_NOTICE("node header CRC failed at %#08x. But it must have been OK earlier.\n", ref_offset(ref));
-		__jffs2_dbg_dump_node(c, ref_offset(ref));
+		jffs2_dbg_dump_node(c, ref_offset(ref));
 		return 1;
 	} else {
 		switch(je16_to_cpu(un->nodetype) & JFFS2_COMPAT_MASK) {

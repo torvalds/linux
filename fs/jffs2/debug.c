@@ -7,10 +7,11 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.c,v 1.7 2005/07/24 15:14:14 dedekind Exp $
+ * $Id: debug.c,v 1.8 2005/07/30 15:27:05 lunn Exp $
  *
  */
 #include <linux/kernel.h>
+#include <linux/types.h>
 #include <linux/pagemap.h>
 #include <linux/crc32.h>
 #include <linux/jffs2.h>
