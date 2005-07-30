@@ -325,6 +325,7 @@ static struct mii_chip_info {
 	{ "Broadcom PHY BCM5461", { 0x0020, 0x60c0 }, LAN },
 	{ "Agere PHY ET1101B",    { 0x0282, 0xf010 }, LAN },
 	{ "Marvell PHY 88E1111",  { 0x0141, 0x0cc0 }, LAN },
+	{ "Realtek PHY RTL8201",  { 0x0000, 0x8200 }, LAN },
 	{ NULL, }
 };
 
