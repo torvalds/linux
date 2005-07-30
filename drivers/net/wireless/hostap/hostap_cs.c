@@ -905,6 +905,57 @@ static int prism2_event(event_t event, int priority,
 }
 
 
+static struct pcmcia_device_id hostap_cs_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x000b, 0x7100),
+	PCMCIA_DEVICE_MANF_CARD(0x000b, 0x7300),
+	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0777),
+	PCMCIA_DEVICE_MANF_CARD(0x0126, 0x8000),
+	PCMCIA_DEVICE_MANF_CARD(0x0138, 0x0002),
+	PCMCIA_DEVICE_MANF_CARD(0x0156, 0x0002),
+	PCMCIA_DEVICE_MANF_CARD(0x0250, 0x0002),
+	PCMCIA_DEVICE_MANF_CARD(0x0274, 0x1612),
+	PCMCIA_DEVICE_MANF_CARD(0x0274, 0x1613),
+	PCMCIA_DEVICE_MANF_CARD(0x028a, 0x0002),
+	PCMCIA_DEVICE_MANF_CARD(0x02aa, 0x0002),
+	PCMCIA_DEVICE_MANF_CARD(0x02d2, 0x0001),
+	PCMCIA_DEVICE_MANF_CARD(0x50c2, 0x0001),
+	PCMCIA_DEVICE_MANF_CARD(0x50c2, 0x7300),
+	PCMCIA_DEVICE_MANF_CARD(0xc00f, 0x0000),
+	PCMCIA_DEVICE_MANF_CARD(0xd601, 0x0002),
+	PCMCIA_DEVICE_MANF_CARD(0xd601, 0x0005),
+	PCMCIA_DEVICE_MANF_CARD(0xd601, 0x0010),
+	PCMCIA_MFC_DEVICE_PROD_ID12(0, "SanDisk", "ConnectPlus",
+				    0x7a954bd9, 0x74be00c6),
+	PCMCIA_DEVICE_PROD_ID1234(
+		"Intersil", "PRISM 2_5 PCMCIA ADAPTER",	"ISL37300P",
+		"Eval-RevA",
+		0x4b801a17, 0x6345a0bf, 0xc9049a39, 0xc23adc0e),
+	PCMCIA_DEVICE_PROD_ID123(
+		"Addtron", "AWP-100 Wireless PCMCIA", "Version 01.02",
+		0xe6ec52ce, 0x08649af2, 0x4b74baa0),
+	PCMCIA_DEVICE_PROD_ID123(
+		"D", "Link DWL-650 11Mbps WLAN Card", "Version 01.02",
+		0x71b18589, 0xb6f1b0ab, 0x4b74baa0),
+	PCMCIA_DEVICE_PROD_ID123(
+		"Instant Wireless ", " Network PC CARD", "Version 01.02",
+		0x11d901af, 0x6e9bd926, 0x4b74baa0),
+	PCMCIA_DEVICE_PROD_ID123(
+		"SMC", "SMC2632W", "Version 01.02",
+		0xc4f8b18b, 0x474a1f2a, 0x4b74baa0),
+	PCMCIA_DEVICE_PROD_ID12("Compaq", "WL200_11Mbps_Wireless_PCI_Card",
+				0x54f7c49c, 0x15a75e5b),
+	PCMCIA_DEVICE_PROD_ID12("INTERSIL", "HFA384x/IEEE",
+				0x74c5e40d, 0xdb472a18),
+	PCMCIA_DEVICE_PROD_ID12("Linksys", "Wireless CompactFlash Card",
+				0x0733cc81, 0x0c52f395),
+	PCMCIA_DEVICE_PROD_ID12(
+		"ZoomAir 11Mbps High", "Rate wireless Networking",
+		0x273fe3db, 0x32a1eaee),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, hostap_cs_ids);
+
+
 static struct pcmcia_driver hostap_driver = {
 	.drv		= {
 		.name	= "hostap_cs",
@@ -913,6 +964,7 @@ static struct pcmcia_driver hostap_driver = {
 	.detach		= prism2_detach,
 	.owner		= THIS_MODULE,
 	.event		= prism2_event,
+	.id_table	= hostap_cs_ids,
 };
 
 static int __init init_prism2_pccard(void)
