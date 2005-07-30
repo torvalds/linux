@@ -507,7 +507,7 @@ static int hfa384x_cmd(struct net_device *dev, u16 cmd, u16 param0,
  * @cmd: Prism2 command code (HFA384X_CMD_CODE_*)
  * @param0: value for Param0 register
  * @callback: command completion callback function (%NULL = no callback)
- * @context: data pointer to be given to callback function
+ * @context: context data to be given to the callback function
  *
  * Issue given command (possibly after waiting in command queue) and use
  * callback function to indicate command completion. This can be called both
@@ -517,9 +517,9 @@ static int hfa384x_cmd(struct net_device *dev, u16 cmd, u16 param0,
  */
 static int hfa384x_cmd_callback(struct net_device *dev, u16 cmd, u16 param0,
 				void (*callback)(struct net_device *dev,
-						 void *context, u16 resp0,
+						 long context, u16 resp0,
 						 u16 status),
-				void *context)
+				long context)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -1710,7 +1710,7 @@ static int prism2_get_txfid_idx(local_info_t *local)
 
 
 /* Called only from hardware IRQ */
-static void prism2_transmit_cb(struct net_device *dev, void *context,
+static void prism2_transmit_cb(struct net_device *dev, long context,
 			       u16 resp0, u16 res)
 {
 	struct hostap_interface *iface;
@@ -1805,7 +1805,7 @@ static int prism2_transmit(struct net_device *dev, int idx)
 		dev,
 		HFA384X_CMDCODE_TRANSMIT | HFA384X_CMD_TX_RECLAIM,
 		local->txfid[idx],
-		prism2_transmit_cb, (void *) idx);
+		prism2_transmit_cb, (long) idx);
 
 	if (res) {
 		struct net_device_stats *stats;
@@ -1951,7 +1951,7 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 		/* Any RX packet seems to break something with TX bus
 		 * mastering; enable command is enough to fix this.. */
 		if (hfa384x_cmd_callback(dev, HFA384X_CMDCODE_ENABLE, 0,
-					 prism2_tx_cb, (void *) buf_len)) {
+					 prism2_tx_cb, (long) buf_len)) {
 			printk(KERN_DEBUG "%s: TX: enable port0 failed\n",
 			       dev->name);
 		}
@@ -2697,7 +2697,7 @@ static void prism2_infdrop(struct net_device *dev)
 	 * get out of this state by inquiring CommTallies. */
 	if (!last_inquire || time_after(jiffies, last_inquire + HZ)) {
 		hfa384x_cmd_callback(dev, HFA384X_CMDCODE_INQUIRE,
-				     HFA384X_INFO_COMMTALLIES, NULL, NULL);
+				     HFA384X_INFO_COMMTALLIES, NULL, 0);
 		last_inquire = jiffies;
 	}
 }
@@ -3055,7 +3055,7 @@ static void hostap_passive_scan(unsigned long data)
 
 	if (hfa384x_cmd_callback(dev, HFA384X_CMDCODE_TEST |
 				 (HFA384X_TEST_CHANGE_CHANNEL << 8),
-				 channel, NULL, NULL))
+				 channel, NULL, 0))
 		printk(KERN_ERR "%s: passive scan channel set %d "
 		       "failed\n", dev->name, channel);
 
@@ -3088,7 +3088,7 @@ static void hostap_tick_timer(unsigned long data)
 	    !local->hw_downloading && local->hw_ready &&
 	    !local->hw_resetting && local->dev_enabled) {
 		hfa384x_cmd_callback(local->dev, HFA384X_CMDCODE_INQUIRE,
-				     HFA384X_INFO_COMMTALLIES, NULL, NULL);
+				     HFA384X_INFO_COMMTALLIES, NULL, 0);
 		last_inquire = jiffies;
 	}
 

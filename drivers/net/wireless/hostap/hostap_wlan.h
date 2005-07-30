@@ -545,9 +545,9 @@ struct hostap_cmd_queue {
 	struct list_head list;
 	wait_queue_head_t compl;
 	volatile enum { CMD_SLEEP, CMD_CALLBACK, CMD_COMPLETED } type;
-	void (*callback)(struct net_device *dev, void *context, u16 resp0,
+	void (*callback)(struct net_device *dev, long context, u16 resp0,
 			 u16 res);
-	void *context;
+	long context;
 	u16 cmd, param0, param1;
 	u16 resp0, res;
 	volatile int issued, issuing;
