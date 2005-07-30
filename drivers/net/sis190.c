@@ -952,12 +952,17 @@ static void sis190_phy_task(void * data)
 				0x01 | _10bpsH },
 			{ 0, "unknown", 0x0000 }
 		}, *p;
+		u16 adv;
 
 		val = mdio_read(ioaddr, phy_id, 0x1f);
 		net_link(tp, KERN_INFO "%s: mii ext = %04x.\n", dev->name, val);
 
 		val = mdio_read(ioaddr, phy_id, MII_LPA);
-		net_link(tp, KERN_INFO "%s: mii lpa = %04x.\n", dev->name, val);
+		adv = mdio_read(ioaddr, phy_id, MII_ADVERTISE);
+		net_link(tp, KERN_INFO "%s: mii lpa = %04x adv = %04x.\n",
+			 dev->name, val, adv);
+
+		val &= adv;
 
 		for (p = reg31; p->ctl; p++) {
 			if ((val & p->val) == p->val)
