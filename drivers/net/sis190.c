@@ -383,6 +383,12 @@ static int __mdio_read(struct net_device *dev, int phy_id, int reg)
 	return mdio_read(tp->mmio_addr, phy_id, reg);
 }
 
+static u16 mdio_read_latched(void __iomem *ioaddr, int phy_id, int reg)
+{
+	mdio_read(ioaddr, phy_id, reg);
+	return mdio_read(ioaddr, phy_id, reg);
+}
+
 static u16 __devinit sis190_read_eeprom(void __iomem *ioaddr, u32 reg)
 {
 	u16 data = 0xffff;
@@ -881,7 +887,8 @@ static void sis190_phy_task(void * data)
 	if (val & BMCR_RESET) {
 		// FIXME: needlessly high ?  -- FR 02/07/2005
 		mod_timer(&tp->timer, jiffies + HZ/10);
-	} else if (!(mdio_read(ioaddr, phy_id, MII_BMSR) & BMSR_ANEGCOMPLETE)) {
+	} else if (!(mdio_read_latched(ioaddr, phy_id, MII_BMSR) &
+		     BMSR_ANEGCOMPLETE)) {
 		net_link(tp, KERN_WARNING "%s: PHY reset until link up.\n",
 			 dev->name);
 		mdio_write(ioaddr, phy_id, MII_BMCR, val | BMCR_RESET);
