@@ -123,7 +123,7 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 hdr->f.did = LWNG_CAP_DID_BASE | (i << 12); \
 hdr->f.status = s; hdr->f.len = l; hdr->f.data = d
 		LWNG_SETVAL(hosttime, 1, 0, 4, jiffies);
-		LWNG_SETVAL(mactime, 2, 0, 0, rx_stats->mac_time);
+		LWNG_SETVAL(mactime, 2, 0, 4, rx_stats->mac_time);
 		LWNG_SETVAL(channel, 3, 1 /* no value */, 4, 0);
 		LWNG_SETVAL(rssi, 4, 1 /* no value */, 4, 0);
 		LWNG_SETVAL(sq, 5, 1 /* no value */, 4, 0);
