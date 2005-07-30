@@ -522,7 +522,8 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 		 * not present; but are there really such cards in use(?) */
 	}
 
-	dev = prism2_init_local_data(&prism2_plx_funcs, cards_found);
+	dev = prism2_init_local_data(&prism2_plx_funcs, cards_found,
+				     &pdev->dev);
 	if (dev == NULL)
 		goto fail;
 	iface = netdev_priv(dev);

@@ -725,7 +725,8 @@ static int prism2_config(dev_link_t *link)
 	}
 
 	/* Need to allocate net_device before requesting IRQ handler */
-	dev = prism2_init_local_data(&prism2_pccard_funcs, 0);
+	dev = prism2_init_local_data(&prism2_pccard_funcs, 0,
+				     &handle_to_dev(link->handle));
 	if (dev == NULL)
 		goto failed;
 	link->priv = dev;

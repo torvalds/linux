@@ -3268,7 +3268,8 @@ static void prism2_clear_set_tim_queue(local_info_t *local)
 
 
 static struct net_device *
-prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx)
+prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
+		       struct device *sdev)
 {
 	struct net_device *dev;
 	struct hostap_interface *iface;
@@ -3439,6 +3440,7 @@ while (0)
 
 	rtnl_lock();
 	ret = dev_alloc_name(dev, "wifi%d");
+	SET_NETDEV_DEV(dev, sdev);
 	if (ret >= 0)
 		ret = register_netdevice(dev);
 	rtnl_unlock();
