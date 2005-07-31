@@ -335,7 +335,7 @@ static int hostap_set_rate(struct net_device *dev)
 	       hostap_set_word(dev, HFA384X_RID_CNFSUPPORTEDRATES,
 			       local->tx_rate_control) ||
 	       local->func->reset_port(dev));
-		
+
 	if (ret) {
 		printk(KERN_WARNING "%s: TXRateControl/cnfSupportedRates "
 		       "setting to 0x%x failed\n",

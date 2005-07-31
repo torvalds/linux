@@ -489,7 +489,7 @@ static void ap_control_kickall(struct ap_data *ap)
 {
 	struct list_head *ptr, *n;
 	struct sta_info *sta;
-  
+
 	spin_lock_bh(&ap->sta_table_lock);
 	for (ptr = ap->sta_list.next, n = ptr->next; ptr != &ap->sta_list;
 	     ptr = n, n = ptr->next) {
@@ -1573,7 +1573,7 @@ static void handle_assoc(local_info_t *local, struct sk_buff *skb,
 			u++; left--;
 			ileft = *u;
 			u++; left--;
-			
+
 			if (ileft > left || ileft == 0 ||
 			    ileft > WLAN_SUPP_RATES_MAX) {
 				txt = "SUPP_RATES len error";
@@ -2047,7 +2047,7 @@ static void handle_beacon(local_info_t *local, struct sk_buff *skb,
 			u++; left--;
 			ileft = *u;
 			u++; left--;
-			
+
 			if (ileft > left || ileft == 0 || ileft > 8) {
 				PDEBUG(DEBUG_AP, " - SUPP_RATES len error\n");
 				return;
@@ -2064,7 +2064,7 @@ static void handle_beacon(local_info_t *local, struct sk_buff *skb,
 			u++; left--;
 			ileft = *u;
 			u++; left--;
-			
+
 			if (ileft > left || ileft != 1) {
 				PDEBUG(DEBUG_AP, " - DS_PARAMS len error\n");
 				return;
@@ -2839,7 +2839,7 @@ void hostap_handle_sta_tx_exc(local_info_t *local, struct sk_buff *skb)
 
 	sta->tx_since_last_failure = 0;
 	sta->tx_consecutive_exc++;
-        
+
 	if (sta->tx_consecutive_exc >= WLAN_RATE_DECREASE_THRESHOLD &&
 	    sta->tx_rate_idx > 0 && meta->rate <= sta->tx_rate) {
 		/* use next lower rate */

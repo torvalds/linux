@@ -644,13 +644,13 @@ static int prism2_config(dev_link_t *link)
 		link->conf.ConfigIndex = cfg->index;
 		PDEBUG(DEBUG_EXTRA, "Checking CFTABLE_ENTRY 0x%02X "
 		       "(default 0x%02X)\n", cfg->index, dflt.index);
-	
+
 		/* Does this card need audio output? */
 		if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
 			link->conf.Attributes |= CONF_ENABLE_SPKR;
 			link->conf.Status = CCSR_AUDIO_ENA;
 		}
-	
+
 		/* Use power settings for Vcc and Vpp if present */
 		/*  Note that the CIS values need to be rescaled */
 		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
