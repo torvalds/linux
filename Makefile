@@ -548,6 +548,26 @@ export KBUILD_IMAGE ?= vmlinux
 # images. Default is /boot, but you can set it to other values
 export	INSTALL_PATH ?= /boot
 
+# If CONFIG_LOCALVERSION_AUTO is set, we automatically perform some tests
+# and try to determine if the current source tree is a release tree, of any sort,
+# or if is a pure development tree.
+#
+# A 'release tree' is any tree with a git TAG associated
+# with it.  The primary goal of this is to make it safe for a native
+# git/CVS/SVN user to build a release tree (i.e, 2.6.9) and also to
+# continue developing against the current Linus tree, without having the Linus
+# tree overwrite the 2.6.9 tree when installed.
+#
+# Currently, only git is supported.
+# Other SCMs can edit scripts/setlocalversion and add the appropriate
+# checks as needed.
+
+
+ifdef CONFIG_LOCALVERSION_AUTO
+	localversion-auto := $(shell $(PERL) $(srctree)/scripts/setlocalversion $(srctree))
+	LOCALVERSION := $(LOCALVERSION)$(localversion-auto)
+endif
+
 #
 # INSTALL_MOD_PATH specifies a prefix to MODLIB for module directory
 # relocations required by build roots.  This is not defined in the
