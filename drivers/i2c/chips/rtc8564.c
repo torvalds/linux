@@ -67,7 +67,6 @@ static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_addr,
 	.probe			= ignore,
 	.ignore			= ignore,
-	.force			= ignore,
 };
 
 static int rtc8564_read_mem(struct i2c_client *client, struct mem *mem);

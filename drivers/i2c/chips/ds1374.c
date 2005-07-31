@@ -53,7 +53,6 @@ static struct i2c_client_address_data addr_data = {
 	.normal_i2c = normal_addr,
 	.probe = ignore,
 	.ignore = ignore,
-	.force = ignore,
 };
 
 static ulong ds1374_read_rtc(void)

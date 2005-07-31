@@ -662,6 +662,28 @@ int i2c_control(struct i2c_client *client,
  * Will not work for 10-bit addresses!
  * ----------------------------------------------------
  */
+/* Return: kind (>= 0) if force found, -1 if not found */
+static inline int i2c_probe_forces(struct i2c_adapter *adapter, int addr,
+				   unsigned short **forces)
+{
+	unsigned short kind;
+	int j, adap_id = i2c_adapter_id(adapter);
+
+	for (kind = 0; forces[kind]; kind++) {
+		for (j = 0; forces[kind][j] != I2C_CLIENT_END; j += 2) {
+			if ((forces[kind][j] == adap_id ||
+			     forces[kind][j] == ANY_I2C_BUS)
+			 && forces[kind][j + 1] == addr) {
+				dev_dbg(&adapter->dev, "found force parameter, "
+					"addr 0x%02x, kind %u\n", addr, kind);
+				return kind;
+			}
+		}
+	}
+
+	return -1;
+}
+
 int i2c_probe(struct i2c_adapter *adapter,
 	      struct i2c_client_address_data *address_data,
 	      int (*found_proc) (struct i2c_adapter *, int, int))
@@ -683,19 +705,15 @@ int i2c_probe(struct i2c_adapter *adapter,
 		   at all */
 		found = 0;
 
-		for (i = 0; !found && (address_data->force[i] != I2C_CLIENT_END); i += 2) {
-			if (((adap_id == address_data->force[i]) || 
-			     (address_data->force[i] == ANY_I2C_BUS)) &&
-			     (addr == address_data->force[i+1])) {
-				dev_dbg(&adapter->dev, "found force parameter for adapter %d, addr %04x\n",
-					adap_id, addr);
-				if ((err = found_proc(adapter,addr,0)))
+		if (address_data->forces) {
+			int kind = i2c_probe_forces(adapter, addr,
+						    address_data->forces);
+			if (kind >= 0) { /* force found */
+				if ((err = found_proc(adapter, addr, kind)))
 					return err;
-				found = 1;
+				continue;
 			}
 		}
-		if (found) 
-			continue;
 
 		/* If this address is in one of the ignores, we can forget about
 		   it right now */

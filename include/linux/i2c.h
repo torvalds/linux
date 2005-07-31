@@ -48,7 +48,6 @@ struct i2c_algorithm;
 struct i2c_adapter;
 struct i2c_client;
 struct i2c_driver;
-struct i2c_client_address_data;
 union i2c_smbus_data;
 
 /*
@@ -301,7 +300,7 @@ struct i2c_client_address_data {
 	unsigned short *normal_i2c;
 	unsigned short *probe;
 	unsigned short *ignore;
-	unsigned short *force;
+	unsigned short **forces;
 };
 
 /* Internal numbers to terminate lists */
@@ -575,11 +574,15 @@ union i2c_smbus_data {
   I2C_CLIENT_MODULE_PARM(force, \
                       "List of adapter,address pairs to boldly assume " \
                       "to be present"); \
+	static unsigned short *addr_forces[] = {			\
+			force,						\
+			NULL						\
+		};							\
 	static struct i2c_client_address_data addr_data = {		\
 			.normal_i2c = 		normal_i2c,		\
 			.probe =		probe,			\
 			.ignore =		ignore,			\
-			.force =		force,			\
+			.forces =		addr_forces,		\
 		}
 
 #endif /* _LINUX_I2C_H */
