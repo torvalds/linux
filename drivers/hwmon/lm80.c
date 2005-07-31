@@ -391,7 +391,7 @@ static int lm80_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, lm80_detect);
+	return i2c_probe(adapter, &addr_data, lm80_detect);
 }
 
 int lm80_detect(struct i2c_adapter *adapter, int address, int kind)

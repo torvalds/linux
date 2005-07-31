@@ -148,7 +148,7 @@ are defined in i2c.h to help you support them, as well as a generic
 detection algorithm.
 
 You do not have to use this parameter interface; but don't try to use
-function i2c_probe() (or i2c_detect()) if you don't.
+function i2c_probe() if you don't.
 
 NOTE: If you want to write a `sensors' driver, the interface is slightly
       different! See below.
@@ -259,17 +259,10 @@ detected at a specific address, another callback is called.
     return i2c_probe(adapter,&addr_data,&foo_detect_client);
   }
 
-For `sensors' drivers, use the i2c_detect function instead:
-  
-  int foo_attach_adapter(struct i2c_adapter *adapter)
-  { 
-    return i2c_detect(adapter,&addr_data,&foo_detect_client);
-  }
-
 Remember, structure `addr_data' is defined by the macros explained above,
 so you do not have to define it yourself.
 
-The i2c_probe or i2c_detect function will call the foo_detect_client
+The i2c_probe function will call the foo_detect_client
 function only for those i2c addresses that actually have a device on
 them (unless a `force' parameter was used). In addition, addresses that
 are already in use (by some other registered client) are skipped.
@@ -278,11 +271,9 @@ are already in use (by some other registered client) are skipped.
 The detect client function
 --------------------------
 
-The detect client function is called by i2c_probe or i2c_detect.
-The `kind' parameter contains 0 if this call is due to a `force'
-parameter, and -1 otherwise (for i2c_detect, it contains 0 if
-this call is due to the generic `force' parameter, and the chip type
-number if it is due to a specific `force' parameter).
+The detect client function is called by i2c_probe. The `kind' parameter
+contains -1 for a probed detection, 0 for a forced detection, or a positive
+number for a forced detection with a chip type forced.
 
 Below, some things are only needed if this is a `sensors' driver. Those
 parts are between /* SENSORS ONLY START */ and /* SENSORS ONLY END */

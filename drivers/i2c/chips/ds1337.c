@@ -226,7 +226,7 @@ int ds1337_do_command(int bus, int cmd, void *arg)
 
 static int ds1337_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, ds1337_detect);
+	return i2c_probe(adapter, &addr_data, ds1337_detect);
 }
 
 /*

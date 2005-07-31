@@ -112,10 +112,10 @@ static DEVICE_ATTR(write, S_IWUSR | S_IRUGO, show_write, set_write);
 
 static int pcf8574_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, pcf8574_detect);
+	return i2c_probe(adapter, &addr_data, pcf8574_detect);
 }
 
-/* This function is called by i2c_detect */
+/* This function is called by i2c_probe */
 int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *new_client;

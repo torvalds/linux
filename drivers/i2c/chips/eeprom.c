@@ -152,10 +152,10 @@ static struct bin_attribute eeprom_attr = {
 
 static int eeprom_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, eeprom_detect);
+	return i2c_probe(adapter, &addr_data, eeprom_detect);
 }
 
-/* This function is called by i2c_detect */
+/* This function is called by i2c_probe */
 int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *new_client;

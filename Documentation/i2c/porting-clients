@@ -66,6 +66,7 @@ Technical changes:
   if (!(adapter->class & I2C_CLASS_HWMON))
           return 0;
   ISA-only drivers of course don't need this.
+  Call i2c_probe() instead of i2c_detect().
 
 * [Detect] As mentioned earlier, the flags parameter is gone.
   The type_name and client_name strings are replaced by a single

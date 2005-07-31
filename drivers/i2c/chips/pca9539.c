@@ -108,10 +108,10 @@ static struct attribute_group pca9539_defattr_group = {
 
 static int pca9539_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, pca9539_detect);
+	return i2c_probe(adapter, &addr_data, pca9539_detect);
 }
 
-/* This function is called by i2c_detect */
+/* This function is called by i2c_probe */
 static int pca9539_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *new_client;

@@ -1012,7 +1012,7 @@ int lm85_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, lm85_detect);
+	return i2c_probe(adapter, &addr_data, lm85_detect);
 }
 
 int lm85_detect(struct i2c_adapter *adapter, int address,

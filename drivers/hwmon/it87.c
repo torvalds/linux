@@ -698,7 +698,7 @@ static int it87_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, it87_detect);
+	return i2c_probe(adapter, &addr_data, it87_detect);
 }
 
 static int it87_isa_attach_adapter(struct i2c_adapter *adapter)
@@ -738,7 +738,7 @@ exit:
 	return err;
 }
 
-/* This function is called by i2c_detect */
+/* This function is called by i2c_probe */
 int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	int i;

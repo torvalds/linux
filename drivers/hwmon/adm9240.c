@@ -635,7 +635,7 @@ static int adm9240_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, adm9240_detect);
+	return i2c_probe(adapter, &addr_data, adm9240_detect);
 }
 
 static int adm9240_detach_client(struct i2c_client *client)

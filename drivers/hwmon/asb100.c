@@ -621,7 +621,7 @@ static int asb100_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, asb100_detect);
+	return i2c_probe(adapter, &addr_data, asb100_detect);
 }
 
 static int asb100_detect_subclients(struct i2c_adapter *adapter, int address,

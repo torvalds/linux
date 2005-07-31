@@ -161,10 +161,10 @@ static struct bin_attribute user_eeprom_attr = {
 
 static int max6875_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, max6875_detect);
+	return i2c_probe(adapter, &addr_data, max6875_detect);
 }
 
-/* This function is called by i2c_detect */
+/* This function is called by i2c_probe */
 static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *real_client;

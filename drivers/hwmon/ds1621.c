@@ -181,10 +181,10 @@ static DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp_max, set_temp_max);
 
 static int ds1621_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, ds1621_detect);
+	return i2c_probe(adapter, &addr_data, ds1621_detect);
 }
 
-/* This function is called by i2c_detect */
+/* This function is called by i2c_probe */
 int ds1621_detect(struct i2c_adapter *adapter, int address,
                   int kind)
 {

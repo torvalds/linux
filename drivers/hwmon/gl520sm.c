@@ -520,7 +520,7 @@ static int gl520_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, gl520_detect);
+	return i2c_probe(adapter, &addr_data, gl520_detect);
 }
 
 static int gl520_detect(struct i2c_adapter *adapter, int address, int kind)

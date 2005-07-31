@@ -348,7 +348,7 @@ static int gl518_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, gl518_detect);
+	return i2c_probe(adapter, &addr_data, gl518_detect);
 }
 
 static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)

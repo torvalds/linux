@@ -163,10 +163,10 @@ static DEVICE_ATTR(out0_enable, S_IWUSR | S_IRUGO,
  */
 static int pcf8591_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, pcf8591_detect);
+	return i2c_probe(adapter, &addr_data, pcf8591_detect);
 }
 
-/* This function is called by i2c_detect */
+/* This function is called by i2c_probe */
 int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *new_client;

@@ -869,7 +869,7 @@ w83781d_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, w83781d_detect);
+	return i2c_probe(adapter, &addr_data, w83781d_detect);
 }
 
 static int

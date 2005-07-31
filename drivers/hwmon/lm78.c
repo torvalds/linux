@@ -478,7 +478,7 @@ static int lm78_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, lm78_detect);
+	return i2c_probe(adapter, &addr_data, lm78_detect);
 }
 
 static int lm78_isa_attach_adapter(struct i2c_adapter *adapter)
@@ -486,7 +486,7 @@ static int lm78_isa_attach_adapter(struct i2c_adapter *adapter)
 	return lm78_detect(adapter, isa_address, -1);
 }
 
-/* This function is called by i2c_detect */
+/* This function is called by i2c_probe */
 int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	int i, err;
