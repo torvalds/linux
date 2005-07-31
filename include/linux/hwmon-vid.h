@@ -53,8 +53,6 @@
 
 int vid_which_vrm(void);
 
-#define DEFAULT_VRM	82
-
 static inline int vid_from_reg(int val, int vrm)
 {
 	int vid;
