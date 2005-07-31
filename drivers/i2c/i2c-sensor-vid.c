@@ -96,3 +96,8 @@ int i2c_which_vrm(void)
 #endif
 
 EXPORT_SYMBOL(i2c_which_vrm);
+
+MODULE_AUTHOR("Rudolf Marek <r.marek@sh.cvut.cz>");
+
+MODULE_DESCRIPTION("i2c-sensor driver");
+MODULE_LICENSE("GPL");

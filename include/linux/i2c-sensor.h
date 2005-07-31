@@ -200,11 +200,4 @@
 				      NULL }; \
   SENSORS_INSMOD
 
-/* Detect function. It iterates over all possible addresses itself. For
-   SMBus addresses, it will only call found_proc if some client is connected
-   to the SMBus (unless a 'force' matched). */
-extern int i2c_detect(struct i2c_adapter *adapter,
-		      struct i2c_client_address_data *address_data,
-		      int (*found_proc) (struct i2c_adapter *, int, int));
-
 #endif				/* def _LINUX_I2C_SENSOR_H */
