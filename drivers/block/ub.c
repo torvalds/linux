@@ -407,7 +407,7 @@ struct ub_dev {
 /*
  */
 static void ub_cleanup(struct ub_dev *sc);
-static int ub_bd_rq_fn_1(struct ub_lun *lun, struct request *rq);
+static int ub_request_fn_1(struct ub_lun *lun, struct request *rq);
 static int ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
     struct ub_scsi_cmd *cmd, struct request *rq);
 static void ub_scsi_build_block(struct ub_lun *lun,
@@ -768,20 +768,20 @@ static struct ub_scsi_cmd *ub_cmdq_pop(struct ub_dev *sc)
  * The request function is our main entry point
  */
 
-static void ub_bd_rq_fn(request_queue_t *q)
+static void ub_request_fn(request_queue_t *q)
 {
 	struct ub_lun *lun = q->queuedata;
 	struct request *rq;
 
 	while ((rq = elv_next_request(q)) != NULL) {
-		if (ub_bd_rq_fn_1(lun, rq) != 0) {
+		if (ub_request_fn_1(lun, rq) != 0) {
 			blk_stop_queue(q);
 			break;
 		}
 	}
 }
 
-static int ub_bd_rq_fn_1(struct ub_lun *lun, struct request *rq)
+static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 {
 	struct ub_dev *sc = lun->udev;
 	struct ub_scsi_cmd *cmd;
@@ -2357,7 +2357,7 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	disk->driverfs_dev = &sc->intf->dev;	/* XXX Many to one ok? */
 
 	rc = -ENOMEM;
-	if ((q = blk_init_queue(ub_bd_rq_fn, &sc->lock)) == NULL)
+	if ((q = blk_init_queue(ub_request_fn, &sc->lock)) == NULL)
 		goto err_blkqinit;
 
 	disk->queue = q;
