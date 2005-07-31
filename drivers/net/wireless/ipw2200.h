@@ -1,23 +1,23 @@
 /******************************************************************************
-  
+
   Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
-  
-  This program is free software; you can redistribute it and/or modify it 
-  under the terms of version 2 of the GNU General Public License as 
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of version 2 of the GNU General Public License as
   published by the Free Software Foundation.
-  
-  This program is distributed in the hope that it will be useful, but WITHOUT 
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
+
+  This program is distributed in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
-  
+
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59 
+  this program; if not, write to the Free Software Foundation, Inc., 59
   Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-  
+
   The full GNU General Public License is included in this distribution in the
   file called LICENSE.
-  
+
   Contact Information:
   James P. Ketrenos <ipw2100-admin@linux.intel.com>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
@@ -55,8 +55,8 @@
 
 #ifndef IRQ_NONE
 typedef void irqreturn_t;
-#define IRQ_NONE 
-#define IRQ_HANDLED 
+#define IRQ_NONE
+#define IRQ_HANDLED
 #define IRQ_RETVAL(x)
 #endif
 
@@ -179,18 +179,18 @@ enum connection_manager_assoc_states
 #define IPW_B_MODE                         1
 #define IPW_G_MODE                         2
 
-/* 
- * TX Queue Flag Definitions 
+/*
+ * TX Queue Flag Definitions
  */
 
 /* abort attempt if mgmt frame is rx'd */
-#define DCT_FLAG_ABORT_MGMT                0x01 
- 
+#define DCT_FLAG_ABORT_MGMT                0x01
+
 /* require CTS */
 #define DCT_FLAG_CTS_REQUIRED              0x02
 
 /* use short preamble */
-#define DCT_FLAG_SHORT_PREMBL              0x04  
+#define DCT_FLAG_SHORT_PREMBL              0x04
 
 /* RTS/CTS first */
 #define DCT_FLAG_RTS_REQD                  0x08
@@ -205,7 +205,7 @@ enum connection_manager_assoc_states
 #define DCT_FLAG_TSF_REQD                  0x40
 
 /* ACK rx is expected to follow */
-#define DCT_FLAG_ACK_REQD                  0x80  
+#define DCT_FLAG_ACK_REQD                  0x80
 
 #define DCT_FLAG_EXT_MODE_CCK  0x01
 #define DCT_FLAG_EXT_MODE_OFDM 0x00
@@ -238,13 +238,13 @@ enum connection_manager_assoc_states
 #define HOST_NOTIFICATION_CHANNEL_SWITCHED              23
 #define HOST_NOTIFICATION_RX_DURING_QUIET_PERIOD        24
 #define HOST_NOTIFICATION_NOISE_STATS			25
-#define HOST_NOTIFICATION_S36_MEASUREMENT_ACCEPTED      30 
+#define HOST_NOTIFICATION_S36_MEASUREMENT_ACCEPTED      30
 #define HOST_NOTIFICATION_S36_MEASUREMENT_REFUSED       31
 
 #define HOST_NOTIFICATION_STATUS_BEACON_MISSING         1
 #define IPW_MB_DISASSOCIATE_THRESHOLD_DEFAULT           24
 #define IPW_MB_ROAMING_THRESHOLD_DEFAULT                8
-#define IPW_REAL_RATE_RX_PACKET_THRESHOLD               300    
+#define IPW_REAL_RATE_RX_PACKET_THRESHOLD               300
 
 #define MACADRR_BYTE_LEN                     6
 
@@ -258,7 +258,7 @@ enum connection_manager_assoc_states
 
 /**
  * Generic queue structure
- * 
+ *
  * Contains common data for Rx and Tx queues
  */
 struct clx2_queue {
@@ -318,7 +318,7 @@ struct machdr24
 
 // TX TFD with 32 byte MAC Header
 struct tx_tfd_32
-{   
+{
 	struct machdr32    mchdr;                      // 32
 	u32                uivplaceholder[2];          // 8
 } __attribute__ ((packed)) ;
@@ -368,8 +368,8 @@ struct tfd_data {
 
 	/* Tx Parameters */
 	u8 cmd_id;
-	u8 seq_num;    
-	u16 len;  
+	u8 seq_num;
+	u16 len;
 	u8 priority;
 	u8 tx_flags;
 	u8 tx_flags_ext;
@@ -378,10 +378,10 @@ struct tfd_data {
 	u8 rate;
 	u8 antenna;
 	u16 next_packet_duration;
-	u16 next_frag_len;  
+	u16 next_frag_len;
 	u16 back_off_counter; //////txop;
 	u8 retrylimit;
-	u16 cwcurrent;  
+	u16 cwcurrent;
 	u8 reserved3;
 
 	/* 802.11 MAC Header */
@@ -457,29 +457,29 @@ struct rate_histogram
 	} failed;
 } __attribute__ ((packed));
 
-/* statistics command response */	
+/* statistics command response */
 struct ipw_cmd_stats {
 	u8 cmd_id;
 	u8 seq_num;
-	u16 good_sfd;               
-	u16 bad_plcp;               
-	u16 wrong_bssid;            
-	u16 valid_mpdu;             
-	u16 bad_mac_header;         
-	u16 reserved_frame_types;   
-	u16 rx_ina;                 
-	u16 bad_crc32;              
-	u16 invalid_cts;            
-	u16 invalid_acks;           
-	u16 long_distance_ina_fina; 
+	u16 good_sfd;
+	u16 bad_plcp;
+	u16 wrong_bssid;
+	u16 valid_mpdu;
+	u16 bad_mac_header;
+	u16 reserved_frame_types;
+	u16 rx_ina;
+	u16 bad_crc32;
+	u16 invalid_cts;
+	u16 invalid_acks;
+	u16 long_distance_ina_fina;
 	u16 dsp_silence_unreachable;
-	u16 accumulated_rssi;      
-	u16 rx_ovfl_frame_tossed;  
+	u16 accumulated_rssi;
+	u16 rx_ovfl_frame_tossed;
 	u16 rssi_silence_threshold;
 	u16 rx_ovfl_frame_supplied;
-	u16 last_rx_frame_signal;  
-	u16 last_rx_frame_noise;   
-	u16 rx_autodetec_no_ofdm;  
+	u16 last_rx_frame_signal;
+	u16 last_rx_frame_noise;
+	u16 rx_autodetec_no_ofdm;
 	u16 rx_autodetec_no_barker;
 	u16 reserved;
 } __attribute__ ((packed));
@@ -568,11 +568,11 @@ struct ipw_rx_notification {
 } __attribute__ ((packed));
 
 struct ipw_rx_frame {
-	u32 reserved1; 
+	u32 reserved1;
 	u8 parent_tsf[4];     // fw_use[0] is boolean for OUR_TSF_IS_GREATER
 	u8 received_channel;  // The channel that this frame was received on.
-			      // Note that for .11b this does not have to be 
-	                      // the same as the channel that it was sent. 
+			      // Note that for .11b this does not have to be
+	                      // the same as the channel that it was sent.
                               // Filled by LMAC
 	u8 frameStatus;
 	u8 rate;
@@ -583,13 +583,13 @@ struct ipw_rx_frame {
 	u16 noise;
 	u8 antennaAndPhy;
 	u8 control;           // control bit should be on in bg
-	u8 rtscts_rate;       // rate of rts or cts (in rts cts sequence rate 
+	u8 rtscts_rate;       // rate of rts or cts (in rts cts sequence rate
 	                      // is identical)
 	u8 rtscts_seen;       // 0x1 RTS seen ; 0x2 CTS seen
 	u16 length;
 	u8 data[0];
 } __attribute__ ((packed));
-                    
+
 struct ipw_rx_header {
 	u8 message_type;
 	u8 rx_seq_num;
@@ -716,8 +716,8 @@ struct ipw_wep_key
 } __attribute__ ((packed));
 
 struct ipw_tgi_tx_key
-{ 
-	u8 key_id;  
+{
+	u8 key_id;
 	u8 security_type;
 	u8 station_index;
 	u8 flags;
@@ -727,7 +727,7 @@ struct ipw_tgi_tx_key
 
 #define IPW_SCAN_CHANNELS 54
 
-struct ipw_scan_request 
+struct ipw_scan_request
 {
 	u8 scan_type;
 	u16 dwell_time;
@@ -753,7 +753,7 @@ struct ipw_scan_request_ext
 	u16 dwell_time[IPW_SCAN_TYPES];
 } __attribute__ ((packed));
 
-extern inline u8 ipw_get_scan_type(struct ipw_scan_request_ext *scan, u8 index) 
+extern inline u8 ipw_get_scan_type(struct ipw_scan_request_ext *scan, u8 index)
 {
 	if (index % 2)
 		return scan->scan_type[index / 2] & 0x0F;
@@ -761,16 +761,16 @@ extern inline u8 ipw_get_scan_type(struct ipw_scan_request_ext *scan, u8 index)
 		return (scan->scan_type[index / 2] & 0xF0) >> 4;
 }
 
-extern inline void ipw_set_scan_type(struct ipw_scan_request_ext *scan, 
+extern inline void ipw_set_scan_type(struct ipw_scan_request_ext *scan,
 				     u8 index, u8 scan_type)
 {
-	if (index % 2) 
-		scan->scan_type[index / 2] = 
-			(scan->scan_type[index / 2] & 0xF0) | 
+	if (index % 2)
+		scan->scan_type[index / 2] =
+			(scan->scan_type[index / 2] & 0xF0) |
 			(scan_type & 0x0F);
 	else
-		scan->scan_type[index / 2] = 
-			(scan->scan_type[index / 2] & 0x0F) | 
+		scan->scan_type[index / 2] =
+			(scan->scan_type[index / 2] & 0x0F) |
 			((scan_type & 0x0F) << 4);
 }
 
@@ -909,14 +909,14 @@ struct ipw_sensitivity_calib
 
 /**
  * Host command structure.
- * 
+ *
  * On input, the following fields should be filled:
  * - cmd
  * - len
  * - status_len
  * - param (if needed)
- * 
- * On output, 
+ *
+ * On output,
  * - \a status contains status;
  * - \a param filled with status parameters.
  */
@@ -926,8 +926,8 @@ struct ipw_cmd {
   u32 status_len;  /**< How many 32 bit parameters in the status */
   u32 len;         /**< incoming parameters length, bytes */
   /**
-   * command parameters. 
-   * There should be enough space for incoming and 
+   * command parameters.
+   * There should be enough space for incoming and
    * outcoming parameters.
    * Incoming parameters listed 1-st, followed by outcoming params.
    * nParams=(len+3)/4+status_len
@@ -955,8 +955,8 @@ struct ipw_cmd {
 #define STATUS_STATE_PENDING    (1<<13)
 
 #define STATUS_SCAN_PENDING     (1<<20)
-#define STATUS_SCANNING         (1<<21) 
-#define STATUS_SCAN_ABORTING    (1<<22) 
+#define STATUS_SCANNING         (1<<21)
+#define STATUS_SCAN_ABORTING    (1<<22)
 
 #define STATUS_INDIRECT_BYTE    (1<<28) /* sysfs entry configured for access */
 #define STATUS_INDIRECT_DWORD   (1<<29) /* sysfs entry configured for access */
@@ -1009,7 +1009,7 @@ struct ipw_priv {
 	/* pci hardware address support */
 	void __iomem *hw_base;
 	unsigned long hw_len;
-	
+
 	struct fw_image_desc sram_desc;
 
 	/* result of ucode download */
@@ -1036,7 +1036,7 @@ struct ipw_priv {
 	int rx_pend_max;          /**< maximum pending buffers for one IRQ */
 	u32 hcmd_seq;             /**< sequence number for hcmd */
 	u32 missed_beacon_threshold;
-	u32 roaming_threshold; 
+	u32 roaming_threshold;
 
 	struct ipw_associate assoc_request;
 	struct ieee80211_network *assoc_network;
@@ -1071,11 +1071,11 @@ struct ipw_priv {
 	u8 channel;
 	struct ipw_sys_config sys_config;
 	u32 power_mode;
-	u8 bssid[ETH_ALEN];  
+	u8 bssid[ETH_ALEN];
 	u16 rts_threshold;
 	u8 mac_addr[ETH_ALEN];
 	u8 num_stations;
-	u8 stations[MAX_STATIONS][ETH_ALEN]; 
+	u8 stations[MAX_STATIONS][ETH_ALEN];
 
 	u32 notif_missed_beacons;
 
@@ -1094,13 +1094,13 @@ struct ipw_priv {
 	u32 quality;
 
         /* eeprom */
-	u8 eeprom[0x100];  /* 256 bytes of eeprom */  
+	u8 eeprom[0x100];  /* 256 bytes of eeprom */
 	int eeprom_delay;
 
-	struct iw_statistics wstats; 
+	struct iw_statistics wstats;
 
 	struct workqueue_struct *workqueue;
-	
+
 	struct work_struct adhoc_check;
 	struct work_struct associate;
 	struct work_struct disassociate;
@@ -1125,7 +1125,7 @@ struct ipw_priv {
 #define IPW_DEFAULT_TX_POWER 0x14
 	u8 tx_power;
 
-#ifdef CONFIG_PM	
+#ifdef CONFIG_PM
 	u32 pm_state[16];
 #endif
 
@@ -1159,7 +1159,7 @@ do { if (ipw_debug_level & (level)) \
  * list here in the form of:
  *
  * #define IPW_DL_xxxx VALUE
- * 
+ *
  * shifting value to the left one bit from the previous entry.  xxxx should be
  * the name of the classification (for example, WEP)
  *
@@ -1173,7 +1173,7 @@ do { if (ipw_debug_level & (level)) \
  *
  * you simply need to add your entry to the ipw_debug_levels array.
  *
- * If you do not see debug_level in /proc/net/ipw then you do not have 
+ * If you do not see debug_level in /proc/net/ipw then you do not have
  * CONFIG_IPW_DEBUG defined in your kernel configuration
  *
  */
@@ -1247,7 +1247,7 @@ do { if (ipw_debug_level & (level)) \
 
 #define DINO_ENABLE_SYSTEM 0x80
 #define DINO_ENABLE_CS     0x40
-#define DINO_RXFIFO_DATA   0x01	
+#define DINO_RXFIFO_DATA   0x01
 #define DINO_CONTROL_REG   0x00200000
 
 #define CX2_INTA_RW       0x00000008
@@ -1320,7 +1320,7 @@ do { if (ipw_debug_level & (level)) \
 
 #define DMA_CONTROL_SMALL_CB_CONST_VALUE 0x00540000
 #define DMA_CB_STOP_AND_ABORT            0x00000C00
-#define DMA_CB_START                     0x00000100 
+#define DMA_CB_START                     0x00000100
 
 
 #define CX2_SHARED_SRAM_SIZE               0x00030000
@@ -1410,7 +1410,7 @@ do { if (ipw_debug_level & (level)) \
 #define EEPROM_NIC_TYPE_HP              4
 
 #define FW_MEM_REG_LOWER_BOUND          0x00300000
-#define FW_MEM_REG_EEPROM_ACCESS        (FW_MEM_REG_LOWER_BOUND + 0x40)        
+#define FW_MEM_REG_EEPROM_ACCESS        (FW_MEM_REG_LOWER_BOUND + 0x40)
 
 #define EEPROM_BIT_SK                   (1<<0)
 #define EEPROM_BIT_CS                   (1<<1)
@@ -1506,15 +1506,15 @@ enum {
 #define IPW_RATE_CONNECT      0
 
 
-/* 
- * Rate values and masks 
+/*
+ * Rate values and masks
  */
 #define IPW_TX_RATE_1MB  0x0A
 #define IPW_TX_RATE_2MB  0x14
 #define IPW_TX_RATE_5MB  0x37
 #define IPW_TX_RATE_6MB  0x0D
 #define IPW_TX_RATE_9MB  0x0F
-#define IPW_TX_RATE_11MB 0x6E	
+#define IPW_TX_RATE_11MB 0x6E
 #define IPW_TX_RATE_12MB 0x05
 #define IPW_TX_RATE_18MB 0x07
 #define IPW_TX_RATE_24MB 0x09
@@ -1525,25 +1525,25 @@ enum {
 #define IPW_ORD_TABLE_ID_MASK             0x0000FF00
 #define IPW_ORD_TABLE_VALUE_MASK          0x000000FF
 
-#define IPW_ORD_TABLE_0_MASK              0x0000F000  
-#define IPW_ORD_TABLE_1_MASK              0x0000F100  
-#define IPW_ORD_TABLE_2_MASK              0x0000F200  
-#define IPW_ORD_TABLE_3_MASK              0x0000F300  
-#define IPW_ORD_TABLE_4_MASK              0x0000F400  
-#define IPW_ORD_TABLE_5_MASK              0x0000F500  
-#define IPW_ORD_TABLE_6_MASK              0x0000F600  
-#define IPW_ORD_TABLE_7_MASK              0x0000F700  
+#define IPW_ORD_TABLE_0_MASK              0x0000F000
+#define IPW_ORD_TABLE_1_MASK              0x0000F100
+#define IPW_ORD_TABLE_2_MASK              0x0000F200
+#define IPW_ORD_TABLE_3_MASK              0x0000F300
+#define IPW_ORD_TABLE_4_MASK              0x0000F400
+#define IPW_ORD_TABLE_5_MASK              0x0000F500
+#define IPW_ORD_TABLE_6_MASK              0x0000F600
+#define IPW_ORD_TABLE_7_MASK              0x0000F700
 
 /*
  * Table 0 Entries (all entries are 32 bits)
  */
-enum {           
+enum {
 	IPW_ORD_STAT_TX_CURR_RATE = IPW_ORD_TABLE_0_MASK + 1,
 	IPW_ORD_STAT_FRAG_TRESHOLD,
 	IPW_ORD_STAT_RTS_THRESHOLD,
-	IPW_ORD_STAT_TX_HOST_REQUESTS,              
-	IPW_ORD_STAT_TX_HOST_COMPLETE,              
-	IPW_ORD_STAT_TX_DIR_DATA,                  
+	IPW_ORD_STAT_TX_HOST_REQUESTS,
+	IPW_ORD_STAT_TX_HOST_COMPLETE,
+	IPW_ORD_STAT_TX_DIR_DATA,
 	IPW_ORD_STAT_TX_DIR_DATA_B_1,
 	IPW_ORD_STAT_TX_DIR_DATA_B_2,
 	IPW_ORD_STAT_TX_DIR_DATA_B_5_5,
@@ -1561,18 +1561,18 @@ enum {
 	IPW_ORD_STAT_TX_DIR_DATA_G_5_5,
 	IPW_ORD_STAT_TX_DIR_DATA_G_6,
 	IPW_ORD_STAT_TX_DIR_DATA_G_9,
-	IPW_ORD_STAT_TX_DIR_DATA_G_11,        
+	IPW_ORD_STAT_TX_DIR_DATA_G_11,
 	IPW_ORD_STAT_TX_DIR_DATA_G_12,
 	IPW_ORD_STAT_TX_DIR_DATA_G_18,
 	IPW_ORD_STAT_TX_DIR_DATA_G_24,
 	IPW_ORD_STAT_TX_DIR_DATA_G_36,
 	IPW_ORD_STAT_TX_DIR_DATA_G_48,
 	IPW_ORD_STAT_TX_DIR_DATA_G_54,
-	IPW_ORD_STAT_TX_NON_DIR_DATA, 
+	IPW_ORD_STAT_TX_NON_DIR_DATA,
 	IPW_ORD_STAT_TX_NON_DIR_DATA_B_1,
 	IPW_ORD_STAT_TX_NON_DIR_DATA_B_2,
 	IPW_ORD_STAT_TX_NON_DIR_DATA_B_5_5,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_B_11,  
+	IPW_ORD_STAT_TX_NON_DIR_DATA_B_11,
 	/* Hole */
 
 
@@ -1586,7 +1586,7 @@ enum {
 	IPW_ORD_STAT_TX_NON_DIR_DATA_G_5_5,
 	IPW_ORD_STAT_TX_NON_DIR_DATA_G_6,
 	IPW_ORD_STAT_TX_NON_DIR_DATA_G_9,
-	IPW_ORD_STAT_TX_NON_DIR_DATA_G_11,        
+	IPW_ORD_STAT_TX_NON_DIR_DATA_G_11,
 	IPW_ORD_STAT_TX_NON_DIR_DATA_G_12,
 	IPW_ORD_STAT_TX_NON_DIR_DATA_G_18,
 	IPW_ORD_STAT_TX_NON_DIR_DATA_G_24,
@@ -1601,12 +1601,12 @@ enum {
 	IPW_ORD_STAT_FULL_SCANS,
 	IPW_ORD_STAT_PARTIAL_SCANS,
 	IPW_ORD_STAT_TGH_ABORTED_SCANS,
-	IPW_ORD_STAT_TX_TOTAL_BYTES,    
+	IPW_ORD_STAT_TX_TOTAL_BYTES,
 	IPW_ORD_STAT_CURR_RSSI_RAW,
 	IPW_ORD_STAT_RX_BEACON,
 	IPW_ORD_STAT_MISSED_BEACONS,
-	IPW_ORD_TABLE_0_LAST  
-};                       
+	IPW_ORD_TABLE_0_LAST
+};
 
 #define IPW_RSSI_TO_DBM 112
 
@@ -1626,15 +1626,15 @@ enum {
  * ADDAPTER_MAC:  6 byte MAC address
  * RTC:           4 byte clock
  */
-enum {           
+enum {
 	IPW_ORD_STAT_FW_VERSION = IPW_ORD_TABLE_2_MASK | 1,
-	IPW_ORD_STAT_FW_DATE,   
+	IPW_ORD_STAT_FW_DATE,
 	IPW_ORD_STAT_UCODE_VERSION,
-	IPW_ORD_STAT_UCODE_DATE,                     
-	IPW_ORD_STAT_ADAPTER_MAC,                    
-	IPW_ORD_STAT_RTC,     
-	IPW_ORD_TABLE_2_LAST                     
-};                      
+	IPW_ORD_STAT_UCODE_DATE,
+	IPW_ORD_STAT_ADAPTER_MAC,
+	IPW_ORD_STAT_RTC,
+	IPW_ORD_TABLE_2_LAST
+};
 
 /* Table 3 */
 enum {
@@ -1711,7 +1711,7 @@ struct host_cmd {
 #define CFG_BT_COEXISTENCE_WME_OVER_BT          0x08
 #define CFG_BT_COEXISTENCE_OOB                  0x10
 #define CFG_BT_COEXISTENCE_MAX                  0xFF
-#define CFG_BT_COEXISTENCE_DEF                  0x80 /* read Bt from EEPROM*/ 
+#define CFG_BT_COEXISTENCE_DEF                  0x80 /* read Bt from EEPROM*/
 
 #define CFG_CTS_TO_ITSELF_ENABLED_MIN	0x0
 #define CFG_CTS_TO_ITSELF_ENABLED_MAX	0x1
@@ -1722,9 +1722,9 @@ struct host_cmd {
 #define CFG_SYS_ANTENNA_B                         0x003
 
 /*
- * The definitions below were lifted off the ipw2100 driver, which only 
+ * The definitions below were lifted off the ipw2100 driver, which only
  * supports 'b' mode, so I'm sure these are not exactly correct.
- * 
+ *
  * Somebody fix these!!
  */
 #define REG_MIN_CHANNEL             0
@@ -1733,11 +1733,11 @@ struct host_cmd {
 #define REG_CHANNEL_MASK            0x00003FFF
 #define IPW_IBSS_11B_DEFAULT_MASK   0x87ff
 
-static const long ipw_frequencies[] = {  
-	2412, 2417, 2422, 2427, 
-	2432, 2437, 2442, 2447, 
-	2452, 2457, 2462, 2467, 
-	2472, 2484  
+static const long ipw_frequencies[] = {
+	2412, 2417, 2422, 2427,
+	2432, 2437, 2442, 2447,
+	2452, 2457, 2462, 2467,
+	2472, 2484
 };
 
 #define FREQ_COUNT ARRAY_SIZE(ipw_frequencies)
