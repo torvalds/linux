@@ -188,6 +188,8 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 	strlcpy(adap->class_dev.class_id, adap->dev.bus_id, BUS_ID_SIZE);
 	class_device_register(&adap->class_dev);
 
+	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
+
 	/* inform drivers of new adapters */
 	list_for_each(item,&drivers) {
 		driver = list_entry(item, struct i2c_driver, list);
@@ -195,8 +197,6 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 			/* We ignore the return code; if it fails, too bad */
 			driver->attach_adapter(adap);
 	}
-
-	dev_dbg(&adap->dev, "registered as adapter #%d\n", adap->nr);
 
 out_unlock:
 	up(&core_lists);
@@ -220,8 +220,8 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 			break;
 	}
 	if (adap_from_list != adap) {
-		pr_debug("I2C: Attempting to delete an unregistered "
-			 "adapter\n");
+		pr_debug("i2c-core: attempting to delete unregistered "
+			 "adapter [%s]\n", adap->name);
 		res = -EINVAL;
 		goto out_unlock;
 	}
@@ -230,9 +230,8 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 		driver = list_entry(item, struct i2c_driver, list);
 		if (driver->detach_adapter)
 			if ((res = driver->detach_adapter(adap))) {
-				dev_warn(&adap->dev, "can't detach adapter "
-					 "while detaching driver %s: driver "
-					 "not detached!\n", driver->name);
+				dev_err(&adap->dev, "detach_adapter failed "
+					"for driver [%s]\n", driver->name);
 				goto out_unlock;
 			}
 	}
@@ -247,9 +246,8 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 		 * must be deleted, as this would cause invalid states.
 		 */
 		if ((res=client->driver->detach_client(client))) {
-			dev_err(&adap->dev, "adapter not "
-				"unregistered, because client at "
-				"address %02x can't be detached. ",
+			dev_err(&adap->dev, "detach_client failed for client "
+				"[%s] at address 0x%02x\n", client->name,
 				client->addr);
 			goto out_unlock;
 		}
@@ -270,7 +268,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	/* free dynamically allocated bus id */
 	idr_remove(&i2c_adapter_idr, adap->nr);
 
-	dev_dbg(&adap->dev, "adapter unregistered\n");
+	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
 
  out_unlock:
 	up(&core_lists);
@@ -303,7 +301,7 @@ int i2c_add_driver(struct i2c_driver *driver)
 		goto out_unlock;
 	
 	list_add_tail(&driver->list,&drivers);
-	pr_debug("i2c-core: driver %s registered.\n", driver->name);
+	pr_debug("i2c-core: driver [%s] registered\n", driver->name);
 
 	/* now look for instances of driver on our adapters */
 	if (driver->flags & I2C_DF_NOTIFY) {
@@ -331,21 +329,17 @@ int i2c_del_driver(struct i2c_driver *driver)
 	/* Have a look at each adapter, if clients of this driver are still
 	 * attached. If so, detach them to be able to kill the driver 
 	 * afterwards.
-	 */
-	pr_debug("i2c-core: unregister_driver - looking for clients.\n");
-	/* removing clients does not depend on the notify flag, else 
+	 *
+	 * Removing clients does not depend on the notify flag, else
 	 * invalid operation might (will!) result, when using stale client
 	 * pointers.
 	 */
 	list_for_each(item1,&adapters) {
 		adap = list_entry(item1, struct i2c_adapter, list);
-		dev_dbg(&adap->dev, "examining adapter\n");
 		if (driver->detach_adapter) {
 			if ((res = driver->detach_adapter(adap))) {
-				dev_warn(&adap->dev, "while unregistering "
-				       "dummy driver %s, adapter could "
-				       "not be detached properly; driver "
-				       "not unloaded!",driver->name);
+				dev_err(&adap->dev, "detach_adapter failed "
+					"for driver [%s]\n", driver->name);
 				goto out_unlock;
 			}
 		} else {
@@ -353,16 +347,13 @@ int i2c_del_driver(struct i2c_driver *driver)
 				client = list_entry(item2, struct i2c_client, list);
 				if (client->driver != driver)
 					continue;
-				pr_debug("i2c-core.o: detaching client %s:\n", client->name);
+				dev_dbg(&adap->dev, "detaching client [%s] "
+					"at 0x%02x\n", client->name,
+					client->addr);
 				if ((res = driver->detach_client(client))) {
-					dev_err(&adap->dev, "while "
-						"unregistering driver "
-						"`%s', the client at "
-						"address %02x of "
-						"adapter could not "
-						"be detached; driver "
-						"not unloaded!",
-						driver->name,
+					dev_err(&adap->dev, "detach_client "
+						"failed for client [%s] at "
+						"0x%02x\n", client->name,
 						client->addr);
 					goto out_unlock;
 				}
@@ -372,7 +363,7 @@ int i2c_del_driver(struct i2c_driver *driver)
 
 	driver_unregister(&driver->driver);
 	list_del(&driver->list);
-	pr_debug("i2c-core: driver unregistered: %s\n", driver->name);
+	pr_debug("i2c-core: driver [%s] unregistered\n", driver->name);
 
  out_unlock:
 	up(&core_lists);
@@ -417,14 +408,11 @@ int i2c_attach_client(struct i2c_client *client)
 	
 	if (adapter->client_register)  {
 		if (adapter->client_register(client))  {
-			dev_warn(&adapter->dev, "warning: client_register "
-				"seems to have failed for client %02x\n",
-				client->addr);
+			dev_dbg(&adapter->dev, "client_register "
+				"failed for client [%s] at 0x%02x\n",
+				client->name, client->addr);
 		}
 	}
-
-	dev_dbg(&adapter->dev, "client [%s] registered to adapter\n",
-		client->name);
 
 	if (client->flags & I2C_CLIENT_ALLOW_USE)
 		client->usage_count = 0;
@@ -436,7 +424,8 @@ int i2c_attach_client(struct i2c_client *client)
 	
 	snprintf(&client->dev.bus_id[0], sizeof(client->dev.bus_id),
 		"%d-%04x", i2c_adapter_id(adapter), client->addr);
-	pr_debug("registering %s\n", client->dev.bus_id);
+	dev_dbg(&adapter->dev, "client [%s] registered with bus id %s\n",
+		client->name, client->dev.bus_id);
 	device_register(&client->dev);
 	device_create_file(&client->dev, &dev_attr_client_name);
 	
