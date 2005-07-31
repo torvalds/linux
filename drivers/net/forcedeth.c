@@ -90,6 +90,7 @@
  *	0.38: 16 Jul 2005: tx irq rewrite: Use global flags instead of
  *			   per-packet flags.
  *      0.39: 18 Jul 2005: Add 64bit descriptor support.
+ *      0.40: 19 Jul 2005: Add support for mac address change.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -101,7 +102,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.39"
+#define FORCEDETH_VERSION		"0.40"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -1416,6 +1417,54 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static void nv_copy_mac_to_hw(struct net_device *dev)
+{
+	u8 *base = get_hwbase(dev);
+	u32 mac[2];
+
+	mac[0] = (dev->dev_addr[0] << 0) + (dev->dev_addr[1] << 8) +
+			(dev->dev_addr[2] << 16) + (dev->dev_addr[3] << 24);
+	mac[1] = (dev->dev_addr[4] << 0) + (dev->dev_addr[5] << 8);
+
+	writel(mac[0], base + NvRegMacAddrA);
+	writel(mac[1], base + NvRegMacAddrB);
+}
+
+/*
+ * nv_set_mac_address: dev->set_mac_address function
+ * Called with rtnl_lock() held.
+ */
+static int nv_set_mac_address(struct net_device *dev, void *addr)
+{
+	struct fe_priv *np = get_nvpriv(dev);
+	struct sockaddr *macaddr = (struct sockaddr*)addr;
+
+	if(!is_valid_ether_addr(macaddr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	/* synchronized against open : rtnl_lock() held by caller */
+	memcpy(dev->dev_addr, macaddr->sa_data, ETH_ALEN);
+
+	if (netif_running(dev)) {
+		spin_lock_bh(&dev->xmit_lock);
+		spin_lock_irq(&np->lock);
+
+		/* stop rx engine */
+		nv_stop_rx(dev);
+
+		/* set mac address */
+		nv_copy_mac_to_hw(dev);
+
+		/* restart rx engine */
+		nv_start_rx(dev);
+		spin_unlock_irq(&np->lock);
+		spin_unlock_bh(&dev->xmit_lock);
+	} else {
+		nv_copy_mac_to_hw(dev);
+	}
+	return 0;
+}
+
 /*
  * nv_set_multicast: dev->set_multicast function
  * Called with dev->xmit_lock held.
@@ -2047,16 +2096,7 @@ static int nv_open(struct net_device *dev)
 	np->in_shutdown = 0;
 
 	/* 3) set mac address */
-	{
-		u32 mac[2];
-
-		mac[0] = (dev->dev_addr[0] << 0) + (dev->dev_addr[1] << 8) +
-				(dev->dev_addr[2] << 16) + (dev->dev_addr[3] << 24);
-		mac[1] = (dev->dev_addr[4] << 0) + (dev->dev_addr[5] << 8);
-
-		writel(mac[0], base + NvRegMacAddrA);
-		writel(mac[1], base + NvRegMacAddrB);
-	}
+	nv_copy_mac_to_hw(dev);
 
 	/* 4) give hw rings */
 	writel((u32) np->ring_addr, base + NvRegRxRingPhysAddr);
@@ -2302,6 +2342,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	dev->hard_start_xmit = nv_start_xmit;
 	dev->get_stats = nv_get_stats;
 	dev->change_mtu = nv_change_mtu;
+	dev->set_mac_address = nv_set_mac_address;
 	dev->set_multicast_list = nv_set_multicast;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = nv_poll_controller;
