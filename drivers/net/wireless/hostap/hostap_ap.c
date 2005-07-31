@@ -2,7 +2,7 @@
  * Intersil Prism2 driver with Host AP (software access point) support
  * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
  * <jkmaline@cc.hut.fi>
- * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This file is to be included into hostap.c when S/W AP functionality is
  * compiled.
@@ -1206,7 +1206,7 @@ static void prism2_check_tx_rates(struct sta_info *sta)
 
 static void ap_crypt_init(struct ap_data *ap)
 {
-	ap->crypt = hostap_get_crypto_ops("WEP");
+	ap->crypt = ieee80211_get_crypto_ops("WEP");
 
 	if (ap->crypt) {
 		if (ap->crypt->init) {
@@ -1224,7 +1224,7 @@ static void ap_crypt_init(struct ap_data *ap)
 
 	if (ap->crypt == NULL) {
 		printk(KERN_WARNING "AP could not initialize WEP: load module "
-		       "hostap_crypt_wep.o\n");
+		       "ieee80211_crypt_wep.ko\n");
 	}
 }
 
@@ -1293,7 +1293,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 	u16 auth_alg, auth_transaction, status_code, *pos;
 	u16 resp = WLAN_STATUS_SUCCESS, fc;
 	struct sta_info *sta = NULL;
-	struct prism2_crypt_data *crypt;
+	struct ieee80211_crypt_data *crypt;
 	char *txt = "";
 
 	len = skb->len - IEEE80211_MGMT_HDR_LEN;
@@ -3058,7 +3058,8 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 /* Called only as a tasklet (software IRQ) */
 int hostap_handle_sta_crypto(local_info_t *local,
 			     struct hostap_ieee80211_hdr *hdr,
-			     struct prism2_crypt_data **crypt, void **sta_ptr)
+			     struct ieee80211_crypt_data **crypt,
+			     void **sta_ptr)
 {
 	struct sta_info *sta;
 
@@ -3206,7 +3207,7 @@ void hostap_update_rates(local_info_t *local)
 
 
 static void * ap_crypt_get_ptrs(struct ap_data *ap, u8 *addr, int permanent,
-				struct prism2_crypt_data ***crypt)
+				struct ieee80211_crypt_data ***crypt)
 {
 	struct sta_info *sta;
 

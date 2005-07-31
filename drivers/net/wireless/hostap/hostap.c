@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
  * <jkmaline@cc.hut.fi>
- * Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -34,15 +34,11 @@
 #include "hostap_80211.h"
 #include "hostap_ap.h"
 #include "hostap.h"
-#include "hostap_crypt.h"
 
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP common routines");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(PRISM2_VERSION);
-
-/* Old hostap_crypt module is now part of hostap module. */
-#include "hostap_crypt.c"
 
 #define TX_TIMEOUT (2 * HZ)
 
@@ -66,7 +62,7 @@ static int prism2_ap_translate_scan(struct net_device *dev, char *buffer);
 static int prism2_hostapd(struct ap_data *ap,
 			  struct prism2_hostapd_param *param);
 static void * ap_crypt_get_ptrs(struct ap_data *ap, u8 *addr, int permanent,
-				struct prism2_crypt_data ***crypt);
+				struct ieee80211_crypt_data ***crypt);
 static void ap_control_kickall(struct ap_data *ap);
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
 static int ap_control_add_mac(struct mac_restrictions *mac_restrictions,
@@ -1156,8 +1152,6 @@ struct proc_dir_entry *hostap_proc;
 
 static int __init hostap_init(void)
 {
-	hostap_crypto_init();
-
 	if (proc_net != NULL) {
 		hostap_proc = proc_mkdir("hostap", proc_net);
 		if (!hostap_proc)
@@ -1176,8 +1170,6 @@ static void __exit hostap_exit(void)
 		hostap_proc = NULL;
 		remove_proc_entry("hostap", proc_net);
 	}
-
-	hostap_crypto_deinit();
 }
 
 

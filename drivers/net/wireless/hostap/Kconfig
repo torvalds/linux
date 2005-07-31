@@ -7,9 +7,6 @@ config HOSTAP
 	Host AP mode that allows the card to act as an IEEE 802.11
 	access point.
 
-	In addition, this includes generic IEEE 802.11 code, e.g., for
-	WEP/TKIP/CCMP encryption that can be shared with other drivers.
-
 	See <http://hostap.epitest.fi/> for more information about the
 	Host AP driver configuration and tools. This site includes
 	information and tools (hostapd and wpa_supplicant) for WPA/WPA2
@@ -21,36 +18,6 @@ config HOSTAP
 
 	The driver can be compiled as a module and it will be called
 	"hostap.ko".
-
-config HOSTAP_WEP
-	tristate "IEEE 802.11 WEP encryption"
-	depends on HOSTAP
-	select CRYPTO
-	---help---
-	Software implementation of IEEE 802.11 WEP encryption.
-
-	This can be compiled as a modules and it will be called
-	"hostap_crypt_wep.ko".
-
-config HOSTAP_TKIP
-	tristate "IEEE 802.11 TKIP encryption"
-	depends on HOSTAP
-	select CRYPTO
-	---help---
-	Software implementation of IEEE 802.11 TKIP encryption.
-
-	This can be compiled as a modules and it will be called
-	"hostap_crypt_tkip.ko".
-
-config HOSTAP_CCMP
-	tristate "IEEE 802.11 CCMP encryption"
-	depends on HOSTAP
-	select CRYPTO
-	---help---
-	Software implementation of IEEE 802.11 CCMP encryption.
-
-	This can be compiled as a modules and it will be called
-	"hostap_crypt_ccmp.ko".
 
 config HOSTAP_FIRMWARE
 	bool "Support downloading firmware images with Host AP driver"

@@ -2,7 +2,6 @@
 #define HOSTAP_WLAN_H
 
 #include "hostap_config.h"
-#include "hostap_crypt.h"
 #include "hostap_common.h"
 
 #define MAX_PARM_DEVICES 8
@@ -534,13 +533,6 @@ struct prism2_frag_entry {
 };
 
 
-struct prism2_crypt_data {
-	struct list_head list; /* delayed deletion list */
-	struct hostap_crypto_ops *ops;
-	void *priv;
-	atomic_t refcnt;
-};
-
 struct hostap_cmd_queue {
 	struct list_head list;
 	wait_queue_head_t compl;
@@ -765,7 +757,7 @@ struct local_info {
 
 #define WEP_KEYS 4
 #define WEP_KEY_LEN 13
-	struct prism2_crypt_data *crypt[WEP_KEYS];
+	struct ieee80211_crypt_data *crypt[WEP_KEYS];
 	int tx_keyidx; /* default TX key index (crypt[tx_keyidx]) */
 	struct timer_list crypt_deinit_timer;
 	struct list_head crypt_deinit_list;

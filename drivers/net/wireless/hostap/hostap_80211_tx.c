@@ -284,7 +284,7 @@ int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 /* Called only from software IRQ */
 struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
-				   struct prism2_crypt_data *crypt)
+				   struct ieee80211_crypt_data *crypt)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;

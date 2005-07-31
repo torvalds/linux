@@ -613,7 +613,7 @@ static int hostap_is_eapol_frame(local_info_t *local, struct sk_buff *skb)
 /* Called only as a tasklet (software IRQ) */
 static inline int
 hostap_rx_frame_decrypt(local_info_t *local, struct sk_buff *skb,
-			struct prism2_crypt_data *crypt)
+			struct ieee80211_crypt_data *crypt)
 {
 	struct hostap_ieee80211_hdr *hdr;
 	int res, hdrlen;
@@ -652,7 +652,7 @@ hostap_rx_frame_decrypt(local_info_t *local, struct sk_buff *skb,
 /* Called only as a tasklet (software IRQ) */
 static inline int
 hostap_rx_frame_decrypt_msdu(local_info_t *local, struct sk_buff *skb,
-			     int keyidx, struct prism2_crypt_data *crypt)
+			     int keyidx, struct ieee80211_crypt_data *crypt)
 {
 	struct hostap_ieee80211_hdr *hdr;
 	int res, hdrlen;
@@ -698,7 +698,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	int from_assoc_ap = 0;
 	u8 dst[ETH_ALEN];
 	u8 src[ETH_ALEN];
-	struct prism2_crypt_data *crypt = NULL;
+	struct ieee80211_crypt_data *crypt = NULL;
 	void *sta = NULL;
 	int keyidx = 0;
 

@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
  * <jkmaline@cc.hut.fi>
- * Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2967,11 +2967,11 @@ static void prism2_check_sta_fw_version(local_info_t *local)
 static void prism2_crypt_deinit_entries(local_info_t *local, int force)
 {
 	struct list_head *ptr, *n;
-	struct prism2_crypt_data *entry;
+	struct ieee80211_crypt_data *entry;
 
 	for (ptr = local->crypt_deinit_list.next, n = ptr->next;
 	     ptr != &local->crypt_deinit_list; ptr = n, n = ptr->next) {
-		entry = list_entry(ptr, struct prism2_crypt_data, list);
+		entry = list_entry(ptr, struct ieee80211_crypt_data, list);
 
 		if (atomic_read(&entry->refcnt) != 0 && !force)
 			continue;
@@ -3531,7 +3531,7 @@ static void prism2_free_local_data(struct net_device *dev)
 		prism2_callback(local, PRISM2_CALLBACK_DISABLE);
 
 	for (i = 0; i < WEP_KEYS; i++) {
-		struct prism2_crypt_data *crypt = local->crypt[i];
+		struct ieee80211_crypt_data *crypt = local->crypt[i];
 		if (crypt) {
 			if (crypt->ops)
 				crypt->ops->deinit(crypt->priv);
