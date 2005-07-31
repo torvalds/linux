@@ -39,8 +39,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
@@ -973,7 +973,7 @@ static void asb100_init_client(struct i2c_client *client)
 
 	vid = asb100_read_value(client, ASB100_REG_VID_FANDIV) & 0x0f;
 	vid |= (asb100_read_value(client, ASB100_REG_CHIPID) & 0x01) << 4;
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 	vid = vid_from_reg(vid, data->vrm);
 
 	/* Start monitoring */

@@ -43,8 +43,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-isa.h>
-#include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <asm/io.h>
 #include "lm75.h"
@@ -1316,7 +1316,7 @@ static void w83627hf_init_client(struct i2c_client *client)
 		data->vrm = (data->vrm_ovt & 0x01) ? 90 : 82;
 	} else {
 		/* Convert VID to voltage based on default VRM */
-		data->vrm = i2c_which_vrm();
+		data->vrm = vid_which_vrm();
 	}
 
 	tmp = w83627hf_read_value(client, W83781D_REG_SCFG1);

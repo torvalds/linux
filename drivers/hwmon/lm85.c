@@ -28,8 +28,8 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
 #include <linux/err.h>
 
 /* Addresses to scan */
@@ -1147,7 +1147,7 @@ int lm85_detect(struct i2c_adapter *adapter, int address,
 		goto ERROR1;
 
 	/* Set the VRM version */
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 
 	/* Initialize the LM85 chip */
 	lm85_init_client(new_client);

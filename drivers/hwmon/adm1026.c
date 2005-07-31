@@ -28,9 +28,9 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-vid.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
+#include <linux/hwmon-vid.h>
 #include <linux/err.h>
 
 /* Addresses to scan */
@@ -1552,7 +1552,7 @@ int adm1026_detect(struct i2c_adapter *adapter, int address,
 		goto exitfree;
 
 	/* Set the VRM version */
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 
 	/* Initialize the ADM1026 chip */
 	adm1026_init_client(new_client);

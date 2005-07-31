@@ -26,8 +26,8 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
 #include <linux/err.h>
 
 /* Type of the extra sensor */
@@ -617,7 +617,7 @@ static void gl520_init_client(struct i2c_client *client)
 	conf = oldconf = gl520_read_value(client, GL520_REG_CONF);
 
 	data->alarm_mask = 0xff;
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 
 	if (extra_sensor_type == 1)
 		conf &= ~0x10;

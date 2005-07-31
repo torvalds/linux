@@ -50,8 +50,8 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
 #include <linux/err.h>
 
 /*
@@ -473,7 +473,7 @@ static void adm1025_init_client(struct i2c_client *client)
 	struct adm1025_data *data = i2c_get_clientdata(client);
 	int i;
 
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 
 	/*
 	 * Set high limits

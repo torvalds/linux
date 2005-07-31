@@ -37,9 +37,9 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-isa.h>
-#include <linux/i2c-vid.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
+#include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <asm/io.h>
 
@@ -919,7 +919,7 @@ int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	if (data->type == it8712) {
-		data->vrm = i2c_which_vrm();
+		data->vrm = vid_which_vrm();
 		device_create_file_vrm(new_client);
 		device_create_file_vid(new_client);
 	}

@@ -45,8 +45,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
 #include <linux/err.h>
 
 /* Addresses to scan */
@@ -657,7 +657,7 @@ static void adm9240_init_client(struct i2c_client *client)
 	u8 conf = adm9240_read_value(client, ADM9240_REG_CONFIG);
 	u8 mode = adm9240_read_value(client, ADM9240_REG_TEMP_CONF) & 3;
 
-	data->vrm = i2c_which_vrm(); /* need this to report vid as mV */
+	data->vrm = vid_which_vrm(); /* need this to report vid as mV */
 
 	dev_info(&client->dev, "Using VRM: %d.%d\n", data->vrm / 10,
 			data->vrm % 10);

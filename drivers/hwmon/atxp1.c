@@ -23,8 +23,8 @@
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
 #include <linux/err.h>
 
 MODULE_LICENSE("GPL");
@@ -296,7 +296,7 @@ static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* Get VRM */
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 
 	if ((data->vrm != 90) && (data->vrm != 91)) {
 		dev_err(&new_client->dev, "Not supporting VRM %d.%d\n",

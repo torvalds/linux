@@ -57,8 +57,8 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
 #include <linux/err.h>
 
 /*
@@ -694,7 +694,7 @@ static void lm87_init_client(struct i2c_client *client)
 	u8 config;
 
 	data->channel = lm87_read_value(client, LM87_REG_CHANNEL_MODE);
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 
 	config = lm87_read_value(client, LM87_REG_CONFIG);
 	if (!(config & 0x01)) {

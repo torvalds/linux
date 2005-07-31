@@ -1,6 +1,7 @@
 /*
-    i2c-vid.h - Part of lm_sensors, Linux kernel modules for hardware
-                monitoring
+    hwmon-vid.h - VID/VRM/VRD voltage conversions
+
+    Originally part of lm_sensors
     Copyright (c) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
     With assistance from Trent Piepho <xyzzy@speakeasy.org>
 
@@ -50,7 +51,7 @@
     to avoid floating point in the kernel.
 */
 
-int i2c_which_vrm(void);
+int vid_which_vrm(void);
 
 #define DEFAULT_VRM	82
 

@@ -23,7 +23,9 @@ Technical changes:
   #include <linux/init.h>
   #include <linux/slab.h>
   #include <linux/i2c.h>
-  #include <linux/i2c-vid.h>	/* if you need VRM support */
+  #include <linux/hwmon.h>	/* for hardware monitoring drivers */
+  #include <linux/hwmon-sysfs.h>
+  #include <linux/hwmon-vid.h>	/* if you need VRM support */
   #include <asm/io.h>		/* if you have I/O operations */
   Please respect this inclusion order. Some extra headers may be
   required for a given driver (e.g. "lm75.h").

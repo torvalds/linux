@@ -1,6 +1,5 @@
 /*
-    i2c-sensor-vid.c -  Part of lm_sensors, Linux kernel modules for hardware
-        		monitoring
+    hwmon-vid.c - VID/VRM/VRD voltage conversions
 
     Copyright (c) 2004 Rudolf Marek <r.marek@sh.cvut.cz>
 
@@ -22,6 +21,7 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/hwmon-vid.h>
 
 struct vrm_model {
 	u8 vendor;
@@ -63,7 +63,7 @@ static int find_vrm(u8 eff_family, u8 eff_model, u8 vendor)
 	return 0;
 }
 
-int i2c_which_vrm(void)
+int vid_which_vrm(void)
 {
 	struct cpuinfo_x86 *c = cpu_data;
 	u32 eax;
@@ -81,23 +81,23 @@ int i2c_which_vrm(void)
 	}
 	vrm_ret = find_vrm(eff_family,eff_model,c->x86_vendor);
 	if (vrm_ret == 0)
-		printk(KERN_INFO "i2c-sensor.o: Unknown VRM version of your"
+		printk(KERN_INFO "hwmon-vid: Unknown VRM version of your"
 		" x86 CPU\n");
 	return vrm_ret;
 }
 
 /* and now for something completely different for Non-x86 world*/
 #else
-int i2c_which_vrm(void)
+int vid_which_vrm(void)
 {
-	printk(KERN_INFO "i2c-sensor.o: Unknown VRM version of your CPU\n");
+	printk(KERN_INFO "hwmon-vid: Unknown VRM version of your CPU\n");
 	return 0;
 }
 #endif
 
-EXPORT_SYMBOL(i2c_which_vrm);
+EXPORT_SYMBOL(vid_which_vrm);
 
 MODULE_AUTHOR("Rudolf Marek <r.marek@sh.cvut.cz>");
 
-MODULE_DESCRIPTION("i2c-sensor driver");
+MODULE_DESCRIPTION("hwmon-vid driver");
 MODULE_LICENSE("GPL");
