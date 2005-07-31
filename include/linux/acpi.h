@@ -453,9 +453,7 @@ int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
  * If this matches the last registration, any IRQ resources for gsi
  * are freed.
  */
-#ifdef CONFIG_ACPI_DEALLOCATE_IRQ
 void acpi_unregister_gsi (u32 gsi);
-#endif
 
 #ifdef CONFIG_ACPI_PCI
 
@@ -480,9 +478,7 @@ struct pci_dev;
 int acpi_pci_irq_enable (struct pci_dev *dev);
 void acpi_penalize_isa_irq(int irq, int active);
 
-#ifdef CONFIG_ACPI_DEALLOCATE_IRQ
 void acpi_pci_irq_disable (struct pci_dev *dev);
-#endif
 
 struct acpi_pci_driver {
 	struct acpi_pci_driver *next;
