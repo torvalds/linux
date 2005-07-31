@@ -91,6 +91,8 @@
  *			   per-packet flags.
  *      0.39: 18 Jul 2005: Add 64bit descriptor support.
  *      0.40: 19 Jul 2005: Add support for mac address change.
+ *      0.41: 30 Jul 2005: Write back original MAC in nv_close instead
+ *			   of nv_remove
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -102,7 +104,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.40"
+#define FORCEDETH_VERSION		"0.41"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -2230,6 +2232,12 @@ static int nv_close(struct net_device *dev)
 	if (np->wolenabled)
 		nv_start_rx(dev);
 
+	/* special op: write back the misordered MAC address - otherwise
+	 * the next nv_probe would see a wrong address.
+	 */
+	writel(np->orig_mac[0], base + NvRegMacAddrA);
+	writel(np->orig_mac[1], base + NvRegMacAddrB);
+
 	/* FIXME: power down nic */
 
 	return 0;
@@ -2482,15 +2490,8 @@ static void __devexit nv_remove(struct pci_dev *pci_dev)
 {
 	struct net_device *dev = pci_get_drvdata(pci_dev);
 	struct fe_priv *np = get_nvpriv(dev);
-	u8 __iomem *base = get_hwbase(dev);
 
 	unregister_netdev(dev);
-
-	/* special op: write back the misordered MAC address - otherwise
-	 * the next nv_probe would see a wrong address.
-	 */
-	writel(np->orig_mac[0], base + NvRegMacAddrA);
-	writel(np->orig_mac[1], base + NvRegMacAddrB);
 
 	/* free all structures */
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
