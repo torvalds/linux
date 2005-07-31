@@ -32,7 +32,6 @@ int i2c_detect(struct i2c_adapter *adapter,
 	       int (*found_proc) (struct i2c_adapter *, int, int))
 {
 	int addr, i, found, j, err;
-	struct i2c_force_data *this_force;
 	int adapter_id = i2c_adapter_id(adapter);
 	unsigned short *normal_i2c;
 	unsigned short *probe;
@@ -58,13 +57,13 @@ int i2c_detect(struct i2c_adapter *adapter,
 		/* If it is in one of the force entries, we don't do any
 		   detection at all */
 		found = 0;
-		for (i = 0; !found && (this_force = address_data->forces + i, this_force->force); i++) {
-			for (j = 0; !found && (this_force->force[j] != I2C_CLIENT_END); j += 2) {
-				if ( ((adapter_id == this_force->force[j]) ||
-				      (this_force->force[j] == ANY_I2C_BUS)) &&
-				      (addr == this_force->force[j + 1]) ) {
+		for (i = 0; address_data->forces[i]; i++) {
+			for (j = 0; !found && (address_data->forces[i][j] != I2C_CLIENT_END); j += 2) {
+				if ( ((adapter_id == address_data->forces[i][j]) ||
+				      (address_data->forces[i][j] == ANY_I2C_BUS)) &&
+				      (addr == address_data->forces[i][j + 1]) ) {
 					dev_dbg(&adapter->dev, "found force parameter for adapter %d, addr %04x\n", adapter_id, addr);
-					if ((err = found_proc(adapter, addr, this_force->kind)))
+					if ((err = found_proc(adapter, addr, i)))
 						return err;
 					found = 1;
 				}

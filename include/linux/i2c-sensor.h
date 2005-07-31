@@ -22,22 +22,6 @@
 #ifndef _LINUX_I2C_SENSOR_H
 #define _LINUX_I2C_SENSOR_H
 
-/* A structure containing detect information.
-   Force variables overrule all other variables; they force a detection on
-   that place. If a specific chip is given, the module blindly assumes this
-   chip type is present; if a general force (kind == 0) is given, the module
-   will still try to figure out what type of chip is present. This is useful
-   if for some reasons the detect for SMBus address space filled fails.
-   probe: insmod parameter. Initialize this list with I2C_CLIENT_END values.
-     A list of pairs. The first value is a bus number (ANY_I2C_BUS for any
-     I2C bus), the second is the address.
-   kind: The kind of chip. 0 equals any chip.
-*/
-struct i2c_force_data {
-	unsigned short *force;
-	unsigned short kind;
-};
-
 /* A structure containing the detect information.
    normal_i2c: filled in by the module writer. Terminated by I2C_CLIENT_END.
      A list of I2C addresses which should normally be examined.
@@ -50,14 +34,18 @@ struct i2c_force_data {
      I2C bus), the second is the I2C address. These addresses are never
      probed. This parameter overrules 'normal' and  probe', but not the
     'force' lists.
-   force_data: insmod parameters. A list, ending with an element of which
-     the force field is NULL.
+   forces: insmod parameters. A list, ending with a NULL element.
+     Force variables overrule all other variables; they force a detection on
+     that place. If a specific chip is given, the module blindly assumes this
+     chip type is present; if a general force (kind == 0) is given, the module
+     will still try to figure out what type of chip is present. This is useful
+     if for some reasons the detect for SMBus address space filled fails.
 */
 struct i2c_address_data {
 	unsigned short *normal_i2c;
 	unsigned short *probe;
 	unsigned short *ignore;
-	struct i2c_force_data *forces;
+	unsigned short **forces;
 };
 
 #define SENSORS_MODULE_PARM_FORCE(name) \
@@ -88,7 +76,8 @@ struct i2c_address_data {
   I2C_CLIENT_MODULE_PARM(force, \
                       "List of adapter,address pairs to boldly assume " \
                       "to be present"); \
-  static struct i2c_force_data forces[] = {{force,any_chip},{NULL}}; \
+  static unsigned short *forces[] = { force, \
+				      NULL }; \
   SENSORS_INSMOD
 
 #define SENSORS_INSMOD_1(chip1) \
@@ -97,9 +86,9 @@ struct i2c_address_data {
                       "List of adapter,address pairs to boldly assume " \
                       "to be present"); \
   SENSORS_MODULE_PARM_FORCE(chip1); \
-  static struct i2c_force_data forces[] = {{force,any_chip},\
-                                                 {force_ ## chip1,chip1}, \
-                                                 {NULL}}; \
+  static unsigned short *forces[] = { force, \
+				      force_##chip1, \
+				      NULL }; \
   SENSORS_INSMOD
 
 #define SENSORS_INSMOD_2(chip1,chip2) \
@@ -109,10 +98,10 @@ struct i2c_address_data {
                       "to be present"); \
   SENSORS_MODULE_PARM_FORCE(chip1); \
   SENSORS_MODULE_PARM_FORCE(chip2); \
-  static struct i2c_force_data forces[] = {{force,any_chip}, \
-                                                 {force_ ## chip1,chip1}, \
-                                                 {force_ ## chip2,chip2}, \
-                                                 {NULL}}; \
+  static unsigned short *forces[] = { force, \
+				      force_##chip1, \
+				      force_##chip2, \
+				      NULL }; \
   SENSORS_INSMOD
 
 #define SENSORS_INSMOD_3(chip1,chip2,chip3) \
@@ -123,11 +112,11 @@ struct i2c_address_data {
   SENSORS_MODULE_PARM_FORCE(chip1); \
   SENSORS_MODULE_PARM_FORCE(chip2); \
   SENSORS_MODULE_PARM_FORCE(chip3); \
-  static struct i2c_force_data forces[] = {{force,any_chip}, \
-                                                 {force_ ## chip1,chip1}, \
-                                                 {force_ ## chip2,chip2}, \
-                                                 {force_ ## chip3,chip3}, \
-                                                 {NULL}}; \
+  static unsigned short *forces[] = { force, \
+				      force_##chip1, \
+				      force_##chip2, \
+				      force_##chip3, \
+				      NULL }; \
   SENSORS_INSMOD
 
 #define SENSORS_INSMOD_4(chip1,chip2,chip3,chip4) \
@@ -139,12 +128,12 @@ struct i2c_address_data {
   SENSORS_MODULE_PARM_FORCE(chip2); \
   SENSORS_MODULE_PARM_FORCE(chip3); \
   SENSORS_MODULE_PARM_FORCE(chip4); \
-  static struct i2c_force_data forces[] = {{force,any_chip}, \
-                                                 {force_ ## chip1,chip1}, \
-                                                 {force_ ## chip2,chip2}, \
-                                                 {force_ ## chip3,chip3}, \
-                                                 {force_ ## chip4,chip4}, \
-                                                 {NULL}}; \
+  static unsigned short *forces[] = { force, \
+				      force_##chip1, \
+				      force_##chip2, \
+				      force_##chip3, \
+				      force_##chip4, \
+				      NULL}; \
   SENSORS_INSMOD
 
 #define SENSORS_INSMOD_5(chip1,chip2,chip3,chip4,chip5) \
@@ -157,13 +146,13 @@ struct i2c_address_data {
   SENSORS_MODULE_PARM_FORCE(chip3); \
   SENSORS_MODULE_PARM_FORCE(chip4); \
   SENSORS_MODULE_PARM_FORCE(chip5); \
-  static struct i2c_force_data forces[] = {{force,any_chip}, \
-                                                 {force_ ## chip1,chip1}, \
-                                                 {force_ ## chip2,chip2}, \
-                                                 {force_ ## chip3,chip3}, \
-                                                 {force_ ## chip4,chip4}, \
-                                                 {force_ ## chip5,chip5}, \
-                                                 {NULL}}; \
+  static unsigned short *forces[] = { force, \
+				      force_##chip1, \
+				      force_##chip2, \
+				      force_##chip3, \
+				      force_##chip4, \
+				      force_##chip5, \
+				      NULL }; \
   SENSORS_INSMOD
 
 #define SENSORS_INSMOD_6(chip1,chip2,chip3,chip4,chip5,chip6) \
@@ -177,14 +166,14 @@ struct i2c_address_data {
   SENSORS_MODULE_PARM_FORCE(chip4); \
   SENSORS_MODULE_PARM_FORCE(chip5); \
   SENSORS_MODULE_PARM_FORCE(chip6); \
-  static struct i2c_force_data forces[] = {{force,any_chip}, \
-                                                 {force_ ## chip1,chip1}, \
-                                                 {force_ ## chip2,chip2}, \
-                                                 {force_ ## chip3,chip3}, \
-                                                 {force_ ## chip4,chip4}, \
-                                                 {force_ ## chip5,chip5}, \
-                                                 {force_ ## chip6,chip6}, \
-                                                 {NULL}}; \
+  static unsigned short *forces[] = { force, \
+				      force_##chip1, \
+				      force_##chip2, \
+				      force_##chip3, \
+				      force_##chip4, \
+				      force_##chip5, \
+				      force_##chip6, \
+				      NULL }; \
   SENSORS_INSMOD
 
 #define SENSORS_INSMOD_7(chip1,chip2,chip3,chip4,chip5,chip6,chip7) \
@@ -199,15 +188,15 @@ struct i2c_address_data {
   SENSORS_MODULE_PARM_FORCE(chip5); \
   SENSORS_MODULE_PARM_FORCE(chip6); \
   SENSORS_MODULE_PARM_FORCE(chip7); \
-  static struct i2c_force_data forces[] = {{force,any_chip}, \
-                                                 {force_ ## chip1,chip1}, \
-                                                 {force_ ## chip2,chip2}, \
-                                                 {force_ ## chip3,chip3}, \
-                                                 {force_ ## chip4,chip4}, \
-                                                 {force_ ## chip5,chip5}, \
-                                                 {force_ ## chip6,chip6}, \
-                                                 {force_ ## chip7,chip7}, \
-                                                 {NULL}}; \
+  static unsigned short *forces[] = { force, \
+				      force_##chip1, \
+				      force_##chip2, \
+				      force_##chip3, \
+				      force_##chip4, \
+				      force_##chip5, \
+				      force_##chip6, \
+				      force_##chip7, \
+				      NULL }; \
   SENSORS_INSMOD
 
 #define SENSORS_INSMOD_8(chip1,chip2,chip3,chip4,chip5,chip6,chip7,chip8) \
@@ -223,16 +212,16 @@ struct i2c_address_data {
   SENSORS_MODULE_PARM_FORCE(chip6); \
   SENSORS_MODULE_PARM_FORCE(chip7); \
   SENSORS_MODULE_PARM_FORCE(chip8); \
-  static struct i2c_force_data forces[] = {{force,any_chip}, \
-                                                 {force_ ## chip1,chip1}, \
-                                                 {force_ ## chip2,chip2}, \
-                                                 {force_ ## chip3,chip3}, \
-                                                 {force_ ## chip4,chip4}, \
-                                                 {force_ ## chip5,chip5}, \
-                                                 {force_ ## chip6,chip6}, \
-                                                 {force_ ## chip7,chip7}, \
-                                                 {force_ ## chip8,chip8}, \
-                                                 {NULL}}; \
+  static unsigned short *forces[] = { force, \
+				      force_##chip1, \
+				      force_##chip2, \
+				      force_##chip3, \
+				      force_##chip4, \
+				      force_##chip5, \
+				      force_##chip6, \
+				      force_##chip7, \
+				      force_##chip8, \
+				      NULL }; \
   SENSORS_INSMOD
 
 /* Detect function. It iterates over all possible addresses itself. For
