@@ -342,7 +342,7 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 
 	pci_set_master(pdev);
 
-	/* 
+	/*
 	 * Config offset 0x98 is "Extended Control and Status Register 0"
 	 * Default value is (1 << 28).  All bits except bit 28 are reserved in
 	 * DPA mode.  If bit 28 is set, LED 0 reflects all ports' activity.

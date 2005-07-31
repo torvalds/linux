@@ -323,13 +323,13 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 	while ((len > 0) && (s[len - 1] == ' '))
 		len--;
 
-	for (n = 0; sil_blacklist[n].product; n++) 
+	for (n = 0; sil_blacklist[n].product; n++)
 		if (!memcmp(sil_blacklist[n].product, s,
 			    strlen(sil_blacklist[n].product))) {
 			quirks = sil_blacklist[n].quirk;
 			break;
 		}
-	
+
 	/* limit requests to 15 sectors */
 	if (quirks & SIL_QUIRK_MOD15WRITE) {
 		printk(KERN_INFO "ata%u(%u): applying Seagate errata fix\n",

@@ -1304,12 +1304,12 @@ static inline u8 ata_dev_knobble(struct ata_port *ap)
 /**
  * 	ata_dev_config - Run device specific handlers and check for
  * 			 SATA->PATA bridges
- * 	@ap: Bus 
+ * 	@ap: Bus
  * 	@i:  Device
  *
  * 	LOCKING:
  */
- 
+
 void ata_dev_config(struct ata_port *ap, unsigned int i)
 {
 	/* limit bridge transfers to udma5, 200 sectors */

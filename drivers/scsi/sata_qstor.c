@@ -431,7 +431,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
 					continue;
 				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
 					ap->id, qc->tf.protocol, status);
-		
+
 				/* complete taskfile transaction */
 				pp->state = qs_state_idle;
 				ata_qc_complete(qc, status);

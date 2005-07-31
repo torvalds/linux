@@ -644,7 +644,7 @@ static inline void scr_write(struct ata_port *ap, unsigned int reg, u32 val)
 	ap->ops->scr_write(ap, reg, val);
 }
 
-static inline void scr_write_flush(struct ata_port *ap, unsigned int reg, 
+static inline void scr_write_flush(struct ata_port *ap, unsigned int reg,
 				   u32 val)
 {
 	ap->ops->scr_write(ap, reg, val);
