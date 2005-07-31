@@ -13,7 +13,7 @@ void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 
 	fc = le16_to_cpu(hdr->frame_control);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d)%s%s",
-	       fc, WLAN_FC_GET_TYPE(fc), WLAN_FC_GET_STYPE(fc),
+	       fc, HOSTAP_FC_GET_TYPE(fc), HOSTAP_FC_GET_STYPE(fc),
 	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
 	       fc & WLAN_FC_FROMDS ? " [FromDS]" : "");
 
@@ -267,8 +267,8 @@ int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len >= IEEE80211_DATA_HDR3_LEN + sizeof(rfc1042_header) + 2) {
 		hdr = (struct hostap_ieee80211_hdr *) skb->data;
 		fc = le16_to_cpu(hdr->frame_control);
-		if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
-		    WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DATA) {
+		if (HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
+		    HOSTAP_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DATA) {
 			u8 *pos = &skb->data[IEEE80211_DATA_HDR3_LEN +
 					     sizeof(rfc1042_header)];
 			meta->ethertype = (pos[0] << 8) | pos[1];
@@ -409,7 +409,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		break;
 	case AP_TX_CONTINUE_NOT_AUTHORIZED:
 		if (local->ieee_802_1x &&
-		    WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
+		    HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
 		    meta->ethertype != ETH_P_PAE && !meta->wds) {
 			printk(KERN_DEBUG "%s: dropped frame to unauthorized "
 			       "port (IEEE 802.1X): ethertype=0x%04x\n",
@@ -446,7 +446,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hdr->frame_control = cpu_to_le16(fc);
 	}
 
-	if (WLAN_FC_GET_TYPE(fc) != WLAN_FC_TYPE_DATA) {
+	if (HOSTAP_FC_GET_TYPE(fc) != WLAN_FC_TYPE_DATA) {
 		no_encrypt = 1;
 		tx.crypt = NULL;
 	}
@@ -467,7 +467,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		fc |= WLAN_FC_ISWEP;
 		hdr->frame_control = cpu_to_le16(fc);
 	} else if (local->drop_unencrypted &&
-		   WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
+		   HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
 		   meta->ethertype != ETH_P_PAE) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: dropped unencrypted TX data "

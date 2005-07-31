@@ -21,7 +21,7 @@ void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 
 	fc = le16_to_cpu(hdr->frame_control);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d)%s%s",
-	       fc, WLAN_FC_GET_TYPE(fc), WLAN_FC_GET_STYPE(fc),
+	       fc, HOSTAP_FC_GET_TYPE(fc), HOSTAP_FC_GET_STYPE(fc),
 	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
 	       fc & WLAN_FC_FROMDS ? " [FromDS]" : "");
 
@@ -224,7 +224,7 @@ prism2_frag_cache_get(local_info_t *local, struct hostap_ieee80211_hdr *hdr)
 
 	sc = le16_to_cpu(hdr->seq_ctrl);
 	frag = WLAN_GET_SEQ_FRAG(sc);
-	seq = WLAN_GET_SEQ_SEQ(sc);
+	seq = WLAN_GET_SEQ_SEQ(sc) >> 4;
 
 	if (frag == 0) {
 		/* Reserve enough space to fit maximum frame length */
@@ -274,7 +274,7 @@ static int prism2_frag_cache_invalidate(local_info_t *local,
 	struct prism2_frag_entry *entry;
 
 	sc = le16_to_cpu(hdr->seq_ctrl);
-	seq = WLAN_GET_SEQ_SEQ(sc);
+	seq = WLAN_GET_SEQ_SEQ(sc) >> 4;
 
 	entry = prism2_frag_cache_find(local, seq, -1, hdr->addr2, hdr->addr1);
 
@@ -719,8 +719,8 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		goto rx_dropped;
 
 	fc = le16_to_cpu(hdr->frame_control);
-	type = WLAN_FC_GET_TYPE(fc);
-	stype = WLAN_FC_GET_STYPE(fc);
+	type = HOSTAP_FC_GET_TYPE(fc);
+	stype = HOSTAP_FC_GET_STYPE(fc);
 	sc = le16_to_cpu(hdr->seq_ctrl);
 	frag = WLAN_GET_SEQ_FRAG(sc);
 	hdrlen = hostap_80211_get_hdrlen(fc);
@@ -896,7 +896,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 			printk(KERN_DEBUG "%s: Rx cannot get skb from "
 			       "fragment cache (morefrag=%d seq=%u frag=%u)\n",
 			       dev->name, (fc & WLAN_FC_MOREFRAG) != 0,
-			       WLAN_GET_SEQ_SEQ(sc), frag);
+			       WLAN_GET_SEQ_SEQ(sc) >> 4, frag);
 			goto rx_dropped;
 		}
 

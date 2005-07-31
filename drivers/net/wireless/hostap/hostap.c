@@ -26,6 +26,8 @@
 #include <linux/rtnetlink.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
+#include <net/ieee80211.h>
+#include <net/ieee80211_crypt.h>
 #include <asm/uaccess.h>
 
 #include "hostap_wlan.h"
@@ -596,7 +598,7 @@ void hostap_dump_rx_header(const char *name, const struct hfa384x_rx_frame *rx)
 	fc = __le16_to_cpu(rx->frame_control);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d) dur=0x%04x seq=0x%04x "
 	       "data_len=%d%s%s\n",
-	       fc, WLAN_FC_GET_TYPE(fc), WLAN_FC_GET_STYPE(fc),
+	       fc, HOSTAP_FC_GET_TYPE(fc), HOSTAP_FC_GET_STYPE(fc),
 	       __le16_to_cpu(rx->duration_id), __le16_to_cpu(rx->seq_ctrl),
 	       __le16_to_cpu(rx->data_len),
 	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
@@ -625,7 +627,7 @@ void hostap_dump_tx_header(const char *name, const struct hfa384x_tx_frame *tx)
 	fc = __le16_to_cpu(tx->frame_control);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d) dur=0x%04x seq=0x%04x "
 	       "data_len=%d%s%s\n",
-	       fc, WLAN_FC_GET_TYPE(fc), WLAN_FC_GET_STYPE(fc),
+	       fc, HOSTAP_FC_GET_TYPE(fc), HOSTAP_FC_GET_STYPE(fc),
 	       __le16_to_cpu(tx->duration_id), __le16_to_cpu(tx->seq_ctrl),
 	       __le16_to_cpu(tx->data_len),
 	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
@@ -668,13 +670,13 @@ int hostap_80211_get_hdrlen(u16 fc)
 {
 	int hdrlen = 24;
 
-	switch (WLAN_FC_GET_TYPE(fc)) {
+	switch (HOSTAP_FC_GET_TYPE(fc)) {
 	case WLAN_FC_TYPE_DATA:
 		if ((fc & WLAN_FC_FROMDS) && (fc & WLAN_FC_TODS))
 			hdrlen = 30; /* Addr4 */
 		break;
 	case WLAN_FC_TYPE_CTRL:
-		switch (WLAN_FC_GET_STYPE(fc)) {
+		switch (HOSTAP_FC_GET_STYPE(fc)) {
 		case WLAN_FC_STYPE_CTS:
 		case WLAN_FC_STYPE_ACK:
 			hdrlen = 10;

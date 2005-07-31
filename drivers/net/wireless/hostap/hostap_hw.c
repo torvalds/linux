@@ -48,8 +48,9 @@
 #include <linux/rtnetlink.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
+#include <net/ieee80211.h>
+#include <net/ieee80211_crypt.h>
 #include <asm/irq.h>
-
 
 #include "hostap_80211.h"
 #include "hostap.h"
@@ -1890,7 +1891,7 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 	hdr_len = 24;
 	memcpy(&txdesc.frame_control, skb->data, hdr_len);
  	fc = le16_to_cpu(txdesc.frame_control);
-	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
+	if (HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
 	    (fc & WLAN_FC_FROMDS) && (fc & WLAN_FC_TODS) && skb->len >= 30) {
 		/* Addr4 */
 		memcpy(txdesc.addr4, skb->data + hdr_len, ETH_ALEN);
@@ -2521,10 +2522,10 @@ static void prism2_txexc(local_info_t *local)
 	PDEBUG(DEBUG_EXTRA, "   retry_count=%d tx_rate=%d fc=0x%04x "
 	       "(%s%s%s::%d%s%s)\n",
 	       txdesc.retry_count, txdesc.tx_rate, fc,
-	       WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT ? "Mgmt" : "",
-	       WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_CTRL ? "Ctrl" : "",
-	       WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ? "Data" : "",
-	       WLAN_FC_GET_STYPE(fc),
+	       HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT ? "Mgmt" : "",
+	       HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_CTRL ? "Ctrl" : "",
+	       HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ? "Data" : "",
+	       HOSTAP_FC_GET_STYPE(fc),
 	       fc & WLAN_FC_TODS ? " ToDS" : "",
 	       fc & WLAN_FC_FROMDS ? " FromDS" : "");
 	PDEBUG(DEBUG_EXTRA, "   A1=" MACSTR " A2=" MACSTR " A3="

@@ -634,8 +634,8 @@ static void hostap_ap_tx_cb_auth(struct sk_buff *skb, int ok, void *data)
 
 	hdr = (struct hostap_ieee80211_hdr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
-	if (WLAN_FC_GET_TYPE(fc) != WLAN_FC_TYPE_MGMT ||
-	    WLAN_FC_GET_STYPE(fc) != WLAN_FC_STYPE_AUTH ||
+	if (HOSTAP_FC_GET_TYPE(fc) != WLAN_FC_TYPE_MGMT ||
+	    HOSTAP_FC_GET_STYPE(fc) != WLAN_FC_STYPE_AUTH ||
 	    skb->len < IEEE80211_MGMT_HDR_LEN + 6) {
 		printk(KERN_DEBUG "%s: hostap_ap_tx_cb_auth received invalid "
 		       "frame\n", dev->name);
@@ -703,9 +703,9 @@ static void hostap_ap_tx_cb_assoc(struct sk_buff *skb, int ok, void *data)
 
 	hdr = (struct hostap_ieee80211_hdr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
-	if (WLAN_FC_GET_TYPE(fc) != WLAN_FC_TYPE_MGMT ||
-	    (WLAN_FC_GET_STYPE(fc) != WLAN_FC_STYPE_ASSOC_RESP &&
-	     WLAN_FC_GET_STYPE(fc) != WLAN_FC_STYPE_REASSOC_RESP) ||
+	if (HOSTAP_FC_GET_TYPE(fc) != WLAN_FC_TYPE_MGMT ||
+	    (HOSTAP_FC_GET_STYPE(fc) != WLAN_FC_STYPE_ASSOC_RESP &&
+	     HOSTAP_FC_GET_STYPE(fc) != WLAN_FC_STYPE_REASSOC_RESP) ||
 	    skb->len < IEEE80211_MGMT_HDR_LEN + 4) {
 		printk(KERN_DEBUG "%s: hostap_ap_tx_cb_assoc received invalid "
 		       "frame\n", dev->name);
@@ -2145,8 +2145,8 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 	 * buffer is long enough */
 	hdr = (struct hostap_ieee80211_hdr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
-	type = WLAN_FC_GET_TYPE(fc);
-	stype = WLAN_FC_GET_STYPE(fc);
+	type = HOSTAP_FC_GET_TYPE(fc);
+	stype = HOSTAP_FC_GET_STYPE(fc);
 
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
 	if (!local->hostapd && type == WLAN_FC_TYPE_DATA) {
@@ -2271,8 +2271,8 @@ void hostap_rx(struct net_device *dev, struct sk_buff *skb,
 	fc = le16_to_cpu(hdr->frame_control);
 
 	if (local->ap->ap_policy == AP_OTHER_AP_SKIP_ALL &&
-	    WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT &&
-	    WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_BEACON)
+	    HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT &&
+	    HOSTAP_FC_GET_STYPE(fc) == WLAN_FC_STYPE_BEACON)
 		goto drop;
 
 	skb->protocol = __constant_htons(ETH_P_HOSTAP);
@@ -2907,7 +2907,7 @@ int hostap_update_sta_ps(local_info_t *local, struct hostap_ieee80211_hdr *hdr)
 
 	fc = le16_to_cpu(hdr->frame_control);
 	hostap_update_sta_ps2(local, sta, fc & WLAN_FC_PWRMGT,
-			      WLAN_FC_GET_TYPE(fc), WLAN_FC_GET_STYPE(fc));
+			      HOSTAP_FC_GET_TYPE(fc), HOSTAP_FC_GET_STYPE(fc));
 
 	atomic_dec(&sta->users);
 	return 0;
@@ -2932,8 +2932,8 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 	hdr = (struct hostap_ieee80211_hdr *) skb->data;
 
 	fc = le16_to_cpu(hdr->frame_control);
-	type = WLAN_FC_GET_TYPE(fc);
-	stype = WLAN_FC_GET_STYPE(fc);
+	type = HOSTAP_FC_GET_TYPE(fc);
+	stype = HOSTAP_FC_GET_STYPE(fc);
 
 	spin_lock(&local->ap->sta_table_lock);
 	sta = ap_get_sta(local->ap, hdr->addr2);
