@@ -22,31 +22,7 @@
 #ifndef _LINUX_I2C_SENSOR_H
 #define _LINUX_I2C_SENSOR_H
 
-/* A structure containing the detect information.
-   normal_i2c: filled in by the module writer. Terminated by I2C_CLIENT_END.
-     A list of I2C addresses which should normally be examined.
-   probe: insmod parameter. Initialize this list with I2C_CLIENT_END values.
-     A list of pairs. The first value is a bus number (ANY_I2C_BUS for any
-     I2C bus), the second is the address. These addresses are also probed,
-     as if they were in the 'normal' list.
-   ignore: insmod parameter. Initialize this list with I2C_CLIENT_END values.
-     A list of pairs. The first value is a bus number (ANY_I2C_BUS for any
-     I2C bus), the second is the I2C address. These addresses are never
-     probed. This parameter overrules 'normal' and  probe', but not the
-    'force' lists.
-   forces: insmod parameters. A list, ending with a NULL element.
-     Force variables overrule all other variables; they force a detection on
-     that place. If a specific chip is given, the module blindly assumes this
-     chip type is present; if a general force (kind == 0) is given, the module
-     will still try to figure out what type of chip is present. This is useful
-     if for some reasons the detect for SMBus address space filled fails.
-*/
-struct i2c_address_data {
-	unsigned short *normal_i2c;
-	unsigned short *probe;
-	unsigned short *ignore;
-	unsigned short **forces;
-};
+#include <linux/i2c.h>
 
 #define SENSORS_MODULE_PARM_FORCE(name) \
   I2C_CLIENT_MODULE_PARM(force_ ## name, \
@@ -60,7 +36,7 @@ struct i2c_address_data {
                       "List of adapter,address pairs to scan additionally"); \
   I2C_CLIENT_MODULE_PARM(ignore, \
                       "List of adapter,address pairs not to scan"); \
-	static struct i2c_address_data addr_data = {			\
+	static struct i2c_client_address_data addr_data = {		\
 			.normal_i2c =		normal_i2c,		\
 			.probe =		probe,			\
 			.ignore =		ignore,			\
@@ -228,7 +204,7 @@ struct i2c_address_data {
    SMBus addresses, it will only call found_proc if some client is connected
    to the SMBus (unless a 'force' matched). */
 extern int i2c_detect(struct i2c_adapter *adapter,
-		      struct i2c_address_data *address_data,
+		      struct i2c_client_address_data *address_data,
 		      int (*found_proc) (struct i2c_adapter *, int, int));
 
 #endif				/* def _LINUX_I2C_SENSOR_H */

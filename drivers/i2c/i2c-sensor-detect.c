@@ -28,7 +28,7 @@ static unsigned short empty[] = {I2C_CLIENT_END};
 
 /* Won't work for 10-bit addresses! */
 int i2c_detect(struct i2c_adapter *adapter,
-	       struct i2c_address_data *address_data,
+	       struct i2c_client_address_data *address_data,
 	       int (*found_proc) (struct i2c_adapter *, int, int))
 {
 	int addr, i, found, j, err;
