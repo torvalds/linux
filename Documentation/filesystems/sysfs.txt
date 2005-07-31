@@ -99,14 +99,14 @@ struct device_attribute dev_attr_##_name = {            \
 
 For example, declaring
 
-static DEVICE_ATTR(foo, 0644, show_foo, store_foo);
+static DEVICE_ATTR(foo, S_IWUSR | S_IRUGO, show_foo, store_foo);
 
 is equivalent to doing:
 
 static struct device_attribute dev_attr_foo = {
        .attr	= {
 		.name = "foo",
-		.mode = 0644,
+		.mode = S_IWUSR | S_IRUGO,
 	},
 	.show = show_foo,
 	.store = store_foo,
