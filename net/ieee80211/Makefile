@@ -1,4 +1,4 @@
-obj-$(CONFIG_IEEE80211) += ieee80211.o 
+obj-$(CONFIG_IEEE80211) += ieee80211.o
 obj-$(CONFIG_IEEE80211) += ieee80211_crypt.o
 obj-$(CONFIG_IEEE80211_CRYPT_WEP) += ieee80211_crypt_wep.o
 obj-$(CONFIG_IEEE80211_CRYPT_CCMP) += ieee80211_crypt_ccmp.o
