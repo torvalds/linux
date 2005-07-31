@@ -25,6 +25,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-isa.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <asm/io.h>
 
@@ -104,13 +105,6 @@ static inline s8 TEMP_TO_REG(int val)
 static inline int TEMP_FROM_REG(s8 val)
 {
 	return val * 1000;
-}
-
-/* VID: mV
-   REG: (see doc/vid) */
-static inline int VID_FROM_REG(u8 val)
-{
-	return val==0x1f ? 0 : val>=0x10 ? 5100-val*100 : 2050-val*50;
 }
 
 #define DIV_FROM_REG(val) (1 << (val))
@@ -457,7 +451,7 @@ static DEVICE_ATTR(fan3_div, S_IRUGO, show_fan_3_div, NULL);
 static ssize_t show_vid(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm78_data *data = lm78_update_device(dev);
-	return sprintf(buf, "%d\n", VID_FROM_REG(data->vid));
+	return sprintf(buf, "%d\n", vid_from_reg(82, data->vid));
 }
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 
