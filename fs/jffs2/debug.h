@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.h,v 1.7 2005/07/27 13:06:56 dedekind Exp $
+ * $Id: debug.h,v 1.8 2005/07/31 09:08:38 dedekind Exp $
  *
  */
 #ifndef _JFFS2_DEBUG_H_
@@ -106,17 +106,17 @@
 #else
 #define JFFS2_DBG_FRAGTREE(fmt, ...)
 #endif
+#ifdef JFFS2_DBG_FRAGTREE2_MESSAGES
+#define JFFS2_DBG_FRAGTREE2(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#else
+#define JFFS2_DBG_FRAGTREE2(fmt, ...)
+#endif
 
 /* Directory entry list manilulation debugging messages */
 #ifdef JFFS2_DBG_DENTLIST_MESSAGES
 #define JFFS2_DBG_DENTLIST(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
 #define JFFS2_DBG_DENTLIST(fmt, ...)
-#endif
-#ifdef JFFS2_DBG_FRAGTREE2_MESSAGES
-#define JFFS2_DBG_FRAGTREE2(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
-#else
-#define JFFS2_DBG_FRAGTREE2(fmt, ...)
 #endif
 
 /* Print the messages about manipulating node_refs */
