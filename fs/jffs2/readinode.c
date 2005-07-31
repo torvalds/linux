@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.133 2005/07/30 15:28:24 lunn Exp $
+ * $Id: readinode.c,v 1.134 2005/07/31 08:20:44 dedekind Exp $
  *
  */
 
@@ -20,30 +20,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/compiler.h>
 #include "nodelist.h"
-
-void jffs2_truncate_fragtree (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size)
-{
-	struct jffs2_node_frag *frag = jffs2_lookup_node_frag(list, size);
-
-	JFFS2_DBG_FRAGTREE("truncating fragtree to 0x%08x bytes\n", size);
-
-	/* We know frag->ofs <= size. That's what lookup does for us */
-	if (frag && frag->ofs != size) {
-		if (frag->ofs+frag->size >= size) {
-			JFFS2_DBG_FRAGTREE2("truncating frag 0x%08x-0x%08x\n", frag->ofs, frag->ofs+frag->size);
-			frag->size = size - frag->ofs;
-		}
-		frag = frag_next(frag);
-	}
-	while (frag && frag->ofs >= size) {
-		struct jffs2_node_frag *next = frag_next(frag);
-
-		JFFS2_DBG_FRAGTREE("removing frag 0x%08x-0x%08x\n", frag->ofs, frag->ofs+frag->size);
-		frag_erase(frag, list);
-		jffs2_obsolete_node_frag(c, frag);
-		frag = next;
-	}
-}
 
 /* 
  * Put a new tmp_dnode_info into the temporaty RB-tree, keeping the list in 
