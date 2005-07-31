@@ -13,13 +13,12 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/i2c-sensor.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = {0x74, 0x75, 0x76, 0x77, I2C_CLIENT_END};
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(pca9539);
+I2C_CLIENT_INSMOD_1(pca9539);
 
 enum pca9539_cmd
 {

@@ -31,7 +31,6 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-isa.h>
-#include <linux/i2c-sensor.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/init.h>

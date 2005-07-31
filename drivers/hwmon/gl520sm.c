@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
@@ -40,7 +39,7 @@ MODULE_PARM_DESC(extra_sensor_type, "Type of extra sensor (0=autodetect, 1=tempe
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(gl520sm);
+I2C_CLIENT_INSMOD_1(gl520sm);
 
 /* Many GL520 constants specified below 
 One of the inputs can be configured as either temp or voltage.

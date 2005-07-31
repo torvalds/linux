@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
@@ -38,7 +37,7 @@
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(adm1026);
+I2C_CLIENT_INSMOD_1(adm1026);
 
 static int gpio_input[17]  = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
 				-1, -1, -1, -1, -1, -1, -1, -1 }; 

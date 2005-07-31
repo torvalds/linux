@@ -50,7 +50,6 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
@@ -67,7 +66,7 @@ static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
  * Insmod parameters
  */
 
-SENSORS_INSMOD_2(adm1025, ne1619);
+I2C_CLIENT_INSMOD_2(adm1025, ne1619);
 
 /*
  * The ADM1025 registers

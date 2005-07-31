@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include "lm75.h"
@@ -34,7 +33,7 @@ static unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(lm75);
+I2C_CLIENT_INSMOD_1(lm75);
 
 /* Many LM75 constants specified below */
 

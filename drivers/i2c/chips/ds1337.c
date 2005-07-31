@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/string.h>
 #include <linux/rtc.h>		/* get the user-level API */
 #include <linux/bcd.h>
@@ -40,7 +39,7 @@
  */
 static unsigned short normal_i2c[] = { 0x68, I2C_CLIENT_END };
 
-SENSORS_INSMOD_1(ds1337);
+I2C_CLIENT_INSMOD_1(ds1337);
 
 static int ds1337_attach_adapter(struct i2c_adapter *adapter);
 static int ds1337_detect(struct i2c_adapter *adapter, int address, int kind);

@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
 
@@ -45,7 +44,7 @@ static unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
  * Insmod parameters
  */
 
-SENSORS_INSMOD_1(fscher);
+I2C_CLIENT_INSMOD_1(fscher);
 
 /*
  * The FSCHER registers

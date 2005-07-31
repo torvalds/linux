@@ -44,7 +44,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
 
@@ -54,7 +53,7 @@ static unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 				       I2C_CLIENT_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(lm92);
+I2C_CLIENT_INSMOD_1(lm92);
 
 /* The LM92 registers */
 #define LM92_REG_CONFIG			0x01 /* 8-bit, RW */

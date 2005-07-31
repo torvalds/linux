@@ -40,7 +40,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -50,7 +49,7 @@
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(w83792d);
+I2C_CLIENT_INSMOD_1(w83792d);
 I2C_CLIENT_MODULE_PARM(force_subclients, "List of subclient addresses: "
 			"{bus, clientaddr, subclientaddr1, subclientaddr2}");
 

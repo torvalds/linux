@@ -31,14 +31,13 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <asm/semaphore.h>
 
 /* Do not scan - the MAX6875 access method will write to some EEPROM chips */
 static unsigned short normal_i2c[] = {I2C_CLIENT_END};
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(max6875);
+I2C_CLIENT_INSMOD_1(max6875);
 
 /* The MAX6875 can only read/write 16 bytes at a time */
 #define SLICE_SIZE			16

@@ -39,7 +39,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
@@ -47,7 +46,7 @@ static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
 					I2C_CLIENT_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_2(pcf8574, pcf8574a);
+I2C_CLIENT_INSMOD_2(pcf8574, pcf8574a);
 
 /* Initial values */
 #define PCF8574_INIT 255	/* All outputs on (input mode) */

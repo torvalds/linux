@@ -24,7 +24,6 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-isa.h>
-#include <linux/i2c-sensor.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <asm/io.h>
@@ -37,7 +36,7 @@ static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24,
 static unsigned short isa_address = 0x290;
 
 /* Insmod parameters */
-SENSORS_INSMOD_2(lm78, lm79);
+I2C_CLIENT_INSMOD_2(lm78, lm79);
 
 /* Many LM78 constants specified below */
 

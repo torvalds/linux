@@ -1,4 +1,4 @@
-Revision 4, 2004-03-30
+Revision 5, 2005-07-29
 Jean Delvare <khali@linux-fr.org>
 Greg KH <greg@kroah.com>
 
@@ -17,13 +17,12 @@ yours for best results.
 
 Technical changes:
 
-* [Includes] Get rid of "version.h". Replace <linux/i2c-proc.h> with
-  <linux/i2c-sensor.h>. Includes typically look like that:
+* [Includes] Get rid of "version.h" and <linux/i2c-proc.h>.
+  Includes typically look like that:
   #include <linux/module.h>
   #include <linux/init.h>
   #include <linux/slab.h>
   #include <linux/i2c.h>
-  #include <linux/i2c-sensor.h>
   #include <linux/i2c-vid.h>	/* if you need VRM support */
   #include <asm/io.h>		/* if you have I/O operations */
   Please respect this inclusion order. Some extra headers may be
@@ -31,6 +30,7 @@ Technical changes:
 
 * [Addresses] SENSORS_I2C_END becomes I2C_CLIENT_END, ISA addresses
   are no more handled by the i2c core.
+  SENSORS_INSMOD_<n> becomes I2C_CLIENT_INSMOD_<n>.
 
 * [Client data] Get rid of sysctl_id. Try using standard names for
   register values (for example, temp_os becomes temp_max). You're

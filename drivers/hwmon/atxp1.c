@@ -23,7 +23,6 @@
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
@@ -43,7 +42,7 @@ MODULE_AUTHOR("Sebastian Witt <se.witt@gmx.net>");
 
 static unsigned short normal_i2c[] = { 0x37, 0x4e, I2C_CLIENT_END };
 
-SENSORS_INSMOD_1(atxp1);
+I2C_CLIENT_INSMOD_1(atxp1);
 
 static int atxp1_attach_adapter(struct i2c_adapter * adapter);
 static int atxp1_detach_client(struct i2c_client * client);

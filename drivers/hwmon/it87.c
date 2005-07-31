@@ -37,7 +37,6 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-isa.h>
-#include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
@@ -51,7 +50,7 @@ static unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 static unsigned short isa_address = 0x290;
 
 /* Insmod parameters */
-SENSORS_INSMOD_2(it87, it8712);
+I2C_CLIENT_INSMOD_2(it87, it8712);
 
 #define	REG	0x2e	/* The register to read/write */
 #define	DEV	0x07	/* Register: Logical device select */

@@ -565,24 +565,148 @@ union i2c_smbus_data {
   module_param_array(var, short, &var##_num, 0); \
   MODULE_PARM_DESC(var,desc)
 
-/* This is the one you want to use in your own modules */
+#define I2C_CLIENT_MODULE_PARM_FORCE(name)				\
+I2C_CLIENT_MODULE_PARM(force_##name,					\
+		       "List of adapter,address pairs which are "	\
+		       "unquestionably assumed to contain a `"		\
+		       # name "' chip")
+
+
+#define I2C_CLIENT_INSMOD_COMMON					\
+I2C_CLIENT_MODULE_PARM(probe, "List of adapter,address pairs to scan "	\
+		       "additionally");					\
+I2C_CLIENT_MODULE_PARM(ignore, "List of adapter,address pairs not to "	\
+		       "scan");						\
+static struct i2c_client_address_data addr_data = {			\
+	.normal_i2c	= normal_i2c,					\
+	.probe		= probe,					\
+	.ignore		= ignore,					\
+	.forces		= forces,					\
+}
+
+/* These are the ones you want to use in your own drivers. Pick the one
+   which matches the number of devices the driver differenciates between. */
 #define I2C_CLIENT_INSMOD \
-  I2C_CLIENT_MODULE_PARM(probe, \
-                      "List of adapter,address pairs to scan additionally"); \
-  I2C_CLIENT_MODULE_PARM(ignore, \
-                      "List of adapter,address pairs not to scan"); \
   I2C_CLIENT_MODULE_PARM(force, \
                       "List of adapter,address pairs to boldly assume " \
                       "to be present"); \
-	static unsigned short *addr_forces[] = {			\
+	static unsigned short *forces[] = {				\
 			force,						\
 			NULL						\
 		};							\
-	static struct i2c_client_address_data addr_data = {		\
-			.normal_i2c = 		normal_i2c,		\
-			.probe =		probe,			\
-			.ignore =		ignore,			\
-			.forces =		addr_forces,		\
-		}
+I2C_CLIENT_INSMOD_COMMON
+
+#define I2C_CLIENT_INSMOD_1(chip1)					\
+enum chips { any_chip, chip1 };						\
+I2C_CLIENT_MODULE_PARM(force, "List of adapter,address pairs to "	\
+		       "boldly assume to be present");			\
+I2C_CLIENT_MODULE_PARM_FORCE(chip1);					\
+static unsigned short *forces[] = { force, force_##chip1, NULL };	\
+I2C_CLIENT_INSMOD_COMMON
+
+#define I2C_CLIENT_INSMOD_2(chip1, chip2)				\
+enum chips { any_chip, chip1, chip2 };					\
+I2C_CLIENT_MODULE_PARM(force, "List of adapter,address pairs to "	\
+		       "boldly assume to be present");			\
+I2C_CLIENT_MODULE_PARM_FORCE(chip1);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip2);					\
+static unsigned short *forces[] = { force, force_##chip1,		\
+				    force_##chip2, NULL };		\
+I2C_CLIENT_INSMOD_COMMON
+
+#define I2C_CLIENT_INSMOD_3(chip1, chip2, chip3)			\
+enum chips { any_chip, chip1, chip2, chip3 };				\
+I2C_CLIENT_MODULE_PARM(force, "List of adapter,address pairs to "	\
+		       "boldly assume to be present");			\
+I2C_CLIENT_MODULE_PARM_FORCE(chip1);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip2);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip3);					\
+static unsigned short *forces[] = { force, force_##chip1,		\
+				    force_##chip2, force_##chip3,	\
+				    NULL };				\
+I2C_CLIENT_INSMOD_COMMON
+
+#define I2C_CLIENT_INSMOD_4(chip1, chip2, chip3, chip4)			\
+enum chips { any_chip, chip1, chip2, chip3, chip4 };			\
+I2C_CLIENT_MODULE_PARM(force, "List of adapter,address pairs to "	\
+		       "boldly assume to be present");			\
+I2C_CLIENT_MODULE_PARM_FORCE(chip1);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip2);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip3);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip4);					\
+static unsigned short *forces[] = { force, force_##chip1,		\
+				    force_##chip2, force_##chip3,	\
+				    force_##chip4, NULL};		\
+I2C_CLIENT_INSMOD_COMMON
+
+#define I2C_CLIENT_INSMOD_5(chip1, chip2, chip3, chip4, chip5)		\
+enum chips { any_chip, chip1, chip2, chip3, chip4, chip5 };		\
+I2C_CLIENT_MODULE_PARM(force, "List of adapter,address pairs to "	\
+		       "boldly assume to be present");			\
+I2C_CLIENT_MODULE_PARM_FORCE(chip1);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip2);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip3);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip4);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip5);					\
+static unsigned short *forces[] = { force, force_##chip1,		\
+				    force_##chip2, force_##chip3,	\
+				    force_##chip4, force_##chip5,	\
+				    NULL };				\
+I2C_CLIENT_INSMOD_COMMON
+
+#define I2C_CLIENT_INSMOD_6(chip1, chip2, chip3, chip4, chip5, chip6)	\
+enum chips { any_chip, chip1, chip2, chip3, chip4, chip5, chip6 };	\
+I2C_CLIENT_MODULE_PARM(force, "List of adapter,address pairs to "	\
+		       "boldly assume to be present");			\
+I2C_CLIENT_MODULE_PARM_FORCE(chip1);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip2);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip3);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip4);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip5);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip6);					\
+static unsigned short *forces[] = { force, force_##chip1,		\
+				    force_##chip2, force_##chip3,	\
+				    force_##chip4, force_##chip5,	\
+				    force_##chip6, NULL };		\
+I2C_CLIENT_INSMOD_COMMON
+
+#define I2C_CLIENT_INSMOD_7(chip1, chip2, chip3, chip4, chip5, chip6, chip7) \
+enum chips { any_chip, chip1, chip2, chip3, chip4, chip5, chip6,	\
+	     chip7 };							\
+I2C_CLIENT_MODULE_PARM(force, "List of adapter,address pairs to "	\
+		       "boldly assume to be present");			\
+I2C_CLIENT_MODULE_PARM_FORCE(chip1);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip2);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip3);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip4);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip5);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip6);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip7);					\
+static unsigned short *forces[] = { force, force_##chip1,		\
+				    force_##chip2, force_##chip3,	\
+				    force_##chip4, force_##chip5,	\
+				    force_##chip6, force_##chip7,	\
+				    NULL };				\
+I2C_CLIENT_INSMOD_COMMON
+
+#define I2C_CLIENT_INSMOD_8(chip1, chip2, chip3, chip4, chip5, chip6, chip7, chip8) \
+enum chips { any_chip, chip1, chip2, chip3, chip4, chip5, chip6,	\
+	     chip7, chip8 };						\
+I2C_CLIENT_MODULE_PARM(force, "List of adapter,address pairs to "	\
+		       "boldly assume to be present");			\
+I2C_CLIENT_MODULE_PARM_FORCE(chip1);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip2);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip3);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip4);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip5);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip6);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip7);					\
+I2C_CLIENT_MODULE_PARM_FORCE(chip8);					\
+static unsigned short *forces[] = { force, force_##chip1,		\
+				    force_##chip2, force_##chip3,	\
+				    force_##chip4, force_##chip5,	\
+				    force_##chip6, force_##chip7,	\
+				    force_##chip8, NULL };		\
+I2C_CLIENT_INSMOD_COMMON
 
 #endif /* _LINUX_I2C_H */

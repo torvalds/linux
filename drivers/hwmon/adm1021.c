@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
 
@@ -36,7 +35,7 @@ static unsigned short normal_i2c[] = { 0x18, 0x19, 0x1a,
 					I2C_CLIENT_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_8(adm1021, adm1023, max1617, max1617a, thmc10, lm84, gl523sm, mc1066);
+I2C_CLIENT_INSMOD_8(adm1021, adm1023, max1617, max1617a, thmc10, lm84, gl523sm, mc1066);
 
 /* adm1021 constants specified below */
 
