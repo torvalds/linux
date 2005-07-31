@@ -22,6 +22,7 @@
 #define IEEE80211_H
 #include <linux/if_ether.h> /* ETH_ALEN */
 #include <linux/kernel.h>   /* ARRAY_SIZE */
+#include <linux/wireless.h>
 
 #if WIRELESS_EXT < 17
 #define IW_QUAL_QUAL_INVALID   0x10
