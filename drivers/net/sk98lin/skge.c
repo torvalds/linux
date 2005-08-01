@@ -5206,6 +5206,9 @@ static int skge_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#else
+#define skge_suspend NULL
+#define skge_resume NULL
 #endif
 
 static struct pci_device_id skge_pci_tbl[] = {
