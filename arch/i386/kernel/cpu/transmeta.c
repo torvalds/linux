@@ -76,6 +76,10 @@ static void __init init_transmeta(struct cpuinfo_x86 *c)
 #define USER686 (X86_FEATURE_TSC|X86_FEATURE_CX8|X86_FEATURE_CMOV)
         if ( c->x86 == 5 && (c->x86_capability[0] & USER686) == USER686 )
 		c->x86 = 6;
+
+	/* randomize_va_space slows us down enormously;
+	   it probably triggers retranslation of x86->native bytecode */
+	randomize_va_space = 0;
 }
 
 static void transmeta_identify(struct cpuinfo_x86 * c)
