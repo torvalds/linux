@@ -128,6 +128,10 @@ void jfs_delete_inode(struct inode *inode)
 {
 	jfs_info("In jfs_delete_inode, inode = 0x%p", inode);
 
+	if (is_bad_inode(inode) ||
+	    (JFS_IP(inode)->fileset != cpu_to_le32(FILESYSTEM_I)))
+			return;
+
 	if (test_cflag(COMMIT_Freewmap, inode))
 		jfs_free_zero_link(inode);
 
