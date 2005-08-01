@@ -499,6 +499,9 @@ struct cx88_board cx88_boards[] = {
 		.input          = {{
                         .type   = CX88_VMUX_DVB,
                         .vmux   = 0,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
                 }},
 		.dvb            = 1,
 	},
@@ -756,6 +759,27 @@ struct cx88_board cx88_boards[] = {
 		}},
 		.dvb            = 1,
 	},
+	[CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD] = {
+		.name           = "DViCO FusionHDTV 5 Gold",
+		.tuner_type     = TUNER_LG_TDVS_H062F,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		/*  See DViCO FusionHDTV 3 Gold-Q for GPIO documentation.  */
+		.input          = {{
+                        .type   = CX88_VMUX_TELEVISION,
+                        .vmux   = 0,
+                        .gpio0  = 0x0f0d,
+                },{
+                        .type   = CX88_VMUX_COMPOSITE1,
+                        .vmux   = 1,
+                        .gpio0  = 0x0f00,
+                },{
+                        .type   = CX88_VMUX_SVIDEO,
+                        .vmux   = 2,
+                        .gpio0  = 0x0f00,
+                }},
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -883,6 +907,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x153b,
 		.subdevice = 0x1166,
 		.card      = CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1,
+ 	},{
+		.subvendor = 0x18ac,
+		.subdevice = 0xd500,
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
