@@ -776,15 +776,25 @@ end:
 }
 
 static int
-irqrouter_suspend(
-	struct sys_device *dev,
-	u32	state)
+acpi_pci_link_resume(
+	struct acpi_pci_link *link)
+{
+	ACPI_FUNCTION_TRACE("acpi_pci_link_resume");
+
+	if (link->refcnt && link->irq.active && link->irq.initialized)
+		return_VALUE(acpi_pci_link_set(link, link->irq.active));
+	else
+		return_VALUE(0);
+}
+
+static int
+irqrouter_resume(
+	struct sys_device *dev)
 {
 	struct list_head        *node = NULL;
 	struct acpi_pci_link    *link = NULL;
-	int			ret = 0;
 
-	ACPI_FUNCTION_TRACE("irqrouter_suspend");
+	ACPI_FUNCTION_TRACE("irqrouter_resume");
 
 	list_for_each(node, &acpi_link.entries) {
 		link = list_entry(node, struct acpi_pci_link, node);
@@ -793,21 +803,9 @@ irqrouter_suspend(
 				"Invalid link context\n"));
 			continue;
 		}
-		if (link->irq.initialized && link->refcnt != 0
-			/* We ignore legacy IDE device irq */
-			&& link->irq.active != 14 && link->irq.active !=15) {
-			printk(KERN_WARNING PREFIX
-				"%d drivers with interrupt %d neglected to call"
-				" pci_disable_device at .suspend\n",
-				link->refcnt,
-				link->irq.active);
-			printk(KERN_WARNING PREFIX
-				"Fix the driver, or rmmod before suspend\n");
-			link->refcnt = 0;
-			ret = -EINVAL;
-		}
+		acpi_pci_link_resume(link);
 	}
-	return_VALUE(ret);
+	return_VALUE(0);
 }
 
 
@@ -922,7 +920,7 @@ __setup("acpi_irq_balance", acpi_irq_balance_set);
 /* FIXME: we will remove this interface after all drivers call pci_disable_device */
 static struct sysdev_class irqrouter_sysdev_class = {
         set_kset_name("irqrouter"),
-        .suspend = irqrouter_suspend,
+        .resume = irqrouter_resume,
 };
 
 
