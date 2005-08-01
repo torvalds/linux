@@ -904,7 +904,7 @@ static int tridentfb_set_par(struct fb_info *info)
 	write3X4(DRAMControl, tmp);	//both IO,linear enable
 
 	write3X4(InterfaceSel, read3X4(InterfaceSel) | 0x40);
-	write3X4(Performance,0x20);
+	write3X4(Performance,0x92);
 	write3X4(PCIReg,0x07);		//MMIO & PCI read and write burst enable
 
 	/* convert from picoseconds to MHz */
