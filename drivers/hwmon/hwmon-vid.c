@@ -3,6 +3,10 @@
 
     Copyright (c) 2004 Rudolf Marek <r.marek@sh.cvut.cz>
 
+    Partly imported from i2c-vid.h of the lm_sensors project
+    Copyright (c) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
+    With assistance from Trent Piepho <xyzzy@speakeasy.org>
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -22,6 +26,83 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/hwmon-vid.h>
+
+/*
+    Common code for decoding VID pins.
+
+    References:
+
+    For VRM 8.4 to 9.1, "VRM x.y DC-DC Converter Design Guidelines",
+    available at http://developer.intel.com/.
+
+    For VRD 10.0 and up, "VRD x.y Design Guide",
+    available at http://developer.intel.com/.
+
+    AMD Opteron processors don't follow the Intel specifications.
+    I'm going to "make up" 2.4 as the spec number for the Opterons.
+    No good reason just a mnemonic for the 24x Opteron processor
+    series.
+
+    Opteron VID encoding is:
+       00000  =  1.550 V
+       00001  =  1.525 V
+        . . . .
+       11110  =  0.800 V
+       11111  =  0.000 V (off)
+*/
+
+/* vrm is the VRM/VRD document version multiplied by 10.
+   val is the 4-, 5- or 6-bit VID code.
+   Returned value is in mV to avoid floating point in the kernel. */
+int vid_from_reg(int val, int vrm)
+{
+	int vid;
+
+	switch(vrm) {
+
+	case  0:
+		return 0;
+
+	case 100:               /* VRD 10.0 */
+		if((val & 0x1f) == 0x1f)
+			return 0;
+		if((val & 0x1f) <= 0x09 || val == 0x0a)
+			vid = 10875 - (val & 0x1f) * 250;
+		else
+			vid = 18625 - (val & 0x1f) * 250;
+		if(val & 0x20)
+			vid -= 125;
+		vid /= 10;      /* only return 3 dec. places for now */
+		return vid;
+
+	case 24:                /* Opteron processor */
+		return(val == 0x1f ? 0 : 1550 - val * 25);
+
+	case 91:		/* VRM 9.1 */
+	case 90:		/* VRM 9.0 */
+		return(val == 0x1f ? 0 :
+		                       1850 - val * 25);
+
+	case 85:		/* VRM 8.5 */
+		return((val & 0x10  ? 25 : 0) +
+		       ((val & 0x0f) > 0x04 ? 2050 : 1250) -
+		       ((val & 0x0f) * 50));
+
+	case 84:		/* VRM 8.4 */
+		val &= 0x0f;
+				/* fall through */
+	default:		/* VRM 8.2 */
+		return(val == 0x1f ? 0 :
+		       val & 0x10  ? 5100 - (val) * 100 :
+		                     2050 - (val) * 50);
+	}
+}
+
+
+/*
+    After this point is the code to automatically determine which
+    VRM/VRD specification should be used depending on the CPU.
+*/
 
 struct vrm_model {
 	u8 vendor;
@@ -96,6 +177,7 @@ int vid_which_vrm(void)
 }
 #endif
 
+EXPORT_SYMBOL(vid_from_reg);
 EXPORT_SYMBOL(vid_which_vrm);
 
 MODULE_AUTHOR("Rudolf Marek <r.marek@sh.cvut.cz>");
