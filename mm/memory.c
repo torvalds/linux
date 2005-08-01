@@ -811,18 +811,15 @@ static struct page *__follow_page(struct mm_struct *mm, unsigned long address,
 	pte = *ptep;
 	pte_unmap(ptep);
 	if (pte_present(pte)) {
-		if (write && !pte_write(pte))
+		if (write && !pte_dirty(pte))
 			goto out;
 		if (read && !pte_read(pte))
 			goto out;
 		pfn = pte_pfn(pte);
 		if (pfn_valid(pfn)) {
 			page = pfn_to_page(pfn);
-			if (accessed) {
-				if (write && !pte_dirty(pte) &&!PageDirty(page))
-					set_page_dirty(page);
+			if (accessed)
 				mark_page_accessed(page);
-			}
 			return page;
 		}
 	}
@@ -941,10 +938,9 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		spin_lock(&mm->page_table_lock);
 		do {
 			struct page *page;
-			int lookup_write = write;
 
 			cond_resched_lock(&mm->page_table_lock);
-			while (!(page = follow_page(mm, start, lookup_write))) {
+			while (!(page = follow_page(mm, start, write))) {
 				/*
 				 * Shortcut for anonymous pages. We don't want
 				 * to force the creation of pages tables for
@@ -952,8 +948,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				 * nobody touched so far. This is important
 				 * for doing a core dump for these mappings.
 				 */
-				if (!lookup_write &&
-				    untouched_anonymous_page(mm,vma,start)) {
+				if (!write && untouched_anonymous_page(mm,vma,start)) {
 					page = ZERO_PAGE(start);
 					break;
 				}
@@ -972,14 +967,6 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				default:
 					BUG();
 				}
-				/*
-				 * Now that we have performed a write fault
-				 * and surely no longer have a shared page we
-				 * shouldn't write, we shouldn't ignore an
-				 * unwritable page in the page table if
-				 * we are forcing write access.
-				 */
-				lookup_write = write && !force;
 				spin_lock(&mm->page_table_lock);
 			}
 			if (pages) {
