@@ -68,6 +68,11 @@ choice
 	depends on 44x
 	default EBONY
 
+config BAMBOO
+	bool "Bamboo"
+	help
+	  This option enables support for the IBM PPC440EP evaluation board.
+
 config EBONY
 	bool "Ebony"
 	help
@@ -98,6 +103,12 @@ config NP405H
 	depends on ASH
 	default y
 
+config 440EP
+	bool
+	depends on BAMBOO
+	select PPC_FPU
+	default y
+
 config 440GP
 	bool
 	depends on EBONY
@@ -115,12 +126,17 @@ config 440SP
 
 config 440
 	bool
-	depends on 440GP || 440SP
+	depends on 440GP || 440SP || 440EP
 	default y
 
 config 440A
 	bool
 	depends on 440GX
+	default y
+
+config IBM440EP_ERR42
+	bool
+	depends on 440EP
 	default y
 
 # All 405-based cores up until the 405GPR and 405EP have this errata.
@@ -142,7 +158,7 @@ config BOOKE
 
 config IBM_OCP
 	bool
-	depends on ASH || BUBINGA || CPCI405 || EBONY || EP405 || LUAN || OCOTEA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
+	depends on ASH || BAMBOO || BUBINGA || CPCI405 || EBONY || EP405 || LUAN || OCOTEA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
 	default y
 
 config XILINX_OCP
