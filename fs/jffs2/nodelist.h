@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.h,v 1.136 2005/07/31 08:20:44 dedekind Exp $
+ * $Id: nodelist.h,v 1.137 2005/08/01 12:05:19 dedekind Exp $
  *
  */
 
@@ -60,6 +60,9 @@
 #else 
 #error wibble
 #endif
+
+/* The minimal node header size */
+#define JFFS2_MIN_NODE_HEADER sizeof(struct jffs2_raw_dirent)
 
 /*
   This is all we need to keep in-core for each raw node during normal
@@ -148,6 +151,9 @@ struct jffs2_tmp_dnode_info
 	struct rb_node rb;
 	struct jffs2_full_dnode *fn;
 	uint32_t version;
+	uint32_t data_crc;
+	uint32_t partial_crc;
+	uint32_t csize;
 };       
 
 struct jffs2_full_dirent
@@ -311,6 +317,7 @@ void rb_replace_node(struct rb_node *victim, struct rb_node *new, struct rb_root
 void jffs2_obsolete_node_frag(struct jffs2_sb_info *c, struct jffs2_node_frag *this);
 int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_full_dnode *fn);
 void jffs2_truncate_fragtree (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size);
+int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_tmp_dnode_info *tn);
 
 /* nodemgmt.c */
 int jffs2_thread_should_wake(struct jffs2_sb_info *c);
