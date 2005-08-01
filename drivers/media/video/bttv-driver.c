@@ -1,5 +1,5 @@
 /*
-    $Id: bttv-driver.c,v 1.42 2005/07/05 17:37:35 nsh Exp $
+    $Id: bttv-driver.c,v 1.45 2005/07/20 19:43:24 mkrufky Exp $
 
     bttv - Bt848 frame grabber driver
 
@@ -3869,11 +3869,6 @@ static int __devinit bttv_probe(struct pci_dev *dev,
         pci_set_master(dev);
 	pci_set_command(dev);
 	pci_set_drvdata(dev,btv);
-	if (!pci_dma_supported(dev,0xffffffff)) {
-		printk("bttv%d: Oops: no 32bit PCI DMA ???\n", btv->c.nr);
-		result = -EIO;
-		goto fail1;
-	}
 
         pci_read_config_byte(dev, PCI_CLASS_REVISION, &btv->revision);
         pci_read_config_byte(dev, PCI_LATENCY_TIMER, &lat);

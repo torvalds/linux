@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-cards.c,v 1.86 2005/07/14 03:06:43 mchehab Exp $
+ * $Id: cx88-cards.c,v 1.90 2005/07/28 02:47:42 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * card-specific stuff.
@@ -90,6 +90,9 @@ struct cx88_board cx88_boards[] = {
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
 		}},
 	},
 	[CX88_BOARD_PIXELVIEW] = {
