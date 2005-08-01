@@ -90,6 +90,7 @@ struct inotify_device {
 	unsigned int		queue_size;	/* size of the queue (bytes) */
 	unsigned int		event_count;	/* number of pending events */
 	unsigned int		max_events;	/* maximum number of events */
+	u32			last_wd;	/* the last wd allocated */
 };
 
 /*
@@ -352,7 +353,7 @@ static int inotify_dev_get_wd(struct inotify_device *dev,
 	do {
 		if (unlikely(!idr_pre_get(&dev->idr, GFP_KERNEL)))
 			return -ENOSPC;
-		ret = idr_get_new(&dev->idr, watch, &watch->wd);
+		ret = idr_get_new_above(&dev->idr, watch, dev->last_wd, &watch->wd);
 	} while (ret == -EAGAIN);
 
 	return ret;
@@ -401,6 +402,7 @@ static struct inotify_watch *create_watch(struct inotify_device *dev,
 		return ERR_PTR(ret);
 	}
 
+	dev->last_wd = ret;
 	watch->mask = mask;
 	atomic_set(&watch->count, 0);
 	INIT_LIST_HEAD(&watch->d_list);
@@ -899,6 +901,7 @@ asmlinkage long sys_inotify_init(void)
 	dev->queue_size = 0;
 	dev->max_events = inotify_max_queued_events;
 	dev->user = user;
+	dev->last_wd = 0;
 	atomic_set(&dev->count, 0);
 
 	get_inotify_dev(dev);
