@@ -2429,16 +2429,16 @@ static void ahc_linux_set_dt(struct scsi_target *starget, int dt)
 	unsigned int ppr_options = tinfo->goal.ppr_options
 		& ~MSG_EXT_PPR_DT_REQ;
 	unsigned int period = tinfo->goal.period;
+	unsigned int width = tinfo->goal.width;
 	unsigned long flags;
 	struct ahc_syncrate *syncrate;
 
 	if (dt) {
-		period = 9;	/* 12.5ns is the only period valid for DT */
 		ppr_options |= MSG_EXT_PPR_DT_REQ;
-	} else if (period == 9) {
+		if (!width)
+			ahc_linux_set_width(starget, 1);
+	} else if (period == 9)
 		period = 10;	/* if resetting DT, period must be >= 25ns */
-		ppr_options &= ~MSG_EXT_PPR_DT_REQ;
-	}
 
 	ahc_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
 			    starget->channel + 'A', ROLE_INITIATOR);
