@@ -290,3 +290,8 @@ SYSCALL(sys_add_key,sys_add_key,compat_sys_add_key_wrapper)
 SYSCALL(sys_request_key,sys_request_key,compat_sys_request_key_wrapper)
 SYSCALL(sys_keyctl,sys_keyctl,compat_sys_keyctl)		/* 280 */
 SYSCALL(sys_waitid,sys_waitid,compat_sys_waitid_wrapper)
+SYSCALL(sys_ioprio_set,sys_ioprio_set,sys_ioprio_set_wrapper)
+SYSCALL(sys_ioprio_get,sys_ioprio_get,sys_ioprio_get_wrapper)
+SYSCALL(sys_inotify_init,sys_inotify_init,sys_inotify_init)
+SYSCALL(sys_inotify_add_watch,sys_inotify_add_watch,sys_inotify_add_watch_wrapper)
+SYSCALL(sys_inotify_rm_watch,sys_inotify_rm_watch,sys_inotify_rm_watch_wrapper)
