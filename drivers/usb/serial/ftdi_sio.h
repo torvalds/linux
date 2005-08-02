@@ -142,10 +142,43 @@
 /* http://home.earthlink.net/~jrhees/USBUIRT/index.htm */
 #define FTDI_USB_UIRT_PID	0xF850	/* Product Id */
 
-/* ELV USB Module UO100 (PID sent by Stefan Frings) */
-#define FTDI_ELV_UO100_PID	0xFB58	/* Product Id */
-/* ELV USB Module UM100 (PID sent by Arnim Laeuger) */
-#define FTDI_ELV_UM100_PID	0xFB5A	/* Product Id */
+/*
+ * ELV USB devices submitted by Christian Abt of ELV (www.elv.de).
+ * All of these devices use FTDI's vendor ID (0x0403).
+ *
+ * The previously included PID for the UO 100 module was incorrect.
+ * In fact, that PID was for ELV's UR 100 USB-RS232 converter (0xFB58).
+ *
+ * Armin Laeuger originally sent the PID for the UM 100 module.
+ */
+#define FTDI_ELV_UR100_PID	0xFB58	/* USB-RS232-Umsetzer (UR 100) */
+#define FTDI_ELV_UM100_PID	0xFB5A	/* USB-Modul UM 100 */
+#define FTDI_ELV_UO100_PID	0xFB5B	/* USB-Modul UO 100 */
+#define FTDI_ELV_ALC8500_PID	0xF06E	/* ALC 8500 Expert */
+/* Additional ELV PIDs that default to using the FTDI D2XX drivers on
+ * MS Windows, rather than the FTDI Virtual Com Port drivers.
+ * Maybe these will be easier to use with the libftdi/libusb user-space
+ * drivers, or possibly the Comedi drivers in some cases. */
+#define FTDI_ELV_CLI7000_PID	0xFB59	/* Computer-Light-Interface (CLI 7000) */
+#define FTDI_ELV_PPS7330_PID	0xFB5C	/* Processor-Power-Supply (PPS 7330) */
+#define FTDI_ELV_TFM100_PID	0xFB5D	/* Temperartur-Feuchte Messgeraet (TFM 100) */
+#define FTDI_ELV_UDF77_PID	0xFB5E	/* USB DCF Funkurh (UDF 77) */
+#define FTDI_ELV_UIO88_PID	0xFB5F	/* USB-I/O Interface (UIO 88) */
+#define FTDI_ELV_UAD8_PID	0xF068	/* USB-AD-Wandler (UAD 8) */
+#define FTDI_ELV_UDA7_PID	0xF069	/* USB-DA-Wandler (UDA 7) */
+#define FTDI_ELV_USI2_PID	0xF06A	/* USB-Schrittmotoren-Interface (USI 2) */
+#define FTDI_ELV_T1100_PID	0xF06B	/* Thermometer (T 1100) */
+#define FTDI_ELV_PCD200_PID	0xF06C	/* PC-Datenlogger (PCD 200) */
+#define FTDI_ELV_ULA200_PID	0xF06D	/* USB-LCD-Ansteuerung (ULA 200) */
+#define FTDI_ELV_FHZ1000PC_PID	0xF06F	/* FHZ 1000 PC */
+#define FTDI_ELV_CSI8_PID	0xE0F0	/* Computer-Schalt-Interface (CSI 8) */
+#define FTDI_ELV_EM1000DL_PID	0xE0F1	/* PC-Datenlogger fuer Energiemonitor (EM 1000 DL) */
+#define FTDI_ELV_PCK100_PID	0xE0F2	/* PC-Kabeltester (PCK 100) */
+#define FTDI_ELV_RFP500_PID	0xE0F3	/* HF-Leistungsmesser (RFP 500) */
+#define FTDI_ELV_FS20SIG_PID	0xE0F4	/* Signalgeber (FS 20 SIG) */
+#define FTDI_ELV_WS300PC_PID	0xE0F6	/* PC-Wetterstation (WS 300 PC) */
+#define FTDI_ELV_FHZ1300PC_PID	0xE0E8	/* FHZ 1300 PC */
+#define FTDI_ELV_WS500_PID	0xE0E9	/* PC-Wetterstation (WS 500) */
 
 /*
  * Definitions for ID TECH (www.idt-net.com) devices
@@ -222,6 +255,7 @@
  */
 #define FALCOM_VID		0x0F94	/* Vendor Id */
 #define FALCOM_TWIST_PID	0x0001	/* Falcom Twist USB GPRS modem */
+#define FALCOM_SAMBA_PID	0x0005	/* Falcom Samba USB GPRS modem */
 
 /*
  * SUUNTO product ids
@@ -275,6 +309,18 @@
  * Active Robots product ids.
  */
 #define FTDI_ACTIVE_ROBOTS_PID	0xE548	/* USB comms board */
+
+/*
+ * Xsens Technologies BV products (http://www.xsens.com).
+ */
+#define XSENS_CONVERTER_0_PID	0xD388
+#define XSENS_CONVERTER_1_PID	0xD389
+#define XSENS_CONVERTER_2_PID	0xD38A
+#define XSENS_CONVERTER_3_PID	0xD38B
+#define XSENS_CONVERTER_4_PID	0xD38C
+#define XSENS_CONVERTER_5_PID	0xD38D
+#define XSENS_CONVERTER_6_PID	0xD38E
+#define XSENS_CONVERTER_7_PID	0xD38F
 
 /*
  * Evolution Robotics products (http://www.evolution.com/).
