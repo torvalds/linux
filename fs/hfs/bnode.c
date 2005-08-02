@@ -480,6 +480,8 @@ void hfs_bnode_put(struct hfs_bnode *node)
 			return;
 		}
 		for (i = 0; i < tree->pages_per_bnode; i++) {
+			if (!node->page[i])
+				continue;
 			mark_page_accessed(node->page[i]);
 #if REF_PAGES
 			put_page(node->page[i]);
