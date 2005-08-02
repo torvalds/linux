@@ -1281,6 +1281,7 @@ dispatch:
 			 */
 			if (!cfq_crq_in_driver(crq) &&
 			    !cfq_cfqq_idle_window(cfqq) &&
+			    !blk_barrier_rq(rq) &&
 			    cfqd->rq_in_driver >= cfqd->cfq_max_depth)
 				return NULL;
 
