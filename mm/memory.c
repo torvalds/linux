@@ -910,9 +910,13 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			pud = pud_offset(pgd, pg);
 			BUG_ON(pud_none(*pud));
 			pmd = pmd_offset(pud, pg);
-			BUG_ON(pmd_none(*pmd));
+			if (pmd_none(*pmd))
+				return i ? : -EFAULT;
 			pte = pte_offset_map(pmd, pg);
-			BUG_ON(pte_none(*pte));
+			if (pte_none(*pte)) {
+				pte_unmap(pte);
+				return i ? : -EFAULT;
+			}
 			if (pages) {
 				pages[i] = pte_page(*pte);
 				get_page(pages[i]);
