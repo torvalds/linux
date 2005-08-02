@@ -482,7 +482,8 @@ void hfs_file_truncate(struct inode *inode)
 		page_cache_release(page);
 		mark_inode_dirty(inode);
 		return;
-	}
+	} else if (inode->i_size == HFS_I(inode)->phys_size)
+		return;
 	size = inode->i_size + HFS_SB(sb)->alloc_blksz - 1;
 	blk_cnt = size / HFS_SB(sb)->alloc_blksz;
 	alloc_cnt = HFS_I(inode)->alloc_blocks;
