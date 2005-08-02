@@ -2,7 +2,7 @@
  * For Philips TEA5767 FM Chip used on some TV Cards like Prolink Pixelview
  * I2C address is allways 0xC0.
  *
- * $Id: tea5767.c,v 1.26 2005/07/27 12:00:36 mkrufky Exp $
+ * $Id: tea5767.c,v 1.27 2005/07/31 12:10:56 mchehab Exp $
  *
  * Copyright (c) 2005 Mauro Carvalho Chehab (mchehab@brturbo.com.br)
  * This code is placed under the terms of the GNU General Public License
@@ -296,7 +296,7 @@ int tea5767_autodetection(struct i2c_client *c)
 	int rc;
 	struct tuner *t = i2c_get_clientdata(c);
 
-	if (5 != (rc = i2c_master_recv(c, buffer, 5))) {
+	if (7 != (rc = i2c_master_recv(c, buffer, 7))) {
 		tuner_warn("It is not a TEA5767. Received %i bytes.\n", rc);
 		return EINVAL;
 	}
@@ -323,6 +323,12 @@ int tea5767_autodetection(struct i2c_client *c)
 		return EINVAL;
 	}
 
+	/* It seems that tea5767 returns 0xff after the 5th byte */
+	if ((buffer[5] != 0xff) || (buffer[6] != 0xff)) {
+		tuner_warn("Returned more than 5 bytes. It is not a TEA5767\n");
+		return EINVAL;
+	}
+
 	tuner_warn("TEA5767 detected.\n");
 	return 0;
 }
@@ -331,7 +337,8 @@ int tea5767_tuner_init(struct i2c_client *c)
 {
 	struct tuner *t = i2c_get_clientdata(c);
 
-	tuner_info("type set to %d (%s)\n", t->type, "Philips TEA5767HN FM Radio");
+	tuner_info("type set to %d (%s)\n", t->type,
+			"Philips TEA5767HN FM Radio");
 	strlcpy(c->name, "tea5767", sizeof(c->name));
 
 	t->tv_freq = set_tv_freq;
