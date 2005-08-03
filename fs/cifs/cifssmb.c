@@ -2628,6 +2628,9 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 	if(name_len < PATH_MAX) {
 		memcpy(pSMB->ResumeFileName, psrch_inf->presume_name, name_len);
 		byte_count += name_len;
+		/* 14 byte parm len above enough for 2 byte null terminator */
+		pSMB->ResumeFileName[name_len] = 0;
+		pSMB->ResumeFileName[name_len+1] = 0;
 	} else {
 		rc = -EINVAL;
 		goto FNext2_err_exit;
