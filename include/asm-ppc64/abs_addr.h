@@ -44,24 +44,17 @@ static inline unsigned long addr_to_chunk(unsigned long addr)
 	return addr >> MSCHUNKS_CHUNK_SHIFT;
 }
 
-static inline unsigned long chunk_offset(unsigned long addr)
+static inline unsigned long phys_to_abs(unsigned long pa)
 {
-	return addr & MSCHUNKS_OFFSET_MASK;
+	unsigned long chunk;
+
+	chunk = addr_to_chunk(pa);
+
+	if (chunk < mschunks_map.num_chunks)
+		chunk = mschunks_map.mapping[chunk];
+
+	return chunk_to_addr(chunk) + (pa & MSCHUNKS_OFFSET_MASK);
 }
-
-static inline unsigned long abs_chunk(unsigned long pchunk)
-{
-	if (pchunk >= mschunks_map.num_chunks)
-		return pchunk;
-
-	return mschunks_map.mapping[pchunk];
-}
-
-/* A macro so it can take pointers or unsigned long. */
-#define phys_to_abs(pa)						     \
-	({ unsigned long _pa = (unsigned long)(pa);			     \
-	   chunk_to_addr(abs_chunk(addr_to_chunk(_pa))) + chunk_offset(_pa); \
-	})
 
 static inline unsigned long
 physRpn_to_absRpn(unsigned long rpn)
