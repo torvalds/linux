@@ -849,11 +849,12 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 
 	return 0;
 
-out_deinit:
+ out_deinit:
 	kill_proc(aac->thread_pid, SIGKILL, 0);
 	wait_for_completion(&aac->aif_completion);
 
 	aac_send_shutdown(aac);
+	aac_adapter_disable_int(aac);
 	fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
 	kfree(aac->queues);
@@ -870,6 +871,13 @@ out_deinit:
 	return error;
 }
 
+static void aac_shutdown(struct pci_dev *dev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(dev);
+	struct aac_dev *aac = (struct aac_dev *)shost->hostdata;
+	aac_send_shutdown(aac);
+}
+
 static void __devexit aac_remove_one(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
@@ -881,6 +889,7 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 	wait_for_completion(&aac->aif_completion);
 
 	aac_send_shutdown(aac);
+	aac_adapter_disable_int(aac);
 	fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr,
 			aac->comm_phys);
@@ -901,6 +910,7 @@ static struct pci_driver aac_pci_driver = {
 	.id_table	= aac_pci_tbl,
 	.probe		= aac_probe_one,
 	.remove		= __devexit_p(aac_remove_one),
+	.shutdown 	= aac_shutdown,
 };
 
 static int __init aac_init(void)
@@ -919,6 +929,7 @@ static int __init aac_init(void)
 		printk(KERN_WARNING
 		       "aacraid: unable to register \"aac\" device.\n");
 	}
+
 	return 0;
 }
 
