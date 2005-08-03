@@ -2231,7 +2231,7 @@ static snd_kcontrol_new_t snd_cs46xx_controls[] __devinitdata = {
 },
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Output Switch",
+	.name = SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH),
 	.info = snd_mixer_boolean_info,
 	.get = snd_cs46xx_iec958_get,
 	.put = snd_cs46xx_iec958_put,
@@ -2239,7 +2239,7 @@ static snd_kcontrol_new_t snd_cs46xx_controls[] __devinitdata = {
 },
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Input Switch",
+	.name = SNDRV_CTL_NAME_IEC958("Input ",NONE,SWITCH),
 	.info = snd_mixer_boolean_info,
 	.get = snd_cs46xx_iec958_get,
 	.put = snd_cs46xx_iec958_put,
@@ -2249,7 +2249,7 @@ static snd_kcontrol_new_t snd_cs46xx_controls[] __devinitdata = {
 /* Input IEC958 volume does not work for the moment. (Benny) */
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Input Volume",
+	.name = SNDRV_CTL_NAME_IEC958("Input ",NONE,VOLUME),
 	.info = snd_cs46xx_vol_info,
 	.get = snd_cs46xx_vol_iec958_get,
 	.put = snd_cs46xx_vol_iec958_put,

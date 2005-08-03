@@ -572,7 +572,7 @@ static snd_kcontrol_new_t ad1983_mixers[] = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "IEC958 Playback Route",
+		.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Route",
 		.info = ad1983_spdif_route_info,
 		.get = ad1983_spdif_route_get,
 		.put = ad1983_spdif_route_put,
@@ -705,7 +705,7 @@ static snd_kcontrol_new_t ad1981_mixers[] = {
 	/* identical with AD1983 */
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "IEC958 Playback Route",
+		.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Route",
 		.info = ad1983_spdif_route_info,
 		.get = ad1983_spdif_route_get,
 		.put = ad1983_spdif_route_put,

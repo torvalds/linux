@@ -1484,7 +1484,7 @@ static int snd_via8233_dxs3_spdif_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_val
 }
 
 static snd_kcontrol_new_t snd_via8233_dxs3_spdif_control __devinitdata = {
-	.name = "IEC958 Output Switch",
+	.name = SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH),
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = snd_via8233_dxs3_spdif_info,
 	.get = snd_via8233_dxs3_spdif_get,

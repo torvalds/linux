@@ -1955,7 +1955,7 @@ static const snd_kcontrol_new_t snd_ac97_controls_alc650[] = {
 };
 
 static const snd_kcontrol_new_t snd_ac97_spdif_controls_alc650[] = {
-        AC97_SINGLE("IEC958 Capture Switch", AC97_ALC650_MULTICH, 11, 1, 0),
+        AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), AC97_ALC650_MULTICH, 11, 1, 0),
         AC97_SINGLE("Analog to IEC958 Output", AC97_ALC650_MULTICH, 12, 1, 0),
 	/* disable this controls since it doesn't work as expected */
 	/* AC97_SINGLE("IEC958 Input Monitor", AC97_ALC650_MULTICH, 13, 1, 0), */
@@ -2098,12 +2098,12 @@ static int alc655_iec958_route_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
 }
 
 static const snd_kcontrol_new_t snd_ac97_spdif_controls_alc655[] = {
-        AC97_PAGE_SINGLE("IEC958 Capture Switch", AC97_ALC650_MULTICH, 11, 1, 0, 0),
+        AC97_PAGE_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), AC97_ALC650_MULTICH, 11, 1, 0, 0),
 	/* disable this controls since it doesn't work as expected */
         /* AC97_PAGE_SINGLE("IEC958 Input Monitor", AC97_ALC650_MULTICH, 14, 1, 0, 0), */
 	{
 		.iface  = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name   = "IEC958 Playback Route",
+		.name   = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Route",
 		.info   = alc655_iec958_route_info,
 		.get    = alc655_iec958_route_get,
 		.put    = alc655_iec958_route_put,
@@ -2682,7 +2682,7 @@ static const snd_kcontrol_new_t snd_ac97_controls_it2646[] = {
 };
 
 static const snd_kcontrol_new_t snd_ac97_spdif_controls_it2646[] = {
-	AC97_SINGLE("IEC958 Capture Switch", 0x76, 11, 1, 0),
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0x76, 11, 1, 0),
 	AC97_SINGLE("Analog to IEC958 Output", 0x76, 12, 1, 0),
 	AC97_SINGLE("IEC958 Input Monitor", 0x76, 13, 1, 0),
 };

@@ -1466,7 +1466,7 @@ static snd_kcontrol_new_t snd_vt1724_spdif_switch __devinitdata =
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	/* FIXME: the following conflict with IEC958 Playback Route */
 	// .name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH),
-	.name =         "IEC958 Output Switch",
+	.name =         SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH),
 	.info =		snd_vt1724_spdif_sw_info,
 	.get =		snd_vt1724_spdif_sw_get,
 	.put =		snd_vt1724_spdif_sw_put
