@@ -371,13 +371,11 @@ int timer_interrupt(struct pt_regs * regs)
 		process_hvlpevents(regs);
 #endif
 
-/* collect purr register values often, for accurate calculations */
-#if defined(CONFIG_PPC_PSERIES)
+	/* collect purr register values often, for accurate calculations */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		struct cpu_usage *cu = &__get_cpu_var(cpu_usage_array);
 		cu->current_tb = mfspr(SPRN_PURR);
 	}
-#endif
 
 	irq_exit();
 

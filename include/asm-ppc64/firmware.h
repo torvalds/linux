@@ -45,6 +45,22 @@
 #define FW_FEATURE_MULTITCE	(1UL<<19)
 #define FW_FEATURE_SPLPAR	(1UL<<20)
 
+enum {
+	FW_FEATURE_PSERIES = FW_FEATURE_PFT | FW_FEATURE_TCE |
+		FW_FEATURE_SPRG0 | FW_FEATURE_DABR | FW_FEATURE_COPY |
+		FW_FEATURE_ASR | FW_FEATURE_DEBUG | FW_FEATURE_TERM |
+		FW_FEATURE_PERF | FW_FEATURE_DUMP | FW_FEATURE_INTERRUPT |
+		FW_FEATURE_MIGRATE | FW_FEATURE_PERFMON | FW_FEATURE_CRQ |
+		FW_FEATURE_VIO | FW_FEATURE_RDMA | FW_FEATURE_LLAN |
+		FW_FEATURE_BULK | FW_FEATURE_XDABR | FW_FEATURE_MULTITCE |
+		FW_FEATURE_SPLPAR,
+	FW_FEATURE_POSSIBLE =
+#ifdef CONFIG_PPC_PSERIES
+		FW_FEATURE_PSERIES |
+#endif
+		0,
+};
+
 /* This is used to identify firmware features which are available
  * to the kernel.
  */
@@ -52,15 +68,17 @@ extern unsigned long	ppc64_firmware_features;
 
 static inline unsigned long firmware_has_feature(unsigned long feature)
 {
-	return ppc64_firmware_features & feature;
+	return ppc64_firmware_features & feature & FW_FEATURE_POSSIBLE;
 }
 
+#ifdef CONFIG_PPC_PSERIES
 typedef struct {
     unsigned long val;
     char * name;
 } firmware_feature_t;
 
 extern firmware_feature_t firmware_features_table[];
+#endif
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

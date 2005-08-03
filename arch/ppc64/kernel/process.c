@@ -203,10 +203,9 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	new_thread = &new->thread;
 	old_thread = &current->thread;
 
-/* Collect purr utilization data per process and per processor wise */
-/* purr is nothing but processor time base                          */
-
-#if defined(CONFIG_PPC_PSERIES)
+	/* Collect purr utilization data per process and per processor
+	 * wise purr is nothing but processor time base
+	 */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		struct cpu_usage *cu = &__get_cpu_var(cpu_usage_array);
 		long unsigned start_tb, current_tb;
@@ -215,8 +214,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		old_thread->accum_tb += (current_tb - start_tb);
 		new_thread->start_tb = current_tb;
 	}
-#endif
-
 
 	local_irq_save(flags);
 	last = _switch(old_thread, new_thread);

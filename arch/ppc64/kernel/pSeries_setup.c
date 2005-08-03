@@ -231,11 +231,9 @@ static void __init pSeries_setup_arch(void)
 
 	pSeries_nvram_init();
 
-	if (firmware_has_feature(FW_FEATURE_SPLPAR))
-		vpa_init(boot_cpuid);
-
 	/* Choose an idle loop */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
+		vpa_init(boot_cpuid);
 		if (get_paca()->lppaca.shared_proc) {
 			printk(KERN_INFO "Using shared processor idle loop\n");
 			ppc_md.idle_loop = pseries_shared_idle;
