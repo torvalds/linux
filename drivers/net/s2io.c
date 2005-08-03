@@ -168,6 +168,12 @@ static char ethtool_stats_keys[][ETH_GSTRING_LEN] = {
 #define S2IO_TEST_LEN	sizeof(s2io_gstrings) / ETH_GSTRING_LEN
 #define S2IO_STRINGS_LEN	S2IO_TEST_LEN * ETH_GSTRING_LEN
 
+#define S2IO_TIMER_CONF(timer, handle, arg, exp)		\
+			init_timer(&timer);			\
+			timer.function = handle;		\
+			timer.data = (unsigned long) arg;	\
+			mod_timer(&timer, (jiffies + exp))	\
+
 /*
  * Constants to be programmed into the Xena's registers, to configure
  * the XAUI.
@@ -2741,6 +2747,7 @@ int s2io_open(struct net_device *dev)
 setting_mac_address_failed:
 	free_irq(sp->pdev->irq, dev);
 isr_registration_failed:
+	del_timer_sync(&sp->alarm_timer);
 	s2io_reset(sp);
 hw_init_failed:
 	return err;
@@ -2898,6 +2905,15 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
+static void
+s2io_alarm_handle(unsigned long data)
+{
+	nic_t *sp = (nic_t *)data;
+
+	alarm_intr_handler(sp);
+	mod_timer(&sp->alarm_timer, jiffies + HZ / 2);
+}
+
 /**
  *  s2io_isr - ISR handler of the device .
  *  @irq: the irq of the device.
@@ -2941,9 +2957,6 @@ static irqreturn_t s2io_isr(int irq, void *dev_id, struct pt_regs *regs)
 		atomic_dec(&sp->isr_cnt);
 		return IRQ_NONE;
 	}
-
-	if (reason & (GEN_ERROR_INTR))
-		alarm_intr_handler(sp);
 
 #ifdef CONFIG_S2IO_NAPI
 	if (reason & GEN_INTR_RXTRAFFIC) {
@@ -4394,6 +4407,7 @@ static void s2io_card_down(nic_t * sp)
 	unsigned long flags;
 	register u64 val64 = 0;
 
+	del_timer_sync(&sp->alarm_timer);
 	/* If s2io_set_link task is executing, wait till it completes. */
 	while (test_and_set_bit(0, &(sp->link_state))) {
 		msleep(50);
@@ -4495,6 +4509,8 @@ static int s2io_card_up(nic_t * sp)
 		free_rx_buffers(sp);
 		return -ENODEV;
 	}
+
+	S2IO_TIMER_CONF(sp->alarm_timer, s2io_alarm_handle, sp, (HZ/2));
 
 	atomic_set(&sp->card_state, CARD_UP);
 	return 0;

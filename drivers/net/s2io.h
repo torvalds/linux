@@ -624,6 +624,9 @@ struct s2io_nic {
 	struct tasklet_struct task;
 	volatile unsigned long tasklet_status;
 
+	/* Timer that handles I/O errors/exceptions */
+	struct timer_list alarm_timer;
+
 	/* Space to back up the PCI config space */
 	u32 config_space[256 / sizeof(u32)];
 
@@ -819,6 +822,7 @@ static int s2io_poll(struct net_device *dev, int *budget);
 #endif
 static void s2io_init_pci(nic_t * sp);
 int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
+static void s2io_alarm_handle(unsigned long data);
 static irqreturn_t s2io_isr(int irq, void *dev_id, struct pt_regs *regs);
 static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
 static struct ethtool_ops netdev_ethtool_ops;
