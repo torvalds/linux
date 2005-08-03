@@ -612,6 +612,7 @@ got:
 	err = ext2_init_acl(inode, dir);
 	if (err) {
 		DQUOT_FREE_INODE(inode);
+		DQUOT_DROP(inode);
 		goto fail2;
 	}
 	mark_inode_dirty(inode);

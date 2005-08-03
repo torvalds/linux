@@ -782,8 +782,14 @@ static void distribute_irqs(void)
 }
 #endif
 
+struct sun5_timer {
+	u64	count0;
+	u64	limit0;
+	u64	count1;
+	u64	limit1;
+};
 
-struct sun5_timer *prom_timers;
+static struct sun5_timer *prom_timers;
 static u64 prom_limit0, prom_limit1;
 
 static void map_prom_timers(void)
@@ -837,18 +843,6 @@ static void kill_prom_timer(void)
 	: /* no outputs */
 	: "i" (ASI_INTR_RECEIVE), "i" (ASI_INTR_R)
 	: "g1", "g2");
-}
-
-void enable_prom_timer(void)
-{
-	if (!prom_timers)
-		return;
-
-	/* Set it to whatever was there before. */
-	prom_timers->limit1 = prom_limit1;
-	prom_timers->count1 = 0;
-	prom_timers->limit0 = prom_limit0;
-	prom_timers->count0 = 0;
 }
 
 void init_irqwork_curcpu(void)

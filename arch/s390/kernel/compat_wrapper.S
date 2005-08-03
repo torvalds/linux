@@ -1449,3 +1449,29 @@ compat_sys_kexec_load_wrapper:
 	llgtr	%r4,%r4			# struct kexec_segment *
 	llgfr	%r5,%r5			# unsigned long
 	jg	compat_sys_kexec_load
+
+	.globl	sys_ioprio_set_wrapper
+sys_ioprio_set_wrapper:
+	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
+	lgfr	%r4,%r4			# int
+	jg	sys_ioprio_set
+
+	.globl	sys_ioprio_get_wrapper
+sys_ioprio_get_wrapper:
+	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
+	jg	sys_ioprio_get
+
+	.globl	sys_inotify_add_watch_wrapper
+sys_inotify_add_watch_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char *
+	llgfr	%r4,%r4			# u32
+	jg	sys_inotify_add_watch
+
+	.globl	sys_inotify_rm_watch_wrapper
+sys_inotify_rm_watch_wrapper:
+	lgfr	%r2,%r2			# int
+	llgfr	%r3,%r3			# u32
+	jg	sys_inotify_rm_watch

@@ -42,7 +42,7 @@ extern int ia32_setup_arg_pages(struct linux_binprm *bprm,
 static int load_aout_binary(struct linux_binprm *, struct pt_regs * regs);
 static int load_aout_library(struct file*);
 
-#if CORE_DUMP
+#ifdef CORE_DUMP
 static int aout_core_dump(long signr, struct pt_regs * regs, struct file *file);
 
 /*
@@ -103,7 +103,7 @@ static struct linux_binfmt aout_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_aout_binary,
 	.load_shlib	= load_aout_library,
-#if CORE_DUMP
+#ifdef CORE_DUMP
 	.core_dump	= aout_core_dump,
 #endif
 	.min_coredump	= PAGE_SIZE
@@ -120,7 +120,7 @@ static void set_brk(unsigned long start, unsigned long end)
 	up_write(&current->mm->mmap_sem);
 }
 
-#if CORE_DUMP
+#ifdef CORE_DUMP
 /*
  * These are the only things you should do on a core-file: use only these
  * macros to write out all the necessary info.

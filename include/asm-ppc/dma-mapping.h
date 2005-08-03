@@ -117,7 +117,7 @@ dma_map_page(struct device *dev, struct page *page,
 
 	__dma_sync_page(page, offset, size, direction);
 
-	return (page - mem_map) * PAGE_SIZE + PCI_DRAM_OFFSET + offset;
+	return page_to_bus(page) + offset;
 }
 
 /* We do nothing. */

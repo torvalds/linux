@@ -186,6 +186,12 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define PPC405_ERR77_SYNC
 #endif
 
+#ifdef CONFIG_IBM440EP_ERR42
+#define PPC440EP_ERR42 isync
+#else
+#define PPC440EP_ERR42
+#endif
+
 /* The boring bits... */
 
 /* Condition Register Bit Fields */

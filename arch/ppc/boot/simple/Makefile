@@ -61,6 +61,12 @@ zimageinitrd-$(CONFIG_IBM_OPENBIOS)	:= zImage.initrd-TREE
          end-$(CONFIG_EMBEDDEDBOOT)	:= embedded
         misc-$(CONFIG_EMBEDDEDBOOT)	:= misc-embedded.o
 
+      zimage-$(CONFIG_BAMBOO)		:= zImage-TREE
+zimageinitrd-$(CONFIG_BAMBOO)		:= zImage.initrd-TREE
+         end-$(CONFIG_BAMBOO)		:= bamboo
+  entrypoint-$(CONFIG_BAMBOO)		:= 0x01000000
+     extra.o-$(CONFIG_BAMBOO)		:= pibs.o
+
       zimage-$(CONFIG_EBONY)		:= zImage-TREE
 zimageinitrd-$(CONFIG_EBONY)		:= zImage.initrd-TREE
          end-$(CONFIG_EBONY)		:= ebony

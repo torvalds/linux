@@ -18,6 +18,9 @@ config EARLY_PRINTK
 config DEBUG_STACKOVERFLOW
 	bool "Check for stack overflows"
 	depends on DEBUG_KERNEL
+	help
+	  This option will cause messages to be printed if free stack space
+	  drops below a certain limit.
 
 config KPROBES
 	bool "Kprobes"

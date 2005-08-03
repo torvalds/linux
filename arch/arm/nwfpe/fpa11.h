@@ -29,9 +29,7 @@
  * stack+task struct.  Use the same method as 'current' uses to
  * reach them.
  */
-register unsigned long *user_registers asm("sl");
-
-#define GET_USERREG() (user_registers)
+#define GET_USERREG() ((struct pt_regs *)(THREAD_START_SP + (unsigned long)current_thread_info()) - 1)
 
 #include <linux/config.h>
 #include <linux/thread_info.h>

@@ -6,6 +6,7 @@
 
 /* Etrax shadow registers - which live in arch/cris/kernel/shadows.c */
 
+extern unsigned long gen_config_ii_shadow;
 extern unsigned long port_g_data_shadow;
 extern unsigned char port_pa_dir_shadow;
 extern unsigned char port_pa_data_shadow;

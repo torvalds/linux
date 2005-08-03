@@ -636,11 +636,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-digout	3-jack in back, a HP out and a SPDIF out
 	  5stack	5-jack in back, 2-jack in front
 	  5stack-digout	5-jack in back, 2-jack in front, a SPDIF out
+	  6stack	6-jack in back, 2-jack in front
+	  6stack-digout	6-jack with a SPDIF out
 	  w810		3-jack
 	  z71v		3-jack (HP shared SPDIF)
 	  asus		3-jack
 	  uniwill	3-jack
 	  F1734		2-jack
+	  test		for testing/debugging purpose, almost all controls can be
+			adjusted.  Appearing only when compiled with
+			$CONFIG_SND_DEBUG=y
 
 	CMI9880
 	  minimal	3-jack in back
@@ -1054,6 +1059,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-pxa2xx-ac97 (on arm only)
+  ------------------------------------
+
+    Module for AC97 driver for the Intel PXA2xx chip
+
+    For ARM architecture only.
+
   Module snd-rme32
   ----------------
 
@@ -1170,6 +1182,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   -------------------------------------
 
     Module for CS4231 sound chips found on Sparcs.
+
+    Module supports up to 8 cards.
+
+  Module snd-sun-dbri (on sparc only)
+  -----------------------------------
+
+    Module for DBRI sound chips found on Sparcs.
 
     Module supports up to 8 cards.
 
@@ -1371,7 +1390,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-vxpocket
   -------------------
 
-    Module for Digigram VX-Pocket VX2 PCMCIA card.
+    Module for Digigram VX-Pocket VX2 and 440 PCMCIA cards.
 
     ibl      - Capture IBL size. (default = 0, minimum size)
 
@@ -1380,29 +1399,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     To activate the driver via the card manager, you'll need to set
     up /etc/pcmcia/vxpocket.conf.  See the sound/pcmcia/vx/vxpocket.c.
-
-    When the driver is compiled as a module and the hotplug firmware
-    is supported, the firmware data is loaded via hotplug automatically.
-    Install the necessary firmware files in alsa-firmware package.
-    When no hotplug fw loader is available, you need to load the
-    firmware via vxloader utility in alsa-tools package.
-
-    About capture IBL, see the description of snd-vx222 module.
-
-    Note: the driver is build only when CONFIG_ISA is set.
-    
-  Module snd-vxp440
-  -----------------
-
-    Module for Digigram VX-Pocket 440 PCMCIA card.
-
-    ibl      - Capture IBL size. (default = 0, minimum size)
-
-    Module supports up to 8 cards.  The module is compiled only when
-    PCMCIA is supported on kernel.
-
-    To activate the driver via the card manager, you'll need to set
-    up /etc/pcmcia/vxp440.conf.  See the sound/pcmcia/vx/vxp440.c.
 
     When the driver is compiled as a module and the hotplug firmware
     is supported, the firmware data is loaded via hotplug automatically.

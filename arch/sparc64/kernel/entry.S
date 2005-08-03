@@ -1600,11 +1600,11 @@ sys_clone:	flushw
 		ba,pt		%xcc, sparc_do_fork
 		 add		%sp, PTREGS_OFF, %o2
 ret_from_syscall:
-		/* Clear SPARC_FLAG_NEWCHILD, switch_to leaves thread.flags in
-		 * %o7 for us.  Check performance counter stuff too.
+		/* Clear current_thread_info()->new_child, and
+		 * check performance counter stuff too.
 		 */
-		andn		%o7, _TIF_NEWCHILD, %l0
-		stx		%l0, [%g6 + TI_FLAGS]
+		stb		%g0, [%g6 + TI_NEW_CHILD]
+		ldx		[%g6 + TI_FLAGS], %l0
 		call		schedule_tail
 		 mov		%g7, %o0
 		andcc		%l0, _TIF_PERFCTR, %g0
@@ -1720,12 +1720,11 @@ ret_sys_call:
 	/* Check if force_successful_syscall_return()
 	 * was invoked.
 	 */
-	ldx		[%curptr + TI_FLAGS], %l0
-	andcc		%l0, _TIF_SYSCALL_SUCCESS, %g0
-	be,pt		%icc, 1f
-	 andn		%l0, _TIF_SYSCALL_SUCCESS, %l0
+	ldub		[%curptr + TI_SYS_NOERROR], %l0
+	brz,pt		%l0, 1f
+	 nop
 	ba,pt		%xcc, 80f
-	 stx		%l0, [%curptr + TI_FLAGS]
+	 stb		%g0, [%curptr + TI_SYS_NOERROR]
 
 1:
 	cmp		%o0, -ERESTART_RESTARTBLOCK

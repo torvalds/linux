@@ -11,21 +11,16 @@
 #ifndef __ASM_SPINLOCK_H
 #define __ASM_SPINLOCK_H
 
-#ifdef __s390x__
-/*
- * Grmph, take care of %&#! user space programs that include
- * asm/spinlock.h. The diagnose is only available in kernel
- * context.
- */
-#ifdef __KERNEL__
-#include <asm/lowcore.h>
-#define __DIAG44_INSN "ex"
-#define __DIAG44_OPERAND __LC_DIAG44_OPCODE
-#else
-#define __DIAG44_INSN "#"
-#define __DIAG44_OPERAND 0
-#endif
-#endif /* __s390x__ */
+static inline int
+_raw_compare_and_swap(volatile unsigned int *lock,
+		      unsigned int old, unsigned int new)
+{
+	asm volatile ("cs %0,%3,0(%4)"
+		      : "=d" (old), "=m" (*lock)
+		      : "0" (old), "d" (new), "a" (lock), "m" (*lock)
+		      : "cc", "memory" );
+	return old;
+}
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
@@ -41,58 +36,35 @@ typedef struct {
 #endif
 } __attribute__ ((aligned (4))) spinlock_t;
 
-#define SPIN_LOCK_UNLOCKED (spinlock_t) { 0 }
-#define spin_lock_init(lp) do { (lp)->lock = 0; } while(0)
+#define SPIN_LOCK_UNLOCKED	(spinlock_t) { 0 }
+#define spin_lock_init(lp)	do { (lp)->lock = 0; } while(0)
 #define spin_unlock_wait(lp)	do { barrier(); } while(((volatile spinlock_t *)(lp))->lock)
-#define spin_is_locked(x) ((x)->lock != 0)
+#define spin_is_locked(x)	((x)->lock != 0)
 #define _raw_spin_lock_flags(lock, flags) _raw_spin_lock(lock)
 
-extern inline void _raw_spin_lock(spinlock_t *lp)
+extern void _raw_spin_lock_wait(spinlock_t *lp, unsigned int pc);
+extern int _raw_spin_trylock_retry(spinlock_t *lp, unsigned int pc);
+
+static inline void _raw_spin_lock(spinlock_t *lp)
 {
-#ifndef __s390x__
-	unsigned int reg1, reg2;
-        __asm__ __volatile__("    bras  %0,1f\n"
-                           "0:  diag  0,0,68\n"
-                           "1:  slr   %1,%1\n"
-                           "    cs    %1,%0,0(%3)\n"
-                           "    jl    0b\n"
-                           : "=&d" (reg1), "=&d" (reg2), "=m" (lp->lock)
-			   : "a" (&lp->lock), "m" (lp->lock)
-			   : "cc", "memory" );
-#else /* __s390x__ */
-	unsigned long reg1, reg2;
-        __asm__ __volatile__("    bras  %1,1f\n"
-                           "0:  " __DIAG44_INSN " 0,%4\n"
-                           "1:  slr   %0,%0\n"
-                           "    cs    %0,%1,0(%3)\n"
-                           "    jl    0b\n"
-                           : "=&d" (reg1), "=&d" (reg2), "=m" (lp->lock)
-			   : "a" (&lp->lock), "i" (__DIAG44_OPERAND),
-			     "m" (lp->lock) : "cc", "memory" );
-#endif /* __s390x__ */
+	unsigned long pc = (unsigned long) __builtin_return_address(0);
+
+	if (unlikely(_raw_compare_and_swap(&lp->lock, 0, pc) != 0))
+		_raw_spin_lock_wait(lp, pc);
 }
 
-extern inline int _raw_spin_trylock(spinlock_t *lp)
+static inline int _raw_spin_trylock(spinlock_t *lp)
 {
-	unsigned long reg;
-	unsigned int result;
+	unsigned long pc = (unsigned long) __builtin_return_address(0);
 
-	__asm__ __volatile__("    basr  %1,0\n"
-			   "0:  cs    %0,%1,0(%3)"
-			   : "=d" (result), "=&d" (reg), "=m" (lp->lock)
-			   : "a" (&lp->lock), "m" (lp->lock), "0" (0)
-			   : "cc", "memory" );
-	return !result;
+	if (likely(_raw_compare_and_swap(&lp->lock, 0, pc) == 0))
+		return 1;
+	return _raw_spin_trylock_retry(lp, pc);
 }
 
-extern inline void _raw_spin_unlock(spinlock_t *lp)
+static inline void _raw_spin_unlock(spinlock_t *lp)
 {
-	unsigned int old;
-
-	__asm__ __volatile__("cs %0,%3,0(%4)"
-			   : "=d" (old), "=m" (lp->lock)
-			   : "0" (lp->lock), "d" (0), "a" (lp)
-			   : "cc", "memory" );
+	_raw_compare_and_swap(&lp->lock, lp->lock, 0);
 }
 		
 /*
@@ -106,7 +78,7 @@ extern inline void _raw_spin_unlock(spinlock_t *lp)
  * read-locks.
  */
 typedef struct {
-	volatile unsigned long lock;
+	volatile unsigned int lock;
 	volatile unsigned long owner_pc;
 #ifdef CONFIG_PREEMPT
 	unsigned int break_lock;
@@ -129,123 +101,55 @@ typedef struct {
  */
 #define write_can_lock(x) ((x)->lock == 0)
 
-#ifndef __s390x__
-#define _raw_read_lock(rw)   \
-        asm volatile("   l     2,0(%1)\n"   \
-                     "   j     1f\n"     \
-                     "0: diag  0,0,68\n" \
-                     "1: la    2,0(2)\n"     /* clear high (=write) bit */ \
-                     "   la    3,1(2)\n"     /* one more reader */ \
-                     "   cs    2,3,0(%1)\n"  /* try to write new value */ \
-                     "   jl    0b"       \
-                     : "=m" ((rw)->lock) : "a" (&(rw)->lock), \
-		       "m" ((rw)->lock) : "2", "3", "cc", "memory" )
-#else /* __s390x__ */
-#define _raw_read_lock(rw)   \
-        asm volatile("   lg    2,0(%1)\n"   \
-                     "   j     1f\n"     \
-                     "0: " __DIAG44_INSN " 0,%2\n" \
-                     "1: nihh  2,0x7fff\n" /* clear high (=write) bit */ \
-                     "   la    3,1(2)\n"   /* one more reader */  \
-                     "   csg   2,3,0(%1)\n" /* try to write new value */ \
-                     "   jl    0b"       \
-                     : "=m" ((rw)->lock) \
-		     : "a" (&(rw)->lock), "i" (__DIAG44_OPERAND), \
-		       "m" ((rw)->lock) : "2", "3", "cc", "memory" )
-#endif /* __s390x__ */
+extern void _raw_read_lock_wait(rwlock_t *lp);
+extern int _raw_read_trylock_retry(rwlock_t *lp);
+extern void _raw_write_lock_wait(rwlock_t *lp);
+extern int _raw_write_trylock_retry(rwlock_t *lp);
 
-#ifndef __s390x__
-#define _raw_read_unlock(rw) \
-        asm volatile("   l     2,0(%1)\n"   \
-                     "   j     1f\n"     \
-                     "0: diag  0,0,68\n" \
-                     "1: lr    3,2\n"    \
-                     "   ahi   3,-1\n"    /* one less reader */ \
-                     "   cs    2,3,0(%1)\n" \
-                     "   jl    0b"       \
-                     : "=m" ((rw)->lock) : "a" (&(rw)->lock), \
-		       "m" ((rw)->lock) : "2", "3", "cc", "memory" )
-#else /* __s390x__ */
-#define _raw_read_unlock(rw) \
-        asm volatile("   lg    2,0(%1)\n"   \
-                     "   j     1f\n"     \
-                     "0: " __DIAG44_INSN " 0,%2\n" \
-                     "1: lgr   3,2\n"    \
-                     "   bctgr 3,0\n"    /* one less reader */ \
-                     "   csg   2,3,0(%1)\n" \
-                     "   jl    0b"       \
-                     : "=m" ((rw)->lock) \
-		     : "a" (&(rw)->lock), "i" (__DIAG44_OPERAND), \
-		       "m" ((rw)->lock) : "2", "3", "cc", "memory" )
-#endif /* __s390x__ */
-
-#ifndef __s390x__
-#define _raw_write_lock(rw) \
-        asm volatile("   lhi   3,1\n"    \
-                     "   sll   3,31\n"    /* new lock value = 0x80000000 */ \
-                     "   j     1f\n"     \
-                     "0: diag  0,0,68\n" \
-                     "1: slr   2,2\n"     /* old lock value must be 0 */ \
-                     "   cs    2,3,0(%1)\n" \
-                     "   jl    0b"       \
-                     : "=m" ((rw)->lock) : "a" (&(rw)->lock), \
-		       "m" ((rw)->lock) : "2", "3", "cc", "memory" )
-#else /* __s390x__ */
-#define _raw_write_lock(rw) \
-        asm volatile("   llihh 3,0x8000\n" /* new lock value = 0x80...0 */ \
-                     "   j     1f\n"       \
-                     "0: " __DIAG44_INSN " 0,%2\n"   \
-                     "1: slgr  2,2\n"      /* old lock value must be 0 */ \
-                     "   csg   2,3,0(%1)\n" \
-                     "   jl    0b"         \
-                     : "=m" ((rw)->lock) \
-		     : "a" (&(rw)->lock), "i" (__DIAG44_OPERAND), \
-		       "m" ((rw)->lock) : "2", "3", "cc", "memory" )
-#endif /* __s390x__ */
-
-#ifndef __s390x__
-#define _raw_write_unlock(rw) \
-        asm volatile("   slr   3,3\n"     /* new lock value = 0 */ \
-                     "   j     1f\n"     \
-                     "0: diag  0,0,68\n" \
-                     "1: lhi   2,1\n"    \
-                     "   sll   2,31\n"    /* old lock value must be 0x80000000 */ \
-                     "   cs    2,3,0(%1)\n" \
-                     "   jl    0b"       \
-                     : "=m" ((rw)->lock) : "a" (&(rw)->lock), \
-		       "m" ((rw)->lock) : "2", "3", "cc", "memory" )
-#else /* __s390x__ */
-#define _raw_write_unlock(rw) \
-        asm volatile("   slgr  3,3\n"      /* new lock value = 0 */ \
-                     "   j     1f\n"       \
-                     "0: " __DIAG44_INSN " 0,%2\n"   \
-                     "1: llihh 2,0x8000\n" /* old lock value must be 0x8..0 */\
-                     "   csg   2,3,0(%1)\n"   \
-                     "   jl    0b"         \
-                     : "=m" ((rw)->lock) \
-		     : "a" (&(rw)->lock), "i" (__DIAG44_OPERAND), \
-		       "m" ((rw)->lock) : "2", "3", "cc", "memory" )
-#endif /* __s390x__ */
-
-#define _raw_read_trylock(lock) generic_raw_read_trylock(lock)
-
-extern inline int _raw_write_trylock(rwlock_t *rw)
+static inline void _raw_read_lock(rwlock_t *rw)
 {
-	unsigned long result, reg;
-	
-	__asm__ __volatile__(
-#ifndef __s390x__
-			     "   lhi  %1,1\n"
-			     "   sll  %1,31\n"
-			     "   cs   %0,%1,0(%3)"
-#else /* __s390x__ */
-			     "   llihh %1,0x8000\n"
-			     "0: csg %0,%1,0(%3)\n"
-#endif /* __s390x__ */
-			     : "=d" (result), "=&d" (reg), "=m" (rw->lock)
-			     : "a" (&rw->lock), "m" (rw->lock), "0" (0UL)
-			     : "cc", "memory" );
-	return result == 0;
+	unsigned int old;
+	old = rw->lock & 0x7fffffffU;
+	if (_raw_compare_and_swap(&rw->lock, old, old + 1) != old)
+		_raw_read_lock_wait(rw);
+}
+
+static inline void _raw_read_unlock(rwlock_t *rw)
+{
+	unsigned int old, cmp;
+
+	old = rw->lock;
+	do {
+		cmp = old;
+		old = _raw_compare_and_swap(&rw->lock, old, old - 1);
+	} while (cmp != old);
+}
+
+static inline void _raw_write_lock(rwlock_t *rw)
+{
+	if (unlikely(_raw_compare_and_swap(&rw->lock, 0, 0x80000000) != 0))
+		_raw_write_lock_wait(rw);
+}
+
+static inline void _raw_write_unlock(rwlock_t *rw)
+{
+	_raw_compare_and_swap(&rw->lock, 0x80000000, 0);
+}
+
+static inline int _raw_read_trylock(rwlock_t *rw)
+{
+	unsigned int old;
+	old = rw->lock & 0x7fffffffU;
+	if (likely(_raw_compare_and_swap(&rw->lock, old, old + 1) == old))
+		return 1;
+	return _raw_read_trylock_retry(rw);
+}
+
+static inline int _raw_write_trylock(rwlock_t *rw)
+{
+	if (likely(_raw_compare_and_swap(&rw->lock, 0, 0x80000000) == 0))
+		return 1;
+	return _raw_write_trylock_retry(rw);
 }
 
 #endif /* __ASM_SPINLOCK_H */

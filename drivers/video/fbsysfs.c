@@ -242,10 +242,68 @@ static ssize_t show_virtual(struct class_device *class_device, char *buf)
 			fb_info->var.yres_virtual);
 }
 
-static ssize_t store_cmap(struct class_device *class_device, const char * buf,
+/* Format for cmap is "%02x%c%4x%4x%4x\n" */
+/* %02x entry %c transp %4x red %4x blue %4x green \n */
+/* 256 rows at 16 chars equals 4096, the normal page size */
+/* the code will automatically adjust for different page sizes */
+static ssize_t store_cmap(struct class_device *class_device, const char *buf,
 			  size_t count)
 {
-//	struct fb_info *fb_info = (struct fb_info *)class_get_devdata(class_device);
+	struct fb_info *fb_info = (struct fb_info *)class_get_devdata(class_device);
+	int rc, i, start, length, transp = 0;
+
+	if ((count > PAGE_SIZE) || ((count % 16) != 0))
+		return -EINVAL;
+
+	if (!fb_info->fbops->fb_setcolreg && !fb_info->fbops->fb_setcmap)
+		return -EINVAL;
+
+	sscanf(buf, "%02x", &start);
+	length = count / 16;
+
+	for (i = 0; i < length; i++)
+		if (buf[i * 16 + 2] != ' ')
+			transp = 1;
+
+	/* If we can batch, do it */
+	if (fb_info->fbops->fb_setcmap && length > 1) {
+		struct fb_cmap umap;
+
+		memset(&umap, 0, sizeof(umap));
+		if ((rc = fb_alloc_cmap(&umap, length, transp)))
+			return rc;
+
+		umap.start = start;
+		for (i = 0; i < length; i++) {
+			sscanf(&buf[i * 16 +  3], "%4hx", &umap.red[i]);
+			sscanf(&buf[i * 16 +  7], "%4hx", &umap.blue[i]);
+			sscanf(&buf[i * 16 + 11], "%4hx", &umap.green[i]);
+			if (transp)
+				umap.transp[i] = (buf[i * 16 +  2] != ' ');
+		}
+		rc = fb_info->fbops->fb_setcmap(&umap, fb_info);
+		fb_copy_cmap(&umap, &fb_info->cmap);
+		fb_dealloc_cmap(&umap);
+
+		return rc;
+	}
+	for (i = 0; i < length; i++) {
+		u16 red, blue, green, tsp;
+
+		sscanf(&buf[i * 16 +  3], "%4hx", &red);
+		sscanf(&buf[i * 16 +  7], "%4hx", &blue);
+		sscanf(&buf[i * 16 + 11], "%4hx", &green);
+		tsp = (buf[i * 16 +  2] != ' ');
+		if ((rc = fb_info->fbops->fb_setcolreg(start++,
+				      red, green, blue, tsp, fb_info)))
+			return rc;
+
+		fb_info->cmap.red[i] = red;
+		fb_info->cmap.blue[i] = blue;
+		fb_info->cmap.green[i] = green;
+		if (transp)
+			fb_info->cmap.transp[i] = tsp;
+	}
 	return 0;
 }
 
@@ -253,20 +311,24 @@ static ssize_t show_cmap(struct class_device *class_device, char *buf)
 {
 	struct fb_info *fb_info =
 		(struct fb_info *)class_get_devdata(class_device);
-	unsigned int offset = 0, i;
+	unsigned int i;
 
 	if (!fb_info->cmap.red || !fb_info->cmap.blue ||
-	    !fb_info->cmap.green || !fb_info->cmap.transp)
+	   !fb_info->cmap.green)
 		return -EINVAL;
 
+	if (fb_info->cmap.len > PAGE_SIZE / 16)
+		return -EINVAL;
+
+	/* don't mess with the format, the buffer is PAGE_SIZE */
+	/* 256 entries at 16 chars per line equals 4096 = PAGE_SIZE */
 	for (i = 0; i < fb_info->cmap.len; i++) {
-		offset += snprintf(buf, PAGE_SIZE - offset,
-				   "%d,%d,%d,%d,%d\n", i + fb_info->cmap.start,
-				   fb_info->cmap.red[i], fb_info->cmap.blue[i],
-				   fb_info->cmap.green[i],
-				   fb_info->cmap.transp[i]);
+		snprintf(&buf[ i * 16], PAGE_SIZE - i * 16, "%02x%c%4x%4x%4x\n", i + fb_info->cmap.start,
+			((fb_info->cmap.transp && fb_info->cmap.transp[i]) ? '*' : ' '),
+			fb_info->cmap.red[i], fb_info->cmap.blue[i],
+			fb_info->cmap.green[i]);
 	}
-	return offset;
+	return 16 * fb_info->cmap.len;
 }
 
 static ssize_t store_blank(struct class_device *class_device, const char * buf,
@@ -352,6 +414,13 @@ static ssize_t show_pan(struct class_device *class_device, char *buf)
 			fb_info->var.xoffset);
 }
 
+static ssize_t show_name(struct class_device *class_device, char *buf)
+{
+	struct fb_info *fb_info = (struct fb_info *)class_get_devdata(class_device);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", fb_info->fix.id);
+}
+
 static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(bits_per_pixel, S_IRUGO|S_IWUSR, show_bpp, store_bpp),
 	__ATTR(blank, S_IRUGO|S_IWUSR, show_blank, store_blank),
@@ -362,6 +431,7 @@ static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(modes, S_IRUGO|S_IWUSR, show_modes, store_modes),
 	__ATTR(pan, S_IRUGO|S_IWUSR, show_pan, store_pan),
 	__ATTR(virtual_size, S_IRUGO|S_IWUSR, show_virtual, store_virtual),
+	__ATTR(name, S_IRUGO, show_name, NULL),
 };
 
 int fb_init_class_device(struct fb_info *fb_info)

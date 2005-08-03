@@ -542,7 +542,7 @@ static void snd_cs4281_delay(unsigned int delay)
 	}
 }
 
-inline static void snd_cs4281_delay_long(void)
+static inline void snd_cs4281_delay_long(void)
 {
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule_timeout(1);

@@ -299,23 +299,17 @@ void machine_restart(char *command)
 	_machine_restart(command);
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_halt(void)
 {
 	console_unblank();
 	_machine_halt();
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off(void)
 {
 	console_unblank();
 	_machine_power_off();
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 static void __init
 add_memory_hole(unsigned long start, unsigned long end)
@@ -437,12 +431,6 @@ setup_lowcore(void)
 		ctl_set_bit(14, 29);
 	}
 #endif
-#ifdef CONFIG_ARCH_S390X
-	if (MACHINE_HAS_DIAG44)
-		lc->diag44_opcode = 0x83000044;
-	else
-		lc->diag44_opcode = 0x07000700;
-#endif /* CONFIG_ARCH_S390X */
 	set_prefix((u32)(unsigned long) lc);
 }
 

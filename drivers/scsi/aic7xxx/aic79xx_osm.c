@@ -1505,7 +1505,7 @@ ahd_linux_dev_reset(Scsi_Cmnd *cmd)
 	memset(recovery_cmd, 0, sizeof(struct scsi_cmnd));
 	recovery_cmd->device = cmd->device;
 	recovery_cmd->scsi_done = ahd_linux_dev_reset_complete;
-#if AHD_DEBUG
+#ifdef AHD_DEBUG
 	if ((ahd_debug & AHD_SHOW_RECOVERY) != 0)
 		printf("%s:%d:%d:%d: Device reset called for cmd %p\n",
 		       ahd_name(ahd), cmd->device->channel, cmd->device->id,
@@ -1553,7 +1553,7 @@ ahd_linux_dev_reset(Scsi_Cmnd *cmd)
 	ahd_queue_scb(ahd, scb);
 
 	scb->platform_data->flags |= AHD_SCB_UP_EH_SEM;
-	spin_unlock_irq(&ahd->platform_data->spin_lock);
+	ahd_unlock(ahd, &s);
 	init_timer(&timer);
 	timer.data = (u_long)scb;
 	timer.expires = jiffies + (5 * HZ);
@@ -1567,7 +1567,7 @@ ahd_linux_dev_reset(Scsi_Cmnd *cmd)
 		printf("Timer Expired\n");
 		retval = FAILED;
 	}
-	spin_lock_irq(&ahd->platform_data->spin_lock);
+	ahd_lock(ahd, &s);
 	ahd_schedule_runq(ahd);
 	ahd_linux_run_complete_queue(ahd);
 	ahd_unlock(ahd, &s);

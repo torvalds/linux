@@ -642,6 +642,7 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 		    (yenta_search_res(socket, res, BRIDGE_IO_MIN))) {
 			config_writel(socket, addr_start, res->start);
 			config_writel(socket, addr_end, res->end);
+			return;
 		}
 	} else {
 		if (type & IORESOURCE_PREFETCH) {
@@ -650,6 +651,7 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 			    (yenta_search_res(socket, res, BRIDGE_MEM_MIN))) {
 				config_writel(socket, addr_start, res->start);
 				config_writel(socket, addr_end, res->end);
+				return;
 			}
 			/* Approximating prefetchable by non-prefetchable */
 			res->flags = IORESOURCE_MEM;
@@ -659,6 +661,7 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 		    (yenta_search_res(socket, res, BRIDGE_MEM_MIN))) {
 			config_writel(socket, addr_start, res->start);
 			config_writel(socket, addr_end, res->end);
+			return;
 		}
 	}
 

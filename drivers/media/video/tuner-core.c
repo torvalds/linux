@@ -1,5 +1,5 @@
 /*
- * $Id: tuner-core.c,v 1.58 2005/07/14 03:06:43 mchehab Exp $
+ * $Id: tuner-core.c,v 1.63 2005/07/28 18:19:55 mchehab Exp $
  *
  * i2c tv tuner chip device driver
  * core core, i.e. kernel interfaces, registering and so on
@@ -23,6 +23,8 @@
 #include <media/tuner.h>
 #include <media/audiochip.h>
 
+#include "msp3400.h"
+
 #define UNSET (-1U)
 
 /* standard i2c insmod options */
@@ -41,6 +43,9 @@ module_param(addr, int, 0444);
 
 static unsigned int no_autodetect = 0;
 module_param(no_autodetect, int, 0444);
+
+static unsigned int show_i2c = 0;
+module_param(show_i2c, int, 0444);
 
 /* insmod options used at runtime => read/write */
 unsigned int tuner_debug = 0;
@@ -320,6 +325,17 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 
 	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
 
+	if (show_i2c) {
+		unsigned char buffer[16];
+		int i,rc;
+
+		memset(buffer, 0, sizeof(buffer));
+		rc = i2c_master_recv(&t->i2c, buffer, sizeof(buffer));
+		printk("tuner-%04x I2C RECV = ",addr);
+		for (i=0;i<rc;i++)
+			printk("%02x ",buffer[i]);
+		printk("\n");
+	}
 	/* TEA5767 autodetection code - only for addr = 0xc0 */
 	if (!no_autodetect) {
 		if (addr == 0x60) {
@@ -451,6 +467,17 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 		}
 		break;
+	case VIDIOCSAUDIO:
+		if (check_mode(t, "VIDIOCSAUDIO") == EINVAL)
+			return 0;
+		if (check_v4l2(t) == EINVAL)
+			return 0;
+
+		/* Should be implemented, since bttv calls it */
+		tuner_dbg("VIDIOCSAUDIO not implemented.\n");
+
+		break;
+	case MSP_SET_MATRIX:
 	case TDA9887_SET_CONFIG:
 		break;
 	/* --- v4l ioctls --- */

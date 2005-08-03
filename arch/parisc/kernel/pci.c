@@ -255,8 +255,26 @@ void __devinit pcibios_resource_to_bus(struct pci_dev *dev,
 	pcibios_link_hba_resources(&hba->lmmio_space, bus->resource[1]);
 }
 
+void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+			      struct pci_bus_region *region)
+{
+	struct pci_bus *bus = dev->bus;
+	struct pci_hba_data *hba = HBA_DATA(bus->bridge->platform_data);
+
+	if (res->flags & IORESOURCE_MEM) {
+		res->start = PCI_HOST_ADDR(hba, region->start);
+		res->end = PCI_HOST_ADDR(hba, region->end);
+	}
+
+	if (res->flags & IORESOURCE_IO) {
+		res->start = region->start;
+		res->end = region->end;
+	}
+}
+
 #ifdef CONFIG_HOTPLUG
 EXPORT_SYMBOL(pcibios_resource_to_bus);
+EXPORT_SYMBOL(pcibios_bus_to_resource);
 #endif
 
 /*

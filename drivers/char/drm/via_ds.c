@@ -133,7 +133,7 @@ memHeap_t *via_mmInit(int ofs, int size)
 	PMemBlock blocks;
 
 	if (size <= 0)
-		return 0;
+		return NULL;
 
 	blocks = (TMemBlock *) drm_calloc(1, sizeof(TMemBlock), DRM_MEM_DRIVER);
 
@@ -143,7 +143,7 @@ memHeap_t *via_mmInit(int ofs, int size)
 		blocks->free = 1;
 		return (memHeap_t *) blocks;
 	} else
-		return 0;
+		return NULL;
 }
 
 static TMemBlock *SliceBlock(TMemBlock * p,

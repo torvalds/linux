@@ -55,16 +55,26 @@ struct pt_regs {
 #define PTRACE_SET_THREAD_AREA    26
 
 #ifdef __KERNEL__
+
+#include <asm/vm86.h>
+
 struct task_struct;
 extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code);
-#define user_mode(regs)		(3 & (regs)->xcs)
-#define user_mode_vm(regs)	((VM_MASK & (regs)->eflags) || user_mode(regs))
+
+static inline int user_mode(struct pt_regs *regs)
+{
+	return (regs->xcs & 3) != 0;
+}
+static inline int user_mode_vm(struct pt_regs *regs)
+{
+	return ((regs->xcs & 3) | (regs->eflags & VM_MASK)) != 0;
+}
 #define instruction_pointer(regs) ((regs)->eip)
 #if defined(CONFIG_SMP) && defined(CONFIG_FRAME_POINTER)
 extern unsigned long profile_pc(struct pt_regs *regs);
 #else
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
-#endif
+#endif /* __KERNEL__ */
 
 #endif

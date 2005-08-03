@@ -75,6 +75,7 @@ struct desc_ptr {
  */
 extern struct desc_struct default_ldt[];
 extern struct gate_struct idt_table[]; 
+extern struct desc_ptr cpu_gdt_descr[];
 
 static inline void _set_gate(void *adr, unsigned type, unsigned long func, unsigned dpl, unsigned ist)  
 {

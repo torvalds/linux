@@ -141,7 +141,7 @@ config DEBUG_IOREMAP
 
 config DEBUG_FS
 	bool "Debug Filesystem"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && SYSFS
 	help
 	  debugfs is a virtual file system that kernel developers use to put
 	  debugging files into.  Enable this option to be able to read and

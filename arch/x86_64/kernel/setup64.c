@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/bootmem.h>
 #include <linux/bitops.h>
+#include <linux/module.h>
 #include <asm/bootsetup.h>
 #include <asm/pda.h>
 #include <asm/pgtable.h>
@@ -22,10 +23,8 @@
 #include <asm/smp.h>
 #include <asm/i387.h>
 #include <asm/percpu.h>
-#include <asm/mtrr.h>
 #include <asm/proto.h>
-#include <asm/mman.h>
-#include <asm/numa.h>
+#include <asm/sections.h>
 
 char x86_boot_params[BOOT_PARAM_SIZE] __initdata = {0,};
 
@@ -33,11 +32,6 @@ cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
 struct x8664_pda cpu_pda[NR_CPUS] __cacheline_aligned; 
 
-extern struct task_struct init_task;
-
-extern unsigned char __per_cpu_start[], __per_cpu_end[]; 
-
-extern struct desc_ptr cpu_gdt_descr[];
 struct desc_ptr idt_descr = { 256 * 16, (unsigned long) idt_table }; 
 
 char boot_cpu_stack[IRQSTACKSIZE] __attribute__((section(".bss.page_aligned")));
@@ -101,7 +95,7 @@ void __init setup_per_cpu_areas(void)
 #endif
 
 	for (i = 0; i < NR_CPUS; i++) { 
-		unsigned char *ptr;
+		char *ptr;
 
 		if (!NODE_DATA(cpu_to_node(i))) {
 			printk("cpu with no node %d, num_online_nodes %d\n",
@@ -190,11 +184,7 @@ void __cpuinit check_efer(void)
  */
 void __cpuinit cpu_init (void)
 {
-#ifdef CONFIG_SMP
 	int cpu = stack_smp_processor_id();
-#else
-	int cpu = smp_processor_id();
-#endif
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
 	unsigned long v; 
 	char *estacks = NULL; 
@@ -214,7 +204,7 @@ void __cpuinit cpu_init (void)
 
 	printk("Initializing CPU#%d\n", cpu);
 
-		clear_in_cr4(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
+	clear_in_cr4(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
 
 	/*
 	 * Initialize the per-CPU GDT with the boot GDT,

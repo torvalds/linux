@@ -153,6 +153,7 @@ struct snd_usb_substream {
 	unsigned int format;     /* USB data format */
 	unsigned int datapipe;   /* the data i/o pipe */
 	unsigned int syncpipe;   /* 1 - async out or adaptive in */
+	unsigned int datainterval;	/* log_2 of data packet interval */
 	unsigned int syncinterval;  /* P for adaptive mode, 0 otherwise */
 	unsigned int freqn;      /* nominal sampling rate in fs/fps in Q16.16 format */
 	unsigned int freqm;      /* momentary sampling rate in fs/fps in Q16.16 format */
@@ -212,7 +213,7 @@ static snd_usb_audio_t *usb_chip[SNDRV_CARDS];
  * convert a sampling rate into our full speed format (fs/1000 in Q16.16)
  * this will overflow at approx 524 kHz
  */
-inline static unsigned get_usb_full_speed_rate(unsigned int rate)
+static inline unsigned get_usb_full_speed_rate(unsigned int rate)
 {
 	return ((rate << 13) + 62) / 125;
 }
@@ -221,19 +222,19 @@ inline static unsigned get_usb_full_speed_rate(unsigned int rate)
  * convert a sampling rate into USB high speed format (fs/8000 in Q16.16)
  * this will overflow at approx 4 MHz
  */
-inline static unsigned get_usb_high_speed_rate(unsigned int rate)
+static inline unsigned get_usb_high_speed_rate(unsigned int rate)
 {
 	return ((rate << 10) + 62) / 125;
 }
 
 /* convert our full speed USB rate into sampling rate in Hz */
-inline static unsigned get_full_speed_hz(unsigned int usb_rate)
+static inline unsigned get_full_speed_hz(unsigned int usb_rate)
 {
 	return (usb_rate * 125 + (1 << 12)) >> 13;
 }
 
 /* convert our high speed USB rate into sampling rate in Hz */
-inline static unsigned get_high_speed_hz(unsigned int usb_rate)
+static inline unsigned get_high_speed_hz(unsigned int usb_rate)
 {
 	return (usb_rate * 125 + (1 << 9)) >> 10;
 }
@@ -518,7 +519,8 @@ static int prepare_playback_urb(snd_usb_substream_t *subs,
 		if (subs->fill_max)
 			counts = subs->maxframesize; /* fixed */
 		else {
-			subs->phase = (subs->phase & 0xffff) + subs->freqm;
+			subs->phase = (subs->phase & 0xffff)
+				+ (subs->freqm << subs->datainterval);
 			counts = subs->phase >> 16;
 			if (counts > subs->maxframesize)
 				counts = subs->maxframesize;
@@ -790,7 +792,7 @@ static int start_urbs(snd_usb_substream_t *subs, snd_pcm_runtime_t *runtime)
  */
 static int wait_clear_urbs(snd_usb_substream_t *subs)
 {
-	int timeout = HZ;
+	unsigned long end_time = jiffies + msecs_to_jiffies(1000);
 	unsigned int i;
 	int alive;
 
@@ -810,7 +812,7 @@ static int wait_clear_urbs(snd_usb_substream_t *subs)
 			break;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
-	} while (--timeout > 0);
+	} while (time_before(jiffies, end_time));
 	if (alive)
 		snd_printk(KERN_ERR "timeout: still %d active urbs..\n", alive);
 	return 0;
@@ -899,16 +901,19 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 	else
 		subs->freqn = get_usb_high_speed_rate(rate);
 	subs->freqm = subs->freqn;
-	subs->freqmax = subs->freqn + (subs->freqn >> 2); /* max. allowed frequency */
-	subs->phase = 0;
-
-	/* calculate the max. size of packet */
-	maxsize = ((subs->freqmax + 0xffff) * (frame_bits >> 3)) >> 16;
-	if (subs->maxpacksize && maxsize > subs->maxpacksize) {
-		//snd_printd(KERN_DEBUG "maxsize %d is greater than defined size %d\n",
-		//	   maxsize, subs->maxpacksize);
+	/* calculate max. frequency */
+	if (subs->maxpacksize) {
+		/* whatever fits into a max. size packet */
 		maxsize = subs->maxpacksize;
+		subs->freqmax = (maxsize / (frame_bits >> 3))
+				<< (16 - subs->datainterval);
+	} else {
+		/* no max. packet size: just take 25% higher than nominal */
+		subs->freqmax = subs->freqn + (subs->freqn >> 2);
+		maxsize = ((subs->freqmax + 0xffff) * (frame_bits >> 3))
+				>> (16 - subs->datainterval);
 	}
+	subs->phase = 0;
 
 	if (subs->fill_max)
 		subs->curpacksize = subs->maxpacksize;
@@ -918,7 +923,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
 		urb_packs = nrpacks;
 	else
-		urb_packs = nrpacks * 8;
+		urb_packs = (nrpacks * 8) >> subs->datainterval;
 
 	/* allocate a temporary buffer for playback */
 	if (is_playback) {
@@ -991,7 +996,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 		u->urb->pipe = subs->datapipe;
 		u->urb->transfer_flags = URB_ISO_ASAP;
 		u->urb->number_of_packets = u->packets;
-		u->urb->interval = 1;
+		u->urb->interval = 1 << subs->datainterval;
 		u->urb->context = u;
 		u->urb->complete = snd_usb_complete_callback(snd_complete_urb);
 	}
@@ -1195,6 +1200,12 @@ static int set_format(snd_usb_substream_t *subs, struct audioformat *fmt)
 		subs->datapipe = usb_sndisocpipe(dev, ep);
 	else
 		subs->datapipe = usb_rcvisocpipe(dev, ep);
+	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH &&
+	    get_endpoint(alts, 0)->bInterval >= 1 &&
+	    get_endpoint(alts, 0)->bInterval <= 4)
+		subs->datainterval = get_endpoint(alts, 0)->bInterval - 1;
+	else
+		subs->datainterval = 0;
 	subs->syncpipe = subs->syncinterval = 0;
 	subs->maxpacksize = fmt->maxpacksize;
 	subs->fill_max = 0;
@@ -2397,10 +2408,9 @@ static int parse_audio_format(snd_usb_audio_t *chip, struct audioformat *fp,
 	if (chip->usb_id == USB_ID(0x041e, 0x3000) ||
 	    chip->usb_id == USB_ID(0x041e, 0x3020)) {
 		if (fmt[3] == USB_FORMAT_TYPE_I &&
-		    stream == SNDRV_PCM_STREAM_PLAYBACK &&
 		    fp->rates != SNDRV_PCM_RATE_48000 &&
 		    fp->rates != SNDRV_PCM_RATE_96000)
-			return -1; /* use 48k only */
+			return -1;
 	}
 #endif
 	return 0;
@@ -2492,8 +2502,10 @@ static int parse_audio_endpoints(snd_usb_audio_t *chip, int iface_no)
 		fp->altset_idx = i;
 		fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;
 		fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
-		/* FIXME: decode wMaxPacketSize of high bandwith endpoints */
 		fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
+		if (snd_usb_get_speed(dev) == USB_SPEED_HIGH)
+			fp->maxpacksize = (((fp->maxpacksize >> 11) & 3) + 1)
+					* (fp->maxpacksize & 0x7ff);
 		fp->attributes = csep[3];
 
 		/* some quirks for attributes here */
@@ -2723,7 +2735,8 @@ static int create_standard_interface_quirk(snd_usb_audio_t *chip,
  * to detect the sample rate is by looking at wMaxPacketSize.
  */
 static int create_ua700_ua25_quirk(snd_usb_audio_t *chip,
-				   struct usb_interface *iface)
+				   struct usb_interface *iface,
+				   const snd_usb_audio_quirk_t *quirk)
 {
 	static const struct audioformat ua_format = {
 		.format = SNDRV_PCM_FORMAT_S24_3LE,
@@ -2814,7 +2827,9 @@ static int create_ua700_ua25_quirk(snd_usb_audio_t *chip,
 /*
  * Create a stream for an Edirol UA-1000 interface.
  */
-static int create_ua1000_quirk(snd_usb_audio_t *chip, struct usb_interface *iface)
+static int create_ua1000_quirk(snd_usb_audio_t *chip,
+			       struct usb_interface *iface,
+			       const snd_usb_audio_quirk_t *quirk)
 {
 	static const struct audioformat ua1000_format = {
 		.format = SNDRV_PCM_FORMAT_S32_LE,
@@ -2891,6 +2906,13 @@ static int create_composite_quirk(snd_usb_audio_t *chip,
 	return 0;
 }
 
+static int ignore_interface_quirk(snd_usb_audio_t *chip,
+				  struct usb_interface *iface,
+				  const snd_usb_audio_quirk_t *quirk)
+{
+	return 0;
+}
+
 
 /*
  * boot quirks
@@ -2926,8 +2948,6 @@ static int snd_usb_extigy_boot_quirk(struct usb_device *dev, struct usb_interfac
 
 static int snd_usb_audigy2nx_boot_quirk(struct usb_device *dev)
 {
-#if 0
-	/* TODO: enable this when high speed synchronization actually works */
 	u8 buf = 1;
 
 	snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), 0x2a,
@@ -2939,7 +2959,6 @@ static int snd_usb_audigy2nx_boot_quirk(struct usb_device *dev)
 				1, 2000, NULL, 0, 1000);
 		return -ENODEV;
 	}
-#endif
 	return 0;
 }
 
@@ -2956,28 +2975,28 @@ static int snd_usb_create_quirk(snd_usb_audio_t *chip,
 				struct usb_interface *iface,
 				const snd_usb_audio_quirk_t *quirk)
 {
-	switch (quirk->type) {
-	case QUIRK_MIDI_FIXED_ENDPOINT:
-	case QUIRK_MIDI_YAMAHA:
-	case QUIRK_MIDI_MIDIMAN:
-	case QUIRK_MIDI_NOVATION:
-	case QUIRK_MIDI_MOTU:
-	case QUIRK_MIDI_EMAGIC:
-		return snd_usb_create_midi_interface(chip, iface, quirk);
-	case QUIRK_COMPOSITE:
-		return create_composite_quirk(chip, iface, quirk);
-	case QUIRK_AUDIO_FIXED_ENDPOINT:
-		return create_fixed_stream_quirk(chip, iface, quirk);
-	case QUIRK_AUDIO_STANDARD_INTERFACE:
-	case QUIRK_MIDI_STANDARD_INTERFACE:
-		return create_standard_interface_quirk(chip, iface, quirk);
-	case QUIRK_AUDIO_EDIROL_UA700_UA25:
-		return create_ua700_ua25_quirk(chip, iface);
-	case QUIRK_AUDIO_EDIROL_UA1000:
-		return create_ua1000_quirk(chip, iface);
-	case QUIRK_IGNORE_INTERFACE:
-		return 0;
-	default:
+	typedef int (*quirk_func_t)(snd_usb_audio_t *, struct usb_interface *,
+				    const snd_usb_audio_quirk_t *);
+	static const quirk_func_t quirk_funcs[] = {
+		[QUIRK_IGNORE_INTERFACE] = ignore_interface_quirk,
+		[QUIRK_COMPOSITE] = create_composite_quirk,
+		[QUIRK_MIDI_STANDARD_INTERFACE] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_FIXED_ENDPOINT] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_YAMAHA] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_MIDIMAN] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_NOVATION] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_RAW] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_EMAGIC] = snd_usb_create_midi_interface,
+		[QUIRK_MIDI_MIDITECH] = snd_usb_create_midi_interface,
+		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_interface_quirk,
+		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
+		[QUIRK_AUDIO_EDIROL_UA700_UA25] = create_ua700_ua25_quirk,
+		[QUIRK_AUDIO_EDIROL_UA1000] = create_ua1000_quirk,
+	};
+
+	if (quirk->type < QUIRK_TYPE_COUNT) {
+		return quirk_funcs[quirk->type](chip, iface, quirk);
+	} else {
 		snd_printd(KERN_ERR "invalid quirk type %d\n", quirk->type);
 		return -ENXIO;
 	}

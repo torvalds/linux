@@ -260,6 +260,37 @@ config ETRAX_DEBUG_PORT_NULL
 endchoice
 
 choice
+	prompt "Kernel GDB port"
+	depends on ETRAX_KGDB
+	default ETRAX_KGDB_PORT0
+	help
+	  Choose a serial port for kernel debugging.  NOTE: This port should
+	  not be enabled under Drivers for built-in interfaces (as it has its
+	  own initialization code) and should not be the same as the debug port.
+
+config ETRAX_KGDB_PORT0
+	bool "Serial-0"
+	help
+	  Use serial port 0 for kernel debugging.
+
+config ETRAX_KGDB_PORT1
+	bool "Serial-1"
+	help
+	  Use serial port 1 for kernel debugging.
+
+config ETRAX_KGDB_PORT2
+	bool "Serial-2"
+	help
+	  Use serial port 2 for kernel debugging.
+
+config ETRAX_KGDB_PORT3
+	bool "Serial-3"
+	help
+	  Use serial port 3 for kernel debugging.
+
+endchoice
+
+choice
 	prompt "Product rescue-port"
 	depends on ETRAX_ARCH_V10
 	default ETRAX_RESCUE_SER0

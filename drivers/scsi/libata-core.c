@@ -2866,7 +2866,7 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 	if (qc->dev->class == ATA_DEV_ATAPI && qc->scsicmd) {
 		struct scsi_cmnd *cmd = qc->scsicmd;
 
-		if (!scsi_eh_eflags_chk(cmd, SCSI_EH_CANCEL_CMD)) {
+		if (!(cmd->eh_eflags & SCSI_EH_CANCEL_CMD)) {
 
 			/* finish completing original command */
 			__ata_qc_complete(qc);
@@ -3750,7 +3750,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	host->max_channel = 1;
 	host->unique_id = ata_unique_id++;
 	host->max_cmd_len = 12;
-	scsi_set_device(host, ent->dev);
+
 	scsi_assign_lock(host, &host_set->lock);
 
 	ap->flags = ATA_FLAG_PORT_DISABLED;

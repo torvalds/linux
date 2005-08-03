@@ -565,8 +565,14 @@ __SYSCALL(__NR_keyctl, sys_keyctl)
 __SYSCALL(__NR_ioprio_set, sys_ioprio_set)
 #define __NR_ioprio_get		252
 __SYSCALL(__NR_ioprio_get, sys_ioprio_get)
+#define __NR_inotify_init	253
+__SYSCALL(__NR_inotify_init, sys_inotify_init)
+#define __NR_inotify_add_watch	254
+__SYSCALL(__NR_inotify_add_watch, sys_inotify_add_watch)
+#define __NR_inotify_rm_watch	255
+__SYSCALL(__NR_inotify_rm_watch, sys_inotify_rm_watch)
 
-#define __NR_syscall_max __NR_ioprio_get
+#define __NR_syscall_max __NR_inotify_rm_watch
 #ifndef __NO_STUBS
 
 /* user-visible error numbers are in the range -1 - -4095 */

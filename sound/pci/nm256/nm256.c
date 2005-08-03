@@ -285,43 +285,43 @@ MODULE_DEVICE_TABLE(pci, snd_nm256_ids);
  * lowlvel stuffs
  */
 
-inline static u8
+static inline u8
 snd_nm256_readb(nm256_t *chip, int offset)
 {
 	return readb(chip->cport + offset);
 }
 
-inline static u16
+static inline u16
 snd_nm256_readw(nm256_t *chip, int offset)
 {
 	return readw(chip->cport + offset);
 }
 
-inline static u32
+static inline u32
 snd_nm256_readl(nm256_t *chip, int offset)
 {
 	return readl(chip->cport + offset);
 }
 
-inline static void
+static inline void
 snd_nm256_writeb(nm256_t *chip, int offset, u8 val)
 {
 	writeb(val, chip->cport + offset);
 }
 
-inline static void
+static inline void
 snd_nm256_writew(nm256_t *chip, int offset, u16 val)
 {
 	writew(val, chip->cport + offset);
 }
 
-inline static void
+static inline void
 snd_nm256_writel(nm256_t *chip, int offset, u32 val)
 {
 	writel(val, chip->cport + offset);
 }
 
-inline static void
+static inline void
 snd_nm256_write_buffer(nm256_t *chip, void *src, int offset, int size)
 {
 	offset -= chip->buffer_start;
@@ -926,7 +926,7 @@ snd_nm256_init_chip(nm256_t *chip)
 }
 
 
-inline static void
+static inline void
 snd_nm256_intr_check(nm256_t *chip)
 {
 	if (chip->badintrcount++ > 1000) {

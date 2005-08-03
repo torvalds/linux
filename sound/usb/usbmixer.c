@@ -363,7 +363,7 @@ static int get_cur_ctl_value(usb_mixer_elem_info_t *cval, int validx, int *value
 }
 
 /* channel = 0: master, 1 = first channel */
-inline static int get_cur_mix_value(usb_mixer_elem_info_t *cval, int channel, int *value)
+static inline int get_cur_mix_value(usb_mixer_elem_info_t *cval, int channel, int *value)
 {
 	return get_ctl_value(cval, GET_CUR, (cval->control << 8) | channel, value);
 }
@@ -399,7 +399,7 @@ static int set_cur_ctl_value(usb_mixer_elem_info_t *cval, int validx, int value)
 	return set_ctl_value(cval, SET_CUR, validx, value);
 }
 
-inline static int set_cur_mix_value(usb_mixer_elem_info_t *cval, int channel, int value)
+static inline int set_cur_mix_value(usb_mixer_elem_info_t *cval, int channel, int value)
 {
 	return set_ctl_value(cval, SET_CUR, (cval->control << 8) | channel, value);
 }

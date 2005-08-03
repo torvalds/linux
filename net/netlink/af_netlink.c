@@ -648,7 +648,8 @@ void netlink_detachskb(struct sock *sk, struct sk_buff *skb)
 	sock_put(sk);
 }
 
-static inline struct sk_buff *netlink_trim(struct sk_buff *skb, int allocation)
+static inline struct sk_buff *netlink_trim(struct sk_buff *skb,
+					   unsigned int __nocast allocation)
 {
 	int delta;
 
@@ -717,7 +718,7 @@ struct netlink_broadcast_data {
 	int failure;
 	int congested;
 	int delivered;
-	int allocation;
+	unsigned int allocation;
 	struct sk_buff *skb, *skb2;
 };
 

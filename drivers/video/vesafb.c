@@ -45,7 +45,7 @@ static struct fb_fix_screeninfo vesafb_fix __initdata = {
 };
 
 static int             inverse   = 0;
-static int             mtrr      = 1;
+static int             mtrr      = 3; /* default to write-combining */
 static int	       vram_remap __initdata = 0; /* Set amount of memory to be used */
 static int	       vram_total __initdata = 0; /* Set total amount of memory */
 static int             pmi_setpal = 0;	/* pmi for palette changes ??? */
@@ -204,8 +204,8 @@ static int __init vesafb_setup(char *options)
 			pmi_setpal=0;
 		else if (! strcmp(this_opt, "pmipal"))
 			pmi_setpal=1;
-		else if (! strcmp(this_opt, "mtrr"))
-			mtrr=1;
+		else if (! strncmp(this_opt, "mtrr:", 5))
+			mtrr = simple_strtoul(this_opt+5, NULL, 0);
 		else if (! strcmp(this_opt, "nomtrr"))
 			mtrr=0;
 		else if (! strncmp(this_opt, "vtotal:", 7))
@@ -387,14 +387,39 @@ static int __init vesafb_probe(struct device *device)
 
 	if (mtrr) {
 		unsigned int temp_size = size_total;
-		/* Find the largest power-of-two */
-		while (temp_size & (temp_size - 1))
-			temp_size &= (temp_size - 1);
+		unsigned int type = 0;
 
-		/* Try and find a power of two to add */
-		while (temp_size > PAGE_SIZE &&
-			mtrr_add(vesafb_fix.smem_start, temp_size, MTRR_TYPE_WRCOMB, 1)==-EINVAL) {
-			temp_size >>= 1;
+		switch (mtrr) {
+		case 1:
+			type = MTRR_TYPE_UNCACHABLE;
+			break;
+		case 2:
+			type = MTRR_TYPE_WRBACK;
+			break;
+		case 3:
+			type = MTRR_TYPE_WRCOMB;
+			break;
+		case 4:
+			type = MTRR_TYPE_WRTHROUGH;
+			break;
+		default:
+			type = 0;
+			break;
+		}
+
+		if (type) {
+			int rc;
+
+			/* Find the largest power-of-two */
+			while (temp_size & (temp_size - 1))
+				temp_size &= (temp_size - 1);
+
+			/* Try and find a power of two to add */
+			do {
+				rc = mtrr_add(vesafb_fix.smem_start, temp_size,
+					      type, 1);
+				temp_size >>= 1;
+			} while (temp_size >= PAGE_SIZE && rc == -EINVAL);
 		}
 	}
 	

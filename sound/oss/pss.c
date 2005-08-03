@@ -714,7 +714,7 @@ static int __init attach_pss(struct address_info *hw_config)
 	 
 	disable_all_emulations();
 
-#if YOU_REALLY_WANT_TO_ALLOCATE_THESE_RESOURCES
+#ifdef YOU_REALLY_WANT_TO_ALLOCATE_THESE_RESOURCES
 	if (sound_alloc_dma(hw_config->dma, "PSS"))
 	{
 		printk("pss.c: Can't allocate DMA channel.\n");

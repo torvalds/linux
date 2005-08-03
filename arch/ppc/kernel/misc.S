@@ -1145,6 +1145,7 @@ _GLOBAL(kernel_thread)
 	stwu	r0,-16(r1)
 	mtlr	r30		/* fn addr in lr */
 	mr	r3,r31		/* load arg and call fn */
+	PPC440EP_ERR42
 	blrl
 	li	r0,__NR_exit	/* exit if function returns */
 	li	r3,0
@@ -1451,3 +1452,6 @@ _GLOBAL(sys_call_table)
 	.long sys_waitid
 	.long sys_ioprio_set
 	.long sys_ioprio_get
+	.long sys_inotify_init		/* 275 */
+	.long sys_inotify_add_watch
+	.long sys_inotify_rm_watch

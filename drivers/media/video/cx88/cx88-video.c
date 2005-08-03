@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-video.c,v 1.80 2005/07/13 08:49:08 mchehab Exp $
+ * $Id: cx88-video.c,v 1.82 2005/07/22 05:13:34 mkrufky Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * video4linux video interface
@@ -758,10 +758,10 @@ static int video_open(struct inode *inode, struct file *file)
 		struct cx88_core *core = dev->core;
 		int board = core->board;
 		dprintk(1,"video_open: setting radio device\n");
+		cx_write(MO_GP3_IO, cx88_boards[board].radio.gpio3);
 		cx_write(MO_GP0_IO, cx88_boards[board].radio.gpio0);
 		cx_write(MO_GP1_IO, cx88_boards[board].radio.gpio1);
 		cx_write(MO_GP2_IO, cx88_boards[board].radio.gpio2);
-		cx_write(MO_GP3_IO, cx88_boards[board].radio.gpio3);
 		dev->core->tvaudio = WW_FM;
 		cx88_set_tvaudio(core);
 		cx88_set_stereo(core,V4L2_TUNER_MODE_STEREO,1);

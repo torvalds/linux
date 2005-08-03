@@ -15,6 +15,9 @@
  *    12-03-2004     BJD     Updated include protection
  *    07-03-2005     BJD     Added FIFO size flags and S3C2440 MPLL
  *    05-04-2005     LCVR    Added IISFCON definitions for the S3C2400
+ *    18-07-2005     DA      Change IISCON_MPLL to IISMOD_MPLL
+ *                           Correct IISMOD_256FS and IISMOD_384FS
+ *                           Add IISCON_PSCEN
  */
 
 #ifndef __ASM_ARCH_REGS_IIS_H
@@ -22,7 +25,6 @@
 
 #define S3C2410_IISCON	 (0x00)
 
-#define S3C2440_IISCON_MPLL	  (1<<9)
 #define S3C2410_IISCON_LRINDEX	  (1<<8)
 #define S3C2410_IISCON_TXFIFORDY  (1<<7)
 #define S3C2410_IISCON_RXFIFORDY  (1<<6)
@@ -30,10 +32,12 @@
 #define S3C2410_IISCON_RXDMAEN	  (1<<4)
 #define S3C2410_IISCON_TXIDLE	  (1<<3)
 #define S3C2410_IISCON_RXIDLE	  (1<<2)
+#define S3C2410_IISCON_PSCEN	  (1<<1)
 #define S3C2410_IISCON_IISEN	  (1<<0)
 
 #define S3C2410_IISMOD	 (0x04)
 
+#define S3C2440_IISMOD_MPLL	  (1<<9)
 #define S3C2410_IISMOD_SLAVE	  (1<<8)
 #define S3C2410_IISMOD_NOXFER	  (0<<6)
 #define S3C2410_IISMOD_RXMODE	  (1<<6)
@@ -46,8 +50,8 @@
 #define S3C2410_IISMOD_8BIT	  (0<<3)
 #define S3C2410_IISMOD_16BIT	  (1<<3)
 #define S3C2410_IISMOD_BITMASK	  (1<<3)
-#define S3C2410_IISMOD_256FS	  (0<<1)
-#define S3C2410_IISMOD_384FS	  (1<<1)
+#define S3C2410_IISMOD_256FS	  (0<<2)
+#define S3C2410_IISMOD_384FS	  (1<<2)
 #define S3C2410_IISMOD_16FS	  (0<<0)
 #define S3C2410_IISMOD_32FS	  (1<<0)
 #define S3C2410_IISMOD_48FS	  (2<<0)

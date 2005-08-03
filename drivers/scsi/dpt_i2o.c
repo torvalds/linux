@@ -382,7 +382,6 @@ static int adpt_queue(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd *))
 {
 	adpt_hba* pHba = NULL;
 	struct adpt_device* pDev = NULL;	/* dpt per device information */
-	ulong timeout = jiffies + (TMOUT_SCSI*HZ);
 
 	cmd->scsi_done = done;
 	/*
@@ -416,11 +415,6 @@ static int adpt_queue(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd *))
 		pHba->host->last_reset = jiffies;
 		pHba->host->resetting = 1;
 		return 1;
-	}
-
-	if(cmd->eh_state != SCSI_STATE_QUEUED){
-		// If we are not doing error recovery
-		mod_timer(&cmd->eh_timeout, timeout);
 	}
 
 	// TODO if the cmd->device if offline then I may need to issue a bus rescan

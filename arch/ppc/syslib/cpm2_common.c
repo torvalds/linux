@@ -27,7 +27,6 @@
 #include <asm/mpc8260.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/immap_cpm2.h>
 #include <asm/cpm2.h>
 #include <asm/rheap.h>
 

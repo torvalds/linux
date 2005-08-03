@@ -2521,6 +2521,11 @@ static void __devexit radeonfb_pci_unregister (struct pci_dev *pdev)
  
 	radeonfb_pm_exit(rinfo);
 
+	if (rinfo->mon1_EDID)
+		sysfs_remove_bin_file(&rinfo->pdev->dev.kobj, &edid1_attr);
+	if (rinfo->mon2_EDID)
+		sysfs_remove_bin_file(&rinfo->pdev->dev.kobj, &edid2_attr);
+
 #if 0
 	/* restore original state
 	 * 

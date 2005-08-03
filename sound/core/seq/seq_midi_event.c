@@ -146,7 +146,7 @@ void snd_midi_event_free(snd_midi_event_t *dev)
 /*
  * initialize record
  */
-inline static void reset_encode(snd_midi_event_t *dev)
+static inline void reset_encode(snd_midi_event_t *dev)
 {
 	dev->read = 0;
 	dev->qlen = 0;

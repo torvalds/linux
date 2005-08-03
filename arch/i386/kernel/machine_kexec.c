@@ -16,6 +16,7 @@
 #include <asm/io.h>
 #include <asm/apic.h>
 #include <asm/cpufeature.h>
+#include <asm/desc.h>
 
 static inline unsigned long read_cr3(void)
 {
@@ -90,33 +91,32 @@ static void identity_map_page(unsigned long address)
 }
 #endif
 
-
 static void set_idt(void *newidt, __u16 limit)
 {
-	unsigned char curidt[6];
+	struct Xgt_desc_struct curidt;
 
 	/* ia32 supports unaliged loads & stores */
-	(*(__u16 *)(curidt)) = limit;
-	(*(__u32 *)(curidt +2)) = (unsigned long)(newidt);
+	curidt.size    = limit;
+	curidt.address = (unsigned long)newidt;
 
 	__asm__ __volatile__ (
-		"lidt %0\n"
-		: "=m" (curidt)
+		"lidtl %0\n"
+		: : "m" (curidt)
 		);
 };
 
 
 static void set_gdt(void *newgdt, __u16 limit)
 {
-	unsigned char curgdt[6];
+	struct Xgt_desc_struct curgdt;
 
 	/* ia32 supports unaligned loads & stores */
-	(*(__u16 *)(curgdt)) = limit;
-	(*(__u32 *)(curgdt +2)) = (unsigned long)(newgdt);
+	curgdt.size    = limit;
+	curgdt.address = (unsigned long)newgdt;
 
 	__asm__ __volatile__ (
-		"lgdt %0\n"
-		: "=m" (curgdt)
+		"lgdtl %0\n"
+		: : "m" (curgdt)
 		);
 };
 
