@@ -415,6 +415,22 @@ static void __init iSeries_init_early(void)
 	DBG(" <- iSeries_init_early()\n");
 }
 
+struct msChunks msChunks = {
+	/* XXX We don't use these, but Piranha might need them. */
+	.chunk_size  = MSCHUNKS_CHUNK_SIZE,
+	.chunk_shift = MSCHUNKS_CHUNK_SHIFT,
+	.chunk_mask  = MSCHUNKS_OFFSET_MASK,
+};
+EXPORT_SYMBOL(msChunks);
+
+void msChunks_alloc(unsigned long num_chunks)
+{
+	klimit = _ALIGN(klimit, sizeof(u32));
+	msChunks.abs = (u32 *)klimit;
+	klimit += num_chunks * sizeof(u32);
+	msChunks.num_chunks = num_chunks;
+}
+
 /*
  * The iSeries may have very large memories ( > 128 GB ) and a partition
  * may get memory in "chunks" that may be anywhere in the 2**52 real
@@ -452,7 +468,7 @@ static void __init build_iSeries_Memory_Map(void)
 
 	/* Chunk size on iSeries is 256K bytes */
 	totalChunks = (u32)HvLpConfig_getMsChunks();
-	klimit = msChunks_alloc(klimit, totalChunks, 1UL << 18);
+	msChunks_alloc(totalChunks);
 
 	/*
 	 * Get absolute address of our load area
@@ -498,7 +514,7 @@ static void __init build_iSeries_Memory_Map(void)
 	 */
 	hptFirstChunk = (u32)addr_to_chunk(HvCallHpt_getHptAddress());
 	hptSizePages = (u32)HvCallHpt_getHptPages();
-	hptSizeChunks = hptSizePages >> (msChunks.chunk_shift - PAGE_SHIFT);
+	hptSizeChunks = hptSizePages >> (MSCHUNKS_CHUNK_SHIFT - PAGE_SHIFT);
 	hptLastChunk = hptFirstChunk + hptSizeChunks - 1;
 
 	printk("HPT absolute addr = %016lx, size = %dK\n",

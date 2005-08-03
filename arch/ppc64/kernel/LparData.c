@@ -225,21 +225,3 @@ struct ItVpdAreas itVpdAreas = {
 		0,0
 	}
 };
-
-struct msChunks msChunks;
-EXPORT_SYMBOL(msChunks);
-
-unsigned long
-msChunks_alloc(unsigned long mem, unsigned long num_chunks, unsigned long chunk_size)
-{
-	_msChunks->num_chunks  = num_chunks;
-	_msChunks->chunk_size  = chunk_size;
-	_msChunks->chunk_shift = __ilog2(chunk_size);
-	_msChunks->chunk_mask  = (1UL<<_msChunks->chunk_shift)-1;
-
-	mem = _ALIGN(mem, sizeof(msChunks_entry));
-	_msChunks->abs = (msChunks_entry *)mem;
-	mem += num_chunks * sizeof(msChunks_entry);
-
-	return mem;
-}

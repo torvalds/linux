@@ -17,34 +17,37 @@
 #include <asm/prom.h>
 #include <asm/lmb.h>
 
-typedef u32 msChunks_entry;
 struct msChunks {
         unsigned long num_chunks;
         unsigned long chunk_size;
         unsigned long chunk_shift;
         unsigned long chunk_mask;
-        msChunks_entry *abs;
+        u32 *abs;
 };
 
 extern struct msChunks msChunks;
 
-extern unsigned long msChunks_alloc(unsigned long, unsigned long, unsigned long);
 
 #ifdef CONFIG_MSCHUNKS
 
+/* Chunks are 256 KB */
+#define MSCHUNKS_CHUNK_SHIFT	(18)
+#define MSCHUNKS_CHUNK_SIZE	(1UL << MSCHUNKS_CHUNK_SHIFT)
+#define MSCHUNKS_OFFSET_MASK	(MSCHUNKS_CHUNK_SIZE - 1)
+
 static inline unsigned long chunk_to_addr(unsigned long chunk)
 {
-	return chunk << msChunks.chunk_shift;
+	return chunk << MSCHUNKS_CHUNK_SHIFT;
 }
 
 static inline unsigned long addr_to_chunk(unsigned long addr)
 {
-	return addr >> msChunks.chunk_shift;
+	return addr >> MSCHUNKS_CHUNK_SHIFT;
 }
 
 static inline unsigned long chunk_offset(unsigned long addr)
 {
-	return addr & msChunks.chunk_mask;
+	return addr & MSCHUNKS_OFFSET_MASK;
 }
 
 static inline unsigned long abs_chunk(unsigned long pchunk)
