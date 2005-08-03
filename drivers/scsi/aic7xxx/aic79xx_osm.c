@@ -1624,7 +1624,11 @@ ahd_send_async(struct ahd_softc *ahd, char channel,
 		target_ppr_options =
 			(spi_dt(starget) ? MSG_EXT_PPR_DT_REQ : 0)
 			+ (spi_qas(starget) ? MSG_EXT_PPR_QAS_REQ : 0)
-			+ (spi_iu(starget) ?  MSG_EXT_PPR_IU_REQ : 0);
+			+ (spi_iu(starget) ?  MSG_EXT_PPR_IU_REQ : 0)
+			+ (spi_rd_strm(starget) ? MSG_EXT_PPR_RD_STRM : 0)
+			+ (spi_pcomp_en(starget) ? MSG_EXT_PPR_PCOMP_EN : 0)
+			+ (spi_rti(starget) ? MSG_EXT_PPR_RTI : 0)
+			+ (spi_wr_flow(starget) ? MSG_EXT_PPR_WR_FLOW : 0);
 
 		if (tinfo->curr.period == spi_period(starget)
 		    && tinfo->curr.width == spi_width(starget)
@@ -1639,6 +1643,10 @@ ahd_send_async(struct ahd_softc *ahd, char channel,
 		spi_dt(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_DT_REQ ? 1 : 0;
 		spi_qas(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_QAS_REQ ? 1 : 0;
 		spi_iu(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_IU_REQ ? 1 : 0;
+		spi_rd_strm(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_RD_STRM ? 1 : 0;
+		spi_pcomp_en(starget) =  tinfo->curr.ppr_options & MSG_EXT_PPR_PCOMP_EN ? 1 : 0;
+		spi_rti(starget) =  tinfo->curr.ppr_options &  MSG_EXT_PPR_RTI ? 1 : 0;
+		spi_wr_flow(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_WR_FLOW ? 1 : 0;
 		spi_display_xfer_agreement(starget);
 		break;
 	}
@@ -2318,18 +2326,6 @@ done:
 
 static void ahd_linux_exit(void);
 
-static void ahd_linux_set_xferflags(struct scsi_target *starget, unsigned int ppr_options, unsigned int period)
-{
-	spi_qas(starget) = (ppr_options & MSG_EXT_PPR_QAS_REQ)? 1 : 0;
-	spi_dt(starget) = (ppr_options & MSG_EXT_PPR_DT_REQ)? 1 : 0;
-	spi_iu(starget) = (ppr_options & MSG_EXT_PPR_IU_REQ) ? 1 : 0;
-	spi_rd_strm(starget) = (ppr_options & MSG_EXT_PPR_RD_STRM) ? 1 : 0;
-	spi_wr_flow(starget) = (ppr_options & MSG_EXT_PPR_WR_FLOW) ? 1 : 0;
-	spi_pcomp_en(starget) = (ppr_options & MSG_EXT_PPR_PCOMP_EN) ? 1 : 0;
-	spi_rti(starget) = (ppr_options & MSG_EXT_PPR_RTI) ? 1 : 0;
-	spi_period(starget) = period;
-}
-
 static void ahd_linux_set_width(struct scsi_target *starget, int width)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
@@ -2388,8 +2384,6 @@ static void ahd_linux_set_period(struct scsi_target *starget, int period)
 	ahd_find_syncrate(ahd, &period, &ppr_options,
 			  dt ? AHD_SYNCRATE_MAX : AHD_SYNCRATE_ULTRA2);
 
-	ahd_linux_set_xferflags(starget, ppr_options, period);
-
 	ahd_lock(ahd, &flags);
 	ahd_set_syncrate(ahd, &devinfo, period, offset,
 			 ppr_options, AHD_TRANS_GOAL, FALSE);
@@ -2424,7 +2418,6 @@ static void ahd_linux_set_offset(struct scsi_target *starget, int offset)
 		ahd_find_syncrate(ahd, &period, &ppr_options, 
 				  dt ? AHD_SYNCRATE_MAX : AHD_SYNCRATE_ULTRA2);
 	}
-	ahd_linux_set_xferflags(starget, ppr_options, period);
 
 	ahd_lock(ahd, &flags);
 	ahd_set_syncrate(ahd, &devinfo, period, offset, ppr_options,
@@ -2467,8 +2460,6 @@ static void ahd_linux_set_dt(struct scsi_target *starget, int dt)
 	ahd_find_syncrate(ahd, &period, &ppr_options,
 			  dt ? AHD_SYNCRATE_MAX : AHD_SYNCRATE_ULTRA2);
 
-	ahd_linux_set_xferflags(starget, ppr_options, period);
-
 	ahd_lock(ahd, &flags);
 	ahd_set_syncrate(ahd, &devinfo, period, tinfo->goal.offset,
 			 ppr_options, AHD_TRANS_GOAL, FALSE);
@@ -2507,8 +2498,6 @@ static void ahd_linux_set_qas(struct scsi_target *starget, int qas)
 			    starget->channel + 'A', ROLE_INITIATOR);
 	ahd_find_syncrate(ahd, &period, &ppr_options,
 			  dt ? AHD_SYNCRATE_MAX : AHD_SYNCRATE_ULTRA2);
-
-	spi_qas(starget) = (ppr_options & MSG_EXT_PPR_QAS_REQ)? 1 : 0;
 
 	ahd_lock(ahd, &flags);
 	ahd_set_syncrate(ahd, &devinfo, period, tinfo->goal.offset,
@@ -2550,8 +2539,6 @@ static void ahd_linux_set_iu(struct scsi_target *starget, int iu)
 	ahd_find_syncrate(ahd, &period, &ppr_options,
 			  dt ? AHD_SYNCRATE_MAX : AHD_SYNCRATE_ULTRA2);
 
-	ahd_linux_set_xferflags(starget, ppr_options, period);
-
 	ahd_lock(ahd, &flags);
 	ahd_set_syncrate(ahd, &devinfo, period, tinfo->goal.offset,
 			 ppr_options, AHD_TRANS_GOAL, FALSE);
@@ -2588,8 +2575,6 @@ static void ahd_linux_set_rd_strm(struct scsi_target *starget, int rdstrm)
 	ahd_find_syncrate(ahd, &period, &ppr_options,
 			  dt ? AHD_SYNCRATE_MAX : AHD_SYNCRATE_ULTRA2);
 
-	spi_rd_strm(starget) = (ppr_options & MSG_EXT_PPR_RD_STRM) ? 1 : 0;
-
 	ahd_lock(ahd, &flags);
 	ahd_set_syncrate(ahd, &devinfo, period, tinfo->goal.offset,
 			 ppr_options, AHD_TRANS_GOAL, FALSE);
@@ -2625,8 +2610,6 @@ static void ahd_linux_set_wr_flow(struct scsi_target *starget, int wrflow)
 			    starget->channel + 'A', ROLE_INITIATOR);
 	ahd_find_syncrate(ahd, &period, &ppr_options,
 			  dt ? AHD_SYNCRATE_MAX : AHD_SYNCRATE_ULTRA2);
-
-	spi_wr_flow(starget) = (ppr_options & MSG_EXT_PPR_WR_FLOW) ? 1 : 0;
 
 	ahd_lock(ahd, &flags);
 	ahd_set_syncrate(ahd, &devinfo, period, tinfo->goal.offset,
@@ -2672,8 +2655,6 @@ static void ahd_linux_set_rti(struct scsi_target *starget, int rti)
 	ahd_find_syncrate(ahd, &period, &ppr_options,
 			  dt ? AHD_SYNCRATE_MAX : AHD_SYNCRATE_ULTRA2);
 
-	spi_rti(starget) = (ppr_options & MSG_EXT_PPR_RTI) ? 1 : 0;
-
 	ahd_lock(ahd, &flags);
 	ahd_set_syncrate(ahd, &devinfo, period, tinfo->goal.offset,
 			 ppr_options, AHD_TRANS_GOAL, FALSE);
@@ -2709,8 +2690,6 @@ static void ahd_linux_set_pcomp_en(struct scsi_target *starget, int pcomp)
 			    starget->channel + 'A', ROLE_INITIATOR);
 	ahd_find_syncrate(ahd, &period, &ppr_options,
 			  dt ? AHD_SYNCRATE_MAX : AHD_SYNCRATE_ULTRA2);
-
-	spi_pcomp_en(starget) = (ppr_options & MSG_EXT_PPR_PCOMP_EN) ? 1 : 0;
 
 	ahd_lock(ahd, &flags);
 	ahd_set_syncrate(ahd, &devinfo, period, tinfo->goal.offset,

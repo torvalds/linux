@@ -178,9 +178,9 @@ ahd_dump_target_state(struct ahd_softc *ahd, struct info_str *info,
 	copy_info(info, "\tUser: ");
 	ahd_format_transinfo(info, &tinfo->user);
 	starget = ahd->platform_data->starget[target_offset];
-	targ = scsi_transport_target_data(starget);
-	if (targ == NULL)
+	if (starget == NULL)
 		return;
+	targ = scsi_transport_target_data(starget);
 
 	copy_info(info, "\tGoal: ");
 	ahd_format_transinfo(info, &tinfo->goal);
