@@ -689,6 +689,8 @@ struct s2io_nic {
 #define CARD_UP 2
 	atomic_t card_state;
 	volatile unsigned long link_state;
+	struct vlan_group *vlgrp;
+
 	spinlock_t	rx_lock;
 	atomic_t	isr_cnt;
 };

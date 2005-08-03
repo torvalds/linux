@@ -55,6 +55,7 @@
 #include <linux/ethtool.h>
 #include <linux/version.h>
 #include <linux/workqueue.h>
+#include <linux/if_vlan.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -173,6 +174,30 @@ static char ethtool_stats_keys[][ETH_GSTRING_LEN] = {
 			timer.function = handle;		\
 			timer.data = (unsigned long) arg;	\
 			mod_timer(&timer, (jiffies + exp))	\
+
+/* Add the vlan */
+static void s2io_vlan_rx_register(struct net_device *dev,
+					struct vlan_group *grp)
+{
+	nic_t *nic = dev->priv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&nic->tx_lock, flags);
+	nic->vlgrp = grp;
+	spin_unlock_irqrestore(&nic->tx_lock, flags);
+}
+
+/* Unregister the vlan */
+static void s2io_vlan_rx_kill_vid(struct net_device *dev, unsigned long vid)
+{
+	nic_t *nic = dev->priv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&nic->tx_lock, flags);
+	if (nic->vlgrp)
+		nic->vlgrp->vlan_devices[vid] = NULL;
+	spin_unlock_irqrestore(&nic->tx_lock, flags);
+}
 
 /*
  * Constants to be programmed into the Xena's registers, to configure
@@ -2803,6 +2828,8 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 #ifdef NETIF_F_TSO
 	int mss;
 #endif
+	u16 vlan_tag = 0;
+	int vlan_priority = 0;
 	mac_info_t *mac_control;
 	struct config_param *config;
 
@@ -2820,6 +2847,13 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	queue = 0;
+
+	/* Get Fifo number to Transmit based on vlan priority */
+	if (sp->vlgrp && vlan_tx_tag_present(skb)) {
+		vlan_tag = vlan_tx_tag_get(skb);
+		vlan_priority = vlan_tag >> 13;
+		queue = config->fifo_mapping[vlan_priority];
+	}
 
 	put_off = (u16) mac_control->fifos[queue].tx_curr_put_info.offset;
 	get_off = (u16) mac_control->fifos[queue].tx_curr_get_info.offset;
@@ -2856,6 +2890,11 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	txdp->Control_2 |= config->tx_intr_type;
+
+	if (sp->vlgrp && vlan_tx_tag_present(skb)) {
+		txdp->Control_2 |= TXD_VLAN_ENABLE;
+		txdp->Control_2 |= TXD_VLAN_TAG(vlan_tag);
+	}
 
 	txdp->Control_1 |= (TXD_BUFFER0_SIZE(frg_len) |
 			    TXD_GATHER_CODE_FIRST);
@@ -4653,10 +4692,23 @@ static int rx_osm_handler(ring_info_t *ring_data, RxD_t * rxdp)
 
 	skb->protocol = eth_type_trans(skb, dev);
 #ifdef CONFIG_S2IO_NAPI
-	netif_receive_skb(skb);
+	if (sp->vlgrp && RXD_GET_VLAN_TAG(rxdp->Control_2)) {
+		/* Queueing the vlan frame to the upper layer */
+		vlan_hwaccel_receive_skb(skb, sp->vlgrp,
+			RXD_GET_VLAN_TAG(rxdp->Control_2));
+	} else {
+		netif_receive_skb(skb);
+	}
 #else
-	netif_rx(skb);
+	if (sp->vlgrp && RXD_GET_VLAN_TAG(rxdp->Control_2)) {
+		/* Queueing the vlan frame to the upper layer */
+		vlan_hwaccel_rx(skb, sp->vlgrp,
+			RXD_GET_VLAN_TAG(rxdp->Control_2));
+	} else {
+		netif_rx(skb);
+	}
 #endif
+
 	dev->last_rx = jiffies;
 	atomic_dec(&sp->rx_bufs_left[ring_no]);
 	return SUCCESS;
@@ -4954,6 +5006,9 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	dev->do_ioctl = &s2io_ioctl;
 	dev->change_mtu = &s2io_change_mtu;
 	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	dev->vlan_rx_register = s2io_vlan_rx_register;
+	dev->vlan_rx_kill_vid = (void *)s2io_vlan_rx_kill_vid;
 
 	/*
 	 * will use eth_mac_addr() for  dev->set_mac_address
