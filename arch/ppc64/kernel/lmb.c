@@ -28,33 +28,32 @@ void lmb_dump_all(void)
 {
 #ifdef DEBUG
 	unsigned long i;
-	struct lmb *_lmb  = &lmb;
 
 	udbg_printf("lmb_dump_all:\n");
 	udbg_printf("    memory.cnt		  = 0x%lx\n",
-		    _lmb->memory.cnt);
+		    lmb.memory.cnt);
 	udbg_printf("    memory.size		  = 0x%lx\n",
-		    _lmb->memory.size);
-	for (i=0; i < _lmb->memory.cnt ;i++) {
+		    lmb.memory.size);
+	for (i=0; i < lmb.memory.cnt ;i++) {
 		udbg_printf("    memory.region[0x%x].base       = 0x%lx\n",
-			    i, _lmb->memory.region[i].base);
+			    i, lmb.memory.region[i].base);
 		udbg_printf("		      .physbase = 0x%lx\n",
-			    _lmb->memory.region[i].physbase);
+			    lmb.memory.region[i].physbase);
 		udbg_printf("		      .size     = 0x%lx\n",
-			    _lmb->memory.region[i].size);
+			    lmb.memory.region[i].size);
 	}
 
 	udbg_printf("\n    reserved.cnt	  = 0x%lx\n",
-		    _lmb->reserved.cnt);
+		    lmb.reserved.cnt);
 	udbg_printf("    reserved.size	  = 0x%lx\n",
-		    _lmb->reserved.size);
-	for (i=0; i < _lmb->reserved.cnt ;i++) {
+		    lmb.reserved.size);
+	for (i=0; i < lmb.reserved.cnt ;i++) {
 		udbg_printf("    reserved.region[0x%x].base       = 0x%lx\n",
-			    i, _lmb->reserved.region[i].base);
+			    i, lmb.reserved.region[i].base);
 		udbg_printf("		      .physbase = 0x%lx\n",
-			    _lmb->reserved.region[i].physbase);
+			    lmb.reserved.region[i].physbase);
 		udbg_printf("		      .size     = 0x%lx\n",
-			    _lmb->reserved.region[i].size);
+			    lmb.reserved.region[i].size);
 	}
 #endif /* DEBUG */
 }
@@ -108,19 +107,17 @@ lmb_coalesce_regions(struct lmb_region *rgn, unsigned long r1, unsigned long r2)
 void __init
 lmb_init(void)
 {
-	struct lmb *_lmb = &lmb;
-
 	/* Create a dummy zero size LMB which will get coalesced away later.
 	 * This simplifies the lmb_add() code below...
 	 */
-	_lmb->memory.region[0].base = 0;
-	_lmb->memory.region[0].size = 0;
-	_lmb->memory.cnt = 1;
+	lmb.memory.region[0].base = 0;
+	lmb.memory.region[0].size = 0;
+	lmb.memory.cnt = 1;
 
 	/* Ditto. */
-	_lmb->reserved.region[0].base = 0;
-	_lmb->reserved.region[0].size = 0;
-	_lmb->reserved.cnt = 1;
+	lmb.reserved.region[0].base = 0;
+	lmb.reserved.region[0].size = 0;
+	lmb.reserved.cnt = 1;
 }
 
 /* This routine called with relocation disabled. */
@@ -130,27 +127,26 @@ lmb_analyze(void)
 	unsigned long i;
 	unsigned long mem_size = 0;
 	unsigned long size_mask = 0;
-	struct lmb *_lmb = &lmb;
 #ifdef CONFIG_MSCHUNKS
 	unsigned long physbase = 0;
 #endif
 
-	for (i=0; i < _lmb->memory.cnt; i++) {
+	for (i=0; i < lmb.memory.cnt; i++) {
 		unsigned long lmb_size;
 
-		lmb_size = _lmb->memory.region[i].size;
+		lmb_size = lmb.memory.region[i].size;
 
 #ifdef CONFIG_MSCHUNKS
-		_lmb->memory.region[i].physbase = physbase;
+		lmb.memory.region[i].physbase = physbase;
 		physbase += lmb_size;
 #else
-		_lmb->memory.region[i].physbase = _lmb->memory.region[i].base;
+		lmb.memory.region[i].physbase = lmb.memory.region[i].base;
 #endif
 		mem_size += lmb_size;
 		size_mask |= lmb_size;
 	}
 
-	_lmb->memory.size = mem_size;
+	lmb.memory.size = mem_size;
 }
 
 /* This routine called with relocation disabled. */
@@ -213,12 +209,11 @@ lmb_add_region(struct lmb_region *rgn, unsigned long base, unsigned long size)
 long __init
 lmb_add(unsigned long base, unsigned long size)
 {
-	struct lmb *_lmb = &lmb;
-	struct lmb_region *_rgn = &(_lmb->memory);
+	struct lmb_region *_rgn = &(lmb.memory);
 
 	/* On pSeries LPAR systems, the first LMB is our RMO region. */
 	if ( base == 0 )
-		_lmb->rmo_size = size;
+		lmb.rmo_size = size;
 
 	return lmb_add_region(_rgn, base, size);
 
@@ -227,8 +222,7 @@ lmb_add(unsigned long base, unsigned long size)
 long __init
 lmb_reserve(unsigned long base, unsigned long size)
 {
-	struct lmb *_lmb = &lmb;
-	struct lmb_region *_rgn = &(_lmb->reserved);
+	struct lmb_region *_rgn = &(lmb.reserved);
 
 	return lmb_add_region(_rgn, base, size);
 }
@@ -260,13 +254,10 @@ lmb_alloc_base(unsigned long size, unsigned long align, unsigned long max_addr)
 {
 	long i, j;
 	unsigned long base = 0;
-	struct lmb *_lmb = &lmb;
-	struct lmb_region *_mem = &(_lmb->memory);
-	struct lmb_region *_rsv = &(_lmb->reserved);
 
-	for (i=_mem->cnt-1; i >= 0; i--) {
-		unsigned long lmbbase = _mem->region[i].base;
-		unsigned long lmbsize = _mem->region[i].size;
+	for (i=lmb.memory.cnt-1; i >= 0; i--) {
+		unsigned long lmbbase = lmb.memory.region[i].base;
+		unsigned long lmbsize = lmb.memory.region[i].size;
 
 		if ( max_addr == LMB_ALLOC_ANYWHERE )
 			base = _ALIGN_DOWN(lmbbase+lmbsize-size, align);
@@ -276,8 +267,8 @@ lmb_alloc_base(unsigned long size, unsigned long align, unsigned long max_addr)
 			continue;
 
 		while ( (lmbbase <= base) &&
-			((j = lmb_overlaps_region(_rsv,base,size)) >= 0) ) {
-			base = _ALIGN_DOWN(_rsv->region[j].base-size, align);
+			((j = lmb_overlaps_region(&lmb.reserved,base,size)) >= 0) ) {
+			base = _ALIGN_DOWN(lmb.reserved.region[j].base-size, align);
 		}
 
 		if ( (base != 0) && (lmbbase <= base) )
@@ -287,7 +278,7 @@ lmb_alloc_base(unsigned long size, unsigned long align, unsigned long max_addr)
 	if ( i < 0 )
 		return 0;
 
-	lmb_add_region(_rsv, base, size);
+	lmb_add_region(&lmb.reserved, base, size);
 
 	return base;
 }
@@ -295,17 +286,15 @@ lmb_alloc_base(unsigned long size, unsigned long align, unsigned long max_addr)
 unsigned long __init
 lmb_phys_mem_size(void)
 {
-	struct lmb *_lmb = &lmb;
 #ifdef CONFIG_MSCHUNKS
-	return _lmb->memory.size;
+	return lmb.memory.size;
 #else
-	struct lmb_region *_mem = &(_lmb->memory);
 	unsigned long total = 0;
 	int i;
 
 	/* add all physical memory to the bootmem map */
-	for (i=0; i < _mem->cnt; i++)
-		total += _mem->region[i].size;
+	for (i=0; i < lmb.memory.cnt; i++)
+		total += lmb.memory.region[i].size;
 	return total;
 #endif /* CONFIG_MSCHUNKS */
 }
@@ -313,14 +302,12 @@ lmb_phys_mem_size(void)
 unsigned long __init
 lmb_end_of_DRAM(void)
 {
-	struct lmb *_lmb = &lmb;
-	struct lmb_region *_mem = &(_lmb->memory);
-	int idx = _mem->cnt - 1;
+	int idx = lmb.memory.cnt - 1;
 
 #ifdef CONFIG_MSCHUNKS
-	return (_mem->region[idx].physbase + _mem->region[idx].size);
+	return (lmb.memory.region[idx].physbase + lmb.memory.region[idx].size);
 #else
-	return (_mem->region[idx].base + _mem->region[idx].size);
+	return (lmb.memory.region[idx].base + lmb.memory.region[idx].size);
 #endif /* CONFIG_MSCHUNKS */
 
 	return 0;
@@ -353,20 +340,19 @@ void __init lmb_enforce_memory_limit(void)
 {
 	extern unsigned long memory_limit;
 	unsigned long i, limit;
-	struct lmb_region *mem = &(lmb.memory);
 
 	if (! memory_limit)
 		return;
 
 	limit = memory_limit;
-	for (i = 0; i < mem->cnt; i++) {
-		if (limit > mem->region[i].size) {
-			limit -= mem->region[i].size;
+	for (i = 0; i < lmb.memory.cnt; i++) {
+		if (limit > lmb.memory.region[i].size) {
+			limit -= lmb.memory.region[i].size;
 			continue;
 		}
 
-		mem->region[i].size = limit;
-		mem->cnt = i + 1;
+		lmb.memory.region[i].size = limit;
+		lmb.memory.cnt = i + 1;
 		break;
 	}
 }
