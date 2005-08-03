@@ -1529,7 +1529,7 @@ static int snd_rme9652_get_tc_value(void *private_data,
 
 static snd_kcontrol_new_t snd_rme9652_controls[] = {
 {
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 	.info =		snd_rme9652_control_spdif_info,
 	.get =		snd_rme9652_control_spdif_get,
@@ -1537,7 +1537,7 @@ static snd_kcontrol_new_t snd_rme9652_controls[] = {
 },
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,PCM_STREAM),
 	.info =		snd_rme9652_control_spdif_stream_info,
 	.get =		snd_rme9652_control_spdif_stream_get,
@@ -1545,7 +1545,7 @@ static snd_kcontrol_new_t snd_rme9652_controls[] = {
 },
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,CON_MASK),
 	.info =		snd_rme9652_control_spdif_mask_info,
 	.get =		snd_rme9652_control_spdif_mask_get,
@@ -1555,7 +1555,7 @@ static snd_kcontrol_new_t snd_rme9652_controls[] = {
 },
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,PRO_MASK),
 	.info =		snd_rme9652_control_spdif_mask_info,
 	.get =		snd_rme9652_control_spdif_mask_get,

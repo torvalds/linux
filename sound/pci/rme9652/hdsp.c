@@ -3104,7 +3104,7 @@ HDSP_XLR_BREAKOUT_CABLE("XLR Breakout Cable", 0)
 
 static snd_kcontrol_new_t snd_hdsp_controls[] = {
 {
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 	.info =		snd_hdsp_control_spdif_info,
 	.get =		snd_hdsp_control_spdif_get,
@@ -3112,7 +3112,7 @@ static snd_kcontrol_new_t snd_hdsp_controls[] = {
 },
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,PCM_STREAM),
 	.info =		snd_hdsp_control_spdif_stream_info,
 	.get =		snd_hdsp_control_spdif_stream_get,
@@ -3120,7 +3120,7 @@ static snd_kcontrol_new_t snd_hdsp_controls[] = {
 },
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,CON_MASK),
 	.info =		snd_hdsp_control_spdif_mask_info,
 	.get =		snd_hdsp_control_spdif_mask_get,
@@ -3130,7 +3130,7 @@ static snd_kcontrol_new_t snd_hdsp_controls[] = {
 },
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,PRO_MASK),
 	.info =		snd_hdsp_control_spdif_mask_info,
 	.get =		snd_hdsp_control_spdif_mask_get,

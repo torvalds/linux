@@ -181,7 +181,7 @@ static int snd_emu10k1_spdif_put(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_emu10k1_spdif_mask_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,MASK),
 	.count =	4,
 	.info =         snd_emu10k1_spdif_info,
@@ -190,7 +190,7 @@ static snd_kcontrol_new_t snd_emu10k1_spdif_mask_control =
 
 static snd_kcontrol_new_t snd_emu10k1_spdif_control =
 {
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 	.count =	4,
 	.info =         snd_emu10k1_spdif_info,
@@ -931,10 +931,14 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu,
 		/* sb live! and audigy */
 		if ((kctl = snd_ctl_new1(&snd_emu10k1_spdif_mask_control, emu)) == NULL)
 			return -ENOMEM;
+		if (!emu->audigy)
+			kctl->id.device = emu->pcm_efx->device;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
 		if ((kctl = snd_ctl_new1(&snd_emu10k1_spdif_control, emu)) == NULL)
 			return -ENOMEM;
+		if (!emu->audigy)
+			kctl->id.device = emu->pcm_efx->device;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
 	}
