@@ -100,8 +100,7 @@ static inline int rx_buffer_level(nic_t * sp, int rxb_size, int ring)
 	mac_control = &sp->mac_control;
 	if ((mac_control->rings[ring].pkt_cnt - rxb_size) > 16) {
 		level = LOW;
-		if ((mac_control->rings[ring].pkt_cnt - rxb_size) <
-				MAX_RXDS_PER_BLOCK) {
+		if (rxb_size <= MAX_RXDS_PER_BLOCK) {
 			level = PANIC;
 		}
 	}
@@ -2193,7 +2192,6 @@ static void rx_intr_handler(ring_info_t *ring_data)
 {
 	nic_t *nic = ring_data->nic;
 	struct net_device *dev = (struct net_device *) nic->dev;
-	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	int get_block, get_offset, put_block, put_offset, ring_bufs;
 	rx_curr_get_info_t get_info, put_info;
 	RxD_t *rxdp;
@@ -2201,21 +2199,12 @@ static void rx_intr_handler(ring_info_t *ring_data)
 #ifndef CONFIG_S2IO_NAPI
 	int pkt_cnt = 0;
 #endif
-	register u64 val64;
-
 	spin_lock(&nic->rx_lock);
 	if (atomic_read(&nic->card_state) == CARD_DOWN) {
 		DBG_PRINT(ERR_DBG, "%s: %s going down for reset\n",
 			  __FUNCTION__, dev->name);
 		spin_unlock(&nic->rx_lock);
 	}
-
-	/*
-	 * rx_traffic_int reg is an R1 register, hence we read and write
-	 * back the same value in the register to clear it
-	 */
-	val64 = readq(&bar0->tx_traffic_int);
-	writeq(val64, &bar0->tx_traffic_int);
 
 	get_info = ring_data->rx_curr_get_info;
 	get_block = get_info.block_index;
@@ -2312,20 +2301,11 @@ static void rx_intr_handler(ring_info_t *ring_data)
 static void tx_intr_handler(fifo_info_t *fifo_data)
 {
 	nic_t *nic = fifo_data->nic;
-	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	struct net_device *dev = (struct net_device *) nic->dev;
 	tx_curr_get_info_t get_info, put_info;
 	struct sk_buff *skb;
 	TxD_t *txdlp;
 	u16 j, frg_cnt;
-	register u64 val64 = 0;
-
-	/*
-	 * tx_traffic_int reg is an R1 register, hence we read and write
-	 * back the same value in the register to clear it
-	 */
-	val64 = readq(&bar0->tx_traffic_int);
-	writeq(val64, &bar0->tx_traffic_int);
 
 	get_info = fifo_data->tx_curr_get_info;
 	put_info = fifo_data->tx_curr_put_info;
@@ -2818,7 +2798,6 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 	mac_info_t *mac_control;
 	struct config_param *config;
-	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 
 	mac_control = &sp->mac_control;
 	config = &sp->config;
@@ -2870,7 +2849,6 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	txdp->Control_2 |= config->tx_intr_type;
-
 	txdp->Control_1 |= (TXD_BUFFER0_SIZE(frg_len) |
 			    TXD_GATHER_CODE_FIRST);
 	txdp->Control_1 |= TXD_LIST_OWN_XENA;
@@ -2890,6 +2868,8 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	val64 = mac_control->fifos[queue].list_info[put_off].list_phy_addr;
 	writeq(val64, &tx_fifo->TxDL_Pointer);
 
+	wmb();
+
 	val64 = (TX_FIFO_LAST_TXD_NUM(frg_cnt) | TX_FIFO_FIRST_LIST |
 		 TX_FIFO_LAST_LIST);
 
@@ -2898,9 +2878,6 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		val64 |= TX_FIFO_SPECIAL_FUNC;
 #endif
 	writeq(val64, &tx_fifo->List_Control);
-
-	/* Perform a PCI read to flush previous writes */
-	val64 = readq(&bar0->general_int_status);
 
 	put_off++;
 	put_off %= mac_control->fifos[queue].tx_curr_put_info.fifo_len + 1;
@@ -2940,7 +2917,7 @@ static irqreturn_t s2io_isr(int irq, void *dev_id, struct pt_regs *regs)
 	nic_t *sp = dev->priv;
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 	int i;
-	u64 reason = 0;
+	u64 reason = 0, val64;
 	mac_info_t *mac_control;
 	struct config_param *config;
 
@@ -2978,6 +2955,13 @@ static irqreturn_t s2io_isr(int irq, void *dev_id, struct pt_regs *regs)
 #else
 	/* If Intr is because of Rx Traffic */
 	if (reason & GEN_INTR_RXTRAFFIC) {
+		/*
+		 * rx_traffic_int reg is an R1 register, writing all 1's
+		 * will ensure that the actual interrupt causing bit get's
+		 * cleared and hence a read can be avoided.
+		 */
+		val64 = 0xFFFFFFFFFFFFFFFFULL;
+		writeq(val64, &bar0->rx_traffic_int);
 		for (i = 0; i < config->rx_ring_num; i++) {
 			rx_intr_handler(&mac_control->rings[i]);
 		}
@@ -2986,6 +2970,14 @@ static irqreturn_t s2io_isr(int irq, void *dev_id, struct pt_regs *regs)
 
 	/* If Intr is because of Tx Traffic */
 	if (reason & GEN_INTR_TXTRAFFIC) {
+		/*
+		 * tx_traffic_int reg is an R1 register, writing all 1's
+		 * will ensure that the actual interrupt causing bit get's
+		 * cleared and hence a read can be avoided.
+		 */
+		val64 = 0xFFFFFFFFFFFFFFFFULL;
+		writeq(val64, &bar0->tx_traffic_int);
+
 		for (i = 0; i < config->tx_fifo_num; i++)
 			tx_intr_handler(&mac_control->fifos[i]);
 	}
