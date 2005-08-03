@@ -206,7 +206,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 /* purr is nothing but processor time base                          */
 
 #if defined(CONFIG_PPC_PSERIES)
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR) {
+	if (ppc64_firmware_features & FW_FEATURE_SPLPAR) {
 		struct cpu_usage *cu = &__get_cpu_var(cpu_usage_array);
 		long unsigned start_tb, current_tb;
 		start_tb = old_thread->start_tb;

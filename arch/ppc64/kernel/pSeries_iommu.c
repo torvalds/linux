@@ -546,7 +546,7 @@ void iommu_init_early_pSeries(void)
 	}
 
 	if (systemcfg->platform & PLATFORM_LPAR) {
-		if (cur_cpu_spec->firmware_features & FW_FEATURE_MULTITCE) {
+		if (ppc64_firmware_features & FW_FEATURE_MULTITCE) {
 			ppc_md.tce_build = tce_buildmulti_pSeriesLP;
 			ppc_md.tce_free	 = tce_freemulti_pSeriesLP;
 		} else {

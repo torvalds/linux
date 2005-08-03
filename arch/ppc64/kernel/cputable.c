@@ -23,6 +23,7 @@
 
 struct cpu_spec* cur_cpu_spec = NULL;
 EXPORT_SYMBOL(cur_cpu_spec);
+unsigned long ppc64_firmware_features;
 
 /* NOTE:
  * Unlike ppc32, ppc64 will only call this once for the boot CPU, it's
@@ -60,7 +61,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Power3+ */
 		.pvr_mask		= 0xffff0000,
@@ -73,7 +73,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Northstar */
 		.pvr_mask		= 0xffff0000,
@@ -86,7 +85,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Pulsar */
 		.pvr_mask		= 0xffff0000,
@@ -99,7 +97,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* I-star */
 		.pvr_mask		= 0xffff0000,
@@ -112,7 +109,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* S-star */
 		.pvr_mask		= 0xffff0000,
@@ -125,7 +121,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power3,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Power4 */
 		.pvr_mask		= 0xffff0000,
@@ -138,7 +133,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Power4+ */
 		.pvr_mask		= 0xffff0000,
@@ -151,7 +145,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* PPC970 */
 		.pvr_mask		= 0xffff0000,
@@ -166,7 +159,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_ppc970,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* PPC970FX */
 		.pvr_mask		= 0xffff0000,
@@ -181,7 +173,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_ppc970,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* PPC970MP */
 		.pvr_mask		= 0xffff0000,
@@ -196,7 +187,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_ppc970,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Power5 */
 		.pvr_mask		= 0xffff0000,
@@ -211,7 +201,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* Power5 */
 		.pvr_mask		= 0xffff0000,
@@ -226,7 +215,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* BE DD1.x */
 		.pvr_mask		= 0xffff0000,
@@ -241,7 +229,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_be,
-		.firmware_features	= COMMON_PPC64_FW,
 	},
 	{	/* default match */
 		.pvr_mask		= 0x00000000,
@@ -254,7 +241,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_power4,
-		.firmware_features	= COMMON_PPC64_FW,
 	}
 };
 

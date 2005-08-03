@@ -56,11 +56,6 @@ struct cpu_spec {
 	 * BHT, SPD, etc... from head.S before branching to identify_machine
 	 */
 	cpu_setup_t	cpu_setup;
-
-	/* This is used to identify firmware features which are available
-	 * to the kernel.
-	 */
-	unsigned long   firmware_features;
 };
 
 extern struct cpu_spec		cpu_specs[];
@@ -71,6 +66,11 @@ static inline unsigned long cpu_has_feature(unsigned long feature)
 	return cur_cpu_spec->cpu_features & feature;
 }
 
+
+/* This is used to identify firmware features which are available
+ * to the kernel.
+ */
+extern unsigned long		ppc64_firmware_features;
 
 /* firmware feature bitmask values */
 #define FIRMWARE_MAX_FEATURES 63

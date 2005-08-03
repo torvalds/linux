@@ -326,7 +326,7 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 	if (cpu != boot_cpuid)
 		xics_setup_cpu();
 
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR)
+	if (ppc64_firmware_features & FW_FEATURE_SPLPAR)
 		vpa_init(cpu);
 
 	cpu_clear(cpu, of_spin_map);

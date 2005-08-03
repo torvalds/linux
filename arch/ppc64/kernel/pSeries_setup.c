@@ -231,11 +231,11 @@ static void __init pSeries_setup_arch(void)
 
 	pSeries_nvram_init();
 
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR)
+	if (ppc64_firmware_features & FW_FEATURE_SPLPAR)
 		vpa_init(boot_cpuid);
 
 	/* Choose an idle loop */
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR) {
+	if (ppc64_firmware_features & FW_FEATURE_SPLPAR) {
 		if (get_paca()->lppaca.shared_proc) {
 			printk(KERN_INFO "Using shared processor idle loop\n");
 			ppc_md.idle_loop = pseries_shared_idle;
@@ -260,7 +260,7 @@ static int __init pSeries_init_panel(void)
 arch_initcall(pSeries_init_panel);
 
 
-/* Build up the firmware_features bitmask field
+/* Build up the ppc64_firmware_features bitmask field
  * using contents of device-tree/ibm,hypertas-functions.
  * Ultimately this functionality may be moved into prom.c prom_init().
  */
@@ -272,7 +272,7 @@ void __init fw_feature_init(void)
 
 	DBG(" -> fw_feature_init()\n");
 
-	cur_cpu_spec->firmware_features = 0;
+	ppc64_firmware_features = 0;
 	dn = of_find_node_by_path("/rtas");
 	if (dn == NULL) {
 		printk(KERN_ERR "WARNING ! Cannot find RTAS in device-tree !\n");
@@ -288,7 +288,7 @@ void __init fw_feature_init(void)
 				if ((firmware_features_table[i].name) &&
 				    (strcmp(firmware_features_table[i].name,hypertas))==0) {
 					/* we have a match */
-					cur_cpu_spec->firmware_features |= 
+					ppc64_firmware_features |= 
 						(firmware_features_table[i].val);
 					break;
 				} 
@@ -302,7 +302,7 @@ void __init fw_feature_init(void)
 	of_node_put(dn);
  no_rtas:
 	printk(KERN_INFO "firmware_features = 0x%lx\n", 
-	       cur_cpu_spec->firmware_features);
+	       ppc64_firmware_features);
 
 	DBG(" <- fw_feature_init()\n");
 }

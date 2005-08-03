@@ -154,7 +154,7 @@ void ppc64_enable_pmcs(void)
 
 #ifdef CONFIG_PPC_PSERIES
 	/* instruct hypervisor to maintain PMCs */
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR)
+	if (ppc64_firmware_features & FW_FEATURE_SPLPAR)
 		get_paca()->lppaca.pmcregs_in_use = 1;
 #endif /* CONFIG_PPC_PSERIES */
 }
