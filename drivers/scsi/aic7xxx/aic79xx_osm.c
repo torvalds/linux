@@ -1628,7 +1628,8 @@ ahd_send_async(struct ahd_softc *ahd, char channel,
 			+ (spi_rd_strm(starget) ? MSG_EXT_PPR_RD_STRM : 0)
 			+ (spi_pcomp_en(starget) ? MSG_EXT_PPR_PCOMP_EN : 0)
 			+ (spi_rti(starget) ? MSG_EXT_PPR_RTI : 0)
-			+ (spi_wr_flow(starget) ? MSG_EXT_PPR_WR_FLOW : 0);
+			+ (spi_wr_flow(starget) ? MSG_EXT_PPR_WR_FLOW : 0)
+			+ (spi_hold_mcs(starget) ? MSG_EXT_PPR_HOLD_MCS : 0);
 
 		if (tinfo->curr.period == spi_period(starget)
 		    && tinfo->curr.width == spi_width(starget)
@@ -1647,6 +1648,7 @@ ahd_send_async(struct ahd_softc *ahd, char channel,
 		spi_pcomp_en(starget) =  tinfo->curr.ppr_options & MSG_EXT_PPR_PCOMP_EN ? 1 : 0;
 		spi_rti(starget) =  tinfo->curr.ppr_options &  MSG_EXT_PPR_RTI ? 1 : 0;
 		spi_wr_flow(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_WR_FLOW ? 1 : 0;
+		spi_hold_mcs(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_HOLD_MCS ? 1 : 0;
 		spi_display_xfer_agreement(starget);
 		break;
 	}
@@ -2697,6 +2699,38 @@ static void ahd_linux_set_pcomp_en(struct scsi_target *starget, int pcomp)
 	ahd_unlock(ahd, &flags);
 }
 
+static void ahd_linux_set_hold_mcs(struct scsi_target *starget, int hold)
+{
+	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
+	struct ahd_softc *ahd = *((struct ahd_softc **)shost->hostdata);
+	struct ahd_tmode_tstate *tstate;
+	struct ahd_initiator_tinfo *tinfo 
+		= ahd_fetch_transinfo(ahd,
+				      starget->channel + 'A',
+				      shost->this_id, starget->id, &tstate);
+	struct ahd_devinfo devinfo;
+	unsigned int ppr_options = tinfo->goal.ppr_options
+		& ~MSG_EXT_PPR_HOLD_MCS;
+	unsigned int period = tinfo->goal.period;
+	unsigned int dt = ppr_options & MSG_EXT_PPR_DT_REQ;
+	unsigned long flags;
+
+	if (hold)
+		ppr_options |= MSG_EXT_PPR_HOLD_MCS;
+
+	ahd_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
+			    starget->channel + 'A', ROLE_INITIATOR);
+	ahd_find_syncrate(ahd, &period, &ppr_options,
+			  dt ? AHD_SYNCRATE_MAX : AHD_SYNCRATE_ULTRA2);
+
+	ahd_lock(ahd, &flags);
+	ahd_set_syncrate(ahd, &devinfo, period, tinfo->goal.offset,
+			 ppr_options, AHD_TRANS_GOAL, FALSE);
+	ahd_unlock(ahd, &flags);
+}
+
+
+
 static struct spi_function_template ahd_linux_transport_functions = {
 	.set_offset	= ahd_linux_set_offset,
 	.show_offset	= 1,
@@ -2718,6 +2752,8 @@ static struct spi_function_template ahd_linux_transport_functions = {
 	.show_rti	= 1,
 	.set_pcomp_en	= ahd_linux_set_pcomp_en,
 	.show_pcomp_en	= 1,
+	.set_hold_mcs	= ahd_linux_set_hold_mcs,
+	.show_hold_mcs	= 1,
 };
 
 
