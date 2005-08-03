@@ -262,7 +262,7 @@ arch_initcall(pSeries_init_panel);
  * using contents of device-tree/ibm,hypertas-functions.
  * Ultimately this functionality may be moved into prom.c prom_init().
  */
-void __init fw_feature_init(void)
+static void __init fw_feature_init(void)
 {
 	struct device_node * dn;
 	char * hypertas;

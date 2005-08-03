@@ -39,6 +39,7 @@
 #include <asm/cputable.h>
 #include <asm/sections.h>
 #include <asm/iommu.h>
+#include <asm/firmware.h>
 
 #include <asm/time.h>
 #include "iSeries_setup.h"
@@ -313,6 +314,8 @@ static void __init iSeries_init_early(void)
 	extern unsigned long memory_limit;
 
 	DBG(" -> iSeries_init_early()\n");
+
+	ppc64_firmware_features = FW_FEATURE_ISERIES;
 
 	ppcdbg_initialize();
 

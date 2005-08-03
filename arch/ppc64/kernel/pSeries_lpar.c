@@ -52,7 +52,6 @@ EXPORT_SYMBOL(plpar_hcall_4out);
 EXPORT_SYMBOL(plpar_hcall_norets);
 EXPORT_SYMBOL(plpar_hcall_8arg_2ret);
 
-extern void fw_feature_init(void);
 extern void pSeries_find_serial_port(void);
 
 
