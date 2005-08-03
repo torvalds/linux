@@ -16,8 +16,7 @@
 #include <asm/page.h>
 #include <asm/prom.h>
 #include <asm/lmb.h>
-
-#ifdef CONFIG_MSCHUNKS
+#include <asm/firmware.h>
 
 struct mschunks_map {
         unsigned long num_chunks;
@@ -48,6 +47,10 @@ static inline unsigned long phys_to_abs(unsigned long pa)
 {
 	unsigned long chunk;
 
+	/* This is a no-op on non-iSeries */
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return pa;
+
 	chunk = addr_to_chunk(pa);
 
 	if (chunk < mschunks_map.num_chunks)
@@ -55,18 +58,6 @@ static inline unsigned long phys_to_abs(unsigned long pa)
 
 	return chunk_to_addr(chunk) + (pa & MSCHUNKS_OFFSET_MASK);
 }
-
-#else  /* !CONFIG_MSCHUNKS */
-
-#define chunk_to_addr(chunk) ((unsigned long)(chunk))
-#define addr_to_chunk(addr) (addr)
-#define chunk_offset(addr) (0)
-#define abs_chunk(pchunk) (pchunk)
-
-#define phys_to_abs(pa) (pa)
-#define physRpn_to_absRpn(rpn) (rpn)
-
-#endif /* !CONFIG_MSCHUNKS */
 
 /* Convenience macros */
 #define virt_to_abs(va) phys_to_abs(__pa(va))

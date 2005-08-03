@@ -302,12 +302,6 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
-config MSCHUNKS
-	bool
-	depends on PPC_ISERIES
-	default y
-
-
 config PPC_RTAS
 	bool
 	depends on PPC_PSERIES || PPC_BPA
