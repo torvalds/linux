@@ -2849,6 +2849,7 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	txdp->Control_2 |= config->tx_intr_type;
+
 	txdp->Control_1 |= (TXD_BUFFER0_SIZE(frg_len) |
 			    TXD_GATHER_CODE_FIRST);
 	txdp->Control_1 |= TXD_LIST_OWN_XENA;
@@ -4246,14 +4247,6 @@ int s2io_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 int s2io_change_mtu(struct net_device *dev, int new_mtu)
 {
 	nic_t *sp = dev->priv;
-	XENA_dev_config_t __iomem *bar0 = sp->bar0;
-	register u64 val64;
-
-	if (netif_running(dev)) {
-		DBG_PRINT(ERR_DBG, "%s: Must be stopped to ", dev->name);
-		DBG_PRINT(ERR_DBG, "change its MTU\n");
-		return -EBUSY;
-	}
 
 	if ((new_mtu < MIN_MTU) || (new_mtu > S2IO_JUMBO_SIZE)) {
 		DBG_PRINT(ERR_DBG, "%s: MTU size is invalid.\n",
@@ -4261,11 +4254,22 @@ int s2io_change_mtu(struct net_device *dev, int new_mtu)
 		return -EPERM;
 	}
 
-	/* Set the new MTU into the PYLD register of the NIC */
-	val64 = new_mtu;
-	writeq(vBIT(val64, 2, 14), &bar0->rmac_max_pyld_len);
-
 	dev->mtu = new_mtu;
+	if (netif_running(dev)) {
+		s2io_card_down(sp);
+		netif_stop_queue(dev);
+		if (s2io_card_up(sp)) {
+			DBG_PRINT(ERR_DBG, "%s: Device bring up failed\n",
+				  __FUNCTION__);
+		}
+		if (netif_queue_stopped(dev))
+			netif_wake_queue(dev);
+	} else { /* Device is down */
+		XENA_dev_config_t __iomem *bar0 = sp->bar0;
+		u64 val64 = new_mtu;
+
+		writeq(vBIT(val64, 2, 14), &bar0->rmac_max_pyld_len);
+	}
 
 	return 0;
 }
