@@ -17,18 +17,17 @@
 #include <asm/prom.h>
 #include <asm/lmb.h>
 
-struct msChunks {
+#ifdef CONFIG_MSCHUNKS
+
+struct mschunks_map {
         unsigned long num_chunks;
         unsigned long chunk_size;
         unsigned long chunk_shift;
         unsigned long chunk_mask;
-        u32 *abs;
+        u32 *mapping;
 };
 
-extern struct msChunks msChunks;
-
-
-#ifdef CONFIG_MSCHUNKS
+extern struct mschunks_map mschunks_map;
 
 /* Chunks are 256 KB */
 #define MSCHUNKS_CHUNK_SHIFT	(18)
@@ -52,10 +51,10 @@ static inline unsigned long chunk_offset(unsigned long addr)
 
 static inline unsigned long abs_chunk(unsigned long pchunk)
 {
-	if (pchunk >= msChunks.num_chunks)
+	if (pchunk >= mschunks_map.num_chunks)
 		return pchunk;
 
-	return msChunks.abs[pchunk];
+	return mschunks_map.mapping[pchunk];
 }
 
 /* A macro so it can take pointers or unsigned long. */

@@ -96,12 +96,12 @@ END_FTR_SECTION(0, 1)
 	.llong hvReleaseData-KERNELBASE
 
 	/*
-	 * At offset 0x28 and 0x30 are offsets to the msChunks
+	 * At offset 0x28 and 0x30 are offsets to the mschunks_map
 	 * array (used by the iSeries LPAR debugger to do translation
 	 * between physical addresses and absolute addresses) and
 	 * to the pidhash table (also used by the debugger)
 	 */
-	.llong msChunks-KERNELBASE
+	.llong mschunks_map-KERNELBASE
 	.llong 0	/* pidhash-KERNELBASE SFRXXX */
 
 	/* Offset 0x38 - Pointer to start of embedded System.map */

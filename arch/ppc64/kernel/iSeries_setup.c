@@ -415,20 +415,20 @@ static void __init iSeries_init_early(void)
 	DBG(" <- iSeries_init_early()\n");
 }
 
-struct msChunks msChunks = {
+struct mschunks_map mschunks_map = {
 	/* XXX We don't use these, but Piranha might need them. */
 	.chunk_size  = MSCHUNKS_CHUNK_SIZE,
 	.chunk_shift = MSCHUNKS_CHUNK_SHIFT,
 	.chunk_mask  = MSCHUNKS_OFFSET_MASK,
 };
-EXPORT_SYMBOL(msChunks);
+EXPORT_SYMBOL(mschunks_map);
 
-void msChunks_alloc(unsigned long num_chunks)
+void mschunks_alloc(unsigned long num_chunks)
 {
 	klimit = _ALIGN(klimit, sizeof(u32));
-	msChunks.abs = (u32 *)klimit;
+	mschunks_map.mapping = (u32 *)klimit;
 	klimit += num_chunks * sizeof(u32);
-	msChunks.num_chunks = num_chunks;
+	mschunks_map.num_chunks = num_chunks;
 }
 
 /*
@@ -468,7 +468,7 @@ static void __init build_iSeries_Memory_Map(void)
 
 	/* Chunk size on iSeries is 256K bytes */
 	totalChunks = (u32)HvLpConfig_getMsChunks();
-	msChunks_alloc(totalChunks);
+	mschunks_alloc(totalChunks);
 
 	/*
 	 * Get absolute address of our load area
@@ -505,7 +505,7 @@ static void __init build_iSeries_Memory_Map(void)
 	printk("Load area size %dK\n", loadAreaSize * 256);
 
 	for (nextPhysChunk = 0; nextPhysChunk < loadAreaSize; ++nextPhysChunk)
-		msChunks.abs[nextPhysChunk] =
+		mschunks_map.mapping[nextPhysChunk] =
 			loadAreaFirstChunk + nextPhysChunk;
 
 	/*
@@ -571,7 +571,8 @@ static void __init build_iSeries_Memory_Map(void)
 				     (absChunk > hptLastChunk)) &&
 				    ((absChunk < loadAreaFirstChunk) ||
 				     (absChunk > loadAreaLastChunk))) {
-					msChunks.abs[nextPhysChunk] = absChunk;
+					mschunks_map.mapping[nextPhysChunk] =
+						absChunk;
 					++nextPhysChunk;
 				}
 			}
