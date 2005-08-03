@@ -119,20 +119,12 @@ lmb_init(void)
 void __init
 lmb_analyze(void)
 {
-	unsigned long i;
-	unsigned long mem_size = 0;
-	unsigned long size_mask = 0;
+	int i;
 
-	for (i=0; i < lmb.memory.cnt; i++) {
-		unsigned long lmb_size;
+	lmb.memory.size = 0;
 
-		lmb_size = lmb.memory.region[i].size;
-
-		mem_size += lmb_size;
-		size_mask |= lmb_size;
-	}
-
-	lmb.memory.size = mem_size;
+	for (i = 0; i < lmb.memory.cnt; i++)
+		lmb.memory.size += lmb.memory.region[i].size;
 }
 
 /* This routine called with relocation disabled. */
@@ -266,20 +258,11 @@ lmb_alloc_base(unsigned long size, unsigned long align, unsigned long max_addr)
 	return base;
 }
 
+/* You must call lmb_analyze() before this. */
 unsigned long __init
 lmb_phys_mem_size(void)
 {
-#ifdef CONFIG_MSCHUNKS
 	return lmb.memory.size;
-#else
-	unsigned long total = 0;
-	int i;
-
-	/* add all physical memory to the bootmem map */
-	for (i=0; i < lmb.memory.cnt; i++)
-		total += lmb.memory.region[i].size;
-	return total;
-#endif /* CONFIG_MSCHUNKS */
 }
 
 unsigned long __init
