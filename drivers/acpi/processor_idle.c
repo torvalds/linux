@@ -86,12 +86,11 @@ static int set_max_cstate(struct dmi_system_id *id)
 	if (max_cstate > ACPI_PROCESSOR_MAX_POWER)
 		return 0;
 
-	printk(KERN_NOTICE PREFIX "%s detected - %s disabled."
+	printk(KERN_NOTICE PREFIX "%s detected - limiting to C%ld max_cstate."
 		" Override with \"processor.max_cstate=%d\"\n", id->ident,
-		((int)id->driver_data == 1)? "C2,C3":"C3",
-	       ACPI_PROCESSOR_MAX_POWER + 1);
+		(long)id->driver_data, ACPI_PROCESSOR_MAX_POWER + 1);
 
-	max_cstate = (int)id->driver_data;
+	max_cstate = (long)id->driver_data;
 
 	return 0;
 }
