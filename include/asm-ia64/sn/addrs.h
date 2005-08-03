@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 1992-1999,2001-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (c) 1992-1999,2001-2005 Silicon Graphics, Inc. All rights reserved.
  */
 
 #ifndef _ASM_IA64_SN_ADDRS_H
@@ -191,7 +191,8 @@
 #define TIO_BWIN_WINDOW_SELECT_MASK	0x7
 #define TIO_BWIN_WINDOWNUM(x)		(((x) >> TIO_BWIN_SIZE_BITS) & TIO_BWIN_WINDOW_SELECT_MASK)
 
-
+#define TIO_HWIN_SHIFT_BITS		33
+#define TIO_HWIN(x)			(NODE_OFFSET(x) >> TIO_HWIN_SHIFT_BITS)
 
 /*
  * The following definitions pertain to the IO special address

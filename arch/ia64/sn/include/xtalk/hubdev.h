@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1992 - 1997, 2000-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1992 - 1997, 2000-2005 Silicon Graphics, Inc. All rights reserved.
  */
 #ifndef _ASM_IA64_SN_XTALK_HUBDEV_H
 #define _ASM_IA64_SN_XTALK_HUBDEV_H
@@ -15,6 +15,9 @@
 #define IIO_ITTE_WIDGET_BITS    4       /* size of widget field */
 #define IIO_ITTE_WIDGET_MASK    ((1<<IIO_ITTE_WIDGET_BITS)-1)
 #define IIO_ITTE_WIDGET_SHIFT   8
+
+#define IIO_ITTE_WIDGET(itte)	\
+	(((itte) >> IIO_ITTE_WIDGET_SHIFT) & IIO_ITTE_WIDGET_MASK)
 
 /*
  * Use the top big window as a surrogate for the first small window
