@@ -77,19 +77,18 @@ typedef struct _XENA_dev_config {
 #define ADAPTER_ECC_EN                     BIT(55)
 
 	u64 serr_source;
-#define SERR_SOURCE_PIC					BIT(0)
-#define SERR_SOURCE_TXDMA				BIT(1)
-#define SERR_SOURCE_RXDMA				BIT(2)
+#define SERR_SOURCE_PIC			BIT(0)
+#define SERR_SOURCE_TXDMA		BIT(1)
+#define SERR_SOURCE_RXDMA		BIT(2)
 #define SERR_SOURCE_MAC                 BIT(3)
 #define SERR_SOURCE_MC                  BIT(4)
 #define SERR_SOURCE_XGXS                BIT(5)
-#define	SERR_SOURCE_ANY					(SERR_SOURCE_PIC		| \
-										SERR_SOURCE_TXDMA	| \
-										SERR_SOURCE_RXDMA	| \
-										SERR_SOURCE_MAC		| \
-										SERR_SOURCE_MC      | \
-										SERR_SOURCE_XGXS)
-
+#define	SERR_SOURCE_ANY			(SERR_SOURCE_PIC	| \
+					SERR_SOURCE_TXDMA	| \
+					SERR_SOURCE_RXDMA	| \
+					SERR_SOURCE_MAC		| \
+					SERR_SOURCE_MC		| \
+					SERR_SOURCE_XGXS)
 
 	u8 unused_0[0x800 - 0x120];
 
