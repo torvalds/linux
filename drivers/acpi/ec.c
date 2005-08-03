@@ -76,13 +76,14 @@ static int acpi_ec_remove (struct acpi_device *device, int type);
 static int acpi_ec_start (struct acpi_device *device);
 static int acpi_ec_stop (struct acpi_device *device, int type);
 static int acpi_ec_burst_add ( struct acpi_device *device);
+static int acpi_ec_polling_add ( struct acpi_device	*device);
 
 static struct acpi_driver acpi_ec_driver = {
 	.name =		ACPI_EC_DRIVER_NAME,
 	.class =	ACPI_EC_CLASS,
 	.ids =		ACPI_EC_HID,
 	.ops =		{
-				.add =		acpi_ec_burst_add,
+				.add =		acpi_ec_polling_add,
 				.remove =	acpi_ec_remove,
 				.start =	acpi_ec_start,
 				.stop =		acpi_ec_stop,
@@ -164,7 +165,7 @@ static union acpi_ec	*ec_ecdt;
 
 /* External interfaces use first EC only, so remember */
 static struct acpi_device *first_ec;
-static int acpi_ec_polling_mode;
+static int acpi_ec_polling_mode = EC_POLLING;
 
 /* --------------------------------------------------------------------------
                              Transaction Management
@@ -1710,11 +1711,24 @@ static int __init acpi_fake_ecdt_setup(char *str)
 	acpi_fake_ecdt_enabled = 1;
 	return 0;
 }
+
 __setup("acpi_fake_ecdt", acpi_fake_ecdt_setup);
 static int __init acpi_ec_set_polling_mode(char *str)
 {
-	acpi_ec_polling_mode = EC_POLLING;
-	acpi_ec_driver.ops.add = acpi_ec_polling_add;
+	int burst;
+
+	if (!get_option(&str, &burst))
+		return 0;
+
+	if (burst) {
+		acpi_ec_polling_mode = EC_BURST;
+		acpi_ec_driver.ops.add = acpi_ec_burst_add;
+	} else {
+		acpi_ec_polling_mode = EC_POLLING;
+		acpi_ec_driver.ops.add = acpi_ec_polling_add;
+	}
+	printk(KERN_INFO PREFIX "EC %s mode.\n",
+		burst ? "burst": "polling");
 	return 0;
 }
-__setup("ec_polling", acpi_ec_set_polling_mode);
+__setup("ec_burst=", acpi_ec_set_polling_mode);

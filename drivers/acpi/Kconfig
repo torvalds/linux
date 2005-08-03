@@ -133,9 +133,10 @@ config ACPI_HOTKEY
 	depends on ACPI_INTERPRETER
 	depends on EXPERIMENTAL
 	depends on !IA64_SGI_SN
-	default m
+	default n
 	help
-	ACPI generic hotkey
+	  Experimental consolidated hotkey driver.
+	  If you are unsure, say N.
 
 config ACPI_FAN
 	tristate "Fan"
