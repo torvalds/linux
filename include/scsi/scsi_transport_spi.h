@@ -39,6 +39,7 @@ struct spi_transport_attrs {
 	unsigned int rd_strm:1;	/* Read streaming enabled */
 	unsigned int rti:1;	/* Retain Training Information */
 	unsigned int pcomp_en:1;/* Precompensation enabled */
+	unsigned int hold_mcs:1;/* Hold Margin Control Settings */
 	unsigned int initial_dv:1; /* DV done to this target yet  */
 	unsigned long flags;	/* flags field for drivers to use */
 	/* Device Properties fields */
@@ -78,6 +79,7 @@ struct spi_host_attrs {
 #define spi_rd_strm(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->rd_strm)
 #define spi_rti(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->rti)
 #define spi_pcomp_en(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->pcomp_en)
+#define spi_hold_mcs(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->hold_mcs)
 #define spi_initial_dv(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->initial_dv)
 
 #define spi_support_sync(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->support_sync)
@@ -114,6 +116,8 @@ struct spi_function_template {
 	void	(*set_rti)(struct scsi_target *, int);
 	void	(*get_pcomp_en)(struct scsi_target *);
 	void	(*set_pcomp_en)(struct scsi_target *, int);
+	void	(*get_hold_mcs)(struct scsi_target *);
+	void	(*set_hold_mcs)(struct scsi_target *, int);
 	void	(*get_signalling)(struct Scsi_Host *);
 	void	(*set_signalling)(struct Scsi_Host *, enum spi_signal_type);
 	/* The driver sets these to tell the transport class it
@@ -130,6 +134,7 @@ struct spi_function_template {
 	unsigned long	show_rd_strm:1;
 	unsigned long	show_rti:1;
 	unsigned long	show_pcomp_en:1;
+	unsigned long	show_hold_mcs:1;
 };
 
 struct scsi_transport_template *spi_attach_transport(struct spi_function_template *);
