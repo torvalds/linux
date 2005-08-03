@@ -195,6 +195,9 @@ typedef struct stat_block {
 	u32 rxd_rd_cnt;
 	u32 rxf_wr_cnt;
 	u32 txf_rd_cnt;
+
+/* Software statistics maintained by driver */
+	swStat_t sw_stat;
 } StatInfo_t;
 
 /*
@@ -678,6 +681,8 @@ struct s2io_nic {
 #define CARD_UP 2
 	atomic_t card_state;
 	volatile unsigned long link_state;
+	spinlock_t	rx_lock;
+	atomic_t	isr_cnt;
 };
 
 #define RESET_ERROR 1;
