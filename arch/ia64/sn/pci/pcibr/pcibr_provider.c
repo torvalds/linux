@@ -60,7 +60,7 @@ static int sal_pcibr_error_interrupt(struct pcibus_info *soft)
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
 
-	segment = 0;
+	segment = soft->pbi_buscommon.bs_persist_segment;
 	busnum = soft->pbi_buscommon.bs_persist_busnum;
 	SAL_CALL_NOLOCK(ret_stuff,
 			(u64) SN_SAL_IOIF_ERROR_INTERRUPT,
@@ -142,9 +142,12 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 			     j++, sn_flush_device_list++) {
 				if (sn_flush_device_list->sfdl_slot == -1)
 					continue;
-				if (sn_flush_device_list->
-				    sfdl_persistent_busnum ==
-				    soft->pbi_buscommon.bs_persist_busnum)
+				if ((sn_flush_device_list->
+				     sfdl_persistent_segment ==
+				     soft->pbi_buscommon.bs_persist_segment) &&
+				     (sn_flush_device_list->
+				     sfdl_persistent_busnum ==
+				     soft->pbi_buscommon.bs_persist_busnum))
 					sn_flush_device_list->sfdl_pcibus_info =
 					    soft;
 			}

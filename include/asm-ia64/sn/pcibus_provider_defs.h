@@ -30,7 +30,8 @@
 struct pcibus_bussoft {
 	uint32_t		bs_asic_type;	/* chipset type */
 	uint32_t		bs_xid;		/* xwidget id */
-	uint64_t		bs_persist_busnum; /* Persistent Bus Number */
+	uint32_t		bs_persist_busnum; /* Persistent Bus Number */
+	uint32_t		bs_persist_segment; /* Segment Number */
 	uint64_t		bs_legacy_io;	/* legacy io pio addr */
 	uint64_t		bs_legacy_mem;	/* legacy mem pio addr */
 	uint64_t		bs_base;	/* widget base */

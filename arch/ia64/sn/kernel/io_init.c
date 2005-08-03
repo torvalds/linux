@@ -44,6 +44,9 @@ int sn_ioif_inited = 0;		/* SN I/O infrastructure initialized? */
 
 struct sn_pcibus_provider *sn_pci_provider[PCIIO_ASIC_MAX_TYPES];	/* indexed by asic type */
 
+static int max_segment_number = 0; /* Default highest segment number */
+static int max_pcibus_number = 255; /* Default highest pci bus number */
+
 /*
  * Hooks and struct for unsupported pci providers
  */
@@ -157,12 +160,27 @@ static void sn_fixup_ionodes(void)
 	uint64_t nasid;
 	int i, widget;
 
+	/*
+	 * Get SGI Specific HUB chipset information.
+	 * Inform Prom that this kernel can support domain bus numbering.
+	 */
 	for (i = 0; i < numionodes; i++) {
 		hubdev = (struct hubdev_info *)(NODEPDA(i)->pdinfo);
 		nasid = cnodeid_to_nasid(i);
+		hubdev->max_segment_number = 0xffffffff;
+		hubdev->max_pcibus_number = 0xff;
 		status = sal_get_hubdev_info(nasid, (uint64_t) __pa(hubdev));
 		if (status)
 			continue;
+
+		/* Save the largest Domain and pcibus numbers found. */
+		if (hubdev->max_segment_number) {
+			/*
+			 * Dealing with a Prom that supports segments.
+			 */
+			max_segment_number = hubdev->max_segment_number;
+			max_pcibus_number = hubdev->max_pcibus_number;
+		}
 
 		/* Attach the error interrupt handlers */
 		if (nasid & 1)
@@ -229,7 +247,7 @@ void sn_pci_unfixup_slot(struct pci_dev *dev)
 void sn_pci_fixup_slot(struct pci_dev *dev)
 {
 	int idx;
-	int segment = 0;
+	int segment = pci_domain_nr(dev->bus);
 	int status = 0;
 	struct pcibus_bussoft *bs;
  	struct pci_bus *host_pci_bus;
@@ -282,9 +300,9 @@ void sn_pci_fixup_slot(struct pci_dev *dev)
  	 * PCI host_pci_dev struct and set up host bus linkages
  	 */
 
- 	bus_no = SN_PCIDEV_INFO(dev)->pdi_slot_host_handle >> 32;
+ 	bus_no = (SN_PCIDEV_INFO(dev)->pdi_slot_host_handle >> 32) & 0xff;
  	devfn = SN_PCIDEV_INFO(dev)->pdi_slot_host_handle & 0xffffffff;
- 	host_pci_bus = pci_find_bus(pci_domain_nr(dev->bus), bus_no);
+ 	host_pci_bus = pci_find_bus(segment, bus_no);
  	host_pci_dev = pci_get_slot(host_pci_bus, devfn);
 
 	SN_PCIDEV_INFO(dev)->host_pci_dev = host_pci_dev;
@@ -332,6 +350,7 @@ void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 	prom_bussoft_ptr = __va(prom_bussoft_ptr);
 
  	controller = kcalloc(1,sizeof(struct pci_controller), GFP_KERNEL);
+	controller->segment = segment;
  	if (!controller)
  		BUG();
 
@@ -387,7 +406,7 @@ void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 	if (controller->node >= num_online_nodes()) {
 		struct pcibus_bussoft *b = SN_PCIBUS_BUSSOFT(bus);
 
-		printk(KERN_WARNING "Device ASIC=%u XID=%u PBUSNUM=%lu"
+		printk(KERN_WARNING "Device ASIC=%u XID=%u PBUSNUM=%u"
 				    "L_IO=%lx L_MEM=%lx BASE=%lx\n",
 			b->bs_asic_type, b->bs_xid, b->bs_persist_busnum,
 			b->bs_legacy_io, b->bs_legacy_mem, b->bs_base);
@@ -442,6 +461,7 @@ sn_sysdata_free_start:
 static int __init sn_pci_init(void)
 {
 	int i = 0;
+	int j = 0;
 	struct pci_dev *pci_dev = NULL;
 	extern void sn_init_cpei_timer(void);
 #ifdef CONFIG_PROC_FS
@@ -476,8 +496,9 @@ static int __init sn_pci_init(void)
 #endif
 
 	/* busses are not known yet ... */
-	for (i = 0; i < PCI_BUSES_TO_SCAN; i++)
-		sn_pci_controller_fixup(0, i, NULL);
+	for (i = 0; i <= max_segment_number; i++)
+		for (j = 0; j <= max_pcibus_number; j++)
+			sn_pci_controller_fixup(i, j, NULL);
 
 	/*
 	 * Generic Linux PCI Layer has created the pci_bus and pci_dev 

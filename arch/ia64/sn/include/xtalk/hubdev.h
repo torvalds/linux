@@ -34,7 +34,8 @@ struct sn_flush_device_list {
 	unsigned long sfdl_force_int_addr;
 	unsigned long sfdl_flush_value;
 	volatile unsigned long *sfdl_flush_addr;
-	uint64_t sfdl_persistent_busnum;
+	uint32_t sfdl_persistent_busnum;
+	uint32_t sfdl_persistent_segment;
 	struct pcibus_info *sfdl_pcibus_info;
 	spinlock_t sfdl_flush_lock;
 };
@@ -58,7 +59,8 @@ struct hubdev_info {
 
 	void				*hdi_nodepda;
 	void				*hdi_node_vertex;
-	void				*hdi_xtalk_vertex;
+	uint32_t			max_segment_number;
+	uint32_t			max_pcibus_number;
 };
 
 extern void hubdev_init_node(nodepda_t *, cnodeid_t);
