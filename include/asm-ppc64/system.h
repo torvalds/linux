@@ -302,5 +302,7 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 
 #define arch_align_stack(x) (x)
 
+extern unsigned long reloc_offset(void);
+
 #endif /* __KERNEL__ */
 #endif

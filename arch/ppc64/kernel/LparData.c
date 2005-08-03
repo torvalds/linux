@@ -229,24 +229,16 @@ struct ItVpdAreas itVpdAreas = {
 struct msChunks msChunks;
 EXPORT_SYMBOL(msChunks);
 
-/* Depending on whether this is called from iSeries or pSeries setup
- * code, the location of the msChunks struct may or may not have
- * to be reloc'd, so we force the caller to do that for us by passing
- * in a pointer to the structure.
- */
 unsigned long
 msChunks_alloc(unsigned long mem, unsigned long num_chunks, unsigned long chunk_size)
 {
-	unsigned long offset = reloc_offset();
-	struct msChunks *_msChunks = PTRRELOC(&msChunks);
-
 	_msChunks->num_chunks  = num_chunks;
 	_msChunks->chunk_size  = chunk_size;
 	_msChunks->chunk_shift = __ilog2(chunk_size);
 	_msChunks->chunk_mask  = (1UL<<_msChunks->chunk_shift)-1;
 
 	mem = _ALIGN(mem, sizeof(msChunks_entry));
-	_msChunks->abs = (msChunks_entry *)(mem + offset);
+	_msChunks->abs = (msChunks_entry *)mem;
 	mem += num_chunks * sizeof(msChunks_entry);
 
 	return mem;

@@ -29,46 +29,30 @@ struct msChunks {
 extern struct msChunks msChunks;
 
 extern unsigned long msChunks_alloc(unsigned long, unsigned long, unsigned long);
-extern unsigned long reloc_offset(void);
 
 #ifdef CONFIG_MSCHUNKS
 
-static inline unsigned long
-chunk_to_addr(unsigned long chunk)
+static inline unsigned long chunk_to_addr(unsigned long chunk)
 {
-	unsigned long offset = reloc_offset();
-	struct msChunks *_msChunks = PTRRELOC(&msChunks);
-
-	return chunk << _msChunks->chunk_shift;
+	return chunk << msChunks.chunk_shift;
 }
 
-static inline unsigned long
-addr_to_chunk(unsigned long addr)
+static inline unsigned long addr_to_chunk(unsigned long addr)
 {
-	unsigned long offset = reloc_offset();
-	struct msChunks *_msChunks = PTRRELOC(&msChunks);
-
-	return addr >> _msChunks->chunk_shift;
+	return addr >> msChunks.chunk_shift;
 }
 
-static inline unsigned long
-chunk_offset(unsigned long addr)
+static inline unsigned long chunk_offset(unsigned long addr)
 {
-	unsigned long offset = reloc_offset();
-	struct msChunks *_msChunks = PTRRELOC(&msChunks);
-
-	return addr & _msChunks->chunk_mask;
+	return addr & msChunks.chunk_mask;
 }
 
-static inline unsigned long
-abs_chunk(unsigned long pchunk)
+static inline unsigned long abs_chunk(unsigned long pchunk)
 {
-	unsigned long offset = reloc_offset();
-	struct msChunks *_msChunks = PTRRELOC(&msChunks);
-	if ( pchunk >= _msChunks->num_chunks ) {
+	if (pchunk >= msChunks.num_chunks)
 		return pchunk;
-	}
-	return PTRRELOC(_msChunks->abs)[pchunk];
+
+	return msChunks.abs[pchunk];
 }
 
 /* A macro so it can take pointers or unsigned long. */
