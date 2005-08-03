@@ -949,6 +949,8 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 
 			cond_resched_lock(&mm->page_table_lock);
 			while (!(page = follow_page(mm, start, write_access))) {
+				int ret;
+
 				/*
 				 * Shortcut for anonymous pages. We don't want
 				 * to force the creation of pages tables for
@@ -961,16 +963,18 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 					break;
 				}
 				spin_unlock(&mm->page_table_lock);
-				switch (__handle_mm_fault(mm, vma, start,
-							write_access)) {
-				case VM_FAULT_WRITE:
-					/*
-					 * do_wp_page has broken COW when
-					 * necessary, even if maybe_mkwrite
-					 * decided not to set pte_write
-					 */
+				ret = __handle_mm_fault(mm, vma, start, write_access);
+
+				/*
+				 * The VM_FAULT_WRITE bit tells us that do_wp_page has
+				 * broken COW when necessary, even if maybe_mkwrite
+				 * decided not to set pte_write. We can thus safely do
+				 * subsequent page lookups as if they were reads.
+				 */
+				if (ret & VM_FAULT_WRITE)
 					write_access = 0;
-					/* FALLTHRU */
+				
+				switch (ret & ~VM_FAULT_WRITE) {
 				case VM_FAULT_MINOR:
 					tsk->min_flt++;
 					break;
