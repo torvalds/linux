@@ -18,8 +18,9 @@
 #define PCIIO_ASIC_TYPE_PIC	2
 #define PCIIO_ASIC_TYPE_TIOCP	3
 #define PCIIO_ASIC_TYPE_TIOCA	4
+#define PCIIO_ASIC_TYPE_TIOCE	5
 
-#define PCIIO_ASIC_MAX_TYPES	5
+#define PCIIO_ASIC_MAX_TYPES	6
 
 /*
  * Common pciio bus provider data.  There should be one of these as the

@@ -18,6 +18,7 @@
 #include <asm/sn/simulator.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/tioca_provider.h>
+#include <asm/sn/tioce_provider.h>
 #include "xtalk/hubdev.h"
 #include "xtalk/xwidgetdev.h"
 
@@ -481,6 +482,7 @@ static int __init sn_pci_init(void)
 
 	pcibr_init_provider();
 	tioca_init_provider();
+	tioce_init_provider();
 
 	/*
 	 * This is needed to avoid bounce limit checks in the blk layer
