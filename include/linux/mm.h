@@ -625,10 +625,16 @@ static inline int page_mapped(struct page *page)
  * Used to decide whether a process gets delivered SIGBUS or
  * just gets major/minor fault counters bumped up.
  */
-#define VM_FAULT_OOM	(-1)
-#define VM_FAULT_SIGBUS	0
-#define VM_FAULT_MINOR	1
-#define VM_FAULT_MAJOR	2
+#define VM_FAULT_OOM	0x00
+#define VM_FAULT_SIGBUS	0x01
+#define VM_FAULT_MINOR	0x02
+#define VM_FAULT_MAJOR	0x03
+
+/* 
+ * Special case for get_user_pages.
+ * Must be in a distinct bit from the above VM_FAULT_ flags.
+ */
+#define VM_FAULT_WRITE	0x10
 
 #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
 
@@ -704,7 +710,13 @@ extern pte_t *FASTCALL(pte_alloc_kernel(struct mm_struct *mm, pmd_t *pmd, unsign
 extern pte_t *FASTCALL(pte_alloc_map(struct mm_struct *mm, pmd_t *pmd, unsigned long address));
 extern int install_page(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, struct page *page, pgprot_t prot);
 extern int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, unsigned long pgoff, pgprot_t prot);
-extern int handle_mm_fault(struct mm_struct *mm,struct vm_area_struct *vma, unsigned long address, int write_access);
+extern int __handle_mm_fault(struct mm_struct *mm,struct vm_area_struct *vma, unsigned long address, int write_access);
+
+static inline int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long address, int write_access)
+{
+	return __handle_mm_fault(mm, vma, address, write_access) & (~VM_FAULT_WRITE);
+}
+
 extern int make_pages_present(unsigned long addr, unsigned long end);
 extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write);
 void install_arg_page(struct vm_area_struct *, struct page *, unsigned long);
