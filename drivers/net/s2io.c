@@ -1709,7 +1709,7 @@ static void free_tx_buffers(struct s2io_nic *nic)
 	int i, j;
 	mac_info_t *mac_control;
 	struct config_param *config;
-	int cnt = 0;
+	int cnt = 0, frg_cnt;
 
 	mac_control = &nic->mac_control;
 	config = &nic->config;
@@ -1722,11 +1722,33 @@ static void free_tx_buffers(struct s2io_nic *nic)
 			    (struct sk_buff *) ((unsigned long) txdp->
 						Host_Control);
 			if (skb == NULL) {
-				memset(txdp, 0, sizeof(TxD_t));
+				memset(txdp, 0, sizeof(TxD_t) *
+				       config->max_txds);
 				continue;
 			}
+			frg_cnt = skb_shinfo(skb)->nr_frags;
+			pci_unmap_single(nic->pdev, (dma_addr_t)
+					 txdp->Buffer_Pointer,
+					 skb->len - skb->data_len,
+					 PCI_DMA_TODEVICE);
+			if (frg_cnt) {
+				TxD_t *temp;
+				temp = txdp;
+				txdp++;
+				for (j = 0; j < frg_cnt; j++, txdp++) {
+					skb_frag_t *frag =
+					    &skb_shinfo(skb)->frags[j];
+					pci_unmap_page(nic->pdev,
+						       (dma_addr_t)
+						       txdp->
+						       Buffer_Pointer,
+						       frag->size,
+						       PCI_DMA_TODEVICE);
+				}
+				txdp = temp;
+			}
 			dev_kfree_skb(skb);
-			memset(txdp, 0, sizeof(TxD_t));
+			memset(txdp, 0, sizeof(TxD_t) * config->max_txds);
 			cnt++;
 		}
 		DBG_PRINT(INTR_DBG,
@@ -4570,6 +4592,11 @@ static int rx_osm_handler(ring_info_t *ring_data, RxD_t * rxdp)
 		unsigned long long err = rxdp->Control_1 & RXD_T_CODE;
 		DBG_PRINT(ERR_DBG, "%s: Rx error Value: 0x%llx\n",
 			  dev->name, err);
+		dev_kfree_skb(skb);
+		sp->stats.rx_crc_errors++;
+		atomic_dec(&sp->rx_bufs_left[ring_no]);
+		rxdp->Host_Control = 0;
+		return 0;
 	}
 
 	/* Updating statistics */
