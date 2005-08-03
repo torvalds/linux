@@ -29,7 +29,7 @@
 #include <asm/iSeries/HvLpConfig.h>
 #include <asm/lppaca.h>
 #include <asm/hvcall.h>
-#include <asm/cputable.h>
+#include <asm/firmware.h>
 #include <asm/rtas.h>
 #include <asm/system.h>
 #include <asm/time.h>
@@ -377,7 +377,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 
 	partition_active_processors = lparcfg_count_active_processors();
 
-	if (ppc64_firmware_features & FW_FEATURE_SPLPAR) {
+	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		unsigned long h_entitled, h_unallocated;
 		unsigned long h_aggregation, h_resource;
 		unsigned long pool_idle_time, pool_procs;
@@ -571,7 +571,7 @@ int __init lparcfg_init(void)
 	mode_t mode = S_IRUSR;
 
 	/* Allow writing if we have FW_FEATURE_SPLPAR */
-	if (ppc64_firmware_features & FW_FEATURE_SPLPAR) {
+	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		lparcfg_fops.write = lparcfg_write;
 		mode |= S_IWUSR;
 	}

@@ -20,6 +20,7 @@
 #include <linux/module.h>
 
 #include <asm/cputable.h>
+#include <asm/firmware.h>
 
 struct cpu_spec* cur_cpu_spec = NULL;
 EXPORT_SYMBOL(cur_cpu_spec);

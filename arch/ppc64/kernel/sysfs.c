@@ -13,6 +13,7 @@
 #include <asm/current.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
+#include <asm/firmware.h>
 #include <asm/hvcall.h>
 #include <asm/prom.h>
 #include <asm/systemcfg.h>
@@ -154,7 +155,7 @@ void ppc64_enable_pmcs(void)
 
 #ifdef CONFIG_PPC_PSERIES
 	/* instruct hypervisor to maintain PMCs */
-	if (ppc64_firmware_features & FW_FEATURE_SPLPAR)
+	if (firmware_has_feature(FW_FEATURE_SPLPAR))
 		get_paca()->lppaca.pmcregs_in_use = 1;
 #endif /* CONFIG_PPC_PSERIES */
 }

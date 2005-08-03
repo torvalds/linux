@@ -60,7 +60,7 @@
 #include <asm/nvram.h>
 #include <asm/plpar_wrappers.h>
 #include <asm/xics.h>
-#include <asm/cputable.h>
+#include <asm/firmware.h>
 
 #include "i8259.h"
 #include "mpic.h"
@@ -231,11 +231,11 @@ static void __init pSeries_setup_arch(void)
 
 	pSeries_nvram_init();
 
-	if (ppc64_firmware_features & FW_FEATURE_SPLPAR)
+	if (firmware_has_feature(FW_FEATURE_SPLPAR))
 		vpa_init(boot_cpuid);
 
 	/* Choose an idle loop */
-	if (ppc64_firmware_features & FW_FEATURE_SPLPAR) {
+	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		if (get_paca()->lppaca.shared_proc) {
 			printk(KERN_INFO "Using shared processor idle loop\n");
 			ppc_md.idle_loop = pseries_shared_idle;
