@@ -261,8 +261,6 @@ typedef struct stat_block {
 	u32 rmac_accepted_ip_oflow;
 	u32 reserved_14;
 	u32 link_fault_cnt;
-
-/* Software statistics maintained by driver */
 	swStat_t sw_stat;
 } StatInfo_t;
 
@@ -349,6 +347,7 @@ struct config_param {
 #define MAX_RX_BLOCKS_PER_RING  150
 
 	rx_ring_config_t rx_cfg[MAX_RX_RINGS];	/*Per-Rx Ring config */
+	u8 bimodal;		/*Flag for setting bimodal interrupts*/
 
 #define HEADER_ETHERNET_II_802_3_SIZE 14
 #define HEADER_802_2_SIZE              3

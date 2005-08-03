@@ -297,6 +297,7 @@ static unsigned int mc_pause_threshold_q4q7 = 187;
 static unsigned int shared_splits;
 static unsigned int tmac_util_period = 5;
 static unsigned int rmac_util_period = 5;
+static unsigned int bimodal = 0;
 #ifndef CONFIG_S2IO_NAPI
 static unsigned int indicate_max_pkts;
 #endif
@@ -1306,52 +1307,86 @@ static int init_nic(struct s2io_nic *nic)
 		time++;
 	}
 
+	if (nic->config.bimodal) {
+		int k = 0;
+		for (k = 0; k < config->rx_ring_num; k++) {
+			val64 = TTI_CMD_MEM_WE | TTI_CMD_MEM_STROBE_NEW_CMD;
+			val64 |= TTI_CMD_MEM_OFFSET(0x38+k);
+			writeq(val64, &bar0->tti_command_mem);
 
-	/* RTI Initialization */
-	if (nic->device_type == XFRAME_II_DEVICE) {
 		/*
-		 * Programmed to generate Apprx 500 Intrs per
-		 * second
-		 */
-		int count = (nic->config.bus_speed * 125)/4;
-		val64 = RTI_DATA1_MEM_RX_TIMER_VAL(count);
+		 * Once the operation completes, the Strobe bit of the command
+		 * register will be reset. We poll for this particular condition
+		 * We wait for a maximum of 500ms for the operation to complete,
+		 * if it's not complete by then we return error.
+		*/
+			time = 0;
+			while (TRUE) {
+				val64 = readq(&bar0->tti_command_mem);
+				if (!(val64 & TTI_CMD_MEM_STROBE_NEW_CMD)) {
+					break;
+				}
+				if (time > 10) {
+					DBG_PRINT(ERR_DBG,
+						"%s: TTI init Failed\n",
+					dev->name);
+					return -1;
+				}
+				time++;
+				msleep(50);
+			}
+		}
 	} else {
-		val64 = RTI_DATA1_MEM_RX_TIMER_VAL(0xFFF);
-	}
-	val64 |= RTI_DATA1_MEM_RX_URNG_A(0xA) |
-	    RTI_DATA1_MEM_RX_URNG_B(0x10) |
-	    RTI_DATA1_MEM_RX_URNG_C(0x30) | RTI_DATA1_MEM_RX_TIMER_AC_EN;
 
-	writeq(val64, &bar0->rti_data1_mem);
-
-	val64 = RTI_DATA2_MEM_RX_UFC_A(0x1) |
-	    RTI_DATA2_MEM_RX_UFC_B(0x2) |
-	    RTI_DATA2_MEM_RX_UFC_C(0x40) | RTI_DATA2_MEM_RX_UFC_D(0x80);
-	writeq(val64, &bar0->rti_data2_mem);
-
-	val64 = RTI_CMD_MEM_WE | RTI_CMD_MEM_STROBE_NEW_CMD;
-	writeq(val64, &bar0->rti_command_mem);
-
-	/*
-	 * Once the operation completes, the Strobe bit of the
-	 * command register will be reset. We poll for this
-	 * particular condition. We wait for a maximum of 500ms
-	 * for the operation to complete, if it's not complete
-	 * by then we return error.
-	 */
-	time = 0;
-	while (TRUE) {
-		val64 = readq(&bar0->rti_command_mem);
-		if (!(val64 & RTI_CMD_MEM_STROBE_NEW_CMD)) {
-			break;
+		/* RTI Initialization */
+		if (nic->device_type == XFRAME_II_DEVICE) {
+			/*
+			 * Programmed to generate Apprx 500 Intrs per
+			 * second
+			 */
+			int count = (nic->config.bus_speed * 125)/4;
+			val64 = RTI_DATA1_MEM_RX_TIMER_VAL(count);
+		} else {
+			val64 = RTI_DATA1_MEM_RX_TIMER_VAL(0xFFF);
 		}
-		if (time > 10) {
-			DBG_PRINT(ERR_DBG, "%s: RTI init Failed\n",
-				  dev->name);
-			return -1;
+		val64 |= RTI_DATA1_MEM_RX_URNG_A(0xA) |
+		    RTI_DATA1_MEM_RX_URNG_B(0x10) |
+		    RTI_DATA1_MEM_RX_URNG_C(0x30) | RTI_DATA1_MEM_RX_TIMER_AC_EN;
+
+		writeq(val64, &bar0->rti_data1_mem);
+
+		val64 = RTI_DATA2_MEM_RX_UFC_A(0x1) |
+		    RTI_DATA2_MEM_RX_UFC_B(0x2) |
+		    RTI_DATA2_MEM_RX_UFC_C(0x40) | RTI_DATA2_MEM_RX_UFC_D(0x80);
+		writeq(val64, &bar0->rti_data2_mem);
+
+		for (i = 0; i < config->rx_ring_num; i++) {
+			val64 = RTI_CMD_MEM_WE | RTI_CMD_MEM_STROBE_NEW_CMD
+					| RTI_CMD_MEM_OFFSET(i);
+			writeq(val64, &bar0->rti_command_mem);
+
+			/*
+			 * Once the operation completes, the Strobe bit of the
+			 * command register will be reset. We poll for this
+			 * particular condition. We wait for a maximum of 500ms
+			 * for the operation to complete, if it's not complete
+			 * by then we return error.
+			 */
+			time = 0;
+			while (TRUE) {
+				val64 = readq(&bar0->rti_command_mem);
+				if (!(val64 & RTI_CMD_MEM_STROBE_NEW_CMD)) {
+					break;
+				}
+				if (time > 10) {
+					DBG_PRINT(ERR_DBG, "%s: RTI init Failed\n",
+						  dev->name);
+					return -1;
+				}
+				time++;
+				msleep(50);
+			}
 		}
-		time++;
-		msleep(50);
 	}
 
 	/*
@@ -1789,6 +1824,8 @@ static int start_nic(struct s2io_nic *nic)
 		       &bar0->prc_rxd0_n[i]);
 
 		val64 = readq(&bar0->prc_ctrl_n[i]);
+		if (nic->config.bimodal)
+			val64 |= PRC_CTRL_BIMODAL_INTERRUPT;
 #ifndef CONFIG_2BUFF_MODE
 		val64 |= PRC_CTRL_RC_ENABLED;
 #else
@@ -5030,6 +5067,7 @@ module_param(mc_pause_threshold_q4q7, int, 0);
 module_param(shared_splits, int, 0);
 module_param(tmac_util_period, int, 0);
 module_param(rmac_util_period, int, 0);
+module_param(bimodal, bool, 0);
 #ifndef CONFIG_S2IO_NAPI
 module_param(indicate_max_pkts, int, 0);
 #endif
@@ -5396,6 +5434,14 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		strcat(sp->name, ": Neterion Xframe II 10GbE adapter");
 	else
 		strcat(sp->name, ": Neterion Xframe I 10GbE adapter");
+
+	/* Initialize bimodal Interrupts */
+	sp->config.bimodal = bimodal;
+	if (!(sp->device_type & XFRAME_II_DEVICE) && bimodal) {
+		sp->config.bimodal = 0;
+		DBG_PRINT(ERR_DBG,"%s:Bimodal intr not supported by Xframe I\n",
+			dev->name);
+	}
 
 	/*
 	 * Make Link state as off at this point, when the Link change
