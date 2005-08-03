@@ -56,9 +56,6 @@ static inline unsigned long phys_to_abs(unsigned long pa)
 	return chunk_to_addr(chunk) + (pa & MSCHUNKS_OFFSET_MASK);
 }
 
-/* A macro so it can take pointers or unsigned long. */
-#define abs_to_phys(aa) lmb_abs_to_phys((unsigned long)(aa))
-
 #else  /* !CONFIG_MSCHUNKS */
 
 #define chunk_to_addr(chunk) ((unsigned long)(chunk))
@@ -68,12 +65,11 @@ static inline unsigned long phys_to_abs(unsigned long pa)
 
 #define phys_to_abs(pa) (pa)
 #define physRpn_to_absRpn(rpn) (rpn)
-#define abs_to_phys(aa) (aa)
 
 #endif /* !CONFIG_MSCHUNKS */
 
 /* Convenience macros */
 #define virt_to_abs(va) phys_to_abs(__pa(va))
-#define abs_to_virt(aa) __va(abs_to_phys(aa))
+#define abs_to_virt(aa) __va(aa)
 
 #endif /* _ABS_ADDR_H */

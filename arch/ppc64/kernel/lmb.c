@@ -313,25 +313,6 @@ lmb_end_of_DRAM(void)
 	return 0;
 }
 
-unsigned long __init
-lmb_abs_to_phys(unsigned long aa)
-{
-	unsigned long i, pa = aa;
-	struct lmb *_lmb = &lmb;
-	struct lmb_region *_mem = &(_lmb->memory);
-
-	for (i=0; i < _mem->cnt; i++) {
-		unsigned long lmbbase = _mem->region[i].base;
-		unsigned long lmbsize = _mem->region[i].size;
-		if ( lmb_addrs_overlap(aa,1,lmbbase,lmbsize) ) {
-			pa = _mem->region[i].physbase + (aa - lmbbase);
-			break;
-		}
-	}
-
-	return pa;
-}
-
 /*
  * Truncate the lmb list to memory_limit if it's set
  * You must call lmb_analyze() after this.

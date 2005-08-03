@@ -42,7 +42,6 @@
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>
-#include <asm/abs_addr.h>
 #include <asm/prom.h>
 #include <asm/lmb.h>
 #include <asm/rtas.h>
@@ -167,7 +166,6 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 		ptep = pte_alloc_kernel(&init_mm, pmdp, ea);
 		if (!ptep)
 			return -ENOMEM;
-		pa = abs_to_phys(pa);
 		set_pte_at(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT,
 							  __pgprot(flags)));
 		spin_unlock(&init_mm.page_table_lock);
@@ -547,7 +545,7 @@ void __init do_init_bootmem(void)
 	 */
 	bootmap_pages = bootmem_bootmap_pages(total_pages);
 
-	start = abs_to_phys(lmb_alloc(bootmap_pages<<PAGE_SHIFT, PAGE_SIZE));
+	start = lmb_alloc(bootmap_pages<<PAGE_SHIFT, PAGE_SIZE);
 	BUG_ON(!start);
 
 	boot_mapsize = init_bootmem(start >> PAGE_SHIFT, total_pages);
