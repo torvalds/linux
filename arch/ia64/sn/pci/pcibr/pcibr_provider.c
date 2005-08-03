@@ -178,6 +178,9 @@ void pcibr_force_interrupt(struct sn_irq_info *sn_irq_info)
 	struct pcibus_info *pcibus_info;
 	int bit = sn_irq_info->irq_int_bit;
 
+	if (! sn_irq_info->irq_bridge)
+		return;
+
 	pcidev_info = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
 	if (pcidev_info) {
 		pcibus_info =
@@ -222,6 +225,7 @@ struct sn_pcibus_provider pcibr_provider = {
 	.dma_map_consistent = pcibr_dma_map_consistent,
 	.dma_unmap = pcibr_dma_unmap,
 	.bus_fixup = pcibr_bus_fixup,
+	.force_interrupt = pcibr_force_interrupt
 };
 
 int

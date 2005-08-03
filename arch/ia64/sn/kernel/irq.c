@@ -317,6 +317,16 @@ void sn_irq_unfixup(struct pci_dev *pci_dev)
 	pci_dev_put(pci_dev);
 }
 
+static inline void
+sn_call_force_intr_provider(struct sn_irq_info *sn_irq_info)
+{
+	struct sn_pcibus_provider *pci_provider;
+
+	pci_provider = sn_pci_provider[sn_irq_info->irq_bridge_type];
+	if (pci_provider && pci_provider->force_interrupt)
+		(*pci_provider->force_interrupt)(sn_irq_info);
+}
+
 static void force_interrupt(int irq)
 {
 	struct sn_irq_info *sn_irq_info;
@@ -325,11 +335,9 @@ static void force_interrupt(int irq)
 		return;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(sn_irq_info, sn_irq_lh[irq], list) {
-		if (IS_PCI_BRIDGE_ASIC(sn_irq_info->irq_bridge_type) &&
-		    (sn_irq_info->irq_bridge != NULL))
-			pcibr_force_interrupt(sn_irq_info);
-	}
+	list_for_each_entry_rcu(sn_irq_info, sn_irq_lh[irq], list)
+		sn_call_force_intr_provider(sn_irq_info);
+
 	rcu_read_unlock();
 }
 
@@ -350,6 +358,14 @@ static void sn_check_intr(int irq, struct sn_irq_info *sn_irq_info)
 	uint64_t irr_reg;
 	struct pcidev_info *pcidev_info;
 	struct pcibus_info *pcibus_info;
+
+	/*
+	 * Bridge types attached to TIO (anything but PIC) do not need this WAR
+	 * since they do not target Shub II interrupt registers.  If that
+	 * ever changes, this check needs to accomodate.
+	 */
+	if (sn_irq_info->irq_bridge_type != PCIIO_ASIC_TYPE_PIC)
+		return;
 
 	pcidev_info = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
 	if (!pcidev_info)
@@ -377,16 +393,12 @@ static void sn_check_intr(int irq, struct sn_irq_info *sn_irq_info)
 		break;
 	}
 	if (!test_bit(irr_bit, &irr_reg)) {
-		if (!test_bit(irq, pda->sn_soft_irr)) {
-			if (!test_bit(irq, pda->sn_in_service_ivecs)) {
-				regval &= 0xff;
-				if (sn_irq_info->irq_int_bit & regval &
-				    sn_irq_info->irq_last_intr) {
-					regval &=
-					    ~(sn_irq_info->
-					      irq_int_bit & regval);
-					pcibr_force_interrupt(sn_irq_info);
-				}
+		if (!test_bit(irq, pda->sn_in_service_ivecs)) {
+			regval &= 0xff;
+			if (sn_irq_info->irq_int_bit & regval &
+			    sn_irq_info->irq_last_intr) {
+				regval &= ~(sn_irq_info->irq_int_bit & regval);
+				sn_call_force_intr_provider(sn_irq_info);
 			}
 		}
 	}
@@ -404,13 +416,7 @@ void sn_lb_int_war_check(void)
 	rcu_read_lock();
 	for (i = pda->sn_first_irq; i <= pda->sn_last_irq; i++) {
 		list_for_each_entry_rcu(sn_irq_info, sn_irq_lh[i], list) {
-			/*
-			 * Only call for PCI bridges that are fully
-			 * initialized.
-			 */
-			if (IS_PCI_BRIDGE_ASIC(sn_irq_info->irq_bridge_type) &&
-			    (sn_irq_info->irq_bridge != NULL))
-				sn_check_intr(i, sn_irq_info);
+			sn_check_intr(i, sn_irq_info);
 		}
 	}
 	rcu_read_unlock();
