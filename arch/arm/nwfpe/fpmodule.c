@@ -116,8 +116,6 @@ fpmodule.c to integrate with the NetBSD kernel (I hope!).
 code to access data in user space in some other source files at the 
 moment (grep for get_user / put_user calls).  --philb]
 
-float_exception_flags is a global variable in SoftFloat.
-
 This function is called by the SoftFloat routines to raise a floating
 point exception.  We check the trap enable byte in the FPSR, and raise
 a SIGFPE exception if necessary.  If not the relevant bits in the 
@@ -129,14 +127,13 @@ void float_raise(signed char flags)
 	register unsigned int fpsr, cumulativeTraps;
 
 #ifdef CONFIG_DEBUG_USER
-	printk(KERN_DEBUG
-	       "NWFPE: %s[%d] takes exception %08x at %p from %08lx\n",
-	       current->comm, current->pid, flags,
-	       __builtin_return_address(0), GET_USERREG()->ARM_pc);
+ 	/* Ignore inexact errors as there are far too many of them to log */
+ 	if (flags & ~BIT_IXC)
+ 		printk(KERN_DEBUG
+		       "NWFPE: %s[%d] takes exception %08x at %p from %08lx\n",
+		       current->comm, current->pid, flags,
+		       __builtin_return_address(0), GET_USERREG()->ARM_pc);
 #endif
-
-	/* Keep SoftFloat exception flags up to date.  */
-	float_exception_flags |= flags;
 
 	/* Read fpsr and initialize the cumulativeTraps.  */
 	fpsr = readFPSR();
