@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.135 2005/08/01 12:05:19 dedekind Exp $
+ * $Id: readinode.c,v 1.137 2005/08/03 09:26:46 dedekind Exp $
  *
  */
 
@@ -278,10 +278,11 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 
 			/* If we actually calculated the whole data CRC
 			 * and it is wrong, drop the node. */
-			if (unlikely(tn->partial_crc
-			 		!= je32_to_cpu(rd->data_crc)) &&
-				len == csize)
+			if (len == csize && unlikely(tn->partial_crc != je32_to_cpu(rd->data_crc))) {
+				JFFS2_NOTICE("wrong data CRC in data node at 0x%08x: read %#08x, calculated %#08x.\n",
+					ref_offset(ref), tn->partial_crc, je32_to_cpu(rd->data_crc));
 				goto free_out;
+			}
 
 		} else if (csize == 0) {
 			/*
@@ -521,10 +522,8 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 			bufstart = buf + (ref_offset(ref) % c->wbuf_pagesize);
 			/* We will read either one wbuf or 2 wbufs. */
 			len = c->wbuf_pagesize - (bufstart - buf);
-			if (JFFS2_MIN_NODE_HEADER +
-				(int)(bufstart - buf) > c->wbuf_pagesize) {
-				/* The header spans the border of the
-				 * first wbuf */
+			if (JFFS2_MIN_NODE_HEADER + (int)(bufstart - buf) > c->wbuf_pagesize) {
+				/* The header spans the border of the first wbuf */
 				len += c->wbuf_pagesize;
 			}
 		} else {

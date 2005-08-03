@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.104 2005/08/01 12:05:19 dedekind Exp $
+ * $Id: nodelist.c,v 1.107 2005/08/03 09:26:46 dedekind Exp $
  *
  */
 
@@ -60,7 +60,6 @@ void jffs2_truncate_fragtree(struct jffs2_sb_info *c, struct rb_root *list, uint
 	/* We know frag->ofs <= size. That's what lookup does for us */
 	if (frag && frag->ofs != size) {
 		if (frag->ofs+frag->size > size) {
-			JFFS2_DBG_FRAGTREE2("truncating frag 0x%08x-0x%08x\n", frag->ofs, frag->ofs+frag->size);
 			frag->size = size - frag->ofs;
 		}
 		frag = frag_next(frag);
@@ -68,7 +67,6 @@ void jffs2_truncate_fragtree(struct jffs2_sb_info *c, struct rb_root *list, uint
 	while (frag && frag->ofs >= size) {
 		struct jffs2_node_frag *next = frag_next(frag);
 
-		JFFS2_DBG_FRAGTREE("removing frag 0x%08x-0x%08x\n", frag->ofs, frag->ofs+frag->size);
 		frag_erase(frag, list);
 		jffs2_obsolete_node_frag(c, frag);
 		frag = next;
@@ -120,7 +118,6 @@ static void jffs2_fragtree_insert(struct jffs2_node_frag *newfrag, struct jffs2_
 		parent = *link;
 		base = rb_entry(parent, struct jffs2_node_frag, rb);
 	
-		JFFS2_DBG_FRAGTREE2("considering frag at 0x%08x\n", base->ofs);
 		if (newfrag->ofs > base->ofs)
 			link = &base->rb.rb_right;
 		else if (newfrag->ofs < base->ofs)
@@ -175,11 +172,11 @@ static int no_overlapping_node(struct jffs2_sb_info *c, struct rb_root *root,
 			/* By definition, the 'this' node has no right-hand child, 
 			   because there are no frags with offset greater than it.
 			   So that's where we want to put the hole */
-			JFFS2_DBG_FRAGTREE2("add hole frag %u-%u on the right of the new frag.\n",
+			JFFS2_DBG_FRAGTREE2("add hole frag %#04x-%#04x on the right of the new frag.\n",
 				holefrag->ofs, holefrag->ofs + holefrag->size);
 			rb_link_node(&holefrag->rb, &this->rb, &this->rb.rb_right);
 		} else {
-			JFFS2_DBG_FRAGTREE2("Add hole frag %u-%u to the root of the tree.\n",
+			JFFS2_DBG_FRAGTREE2("Add hole frag %#04x-%#04x to the root of the tree.\n",
 				holefrag->ofs, holefrag->ofs + holefrag->size);
 			rb_link_node(&holefrag->rb, NULL, &root->rb_node);
 		}
@@ -475,7 +472,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 #endif
 
 	if (crc != tn->data_crc) {
-		JFFS2_NOTICE("drong data CRC in data node at 0x%08x: read %#08x, calculated %#08x.\n",
+		JFFS2_NOTICE("wrong data CRC in data node at 0x%08x: read %#08x, calculated %#08x.\n",
 			ofs, tn->data_crc, crc);
 		return 1;
 	}
@@ -522,9 +519,8 @@ static inline int check_node(struct jffs2_sb_info *c, struct jffs2_inode_info *f
 	if (ref_flags(tn->fn->raw) != REF_UNCHECKED)
 		return 0;
 	
-	JFFS2_DBG_FRAGTREE2("check node %u-%u, phys offs %#08x.\n",
-		tn->fn->ofs, tn->fn->ofs + tn->fn->size,
-		ref_offset(tn->fn->raw));
+	JFFS2_DBG_FRAGTREE2("check node %#04x-%#04x, phys offs %#08x.\n",
+		tn->fn->ofs, tn->fn->ofs + tn->fn->size, ref_offset(tn->fn->raw));
 
 	ret = check_node_data(c, tn);
 	if (unlikely(ret < 0)) {
@@ -643,7 +639,7 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 	int err, checked = 0;
 	int ref_flag;
 
-	JFFS2_DBG_FRAGTREE("insert fragment %#04x-%#04x\n", fn_ofs, fn_ofs + fn_size);
+	JFFS2_DBG_FRAGTREE("insert fragment %#04x-%#04x, ver %u\n", fn_ofs, fn_ofs + fn_size, tn->version);
 
 	/* Skip all the nodes which are completed before this one starts */
 	this = jffs2_lookup_node_frag(root, fn_ofs);
@@ -975,22 +971,14 @@ struct jffs2_node_frag *jffs2_lookup_node_frag(struct rb_root *fragtree, uint32_
 	while(next) {
 		frag = rb_entry(next, struct jffs2_node_frag, rb);
 
-		JFFS2_DBG_FRAGTREE2("considering frag %#04x-%#04x (%p). left %p, right %p\n",
-			  frag->ofs, frag->ofs+frag->size, frag, frag->rb.rb_left, frag->rb.rb_right);
 		if (frag->ofs + frag->size <= offset) {
-			JFFS2_DBG_FRAGTREE2("going right from frag %#04x-%#04x, before the region we care about\n",
-				  frag->ofs, frag->ofs+frag->size);
 			/* Remember the closest smaller match on the way down */
 			if (!prev || frag->ofs > prev->ofs)
 				prev = frag;
 			next = frag->rb.rb_right;
 		} else if (frag->ofs > offset) {
-			JFFS2_DBG_FRAGTREE2("going left from frag %#04x-%#04x, after the region we care about\n",
-				  frag->ofs, frag->ofs+frag->size);
 			next = frag->rb.rb_left;
 		} else {
-			JFFS2_DBG_FRAGTREE2("returning frag %#04x-%#04x, matched\n",
-				  frag->ofs, frag->ofs+frag->size);
 			return frag;
 		}
 	}
