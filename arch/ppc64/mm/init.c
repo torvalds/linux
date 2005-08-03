@@ -482,9 +482,9 @@ void __init mm_init_ppc64(void)
 	for (i = 1; i < lmb.memory.cnt; i++) {
 		unsigned long base, prevbase, prevsize;
 
-		prevbase = lmb.memory.region[i-1].physbase;
+		prevbase = lmb.memory.region[i-1].base;
 		prevsize = lmb.memory.region[i-1].size;
-		base = lmb.memory.region[i].physbase;
+		base = lmb.memory.region[i].base;
 		if (base > (prevbase + prevsize)) {
 			io_hole_start = prevbase + prevsize;
 			io_hole_size = base  - (prevbase + prevsize);
@@ -511,11 +511,8 @@ int page_is_ram(unsigned long pfn)
 	for (i=0; i < lmb.memory.cnt; i++) {
 		unsigned long base;
 
-#ifdef CONFIG_MSCHUNKS
-		base = lmb.memory.region[i].physbase;
-#else
 		base = lmb.memory.region[i].base;
-#endif
+
 		if ((paddr >= base) &&
 			(paddr < (base + lmb.memory.region[i].size))) {
 			return 1;
@@ -556,25 +553,25 @@ void __init do_init_bootmem(void)
 	 * present.
 	 */
 	for (i=0; i < lmb.memory.cnt; i++) {
-		unsigned long physbase, size;
+		unsigned long base, size;
 		unsigned long start_pfn, end_pfn;
 
-		physbase = lmb.memory.region[i].physbase;
+		base = lmb.memory.region[i].base;
 		size = lmb.memory.region[i].size;
 
-		start_pfn = physbase >> PAGE_SHIFT;
+		start_pfn = base >> PAGE_SHIFT;
 		end_pfn = start_pfn + (size >> PAGE_SHIFT);
 		memory_present(0, start_pfn, end_pfn);
 
-		free_bootmem(physbase, size);
+		free_bootmem(base, size);
 	}
 
 	/* reserve the sections we're already using */
 	for (i=0; i < lmb.reserved.cnt; i++) {
-		unsigned long physbase = lmb.reserved.region[i].physbase;
+		unsigned long base = lmb.reserved.region[i].base;
 		unsigned long size = lmb.reserved.region[i].size;
 
-		reserve_bootmem(physbase, size);
+		reserve_bootmem(base, size);
 	}
 }
 
@@ -613,10 +610,10 @@ static int __init setup_kcore(void)
 	int i;
 
 	for (i=0; i < lmb.memory.cnt; i++) {
-		unsigned long physbase, size;
+		unsigned long base, size;
 		struct kcore_list *kcore_mem;
 
-		physbase = lmb.memory.region[i].physbase;
+		base = lmb.memory.region[i].base;
 		size = lmb.memory.region[i].size;
 
 		/* GFP_ATOMIC to avoid might_sleep warnings during boot */
@@ -624,7 +621,7 @@ static int __init setup_kcore(void)
 		if (!kcore_mem)
 			panic("mem_init: kmalloc failed\n");
 
-		kclist_add(kcore_mem, __va(physbase), size);
+		kclist_add(kcore_mem, __va(base), size);
 	}
 
 	kclist_add(&kcore_vmem, (void *)VMALLOC_START, VMALLOC_END-VMALLOC_START);

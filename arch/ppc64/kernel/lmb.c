@@ -37,8 +37,6 @@ void lmb_dump_all(void)
 	for (i=0; i < lmb.memory.cnt ;i++) {
 		udbg_printf("    memory.region[0x%x].base       = 0x%lx\n",
 			    i, lmb.memory.region[i].base);
-		udbg_printf("		      .physbase = 0x%lx\n",
-			    lmb.memory.region[i].physbase);
 		udbg_printf("		      .size     = 0x%lx\n",
 			    lmb.memory.region[i].size);
 	}
@@ -50,8 +48,6 @@ void lmb_dump_all(void)
 	for (i=0; i < lmb.reserved.cnt ;i++) {
 		udbg_printf("    reserved.region[0x%x].base       = 0x%lx\n",
 			    i, lmb.reserved.region[i].base);
-		udbg_printf("		      .physbase = 0x%lx\n",
-			    lmb.reserved.region[i].physbase);
 		udbg_printf("		      .size     = 0x%lx\n",
 			    lmb.reserved.region[i].size);
 	}
@@ -97,7 +93,6 @@ lmb_coalesce_regions(struct lmb_region *rgn, unsigned long r1, unsigned long r2)
 	rgn->region[r1].size += rgn->region[r2].size;
 	for (i=r2; i < rgn->cnt-1; i++) {
 		rgn->region[i].base = rgn->region[i+1].base;
-		rgn->region[i].physbase = rgn->region[i+1].physbase;
 		rgn->region[i].size = rgn->region[i+1].size;
 	}
 	rgn->cnt--;
@@ -127,21 +122,12 @@ lmb_analyze(void)
 	unsigned long i;
 	unsigned long mem_size = 0;
 	unsigned long size_mask = 0;
-#ifdef CONFIG_MSCHUNKS
-	unsigned long physbase = 0;
-#endif
 
 	for (i=0; i < lmb.memory.cnt; i++) {
 		unsigned long lmb_size;
 
 		lmb_size = lmb.memory.region[i].size;
 
-#ifdef CONFIG_MSCHUNKS
-		lmb.memory.region[i].physbase = physbase;
-		physbase += lmb_size;
-#else
-		lmb.memory.region[i].physbase = lmb.memory.region[i].base;
-#endif
 		mem_size += lmb_size;
 		size_mask |= lmb_size;
 	}
@@ -164,7 +150,6 @@ lmb_add_region(struct lmb_region *rgn, unsigned long base, unsigned long size)
 		adjacent = lmb_addrs_adjacent(base,size,rgnbase,rgnsize);
 		if ( adjacent > 0 ) {
 			rgn->region[i].base -= size;
-			rgn->region[i].physbase -= size;
 			rgn->region[i].size += size;
 			coalesced++;
 			break;
@@ -191,11 +176,9 @@ lmb_add_region(struct lmb_region *rgn, unsigned long base, unsigned long size)
 	for (i=rgn->cnt-1; i >= 0; i--) {
 		if (base < rgn->region[i].base) {
 			rgn->region[i+1].base = rgn->region[i].base;
-			rgn->region[i+1].physbase = rgn->region[i].physbase;
 			rgn->region[i+1].size = rgn->region[i].size;
 		}  else {
 			rgn->region[i+1].base = base;
-			rgn->region[i+1].physbase = lmb_abs_to_phys(base);
 			rgn->region[i+1].size = size;
 			break;
 		}
@@ -304,13 +287,7 @@ lmb_end_of_DRAM(void)
 {
 	int idx = lmb.memory.cnt - 1;
 
-#ifdef CONFIG_MSCHUNKS
-	return (lmb.memory.region[idx].physbase + lmb.memory.region[idx].size);
-#else
 	return (lmb.memory.region[idx].base + lmb.memory.region[idx].size);
-#endif /* CONFIG_MSCHUNKS */
-
-	return 0;
 }
 
 /*
