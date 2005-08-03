@@ -114,6 +114,22 @@ struct user_sgentry64 {
 	u32	count;	/* Length. */
 };
 
+struct sgentryraw {
+	__le32		next;	/* reserved for F/W use */
+	__le32		prev;	/* reserved for F/W use */
+	__le32		addr[2];
+	__le32		count;
+	__le32		flags;	/* reserved for F/W use */
+};
+
+struct user_sgentryraw {
+	u32		next;	/* reserved for F/W use */
+	u32		prev;	/* reserved for F/W use */
+	u32		addr[2];
+	u32		count;
+	u32		flags;	/* reserved for F/W use */
+};
+
 /*
  *	SGMAP
  *
@@ -139,6 +155,16 @@ struct sgmap64 {
 struct user_sgmap64 {
 	u32		count;
 	struct user_sgentry64 sg[1];
+};
+
+struct sgmapraw {
+	__le32		  count;
+	struct sgentryraw sg[1];
+};
+
+struct user_sgmapraw {
+	u32		  count;
+	struct user_sgentryraw sg[1];
 };
 
 struct creation_info
@@ -355,6 +381,7 @@ struct hw_fib {
  */
 #define		ContainerCommand		500
 #define		ContainerCommand64		501
+#define		ContainerRawIo			502
 /*
  *	Cluster Commands
  */
@@ -986,6 +1013,9 @@ struct aac_dev
 	u8			nondasd_support; 
 	u8			dac_support;
 	u8			raid_scsi_mode;
+	/* macro side-effects BEWARE */
+#	define			raw_io_interface \
+	  init->InitStructRevision==cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4)
 	u8			printf_enabled;
 };
 
@@ -1164,6 +1194,17 @@ struct aac_write_reply
 	__le32		committed;
 };
 
+struct aac_raw_io
+{
+	__le32		block[2];
+	__le32		count;
+	__le16		cid;
+	__le16		flags;		/* 00 W, 01 R */
+	__le16		bpTotal;	/* reserved for F/W use */
+	__le16		bpComplete;	/* reserved for F/W use */
+	struct sgmapraw	sg;
+};
+
 #define CT_FLUSH_CACHE 129
 struct aac_synchronize {
 	__le32		command;	/* VM_ContainerConfig */
@@ -1204,7 +1245,7 @@ struct aac_srb
 };
 
 /*
- * This and assocated data structs are used by the 
+ * This and associated data structs are used by the
  * ioctl caller and are in cpu order.
  */
 struct user_aac_srb
