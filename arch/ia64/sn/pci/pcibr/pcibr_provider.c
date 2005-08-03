@@ -115,7 +115,7 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	/*
 	 * register the bridge's error interrupt handler
 	 */
-	if (request_irq(SGI_PCIBR_ERROR, (void *)pcibr_error_intr_handler,
+	if (request_irq(SGI_PCIASIC_ERROR, (void *)pcibr_error_intr_handler,
 			SA_SHIRQ, "PCIBR error", (void *)(soft))) {
 		printk(KERN_WARNING
 		       "pcibr cannot allocate interrupt for error handler\n");
