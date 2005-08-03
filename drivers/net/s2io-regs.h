@@ -91,7 +91,21 @@ typedef struct _XENA_dev_config {
 					SERR_SOURCE_MC		| \
 					SERR_SOURCE_XGXS)
 
-	u8 unused_0[0x800 - 0x120];
+	u64 pci_mode;
+#define	GET_PCI_MODE(val)		((val & vBIT(0xF, 0, 4)) >> 60)
+#define	PCI_MODE_PCI_33			0
+#define	PCI_MODE_PCI_66			0x1
+#define	PCI_MODE_PCIX_M1_66		0x2
+#define	PCI_MODE_PCIX_M1_100		0x3
+#define	PCI_MODE_PCIX_M1_133		0x4
+#define	PCI_MODE_PCIX_M2_66		0x5
+#define	PCI_MODE_PCIX_M2_100		0x6
+#define	PCI_MODE_PCIX_M2_133		0x7
+#define	PCI_MODE_UNSUPPORTED		BIT(0)
+#define	PCI_MODE_32_BITS		BIT(8)
+#define	PCI_MODE_UNKNOWN_MODE		BIT(9)
+
+	u8 unused_0[0x800 - 0x128];
 
 /* PCI-X Controller registers */
 	u64 pic_int_status;
@@ -223,19 +237,16 @@ typedef struct _XENA_dev_config {
 	u64 xmsi_data;
 
 	u64 rx_mat;
+#define RX_MAT_SET(ring, msi)			vBIT(msi, (8 * ring), 8)
 
 	u8 unused6[0x8];
 
-	u64 tx_mat0_7;
-	u64 tx_mat8_15;
-	u64 tx_mat16_23;
-	u64 tx_mat24_31;
-	u64 tx_mat32_39;
-	u64 tx_mat40_47;
-	u64 tx_mat48_55;
-	u64 tx_mat56_63;
+	u64 tx_mat0_n[0x8];
+#define TX_MAT_SET(fifo, msi)			vBIT(msi, (8 * fifo), 8)
 
-	u8 unused_1[0x10];
+	u8 unused_1[0x8];
+	u64 stat_byte_cnt;
+#define STAT_BC(n)                              vBIT(n,4,12)
 
 	/* Automated statistics collection */
 	u64 stat_cfg;
@@ -269,7 +280,12 @@ typedef struct _XENA_dev_config {
 	u64 gpio_control;
 #define GPIO_CTRL_GPIO_0		BIT(8)
 
-	u8 unused7[0x600];
+	u8 unused7_1[0x240 - 0x200];
+
+	u64 wreq_split_mask;
+#define	WREQ_SPLIT_MASK_SET_MASK(val)	vBIT(val, 52, 12)
+
+	u8 unused7_2[0x800 - 0x248];
 
 /* TxDMA registers */
 	u64 txdma_int_status;
@@ -470,6 +486,7 @@ typedef struct _XENA_dev_config {
 #define PRC_CTRL_NO_SNOOP                      (BIT(22)|BIT(23))
 #define PRC_CTRL_NO_SNOOP_DESC                 BIT(22)
 #define PRC_CTRL_NO_SNOOP_BUFF                 BIT(23)
+#define PRC_CTRL_BIMODAL_INTERRUPT             BIT(37)
 #define PRC_CTRL_RXD_BACKOFF_INTERVAL(val)     vBIT(val,40,24)
 
 	u64 prc_alarm_action;
@@ -742,7 +759,19 @@ typedef struct _XENA_dev_config {
 	u64 mc_rldram_test_d1;
 	u8 unused24[0x300 - 0x288];
 	u64 mc_rldram_test_d2;
-	u8 unused25[0x700 - 0x308];
+
+	u8 unused24_1[0x360 - 0x308];
+	u64 mc_rldram_ctrl;
+#define	MC_RLDRAM_ENABLE_ODT		BIT(7)
+
+	u8 unused24_2[0x640 - 0x368];
+	u64 mc_rldram_ref_per_herc;
+#define	MC_RLDRAM_SET_REF_PERIOD(val)	vBIT(val, 0, 16)
+
+	u8 unused24_3[0x660 - 0x648];
+	u64 mc_rldram_mrs_herc;
+
+	u8 unused25[0x700 - 0x668];
 	u64 mc_debug_ctrl;
 
 	u8 unused26[0x3000 - 0x2f08];

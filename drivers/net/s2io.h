@@ -201,6 +201,67 @@ typedef struct stat_block {
 	u32 rxf_wr_cnt;
 	u32 txf_rd_cnt;
 
+/* Tx MAC statistics overflow counters. */
+	u32 tmac_data_octets_oflow;
+	u32 tmac_frms_oflow;
+	u32 tmac_bcst_frms_oflow;
+	u32 tmac_mcst_frms_oflow;
+	u32 tmac_ucst_frms_oflow;
+	u32 tmac_ttl_octets_oflow;
+	u32 tmac_any_err_frms_oflow;
+	u32 tmac_nucst_frms_oflow;
+	u64 tmac_vlan_frms;
+	u32 tmac_drop_ip_oflow;
+	u32 tmac_vld_ip_oflow;
+	u32 tmac_rst_tcp_oflow;
+	u32 tmac_icmp_oflow;
+	u32 tpa_unknown_protocol;
+	u32 tmac_udp_oflow;
+	u32 reserved_10;
+	u32 tpa_parse_failure;
+
+/* Rx MAC Statistics overflow counters. */
+	u32 rmac_data_octets_oflow;
+	u32 rmac_vld_frms_oflow;
+	u32 rmac_vld_bcst_frms_oflow;
+	u32 rmac_vld_mcst_frms_oflow;
+	u32 rmac_accepted_ucst_frms_oflow;
+	u32 rmac_ttl_octets_oflow;
+	u32 rmac_discarded_frms_oflow;
+	u32 rmac_accepted_nucst_frms_oflow;
+	u32 rmac_usized_frms_oflow;
+	u32 rmac_drop_events_oflow;
+	u32 rmac_frag_frms_oflow;
+	u32 rmac_osized_frms_oflow;
+	u32 rmac_ip_oflow;
+	u32 rmac_jabber_frms_oflow;
+	u32 rmac_icmp_oflow;
+	u32 rmac_drop_ip_oflow;
+	u32 rmac_err_drp_udp_oflow;
+	u32 rmac_udp_oflow;
+	u32 reserved_11;
+	u32 rmac_pause_cnt_oflow;
+	u64 rmac_ttl_1519_4095_frms;
+	u64 rmac_ttl_4096_8191_frms;
+	u64 rmac_ttl_8192_max_frms;
+	u64 rmac_ttl_gt_max_frms;
+	u64 rmac_osized_alt_frms;
+	u64 rmac_jabber_alt_frms;
+	u64 rmac_gt_max_alt_frms;
+	u64 rmac_vlan_frms;
+	u32 rmac_len_discard;
+	u32 rmac_fcs_discard;
+	u32 rmac_pf_discard;
+	u32 rmac_da_discard;
+	u32 rmac_red_discard;
+	u32 rmac_rts_discard;
+	u32 reserved_12;
+	u32 rmac_ingm_full_discard;
+	u32 reserved_13;
+	u32 rmac_accepted_ip_oflow;
+	u32 reserved_14;
+	u32 link_fault_cnt;
+
 /* Software statistics maintained by driver */
 	swStat_t sw_stat;
 } StatInfo_t;
@@ -690,6 +751,9 @@ struct s2io_nic {
 	atomic_t card_state;
 	volatile unsigned long link_state;
 	struct vlan_group *vlgrp;
+#define XFRAME_I_DEVICE		1
+#define XFRAME_II_DEVICE	2
+	u8 device_type;
 
 	spinlock_t	rx_lock;
 	atomic_t	isr_cnt;
