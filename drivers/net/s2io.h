@@ -13,11 +13,6 @@
 #ifndef _S2IO_H
 #define _S2IO_H
 
-/* Enable 2 buffer mode by default for SGI system */
-#ifdef CONFIG_IA64_SGI_SN2
-#define CONFIG_2BUFF_MODE
-#endif
-
 #define TBD 0
 #define BIT(loc)		(0x8000000000000000ULL >> (loc))
 #define vBIT(val, loc, sz)	(((u64)val) << (64-loc-sz))

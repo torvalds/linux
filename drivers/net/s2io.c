@@ -67,7 +67,7 @@
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
-static char s2io_driver_version[] = "Version 2.0.2.0";
+static char s2io_driver_version[] = "Version 2.0.2.1";
 
 static inline int RXD_IS_UP2DT(RxD_t *rxdp)
 {
@@ -301,6 +301,8 @@ static unsigned int bimodal = 0;
 #ifndef CONFIG_S2IO_NAPI
 static unsigned int indicate_max_pkts;
 #endif
+/* Frequency of Rx desc syncs expressed as power of 2 */
+static unsigned int rxsync_frequency = 3;
 
 /*
  * S2IO device table.
@@ -837,7 +839,7 @@ static int init_nic(struct s2io_nic *nic)
 	 */
 	if (nic->device_type & XFRAME_II_DEVICE) {
 		while (herc_act_dtx_cfg[dtx_cnt] != END_SIGN) {
-			SPECIAL_REG_WRITE(xena_dtx_cfg[dtx_cnt],
+			SPECIAL_REG_WRITE(herc_act_dtx_cfg[dtx_cnt],
 					  &bar0->dtx_control, UF);
 			if (dtx_cnt & 0x1)
 				msleep(1); /* Necessary!! */
@@ -2083,6 +2085,7 @@ int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 #ifndef CONFIG_S2IO_NAPI
 	unsigned long flags;
 #endif
+	RxD_t *first_rxdp = NULL;
 
 	mac_control = &nic->mac_control;
 	config = &nic->config;
@@ -2202,6 +2205,10 @@ int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 		if (!skb) {
 			DBG_PRINT(ERR_DBG, "%s: Out of ", dev->name);
 			DBG_PRINT(ERR_DBG, "memory to allocate SKBs\n");
+			if (first_rxdp) {
+				wmb();
+				first_rxdp->Control_1 |= RXD_OWN_XENA;
+			}
 			return -ENOMEM;
 		}
 #ifndef	CONFIG_2BUFF_MODE
@@ -2212,7 +2219,8 @@ int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 		rxdp->Control_2 &= (~MASK_BUFFER0_SIZE);
 		rxdp->Control_2 |= SET_BUFFER0_SIZE(size);
 		rxdp->Host_Control = (unsigned long) (skb);
-		rxdp->Control_1 |= RXD_OWN_XENA;
+		if (alloc_tab & ((1 << rxsync_frequency) - 1))
+			rxdp->Control_1 |= RXD_OWN_XENA;
 		off++;
 		off %= (MAX_RXDS_PER_BLOCK + 1);
 		mac_control->rings[ring_no].rx_curr_put_info.offset = off;
@@ -2239,17 +2247,34 @@ int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 		rxdp->Control_2 |= SET_BUFFER1_SIZE(1);	/* dummy. */
 		rxdp->Control_2 |= BIT(0);	/* Set Buffer_Empty bit. */
 		rxdp->Host_Control = (u64) ((unsigned long) (skb));
-		rxdp->Control_1 |= RXD_OWN_XENA;
+		if (alloc_tab & ((1 << rxsync_frequency) - 1))
+			rxdp->Control_1 |= RXD_OWN_XENA;
 		off++;
 		mac_control->rings[ring_no].rx_curr_put_info.offset = off;
 #endif
 		rxdp->Control_2 |= SET_RXD_MARKER;
 
+		if (!(alloc_tab & ((1 << rxsync_frequency) - 1))) {
+			if (first_rxdp) {
+				wmb();
+				first_rxdp->Control_1 |= RXD_OWN_XENA;
+			}
+			first_rxdp = rxdp;
+		}
 		atomic_inc(&nic->rx_bufs_left[ring_no]);
 		alloc_tab++;
 	}
 
       end:
+	/* Transfer ownership of first descriptor to adapter just before
+	 * exiting. Before that, use memory barrier so that ownership
+	 * and other fields are seen by adapter correctly.
+	 */
+	if (first_rxdp) {
+		wmb();
+		first_rxdp->Control_1 |= RXD_OWN_XENA;
+	}
+
 	return SUCCESS;
 }
 
@@ -2783,16 +2808,16 @@ void s2io_reset(nic_t * sp)
 	s2io_set_swapper(sp);
 
 	/* Clear certain PCI/PCI-X fields after reset */
-	pci_read_config_word(sp->pdev, PCI_COMMAND, &pci_cmd);
-	pci_cmd &= 0x7FFF; /* Clear parity err detect bit */
-	pci_write_config_word(sp->pdev, PCI_COMMAND, pci_cmd);
+	if (sp->device_type == XFRAME_II_DEVICE) {
+		/* Clear parity err detect bit */
+		pci_write_config_word(sp->pdev, PCI_STATUS, 0x8000);
 
-	val64 = readq(&bar0->txpic_int_reg);
-	val64 &= ~BIT(62); /* Clearing PCI_STATUS error reflected here */
-	writeq(val64, &bar0->txpic_int_reg);
+		/* Clearing PCIX Ecc status register */
+		pci_write_config_dword(sp->pdev, 0x68, 0x7C);
 
-	/* Clearing PCIX Ecc status register */
-	pci_write_config_dword(sp->pdev, 0x68, 0);
+		/* Clearing PCI_STATUS error reflected here */
+		writeq(BIT(62), &bar0->txpic_int_reg);
+	}
 
 	/* Reset device statistics maintained by OS */
 	memset(&sp->stats, 0, sizeof (struct net_device_stats));
@@ -3168,8 +3193,6 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	val64 = mac_control->fifos[queue].list_info[put_off].list_phy_addr;
 	writeq(val64, &tx_fifo->TxDL_Pointer);
 
-	wmb();
-
 	val64 = (TX_FIFO_LAST_TXD_NUM(frg_cnt) | TX_FIFO_FIRST_LIST |
 		 TX_FIFO_LAST_LIST);
 
@@ -3178,6 +3201,8 @@ int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		val64 |= TX_FIFO_SPECIAL_FUNC;
 #endif
 	writeq(val64, &tx_fifo->List_Control);
+
+	mmiowb();
 
 	put_off++;
 	put_off %= mac_control->fifos[queue].tx_curr_put_info.fifo_len + 1;
@@ -5172,6 +5197,7 @@ module_param(bimodal, bool, 0);
 #ifndef CONFIG_S2IO_NAPI
 module_param(indicate_max_pkts, int, 0);
 #endif
+module_param(rxsync_frequency, int, 0);
 
 /**
  *  s2io_init_nic - Initialization of the adapter .
