@@ -27,8 +27,11 @@
  * Abstract: Linux Driver entry module for Adaptec RAID Array Controller
  */
 
-#define AAC_DRIVER_VERSION		"1.1.2-lk2"
-#define AAC_DRIVER_BUILD_DATE		__DATE__
+#define AAC_DRIVER_VERSION		"1.1-4"
+#ifndef AAC_DRIVER_BRANCH
+#define AAC_DRIVER_BRANCH		""
+#endif
+#define AAC_DRIVER_BUILD_DATE		__DATE__ " " __TIME__
 #define AAC_DRIVERNAME			"aacraid"
 
 #include <linux/compat.h>
@@ -58,16 +61,24 @@
 
 #include "aacraid.h"
 
+#ifdef AAC_DRIVER_BUILD
+#define _str(x) #x
+#define str(x) _str(x)
+#define AAC_DRIVER_FULL_VERSION	AAC_DRIVER_VERSION "[" str(AAC_DRIVER_BUILD) "]" AAC_DRIVER_BRANCH
+#else
+#define AAC_DRIVER_FULL_VERSION	AAC_DRIVER_VERSION AAC_DRIVER_BRANCH " " AAC_DRIVER_BUILD_DATE
+#endif
 
 MODULE_AUTHOR("Red Hat Inc and Adaptec");
 MODULE_DESCRIPTION("Dell PERC2, 2/Si, 3/Si, 3/Di, "
 		   "Adaptec Advanced Raid Products, "
 		   "and HP NetRAID-4M SCSI driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(AAC_DRIVER_VERSION);
+MODULE_VERSION(AAC_DRIVER_FULL_VERSION);
 
 static LIST_HEAD(aac_devices);
 static int aac_cfg_major = -1;
+char aac_driver_version[] = AAC_DRIVER_FULL_VERSION;
 
 /*
  * Because of the way Linux names scsi devices, the order in this table has
@@ -896,8 +907,8 @@ static int __init aac_init(void)
 {
 	int error;
 	
-	printk(KERN_INFO "Red Hat/Adaptec aacraid driver (%s %s)\n",
-			AAC_DRIVER_VERSION, AAC_DRIVER_BUILD_DATE);
+	printk(KERN_INFO "Adaptec %s driver (%s)\n",
+	  AAC_DRIVERNAME, aac_driver_version);
 
 	error = pci_module_init(&aac_pci_driver);
 	if (error)

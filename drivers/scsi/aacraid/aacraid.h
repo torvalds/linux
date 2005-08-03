@@ -1512,11 +1512,12 @@ struct fib_ioctl
 
 struct revision
 {
-	u32 compat;
-	u32 version;
-	u32 build;
+	__le32 compat;
+	__le32 version;
+	__le32 build;
 };
 	
+
 /*
  * 	Ugly - non Linux like ioctl coding for back compat.
  */
@@ -1737,3 +1738,4 @@ int aac_get_adapter_info(struct aac_dev* dev);
 int aac_send_shutdown(struct aac_dev *dev);
 extern int numacb;
 extern int acbsize;
+extern char aac_driver_version[];
