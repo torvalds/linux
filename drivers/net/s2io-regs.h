@@ -167,7 +167,11 @@ typedef struct _XENA_dev_config {
 	u8 unused4[0x08];
 
 	u64 gpio_int_reg;
+#define GPIO_INT_REG_LINK_DOWN                 BIT(1)
+#define GPIO_INT_REG_LINK_UP                   BIT(2)
 	u64 gpio_int_mask;
+#define GPIO_INT_MASK_LINK_DOWN                BIT(1)
+#define GPIO_INT_MASK_LINK_UP                  BIT(2)
 	u64 gpio_alarms;
 
 	u8 unused5[0x38];
@@ -279,8 +283,10 @@ typedef struct _XENA_dev_config {
 
 	u64 gpio_control;
 #define GPIO_CTRL_GPIO_0		BIT(8)
+	u64 misc_control;
+#define MISC_LINK_STABILITY_PRD(val)   vBIT(val,29,3)
 
-	u8 unused7_1[0x240 - 0x200];
+	u8 unused7_1[0x240 - 0x208];
 
 	u64 wreq_split_mask;
 #define	WREQ_SPLIT_MASK_SET_MASK(val)	vBIT(val, 52, 12)
