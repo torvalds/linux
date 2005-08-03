@@ -62,6 +62,7 @@ typedef struct _XENA_dev_config {
 #define ADAPTER_STATUS_RMAC_REMOTE_FAULT   BIT(6)
 #define ADAPTER_STATUS_RMAC_LOCAL_FAULT    BIT(7)
 #define ADAPTER_STATUS_RMAC_PCC_IDLE       vBIT(0xFF,8,8)
+#define ADAPTER_STATUS_RMAC_PCC_FOUR_IDLE  vBIT(0x0F,8,8)
 #define ADAPTER_STATUS_RC_PRC_QUIESCENT    vBIT(0xFF,16,8)
 #define ADAPTER_STATUS_MC_DRAM_READY       BIT(24)
 #define ADAPTER_STATUS_MC_QUEUES_READY     BIT(25)
@@ -245,6 +246,7 @@ typedef struct _XENA_dev_config {
 #define STAT_TRSF_PER(n)           TBD
 #define	PER_SEC					   0x208d5
 #define	SET_UPDT_PERIOD(n)		   vBIT((PER_SEC*n),32,32)
+#define	SET_UPDT_CLICKS(val)		   vBIT(val, 32, 32)
 
 	u64 stat_addr;
 
@@ -289,6 +291,7 @@ typedef struct _XENA_dev_config {
 
 	u64 pcc_err_reg;
 #define PCC_FB_ECC_DB_ERR		vBIT(0xFF, 16, 8)
+#define PCC_ENABLE_FOUR			vBIT(0x0F,0,8)
 
 	u64 pcc_err_mask;
 	u64 pcc_err_alarm;
@@ -690,6 +693,10 @@ typedef struct _XENA_dev_config {
 #define MC_ERR_REG_MIRI_CRI_ERR_0          BIT(22)
 #define MC_ERR_REG_MIRI_CRI_ERR_1          BIT(23)
 #define MC_ERR_REG_SM_ERR                  BIT(31)
+#define MC_ERR_REG_ECC_ALL_SNG		   (BIT(6) | \
+					BIT(7) | BIT(17) | BIT(19))
+#define MC_ERR_REG_ECC_ALL_DBL		   (BIT(14) | \
+					BIT(15) | BIT(18) | BIT(20))
 	u64 mc_err_mask;
 	u64 mc_err_alarm;
 

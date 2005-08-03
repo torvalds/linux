@@ -372,6 +372,10 @@ typedef struct _RxD_t {
 #define RXD_GET_L4_CKSUM(val)   ((u16)(val) & 0xFFFF)
 
 	u64 Control_2;
+#define	THE_RXD_MARK		0x3
+#define	SET_RXD_MARKER		vBIT(THE_RXD_MARK, 0, 2)
+#define	GET_RXD_MARKER(ctrl)	((ctrl & SET_RXD_MARKER) >> 62)
+
 #ifndef CONFIG_2BUFF_MODE
 #define MASK_BUFFER0_SIZE       vBIT(0x3FFF,2,14)
 #define SET_BUFFER0_SIZE(val)   vBIT(val,2,14)
