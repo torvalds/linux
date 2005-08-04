@@ -34,7 +34,7 @@
 
 #define IPW2200_VERSION "1.0.5"
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2200/2915 Network Driver"
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2004 Intel Corporation"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2005 Intel Corporation"
 #define DRV_VERSION     IPW2200_VERSION
 
 #define ETH_P_80211_STATS (ETH_P_80211_RAW + 1)
@@ -4077,7 +4077,7 @@ static inline void ipw_rx_notification(struct ipw_priv *priv,
 					     == IEEE80211_STYPE_ASSOC_RESP)) {
 						if ((sizeof
 						     (struct
-						      ieee80211_assoc_response_frame)
+						      ieee80211_assoc_response)
 						     <= notif->size)
 						    && (notif->size <= 2314)) {
 							struct
@@ -4095,7 +4095,7 @@ static inline void ipw_rx_notification(struct ipw_priv *priv,
 							ieee80211_rx_mgt(priv->
 									 ieee,
 									 (struct
-									  ieee80211_hdr
+									  ieee80211_hdr_4addr
 									  *)
 									 &notif->u.raw, &stats);
 						}
@@ -7154,9 +7154,8 @@ static void ipw_bg_qos_activate(void *data)
 /*
 * Handler for probe responce and beacon frame
 */
-static int ipw_handle_management_frame(struct net_device *dev,
-				       struct ieee80211_network *network,
-				       u16 type)
+static int ipw_handle_management(struct net_device *dev,
+				 struct ieee80211_network *network, u16 type)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	int active_network;
@@ -10730,7 +10729,7 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->ieee->is_queue_full = ipw_net_is_queue_full;
 
 #ifdef CONFIG_IPW_QOS
-	priv->ieee->handle_management_frame = ipw_handle_management_frame;
+	priv->ieee->handle_management = ipw_handle_management;
 #endif				/* CONFIG_IPW_QOS */
 
 	priv->ieee->perfect_rssi = -20;
