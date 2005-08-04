@@ -2440,6 +2440,7 @@ static void ahd_linux_set_dt(struct scsi_target *starget, int dt)
 	unsigned int ppr_options = tinfo->goal.ppr_options
 		& ~MSG_EXT_PPR_DT_REQ;
 	unsigned int period = tinfo->goal.period;
+	unsigned int width = tinfo->goal.width;
 	unsigned long flags;
 
 #ifdef AHD_DEBUG
@@ -2449,8 +2450,8 @@ static void ahd_linux_set_dt(struct scsi_target *starget, int dt)
 #endif
 	if (dt) {
 		ppr_options |= MSG_EXT_PPR_DT_REQ;
-		if (period > 9)
-			period = 9; /* at least 12.5ns for DT */
+		if (!width)
+			ahd_linux_set_width(starget, 1);
 	} else {
 		if (period <= 9)
 			period = 10; /* If resetting DT, period must be >= 25ns */
