@@ -1580,16 +1580,12 @@ static int isp116x_start(struct usb_hcd *hcd)
 	isp116x_write_reg16(isp116x, HCHWCFG, val);
 
 	/* ----- Root hub conf */
-	val = 0;
+	val = (25 << 24) & RH_A_POTPGT;
 	/* AN10003_1.pdf recommends NPS to be always 1 */
 	if (board->no_power_switching)
 		val |= RH_A_NPS;
 	if (board->power_switching_mode)
 		val |= RH_A_PSM;
-	if (board->potpg)
-		val |= (board->potpg << 24) & RH_A_POTPGT;
-	else
-		val |= (25 << 24) & RH_A_POTPGT;
 	isp116x_write_reg32(isp116x, HCRHDESCA, val);
 	isp116x->rhdesca = isp116x_read_reg32(isp116x, HCRHDESCA);
 

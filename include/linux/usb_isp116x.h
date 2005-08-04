@@ -26,8 +26,6 @@ struct isp116x_platform_data {
 	/* Ganged port power switching (0) or individual port
 	   power switching (1) */
 	unsigned power_switching_mode:1;
-	/* Given port_power, msec/2 after power on till power good */
-	u8 potpg;
 	/* Hardware reset set/clear. If implemented, this function must:
 	   if set == 0,   deassert chip's HW reset pin
 	   otherwise,     assert chip's HW reset pin       */
