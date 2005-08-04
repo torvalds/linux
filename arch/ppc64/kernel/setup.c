@@ -627,7 +627,7 @@ void __init setup_system(void)
 	 * Initialize xmon
 	 */
 #ifdef CONFIG_XMON_DEFAULT
-	xmon_init();
+	xmon_init(1);
 #endif
 	/*
 	 * Register early console
@@ -1343,11 +1343,13 @@ static int __init early_xmon(char *p)
 	/* ensure xmon is enabled */
 	if (p) {
 		if (strncmp(p, "on", 2) == 0)
-			xmon_init();
+			xmon_init(1);
+		if (strncmp(p, "off", 3) == 0)
+			xmon_init(0);
 		if (strncmp(p, "early", 5) != 0)
 			return 0;
 	}
-	xmon_init();
+	xmon_init(1);
 	debugger(NULL);
 
 	return 0;

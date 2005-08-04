@@ -88,7 +88,7 @@ DEBUGGER_BOILERPLATE(debugger_dabr_match)
 DEBUGGER_BOILERPLATE(debugger_fault_handler)
 
 #ifdef CONFIG_XMON
-extern void xmon_init(void);
+extern void xmon_init(int enable);
 #endif
 
 #else
