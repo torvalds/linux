@@ -798,6 +798,11 @@ acpi_pci_link_resume(
 		return_VALUE(0);
 }
 
+/*
+ * FIXME: this is a workaround to avoid nasty warning.  It will be removed
+ * after every device calls pci_disable_device in .resume.
+ */
+int acpi_in_resume;
 static int
 irqrouter_resume(
 	struct sys_device *dev)
@@ -807,6 +812,7 @@ irqrouter_resume(
 
 	ACPI_FUNCTION_TRACE("irqrouter_resume");
 
+	acpi_in_resume = 1;
 	list_for_each(node, &acpi_link.entries) {
 		link = list_entry(node, struct acpi_pci_link, node);
 		if (!link) {
@@ -816,6 +822,7 @@ irqrouter_resume(
 		}
 		acpi_pci_link_resume(link);
 	}
+	acpi_in_resume = 0;
 	return_VALUE(0);
 }
 
