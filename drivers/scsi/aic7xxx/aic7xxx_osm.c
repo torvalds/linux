@@ -635,6 +635,8 @@ ahc_linux_slave_alloc(struct scsi_device *sdev)
 	
 	targ->sdev[sdev->lun] = sdev;
 
+	spi_period(starget) = 0;
+
 	return 0;
 }
 
