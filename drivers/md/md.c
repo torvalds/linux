@@ -1798,6 +1798,8 @@ static int do_md_stop(mddev_t * mddev, int ro)
 				goto out;
 			mddev->ro = 1;
 		} else {
+			bitmap_flush(mddev);
+			wait_event(mddev->sb_wait, atomic_read(&mddev->pending_writes)==0);
 			if (mddev->ro)
 				set_disk_ro(disk, 0);
 			blk_queue_make_request(mddev->queue, md_fail_request);

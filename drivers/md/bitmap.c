@@ -1451,6 +1451,29 @@ static void bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset)
 }
 
 /*
+ * flush out any pending updates
+ */
+void bitmap_flush(mddev_t *mddev)
+{
+	struct bitmap *bitmap = mddev->bitmap;
+	int sleep;
+
+	if (!bitmap) /* there was no bitmap */
+		return;
+
+	/* run the daemon_work three time to ensure everything is flushed
+	 * that can be
+	 */
+	sleep = bitmap->daemon_sleep;
+	bitmap->daemon_sleep = 0;
+	bitmap_daemon_work(bitmap);
+	bitmap_daemon_work(bitmap);
+	bitmap_daemon_work(bitmap);
+	bitmap->daemon_sleep = sleep;
+	bitmap_update_sb(bitmap);
+}
+
+/*
  * free memory that was allocated
  */
 void bitmap_destroy(mddev_t *mddev)
