@@ -738,73 +738,6 @@ acpi_ut_valid_object_type (
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_allocate_owner_id
- *
- * PARAMETERS:  id_type         - Type of ID (method or table)
- *
- * DESCRIPTION: Allocate a table or method owner id
- *
- * NOTE: this algorithm has a wraparound problem at 64_k method invocations, and
- *       should be revisited (TBD)
- *
- ******************************************************************************/
-
-acpi_owner_id
-acpi_ut_allocate_owner_id (
-	u32                             id_type)
-{
-	acpi_owner_id                   owner_id = 0xFFFF;
-
-
-	ACPI_FUNCTION_TRACE ("ut_allocate_owner_id");
-
-
-	if (ACPI_FAILURE (acpi_ut_acquire_mutex (ACPI_MTX_CACHES)))
-	{
-		return (0);
-	}
-
-	switch (id_type)
-	{
-	case ACPI_OWNER_TYPE_TABLE:
-
-		owner_id = acpi_gbl_next_table_owner_id;
-		acpi_gbl_next_table_owner_id++;
-
-		/* Check for wraparound */
-
-		if (acpi_gbl_next_table_owner_id == ACPI_FIRST_METHOD_ID)
-		{
-			acpi_gbl_next_table_owner_id = ACPI_FIRST_TABLE_ID;
-			ACPI_REPORT_WARNING (("Table owner ID wraparound\n"));
-		}
-		break;
-
-
-	case ACPI_OWNER_TYPE_METHOD:
-
-		owner_id = acpi_gbl_next_method_owner_id;
-		acpi_gbl_next_method_owner_id++;
-
-		if (acpi_gbl_next_method_owner_id == ACPI_FIRST_TABLE_ID)
-		{
-			/* Check for wraparound */
-
-			acpi_gbl_next_method_owner_id = ACPI_FIRST_METHOD_ID;
-		}
-		break;
-
-	default:
-		break;
-	}
-
-	(void) acpi_ut_release_mutex (ACPI_MTX_CACHES);
-	return_VALUE (owner_id);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ut_init_globals
  *
  * PARAMETERS:  None
@@ -820,42 +753,20 @@ void
 acpi_ut_init_globals (
 	void)
 {
+	acpi_status                     status;
 	u32                             i;
 
 
 	ACPI_FUNCTION_TRACE ("ut_init_globals");
 
 
-	/* Memory allocation and cache lists */
+	/* Create all memory caches */
 
-	ACPI_MEMSET (acpi_gbl_memory_lists, 0, sizeof (struct acpi_memory_list) * ACPI_NUM_MEM_LISTS);
-
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_STATE].link_offset      = (u16) ACPI_PTR_DIFF (&(((union acpi_generic_state *) NULL)->common.next), NULL);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE].link_offset     = (u16) ACPI_PTR_DIFF (&(((union acpi_parse_object *) NULL)->common.next), NULL);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE_EXT].link_offset = (u16) ACPI_PTR_DIFF (&(((union acpi_parse_object *) NULL)->common.next), NULL);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_OPERAND].link_offset    = (u16) ACPI_PTR_DIFF (&(((union acpi_operand_object *) NULL)->cache.next), NULL);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_WALK].link_offset       = (u16) ACPI_PTR_DIFF (&(((struct acpi_walk_state *) NULL)->next), NULL);
-
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_NSNODE].object_size     = sizeof (struct acpi_namespace_node);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_STATE].object_size      = sizeof (union acpi_generic_state);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE].object_size     = sizeof (struct acpi_parse_obj_common);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE_EXT].object_size = sizeof (struct acpi_parse_obj_named);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_OPERAND].object_size    = sizeof (union acpi_operand_object);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_WALK].object_size       = sizeof (struct acpi_walk_state);
-
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_STATE].max_cache_depth  = ACPI_MAX_STATE_CACHE_DEPTH;
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE].max_cache_depth = ACPI_MAX_PARSE_CACHE_DEPTH;
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE_EXT].max_cache_depth = ACPI_MAX_EXTPARSE_CACHE_DEPTH;
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_OPERAND].max_cache_depth = ACPI_MAX_OBJECT_CACHE_DEPTH;
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_WALK].max_cache_depth   = ACPI_MAX_WALK_CACHE_DEPTH;
-
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_GLOBAL].list_name    = "Global Memory Allocation");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_NSNODE].list_name    = "Namespace Nodes");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_STATE].list_name     = "State Object Cache");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE].list_name    = "Parse Node Cache");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE_EXT].list_name = "Extended Parse Node Cache");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_OPERAND].list_name   = "Operand Object Cache");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_WALK].list_name      = "Tree Walk Node Cache");
+	status = acpi_ut_create_caches ();
+	if (ACPI_FAILURE (status))
+	{
+		return;
+	}
 
 	/* ACPI table structure */
 
@@ -870,7 +781,7 @@ acpi_ut_init_globals (
 	for (i = 0; i < NUM_MUTEX; i++)
 	{
 		acpi_gbl_mutex_info[i].mutex        = NULL;
-		acpi_gbl_mutex_info[i].owner_id     = ACPI_MUTEX_NOT_ACQUIRED;
+		acpi_gbl_mutex_info[i].thread_id    = ACPI_MUTEX_NOT_ACQUIRED;
 		acpi_gbl_mutex_info[i].use_count    = 0;
 	}
 
@@ -911,8 +822,7 @@ acpi_ut_init_globals (
 	acpi_gbl_ns_lookup_count            = 0;
 	acpi_gbl_ps_find_count              = 0;
 	acpi_gbl_acpi_hardware_present      = TRUE;
-	acpi_gbl_next_table_owner_id        = ACPI_FIRST_TABLE_ID;
-	acpi_gbl_next_method_owner_id       = ACPI_FIRST_METHOD_ID;
+	acpi_gbl_owner_id_mask              = 0;
 	acpi_gbl_debugger_configuration     = DEBUGGER_THREADING;
 	acpi_gbl_db_output_flags            = ACPI_DB_CONSOLE_OUTPUT;
 

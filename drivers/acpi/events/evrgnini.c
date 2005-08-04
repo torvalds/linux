@@ -218,10 +218,14 @@ acpi_ev_pci_config_region_setup (
 		while (pci_root_node != acpi_gbl_root_node) {
 			status = acpi_ut_execute_HID (pci_root_node, &object_hID);
 			if (ACPI_SUCCESS (status)) {
-				/* Got a valid _HID, check if this is a PCI root */
-
+				/*
+				 * Got a valid _HID string, check if this is a PCI root.
+				 * New for ACPI 3.0: check for a PCI Express root also.
+				 */
 				if (!(ACPI_STRNCMP (object_hID.value, PCI_ROOT_HID_STRING,
-						   sizeof (PCI_ROOT_HID_STRING)))) {
+						   sizeof (PCI_ROOT_HID_STRING))           ||
+					!(ACPI_STRNCMP (object_hID.value, PCI_EXPRESS_ROOT_HID_STRING,
+							  sizeof (PCI_EXPRESS_ROOT_HID_STRING))))) {
 					/* Install a handler for this PCI root bridge */
 
 					status = acpi_install_address_space_handler ((acpi_handle) pci_root_node,

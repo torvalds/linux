@@ -159,18 +159,19 @@ acpi_ns_root_initialize (
 				obj_desc->method.param_count = (u8) ACPI_TO_INTEGER (val);
 				obj_desc->common.flags |= AOPOBJ_DATA_VALID;
 
-#if defined (_ACPI_ASL_COMPILER) || defined (_ACPI_DUMP_App)
+#if defined (ACPI_ASL_COMPILER)
 
-				/*
-				 * i_aSL Compiler cheats by putting parameter count
-				 * in the owner_iD
-				 */
-				new_node->owner_id = obj_desc->method.param_count;
+				/* save the parameter count for the i_aSL compiler */
+
+				new_node->value = obj_desc->method.param_count;
 #else
 				/* Mark this as a very SPECIAL method */
 
 				obj_desc->method.method_flags = AML_METHOD_INTERNAL_ONLY;
+
+#ifndef ACPI_DUMP_APP
 				obj_desc->method.implementation = acpi_ut_osi_implementation;
+#endif
 #endif
 				break;
 

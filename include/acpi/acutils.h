@@ -120,10 +120,6 @@ u8
 acpi_ut_valid_object_type (
 	acpi_object_type                type);
 
-acpi_owner_id
-acpi_ut_allocate_owner_id (
-	u32                             id_type);
-
 
 /*
  * utinit - miscellaneous initialization and shutdown
@@ -306,47 +302,63 @@ acpi_ut_track_stack_ptr (
 void
 acpi_ut_trace (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info);
+	const char                      *function_name,
+	char                            *module_name,
+	u32                             component_id);
 
 void
 acpi_ut_trace_ptr (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	const char                      *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	void                            *pointer);
 
 void
 acpi_ut_trace_u32 (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	const char                      *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	u32                             integer);
 
 void
 acpi_ut_trace_str (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	const char                      *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	char                            *string);
 
 void
 acpi_ut_exit (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info);
+	const char                      *function_name,
+	char                            *module_name,
+	u32                             component_id);
 
 void
 acpi_ut_status_exit (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	const char                      *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	acpi_status                     status);
 
 void
 acpi_ut_value_exit (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	const char                      *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	acpi_integer                    value);
 
 void
 acpi_ut_ptr_exit (
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	const char                      *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	u8                              *ptr);
 
 void
@@ -378,7 +390,9 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print (
 	u32                             requested_debug_level,
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	const char                      *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	char                            *format,
 	...) ACPI_PRINTF_LIKE_FUNC;
 
@@ -386,7 +400,9 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print_raw (
 	u32                             requested_debug_level,
 	u32                             line_number,
-	struct acpi_debug_print_info    *dbg_info,
+	const char                      *function_name,
+	char                            *module_name,
+	u32                             component_id,
 	char                            *format,
 	...) ACPI_PRINTF_LIKE_FUNC;
 
@@ -477,8 +493,8 @@ acpi_ut_allocate_object_desc_dbg (
 	u32                             line_number,
 	u32                             component_id);
 
-#define acpi_ut_create_internal_object(t) acpi_ut_create_internal_object_dbg (_THIS_MODULE,__LINE__,_COMPONENT,t)
-#define acpi_ut_allocate_object_desc()  acpi_ut_allocate_object_desc_dbg (_THIS_MODULE,__LINE__,_COMPONENT)
+#define acpi_ut_create_internal_object(t) acpi_ut_create_internal_object_dbg (_acpi_module_name,__LINE__,_COMPONENT,t)
+#define acpi_ut_allocate_object_desc()  acpi_ut_allocate_object_desc_dbg (_acpi_module_name,__LINE__,_COMPONENT)
 
 void
 acpi_ut_delete_object_desc (
@@ -557,16 +573,6 @@ void
 acpi_ut_delete_generic_state (
 	union acpi_generic_state        *state);
 
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-void
-acpi_ut_delete_generic_state_cache (
-	void);
-
-void
-acpi_ut_delete_object_cache (
-	void);
-#endif
-
 
 /*
  * utmath
@@ -589,13 +595,21 @@ acpi_ut_short_divide (
  * utmisc
  */
 acpi_status
+acpi_ut_allocate_owner_id (
+	acpi_owner_id                   *owner_id);
+
+void
+acpi_ut_release_owner_id (
+	acpi_owner_id                   *owner_id);
+
+acpi_status
 acpi_ut_walk_package_tree (
 	union acpi_operand_object       *source_object,
 	void                            *target_object,
 	acpi_pkg_callback               walk_callback,
 	void                            *context);
 
-char *
+void
 acpi_ut_strupr (
 	char                            *src_string);
 
@@ -621,22 +635,6 @@ acpi_ut_strtoul64 (
 /* Values for Base above (16=Hex, 10=Decimal) */
 
 #define ACPI_ANY_BASE        0
-
-acpi_status
-acpi_ut_mutex_initialize (
-	void);
-
-void
-acpi_ut_mutex_terminate (
-	void);
-
-acpi_status
-acpi_ut_acquire_mutex (
-	acpi_mutex_handle               mutex_id);
-
-acpi_status
-acpi_ut_release_mutex (
-	acpi_mutex_handle               mutex_id);
 
 u8 *
 acpi_ut_get_resource_end_tag (
@@ -666,22 +664,35 @@ acpi_ut_display_init_pathname (
 
 
 /*
+ * utmutex - mutex support
+ */
+acpi_status
+acpi_ut_mutex_initialize (
+	void);
+
+void
+acpi_ut_mutex_terminate (
+	void);
+
+acpi_status
+acpi_ut_acquire_mutex (
+	acpi_mutex_handle               mutex_id);
+
+acpi_status
+acpi_ut_release_mutex (
+	acpi_mutex_handle               mutex_id);
+
+
+/*
  * utalloc - memory allocation and object caching
  */
-void *
-acpi_ut_acquire_from_cache (
-	u32                             list_id);
+acpi_status
+acpi_ut_create_caches (
+	void);
 
-void
-acpi_ut_release_to_cache (
-	u32                             list_id,
-	void                            *object);
-
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-void
-acpi_ut_delete_generic_cache (
-	u32                             list_id);
-#endif
+acpi_status
+acpi_ut_delete_caches (
+	void);
 
 acpi_status
 acpi_ut_validate_buffer (

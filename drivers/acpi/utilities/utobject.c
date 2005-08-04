@@ -338,7 +338,7 @@ acpi_ut_allocate_object_desc_dbg (
 	ACPI_FUNCTION_TRACE ("ut_allocate_object_desc_dbg");
 
 
-	object = acpi_ut_acquire_from_cache (ACPI_MEM_LIST_OPERAND);
+	object = acpi_os_acquire_object (acpi_gbl_operand_cache);
 	if (!object) {
 		_ACPI_REPORT_ERROR (module_name, line_number, component_id,
 				  ("Could not allocate an object descriptor\n"));
@@ -347,7 +347,7 @@ acpi_ut_allocate_object_desc_dbg (
 	}
 
 	/* Mark the descriptor type */
-
+	memset(object, 0, sizeof(union acpi_operand_object));
 	ACPI_SET_DESCRIPTOR_TYPE (object, ACPI_DESC_TYPE_OPERAND);
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "%p Size %X\n",
@@ -385,37 +385,9 @@ acpi_ut_delete_object_desc (
 		return_VOID;
 	}
 
-	acpi_ut_release_to_cache (ACPI_MEM_LIST_OPERAND, object);
-
+	(void) acpi_os_release_object (acpi_gbl_operand_cache, object);
 	return_VOID;
 }
-
-
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_delete_object_cache
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Purge the global state object cache.  Used during subsystem
- *              termination.
- *
- ******************************************************************************/
-
-void
-acpi_ut_delete_object_cache (
-	void)
-{
-	ACPI_FUNCTION_TRACE ("ut_delete_object_cache");
-
-
-	acpi_ut_delete_generic_cache (ACPI_MEM_LIST_OPERAND);
-	return_VOID;
-}
-#endif
 
 
 /*******************************************************************************

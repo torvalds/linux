@@ -261,12 +261,12 @@ acpi_ds_result_pop_from_bottom (
 
 	if (!*object) {
 		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Null operand! State=%p #Ops=%X, Index=%X\n",
+			"Null operand! State=%p #Ops=%X Index=%X\n",
 			walk_state, state->results.num_results, (u32) index));
 		return (AE_AML_NO_RETURN_VALUE);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p [%s], Results=%p State=%p\n",
+	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p [%s] Results=%p State=%p\n",
 		*object, (*object) ? acpi_ut_get_object_type_name (*object) : "NULL",
 		state, walk_state));
 
@@ -681,7 +681,7 @@ acpi_ds_create_walk_state (
 	ACPI_FUNCTION_TRACE ("ds_create_walk_state");
 
 
-	walk_state = acpi_ut_acquire_from_cache (ACPI_MEM_LIST_WALK);
+	walk_state = ACPI_MEM_CALLOCATE (sizeof (struct acpi_walk_state));
 	if (!walk_state) {
 		return_PTR (NULL);
 	}
@@ -704,7 +704,7 @@ acpi_ds_create_walk_state (
 
 	status = acpi_ds_result_stack_push (walk_state);
 	if (ACPI_FAILURE (status)) {
-		acpi_ut_release_to_cache (ACPI_MEM_LIST_WALK, walk_state);
+		ACPI_MEM_FREE (walk_state);
 		return_PTR (NULL);
 	}
 
@@ -744,7 +744,7 @@ acpi_ds_init_aml_walk (
 	u8                              *aml_start,
 	u32                             aml_length,
 	struct acpi_parameter_info      *info,
-	u32                             pass_number)
+	u8                              pass_number)
 {
 	acpi_status                     status;
 	struct acpi_parse_state         *parser_state = &walk_state->parser_state;
@@ -762,6 +762,7 @@ acpi_ds_init_aml_walk (
 	/* The next_op of the next_walk will be the beginning of the method */
 
 	walk_state->next_op = NULL;
+	walk_state->pass_number = pass_number;
 
 	if (info) {
 		if (info->parameter_type == ACPI_PARAM_GPE) {
@@ -899,36 +900,9 @@ acpi_ds_delete_walk_state (
 		acpi_ut_delete_generic_state (state);
 	}
 
-	acpi_ut_release_to_cache (ACPI_MEM_LIST_WALK, walk_state);
+	ACPI_MEM_FREE (walk_state);
 	return_VOID;
 }
-
-
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-/******************************************************************************
- *
- * FUNCTION:    acpi_ds_delete_walk_state_cache
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Purge the global state object cache.  Used during subsystem
- *              termination.
- *
- ******************************************************************************/
-
-void
-acpi_ds_delete_walk_state_cache (
-	void)
-{
-	ACPI_FUNCTION_TRACE ("ds_delete_walk_state_cache");
-
-
-	acpi_ut_delete_generic_cache (ACPI_MEM_LIST_WALK);
-	return_VOID;
-}
-#endif
 
 
 #ifdef ACPI_OBSOLETE_FUNCTIONS

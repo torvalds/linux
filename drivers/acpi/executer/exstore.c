@@ -147,7 +147,7 @@ acpi_ex_do_debug_object (
 
 	case ACPI_TYPE_BUFFER:
 
-		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[0x%.2X]",
+		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[0x%.2X]\n",
 			(u32) source_desc->buffer.length));
 		ACPI_DUMP_BUFFER (source_desc->buffer.pointer,
 			(source_desc->buffer.length < 32) ? source_desc->buffer.length : 32);
@@ -574,7 +574,7 @@ acpi_ex_store_object_to_node (
 
 	/* If no implicit conversion, drop into the default case below */
 
-	if (!implicit_conversion) {
+	if ((!implicit_conversion) || (walk_state->opcode == AML_COPY_OP)) {
 		/* Force execution of default (no implicit conversion) */
 
 		target_type = ACPI_TYPE_ANY;
@@ -634,7 +634,7 @@ acpi_ex_store_object_to_node (
 	default:
 
 		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"Storing %s (%p) directly into node (%p), no implicit conversion\n",
+			"Storing %s (%p) directly into node (%p) with no implicit conversion\n",
 			acpi_ut_get_object_type_name (source_desc), source_desc, node));
 
 		/* No conversions for all other types.  Just attach the source object */

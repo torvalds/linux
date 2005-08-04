@@ -85,6 +85,9 @@ acpi_ns_print_pathname (
 	u32                             num_segments,
 	char                            *pathname)
 {
+	acpi_native_uint                i;
+
+
 	ACPI_FUNCTION_NAME ("ns_print_pathname");
 
 
@@ -97,9 +100,13 @@ acpi_ns_print_pathname (
 	ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "["));
 
 	while (num_segments) {
-		acpi_os_printf ("%4.4s", pathname);
-		pathname += ACPI_NAME_SIZE;
+		for (i = 0; i < 4; i++) {
+			ACPI_IS_PRINT (pathname[i]) ?
+				acpi_os_printf ("%c", pathname[i]) :
+				acpi_os_printf ("?");
+		}
 
+		pathname += ACPI_NAME_SIZE;
 		num_segments--;
 		if (num_segments) {
 			acpi_os_printf (".");
@@ -203,38 +210,42 @@ acpi_ns_dump_one_object (
 
 	/* Check if the owner matches */
 
-	if ((info->owner_id != ACPI_UINT32_MAX) &&
+	if ((info->owner_id != ACPI_OWNER_ID_MAX) &&
 		(info->owner_id != this_node->owner_id)) {
 		return (AE_OK);
 	}
 
-	/* Indent the object according to the level */
+	if (!(info->display_type & ACPI_DISPLAY_SHORT)) {
+		/* Indent the object according to the level */
 
-	acpi_os_printf ("%2d%*s", (u32) level - 1, (int) level * 2, " ");
+		acpi_os_printf ("%2d%*s", (u32) level - 1, (int) level * 2, " ");
 
-	/* Check the node type and name */
+		/* Check the node type and name */
 
-	if (type > ACPI_TYPE_LOCAL_MAX) {
-		ACPI_REPORT_WARNING (("Invalid ACPI Type %08X\n", type));
-	}
+		if (type > ACPI_TYPE_LOCAL_MAX) {
+			ACPI_REPORT_WARNING (("Invalid ACPI Type %08X\n", type));
+		}
 
-	if (!acpi_ut_valid_acpi_name (this_node->name.integer)) {
-		ACPI_REPORT_WARNING (("Invalid ACPI Name %08X\n",
-			this_node->name.integer));
+		if (!acpi_ut_valid_acpi_name (this_node->name.integer)) {
+			ACPI_REPORT_WARNING (("Invalid ACPI Name %08X\n",
+				this_node->name.integer));
+		}
+
+		acpi_os_printf ("%4.4s", acpi_ut_get_node_name (this_node));
 	}
 
 	/*
 	 * Now we can print out the pertinent information
 	 */
-	acpi_os_printf ("%4.4s %-12s %p ",
-			acpi_ut_get_node_name (this_node), acpi_ut_get_type_name (type), this_node);
+	acpi_os_printf (" %-12s %p ",
+			acpi_ut_get_type_name (type), this_node);
 
 	dbg_level = acpi_dbg_level;
 	acpi_dbg_level = 0;
 	obj_desc = acpi_ns_get_attached_object (this_node);
 	acpi_dbg_level = dbg_level;
 
-	switch (info->display_type) {
+	switch (info->display_type & ACPI_DISPLAY_MASK) {
 	case ACPI_DISPLAY_SUMMARY:
 
 		if (!obj_desc) {
@@ -475,7 +486,7 @@ acpi_ns_dump_one_object (
 
 	while (obj_desc) {
 		obj_type = ACPI_TYPE_INVALID;
-		acpi_os_printf ("      Attached Object %p: ", obj_desc);
+		acpi_os_printf ("Attached Object %p: ", obj_desc);
 
 		/* Decode the type of attached object and dump the contents */
 
@@ -484,8 +495,8 @@ acpi_ns_dump_one_object (
 
 			acpi_os_printf ("(Ptr to Node)\n");
 			bytes_to_dump = sizeof (struct acpi_namespace_node);
+			ACPI_DUMP_BUFFER (obj_desc, bytes_to_dump);
 			break;
-
 
 		case ACPI_DESC_TYPE_OPERAND:
 
@@ -497,23 +508,18 @@ acpi_ns_dump_one_object (
 				bytes_to_dump = 32;
 			}
 			else {
-				acpi_os_printf ("(Ptr to ACPI Object type %s, %X)\n",
-					acpi_ut_get_type_name (obj_type), obj_type);
+				acpi_os_printf ("(Ptr to ACPI Object type %X [%s])\n",
+					obj_type, acpi_ut_get_type_name (obj_type));
 				bytes_to_dump = sizeof (union acpi_operand_object);
 			}
-			break;
 
+			ACPI_DUMP_BUFFER (obj_desc, bytes_to_dump);
+			break;
 
 		default:
 
-			acpi_os_printf (
-				"(String or Buffer ptr - not an object descriptor) [%s]\n",
-				acpi_ut_get_descriptor_name (obj_desc));
-			bytes_to_dump = 16;
 			break;
 		}
-
-		ACPI_DUMP_BUFFER (obj_desc, bytes_to_dump);
 
 		/* If value is NOT an internal object, we are done */
 
@@ -525,13 +531,17 @@ acpi_ns_dump_one_object (
 		 * Valid object, get the pointer to next level, if any
 		 */
 		switch (obj_type) {
-		case ACPI_TYPE_STRING:
-			obj_desc = (void *) obj_desc->string.pointer;
-			break;
-
 		case ACPI_TYPE_BUFFER:
-			obj_desc = (void *) obj_desc->buffer.pointer;
-			break;
+		case ACPI_TYPE_STRING:
+			/*
+			 * NOTE: takes advantage of common fields between string/buffer
+			 */
+			bytes_to_dump = obj_desc->string.length;
+			obj_desc = (void *) obj_desc->string.pointer;
+			acpi_os_printf ( "(Buffer/String pointer %p length %X)\n",
+				obj_desc, bytes_to_dump);
+			ACPI_DUMP_BUFFER (obj_desc, bytes_to_dump);
+			goto cleanup;
 
 		case ACPI_TYPE_BUFFER_FIELD:
 			obj_desc = (union acpi_operand_object *) obj_desc->buffer_field.buffer_obj;
@@ -595,7 +605,7 @@ acpi_ns_dump_objects (
 	acpi_object_type                type,
 	u8                              display_type,
 	u32                             max_depth,
-	u32                             owner_id,
+	acpi_owner_id                   owner_id,
 	acpi_handle                     start_handle)
 {
 	struct acpi_walk_info           info;
@@ -640,14 +650,14 @@ acpi_ns_dump_entry (
 
 
 	info.debug_level = debug_level;
-	info.owner_id = ACPI_UINT32_MAX;
+	info.owner_id = ACPI_OWNER_ID_MAX;
 	info.display_type = ACPI_DISPLAY_SUMMARY;
 
 	(void) acpi_ns_dump_one_object (handle, 1, &info, NULL);
 }
 
 
-#ifdef _ACPI_ASL_COMPILER
+#ifdef ACPI_ASL_COMPILER
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_dump_tables
@@ -691,7 +701,7 @@ acpi_ns_dump_tables (
 	}
 
 	acpi_ns_dump_objects (ACPI_TYPE_ANY, ACPI_DISPLAY_OBJECTS, max_depth,
-			ACPI_UINT32_MAX, search_handle);
+			ACPI_OWNER_ID_MAX, search_handle);
 	return_VOID;
 }
 #endif	/* _ACPI_ASL_COMPILER */

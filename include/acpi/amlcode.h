@@ -69,7 +69,7 @@
 #define AML_MULTI_NAME_PREFIX_OP    (u16) 0x2f
 #define AML_NAME_CHAR_SUBSEQ        (u16) 0x30
 #define AML_NAME_CHAR_FIRST         (u16) 0x41
-#define AML_OP_PREFIX               (u16) 0x5b
+#define AML_EXTENDED_OP_PREFIX      (u16) 0x5b
 #define AML_ROOT_PREFIX             (u16) 0x5c
 #define AML_PARENT_PREFIX           (u16) 0x5e
 #define AML_LOCAL_OP                (u16) 0x60
@@ -146,7 +146,7 @@
 
 /* prefixed opcodes */
 
-#define AML_EXTOP                   (u16) 0x005b     /* prefix for 2-byte opcodes */
+#define AML_EXTENDED_OPCODE         (u16) 0x5b00     /* prefix for 2-byte opcodes */
 
 #define AML_MUTEX_OP                (u16) 0x5b01
 #define AML_EVENT_OP                (u16) 0x5b02

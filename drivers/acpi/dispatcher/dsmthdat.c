@@ -633,22 +633,11 @@ acpi_ds_store_object_to_local (
 		 */
 		if (opcode == AML_ARG_OP) {
 			/*
-			 * Make sure that the object is the correct type.  This may be
-			 * overkill, butit is here because references were NS nodes in
-			 *  the past.  Now they are operand objects of type Reference.
-			 */
-			if (ACPI_GET_DESCRIPTOR_TYPE (current_obj_desc) != ACPI_DESC_TYPE_OPERAND) {
-				ACPI_REPORT_ERROR ((
-					"Invalid descriptor type while storing to method arg: [%s]\n",
-					acpi_ut_get_descriptor_name (current_obj_desc)));
-				return_ACPI_STATUS (AE_AML_INTERNAL);
-			}
-
-			/*
 			 * If we have a valid reference object that came from ref_of(),
 			 * do the indirect store
 			 */
-			if ((current_obj_desc->common.type == ACPI_TYPE_LOCAL_REFERENCE) &&
+			if ((ACPI_GET_DESCRIPTOR_TYPE (current_obj_desc) == ACPI_DESC_TYPE_OPERAND) &&
+				(current_obj_desc->common.type == ACPI_TYPE_LOCAL_REFERENCE) &&
 				(current_obj_desc->reference.opcode == AML_REF_OF_OP)) {
 				ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
 						"Arg (%p) is an obj_ref(Node), storing in node %p\n",

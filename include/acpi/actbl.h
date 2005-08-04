@@ -86,15 +86,15 @@
  */
 struct rsdp_descriptor         /* Root System Descriptor Pointer */
 {
-	char                            signature [8];          /* ACPI signature, contains "RSD PTR " */
-	u8                              checksum;               /* To make sum of struct == 0 */
-	char                            oem_id [6];             /* OEM identification */
-	u8                              revision;               /* Must be 0 for 1.0, 2 for 2.0 */
-	u32                             rsdt_physical_address;  /* 32-bit physical address of RSDT */
-	u32                             length;                 /* XSDT Length in bytes including hdr */
-	u64                             xsdt_physical_address;  /* 64-bit physical address of XSDT */
-	u8                              extended_checksum;      /* Checksum of entire table */
-	char                            reserved [3];           /* Reserved field must be 0 */
+	char                            signature[8];           /* ACPI signature, contains "RSD PTR " */
+	u8                              checksum;               /* ACPI 1.0 checksum */
+	char                            oem_id[6];              /* OEM identification */
+	u8                              revision;               /* Must be (0) for ACPI 1.0 or (2) for ACPI 2.0+ */
+	u32                             rsdt_physical_address;  /* 32-bit physical address of the RSDT */
+	u32                             length;                 /* XSDT Length in bytes, including header */
+	u64                             xsdt_physical_address;  /* 64-bit physical address of the XSDT */
+	u8                              extended_checksum;      /* Checksum of entire table (ACPI 2.0) */
+	char                            reserved[3];            /* Reserved, must be zero */
 };
 
 
@@ -107,15 +107,15 @@ struct acpi_common_facs          /* Common FACS for internal use */
 
 
 #define ACPI_TABLE_HEADER_DEF   /* ACPI common table header */ \
-	char                            signature [4];          /* ACPI signature (4 ASCII characters) */\
-	u32                             length;                 /* Length of table, in bytes, including header */\
+	char                            signature[4];           /* ASCII table signature */\
+	u32                             length;                 /* Length of table in bytes, including this header */\
 	u8                              revision;               /* ACPI Specification minor version # */\
 	u8                              checksum;               /* To make sum of entire table == 0 */\
-	char                            oem_id [6];             /* OEM identification */\
-	char                            oem_table_id [8];       /* OEM table identification */\
+	char                            oem_id[6];              /* ASCII OEM identification */\
+	char                            oem_table_id[8];        /* ASCII OEM table identification */\
 	u32                             oem_revision;           /* OEM revision number */\
-	char                            asl_compiler_id [4];    /* ASL compiler vendor ID */\
-	u32                             asl_compiler_revision;  /* ASL compiler revision number */
+	char                            asl_compiler_id [4];    /* ASCII ASL compiler vendor ID */\
+	u32                             asl_compiler_revision;  /* ASL compiler version */
 
 
 struct acpi_table_header         /* ACPI common table header */
@@ -139,8 +139,12 @@ struct multiple_apic_table
 {
 	ACPI_TABLE_HEADER_DEF                           /* ACPI common table header */
 	u32                             local_apic_address;     /* Physical address of local APIC */
-	u32                             PCATcompat      : 1;    /* A one indicates system also has dual 8259s */
-	u32                             reserved1       : 31;
+
+	/* Flags (32 bits) */
+
+	u8                              PCATcompat      : 1;    /* 00:    System also has dual 8259s */
+	u8                                              : 7;    /* 01-07: Reserved, must be zero */
+	u8                              reserved1[3];           /* 08-31: Reserved, must be zero */
 };
 
 /* Values for Type in APIC_HEADER_DEF */
@@ -180,16 +184,18 @@ struct apic_header
 #define TRIGGER_RESERVED        2
 #define TRIGGER_LEVEL           3
 
-/* Common flag definitions */
+/* Common flag definitions (16 bits each) */
 
 #define MPS_INTI_FLAGS \
-	u16                             polarity        : 2;    /* Polarity of APIC I/O input signals */\
-	u16                             trigger_mode    : 2;    /* Trigger mode of APIC input signals */\
-	u16                             reserved1       : 12;   /* Reserved, must be zero */
+	u8                              polarity        : 2;    /* 00-01: Polarity of APIC I/O input signals */\
+	u8                              trigger_mode    : 2;    /* 02-03: Trigger mode of APIC input signals */\
+	u8                                              : 4;    /* 04-07: Reserved, must be zero */\
+	u8                              reserved1;              /* 08-15: Reserved, must be zero */
 
 #define LOCAL_APIC_FLAGS \
-	u32                             processor_enabled: 1;   /* Processor is usable if set */\
-	u32                             reserved2       : 31;   /* Reserved, must be zero */
+	u8                              processor_enabled: 1;   /* 00:    Processor is usable if set */\
+	u8                                              : 7;    /* 01-07: Reserved, must be zero */\
+	u8                              reserved2;              /* 08-15: Reserved, must be zero */
 
 /* Sub-structures for MADT */
 
@@ -238,7 +244,7 @@ struct madt_local_apic_nmi
 struct madt_address_override
 {
 	APIC_HEADER_DEF
-	u16                             reserved;               /* Reserved - must be zero */
+	u16                             reserved;               /* Reserved, must be zero */
 	u64                             address;                /* APIC physical address */
 };
 
@@ -246,7 +252,7 @@ struct madt_io_sapic
 {
 	APIC_HEADER_DEF
 	u8                              io_sapic_id;            /* I/O SAPIC ID */
-	u8                              reserved;               /* Reserved - must be zero */
+	u8                              reserved;               /* Reserved, must be zero */
 	u32                             interrupt_base;         /* Glocal interrupt for SAPIC start */
 	u64                             address;                /* SAPIC physical address */
 };
@@ -257,7 +263,7 @@ struct madt_local_sapic
 	u8                              processor_id;           /* ACPI processor id */
 	u8                              local_sapic_id;         /* SAPIC ID */
 	u8                              local_sapic_eid;        /* SAPIC EID */
-	u8                              reserved [3];           /* Reserved - must be zero */
+	u8                              reserved[3];            /* Reserved, must be zero */
 	LOCAL_APIC_FLAGS
 	u32                             processor_uID;          /* Numeric UID - ACPI 3.0 */
 	char                            processor_uIDstring[1]; /* String UID  - ACPI 3.0 */

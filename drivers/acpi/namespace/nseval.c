@@ -365,6 +365,7 @@ acpi_ns_evaluate_by_handle (
  *
  * PARAMETERS:  Info            - Method info block, contains:
  *                  Node            - Method Node to execute
+ *                  obj_desc        - Method object
  *                  Parameters      - List of parameters to pass to the method,
  *                                    terminated by NULL. Params itself may be
  *                                    NULL if no parameters are being passed.
@@ -387,7 +388,6 @@ acpi_ns_execute_control_method (
 	struct acpi_parameter_info      *info)
 {
 	acpi_status                     status;
-	union acpi_operand_object       *obj_desc;
 
 
 	ACPI_FUNCTION_TRACE ("ns_execute_control_method");
@@ -395,8 +395,8 @@ acpi_ns_execute_control_method (
 
 	/* Verify that there is a method associated with this object */
 
-	obj_desc = acpi_ns_get_attached_object (info->node);
-	if (!obj_desc) {
+	info->obj_desc = acpi_ns_get_attached_object (info->node);
+	if (!info->obj_desc) {
 		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No attached method object\n"));
 
 		(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
@@ -407,7 +407,7 @@ acpi_ns_execute_control_method (
 		ACPI_LV_INFO, _COMPONENT);
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Method at AML address %p Length %X\n",
-		obj_desc->method.aml_start + 1, obj_desc->method.aml_length - 1));
+		info->obj_desc->method.aml_start + 1, info->obj_desc->method.aml_length - 1));
 
 	/*
 	 * Unlock the namespace before execution.  This allows namespace access
@@ -430,7 +430,7 @@ acpi_ns_execute_control_method (
 		return_ACPI_STATUS (status);
 	}
 
-	status = acpi_psx_execute (info);
+	status = acpi_ps_execute_method (info);
 	acpi_ex_exit_interpreter ();
 
 	return_ACPI_STATUS (status);

@@ -205,10 +205,11 @@ typedef u32                                     acpi_size;
 
 
 /*
- * Miscellaneous common types
+ * This type is used for bitfields in ACPI tables. The only type that is
+ * even remotely portable is u8. Anything else is not portable, so
+ * do not add any more bitfield types.
  */
-typedef u16                                     UINT16_BIT;
-typedef u32                                     UINT32_BIT;
+typedef u8                                      UINT8_BIT;
 typedef acpi_native_uint                        ACPI_PTRDIFF;
 
 /*
@@ -243,6 +244,14 @@ struct acpi_pointer
 #define ACPI_LOGMODE_PHYSPTR            ACPI_LOGICAL_ADDRESSING  | ACPI_PHYSICAL_POINTER
 #define ACPI_LOGMODE_LOGPTR             ACPI_LOGICAL_ADDRESSING  | ACPI_LOGICAL_POINTER
 
+/*
+ * If acpi_cache_t was not defined in the OS-dependent header,
+ * define it now. This is typically the case where the local cache
+ * manager implementation is to be used (ACPI_USE_LOCAL_CACHE)
+ */
+#ifndef acpi_cache_t
+#define acpi_cache_t                            struct acpi_memory_list
+#endif
 
 /*
  * Useful defines

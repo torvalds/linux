@@ -264,7 +264,7 @@ acpi_ut_subsystem_shutdown (
 
 	/* Purge the local caches */
 
-	(void) acpi_purge_cached_objects ();
+	(void) acpi_ut_delete_caches ();
 
 	/* Debug only - display leftover memory allocation, if any */
 

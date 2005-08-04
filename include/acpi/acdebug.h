@@ -114,6 +114,10 @@ acpi_db_set_method_call_breakpoint (
 	union acpi_parse_object         *op);
 
 void
+acpi_db_get_bus_info (
+	void);
+
+void
 acpi_db_disassemble_aml (
 	char                            *statements,
 	union acpi_parse_object         *op);
@@ -327,7 +331,7 @@ acpi_db_set_output_destination (
 	u32                             where);
 
 void
-acpi_db_dump_object (
+acpi_db_dump_external_object (
 	union acpi_object               *obj_desc,
 	u32                             level);
 

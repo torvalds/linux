@@ -438,6 +438,13 @@ acpi_ex_get_name_string (
 		status = AE_AML_BAD_NAME;
 	}
 
+	if (ACPI_FAILURE (status)) {
+		if (name_string) {
+			ACPI_MEM_FREE (name_string);
+		}
+		return_ACPI_STATUS (status);
+	}
+
 	*out_name_string = name_string;
 	*out_name_length = (u32) (aml_address - in_aml_address);
 

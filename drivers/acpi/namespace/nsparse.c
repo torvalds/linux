@@ -67,7 +67,7 @@
 
 acpi_status
 acpi_ns_one_complete_parse (
-	u32                             pass_number,
+	u8                              pass_number,
 	struct acpi_table_desc          *table_desc)
 {
 	union acpi_parse_object         *parse_root;
@@ -87,7 +87,7 @@ acpi_ns_one_complete_parse (
 
 	/* Create and initialize a new walk state */
 
-	walk_state = acpi_ds_create_walk_state (table_desc->table_id,
+	walk_state = acpi_ds_create_walk_state (table_desc->owner_id,
 			   NULL, NULL, NULL);
 	if (!walk_state) {
 		acpi_ps_free_op (parse_root);
@@ -146,6 +146,7 @@ acpi_ns_parse_table (
 	 * to service the entire parse.  The second pass of the parse then
 	 * performs another complete parse of the AML..
 	 */
+	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "**** Start pass 1\n"));
 	status = acpi_ns_one_complete_parse (1, table_desc);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
@@ -160,6 +161,7 @@ acpi_ns_parse_table (
 	 * overhead of this is compensated for by the fact that the
 	 * parse objects are all cached.
 	 */
+	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "**** Start pass 2\n"));
 	status = acpi_ns_one_complete_parse (2, table_desc);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);

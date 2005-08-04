@@ -411,6 +411,9 @@ acpi_ev_init_global_lock_handler (
 	 * with an error.
 	 */
 	if (status == AE_NO_HARDWARE_RESPONSE) {
+		ACPI_REPORT_ERROR ((
+			"No response from Global Lock hardware, disabling lock\n"));
+
 		acpi_gbl_global_lock_present = FALSE;
 		status = AE_OK;
 	}
@@ -589,7 +592,7 @@ acpi_ev_terminate (
 
 		/* Disable all GPEs in all GPE blocks */
 
-		status = acpi_ev_walk_gpe_list (acpi_hw_disable_gpe_block, ACPI_NOT_ISR);
+		status = acpi_ev_walk_gpe_list (acpi_hw_disable_gpe_block);
 
 		/* Remove SCI handler */
 
@@ -602,7 +605,7 @@ acpi_ev_terminate (
 
 	/* Deallocate all handler objects installed within GPE info structs */
 
-	status = acpi_ev_walk_gpe_list (acpi_ev_delete_gpe_handlers, ACPI_NOT_ISR);
+	status = acpi_ev_walk_gpe_list (acpi_ev_delete_gpe_handlers);
 
 	/* Return to original mode if necessary */
 

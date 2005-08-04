@@ -96,30 +96,11 @@ acpi_tb_verify_rsdp (
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
-	/*
-	 *  The signature and checksum must both be correct
-	 */
-	if (ACPI_STRNCMP ((char *) rsdp, RSDP_SIG, sizeof (RSDP_SIG)-1) != 0) {
-		/* Nope, BAD Signature */
+	/* Verify RSDP signature and checksum */
 
-		status = AE_BAD_SIGNATURE;
+	status = acpi_tb_validate_rsdp (rsdp);
+	if (ACPI_FAILURE (status)) {
 		goto cleanup;
-	}
-
-	/* Check the standard checksum */
-
-	if (acpi_tb_checksum (rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0) {
-		status = AE_BAD_CHECKSUM;
-		goto cleanup;
-	}
-
-	/* Check extended checksum if table version >= 2 */
-
-	if (rsdp->revision >= 2) {
-		if (acpi_tb_checksum (rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0) {
-			status = AE_BAD_CHECKSUM;
-			goto cleanup;
-		}
 	}
 
 	/* The RSDP supplied is OK */
@@ -159,8 +140,8 @@ cleanup:
  *
  * RETURN:      None, Address
  *
- * DESCRIPTION: Extract the address of the RSDT or XSDT, depending on the
- *              version of the RSDP
+ * DESCRIPTION: Extract the address of either the RSDT or XSDT, depending on the
+ *              version of the RSDP and whether the XSDT pointer is valid
  *
  ******************************************************************************/
 
@@ -174,16 +155,19 @@ acpi_tb_get_rsdt_address (
 
 	out_address->pointer_type = acpi_gbl_table_flags | ACPI_LOGICAL_ADDRESSING;
 
-	/*
-	 * For RSDP revision 0 or 1, we use the RSDT.
-	 * For RSDP revision 2 (and above), we use the XSDT
-	 */
-	if (acpi_gbl_RSDP->revision < 2) {
-		out_address->pointer.value = acpi_gbl_RSDP->rsdt_physical_address;
-	}
-	else {
+	/* Use XSDT if it is present */
+
+	if ((acpi_gbl_RSDP->revision >= 2) &&
+		acpi_gbl_RSDP->xsdt_physical_address) {
 		out_address->pointer.value =
 			acpi_gbl_RSDP->xsdt_physical_address;
+		acpi_gbl_root_table_type = ACPI_TABLE_TYPE_XSDT;
+	}
+	else {
+		/* No XSDT, use the RSDT */
+
+		out_address->pointer.value = acpi_gbl_RSDP->rsdt_physical_address;
+		acpi_gbl_root_table_type = ACPI_TABLE_TYPE_RSDT;
 	}
 }
 
@@ -211,10 +195,9 @@ acpi_tb_validate_rsdt (
 
 
 	/*
-	 * For RSDP revision 0 or 1, we use the RSDT.
-	 * For RSDP revision 2 and above, we use the XSDT
+	 * Search for appropriate signature, RSDT or XSDT
 	 */
-	if (acpi_gbl_RSDP->revision < 2) {
+	if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
 		no_match = ACPI_STRNCMP ((char *) table_ptr, RSDT_SIG,
 				  sizeof (RSDT_SIG) -1);
 	}
@@ -236,11 +219,11 @@ acpi_tb_validate_rsdt (
 			acpi_gbl_RSDP->rsdt_physical_address,
 			(void *) (acpi_native_uint) acpi_gbl_RSDP->rsdt_physical_address));
 
-		if (acpi_gbl_RSDP->revision < 2) {
-			ACPI_REPORT_ERROR (("Looking for RSDT (RSDP->Rev < 2)\n"))
+		if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
+			ACPI_REPORT_ERROR (("Looking for RSDT\n"))
 		}
 		else {
-			ACPI_REPORT_ERROR (("Looking for XSDT (RSDP->Rev >= 2)\n"))
+			ACPI_REPORT_ERROR (("Looking for XSDT\n"))
 		}
 
 		ACPI_DUMP_BUFFER ((char *) table_ptr, 48);

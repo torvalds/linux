@@ -782,54 +782,6 @@ acpi_os_delete_lock (
 	return_VOID;
 }
 
-/*
- * Acquire a spinlock.
- *
- * handle is a pointer to the spinlock_t.
- * flags is *not* the result of save_flags - it is an ACPI-specific flag variable
- *   that indicates whether we are at interrupt level.
- */
-void
-acpi_os_acquire_lock (
-	acpi_handle	handle,
-	u32		flags)
-{
-	ACPI_FUNCTION_TRACE ("os_acquire_lock");
-
-	ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Acquiring spinlock[%p] from %s level\n", handle,
-		((flags & ACPI_NOT_ISR) ? "non-interrupt" : "interrupt")));
-
-	if (flags & ACPI_NOT_ISR)
-		ACPI_DISABLE_IRQS();
-
-	spin_lock((spinlock_t *)handle);
-
-	return_VOID;
-}
-
-
-/*
- * Release a spinlock. See above.
- */
-void
-acpi_os_release_lock (
-	acpi_handle	handle,
-	u32		flags)
-{
-	ACPI_FUNCTION_TRACE ("os_release_lock");
-
-	ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Releasing spinlock[%p] from %s level\n", handle,
-		((flags & ACPI_NOT_ISR) ? "non-interrupt" : "interrupt")));
-
-	spin_unlock((spinlock_t *)handle);
-
-	if (flags & ACPI_NOT_ISR)
-		ACPI_ENABLE_IRQS();
-
-	return_VOID;
-}
-
-
 acpi_status
 acpi_os_create_semaphore(
 	u32		max_units,
@@ -1176,3 +1128,151 @@ unsigned int max_cstate = ACPI_PROCESSOR_MAX_POWER;
 
 
 EXPORT_SYMBOL(max_cstate);
+
+/*
+ * Acquire a spinlock.
+ *
+ * handle is a pointer to the spinlock_t.
+ * flags is *not* the result of save_flags - it is an ACPI-specific flag variable
+ *   that indicates whether we are at interrupt level.
+ */
+
+unsigned long
+acpi_os_acquire_lock (
+	acpi_handle	handle)
+{
+	unsigned long flags;
+	spin_lock_irqsave((spinlock_t *)handle, flags);
+	return flags;
+}
+
+/*
+ * Release a spinlock. See above.
+ */
+
+void
+acpi_os_release_lock (
+	acpi_handle	handle,
+	unsigned long	flags)
+{
+	spin_unlock_irqrestore((spinlock_t *)handle, flags);
+}
+
+
+#ifndef ACPI_USE_LOCAL_CACHE
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_os_create_cache
+ *
+ * PARAMETERS:  CacheName       - Ascii name for the cache
+ *              ObjectSize      - Size of each cached object
+ *              MaxDepth        - Maximum depth of the cache (in objects)
+ *              ReturnCache     - Where the new cache object is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Create a cache object
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_os_create_cache (
+    char                    *name,
+    u16                  size,
+    u16                  depth,
+    acpi_cache_t 	    **cache)
+{
+	*cache = kmem_cache_create (name, size, 0, 0, NULL, NULL);
+	return AE_OK;
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_os_purge_cache
+ *
+ * PARAMETERS:  Cache           - Handle to cache object
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Free all objects within the requested cache.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_os_purge_cache (
+    acpi_cache_t        *cache)
+{
+    (void) kmem_cache_shrink(cache);
+    return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_os_delete_cache
+ *
+ * PARAMETERS:  Cache           - Handle to cache object
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Free all objects within the requested cache and delete the
+ *              cache object.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_os_delete_cache (
+    acpi_cache_t *cache)
+{
+    (void)kmem_cache_destroy(cache);
+    return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_os_release_object
+ *
+ * PARAMETERS:  Cache       - Handle to cache object
+ *              Object      - The object to be released
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Release an object to the specified cache.  If cache is full,
+ *              the object is deleted.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_os_release_object (
+    acpi_cache_t *cache,
+    void *object)
+{
+    kmem_cache_free(cache, object);
+    return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_os_acquire_object
+ *
+ * PARAMETERS:  Cache           - Handle to cache object
+ *              ReturnObject    - Where the object is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Get an object from the specified cache.  If cache is empty,
+ *              the object is allocated.
+ *
+ ******************************************************************************/
+
+void *
+acpi_os_acquire_object (
+    acpi_cache_t *cache)
+{
+    void *object = kmem_cache_alloc(cache, GFP_KERNEL);
+    WARN_ON(!object);
+    return object;
+}
+
+#endif
+

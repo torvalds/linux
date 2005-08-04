@@ -97,7 +97,9 @@ acpi_tb_get_table_count (
 	ACPI_FUNCTION_ENTRY ();
 
 
-	if (RSDP->revision < 2) {
+	/* RSDT pointers are 32 bits, XSDT pointers are 64 bits */
+
+	if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
 		pointer_size = sizeof (u32);
 	}
 	else {
@@ -158,7 +160,9 @@ acpi_tb_convert_to_xsdt (
 	/* Copy the table pointers */
 
 	for (i = 0; i < acpi_gbl_rsdt_table_count; i++) {
-		if (acpi_gbl_RSDP->revision < 2) {
+		/* RSDT pointers are 32 bits, XSDT pointers are 64 bits */
+
+		if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
 			ACPI_STORE_ADDRESS (new_table->table_offset_entry[i],
 				(ACPI_CAST_PTR (struct rsdt_descriptor_rev1,
 					table_info->pointer))->table_offset_entry[i]);

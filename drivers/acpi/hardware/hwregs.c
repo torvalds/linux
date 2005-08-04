@@ -106,7 +106,7 @@ acpi_hw_clear_acpi_status (
 
 	/* Clear the GPE Bits in all GPE registers in all GPE blocks */
 
-	status = acpi_ev_walk_gpe_list (acpi_hw_clear_gpe_block, ACPI_ISR);
+	status = acpi_ev_walk_gpe_list (acpi_hw_clear_gpe_block);
 
 unlock_and_exit:
 	if (flags & ACPI_MTX_LOCK) {

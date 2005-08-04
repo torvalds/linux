@@ -198,7 +198,7 @@ acpi_ns_load_table_by_type (
 	switch (table_type) {
 	case ACPI_TABLE_DSDT:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Loading DSDT\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Namespace load: DSDT\n"));
 
 		table_desc = acpi_gbl_table_lists[ACPI_TABLE_DSDT].next;
 
@@ -218,46 +218,20 @@ acpi_ns_load_table_by_type (
 
 
 	case ACPI_TABLE_SSDT:
-
-		ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Loading %d SSDTs\n",
-			acpi_gbl_table_lists[ACPI_TABLE_SSDT].count));
-
-		/*
-		 * Traverse list of SSDT tables
-		 */
-		table_desc = acpi_gbl_table_lists[ACPI_TABLE_SSDT].next;
-		for (i = 0; i < acpi_gbl_table_lists[ACPI_TABLE_SSDT].count; i++) {
-			/*
-			 * Only attempt to load table if it is not
-			 * already loaded!
-			 */
-			if (!table_desc->loaded_into_namespace) {
-				status = acpi_ns_load_table (table_desc, acpi_gbl_root_node);
-				if (ACPI_FAILURE (status)) {
-					break;
-				}
-
-				table_desc->loaded_into_namespace = TRUE;
-			}
-
-			table_desc = table_desc->next;
-		}
-		break;
-
-
 	case ACPI_TABLE_PSDT:
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Loading %d PSDTs\n",
-			acpi_gbl_table_lists[ACPI_TABLE_PSDT].count));
+		ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Namespace load: %d SSDT or PSDTs\n",
+			acpi_gbl_table_lists[table_type].count));
 
 		/*
-		 * Traverse list of PSDT tables
+		 * Traverse list of SSDT or PSDT tables
 		 */
-		table_desc = acpi_gbl_table_lists[ACPI_TABLE_PSDT].next;
-
-		for (i = 0; i < acpi_gbl_table_lists[ACPI_TABLE_PSDT].count; i++) {
-			/* Only attempt to load table if it is not already loaded! */
-
+		table_desc = acpi_gbl_table_lists[table_type].next;
+		for (i = 0; i < acpi_gbl_table_lists[table_type].count; i++) {
+			/*
+			 * Only attempt to load table into namespace if it is not
+			 * already loaded!
+			 */
 			if (!table_desc->loaded_into_namespace) {
 				status = acpi_ns_load_table (table_desc, acpi_gbl_root_node);
 				if (ACPI_FAILURE (status)) {

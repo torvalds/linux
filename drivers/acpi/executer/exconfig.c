@@ -99,6 +99,11 @@ acpi_ex_add_table (
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
 
+	/* Init the table handle */
+
+	obj_desc->reference.opcode = AML_LOAD_OP;
+	*ddb_handle = obj_desc;
+
 	/* Install the new table into the local data structures */
 
 	ACPI_MEMSET (&table_info, 0, sizeof (struct acpi_table_desc));
@@ -109,7 +114,14 @@ acpi_ex_add_table (
 	table_info.allocation = ACPI_MEM_ALLOCATED;
 
 	status = acpi_tb_install_table (&table_info);
+	obj_desc->reference.object = table_info.installed_desc;
+
 	if (ACPI_FAILURE (status)) {
+		if (status == AE_ALREADY_EXISTS) {
+			/* Table already exists, just return the handle */
+
+			return_ACPI_STATUS (AE_OK);
+		}
 		goto cleanup;
 	}
 
@@ -123,16 +135,12 @@ acpi_ex_add_table (
 		goto cleanup;
 	}
 
-	/* Init the table handle */
-
-	obj_desc->reference.opcode = AML_LOAD_OP;
-	obj_desc->reference.object = table_info.installed_desc;
-	*ddb_handle = obj_desc;
 	return_ACPI_STATUS (AE_OK);
 
 
 cleanup:
 	acpi_ut_remove_reference (obj_desc);
+	*ddb_handle = NULL;
 	return_ACPI_STATUS (status);
 }
 
@@ -376,16 +384,22 @@ acpi_ex_load_op (
 		 */
 		status = acpi_ex_read_data_from_field (walk_state, obj_desc, &buffer_desc);
 		if (ACPI_FAILURE (status)) {
-			goto cleanup;
+			return_ACPI_STATUS (status);
 		}
 
 		table_ptr = ACPI_CAST_PTR (struct acpi_table_header,
 				  buffer_desc->buffer.pointer);
 
-		 /* Sanity check the table length */
+		/* All done with the buffer_desc, delete it */
+
+		buffer_desc->buffer.pointer = NULL;
+		acpi_ut_remove_reference (buffer_desc);
+
+		/* Sanity check the table length */
 
 		if (table_ptr->length < sizeof (struct acpi_table_header)) {
-			return_ACPI_STATUS (AE_BAD_HEADER);
+			status = AE_BAD_HEADER;
+			goto cleanup;
 		}
 		break;
 
@@ -413,7 +427,9 @@ acpi_ex_load_op (
 
 	status = acpi_ex_add_table (table_ptr, acpi_gbl_root_node, &ddb_handle);
 	if (ACPI_FAILURE (status)) {
-		goto cleanup;
+		/* On error, table_ptr was deallocated above */
+
+		return_ACPI_STATUS (status);
 	}
 
 	/* Store the ddb_handle into the Target operand */
@@ -421,17 +437,14 @@ acpi_ex_load_op (
 	status = acpi_ex_store (ddb_handle, target, walk_state);
 	if (ACPI_FAILURE (status)) {
 		(void) acpi_ex_unload_table (ddb_handle);
+
+		/* table_ptr was deallocated above */
+
+		return_ACPI_STATUS (status);
 	}
-
-	return_ACPI_STATUS (status);
-
 
 cleanup:
-
-	if (buffer_desc) {
-		acpi_ut_remove_reference (buffer_desc);
-	}
-	else {
+	if (ACPI_FAILURE (status)) {
 		ACPI_MEM_FREE (table_ptr);
 	}
 	return_ACPI_STATUS (status);
@@ -482,7 +495,8 @@ acpi_ex_unload_table (
 	 * Delete the entire namespace under this table Node
 	 * (Offset contains the table_id)
 	 */
-	acpi_ns_delete_namespace_by_owner (table_info->table_id);
+	acpi_ns_delete_namespace_by_owner (table_info->owner_id);
+	acpi_ut_release_owner_id (&table_info->owner_id);
 
 	/* Delete the table itself */
 

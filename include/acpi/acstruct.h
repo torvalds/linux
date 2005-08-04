@@ -71,14 +71,13 @@ struct acpi_walk_state
 	u8                                  walk_type;
 	acpi_owner_id                       owner_id;                           /* Owner of objects created during the walk */
 	u8                                  last_predicate;                     /* Result of last predicate */
-	u8                                  reserved;                           /* For alignment */
 	u8                                  current_result;                     /* */
 	u8                                  next_op_info;                       /* Info about next_op */
 	u8                                  num_operands;                       /* Stack pointer for Operands[] array */
 	u8                                  return_used;
 	u16                                 opcode;                             /* Current AML opcode */
 	u8                                  scope_depth;
-	u8                                  reserved1;
+	u8                                  pass_number;                        /* Parse pass during table load */
 	u32                                 arg_count;                          /* push for fixed or var args */
 	u32                                 aml_offset;
 	u32                                 arg_types;
@@ -154,14 +153,18 @@ struct acpi_device_walk_info
 struct acpi_walk_info
 {
 	u32                             debug_level;
-	u32                             owner_id;
+	u32                             count;
+	acpi_owner_id                   owner_id;
 	u8                              display_type;
 };
 
 /* Display Types */
 
-#define ACPI_DISPLAY_SUMMARY    0
-#define ACPI_DISPLAY_OBJECTS    1
+#define ACPI_DISPLAY_SUMMARY    (u8) 0
+#define ACPI_DISPLAY_OBJECTS    (u8) 1
+#define ACPI_DISPLAY_MASK       (u8) 1
+
+#define ACPI_DISPLAY_SHORT      (u8) 2
 
 struct acpi_get_devices_info
 {
@@ -207,8 +210,10 @@ union acpi_aml_operands
 struct acpi_parameter_info
 {
 	struct acpi_namespace_node      *node;
+	union acpi_operand_object       *obj_desc;
 	union acpi_operand_object       **parameters;
 	union acpi_operand_object       *return_object;
+	u8                              pass_number;
 	u8                              parameter_type;
 	u8                              return_object_type;
 };

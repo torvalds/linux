@@ -160,7 +160,7 @@ acpi_ex_opcode_3A_1T_1R (
 {
 	union acpi_operand_object       **operand = &walk_state->operands[0];
 	union acpi_operand_object       *return_desc = NULL;
-	char                            *buffer;
+	char                            *buffer = NULL;
 	acpi_status                     status = AE_OK;
 	acpi_integer                    index;
 	acpi_size                       length;
@@ -193,34 +193,63 @@ acpi_ex_opcode_3A_1T_1R (
 		 * If the index is beyond the length of the String/Buffer, or if the
 		 * requested length is zero, return a zero-length String/Buffer
 		 */
-		if ((index < operand[0]->string.length) &&
-			(length > 0)) {
-			/* Truncate request if larger than the actual String/Buffer */
+		if (index >= operand[0]->string.length) {
+			length = 0;
+		}
 
-			if ((index + length) >
-				operand[0]->string.length) {
-				length = (acpi_size) operand[0]->string.length -
-						 (acpi_size) index;
-			}
+		/* Truncate request if larger than the actual String/Buffer */
 
-			/* Allocate a new buffer for the String/Buffer */
+		else if ((index + length) > operand[0]->string.length) {
+			length = (acpi_size) operand[0]->string.length -
+					 (acpi_size) index;
+		}
+
+		/* Strings always have a sub-pointer, not so for buffers */
+
+		switch (ACPI_GET_OBJECT_TYPE (operand[0])) {
+		case ACPI_TYPE_STRING:
+
+			/* Always allocate a new buffer for the String */
 
 			buffer = ACPI_MEM_CALLOCATE ((acpi_size) length + 1);
 			if (!buffer) {
 				status = AE_NO_MEMORY;
 				goto cleanup;
 			}
+			break;
 
+		case ACPI_TYPE_BUFFER:
+
+			/* If the requested length is zero, don't allocate a buffer */
+
+			if (length > 0) {
+				/* Allocate a new buffer for the Buffer */
+
+				buffer = ACPI_MEM_CALLOCATE (length);
+				if (!buffer) {
+					status = AE_NO_MEMORY;
+					goto cleanup;
+				}
+			}
+			break;
+
+		default:                        /* Should not happen */
+
+			status = AE_AML_OPERAND_TYPE;
+			goto cleanup;
+		}
+
+		if (length > 0) {
 			/* Copy the portion requested */
 
 			ACPI_MEMCPY (buffer, operand[0]->string.pointer + index,
 					  length);
-
-			/* Set the length of the new String/Buffer */
-
-			return_desc->string.pointer = buffer;
-			return_desc->string.length = (u32) length;
 		}
+
+		/* Set the length of the new String/Buffer */
+
+		return_desc->string.pointer = buffer;
+		return_desc->string.length = (u32) length;
 
 		/* Mark buffer initialized */
 
@@ -244,13 +273,13 @@ cleanup:
 
 	/* Delete return object on error */
 
-	if (ACPI_FAILURE (status)) {
+	if (ACPI_FAILURE (status) || walk_state->result_obj) {
 		acpi_ut_remove_reference (return_desc);
 	}
 
 	/* Set the return object and exit */
 
-	if (!walk_state->result_obj) {
+	else {
 		walk_state->result_obj = return_desc;
 	}
 	return_ACPI_STATUS (status);

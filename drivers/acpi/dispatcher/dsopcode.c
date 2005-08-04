@@ -119,14 +119,15 @@ acpi_ds_execute_arguments (
 
 	walk_state = acpi_ds_create_walk_state (0, NULL, NULL, NULL);
 	if (!walk_state) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		status = AE_NO_MEMORY;
+		goto cleanup;
 	}
 
 	status = acpi_ds_init_aml_walk (walk_state, op, NULL, aml_start,
 			  aml_length, NULL, 1);
 	if (ACPI_FAILURE (status)) {
 		acpi_ds_delete_walk_state (walk_state);
-		return_ACPI_STATUS (status);
+		goto cleanup;
 	}
 
 	/* Mark this parse as a deferred opcode */
@@ -138,8 +139,7 @@ acpi_ds_execute_arguments (
 
 	status = acpi_ps_parse_aml (walk_state);
 	if (ACPI_FAILURE (status)) {
-		acpi_ps_delete_parse_tree (op);
-		return_ACPI_STATUS (status);
+		goto cleanup;
 	}
 
 	/* Get and init the Op created above */
@@ -160,7 +160,8 @@ acpi_ds_execute_arguments (
 
 	walk_state = acpi_ds_create_walk_state (0, NULL, NULL, NULL);
 	if (!walk_state) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		status = AE_NO_MEMORY;
+		goto cleanup;
 	}
 
 	/* Execute the opcode and arguments */
@@ -169,13 +170,15 @@ acpi_ds_execute_arguments (
 			  aml_length, NULL, 3);
 	if (ACPI_FAILURE (status)) {
 		acpi_ds_delete_walk_state (walk_state);
-		return_ACPI_STATUS (status);
+		goto cleanup;
 	}
 
 	/* Mark this execution as a deferred opcode */
 
 	walk_state->deferred_node = node;
 	status = acpi_ps_parse_aml (walk_state);
+
+cleanup:
 	acpi_ps_delete_parse_tree (op);
 	return_ACPI_STATUS (status);
 }

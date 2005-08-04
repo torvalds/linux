@@ -367,7 +367,7 @@ acpi_ex_convert_to_ascii (
 
 		/* hex_length: 2 ascii hex chars per data byte */
 
-		hex_length = ACPI_MUL_2 (data_width);
+		hex_length = (acpi_native_uint) ACPI_MUL_2 (data_width);
 		for (i = 0, j = (hex_length-1); i < hex_length; i++, j--) {
 			/* Get one hex digit, most significant digits first */
 

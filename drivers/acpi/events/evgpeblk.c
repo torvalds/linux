@@ -66,7 +66,7 @@ acpi_ev_match_prw_and_gpe (
 
 static struct acpi_gpe_xrupt_info *
 acpi_ev_get_gpe_xrupt_block (
-	u32                             interrupt_level);
+	u32                             interrupt_number);
 
 static acpi_status
 acpi_ev_delete_gpe_xrupt (
@@ -75,7 +75,7 @@ acpi_ev_delete_gpe_xrupt (
 static acpi_status
 acpi_ev_install_gpe_block (
 	struct acpi_gpe_block_info      *gpe_block,
-	u32                             interrupt_level);
+	u32                             interrupt_number);
 
 static acpi_status
 acpi_ev_create_gpe_info_blocks (
@@ -138,7 +138,6 @@ acpi_ev_valid_gpe_event (
  * FUNCTION:    acpi_ev_walk_gpe_list
  *
  * PARAMETERS:  gpe_walk_callback   - Routine called for each GPE block
- *              Flags               - ACPI_NOT_ISR or ACPI_ISR
  *
  * RETURN:      Status
  *
@@ -148,18 +147,18 @@ acpi_ev_valid_gpe_event (
 
 acpi_status
 acpi_ev_walk_gpe_list (
-	ACPI_GPE_CALLBACK       gpe_walk_callback,
-	u32                             flags)
+	ACPI_GPE_CALLBACK       gpe_walk_callback)
 {
 	struct acpi_gpe_block_info      *gpe_block;
 	struct acpi_gpe_xrupt_info      *gpe_xrupt_info;
 	acpi_status                     status = AE_OK;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("ev_walk_gpe_list");
 
 
-	acpi_os_acquire_lock (acpi_gbl_gpe_lock, flags);
+	flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 
 	/* Walk the interrupt level descriptor list */
 
@@ -482,7 +481,7 @@ cleanup:
  *
  * FUNCTION:    acpi_ev_get_gpe_xrupt_block
  *
- * PARAMETERS:  interrupt_level     - Interrupt for a GPE block
+ * PARAMETERS:  interrupt_number     - Interrupt for a GPE block
  *
  * RETURN:      A GPE interrupt block
  *
@@ -495,11 +494,12 @@ cleanup:
 
 static struct acpi_gpe_xrupt_info *
 acpi_ev_get_gpe_xrupt_block (
-	u32                             interrupt_level)
+	u32                             interrupt_number)
 {
 	struct acpi_gpe_xrupt_info      *next_gpe_xrupt;
 	struct acpi_gpe_xrupt_info      *gpe_xrupt;
 	acpi_status                     status;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("ev_get_gpe_xrupt_block");
@@ -509,7 +509,7 @@ acpi_ev_get_gpe_xrupt_block (
 
 	next_gpe_xrupt = acpi_gbl_gpe_xrupt_list_head;
 	while (next_gpe_xrupt) {
-		if (next_gpe_xrupt->interrupt_level == interrupt_level) {
+		if (next_gpe_xrupt->interrupt_number == interrupt_number) {
 			return_PTR (next_gpe_xrupt);
 		}
 
@@ -523,11 +523,11 @@ acpi_ev_get_gpe_xrupt_block (
 		return_PTR (NULL);
 	}
 
-	gpe_xrupt->interrupt_level = interrupt_level;
+	gpe_xrupt->interrupt_number = interrupt_number;
 
 	/* Install new interrupt descriptor with spin lock */
 
-	acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 	if (acpi_gbl_gpe_xrupt_list_head) {
 		next_gpe_xrupt = acpi_gbl_gpe_xrupt_list_head;
 		while (next_gpe_xrupt->next) {
@@ -540,17 +540,17 @@ acpi_ev_get_gpe_xrupt_block (
 	else {
 		acpi_gbl_gpe_xrupt_list_head = gpe_xrupt;
 	}
-	acpi_os_release_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	acpi_os_release_lock (acpi_gbl_gpe_lock, flags);
 
 	/* Install new interrupt handler if not SCI_INT */
 
-	if (interrupt_level != acpi_gbl_FADT->sci_int) {
-		status = acpi_os_install_interrupt_handler (interrupt_level,
+	if (interrupt_number != acpi_gbl_FADT->sci_int) {
+		status = acpi_os_install_interrupt_handler (interrupt_number,
 				 acpi_ev_gpe_xrupt_handler, gpe_xrupt);
 		if (ACPI_FAILURE (status)) {
 			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
 				"Could not install GPE interrupt handler at level 0x%X\n",
-				interrupt_level));
+				interrupt_number));
 			return_PTR (NULL);
 		}
 	}
@@ -577,6 +577,7 @@ acpi_ev_delete_gpe_xrupt (
 	struct acpi_gpe_xrupt_info      *gpe_xrupt)
 {
 	acpi_status                     status;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("ev_delete_gpe_xrupt");
@@ -584,14 +585,14 @@ acpi_ev_delete_gpe_xrupt (
 
 	/* We never want to remove the SCI interrupt handler */
 
-	if (gpe_xrupt->interrupt_level == acpi_gbl_FADT->sci_int) {
+	if (gpe_xrupt->interrupt_number == acpi_gbl_FADT->sci_int) {
 		gpe_xrupt->gpe_block_list_head = NULL;
 		return_ACPI_STATUS (AE_OK);
 	}
 
 	/* Disable this interrupt */
 
-	status = acpi_os_remove_interrupt_handler (gpe_xrupt->interrupt_level,
+	status = acpi_os_remove_interrupt_handler (gpe_xrupt->interrupt_number,
 			   acpi_ev_gpe_xrupt_handler);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
@@ -599,7 +600,7 @@ acpi_ev_delete_gpe_xrupt (
 
 	/* Unlink the interrupt block with lock */
 
-	acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 	if (gpe_xrupt->previous) {
 		gpe_xrupt->previous->next = gpe_xrupt->next;
 	}
@@ -607,7 +608,7 @@ acpi_ev_delete_gpe_xrupt (
 	if (gpe_xrupt->next) {
 		gpe_xrupt->next->previous = gpe_xrupt->previous;
 	}
-	acpi_os_release_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	acpi_os_release_lock (acpi_gbl_gpe_lock, flags);
 
 	/* Free the block */
 
@@ -621,7 +622,7 @@ acpi_ev_delete_gpe_xrupt (
  * FUNCTION:    acpi_ev_install_gpe_block
  *
  * PARAMETERS:  gpe_block       - New GPE block
- *              interrupt_level - Level to be associated with this GPE block
+ *              interrupt_number - Xrupt to be associated with this GPE block
  *
  * RETURN:      Status
  *
@@ -632,11 +633,12 @@ acpi_ev_delete_gpe_xrupt (
 static acpi_status
 acpi_ev_install_gpe_block (
 	struct acpi_gpe_block_info      *gpe_block,
-	u32                             interrupt_level)
+	u32                             interrupt_number)
 {
 	struct acpi_gpe_block_info      *next_gpe_block;
 	struct acpi_gpe_xrupt_info      *gpe_xrupt_block;
 	acpi_status                     status;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("ev_install_gpe_block");
@@ -647,7 +649,7 @@ acpi_ev_install_gpe_block (
 		return_ACPI_STATUS (status);
 	}
 
-	gpe_xrupt_block = acpi_ev_get_gpe_xrupt_block (interrupt_level);
+	gpe_xrupt_block = acpi_ev_get_gpe_xrupt_block (interrupt_number);
 	if (!gpe_xrupt_block) {
 		status = AE_NO_MEMORY;
 		goto unlock_and_exit;
@@ -655,7 +657,7 @@ acpi_ev_install_gpe_block (
 
 	/* Install the new block at the end of the list with lock */
 
-	acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 	if (gpe_xrupt_block->gpe_block_list_head) {
 		next_gpe_block = gpe_xrupt_block->gpe_block_list_head;
 		while (next_gpe_block->next) {
@@ -670,7 +672,7 @@ acpi_ev_install_gpe_block (
 	}
 
 	gpe_block->xrupt_block = gpe_xrupt_block;
-	acpi_os_release_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	acpi_os_release_lock (acpi_gbl_gpe_lock, flags);
 
 unlock_and_exit:
 	status = acpi_ut_release_mutex (ACPI_MTX_EVENTS);
@@ -695,6 +697,7 @@ acpi_ev_delete_gpe_block (
 	struct acpi_gpe_block_info      *gpe_block)
 {
 	acpi_status                     status;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("ev_install_gpe_block");
@@ -720,7 +723,7 @@ acpi_ev_delete_gpe_block (
 	else {
 		/* Remove the block on this interrupt with lock */
 
-		acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+		flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 		if (gpe_block->previous) {
 			gpe_block->previous->next = gpe_block->next;
 		}
@@ -731,7 +734,7 @@ acpi_ev_delete_gpe_block (
 		if (gpe_block->next) {
 			gpe_block->next->previous = gpe_block->previous;
 		}
-		acpi_os_release_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+		acpi_os_release_lock (acpi_gbl_gpe_lock, flags);
 	}
 
 	/* Free the gpe_block */
@@ -887,7 +890,7 @@ error_exit:
  *              gpe_block_address   - Address and space_iD
  *              register_count      - Number of GPE register pairs in the block
  *              gpe_block_base_number - Starting GPE number for the block
- *              interrupt_level     - H/W interrupt for the block
+ *              interrupt_number    - H/W interrupt for the block
  *              return_gpe_block    - Where the new block descriptor is returned
  *
  * RETURN:      Status
@@ -902,7 +905,7 @@ acpi_ev_create_gpe_block (
 	struct acpi_generic_address     *gpe_block_address,
 	u32                             register_count,
 	u8                              gpe_block_base_number,
-	u32                             interrupt_level,
+	u32                             interrupt_number,
 	struct acpi_gpe_block_info      **return_gpe_block)
 {
 	struct acpi_gpe_block_info      *gpe_block;
@@ -948,7 +951,7 @@ acpi_ev_create_gpe_block (
 
 	/* Install the new block in the global list(s) */
 
-	status = acpi_ev_install_gpe_block (gpe_block, interrupt_level);
+	status = acpi_ev_install_gpe_block (gpe_block, interrupt_number);
 	if (ACPI_FAILURE (status)) {
 		ACPI_MEM_FREE (gpe_block);
 		return_ACPI_STATUS (status);
@@ -1013,7 +1016,7 @@ acpi_ev_create_gpe_block (
 				((gpe_block->register_count * ACPI_GPE_REGISTER_WIDTH) -1)),
 		gpe_device->name.ascii,
 		gpe_block->register_count,
-		interrupt_level));
+		interrupt_number));
 
 	/* Enable all valid GPEs found above */
 

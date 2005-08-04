@@ -122,8 +122,7 @@ acpi_ev_valid_gpe_event (
 
 acpi_status
 acpi_ev_walk_gpe_list (
-	ACPI_GPE_CALLBACK       gpe_walk_callback,
-	u32                             flags);
+	ACPI_GPE_CALLBACK       gpe_walk_callback);
 
 acpi_status
 acpi_ev_delete_gpe_handlers (
@@ -136,7 +135,7 @@ acpi_ev_create_gpe_block (
 	struct acpi_generic_address     *gpe_block_address,
 	u32                             register_count,
 	u8                              gpe_block_base_number,
-	u32                             interrupt_level,
+	u32                             interrupt_number,
 	struct acpi_gpe_block_info      **return_gpe_block);
 
 acpi_status

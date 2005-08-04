@@ -62,6 +62,17 @@
 
 #define ACPI_MACHINE_WIDTH  BITS_PER_LONG
 
+/* Type(s) for the OSL */
+
+#ifdef ACPI_USE_LOCAL_CACHE
+#define acpi_cache_t	struct acpi_memory_list
+#else
+#include <linux/slab.h>
+#define acpi_cache_t	kmem_cache_t
+#endif
+
+
+
 #else /* !__KERNEL__ */
 
 #include <stdarg.h>

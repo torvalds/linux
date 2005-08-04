@@ -61,6 +61,67 @@ acpi_tb_handle_to_object (
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_tb_is_table_installed
+ *
+ * PARAMETERS:  new_table_desc      - Descriptor for new table being installed
+ *
+ * RETURN:      Status - AE_ALREADY_EXISTS if the table is already installed
+ *
+ * DESCRIPTION: Determine if an ACPI table is already installed
+ *
+ * MUTEX:       Table data structures should be locked
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_tb_is_table_installed (
+	struct acpi_table_desc          *new_table_desc)
+{
+	struct acpi_table_desc          *table_desc;
+
+
+	ACPI_FUNCTION_TRACE ("tb_is_table_installed");
+
+
+	/* Get the list descriptor and first table descriptor */
+
+	table_desc = acpi_gbl_table_lists[new_table_desc->type].next;
+
+	/* Examine all installed tables of this type */
+
+	while (table_desc) {
+		/* Compare Revision and oem_table_id */
+
+		if ((table_desc->loaded_into_namespace) &&
+			(table_desc->pointer->revision ==
+					new_table_desc->pointer->revision) &&
+			(!ACPI_MEMCMP (table_desc->pointer->oem_table_id,
+					new_table_desc->pointer->oem_table_id, 8))) {
+			/* This table is already installed */
+
+			ACPI_DEBUG_PRINT ((ACPI_DB_TABLES,
+				"Table [%4.4s] already installed: Rev %X oem_table_id [%8.8s]\n",
+				new_table_desc->pointer->signature,
+				new_table_desc->pointer->revision,
+				new_table_desc->pointer->oem_table_id));
+
+			new_table_desc->owner_id    = table_desc->owner_id;
+			new_table_desc->installed_desc = table_desc;
+
+			return_ACPI_STATUS (AE_ALREADY_EXISTS);
+		}
+
+		/* Get next table on the list */
+
+		table_desc = table_desc->next;
+	}
+
+	return_ACPI_STATUS (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_tb_validate_table_header
  *
  * PARAMETERS:  table_header        - Logical pointer to the table
@@ -157,7 +218,7 @@ acpi_tb_verify_table_checksum (
 
 	/* Compute the checksum on the table */
 
-	checksum = acpi_tb_checksum (table_header, table_header->length);
+	checksum = acpi_tb_generate_checksum (table_header, table_header->length);
 
 	/* Return the appropriate exception */
 
@@ -175,7 +236,7 @@ acpi_tb_verify_table_checksum (
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_tb_checksum
+ * FUNCTION:    acpi_tb_generate_checksum
  *
  * PARAMETERS:  Buffer              - Buffer to checksum
  *              Length              - Size of the buffer
@@ -187,7 +248,7 @@ acpi_tb_verify_table_checksum (
  ******************************************************************************/
 
 u8
-acpi_tb_checksum (
+acpi_tb_generate_checksum (
 	void                            *buffer,
 	u32                             length)
 {

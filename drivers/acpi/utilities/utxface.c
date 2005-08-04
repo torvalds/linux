@@ -46,8 +46,6 @@
 #include <acpi/acpi.h>
 #include <acpi/acevents.h>
 #include <acpi/acnamesp.h>
-#include <acpi/acparser.h>
-#include <acpi/acdispat.h>
 #include <acpi/acdebug.h>
 
 #define _COMPONENT          ACPI_UTILITIES
@@ -79,11 +77,6 @@ acpi_initialize_subsystem (
 
 	ACPI_DEBUG_EXEC (acpi_ut_init_stack_ptr_trace ());
 
-
-	/* Initialize all globals used by the subsystem */
-
-	acpi_ut_init_globals ();
-
 	/* Initialize the OS-Dependent layer */
 
 	status = acpi_os_initialize ();
@@ -92,6 +85,10 @@ acpi_initialize_subsystem (
 			acpi_format_exception (status)));
 		return_ACPI_STATUS (status);
 	}
+
+	/* Initialize all globals used by the subsystem */
+
+	acpi_ut_init_globals ();
 
 	/* Create the default mutex objects */
 
@@ -522,13 +519,9 @@ acpi_purge_cached_objects (
 {
 	ACPI_FUNCTION_TRACE ("acpi_purge_cached_objects");
 
-
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-	acpi_ut_delete_generic_state_cache ();
-	acpi_ut_delete_object_cache ();
-	acpi_ds_delete_walk_state_cache ();
-	acpi_ps_delete_parse_cache ();
-#endif
-
+	(void) acpi_os_purge_cache (acpi_gbl_state_cache);
+	(void) acpi_os_purge_cache (acpi_gbl_operand_cache);
+	(void) acpi_os_purge_cache (acpi_gbl_ps_node_cache);
+	(void) acpi_os_purge_cache (acpi_gbl_ps_node_ext_cache);
 	return_ACPI_STATUS (AE_OK);
 }

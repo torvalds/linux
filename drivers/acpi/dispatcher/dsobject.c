@@ -547,6 +547,9 @@ acpi_ds_init_object_from_op (
 		case AML_TYPE_LITERAL:
 
 			obj_desc->integer.value = op->common.value.integer;
+#ifndef ACPI_NO_METHOD_EXECUTION
+			acpi_ex_truncate_for32bit_table (obj_desc);
+#endif
 			break;
 
 

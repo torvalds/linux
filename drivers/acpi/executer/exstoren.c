@@ -265,10 +265,6 @@ acpi_ex_store_object_to_object (
 
 	case ACPI_TYPE_BUFFER:
 
-		/*
-		 * Note: There is different store behavior depending on the original
-		 * source type
-		 */
 		status = acpi_ex_store_buffer_to_buffer (actual_src_desc, dest_desc);
 		break;
 

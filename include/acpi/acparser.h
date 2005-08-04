@@ -63,6 +63,7 @@
 #define ACPI_PARSE_MODE_MASK            0x0030
 
 #define ACPI_PARSE_DEFERRED_OP          0x0100
+#define ACPI_PARSE_DISASSEMBLE          0x0200
 
 
 /******************************************************************************
@@ -76,12 +77,7 @@
  * psxface - Parser external interfaces
  */
 acpi_status
-acpi_psx_load_table (
-	u8                              *pcode_addr,
-	u32                             pcode_length);
-
-acpi_status
-acpi_psx_execute (
+acpi_ps_execute_method (
 	struct acpi_parameter_info      *info);
 
 
@@ -157,6 +153,25 @@ acpi_ps_get_opcode_size (
 u16
 acpi_ps_peek_opcode (
 	struct acpi_parse_state         *state);
+
+acpi_status
+acpi_ps_complete_this_op (
+	struct acpi_walk_state          *walk_state,
+	union acpi_parse_object         *op);
+
+acpi_status
+acpi_ps_next_parse_state (
+	struct acpi_walk_state          *walk_state,
+	union acpi_parse_object         *op,
+	acpi_status                     callback_status);
+
+
+/*
+ * psloop - main parse loop
+ */
+acpi_status
+acpi_ps_parse_loop (
+	struct acpi_walk_state          *walk_state);
 
 
 /*
@@ -290,12 +305,6 @@ void
 acpi_ps_set_name(
 	union acpi_parse_object         *op,
 	u32                             name);
-
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-void
-acpi_ps_delete_parse_cache (
-	void);
-#endif
 
 
 /*
