@@ -1,5 +1,5 @@
 /*
- * $Id: mtdchar.c,v 1.73 2005/07/04 17:36:41 gleixner Exp $
+ * $Id: mtdchar.c,v 1.74 2005/08/04 01:05:48 tpoynor Exp $
  *
  * Character-device access to raw MTD devices.
  *
@@ -69,26 +69,23 @@ static loff_t mtd_lseek (struct file *file, loff_t offset, int orig)
 	switch (orig) {
 	case 0:
 		/* SEEK_SET */
-		file->f_pos = offset;
 		break;
 	case 1:
 		/* SEEK_CUR */
-		file->f_pos += offset;
+		offset += file->f_pos;
 		break;
 	case 2:
 		/* SEEK_END */
-		file->f_pos =mtd->size + offset;
+		offset += mtd->size;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (file->f_pos < 0)
-		file->f_pos = 0;
-	else if (file->f_pos >= mtd->size)
-		file->f_pos = mtd->size - 1;
+	if (offset >= 0 && offset < mtd->size)
+		return file->f_pos = offset;
 
-	return file->f_pos;
+	return -EINVAL;
 }
 
 
