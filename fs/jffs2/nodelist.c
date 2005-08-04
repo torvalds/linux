@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.107 2005/08/03 09:26:46 dedekind Exp $
+ * $Id: nodelist.c,v 1.108 2005/08/04 11:39:59 dedekind Exp $
  *
  */
 
@@ -412,7 +412,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 
 	/* Calculate how many bytes were already checked */
 	ofs = ref_offset(ref) + sizeof(struct jffs2_raw_inode);
-	len = ofs - (ofs & (PAGE_CACHE_SIZE - 1));
+	len = ofs & (c->wbuf_pagesize - 1);
 	len = c->wbuf_pagesize - len;
 
 	if (len >= tn->csize) {

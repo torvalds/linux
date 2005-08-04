@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.137 2005/08/03 09:26:46 dedekind Exp $
+ * $Id: readinode.c,v 1.138 2005/08/03 09:28:06 dedekind Exp $
  *
  */
 
@@ -278,7 +278,7 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 
 			/* If we actually calculated the whole data CRC
 			 * and it is wrong, drop the node. */
-			if (len == csize && unlikely(tn->partial_crc != je32_to_cpu(rd->data_crc))) {
+			if (len >= csize && unlikely(tn->partial_crc != je32_to_cpu(rd->data_crc))) {
 				JFFS2_NOTICE("wrong data CRC in data node at 0x%08x: read %#08x, calculated %#08x.\n",
 					ref_offset(ref), tn->partial_crc, je32_to_cpu(rd->data_crc));
 				goto free_out;
