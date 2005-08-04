@@ -10374,28 +10374,256 @@ static int ipw_config(struct ipw_priv *priv)
 	return -EIO;
 }
 
-static const struct ieee80211_geo ipw_geo = {
-	"---",
-	.bg_channels = 11,
-	.bg = {{2412, 1}, {2417, 2}, {2422, 3},
-	       {2427, 4}, {2432, 5}, {2437, 6},
-	       {2442, 7}, {2447, 8}, {2452, 9},
-	       {2457, 10}, {2462, 11}},
-	.a_channels = 8,
-	.a = {{5180, 36},
-	      {5200, 40},
-	      {5220, 44},
-	      {5240, 48},
-	      {5260, 52, IEEE80211_CH_PASSIVE_ONLY},
-	      {5280, 56, IEEE80211_CH_PASSIVE_ONLY},
-	      {5300, 60, IEEE80211_CH_PASSIVE_ONLY},
-	      {5320, 64, IEEE80211_CH_PASSIVE_ONLY}},
+/*
+ * NOTE:
+ *
+ * These tables have been tested in conjunction with the
+ * Intel PRO/Wireless 2200BG and 2915ABG Network Connection Adapters.
+ *
+ * Altering this values, using it on other hardware, or in geographies
+ * not intended for resale of the above mentioned Intel adapters has
+ * not been tested.
+ *
+ */
+static const struct ieee80211_geo ipw_geos[] = {
+	{			/* Restricted */
+	 "---",
+	 .bg_channels = 11,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}},
+	 },
+
+	{			/* Custom US/Canada */
+	 "ZZF",
+	 .bg_channels = 11,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}},
+	 .a_channels = 8,
+	 .a = {{5180, 36},
+	       {5200, 40},
+	       {5220, 44},
+	       {5240, 48},
+	       {5260, 52, IEEE80211_CH_PASSIVE_ONLY},
+	       {5280, 56, IEEE80211_CH_PASSIVE_ONLY},
+	       {5300, 60, IEEE80211_CH_PASSIVE_ONLY},
+	       {5320, 64, IEEE80211_CH_PASSIVE_ONLY}},
+	 },
+
+	{			/* Rest of World */
+	 "ZZD",
+	 .bg_channels = 13,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}, {2467, 12},
+		{2472, 13}},
+	 },
+
+	{			/* Custom USA & Europe & High */
+	 "ZZA",
+	 .bg_channels = 11,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}},
+	 .a_channels = 13,
+	 .a = {{5180, 36},
+	       {5200, 40},
+	       {5220, 44},
+	       {5240, 48},
+	       {5260, 52, IEEE80211_CH_PASSIVE_ONLY},
+	       {5280, 56, IEEE80211_CH_PASSIVE_ONLY},
+	       {5300, 60, IEEE80211_CH_PASSIVE_ONLY},
+	       {5320, 64, IEEE80211_CH_PASSIVE_ONLY},
+	       {5745, 149},
+	       {5765, 153},
+	       {5785, 157},
+	       {5805, 161},
+	       {5825, 165}},
+	 },
+
+	{			/* Custom NA & Europe */
+	 "ZZB",
+	 .bg_channels = 11,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}},
+	 .a_channels = 13,
+	 .a = {{5180, 36},
+	       {5200, 40},
+	       {5220, 44},
+	       {5240, 48},
+	       {5260, 52, IEEE80211_CH_PASSIVE_ONLY},
+	       {5280, 56, IEEE80211_CH_PASSIVE_ONLY},
+	       {5300, 60, IEEE80211_CH_PASSIVE_ONLY},
+	       {5320, 64, IEEE80211_CH_PASSIVE_ONLY},
+	       {5745, 149, IEEE80211_CH_PASSIVE_ONLY},
+	       {5765, 153, IEEE80211_CH_PASSIVE_ONLY},
+	       {5785, 157, IEEE80211_CH_PASSIVE_ONLY},
+	       {5805, 161, IEEE80211_CH_PASSIVE_ONLY},
+	       {5825, 165, IEEE80211_CH_PASSIVE_ONLY}},
+	 },
+
+	{			/* Custom Japan */
+	 "ZZC",
+	 .bg_channels = 11,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}},
+	 .a_channels = 4,
+	 .a = {{5170, 34}, {5190, 38},
+	       {5210, 42}, {5230, 46}},
+	 },
+
+	{			/* Custom */
+	 "ZZM",
+	 .bg_channels = 11,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}},
+	 },
+
+	{			/* Europe */
+	 "ZZE",
+	 .bg_channels = 13,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}, {2467, 12},
+		{2472, 13}},
+	 .a_channels = 19,
+	 .a = {{5180, 36},
+	       {5200, 40},
+	       {5220, 44},
+	       {5240, 48},
+	       {5260, 52, IEEE80211_CH_PASSIVE_ONLY},
+	       {5280, 56, IEEE80211_CH_PASSIVE_ONLY},
+	       {5300, 60, IEEE80211_CH_PASSIVE_ONLY},
+	       {5320, 64, IEEE80211_CH_PASSIVE_ONLY},
+	       {5500, 100, IEEE80211_CH_PASSIVE_ONLY},
+	       {5520, 104, IEEE80211_CH_PASSIVE_ONLY},
+	       {5540, 108, IEEE80211_CH_PASSIVE_ONLY},
+	       {5560, 112, IEEE80211_CH_PASSIVE_ONLY},
+	       {5580, 116, IEEE80211_CH_PASSIVE_ONLY},
+	       {5600, 120, IEEE80211_CH_PASSIVE_ONLY},
+	       {5620, 124, IEEE80211_CH_PASSIVE_ONLY},
+	       {5640, 128, IEEE80211_CH_PASSIVE_ONLY},
+	       {5660, 132, IEEE80211_CH_PASSIVE_ONLY},
+	       {5680, 136, IEEE80211_CH_PASSIVE_ONLY},
+	       {5700, 140, IEEE80211_CH_PASSIVE_ONLY}},
+	 },
+
+	{			/* Custom Japan */
+	 "ZZJ",
+	 .bg_channels = 14,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}, {2467, 12},
+		{2472, 13}, {2484, 14, IEEE80211_CH_B_ONLY}},
+	 .a_channels = 4,
+	 .a = {{5170, 34}, {5190, 38},
+	       {5210, 42}, {5230, 46}},
+	 },
+
+	{			/* High Band */
+	 "ZZH",
+	 .bg_channels = 13,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11},
+		{2467, 12, IEEE80211_CH_PASSIVE_ONLY},
+		{2472, 13, IEEE80211_CH_PASSIVE_ONLY}},
+	 .a_channels = 4,
+	 .a = {{5745, 149}, {5765, 153},
+	       {5785, 157}, {5805, 161}},
+	 },
+
+	{			/* Custom Europe */
+	 "ZZG",
+	 .bg_channels = 13,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11},
+		{2467, 12}, {2472, 13}},
+	 .a_channels = 4,
+	 .a = {{5180, 36}, {5200, 40},
+	       {5220, 44}, {5240, 48}},
+	 },
+
+	{			/* Europe */
+	 "ZZK",
+	 .bg_channels = 13,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11},
+		{2467, 12, IEEE80211_CH_PASSIVE_ONLY},
+		{2472, 13, IEEE80211_CH_PASSIVE_ONLY}},
+	 .a_channels = 24,
+	 .a = {{5180, 36, IEEE80211_CH_PASSIVE_ONLY},
+	       {5200, 40, IEEE80211_CH_PASSIVE_ONLY},
+	       {5220, 44, IEEE80211_CH_PASSIVE_ONLY},
+	       {5240, 48, IEEE80211_CH_PASSIVE_ONLY},
+	       {5260, 52, IEEE80211_CH_PASSIVE_ONLY},
+	       {5280, 56, IEEE80211_CH_PASSIVE_ONLY},
+	       {5300, 60, IEEE80211_CH_PASSIVE_ONLY},
+	       {5320, 64, IEEE80211_CH_PASSIVE_ONLY},
+	       {5500, 100, IEEE80211_CH_PASSIVE_ONLY},
+	       {5520, 104, IEEE80211_CH_PASSIVE_ONLY},
+	       {5540, 108, IEEE80211_CH_PASSIVE_ONLY},
+	       {5560, 112, IEEE80211_CH_PASSIVE_ONLY},
+	       {5580, 116, IEEE80211_CH_PASSIVE_ONLY},
+	       {5600, 120, IEEE80211_CH_PASSIVE_ONLY},
+	       {5620, 124, IEEE80211_CH_PASSIVE_ONLY},
+	       {5640, 128, IEEE80211_CH_PASSIVE_ONLY},
+	       {5660, 132, IEEE80211_CH_PASSIVE_ONLY},
+	       {5680, 136, IEEE80211_CH_PASSIVE_ONLY},
+	       {5700, 140, IEEE80211_CH_PASSIVE_ONLY},
+	       {5745, 149, IEEE80211_CH_PASSIVE_ONLY},
+	       {5765, 153, IEEE80211_CH_PASSIVE_ONLY},
+	       {5785, 157, IEEE80211_CH_PASSIVE_ONLY},
+	       {5805, 161, IEEE80211_CH_PASSIVE_ONLY},
+	       {5825, 165, IEEE80211_CH_PASSIVE_ONLY}},
+	 },
+
+	{			/* Europe */
+	 "ZZL",
+	 .bg_channels = 11,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}},
+	 .a_channels = 13,
+	 .a = {{5180, 36, IEEE80211_CH_PASSIVE_ONLY},
+	       {5200, 40, IEEE80211_CH_PASSIVE_ONLY},
+	       {5220, 44, IEEE80211_CH_PASSIVE_ONLY},
+	       {5240, 48, IEEE80211_CH_PASSIVE_ONLY},
+	       {5260, 52, IEEE80211_CH_PASSIVE_ONLY},
+	       {5280, 56, IEEE80211_CH_PASSIVE_ONLY},
+	       {5300, 60, IEEE80211_CH_PASSIVE_ONLY},
+	       {5320, 64, IEEE80211_CH_PASSIVE_ONLY},
+	       {5745, 149, IEEE80211_CH_PASSIVE_ONLY},
+	       {5765, 153, IEEE80211_CH_PASSIVE_ONLY},
+	       {5785, 157, IEEE80211_CH_PASSIVE_ONLY},
+	       {5805, 161, IEEE80211_CH_PASSIVE_ONLY},
+	       {5825, 165, IEEE80211_CH_PASSIVE_ONLY}},
+	 }
 };
 
 #define MAX_HW_RESTARTS 5
 static int ipw_up(struct ipw_priv *priv)
 {
-	int rc, i;
+	int rc, i, j;
 
 	if (priv->status & STATUS_EXIT_PENDING)
 		return -EIO;
@@ -10414,9 +10642,20 @@ static int ipw_up(struct ipw_priv *priv)
 			eeprom_parse_mac(priv, priv->mac_addr);
 		memcpy(priv->net_dev->dev_addr, priv->mac_addr, ETH_ALEN);
 
-		memcpy(priv->country, &priv->eeprom[EEPROM_COUNTRY_CODE], 3);
-		priv->country[3] = '\0';
-		ieee80211_set_geo(priv->ieee, &ipw_geo);
+		for (j = 0; j < ARRAY_SIZE(ipw_geos); j++) {
+			if (!memcmp(&priv->eeprom[EEPROM_COUNTRY_CODE],
+				    ipw_geos[j].name, 3))
+				break;
+		}
+		if (j == ARRAY_SIZE(ipw_geos))
+			j = 0;
+		if (ieee80211_set_geo(priv->ieee, &ipw_geos[j])) {
+			IPW_WARNING("Could not set geography.");
+			return 0;
+		}
+
+		IPW_DEBUG_INFO("Geography %03d [%s] detected.\n",
+			       j, priv->ieee->geo.name);
 
 		if (priv->status & STATUS_RF_KILL_SW) {
 			IPW_WARNING("Radio disabled by module parameter.\n");
