@@ -437,8 +437,8 @@ int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
 {
 	struct dentry *dir = kobj->dentry;
 	struct dentry *victim;
-	struct sysfs_dirent *sd;
-	umode_t umode = (mode & S_IALLUGO) | S_IFREG;
+	struct inode * inode;
+	struct iattr newattrs;
 	int res = -ENOENT;
 
 	down(&dir->d_inode->i_sem);
@@ -446,13 +446,15 @@ int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
 	if (!IS_ERR(victim)) {
 		if (victim->d_inode &&
 		    (victim->d_parent->d_inode == dir->d_inode)) {
-			sd = victim->d_fsdata;
-			attr->mode = mode;
-			sd->s_mode = umode;
-			victim->d_inode->i_mode = umode;
-			dput(victim);
-			res = 0;
+			inode = victim->d_inode;
+			down(&inode->i_sem);
+			newattrs.ia_mode = (mode & S_IALLUGO) |
+						(inode->i_mode & ~S_IALLUGO);
+			newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
+			res = notify_change(victim, &newattrs);
+			up(&inode->i_sem);
 		}
+		dput(victim);
 	}
 	up(&dir->d_inode->i_sem);
 

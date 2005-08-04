@@ -600,9 +600,10 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 			ipoib_mcast_send(dev, (union ib_gid *) (phdr->hwaddr + 4), skb);
 		} else {
-			/* unicast GID -- should be ARP reply */
+			/* unicast GID -- should be ARP or RARP reply */
 
-			if (be16_to_cpup((u16 *) skb->data) != ETH_P_ARP) {
+			if ((be16_to_cpup((__be16 *) skb->data) != ETH_P_ARP) &&
+			    (be16_to_cpup((__be16 *) skb->data) != ETH_P_RARP)) {
 				ipoib_warn(priv, "Unicast, no %s: type %04x, QPN %06x "
 					   IPOIB_GID_FMT "\n",
 					   skb->dst ? "neigh" : "dst",

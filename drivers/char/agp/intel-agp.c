@@ -1047,9 +1047,15 @@ static int intel_845_configure(void)
 	/* aperture size */
 	pci_write_config_byte(agp_bridge->dev, INTEL_APSIZE, current_size->size_value);
 
-	/* address to map to */
-	pci_read_config_dword(agp_bridge->dev, AGP_APBASE, &temp);
-	agp_bridge->gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
+	if (agp_bridge->apbase_config != 0) {
+		pci_write_config_dword(agp_bridge->dev, AGP_APBASE,
+				       agp_bridge->apbase_config);
+	} else {
+		/* address to map to */
+		pci_read_config_dword(agp_bridge->dev, AGP_APBASE, &temp);
+		agp_bridge->gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
+		agp_bridge->apbase_config = temp;
+	}
 
 	/* attbase - aperture base */
 	pci_write_config_dword(agp_bridge->dev, INTEL_ATTBASE, agp_bridge->gatt_bus_addr);

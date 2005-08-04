@@ -36,34 +36,36 @@ int numa_off __initdata;
 int __init compute_hash_shift(struct node *nodes, int numnodes)
 {
 	int i; 
-	int shift = 24;
-	u64 addr;
+	int shift = 20;
+	unsigned long addr,maxend=0;
 	
-	/* When in doubt use brute force. */
-	while (shift < 48) { 
-		memset(memnodemap,0xff,sizeof(*memnodemap) * NODEMAPSIZE); 
-		for (i = 0; i < numnodes; i++) {
-			if (nodes[i].start == nodes[i].end) 
-				continue;
-			for (addr = nodes[i].start; 
-			     addr < nodes[i].end; 
-			     addr += (1UL << shift)) {
-				if (memnodemap[addr >> shift] != 0xff && 
-				    memnodemap[addr >> shift] != i) { 
-					printk(KERN_INFO 
-					    "node %d shift %d addr %Lx conflict %d\n", 
-					       i, shift, addr, memnodemap[addr>>shift]);
-					goto next; 
-				} 
-				memnodemap[addr >> shift] = i; 
+	for (i = 0; i < numnodes; i++)
+		if ((nodes[i].start != nodes[i].end) && (nodes[i].end > maxend))
+				maxend = nodes[i].end;
+
+	while ((1UL << shift) <  (maxend / NODEMAPSIZE))
+		shift++;
+
+	printk (KERN_DEBUG"Using %d for the hash shift. Max adder is %lx \n",
+			shift,maxend);
+	memset(memnodemap,0xff,sizeof(*memnodemap) * NODEMAPSIZE);
+	for (i = 0; i < numnodes; i++) {
+		if (nodes[i].start == nodes[i].end)
+			continue;
+		for (addr = nodes[i].start;
+		     addr < nodes[i].end;
+		     addr += (1UL << shift)) {
+			if (memnodemap[addr >> shift] != 0xff) {
+				printk(KERN_INFO
+	"Your memory is not aligned you need to rebuild your kernel "
+	"with a bigger NODEMAPSIZE shift=%d adder=%lu\n",
+					shift,addr);
+				return -1;
 			} 
+			memnodemap[addr >> shift] = i;
 		} 
-		return shift; 
-	next:
-		shift++; 
 	} 
-	memset(memnodemap,0,sizeof(*memnodemap) * NODEMAPSIZE); 
-	return -1; 
+	return shift;
 }
 
 #ifdef CONFIG_SPARSEMEM

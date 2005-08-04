@@ -657,8 +657,8 @@ qh_make (
 	 * For control/bulk requests, the HC or TT handles these.
 	 */
 	if (type == PIPE_INTERRUPT) {
-		qh->usecs = usb_calc_bus_time (USB_SPEED_HIGH, is_input, 0,
-				hb_mult (maxp) * max_packet (maxp));
+		qh->usecs = NS_TO_US (usb_calc_bus_time (USB_SPEED_HIGH, is_input, 0,
+				hb_mult (maxp) * max_packet (maxp)));
 		qh->start = NO_FRAME;
 
 		if (urb->dev->speed == USB_SPEED_HIGH) {

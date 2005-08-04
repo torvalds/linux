@@ -52,6 +52,7 @@ static int seq_ports[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 4};
 static int max_synth_voices[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 64};
 static int max_buffer_size[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 128};
 static int enable_ir[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
+static uint subsystem[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0}; /* Force card subsystem model */
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the EMU10K1 soundcard.");
@@ -71,7 +72,8 @@ module_param_array(max_buffer_size, int, NULL, 0444);
 MODULE_PARM_DESC(max_buffer_size, "Maximum sample buffer size in MB.");
 module_param_array(enable_ir, bool, NULL, 0444);
 MODULE_PARM_DESC(enable_ir, "Enable IR.");
-
+module_param_array(subsystem, uint, NULL, 0444);
+MODULE_PARM_DESC(subsystem, "Force card subsystem model.");
 /*
  * Class 0401: 1102:0008 (rev 00) Subsystem: 1102:1001 -> Audigy2 Value  Model:SB0400
  */
@@ -122,7 +124,7 @@ static int __devinit snd_card_emu10k1_probe(struct pci_dev *pci,
 		max_buffer_size[dev] = 1024;
 	if ((err = snd_emu10k1_create(card, pci, extin[dev], extout[dev],
 				      (long)max_buffer_size[dev] * 1024 * 1024,
-				      enable_ir[dev],
+				      enable_ir[dev], subsystem[dev],
 				      &emu)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -140,7 +142,7 @@ static int __devinit snd_card_emu10k1_probe(struct pci_dev *pci,
 		return err;
 	}
 	/* This stores the periods table. */
-	if (emu->audigy && emu->revision == 4) { /* P16V */	
+	if (emu->card_capabilities->ca0151_chip) { /* P16V */	
 		if(snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci), 1024, &emu->p16v_buffer) < 0) {
 			snd_p16v_free(emu);
 			return -ENOMEM;
@@ -161,7 +163,7 @@ static int __devinit snd_card_emu10k1_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
-	if (emu->audigy && emu->revision == 4) { /* P16V */	
+	if (emu->card_capabilities->ca0151_chip) { /* P16V */	
 		if ((err = snd_p16v_pcm(emu, 4, NULL)) < 0) {
 			snd_card_free(card);
 			return err;

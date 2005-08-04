@@ -1521,6 +1521,12 @@ P:	Zach Brown
 M:	zab@zabbo.net
 S:	Odd Fixes
 
+MAN-PAGES: MANUAL PAGES FOR LINUX -- Sections 2, 3, 4, 5, and 7
+P: Michael Kerrisk
+M: mtk-manpages@gmx.net
+W: ftp://ftp.kernel.org/pub/linux/docs/manpages
+S: Maintained
+
 MARVELL MV64340 ETHERNET DRIVER
 P:	Manish Lachwani
 M:	Manish_Lachwani@pmc-sierra.com

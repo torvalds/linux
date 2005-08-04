@@ -491,12 +491,6 @@ acpi_ds_load2_begin_op (
 		if ((!(walk_state->op_info->flags & AML_NSOPCODE) &&
 			  (walk_state->opcode != AML_INT_NAMEPATH_OP)) ||
 			(!(walk_state->op_info->flags & AML_NAMED))) {
-			if ((walk_state->op_info->class == AML_CLASS_EXECUTE) ||
-				(walk_state->op_info->class == AML_CLASS_CONTROL)) {
-				ACPI_REPORT_WARNING ((
-					"Encountered executable code at module level, [%s]\n",
-					acpi_ps_get_opcode_name (walk_state->opcode)));
-			}
 			return_ACPI_STATUS (AE_OK);
 		}
 

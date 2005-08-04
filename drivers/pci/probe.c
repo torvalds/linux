@@ -507,7 +507,7 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 		pci_write_config_dword(dev, PCI_PRIMARY_BUS, buses);
 
 		if (!is_cardbus) {
-			child->bridge_ctl = PCI_BRIDGE_CTL_NO_ISA;
+			child->bridge_ctl = bctl | PCI_BRIDGE_CTL_NO_ISA;
 			/*
 			 * Adjust subordinate busnr in parent buses.
 			 * We do this before scanning for children because

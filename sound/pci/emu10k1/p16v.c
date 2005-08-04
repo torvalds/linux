@@ -822,7 +822,7 @@ static int snd_p16v_volume_put_analog_unknown(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_p16v_volume_control_analog_front =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD Analog Front Volume",
+        .name =         "HD Analog Front Playback Volume",
         .info =         snd_p16v_volume_info,
         .get =          snd_p16v_volume_get_analog_front,
         .put =          snd_p16v_volume_put_analog_front
@@ -831,7 +831,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_analog_front =
 static snd_kcontrol_new_t snd_p16v_volume_control_analog_center_lfe =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD Analog Center/LFE Volume",
+        .name =         "HD Analog Center/LFE Playback Volume",
         .info =         snd_p16v_volume_info,
         .get =          snd_p16v_volume_get_analog_center_lfe,
         .put =          snd_p16v_volume_put_analog_center_lfe
@@ -840,7 +840,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_analog_center_lfe =
 static snd_kcontrol_new_t snd_p16v_volume_control_analog_unknown =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD Analog Unknown Volume",
+        .name =         "HD Analog Unknown Playback Volume",
         .info =         snd_p16v_volume_info,
         .get =          snd_p16v_volume_get_analog_unknown,
         .put =          snd_p16v_volume_put_analog_unknown
@@ -849,7 +849,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_analog_unknown =
 static snd_kcontrol_new_t snd_p16v_volume_control_analog_rear =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD Analog Rear Volume",
+        .name =         "HD Analog Rear Playback Volume",
         .info =         snd_p16v_volume_info,
         .get =          snd_p16v_volume_get_analog_rear,
         .put =          snd_p16v_volume_put_analog_rear
@@ -858,7 +858,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_analog_rear =
 static snd_kcontrol_new_t snd_p16v_volume_control_spdif_front =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD SPDIF Front Volume",
+        .name =         "HD SPDIF Front Playback Volume",
         .info =         snd_p16v_volume_info,
         .get =          snd_p16v_volume_get_spdif_front,
         .put =          snd_p16v_volume_put_spdif_front
@@ -867,7 +867,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_spdif_front =
 static snd_kcontrol_new_t snd_p16v_volume_control_spdif_center_lfe =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD SPDIF Center/LFE Volume",
+        .name =         "HD SPDIF Center/LFE Playback Volume",
         .info =         snd_p16v_volume_info,
         .get =          snd_p16v_volume_get_spdif_center_lfe,
         .put =          snd_p16v_volume_put_spdif_center_lfe
@@ -876,7 +876,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_spdif_center_lfe =
 static snd_kcontrol_new_t snd_p16v_volume_control_spdif_unknown =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD SPDIF Unknown Volume",
+        .name =         "HD SPDIF Unknown Playback Volume",
         .info =         snd_p16v_volume_info,
         .get =          snd_p16v_volume_get_spdif_unknown,
         .put =          snd_p16v_volume_put_spdif_unknown
@@ -885,7 +885,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_spdif_unknown =
 static snd_kcontrol_new_t snd_p16v_volume_control_spdif_rear =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD SPDIF Rear Volume",
+        .name =         "HD SPDIF Rear Playback Volume",
         .info =         snd_p16v_volume_info,
         .get =          snd_p16v_volume_get_spdif_rear,
         .put =          snd_p16v_volume_put_spdif_rear
@@ -936,7 +936,7 @@ static int snd_p16v_capture_source_put(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_p16v_capture_source __devinitdata =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name =		"HD Capture source",
+	.name =		"HD source Capture",
 	.info =		snd_p16v_capture_source_info,
 	.get =		snd_p16v_capture_source_get,
 	.put =		snd_p16v_capture_source_put
@@ -985,7 +985,7 @@ static int snd_p16v_capture_channel_put(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_p16v_capture_channel __devinitdata =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name =		"HD Capture channel",
+	.name =		"HD channel Capture",
 	.info =		snd_p16v_capture_channel_info,
 	.get =		snd_p16v_capture_channel_get,
 	.put =		snd_p16v_capture_channel_put

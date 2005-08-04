@@ -103,7 +103,7 @@ static void screamer_recalibrate(pmac_t *chip)
 	snd_pmac_awacs_write_noreg(chip, 1, chip->awacs_reg[1]);
 	if (chip->manufacturer == 0x1)
 		/* delay for broken crystal part */
-		big_mdelay(750);
+		msleep(750);
 	snd_pmac_awacs_write_noreg(chip, 1,
 				   chip->awacs_reg[1] | MASK_RECALIBRATE | MASK_CMUTE | MASK_AMUTE);
 	snd_pmac_awacs_write_noreg(chip, 1, chip->awacs_reg[1]);
@@ -653,10 +653,10 @@ static void snd_pmac_awacs_resume(pmac_t *chip)
 {
 	if (machine_is_compatible("PowerBook3,1")
 	    || machine_is_compatible("PowerBook3,2")) {
-		big_mdelay(100);
+		msleep(100);
 		snd_pmac_awacs_write_reg(chip, 1,
 			chip->awacs_reg[1] & ~MASK_PAROUT);
-		big_mdelay(300);
+		msleep(300);
 	}
 
 	awacs_restore_all_regs(chip);

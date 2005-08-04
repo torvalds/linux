@@ -29,7 +29,7 @@ __init static int
 fill_mp_bus_to_cpumask(void)
 {
 	struct pci_dev *nb_dev = NULL;
-	int i, j, printed;
+	int i, j;
 	u32 ldtbus, nid;
 	static int lbnr[3] = {
 		LDT_BUS_NUMBER_REGISTER_0,

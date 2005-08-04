@@ -165,7 +165,7 @@ static int ds1337_set_datetime(struct i2c_client *client, struct rtc_time *dt)
 	buf[0] = 0;		/* reg offset */
 	buf[1] = BIN2BCD(dt->tm_sec);
 	buf[2] = BIN2BCD(dt->tm_min);
-	buf[3] = BIN2BCD(dt->tm_hour) | (1 << 6);
+	buf[3] = BIN2BCD(dt->tm_hour);
 	buf[4] = BIN2BCD(dt->tm_wday) + 1;
 	buf[5] = BIN2BCD(dt->tm_mday);
 	buf[6] = BIN2BCD(dt->tm_mon) + 1;
@@ -344,9 +344,9 @@ static void ds1337_init_client(struct i2c_client *client)
 
 	/* Ensure that device is set in 24-hour mode */
 	val = i2c_smbus_read_byte_data(client, DS1337_REG_HOUR);
-	if ((val >= 0) && (val & (1 << 6)) == 0)
+	if ((val >= 0) && (val & (1 << 6)))
 		i2c_smbus_write_byte_data(client, DS1337_REG_HOUR,
-					  val | (1 << 6));
+					  val & 0x3f);
 }
 
 static int ds1337_detach_client(struct i2c_client *client)

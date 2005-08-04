@@ -537,7 +537,8 @@ int __devinit start_secondary(void *cpuvoid)
 #endif
 #ifdef CONFIG_PFAULT
 	/* Enable pfault pseudo page faults on this cpu. */
-	pfault_init();
+	if (MACHINE_IS_VM)
+		pfault_init();
 #endif
 	/* Mark this cpu as online */
 	cpu_set(smp_processor_id(), cpu_online_map);
@@ -690,7 +691,8 @@ __cpu_disable(void)
 
 #ifdef CONFIG_PFAULT
 	/* Disable pfault pseudo page faults on this cpu. */
-	pfault_fini();
+	if (MACHINE_IS_VM)
+		pfault_fini();
 #endif
 
 	/* disable all external interrupts */

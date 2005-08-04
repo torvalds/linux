@@ -21,18 +21,6 @@
 #
 # $Id: Makefile,v 1.31 2002/03/22 15:56:07 ak Exp $
 
-#
-# early bootup linking needs 32bit. You can either use real 32bit tools
-# here or 64bit tools in 32bit mode.
-#
-IA32_CC := $(CC) $(CPPFLAGS) -m32 -O2 -fomit-frame-pointer
-IA32_LD := $(LD) -m elf_i386
-IA32_AS := $(CC) $(AFLAGS) -m32 -Wa,--32 -traditional -c
-IA32_OBJCOPY := $(CROSS_COMPILE)objcopy
-IA32_CPP := $(CROSS_COMPILE)gcc -m32 -E
-export IA32_CC IA32_LD IA32_AS IA32_OBJCOPY IA32_CPP
-
-
 LDFLAGS		:= -m elf_x86_64
 OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
 LDFLAGS_vmlinux :=

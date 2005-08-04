@@ -334,17 +334,19 @@ extern void usb_release_bandwidth (struct usb_device *dev, struct urb *urb,
 extern int usb_check_bandwidth (struct usb_device *dev, struct urb *urb);
 
 /*
- * Ceiling microseconds (typical) for that many bytes at high speed
+ * Ceiling [nano/micro]seconds (typical) for that many bytes at high speed
  * ISO is a bit less, no ACK ... from USB 2.0 spec, 5.11.3 (and needed
  * to preallocate bandwidth)
  */
 #define USB2_HOST_DELAY	5	/* nsec, guess */
-#define HS_USECS(bytes) NS_TO_US ( ((55 * 8 * 2083)/1000) \
+#define HS_NSECS(bytes) ( ((55 * 8 * 2083)/1000) \
 	+ ((2083UL * (3167 + BitTime (bytes)))/1000) \
 	+ USB2_HOST_DELAY)
-#define HS_USECS_ISO(bytes) NS_TO_US ( ((38 * 8 * 2083)/1000) \
+#define HS_NSECS_ISO(bytes) ( ((38 * 8 * 2083)/1000) \
 	+ ((2083UL * (3167 + BitTime (bytes)))/1000) \
 	+ USB2_HOST_DELAY)
+#define HS_USECS(bytes) NS_TO_US (HS_NSECS(bytes))
+#define HS_USECS_ISO(bytes) NS_TO_US (HS_NSECS_ISO(bytes))
 
 extern long usb_calc_bus_time (int speed, int is_input,
 			int isoc, int bytecount);

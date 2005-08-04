@@ -664,11 +664,6 @@ static inline u16 maestro_read(es1968_t *chip, u16 reg)
 	return result;
 }
 
-#define big_mdelay(msec) do {\
-	set_current_state(TASK_UNINTERRUPTIBLE);\
-	schedule_timeout(((msec) * HZ + 999) / 1000);\
-} while (0)
-	
 /* Wait for the codec bus to be free */
 static int snd_es1968_ac97_wait(es1968_t *chip)
 {
@@ -1809,8 +1804,7 @@ static void __devinit es1968_measure_clock(es1968_t *chip)
 	snd_es1968_trigger_apu(chip, apu, ESM_APU_16BITLINEAR);
 	do_gettimeofday(&start_time);
 	spin_unlock_irq(&chip->reg_lock);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ / 20); /* 50 msec */
+	msleep(50);
 	spin_lock_irq(&chip->reg_lock);
 	offset = __apu_get_register(chip, apu, 5);
 	do_gettimeofday(&stop_time);
@@ -2093,7 +2087,7 @@ static void snd_es1968_ac97_reset(es1968_t *chip)
 	outw(0x0000, ioaddr + 0x60);	/* write 0 to gpio 0 */
 	udelay(20);
 	outw(0x0001, ioaddr + 0x60);	/* write 1 to gpio 1 */
-	big_mdelay(20);
+	msleep(20);
 
 	outw(save_68 | 0x1, ioaddr + 0x68);	/* now restore .. */
 	outw((inw(ioaddr + 0x38) & 0xfffc) | 0x1, ioaddr + 0x38);
@@ -2109,7 +2103,7 @@ static void snd_es1968_ac97_reset(es1968_t *chip)
 	outw(0x0001, ioaddr + 0x60);	/* write 1 to gpio */
 	udelay(20);
 	outw(0x0009, ioaddr + 0x60);	/* write 9 to gpio */
-	big_mdelay(500);
+	msleep(500);
 	//outw(inw(ioaddr + 0x38) & 0xfffc, ioaddr + 0x38);
 	outw(inw(ioaddr + 0x3a) & 0xfffc, ioaddr + 0x3a);
 	outw(inw(ioaddr + 0x3c) & 0xfffc, ioaddr + 0x3c);
@@ -2135,7 +2129,7 @@ static void snd_es1968_ac97_reset(es1968_t *chip)
 
 		if (w > 10000) {
 			outb(inb(ioaddr + 0x37) | 0x08, ioaddr + 0x37);	/* do a software reset */
-			big_mdelay(500);	/* oh my.. */
+			msleep(500);	/* oh my.. */
 			outb(inb(ioaddr + 0x37) & ~0x08,
 				ioaddr + 0x37);
 			udelay(1);

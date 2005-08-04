@@ -594,9 +594,6 @@ asmlinkage void default_do_nmi(struct pt_regs *regs)
 	if (!cpu)
 		reason = get_nmi_reason();
 
-	if (!cpu_online(cpu))
-		return;
-
 	if (!(reason & 0xc0)) {
 		if (notify_die(DIE_NMI_IPI, "nmi_ipi", regs, reason, 0, SIGINT)
 								== NOTIFY_STOP)

@@ -206,8 +206,8 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 	u32 hash;
 
 	if (!p_drv->attach || !p_drv->event || !p_drv->detach)
-		printk(KERN_DEBUG "pcmcia: %s does misses a callback function",
-		       p_drv->drv.name);
+		printk(KERN_DEBUG "pcmcia: %s lacks a requisite callback "
+		       "function\n", p_drv->drv.name);
 
 	while (did && did->match_flags) {
 		for (i=0; i<4; i++) {
@@ -589,8 +589,8 @@ static void pcmcia_delayed_add_pseudo_device(void *data)
 static inline void pcmcia_add_pseudo_device(struct pcmcia_socket *s)
 {
 	if (!s->pcmcia_state.device_add_pending) {
-		schedule_work(&s->device_add);
 		s->pcmcia_state.device_add_pending = 1;
+		schedule_work(&s->device_add);
 	}
 	return;
 }

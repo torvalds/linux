@@ -71,6 +71,8 @@ struct ocp_func_emac_data {
 
 /* Sysfs support */
 #define OCP_SYSFS_EMAC_DATA()						\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, rgmii_idx)	\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, rgmii_mux)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, zmii_idx)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, zmii_mux)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, mal_idx)	\
@@ -78,9 +80,14 @@ OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, mal_rx_chan)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, mal_tx_chan)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, wol_irq)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, mdio_idx)	\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, tah_idx)	\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, phy_mode)	\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "0x%08x\n", emac, phy_map)	\
 									\
 void ocp_show_emac_data(struct device *dev)				\
 {									\
+	device_create_file(dev, &dev_attr_emac_rgmii_idx);		\
+	device_create_file(dev, &dev_attr_emac_rgmii_mux);		\
 	device_create_file(dev, &dev_attr_emac_zmii_idx);		\
 	device_create_file(dev, &dev_attr_emac_zmii_mux);		\
 	device_create_file(dev, &dev_attr_emac_mal_idx);		\
@@ -88,6 +95,9 @@ void ocp_show_emac_data(struct device *dev)				\
 	device_create_file(dev, &dev_attr_emac_mal_tx_chan);		\
 	device_create_file(dev, &dev_attr_emac_wol_irq);		\
 	device_create_file(dev, &dev_attr_emac_mdio_idx);		\
+	device_create_file(dev, &dev_attr_emac_tah_idx);		\
+	device_create_file(dev, &dev_attr_emac_phy_mode);		\
+	device_create_file(dev, &dev_attr_emac_phy_map);		\
 }
 
 #ifdef CONFIG_40x
@@ -157,7 +167,7 @@ OCP_SYSFS_ADDTL(struct ocp_func_iic_data, "%d\n", iic, fast_mode)	\
 									\
 void ocp_show_iic_data(struct device *dev)				\
 {									\
-	device_create_file(dev, &dev_attr_iic_fast_mode);			\
+	device_create_file(dev, &dev_attr_iic_fast_mode);		\
 }
 #endif /* __IBM_OCP_H__ */
 #endif /* __KERNEL__ */

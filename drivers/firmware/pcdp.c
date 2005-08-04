@@ -25,14 +25,22 @@ setup_serial_console(struct pcdp_uart *uart)
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 	int mmio;
 	static char options[64], *p = options;
+	char parity;
 
 	mmio = (uart->addr.address_space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY);
 	p += sprintf(p, "console=uart,%s,0x%lx",
 		mmio ? "mmio" : "io", uart->addr.address);
-	if (uart->baud)
+	if (uart->baud) {
 		p += sprintf(p, ",%lu", uart->baud);
-	if (uart->bits)
-		p += sprintf(p, "n%d", uart->bits);
+		if (uart->bits) {
+			switch (uart->parity) {
+			    case 0x2: parity = 'e'; break;
+			    case 0x3: parity = 'o'; break;
+			    default:  parity = 'n';
+			}
+			p += sprintf(p, "%c%d", parity, uart->bits);
+		}
+	}
 
 	return early_serial_console_init(options);
 #else

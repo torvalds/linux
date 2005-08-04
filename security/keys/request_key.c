@@ -405,7 +405,7 @@ struct key *request_key_and_link(struct key_type *type,
 		key_user_put(user);
 
 		/* link the new key into the appropriate keyring */
-		if (!PTR_ERR(key))
+		if (!IS_ERR(key))
 			request_key_link(key, dest_keyring);
 	}
 

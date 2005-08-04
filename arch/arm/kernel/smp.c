@@ -176,6 +176,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	cpu_set(cpu, mm->cpu_vm_mask);
 	cpu_switch_mm(mm->pgd, mm);
 	enter_lazy_tlb(mm, current);
+	local_flush_tlb_all();
 
 	cpu_init();
 

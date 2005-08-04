@@ -893,7 +893,6 @@ static int end_sync_read(struct bio *bio, unsigned int bytes_done, int error)
 	if (!uptodate) {
 		md_error(r1_bio->mddev,
 			 conf->mirrors[r1_bio->read_disk].rdev);
-		set_bit(R1BIO_Degraded, &r1_bio->state);
 	} else
 		set_bit(R1BIO_Uptodate, &r1_bio->state);
 	rdev_dec_pending(conf->mirrors[r1_bio->read_disk].rdev, conf->mddev);
@@ -918,10 +917,9 @@ static int end_sync_write(struct bio *bio, unsigned int bytes_done, int error)
 			mirror = i;
 			break;
 		}
-	if (!uptodate) {
+	if (!uptodate)
 		md_error(mddev, conf->mirrors[mirror].rdev);
-		set_bit(R1BIO_Degraded, &r1_bio->state);
-	}
+
 	update_head_pos(mirror, r1_bio);
 
 	if (atomic_dec_and_test(&r1_bio->remaining)) {
@@ -1109,6 +1107,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	int i;
 	int write_targets = 0;
 	int sync_blocks;
+	int still_degraded = 0;
 
 	if (!conf->r1buf_pool)
 	{
@@ -1137,7 +1136,10 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		return 0;
 	}
 
-	if (!bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks, mddev->degraded) &&
+	/* before building a request, check if we can skip these blocks..
+	 * This call the bitmap_start_sync doesn't actually record anything
+	 */
+	if (!bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks, 1) &&
 	    !conf->fullsync) {
 		/* We can skip this block, and probably several more */
 		*skipped = 1;
@@ -1203,23 +1205,22 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		if (i == disk) {
 			bio->bi_rw = READ;
 			bio->bi_end_io = end_sync_read;
-		} else if (conf->mirrors[i].rdev &&
-			   !conf->mirrors[i].rdev->faulty &&
-			   (!conf->mirrors[i].rdev->in_sync ||
-			    sector_nr + RESYNC_SECTORS > mddev->recovery_cp)) {
+		} else if (conf->mirrors[i].rdev == NULL ||
+			   conf->mirrors[i].rdev->faulty) {
+			still_degraded = 1;
+			continue;
+		} else if (!conf->mirrors[i].rdev->in_sync ||
+			   sector_nr + RESYNC_SECTORS > mddev->recovery_cp) {
 			bio->bi_rw = WRITE;
 			bio->bi_end_io = end_sync_write;
 			write_targets ++;
 		} else
+			/* no need to read or write here */
 			continue;
 		bio->bi_sector = sector_nr + conf->mirrors[i].rdev->data_offset;
 		bio->bi_bdev = conf->mirrors[i].rdev->bdev;
 		bio->bi_private = r1_bio;
 	}
-
-	if (write_targets + 1 < conf->raid_disks)
-		/* array degraded, can't clear bitmap */
-		set_bit(R1BIO_Degraded, &r1_bio->state);
 
 	if (write_targets == 0) {
 		/* There is nowhere to write, so all non-sync
@@ -1243,7 +1244,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 			break;
 		if (sync_blocks == 0) {
 			if (!bitmap_start_sync(mddev->bitmap, sector_nr,
-					&sync_blocks, mddev->degraded) &&
+					&sync_blocks, still_degraded) &&
 					!conf->fullsync)
 				break;
 			if (sync_blocks < (PAGE_SIZE>>9))

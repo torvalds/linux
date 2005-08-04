@@ -256,7 +256,7 @@ extern unsigned int mpic_irq_get_priority(unsigned int irq);
 extern void mpic_setup_this_cpu(void);
 
 /* Clean up for kexec (or cpu offline or ...) */
-extern void mpic_teardown_this_cpu(void);
+extern void mpic_teardown_this_cpu(int secondary);
 
 /* Request IPIs on primary mpic */
 extern void mpic_request_ipis(void);
