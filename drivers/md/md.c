@@ -3484,7 +3484,6 @@ static void md_do_sync(mddev_t *mddev)
 			goto skip;
 		}
 		ITERATE_MDDEV(mddev2,tmp) {
-			printk(".");
 			if (mddev2 == mddev)
 				continue;
 			if (mddev2->curr_resync && 
