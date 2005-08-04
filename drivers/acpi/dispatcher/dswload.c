@@ -983,6 +983,7 @@ acpi_ds_load2_end_op (
 				  ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
 				  walk_state, &(new_node));
 		if (ACPI_SUCCESS (status)) {
+
 			/*
 			 * Make sure that what we found is indeed a method
 			 * We didn't search for a method on purpose, to see if the name
