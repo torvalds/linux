@@ -1585,6 +1585,8 @@ static int isp116x_start(struct usb_hcd *hcd)
 	   be always set. Yet, instead, we request individual port
 	   power switching. */
 	val |= RH_A_PSM;
+	/* Report overcurrent per port */
+	val |= RH_A_OCPM;
 	isp116x_write_reg32(isp116x, HCRHDESCA, val);
 	isp116x->rhdesca = isp116x_read_reg32(isp116x, HCRHDESCA);
 

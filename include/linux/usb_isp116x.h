@@ -7,7 +7,7 @@
 struct isp116x_platform_data {
 	/* Enable internal resistors on downstream ports */
 	unsigned sel15Kres:1;
-	/* On-chip overcurrent protection */
+	/* On-chip overcurrent detection */
 	unsigned oc_enable:1;
 	/* INT output polarity */
 	unsigned int_act_high:1;
