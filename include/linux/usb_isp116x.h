@@ -19,15 +19,6 @@ struct isp116x_platform_data {
 	   prevents stopping internal clock, increasing
 	   thereby power consumption in suspended state. */
 	unsigned remote_wakeup_enable:1;
-	/* Hardware reset set/clear. If implemented, this function must:
-	   if set == 0,   deassert chip's HW reset pin
-	   otherwise,     assert chip's HW reset pin       */
-	void (*reset) (struct device * dev, int set);
-	/* Hardware clock start/stop. If implemented, this function must:
-	   if start == 0,    stop the external clock
-	   otherwise,        start the external clock
-	 */
-	void (*clock) (struct device * dev, int start);
 	/* Inter-io delay (ns). The chip is picky about access timings; it
 	   expects at least:
 	   150ns delay between consecutive accesses to DATA_REG,

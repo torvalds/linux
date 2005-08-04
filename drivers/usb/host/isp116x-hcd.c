@@ -1463,10 +1463,6 @@ static int isp116x_sw_reset(struct isp116x *isp116x)
 	return ret;
 }
 
-/*
-  Reset. Tries to perform platform-specific hardware
-  reset first; falls back to software reset.
-*/
 static int isp116x_reset(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
@@ -1474,17 +1470,7 @@ static int isp116x_reset(struct usb_hcd *hcd)
 	u16 clkrdy = 0;
 	int ret = 0, timeout = 15 /* ms */ ;
 
-	if (isp116x->board && isp116x->board->reset) {
-		/* Hardware reset */
-		isp116x->board->reset(hcd->self.controller, 1);
-		msleep(10);
-		if (isp116x->board->clock)
-			isp116x->board->clock(hcd->self.controller, 1);
-		msleep(1);
-		isp116x->board->reset(hcd->self.controller, 0);
-	} else
-		ret = isp116x_sw_reset(isp116x);
-
+	ret = isp116x_sw_reset(isp116x);
 	if (ret)
 		return ret;
 
@@ -1501,10 +1487,7 @@ static int isp116x_reset(struct usb_hcd *hcd)
 		ERR("Clock not ready after 20ms\n");
 		/* After sw_reset the clock won't report to be ready, if
 		   H_WAKEUP pin is high. */
-		if (!isp116x->board || !isp116x->board->reset)
-			ERR("The driver does not support hardware wakeup.\n");
-			ERR("Please make sure that the H_WAKEUP pin "
-				"is pulled low!\n");
+		ERR("Please make sure that the H_WAKEUP pin is pulled low!\n");
 		ret = -ENODEV;
 	}
 	return ret;
@@ -1527,15 +1510,7 @@ static void isp116x_stop(struct usb_hcd *hcd)
 	isp116x_write_reg32(isp116x, HCRHSTATUS, RH_HS_LPS);
 	spin_unlock_irqrestore(&isp116x->lock, flags);
 
-	/* Put the chip into reset state */
-	if (isp116x->board && isp116x->board->reset)
-		isp116x->board->reset(hcd->self.controller, 0);
-	else
-		isp116x_sw_reset(isp116x);
-
-	/* Stop the clock */
-	if (isp116x->board && isp116x->board->clock)
-		isp116x->board->clock(hcd->self.controller, 0);
+	isp116x_sw_reset(isp116x);
 }
 
 /*
