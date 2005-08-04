@@ -1569,7 +1569,7 @@ static int isp116x_start(struct usb_hcd *hcd)
 	if (board->sel15Kres)
 		val |= HCHWCFG_15KRSEL;
 	/* Remote wakeup won't work without working clock */
-	if (board->clknotstop || board->remote_wakeup_enable)
+	if (board->remote_wakeup_enable)
 		val |= HCHWCFG_CLKNOTSTOP;
 	if (board->oc_enable)
 		val |= HCHWCFG_ANALOG_OC;
@@ -1615,9 +1615,6 @@ static int isp116x_start(struct usb_hcd *hcd)
 
 	/* Go operational */
 	val = HCCONTROL_USB_OPER;
-	/* Remote wakeup connected - NOT SUPPORTED */
-	/*  if (board->remote_wakeup_connected)
-	   val |= HCCONTROL_RWC;  */
 	if (board->remote_wakeup_enable)
 		val |= HCCONTROL_RWE;
 	isp116x_write_reg32(isp116x, HCCONTROL, val);

@@ -7,19 +7,17 @@
 struct isp116x_platform_data {
 	/* Enable internal resistors on downstream ports */
 	unsigned sel15Kres:1;
-	/* Chip's internal clock won't be stopped in suspended state.
-	   Setting/unsetting this bit takes effect only if
-	   'remote_wakeup_enable' below is not set. */
-	unsigned clknotstop:1;
 	/* On-chip overcurrent protection */
 	unsigned oc_enable:1;
 	/* INT output polarity */
 	unsigned int_act_high:1;
 	/* INT edge or level triggered */
 	unsigned int_edge_triggered:1;
-	/* WAKEUP pin connected - NOT SUPPORTED  */
-	/* unsigned remote_wakeup_connected:1; */
-	/* Wakeup by devices on usb bus enabled */
+	/* Enable wakeup by devices on usb bus (e.g. wakeup
+	   by attachment/detachment or by device activity
+	   such as moving a mouse). When chosen, this option
+	   prevents stopping internal clock, increasing
+	   thereby power consumption in suspended state. */
 	unsigned remote_wakeup_enable:1;
 	/* Switch or not to switch (keep always powered) */
 	unsigned no_power_switching:1;
