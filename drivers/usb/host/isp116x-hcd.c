@@ -1581,11 +1581,10 @@ static int isp116x_start(struct usb_hcd *hcd)
 
 	/* ----- Root hub conf */
 	val = (25 << 24) & RH_A_POTPGT;
-	/* AN10003_1.pdf recommends NPS to be always 1 */
-	if (board->no_power_switching)
-		val |= RH_A_NPS;
-	if (board->power_switching_mode)
-		val |= RH_A_PSM;
+	/* AN10003_1.pdf recommends RH_A_NPS (no power switching) to
+	   be always set. Yet, instead, we request individual port
+	   power switching. */
+	val |= RH_A_PSM;
 	isp116x_write_reg32(isp116x, HCRHDESCA, val);
 	isp116x->rhdesca = isp116x_read_reg32(isp116x, HCRHDESCA);
 

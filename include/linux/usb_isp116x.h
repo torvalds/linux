@@ -19,11 +19,6 @@ struct isp116x_platform_data {
 	   prevents stopping internal clock, increasing
 	   thereby power consumption in suspended state. */
 	unsigned remote_wakeup_enable:1;
-	/* Switch or not to switch (keep always powered) */
-	unsigned no_power_switching:1;
-	/* Ganged port power switching (0) or individual port
-	   power switching (1) */
-	unsigned power_switching_mode:1;
 	/* Hardware reset set/clear. If implemented, this function must:
 	   if set == 0,   deassert chip's HW reset pin
 	   otherwise,     assert chip's HW reset pin       */
