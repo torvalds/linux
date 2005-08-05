@@ -94,7 +94,7 @@ static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
 
 #define MAX_MADT_ENTRIES	256
 u8 x86_acpiid_to_apicid[MAX_MADT_ENTRIES] =
-    {[0...MAX_MADT_ENTRIES - 1] = 0xff };
+    {[0 ... MAX_MADT_ENTRIES - 1] = 0xff };
 EXPORT_SYMBOL(x86_acpiid_to_apicid);
 
 /* --------------------------------------------------------------------------
