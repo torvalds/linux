@@ -279,6 +279,13 @@ machine_restart(char *cmd)
 }
 
 void
+machine_emergency_restart(void)
+{
+	/*for now, just hook this to a warm restart */
+	machine_restart(NULL);
+}
+
+void
 mca_nmi_hook(void)
 {
 	__u8 dumpval __attribute__((unused)) = inb(0xf823);
