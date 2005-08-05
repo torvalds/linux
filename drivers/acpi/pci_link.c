@@ -804,8 +804,7 @@ acpi_pci_link_resume(
  */
 int acpi_in_resume;
 static int
-irqrouter_resume(
-	struct sys_device *dev)
+irqrouter_resume(struct sys_device *dev)
 {
 	struct list_head        *node = NULL;
 	struct acpi_pci_link    *link = NULL;

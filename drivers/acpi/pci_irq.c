@@ -424,6 +424,7 @@ acpi_pci_irq_enable (
 	int			edge_level = ACPI_LEVEL_SENSITIVE;
 	int			active_high_low = ACPI_ACTIVE_LOW;
 	char			*link = NULL;
+	int			rc;
 
 	ACPI_FUNCTION_TRACE("acpi_pci_irq_enable");
 
@@ -476,7 +477,13 @@ acpi_pci_irq_enable (
 		}
  	}
 
-	dev->irq = acpi_register_gsi(irq, edge_level, active_high_low);
+	rc = acpi_register_gsi(irq, edge_level, active_high_low);
+	if (rc < 0) {
+		printk(KERN_WARNING PREFIX "PCI Interrupt %s[%c]: failed "
+		       "to register GSI\n", pci_name(dev), ('A' + pin));
+		return_VALUE(rc);
+	}
+	dev->irq = rc;
 
 	printk(KERN_INFO PREFIX "PCI Interrupt %s[%c] -> ",
 		pci_name(dev), 'A' + pin);

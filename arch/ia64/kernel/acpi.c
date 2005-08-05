@@ -563,7 +563,11 @@ acpi_numa_arch_fixup (void)
 }
 #endif /* CONFIG_ACPI_NUMA */
 
-unsigned int
+/*
+ * success: return IRQ number (>=0)
+ * failure: return < 0
+ */
+int
 acpi_register_gsi (u32 gsi, int edge_level, int active_high_low)
 {
 	if (has_8259 && gsi < 16)
