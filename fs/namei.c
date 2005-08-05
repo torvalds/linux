@@ -1874,14 +1874,9 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	/* We don't d_delete() NFS sillyrenamed files--they still exist. */
 	if (!error && !(dentry->d_flags & DCACHE_NFSFS_RENAMED)) {
-#if defined(CONFIG_INOTIFY) || defined(CONFIG_DNOTIFY)
-		dget(dentry);
+		struct inode *inode = dentry->d_inode;
 		d_delete(dentry);
-		fsnotify_unlink(dentry, dir);
-		dput(dentry);
-#else
-		d_delete(dentry);
-#endif
+		fsnotify_unlink(dentry, inode, dir);
 	}
 
 	return error;
