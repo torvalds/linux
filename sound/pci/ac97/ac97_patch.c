@@ -786,6 +786,7 @@ int patch_wolfson13(ac97_t * ac97)
 	ac97->flags |= AC97_HAS_NO_REC_GAIN | AC97_STEREO_MUTES | AC97_HAS_NO_PHONE |
 		AC97_HAS_NO_PC_BEEP | AC97_HAS_NO_VIDEO | AC97_HAS_NO_CD | AC97_HAS_NO_TONE |
 		AC97_HAS_NO_STD_PCM;
+    	ac97->scaps &= ~AC97_SCAP_MODEM;
 
 	snd_ac97_write_cache(ac97, AC97_EXTENDED_MID, 0xda00);
 	snd_ac97_write_cache(ac97, AC97_EXTENDED_MSTATUS, 0x3810);
