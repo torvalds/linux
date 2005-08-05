@@ -5557,6 +5557,55 @@ static void ipw_send_wep_keys(struct ipw_priv *priv, int type)
 	}
 }
 
+static void ipw_set_hw_decrypt_unicast(struct ipw_priv *priv, int level)
+{
+	if (priv->ieee->host_encrypt)
+		return;
+
+	switch (level) {
+	case SEC_LEVEL_3:
+		priv->sys_config.disable_unicast_decryption = 0;
+		priv->ieee->host_decrypt = 0;
+		break;
+	case SEC_LEVEL_2:
+		priv->sys_config.disable_unicast_decryption = 1;
+		priv->ieee->host_decrypt = 1;
+		break;
+	case SEC_LEVEL_1:
+		priv->sys_config.disable_unicast_decryption = 0;
+		priv->ieee->host_decrypt = 0;
+		break;
+	case SEC_LEVEL_0:
+		priv->sys_config.disable_unicast_decryption = 1;
+		break;
+	default:
+		break;
+	}
+}
+
+static void ipw_set_hw_decrypt_multicast(struct ipw_priv *priv, int level)
+{
+	if (priv->ieee->host_encrypt)
+		return;
+
+	switch (level) {
+	case SEC_LEVEL_3:
+		priv->sys_config.disable_multicast_decryption = 0;
+		break;
+	case SEC_LEVEL_2:
+		priv->sys_config.disable_multicast_decryption = 1;
+		break;
+	case SEC_LEVEL_1:
+		priv->sys_config.disable_multicast_decryption = 0;
+		break;
+	case SEC_LEVEL_0:
+		priv->sys_config.disable_multicast_decryption = 1;
+		break;
+	default:
+		break;
+	}
+}
+
 static void ipw_set_hwcrypto_keys(struct ipw_priv *priv)
 {
 	switch (priv->ieee->sec.level) {
@@ -5567,33 +5616,23 @@ static void ipw_set_hwcrypto_keys(struct ipw_priv *priv)
 					    priv->ieee->sec.active_key);
 
 		ipw_send_wep_keys(priv, DCW_WEP_KEY_SEC_TYPE_CCM);
-		priv->sys_config.disable_unicast_decryption = 0;
-		priv->sys_config.disable_multicast_decryption = 0;
-		priv->ieee->host_decrypt = 0;
 		break;
 	case SEC_LEVEL_2:
 		if (priv->ieee->sec.flags & SEC_ACTIVE_KEY)
 			ipw_send_tgi_tx_key(priv,
 					    DCT_FLAG_EXT_SECURITY_TKIP,
 					    priv->ieee->sec.active_key);
-
-		priv->sys_config.disable_unicast_decryption = 1;
-		priv->sys_config.disable_multicast_decryption = 1;
-		priv->ieee->host_decrypt = 1;
 		break;
 	case SEC_LEVEL_1:
 		ipw_send_wep_keys(priv, DCW_WEP_KEY_SEC_TYPE_WEP);
-		priv->sys_config.disable_unicast_decryption = 0;
-		priv->sys_config.disable_multicast_decryption = 0;
-		priv->ieee->host_decrypt = 0;
 		break;
 	case SEC_LEVEL_0:
-		priv->sys_config.disable_unicast_decryption = 1;
-		priv->sys_config.disable_multicast_decryption = 1;
-		break;
 	default:
 		break;
 	}
+
+	ipw_set_hw_decrypt_unicast(priv, priv->ieee->sec.level);
+	ipw_set_hw_decrypt_multicast(priv, priv->ieee->sec.level);
 }
 
 static void ipw_adhoc_check(void *data)
@@ -6185,12 +6224,31 @@ static int ipw_wpa_mlme(struct net_device *dev, int command, int reason)
 	return ret;
 }
 
+static int ipw_wpa_ie_cipher2level(u8 cipher)
+{
+	switch (cipher) {
+	case 4:		/* CCMP */
+		return SEC_LEVEL_3;
+	case 2:		/* TKIP */
+		return SEC_LEVEL_2;
+	case 5:		/* WEP104 */
+	case 1:		/* WEP40 */
+		return SEC_LEVEL_1;
+	case 0:		/* NONE */
+		return SEC_LEVEL_0;
+	default:
+		return -1;
+	}
+}
+
 static int ipw_wpa_set_wpa_ie(struct net_device *dev,
 			      struct ipw_param *param, int plen)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee;
 	u8 *buf;
+	u8 *ptk, *gtk;
+	int level;
 
 	if (param->u.wpa_ie.len > MAX_WPA_IE_LEN ||
 	    (param->u.wpa_ie.len && param->u.wpa_ie.data == NULL))
@@ -6209,8 +6267,35 @@ static int ipw_wpa_set_wpa_ie(struct net_device *dev,
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = NULL;
 		ieee->wpa_ie_len = 0;
+		goto done;
 	}
 
+	if (priv->ieee->host_encrypt)
+		goto done;
+
+	/* HACK: Parse wpa_ie here to get pairwise suite, otherwise
+	 * we need to change driver_ipw.c from wpa_supplicant. This
+	 * is OK since -Dipw is deprecated. The -Dwext driver has a
+	 * clean way to handle this. */
+	gtk = ptk = (u8 *) ieee->wpa_ie;
+	if (ieee->wpa_ie[0] == 0x30) {	/* RSN IE */
+		gtk += 4 + 3;
+		ptk += 4 + 4 + 2 + 3;
+	} else {		/* WPA IE */
+		gtk += 8 + 3;
+		ptk += 8 + 4 + 2 + 3;
+	}
+
+	if (ptk - (u8 *) ieee->wpa_ie > ieee->wpa_ie_len)
+		return -EINVAL;
+
+	level = ipw_wpa_ie_cipher2level(*gtk);
+	ipw_set_hw_decrypt_multicast(priv, level);
+
+	level = ipw_wpa_ie_cipher2level(*ptk);
+	ipw_set_hw_decrypt_unicast(priv, level);
+
+      done:
 	ipw_wpa_assoc_frame(priv, ieee->wpa_ie, ieee->wpa_ie_len);
 	return 0;
 }
@@ -6510,6 +6595,23 @@ static int ipw_wx_get_genie(struct net_device *dev,
 	return err;
 }
 
+static int wext_cipher2level(int cipher)
+{
+	switch (cipher) {
+	case IW_AUTH_CIPHER_NONE:
+		return SEC_LEVEL_0;
+	case IW_AUTH_CIPHER_WEP40:
+	case IW_AUTH_CIPHER_WEP104:
+		return SEC_LEVEL_1;
+	case IW_AUTH_CIPHER_TKIP:
+		return SEC_LEVEL_2;
+	case IW_AUTH_CIPHER_CCMP:
+		return SEC_LEVEL_3;
+	default:
+		return -1;
+	}
+}
+
 /* SIOCSIWAUTH */
 static int ipw_wx_set_auth(struct net_device *dev,
 			   struct iw_request_info *info,
@@ -6524,8 +6626,15 @@ static int ipw_wx_set_auth(struct net_device *dev,
 
 	switch (param->flags & IW_AUTH_INDEX) {
 	case IW_AUTH_WPA_VERSION:
+		break;
 	case IW_AUTH_CIPHER_PAIRWISE:
+		ipw_set_hw_decrypt_unicast(priv,
+					   wext_cipher2level(param->value));
+		break;
 	case IW_AUTH_CIPHER_GROUP:
+		ipw_set_hw_decrypt_multicast(priv,
+					     wext_cipher2level(param->value));
+		break;
 	case IW_AUTH_KEY_MGMT:
 		/*
 		 * ipw2200 does not use these parameters
@@ -10256,10 +10365,10 @@ static void shim__set_security(struct net_device *dev,
 		priv->ieee->sec.level = sec->level;
 		priv->ieee->sec.flags |= SEC_LEVEL;
 		priv->status |= STATUS_SECURITY_UPDATED;
-
-		if (!priv->ieee->host_encrypt && (sec->flags & SEC_ENCRYPT))
-			ipw_set_hwcrypto_keys(priv);
 	}
+
+	if (!priv->ieee->host_encrypt && (sec->flags & SEC_ENCRYPT))
+		ipw_set_hwcrypto_keys(priv);
 
 	/* To match current functionality of ipw2100 (which works well w/
 	 * various supplicants, we don't force a disassociate if the
