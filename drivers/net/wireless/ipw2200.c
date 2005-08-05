@@ -8069,6 +8069,9 @@ static int ipw_sw_reset(struct ipw_priv *priv, int init)
 	}
 	IPW_DEBUG_INFO("Hardware crypto [%s]\n", hwcrypto ? "on" : "off");
 
+	/* IPW2200/2915 is abled to do hardware fragmentation. */
+	priv->ieee->host_open_frag = 0;
+
 	if ((priv->pci_dev->device == 0x4223) ||
 	    (priv->pci_dev->device == 0x4224)) {
 		if (init)
