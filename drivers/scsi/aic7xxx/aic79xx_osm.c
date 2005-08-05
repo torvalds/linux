@@ -1617,9 +1617,9 @@ ahd_send_async(struct ahd_softc *ahd, char channel,
 		 * are identical to those last reported.
 		 */
 		starget = ahd->platform_data->starget[target];
-		targ = scsi_transport_target_data(starget);
-		if (targ == NULL)
+		if (starget == NULL)
 			break;
+		targ = scsi_transport_target_data(starget);
 
 		target_ppr_options =
 			(spi_dt(starget) ? MSG_EXT_PPR_DT_REQ : 0)
