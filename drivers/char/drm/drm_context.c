@@ -369,7 +369,7 @@ int drm_resctx( struct inode *inode, struct file *filp,
 		for ( i = 0 ; i < DRM_RESERVED_CONTEXTS ; i++ ) {
 			ctx.handle = i;
 			if ( copy_to_user( &res.contexts[i],
-					   &i, sizeof(i) ) )
+					   &ctx, sizeof(ctx) ) )
 				return -EFAULT;
 		}
 	}
