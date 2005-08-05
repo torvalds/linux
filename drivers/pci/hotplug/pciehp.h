@@ -302,7 +302,7 @@ static inline void return_resource(struct pci_resource **head, struct pci_resour
 
 static inline void make_slot_name(char *buffer, int buffer_size, struct slot *slot)
 {
-	snprintf(buffer, buffer_size, "%d", slot->number);
+	snprintf(buffer, buffer_size, "%04d_%04d", slot->bus, slot->number);
 }
 
 enum php_ctlr_type {
