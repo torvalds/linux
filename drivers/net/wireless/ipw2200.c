@@ -7696,7 +7696,6 @@ static inline int is_network_packet(struct ipw_priv *priv,
 static inline int is_duplicate_packet(struct ipw_priv *priv,
 				      struct ieee80211_hdr_4addr *header)
 {
-	u16 fc = le16_to_cpu(header->frame_ctl);
 	u16 sc = le16_to_cpu(header->seq_ctl);
 	u16 seq = WLAN_GET_SEQ_SEQ(sc);
 	u16 frag = WLAN_GET_SEQ_FRAG(sc);
@@ -7760,7 +7759,10 @@ static inline int is_duplicate_packet(struct ipw_priv *priv,
 	return 0;
 
       drop:
-	BUG_ON(!(fc & IEEE80211_FCTL_RETRY));
+	/* Comment this line now since we observed the card receives
+	 * duplicate packets but the FCTL_RETRY bit is not set in the
+	 * IBSS mode with fragmentation enabled.
+	 BUG_ON(!(le16_to_cpu(header->frame_ctl) & IEEE80211_FCTL_RETRY)); */
 	return 1;
 }
 
