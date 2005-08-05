@@ -972,18 +972,17 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 	if (unlikely(sk->sk_state == TCP_CLOSE))
 		return 0;
 
-	skb = sk->sk_send_head;
-	if (unlikely(!skb))
-		return 0;
-
-	tso_segs = tcp_init_tso_segs(sk, skb, mss_now);
-	cwnd_quota = tcp_cwnd_test(tp, skb);
-	if (unlikely(!cwnd_quota))
-		goto out;
-
 	sent_pkts = 0;
-	while (likely(tcp_snd_wnd_test(tp, skb, mss_now))) {
+	while ((skb = sk->sk_send_head)) {
+		tso_segs = tcp_init_tso_segs(sk, skb, mss_now);
 		BUG_ON(!tso_segs);
+
+		cwnd_quota = tcp_cwnd_test(tp, skb);
+		if (!cwnd_quota)
+			break;
+
+		if (unlikely(!tcp_snd_wnd_test(tp, skb, mss_now)))
+			break;
 
 		if (tso_segs == 1) {
 			if (unlikely(!tcp_nagle_test(tp, skb, mss_now,
@@ -1026,27 +1025,12 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 
 		tcp_minshall_update(tp, mss_now, skb);
 		sent_pkts++;
-
-		/* Do not optimize this to use tso_segs. If we chopped up
-		 * the packet above, tso_segs will no longer be valid.
-		 */
-		cwnd_quota -= tcp_skb_pcount(skb);
-
-		BUG_ON(cwnd_quota < 0);
-		if (!cwnd_quota)
-			break;
-
-		skb = sk->sk_send_head;
-		if (!skb)
-			break;
-		tso_segs = tcp_init_tso_segs(sk, skb, mss_now);
 	}
 
 	if (likely(sent_pkts)) {
 		tcp_cwnd_validate(sk, tp);
 		return 0;
 	}
-out:
 	return !tp->packets_out && sk->sk_send_head;
 }
 
