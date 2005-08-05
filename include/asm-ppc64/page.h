@@ -46,6 +46,7 @@
 
 #define ARCH_HAS_HUGEPAGE_ONLY_RANGE
 #define ARCH_HAS_PREPARE_HUGEPAGE_RANGE
+#define ARCH_HAS_SETCLEAR_HUGE_PTE
 
 #define touches_hugepage_low_range(mm, addr, len) \
 	(LOW_ESID_MASK((addr), (len)) & mm->context.htlb_segs)
@@ -125,36 +126,42 @@ extern void copy_user_page(void *to, void *from, unsigned long vaddr, struct pag
  * Entries in the pte table are 64b, while entries in the pgd & pmd are 32b.
  */
 typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned int  pmd; } pmd_t;
-typedef struct { unsigned int  pgd; } pgd_t;
+typedef struct { unsigned long pmd; } pmd_t;
+typedef struct { unsigned long pud; } pud_t;
+typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define pte_val(x)	((x).pte)
 #define pmd_val(x)	((x).pmd)
+#define pud_val(x)	((x).pud)
 #define pgd_val(x)	((x).pgd)
 #define pgprot_val(x)	((x).pgprot)
 
-#define __pte(x)	((pte_t) { (x) } )
-#define __pmd(x)	((pmd_t) { (x) } )
-#define __pgd(x)	((pgd_t) { (x) } )
-#define __pgprot(x)	((pgprot_t) { (x) } )
+#define __pte(x)	((pte_t) { (x) })
+#define __pmd(x)	((pmd_t) { (x) })
+#define __pud(x)	((pud_t) { (x) })
+#define __pgd(x)	((pgd_t) { (x) })
+#define __pgprot(x)	((pgprot_t) { (x) })
 
 #else
 /*
  * .. while these make it easier on the compiler
  */
 typedef unsigned long pte_t;
-typedef unsigned int  pmd_t;
-typedef unsigned int  pgd_t;
+typedef unsigned long pmd_t;
+typedef unsigned long pud_t;
+typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
 #define pte_val(x)	(x)
 #define pmd_val(x)	(x)
+#define pud_val(x)	(x)
 #define pgd_val(x)	(x)
 #define pgprot_val(x)	(x)
 
 #define __pte(x)	(x)
 #define __pmd(x)	(x)
+#define __pud(x)	(x)
 #define __pgd(x)	(x)
 #define __pgprot(x)	(x)
 
@@ -207,9 +214,6 @@ extern u64 ppc64_pft_size;		/* Log 2 of page table size */
 #define KERNEL_REGION_ID   (KERNELBASE >> REGION_SHIFT)
 #define USER_REGION_ID     (0UL)
 #define REGION_ID(ea)	   (((unsigned long)(ea)) >> REGION_SHIFT)
-
-#define __bpn_to_ba(x) ((((unsigned long)(x)) << PAGE_SHIFT) + KERNELBASE)
-#define __ba_to_bpn(x) ((((unsigned long)(x)) & ~REGION_MASK) >> PAGE_SHIFT)
 
 #define __va(x) ((void *)((unsigned long)(x) + KERNELBASE))
 

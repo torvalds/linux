@@ -302,7 +302,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	int local = 0;
 	cpumask_t tmp;
 
-	if ((ea & ~REGION_MASK) > EADDR_MASK)
+	if ((ea & ~REGION_MASK) >= PGTABLE_RANGE)
 		return 1;
 
  	switch (REGION_ID(ea)) {

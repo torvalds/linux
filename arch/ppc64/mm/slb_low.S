@@ -91,7 +91,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_16M_PAGE)
 0:	/* user address: proto-VSID = context<<15 | ESID */
 	li	r11,SLB_VSID_USER
 
-	srdi.	r9,r3,13
+	srdi.	r9,r3,USER_ESID_BITS
 	bne-	8f			/* invalid ea bits set */
 
 #ifdef CONFIG_HUGETLB_PAGE

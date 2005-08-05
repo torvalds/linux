@@ -259,8 +259,10 @@ extern void stabs_alloc(void);
 #define VSID_BITS	36
 #define VSID_MODULUS	((1UL<<VSID_BITS)-1)
 
-#define CONTEXT_BITS	20
-#define USER_ESID_BITS	15
+#define CONTEXT_BITS	19
+#define USER_ESID_BITS	16
+
+#define USER_VSID_RANGE	(1UL << (USER_ESID_BITS + SID_SHIFT))
 
 /*
  * This macro generates asm code to compute the VSID scramble
@@ -302,7 +304,6 @@ typedef unsigned long mm_context_id_t;
 typedef struct {
 	mm_context_id_t id;
 #ifdef CONFIG_HUGETLB_PAGE
-	pgd_t *huge_pgdir;
 	u16 htlb_segs; /* bitmask */
 #endif
 } mm_context_t;

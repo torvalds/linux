@@ -66,6 +66,14 @@
 #include <asm/vdso.h>
 #include <asm/imalloc.h>
 
+#if PGTABLE_RANGE > USER_VSID_RANGE
+#warning Limited user VSID range means pagetable space is wasted
+#endif
+
+#if (TASK_SIZE_USER64 < PGTABLE_RANGE) && (TASK_SIZE_USER64 < USER_VSID_RANGE)
+#warning TASK_SIZE is smaller than it needs to be.
+#endif
+
 int mem_init_done;
 unsigned long ioremap_bot = IMALLOC_BASE;
 static unsigned long phbs_io_bot = PHBS_IO_BASE;
@@ -226,7 +234,7 @@ void __iomem * __ioremap(unsigned long addr, unsigned long size,
 	 * Before that, we map using addresses going
 	 * up from ioremap_bot.  imalloc will use
 	 * the addresses from ioremap_bot through
-	 * IMALLOC_END (0xE000001fffffffff)
+	 * IMALLOC_END
 	 * 
 	 */
 	pa = addr & PAGE_MASK;
@@ -417,12 +425,6 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	int index;
 	int err;
 
-#ifdef CONFIG_HUGETLB_PAGE
-	/* We leave htlb_segs as it was, but for a fork, we need to
-	 * clear the huge_pgdir. */
-	mm->context.huge_pgdir = NULL;
-#endif
-
 again:
 	if (!idr_pre_get(&mmu_context_idr, GFP_KERNEL))
 		return -ENOMEM;
@@ -453,8 +455,6 @@ void destroy_context(struct mm_struct *mm)
 	spin_unlock(&mmu_context_lock);
 
 	mm->context.id = NO_CONTEXT;
-
-	hugetlb_mm_free_pgd(mm);
 }
 
 /*
@@ -833,23 +833,43 @@ void __iomem * reserve_phb_iospace(unsigned long size)
 	return virt_addr;
 }
 
-kmem_cache_t *zero_cache;
-
-static void zero_ctor(void *pte, kmem_cache_t *cache, unsigned long flags)
+static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
 {
-	memset(pte, 0, PAGE_SIZE);
+	memset(addr, 0, kmem_cache_size(cache));
 }
+
+static const int pgtable_cache_size[2] = {
+	PTE_TABLE_SIZE, PMD_TABLE_SIZE
+};
+static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
+	"pgd_pte_cache", "pud_pmd_cache",
+};
+
+kmem_cache_t *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)];
 
 void pgtable_cache_init(void)
 {
-	zero_cache = kmem_cache_create("zero",
-				PAGE_SIZE,
-				0,
-				SLAB_HWCACHE_ALIGN | SLAB_MUST_HWCACHE_ALIGN,
-				zero_ctor,
-				NULL);
-	if (!zero_cache)
-		panic("pgtable_cache_init(): could not create zero_cache!\n");
+	int i;
+
+	BUILD_BUG_ON(PTE_TABLE_SIZE != pgtable_cache_size[PTE_CACHE_NUM]);
+	BUILD_BUG_ON(PMD_TABLE_SIZE != pgtable_cache_size[PMD_CACHE_NUM]);
+	BUILD_BUG_ON(PUD_TABLE_SIZE != pgtable_cache_size[PUD_CACHE_NUM]);
+	BUILD_BUG_ON(PGD_TABLE_SIZE != pgtable_cache_size[PGD_CACHE_NUM]);
+
+	for (i = 0; i < ARRAY_SIZE(pgtable_cache_size); i++) {
+		int size = pgtable_cache_size[i];
+		const char *name = pgtable_cache_name[i];
+
+		pgtable_cache[i] = kmem_cache_create(name,
+						     size, size,
+						     SLAB_HWCACHE_ALIGN
+						     | SLAB_MUST_HWCACHE_ALIGN,
+						     zero_ctor,
+						     NULL);
+		if (! pgtable_cache[i])
+			panic("pgtable_cache_init(): could not create %s!\n",
+			      name);
+	}
 }
 
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
