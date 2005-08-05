@@ -351,6 +351,7 @@ static int i810_dma_initialize(drm_device_t *dev,
 	   	DRM_ERROR("can not find mmio map!\n");
 	   	return -EINVAL;
 	}
+	dev->agp_buffer_token = init->buffers_offset;
 	dev->agp_buffer_map = drm_core_findmap(dev, init->buffers_offset);
 	if (!dev->agp_buffer_map) {
 		dev->dev_private = (void *)dev_priv;

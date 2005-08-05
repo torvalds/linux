@@ -312,7 +312,7 @@ typedef struct drm_mga_dma_bootstrap {
 	 * an IOMMU) is being used for "AGP" textures.
 	 */
 	/*@{*/
-	drm_handle_t texture_handle;  /**< Handle used to map AGP textures. */
+	unsigned long texture_handle; /**< Handle used to map AGP textures. */
 	uint32_t     texture_size;    /**< Size of the AGP texture region. */
 	/*@}*/
 

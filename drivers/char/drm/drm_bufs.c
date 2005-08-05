@@ -64,13 +64,41 @@ static drm_local_map_t *drm_find_matching_map(drm_device_t *dev,
 	return NULL;
 }
 
-#ifdef CONFIG_COMPAT
 /*
- * Used to allocate 32-bit handles for _DRM_SHM regions
- * The 0x10000000 value is chosen to be out of the way of
- * FB/register and GART physical addresses.
+ * Used to allocate 32-bit handles for mappings.
  */
-static unsigned int map32_handle = 0x10000000;
+#define START_RANGE 0x10000000
+#define END_RANGE 0x40000000
+
+#ifdef _LP64
+static __inline__ unsigned int HandleID(unsigned long lhandle, drm_device_t *dev) 
+{
+	static unsigned int map32_handle = START_RANGE;
+	unsigned int hash;
+
+	if (lhandle & 0xffffffff00000000) {
+		hash = map32_handle;
+		map32_handle += PAGE_SIZE;
+		if (map32_handle > END_RANGE)
+			map32_handle = START_RANGE;
+	} else 
+		hash = lhandle;
+
+	while (1) {
+		drm_map_list_t *_entry;
+		list_for_each_entry(_entry, &dev->maplist->head,head) {
+			if (_entry->user_token == hash)
+				break;
+		}
+		if (&_entry->head == &dev->maplist->head)
+			return hash;
+
+		hash += PAGE_SIZE;
+		map32_handle += PAGE_SIZE;
+	}
+}
+#else
+# define HandleID(x,dev) (unsigned int)(x)
 #endif
 
 /**
@@ -198,7 +226,7 @@ int drm_addmap(drm_device_t * dev, unsigned int offset,
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 			return -EINVAL;
 		}
-		map->offset += dev->sg->handle;
+		map->offset += (unsigned long)dev->sg->virtual;
 		break;
 	case _DRM_CONSISTENT: 
 		/* dma_addr_t is 64bit on i386 with CONFIG_HIGHMEM64G,
@@ -229,12 +257,11 @@ int drm_addmap(drm_device_t * dev, unsigned int offset,
 
 	down(&dev->struct_sem);
 	list_add(&list->head, &dev->maplist->head);
-#ifdef CONFIG_COMPAT
-	/* Assign a 32-bit handle for _DRM_SHM mappings */
+	/* Assign a 32-bit handle */
 	/* We do it here so that dev->struct_sem protects the increment */
-	if (map->type == _DRM_SHM)
-		map->offset = map32_handle += PAGE_SIZE;
-#endif
+	list->user_token = HandleID(map->type==_DRM_SHM
+				    ? (unsigned long)map->handle
+				    : map->offset, dev);
  	up(&dev->struct_sem);
 
 	*map_ptr = map;
@@ -251,6 +278,7 @@ int drm_addmap_ioctl(struct inode *inode, struct file *filp,
 	drm_map_t *map_ptr;
 	drm_map_t __user *argp = (void __user *)arg;
 	int err;
+	unsigned long handle = 0;
 
 	if (!(filp->f_mode & 3))
 		return -EACCES;	/* Require read/write */
@@ -259,22 +287,29 @@ int drm_addmap_ioctl(struct inode *inode, struct file *filp,
 		return -EFAULT;
 	}
 
-	err = drm_addmap( dev, map.offset, map.size, map.type, map.flags,
-			  &map_ptr );
+	err = drm_addmap(dev, map.offset, map.size, map.type, map.flags,
+			 &map_ptr);
 
 	if (err) {
 		return err;
 	}
 
-	if (copy_to_user(argp, map_ptr, sizeof(*map_ptr)))
-		return -EFAULT;
-	if (map_ptr->type != _DRM_SHM) {
-		if (copy_to_user(&argp->handle, &map_ptr->offset,
-				 sizeof(map_ptr->offset)))
+	{
+		drm_map_list_t *_entry;
+		list_for_each_entry(_entry, &dev->maplist->head, head) {
+			if (_entry->map == map_ptr)
+				handle = _entry->user_token;
+		}
+		if (!handle)
 			return -EFAULT;
 	}
+
+	if (copy_to_user(argp, map_ptr, sizeof(*map_ptr)))
+		return -EFAULT;
+	if (put_user(handle, &argp->handle))
+		return -EFAULT;
 	return 0;
-}
+	}
 
 
 /**
@@ -388,7 +423,7 @@ int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
 		drm_map_list_t *r_list = list_entry(list, drm_map_list_t, head);
 
 		if (r_list->map &&
-		    r_list->map->handle == request.handle &&
+		    r_list->user_token == (unsigned long) request.handle &&
 		    r_list->map->flags & _DRM_REMOVABLE) {
 			map = r_list->map;
 			break;
@@ -939,7 +974,8 @@ static int drm_addbufs_sg(drm_device_t *dev, drm_buf_desc_t *request)
 
 		buf->offset  = (dma->byte_count + offset);
 		buf->bus_address = agp_offset + offset;
-		buf->address = (void *)(agp_offset + offset + dev->sg->handle);
+		buf->address = (void *)(agp_offset + offset 
+					+ (unsigned long)dev->sg->virtual);
 		buf->next    = NULL;
 		buf->waiting = 0;
 		buf->pending = 0;
@@ -1456,6 +1492,7 @@ int drm_mapbufs( struct inode *inode, struct file *filp,
 		    || (drm_core_check_feature(dev, DRIVER_FB_DMA)
 			&& (dma->flags & _DRM_DMA_USE_FB))) {
 			drm_map_t *map = dev->agp_buffer_map;
+			unsigned long token = dev->agp_buffer_token;
 
 			if ( !map ) {
 				retcode = -EINVAL;
@@ -1470,7 +1507,7 @@ int drm_mapbufs( struct inode *inode, struct file *filp,
 			virtual = do_mmap( filp, 0, map->size,
 					   PROT_READ | PROT_WRITE,
 					   MAP_SHARED,
-					   (unsigned long)map->offset );
+					   token );
 #if LINUX_VERSION_CODE <= 0x020402
 			up( &current->mm->mmap_sem );
 #else

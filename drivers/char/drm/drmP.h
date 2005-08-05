@@ -539,6 +539,7 @@ typedef struct drm_dma_handle {
 typedef struct drm_map_list {
 	struct list_head	head;	/**< list head */
 	drm_map_t		*map;	/**< mapping */
+	unsigned int user_token;
 } drm_map_list_t;
 
 typedef drm_map_t drm_local_map_t;
@@ -759,6 +760,7 @@ typedef struct drm_device {
 
 	struct            drm_driver *driver;
 	drm_local_map_t   *agp_buffer_map;
+	unsigned int agp_buffer_token;
 	drm_head_t primary;		/**< primary screen head */
 } drm_device_t;
 
@@ -1048,16 +1050,12 @@ static __inline__ void drm_core_ioremapfree(struct drm_map *map, struct drm_devi
 		drm_ioremapfree( map->handle, map->size, dev );
 }
 
-static __inline__ struct drm_map *drm_core_findmap(struct drm_device *dev, unsigned long offset)
+static __inline__ struct drm_map *drm_core_findmap(struct drm_device *dev, unsigned int token)
 {
-	struct list_head *_list;
-	list_for_each( _list, &dev->maplist->head ) {
-		drm_map_list_t *_entry = list_entry( _list, drm_map_list_t, head );
-		if ( _entry->map &&
-		     _entry->map->offset == offset ) {
+	drm_map_list_t *_entry;
+	list_for_each_entry(_entry, &dev->maplist->head, head)
+		if (_entry->user_token == token)
 			return _entry->map;
-		}
-	}
 	return NULL;
 }
 

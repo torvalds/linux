@@ -152,14 +152,11 @@ static drm_map_t *ffb_find_map(struct file *filp, unsigned long off)
 		return NULL;
 
 	list_for_each(list, &dev->maplist->head) {
-		unsigned long uoff;
-
 		r_list = (drm_map_list_t *)list;
 		map = r_list->map;
 		if (!map)
 			continue;
-		uoff = (map->offset & 0xffffffff);
-		if (uoff == off)
+		if (r_list->user_token == off)
 			return map;
 	}
 

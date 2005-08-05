@@ -825,6 +825,7 @@ static int mga_do_init_dma( drm_device_t *dev, drm_mga_init_t *init )
 			DRM_ERROR("failed to find primary dma region!\n");
 			return DRM_ERR(EINVAL);
 		}
+		dev->agp_buffer_token = init->buffers_offset;
 		dev->agp_buffer_map = drm_core_findmap(dev, init->buffers_offset);
 		if (!dev->agp_buffer_map) {
 			DRM_ERROR("failed to find dma buffer region!\n");
