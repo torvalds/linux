@@ -9169,11 +9169,19 @@ static int ipw_wx_set_encode(struct net_device *dev,
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	int ret;
+	u32 cap = priv->capability;
 
 	down(&priv->sem);
 	ret = ieee80211_wx_set_encode(priv->ieee, info, wrqu, key);
-	up(&priv->sem);
 
+	/* In IBSS mode, we need to notify the firmware to update
+	 * the beacon info after we changed the capability. */
+	if (cap != priv->capability &&
+	    priv->ieee->iw_mode == IW_MODE_ADHOC &&
+	    priv->status & STATUS_ASSOCIATED)
+		ipw_disassociate(priv);
+
+	up(&priv->sem);
 	return ret;
 }
 
