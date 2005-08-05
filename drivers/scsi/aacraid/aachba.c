@@ -1898,7 +1898,7 @@ static int aac_send_srb_fib(struct scsi_cmnd* scsicmd)
 	srbcmd->id   = cpu_to_le32(scsicmd->device->id);
 	srbcmd->lun      = cpu_to_le32(scsicmd->device->lun);
 	srbcmd->flags    = cpu_to_le32(flag);
-	timeout = (scsicmd->timeout-jiffies)/HZ;
+	timeout = scsicmd->timeout_per_command/HZ;
 	if(timeout == 0){
 		timeout = 1;
 	}
