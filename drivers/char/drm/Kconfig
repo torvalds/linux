@@ -23,13 +23,6 @@ config DRM_TDFX
 	  Choose this option if you have a 3dfx Banshee or Voodoo3 (or later),
 	  graphics card.  If M is selected, the module will be called tdfx.
 
-config DRM_GAMMA
-	tristate "3dlabs GMX 2000"
-	depends on DRM && BROKEN
-	help
-	  This is the old gamma driver, please tell me if it might actually
-	  work.
-
 config DRM_R128
 	tristate "ATI Rage 128"
 	depends on DRM && PCI

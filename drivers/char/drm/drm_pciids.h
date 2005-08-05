@@ -182,10 +182,6 @@
 	{0x8086, 0x2572, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
 	{0, 0, 0}
 
-#define gamma_PCI_IDS \
-	{0x3d3d, 0x0008, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0, 0, 0}
-
 #define savage_PCI_IDS \
 	{0x5333, 0x8a22, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
 	{0x5333, 0x8a23, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \

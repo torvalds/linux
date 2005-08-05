@@ -8,7 +8,6 @@ drm-objs    :=	drm_auth.o drm_bufs.o drm_context.o drm_dma.o drm_drawable.o \
 		drm_agpsupport.o drm_scatter.o ati_pcigart.o drm_pci.o \
 		drm_sysfs.o
 
-gamma-objs  := gamma_drv.o gamma_dma.o
 tdfx-objs   := tdfx_drv.o
 r128-objs   := r128_drv.o r128_cce.o r128_state.o r128_irq.o
 mga-objs    := mga_drv.o mga_dma.o mga_state.o mga_warp.o mga_irq.o
@@ -29,7 +28,6 @@ i915-objs   += i915_ioc32.o
 endif
 
 obj-$(CONFIG_DRM)	+= drm.o
-obj-$(CONFIG_DRM_GAMMA) += gamma.o
 obj-$(CONFIG_DRM_TDFX)	+= tdfx.o
 obj-$(CONFIG_DRM_R128)	+= r128.o
 obj-$(CONFIG_DRM_RADEON)+= radeon.o
