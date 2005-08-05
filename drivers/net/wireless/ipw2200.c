@@ -8223,7 +8223,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int init)
 	priv->power_mode = IPW_POWER_AC;
 	priv->tx_power = IPW_TX_POWER_DEFAULT;
 
-	return old_mode == priv->ieee->mode;
+	return old_mode == priv->ieee->iw_mode;
 }
 
 /*
