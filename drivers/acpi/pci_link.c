@@ -529,8 +529,7 @@ acpi_irq_penalty_init(void)
 
 static int acpi_irq_balance;	/* 0: static, 1: balance */
 
-static int acpi_pci_link_allocate(
-	struct acpi_pci_link	*link)
+static int acpi_pci_link_allocate(struct acpi_pci_link	*link)
 {
 	int			irq;
 	int			i;
@@ -718,8 +717,7 @@ acpi_pci_link_free_irq(acpi_handle handle)
    -------------------------------------------------------------------------- */
 
 static int
-acpi_pci_link_add (
-	struct acpi_device *device)
+acpi_pci_link_add(struct acpi_device *device)
 {
 	int			result = 0;
 	struct acpi_pci_link	*link = NULL;
@@ -827,9 +825,7 @@ irqrouter_resume(struct sys_device *dev)
 
 
 static int
-acpi_pci_link_remove (
-	struct acpi_device	*device,
-	int			type)
+acpi_pci_link_remove(struct acpi_device *device, int type)
 {
 	struct acpi_pci_link *link = NULL;
 

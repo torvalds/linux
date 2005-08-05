@@ -24,27 +24,23 @@ extern wait_queue_head_t	acpi_bus_event_queue;
 static int
 acpi_system_open_event(struct inode *inode, struct file *file)
 {
-	spin_lock_irq (&acpi_system_event_lock);
+	spin_lock_irq(&acpi_system_event_lock);
 
-	if(event_is_open)
+	if (event_is_open)
 		goto out_busy;
 
 	event_is_open = 1;
 
-	spin_unlock_irq (&acpi_system_event_lock);
+	spin_unlock_irq(&acpi_system_event_lock);
 	return 0;
 
 out_busy:
-	spin_unlock_irq (&acpi_system_event_lock);
+	spin_unlock_irq(&acpi_system_event_lock);
 	return -EBUSY;
 }
 
 static ssize_t
-acpi_system_read_event (
-	struct file		*file,
-	char			__user *buffer,
-	size_t			count,
-	loff_t			*ppos)
+acpi_system_read_event(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
 	int			result = 0;
 	struct acpi_bus_event	event;
@@ -98,9 +94,7 @@ acpi_system_close_event(struct inode *inode, struct file *file)
 }
 
 static unsigned int
-acpi_system_poll_event(
-	struct file		*file,
-	poll_table		*wait)
+acpi_system_poll_event(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &acpi_bus_event_queue, wait);
 	if (!list_empty(&acpi_bus_event_list))

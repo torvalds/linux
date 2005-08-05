@@ -37,11 +37,8 @@
 
 #define ACPI_FAN_COMPONENT		0x00200000
 #define ACPI_FAN_CLASS			"fan"
-#define ACPI_FAN_HID			"PNP0C0B"
 #define ACPI_FAN_DRIVER_NAME		"ACPI Fan Driver"
-#define ACPI_FAN_DEVICE_NAME		"Fan"
 #define ACPI_FAN_FILE_STATE		"state"
-#define ACPI_FAN_NOTIFY_STATUS		0x80
 
 #define _COMPONENT		ACPI_FAN_COMPONENT
 ACPI_MODULE_NAME		("acpi_fan")
@@ -56,7 +53,7 @@ static int acpi_fan_remove (struct acpi_device *device, int type);
 static struct acpi_driver acpi_fan_driver = {
 	.name =		ACPI_FAN_DRIVER_NAME,
 	.class =	ACPI_FAN_CLASS,
-	.ids =		ACPI_FAN_HID,
+	.ids =		"PNP0C0B",
 	.ops =		{
 				.add =		acpi_fan_add,
 				.remove =	acpi_fan_remove,
@@ -76,7 +73,7 @@ static struct proc_dir_entry	*acpi_fan_dir;
 
 
 static int
-acpi_fan_read_state (struct seq_file *seq, void *offset)
+acpi_fan_read_state(struct seq_file *seq, void *offset)
 {
 	struct acpi_fan		*fan = seq->private;
 	int			state = 0;
@@ -99,11 +96,8 @@ static int acpi_fan_state_open_fs(struct inode *inode, struct file *file)
 }
 
 static ssize_t
-acpi_fan_write_state (
-	struct file		*file,
-	const char		__user *buffer,
-	size_t			count,
-	loff_t			*ppos)
+acpi_fan_write_state(struct file *file, const char __user *buffer, 
+		     size_t count, loff_t *ppos)
 {
 	int			result = 0;
 	struct seq_file		*m = (struct seq_file *)file->private_data;
@@ -138,8 +132,7 @@ static struct file_operations acpi_fan_state_ops = {
 };
 
 static int
-acpi_fan_add_fs (
-	struct acpi_device	*device)
+acpi_fan_add_fs(struct acpi_device *device)
 {
 	struct proc_dir_entry	*entry = NULL;
 
@@ -174,8 +167,7 @@ acpi_fan_add_fs (
 
 
 static int
-acpi_fan_remove_fs (
-	struct acpi_device	*device)
+acpi_fan_remove_fs(struct acpi_device *device)
 {
 	ACPI_FUNCTION_TRACE("acpi_fan_remove_fs");
 
@@ -195,8 +187,7 @@ acpi_fan_remove_fs (
    -------------------------------------------------------------------------- */
 
 static int
-acpi_fan_add (
-	struct acpi_device	*device)
+acpi_fan_add(struct acpi_device *device)
 {
 	int			result = 0;
 	struct acpi_fan		*fan = NULL;
@@ -213,7 +204,7 @@ acpi_fan_add (
 	memset(fan, 0, sizeof(struct acpi_fan));
 
 	fan->handle = device->handle;
-	strcpy(acpi_device_name(device), ACPI_FAN_DEVICE_NAME);
+	strcpy(acpi_device_name(device), "Fan");
 	strcpy(acpi_device_class(device), ACPI_FAN_CLASS);
 	acpi_driver_data(device) = fan;
 
@@ -241,11 +232,9 @@ end:
 
 
 static int
-acpi_fan_remove (
-	struct acpi_device	*device,
-	int			type)
+acpi_fan_remove(struct acpi_device *device, int type)
 {
-	struct acpi_fan		*fan = NULL;
+	struct acpi_fan *fan = NULL;
 
 	ACPI_FUNCTION_TRACE("acpi_fan_remove");
 
@@ -263,9 +252,9 @@ acpi_fan_remove (
 
 
 static int __init
-acpi_fan_init (void)
+acpi_fan_init(void)
 {
-	int			result = 0;
+	int result = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_fan_init");
 
@@ -285,7 +274,7 @@ acpi_fan_init (void)
 
 
 static void __exit
-acpi_fan_exit (void)
+acpi_fan_exit(void)
 {
 	ACPI_FUNCTION_TRACE("acpi_fan_exit");
 

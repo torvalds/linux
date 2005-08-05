@@ -13,13 +13,6 @@
 
 #include "sleep.h"
 
-#ifdef	CONFIG_ACPI_SLEEP_PROC_SLEEP
-#define ACPI_SYSTEM_FILE_SLEEP		"sleep"
-#endif
-
-#define ACPI_SYSTEM_FILE_ALARM		"alarm"
-#define ACPI_SYSTEM_FILE_WAKEUP_DEVICE   "wakeup"
-
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME		("sleep")
 
@@ -378,14 +371,10 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 		if (!dev->wakeup.flags.valid)
 			continue;
 		spin_unlock(&acpi_device_lock);
-		if (dev->wakeup.flags.run_wake)
-			seq_printf(seq, "%4s	%4d		%8s\n",
-				dev->pnp.bus_id, (u32) dev->wakeup.sleep_state,
-				dev->wakeup.state.enabled ? "*enabled" : "*disabled");
-		else
-			seq_printf(seq, "%4s	%4d		%8s\n",
-				dev->pnp.bus_id, (u32) dev->wakeup.sleep_state,
-				dev->wakeup.state.enabled ? "enabled" : "disabled");
+		seq_printf(seq, "%4s	%4d		%s%8s\n",
+			   dev->pnp.bus_id, (u32) dev->wakeup.sleep_state,
+			   dev->wakeup.flags.run_wake ? "*" : "",
+			   dev->wakeup.state.enabled ? "enabled" : "disabled");
 		spin_lock(&acpi_device_lock);
 	}
 	spin_unlock(&acpi_device_lock);
@@ -486,28 +475,25 @@ static u32 rtc_handler(void * context)
 
 static int acpi_sleep_proc_init(void)
 {
-	struct proc_dir_entry	*entry = NULL;
+	struct proc_dir_entry *entry = NULL;
 
 	if (acpi_disabled)
 		return 0;
  
 #ifdef	CONFIG_ACPI_SLEEP_PROC_SLEEP
-	/* 'sleep' [R/W]*/
-	entry = create_proc_entry(ACPI_SYSTEM_FILE_SLEEP,
-				  S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
+	/* 'sleep' [R/W] */
+	entry = create_proc_entry("sleep", S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_sleep_fops;
 #endif
 
 	/* 'alarm' [R/W] */
-	entry = create_proc_entry(ACPI_SYSTEM_FILE_ALARM,
-		S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
+	entry = create_proc_entry("alarm", S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_alarm_fops;
 
-	/* 'wakeup device' [R/W]*/
-	entry = create_proc_entry(ACPI_SYSTEM_FILE_WAKEUP_DEVICE,
-				  S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
+	/* 'wakeup device' [R/W] */
+	entry = create_proc_entry("wakeup", S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_wakeup_device_fops;
 
