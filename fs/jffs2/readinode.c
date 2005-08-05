@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.138 2005/08/03 09:28:06 dedekind Exp $
+ * $Id: readinode.c,v 1.139 2005/08/04 11:41:31 dedekind Exp $
  *
  */
 
@@ -424,7 +424,7 @@ static int read_more(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref,
 		len = right_size - *rdlen;
 	}
 	
-	JFFS2_DBG_READINODE("read more %d bytes.", len);
+	JFFS2_DBG_READINODE("read more %d bytes\n", len);
 
 	err = jffs2_flash_read(c, offs, len, &retlen, bufstart);
 	if (err) {

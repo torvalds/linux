@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.108 2005/08/04 11:39:59 dedekind Exp $
+ * $Id: nodelist.c,v 1.109 2005/08/04 11:41:30 dedekind Exp $
  *
  */
 
@@ -1010,21 +1010,14 @@ void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 	frag = (rb_entry(root->rb_node, struct jffs2_node_frag, rb));
 	while(frag) {
 		if (frag->rb.rb_left) {
-			JFFS2_DBG_FRAGTREE2("going left from frag (%p) %#04x-%#04x\n",
-				frag, frag->ofs, frag->ofs+frag->size);
 			frag = frag_left(frag);
 			continue;
 		}
 		if (frag->rb.rb_right) {
-			JFFS2_DBG_FRAGTREE2("going right from frag (%p) %#04x-%#04x\n", 
-				  frag, frag->ofs, frag->ofs+frag->size);
 			frag = frag_right(frag);
 			continue;
 		}
 
-		JFFS2_DBG_FRAGTREE2("frag %#04x-%#04x: node %p, frags %d\n",
-			  frag->ofs, frag->ofs+frag->size, frag->node, frag->node?frag->node->frags:0);
-			
 		if (frag->node && !(--frag->node->frags)) {
 			/* Not a hole, and it's the final remaining frag 
 			   of this node. Free the node */

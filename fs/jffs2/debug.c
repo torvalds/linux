@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.c,v 1.8 2005/07/30 15:27:05 lunn Exp $
+ * $Id: debug.c,v 1.9 2005/08/05 10:42:24 dedekind Exp $
  *
  */
 #include <linux/kernel.h>
@@ -17,6 +17,44 @@
 #include <linux/jffs2.h>
 #include "nodelist.h"
 #include "debug.h"
+
+#ifdef JFFS2_DBG_SANITY_CHECKS
+
+void
+__jffs2_dbg_acct_sanity_check_nolock(struct jffs2_sb_info *c,
+				     struct jffs2_eraseblock *jeb)
+{
+	if (unlikely(jeb && jeb->used_size + jeb->dirty_size +
+			jeb->free_size + jeb->wasted_size +
+			jeb->unchecked_size != c->sector_size)) {
+		JFFS2_ERROR("eeep, space accounting for block at 0x%08x is screwed.\n", jeb->offset);
+		JFFS2_ERROR("free %#08x + dirty %#08x + used %#08x + wasted %#08x + unchecked "
+			"%#08x != total %#08x.\n", jeb->free_size, jeb->dirty_size, jeb->used_size,
+			jeb->wasted_size, jeb->unchecked_size, c->sector_size);
+		BUG();
+	}
+
+	if (unlikely(c->used_size + c->dirty_size + c->free_size + c->erasing_size + c->bad_size
+				+ c->wasted_size + c->unchecked_size != c->flash_size)) {
+		JFFS2_ERROR("eeep, space accounting superblock info is screwed.\n");
+		JFFS2_ERROR("free %#08x + dirty %#08x + used %#08x + erasing %#08x + bad %#08x + "
+			"wasted %#08x + unchecked %#08x != total %#08x.\n",
+			c->free_size, c->dirty_size, c->used_size, c->erasing_size, c->bad_size,
+			c->wasted_size, c->unchecked_size, c->flash_size);
+		BUG();
+	}
+}
+
+void
+__jffs2_dbg_acct_sanity_check(struct jffs2_sb_info *c,
+			      struct jffs2_eraseblock *jeb)
+{
+	spin_lock(&c->erase_completion_lock);
+	jffs2_dbg_acct_sanity_check_nolock(c, jeb);
+	spin_unlock(&c->erase_completion_lock);
+}
+
+#endif /* JFFS2_DBG_SANITY_CHECKS */
 
 #ifdef JFFS2_DBG_PARANOIA_CHECKS
 /*

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.h,v 1.10 2005/08/02 10:03:51 dedekind Exp $
+ * $Id: debug.h,v 1.12 2005/08/05 10:43:47 dedekind Exp $
  *
  */
 #ifndef _JFFS2_DEBUG_H_
@@ -34,7 +34,7 @@
 #define JFFS2_DBG_FRAGTREE2_MESSAGES
 #endif
 
-/* Enable JFFS2 sanity checks by default */
+/* Sanity checks are supposed to be light-weight and enabled by default */
 #define JFFS2_DBG_SANITY_CHECKS
 
 /* 
@@ -55,9 +55,9 @@
 
 /* The prefixes of JFFS2 messages */
 #define JFFS2_DBG_MSG_PREFIX "[JFFS2 DBG]"
-#define JFFS2_ERR_MSG_PREFIX "JFFS2 error: "
-#define JFFS2_WARN_MSG_PREFIX "JFFS2 warning: "
-#define JFFS2_NOTICE_MSG_PREFIX "JFFS2 notice: "
+#define JFFS2_ERR_MSG_PREFIX "JFFS2 error:"
+#define JFFS2_WARN_MSG_PREFIX "JFFS2 warning:"
+#define JFFS2_NOTICE_MSG_PREFIX "JFFS2 notice:"
 
 #define JFFS2_ERR_LVL		KERN_ERR
 #define JFFS2_WARN_LVL		KERN_WARNING
@@ -67,26 +67,30 @@
 /* JFFS2 message macros */
 #define JFFS2_ERROR(fmt, ...)						\
 	do {								\
-		printk(JFFS2_ERR_LVL JFFS2_ERR_MSG_PREFIX " %s: "	\
-				fmt, __FUNCTION__, ##__VA_ARGS__);	\
+		printk(JFFS2_ERR_LVL JFFS2_ERR_MSG_PREFIX		\
+			" %d,%s: " fmt, current->pid,			\
+			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 
 #define JFFS2_WARNING(fmt, ...)						\
 	do {								\
-		printk(JFFS2_WARN_LVL JFFS2_WARN_MSG_PREFIX " %s: "	\
-				fmt, __FUNCTION__, ##__VA_ARGS__);	\
+		printk(JFFS2_WARN_LVL JFFS2_WARN_MSG_PREFIX		\
+			" %d,%s: " fmt, current->pid,			\
+			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 			
 #define JFFS2_NOTICE(fmt, ...)						\
 	do {								\
-		printk(JFFS2_NOTICE_LVL JFFS2_NOTICE_MSG_PREFIX " %s: "	\
-				fmt, __FUNCTION__, ##__VA_ARGS__);	\
+		printk(JFFS2_NOTICE_LVL JFFS2_NOTICE_MSG_PREFIX		\
+			" %d,%s: " fmt, current->pid,			\
+			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 
 #define JFFS2_DEBUG(fmt, ...)						\
 	do {								\
-		printk(JFFS2_DBG_LVL JFFS2_DBG_MSG_PREFIX " %s: "	\
-				fmt, __FUNCTION__, ##__VA_ARGS__);	\
+		printk(JFFS2_DBG_LVL JFFS2_DBG_MSG_PREFIX		\
+			" %d,%s: " fmt, current->pid,			\
+			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 
 /* 
@@ -140,6 +144,14 @@
 #define JFFS2_DBG_MEMALLOC(fmt, ...)
 #endif
 
+
+/* "Sanity" checks */
+void
+__jffs2_dbg_acct_sanity_check_nolock(struct jffs2_sb_info *c,
+				     struct jffs2_eraseblock *jeb);
+void
+__jffs2_dbg_acct_sanity_check(struct jffs2_sb_info *c,
+			      struct jffs2_eraseblock *jeb);
 
 /* "Paranoia" checks */
 void
@@ -227,47 +239,11 @@ __jffs2_dbg_dump_node(struct jffs2_sb_info *c, uint32_t ofs);
 #define jffs2_dbg_dump_node(c, ofs)
 #endif /* !JFFS2_DBG_DUMPS */
 
-/*
- * Sanity checks are supposed to be light-weight and enabled by default.
- */
 #ifdef JFFS2_DBG_SANITY_CHECKS
-/*
- * Check the space accounting of the file system and of
- * the JFFS2 erasable block 'jeb'.
- */
-static inline void
-jffs2_dbg_acct_sanity_check_nolock(struct jffs2_sb_info *c,
-				   struct jffs2_eraseblock *jeb)
-{
-	if (unlikely(jeb && jeb->used_size + jeb->dirty_size +
-			jeb->free_size + jeb->wasted_size +
-			jeb->unchecked_size != c->sector_size)) {
-		JFFS2_ERROR("eeep, space accounting for block at 0x%08x is screwed.\n", jeb->offset);
-		JFFS2_ERROR("free %#08x + dirty %#08x + used %#08x + wasted %#08x + unchecked "
-			"%#08x != total %#08x.\n", jeb->free_size, jeb->dirty_size, jeb->used_size,
-			jeb->wasted_size, jeb->unchecked_size, c->sector_size);
-		BUG();
-	}
-
-	if (unlikely(c->used_size + c->dirty_size + c->free_size + c->erasing_size + c->bad_size
-				+ c->wasted_size + c->unchecked_size != c->flash_size)) {
-		JFFS2_ERROR("eeep, space accounting superblock info is screwed.\n");
-		JFFS2_ERROR("free %#08x + dirty %#08x + used %#08x + erasing %#08x + bad %#08x + "
-			"wasted %#08x + unchecked %#08x != total %#08x.\n",
-			c->free_size, c->dirty_size, c->used_size, c->erasing_size, c->bad_size,
-			c->wasted_size, c->unchecked_size, c->flash_size);
-		BUG();
-	}
-}
-
-static inline void
-jffs2_dbg_acct_sanity_check(struct jffs2_sb_info *c,
-			    struct jffs2_eraseblock *jeb)
-{
-	spin_lock(&c->erase_completion_lock);
-	jffs2_dbg_acct_sanity_check_nolock(c, jeb);
-	spin_unlock(&c->erase_completion_lock);
-}
+#define jffs2_dbg_acct_sanity_check(c, jeb)			\
+	__jffs2_dbg_acct_sanity_check(c, jeb)
+#define jffs2_dbg_acct_sanity_check_nolock(c, jeb)		\
+	__jffs2_dbg_acct_sanity_check_nolock(c, jeb)
 #else
 #define jffs2_dbg_acct_sanity_check(c, jeb)
 #define jffs2_dbg_acct_sanity_check_nolock(c, jeb)
