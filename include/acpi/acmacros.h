@@ -44,7 +44,6 @@
 #ifndef __ACMACROS_H__
 #define __ACMACROS_H__
 
-
 /*
  * Data manipulation macros
  */
@@ -56,7 +55,6 @@
 #define ACPI_SET_BIT(target,bit)        ((target) |= (bit))
 #define ACPI_CLEAR_BIT(target,bit)      ((target) &= ~(bit))
 #define ACPI_MIN(a,b)                   (((a)<(b))?(a):(b))
-
 
 #if ACPI_MACHINE_WIDTH == 16
 
@@ -168,7 +166,7 @@
 
 /* 32-bit source, 16/32/64 destination */
 
-#define ACPI_MOVE_32_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)    /* Truncate to 16 */
+#define ACPI_MOVE_32_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)	/* Truncate to 16 */
 
 #define ACPI_MOVE_32_TO_32(d,s)         {((  u8 *)(void *)(d))[0] = ((u8 *)(void *)(s))[3];\
 									  ((  u8 *)(void *)(d))[1] = ((u8 *)(void *)(s))[2];\
@@ -183,9 +181,9 @@
 
 /* 64-bit source, 16/32/64 destination */
 
-#define ACPI_MOVE_64_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)    /* Truncate to 16 */
+#define ACPI_MOVE_64_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)	/* Truncate to 16 */
 
-#define ACPI_MOVE_64_TO_32(d,s)         ACPI_MOVE_32_TO_32(d,s)    /* Truncate to 32 */
+#define ACPI_MOVE_64_TO_32(d,s)         ACPI_MOVE_32_TO_32(d,s)	/* Truncate to 32 */
 
 #define ACPI_MOVE_64_TO_64(d,s)         {((  u8 *)(void *)(d))[0] = ((u8 *)(void *)(s))[7];\
 										 ((  u8 *)(void *)(d))[1] = ((u8 *)(void *)(s))[6];\
@@ -219,14 +217,14 @@
 
 /* 32-bit source, 16/32/64 destination */
 
-#define ACPI_MOVE_32_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)    /* Truncate to 16 */
+#define ACPI_MOVE_32_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)	/* Truncate to 16 */
 #define ACPI_MOVE_32_TO_32(d,s)         *(u32 *)(void *)(d) = *(u32 *)(void *)(s)
 #define ACPI_MOVE_32_TO_64(d,s)         ACPI_MOVE_32_TO_32(d,s)
 
 /* 64-bit source, 16/32/64 destination */
 
-#define ACPI_MOVE_64_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)    /* Truncate to 16 */
-#define ACPI_MOVE_64_TO_32(d,s)         ACPI_MOVE_32_TO_32(d,s)    /* Truncate to 32 */
+#define ACPI_MOVE_64_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)	/* Truncate to 16 */
+#define ACPI_MOVE_64_TO_32(d,s)         ACPI_MOVE_32_TO_32(d,s)	/* Truncate to 32 */
 #define ACPI_MOVE_64_TO_64(d,s)         ACPI_MOVE_32_TO_32(d,s)
 
 #else
@@ -238,14 +236,14 @@
 
 /* 32-bit source, 16/32/64 destination */
 
-#define ACPI_MOVE_32_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)    /* Truncate to 16 */
+#define ACPI_MOVE_32_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)	/* Truncate to 16 */
 #define ACPI_MOVE_32_TO_32(d,s)         *(u32 *)(void *)(d) = *(u32 *)(void *)(s)
 #define ACPI_MOVE_32_TO_64(d,s)         *(u64 *)(void *)(d) = *(u32 *)(void *)(s)
 
 /* 64-bit source, 16/32/64 destination */
 
-#define ACPI_MOVE_64_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)    /* Truncate to 16 */
-#define ACPI_MOVE_64_TO_32(d,s)         ACPI_MOVE_32_TO_32(d,s)    /* Truncate to 32 */
+#define ACPI_MOVE_64_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)	/* Truncate to 16 */
+#define ACPI_MOVE_64_TO_32(d,s)         ACPI_MOVE_32_TO_32(d,s)	/* Truncate to 32 */
 #define ACPI_MOVE_64_TO_64(d,s)         *(u64 *)(void *)(d) = *(u64 *)(void *)(s)
 #endif
 
@@ -266,7 +264,7 @@
 
 /* 32-bit source, 16/32/64 destination */
 
-#define ACPI_MOVE_32_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)    /* Truncate to 16 */
+#define ACPI_MOVE_32_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)	/* Truncate to 16 */
 
 #define ACPI_MOVE_32_TO_32(d,s)         {((  u8 *)(void *)(d))[0] = ((u8 *)(void *)(s))[0];\
 										 ((  u8 *)(void *)(d))[1] = ((u8 *)(void *)(s))[1];\
@@ -277,8 +275,8 @@
 
 /* 64-bit source, 16/32/64 destination */
 
-#define ACPI_MOVE_64_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)    /* Truncate to 16 */
-#define ACPI_MOVE_64_TO_32(d,s)         ACPI_MOVE_32_TO_32(d,s)    /* Truncate to 32 */
+#define ACPI_MOVE_64_TO_16(d,s)         ACPI_MOVE_16_TO_16(d,s)	/* Truncate to 16 */
+#define ACPI_MOVE_64_TO_32(d,s)         ACPI_MOVE_32_TO_32(d,s)	/* Truncate to 32 */
 #define ACPI_MOVE_64_TO_64(d,s)         {((  u8 *)(void *)(d))[0] = ((u8 *)(void *)(s))[0];\
 										 ((  u8 *)(void *)(d))[1] = ((u8 *)(void *)(s))[1];\
 										 ((  u8 *)(void *)(d))[2] = ((u8 *)(void *)(s))[2];\
@@ -305,7 +303,6 @@
 #error unknown ACPI_MACHINE_WIDTH
 #endif
 
-
 /*
  * Fast power-of-two math macros for non-optimized compilers
  */
@@ -329,7 +326,6 @@
 #define ACPI_MUL_16(a)                  _ACPI_MUL(a,4)
 #define ACPI_MOD_16(a)                  _ACPI_MOD(a,16)
 
-
 /*
  * Rounding macros (Power of two boundaries only)
  */
@@ -343,7 +339,6 @@
 #define ACPI_ROUND_UP_to_32_bITS(a)          ACPI_ROUND_UP(a,4)
 #define ACPI_ROUND_UP_to_64_bITS(a)          ACPI_ROUND_UP(a,8)
 #define ACPI_ROUND_UP_TO_NATIVE_WORD(a)      ACPI_ROUND_UP(a,ALIGNED_ADDRESS_BOUNDARY)
-
 
 #define ACPI_ROUND_BITS_UP_TO_BYTES(a)       ACPI_DIV_8((a) + 7)
 #define ACPI_ROUND_BITS_DOWN_TO_BYTES(a)     ACPI_DIV_8((a))
@@ -365,7 +360,6 @@
 
 #define ACPI_IS_OCTAL_DIGIT(d)               (((char)(d) >= '0') && ((char)(d) <= '7'))
 
-
 /* Bitfields within ACPI registers */
 
 #define ACPI_REGISTER_PREPARE_BITS(val, pos, mask)      ((val << pos) & mask)
@@ -380,7 +374,6 @@
  */
 #define ACPI_GET_DESCRIPTOR_TYPE(d)     (((union acpi_descriptor *)(void *)(d))->descriptor_id)
 #define ACPI_SET_DESCRIPTOR_TYPE(d,t)   (((union acpi_descriptor *)(void *)(d))->descriptor_id = t)
-
 
 /* Macro to test the object type */
 
@@ -429,7 +422,6 @@
 
 #define GET_CURRENT_ARG_TYPE(list)      (list & ((u32) 0x1F))
 #define INCREMENT_ARG_LIST(list)        (list >>= ((u32) ARG_TYPE_WIDTH))
-
 
 /*
  * Reporting macros that are never compiled out
@@ -554,19 +546,16 @@
 #define ACPI_DEBUG_ONLY_MEMBERS(a)      a;
 #define _VERBOSE_STRUCTURES
 
-
 /* Stack and buffer dumping */
 
 #define ACPI_DUMP_STACK_ENTRY(a)        acpi_ex_dump_operand((a),0)
 #define ACPI_DUMP_OPERANDS(a,b,c,d,e)   acpi_ex_dump_operands(a,b,c,d,e,_acpi_module_name,__LINE__)
-
 
 #define ACPI_DUMP_ENTRY(a,b)            acpi_ns_dump_entry (a,b)
 #define ACPI_DUMP_PATHNAME(a,b,c,d)     acpi_ns_dump_pathname(a,b,c,d)
 #define ACPI_DUMP_RESOURCE_LIST(a)      acpi_rs_dump_resource_list(a)
 #define ACPI_DUMP_BUFFER(a,b)           acpi_ut_dump_buffer((u8 *)a,b,DB_BYTE_DISPLAY,_COMPONENT)
 #define ACPI_BREAK_MSG(a)               acpi_os_signal (ACPI_SIGNAL_BREAKPOINT,(a))
-
 
 /*
  * Generate INT3 on ACPI_ERROR (Debug only!)
@@ -587,7 +576,6 @@
  */
 #define ACPI_DEBUG_PRINT(pl)            acpi_ut_debug_print ACPI_PARAM_LIST(pl)
 #define ACPI_DEBUG_PRINT_RAW(pl)        acpi_ut_debug_print_raw ACPI_PARAM_LIST(pl)
-
 
 #else
 /*
@@ -639,7 +627,6 @@
 #define ACPI_DEBUGGER_EXEC(a)
 #endif
 
-
 /*
  * For 16-bit code, we want to shrink some things even though
  * we are using ACPI_DEBUG_OUTPUT to get the debug output
@@ -649,7 +636,6 @@
 #undef _VERBOSE_STRUCTURES
 #define ACPI_DEBUG_ONLY_MEMBERS(a)
 #endif
-
 
 #ifdef ACPI_DEBUG_OUTPUT
 /*
@@ -662,7 +648,6 @@
 
 #define ACPI_ADD_OBJECT_NAME(a,b)
 #endif
-
 
 /*
  * Memory allocation tracking (DEBUG ONLY)
@@ -685,6 +670,6 @@
 #define ACPI_MEM_FREE(a)                acpi_ut_free_and_track(a,_COMPONENT,_acpi_module_name,__LINE__)
 #define ACPI_MEM_TRACKING(a)            a
 
-#endif /* ACPI_DBG_TRACK_ALLOCATIONS */
+#endif				/* ACPI_DBG_TRACK_ALLOCATIONS */
 
-#endif /* ACMACROS_H */
+#endif				/* ACMACROS_H */

@@ -34,49 +34,45 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
-
 #define ACPI_FAN_COMPONENT		0x00200000
 #define ACPI_FAN_CLASS			"fan"
 #define ACPI_FAN_DRIVER_NAME		"ACPI Fan Driver"
 #define ACPI_FAN_FILE_STATE		"state"
 
 #define _COMPONENT		ACPI_FAN_COMPONENT
-ACPI_MODULE_NAME		("acpi_fan")
+ACPI_MODULE_NAME("acpi_fan")
 
-MODULE_AUTHOR("Paul Diefenbaugh");
+    MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION(ACPI_FAN_DRIVER_NAME);
 MODULE_LICENSE("GPL");
 
-static int acpi_fan_add (struct acpi_device *device);
-static int acpi_fan_remove (struct acpi_device *device, int type);
+static int acpi_fan_add(struct acpi_device *device);
+static int acpi_fan_remove(struct acpi_device *device, int type);
 
 static struct acpi_driver acpi_fan_driver = {
-	.name =		ACPI_FAN_DRIVER_NAME,
-	.class =	ACPI_FAN_CLASS,
-	.ids =		"PNP0C0B",
-	.ops =		{
-				.add =		acpi_fan_add,
-				.remove =	acpi_fan_remove,
-			},
+	.name = ACPI_FAN_DRIVER_NAME,
+	.class = ACPI_FAN_CLASS,
+	.ids = "PNP0C0B",
+	.ops = {
+		.add = acpi_fan_add,
+		.remove = acpi_fan_remove,
+		},
 };
 
 struct acpi_fan {
-	acpi_handle		handle;
+	acpi_handle handle;
 };
-
 
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
 
-static struct proc_dir_entry	*acpi_fan_dir;
+static struct proc_dir_entry *acpi_fan_dir;
 
-
-static int
-acpi_fan_read_state(struct seq_file *seq, void *offset)
+static int acpi_fan_read_state(struct seq_file *seq, void *offset)
 {
-	struct acpi_fan		*fan = seq->private;
-	int			state = 0;
+	struct acpi_fan *fan = seq->private;
+	int state = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_fan_read_state");
 
@@ -85,7 +81,7 @@ acpi_fan_read_state(struct seq_file *seq, void *offset)
 			seq_printf(seq, "status:                  ERROR\n");
 		else
 			seq_printf(seq, "status:                  %s\n",
-				     !state?"on":"off");
+				   !state ? "on" : "off");
 	}
 	return_VALUE(0);
 }
@@ -96,26 +92,26 @@ static int acpi_fan_state_open_fs(struct inode *inode, struct file *file)
 }
 
 static ssize_t
-acpi_fan_write_state(struct file *file, const char __user *buffer, 
-		     size_t count, loff_t *ppos)
+acpi_fan_write_state(struct file *file, const char __user * buffer,
+		     size_t count, loff_t * ppos)
 {
-	int			result = 0;
-	struct seq_file		*m = (struct seq_file *)file->private_data;
-	struct acpi_fan		*fan = (struct acpi_fan *) m->private;
-	char			state_string[12] = {'\0'};
+	int result = 0;
+	struct seq_file *m = (struct seq_file *)file->private_data;
+	struct acpi_fan *fan = (struct acpi_fan *)m->private;
+	char state_string[12] = { '\0' };
 
 	ACPI_FUNCTION_TRACE("acpi_fan_write_state");
 
 	if (!fan || (count > sizeof(state_string) - 1))
 		return_VALUE(-EINVAL);
-	
+
 	if (copy_from_user(state_string, buffer, count))
 		return_VALUE(-EFAULT);
-	
+
 	state_string[count] = '\0';
-	
-	result = acpi_bus_set_power(fan->handle, 
-		simple_strtoul(state_string, NULL, 0));
+
+	result = acpi_bus_set_power(fan->handle,
+				    simple_strtoul(state_string, NULL, 0));
 	if (result)
 		return_VALUE(result);
 
@@ -123,18 +119,17 @@ acpi_fan_write_state(struct file *file, const char __user *buffer,
 }
 
 static struct file_operations acpi_fan_state_ops = {
-	.open		= acpi_fan_state_open_fs,
-	.read		= seq_read,
-	.write		= acpi_fan_write_state,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.open = acpi_fan_state_open_fs,
+	.read = seq_read,
+	.write = acpi_fan_write_state,
+	.llseek = seq_lseek,
+	.release = single_release,
 	.owner = THIS_MODULE,
 };
 
-static int
-acpi_fan_add_fs(struct acpi_device *device)
+static int acpi_fan_add_fs(struct acpi_device *device)
 {
-	struct proc_dir_entry	*entry = NULL;
+	struct proc_dir_entry *entry = NULL;
 
 	ACPI_FUNCTION_TRACE("acpi_fan_add_fs");
 
@@ -143,7 +138,7 @@ acpi_fan_add_fs(struct acpi_device *device)
 
 	if (!acpi_device_dir(device)) {
 		acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device),
-			acpi_fan_dir);
+						     acpi_fan_dir);
 		if (!acpi_device_dir(device))
 			return_VALUE(-ENODEV);
 		acpi_device_dir(device)->owner = THIS_MODULE;
@@ -151,11 +146,12 @@ acpi_fan_add_fs(struct acpi_device *device)
 
 	/* 'status' [R/W] */
 	entry = create_proc_entry(ACPI_FAN_FILE_STATE,
-		S_IFREG|S_IRUGO|S_IWUSR, acpi_device_dir(device));
+				  S_IFREG | S_IRUGO | S_IWUSR,
+				  acpi_device_dir(device));
 	if (!entry)
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"Unable to create '%s' fs entry\n",
-			ACPI_FAN_FILE_STATE));
+				  "Unable to create '%s' fs entry\n",
+				  ACPI_FAN_FILE_STATE));
 	else {
 		entry->proc_fops = &acpi_fan_state_ops;
 		entry->data = acpi_driver_data(device);
@@ -165,15 +161,12 @@ acpi_fan_add_fs(struct acpi_device *device)
 	return_VALUE(0);
 }
 
-
-static int
-acpi_fan_remove_fs(struct acpi_device *device)
+static int acpi_fan_remove_fs(struct acpi_device *device)
 {
 	ACPI_FUNCTION_TRACE("acpi_fan_remove_fs");
 
 	if (acpi_device_dir(device)) {
-		remove_proc_entry(ACPI_FAN_FILE_STATE,
-				  acpi_device_dir(device));
+		remove_proc_entry(ACPI_FAN_FILE_STATE, acpi_device_dir(device));
 		remove_proc_entry(acpi_device_bid(device), acpi_fan_dir);
 		acpi_device_dir(device) = NULL;
 	}
@@ -181,17 +174,15 @@ acpi_fan_remove_fs(struct acpi_device *device)
 	return_VALUE(0);
 }
 
-
 /* --------------------------------------------------------------------------
                                  Driver Interface
    -------------------------------------------------------------------------- */
 
-static int
-acpi_fan_add(struct acpi_device *device)
+static int acpi_fan_add(struct acpi_device *device)
 {
-	int			result = 0;
-	struct acpi_fan		*fan = NULL;
-	int			state = 0;
+	int result = 0;
+	struct acpi_fan *fan = NULL;
+	int state = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_fan_add");
 
@@ -211,7 +202,7 @@ acpi_fan_add(struct acpi_device *device)
 	result = acpi_bus_get_power(fan->handle, &state);
 	if (result) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"Error reading power state\n"));
+				  "Error reading power state\n"));
 		goto end;
 	}
 
@@ -220,19 +211,17 @@ acpi_fan_add(struct acpi_device *device)
 		goto end;
 
 	printk(KERN_INFO PREFIX "%s [%s] (%s)\n",
-		acpi_device_name(device), acpi_device_bid(device),
-		!device->power.state?"on":"off");
+	       acpi_device_name(device), acpi_device_bid(device),
+	       !device->power.state ? "on" : "off");
 
-end:
+      end:
 	if (result)
 		kfree(fan);
 
 	return_VALUE(result);
 }
 
-
-static int
-acpi_fan_remove(struct acpi_device *device, int type)
+static int acpi_fan_remove(struct acpi_device *device, int type)
 {
 	struct acpi_fan *fan = NULL;
 
@@ -241,7 +230,7 @@ acpi_fan_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return_VALUE(-EINVAL);
 
-	fan = (struct acpi_fan *) acpi_driver_data(device);
+	fan = (struct acpi_fan *)acpi_driver_data(device);
 
 	acpi_fan_remove_fs(device);
 
@@ -250,9 +239,7 @@ acpi_fan_remove(struct acpi_device *device, int type)
 	return_VALUE(0);
 }
 
-
-static int __init
-acpi_fan_init(void)
+static int __init acpi_fan_init(void)
 {
 	int result = 0;
 
@@ -272,9 +259,7 @@ acpi_fan_init(void)
 	return_VALUE(0);
 }
 
-
-static void __exit
-acpi_fan_exit(void)
+static void __exit acpi_fan_exit(void)
 {
 	ACPI_FUNCTION_TRACE("acpi_fan_exit");
 
@@ -285,7 +270,5 @@ acpi_fan_exit(void)
 	return_VOID;
 }
 
-
 module_init(acpi_fan_init);
 module_exit(acpi_fan_exit);
-

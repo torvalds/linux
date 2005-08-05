@@ -9,5 +9,4 @@ struct acpi_container {
 	int state;
 };
 
-#endif /* __ACPI_CONTAINER_H */
-
+#endif				/* __ACPI_CONTAINER_H */

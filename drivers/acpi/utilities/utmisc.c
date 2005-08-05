@@ -41,14 +41,11 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 
-
 #define _COMPONENT          ACPI_UTILITIES
-	 ACPI_MODULE_NAME    ("utmisc")
-
+ACPI_MODULE_NAME("utmisc")
 
 /*******************************************************************************
  *
@@ -63,23 +60,18 @@
  *              when the method exits or the table is unloaded.
  *
  ******************************************************************************/
-
-acpi_status
-acpi_ut_allocate_owner_id (
-	acpi_owner_id                   *owner_id)
+acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 {
-	acpi_native_uint                i;
-	acpi_status                     status;
+	acpi_native_uint i;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("ut_allocate_owner_id");
-
+	ACPI_FUNCTION_TRACE("ut_allocate_owner_id");
 
 	/* Mutex for the global ID mask */
 
-	status = acpi_ut_acquire_mutex (ACPI_MTX_CACHES);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_acquire_mutex(ACPI_MTX_CACHES);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Find a free owner ID */
@@ -101,14 +93,12 @@ acpi_ut_allocate_owner_id (
 	 */
 	*owner_id = 0;
 	status = AE_OWNER_ID_LIMIT;
-	ACPI_REPORT_ERROR ((
-		"Could not allocate new owner_id (32 max), AE_OWNER_ID_LIMIT\n"));
+	ACPI_REPORT_ERROR(("Could not allocate new owner_id (32 max), AE_OWNER_ID_LIMIT\n"));
 
-exit:
-	(void) acpi_ut_release_mutex (ACPI_MTX_CACHES);
-	return_ACPI_STATUS (status);
+      exit:
+	(void)acpi_ut_release_mutex(ACPI_MTX_CACHES);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -124,16 +114,12 @@ exit:
  *
  ******************************************************************************/
 
-void
-acpi_ut_release_owner_id (
-	acpi_owner_id                   *owner_id_ptr)
+void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 {
-	acpi_owner_id                   owner_id = *owner_id_ptr;
-	acpi_status                     status;
+	acpi_owner_id owner_id = *owner_id_ptr;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("ut_release_owner_id");
-
+	ACPI_FUNCTION_TRACE("ut_release_owner_id");
 
 	/* Always clear the input owner_id (zero is an invalid ID) */
 
@@ -142,18 +128,18 @@ acpi_ut_release_owner_id (
 	/* Zero is not a valid owner_iD */
 
 	if ((owner_id == 0) || (owner_id > 32)) {
-		ACPI_REPORT_ERROR (("Invalid owner_id: %2.2X\n", owner_id));
+		ACPI_REPORT_ERROR(("Invalid owner_id: %2.2X\n", owner_id));
 		return_VOID;
 	}
 
 	/* Mutex for the global ID mask */
 
-	status = acpi_ut_acquire_mutex (ACPI_MTX_CACHES);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_ut_acquire_mutex(ACPI_MTX_CACHES);
+	if (ACPI_FAILURE(status)) {
 		return_VOID;
 	}
 
-	owner_id--; /* Normalize to zero */
+	owner_id--;		/* Normalize to zero */
 
 	/* Free the owner ID only if it is valid */
 
@@ -161,10 +147,9 @@ acpi_ut_release_owner_id (
 		acpi_gbl_owner_id_mask ^= (1 << owner_id);
 	}
 
-	(void) acpi_ut_release_mutex (ACPI_MTX_CACHES);
+	(void)acpi_ut_release_mutex(ACPI_MTX_CACHES);
 	return_VOID;
 }
-
 
 /*******************************************************************************
  *
@@ -180,15 +165,11 @@ acpi_ut_release_owner_id (
  *
  ******************************************************************************/
 
-void
-acpi_ut_strupr (
-	char                            *src_string)
+void acpi_ut_strupr(char *src_string)
 {
-	char                            *string;
+	char *string;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	if (!src_string) {
 		return;
@@ -197,12 +178,11 @@ acpi_ut_strupr (
 	/* Walk entire string, uppercasing the letters */
 
 	for (string = src_string; *string; string++) {
-		*string = (char) ACPI_TOUPPER (*string);
+		*string = (char)ACPI_TOUPPER(*string);
 	}
 
 	return;
 }
-
 
 /*******************************************************************************
  *
@@ -218,84 +198,76 @@ acpi_ut_strupr (
  *
  ******************************************************************************/
 
-void
-acpi_ut_print_string (
-	char                            *string,
-	u8                              max_length)
+void acpi_ut_print_string(char *string, u8 max_length)
 {
-	u32                             i;
-
+	u32 i;
 
 	if (!string) {
-		acpi_os_printf ("<\"NULL STRING PTR\">");
+		acpi_os_printf("<\"NULL STRING PTR\">");
 		return;
 	}
 
-	acpi_os_printf ("\"");
+	acpi_os_printf("\"");
 	for (i = 0; string[i] && (i < max_length); i++) {
 		/* Escape sequences */
 
 		switch (string[i]) {
 		case 0x07:
-			acpi_os_printf ("\\a");      /* BELL */
+			acpi_os_printf("\\a");	/* BELL */
 			break;
 
 		case 0x08:
-			acpi_os_printf ("\\b");     /* BACKSPACE */
+			acpi_os_printf("\\b");	/* BACKSPACE */
 			break;
 
 		case 0x0C:
-			acpi_os_printf ("\\f");     /* FORMFEED */
+			acpi_os_printf("\\f");	/* FORMFEED */
 			break;
 
 		case 0x0A:
-			acpi_os_printf ("\\n");     /* LINEFEED */
+			acpi_os_printf("\\n");	/* LINEFEED */
 			break;
 
 		case 0x0D:
-			acpi_os_printf ("\\r");     /* CARRIAGE RETURN*/
+			acpi_os_printf("\\r");	/* CARRIAGE RETURN */
 			break;
 
 		case 0x09:
-			acpi_os_printf ("\\t");     /* HORIZONTAL TAB */
+			acpi_os_printf("\\t");	/* HORIZONTAL TAB */
 			break;
 
 		case 0x0B:
-			acpi_os_printf ("\\v");     /* VERTICAL TAB */
+			acpi_os_printf("\\v");	/* VERTICAL TAB */
 			break;
 
-		case '\'':                      /* Single Quote */
-		case '\"':                      /* Double Quote */
-		case '\\':                      /* Backslash */
-			acpi_os_printf ("\\%c", (int) string[i]);
+		case '\'':	/* Single Quote */
+		case '\"':	/* Double Quote */
+		case '\\':	/* Backslash */
+			acpi_os_printf("\\%c", (int)string[i]);
 			break;
 
 		default:
 
 			/* Check for printable character or hex escape */
 
-			if (ACPI_IS_PRINT (string[i]))
-			{
+			if (ACPI_IS_PRINT(string[i])) {
 				/* This is a normal character */
 
-				acpi_os_printf ("%c", (int) string[i]);
-			}
-			else
-			{
+				acpi_os_printf("%c", (int)string[i]);
+			} else {
 				/* All others will be Hex escapes */
 
-				acpi_os_printf ("\\x%2.2X", (s32) string[i]);
+				acpi_os_printf("\\x%2.2X", (s32) string[i]);
 			}
 			break;
 		}
 	}
-	acpi_os_printf ("\"");
+	acpi_os_printf("\"");
 
 	if (i == max_length && string[i]) {
-		acpi_os_printf ("...");
+		acpi_os_printf("...");
 	}
 }
-
 
 /*******************************************************************************
  *
@@ -309,22 +281,18 @@ acpi_ut_print_string (
  *
  ******************************************************************************/
 
-u32
-acpi_ut_dword_byte_swap (
-	u32                             value)
+u32 acpi_ut_dword_byte_swap(u32 value)
 {
 	union {
-		u32                         value;
-		u8                          bytes[4];
+		u32 value;
+		u8 bytes[4];
 	} out;
 	union {
-		u32                         value;
-		u8                          bytes[4];
+		u32 value;
+		u8 bytes[4];
 	} in;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	in.value = value;
 
@@ -335,7 +303,6 @@ acpi_ut_dword_byte_swap (
 
 	return (out.value);
 }
-
 
 /*******************************************************************************
  *
@@ -352,23 +319,19 @@ acpi_ut_dword_byte_swap (
  *
  ******************************************************************************/
 
-void
-acpi_ut_set_integer_width (
-	u8                              revision)
+void acpi_ut_set_integer_width(u8 revision)
 {
 
 	if (revision <= 1) {
 		acpi_gbl_integer_bit_width = 32;
 		acpi_gbl_integer_nybble_width = 8;
 		acpi_gbl_integer_byte_width = 4;
-	}
-	else {
+	} else {
 		acpi_gbl_integer_bit_width = 64;
 		acpi_gbl_integer_nybble_width = 16;
 		acpi_gbl_integer_byte_width = 8;
 	}
 }
-
 
 #ifdef ACPI_DEBUG_OUTPUT
 /*******************************************************************************
@@ -387,17 +350,14 @@ acpi_ut_set_integer_width (
  ******************************************************************************/
 
 void
-acpi_ut_display_init_pathname (
-	u8                              type,
-	struct acpi_namespace_node      *obj_handle,
-	char                            *path)
+acpi_ut_display_init_pathname(u8 type,
+			      struct acpi_namespace_node *obj_handle,
+			      char *path)
 {
-	acpi_status                     status;
-	struct acpi_buffer              buffer;
+	acpi_status status;
+	struct acpi_buffer buffer;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	/* Only print the path if the appropriate debug level is enabled */
 
@@ -408,8 +368,8 @@ acpi_ut_display_init_pathname (
 	/* Get the full pathname to the node */
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
-	status = acpi_ns_handle_to_pathname (obj_handle, &buffer);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_ns_handle_to_pathname(obj_handle, &buffer);
+	if (ACPI_FAILURE(status)) {
 		return;
 	}
 
@@ -417,30 +377,29 @@ acpi_ut_display_init_pathname (
 
 	switch (type) {
 	case ACPI_TYPE_METHOD:
-		acpi_os_printf ("Executing  ");
+		acpi_os_printf("Executing  ");
 		break;
 
 	default:
-		acpi_os_printf ("Initializing ");
+		acpi_os_printf("Initializing ");
 		break;
 	}
 
 	/* Print the object type and pathname */
 
-	acpi_os_printf ("%-12s %s",
-		acpi_ut_get_type_name (type), (char *) buffer.pointer);
+	acpi_os_printf("%-12s %s",
+		       acpi_ut_get_type_name(type), (char *)buffer.pointer);
 
 	/* Extra path is used to append names like _STA, _INI, etc. */
 
 	if (path) {
-		acpi_os_printf (".%s", path);
+		acpi_os_printf(".%s", path);
 	}
-	acpi_os_printf ("\n");
+	acpi_os_printf("\n");
 
-	ACPI_MEM_FREE (buffer.pointer);
+	ACPI_MEM_FREE(buffer.pointer);
 }
 #endif
-
 
 /*******************************************************************************
  *
@@ -457,32 +416,27 @@ acpi_ut_display_init_pathname (
  *
  ******************************************************************************/
 
-u8
-acpi_ut_valid_acpi_name (
-	u32                             name)
+u8 acpi_ut_valid_acpi_name(u32 name)
 {
-	char                            *name_ptr = (char *) &name;
-	char                            character;
-	acpi_native_uint                i;
+	char *name_ptr = (char *)&name;
+	char character;
+	acpi_native_uint i;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {
 		character = *name_ptr;
 		name_ptr++;
 
 		if (!((character == '_') ||
-			  (character >= 'A' && character <= 'Z') ||
-			  (character >= '0' && character <= '9'))) {
+		      (character >= 'A' && character <= 'Z') ||
+		      (character >= '0' && character <= '9'))) {
 			return (FALSE);
 		}
 	}
 
 	return (TRUE);
 }
-
 
 /*******************************************************************************
  *
@@ -496,18 +450,15 @@ acpi_ut_valid_acpi_name (
  *
  ******************************************************************************/
 
-u8
-acpi_ut_valid_acpi_character (
-	char                            character)
+u8 acpi_ut_valid_acpi_character(char character)
 {
 
-	ACPI_FUNCTION_ENTRY ();
+	ACPI_FUNCTION_ENTRY();
 
-	return ((u8)   ((character == '_') ||
-			   (character >= 'A' && character <= 'Z') ||
-			   (character >= '0' && character <= '9')));
+	return ((u8) ((character == '_') ||
+		      (character >= 'A' && character <= 'Z') ||
+		      (character >= '0' && character <= '9')));
 }
-
 
 /*******************************************************************************
  *
@@ -525,18 +476,13 @@ acpi_ut_valid_acpi_character (
  ******************************************************************************/
 
 acpi_status
-acpi_ut_strtoul64 (
-	char                            *string,
-	u32                             base,
-	acpi_integer                    *ret_integer)
+acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 {
-	u32                             this_digit = 0;
-	acpi_integer                    return_value = 0;
-	acpi_integer                    quotient;
+	u32 this_digit = 0;
+	acpi_integer return_value = 0;
+	acpi_integer quotient;
 
-
-	ACPI_FUNCTION_TRACE ("ut_stroul64");
-
+	ACPI_FUNCTION_TRACE("ut_stroul64");
 
 	if ((!string) || !(*string)) {
 		goto error_exit;
@@ -550,12 +496,12 @@ acpi_ut_strtoul64 (
 
 	default:
 		/* Invalid Base */
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Skip over any white space in the buffer */
 
-	while (ACPI_IS_SPACE (*string) || *string == '\t') {
+	while (ACPI_IS_SPACE(*string) || *string == '\t') {
 		string++;
 	}
 
@@ -564,12 +510,10 @@ acpi_ut_strtoul64 (
 	 * determine if it is decimal or hexadecimal:
 	 */
 	if (base == 0) {
-		if ((*string == '0') &&
-			(ACPI_TOLOWER (*(string + 1)) == 'x')) {
+		if ((*string == '0') && (ACPI_TOLOWER(*(string + 1)) == 'x')) {
 			base = 16;
 			string += 2;
-		}
-		else {
+		} else {
 			base = 10;
 		}
 	}
@@ -579,8 +523,7 @@ acpi_ut_strtoul64 (
 	 * 0 or 0x, if they are present.
 	 */
 	if ((base == 16) &&
-		(*string == '0') &&
-		(ACPI_TOLOWER (*(string + 1)) == 'x')) {
+	    (*string == '0') && (ACPI_TOLOWER(*(string + 1)) == 'x')) {
 		string += 2;
 	}
 
@@ -593,25 +536,23 @@ acpi_ut_strtoul64 (
 	/* Main loop: convert the string to a 64-bit integer */
 
 	while (*string) {
-		if (ACPI_IS_DIGIT (*string)) {
+		if (ACPI_IS_DIGIT(*string)) {
 			/* Convert ASCII 0-9 to Decimal value */
 
-			this_digit = ((u8) *string) - '0';
-		}
-		else {
+			this_digit = ((u8) * string) - '0';
+		} else {
 			if (base == 10) {
 				/* Digit is out of range */
 
 				goto error_exit;
 			}
 
-			this_digit = (u8) ACPI_TOUPPER (*string);
-			if (ACPI_IS_XDIGIT ((char) this_digit)) {
+			this_digit = (u8) ACPI_TOUPPER(*string);
+			if (ACPI_IS_XDIGIT((char)this_digit)) {
 				/* Convert ASCII Hex char to value */
 
 				this_digit = this_digit - 'A' + 10;
-			}
-			else {
+			} else {
 				/*
 				 * We allow non-hex chars, just stop now, same as end-of-string.
 				 * See ACPI spec, string-to-integer conversion.
@@ -622,8 +563,10 @@ acpi_ut_strtoul64 (
 
 		/* Divide the digit into the correct position */
 
-		(void) acpi_ut_short_divide ((ACPI_INTEGER_MAX - (acpi_integer) this_digit),
-				 base, &quotient, NULL);
+		(void)
+		    acpi_ut_short_divide((ACPI_INTEGER_MAX -
+					  (acpi_integer) this_digit), base,
+					 &quotient, NULL);
 		if (return_value > quotient) {
 			goto error_exit;
 		}
@@ -636,20 +579,17 @@ acpi_ut_strtoul64 (
 	/* All done, normal exit */
 
 	*ret_integer = return_value;
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 
-
-error_exit:
+      error_exit:
 	/* Base was set/validated above */
 
 	if (base == 10) {
-		return_ACPI_STATUS (AE_BAD_DECIMAL_CONSTANT);
-	}
-	else {
-		return_ACPI_STATUS (AE_BAD_HEX_CONSTANT);
+		return_ACPI_STATUS(AE_BAD_DECIMAL_CONSTANT);
+	} else {
+		return_ACPI_STATUS(AE_BAD_HEX_CONSTANT);
 	}
 }
-
 
 /*******************************************************************************
  *
@@ -666,16 +606,13 @@ error_exit:
  ******************************************************************************/
 
 acpi_status
-acpi_ut_create_update_state_and_push (
-	union acpi_operand_object       *object,
-	u16                             action,
-	union acpi_generic_state        **state_list)
+acpi_ut_create_update_state_and_push(union acpi_operand_object *object,
+				     u16 action,
+				     union acpi_generic_state **state_list)
 {
-	union acpi_generic_state         *state;
+	union acpi_generic_state *state;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	/* Ignore null objects; these are expected */
 
@@ -683,15 +620,14 @@ acpi_ut_create_update_state_and_push (
 		return (AE_OK);
 	}
 
-	state = acpi_ut_create_update_state (object, action);
+	state = acpi_ut_create_update_state(object, action);
 	if (!state) {
 		return (AE_NO_MEMORY);
 	}
 
-	acpi_ut_push_generic_state (state_list, state);
+	acpi_ut_push_generic_state(state_list, state);
 	return (AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -709,33 +645,29 @@ acpi_ut_create_update_state_and_push (
  ******************************************************************************/
 
 acpi_status
-acpi_ut_walk_package_tree (
-	union acpi_operand_object       *source_object,
-	void                            *target_object,
-	acpi_pkg_callback               walk_callback,
-	void                            *context)
+acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
+			  void *target_object,
+			  acpi_pkg_callback walk_callback, void *context)
 {
-	acpi_status                     status = AE_OK;
-	union acpi_generic_state        *state_list = NULL;
-	union acpi_generic_state        *state;
-	u32                             this_index;
-	union acpi_operand_object       *this_source_obj;
+	acpi_status status = AE_OK;
+	union acpi_generic_state *state_list = NULL;
+	union acpi_generic_state *state;
+	u32 this_index;
+	union acpi_operand_object *this_source_obj;
 
+	ACPI_FUNCTION_TRACE("ut_walk_package_tree");
 
-	ACPI_FUNCTION_TRACE ("ut_walk_package_tree");
-
-
-	state = acpi_ut_create_pkg_state (source_object, target_object, 0);
+	state = acpi_ut_create_pkg_state(source_object, target_object, 0);
 	if (!state) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	while (state) {
 		/* Get one element of the package */
 
-		this_index    = state->pkg.index;
+		this_index = state->pkg.index;
 		this_source_obj = (union acpi_operand_object *)
-				  state->pkg.source_object->package.elements[this_index];
+		    state->pkg.source_object->package.elements[this_index];
 
 		/*
 		 * Check for:
@@ -746,16 +678,20 @@ acpi_ut_walk_package_tree (
 		 *    case below.
 		 */
 		if ((!this_source_obj) ||
-			(ACPI_GET_DESCRIPTOR_TYPE (this_source_obj) != ACPI_DESC_TYPE_OPERAND) ||
-			(ACPI_GET_OBJECT_TYPE (this_source_obj) != ACPI_TYPE_PACKAGE)) {
-			status = walk_callback (ACPI_COPY_TYPE_SIMPLE, this_source_obj,
-					 state, context);
-			if (ACPI_FAILURE (status)) {
-				return_ACPI_STATUS (status);
+		    (ACPI_GET_DESCRIPTOR_TYPE(this_source_obj) !=
+		     ACPI_DESC_TYPE_OPERAND)
+		    || (ACPI_GET_OBJECT_TYPE(this_source_obj) !=
+			ACPI_TYPE_PACKAGE)) {
+			status =
+			    walk_callback(ACPI_COPY_TYPE_SIMPLE,
+					  this_source_obj, state, context);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
 			}
 
 			state->pkg.index++;
-			while (state->pkg.index >= state->pkg.source_object->package.count) {
+			while (state->pkg.index >=
+			       state->pkg.source_object->package.count) {
 				/*
 				 * We've handled all of the objects at this level,  This means
 				 * that we have just completed a package.  That package may
@@ -763,8 +699,8 @@ acpi_ut_walk_package_tree (
 				 *
 				 * Delete this state and pop the previous state (package).
 				 */
-				acpi_ut_delete_generic_state (state);
-				state = acpi_ut_pop_generic_state (&state_list);
+				acpi_ut_delete_generic_state(state);
+				state = acpi_ut_pop_generic_state(&state_list);
 
 				/* Finished when there are no more states */
 
@@ -774,7 +710,7 @@ acpi_ut_walk_package_tree (
 					 * package just add the length of the package objects
 					 * and exit
 					 */
-					return_ACPI_STATUS (AE_OK);
+					return_ACPI_STATUS(AE_OK);
 				}
 
 				/*
@@ -783,34 +719,34 @@ acpi_ut_walk_package_tree (
 				 */
 				state->pkg.index++;
 			}
-		}
-		else {
+		} else {
 			/* This is a subobject of type package */
 
-			status = walk_callback (ACPI_COPY_TYPE_PACKAGE, this_source_obj,
-					  state, context);
-			if (ACPI_FAILURE (status)) {
-				return_ACPI_STATUS (status);
+			status =
+			    walk_callback(ACPI_COPY_TYPE_PACKAGE,
+					  this_source_obj, state, context);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
 			}
 
 			/*
 			 * Push the current state and create a new one
 			 * The callback above returned a new target package object.
 			 */
-			acpi_ut_push_generic_state (&state_list, state);
-			state = acpi_ut_create_pkg_state (this_source_obj,
-					   state->pkg.this_target_obj, 0);
+			acpi_ut_push_generic_state(&state_list, state);
+			state = acpi_ut_create_pkg_state(this_source_obj,
+							 state->pkg.
+							 this_target_obj, 0);
 			if (!state) {
-				return_ACPI_STATUS (AE_NO_MEMORY);
+				return_ACPI_STATUS(AE_NO_MEMORY);
 			}
 		}
 	}
 
 	/* We should never get here */
 
-	return_ACPI_STATUS (AE_AML_INTERNAL);
+	return_ACPI_STATUS(AE_AML_INTERNAL);
 }
-
 
 /*******************************************************************************
  *
@@ -825,22 +761,17 @@ acpi_ut_walk_package_tree (
  *
  ******************************************************************************/
 
-u8
-acpi_ut_generate_checksum (
-	u8                              *buffer,
-	u32                             length)
+u8 acpi_ut_generate_checksum(u8 * buffer, u32 length)
 {
-	u32                             i;
-	signed char                     sum = 0;
-
+	u32 i;
+	signed char sum = 0;
 
 	for (i = 0; i < length; i++) {
-		sum = (signed char) (sum + buffer[i]);
+		sum = (signed char)(sum + buffer[i]);
 	}
 
 	return ((u8) (0 - sum));
 }
-
 
 /*******************************************************************************
  *
@@ -854,17 +785,13 @@ acpi_ut_generate_checksum (
  *
  ******************************************************************************/
 
-
-u8 *
-acpi_ut_get_resource_end_tag (
-	union acpi_operand_object       *obj_desc)
+u8 *acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc)
 {
-	u8                              buffer_byte;
-	u8                              *buffer;
-	u8                              *end_buffer;
+	u8 buffer_byte;
+	u8 *buffer;
+	u8 *end_buffer;
 
-
-	buffer    = obj_desc->buffer.pointer;
+	buffer = obj_desc->buffer.pointer;
 	end_buffer = buffer + obj_desc->buffer.length;
 
 	while (buffer < end_buffer) {
@@ -872,12 +799,12 @@ acpi_ut_get_resource_end_tag (
 		if (buffer_byte & ACPI_RDESC_TYPE_MASK) {
 			/* Large Descriptor - Length is next 2 bytes */
 
-			buffer += ((*(buffer+1) | (*(buffer+2) << 8)) + 3);
-		}
-		else {
+			buffer += ((*(buffer + 1) | (*(buffer + 2) << 8)) + 3);
+		} else {
 			/* Small Descriptor.  End Tag will be found here */
 
-			if ((buffer_byte & ACPI_RDESC_SMALL_MASK) == ACPI_RDESC_TYPE_END_TAG) {
+			if ((buffer_byte & ACPI_RDESC_SMALL_MASK) ==
+			    ACPI_RDESC_TYPE_END_TAG) {
 				/* Found the end tag descriptor, all done. */
 
 				return (buffer);
@@ -894,7 +821,6 @@ acpi_ut_get_resource_end_tag (
 	return (NULL);
 }
 
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_report_error
@@ -909,16 +835,11 @@ acpi_ut_get_resource_end_tag (
  *
  ******************************************************************************/
 
-void
-acpi_ut_report_error (
-	char                            *module_name,
-	u32                             line_number,
-	u32                             component_id)
+void acpi_ut_report_error(char *module_name, u32 line_number, u32 component_id)
 {
 
-	acpi_os_printf ("%8s-%04d: *** Error: ", module_name, line_number);
+	acpi_os_printf("%8s-%04d: *** Error: ", module_name, line_number);
 }
-
 
 /*******************************************************************************
  *
@@ -935,15 +856,11 @@ acpi_ut_report_error (
  ******************************************************************************/
 
 void
-acpi_ut_report_warning (
-	char                            *module_name,
-	u32                             line_number,
-	u32                             component_id)
+acpi_ut_report_warning(char *module_name, u32 line_number, u32 component_id)
 {
 
-	acpi_os_printf ("%8s-%04d: *** Warning: ", module_name, line_number);
+	acpi_os_printf("%8s-%04d: *** Warning: ", module_name, line_number);
 }
-
 
 /*******************************************************************************
  *
@@ -959,14 +876,8 @@ acpi_ut_report_warning (
  *
  ******************************************************************************/
 
-void
-acpi_ut_report_info (
-	char                            *module_name,
-	u32                             line_number,
-	u32                             component_id)
+void acpi_ut_report_info(char *module_name, u32 line_number, u32 component_id)
 {
 
-	acpi_os_printf ("%8s-%04d: *** Info: ", module_name, line_number);
+	acpi_os_printf("%8s-%04d: *** Info: ", module_name, line_number);
 }
-
-

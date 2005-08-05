@@ -91,4 +91,4 @@ static int acpi_poweroff_init(void)
 
 late_initcall(acpi_poweroff_init);
 
-#endif /* CONFIG_PM */
+#endif				/* CONFIG_PM */

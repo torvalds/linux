@@ -60,4 +60,4 @@
  */
 #define ACPI_UNUSED_VAR __attribute__ ((unused))
 
-#endif /* __ACGCC_H__ */
+#endif				/* __ACGCC_H__ */

@@ -41,27 +41,19 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acparser.h>
 #include <acpi/acdispat.h>
 #include <acpi/acinterp.h>
 
-
 #define _COMPONENT          ACPI_PARSER
-	 ACPI_MODULE_NAME    ("psxface")
+ACPI_MODULE_NAME("psxface")
 
 /* Local Prototypes */
-
-static acpi_status
-acpi_ps_execute_pass (
-	struct acpi_parameter_info      *info);
+static acpi_status acpi_ps_execute_pass(struct acpi_parameter_info *info);
 
 static void
-acpi_ps_update_parameter_list (
-	struct acpi_parameter_info      *info,
-	u16                             action);
-
+acpi_ps_update_parameter_list(struct acpi_parameter_info *info, u16 action);
 
 /*******************************************************************************
  *
@@ -86,27 +78,24 @@ acpi_ps_update_parameter_list (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ps_execute_method (
-	struct acpi_parameter_info      *info)
+acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("ps_execute_method");
-
+	ACPI_FUNCTION_TRACE("ps_execute_method");
 
 	/* Validate the Info and method Node */
 
 	if (!info || !info->node) {
-		return_ACPI_STATUS (AE_NULL_ENTRY);
+		return_ACPI_STATUS(AE_NULL_ENTRY);
 	}
 
 	/* Init for new method, wait on concurrency semaphore */
 
-	status = acpi_ds_begin_method_execution (info->node, info->obj_desc, NULL);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status =
+	    acpi_ds_begin_method_execution(info->node, info->obj_desc, NULL);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/*
@@ -114,55 +103,54 @@ acpi_ps_execute_method (
 	 * objects (such as Operation Regions) can be created during the
 	 * first pass parse.
 	 */
-	status = acpi_ut_allocate_owner_id (&info->obj_desc->method.owner_id);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_allocate_owner_id(&info->obj_desc->method.owner_id);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/*
 	 * The caller "owns" the parameters, so give each one an extra
 	 * reference
 	 */
-	acpi_ps_update_parameter_list (info, REF_INCREMENT);
+	acpi_ps_update_parameter_list(info, REF_INCREMENT);
 
 	/*
 	 * 1) Perform the first pass parse of the method to enter any
 	 *    named objects that it creates into the namespace
 	 */
-	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-		"**** Begin Method Parse **** Entry=%p obj=%p\n",
-		info->node, info->obj_desc));
+	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+			  "**** Begin Method Parse **** Entry=%p obj=%p\n",
+			  info->node, info->obj_desc));
 
 	info->pass_number = 1;
-	status = acpi_ps_execute_pass (info);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_ps_execute_pass(info);
+	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
 
 	/*
 	 * 2) Execute the method. Performs second pass parse simultaneously
 	 */
-	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-		"**** Begin Method Execution **** Entry=%p obj=%p\n",
-		info->node, info->obj_desc));
+	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+			  "**** Begin Method Execution **** Entry=%p obj=%p\n",
+			  info->node, info->obj_desc));
 
 	info->pass_number = 3;
-	status = acpi_ps_execute_pass (info);
+	status = acpi_ps_execute_pass(info);
 
-
-cleanup:
+      cleanup:
 	if (info->obj_desc->method.owner_id) {
-		acpi_ut_release_owner_id (&info->obj_desc->method.owner_id);
+		acpi_ut_release_owner_id(&info->obj_desc->method.owner_id);
 	}
 
 	/* Take away the extra reference that we gave the parameters above */
 
-	acpi_ps_update_parameter_list (info, REF_DECREMENT);
+	acpi_ps_update_parameter_list(info, REF_DECREMENT);
 
 	/* Exit now if error above */
 
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/*
@@ -170,16 +158,16 @@ cleanup:
 	 * a control exception code
 	 */
 	if (info->return_object) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Method returned obj_desc=%p\n",
-			info->return_object));
-		ACPI_DUMP_STACK_ENTRY (info->return_object);
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Method returned obj_desc=%p\n",
+				  info->return_object));
+		ACPI_DUMP_STACK_ENTRY(info->return_object);
 
 		status = AE_CTRL_RETURN_VALUE;
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -196,25 +184,22 @@ cleanup:
  ******************************************************************************/
 
 static void
-acpi_ps_update_parameter_list (
-	struct acpi_parameter_info      *info,
-	u16                             action)
+acpi_ps_update_parameter_list(struct acpi_parameter_info *info, u16 action)
 {
-	acpi_native_uint                i;
+	acpi_native_uint i;
 
-
-	if ((info->parameter_type == ACPI_PARAM_ARGS) &&
-		(info->parameters)) {
+	if ((info->parameter_type == ACPI_PARAM_ARGS) && (info->parameters)) {
 		/* Update reference count for each parameter */
 
 		for (i = 0; info->parameters[i]; i++) {
 			/* Ignore errors, just do them all */
 
-			(void) acpi_ut_update_object_reference (info->parameters[i], action);
+			(void)acpi_ut_update_object_reference(info->
+							      parameters[i],
+							      action);
 		}
 	}
 }
-
 
 /*******************************************************************************
  *
@@ -229,53 +214,48 @@ acpi_ps_update_parameter_list (
  *
  ******************************************************************************/
 
-static acpi_status
-acpi_ps_execute_pass (
-	struct acpi_parameter_info      *info)
+static acpi_status acpi_ps_execute_pass(struct acpi_parameter_info *info)
 {
-	acpi_status                     status;
-	union acpi_parse_object         *op;
-	struct acpi_walk_state          *walk_state;
+	acpi_status status;
+	union acpi_parse_object *op;
+	struct acpi_walk_state *walk_state;
 
-
-	ACPI_FUNCTION_TRACE ("ps_execute_pass");
-
+	ACPI_FUNCTION_TRACE("ps_execute_pass");
 
 	/* Create and init a Root Node */
 
-	op = acpi_ps_create_scope_op ();
+	op = acpi_ps_create_scope_op();
 	if (!op) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	/* Create and initialize a new walk state */
 
-	walk_state = acpi_ds_create_walk_state (
-			  info->obj_desc->method.owner_id, NULL, NULL, NULL);
+	walk_state =
+	    acpi_ds_create_walk_state(info->obj_desc->method.owner_id, NULL,
+				      NULL, NULL);
 	if (!walk_state) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
 	}
 
-	status = acpi_ds_init_aml_walk (walk_state, op, info->node,
-			  info->obj_desc->method.aml_start,
-			  info->obj_desc->method.aml_length,
-			  info->pass_number == 1 ? NULL : info,
-			  info->pass_number);
-	if (ACPI_FAILURE (status)) {
-		acpi_ds_delete_walk_state (walk_state);
+	status = acpi_ds_init_aml_walk(walk_state, op, info->node,
+				       info->obj_desc->method.aml_start,
+				       info->obj_desc->method.aml_length,
+				       info->pass_number == 1 ? NULL : info,
+				       info->pass_number);
+	if (ACPI_FAILURE(status)) {
+		acpi_ds_delete_walk_state(walk_state);
 		goto cleanup;
 	}
 
 	/* Parse the AML */
 
-	status = acpi_ps_parse_aml (walk_state);
+	status = acpi_ps_parse_aml(walk_state);
 
 	/* Walk state was deleted by parse_aml */
 
-cleanup:
-	acpi_ps_delete_parse_tree (op);
-	return_ACPI_STATUS (status);
+      cleanup:
+	acpi_ps_delete_parse_tree(op);
+	return_ACPI_STATUS(status);
 }
-
-

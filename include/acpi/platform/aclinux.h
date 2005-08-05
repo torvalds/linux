@@ -71,9 +71,7 @@
 #define acpi_cache_t	kmem_cache_t
 #endif
 
-
-
-#else /* !__KERNEL__ */
+#else				/* !__KERNEL__ */
 
 #include <stdarg.h>
 #include <string.h>
@@ -94,10 +92,10 @@
 
 #define __cdecl
 #define ACPI_FLUSH_CPU_CACHE()
-#endif /* __KERNEL__ */
+#endif				/* __KERNEL__ */
 
 /* Linux uses GCC */
 
 #include "acgcc.h"
 
-#endif /* __ACLINUX_H__ */
+#endif				/* __ACLINUX_H__ */
