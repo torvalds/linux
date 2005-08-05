@@ -46,10 +46,8 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 /*
  * fsnotify_unlink - file was unlinked
  */
-static inline void fsnotify_unlink(struct dentry *dentry, struct inode *dir)
+static inline void fsnotify_unlink(struct dentry *dentry, struct inode *inode, struct inode *dir)
 {
-	struct inode *inode = dentry->d_inode;
-
 	inode_dir_notify(dir, DN_DELETE);
 	inotify_inode_queue_event(dir, IN_DELETE, 0, dentry->d_name.name);
 	inotify_inode_queue_event(inode, IN_DELETE_SELF, 0, NULL);
