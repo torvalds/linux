@@ -83,7 +83,7 @@
 #include "../core/hcd.h"
 #include "isp116x.h"
 
-#define DRIVER_VERSION	"08 Apr 2005"
+#define DRIVER_VERSION	"05 Aug 2005"
 #define DRIVER_DESC	"ISP116x USB Host Controller Driver"
 
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -629,14 +629,12 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 			ERR("Unrecoverable error\n");
 			/* What should we do here? Reset?  */
 		}
-		if (intstat & HCINT_RHSC) {
-			isp116x->rhstatus =
-			    isp116x_read_reg32(isp116x, HCRHSTATUS);
-			isp116x->rhport[0] =
-			    isp116x_read_reg32(isp116x, HCRHPORT1);
-			isp116x->rhport[1] =
-			    isp116x_read_reg32(isp116x, HCRHPORT2);
-		}
+		if (intstat & HCINT_RHSC)
+			/* When root hub or any of its ports is going
+			   to come out of suspend, it may take more
+			   than 10ms for status bits to stabilize. */
+			mod_timer(&hcd->rh_timer, jiffies
+				  + msecs_to_jiffies(20) + 1);
 		if (intstat & HCINT_RD) {
 			DBG("---- remote wakeup\n");
 			schedule_work(&isp116x->rh_resume);
@@ -925,20 +923,27 @@ static int isp116x_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	int ports, i, changed = 0;
+	unsigned long flags;
 
 	if (!HC_IS_RUNNING(hcd->state))
 		return -ESHUTDOWN;
 
-	ports = isp116x->rhdesca & RH_A_NDP;
+	/* Report no status change now, if we are scheduled to be
+	   called later */
+	if (timer_pending(&hcd->rh_timer))
+		return 0;
 
-	/* init status */
+	ports = isp116x->rhdesca & RH_A_NDP;
+	spin_lock_irqsave(&isp116x->lock, flags);
+	isp116x->rhstatus = isp116x_read_reg32(isp116x, HCRHSTATUS);
 	if (isp116x->rhstatus & (RH_HS_LPSC | RH_HS_OCIC))
 		buf[0] = changed = 1;
 	else
 		buf[0] = 0;
 
 	for (i = 0; i < ports; i++) {
-		u32 status = isp116x->rhport[i];
+		u32 status = isp116x->rhport[i] =
+		    isp116x_read_reg32(isp116x, i ? HCRHPORT2 : HCRHPORT1);
 
 		if (status & (RH_PS_CSC | RH_PS_PESC | RH_PS_PSSC
 			      | RH_PS_OCIC | RH_PS_PRSC)) {
@@ -947,6 +952,7 @@ static int isp116x_hub_status_data(struct usb_hcd *hcd, char *buf)
 			continue;
 		}
 	}
+	spin_unlock_irqrestore(&isp116x->lock, flags);
 	return changed;
 }
 
@@ -1536,6 +1542,9 @@ static int isp116x_start(struct usb_hcd *hcd)
 		return -ENODEV;
 	}
 
+	/* To be removed in future */
+	hcd->uses_new_polling = 1;
+
 	isp116x_write_reg16(isp116x, HCITLBUFLEN, ISP116x_ITL_BUFSIZE);
 	isp116x_write_reg16(isp116x, HCATLBUFLEN, ISP116x_ATL_BUFSIZE);
 
@@ -1639,7 +1648,7 @@ static int __init_or_module isp116x_remove(struct device *dev)
 	struct platform_device *pdev;
 	struct resource *res;
 
-	if(!hcd)
+	if (!hcd)
 		return 0;
 	isp116x = hcd_to_isp116x(hcd);
 	pdev = container_of(dev, struct platform_device, dev);
