@@ -122,8 +122,11 @@ static struct vrm_model vrm_models[] = {
 	{X86_VENDOR_INTEL, 0x6, 0xB, 85},	/* Tualatin */
 	{X86_VENDOR_INTEL, 0x6, ANY, 82},	/* any P6 */
 	{X86_VENDOR_INTEL, 0x7, ANY, 0},	/* Itanium */
+	{X86_VENDOR_INTEL, 0xF, 0x0, 90},	/* P4 */
+	{X86_VENDOR_INTEL, 0xF, 0x1, 90},	/* P4 Willamette */
+	{X86_VENDOR_INTEL, 0xF, 0x2, 90},	/* P4 Northwood */
 	{X86_VENDOR_INTEL, 0xF, 0x3, 100},	/* P4 Prescott */
-	{X86_VENDOR_INTEL, 0xF, ANY, 90},	/* P4 before Prescott */
+	{X86_VENDOR_INTEL, 0xF, 0x4, 100},	/* P4 Prescott */
 	{X86_VENDOR_INTEL, 0x10,ANY, 0},	/* Itanium 2 */
 	{X86_VENDOR_UNKNOWN, ANY, ANY, 0}	/* stop here */
 };
