@@ -268,6 +268,7 @@ struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, int gfp_mask)
 	} else
 		put_device(&dev->sdev_gendev);
 
+	cmd->jiffies_at_alloc = jiffies;
 	return cmd;
 }				
 EXPORT_SYMBOL(scsi_get_command);
@@ -798,9 +799,23 @@ static void scsi_softirq(struct softirq_action *h)
 	while (!list_empty(&local_q)) {
 		struct scsi_cmnd *cmd = list_entry(local_q.next,
 						   struct scsi_cmnd, eh_entry);
+		/* The longest time any command should be outstanding is the
+		 * per command timeout multiplied by the number of retries.
+		 *
+		 * For a typical command, this is 2.5 minutes */
+		unsigned long wait_for 
+			= cmd->allowed * cmd->timeout_per_command;
 		list_del_init(&cmd->eh_entry);
 
 		disposition = scsi_decide_disposition(cmd);
+		if (disposition != SUCCESS &&
+		    time_before(cmd->jiffies_at_alloc + wait_for, jiffies)) {
+			dev_printk(KERN_ERR, &cmd->device->sdev_gendev, 
+				   "timing out command, waited %ds\n",
+				   wait_for/HZ);
+			disposition = SUCCESS;
+		}
+			
 		scsi_log_completion(cmd, disposition);
 		switch (disposition) {
 		case SUCCESS:
