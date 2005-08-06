@@ -57,8 +57,6 @@
 #ifndef CONFIG_BT_HCIUART_DEBUG
 #undef  BT_DBG
 #define BT_DBG( A... )
-#undef  BT_DMP
-#define BT_DMP( A... )
 #endif
 
 static int reset = 0;
