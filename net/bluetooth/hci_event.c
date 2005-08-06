@@ -1035,6 +1035,9 @@ void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 	ev->type = type;
 	memcpy(ev->data, data, dlen);
 
+	bt_cb(skb)->incoming = 1;
+	do_gettimeofday(&skb->stamp);
+
 	skb->pkt_type = HCI_EVENT_PKT;
 	skb->dev = (void *) hdev;
 	hci_send_to_sock(hdev, skb);
