@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.182 2005/08/06 04:40:41 nico Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.183 2005/08/06 04:46:56 nico Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -51,6 +51,7 @@
 static int cfi_intelext_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int cfi_intelext_write_words(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
 static int cfi_intelext_write_buffers(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
+static int cfi_intelext_writev(struct mtd_info *, const struct kvec *, unsigned long, loff_t, size_t *);
 static int cfi_intelext_erase_varsize(struct mtd_info *, struct erase_info *);
 static void cfi_intelext_sync (struct mtd_info *);
 static int cfi_intelext_lock(struct mtd_info *mtd, loff_t ofs, size_t len);
@@ -215,6 +216,7 @@ static void fixup_use_write_buffers(struct mtd_info *mtd, void *param)
 	if (cfi->cfiq->BufWriteTimeoutTyp) {
 		printk(KERN_INFO "Using buffer write method\n" );
 		mtd->write = cfi_intelext_write_buffers;
+		mtd->writev = cfi_intelext_writev;
 	}
 }
 
@@ -1445,12 +1447,15 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 
 
 static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip, 
-				    unsigned long adr, const u_char *buf, int len)
+				    unsigned long adr, const struct kvec **pvec,
+				    unsigned long *pvec_seek, int len)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
-	map_word status, status_OK, write_cmd;
+	map_word status, status_OK, write_cmd, datum;
 	unsigned long cmd_adr, timeo;
-	int wbufsize, z, ret=0, bytes, words;
+	int wbufsize, z, ret=0, word_gap, words;
+	const struct kvec *vec;
+	unsigned long vec_seek;
 
 	wbufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
 	adr += chip->start;
@@ -1515,28 +1520,53 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 		}
 	}
 
+	/* Figure out the number of words to write */
+	word_gap = (-adr & (map_bankwidth(map)-1));
+	words = (len - word_gap + map_bankwidth(map) - 1) / map_bankwidth(map);
+	if (!word_gap) {
+		words--;
+	} else {
+		word_gap = map_bankwidth(map) - word_gap;
+		adr -= word_gap;
+		datum = map_word_ff(map);
+	}
+
 	/* Write length of data to come */
-	bytes = len & (map_bankwidth(map)-1);
-	words = len / map_bankwidth(map);
-	map_write(map, CMD(words - !bytes), cmd_adr );
+	map_write(map, CMD(words), cmd_adr );
 
 	/* Write data */
-	z = 0;
-	while(z < words * map_bankwidth(map)) {
-		map_word datum = map_word_load(map, buf);
-		map_write(map, datum, adr+z);
+	vec = *pvec;
+	vec_seek = *pvec_seek;
+	do {
+		int n = map_bankwidth(map) - word_gap;
+		if (n > vec->iov_len - vec_seek)
+			n = vec->iov_len - vec_seek;
+		if (n > len)
+			n = len;
 
-		z += map_bankwidth(map);
-		buf += map_bankwidth(map);
-	}
+		if (!word_gap && len < map_bankwidth(map))
+			datum = map_word_ff(map);
+			
+		datum = map_word_load_partial(map, datum,
+					      vec->iov_base + vec_seek, 
+					      word_gap, n);
 
-	if (bytes) {
-		map_word datum;
+		len -= n;
+		word_gap += n;
+		if (!len || word_gap == map_bankwidth(map)) {
+			map_write(map, datum, adr);
+			adr += map_bankwidth(map);
+			word_gap = 0;
+		}
 
-		datum = map_word_ff(map);
-		datum = map_word_load_partial(map, datum, buf, 0, bytes);
-		map_write(map, datum, adr+z);
-	}
+		vec_seek += n;
+		if (vec_seek == vec->iov_len) {
+			vec++;
+			vec_seek = 0;
+		}
+	} while (len);
+	*pvec = vec;
+	*pvec_seek = vec_seek;
 
 	/* GO GO GO */
 	map_write(map, CMD(0xd0), cmd_adr);
@@ -1619,57 +1649,40 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	return ret;
 }
 
-static int cfi_intelext_write_buffers (struct mtd_info *mtd, loff_t to, 
-				       size_t len, size_t *retlen, const u_char *buf)
+static int cfi_intelext_writev (struct mtd_info *mtd, const struct kvec *vecs,
+				unsigned long count, loff_t to, size_t *retlen)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
 	int wbufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
 	int ret = 0;
 	int chipnum;
-	unsigned long ofs;
+	unsigned long ofs, vec_seek, i;
+	size_t len = 0;
+
+	for (i = 0; i < count; i++)
+		len += vecs[i].iov_len;
 
 	*retlen = 0;
 	if (!len)
 		return 0;
 
 	chipnum = to >> cfi->chipshift;
-	ofs = to  - (chipnum << cfi->chipshift);
+	ofs = to - (chipnum << cfi->chipshift);
+	vec_seek = 0;
 
-	/* If it's not bus-aligned, do the first word write */
-	if (ofs & (map_bankwidth(map)-1)) {
-		size_t local_len = (-ofs)&(map_bankwidth(map)-1);
-		if (local_len > len)
-			local_len = len;
-		ret = cfi_intelext_write_words(mtd, to, local_len,
-					       retlen, buf);
-		if (ret)
-			return ret;
-		ofs += local_len;
-		buf += local_len;
-		len -= local_len;
-
-		if (ofs >> cfi->chipshift) {
-			chipnum ++;
-			ofs = 0;
-			if (chipnum == cfi->numchips)
-				return 0;
-		}
-	}
-
-	while(len) {
+	do {
 		/* We must not cross write block boundaries */
 		int size = wbufsize - (ofs & (wbufsize-1));
 
 		if (size > len)
 			size = len;
 		ret = do_write_buffer(map, &cfi->chips[chipnum], 
-				      ofs, buf, size);
+				      ofs, &vecs, &vec_seek, size);
 		if (ret)
 			return ret;
 
 		ofs += size;
-		buf += size;
 		(*retlen) += size;
 		len -= size;
 
@@ -1679,8 +1692,20 @@ static int cfi_intelext_write_buffers (struct mtd_info *mtd, loff_t to,
 			if (chipnum == cfi->numchips)
 				return 0;
 		}
-	}
+	} while (len);
+
 	return 0;
+}
+
+static int cfi_intelext_write_buffers (struct mtd_info *mtd, loff_t to,
+				       size_t len, size_t *retlen, const u_char *buf)
+{
+	struct kvec vec;
+
+	vec.iov_base = (void *) buf;
+	vec.iov_len = len;
+
+	return cfi_intelext_writev(mtd, &vec, 1, to, retlen);
 }
 
 static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
