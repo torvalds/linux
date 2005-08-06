@@ -1,5 +1,5 @@
 /* 
- * $Id: mtd.h,v 1.59 2005/04/11 10:19:02 gleixner Exp $
+ * $Id: mtd.h,v 1.60 2005/08/06 04:40:42 nico Exp $
  *
  * Copyright (C) 1999-2003 David Woodhouse <dwmw2@infradead.org> et al.
  *
@@ -72,7 +72,17 @@ struct mtd_info {
 	u_int32_t oobsize;   // Amount of OOB data per block (e.g. 16)
 	u_int32_t ecctype;
 	u_int32_t eccsize;
-	
+
+	/*
+	 * Reuse some of the above unused fields in the case of NOR flash
+	 * with configurable programming regions to avoid modifying the
+	 * user visible structure layout/size.  Only valid when the
+	 * MTD_PROGRAM_REGIONS flag is set.
+	 * (Maybe we should have an union for those?)
+	 */
+#define MTD_PROGREGION_SIZE(mtd)  (mtd)->oobblock
+#define MTD_PROGREGION_CTRLMODE_VALID(mtd)  (mtd)->oobsize
+#define MTD_PROGREGION_CTRLMODE_INVALID(mtd)  (mtd)->ecctype
 
 	// Kernel-only stuff starts here.
 	char *name;

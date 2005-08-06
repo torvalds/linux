@@ -2,7 +2,7 @@
  * Routines common to all CFI-type probes.
  * (C) 2001-2003 Red Hat, Inc.
  * GPL'd
- * $Id: gen_probe.c,v 1.22 2005/01/24 23:49:50 rmk Exp $
+ * $Id: gen_probe.c,v 1.23 2005/08/06 04:40:41 nico Exp $
  */
 
 #include <linux/kernel.h>
@@ -235,6 +235,7 @@ static struct mtd_info *check_cmd_set(struct map_info *map, int primary)
 #ifdef CONFIG_MTD_CFI_INTELEXT
 	case 0x0001:
 	case 0x0003:
+	case 0x0200:
 		return cfi_cmdset_0001(map, primary);
 #endif
 #ifdef CONFIG_MTD_CFI_AMDSTD

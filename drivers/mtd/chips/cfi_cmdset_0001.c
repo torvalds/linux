@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.181 2005/08/06 04:16:48 nico Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.182 2005/08/06 04:40:41 nico Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -105,6 +105,7 @@ static struct mtd_chip_driver cfi_intelext_chipdrv = {
 static void cfi_tell_features(struct cfi_pri_intelext *extp)
 {
 	int i;
+	printk("  Extended Query version %c.%c\n", extp->MajorVersion, extp->MinorVersion);
 	printk("  Feature/Command Support:      %4.4X\n", extp->FeatureSupport);
 	printk("     - Chip Erase:              %s\n", extp->FeatureSupport&1?"supported":"unsupported");
 	printk("     - Suspend Erase:           %s\n", extp->FeatureSupport&2?"supported":"unsupported");
@@ -116,7 +117,8 @@ static void cfi_tell_features(struct cfi_pri_intelext *extp)
 	printk("     - Page-mode read:          %s\n", extp->FeatureSupport&128?"supported":"unsupported");
 	printk("     - Synchronous read:        %s\n", extp->FeatureSupport&256?"supported":"unsupported");
 	printk("     - Simultaneous operations: %s\n", extp->FeatureSupport&512?"supported":"unsupported");
-	for (i=10; i<32; i++) {
+	printk("     - Extended Flash Array:    %s\n", extp->FeatureSupport&1024?"supported":"unsupported");
+	for (i=11; i<32; i++) {
 		if (extp->FeatureSupport & (1<<i)) 
 			printk("     - Unknown Bit %X:      supported\n", i);
 	}
@@ -130,12 +132,18 @@ static void cfi_tell_features(struct cfi_pri_intelext *extp)
 	
 	printk("  Block Status Register Mask: %4.4X\n", extp->BlkStatusRegMask);
 	printk("     - Lock Bit Active:      %s\n", extp->BlkStatusRegMask&1?"yes":"no");
-	printk("     - Valid Bit Active:     %s\n", extp->BlkStatusRegMask&2?"yes":"no");
-	for (i=2; i<16; i++) {
+	printk("     - Lock-Down Bit Active: %s\n", extp->BlkStatusRegMask&2?"yes":"no");
+	for (i=2; i<3; i++) {
 		if (extp->BlkStatusRegMask & (1<<i))
 			printk("     - Unknown Bit %X Active: yes\n",i);
 	}
-	
+	printk("     - EFA Lock Bit:         %s\n", extp->BlkStatusRegMask&16?"yes":"no");
+	printk("     - EFA Lock-Down Bit:    %s\n", extp->BlkStatusRegMask&32?"yes":"no");
+	for (i=6; i<16; i++) {
+		if (extp->BlkStatusRegMask & (1<<i))
+			printk("     - Unknown Bit %X Active: yes\n",i);
+	}
+
 	printk("  Vcc Logic Supply Optimum Program/Erase Voltage: %d.%d V\n", 
 	       extp->VccOptimal >> 4, extp->VccOptimal & 0xf);
 	if (extp->VppOptimal)
@@ -253,7 +261,7 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 		return NULL;
 
 	if (extp->MajorVersion != '1' ||
-	    (extp->MinorVersion < '0' || extp->MinorVersion > '3')) {
+	    (extp->MinorVersion < '0' || extp->MinorVersion > '4')) {
 		printk(KERN_ERR "  Unknown Intel/Sharp Extended Query "
 		       "version %c.%c.\n",  extp->MajorVersion,
 		       extp->MinorVersion);
@@ -266,7 +274,7 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 	extp->BlkStatusRegMask = le16_to_cpu(extp->BlkStatusRegMask);
 	extp->ProtRegAddr = le16_to_cpu(extp->ProtRegAddr);
 
-	if (extp->MajorVersion == '1' && extp->MinorVersion == '3') {
+	if (extp->MajorVersion == '1' && extp->MinorVersion >= '3') {
 		unsigned int extra_size = 0;
 		int nb_parts, i;
 
@@ -275,13 +283,17 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 			      sizeof(struct cfi_intelext_otpinfo);
 
 		/* Burst Read info */
-		extra_size += 6;
+		extra_size += (extp->MinorVersion < '4') ? 6 : 5;
 
 		/* Number of hardware-partitions */
 		extra_size += 1;
 		if (extp_size < sizeof(*extp) + extra_size)
 			goto need_more;
 		nb_parts = extp->extra[extra_size - 1];
+
+		/* skip the sizeof(partregion) field in CFI 1.4 */
+		if (extp->MinorVersion >= '4')
+			extra_size += 2;
 
 		for (i = 0; i < nb_parts; i++) {
 			struct cfi_intelext_regioninfo *rinfo;
@@ -293,6 +305,9 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 			extra_size += (rinfo->NumBlockTypes - 1)
 				      * sizeof(struct cfi_intelext_blockinfo);
 		}
+
+		if (extp->MinorVersion >= '4')
+			extra_size += sizeof(struct cfi_intelext_programming_regioninfo);
 
 		if (extp_size < sizeof(*extp) + extra_size) {
 			need_more:
@@ -490,7 +505,7 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 	 * arrangement at this point. This can be rearranged in the future
 	 * if someone feels motivated enough.  --nico
 	 */
-	if (extp && extp->MajorVersion == '1' && extp->MinorVersion == '3'
+	if (extp && extp->MajorVersion == '1' && extp->MinorVersion >= '3'
 	    && extp->FeatureSupport & (1 << 9)) {
 		struct cfi_private *newcfi;
 		struct flchip *chip;
@@ -502,11 +517,15 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 		       sizeof(struct cfi_intelext_otpinfo);
 
 		/* Burst Read info */
-		offs += 6;
+		offs += (extp->MinorVersion < '4') ? 6 : 5;
 
 		/* Number of partition regions */
 		numregions = extp->extra[offs];
 		offs += 1;
+
+		/* skip the sizeof(partregion) field in CFI 1.4 */
+		if (extp->MinorVersion >= '4')
+			offs += 2;
 
 		/* Number of hardware partitions */
 		numparts = 0;
@@ -517,6 +536,20 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 			offs += sizeof(*rinfo)
 				+ (rinfo->NumBlockTypes - 1) *
 				  sizeof(struct cfi_intelext_blockinfo);
+		}
+
+		/* Programming Region info */
+		if (extp->MinorVersion >= '4') {
+			struct cfi_intelext_programming_regioninfo *prinfo;
+			prinfo = (struct cfi_intelext_programming_regioninfo *)&extp->extra[offs];
+			MTD_PROGREGION_SIZE(mtd) = cfi->interleave << prinfo->ProgRegShift;
+			MTD_PROGREGION_CTRLMODE_VALID(mtd) = cfi->interleave * prinfo->ControlValid;
+			MTD_PROGREGION_CTRLMODE_INVALID(mtd) = cfi->interleave * prinfo->ControlInvalid;
+			mtd->flags |= MTD_PROGRAM_REGIONS;
+			printk(KERN_DEBUG "%s: program region size/ctrl_valid/ctrl_inval = %d/%d/%d\n",
+			       map->name, MTD_PROGREGION_SIZE(mtd),
+			       MTD_PROGREGION_CTRLMODE_VALID(mtd),
+			       MTD_PROGREGION_CTRLMODE_INVALID(mtd));
 		}
 
 		/*
@@ -1222,12 +1255,17 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 
 	adr += chip->start;
 
-	/* Let's determine this according to the interleave only once */
+	/* Let's determine those according to the interleave only once */
 	status_OK = CMD(0x80);
 	switch (mode) {
-	case FL_WRITING:   write_cmd = CMD(0x40); break;
-	case FL_OTP_WRITE: write_cmd = CMD(0xc0); break;
-	default: return -EINVAL;
+	case FL_WRITING:
+		write_cmd = (cfi->cfiq->P_ID != 0x0200) ? CMD(0x40) : CMD(0x41);
+		break;
+	case FL_OTP_WRITE:
+		write_cmd = CMD(0xc0);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	spin_lock(chip->mutex);
@@ -1410,16 +1448,17 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 				    unsigned long adr, const u_char *buf, int len)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
-	map_word status, status_OK;
+	map_word status, status_OK, write_cmd;
 	unsigned long cmd_adr, timeo;
 	int wbufsize, z, ret=0, bytes, words;
 
 	wbufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
 	adr += chip->start;
 	cmd_adr = adr & ~(wbufsize-1);
-	
+
 	/* Let's determine this according to the interleave only once */
 	status_OK = CMD(0x80);
+	write_cmd = (cfi->cfiq->P_ID != 0x0200) ? CMD(0xe8) : CMD(0xe9);
 
 	spin_lock(chip->mutex);
 	ret = get_chip(map, chip, cmd_adr, FL_WRITING);
@@ -1451,7 +1490,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 
 	z = 0;
 	for (;;) {
-		map_write(map, CMD(0xe8), cmd_adr);
+		map_write(map, write_cmd, cmd_adr);
 
 		status = map_read(map, cmd_adr);
 		if (map_word_andequal(map, status, status_OK, status_OK))
@@ -2380,20 +2419,23 @@ static void cfi_intelext_destroy(struct mtd_info *mtd)
 	kfree(mtd->eraseregions);
 }
 
-static char im_name_1[]="cfi_cmdset_0001";
-static char im_name_3[]="cfi_cmdset_0003";
+static char im_name_0001[] = "cfi_cmdset_0001";
+static char im_name_0003[] = "cfi_cmdset_0003";
+static char im_name_0200[] = "cfi_cmdset_0200";
 
 static int __init cfi_intelext_init(void)
 {
-	inter_module_register(im_name_1, THIS_MODULE, &cfi_cmdset_0001);
-	inter_module_register(im_name_3, THIS_MODULE, &cfi_cmdset_0001);
+	inter_module_register(im_name_0001, THIS_MODULE, &cfi_cmdset_0001);
+	inter_module_register(im_name_0003, THIS_MODULE, &cfi_cmdset_0001);
+	inter_module_register(im_name_0200, THIS_MODULE, &cfi_cmdset_0001);
 	return 0;
 }
 
 static void __exit cfi_intelext_exit(void)
 {
-	inter_module_unregister(im_name_1);
-	inter_module_unregister(im_name_3);
+	inter_module_unregister(im_name_0001);
+	inter_module_unregister(im_name_0003);
+	inter_module_unregister(im_name_0200);
 }
 
 module_init(cfi_intelext_init);

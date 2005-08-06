@@ -1,7 +1,7 @@
 
 /* Common Flash Interface structures 
  * See http://support.intel.com/design/flash/technote/index.htm
- * $Id: cfi.h,v 1.54 2005/06/06 23:04:36 tpoynor Exp $
+ * $Id: cfi.h,v 1.55 2005/08/06 04:40:42 nico Exp $
  */
 
 #ifndef __MTD_CFI_H__
@@ -173,6 +173,15 @@ struct cfi_intelext_regioninfo {
 	struct cfi_intelext_blockinfo BlockTypes[1];
 } __attribute__((packed));
 
+struct cfi_intelext_programming_regioninfo {
+	uint8_t  ProgRegShift;
+	uint8_t  Reserved1;
+	uint8_t  ControlValid;
+	uint8_t  Reserved2;
+	uint8_t  ControlInvalid;
+	uint8_t  Reserved3;
+} __attribute__((packed));
+
 /* Vendor-Specific PRI for AMD/Fujitsu Extended Command Set (0x0002) */
 
 struct cfi_pri_amdstd {
@@ -316,7 +325,7 @@ static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cf
 #define CMD(x)  cfi_build_cmd((x), map, cfi)
 
 
-static inline unsigned char cfi_merge_status(map_word val, struct map_info *map, 
+static inline unsigned long cfi_merge_status(map_word val, struct map_info *map, 
 					   struct cfi_private *cfi)
 {
 	int wordwidth, words_per_bus, chip_mode, chips_per_word;
