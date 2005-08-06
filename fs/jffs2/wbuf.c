@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.96 2005/07/22 10:32:08 dedekind Exp $
+ * $Id: wbuf.c,v 1.97 2005/08/06 04:51:30 nico Exp $
  *
  */
 
@@ -1233,5 +1233,25 @@ int jffs2_nor_ecc_flash_setup(struct jffs2_sb_info *c) {
 }
 
 void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c) {
+	kfree(c->wbuf);
+}
+
+int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c) {
+	/* Cleanmarker currently occupies a whole programming region */
+	c->cleanmarker_size = MTD_PROGREGION_SIZE(c->mtd);
+
+	/* Initialize write buffer */
+	init_rwsem(&c->wbuf_sem);
+	c->wbuf_pagesize = MTD_PROGREGION_SIZE(c->mtd);
+	c->wbuf_ofs = 0xFFFFFFFF;
+
+	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
+	if (!c->wbuf)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void jffs2_nor_wbuf_flash_cleanup(struct jffs2_sb_info *c) {
 	kfree(c->wbuf);
 }

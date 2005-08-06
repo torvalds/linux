@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: fs.c,v 1.61 2005/07/24 15:29:56 dedekind Exp $
+ * $Id: fs.c,v 1.62 2005/08/06 04:51:30 nico Exp $
  *
  */
 
@@ -664,7 +664,14 @@ static int jffs2_flash_setup(struct jffs2_sb_info *c) {
 		if (ret)
 			return ret;
 	}
-	
+
+	/* and Intel "Sibley" flash */
+	if (jffs2_nor_wbuf_flash(c)) {
+		ret = jffs2_nor_wbuf_flash_setup(c);
+		if (ret)
+			return ret;
+	}
+
 	return ret;
 }
 
@@ -682,5 +689,10 @@ void jffs2_flash_cleanup(struct jffs2_sb_info *c) {
 	/* and DataFlash */
 	if (jffs2_dataflash(c)) {
 		jffs2_dataflash_cleanup(c);
+	}
+
+	/* and Intel "Sibley" flash */
+	if (jffs2_nor_wbuf_flash(c)) {
+		jffs2_nor_wbuf_flash_cleanup(c);
 	}
 }

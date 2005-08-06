@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: os-linux.h,v 1.59 2005/07/17 11:13:46 dedekind Exp $
+ * $Id: os-linux.h,v 1.60 2005/08/06 04:51:30 nico Exp $
  *
  */
 
@@ -85,16 +85,21 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #define jffs2_wbuf_process NULL
 #define jffs2_nor_ecc(c) (0)
 #define jffs2_dataflash(c) (0)
+#define jffs2_nor_wbuf_flash(c) (0)
 #define jffs2_nor_ecc_flash_setup(c) (0)
 #define jffs2_nor_ecc_flash_cleanup(c) do {} while (0)
 #define jffs2_dataflash_setup(c) (0)
 #define jffs2_dataflash_cleanup(c) do {} while (0)
+#define jffs2_nor_wbuf_flash_setup(c) (0)
+#define jffs2_nor_wbuf_flash_cleanup(c) do {} while (0)
 
 #else /* NAND and/or ECC'd NOR support present */
 
 #define jffs2_is_writebuffered(c) (c->wbuf != NULL)
 #define SECTOR_ADDR(x) ( ((unsigned long)(x) / (unsigned long)(c->sector_size)) * c->sector_size )
-#define jffs2_can_mark_obsolete(c) ((c->mtd->type == MTD_NORFLASH && !(c->mtd->flags & MTD_ECC)) || c->mtd->type == MTD_RAM)
+#define jffs2_can_mark_obsolete(c) \
+  ((c->mtd->type == MTD_NORFLASH && !(c->mtd->flags & (MTD_ECC|MTD_PROGRAM_REGIONS))) || \
+   c->mtd->type == MTD_RAM)
 #define jffs2_cleanmarker_oob(c) (c->mtd->type == MTD_NANDFLASH)
 
 #define jffs2_flash_write_oob(c, ofs, len, retlen, buf) ((c)->mtd->write_oob((c)->mtd, ofs, len, retlen, buf))
@@ -123,6 +128,10 @@ void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c);
 #define jffs2_dataflash(c) (c->mtd->type == MTD_DATAFLASH)
 int jffs2_dataflash_setup(struct jffs2_sb_info *c);
 void jffs2_dataflash_cleanup(struct jffs2_sb_info *c);
+
+#define jffs2_nor_wbuf_flash(c) (c->mtd->type == MTD_NORFLASH && (c->mtd->flags & MTD_PROGRAM_REGIONS))
+int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c);
+void jffs2_nor_wbuf_flash_cleanup(struct jffs2_sb_info *c);
 
 #endif /* WRITEBUFFER */
 
