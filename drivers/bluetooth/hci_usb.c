@@ -390,10 +390,8 @@ static void hci_usb_unlink_urbs(struct hci_usb *husb)
 			urb = &_urb->urb;
 			BT_DBG("%s freeing _urb %p type %d urb %p",
 					husb->hdev->name, _urb, _urb->type, urb);
-			if (urb->setup_packet)
-				kfree(urb->setup_packet);
-			if (urb->transfer_buffer)
-				kfree(urb->transfer_buffer);
+			kfree(urb->setup_packet);
+			kfree(urb->transfer_buffer);
 			_urb_free(_urb);
 		}
 
