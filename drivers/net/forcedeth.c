@@ -93,6 +93,8 @@
  *      0.40: 19 Jul 2005: Add support for mac address change.
  *      0.41: 30 Jul 2005: Write back original MAC in nv_close instead
  *			   of nv_remove
+ *      0.42: 06 Aug 2005: Fix lack of link speed initialization
+ *			   in the second (and later) nv_open call
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -2178,6 +2180,9 @@ static int nv_open(struct net_device *dev)
 		writel(NVREG_MIISTAT_MASK, base + NvRegMIIStatus);
 		dprintk(KERN_INFO "startup: got 0x%08x.\n", miistat);
 	}
+	/* set linkspeed to invalid value, thus force nv_update_linkspeed
+	 * to init hw */
+	np->linkspeed = 0;
 	ret = nv_update_linkspeed(dev);
 	nv_start_rx(dev);
 	nv_start_tx(dev);
