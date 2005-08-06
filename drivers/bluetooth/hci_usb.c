@@ -57,8 +57,6 @@
 #ifndef CONFIG_BT_HCIUSB_DEBUG
 #undef  BT_DBG
 #define BT_DBG(D...)
-#undef  BT_DMP
-#define BT_DMP(D...)
 #endif
 
 #ifndef CONFIG_BT_HCIUSB_ZERO_PACKET
