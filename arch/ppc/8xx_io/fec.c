@@ -199,7 +199,8 @@ static int fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev);
 #ifdef	CONFIG_USE_MDIO
 static void fec_enet_mii(struct net_device *dev);
 #endif	/* CONFIG_USE_MDIO */
-static void fec_enet_interrupt(int irq, void * dev_id, struct pt_regs * regs);
+static irqreturn_t fec_enet_interrupt(int irq, void * dev_id,
+		       					struct pt_regs * regs);
 #ifdef CONFIG_FEC_PACKETHOOK
 static void  fec_enet_tx(struct net_device *dev, __u32 regval);
 static void  fec_enet_rx(struct net_device *dev, __u32 regval);
@@ -471,7 +472,7 @@ fec_timeout(struct net_device *dev)
 /* The interrupt handler.
  * This is called from the MPC core interrupt.
  */
-static	void
+static	irqreturn_t
 fec_enet_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 {
 	struct	net_device *dev = dev_id;
@@ -525,6 +526,7 @@ printk("%s[%d] %s: unexpected FEC_ENET_MII event\n", __FILE__,__LINE__,__FUNCTIO
 		}
 
 	}
+	return IRQ_RETVAL(IRQ_HANDLED);
 }
 
 
@@ -1403,11 +1405,11 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
 
 /* This interrupt occurs when the PHY detects a link change.
 */
-static void
+static
 #ifdef CONFIG_RPXCLASSIC
-mii_link_interrupt(void *dev_id)
+void mii_link_interrupt(void *dev_id)
 #else
-mii_link_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+irqreturn_t mii_link_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 #endif
 {
 #ifdef	CONFIG_USE_MDIO
@@ -1440,6 +1442,9 @@ mii_link_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 printk("%s[%d] %s: unexpected Link interrupt\n", __FILE__,__LINE__,__FUNCTION__);
 #endif	/* CONFIG_USE_MDIO */
 
+#ifndef CONFIG_RPXCLASSIC
+	return IRQ_RETVAL(IRQ_HANDLED);
+#endif	/* CONFIG_RPXCLASSIC */
 }
 
 static int
