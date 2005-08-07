@@ -96,3 +96,10 @@ config DRM_VIA
 	  Choose this option if you have a Via unichrome or compatible video
 	  chipset. If M is selected the module will be called via.
 
+config DRM_SAVAGE
+	tristate "Savage video cards"
+	depends on DRM
+	help
+	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
+	  chipset. If M is selected the module will be called savage.
+
