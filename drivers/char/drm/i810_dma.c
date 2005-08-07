@@ -45,11 +45,6 @@
 #define I810_BUF_UNMAPPED 0
 #define I810_BUF_MAPPED   1
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,4,2)
-#define down_write down
-#define up_write up
-#endif
-
 static drm_buf_t *i810_freelist_get(drm_device_t *dev)
 {
    	drm_device_dma_t *dma = dev->dma;

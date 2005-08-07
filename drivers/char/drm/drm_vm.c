@@ -314,8 +314,6 @@ static __inline__ struct page *drm_do_vm_sg_nopage(struct vm_area_struct *vma,
 }
 
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
-
 static struct page *drm_vm_nopage(struct vm_area_struct *vma,
 				   unsigned long address,
 				   int *type) {
@@ -343,35 +341,6 @@ static struct page *drm_vm_sg_nopage(struct vm_area_struct *vma,
 	if (type) *type = VM_FAULT_MINOR;
 	return drm_do_vm_sg_nopage(vma, address);
 }
-
-#else	/* LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,0) */
-
-static struct page *drm_vm_nopage(struct vm_area_struct *vma,
-				   unsigned long address,
-				   int unused) {
-	return drm_do_vm_nopage(vma, address);
-}
-
-static struct page *drm_vm_shm_nopage(struct vm_area_struct *vma,
-				       unsigned long address,
-				       int unused) {
-	return drm_do_vm_shm_nopage(vma, address);
-}
-
-static struct page *drm_vm_dma_nopage(struct vm_area_struct *vma,
-				       unsigned long address,
-				       int unused) {
-	return drm_do_vm_dma_nopage(vma, address);
-}
-
-static struct page *drm_vm_sg_nopage(struct vm_area_struct *vma,
-				      unsigned long address,
-				      int unused) {
-	return drm_do_vm_sg_nopage(vma, address);
-}
-
-#endif
-
 
 /** AGP virtual memory operations */
 static struct vm_operations_struct   drm_vm_ops = {
@@ -496,11 +465,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 
 	vma->vm_ops   = &drm_vm_dma_ops;
 
-#if LINUX_VERSION_CODE <= 0x02040e /* KERNEL_VERSION(2,4,14) */
-	vma->vm_flags |= VM_LOCKED | VM_SHM; /* Don't swap */
-#else
 	vma->vm_flags |= VM_RESERVED; /* Don't swap */
-#endif
 
 	vma->vm_file  =	 filp;	/* Needed for drm_vm_open() */
 	drm_vm_open(vma);
@@ -660,29 +625,17 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 		vma->vm_private_data = (void *)map;
 				/* Don't let this area swap.  Change when
 				   DRM_KERNEL advisory is supported. */
-#if LINUX_VERSION_CODE <= 0x02040e /* KERNEL_VERSION(2,4,14) */
-		vma->vm_flags |= VM_LOCKED;
-#else
 		vma->vm_flags |= VM_RESERVED;
-#endif
 		break;
 	case _DRM_SCATTER_GATHER:
 		vma->vm_ops = &drm_vm_sg_ops;
 		vma->vm_private_data = (void *)map;
-#if LINUX_VERSION_CODE <= 0x02040e /* KERNEL_VERSION(2,4,14) */
-		vma->vm_flags |= VM_LOCKED;
-#else
 		vma->vm_flags |= VM_RESERVED;
-#endif
                 break;
 	default:
 		return -EINVAL;	/* This should never happen. */
 	}
-#if LINUX_VERSION_CODE <= 0x02040e /* KERNEL_VERSION(2,4,14) */
-	vma->vm_flags |= VM_LOCKED | VM_SHM; /* Don't swap */
-#else
 	vma->vm_flags |= VM_RESERVED; /* Don't swap */
-#endif
 
 	vma->vm_file  =	 filp;	/* Needed for drm_vm_open() */
 	drm_vm_open(vma);

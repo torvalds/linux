@@ -1499,34 +1499,18 @@ int drm_mapbufs( struct inode *inode, struct file *filp,
 				goto done;
 			}
 
-#if LINUX_VERSION_CODE <= 0x020402
-			down( &current->mm->mmap_sem );
-#else
 			down_write( &current->mm->mmap_sem );
-#endif
 			virtual = do_mmap( filp, 0, map->size,
 					   PROT_READ | PROT_WRITE,
 					   MAP_SHARED,
 					   token );
-#if LINUX_VERSION_CODE <= 0x020402
-			up( &current->mm->mmap_sem );
-#else
 			up_write( &current->mm->mmap_sem );
-#endif
 		} else {
-#if LINUX_VERSION_CODE <= 0x020402
-			down( &current->mm->mmap_sem );
-#else
 			down_write( &current->mm->mmap_sem );
-#endif
 			virtual = do_mmap( filp, 0, dma->byte_count,
 					   PROT_READ | PROT_WRITE,
 					   MAP_SHARED, 0 );
-#if LINUX_VERSION_CODE <= 0x020402
-			up( &current->mm->mmap_sem );
-#else
 			up_write( &current->mm->mmap_sem );
-#endif
 		}
 		if ( virtual > -1024UL ) {
 			/* Real error */
