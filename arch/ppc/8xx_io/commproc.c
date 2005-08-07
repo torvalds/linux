@@ -384,8 +384,6 @@ static rh_info_t cpm_dpmem_info;
 
 void m8xx_cpm_dpinit(void)
 {
-	cpm8xx_t *cp = &((immap_t *)IMAP_ADDR)->im_cpm;
-
 	spin_lock_init(&cpm_dpmem_lock);
 
 	/* Initialize the info header */
