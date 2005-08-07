@@ -173,7 +173,7 @@ struct fec_enet_private {
 	uint	phy_status;
 	uint	phy_speed;
 	phy_info_t	*phy;
-	struct tq_struct phy_task;
+	struct work_struct phy_task;
 
 	uint	sequence_done;
 
@@ -1263,8 +1263,9 @@ static void mii_display_status(struct net_device *dev)
 	printk(".\n");
 }
 
-static void mii_display_config(struct net_device *dev)
+static void mii_display_config(void *priv)
 {
+	struct net_device *dev = (struct net_device *)priv;
 	struct fec_enet_private *fep = dev->priv;
 	volatile uint *s = &(fep->phy_status);
 
@@ -1294,8 +1295,9 @@ static void mii_display_config(struct net_device *dev)
 	fep->sequence_done = 1;
 }
 
-static void mii_relink(struct net_device *dev)
+static void mii_relink(void *priv)
 {
+	struct net_device *dev = (struct net_device *)priv;
 	struct fec_enet_private *fep = dev->priv;
 	int duplex;
 
@@ -1323,18 +1325,16 @@ static void mii_queue_relink(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = dev->priv;
 
-	fep->phy_task.routine = (void *)mii_relink;
-	fep->phy_task.data = dev;
-	schedule_task(&fep->phy_task);
+	INIT_WORK(&fep->phy_task, mii_relink, (void *)dev);
+	schedule_work(&fep->phy_task);
 }
 
 static void mii_queue_config(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = dev->priv;
 
-	fep->phy_task.routine = (void *)mii_display_config;
-	fep->phy_task.data = dev;
-	schedule_task(&fep->phy_task);
+	INIT_WORK(&fep->phy_task, mii_display_config, (void *)dev);
+	schedule_work(&fep->phy_task);
 }
 
 
