@@ -402,7 +402,7 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 
 	for (i=0; i<p.state_count; i++) {
 		if (p.states[i].control != p.states[i].status) {
-			dprintk("Different control (%x) and status values (%x)\n",
+			dprintk("Different control (%llu) and status values (%llu)\n",
 				p.states[i].control, p.states[i].status);
 			result = -EINVAL;
 			goto err_unreg;
@@ -415,7 +415,7 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 		}
 
 		if (p.states[i].core_frequency > p.states[0].core_frequency) {
-			dprintk("P%u has larger frequency (%u) than P0 (%u), skipping\n", i,
+			dprintk("P%u has larger frequency (%llu) than P0 (%llu), skipping\n", i,
 				p.states[i].core_frequency, p.states[0].core_frequency);
 			p.states[i].core_frequency = 0;
 			continue;
