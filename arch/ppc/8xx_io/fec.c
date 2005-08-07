@@ -1575,7 +1575,7 @@ static int __init fec_enet_init(void)
 	struct fec_enet_private *fep;
 	int i, j, k, err;
 	unsigned char	*eap, *iap, *ba;
-	unsigned long	mem_addr;
+	dma_addr_t	mem_addr;
 	volatile	cbd_t	*bdp;
 	cbd_t		*cbd_base;
 	volatile	immap_t	*immap;
@@ -1640,7 +1640,8 @@ static int __init fec_enet_init(void)
 		printk("FEC initialization failed.\n");
 		return 1;
 	}
-	cbd_base = (cbd_t *)consistent_alloc(GFP_KERNEL, PAGE_SIZE, &mem_addr);
+	cbd_base = (cbd_t *)dma_alloc_coherent(dev->class_dev.dev, PAGE_SIZE,
+					       &mem_addr, GFP_KERNEL);
 
 	/* Set receive and transmit descriptor base.
 	*/
@@ -1657,7 +1658,10 @@ static int __init fec_enet_init(void)
 
 		/* Allocate a page.
 		*/
-		ba = (unsigned char *)consistent_alloc(GFP_KERNEL, PAGE_SIZE, &mem_addr);
+		ba = (unsigned char *)dma_alloc_coherent(dev->class_dev.dev,
+							 PAGE_SIZE,
+							 &mem_addr,
+							 GFP_KERNEL);
 		/* BUG: no check for failure */
 
 		/* Initialize the BD for every fragment in the page.
