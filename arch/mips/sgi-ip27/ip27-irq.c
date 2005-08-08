@@ -5,6 +5,9 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 1999 - 2001 Kanoj Sarcar
  */
+
+#undef DEBUG
+
 #include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
@@ -18,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/smp_lock.h>
+#include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
@@ -35,13 +39,6 @@
 #include <asm/sn/arch.h>
 #include <asm/sn/hub.h>
 #include <asm/sn/intr.h>
-
-#undef DEBUG_IRQ
-#ifdef DEBUG_IRQ
-#define DBG(x...) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 /*
  * Linux has a controller-independent x86 interrupt architecture.
@@ -264,7 +261,7 @@ static unsigned int startup_bridge_irq(unsigned int irq)
 	bc = IRQ_TO_BRIDGE(irq);
 	bridge = bc->base;
 
-	DBG("bridge_startup(): irq= 0x%x  pin=%d\n", irq, pin);
+	pr_debug("bridge_startup(): irq= 0x%x  pin=%d\n", irq, pin);
 	/*
 	 * "map" irq to a swlevel greater than 6 since the first 6 bits
 	 * of INT_PEND0 are taken
@@ -307,7 +304,7 @@ static void shutdown_bridge_irq(unsigned int irq)
 	int pin, swlevel;
 	cpuid_t cpu;
 
-	DBG("bridge_shutdown: irq 0x%x\n", irq);
+	pr_debug("bridge_shutdown: irq 0x%x\n", irq);
 	pin = SLOT_FROM_PCI_IRQ(irq);
 
 	/*
