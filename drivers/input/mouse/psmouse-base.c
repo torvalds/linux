@@ -25,6 +25,7 @@
 #include "logips2pp.h"
 #include "alps.h"
 #include "lifebook.h"
+#include "trackpoint.h"
 
 #define DRIVER_DESC	"PS/2 mouse driver"
 
@@ -520,6 +521,12 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		return PSMOUSE_IMPS;
 
 /*
+ * Try to initialize the IBM TrackPoint
+ */
+	if (max_proto > PSMOUSE_IMEX && trackpoint_detect(psmouse, set_properties) == 0)
+		return PSMOUSE_TRACKPOINT;
+
+/*
  * Okay, all failed, we have a standard mouse here. The number of the buttons
  * is still a question, though. We assume 3.
  */
@@ -598,6 +605,12 @@ static struct psmouse_protocol psmouse_protocols[] = {
 		.name		= "LBPS/2",
 		.alias		= "lifebook",
 		.init		= lifebook_init,
+	},
+	{
+		.type		= PSMOUSE_TRACKPOINT,
+		.name		= "TPPS/2",
+		.alias		= "trackpoint",
+		.detect		= trackpoint_detect,
 	},
 	{
 		.type		= PSMOUSE_AUTO,
@@ -1234,7 +1247,7 @@ static int psmouse_set_maxproto(const char *val, struct kernel_param *kp)
 
 	*((unsigned int *)kp->arg) = proto->type;
 
-	return 0;					\
+	return 0;
 }
 
 static int psmouse_get_maxproto(char *buffer, struct kernel_param *kp)

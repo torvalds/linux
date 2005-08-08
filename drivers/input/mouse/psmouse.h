@@ -78,6 +78,7 @@ enum psmouse_type {
 	PSMOUSE_SYNAPTICS,
 	PSMOUSE_ALPS,
 	PSMOUSE_LIFEBOOK,
+	PSMOUSE_TRACKPOINT,
 	PSMOUSE_AUTO		/* This one should always be last */
 };
 
