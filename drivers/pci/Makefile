@@ -3,12 +3,8 @@
 #
 
 obj-y		+= access.o bus.o probe.o remove.o pci.o quirks.o \
-			pci-driver.o search.o pci-sysfs.o rom.o
+			pci-driver.o search.o pci-sysfs.o rom.o setup-res.o
 obj-$(CONFIG_PROC_FS) += proc.o
-
-ifndef CONFIG_SPARC64
-obj-y += setup-res.o
-endif
 
 obj-$(CONFIG_HOTPLUG) += hotplug.o
 

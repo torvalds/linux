@@ -245,12 +245,19 @@ static void __devinit quirk_io_region(struct pci_dev *dev, unsigned region, unsi
 {
 	region &= ~(size-1);
 	if (region) {
+		struct pci_bus_region bus_region;
 		struct resource *res = dev->resource + nr;
 
 		res->name = pci_name(dev);
 		res->start = region;
 		res->end = region + size - 1;
 		res->flags = IORESOURCE_IO;
+
+		/* Convert from PCI bus to resource space.  */
+		bus_region.start = res->start;
+		bus_region.end = res->end;
+		pcibios_bus_to_resource(dev, res, &bus_region);
+
 		pci_claim_resource(dev, nr);
 	}
 }	
