@@ -1324,6 +1324,13 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 
 		fb_videomode_to_var(&nvidiafb_default_var, &modedb);
 		nvidiafb_default_var.bits_per_pixel = 8;
+	} else if (par->fpWidth && par->fpHeight) {
+		char buf[16];
+
+		memset(buf, 0, 16);
+		snprintf(buf, 15, "%dx%d", par->fpWidth, par->fpHeight);
+		fb_find_mode(&nvidiafb_default_var, info, buf, specs->modedb,
+			     specs->modedb_len, &modedb, 8);
 	}
 
 	if (mode_option)
