@@ -68,6 +68,26 @@ static inline void fsnotify_rmdir(struct dentry *dentry, struct inode *inode,
 }
 
 /*
+ * fsnotify_nameremove - a filename was removed from a directory
+ */
+static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)
+{
+	if (isdir)
+		isdir = IN_ISDIR;
+	dnotify_parent(dentry, DN_DELETE);
+	inotify_dentry_parent_queue_event(dentry, IN_DELETE|isdir, 0, dentry->d_name.name);
+}
+
+/*
+ * fsnotify_inoderemove - an inode is going away
+ */
+static inline void fsnotify_inoderemove(struct inode *inode)
+{
+	inotify_inode_queue_event(inode, IN_DELETE_SELF, 0, NULL);
+	inotify_inode_is_dead(inode);
+}
+
+/*
  * fsnotify_create - 'name' was linked in
  */
 static inline void fsnotify_create(struct inode *inode, const char *name)
