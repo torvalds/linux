@@ -8,7 +8,7 @@
  * Author: Fabrice Bellard (fabrice.bellard@netgem.com) 
  * Copyright (C) 2000 Netgem S.A.
  *
- * $Id: inftlmount.c,v 1.16 2004/11/22 13:50:53 kalev Exp $
+ * $Id: inftlmount.c,v 1.17 2005/08/08 08:56:19 dwmw2 Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 #include <linux/mtd/inftl.h>
 #include <linux/mtd/compatmac.h>
 
-char inftlmountrev[]="$Revision: 1.16 $";
+char inftlmountrev[]="$Revision: 1.17 $";
 
 /*
  * find_boot_record: Find the INFTL Media Header and its Spare copy which
@@ -563,7 +563,7 @@ int INFTL_mount(struct INFTLrecord *s)
 	/* Search for INFTL MediaHeader and Spare INFTL Media Header */
 	if (find_boot_record(s) < 0) {
 		printk(KERN_WARNING "INFTL: could not find valid boot record?\n");
-		return -1;
+		return -ENXIO;
 	}
 
 	/* Init the logical to physical table */
@@ -574,6 +574,11 @@ int INFTL_mount(struct INFTLrecord *s)
 
 	/* Temporary buffer to store ANAC numbers. */
 	ANACtable = kmalloc(s->nb_blocks * sizeof(u8), GFP_KERNEL);
+	if (!ANACtable) {
+		printk(KERN_ERR "INFTL: Out of memory.\n");
+		return -ENOMEM;
+	}
+		
 	memset(ANACtable, 0, s->nb_blocks);
 
 	/*
