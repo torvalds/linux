@@ -735,11 +735,11 @@ again:
 	spin_unlock_irqrestore(&iosapic_lock, flags);
 
 	/* If vector is running out, we try to find a sharable vector */
-	vector = assign_irq_vector_nopanic(AUTO_ASSIGN);
+	vector = assign_irq_vector(AUTO_ASSIGN);
 	if (vector < 0) {
 		vector = iosapic_find_sharable_vector(trigger, polarity);
   		if (vector < 0)
-			Return -ENOSPC;
+			return -ENOSPC;
 	}
 
 	spin_lock_irqsave(&irq_descp(vector)->lock, flags);

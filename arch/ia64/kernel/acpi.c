@@ -74,7 +74,7 @@ unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
 #define MAX_SAPICS 256
-u16 ia64_acpiid_to_sapicid[MAX_SAPICS] = {[0...MAX_SAPICS - 1] = -1 };
+u16 ia64_acpiid_to_sapicid[MAX_SAPICS] = {[0 ... MAX_SAPICS - 1] = -1 };
 
 EXPORT_SYMBOL(ia64_acpiid_to_sapicid);
 
@@ -138,7 +138,7 @@ const char *acpi_get_sysname(void)
 
 /* Array to record platform interrupt vectors for generic interrupt routing. */
 int platform_intr_list[ACPI_MAX_PLATFORM_INTERRUPTS] = {
-	[0...ACPI_MAX_PLATFORM_INTERRUPTS - 1] = -1
+	[0 ... ACPI_MAX_PLATFORM_INTERRUPTS - 1] = -1
 };
 
 enum acpi_irq_model_id acpi_irq_model = ACPI_IRQ_MODEL_IOSAPIC;
