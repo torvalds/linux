@@ -1,5 +1,5 @@
 /*
- *    Support for LGDT3302 & LGDT3303 (DViCO FustionHDTV Gold) - VSB/QAM
+ *    Support for LGDT3302 and LGDT3303 - VSB/QAM
  *
  *    Copyright (C) 2005 Wilson Michaels <wilsonmichaels@earthlink.net>
  *
@@ -57,8 +57,10 @@ enum I2C_REG {
 	PH_ERR1= 0x4a,
 	PH_ERR2= 0x4b,
 	DEMUX_CONTROL= 0x66,
-	PACKET_ERR_COUNTER1= 0x6a,
-	PACKET_ERR_COUNTER2= 0x6b,
+	LGDT3302_PACKET_ERR_COUNTER1= 0x6a,
+	LGDT3302_PACKET_ERR_COUNTER2= 0x6b,
+	LGDT3303_PACKET_ERR_COUNTER1= 0x8b,
+	LGDT3303_PACKET_ERR_COUNTER2= 0x8c,
 };
 
 #endif /* _LGDT330X_PRIV_ */
