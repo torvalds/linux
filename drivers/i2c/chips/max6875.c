@@ -171,11 +171,6 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct max6875_data *data;
 	int err = 0;
 
-	/* Prevent 24rf08 corruption (in case of user error) */
-	if (kind < 0)
-		i2c_smbus_xfer(adapter, address, 0, 0, 0,
-			       I2C_SMBUS_QUICK, NULL);
-
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WRITE_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_BYTE))
 		return 0;

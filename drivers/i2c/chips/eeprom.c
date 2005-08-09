@@ -161,11 +161,6 @@ int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct eeprom_data *data;
 	int err = 0;
 
-	/* prevent 24RF08 corruption */
-	if (kind < 0)
-		i2c_smbus_xfer(adapter, address, 0, 0, 0,
-			       I2C_SMBUS_QUICK, NULL);
-
 	/* There are three ways we can read the EEPROM data:
 	   (1) I2C block reads (faster, but unsupported by most adapters)
 	   (2) Consecutive byte reads (100% overhead)
