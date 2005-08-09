@@ -1117,7 +1117,7 @@ done:
 
 	kenvctrld_task = kthread_run(kenvctrld, NULL, "kenvctrld");
 	if (IS_ERR(kenvctrld_task)) {
-		err = ERR_PTR(kenvctrld_task);
+		err = PTR_ERR(kenvctrld_task);
 		goto out_deregister;
 	}
 
