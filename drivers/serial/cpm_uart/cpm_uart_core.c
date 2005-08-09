@@ -1134,14 +1134,14 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	return 0;
 }
 
-extern struct uart_driver cpm_reg;
+static struct uart_driver cpm_reg;
 static struct console cpm_scc_uart_console = {
-	.name		"ttyCPM",
-	.write		cpm_uart_console_write,
-	.device		uart_console_device,
-	.setup		cpm_uart_console_setup,
-	.flags		CON_PRINTBUFFER,
-	.index		-1,
+	.name		= "ttyCPM",
+	.write		= cpm_uart_console_write,
+	.device		= uart_console_device,
+	.setup		= cpm_uart_console_setup,
+	.flags		= CON_PRINTBUFFER,
+	.index		= -1,
 	.data		= &cpm_reg,
 };
 
