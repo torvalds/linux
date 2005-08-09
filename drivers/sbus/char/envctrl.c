@@ -1039,7 +1039,6 @@ static int kenvctrld(void *__unused)
 
 static int __init envctrl_init(void)
 {
-#ifdef CONFIG_PCI
 	struct linux_ebus *ebus = NULL;
 	struct linux_ebus_device *edev = NULL;
 	struct linux_ebus_child *edev_child = NULL;
@@ -1133,9 +1132,6 @@ out_iounmap:
 			kfree(i2c_childlist[i].tables);
 	}
 	return err;
-#else
-	return -ENODEV;
-#endif
 }
 
 static void __exit envctrl_cleanup(void)
