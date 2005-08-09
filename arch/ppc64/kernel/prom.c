@@ -918,7 +918,7 @@ static unsigned long __init unflatten_dt_node(unsigned long mem,
 		tag = *((u32 *)(*p));
 	}
 	if (tag != OF_DT_END_NODE) {
-		printk("Weird tag at start of node: %x\n", tag);
+		printk("Weird tag at end of node: %x\n", tag);
 		return mem;
 	}
 	*p += 4;
