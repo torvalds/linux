@@ -536,15 +536,19 @@ static void __init check_for_initrd(void)
 
 	DBG(" -> check_for_initrd()\n");
 
-	prop = (u64 *)get_property(of_chosen, "linux,initrd-start", NULL);
-	if (prop != NULL) {
-		initrd_start = (unsigned long)__va(*prop);
-		prop = (u64 *)get_property(of_chosen, "linux,initrd-end", NULL);
+	if (of_chosen) {
+		prop = (u64 *)get_property(of_chosen,
+				"linux,initrd-start", NULL);
 		if (prop != NULL) {
-			initrd_end = (unsigned long)__va(*prop);
-			initrd_below_start_ok = 1;
-		} else
-			initrd_start = 0;
+			initrd_start = (unsigned long)__va(*prop);
+			prop = (u64 *)get_property(of_chosen,
+					"linux,initrd-end", NULL);
+			if (prop != NULL) {
+				initrd_end = (unsigned long)__va(*prop);
+				initrd_below_start_ok = 1;
+			} else
+				initrd_start = 0;
+		}
 	}
 
 	/* If we were passed an initrd, set the ROOT_DEV properly if the values
