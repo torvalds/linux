@@ -61,6 +61,7 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/xics.h>
 #include <asm/firmware.h>
+#include <asm/pmc.h>
 
 #include "i8259.h"
 #include "mpic.h"
@@ -187,6 +188,21 @@ static void __init pSeries_setup_mpic(void)
 				  " MPIC     ");
 }
 
+static void pseries_lpar_enable_pmcs(void)
+{
+	unsigned long set, reset;
+
+	power4_enable_pmcs();
+
+	set = 1UL << 63;
+	reset = 0;
+	plpar_hcall_norets(H_PERFMON, set, reset);
+
+	/* instruct hypervisor to maintain PMCs */
+	if (firmware_has_feature(FW_FEATURE_SPLPAR))
+		get_paca()->lppaca.pmcregs_in_use = 1;
+}
+
 static void __init pSeries_setup_arch(void)
 {
 	/* Fixup ppc_md depending on the type of interrupt controller */
@@ -245,6 +261,11 @@ static void __init pSeries_setup_arch(void)
 		printk(KERN_INFO "Using default idle loop\n");
 		ppc_md.idle_loop = default_idle;
 	}
+
+	if (systemcfg->platform & PLATFORM_LPAR)
+		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
+	else
+		ppc_md.enable_pmcs = power4_enable_pmcs;
 }
 
 static int __init pSeries_init_panel(void)

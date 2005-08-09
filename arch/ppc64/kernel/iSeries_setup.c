@@ -964,6 +964,8 @@ void __init iSeries_early_setup(void)
 	ppc_md.calibrate_decr = iSeries_calibrate_decr;
 	ppc_md.progress = iSeries_progress;
 
+	/* XXX Implement enable_pmcs for iSeries */
+
 	if (get_paca()->lppaca.shared_proc) {
 		ppc_md.idle_loop = iseries_shared_idle;
 		printk(KERN_INFO "Using shared processor idle loop\n");

@@ -101,6 +101,8 @@ static int __init setup_smt_snooze_delay(char *str)
 }
 __setup("smt-snooze-delay=", setup_smt_snooze_delay);
 
+#endif /* CONFIG_PPC_MULTIPLATFORM */
+
 /*
  * Enabling PMCs will slow partition context switch times so we only do
  * it the first time we write to the PMCs.
@@ -110,63 +112,15 @@ static DEFINE_PER_CPU(char, pmcs_enabled);
 
 void ppc64_enable_pmcs(void)
 {
-	unsigned long hid0;
-#ifdef CONFIG_PPC_PSERIES
-	unsigned long set, reset;
-#endif /* CONFIG_PPC_PSERIES */
-
 	/* Only need to enable them once */
 	if (__get_cpu_var(pmcs_enabled))
 		return;
 
 	__get_cpu_var(pmcs_enabled) = 1;
 
-	switch (systemcfg->platform) {
-	case PLATFORM_PSERIES:
-	case PLATFORM_POWERMAC:
-		hid0 = mfspr(HID0);
-		hid0 |= 1UL << (63 - 20);
-
-		/* POWER4 requires the following sequence */
-		asm volatile(
-			     "sync\n"
-			     "mtspr	%1, %0\n"
-			     "mfspr	%0, %1\n"
-			     "mfspr	%0, %1\n"
-			     "mfspr	%0, %1\n"
-			     "mfspr	%0, %1\n"
-			     "mfspr	%0, %1\n"
-			     "mfspr	%0, %1\n"
-			     "isync" : "=&r" (hid0) : "i" (HID0), "0" (hid0):
-			     "memory");
-		break;
-
-#ifdef CONFIG_PPC_PSERIES
-	case PLATFORM_PSERIES_LPAR:
-		set = 1UL << 63;
-		reset = 0;
-		plpar_hcall_norets(H_PERFMON, set, reset);
-		break;
-#endif /* CONFIG_PPC_PSERIES */
-
-	default:
-		break;
-	}
-
-	/* instruct hypervisor to maintain PMCs */
-	if (firmware_has_feature(FW_FEATURE_SPLPAR))
-		get_paca()->lppaca.pmcregs_in_use = 1;
+	if (ppc_md.enable_pmcs)
+		ppc_md.enable_pmcs();
 }
-
-#else
-
-/* PMC stuff */
-void ppc64_enable_pmcs(void)
-{
-	/* XXX Implement for iseries */
-}
-#endif /* CONFIG_PPC_MULTIPLATFORM */
-
 EXPORT_SYMBOL(ppc64_enable_pmcs);
 
 /* XXX convert to rusty's on_one_cpu */
