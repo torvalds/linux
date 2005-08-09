@@ -771,7 +771,7 @@ int RIOAssignRta( struct rio_info *p, struct Map *MapP )
 	    if ((MapP->Flags & RTA16_SECOND_SLOT) == 0)
 	      CCOPY( MapP->Name, HostMapP->Name, MAX_NAME_LEN );
 	    HostMapP->Flags = SLOT_IN_USE | RTA_BOOTED;
-#if NEED_TO_FIX
+#ifdef NEED_TO_FIX
 	    RIO_SV_BROADCAST(p->RIOHosts[host].svFlags[MapP->ID-1]);
 #endif
 	    if (MapP->Flags & RTA16_SECOND_SLOT)

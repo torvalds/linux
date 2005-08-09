@@ -49,19 +49,26 @@
  * entry to map the Esid to the Vsid.
 */
 
+#define HvEsidsToMap	2
+#define HvRangesToMap	1
+
 /* Hypervisor initially maps 32MB of the load area */
 #define HvPagesToMap	8192
 
 struct LparMap {
-	u64	xNumberEsids;	// Number of ESID/VSID pairs (1)
-	u64	xNumberRanges;	// Number of VA ranges to map (1)
-	u64	xSegmentTableOffs; // Page number within load area of seg table (0)
+	u64	xNumberEsids;	// Number of ESID/VSID pairs
+	u64	xNumberRanges;	// Number of VA ranges to map
+	u64	xSegmentTableOffs; // Page number within load area of seg table
 	u64	xRsvd[5];
-	u64	xKernelEsid;	// Esid used to map kernel load (0x0C00000000)
-	u64	xKernelVsid;	// Vsid used to map kernel load (0x0C00000000)
-	u64	xPages;		// Number of pages to be mapped	(8192)
-	u64	xOffset;	// Offset from start of load area (0)
-	u64	xVPN;		// Virtual Page Number (0x000C000000000000)
+	struct {
+		u64	xKernelEsid;	// Esid used to map kernel load
+		u64	xKernelVsid;	// Vsid used to map kernel load
+	} xEsids[HvEsidsToMap];
+	struct {
+		u64	xPages;		// Number of pages to be mapped
+		u64	xOffset;	// Offset from start of load area
+		u64	xVPN;		// Virtual Page Number
+	} xRanges[HvRangesToMap];
 };
 
 extern struct LparMap		xLparMap;

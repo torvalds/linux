@@ -238,9 +238,9 @@ pq2ads_setup_pci(struct pci_controller *hose)
 	 * Setting required to enable IRQ1-IRQ7 (SIUMCR [DPPC]),
 	 * and local bus for PCI (SIUMCR [LBPC]).
 	 */
-	immap->im_siu_conf.siu_82xx.sc_siumcr = (immap->im_siu_conf.sc_siumcr &
-				~(SIUMCR_L2PC11 | SIUMCR_LBPC11 | SIUMCR_CS10PC11 | SIUMCR_APPC11) |
-				SIUMCR_BBD | SIUMCR_LBPC01 | SIUMCR_DPPC11 | SIUMCR_APPC10;
+	immap->im_siu_conf.siu_82xx.sc_siumcr = (immap->im_siu_conf.siu_82xx.sc_siumcr &
+				~(SIUMCR_L2CPC11 | SIUMCR_LBPC11 | SIUMCR_CS10PC11 | SIUMCR_APPC11) |
+				SIUMCR_BBD | SIUMCR_LBPC01 | SIUMCR_DPPC11 | SIUMCR_APPC10);
 #endif
 	/* Enable PCI  */
 	immap->im_pci.pci_gcr = cpu_to_le32(PCIGCR_PCI_BUS_EN);

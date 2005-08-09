@@ -510,8 +510,13 @@ init_conntrack(const struct ip_conntrack_tuple *tuple,
 		/* Welcome, Mr. Bond.  We've been expecting you... */
 		__set_bit(IPS_EXPECTED_BIT, &conntrack->status);
 		conntrack->master = exp->master;
-#if CONFIG_IP_NF_CONNTRACK_MARK
+#ifdef CONFIG_IP_NF_CONNTRACK_MARK
 		conntrack->mark = exp->master->mark;
+#endif
+#if defined(CONFIG_IP_NF_TARGET_MASQUERADE) || \
+    defined(CONFIG_IP_NF_TARGET_MASQUERADE_MODULE)
+		/* this is ugly, but there is no other place where to put it */
+		conntrack->nat.masq_index = exp->master->nat.masq_index;
 #endif
 		nf_conntrack_get(&conntrack->master->ct_general);
 		CONNTRACK_STAT_INC(expect_new);

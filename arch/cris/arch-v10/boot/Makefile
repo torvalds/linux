@@ -1,12 +1,13 @@
 #
 # arch/cris/boot/Makefile
 #
+target = $(target_boot_dir)
+src    = $(src_boot_dir)
 
 zImage: compressed/vmlinuz
 
-compressed/vmlinuz: $(TOPDIR)/vmlinux
-	@$(MAKE) -C compressed vmlinuz
+compressed/vmlinuz:
+	@$(MAKE) -f $(src)/compressed/Makefile $(target_compressed_dir)/vmlinuz
 
 clean:
-	rm -f zImage tools/build compressed/vmlinux.out
-	@$(MAKE) -C compressed clean
+	@$(MAKE) -f $(src)/compressed/Makefile clean

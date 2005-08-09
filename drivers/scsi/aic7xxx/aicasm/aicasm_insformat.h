@@ -42,8 +42,10 @@
  * $FreeBSD$
  */
 
+#include <asm/byteorder.h>
+
 struct ins_format1 {
-#if BYTE_ORDER == LITTLE_ENDIAN
+#ifdef __LITTLE_ENDIAN
 	uint32_t	immediate	: 8,
 			source		: 9,
 			destination	: 9,
@@ -61,7 +63,7 @@ struct ins_format1 {
 };
 
 struct ins_format2 {
-#if BYTE_ORDER == LITTLE_ENDIAN
+#ifdef __LITTLE_ENDIAN
 	uint32_t	shift_control	: 8,
 			source		: 9,
 			destination	: 9,
@@ -79,7 +81,7 @@ struct ins_format2 {
 };
 
 struct ins_format3 {
-#if BYTE_ORDER == LITTLE_ENDIAN
+#ifdef __LITTLE_ENDIAN
 	uint32_t	immediate	: 8,
 			source		: 9,
 			address		: 10,

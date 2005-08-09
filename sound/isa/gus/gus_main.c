@@ -417,11 +417,13 @@ static int snd_gus_check_version(snd_gus_card_t * gus)
 	return 0;
 }
 
+#if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
 static void snd_gus_seq_dev_free(snd_seq_device_t *seq_dev)
 {
 	snd_gus_card_t *gus = seq_dev->private_data;
 	gus->seq_dev = NULL;
 }
+#endif
 
 int snd_gus_initialize(snd_gus_card_t *gus)
 {

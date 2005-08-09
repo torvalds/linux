@@ -182,13 +182,13 @@ static int irq_probe(void);
 static void *bios_base;
 #endif
 
-#if PORT_BASE
+#ifdef PORT_BASE
 static int port_base = PORT_BASE;
 #else
 static int port_base;
 #endif
 
-#if IRQ_LEV
+#ifdef IRQ_LEV
 static int irq_level = IRQ_LEV;
 #else
 static int irq_level = -1;	/* 0 is 'no irq', so use -1 for 'uninitialized' */

@@ -19,6 +19,8 @@ harddog-objs := harddog_kern.o harddog_user.o
 
 LDFLAGS_pcap.o := -r $(shell $(CC) $(CFLAGS) -print-file-name=libpcap.a)
 
+targets := pcap_kern.o pcap_user.o
+
 $(obj)/pcap.o: $(obj)/pcap_kern.o $(obj)/pcap_user.o
 	$(LD) -r -dp -o $@ $^ $(LDFLAGS) $(LDFLAGS_pcap.o)
 #XXX: The call below does not work because the flags are added before the
@@ -26,7 +28,7 @@ $(obj)/pcap.o: $(obj)/pcap_kern.o $(obj)/pcap_user.o
 #$(call if_changed,ld)
 
 # When the above is fixed, don't forget to add this too!
-#targets := $(obj)/pcap.o
+#targets += $(obj)/pcap.o
 
 obj-y := stdio_console.o fd.o chan_kern.o chan_user.o line.o
 obj-$(CONFIG_SSL) += ssl.o

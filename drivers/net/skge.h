@@ -1449,10 +1449,12 @@ enum {
 	PHY_M_IS_DTE_CHANGE	= 1<<2, /* DTE Power Det. Status Changed */
 	PHY_M_IS_POL_CHANGE	= 1<<1, /* Polarity Changed */
 	PHY_M_IS_JABBER		= 1<<0, /* Jabber */
-};
 
-#define PHY_M_DEF_MSK	( PHY_M_IS_AN_ERROR | PHY_M_IS_LSP_CHANGE | \
-			  PHY_M_IS_LST_CHANGE | PHY_M_IS_FIFO_ERROR)
+	PHY_M_IS_DEF_MSK	= PHY_M_IS_AN_ERROR | PHY_M_IS_LSP_CHANGE |
+				  PHY_M_IS_LST_CHANGE | PHY_M_IS_FIFO_ERROR,
+
+	PHY_M_IS_AN_MSK		= PHY_M_IS_AN_ERROR | PHY_M_IS_AN_COMPL,
+};
 
 /*****  PHY_MARV_EXT_CTRL	16 bit r/w	Ext. PHY Specific Ctrl *****/
 enum {
@@ -1509,7 +1511,7 @@ enum {
 	PHY_M_LEDC_TX_C_MSB	= 1<<0, /* Tx Control (MSB, 88E1111 only) */
 };
 
-#define PHY_M_LED_PULS_DUR(x)	(	((x)<<12) & PHY_M_LEDC_PULS_MSK)
+#define PHY_M_LED_PULS_DUR(x)	(((x)<<12) & PHY_M_LEDC_PULS_MSK)
 
 enum {
 	PULS_NO_STR	= 0,/* no pulse stretching */
@@ -1522,7 +1524,7 @@ enum {
 	PULS_1300MS	= 7,/* 1.3 s to 2.7 s */
 };
 
-#define PHY_M_LED_BLINK_RT(x)	(	((x)<<8) & PHY_M_LEDC_BL_R_MSK)
+#define PHY_M_LED_BLINK_RT(x)	(((x)<<8) & PHY_M_LEDC_BL_R_MSK)
 
 enum {
 	BLINK_42MS	= 0,/* 42 ms */
@@ -1602,9 +1604,9 @@ enum {
 	PHY_M_FELP_LED0_MSK = 0xf, /* Bit  3.. 0: LED0 Mask (SPEED) */
 };
 
-#define PHY_M_FELP_LED2_CTRL(x)	(	((x)<<8) & PHY_M_FELP_LED2_MSK)
-#define PHY_M_FELP_LED1_CTRL(x)	(	((x)<<4) & PHY_M_FELP_LED1_MSK)
-#define PHY_M_FELP_LED0_CTRL(x)	(	((x)<<0) & PHY_M_FELP_LED0_MSK)
+#define PHY_M_FELP_LED2_CTRL(x)	(((x)<<8) & PHY_M_FELP_LED2_MSK)
+#define PHY_M_FELP_LED1_CTRL(x)	(((x)<<4) & PHY_M_FELP_LED1_MSK)
+#define PHY_M_FELP_LED0_CTRL(x)	(((x)<<0) & PHY_M_FELP_LED0_MSK)
 
 enum {
 	LED_PAR_CTRL_COLX	= 0x00,
@@ -1640,7 +1642,7 @@ enum {
 	PHY_M_MAC_MD_COPPER	= 5,/* Copper only */
 	PHY_M_MAC_MD_1000BX	= 7,/* 1000Base-X only */
 };
-#define PHY_M_MAC_MODE_SEL(x)	(	((x)<<7) & PHY_M_MAC_MD_MSK)
+#define PHY_M_MAC_MODE_SEL(x)	(((x)<<7) & PHY_M_MAC_MD_MSK)
 
 /*****  PHY_MARV_PHY_CTRL (page 3)		16 bit r/w	LED Control Reg. *****/
 enum {
@@ -1650,10 +1652,10 @@ enum {
 	PHY_M_LEDC_STA0_MSK	= 0xf, /* Bit  3.. 0: STAT0 LED Ctrl. Mask */
 };
 
-#define PHY_M_LEDC_LOS_CTRL(x)	(	((x)<<12) & PHY_M_LEDC_LOS_MSK)
-#define PHY_M_LEDC_INIT_CTRL(x)	(	((x)<<8) & PHY_M_LEDC_INIT_MSK)
-#define PHY_M_LEDC_STA1_CTRL(x)	(	((x)<<4) & PHY_M_LEDC_STA1_MSK)
-#define PHY_M_LEDC_STA0_CTRL(x)	(	((x)<<0) & PHY_M_LEDC_STA0_MSK)
+#define PHY_M_LEDC_LOS_CTRL(x)	(((x)<<12) & PHY_M_LEDC_LOS_MSK)
+#define PHY_M_LEDC_INIT_CTRL(x)	(((x)<<8) & PHY_M_LEDC_INIT_MSK)
+#define PHY_M_LEDC_STA1_CTRL(x)	(((x)<<4) & PHY_M_LEDC_STA1_MSK)
+#define PHY_M_LEDC_STA0_CTRL(x)	(((x)<<0) & PHY_M_LEDC_STA0_MSK)
 
 /* GMAC registers  */
 /* Port Registers */
@@ -2505,8 +2507,6 @@ struct skge_port {
 	dma_addr_t	     dma;
 	unsigned long	     mem_size;
 	unsigned int	     rx_buf_size;
-
-	struct timer_list    led_blink;
 };
 
 
@@ -2604,17 +2604,6 @@ static inline u32 gma_read32(const struct skge_hw *hw, int port, int reg)
 static inline void gma_write16(const struct skge_hw *hw, int port, int r, u16 v)
 {
 	skge_write16(hw, SK_GMAC_REG(port,r), v);
-}
-
-static inline void gma_write32(const struct skge_hw *hw, int port, int r, u32 v)
-{
-	skge_write16(hw, SK_GMAC_REG(port, r), (u16) v);
-	skge_write32(hw, SK_GMAC_REG(port, r+4), (u16)(v >> 16));
-}
-
-static inline void gma_write8(const struct skge_hw *hw, int port, int r, u8 v)
-{
-	skge_write8(hw, SK_GMAC_REG(port,r), v);
 }
 
 static inline void gma_set_addr(struct skge_hw *hw, int port, int reg,

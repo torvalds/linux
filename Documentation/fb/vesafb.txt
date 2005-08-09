@@ -144,7 +144,21 @@ vgapal	Use the standard vga registers for palette changes.
 	This is the default.
 pmipal	Use the protected mode interface for palette changes.
 
-mtrr	setup memory type range registers for the vesafb framebuffer.
+mtrr:n	setup memory type range registers for the vesafb framebuffer
+	where n:
+	      0 - disabled (equivalent to nomtrr)
+	      1 - uncachable
+	      2 - write-back
+	      3 - write-combining (default)
+	      4 - write-through
+
+	If you see the following in dmesg, choose the type that matches the
+	old one. In this example, use "mtrr:2".
+...
+mtrr: type mismatch for e0000000,8000000 old: write-back new: write-combining
+...
+
+nomtrr  disable mtrr
 
 vremap:n
         remap 'n' MiB of video RAM. If 0 or not specified, remap memory

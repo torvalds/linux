@@ -76,7 +76,8 @@ via_decoder_futex(DRM_IOCTL_ARGS)
 
 	DRM_DEBUG("%s\n", __FUNCTION__);
 
-	DRM_COPY_FROM_USER_IOCTL(fx, (drm_via_futex_t *) data, sizeof(fx));
+	DRM_COPY_FROM_USER_IOCTL(fx, (drm_via_futex_t __user *) data,
+				 sizeof(fx));
 
 	if (fx.lock > VIA_NR_XVMC_LOCKS)
 		return -EFAULT;

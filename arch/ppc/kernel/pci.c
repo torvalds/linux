@@ -160,6 +160,21 @@ void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 }
 EXPORT_SYMBOL(pcibios_resource_to_bus);
 
+void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+			     struct pci_bus_region *region)
+{
+	unsigned long offset = 0;
+	struct pci_controller *hose = dev->sysdata;
+
+	if (hose && res->flags & IORESOURCE_IO)
+		offset = (unsigned long)hose->io_base_virt - isa_io_base;
+	else if (hose && res->flags & IORESOURCE_MEM)
+		offset = hose->pci_mem_offset;
+	res->start = region->start + offset;
+	res->end = region->end + offset;
+}
+EXPORT_SYMBOL(pcibios_bus_to_resource);
+
 /*
  * We need to avoid collisions with `mirrored' VGA ports
  * and other strange ISA hardware, so we always want the

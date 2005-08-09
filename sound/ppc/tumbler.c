@@ -945,7 +945,7 @@ static void device_change_handler(void *self)
 			check_mute(chip, &mix->line_mute, 0, mix->auto_mute_notify,
 				   chip->lineout_sw_ctl);
 		if (mix->anded_reset)
-			big_mdelay(10);
+			msleep(10);
 		check_mute(chip, &mix->amp_mute, 1, mix->auto_mute_notify,
 			   chip->speaker_sw_ctl);
 		mix->drc_enable = 0;
@@ -954,7 +954,7 @@ static void device_change_handler(void *self)
 		check_mute(chip, &mix->amp_mute, 0, mix->auto_mute_notify,
 			   chip->speaker_sw_ctl);
 		if (mix->anded_reset)
-			big_mdelay(10);
+			msleep(10);
 		check_mute(chip, &mix->hp_mute, 1, mix->auto_mute_notify,
 			   chip->master_sw_ctl);
 		if (mix->line_mute.addr != 0)
@@ -1109,22 +1109,22 @@ static void tumbler_reset_audio(pmac_t *chip)
 		DBG("(I) codec anded reset !\n");
 		write_audio_gpio(&mix->hp_mute, 0);
 		write_audio_gpio(&mix->amp_mute, 0);
-		big_mdelay(200);
+		msleep(200);
 		write_audio_gpio(&mix->hp_mute, 1);
 		write_audio_gpio(&mix->amp_mute, 1);
-		big_mdelay(100);
+		msleep(100);
 		write_audio_gpio(&mix->hp_mute, 0);
 		write_audio_gpio(&mix->amp_mute, 0);
-		big_mdelay(100);
+		msleep(100);
 	} else {
 		DBG("(I) codec normal reset !\n");
 
 		write_audio_gpio(&mix->audio_reset, 0);
-		big_mdelay(200);
+		msleep(200);
 		write_audio_gpio(&mix->audio_reset, 1);
-		big_mdelay(100);
+		msleep(100);
 		write_audio_gpio(&mix->audio_reset, 0);
-		big_mdelay(100);
+		msleep(100);
 	}
 }
 

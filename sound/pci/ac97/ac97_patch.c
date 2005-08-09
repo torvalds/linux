@@ -1528,6 +1528,9 @@ static const snd_kcontrol_new_t snd_ac97_ad1888_controls[] = {
 	},
 	AC97_SURROUND_JACK_MODE_CTL,
 	AC97_CHANNEL_MODE_CTL,
+
+	AC97_SINGLE("Headphone Jack Sense", AC97_AD_JACK_SPDIF, 10, 1, 0),
+	AC97_SINGLE("Line Jack Sense", AC97_AD_JACK_SPDIF, 12, 1, 0),
 };
 
 static int patch_ad1888_specific(ac97_t *ac97)

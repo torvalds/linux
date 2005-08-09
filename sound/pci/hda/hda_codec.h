@@ -262,6 +262,9 @@ enum {
 #define AC_PINCTL_OUT_EN		(1<<6)
 #define AC_PINCTL_HP_EN			(1<<7)
 
+/* Unsolicited response - 8bit */
+#define AC_USRSP_EN			(1<<7)
+
 /* configuration default - 32bit */
 #define AC_DEFCFG_SEQUENCE		(0xf<<0)
 #define AC_DEFCFG_DEF_ASSOC		(0xf<<4)

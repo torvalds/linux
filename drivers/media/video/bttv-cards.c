@@ -1,5 +1,5 @@
 /*
-    $Id: bttv-cards.c,v 1.53 2005/07/05 17:37:35 nsh Exp $
+    $Id: bttv-cards.c,v 1.54 2005/07/19 18:26:46 mkrufky Exp $
 
     bttv-cards.c
 
@@ -95,7 +95,7 @@ static int __devinit pvr_boot(struct bttv *btv);
 static unsigned int triton1=0;
 static unsigned int vsfx=0;
 static unsigned int latency = UNSET;
-static unsigned int no_overlay=-1;
+int no_overlay=-1;
 
 static unsigned int card[BTTV_MAX]   = { [ 0 ... (BTTV_MAX-1) ] = UNSET };
 static unsigned int pll[BTTV_MAX]    = { [ 0 ... (BTTV_MAX-1) ] = UNSET };
@@ -2772,8 +2772,6 @@ void __devinit bttv_init_card2(struct bttv *btv)
         }
 	btv->pll.pll_current = -1;
 
-	bttv_reset_audio(btv);
-
 	/* tuner configuration (from card list / autodetect / insmod option) */
  	if (UNSET != bttv_tvcards[btv->c.type].tuner_type)
 		if(UNSET == btv->tuner_type)
@@ -4298,9 +4296,11 @@ void __devinit bttv_check_chipset(void)
 		printk(KERN_INFO "bttv: Host bridge needs VSFX enabled.\n");
 	if (pcipci_fail) {
 		printk(KERN_WARNING "bttv: BT848 and your chipset may not work together.\n");
-		if (UNSET == no_overlay) {
-			printk(KERN_WARNING "bttv: going to disable overlay.\n");
+		if (!no_overlay) {
+			printk(KERN_WARNING "bttv: overlay will be disabled.\n");
 			no_overlay = 1;
+		} else {
+			printk(KERN_WARNING "bttv: overlay forced. Use this option at your own risk.\n");
 		}
 	}
 	if (UNSET != latency)

@@ -229,6 +229,7 @@ extern int _find_next_zero_bit_be(const void * p, int size, int offset);
 extern int _find_first_bit_be(const unsigned long *p, unsigned size);
 extern int _find_next_bit_be(const unsigned long *p, int size, int offset);
 
+#ifndef CONFIG_SMP
 /*
  * The __* form of bitops are non-atomic and may be reordered.
  */
@@ -241,6 +242,10 @@ extern int _find_next_bit_be(const unsigned long *p, int size, int offset);
 	(__builtin_constant_p(nr) ?		\
 	 ____atomic_##name(nr, p) :		\
 	 _##name##_be(nr,p))
+#else
+#define ATOMIC_BITOP_LE(name,nr,p)	_##name##_le(nr,p)
+#define ATOMIC_BITOP_BE(name,nr,p)	_##name##_be(nr,p)
+#endif
 
 #define NONATOMIC_BITOP(name,nr,p)		\
 	(____nonatomic_##name(nr, p))

@@ -160,7 +160,7 @@ static struct net_device_stats *plip_get_stats(struct net_device *dev);
 static int plip_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 static int plip_preempt(void *handle);
 static void plip_wakeup(void *handle);
-
+
 enum plip_connection_state {
 	PLIP_CN_NONE=0,
 	PLIP_CN_RECEIVE,
@@ -231,8 +231,8 @@ struct net_local {
 	atomic_t kill_timer;
 	struct semaphore killed_timer_sem;
 };
-
-inline static void enable_parport_interrupts (struct net_device *dev)
+
+static inline void enable_parport_interrupts (struct net_device *dev)
 {
 	if (dev->irq != -1)
 	{
@@ -242,7 +242,7 @@ inline static void enable_parport_interrupts (struct net_device *dev)
 	}
 }
 
-inline static void disable_parport_interrupts (struct net_device *dev)
+static inline void disable_parport_interrupts (struct net_device *dev)
 {
 	if (dev->irq != -1)
 	{
@@ -252,7 +252,7 @@ inline static void disable_parport_interrupts (struct net_device *dev)
 	}
 }
 
-inline static void write_data (struct net_device *dev, unsigned char data)
+static inline void write_data (struct net_device *dev, unsigned char data)
 {
 	struct parport *port =
 	   ((struct net_local *)dev->priv)->pardev->port;
@@ -260,14 +260,14 @@ inline static void write_data (struct net_device *dev, unsigned char data)
 	port->ops->write_data (port, data);
 }
 
-inline static unsigned char read_status (struct net_device *dev)
+static inline unsigned char read_status (struct net_device *dev)
 {
 	struct parport *port =
 	   ((struct net_local *)dev->priv)->pardev->port;
 
 	return port->ops->read_status (port);
 }
-
+
 /* Entry point of PLIP driver.
    Probe the hardware, and register/initialize the driver.
 
@@ -316,7 +316,7 @@ plip_init_netdev(struct net_device *dev)
 
 	spin_lock_init(&nl->lock);
 }
-
+
 /* Bottom half handler for the delayed request.
    This routine is kicked by do_timer().
    Request `plip_bh' to be invoked. */
@@ -471,7 +471,7 @@ plip_bh_timeout_error(struct net_device *dev, struct net_local *nl,
 
 	return TIMEOUT;
 }
-
+
 static int
 plip_none(struct net_device *dev, struct net_local *nl,
 	  struct plip_local *snd, struct plip_local *rcv)
@@ -481,7 +481,7 @@ plip_none(struct net_device *dev, struct net_local *nl,
 
 /* PLIP_RECEIVE --- receive a byte(two nibbles)
    Returns OK on success, TIMEOUT on timeout */
-inline static int
+static inline int
 plip_receive(unsigned short nibble_timeout, struct net_device *dev,
 	     enum plip_nibble_state *ns_p, unsigned char *data_p)
 {
@@ -581,7 +581,6 @@ static __be16 plip_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 */
 	return htons(ETH_P_802_2);
 }
-
 
 /* PLIP_RECEIVE_PACKET --- receive a packet */
 static int
@@ -702,7 +701,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 
 /* PLIP_SEND --- send a byte (two nibbles)
    Returns OK on success, TIMEOUT when timeout    */
-inline static int
+static inline int
 plip_send(unsigned short nibble_timeout, struct net_device *dev,
 	  enum plip_nibble_state *ns_p, unsigned char data)
 {
@@ -902,7 +901,7 @@ plip_error(struct net_device *dev, struct net_local *nl,
 
 	return OK;
 }
-
+
 /* Handle the parallel port interrupts. */
 static void
 plip_interrupt(int irq, void *dev_id, struct pt_regs * regs)
@@ -957,7 +956,7 @@ plip_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
 	spin_unlock_irq(&nl->lock);
 }
-
+
 static int
 plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 {
@@ -1238,7 +1237,7 @@ plip_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 	return 0;
 }
-
+
 static int parport[PLIP_MAX] = { [0 ... PLIP_MAX-1] = -1 };
 static int timid;
 

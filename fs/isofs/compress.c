@@ -129,7 +129,13 @@ static int zisofs_readpage(struct file *file, struct page *page)
 	cend = le32_to_cpu(*(__le32 *)(bh->b_data + (blockendptr & bufmask)));
 	brelse(bh);
 
+	if (cstart > cend)
+		goto eio;
+		
 	csize = cend-cstart;
+
+	if (csize > deflateBound(1UL << zisofs_block_shift))
+		goto eio;
 
 	/* Now page[] contains an array of pages, any of which can be NULL,
 	   and the locks on which we hold.  We should now read the data and

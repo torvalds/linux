@@ -2,7 +2,7 @@
  * For Philips TEA5767 FM Chip used on some TV Cards like Prolink Pixelview
  * I2C address is allways 0xC0.
  *
- * $Id: tea5767.c,v 1.21 2005/07/14 03:06:43 mchehab Exp $
+ * $Id: tea5767.c,v 1.27 2005/07/31 12:10:56 mchehab Exp $
  *
  * Copyright (c) 2005 Mauro Carvalho Chehab (mchehab@brturbo.com.br)
  * This code is placed under the terms of the GNU General Public License
@@ -14,7 +14,6 @@
 #include <linux/i2c.h>
 #include <linux/videodev.h>
 #include <linux/delay.h>
-#include <media/tuner.h>
 #include <media/tuner.h>
 
 #define PREFIX "TEA5767 "
@@ -293,16 +292,16 @@ static int tea5767_stereo(struct i2c_client *c)
 
 int tea5767_autodetection(struct i2c_client *c)
 {
-	unsigned char buffer[5] = { 0xff, 0xff, 0xff, 0xff, 0xff };
+	unsigned char buffer[7] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	int rc;
 	struct tuner *t = i2c_get_clientdata(c);
 
-	if (5 != (rc = i2c_master_recv(c, buffer, 5))) {
+	if (7 != (rc = i2c_master_recv(c, buffer, 7))) {
 		tuner_warn("It is not a TEA5767. Received %i bytes.\n", rc);
 		return EINVAL;
 	}
 
-	/* If all bytes are the same then it's a TV tuner and not a tea5767 chip. */
+	/* If all bytes are the same then it's a TV tuner and not a tea5767 */
 	if (buffer[0] == buffer[1] && buffer[0] == buffer[2] &&
 	    buffer[0] == buffer[3] && buffer[0] == buffer[4]) {
 		tuner_warn("All bytes are equal. It is not a TEA5767\n");
@@ -318,6 +317,17 @@ int tea5767_autodetection(struct i2c_client *c)
 		tuner_warn("Chip ID is not zero. It is not a TEA5767\n");
 		return EINVAL;
 	}
+	/* It seems that tea5767 returns 0xff after the 5th byte */
+	if ((buffer[5] != 0xff) || (buffer[6] != 0xff)) {
+		tuner_warn("Returned more than 5 bytes. It is not a TEA5767\n");
+		return EINVAL;
+	}
+
+	/* It seems that tea5767 returns 0xff after the 5th byte */
+	if ((buffer[5] != 0xff) || (buffer[6] != 0xff)) {
+		tuner_warn("Returned more than 5 bytes. It is not a TEA5767\n");
+		return EINVAL;
+	}
 
 	tuner_warn("TEA5767 detected.\n");
 	return 0;
@@ -327,10 +337,8 @@ int tea5767_tuner_init(struct i2c_client *c)
 {
 	struct tuner *t = i2c_get_clientdata(c);
 
-	if (tea5767_autodetection(c) == EINVAL)
-		return EINVAL;
-
-	tuner_info("type set to %d (%s)\n", t->type, "Philips TEA5767HN FM Radio");
+	tuner_info("type set to %d (%s)\n", t->type,
+			"Philips TEA5767HN FM Radio");
 	strlcpy(c->name, "tea5767", sizeof(c->name));
 
 	t->tv_freq = set_tv_freq;

@@ -11,6 +11,9 @@
  * partition split defined below.
  *
  * $Log: axisflashmap.c,v $
+ * Revision 1.11  2004/11/15 10:27:14  starvik
+ * Corrected typo (Thanks to Milton Miller <miltonm@bga.com>).
+ *
  * Revision 1.10  2004/08/16 12:37:22  starvik
  * Merge of Linux 2.6.8
  *
@@ -161,7 +164,7 @@
 #elif CONFIG_ETRAX_FLASH_BUSWIDTH==2
 #define flash_data __u16
 #elif CONFIG_ETRAX_FLASH_BUSWIDTH==4
-#define flash_data __u16
+#define flash_data __u32
 #endif
 
 /* From head.S */

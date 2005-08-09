@@ -461,7 +461,9 @@ void hfsplus_file_truncate(struct inode *inode)
 		page_cache_release(page);
 		mark_inode_dirty(inode);
 		return;
-	}
+	} else if (inode->i_size == HFSPLUS_I(inode).phys_size)
+		return;
+
 	blk_cnt = (inode->i_size + HFSPLUS_SB(sb).alloc_blksz - 1) >> HFSPLUS_SB(sb).alloc_blksz_shift;
 	alloc_cnt = HFSPLUS_I(inode).alloc_blocks;
 	if (blk_cnt == alloc_cnt)

@@ -495,7 +495,7 @@ static int synth_free_pages(emu10k1_t *emu, emu10k1_memblk_t *blk)
 }
 
 /* calculate buffer pointer from offset address */
-inline static void *offset_ptr(emu10k1_t *emu, int page, int offset)
+static inline void *offset_ptr(emu10k1_t *emu, int page, int offset)
 {
 	char *ptr;
 	snd_assert(page >= 0 && page < emu->max_cache_pages, return NULL);

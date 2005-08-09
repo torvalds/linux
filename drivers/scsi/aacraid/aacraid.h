@@ -15,11 +15,7 @@
 #define AAC_MAX_LUN		(8)
 
 #define AAC_MAX_HOSTPHYSMEMPAGES (0xfffff)
-/*
- *  max_sectors is an unsigned short, otherwise limit is 0x100000000 / 512
- * Linux has starvation problems if we permit larger than 4MB I/O ...
- */
-#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)8192)
+#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)512)
 
 /*
  * These macros convert from physical channels to virtual channels

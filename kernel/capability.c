@@ -31,8 +31,14 @@ static DEFINE_SPINLOCK(task_capability_lock);
  * uninteresting and/or not to be changed.
  */
 
-/*
+/**
  * sys_capget - get the capabilities of a given process.
+ * @header: pointer to struct that contains capability version and
+ *	target pid data
+ * @dataptr: pointer to struct that contains the effective, permitted,
+ *	and inheritable capabilities that are returned
+ *
+ * Returns 0 on success and < 0 on error.
  */
 asmlinkage long sys_capget(cap_user_header_t header, cap_user_data_t dataptr)
 {
@@ -141,8 +147,14 @@ static inline int cap_set_all(kernel_cap_t *effective,
      return ret;
 }
 
-/*
- * sys_capset - set capabilities for a given process, all processes, or all
+/**
+ * sys_capset - set capabilities for a process or a group of processes
+ * @header: pointer to struct that contains capability version and
+ *	target pid data
+ * @data: pointer to struct that contains the effective, permitted,
+ *	and inheritable capabilities
+ *
+ * Set capabilities for a given process, all processes, or all
  * processes in a given process group.
  *
  * The restrictions on setting capabilities are specified as:
@@ -152,6 +164,8 @@ static inline int cap_set_all(kernel_cap_t *effective,
  * I: any raised capabilities must be a subset of the (old current) permitted
  * P: any raised capabilities must be a subset of the (old current) permitted
  * E: must be set to a subset of (new target) permitted
+ *
+ * Returns 0 on success and < 0 on error.
  */
 asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 {

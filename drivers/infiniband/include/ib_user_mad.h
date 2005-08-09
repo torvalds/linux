@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,7 +30,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: ib_user_mad.h 1389 2004-12-27 22:56:47Z roland $
+ * $Id: ib_user_mad.h 2814 2005-07-06 19:14:09Z halr $
  */
 
 #ifndef IB_USER_MAD_H
@@ -42,7 +43,7 @@
  * Increment this value if any changes that break userspace ABI
  * compatibility are made.
  */
-#define IB_USER_MAD_ABI_VERSION	2
+#define IB_USER_MAD_ABI_VERSION	5
 
 /*
  * Make sure that all structs defined in this file remain laid out so
@@ -51,13 +52,13 @@
  */
 
 /**
- * ib_user_mad - MAD packet
- * @data - Contents of MAD
+ * ib_user_mad_hdr - MAD packet header
  * @id - ID of agent MAD received with/to be sent with
  * @status - 0 on successful receive, ETIMEDOUT if no response
  *   received (transaction ID in data[] will be set to TID of original
  *   request) (ignored on send)
  * @timeout_ms - Milliseconds to wait for response (unset on receive)
+ * @retries - Number of automatic retries to attempt
  * @qpn - Remote QP number received from/to be sent to
  * @qkey - Remote Q_Key to be sent with (unset on receive)
  * @lid - Remote lid received from/to be sent to
@@ -72,11 +73,12 @@
  *
  * All multi-byte quantities are stored in network (big endian) byte order.
  */
-struct ib_user_mad {
-	__u8	data[256];
+struct ib_user_mad_hdr {
 	__u32	id;
 	__u32	status;
 	__u32	timeout_ms;
+	__u32	retries;
+	__u32	length;
 	__u32	qpn;
 	__u32   qkey;
 	__u16	lid;
@@ -88,6 +90,17 @@ struct ib_user_mad {
 	__u8	traffic_class;
 	__u8	gid[16];
 	__u32	flow_label;
+};
+
+/**
+ * ib_user_mad - MAD packet
+ * @hdr - MAD packet header
+ * @data - Contents of MAD
+ *
+ */
+struct ib_user_mad {
+	struct ib_user_mad_hdr hdr;
+	__u8	data[0];
 };
 
 /**
@@ -103,6 +116,8 @@ struct ib_user_mad {
  *   management class to receive.
  * @oui: Indicates IEEE OUI when mgmt_class is a vendor class
  *   in the range from 0x30 to 0x4f. Otherwise not used.
+ * @rmpp_version: If set, indicates the RMPP version used.
+ *
  */
 struct ib_user_mad_reg_req {
 	__u32	id;
@@ -111,6 +126,7 @@ struct ib_user_mad_reg_req {
 	__u8	mgmt_class;
 	__u8	mgmt_class_version;
 	__u8    oui[3];
+	__u8	rmpp_version;
 };
 
 #define IB_IOCTL_MAGIC		0x1b

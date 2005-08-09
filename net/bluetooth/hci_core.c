@@ -299,7 +299,6 @@ struct hci_dev *hci_dev_get(int index)
 	read_unlock(&hci_dev_list_lock);
 	return hdev;
 }
-EXPORT_SYMBOL(hci_dev_get);
 
 /* ---- Inquiry support ---- */
 static void inquiry_cache_flush(struct hci_dev *hdev)
@@ -1042,7 +1041,6 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 ogf, __u16 ocf, __u32 plen, void *p
 
 	return 0;
 }
-EXPORT_SYMBOL(hci_send_cmd);
 
 /* Get data from the previously sent command */
 void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 ogf, __u16 ocf)

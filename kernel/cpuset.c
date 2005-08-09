@@ -1440,10 +1440,10 @@ void __init cpuset_init_smp(void)
 
 /**
  * cpuset_fork - attach newly forked task to its parents cpuset.
- * @p: pointer to task_struct of forking parent process.
+ * @tsk: pointer to task_struct of forking parent process.
  *
  * Description: By default, on fork, a task inherits its
- * parents cpuset.  The pointer to the shared cpuset is
+ * parent's cpuset.  The pointer to the shared cpuset is
  * automatically copied in fork.c by dup_task_struct().
  * This cpuset_fork() routine need only increment the usage
  * counter in that cpuset.
@@ -1471,7 +1471,6 @@ void cpuset_fork(struct task_struct *tsk)
  * by the cpuset_sem semaphore.  If you don't hold cpuset_sem,
  * then a zero cpuset use count is a license to any other task to
  * nuke the cpuset immediately.
- *
  **/
 
 void cpuset_exit(struct task_struct *tsk)
@@ -1521,7 +1520,9 @@ void cpuset_init_current_mems_allowed(void)
 	current->mems_allowed = NODE_MASK_ALL;
 }
 
-/*
+/**
+ * cpuset_update_current_mems_allowed - update mems parameters to new values
+ *
  * If the current tasks cpusets mems_allowed changed behind our backs,
  * update current->mems_allowed and mems_generation to the new value.
  * Do not call this routine if in_interrupt().
@@ -1540,13 +1541,20 @@ void cpuset_update_current_mems_allowed(void)
 	}
 }
 
+/**
+ * cpuset_restrict_to_mems_allowed - limit nodes to current mems_allowed
+ * @nodes: pointer to a node bitmap that is and-ed with mems_allowed
+ */
 void cpuset_restrict_to_mems_allowed(unsigned long *nodes)
 {
 	bitmap_and(nodes, nodes, nodes_addr(current->mems_allowed),
 							MAX_NUMNODES);
 }
 
-/*
+/**
+ * cpuset_zonelist_valid_mems_allowed - check zonelist vs. curremt mems_allowed
+ * @zl: the zonelist to be checked
+ *
  * Are any of the nodes on zonelist zl allowed in current->mems_allowed?
  */
 int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
@@ -1562,8 +1570,12 @@ int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
 	return 0;
 }
 
-/*
- * Is 'current' valid, and is zone z allowed in current->mems_allowed?
+/**
+ * cpuset_zone_allowed - is zone z allowed in current->mems_allowed
+ * @z: zone in question
+ *
+ * Is zone z allowed in current->mems_allowed, or is
+ * the CPU in interrupt context? (zone is always allowed in this case)
  */
 int cpuset_zone_allowed(struct zone *z)
 {

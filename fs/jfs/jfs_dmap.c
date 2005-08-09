@@ -75,7 +75,7 @@ static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 			int nblocks);
 static void dbSplit(dmtree_t * tp, int leafno, int splitsz, int newval);
 static void dbBackSplit(dmtree_t * tp, int leafno);
-static void dbJoin(dmtree_t * tp, int leafno, int newval);
+static int dbJoin(dmtree_t * tp, int leafno, int newval);
 static void dbAdjTree(dmtree_t * tp, int leafno, int newval);
 static int dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc,
 		    int level);
@@ -98,8 +98,8 @@ static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks);
 static int dbFindBits(u32 word, int l2nb);
 static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno);
 static int dbFindLeaf(dmtree_t * tp, int l2nb, int *leafidx);
-static void dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
-		       int nblocks);
+static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
+		      int nblocks);
 static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
 		      int nblocks);
 static int dbMaxBud(u8 * cp);
@@ -378,6 +378,7 @@ int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
 
 		/* free the blocks. */
 		if ((rc = dbFreeDmap(bmp, dp, blkno, nb))) {
+			jfs_error(ip->i_sb, "dbFree: error in block map\n");
 			release_metapage(mp);
 			IREAD_UNLOCK(ipbmap);
 			return (rc);
@@ -2020,7 +2021,7 @@ static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
 		      int nblocks)
 {
 	s8 oldroot;
-	int rc, word;
+	int rc = 0, word;
 
 	/* save the current value of the root (i.e. maximum free string)
 	 * of the dmap tree.
@@ -2028,11 +2029,11 @@ static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	oldroot = dp->tree.stree[ROOT];
 
 	/* free the specified (blocks) bits */
-	dbFreeBits(bmp, dp, blkno, nblocks);
+	rc = dbFreeBits(bmp, dp, blkno, nblocks);
 
-	/* if the root has not changed, done. */
-	if (dp->tree.stree[ROOT] == oldroot)
-		return (0);
+	/* if error or the root has not changed, done. */
+	if (rc || (dp->tree.stree[ROOT] == oldroot))
+		return (rc);
 
 	/* root changed. bubble the change up to the dmap control pages.
 	 * if the adjustment of the upper level control pages fails,
@@ -2221,15 +2222,16 @@ static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
  *      blkno	-  starting block number of the bits to be freed.
  *      nblocks	-  number of bits to be freed.
  *
- * RETURN VALUES: none
+ * RETURN VALUES: 0 for success
  *
  * serialization: IREAD_LOCK(ipbmap) or IWRITE_LOCK(ipbmap) held on entry/exit;
  */
-static void dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 		       int nblocks)
 {
 	int dbitno, word, rembits, nb, nwords, wbitno, nw, agno;
 	dmtree_t *tp = (dmtree_t *) & dp->tree;
+	int rc = 0;
 	int size;
 
 	/* determine the bit number and word within the dmap of the
@@ -2278,8 +2280,10 @@ static void dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 
 			/* update the leaf for this dmap word.
 			 */
-			dbJoin(tp, word,
-			       dbMaxBud((u8 *) & dp->wmap[word]));
+			rc = dbJoin(tp, word,
+				    dbMaxBud((u8 *) & dp->wmap[word]));
+			if (rc)
+				return rc;
 
 			word += 1;
 		} else {
@@ -2310,7 +2314,9 @@ static void dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 
 				/* update the leaf.
 				 */
-				dbJoin(tp, word, size);
+				rc = dbJoin(tp, word, size);
+				if (rc)
+					return rc;
 
 				/* get the number of dmap words handled.
 				 */
@@ -2357,6 +2363,8 @@ static void dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	}
 
 	BMAP_UNLOCK(bmp);
+
+	return 0;
 }
 
 
@@ -2464,7 +2472,9 @@ dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
 		}
 		dbSplit((dmtree_t *) dcp, leafno, dcp->budmin, newval);
 	} else {
-		dbJoin((dmtree_t *) dcp, leafno, newval);
+		rc = dbJoin((dmtree_t *) dcp, leafno, newval);
+		if (rc)
+			return rc;
 	}
 
 	/* check if the root of the current dmap control page changed due
@@ -2689,7 +2699,7 @@ static void dbBackSplit(dmtree_t * tp, int leafno)
  *
  * RETURN VALUES: none
  */
-static void dbJoin(dmtree_t * tp, int leafno, int newval)
+static int dbJoin(dmtree_t * tp, int leafno, int newval)
 {
 	int budsz, buddy;
 	s8 *leaf;
@@ -2729,7 +2739,9 @@ static void dbJoin(dmtree_t * tp, int leafno, int newval)
 			if (newval > leaf[buddy])
 				break;
 
-			assert(newval == leaf[buddy]);
+			/* It shouldn't be less */
+			if (newval < leaf[buddy])
+				return -EIO;
 
 			/* check which (leafno or buddy) is the left buddy.
 			 * the left buddy gets to claim the blocks resulting
@@ -2761,6 +2773,8 @@ static void dbJoin(dmtree_t * tp, int leafno, int newval)
 	/* update the leaf value.
 	 */
 	dbAdjTree(tp, leafno, newval);
+
+	return 0;
 }
 
 

@@ -393,7 +393,7 @@ void adm1026_init_client(struct i2c_client *client)
 
 	value = data->config3;
 	if (data->config3 & CFG3_GPIO16_ENABLE) {
-		dev_dbg(&client->dev, "GPIO16 enabled.  THERM"
+		dev_dbg(&client->dev, "GPIO16 enabled.  THERM "
 			"pin disabled.\n");
 	} else {
 		dev_dbg(&client->dev, "THERM pin enabled.  "

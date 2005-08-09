@@ -647,7 +647,12 @@ void __init do_init_bootmem(void)
 new_range:
 			mem_start = read_n_cells(addr_cells, &memcell_buf);
 			mem_size = read_n_cells(size_cells, &memcell_buf);
-			numa_domain = numa_enabled ? of_node_numa_domain(memory) : 0;
+			if (numa_enabled) {
+				numa_domain = of_node_numa_domain(memory);
+				if (numa_domain  >= MAX_NUMNODES)
+					numa_domain = 0;
+			} else
+				numa_domain =  0;
 
 			if (numa_domain != nid)
 				continue;

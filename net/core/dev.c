@@ -901,8 +901,7 @@ int dev_close(struct net_device *dev)
 	smp_mb__after_clear_bit(); /* Commit netif_running(). */
 	while (test_bit(__LINK_STATE_RX_SCHED, &dev->state)) {
 		/* No hurry. */
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1);
+		msleep(1);
 	}
 
 	/*

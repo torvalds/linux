@@ -869,11 +869,17 @@ static void suspend_targets(struct dm_table *t, unsigned postsuspend)
 
 void dm_table_presuspend_targets(struct dm_table *t)
 {
+	if (!t)
+		return;
+
 	return suspend_targets(t, 0);
 }
 
 void dm_table_postsuspend_targets(struct dm_table *t)
 {
+	if (!t)
+		return;
+
 	return suspend_targets(t, 1);
 }
 

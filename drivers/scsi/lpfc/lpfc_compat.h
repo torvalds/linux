@@ -30,8 +30,9 @@ memcpy_toio() and memcpy_fromio() can be used.
 However on a big-endian host, copy 4 bytes at a time,
 using writel() and readl().
  *******************************************************************/
+#include <asm/byteorder.h>
 
-#if __BIG_ENDIAN
+#ifdef __BIG_ENDIAN
 
 static inline void
 lpfc_memcpy_to_slim(void __iomem *dest, void *src, unsigned int bytes)

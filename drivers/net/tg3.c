@@ -66,8 +66,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.34"
-#define DRV_MODULE_RELDATE	"July 25, 2005"
+#define DRV_MODULE_VERSION	"3.35"
+#define DRV_MODULE_RELDATE	"August 6, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -10421,6 +10421,12 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 	tg3_init_coal(tp);
 
+	/* Now that we have fully setup the chip, save away a snapshot
+	 * of the PCI config space.  We need to restore this after
+	 * GRC_MISC_CFG core clock resets and some resume events.
+	 */
+	pci_save_state(tp->pdev);
+
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_ERR PFX "Cannot register net device, "
@@ -10429,12 +10435,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	}
 
 	pci_set_drvdata(pdev, dev);
-
-	/* Now that we have fully setup the chip, save away a snapshot
-	 * of the PCI config space.  We need to restore this after
-	 * GRC_MISC_CFG core clock resets and some resume events.
-	 */
-	pci_save_state(tp->pdev);
 
 	printk(KERN_INFO "%s: Tigon3 [partno(%s) rev %04x PHY(%s)] (PCI%s:%s:%s) %sBaseT Ethernet ",
 	       dev->name,

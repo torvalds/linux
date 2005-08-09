@@ -371,7 +371,6 @@ void kernel_restart(char *cmd)
 {
 	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;
-	device_suspend(PMSG_FREEZE);
 	device_shutdown();
 	if (!cmd) {
 		printk(KERN_EMERG "Restarting system.\n");
@@ -393,7 +392,6 @@ void kernel_kexec(void)
 	}
 	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, NULL);
 	system_state = SYSTEM_RESTART;
-	device_suspend(PMSG_FREEZE);
 	device_shutdown();
 	printk(KERN_EMERG "Starting new kernel\n");
 	machine_shutdown();
@@ -406,7 +404,6 @@ void kernel_halt(void)
 {
 	notifier_call_chain(&reboot_notifier_list, SYS_HALT, NULL);
 	system_state = SYSTEM_HALT;
-	device_suspend(PMSG_SUSPEND);
 	device_shutdown();
 	printk(KERN_EMERG "System halted.\n");
 	machine_halt();
@@ -417,7 +414,6 @@ void kernel_power_off(void)
 {
 	notifier_call_chain(&reboot_notifier_list, SYS_POWER_OFF, NULL);
 	system_state = SYSTEM_POWER_OFF;
-	device_suspend(PMSG_SUSPEND);
 	device_shutdown();
 	printk(KERN_EMERG "Power down.\n");
 	machine_power_off();

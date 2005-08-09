@@ -645,15 +645,15 @@ void __init setup_arch(char **cmdline_p)
 		}
 	}
 #endif
-
-	sparse_init();
-
 #ifdef CONFIG_KEXEC
 	if (crashk_res.start != crashk_res.end) {
 		reserve_bootmem(crashk_res.start,
 			crashk_res.end - crashk_res.start + 1);
 	}
 #endif
+
+	sparse_init();
+
 	paging_init();
 
 	check_ioapic();
@@ -765,8 +765,6 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	int cpu = smp_processor_id();
 	int node = 0;
 	unsigned bits;
-	if (c->x86_num_cores == 1)
-		return;
 
 	bits = 0;
 	while ((1 << bits) < c->x86_num_cores)
@@ -1081,8 +1079,7 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	else
 		mtrr_ap_init();
 #ifdef CONFIG_NUMA
-	if (c != &boot_cpu_data)
-		numa_add_cpu(c - cpu_data);
+	numa_add_cpu(smp_processor_id());
 #endif
 }
  

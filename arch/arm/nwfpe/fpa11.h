@@ -37,6 +37,13 @@
 /* includes */
 #include "fpsr.h"		/* FP control and status register definitions */
 #include "milieu.h"
+
+struct roundingData {
+    int8 mode;
+    int8 precision;
+    signed char exception;
+};
+
 #include "softfloat.h"
 
 #define		typeNone		0x00
@@ -84,8 +91,8 @@ typedef struct tagFPA11 {
 				   initialised. */
 } FPA11;
 
-extern void SetRoundingMode(const unsigned int);
-extern void SetRoundingPrecision(const unsigned int);
+extern int8 SetRoundingMode(const unsigned int);
+extern int8 SetRoundingPrecision(const unsigned int);
 extern void nwfpe_init_fpa(union fp_state *fp);
 
 #endif

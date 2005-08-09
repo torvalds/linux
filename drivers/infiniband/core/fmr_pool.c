@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,7 +30,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: fmr_pool.c 1349 2004-12-16 21:09:43Z roland $
+ * $Id: fmr_pool.c 2730 2005-06-28 16:43:03Z sean.hefty $
  */
 
 #include <linux/errno.h>
@@ -329,7 +330,7 @@ EXPORT_SYMBOL(ib_create_fmr_pool);
  *
  * Destroy an FMR pool and free all associated resources.
  */
-int ib_destroy_fmr_pool(struct ib_fmr_pool *pool)
+void ib_destroy_fmr_pool(struct ib_fmr_pool *pool)
 {
 	struct ib_pool_fmr *fmr;
 	struct ib_pool_fmr *tmp;
@@ -352,8 +353,6 @@ int ib_destroy_fmr_pool(struct ib_fmr_pool *pool)
 
 	kfree(pool->cache_bucket);
 	kfree(pool);
-
-	return 0;
 }
 EXPORT_SYMBOL(ib_destroy_fmr_pool);
 

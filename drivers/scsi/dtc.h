@@ -28,6 +28,10 @@
 #ifndef DTC3280_H
 #define DTC3280_H
 
+#define DTCDEBUG 0
+#define DTCDEBUG_INIT	0x1
+#define DTCDEBUG_TRANSFER 0x2
+
 static int dtc_abort(Scsi_Cmnd *);
 static int dtc_biosparam(struct scsi_device *, struct block_device *,
 		         sector_t, int*);

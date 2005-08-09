@@ -385,6 +385,11 @@ struct ehci_qh {
 	__le32			hw_info1;        /* see EHCI 3.6.2 */
 #define	QH_HEAD		0x00008000
 	__le32			hw_info2;        /* see EHCI 3.6.2 */
+#define	QH_SMASK	0x000000ff
+#define	QH_CMASK	0x0000ff00
+#define	QH_HUBADDR	0x007f0000
+#define	QH_HUBPORT	0x3f800000
+#define	QH_MULT		0xc0000000
 	__le32			hw_current;	 /* qtd list - see EHCI 3.6.4 */
 	
 	/* qtd overlay (hardware parts of a struct ehci_qtd) */

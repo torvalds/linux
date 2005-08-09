@@ -41,6 +41,7 @@
 #include <linux/err.h>
 
 #include <ib_verbs.h>
+#include <ib_cache.h>
 
 /* Protection domains */
 
@@ -87,6 +88,40 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 	return ah;
 }
 EXPORT_SYMBOL(ib_create_ah);
+
+struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, struct ib_wc *wc,
+				   struct ib_grh *grh, u8 port_num)
+{
+	struct ib_ah_attr ah_attr;
+	u32 flow_class;
+	u16 gid_index;
+	int ret;
+
+	memset(&ah_attr, 0, sizeof ah_attr);
+	ah_attr.dlid = wc->slid;
+	ah_attr.sl = wc->sl;
+	ah_attr.src_path_bits = wc->dlid_path_bits;
+	ah_attr.port_num = port_num;
+
+	if (wc->wc_flags & IB_WC_GRH) {
+		ah_attr.ah_flags = IB_AH_GRH;
+		ah_attr.grh.dgid = grh->dgid;
+
+		ret = ib_find_cached_gid(pd->device, &grh->sgid, &port_num,
+					 &gid_index);
+		if (ret)
+			return ERR_PTR(ret);
+
+		ah_attr.grh.sgid_index = (u8) gid_index;
+		flow_class = be32_to_cpu(grh->version_tclass_flow);
+		ah_attr.grh.flow_label = flow_class & 0xFFFFF;
+		ah_attr.grh.traffic_class = (flow_class >> 20) & 0xFF;
+		ah_attr.grh.hop_limit = grh->hop_limit;
+	}
+
+	return ib_create_ah(pd, &ah_attr);
+}
+EXPORT_SYMBOL(ib_create_ah_from_wc);
 
 int ib_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
 {

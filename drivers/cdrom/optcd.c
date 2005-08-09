@@ -245,7 +245,7 @@ module_param(optcd_port, short, 0);
 
 
 /* Busy wait until FLAG goes low. Return 0 on timeout. */
-inline static int flag_low(int flag, unsigned long timeout)
+static inline int flag_low(int flag, unsigned long timeout)
 {
 	int flag_high;
 	unsigned long count = 0;
@@ -381,7 +381,7 @@ static int send_seek_params(struct cdrom_msf *params)
 
 /* Wait for command execution status. Choice between busy waiting
    and sleeping. Return value <0 indicates timeout. */
-inline static int get_exec_status(int busy_waiting)
+static inline int get_exec_status(int busy_waiting)
 {
 	unsigned char exec_status;
 
@@ -398,7 +398,7 @@ inline static int get_exec_status(int busy_waiting)
 
 /* Wait busy for extra byte of data that a command returns.
    Return value <0 indicates timeout. */
-inline static int get_data(int short_timeout)
+static inline int get_data(int short_timeout)
 {
 	unsigned char data;
 
@@ -441,14 +441,14 @@ static int reset_drive(void)
 /* Facilities for asynchronous operation */
 
 /* Read status/data availability flags FL_STEN and FL_DTEN */
-inline static int stdt_flags(void)
+static inline int stdt_flags(void)
 {
 	return inb(STATUS_PORT) & FL_STDT;
 }
 
 
 /* Fetch status that has previously been waited for. <0 means not available */
-inline static int fetch_status(void)
+static inline int fetch_status(void)
 {
 	unsigned char status;
 
@@ -462,7 +462,7 @@ inline static int fetch_status(void)
 
 
 /* Fetch data that has previously been waited for. */
-inline static void fetch_data(char *buf, int n)
+static inline void fetch_data(char *buf, int n)
 {
 	insb(DATA_PORT, buf, n);
 	DEBUG((DEBUG_DRIVE_IF, "fetched 0x%x bytes", n));
@@ -470,7 +470,7 @@ inline static void fetch_data(char *buf, int n)
 
 
 /* Flush status and data fifos */
-inline static void flush_data(void)
+static inline void flush_data(void)
 {
 	while ((inb(STATUS_PORT) & FL_STDT) != FL_STDT)
 		inb(DATA_PORT);
@@ -482,7 +482,7 @@ inline static void flush_data(void)
 
 /* Send a simple command and wait for response. Command codes < COMFETCH
    are quick response commands */
-inline static int exec_cmd(int cmd)
+static inline int exec_cmd(int cmd)
 {
 	int ack = send_cmd(cmd);
 	if (ack < 0)
@@ -493,7 +493,7 @@ inline static int exec_cmd(int cmd)
 
 /* Send a command with parameters. Don't wait for the response,
  * which consists of data blocks read from the CD. */
-inline static int exec_read_cmd(int cmd, struct cdrom_msf *params)
+static inline int exec_read_cmd(int cmd, struct cdrom_msf *params)
 {
 	int ack = send_cmd(cmd);
 	if (ack < 0)
@@ -503,7 +503,7 @@ inline static int exec_read_cmd(int cmd, struct cdrom_msf *params)
 
 
 /* Send a seek command with parameters and wait for response */
-inline static int exec_seek_cmd(int cmd, struct cdrom_msf *params)
+static inline int exec_seek_cmd(int cmd, struct cdrom_msf *params)
 {
 	int ack = send_cmd(cmd);
 	if (ack < 0)
@@ -516,7 +516,7 @@ inline static int exec_seek_cmd(int cmd, struct cdrom_msf *params)
 
 
 /* Send a command with parameters and wait for response */
-inline static int exec_long_cmd(int cmd, struct cdrom_msf *params)
+static inline int exec_long_cmd(int cmd, struct cdrom_msf *params)
 {
 	int ack = exec_read_cmd(cmd, params);
 	if (ack < 0)
@@ -528,7 +528,7 @@ inline static int exec_long_cmd(int cmd, struct cdrom_msf *params)
 
 
 /* Binary to BCD (2 digits) */
-inline static void single_bin2bcd(u_char *p)
+static inline void single_bin2bcd(u_char *p)
 {
 	DEBUG((DEBUG_CONV, "bin2bcd %02d", *p));
 	*p = (*p % 10) | ((*p / 10) << 4);
@@ -565,7 +565,7 @@ static void lba2msf(int lba, struct cdrom_msf *msf)
 
 
 /* Two BCD digits to binary */
-inline static u_char bcd2bin(u_char bcd)
+static inline u_char bcd2bin(u_char bcd)
 {
 	DEBUG((DEBUG_CONV, "bcd2bin %x%02x", bcd));
 	return (bcd >> 4) * 10 + (bcd & 0x0f);
@@ -988,7 +988,7 @@ static char buf[CD_FRAMESIZE * N_BUFS];
 static volatile int buf_bn[N_BUFS], next_bn;
 static volatile int buf_in = 0, buf_out = NOBUF;
 
-inline static void opt_invalidate_buffers(void)
+static inline void opt_invalidate_buffers(void)
 {
 	int i;
 

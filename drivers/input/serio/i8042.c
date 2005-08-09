@@ -100,7 +100,7 @@ struct i8042_port {
 static struct i8042_port i8042_ports[I8042_NUM_PORTS] = {
 	{
 		.disable	= I8042_CTR_KBDDIS,
-		.irqen 		= I8042_CTR_KBDINT,
+		.irqen		= I8042_CTR_KBDINT,
 		.mux		= -1,
 		.name		= "KBD",
 	},
@@ -191,41 +191,45 @@ static int i8042_flush(void)
 static int i8042_command(unsigned char *param, int command)
 {
 	unsigned long flags;
-	int retval = 0, i = 0;
+	int i, retval, auxerr = 0;
 
 	if (i8042_noloop && command == I8042_CMD_AUX_LOOP)
 		return -1;
 
 	spin_lock_irqsave(&i8042_lock, flags);
 
-	retval = i8042_wait_write();
-	if (!retval) {
-		dbg("%02x -> i8042 (command)", command & 0xff);
-		i8042_write_command(command & 0xff);
+	if ((retval = i8042_wait_write()))
+		goto out;
+
+	dbg("%02x -> i8042 (command)", command & 0xff);
+	i8042_write_command(command & 0xff);
+
+	for (i = 0; i < ((command >> 12) & 0xf); i++) {
+		if ((retval = i8042_wait_write()))
+			goto out;
+		dbg("%02x -> i8042 (parameter)", param[i]);
+		i8042_write_data(param[i]);
 	}
 
-	if (!retval)
-		for (i = 0; i < ((command >> 12) & 0xf); i++) {
-			if ((retval = i8042_wait_write())) break;
-			dbg("%02x -> i8042 (parameter)", param[i]);
-			i8042_write_data(param[i]);
+	for (i = 0; i < ((command >> 8) & 0xf); i++) {
+		if ((retval = i8042_wait_read()))
+			goto out;
+
+		if (command == I8042_CMD_AUX_LOOP &&
+		    !(i8042_read_status() & I8042_STR_AUXDATA)) {
+			retval = auxerr = -1;
+			goto out;
 		}
 
-	if (!retval)
-		for (i = 0; i < ((command >> 8) & 0xf); i++) {
-			if ((retval = i8042_wait_read())) break;
-			if (i8042_read_status() & I8042_STR_AUXDATA)
-				param[i] = ~i8042_read_data();
-			else
-				param[i] = i8042_read_data();
-			dbg("%02x <- i8042 (return)", param[i]);
-		}
-
-	spin_unlock_irqrestore(&i8042_lock, flags);
+		param[i] = i8042_read_data();
+		dbg("%02x <- i8042 (return)", param[i]);
+	}
 
 	if (retval)
-		dbg("     -- i8042 (timeout)");
+		dbg("     -- i8042 (%s)", auxerr ? "auxerr" : "timeout");
 
+ out:
+	spin_unlock_irqrestore(&i8042_lock, flags);
 	return retval;
 }
 
@@ -507,17 +511,17 @@ static int i8042_set_mux_mode(unsigned int mode, unsigned char *mux_version)
  */
 
 	param = 0xf0;
-	if (i8042_command(&param, I8042_CMD_AUX_LOOP) || param != 0x0f)
+	if (i8042_command(&param, I8042_CMD_AUX_LOOP) || param != 0xf0)
 		return -1;
 	param = mode ? 0x56 : 0xf6;
-	if (i8042_command(&param, I8042_CMD_AUX_LOOP) || param != (mode ? 0xa9 : 0x09))
+	if (i8042_command(&param, I8042_CMD_AUX_LOOP) || param != (mode ? 0x56 : 0xf6))
 		return -1;
 	param = mode ? 0xa4 : 0xa5;
-	if (i8042_command(&param, I8042_CMD_AUX_LOOP) || param == (mode ? 0x5b : 0x5a))
+	if (i8042_command(&param, I8042_CMD_AUX_LOOP) || param == (mode ? 0xa4 : 0xa5))
 		return -1;
 
 	if (mux_version)
-		*mux_version = ~param;
+		*mux_version = param;
 
 	return 0;
 }
@@ -619,7 +623,7 @@ static int __init i8042_check_aux(void)
  */
 
 	param = 0x5a;
-	if (i8042_command(&param, I8042_CMD_AUX_LOOP) || param != 0xa5) {
+	if (i8042_command(&param, I8042_CMD_AUX_LOOP) || param != 0x5a) {
 
 /*
  * External connection test - filters out AT-soldered PS/2 i8042's
@@ -630,7 +634,7 @@ static int __init i8042_check_aux(void)
  */
 
 		if (i8042_command(&param, I8042_CMD_AUX_TEST)
-		    	|| (param && param != 0xfa && param != 0xff))
+			|| (param && param != 0xfa && param != 0xff))
 				return -1;
 	}
 

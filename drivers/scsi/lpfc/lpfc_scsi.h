@@ -18,6 +18,8 @@
  * included with this package.                                     *
  *******************************************************************/
 
+#include <asm/byteorder.h>
+
 struct lpfc_hba;
 
 #define list_remove_head(list, entry, type, member)		\
@@ -81,7 +83,7 @@ struct fcp_cmnd {
 	/* # of bits to shift lun id to end up in right
 	 * payload word, little endian = 8, big = 16.
 	 */
-#if __BIG_ENDIAN
+#ifdef __BIG_ENDIAN
 #define FC_LUN_SHIFT         16
 #define FC_ADDR_MODE_SHIFT   24
 #else	/*  __LITTLE_ENDIAN */

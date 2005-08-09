@@ -1264,14 +1264,12 @@ ahc_platform_set_tags(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 	}
 	switch ((dev->flags & (AHC_DEV_Q_BASIC|AHC_DEV_Q_TAGGED))) {
 	case AHC_DEV_Q_BASIC:
-		scsi_adjust_queue_depth(sdev,
-					MSG_SIMPLE_TASK,
-					dev->openings + dev->active);
+		scsi_set_tag_type(sdev, MSG_SIMPLE_TAG);
+		scsi_activate_tcq(sdev, dev->openings + dev->active);
 		break;
 	case AHC_DEV_Q_TAGGED:
-		scsi_adjust_queue_depth(sdev,
-					MSG_ORDERED_TASK,
-					dev->openings + dev->active);
+		scsi_set_tag_type(sdev, MSG_ORDERED_TAG);
+		scsi_activate_tcq(sdev, dev->openings + dev->active);
 		break;
 	default:
 		/*
@@ -1280,9 +1278,7 @@ ahc_platform_set_tags(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		 * serially on the controller/device.  This should
 		 * remove some latency.
 		 */
-		scsi_adjust_queue_depth(sdev,
-					/*NON-TAGGED*/0,
-					/*queue depth*/2);
+		scsi_deactivate_tcq(sdev, 2);
 		break;
 	}
 }
@@ -1635,9 +1631,9 @@ ahc_send_async(struct ahc_softc *ahc, char channel,
 		spi_period(starget) = tinfo->curr.period;
 		spi_width(starget) = tinfo->curr.width;
 		spi_offset(starget) = tinfo->curr.offset;
-		spi_dt(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_DT_REQ;
-		spi_qas(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_QAS_REQ;
-		spi_iu(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_IU_REQ;
+		spi_dt(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_DT_REQ ? 1 : 0;
+		spi_qas(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_QAS_REQ ? 1 : 0;
+		spi_iu(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_IU_REQ ? 1 : 0;
 		spi_display_xfer_agreement(starget);
 		break;
 	}
@@ -2429,12 +2425,14 @@ static void ahc_linux_set_dt(struct scsi_target *starget, int dt)
 	unsigned int ppr_options = tinfo->goal.ppr_options
 		& ~MSG_EXT_PPR_DT_REQ;
 	unsigned int period = tinfo->goal.period;
+	unsigned int width = tinfo->goal.width;
 	unsigned long flags;
 	struct ahc_syncrate *syncrate;
 
 	if (dt) {
-		period = 9;	/* 12.5ns is the only period valid for DT */
 		ppr_options |= MSG_EXT_PPR_DT_REQ;
+		if (!width)
+			ahc_linux_set_width(starget, 1);
 	} else if (period == 9)
 		period = 10;	/* if resetting DT, period must be >= 25ns */
 

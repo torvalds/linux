@@ -55,15 +55,6 @@ unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_ESP(tsk)   ((tsk) == current ? rdusp() : (tsk)->thread.usp)
 
-/*
- * Free current thread data structures etc..
- */
-
-extern inline void exit_thread(void)
-{
-        /* Nothing needs to be done.  */
-}
-
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 /* Free all resources held by a thread. */

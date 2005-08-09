@@ -288,13 +288,11 @@ SystemCall:
  * For the MPC8xx, this is a software tablewalk to load the instruction
  * TLB.  It is modelled after the example in the Motorola manual.  The task
  * switch loads the M_TWB register with the pointer to the first level table.
- * If we discover there is no second level table (the value is zero), the
- * plan was to load that into the TLB, which causes another fault into the
- * TLB Error interrupt where we can handle such problems.  However, that did
- * not work, so if we discover there is no second level table, we restore
- * registers and branch to the error exception.  We have to use the MD_xxx
- * registers for the tablewalk because the equivalent MI_xxx registers
- * only perform the attribute functions.
+ * If we discover there is no second level table (value is zero) or if there
+ * is an invalid pte, we load that into the TLB, which causes another fault
+ * into the TLB Error interrupt where we can handle such problems.
+ * We have to use the MD_xxx registers for the tablewalk because the
+ * equivalent MI_xxx registers only perform the attribute functions.
  */
 InstructionTLBMiss:
 #ifdef CONFIG_8xx_CPU6

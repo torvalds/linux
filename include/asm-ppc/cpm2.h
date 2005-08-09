@@ -109,6 +109,7 @@ static inline long IS_DPERR(const uint offset)
  * and dual port ram.
  */
 extern		cpm_cpm2_t	*cpmp;	 /* Pointer to comm processor */
+
 extern uint cpm_dpalloc(uint size, uint align);
 extern int cpm_dpfree(uint offset);
 extern uint cpm_dpalloc_fixed(uint offset, uint size, uint align);
@@ -116,6 +117,8 @@ extern void cpm_dpdump(void);
 extern void *cpm_dpram_addr(uint offset);
 extern void cpm_setbrg(uint brg, uint rate);
 extern void cpm2_fastbrg(uint brg, uint rate, int div16);
+extern void cpm2_reset(void);
+
 
 /* Buffer descriptors used by many of the CPM protocols.
 */
@@ -1087,5 +1090,3 @@ typedef struct im_idma {
 
 #endif /* __CPM2__ */
 #endif /* __KERNEL__ */
-
-

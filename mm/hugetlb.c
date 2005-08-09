@@ -301,6 +301,7 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long address;
+	pte_t *ptep;
 	pte_t pte;
 	struct page *page;
 
@@ -309,9 +310,17 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	BUG_ON(end & ~HPAGE_MASK);
 
 	for (address = start; address < end; address += HPAGE_SIZE) {
-		pte = huge_ptep_get_and_clear(mm, address, huge_pte_offset(mm, address));
+		ptep = huge_pte_offset(mm, address);
+		if (! ptep)
+			/* This can happen on truncate, or if an
+			 * mmap() is aborted due to an error before
+			 * the prefault */
+			continue;
+
+		pte = huge_ptep_get_and_clear(mm, address, ptep);
 		if (pte_none(pte))
 			continue;
+
 		page = pte_page(pte);
 		put_page(page);
 	}

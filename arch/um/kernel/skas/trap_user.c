@@ -58,7 +58,6 @@ void user_signal(int sig, union uml_pt_regs *regs, int pid)
         int segv = ((sig == SIGFPE) || (sig == SIGSEGV) || (sig == SIGBUS) ||
                     (sig == SIGILL) || (sig == SIGTRAP));
 
-	regs->skas.is_user = 1;
 	if (segv)
 		get_skas_faultinfo(pid, &regs->skas.faultinfo);
 	info = &sig_info[sig];
