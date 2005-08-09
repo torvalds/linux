@@ -241,9 +241,10 @@ Below, some things are only needed if this is a `sensors' driver. Those
 parts are between /* SENSORS ONLY START */ and /* SENSORS ONLY END */
 markers. 
 
-This function should only return an error (any value != 0) if there is
-some reason why no more detection should be done anymore. If the
-detection just fails for this address, return 0.
+Returning an error different from -ENODEV in a detect function will cause
+the detection to stop: other addresses and adapters won't be scanned.
+This should only be done on fatal or internal errors, such as a memory
+shortage or i2c_attach_client failing.
 
 For now, you can ignore the `flags' parameter. It is there for future use.
 

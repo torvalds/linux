@@ -662,107 +662,120 @@ int i2c_control(struct i2c_client *client,
  * Will not work for 10-bit addresses!
  * ----------------------------------------------------
  */
-/* Return: kind (>= 0) if force found, -1 if not found */
-static inline int i2c_probe_forces(struct i2c_adapter *adapter, int addr,
-				   unsigned short **forces)
+static int i2c_probe_address(struct i2c_adapter *adapter, int addr, int kind,
+			     int (*found_proc) (struct i2c_adapter *, int, int))
 {
-	unsigned short kind;
-	int j, adap_id = i2c_adapter_id(adapter);
+	int err;
 
-	for (kind = 0; forces[kind]; kind++) {
-		for (j = 0; forces[kind][j] != I2C_CLIENT_END; j += 2) {
-			if ((forces[kind][j] == adap_id ||
-			     forces[kind][j] == ANY_I2C_BUS)
-			 && forces[kind][j + 1] == addr) {
-				dev_dbg(&adapter->dev, "found force parameter, "
-					"addr 0x%02x, kind %u\n", addr, kind);
-				return kind;
-			}
-		}
+	/* Make sure the address is valid */
+	if (addr < 0x03 || addr > 0x77) {
+		dev_warn(&adapter->dev, "Invalid probe address 0x%02x\n",
+			 addr);
+		return -EINVAL;
 	}
 
-	return -1;
+	/* Skip if already in use */
+	if (i2c_check_addr(adapter, addr))
+		return 0;
+
+	/* Make sure there is something at this address, unless forced */
+	if (kind < 0
+	 && i2c_smbus_xfer(adapter, addr, 0, 0, 0, I2C_SMBUS_QUICK, NULL) < 0)
+		return 0;
+
+	/* Finally call the custom detection function */
+	err = found_proc(adapter, addr, kind);
+
+	/* -ENODEV can be returned if there is a chip at the given address
+	   but it isn't supported by this chip driver. We catch it here as
+	   this isn't an error. */
+	return (err == -ENODEV) ? 0 : err;
 }
 
 int i2c_probe(struct i2c_adapter *adapter,
 	      struct i2c_client_address_data *address_data,
 	      int (*found_proc) (struct i2c_adapter *, int, int))
 {
-	int addr,i,found,err;
+	int i, err;
 	int adap_id = i2c_adapter_id(adapter);
 
 	/* Forget it if we can't probe using SMBUS_QUICK */
 	if (! i2c_check_functionality(adapter,I2C_FUNC_SMBUS_QUICK))
 		return -1;
 
-	for (addr = 0x00; addr <= 0x7f; addr++) {
+	/* Force entries are done first, and are not affected by ignore
+	   entries */
+	if (address_data->forces) {
+		unsigned short **forces = address_data->forces;
+		int kind;
 
-		/* Skip if already in use */
-		if (i2c_check_addr(adapter,addr))
-			continue;
-
-		/* If it is in one of the force entries, we don't do any detection
-		   at all */
-		found = 0;
-
-		if (address_data->forces) {
-			int kind = i2c_probe_forces(adapter, addr,
-						    address_data->forces);
-			if (kind >= 0) { /* force found */
-				if ((err = found_proc(adapter, addr, kind)))
-					return err;
-				continue;
+		for (kind = 0; forces[kind]; kind++) {
+			for (i = 0; forces[kind][i] != I2C_CLIENT_END;
+			     i += 2) {
+				if (forces[kind][i] == adap_id
+				 || forces[kind][i] == ANY_I2C_BUS) {
+					dev_dbg(&adapter->dev, "found force "
+						"parameter for adapter %d, "
+						"addr 0x%02x, kind %d\n",
+						adap_id, forces[kind][i + 1],
+						kind);
+					err = i2c_probe_address(adapter,
+						forces[kind][i + 1],
+						kind, found_proc);
+					if (err)
+						return err;
+				}
 			}
 		}
-
-		/* If this address is in one of the ignores, we can forget about
-		   it right now */
-		for (i = 0;
-		     !found && (address_data->ignore[i] != I2C_CLIENT_END);
-		     i += 2) {
-			if (((adap_id == address_data->ignore[i]) || 
-			    ((address_data->ignore[i] == ANY_I2C_BUS))) &&
-			    (addr == address_data->ignore[i+1])) {
-				dev_dbg(&adapter->dev, "found ignore parameter for adapter %d, "
-					"addr %04x\n", adap_id ,addr);
-				found = 1;
-			}
-		}
-		if (found) 
-			continue;
-
-		/* Now, we will do a detection, but only if it is in the normal or 
-		   probe entries */  
-		for (i = 0;
-		     !found && (address_data->normal_i2c[i] != I2C_CLIENT_END);
-		     i += 1) {
-			if (addr == address_data->normal_i2c[i]) {
-				found = 1;
-				dev_dbg(&adapter->dev, "found normal i2c entry for adapter %d, "
-					"addr %02x\n", adap_id, addr);
-			}
-		}
-
-		for (i = 0;
-		     !found && (address_data->probe[i] != I2C_CLIENT_END);
-		     i += 2) {
-			if (((adap_id == address_data->probe[i]) ||
-			    ((address_data->probe[i] == ANY_I2C_BUS))) &&
-			    (addr == address_data->probe[i+1])) {
-				found = 1;
-				dev_dbg(&adapter->dev, "found probe parameter for adapter %d, "
-					"addr %04x\n", adap_id,addr);
-			}
-		}
-		if (!found) 
-			continue;
-
-		/* OK, so we really should examine this address. First check
-		   whether there is some client here at all! */
-		if (i2c_smbus_xfer(adapter,addr,0,0,0,I2C_SMBUS_QUICK,NULL) >= 0)
-			if ((err = found_proc(adapter,addr,-1)))
-				return err;
 	}
+
+	/* Probe entries are done second, and are not affected by ignore
+	   entries either */
+	for (i = 0; address_data->probe[i] != I2C_CLIENT_END; i += 2) {
+		if (address_data->probe[i] == adap_id
+		 || address_data->probe[i] == ANY_I2C_BUS) {
+			dev_dbg(&adapter->dev, "found probe parameter for "
+				"adapter %d, addr 0x%02x\n", adap_id,
+				address_data->probe[i + 1]);
+			err = i2c_probe_address(adapter,
+						address_data->probe[i + 1],
+						-1, found_proc);
+			if (err)
+				return err;
+		}
+	}
+
+	/* Normal entries are done last, unless shadowed by an ignore entry */
+	for (i = 0; address_data->normal_i2c[i] != I2C_CLIENT_END; i += 1) {
+		int j, ignore;
+
+		ignore = 0;
+		for (j = 0; address_data->ignore[j] != I2C_CLIENT_END;
+		     j += 2) {
+			if ((address_data->ignore[j] == adap_id ||
+			     address_data->ignore[j] == ANY_I2C_BUS)
+			 && address_data->ignore[j + 1]
+			    == address_data->normal_i2c[i]) {
+				dev_dbg(&adapter->dev, "found ignore "
+					"parameter for adapter %d, "
+					"addr 0x%02x\n", adap_id,
+					address_data->ignore[j + 1]);
+			}
+			ignore = 1;
+			break;
+		}
+		if (ignore)
+			continue;
+
+		dev_dbg(&adapter->dev, "found normal entry for adapter %d, "
+			"addr 0x%02x\n", adap_id,
+			address_data->normal_i2c[i]);
+		err = i2c_probe_address(adapter, address_data->normal_i2c[i],
+					-1, found_proc);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
