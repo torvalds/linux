@@ -243,14 +243,6 @@ static unsigned long calculate_numa_remap_pages(void)
 		/* now the roundup is correct, convert to PAGE_SIZE pages */
 		size = size * PTRS_PER_PTE;
 
-		if (node_end_pfn[nid] & (PTRS_PER_PTE-1)) {
-			/*
-			 * Adjust size if node_end_pfn is not on a proper
-			 * pmd boundary. remap_numa_kva will barf otherwise.
-			 */
-			size +=  node_end_pfn[nid] & (PTRS_PER_PTE-1);
-		}
-
 		/*
 		 * Validate the region we are allocating only contains valid
 		 * pages.
@@ -270,6 +262,17 @@ static unsigned long calculate_numa_remap_pages(void)
 		reserve_pages += size;
 		printk("Shrinking node %d from %ld pages to %ld pages\n",
 			nid, node_end_pfn[nid], node_end_pfn[nid] - size);
+
+		if (node_end_pfn[nid] & (PTRS_PER_PTE-1)) {
+			/*
+			 * Align node_end_pfn[] and node_remap_start_pfn[] to
+			 * pmd boundary. remap_numa_kva will barf otherwise.
+			 */
+			printk("Shrinking node %d further by %ld pages for proper alignment\n",
+				nid, node_end_pfn[nid] & (PTRS_PER_PTE-1));
+			size +=  node_end_pfn[nid] & (PTRS_PER_PTE-1);
+		}
+
 		node_end_pfn[nid] -= size;
 		node_remap_start_pfn[nid] = node_end_pfn[nid];
 	}

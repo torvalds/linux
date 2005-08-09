@@ -252,6 +252,12 @@ kb_wait(void)
 }
 
 void
+machine_shutdown(void)
+{
+	/* Architecture specific shutdown needed before a kexec */
+}
+
+void
 machine_restart(char *cmd)
 {
 	printk("Voyager Warm Restart\n");

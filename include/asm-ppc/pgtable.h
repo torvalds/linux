@@ -227,21 +227,21 @@ extern unsigned long ioremap_bot, ioremap_base;
  *     doesn't support SMP. So we can use this as software bit, like
  *     DIRTY.
  *
- * PPC Book-E Linux implementation uses PPC HW PTE bit field definition,
- * even it doesn't have HW PTE. 0-11th LSB of PTE stand for memory
- * protection-related function. (See PTE structure in include/asm-ppc/mmu.h)
- * Definition of _PAGE_XXX in "include/asm-ppc/pagetable.h" stands for
- * above bits. Note that those bits values are CPU dependent, not
- * architecture.
+ * With the PPC 44x Linux implementation, the 0-11th LSBs of the PTE are used
+ * for memory protection related functions (see PTE structure in
+ * include/asm-ppc/mmu.h).  The _PAGE_XXX definitions in this file map to the
+ * above bits.  Note that the bit values are CPU specific, not architecture
+ * specific.
  *
- * Kernel PTE entry holds arch-dependent swp_entry structure under certain
- * situation. In other words, in such situation, some portion of PTE bits
- * are used as swp_entry. In PPC implementation, 3-24th LSB are shared with
- * swp_entry, however 0-2nd three LSB still hold protection values.
- * That means three protection bits are reserved for both PTE and SWAP
- * entry at the most three LSBs.
+ * The kernel PTE entry holds an arch-dependent swp_entry structure under
+ * certain situations. In other words, in such situations some portion of
+ * the PTE bits are used as a swp_entry. In the PPC implementation, the
+ * 3-24th LSB are shared with swp_entry, however the 0-2nd three LSB still
+ * hold protection values. That means the three protection bits are
+ * reserved for both PTE and SWAP entry at the most significant three
+ * LSBs.
  *
- * There are three protection bits available for SWAP entry;
+ * There are three protection bits available for SWAP entry:
  *	_PAGE_PRESENT
  *	_PAGE_FILE
  *	_PAGE_HASHPTE (if HW has)
