@@ -950,8 +950,13 @@ void __init unflatten_device_tree(void)
 	DBG("  size is %lx, allocating...\n", size);
 
 	/* Allocate memory for the expanded device tree */
-	mem = (unsigned long)abs_to_virt(lmb_alloc(size + 4,
-						   __alignof__(struct device_node)));
+	mem = lmb_alloc(size + 4, __alignof__(struct device_node));
+	if (!mem) {
+		DBG("Couldn't allocate memory with lmb_alloc()!\n");
+		panic("Couldn't allocate memory with lmb_alloc()!\n");
+	}
+	mem = (unsigned long)abs_to_virt(mem);
+
 	((u32 *)mem)[size / 4] = 0xdeadbeef;
 
 	DBG("  unflattening...\n", mem);
