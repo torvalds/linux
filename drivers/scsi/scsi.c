@@ -811,7 +811,7 @@ static void scsi_softirq(struct softirq_action *h)
 		if (disposition != SUCCESS &&
 		    time_before(cmd->jiffies_at_alloc + wait_for, jiffies)) {
 			dev_printk(KERN_ERR, &cmd->device->sdev_gendev, 
-				   "timing out command, waited %ds\n",
+				   "timing out command, waited %lus\n",
 				   wait_for/HZ);
 			disposition = SUCCESS;
 		}
