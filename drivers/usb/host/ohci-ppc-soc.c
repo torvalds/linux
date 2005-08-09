@@ -123,7 +123,7 @@ static void usb_hcd_ppc_soc_remove(struct usb_hcd *hcd,
 
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-	usb_hcd_put(hcd);
+	usb_put_hcd(hcd);
 }
 
 static int __devinit
