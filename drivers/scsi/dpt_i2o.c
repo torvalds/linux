@@ -907,7 +907,7 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 		raptorFlag = TRUE;
 	}
 
-	if (pci_request_regions(pDev)) {
+	if (pci_request_regions(pDev, "dpt_i2o")) {
 		PERROR("dpti: adpt_config_hba: pci request region failed\n");
 		return -EINVAL;
 	}
