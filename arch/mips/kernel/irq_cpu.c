@@ -55,6 +55,7 @@ static inline void mips_cpu_irq_enable(unsigned int irq)
 
 	local_irq_save(flags);
 	unmask_mips_irq(irq);
+	back_to_back_c0_hazard();
 	local_irq_restore(flags);
 }
 
@@ -64,6 +65,7 @@ static void mips_cpu_irq_disable(unsigned int irq)
 
 	local_irq_save(flags);
 	mask_mips_irq(irq);
+	back_to_back_c0_hazard();
 	local_irq_restore(flags);
 }
 
