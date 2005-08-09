@@ -2326,8 +2326,6 @@ done:
 	return (retval);
 }
 
-static void ahd_linux_exit(void);
-
 static void ahd_linux_set_width(struct scsi_target *starget, int width)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
@@ -2772,7 +2770,7 @@ ahd_linux_init(void)
 	if (ahd_linux_detect(&aic79xx_driver_template) > 0)
 		return 0;
 	spi_release_transport(ahd_linux_transport_template);
-	ahd_linux_exit();
+
 	return -ENODEV;
 }
 
