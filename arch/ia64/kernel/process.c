@@ -179,7 +179,7 @@ static int can_do_pal_halt = 1;
 
 static int __init nohalt_setup(char * str)
 {
-	pal_halt = 0;
+	pal_halt = can_do_pal_halt = 0;
 	return 1;
 }
 __setup("nohalt", nohalt_setup);
