@@ -30,6 +30,7 @@
 #include <net/tcp_states.h>
 
 #include <asm/atomic.h>
+#include <asm/byteorder.h>
 
 /* This is for all connections with a full identity, no wildcards.
  * New scheme, half the table is for TIME_WAIT, the other half is
@@ -285,13 +286,13 @@ extern struct sock *__inet_lookup_listener(const struct hlist_head *head,
 					   const int dif);
 
 /* Optimize the common listener case. */
-static inline struct sock *inet_lookup_listener(struct inet_hashinfo *hashinfo,
-						const u32 daddr,
-						const unsigned short hnum,
-						const int dif)
+static inline struct sock *
+		inet_lookup_listener(struct inet_hashinfo *hashinfo,
+				     const u32 daddr,
+				     const unsigned short hnum, const int dif)
 {
 	struct sock *sk = NULL;
-	struct hlist_head *head;
+	const struct hlist_head *head;
 
 	read_lock(&hashinfo->lhash_lock);
 	head = &hashinfo->listening_hash[inet_lhashfn(hnum)];
@@ -351,4 +352,70 @@ sherry_cache:
 	 ((*((__u32 *)&(inet_twsk(__sk)->tw_dport))) == (__ports)) &&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
 #endif /* 64-bit arch */
+
+/*
+ * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so we need
+ * not check it for lookups anymore, thanks Alexey. -DaveM
+ *
+ * Local BH must be disabled here.
+ */
+static inline struct sock *
+	__inet_lookup_established(struct inet_hashinfo *hashinfo,
+				  const u32 saddr, const u16 sport,
+				  const u32 daddr, const u16 hnum,
+				  const int dif)
+{
+	INET_ADDR_COOKIE(acookie, saddr, daddr)
+	const __u32 ports = INET_COMBINED_PORTS(sport, hnum);
+	struct sock *sk;
+	const struct hlist_node *node;
+	/* Optimize here for direct hit, only listening connections can
+	 * have wildcards anyways.
+	 */
+	const int hash = inet_ehashfn(daddr, hnum, saddr, sport, hashinfo->ehash_size);
+	struct inet_ehash_bucket *head = &hashinfo->ehash[hash];
+
+	read_lock(&head->lock);
+	sk_for_each(sk, node, &head->chain) {
+		if (INET_MATCH(sk, acookie, saddr, daddr, ports, dif))
+			goto hit; /* You sunk my battleship! */
+	}
+
+	/* Must check for a TIME_WAIT'er before going to listener hash. */
+	sk_for_each(sk, node, &(head + hashinfo->ehash_size)->chain) {
+		if (INET_TW_MATCH(sk, acookie, saddr, daddr, ports, dif))
+			goto hit;
+	}
+	sk = NULL;
+out:
+	read_unlock(&head->lock);
+	return sk;
+hit:
+	sock_hold(sk);
+	goto out;
+}
+
+static inline struct sock *__inet_lookup(struct inet_hashinfo *hashinfo,
+					 const u32 saddr, const u16 sport,
+					 const u32 daddr, const u16 hnum,
+					 const int dif)
+{
+	struct sock *sk = __inet_lookup_established(hashinfo, saddr, sport, daddr,
+						    hnum, dif);
+	return sk ? : inet_lookup_listener(hashinfo, daddr, hnum, dif);
+}
+
+static inline struct sock *inet_lookup(struct inet_hashinfo *hashinfo,
+				       const u32 saddr, const u16 sport,
+				       const u32 daddr, const u16 dport,
+				       const int dif)
+{
+	struct sock *sk;
+
+	local_bh_disable();
+	sk = __inet_lookup(hashinfo, saddr, sport, daddr, ntohs(dport), dif);
+	local_bh_enable();
+
+	return sk;
+}
 #endif /* _INET_HASHTABLES_H */

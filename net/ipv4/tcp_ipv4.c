@@ -238,71 +238,6 @@ void tcp_unhash(struct sock *sk)
 	inet_unhash(&tcp_hashinfo, sk);
 }
 
-/* Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
- * we need not check it for TCP lookups anymore, thanks Alexey. -DaveM
- *
- * Local BH must be disabled here.
- */
-
-static inline struct sock *__tcp_v4_lookup_established(const u32 saddr,
-						       const u16 sport,
-						       const u32 daddr,
-						       const u16 hnum,
-						       const int dif)
-{
-	struct inet_ehash_bucket *head;
-	INET_ADDR_COOKIE(acookie, saddr, daddr)
-	const __u32 ports = INET_COMBINED_PORTS(sport, hnum);
-	struct sock *sk;
-	const struct hlist_node *node;
-	/* Optimize here for direct hit, only listening connections can
-	 * have wildcards anyways.
-	 */
-	const int hash = inet_ehashfn(daddr, hnum, saddr, sport, tcp_hashinfo.ehash_size);
-	head = &tcp_hashinfo.ehash[hash];
-	read_lock(&head->lock);
-	sk_for_each(sk, node, &head->chain) {
-		if (INET_MATCH(sk, acookie, saddr, daddr, ports, dif))
-			goto hit; /* You sunk my battleship! */
-	}
-
-	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_for_each(sk, node, &(head + tcp_hashinfo.ehash_size)->chain) {
-		if (INET_TW_MATCH(sk, acookie, saddr, daddr, ports, dif))
-			goto hit;
-	}
-	sk = NULL;
-out:
-	read_unlock(&head->lock);
-	return sk;
-hit:
-	sock_hold(sk);
-	goto out;
-}
-
-static inline struct sock *__tcp_v4_lookup(u32 saddr, u16 sport,
-					   u32 daddr, u16 hnum, int dif)
-{
-	struct sock *sk = __tcp_v4_lookup_established(saddr, sport,
-						      daddr, hnum, dif);
-
-	return sk ? : inet_lookup_listener(&tcp_hashinfo, daddr, hnum, dif);
-}
-
-inline struct sock *tcp_v4_lookup(u32 saddr, u16 sport, u32 daddr,
-				  u16 dport, int dif)
-{
-	struct sock *sk;
-
-	local_bh_disable();
-	sk = __tcp_v4_lookup(saddr, sport, daddr, ntohs(dport), dif);
-	local_bh_enable();
-
-	return sk;
-}
-
-EXPORT_SYMBOL_GPL(tcp_v4_lookup);
-
 static inline __u32 tcp_v4_init_sequence(struct sock *sk, struct sk_buff *skb)
 {
 	return secure_tcp_sequence_number(skb->nh.iph->daddr,
@@ -751,8 +686,8 @@ void tcp_v4_err(struct sk_buff *skb, u32 info)
 		return;
 	}
 
-	sk = tcp_v4_lookup(iph->daddr, th->dest, iph->saddr,
-			   th->source, tcp_v4_iif(skb));
+	sk = inet_lookup(&tcp_hashinfo, iph->daddr, th->dest, iph->saddr,
+			 th->source, tcp_v4_iif(skb));
 	if (!sk) {
 		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
 		return;
@@ -1359,11 +1294,9 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	if (req)
 		return tcp_check_req(sk, skb, req, prev);
 
-	nsk = __tcp_v4_lookup_established(skb->nh.iph->saddr,
-					  th->source,
-					  skb->nh.iph->daddr,
-					  ntohs(th->dest),
-					  tcp_v4_iif(skb));
+	nsk = __inet_lookup_established(&tcp_hashinfo, skb->nh.iph->saddr,
+					th->source, skb->nh.iph->daddr,
+					ntohs(th->dest), tcp_v4_iif(skb));
 
 	if (nsk) {
 		if (nsk->sk_state != TCP_TIME_WAIT) {
@@ -1505,9 +1438,9 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	TCP_SKB_CB(skb)->flags	 = skb->nh.iph->tos;
 	TCP_SKB_CB(skb)->sacked	 = 0;
 
-	sk = __tcp_v4_lookup(skb->nh.iph->saddr, th->source,
-			     skb->nh.iph->daddr, ntohs(th->dest),
-			     tcp_v4_iif(skb));
+	sk = __inet_lookup(&tcp_hashinfo, skb->nh.iph->saddr, th->source,
+			   skb->nh.iph->daddr, ntohs(th->dest),
+			   tcp_v4_iif(skb));
 
 	if (!sk)
 		goto no_tcp_socket;

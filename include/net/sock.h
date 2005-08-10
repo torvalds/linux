@@ -255,28 +255,28 @@ struct sock {
 /*
  * Hashed lists helper routines
  */
-static inline struct sock *__sk_head(struct hlist_head *head)
+static inline struct sock *__sk_head(const struct hlist_head *head)
 {
 	return hlist_entry(head->first, struct sock, sk_node);
 }
 
-static inline struct sock *sk_head(struct hlist_head *head)
+static inline struct sock *sk_head(const struct hlist_head *head)
 {
 	return hlist_empty(head) ? NULL : __sk_head(head);
 }
 
-static inline struct sock *sk_next(struct sock *sk)
+static inline struct sock *sk_next(const struct sock *sk)
 {
 	return sk->sk_node.next ?
 		hlist_entry(sk->sk_node.next, struct sock, sk_node) : NULL;
 }
 
-static inline int sk_unhashed(struct sock *sk)
+static inline int sk_unhashed(const struct sock *sk)
 {
 	return hlist_unhashed(&sk->sk_node);
 }
 
-static inline int sk_hashed(struct sock *sk)
+static inline int sk_hashed(const struct sock *sk)
 {
 	return sk->sk_node.pprev != NULL;
 }
@@ -494,7 +494,7 @@ extern int sk_wait_data(struct sock *sk, long *timeo);
 struct request_sock_ops;
 
 /* Here is the right place to enable sock refcounting debugging */
-#define SOCK_REFCNT_DEBUG
+//#define SOCK_REFCNT_DEBUG
 
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface

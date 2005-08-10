@@ -162,3 +162,5 @@ struct sock *__inet_lookup_listener(const struct hlist_head *head, const u32 dad
 	}
 	return result;
 }
+
+EXPORT_SYMBOL_GPL(__inet_lookup_listener);

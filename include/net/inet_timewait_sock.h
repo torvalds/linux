@@ -17,6 +17,7 @@
 
 #include <linux/config.h>
 
+#include <linux/ip.h>
 #include <linux/list.h>
 #include <linux/types.h>
 
@@ -32,6 +33,7 @@
 #endif
 
 struct inet_bind_bucket;
+struct inet_hashinfo;
 
 /*
  * This is a TIME_WAIT sock. It works around the memory consumption
@@ -139,4 +141,11 @@ static inline void inet_twsk_put(struct inet_timewait_sock *tw)
 		kmem_cache_free(tw->tw_prot->twsk_slab, tw);
 	}
 }
+
+extern void __inet_twsk_kill(struct inet_timewait_sock *tw,
+			     struct inet_hashinfo *hashinfo);
+
+extern void __inet_twsk_hashdance(struct inet_timewait_sock *tw,
+				  struct sock *sk,
+				  struct inet_hashinfo *hashinfo);
 #endif	/* _INET_TIMEWAIT_SOCK_ */

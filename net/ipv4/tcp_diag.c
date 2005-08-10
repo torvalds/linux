@@ -174,8 +174,6 @@ nlmsg_failure:
 	return -1;
 }
 
-extern struct sock *tcp_v4_lookup(u32 saddr, u16 sport, u32 daddr, u16 dport,
-				  int dif);
 #ifdef CONFIG_IP_TCPDIAG_IPV6
 extern struct sock *tcp_v6_lookup(struct in6_addr *saddr, u16 sport,
 				  struct in6_addr *daddr, u16 dport,
@@ -197,9 +195,9 @@ static int tcpdiag_get_exact(struct sk_buff *in_skb, const struct nlmsghdr *nlh)
 	struct sk_buff *rep;
 
 	if (req->tcpdiag_family == AF_INET) {
-		sk = tcp_v4_lookup(req->id.tcpdiag_dst[0], req->id.tcpdiag_dport,
-				   req->id.tcpdiag_src[0], req->id.tcpdiag_sport,
-				   req->id.tcpdiag_if);
+		sk = inet_lookup(&tcp_hashinfo, req->id.tcpdiag_dst[0],
+				 req->id.tcpdiag_dport, req->id.tcpdiag_src[0],
+				 req->id.tcpdiag_sport, req->id.tcpdiag_if);
 	}
 #ifdef CONFIG_IP_TCPDIAG_IPV6
 	else if (req->tcpdiag_family == AF_INET6) {
