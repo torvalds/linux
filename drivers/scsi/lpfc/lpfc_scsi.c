@@ -40,11 +40,6 @@
 #define LPFC_RESET_WAIT  2
 #define LPFC_ABORT_WAIT  2
 
-static inline void lpfc_put_lun(struct fcp_cmnd *fcmd, unsigned int lun)
-{
-	fcmd->fcpLunLsl = 0;
-	fcmd->fcpLunMsl = swab16((uint16_t)lun);
-}
 
 /*
  * This routine allocates a scsi buffer, which contains all the necessary
@@ -453,7 +448,8 @@ lpfc_scsi_prep_cmnd(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd,
 	/* clear task management bits */
 	lpfc_cmd->fcp_cmnd->fcpCntl2 = 0;
 
-	lpfc_put_lun(lpfc_cmd->fcp_cmnd, lpfc_cmd->pCmd->device->lun);
+	int_to_scsilun(lpfc_cmd->pCmd->device->lun,
+			&lpfc_cmd->fcp_cmnd->fcp_lun);
 
 	memcpy(&fcp_cmnd->fcpCdb[0], scsi_cmnd->cmnd, 16);
 
@@ -552,7 +548,8 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_hba *phba,
 	piocb = &piocbq->iocb;
 
 	fcp_cmnd = lpfc_cmd->fcp_cmnd;
-	lpfc_put_lun(lpfc_cmd->fcp_cmnd, lpfc_cmd->pCmd->device->lun);
+	int_to_scsilun(lpfc_cmd->pCmd->device->lun,
+			&lpfc_cmd->fcp_cmnd->fcp_lun);
 	fcp_cmnd->fcpCntl2 = task_mgmt_cmd;
 
 	piocb->ulpCommand = CMD_FCP_ICMND64_CR;

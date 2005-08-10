@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/utsname.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
