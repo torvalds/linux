@@ -336,6 +336,23 @@ static int tcp_print_conntrack(struct seq_file *s,
 	return seq_printf(s, "%s ", tcp_conntrack_names[state]);
 }
 
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+static int tcp_to_nfattr(struct sk_buff *skb, struct nfattr *nfa,
+			 const struct ip_conntrack *ct)
+{
+	read_lock_bh(&tcp_lock);
+	NFA_PUT(skb, CTA_PROTOINFO_TCP_STATE, sizeof(u_int8_t),
+		&ct->proto.tcp.state);
+	read_unlock_bh(&tcp_lock);
+
+	return 0;
+
+nfattr_failure:
+	return -1;
+}
+#endif
+
 static unsigned int get_conntrack_index(const struct tcphdr *tcph)
 {
 	if (tcph->rst) return TCP_RST_SET;
@@ -1100,4 +1117,10 @@ struct ip_conntrack_protocol ip_conntrack_protocol_tcp =
 	.packet 		= tcp_packet,
 	.new 			= tcp_new,
 	.error			= tcp_error,
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+	.to_nfattr		= tcp_to_nfattr,
+	.tuple_to_nfattr	= ip_ct_port_tuple_to_nfattr,
+	.nfattr_to_tuple	= ip_ct_port_nfattr_to_tuple,
+#endif
 };

@@ -2,6 +2,9 @@
 #define _IP_CONNTRACK_CORE_H
 #include <linux/netfilter.h>
 
+#define MAX_IP_CT_PROTO 256
+extern struct ip_conntrack_protocol *ip_ct_protos[MAX_IP_CT_PROTO];
+
 /* This header is used to share core functionality between the
    standalone connection tracking module, and the compatibility layer's use
    of connection tracking. */
@@ -52,6 +55,8 @@ static inline int ip_conntrack_confirm(struct sk_buff **pskb)
 struct ip_conntrack_ecache;
 extern void __ip_ct_deliver_cached_events(struct ip_conntrack_ecache *ec);
 #endif
+
+extern void __ip_ct_expect_unlink_destroy(struct ip_conntrack_expect *exp);
 
 extern struct list_head *ip_conntrack_hash;
 extern struct list_head ip_conntrack_expect_list;

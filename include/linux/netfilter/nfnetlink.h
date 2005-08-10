@@ -56,7 +56,7 @@ struct nfgenmsg {
 	u_int16_t res_id;		/* resource id */
 } __attribute__ ((packed));
 
-#define NFNETLINK_V1	1
+#define NFNETLINK_V0	0
 
 #define NFM_NFA(n)      ((struct nfattr *)(((char *)(n)) \
         + NLMSG_ALIGN(sizeof(struct nfgenmsg))))
@@ -81,6 +81,7 @@ enum nfnl_subsys_id {
 
 #ifdef __KERNEL__
 
+#include <linux/netlink.h>
 #include <linux/capability.h>
 
 struct nfnl_callback

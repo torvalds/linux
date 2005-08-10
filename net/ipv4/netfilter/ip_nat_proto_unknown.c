@@ -61,7 +61,7 @@ unknown_print_range(char *buffer, const struct ip_nat_range *range)
 }
 
 struct ip_nat_protocol ip_nat_unknown_protocol = {
-	"unknown", 0,
+	"unknown", 0, THIS_MODULE,
 	unknown_manip_pkt,
 	unknown_in_range,
 	unknown_unique_tuple,

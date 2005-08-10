@@ -209,6 +209,9 @@ struct ip_conntrack
 	/* Current number of expected connections */
 	unsigned int expecting;
 
+	/* Unique ID that identifies this conntrack*/
+	unsigned int id;
+
 	/* Helper, if any. */
 	struct ip_conntrack_helper *helper;
 
@@ -257,6 +260,9 @@ struct ip_conntrack_expect
 	/* Usage count. */
 	atomic_t use;
 
+	/* Unique ID */
+	unsigned int id;
+
 #ifdef CONFIG_IP_NF_NAT_NEEDED
 	/* This is the original per-proto part, used to map the
 	 * expected connection the way the recipient expects. */
@@ -296,7 +302,12 @@ ip_conntrack_get(const struct sk_buff *skb, enum ip_conntrack_info *ctinfo)
 }
 
 /* decrement reference count on a conntrack */
-extern void ip_conntrack_put(struct ip_conntrack *ct);
+static inline void
+ip_conntrack_put(struct ip_conntrack *ct)
+{
+	IP_NF_ASSERT(ct);
+	nf_conntrack_put(&ct->ct_general);
+}
 
 /* call to create an explicit dependency on ip_conntrack. */
 extern void need_ip_conntrack(void);
@@ -330,6 +341,39 @@ ip_ct_gather_frags(struct sk_buff *skb, u_int32_t user);
 extern void
 ip_ct_iterate_cleanup(int (*iter)(struct ip_conntrack *i, void *data),
 		      void *data);
+
+extern struct ip_conntrack_helper *
+__ip_conntrack_helper_find_byname(const char *);
+extern struct ip_conntrack_helper *
+ip_conntrack_helper_find_get(const struct ip_conntrack_tuple *tuple);
+extern void ip_conntrack_helper_put(struct ip_conntrack_helper *helper);
+
+extern struct ip_conntrack_protocol *
+__ip_conntrack_proto_find(u_int8_t protocol);
+extern struct ip_conntrack_protocol *
+ip_conntrack_proto_find_get(u_int8_t protocol);
+extern void ip_conntrack_proto_put(struct ip_conntrack_protocol *proto);
+
+extern void ip_ct_remove_expectations(struct ip_conntrack *ct);
+
+extern struct ip_conntrack *ip_conntrack_alloc(struct ip_conntrack_tuple *,
+					       struct ip_conntrack_tuple *);
+
+extern void ip_conntrack_free(struct ip_conntrack *ct);
+
+extern void ip_conntrack_hash_insert(struct ip_conntrack *ct);
+
+extern struct ip_conntrack_expect *
+__ip_conntrack_expect_find(const struct ip_conntrack_tuple *tuple);
+
+extern struct ip_conntrack_expect *
+ip_conntrack_expect_find_get(const struct ip_conntrack_tuple *tuple);
+
+extern struct ip_conntrack_tuple_hash *
+__ip_conntrack_find(const struct ip_conntrack_tuple *tuple,
+                    const struct ip_conntrack *ignored_conntrack);
+
+extern void ip_conntrack_flush(void);
 
 /* It's confirmed if it is, or has been in the hash table. */
 static inline int is_confirmed(struct ip_conntrack *ct)

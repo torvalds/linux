@@ -9,6 +9,10 @@ iptable_nat-objs	:= ip_nat_standalone.o ip_nat_rule.o ip_nat_core.o ip_nat_helpe
 # connection tracking
 obj-$(CONFIG_IP_NF_CONNTRACK) += ip_conntrack.o
 
+# conntrack netlink interface
+obj-$(CONFIG_IP_NF_CONNTRACK_NETLINK) += ip_conntrack_netlink.o
+
+
 # SCTP protocol connection tracking
 obj-$(CONFIG_IP_NF_CT_PROTO_SCTP) += ip_conntrack_proto_sctp.o
 

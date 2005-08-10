@@ -145,4 +145,9 @@ struct ip_conntrack_protocol ip_conntrack_protocol_udp =
 	.packet			= udp_packet,
 	.new			= udp_new,
 	.error			= udp_error,
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+	.tuple_to_nfattr	= ip_ct_port_tuple_to_nfattr,
+	.nfattr_to_tuple	= ip_ct_port_nfattr_to_tuple,
+#endif
 };

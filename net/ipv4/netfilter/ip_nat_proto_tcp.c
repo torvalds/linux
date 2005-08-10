@@ -12,6 +12,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/if.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
 #include <linux/netfilter_ipv4/ip_nat.h>
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
 #include <linux/netfilter_ipv4/ip_nat_protocol.h>
@@ -170,10 +171,15 @@ tcp_print_range(char *buffer, const struct ip_nat_range *range)
 }
 
 struct ip_nat_protocol ip_nat_protocol_tcp
-= { "TCP", IPPROTO_TCP,
+= { "TCP", IPPROTO_TCP, THIS_MODULE,
     tcp_manip_pkt,
     tcp_in_range,
     tcp_unique_tuple,
     tcp_print,
-    tcp_print_range
+    tcp_print_range,
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+    ip_nat_port_range_to_nfattr,
+    ip_nat_port_nfattr_to_range,
+#endif
 };

@@ -157,10 +157,15 @@ udp_print_range(char *buffer, const struct ip_nat_range *range)
 }
 
 struct ip_nat_protocol ip_nat_protocol_udp
-= { "UDP", IPPROTO_UDP,
+= { "UDP", IPPROTO_UDP, THIS_MODULE,
     udp_manip_pkt,
     udp_in_range,
     udp_unique_tuple,
     udp_print,
-    udp_print_range
+    udp_print_range,
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+    ip_nat_port_range_to_nfattr,
+    ip_nat_port_nfattr_to_range,
+#endif
 };

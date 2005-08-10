@@ -121,6 +121,7 @@ void __nfa_fill(struct sk_buff *skb, int attrtype, int attrlen,
 	nfa->nfa_type = attrtype;
 	nfa->nfa_len  = size;
 	memcpy(NFA_DATA(nfa), data, attrlen);
+	memset(NFA_DATA(nfa) + attrlen, 0, NFA_ALIGN(size) - size);
 }
 
 int nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
