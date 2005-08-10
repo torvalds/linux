@@ -411,6 +411,7 @@ struct ip_conntrack_stat
 
 #ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
 #include <linux/notifier.h>
+#include <linux/interrupt.h>
 
 struct ip_conntrack_ecache {
 	struct ip_conntrack *ct;
@@ -445,25 +446,23 @@ ip_conntrack_expect_unregister_notifier(struct notifier_block *nb)
 	return notifier_chain_unregister(&ip_conntrack_expect_chain, nb);
 }
 
+extern void ip_ct_deliver_cached_events(const struct ip_conntrack *ct);
+extern void __ip_ct_event_cache_init(struct ip_conntrack *ct);
+
 static inline void 
 ip_conntrack_event_cache(enum ip_conntrack_events event,
 			 const struct sk_buff *skb)
 {
-	struct ip_conntrack_ecache *ecache = 
-					&__get_cpu_var(ip_conntrack_ecache);
-
-	if (unlikely((struct ip_conntrack *) skb->nfct != ecache->ct)) {
-		if (net_ratelimit()) {
-			printk(KERN_ERR "ctevent: skb->ct != ecache->ct !!!\n");
-			dump_stack();
-		}
-	}
+	struct ip_conntrack *ct = (struct ip_conntrack *)skb->nfct;
+	struct ip_conntrack_ecache *ecache;
+	
+	local_bh_disable();
+	ecache = &__get_cpu_var(ip_conntrack_ecache);
+	if (ct != ecache->ct)
+		__ip_ct_event_cache_init(ct);
 	ecache->events |= event;
+	local_bh_enable();
 }
-
-extern void 
-ip_conntrack_deliver_cached_events_for(const struct ip_conntrack *ct);
-extern void ip_conntrack_event_cache_init(const struct sk_buff *skb);
 
 static inline void ip_conntrack_event(enum ip_conntrack_events event,
 				      struct ip_conntrack *ct)
@@ -483,9 +482,7 @@ static inline void ip_conntrack_event_cache(enum ip_conntrack_events event,
 					    const struct sk_buff *skb) {}
 static inline void ip_conntrack_event(enum ip_conntrack_events event, 
 				      struct ip_conntrack *ct) {}
-static inline void ip_conntrack_deliver_cached_events_for(
-						struct ip_conntrack *ct) {}
-static inline void ip_conntrack_event_cache_init(const struct sk_buff *skb) {}
+static inline void ip_ct_deliver_cached_events(const struct ip_conntrack *ct) {}
 static inline void 
 ip_conntrack_expect_event(enum ip_conntrack_expect_events event, 
 			  struct ip_conntrack_expect *exp) {}

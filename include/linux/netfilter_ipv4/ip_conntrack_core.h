@@ -44,17 +44,13 @@ static inline int ip_conntrack_confirm(struct sk_buff **pskb)
 	struct ip_conntrack *ct = (struct ip_conntrack *)(*pskb)->nfct;
 	int ret = NF_ACCEPT;
 
-	if (ct && !is_confirmed(ct))
-		ret = __ip_conntrack_confirm(pskb);
-	ip_conntrack_deliver_cached_events_for(ct);
-
+	if (ct) {
+		if (!is_confirmed(ct))
+			ret = __ip_conntrack_confirm(pskb);
+		ip_ct_deliver_cached_events(ct);
+	}
 	return ret;
 }
-
-#ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
-struct ip_conntrack_ecache;
-extern void __ip_ct_deliver_cached_events(struct ip_conntrack_ecache *ec);
-#endif
 
 extern void __ip_ct_expect_unlink_destroy(struct ip_conntrack_expect *exp);
 

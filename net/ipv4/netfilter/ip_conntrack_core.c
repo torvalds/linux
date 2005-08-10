@@ -85,73 +85,62 @@ struct notifier_block *ip_conntrack_expect_chain;
 
 DEFINE_PER_CPU(struct ip_conntrack_ecache, ip_conntrack_ecache);
 
-static inline void __deliver_cached_events(struct ip_conntrack_ecache *ecache)
+/* deliver cached events and clear cache entry - must be called with locally
+ * disabled softirqs */
+static inline void
+__ip_ct_deliver_cached_events(struct ip_conntrack_ecache *ecache)
 {
+	DEBUGP("ecache: delivering events for %p\n", ecache->ct);
 	if (is_confirmed(ecache->ct) && !is_dying(ecache->ct) && ecache->events)
 		notifier_call_chain(&ip_conntrack_chain, ecache->events,
 				    ecache->ct);
 	ecache->events = 0;
-}
-
-void __ip_ct_deliver_cached_events(struct ip_conntrack_ecache *ecache)
-{
-	__deliver_cached_events(ecache);
+	ip_conntrack_put(ecache->ct);
+	ecache->ct = NULL;
 }
 
 /* Deliver all cached events for a particular conntrack. This is called
  * by code prior to async packet handling or freeing the skb */
-void 
-ip_conntrack_deliver_cached_events_for(const struct ip_conntrack *ct)
+void ip_ct_deliver_cached_events(const struct ip_conntrack *ct)
 {
-	struct ip_conntrack_ecache *ecache = 
-					&__get_cpu_var(ip_conntrack_ecache);
-
-	if (!ct)
-		return;
-
-	if (ecache->ct == ct) {
-		DEBUGP("ecache: delivering event for %p\n", ct);
-		__deliver_cached_events(ecache);
-	} else {
-		if (net_ratelimit())
-			printk(KERN_WARNING "ecache: want to deliver for %p, "
-				"but cache has %p\n", ct, ecache->ct);
-	}
-
-	/* signalize that events have already been delivered */
-	ecache->ct = NULL;
+	struct ip_conntrack_ecache *ecache;
+	
+	local_bh_disable();
+	ecache = &__get_cpu_var(ip_conntrack_ecache);
+	if (ecache->ct == ct)
+		__ip_ct_deliver_cached_events(ecache);
+	local_bh_enable();
 }
 
-/* Deliver cached events for old pending events, if current conntrack != old */
-void ip_conntrack_event_cache_init(const struct sk_buff *skb)
+void __ip_ct_event_cache_init(struct ip_conntrack *ct)
 {
-	struct ip_conntrack *ct = (struct ip_conntrack *) skb->nfct;
-	struct ip_conntrack_ecache *ecache = 
-					&__get_cpu_var(ip_conntrack_ecache);
+	struct ip_conntrack_ecache *ecache;
 
 	/* take care of delivering potentially old events */
-	if (ecache->ct != ct) {
-		enum ip_conntrack_info ctinfo;
-		/* we have to check, since at startup the cache is NULL */
-		if (likely(ecache->ct)) {
-			DEBUGP("ecache: entered for different conntrack: "
-			       "ecache->ct=%p, skb->nfct=%p. delivering "
-			       "events\n", ecache->ct, ct);
-			__deliver_cached_events(ecache);
-			ip_conntrack_put(ecache->ct);
-		} else {
-			DEBUGP("ecache: entered for conntrack %p, "
-				"cache was clean before\n", ct);
-		}
-
-		/* initialize for this conntrack/packet */
-		ecache->ct = ip_conntrack_get(skb, &ctinfo);
-		/* ecache->events cleared by __deliver_cached_devents() */
-	} else {
-		DEBUGP("ecache: re-entered for conntrack %p.\n", ct);
-	}
+	ecache = &__get_cpu_var(ip_conntrack_ecache);
+	BUG_ON(ecache->ct == ct);
+	if (ecache->ct)
+		__ip_ct_deliver_cached_events(ecache);
+	/* initialize for this conntrack/packet */
+	ecache->ct = ct;
+	nf_conntrack_get(&ct->ct_general);
 }
 
+/* flush the event cache - touches other CPU's data and must not be called while
+ * packets are still passing through the code */
+static void ip_ct_event_cache_flush(void)
+{
+	struct ip_conntrack_ecache *ecache;
+	int cpu;
+
+	for_each_cpu(cpu) {
+		ecache = &per_cpu(ip_conntrack_ecache, cpu);
+		if (ecache->ct)
+			ip_conntrack_put(ecache->ct);
+	}
+}
+#else
+static inline void ip_ct_event_cache_flush(void) {}
 #endif /* CONFIG_IP_NF_CONNTRACK_EVENTS */
 
 DEFINE_PER_CPU(struct ip_conntrack_stat, ip_conntrack_stat);
@@ -878,8 +867,6 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 
 	IP_NF_ASSERT((*pskb)->nfct);
 
-	ip_conntrack_event_cache_init(*pskb);
-
 	ret = proto->packet(ct, *pskb, ctinfo);
 	if (ret < 0) {
 		/* Invalid: inverse of the return code tells
@@ -1278,23 +1265,6 @@ ip_ct_iterate_cleanup(int (*iter)(struct ip_conntrack *i, void *), void *data)
 
 		ip_conntrack_put(ct);
 	}
-
-#ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
-	{
-		/* we need to deliver all cached events in order to drop
-		 * the reference counts */
-		int cpu;
-		for_each_cpu(cpu) {
-			struct ip_conntrack_ecache *ecache = 
-					&per_cpu(ip_conntrack_ecache, cpu);
-			if (ecache->ct) {
-				__ip_ct_deliver_cached_events(ecache);
-				ip_conntrack_put(ecache->ct);
-				ecache->ct = NULL;
-			}
-		}
-	}
-#endif
 }
 
 /* Fast function for those who don't want to parse /proc (and I don't
@@ -1381,6 +1351,7 @@ void ip_conntrack_flush()
            delete... */
 	synchronize_net();
 
+	ip_ct_event_cache_flush();
  i_see_dead_people:
 	ip_ct_iterate_cleanup(kill_all, NULL);
 	if (atomic_read(&ip_conntrack_count) != 0) {
