@@ -86,25 +86,11 @@ extern void if6_proc_exit(void);
 
 int sysctl_ipv6_bindv6only;
 
-#ifdef INET_REFCNT_DEBUG
-atomic_t inet6_sock_nr;
-EXPORT_SYMBOL(inet6_sock_nr);
-#endif
-
 /* The inetsw table contains everything that inet_create needs to
  * build a new socket.
  */
 static struct list_head inetsw6[SOCK_MAX];
 static DEFINE_SPINLOCK(inetsw6_lock);
-
-static void inet6_sock_destruct(struct sock *sk)
-{
-	inet_sock_destruct(sk);
-
-#ifdef INET_REFCNT_DEBUG
-	atomic_dec(&inet6_sock_nr);
-#endif
-}
 
 static __inline__ struct ipv6_pinfo *inet6_sk_generic(struct sock *sk)
 {
@@ -186,7 +172,7 @@ static int inet6_create(struct socket *sock, int protocol)
 			inet->hdrincl = 1;
 	}
 
-	sk->sk_destruct		= inet6_sock_destruct;
+	sk->sk_destruct		= inet_sock_destruct;
 	sk->sk_family		= PF_INET6;
 	sk->sk_protocol		= protocol;
 
@@ -213,12 +199,17 @@ static int inet6_create(struct socket *sock, int protocol)
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;
+	/* 
+	 * Increment only the relevant sk_prot->socks debug field, this changes
+	 * the previous behaviour of incrementing both the equivalent to
+	 * answer->prot->socks (inet6_sock_nr) and inet_sock_nr.
+	 *
+	 * This allows better debug granularity as we'll know exactly how many
+	 * UDPv6, TCPv6, etc socks were allocated, not the sum of all IPv6
+	 * transport protocol socks. -acme
+	 */
+	sk_refcnt_debug_inc(sk);
 
-
-#ifdef INET_REFCNT_DEBUG
-	atomic_inc(&inet6_sock_nr);
-	atomic_inc(&inet_sock_nr);
-#endif
 	if (inet->num) {
 		/* It assumes that any protocol which allows
 		 * the user to assign a number at socket

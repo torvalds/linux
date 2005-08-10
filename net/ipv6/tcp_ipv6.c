@@ -1407,12 +1407,11 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		newnp->mcast_oif   = tcp_v6_iif(skb);
 		newnp->mcast_hops  = skb->nh.ipv6h->hop_limit;
 
-		/* Charge newly allocated IPv6 socket. Though it is mapped,
-		 * it is IPv6 yet.
+		/*
+		 * No need to charge this sock to the relevant IPv6 refcnt debug socks count
+		 * here, tcp_create_openreq_child now does this for us, see the comment in
+		 * that function for the gory details. -acme
 		 */
-#ifdef INET_REFCNT_DEBUG
-		atomic_inc(&inet6_sock_nr);
-#endif
 
 		/* It is tricky place. Until this moment IPv4 tcp
 		   worked with IPv6 af_tcp.af_specific.
@@ -1467,10 +1466,11 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	if (newsk == NULL)
 		goto out;
 
-	/* Charge newly allocated IPv6 socket */
-#ifdef INET_REFCNT_DEBUG
-	atomic_inc(&inet6_sock_nr);
-#endif
+	/*
+	 * No need to charge this sock to the relevant IPv6 refcnt debug socks
+	 * count here, tcp_create_openreq_child now does this for us, see the
+	 * comment in that function for the gory details. -acme
+	 */
 
 	ip6_dst_store(newsk, dst, NULL);
 	newsk->sk_route_caps = dst->dev->features &

@@ -306,7 +306,7 @@ extern kmem_cache_t *tcp_timewait_cachep;
 static inline void tcp_tw_put(struct tcp_tw_bucket *tw)
 {
 	if (atomic_dec_and_test(&tw->tw_refcnt)) {
-#ifdef INET_REFCNT_DEBUG
+#ifdef SOCK_REFCNT_DEBUG
 		printk(KERN_DEBUG "tw_bucket %p released\n", tw);
 #endif
 		kmem_cache_free(tcp_timewait_cachep, tw);

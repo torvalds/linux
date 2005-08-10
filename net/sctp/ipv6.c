@@ -641,10 +641,7 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	else
 		newinet->pmtudisc = IP_PMTUDISC_WANT;
 
-#ifdef INET_REFCNT_DEBUG
-	atomic_inc(&inet6_sock_nr);
-	atomic_inc(&inet_sock_nr);
-#endif
+	sk_refcnt_debug_inc(newsk);
 
 	if (newsk->sk_prot->init(newsk)) {
 		sk_common_release(newsk);

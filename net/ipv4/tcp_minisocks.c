@@ -84,7 +84,7 @@ static void tcp_timewait_kill(struct tcp_tw_bucket *tw)
 	tcp_bucket_destroy(tb);
 	spin_unlock(&bhead->lock);
 
-#ifdef INET_REFCNT_DEBUG
+#ifdef SOCK_REFCNT_DEBUG
 	if (atomic_read(&tw->tw_refcnt) != 1) {
 		printk(KERN_DEBUG "tw_bucket %p refcnt=%d\n", tw,
 		       atomic_read(&tw->tw_refcnt));
@@ -799,9 +799,21 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newsk->sk_err = 0;
 		newsk->sk_priority = 0;
 		atomic_set(&newsk->sk_refcnt, 2);
-#ifdef INET_REFCNT_DEBUG
-		atomic_inc(&inet_sock_nr);
-#endif
+
+		/*
+		 * Increment the counter in the same struct proto as the master
+		 * sock (sk_refcnt_debug_inc uses newsk->sk_prot->socks, that
+		 * is the same as sk->sk_prot->socks, as this field was copied
+		 * with memcpy), same rationale as the first comment in this
+		 * function.
+		 *
+		 * This _changes_ the previous behaviour, where
+		 * tcp_create_openreq_child always was incrementing the
+		 * equivalent to tcp_prot->socks (inet_sock_nr), so this have
+		 * to be taken into account in all callers. -acme
+		 */
+		sk_refcnt_debug_inc(newsk);
+
 		atomic_inc(&tcp_sockets_allocated);
 
 		if (sock_flag(newsk, SOCK_KEEPOPEN))

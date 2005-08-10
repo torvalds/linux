@@ -1580,12 +1580,7 @@ void tcp_destroy_sock(struct sock *sk)
 
 	xfrm_sk_free_policy(sk);
 
-#ifdef INET_REFCNT_DEBUG
-	if (atomic_read(&sk->sk_refcnt) != 1) {
-		printk(KERN_DEBUG "Destruction TCP %p delayed, c=%d\n",
-		       sk, atomic_read(&sk->sk_refcnt));
-	}
-#endif
+	sk_refcnt_debug_release(sk);
 
 	atomic_dec(&tcp_orphan_count);
 	sock_put(sk);

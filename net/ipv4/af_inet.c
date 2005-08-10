@@ -114,10 +114,6 @@
 
 DEFINE_SNMP_STAT(struct linux_mib, net_statistics);
 
-#ifdef INET_REFCNT_DEBUG
-atomic_t inet_sock_nr;
-#endif
-
 extern void ip_mc_drop_socket(struct sock *sk);
 
 /* The inetsw table contains everything that inet_create needs to
@@ -153,11 +149,7 @@ void inet_sock_destruct(struct sock *sk)
 	if (inet->opt)
 		kfree(inet->opt);
 	dst_release(sk->sk_dst_cache);
-#ifdef INET_REFCNT_DEBUG
-	atomic_dec(&inet_sock_nr);
-	printk(KERN_DEBUG "INET socket %p released, %d are still alive\n",
-	       sk, atomic_read(&inet_sock_nr));
-#endif
+	sk_refcnt_debug_dec(sk);
 }
 
 /*
@@ -317,9 +309,7 @@ static int inet_create(struct socket *sock, int protocol)
 	inet->mc_index	= 0;
 	inet->mc_list	= NULL;
 
-#ifdef INET_REFCNT_DEBUG
-	atomic_inc(&inet_sock_nr);
-#endif
+	sk_refcnt_debug_inc(sk);
 
 	if (inet->num) {
 		/* It assumes that any protocol which allows
@@ -1205,7 +1195,3 @@ EXPORT_SYMBOL(inet_stream_ops);
 EXPORT_SYMBOL(inet_unregister_protosw);
 EXPORT_SYMBOL(net_statistics);
 EXPORT_SYMBOL(sysctl_ip_nonlocal_bind);
-
-#ifdef INET_REFCNT_DEBUG
-EXPORT_SYMBOL(inet_sock_nr);
-#endif

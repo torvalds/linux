@@ -29,7 +29,6 @@ extern unsigned int		inet_poll(struct file * file, struct socket *sock, struct p
 extern int			inet_listen(struct socket *sock, int backlog);
 
 extern void			inet_sock_destruct(struct sock *sk);
-extern atomic_t			inet_sock_nr;
 
 extern int			inet_bind(struct socket *sock, 
 					  struct sockaddr *uaddr, int addr_len);

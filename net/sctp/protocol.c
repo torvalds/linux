@@ -593,9 +593,7 @@ static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
 	newinet->mc_index = 0;
 	newinet->mc_list = NULL;
 
-#ifdef INET_REFCNT_DEBUG
-	atomic_inc(&inet_sock_nr);
-#endif
+	sk_refcnt_debug_inc(newsk);
 
 	if (newsk->sk_prot->init(newsk)) {
 		sk_common_release(newsk);

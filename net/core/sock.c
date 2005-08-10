@@ -1367,11 +1367,7 @@ void sk_common_release(struct sock *sk)
 
 	xfrm_sk_free_policy(sk);
 
-#ifdef INET_REFCNT_DEBUG
-	if (atomic_read(&sk->sk_refcnt) != 1)
-		printk(KERN_DEBUG "Destruction of the socket %p delayed, c=%d\n",
-		       sk, atomic_read(&sk->sk_refcnt));
-#endif
+	sk_refcnt_debug_release(sk);
 	sock_put(sk);
 }
 
