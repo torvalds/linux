@@ -366,7 +366,7 @@ static void _tw32_flush(struct tg3 *tp, u32 off, u32 val)
 	}
 }
 
-static inline void _tw32_rx_mbox(struct tg3 *tp, u32 off, u32 val)
+static void tg3_write32_rx_mbox(struct tg3 *tp, u32 off, u32 val)
 {
 	void __iomem *mbox = tp->regs + off;
 	writel(val, mbox);
@@ -374,7 +374,7 @@ static inline void _tw32_rx_mbox(struct tg3 *tp, u32 off, u32 val)
 		readl(mbox);
 }
 
-static inline void _tw32_tx_mbox(struct tg3 *tp, u32 off, u32 val)
+static void tg3_write32_tx_mbox(struct tg3 *tp, u32 off, u32 val)
 {
 	void __iomem *mbox = tp->regs + off;
 	writel(val, mbox);
@@ -384,17 +384,23 @@ static inline void _tw32_tx_mbox(struct tg3 *tp, u32 off, u32 val)
 		readl(mbox);
 }
 
-#define tw32_mailbox(reg, val)  writel(((val) & 0xffffffff), tp->regs + (reg))
-#define tw32_rx_mbox(reg, val)  _tw32_rx_mbox(tp, reg, val)
-#define tw32_tx_mbox(reg, val)  _tw32_tx_mbox(tp, reg, val)
+static void tg3_write32(struct tg3 *tp, u32 off, u32 val)
+{
+	writel(val, tp->regs + off);
+}
 
-#define tw32(reg,val)		tg3_write_indirect_reg32(tp,(reg),(val))
+static u32 tg3_read32(struct tg3 *tp, u32 off)
+{
+	return (readl(tp->regs + off)); 
+}
+
+#define tw32_mailbox(reg, val)	tp->write32_mbox(tp, reg, val)
+#define tw32_rx_mbox(reg, val)	tp->write32_rx_mbox(tp, reg, val)
+#define tw32_tx_mbox(reg, val)	tp->write32_tx_mbox(tp, reg, val)
+
+#define tw32(reg,val)		tp->write32(tp, reg, val)
 #define tw32_f(reg,val)		_tw32_flush(tp,(reg),(val))
-#define tw16(reg,val)		writew(((val) & 0xffff), tp->regs + (reg))
-#define tw8(reg,val)		writeb(((val) & 0xff), tp->regs + (reg))
-#define tr32(reg)		readl(tp->regs + (reg))
-#define tr16(reg)		readw(tp->regs + (reg))
-#define tr8(reg)		readb(tp->regs + (reg))
+#define tr32(reg)		tp->read32(tp, reg)
 
 static void tg3_write_mem(struct tg3 *tp, u32 off, u32 val)
 {
@@ -9324,6 +9330,12 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		pci_state_reg |= PCISTATE_RETRY_SAME_DMA;
 		pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, pci_state_reg);
 	}
+
+	tp->read32 = tg3_read32;
+	tp->write32 = tg3_write_indirect_reg32;
+	tp->write32_mbox = tg3_write32;
+	tp->write32_tx_mbox = tg3_write32_tx_mbox;
+	tp->write32_rx_mbox = tg3_write32_rx_mbox;
 
 	/* Get eeprom hw config before calling tg3_set_power_state().
 	 * In particular, the TG3_FLAG_EEPROM_WRITE_PROT flag must be
