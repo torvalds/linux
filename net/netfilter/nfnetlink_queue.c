@@ -30,6 +30,10 @@
 
 #include <asm/atomic.h>
 
+#ifdef CONFIG_BRIDGE_NETFILTER
+#include "../bridge/br_private.h"
+#endif
+
 #define NFQNL_QMAX_DEFAULT 1024
 
 #if 0
@@ -361,6 +365,10 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	size =    NLMSG_SPACE(sizeof(struct nfqnl_msg_packet_hdr))
 		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
 		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
+#ifdef CONFIG_BRIDGE_NETFILTER
+		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
+		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
+#endif
 		+ NLMSG_SPACE(sizeof(u_int32_t))	/* mark */
 		+ NLMSG_SPACE(sizeof(struct nfqnl_msg_packet_hw))
 		+ NLMSG_SPACE(sizeof(struct nfqnl_msg_packet_timestamp));
@@ -412,12 +420,62 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 
 	if (entry->info->indev) {
 		tmp_uint = htonl(entry->info->indev->ifindex);
+#ifndef CONFIG_BRIDGE_NETFILTER
 		NFA_PUT(skb, NFQA_IFINDEX_INDEV, sizeof(tmp_uint), &tmp_uint);
+#else
+		if (entry->info->pf == PF_BRIDGE) {
+			/* Case 1: indev is physical input device, we need to
+			 * look for bridge group (when called from 
+			 * netfilter_bridge) */
+			NFA_PUT(skb, NFQA_IFINDEX_PHYSINDEV, sizeof(tmp_uint), 
+				&tmp_uint);
+			/* this is the bridge group "brX" */
+			tmp_uint = htonl(entry->info->indev->br_port->br->dev->ifindex);
+			NFA_PUT(skb, NFQA_IFINDEX_INDEV, sizeof(tmp_uint),
+				&tmp_uint);
+		} else {
+			/* Case 2: indev is bridge group, we need to look for
+			 * physical device (when called from ipv4) */
+			NFA_PUT(skb, NFQA_IFINDEX_INDEV, sizeof(tmp_uint),
+				&tmp_uint);
+			if (entry->skb->nf_bridge
+			    && entry->skb->nf_bridge->physindev) {
+				tmp_uint = htonl(entry->skb->nf_bridge->physindev->ifindex);
+				NFA_PUT(skb, NFQA_IFINDEX_PHYSINDEV,
+					sizeof(tmp_uint), &tmp_uint);
+			}
+		}
+#endif
 	}
 
 	if (entry->info->outdev) {
 		tmp_uint = htonl(entry->info->outdev->ifindex);
+#ifndef CONFIG_BRIDGE_NETFILTER
 		NFA_PUT(skb, NFQA_IFINDEX_OUTDEV, sizeof(tmp_uint), &tmp_uint);
+#else
+		if (entry->info->pf == PF_BRIDGE) {
+			/* Case 1: outdev is physical output device, we need to
+			 * look for bridge group (when called from 
+			 * netfilter_bridge) */
+			NFA_PUT(skb, NFQA_IFINDEX_PHYSOUTDEV, sizeof(tmp_uint),
+				&tmp_uint);
+			/* this is the bridge group "brX" */
+			tmp_uint = htonl(entry->info->outdev->br_port->br->dev->ifindex);
+			NFA_PUT(skb, NFQA_IFINDEX_OUTDEV, sizeof(tmp_uint),
+				&tmp_uint);
+		} else {
+			/* Case 2: outdev is bridge group, we need to look for
+			 * physical output device (when called from ipv4) */
+			NFA_PUT(skb, NFQA_IFINDEX_OUTDEV, sizeof(tmp_uint),
+				&tmp_uint);
+			if (entry->skb->nf_bridge
+			    && entry->skb->nf_bridge->physoutdev) {
+				tmp_uint = htonl(entry->skb->nf_bridge->physoutdev->ifindex);
+				NFA_PUT(skb, NFQA_IFINDEX_PHYSOUTDEV,
+					sizeof(tmp_uint), &tmp_uint);
+			}
+		}
+#endif
 	}
 
 	if (entry->skb->nfmark) {

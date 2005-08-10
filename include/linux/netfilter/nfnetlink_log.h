@@ -40,6 +40,8 @@ enum nfulnl_attr_type {
 	NFULA_TIMESTAMP,		/* nfulnl_msg_packet_timestamp */
 	NFULA_IFINDEX_INDEV,		/* u_int32_t ifindex */
 	NFULA_IFINDEX_OUTDEV,		/* u_int32_t ifindex */
+	NFULA_IFINDEX_PHYSINDEV,	/* u_int32_t ifindex */
+	NFULA_IFINDEX_PHYSOUTDEV,	/* u_int32_t ifindex */
 	NFULA_HWADDR,			/* nfulnl_msg_packet_hw */
 	NFULA_PAYLOAD,			/* opaque data payload */
 	NFULA_PREFIX,			/* string prefix */

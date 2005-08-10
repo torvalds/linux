@@ -36,6 +36,8 @@ enum nfqnl_attr_type {
 	NFQA_TIMESTAMP,			/* nfqnl_msg_packet_timestamp */
 	NFQA_IFINDEX_INDEV,		/* u_int32_t ifindex */
 	NFQA_IFINDEX_OUTDEV,		/* u_int32_t ifindex */
+	NFQA_IFINDEX_PHYSINDEV,		/* u_int32_t ifindex */
+	NFQA_IFINDEX_PHYSOUTDEV,	/* u_int32_t ifindex */
 	NFQA_HWADDR,			/* nfqnl_msg_packet_hw */
 	NFQA_PAYLOAD,			/* opaque data payload */
 

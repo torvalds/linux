@@ -33,6 +33,10 @@
 
 #include <asm/atomic.h>
 
+#ifdef CONFIG_BRIDGE_NETFILTER
+#include "../bridge/br_private.h"
+#endif
+
 #define NFULNL_NLBUFSIZ_DEFAULT	4096
 #define NFULNL_TIMEOUT_DEFAULT 	100	/* every second */
 #define NFULNL_QTHRESH_DEFAULT 	100	/* 100 packets */
@@ -412,14 +416,64 @@ __build_packet_message(struct nfulnl_instance *inst,
 
 	if (indev) {
 		tmp_uint = htonl(indev->ifindex);
+#ifndef CONFIG_BRIDGE_NETFILTER
 		NFA_PUT(inst->skb, NFULA_IFINDEX_INDEV, sizeof(tmp_uint),
 			&tmp_uint);
+#else
+		if (pf == PF_BRIDGE) {
+			/* Case 1: outdev is physical input device, we need to
+			 * look for bridge group (when called from
+			 * netfilter_bridge) */
+			NFA_PUT(inst->skb, NFULA_IFINDEX_PHYSINDEV,
+				sizeof(tmp_uint), &tmp_uint);
+			/* this is the bridge group "brX" */
+			tmp_uint = htonl(indev->br_port->br->dev->ifindex);
+			NFA_PUT(inst->skb, NFULA_IFINDEX_INDEV,
+				sizeof(tmp_uint), &tmp_uint);
+		} else {
+			/* Case 2: indev is bridge group, we need to look for
+			 * physical device (when called from ipv4) */
+			NFA_PUT(inst->skb, NFULA_IFINDEX_INDEV,
+				sizeof(tmp_uint), &tmp_uint);
+			if (skb->nf_bridge && skb->nf_bridge->physindev) {
+				tmp_uint = 
+				    htonl(skb->nf_bridge->physindev->ifindex);
+				NFA_PUT(inst->skb, NFULA_IFINDEX_PHYSINDEV,
+					sizeof(tmp_uint), &tmp_uint);
+			}
+		}
+#endif
 	}
 
 	if (outdev) {
 		tmp_uint = htonl(outdev->ifindex);
+#ifndef CONFIG_BRIDGE_NETFILTER
 		NFA_PUT(inst->skb, NFULA_IFINDEX_OUTDEV, sizeof(tmp_uint),
 			&tmp_uint);
+#else
+		if (pf == PF_BRIDGE) {
+			/* Case 1: outdev is physical output device, we need to
+			 * look for bridge group (when called from
+			 * netfilter_bridge) */
+			NFA_PUT(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
+				sizeof(tmp_uint), &tmp_uint);
+			/* this is the bridge group "brX" */
+			tmp_uint = htonl(outdev->br_port->br->dev->ifindex);
+			NFA_PUT(inst->skb, NFULA_IFINDEX_OUTDEV,
+				sizeof(tmp_uint), &tmp_uint);
+		} else {
+			/* Case 2: indev is a bridge group, we need to look
+			 * for physical device (when called from ipv4) */
+			NFA_PUT(inst->skb, NFULA_IFINDEX_OUTDEV,
+				sizeof(tmp_uint), &tmp_uint);
+			if (skb->nf_bridge) {
+				tmp_uint = 
+				    htonl(skb->nf_bridge->physoutdev->ifindex);
+				NFA_PUT(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
+					sizeof(tmp_uint), &tmp_uint);
+			}
+		}
+#endif
 	}
 
 	if (skb->nfmark) {
@@ -536,6 +590,10 @@ nfulnl_log_packet(unsigned int pf,
 		+ NFA_SPACE(sizeof(struct nfulnl_msg_packet_hdr))
 		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
 		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
+#ifdef CONFIG_BRIDGE_NETFILTER
+		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
+		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
+#endif
 		+ NFA_SPACE(sizeof(u_int32_t))	/* mark */
 		+ NFA_SPACE(sizeof(u_int32_t))	/* uid */
 		+ NFA_SPACE(NFULNL_PREFIXLEN)	/* prefix */
