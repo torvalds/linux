@@ -106,16 +106,18 @@ icmp_print_range(char *buffer, const struct ip_nat_range *range)
 	else return 0;
 }
 
-struct ip_nat_protocol ip_nat_protocol_icmp
-= { "ICMP", IPPROTO_ICMP, THIS_MODULE,
-    icmp_manip_pkt,
-    icmp_in_range,
-    icmp_unique_tuple,
-    icmp_print,
-    icmp_print_range,
+struct ip_nat_protocol ip_nat_protocol_icmp = {
+	.name			= "ICMP",
+	.protonum		= IPPROTO_ICMP,
+	.me			= THIS_MODULE,
+	.manip_pkt		= icmp_manip_pkt,
+	.in_range		= icmp_in_range,
+	.unique_tuple		= icmp_unique_tuple,
+	.print			= icmp_print,
+	.print_range		= icmp_print_range,
 #if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
     defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
-    ip_nat_port_range_to_nfattr,
-    ip_nat_port_nfattr_to_range,
+	.range_to_nfattr	= ip_nat_port_range_to_nfattr,
+	.nfattr_to_range	= ip_nat_port_nfattr_to_range,
 #endif
 };
