@@ -366,6 +366,12 @@ static void _tw32_flush(struct tg3 *tp, u32 off, u32 val)
 	}
 }
 
+static inline void tw32_mailbox_flush(struct tg3 *tp, u32 off, u32 val)
+{
+	tp->write32_mbox(tp, off, val);
+	tp->read32_mbox(tp, off);
+}
+
 static void tg3_write32_tx_mbox(struct tg3 *tp, u32 off, u32 val)
 {
 	void __iomem *mbox = tp->regs + off;
@@ -387,8 +393,10 @@ static u32 tg3_read32(struct tg3 *tp, u32 off)
 }
 
 #define tw32_mailbox(reg, val)	tp->write32_mbox(tp, reg, val)
+#define tw32_mailbox_f(reg, val)	tw32_mailbox_flush(tp, (reg), (val))
 #define tw32_rx_mbox(reg, val)	tp->write32_rx_mbox(tp, reg, val)
 #define tw32_tx_mbox(reg, val)	tp->write32_tx_mbox(tp, reg, val)
+#define tr32_mailbox(reg)	tp->read32_mbox(tp, reg)
 
 #define tw32(reg,val)		tp->write32(tp, reg, val)
 #define tw32_f(reg,val)		_tw32_flush(tp,(reg),(val))
@@ -420,8 +428,7 @@ static void tg3_disable_ints(struct tg3 *tp)
 {
 	tw32(TG3PCI_MISC_HOST_CTRL,
 	     (tp->misc_host_ctrl | MISC_HOST_CTRL_MASK_PCI_INT));
-	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
-	tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
+	tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
 }
 
 static inline void tg3_cond_int(struct tg3 *tp)
@@ -437,9 +444,8 @@ static void tg3_enable_ints(struct tg3 *tp)
 
 	tw32(TG3PCI_MISC_HOST_CTRL,
 	     (tp->misc_host_ctrl & ~MISC_HOST_CTRL_MASK_PCI_INT));
-	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-		     (tp->last_tag << 24));
-	tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
+	tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+		       (tp->last_tag << 24));
 	tg3_cond_int(tp);
 }
 
@@ -3276,9 +3282,8 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			/* No work, shared interrupt perhaps?  re-enable
 			 * interrupts, and flush that PCI write
 			 */
-			tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+			tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 			     	0x00000000);
-			tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
 		}
 	} else {	/* shared interrupt */
 		handled = 0;
@@ -3321,9 +3326,8 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id, struct pt_regs *r
 			/* no work, shared interrupt perhaps?  re-enable
 			 * interrupts, and flush that PCI write
 			 */
-			tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-				     tp->last_tag << 24);
-			tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
+			tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+				       tp->last_tag << 24);
 		}
 	} else {	/* shared interrupt */
 		handled = 0;
@@ -5800,8 +5804,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 	tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
 	udelay(100);
 
-	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0);
-	tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
+	tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0);
 	tp->last_tag = 0;
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS)) {
@@ -6190,7 +6193,8 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	       HOSTCC_MODE_NOW);
 
 	for (i = 0; i < 5; i++) {
-		int_mbox = tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
+		int_mbox = tr32_mailbox(MAILBOX_INTERRUPT_0 +
+					TG3_64BIT_REG_LOW);
 		if (int_mbox != 0)
 			break;
 		msleep(10);
@@ -6590,10 +6594,10 @@ static int tg3_open(struct net_device *dev)
 
 	/* Mailboxes */
 	printk("DEBUG: SNDHOST_PROD[%08x%08x] SNDNIC_PROD[%08x%08x]\n",
-	       tr32(MAILBOX_SNDHOST_PROD_IDX_0 + 0x0),
-	       tr32(MAILBOX_SNDHOST_PROD_IDX_0 + 0x4),
-	       tr32(MAILBOX_SNDNIC_PROD_IDX_0 + 0x0),
-	       tr32(MAILBOX_SNDNIC_PROD_IDX_0 + 0x4));
+	       tr32_mailbox(MAILBOX_SNDHOST_PROD_IDX_0 + 0x0),
+	       tr32_mailbox(MAILBOX_SNDHOST_PROD_IDX_0 + 0x4),
+	       tr32_mailbox(MAILBOX_SNDNIC_PROD_IDX_0 + 0x0),
+	       tr32_mailbox(MAILBOX_SNDNIC_PROD_IDX_0 + 0x4));
 
 	/* NIC side send descriptors. */
 	for (i = 0; i < 6; i++) {
@@ -7893,7 +7897,7 @@ static int tg3_test_loopback(struct tg3 *tp)
 	num_pkts++;
 
 	tw32_tx_mbox(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW, send_idx);
-	tr32(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW);
+	tr32_mailbox(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW);
 
 	udelay(10);
 
@@ -9320,6 +9324,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	/* Default fast path register access methods */
 	tp->read32 = tg3_read32;
 	tp->write32 = tg3_write32;
+	tp->read32_mbox = tg3_read32;
 	tp->write32_mbox = tg3_write32;
 	tp->write32_tx_mbox = tg3_write32;
 	tp->write32_rx_mbox = tg3_write32;

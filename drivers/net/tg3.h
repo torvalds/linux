@@ -2051,6 +2051,7 @@ struct tg3 {
 
 	u32				(*read32) (struct tg3 *, u32);
 	void				(*write32) (struct tg3 *, u32, u32);
+	u32				(*read32_mbox) (struct tg3 *, u32);
 	void				(*write32_mbox) (struct tg3 *, u32,
 							 u32);
 	void __iomem			*regs;
