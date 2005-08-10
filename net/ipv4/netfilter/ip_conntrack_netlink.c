@@ -1490,7 +1490,7 @@ static struct nfnl_callback ctnl_cb[IPCTNL_MSG_MAX] = {
 					    .cap_required = CAP_NET_ADMIN },
 };
 
-static struct nfnl_callback ctnl_exp_cb[IPCTNL_MSG_MAX] = {
+static struct nfnl_callback ctnl_exp_cb[IPCTNL_MSG_EXP_MAX] = {
 	[IPCTNL_MSG_EXP_GET]		= { .call = ctnetlink_get_expect,
 					    .attr_count = CTA_EXPECT_MAX,
 					    .cap_required = CAP_NET_ADMIN },
