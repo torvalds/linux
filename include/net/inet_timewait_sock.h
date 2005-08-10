@@ -19,12 +19,68 @@
 
 #include <linux/ip.h>
 #include <linux/list.h>
+#include <linux/timer.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 #include <net/sock.h>
 #include <net/tcp_states.h>
 
 #include <asm/atomic.h>
+
+struct inet_hashinfo;
+
+#define INET_TWDR_RECYCLE_SLOTS_LOG	5
+#define INET_TWDR_RECYCLE_SLOTS		(1 << INET_TWDR_RECYCLE_SLOTS_LOG)
+
+/*
+ * If time > 4sec, it is "slow" path, no recycling is required,
+ * so that we select tick to get range about 4 seconds.
+ */
+#if HZ <= 16 || HZ > 4096
+# error Unsupported: HZ <= 16 or HZ > 4096
+#elif HZ <= 32
+# define INET_TWDR_RECYCLE_TICK (5 + 2 - INET_TWDR_RECYCLE_SLOTS_LOG)
+#elif HZ <= 64
+# define INET_TWDR_RECYCLE_TICK (6 + 2 - INET_TWDR_RECYCLE_SLOTS_LOG)
+#elif HZ <= 128
+# define INET_TWDR_RECYCLE_TICK (7 + 2 - INET_TWDR_RECYCLE_SLOTS_LOG)
+#elif HZ <= 256
+# define INET_TWDR_RECYCLE_TICK (8 + 2 - INET_TWDR_RECYCLE_SLOTS_LOG)
+#elif HZ <= 512
+# define INET_TWDR_RECYCLE_TICK (9 + 2 - INET_TWDR_RECYCLE_SLOTS_LOG)
+#elif HZ <= 1024
+# define INET_TWDR_RECYCLE_TICK (10 + 2 - INET_TWDR_RECYCLE_SLOTS_LOG)
+#elif HZ <= 2048
+# define INET_TWDR_RECYCLE_TICK (11 + 2 - INET_TWDR_RECYCLE_SLOTS_LOG)
+#else
+# define INET_TWDR_RECYCLE_TICK (12 + 2 - INET_TWDR_RECYCLE_SLOTS_LOG)
+#endif
+
+/* TIME_WAIT reaping mechanism. */
+#define INET_TWDR_TWKILL_SLOTS	8 /* Please keep this a power of 2. */
+
+#define INET_TWDR_TWKILL_QUOTA 100
+
+struct inet_timewait_death_row {
+	/* Short-time timewait calendar */
+	int			twcal_hand;
+	int			twcal_jiffie;
+	struct timer_list	twcal_timer;
+	struct hlist_head	twcal_row[INET_TWDR_RECYCLE_SLOTS];
+
+	spinlock_t		death_lock;
+	int			tw_count;
+	int			period;
+	u32			thread_slots;
+	struct work_struct	twkill_work;
+	struct timer_list	tw_timer;
+	int			slot;
+	struct hlist_head	cells[INET_TWDR_TWKILL_SLOTS];
+	struct inet_hashinfo 	*hashinfo;
+	int			sysctl_tw_recycle;
+	int			sysctl_max_tw_buckets;
+};
 
 #if (BITS_PER_LONG == 64)
 #define INET_TIMEWAIT_ADDRCMP_ALIGN_BYTES 8
@@ -33,7 +89,6 @@
 #endif
 
 struct inet_bind_bucket;
-struct inet_hashinfo;
 
 /*
  * This is a TIME_WAIT sock. It works around the memory consumption

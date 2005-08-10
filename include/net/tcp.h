@@ -29,6 +29,7 @@
 #include <linux/percpu.h>
 
 #include <net/inet_connection_sock.h>
+#include <net/inet_timewait_sock.h>
 #include <net/inet_hashtables.h>
 #include <net/checksum.h>
 #include <net/request_sock.h>
@@ -42,9 +43,9 @@
 extern struct inet_hashinfo tcp_hashinfo;
 
 extern atomic_t tcp_orphan_count;
-extern int tcp_tw_count;
 extern void tcp_time_wait(struct sock *sk, int state, int timeo);
-extern void tcp_tw_deschedule(struct inet_timewait_sock *tw);
+extern void inet_twsk_deschedule(struct inet_timewait_sock *tw,
+				 struct inet_timewait_death_row *twdr);
 
 #define MAX_TCP_HEADER	(128 + MAX_HEADER)
 
@@ -148,33 +149,6 @@ extern void tcp_tw_deschedule(struct inet_timewait_sock *tw);
 					 * timestamps. It must be less than
 					 * minimal timewait lifetime.
 					 */
-
-#define TCP_TW_RECYCLE_SLOTS_LOG	5
-#define TCP_TW_RECYCLE_SLOTS		(1<<TCP_TW_RECYCLE_SLOTS_LOG)
-
-/* If time > 4sec, it is "slow" path, no recycling is required,
-   so that we select tick to get range about 4 seconds.
- */
-
-#if HZ <= 16 || HZ > 4096
-# error Unsupported: HZ <= 16 or HZ > 4096
-#elif HZ <= 32
-# define TCP_TW_RECYCLE_TICK (5+2-TCP_TW_RECYCLE_SLOTS_LOG)
-#elif HZ <= 64
-# define TCP_TW_RECYCLE_TICK (6+2-TCP_TW_RECYCLE_SLOTS_LOG)
-#elif HZ <= 128
-# define TCP_TW_RECYCLE_TICK (7+2-TCP_TW_RECYCLE_SLOTS_LOG)
-#elif HZ <= 256
-# define TCP_TW_RECYCLE_TICK (8+2-TCP_TW_RECYCLE_SLOTS_LOG)
-#elif HZ <= 512
-# define TCP_TW_RECYCLE_TICK (9+2-TCP_TW_RECYCLE_SLOTS_LOG)
-#elif HZ <= 1024
-# define TCP_TW_RECYCLE_TICK (10+2-TCP_TW_RECYCLE_SLOTS_LOG)
-#elif HZ <= 2048
-# define TCP_TW_RECYCLE_TICK (11+2-TCP_TW_RECYCLE_SLOTS_LOG)
-#else
-# define TCP_TW_RECYCLE_TICK (12+2-TCP_TW_RECYCLE_SLOTS_LOG)
-#endif
 /*
  *	TCP option
  */
@@ -209,12 +183,13 @@ extern void tcp_tw_deschedule(struct inet_timewait_sock *tw);
 #define TCP_NAGLE_CORK		2	/* Socket is corked	    */
 #define TCP_NAGLE_PUSH		4	/* Cork is overriden for already queued data */
 
+extern struct inet_timewait_death_row tcp_death_row;
+
 /* sysctl variables for tcp */
 extern int sysctl_tcp_timestamps;
 extern int sysctl_tcp_window_scaling;
 extern int sysctl_tcp_sack;
 extern int sysctl_tcp_fin_timeout;
-extern int sysctl_tcp_tw_recycle;
 extern int sysctl_tcp_keepalive_time;
 extern int sysctl_tcp_keepalive_probes;
 extern int sysctl_tcp_keepalive_intvl;
@@ -229,7 +204,6 @@ extern int sysctl_tcp_stdurg;
 extern int sysctl_tcp_rfc1337;
 extern int sysctl_tcp_abort_on_overflow;
 extern int sysctl_tcp_max_orphans;
-extern int sysctl_tcp_max_tw_buckets;
 extern int sysctl_tcp_fack;
 extern int sysctl_tcp_reordering;
 extern int sysctl_tcp_ecn;

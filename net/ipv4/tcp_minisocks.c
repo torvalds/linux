@@ -35,13 +35,37 @@
 #define SYNC_INIT 1
 #endif
 
-int sysctl_tcp_tw_recycle;
-int sysctl_tcp_max_tw_buckets = NR_FILE*2;
+/* New-style handling of TIME_WAIT sockets. */
+
+static void inet_twdr_hangman(unsigned long data);
+static void inet_twdr_twkill_work(void *data);
+static void inet_twdr_twcal_tick(unsigned long data);
 
 int sysctl_tcp_syncookies = SYNC_INIT; 
 int sysctl_tcp_abort_on_overflow;
 
-static void tcp_tw_schedule(struct inet_timewait_sock *tw, int timeo);
+struct inet_timewait_death_row tcp_death_row = {
+	.sysctl_max_tw_buckets = NR_FILE * 2,
+	.period		= TCP_TIMEWAIT_LEN / INET_TWDR_TWKILL_SLOTS,
+	.death_lock	= SPIN_LOCK_UNLOCKED,
+	.hashinfo	= &tcp_hashinfo,
+	.tw_timer	= TIMER_INITIALIZER(inet_twdr_hangman, 0,
+					    (unsigned long)&tcp_death_row),
+	.twkill_work	= __WORK_INITIALIZER(tcp_death_row.twkill_work,
+					     inet_twdr_twkill_work,
+					     &tcp_death_row),
+/* Short-time timewait calendar */
+
+	.twcal_hand	= -1,
+	.twcal_timer	= TIMER_INITIALIZER(inet_twdr_twcal_tick, 0,
+					    (unsigned long)&tcp_death_row),
+};
+
+EXPORT_SYMBOL_GPL(tcp_death_row);
+
+static void inet_twsk_schedule(struct inet_timewait_sock *tw,
+			       struct inet_timewait_death_row *twdr,
+			       const int timeo);
 
 static __inline__ int tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
 {
@@ -51,10 +75,6 @@ static __inline__ int tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
 		return 1;
 	return (seq == e_win && seq == end_seq);
 }
-
-/* New-style handling of TIME_WAIT sockets. */
-
-int tcp_tw_count;
 
 /* 
  * * Main purpose of TIME-WAIT state is to close connection gracefully,
@@ -132,7 +152,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		if (!th->fin ||
 		    TCP_SKB_CB(skb)->end_seq != tcptw->tw_rcv_nxt + 1) {
 kill_with_rst:
-			tcp_tw_deschedule(tw);
+			inet_twsk_deschedule(tw, &tcp_death_row);
 			inet_twsk_put(tw);
 			return TCP_TW_RST;
 		}
@@ -151,11 +171,11 @@ kill_with_rst:
 		 * do not undertsnad recycling in any case, it not
 		 * a big problem in practice. --ANK */
 		if (tw->tw_family == AF_INET &&
-		    sysctl_tcp_tw_recycle && tcptw->tw_ts_recent_stamp &&
+		    tcp_death_row.sysctl_tw_recycle && tcptw->tw_ts_recent_stamp &&
 		    tcp_v4_tw_remember_stamp(tw))
-			tcp_tw_schedule(tw, tw->tw_timeout);
+			inet_twsk_schedule(tw, &tcp_death_row, tw->tw_timeout);
 		else
-			tcp_tw_schedule(tw, TCP_TIMEWAIT_LEN);
+			inet_twsk_schedule(tw, &tcp_death_row, TCP_TIMEWAIT_LEN);
 		return TCP_TW_ACK;
 	}
 
@@ -188,12 +208,12 @@ kill_with_rst:
 			 */
 			if (sysctl_tcp_rfc1337 == 0) {
 kill:
-				tcp_tw_deschedule(tw);
+				inet_twsk_deschedule(tw, &tcp_death_row);
 				inet_twsk_put(tw);
 				return TCP_TW_SUCCESS;
 			}
 		}
-		tcp_tw_schedule(tw, TCP_TIMEWAIT_LEN);
+		inet_twsk_schedule(tw, &tcp_death_row, TCP_TIMEWAIT_LEN);
 
 		if (tmp_opt.saw_tstamp) {
 			tcptw->tw_ts_recent	  = tmp_opt.rcv_tsval;
@@ -243,7 +263,7 @@ kill:
 		 * Do not reschedule in the last case.
 		 */
 		if (paws_reject || th->ack)
-			tcp_tw_schedule(tw, TCP_TIMEWAIT_LEN);
+			inet_twsk_schedule(tw, &tcp_death_row, TCP_TIMEWAIT_LEN);
 
 		/* Send ACK. Note, we do not put the bucket,
 		 * it will be released by caller.
@@ -263,10 +283,10 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	int recycle_ok = 0;
 
-	if (sysctl_tcp_tw_recycle && tp->rx_opt.ts_recent_stamp)
+	if (tcp_death_row.sysctl_tw_recycle && tp->rx_opt.ts_recent_stamp)
 		recycle_ok = tp->af_specific->remember_stamp(sk);
 
-	if (tcp_tw_count < sysctl_tcp_max_tw_buckets)
+	if (tcp_death_row.tw_count < tcp_death_row.sysctl_max_tw_buckets)
 		tw = inet_twsk_alloc(sk, state);
 
 	if (tw != NULL) {
@@ -306,7 +326,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 				timeo = TCP_TIMEWAIT_LEN;
 		}
 
-		tcp_tw_schedule(tw, timeo);
+		inet_twsk_schedule(tw, &tcp_death_row, timeo);
 		inet_twsk_put(tw);
 	} else {
 		/* Sorry, if we're out of memory, just CLOSE this
@@ -321,26 +341,9 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 	tcp_done(sk);
 }
 
-/* Kill off TIME_WAIT sockets once their lifetime has expired. */
-static int tcp_tw_death_row_slot;
-
-static void tcp_twkill(unsigned long);
-
-/* TIME_WAIT reaping mechanism. */
-#define TCP_TWKILL_SLOTS	8	/* Please keep this a power of 2. */
-#define TCP_TWKILL_PERIOD	(TCP_TIMEWAIT_LEN/TCP_TWKILL_SLOTS)
-
-#define TCP_TWKILL_QUOTA	100
-
-static struct hlist_head tcp_tw_death_row[TCP_TWKILL_SLOTS];
-static DEFINE_SPINLOCK(tw_death_lock);
-static struct timer_list tcp_tw_timer = TIMER_INITIALIZER(tcp_twkill, 0, 0);
-static void twkill_work(void *);
-static DECLARE_WORK(tcp_twkill_work, twkill_work, NULL);
-static u32 twkill_thread_slots;
-
 /* Returns non-zero if quota exceeded.  */
-static int tcp_do_twkill_work(int slot, unsigned int quota)
+static int inet_twdr_do_twkill_work(struct inet_timewait_death_row *twdr,
+				    const int slot)
 {
 	struct inet_timewait_sock *tw;
 	struct hlist_node *node;
@@ -356,19 +359,19 @@ static int tcp_do_twkill_work(int slot, unsigned int quota)
 	killed = 0;
 	ret = 0;
 rescan:
-	inet_twsk_for_each_inmate(tw, node, &tcp_tw_death_row[slot]) {
+	inet_twsk_for_each_inmate(tw, node, &twdr->cells[slot]) {
 		__inet_twsk_del_dead_node(tw);
-		spin_unlock(&tw_death_lock);
-		__inet_twsk_kill(tw, &tcp_hashinfo);
+		spin_unlock(&twdr->death_lock);
+		__inet_twsk_kill(tw, twdr->hashinfo);
 		inet_twsk_put(tw);
 		killed++;
-		spin_lock(&tw_death_lock);
-		if (killed > quota) {
+		spin_lock(&twdr->death_lock);
+		if (killed > INET_TWDR_TWKILL_QUOTA) {
 			ret = 1;
 			break;
 		}
 
-		/* While we dropped tw_death_lock, another cpu may have
+		/* While we dropped twdr->death_lock, another cpu may have
 		 * killed off the next TW bucket in the list, therefore
 		 * do a fresh re-read of the hlist head node with the
 		 * lock reacquired.  We still use the hlist traversal
@@ -377,67 +380,68 @@ rescan:
 		goto rescan;
 	}
 
-	tcp_tw_count -= killed;
+	twdr->tw_count -= killed;
 	NET_ADD_STATS_BH(LINUX_MIB_TIMEWAITED, killed);
 
 	return ret;
 }
 
-static void tcp_twkill(unsigned long dummy)
+static void inet_twdr_hangman(unsigned long data)
 {
-	int need_timer, ret;
+	struct inet_timewait_death_row *twdr;
+	int unsigned need_timer;
 
-	spin_lock(&tw_death_lock);
+	twdr = (struct inet_timewait_death_row *)data;
+	spin_lock(&twdr->death_lock);
 
-	if (tcp_tw_count == 0)
+	if (twdr->tw_count == 0)
 		goto out;
 
 	need_timer = 0;
-	ret = tcp_do_twkill_work(tcp_tw_death_row_slot, TCP_TWKILL_QUOTA);
-	if (ret) {
-		twkill_thread_slots |= (1 << tcp_tw_death_row_slot);
+	if (inet_twdr_do_twkill_work(twdr, twdr->slot)) {
+		twdr->thread_slots |= (1 << twdr->slot);
 		mb();
-		schedule_work(&tcp_twkill_work);
+		schedule_work(&twdr->twkill_work);
 		need_timer = 1;
 	} else {
 		/* We purged the entire slot, anything left?  */
-		if (tcp_tw_count)
+		if (twdr->tw_count)
 			need_timer = 1;
 	}
-	tcp_tw_death_row_slot =
-		((tcp_tw_death_row_slot + 1) & (TCP_TWKILL_SLOTS - 1));
+	twdr->slot = ((twdr->slot + 1) & (INET_TWDR_TWKILL_SLOTS - 1));
 	if (need_timer)
-		mod_timer(&tcp_tw_timer, jiffies + TCP_TWKILL_PERIOD);
+		mod_timer(&twdr->tw_timer, jiffies + twdr->period);
 out:
-	spin_unlock(&tw_death_lock);
+	spin_unlock(&twdr->death_lock);
 }
 
 extern void twkill_slots_invalid(void);
 
-static void twkill_work(void *dummy)
+static void inet_twdr_twkill_work(void *data)
 {
+	struct inet_timewait_death_row *twdr = data;
 	int i;
 
-	if ((TCP_TWKILL_SLOTS - 1) > (sizeof(twkill_thread_slots) * 8))
+	if ((INET_TWDR_TWKILL_SLOTS - 1) > (sizeof(twdr->thread_slots) * 8))
 		twkill_slots_invalid();
 
-	while (twkill_thread_slots) {
-		spin_lock_bh(&tw_death_lock);
-		for (i = 0; i < TCP_TWKILL_SLOTS; i++) {
-			if (!(twkill_thread_slots & (1 << i)))
+	while (twdr->thread_slots) {
+		spin_lock_bh(&twdr->death_lock);
+		for (i = 0; i < INET_TWDR_TWKILL_SLOTS; i++) {
+			if (!(twdr->thread_slots & (1 << i)))
 				continue;
 
-			while (tcp_do_twkill_work(i, TCP_TWKILL_QUOTA) != 0) {
+			while (inet_twdr_do_twkill_work(twdr, i) != 0) {
 				if (need_resched()) {
-					spin_unlock_bh(&tw_death_lock);
+					spin_unlock_bh(&twdr->death_lock);
 					schedule();
-					spin_lock_bh(&tw_death_lock);
+					spin_lock_bh(&twdr->death_lock);
 				}
 			}
 
-			twkill_thread_slots &= ~(1 << i);
+			twdr->thread_slots &= ~(1 << i);
 		}
-		spin_unlock_bh(&tw_death_lock);
+		spin_unlock_bh(&twdr->death_lock);
 	}
 }
 
@@ -446,28 +450,22 @@ static void twkill_work(void *dummy)
  */
 
 /* This is for handling early-kills of TIME_WAIT sockets. */
-void tcp_tw_deschedule(struct inet_timewait_sock *tw)
+void inet_twsk_deschedule(struct inet_timewait_sock *tw,
+			  struct inet_timewait_death_row *twdr)
 {
-	spin_lock(&tw_death_lock);
+	spin_lock(&twdr->death_lock);
 	if (inet_twsk_del_dead_node(tw)) {
 		inet_twsk_put(tw);
-		if (--tcp_tw_count == 0)
-			del_timer(&tcp_tw_timer);
+		if (--twdr->tw_count == 0)
+			del_timer(&twdr->tw_timer);
 	}
-	spin_unlock(&tw_death_lock);
-	__inet_twsk_kill(tw, &tcp_hashinfo);
+	spin_unlock(&twdr->death_lock);
+	__inet_twsk_kill(tw, twdr->hashinfo);
 }
 
-/* Short-time timewait calendar */
-
-static int tcp_twcal_hand = -1;
-static int tcp_twcal_jiffie;
-static void tcp_twcal_tick(unsigned long);
-static struct timer_list tcp_twcal_timer =
-		TIMER_INITIALIZER(tcp_twcal_tick, 0, 0);
-static struct hlist_head tcp_twcal_row[TCP_TW_RECYCLE_SLOTS];
-
-static void tcp_tw_schedule(struct inet_timewait_sock *tw, const int timeo)
+static void inet_twsk_schedule(struct inet_timewait_sock *tw,
+			       struct inet_timewait_death_row *twdr,
+			       const int timeo)
 {
 	struct hlist_head *list;
 	int slot;
@@ -496,100 +494,106 @@ static void tcp_tw_schedule(struct inet_timewait_sock *tw, const int timeo)
 	 * is greater than TS tick!) and detect old duplicates with help
 	 * of PAWS.
 	 */
-	slot = (timeo + (1<<TCP_TW_RECYCLE_TICK) - 1) >> TCP_TW_RECYCLE_TICK;
+	slot = (timeo + (1 << INET_TWDR_RECYCLE_TICK) - 1) >> INET_TWDR_RECYCLE_TICK;
 
-	spin_lock(&tw_death_lock);
+	spin_lock(&twdr->death_lock);
 
 	/* Unlink it, if it was scheduled */
 	if (inet_twsk_del_dead_node(tw))
-		tcp_tw_count--;
+		twdr->tw_count--;
 	else
 		atomic_inc(&tw->tw_refcnt);
 
-	if (slot >= TCP_TW_RECYCLE_SLOTS) {
+	if (slot >= INET_TWDR_RECYCLE_SLOTS) {
 		/* Schedule to slow timer */
 		if (timeo >= TCP_TIMEWAIT_LEN) {
-			slot = TCP_TWKILL_SLOTS-1;
+			slot = INET_TWDR_TWKILL_SLOTS - 1;
 		} else {
-			slot = (timeo + TCP_TWKILL_PERIOD-1) / TCP_TWKILL_PERIOD;
-			if (slot >= TCP_TWKILL_SLOTS)
-				slot = TCP_TWKILL_SLOTS-1;
+			slot = (timeo + twdr->period - 1) / twdr->period;
+			if (slot >= INET_TWDR_TWKILL_SLOTS)
+				slot = INET_TWDR_TWKILL_SLOTS - 1;
 		}
 		tw->tw_ttd = jiffies + timeo;
-		slot = (tcp_tw_death_row_slot + slot) & (TCP_TWKILL_SLOTS - 1);
-		list = &tcp_tw_death_row[slot];
+		slot = (twdr->slot + slot) & (INET_TWDR_TWKILL_SLOTS - 1);
+		list = &twdr->cells[slot];
 	} else {
-		tw->tw_ttd = jiffies + (slot << TCP_TW_RECYCLE_TICK);
+		tw->tw_ttd = jiffies + (slot << INET_TWDR_RECYCLE_TICK);
 
-		if (tcp_twcal_hand < 0) {
-			tcp_twcal_hand = 0;
-			tcp_twcal_jiffie = jiffies;
-			tcp_twcal_timer.expires = tcp_twcal_jiffie + (slot<<TCP_TW_RECYCLE_TICK);
-			add_timer(&tcp_twcal_timer);
+		if (twdr->twcal_hand < 0) {
+			twdr->twcal_hand = 0;
+			twdr->twcal_jiffie = jiffies;
+			twdr->twcal_timer.expires = twdr->twcal_jiffie +
+					      (slot << INET_TWDR_RECYCLE_TICK);
+			add_timer(&twdr->twcal_timer);
 		} else {
-			if (time_after(tcp_twcal_timer.expires, jiffies + (slot<<TCP_TW_RECYCLE_TICK)))
-				mod_timer(&tcp_twcal_timer, jiffies + (slot<<TCP_TW_RECYCLE_TICK));
-			slot = (tcp_twcal_hand + slot)&(TCP_TW_RECYCLE_SLOTS-1);
+			if (time_after(twdr->twcal_timer.expires,
+				       jiffies + (slot << INET_TWDR_RECYCLE_TICK)))
+				mod_timer(&twdr->twcal_timer,
+					  jiffies + (slot << INET_TWDR_RECYCLE_TICK));
+			slot = (twdr->twcal_hand + slot) & (INET_TWDR_RECYCLE_SLOTS - 1);
 		}
-		list = &tcp_twcal_row[slot];
+		list = &twdr->twcal_row[slot];
 	}
 
 	hlist_add_head(&tw->tw_death_node, list);
 
-	if (tcp_tw_count++ == 0)
-		mod_timer(&tcp_tw_timer, jiffies+TCP_TWKILL_PERIOD);
-	spin_unlock(&tw_death_lock);
+	if (twdr->tw_count++ == 0)
+		mod_timer(&twdr->tw_timer, jiffies + twdr->period);
+	spin_unlock(&twdr->death_lock);
 }
 
-void tcp_twcal_tick(unsigned long dummy)
+void inet_twdr_twcal_tick(unsigned long data)
 {
+	struct inet_timewait_death_row *twdr;
 	int n, slot;
 	unsigned long j;
 	unsigned long now = jiffies;
 	int killed = 0;
 	int adv = 0;
 
-	spin_lock(&tw_death_lock);
-	if (tcp_twcal_hand < 0)
+	twdr = (struct inet_timewait_death_row *)data;
+
+	spin_lock(&twdr->death_lock);
+	if (twdr->twcal_hand < 0)
 		goto out;
 
-	slot = tcp_twcal_hand;
-	j = tcp_twcal_jiffie;
+	slot = twdr->twcal_hand;
+	j = twdr->twcal_jiffie;
 
-	for (n=0; n<TCP_TW_RECYCLE_SLOTS; n++) {
+	for (n = 0; n < INET_TWDR_RECYCLE_SLOTS; n++) {
 		if (time_before_eq(j, now)) {
 			struct hlist_node *node, *safe;
 			struct inet_timewait_sock *tw;
 
 			inet_twsk_for_each_inmate_safe(tw, node, safe,
-						       &tcp_twcal_row[slot]) {
+						       &twdr->twcal_row[slot]) {
 				__inet_twsk_del_dead_node(tw);
-				__inet_twsk_kill(tw, &tcp_hashinfo);
+				__inet_twsk_kill(tw, twdr->hashinfo);
 				inet_twsk_put(tw);
 				killed++;
 			}
 		} else {
 			if (!adv) {
 				adv = 1;
-				tcp_twcal_jiffie = j;
-				tcp_twcal_hand = slot;
+				twdr->twcal_jiffie = j;
+				twdr->twcal_hand = slot;
 			}
 
-			if (!hlist_empty(&tcp_twcal_row[slot])) {
-				mod_timer(&tcp_twcal_timer, j);
+			if (!hlist_empty(&twdr->twcal_row[slot])) {
+				mod_timer(&twdr->twcal_timer, j);
 				goto out;
 			}
 		}
-		j += (1<<TCP_TW_RECYCLE_TICK);
-		slot = (slot+1)&(TCP_TW_RECYCLE_SLOTS-1);
+		j += 1 << INET_TWDR_RECYCLE_TICK;
+		slot = (slot + 1) & (INET_TWDR_RECYCLE_SLOTS - 1);
 	}
-	tcp_twcal_hand = -1;
+	twdr->twcal_hand = -1;
 
 out:
-	if ((tcp_tw_count -= killed) == 0)
-		del_timer(&tcp_tw_timer);
+	if ((twdr->tw_count -= killed) == 0)
+		del_timer(&twdr->tw_timer);
 	NET_ADD_STATS_BH(LINUX_MIB_TIMEWAITKILLED, killed);
-	spin_unlock(&tw_death_lock);
+	spin_unlock(&twdr->death_lock);
 }
 
 /* This is not only more efficient than what we used to do, it eliminates
@@ -929,4 +933,4 @@ EXPORT_SYMBOL(tcp_check_req);
 EXPORT_SYMBOL(tcp_child_process);
 EXPORT_SYMBOL(tcp_create_openreq_child);
 EXPORT_SYMBOL(tcp_timewait_state_process);
-EXPORT_SYMBOL(tcp_tw_deschedule);
+EXPORT_SYMBOL(inet_twsk_deschedule);

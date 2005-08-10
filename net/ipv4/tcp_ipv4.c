@@ -199,7 +199,7 @@ unique:
 		NET_INC_STATS_BH(LINUX_MIB_TIMEWAITRECYCLED);
 	} else if (tw) {
 		/* Silly. Should hash-dance instead... */
-		tcp_tw_deschedule(tw);
+		inet_twsk_deschedule(tw, &tcp_death_row);
 		NET_INC_STATS_BH(LINUX_MIB_TIMEWAITRECYCLED);
 
 		inet_twsk_put(tw);
@@ -291,7 +291,7 @@ ok:
  		spin_unlock(&head->lock);
 
  		if (tw) {
- 			tcp_tw_deschedule(tw);
+ 			inet_twsk_deschedule(tw, &tcp_death_row);;
  			inet_twsk_put(tw);
  		}
 
@@ -366,7 +366,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		tp->write_seq		   = 0;
 	}
 
-	if (sysctl_tcp_tw_recycle &&
+	if (tcp_death_row.sysctl_tw_recycle &&
 	    !tp->rx_opt.ts_recent_stamp && rt->rt_dst == daddr) {
 		struct inet_peer *peer = rt_get_peer(rt);
 
@@ -965,7 +965,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		 * are made in the function processing timewait state.
 		 */
 		if (tmp_opt.saw_tstamp &&
-		    sysctl_tcp_tw_recycle &&
+		    tcp_death_row.sysctl_tw_recycle &&
 		    (dst = inet_csk_route_req(sk, req)) != NULL &&
 		    (peer = rt_get_peer((struct rtable *)dst)) != NULL &&
 		    peer->v4daddr == saddr) {
@@ -1305,7 +1305,8 @@ do_time_wait:
 							ntohs(th->dest),
 							inet_iif(skb));
 		if (sk2) {
-			tcp_tw_deschedule((struct inet_timewait_sock *)sk);
+			inet_twsk_deschedule((struct inet_timewait_sock *)sk,
+					     &tcp_death_row);
 			inet_twsk_put((struct inet_timewait_sock *)sk);
 			sk = sk2;
 			goto process;

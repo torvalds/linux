@@ -259,7 +259,7 @@ ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_TCP_MAX_TW_BUCKETS,
 		.procname	= "tcp_max_tw_buckets",
-		.data		= &sysctl_tcp_max_tw_buckets,
+		.data		= &tcp_death_row.sysctl_max_tw_buckets,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -363,7 +363,7 @@ ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_TCP_TW_RECYCLE,
 		.procname	= "tcp_tw_recycle",
-		.data		= &sysctl_tcp_tw_recycle,
+		.data		= &tcp_death_row.sysctl_tw_recycle,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
