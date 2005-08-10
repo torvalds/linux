@@ -9408,6 +9408,12 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		}
 	}
 
+	/* 5700 BX chips need to have their TX producer index mailboxes
+	 * written twice to workaround a bug.
+	 */
+	if (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5700_BX)
+		tp->tg3_flags |= TG3_FLAG_TXD_MBOX_HWBUG;
+
 	/* Back to back register writes can cause problems on this chip,
 	 * the workaround is to read back all reg writes except those to
 	 * mailbox regs.  See tg3_write_indirect_reg32().
@@ -9681,14 +9687,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags |= TG3_FLAG_POLL_SERDES;
 	else
 		tp->tg3_flags &= ~TG3_FLAG_POLL_SERDES;
-
-	/* 5700 BX chips need to have their TX producer index mailboxes
-	 * written twice to workaround a bug.
-	 */
-	if (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5700_BX)
-		tp->tg3_flags |= TG3_FLAG_TXD_MBOX_HWBUG;
-	else
-		tp->tg3_flags &= ~TG3_FLAG_TXD_MBOX_HWBUG;
 
 	/* It seems all chips can get confused if TX buffers
 	 * straddle the 4GB address boundary in some cases.
