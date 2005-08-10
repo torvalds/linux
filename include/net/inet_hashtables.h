@@ -240,4 +240,38 @@ static inline void __inet_hash(struct inet_hashinfo *hashinfo,
 	if (listen_possible && sk->sk_state == TCP_LISTEN)
 		wake_up(&hashinfo->lhash_wait);
 }
+
+static inline void inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk)
+{
+	if (sk->sk_state != TCP_CLOSE) {
+		local_bh_disable();
+		__inet_hash(hashinfo, sk, 1);
+		local_bh_enable();
+	}
+}
+
+static inline void inet_unhash(struct inet_hashinfo *hashinfo, struct sock *sk)
+{
+	rwlock_t *lock;
+
+	if (sk_unhashed(sk))
+		goto out;
+
+	if (sk->sk_state == TCP_LISTEN) {
+		local_bh_disable();
+		inet_listen_wlock(hashinfo);
+		lock = &hashinfo->lhash_lock;
+	} else {
+		struct inet_ehash_bucket *head = &hashinfo->ehash[sk->sk_hashent];
+		lock = &head->lock;
+		write_lock_bh(&head->lock);
+	}
+
+	if (__sk_del_node_init(sk))
+		sock_prot_dec_use(sk->sk_prot);
+	write_unlock_bh(lock);
+out:
+	if (sk->sk_state == TCP_LISTEN)
+		wake_up(&hashinfo->lhash_wait);
+}
 #endif /* _INET_HASHTABLES_H */

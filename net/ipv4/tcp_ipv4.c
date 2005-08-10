@@ -230,37 +230,12 @@ fail:
 
 static void tcp_v4_hash(struct sock *sk)
 {
-	if (sk->sk_state != TCP_CLOSE) {
-		local_bh_disable();
-		__inet_hash(&tcp_hashinfo, sk, 1);
-		local_bh_enable();
-	}
+	inet_hash(&tcp_hashinfo, sk);
 }
 
 void tcp_unhash(struct sock *sk)
 {
-	rwlock_t *lock;
-
-	if (sk_unhashed(sk))
-		goto ende;
-
-	if (sk->sk_state == TCP_LISTEN) {
-		local_bh_disable();
-		inet_listen_wlock(&tcp_hashinfo);
-		lock = &tcp_hashinfo.lhash_lock;
-	} else {
-		struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[sk->sk_hashent];
-		lock = &head->lock;
-		write_lock_bh(&head->lock);
-	}
-
-	if (__sk_del_node_init(sk))
-		sock_prot_dec_use(sk->sk_prot);
-	write_unlock_bh(lock);
-
- ende:
-	if (sk->sk_state == TCP_LISTEN)
-		wake_up(&tcp_hashinfo.lhash_wait);
+	inet_unhash(&tcp_hashinfo, sk);
 }
 
 /* Don't inline this cruft.  Here are some nice properties to
