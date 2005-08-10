@@ -1763,7 +1763,7 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 		nskb = skb->next;
 
 		if (skb->len == 0) {
-			skb_unlink(skb);
+			skb_unlink(skb, queue);
 			kfree_skb(skb);
 			/* 
 			 * N.B. Don't refer to skb or cb after this point

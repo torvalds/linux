@@ -714,7 +714,7 @@ static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (uaddr)
 		memcpy(uaddr, llc_ui_skb_cb(skb), sizeof(*uaddr));
 	msg->msg_namelen = sizeof(*uaddr);
-	if (!skb->list) {
+	if (!skb->next) {
 dgram_free:
 		kfree_skb(skb);
 	}

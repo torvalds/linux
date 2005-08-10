@@ -281,8 +281,6 @@ void kfree_skbmem(struct sk_buff *skb)
 
 void __kfree_skb(struct sk_buff *skb)
 {
-	BUG_ON(skb->list != NULL);
-
 	dst_release(skb->dst);
 #ifdef CONFIG_XFRM
 	secpath_put(skb->sp);
@@ -333,7 +331,6 @@ struct sk_buff *skb_clone(struct sk_buff *skb, unsigned int __nocast gfp_mask)
 #define C(x) n->x = skb->x
 
 	n->next = n->prev = NULL;
-	n->list = NULL;
 	n->sk = NULL;
 	C(stamp);
 	C(dev);
@@ -403,7 +400,6 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	 */
 	unsigned long offset = new->data - old->data;
 
-	new->list	= NULL;
 	new->sk		= NULL;
 	new->dev	= old->dev;
 	new->real_dev	= old->real_dev;
@@ -1342,50 +1338,43 @@ void skb_queue_tail(struct sk_buff_head *list, struct sk_buff *newsk)
 	__skb_queue_tail(list, newsk);
 	spin_unlock_irqrestore(&list->lock, flags);
 }
+
 /**
  *	skb_unlink	-	remove a buffer from a list
  *	@skb: buffer to remove
+ *	@list: list to use
  *
- *	Place a packet after a given packet in a list. The list locks are taken
- *	and this function is atomic with respect to other list locked calls
+ *	Remove a packet from a list. The list locks are taken and this
+ *	function is atomic with respect to other list locked calls
  *
- *	Works even without knowing the list it is sitting on, which can be
- *	handy at times. It also means that THE LIST MUST EXIST when you
- *	unlink. Thus a list must have its contents unlinked before it is
- *	destroyed.
+ *	You must know what list the SKB is on.
  */
-void skb_unlink(struct sk_buff *skb)
+void skb_unlink(struct sk_buff *skb, struct sk_buff_head *list)
 {
-	struct sk_buff_head *list = skb->list;
+	unsigned long flags;
 
-	if (list) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&list->lock, flags);
-		if (skb->list == list)
-			__skb_unlink(skb, skb->list);
-		spin_unlock_irqrestore(&list->lock, flags);
-	}
+	spin_lock_irqsave(&list->lock, flags);
+	__skb_unlink(skb, list);
+	spin_unlock_irqrestore(&list->lock, flags);
 }
-
 
 /**
  *	skb_append	-	append a buffer
  *	@old: buffer to insert after
  *	@newsk: buffer to insert
+ *	@list: list to use
  *
  *	Place a packet after a given packet in a list. The list locks are taken
  *	and this function is atomic with respect to other list locked calls.
  *	A buffer cannot be placed on two lists at the same time.
  */
-
-void skb_append(struct sk_buff *old, struct sk_buff *newsk)
+void skb_append(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head *list)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&old->list->lock, flags);
-	__skb_append(old, newsk);
-	spin_unlock_irqrestore(&old->list->lock, flags);
+	spin_lock_irqsave(&list->lock, flags);
+	__skb_append(old, newsk, list);
+	spin_unlock_irqrestore(&list->lock, flags);
 }
 
 
@@ -1393,19 +1382,21 @@ void skb_append(struct sk_buff *old, struct sk_buff *newsk)
  *	skb_insert	-	insert a buffer
  *	@old: buffer to insert before
  *	@newsk: buffer to insert
+ *	@list: list to use
  *
- *	Place a packet before a given packet in a list. The list locks are taken
- *	and this function is atomic with respect to other list locked calls
+ *	Place a packet before a given packet in a list. The list locks are
+ * 	taken and this function is atomic with respect to other list locked
+ *	calls.
+ *
  *	A buffer cannot be placed on two lists at the same time.
  */
-
-void skb_insert(struct sk_buff *old, struct sk_buff *newsk)
+void skb_insert(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head *list)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&old->list->lock, flags);
-	__skb_insert(newsk, old->prev, old, old->list);
-	spin_unlock_irqrestore(&old->list->lock, flags);
+	spin_lock_irqsave(&list->lock, flags);
+	__skb_insert(newsk, old->prev, old, list);
+	spin_unlock_irqrestore(&list->lock, flags);
 }
 
 #if 0

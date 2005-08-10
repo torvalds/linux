@@ -869,7 +869,7 @@ static void aun_tx_ack(unsigned long seq, int result)
 
 foundit:
 	tx_result(skb->sk, eb->cookie, result);
-	skb_unlink(skb);
+	skb_unlink(skb, &aun_queue);
 	spin_unlock_irqrestore(&aun_queue_lock, flags);
 	kfree_skb(skb);
 }
@@ -947,7 +947,7 @@ static void ab_cleanup(unsigned long h)
 		{
 			tx_result(skb->sk, eb->cookie, 
 				  ECTYPE_TRANSMIT_NOT_PRESENT);
-			skb_unlink(skb);
+			skb_unlink(skb, &aun_queue);
 			kfree_skb(skb);
 		}
 		skb = newskb;

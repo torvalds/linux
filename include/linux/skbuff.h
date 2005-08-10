@@ -204,7 +204,6 @@ struct sk_buff {
 	struct sk_buff		*next;
 	struct sk_buff		*prev;
 
-	struct sk_buff_head	*list;
 	struct sock		*sk;
 	struct timeval		stamp;
 	struct net_device	*dev;
@@ -597,7 +596,6 @@ static inline void __skb_queue_head(struct sk_buff_head *list,
 {
 	struct sk_buff *prev, *next;
 
-	newsk->list = list;
 	list->qlen++;
 	prev = (struct sk_buff *)list;
 	next = prev->next;
@@ -622,7 +620,6 @@ static inline void __skb_queue_tail(struct sk_buff_head *list,
 {
 	struct sk_buff *prev, *next;
 
-	newsk->list = list;
 	list->qlen++;
 	next = (struct sk_buff *)list;
 	prev = next->prev;
@@ -655,7 +652,6 @@ static inline struct sk_buff *__skb_dequeue(struct sk_buff_head *list)
 		next->prev   = prev;
 		prev->next   = next;
 		result->next = result->prev = NULL;
-		result->list = NULL;
 	}
 	return result;
 }
@@ -664,7 +660,7 @@ static inline struct sk_buff *__skb_dequeue(struct sk_buff_head *list)
 /*
  *	Insert a packet on a list.
  */
-extern void        skb_insert(struct sk_buff *old, struct sk_buff *newsk);
+extern void        skb_insert(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head *list);
 static inline void __skb_insert(struct sk_buff *newsk,
 				struct sk_buff *prev, struct sk_buff *next,
 				struct sk_buff_head *list)
@@ -672,24 +668,23 @@ static inline void __skb_insert(struct sk_buff *newsk,
 	newsk->next = next;
 	newsk->prev = prev;
 	next->prev  = prev->next = newsk;
-	newsk->list = list;
 	list->qlen++;
 }
 
 /*
  *	Place a packet after a given packet in a list.
  */
-extern void	   skb_append(struct sk_buff *old, struct sk_buff *newsk);
-static inline void __skb_append(struct sk_buff *old, struct sk_buff *newsk)
+extern void	   skb_append(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head *list);
+static inline void __skb_append(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head *list)
 {
-	__skb_insert(newsk, old, old->next, old->list);
+	__skb_insert(newsk, old, old->next, list);
 }
 
 /*
  * remove sk_buff from list. _Must_ be called atomically, and with
  * the list known..
  */
-extern void	   skb_unlink(struct sk_buff *skb);
+extern void	   skb_unlink(struct sk_buff *skb, struct sk_buff_head *list);
 static inline void __skb_unlink(struct sk_buff *skb, struct sk_buff_head *list)
 {
 	struct sk_buff *next, *prev;
@@ -698,7 +693,6 @@ static inline void __skb_unlink(struct sk_buff *skb, struct sk_buff_head *list)
 	next	   = skb->next;
 	prev	   = skb->prev;
 	skb->next  = skb->prev = NULL;
-	skb->list  = NULL;
 	next->prev = prev;
 	prev->next = next;
 }

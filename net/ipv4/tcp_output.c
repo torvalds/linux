@@ -505,7 +505,7 @@ static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned 
 
 	/* Link BUFF into the send queue. */
 	skb_header_release(buff);
-	__skb_append(skb, buff);
+	__skb_append(skb, buff, &sk->sk_write_queue);
 
 	return 0;
 }
@@ -893,7 +893,7 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len, 
 
 	/* Link BUFF into the send queue. */
 	skb_header_release(buff);
-	__skb_append(skb, buff);
+	__skb_append(skb, buff, &sk->sk_write_queue);
 
 	return 0;
 }
@@ -1238,7 +1238,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		       tcp_skb_pcount(next_skb) != 1);
 
 		/* Ok.  We will be able to collapse the packet. */
-		__skb_unlink(next_skb, next_skb->list);
+		__skb_unlink(next_skb, &sk->sk_write_queue);
 
 		memcpy(skb_put(skb, next_skb_size), next_skb->data, next_skb_size);
 

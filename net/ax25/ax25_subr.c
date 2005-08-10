@@ -76,7 +76,7 @@ void ax25_requeue_frames(ax25_cb *ax25)
 		if (skb_prev == NULL)
 			skb_queue_head(&ax25->write_queue, skb);
 		else
-			skb_append(skb_prev, skb);
+			skb_append(skb_prev, skb, &ax25->write_queue);
 		skb_prev = skb;
 	}
 }

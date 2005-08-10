@@ -2085,7 +2085,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p, s32 *seq_usrtt
 			seq_rtt = now - scb->when;
 		tcp_dec_pcount_approx(&tp->fackets_out, skb);
 		tcp_packets_out_dec(tp, skb);
-		__skb_unlink(skb, skb->list);
+		__skb_unlink(skb, &sk->sk_write_queue);
 		sk_stream_free_skb(sk, skb);
 	}
 
@@ -2853,7 +2853,7 @@ static void tcp_ofo_queue(struct sock *sk)
 
 		if (!after(TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt)) {
 			SOCK_DEBUG(sk, "ofo packet was already received \n");
-			__skb_unlink(skb, skb->list);
+			__skb_unlink(skb, &tp->out_of_order_queue);
 			__kfree_skb(skb);
 			continue;
 		}
@@ -2861,7 +2861,7 @@ static void tcp_ofo_queue(struct sock *sk)
 			   tp->rcv_nxt, TCP_SKB_CB(skb)->seq,
 			   TCP_SKB_CB(skb)->end_seq);
 
-		__skb_unlink(skb, skb->list);
+		__skb_unlink(skb, &tp->out_of_order_queue);
 		__skb_queue_tail(&sk->sk_receive_queue, skb);
 		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
 		if(skb->h.th->fin)
@@ -3027,7 +3027,7 @@ drop:
 		u32 end_seq = TCP_SKB_CB(skb)->end_seq;
 
 		if (seq == TCP_SKB_CB(skb1)->end_seq) {
-			__skb_append(skb1, skb);
+			__skb_append(skb1, skb, &tp->out_of_order_queue);
 
 			if (!tp->rx_opt.num_sacks ||
 			    tp->selective_acks[0].end_seq != seq)
@@ -3071,7 +3071,7 @@ drop:
 			       tcp_dsack_extend(tp, TCP_SKB_CB(skb1)->seq, end_seq);
 			       break;
 		       }
-		       __skb_unlink(skb1, skb1->list);
+		       __skb_unlink(skb1, &tp->out_of_order_queue);
 		       tcp_dsack_extend(tp, TCP_SKB_CB(skb1)->seq, TCP_SKB_CB(skb1)->end_seq);
 		       __kfree_skb(skb1);
 		}
@@ -3088,8 +3088,9 @@ add_sack:
  * simplifies code)
  */
 static void
-tcp_collapse(struct sock *sk, struct sk_buff *head,
-	     struct sk_buff *tail, u32 start, u32 end)
+tcp_collapse(struct sock *sk, struct sk_buff_head *list,
+	     struct sk_buff *head, struct sk_buff *tail,
+	     u32 start, u32 end)
 {
 	struct sk_buff *skb;
 
@@ -3099,7 +3100,7 @@ tcp_collapse(struct sock *sk, struct sk_buff *head,
 		/* No new bits? It is possible on ofo queue. */
 		if (!before(start, TCP_SKB_CB(skb)->end_seq)) {
 			struct sk_buff *next = skb->next;
-			__skb_unlink(skb, skb->list);
+			__skb_unlink(skb, list);
 			__kfree_skb(skb);
 			NET_INC_STATS_BH(LINUX_MIB_TCPRCVCOLLAPSED);
 			skb = next;
@@ -3145,7 +3146,7 @@ tcp_collapse(struct sock *sk, struct sk_buff *head,
 		nskb->mac.raw = nskb->head + (skb->mac.raw-skb->head);
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
 		TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(nskb)->end_seq = start;
-		__skb_insert(nskb, skb->prev, skb, skb->list);
+		__skb_insert(nskb, skb->prev, skb, list);
 		sk_stream_set_owner_r(nskb, sk);
 
 		/* Copy data, releasing collapsed skbs. */
@@ -3164,7 +3165,7 @@ tcp_collapse(struct sock *sk, struct sk_buff *head,
 			}
 			if (!before(start, TCP_SKB_CB(skb)->end_seq)) {
 				struct sk_buff *next = skb->next;
-				__skb_unlink(skb, skb->list);
+				__skb_unlink(skb, list);
 				__kfree_skb(skb);
 				NET_INC_STATS_BH(LINUX_MIB_TCPRCVCOLLAPSED);
 				skb = next;
@@ -3200,7 +3201,8 @@ static void tcp_collapse_ofo_queue(struct sock *sk)
 		if (skb == (struct sk_buff *)&tp->out_of_order_queue ||
 		    after(TCP_SKB_CB(skb)->seq, end) ||
 		    before(TCP_SKB_CB(skb)->end_seq, start)) {
-			tcp_collapse(sk, head, skb, start, end);
+			tcp_collapse(sk, &tp->out_of_order_queue,
+				     head, skb, start, end);
 			head = skb;
 			if (skb == (struct sk_buff *)&tp->out_of_order_queue)
 				break;
@@ -3237,7 +3239,8 @@ static int tcp_prune_queue(struct sock *sk)
 		tp->rcv_ssthresh = min(tp->rcv_ssthresh, 4U * tp->advmss);
 
 	tcp_collapse_ofo_queue(sk);
-	tcp_collapse(sk, sk->sk_receive_queue.next,
+	tcp_collapse(sk, &sk->sk_receive_queue,
+		     sk->sk_receive_queue.next,
 		     (struct sk_buff*)&sk->sk_receive_queue,
 		     tp->copied_seq, tp->rcv_nxt);
 	sk_stream_mem_reclaim(sk);
@@ -3462,7 +3465,7 @@ static void tcp_check_urg(struct sock * sk, struct tcphdr * th)
 		struct sk_buff *skb = skb_peek(&sk->sk_receive_queue);
 		tp->copied_seq++;
 		if (skb && !before(tp->copied_seq, TCP_SKB_CB(skb)->end_seq)) {
-			__skb_unlink(skb, skb->list);
+			__skb_unlink(skb, &sk->sk_receive_queue);
 			__kfree_skb(skb);
 		}
 	}

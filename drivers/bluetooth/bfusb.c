@@ -158,7 +158,7 @@ static int bfusb_send_bulk(struct bfusb *bfusb, struct sk_buff *skb)
 	if (err) {
 		BT_ERR("%s bulk tx submit failed urb %p err %d", 
 					bfusb->hdev->name, urb, err);
-		skb_unlink(skb);
+		skb_unlink(skb, &bfusb->pending_q);
 		usb_free_urb(urb);
 	} else
 		atomic_inc(&bfusb->pending_tx);
@@ -212,7 +212,7 @@ static void bfusb_tx_complete(struct urb *urb, struct pt_regs *regs)
 
 	read_lock(&bfusb->lock);
 
-	skb_unlink(skb);
+	skb_unlink(skb, &bfusb->pending_q);
 	skb_queue_tail(&bfusb->completed_q, skb);
 
 	bfusb_tx_wakeup(bfusb);
@@ -253,7 +253,7 @@ static int bfusb_rx_submit(struct bfusb *bfusb, struct urb *urb)
 	if (err) {
 		BT_ERR("%s bulk rx submit failed urb %p err %d",
 					bfusb->hdev->name, urb, err);
-		skb_unlink(skb);
+		skb_unlink(skb, &bfusb->pending_q);
 		kfree_skb(skb);
 		usb_free_urb(urb);
 	}
@@ -398,7 +398,7 @@ static void bfusb_rx_complete(struct urb *urb, struct pt_regs *regs)
 		buf   += len;
 	}
 
-	skb_unlink(skb);
+	skb_unlink(skb, &bfusb->pending_q);
 	kfree_skb(skb);
 
 	bfusb_rx_submit(bfusb, urb);

@@ -975,7 +975,7 @@ do_fault:
 	if (!skb->len) {
 		if (sk->sk_send_head == skb)
 			sk->sk_send_head = NULL;
-		__skb_unlink(skb, skb->list);
+		__skb_unlink(skb, &sk->sk_write_queue);
 		sk_stream_free_skb(sk, skb);
 	}
 
