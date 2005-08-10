@@ -142,6 +142,9 @@ static inline void inet_twsk_put(struct inet_timewait_sock *tw)
 	}
 }
 
+extern struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
+						  const int state);
+
 extern void __inet_twsk_kill(struct inet_timewait_sock *tw,
 			     struct inet_hashinfo *hashinfo);
 

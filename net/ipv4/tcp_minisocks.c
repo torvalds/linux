@@ -267,37 +267,18 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		recycle_ok = tp->af_specific->remember_stamp(sk);
 
 	if (tcp_tw_count < sysctl_tcp_max_tw_buckets)
-		tw = kmem_cache_alloc(sk->sk_prot_creator->twsk_slab, SLAB_ATOMIC);
+		tw = inet_twsk_alloc(sk, state);
 
 	if (tw != NULL) {
 		struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
-		const struct inet_sock *inet = inet_sk(sk);
 		const int rto = (tp->rto << 2) - (tp->rto >> 1);
 
-		/* Remember our protocol */
-		tw->tw_prot		= sk->sk_prot_creator;
-
-		/* Give us an identity. */
-		tw->tw_daddr		= inet->daddr;
-		tw->tw_rcv_saddr	= inet->rcv_saddr;
-		tw->tw_bound_dev_if	= sk->sk_bound_dev_if;
-		tw->tw_num		= inet->num;
-		tw->tw_state		= TCP_TIME_WAIT;
-		tw->tw_substate		= state;
-		tw->tw_sport		= inet->sport;
-		tw->tw_dport		= inet->dport;
-		tw->tw_family		= sk->sk_family;
-		tw->tw_reuse		= sk->sk_reuse;
 		tw->tw_rcv_wscale	= tp->rx_opt.rcv_wscale;
-		atomic_set(&tw->tw_refcnt, 1);
-
-		tw->tw_hashent		= sk->sk_hashent;
 		tcptw->tw_rcv_nxt	= tp->rcv_nxt;
 		tcptw->tw_snd_nxt	= tp->snd_nxt;
 		tcptw->tw_rcv_wnd	= tcp_receive_window(tp);
 		tcptw->tw_ts_recent	= tp->rx_opt.ts_recent;
 		tcptw->tw_ts_recent_stamp = tp->rx_opt.ts_recent_stamp;
-		inet_twsk_dead_node_init(tw);
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 		if (tw->tw_family == PF_INET6) {
@@ -307,8 +288,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			ipv6_addr_copy(&tcp6tw->tw_v6_daddr, &np->daddr);
 			ipv6_addr_copy(&tcp6tw->tw_v6_rcv_saddr, &np->rcv_saddr);
 			tw->tw_ipv6only = np->ipv6only;
-		} else
-			tw->tw_ipv6only = 0;
+		}
 #endif
 		/* Linkage updates. */
 		__inet_twsk_hashdance(tw, sk, &tcp_hashinfo);

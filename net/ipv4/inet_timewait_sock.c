@@ -81,3 +81,31 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 
 	write_unlock(&ehead->lock);
 }
+
+struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int state)
+{
+	struct inet_timewait_sock *tw = kmem_cache_alloc(sk->sk_prot_creator->twsk_slab,
+							 SLAB_ATOMIC);
+	if (tw != NULL) {
+		const struct inet_sock *inet = inet_sk(sk);
+
+		/* Give us an identity. */
+		tw->tw_daddr	    = inet->daddr;
+		tw->tw_rcv_saddr    = inet->rcv_saddr;
+		tw->tw_bound_dev_if = sk->sk_bound_dev_if;
+		tw->tw_num	    = inet->num;
+		tw->tw_state	    = TCP_TIME_WAIT;
+		tw->tw_substate	    = state;
+		tw->tw_sport	    = inet->sport;
+		tw->tw_dport	    = inet->dport;
+		tw->tw_family	    = sk->sk_family;
+		tw->tw_reuse	    = sk->sk_reuse;
+		tw->tw_hashent	    = sk->sk_hashent;
+		tw->tw_ipv6only	    = 0;
+		tw->tw_prot	    = sk->sk_prot_creator;
+		atomic_set(&tw->tw_refcnt, 1);
+		inet_twsk_dead_node_init(tw);
+	}
+
+	return tw;
+}
