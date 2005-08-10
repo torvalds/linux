@@ -239,4 +239,6 @@ static inline void inet_csk_reqsk_queue_drop(struct sock *sk,
 	reqsk_free(req);
 }
 
+extern void inet_csk_listen_stop(struct sock *sk);
+
 #endif /* _INET_CONNECTION_SOCK_H */

@@ -270,7 +270,7 @@ struct tcp_sock {
 	__u8	frto_counter;	/* Number of new acks after RTO */
 
 	__u8	nonagle;	/* Disable Nagle algorithm?             */
-	__u8	defer_accept;	/* User waits for some data after accept() */
+	/* ONE BYTE HOLE, TRY TO PACK */
 
 /* RTT measurement */
 	__u32	srtt;		/* smoothed round trip time << 3	*/

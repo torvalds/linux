@@ -3831,6 +3831,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 	tcp_parse_options(skb, &tp->rx_opt, 0);
 
 	if (th->ack) {
+		struct inet_connection_sock *icsk;
 		/* rfc793:
 		 * "If the state is SYN-SENT then
 		 *    first check the ACK bit
@@ -3956,7 +3957,11 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 			sk_wake_async(sk, 0, POLL_OUT);
 		}
 
-		if (sk->sk_write_pending || tp->defer_accept || inet_csk(sk)->icsk_ack.pingpong) {
+		icsk = inet_csk(sk);
+
+		if (sk->sk_write_pending ||
+		    icsk->icsk_accept_queue.rskq_defer_accept ||
+		    icsk->icsk_ack.pingpong) {
 			/* Save one ACK. Data will be ready after
 			 * several ticks, if write_pending is set.
 			 *
@@ -3965,8 +3970,8 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 			 * to stand against the temptation 8)     --ANK
 			 */
 			inet_csk_schedule_ack(sk);
-			inet_csk(sk)->icsk_ack.lrcvtime = tcp_time_stamp;
-			inet_csk(sk)->icsk_ack.ato	 = TCP_ATO_MIN;
+			icsk->icsk_ack.lrcvtime = tcp_time_stamp;
+			icsk->icsk_ack.ato	 = TCP_ATO_MIN;
 			tcp_incr_quickack(sk);
 			tcp_enter_quickack_mode(sk);
 			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,

@@ -495,7 +495,7 @@ EXPORT_SYMBOL_GPL(inet_csk_listen_start);
  *	This routine closes sockets which have been at least partially
  *	opened, but not yet accepted.
  */
-static void inet_csk_listen_stop(struct sock *sk)
+void inet_csk_listen_stop(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct request_sock *acc_req;
@@ -1947,15 +1947,15 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		break;
 
 	case TCP_DEFER_ACCEPT:
-		tp->defer_accept = 0;
+		icsk->icsk_accept_queue.rskq_defer_accept = 0;
 		if (val > 0) {
 			/* Translate value in seconds to number of
 			 * retransmits */
-			while (tp->defer_accept < 32 &&
+			while (icsk->icsk_accept_queue.rskq_defer_accept < 32 &&
 			       val > ((TCP_TIMEOUT_INIT / HZ) <<
-				       tp->defer_accept))
-				tp->defer_accept++;
-			tp->defer_accept++;
+				       icsk->icsk_accept_queue.rskq_defer_accept))
+				icsk->icsk_accept_queue.rskq_defer_accept++;
+			icsk->icsk_accept_queue.rskq_defer_accept++;
 		}
 		break;
 
@@ -2058,6 +2058,7 @@ EXPORT_SYMBOL_GPL(tcp_get_info);
 int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		   int __user *optlen)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int val, len;
 
@@ -2095,7 +2096,7 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		val = tp->keepalive_probes ? : sysctl_tcp_keepalive_probes;
 		break;
 	case TCP_SYNCNT:
-		val = inet_csk(sk)->icsk_syn_retries ? : sysctl_tcp_syn_retries;
+		val = icsk->icsk_syn_retries ? : sysctl_tcp_syn_retries;
 		break;
 	case TCP_LINGER2:
 		val = tp->linger2;
@@ -2103,8 +2104,8 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 			val = (val ? : sysctl_tcp_fin_timeout) / HZ;
 		break;
 	case TCP_DEFER_ACCEPT:
-		val = !tp->defer_accept ? 0 : ((TCP_TIMEOUT_INIT / HZ) <<
-					       (tp->defer_accept - 1));
+		val = !icsk->icsk_accept_queue.rskq_defer_accept ? 0 :
+			((TCP_TIMEOUT_INIT / HZ) << (icsk->icsk_accept_queue.rskq_defer_accept - 1));
 		break;
 	case TCP_WINDOW_CLAMP:
 		val = tp->window_clamp;
@@ -2125,7 +2126,7 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		return 0;
 	}
 	case TCP_QUICKACK:
-		val = !inet_csk(sk)->icsk_ack.pingpong;
+		val = !icsk->icsk_ack.pingpong;
 		break;
 
 	case TCP_CONGESTION:

@@ -97,6 +97,7 @@ struct listen_sock {
  *
  * @rskq_accept_head - FIFO head of established children
  * @rskq_accept_tail - FIFO tail of established children
+ * @rskq_defer_accept - User waits for some data after accept()
  * @syn_wait_lock - serializer
  *
  * %syn_wait_lock is necessary only to avoid proc interface having to grab the main
@@ -112,6 +113,8 @@ struct request_sock_queue {
 	struct request_sock	*rskq_accept_head;
 	struct request_sock	*rskq_accept_tail;
 	rwlock_t		syn_wait_lock;
+	u8			rskq_defer_accept;
+	/* 3 bytes hole, try to pack */
 	struct listen_sock	*listen_opt;
 };
 
@@ -254,5 +257,9 @@ static inline void reqsk_queue_hash_req(struct request_sock_queue *queue,
 	lopt->syn_table[hash] = req;
 	write_unlock(&queue->syn_wait_lock);
 }
+
+extern void reqsk_queue_prune(struct request_sock_queue *queue, struct sock *parent,
+			      const unsigned long interval, const unsigned long timeout,
+			      const unsigned long max_rto, int max_retries);
 
 #endif /* _REQUEST_SOCK_H */

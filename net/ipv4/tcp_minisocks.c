@@ -787,9 +787,10 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 	   does sequence test, SYN is truncated, and thus we consider
 	   it a bare ACK.
 
-	   If tp->defer_accept, we silently drop this bare ACK.  Otherwise,
-	   we create an established connection.  Both ends (listening sockets)
-	   accept the new incoming connection and try to talk to each other. 8-)
+	   If icsk->icsk_accept_queue.rskq_defer_accept, we silently drop this
+	   bare ACK.  Otherwise, we create an established connection.  Both
+	   ends (listening sockets) accept the new incoming connection and try
+	   to talk to each other. 8-)
 
 	   Note: This case is both harmless, and rare.  Possibility is about the
 	   same as us discovering intelligent life on another plant tomorrow.
@@ -856,7 +857,8 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 			return NULL;
 
 		/* If TCP_DEFER_ACCEPT is set, drop bare ACK. */
-		if (tp->defer_accept && TCP_SKB_CB(skb)->end_seq == tcp_rsk(req)->rcv_isn + 1) {
+		if (inet_csk(sk)->icsk_accept_queue.rskq_defer_accept &&
+		    TCP_SKB_CB(skb)->end_seq == tcp_rsk(req)->rcv_isn + 1) {
 			inet_rsk(req)->acked = 1;
 			return NULL;
 		}

@@ -423,7 +423,8 @@ extern int			tcp_recvmsg(struct kiocb *iocb, struct sock *sk,
 					    size_t len, int nonblock, 
 					    int flags, int *addr_len);
 
-extern int			tcp_listen_start(struct sock *sk);
+extern int			inet_csk_listen_start(struct sock *sk,
+						      const int nr_table_entries);
 
 extern void			tcp_parse_options(struct sk_buff *skb,
 						  struct tcp_options_received *opt_rx,
