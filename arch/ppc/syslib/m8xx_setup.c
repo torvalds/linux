@@ -57,7 +57,7 @@ unsigned char __res[sizeof(bd_t)];
 extern void m8xx_ide_init(void);
 
 extern unsigned long find_available_memory(void);
-extern void m8xx_cpm_reset(uint cpm_page);
+extern void m8xx_cpm_reset();
 extern void m8xx_wdt_handler_install(bd_t *bp);
 extern void rpxfb_alloc_pages(void);
 extern void cpm_interrupt_init(void);
@@ -70,13 +70,9 @@ board_init(void)
 void __init
 m8xx_setup_arch(void)
 {
-	int	cpm_page;
-
-	cpm_page = (int) alloc_bootmem_pages(PAGE_SIZE);
-
 	/* Reset the Communication Processor Module.
 	*/
-	m8xx_cpm_reset(cpm_page);
+	m8xx_cpm_reset();
 
 #ifdef CONFIG_FB_RPX
 	rpxfb_alloc_pages();

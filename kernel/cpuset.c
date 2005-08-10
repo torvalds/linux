@@ -398,21 +398,31 @@ static int cpuset_path(const struct cpuset *cs, char *buf, int buflen)
  * to continue to serve a useful existence.  Next time it's released,
  * we will get notified again, if it still has 'notify_on_release' set.
  *
- * Note final arg to call_usermodehelper() is 0 - that means
- * don't wait.  Since we are holding the global cpuset_sem here,
- * and we are asking another thread (started from keventd) to rmdir a
- * cpuset, we can't wait - or we'd deadlock with the removing thread
- * on cpuset_sem.
+ * The final arg to call_usermodehelper() is 0, which means don't
+ * wait.  The separate /sbin/cpuset_release_agent task is forked by
+ * call_usermodehelper(), then control in this thread returns here,
+ * without waiting for the release agent task.  We don't bother to
+ * wait because the caller of this routine has no use for the exit
+ * status of the /sbin/cpuset_release_agent task, so no sense holding
+ * our caller up for that.
+ *
+ * The simple act of forking that task might require more memory,
+ * which might need cpuset_sem.  So this routine must be called while
+ * cpuset_sem is not held, to avoid a possible deadlock.  See also
+ * comments for check_for_release(), below.
  */
 
-static int cpuset_release_agent(char *cpuset_str)
+static void cpuset_release_agent(const char *pathbuf)
 {
 	char *argv[3], *envp[3];
 	int i;
 
+	if (!pathbuf)
+		return;
+
 	i = 0;
 	argv[i++] = "/sbin/cpuset_release_agent";
-	argv[i++] = cpuset_str;
+	argv[i++] = (char *)pathbuf;
 	argv[i] = NULL;
 
 	i = 0;
@@ -421,17 +431,29 @@ static int cpuset_release_agent(char *cpuset_str)
 	envp[i++] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
 	envp[i] = NULL;
 
-	return call_usermodehelper(argv[0], argv, envp, 0);
+	call_usermodehelper(argv[0], argv, envp, 0);
+	kfree(pathbuf);
 }
 
 /*
  * Either cs->count of using tasks transitioned to zero, or the
  * cs->children list of child cpusets just became empty.  If this
  * cs is notify_on_release() and now both the user count is zero and
- * the list of children is empty, send notice to user land.
+ * the list of children is empty, prepare cpuset path in a kmalloc'd
+ * buffer, to be returned via ppathbuf, so that the caller can invoke
+ * cpuset_release_agent() with it later on, once cpuset_sem is dropped.
+ * Call here with cpuset_sem held.
+ *
+ * This check_for_release() routine is responsible for kmalloc'ing
+ * pathbuf.  The above cpuset_release_agent() is responsible for
+ * kfree'ing pathbuf.  The caller of these routines is responsible
+ * for providing a pathbuf pointer, initialized to NULL, then
+ * calling check_for_release() with cpuset_sem held and the address
+ * of the pathbuf pointer, then dropping cpuset_sem, then calling
+ * cpuset_release_agent() with pathbuf, as set by check_for_release().
  */
 
-static void check_for_release(struct cpuset *cs)
+static void check_for_release(struct cpuset *cs, char **ppathbuf)
 {
 	if (notify_on_release(cs) && atomic_read(&cs->count) == 0 &&
 	    list_empty(&cs->children)) {
@@ -441,10 +463,9 @@ static void check_for_release(struct cpuset *cs)
 		if (!buf)
 			return;
 		if (cpuset_path(cs, buf, PAGE_SIZE) < 0)
-			goto out;
-		cpuset_release_agent(buf);
-out:
-		kfree(buf);
+			kfree(buf);
+		else
+			*ppathbuf = buf;
 	}
 }
 
@@ -727,14 +748,14 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, char *buf)
 	return 0;
 }
 
-static int attach_task(struct cpuset *cs, char *buf)
+static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 {
 	pid_t pid;
 	struct task_struct *tsk;
 	struct cpuset *oldcs;
 	cpumask_t cpus;
 
-	if (sscanf(buf, "%d", &pid) != 1)
+	if (sscanf(pidbuf, "%d", &pid) != 1)
 		return -EIO;
 	if (cpus_empty(cs->cpus_allowed) || nodes_empty(cs->mems_allowed))
 		return -ENOSPC;
@@ -777,7 +798,7 @@ static int attach_task(struct cpuset *cs, char *buf)
 
 	put_task_struct(tsk);
 	if (atomic_dec_and_test(&oldcs->count))
-		check_for_release(oldcs);
+		check_for_release(oldcs, ppathbuf);
 	return 0;
 }
 
@@ -801,6 +822,7 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 	struct cftype *cft = __d_cft(file->f_dentry);
 	cpuset_filetype_t type = cft->private;
 	char *buffer;
+	char *pathbuf = NULL;
 	int retval = 0;
 
 	/* Crude upper limit on largest legitimate cpulist user might write. */
@@ -841,7 +863,7 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 		retval = update_flag(CS_NOTIFY_ON_RELEASE, cs, buffer);
 		break;
 	case FILE_TASKLIST:
-		retval = attach_task(cs, buffer);
+		retval = attach_task(cs, buffer, &pathbuf);
 		break;
 	default:
 		retval = -EINVAL;
@@ -852,6 +874,7 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 		retval = nbytes;
 out2:
 	up(&cpuset_sem);
+	cpuset_release_agent(pathbuf);
 out1:
 	kfree(buffer);
 	return retval;
@@ -1357,6 +1380,7 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	struct cpuset *cs = dentry->d_fsdata;
 	struct dentry *d;
 	struct cpuset *parent;
+	char *pathbuf = NULL;
 
 	/* the vfs holds both inode->i_sem already */
 
@@ -1376,7 +1400,7 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 		update_cpu_domains(cs);
 	list_del(&cs->sibling);	/* delete my sibling from parent->children */
 	if (list_empty(&parent->children))
-		check_for_release(parent);
+		check_for_release(parent, &pathbuf);
 	spin_lock(&cs->dentry->d_lock);
 	d = dget(cs->dentry);
 	cs->dentry = NULL;
@@ -1384,6 +1408,7 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	cpuset_d_remove_dir(d);
 	dput(d);
 	up(&cpuset_sem);
+	cpuset_release_agent(pathbuf);
 	return 0;
 }
 
@@ -1483,10 +1508,13 @@ void cpuset_exit(struct task_struct *tsk)
 	task_unlock(tsk);
 
 	if (notify_on_release(cs)) {
+		char *pathbuf = NULL;
+
 		down(&cpuset_sem);
 		if (atomic_dec_and_test(&cs->count))
-			check_for_release(cs);
+			check_for_release(cs, &pathbuf);
 		up(&cpuset_sem);
+		cpuset_release_agent(pathbuf);
 	} else {
 		atomic_dec(&cs->count);
 	}

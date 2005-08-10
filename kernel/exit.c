@@ -829,8 +829,10 @@ fastcall NORET_TYPE void do_exit(long code)
 	acct_update_integrals(tsk);
 	update_mem_hiwater(tsk);
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
-	if (group_dead)
+	if (group_dead) {
+ 		del_timer_sync(&tsk->signal->real_timer);
 		acct_process(code);
+	}
 	exit_mm(tsk);
 
 	exit_sem(tsk);

@@ -403,11 +403,9 @@ static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 		sk->sk_send_head = skb;
 }
 
-static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb)
+static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned int mss_now)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	if (skb->len <= tp->mss_cache ||
+	if (skb->len <= mss_now ||
 	    !(sk->sk_route_caps & NETIF_F_TSO)) {
 		/* Avoid the costly divide in the normal
 		 * non-TSO case.
@@ -417,10 +415,10 @@ static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb)
 	} else {
 		unsigned int factor;
 
-		factor = skb->len + (tp->mss_cache - 1);
-		factor /= tp->mss_cache;
+		factor = skb->len + (mss_now - 1);
+		factor /= mss_now;
 		skb_shinfo(skb)->tso_segs = factor;
-		skb_shinfo(skb)->tso_size = tp->mss_cache;
+		skb_shinfo(skb)->tso_size = mss_now;
 	}
 }
 
@@ -429,7 +427,7 @@ static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb)
  * packet to the list.  This won't be called frequently, I hope. 
  * Remember, these are still headerless SKBs at this point.
  */
-static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len)
+static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss_now)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *buff;
@@ -492,8 +490,8 @@ static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len)
 	}
 
 	/* Fix up tso_factor for both original and new SKB.  */
-	tcp_set_skb_tso_segs(sk, skb);
-	tcp_set_skb_tso_segs(sk, buff);
+	tcp_set_skb_tso_segs(sk, skb, mss_now);
+	tcp_set_skb_tso_segs(sk, buff, mss_now);
 
 	if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST) {
 		tp->lost_out += tcp_skb_pcount(skb);
@@ -569,7 +567,7 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 	 * factor and mss.
 	 */
 	if (tcp_skb_pcount(skb) > 1)
-		tcp_set_skb_tso_segs(sk, skb);
+		tcp_set_skb_tso_segs(sk, skb, tcp_current_mss(sk, 1));
 
 	return 0;
 }
@@ -734,12 +732,14 @@ static inline unsigned int tcp_cwnd_test(struct tcp_sock *tp, struct sk_buff *sk
 /* This must be invoked the first time we consider transmitting
  * SKB onto the wire.
  */
-static inline int tcp_init_tso_segs(struct sock *sk, struct sk_buff *skb)
+static inline int tcp_init_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned int mss_now)
 {
 	int tso_segs = tcp_skb_pcount(skb);
 
-	if (!tso_segs) {
-		tcp_set_skb_tso_segs(sk, skb);
+	if (!tso_segs ||
+	    (tso_segs > 1 &&
+	     skb_shinfo(skb)->tso_size != mss_now)) {
+		tcp_set_skb_tso_segs(sk, skb, mss_now);
 		tso_segs = tcp_skb_pcount(skb);
 	}
 	return tso_segs;
@@ -817,7 +817,7 @@ static unsigned int tcp_snd_test(struct sock *sk, struct sk_buff *skb,
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned int cwnd_quota;
 
-	tcp_init_tso_segs(sk, skb);
+	tcp_init_tso_segs(sk, skb, cur_mss);
 
 	if (!tcp_nagle_test(tp, skb, cur_mss, nonagle))
 		return 0;
@@ -854,7 +854,7 @@ int tcp_may_send_now(struct sock *sk, struct tcp_sock *tp)
  * know that all the data is in scatter-gather pages, and that the
  * packet has never been sent out before (and thus is not cloned).
  */
-static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len)
+static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len, unsigned int mss_now)
 {
 	struct sk_buff *buff;
 	int nlen = skb->len - len;
@@ -887,8 +887,8 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len)
 	skb_split(skb, buff, len);
 
 	/* Fix up tso_factor for both original and new SKB.  */
-	tcp_set_skb_tso_segs(sk, skb);
-	tcp_set_skb_tso_segs(sk, buff);
+	tcp_set_skb_tso_segs(sk, skb, mss_now);
+	tcp_set_skb_tso_segs(sk, buff, mss_now);
 
 	/* Link BUFF into the send queue. */
 	skb_header_release(buff);
@@ -972,18 +972,17 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 	if (unlikely(sk->sk_state == TCP_CLOSE))
 		return 0;
 
-	skb = sk->sk_send_head;
-	if (unlikely(!skb))
-		return 0;
-
-	tso_segs = tcp_init_tso_segs(sk, skb);
-	cwnd_quota = tcp_cwnd_test(tp, skb);
-	if (unlikely(!cwnd_quota))
-		goto out;
-
 	sent_pkts = 0;
-	while (likely(tcp_snd_wnd_test(tp, skb, mss_now))) {
+	while ((skb = sk->sk_send_head)) {
+		tso_segs = tcp_init_tso_segs(sk, skb, mss_now);
 		BUG_ON(!tso_segs);
+
+		cwnd_quota = tcp_cwnd_test(tp, skb);
+		if (!cwnd_quota)
+			break;
+
+		if (unlikely(!tcp_snd_wnd_test(tp, skb, mss_now)))
+			break;
 
 		if (tso_segs == 1) {
 			if (unlikely(!tcp_nagle_test(tp, skb, mss_now,
@@ -1006,11 +1005,11 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 					limit = skb->len - trim;
 			}
 			if (skb->len > limit) {
-				if (tso_fragment(sk, skb, limit))
+				if (tso_fragment(sk, skb, limit, mss_now))
 					break;
 			}
 		} else if (unlikely(skb->len > mss_now)) {
-			if (unlikely(tcp_fragment(sk, skb,  mss_now)))
+			if (unlikely(tcp_fragment(sk, skb,  mss_now, mss_now)))
 				break;
 		}
 
@@ -1026,27 +1025,12 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 
 		tcp_minshall_update(tp, mss_now, skb);
 		sent_pkts++;
-
-		/* Do not optimize this to use tso_segs. If we chopped up
-		 * the packet above, tso_segs will no longer be valid.
-		 */
-		cwnd_quota -= tcp_skb_pcount(skb);
-
-		BUG_ON(cwnd_quota < 0);
-		if (!cwnd_quota)
-			break;
-
-		skb = sk->sk_send_head;
-		if (!skb)
-			break;
-		tso_segs = tcp_init_tso_segs(sk, skb);
 	}
 
 	if (likely(sent_pkts)) {
 		tcp_cwnd_validate(sk, tp);
 		return 0;
 	}
-out:
 	return !tp->packets_out && sk->sk_send_head;
 }
 
@@ -1076,7 +1060,7 @@ void tcp_push_one(struct sock *sk, unsigned int mss_now)
 
 	BUG_ON(!skb || skb->len < mss_now);
 
-	tso_segs = tcp_init_tso_segs(sk, skb);
+	tso_segs = tcp_init_tso_segs(sk, skb, mss_now);
 	cwnd_quota = tcp_snd_test(sk, skb, mss_now, TCP_NAGLE_PUSH);
 
 	if (likely(cwnd_quota)) {
@@ -1093,11 +1077,11 @@ void tcp_push_one(struct sock *sk, unsigned int mss_now)
 					limit = skb->len - trim;
 			}
 			if (skb->len > limit) {
-				if (unlikely(tso_fragment(sk, skb, limit)))
+				if (unlikely(tso_fragment(sk, skb, limit, mss_now)))
 					return;
 			}
 		} else if (unlikely(skb->len > mss_now)) {
-			if (unlikely(tcp_fragment(sk, skb, mss_now)))
+			if (unlikely(tcp_fragment(sk, skb, mss_now, mss_now)))
 				return;
 		}
 
@@ -1388,7 +1372,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 		int old_factor = tcp_skb_pcount(skb);
 		int new_factor;
 
-		if (tcp_fragment(sk, skb, cur_mss))
+		if (tcp_fragment(sk, skb, cur_mss, cur_mss))
 			return -ENOMEM; /* We'll try again later. */
 
 		/* New SKB created, account for it. */
@@ -1991,7 +1975,7 @@ int tcp_write_wakeup(struct sock *sk)
 			    skb->len > mss) {
 				seg_size = min(seg_size, mss);
 				TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
-				if (tcp_fragment(sk, skb, seg_size))
+				if (tcp_fragment(sk, skb, seg_size, mss))
 					return -1;
 				/* SWS override triggered forced fragmentation.
 				 * Disable TSO, the connection is too sick. */
@@ -2000,7 +1984,7 @@ int tcp_write_wakeup(struct sock *sk)
 					sk->sk_route_caps &= ~NETIF_F_TSO;
 				}
 			} else if (!tcp_skb_pcount(skb))
-				tcp_set_skb_tso_segs(sk, skb);
+				tcp_set_skb_tso_segs(sk, skb, mss);
 
 			TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
 			TCP_SKB_CB(skb)->when = tcp_time_stamp;

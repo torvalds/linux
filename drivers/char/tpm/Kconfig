@@ -17,6 +17,8 @@ config TCG_TPM
 	  obtained at: <http://sourceforge.net/projects/trousers>.  To 
 	  compile this driver as a module, choose M here; the module 
 	  will be called tpm. If unsure, say N.
+	  Note: For more TPM drivers enable CONFIG_PNP, CONFIG_ACPI_BUS
+	  and CONFIG_PNPACPI.
 
 config TCG_NSC
 	tristate "National Semiconductor TPM Interface"
@@ -36,12 +38,13 @@ config TCG_ATMEL
 	  as a module, choose M here; the module will be called tpm_atmel.
 
 config TCG_INFINEON
-	tristate "Infineon Technologies SLD 9630 TPM Interface"
-	depends on TCG_TPM
+	tristate "Infineon Technologies TPM Interface"
+	depends on TCG_TPM && PNPACPI
 	---help---
 	  If you have a TPM security chip from Infineon Technologies
-	  say Yes and it will be accessible from within Linux.  To
-	  compile this driver as a module, choose M here; the module
+	  (either SLD 9630 TT 1.1 or SLB 9635 TT 1.2) say Yes and it
+	  will be accessible from within Linux.
+	  To compile this driver as a module, choose M here; the module
 	  will be called tpm_infineon.
 	  Further information on this driver and the supported hardware
 	  can be found at http://www.prosec.rub.de/tpm

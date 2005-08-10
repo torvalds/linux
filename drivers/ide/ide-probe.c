@@ -960,15 +960,6 @@ static void save_match(ide_hwif_t *hwif, ide_hwif_t *new, ide_hwif_t **match)
 }
 #endif /* MAX_HWIFS > 1 */
 
-static inline int hwif_to_node(ide_hwif_t *hwif)
-{
-	if (hwif->pci_dev)
-		return pcibus_to_node(hwif->pci_dev->bus);
-	else
-		/* Add ways to determine the node of other busses here */
-		return -1;
-}
-
 /*
  * init request queue
  */

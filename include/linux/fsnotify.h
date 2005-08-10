@@ -44,28 +44,22 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 }
 
 /*
- * fsnotify_unlink - file was unlinked
+ * fsnotify_nameremove - a filename was removed from a directory
  */
-static inline void fsnotify_unlink(struct dentry *dentry, struct inode *dir)
+static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)
 {
-	struct inode *inode = dentry->d_inode;
-
-	inode_dir_notify(dir, DN_DELETE);
-	inotify_inode_queue_event(dir, IN_DELETE, 0, dentry->d_name.name);
-	inotify_inode_queue_event(inode, IN_DELETE_SELF, 0, NULL);
-
-	inotify_inode_is_dead(inode);
+	if (isdir)
+		isdir = IN_ISDIR;
+	dnotify_parent(dentry, DN_DELETE);
+	inotify_dentry_parent_queue_event(dentry, IN_DELETE|isdir, 0, dentry->d_name.name);
 }
 
 /*
- * fsnotify_rmdir - directory was removed
+ * fsnotify_inoderemove - an inode is going away
  */
-static inline void fsnotify_rmdir(struct dentry *dentry, struct inode *inode,
-				  struct inode *dir)
+static inline void fsnotify_inoderemove(struct inode *inode)
 {
-	inode_dir_notify(dir, DN_DELETE);
-	inotify_inode_queue_event(dir,IN_DELETE|IN_ISDIR,0,dentry->d_name.name);
-	inotify_inode_queue_event(inode, IN_DELETE_SELF | IN_ISDIR, 0, NULL);
+	inotify_inode_queue_event(inode, IN_DELETE_SELF, 0, NULL);
 	inotify_inode_is_dead(inode);
 }
 
