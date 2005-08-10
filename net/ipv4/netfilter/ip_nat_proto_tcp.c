@@ -103,7 +103,7 @@ tcp_manip_pkt(struct sk_buff **pskb,
 	if ((*pskb)->len >= hdroff + sizeof(struct tcphdr))
 		hdrsize = sizeof(struct tcphdr);
 
-	if (!skb_ip_make_writable(pskb, hdroff + hdrsize))
+	if (!skb_make_writable(pskb, hdroff + hdrsize))
 		return 0;
 
 	iph = (struct iphdr *)((*pskb)->data + iphdroff);

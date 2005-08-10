@@ -512,8 +512,9 @@ int ip_route_me_harder(struct sk_buff **pskb)
 	return 0;
 }
 EXPORT_SYMBOL(ip_route_me_harder);
+#endif /*CONFIG_INET*/
 
-int skb_ip_make_writable(struct sk_buff **pskb, unsigned int writable_len)
+int skb_make_writable(struct sk_buff **pskb, unsigned int writable_len)
 {
 	struct sk_buff *nskb;
 
@@ -540,8 +541,7 @@ copy_skb:
 	*pskb = nskb;
 	return 1;
 }
-EXPORT_SYMBOL(skb_ip_make_writable);
-#endif /*CONFIG_INET*/
+EXPORT_SYMBOL(skb_make_writable);
 
 /* Internal logging interface, which relies on the real 
    LOG target modules */

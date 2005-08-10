@@ -62,7 +62,7 @@ icmp_manip_pkt(struct sk_buff **pskb,
 	struct icmphdr *hdr;
 	unsigned int hdroff = iphdroff + iph->ihl*4;
 
-	if (!skb_ip_make_writable(pskb, hdroff + sizeof(*hdr)))
+	if (!skb_make_writable(pskb, hdroff + sizeof(*hdr)))
 		return 0;
 
 	hdr = (struct icmphdr *)((*pskb)->data + hdroff);

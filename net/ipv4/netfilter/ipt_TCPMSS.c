@@ -58,7 +58,7 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	unsigned int i;
 	u_int8_t *opt;
 
-	if (!skb_ip_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(pskb, (*pskb)->len))
 		return NF_DROP;
 
 	if ((*pskb)->ip_summed == CHECKSUM_HW &&

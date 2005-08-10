@@ -94,7 +94,7 @@ udp_manip_pkt(struct sk_buff **pskb,
 	u32 oldip, newip;
 	u16 *portptr, newport;
 
-	if (!skb_ip_make_writable(pskb, hdroff + sizeof(*hdr)))
+	if (!skb_make_writable(pskb, hdroff + sizeof(*hdr)))
 		return 0;
 
 	iph = (struct iphdr *)((*pskb)->data + iphdroff);

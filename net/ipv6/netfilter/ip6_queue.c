@@ -384,7 +384,7 @@ ipq_mangle_ipv6(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 		}
 		skb_put(e->skb, diff);
 	}
-	if (!skb_ip_make_writable(&e->skb, v->data_len))
+	if (!skb_make_writable(&e->skb, v->data_len))
 		return -ENOMEM;
 	memcpy(e->skb->data, v->payload, v->data_len);
 	e->skb->ip_summed = CHECKSUM_NONE;

@@ -80,11 +80,6 @@ enum nf_ip_hook_priorities {
 #ifdef __KERNEL__
 extern int ip_route_me_harder(struct sk_buff **pskb);
 
-/* Call this before modifying an existing IP packet: ensures it is
-   modifiable and linear to the point you care about (writable_len).
-   Returns true or false. */
-extern int skb_ip_make_writable(struct sk_buff **pskb,
-				unsigned int writable_len);
 #endif /*__KERNEL__*/
 
 #endif /*__LINUX_IP_NETFILTER_H*/

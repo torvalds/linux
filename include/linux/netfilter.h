@@ -193,6 +193,11 @@ extern void nf_ct_attach(struct sk_buff *, struct sk_buff *);
 /* FIXME: Before cache is ever used, this must be implemented for real. */
 extern void nf_invalidate_cache(int pf);
 
+/* Call this before modifying an existing packet: ensures it is
+   modifiable and linear to the point you care about (writable_len).
+   Returns true or false. */
+extern int skb_make_writable(struct sk_buff **pskb, unsigned int writable_len);
+
 #else /* !CONFIG_NETFILTER */
 #define NF_HOOK(pf, hook, skb, indev, outdev, okfn) (okfn)(skb)
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}

@@ -31,7 +31,7 @@ set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 	    != (einfo->ip_ect & IPT_ECN_IP_MASK)) {
 		u_int16_t diffs[2];
 
-		if (!skb_ip_make_writable(pskb, sizeof(struct iphdr)))
+		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
 			return 0;
 
 		diffs[0] = htons((*pskb)->nh.iph->tos) ^ 0xFFFF;
@@ -66,7 +66,7 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo, int inward)
 	     tcph->cwr == einfo->proto.tcp.cwr)))
 		return 1;
 
-	if (!skb_ip_make_writable(pskb, (*pskb)->nh.iph->ihl*4+sizeof(*tcph)))
+	if (!skb_make_writable(pskb, (*pskb)->nh.iph->ihl*4+sizeof(*tcph)))
 		return 0;
 	tcph = (void *)(*pskb)->nh.iph + (*pskb)->nh.iph->ihl*4;
 

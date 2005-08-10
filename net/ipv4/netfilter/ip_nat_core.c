@@ -359,7 +359,7 @@ manip_pkt(u_int16_t proto,
 	struct iphdr *iph;
 	struct ip_nat_protocol *p;
 
-	if (!skb_ip_make_writable(pskb, iphdroff + sizeof(*iph)))
+	if (!skb_make_writable(pskb, iphdroff + sizeof(*iph)))
 		return 0;
 
 	iph = (void *)(*pskb)->data + iphdroff;
@@ -431,7 +431,7 @@ int icmp_reply_translation(struct sk_buff **pskb,
 	struct ip_conntrack_tuple inner, target;
 	int hdrlen = (*pskb)->nh.iph->ihl * 4;
 
-	if (!skb_ip_make_writable(pskb, hdrlen + sizeof(*inside)))
+	if (!skb_make_writable(pskb, hdrlen + sizeof(*inside)))
 		return 0;
 
 	inside = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
