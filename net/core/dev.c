@@ -1536,17 +1536,14 @@ static int ing_filter(struct sk_buff *skb)
 		__u32 ttl = (__u32) G_TC_RTTL(skb->tc_verd);
 		if (MAX_RED_LOOP < ttl++) {
 			printk("Redir loop detected Dropping packet (%s->%s)\n",
-				skb->input_dev?skb->input_dev->name:"??",skb->dev->name);
+				skb->input_dev->name, skb->dev->name);
 			return TC_ACT_SHOT;
 		}
 
 		skb->tc_verd = SET_TC_RTTL(skb->tc_verd,ttl);
 
 		skb->tc_verd = SET_TC_AT(skb->tc_verd,AT_INGRESS);
-		if (NULL == skb->input_dev) {
-			skb->input_dev = skb->dev;
-			printk("ing_filter:  fixed  %s out %s\n",skb->input_dev->name,skb->dev->name);
-		}
+
 		spin_lock(&dev->ingress_lock);
 		if ((q = dev->qdisc_ingress) != NULL)
 			result = q->enqueue(skb, q);
@@ -1571,6 +1568,9 @@ int netif_receive_skb(struct sk_buff *skb)
 
 	if (!skb->stamp.tv_sec)
 		net_timestamp(&skb->stamp);
+
+	if (!skb->input_dev)
+		skb->input_dev = skb->dev;
 
 	orig_dev = skb_bond(skb);
 
