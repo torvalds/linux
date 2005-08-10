@@ -55,12 +55,10 @@ extern int ccid3_debug;
 #define TFRC_STD_PACKET_SIZE	  256
 #define TFRC_MAX_PACKET_SIZE	65535
 
-#define USEC_IN_SEC                1000000
-
-#define TFRC_INITIAL_TIMEOUT	   (2 * USEC_IN_SEC)
+#define TFRC_INITIAL_TIMEOUT	   (2 * USEC_PER_SEC)
 /* two seconds as per CCID3 spec 11 */
 
-#define TFRC_OPSYS_HALF_TIME_GRAN	(USEC_IN_SEC / (2 * HZ))
+#define TFRC_OPSYS_HALF_TIME_GRAN	(USEC_PER_SEC / (2 * HZ))
 /* above is in usecs - half the scheduling granularity as per RFC3448 4.6 */
 
 #define TFRC_WIN_COUNT_PER_RTT	    4
@@ -155,20 +153,23 @@ static inline void ccid3_hc_tx_set_state(struct sock *sk, enum ccid3_hc_tx_state
 	hctx->ccid3hctx_state = state;
 }
 
-static void timeval_sub(struct timeval large, struct timeval small, struct timeval *result) {
-
+static void timeval_sub(struct timeval large, struct timeval small,
+			struct timeval *result)
+{
 	result->tv_sec = large.tv_sec-small.tv_sec;
 	if (large.tv_usec < small.tv_usec) {
 		(result->tv_sec)--;
-		result->tv_usec = USEC_IN_SEC+large.tv_usec-small.tv_usec;
+		result->tv_usec = USEC_PER_SEC +
+				  large.tv_usec - small.tv_usec;
 	} else
 		result->tv_usec = large.tv_usec-small.tv_usec;
 }
 
-static inline void timeval_fix(struct timeval *tv) {
-	if (tv->tv_usec >= USEC_IN_SEC) {
+static inline void timeval_fix(struct timeval *tv)
+{
+	if (tv->tv_usec >= USEC_PER_SEC) {
 		tv->tv_sec++;
-		tv->tv_usec -= USEC_IN_SEC;
+		tv->tv_usec -= USEC_PER_SEC;
 	}
 }
 
@@ -1185,7 +1186,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			       r_sample);
 
 		/* Update timeout interval */
-		inet_csk(sk)->icsk_rto = max_t(u32, 4 * hctx->ccid3hctx_rtt, USEC_IN_SEC);
+		inet_csk(sk)->icsk_rto = max_t(u32, 4 * hctx->ccid3hctx_rtt,
+					       USEC_PER_SEC);
 
 		/* Update receive rate */
 		hctx->ccid3hctx_x_recv = x_recv;   /* x_recv in bytes per second */
@@ -1210,7 +1212,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 		/* Update next send time */
 		if (hctx->ccid3hctx_t_ipi > (hctx->ccid3hctx_t_nom).tv_usec) {
-			(hctx->ccid3hctx_t_nom).tv_usec += USEC_IN_SEC;
+			hctx->ccid3hctx_t_nom.tv_usec += USEC_PER_SEC;
 			(hctx->ccid3hctx_t_nom).tv_sec--;
 		}
 		/* FIXME - if no feedback then t_ipi can go > 1 second */
@@ -1344,7 +1346,7 @@ static int ccid3_hc_tx_init(struct sock *sk)
 
 	hctx->ccid3hctx_x     = hctx->ccid3hctx_s; /* set transmission rate to 1 packet per second */
 	hctx->ccid3hctx_rtt   = 4; /* See ccid3_hc_tx_packet_sent win_count calculatation */
-	inet_csk(sk)->icsk_rto = USEC_IN_SEC;
+	inet_csk(sk)->icsk_rto = USEC_PER_SEC;
 	hctx->ccid3hctx_state = TFRC_SSTATE_NO_SENT;
 	INIT_LIST_HEAD(&hctx->ccid3hctx_hist);
 	init_timer(&hctx->ccid3hctx_no_feedback_timer);
@@ -1531,7 +1533,8 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 
 		if (delta == 0)
 			delta = 1; /* to prevent divide by zero */
-		hcrx->ccid3hcrx_x_recv = (hcrx->ccid3hcrx_bytes_recv * USEC_IN_SEC) / delta;
+		hcrx->ccid3hcrx_x_recv = (hcrx->ccid3hcrx_bytes_recv *
+					  USEC_PER_SEC) / delta;
 	}
 		break;
 	default:
@@ -1669,7 +1672,7 @@ static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
 	}
 found:
 	timeval_sub(tstamp,tail->dccphrx_tstamp,&tmp_tv);
-	rtt = (tmp_tv.tv_sec * USEC_IN_SEC + tmp_tv.tv_usec) * 4 / interval;
+	rtt = (tmp_tv.tv_sec * USEC_PER_SEC + tmp_tv.tv_usec) * 4 / interval;
 	ccid3_pr_debug("%s, sk=%p, approximated RTT to %uus\n",
 		       dccp_role(sk), sk, rtt);
 	if (rtt == 0)
@@ -1679,7 +1682,7 @@ found:
 	if (delta == 0)
 		delta = 1;
 
-	x_recv = (hcrx->ccid3hcrx_bytes_recv * USEC_IN_SEC) / delta;
+	x_recv = (hcrx->ccid3hcrx_bytes_recv * USEC_PER_SEC) / delta;
 
 	tmp1 = (u64)x_recv * (u64)rtt;
 	do_div(tmp1,10000000);
