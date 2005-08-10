@@ -167,8 +167,8 @@ static void put_child(struct trie *t, struct tnode *tn, int i, struct node *n);
 static void tnode_put_child_reorg(struct tnode *tn, int i, struct node *n, int wasfull);
 static int tnode_child_length(struct tnode *tn);
 static struct node *resize(struct trie *t, struct tnode *tn);
-static struct tnode *inflate(struct trie *t, struct tnode *tn, int *err);
-static struct tnode *halve(struct trie *t, struct tnode *tn, int *err);
+static struct tnode *inflate(struct trie *t, struct tnode *tn);
+static struct tnode *halve(struct trie *t, struct tnode *tn);
 static void tnode_free(struct tnode *tn);
 static void trie_dump_seq(struct seq_file *seq, struct trie *t);
 extern struct fib_alias *fib_find_alias(struct list_head *fah, u8 tos, u32 prio);
@@ -457,6 +457,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 {
 	int i;
 	int err = 0;
+	struct tnode *old_tn;
 
  	if (!tn)
 		return NULL;
@@ -559,9 +560,10 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 	       50 * (tn->full_children + tnode_child_length(tn) - tn->empty_children) >=
 				inflate_threshold * tnode_child_length(tn))) {
 
-		tn = inflate(t, tn, &err);
-
-		if (err) {
+		old_tn = tn;
+		tn = inflate(t, tn);
+		if (IS_ERR(tn)) {
+			tn = old_tn;
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			t->stats.resize_node_skipped++;
 #endif
@@ -581,9 +583,10 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 	       100 * (tnode_child_length(tn) - tn->empty_children) <
 	       halve_threshold * tnode_child_length(tn)) {
 
-		tn = halve(t, tn, &err);
-
-		if (err) {
+		old_tn = tn;
+		tn = halve(t, tn);
+		if (IS_ERR(tn)) {
+			tn = old_tn;
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			t->stats.resize_node_skipped++;
 #endif
@@ -618,7 +621,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 	return (struct node *) tn;
 }
 
-static struct tnode *inflate(struct trie *t, struct tnode *tn, int *err)
+static struct tnode *inflate(struct trie *t, struct tnode *tn)
 {
 	struct tnode *inode;
 	struct tnode *oldtnode = tn;
@@ -629,10 +632,8 @@ static struct tnode *inflate(struct trie *t, struct tnode *tn, int *err)
 
 	tn = tnode_new(oldtnode->key, oldtnode->pos, oldtnode->bits + 1);
 
-	if (!tn) {
-		*err = -ENOMEM;
-		return oldtnode;
-	}
+	if (!tn) 
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * Preallocate and store tnodes before the actual work so we
@@ -653,37 +654,20 @@ static struct tnode *inflate(struct trie *t, struct tnode *tn, int *err)
 
 			left = tnode_new(inode->key&(~m), inode->pos + 1,
 					 inode->bits - 1);
-
-			if (!left) {
-				*err = -ENOMEM;
-				break;
-			}
+			if (!left)
+				goto nomem;
 
 			right = tnode_new(inode->key|m, inode->pos + 1,
 					  inode->bits - 1);
 
-			if (!right) {
-				*err = -ENOMEM;
-				break;
-			}
+                        if (!right) {
+				tnode_free(left);
+				goto nomem;
+                        }
 
 			put_child(t, tn, 2*i, (struct node *) left);
 			put_child(t, tn, 2*i+1, (struct node *) right);
 		}
-	}
-
-	if (*err) {
-		int size = tnode_child_length(tn);
-		int j;
-
-		for (j = 0; j < size; j++)
-			if (tn->child[j])
-				tnode_free((struct tnode *)tn->child[j]);
-
-		tnode_free(tn);
-
-		*err = -ENOMEM;
-		return oldtnode;
 	}
 
 	for (i = 0; i < olen; i++) {
@@ -763,9 +747,22 @@ static struct tnode *inflate(struct trie *t, struct tnode *tn, int *err)
 	}
 	tnode_free(oldtnode);
 	return tn;
+nomem:
+	{
+		int size = tnode_child_length(tn);
+		int j;
+
+		for(j = 0; j < size; j++)
+			if (tn->child[j])
+				tnode_free((struct tnode *)tn->child[j]);
+
+		tnode_free(tn);
+	
+		return ERR_PTR(-ENOMEM);
+	}
 }
 
-static struct tnode *halve(struct trie *t, struct tnode *tn, int *err)
+static struct tnode *halve(struct trie *t, struct tnode *tn)
 {
 	struct tnode *oldtnode = tn;
 	struct node *left, *right;
@@ -776,10 +773,8 @@ static struct tnode *halve(struct trie *t, struct tnode *tn, int *err)
 
 	tn = tnode_new(oldtnode->key, oldtnode->pos, oldtnode->bits - 1);
 
-	if (!tn) {
-		*err = -ENOMEM;
-		return oldtnode;
-	}
+	if (!tn)
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * Preallocate and store tnodes before the actual work so we
@@ -794,29 +789,16 @@ static struct tnode *halve(struct trie *t, struct tnode *tn, int *err)
 
 		/* Two nonempty children */
 		if (left && right)  {
-			struct tnode *newBinNode =
-				tnode_new(left->key, tn->pos + tn->bits, 1);
-
-			if (!newBinNode) {
-				*err = -ENOMEM;
-				break;
-			}
-			put_child(t, tn, i/2, (struct node *)newBinNode);
+			struct tnode *newn;
+  
+			newn = tnode_new(left->key, tn->pos + tn->bits, 1);
+  
+			if (!newn) 
+				goto nomem;
+  
+			put_child(t, tn, i/2, (struct node *)newn);
 		}
-	}
 
-	if (*err) {
-		int size = tnode_child_length(tn);
-		int j;
-
-		for (j = 0; j < size; j++)
-			if (tn->child[j])
-				tnode_free((struct tnode *)tn->child[j]);
-
-		tnode_free(tn);
-
-		*err = -ENOMEM;
-		return oldtnode;
 	}
 
 	for (i = 0; i < olen; i += 2) {
@@ -850,6 +832,19 @@ static struct tnode *halve(struct trie *t, struct tnode *tn, int *err)
 	}
 	tnode_free(oldtnode);
 	return tn;
+nomem:
+	{
+		int size = tnode_child_length(tn);
+		int j;
+
+		for(j = 0; j < size; j++)
+			if (tn->child[j])
+				tnode_free((struct tnode *)tn->child[j]);
+
+		tnode_free(tn);
+	
+		return ERR_PTR(-ENOMEM);
+	}
 }
 
 static void trie_init(struct trie *t)
