@@ -973,6 +973,10 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 		  ? ip_ct_tcp_timeout_max_retrans : *tcp_timeouts[new_state];
 	write_unlock_bh(&tcp_lock);
 
+	ip_conntrack_event_cache(IPCT_PROTOINFO_VOLATILE, skb);
+	if (new_state != old_state)
+		ip_conntrack_event_cache(IPCT_PROTOINFO, skb);
+
 	if (!test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status)) {
 		/* If only reply is a RST, we can consider ourselves not to
 		   have an established connection: this is a fairly common

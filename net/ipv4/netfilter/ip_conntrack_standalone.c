@@ -402,6 +402,7 @@ static unsigned int ip_confirm(unsigned int hooknum,
 			       const struct net_device *out,
 			       int (*okfn)(struct sk_buff *))
 {
+	ip_conntrack_event_cache_init(*pskb);
 	/* We've seen it coming out the other side: confirm it */
 	return ip_conntrack_confirm(pskb);
 }
@@ -419,6 +420,7 @@ static unsigned int ip_conntrack_help(unsigned int hooknum,
 	ct = ip_conntrack_get(*pskb, &ctinfo);
 	if (ct && ct->helper) {
 		unsigned int ret;
+		ip_conntrack_event_cache_init(*pskb);
 		ret = ct->helper->help(pskb, ct, ctinfo);
 		if (ret != NF_ACCEPT)
 			return ret;
@@ -889,6 +891,7 @@ static int init_or_cleanup(int init)
 	return ret;
 
  cleanup:
+	synchronize_net();
 #ifdef CONFIG_SYSCTL
  	unregister_sysctl_table(ip_ct_sysctl_header);
  cleanup_localinops:
@@ -971,6 +974,13 @@ void need_ip_conntrack(void)
 {
 }
 
+#ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
+EXPORT_SYMBOL_GPL(ip_conntrack_chain);
+EXPORT_SYMBOL_GPL(ip_conntrack_expect_chain);
+EXPORT_SYMBOL_GPL(ip_conntrack_register_notifier);
+EXPORT_SYMBOL_GPL(ip_conntrack_unregister_notifier);
+EXPORT_PER_CPU_SYMBOL_GPL(ip_conntrack_ecache);
+#endif
 EXPORT_SYMBOL(ip_conntrack_protocol_register);
 EXPORT_SYMBOL(ip_conntrack_protocol_unregister);
 EXPORT_SYMBOL(ip_ct_get_tuple);

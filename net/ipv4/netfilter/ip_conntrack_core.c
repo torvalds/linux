@@ -37,6 +37,7 @@
 #include <linux/err.h>
 #include <linux/percpu.h>
 #include <linux/moduleparam.h>
+#include <linux/notifier.h>
 
 /* ip_conntrack_lock protects the main hash table, protocol/helper/expected
    registrations, conntrack timers*/
@@ -49,7 +50,7 @@
 #include <linux/netfilter_ipv4/ip_conntrack_core.h>
 #include <linux/netfilter_ipv4/listhelp.h>
 
-#define IP_CONNTRACK_VERSION	"2.1"
+#define IP_CONNTRACK_VERSION	"2.2"
 
 #if 0
 #define DEBUGP printk
@@ -75,6 +76,81 @@ struct ip_conntrack ip_conntrack_untracked;
 unsigned int ip_ct_log_invalid;
 static LIST_HEAD(unconfirmed);
 static int ip_conntrack_vmalloc;
+
+#ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
+struct notifier_block *ip_conntrack_chain;
+struct notifier_block *ip_conntrack_expect_chain;
+
+DEFINE_PER_CPU(struct ip_conntrack_ecache, ip_conntrack_ecache);
+
+static inline void __deliver_cached_events(struct ip_conntrack_ecache *ecache)
+{
+	if (is_confirmed(ecache->ct) && !is_dying(ecache->ct) && ecache->events)
+		notifier_call_chain(&ip_conntrack_chain, ecache->events,
+				    ecache->ct);
+	ecache->events = 0;
+}
+
+void __ip_ct_deliver_cached_events(struct ip_conntrack_ecache *ecache)
+{
+	__deliver_cached_events(ecache);
+}
+
+/* Deliver all cached events for a particular conntrack. This is called
+ * by code prior to async packet handling or freeing the skb */
+void 
+ip_conntrack_deliver_cached_events_for(const struct ip_conntrack *ct)
+{
+	struct ip_conntrack_ecache *ecache = 
+					&__get_cpu_var(ip_conntrack_ecache);
+
+	if (!ct)
+		return;
+
+	if (ecache->ct == ct) {
+		DEBUGP("ecache: delivering event for %p\n", ct);
+		__deliver_cached_events(ecache);
+	} else {
+		if (net_ratelimit())
+			printk(KERN_WARNING "ecache: want to deliver for %p, "
+				"but cache has %p\n", ct, ecache->ct);
+	}
+
+	/* signalize that events have already been delivered */
+	ecache->ct = NULL;
+}
+
+/* Deliver cached events for old pending events, if current conntrack != old */
+void ip_conntrack_event_cache_init(const struct sk_buff *skb)
+{
+	struct ip_conntrack *ct = (struct ip_conntrack *) skb->nfct;
+	struct ip_conntrack_ecache *ecache = 
+					&__get_cpu_var(ip_conntrack_ecache);
+
+	/* take care of delivering potentially old events */
+	if (ecache->ct != ct) {
+		enum ip_conntrack_info ctinfo;
+		/* we have to check, since at startup the cache is NULL */
+		if (likely(ecache->ct)) {
+			DEBUGP("ecache: entered for different conntrack: "
+			       "ecache->ct=%p, skb->nfct=%p. delivering "
+			       "events\n", ecache->ct, ct);
+			__deliver_cached_events(ecache);
+			ip_conntrack_put(ecache->ct);
+		} else {
+			DEBUGP("ecache: entered for conntrack %p, "
+				"cache was clean before\n", ct);
+		}
+
+		/* initialize for this conntrack/packet */
+		ecache->ct = ip_conntrack_get(skb, &ctinfo);
+		/* ecache->events cleared by __deliver_cached_devents() */
+	} else {
+		DEBUGP("ecache: re-entered for conntrack %p.\n", ct);
+	}
+}
+
+#endif /* CONFIG_IP_NF_CONNTRACK_EVENTS */
 
 DEFINE_PER_CPU(struct ip_conntrack_stat, ip_conntrack_stat);
 
@@ -223,6 +299,8 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	IP_NF_ASSERT(atomic_read(&nfct->use) == 0);
 	IP_NF_ASSERT(!timer_pending(&ct->timeout));
 
+	set_bit(IPS_DYING_BIT, &ct->status);
+
 	/* To make sure we don't get any weird locking issues here:
 	 * destroy_conntrack() MUST NOT be called with a write lock
 	 * to ip_conntrack_lock!!! -HW */
@@ -261,6 +339,7 @@ static void death_by_timeout(unsigned long ul_conntrack)
 {
 	struct ip_conntrack *ct = (void *)ul_conntrack;
 
+	ip_conntrack_event(IPCT_DESTROY, ct);
 	write_lock_bh(&ip_conntrack_lock);
 	/* Inside lock so preempt is disabled on module removal path.
 	 * Otherwise we can get spurious warnings. */
@@ -374,6 +453,16 @@ __ip_conntrack_confirm(struct sk_buff **pskb)
 		set_bit(IPS_CONFIRMED_BIT, &ct->status);
 		CONNTRACK_STAT_INC(insert);
 		write_unlock_bh(&ip_conntrack_lock);
+		if (ct->helper)
+			ip_conntrack_event_cache(IPCT_HELPER, *pskb);
+#ifdef CONFIG_IP_NF_NAT_NEEDED
+		if (test_bit(IPS_SRC_NAT_DONE_BIT, &ct->status) ||
+		    test_bit(IPS_DST_NAT_DONE_BIT, &ct->status))
+			ip_conntrack_event_cache(IPCT_NATINFO, *pskb);
+#endif
+		ip_conntrack_event_cache(master_ct(ct) ?
+					 IPCT_RELATED : IPCT_NEW, *pskb);
+
 		return NF_ACCEPT;
 	}
 
@@ -607,7 +696,7 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
 	struct ip_conntrack_protocol *proto;
-	int set_reply;
+	int set_reply = 0;
 	int ret;
 
 	/* Previously seen (loopback or untracked)?  Ignore. */
@@ -666,6 +755,8 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 
 	IP_NF_ASSERT((*pskb)->nfct);
 
+	ip_conntrack_event_cache_init(*pskb);
+
 	ret = proto->packet(ct, *pskb, ctinfo);
 	if (ret < 0) {
 		/* Invalid: inverse of the return code tells
@@ -676,8 +767,8 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 		return -ret;
 	}
 
-	if (set_reply)
-		set_bit(IPS_SEEN_REPLY_BIT, &ct->status);
+	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))
+		ip_conntrack_event_cache(IPCT_STATUS, *pskb);
 
 	return ret;
 }
@@ -824,6 +915,7 @@ int ip_conntrack_expect_related(struct ip_conntrack_expect *expect)
 		evict_oldest_expect(expect->master);
 
 	ip_conntrack_expect_insert(expect);
+	ip_conntrack_expect_event(IPEXP_NEW, expect);
 	ret = 0;
 out:
 	write_unlock_bh(&ip_conntrack_lock);
@@ -861,8 +953,10 @@ int ip_conntrack_helper_register(struct ip_conntrack_helper *me)
 static inline int unhelp(struct ip_conntrack_tuple_hash *i,
 			 const struct ip_conntrack_helper *me)
 {
-	if (tuplehash_to_ctrack(i)->helper == me)
+	if (tuplehash_to_ctrack(i)->helper == me) {
+ 		ip_conntrack_event(IPCT_HELPER, tuplehash_to_ctrack(i));
 		tuplehash_to_ctrack(i)->helper = NULL;
+	}
 	return 0;
 }
 
@@ -924,6 +1018,7 @@ void ip_ct_refresh_acct(struct ip_conntrack *ct,
 		if (del_timer(&ct->timeout)) {
 			ct->timeout.expires = jiffies + extra_jiffies;
 			add_timer(&ct->timeout);
+			ip_conntrack_event_cache(IPCT_REFRESH, skb);
 		}
 		ct_add_counters(ct, ctinfo, skb);
 		write_unlock_bh(&ip_conntrack_lock);
@@ -1012,6 +1107,23 @@ ip_ct_iterate_cleanup(int (*iter)(struct ip_conntrack *i, void *), void *data)
 
 		ip_conntrack_put(ct);
 	}
+
+#ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
+	{
+		/* we need to deliver all cached events in order to drop
+		 * the reference counts */
+		int cpu;
+		for_each_cpu(cpu) {
+			struct ip_conntrack_ecache *ecache = 
+					&per_cpu(ip_conntrack_ecache, cpu);
+			if (ecache->ct) {
+				__ip_ct_deliver_cached_events(ecache);
+				ip_conntrack_put(ecache->ct);
+				ecache->ct = NULL;
+			}
+		}
+	}
+#endif
 }
 
 /* Fast function for those who don't want to parse /proc (and I don't
