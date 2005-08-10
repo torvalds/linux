@@ -794,10 +794,10 @@ void mpic_setup_this_cpu(void)
 
 /*
  * XXX: someone who knows mpic should check this.
- * do we need to eoi the ipi here (see xics comments)?
+ * do we need to eoi the ipi including for kexec cpu here (see xics comments)?
  * or can we reset the mpic in the new kernel?
  */
-void mpic_teardown_this_cpu(void)
+void mpic_teardown_this_cpu(int secondary)
 {
 	struct mpic *mpic = mpic_primary;
 	unsigned long flags;

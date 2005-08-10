@@ -605,9 +605,8 @@ static int yenta_search_res(struct yenta_socket *socket, struct resource *res,
 
 static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type, int addr_start, int addr_end)
 {
-	struct pci_bus *bus;
 	struct resource *root, *res;
-	u32 start, end;
+	struct pci_bus_region region;
 	unsigned mask;
 
 	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
@@ -620,15 +619,13 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 	if (type & IORESOURCE_IO)
 		mask = ~3;
 
-	bus = socket->dev->subordinate;
-	res->name = bus->name;
+	res->name = socket->dev->subordinate->name;
 	res->flags = type;
 
-	start = config_readl(socket, addr_start) & mask;
-	end = config_readl(socket, addr_end) | ~mask;
-	if (start && end > start && !override_bios) {
-		res->start = start;
-		res->end = end;
+	region.start = config_readl(socket, addr_start) & mask;
+	region.end = config_readl(socket, addr_end) | ~mask;
+	if (region.start && region.end > region.start && !override_bios) {
+		pcibios_bus_to_resource(socket->dev, res, &region);
 		root = pci_find_parent_resource(socket->dev, res);
 		if (root && (request_resource(root, res) == 0))
 			return;

@@ -692,7 +692,18 @@ acpi_pci_link_free_irq(acpi_handle handle)
 		return_VALUE(-1);
 	}
 
+#ifdef	FUTURE_USE
+	/*
+	 * The Link reference count allows us to _DISable an unused link
+	 * and suspend time, and set it again  on resume.
+	 * However, 2.6.12 still has irq_router.resume
+	 * which blindly restores the link state.
+	 * So we disable the reference count method
+	 * to prevent duplicate acpi_pci_link_set()
+	 * which would harm some systems
+	 */
 	link->refcnt --;
+#endif
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		"Link %s is dereferenced\n", acpi_device_bid(link->device)));
 
@@ -787,6 +798,11 @@ acpi_pci_link_resume(
 		return_VALUE(0);
 }
 
+/*
+ * FIXME: this is a workaround to avoid nasty warning.  It will be removed
+ * after every device calls pci_disable_device in .resume.
+ */
+int acpi_in_resume;
 static int
 irqrouter_resume(
 	struct sys_device *dev)
@@ -796,6 +812,7 @@ irqrouter_resume(
 
 	ACPI_FUNCTION_TRACE("irqrouter_resume");
 
+	acpi_in_resume = 1;
 	list_for_each(node, &acpi_link.entries) {
 		link = list_entry(node, struct acpi_pci_link, node);
 		if (!link) {
@@ -805,6 +822,7 @@ irqrouter_resume(
 		}
 		acpi_pci_link_resume(link);
 	}
+	acpi_in_resume = 0;
 	return_VALUE(0);
 }
 

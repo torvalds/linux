@@ -1801,7 +1801,6 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 	up(&dentry->d_inode->i_sem);
 	if (!error) {
-		fsnotify_rmdir(dentry, dentry->d_inode, dir);
 		d_delete(dentry);
 	}
 	dput(dentry);
@@ -1874,7 +1873,6 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	/* We don't d_delete() NFS sillyrenamed files--they still exist. */
 	if (!error && !(dentry->d_flags & DCACHE_NFSFS_RENAMED)) {
-		fsnotify_unlink(dentry, dir);
 		d_delete(dentry);
 	}
 

@@ -1,5 +1,5 @@
 /*
-    $Id: bttv-driver.c,v 1.45 2005/07/20 19:43:24 mkrufky Exp $
+    $Id: bttv-driver.c,v 1.52 2005/08/04 00:55:16 mchehab Exp $
 
     bttv - Bt848 frame grabber driver
 
@@ -80,6 +80,7 @@ static unsigned int irq_iswitch = 0;
 static unsigned int uv_ratio    = 50;
 static unsigned int full_luma_range = 0;
 static unsigned int coring      = 0;
+extern int no_overlay;
 
 /* API features (turn on/off stuff for testing) */
 static unsigned int v4l2        = 1;
@@ -2151,6 +2152,10 @@ static int bttv_s_fmt(struct bttv_fh *fh, struct bttv *btv,
 		return 0;
 	}
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+		if (no_overlay > 0) {
+			printk ("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+			return -EINVAL;
+		}
 		return setup_window(fh, btv, &f->fmt.win, 1);
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 		retval = bttv_switch_type(fh,f->type);
@@ -2224,9 +2229,11 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			/* others */
 			cap->type = VID_TYPE_CAPTURE|
 				VID_TYPE_TUNER|
-				VID_TYPE_OVERLAY|
 				VID_TYPE_CLIPPING|
 				VID_TYPE_SCALES;
+			if (no_overlay <= 0)
+				cap->type |= VID_TYPE_OVERLAY;
+
 			cap->maxwidth  = bttv_tvnorms[btv->tvnorm].swidth;
 			cap->maxheight = bttv_tvnorms[btv->tvnorm].sheight;
 			cap->minwidth  = 48;
@@ -2301,6 +2308,11 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct video_window *win = arg;
 		struct v4l2_window w2;
+
+		if (no_overlay > 0) {
+			printk ("VIDIOCSWIN: no_overlay\n");
+			return -EINVAL;
+		}
 
 		w2.field = V4L2_FIELD_ANY;
 		w2.w.left    = win->x;
@@ -2577,10 +2589,12 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		cap->version = BTTV_VERSION_CODE;
 		cap->capabilities =
 			V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_VIDEO_OVERLAY |
 			V4L2_CAP_VBI_CAPTURE |
 			V4L2_CAP_READWRITE |
 			V4L2_CAP_STREAMING;
+		if (no_overlay <= 0)
+			cap->capabilities |= V4L2_CAP_VIDEO_OVERLAY;
+
 		if (bttv_tvcards[btv->c.type].tuner != UNSET &&
 		    bttv_tvcards[btv->c.type].tuner != TUNER_ABSENT)
 			cap->capabilities |= V4L2_CAP_TUNER;
@@ -3076,7 +3090,7 @@ static struct file_operations bttv_fops =
 static struct video_device bttv_video_template =
 {
 	.name     = "UNSET",
-	.type     = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_OVERLAY|
+	.type     = VID_TYPE_CAPTURE|VID_TYPE_TUNER|
 	            VID_TYPE_CLIPPING|VID_TYPE_SCALES,
 	.hardware = VID_HARDWARE_BT848,
 	.fops     = &bttv_fops,
@@ -3756,6 +3770,12 @@ static void bttv_unregister_video(struct bttv *btv)
 /* register video4linux devices */
 static int __devinit bttv_register_video(struct bttv *btv)
 {
+	if (no_overlay <= 0) {
+		bttv_video_template.type |= VID_TYPE_OVERLAY;
+	} else {
+		printk("bttv: Overlay support disabled.\n");
+	}
+
 	/* video */
 	btv->video_dev = vdev_init(btv, &bttv_video_template, "video");
         if (NULL == btv->video_dev)

@@ -719,7 +719,7 @@ struct request *blk_queue_find_tag(request_queue_t *q, int tag)
 {
 	struct blk_queue_tag *bqt = q->queue_tags;
 
-	if (unlikely(bqt == NULL || tag >= bqt->max_depth))
+	if (unlikely(bqt == NULL || tag >= bqt->real_max_depth))
 		return NULL;
 
 	return bqt->tag_index[tag];
@@ -798,6 +798,7 @@ init_tag_map(request_queue_t *q, struct blk_queue_tag *tags, int depth)
 
 	memset(tag_index, 0, depth * sizeof(struct request *));
 	memset(tag_map, 0, nr_ulongs * sizeof(unsigned long));
+	tags->real_max_depth = depth;
 	tags->max_depth = depth;
 	tags->tag_index = tag_index;
 	tags->tag_map = tag_map;
@@ -872,11 +873,22 @@ int blk_queue_resize_tags(request_queue_t *q, int new_depth)
 		return -ENXIO;
 
 	/*
+	 * if we already have large enough real_max_depth.  just
+	 * adjust max_depth.  *NOTE* as requests with tag value
+	 * between new_depth and real_max_depth can be in-flight, tag
+	 * map can not be shrunk blindly here.
+	 */
+	if (new_depth <= bqt->real_max_depth) {
+		bqt->max_depth = new_depth;
+		return 0;
+	}
+
+	/*
 	 * save the old state info, so we can copy it back
 	 */
 	tag_index = bqt->tag_index;
 	tag_map = bqt->tag_map;
-	max_depth = bqt->max_depth;
+	max_depth = bqt->real_max_depth;
 
 	if (init_tag_map(q, bqt, new_depth))
 		return -ENOMEM;
@@ -913,7 +925,7 @@ void blk_queue_end_tag(request_queue_t *q, struct request *rq)
 
 	BUG_ON(tag == -1);
 
-	if (unlikely(tag >= bqt->max_depth))
+	if (unlikely(tag >= bqt->real_max_depth))
 		/*
 		 * This can happen after tag depth has been reduced.
 		 * FIXME: how about a warning or info message here?
