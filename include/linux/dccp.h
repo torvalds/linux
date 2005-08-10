@@ -242,10 +242,15 @@ static inline struct dccp_hdr_ext *dccp_hdrx(const struct sk_buff *skb)
 	return (struct dccp_hdr_ext *)(skb->h.raw + sizeof(struct dccp_hdr));
 }
 
+static inline unsigned int __dccp_basic_hdr_len(const struct dccp_hdr *dh)
+{
+	return sizeof(*dh) + (dh->dccph_x ? sizeof(struct dccp_hdr_ext) : 0);
+}
+
 static inline unsigned int dccp_basic_hdr_len(const struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh = dccp_hdr(skb);
-	return sizeof(*dh) + (dh->dccph_x ? sizeof(struct dccp_hdr_ext) : 0);
+	return __dccp_basic_hdr_len(dh);
 }
 
 static inline __u64 dccp_hdr_seq(const struct sk_buff *skb)
@@ -297,10 +302,15 @@ static inline struct dccp_hdr_reset *dccp_hdr_reset(struct sk_buff *skb)
 	return (struct dccp_hdr_reset *)(skb->h.raw + dccp_basic_hdr_len(skb));
 }
 
+static inline unsigned int __dccp_hdr_len(const struct dccp_hdr *dh)
+{
+	return __dccp_basic_hdr_len(dh) +
+	       dccp_packet_hdr_len(dh->dccph_type);
+}
+
 static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 {
-	return dccp_basic_hdr_len(skb) +
-	       dccp_packet_hdr_len(dccp_hdr(skb)->dccph_type);
+	return __dccp_hdr_len(dccp_hdr(skb));
 }
 
 
