@@ -84,7 +84,7 @@ static __inline__ int tcp_v6_hashfn(struct in6_addr *laddr, u16 lport,
 	hashent ^= (laddr->s6_addr32[3] ^ faddr->s6_addr32[3]);
 	hashent ^= hashent>>16;
 	hashent ^= hashent>>8;
-	return (hashent & (tcp_ehash_size - 1));
+	return (hashent & (tcp_hashinfo.ehash_size - 1));
 }
 
 static __inline__ int tcp_v6_sk_hashfn(struct sock *sk)
@@ -138,15 +138,15 @@ static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 		int remaining = (high - low) + 1;
 		int rover;
 
-		spin_lock(&tcp_portalloc_lock);
-		if (tcp_port_rover < low)
+		spin_lock(&tcp_hashinfo.portalloc_lock);
+		if (tcp_hashinfo.port_rover < low)
 			rover = low;
 		else
-			rover = tcp_port_rover;
+			rover = tcp_hashinfo.port_rover;
 		do {	rover++;
 			if (rover > high)
 				rover = low;
-			head = &tcp_bhash[inet_bhashfn(rover, tcp_bhash_size)];
+			head = &tcp_hashinfo.bhash[inet_bhashfn(rover, tcp_hashinfo.bhash_size)];
 			spin_lock(&head->lock);
 			inet_bind_bucket_for_each(tb, node, &head->chain)
 				if (tb->port == rover)
@@ -155,8 +155,8 @@ static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 		next:
 			spin_unlock(&head->lock);
 		} while (--remaining > 0);
-		tcp_port_rover = rover;
-		spin_unlock(&tcp_portalloc_lock);
+		tcp_hashinfo.port_rover = rover;
+		spin_unlock(&tcp_hashinfo.portalloc_lock);
 
 		/* Exhausted local port range during search?  It is not
 		 * possible for us to be holding one of the bind hash
@@ -171,7 +171,7 @@ static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 		/* OK, here is the one we will use. */
 		snum = rover;
 	} else {
-		head = &tcp_bhash[inet_bhashfn(snum, tcp_bhash_size)];
+		head = &tcp_hashinfo.bhash[inet_bhashfn(snum, tcp_hashinfo.bhash_size)];
 		spin_lock(&head->lock);
 		inet_bind_bucket_for_each(tb, node, &head->chain)
 			if (tb->port == snum)
@@ -192,8 +192,11 @@ tb_found:
 	}
 tb_not_found:
 	ret = 1;
-	if (!tb && (tb = inet_bind_bucket_create(tcp_bucket_cachep, head, snum)) == NULL)
-		goto fail_unlock;
+	if (tb == NULL) {
+	       	tb = inet_bind_bucket_create(tcp_hashinfo.bind_bucket_cachep, head, snum);
+		if (tb == NULL)
+			goto fail_unlock;
+	}
 	if (hlist_empty(&tb->owners)) {
 		if (sk->sk_reuse && sk->sk_state != TCP_LISTEN)
 			tb->fastreuse = 1;
@@ -224,13 +227,13 @@ static __inline__ void __tcp_v6_hash(struct sock *sk)
 	BUG_TRAP(sk_unhashed(sk));
 
 	if (sk->sk_state == TCP_LISTEN) {
-		list = &tcp_listening_hash[inet_sk_listen_hashfn(sk)];
-		lock = &tcp_lhash_lock;
+		list = &tcp_hashinfo.listening_hash[inet_sk_listen_hashfn(sk)];
+		lock = &tcp_hashinfo.lhash_lock;
 		tcp_listen_wlock();
 	} else {
 		sk->sk_hashent = tcp_v6_sk_hashfn(sk);
-		list = &tcp_ehash[sk->sk_hashent].chain;
-		lock = &tcp_ehash[sk->sk_hashent].lock;
+		list = &tcp_hashinfo.ehash[sk->sk_hashent].chain;
+		lock = &tcp_hashinfo.ehash[sk->sk_hashent].lock;
 		write_lock(lock);
 	}
 
@@ -263,8 +266,8 @@ static struct sock *tcp_v6_lookup_listener(struct in6_addr *daddr, unsigned shor
 	int score, hiscore;
 
 	hiscore=0;
-	read_lock(&tcp_lhash_lock);
-	sk_for_each(sk, node, &tcp_listening_hash[inet_lhashfn(hnum)]) {
+	read_lock(&tcp_hashinfo.lhash_lock);
+	sk_for_each(sk, node, &tcp_hashinfo.listening_hash[inet_lhashfn(hnum)]) {
 		if (inet_sk(sk)->num == hnum && sk->sk_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
 			
@@ -291,7 +294,7 @@ static struct sock *tcp_v6_lookup_listener(struct in6_addr *daddr, unsigned shor
 	}
 	if (result)
 		sock_hold(result);
-	read_unlock(&tcp_lhash_lock);
+	read_unlock(&tcp_hashinfo.lhash_lock);
 	return result;
 }
 
@@ -315,7 +318,7 @@ static inline struct sock *__tcp_v6_lookup_established(struct in6_addr *saddr, u
 	 * have wildcards anyways.
 	 */
 	hash = tcp_v6_hashfn(daddr, hnum, saddr, sport);
-	head = &tcp_ehash[hash];
+	head = &tcp_hashinfo.ehash[hash];
 	read_lock(&head->lock);
 	sk_for_each(sk, node, &head->chain) {
 		/* For IPV6 do the cheaper port and family tests first. */
@@ -323,7 +326,7 @@ static inline struct sock *__tcp_v6_lookup_established(struct in6_addr *saddr, u
 			goto hit; /* You sunk my battleship! */
 	}
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_for_each(sk, node, &(head + tcp_ehash_size)->chain) {
+	sk_for_each(sk, node, &(head + tcp_hashinfo.ehash_size)->chain) {
 		/* FIXME: acme: check this... */
 		struct tcp_tw_bucket *tw = (struct tcp_tw_bucket *)sk;
 
@@ -461,7 +464,7 @@ static int __tcp_v6_check_established(struct sock *sk, __u16 lport,
 	int dif = sk->sk_bound_dev_if;
 	u32 ports = TCP_COMBINED_PORTS(inet->dport, lport);
 	int hash = tcp_v6_hashfn(daddr, inet->num, saddr, inet->dport);
-	struct inet_ehash_bucket *head = &tcp_ehash[hash];
+	struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[hash];
 	struct sock *sk2;
 	struct hlist_node *node;
 	struct tcp_tw_bucket *tw;
@@ -469,7 +472,7 @@ static int __tcp_v6_check_established(struct sock *sk, __u16 lport,
 	write_lock(&head->lock);
 
 	/* Check TIME-WAIT sockets first. */
-	sk_for_each(sk2, node, &(head + tcp_ehash_size)->chain) {
+	sk_for_each(sk2, node, &(head + tcp_hashinfo.ehash_size)->chain) {
 		tw = (struct tcp_tw_bucket*)sk2;
 
 		if(*((__u32 *)&(tw->tw_dport))	== ports	&&
@@ -558,7 +561,7 @@ static int tcp_v6_hash_connect(struct sock *sk)
  		local_bh_disable();
 		for (i = 1; i <= range; i++) {
 			port = low + (i + offset) % range;
- 			head = &tcp_bhash[inet_bhashfn(port, tcp_bhash_size)];
+ 			head = &tcp_hashinfo.bhash[inet_bhashfn(port, tcp_hashinfo.bhash_size)];
  			spin_lock(&head->lock);
 
  			/* Does not bother with rcv_saddr checks,
@@ -578,7 +581,7 @@ static int tcp_v6_hash_connect(struct sock *sk)
  				}
  			}
 
- 			tb = inet_bind_bucket_create(tcp_bucket_cachep, head, port);
+ 			tb = inet_bind_bucket_create(tcp_hashinfo.bind_bucket_cachep, head, port);
  			if (!tb) {
  				spin_unlock(&head->lock);
  				break;
@@ -613,7 +616,7 @@ ok:
 		goto out;
  	}
 
- 	head = &tcp_bhash[inet_bhashfn(snum, tcp_bhash_size)];
+ 	head = &tcp_hashinfo.bhash[inet_bhashfn(snum, tcp_hashinfo.bhash_size)];
  	tb   = inet_sk(sk)->bind_hash;
 	spin_lock_bh(&head->lock);
 

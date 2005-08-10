@@ -136,7 +136,7 @@ struct sock_common {
   *	@sk_no_check: %SO_NO_CHECK setting, wether or not checkup packets
   *	@sk_route_caps: route capabilities (e.g. %NETIF_F_TSO)
   *	@sk_lingertime: %SO_LINGER l_linger setting
-  *	@sk_hashent: hash entry in several tables (e.g. tcp_ehash)
+  *	@sk_hashent: hash entry in several tables (e.g. inet_hashinfo.ehash)
   *	@sk_backlog: always used with the per-socket spinlock held
   *	@sk_callback_lock: used with the callbacks in the end of this struct
   *	@sk_error_queue: rarely used

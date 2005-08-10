@@ -117,6 +117,7 @@ struct inet_hashinfo {
 	wait_queue_head_t		lhash_wait;
 	spinlock_t			portalloc_lock;
 	kmem_cache_t			*bind_bucket_cachep;
+	int				port_rover;
 };
 
 static inline int inet_ehashfn(const __u32 laddr, const __u16 lport,

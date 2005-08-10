@@ -94,6 +94,7 @@ struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
 	.lhash_users	= ATOMIC_INIT(0),
 	.lhash_wait	= __WAIT_QUEUE_HEAD_INITIALIZER(tcp_hashinfo.lhash_wait),
 	.portalloc_lock	= SPIN_LOCK_UNLOCKED,
+	.port_rover	= 1024 - 1,
 };
 
 /*
@@ -102,7 +103,6 @@ struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
  * 32768-61000
  */
 int sysctl_local_port_range[2] = { 1024, 4999 };
-int tcp_port_rover = 1024 - 1;
 
 static inline int tcp_bind_conflict(struct sock *sk, struct inet_bind_bucket *tb)
 {
@@ -146,16 +146,16 @@ static int tcp_v4_get_port(struct sock *sk, unsigned short snum)
 		int remaining = (high - low) + 1;
 		int rover;
 
-		spin_lock(&tcp_portalloc_lock);
-		if (tcp_port_rover < low)
+		spin_lock(&tcp_hashinfo.portalloc_lock);
+		if (tcp_hashinfo.port_rover < low)
 			rover = low;
 		else
-			rover = tcp_port_rover;
+			rover = tcp_hashinfo.port_rover;
 		do {
 			rover++;
 			if (rover > high)
 				rover = low;
-			head = &tcp_bhash[inet_bhashfn(rover, tcp_bhash_size)];
+			head = &tcp_hashinfo.bhash[inet_bhashfn(rover, tcp_hashinfo.bhash_size)];
 			spin_lock(&head->lock);
 			inet_bind_bucket_for_each(tb, node, &head->chain)
 				if (tb->port == rover)
@@ -164,8 +164,8 @@ static int tcp_v4_get_port(struct sock *sk, unsigned short snum)
 		next:
 			spin_unlock(&head->lock);
 		} while (--remaining > 0);
-		tcp_port_rover = rover;
-		spin_unlock(&tcp_portalloc_lock);
+		tcp_hashinfo.port_rover = rover;
+		spin_unlock(&tcp_hashinfo.portalloc_lock);
 
 		/* Exhausted local port range during search?  It is not
 		 * possible for us to be holding one of the bind hash
@@ -182,7 +182,7 @@ static int tcp_v4_get_port(struct sock *sk, unsigned short snum)
 		 */
 		snum = rover;
 	} else {
-		head = &tcp_bhash[inet_bhashfn(snum, tcp_bhash_size)];
+		head = &tcp_hashinfo.bhash[inet_bhashfn(snum, tcp_hashinfo.bhash_size)];
 		spin_lock(&head->lock);
 		inet_bind_bucket_for_each(tb, node, &head->chain)
 			if (tb->port == snum)
@@ -205,7 +205,7 @@ tb_found:
 	}
 tb_not_found:
 	ret = 1;
-	if (!tb && (tb = inet_bind_bucket_create(tcp_bucket_cachep, head, snum)) == NULL)
+	if (!tb && (tb = inet_bind_bucket_create(tcp_hashinfo.bind_bucket_cachep, head, snum)) == NULL)
 		goto fail_unlock;
 	if (hlist_empty(&tb->owners)) {
 		if (sk->sk_reuse && sk->sk_state != TCP_LISTEN)
@@ -237,22 +237,22 @@ fail:
 
 void tcp_listen_wlock(void)
 {
-	write_lock(&tcp_lhash_lock);
+	write_lock(&tcp_hashinfo.lhash_lock);
 
-	if (atomic_read(&tcp_lhash_users)) {
+	if (atomic_read(&tcp_hashinfo.lhash_users)) {
 		DEFINE_WAIT(wait);
 
 		for (;;) {
-			prepare_to_wait_exclusive(&tcp_lhash_wait,
+			prepare_to_wait_exclusive(&tcp_hashinfo.lhash_wait,
 						&wait, TASK_UNINTERRUPTIBLE);
-			if (!atomic_read(&tcp_lhash_users))
+			if (!atomic_read(&tcp_hashinfo.lhash_users))
 				break;
-			write_unlock_bh(&tcp_lhash_lock);
+			write_unlock_bh(&tcp_hashinfo.lhash_lock);
 			schedule();
-			write_lock_bh(&tcp_lhash_lock);
+			write_lock_bh(&tcp_hashinfo.lhash_lock);
 		}
 
-		finish_wait(&tcp_lhash_wait, &wait);
+		finish_wait(&tcp_hashinfo.lhash_wait, &wait);
 	}
 }
 
@@ -263,20 +263,20 @@ static __inline__ void __tcp_v4_hash(struct sock *sk, const int listen_possible)
 
 	BUG_TRAP(sk_unhashed(sk));
 	if (listen_possible && sk->sk_state == TCP_LISTEN) {
-		list = &tcp_listening_hash[inet_sk_listen_hashfn(sk)];
-		lock = &tcp_lhash_lock;
+		list = &tcp_hashinfo.listening_hash[inet_sk_listen_hashfn(sk)];
+		lock = &tcp_hashinfo.lhash_lock;
 		tcp_listen_wlock();
 	} else {
-		sk->sk_hashent = inet_sk_ehashfn(sk, tcp_ehash_size);
-		list = &tcp_ehash[sk->sk_hashent].chain;
-		lock = &tcp_ehash[sk->sk_hashent].lock;
+		sk->sk_hashent = inet_sk_ehashfn(sk, tcp_hashinfo.ehash_size);
+		list = &tcp_hashinfo.ehash[sk->sk_hashent].chain;
+		lock = &tcp_hashinfo.ehash[sk->sk_hashent].lock;
 		write_lock(lock);
 	}
 	__sk_add_node(sk, list);
 	sock_prot_inc_use(sk->sk_prot);
 	write_unlock(lock);
 	if (listen_possible && sk->sk_state == TCP_LISTEN)
-		wake_up(&tcp_lhash_wait);
+		wake_up(&tcp_hashinfo.lhash_wait);
 }
 
 static void tcp_v4_hash(struct sock *sk)
@@ -298,9 +298,9 @@ void tcp_unhash(struct sock *sk)
 	if (sk->sk_state == TCP_LISTEN) {
 		local_bh_disable();
 		tcp_listen_wlock();
-		lock = &tcp_lhash_lock;
+		lock = &tcp_hashinfo.lhash_lock;
 	} else {
-		struct inet_ehash_bucket *head = &tcp_ehash[sk->sk_hashent];
+		struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[sk->sk_hashent];
 		lock = &head->lock;
 		write_lock_bh(&head->lock);
 	}
@@ -311,7 +311,7 @@ void tcp_unhash(struct sock *sk)
 
  ende:
 	if (sk->sk_state == TCP_LISTEN)
-		wake_up(&tcp_lhash_wait);
+		wake_up(&tcp_hashinfo.lhash_wait);
 }
 
 /* Don't inline this cruft.  Here are some nice properties to
@@ -366,8 +366,8 @@ static inline struct sock *tcp_v4_lookup_listener(const u32 daddr,
 	struct sock *sk = NULL;
 	struct hlist_head *head;
 
-	read_lock(&tcp_lhash_lock);
-	head = &tcp_listening_hash[inet_lhashfn(hnum)];
+	read_lock(&tcp_hashinfo.lhash_lock);
+	head = &tcp_hashinfo.listening_hash[inet_lhashfn(hnum)];
 	if (!hlist_empty(head)) {
 		struct inet_sock *inet = inet_sk((sk = __sk_head(head)));
 
@@ -382,7 +382,7 @@ static inline struct sock *tcp_v4_lookup_listener(const u32 daddr,
 sherry_cache:
 		sock_hold(sk);
 	}
-	read_unlock(&tcp_lhash_lock);
+	read_unlock(&tcp_hashinfo.lhash_lock);
 	return sk;
 }
 
@@ -406,8 +406,8 @@ static inline struct sock *__tcp_v4_lookup_established(const u32 saddr,
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
-	const int hash = inet_ehashfn(daddr, hnum, saddr, sport, tcp_ehash_size);
-	head = &tcp_ehash[hash];
+	const int hash = inet_ehashfn(daddr, hnum, saddr, sport, tcp_hashinfo.ehash_size);
+	head = &tcp_hashinfo.ehash[hash];
 	read_lock(&head->lock);
 	sk_for_each(sk, node, &head->chain) {
 		if (TCP_IPV4_MATCH(sk, acookie, saddr, daddr, ports, dif))
@@ -415,7 +415,7 @@ static inline struct sock *__tcp_v4_lookup_established(const u32 saddr,
 	}
 
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_for_each(sk, node, &(head + tcp_ehash_size)->chain) {
+	sk_for_each(sk, node, &(head + tcp_hashinfo.ehash_size)->chain) {
 		if (TCP_IPV4_TW_MATCH(sk, acookie, saddr, daddr, ports, dif))
 			goto hit;
 	}
@@ -469,8 +469,8 @@ static int __tcp_v4_check_established(struct sock *sk, __u16 lport,
 	int dif = sk->sk_bound_dev_if;
 	TCP_V4_ADDR_COOKIE(acookie, saddr, daddr)
 	__u32 ports = TCP_COMBINED_PORTS(inet->dport, lport);
-	const int hash = inet_ehashfn(daddr, lport, saddr, inet->dport, tcp_ehash_size);
-	struct inet_ehash_bucket *head = &tcp_ehash[hash];
+	const int hash = inet_ehashfn(daddr, lport, saddr, inet->dport, tcp_hashinfo.ehash_size);
+	struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[hash];
 	struct sock *sk2;
 	struct hlist_node *node;
 	struct tcp_tw_bucket *tw;
@@ -478,7 +478,7 @@ static int __tcp_v4_check_established(struct sock *sk, __u16 lport,
 	write_lock(&head->lock);
 
 	/* Check TIME-WAIT sockets first. */
-	sk_for_each(sk2, node, &(head + tcp_ehash_size)->chain) {
+	sk_for_each(sk2, node, &(head + tcp_hashinfo.ehash_size)->chain) {
 		tw = (struct tcp_tw_bucket *)sk2;
 
 		if (TCP_IPV4_TW_MATCH(sk2, acookie, saddr, daddr, ports, dif)) {
@@ -582,7 +582,7 @@ static inline int tcp_v4_hash_connect(struct sock *sk)
  		local_bh_disable();
 		for (i = 1; i <= range; i++) {
 			port = low + (i + offset) % range;
- 			head = &tcp_bhash[inet_bhashfn(port, tcp_bhash_size)];
+ 			head = &tcp_hashinfo.bhash[inet_bhashfn(port, tcp_hashinfo.bhash_size)];
  			spin_lock(&head->lock);
 
  			/* Does not bother with rcv_saddr checks,
@@ -602,7 +602,7 @@ static inline int tcp_v4_hash_connect(struct sock *sk)
  				}
  			}
 
- 			tb = inet_bind_bucket_create(tcp_bucket_cachep, head, port);
+ 			tb = inet_bind_bucket_create(tcp_hashinfo.bind_bucket_cachep, head, port);
  			if (!tb) {
  				spin_unlock(&head->lock);
  				break;
@@ -637,7 +637,7 @@ ok:
 		goto out;
  	}
 
- 	head = &tcp_bhash[inet_bhashfn(snum, tcp_bhash_size)];
+ 	head = &tcp_hashinfo.bhash[inet_bhashfn(snum, tcp_hashinfo.bhash_size)];
  	tb  = inet_sk(sk)->bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
@@ -1926,7 +1926,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 
 	if (!sk) {
 		st->bucket = 0;
-		sk = sk_head(&tcp_listening_hash[0]);
+		sk = sk_head(&tcp_hashinfo.listening_hash[0]);
 		goto get_sk;
 	}
 
@@ -1980,7 +1980,7 @@ start_req:
 		read_unlock_bh(&tp->accept_queue.syn_wait_lock);
 	}
 	if (++st->bucket < INET_LHTABLE_SIZE) {
-		sk = sk_head(&tcp_listening_hash[st->bucket]);
+		sk = sk_head(&tcp_hashinfo.listening_hash[st->bucket]);
 		goto get_sk;
 	}
 	cur = NULL;
@@ -2004,7 +2004,7 @@ static void *established_get_first(struct seq_file *seq)
 	struct tcp_iter_state* st = seq->private;
 	void *rc = NULL;
 
-	for (st->bucket = 0; st->bucket < tcp_ehash_size; ++st->bucket) {
+	for (st->bucket = 0; st->bucket < tcp_hashinfo.ehash_size; ++st->bucket) {
 		struct sock *sk;
 		struct hlist_node *node;
 		struct tcp_tw_bucket *tw;
@@ -2012,8 +2012,8 @@ static void *established_get_first(struct seq_file *seq)
 		/* We can reschedule _before_ having picked the target: */
 		cond_resched_softirq();
 
-		read_lock(&tcp_ehash[st->bucket].lock);
-		sk_for_each(sk, node, &tcp_ehash[st->bucket].chain) {
+		read_lock(&tcp_hashinfo.ehash[st->bucket].lock);
+		sk_for_each(sk, node, &tcp_hashinfo.ehash[st->bucket].chain) {
 			if (sk->sk_family != st->family) {
 				continue;
 			}
@@ -2022,14 +2022,14 @@ static void *established_get_first(struct seq_file *seq)
 		}
 		st->state = TCP_SEQ_STATE_TIME_WAIT;
 		tw_for_each(tw, node,
-			    &tcp_ehash[st->bucket + tcp_ehash_size].chain) {
+			    &tcp_hashinfo.ehash[st->bucket + tcp_hashinfo.ehash_size].chain) {
 			if (tw->tw_family != st->family) {
 				continue;
 			}
 			rc = tw;
 			goto out;
 		}
-		read_unlock(&tcp_ehash[st->bucket].lock);
+		read_unlock(&tcp_hashinfo.ehash[st->bucket].lock);
 		st->state = TCP_SEQ_STATE_ESTABLISHED;
 	}
 out:
@@ -2056,15 +2056,15 @@ get_tw:
 			cur = tw;
 			goto out;
 		}
-		read_unlock(&tcp_ehash[st->bucket].lock);
+		read_unlock(&tcp_hashinfo.ehash[st->bucket].lock);
 		st->state = TCP_SEQ_STATE_ESTABLISHED;
 
 		/* We can reschedule between buckets: */
 		cond_resched_softirq();
 
-		if (++st->bucket < tcp_ehash_size) {
-			read_lock(&tcp_ehash[st->bucket].lock);
-			sk = sk_head(&tcp_ehash[st->bucket].chain);
+		if (++st->bucket < tcp_hashinfo.ehash_size) {
+			read_lock(&tcp_hashinfo.ehash[st->bucket].lock);
+			sk = sk_head(&tcp_hashinfo.ehash[st->bucket].chain);
 		} else {
 			cur = NULL;
 			goto out;
@@ -2078,7 +2078,7 @@ get_tw:
 	}
 
 	st->state = TCP_SEQ_STATE_TIME_WAIT;
-	tw = tw_head(&tcp_ehash[st->bucket + tcp_ehash_size].chain);
+	tw = tw_head(&tcp_hashinfo.ehash[st->bucket + tcp_hashinfo.ehash_size].chain);
 	goto get_tw;
 found:
 	cur = sk;
@@ -2173,7 +2173,7 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
 	case TCP_SEQ_STATE_TIME_WAIT:
 	case TCP_SEQ_STATE_ESTABLISHED:
 		if (v)
-			read_unlock(&tcp_ehash[st->bucket].lock);
+			read_unlock(&tcp_hashinfo.ehash[st->bucket].lock);
 		local_bh_enable();
 		break;
 	}
@@ -2432,7 +2432,6 @@ EXPORT_SYMBOL(ipv4_specific);
 EXPORT_SYMBOL(inet_bind_bucket_create);
 EXPORT_SYMBOL(tcp_hashinfo);
 EXPORT_SYMBOL(tcp_listen_wlock);
-EXPORT_SYMBOL(tcp_port_rover);
 EXPORT_SYMBOL(tcp_prot);
 EXPORT_SYMBOL(tcp_unhash);
 EXPORT_SYMBOL(tcp_v4_conn_request);

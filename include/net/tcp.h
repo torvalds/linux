@@ -41,19 +41,7 @@
 #endif
 #include <linux/seq_file.h>
 
-extern struct inet_hashinfo	tcp_hashinfo;
-#define tcp_ehash		(tcp_hashinfo.ehash)
-#define tcp_bhash		(tcp_hashinfo.bhash)
-#define tcp_ehash_size		(tcp_hashinfo.ehash_size)
-#define tcp_bhash_size		(tcp_hashinfo.bhash_size)
-#define tcp_listening_hash	(tcp_hashinfo.listening_hash)
-#define tcp_lhash_lock		(tcp_hashinfo.lhash_lock)
-#define tcp_lhash_users		(tcp_hashinfo.lhash_users)
-#define tcp_lhash_wait		(tcp_hashinfo.lhash_wait)
-#define tcp_portalloc_lock	(tcp_hashinfo.portalloc_lock)
-#define tcp_bucket_cachep	(tcp_hashinfo.bind_bucket_cachep)
-
-extern int tcp_port_rover;
+extern struct inet_hashinfo tcp_hashinfo;
 
 #if (BITS_PER_LONG == 64)
 #define TCP_ADDRCMP_ALIGN_BYTES 8
@@ -1463,21 +1451,21 @@ extern void tcp_listen_wlock(void);
 
 /* - We may sleep inside this lock.
  * - If sleeping is not required (or called from BH),
- *   use plain read_(un)lock(&tcp_lhash_lock).
+ *   use plain read_(un)lock(&inet_hashinfo.lhash_lock).
  */
 
 static inline void tcp_listen_lock(void)
 {
 	/* read_lock synchronizes to candidates to writers */
-	read_lock(&tcp_lhash_lock);
-	atomic_inc(&tcp_lhash_users);
-	read_unlock(&tcp_lhash_lock);
+	read_lock(&tcp_hashinfo.lhash_lock);
+	atomic_inc(&tcp_hashinfo.lhash_users);
+	read_unlock(&tcp_hashinfo.lhash_lock);
 }
 
 static inline void tcp_listen_unlock(void)
 {
-	if (atomic_dec_and_test(&tcp_lhash_users))
-		wake_up(&tcp_lhash_wait);
+	if (atomic_dec_and_test(&tcp_hashinfo.lhash_users))
+		wake_up(&tcp_hashinfo.lhash_wait);
 }
 
 static inline int keepalive_intvl_when(const struct tcp_sock *tp)

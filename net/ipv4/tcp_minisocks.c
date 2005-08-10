@@ -60,12 +60,11 @@ int tcp_tw_count;
 /* Must be called with locally disabled BHs. */
 static void tcp_timewait_kill(struct tcp_tw_bucket *tw)
 {
-	struct inet_ehash_bucket *ehead;
 	struct inet_bind_hashbucket *bhead;
 	struct inet_bind_bucket *tb;
-
 	/* Unlink from established hashes. */
-	ehead = &tcp_ehash[tw->tw_hashent];
+	struct inet_ehash_bucket *ehead = &tcp_hashinfo.ehash[tw->tw_hashent];
+
 	write_lock(&ehead->lock);
 	if (hlist_unhashed(&tw->tw_node)) {
 		write_unlock(&ehead->lock);
@@ -76,12 +75,12 @@ static void tcp_timewait_kill(struct tcp_tw_bucket *tw)
 	write_unlock(&ehead->lock);
 
 	/* Disassociate with bind bucket. */
-	bhead = &tcp_bhash[inet_bhashfn(tw->tw_num, tcp_bhash_size)];
+	bhead = &tcp_hashinfo.bhash[inet_bhashfn(tw->tw_num, tcp_hashinfo.bhash_size)];
 	spin_lock(&bhead->lock);
 	tb = tw->tw_tb;
 	__hlist_del(&tw->tw_bind_node);
 	tw->tw_tb = NULL;
-	inet_bind_bucket_destroy(tcp_bucket_cachep, tb);
+	inet_bind_bucket_destroy(tcp_hashinfo.bind_bucket_cachep, tb);
 	spin_unlock(&bhead->lock);
 
 #ifdef SOCK_REFCNT_DEBUG
@@ -297,13 +296,13 @@ kill:
 static void __tcp_tw_hashdance(struct sock *sk, struct tcp_tw_bucket *tw)
 {
 	const struct inet_sock *inet = inet_sk(sk);
-	struct inet_ehash_bucket *ehead = &tcp_ehash[sk->sk_hashent];
+	struct inet_ehash_bucket *ehead = &tcp_hashinfo.ehash[sk->sk_hashent];
 	struct inet_bind_hashbucket *bhead;
 	/* Step 1: Put TW into bind hash. Original socket stays there too.
 	   Note, that any socket with inet->num != 0 MUST be bound in
 	   binding cache, even if it is closed.
 	 */
-	bhead = &tcp_bhash[inet_bhashfn(inet->num, tcp_bhash_size)];
+	bhead = &tcp_hashinfo.bhash[inet_bhashfn(inet->num, tcp_hashinfo.bhash_size)];
 	spin_lock(&bhead->lock);
 	tw->tw_tb = inet->bind_hash;
 	BUG_TRAP(inet->bind_hash);
@@ -317,7 +316,7 @@ static void __tcp_tw_hashdance(struct sock *sk, struct tcp_tw_bucket *tw)
 		sock_prot_dec_use(sk->sk_prot);
 
 	/* Step 3: Hash TW into TIMEWAIT half of established hash table. */
-	tw_add_node(tw, &(ehead + tcp_ehash_size)->chain);
+	tw_add_node(tw, &(ehead + tcp_hashinfo.ehash_size)->chain);
 	atomic_inc(&tw->tw_refcnt);
 
 	write_unlock(&ehead->lock);

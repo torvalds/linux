@@ -595,7 +595,7 @@ static int tcpdiag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			struct hlist_node *node;
 
 			num = 0;
-			sk_for_each(sk, node, &tcp_listening_hash[i]) {
+			sk_for_each(sk, node, &tcp_hashinfo.listening_hash[i]) {
 				struct inet_sock *inet = inet_sk(sk);
 
 				if (num < s_num) {
@@ -645,8 +645,8 @@ skip_listen_ht:
 	if (!(r->tcpdiag_states&~(TCPF_LISTEN|TCPF_SYN_RECV)))
 		return skb->len;
 
-	for (i = s_i; i < tcp_ehash_size; i++) {
-		struct inet_ehash_bucket *head = &tcp_ehash[i];
+	for (i = s_i; i < tcp_hashinfo.ehash_size; i++) {
+		struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[i];
 		struct sock *sk;
 		struct hlist_node *node;
 
@@ -678,7 +678,7 @@ next_normal:
 
 		if (r->tcpdiag_states&TCPF_TIME_WAIT) {
 			sk_for_each(sk, node,
-				    &tcp_ehash[i + tcp_ehash_size].chain) {
+				    &tcp_hashinfo.ehash[i + tcp_hashinfo.ehash_size].chain) {
 				struct inet_sock *inet = inet_sk(sk);
 
 				if (num < s_num)
