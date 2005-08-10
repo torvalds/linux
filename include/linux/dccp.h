@@ -1,55 +1,13 @@
 #ifndef _LINUX_DCCP_H
 #define _LINUX_DCCP_H
 
-#include <linux/in.h>
-#include <linux/list.h>
 #include <linux/types.h>
-#include <linux/uio.h>
-#include <linux/workqueue.h>
-
-#include <net/inet_connection_sock.h>
-#include <net/sock.h>
-#include <net/tcp_states.h>
-#include <net/tcp.h>
+#include <asm/byteorder.h>
 
 /* FIXME: this is utterly wrong */
 struct sockaddr_dccp {
 	struct sockaddr_in	in;
 	unsigned int		service;
-};
-
-enum dccp_state {
-	DCCP_OPEN	= TCP_ESTABLISHED,
-	DCCP_REQUESTING	= TCP_SYN_SENT,
-	DCCP_PARTOPEN	= TCP_FIN_WAIT1, /* FIXME:
-					    This mapping is horrible, but TCP has
-					    no matching state for DCCP_PARTOPEN,
-					    as TCP_SYN_RECV is already used by
-					    DCCP_RESPOND, why don't stop using TCP
-					    mapping of states? OK, now we don't use
-					    sk_stream_sendmsg anymore, so doesn't
-					    seem to exist any reason for us to
-					    do the TCP mapping here */
-	DCCP_LISTEN	= TCP_LISTEN,
-	DCCP_RESPOND	= TCP_SYN_RECV,
-	DCCP_CLOSING	= TCP_CLOSING,
-	DCCP_TIME_WAIT	= TCP_TIME_WAIT,
-	DCCP_CLOSED	= TCP_CLOSE,
-	DCCP_MAX_STATES = TCP_MAX_STATES,
-};
-
-#define DCCP_STATE_MASK 0xf
-#define DCCP_ACTION_FIN (1<<7)
-
-enum {
-	DCCPF_OPEN	 = TCPF_ESTABLISHED,
-	DCCPF_REQUESTING = TCPF_SYN_SENT,
-	DCCPF_PARTOPEN	 = TCPF_FIN_WAIT1,
-	DCCPF_LISTEN	 = TCPF_LISTEN,
-	DCCPF_RESPOND	 = TCPF_SYN_RECV,
-	DCCPF_CLOSING	 = TCPF_CLOSING,
-	DCCPF_TIME_WAIT	 = TCPF_TIME_WAIT,
-	DCCPF_CLOSED	 = TCPF_CLOSE,
 };
 
 /**
@@ -94,11 +52,6 @@ struct dccp_hdr {
 #endif
 };
 
-static inline struct dccp_hdr *dccp_hdr(const struct sk_buff *skb)
-{
-	return (struct dccp_hdr *)skb->h.raw;
-}
-
 /**
  * struct dccp_hdr_ext - the low bits of a 48 bit seq packet
  *
@@ -107,34 +60,6 @@ static inline struct dccp_hdr *dccp_hdr(const struct sk_buff *skb)
 struct dccp_hdr_ext {
 	__u32	dccph_seq_low;
 };
-
-static inline struct dccp_hdr_ext *dccp_hdrx(const struct sk_buff *skb)
-{
-	return (struct dccp_hdr_ext *)(skb->h.raw + sizeof(struct dccp_hdr));
-}
-
-static inline unsigned int dccp_basic_hdr_len(const struct sk_buff *skb)
-{
-	const struct dccp_hdr *dh = dccp_hdr(skb);
-	return sizeof(*dh) + (dh->dccph_x ? sizeof(struct dccp_hdr_ext) : 0);
-}
-
-static inline __u64 dccp_hdr_seq(const struct sk_buff *skb)
-{
-	const struct dccp_hdr *dh = dccp_hdr(skb);
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u64 seq_nr = ntohl(dh->dccph_seq << 8);
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	__u64 seq_nr = ntohl(dh->dccph_seq);
-#else
-#error  "Adjust your <asm/byteorder.h> defines"
-#endif
-
-	if (dh->dccph_x != 0)
-		seq_nr = (seq_nr << 32) + ntohl(dccp_hdrx(skb)->dccph_seq_low);
-
-	return seq_nr;
-}
 
 /**
  * struct dccp_hdr_request - Conection initiation request header
@@ -145,12 +70,6 @@ static inline __u64 dccp_hdr_seq(const struct sk_buff *skb)
 struct dccp_hdr_request {
 	__u32	dccph_req_service;
 };
-
-static inline struct dccp_hdr_request *dccp_hdr_request(struct sk_buff *skb)
-{
-	return (struct dccp_hdr_request *)(skb->h.raw + dccp_basic_hdr_len(skb));
-}
-
 /**
  * struct dccp_hdr_ack_bits - acknowledgment bits common to most packets
  *
@@ -162,24 +81,6 @@ struct dccp_hdr_ack_bits {
 		dccph_ack_nr_high:24;
 	__u32	dccph_ack_nr_low;
 };
-
-static inline struct dccp_hdr_ack_bits *dccp_hdr_ack_bits(const struct sk_buff *skb)
-{
-	return (struct dccp_hdr_ack_bits *)(skb->h.raw + dccp_basic_hdr_len(skb));
-}
-
-static inline u64 dccp_hdr_ack_seq(const struct sk_buff *skb)
-{
-	const struct dccp_hdr_ack_bits *dhack = dccp_hdr_ack_bits(skb);
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	return (((u64)ntohl(dhack->dccph_ack_nr_high << 8)) << 32) + ntohl(dhack->dccph_ack_nr_low);
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	return (((u64)ntohl(dhack->dccph_ack_nr_high)) << 32) + ntohl(dhack->dccph_ack_nr_low);
-#else
-#error  "Adjust your <asm/byteorder.h> defines"
-#endif
-}
-
 /**
  * struct dccp_hdr_response - Conection initiation response header
  *
@@ -193,11 +94,6 @@ struct dccp_hdr_response {
 	__u32				dccph_resp_service;
 };
 
-static inline struct dccp_hdr_response *dccp_hdr_response(struct sk_buff *skb)
-{
-	return (struct dccp_hdr_response *)(skb->h.raw + dccp_basic_hdr_len(skb));
-}
-
 /**
  * struct dccp_hdr_reset - Unconditionally shut down a connection
  *
@@ -209,11 +105,6 @@ struct dccp_hdr_reset {
 	__u8				dccph_reset_code,
 					dccph_reset_data[3];
 };
-
-static inline struct dccp_hdr_reset *dccp_hdr_reset(struct sk_buff *skb)
-{
-	return (struct dccp_hdr_reset *)(skb->h.raw + dccp_basic_hdr_len(skb));
-}
 
 enum dccp_pkt_type {
 	DCCP_PKT_REQUEST = 0,
@@ -248,13 +139,6 @@ static inline unsigned int dccp_packet_hdr_len(const __u8 type)
 		return sizeof(struct dccp_hdr_response);
 	return sizeof(struct dccp_hdr_reset);
 }
-
-static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
-{
-	return dccp_basic_hdr_len(skb) +
-	       dccp_packet_hdr_len(dccp_hdr(skb)->dccph_type);
-}
-
 enum dccp_reset_codes {
 	DCCP_RESET_CODE_UNSPECIFIED = 0,
 	DCCP_RESET_CODE_CLOSED,
@@ -297,6 +181,124 @@ enum {
 	DCCPF_MIN_CCID_SPECIFIC = 128,
 	DCCPF_MAX_CCID_SPECIFIC = 255,
 };
+
+#ifdef __KERNEL__
+
+#include <linux/in.h>
+#include <linux/list.h>
+#include <linux/uio.h>
+#include <linux/workqueue.h>
+
+#include <net/inet_connection_sock.h>
+#include <net/sock.h>
+#include <net/tcp_states.h>
+#include <net/tcp.h>
+
+enum dccp_state {
+	DCCP_OPEN	= TCP_ESTABLISHED,
+	DCCP_REQUESTING	= TCP_SYN_SENT,
+	DCCP_PARTOPEN	= TCP_FIN_WAIT1, /* FIXME:
+					    This mapping is horrible, but TCP has
+					    no matching state for DCCP_PARTOPEN,
+					    as TCP_SYN_RECV is already used by
+					    DCCP_RESPOND, why don't stop using TCP
+					    mapping of states? OK, now we don't use
+					    sk_stream_sendmsg anymore, so doesn't
+					    seem to exist any reason for us to
+					    do the TCP mapping here */
+	DCCP_LISTEN	= TCP_LISTEN,
+	DCCP_RESPOND	= TCP_SYN_RECV,
+	DCCP_CLOSING	= TCP_CLOSING,
+	DCCP_TIME_WAIT	= TCP_TIME_WAIT,
+	DCCP_CLOSED	= TCP_CLOSE,
+	DCCP_MAX_STATES = TCP_MAX_STATES,
+};
+
+#define DCCP_STATE_MASK 0xf
+#define DCCP_ACTION_FIN (1<<7)
+
+enum {
+	DCCPF_OPEN	 = TCPF_ESTABLISHED,
+	DCCPF_REQUESTING = TCPF_SYN_SENT,
+	DCCPF_PARTOPEN	 = TCPF_FIN_WAIT1,
+	DCCPF_LISTEN	 = TCPF_LISTEN,
+	DCCPF_RESPOND	 = TCPF_SYN_RECV,
+	DCCPF_CLOSING	 = TCPF_CLOSING,
+	DCCPF_TIME_WAIT	 = TCPF_TIME_WAIT,
+	DCCPF_CLOSED	 = TCPF_CLOSE,
+};
+
+static inline struct dccp_hdr *dccp_hdr(const struct sk_buff *skb)
+{
+	return (struct dccp_hdr *)skb->h.raw;
+}
+
+static inline struct dccp_hdr_ext *dccp_hdrx(const struct sk_buff *skb)
+{
+	return (struct dccp_hdr_ext *)(skb->h.raw + sizeof(struct dccp_hdr));
+}
+
+static inline unsigned int dccp_basic_hdr_len(const struct sk_buff *skb)
+{
+	const struct dccp_hdr *dh = dccp_hdr(skb);
+	return sizeof(*dh) + (dh->dccph_x ? sizeof(struct dccp_hdr_ext) : 0);
+}
+
+static inline __u64 dccp_hdr_seq(const struct sk_buff *skb)
+{
+	const struct dccp_hdr *dh = dccp_hdr(skb);
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u64 seq_nr = ntohl(dh->dccph_seq << 8);
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	__u64 seq_nr = ntohl(dh->dccph_seq);
+#else
+#error  "Adjust your <asm/byteorder.h> defines"
+#endif
+
+	if (dh->dccph_x != 0)
+		seq_nr = (seq_nr << 32) + ntohl(dccp_hdrx(skb)->dccph_seq_low);
+
+	return seq_nr;
+}
+
+static inline struct dccp_hdr_request *dccp_hdr_request(struct sk_buff *skb)
+{
+	return (struct dccp_hdr_request *)(skb->h.raw + dccp_basic_hdr_len(skb));
+}
+
+static inline struct dccp_hdr_ack_bits *dccp_hdr_ack_bits(const struct sk_buff *skb)
+{
+	return (struct dccp_hdr_ack_bits *)(skb->h.raw + dccp_basic_hdr_len(skb));
+}
+
+static inline u64 dccp_hdr_ack_seq(const struct sk_buff *skb)
+{
+	const struct dccp_hdr_ack_bits *dhack = dccp_hdr_ack_bits(skb);
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	return (((u64)ntohl(dhack->dccph_ack_nr_high << 8)) << 32) + ntohl(dhack->dccph_ack_nr_low);
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	return (((u64)ntohl(dhack->dccph_ack_nr_high)) << 32) + ntohl(dhack->dccph_ack_nr_low);
+#else
+#error  "Adjust your <asm/byteorder.h> defines"
+#endif
+}
+
+static inline struct dccp_hdr_response *dccp_hdr_response(struct sk_buff *skb)
+{
+	return (struct dccp_hdr_response *)(skb->h.raw + dccp_basic_hdr_len(skb));
+}
+
+static inline struct dccp_hdr_reset *dccp_hdr_reset(struct sk_buff *skb)
+{
+	return (struct dccp_hdr_reset *)(skb->h.raw + dccp_basic_hdr_len(skb));
+}
+
+static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
+{
+	return dccp_basic_hdr_len(skb) +
+	       dccp_packet_hdr_len(dccp_hdr(skb)->dccph_type);
+}
+
 
 /* initial values for each feature */
 #define DCCPF_INITIAL_SEQUENCE_WINDOW		100
@@ -428,5 +430,7 @@ static inline const char *dccp_role(const struct sock *sk)
 	}
 	return NULL;
 }
+
+#endif /* __KERNEL__ */
 
 #endif /* _LINUX_DCCP_H */
