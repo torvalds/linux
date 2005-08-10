@@ -260,7 +260,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 			   
 			if (val > sysctl_wmem_max)
 				val = sysctl_wmem_max;
-
+set_sndbuf:
 			sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
 			if ((val * 2) < SOCK_MIN_SNDBUF)
 				sk->sk_sndbuf = SOCK_MIN_SNDBUF;
@@ -274,6 +274,13 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 			sk->sk_write_space(sk);
 			break;
 
+		case SO_SNDBUFFORCE:
+			if (!capable(CAP_NET_ADMIN)) {
+				ret = -EPERM;
+				break;
+			}
+			goto set_sndbuf;
+
 		case SO_RCVBUF:
 			/* Don't error on this BSD doesn't and if you think
 			   about it this is right. Otherwise apps have to
@@ -282,7 +289,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 			  
 			if (val > sysctl_rmem_max)
 				val = sysctl_rmem_max;
-
+set_rcvbuf:
 			sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
 			/* FIXME: is this lower bound the right one? */
 			if ((val * 2) < SOCK_MIN_RCVBUF)
@@ -290,6 +297,13 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 			else
 				sk->sk_rcvbuf = val * 2;
 			break;
+
+		case SO_RCVBUFFORCE:
+			if (!capable(CAP_NET_ADMIN)) {
+				ret = -EPERM;
+				break;
+			}
+			goto set_rcvbuf;
 
 		case SO_KEEPALIVE:
 #ifdef CONFIG_INET
