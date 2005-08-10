@@ -894,6 +894,24 @@ static inline void hci_clock_offset_evt(struct hci_dev *hdev, struct sk_buff *sk
 	hci_dev_unlock(hdev);
 }
 
+/* Page Scan Repetition Mode */
+static inline void hci_pscan_rep_mode_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_ev_pscan_rep_mode *ev = (struct hci_ev_pscan_rep_mode *) skb->data;
+	struct inquiry_entry *ie;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_lock(hdev);
+
+	if ((ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr))) {
+		ie->data.pscan_rep_mode = ev->pscan_rep_mode;
+		ie->timestamp = jiffies;
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_event_hdr *hdr = (struct hci_event_hdr *) skb->data;
@@ -964,6 +982,10 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_CLOCK_OFFSET:
 		hci_clock_offset_evt(hdev, skb);
+		break;
+
+	case HCI_EV_PSCAN_REP_MODE:
+		hci_pscan_rep_mode_evt(hdev, skb);
 		break;
 
 	case HCI_EV_CMD_STATUS:
