@@ -271,10 +271,6 @@ int sysctl_tcp_fin_timeout = TCP_FIN_TIMEOUT;
 
 DEFINE_SNMP_STAT(struct tcp_mib, tcp_statistics);
 
-kmem_cache_t *tcp_bucket_cachep;
-
-EXPORT_SYMBOL_GPL(tcp_bucket_cachep);
-
 kmem_cache_t *tcp_timewait_cachep;
 
 atomic_t tcp_orphan_count = ATOMIC_INIT(0);

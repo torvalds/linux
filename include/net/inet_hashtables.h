@@ -14,11 +14,14 @@
 #ifndef _INET_HASHTABLES_H
 #define _INET_HASHTABLES_H
 
+#include <linux/interrupt.h>
 #include <linux/ip.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+
+#include <net/sock.h>
 
 /* This is for all connections with a full identity, no wildcards.
  * New scheme, half the table is for TIME_WAIT, the other half is
@@ -113,6 +116,7 @@ struct inet_hashinfo {
 	atomic_t			lhash_users;
 	wait_queue_head_t		lhash_wait;
 	spinlock_t			portalloc_lock;
+	kmem_cache_t			*bind_bucket_cachep;
 };
 
 static inline int inet_ehashfn(const __u32 laddr, const __u16 lport,
@@ -148,6 +152,9 @@ static inline int inet_bhashfn(const __u16 lport, const int bhash_size)
 	return lport & (bhash_size - 1);
 }
 
+extern void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
+			   const unsigned short snum);
+
 /* These can have wildcards, don't try too hard. */
 static inline int inet_lhashfn(const unsigned short num)
 {
@@ -158,5 +165,30 @@ static inline int inet_sk_listen_hashfn(const struct sock *sk)
 {
 	return inet_lhashfn(inet_sk(sk)->num);
 }
+
+/* Caller must disable local BH processing. */
+static inline void __inet_inherit_port(struct inet_hashinfo *table,
+				       struct sock *sk, struct sock *child)
+{
+	const int bhash = inet_bhashfn(inet_sk(child)->num, table->bhash_size);
+	struct inet_bind_hashbucket *head = &table->bhash[bhash];
+	struct inet_bind_bucket *tb;
+
+	spin_lock(&head->lock);
+	tb = inet_sk(sk)->bind_hash;
+	sk_add_bind_node(child, &tb->owners);
+	inet_sk(child)->bind_hash = tb;
+	spin_unlock(&head->lock);
+}
+
+static inline void inet_inherit_port(struct inet_hashinfo *table,
+				     struct sock *sk, struct sock *child)
+{
+	local_bh_disable();
+	__inet_inherit_port(table, sk, child);
+	local_bh_enable();
+}
+
+extern void inet_put_port(struct inet_hashinfo *table, struct sock *sk);
 
 #endif /* _INET_HASHTABLES_H */

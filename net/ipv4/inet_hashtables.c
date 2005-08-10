@@ -14,6 +14,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 
 #include <net/inet_hashtables.h>
@@ -49,3 +50,42 @@ void inet_bind_bucket_destroy(kmem_cache_t *cachep, struct inet_bind_bucket *tb)
 		kmem_cache_free(cachep, tb);
 	}
 }
+
+void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
+		    const unsigned short snum)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	inet->num	= snum;
+	sk_add_bind_node(sk, &tb->owners);
+	inet->bind_hash	= tb;
+}
+
+EXPORT_SYMBOL(inet_bind_hash);
+
+/*
+ * Get rid of any references to a local port held by the given sock.
+ */
+static void __inet_put_port(struct inet_hashinfo *hashinfo, struct sock *sk)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	const int bhash = inet_bhashfn(inet->num, hashinfo->bhash_size);
+	struct inet_bind_hashbucket *head = &hashinfo->bhash[bhash];
+	struct inet_bind_bucket *tb;
+
+	spin_lock(&head->lock);
+	tb = inet->bind_hash;
+	__sk_del_bind_node(sk);
+	inet->bind_hash = NULL;
+	inet->num = 0;
+	inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
+	spin_unlock(&head->lock);
+}
+
+void inet_put_port(struct inet_hashinfo *hashinfo, struct sock *sk)
+{
+	local_bh_disable();
+	__inet_put_port(hashinfo, sk);
+	local_bh_enable();
+}
+
+EXPORT_SYMBOL(inet_put_port);

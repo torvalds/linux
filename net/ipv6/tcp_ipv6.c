@@ -205,7 +205,7 @@ tb_not_found:
 
 success:
 	if (!inet_sk(sk)->bind_hash)
-		tcp_bind_hash(sk, tb, snum);
+		inet_bind_hash(sk, tb, snum);
 	BUG_TRAP(inet_sk(sk)->bind_hash == tb);
 	ret = 0;
 
@@ -597,7 +597,7 @@ ok:
 		hint += i;
 
  		/* Head lock still held and bh's disabled */
- 		tcp_bind_hash(sk, tb, port);
+ 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
  			inet_sk(sk)->sport = htons(port);
  			__tcp_v6_hash(sk);
@@ -1536,7 +1536,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	newinet->daddr = newinet->saddr = newinet->rcv_saddr = LOOPBACK4_IPV6;
 
 	__tcp_v6_hash(newsk);
-	tcp_inherit_port(sk, newsk);
+	inet_inherit_port(&tcp_hashinfo, sk, newsk);
 
 	return newsk;
 

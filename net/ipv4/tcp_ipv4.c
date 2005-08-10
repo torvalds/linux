@@ -104,37 +104,6 @@ struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
 int sysctl_local_port_range[2] = { 1024, 4999 };
 int tcp_port_rover = 1024 - 1;
 
-/* Caller must disable local BH processing. */
-static __inline__ void __tcp_inherit_port(struct sock *sk, struct sock *child)
-{
-	struct inet_bind_hashbucket *head =
-				&tcp_bhash[inet_bhashfn(inet_sk(child)->num,
-							tcp_bhash_size)];
-	struct inet_bind_bucket *tb;
-
-	spin_lock(&head->lock);
-	tb = inet_sk(sk)->bind_hash;
-	sk_add_bind_node(child, &tb->owners);
-	inet_sk(child)->bind_hash = tb;
-	spin_unlock(&head->lock);
-}
-
-inline void tcp_inherit_port(struct sock *sk, struct sock *child)
-{
-	local_bh_disable();
-	__tcp_inherit_port(sk, child);
-	local_bh_enable();
-}
-
-void tcp_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
-		   const unsigned short snum)
-{
-	struct inet_sock *inet = inet_sk(sk);
-	inet->num	= snum;
-	sk_add_bind_node(sk, &tb->owners);
-	inet->bind_hash	= tb;
-}
-
 static inline int tcp_bind_conflict(struct sock *sk, struct inet_bind_bucket *tb)
 {
 	const u32 sk_rcv_saddr = tcp_v4_rcv_saddr(sk);
@@ -248,7 +217,7 @@ tb_not_found:
 		tb->fastreuse = 0;
 success:
 	if (!inet_sk(sk)->bind_hash)
-		tcp_bind_hash(sk, tb, snum);
+		inet_bind_hash(sk, tb, snum);
 	BUG_TRAP(inet_sk(sk)->bind_hash == tb);
  	ret = 0;
 
@@ -257,32 +226,6 @@ fail_unlock:
 fail:
 	local_bh_enable();
 	return ret;
-}
-
-/* Get rid of any references to a local port held by the
- * given sock.
- */
-static void __tcp_put_port(struct sock *sk)
-{
-	struct inet_sock *inet = inet_sk(sk);
-	struct inet_bind_hashbucket *head = &tcp_bhash[inet_bhashfn(inet->num,
-								    tcp_bhash_size)];
-	struct inet_bind_bucket *tb;
-
-	spin_lock(&head->lock);
-	tb = inet->bind_hash;
-	__sk_del_bind_node(sk);
-	inet->bind_hash = NULL;
-	inet->num = 0;
-	inet_bind_bucket_destroy(tcp_bucket_cachep, tb);
-	spin_unlock(&head->lock);
-}
-
-void tcp_put_port(struct sock *sk)
-{
-	local_bh_disable();
-	__tcp_put_port(sk);
-	local_bh_enable();
 }
 
 /* This lock without WQ_FLAG_EXCLUSIVE is good on UP and it can be very bad on SMP.
@@ -678,7 +621,7 @@ ok:
 		hint += i;
 
  		/* Head lock still held and bh's disabled */
- 		tcp_bind_hash(sk, tb, port);
+ 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
  			inet_sk(sk)->sport = htons(port);
  			__tcp_v4_hash(sk, 0);
@@ -1537,7 +1480,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	tcp_initialize_rcv_mss(newsk);
 
 	__tcp_v4_hash(newsk, 0);
-	__tcp_inherit_port(sk, newsk);
+	__inet_inherit_port(&tcp_hashinfo, sk, newsk);
 
 	return newsk;
 
@@ -1942,7 +1885,7 @@ int tcp_v4_destroy_sock(struct sock *sk)
 
 	/* Clean up a referenced TCP bind bucket. */
 	if (inet_sk(sk)->bind_hash)
-		tcp_put_port(sk);
+		inet_put_port(&tcp_hashinfo, sk);
 
 	/*
 	 * If sendmsg cached page exists, toss it.
@@ -2486,14 +2429,11 @@ void __init tcp_v4_init(struct net_proto_family *ops)
 }
 
 EXPORT_SYMBOL(ipv4_specific);
-EXPORT_SYMBOL(tcp_bind_hash);
 EXPORT_SYMBOL(inet_bind_bucket_create);
 EXPORT_SYMBOL(tcp_hashinfo);
-EXPORT_SYMBOL(tcp_inherit_port);
 EXPORT_SYMBOL(tcp_listen_wlock);
 EXPORT_SYMBOL(tcp_port_rover);
 EXPORT_SYMBOL(tcp_prot);
-EXPORT_SYMBOL(tcp_put_port);
 EXPORT_SYMBOL(tcp_unhash);
 EXPORT_SYMBOL(tcp_v4_conn_request);
 EXPORT_SYMBOL(tcp_v4_connect);

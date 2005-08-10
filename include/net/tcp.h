@@ -51,13 +51,9 @@ extern struct inet_hashinfo	tcp_hashinfo;
 #define tcp_lhash_users		(tcp_hashinfo.lhash_users)
 #define tcp_lhash_wait		(tcp_hashinfo.lhash_wait)
 #define tcp_portalloc_lock	(tcp_hashinfo.portalloc_lock)
-
-extern kmem_cache_t *tcp_bucket_cachep;
+#define tcp_bucket_cachep	(tcp_hashinfo.bind_bucket_cachep)
 
 extern int tcp_port_rover;
-
-extern void tcp_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
-			  unsigned short snum);
 
 #if (BITS_PER_LONG == 64)
 #define TCP_ADDRCMP_ALIGN_BYTES 8
@@ -548,9 +544,6 @@ DECLARE_SNMP_STAT(struct tcp_mib, tcp_statistics);
 #define TCP_DEC_STATS(field)		SNMP_DEC_STATS(tcp_statistics, field)
 #define TCP_ADD_STATS_BH(field, val)	SNMP_ADD_STATS_BH(tcp_statistics, field, val)
 #define TCP_ADD_STATS_USER(field, val)	SNMP_ADD_STATS_USER(tcp_statistics, field, val)
-
-extern void			tcp_put_port(struct sock *sk);
-extern void			tcp_inherit_port(struct sock *sk, struct sock *child);
 
 extern void			tcp_v4_err(struct sk_buff *skb, u32);
 
@@ -1268,7 +1261,7 @@ static __inline__ void tcp_set_state(struct sock *sk, int state)
 		sk->sk_prot->unhash(sk);
 		if (inet_sk(sk)->bind_hash &&
 		    !(sk->sk_userlocks & SOCK_BINDPORT_LOCK))
-			tcp_put_port(sk);
+			inet_put_port(&tcp_hashinfo, sk);
 		/* fall through */
 	default:
 		if (oldstate==TCP_ESTABLISHED)
