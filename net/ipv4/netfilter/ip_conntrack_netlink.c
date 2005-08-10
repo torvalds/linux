@@ -1100,18 +1100,21 @@ static inline int
 ctnetlink_exp_dump_expect(struct sk_buff *skb,
                           const struct ip_conntrack_expect *exp)
 {
+	struct ip_conntrack *master = exp->master;
 	u_int32_t timeout = htonl((exp->timeout.expires - jiffies) / HZ);
 	u_int32_t id = htonl(exp->id);
-	struct nfattr *nest_parms = NFA_NEST(skb, CTA_EXPECT);
 
 	if (ctnetlink_exp_dump_tuple(skb, &exp->tuple, CTA_EXPECT_TUPLE) < 0)
 		goto nfattr_failure;
 	if (ctnetlink_exp_dump_tuple(skb, &exp->mask, CTA_EXPECT_MASK) < 0)
 		goto nfattr_failure;
+	if (ctnetlink_exp_dump_tuple(skb,
+				 &master->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+				 CTA_EXPECT_MASTER) < 0)
+		goto nfattr_failure;
 	
 	NFA_PUT(skb, CTA_EXPECT_TIMEOUT, sizeof(timeout), &timeout);
 	NFA_PUT(skb, CTA_EXPECT_ID, sizeof(u_int32_t), &id);
-	NFA_NEST_END(skb, nest_parms);
 
 	return 0;
 	
@@ -1259,10 +1262,8 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 		return 0;
 	}
 
-	if (cda[CTA_TUPLE_ORIG-1])
-		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_ORIG);
-	else if (cda[CTA_TUPLE_REPLY-1])
-		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_REPLY);
+	if (cda[CTA_EXPECT_MASTER-1])
+		err = ctnetlink_parse_tuple(cda, &tuple, CTA_EXPECT_MASTER);
 	else
 		return -EINVAL;
 
@@ -1310,13 +1311,33 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 	struct ip_conntrack_helper *h;
 	int err;
 
-	/* delete by tuple needs either orig or reply tuple */
-	if (cda[CTA_TUPLE_ORIG-1])
-		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_ORIG);
-	else if (cda[CTA_TUPLE_REPLY-1])
-		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_REPLY);
-	else if (cda[CTA_HELP_NAME-1]) {
-		char *name = NFA_DATA(cda[CTA_HELP_NAME-1]);
+	if (cda[CTA_EXPECT_TUPLE-1]) {
+		/* delete a single expect by tuple */
+		err = ctnetlink_parse_tuple(cda, &tuple, CTA_EXPECT_TUPLE);
+		if (err < 0)
+			return err;
+
+		/* bump usage count to 2 */
+		exp = ip_conntrack_expect_find_get(&tuple);
+		if (!exp)
+			return -ENOENT;
+
+		if (cda[CTA_EXPECT_ID-1]) {
+			u_int32_t id = 
+				*(u_int32_t *)NFA_DATA(cda[CTA_EXPECT_ID-1]);
+			if (exp->id != ntohl(id)) {
+				ip_conntrack_expect_put(exp);
+				return -ENOENT;
+			}
+		}
+
+		/* after list removal, usage count == 1 */
+		ip_conntrack_unexpect_related(exp);
+		/* have to put what we 'get' above. 
+		 * after this line usage count == 0 */
+		ip_conntrack_expect_put(exp);
+	} else if (cda[CTA_EXPECT_HELP_NAME-1]) {
+		char *name = NFA_DATA(cda[CTA_EXPECT_HELP_NAME-1]);
 
 		/* delete all expectations for this helper */
 		write_lock_bh(&ip_conntrack_lock);
@@ -1332,7 +1353,6 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 				__ip_ct_expect_unlink_destroy(exp);
 		}
 		write_unlock(&ip_conntrack_lock);
-		return 0;
 	} else {
 		/* This basically means we have to flush everything*/
 		write_lock_bh(&ip_conntrack_lock);
@@ -1342,29 +1362,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 				__ip_ct_expect_unlink_destroy(exp);
 		}
 		write_unlock_bh(&ip_conntrack_lock);
-		return 0;
 	}
-
-	if (err < 0)
-		return err;
-
-	/* bump usage count to 2 */
-	exp = ip_conntrack_expect_find_get(&tuple);
-	if (!exp)
-		return -ENOENT;
-
-	if (cda[CTA_EXPECT_ID-1]) {
-		u_int32_t id = *(u_int32_t *)NFA_DATA(cda[CTA_EXPECT_ID-1]);
-		if (exp->id != ntohl(id)) {
-			ip_conntrack_expect_put(exp);
-			return -ENOENT;
-		}
-	}
-
-	/* after list removal, usage count == 1 */
-	ip_conntrack_unexpect_related(exp);
-	/* have to put what we 'get' above. after this line usage count == 0 */
-	ip_conntrack_expect_put(exp);
 
 	return 0;
 }
@@ -1385,21 +1383,14 @@ ctnetlink_create_expect(struct nfattr *cda[])
 
 	DEBUGP("entered %s\n", __FUNCTION__);
 
+	/* caller guarantees that those three CTA_EXPECT_* exist */
 	err = ctnetlink_parse_tuple(cda, &tuple, CTA_EXPECT_TUPLE);
 	if (err < 0)
 		return err;
 	err = ctnetlink_parse_tuple(cda, &mask, CTA_EXPECT_MASK);
 	if (err < 0)
 		return err;
-
-	if (cda[CTA_TUPLE_ORIG-1])
-		err = ctnetlink_parse_tuple(cda, &master_tuple, CTA_TUPLE_ORIG);
-	else if (cda[CTA_TUPLE_REPLY-1])
-		err = ctnetlink_parse_tuple(cda, &master_tuple, 
-					    CTA_TUPLE_REPLY);
-	else
-		return -EINVAL;
-
+	err = ctnetlink_parse_tuple(cda, &master_tuple, CTA_EXPECT_MASTER);
 	if (err < 0)
 		return err;
 
@@ -1444,7 +1435,9 @@ ctnetlink_new_expect(struct sock *ctnl, struct sk_buff *skb,
 
 	DEBUGP("entered %s\n", __FUNCTION__);	
 
-	if (!cda[CTA_EXPECT_TUPLE-1] || !cda[CTA_EXPECT_MASK-1])
+	if (!cda[CTA_EXPECT_TUPLE-1]
+	    || !cda[CTA_EXPECT_MASK-1]
+	    || !cda[CTA_EXPECT_MASTER-1])
 		return -EINVAL;
 
 	err = ctnetlink_parse_tuple(cda, &tuple, CTA_EXPECT_TUPLE);
