@@ -404,7 +404,7 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 
 	read_lock_bh(&ip_conntrack_lock);
 	for (; cb->args[0] < ip_conntrack_htable_size; cb->args[0]++, *id = 0) {
-		list_for_each(i, &ip_conntrack_hash[cb->args[0]]) {
+		list_for_each_prev(i, &ip_conntrack_hash[cb->args[0]]) {
 			h = (struct ip_conntrack_tuple_hash *) i;
 			if (DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
@@ -441,7 +441,7 @@ ctnetlink_dump_table_w(struct sk_buff *skb, struct netlink_callback *cb)
 
 	write_lock_bh(&ip_conntrack_lock);
 	for (; cb->args[0] < ip_conntrack_htable_size; cb->args[0]++, *id = 0) {
-		list_for_each(i, &ip_conntrack_hash[cb->args[0]]) {
+		list_for_each_prev(i, &ip_conntrack_hash[cb->args[0]]) {
 			h = (struct ip_conntrack_tuple_hash *) i;
 			if (DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
@@ -1214,7 +1214,7 @@ ctnetlink_exp_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	DEBUGP("entered %s, last id=%llu\n", __FUNCTION__, *id);
 
 	read_lock_bh(&ip_conntrack_lock);
-	list_for_each(i, &ip_conntrack_expect_list) {
+	list_for_each_prev(i, &ip_conntrack_expect_list) {
 		exp = (struct ip_conntrack_expect *) i;
 		if (exp->id <= *id)
 			continue;
