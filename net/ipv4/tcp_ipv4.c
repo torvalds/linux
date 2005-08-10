@@ -228,62 +228,11 @@ fail:
 	return ret;
 }
 
-/* This lock without WQ_FLAG_EXCLUSIVE is good on UP and it can be very bad on SMP.
- * Look, when several writers sleep and reader wakes them up, all but one
- * immediately hit write lock and grab all the cpus. Exclusive sleep solves
- * this, _but_ remember, it adds useless work on UP machines (wake up each
- * exclusive lock release). It should be ifdefed really.
- */
-
-void tcp_listen_wlock(void)
-{
-	write_lock(&tcp_hashinfo.lhash_lock);
-
-	if (atomic_read(&tcp_hashinfo.lhash_users)) {
-		DEFINE_WAIT(wait);
-
-		for (;;) {
-			prepare_to_wait_exclusive(&tcp_hashinfo.lhash_wait,
-						&wait, TASK_UNINTERRUPTIBLE);
-			if (!atomic_read(&tcp_hashinfo.lhash_users))
-				break;
-			write_unlock_bh(&tcp_hashinfo.lhash_lock);
-			schedule();
-			write_lock_bh(&tcp_hashinfo.lhash_lock);
-		}
-
-		finish_wait(&tcp_hashinfo.lhash_wait, &wait);
-	}
-}
-
-static __inline__ void __tcp_v4_hash(struct sock *sk, const int listen_possible)
-{
-	struct hlist_head *list;
-	rwlock_t *lock;
-
-	BUG_TRAP(sk_unhashed(sk));
-	if (listen_possible && sk->sk_state == TCP_LISTEN) {
-		list = &tcp_hashinfo.listening_hash[inet_sk_listen_hashfn(sk)];
-		lock = &tcp_hashinfo.lhash_lock;
-		tcp_listen_wlock();
-	} else {
-		sk->sk_hashent = inet_sk_ehashfn(sk, tcp_hashinfo.ehash_size);
-		list = &tcp_hashinfo.ehash[sk->sk_hashent].chain;
-		lock = &tcp_hashinfo.ehash[sk->sk_hashent].lock;
-		write_lock(lock);
-	}
-	__sk_add_node(sk, list);
-	sock_prot_inc_use(sk->sk_prot);
-	write_unlock(lock);
-	if (listen_possible && sk->sk_state == TCP_LISTEN)
-		wake_up(&tcp_hashinfo.lhash_wait);
-}
-
 static void tcp_v4_hash(struct sock *sk)
 {
 	if (sk->sk_state != TCP_CLOSE) {
 		local_bh_disable();
-		__tcp_v4_hash(sk, 1);
+		__inet_hash(&tcp_hashinfo, sk, 1);
 		local_bh_enable();
 	}
 }
@@ -297,7 +246,7 @@ void tcp_unhash(struct sock *sk)
 
 	if (sk->sk_state == TCP_LISTEN) {
 		local_bh_disable();
-		tcp_listen_wlock();
+		inet_listen_wlock(&tcp_hashinfo);
 		lock = &tcp_hashinfo.lhash_lock;
 	} else {
 		struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[sk->sk_hashent];
@@ -624,7 +573,7 @@ ok:
  		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
  			inet_sk(sk)->sport = htons(port);
- 			__tcp_v4_hash(sk, 0);
+ 			__inet_hash(&tcp_hashinfo, sk, 0);
  		}
  		spin_unlock(&head->lock);
 
@@ -641,7 +590,7 @@ ok:
  	tb  = inet_sk(sk)->bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		__tcp_v4_hash(sk, 0);
+		__inet_hash(&tcp_hashinfo, sk, 0);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {
@@ -1479,7 +1428,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	newtp->advmss = dst_metric(dst, RTAX_ADVMSS);
 	tcp_initialize_rcv_mss(newsk);
 
-	__tcp_v4_hash(newsk, 0);
+	__inet_hash(&tcp_hashinfo, newsk, 0);
 	__inet_inherit_port(&tcp_hashinfo, sk, newsk);
 
 	return newsk;
@@ -2102,12 +2051,12 @@ static void *tcp_get_idx(struct seq_file *seq, loff_t pos)
 	void *rc;
 	struct tcp_iter_state* st = seq->private;
 
-	tcp_listen_lock();
+	inet_listen_lock(&tcp_hashinfo);
 	st->state = TCP_SEQ_STATE_LISTENING;
 	rc	  = listening_get_idx(seq, &pos);
 
 	if (!rc) {
-		tcp_listen_unlock();
+		inet_listen_unlock(&tcp_hashinfo);
 		local_bh_disable();
 		st->state = TCP_SEQ_STATE_ESTABLISHED;
 		rc	  = established_get_idx(seq, pos);
@@ -2140,7 +2089,7 @@ static void *tcp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	case TCP_SEQ_STATE_LISTENING:
 		rc = listening_get_next(seq, v);
 		if (!rc) {
-			tcp_listen_unlock();
+			inet_listen_unlock(&tcp_hashinfo);
 			local_bh_disable();
 			st->state = TCP_SEQ_STATE_ESTABLISHED;
 			rc	  = established_get_first(seq);
@@ -2168,7 +2117,7 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
 		}
 	case TCP_SEQ_STATE_LISTENING:
 		if (v != SEQ_START_TOKEN)
-			tcp_listen_unlock();
+			inet_listen_unlock(&tcp_hashinfo);
 		break;
 	case TCP_SEQ_STATE_TIME_WAIT:
 	case TCP_SEQ_STATE_ESTABLISHED:
@@ -2431,7 +2380,6 @@ void __init tcp_v4_init(struct net_proto_family *ops)
 EXPORT_SYMBOL(ipv4_specific);
 EXPORT_SYMBOL(inet_bind_bucket_create);
 EXPORT_SYMBOL(tcp_hashinfo);
-EXPORT_SYMBOL(tcp_listen_wlock);
 EXPORT_SYMBOL(tcp_prot);
 EXPORT_SYMBOL(tcp_unhash);
 EXPORT_SYMBOL(tcp_v4_conn_request);

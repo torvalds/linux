@@ -19,9 +19,13 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/tcp.h>		/* only for TCP_LISTEN, damn :-( */
 #include <linux/types.h>
+#include <linux/wait.h>
 
 #include <net/sock.h>
+
+#include <asm/atomic.h>
 
 /* This is for all connections with a full identity, no wildcards.
  * New scheme, half the table is for TIME_WAIT, the other half is
@@ -192,4 +196,48 @@ static inline void inet_inherit_port(struct inet_hashinfo *table,
 
 extern void inet_put_port(struct inet_hashinfo *table, struct sock *sk);
 
+extern void inet_listen_wlock(struct inet_hashinfo *hashinfo);
+
+/*
+ * - We may sleep inside this lock.
+ * - If sleeping is not required (or called from BH),
+ *   use plain read_(un)lock(&inet_hashinfo.lhash_lock).
+ */
+static inline void inet_listen_lock(struct inet_hashinfo *hashinfo)
+{
+	/* read_lock synchronizes to candidates to writers */
+	read_lock(&hashinfo->lhash_lock);
+	atomic_inc(&hashinfo->lhash_users);
+	read_unlock(&hashinfo->lhash_lock);
+}
+
+static inline void inet_listen_unlock(struct inet_hashinfo *hashinfo)
+{
+	if (atomic_dec_and_test(&hashinfo->lhash_users))
+		wake_up(&hashinfo->lhash_wait);
+}
+
+static inline void __inet_hash(struct inet_hashinfo *hashinfo,
+			       struct sock *sk, const int listen_possible)
+{
+	struct hlist_head *list;
+	rwlock_t *lock;
+
+	BUG_TRAP(sk_unhashed(sk));
+	if (listen_possible && sk->sk_state == TCP_LISTEN) {
+		list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+		lock = &hashinfo->lhash_lock;
+		inet_listen_wlock(hashinfo);
+	} else {
+		sk->sk_hashent = inet_sk_ehashfn(sk, hashinfo->ehash_size);
+		list = &hashinfo->ehash[sk->sk_hashent].chain;
+		lock = &hashinfo->ehash[sk->sk_hashent].lock;
+		write_lock(lock);
+	}
+	__sk_add_node(sk, list);
+	sock_prot_inc_use(sk->sk_prot);
+	write_unlock(lock);
+	if (listen_possible && sk->sk_state == TCP_LISTEN)
+		wake_up(&hashinfo->lhash_wait);
+}
 #endif /* _INET_HASHTABLES_H */

@@ -15,7 +15,9 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/wait.h>
 
 #include <net/inet_hashtables.h>
 
@@ -89,3 +91,33 @@ void inet_put_port(struct inet_hashinfo *hashinfo, struct sock *sk)
 }
 
 EXPORT_SYMBOL(inet_put_port);
+
+/*
+ * This lock without WQ_FLAG_EXCLUSIVE is good on UP and it can be very bad on SMP.
+ * Look, when several writers sleep and reader wakes them up, all but one
+ * immediately hit write lock and grab all the cpus. Exclusive sleep solves
+ * this, _but_ remember, it adds useless work on UP machines (wake up each
+ * exclusive lock release). It should be ifdefed really.
+ */
+void inet_listen_wlock(struct inet_hashinfo *hashinfo)
+{
+	write_lock(&hashinfo->lhash_lock);
+
+	if (atomic_read(&hashinfo->lhash_users)) {
+		DEFINE_WAIT(wait);
+
+		for (;;) {
+			prepare_to_wait_exclusive(&hashinfo->lhash_wait,
+						  &wait, TASK_UNINTERRUPTIBLE);
+			if (!atomic_read(&hashinfo->lhash_users))
+				break;
+			write_unlock_bh(&hashinfo->lhash_lock);
+			schedule();
+			write_lock_bh(&hashinfo->lhash_lock);
+		}
+
+		finish_wait(&hashinfo->lhash_wait, &wait);
+	}
+}
+
+EXPORT_SYMBOL(inet_listen_wlock);

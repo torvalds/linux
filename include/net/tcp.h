@@ -1447,27 +1447,6 @@ static __inline__ void tcp_openreq_init(struct request_sock *req,
 
 extern void tcp_enter_memory_pressure(void);
 
-extern void tcp_listen_wlock(void);
-
-/* - We may sleep inside this lock.
- * - If sleeping is not required (or called from BH),
- *   use plain read_(un)lock(&inet_hashinfo.lhash_lock).
- */
-
-static inline void tcp_listen_lock(void)
-{
-	/* read_lock synchronizes to candidates to writers */
-	read_lock(&tcp_hashinfo.lhash_lock);
-	atomic_inc(&tcp_hashinfo.lhash_users);
-	read_unlock(&tcp_hashinfo.lhash_lock);
-}
-
-static inline void tcp_listen_unlock(void)
-{
-	if (atomic_dec_and_test(&tcp_hashinfo.lhash_users))
-		wake_up(&tcp_hashinfo.lhash_wait);
-}
-
 static inline int keepalive_intvl_when(const struct tcp_sock *tp)
 {
 	return tp->keepalive_intvl ? : sysctl_tcp_keepalive_intvl;

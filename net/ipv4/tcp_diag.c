@@ -589,7 +589,7 @@ static int tcpdiag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	if (cb->args[0] == 0) {
 		if (!(r->tcpdiag_states&(TCPF_LISTEN|TCPF_SYN_RECV)))
 			goto skip_listen_ht;
-		tcp_listen_lock();
+		inet_listen_lock(&tcp_hashinfo);
 		for (i = s_i; i < INET_LHTABLE_SIZE; i++) {
 			struct sock *sk;
 			struct hlist_node *node;
@@ -613,7 +613,7 @@ static int tcpdiag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 					goto syn_recv;
 
 				if (tcpdiag_dump_sock(skb, sk, cb) < 0) {
-					tcp_listen_unlock();
+					inet_listen_unlock(&tcp_hashinfo);
 					goto done;
 				}
 
@@ -622,7 +622,7 @@ syn_recv:
 					goto next_listen;
 
 				if (tcpdiag_dump_reqs(skb, sk, cb) < 0) {
-					tcp_listen_unlock();
+					inet_listen_unlock(&tcp_hashinfo);
 					goto done;
 				}
 
@@ -636,7 +636,7 @@ next_listen:
 			cb->args[3] = 0;
 			cb->args[4] = 0;
 		}
-		tcp_listen_unlock();
+		inet_listen_unlock(&tcp_hashinfo);
 skip_listen_ht:
 		cb->args[0] = 1;
 		s_i = num = s_num = 0;

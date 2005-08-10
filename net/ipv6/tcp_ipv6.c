@@ -229,7 +229,7 @@ static __inline__ void __tcp_v6_hash(struct sock *sk)
 	if (sk->sk_state == TCP_LISTEN) {
 		list = &tcp_hashinfo.listening_hash[inet_sk_listen_hashfn(sk)];
 		lock = &tcp_hashinfo.lhash_lock;
-		tcp_listen_wlock();
+		inet_listen_wlock(&tcp_hashinfo);
 	} else {
 		sk->sk_hashent = tcp_v6_sk_hashfn(sk);
 		list = &tcp_hashinfo.ehash[sk->sk_hashent].chain;
