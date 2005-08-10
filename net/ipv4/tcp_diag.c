@@ -45,11 +45,15 @@ static struct sock *tcpnl;
 #define TCPDIAG_PUT(skb, attrtype, attrlen) \
 	RTA_DATA(__RTA_PUT(skb, attrtype, attrlen))
 
+#if defined(CONFIG_IP_DCCP) || defined(CONFIG_IP_DCCP_MODULE)
+extern struct inet_hashinfo dccp_hashinfo;
+#endif
+
 static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
-			int ext, u32 pid, u32 seq, u16 nlmsg_flags)
+			int ext, u32 pid, u32 seq, u16 nlmsg_flags,
+			const struct nlmsghdr *unlh)
 {
 	const struct inet_sock *inet = inet_sk(sk);
-	struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcpdiagmsg *r;
 	struct nlmsghdr  *nlh;
@@ -57,7 +61,7 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 	struct tcpdiag_meminfo  *minfo = NULL;
 	unsigned char	 *b = skb->tail;
 
-	nlh = NLMSG_PUT(skb, pid, seq, TCPDIAG_GETSOCK, sizeof(*r));
+	nlh = NLMSG_PUT(skb, pid, seq, unlh->nlmsg_type, sizeof(*r));
 	nlh->nlmsg_flags = nlmsg_flags;
 	r = NLMSG_DATA(nlh);
 	if (sk->sk_state != TCP_TIME_WAIT) {
@@ -147,8 +151,20 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 		r->tcpdiag_expires = 0;
 	}
 #undef EXPIRES_IN_MS
-	r->tcpdiag_rqueue = tp->rcv_nxt - tp->copied_seq;
-	r->tcpdiag_wqueue = tp->write_seq - tp->snd_una;
+	/*
+	 * Ahem... for now we'll have some knowledge about TCP -acme
+	 * But this is just one of two small exceptions, both in this
+	 * function, so lets close our eyes for some 15 lines or so... 8)
+	 * -acme
+	 */
+	if (sk->sk_protocol == IPPROTO_TCP) {
+		const struct tcp_sock *tp = tcp_sk(sk);
+
+		r->tcpdiag_rqueue = tp->rcv_nxt - tp->copied_seq;
+		r->tcpdiag_wqueue = tp->write_seq - tp->snd_una;
+	} else
+		r->tcpdiag_rqueue = r->tcpdiag_wqueue = 0;
+
 	r->tcpdiag_uid = sock_i_uid(sk);
 	r->tcpdiag_inode = sock_i_ino(sk);
 
@@ -159,8 +175,13 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 		minfo->tcpdiag_tmem = atomic_read(&sk->sk_wmem_alloc);
 	}
 
-	if (info) 
-		tcp_get_info(sk, info);
+	/* Ahem... for now we'll have some knowledge about TCP -acme */
+	if (info) {
+		if (sk->sk_protocol == IPPROTO_TCP) 
+			tcp_get_info(sk, info);
+		else
+			memset(info, 0, sizeof(*info));
+	}
 
 	if (sk->sk_state < TCP_TIME_WAIT &&
 	    icsk->icsk_ca_ops && icsk->icsk_ca_ops->get_info)
@@ -194,9 +215,13 @@ static int tcpdiag_get_exact(struct sk_buff *in_skb, const struct nlmsghdr *nlh)
 	struct sock *sk;
 	struct tcpdiagreq *req = NLMSG_DATA(nlh);
 	struct sk_buff *rep;
-
+	struct inet_hashinfo *hashinfo = &tcp_hashinfo;
+#if defined(CONFIG_IP_DCCP) || defined(CONFIG_IP_DCCP_MODULE)
+	if (nlh->nlmsg_type == DCCPDIAG_GETSOCK)
+		hashinfo = &dccp_hashinfo;
+#endif
 	if (req->tcpdiag_family == AF_INET) {
-		sk = inet_lookup(&tcp_hashinfo, req->id.tcpdiag_dst[0],
+		sk = inet_lookup(hashinfo, req->id.tcpdiag_dst[0],
 				 req->id.tcpdiag_dport, req->id.tcpdiag_src[0],
 				 req->id.tcpdiag_sport, req->id.tcpdiag_if);
 	}
@@ -230,7 +255,7 @@ static int tcpdiag_get_exact(struct sk_buff *in_skb, const struct nlmsghdr *nlh)
 
 	if (tcpdiag_fill(rep, sk, req->tcpdiag_ext,
 			 NETLINK_CB(in_skb).pid,
-			 nlh->nlmsg_seq, 0) <= 0)
+			 nlh->nlmsg_seq, 0, nlh) <= 0)
 		BUG();
 
 	err = netlink_unicast(tcpnl, rep, NETLINK_CB(in_skb).pid, MSG_DONTWAIT);
@@ -436,12 +461,13 @@ static int tcpdiag_dump_sock(struct sk_buff *skb, struct sock *sk,
 	}
 
 	return tcpdiag_fill(skb, sk, r->tcpdiag_ext, NETLINK_CB(cb->skb).pid,
-			    cb->nlh->nlmsg_seq, NLM_F_MULTI);
+			    cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh);
 }
 
 static int tcpdiag_fill_req(struct sk_buff *skb, struct sock *sk,
 			    struct request_sock *req,
-			    u32 pid, u32 seq)
+			    u32 pid, u32 seq,
+			    const struct nlmsghdr *unlh)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct inet_sock *inet = inet_sk(sk);
@@ -450,7 +476,7 @@ static int tcpdiag_fill_req(struct sk_buff *skb, struct sock *sk,
 	struct nlmsghdr *nlh;
 	long tmo;
 
-	nlh = NLMSG_PUT(skb, pid, seq, TCPDIAG_GETSOCK, sizeof(*r));
+	nlh = NLMSG_PUT(skb, pid, seq, unlh->nlmsg_type, sizeof(*r));
 	nlh->nlmsg_flags = NLM_F_MULTI;
 	r = NLMSG_DATA(nlh);
 
@@ -526,7 +552,7 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 		entry.userlocks = sk->sk_userlocks;
 	}
 
-	for (j = s_j; j < TCP_SYNQ_HSIZE; j++) {
+	for (j = s_j; j < lopt->nr_table_entries; j++) {
 		struct request_sock *req, *head = lopt->syn_table[j];
 
 		reqnum = 0;
@@ -561,7 +587,7 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 
 			err = tcpdiag_fill_req(skb, sk, req,
 					       NETLINK_CB(cb->skb).pid,
-					       cb->nlh->nlmsg_seq);
+					       cb->nlh->nlmsg_seq, cb->nlh);
 			if (err < 0) {
 				cb->args[3] = j + 1;
 				cb->args[4] = reqnum;
@@ -583,20 +609,26 @@ static int tcpdiag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	int i, num;
 	int s_i, s_num;
 	struct tcpdiagreq *r = NLMSG_DATA(cb->nlh);
+	struct inet_hashinfo *hashinfo;
 
 	s_i = cb->args[1];
 	s_num = num = cb->args[2];
-
+		hashinfo = &tcp_hashinfo;
+#if defined(CONFIG_IP_DCCP) || defined(CONFIG_IP_DCCP_MODULE)
+	if (cb->nlh->nlmsg_type == DCCPDIAG_GETSOCK)
+		hashinfo = &dccp_hashinfo;
+#endif
 	if (cb->args[0] == 0) {
 		if (!(r->tcpdiag_states&(TCPF_LISTEN|TCPF_SYN_RECV)))
 			goto skip_listen_ht;
-		inet_listen_lock(&tcp_hashinfo);
+
+		inet_listen_lock(hashinfo);
 		for (i = s_i; i < INET_LHTABLE_SIZE; i++) {
 			struct sock *sk;
 			struct hlist_node *node;
 
 			num = 0;
-			sk_for_each(sk, node, &tcp_hashinfo.listening_hash[i]) {
+			sk_for_each(sk, node, &hashinfo->listening_hash[i]) {
 				struct inet_sock *inet = inet_sk(sk);
 
 				if (num < s_num) {
@@ -614,7 +646,7 @@ static int tcpdiag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 					goto syn_recv;
 
 				if (tcpdiag_dump_sock(skb, sk, cb) < 0) {
-					inet_listen_unlock(&tcp_hashinfo);
+					inet_listen_unlock(hashinfo);
 					goto done;
 				}
 
@@ -623,7 +655,7 @@ syn_recv:
 					goto next_listen;
 
 				if (tcpdiag_dump_reqs(skb, sk, cb) < 0) {
-					inet_listen_unlock(&tcp_hashinfo);
+					inet_listen_unlock(hashinfo);
 					goto done;
 				}
 
@@ -637,7 +669,7 @@ next_listen:
 			cb->args[3] = 0;
 			cb->args[4] = 0;
 		}
-		inet_listen_unlock(&tcp_hashinfo);
+		inet_listen_unlock(hashinfo);
 skip_listen_ht:
 		cb->args[0] = 1;
 		s_i = num = s_num = 0;
@@ -646,8 +678,8 @@ skip_listen_ht:
 	if (!(r->tcpdiag_states&~(TCPF_LISTEN|TCPF_SYN_RECV)))
 		return skb->len;
 
-	for (i = s_i; i < tcp_hashinfo.ehash_size; i++) {
-		struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[i];
+	for (i = s_i; i < hashinfo->ehash_size; i++) {
+		struct inet_ehash_bucket *head = &hashinfo->ehash[i];
 		struct sock *sk;
 		struct hlist_node *node;
 
@@ -679,7 +711,7 @@ next_normal:
 
 		if (r->tcpdiag_states&TCPF_TIME_WAIT) {
 			sk_for_each(sk, node,
-				    &tcp_hashinfo.ehash[i + tcp_hashinfo.ehash_size].chain) {
+				    &hashinfo->ehash[i + hashinfo->ehash_size].chain) {
 				struct inet_sock *inet = inet_sk(sk);
 
 				if (num < s_num)
@@ -719,7 +751,11 @@ tcpdiag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (!(nlh->nlmsg_flags&NLM_F_REQUEST))
 		return 0;
 
-	if (nlh->nlmsg_type != TCPDIAG_GETSOCK)
+	if (nlh->nlmsg_type != TCPDIAG_GETSOCK
+#if defined(CONFIG_IP_DCCP) || defined(CONFIG_IP_DCCP_MODULE)
+	    && nlh->nlmsg_type != DCCPDIAG_GETSOCK
+#endif
+	   )
 		goto err_inval;
 
 	if (NLMSG_LENGTH(sizeof(struct tcpdiagreq)) > skb->len)

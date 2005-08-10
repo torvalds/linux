@@ -3,6 +3,7 @@
 
 /* Just some random number */
 #define TCPDIAG_GETSOCK 18
+#define DCCPDIAG_GETSOCK 19
 
 /* Socket identity */
 struct tcpdiag_sockid

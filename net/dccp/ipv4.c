@@ -34,6 +34,8 @@ struct inet_hashinfo __cacheline_aligned dccp_hashinfo = {
 	.port_rover	= 1024 - 1,
 };
 
+EXPORT_SYMBOL_GPL(dccp_hashinfo);
+
 static int dccp_v4_get_port(struct sock *sk, const unsigned short snum)
 {
 	return inet_csk_get_port(&dccp_hashinfo, sk, snum);
