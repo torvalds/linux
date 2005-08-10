@@ -239,6 +239,13 @@ static inline void inet_csk_reqsk_queue_drop(struct sock *sk,
 	reqsk_free(req);
 }
 
+extern void inet_csk_reqsk_queue_prune(struct sock *parent,
+				       const unsigned long interval,
+				       const unsigned long timeout,
+				       const unsigned long max_rto);
+
+extern void inet_csk_destroy_sock(struct sock *sk);
+extern int  inet_csk_listen_start(struct sock *sk, const int nr_table_entries);
 extern void inet_csk_listen_stop(struct sock *sk);
 
 #endif /* _INET_CONNECTION_SOCK_H */

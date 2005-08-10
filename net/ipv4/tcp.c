@@ -456,96 +456,6 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 	return put_user(answ, (int __user *)arg);
 }
 
-int inet_csk_listen_start(struct sock *sk, const int nr_table_entries)
-{
-	struct inet_sock *inet = inet_sk(sk);
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	int rc = reqsk_queue_alloc(&icsk->icsk_accept_queue, nr_table_entries);
-
-	if (rc != 0)
-		return rc;
-
-	sk->sk_max_ack_backlog = 0;
-	sk->sk_ack_backlog = 0;
-	inet_csk_delack_init(sk);
-
-	/* There is race window here: we announce ourselves listening,
-	 * but this transition is still not validated by get_port().
-	 * It is OK, because this socket enters to hash table only
-	 * after validation is complete.
-	 */
-	sk->sk_state = TCP_LISTEN;
-	if (!sk->sk_prot->get_port(sk, inet->num)) {
-		inet->sport = htons(inet->num);
-
-		sk_dst_reset(sk);
-		sk->sk_prot->hash(sk);
-
-		return 0;
-	}
-
-	sk->sk_state = TCP_CLOSE;
-	__reqsk_queue_destroy(&icsk->icsk_accept_queue);
-	return -EADDRINUSE;
-}
-
-EXPORT_SYMBOL_GPL(inet_csk_listen_start);
-
-/*
- *	This routine closes sockets which have been at least partially
- *	opened, but not yet accepted.
- */
-void inet_csk_listen_stop(struct sock *sk)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	struct request_sock *acc_req;
-	struct request_sock *req;
-
-	inet_csk_delete_keepalive_timer(sk);
-
-	/* make all the listen_opt local to us */
-	acc_req = reqsk_queue_yank_acceptq(&icsk->icsk_accept_queue);
-
-	/* Following specs, it would be better either to send FIN
-	 * (and enter FIN-WAIT-1, it is normal close)
-	 * or to send active reset (abort).
-	 * Certainly, it is pretty dangerous while synflood, but it is
-	 * bad justification for our negligence 8)
-	 * To be honest, we are not able to make either
-	 * of the variants now.			--ANK
-	 */
-	reqsk_queue_destroy(&icsk->icsk_accept_queue);
-
-	while ((req = acc_req) != NULL) {
-		struct sock *child = req->sk;
-
-		acc_req = req->dl_next;
-
-		local_bh_disable();
-		bh_lock_sock(child);
-		BUG_TRAP(!sock_owned_by_user(child));
-		sock_hold(child);
-
-		sk->sk_prot->disconnect(child, O_NONBLOCK);
-
-		sock_orphan(child);
-
-		atomic_inc(sk->sk_prot->orphan_count);
-
-		inet_csk_destroy_sock(child);
-
-		bh_unlock_sock(child);
-		local_bh_enable();
-		sock_put(child);
-
-		sk_acceptq_removed(sk);
-		__reqsk_free(req);
-	}
-	BUG_TRAP(!sk->sk_ack_backlog);
-}
-
-EXPORT_SYMBOL_GPL(inet_csk_listen_stop);
-
 static inline void tcp_mark_push(struct tcp_sock *tp, struct sk_buff *skb)
 {
 	TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
@@ -1559,35 +1469,6 @@ void tcp_shutdown(struct sock *sk, int how)
 	}
 }
 
-/*
- * At this point, there should be no process reference to this
- * socket, and thus no user references at all.  Therefore we
- * can assume the socket waitqueue is inactive and nobody will
- * try to jump onto it.
- */
-void inet_csk_destroy_sock(struct sock *sk)
-{
-	BUG_TRAP(sk->sk_state == TCP_CLOSE);
-	BUG_TRAP(sock_flag(sk, SOCK_DEAD));
-
-	/* It cannot be in hash table! */
-	BUG_TRAP(sk_unhashed(sk));
-
-	/* If it has not 0 inet_sk(sk)->num, it must be bound */
-	BUG_TRAP(!inet_sk(sk)->num || inet_csk(sk)->icsk_bind_hash);
-
-	sk->sk_prot->destroy(sk);
-
-	sk_stream_kill_queues(sk);
-
-	xfrm_sk_free_policy(sk);
-
-	sk_refcnt_debug_release(sk);
-
-	atomic_dec(sk->sk_prot->orphan_count);
-	sock_put(sk);
-}
-
 void tcp_close(struct sock *sk, long timeout)
 {
 	struct sk_buff *skb;
@@ -2258,7 +2139,6 @@ void __init tcp_init(void)
 }
 
 EXPORT_SYMBOL(tcp_close);
-EXPORT_SYMBOL(inet_csk_destroy_sock);
 EXPORT_SYMBOL(tcp_disconnect);
 EXPORT_SYMBOL(tcp_getsockopt);
 EXPORT_SYMBOL(tcp_ioctl);

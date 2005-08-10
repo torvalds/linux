@@ -23,6 +23,7 @@
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/tcp_states.h>
+#include <net/xfrm.h>
 
 #ifdef INET_CSK_DEBUG
 const char inet_csk_timer_bug_msg[] = "inet_csk BUG: unknown timer value\n";
@@ -398,7 +399,99 @@ void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
 	inet_csk_reqsk_queue_added(sk, timeout);
 }
 
+/* Only thing we need from tcp.h */
+extern int sysctl_tcp_synack_retries;
+
 EXPORT_SYMBOL_GPL(inet_csk_reqsk_queue_hash_add);
+
+void inet_csk_reqsk_queue_prune(struct sock *parent,
+				const unsigned long interval,
+				const unsigned long timeout,
+				const unsigned long max_rto)
+{
+	struct inet_connection_sock *icsk = inet_csk(parent);
+	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
+	struct listen_sock *lopt = queue->listen_opt;
+	int max_retries = icsk->icsk_syn_retries ? : sysctl_tcp_synack_retries;
+	int thresh = max_retries;
+	unsigned long now = jiffies;
+	struct request_sock **reqp, *req;
+	int i, budget;
+
+	if (lopt == NULL || lopt->qlen == 0)
+		return;
+
+	/* Normally all the openreqs are young and become mature
+	 * (i.e. converted to established socket) for first timeout.
+	 * If synack was not acknowledged for 3 seconds, it means
+	 * one of the following things: synack was lost, ack was lost,
+	 * rtt is high or nobody planned to ack (i.e. synflood).
+	 * When server is a bit loaded, queue is populated with old
+	 * open requests, reducing effective size of queue.
+	 * When server is well loaded, queue size reduces to zero
+	 * after several minutes of work. It is not synflood,
+	 * it is normal operation. The solution is pruning
+	 * too old entries overriding normal timeout, when
+	 * situation becomes dangerous.
+	 *
+	 * Essentially, we reserve half of room for young
+	 * embrions; and abort old ones without pity, if old
+	 * ones are about to clog our table.
+	 */
+	if (lopt->qlen>>(lopt->max_qlen_log-1)) {
+		int young = (lopt->qlen_young<<1);
+
+		while (thresh > 2) {
+			if (lopt->qlen < young)
+				break;
+			thresh--;
+			young <<= 1;
+		}
+	}
+
+	if (queue->rskq_defer_accept)
+		max_retries = queue->rskq_defer_accept;
+
+	budget = 2 * (lopt->nr_table_entries / (timeout / interval));
+	i = lopt->clock_hand;
+
+	do {
+		reqp=&lopt->syn_table[i];
+		while ((req = *reqp) != NULL) {
+			if (time_after_eq(now, req->expires)) {
+				if ((req->retrans < thresh ||
+				     (inet_rsk(req)->acked && req->retrans < max_retries))
+				    && !req->rsk_ops->rtx_syn_ack(parent, req, NULL)) {
+					unsigned long timeo;
+
+					if (req->retrans++ == 0)
+						lopt->qlen_young--;
+					timeo = min((timeout << req->retrans), max_rto);
+					req->expires = now + timeo;
+					reqp = &req->dl_next;
+					continue;
+				}
+
+				/* Drop this request */
+				inet_csk_reqsk_queue_unlink(parent, req, reqp);
+				reqsk_queue_removed(queue, req);
+				reqsk_free(req);
+				continue;
+			}
+			reqp = &req->dl_next;
+		}
+
+		i = (i + 1) & (lopt->nr_table_entries - 1);
+
+	} while (--budget > 0);
+
+	lopt->clock_hand = i;
+
+	if (lopt->qlen)
+		inet_csk_reset_keepalive_timer(parent, interval);
+}
+
+EXPORT_SYMBOL_GPL(inet_csk_reqsk_queue_prune);
 
 struct sock *inet_csk_clone(struct sock *sk, const struct request_sock *req,
 			    const unsigned int __nocast priority)
@@ -424,3 +517,124 @@ struct sock *inet_csk_clone(struct sock *sk, const struct request_sock *req,
 }
 
 EXPORT_SYMBOL_GPL(inet_csk_clone);
+
+/*
+ * At this point, there should be no process reference to this
+ * socket, and thus no user references at all.  Therefore we
+ * can assume the socket waitqueue is inactive and nobody will
+ * try to jump onto it.
+ */
+void inet_csk_destroy_sock(struct sock *sk)
+{
+	BUG_TRAP(sk->sk_state == TCP_CLOSE);
+	BUG_TRAP(sock_flag(sk, SOCK_DEAD));
+
+	/* It cannot be in hash table! */
+	BUG_TRAP(sk_unhashed(sk));
+
+	/* If it has not 0 inet_sk(sk)->num, it must be bound */
+	BUG_TRAP(!inet_sk(sk)->num || inet_csk(sk)->icsk_bind_hash);
+
+	sk->sk_prot->destroy(sk);
+
+	sk_stream_kill_queues(sk);
+
+	xfrm_sk_free_policy(sk);
+
+	sk_refcnt_debug_release(sk);
+
+	atomic_dec(sk->sk_prot->orphan_count);
+	sock_put(sk);
+}
+
+EXPORT_SYMBOL(inet_csk_destroy_sock);
+
+int inet_csk_listen_start(struct sock *sk, const int nr_table_entries)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	int rc = reqsk_queue_alloc(&icsk->icsk_accept_queue, nr_table_entries);
+
+	if (rc != 0)
+		return rc;
+
+	sk->sk_max_ack_backlog = 0;
+	sk->sk_ack_backlog = 0;
+	inet_csk_delack_init(sk);
+
+	/* There is race window here: we announce ourselves listening,
+	 * but this transition is still not validated by get_port().
+	 * It is OK, because this socket enters to hash table only
+	 * after validation is complete.
+	 */
+	sk->sk_state = TCP_LISTEN;
+	if (!sk->sk_prot->get_port(sk, inet->num)) {
+		inet->sport = htons(inet->num);
+
+		sk_dst_reset(sk);
+		sk->sk_prot->hash(sk);
+
+		return 0;
+	}
+
+	sk->sk_state = TCP_CLOSE;
+	__reqsk_queue_destroy(&icsk->icsk_accept_queue);
+	return -EADDRINUSE;
+}
+
+EXPORT_SYMBOL_GPL(inet_csk_listen_start);
+
+/*
+ *	This routine closes sockets which have been at least partially
+ *	opened, but not yet accepted.
+ */
+void inet_csk_listen_stop(struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct request_sock *acc_req;
+	struct request_sock *req;
+
+	inet_csk_delete_keepalive_timer(sk);
+
+	/* make all the listen_opt local to us */
+	acc_req = reqsk_queue_yank_acceptq(&icsk->icsk_accept_queue);
+
+	/* Following specs, it would be better either to send FIN
+	 * (and enter FIN-WAIT-1, it is normal close)
+	 * or to send active reset (abort).
+	 * Certainly, it is pretty dangerous while synflood, but it is
+	 * bad justification for our negligence 8)
+	 * To be honest, we are not able to make either
+	 * of the variants now.			--ANK
+	 */
+	reqsk_queue_destroy(&icsk->icsk_accept_queue);
+
+	while ((req = acc_req) != NULL) {
+		struct sock *child = req->sk;
+
+		acc_req = req->dl_next;
+
+		local_bh_disable();
+		bh_lock_sock(child);
+		BUG_TRAP(!sock_owned_by_user(child));
+		sock_hold(child);
+
+		sk->sk_prot->disconnect(child, O_NONBLOCK);
+
+		sock_orphan(child);
+
+		atomic_inc(sk->sk_prot->orphan_count);
+
+		inet_csk_destroy_sock(child);
+
+		bh_unlock_sock(child);
+		local_bh_enable();
+		sock_put(child);
+
+		sk_acceptq_removed(sk);
+		__reqsk_free(req);
+	}
+	BUG_TRAP(!sk->sk_ack_backlog);
+}
+
+EXPORT_SYMBOL_GPL(inet_csk_listen_stop);

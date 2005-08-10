@@ -220,11 +220,7 @@ out:
  */
 static void dccp_response_timer(struct sock *sk)
 {
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	const int max_retries = icsk->icsk_syn_retries ? : TCP_SYNACK_RETRIES /* FIXME sysctl_tcp_synack_retries */;
-
-	reqsk_queue_prune(&icsk->icsk_accept_queue, sk, TCP_SYNQ_INTERVAL,
-			  DCCP_TIMEOUT_INIT, DCCP_RTO_MAX, max_retries);
+	inet_csk_reqsk_queue_prune(sk, TCP_SYNQ_INTERVAL, DCCP_TIMEOUT_INIT, DCCP_RTO_MAX);
 }
 
 static void dccp_keepalive_timer(unsigned long data)

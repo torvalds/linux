@@ -258,8 +258,4 @@ static inline void reqsk_queue_hash_req(struct request_sock_queue *queue,
 	write_unlock(&queue->syn_wait_lock);
 }
 
-extern void reqsk_queue_prune(struct request_sock_queue *queue, struct sock *parent,
-			      const unsigned long interval, const unsigned long timeout,
-			      const unsigned long max_rto, int max_retries);
-
 #endif /* _REQUEST_SOCK_H */

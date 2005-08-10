@@ -423,9 +423,6 @@ extern int			tcp_recvmsg(struct kiocb *iocb, struct sock *sk,
 					    size_t len, int nonblock, 
 					    int flags, int *addr_len);
 
-extern int			inet_csk_listen_start(struct sock *sk,
-						      const int nr_table_entries);
-
 extern void			tcp_parse_options(struct sk_buff *skb,
 						  struct tcp_options_received *opt_rx,
 						  int estab);
@@ -860,9 +857,6 @@ static __inline__ void tcp_update_wl(struct tcp_sock *tp, u32 ack, u32 seq)
 {
 	tp->snd_wl1 = seq;
 }
-
-extern void inet_csk_destroy_sock(struct sock *sk);
-
 
 /*
  * Calculate(/check) TCP checksum
