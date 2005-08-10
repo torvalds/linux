@@ -76,11 +76,11 @@
 #include <linux/netdevice.h>
 #include <linux/file.h>
 #include <linux/proc_fs.h>
-#include <linux/tcp.h>
 
 #include <net/sock.h>
 #include <net/af_unix.h>
 #include <net/scm.h>
+#include <net/tcp_states.h>
 
 /* Internal data structures and random procedures: */
 

@@ -51,6 +51,7 @@
 #include <net/udp.h>
 #include <net/raw.h>
 #include <net/inet_common.h>
+#include <net/tcp_states.h>
 
 #include <net/ip6_checksum.h>
 #include <net/xfrm.h>

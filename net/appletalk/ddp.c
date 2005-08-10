@@ -53,12 +53,12 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/tcp.h>
 #include <linux/if_arp.h>
 #include <linux/termios.h>	/* For TIOCOUTQ/INQ */
 #include <net/datalink.h>
 #include <net/psnap.h>
 #include <net/sock.h>
+#include <net/tcp_states.h>
 #include <net/route.h>
 #include <linux/atalk.h>
 

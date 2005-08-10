@@ -23,7 +23,7 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <net/sock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/x25.h>
 
 static void x25_heartbeat_expiry(unsigned long);

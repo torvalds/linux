@@ -17,8 +17,8 @@
 #include <linux/ip.h>
 #include <linux/in.h>
 #include <net/sock.h>
-#include <net/tcp.h>
 #include <net/route.h>
+#include <net/tcp_states.h>
 
 int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {

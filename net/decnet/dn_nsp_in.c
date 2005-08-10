@@ -60,7 +60,7 @@
 #include <linux/inet.h>
 #include <linux/route.h>
 #include <net/sock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <asm/system.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>

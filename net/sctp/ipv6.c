@@ -66,8 +66,8 @@
 #include <linux/seq_file.h>
 
 #include <net/protocol.h>
-#include <net/tcp.h>
 #include <net/ndisc.h>
+#include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/transp_v6.h>
 #include <net/addrconf.h>

@@ -105,7 +105,7 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <net/sock.h>
-#include <linux/tcp.h>
+#include <net/tcp_states.h>
 #include <net/af_unix.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>

@@ -19,11 +19,11 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/tcp.h>		/* only for TCP_LISTEN, damn :-( */
 #include <linux/types.h>
 #include <linux/wait.h>
 
 #include <net/sock.h>
+#include <net/tcp_states.h>
 
 #include <asm/atomic.h>
 

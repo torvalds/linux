@@ -27,7 +27,7 @@
 #include <linux/netfilter.h>
 #include <net/sock.h>
 #include <net/ip.h>			/* For ip_rcv */
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/arp.h>			/* For arp_rcv */
 #include <asm/uaccess.h>
 #include <asm/system.h>

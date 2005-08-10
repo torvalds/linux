@@ -26,7 +26,6 @@
 #include <linux/in.h>
 #include <linux/inet.h>
 #include <linux/udp.h>
-#include <linux/tcp.h>
 #include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
@@ -34,7 +33,7 @@
 #include <net/sock.h>
 #include <net/checksum.h>
 #include <net/ip.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 

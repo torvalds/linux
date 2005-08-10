@@ -49,6 +49,7 @@
 #include <net/transp_v6.h>
 #include <net/udp.h>
 #include <net/inet_common.h>
+#include <net/tcp_states.h>
 
 #include <net/rawv6.h>
 #include <net/xfrm.h>

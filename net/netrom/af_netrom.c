@@ -39,7 +39,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <net/ip.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/arp.h>
 #include <linux/init.h>
 

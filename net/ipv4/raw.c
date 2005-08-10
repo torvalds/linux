@@ -59,7 +59,6 @@
 #include <linux/netdevice.h>
 #include <linux/in_route.h>
 #include <linux/route.h>
-#include <linux/tcp.h>
 #include <linux/skbuff.h>
 #include <net/dst.h>
 #include <net/sock.h>
@@ -71,6 +70,7 @@
 #include <net/udp.h>
 #include <net/raw.h>
 #include <net/snmp.h>
+#include <net/tcp_states.h>
 #include <net/inet_common.h>
 #include <net/checksum.h>
 #include <net/xfrm.h>

@@ -118,7 +118,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <linux/netfilter.h>
 #include <linux/seq_file.h>
 #include <net/sock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/flow.h>
 #include <asm/system.h>
 #include <asm/ioctls.h>

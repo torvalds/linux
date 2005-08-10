@@ -95,7 +95,8 @@
 #include <linux/ipv6.h>
 #include <linux/netdevice.h>
 #include <net/snmp.h>
-#include <net/tcp.h>
+#include <net/ip.h>
+#include <net/tcp_states.h>
 #include <net/protocol.h>
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>

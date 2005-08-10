@@ -29,6 +29,7 @@
 #include <net/addrconf.h>
 #include <net/transp_v6.h>
 #include <net/ip6_route.h>
+#include <net/tcp_states.h>
 
 #include <linux/errqueue.h>
 #include <asm/uaccess.h>
