@@ -1090,7 +1090,5 @@ int ip_getsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 
 EXPORT_SYMBOL(ip_cmsg_recv);
 
-#ifdef CONFIG_IP_SCTP_MODULE
 EXPORT_SYMBOL(ip_getsockopt);
 EXPORT_SYMBOL(ip_setsockopt);
-#endif

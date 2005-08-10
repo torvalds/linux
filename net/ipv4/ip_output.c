@@ -158,6 +158,8 @@ int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
 		       dst_output);
 }
 
+EXPORT_SYMBOL_GPL(ip_build_and_send_pkt);
+
 static inline int ip_finish_output2(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;

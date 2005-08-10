@@ -47,6 +47,8 @@ void __inet_twsk_kill(struct inet_timewait_sock *tw, struct inet_hashinfo *hashi
 	inet_twsk_put(tw);
 }
 
+EXPORT_SYMBOL_GPL(__inet_twsk_kill);
+
 /*
  * Enter the time wait state. This is called with locally disabled BH.
  * Essentially we whip up a timewait bucket, copy the relevant info into it

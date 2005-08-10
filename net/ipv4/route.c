@@ -2602,6 +2602,8 @@ int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
 	return ip_route_output_slow(rp, flp);
 }
 
+EXPORT_SYMBOL_GPL(__ip_route_output_key);
+
 int ip_route_output_flow(struct rtable **rp, struct flowi *flp, struct sock *sk, int flags)
 {
 	int err;
@@ -2619,6 +2621,8 @@ int ip_route_output_flow(struct rtable **rp, struct flowi *flp, struct sock *sk,
 
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(ip_route_output_flow);
 
 int ip_route_output_key(struct rtable **rp, struct flowi *flp)
 {
