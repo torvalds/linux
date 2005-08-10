@@ -687,7 +687,7 @@ init_or_cleanup(int init)
 	return status;
 
 cleanup:
-	nf_unregister_queue_handler(PF_INET6);
+	nf_unregister_queue_handlers(&ipq_enqueue_packet);
 	synchronize_net();
 	ipq_flush(NF_DROP);
 	
