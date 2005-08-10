@@ -991,6 +991,7 @@ static void __exit fini(void)
 MODULE_DESCRIPTION("netfilter userspace logging");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_ULOG);
 
 module_init(init);
 module_exit(fini);
