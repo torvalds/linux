@@ -104,32 +104,6 @@ struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
 int sysctl_local_port_range[2] = { 1024, 4999 };
 int tcp_port_rover = 1024 - 1;
 
-/* Allocate and initialize a new local port bind bucket.
- * The bindhash mutex for snum's hash chain must be held here.
- */
-struct inet_bind_bucket *inet_bind_bucket_create(kmem_cache_t *cachep,
-						 struct inet_bind_hashbucket *head,
-						 const unsigned short snum)
-{
-	struct inet_bind_bucket *tb = kmem_cache_alloc(cachep, SLAB_ATOMIC);
-	if (tb) {
-		tb->port = snum;
-		tb->fastreuse = 0;
-		INIT_HLIST_HEAD(&tb->owners);
-		hlist_add_head(&tb->node, &head->chain);
-	}
-	return tb;
-}
-
-/* Caller must hold hashbucket lock for this tb with local BH disabled */
-void inet_bind_bucket_destroy(kmem_cache_t *cachep, struct inet_bind_bucket *tb)
-{
-	if (hlist_empty(&tb->owners)) {
-		__hlist_del(&tb->node);
-		kmem_cache_free(cachep, tb);
-	}
-}
-
 /* Caller must disable local BH processing. */
 static __inline__ void __tcp_inherit_port(struct sock *sk, struct sock *child)
 {

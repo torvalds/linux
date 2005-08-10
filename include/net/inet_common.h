@@ -8,6 +8,11 @@ extern struct proto_ops		inet_dgram_ops;
  *	INET4 prototypes used by INET6
  */
 
+struct msghdr;
+struct sock;
+struct sockaddr;
+struct socket;
+
 extern void			inet_remove_sock(struct sock *sk1);
 extern void			inet_put_sock(unsigned short num, 
 					      struct sock *sk);
