@@ -238,6 +238,8 @@ config CPUSETS
 
 	  Say N if unsure.
 
+source "usr/Kconfig"
+
 menuconfig EMBEDDED
 	bool "Configure standard kernel features (for small systems)"
 	help
