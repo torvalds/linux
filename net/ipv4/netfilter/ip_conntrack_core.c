@@ -204,6 +204,7 @@ static void unlink_expect(struct ip_conntrack_expect *exp)
 	list_del(&exp->list);
 	CONNTRACK_STAT_INC(expect_delete);
 	exp->master->expecting--;
+	ip_conntrack_expect_put(exp);
 }
 
 void __ip_ct_expect_unlink_destroy(struct ip_conntrack_expect *exp)
