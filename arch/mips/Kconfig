@@ -562,6 +562,7 @@ config QEMU
 	select SWAP_IO_SPACE
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
 	help
 	 Qemu is a software emulator which among other architectures also
 	 can simulate a MIPS32 4Kc system.  This patch adds support for the
@@ -759,6 +760,10 @@ config MIPS_PB1200
 	select DMA_NONCOHERENT
 	select MIPS_DISABLE_OBSOLETE_IDE
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config MIPS_DB1000
@@ -829,6 +834,7 @@ config SNI_RM200_PCI
 	select ISA
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
+	select SYS_SUPPORTS_HIGHMEM
 	help
 	  The SNI RM200 PCI was a MIPS-based platform manufactured by Siemens
 	  Nixdorf Informationssysteme (SNI), parent company of Pyramid
@@ -913,6 +919,7 @@ config I8259
 config LIMITED_DMA
 	bool
 	select HIGHMEM
+	select SYS_SUPPORTS_HIGHMEM
 
 config MIPS_BONITO64
 	bool
@@ -1105,8 +1112,8 @@ choice
 
 config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
-	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_HAS_PREFETCH
+	select CPU_SUPPORTS_32BIT_KERNEL
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS32 architecture.  Most modern embedded systems with a 32-bit
@@ -1120,8 +1127,8 @@ config CPU_MIPS32_R1
 
 config CPU_MIPS32_R2
 	bool "MIPS32 Release 2"
-	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_HAS_PREFETCH
+	select CPU_SUPPORTS_32BIT_KERNEL
 	help
 	  Choose this option to build a kernel for release 1 or later of the
 	  MIPS32 architecture.  Most modern embedded systems with a 32-bit
@@ -1131,9 +1138,9 @@ config CPU_MIPS32_R2
 
 config CPU_MIPS64_R1
 	bool "MIPS64 Release 1"
+	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_HAS_PREFETCH
 	help
 	  Choose this option to build a kernel for release 1 or later of the
 	  MIPS64 architecture.  Many modern embedded systems with a 64-bit
@@ -1147,9 +1154,9 @@ config CPU_MIPS64_R1
 
 config CPU_MIPS64_R2
 	bool "MIPS64 Release 2"
+	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_HAS_PREFETCH
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS64 architecture.  Many modern embedded systems with a 64-bit
@@ -1160,6 +1167,7 @@ config CPU_MIPS64_R2
 config CPU_R3000
 	bool "R3000"
 	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
 	help
 	  Please make sure to pick the right CPU type. Linux/MIPS is not
 	  designed to be generic, i.e. Kernels compiled for R3000 CPUs will
@@ -1239,6 +1247,7 @@ config CPU_R10000
 	bool "R10000"
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
 	help
 	  MIPS Technologies R10000-series processors.
 
@@ -1246,16 +1255,19 @@ config CPU_RM7000
 	bool "RM7000"
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
 
 config CPU_RM9000
 	bool "RM9000"
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
 
 config CPU_SB1
 	bool "SB1"
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
 
 endchoice
 
@@ -1443,6 +1455,17 @@ config CPU_HAS_SYNC
 	default y
 
 #
+# Use the generic interrupt handling code in kernel/irq/:
+#
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
+#
 # - Highmem only makes sense for the 32-bit kernel.
 # - The current highmem code will only work properly on physically indexed
 #   caches such as R3000, SB1, R7000 or those that look like they're virtually
@@ -1451,14 +1474,19 @@ config CPU_HAS_SYNC
 #   where it's known to be safe.  This will not offer highmem on a few systems
 #   such as MIPS32 and MIPS64 CPUs which may have virtual and physically
 #   indexed CPUs but we're playing safe.
-# - We should not offer highmem for system of which we already know that they
-#   don't have memory configurations that could gain from highmem support in
-#   the kernel because they don't support configurations with RAM at physical
-#   addresses > 0x20000000.
+# - We use SYS_SUPPORTS_HIGHMEM to offer highmem only for systems where we
+#   know they might have memory configurations that could make use of highmem
+#   support.
 #
 config HIGHMEM
 	bool "High Memory Support"
-	depends on 32BIT && (CPU_R3000 || CPU_SB1 || CPU_R7000 || CPU_RM9000 || CPU_R10000) && !(MACH_DECSTATION || MOMENCO_JAGUAR_ATX)
+	depends on 32BIT && CPU_SUPPORTS_HIGHMEM && SYS_SUPPORTS_HIGHMEM
+
+config CPU_SUPPORTS_HIGHMEM
+	bool
+
+config SYS_SUPPORTS_HIGHMEM
+	bool
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
@@ -1707,17 +1735,6 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-
-#
-# Use the generic interrupt handling code in kernel/irq/:
-#
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
-	bool
-	default y
 
 config ISA_DMA_API
 	bool
