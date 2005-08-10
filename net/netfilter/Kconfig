@@ -1,0 +1,5 @@
+config NETFILTER_NETLINK
+       tristate "Netfilter netlink interface"
+       help
+         If this option is enabled, the kernel will include support
+         for the new netfilter netlink interface.

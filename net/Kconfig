@@ -205,6 +205,8 @@ config NET_PKTGEN
 	  To compile this code as a module, choose M here: the
 	  module will be called pktgen.
 
+source "net/netfilter/Kconfig"
+
 endmenu
 
 endmenu
