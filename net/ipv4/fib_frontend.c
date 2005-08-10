@@ -567,7 +567,7 @@ static void nl_fib_input(struct sock *sk, int len)
 
 static void nl_fib_lookup_init(void)
 {
-      netlink_kernel_create(NETLINK_FIB_LOOKUP, nl_fib_input);
+      netlink_kernel_create(NETLINK_FIB_LOOKUP, nl_fib_input, THIS_MODULE);
 }
 
 static void fib_disable_ip(struct net_device *dev, int force)

@@ -138,7 +138,8 @@ static int __init init(void)
 {
 	int rv = 0;
 
-	dnrmg = netlink_kernel_create(NETLINK_DNRTMSG, dnrmg_receive_user_sk);
+	dnrmg = netlink_kernel_create(NETLINK_DNRTMSG, dnrmg_receive_user_sk,
+				      THIS_MODULE);
 	if (dnrmg == NULL) {
 		printk(KERN_ERR "dn_rtmsg: Cannot create netlink socket");
 		return -ENOMEM;
@@ -162,6 +163,7 @@ static void __exit fini(void)
 MODULE_DESCRIPTION("DECnet Routing Message Grabulator");
 MODULE_AUTHOR("Steven Whitehouse <steve@chygwyn.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_DNRTMSG);
 
 module_init(init);
 module_exit(fini);

@@ -282,5 +282,8 @@ static struct proto_ops name##_ops = {			\
 #define MODULE_ALIAS_NETPROTO(proto) \
 	MODULE_ALIAS("net-pf-" __stringify(proto))
 
+#define MODULE_ALIAS_NET_PF_PROTO(pf, proto) \
+	MODULE_ALIAS("net-pf-" __stringify(pf) "-proto-" __stringify(proto))
+
 #endif /* __KERNEL__ */
 #endif	/* _LINUX_NET_H */

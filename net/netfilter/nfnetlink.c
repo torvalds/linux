@@ -38,6 +38,8 @@
 #include <linux/netfilter/nfnetlink.h>
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
+MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NETFILTER);
 
 static char __initdata nfversion[] = "0.30";
 
@@ -324,7 +326,8 @@ int __init nfnetlink_init(void)
 {
 	printk("Netfilter messages via NETLINK v%s.\n", nfversion);
 
-	nfnl = netlink_kernel_create(NETLINK_NETFILTER, nfnetlink_rcv);
+	nfnl = netlink_kernel_create(NETLINK_NETFILTER, nfnetlink_rcv,
+				     THIS_MODULE);
 	if (!nfnl) {
 		printk(KERN_ERR "cannot initialize nfnetlink!\n");
 		return -1;

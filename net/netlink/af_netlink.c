@@ -13,7 +13,12 @@
  *                               added netlink_proto_exit
  * Tue Jan 22 18:32:44 BRST 2002 Arnaldo C. de Melo <acme@conectiva.com.br>
  * 				 use nlk_sk, as sk->protinfo is on a diet 8)
- *
+ * Fri Jul 22 19:51:12 MEST 2005 Harald Welte <laforge@gnumonks.org>
+ * 				 - inc module use count of module that owns
+ * 				   the kernel socket in case userspace opens
+ * 				   socket of same protocol
+ * 				 - remove all module support, since netlink is
+ * 				   mandatory if CONFIG_NET=y these days
  */
 
 #include <linux/config.h>
@@ -92,6 +97,7 @@ struct netlink_table {
 	struct nl_pid_hash hash;
 	struct hlist_head mc_list;
 	unsigned int nl_nonroot;
+	struct proto_ops *p_ops;
 };
 
 static struct netlink_table *nl_table;
@@ -341,7 +347,21 @@ static int netlink_create(struct socket *sock, int protocol)
 	if (protocol<0 || protocol >= MAX_LINKS)
 		return -EPROTONOSUPPORT;
 
-	sock->ops = &netlink_ops;
+	netlink_table_grab();
+	if (!nl_table[protocol].hash.entries) {
+#ifdef CONFIG_KMOD
+		/* We do 'best effort'.  If we find a matching module,
+		 * it is loaded.  If not, we don't return an error to
+		 * allow pure userspace<->userspace communication. -HW
+		 */
+		netlink_table_ungrab();
+		request_module("net-pf-%d-proto-%d", PF_NETLINK, protocol);
+		netlink_table_grab();
+#endif
+	}
+	netlink_table_ungrab();
+
+	sock->ops = nl_table[protocol].p_ops;
 
 	sk = sk_alloc(PF_NETLINK, GFP_KERNEL, &netlink_proto, 1);
 	if (!sk)
@@ -394,6 +414,22 @@ static int netlink_release(struct socket *sock)
 					  };
 		notifier_call_chain(&netlink_chain, NETLINK_URELEASE, &n);
 	}	
+
+	/* When this is a kernel socket, we need to remove the owner pointer,
+	 * since we don't know whether the module will be dying at any given
+	 * point - HW
+	 */
+	if (!nlk->pid) {
+		struct proto_ops *p_tmp;
+
+		netlink_table_grab();
+		p_tmp = nl_table[sk->sk_protocol].p_ops;
+		if (p_tmp != &netlink_ops) {
+			nl_table[sk->sk_protocol].p_ops = &netlink_ops;
+			kfree(p_tmp);
+		}
+		netlink_table_ungrab();
+	}
 	
 	sock_put(sk);
 	return 0;
@@ -1023,8 +1059,9 @@ static void netlink_data_ready(struct sock *sk, int len)
  */
 
 struct sock *
-netlink_kernel_create(int unit, void (*input)(struct sock *sk, int len))
+netlink_kernel_create(int unit, void (*input)(struct sock *sk, int len), struct module *module)
 {
+	struct proto_ops *p_ops;
 	struct socket *sock;
 	struct sock *sk;
 
@@ -1034,22 +1071,63 @@ netlink_kernel_create(int unit, void (*input)(struct sock *sk, int len))
 	if (unit<0 || unit>=MAX_LINKS)
 		return NULL;
 
+	/* Do a quick check, to make us not go down to netlink_insert()
+	 * if protocol already has kernel socket.
+	 */
+	sk = netlink_lookup(unit, 0);
+	if (unlikely(sk)) {
+		sock_put(sk);
+		return NULL;
+	}
+
 	if (sock_create_lite(PF_NETLINK, SOCK_DGRAM, unit, &sock))
 		return NULL;
 
+	sk = NULL;
+	if (module) {
+		/* Every registering protocol implemented in a module needs
+		 * it's own p_ops, since the socket code cannot deal with
+		 * module refcounting otherwise.  -HW
+		 */
+		p_ops = kmalloc(sizeof(*p_ops), GFP_KERNEL);
+		if (!p_ops)
+			goto out_sock_release;
+
+		memcpy(p_ops, &netlink_ops, sizeof(*p_ops));
+		p_ops->owner = module;
+	} else
+		p_ops = &netlink_ops;
+
+	netlink_table_grab();
+	nl_table[unit].p_ops = p_ops;
+	netlink_table_ungrab();
+
 	if (netlink_create(sock, unit) < 0) {
-		sock_release(sock);
-		return NULL;
+		sk = NULL;
+		goto out_kfree_p_ops;
 	}
+
 	sk = sock->sk;
 	sk->sk_data_ready = netlink_data_ready;
 	if (input)
 		nlk_sk(sk)->data_ready = input;
 
 	if (netlink_insert(sk, 0)) {
-		sock_release(sock);
-		return NULL;
+		sk = NULL;
+		goto out_kfree_p_ops;
 	}
+
+	return sk;
+
+out_kfree_p_ops:
+	netlink_table_grab();
+	if (nl_table[unit].p_ops != &netlink_ops) {
+		kfree(nl_table[unit].p_ops);
+		nl_table[unit].p_ops = &netlink_ops;
+	}
+	netlink_table_ungrab();
+out_sock_release:
+	sock_release(sock);
 	return sk;
 }
 
@@ -1413,6 +1491,8 @@ enomem:
 	for (i = 0; i < MAX_LINKS; i++) {
 		struct nl_pid_hash *hash = &nl_table[i].hash;
 
+		nl_table[i].p_ops = &netlink_ops;
+
 		hash->table = nl_pid_hash_alloc(1 * sizeof(*hash->table));
 		if (!hash->table) {
 			while (i-- > 0)
@@ -1438,21 +1518,7 @@ out:
 	return err;
 }
 
-static void __exit netlink_proto_exit(void)
-{
-	sock_unregister(PF_NETLINK);
-	proc_net_remove("netlink");
-	kfree(nl_table);
-	nl_table = NULL;
-	proto_unregister(&netlink_proto);
-}
-
 core_initcall(netlink_proto_init);
-module_exit(netlink_proto_exit);
-
-MODULE_LICENSE("GPL");
-
-MODULE_ALIAS_NETPROTO(PF_NETLINK);
 
 EXPORT_SYMBOL(netlink_ack);
 EXPORT_SYMBOL(netlink_broadcast);

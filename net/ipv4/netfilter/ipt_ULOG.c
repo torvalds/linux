@@ -62,6 +62,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
 MODULE_DESCRIPTION("iptables userspace logging module");
+MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NFLOG);
 
 #define ULOG_NL_EVENT		111		/* Harald's favorite number */
 #define ULOG_MAXNLGROUPS	32		/* numer of nlgroups */
@@ -372,7 +373,7 @@ static int __init init(void)
 		ulog_buffers[i].timer.data = i;
 	}
 
-	nflognl = netlink_kernel_create(NETLINK_NFLOG, NULL);
+	nflognl = netlink_kernel_create(NETLINK_NFLOG, NULL, THIS_MODULE);
 	if (!nflognl)
 		return -ENOMEM;
 

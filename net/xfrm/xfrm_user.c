@@ -1519,7 +1519,8 @@ static int __init xfrm_user_init(void)
 {
 	printk(KERN_INFO "Initializing IPsec netlink socket\n");
 
-	xfrm_nl = netlink_kernel_create(NETLINK_XFRM, xfrm_netlink_rcv);
+	xfrm_nl = netlink_kernel_create(NETLINK_XFRM, xfrm_netlink_rcv,
+					THIS_MODULE);
 	if (xfrm_nl == NULL)
 		return -ENOMEM;
 
@@ -1537,3 +1538,4 @@ static void __exit xfrm_user_exit(void)
 module_init(xfrm_user_init);
 module_exit(xfrm_user_exit);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_XFRM);

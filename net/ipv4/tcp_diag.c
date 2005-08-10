@@ -774,7 +774,8 @@ static void tcpdiag_rcv(struct sock *sk, int len)
 
 static int __init tcpdiag_init(void)
 {
-	tcpnl = netlink_kernel_create(NETLINK_TCPDIAG, tcpdiag_rcv);
+	tcpnl = netlink_kernel_create(NETLINK_TCPDIAG, tcpdiag_rcv,
+				      THIS_MODULE);
 	if (tcpnl == NULL)
 		return -ENOMEM;
 	return 0;
