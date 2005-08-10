@@ -404,6 +404,7 @@ int sock_map_fd(struct socket *sock)
 		file->f_mode = FMODE_READ | FMODE_WRITE;
 		file->f_flags = O_RDWR;
 		file->f_pos = 0;
+		file->private_data = sock;
 		fd_install(fd, file);
 	}
 
@@ -435,6 +436,9 @@ struct socket *sockfd_lookup(int fd, int *err)
 		*err = -EBADF;
 		return NULL;
 	}
+
+	if (file->f_op == &socket_file_ops)
+		return file->private_data;	/* set in sock_map_fd */
 
 	inode = file->f_dentry->d_inode;
 	if (!S_ISSOCK(inode->i_mode)) {
