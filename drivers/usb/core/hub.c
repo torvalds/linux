@@ -492,6 +492,23 @@ static int hub_hub_status(struct usb_hub *hub,
 	return ret;
 }
 
+static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
+{
+	struct usb_device *hdev = hub->hdev;
+	int ret;
+
+	if (hdev->children[port1-1] && set_state) {
+		usb_set_device_state(hdev->children[port1-1],
+				USB_STATE_NOTATTACHED);
+	}
+	ret = clear_port_feature(hdev, port1, USB_PORT_FEAT_ENABLE);
+	if (ret)
+		dev_err(hub->intfdev, "cannot disable port %d (err = %d)\n",
+			port1, ret);
+
+	return ret;
+}
+
 static int hub_configure(struct usb_hub *hub,
 	struct usb_endpoint_descriptor *endpoint)
 {
@@ -717,14 +734,11 @@ static void hub_disconnect(struct usb_interface *intf)
 	struct usb_hub *hub = usb_get_intfdata (intf);
 	struct usb_device *hdev;
 
-	if (!hub)
-		return;
+	usb_set_intfdata (intf, NULL);
 	hdev = hub->hdev;
 
 	if (hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs--;
-
-	usb_set_intfdata (intf, NULL);
 
 	hub_quiesce(hub);
 	usb_free_urb(hub->urb);
@@ -1428,23 +1442,6 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		port1);
 
 	return status;
-}
-
-static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
-{
-	struct usb_device *hdev = hub->hdev;
-	int ret;
-
-	if (hdev->children[port1-1] && set_state) {
-		usb_set_device_state(hdev->children[port1-1],
-				USB_STATE_NOTATTACHED);
-	}
-	ret = clear_port_feature(hdev, port1, USB_PORT_FEAT_ENABLE);
-	if (ret)
-		dev_err(hub->intfdev, "cannot disable port %d (err = %d)\n",
-			port1, ret);
-
-	return ret;
 }
 
 /*
