@@ -82,6 +82,10 @@ struct inet_timewait_death_row {
 	int			sysctl_max_tw_buckets;
 };
 
+extern void inet_twdr_hangman(unsigned long data);
+extern void inet_twdr_twkill_work(void *data);
+extern void inet_twdr_twcal_tick(unsigned long data);
+
 #if (BITS_PER_LONG == 64)
 #define INET_TIMEWAIT_ADDRCMP_ALIGN_BYTES 8
 #else
@@ -206,4 +210,10 @@ extern void __inet_twsk_kill(struct inet_timewait_sock *tw,
 extern void __inet_twsk_hashdance(struct inet_timewait_sock *tw,
 				  struct sock *sk,
 				  struct inet_hashinfo *hashinfo);
+
+extern void inet_twsk_schedule(struct inet_timewait_sock *tw,
+			       struct inet_timewait_death_row *twdr,
+			       const int timeo, const int timewait_len);
+extern void inet_twsk_deschedule(struct inet_timewait_sock *tw,
+				 struct inet_timewait_death_row *twdr);
 #endif	/* _INET_TIMEWAIT_SOCK_ */
