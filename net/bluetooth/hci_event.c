@@ -484,14 +484,18 @@ static inline void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff
 /* Inquiry Result */
 static inline void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
+	struct inquiry_data data;
 	struct inquiry_info *info = (struct inquiry_info *) (skb->data + 1);
 	int num_rsp = *((__u8 *) skb->data);
 
 	BT_DBG("%s num_rsp %d", hdev->name, num_rsp);
 
+	if (!num_rsp)
+		return;
+
 	hci_dev_lock(hdev);
+
 	for (; num_rsp; num_rsp--) {
-		struct inquiry_data data;
 		bacpy(&data.bdaddr, &info->bdaddr);
 		data.pscan_rep_mode	= info->pscan_rep_mode;
 		data.pscan_period_mode	= info->pscan_period_mode;
@@ -502,30 +506,55 @@ static inline void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *
 		info++;
 		hci_inquiry_cache_update(hdev, &data);
 	}
+
 	hci_dev_unlock(hdev);
 }
 
 /* Inquiry Result With RSSI */
 static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct inquiry_info_with_rssi *info = (struct inquiry_info_with_rssi *) (skb->data + 1);
+	struct inquiry_data data;
 	int num_rsp = *((__u8 *) skb->data);
 
 	BT_DBG("%s num_rsp %d", hdev->name, num_rsp);
 
+	if (!num_rsp)
+		return;
+
 	hci_dev_lock(hdev);
-	for (; num_rsp; num_rsp--) {
-		struct inquiry_data data;
-		bacpy(&data.bdaddr, &info->bdaddr);
-		data.pscan_rep_mode	= info->pscan_rep_mode;
-		data.pscan_period_mode	= info->pscan_period_mode;
-		data.pscan_mode		= 0x00;
-		memcpy(data.dev_class, info->dev_class, 3);
-		data.clock_offset	= info->clock_offset;
-		data.rssi		= info->rssi;
-		info++;
-		hci_inquiry_cache_update(hdev, &data);
+
+	if ((skb->len - 1) / num_rsp != sizeof(struct inquiry_info_with_rssi)) {
+		struct inquiry_info_with_rssi_and_pscan_mode *info =
+			(struct inquiry_info_with_rssi_and_pscan_mode *) (skb->data + 1);
+
+		for (; num_rsp; num_rsp--) {
+			bacpy(&data.bdaddr, &info->bdaddr);
+			data.pscan_rep_mode	= info->pscan_rep_mode;
+			data.pscan_period_mode	= info->pscan_period_mode;
+			data.pscan_mode		= info->pscan_mode;
+			memcpy(data.dev_class, info->dev_class, 3);
+			data.clock_offset	= info->clock_offset;
+			data.rssi		= info->rssi;
+			info++;
+			hci_inquiry_cache_update(hdev, &data);
+		}
+	} else {
+		struct inquiry_info_with_rssi *info =
+			(struct inquiry_info_with_rssi *) (skb->data + 1);
+
+		for (; num_rsp; num_rsp--) {
+			bacpy(&data.bdaddr, &info->bdaddr);
+			data.pscan_rep_mode	= info->pscan_rep_mode;
+			data.pscan_period_mode	= info->pscan_period_mode;
+			data.pscan_mode		= 0x00;
+			memcpy(data.dev_class, info->dev_class, 3);
+			data.clock_offset	= info->clock_offset;
+			data.rssi		= info->rssi;
+			info++;
+			hci_inquiry_cache_update(hdev, &data);
+		}
 	}
+
 	hci_dev_unlock(hdev);
 }
 
