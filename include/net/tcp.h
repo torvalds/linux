@@ -38,207 +38,14 @@
 #include <net/ip.h>
 #include <net/tcp_states.h>
 
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-#include <linux/ipv6.h>
-#endif
 #include <linux/seq_file.h>
 
 extern struct inet_hashinfo tcp_hashinfo;
 
-#if (BITS_PER_LONG == 64)
-#define TCP_ADDRCMP_ALIGN_BYTES 8
-#else
-#define TCP_ADDRCMP_ALIGN_BYTES 4
-#endif
-
-/* This is a TIME_WAIT bucket.  It works around the memory consumption
- * problems of sockets in such a state on heavily loaded servers, but
- * without violating the protocol specification.
- */
-struct tcp_tw_bucket {
-	/*
-	 * Now struct sock also uses sock_common, so please just
-	 * don't add nothing before this first member (__tw_common) --acme
-	 */
-	struct sock_common	__tw_common;
-#define tw_family		__tw_common.skc_family
-#define tw_state		__tw_common.skc_state
-#define tw_reuse		__tw_common.skc_reuse
-#define tw_bound_dev_if		__tw_common.skc_bound_dev_if
-#define tw_node			__tw_common.skc_node
-#define tw_bind_node		__tw_common.skc_bind_node
-#define tw_refcnt		__tw_common.skc_refcnt
-	volatile unsigned char	tw_substate;
-	unsigned char		tw_rcv_wscale;
-	__u16			tw_sport;
-	/* Socket demultiplex comparisons on incoming packets. */
-	/* these five are in inet_sock */
-	__u32			tw_daddr
-		__attribute__((aligned(TCP_ADDRCMP_ALIGN_BYTES)));
-	__u32			tw_rcv_saddr;
-	__u16			tw_dport;
-	__u16			tw_num;
-	/* And these are ours. */
-	int			tw_hashent;
-	int			tw_timeout;
-	__u32			tw_rcv_nxt;
-	__u32			tw_snd_nxt;
-	__u32			tw_rcv_wnd;
-	__u32			tw_ts_recent;
-	long			tw_ts_recent_stamp;
-	unsigned long		tw_ttd;
-	struct inet_bind_bucket	*tw_tb;
-	struct hlist_node	tw_death_node;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct in6_addr		tw_v6_daddr;
-	struct in6_addr		tw_v6_rcv_saddr;
-	int			tw_v6_ipv6only;
-#endif
-};
-
-static __inline__ void tw_add_node(struct tcp_tw_bucket *tw,
-				   struct hlist_head *list)
-{
-	hlist_add_head(&tw->tw_node, list);
-}
-
-static __inline__ void tw_add_bind_node(struct tcp_tw_bucket *tw,
-					struct hlist_head *list)
-{
-	hlist_add_head(&tw->tw_bind_node, list);
-}
-
-static inline int tw_dead_hashed(struct tcp_tw_bucket *tw)
-{
-	return tw->tw_death_node.pprev != NULL;
-}
-
-static __inline__ void tw_dead_node_init(struct tcp_tw_bucket *tw)
-{
-	tw->tw_death_node.pprev = NULL;
-}
-
-static __inline__ void __tw_del_dead_node(struct tcp_tw_bucket *tw)
-{
-	__hlist_del(&tw->tw_death_node);
-	tw_dead_node_init(tw);
-}
-
-static __inline__ int tw_del_dead_node(struct tcp_tw_bucket *tw)
-{
-	if (tw_dead_hashed(tw)) {
-		__tw_del_dead_node(tw);
-		return 1;
-	}
-	return 0;
-}
-
-#define tw_for_each(tw, node, head) \
-	hlist_for_each_entry(tw, node, head, tw_node)
-
-#define tw_for_each_inmate(tw, node, jail) \
-	hlist_for_each_entry(tw, node, jail, tw_death_node)
-
-#define tw_for_each_inmate_safe(tw, node, safe, jail) \
-	hlist_for_each_entry_safe(tw, node, safe, jail, tw_death_node)
-
-#define tcptw_sk(__sk)	((struct tcp_tw_bucket *)(__sk))
-
-static inline u32 tcp_v4_rcv_saddr(const struct sock *sk)
-{
-	return likely(sk->sk_state != TCP_TIME_WAIT) ?
-		inet_sk(sk)->rcv_saddr : tcptw_sk(sk)->tw_rcv_saddr;
-}
-
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-static inline struct in6_addr *__tcp_v6_rcv_saddr(const struct sock *sk)
-{
-	return likely(sk->sk_state != TCP_TIME_WAIT) ?
-		&inet6_sk(sk)->rcv_saddr : &tcptw_sk(sk)->tw_v6_rcv_saddr;
-}
-
-static inline struct in6_addr *tcp_v6_rcv_saddr(const struct sock *sk)
-{
-	return sk->sk_family == AF_INET6 ? __tcp_v6_rcv_saddr(sk) : NULL;
-}
-
-#define tcptw_sk_ipv6only(__sk)	(tcptw_sk(__sk)->tw_v6_ipv6only)
-
-static inline int tcp_v6_ipv6only(const struct sock *sk)
-{
-	return likely(sk->sk_state != TCP_TIME_WAIT) ?
-		ipv6_only_sock(sk) : tcptw_sk_ipv6only(sk);
-}
-#else
-# define __tcp_v6_rcv_saddr(__sk)	NULL
-# define tcp_v6_rcv_saddr(__sk)		NULL
-# define tcptw_sk_ipv6only(__sk)	0
-# define tcp_v6_ipv6only(__sk)		0
-#endif
-
-extern kmem_cache_t *tcp_timewait_cachep;
-
-static inline void tcp_tw_put(struct tcp_tw_bucket *tw)
-{
-	if (atomic_dec_and_test(&tw->tw_refcnt)) {
-#ifdef SOCK_REFCNT_DEBUG
-		printk(KERN_DEBUG "tw_bucket %p released\n", tw);
-#endif
-		kmem_cache_free(tcp_timewait_cachep, tw);
-	}
-}
-
 extern atomic_t tcp_orphan_count;
 extern int tcp_tw_count;
 extern void tcp_time_wait(struct sock *sk, int state, int timeo);
-extern void tcp_tw_deschedule(struct tcp_tw_bucket *tw);
-
-
-/* Socket demux engine toys. */
-#ifdef __BIG_ENDIAN
-#define TCP_COMBINED_PORTS(__sport, __dport) \
-	(((__u32)(__sport)<<16) | (__u32)(__dport))
-#else /* __LITTLE_ENDIAN */
-#define TCP_COMBINED_PORTS(__sport, __dport) \
-	(((__u32)(__dport)<<16) | (__u32)(__sport))
-#endif
-
-#if (BITS_PER_LONG == 64)
-#ifdef __BIG_ENDIAN
-#define TCP_V4_ADDR_COOKIE(__name, __saddr, __daddr) \
-	__u64 __name = (((__u64)(__saddr))<<32)|((__u64)(__daddr));
-#else /* __LITTLE_ENDIAN */
-#define TCP_V4_ADDR_COOKIE(__name, __saddr, __daddr) \
-	__u64 __name = (((__u64)(__daddr))<<32)|((__u64)(__saddr));
-#endif /* __BIG_ENDIAN */
-#define TCP_IPV4_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)\
-	(((*((__u64 *)&(inet_sk(__sk)->daddr)))== (__cookie))	&&	\
-	 ((*((__u32 *)&(inet_sk(__sk)->dport)))== (__ports))	&&	\
-	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
-#define TCP_IPV4_TW_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)\
-	(((*((__u64 *)&(tcptw_sk(__sk)->tw_daddr))) == (__cookie)) &&	\
-	 ((*((__u32 *)&(tcptw_sk(__sk)->tw_dport))) == (__ports)) &&	\
-	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
-#else /* 32-bit arch */
-#define TCP_V4_ADDR_COOKIE(__name, __saddr, __daddr)
-#define TCP_IPV4_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)\
-	((inet_sk(__sk)->daddr			== (__saddr))	&&	\
-	 (inet_sk(__sk)->rcv_saddr		== (__daddr))	&&	\
-	 ((*((__u32 *)&(inet_sk(__sk)->dport)))== (__ports))	&&	\
-	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
-#define TCP_IPV4_TW_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)\
-	((tcptw_sk(__sk)->tw_daddr		== (__saddr))	&&	\
-	 (tcptw_sk(__sk)->tw_rcv_saddr		== (__daddr))	&&	\
-	 ((*((__u32 *)&(tcptw_sk(__sk)->tw_dport))) == (__ports)) &&	\
-	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
-#endif /* 64-bit arch */
-
-#define TCP_IPV6_MATCH(__sk, __saddr, __daddr, __ports, __dif)	   \
-	(((*((__u32 *)&(inet_sk(__sk)->dport)))== (__ports))   	&& \
-	 ((__sk)->sk_family		== AF_INET6)		&& \
-	 ipv6_addr_equal(&inet6_sk(__sk)->daddr, (__saddr))	&& \
-	 ipv6_addr_equal(&inet6_sk(__sk)->rcv_saddr, (__daddr))	&& \
-	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
+extern void tcp_tw_deschedule(struct inet_timewait_sock *tw);
 
 #define MAX_TCP_HEADER	(128 + MAX_HEADER)
 
@@ -543,7 +350,7 @@ extern int			tcp_v4_rcv(struct sk_buff *skb);
 
 extern int			tcp_v4_remember_stamp(struct sock *sk);
 
-extern int		    	tcp_v4_tw_remember_stamp(struct tcp_tw_bucket *tw);
+extern int		    	tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw);
 
 extern int			tcp_sendmsg(struct kiocb *iocb, struct sock *sk,
 					    struct msghdr *msg, size_t size);
@@ -616,10 +423,9 @@ enum tcp_tw_status
 };
 
 
-extern enum tcp_tw_status	tcp_timewait_state_process(struct tcp_tw_bucket *tw,
+extern enum tcp_tw_status	tcp_timewait_state_process(struct inet_timewait_sock *tw,
 							   struct sk_buff *skb,
-							   struct tcphdr *th,
-							   unsigned len);
+							   const struct tcphdr *th);
 
 extern struct sock *		tcp_check_req(struct sock *sk,struct sk_buff *skb,
 					      struct request_sock *req,

@@ -88,6 +88,7 @@ do {	spin_lock_init(&((__sk)->sk_lock.slock)); \
 } while(0)
 
 struct sock;
+struct proto;
 
 /**
  *	struct sock_common - minimal network layer representation of sockets
@@ -98,10 +99,11 @@ struct sock;
  *	@skc_node: main hash linkage for various protocol lookup tables
  *	@skc_bind_node: bind hash linkage for various protocol lookup tables
  *	@skc_refcnt: reference count
+ *	@skc_prot: protocol handlers inside a network family
  *
  *	This is the minimal network layer representation of sockets, the header
- *	for struct sock and struct tcp_tw_bucket.
-  */
+ *	for struct sock and struct inet_timewait_sock.
+ */
 struct sock_common {
 	unsigned short		skc_family;
 	volatile unsigned char	skc_state;
@@ -110,11 +112,12 @@ struct sock_common {
 	struct hlist_node	skc_node;
 	struct hlist_node	skc_bind_node;
 	atomic_t		skc_refcnt;
+	struct proto		*skc_prot;
 };
 
 /**
   *	struct sock - network layer representation of sockets
-  *	@__sk_common: shared layout with tcp_tw_bucket
+  *	@__sk_common: shared layout with inet_timewait_sock
   *	@sk_shutdown: mask of %SEND_SHUTDOWN and/or %RCV_SHUTDOWN
   *	@sk_userlocks: %SO_SNDBUF and %SO_RCVBUF settings
   *	@sk_lock:	synchronizer
@@ -140,7 +143,6 @@ struct sock_common {
   *	@sk_backlog: always used with the per-socket spinlock held
   *	@sk_callback_lock: used with the callbacks in the end of this struct
   *	@sk_error_queue: rarely used
-  *	@sk_prot: protocol handlers inside a network family
   *	@sk_prot_creator: sk_prot of original sock creator (see ipv6_setsockopt, IPV6_ADDRFORM for instance)
   *	@sk_err: last error
   *	@sk_err_soft: errors that don't cause failure but are the cause of a persistent failure not just 'timed out'
@@ -173,7 +175,7 @@ struct sock_common {
  */
 struct sock {
 	/*
-	 * Now struct tcp_tw_bucket also uses sock_common, so please just
+	 * Now struct inet_timewait_sock also uses sock_common, so please just
 	 * don't add nothing before this first member (__sk_common) --acme
 	 */
 	struct sock_common	__sk_common;
@@ -184,6 +186,7 @@ struct sock {
 #define sk_node			__sk_common.skc_node
 #define sk_bind_node		__sk_common.skc_bind_node
 #define sk_refcnt		__sk_common.skc_refcnt
+#define sk_prot			__sk_common.skc_prot
 	unsigned char		sk_shutdown : 2,
 				sk_no_check : 2,
 				sk_userlocks : 4;
@@ -218,7 +221,6 @@ struct sock {
 		struct sk_buff *tail;
 	} sk_backlog;
 	struct sk_buff_head	sk_error_queue;
-	struct proto		*sk_prot;
 	struct proto		*sk_prot_creator;
 	rwlock_t		sk_callback_lock;
 	int			sk_err,
@@ -556,6 +558,9 @@ struct proto {
 
 	kmem_cache_t		*slab;
 	unsigned int		obj_size;
+
+	kmem_cache_t		*twsk_slab;
+	unsigned int		twsk_obj_size;
 
 	struct request_sock_ops	*rsk_prot;
 

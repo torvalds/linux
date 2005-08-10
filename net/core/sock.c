@@ -1378,7 +1378,8 @@ static LIST_HEAD(proto_list);
 
 int proto_register(struct proto *prot, int alloc_slab)
 {
-	char *request_sock_slab_name;
+	char *request_sock_slab_name = NULL;
+	char *timewait_sock_slab_name;
 	int rc = -ENOBUFS;
 
 	if (alloc_slab) {
@@ -1409,6 +1410,23 @@ int proto_register(struct proto *prot, int alloc_slab)
 				goto out_free_request_sock_slab_name;
 			}
 		}
+
+		if (prot->twsk_obj_size) {
+			static const char mask[] = "tw_sock_%s";
+
+			timewait_sock_slab_name = kmalloc(strlen(prot->name) + sizeof(mask) - 1, GFP_KERNEL);
+
+			if (timewait_sock_slab_name == NULL)
+				goto out_free_request_sock_slab;
+
+			sprintf(timewait_sock_slab_name, mask, prot->name);
+			prot->twsk_slab = kmem_cache_create(timewait_sock_slab_name,
+							    prot->twsk_obj_size,
+							    0, SLAB_HWCACHE_ALIGN,
+							    NULL, NULL);
+			if (prot->twsk_slab == NULL)
+				goto out_free_timewait_sock_slab_name;
+		}
 	}
 
 	write_lock(&proto_list_lock);
@@ -1417,6 +1435,13 @@ int proto_register(struct proto *prot, int alloc_slab)
 	rc = 0;
 out:
 	return rc;
+out_free_timewait_sock_slab_name:
+	kfree(timewait_sock_slab_name);
+out_free_request_sock_slab:
+	if (prot->rsk_prot && prot->rsk_prot->slab) {
+		kmem_cache_destroy(prot->rsk_prot->slab);
+		prot->rsk_prot->slab = NULL;
+	}
 out_free_request_sock_slab_name:
 	kfree(request_sock_slab_name);
 out_free_sock_slab:
@@ -1442,6 +1467,14 @@ void proto_unregister(struct proto *prot)
 		kmem_cache_destroy(prot->rsk_prot->slab);
 		kfree(name);
 		prot->rsk_prot->slab = NULL;
+	}
+
+	if (prot->twsk_slab != NULL) {
+		const char *name = kmem_cache_name(prot->twsk_slab);
+
+		kmem_cache_destroy(prot->twsk_slab);
+		kfree(name);
+		prot->twsk_slab = NULL;
 	}
 
 	list_del(&prot->node);

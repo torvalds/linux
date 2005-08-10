@@ -81,7 +81,7 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 	r->id.tcpdiag_cookie[1] = (u32)(((unsigned long)sk >> 31) >> 1);
 
 	if (r->tcpdiag_state == TCP_TIME_WAIT) {
-		struct tcp_tw_bucket *tw = (struct tcp_tw_bucket*)sk;
+		const struct inet_timewait_sock *tw = inet_twsk(sk);
 		long tmo = tw->tw_ttd - jiffies;
 		if (tmo < 0)
 			tmo = 0;
@@ -99,10 +99,12 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 		r->tcpdiag_inode = 0;
 #ifdef CONFIG_IP_TCPDIAG_IPV6
 		if (r->tcpdiag_family == AF_INET6) {
+			const struct tcp6_timewait_sock *tcp6tw = tcp6_twsk(sk);
+
 			ipv6_addr_copy((struct in6_addr *)r->id.tcpdiag_src,
-				       &tw->tw_v6_rcv_saddr);
+				       &tcp6tw->tw_v6_rcv_saddr);
 			ipv6_addr_copy((struct in6_addr *)r->id.tcpdiag_dst,
-				       &tw->tw_v6_daddr);
+				       &tcp6tw->tw_v6_daddr);
 		}
 #endif
 		nlh->nlmsg_len = skb->tail - b;
@@ -239,7 +241,7 @@ static int tcpdiag_get_exact(struct sk_buff *in_skb, const struct nlmsghdr *nlh)
 out:
 	if (sk) {
 		if (sk->sk_state == TCP_TIME_WAIT)
-			tcp_tw_put((struct tcp_tw_bucket*)sk);
+			inet_twsk_put((struct inet_timewait_sock *)sk);
 		else
 			sock_put(sk);
 	}

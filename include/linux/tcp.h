@@ -179,6 +179,7 @@ struct tcp_info
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 #include <net/sock.h>
+#include <net/inet_timewait_sock.h>
 
 /* This defines a selective acknowledgement block. */
 struct tcp_sack_block {
@@ -385,6 +386,20 @@ struct tcp_sock {
 static inline struct tcp_sock *tcp_sk(const struct sock *sk)
 {
 	return (struct tcp_sock *)sk;
+}
+
+struct tcp_timewait_sock {
+	struct inet_timewait_sock tw_sk;
+	__u32			  tw_rcv_nxt;
+	__u32			  tw_snd_nxt;
+	__u32			  tw_rcv_wnd;
+	__u32			  tw_ts_recent;
+	long			  tw_ts_recent_stamp;
+};
+
+static inline struct tcp_timewait_sock *tcp_twsk(const struct sock *sk)
+{
+	return (struct tcp_timewait_sock *)sk;
 }
 
 static inline void *tcp_ca(const struct tcp_sock *tp)

@@ -14,6 +14,8 @@
 #ifndef _INET_HASHTABLES_H
 #define _INET_HASHTABLES_H
 
+#include <linux/config.h>
+
 #include <linux/interrupt.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -310,4 +312,43 @@ sherry_cache:
 	read_unlock(&hashinfo->lhash_lock);
 	return sk;
 }
+
+/* Socket demux engine toys. */
+#ifdef __BIG_ENDIAN
+#define INET_COMBINED_PORTS(__sport, __dport) \
+	(((__u32)(__sport) << 16) | (__u32)(__dport))
+#else /* __LITTLE_ENDIAN */
+#define INET_COMBINED_PORTS(__sport, __dport) \
+	(((__u32)(__dport) << 16) | (__u32)(__sport))
+#endif
+
+#if (BITS_PER_LONG == 64)
+#ifdef __BIG_ENDIAN
+#define INET_ADDR_COOKIE(__name, __saddr, __daddr) \
+	const __u64 __name = (((__u64)(__saddr)) << 32) | ((__u64)(__daddr));
+#else /* __LITTLE_ENDIAN */
+#define INET_ADDR_COOKIE(__name, __saddr, __daddr) \
+	const __u64 __name = (((__u64)(__daddr)) << 32) | ((__u64)(__saddr));
+#endif /* __BIG_ENDIAN */
+#define INET_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)\
+	(((*((__u64 *)&(inet_sk(__sk)->daddr))) == (__cookie))	&&	\
+	 ((*((__u32 *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
+	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
+#define INET_TW_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)\
+	(((*((__u64 *)&(inet_twsk(__sk)->tw_daddr))) == (__cookie)) &&	\
+	 ((*((__u32 *)&(inet_twsk(__sk)->tw_dport))) == (__ports)) &&	\
+	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
+#else /* 32-bit arch */
+#define INET_ADDR_COOKIE(__name, __saddr, __daddr)
+#define INET_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)	\
+	((inet_sk(__sk)->daddr		== (__saddr))		&&	\
+	 (inet_sk(__sk)->rcv_saddr	== (__daddr))		&&	\
+	 ((*((__u32 *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
+	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
+#define INET_TW_MATCH(__sk, __cookie, __saddr, __daddr, __ports, __dif)	\
+	((inet_twsk(__sk)->tw_daddr	== (__saddr))		&&	\
+	 (inet_twsk(__sk)->tw_rcv_saddr	== (__daddr))		&&	\
+	 ((*((__u32 *)&(inet_twsk(__sk)->tw_dport))) == (__ports)) &&	\
+	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
+#endif /* 64-bit arch */
 #endif /* _INET_HASHTABLES_H */

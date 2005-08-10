@@ -308,33 +308,32 @@ static inline struct sock *__tcp_v6_lookup_established(struct in6_addr *saddr, u
 						       struct in6_addr *daddr, u16 hnum,
 						       int dif)
 {
-	struct inet_ehash_bucket *head;
 	struct sock *sk;
-	struct hlist_node *node;
-	__u32 ports = TCP_COMBINED_PORTS(sport, hnum);
-	int hash;
-
+	const struct hlist_node *node;
+	const __u32 ports = INET_COMBINED_PORTS(sport, hnum);
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
-	hash = tcp_v6_hashfn(daddr, hnum, saddr, sport);
-	head = &tcp_hashinfo.ehash[hash];
+	const int hash = tcp_v6_hashfn(daddr, hnum, saddr, sport);
+	struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[hash];
+
 	read_lock(&head->lock);
 	sk_for_each(sk, node, &head->chain) {
 		/* For IPV6 do the cheaper port and family tests first. */
-		if(TCP_IPV6_MATCH(sk, saddr, daddr, ports, dif))
+		if (INET6_MATCH(sk, saddr, daddr, ports, dif))
 			goto hit; /* You sunk my battleship! */
 	}
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
 	sk_for_each(sk, node, &(head + tcp_hashinfo.ehash_size)->chain) {
-		/* FIXME: acme: check this... */
-		struct tcp_tw_bucket *tw = (struct tcp_tw_bucket *)sk;
+		const struct inet_timewait_sock *tw = inet_twsk(sk);
 
 		if(*((__u32 *)&(tw->tw_dport))	== ports	&&
 		   sk->sk_family		== PF_INET6) {
-			if(ipv6_addr_equal(&tw->tw_v6_daddr, saddr)	&&
-			   ipv6_addr_equal(&tw->tw_v6_rcv_saddr, daddr)	&&
-			   (!sk->sk_bound_dev_if || sk->sk_bound_dev_if == dif))
+			const struct tcp6_timewait_sock *tcp6tw = tcp6_twsk(sk);
+
+			if (ipv6_addr_equal(&tcp6tw->tw_v6_daddr, saddr)	&&
+			    ipv6_addr_equal(&tcp6tw->tw_v6_rcv_saddr, daddr)	&&
+			    (!sk->sk_bound_dev_if || sk->sk_bound_dev_if == dif))
 				goto hit;
 		}
 	}
@@ -455,43 +454,46 @@ static __u32 tcp_v6_init_sequence(struct sock *sk, struct sk_buff *skb)
 }
 
 static int __tcp_v6_check_established(struct sock *sk, __u16 lport,
-				      struct tcp_tw_bucket **twp)
+				      struct inet_timewait_sock **twp)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct in6_addr *daddr = &np->rcv_saddr;
 	struct in6_addr *saddr = &np->daddr;
 	int dif = sk->sk_bound_dev_if;
-	u32 ports = TCP_COMBINED_PORTS(inet->dport, lport);
-	int hash = tcp_v6_hashfn(daddr, inet->num, saddr, inet->dport);
+	const u32 ports = INET_COMBINED_PORTS(inet->dport, lport);
+	const int hash = tcp_v6_hashfn(daddr, inet->num, saddr, inet->dport);
 	struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[hash];
 	struct sock *sk2;
-	struct hlist_node *node;
-	struct tcp_tw_bucket *tw;
+	const struct hlist_node *node;
+	struct inet_timewait_sock *tw;
 
 	write_lock(&head->lock);
 
 	/* Check TIME-WAIT sockets first. */
 	sk_for_each(sk2, node, &(head + tcp_hashinfo.ehash_size)->chain) {
-		tw = (struct tcp_tw_bucket*)sk2;
+		const struct tcp6_timewait_sock *tcp6tw = tcp6_twsk(sk2);
+
+		tw = inet_twsk(sk2);
 
 		if(*((__u32 *)&(tw->tw_dport))	== ports	&&
 		   sk2->sk_family		== PF_INET6	&&
-		   ipv6_addr_equal(&tw->tw_v6_daddr, saddr)	&&
-		   ipv6_addr_equal(&tw->tw_v6_rcv_saddr, daddr)	&&
+		   ipv6_addr_equal(&tcp6tw->tw_v6_daddr, saddr)	&&
+		   ipv6_addr_equal(&tcp6tw->tw_v6_rcv_saddr, daddr)	&&
 		   sk2->sk_bound_dev_if == sk->sk_bound_dev_if) {
+			const struct tcp_timewait_sock *tcptw = tcp_twsk(sk2);
 			struct tcp_sock *tp = tcp_sk(sk);
 
-			if (tw->tw_ts_recent_stamp &&
-			    (!twp || (sysctl_tcp_tw_reuse &&
-				      xtime.tv_sec - 
-				      tw->tw_ts_recent_stamp > 1))) {
+			if (tcptw->tw_ts_recent_stamp &&
+			    (!twp ||
+			     (sysctl_tcp_tw_reuse &&
+			      xtime.tv_sec - tcptw->tw_ts_recent_stamp > 1))) {
 				/* See comment in tcp_ipv4.c */
-				tp->write_seq = tw->tw_snd_nxt + 65535 + 2;
+				tp->write_seq = tcptw->tw_snd_nxt + 65535 + 2;
 				if (!tp->write_seq)
 					tp->write_seq = 1;
-				tp->rx_opt.ts_recent = tw->tw_ts_recent;
-				tp->rx_opt.ts_recent_stamp = tw->tw_ts_recent_stamp;
+				tp->rx_opt.ts_recent	   = tcptw->tw_ts_recent;
+				tp->rx_opt.ts_recent_stamp = tcptw->tw_ts_recent_stamp;
 				sock_hold(sk2);
 				goto unique;
 			} else
@@ -502,7 +504,7 @@ static int __tcp_v6_check_established(struct sock *sk, __u16 lport,
 
 	/* And established part... */
 	sk_for_each(sk2, node, &head->chain) {
-		if(TCP_IPV6_MATCH(sk2, saddr, daddr, ports, dif))
+		if (INET6_MATCH(sk2, saddr, daddr, ports, dif))
 			goto not_unique;
 	}
 
@@ -521,7 +523,7 @@ unique:
 		tcp_tw_deschedule(tw);
 		NET_INC_STATS_BH(LINUX_MIB_TIMEWAITRECYCLED);
 
-		tcp_tw_put(tw);
+		inet_twsk_put(tw);
 	}
 	return 0;
 
@@ -556,7 +558,7 @@ static int tcp_v6_hash_connect(struct sock *sk)
 		static u32 hint;
 		u32 offset = hint + tcpv6_port_offset(sk);
 		struct hlist_node *node;
- 		struct tcp_tw_bucket *tw = NULL;
+ 		struct inet_timewait_sock *tw = NULL;
 
  		local_bh_disable();
 		for (i = 1; i <= range; i++) {
@@ -609,7 +611,7 @@ ok:
 
  		if (tw) {
  			tcp_tw_deschedule(tw);
- 			tcp_tw_put(tw);
+ 			inet_twsk_put(tw);
  		}
 
 		ret = 0;
@@ -845,7 +847,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	}
 
 	if (sk->sk_state == TCP_TIME_WAIT) {
-		tcp_tw_put((struct tcp_tw_bucket*)sk);
+		inet_twsk_put((struct inet_timewait_sock *)sk);
 		return;
 	}
 
@@ -1223,12 +1225,14 @@ static void tcp_v6_send_ack(struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 
 
 static void tcp_v6_timewait_ack(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcp_tw_bucket *tw = (struct tcp_tw_bucket *)sk;
+	struct inet_timewait_sock *tw = inet_twsk(sk);
+	const struct tcp_timewait_sock *tcptw = tcp_twsk(sk);
 
-	tcp_v6_send_ack(skb, tw->tw_snd_nxt, tw->tw_rcv_nxt,
-			tw->tw_rcv_wnd >> tw->tw_rcv_wscale, tw->tw_ts_recent);
+	tcp_v6_send_ack(skb, tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
+			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
+			tcptw->tw_ts_recent);
 
-	tcp_tw_put(tw);
+	inet_twsk_put(tw);
 }
 
 static void tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req)
@@ -1261,7 +1265,7 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 			bh_lock_sock(nsk);
 			return nsk;
 		}
-		tcp_tw_put((struct tcp_tw_bucket*)nsk);
+		inet_twsk_put((struct inet_timewait_sock *)nsk);
 		return NULL;
 	}
 
@@ -1798,26 +1802,26 @@ discard_and_relse:
 
 do_time_wait:
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-		tcp_tw_put((struct tcp_tw_bucket *) sk);
+		inet_twsk_put((struct inet_timewait_sock *)sk);
 		goto discard_it;
 	}
 
 	if (skb->len < (th->doff<<2) || tcp_checksum_complete(skb)) {
 		TCP_INC_STATS_BH(TCP_MIB_INERRS);
-		tcp_tw_put((struct tcp_tw_bucket *) sk);
+		inet_twsk_put((struct inet_timewait_sock *)sk);
 		goto discard_it;
 	}
 
-	switch(tcp_timewait_state_process((struct tcp_tw_bucket *)sk,
-					  skb, th, skb->len)) {
+	switch (tcp_timewait_state_process((struct inet_timewait_sock *)sk,
+					   skb, th)) {
 	case TCP_TW_SYN:
 	{
 		struct sock *sk2;
 
 		sk2 = tcp_v6_lookup_listener(&skb->nh.ipv6h->daddr, ntohs(th->dest), tcp_v6_iif(skb));
 		if (sk2 != NULL) {
-			tcp_tw_deschedule((struct tcp_tw_bucket *)sk);
-			tcp_tw_put((struct tcp_tw_bucket *)sk);
+			tcp_tw_deschedule((struct inet_timewait_sock *)sk);
+			inet_twsk_put((struct inet_timewait_sock *)sk);
 			sk = sk2;
 			goto process;
 		}
@@ -2137,17 +2141,18 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 }
 
 static void get_timewait6_sock(struct seq_file *seq, 
-			       struct tcp_tw_bucket *tw, int i)
+			       struct inet_timewait_sock *tw, int i)
 {
 	struct in6_addr *dest, *src;
 	__u16 destp, srcp;
+	struct tcp6_timewait_sock *tcp6tw = tcp6_twsk((struct sock *)tw);
 	int ttd = tw->tw_ttd - jiffies;
 
 	if (ttd < 0)
 		ttd = 0;
 
-	dest  = &tw->tw_v6_daddr;
-	src   = &tw->tw_v6_rcv_saddr;
+	dest = &tcp6tw->tw_v6_daddr;
+	src  = &tcp6tw->tw_v6_rcv_saddr;
 	destp = ntohs(tw->tw_dport);
 	srcp  = ntohs(tw->tw_sport);
 
@@ -2244,6 +2249,7 @@ struct proto tcpv6_prot = {
 	.sysctl_rmem		= sysctl_tcp_rmem,
 	.max_header		= MAX_TCP_HEADER,
 	.obj_size		= sizeof(struct tcp6_sock),
+	.twsk_obj_size		= sizeof(struct tcp6_timewait_sock),
 	.rsk_prot		= &tcp6_request_sock_ops,
 };
 

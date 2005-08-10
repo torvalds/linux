@@ -271,8 +271,6 @@ int sysctl_tcp_fin_timeout = TCP_FIN_TIMEOUT;
 
 DEFINE_SNMP_STAT(struct tcp_mib, tcp_statistics);
 
-kmem_cache_t *tcp_timewait_cachep;
-
 atomic_t tcp_orphan_count = ATOMIC_INIT(0);
 
 int sysctl_tcp_mem[3];
@@ -2264,13 +2262,6 @@ void __init tcp_init(void)
 	if (!tcp_hashinfo.bind_bucket_cachep)
 		panic("tcp_init: Cannot alloc tcp_bind_bucket cache.");
 
-	tcp_timewait_cachep = kmem_cache_create("tcp_tw_bucket",
-						sizeof(struct tcp_tw_bucket),
-						0, SLAB_HWCACHE_ALIGN,
-						NULL, NULL);
-	if (!tcp_timewait_cachep)
-		panic("tcp_init: Cannot alloc tcp_tw_bucket cache.");
-
 	/* Size and allocate the main established and bind bucket
 	 * hash tables.
 	 *
@@ -2363,4 +2354,3 @@ EXPORT_SYMBOL(tcp_sendpage);
 EXPORT_SYMBOL(tcp_setsockopt);
 EXPORT_SYMBOL(tcp_shutdown);
 EXPORT_SYMBOL(tcp_statistics);
-EXPORT_SYMBOL(tcp_timewait_cachep);
