@@ -225,8 +225,8 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 		/* If there maybe a raw socket we must check - if not we
 		 * don't care less
 		 */
-		if (raw_sk)
-			raw_v4_input(skb, skb->nh.iph, hash);
+		if (raw_sk && !raw_v4_input(skb, skb->nh.iph, hash))
+			raw_sk = NULL;
 
 		if ((ipprot = rcu_dereference(inet_protos[hash])) != NULL) {
 			int ret;

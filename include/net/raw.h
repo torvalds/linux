@@ -37,6 +37,6 @@ extern struct sock *__raw_v4_lookup(struct sock *sk, unsigned short num,
 				    unsigned long raddr, unsigned long laddr,
 				    int dif);
 
-extern void raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash);
+extern int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash);
 
 #endif	/* _RAW_H */

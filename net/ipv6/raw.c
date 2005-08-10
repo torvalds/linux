@@ -141,11 +141,12 @@ static __inline__ int icmpv6_filter(struct sock *sk, struct sk_buff *skb)
  *
  *	Caller owns SKB so we must make clones.
  */
-void ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
+int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 {
 	struct in6_addr *saddr;
 	struct in6_addr *daddr;
 	struct sock *sk;
+	int delivered = 0;
 	__u8 hash;
 
 	saddr = &skb->nh.ipv6h->saddr;
@@ -167,6 +168,7 @@ void ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	sk = __raw_v6_lookup(sk, nexthdr, daddr, saddr, skb->dev->ifindex);
 
 	while (sk) {
+		delivered = 1;
 		if (nexthdr != IPPROTO_ICMPV6 || !icmpv6_filter(sk, skb)) {
 			struct sk_buff *clone = skb_clone(skb, GFP_ATOMIC);
 
@@ -179,6 +181,7 @@ void ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	}
 out:
 	read_unlock(&raw_v6_lock);
+	return delivered;
 }
 
 /* This cleans up af_inet6 a bit. -DaveM */
