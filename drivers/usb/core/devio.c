@@ -76,6 +76,8 @@ MODULE_PARM_DESC (usbfs_snoop, "true to log all usbfs traffic");
 			dev_info( dev , format , ## arg);	\
 	} while (0)
 
+#define USB_DEVICE_DEV		MKDEV(USB_DEVICE_MAJOR, 0)
+
 
 #define	MAX_USBFS_BUFFER_SIZE	16384
 
@@ -1530,18 +1532,17 @@ int __init usbdev_init(void)
 {
 	int retval;
 
-	retval = register_chrdev_region(MKDEV(USB_DEVICE_MAJOR, 0),
-				        USB_DEVICE_MAX, "usb_device");
+	retval = register_chrdev_region(USB_DEVICE_DEV, USB_DEVICE_MAX,
+			"usb_device");
 	if (retval) {
 		err("unable to register minors for usb_device");
 		goto out;
 	}
 	cdev_init(&usb_device_cdev, &usbfs_device_file_operations);
-	retval = cdev_add(&usb_device_cdev,
-			  MKDEV(USB_DEVICE_MAJOR, 0), USB_DEVICE_MAX);
+	retval = cdev_add(&usb_device_cdev, USB_DEVICE_DEV, USB_DEVICE_MAX);
 	if (retval) {
 		err("unable to get usb_device major %d", USB_DEVICE_MAJOR);
-		unregister_chrdev_region(USB_DEVICE_MAJOR, USB_DEVICE_MAX);
+		unregister_chrdev_region(USB_DEVICE_DEV, USB_DEVICE_MAX);
 		goto out;
 	}
 	usb_device_class = class_create(THIS_MODULE, "usb_device");
@@ -1550,7 +1551,7 @@ int __init usbdev_init(void)
 		retval = PTR_ERR(usb_device_class);
 		usb_device_class = NULL;
 		cdev_del(&usb_device_cdev);
-		unregister_chrdev_region(USB_DEVICE_MAJOR, USB_DEVICE_MAX);
+		unregister_chrdev_region(USB_DEVICE_DEV, USB_DEVICE_MAX);
 	}
 
 out:
@@ -1561,6 +1562,6 @@ void usbdev_cleanup(void)
 {
 	class_destroy(usb_device_class);
 	cdev_del(&usb_device_cdev);
-	unregister_chrdev_region(USB_DEVICE_MAJOR, USB_DEVICE_MAX);
+	unregister_chrdev_region(USB_DEVICE_DEV, USB_DEVICE_MAX);
 }
 
