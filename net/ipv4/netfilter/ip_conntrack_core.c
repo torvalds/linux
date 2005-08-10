@@ -655,7 +655,7 @@ struct ip_conntrack *ip_conntrack_alloc(struct ip_conntrack_tuple *orig,
 	conntrack = kmem_cache_alloc(ip_conntrack_cachep, GFP_ATOMIC);
 	if (!conntrack) {
 		DEBUGP("Can't allocate conntrack.\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	memset(conntrack, 0, sizeof(*conntrack));
@@ -696,8 +696,9 @@ init_conntrack(struct ip_conntrack_tuple *tuple,
 		return NULL;
 	}
 
-	if (!(conntrack = ip_conntrack_alloc(tuple, &repl_tuple)))
-		return NULL;
+	conntrack = ip_conntrack_alloc(tuple, &repl_tuple);
+	if (conntrack == NULL || IS_ERR(conntrack))
+		return (struct ip_conntrack_tuple_hash *)conntrack;
 
 	if (!protocol->new(conntrack, skb)) {
 		ip_conntrack_free(conntrack);
