@@ -533,8 +533,6 @@ static inline unsigned int tg3_has_work(struct tg3 *tp)
  */
 static void tg3_restart_ints(struct tg3 *tp)
 {
-	tw32(TG3PCI_MISC_HOST_CTRL,
-		(tp->misc_host_ctrl & ~MISC_HOST_CTRL_MASK_PCI_INT));
 	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 		     tp->last_tag << 24);
 	mmiowb();
