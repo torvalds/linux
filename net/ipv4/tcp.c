@@ -272,6 +272,9 @@ int sysctl_tcp_fin_timeout = TCP_FIN_TIMEOUT;
 DEFINE_SNMP_STAT(struct tcp_mib, tcp_statistics);
 
 kmem_cache_t *tcp_bucket_cachep;
+
+EXPORT_SYMBOL_GPL(tcp_bucket_cachep);
+
 kmem_cache_t *tcp_timewait_cachep;
 
 atomic_t tcp_orphan_count = ATOMIC_INIT(0);
@@ -2259,7 +2262,7 @@ void __init tcp_init(void)
 					   sizeof(skb->cb));
 
 	tcp_bucket_cachep = kmem_cache_create("tcp_bind_bucket",
-					      sizeof(struct tcp_bind_bucket),
+					      sizeof(struct inet_bind_bucket),
 					      0, SLAB_HWCACHE_ALIGN,
 					      NULL, NULL);
 	if (!tcp_bucket_cachep)
@@ -2277,9 +2280,9 @@ void __init tcp_init(void)
 	 *
 	 * The methodology is similar to that of the buffer cache.
 	 */
-	tcp_ehash = (struct tcp_ehash_bucket *)
+	tcp_ehash =
 		alloc_large_system_hash("TCP established",
-					sizeof(struct tcp_ehash_bucket),
+					sizeof(struct inet_ehash_bucket),
 					thash_entries,
 					(num_physpages >= 128 * 1024) ?
 						(25 - PAGE_SHIFT) :
@@ -2294,9 +2297,9 @@ void __init tcp_init(void)
 		INIT_HLIST_HEAD(&tcp_ehash[i].chain);
 	}
 
-	tcp_bhash = (struct tcp_bind_hashbucket *)
+	tcp_bhash =
 		alloc_large_system_hash("TCP bind",
-					sizeof(struct tcp_bind_hashbucket),
+					sizeof(struct inet_bind_hashbucket),
 					tcp_ehash_size,
 					(num_physpages >= 128 * 1024) ?
 						(25 - PAGE_SHIFT) :
@@ -2315,7 +2318,7 @@ void __init tcp_init(void)
 	 * on available memory.
 	 */
 	for (order = 0; ((1 << order) << PAGE_SHIFT) <
-			(tcp_bhash_size * sizeof(struct tcp_bind_hashbucket));
+			(tcp_bhash_size * sizeof(struct inet_bind_hashbucket));
 			order++)
 		;
 	if (order >= 4) {

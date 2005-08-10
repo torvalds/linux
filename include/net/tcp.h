@@ -44,13 +44,13 @@
  * New scheme, half the table is for TIME_WAIT, the other half is
  * for the rest.  I'll experiment with dynamic table growth later.
  */
-struct tcp_ehash_bucket {
+struct inet_ehash_bucket {
 	rwlock_t	  lock;
 	struct hlist_head chain;
 } __attribute__((__aligned__(8)));
 
 /* This is for listening sockets, thus all sockets which possess wildcards. */
-#define TCP_LHTABLE_SIZE	32	/* Yes, really, this is all you need. */
+#define INET_LHTABLE_SIZE	32	/* Yes, really, this is all you need. */
 
 /* There are a few simple rules, which allow for local port reuse by
  * an application.  In essence:
@@ -83,31 +83,22 @@ struct tcp_ehash_bucket {
  * users logged onto your box, isn't it nice to know that new data
  * ports are created in O(1) time?  I thought so. ;-)	-DaveM
  */
-struct tcp_bind_bucket {
+struct inet_bind_bucket {
 	unsigned short		port;
 	signed short		fastreuse;
 	struct hlist_node	node;
 	struct hlist_head	owners;
 };
 
-#define tb_for_each(tb, node, head) hlist_for_each_entry(tb, node, head, node)
+#define inet_bind_bucket_for_each(tb, node, head) \
+	hlist_for_each_entry(tb, node, head, node)
 
-struct tcp_bind_hashbucket {
+struct inet_bind_hashbucket {
 	spinlock_t		lock;
 	struct hlist_head	chain;
 };
 
-static inline struct tcp_bind_bucket *__tb_head(struct tcp_bind_hashbucket *head)
-{
-	return hlist_entry(head->chain.first, struct tcp_bind_bucket, node);
-}
-
-static inline struct tcp_bind_bucket *tb_head(struct tcp_bind_hashbucket *head)
-{
-	return hlist_empty(&head->chain) ? NULL : __tb_head(head);
-}
-
-extern struct tcp_hashinfo {
+struct inet_hashinfo {
 	/* This is for sockets with full identity only.  Sockets here will
 	 * always be without wildcards and will have the following invariant:
 	 *
@@ -116,21 +107,21 @@ extern struct tcp_hashinfo {
 	 * First half of the table is for sockets not in TIME_WAIT, second half
 	 * is for TIME_WAIT sockets only.
 	 */
-	struct tcp_ehash_bucket *__tcp_ehash;
+	struct inet_ehash_bucket	*ehash;
 
 	/* Ok, let's try this, I give up, we do need a local binding
 	 * TCP hash as well as the others for fast bind/connect.
 	 */
-	struct tcp_bind_hashbucket *__tcp_bhash;
+	struct inet_bind_hashbucket	*bhash;
 
-	int __tcp_bhash_size;
-	int __tcp_ehash_size;
+	int				bhash_size;
+	int				ehash_size;
 
 	/* All sockets in TCP_LISTEN state will be in here.  This is the only
 	 * table where wildcard'd TCP sockets can exist.  Hash function here
 	 * is just local port number.
 	 */
-	struct hlist_head __tcp_listening_hash[TCP_LHTABLE_SIZE];
+	struct hlist_head		listening_hash[INET_LHTABLE_SIZE];
 
 	/* All the above members are written once at bootup and
 	 * never written again _or_ are predominantly read-access.
@@ -138,36 +129,39 @@ extern struct tcp_hashinfo {
 	 * Now align to a new cache line as all the following members
 	 * are often dirty.
 	 */
-	rwlock_t __tcp_lhash_lock ____cacheline_aligned;
-	atomic_t __tcp_lhash_users;
-	wait_queue_head_t __tcp_lhash_wait;
-	spinlock_t __tcp_portalloc_lock;
-} tcp_hashinfo;
+	rwlock_t			lhash_lock ____cacheline_aligned;
+	atomic_t			lhash_users;
+	wait_queue_head_t		lhash_wait;
+	spinlock_t			portalloc_lock;
+};
 
-#define tcp_ehash	(tcp_hashinfo.__tcp_ehash)
-#define tcp_bhash	(tcp_hashinfo.__tcp_bhash)
-#define tcp_ehash_size	(tcp_hashinfo.__tcp_ehash_size)
-#define tcp_bhash_size	(tcp_hashinfo.__tcp_bhash_size)
-#define tcp_listening_hash (tcp_hashinfo.__tcp_listening_hash)
-#define tcp_lhash_lock	(tcp_hashinfo.__tcp_lhash_lock)
-#define tcp_lhash_users	(tcp_hashinfo.__tcp_lhash_users)
-#define tcp_lhash_wait	(tcp_hashinfo.__tcp_lhash_wait)
-#define tcp_portalloc_lock (tcp_hashinfo.__tcp_portalloc_lock)
+extern struct inet_hashinfo	tcp_hashinfo;
+#define tcp_ehash		(tcp_hashinfo.ehash)
+#define tcp_bhash		(tcp_hashinfo.bhash)
+#define tcp_ehash_size		(tcp_hashinfo.ehash_size)
+#define tcp_bhash_size		(tcp_hashinfo.bhash_size)
+#define tcp_listening_hash	(tcp_hashinfo.listening_hash)
+#define tcp_lhash_lock		(tcp_hashinfo.lhash_lock)
+#define tcp_lhash_users		(tcp_hashinfo.lhash_users)
+#define tcp_lhash_wait		(tcp_hashinfo.lhash_wait)
+#define tcp_portalloc_lock	(tcp_hashinfo.portalloc_lock)
 
 extern kmem_cache_t *tcp_bucket_cachep;
-extern struct tcp_bind_bucket *tcp_bucket_create(struct tcp_bind_hashbucket *head,
-						 unsigned short snum);
-extern void tcp_bucket_destroy(struct tcp_bind_bucket *tb);
-extern void tcp_bucket_unlock(struct sock *sk);
+extern struct inet_bind_bucket *
+	    inet_bind_bucket_create(kmem_cache_t *cachep,
+				    struct inet_bind_hashbucket *head,
+				    const unsigned short snum);
+extern void inet_bind_bucket_destroy(kmem_cache_t *cachep,
+				     struct inet_bind_bucket *tb);
 extern int tcp_port_rover;
 
 /* These are AF independent. */
-static __inline__ int tcp_bhashfn(__u16 lport)
+static inline int inet_bhashfn(const __u16 lport, const int bhash_size)
 {
-	return (lport & (tcp_bhash_size - 1));
+	return lport & (bhash_size - 1);
 }
 
-extern void tcp_bind_hash(struct sock *sk, struct tcp_bind_bucket *tb,
+extern void tcp_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 			  unsigned short snum);
 
 #if (BITS_PER_LONG == 64)
@@ -212,7 +206,7 @@ struct tcp_tw_bucket {
 	__u32			tw_ts_recent;
 	long			tw_ts_recent_stamp;
 	unsigned long		tw_ttd;
-	struct tcp_bind_bucket	*tw_tb;
+	struct inet_bind_bucket	*tw_tb;
 	struct hlist_node	tw_death_node;
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	struct in6_addr		tw_v6_daddr;
@@ -366,14 +360,14 @@ extern void tcp_tw_deschedule(struct tcp_tw_bucket *tw);
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
 
 /* These can have wildcards, don't try too hard. */
-static __inline__ int tcp_lhashfn(unsigned short num)
+static inline int inet_lhashfn(const unsigned short num)
 {
-	return num & (TCP_LHTABLE_SIZE - 1);
+	return num & (INET_LHTABLE_SIZE - 1);
 }
 
-static __inline__ int tcp_sk_listen_hashfn(struct sock *sk)
+static inline int inet_sk_listen_hashfn(const struct sock *sk)
 {
-	return tcp_lhashfn(inet_sk(sk)->num);
+	return inet_lhashfn(inet_sk(sk)->num);
 }
 
 #define MAX_TCP_HEADER	(128 + MAX_HEADER)
@@ -798,9 +792,6 @@ extern void			tcp_parse_options(struct sk_buff *skb,
 /*
  *	TCP v4 functions exported for the inet6 API
  */
-
-extern int		       	tcp_v4_build_header(struct sock *sk, 
-						    struct sk_buff *skb);
 
 extern void		       	tcp_v4_send_check(struct sock *sk, 
 						  struct tcphdr *th, int len, 

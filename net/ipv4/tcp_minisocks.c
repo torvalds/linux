@@ -60,9 +60,9 @@ int tcp_tw_count;
 /* Must be called with locally disabled BHs. */
 static void tcp_timewait_kill(struct tcp_tw_bucket *tw)
 {
-	struct tcp_ehash_bucket *ehead;
-	struct tcp_bind_hashbucket *bhead;
-	struct tcp_bind_bucket *tb;
+	struct inet_ehash_bucket *ehead;
+	struct inet_bind_hashbucket *bhead;
+	struct inet_bind_bucket *tb;
 
 	/* Unlink from established hashes. */
 	ehead = &tcp_ehash[tw->tw_hashent];
@@ -76,12 +76,12 @@ static void tcp_timewait_kill(struct tcp_tw_bucket *tw)
 	write_unlock(&ehead->lock);
 
 	/* Disassociate with bind bucket. */
-	bhead = &tcp_bhash[tcp_bhashfn(tw->tw_num)];
+	bhead = &tcp_bhash[inet_bhashfn(tw->tw_num, tcp_bhash_size)];
 	spin_lock(&bhead->lock);
 	tb = tw->tw_tb;
 	__hlist_del(&tw->tw_bind_node);
 	tw->tw_tb = NULL;
-	tcp_bucket_destroy(tb);
+	inet_bind_bucket_destroy(tcp_bucket_cachep, tb);
 	spin_unlock(&bhead->lock);
 
 #ifdef SOCK_REFCNT_DEBUG
@@ -296,14 +296,14 @@ kill:
  */
 static void __tcp_tw_hashdance(struct sock *sk, struct tcp_tw_bucket *tw)
 {
-	struct tcp_ehash_bucket *ehead = &tcp_ehash[sk->sk_hashent];
-	struct tcp_bind_hashbucket *bhead;
+	struct inet_ehash_bucket *ehead = &tcp_ehash[sk->sk_hashent];
+	struct inet_bind_hashbucket *bhead;
 
 	/* Step 1: Put TW into bind hash. Original socket stays there too.
 	   Note, that any socket with inet_sk(sk)->num != 0 MUST be bound in
 	   binding cache, even if it is closed.
 	 */
-	bhead = &tcp_bhash[tcp_bhashfn(inet_sk(sk)->num)];
+	bhead = &tcp_bhash[inet_bhashfn(inet_sk(sk)->num, tcp_bhash_size)];
 	spin_lock(&bhead->lock);
 	tw->tw_tb = tcp_sk(sk)->bind_hash;
 	BUG_TRAP(tcp_sk(sk)->bind_hash);

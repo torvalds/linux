@@ -590,7 +590,7 @@ static int tcpdiag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (!(r->tcpdiag_states&(TCPF_LISTEN|TCPF_SYN_RECV)))
 			goto skip_listen_ht;
 		tcp_listen_lock();
-		for (i = s_i; i < TCP_LHTABLE_SIZE; i++) {
+		for (i = s_i; i < INET_LHTABLE_SIZE; i++) {
 			struct sock *sk;
 			struct hlist_node *node;
 
@@ -646,7 +646,7 @@ skip_listen_ht:
 		return skb->len;
 
 	for (i = s_i; i < tcp_ehash_size; i++) {
-		struct tcp_ehash_bucket *head = &tcp_ehash[i];
+		struct inet_ehash_bucket *head = &tcp_ehash[i];
 		struct sock *sk;
 		struct hlist_node *node;
 
