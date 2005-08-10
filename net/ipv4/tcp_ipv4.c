@@ -97,138 +97,6 @@ struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
 	.port_rover	= 1024 - 1,
 };
 
-/*
- * This array holds the first and last local port number.
- * For high-usage systems, use sysctl to change this to
- * 32768-61000
- */
-int sysctl_local_port_range[2] = { 1024, 4999 };
-
-static inline int inet_csk_bind_conflict(struct sock *sk, struct inet_bind_bucket *tb)
-{
-	const u32 sk_rcv_saddr = inet_rcv_saddr(sk);
-	struct sock *sk2;
-	struct hlist_node *node;
-	int reuse = sk->sk_reuse;
-
-	sk_for_each_bound(sk2, node, &tb->owners) {
-		if (sk != sk2 &&
-		    !inet_v6_ipv6only(sk2) &&
-		    (!sk->sk_bound_dev_if ||
-		     !sk2->sk_bound_dev_if ||
-		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if)) {
-			if (!reuse || !sk2->sk_reuse ||
-			    sk2->sk_state == TCP_LISTEN) {
-				const u32 sk2_rcv_saddr = inet_rcv_saddr(sk2);
-				if (!sk2_rcv_saddr || !sk_rcv_saddr ||
-				    sk2_rcv_saddr == sk_rcv_saddr)
-					break;
-			}
-		}
-	}
-	return node != NULL;
-}
-
-/* Obtain a reference to a local port for the given sock,
- * if snum is zero it means select any available local port.
- */
-int inet_csk_get_port(struct inet_hashinfo *hashinfo,
-		      struct sock *sk, unsigned short snum)
-{
-	struct inet_bind_hashbucket *head;
-	struct hlist_node *node;
-	struct inet_bind_bucket *tb;
-	int ret;
-
-	local_bh_disable();
-	if (!snum) {
-		int low = sysctl_local_port_range[0];
-		int high = sysctl_local_port_range[1];
-		int remaining = (high - low) + 1;
-		int rover;
-
-		spin_lock(&hashinfo->portalloc_lock);
-		if (hashinfo->port_rover < low)
-			rover = low;
-		else
-			rover = hashinfo->port_rover;
-		do {
-			rover++;
-			if (rover > high)
-				rover = low;
-			head = &hashinfo->bhash[inet_bhashfn(rover, hashinfo->bhash_size)];
-			spin_lock(&head->lock);
-			inet_bind_bucket_for_each(tb, node, &head->chain)
-				if (tb->port == rover)
-					goto next;
-			break;
-		next:
-			spin_unlock(&head->lock);
-		} while (--remaining > 0);
-		hashinfo->port_rover = rover;
-		spin_unlock(&hashinfo->portalloc_lock);
-
-		/* Exhausted local port range during search?  It is not
-		 * possible for us to be holding one of the bind hash
-		 * locks if this test triggers, because if 'remaining'
-		 * drops to zero, we broke out of the do/while loop at
-		 * the top level, not from the 'break;' statement.
-		 */
-		ret = 1;
-		if (unlikely(remaining <= 0))
-			goto fail;
-
-		/* OK, here is the one we will use.  HEAD is
-		 * non-NULL and we hold it's mutex.
-		 */
-		snum = rover;
-	} else {
-		head = &hashinfo->bhash[inet_bhashfn(snum, hashinfo->bhash_size)];
-		spin_lock(&head->lock);
-		inet_bind_bucket_for_each(tb, node, &head->chain)
-			if (tb->port == snum)
-				goto tb_found;
-	}
-	tb = NULL;
-	goto tb_not_found;
-tb_found:
-	if (!hlist_empty(&tb->owners)) {
-		if (sk->sk_reuse > 1)
-			goto success;
-		if (tb->fastreuse > 0 &&
-		    sk->sk_reuse && sk->sk_state != TCP_LISTEN) {
-			goto success;
-		} else {
-			ret = 1;
-			if (inet_csk_bind_conflict(sk, tb))
-				goto fail_unlock;
-		}
-	}
-tb_not_found:
-	ret = 1;
-	if (!tb && (tb = inet_bind_bucket_create(hashinfo->bind_bucket_cachep, head, snum)) == NULL)
-		goto fail_unlock;
-	if (hlist_empty(&tb->owners)) {
-		if (sk->sk_reuse && sk->sk_state != TCP_LISTEN)
-			tb->fastreuse = 1;
-		else
-			tb->fastreuse = 0;
-	} else if (tb->fastreuse &&
-		   (!sk->sk_reuse || sk->sk_state == TCP_LISTEN))
-		tb->fastreuse = 0;
-success:
-	if (!inet_csk(sk)->icsk_bind_hash)
-		inet_bind_hash(sk, tb, snum);
-	BUG_TRAP(inet_csk(sk)->icsk_bind_hash == tb);
- 	ret = 0;
-
-fail_unlock:
-	spin_unlock(&head->lock);
-fail:
-	local_bh_enable();
-	return ret;
-}
-
 static int tcp_v4_get_port(struct sock *sk, unsigned short snum)
 {
 	return inet_csk_get_port(&tcp_hashinfo, sk, snum);
@@ -567,52 +435,6 @@ static inline int inet_iif(const struct sk_buff *skb)
 {
 	return ((struct rtable *)skb->dst)->rt_iif;
 }
-
-static inline u32 inet_synq_hash(const u32 raddr, const u16 rport,
-				 const u32 rnd, const u16 synq_hsize)
-{
-	return jhash_2words(raddr, (u32)rport, rnd) & (synq_hsize - 1);
-}
-
-struct request_sock *inet_csk_search_req(const struct sock *sk,
-					 struct request_sock ***prevp,
-					 const __u16 rport, const __u32 raddr,
-					 const __u32 laddr)
-{
-	const struct inet_connection_sock *icsk = inet_csk(sk);
-	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
-	struct request_sock *req, **prev;
-
-	for (prev = &lopt->syn_table[inet_synq_hash(raddr, rport, lopt->hash_rnd,
-						    lopt->nr_table_entries)];
-	     (req = *prev) != NULL;
-	     prev = &req->dl_next) {
-		const struct inet_request_sock *ireq = inet_rsk(req);
-
-		if (ireq->rmt_port == rport &&
-		    ireq->rmt_addr == raddr &&
-		    ireq->loc_addr == laddr &&
-		    AF_INET_FAMILY(req->rsk_ops->family)) {
-			BUG_TRAP(!req->sk);
-			*prevp = prev;
-			break;
-		}
-	}
-
-	return req;
-}
-
-static void tcp_v4_synq_add(struct sock *sk, struct request_sock *req)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
-	const u32 h = inet_synq_hash(inet_rsk(req)->rmt_addr, inet_rsk(req)->rmt_port,
-				     lopt->hash_rnd, lopt->nr_table_entries);
-
-	reqsk_queue_hash_req(&icsk->icsk_accept_queue, h, req, TCP_TIMEOUT_INIT);
-	inet_csk_reqsk_queue_added(sk, TCP_TIMEOUT_INIT);
-}
-
 
 /*
  * This routine does path mtu discovery as defined in RFC1191.
@@ -963,36 +785,6 @@ static void tcp_v4_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req)
 			req->ts_recent);
 }
 
-struct dst_entry* inet_csk_route_req(struct sock *sk,
-				     const struct request_sock *req)
-{
-	struct rtable *rt;
-	const struct inet_request_sock *ireq = inet_rsk(req);
-	struct ip_options *opt = inet_rsk(req)->opt;
-	struct flowi fl = { .oif = sk->sk_bound_dev_if,
-			    .nl_u = { .ip4_u =
-				      { .daddr = ((opt && opt->srr) ?
-						  opt->faddr :
-						  ireq->rmt_addr),
-					.saddr = ireq->loc_addr,
-					.tos = RT_CONN_FLAGS(sk) } },
-			    .proto = sk->sk_protocol,
-			    .uli_u = { .ports =
-				       { .sport = inet_sk(sk)->sport,
-					 .dport = ireq->rmt_port } } };
-
-	if (ip_route_output_flow(&rt, &fl, sk, 0)) {
-		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
-		return NULL;
-	}
-	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway) {
-		ip_rt_put(rt);
-		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
-		return NULL;
-	}
-	return &rt->u.dst;
-}
-
 /*
  *	Send a SYN-ACK after having received an ACK.
  *	This still operates on a request_sock only, not on a big
@@ -1222,7 +1014,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (want_cookie) {
 	   	reqsk_free(req);
 	} else {
-		tcp_v4_synq_add(sk, req);
+		inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
 	}
 	return 0;
 

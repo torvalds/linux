@@ -1278,7 +1278,7 @@ static int tcp_check_sack_reneging(struct sock *sk)
 		inet_csk(sk)->icsk_retransmits++;
 		tcp_retransmit_skb(sk, skb_peek(&sk->sk_write_queue));
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  inet_csk(sk)->icsk_rto);
+					  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
 		return 1;
 	}
 	return 0;
@@ -1961,7 +1961,7 @@ static inline void tcp_ack_packets_out(struct sock *sk, struct tcp_sock *tp)
 	if (!tp->packets_out) {
 		inet_csk_clear_xmit_timer(sk, ICSK_TIME_RETRANS);
 	} else {
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, inet_csk(sk)->icsk_rto);
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
 	}
 }
 
@@ -2147,7 +2147,8 @@ static void tcp_ack_probe(struct sock *sk)
 		 */
 	} else {
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_PROBE0,
-					  min(icsk->icsk_rto << icsk->icsk_backoff, TCP_RTO_MAX));
+					  min(icsk->icsk_rto << icsk->icsk_backoff, TCP_RTO_MAX),
+					  TCP_RTO_MAX);
 	}
 }
 
@@ -3968,7 +3969,8 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 			inet_csk(sk)->icsk_ack.ato	 = TCP_ATO_MIN;
 			tcp_incr_quickack(sk);
 			tcp_enter_quickack_mode(sk);
-			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, TCP_DELACK_MAX);
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
+						  TCP_DELACK_MAX, TCP_RTO_MAX);
 
 discard:
 			__kfree_skb(skb);

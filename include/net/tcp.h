@@ -19,11 +19,7 @@
 #define _TCP_H
 
 #define TCP_DEBUG 1
-#define INET_CSK_DEBUG 1
 #define FASTRETRANS_DEBUG 1
-
-/* Cancel timers, when they are not required. */
-#undef INET_CSK_CLEAR_TIMERS
 
 #include <linux/config.h>
 #include <linux/list.h>
@@ -31,6 +27,8 @@
 #include <linux/slab.h>
 #include <linux/cache.h>
 #include <linux/percpu.h>
+
+#include <net/inet_connection_sock.h>
 #include <net/inet_hashtables.h>
 #include <net/checksum.h>
 #include <net/request_sock.h>
@@ -206,11 +204,6 @@ extern void tcp_tw_deschedule(struct inet_timewait_sock *tw);
 #define TCPOLEN_SACK_BASE_ALIGNED	4
 #define TCPOLEN_SACK_PERBLOCK		8
 
-#define ICSK_TIME_RETRANS	1	/* Retransmit timer */
-#define ICSK_TIME_DACK		2	/* Delayed ack timer */
-#define ICSK_TIME_PROBE0	3	/* Zero window probe timer */
-#define ICSK_TIME_KEEPOPEN	4	/* Keepalive timer */
-
 /* Flags in tp->nonagle */
 #define TCP_NAGLE_OFF		1	/* Nagle's algo is disabled */
 #define TCP_NAGLE_CORK		2	/* Socket is corked	    */
@@ -256,12 +249,6 @@ extern int sysctl_tcp_tso_win_divisor;
 extern atomic_t tcp_memory_allocated;
 extern atomic_t tcp_sockets_allocated;
 extern int tcp_memory_pressure;
-
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-#define AF_INET_FAMILY(fam) ((fam) == AF_INET)
-#else
-#define AF_INET_FAMILY(fam) 1
-#endif
 
 /*
  *	Pointers to address related TCP functions
@@ -373,22 +360,6 @@ extern int			tcp_rcv_established(struct sock *sk,
 
 extern void			tcp_rcv_space_adjust(struct sock *sk);
 
-enum inet_csk_ack_state_t {
-	ICSK_ACK_SCHED	= 1,
-	ICSK_ACK_TIMER  = 2,
-	ICSK_ACK_PUSHED = 4
-};
-
-static inline void inet_csk_schedule_ack(struct sock *sk)
-{
-	inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_SCHED;
-}
-
-static inline int inet_csk_ack_scheduled(const struct sock *sk)
-{
-	return inet_csk(sk)->icsk_ack.pending & ICSK_ACK_SCHED;
-}
-
 static inline void tcp_dec_quickack_mode(struct sock *sk,
 					 const unsigned int pkts)
 {
@@ -405,11 +376,6 @@ static inline void tcp_dec_quickack_mode(struct sock *sk,
 }
 
 extern void tcp_enter_quickack_mode(struct sock *sk);
-
-static inline void inet_csk_delack_init(struct sock *sk)
-{
-	memset(&inet_csk(sk)->icsk_ack, 0, sizeof(inet_csk(sk)->icsk_ack));
-}
 
 static inline void tcp_clear_options(struct tcp_options_received *rx_opt)
 {
@@ -442,7 +408,6 @@ extern void			tcp_update_metrics(struct sock *sk);
 
 extern void			tcp_close(struct sock *sk, 
 					  long timeout);
-extern struct sock *		inet_csk_accept(struct sock *sk, int flags, int *err);
 extern unsigned int		tcp_poll(struct file * file, struct socket *sock, struct poll_table_struct *wait);
 
 extern int			tcp_getsockopt(struct sock *sk, int level, 
@@ -541,14 +506,8 @@ static inline void tcp_clear_xmit_timers(struct sock *sk)
 	inet_csk_clear_xmit_timers(sk);
 }
 
-extern void inet_csk_delete_keepalive_timer(struct sock *sk);
-extern void inet_csk_reset_keepalive_timer(struct sock *sk, unsigned long timeout);
 extern unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu);
 extern unsigned int tcp_current_mss(struct sock *sk, int large);
-
-#ifdef INET_CSK_DEBUG
-extern const char inet_csk_timer_bug_msg[];
-#endif
 
 /* tcp_diag.c */
 extern void tcp_get_info(struct sock *, struct tcp_info *);
@@ -558,60 +517,6 @@ typedef int (*sk_read_actor_t)(read_descriptor_t *, struct sk_buff *,
 				unsigned int, size_t);
 extern int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 			 sk_read_actor_t recv_actor);
-
-static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	
-	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0) {
-		icsk->icsk_pending = 0;
-#ifdef INET_CSK_CLEAR_TIMERS
-		sk_stop_timer(sk, &icsk->icsk_retransmit_timer);
-#endif
-	} else if (what == ICSK_TIME_DACK) {
-		icsk->icsk_ack.blocked = icsk->icsk_ack.pending = 0;
-#ifdef INET_CSK_CLEAR_TIMERS
-		sk_stop_timer(sk, &icsk->icsk_delack_timer);
-#endif
-	}
-#ifdef INET_CSK_DEBUG
-	else {
-		pr_debug(inet_csk_timer_bug_msg);
-	}
-#endif
-}
-
-/*
- *	Reset the retransmission timer
- */
-static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
-					     unsigned long when)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-
-	if (when > TCP_RTO_MAX) {
-#ifdef INET_CSK_DEBUG
-		pr_debug("reset_xmit_timer: sk=%p %d when=0x%lx, caller=%p\n",
-			 sk, what, when, current_text_addr());
-#endif
-		when = TCP_RTO_MAX;
-	}
-
-	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0) {
-		icsk->icsk_pending = what;
-		icsk->icsk_timeout = jiffies + when;
-		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, icsk->icsk_timeout);
-	} else if (what == ICSK_TIME_DACK) {
-		icsk->icsk_ack.pending |= ICSK_ACK_TIMER;
-		icsk->icsk_ack.timeout = jiffies + when;
-		sk_reset_timer(sk, &icsk->icsk_delack_timer, icsk->icsk_ack.timeout);
-	}
-#ifdef INET_CSK_DEBUG
-	else {
-		pr_debug(inet_csk_timer_bug_msg);
-	}
-#endif
-}
 
 /* Initialize RCV_MSS value.
  * RCV_MSS is an our guess about MSS used by the peer.
@@ -765,7 +670,8 @@ static inline void tcp_packets_out_inc(struct sock *sk,
 
 	tp->packets_out += tcp_skb_pcount(skb);
 	if (!orig)
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, inet_csk(sk)->icsk_rto);
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+					  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
 }
 
 static inline void tcp_packets_out_dec(struct tcp_sock *tp, 
@@ -934,7 +840,8 @@ static __inline__ void tcp_check_probe_timer(struct sock *sk, struct tcp_sock *t
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	if (!tp->packets_out && !icsk->icsk_pending)
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_PROBE0, icsk->icsk_rto);
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_PROBE0,
+					  icsk->icsk_rto, TCP_RTO_MAX);
 }
 
 static __inline__ void tcp_push_pending_frames(struct sock *sk,
@@ -1017,7 +924,8 @@ static __inline__ int tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 			wake_up_interruptible(sk->sk_sleep);
 			if (!inet_csk_ack_scheduled(sk))
 				inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
-						          (3 * TCP_RTO_MIN) / 4);
+						          (3 * TCP_RTO_MIN) / 4,
+							  TCP_RTO_MAX);
 		}
 		return 1;
 	}
@@ -1179,58 +1087,6 @@ static inline int tcp_space(const struct sock *sk)
 static inline int tcp_full_space(const struct sock *sk)
 {
 	return tcp_win_from_space(sk->sk_rcvbuf); 
-}
-
-static inline void inet_csk_reqsk_queue_add(struct sock *sk,
-					    struct request_sock *req,
-					    struct sock *child)
-{
-	reqsk_queue_add(&inet_csk(sk)->icsk_accept_queue, req, sk, child);
-}
-
-static inline void inet_csk_reqsk_queue_removed(struct sock *sk,
-						struct request_sock *req)
-{
-	if (reqsk_queue_removed(&inet_csk(sk)->icsk_accept_queue, req) == 0)
-		inet_csk_delete_keepalive_timer(sk);
-}
-
-static inline void inet_csk_reqsk_queue_added(struct sock *sk,
-					      const unsigned long timeout)
-{
-	if (reqsk_queue_added(&inet_csk(sk)->icsk_accept_queue) == 0)
-		inet_csk_reset_keepalive_timer(sk, timeout);
-}
-
-static inline int inet_csk_reqsk_queue_len(const struct sock *sk)
-{
-	return reqsk_queue_len(&inet_csk(sk)->icsk_accept_queue);
-}
-
-static inline int inet_csk_reqsk_queue_young(const struct sock *sk)
-{
-	return reqsk_queue_len_young(&inet_csk(sk)->icsk_accept_queue);
-}
-
-static inline int inet_csk_reqsk_queue_is_full(const struct sock *sk)
-{
-	return reqsk_queue_is_full(&inet_csk(sk)->icsk_accept_queue);
-}
-
-static inline void inet_csk_reqsk_queue_unlink(struct sock *sk,
-					       struct request_sock *req,
-					       struct request_sock **prev)
-{
-	reqsk_queue_unlink(&inet_csk(sk)->icsk_accept_queue, req, prev);
-}
-
-static inline void inet_csk_reqsk_queue_drop(struct sock *sk,
-					     struct request_sock *req,
-					     struct request_sock **prev)
-{
-	inet_csk_reqsk_queue_unlink(sk, req, prev);
-	inet_csk_reqsk_queue_removed(sk, req);
-	reqsk_free(req);
 }
 
 static __inline__ void tcp_openreq_init(struct request_sock *req,

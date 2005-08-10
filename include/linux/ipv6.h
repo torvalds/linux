@@ -333,15 +333,10 @@ static inline struct in6_addr *tcp_v6_rcv_saddr(const struct sock *sk)
 	return sk->sk_family == AF_INET6 ? __tcp_v6_rcv_saddr(sk) : NULL;
 }
 
-static inline int inet_twsk_ipv6only(const struct sock *sk)
-{
-	return inet_twsk(sk)->tw_ipv6only;
-}
-
 static inline int inet_v6_ipv6only(const struct sock *sk)
 {
 	return likely(sk->sk_state != TCP_TIME_WAIT) ?
-		ipv6_only_sock(sk) : inet_twsk_ipv6only(sk);
+		ipv6_only_sock(sk) : inet_twsk(sk)->tw_ipv6only;
 }
 #else
 #define __ipv6_only_sock(sk)	0

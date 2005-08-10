@@ -1805,98 +1805,6 @@ int tcp_disconnect(struct sock *sk, int flags)
 }
 
 /*
- *	Wait for an incoming connection, avoid race
- *	conditions. This must be called with the socket locked.
- */
-static int wait_for_connect(struct sock *sk, long timeo)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	DEFINE_WAIT(wait);
-	int err;
-
-	/*
-	 * True wake-one mechanism for incoming connections: only
-	 * one process gets woken up, not the 'whole herd'.
-	 * Since we do not 'race & poll' for established sockets
-	 * anymore, the common case will execute the loop only once.
-	 *
-	 * Subtle issue: "add_wait_queue_exclusive()" will be added
-	 * after any current non-exclusive waiters, and we know that
-	 * it will always _stay_ after any new non-exclusive waiters
-	 * because all non-exclusive waiters are added at the
-	 * beginning of the wait-queue. As such, it's ok to "drop"
-	 * our exclusiveness temporarily when we get woken up without
-	 * having to remove and re-insert us on the wait queue.
-	 */
-	for (;;) {
-		prepare_to_wait_exclusive(sk->sk_sleep, &wait,
-					  TASK_INTERRUPTIBLE);
-		release_sock(sk);
-		if (reqsk_queue_empty(&icsk->icsk_accept_queue))
-			timeo = schedule_timeout(timeo);
-		lock_sock(sk);
-		err = 0;
-		if (!reqsk_queue_empty(&icsk->icsk_accept_queue))
-			break;
-		err = -EINVAL;
-		if (sk->sk_state != TCP_LISTEN)
-			break;
-		err = sock_intr_errno(timeo);
-		if (signal_pending(current))
-			break;
-		err = -EAGAIN;
-		if (!timeo)
-			break;
-	}
-	finish_wait(sk->sk_sleep, &wait);
-	return err;
-}
-
-/*
- *	This will accept the next outstanding connection.
- */
-
-struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	struct sock *newsk;
-	int error;
-
-	lock_sock(sk);
-
-	/* We need to make sure that this socket is listening,
-	 * and that it has something pending.
-	 */
-	error = -EINVAL;
-	if (sk->sk_state != TCP_LISTEN)
-		goto out_err;
-
-	/* Find already established connection */
-	if (reqsk_queue_empty(&icsk->icsk_accept_queue)) {
-		long timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
-
-		/* If this is a non blocking socket don't sleep */
-		error = -EAGAIN;
-		if (!timeo)
-			goto out_err;
-
-		error = wait_for_connect(sk, timeo);
-		if (error)
-			goto out_err;
-	}
-
-	newsk = reqsk_queue_get_child(&icsk->icsk_accept_queue, sk);
-	BUG_TRAP(newsk->sk_state != TCP_SYN_RECV);
-out:
-	release_sock(sk);
-	return newsk;
-out_err:
-	newsk = NULL;
-	*err = error;
-	goto out;
-}
-
-/*
  *	Socket option code for TCP.
  */
 int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
@@ -2344,7 +2252,6 @@ void __init tcp_init(void)
 	tcp_register_congestion_control(&tcp_reno);
 }
 
-EXPORT_SYMBOL(inet_csk_accept);
 EXPORT_SYMBOL(tcp_close);
 EXPORT_SYMBOL(tcp_destroy_sock);
 EXPORT_SYMBOL(tcp_disconnect);

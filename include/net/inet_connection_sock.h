@@ -16,8 +16,14 @@
 #define _INET_CONNECTION_SOCK_H
 
 #include <linux/ip.h>
+#include <linux/string.h>
 #include <linux/timer.h>
 #include <net/request_sock.h>
+
+#define INET_CSK_DEBUG 1
+
+/* Cancel timers, when they are not required. */
+#undef INET_CSK_CLEAR_TIMERS
 
 struct inet_bind_bucket;
 struct inet_hashinfo;
@@ -61,16 +67,106 @@ struct inet_connection_sock {
 	} icsk_ack;
 };
 
+#define ICSK_TIME_RETRANS	1	/* Retransmit timer */
+#define ICSK_TIME_DACK		2	/* Delayed ack timer */
+#define ICSK_TIME_PROBE0	3	/* Zero window probe timer */
+#define ICSK_TIME_KEEPOPEN	4	/* Keepalive timer */
+
 static inline struct inet_connection_sock *inet_csk(const struct sock *sk)
 {
 	return (struct inet_connection_sock *)sk;
 }
+
+enum inet_csk_ack_state_t {
+	ICSK_ACK_SCHED	= 1,
+	ICSK_ACK_TIMER  = 2,
+	ICSK_ACK_PUSHED = 4
+};
 
 extern void inet_csk_init_xmit_timers(struct sock *sk,
 				      void (*retransmit_handler)(unsigned long),
 				      void (*delack_handler)(unsigned long),
 				      void (*keepalive_handler)(unsigned long));
 extern void inet_csk_clear_xmit_timers(struct sock *sk);
+
+static inline void inet_csk_schedule_ack(struct sock *sk)
+{
+	inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_SCHED;
+}
+
+static inline int inet_csk_ack_scheduled(const struct sock *sk)
+{
+	return inet_csk(sk)->icsk_ack.pending & ICSK_ACK_SCHED;
+}
+
+static inline void inet_csk_delack_init(struct sock *sk)
+{
+	memset(&inet_csk(sk)->icsk_ack, 0, sizeof(inet_csk(sk)->icsk_ack));
+}
+
+extern void inet_csk_delete_keepalive_timer(struct sock *sk);
+extern void inet_csk_reset_keepalive_timer(struct sock *sk, unsigned long timeout);
+
+#ifdef INET_CSK_DEBUG
+extern const char inet_csk_timer_bug_msg[];
+#endif
+
+static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	
+	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0) {
+		icsk->icsk_pending = 0;
+#ifdef INET_CSK_CLEAR_TIMERS
+		sk_stop_timer(sk, &icsk->icsk_retransmit_timer);
+#endif
+	} else if (what == ICSK_TIME_DACK) {
+		icsk->icsk_ack.blocked = icsk->icsk_ack.pending = 0;
+#ifdef INET_CSK_CLEAR_TIMERS
+		sk_stop_timer(sk, &icsk->icsk_delack_timer);
+#endif
+	}
+#ifdef INET_CSK_DEBUG
+	else {
+		pr_debug(inet_csk_timer_bug_msg);
+	}
+#endif
+}
+
+/*
+ *	Reset the retransmission timer
+ */
+static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
+					     unsigned long when,
+					     const unsigned long max_when)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	if (when > max_when) {
+#ifdef INET_CSK_DEBUG
+		pr_debug("reset_xmit_timer: sk=%p %d when=0x%lx, caller=%p\n",
+			 sk, what, when, current_text_addr());
+#endif
+		when = max_when;
+	}
+
+	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0) {
+		icsk->icsk_pending = what;
+		icsk->icsk_timeout = jiffies + when;
+		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, icsk->icsk_timeout);
+	} else if (what == ICSK_TIME_DACK) {
+		icsk->icsk_ack.pending |= ICSK_ACK_TIMER;
+		icsk->icsk_ack.timeout = jiffies + when;
+		sk_reset_timer(sk, &icsk->icsk_delack_timer, icsk->icsk_ack.timeout);
+	}
+#ifdef INET_CSK_DEBUG
+	else {
+		pr_debug(inet_csk_timer_bug_msg);
+	}
+#endif
+}
+
+extern struct sock *inet_csk_accept(struct sock *sk, int flags, int *err);
 
 extern struct request_sock *inet_csk_search_req(const struct sock *sk,
 						struct request_sock ***prevp,
@@ -82,5 +178,61 @@ extern int inet_csk_get_port(struct inet_hashinfo *hashinfo,
 
 extern struct dst_entry* inet_csk_route_req(struct sock *sk,
 					    const struct request_sock *req);
+
+static inline void inet_csk_reqsk_queue_add(struct sock *sk,
+					    struct request_sock *req,
+					    struct sock *child)
+{
+	reqsk_queue_add(&inet_csk(sk)->icsk_accept_queue, req, sk, child);
+}
+
+extern void inet_csk_reqsk_queue_hash_add(struct sock *sk,
+					  struct request_sock *req,
+					  const unsigned timeout);
+
+static inline void inet_csk_reqsk_queue_removed(struct sock *sk,
+						struct request_sock *req)
+{
+	if (reqsk_queue_removed(&inet_csk(sk)->icsk_accept_queue, req) == 0)
+		inet_csk_delete_keepalive_timer(sk);
+}
+
+static inline void inet_csk_reqsk_queue_added(struct sock *sk,
+					      const unsigned long timeout)
+{
+	if (reqsk_queue_added(&inet_csk(sk)->icsk_accept_queue) == 0)
+		inet_csk_reset_keepalive_timer(sk, timeout);
+}
+
+static inline int inet_csk_reqsk_queue_len(const struct sock *sk)
+{
+	return reqsk_queue_len(&inet_csk(sk)->icsk_accept_queue);
+}
+
+static inline int inet_csk_reqsk_queue_young(const struct sock *sk)
+{
+	return reqsk_queue_len_young(&inet_csk(sk)->icsk_accept_queue);
+}
+
+static inline int inet_csk_reqsk_queue_is_full(const struct sock *sk)
+{
+	return reqsk_queue_is_full(&inet_csk(sk)->icsk_accept_queue);
+}
+
+static inline void inet_csk_reqsk_queue_unlink(struct sock *sk,
+					       struct request_sock *req,
+					       struct request_sock **prev)
+{
+	reqsk_queue_unlink(&inet_csk(sk)->icsk_accept_queue, req, prev);
+}
+
+static inline void inet_csk_reqsk_queue_drop(struct sock *sk,
+					     struct request_sock *req,
+					     struct request_sock **prev)
+{
+	inet_csk_reqsk_queue_unlink(sk, req, prev);
+	inet_csk_reqsk_queue_removed(sk, req);
+	reqsk_free(req);
+}
 
 #endif /* _INET_CONNECTION_SOCK_H */

@@ -36,54 +36,13 @@ static void tcp_write_timer(unsigned long);
 static void tcp_delack_timer(unsigned long);
 static void tcp_keepalive_timer (unsigned long data);
 
-#ifdef INET_CSK_DEBUG
-const char inet_csk_timer_bug_msg[] = "inet_csk BUG: unknown timer value\n";
-EXPORT_SYMBOL(inet_csk_timer_bug_msg);
-#endif
-
-/*
- * Using different timers for retransmit, delayed acks and probes
- * We may wish use just one timer maintaining a list of expire jiffies 
- * to optimize.
- */
-void inet_csk_init_xmit_timers(struct sock *sk,
-			       void (*retransmit_handler)(unsigned long),
-			       void (*delack_handler)(unsigned long),
-			       void (*keepalive_handler)(unsigned long))
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-
-	init_timer(&icsk->icsk_retransmit_timer);
-	init_timer(&icsk->icsk_delack_timer);
-	init_timer(&sk->sk_timer);
-
-	icsk->icsk_retransmit_timer.function = retransmit_handler;
-	icsk->icsk_delack_timer.function     = delack_handler;
-	sk->sk_timer.function		     = keepalive_handler;
-
-	icsk->icsk_retransmit_timer.data = 
-		icsk->icsk_delack_timer.data =
-			sk->sk_timer.data  = (unsigned long)sk;
-
-	icsk->icsk_pending = icsk->icsk_ack.pending = 0;
-}
-
-void inet_csk_clear_xmit_timers(struct sock *sk)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-
-	icsk->icsk_pending = icsk->icsk_ack.pending = icsk->icsk_ack.blocked = 0;
-
-	sk_stop_timer(sk, &icsk->icsk_retransmit_timer);
-	sk_stop_timer(sk, &icsk->icsk_delack_timer);
-	sk_stop_timer(sk, &sk->sk_timer);
-}
-
 void tcp_init_xmit_timers(struct sock *sk)
 {
 	inet_csk_init_xmit_timers(sk, &tcp_write_timer, &tcp_delack_timer,
 				  &tcp_keepalive_timer);
 }
+
+EXPORT_SYMBOL(tcp_init_xmit_timers);
 
 static void tcp_write_err(struct sock *sk)
 {
@@ -392,7 +351,8 @@ static void tcp_retransmit_timer(struct sock *sk)
 		if (!icsk->icsk_retransmits)
 			icsk->icsk_retransmits = 1;
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  min(icsk->icsk_rto, TCP_RESOURCE_PROBE_INTERVAL));
+					  min(icsk->icsk_rto, TCP_RESOURCE_PROBE_INTERVAL),
+					  TCP_RTO_MAX);
 		goto out;
 	}
 
@@ -416,7 +376,7 @@ static void tcp_retransmit_timer(struct sock *sk)
 
 out_reset_timer:
 	icsk->icsk_rto = min(icsk->icsk_rto << 1, TCP_RTO_MAX);
-	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, icsk->icsk_rto);
+	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, icsk->icsk_rto, TCP_RTO_MAX);
 	if (icsk->icsk_retransmits > sysctl_tcp_retries1)
 		__sk_dst_reset(sk);
 
@@ -553,16 +513,6 @@ static void tcp_synack_timer(struct sock *sk)
 		inet_csk_reset_keepalive_timer(sk, TCP_SYNQ_INTERVAL);
 }
 
-void inet_csk_delete_keepalive_timer(struct sock *sk)
-{
-	sk_stop_timer(sk, &sk->sk_timer);
-}
-
-void inet_csk_reset_keepalive_timer(struct sock *sk, unsigned long len)
-{
-	sk_reset_timer(sk, &sk->sk_timer, jiffies + len);
-}
-
 void tcp_set_keepalive(struct sock *sk, int val)
 {
 	if ((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN))
@@ -653,8 +603,3 @@ out:
 	bh_unlock_sock(sk);
 	sock_put(sk);
 }
-
-EXPORT_SYMBOL(inet_csk_clear_xmit_timers);
-EXPORT_SYMBOL(inet_csk_delete_keepalive_timer);
-EXPORT_SYMBOL(tcp_init_xmit_timers);
-EXPORT_SYMBOL(inet_csk_reset_keepalive_timer);

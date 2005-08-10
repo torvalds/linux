@@ -1493,7 +1493,8 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 					if (skb ==
 					    skb_peek(&sk->sk_write_queue))
 						inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-									  inet_csk(sk)->icsk_rto);
+									  inet_csk(sk)->icsk_rto,
+									  TCP_RTO_MAX);
 				}
 
 				packet_cnt -= tcp_skb_pcount(skb);
@@ -1546,7 +1547,9 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 			break;
 
 		if (skb == skb_peek(&sk->sk_write_queue))
-			inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, inet_csk(sk)->icsk_rto);
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+						  inet_csk(sk)->icsk_rto,
+						  TCP_RTO_MAX);
 
 		NET_INC_STATS_BH(LINUX_MIB_TCPFORWARDRETRANS);
 	}
@@ -1826,7 +1829,8 @@ int tcp_connect(struct sock *sk)
 	TCP_INC_STATS(TCP_MIB_ACTIVEOPENS);
 
 	/* Timer for repeating the SYN until an answer. */
-	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, inet_csk(sk)->icsk_rto);
+	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+				  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
 	return 0;
 }
 
@@ -1901,7 +1905,8 @@ void tcp_send_ack(struct sock *sk)
 		if (buff == NULL) {
 			inet_csk_schedule_ack(sk);
 			inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
-			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, TCP_DELACK_MAX);
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
+						  TCP_DELACK_MAX, TCP_RTO_MAX);
 			return;
 		}
 
@@ -2033,7 +2038,8 @@ void tcp_send_probe0(struct sock *sk)
 			icsk->icsk_backoff++;
 		tp->probes_out++;
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_PROBE0, 
-					  min(icsk->icsk_rto << icsk->icsk_backoff, TCP_RTO_MAX));
+					  min(icsk->icsk_rto << icsk->icsk_backoff, TCP_RTO_MAX),
+					  TCP_RTO_MAX);
 	} else {
 		/* If packet was not sent due to local congestion,
 		 * do not backoff and do not remember probes_out.
@@ -2045,7 +2051,8 @@ void tcp_send_probe0(struct sock *sk)
 			tp->probes_out=1;
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_PROBE0, 
 					  min(icsk->icsk_rto << icsk->icsk_backoff,
-					      TCP_RESOURCE_PROBE_INTERVAL));
+					      TCP_RESOURCE_PROBE_INTERVAL),
+					  TCP_RTO_MAX);
 	}
 }
 
