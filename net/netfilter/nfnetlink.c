@@ -163,17 +163,16 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 			cb_id, subsys->cb_count);
 		return -EINVAL;
 	}
-	
-	attr_count = subsys->cb[cb_id].attr_count;
 
+	min_len = NLMSG_ALIGN(sizeof(struct nfgenmsg));
+	if (unlikely(nlh->nlmsg_len < min_len))
+		return -EINVAL;
+
+	attr_count = subsys->cb[cb_id].attr_count;
 	memset(cda, 0, sizeof(struct nfattr *) * attr_count);
 
 	/* check attribute lengths. */
-	min_len = NLMSG_ALIGN(sizeof(struct nfgenmsg));
-	if (nlh->nlmsg_len < min_len)
-		return -EINVAL;
-
-	if (nlh->nlmsg_len > min_len) {
+	if (likely(nlh->nlmsg_len > min_len)) {
 		struct nfattr *attr = NFM_NFA(NLMSG_DATA(nlh));
 		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
 
@@ -186,8 +185,10 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 			}
 			attr = NFA_NEXT(attr, attrlen);
 		}
-	} else
-		return -EINVAL;
+	}
+
+	/* implicit: if nlmsg_len == min_len, we return 0, and an empty
+	 * (zeroed) cda[] array. The message is valid, but empty. */
 
         return 0;
 }
