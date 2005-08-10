@@ -225,13 +225,16 @@ int nf_getsockopt(struct sock *sk, int pf, int optval, char __user *opt,
 		  int *len);
 
 /* Packet queuing */
-typedef int (*nf_queue_outfn_t)(struct sk_buff *skb, 
-                                struct nf_info *info,
-				unsigned int queuenum, void *data);
+struct nf_queue_handler {
+	int (*outfn)(struct sk_buff *skb, struct nf_info *info,
+		     unsigned int queuenum, void *data);
+	void *data;
+	char *name;
+};
 extern int nf_register_queue_handler(int pf, 
-                                     nf_queue_outfn_t outfn, void *data);
+                                     struct nf_queue_handler *qh);
 extern int nf_unregister_queue_handler(int pf);
-extern void nf_unregister_queue_handlers(nf_queue_outfn_t outfn);
+extern void nf_unregister_queue_handlers(struct nf_queue_handler *qh);
 extern void nf_reinject(struct sk_buff *skb,
 			struct nf_info *info,
 			unsigned int verdict);

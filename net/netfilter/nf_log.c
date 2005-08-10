@@ -5,6 +5,7 @@
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
+#include <linux/seq_file.h>
 #include <net/protocol.h>
 
 #include "nf_internals.h"

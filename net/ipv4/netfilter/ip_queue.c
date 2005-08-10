@@ -656,6 +656,11 @@ ipq_get_info(char *buffer, char **start, off_t offset, int length)
 }
 #endif /* CONFIG_PROC_FS */
 
+static struct nf_queue_handler nfqh = {
+	.name	= "ip_queue",
+	.outfn	= &ipq_enqueue_packet,
+};
+
 static int
 init_or_cleanup(int init)
 {
@@ -684,7 +689,7 @@ init_or_cleanup(int init)
 	register_netdevice_notifier(&ipq_dev_notifier);
 	ipq_sysctl_header = register_sysctl_table(ipq_root_table, 0);
 	
-	status = nf_register_queue_handler(PF_INET, ipq_enqueue_packet, NULL);
+	status = nf_register_queue_handler(PF_INET, &nfqh);
 	if (status < 0) {
 		printk(KERN_ERR "ip_queue: failed to register queue handler\n");
 		goto cleanup_sysctl;
@@ -692,7 +697,7 @@ init_or_cleanup(int init)
 	return status;
 
 cleanup:
-	nf_unregister_queue_handlers(&ipq_enqueue_packet);
+	nf_unregister_queue_handlers(&nfqh);
 	synchronize_net();
 	ipq_flush(NF_DROP);
 	

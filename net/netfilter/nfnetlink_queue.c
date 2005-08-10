@@ -845,6 +845,11 @@ static const int nfqa_cfg_min[NFQA_CFG_MAX] = {
 	[NFQA_CFG_PARAMS-1]	= sizeof(struct nfqnl_msg_config_params),
 };
 
+static struct nf_queue_handler nfqh = {
+	.name 	= "nf_queue",
+	.outfn	= &nfqnl_enqueue_packet,
+};
+
 static int
 nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		  struct nlmsghdr *nlh, struct nfattr *nfqa[], int *errp)
@@ -890,10 +895,7 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		case NFQNL_CFG_CMD_PF_BIND:
 			QDEBUG("registering queue handler for pf=%u\n",
 				ntohs(cmd->pf));
-			ret = nf_register_queue_handler(ntohs(cmd->pf),
-							nfqnl_enqueue_packet,
-							NULL);
-
+			ret = nf_register_queue_handler(ntohs(cmd->pf), &nfqh);
 			break;
 		case NFQNL_CFG_CMD_PF_UNBIND:
 			QDEBUG("unregistering queue handler for pf=%u\n",
@@ -1098,7 +1100,7 @@ init_or_cleanup(int init)
 	return status;
 
 cleanup:
-	nf_unregister_queue_handlers(nfqnl_enqueue_packet);
+	nf_unregister_queue_handlers(&nfqh);
 	unregister_netdevice_notifier(&nfqnl_dev_notifier);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_queue", proc_net_netfilter);

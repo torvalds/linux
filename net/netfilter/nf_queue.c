@@ -5,6 +5,7 @@
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
+#include <linux/seq_file.h>
 #include <net/protocol.h>
 
 #include "nf_internals.h"
@@ -14,17 +15,12 @@
  * long term mutex.  The handler must provide an an outfn() to accept packets
  * for queueing and must reinject all packets it receives, no matter what.
  */
-static struct nf_queue_handler_t {
-	nf_queue_outfn_t outfn;
-	void *data;
-} queue_handler[NPROTO];
-
+static struct nf_queue_handler *queue_handler[NPROTO];
 static struct nf_queue_rerouter *queue_rerouter;
 
 static DEFINE_RWLOCK(queue_handler_lock);
 
-
-int nf_register_queue_handler(int pf, nf_queue_outfn_t outfn, void *data)
+int nf_register_queue_handler(int pf, struct nf_queue_handler *qh)
 {      
 	int ret;
 
@@ -32,11 +28,10 @@ int nf_register_queue_handler(int pf, nf_queue_outfn_t outfn, void *data)
 		return -EINVAL;
 
 	write_lock_bh(&queue_handler_lock);
-	if (queue_handler[pf].outfn)
+	if (queue_handler[pf])
 		ret = -EBUSY;
 	else {
-		queue_handler[pf].outfn = outfn;
-		queue_handler[pf].data = data;
+		queue_handler[pf] = qh;
 		ret = 0;
 	}
 	write_unlock_bh(&queue_handler_lock);
@@ -52,8 +47,7 @@ int nf_unregister_queue_handler(int pf)
 		return -EINVAL;
 
 	write_lock_bh(&queue_handler_lock);
-	queue_handler[pf].outfn = NULL;
-	queue_handler[pf].data = NULL;
+	queue_handler[pf] = NULL;
 	write_unlock_bh(&queue_handler_lock);
 	
 	return 0;
@@ -85,16 +79,14 @@ int nf_unregister_queue_rerouter(int pf)
 }
 EXPORT_SYMBOL_GPL(nf_unregister_queue_rerouter);
 
-void nf_unregister_queue_handlers(nf_queue_outfn_t outfn)
+void nf_unregister_queue_handlers(struct nf_queue_handler *qh)
 {
 	int pf;
 
 	write_lock_bh(&queue_handler_lock);
 	for (pf = 0; pf < NPROTO; pf++)  {
-		if (queue_handler[pf].outfn == outfn) {
-			queue_handler[pf].outfn = NULL;
-			queue_handler[pf].data = NULL;
-		}
+		if (queue_handler[pf] == qh)
+			queue_handler[pf] = NULL;
 	}
 	write_unlock_bh(&queue_handler_lock);
 }
@@ -121,7 +113,7 @@ int nf_queue(struct sk_buff **skb,
 
 	/* QUEUE == DROP if noone is waiting, to be safe. */
 	read_lock(&queue_handler_lock);
-	if (!queue_handler[pf].outfn) {
+	if (!queue_handler[pf]->outfn) {
 		read_unlock(&queue_handler_lock);
 		kfree_skb(*skb);
 		return 1;
@@ -162,8 +154,8 @@ int nf_queue(struct sk_buff **skb,
 	if (queue_rerouter[pf].save)
 		queue_rerouter[pf].save(*skb, info);
 
-	status = queue_handler[pf].outfn(*skb, info, queuenum,
-					 queue_handler[pf].data);
+	status = queue_handler[pf]->outfn(*skb, info, queuenum,
+					  queue_handler[pf]->data);
 
 	if (status >= 0 && queue_rerouter[pf].reroute)
 		status = queue_rerouter[pf].reroute(skb, info);
@@ -259,13 +251,87 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 }
 EXPORT_SYMBOL(nf_reinject);
 
+#ifdef CONFIG_PROC_FS
+static void *seq_start(struct seq_file *seq, loff_t *pos)
+{
+	if (*pos >= NPROTO)
+		return NULL;
+
+	return pos;
+}
+
+static void *seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	(*pos)++;
+
+	if (*pos >= NPROTO)
+		return NULL;
+
+	return pos;
+}
+
+static void seq_stop(struct seq_file *s, void *v)
+{
+
+}
+
+static int seq_show(struct seq_file *s, void *v)
+{
+	int ret;
+	loff_t *pos = v;
+	struct nf_queue_handler *qh;
+
+	read_lock_bh(&queue_handler_lock);
+	qh = queue_handler[*pos];
+	if (!qh)
+		ret = seq_printf(s, "%2lld NONE\n", *pos);
+	else
+		ret = seq_printf(s, "%2lld %s\n", *pos, qh->name);
+	read_unlock_bh(&queue_handler_lock);
+
+	return ret;
+}
+
+static struct seq_operations nfqueue_seq_ops = {
+	.start	= seq_start,
+	.next	= seq_next,
+	.stop	= seq_stop,
+	.show	= seq_show,
+};
+
+static int nfqueue_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &nfqueue_seq_ops);
+}
+
+static struct file_operations nfqueue_file_ops = {
+	.owner	 = THIS_MODULE,
+	.open	 = nfqueue_open,
+	.read	 = seq_read,
+	.llseek	 = seq_lseek,
+	.release = seq_release,
+};
+#endif /* PROC_FS */
+
+
 int __init netfilter_queue_init(void)
 {
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *pde;
+#endif
 	queue_rerouter = kmalloc(NPROTO * sizeof(struct nf_queue_rerouter),
 				 GFP_KERNEL);
 	if (!queue_rerouter)
 		return -ENOMEM;
 
+#ifdef CONFIG_PROC_FS
+	pde = create_proc_entry("nf_queue", S_IRUGO, proc_net_netfilter);
+	if (!pde) {
+		kfree(queue_rerouter);
+		return -1;
+	}
+	pde->proc_fops = &nfqueue_file_ops;
+#endif
 	memset(queue_rerouter, 0, NPROTO * sizeof(struct nf_queue_rerouter));
 
 	return 0;
