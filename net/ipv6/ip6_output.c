@@ -153,38 +153,6 @@ int ip6_output(struct sk_buff *skb)
 		return ip6_output2(skb);
 }
 
-#ifdef CONFIG_NETFILTER
-int ip6_route_me_harder(struct sk_buff *skb)
-{
-	struct ipv6hdr *iph = skb->nh.ipv6h;
-	struct dst_entry *dst;
-	struct flowi fl = {
-		.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0,
-		.nl_u =
-		{ .ip6_u =
-		  { .daddr = iph->daddr,
-		    .saddr = iph->saddr, } },
-		.proto = iph->nexthdr,
-	};
-
-	dst = ip6_route_output(skb->sk, &fl);
-
-	if (dst->error) {
-		IP6_INC_STATS(IPSTATS_MIB_OUTNOROUTES);
-		LIMIT_NETDEBUG(
-			printk(KERN_DEBUG "ip6_route_me_harder: No more route.\n"));
-		dst_release(dst);
-		return -EINVAL;
-	}
-
-	/* Drop old route. */
-	dst_release(skb->dst);
-
-	skb->dst = dst;
-	return 0;
-}
-#endif
-
 /*
  *	xmit an sk_buff (used by TCP)
  */
