@@ -716,7 +716,7 @@ static int tcp_in_window(struct ip_ct_tcp *state,
 		res = 1;
 	} else {
 		if (LOG_INVALID(IPPROTO_TCP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL,
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 			"ip_ct_tcp: %s ",
 			before(seq, sender->td_maxend + 1) ?
 			after(end, sender->td_end - receiver->td_maxwin - 1) ?
@@ -815,7 +815,7 @@ static int tcp_error(struct sk_buff *skb,
 				sizeof(_tcph), &_tcph);
 	if (th == NULL) {
 		if (LOG_INVALID(IPPROTO_TCP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				"ip_ct_tcp: short packet ");
 		return -NF_ACCEPT;
   	}
@@ -823,7 +823,7 @@ static int tcp_error(struct sk_buff *skb,
 	/* Not whole TCP header or malformed packet */
 	if (th->doff*4 < sizeof(struct tcphdr) || tcplen < th->doff*4) {
 		if (LOG_INVALID(IPPROTO_TCP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				"ip_ct_tcp: truncated/malformed packet ");
 		return -NF_ACCEPT;
 	}
@@ -840,7 +840,7 @@ static int tcp_error(struct sk_buff *skb,
 			         skb->ip_summed == CHECKSUM_HW ? skb->csum
 			      	 : skb_checksum(skb, iph->ihl*4, tcplen, 0))) {
 		if (LOG_INVALID(IPPROTO_TCP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				  "ip_ct_tcp: bad TCP checksum ");
 		return -NF_ACCEPT;
 	}
@@ -849,7 +849,7 @@ static int tcp_error(struct sk_buff *skb,
 	tcpflags = (((u_int8_t *)th)[13] & ~(TH_ECE|TH_CWR));
 	if (!tcp_valid_flags[tcpflags]) {
 		if (LOG_INVALID(IPPROTO_TCP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				  "ip_ct_tcp: invalid TCP flag combination ");
 		return -NF_ACCEPT;
 	}
@@ -897,8 +897,9 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 			 */
 		    	write_unlock_bh(&tcp_lock);
 			if (LOG_INVALID(IPPROTO_TCP))
-				nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
-					  "ip_ct_tcp: killing out of sync session ");
+				nf_log_packet(PF_INET, 0, skb, NULL, NULL,
+					      NULL, "ip_ct_tcp: "
+					      "killing out of sync session ");
 		    	if (del_timer(&conntrack->timeout))
 		    		conntrack->timeout.function((unsigned long)
 		    					    conntrack);
@@ -912,7 +913,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 		
 		write_unlock_bh(&tcp_lock);
 		if (LOG_INVALID(IPPROTO_TCP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				  "ip_ct_tcp: invalid packet ignored ");
 		return NF_ACCEPT;
 	case TCP_CONNTRACK_MAX:
@@ -922,7 +923,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 		       old_state);
 		write_unlock_bh(&tcp_lock);
 		if (LOG_INVALID(IPPROTO_TCP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				  "ip_ct_tcp: invalid state ");
 		return -NF_ACCEPT;
 	case TCP_CONNTRACK_SYN_SENT:
@@ -943,7 +944,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 			write_unlock_bh(&tcp_lock);
 			if (LOG_INVALID(IPPROTO_TCP))
 				nf_log_packet(PF_INET, 0, skb, NULL, NULL,
-				              "ip_ct_tcp: invalid SYN");
+					      NULL, "ip_ct_tcp: invalid SYN");
 			return -NF_ACCEPT;
 		}
 	case TCP_CONNTRACK_CLOSE:

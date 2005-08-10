@@ -22,6 +22,7 @@
 #include <linux/if.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
+#include <linux/proc_fs.h>
 #include <net/sock.h>
 
 /* In this code, we can be waiting indefinitely for userspace to
@@ -535,11 +536,10 @@ EXPORT_SYMBOL(skb_make_writable);
 
 #define NF_LOG_PREFIXLEN		128
 
-static nf_logfn *nf_logging[NPROTO]; /* = NULL */
-static int reported = 0;
+static struct nf_logger *nf_logging[NPROTO]; /* = NULL */
 static DEFINE_SPINLOCK(nf_log_lock);
 
-int nf_log_register(int pf, nf_logfn *logfn)
+int nf_log_register(int pf, struct nf_logger *logger)
 {
 	int ret = -EBUSY;
 
@@ -547,53 +547,133 @@ int nf_log_register(int pf, nf_logfn *logfn)
 	 * substituting pointer. */
 	spin_lock(&nf_log_lock);
 	if (!nf_logging[pf]) {
-		rcu_assign_pointer(nf_logging[pf], logfn);
+		rcu_assign_pointer(nf_logging[pf], logger);
 		ret = 0;
 	}
 	spin_unlock(&nf_log_lock);
 	return ret;
 }		
 
-void nf_log_unregister(int pf, nf_logfn *logfn)
+void nf_log_unregister_pf(int pf)
 {
 	spin_lock(&nf_log_lock);
-	if (nf_logging[pf] == logfn)
-		nf_logging[pf] = NULL;
+	nf_logging[pf] = NULL;
 	spin_unlock(&nf_log_lock);
 
 	/* Give time to concurrent readers. */
 	synchronize_net();
-}		
+}
+
+void nf_log_unregister_logger(struct nf_logger *logger)
+{
+	int i;
+
+	spin_lock(&nf_log_lock);
+	for (i = 0; i < NPROTO; i++) {
+		if (nf_logging[i] == logger)
+			nf_logging[i] = NULL;
+	}
+	spin_unlock(&nf_log_lock);
+
+	synchronize_net();
+}
 
 void nf_log_packet(int pf,
 		   unsigned int hooknum,
 		   const struct sk_buff *skb,
 		   const struct net_device *in,
 		   const struct net_device *out,
+		   struct nf_loginfo *loginfo,
 		   const char *fmt, ...)
 {
 	va_list args;
 	char prefix[NF_LOG_PREFIXLEN];
-	nf_logfn *logfn;
+	struct nf_logger *logger;
 	
 	rcu_read_lock();
-	logfn = rcu_dereference(nf_logging[pf]);
-	if (logfn) {
+	logger = rcu_dereference(nf_logging[pf]);
+	if (logger) {
 		va_start(args, fmt);
 		vsnprintf(prefix, sizeof(prefix), fmt, args);
 		va_end(args);
 		/* We must read logging before nf_logfn[pf] */
-		logfn(hooknum, skb, in, out, prefix);
-	} else if (!reported) {
-		printk(KERN_WARNING "nf_log_packet: can\'t log yet, "
-		       "no backend logging module loaded in!\n");
-		reported++;
+		logger->logfn(pf, hooknum, skb, in, out, loginfo, prefix);
+	} else if (net_ratelimit()) {
+		printk(KERN_WARNING "nf_log_packet: can\'t log since "
+		       "no backend logging module loaded in! Please either "
+		       "load one, or disable logging explicitly\n");
 	}
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(nf_log_register);
-EXPORT_SYMBOL(nf_log_unregister);
+EXPORT_SYMBOL(nf_log_unregister_pf);
+EXPORT_SYMBOL(nf_log_unregister_logger);
 EXPORT_SYMBOL(nf_log_packet);
+
+#ifdef CONFIG_PROC_FS
+struct proc_dir_entry *proc_net_netfilter;
+EXPORT_SYMBOL(proc_net_netfilter);
+
+static void *seq_start(struct seq_file *seq, loff_t *pos)
+{
+	rcu_read_lock();
+
+	if (*pos >= NPROTO)
+		return NULL;
+
+	return pos;
+}
+
+static void *seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	(*pos)++;
+
+	if (*pos >= NPROTO)
+		return NULL;
+
+	return pos;
+}
+
+static void seq_stop(struct seq_file *s, void *v)
+{
+	rcu_read_unlock();
+}
+
+static int seq_show(struct seq_file *s, void *v)
+{
+	loff_t *pos = v;
+	const struct nf_logger *logger;
+
+	logger = rcu_dereference(nf_logging[*pos]);
+
+	if (!logger)
+		return seq_printf(s, "%2lld NONE\n", *pos);
+	
+	return seq_printf(s, "%2lld %s\n", *pos, logger->name);
+}
+
+static struct seq_operations nflog_seq_ops = {
+	.start	= seq_start,
+	.next	= seq_next,
+	.stop	= seq_stop,
+	.show	= seq_show,
+};
+
+static int nflog_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &nflog_seq_ops);
+}
+
+static struct file_operations nflog_file_ops = {
+	.owner	 = THIS_MODULE,
+	.open	 = nflog_open,
+	.read	 = seq_read,
+	.llseek	 = seq_lseek,
+	.release = seq_release,
+};
+
+#endif /* PROC_FS */
+
 
 /* This does not belong here, but locally generated errors need it if connection
    tracking in use: without this, connection may not be in hash table, and hence
@@ -613,6 +693,9 @@ void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb)
 void __init netfilter_init(void)
 {
 	int i, h;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *pde;
+#endif
 
 	queue_rerouter = kmalloc(NPROTO * sizeof(struct nf_queue_rerouter),
 				 GFP_KERNEL);
@@ -624,6 +707,16 @@ void __init netfilter_init(void)
 		for (h = 0; h < NF_MAX_HOOKS; h++)
 			INIT_LIST_HEAD(&nf_hooks[i][h]);
 	}
+
+#ifdef CONFIG_PROC_FS
+	proc_net_netfilter = proc_mkdir("netfilter", proc_net);
+	if (!proc_net_netfilter)
+		panic("cannot create netfilter proc entry");
+	pde = create_proc_entry("nf_log", S_IRUGO, proc_net_netfilter);
+	if (!pde)
+		panic("cannot create /proc/net/netfilter/nf_log");
+	pde->proc_fops = &nflog_file_ops;
+#endif
 }
 
 EXPORT_SYMBOL(ip_ct_attach);

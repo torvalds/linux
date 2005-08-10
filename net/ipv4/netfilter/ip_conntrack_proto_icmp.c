@@ -217,7 +217,7 @@ icmp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 	icmph = skb_header_pointer(skb, skb->nh.iph->ihl*4, sizeof(_ih), &_ih);
 	if (icmph == NULL) {
 		if (LOG_INVALID(IPPROTO_ICMP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL,
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				      "ip_ct_icmp: short packet ");
 		return -NF_ACCEPT;
 	}
@@ -231,13 +231,13 @@ icmp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 		if (!(u16)csum_fold(skb->csum)) 
 			break;
 		if (LOG_INVALID(IPPROTO_ICMP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				      "ip_ct_icmp: bad HW ICMP checksum ");
 		return -NF_ACCEPT;
 	case CHECKSUM_NONE:
 		if ((u16)csum_fold(skb_checksum(skb, 0, skb->len, 0))) {
 			if (LOG_INVALID(IPPROTO_ICMP))
-				nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
+				nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 					      "ip_ct_icmp: bad ICMP checksum ");
 			return -NF_ACCEPT;
 		}
@@ -254,7 +254,7 @@ checksum_skipped:
 	 */
 	if (icmph->type > NR_ICMP_TYPES) {
 		if (LOG_INVALID(IPPROTO_ICMP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL,
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				      "ip_ct_icmp: invalid ICMP type ");
 		return -NF_ACCEPT;
 	}

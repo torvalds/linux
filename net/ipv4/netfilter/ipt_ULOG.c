@@ -304,18 +304,27 @@ static unsigned int ipt_ulog_target(struct sk_buff **pskb,
  	return IPT_CONTINUE;
 }
  
-static void ipt_logfn(unsigned int hooknum,
+static void ipt_logfn(unsigned int pf,
+		      unsigned int hooknum,
 		      const struct sk_buff *skb,
 		      const struct net_device *in,
 		      const struct net_device *out,
+		      const struct nf_loginfo *li,
 		      const char *prefix)
 {
-	struct ipt_ulog_info loginfo = { 
-		.nl_group = ULOG_DEFAULT_NLGROUP,
-		.copy_range = 0,
-		.qthreshold = ULOG_DEFAULT_QTHRESHOLD,
-		.prefix = ""
-	};
+	struct ipt_ulog_info loginfo;
+
+	if (!li || li->type != NF_LOG_TYPE_ULOG) {
+		loginfo.nl_group = ULOG_DEFAULT_NLGROUP;
+		loginfo.copy_range = 0;
+		loginfo.qthreshold = ULOG_DEFAULT_QTHRESHOLD;
+		loginfo.prefix[0] = '\0';
+	} else {
+		loginfo.nl_group = li->u.ulog.group;
+		loginfo.copy_range = li->u.ulog.copy_len;
+		loginfo.qthreshold = li->u.ulog.qthreshold;
+		strlcpy(loginfo.prefix, prefix, sizeof(loginfo.prefix));
+	}
 
 	ipt_ulog_packet(hooknum, skb, in, out, &loginfo, prefix);
 }
@@ -355,6 +364,12 @@ static struct ipt_target ipt_ulog_reg = {
 	.me		= THIS_MODULE,
 };
 
+static struct nf_logger ipt_ulog_logger = {
+	.name		= "ipt_ULOG",
+	.logfn		= &ipt_logfn,
+	.me		= THIS_MODULE,
+};
+
 static int __init init(void)
 {
 	int i;
@@ -382,7 +397,7 @@ static int __init init(void)
 		return -EINVAL;
 	}
 	if (nflog)
-		nf_log_register(PF_INET, &ipt_logfn);
+		nf_log_register(PF_INET, &ipt_ulog_logger);
 	
 	return 0;
 }
@@ -395,7 +410,7 @@ static void __exit fini(void)
 	DEBUGP("ipt_ULOG: cleanup_module\n");
 
 	if (nflog)
-		nf_log_unregister(PF_INET, &ipt_logfn);
+		nf_log_unregister_logger(&ipt_ulog_logger);
 	ipt_unregister_target(&ipt_ulog_reg);
 	sock_release(nflognl->sk_socket);
 
