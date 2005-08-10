@@ -119,7 +119,9 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			opt_recv->dccpor_ack_vector_idx = value - options;
 
 			dccp_pr_debug("%sACK vector 0, len=%d, ack_ackno=%llu\n",
-				      debug_prefix, len, DCCP_SKB_CB(skb)->dccpd_ack_seq);
+				      debug_prefix, len,
+				      (unsigned long long)
+				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
 			dccp_ackvector_print(DCCP_SKB_CB(skb)->dccpd_ack_seq,
 					     value, len);
 			dccp_ackpkts_check_rcv_ackvector(dp->dccps_hc_rx_ackpkts, sk,
@@ -137,6 +139,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 
 			dccp_pr_debug("%sTIMESTAMP=%u, ackno=%llu\n",
 				      debug_prefix, opt_recv->dccpor_timestamp,
+				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
 			break;
 		case DCCPO_TIMESTAMP_ECHO:
@@ -147,7 +150,9 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 
 			dccp_pr_debug("%sTIMESTAMP_ECHO=%u, len=%d, ackno=%llu, diff=%u\n",
 				      debug_prefix, opt_recv->dccpor_timestamp_echo,
-				      len + 2, DCCP_SKB_CB(skb)->dccpd_ack_seq,
+				      len + 2,
+				      (unsigned long long)
+				      DCCP_SKB_CB(skb)->dccpd_ack_seq,
 				      tcp_time_stamp - opt_recv->dccpor_timestamp_echo);
 
 			opt_recv->dccpor_elapsed_time = dccp_decode_value_var(value + 4, len - 4);
@@ -308,7 +313,8 @@ void dccp_insert_option_elapsed_time(struct sock *sk,
 
 	dccp_pr_debug("%sELAPSED_TIME=%u, len=%d, seqno=%llu\n",
 		      debug_prefix, elapsed_time,
-		      len, DCCP_SKB_CB(skb)->dccpd_seq);
+		      len,
+		      (unsigned long long) DCCP_SKB_CB(skb)->dccpd_seq);
 }
 
 EXPORT_SYMBOL(dccp_insert_option_elapsed_time);
@@ -382,7 +388,8 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 
 	dccp_pr_debug("%sACK Vector 0, len=%d, ack_seqno=%llu, ack_ackno=%llu\n",
 		      debug_prefix, ap->dccpap_ack_vector_len,
-		      ap->dccpap_ack_seqno, ap->dccpap_ack_ackno);
+		      (unsigned long long) ap->dccpap_ack_seqno,
+		      (unsigned long long) ap->dccpap_ack_ackno);
 }
 
 static inline void dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
@@ -422,7 +429,8 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk, struct sk_buff *s
 
 	dccp_pr_debug("%sTIMESTAMP_ECHO=%u, len=%d, seqno=%llu\n",
 		      debug_prefix, dp->dccps_timestamp_echo,
-		      len, DCCP_SKB_CB(skb)->dccpd_seq);
+		      len,
+		      (unsigned long long) DCCP_SKB_CB(skb)->dccpd_seq);
 
 	dp->dccps_timestamp_echo = 0;
 	dp->dccps_timestamp_time = 0;
@@ -607,7 +615,8 @@ int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state)
 			 */
 			if (state == DCCP_ACKPKTS_STATE_NOT_RECEIVED &&
 			    len == 0 && delta == 0) { /* Found our reserved seat! */
-				dccp_pr_debug("Found %llu reserved seat!\n", ackno);
+				dccp_pr_debug("Found %llu reserved seat!\n",
+					      (unsigned long long) ackno);
 				ap->dccpap_buf[index] = state;
 				goto out;
 			}
@@ -630,7 +639,8 @@ out:
 
 out_duplicate:
 	/* Duplicate packet */
-	dccp_pr_debug("Received a dup or already considered lost packet: %llu\n", ackno);
+	dccp_pr_debug("Received a dup or already considered lost packet: %llu\n",
+		      (unsigned long long) ackno);
 	return -EILSEQ;
 }
 
@@ -640,7 +650,8 @@ void dccp_ackvector_print(const u64 ackno, const unsigned char *vector, int len)
 	if (!dccp_debug)
 		return;
 
-	printk("ACK vector len=%d, ackno=%llu |", len, ackno);
+	printk("ACK vector len=%d, ackno=%llu |", len,
+	       (unsigned long long) ackno);
 
 	while (len--) {
 		const u8 state = (*vector & DCCP_ACKPKTS_STATE_MASK) >> 6;
@@ -693,7 +704,8 @@ void dccp_ackpkts_check_rcv_ackno(struct dccp_ackpkts *ap, struct sock *sk,
 #endif
 		dccp_pr_debug("%sACK packet 0, len=%d, ack_seqno=%llu, ack_ackno=%llu, ACKED!\n",
 			      debug_prefix, 1,
-			      ap->dccpap_ack_seqno, ap->dccpap_ack_ackno);
+			      (unsigned long long) ap->dccpap_ack_seqno,
+			      (unsigned long long) ap->dccpap_ack_ackno);
 		dccp_ackpkts_trow_away_ack_record(ap);
 		ap->dccpap_ack_seqno = DCCP_MAX_SEQNO + 1;
 	}
@@ -745,7 +757,10 @@ static void dccp_ackpkts_check_rcv_ackvector(struct dccp_ackpkts *ap,
 #endif
 				dccp_pr_debug("%sACK vector 0, len=%d, ack_seqno=%llu, ack_ackno=%llu, ACKED!\n",
 					      debug_prefix, len,
-					      ap->dccpap_ack_seqno, ap->dccpap_ack_ackno);
+					      (unsigned long long)
+					      ap->dccpap_ack_seqno,
+					      (unsigned long long)
+					      ap->dccpap_ack_ackno);
 				dccp_ackpkts_trow_away_ack_record(ap);
 			}
 			/*

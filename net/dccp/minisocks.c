@@ -142,7 +142,10 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 	/* Invalid ACK */
 	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != dccp_rsk(req)->dreq_iss) {
 		dccp_pr_debug("Invalid ACK number: ack_seq=%llu, dreq_iss=%llu\n",
-			      DCCP_SKB_CB(skb)->dccpd_ack_seq, dccp_rsk(req)->dreq_iss);
+			      (unsigned long long)
+			      DCCP_SKB_CB(skb)->dccpd_ack_seq,
+			      (unsigned long long)
+			      dccp_rsk(req)->dreq_iss);
 		goto drop;
 	}
 

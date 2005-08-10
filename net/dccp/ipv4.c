@@ -1092,14 +1092,16 @@ int dccp_v4_rcv(struct sk_buff *skb)
 		      dccp_packet_name(dh->dccph_type),
 		      NIPQUAD(skb->nh.iph->saddr), ntohs(dh->dccph_sport),
 		      NIPQUAD(skb->nh.iph->daddr), ntohs(dh->dccph_dport),
-		      DCCP_SKB_CB(skb)->dccpd_seq);
+		      (unsigned long long) DCCP_SKB_CB(skb)->dccpd_seq);
 
 	if (dccp_packet_without_ack(skb)) {
 		DCCP_SKB_CB(skb)->dccpd_ack_seq = DCCP_PKT_WITHOUT_ACK_SEQ;
 		dccp_pr_debug_cat("\n");
 	} else {
 		DCCP_SKB_CB(skb)->dccpd_ack_seq = dccp_hdr_ack_seq(skb);
-		dccp_pr_debug_cat(", ack=%llu\n", DCCP_SKB_CB(skb)->dccpd_ack_seq);
+		dccp_pr_debug_cat(", ack=%llu\n",
+				  (unsigned long long)
+				  DCCP_SKB_CB(skb)->dccpd_ack_seq);
 	}
 
 	/* Step 2:
