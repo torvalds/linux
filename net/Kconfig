@@ -147,6 +147,7 @@ source "net/bridge/netfilter/Kconfig"
 
 endif
 
+source "net/dccp/Kconfig"
 source "net/sctp/Kconfig"
 source "net/atm/Kconfig"
 source "net/bridge/Kconfig"
