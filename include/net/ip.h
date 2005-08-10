@@ -86,7 +86,7 @@ extern int		ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
 					      u32 saddr, u32 daddr,
 					      struct ip_options *opt);
 extern int		ip_rcv(struct sk_buff *skb, struct net_device *dev,
-			       struct packet_type *pt);
+			       struct packet_type *pt, struct net_device *orig_dev);
 extern int		ip_local_deliver(struct sk_buff *skb);
 extern int		ip_mr_input(struct sk_buff *skb);
 extern int		ip_output(struct sk_buff *skb);

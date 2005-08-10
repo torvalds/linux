@@ -346,7 +346,8 @@ static inline int ipv6_addr_any(const struct in6_addr *a)
 
 extern int			ipv6_rcv(struct sk_buff *skb, 
 					 struct net_device *dev, 
-					 struct packet_type *pt);
+					 struct packet_type *pt,
+					 struct net_device *orig_dev);
 
 /*
  *	upper-layer output functions

@@ -700,7 +700,7 @@ void arp_send(int type, int ptype, u32 dest_ip,
 static void parp_redo(struct sk_buff *skb)
 {
 	nf_reset(skb);
-	arp_rcv(skb, skb->dev, NULL);
+	arp_rcv(skb, skb->dev, NULL, skb->dev);
 }
 
 /*
@@ -927,7 +927,7 @@ out:
  *	Receive an arp request from the device layer.
  */
 
-int arp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+int arp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct arphdr *arp;
 

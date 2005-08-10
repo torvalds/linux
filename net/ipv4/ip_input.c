@@ -358,7 +358,7 @@ drop:
 /*
  * 	Main IP Receive routine.
  */ 
-int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct iphdr *iph;
 

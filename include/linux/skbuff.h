@@ -164,7 +164,6 @@ struct skb_shared_info {
  *	@stamp: Time we arrived
  *	@dev: Device we arrived on/are leaving by
  *	@input_dev: Device we arrived on
- *      @real_dev: The real device we are using
  *	@h: Transport layer header
  *	@nh: Network layer header
  *	@mac: Link layer header
@@ -206,7 +205,6 @@ struct sk_buff {
 	struct timeval		stamp;
 	struct net_device	*dev;
 	struct net_device	*input_dev;
-	struct net_device	*real_dev;
 
 	union {
 		struct tcphdr	*th;

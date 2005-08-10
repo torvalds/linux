@@ -241,7 +241,7 @@ static struct proto_ops packet_ops;
 #ifdef CONFIG_SOCK_PACKET
 static struct proto_ops packet_ops_spkt;
 
-static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt)
+static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct sock *sk;
 	struct sockaddr_pkt *spkt;
@@ -441,7 +441,7 @@ static inline unsigned run_filter(struct sk_buff *skb, struct sock *sk, unsigned
    we will not harm anyone.
  */
 
-static int packet_rcv(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt)
+static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct sock *sk;
 	struct sockaddr_ll *sll;
@@ -546,7 +546,7 @@ drop:
 }
 
 #ifdef CONFIG_PACKET_MMAP
-static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt)
+static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct sock *sk;
 	struct packet_sock *po;

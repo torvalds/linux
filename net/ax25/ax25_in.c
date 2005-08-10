@@ -132,7 +132,7 @@ int ax25_rx_iframe(ax25_cb *ax25, struct sk_buff *skb)
 		skb->dev      = ax25->ax25_dev->dev;
 		skb->pkt_type = PACKET_HOST;
 		skb->protocol = htons(ETH_P_IP);
-		ip_rcv(skb, skb->dev, NULL);	/* Wrong ptype */
+		ip_rcv(skb, skb->dev, NULL, skb->dev);	/* Wrong ptype */
 		return 1;
 	}
 #endif
@@ -258,7 +258,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 			skb->dev      = dev;
 			skb->pkt_type = PACKET_HOST;
 			skb->protocol = htons(ETH_P_IP);
-			ip_rcv(skb, dev, ptype);	/* Note ptype here is the wrong one, fix me later */
+			ip_rcv(skb, dev, ptype, dev);	/* Note ptype here is the wrong one, fix me later */
 			break;
 
 		case AX25_P_ARP:
@@ -268,7 +268,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 			skb->dev      = dev;
 			skb->pkt_type = PACKET_HOST;
 			skb->protocol = htons(ETH_P_ARP);
-			arp_rcv(skb, dev, ptype);	/* Note ptype here is wrong... */
+			arp_rcv(skb, dev, ptype, dev);	/* Note ptype here is wrong... */
 			break;
 #endif
 		case AX25_P_TEXT:
@@ -454,7 +454,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
  *	Receive an AX.25 frame via a SLIP interface.
  */
 int ax25_kiss_rcv(struct sk_buff *skb, struct net_device *dev,
-		  struct packet_type *ptype)
+		  struct packet_type *ptype, struct net_device *orig_dev)
 {
 	skb->sk = NULL;		/* Initially we don't know who it's for */
 	skb->destructor = NULL;	/* Who initializes this, dammit?! */

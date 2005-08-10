@@ -1627,7 +1627,7 @@ out:
 	return rc;
 }
 
-static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	/* NULL here for pt means the packet was looped back */
 	struct ipx_interface *intrfc;

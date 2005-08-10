@@ -1303,7 +1303,7 @@ static void irlap_recv_test_frame(struct irlap_cb *self, struct sk_buff *skb,
  * Jean II
  */
 int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
-		     struct packet_type *ptype)
+		     struct packet_type *ptype, struct net_device *orig_dev)
 {
 	struct irlap_info info;
 	struct irlap_cb *self;

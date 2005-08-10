@@ -1058,7 +1058,7 @@ void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 
 			skb2->h.raw = skb2->nh.raw;
 			skb2->pkt_type = PACKET_OUTGOING;
-			ptype->func(skb2, skb->dev, ptype);
+			ptype->func(skb2, skb->dev, ptype, skb->dev);
 		}
 	}
 	rcu_read_unlock();
@@ -1425,14 +1425,14 @@ int netif_rx_ni(struct sk_buff *skb)
 
 EXPORT_SYMBOL(netif_rx_ni);
 
-static __inline__ void skb_bond(struct sk_buff *skb)
+static inline struct net_device *skb_bond(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 
-	if (dev->master) {
-		skb->real_dev = skb->dev;
+	if (dev->master)
 		skb->dev = dev->master;
-	}
+
+	return dev;
 }
 
 static void net_tx_action(struct softirq_action *h)
@@ -1482,10 +1482,11 @@ static void net_tx_action(struct softirq_action *h)
 }
 
 static __inline__ int deliver_skb(struct sk_buff *skb,
-				  struct packet_type *pt_prev)
+				  struct packet_type *pt_prev,
+				  struct net_device *orig_dev)
 {
 	atomic_inc(&skb->users);
-	return pt_prev->func(skb, skb->dev, pt_prev);
+	return pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 }
 
 #if defined(CONFIG_BRIDGE) || defined (CONFIG_BRIDGE_MODULE)
@@ -1496,7 +1497,8 @@ struct net_bridge_fdb_entry *(*br_fdb_get_hook)(struct net_bridge *br,
 void (*br_fdb_put_hook)(struct net_bridge_fdb_entry *ent);
 
 static __inline__ int handle_bridge(struct sk_buff **pskb,
-				    struct packet_type **pt_prev, int *ret)
+				    struct packet_type **pt_prev, int *ret,
+				    struct net_device *orig_dev)
 {
 	struct net_bridge_port *port;
 
@@ -1505,14 +1507,14 @@ static __inline__ int handle_bridge(struct sk_buff **pskb,
 		return 0;
 
 	if (*pt_prev) {
-		*ret = deliver_skb(*pskb, *pt_prev);
+		*ret = deliver_skb(*pskb, *pt_prev, orig_dev);
 		*pt_prev = NULL;
 	} 
 	
 	return br_handle_frame_hook(port, pskb);
 }
 #else
-#define handle_bridge(skb, pt_prev, ret)	(0)
+#define handle_bridge(skb, pt_prev, ret, orig_dev)	(0)
 #endif
 
 #ifdef CONFIG_NET_CLS_ACT
@@ -1559,6 +1561,7 @@ static int ing_filter(struct sk_buff *skb)
 int netif_receive_skb(struct sk_buff *skb)
 {
 	struct packet_type *ptype, *pt_prev;
+	struct net_device *orig_dev;
 	int ret = NET_RX_DROP;
 	unsigned short type;
 
@@ -1569,7 +1572,7 @@ int netif_receive_skb(struct sk_buff *skb)
 	if (!skb->stamp.tv_sec)
 		net_timestamp(&skb->stamp);
 
-	skb_bond(skb);
+	orig_dev = skb_bond(skb);
 
 	__get_cpu_var(netdev_rx_stat).total++;
 
@@ -1590,14 +1593,14 @@ int netif_receive_skb(struct sk_buff *skb)
 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
 		if (!ptype->dev || ptype->dev == skb->dev) {
 			if (pt_prev) 
-				ret = deliver_skb(skb, pt_prev);
+				ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = ptype;
 		}
 	}
 
 #ifdef CONFIG_NET_CLS_ACT
 	if (pt_prev) {
-		ret = deliver_skb(skb, pt_prev);
+		ret = deliver_skb(skb, pt_prev, orig_dev);
 		pt_prev = NULL; /* noone else should process this after*/
 	} else {
 		skb->tc_verd = SET_TC_OK2MUNGE(skb->tc_verd);
@@ -1616,7 +1619,7 @@ ncls:
 
 	handle_diverter(skb);
 
-	if (handle_bridge(&skb, &pt_prev, &ret))
+	if (handle_bridge(&skb, &pt_prev, &ret, orig_dev))
 		goto out;
 
 	type = skb->protocol;
@@ -1624,13 +1627,13 @@ ncls:
 		if (ptype->type == type &&
 		    (!ptype->dev || ptype->dev == skb->dev)) {
 			if (pt_prev) 
-				ret = deliver_skb(skb, pt_prev);
+				ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = ptype;
 		}
 	}
 
 	if (pt_prev) {
-		ret = pt_prev->func(skb, skb->dev, pt_prev);
+		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 	} else {
 		kfree_skb(skb);
 		/* Jamal, now you will not able to escape explaining

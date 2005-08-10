@@ -64,7 +64,7 @@ int nr_rx_ip(struct sk_buff *skb, struct net_device *dev)
 	skb->nh.raw   = skb->data;
 	skb->pkt_type = PACKET_HOST;
 
-	ip_rcv(skb, skb->dev, NULL);
+	ip_rcv(skb, skb->dev, NULL, skb->dev);
 
 	return 1;
 }

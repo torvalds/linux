@@ -56,7 +56,7 @@ static inline int ip6_rcv_finish( struct sk_buff *skb)
 	return dst_input(skb);
 }
 
-int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct ipv6hdr *hdr;
 	u32 		pkt_len;
