@@ -27,6 +27,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_transport_fc.h>
 
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"

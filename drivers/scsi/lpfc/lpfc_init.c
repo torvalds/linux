@@ -1339,14 +1339,12 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (pci_request_regions(pdev, LPFC_DRIVER_NAME))
 		goto out_disable_device;
 
-	host = scsi_host_alloc(&lpfc_template,
-			sizeof (struct lpfc_hba) + sizeof (unsigned long));
+	host = scsi_host_alloc(&lpfc_template, sizeof (struct lpfc_hba));
 	if (!host)
 		goto out_release_regions;
 
 	phba = (struct lpfc_hba*)host->hostdata;
 	memset(phba, 0, sizeof (struct lpfc_hba));
-	phba->link_stats = (void *)&phba[1];
 	phba->host = host;
 
 	phba->fc_flag |= FC_LOADING;

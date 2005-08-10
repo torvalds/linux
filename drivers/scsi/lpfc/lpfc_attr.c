@@ -988,8 +988,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 {
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
 	struct lpfc_sli *psli = &phba->sli;
-	struct fc_host_statistics *hs =
-			(struct fc_host_statistics *)phba->link_stats;
+	struct fc_host_statistics *hs = &phba->link_stats;
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
 	int rc=0;
@@ -1019,6 +1018,8 @@ lpfc_get_stats(struct Scsi_Host *shost)
 		}
 		return NULL;
 	}
+
+	memset(hs, 0, sizeof (struct fc_host_statistics));
 
 	hs->tx_frames = pmb->un.varRdStatus.xmitFrameCnt;
 	hs->tx_words = (pmb->un.varRdStatus.xmitByteCnt * 256);

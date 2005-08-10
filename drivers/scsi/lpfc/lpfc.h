@@ -342,9 +342,6 @@ struct lpfc_hba {
 #define VPD_MASK            0xf         /* mask for any vpd data */
 
 	struct timer_list els_tmofunc;
-
-	void *link_stats;
-
 	/*
 	 * stat  counters
 	 */
@@ -370,6 +367,8 @@ struct lpfc_hba {
 	struct list_head freebufList;
 	struct list_head ctrspbuflist;
 	struct list_head rnidrspbuflist;
+
+	struct fc_host_statistics link_stats;
 };
 
 

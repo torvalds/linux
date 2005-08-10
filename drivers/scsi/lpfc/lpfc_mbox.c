@@ -23,6 +23,9 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_transport_fc.h>
+
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
 #include "lpfc_disc.h"
