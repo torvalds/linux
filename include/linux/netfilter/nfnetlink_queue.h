@@ -81,5 +81,6 @@ enum nfqnl_attr_config {
 	NFQA_CFG_PARAMS,		/* nfqnl_msg_config_params */
 	__NFQA_CFG_MAX
 };
+#define NFQA_CFG_MAX (__NFQA_CFG_MAX-1)
 
 #endif /* _NFNETLINK_QUEUE_H */

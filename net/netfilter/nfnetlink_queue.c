@@ -20,6 +20,7 @@
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
+#include <linux/proc_fs.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter/nfnetlink.h>
@@ -48,6 +49,7 @@ struct nfqnl_queue_entry {
 
 struct nfqnl_instance {
 	struct hlist_node hlist;		/* global list of queues */
+	atomic_t use;
 
 	int peer_pid;
 	unsigned int queue_maxlen;
@@ -105,15 +107,26 @@ __instance_lookup(u_int16_t queue_num)
 }
 
 static struct nfqnl_instance *
-instance_lookup(u_int16_t queue_num)
+instance_lookup_get(u_int16_t queue_num)
 {
 	struct nfqnl_instance *inst;
 
 	read_lock_bh(&instances_lock);
 	inst = __instance_lookup(queue_num);
+	if (inst)
+		atomic_inc(&inst->use);
 	read_unlock_bh(&instances_lock);
 
 	return inst;
+}
+
+static void
+instance_put(struct nfqnl_instance *inst)
+{
+	if (inst && atomic_dec_and_test(&inst->use)) {
+		QDEBUG("kfree(inst=%p)\n", inst);
+		kfree(inst);
+	}
 }
 
 static struct nfqnl_instance *
@@ -141,6 +154,8 @@ instance_create(u_int16_t queue_num, int pid)
 	inst->copy_range = 0xfffff;
 	inst->copy_mode = NFQNL_COPY_NONE;
 	atomic_set(&inst->id_sequence, 0);
+	/* needs to be two, since we _put() after creation */
+	atomic_set(&inst->use, 2);
 	inst->lock = SPIN_LOCK_UNLOCKED;
 	INIT_LIST_HEAD(&inst->queue_list);
 
@@ -182,8 +197,8 @@ _instance_destroy2(struct nfqnl_instance *inst, int lock)
 	/* then flush all pending skbs from the queue */
 	nfqnl_flush(inst, NF_DROP);
 
-	/* and finally free the data structure */
-	kfree(inst);
+	/* and finally put the refcount */
+	instance_put(inst);
 
 	module_put(THIS_MODULE);
 }
@@ -471,7 +486,7 @@ nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 
 	QDEBUG("entered\n");
 
-	queue = instance_lookup(queuenum);
+	queue = instance_lookup_get(queuenum);
 	if (!queue) {
 		QDEBUG("no queue instance matching\n");
 		return -EINVAL;
@@ -479,7 +494,8 @@ nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 
 	if (queue->copy_mode == NFQNL_COPY_NONE) {
 		QDEBUG("mode COPY_NONE, aborting\n");
-		return -EAGAIN;
+		status = -EAGAIN;
+		goto err_out_put;
 	}
 
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
@@ -487,7 +503,8 @@ nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 		if (net_ratelimit())
 			printk(KERN_ERR 
 				"nf_queue: OOM in nfqnl_enqueue_packet()\n");
-		return -ENOMEM;
+		status = -ENOMEM;
+		goto err_out_put;
 	}
 
 	entry->info = info;
@@ -523,6 +540,7 @@ nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 	__enqueue_entry(queue, entry);
 
 	spin_unlock_bh(&queue->lock);
+	instance_put(queue);
 	return status;
 
 err_out_free_nskb:
@@ -533,6 +551,8 @@ err_out_unlock:
 
 err_out_free:
 	kfree(entry);
+err_out_put:
+	instance_put(queue);
 	return status;
 }
 
@@ -685,6 +705,12 @@ static struct notifier_block nfqnl_rtnl_notifier = {
 	.notifier_call	= nfqnl_rcv_nl_event,
 };
 
+static const int nfqa_verdict_min[NFQA_MAX] = {
+	[NFQA_VERDICT_HDR-1]	= sizeof(struct nfqnl_msg_verdict_hdr),
+	[NFQA_MARK-1]		= sizeof(u_int32_t),
+	[NFQA_PAYLOAD-1]	= 0,
+};
+
 static int
 nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 		   struct nlmsghdr *nlh, struct nfattr *nfqa[], int *errp)
@@ -696,26 +722,40 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	struct nfqnl_instance *queue;
 	unsigned int verdict;
 	struct nfqnl_queue_entry *entry;
+	int err;
 
-	queue = instance_lookup(queue_num);
+	if (nfattr_bad_size(nfqa, NFQA_MAX, nfqa_verdict_min)) {
+		QDEBUG("bad attribute size\n");
+		return -EINVAL;
+	}
+
+	queue = instance_lookup_get(queue_num);
 	if (!queue)
 		return -ENODEV;
 
-	if (queue->peer_pid != NETLINK_CB(skb).pid)
-		return -EPERM;
+	if (queue->peer_pid != NETLINK_CB(skb).pid) {
+		err = -EPERM;
+		goto err_out_put;
+	}
 
-	if (!nfqa[NFQA_VERDICT_HDR-1])
-		return -EINVAL;
+	if (!nfqa[NFQA_VERDICT_HDR-1]) {
+		err = -EINVAL;
+		goto err_out_put;
+	}
 
 	vhdr = NFA_DATA(nfqa[NFQA_VERDICT_HDR-1]);
 	verdict = ntohl(vhdr->verdict);
 
-	if ((verdict & NF_VERDICT_MASK) > NF_MAX_VERDICT)
-		return -EINVAL;
+	if ((verdict & NF_VERDICT_MASK) > NF_MAX_VERDICT) {
+		err = -EINVAL;
+		goto err_out_put;
+	}
 
 	entry = find_dequeue_entry(queue, id_cmp, ntohl(vhdr->id));
-	if (entry == NULL)
-		return -ENOENT;
+	if (entry == NULL) {
+		err = -ENOENT;
+		goto err_out_put;
+	}
 
 	if (nfqa[NFQA_PAYLOAD-1]) {
 		if (nfqnl_mangle(NFA_DATA(nfqa[NFQA_PAYLOAD-1]),
@@ -727,7 +767,12 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 		skb->nfmark = ntohl(*(u_int32_t *)NFA_DATA(nfqa[NFQA_MARK-1]));
 		
 	issue_verdict(entry, verdict);
+	instance_put(queue);
 	return 0;
+
+err_out_put:
+	instance_put(queue);
+	return err;
 }
 
 static int
@@ -737,6 +782,11 @@ nfqnl_recv_unsupp(struct sock *ctnl, struct sk_buff *skb,
 	return -ENOTSUPP;
 }
 
+static const int nfqa_cfg_min[NFQA_CFG_MAX] = {
+	[NFQA_CFG_CMD-1]	= sizeof(struct nfqnl_msg_config_cmd),
+	[NFQA_CFG_PARAMS-1]	= sizeof(struct nfqnl_msg_config_params),
+};
+
 static int
 nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		  struct nlmsghdr *nlh, struct nfattr *nfqa[], int *errp)
@@ -744,10 +794,16 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);
 	struct nfqnl_instance *queue;
+	int ret = 0;
 
 	QDEBUG("entering for msg %u\n", NFNL_MSG_TYPE(nlh->nlmsg_type));
 
-	queue = instance_lookup(queue_num);
+	if (nfattr_bad_size(nfqa, NFQA_CFG_MAX, nfqa_cfg_min)) {
+		QDEBUG("bad attribute size\n");
+		return -EINVAL;
+	}
+
+	queue = instance_lookup_get(queue_num);
 	if (nfqa[NFQA_CFG_CMD-1]) {
 		struct nfqnl_msg_config_cmd *cmd;
 		cmd = NFA_DATA(nfqa[NFQA_CFG_CMD-1]);
@@ -766,17 +822,19 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			if (!queue)
 				return -ENODEV;
 
-			if (queue->peer_pid != NETLINK_CB(skb).pid)
-				return -EPERM;
+			if (queue->peer_pid != NETLINK_CB(skb).pid) {
+				ret = -EPERM;
+				goto out_put;
+			}
 
 			instance_destroy(queue);
 			break;
 		case NFQNL_CFG_CMD_PF_BIND:
 			QDEBUG("registering queue handler for pf=%u\n",
 				ntohs(cmd->pf));
-			return nf_register_queue_handler(ntohs(cmd->pf),
-							 nfqnl_enqueue_packet,
-							 NULL);
+			ret = nf_register_queue_handler(ntohs(cmd->pf),
+							nfqnl_enqueue_packet,
+							NULL);
 
 			break;
 		case NFQNL_CFG_CMD_PF_UNBIND:
@@ -784,20 +842,23 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 				ntohs(cmd->pf));
 			/* This is a bug and a feature.  We can unregister
 			 * other handlers(!) */
-			return nf_unregister_queue_handler(ntohs(cmd->pf));
+			ret = nf_unregister_queue_handler(ntohs(cmd->pf));
 			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
 	} else {
 		if (!queue) {
 			QDEBUG("no config command, and no instance ENOENT\n");
-			return -ENOENT;
+			ret = -ENOENT;
+			goto out_put;
 		}
 
 		if (queue->peer_pid != NETLINK_CB(skb).pid) {
 			QDEBUG("no config command, and wrong pid\n");
-			return -EPERM;
+			ret = -EPERM;
+			goto out_put;
 		}
 	}
 
@@ -809,7 +870,9 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 				ntohl(params->copy_range));
 	}
 
-	return 0;
+out_put:
+	instance_put(queue);
+	return ret;
 }
 
 static struct nfnl_callback nfqnl_cb[NFQNL_MSG_MAX] = {
@@ -829,13 +892,131 @@ static struct nfnetlink_subsystem nfqnl_subsys = {
 	.cb		= nfqnl_cb,
 };
 
+#ifdef CONFIG_PROC_FS
+struct iter_state {
+	unsigned int bucket;
+};
+
+static struct hlist_node *get_first(struct seq_file *seq)
+{
+	struct iter_state *st = seq->private;
+
+	if (!st)
+		return NULL;
+
+	for (st->bucket = 0; st->bucket < INSTANCE_BUCKETS; st->bucket++) {
+		if (!hlist_empty(&instance_table[st->bucket]))
+			return instance_table[st->bucket].first;
+	}
+	return NULL;
+}
+
+static struct hlist_node *get_next(struct seq_file *seq, struct hlist_node *h)
+{
+	struct iter_state *st = seq->private;
+
+	h = h->next;
+	while (!h) {
+		if (++st->bucket >= INSTANCE_BUCKETS)
+			return NULL;
+
+		h = instance_table[st->bucket].first;
+	}
+	return h;
+}
+
+static struct hlist_node *get_idx(struct seq_file *seq, loff_t pos)
+{
+	struct hlist_node *head;
+	head = get_first(seq);
+
+	if (head)
+		while (pos && (head = get_next(seq, head)))
+			pos--;
+	return pos ? NULL : head;
+}
+
+static void *seq_start(struct seq_file *seq, loff_t *pos)
+{
+	read_lock_bh(&instances_lock);
+	return get_idx(seq, *pos);
+}
+
+static void *seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	(*pos)++;
+	return get_next(s, v);
+}
+
+static void seq_stop(struct seq_file *s, void *v)
+{
+	read_unlock_bh(&instances_lock);
+}
+
+static int seq_show(struct seq_file *s, void *v)
+{
+	const struct nfqnl_instance *inst = v;
+
+	return seq_printf(s, "%5d %6d %5d %1d %5d %5d %5d %8d %2d\n",
+			  inst->queue_num,
+			  inst->peer_pid, inst->queue_total,
+			  inst->copy_mode, inst->copy_range,
+			  inst->queue_dropped, inst->queue_user_dropped,
+			  atomic_read(&inst->id_sequence),
+			  atomic_read(&inst->use));
+}
+
+static struct seq_operations nfqnl_seq_ops = {
+	.start	= seq_start,
+	.next	= seq_next,
+	.stop	= seq_stop,
+	.show	= seq_show,
+};
+
+static int nfqnl_open(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq;
+	struct iter_state *is;
+	int ret;
+
+	is = kmalloc(sizeof(*is), GFP_KERNEL);
+	if (!is)
+		return -ENOMEM;
+	memset(is, 0, sizeof(*is));
+	ret = seq_open(file, &nfqnl_seq_ops);
+	if (ret < 0)
+		goto out_free;
+	seq = file->private_data;
+	seq->private = is;
+	return ret;
+out_free:
+	kfree(is);
+	return ret;
+}
+
+static struct file_operations nfqnl_file_ops = {
+	.owner	 = THIS_MODULE,
+	.open	 = nfqnl_open,
+	.read	 = seq_read,
+	.llseek	 = seq_lseek,
+	.release = seq_release_private,
+};
+
+#endif /* PROC_FS */
+
 static int
 init_or_cleanup(int init)
 {
-	int status = -ENOMEM;
+	int i, status = -ENOMEM;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *proc_nfqueue;
+#endif
 	
 	if (!init)
 		goto cleanup;
+
+	for (i = 0; i < INSTANCE_BUCKETS; i++)
+		INIT_HLIST_HEAD(&instance_table[i]);
 
 	netlink_register_notifier(&nfqnl_rtnl_notifier);
 	status = nfnetlink_subsys_register(&nfqnl_subsys);
@@ -844,14 +1025,25 @@ init_or_cleanup(int init)
 		goto cleanup_netlink_notifier;
 	}
 
+#ifdef CONFIG_PROC_FS
+	proc_nfqueue = create_proc_entry("nfnetlink_queue", 0440,
+					 proc_net_netfilter);
+	if (!proc_nfqueue)
+		goto cleanup_subsys;
+	proc_nfqueue->proc_fops = &nfqnl_file_ops;
+#endif
+
 	register_netdevice_notifier(&nfqnl_dev_notifier);
+
 	return status;
 
 cleanup:
 	nf_unregister_queue_handlers(nfqnl_enqueue_packet);
 	unregister_netdevice_notifier(&nfqnl_dev_notifier);
+#ifdef CONFIG_PROC_FS
+cleanup_subsys:
+#endif	
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
-	
 cleanup_netlink_notifier:
 	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
 	return status;
