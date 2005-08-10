@@ -193,7 +193,6 @@ struct skb_shared_info {
  *	@nfct: Associated connection, if any
  *	@nfctinfo: Relationship of this skb to the connection
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
- *      @private: Data which is private to the HIPPI implementation
  *	@tc_index: Traffic control index
  *	@tc_verd: traffic control verdict
  */
@@ -265,11 +264,6 @@ struct sk_buff {
 	struct nf_bridge_info	*nf_bridge;
 #endif
 #endif /* CONFIG_NETFILTER */
-#if defined(CONFIG_HIPPI)
-	union {
-		__u32		ifield;
-	} private;
-#endif
 #ifdef CONFIG_NET_SCHED
        __u32			tc_index;        /* traffic control index */
 #ifdef CONFIG_NET_CLS_ACT

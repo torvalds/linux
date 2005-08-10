@@ -26,6 +26,11 @@
 #include <linux/if_hippi.h>
 
 #ifdef __KERNEL__
+
+struct hippi_cb {
+	__u32	ifield;
+};
+
 extern unsigned short hippi_type_trans(struct sk_buff *skb,
 				       struct net_device *dev);
 

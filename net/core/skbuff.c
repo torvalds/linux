@@ -365,9 +365,6 @@ struct sk_buff *skb_clone(struct sk_buff *skb, unsigned int __nocast gfp_mask)
 	nf_bridge_get(skb->nf_bridge);
 #endif
 #endif /*CONFIG_NETFILTER*/
-#if defined(CONFIG_HIPPI)
-	C(private);
-#endif
 #ifdef CONFIG_NET_SCHED
 	C(tc_index);
 #ifdef CONFIG_NET_CLS_ACT
