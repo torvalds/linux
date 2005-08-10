@@ -837,8 +837,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		goto failure;
 
 	/* OK, now commit destination to socket.  */
-	__sk_dst_set(sk, &rt->u.dst);
-	tcp_v4_setup_caps(sk, &rt->u.dst);
+	sk_setup_caps(sk, &rt->u.dst);
 
 	if (!tp->write_seq)
 		tp->write_seq = secure_tcp_sequence_number(inet->saddr,
@@ -1553,8 +1552,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	if (!newsk)
 		goto exit;
 
-	newsk->sk_dst_cache = dst;
-	tcp_v4_setup_caps(newsk, dst);
+	sk_setup_caps(newsk, dst);
 
 	newtp		      = tcp_sk(newsk);
 	newinet		      = inet_sk(newsk);
@@ -1855,8 +1853,7 @@ static int tcp_v4_reselect_saddr(struct sock *sk)
 	if (err)
 		return err;
 
-	__sk_dst_set(sk, &rt->u.dst);
-	tcp_v4_setup_caps(sk, &rt->u.dst);
+	sk_setup_caps(sk, &rt->u.dst);
 
 	new_saddr = rt->rt_src;
 
@@ -1914,8 +1911,7 @@ int tcp_v4_rebuild_header(struct sock *sk)
 		err = ip_route_output_flow(&rt, &fl, sk, 0);
 	}
 	if (!err) {
-		__sk_dst_set(sk, &rt->u.dst);
-		tcp_v4_setup_caps(sk, &rt->u.dst);
+		sk_setup_caps(sk, &rt->u.dst);
 		return 0;
 	}
 

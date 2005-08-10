@@ -69,13 +69,10 @@
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/route.h>
-#include <net/tcp.h>
-#include <net/udp.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/arp.h>
 #include <net/icmp.h>
-#include <net/raw.h>
 #include <net/checksum.h>
 #include <net/inetpeer.h>
 #include <net/checksum.h>
@@ -84,6 +81,7 @@
 #include <linux/netfilter_bridge.h>
 #include <linux/mroute.h>
 #include <linux/netlink.h>
+#include <linux/tcp.h>
 
 /*
  *      Shall we try to damage output packets if routing dev changes?
@@ -329,8 +327,7 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 			if (ip_route_output_flow(&rt, &fl, sk, 0))
 				goto no_route;
 		}
-		__sk_dst_set(sk, &rt->u.dst);
-		tcp_v4_setup_caps(sk, &rt->u.dst);
+		sk_setup_caps(sk, &rt->u.dst);
 	}
 	skb->dst = dst_clone(&rt->u.dst);
 

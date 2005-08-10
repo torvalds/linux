@@ -1025,6 +1025,16 @@ sk_dst_check(struct sock *sk, u32 cookie)
 	return dst;
 }
 
+static inline void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
+{
+	__sk_dst_set(sk, dst);
+	sk->sk_route_caps = dst->dev->features;
+	if (sk->sk_route_caps & NETIF_F_TSO) {
+		if (sock_flag(sk, SOCK_NO_LARGESEND) || dst->header_len)
+			sk->sk_route_caps &= ~NETIF_F_TSO;
+	}
+}
+
 static inline void sk_charge_skb(struct sock *sk, struct sk_buff *skb)
 {
 	sk->sk_wmem_queued   += skb->truesize;

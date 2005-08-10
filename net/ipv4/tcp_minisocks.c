@@ -711,6 +711,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		bh_lock_sock(newsk);
 
 		rwlock_init(&newsk->sk_dst_lock);
+		newsk->sk_dst_cache = NULL;
 		atomic_set(&newsk->sk_rmem_alloc, 0);
 		skb_queue_head_init(&newsk->sk_receive_queue);
 		atomic_set(&newsk->sk_wmem_alloc, 0);

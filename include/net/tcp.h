@@ -1658,15 +1658,6 @@ static inline int tcp_paws_check(const struct tcp_options_received *rx_opt, int 
 	return 1;
 }
 
-static inline void tcp_v4_setup_caps(struct sock *sk, struct dst_entry *dst)
-{
-	sk->sk_route_caps = dst->dev->features;
-	if (sk->sk_route_caps & NETIF_F_TSO) {
-		if (sock_flag(sk, SOCK_NO_LARGESEND) || dst->header_len)
-			sk->sk_route_caps &= ~NETIF_F_TSO;
-	}
-}
-
 #define TCP_CHECK_TIMER(sk) do { } while (0)
 
 static inline int tcp_use_frto(const struct sock *sk)
