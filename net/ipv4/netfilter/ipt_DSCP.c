@@ -51,7 +51,6 @@ target(struct sk_buff **pskb,
 						 sizeof(diffs),
 						 (*pskb)->nh.iph->check
 						 ^ 0xFFFF));
-		(*pskb)->nfcache |= NFC_ALTERED;
 	}
 	return IPT_CONTINUE;
 }

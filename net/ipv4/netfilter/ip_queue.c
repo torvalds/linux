@@ -392,7 +392,6 @@ ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 		return -ENOMEM;
 	memcpy(e->skb->data, v->payload, v->data_len);
 	e->skb->ip_summed = CHECKSUM_NONE;
-	e->skb->nfcache |= NFC_ALTERED;
 
 	/*
 	 * Extra routing may needed on local out, as the QUEUE target never

@@ -9,6 +9,8 @@
 
 #include <linux/netfilter.h>
 
+/* only for userspace compatibility */
+#ifndef __KERNEL__
 /* IP Cache bits. */
 /* Src IP address. */
 #define NFC_DN_SRC		0x0001
@@ -18,6 +20,7 @@
 #define NFC_DN_IF_IN		0x0004
 /* Output device. */
 #define NFC_DN_IF_OUT		0x0008
+#endif /* ! __KERNEL__ */
 
 /* DECnet Hooks */
 /* After promisc drops, checksum checks. */

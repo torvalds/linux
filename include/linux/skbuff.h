@@ -190,7 +190,6 @@ struct skb_shared_info {
  *	@end: End pointer
  *	@destructor: Destruct function
  *	@nfmark: Can be used for communication between hooks
- *	@nfcache: Cache info
  *	@nfct: Associated connection, if any
  *	@nfctinfo: Relationship of this skb to the connection
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
@@ -252,17 +251,18 @@ struct sk_buff {
 	__u8			local_df:1,
 				cloned:1,
 				ip_summed:2,
-				nohdr:1;
-				/* 3 bits spare */
+				nohdr:1,
+				nfctinfo:3;
 	__u8			pkt_type;
 	__be16			protocol;
 
 	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_NETFILTER
 	__u32			nfmark;
-	__u32			nfcache;
-	__u32			nfctinfo;
 	struct nf_conntrack	*nfct;
+#if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
+	__u8			ipvs_property:1;
+#endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct nf_bridge_info	*nf_bridge;
 #endif

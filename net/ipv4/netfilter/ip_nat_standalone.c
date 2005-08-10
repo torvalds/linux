@@ -73,8 +73,6 @@ ip_nat_fn(unsigned int hooknum,
 	IP_NF_ASSERT(!((*pskb)->nh.iph->frag_off
 		       & htons(IP_MF|IP_OFFSET)));
 
-	(*pskb)->nfcache |= NFC_UNKNOWN;
-
 	/* If we had a hardware checksum before, it's now invalid */
 	if ((*pskb)->ip_summed == CHECKSUM_HW)
 		if (skb_checksum_help(*pskb, (out == NULL)))

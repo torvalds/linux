@@ -43,7 +43,6 @@ set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 						 sizeof(diffs),
 						 (*pskb)->nh.iph->check
 						 ^0xFFFF));
-		(*pskb)->nfcache |= NFC_ALTERED;
 	} 
 	return 1;
 }
@@ -87,7 +86,6 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo, int inward)
 		tcph->check = csum_fold(csum_partial((char *)diffs,
 						     sizeof(diffs),
 						     tcph->check^0xFFFF));
-	(*pskb)->nfcache |= NFC_ALTERED;
 	return 1;
 }
 

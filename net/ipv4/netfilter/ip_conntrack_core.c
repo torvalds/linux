@@ -625,9 +625,6 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 		return NF_DROP;
 	}
 
-	/* FIXME: Do this right please. --RR */
-	(*pskb)->nfcache |= NFC_UNKNOWN;
-
 /* Doesn't cover locally-generated broadcast, so not worth it. */
 #if 0
 	/* Ignore broadcast: no `connection'. */
@@ -943,10 +940,8 @@ ip_ct_gather_frags(struct sk_buff *skb, u_int32_t user)
 	skb = ip_defrag(skb, user);
 	local_bh_enable();
 
-	if (skb) {
+	if (skb)
 		ip_send_check(skb->nh.iph);
-		skb->nfcache |= NFC_ALTERED;
-	}
 	return skb;
 }
 

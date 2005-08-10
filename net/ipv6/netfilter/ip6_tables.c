@@ -401,7 +401,6 @@ ip6t_do_table(struct sk_buff **pskb,
 	do {
 		IP_NF_ASSERT(e);
 		IP_NF_ASSERT(back);
-		(*pskb)->nfcache |= e->nfcache;
 		if (ip6_packet_match(*pskb, indev, outdev, &e->ipv6,
 			&protoff, &offset)) {
 			struct ip6t_entry_target *t;

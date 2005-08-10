@@ -21,10 +21,13 @@
 #define NF_STOP 5
 #define NF_MAX_VERDICT NF_STOP
 
+/* only for userspace compatibility */
+#ifndef __KERNEL__
 /* Generic cache responses from hook functions.
    <= 0x2000 is used for protocol-flags. */
 #define NFC_UNKNOWN 0x4000
 #define NFC_ALTERED 0x8000
+#endif
 
 #ifdef __KERNEL__
 #include <linux/config.h>

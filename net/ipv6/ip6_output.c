@@ -185,19 +185,6 @@ int ip6_route_me_harder(struct sk_buff *skb)
 }
 #endif
 
-static inline int ip6_maybe_reroute(struct sk_buff *skb)
-{
-#ifdef CONFIG_NETFILTER
-	if (skb->nfcache & NFC_ALTERED){
-		if (ip6_route_me_harder(skb) != 0){
-			kfree_skb(skb);
-			return -EINVAL;
-		}
-	}
-#endif /* CONFIG_NETFILTER */
-	return dst_output(skb);
-}
-
 /*
  *	xmit an sk_buff (used by TCP)
  */
@@ -266,7 +253,8 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	mtu = dst_mtu(dst);
 	if ((skb->len <= mtu) || ipfragok) {
 		IP6_INC_STATS(IPSTATS_MIB_OUTREQUESTS);
-		return NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, ip6_maybe_reroute);
+		return NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev,
+				dst_output);
 	}
 
 	if (net_ratelimit())

@@ -29,10 +29,9 @@ target_v0(struct sk_buff **pskb,
 {
 	const struct ipt_mark_target_info *markinfo = targinfo;
 
-	if((*pskb)->nfmark != markinfo->mark) {
+	if((*pskb)->nfmark != markinfo->mark)
 		(*pskb)->nfmark = markinfo->mark;
-		(*pskb)->nfcache |= NFC_ALTERED;
-	}
+
 	return IPT_CONTINUE;
 }
 
@@ -61,10 +60,9 @@ target_v1(struct sk_buff **pskb,
 		break;
 	}
 
-	if((*pskb)->nfmark != mark) {
+	if((*pskb)->nfmark != mark)
 		(*pskb)->nfmark = mark;
-		(*pskb)->nfcache |= NFC_ALTERED;
-	}
+
 	return IPT_CONTINUE;
 }
 

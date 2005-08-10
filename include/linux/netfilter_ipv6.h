@@ -10,6 +10,8 @@
 
 #include <linux/netfilter.h>
 
+/* only for userspace compatibility */
+#ifndef __KERNEL__
 /* IP Cache bits. */
 /* Src IP address. */
 #define NFC_IP6_SRC              0x0001
@@ -38,6 +40,7 @@
 #define NFC_IP6_DST_PT           0x0400
 /* Something else about the proto */
 #define NFC_IP6_PROTO_UNKNOWN    0x2000
+#endif /* ! __KERNEL__ */
 
 
 /* IP6 Hooks */
