@@ -172,38 +172,6 @@ static int lgdt330x_SwReset(struct lgdt330x_state* state)
 	}
 }
 
-#ifdef MUTE_TDA9887
-static int i2c_write_ntsc_demod (struct lgdt330x_state* state, u8 buf[2])
-{
-	struct i2c_msg msg =
-		{ .addr = 0x43,
-		  .flags = 0,
-		  .buf = buf,
-		  .len = 2 };
-	int err;
-
-	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
-			printk(KERN_WARNING "lgdt330x: %s error (addr %02x <- %02x, err = %i)\n", __FUNCTION__, msg.buf[0], msg.buf[1], err);
-		if (err < 0)
-			return err;
-		else
-			return -EREMOTEIO;
-	}
-	return 0;
-}
-
-static void fiddle_with_ntsc_if_demod(struct lgdt330x_state* state)
-{
-	// Experimental code
-	u8 buf0[] = {0x00, 0x20};
-	u8 buf1[] = {0x01, 0x00};
-	u8 buf2[] = {0x02, 0x00};
-
-	i2c_write_ntsc_demod(state, buf0);
-	i2c_write_ntsc_demod(state, buf1);
-	i2c_write_ntsc_demod(state, buf2);
-}
-#endif
 
 static int lgdt330x_init(struct dvb_frontend* fe)
 {
@@ -267,9 +235,6 @@ static int lgdt330x_init(struct dvb_frontend* fe)
 		chip_name = "LGDT3303";
 		err = i2c_write_demod_bytes(state, lgdt3303_init_data,
 									sizeof(lgdt3303_init_data));
-#ifdef MUTE_TDA9887
-		fiddle_with_ntsc_if_demod(state);
-#endif
   		break;
 	default:
 		chip_name = "undefined";
