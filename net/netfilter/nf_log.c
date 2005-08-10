@@ -18,6 +18,8 @@
 static struct nf_logger *nf_logging[NPROTO]; /* = NULL */
 static DEFINE_SPINLOCK(nf_log_lock);
 
+/* return EBUSY if somebody else is registered, EEXIST if the same logger
+ * is registred, 0 on success. */
 int nf_log_register(int pf, struct nf_logger *logger)
 {
 	int ret = -EBUSY;
@@ -28,7 +30,9 @@ int nf_log_register(int pf, struct nf_logger *logger)
 	if (!nf_logging[pf]) {
 		rcu_assign_pointer(nf_logging[pf], logger);
 		ret = 0;
-	}
+	} else if (nf_logging[pf] == logger)
+		ret = -EEXIST;
+
 	spin_unlock(&nf_log_lock);
 	return ret;
 }		

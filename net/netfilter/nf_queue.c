@@ -20,6 +20,8 @@ static struct nf_queue_rerouter *queue_rerouter;
 
 static DEFINE_RWLOCK(queue_handler_lock);
 
+/* return EBUSY when somebody else is registered, return EEXIST if the
+ * same handler is registered, return 0 in case of success. */
 int nf_register_queue_handler(int pf, struct nf_queue_handler *qh)
 {      
 	int ret;
@@ -28,7 +30,9 @@ int nf_register_queue_handler(int pf, struct nf_queue_handler *qh)
 		return -EINVAL;
 
 	write_lock_bh(&queue_handler_lock);
-	if (queue_handler[pf])
+	if (queue_handler[pf] == qh)
+		ret = -EEXIST;
+	else if (queue_handler[pf])
 		ret = -EBUSY;
 	else {
 		queue_handler[pf] = qh;
