@@ -234,17 +234,28 @@ static int acpi_ec_burst_wait(union acpi_ec *ec, unsigned int event)
 	ec->burst.expect_event = event;
 	smp_mb();
 
-	result = wait_event_interruptible_timeout(ec->burst.wait,
+	switch (event) {
+	case ACPI_EC_EVENT_OBF:
+		if (acpi_ec_read_status(ec) & event) {
+			ec->burst.expect_event = 0;
+			return_VALUE(0);
+		}
+		break;
+
+	case ACPI_EC_EVENT_IBE:
+		if (~acpi_ec_read_status(ec) & event) {
+			ec->burst.expect_event = 0;
+			return_VALUE(0);
+		}
+		break;
+	}
+
+	result = wait_event_timeout(ec->burst.wait,
 					!ec->burst.expect_event,
 					msecs_to_jiffies(ACPI_EC_DELAY));
 	
 	ec->burst.expect_event = 0;
 	smp_mb();
-
-	if (result < 0){
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR," result  = %d ", result));
-		return_VALUE(result);
-	}
 
 	/*
 	 * Verify that the event in question has actually happened by
@@ -280,14 +291,14 @@ acpi_ec_enter_burst_mode (
 	status = acpi_ec_read_status(ec);
 	if (status != -EINVAL &&
 		!(status & ACPI_EC_FLAG_BURST)){
+		status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
+		if(status)
+			goto end;
 		acpi_hw_low_level_write(8, ACPI_EC_BURST_ENABLE, &ec->common.command_addr);
 		status = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
-		if (status){
-			acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
+		if (status)
 			return_VALUE(-EINVAL);
-		}
 		acpi_hw_low_level_read(8, &tmp, &ec->common.data_addr);
-		acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
 		if(tmp != 0x90 ) {/* Burst ACK byte*/
 			return_VALUE(-EINVAL);
 		}
@@ -295,31 +306,19 @@ acpi_ec_enter_burst_mode (
 
 	atomic_set(&ec->burst.leaving_burst , 0);
 	return_VALUE(0);
+end:
+	printk("Error in acpi_ec_wait\n");
+	return_VALUE(-1);
 }
 
 static int
 acpi_ec_leave_burst_mode (
 	union acpi_ec		*ec)
 {
-	int			status =0;
 
 	ACPI_FUNCTION_TRACE("acpi_ec_leave_burst_mode");
 
-	atomic_set(&ec->burst.leaving_burst , 1);
-	status = acpi_ec_read_status(ec);
-	if (status != -EINVAL &&
-		(status & ACPI_EC_FLAG_BURST)){
-		acpi_hw_low_level_write(8, ACPI_EC_BURST_DISABLE, &ec->common.command_addr);
-		status = acpi_ec_wait(ec, ACPI_EC_FLAG_IBF);
-		if (status){
-			acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,"------->wait fail\n"));
-			return_VALUE(-EINVAL);
-		}
-		acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
-		status = acpi_ec_read_status(ec);
-	}
-
+	atomic_set(&ec->burst.leaving_burst, 1);
 	return_VALUE(0);
 }
 
@@ -461,7 +460,6 @@ acpi_ec_burst_read (
 	if (!ec || !data)
 		return_VALUE(-EINVAL);
 
-retry:
 	*data = 0;
 
 	if (ec->common.global_lock) {
@@ -473,26 +471,25 @@ retry:
 	WARN_ON(in_interrupt());
 	down(&ec->burst.sem);
 
-	if(acpi_ec_enter_burst_mode(ec))
+	acpi_ec_enter_burst_mode(ec);
+	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
+	if (status) {
+		printk("read EC, IB not empty\n");
 		goto end;
-
+	}
 	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_READ, &ec->common.command_addr);
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
 	if (status) {
-		goto end;
+		printk("read EC, IB not empty\n");
 	}
 
 	acpi_hw_low_level_write(8, address, &ec->common.data_addr);
 	status= acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
 	if (status){
-		acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
+		printk("read EC, OB not full\n");
 		goto end;
 	}
-
 	acpi_hw_low_level_read(8, data, &ec->common.data_addr);
-	acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
-
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Read [%02x] from address [%02x]\n",
 		*data, address));
 	
@@ -502,15 +499,6 @@ end:
 
 	if (ec->common.global_lock)
 		acpi_release_global_lock(glk);
-
-	if(atomic_read(&ec->burst.leaving_burst) == 2){
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,"aborted, retry ...\n"));
-		while(atomic_read(&ec->burst.pending_gpe)){
-			msleep(1);	
-		}
-		acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
-		goto retry;
-	}
 
 	return_VALUE(status);
 }
@@ -524,13 +512,12 @@ acpi_ec_burst_write (
 {
 	int			status = 0;
 	u32			glk;
-	u32			tmp;
 
 	ACPI_FUNCTION_TRACE("acpi_ec_write");
 
 	if (!ec)
 		return_VALUE(-EINVAL);
-retry:
+
 	if (ec->common.global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
 		if (ACPI_FAILURE(status))
@@ -540,60 +527,34 @@ retry:
 	WARN_ON(in_interrupt());
 	down(&ec->burst.sem);
 
-	if(acpi_ec_enter_burst_mode(ec))
-		goto end;
+	acpi_ec_enter_burst_mode(ec);
 
-	status = acpi_ec_read_status(ec);
-	if (status != -EINVAL &&
-		!(status & ACPI_EC_FLAG_BURST)){
-		acpi_hw_low_level_write(8, ACPI_EC_BURST_ENABLE, &ec->common.command_addr);
-		status = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
-		if (status)
-			goto end;
-		acpi_hw_low_level_read(8, &tmp, &ec->common.data_addr);
-		if(tmp != 0x90 ) /* Burst ACK byte*/
-			goto end;
+	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
+	if ( status) {
+		printk("write EC, IB not empty\n");
 	}
-	/*Now we are in burst mode*/
-
 	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_WRITE, &ec->common.command_addr);
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
-	if (status){
-		goto end;
+	if (status) {
+		printk ("write EC, IB not empty\n");
 	}
 
 	acpi_hw_low_level_write(8, address, &ec->common.data_addr);
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
 	if (status){
-		acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
-		goto end;
+		printk("write EC, IB not empty\n");
 	}
 
 	acpi_hw_low_level_write(8, data, &ec->common.data_addr);
-	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
-	if (status)
-		goto end;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Wrote [%02x] to address [%02x]\n",
 		data, address));
 
-end:
 	acpi_ec_leave_burst_mode(ec);
 	up(&ec->burst.sem);
 
 	if (ec->common.global_lock)
 		acpi_release_global_lock(glk);
-
-	if(atomic_read(&ec->burst.leaving_burst) == 2){
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,"aborted, retry ...\n"));
-		while(atomic_read(&ec->burst.pending_gpe)){
-			msleep(1);	
-		}
-		acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
-		goto retry;
-	}
 
 	return_VALUE(status);
 }
@@ -719,8 +680,12 @@ acpi_ec_burst_query (
 	}
 
 	down(&ec->burst.sem);
-	if(acpi_ec_enter_burst_mode(ec))
+
+	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
+	if (status) {
+		printk("query EC, IB not empty\n");
 		goto end;
+	}
 	/*
 	 * Query the EC to find out which _Qxx method we need to evaluate.
 	 * Note that successful completion of the query causes the ACPI_EC_SCI
@@ -729,27 +694,20 @@ acpi_ec_burst_query (
 	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_QUERY, &ec->common.command_addr);
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
 	if (status){
-		acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
+		printk("query EC, OB not full\n");
 		goto end;
 	}
 
 	acpi_hw_low_level_read(8, data, &ec->common.data_addr);
-	acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
 	if (!*data)
 		status = -ENODATA;
 
 end:
-	acpi_ec_leave_burst_mode(ec);
 	up(&ec->burst.sem);
 
 	if (ec->common.global_lock)
 		acpi_release_global_lock(glk);
 
-	if(atomic_read(&ec->burst.leaving_burst) == 2){
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,"aborted, retry ...\n"));
-		acpi_enable_gpe(NULL, ec->common.gpe_bit, ACPI_NOT_ISR);
-		status = -ENODATA;
-	}
 	return_VALUE(status);
 }
 
@@ -885,31 +843,21 @@ acpi_ec_gpe_burst_handler (
 	if (!ec)
 		return ACPI_INTERRUPT_NOT_HANDLED;
 
-	acpi_disable_gpe(NULL, ec->common.gpe_bit, ACPI_ISR);
-
+	acpi_clear_gpe(NULL, ec->common.gpe_bit, ACPI_ISR);
 	value = acpi_ec_read_status(ec);
 
-	if((value & ACPI_EC_FLAG_IBF) &&
-		!(value & ACPI_EC_FLAG_BURST) &&
-			(atomic_read(&ec->burst.leaving_burst) == 0)) { 
-	/*
-	 * the embedded controller disables 
-	 * burst mode for any reason other 
-	 * than the burst disable command
-	 * to process critical event.
-	 */
-		atomic_set(&ec->burst.leaving_burst , 2); /* block current pending transaction
-					and retry */
+	switch ( ec->burst.expect_event) {
+	case ACPI_EC_EVENT_OBF:
+		if (!(value & ACPI_EC_FLAG_OBF))
+			break;
+	case ACPI_EC_EVENT_IBE:
+		if ((value & ACPI_EC_FLAG_IBF))
+			break;
+		ec->burst.expect_event = 0;
 		wake_up(&ec->burst.wait);
-	}else {
-		if ((ec->burst.expect_event == ACPI_EC_EVENT_OBF &&
-				(value & ACPI_EC_FLAG_OBF)) ||
-	    			(ec->burst.expect_event == ACPI_EC_EVENT_IBE &&
-				!(value & ACPI_EC_FLAG_IBF))) {
-			ec->burst.expect_event = 0;
-			wake_up(&ec->burst.wait);
-			return ACPI_INTERRUPT_HANDLED;
-		}
+		return ACPI_INTERRUPT_HANDLED;
+	default:
+		break;
 	}
 
 	if (value & ACPI_EC_FLAG_SCI){
@@ -1242,6 +1190,7 @@ acpi_ec_burst_add (
 	if (result)
 		goto end;
 
+	printk("burst-mode-ec-10-Aug\n");
 	printk(KERN_INFO PREFIX "%s [%s] (gpe %d)\n",
 		acpi_device_name(device), acpi_device_bid(device),
 		(u32) ec->common.gpe_bit);
