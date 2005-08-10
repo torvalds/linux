@@ -47,16 +47,10 @@
 #define NET_IPQ_QMAX 2088
 #define NET_IPQ_QMAX_NAME "ip6_queue_maxlen"
 
-struct ipq_rt_info {
-	struct in6_addr daddr;
-	struct in6_addr saddr;
-};
-
 struct ipq_queue_entry {
 	struct list_head list;
 	struct nf_info *info;
 	struct sk_buff *skb;
-	struct ipq_rt_info rt_info;
 };
 
 typedef int (*ipq_cmpfn)(struct ipq_queue_entry *, unsigned long);
@@ -302,13 +296,6 @@ ipq_enqueue_packet(struct sk_buff *skb, struct nf_info *info, void *data)
 	entry->info = info;
 	entry->skb = skb;
 
-	if (entry->info->hook == NF_IP_LOCAL_OUT) {
-		struct ipv6hdr *iph = skb->nh.ipv6h;
-
-		entry->rt_info.daddr = iph->daddr;
-		entry->rt_info.saddr = iph->saddr;
-	}
-
 	nskb = ipq_build_packet_message(entry, &status);
 	if (nskb == NULL)
 		goto err_out_free;
@@ -389,17 +376,6 @@ ipq_mangle_ipv6(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 	memcpy(e->skb->data, v->payload, v->data_len);
 	e->skb->ip_summed = CHECKSUM_NONE;
 
-	/*
-	 * Extra routing may needed on local out, as the QUEUE target never
-	 * returns control to the table.
-         * Not a nice way to cmp, but works
-	 */
-	if (e->info->hook == NF_IP_LOCAL_OUT) {
-		struct ipv6hdr *iph = e->skb->nh.ipv6h;
-		if (!ipv6_addr_equal(&iph->daddr, &e->rt_info.daddr) ||
-		    !ipv6_addr_equal(&iph->saddr, &e->rt_info.saddr))
-			return ip6_route_me_harder(e->skb);
-	}
 	return 0;
 }
 

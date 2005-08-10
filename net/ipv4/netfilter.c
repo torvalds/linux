@@ -1,10 +1,11 @@
-#include <linux/config.h>
+/* IPv4 specific functions of netfilter core */
 
+#include <linux/config.h>
 #ifdef CONFIG_NETFILTER
 
-/* IPv4 specific functions of netfilter core */
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter_ipv4.h>
 
 #include <linux/tcp.h>
 #include <linux/udp.h>
@@ -76,4 +77,63 @@ int ip_route_me_harder(struct sk_buff **pskb)
 	return 0;
 }
 EXPORT_SYMBOL(ip_route_me_harder);
+
+/*
+ * Extra routing may needed on local out, as the QUEUE target never
+ * returns control to the table.
+ */
+
+struct ip_rt_info {
+	u_int32_t daddr;
+	u_int32_t saddr;
+	u_int8_t tos;
+};
+
+static void queue_save(const struct sk_buff *skb, struct nf_info *info)
+{
+	struct ip_rt_info *rt_info = nf_info_reroute(info);
+
+	if (info->hook == NF_IP_LOCAL_OUT) {
+		const struct iphdr *iph = skb->nh.iph;
+
+		rt_info->tos = iph->tos;
+		rt_info->daddr = iph->daddr;
+		rt_info->saddr = iph->saddr;
+	}
+}
+
+static int queue_reroute(struct sk_buff **pskb, const struct nf_info *info)
+{
+	const struct ip_rt_info *rt_info = nf_info_reroute(info);
+
+	if (info->hook == NF_IP_LOCAL_OUT) {
+		struct iphdr *iph = (*pskb)->nh.iph;
+
+		if (!(iph->tos == rt_info->tos
+		      && iph->daddr == rt_info->daddr
+		      && iph->saddr == rt_info->saddr))
+			return ip_route_me_harder(pskb);
+	}
+	return 0;
+}
+
+static struct nf_queue_rerouter ip_reroute = {
+	.rer_size	= sizeof(struct ip_rt_info),
+	.save		= queue_save,
+	.reroute	= queue_reroute,
+};
+
+static int init(void)
+{
+	return nf_register_queue_rerouter(PF_INET, &ip_reroute);
+}
+
+static void fini(void)
+{
+	nf_unregister_queue_rerouter(PF_INET);
+}
+
+module_init(init);
+module_exit(fini);
+
 #endif /* CONFIG_NETFILTER */

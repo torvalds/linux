@@ -198,6 +198,17 @@ extern void nf_invalidate_cache(int pf);
    Returns true or false. */
 extern int skb_make_writable(struct sk_buff **pskb, unsigned int writable_len);
 
+struct nf_queue_rerouter {
+	void (*save)(const struct sk_buff *skb, struct nf_info *info);
+	int (*reroute)(struct sk_buff **skb, const struct nf_info *info);
+	int rer_size;
+};
+
+#define nf_info_reroute(x) ((void *)x + sizeof(struct nf_info))
+
+extern int nf_register_queue_rerouter(int pf, struct nf_queue_rerouter *rer);
+extern int nf_unregister_queue_rerouter(int pf);
+
 #else /* !CONFIG_NETFILTER */
 #define NF_HOOK(pf, hook, skb, indev, outdev, okfn) (okfn)(skb)
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}

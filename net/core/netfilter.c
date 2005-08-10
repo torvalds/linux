@@ -53,6 +53,9 @@ static struct nf_queue_handler_t {
 	nf_queue_outfn_t outfn;
 	void *data;
 } queue_handler[NPROTO];
+
+static struct nf_queue_rerouter *queue_rerouter;
+
 static DEFINE_RWLOCK(queue_handler_lock);
 
 int nf_register_hook(struct nf_hook_ops *reg)
@@ -260,11 +263,34 @@ int nf_unregister_queue_handler(int pf)
 	return 0;
 }
 
+int nf_register_queue_rerouter(int pf, struct nf_queue_rerouter *rer)
+{
+	if (pf >= NPROTO)
+		return -EINVAL;
+
+	write_lock_bh(&queue_handler_lock);
+	memcpy(&queue_rerouter[pf], rer, sizeof(queue_rerouter[pf]));
+	write_unlock_bh(&queue_handler_lock);
+
+	return 0;
+}
+
+int nf_unregister_queue_rerouter(int pf)
+{
+	if (pf >= NPROTO)
+		return -EINVAL;
+
+	write_lock_bh(&queue_handler_lock);
+	memset(&queue_rerouter[pf], 0, sizeof(queue_rerouter[pf]));
+	write_unlock_bh(&queue_handler_lock);
+	return 0;
+}
+
 /* 
  * Any packet that leaves via this function must come back 
  * through nf_reinject().
  */
-static int nf_queue(struct sk_buff *skb, 
+static int nf_queue(struct sk_buff **skb, 
 		    struct list_head *elem, 
 		    int pf, unsigned int hook,
 		    struct net_device *indev,
@@ -282,17 +308,17 @@ static int nf_queue(struct sk_buff *skb,
 	read_lock(&queue_handler_lock);
 	if (!queue_handler[pf].outfn) {
 		read_unlock(&queue_handler_lock);
-		kfree_skb(skb);
+		kfree_skb(*skb);
 		return 1;
 	}
 
-	info = kmalloc(sizeof(*info), GFP_ATOMIC);
+	info = kmalloc(sizeof(*info)+queue_rerouter[pf].rer_size, GFP_ATOMIC);
 	if (!info) {
 		if (net_ratelimit())
 			printk(KERN_ERR "OOM queueing packet %p\n",
-			       skb);
+			       *skb);
 		read_unlock(&queue_handler_lock);
-		kfree_skb(skb);
+		kfree_skb(*skb);
 		return 1;
 	}
 
@@ -311,15 +337,21 @@ static int nf_queue(struct sk_buff *skb,
 	if (outdev) dev_hold(outdev);
 
 #ifdef CONFIG_BRIDGE_NETFILTER
-	if (skb->nf_bridge) {
-		physindev = skb->nf_bridge->physindev;
+	if ((*skb)->nf_bridge) {
+		physindev = (*skb)->nf_bridge->physindev;
 		if (physindev) dev_hold(physindev);
-		physoutdev = skb->nf_bridge->physoutdev;
+		physoutdev = (*skb)->nf_bridge->physoutdev;
 		if (physoutdev) dev_hold(physoutdev);
 	}
 #endif
+	if (queue_rerouter[pf].save)
+		queue_rerouter[pf].save(*skb, info);
 
-	status = queue_handler[pf].outfn(skb, info, queue_handler[pf].data);
+	status = queue_handler[pf].outfn(*skb, info, queue_handler[pf].data);
+
+	if (status >= 0 && queue_rerouter[pf].reroute)
+		status = queue_rerouter[pf].reroute(skb, info);
+
 	read_unlock(&queue_handler_lock);
 
 	if (status < 0) {
@@ -332,9 +364,11 @@ static int nf_queue(struct sk_buff *skb,
 #endif
 		module_put(info->elem->owner);
 		kfree(info);
-		kfree_skb(skb);
+		kfree_skb(*skb);
+
 		return 1;
 	}
+
 	return 1;
 }
 
@@ -365,7 +399,7 @@ next_hook:
 		ret = -EPERM;
 	} else if (verdict == NF_QUEUE) {
 		NFDEBUG("nf_hook: Verdict = QUEUE.\n");
-		if (!nf_queue(*pskb, elem, pf, hook, indev, outdev, okfn))
+		if (!nf_queue(pskb, elem, pf, hook, indev, outdev, okfn))
 			goto next_hook;
 	}
 unlock:
@@ -428,7 +462,7 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 		break;
 
 	case NF_QUEUE:
-		if (!nf_queue(skb, elem, info->pf, info->hook, 
+		if (!nf_queue(&skb, elem, info->pf, info->hook, 
 			      info->indev, info->outdev, info->okfn))
 			goto next_hook;
 		break;
@@ -555,6 +589,12 @@ void __init netfilter_init(void)
 {
 	int i, h;
 
+	queue_rerouter = kmalloc(NPROTO * sizeof(struct nf_queue_rerouter),
+				 GFP_KERNEL);
+	if (!queue_rerouter)
+		panic("netfilter: cannot allocate queue rerouter array\n");
+	memset(queue_rerouter, 0, NPROTO * sizeof(struct nf_queue_rerouter));
+
 	for (i = 0; i < NPROTO; i++) {
 		for (h = 0; h < NF_MAX_HOOKS; h++)
 			INIT_LIST_HEAD(&nf_hooks[i][h]);
@@ -573,4 +613,6 @@ EXPORT_SYMBOL(nf_reinject);
 EXPORT_SYMBOL(nf_setsockopt);
 EXPORT_SYMBOL(nf_unregister_hook);
 EXPORT_SYMBOL(nf_unregister_queue_handler);
+EXPORT_SYMBOL_GPL(nf_register_queue_rerouter);
+EXPORT_SYMBOL_GPL(nf_unregister_queue_rerouter);
 EXPORT_SYMBOL(nf_unregister_sockopt);

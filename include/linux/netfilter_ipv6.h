@@ -71,4 +71,7 @@ enum nf_ip6_hook_priorities {
 	NF_IP6_PRI_LAST = INT_MAX,
 };
 
+int ipv6_netfilter_init(void);
+void ipv6_netfilter_fini(void);
+
 #endif /*__LINUX_IP6_NETFILTER_H*/

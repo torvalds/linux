@@ -43,17 +43,10 @@
 #define NET_IPQ_QMAX 2088
 #define NET_IPQ_QMAX_NAME "ip_queue_maxlen"
 
-struct ipq_rt_info {
-	__u8 tos;
-	__u32 daddr;
-	__u32 saddr;
-};
-
 struct ipq_queue_entry {
 	struct list_head list;
 	struct nf_info *info;
 	struct sk_buff *skb;
-	struct ipq_rt_info rt_info;
 };
 
 typedef int (*ipq_cmpfn)(struct ipq_queue_entry *, unsigned long);
@@ -305,14 +298,6 @@ ipq_enqueue_packet(struct sk_buff *skb, struct nf_info *info, void *data)
 	entry->info = info;
 	entry->skb = skb;
 
-	if (entry->info->hook == NF_IP_LOCAL_OUT) {
-		struct iphdr *iph = skb->nh.iph;
-
-		entry->rt_info.tos = iph->tos;
-		entry->rt_info.daddr = iph->daddr;
-		entry->rt_info.saddr = iph->saddr;
-	}
-
 	nskb = ipq_build_packet_message(entry, &status);
 	if (nskb == NULL)
 		goto err_out_free;
@@ -393,18 +378,6 @@ ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 	memcpy(e->skb->data, v->payload, v->data_len);
 	e->skb->ip_summed = CHECKSUM_NONE;
 
-	/*
-	 * Extra routing may needed on local out, as the QUEUE target never
-	 * returns control to the table.
-	 */
-	if (e->info->hook == NF_IP_LOCAL_OUT) {
-		struct iphdr *iph = e->skb->nh.iph;
-
-		if (!(iph->tos == e->rt_info.tos
-		      && iph->daddr == e->rt_info.daddr
-		      && iph->saddr == e->rt_info.saddr))
-			return ip_route_me_harder(&e->skb);
-	}
 	return 0;
 }
 
