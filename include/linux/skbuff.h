@@ -265,9 +265,9 @@ struct sk_buff {
 #endif
 #endif /* CONFIG_NETFILTER */
 #ifdef CONFIG_NET_SCHED
-       __u32			tc_index;        /* traffic control index */
+	__u16			tc_index;	/* traffic control index */
 #ifdef CONFIG_NET_CLS_ACT
-	__u32           tc_verd;               /* traffic control verdict */
+	__u16			tc_verd;	/* traffic control verdict */
 #endif
 #endif
 
