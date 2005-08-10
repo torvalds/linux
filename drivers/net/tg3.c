@@ -340,16 +340,16 @@ static struct {
 
 static void tg3_write_indirect_reg32(struct tg3 *tp, u32 off, u32 val)
 {
-	if ((tp->tg3_flags & TG3_FLAG_PCIX_TARGET_HWBUG) != 0) {
-		spin_lock_bh(&tp->indirect_lock);
-		pci_write_config_dword(tp->pdev, TG3PCI_REG_BASE_ADDR, off);
-		pci_write_config_dword(tp->pdev, TG3PCI_REG_DATA, val);
-		spin_unlock_bh(&tp->indirect_lock);
-	} else {
-		writel(val, tp->regs + off);
-		if ((tp->tg3_flags & TG3_FLAG_5701_REG_WRITE_BUG) != 0)
-			readl(tp->regs + off);
-	}
+	spin_lock_bh(&tp->indirect_lock);
+	pci_write_config_dword(tp->pdev, TG3PCI_REG_BASE_ADDR, off);
+	pci_write_config_dword(tp->pdev, TG3PCI_REG_DATA, val);
+	spin_unlock_bh(&tp->indirect_lock);
+}
+
+static void tg3_write_flush_reg32(struct tg3 *tp, u32 off, u32 val)
+{
+	writel(val, tp->regs + off);
+	readl(tp->regs + off);
 }
 
 static void _tw32_flush(struct tg3 *tp, u32 off, u32 val)
@@ -364,14 +364,6 @@ static void _tw32_flush(struct tg3 *tp, u32 off, u32 val)
 		writel(val, dest);
 		readl(dest);    /* always flush PCI write */
 	}
-}
-
-static void tg3_write32_rx_mbox(struct tg3 *tp, u32 off, u32 val)
-{
-	void __iomem *mbox = tp->regs + off;
-	writel(val, mbox);
-	if (tp->tg3_flags & TG3_FLAG_MBOX_WRITE_REORDER)
-		readl(mbox);
 }
 
 static void tg3_write32_tx_mbox(struct tg3 *tp, u32 off, u32 val)
@@ -4222,7 +4214,7 @@ static void tg3_stop_fw(struct tg3 *);
 static int tg3_chip_reset(struct tg3 *tp)
 {
 	u32 val;
-	u32 flags_save;
+	void (*write_op)(struct tg3 *, u32, u32);
 	int i;
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_SUN_570X))
@@ -4234,8 +4226,9 @@ static int tg3_chip_reset(struct tg3 *tp)
 	 * fun things.  So, temporarily disable the 5701
 	 * hardware workaround, while we do the reset.
 	 */
-	flags_save = tp->tg3_flags;
-	tp->tg3_flags &= ~TG3_FLAG_5701_REG_WRITE_BUG;
+	write_op = tp->write32;
+	if (write_op == tg3_write_flush_reg32)
+		tp->write32 = tg3_write32;
 
 	/* do the reset */
 	val = GRC_MISC_CFG_CORECLK_RESET;
@@ -4254,8 +4247,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 		val |= GRC_MISC_CFG_KEEP_GPHY_POWER;
 	tw32(GRC_MISC_CFG, val);
 
-	/* restore 5701 hardware bug workaround flag */
-	tp->tg3_flags = flags_save;
+	/* restore 5701 hardware bug workaround write method */
+	tp->write32 = write_op;
 
 	/* Unfortunately, we have to delay before the PCI read back.
 	 * Some 575X chips even will not respond to a PCI cfg access
@@ -4641,7 +4634,6 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base, u32 cpu_scratch_b
 				 int cpu_scratch_size, struct fw_info *info)
 {
 	int err, i;
-	u32 orig_tg3_flags = tp->tg3_flags;
 	void (*write_op)(struct tg3 *, u32, u32);
 
 	if (cpu_base == TX_CPU_BASE &&
@@ -4656,11 +4648,6 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base, u32 cpu_scratch_b
 		write_op = tg3_write_mem;
 	else
 		write_op = tg3_write_indirect_reg32;
-
-	/* Force use of PCI config space for indirect register
-	 * write calls.
-	 */
-	tp->tg3_flags |= TG3_FLAG_PCIX_TARGET_HWBUG;
 
 	/* It is possible that bootcode is still loading at this point.
 	 * Get the nvram lock first before halting the cpu.
@@ -4697,7 +4684,6 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base, u32 cpu_scratch_b
 	err = 0;
 
 out:
-	tp->tg3_flags = orig_tg3_flags;
 	return err;
 }
 
@@ -9331,11 +9317,25 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, pci_state_reg);
 	}
 
+	/* Default fast path register access methods */
 	tp->read32 = tg3_read32;
-	tp->write32 = tg3_write_indirect_reg32;
+	tp->write32 = tg3_write32;
 	tp->write32_mbox = tg3_write32;
-	tp->write32_tx_mbox = tg3_write32_tx_mbox;
-	tp->write32_rx_mbox = tg3_write32_rx_mbox;
+	tp->write32_tx_mbox = tg3_write32;
+	tp->write32_rx_mbox = tg3_write32;
+
+	/* Various workaround register access methods */
+	if (tp->tg3_flags & TG3_FLAG_PCIX_TARGET_HWBUG)
+		tp->write32 = tg3_write_indirect_reg32;
+	else if (tp->tg3_flags & TG3_FLAG_5701_REG_WRITE_BUG)
+		tp->write32 = tg3_write_flush_reg32;
+
+	if ((tp->tg3_flags & TG3_FLAG_TXD_MBOX_HWBUG) ||
+	    (tp->tg3_flags & TG3_FLAG_MBOX_WRITE_REORDER)) {
+		tp->write32_tx_mbox = tg3_write32_tx_mbox;
+		if (tp->tg3_flags & TG3_FLAG_MBOX_WRITE_REORDER)
+			tp->write32_rx_mbox = tg3_write_flush_reg32;
+	}
 
 	/* Get eeprom hw config before calling tg3_set_power_state().
 	 * In particular, the TG3_FLAG_EEPROM_WRITE_PROT flag must be
