@@ -238,6 +238,8 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd)
 		bpl->tus.f.bdeSize = scsi_cmnd->request_bufflen;
 		if (datadir == DMA_TO_DEVICE)
 			bpl->tus.f.bdeFlags = 0;
+		else
+			bpl->tus.f.bdeFlags = BUFF_USE_RCV;
 		bpl->tus.w = le32_to_cpu(bpl->tus.w);
 		num_bde = 1;
 		bpl++;
@@ -245,8 +247,11 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd)
 
 	/*
 	 * Finish initializing those IOCB fields that are dependent on the
-	 * scsi_cmnd request_buffer
+	 * scsi_cmnd request_buffer.  Note that the bdeSize is explicitly
+	 * reinitialized since all iocb memory resources are used many times
+	 * for transmit, receive, and continuation bpl's.
 	 */
+	iocb_cmd->un.fcpi64.bdl.bdeSize = (2 * sizeof (struct ulp_bde64));
 	iocb_cmd->un.fcpi64.bdl.bdeSize +=
 		(num_bde * sizeof (struct ulp_bde64));
 	iocb_cmd->ulpBdeCount = 1;
