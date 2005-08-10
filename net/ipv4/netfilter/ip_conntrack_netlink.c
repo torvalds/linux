@@ -479,7 +479,6 @@ ctnetlink_parse_tuple_ip(struct nfattr *attr, struct ip_conntrack_tuple *tuple)
 
 	DEBUGP("entered %s\n", __FUNCTION__);
 
-	memset(tb, 0, CTA_IP_MAX * sizeof(tb));
 	
 	if (nfattr_parse_nested(tb, CTA_IP_MAX, attr) < 0)
 		goto nfattr_failure;
@@ -522,8 +521,6 @@ ctnetlink_parse_tuple_proto(struct nfattr *attr,
 
 	DEBUGP("entered %s\n", __FUNCTION__);
 
-	memset(tb, 0, CTA_PROTO_MAX * sizeof(tb));
-	
 	if (nfattr_parse_nested(tb, CTA_PROTO_MAX, attr) < 0)
 		goto nfattr_failure;
 
@@ -556,7 +553,6 @@ ctnetlink_parse_tuple(struct nfattr *cda[], struct ip_conntrack_tuple *tuple,
 
 	DEBUGP("entered %s\n", __FUNCTION__);
 
-	memset(tb, 0, CTA_TUPLE_MAX * sizeof(tb));
 	memset(tuple, 0, sizeof(*tuple));
 
 	if (nfattr_parse_nested(tb, CTA_TUPLE_MAX, cda[type-1]) < 0)
@@ -607,8 +603,6 @@ static int ctnetlink_parse_nat_proto(struct nfattr *attr,
 
 	DEBUGP("entered %s\n", __FUNCTION__);
 
-	memset(tb, 0, CTA_PROTONAT_MAX * sizeof(tb));
-
 	if (nfattr_parse_nested(tb, CTA_PROTONAT_MAX, attr) < 0)
 		goto nfattr_failure;
 
@@ -646,7 +640,6 @@ ctnetlink_parse_nat(struct nfattr *cda[],
 
 	DEBUGP("entered %s\n", __FUNCTION__);
 
-	memset(tb, 0, CTA_NAT_MAX * sizeof(tb));
 	memset(range, 0, sizeof(*range));
 	
 	if (nfattr_parse_nested(tb, CTA_NAT_MAX, cda[CTA_NAT-1]) < 0)
@@ -684,7 +677,6 @@ ctnetlink_parse_help(struct nfattr *attr, char **helper_name)
 	struct nfattr *tb[CTA_HELP_MAX];
 
 	DEBUGP("entered %s\n", __FUNCTION__);
-	memset(tb, 0, CTA_HELP_MAX * sizeof(tb));
 
 	if (nfattr_parse_nested(tb, CTA_HELP_MAX, attr) < 0)
 		goto nfattr_failure;
