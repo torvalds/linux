@@ -4,10 +4,14 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 
-/* FIXME: this is utterly wrong */
+/* Structure describing an Internet (DCCP) socket address. */
 struct sockaddr_dccp {
-	struct sockaddr_in	in;
-	unsigned int		service;
+	__u16	sdccp_family;	/* Address family   */
+	__u16	sdccp_port;	/* Port number	    */
+	__u32	sdccp_addr;	/* Internet address */
+	__u32	sdccp_service;	/* Service	    */
+	/* Pad to size of `struct sockaddr': 16 bytes . */
+	__u32	sdccp_pad;
 };
 
 /**
