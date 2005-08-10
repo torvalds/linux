@@ -133,7 +133,7 @@ ENTRY(cpu_v6_switch_mm)
 ENTRY(cpu_v6_set_pte)
 	str	r1, [r0], #-2048		@ linux version
 
-	bic	r2, r1, #0x00000ff0
+	bic	r2, r1, #0x000007f0
 	bic	r2, r2, #0x00000003
 	orr	r2, r2, #PTE_EXT_AP0 | 2
 
@@ -142,7 +142,7 @@ ENTRY(cpu_v6_set_pte)
 	orreq	r2, r2, #PTE_EXT_APX
 
 	tst	r1, #L_PTE_USER
-	orrne	r2, r2, #PTE_EXT_AP1 | PTE_EXT_NG
+	orrne	r2, r2, #PTE_EXT_AP1
 	tstne	r2, #PTE_EXT_APX
 	bicne	r2, r2, #PTE_EXT_APX | PTE_EXT_AP0
 
