@@ -127,7 +127,7 @@ static struct usb_device_id blacklist_ids[] = {
 	{ }	/* Terminating entry */
 };
 
-static struct _urb *_urb_alloc(int isoc, int gfp)
+static struct _urb *_urb_alloc(int isoc, unsigned int __nocast gfp)
 {
 	struct _urb *_urb = kmalloc(sizeof(struct _urb) +
 				sizeof(struct usb_iso_packet_descriptor) * isoc, gfp);

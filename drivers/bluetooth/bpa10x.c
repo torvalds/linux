@@ -307,7 +307,8 @@ unlock:
 	read_unlock(&data->lock);
 }
 
-static inline struct urb *bpa10x_alloc_urb(struct usb_device *udev, unsigned int pipe, size_t size, int flags, void *data)
+static inline struct urb *bpa10x_alloc_urb(struct usb_device *udev, unsigned int pipe,
+					size_t size, unsigned int __nocast flags, void *data)
 {
 	struct urb *urb;
 	struct usb_ctrlrequest *cr;

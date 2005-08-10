@@ -135,7 +135,7 @@ struct bt_skb_cb {
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)(skb->cb)) 
 
-static inline struct sk_buff *bt_skb_alloc(unsigned int len, int how)
+static inline struct sk_buff *bt_skb_alloc(unsigned int len, unsigned int __nocast how)
 {
 	struct sk_buff *skb;
 
