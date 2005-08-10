@@ -737,6 +737,8 @@ extern struct sock		*sk_alloc(int family,
 					  unsigned int __nocast priority,
 					  struct proto *prot, int zero_it);
 extern void			sk_free(struct sock *sk);
+extern struct sock		*sk_clone(const struct sock *sk,
+					  const unsigned int __nocast priority);
 
 extern struct sk_buff		*sock_wmalloc(struct sock *sk,
 					      unsigned long size, int force,

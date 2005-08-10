@@ -599,67 +599,26 @@ out:
  */
 struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req, struct sk_buff *skb)
 {
-	/* allocate the newsk from the same slab of the master sock,
-	 * if not, at sk_free time we'll try to free it from the wrong
-	 * slabcache (i.e. is it TCPv4 or v6?), this is handled thru sk->sk_prot -acme */
-	struct sock *newsk = sk_alloc(PF_INET, GFP_ATOMIC, sk->sk_prot, 0);
+	struct sock *newsk = sk_clone(sk, GFP_ATOMIC);
 
-	if(newsk != NULL) {
+	if (newsk != NULL) {
 		struct inet_request_sock *ireq = inet_rsk(req);
 		struct tcp_request_sock *treq = tcp_rsk(req);
 		struct inet_sock *newinet = inet_sk(newsk);
 		struct tcp_sock *newtp;
-		struct sk_filter *filter;
 
-		memcpy(newsk, sk, sizeof(struct tcp_sock));
 		newsk->sk_state = TCP_SYN_RECV;
-
-		/* SANITY */
-		sk_node_init(&newsk->sk_node);
 		newinet->bind_hash = NULL;
 
 		/* Clone the TCP header template */
 		newinet->dport = ireq->rmt_port;
-
-		sock_lock_init(newsk);
-		bh_lock_sock(newsk);
-
-		rwlock_init(&newsk->sk_dst_lock);
-		newsk->sk_dst_cache = NULL;
-		atomic_set(&newsk->sk_rmem_alloc, 0);
-		skb_queue_head_init(&newsk->sk_receive_queue);
-		atomic_set(&newsk->sk_wmem_alloc, 0);
-		skb_queue_head_init(&newsk->sk_write_queue);
-		atomic_set(&newsk->sk_omem_alloc, 0);
-		newsk->sk_wmem_queued = 0;
-		newsk->sk_forward_alloc = 0;
-
-		sock_reset_flag(newsk, SOCK_DONE);
-		newsk->sk_userlocks = sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
-		newsk->sk_backlog.head = newsk->sk_backlog.tail = NULL;
-		newsk->sk_send_head = NULL;
-		rwlock_init(&newsk->sk_callback_lock);
-		skb_queue_head_init(&newsk->sk_error_queue);
 		newsk->sk_write_space = sk_stream_write_space;
-
-		if ((filter = newsk->sk_filter) != NULL)
-			sk_filter_charge(newsk, filter);
-
-		if (unlikely(xfrm_sk_clone_policy(newsk))) {
-			/* It is still raw copy of parent, so invalidate
-			 * destructor and make plain sk_free() */
-			newsk->sk_destruct = NULL;
-			sk_free(newsk);
-			return NULL;
-		}
 
 		/* Now setup tcp_sock */
 		newtp = tcp_sk(newsk);
 		newtp->pred_flags = 0;
 		newtp->rcv_nxt = treq->rcv_isn + 1;
-		newtp->snd_nxt = treq->snt_isn + 1;
-		newtp->snd_una = treq->snt_isn + 1;
-		newtp->snd_sml = treq->snt_isn + 1;
+		newtp->snd_nxt = newtp->snd_una = newtp->snd_sml = treq->snt_isn + 1;
 
 		tcp_prequeue_init(newtp);
 
@@ -710,32 +669,9 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		/* Deinitialize accept_queue to trap illegal accesses. */
 		memset(&newtp->accept_queue, 0, sizeof(newtp->accept_queue));
 
-		/* Back to base struct sock members. */
-		newsk->sk_err = 0;
-		newsk->sk_priority = 0;
-		atomic_set(&newsk->sk_refcnt, 2);
-
-		/*
-		 * Increment the counter in the same struct proto as the master
-		 * sock (sk_refcnt_debug_inc uses newsk->sk_prot->socks, that
-		 * is the same as sk->sk_prot->socks, as this field was copied
-		 * with memcpy), same rationale as the first comment in this
-		 * function.
-		 *
-		 * This _changes_ the previous behaviour, where
-		 * tcp_create_openreq_child always was incrementing the
-		 * equivalent to tcp_prot->socks (inet_sock_nr), so this have
-		 * to be taken into account in all callers. -acme
-		 */
-		sk_refcnt_debug_inc(newsk);
-
-		atomic_inc(&tcp_sockets_allocated);
-
 		if (sock_flag(newsk, SOCK_KEEPOPEN))
 			tcp_reset_keepalive_timer(newsk,
 						  keepalive_time_when(newtp));
-		newsk->sk_socket = NULL;
-		newsk->sk_sleep = NULL;
 
 		newtp->rx_opt.tstamp_ok = ireq->tstamp_ok;
 		if((newtp->rx_opt.sack_ok = ireq->sack_ok) != 0) {

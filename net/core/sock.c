@@ -700,6 +700,80 @@ void sk_free(struct sock *sk)
 	module_put(owner);
 }
 
+struct sock *sk_clone(const struct sock *sk, const unsigned int __nocast priority)
+{
+	struct sock *newsk = sk_alloc(sk->sk_family, priority, sk->sk_prot, 0);
+
+	if (newsk != NULL) {
+		struct sk_filter *filter;
+
+		memcpy(newsk, sk, sk->sk_prot->obj_size);
+
+		/* SANITY */
+		sk_node_init(&newsk->sk_node);
+		sock_lock_init(newsk);
+		bh_lock_sock(newsk);
+
+		atomic_set(&newsk->sk_rmem_alloc, 0);
+		atomic_set(&newsk->sk_wmem_alloc, 0);
+		atomic_set(&newsk->sk_omem_alloc, 0);
+		skb_queue_head_init(&newsk->sk_receive_queue);
+		skb_queue_head_init(&newsk->sk_write_queue);
+
+		rwlock_init(&newsk->sk_dst_lock);
+		rwlock_init(&newsk->sk_callback_lock);
+
+		newsk->sk_dst_cache	= NULL;
+		newsk->sk_wmem_queued	= 0;
+		newsk->sk_forward_alloc = 0;
+		newsk->sk_send_head	= NULL;
+		newsk->sk_backlog.head	= newsk->sk_backlog.tail = NULL;
+		newsk->sk_userlocks	= sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
+
+		sock_reset_flag(newsk, SOCK_DONE);
+		skb_queue_head_init(&newsk->sk_error_queue);
+
+		filter = newsk->sk_filter;
+		if (filter != NULL)
+			sk_filter_charge(newsk, filter);
+
+		if (unlikely(xfrm_sk_clone_policy(newsk))) {
+			/* It is still raw copy of parent, so invalidate
+			 * destructor and make plain sk_free() */
+			newsk->sk_destruct = NULL;
+			sk_free(newsk);
+			newsk = NULL;
+			goto out;
+		}
+
+		newsk->sk_err	   = 0;
+		newsk->sk_priority = 0;
+		atomic_set(&newsk->sk_refcnt, 2);
+
+		/*
+		 * Increment the counter in the same struct proto as the master
+		 * sock (sk_refcnt_debug_inc uses newsk->sk_prot->socks, that
+		 * is the same as sk->sk_prot->socks, as this field was copied
+		 * with memcpy).
+		 *
+		 * This _changes_ the previous behaviour, where
+		 * tcp_create_openreq_child always was incrementing the
+		 * equivalent to tcp_prot->socks (inet_sock_nr), so this have
+		 * to be taken into account in all callers. -acme
+		 */
+		sk_refcnt_debug_inc(newsk);
+		newsk->sk_socket = NULL;
+		newsk->sk_sleep	 = NULL;
+
+		if (newsk->sk_prot->sockets_allocated)
+			atomic_inc(newsk->sk_prot->sockets_allocated);
+	}
+out:
+	return newsk;
+}
+
+EXPORT_SYMBOL_GPL(sk_clone);
+
 void __init sk_init(void)
 {
 	if (num_physpages <= 4096) {
