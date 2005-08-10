@@ -177,8 +177,8 @@ struct tcp_info
 
 #include <linux/config.h>
 #include <linux/skbuff.h>
-#include <linux/ip.h>
 #include <net/sock.h>
+#include <net/inet_connection_sock.h>
 #include <net/inet_timewait_sock.h>
 
 /* This defines a selective acknowledgement block. */
@@ -219,8 +219,8 @@ static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
 }
 
 struct tcp_sock {
-	/* inet_sock has to be the first member of tcp_sock */
-	struct inet_sock	inet;
+	/* inet_connection_sock has to be the first member of tcp_sock */
+	struct inet_connection_sock	inet_conn;
 	int	tcp_header_len;	/* Bytes of tcp header to send		*/
 
 /*
@@ -241,18 +241,6 @@ struct tcp_sock {
  	__u32	snd_sml;	/* Last byte of the most recently transmitted small packet */
 	__u32	rcv_tstamp;	/* timestamp of last received ACK (for keepalives) */
 	__u32	lsndtime;	/* timestamp of last sent data packet (for restart window) */
-	/* Delayed ACK control data */
-	struct {
-		__u8	pending;	/* ACK is pending */
-		__u8	quick;		/* Scheduled number of quick acks	*/
-		__u8	pingpong;	/* The session is interactive		*/
-		__u8	blocked;	/* Delayed ACK was blocked by socket lock*/
-		__u32	ato;		/* Predicted tick of soft clock		*/
-		unsigned long timeout;	/* Currently scheduled timeout		*/
-		__u32	lrcvtime;	/* timestamp of last received data packet*/
-		__u16	last_seg_size;	/* Size of last incoming segment	*/
-		__u16	rcv_mss;	/* MSS used for delayed ACK decisions	*/ 
-	} ack;
 
 	/* Data for direct copy to user */
 	struct {
@@ -271,8 +259,8 @@ struct tcp_sock {
 	__u16	xmit_size_goal;	/* Goal for segmenting output packets	*/
 	__u16	ext_header_len;	/* Network protocol overhead (IP/IPv6 options) */
 	__u8	ca_state;	/* State of fast-retransmit machine 	*/
-	__u8	retransmits;	/* Number of unrecovered RTO timeouts.	*/
 
+	__u8	keepalive_probes; /* num of allowed keep alive probes	*/
 	__u16	advmss;		/* Advertised MSS			*/
 	__u32	window_clamp;	/* Maximal window to advertise		*/
 	__u32	rcv_ssthresh;	/* Current window clamp			*/
@@ -281,7 +269,7 @@ struct tcp_sock {
 	__u8	reordering;	/* Packet reordering metric.		*/
 	__u8	frto_counter;	/* Number of new acks after RTO */
 
-	__u8	unused;
+	__u8	nonagle;	/* Disable Nagle algorithm?             */
 	__u8	defer_accept;	/* User waits for some data after accept() */
 
 /* RTT measurement */
@@ -290,19 +278,13 @@ struct tcp_sock {
 	__u32	mdev_max;	/* maximal mdev for the last rtt period	*/
 	__u32	rttvar;		/* smoothed mdev_max			*/
 	__u32	rtt_seq;	/* sequence number to update rttvar	*/
-	__u32	rto;		/* retransmit timeout			*/
 
 	__u32	packets_out;	/* Packets which are "in flight"	*/
 	__u32	left_out;	/* Packets which leaved network	*/
 	__u32	retrans_out;	/* Retransmitted packets out		*/
-	__u8	backoff;	/* backoff				*/
 /*
  *      Options received (usually on last packet, some only on SYN packets).
  */
-	__u8	nonagle;	/* Disable Nagle algorithm?             */
-	__u8	keepalive_probes; /* num of allowed keep alive probes	*/
-
-	__u8	probes_out;	/* unanswered 0 window probes		*/
 	struct tcp_options_received rx_opt;
 
 /*
@@ -314,11 +296,6 @@ struct tcp_sock {
 	__u16	snd_cwnd_clamp; /* Do not allow snd_cwnd to grow above this */
 	__u32	snd_cwnd_used;
 	__u32	snd_cwnd_stamp;
-
-	/* Two commonly used timers in both sender and receiver paths. */
-	unsigned long		timeout;
- 	struct timer_list	retransmit_timer;	/* Resend (no ack)	*/
- 	struct timer_list	delack_timer;		/* Ack delay 		*/
 
 	struct sk_buff_head	out_of_order_queue; /* Out of order segments go here */
 
@@ -334,7 +311,7 @@ struct tcp_sock {
 	struct tcp_sack_block duplicate_sack[1]; /* D-SACK block */
 	struct tcp_sack_block selective_acks[4]; /* The SACKS themselves*/
 
-	__u8	syn_retries;	/* num of allowed syn retries */
+	__u8	probes_out;	/* unanswered 0 window probes		*/
 	__u8	ecn_flags;	/* ECN status bits.			*/
 	__u16	prior_ssthresh; /* ssthresh saved at recovery start	*/
 	__u32	lost_out;	/* Lost packets			*/
@@ -349,13 +326,11 @@ struct tcp_sock {
 	int	undo_retrans;	/* number of undoable retransmissions. */
 	__u32	urg_seq;	/* Seq of received urgent pointer */
 	__u16	urg_data;	/* Saved octet of OOB data and control flags */
-	__u8	pending;	/* Scheduled timer event	*/
 	__u8	urg_mode;	/* In urgent mode		*/
+	/* ONE BYTE HOLE, TRY TO PACK! */
 	__u32	snd_up;		/* Urgent pointer		*/
 
 	__u32	total_retrans;	/* Total retransmits for entire connection */
-
-	struct request_sock_queue accept_queue; /* FIFO of established children */
 
 	unsigned int		keepalive_time;	  /* time before keep alive takes place */
 	unsigned int		keepalive_intvl;  /* time interval between keep alive probes */

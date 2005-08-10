@@ -56,6 +56,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 			   struct inet_hashinfo *hashinfo)
 {
 	const struct inet_sock *inet = inet_sk(sk);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_ehash_bucket *ehead = &hashinfo->ehash[sk->sk_hashent];
 	struct inet_bind_hashbucket *bhead;
 	/* Step 1: Put TW into bind hash. Original socket stays there too.
@@ -64,8 +65,8 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	 */
 	bhead = &hashinfo->bhash[inet_bhashfn(inet->num, hashinfo->bhash_size)];
 	spin_lock(&bhead->lock);
-	tw->tw_tb = inet->bind_hash;
-	BUG_TRAP(inet->bind_hash);
+	tw->tw_tb = icsk->icsk_bind_hash;
+	BUG_TRAP(icsk->icsk_bind_hash);
 	inet_twsk_add_bind_node(tw, &tw->tw_tb->owners);
 	spin_unlock(&bhead->lock);
 

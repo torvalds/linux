@@ -313,7 +313,7 @@ EXPORT_SYMBOL(tcp_enter_memory_pressure);
 static __inline__ unsigned int tcp_listen_poll(struct sock *sk,
 					       poll_table *wait)
 {
-	return !reqsk_queue_empty(&tcp_sk(sk)->accept_queue) ? (POLLIN | POLLRDNORM) : 0;
+	return !reqsk_queue_empty(&inet_csk(sk)->icsk_accept_queue) ? (POLLIN | POLLRDNORM) : 0;
 }
 
 /*
@@ -458,15 +458,15 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 int tcp_listen_start(struct sock *sk)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	struct tcp_sock *tp = tcp_sk(sk);
-	int rc = reqsk_queue_alloc(&tp->accept_queue, TCP_SYNQ_HSIZE);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	int rc = reqsk_queue_alloc(&icsk->icsk_accept_queue, TCP_SYNQ_HSIZE);
 
 	if (rc != 0)
 		return rc;
 
 	sk->sk_max_ack_backlog = 0;
 	sk->sk_ack_backlog = 0;
-	tcp_delack_init(tp);
+	inet_csk_delack_init(sk);
 
 	/* There is race window here: we announce ourselves listening,
 	 * but this transition is still not validated by get_port().
@@ -484,7 +484,7 @@ int tcp_listen_start(struct sock *sk)
 	}
 
 	sk->sk_state = TCP_CLOSE;
-	__reqsk_queue_destroy(&tp->accept_queue);
+	__reqsk_queue_destroy(&icsk->icsk_accept_queue);
 	return -EADDRINUSE;
 }
 
@@ -495,14 +495,14 @@ int tcp_listen_start(struct sock *sk)
 
 static void tcp_listen_stop (struct sock *sk)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct request_sock *acc_req;
 	struct request_sock *req;
 
-	tcp_delete_keepalive_timer(sk);
+	inet_csk_delete_keepalive_timer(sk);
 
 	/* make all the listen_opt local to us */
-	acc_req = reqsk_queue_yank_acceptq(&tp->accept_queue);
+	acc_req = reqsk_queue_yank_acceptq(&icsk->icsk_accept_queue);
 
 	/* Following specs, it would be better either to send FIN
 	 * (and enter FIN-WAIT-1, it is normal close)
@@ -512,7 +512,7 @@ static void tcp_listen_stop (struct sock *sk)
 	 * To be honest, we are not able to make either
 	 * of the variants now.			--ANK
 	 */
-	reqsk_queue_destroy(&tp->accept_queue);
+	reqsk_queue_destroy(&icsk->icsk_accept_queue);
 
 	while ((req = acc_req) != NULL) {
 		struct sock *child = req->sk;
@@ -1039,20 +1039,21 @@ static void cleanup_rbuf(struct sock *sk, int copied)
 	BUG_TRAP(!skb || before(tp->copied_seq, TCP_SKB_CB(skb)->end_seq));
 #endif
 
-	if (tcp_ack_scheduled(tp)) {
+	if (inet_csk_ack_scheduled(sk)) {
+		const struct inet_connection_sock *icsk = inet_csk(sk);
 		   /* Delayed ACKs frequently hit locked sockets during bulk
 		    * receive. */
-		if (tp->ack.blocked ||
+		if (icsk->icsk_ack.blocked ||
 		    /* Once-per-two-segments ACK was not sent by tcp_input.c */
-		    tp->rcv_nxt - tp->rcv_wup > tp->ack.rcv_mss ||
+		    tp->rcv_nxt - tp->rcv_wup > icsk->icsk_ack.rcv_mss ||
 		    /*
 		     * If this read emptied read buffer, we send ACK, if
 		     * connection is not bidirectional, user drained
 		     * receive buffer and there was a small segment
 		     * in queue.
 		     */
-		    (copied > 0 && (tp->ack.pending & TCP_ACK_PUSHED) &&
-		     !tp->ack.pingpong && !atomic_read(&sk->sk_rmem_alloc)))
+		    (copied > 0 && (icsk->icsk_ack.pending & ICSK_ACK_PUSHED) &&
+		     !icsk->icsk_ack.pingpong && !atomic_read(&sk->sk_rmem_alloc)))
 			time_to_ack = 1;
 	}
 
@@ -1569,7 +1570,7 @@ void tcp_destroy_sock(struct sock *sk)
 	BUG_TRAP(sk_unhashed(sk));
 
 	/* If it has not 0 inet_sk(sk)->num, it must be bound */
-	BUG_TRAP(!inet_sk(sk)->num || inet_sk(sk)->bind_hash);
+	BUG_TRAP(!inet_sk(sk)->num || inet_csk(sk)->icsk_bind_hash);
 
 	sk->sk_prot->destroy(sk);
 
@@ -1698,10 +1699,10 @@ adjudge_to_death:
 			tcp_send_active_reset(sk, GFP_ATOMIC);
 			NET_INC_STATS_BH(LINUX_MIB_TCPABORTONLINGER);
 		} else {
-			int tmo = tcp_fin_time(tp);
+			const int tmo = tcp_fin_time(sk);
 
 			if (tmo > TCP_TIMEWAIT_LEN) {
-				tcp_reset_keepalive_timer(sk, tcp_fin_time(tp));
+				inet_csk_reset_keepalive_timer(sk, tcp_fin_time(sk));
 			} else {
 				atomic_inc(&tcp_orphan_count);
 				tcp_time_wait(sk, TCP_FIN_WAIT2, tmo);
@@ -1746,6 +1747,7 @@ static inline int tcp_need_reset(int state)
 int tcp_disconnect(struct sock *sk, int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int err = 0;
 	int old_state = sk->sk_state;
@@ -1782,7 +1784,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->srtt = 0;
 	if ((tp->write_seq += tp->max_window + 2) == 0)
 		tp->write_seq = 1;
-	tp->backoff = 0;
+	icsk->icsk_backoff = 0;
 	tp->snd_cwnd = 2;
 	tp->probes_out = 0;
 	tp->packets_out = 0;
@@ -1790,13 +1792,13 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->snd_cwnd_cnt = 0;
 	tcp_set_ca_state(tp, TCP_CA_Open);
 	tcp_clear_retrans(tp);
-	tcp_delack_init(tp);
+	inet_csk_delack_init(sk);
 	sk->sk_send_head = NULL;
 	tp->rx_opt.saw_tstamp = 0;
 	tcp_sack_reset(&tp->rx_opt);
 	__sk_dst_reset(sk);
 
-	BUG_TRAP(!inet->num || inet->bind_hash);
+	BUG_TRAP(!inet->num || icsk->icsk_bind_hash);
 
 	sk->sk_error_report(sk);
 	return err;
@@ -1808,7 +1810,7 @@ int tcp_disconnect(struct sock *sk, int flags)
  */
 static int wait_for_connect(struct sock *sk, long timeo)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	DEFINE_WAIT(wait);
 	int err;
 
@@ -1830,11 +1832,11 @@ static int wait_for_connect(struct sock *sk, long timeo)
 		prepare_to_wait_exclusive(sk->sk_sleep, &wait,
 					  TASK_INTERRUPTIBLE);
 		release_sock(sk);
-		if (reqsk_queue_empty(&tp->accept_queue))
+		if (reqsk_queue_empty(&icsk->icsk_accept_queue))
 			timeo = schedule_timeout(timeo);
 		lock_sock(sk);
 		err = 0;
-		if (!reqsk_queue_empty(&tp->accept_queue))
+		if (!reqsk_queue_empty(&icsk->icsk_accept_queue))
 			break;
 		err = -EINVAL;
 		if (sk->sk_state != TCP_LISTEN)
@@ -1854,9 +1856,9 @@ static int wait_for_connect(struct sock *sk, long timeo)
  *	This will accept the next outstanding connection.
  */
 
-struct sock *tcp_accept(struct sock *sk, int flags, int *err)
+struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct sock *newsk;
 	int error;
 
@@ -1870,7 +1872,7 @@ struct sock *tcp_accept(struct sock *sk, int flags, int *err)
 		goto out_err;
 
 	/* Find already established connection */
-	if (reqsk_queue_empty(&tp->accept_queue)) {
+	if (reqsk_queue_empty(&icsk->icsk_accept_queue)) {
 		long timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
 
 		/* If this is a non blocking socket don't sleep */
@@ -1883,7 +1885,7 @@ struct sock *tcp_accept(struct sock *sk, int flags, int *err)
 			goto out_err;
 	}
 
-	newsk = reqsk_queue_get_child(&tp->accept_queue, sk);
+	newsk = reqsk_queue_get_child(&icsk->icsk_accept_queue, sk);
 	BUG_TRAP(newsk->sk_state != TCP_SYN_RECV);
 out:
 	release_sock(sk);
@@ -1901,6 +1903,7 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		   int optlen)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	int val;
 	int err = 0;
 
@@ -1999,7 +2002,7 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 					elapsed = tp->keepalive_time - elapsed;
 				else
 					elapsed = 0;
-				tcp_reset_keepalive_timer(sk, elapsed);
+				inet_csk_reset_keepalive_timer(sk, elapsed);
 			}
 		}
 		break;
@@ -2019,7 +2022,7 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		if (val < 1 || val > MAX_TCP_SYNCNT)
 			err = -EINVAL;
 		else
-			tp->syn_retries = val;
+			icsk->icsk_syn_retries = val;
 		break;
 
 	case TCP_LINGER2:
@@ -2058,16 +2061,16 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 
 	case TCP_QUICKACK:
 		if (!val) {
-			tp->ack.pingpong = 1;
+			icsk->icsk_ack.pingpong = 1;
 		} else {
-			tp->ack.pingpong = 0;
+			icsk->icsk_ack.pingpong = 0;
 			if ((1 << sk->sk_state) &
 			    (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT) &&
-			    tcp_ack_scheduled(tp)) {
-				tp->ack.pending |= TCP_ACK_PUSHED;
+			    inet_csk_ack_scheduled(sk)) {
+				icsk->icsk_ack.pending |= ICSK_ACK_PUSHED;
 				cleanup_rbuf(sk, 1);
 				if (!(val & 1))
-					tp->ack.pingpong = 1;
+					icsk->icsk_ack.pingpong = 1;
 			}
 		}
 		break;
@@ -2084,15 +2087,16 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 void tcp_get_info(struct sock *sk, struct tcp_info *info)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 	u32 now = tcp_time_stamp;
 
 	memset(info, 0, sizeof(*info));
 
 	info->tcpi_state = sk->sk_state;
 	info->tcpi_ca_state = tp->ca_state;
-	info->tcpi_retransmits = tp->retransmits;
+	info->tcpi_retransmits = icsk->icsk_retransmits;
 	info->tcpi_probes = tp->probes_out;
-	info->tcpi_backoff = tp->backoff;
+	info->tcpi_backoff = icsk->icsk_backoff;
 
 	if (tp->rx_opt.tstamp_ok)
 		info->tcpi_options |= TCPI_OPT_TIMESTAMPS;
@@ -2107,10 +2111,10 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	if (tp->ecn_flags&TCP_ECN_OK)
 		info->tcpi_options |= TCPI_OPT_ECN;
 
-	info->tcpi_rto = jiffies_to_usecs(tp->rto);
-	info->tcpi_ato = jiffies_to_usecs(tp->ack.ato);
+	info->tcpi_rto = jiffies_to_usecs(icsk->icsk_rto);
+	info->tcpi_ato = jiffies_to_usecs(icsk->icsk_ack.ato);
 	info->tcpi_snd_mss = tp->mss_cache;
-	info->tcpi_rcv_mss = tp->ack.rcv_mss;
+	info->tcpi_rcv_mss = icsk->icsk_ack.rcv_mss;
 
 	info->tcpi_unacked = tp->packets_out;
 	info->tcpi_sacked = tp->sacked_out;
@@ -2119,7 +2123,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_fackets = tp->fackets_out;
 
 	info->tcpi_last_data_sent = jiffies_to_msecs(now - tp->lsndtime);
-	info->tcpi_last_data_recv = jiffies_to_msecs(now - tp->ack.lrcvtime);
+	info->tcpi_last_data_recv = jiffies_to_msecs(now - icsk->icsk_ack.lrcvtime);
 	info->tcpi_last_ack_recv = jiffies_to_msecs(now - tp->rcv_tstamp);
 
 	info->tcpi_pmtu = tp->pmtu_cookie;
@@ -2179,7 +2183,7 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		val = tp->keepalive_probes ? : sysctl_tcp_keepalive_probes;
 		break;
 	case TCP_SYNCNT:
-		val = tp->syn_retries ? : sysctl_tcp_syn_retries;
+		val = inet_csk(sk)->icsk_syn_retries ? : sysctl_tcp_syn_retries;
 		break;
 	case TCP_LINGER2:
 		val = tp->linger2;
@@ -2209,7 +2213,7 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		return 0;
 	}
 	case TCP_QUICKACK:
-		val = !tp->ack.pingpong;
+		val = !inet_csk(sk)->icsk_ack.pingpong;
 		break;
 
 	case TCP_CONGESTION:
@@ -2340,7 +2344,7 @@ void __init tcp_init(void)
 	tcp_register_congestion_control(&tcp_reno);
 }
 
-EXPORT_SYMBOL(tcp_accept);
+EXPORT_SYMBOL(inet_csk_accept);
 EXPORT_SYMBOL(tcp_close);
 EXPORT_SYMBOL(tcp_destroy_sock);
 EXPORT_SYMBOL(tcp_disconnect);

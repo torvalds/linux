@@ -36,9 +36,9 @@ static void tcp_write_timer(unsigned long);
 static void tcp_delack_timer(unsigned long);
 static void tcp_keepalive_timer (unsigned long data);
 
-#ifdef TCP_DEBUG
-const char tcp_timer_bug_msg[] = KERN_DEBUG "tcpbug: unknown timer value\n";
-EXPORT_SYMBOL(tcp_timer_bug_msg);
+#ifdef INET_CSK_DEBUG
+const char inet_csk_timer_bug_msg[] = "inet_csk BUG: unknown timer value\n";
+EXPORT_SYMBOL(inet_csk_timer_bug_msg);
 #endif
 
 /*
@@ -46,38 +46,43 @@ EXPORT_SYMBOL(tcp_timer_bug_msg);
  * We may wish use just one timer maintaining a list of expire jiffies 
  * to optimize.
  */
+void inet_csk_init_xmit_timers(struct sock *sk,
+			       void (*retransmit_handler)(unsigned long),
+			       void (*delack_handler)(unsigned long),
+			       void (*keepalive_handler)(unsigned long))
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	init_timer(&icsk->icsk_retransmit_timer);
+	init_timer(&icsk->icsk_delack_timer);
+	init_timer(&sk->sk_timer);
+
+	icsk->icsk_retransmit_timer.function = retransmit_handler;
+	icsk->icsk_delack_timer.function     = delack_handler;
+	sk->sk_timer.function		     = keepalive_handler;
+
+	icsk->icsk_retransmit_timer.data = 
+		icsk->icsk_delack_timer.data =
+			sk->sk_timer.data  = (unsigned long)sk;
+
+	icsk->icsk_pending = icsk->icsk_ack.pending = 0;
+}
+
+void inet_csk_clear_xmit_timers(struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	icsk->icsk_pending = icsk->icsk_ack.pending = icsk->icsk_ack.blocked = 0;
+
+	sk_stop_timer(sk, &icsk->icsk_retransmit_timer);
+	sk_stop_timer(sk, &icsk->icsk_delack_timer);
+	sk_stop_timer(sk, &sk->sk_timer);
+}
 
 void tcp_init_xmit_timers(struct sock *sk)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	init_timer(&tp->retransmit_timer);
-	tp->retransmit_timer.function=&tcp_write_timer;
-	tp->retransmit_timer.data = (unsigned long) sk;
-	tp->pending = 0;
-
-	init_timer(&tp->delack_timer);
-	tp->delack_timer.function=&tcp_delack_timer;
-	tp->delack_timer.data = (unsigned long) sk;
-	tp->ack.pending = 0;
-
-	init_timer(&sk->sk_timer);
-	sk->sk_timer.function	= &tcp_keepalive_timer;
-	sk->sk_timer.data	= (unsigned long)sk;
-}
-
-void tcp_clear_xmit_timers(struct sock *sk)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	tp->pending = 0;
-	sk_stop_timer(sk, &tp->retransmit_timer);
-
-	tp->ack.pending = 0;
-	tp->ack.blocked = 0;
-	sk_stop_timer(sk, &tp->delack_timer);
-
-	sk_stop_timer(sk, &sk->sk_timer);
+	inet_csk_init_xmit_timers(sk, &tcp_write_timer, &tcp_delack_timer,
+				  &tcp_keepalive_timer);
 }
 
 static void tcp_write_err(struct sock *sk)
@@ -155,15 +160,15 @@ static int tcp_orphan_retries(struct sock *sk, int alive)
 /* A write timeout has occurred. Process the after effects. */
 static int tcp_write_timeout(struct sock *sk)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 	int retry_until;
 
 	if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
-		if (tp->retransmits)
+		if (icsk->icsk_retransmits)
 			dst_negative_advice(&sk->sk_dst_cache);
-		retry_until = tp->syn_retries ? : sysctl_tcp_syn_retries;
+		retry_until = icsk->icsk_syn_retries ? : sysctl_tcp_syn_retries;
 	} else {
-		if (tp->retransmits >= sysctl_tcp_retries1) {
+		if (icsk->icsk_retransmits >= sysctl_tcp_retries1) {
 			/* NOTE. draft-ietf-tcpimpl-pmtud-01.txt requires pmtu black
 			   hole detection. :-(
 
@@ -189,16 +194,16 @@ static int tcp_write_timeout(struct sock *sk)
 
 		retry_until = sysctl_tcp_retries2;
 		if (sock_flag(sk, SOCK_DEAD)) {
-			int alive = (tp->rto < TCP_RTO_MAX);
+			const int alive = (icsk->icsk_rto < TCP_RTO_MAX);
  
 			retry_until = tcp_orphan_retries(sk, alive);
 
-			if (tcp_out_of_resources(sk, alive || tp->retransmits < retry_until))
+			if (tcp_out_of_resources(sk, alive || icsk->icsk_retransmits < retry_until))
 				return 1;
 		}
 	}
 
-	if (tp->retransmits >= retry_until) {
+	if (icsk->icsk_retransmits >= retry_until) {
 		/* Has it gone just too far? */
 		tcp_write_err(sk);
 		return 1;
@@ -210,26 +215,27 @@ static void tcp_delack_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock*)data;
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
 		/* Try again later. */
-		tp->ack.blocked = 1;
+		icsk->icsk_ack.blocked = 1;
 		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKLOCKED);
-		sk_reset_timer(sk, &tp->delack_timer, jiffies + TCP_DELACK_MIN);
+		sk_reset_timer(sk, &icsk->icsk_delack_timer, jiffies + TCP_DELACK_MIN);
 		goto out_unlock;
 	}
 
 	sk_stream_mem_reclaim(sk);
 
-	if (sk->sk_state == TCP_CLOSE || !(tp->ack.pending & TCP_ACK_TIMER))
+	if (sk->sk_state == TCP_CLOSE || !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
 		goto out;
 
-	if (time_after(tp->ack.timeout, jiffies)) {
-		sk_reset_timer(sk, &tp->delack_timer, tp->ack.timeout);
+	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
+		sk_reset_timer(sk, &icsk->icsk_delack_timer, icsk->icsk_ack.timeout);
 		goto out;
 	}
-	tp->ack.pending &= ~TCP_ACK_TIMER;
+	icsk->icsk_ack.pending &= ~ICSK_ACK_TIMER;
 
 	if (!skb_queue_empty(&tp->ucopy.prequeue)) {
 		struct sk_buff *skb;
@@ -242,16 +248,16 @@ static void tcp_delack_timer(unsigned long data)
 		tp->ucopy.memory = 0;
 	}
 
-	if (tcp_ack_scheduled(tp)) {
-		if (!tp->ack.pingpong) {
+	if (inet_csk_ack_scheduled(sk)) {
+		if (!icsk->icsk_ack.pingpong) {
 			/* Delayed ACK missed: inflate ATO. */
-			tp->ack.ato = min(tp->ack.ato << 1, tp->rto);
+			icsk->icsk_ack.ato = min(icsk->icsk_ack.ato << 1, icsk->icsk_rto);
 		} else {
 			/* Delayed ACK missed: leave pingpong mode and
 			 * deflate ATO.
 			 */
-			tp->ack.pingpong = 0;
-			tp->ack.ato = TCP_ATO_MIN;
+			icsk->icsk_ack.pingpong = 0;
+			icsk->icsk_ack.ato      = TCP_ATO_MIN;
 		}
 		tcp_send_ack(sk);
 		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKS);
@@ -294,7 +300,8 @@ static void tcp_probe_timer(struct sock *sk)
 	max_probes = sysctl_tcp_retries2;
 
 	if (sock_flag(sk, SOCK_DEAD)) {
-		int alive = ((tp->rto<<tp->backoff) < TCP_RTO_MAX);
+		const struct inet_connection_sock *icsk = inet_csk(sk);
+		const int alive = ((icsk->icsk_rto << icsk->icsk_backoff) < TCP_RTO_MAX);
  
 		max_probes = tcp_orphan_retries(sk, alive);
 
@@ -317,6 +324,7 @@ static void tcp_probe_timer(struct sock *sk)
 static void tcp_retransmit_timer(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 
 	if (!tp->packets_out)
 		goto out;
@@ -351,7 +359,7 @@ static void tcp_retransmit_timer(struct sock *sk)
 	if (tcp_write_timeout(sk))
 		goto out;
 
-	if (tp->retransmits == 0) {
+	if (icsk->icsk_retransmits == 0) {
 		if (tp->ca_state == TCP_CA_Disorder || tp->ca_state == TCP_CA_Recovery) {
 			if (tp->rx_opt.sack_ok) {
 				if (tp->ca_state == TCP_CA_Recovery)
@@ -381,10 +389,10 @@ static void tcp_retransmit_timer(struct sock *sk)
 		/* Retransmission failed because of local congestion,
 		 * do not backoff.
 		 */
-		if (!tp->retransmits)
-			tp->retransmits=1;
-		tcp_reset_xmit_timer(sk, TCP_TIME_RETRANS,
-				     min(tp->rto, TCP_RESOURCE_PROBE_INTERVAL));
+		if (!icsk->icsk_retransmits)
+			icsk->icsk_retransmits = 1;
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+					  min(icsk->icsk_rto, TCP_RESOURCE_PROBE_INTERVAL));
 		goto out;
 	}
 
@@ -403,13 +411,13 @@ static void tcp_retransmit_timer(struct sock *sk)
 	 * implemented ftp to mars will work nicely. We will have to fix
 	 * the 120 second clamps though!
 	 */
-	tp->backoff++;
-	tp->retransmits++;
+	icsk->icsk_backoff++;
+	icsk->icsk_retransmits++;
 
 out_reset_timer:
-	tp->rto = min(tp->rto << 1, TCP_RTO_MAX);
-	tcp_reset_xmit_timer(sk, TCP_TIME_RETRANS, tp->rto);
-	if (tp->retransmits > sysctl_tcp_retries1)
+	icsk->icsk_rto = min(icsk->icsk_rto << 1, TCP_RTO_MAX);
+	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, icsk->icsk_rto);
+	if (icsk->icsk_retransmits > sysctl_tcp_retries1)
 		__sk_dst_reset(sk);
 
 out:;
@@ -418,32 +426,32 @@ out:;
 static void tcp_write_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock*)data;
-	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	int event;
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
 		/* Try again later */
-		sk_reset_timer(sk, &tp->retransmit_timer, jiffies + (HZ / 20));
+		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, jiffies + (HZ / 20));
 		goto out_unlock;
 	}
 
-	if (sk->sk_state == TCP_CLOSE || !tp->pending)
+	if (sk->sk_state == TCP_CLOSE || !icsk->icsk_pending)
 		goto out;
 
-	if (time_after(tp->timeout, jiffies)) {
-		sk_reset_timer(sk, &tp->retransmit_timer, tp->timeout);
+	if (time_after(icsk->icsk_timeout, jiffies)) {
+		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, icsk->icsk_timeout);
 		goto out;
 	}
 
-	event = tp->pending;
-	tp->pending = 0;
+	event = icsk->icsk_pending;
+	icsk->icsk_pending = 0;
 
 	switch (event) {
-	case TCP_TIME_RETRANS:
+	case ICSK_TIME_RETRANS:
 		tcp_retransmit_timer(sk);
 		break;
-	case TCP_TIME_PROBE0:
+	case ICSK_TIME_PROBE0:
 		tcp_probe_timer(sk);
 		break;
 	}
@@ -463,8 +471,9 @@ out_unlock:
 static void tcp_synack_timer(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct listen_sock *lopt = tp->accept_queue.listen_opt;
-	int max_retries = tp->syn_retries ? : sysctl_tcp_synack_retries;
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
+	int max_retries = icsk->icsk_syn_retries ? : sysctl_tcp_synack_retries;
 	int thresh = max_retries;
 	unsigned long now = jiffies;
 	struct request_sock **reqp, *req;
@@ -526,8 +535,8 @@ static void tcp_synack_timer(struct sock *sk)
 				}
 
 				/* Drop this request */
-				tcp_synq_unlink(tp, req, reqp);
-				reqsk_queue_removed(&tp->accept_queue, req);
+				inet_csk_reqsk_queue_unlink(sk, req, reqp);
+				reqsk_queue_removed(&icsk->icsk_accept_queue, req);
 				reqsk_free(req);
 				continue;
 			}
@@ -541,15 +550,15 @@ static void tcp_synack_timer(struct sock *sk)
 	lopt->clock_hand = i;
 
 	if (lopt->qlen)
-		tcp_reset_keepalive_timer(sk, TCP_SYNQ_INTERVAL);
+		inet_csk_reset_keepalive_timer(sk, TCP_SYNQ_INTERVAL);
 }
 
-void tcp_delete_keepalive_timer (struct sock *sk)
+void inet_csk_delete_keepalive_timer(struct sock *sk)
 {
 	sk_stop_timer(sk, &sk->sk_timer);
 }
 
-void tcp_reset_keepalive_timer (struct sock *sk, unsigned long len)
+void inet_csk_reset_keepalive_timer(struct sock *sk, unsigned long len)
 {
 	sk_reset_timer(sk, &sk->sk_timer, jiffies + len);
 }
@@ -560,9 +569,9 @@ void tcp_set_keepalive(struct sock *sk, int val)
 		return;
 
 	if (val && !sock_flag(sk, SOCK_KEEPOPEN))
-		tcp_reset_keepalive_timer(sk, keepalive_time_when(tcp_sk(sk)));
+		inet_csk_reset_keepalive_timer(sk, keepalive_time_when(tcp_sk(sk)));
 	else if (!val)
-		tcp_delete_keepalive_timer(sk);
+		inet_csk_delete_keepalive_timer(sk);
 }
 
 
@@ -576,7 +585,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
 		/* Try again later. */ 
-		tcp_reset_keepalive_timer (sk, HZ/20);
+		inet_csk_reset_keepalive_timer (sk, HZ/20);
 		goto out;
 	}
 
@@ -587,7 +596,7 @@ static void tcp_keepalive_timer (unsigned long data)
 
 	if (sk->sk_state == TCP_FIN_WAIT2 && sock_flag(sk, SOCK_DEAD)) {
 		if (tp->linger2 >= 0) {
-			int tmo = tcp_fin_time(tp) - TCP_TIMEWAIT_LEN;
+			const int tmo = tcp_fin_time(sk) - TCP_TIMEWAIT_LEN;
 
 			if (tmo > 0) {
 				tcp_time_wait(sk, TCP_FIN_WAIT2, tmo);
@@ -634,7 +643,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	sk_stream_mem_reclaim(sk);
 
 resched:
-	tcp_reset_keepalive_timer (sk, elapsed);
+	inet_csk_reset_keepalive_timer (sk, elapsed);
 	goto out;
 
 death:	
@@ -645,7 +654,7 @@ out:
 	sock_put(sk);
 }
 
-EXPORT_SYMBOL(tcp_clear_xmit_timers);
-EXPORT_SYMBOL(tcp_delete_keepalive_timer);
+EXPORT_SYMBOL(inet_csk_clear_xmit_timers);
+EXPORT_SYMBOL(inet_csk_delete_keepalive_timer);
 EXPORT_SYMBOL(tcp_init_xmit_timers);
-EXPORT_SYMBOL(tcp_reset_keepalive_timer);
+EXPORT_SYMBOL(inet_csk_reset_keepalive_timer);

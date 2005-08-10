@@ -180,7 +180,7 @@ static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 
 	child = tp->af_specific->syn_recv_sock(sk, skb, req, dst);
 	if (child)
-		tcp_acceptq_queue(sk, req, child);
+		inet_csk_reqsk_queue_add(sk, req, child);
 	else
 		reqsk_free(req);
 

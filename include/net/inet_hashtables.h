@@ -17,7 +17,6 @@
 #include <linux/config.h>
 
 #include <linux/interrupt.h>
-#include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -26,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
+#include <net/inet_connection_sock.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
 
@@ -185,9 +185,9 @@ static inline void __inet_inherit_port(struct inet_hashinfo *table,
 	struct inet_bind_bucket *tb;
 
 	spin_lock(&head->lock);
-	tb = inet_sk(sk)->bind_hash;
+	tb = inet_csk(sk)->icsk_bind_hash;
 	sk_add_bind_node(child, &tb->owners);
-	inet_sk(child)->bind_hash = tb;
+	inet_csk(child)->icsk_bind_hash = tb;
 	spin_unlock(&head->lock);
 }
 

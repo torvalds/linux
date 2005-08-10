@@ -493,9 +493,6 @@ extern int sk_wait_data(struct sock *sk, long *timeo);
 
 struct request_sock_ops;
 
-/* Here is the right place to enable sock refcounting debugging */
-//#define SOCK_REFCNT_DEBUG
-
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
  * transport -> network interface is defined by struct inet_proto

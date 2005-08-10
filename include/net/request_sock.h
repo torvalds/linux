@@ -224,17 +224,17 @@ static inline int reqsk_queue_added(struct request_sock_queue *queue)
 	return prev_qlen;
 }
 
-static inline int reqsk_queue_len(struct request_sock_queue *queue)
+static inline int reqsk_queue_len(const struct request_sock_queue *queue)
 {
 	return queue->listen_opt != NULL ? queue->listen_opt->qlen : 0;
 }
 
-static inline int reqsk_queue_len_young(struct request_sock_queue *queue)
+static inline int reqsk_queue_len_young(const struct request_sock_queue *queue)
 {
 	return queue->listen_opt->qlen_young;
 }
 
-static inline int reqsk_queue_is_full(struct request_sock_queue *queue)
+static inline int reqsk_queue_is_full(const struct request_sock_queue *queue)
 {
 	return queue->listen_opt->qlen >> queue->listen_opt->max_qlen_log;
 }

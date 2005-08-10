@@ -48,8 +48,9 @@ static struct sock *tcpnl;
 static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 			int ext, u32 pid, u32 seq, u16 nlmsg_flags)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	const struct inet_sock *inet = inet_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcpdiagmsg *r;
 	struct nlmsghdr  *nlh;
 	struct tcp_info  *info = NULL;
@@ -129,14 +130,14 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 
 #define EXPIRES_IN_MS(tmo)  ((tmo-jiffies)*1000+HZ-1)/HZ
 
-	if (tp->pending == TCP_TIME_RETRANS) {
+	if (icsk->icsk_pending == ICSK_TIME_RETRANS) {
 		r->tcpdiag_timer = 1;
-		r->tcpdiag_retrans = tp->retransmits;
-		r->tcpdiag_expires = EXPIRES_IN_MS(tp->timeout);
-	} else if (tp->pending == TCP_TIME_PROBE0) {
+		r->tcpdiag_retrans = icsk->icsk_retransmits;
+		r->tcpdiag_expires = EXPIRES_IN_MS(icsk->icsk_timeout);
+	} else if (icsk->icsk_pending == ICSK_TIME_PROBE0) {
 		r->tcpdiag_timer = 4;
 		r->tcpdiag_retrans = tp->probes_out;
-		r->tcpdiag_expires = EXPIRES_IN_MS(tp->timeout);
+		r->tcpdiag_expires = EXPIRES_IN_MS(icsk->icsk_timeout);
 	} else if (timer_pending(&sk->sk_timer)) {
 		r->tcpdiag_timer = 2;
 		r->tcpdiag_retrans = tp->probes_out;
@@ -497,7 +498,7 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 {
 	struct tcpdiag_entry entry;
 	struct tcpdiagreq *r = NLMSG_DATA(cb->nlh);
-	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct listen_sock *lopt;
 	struct rtattr *bc = NULL;
 	struct inet_sock *inet = inet_sk(sk);
@@ -513,9 +514,9 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 
 	entry.family = sk->sk_family;
 
-	read_lock_bh(&tp->accept_queue.syn_wait_lock);
+	read_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 
-	lopt = tp->accept_queue.listen_opt;
+	lopt = icsk->icsk_accept_queue.listen_opt;
 	if (!lopt || !lopt->qlen)
 		goto out;
 
@@ -572,7 +573,7 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	}
 
 out:
-	read_unlock_bh(&tp->accept_queue.syn_wait_lock);
+	read_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 
 	return err;
 }

@@ -105,8 +105,9 @@ static __u16 tcp_advertise_mss(struct sock *sk)
 
 /* RFC2861. Reset CWND after idle period longer RTO to "restart window".
  * This is the first part of cwnd validation mechanism. */
-static void tcp_cwnd_restart(struct tcp_sock *tp, struct dst_entry *dst)
+static void tcp_cwnd_restart(struct sock *sk, struct dst_entry *dst)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
 	s32 delta = tcp_time_stamp - tp->lsndtime;
 	u32 restart_cwnd = tcp_init_cwnd(tp, dst);
 	u32 cwnd = tp->snd_cwnd;
@@ -116,7 +117,7 @@ static void tcp_cwnd_restart(struct tcp_sock *tp, struct dst_entry *dst)
 	tp->snd_ssthresh = tcp_current_ssthresh(tp);
 	restart_cwnd = min(restart_cwnd, cwnd);
 
-	while ((delta -= tp->rto) > 0 && cwnd > restart_cwnd)
+	while ((delta -= inet_csk(sk)->icsk_rto) > 0 && cwnd > restart_cwnd)
 		cwnd >>= 1;
 	tp->snd_cwnd = max(cwnd, restart_cwnd);
 	tp->snd_cwnd_stamp = tcp_time_stamp;
@@ -126,26 +127,25 @@ static void tcp_cwnd_restart(struct tcp_sock *tp, struct dst_entry *dst)
 static inline void tcp_event_data_sent(struct tcp_sock *tp,
 				       struct sk_buff *skb, struct sock *sk)
 {
-	u32 now = tcp_time_stamp;
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	const u32 now = tcp_time_stamp;
 
-	if (!tp->packets_out && (s32)(now - tp->lsndtime) > tp->rto)
-		tcp_cwnd_restart(tp, __sk_dst_get(sk));
+	if (!tp->packets_out && (s32)(now - tp->lsndtime) > icsk->icsk_rto)
+		tcp_cwnd_restart(sk, __sk_dst_get(sk));
 
 	tp->lsndtime = now;
 
 	/* If it is a reply for ato after last received
 	 * packet, enter pingpong mode.
 	 */
-	if ((u32)(now - tp->ack.lrcvtime) < tp->ack.ato)
-		tp->ack.pingpong = 1;
+	if ((u32)(now - icsk->icsk_ack.lrcvtime) < icsk->icsk_ack.ato)
+		icsk->icsk_ack.pingpong = 1;
 }
 
 static __inline__ void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	tcp_dec_quickack_mode(tp, pkts);
-	tcp_clear_xmit_timer(sk, TCP_TIME_DACK);
+	tcp_dec_quickack_mode(sk, pkts);
+	inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
 }
 
 /* Determine a window scaling and initial window to offer.
@@ -696,7 +696,7 @@ static inline void tcp_cwnd_validate(struct sock *sk, struct tcp_sock *tp)
 		if (tp->packets_out > tp->snd_cwnd_used)
 			tp->snd_cwnd_used = tp->packets_out;
 
-		if ((s32)(tcp_time_stamp - tp->snd_cwnd_stamp) >= tp->rto)
+		if ((s32)(tcp_time_stamp - tp->snd_cwnd_stamp) >= inet_csk(sk)->icsk_rto)
 			tcp_cwnd_application_limited(sk);
 	}
 }
@@ -1147,6 +1147,7 @@ void tcp_push_one(struct sock *sk, unsigned int mss_now)
  */
 u32 __tcp_select_window(struct sock *sk)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	/* MSS for the peer's data.  Previous verions used mss_clamp
 	 * here.  I don't know if the value based on our guesses
@@ -1154,7 +1155,7 @@ u32 __tcp_select_window(struct sock *sk)
 	 * but may be worse for the performance because of rcv_mss
 	 * fluctuations.  --SAW  1998/11/1
 	 */
-	int mss = tp->ack.rcv_mss;
+	int mss = icsk->icsk_ack.rcv_mss;
 	int free_space = tcp_space(sk);
 	int full_space = min_t(int, tp->window_clamp, tcp_full_space(sk));
 	int window;
@@ -1163,7 +1164,7 @@ u32 __tcp_select_window(struct sock *sk)
 		mss = full_space; 
 
 	if (free_space < full_space/2) {
-		tp->ack.quick = 0;
+		icsk->icsk_ack.quick = 0;
 
 		if (tcp_memory_pressure)
 			tp->rcv_ssthresh = min(tp->rcv_ssthresh, 4U*tp->advmss);
@@ -1491,7 +1492,8 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 
 					if (skb ==
 					    skb_peek(&sk->sk_write_queue))
-						tcp_reset_xmit_timer(sk, TCP_TIME_RETRANS, tp->rto);
+						inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+									  inet_csk(sk)->icsk_rto);
 				}
 
 				packet_cnt -= tcp_skb_pcount(skb);
@@ -1544,7 +1546,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 			break;
 
 		if (skb == skb_peek(&sk->sk_write_queue))
-			tcp_reset_xmit_timer(sk, TCP_TIME_RETRANS, tp->rto);
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, inet_csk(sk)->icsk_rto);
 
 		NET_INC_STATS_BH(LINUX_MIB_TCPFORWARDRETRANS);
 	}
@@ -1780,8 +1782,8 @@ static inline void tcp_connect_init(struct sock *sk)
 	tp->rcv_wup = 0;
 	tp->copied_seq = 0;
 
-	tp->rto = TCP_TIMEOUT_INIT;
-	tp->retransmits = 0;
+	inet_csk(sk)->icsk_rto = TCP_TIMEOUT_INIT;
+	inet_csk(sk)->icsk_retransmits = 0;
 	tcp_clear_retrans(tp);
 }
 
@@ -1824,7 +1826,7 @@ int tcp_connect(struct sock *sk)
 	TCP_INC_STATS(TCP_MIB_ACTIVEOPENS);
 
 	/* Timer for repeating the SYN until an answer. */
-	tcp_reset_xmit_timer(sk, TCP_TIME_RETRANS, tp->rto);
+	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, inet_csk(sk)->icsk_rto);
 	return 0;
 }
 
@@ -1834,20 +1836,21 @@ int tcp_connect(struct sock *sk)
  */
 void tcp_send_delayed_ack(struct sock *sk)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-	int ato = tp->ack.ato;
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	int ato = icsk->icsk_ack.ato;
 	unsigned long timeout;
 
 	if (ato > TCP_DELACK_MIN) {
+		const struct tcp_sock *tp = tcp_sk(sk);
 		int max_ato = HZ/2;
 
-		if (tp->ack.pingpong || (tp->ack.pending&TCP_ACK_PUSHED))
+		if (icsk->icsk_ack.pingpong || (icsk->icsk_ack.pending & ICSK_ACK_PUSHED))
 			max_ato = TCP_DELACK_MAX;
 
 		/* Slow path, intersegment interval is "high". */
 
 		/* If some rtt estimate is known, use it to bound delayed ack.
-		 * Do not use tp->rto here, use results of rtt measurements
+		 * Do not use inet_csk(sk)->icsk_rto here, use results of rtt measurements
 		 * directly.
 		 */
 		if (tp->srtt) {
@@ -1864,21 +1867,22 @@ void tcp_send_delayed_ack(struct sock *sk)
 	timeout = jiffies + ato;
 
 	/* Use new timeout only if there wasn't a older one earlier. */
-	if (tp->ack.pending&TCP_ACK_TIMER) {
+	if (icsk->icsk_ack.pending & ICSK_ACK_TIMER) {
 		/* If delack timer was blocked or is about to expire,
 		 * send ACK now.
 		 */
-		if (tp->ack.blocked || time_before_eq(tp->ack.timeout, jiffies+(ato>>2))) {
+		if (icsk->icsk_ack.blocked ||
+		    time_before_eq(icsk->icsk_ack.timeout, jiffies + (ato >> 2))) {
 			tcp_send_ack(sk);
 			return;
 		}
 
-		if (!time_before(timeout, tp->ack.timeout))
-			timeout = tp->ack.timeout;
+		if (!time_before(timeout, icsk->icsk_ack.timeout))
+			timeout = icsk->icsk_ack.timeout;
 	}
-	tp->ack.pending |= TCP_ACK_SCHED|TCP_ACK_TIMER;
-	tp->ack.timeout = timeout;
-	sk_reset_timer(sk, &tp->delack_timer, timeout);
+	icsk->icsk_ack.pending |= ICSK_ACK_SCHED | ICSK_ACK_TIMER;
+	icsk->icsk_ack.timeout = timeout;
+	sk_reset_timer(sk, &icsk->icsk_delack_timer, timeout);
 }
 
 /* This routine sends an ack and also updates the window. */
@@ -1895,9 +1899,9 @@ void tcp_send_ack(struct sock *sk)
 		 */
 		buff = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
 		if (buff == NULL) {
-			tcp_schedule_ack(tp);
-			tp->ack.ato = TCP_ATO_MIN;
-			tcp_reset_xmit_timer(sk, TCP_TIME_DACK, TCP_DELACK_MAX);
+			inet_csk_schedule_ack(sk);
+			inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, TCP_DELACK_MAX);
 			return;
 		}
 
@@ -2011,6 +2015,7 @@ int tcp_write_wakeup(struct sock *sk)
  */
 void tcp_send_probe0(struct sock *sk)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int err;
 
@@ -2019,16 +2024,16 @@ void tcp_send_probe0(struct sock *sk)
 	if (tp->packets_out || !sk->sk_send_head) {
 		/* Cancel probe timer, if it is not required. */
 		tp->probes_out = 0;
-		tp->backoff = 0;
+		icsk->icsk_backoff = 0;
 		return;
 	}
 
 	if (err <= 0) {
-		if (tp->backoff < sysctl_tcp_retries2)
-			tp->backoff++;
+		if (icsk->icsk_backoff < sysctl_tcp_retries2)
+			icsk->icsk_backoff++;
 		tp->probes_out++;
-		tcp_reset_xmit_timer (sk, TCP_TIME_PROBE0, 
-				      min(tp->rto << tp->backoff, TCP_RTO_MAX));
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_PROBE0, 
+					  min(icsk->icsk_rto << icsk->icsk_backoff, TCP_RTO_MAX));
 	} else {
 		/* If packet was not sent due to local congestion,
 		 * do not backoff and do not remember probes_out.
@@ -2038,8 +2043,9 @@ void tcp_send_probe0(struct sock *sk)
 		 */
 		if (!tp->probes_out)
 			tp->probes_out=1;
-		tcp_reset_xmit_timer (sk, TCP_TIME_PROBE0, 
-				      min(tp->rto << tp->backoff, TCP_RESOURCE_PROBE_INTERVAL));
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_PROBE0, 
+					  min(icsk->icsk_rto << icsk->icsk_backoff,
+					      TCP_RESOURCE_PROBE_INTERVAL));
 	}
 }
 

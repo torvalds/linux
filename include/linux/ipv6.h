@@ -333,15 +333,15 @@ static inline struct in6_addr *tcp_v6_rcv_saddr(const struct sock *sk)
 	return sk->sk_family == AF_INET6 ? __tcp_v6_rcv_saddr(sk) : NULL;
 }
 
-static inline int tcp_twsk_ipv6only(const struct sock *sk)
+static inline int inet_twsk_ipv6only(const struct sock *sk)
 {
 	return inet_twsk(sk)->tw_ipv6only;
 }
 
-static inline int tcp_v6_ipv6only(const struct sock *sk)
+static inline int inet_v6_ipv6only(const struct sock *sk)
 {
 	return likely(sk->sk_state != TCP_TIME_WAIT) ?
-		ipv6_only_sock(sk) : tcp_twsk_ipv6only(sk);
+		ipv6_only_sock(sk) : inet_twsk_ipv6only(sk);
 }
 #else
 #define __ipv6_only_sock(sk)	0
@@ -360,7 +360,7 @@ static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 #define __tcp_v6_rcv_saddr(__sk)	NULL
 #define tcp_v6_rcv_saddr(__sk)		NULL
 #define tcp_twsk_ipv6only(__sk)		0
-#define tcp_v6_ipv6only(__sk)		0
+#define inet_v6_ipv6only(__sk)		0
 #endif /* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 
 #define INET6_MATCH(__sk, __saddr, __daddr, __ports, __dif)	   \

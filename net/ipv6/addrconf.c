@@ -1043,7 +1043,7 @@ int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 	u32 sk_rcv_saddr = inet_sk(sk)->rcv_saddr;
 	u32 sk2_rcv_saddr = inet_rcv_saddr(sk2);
 	int sk_ipv6only = ipv6_only_sock(sk);
-	int sk2_ipv6only = tcp_v6_ipv6only(sk2);
+	int sk2_ipv6only = inet_v6_ipv6only(sk2);
 	int addr_type = ipv6_addr_type(sk_rcv_saddr6);
 	int addr_type2 = sk2_rcv_saddr6 ? ipv6_addr_type(sk2_rcv_saddr6) : IPV6_ADDR_MAPPED;
 

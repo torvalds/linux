@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 
+#include <net/inet_connection_sock.h>
 #include <net/inet_hashtables.h>
 
 /*
@@ -56,10 +57,9 @@ void inet_bind_bucket_destroy(kmem_cache_t *cachep, struct inet_bind_bucket *tb)
 void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 		    const unsigned short snum)
 {
-	struct inet_sock *inet = inet_sk(sk);
-	inet->num	= snum;
+	inet_sk(sk)->num = snum;
 	sk_add_bind_node(sk, &tb->owners);
-	inet->bind_hash	= tb;
+	inet_csk(sk)->icsk_bind_hash = tb;
 }
 
 EXPORT_SYMBOL(inet_bind_hash);
@@ -69,16 +69,15 @@ EXPORT_SYMBOL(inet_bind_hash);
  */
 static void __inet_put_port(struct inet_hashinfo *hashinfo, struct sock *sk)
 {
-	struct inet_sock *inet = inet_sk(sk);
-	const int bhash = inet_bhashfn(inet->num, hashinfo->bhash_size);
+	const int bhash = inet_bhashfn(inet_sk(sk)->num, hashinfo->bhash_size);
 	struct inet_bind_hashbucket *head = &hashinfo->bhash[bhash];
 	struct inet_bind_bucket *tb;
 
 	spin_lock(&head->lock);
-	tb = inet->bind_hash;
+	tb = inet_csk(sk)->icsk_bind_hash;
 	__sk_del_bind_node(sk);
-	inet->bind_hash = NULL;
-	inet->num = 0;
+	inet_csk(sk)->icsk_bind_hash = NULL;
+	inet_sk(sk)->num = 0;
 	inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
 	spin_unlock(&head->lock);
 }

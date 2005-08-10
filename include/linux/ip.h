@@ -128,7 +128,6 @@ static inline struct inet_request_sock *inet_rsk(const struct request_sock *sk)
 	return (struct inet_request_sock *)sk;
 }
 
-struct inet_bind_bucket;
 struct ipv6_pinfo;
 
 struct inet_sock {
@@ -158,7 +157,6 @@ struct inet_sock {
 	int			mc_index;	/* Multicast device index */
 	__u32			mc_addr;
 	struct ip_mc_socklist	*mc_list;	/* Group array */
-	struct inet_bind_bucket *bind_hash;
 	/*
 	 * Following members are used to retain the infomation to build
 	 * an ip header on each ip fragmentation while the socket is corked.

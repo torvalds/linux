@@ -271,7 +271,8 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 
 	if (tw != NULL) {
 		struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
-		const int rto = (tp->rto << 2) - (tp->rto >> 1);
+		const struct inet_connection_sock *icsk = inet_csk(sk);
+		const int rto = (icsk->icsk_rto << 2) - (icsk->icsk_rto >> 1);
 
 		tw->tw_rcv_wscale	= tp->rx_opt.rcv_wscale;
 		tcptw->tw_rcv_nxt	= tp->rcv_nxt;
@@ -605,10 +606,11 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		struct inet_request_sock *ireq = inet_rsk(req);
 		struct tcp_request_sock *treq = tcp_rsk(req);
 		struct inet_sock *newinet = inet_sk(newsk);
+		struct inet_connection_sock *newicsk = inet_csk(newsk);
 		struct tcp_sock *newtp;
 
 		newsk->sk_state = TCP_SYN_RECV;
-		newinet->bind_hash = NULL;
+		newicsk->icsk_bind_hash = NULL;
 
 		/* Clone the TCP header template */
 		newinet->dport = ireq->rmt_port;
@@ -624,11 +626,11 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 
 		tcp_init_wl(newtp, treq->snt_isn, treq->rcv_isn);
 
-		newtp->retransmits = 0;
-		newtp->backoff = 0;
+		newicsk->icsk_retransmits = 0;
+		newicsk->icsk_backoff = 0;
 		newtp->srtt = 0;
 		newtp->mdev = TCP_TIMEOUT_INIT;
-		newtp->rto = TCP_TIMEOUT_INIT;
+		newicsk->icsk_rto = TCP_TIMEOUT_INIT;
 
 		newtp->packets_out = 0;
 		newtp->left_out = 0;
@@ -667,11 +669,11 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->rx_opt.num_sacks = 0;
 		newtp->urg_data = 0;
 		/* Deinitialize accept_queue to trap illegal accesses. */
-		memset(&newtp->accept_queue, 0, sizeof(newtp->accept_queue));
+		memset(&newicsk->icsk_accept_queue, 0, sizeof(newicsk->icsk_accept_queue));
 
 		if (sock_flag(newsk, SOCK_KEEPOPEN))
-			tcp_reset_keepalive_timer(newsk,
-						  keepalive_time_when(newtp));
+			inet_csk_reset_keepalive_timer(newsk,
+						       keepalive_time_when(newtp));
 
 		newtp->rx_opt.tstamp_ok = ireq->tstamp_ok;
 		if((newtp->rx_opt.sack_ok = ireq->sack_ok) != 0) {
@@ -701,7 +703,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 			newtp->tcp_header_len = sizeof(struct tcphdr);
 		}
 		if (skb->len >= TCP_MIN_RCVMSS+newtp->tcp_header_len)
-			newtp->ack.last_seg_size = skb->len-newtp->tcp_header_len;
+			newicsk->icsk_ack.last_seg_size = skb->len - newtp->tcp_header_len;
 		newtp->rx_opt.mss_clamp = req->mss;
 		TCP_ECN_openreq_child(newtp, req);
 		if (newtp->ecn_flags&TCP_ECN_OK)
@@ -881,10 +883,10 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 		if (child == NULL)
 			goto listen_overflow;
 
-		tcp_synq_unlink(tp, req, prev);
-		tcp_synq_removed(sk, req);
+		inet_csk_reqsk_queue_unlink(sk, req, prev);
+		inet_csk_reqsk_queue_removed(sk, req);
 
-		tcp_acceptq_queue(sk, req, child);
+		inet_csk_reqsk_queue_add(sk, req, child);
 		return child;
 
 	listen_overflow:
@@ -898,7 +900,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 		if (!(flg & TCP_FLAG_RST))
 			req->rsk_ops->send_reset(skb);
 
-		tcp_synq_drop(sk, req, prev);
+		inet_csk_reqsk_queue_drop(sk, req, prev);
 		return NULL;
 }
 
