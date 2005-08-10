@@ -528,8 +528,13 @@ static void rfcomm_dev_modem_status(struct rfcomm_dlc *dlc, u8 v24_sig)
 	struct rfcomm_dev *dev = dlc->owner;
 	if (!dev)
 		return;
-	
+
 	BT_DBG("dlc %p dev %p v24_sig 0x%02x", dlc, dev, v24_sig);
+
+	if ((dev->modem_status & TIOCM_CD) && !(v24_sig & RFCOMM_V24_DV)) {
+		if (dev->tty && !C_CLOCAL(dev->tty))
+			tty_hangup(dev->tty);
+	}
 
 	dev->modem_status = 
 		((v24_sig & RFCOMM_V24_RTC) ? (TIOCM_DSR | TIOCM_DTR) : 0) |
