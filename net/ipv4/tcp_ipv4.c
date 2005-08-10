@@ -113,9 +113,9 @@ static __inline__ void __tcp_inherit_port(struct sock *sk, struct sock *child)
 	struct inet_bind_bucket *tb;
 
 	spin_lock(&head->lock);
-	tb = tcp_sk(sk)->bind_hash;
+	tb = inet_sk(sk)->bind_hash;
 	sk_add_bind_node(child, &tb->owners);
-	tcp_sk(child)->bind_hash = tb;
+	inet_sk(child)->bind_hash = tb;
 	spin_unlock(&head->lock);
 }
 
@@ -129,9 +129,10 @@ inline void tcp_inherit_port(struct sock *sk, struct sock *child)
 void tcp_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 		   const unsigned short snum)
 {
-	inet_sk(sk)->num = snum;
+	struct inet_sock *inet = inet_sk(sk);
+	inet->num	= snum;
 	sk_add_bind_node(sk, &tb->owners);
-	tcp_sk(sk)->bind_hash = tb;
+	inet->bind_hash	= tb;
 }
 
 static inline int tcp_bind_conflict(struct sock *sk, struct inet_bind_bucket *tb)
@@ -246,9 +247,9 @@ tb_not_found:
 		   (!sk->sk_reuse || sk->sk_state == TCP_LISTEN))
 		tb->fastreuse = 0;
 success:
-	if (!tcp_sk(sk)->bind_hash)
+	if (!inet_sk(sk)->bind_hash)
 		tcp_bind_hash(sk, tb, snum);
-	BUG_TRAP(tcp_sk(sk)->bind_hash == tb);
+	BUG_TRAP(inet_sk(sk)->bind_hash == tb);
  	ret = 0;
 
 fail_unlock:
@@ -269,9 +270,9 @@ static void __tcp_put_port(struct sock *sk)
 	struct inet_bind_bucket *tb;
 
 	spin_lock(&head->lock);
-	tb = tcp_sk(sk)->bind_hash;
+	tb = inet->bind_hash;
 	__sk_del_bind_node(sk);
-	tcp_sk(sk)->bind_hash = NULL;
+	inet->bind_hash = NULL;
 	inet->num = 0;
 	inet_bind_bucket_destroy(tcp_bucket_cachep, tb);
 	spin_unlock(&head->lock);
@@ -694,7 +695,7 @@ ok:
  	}
 
  	head = &tcp_bhash[inet_bhashfn(snum, tcp_bhash_size)];
- 	tb  = tcp_sk(sk)->bind_hash;
+ 	tb  = inet_sk(sk)->bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
 		__tcp_v4_hash(sk, 0);
@@ -1940,7 +1941,7 @@ int tcp_v4_destroy_sock(struct sock *sk)
 	__skb_queue_purge(&tp->ucopy.prequeue);
 
 	/* Clean up a referenced TCP bind bucket. */
-	if (tp->bind_hash)
+	if (inet_sk(sk)->bind_hash)
 		tcp_put_port(sk);
 
 	/*

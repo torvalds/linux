@@ -1266,7 +1266,7 @@ static __inline__ void tcp_set_state(struct sock *sk, int state)
 			TCP_INC_STATS(TCP_MIB_ESTABRESETS);
 
 		sk->sk_prot->unhash(sk);
-		if (tcp_sk(sk)->bind_hash &&
+		if (inet_sk(sk)->bind_hash &&
 		    !(sk->sk_userlocks & SOCK_BINDPORT_LOCK))
 			tcp_put_port(sk);
 		/* fall through */

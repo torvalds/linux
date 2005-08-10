@@ -258,7 +258,6 @@ struct tcp_sock {
  	__u32	snd_sml;	/* Last byte of the most recently transmitted small packet */
 	__u32	rcv_tstamp;	/* timestamp of last received ACK (for keepalives) */
 	__u32	lsndtime;	/* timestamp of last sent data packet (for restart window) */
-	struct inet_bind_bucket *bind_hash;
 	/* Delayed ACK control data */
 	struct {
 		__u8	pending;	/* ACK is pending */

@@ -204,9 +204,9 @@ tb_not_found:
 		tb->fastreuse = 0;
 
 success:
-	if (!tcp_sk(sk)->bind_hash)
+	if (!inet_sk(sk)->bind_hash)
 		tcp_bind_hash(sk, tb, snum);
-	BUG_TRAP(tcp_sk(sk)->bind_hash == tb);
+	BUG_TRAP(inet_sk(sk)->bind_hash == tb);
 	ret = 0;
 
 fail_unlock:
@@ -613,8 +613,8 @@ ok:
 		goto out;
  	}
 
- 	head  = &tcp_bhash[inet_bhashfn(snum, tcp_bhash_size)];
- 	tb  = tcp_sk(sk)->bind_hash;
+ 	head = &tcp_bhash[inet_bhashfn(snum, tcp_bhash_size)];
+ 	tb   = inet_sk(sk)->bind_hash;
 	spin_lock_bh(&head->lock);
 
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {

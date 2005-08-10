@@ -296,17 +296,17 @@ kill:
  */
 static void __tcp_tw_hashdance(struct sock *sk, struct tcp_tw_bucket *tw)
 {
+	const struct inet_sock *inet = inet_sk(sk);
 	struct inet_ehash_bucket *ehead = &tcp_ehash[sk->sk_hashent];
 	struct inet_bind_hashbucket *bhead;
-
 	/* Step 1: Put TW into bind hash. Original socket stays there too.
-	   Note, that any socket with inet_sk(sk)->num != 0 MUST be bound in
+	   Note, that any socket with inet->num != 0 MUST be bound in
 	   binding cache, even if it is closed.
 	 */
-	bhead = &tcp_bhash[inet_bhashfn(inet_sk(sk)->num, tcp_bhash_size)];
+	bhead = &tcp_bhash[inet_bhashfn(inet->num, tcp_bhash_size)];
 	spin_lock(&bhead->lock);
-	tw->tw_tb = tcp_sk(sk)->bind_hash;
-	BUG_TRAP(tcp_sk(sk)->bind_hash);
+	tw->tw_tb = inet->bind_hash;
+	BUG_TRAP(inet->bind_hash);
 	tw_add_bind_node(tw, &tw->tw_tb->owners);
 	spin_unlock(&bhead->lock);
 
@@ -694,6 +694,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 	if(newsk != NULL) {
 		struct inet_request_sock *ireq = inet_rsk(req);
 		struct tcp_request_sock *treq = tcp_rsk(req);
+		struct inet_sock *newinet = inet_sk(newsk);
 		struct tcp_sock *newtp;
 		struct sk_filter *filter;
 
@@ -702,10 +703,10 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 
 		/* SANITY */
 		sk_node_init(&newsk->sk_node);
-		tcp_sk(newsk)->bind_hash = NULL;
+		newinet->bind_hash = NULL;
 
 		/* Clone the TCP header template */
-		inet_sk(newsk)->dport = ireq->rmt_port;
+		newinet->dport = ireq->rmt_port;
 
 		sock_lock_init(newsk);
 		bh_lock_sock(newsk);
