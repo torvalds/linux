@@ -1272,13 +1272,10 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		ccid3_calc_new_delta(hctx);
 
 		/* remove all packets older than the one acked from history */
-#if 0
-		FIXME!
 		list_for_each_entry_safe_continue(entry, next, &hctx->ccid3hctx_hist, ccid3htx_node) {
 			list_del_init(&entry->ccid3htx_node);
 			ccid3_tx_hist_entry_delete(entry);
 		}
-#endif
 		if (hctx->ccid3hctx_x < 10) {
 			ccid3_pr_debug("ccid3_hc_tx_packet_recv hctx->ccid3hctx_x < 10\n");
 			hctx->ccid3hctx_x = 10;
@@ -1820,8 +1817,7 @@ static void ccid3_hc_rx_detect_loss(struct sock *sk)
 
 	a_next = b_next;
 	num_later = 1;
-#if 0
-		FIXME MERGE GIT!
+
 	list_for_each_entry_safe_continue(entry, a_next, &hcrx->ccid3hcrx_hist, ccid3hrx_node) {
 		if (num_later == 0) {
 			a_loss = entry;
@@ -1830,7 +1826,6 @@ static void ccid3_hc_rx_detect_loss(struct sock *sk)
 			   entry->ccid3hrx_type == DCCP_PKT_DATAACK)
 			--num_later;
 	}
-#endif
 
 	if (a_loss == NULL) {
 		if (list_empty(&hcrx->ccid3hcrx_loss_interval_hist)) {
@@ -1848,8 +1843,6 @@ static void ccid3_hc_rx_detect_loss(struct sock *sk)
 
 	/* Locate a lost data packet */
 	entry = packet = b_loss;
-#if 0
-		FIXME MERGE GIT!
 	list_for_each_entry_safe_continue(entry, b_next, &hcrx->ccid3hcrx_hist, ccid3hrx_node) {
 		u64 delta = dccp_delta_seqno(entry->ccid3hrx_seqno, packet->ccid3hrx_seqno);
 
@@ -1875,7 +1868,6 @@ static void ccid3_hc_rx_detect_loss(struct sock *sk)
 		if (packet == a_loss)
 			break;
 	}
-#endif
 
 	if (seq_loss != DCCP_MAX_SEQNO + 1)
 		win_loss = a_loss->ccid3hrx_win_count;
