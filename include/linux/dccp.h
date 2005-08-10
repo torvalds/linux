@@ -194,6 +194,7 @@ enum {
 #include <linux/workqueue.h>
 
 #include <net/inet_connection_sock.h>
+#include <net/inet_timewait_sock.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <net/tcp.h>
@@ -353,6 +354,8 @@ static inline struct dccp_request_sock *dccp_rsk(const struct request_sock *req)
 {
 	return (struct dccp_request_sock *)req;
 }
+
+extern struct inet_timewait_death_row dccp_death_row;
 
 /* Read about the ECN nonce to see why it is 253 */
 #define DCCP_MAX_ACK_VECTOR_LEN 253

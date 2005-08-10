@@ -97,7 +97,7 @@ static int __dccp_v4_check_established(struct sock *sk, const __u16 lport,
 		NET_INC_STATS_BH(LINUX_MIB_TIMEWAITRECYCLED);
 	} else if (tw != NULL) {
 		/* Silly. Should hash-dance instead... */
-		dccp_tw_deschedule(tw);
+		inet_twsk_deschedule(tw, &dccp_death_row);
 		NET_INC_STATS_BH(LINUX_MIB_TIMEWAITRECYCLED);
 
 		inet_twsk_put(tw);
@@ -201,7 +201,7 @@ ok:
  		spin_unlock(&head->lock);
 
  		if (tw != NULL) {
- 			dccp_tw_deschedule(tw);
+ 			inet_twsk_deschedule(tw, &dccp_death_row);
  			inet_twsk_put(tw);
  		}
 
@@ -1131,8 +1131,9 @@ int dccp_v4_rcv(struct sk_buff *skb)
 	 */
 	       
 	if (sk->sk_state == DCCP_TIME_WAIT) {
-		dccp_pr_debug("sk->sk_state == DCCP_TIME_WAIT: discard_and_relse\n");
-                goto discard_and_relse;
+		dccp_pr_debug("sk->sk_state == DCCP_TIME_WAIT: "
+			      "do_time_wait\n");
+                goto do_time_wait;
 	}
 
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb)) {
@@ -1179,6 +1180,10 @@ discard_it:
 discard_and_relse:
 	sock_put(sk);
 	goto discard_it;
+
+do_time_wait:
+	inet_twsk_put((struct inet_timewait_sock *)sk);
+	goto no_dccp_socket;
 }
 
 static int dccp_v4_init_sock(struct sock *sk)
@@ -1290,5 +1295,5 @@ struct proto dccp_v4_prot = {
 	.max_header		= MAX_DCCP_HEADER,
 	.obj_size		= sizeof(struct dccp_sock),
 	.rsk_prot		= &dccp_request_sock_ops,
-	.twsk_obj_size		= sizeof(struct inet_timewait_sock), /* FIXME! create dccp_timewait_sock */
+	.twsk_obj_size		= sizeof(struct inet_timewait_sock),
 };

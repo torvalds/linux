@@ -22,18 +22,58 @@
 #include "ccid.h"
 #include "dccp.h"
 
+struct inet_timewait_death_row dccp_death_row = {
+	.sysctl_max_tw_buckets = NR_FILE * 2,
+	.period		= DCCP_TIMEWAIT_LEN / INET_TWDR_TWKILL_SLOTS,
+	.death_lock	= SPIN_LOCK_UNLOCKED,
+	.hashinfo	= &dccp_hashinfo,
+	.tw_timer	= TIMER_INITIALIZER(inet_twdr_hangman, 0,
+					    (unsigned long)&dccp_death_row),
+	.twkill_work	= __WORK_INITIALIZER(dccp_death_row.twkill_work,
+					     inet_twdr_twkill_work,
+					     &dccp_death_row),
+/* Short-time timewait calendar */
+
+	.twcal_hand	= -1,
+	.twcal_timer	= TIMER_INITIALIZER(inet_twdr_twcal_tick, 0,
+					    (unsigned long)&dccp_death_row),
+};
+
 void dccp_time_wait(struct sock *sk, int state, int timeo)
 {
-	/* FIXME: Implement */
-	dccp_pr_debug("Want to help? Start here\n");
-	dccp_set_state(sk, state);
-}
+	struct inet_timewait_sock *tw = NULL;
 
-/* This is for handling early-kills of TIME_WAIT sockets. */
-void dccp_tw_deschedule(struct inet_timewait_sock *tw)
-{
-	dccp_pr_debug("Want to help? Start here\n");
-	__inet_twsk_kill(tw, &dccp_hashinfo);
+	if (dccp_death_row.tw_count < dccp_death_row.sysctl_max_tw_buckets)
+		tw = inet_twsk_alloc(sk, state);
+
+	if (tw != NULL) {
+		const struct inet_connection_sock *icsk = inet_csk(sk);
+		const int rto = (icsk->icsk_rto << 2) - (icsk->icsk_rto >> 1);
+
+		/* Linkage updates. */
+		__inet_twsk_hashdance(tw, sk, &dccp_hashinfo);
+
+		/* Get the TIME_WAIT timeout firing. */
+		if (timeo < rto)
+			timeo = rto;
+
+		tw->tw_timeout = DCCP_TIMEWAIT_LEN;
+		if (state == DCCP_TIME_WAIT)
+			timeo = DCCP_TIMEWAIT_LEN;
+
+		inet_twsk_schedule(tw, &dccp_death_row, timeo,
+				   DCCP_TIMEWAIT_LEN);
+		inet_twsk_put(tw);
+	} else {
+		/* Sorry, if we're out of memory, just CLOSE this
+		 * socket up.  We've got bigger problems than
+		 * non-graceful socket closings.
+		 */
+		if (net_ratelimit())
+			printk(KERN_INFO "DCCP: time wait bucket table overflow\n");
+	}
+
+	dccp_done(sk);
 }
 
 struct sock *dccp_create_openreq_child(struct sock *sk,
@@ -55,7 +95,7 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 
 		newdp->dccps_hc_rx_ackpkts = NULL;
 		newdp->dccps_role = DCCP_ROLE_SERVER;
-		newicsk->icsk_rto = TCP_TIMEOUT_INIT;
+		newicsk->icsk_rto = DCCP_TIMEOUT_INIT;
 
 		if (newdp->dccps_options.dccpo_send_ack_vector) {
 			newdp->dccps_hc_rx_ackpkts = dccp_ackpkts_alloc(DCCP_MAX_ACK_VECTOR_LEN,
