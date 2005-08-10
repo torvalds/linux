@@ -459,5 +459,3 @@ static void peer_check_expire(unsigned long dummy)
 				peer_total / inet_peer_threshold * HZ;
 	add_timer(&peer_periodic_timer);
 }
-
-EXPORT_SYMBOL(inet_peer_idlock);

@@ -32,7 +32,6 @@
  * Further increasing requires to change hash table size.
  */
 int sysctl_max_syn_backlog = 256;
-EXPORT_SYMBOL(sysctl_max_syn_backlog);
 
 int reqsk_queue_alloc(struct request_sock_queue *queue,
 		      const int nr_table_entries)

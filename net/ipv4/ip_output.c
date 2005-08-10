@@ -205,7 +205,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	return -EINVAL;
 }
 
-int ip_finish_output(struct sk_buff *skb)
+static int ip_finish_output(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dst->dev;
 
@@ -1328,12 +1328,7 @@ void __init ip_init(void)
 #endif
 }
 
-EXPORT_SYMBOL(ip_finish_output);
 EXPORT_SYMBOL(ip_fragment);
 EXPORT_SYMBOL(ip_generic_getfrag);
 EXPORT_SYMBOL(ip_queue_xmit);
 EXPORT_SYMBOL(ip_send_check);
-
-#ifdef CONFIG_SYSCTL
-EXPORT_SYMBOL(sysctl_ip_default_ttl);
-#endif
