@@ -1388,7 +1388,7 @@ ctnetlink_create_expect(struct nfattr *cda[])
 	err = ctnetlink_parse_tuple(cda, &tuple, CTA_EXPECT_TUPLE);
 	if (err < 0)
 		return err;
-	err = ctnetlink_parse_tuple(cda, &tuple, CTA_EXPECT_MASK);
+	err = ctnetlink_parse_tuple(cda, &mask, CTA_EXPECT_MASK);
 	if (err < 0)
 		return err;
 
