@@ -1041,6 +1041,7 @@ cleanup:
 	nf_unregister_queue_handlers(nfqnl_enqueue_packet);
 	unregister_netdevice_notifier(&nfqnl_dev_notifier);
 #ifdef CONFIG_PROC_FS
+	remove_proc_entry("nfnetlink_queue", proc_net_netfilter);
 cleanup_subsys:
 #endif	
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
