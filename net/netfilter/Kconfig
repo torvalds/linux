@@ -3,3 +3,11 @@ config NETFILTER_NETLINK
        help
          If this option is enabled, the kernel will include support
          for the new netfilter netlink interface.
+
+config NETFILTER_NETLINK_QUEUE
+	tristate "Netfilter NFQUEUE over NFNETLINK interface"
+	depends on NETFILTER_NETLINK
+	help
+	  If this option isenabled, the kernel will include support
+	  for queueing packets via NFNETLINK.
+	  

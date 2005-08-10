@@ -110,10 +110,14 @@ config IP_NF_AMANDA
 	  To compile it as a module, choose M here.  If unsure, say Y.
 
 config IP_NF_QUEUE
-	tristate "Userspace queueing via NETLINK"
+	tristate "IP Userspace queueing via NETLINK (OBSOLETE)"
 	help
 	  Netfilter has the ability to queue packets to user space: the
 	  netlink device can be used to access them using this driver.
+
+	  This option enables the old IPv4-only "ip_queue" implementation
+	  which has been obsoleted by the new "nfnetlink_queue" code (see
+	  CONFIG_NETFILTER_NETLINK_QUEUE).
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

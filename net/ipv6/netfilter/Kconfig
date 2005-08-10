@@ -10,13 +10,16 @@ menu "IPv6: Netfilter Configuration (EXPERIMENTAL)"
 #  dep_tristate '  FTP protocol support' CONFIG_IP6_NF_FTP $CONFIG_IP6_NF_CONNTRACK
 #fi
 config IP6_NF_QUEUE
-	tristate "Userspace queueing via NETLINK"
+	tristate "IP6 Userspace queueing via NETLINK (OBSOLETE)"
 	---help---
 
 	  This option adds a queue handler to the kernel for IPv6
-	  packets which lets us to receive the filtered packets
-	  with QUEUE target using libiptc as we can do with
-	  the IPv4 now.
+	  packets which enables users to receive the filtered packets
+	  with QUEUE target using libipq.
+
+	  THis option enables the old IPv6-only "ip6_queue" implementation
+	  which has been obsoleted by the new "nfnetlink_queue" code (see
+	  CONFIG_NETFILTER_NETLINK_QUEUE).
 
 	  (C) Fernando Anton 2001
 	  IPv64 Project - Work based in IPv64 draft by Arturo Azcorra.
