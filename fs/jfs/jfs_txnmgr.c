@@ -657,7 +657,9 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 				/* only anonymous txn.
 				 * Remove from anon_list
 				 */
+				TXN_LOCK();
 				list_del_init(&jfs_ip->anon_inode_list);
+				TXN_UNLOCK();
 			}
 			jfs_ip->atlhead = tlck->next;
 		} else {
