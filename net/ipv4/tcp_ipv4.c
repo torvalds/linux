@@ -238,78 +238,6 @@ void tcp_unhash(struct sock *sk)
 	inet_unhash(&tcp_hashinfo, sk);
 }
 
-/* Don't inline this cruft.  Here are some nice properties to
- * exploit here.  The BSD API does not allow a listening TCP
- * to specify the remote port nor the remote address for the
- * connection.  So always assume those are both wildcarded
- * during the search since they can never be otherwise.
- */
-static struct sock *__tcp_v4_lookup_listener(struct hlist_head *head,
-					     const u32 daddr,
-					     const unsigned short hnum,
-					     const int dif)
-{
-	struct sock *result = NULL, *sk;
-	struct hlist_node *node;
-	int score, hiscore;
-
-	hiscore=-1;
-	sk_for_each(sk, node, head) {
-		struct inet_sock *inet = inet_sk(sk);
-
-		if (inet->num == hnum && !ipv6_only_sock(sk)) {
-			__u32 rcv_saddr = inet->rcv_saddr;
-
-			score = (sk->sk_family == PF_INET ? 1 : 0);
-			if (rcv_saddr) {
-				if (rcv_saddr != daddr)
-					continue;
-				score+=2;
-			}
-			if (sk->sk_bound_dev_if) {
-				if (sk->sk_bound_dev_if != dif)
-					continue;
-				score+=2;
-			}
-			if (score == 5)
-				return sk;
-			if (score > hiscore) {
-				hiscore = score;
-				result = sk;
-			}
-		}
-	}
-	return result;
-}
-
-/* Optimize the common listener case. */
-static inline struct sock *tcp_v4_lookup_listener(const u32 daddr,
-						  const unsigned short hnum,
-						  const int dif)
-{
-	struct sock *sk = NULL;
-	struct hlist_head *head;
-
-	read_lock(&tcp_hashinfo.lhash_lock);
-	head = &tcp_hashinfo.listening_hash[inet_lhashfn(hnum)];
-	if (!hlist_empty(head)) {
-		struct inet_sock *inet = inet_sk((sk = __sk_head(head)));
-
-		if (inet->num == hnum && !sk->sk_node.next &&
-		    (!inet->rcv_saddr || inet->rcv_saddr == daddr) &&
-		    (sk->sk_family == PF_INET || !ipv6_only_sock(sk)) &&
-		    !sk->sk_bound_dev_if)
-			goto sherry_cache;
-		sk = __tcp_v4_lookup_listener(head, daddr, hnum, dif);
-	}
-	if (sk) {
-sherry_cache:
-		sock_hold(sk);
-	}
-	read_unlock(&tcp_hashinfo.lhash_lock);
-	return sk;
-}
-
 /* Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
  * we need not check it for TCP lookups anymore, thanks Alexey. -DaveM
  *
@@ -358,7 +286,7 @@ static inline struct sock *__tcp_v4_lookup(u32 saddr, u16 sport,
 	struct sock *sk = __tcp_v4_lookup_established(saddr, sport,
 						      daddr, hnum, dif);
 
-	return sk ? : tcp_v4_lookup_listener(daddr, hnum, dif);
+	return sk ? : inet_lookup_listener(&tcp_hashinfo, daddr, hnum, dif);
 }
 
 inline struct sock *tcp_v4_lookup(u32 saddr, u16 sport, u32 daddr,
@@ -1641,9 +1569,10 @@ do_time_wait:
 	switch (tcp_timewait_state_process((struct tcp_tw_bucket *)sk,
 					   skb, th, skb->len)) {
 	case TCP_TW_SYN: {
-		struct sock *sk2 = tcp_v4_lookup_listener(skb->nh.iph->daddr,
-							  ntohs(th->dest),
-							  tcp_v4_iif(skb));
+		struct sock *sk2 = inet_lookup_listener(&tcp_hashinfo,
+							skb->nh.iph->daddr,
+							ntohs(th->dest),
+							tcp_v4_iif(skb));
 		if (sk2) {
 			tcp_tw_deschedule((struct tcp_tw_bucket *)sk);
 			tcp_tw_put((struct tcp_tw_bucket *)sk);

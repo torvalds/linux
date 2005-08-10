@@ -121,3 +121,44 @@ void inet_listen_wlock(struct inet_hashinfo *hashinfo)
 }
 
 EXPORT_SYMBOL(inet_listen_wlock);
+
+/*
+ * Don't inline this cruft. Here are some nice properties to exploit here. The
+ * BSD API does not allow a listening sock to specify the remote port nor the
+ * remote address for the connection. So always assume those are both
+ * wildcarded during the search since they can never be otherwise.
+ */
+struct sock *__inet_lookup_listener(const struct hlist_head *head, const u32 daddr,
+				    const unsigned short hnum, const int dif)
+{
+	struct sock *result = NULL, *sk;
+	const struct hlist_node *node;
+	int hiscore = -1;
+
+	sk_for_each(sk, node, head) {
+		const struct inet_sock *inet = inet_sk(sk);
+
+		if (inet->num == hnum && !ipv6_only_sock(sk)) {
+			const __u32 rcv_saddr = inet->rcv_saddr;
+			int score = sk->sk_family == PF_INET ? 1 : 0;
+
+			if (rcv_saddr) {
+				if (rcv_saddr != daddr)
+					continue;
+				score += 2;
+			}
+			if (sk->sk_bound_dev_if) {
+				if (sk->sk_bound_dev_if != dif)
+					continue;
+				score += 2;
+			}
+			if (score == 5)
+				return sk;
+			if (score > hiscore) {
+				hiscore	= score;
+				result	= sk;
+			}
+		}
+	}
+	return result;
+}

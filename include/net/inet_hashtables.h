@@ -16,8 +16,10 @@
 
 #include <linux/interrupt.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/socket.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -273,5 +275,39 @@ static inline void inet_unhash(struct inet_hashinfo *hashinfo, struct sock *sk)
 out:
 	if (sk->sk_state == TCP_LISTEN)
 		wake_up(&hashinfo->lhash_wait);
+}
+
+extern struct sock *__inet_lookup_listener(const struct hlist_head *head,
+					   const u32 daddr,
+					   const unsigned short hnum,
+					   const int dif);
+
+/* Optimize the common listener case. */
+static inline struct sock *inet_lookup_listener(struct inet_hashinfo *hashinfo,
+						const u32 daddr,
+						const unsigned short hnum,
+						const int dif)
+{
+	struct sock *sk = NULL;
+	struct hlist_head *head;
+
+	read_lock(&hashinfo->lhash_lock);
+	head = &hashinfo->listening_hash[inet_lhashfn(hnum)];
+	if (!hlist_empty(head)) {
+		const struct inet_sock *inet = inet_sk((sk = __sk_head(head)));
+
+		if (inet->num == hnum && !sk->sk_node.next &&
+		    (!inet->rcv_saddr || inet->rcv_saddr == daddr) &&
+		    (sk->sk_family == PF_INET || !ipv6_only_sock(sk)) &&
+		    !sk->sk_bound_dev_if)
+			goto sherry_cache;
+		sk = __inet_lookup_listener(head, daddr, hnum, dif);
+	}
+	if (sk) {
+sherry_cache:
+		sock_hold(sk);
+	}
+	read_unlock(&hashinfo->lhash_lock);
+	return sk;
 }
 #endif /* _INET_HASHTABLES_H */
