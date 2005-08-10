@@ -772,7 +772,7 @@ error:
 
 static struct dvb_frontend_ops lgdt3302_ops = {
 	.info = {
-		.name= "LG Electronics LGDT3302/LGDT3303 VSB/QAM Frontend",
+		.name= "LG Electronics LGDT3302 VSB/QAM Frontend",
 		.type = FE_ATSC,
 		.frequency_min= 54000000,
 		.frequency_max= 858000000,
