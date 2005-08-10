@@ -76,6 +76,8 @@ checkentry_v0(const char *tablename,
 	      unsigned int targinfosize,
 	      unsigned int hook_mask)
 {
+	struct ipt_mark_target_info *markinfo = targinfo;
+
 	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_mark_target_info))) {
 		printk(KERN_WARNING "MARK: targinfosize %u != %Zu\n",
 		       targinfosize,
@@ -85,6 +87,11 @@ checkentry_v0(const char *tablename,
 
 	if (strcmp(tablename, "mangle") != 0) {
 		printk(KERN_WARNING "MARK: can only be called from \"mangle\" table, not \"%s\"\n", tablename);
+		return 0;
+	}
+
+	if (markinfo->mark > 0xffffffff) {
+		printk(KERN_WARNING "MARK: Only supports 32bit wide mark\n");
 		return 0;
 	}
 
@@ -117,6 +124,11 @@ checkentry_v1(const char *tablename,
 	    && markinfo->mode != IPT_MARK_OR) {
 		printk(KERN_WARNING "MARK: unknown mode %u\n",
 		       markinfo->mode);
+		return 0;
+	}
+
+	if (markinfo->mark > 0xffffffff) {
+		printk(KERN_WARNING "MARK: Only supports 32bit wide mark\n");
 		return 0;
 	}
 

@@ -37,8 +37,15 @@ checkentry(const char *tablename,
            unsigned int matchsize,
            unsigned int hook_mask)
 {
+	struct ipt_mark_info *minfo = (struct ipt_mark_info *) matchinfo;
+
 	if (matchsize != IPT_ALIGN(sizeof(struct ipt_mark_info)))
 		return 0;
+
+	if (minfo->mark > 0xffffffff || minfo->mask > 0xffffffff) {
+		printk(KERN_WARNING "mark: only supports 32bit mark\n");
+		return 0;
+	}
 
 	return 1;
 }

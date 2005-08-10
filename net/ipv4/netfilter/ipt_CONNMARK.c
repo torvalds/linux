@@ -40,9 +40,9 @@ target(struct sk_buff **pskb,
        void *userinfo)
 {
 	const struct ipt_connmark_target_info *markinfo = targinfo;
-	unsigned long diff;
-	unsigned long nfmark;
-	unsigned long newmark;
+	u_int32_t diff;
+	u_int32_t nfmark;
+	u_int32_t newmark;
 
 	enum ip_conntrack_info ctinfo;
 	struct ip_conntrack *ct = ip_conntrack_get((*pskb), &ctinfo);
@@ -92,6 +92,11 @@ checkentry(const char *tablename,
 		    printk(KERN_WARNING "CONNMARK: restore can only be called from \"mangle\" table, not \"%s\"\n", tablename);
 		    return 0;
 	    }
+	}
+
+	if (matchinfo->mark > 0xffffffff || matchinfo->mask > 0xffffffff) {
+		printk(KERN_WARNING "CONNMARK: Only supports 32bit mark\n");
+		return 0;
 	}
 
 	return 1;

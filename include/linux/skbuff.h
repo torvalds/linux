@@ -259,7 +259,7 @@ struct sk_buff {
 
 	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_NETFILTER
-	unsigned long		nfmark;
+	__u32			nfmark;
 	__u32			nfcache;
 	__u32			nfctinfo;
 	struct nf_conntrack	*nfct;

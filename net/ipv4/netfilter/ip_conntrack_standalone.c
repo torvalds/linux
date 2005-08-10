@@ -185,7 +185,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 			return -ENOSPC;
 
 #if defined(CONFIG_IP_NF_CONNTRACK_MARK)
-	if (seq_printf(s, "mark=%lu ", conntrack->mark))
+	if (seq_printf(s, "mark=%u ", conntrack->mark))
 		return -ENOSPC;
 #endif
 
