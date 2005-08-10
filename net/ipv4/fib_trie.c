@@ -77,7 +77,6 @@
 #undef CONFIG_IP_FIB_TRIE_STATS
 #define MAX_CHILDS 16384
 
-#define EXTRACT(p, n, str) ((str)<<(p)>>(32-(n)))
 #define KEYLENGTH (8*sizeof(t_key))
 #define MASK_PFX(k, l) (((l)==0)?0:(k >> (KEYLENGTH-l)) << (KEYLENGTH-l))
 #define TKEY_GET_MASK(offset, bits) (((bits)==0)?0:((t_key)(-1) << (KEYLENGTH - bits) >> offset))
@@ -162,10 +161,8 @@ static int trie_debug = 0;
 
 #define DBG(x...) do { if (trie_debug) printk(x); } while (0)
 
-static int tnode_full(struct tnode *tn, struct node *n);
 static void put_child(struct trie *t, struct tnode *tn, int i, struct node *n);
 static void tnode_put_child_reorg(struct tnode *tn, int i, struct node *n, int wasfull);
-static int tnode_child_length(struct tnode *tn);
 static struct node *resize(struct trie *t, struct tnode *tn);
 static struct tnode *inflate(struct trie *t, struct tnode *tn);
 static struct tnode *halve(struct trie *t, struct tnode *tn);
@@ -188,7 +185,7 @@ static inline struct node *tnode_get_child(struct tnode *tn, int i)
 	return tn->child[i];
 }
 
-static inline int tnode_child_length(struct tnode *tn)
+static inline int tnode_child_length(const struct tnode *tn)
 {
 	return 1 << tn->bits;
 }
@@ -400,7 +397,7 @@ static void tnode_free(struct tnode *tn)
  * and no bits are skipped. See discussion in dyntree paper p. 6
  */
 
-static inline int tnode_full(struct tnode *tn, struct node *n)
+static inline int tnode_full(const struct tnode *tn, const struct node *n)
 {
 	if (n == NULL || IS_LEAF(n))
 		return 0;
