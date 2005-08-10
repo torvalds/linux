@@ -1484,21 +1484,28 @@ static struct notifier_block ctnl_notifier_exp = {
 
 static struct nfnl_callback ctnl_cb[IPCTNL_MSG_MAX] = {
 	[IPCTNL_MSG_CT_NEW]		= { .call = ctnetlink_new_conntrack,
+					    .attr_count = CTA_MAX,
 					    .cap_required = CAP_NET_ADMIN },
 	[IPCTNL_MSG_CT_GET] 		= { .call = ctnetlink_get_conntrack,
+					    .attr_count = CTA_MAX,
 					    .cap_required = CAP_NET_ADMIN },
 	[IPCTNL_MSG_CT_DELETE]  	= { .call = ctnetlink_del_conntrack,
+					    .attr_count = CTA_MAX,
 					    .cap_required = CAP_NET_ADMIN },
 	[IPCTNL_MSG_CT_GET_CTRZERO] 	= { .call = ctnetlink_get_conntrack,
+					    .attr_count = CTA_MAX,
 					    .cap_required = CAP_NET_ADMIN },
 };
 
 static struct nfnl_callback ctnl_exp_cb[IPCTNL_MSG_MAX] = {
 	[IPCTNL_MSG_EXP_GET]		= { .call = ctnetlink_get_expect,
+					    .attr_count = CTA_EXPECT_MAX,
 					    .cap_required = CAP_NET_ADMIN },
 	[IPCTNL_MSG_EXP_NEW]		= { .call = ctnetlink_new_expect,
+					    .attr_count = CTA_EXPECT_MAX,
 					    .cap_required = CAP_NET_ADMIN },
 	[IPCTNL_MSG_EXP_DELETE]		= { .call = ctnetlink_del_expect,
+					    .attr_count = CTA_EXPECT_MAX,
 					    .cap_required = CAP_NET_ADMIN },
 };
 
@@ -1506,7 +1513,6 @@ static struct nfnetlink_subsystem ctnl_subsys = {
 	.name				= "conntrack",
 	.subsys_id			= NFNL_SUBSYS_CTNETLINK,
 	.cb_count			= IPCTNL_MSG_MAX,
-	.attr_count			= CTA_MAX,
 	.cb				= ctnl_cb,
 };
 
@@ -1514,7 +1520,6 @@ static struct nfnetlink_subsystem ctnl_exp_subsys = {
 	.name				= "conntrack_expect",
 	.subsys_id			= NFNL_SUBSYS_CTNETLINK_EXP,
 	.cb_count			= IPCTNL_MSG_EXP_MAX,
-	.attr_count			= CTA_MAX,
 	.cb				= ctnl_exp_cb,
 };
 

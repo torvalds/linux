@@ -85,9 +85,10 @@ struct nfgenmsg {
 
 struct nfnl_callback
 {
-	kernel_cap_t cap_required; /* capabilities required for this msg */
 	int (*call)(struct sock *nl, struct sk_buff *skb, 
 		struct nlmsghdr *nlh, struct nfattr *cda[], int *errp);
+	kernel_cap_t cap_required; /* capabilities required for this msg */
+	u_int16_t attr_count;	/* number of nfattr's */
 };
 
 struct nfnetlink_subsystem
@@ -95,7 +96,6 @@ struct nfnetlink_subsystem
 	const char *name;
 	__u8 subsys_id;		/* nfnetlink subsystem ID */
 	__u8 cb_count;		/* number of callbacks */
-	u_int32_t attr_count;	/* number of nfattr's */
 	struct nfnl_callback *cb; /* callback for individual types */
 };
 

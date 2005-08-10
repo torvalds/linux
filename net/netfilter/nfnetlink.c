@@ -155,8 +155,18 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 			   struct nlmsghdr *nlh, struct nfattr *cda[])
 {
 	int min_len;
+	u_int16_t attr_count;
+	u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
 
-	memset(cda, 0, sizeof(struct nfattr *) * subsys->attr_count);
+	if (unlikely(cb_id >= subsys->cb_count)) {
+		DEBUGP("msgtype %u >= %u, returning\n",
+			cb_id, subsys->cb_count);
+		return -EINVAL;
+	}
+	
+	attr_count = subsys->cb[cb_id].attr_count;
+
+	memset(cda, 0, sizeof(struct nfattr *) * attr_count);
 
 	/* check attribute lengths. */
 	min_len = NLMSG_ALIGN(sizeof(struct nfgenmsg));
@@ -170,7 +180,7 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 		while (NFA_OK(attr, attrlen)) {
 			unsigned flavor = attr->nfa_type;
 			if (flavor) {
-				if (flavor > subsys->attr_count)
+				if (flavor > attr_count)
 					return -EINVAL;
 				cda[flavor - 1] = attr;
 			}
@@ -256,9 +266,11 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 	}
 
 	{
-		struct nfattr *cda[ss->attr_count];
+		u_int16_t attr_count = 
+			ss->cb[NFNL_MSG_TYPE(nlh->nlmsg_type)].attr_count;
+		struct nfattr *cda[attr_count];
 
-		memset(cda, 0, ss->attr_count*sizeof(struct nfattr *));
+		memset(cda, 0, sizeof(struct nfattr *) * attr_count);
 		
 		err = nfnetlink_check_attributes(ss, nlh, cda);
 		if (err < 0)

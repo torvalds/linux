@@ -805,8 +805,10 @@ out_put:
 
 static struct nfnl_callback nfulnl_cb[NFULNL_MSG_MAX] = {
 	[NFULNL_MSG_PACKET]	= { .call = nfulnl_recv_unsupp,
-				    .cap_required = CAP_NET_ADMIN },
+				    .attr_count = NFULA_MAX,
+				    .cap_required = CAP_NET_ADMIN, },
 	[NFULNL_MSG_CONFIG]	= { .call = nfulnl_recv_config,
+				    .attr_count = NFULA_CFG_MAX,
 				    .cap_required = CAP_NET_ADMIN },
 };
 
@@ -814,7 +816,6 @@ static struct nfnetlink_subsystem nfulnl_subsys = {
 	.name		= "log",
 	.subsys_id	= NFNL_SUBSYS_ULOG,
 	.cb_count	= NFULNL_MSG_MAX,
-	.attr_count	= NFULA_MAX,
 	.cb		= nfulnl_cb,
 };
 
