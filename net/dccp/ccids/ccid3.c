@@ -977,13 +977,14 @@ out:
 	sock_put(sk);
 }
 
-static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb,
-				   int len, long *delay)
+static int ccid3_hc_tx_send_packet(struct sock *sk,
+				   struct sk_buff *skb, int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
 	struct ccid3_tx_hist_entry *new_packet = NULL;
 	struct timeval now;
+	long delay;
 	int rc = -ENOTCONN;
 
 //	ccid3_pr_debug("%s, sk=%p, skb=%p, len=%d\n", dccp_role(sk), sk, skb, len);
@@ -1037,11 +1038,11 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb,
 		break;
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
-		*delay = (now_delta(hctx->ccid3hctx_t_nom) - hctx->ccid3hctx_delta);
-		ccid3_pr_debug("send_packet delay=%ld\n",*delay);
-		*delay /= -1000;
+		delay = (now_delta(hctx->ccid3hctx_t_nom) - hctx->ccid3hctx_delta);
+		ccid3_pr_debug("send_packet delay=%ld\n", delay);
+		delay /= -1000;
 		/* divide by -1000 is to convert to ms and get sign right */
-		rc = *delay > 0 ? -EAGAIN : 0;
+		rc = delay > 0 ? -EAGAIN : 0;
 		break;
 	default:
 		printk(KERN_CRIT "%s: %s, sk=%p, Illegal state (%d)!\n",

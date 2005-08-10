@@ -148,6 +148,41 @@ unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu)
 	return mss_now;
 }
 
+int dccp_write_xmit(struct sock *sk, struct sk_buff *skb, const int len)
+{
+	const struct dccp_sock *dp = dccp_sk(sk);
+	int err = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb, len);
+
+	if (err == 0) {
+		const struct dccp_ackpkts *ap = dp->dccps_hc_rx_ackpkts;
+		struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
+
+		if (sk->sk_state == DCCP_PARTOPEN) {
+			/* See 8.1.5.  Handshake Completion */
+			inet_csk_schedule_ack(sk);
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
+						  inet_csk(sk)->icsk_rto,
+						  DCCP_RTO_MAX);
+			dcb->dccpd_type = DCCP_PKT_DATAACK;
+			/*
+			 * FIXME: we really should have a
+			 * dccps_ack_pending or use icsk.
+			 */
+		} else if (inet_csk_ack_scheduled(sk) ||
+			   (dp->dccps_options.dccpo_send_ack_vector &&
+			    ap->dccpap_buf_ackno != DCCP_MAX_SEQNO + 1 &&
+			    ap->dccpap_ack_seqno == DCCP_MAX_SEQNO + 1))
+			dcb->dccpd_type = DCCP_PKT_DATAACK;
+		else
+			dcb->dccpd_type = DCCP_PKT_DATA;
+
+		err = dccp_transmit_skb(sk, skb);
+		ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, 0, len);
+	}
+
+	return err;
+}
+
 int dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 {
 	if (inet_sk_rebuild_header(sk) != 0)
@@ -299,7 +334,8 @@ int dccp_connect(struct sock *sk)
 	DCCP_INC_STATS(DCCP_MIB_ACTIVEOPENS);
 
 	/* Timer for repeating the REQUEST until an answer. */
-	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, icsk->icsk_rto, TCP_RTO_MAX);
+	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+				  icsk->icsk_rto, DCCP_RTO_MAX);
 	return 0;
 }
 

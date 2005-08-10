@@ -122,6 +122,9 @@ extern void dccp_send_ack(struct sock *sk);
 extern void dccp_send_delayed_ack(struct sock *sk);
 extern void dccp_send_sync(struct sock *sk, u64 seq);
 
+extern int dccp_write_xmit(struct sock *sk, struct sk_buff *skb,
+			   const int len);
+
 extern void dccp_init_xmit_timers(struct sock *sk);
 static inline void dccp_clear_xmit_timers(struct sock *sk)
 {
@@ -194,8 +197,6 @@ static inline void dccp_openreq_init(struct request_sock *req,
 	req->rcv_wnd = 0;
 }
 
-extern void dccp_v4_send_check(struct sock *sk, struct dccp_hdr *dh, int len, 
-			       struct sk_buff *skb);
 extern int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 
 extern struct sock *dccp_create_openreq_child(struct sock *sk,

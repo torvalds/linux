@@ -43,8 +43,7 @@ struct ccid {
 						    unsigned char len, u16 idx,
 						    unsigned char* value);
 	int		(*ccid_hc_tx_send_packet)(struct sock *sk,
-						  struct sk_buff *skb, int len,
-						  long *delay);
+						  struct sk_buff *skb, int len);
 	void		(*ccid_hc_tx_packet_sent)(struct sock *sk, int more, int len);
 };
 
@@ -60,12 +59,11 @@ static inline void __ccid_get(struct ccid *ccid)
 }
 
 static inline int ccid_hc_tx_send_packet(struct ccid *ccid, struct sock *sk,
-					 struct sk_buff *skb, int len,
-					 long *delay)
+					 struct sk_buff *skb, int len)
 {
 	int rc = 0;
 	if (ccid->ccid_hc_tx_send_packet != NULL)
-		rc = ccid->ccid_hc_tx_send_packet(sk, skb, len, delay);
+		rc = ccid->ccid_hc_tx_send_packet(sk, skb, len);
 	return rc;
 }
 

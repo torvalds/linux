@@ -182,8 +182,7 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		return -EMSGSIZE;
 
 	lock_sock(sk);
-
-	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
+	timeo = sock_sndtimeo(sk, noblock);
 
 	/*
 	 * We have to use sk_stream_wait_connect here to set sk_write_pending,
@@ -192,77 +191,27 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	/* Wait for a connection to finish. */
 	if ((1 << sk->sk_state) & ~(DCCPF_OPEN | DCCPF_PARTOPEN | DCCPF_CLOSING))
 		if ((rc = sk_stream_wait_connect(sk, &timeo)) != 0)
-			goto out_err;
+			goto out_release;
 
 	size = sk->sk_prot->max_header + len;
 	release_sock(sk);
 	skb = sock_alloc_send_skb(sk, size, noblock, &rc);
 	lock_sock(sk);
-
 	if (skb == NULL)
 		goto out_release;
 
 	skb_reserve(skb, sk->sk_prot->max_header);
 	rc = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
-	if (rc == 0) {
-		struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
-		const struct dccp_ackpkts *ap = dp->dccps_hc_rx_ackpkts;
-		long delay; 
+	if (rc != 0)
+		goto out_discard;
 
-		/*
-		 * XXX: This is just to match the Waikato tree CA interaction
-		 * points, after the CCID3 code is stable and I have a better
-		 * understanding of behaviour I'll change this to look more like
-		 * TCP.
-		 */
-		while (1) {
-			rc = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk,
-						    skb, len, &delay);
-			if (rc == 0)
-				break;
-			if (rc != -EAGAIN)
-				goto out_discard;
-			if (delay > timeo)
-				goto out_discard;
-			release_sock(sk);
-			delay = schedule_timeout(delay);
-			lock_sock(sk);
-			timeo -= delay;
-			if (signal_pending(current))
-				goto out_interrupted;
-			rc = -EPIPE;
-			if (!(sk->sk_state == DCCP_PARTOPEN || sk->sk_state == DCCP_OPEN))
-				goto out_discard;
-		}
-
-		if (sk->sk_state == DCCP_PARTOPEN) {
-			/* See 8.1.5.  Handshake Completion */
-			inet_csk_schedule_ack(sk);
-			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
-			dcb->dccpd_type = DCCP_PKT_DATAACK;
-			/* FIXME: we really should have a dccps_ack_pending or use icsk */
-		} else if (inet_csk_ack_scheduled(sk) ||
-			   (dp->dccps_options.dccpo_send_ack_vector &&
-			    ap->dccpap_buf_ackno != DCCP_MAX_SEQNO + 1 &&
-			    ap->dccpap_ack_seqno == DCCP_MAX_SEQNO + 1))
-			dcb->dccpd_type = DCCP_PKT_DATAACK;
-		else
-			dcb->dccpd_type = DCCP_PKT_DATA;
-		dccp_transmit_skb(sk, skb);
-		ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, 0, len);
-	} else {
-out_discard:
-		kfree_skb(skb);
-	}
+	rc = dccp_write_xmit(sk, skb, len);
 out_release:
 	release_sock(sk);
 	return rc ? : len;
-out_err:
-	rc = sk_stream_error(sk, flags, rc);
+out_discard:
+	kfree_skb(skb);
 	goto out_release;
-out_interrupted:
-	rc = sock_intr_errno(timeo);
-	goto out_discard;
 }
 
 EXPORT_SYMBOL(dccp_sendmsg);
