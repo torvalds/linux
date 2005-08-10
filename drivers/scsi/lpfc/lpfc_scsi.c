@@ -450,6 +450,8 @@ lpfc_scsi_prep_cmnd(struct lpfc_hba * phba, struct lpfc_scsi_buf * lpfc_cmd,
 	int datadir = scsi_cmnd->sc_data_direction;
 
 	lpfc_cmd->fcp_rsp->rspSnsLen = 0;
+	/* clear task management bits */
+	lpfc_cmd->fcp_cmnd->fcpCntl2 = 0;
 
 	lpfc_put_lun(lpfc_cmd->fcp_cmnd, lpfc_cmd->pCmd->device->lun);
 
