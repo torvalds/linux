@@ -1052,13 +1052,14 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		err = -ENOENT;
 		if (nlh->nlmsg_flags & NLM_F_CREATE)
 			err = ctnetlink_create_conntrack(cda, &otuple, &rtuple);
+		return err;
+	}
+	/* implicit 'else' */
+
+	/* we only allow nat config for new conntracks */
+	if (cda[CTA_NAT-1]) {
+		err = -EINVAL;
 		goto out_unlock;
-	} else {
-		/* we only allow nat config for new conntracks */
-		if (cda[CTA_NAT-1]) {
-			err = -EINVAL;
-			goto out_unlock;
-		}
 	}
 
 	/* We manipulate the conntrack inside the global conntrack table lock,
