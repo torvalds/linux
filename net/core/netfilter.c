@@ -221,7 +221,8 @@ static unsigned int nf_iterate(struct list_head *head,
 		verdict = elem->hook(hook, skb, indev, outdev, okfn);
 		if (verdict != NF_ACCEPT) {
 #ifdef CONFIG_NETFILTER_DEBUG
-			if (unlikely(verdict > NF_MAX_VERDICT)) {
+			if (unlikely((verdict & NF_VERDICT_MASK)
+							> NF_MAX_VERDICT)) {
 				NFDEBUG("Evil return from %p(%u).\n",
 				        elem->hook, hook);
 				continue;
@@ -239,6 +240,9 @@ int nf_register_queue_handler(int pf, nf_queue_outfn_t outfn, void *data)
 {      
 	int ret;
 
+	if (pf >= NPROTO)
+		return -EINVAL;
+
 	write_lock_bh(&queue_handler_lock);
 	if (queue_handler[pf].outfn)
 		ret = -EBUSY;
@@ -255,6 +259,9 @@ int nf_register_queue_handler(int pf, nf_queue_outfn_t outfn, void *data)
 /* The caller must flush their queue before this */
 int nf_unregister_queue_handler(int pf)
 {
+	if (pf >= NPROTO)
+		return -EINVAL;
+
 	write_lock_bh(&queue_handler_lock);
 	queue_handler[pf].outfn = NULL;
 	queue_handler[pf].data = NULL;
@@ -286,6 +293,20 @@ int nf_unregister_queue_rerouter(int pf)
 	return 0;
 }
 
+void nf_unregister_queue_handlers(nf_queue_outfn_t outfn)
+{
+	int pf;
+
+	write_lock_bh(&queue_handler_lock);
+	for (pf = 0; pf < NPROTO; pf++)  {
+		if (queue_handler[pf].outfn == outfn) {
+			queue_handler[pf].outfn = NULL;
+			queue_handler[pf].data = NULL;
+		}
+	}
+	write_unlock_bh(&queue_handler_lock);
+}
+
 /* 
  * Any packet that leaves via this function must come back 
  * through nf_reinject().
@@ -295,7 +316,8 @@ static int nf_queue(struct sk_buff **skb,
 		    int pf, unsigned int hook,
 		    struct net_device *indev,
 		    struct net_device *outdev,
-		    int (*okfn)(struct sk_buff *))
+		    int (*okfn)(struct sk_buff *),
+		    unsigned int queuenum)
 {
 	int status;
 	struct nf_info *info;
@@ -347,7 +369,8 @@ static int nf_queue(struct sk_buff **skb,
 	if (queue_rerouter[pf].save)
 		queue_rerouter[pf].save(*skb, info);
 
-	status = queue_handler[pf].outfn(*skb, info, queue_handler[pf].data);
+	status = queue_handler[pf].outfn(*skb, info, queuenum,
+					 queue_handler[pf].data);
 
 	if (status >= 0 && queue_rerouter[pf].reroute)
 		status = queue_rerouter[pf].reroute(skb, info);
@@ -397,9 +420,10 @@ next_hook:
 	} else if (verdict == NF_DROP) {
 		kfree_skb(*pskb);
 		ret = -EPERM;
-	} else if (verdict == NF_QUEUE) {
+	} else if ((verdict & NF_VERDICT_MASK)  == NF_QUEUE) {
 		NFDEBUG("nf_hook: Verdict = QUEUE.\n");
-		if (!nf_queue(pskb, elem, pf, hook, indev, outdev, okfn))
+		if (!nf_queue(pskb, elem, pf, hook, indev, outdev, okfn,
+			      verdict >> NF_VERDICT_BITS))
 			goto next_hook;
 	}
 unlock:
@@ -456,14 +480,15 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 				     info->okfn, INT_MIN);
 	}
 
-	switch (verdict) {
+	switch (verdict & NF_VERDICT_MASK) {
 	case NF_ACCEPT:
 		info->okfn(skb);
 		break;
 
 	case NF_QUEUE:
 		if (!nf_queue(&skb, elem, info->pf, info->hook, 
-			      info->indev, info->outdev, info->okfn))
+			      info->indev, info->outdev, info->okfn,
+			      verdict >> NF_VERDICT_BITS))
 			goto next_hook;
 		break;
 	}
@@ -613,6 +638,7 @@ EXPORT_SYMBOL(nf_reinject);
 EXPORT_SYMBOL(nf_setsockopt);
 EXPORT_SYMBOL(nf_unregister_hook);
 EXPORT_SYMBOL(nf_unregister_queue_handler);
+EXPORT_SYMBOL_GPL(nf_unregister_queue_handlers);
 EXPORT_SYMBOL_GPL(nf_register_queue_rerouter);
 EXPORT_SYMBOL_GPL(nf_unregister_queue_rerouter);
 EXPORT_SYMBOL(nf_unregister_sockopt);

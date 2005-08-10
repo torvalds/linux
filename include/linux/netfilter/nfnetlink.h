@@ -69,15 +69,14 @@ struct nfgenmsg {
 #define NFNL_SUBSYS_ID(x)	((x & 0xff00) >> 8)
 #define NFNL_MSG_TYPE(x)	(x & 0x00ff)
 
-enum nfnl_subsys_id {
-	NFNL_SUBSYS_NONE = 0,
-	NFNL_SUBSYS_CTNETLINK,
-	NFNL_SUBSYS_CTNETLINK_EXP,
-	NFNL_SUBSYS_IPTNETLINK,
-	NFNL_SUBSYS_QUEUE,
-	NFNL_SUBSYS_ULOG,
-	NFNL_SUBSYS_COUNT,
-};
+/* No enum here, otherwise __stringify() trick of MODULE_ALIAS_NFNL_SUBSYS()
+ * won't work anymore */
+#define NFNL_SUBSYS_NONE 		0
+#define NFNL_SUBSYS_CTNETLINK		1
+#define NFNL_SUBSYS_CTNETLINK_EXP	2
+#define NFNL_SUBSYS_QUEUE		3
+#define NFNL_SUBSYS_ULOG		4
+#define NFNL_SUBSYS_COUNT		5
 
 #ifdef __KERNEL__
 
@@ -141,6 +140,9 @@ extern int nfattr_parse(struct nfattr *tb[], int maxattr,
 extern int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, 
 			  int echo);
 extern int nfnetlink_unicast(struct sk_buff *skb, u_int32_t pid, int flags);
+
+#define MODULE_ALIAS_NFNL_SUBSYS(subsys) \
+	MODULE_ALIAS("nfnetlink-subsys-" __stringify(subsys))
 
 #endif	/* __KERNEL__ */
 #endif	/* _NFNETLINK_H */

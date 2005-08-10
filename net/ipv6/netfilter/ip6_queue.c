@@ -278,7 +278,8 @@ nlmsg_failure:
 }
 
 static int
-ipq_enqueue_packet(struct sk_buff *skb, struct nf_info *info, void *data)
+ipq_enqueue_packet(struct sk_buff *skb, struct nf_info *info, 
+		   unsigned int queuenum, void *data)
 {
 	int status = -EINVAL;
 	struct sk_buff *nskb;

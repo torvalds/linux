@@ -44,7 +44,9 @@ MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NETFILTER);
 static char __initdata nfversion[] = "0.30";
 
 #if 0
-#define DEBUGP printk
+#define DEBUGP(format, args...)	\
+		printk(KERN_DEBUG "%s(%d):%s(): " format, __FILE__, \
+			__LINE__, __FUNCTION__, ## args)
 #else
 #define DEBUGP(format, args...)
 #endif
@@ -67,11 +69,11 @@ int nfnetlink_subsys_register(struct nfnetlink_subsystem *n)
 {
 	DEBUGP("registering subsystem ID %u\n", n->subsys_id);
 
-	/* If the netlink socket wasn't created, then fail */
-	if (!nfnl)
-		return -1;
-
 	nfnl_lock();
+	if (subsys_table[n->subsys_id]) {
+		nfnl_unlock();
+		return -EBUSY;
+	}
 	subsys_table[n->subsys_id] = n;
 	nfnl_unlock();
 
@@ -227,8 +229,18 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 
 	type = nlh->nlmsg_type;
 	ss = nfnetlink_get_subsys(type);
-	if (!ss)
+	if (!ss) {
+#ifdef CONFIG_KMOD
+		/* don't call nfnl_shunlock, since it would reenter
+		 * with further packet processing */
+		up(&nfnl_sem);
+		request_module("nfnetlink-subsys-%d", NFNL_SUBSYS_ID(type));
+		nfnl_shlock();
+		ss = nfnetlink_get_subsys(type);
+		if (!ss)
+#endif
 		goto err_inval;
+	}
 
 	nc = nfnetlink_find_client(type, ss);
 	if (!nc) {
@@ -252,12 +264,14 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 		if (err < 0)
 			goto err_inval;
 
+		DEBUGP("calling handler\n");
 		err = nc->call(nfnl, skb, nlh, cda, errp);
 		*errp = err;
 		return err;
 	}
 
 err_inval:
+	DEBUGP("returning -EINVAL\n");
 	*errp = -EINVAL;
 	return -1;
 }
@@ -311,6 +325,8 @@ static void nfnetlink_rcv(struct sock *sk, int len)
 			kfree_skb(skb);
 		}
 
+		/* don't call nfnl_shunlock, since it would reenter
+		 * with further packet processing */
 		up(&nfnl_sem);
 	} while(nfnl && nfnl->sk_receive_queue.qlen);
 }
