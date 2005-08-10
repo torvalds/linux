@@ -64,6 +64,7 @@
 #include <linux/times.h>
 
 #include <net/icmp.h>
+#include <net/inet_hashtables.h>
 #include <net/tcp.h>
 #include <net/ipv6.h>
 #include <net/inet_common.h>
@@ -103,26 +104,6 @@ struct tcp_hashinfo __cacheline_aligned tcp_hashinfo = {
  */
 int sysctl_local_port_range[2] = { 1024, 4999 };
 int tcp_port_rover = 1024 - 1;
-
-static __inline__ int tcp_hashfn(__u32 laddr, __u16 lport,
-				 __u32 faddr, __u16 fport)
-{
-	int h = (laddr ^ lport) ^ (faddr ^ fport);
-	h ^= h >> 16;
-	h ^= h >> 8;
-	return h & (tcp_ehash_size - 1);
-}
-
-static __inline__ int tcp_sk_hashfn(struct sock *sk)
-{
-	struct inet_sock *inet = inet_sk(sk);
-	__u32 laddr = inet->rcv_saddr;
-	__u16 lport = inet->num;
-	__u32 faddr = inet->daddr;
-	__u16 fport = inet->dport;
-
-	return tcp_hashfn(laddr, lport, faddr, fport);
-}
 
 /* Allocate and initialize a new TCP local port bind bucket.
  * The bindhash mutex for snum's hash chain must be held here.
@@ -367,7 +348,8 @@ static __inline__ void __tcp_v4_hash(struct sock *sk, const int listen_possible)
 		lock = &tcp_lhash_lock;
 		tcp_listen_wlock();
 	} else {
-		list = &tcp_ehash[(sk->sk_hashent = tcp_sk_hashfn(sk))].chain;
+		sk->sk_hashent = inet_sk_ehashfn(sk, tcp_ehash_size);
+		list = &tcp_ehash[sk->sk_hashent].chain;
 		lock = &tcp_ehash[sk->sk_hashent].lock;
 		write_lock(lock);
 	}
@@ -500,7 +482,7 @@ static inline struct sock *__tcp_v4_lookup_established(u32 saddr, u16 sport,
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
-	int hash = tcp_hashfn(daddr, hnum, saddr, sport);
+	const int hash = inet_ehashfn(daddr, hnum, saddr, sport, tcp_ehash_size);
 	head = &tcp_ehash[hash];
 	read_lock(&head->lock);
 	sk_for_each(sk, node, &head->chain) {
@@ -563,7 +545,7 @@ static int __tcp_v4_check_established(struct sock *sk, __u16 lport,
 	int dif = sk->sk_bound_dev_if;
 	TCP_V4_ADDR_COOKIE(acookie, saddr, daddr)
 	__u32 ports = TCP_COMBINED_PORTS(inet->dport, lport);
-	int hash = tcp_hashfn(daddr, lport, saddr, inet->dport);
+	const int hash = inet_ehashfn(daddr, lport, saddr, inet->dport, tcp_ehash_size);
 	struct tcp_ehash_bucket *head = &tcp_ehash[hash];
 	struct sock *sk2;
 	struct hlist_node *node;
