@@ -81,7 +81,8 @@ static void raw_v6_unhash(struct sock *sk)
 
 /* Grumble... icmp and ip_input want to get at this... */
 struct sock *__raw_v6_lookup(struct sock *sk, unsigned short num,
-			     struct in6_addr *loc_addr, struct in6_addr *rmt_addr)
+			     struct in6_addr *loc_addr, struct in6_addr *rmt_addr,
+			     int dif)
 {
 	struct hlist_node *node;
 	int is_multicast = ipv6_addr_is_multicast(loc_addr);
@@ -92,6 +93,9 @@ struct sock *__raw_v6_lookup(struct sock *sk, unsigned short num,
 
 			if (!ipv6_addr_any(&np->daddr) &&
 			    !ipv6_addr_equal(&np->daddr, rmt_addr))
+				continue;
+
+			if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif)
 				continue;
 
 			if (!ipv6_addr_any(&np->rcv_saddr)) {
@@ -160,7 +164,7 @@ void ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	if (sk == NULL)
 		goto out;
 
-	sk = __raw_v6_lookup(sk, nexthdr, daddr, saddr);
+	sk = __raw_v6_lookup(sk, nexthdr, daddr, saddr, skb->dev->ifindex);
 
 	while (sk) {
 		if (nexthdr != IPPROTO_ICMPV6 || !icmpv6_filter(sk, skb)) {
@@ -170,7 +174,8 @@ void ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 			if (clone)
 				rawv6_rcv(sk, clone);
 		}
-		sk = __raw_v6_lookup(sk_next(sk), nexthdr, daddr, saddr);
+		sk = __raw_v6_lookup(sk_next(sk), nexthdr, daddr, saddr,
+				     skb->dev->ifindex);
 	}
 out:
 	read_unlock(&raw_v6_lock);
