@@ -811,8 +811,13 @@ static void __exit dccp_fini(void)
 module_init(dccp_init);
 module_exit(dccp_fini);
 
-/* __stringify doesn't likes enums, so use SOCK_DCCP (6) value directly  */
-MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-6");
+/*
+ * __stringify doesn't likes enums, so use SOCK_DCCP (6) and IPPROTO_DCCP (33)
+ * values directly, Also cover the case where the protocol is not specified,
+ * i.e. net-pf-PF_INET-proto-0-type-SOCK_DCCP
+ */
+MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-33-type-6");
+MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-0-type-6");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arnaldo Carvalho de Melo <acme@conectiva.com.br>");
 MODULE_DESCRIPTION("DCCP - Datagram Congestion Controlled Protocol");

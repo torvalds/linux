@@ -1242,6 +1242,10 @@ SCTP_STATIC __exit void sctp_exit(void)
 module_init(sctp_init);
 module_exit(sctp_exit);
 
+/*
+ * __stringify doesn't likes enums, so use IPPROTO_SCTP value (132) directly.
+ */
+MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-132");
 MODULE_AUTHOR("Linux Kernel SCTP developers <lksctp-developers@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Support for the SCTP protocol (RFC2960)");
 MODULE_LICENSE("GPL");

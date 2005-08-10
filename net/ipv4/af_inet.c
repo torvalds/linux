@@ -228,12 +228,14 @@ static int inet_create(struct socket *sock, int protocol)
 	struct proto *answer_prot;
 	unsigned char answer_flags;
 	char answer_no_check;
-	int err;
+	int try_loading_module = 0;
+	int err = -ESOCKTNOSUPPORT;
 
 	sock->state = SS_UNCONNECTED;
 
 	/* Look for the requested type/protocol pair. */
 	answer = NULL;
+lookup_protocol:
 	rcu_read_lock();
 	list_for_each_rcu(p, &inetsw[sock->type]) {
 		answer = list_entry(p, struct inet_protosw, list);
@@ -254,9 +256,28 @@ static int inet_create(struct socket *sock, int protocol)
 		answer = NULL;
 	}
 
-	err = -ESOCKTNOSUPPORT;
-	if (!answer)
-		goto out_rcu_unlock;
+	if (unlikely(answer == NULL)) {
+		if (try_loading_module < 2) {
+			rcu_read_unlock();
+			/*
+			 * Be more specific, e.g. net-pf-2-proto-132-type-1
+			 * (net-pf-PF_INET-proto-IPPROTO_SCTP-type-SOCK_STREAM)
+			 */
+			if (++try_loading_module == 1)
+				request_module("net-pf-%d-proto-%d-type-%d",
+					       PF_INET, protocol, sock->type);
+			/*
+			 * Fall back to generic, e.g. net-pf-2-proto-132
+			 * (net-pf-PF_INET-proto-IPPROTO_SCTP)
+			 */
+			else
+				request_module("net-pf-%d-proto-%d",
+					       PF_INET, protocol);
+			goto lookup_protocol;
+		} else
+			goto out_rcu_unlock;
+	}
+
 	err = -EPERM;
 	if (answer->capability > 0 && !capable(answer->capability))
 		goto out_rcu_unlock;
