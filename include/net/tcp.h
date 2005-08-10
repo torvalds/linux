@@ -669,29 +669,29 @@ struct tcp_congestion_ops {
 	struct list_head	list;
 
 	/* initialize private data (optional) */
-	void (*init)(struct tcp_sock *tp);
+	void (*init)(struct sock *sk);
 	/* cleanup private data  (optional) */
-	void (*release)(struct tcp_sock *tp);
+	void (*release)(struct sock *sk);
 
 	/* return slow start threshold (required) */
-	u32 (*ssthresh)(struct tcp_sock *tp);
+	u32 (*ssthresh)(struct sock *sk);
 	/* lower bound for congestion window (optional) */
-	u32 (*min_cwnd)(struct tcp_sock *tp);
+	u32 (*min_cwnd)(struct sock *sk);
 	/* do new cwnd calculation (required) */
-	void (*cong_avoid)(struct tcp_sock *tp, u32 ack,
+	void (*cong_avoid)(struct sock *sk, u32 ack,
 			   u32 rtt, u32 in_flight, int good_ack);
 	/* round trip time sample per acked packet (optional) */
-	void (*rtt_sample)(struct tcp_sock *tp, u32 usrtt);
+	void (*rtt_sample)(struct sock *sk, u32 usrtt);
 	/* call before changing ca_state (optional) */
-	void (*set_state)(struct tcp_sock *tp, u8 new_state);
+	void (*set_state)(struct sock *sk, u8 new_state);
 	/* call when cwnd event occurs (optional) */
-	void (*cwnd_event)(struct tcp_sock *tp, enum tcp_ca_event ev);
+	void (*cwnd_event)(struct sock *sk, enum tcp_ca_event ev);
 	/* new value of cwnd after loss (optional) */
-	u32  (*undo_cwnd)(struct tcp_sock *tp);
+	u32  (*undo_cwnd)(struct sock *sk);
 	/* hook for packet ack accounting (optional) */
-	void (*pkts_acked)(struct tcp_sock *tp, u32 num_acked);
+	void (*pkts_acked)(struct sock *sk, u32 num_acked);
 	/* get info for tcp_diag (optional) */
-	void (*get_info)(struct tcp_sock *tp, u32 ext, struct sk_buff *skb);
+	void (*get_info)(struct sock *sk, u32 ext, struct sk_buff *skb);
 
 	char 		name[TCP_CA_NAME_MAX];
 	struct module 	*owner;
@@ -700,30 +700,34 @@ struct tcp_congestion_ops {
 extern int tcp_register_congestion_control(struct tcp_congestion_ops *type);
 extern void tcp_unregister_congestion_control(struct tcp_congestion_ops *type);
 
-extern void tcp_init_congestion_control(struct tcp_sock *tp);
-extern void tcp_cleanup_congestion_control(struct tcp_sock *tp);
+extern void tcp_init_congestion_control(struct sock *sk);
+extern void tcp_cleanup_congestion_control(struct sock *sk);
 extern int tcp_set_default_congestion_control(const char *name);
 extern void tcp_get_default_congestion_control(char *name);
-extern int tcp_set_congestion_control(struct tcp_sock *tp, const char *name);
+extern int tcp_set_congestion_control(struct sock *sk, const char *name);
 
 extern struct tcp_congestion_ops tcp_init_congestion_ops;
-extern u32 tcp_reno_ssthresh(struct tcp_sock *tp);
-extern void tcp_reno_cong_avoid(struct tcp_sock *tp, u32 ack,
+extern u32 tcp_reno_ssthresh(struct sock *sk);
+extern void tcp_reno_cong_avoid(struct sock *sk, u32 ack,
 				u32 rtt, u32 in_flight, int flag);
-extern u32 tcp_reno_min_cwnd(struct tcp_sock *tp);
+extern u32 tcp_reno_min_cwnd(struct sock *sk);
 extern struct tcp_congestion_ops tcp_reno;
 
-static inline void tcp_set_ca_state(struct tcp_sock *tp, u8 ca_state)
+static inline void tcp_set_ca_state(struct sock *sk, const u8 ca_state)
 {
-	if (tp->ca_ops->set_state)
-		tp->ca_ops->set_state(tp, ca_state);
-	tp->ca_state = ca_state;
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	if (icsk->icsk_ca_ops->set_state)
+		icsk->icsk_ca_ops->set_state(sk, ca_state);
+	icsk->icsk_ca_state = ca_state;
 }
 
-static inline void tcp_ca_event(struct tcp_sock *tp, enum tcp_ca_event event)
+static inline void tcp_ca_event(struct sock *sk, const enum tcp_ca_event event)
 {
-	if (tp->ca_ops->cwnd_event)
-		tp->ca_ops->cwnd_event(tp, event);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
+
+	if (icsk->icsk_ca_ops->cwnd_event)
+		icsk->icsk_ca_ops->cwnd_event(sk, event);
 }
 
 /* This determines how many packets are "in the network" to the best
@@ -749,9 +753,10 @@ static __inline__ unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
  * The exception is rate halving phase, when cwnd is decreasing towards
  * ssthresh.
  */
-static inline __u32 tcp_current_ssthresh(struct tcp_sock *tp)
+static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 {
-	if ((1<<tp->ca_state)&(TCPF_CA_CWR|TCPF_CA_Recovery))
+	const struct tcp_sock *tp = tcp_sk(sk);
+	if ((1 << inet_csk(sk)->icsk_ca_state) & (TCPF_CA_CWR | TCPF_CA_Recovery))
 		return tp->snd_ssthresh;
 	else
 		return max(tp->snd_ssthresh,
@@ -768,10 +773,13 @@ static inline void tcp_sync_left_out(struct tcp_sock *tp)
 }
 
 /* Set slow start threshold and cwnd not falling to slow start */
-static inline void __tcp_enter_cwr(struct tcp_sock *tp)
+static inline void __tcp_enter_cwr(struct sock *sk)
 {
+	const struct inet_connection_sock *icsk = inet_csk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+
 	tp->undo_marker = 0;
-	tp->snd_ssthresh = tp->ca_ops->ssthresh(tp);
+	tp->snd_ssthresh = icsk->icsk_ca_ops->ssthresh(sk);
 	tp->snd_cwnd = min(tp->snd_cwnd,
 			   tcp_packets_in_flight(tp) + 1U);
 	tp->snd_cwnd_cnt = 0;
@@ -780,12 +788,14 @@ static inline void __tcp_enter_cwr(struct tcp_sock *tp)
 	TCP_ECN_queue_cwr(tp);
 }
 
-static inline void tcp_enter_cwr(struct tcp_sock *tp)
+static inline void tcp_enter_cwr(struct sock *sk)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+
 	tp->prior_ssthresh = 0;
-	if (tp->ca_state < TCP_CA_CWR) {
-		__tcp_enter_cwr(tp);
-		tcp_set_ca_state(tp, TCP_CA_CWR);
+	if (inet_csk(sk)->icsk_ca_state < TCP_CA_CWR) {
+		__tcp_enter_cwr(sk);
+		tcp_set_ca_state(sk, TCP_CA_CWR);
 	}
 }
 

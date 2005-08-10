@@ -258,19 +258,15 @@ struct tcp_sock {
 	__u32	mss_cache;	/* Cached effective mss, not including SACKS */
 	__u16	xmit_size_goal;	/* Goal for segmenting output packets	*/
 	__u16	ext_header_len;	/* Network protocol overhead (IP/IPv6 options) */
-	__u8	ca_state;	/* State of fast-retransmit machine 	*/
 
-	__u8	keepalive_probes; /* num of allowed keep alive probes	*/
-	__u16	advmss;		/* Advertised MSS			*/
 	__u32	window_clamp;	/* Maximal window to advertise		*/
 	__u32	rcv_ssthresh;	/* Current window clamp			*/
 
 	__u32	frto_highmark;	/* snd_nxt when RTO occurred */
 	__u8	reordering;	/* Packet reordering metric.		*/
 	__u8	frto_counter;	/* Number of new acks after RTO */
-
 	__u8	nonagle;	/* Disable Nagle algorithm?             */
-	/* ONE BYTE HOLE, TRY TO PACK */
+	__u8	keepalive_probes; /* num of allowed keep alive probes	*/
 
 /* RTT measurement */
 	__u32	srtt;		/* smoothed round trip time << 3	*/
@@ -311,8 +307,7 @@ struct tcp_sock {
 	struct tcp_sack_block duplicate_sack[1]; /* D-SACK block */
 	struct tcp_sack_block selective_acks[4]; /* The SACKS themselves*/
 
-	__u8	probes_out;	/* unanswered 0 window probes		*/
-	__u8	ecn_flags;	/* ECN status bits.			*/
+	__u16	advmss;		/* Advertised MSS			*/
 	__u16	prior_ssthresh; /* ssthresh saved at recovery start	*/
 	__u32	lost_out;	/* Lost packets			*/
 	__u32	sacked_out;	/* SACK'd packets			*/
@@ -327,7 +322,7 @@ struct tcp_sock {
 	__u32	urg_seq;	/* Seq of received urgent pointer */
 	__u16	urg_data;	/* Saved octet of OOB data and control flags */
 	__u8	urg_mode;	/* In urgent mode		*/
-	/* ONE BYTE HOLE, TRY TO PACK! */
+	__u8	ecn_flags;	/* ECN status bits.			*/
 	__u32	snd_up;		/* Urgent pointer		*/
 
 	__u32	total_retrans;	/* Total retransmits for entire connection */
@@ -351,11 +346,6 @@ struct tcp_sock {
 		__u32	seq;
 		__u32	time;
 	} rcvq_space;
-
-	/* Pluggable TCP congestion control hook */
-	struct tcp_congestion_ops *ca_ops;
-	u32	ca_priv[16];
-#define TCP_CA_PRIV_SIZE	(16*sizeof(u32))
 };
 
 static inline struct tcp_sock *tcp_sk(const struct sock *sk)
@@ -375,11 +365,6 @@ struct tcp_timewait_sock {
 static inline struct tcp_timewait_sock *tcp_twsk(const struct sock *sk)
 {
 	return (struct tcp_timewait_sock *)sk;
-}
-
-static inline void *tcp_ca(const struct tcp_sock *tp)
-{
-	return (void *) tp->ca_priv;
 }
 
 #endif

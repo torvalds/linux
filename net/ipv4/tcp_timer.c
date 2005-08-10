@@ -233,11 +233,12 @@ out_unlock:
 
 static void tcp_probe_timer(struct sock *sk)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int max_probes;
 
 	if (tp->packets_out || !sk->sk_send_head) {
-		tp->probes_out = 0;
+		icsk->icsk_probes_out = 0;
 		return;
 	}
 
@@ -248,7 +249,7 @@ static void tcp_probe_timer(struct sock *sk)
 	 * FIXME: We ought not to do it, Solaris 2.5 actually has fixing
 	 * this behaviour in Solaris down as a bug fix. [AC]
 	 *
-	 * Let me to explain. probes_out is zeroed by incoming ACKs
+	 * Let me to explain. icsk_probes_out is zeroed by incoming ACKs
 	 * even if they advertise zero window. Hence, connection is killed only
 	 * if we received no ACKs for normal connection timeout. It is not killed
 	 * only because window stays zero for some time, window may be zero
@@ -259,16 +260,15 @@ static void tcp_probe_timer(struct sock *sk)
 	max_probes = sysctl_tcp_retries2;
 
 	if (sock_flag(sk, SOCK_DEAD)) {
-		const struct inet_connection_sock *icsk = inet_csk(sk);
 		const int alive = ((icsk->icsk_rto << icsk->icsk_backoff) < TCP_RTO_MAX);
  
 		max_probes = tcp_orphan_retries(sk, alive);
 
-		if (tcp_out_of_resources(sk, alive || tp->probes_out <= max_probes))
+		if (tcp_out_of_resources(sk, alive || icsk->icsk_probes_out <= max_probes))
 			return;
 	}
 
-	if (tp->probes_out > max_probes) {
+	if (icsk->icsk_probes_out > max_probes) {
 		tcp_write_err(sk);
 	} else {
 		/* Only send another probe if we didn't close things up. */
@@ -319,19 +319,20 @@ static void tcp_retransmit_timer(struct sock *sk)
 		goto out;
 
 	if (icsk->icsk_retransmits == 0) {
-		if (tp->ca_state == TCP_CA_Disorder || tp->ca_state == TCP_CA_Recovery) {
+		if (icsk->icsk_ca_state == TCP_CA_Disorder ||
+		    icsk->icsk_ca_state == TCP_CA_Recovery) {
 			if (tp->rx_opt.sack_ok) {
-				if (tp->ca_state == TCP_CA_Recovery)
+				if (icsk->icsk_ca_state == TCP_CA_Recovery)
 					NET_INC_STATS_BH(LINUX_MIB_TCPSACKRECOVERYFAIL);
 				else
 					NET_INC_STATS_BH(LINUX_MIB_TCPSACKFAILURES);
 			} else {
-				if (tp->ca_state == TCP_CA_Recovery)
+				if (icsk->icsk_ca_state == TCP_CA_Recovery)
 					NET_INC_STATS_BH(LINUX_MIB_TCPRENORECOVERYFAIL);
 				else
 					NET_INC_STATS_BH(LINUX_MIB_TCPRENOFAILURES);
 			}
-		} else if (tp->ca_state == TCP_CA_Loss) {
+		} else if (icsk->icsk_ca_state == TCP_CA_Loss) {
 			NET_INC_STATS_BH(LINUX_MIB_TCPLOSSFAILURES);
 		} else {
 			NET_INC_STATS_BH(LINUX_MIB_TCPTIMEOUTS);
@@ -449,6 +450,7 @@ void tcp_set_keepalive(struct sock *sk, int val)
 static void tcp_keepalive_timer (unsigned long data)
 {
 	struct sock *sk = (struct sock *) data;
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	__u32 elapsed;
 
@@ -490,14 +492,14 @@ static void tcp_keepalive_timer (unsigned long data)
 	elapsed = tcp_time_stamp - tp->rcv_tstamp;
 
 	if (elapsed >= keepalive_time_when(tp)) {
-		if ((!tp->keepalive_probes && tp->probes_out >= sysctl_tcp_keepalive_probes) ||
-		     (tp->keepalive_probes && tp->probes_out >= tp->keepalive_probes)) {
+		if ((!tp->keepalive_probes && icsk->icsk_probes_out >= sysctl_tcp_keepalive_probes) ||
+		     (tp->keepalive_probes && icsk->icsk_probes_out >= tp->keepalive_probes)) {
 			tcp_send_active_reset(sk, GFP_ATOMIC);
 			tcp_write_err(sk);
 			goto out;
 		}
 		if (tcp_write_wakeup(sk) <= 0) {
-			tp->probes_out++;
+			icsk->icsk_probes_out++;
 			elapsed = keepalive_intvl_when(tp);
 		} else {
 			/* If keepalive was lost due to local congestion,

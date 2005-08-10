@@ -508,7 +508,8 @@ struct sock *inet_csk_clone(struct sock *sk, const struct request_sock *req,
 		newsk->sk_write_space = sk_stream_write_space;
 
 		newicsk->icsk_retransmits = 0;
-		newicsk->icsk_backoff = 0;
+		newicsk->icsk_backoff	  = 0;
+		newicsk->icsk_probes_out  = 0;
 
 		/* Deinitialize accept_queue to trap illegal accesses. */
 		memset(&newicsk->icsk_accept_queue, 0, sizeof(newicsk->icsk_accept_queue));

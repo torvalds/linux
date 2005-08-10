@@ -1671,11 +1671,11 @@ int tcp_disconnect(struct sock *sk, int flags)
 		tp->write_seq = 1;
 	icsk->icsk_backoff = 0;
 	tp->snd_cwnd = 2;
-	tp->probes_out = 0;
+	icsk->icsk_probes_out = 0;
 	tp->packets_out = 0;
 	tp->snd_ssthresh = 0x7fffffff;
 	tp->snd_cwnd_cnt = 0;
-	tcp_set_ca_state(tp, TCP_CA_Open);
+	tcp_set_ca_state(sk, TCP_CA_Open);
 	tcp_clear_retrans(tp);
 	inet_csk_delack_init(sk);
 	sk->sk_send_head = NULL;
@@ -1718,7 +1718,7 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		name[val] = 0;
 
 		lock_sock(sk);
-		err = tcp_set_congestion_control(tp, name);
+		err = tcp_set_congestion_control(sk, name);
 		release_sock(sk);
 		return err;
 	}
@@ -1886,9 +1886,9 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	memset(info, 0, sizeof(*info));
 
 	info->tcpi_state = sk->sk_state;
-	info->tcpi_ca_state = tp->ca_state;
+	info->tcpi_ca_state = icsk->icsk_ca_state;
 	info->tcpi_retransmits = icsk->icsk_retransmits;
-	info->tcpi_probes = tp->probes_out;
+	info->tcpi_probes = icsk->icsk_probes_out;
 	info->tcpi_backoff = icsk->icsk_backoff;
 
 	if (tp->rx_opt.tstamp_ok)
@@ -2016,7 +2016,7 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		len = min_t(unsigned int, len, TCP_CA_NAME_MAX);
 		if (put_user(len, optlen))
 			return -EFAULT;
-		if (copy_to_user(optval, tp->ca_ops->name, len))
+		if (copy_to_user(optval, icsk->icsk_ca_ops->name, len))
 			return -EFAULT;
 		return 0;
 	default:

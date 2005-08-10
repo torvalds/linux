@@ -384,9 +384,9 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->frto_counter = 0;
 		newtp->frto_highmark = 0;
 
-		newtp->ca_ops = &tcp_reno;
+		newicsk->icsk_ca_ops = &tcp_reno;
 
-		tcp_set_ca_state(newtp, TCP_CA_Open);
+		tcp_set_ca_state(newsk, TCP_CA_Open);
 		tcp_init_xmit_timers(newsk);
 		skb_queue_head_init(&newtp->out_of_order_queue);
 		newtp->rcv_wup = treq->rcv_isn + 1;
@@ -399,7 +399,6 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->rx_opt.dsack = 0;
 		newtp->rx_opt.eff_sacks = 0;
 
-		newtp->probes_out = 0;
 		newtp->rx_opt.num_sacks = 0;
 		newtp->urg_data = 0;
 

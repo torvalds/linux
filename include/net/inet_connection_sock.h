@@ -27,6 +27,7 @@
 
 struct inet_bind_bucket;
 struct inet_hashinfo;
+struct tcp_congestion_ops;
 
 /** inet_connection_sock - INET connection oriented sock
  *
@@ -35,10 +36,13 @@ struct inet_hashinfo;
  * @icsk_timeout:	   Timeout
  * @icsk_retransmit_timer: Resend (no ack)
  * @icsk_rto:		   Retransmit timeout
+ * @icsk_ca_ops		   Pluggable congestion control hook
+ * @icsk_ca_state:	   Congestion control state
  * @icsk_retransmits:	   Number of unrecovered [RTO] timeouts
  * @icsk_pending:	   Scheduled timer event
  * @icsk_backoff:	   Backoff
  * @icsk_syn_retries:      Number of allowed SYN (or equivalent) retries
+ * @icsk_probes_out:	   unanswered 0 window probes
  * @icsk_ack:		   Delayed ACK control data
  */
 struct inet_connection_sock {
@@ -50,10 +54,14 @@ struct inet_connection_sock {
  	struct timer_list	  icsk_retransmit_timer;
  	struct timer_list	  icsk_delack_timer;
 	__u32			  icsk_rto;
+	struct tcp_congestion_ops *icsk_ca_ops;
+	__u8			  icsk_ca_state;
 	__u8			  icsk_retransmits;
 	__u8			  icsk_pending;
 	__u8			  icsk_backoff;
 	__u8			  icsk_syn_retries;
+	__u8			  icsk_probes_out;
+	/* 2 BYTES HOLE, TRY TO PACK! */
 	struct {
 		__u8		  pending;	 /* ACK is pending			   */
 		__u8		  quick;	 /* Scheduled number of quick acks	   */
@@ -65,6 +73,8 @@ struct inet_connection_sock {
 		__u16		  last_seg_size; /* Size of last incoming segment	   */
 		__u16		  rcv_mss;	 /* MSS used for delayed ACK decisions	   */ 
 	} icsk_ack;
+	u32			  icsk_ca_priv[16];
+#define ICSK_CA_PRIV_SIZE	(16 * sizeof(u32))
 };
 
 #define ICSK_TIME_RETRANS	1	/* Retransmit timer */
@@ -75,6 +85,11 @@ struct inet_connection_sock {
 static inline struct inet_connection_sock *inet_csk(const struct sock *sk)
 {
 	return (struct inet_connection_sock *)sk;
+}
+
+static inline void *inet_csk_ca(const struct sock *sk)
+{
+	return (void *)inet_csk(sk)->icsk_ca_priv;
 }
 
 extern struct sock *inet_csk_clone(struct sock *sk,

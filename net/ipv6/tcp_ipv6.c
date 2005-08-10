@@ -2010,13 +2010,14 @@ static struct tcp_func ipv6_mapped = {
  */
 static int tcp_v6_init_sock(struct sock *sk)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	skb_queue_head_init(&tp->out_of_order_queue);
 	tcp_init_xmit_timers(sk);
 	tcp_prequeue_init(tp);
 
-	inet_csk(sk)->icsk_rto = TCP_TIMEOUT_INIT;
+	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 	tp->mdev = TCP_TIMEOUT_INIT;
 
 	/* So many TCP implementations out there (incorrectly) count the
@@ -2038,7 +2039,7 @@ static int tcp_v6_init_sock(struct sock *sk)
 	sk->sk_state = TCP_CLOSE;
 
 	tp->af_specific = &ipv6_specific;
-	tp->ca_ops = &tcp_init_congestion_ops;
+	icsk->icsk_ca_ops = &tcp_init_congestion_ops;
 	sk->sk_write_space = sk_stream_write_space;
 	sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 
@@ -2135,7 +2136,7 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 		   jiffies_to_clock_t(timer_expires - jiffies),
 		   icsk->icsk_retransmits,
 		   sock_i_uid(sp),
-		   tp->probes_out,
+		   icsk->icsk_probes_out,
 		   sock_i_ino(sp),
 		   atomic_read(&sp->sk_refcnt), sp,
 		   icsk->icsk_rto,

@@ -1409,13 +1409,14 @@ struct tcp_func ipv4_specific = {
  */
 static int tcp_v4_init_sock(struct sock *sk)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	skb_queue_head_init(&tp->out_of_order_queue);
 	tcp_init_xmit_timers(sk);
 	tcp_prequeue_init(tp);
 
-	inet_csk(sk)->icsk_rto = TCP_TIMEOUT_INIT;
+	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 	tp->mdev = TCP_TIMEOUT_INIT;
 
 	/* So many TCP implementations out there (incorrectly) count the
@@ -1433,7 +1434,7 @@ static int tcp_v4_init_sock(struct sock *sk)
 	tp->mss_cache = 536;
 
 	tp->reordering = sysctl_tcp_reordering;
-	tp->ca_ops = &tcp_init_congestion_ops;
+	icsk->icsk_ca_ops = &tcp_init_congestion_ops;
 
 	sk->sk_state = TCP_CLOSE;
 
@@ -1456,7 +1457,7 @@ int tcp_v4_destroy_sock(struct sock *sk)
 
 	tcp_clear_xmit_timers(sk);
 
-	tcp_cleanup_congestion_control(tp);
+	tcp_cleanup_congestion_control(sk);
 
 	/* Cleanup up the write buffer. */
   	sk_stream_writequeue_purge(sk);
@@ -1883,7 +1884,7 @@ static void get_tcp4_sock(struct sock *sp, char *tmpbuf, int i)
 		jiffies_to_clock_t(timer_expires - jiffies),
 		icsk->icsk_retransmits,
 		sock_i_uid(sp),
-		tp->probes_out,
+		icsk->icsk_probes_out,
 		sock_i_ino(sp),
 		atomic_read(&sp->sk_refcnt), sp,
 		icsk->icsk_rto,

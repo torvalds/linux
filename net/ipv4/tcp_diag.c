@@ -66,10 +66,10 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 		if (ext & (1<<(TCPDIAG_INFO-1)))
 			info = TCPDIAG_PUT(skb, TCPDIAG_INFO, sizeof(*info));
 		
-		if (ext & (1<<(TCPDIAG_CONG-1))) {
-			size_t len = strlen(tp->ca_ops->name);
+		if ((ext & (1 << (TCPDIAG_CONG - 1))) && icsk->icsk_ca_ops) {
+			size_t len = strlen(icsk->icsk_ca_ops->name);
 			strcpy(TCPDIAG_PUT(skb, TCPDIAG_CONG, len+1),
-			       tp->ca_ops->name);
+			       icsk->icsk_ca_ops->name);
 		}
 	}
 	r->tcpdiag_family = sk->sk_family;
@@ -136,18 +136,17 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 		r->tcpdiag_expires = EXPIRES_IN_MS(icsk->icsk_timeout);
 	} else if (icsk->icsk_pending == ICSK_TIME_PROBE0) {
 		r->tcpdiag_timer = 4;
-		r->tcpdiag_retrans = tp->probes_out;
+		r->tcpdiag_retrans = icsk->icsk_probes_out;
 		r->tcpdiag_expires = EXPIRES_IN_MS(icsk->icsk_timeout);
 	} else if (timer_pending(&sk->sk_timer)) {
 		r->tcpdiag_timer = 2;
-		r->tcpdiag_retrans = tp->probes_out;
+		r->tcpdiag_retrans = icsk->icsk_probes_out;
 		r->tcpdiag_expires = EXPIRES_IN_MS(sk->sk_timer.expires);
 	} else {
 		r->tcpdiag_timer = 0;
 		r->tcpdiag_expires = 0;
 	}
 #undef EXPIRES_IN_MS
-
 	r->tcpdiag_rqueue = tp->rcv_nxt - tp->copied_seq;
 	r->tcpdiag_wqueue = tp->write_seq - tp->snd_una;
 	r->tcpdiag_uid = sock_i_uid(sk);
@@ -163,8 +162,9 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 	if (info) 
 		tcp_get_info(sk, info);
 
-	if (sk->sk_state < TCP_TIME_WAIT && tp->ca_ops->get_info)
-		tp->ca_ops->get_info(tp, ext, skb);
+	if (sk->sk_state < TCP_TIME_WAIT &&
+	    icsk->icsk_ca_ops && icsk->icsk_ca_ops->get_info)
+		icsk->icsk_ca_ops->get_info(sk, ext, skb);
 
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
