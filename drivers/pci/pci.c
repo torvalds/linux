@@ -445,7 +445,7 @@ pci_enable_device_bars(struct pci_dev *dev, int bars)
 	int err;
 
 	err = pci_set_power_state(dev, PCI_D0);
-	if (err)
+	if (err < 0 && err != -EIO)
 		return err;
 	err = pcibios_enable_device(dev, bars);
 	if (err < 0)
