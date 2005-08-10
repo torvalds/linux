@@ -107,7 +107,7 @@ static int vhci_send_frame(struct sk_buff *skb)
 
 	vhci = hdev->driver_data;
 
-	memcpy(skb_push(skb, 1), &skb->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
 	skb_queue_tail(&vhci->readq, skb);
 
 	if (vhci->flags & VHCI_FASYNC)
@@ -141,7 +141,7 @@ static inline ssize_t vhci_get_user(struct vhci_data *vhci,
 	}
 
 	skb->dev = (void *) vhci->hdev;
-	skb->pkt_type = *((__u8 *) skb->data);
+	bt_cb(skb)->pkt_type = *((__u8 *) skb->data);
 	skb_pull(skb, 1);
 
 	hci_recv_frame(skb);
@@ -164,18 +164,18 @@ static inline ssize_t vhci_put_user(struct vhci_data *vhci,
 
 	vhci->hdev->stat.byte_tx += len;
 
-	switch (skb->pkt_type) {
-		case HCI_COMMAND_PKT:
-			vhci->hdev->stat.cmd_tx++;
-			break;
+	switch (bt_cb(skb)->pkt_type) {
+	case HCI_COMMAND_PKT:
+		vhci->hdev->stat.cmd_tx++;
+		break;
 
-		case HCI_ACLDATA_PKT:
-			vhci->hdev->stat.acl_tx++;
-			break;
+	case HCI_ACLDATA_PKT:
+		vhci->hdev->stat.acl_tx++;
+		break;
 
-		case HCI_SCODATA_PKT:
-			vhci->hdev->stat.cmd_tx++;
-			break;
+	case HCI_SCODATA_PKT:
+		vhci->hdev->stat.cmd_tx++;
+		break;
 	};
 
 	return total;

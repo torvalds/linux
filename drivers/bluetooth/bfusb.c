@@ -330,7 +330,7 @@ static inline int bfusb_recv_block(struct bfusb *bfusb, int hdr, unsigned char *
 		}
 
 		skb->dev = (void *) bfusb->hdev;
-		skb->pkt_type = pkt_type;
+		bt_cb(skb)->pkt_type = pkt_type;
 
 		bfusb->reassembly = skb;
 	} else {
@@ -485,7 +485,7 @@ static int bfusb_send_frame(struct sk_buff *skb)
 	unsigned char buf[3];
 	int sent = 0, size, count;
 
-	BT_DBG("hdev %p skb %p type %d len %d", hdev, skb, skb->pkt_type, skb->len);
+	BT_DBG("hdev %p skb %p type %d len %d", hdev, skb, bt_cb(skb)->pkt_type, skb->len);
 
 	if (!hdev) {
 		BT_ERR("Frame for unknown HCI device (hdev=NULL)");
@@ -497,7 +497,7 @@ static int bfusb_send_frame(struct sk_buff *skb)
 
 	bfusb = (struct bfusb *) hdev->driver_data;
 
-	switch (skb->pkt_type) {
+	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		break;
@@ -510,7 +510,7 @@ static int bfusb_send_frame(struct sk_buff *skb)
 	};
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &(skb->pkt_type), 1);
+	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
 
 	count = skb->len;
 
