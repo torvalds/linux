@@ -38,15 +38,6 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/timer.h>
-
-struct ccid3_tx_hist_entry {
-	struct list_head	ccid3htx_node;
-	u64			ccid3htx_seqno:48,
-				ccid3htx_win_count:8,
-				ccid3htx_sent:1;
-	struct timeval		ccid3htx_tstamp;
-};
 
 struct ccid3_options_received {
 	u64 ccid3or_seqno:48,
@@ -100,15 +91,6 @@ struct ccid3_loss_interval_hist_entry {
 	u64			ccid3lih_seqno:48,
 				ccid3lih_win_count:4;
 	u32			ccid3lih_interval;
-};
-
-struct ccid3_rx_hist_entry {
-	struct list_head	ccid3hrx_node;
-	u64			ccid3hrx_seqno:48,
-				ccid3hrx_win_count:4,
-				ccid3hrx_type:4;
-	u32			ccid3hrx_ndp; /* In fact it is from 8 to 24 bits */
-	struct timeval		ccid3hrx_tstamp;
 };
 
 struct ccid3_hc_rx_sock {

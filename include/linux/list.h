@@ -427,7 +427,8 @@ static inline void list_splice_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_for_each_entry_safe_continue(pos, n, head, member) 		\
-	for (pos = n, n = list_entry(n->member.next, typeof(*n), member);	\
+	for (pos = list_entry(pos->member.next, typeof(*pos), member), 		\
+		n = list_entry(pos->member.next, typeof(*pos), member);		\
 	     &pos->member != (head);						\
 	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
 
