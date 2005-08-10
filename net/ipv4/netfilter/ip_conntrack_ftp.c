@@ -25,8 +25,7 @@ MODULE_AUTHOR("Rusty Russell <rusty@rustcorp.com.au>");
 MODULE_DESCRIPTION("ftp connection tracking helper");
 
 /* This is slow, but it's simple. --RR */
-static char ftp_buffer[65536];
-
+static char *ftp_buffer;
 static DEFINE_SPINLOCK(ip_ftp_lock);
 
 #define MAX_PORTS 8
@@ -461,12 +460,18 @@ static void fini(void)
 				ports[i]);
 		ip_conntrack_helper_unregister(&ftp[i]);
 	}
+
+	kfree(ftp_buffer);
 }
 
 static int __init init(void)
 {
 	int i, ret;
 	char *tmpname;
+
+	ftp_buffer = kmalloc(65536, GFP_KERNEL);
+	if (!ftp_buffer)
+		return -ENOMEM;
 
 	if (ports_c == 0)
 		ports[ports_c++] = FTP_PORT;
