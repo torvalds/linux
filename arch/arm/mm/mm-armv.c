@@ -383,6 +383,7 @@ static void __init build_mem_type_table(void)
 {
 	struct cachepolicy *cp;
 	unsigned int cr = get_cr();
+	unsigned int user_pgprot;
 	int cpu_arch = cpu_architecture();
 	int i;
 
@@ -408,6 +409,9 @@ static void __init build_mem_type_table(void)
 		}
 	}
 
+	cp = &cache_policies[cachepolicy];
+	user_pgprot = cp->pte;
+
 	/*
 	 * ARMv6 and above have extended page tables.
 	 */
@@ -426,11 +430,18 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_MINICLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_CACHECLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 
+		/*
+		 * Mark the device area as "shared device"
+		 */
 		mem_types[MT_DEVICE].prot_pte |= L_PTE_BUFFERABLE;
 		mem_types[MT_DEVICE].prot_sect |= PMD_SECT_BUFFERED;
-	}
 
-	cp = &cache_policies[cachepolicy];
+		/*
+		 * User pages need to be mapped with the ASID
+		 * (iow, non-global)
+		 */
+		user_pgprot |= L_PTE_ASID;
+	}
 
 	if (cpu_arch >= CPU_ARCH_ARMv5) {
 		mem_types[MT_LOW_VECTORS].prot_pte |= cp->pte & PTE_CACHEABLE;
@@ -448,7 +459,7 @@ static void __init build_mem_type_table(void)
 
 	for (i = 0; i < 16; i++) {
 		unsigned long v = pgprot_val(protection_map[i]);
-		v &= (~(PTE_BUFFERABLE|PTE_CACHEABLE)) | cp->pte;
+		v &= (~(PTE_BUFFERABLE|PTE_CACHEABLE)) | user_pgprot;
 		protection_map[i] = __pgprot(v);
 	}
 
