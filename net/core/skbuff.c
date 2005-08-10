@@ -300,7 +300,6 @@ void __kfree_skb(struct sk_buff *skb)
 	skb->tc_index = 0;
 #ifdef CONFIG_NET_CLS_ACT
 	skb->tc_verd = 0;
-	skb->tc_classid = 0;
 #endif
 #endif
 
@@ -376,7 +375,6 @@ struct sk_buff *skb_clone(struct sk_buff *skb, unsigned int __nocast gfp_mask)
 	n->tc_verd = CLR_TC_OK2MUNGE(n->tc_verd);
 	n->tc_verd = CLR_TC_MUNGED(n->tc_verd);
 	C(input_dev);
-	C(tc_classid);
 #endif
 
 #endif

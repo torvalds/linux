@@ -196,7 +196,6 @@ struct skb_shared_info {
  *      @private: Data which is private to the HIPPI implementation
  *	@tc_index: Traffic control index
  *	@tc_verd: traffic control verdict
- *	@tc_classid: traffic control classid
  */
 
 struct sk_buff {
@@ -275,9 +274,7 @@ struct sk_buff {
        __u32			tc_index;        /* traffic control index */
 #ifdef CONFIG_NET_CLS_ACT
 	__u32           tc_verd;               /* traffic control verdict */
-	__u32           tc_classid;            /* traffic control classid */
 #endif
-
 #endif
 
 
