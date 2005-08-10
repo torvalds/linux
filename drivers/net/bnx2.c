@@ -52,7 +52,6 @@ static struct {
 	{ "HP NC370i Multifunction Gigabit Server Adapter" },
 	{ "Broadcom NetXtreme II BCM5706 1000Base-SX" },
 	{ "HP NC370F Multifunction Gigabit Server Adapter" },
-	{ 0 },
 	};
 
 static struct pci_device_id bnx2_pci_tbl[] = {
@@ -3507,11 +3506,11 @@ bnx2_test_registers(struct bnx2 *bp)
 		rw_mask = reg_tbl[i].rw_mask;
 		ro_mask = reg_tbl[i].ro_mask;
 
-		save_val = readl((u8 *) bp->regview + offset);
+		save_val = readl(bp->regview + offset);
 
-		writel(0, (u8 *) bp->regview + offset);
+		writel(0, bp->regview + offset);
 
-		val = readl((u8 *) bp->regview + offset);
+		val = readl(bp->regview + offset);
 		if ((val & rw_mask) != 0) {
 			goto reg_test_err;
 		}
@@ -3520,9 +3519,9 @@ bnx2_test_registers(struct bnx2 *bp)
 			goto reg_test_err;
 		}
 
-		writel(0xffffffff, (u8 *) bp->regview + offset);
+		writel(0xffffffff, bp->regview + offset);
 
-		val = readl((u8 *) bp->regview + offset);
+		val = readl(bp->regview + offset);
 		if ((val & rw_mask) != rw_mask) {
 			goto reg_test_err;
 		}
@@ -3531,11 +3530,11 @@ bnx2_test_registers(struct bnx2 *bp)
 			goto reg_test_err;
 		}
 
-		writel(save_val, (u8 *) bp->regview + offset);
+		writel(save_val, bp->regview + offset);
 		continue;
 
 reg_test_err:
-		writel(save_val, (u8 *) bp->regview + offset);
+		writel(save_val, bp->regview + offset);
 		ret = -ENODEV;
 		break;
 	}
@@ -4698,7 +4697,7 @@ bnx2_set_rx_csum(struct net_device *dev, u32 data)
 
 #define BNX2_NUM_STATS 45
 
-struct {
+static struct {
 	char string[ETH_GSTRING_LEN];
 } bnx2_stats_str_arr[BNX2_NUM_STATS] = {
 	{ "rx_bytes" },
@@ -4750,7 +4749,7 @@ struct {
 
 #define STATS_OFFSET32(offset_name) (offsetof(struct statistics_block, offset_name) / 4)
 
-unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
+static unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
     STATS_OFFSET32(stat_IfHCInOctets_hi),
     STATS_OFFSET32(stat_IfHCInBadOctets_hi),
     STATS_OFFSET32(stat_IfHCOutOctets_hi),
@@ -4801,7 +4800,7 @@ unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
 /* stat_IfHCInBadOctets and stat_Dot3StatsCarrierSenseErrors are
  * skipped because of errata.
  */               
-u8 bnx2_5706_stats_len_arr[BNX2_NUM_STATS] = {
+static u8 bnx2_5706_stats_len_arr[BNX2_NUM_STATS] = {
 	8,0,8,8,8,8,8,8,8,8,
 	4,0,4,4,4,4,4,4,4,4,
 	4,4,4,4,4,4,4,4,4,4,
@@ -4811,7 +4810,7 @@ u8 bnx2_5706_stats_len_arr[BNX2_NUM_STATS] = {
 
 #define BNX2_NUM_TESTS 6
 
-struct {
+static struct {
 	char string[ETH_GSTRING_LEN];
 } bnx2_tests_str_arr[BNX2_NUM_TESTS] = {
 	{ "register_test (offline)" },
@@ -4910,7 +4909,7 @@ bnx2_get_ethtool_stats(struct net_device *dev,
 	struct bnx2 *bp = dev->priv;
 	int i;
 	u32 *hw_stats = (u32 *) bp->stats_blk;
-	u8 *stats_len_arr = 0;
+	u8 *stats_len_arr = NULL;
 
 	if (hw_stats == NULL) {
 		memset(buf, 0, sizeof(u64) * BNX2_NUM_STATS);
@@ -5012,7 +5011,7 @@ static struct ethtool_ops bnx2_ethtool_ops = {
 static int
 bnx2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr->ifr_data;
+	struct mii_ioctl_data *data = if_mii(ifr);
 	struct bnx2 *bp = dev->priv;
 	int err;
 
@@ -5505,12 +5504,12 @@ bnx2_resume(struct pci_dev *pdev)
 }
 
 static struct pci_driver bnx2_pci_driver = {
-	name:		DRV_MODULE_NAME,
-	id_table:	bnx2_pci_tbl,
-	probe:		bnx2_init_one,
-	remove:		__devexit_p(bnx2_remove_one),
-	suspend:	bnx2_suspend,
-	resume:		bnx2_resume,
+	.name		= DRV_MODULE_NAME,
+	.id_table	= bnx2_pci_tbl,
+	.probe		= bnx2_init_one,
+	.remove		= __devexit_p(bnx2_remove_one),
+	.suspend	= bnx2_suspend,
+	.resume		= bnx2_resume,
 };
 
 static int __init bnx2_init(void)
