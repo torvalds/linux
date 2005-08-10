@@ -860,7 +860,7 @@ static __inline__ void tcp_update_wl(struct tcp_sock *tp, u32 ack, u32 seq)
 	tp->snd_wl1 = seq;
 }
 
-extern void tcp_destroy_sock(struct sock *sk);
+extern void inet_csk_destroy_sock(struct sock *sk);
 
 
 /*
@@ -987,7 +987,7 @@ static __inline__ void tcp_done(struct sock *sk)
 	if (!sock_flag(sk, SOCK_DEAD))
 		sk->sk_state_change(sk);
 	else
-		tcp_destroy_sock(sk);
+		inet_csk_destroy_sock(sk);
 }
 
 static __inline__ void tcp_sack_reset(struct tcp_options_received *rx_opt)

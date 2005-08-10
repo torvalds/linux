@@ -273,6 +273,8 @@ DEFINE_SNMP_STAT(struct tcp_mib, tcp_statistics);
 
 atomic_t tcp_orphan_count = ATOMIC_INIT(0);
 
+EXPORT_SYMBOL_GPL(tcp_orphan_count);
+
 int sysctl_tcp_mem[3];
 int sysctl_tcp_wmem[3] = { 4 * 1024, 16 * 1024, 128 * 1024 };
 int sysctl_tcp_rmem[3] = { 4 * 1024, 87380, 87380 * 2 };
@@ -454,12 +456,11 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 	return put_user(answ, (int __user *)arg);
 }
 
-
-int tcp_listen_start(struct sock *sk)
+int inet_csk_listen_start(struct sock *sk, const int nr_table_entries)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
-	int rc = reqsk_queue_alloc(&icsk->icsk_accept_queue, TCP_SYNQ_HSIZE);
+	int rc = reqsk_queue_alloc(&icsk->icsk_accept_queue, nr_table_entries);
 
 	if (rc != 0)
 		return rc;
@@ -488,12 +489,13 @@ int tcp_listen_start(struct sock *sk)
 	return -EADDRINUSE;
 }
 
+EXPORT_SYMBOL_GPL(inet_csk_listen_start);
+
 /*
  *	This routine closes sockets which have been at least partially
  *	opened, but not yet accepted.
  */
-
-static void tcp_listen_stop (struct sock *sk)
+static void inet_csk_listen_stop(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct request_sock *acc_req;
@@ -524,13 +526,13 @@ static void tcp_listen_stop (struct sock *sk)
 		BUG_TRAP(!sock_owned_by_user(child));
 		sock_hold(child);
 
-		tcp_disconnect(child, O_NONBLOCK);
+		sk->sk_prot->disconnect(child, O_NONBLOCK);
 
 		sock_orphan(child);
 
-		atomic_inc(&tcp_orphan_count);
+		atomic_inc(sk->sk_prot->orphan_count);
 
-		tcp_destroy_sock(child);
+		inet_csk_destroy_sock(child);
 
 		bh_unlock_sock(child);
 		local_bh_enable();
@@ -541,6 +543,8 @@ static void tcp_listen_stop (struct sock *sk)
 	}
 	BUG_TRAP(!sk->sk_ack_backlog);
 }
+
+EXPORT_SYMBOL_GPL(inet_csk_listen_stop);
 
 static inline void tcp_mark_push(struct tcp_sock *tp, struct sk_buff *skb)
 {
@@ -1561,7 +1565,7 @@ void tcp_shutdown(struct sock *sk, int how)
  * can assume the socket waitqueue is inactive and nobody will
  * try to jump onto it.
  */
-void tcp_destroy_sock(struct sock *sk)
+void inet_csk_destroy_sock(struct sock *sk)
 {
 	BUG_TRAP(sk->sk_state == TCP_CLOSE);
 	BUG_TRAP(sock_flag(sk, SOCK_DEAD));
@@ -1580,7 +1584,7 @@ void tcp_destroy_sock(struct sock *sk)
 
 	sk_refcnt_debug_release(sk);
 
-	atomic_dec(&tcp_orphan_count);
+	atomic_dec(sk->sk_prot->orphan_count);
 	sock_put(sk);
 }
 
@@ -1596,7 +1600,7 @@ void tcp_close(struct sock *sk, long timeout)
 		tcp_set_state(sk, TCP_CLOSE);
 
 		/* Special case. */
-		tcp_listen_stop(sk);
+		inet_csk_listen_stop(sk);
 
 		goto adjudge_to_death;
 	}
@@ -1704,7 +1708,7 @@ adjudge_to_death:
 			if (tmo > TCP_TIMEWAIT_LEN) {
 				inet_csk_reset_keepalive_timer(sk, tcp_fin_time(sk));
 			} else {
-				atomic_inc(&tcp_orphan_count);
+				atomic_inc(sk->sk_prot->orphan_count);
 				tcp_time_wait(sk, TCP_FIN_WAIT2, tmo);
 				goto out;
 			}
@@ -1712,7 +1716,7 @@ adjudge_to_death:
 	}
 	if (sk->sk_state != TCP_CLOSE) {
 		sk_stream_mem_reclaim(sk);
-		if (atomic_read(&tcp_orphan_count) > sysctl_tcp_max_orphans ||
+		if (atomic_read(sk->sk_prot->orphan_count) > sysctl_tcp_max_orphans ||
 		    (sk->sk_wmem_queued > SOCK_MIN_SNDBUF &&
 		     atomic_read(&tcp_memory_allocated) > sysctl_tcp_mem[2])) {
 			if (net_ratelimit())
@@ -1723,10 +1727,10 @@ adjudge_to_death:
 			NET_INC_STATS_BH(LINUX_MIB_TCPABORTONMEMORY);
 		}
 	}
-	atomic_inc(&tcp_orphan_count);
+	atomic_inc(sk->sk_prot->orphan_count);
 
 	if (sk->sk_state == TCP_CLOSE)
-		tcp_destroy_sock(sk);
+		inet_csk_destroy_sock(sk);
 	/* Otherwise, socket is reprieved until protocol close. */
 
 out:
@@ -1757,7 +1761,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 
 	/* ABORT function of RFC793 */
 	if (old_state == TCP_LISTEN) {
-		tcp_listen_stop(sk);
+		inet_csk_listen_stop(sk);
 	} else if (tcp_need_reset(old_state) ||
 		   (tp->snd_nxt != tp->write_seq &&
 		    (1 << old_state) & (TCPF_CLOSING | TCPF_LAST_ACK))) {
@@ -2253,7 +2257,7 @@ void __init tcp_init(void)
 }
 
 EXPORT_SYMBOL(tcp_close);
-EXPORT_SYMBOL(tcp_destroy_sock);
+EXPORT_SYMBOL(inet_csk_destroy_sock);
 EXPORT_SYMBOL(tcp_disconnect);
 EXPORT_SYMBOL(tcp_getsockopt);
 EXPORT_SYMBOL(tcp_ioctl);

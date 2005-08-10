@@ -558,6 +558,7 @@ struct proto {
 
 	kmem_cache_t		*twsk_slab;
 	unsigned int		twsk_obj_size;
+	atomic_t		*orphan_count;
 
 	struct request_sock_ops	*rsk_prot;
 
