@@ -24,6 +24,9 @@ int nf_log_register(int pf, struct nf_logger *logger)
 {
 	int ret = -EBUSY;
 
+	if (pf >= NPROTO)
+		return -EINVAL;
+
 	/* Any setup of logging members must be done before
 	 * substituting pointer. */
 	spin_lock(&nf_log_lock);
@@ -38,14 +41,19 @@ int nf_log_register(int pf, struct nf_logger *logger)
 }		
 EXPORT_SYMBOL(nf_log_register);
 
-void nf_log_unregister_pf(int pf)
+int nf_log_unregister_pf(int pf)
 {
+	if (pf >= NPROTO)
+		return -EINVAL;
+
 	spin_lock(&nf_log_lock);
 	nf_logging[pf] = NULL;
 	spin_unlock(&nf_log_lock);
 
 	/* Give time to concurrent readers. */
 	synchronize_net();
+
+	return 0;
 }
 EXPORT_SYMBOL(nf_log_unregister_pf);
 
