@@ -77,6 +77,10 @@ static inline struct inet_connection_sock *inet_csk(const struct sock *sk)
 	return (struct inet_connection_sock *)sk;
 }
 
+extern struct sock *inet_csk_clone(struct sock *sk,
+				   const struct request_sock *req,
+				   const unsigned int __nocast priority);
+
 enum inet_csk_ack_state_t {
 	ICSK_ACK_SCHED	= 1,
 	ICSK_ACK_TIMER  = 2,

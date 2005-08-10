@@ -600,21 +600,13 @@ out:
  */
 struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req, struct sk_buff *skb)
 {
-	struct sock *newsk = sk_clone(sk, GFP_ATOMIC);
+	struct sock *newsk = inet_csk_clone(sk, req, GFP_ATOMIC);
 
 	if (newsk != NULL) {
-		struct inet_request_sock *ireq = inet_rsk(req);
+		const struct inet_request_sock *ireq = inet_rsk(req);
 		struct tcp_request_sock *treq = tcp_rsk(req);
-		struct inet_sock *newinet = inet_sk(newsk);
-		struct inet_connection_sock *newicsk = inet_csk(newsk);
+		struct inet_connection_sock *newicsk = inet_csk(sk);
 		struct tcp_sock *newtp;
-
-		newsk->sk_state = TCP_SYN_RECV;
-		newicsk->icsk_bind_hash = NULL;
-
-		/* Clone the TCP header template */
-		newinet->dport = ireq->rmt_port;
-		newsk->sk_write_space = sk_stream_write_space;
 
 		/* Now setup tcp_sock */
 		newtp = tcp_sk(newsk);
@@ -626,8 +618,6 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 
 		tcp_init_wl(newtp, treq->snt_isn, treq->rcv_isn);
 
-		newicsk->icsk_retransmits = 0;
-		newicsk->icsk_backoff = 0;
 		newtp->srtt = 0;
 		newtp->mdev = TCP_TIMEOUT_INIT;
 		newicsk->icsk_rto = TCP_TIMEOUT_INIT;
@@ -668,8 +658,6 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->probes_out = 0;
 		newtp->rx_opt.num_sacks = 0;
 		newtp->urg_data = 0;
-		/* Deinitialize accept_queue to trap illegal accesses. */
-		memset(&newicsk->icsk_accept_queue, 0, sizeof(newicsk->icsk_accept_queue));
 
 		if (sock_flag(newsk, SOCK_KEEPOPEN))
 			inet_csk_reset_keepalive_timer(newsk,
