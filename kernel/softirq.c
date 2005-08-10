@@ -86,7 +86,7 @@ restart:
 	/* Reset the pending bitmask before enabling irqs */
 	local_softirq_pending() = 0;
 
-	//local_irq_enable();
+	local_irq_enable();
 
 	h = softirq_vec;
 
@@ -99,7 +99,7 @@ restart:
 		pending >>= 1;
 	} while (pending);
 
-	//local_irq_disable();
+	local_irq_disable();
 
 	pending = local_softirq_pending();
 	if (pending && --max_restart)

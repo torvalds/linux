@@ -188,7 +188,7 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define	SMC_IRQ_TRIGGER_TYPE (( \
 		   machine_is_omap_h2() \
 		|| machine_is_omap_h3() \
-		|| (machine_is_omap_innovator() && !cpu_is_omap150()) \
+		|| (machine_is_omap_innovator() && !cpu_is_omap1510()) \
 	) ? IRQT_FALLING : IRQT_RISING)
 
 

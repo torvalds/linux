@@ -145,10 +145,14 @@ acpi_os_vprintf(const char *fmt, va_list args)
 #endif
 }
 
+extern int acpi_in_resume;
 void *
 acpi_os_allocate(acpi_size size)
 {
-	return kmalloc(size, GFP_KERNEL);
+	if (acpi_in_resume)
+		return kmalloc(size, GFP_ATOMIC);
+	else
+		return kmalloc(size, GFP_KERNEL);
 }
 
 void

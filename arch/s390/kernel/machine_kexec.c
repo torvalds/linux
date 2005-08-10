@@ -70,6 +70,8 @@ machine_kexec(struct kimage *image)
 	for (;;);
 }
 
+extern void pfault_fini(void);
+
 static void
 kexec_halt_all_cpus(void *kernel_image)
 {
@@ -77,6 +79,11 @@ kexec_halt_all_cpus(void *kernel_image)
 	int cpu;
 	struct kimage *image;
 	relocate_kernel_t data_mover;
+
+#ifdef CONFIG_PFAULT
+	if (MACHINE_IS_VM)
+		pfault_fini();
+#endif
 
 	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid))
 		signal_processor(smp_processor_id(), sigp_stop);

@@ -527,7 +527,7 @@ show_periodic (struct class_device *class_dev, char *buf)
 						p.qh->period,
 						le32_to_cpup (&p.qh->hw_info2)
 							/* uframe masks */
-							& 0xffff,
+							& (QH_CMASK | QH_SMASK),
 						p.qh);
 				size -= temp;
 				next += temp;

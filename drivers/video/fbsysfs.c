@@ -414,6 +414,13 @@ static ssize_t show_pan(struct class_device *class_device, char *buf)
 			fb_info->var.xoffset);
 }
 
+static ssize_t show_name(struct class_device *class_device, char *buf)
+{
+	struct fb_info *fb_info = (struct fb_info *)class_get_devdata(class_device);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", fb_info->fix.id);
+}
+
 static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(bits_per_pixel, S_IRUGO|S_IWUSR, show_bpp, store_bpp),
 	__ATTR(blank, S_IRUGO|S_IWUSR, show_blank, store_blank),
@@ -424,6 +431,7 @@ static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(modes, S_IRUGO|S_IWUSR, show_modes, store_modes),
 	__ATTR(pan, S_IRUGO|S_IWUSR, show_pan, store_pan),
 	__ATTR(virtual_size, S_IRUGO|S_IWUSR, show_virtual, store_virtual),
+	__ATTR(name, S_IRUGO, show_name, NULL),
 };
 
 int fb_init_class_device(struct fb_info *fb_info)

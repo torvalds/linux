@@ -160,7 +160,7 @@ clone_mnt(struct vfsmount *old, struct dentry *root)
 		mnt->mnt_root = dget(root);
 		mnt->mnt_mountpoint = mnt->mnt_root;
 		mnt->mnt_parent = mnt;
-		mnt->mnt_namespace = old->mnt_namespace;
+		mnt->mnt_namespace = current->namespace;
 
 		/* stick the duplicate mount on the same expiry list
 		 * as the original if that was on one */

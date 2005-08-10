@@ -442,6 +442,13 @@ acpi_cpufreq_cpu_init (
 			(u32) data->acpi_data.states[i].transition_latency);
 
 	cpufreq_frequency_table_get_attr(data->freq_table, policy->cpu);
+	
+	/*
+	 * the first call to ->target() should result in us actually
+	 * writing something to the appropriate registers.
+	 */
+	data->resume = 1;
+	
 	return (result);
 
  err_freqfree:

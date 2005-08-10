@@ -40,13 +40,15 @@
 #define TX_NUM_FIFO	4
 #define TX_BUF_SIZE	32
 
+#define SCC_WAIT_CLOSING 100
+
 struct uart_cpm_port {
 	struct uart_port	port;
-	u16			rx_nrfifos;	
+	u16			rx_nrfifos;
 	u16			rx_fifosize;
-	u16			tx_nrfifos;	
+	u16			tx_nrfifos;
 	u16			tx_fifosize;
-	smc_t			*smcp;	
+	smc_t			*smcp;
 	smc_uart_t		*smcup;
 	scc_t			*sccp;
 	scc_uart_t		*sccup;
@@ -67,6 +69,8 @@ struct uart_cpm_port {
 	int			 bits;
 	/* Keep track of 'odd' SMC2 wirings */
 	int			is_portb;
+	/* wait on close if needed */
+	int 			wait_closing;
 };
 
 extern int cpm_uart_port_map[UART_NR];

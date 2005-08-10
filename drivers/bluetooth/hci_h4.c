@@ -57,8 +57,6 @@
 #ifndef CONFIG_BT_HCIUART_DEBUG
 #undef  BT_DBG
 #define BT_DBG( A... )
-#undef  BT_DMP
-#define BT_DMP( A... )
 #endif
 
 /* Initialize protocol */
@@ -125,7 +123,6 @@ static inline int h4_check_data_len(struct h4_struct *h4, int len)
 
 	BT_DBG("len %d room %d", len, room);
 	if (!len) {
-		BT_DMP(h4->rx_skb->data, h4->rx_skb->len);
 		hci_recv_frame(h4->rx_skb);
 	} else if (len > room) {
 		BT_ERR("Data length is too large");
@@ -168,8 +165,6 @@ static int h4_recv(struct hci_uart *hu, void *data, int count)
 			switch (h4->rx_state) {
 			case H4_W4_DATA:
 				BT_DBG("Complete data");
-
-				BT_DMP(h4->rx_skb->data, h4->rx_skb->len);
 
 				hci_recv_frame(h4->rx_skb);
 

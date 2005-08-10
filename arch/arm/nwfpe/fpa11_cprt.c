@@ -33,8 +33,6 @@ extern flag floatx80_is_nan(floatx80);
 extern flag float64_is_nan(float64);
 extern flag float32_is_nan(float32);
 
-void SetRoundingMode(const unsigned int opcode);
-
 unsigned int PerformFLT(const unsigned int opcode);
 unsigned int PerformFIX(const unsigned int opcode);
 
@@ -77,14 +75,17 @@ unsigned int EmulateCPRT(const unsigned int opcode)
 unsigned int PerformFLT(const unsigned int opcode)
 {
 	FPA11 *fpa11 = GET_FPA11();
-	SetRoundingMode(opcode);
-	SetRoundingPrecision(opcode);
+	struct roundingData roundData;
+
+	roundData.mode = SetRoundingMode(opcode);
+	roundData.precision = SetRoundingPrecision(opcode);
+	roundData.exception = 0;
 
 	switch (opcode & MASK_ROUNDING_PRECISION) {
 	case ROUND_SINGLE:
 		{
 			fpa11->fType[getFn(opcode)] = typeSingle;
-			fpa11->fpreg[getFn(opcode)].fSingle = int32_to_float32(readRegister(getRd(opcode)));
+			fpa11->fpreg[getFn(opcode)].fSingle = int32_to_float32(&roundData, readRegister(getRd(opcode)));
 		}
 		break;
 
@@ -108,6 +109,9 @@ unsigned int PerformFLT(const unsigned int opcode)
 		return 0;
 	}
 
+	if (roundData.exception)
+		float_raise(roundData.exception);
+
 	return 1;
 }
 
@@ -115,26 +119,29 @@ unsigned int PerformFIX(const unsigned int opcode)
 {
 	FPA11 *fpa11 = GET_FPA11();
 	unsigned int Fn = getFm(opcode);
+	struct roundingData roundData;
 
-	SetRoundingMode(opcode);
+	roundData.mode = SetRoundingMode(opcode);
+	roundData.precision = SetRoundingPrecision(opcode);
+	roundData.exception = 0;
 
 	switch (fpa11->fType[Fn]) {
 	case typeSingle:
 		{
-			writeRegister(getRd(opcode), float32_to_int32(fpa11->fpreg[Fn].fSingle));
+			writeRegister(getRd(opcode), float32_to_int32(&roundData, fpa11->fpreg[Fn].fSingle));
 		}
 		break;
 
 	case typeDouble:
 		{
-			writeRegister(getRd(opcode), float64_to_int32(fpa11->fpreg[Fn].fDouble));
+			writeRegister(getRd(opcode), float64_to_int32(&roundData, fpa11->fpreg[Fn].fDouble));
 		}
 		break;
 
 #ifdef CONFIG_FPE_NWFPE_XP
 	case typeExtended:
 		{
-			writeRegister(getRd(opcode), floatx80_to_int32(fpa11->fpreg[Fn].fExtended));
+			writeRegister(getRd(opcode), floatx80_to_int32(&roundData, fpa11->fpreg[Fn].fExtended));
 		}
 		break;
 #endif
@@ -142,6 +149,9 @@ unsigned int PerformFIX(const unsigned int opcode)
 	default:
 		return 0;
 	}
+
+	if (roundData.exception)
+		float_raise(roundData.exception);
 
 	return 1;
 }

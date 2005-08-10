@@ -60,7 +60,9 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 			continue;
 
 		/* Ok, try it out.. */
-		ret = allocate_resource(r, res, size, min, -1, align,
+		ret = allocate_resource(r, res, size,
+					r->start ? : min,
+					-1, align,
 					alignf, alignf_data);
 		if (ret == 0)
 			break;

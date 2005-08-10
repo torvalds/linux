@@ -225,6 +225,22 @@ struct dvb_pll_desc dvb_pll_tua6034 = {
 };
 EXPORT_SYMBOL(dvb_pll_tua6034);
 
+/* Infineon TUA6034
+ * used in LG Innotek TDVS-H062F
+ */
+struct dvb_pll_desc dvb_pll_tdvs_tua6034 = {
+	.name  = "LG/Infineon TUA6034",
+	.min   =  54000000,
+	.max   = 863000000,
+	.count = 3,
+	.entries = {
+		{  160000000, 44000000, 62500, 0xce, 0x01 },
+		{  455000000, 44000000, 62500, 0xce, 0x02 },
+		{  999999999, 44000000, 62500, 0xce, 0x04 },
+	},
+};
+EXPORT_SYMBOL(dvb_pll_tdvs_tua6034);
+
 /* Philips FMD1216ME
  * used in Medion Hybrid PCMCIA card and USB Box
  */

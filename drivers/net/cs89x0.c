@@ -417,6 +417,7 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 	struct net_local *lp = netdev_priv(dev);
 	static unsigned version_printed;
 	int i;
+	int tmp;
 	unsigned rev_type = 0;
 	int eeprom_buff[CHKSUM_LEN];
 	int retval;
@@ -492,14 +493,17 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 				goto out2;
 			}
 	}
-printk("PP_addr=0x%x\n", inw(ioaddr + ADD_PORT));
+	printk(KERN_DEBUG "PP_addr at %x: 0x%x\n",
+			ioaddr + ADD_PORT, inw(ioaddr + ADD_PORT));
 
 	ioaddr &= ~3;
 	outw(PP_ChipID, ioaddr + ADD_PORT);
 
-	if (inw(ioaddr + DATA_PORT) != CHIP_EISA_ID_SIG) {
-		printk(KERN_ERR "%s: incorrect signature 0x%x\n",
-			dev->name, inw(ioaddr + DATA_PORT));
+	tmp = inw(ioaddr + DATA_PORT);
+	if (tmp != CHIP_EISA_ID_SIG) {
+		printk(KERN_DEBUG "%s: incorrect signature at %x: 0x%x!="
+			CHIP_EISA_ID_SIG_STR "\n",
+			dev->name, ioaddr + DATA_PORT, tmp);
   		retval = -ENODEV;
   		goto out2;
 	}

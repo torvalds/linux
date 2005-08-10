@@ -35,8 +35,10 @@
 #define PPC44x_LOW_SLOT		63
 
 /* LS 32-bits of UART0 physical address location for early serial text debug */
-#ifdef CONFIG_440SP
+#if defined(CONFIG_440SP)
 #define UART0_PHYS_IO_BASE	0xf0000200
+#elif defined(CONFIG_440EP)
+#define UART0_PHYS_IO_BASE	0xe0000000
 #else
 #define UART0_PHYS_IO_BASE	0x40000200
 #endif
@@ -49,11 +51,16 @@
 /*
  * Standard 4GB "page" definitions
  */
-#ifdef CONFIG_440SP
+#if defined(CONFIG_440SP)
 #define	PPC44x_IO_PAGE		0x0000000100000000ULL
 #define	PPC44x_PCICFG_PAGE	0x0000000900000000ULL
 #define	PPC44x_PCIIO_PAGE	PPC44x_PCICFG_PAGE
 #define	PPC44x_PCIMEM_PAGE	0x0000000a00000000ULL
+#elif defined(CONFIG_440EP)
+#define PPC44x_IO_PAGE		0x0000000000000000ULL
+#define PPC44x_PCICFG_PAGE	0x0000000000000000ULL
+#define PPC44x_PCIIO_PAGE	PPC44x_PCICFG_PAGE
+#define PPC44x_PCIMEM_PAGE	0x0000000000000000ULL
 #else
 #define	PPC44x_IO_PAGE		0x0000000100000000ULL
 #define	PPC44x_PCICFG_PAGE	0x0000000200000000ULL
@@ -64,7 +71,7 @@
 /*
  * 36-bit trap ranges
  */
-#ifdef CONFIG_440SP
+#if defined(CONFIG_440SP)
 #define PPC44x_IO_LO		0xf0000000UL
 #define PPC44x_IO_HI		0xf0000fffUL
 #define PPC44x_PCI0CFG_LO	0x0ec00000UL
@@ -74,6 +81,13 @@
 #define PPC44x_PCI2CFG_LO	0x2ec00000UL
 #define PPC44x_PCI2CFG_HI	0x2ec00007UL
 #define PPC44x_PCIMEM_LO	0x80000000UL
+#define PPC44x_PCIMEM_HI	0xdfffffffUL
+#elif defined(CONFIG_440EP)
+#define PPC44x_IO_LO		0xef500000UL
+#define PPC44x_IO_HI		0xefffffffUL
+#define PPC44x_PCI0CFG_LO	0xeec00000UL
+#define PPC44x_PCI0CFG_HI	0xeecfffffUL
+#define PPC44x_PCIMEM_LO	0xa0000000UL
 #define PPC44x_PCIMEM_HI	0xdfffffffUL
 #else
 #define PPC44x_IO_LO		0x40000000UL
@@ -152,6 +166,12 @@
 #define DCRN_SDR_UART0		0x0120
 #define DCRN_SDR_UART1		0x0121
 
+#ifdef CONFIG_440EP
+#define DCRN_SDR_UART2		0x0122
+#define DCRN_SDR_UART3		0x0123
+#define DCRN_SDR_CUST0		0x4000
+#endif
+
 /* SDR read/write helper macros */
 #define SDR_READ(offset) ({\
 	mtdcr(DCRN_SDR_CONFIG_ADDR, offset); \
@@ -168,6 +188,14 @@
 #define DCRN_DMASR_BASE		0x120
 #define DCRNCAP_DMA_SG		1	/* have DMA scatter/gather capability */
 #define DCRN_MAL_BASE		0x180
+
+#ifdef CONFIG_440EP
+#define DCRN_DMA2P40_BASE	0x300
+#define DCRN_DMA2P41_BASE	0x308
+#define DCRN_DMA2P42_BASE	0x310
+#define DCRN_DMA2P43_BASE	0x318
+#define DCRN_DMA2P4SR_BASE	0x320
+#endif
 
 /* UIC */
 #define DCRN_UIC0_BASE	0xc0
