@@ -802,9 +802,9 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	return sk;
 }
 
-int dccp_v4_checksum(struct sk_buff *skb)
+int dccp_v4_checksum(const struct sk_buff *skb, const u32 saddr, const u32 daddr)
 {
-	struct dccp_hdr* dh = dccp_hdr(skb);
+	const struct dccp_hdr* dh = dccp_hdr(skb);
 	int checksum_len;
 	u32 tmp;
 
@@ -816,24 +816,24 @@ int dccp_v4_checksum(struct sk_buff *skb)
 	}
 
 	tmp = csum_partial((unsigned char *)dh, checksum_len, 0);
-	return csum_fold(tmp);
+	return csum_tcpudp_magic(saddr, daddr, checksum_len, IPPROTO_DCCP, tmp);
 }
 
-static int dccp_v4_verify_checksum(struct sk_buff *skb)
+static int dccp_v4_verify_checksum(struct sk_buff *skb,
+				   const u32 saddr, const u32 daddr)
 {
-	struct dccp_hdr *th = dccp_hdr(skb);
-	const u16 remote_checksum = th->dccph_checksum;
-	u16 local_checksum;
+	struct dccp_hdr *dh = dccp_hdr(skb);
+	int checksum_len;
+	u32 tmp;
 
-	/* FIXME: don't mess with skb payload */
-	th->dccph_checksum = 0; /* zero it for computation */
-
-	local_checksum = dccp_v4_checksum(skb);
-
-	/* FIXME: don't mess with skb payload */
-	th->dccph_checksum = remote_checksum; /* put it back */
-
-	return remote_checksum == local_checksum ? 0 : -1;
+	if (dh->dccph_cscov == 0)
+		checksum_len = skb->len;
+	else {
+		checksum_len = (dh->dccph_cscov + dh->dccph_x) * sizeof(u32);
+		checksum_len = checksum_len < skb->len ? checksum_len : skb->len;
+	}
+	tmp = csum_partial((unsigned char *)dh, checksum_len, 0);
+	return csum_tcpudp_magic(saddr, daddr, checksum_len, IPPROTO_DCCP, tmp) == 0 ? 0 : -1;
 }
 
 static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
@@ -902,7 +902,8 @@ void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 	dccp_hdr_set_seq(dh, DCCP_SKB_CB(rxskb)->dccpd_ack_seq);
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), DCCP_SKB_CB(rxskb)->dccpd_seq);
 
-	dh->dccph_checksum = dccp_v4_checksum(skb);
+	dh->dccph_checksum = dccp_v4_checksum(skb, rxskb->nh.iph->saddr,
+					      rxskb->nh.iph->daddr);
 
 	bh_lock_sock(dccp_ctl_socket->sk);
 	err = ip_build_and_send_pkt(skb, dccp_ctl_socket->sk,
@@ -1024,7 +1025,8 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 	}
 
 	/* If the header checksum is incorrect, drop packet and return */
-	if (dccp_v4_verify_checksum(skb) < 0) {
+	if (dccp_v4_verify_checksum(skb, skb->nh.iph->saddr,
+				    skb->nh.iph->daddr) < 0) {
 		dccp_pr_debug("header checksum is incorrect\n");
 		return 1;
 	}

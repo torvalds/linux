@@ -93,7 +93,8 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 			break;
 		}
 
-		dh->dccph_checksum = dccp_v4_checksum(skb);
+		dh->dccph_checksum = dccp_v4_checksum(skb, inet->saddr,
+						      inet->daddr);
 
 		if (dcb->dccpd_type == DCCP_PKT_ACK ||
 		    dcb->dccpd_type == DCCP_PKT_DATAACK)
@@ -193,7 +194,8 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	dccp_hdr_set_seq(dh, dccp_rsk(req)->dreq_iss);
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), dccp_rsk(req)->dreq_isr);
 
-	dh->dccph_checksum = dccp_v4_checksum(skb);
+	dh->dccph_checksum = dccp_v4_checksum(skb, inet_rsk(req)->loc_addr,
+					      inet_rsk(req)->rmt_addr);
 
 	DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 	return skb;
@@ -242,7 +244,8 @@ struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
 
 	dccp_hdr_reset(skb)->dccph_reset_code = code;
 
-	dh->dccph_checksum = dccp_v4_checksum(skb);
+	dh->dccph_checksum = dccp_v4_checksum(skb, inet_sk(sk)->saddr,
+					      inet_sk(sk)->daddr);
 
 	DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 	return skb;

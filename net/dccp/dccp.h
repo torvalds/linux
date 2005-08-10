@@ -242,7 +242,8 @@ extern int	   dccp_setsockopt(struct sock *sk, int level, int optname,
 				   char *optval, int optlen);
 extern void	   dccp_shutdown(struct sock *sk, int how);
 
-extern int	   dccp_v4_checksum(struct sk_buff *skb);
+extern int	   dccp_v4_checksum(const struct sk_buff *skb,
+				    const u32 saddr, const u32 daddr);
 
 extern int	   dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk);
