@@ -1238,7 +1238,6 @@ static int proc_ioctl (struct dev_state *ps, void __user *arg)
 	int			retval = 0;
 	struct usb_interface    *intf = NULL;
 	struct usb_driver       *driver = NULL;
-	int			i;
 
 	/* get input parameters and alloc buffer */
 	if (copy_from_user(&ctrl, arg, sizeof (ctrl)))
@@ -1269,15 +1268,6 @@ static int proc_ioctl (struct dev_state *ps, void __user *arg)
 
 	/* disconnect kernel driver from interface */
 	case USBDEVFS_DISCONNECT:
-
-		/* don't allow the user to unbind the hub driver from
-		 * a hub with children to manage */
-		for (i = 0; i < ps->dev->maxchild; ++i) {
-			if (ps->dev->children[i])
-				retval = -EBUSY;
-		}
-		if (retval)
-			break;
 
 		down_write(&usb_bus_type.subsys.rwsem);
 		if (intf->dev.driver) {

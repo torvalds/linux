@@ -729,10 +729,29 @@ fail:
 
 static unsigned highspeed_hubs;
 
+/* Called after the hub driver is unbound from a hub with children */
+static void hub_remove_children_work(void *__hub)
+{
+	struct usb_hub		*hub = __hub;
+	struct usb_device	*hdev = hub->hdev;
+	int			i;
+
+	kfree(hub);
+
+	usb_lock_device(hdev);
+	for (i = 0; i < hdev->maxchild; ++i) {
+		if (hdev->children[i])
+			usb_disconnect(&hdev->children[i]);
+	}
+	usb_unlock_device(hdev);
+	usb_put_dev(hdev);
+}
+
 static void hub_disconnect(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata (intf);
 	struct usb_device *hdev;
+	int n, port1;
 
 	usb_set_intfdata (intf, NULL);
 	hdev = hub->hdev;
@@ -760,8 +779,27 @@ static void hub_disconnect(struct usb_interface *intf)
 		hub->buffer = NULL;
 	}
 
-	/* Free the memory */
-	kfree(hub);
+	/* If there are any children then this is an unbind only, not a
+	 * physical disconnection.  The active ports must be disabled
+	 * and later on we must call usb_disconnect().  We can't call
+	 * it now because we may not hold the hub's device lock.
+	 */
+	n = 0;
+	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
+		if (hdev->children[port1 - 1]) {
+			++n;
+			hub_port_disable(hub, port1, 1);
+		}
+	}
+
+	if (n == 0)
+		kfree(hub);
+	else {
+		/* Reuse the hub->leds work_struct for our own purposes */
+		INIT_WORK(&hub->leds, hub_remove_children_work, hub);
+		schedule_work(&hub->leds);
+		usb_get_dev(hdev);
+	}
 }
 
 static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
