@@ -1834,15 +1834,6 @@ do_time_wait:
 	goto discard_it;
 }
 
-/* With per-bucket locks this operation is not-atomic, so that
- * this version is not worse.
- */
-static void __tcp_v4_rehash(struct sock *sk)
-{
-	sk->sk_prot->unhash(sk);
-	sk->sk_prot->hash(sk);
-}
-
 static int tcp_v4_reselect_saddr(struct sock *sk)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -1889,7 +1880,7 @@ static int tcp_v4_reselect_saddr(struct sock *sk)
 	 * Besides that, it does not check for connection
 	 * uniqueness. Wait for troubles.
 	 */
-	__tcp_v4_rehash(sk);
+	__sk_prot_rehash(sk);
 	return 0;
 }
 

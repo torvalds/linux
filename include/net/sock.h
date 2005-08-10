@@ -612,6 +612,15 @@ static __inline__ void sock_prot_dec_use(struct proto *prot)
 	prot->stats[smp_processor_id()].inuse--;
 }
 
+/* With per-bucket locks this operation is not-atomic, so that
+ * this version is not worse.
+ */
+static inline void __sk_prot_rehash(struct sock *sk)
+{
+	sk->sk_prot->unhash(sk);
+	sk->sk_prot->hash(sk);
+}
+
 /* About 10 seconds */
 #define SOCK_DESTROY_TIME (10*HZ)
 
