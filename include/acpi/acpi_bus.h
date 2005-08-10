@@ -108,6 +108,21 @@ typedef int (*acpi_op_unbind)	(struct acpi_device *device);
 typedef int (*acpi_op_match)	(struct acpi_device *device,
 				 struct acpi_driver *driver);
 
+struct acpi_bus_ops {
+	u32 			acpi_op_add:1;
+	u32			acpi_op_remove:1;
+	u32			acpi_op_lock:1;
+	u32			acpi_op_start:1;
+	u32			acpi_op_stop:1;
+	u32			acpi_op_suspend:1;
+	u32			acpi_op_resume:1;
+	u32			acpi_op_scan:1;
+	u32			acpi_op_bind:1;
+	u32			acpi_op_unbind:1;
+	u32			acpi_op_match:1;
+	u32			reserved:21;
+};
+
 struct acpi_device_ops {
 	acpi_op_add		add;
 	acpi_op_remove		remove;
@@ -327,14 +342,35 @@ int acpi_bus_generate_event (struct acpi_device *device, u8 type, int data);
 int acpi_bus_receive_event (struct acpi_bus_event *event);
 int acpi_bus_register_driver (struct acpi_driver *driver);
 int acpi_bus_unregister_driver (struct acpi_driver *driver);
-int acpi_bus_scan (struct acpi_device *start);
 int acpi_bus_add (struct acpi_device **child, struct acpi_device *parent,
 		acpi_handle handle, int type);
+int acpi_bus_start (struct acpi_device *device);
 
 
 int acpi_match_ids (struct acpi_device	*device, char	*ids);
 int acpi_create_dir(struct acpi_device *);
 void acpi_remove_dir(struct acpi_device *);
+
+
+/*
+ * Bind physical devices with ACPI devices
+ */
+#include <linux/device.h>
+struct acpi_bus_type {
+	struct list_head	list;
+	struct bus_type		*bus;
+	/* For general devices under the bus*/
+	int (*find_device)(struct device *, acpi_handle*);
+	/* For bridges, such as PCI root bridge, IDE controller */
+	int (*find_bridge)(struct device *, acpi_handle *);
+};
+int register_acpi_bus_type(struct acpi_bus_type *);
+int unregister_acpi_bus_type(struct acpi_bus_type *);
+struct device *acpi_get_physical_device(acpi_handle);
+/* helper */
+acpi_handle acpi_get_child(acpi_handle, acpi_integer);
+acpi_handle acpi_get_pci_rootbridge_handle(unsigned int, unsigned int);
+#define DEVICE_ACPI_HANDLE(dev) ((acpi_handle)((dev)->firmware_data))
 
 #endif /*CONFIG_ACPI_BUS*/
 

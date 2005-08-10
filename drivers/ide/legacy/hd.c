@@ -156,11 +156,13 @@ else \
 
 
 #if (HD_DELAY > 0)
+
+#include <asm/i8253.h>
+
 unsigned long last_req;
 
 unsigned long read_timer(void)
 {
-        extern spinlock_t i8253_lock;
 	unsigned long t, flags;
 	int i;
 

@@ -171,7 +171,7 @@ SaphirWatchDog(struct IsdnCardState *cs)
 	mod_timer(&cs->hw.saphir.timer, jiffies+1*HZ);
 }
 
-void
+static void
 release_io_saphir(struct IsdnCardState *cs)
 {
 	byteout(cs->hw.saphir.cfg_reg + IRQ_REG, 0xff);

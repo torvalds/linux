@@ -19,9 +19,6 @@ extern void cb_out_1(struct pcbit_dev * dev, struct pcbit_chan* chan,
 extern void cb_out_2(struct pcbit_dev * dev, struct pcbit_chan* chan, 
 		     struct callb_data *data);
 
-extern void cb_out_3(struct pcbit_dev * dev, struct pcbit_chan* chan, 
-		     struct callb_data *data);
-
 extern void cb_in_1(struct pcbit_dev * dev, struct pcbit_chan* chan, 
 		    struct callb_data *data);
 extern void cb_in_2(struct pcbit_dev * dev, struct pcbit_chan* chan, 

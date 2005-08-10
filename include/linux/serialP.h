@@ -19,7 +19,6 @@
  * For definitions of the flags field, see tty.h
  */
 
-#include <linux/version.h>
 #include <linux/config.h>
 #include <linux/termios.h>
 #include <linux/workqueue.h>

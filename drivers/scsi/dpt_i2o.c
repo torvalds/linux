@@ -34,7 +34,6 @@
 
 #define ADDR32 (0)
 
-#include <linux/version.h>
 #include <linux/module.h>
 
 MODULE_AUTHOR("Deanna Bonds, with _lots_ of help from Mark Salyzyn");
@@ -383,7 +382,6 @@ static int adpt_queue(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd *))
 {
 	adpt_hba* pHba = NULL;
 	struct adpt_device* pDev = NULL;	/* dpt per device information */
-	ulong timeout = jiffies + (TMOUT_SCSI*HZ);
 
 	cmd->scsi_done = done;
 	/*
@@ -417,11 +415,6 @@ static int adpt_queue(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd *))
 		pHba->host->last_reset = jiffies;
 		pHba->host->resetting = 1;
 		return 1;
-	}
-
-	if(cmd->eh_state != SCSI_STATE_QUEUED){
-		// If we are not doing error recovery
-		mod_timer(&cmd->eh_timeout, timeout);
 	}
 
 	// TODO if the cmd->device if offline then I may need to issue a bus rescan
@@ -1126,11 +1119,11 @@ static int adpt_i2o_post_wait(adpt_hba* pHba, u32* msg, int len, int timeout)
 	struct adpt_i2o_post_wait_data *p1, *p2;
 	struct adpt_i2o_post_wait_data *wait_data =
 		kmalloc(sizeof(struct adpt_i2o_post_wait_data),GFP_KERNEL);
-	adpt_wait_queue_t wait;
+	DECLARE_WAITQUEUE(wait, current);
 
-	if(!wait_data){
+	if (!wait_data)
 		return -ENOMEM;
-	}
+
 	/*
 	 * The spin locking is needed to keep anyone from playing
 	 * with the queue pointers and id while we do the same
@@ -1148,12 +1141,7 @@ static int adpt_i2o_post_wait(adpt_hba* pHba, u32* msg, int len, int timeout)
 	wait_data->wq = &adpt_wq_i2o_post;
 	wait_data->status = -ETIMEDOUT;
 
-	// this code is taken from kernel/sched.c:interruptible_sleep_on_timeout
-	wait.task = current;
-	init_waitqueue_entry(&wait, current);
-	spin_lock_irqsave(&adpt_wq_i2o_post.lock, flags);
-	__add_wait_queue(&adpt_wq_i2o_post, &wait);
-	spin_unlock(&adpt_wq_i2o_post.lock);
+	add_wait_queue(&adpt_wq_i2o_post, &wait);
 
 	msg[2] |= 0x80000000 | ((u32)wait_data->id);
 	timeout *= HZ;
@@ -1175,9 +1163,7 @@ static int adpt_i2o_post_wait(adpt_hba* pHba, u32* msg, int len, int timeout)
 		if(pHba->host)
 			spin_lock_irq(pHba->host->host_lock);
 	}
-	spin_lock_irq(&adpt_wq_i2o_post.lock);
-	__remove_wait_queue(&adpt_wq_i2o_post, &wait);
-	spin_unlock_irqrestore(&adpt_wq_i2o_post.lock, flags);
+	remove_wait_queue(&adpt_wq_i2o_post, &wait);
 
 	if(status == -ETIMEDOUT){
 		printk(KERN_INFO"dpti%d: POST WAIT TIMEOUT\n",pHba->unit);
@@ -1818,9 +1804,9 @@ static int adpt_system_info(void __user *buffer)
 	memset(&si, 0, sizeof(si));
 
 	si.osType = OS_LINUX;
-	si.osMajorVersion = (u8) (LINUX_VERSION_CODE >> 16);
-	si.osMinorVersion = (u8) (LINUX_VERSION_CODE >> 8 & 0x0ff);
-	si.osRevision =     (u8) (LINUX_VERSION_CODE & 0x0ff);
+	si.osMajorVersion = 0;
+	si.osMinorVersion = 0;
+	si.osRevision = 0;
 	si.busType = SI_PCI_BUS;
 	si.processorFamily = DPTI_sig.dsProcessorFamily;
 

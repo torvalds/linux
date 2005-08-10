@@ -36,7 +36,7 @@
  * The present bitmask indicates that the CPU is physically present.
  * The online bitmask indicates that the CPU is up and running.
  */
-cpumask_t cpu_present_mask;
+cpumask_t cpu_possible_map;
 cpumask_t cpu_online_map;
 
 /*
@@ -78,7 +78,7 @@ struct smp_call_struct {
 static struct smp_call_struct * volatile smp_call_function_data;
 static DEFINE_SPINLOCK(smp_call_function_lock);
 
-int __init __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu)
 {
 	struct task_struct *idle;
 	pgd_t *pgd;
@@ -159,7 +159,7 @@ int __init __cpu_up(unsigned int cpu)
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
  */
-asmlinkage void __init secondary_start_kernel(void)
+asmlinkage void __cpuinit secondary_start_kernel(void)
 {
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu = smp_processor_id();
@@ -176,6 +176,7 @@ asmlinkage void __init secondary_start_kernel(void)
 	cpu_set(cpu, mm->cpu_vm_mask);
 	cpu_switch_mm(mm->pgd, mm);
 	enter_lazy_tlb(mm, current);
+	local_flush_tlb_all();
 
 	cpu_init();
 
@@ -209,7 +210,7 @@ asmlinkage void __init secondary_start_kernel(void)
  * Called by both boot and secondaries to move global data into
  * per-processor storage.
  */
-void __init smp_store_cpu_info(unsigned int cpuid)
+void __cpuinit smp_store_cpu_info(unsigned int cpuid)
 {
 	struct cpuinfo_arm *cpu_info = &per_cpu(cpu_data, cpuid);
 
@@ -235,7 +236,8 @@ void __init smp_prepare_boot_cpu(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-	cpu_set(cpu, cpu_present_mask);
+	cpu_set(cpu, cpu_possible_map);
+	cpu_set(cpu, cpu_present_map);
 	cpu_set(cpu, cpu_online_map);
 }
 
@@ -355,7 +357,7 @@ void show_ipi_list(struct seq_file *p)
 
 	seq_puts(p, "IPI:");
 
-	for_each_online_cpu(cpu)
+	for_each_present_cpu(cpu)
 		seq_printf(p, " %10lu", per_cpu(ipi_data, cpu).ipi_count);
 
 	seq_putc(p, '\n');
@@ -501,4 +503,127 @@ void smp_send_stop(void)
 int __init setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
+}
+
+static int
+on_each_cpu_mask(void (*func)(void *), void *info, int retry, int wait,
+		 cpumask_t mask)
+{
+	int ret = 0;
+
+	preempt_disable();
+
+	ret = smp_call_function_on_cpu(func, info, retry, wait, mask);
+	if (cpu_isset(smp_processor_id(), mask))
+		func(info);
+
+	preempt_enable();
+
+	return ret;
+}
+
+/**********************************************************************/
+
+/*
+ * TLB operations
+ */
+struct tlb_args {
+	struct vm_area_struct *ta_vma;
+	unsigned long ta_start;
+	unsigned long ta_end;
+};
+
+static inline void ipi_flush_tlb_all(void *ignored)
+{
+	local_flush_tlb_all();
+}
+
+static inline void ipi_flush_tlb_mm(void *arg)
+{
+	struct mm_struct *mm = (struct mm_struct *)arg;
+
+	local_flush_tlb_mm(mm);
+}
+
+static inline void ipi_flush_tlb_page(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_page(ta->ta_vma, ta->ta_start);
+}
+
+static inline void ipi_flush_tlb_kernel_page(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_kernel_page(ta->ta_start);
+}
+
+static inline void ipi_flush_tlb_range(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
+}
+
+static inline void ipi_flush_tlb_kernel_range(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_kernel_range(ta->ta_start, ta->ta_end);
+}
+
+void flush_tlb_all(void)
+{
+	on_each_cpu(ipi_flush_tlb_all, NULL, 1, 1);
+}
+
+void flush_tlb_mm(struct mm_struct *mm)
+{
+	cpumask_t mask = mm->cpu_vm_mask;
+
+	on_each_cpu_mask(ipi_flush_tlb_mm, mm, 1, 1, mask);
+}
+
+void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
+{
+	cpumask_t mask = vma->vm_mm->cpu_vm_mask;
+	struct tlb_args ta;
+
+	ta.ta_vma = vma;
+	ta.ta_start = uaddr;
+
+	on_each_cpu_mask(ipi_flush_tlb_page, &ta, 1, 1, mask);
+}
+
+void flush_tlb_kernel_page(unsigned long kaddr)
+{
+	struct tlb_args ta;
+
+	ta.ta_start = kaddr;
+
+	on_each_cpu(ipi_flush_tlb_kernel_page, &ta, 1, 1);
+}
+
+void flush_tlb_range(struct vm_area_struct *vma,
+                     unsigned long start, unsigned long end)
+{
+	cpumask_t mask = vma->vm_mm->cpu_vm_mask;
+	struct tlb_args ta;
+
+	ta.ta_vma = vma;
+	ta.ta_start = start;
+	ta.ta_end = end;
+
+	on_each_cpu_mask(ipi_flush_tlb_range, &ta, 1, 1, mask);
+}
+
+void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	struct tlb_args ta;
+
+	ta.ta_start = start;
+	ta.ta_end = end;
+
+	on_each_cpu(ipi_flush_tlb_kernel_range, &ta, 1, 1);
 }

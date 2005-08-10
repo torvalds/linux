@@ -67,14 +67,6 @@ void __init get_mtrr_state(void)
 	mtrr_state.enabled = (lo & 0xc00) >> 10;
 }
 
-/*  Free resources associated with a struct mtrr_state  */
-void __init finalize_mtrr_state(void)
-{
-	if (mtrr_state.var_ranges)
-		kfree(mtrr_state.var_ranges);
-	mtrr_state.var_ranges = NULL;
-}
-
 /*  Some BIOS's are fucked and don't set all MTRRs the same!  */
 void __init mtrr_state_warn(void)
 {
@@ -335,6 +327,9 @@ static void generic_set_mtrr(unsigned int reg, unsigned long base,
 */
 {
 	unsigned long flags;
+	struct mtrr_var_range *vr;
+
+	vr = &mtrr_state.var_ranges[reg];
 
 	local_irq_save(flags);
 	prepare_set();
@@ -343,11 +338,15 @@ static void generic_set_mtrr(unsigned int reg, unsigned long base,
 		/* The invalid bit is kept in the mask, so we simply clear the
 		   relevant mask register to disable a range. */
 		mtrr_wrmsr(MTRRphysMask_MSR(reg), 0, 0);
+		memset(vr, 0, sizeof(struct mtrr_var_range));
 	} else {
-		mtrr_wrmsr(MTRRphysBase_MSR(reg), base << PAGE_SHIFT | type,
-		      (base & size_and_mask) >> (32 - PAGE_SHIFT));
-		mtrr_wrmsr(MTRRphysMask_MSR(reg), -size << PAGE_SHIFT | 0x800,
-		      (-size & size_and_mask) >> (32 - PAGE_SHIFT));
+		vr->base_lo = base << PAGE_SHIFT | type;
+		vr->base_hi = (base & size_and_mask) >> (32 - PAGE_SHIFT);
+		vr->mask_lo = -size << PAGE_SHIFT | 0x800;
+		vr->mask_hi = (-size & size_and_mask) >> (32 - PAGE_SHIFT);
+
+		mtrr_wrmsr(MTRRphysBase_MSR(reg), vr->base_lo, vr->base_hi);
+		mtrr_wrmsr(MTRRphysMask_MSR(reg), vr->mask_lo, vr->mask_hi);
 	}
 
 	post_set();

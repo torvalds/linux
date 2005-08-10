@@ -10,6 +10,7 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
+#include "nfs4_fs.h"
 #include "callback.h"
 
 #define CB_OP_TAGLEN_MAXSZ	(512)
@@ -410,7 +411,6 @@ static int nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *resp
 	xdr_init_decode(&xdr_in, &rqstp->rq_arg, rqstp->rq_arg.head[0].iov_base);
 
 	p = (uint32_t*)((char *)rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len);
-	rqstp->rq_res.head[0].iov_len = PAGE_SIZE;
 	xdr_init_encode(&xdr_out, &rqstp->rq_res, p);
 
 	decode_compound_hdr_arg(&xdr_in, &hdr_arg);

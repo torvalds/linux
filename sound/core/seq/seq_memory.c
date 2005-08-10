@@ -36,12 +36,12 @@
 #define semaphore_of(fp)	((fp)->f_dentry->d_inode->i_sem)
 
 
-inline static int snd_seq_pool_available(pool_t *pool)
+static inline int snd_seq_pool_available(pool_t *pool)
 {
 	return pool->total_elements - atomic_read(&pool->counter);
 }
 
-inline static int snd_seq_output_ok(pool_t *pool)
+static inline int snd_seq_output_ok(pool_t *pool)
 {
 	return snd_seq_pool_available(pool) >= pool->room;
 }

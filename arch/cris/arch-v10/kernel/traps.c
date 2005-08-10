@@ -1,4 +1,4 @@
-/* $Id: traps.c,v 1.2 2003/07/04 08:27:41 starvik Exp $
+/* $Id: traps.c,v 1.4 2005/04/24 18:47:55 starvik Exp $
  *
  *  linux/arch/cris/arch-v10/traps.c
  *
@@ -16,6 +16,8 @@
 #include <asm/uaccess.h>
 #include <asm/arch/sv_addr_ag.h>
 
+extern int raw_printk(const char *fmt, ...);
+
 void 
 show_registers(struct pt_regs * regs)
 {
@@ -26,18 +28,18 @@ show_registers(struct pt_regs * regs)
 	   register.  */
 	unsigned long usp = rdusp();
 
-	printk("IRP: %08lx SRP: %08lx DCCR: %08lx USP: %08lx MOF: %08lx\n",
+	raw_printk("IRP: %08lx SRP: %08lx DCCR: %08lx USP: %08lx MOF: %08lx\n",
 	       regs->irp, regs->srp, regs->dccr, usp, regs->mof );
-	printk(" r0: %08lx  r1: %08lx   r2: %08lx  r3: %08lx\n",
+	raw_printk(" r0: %08lx  r1: %08lx   r2: %08lx  r3: %08lx\n",
 	       regs->r0, regs->r1, regs->r2, regs->r3);
-	printk(" r4: %08lx  r5: %08lx   r6: %08lx  r7: %08lx\n",
+	raw_printk(" r4: %08lx  r5: %08lx   r6: %08lx  r7: %08lx\n",
 	       regs->r4, regs->r5, regs->r6, regs->r7);
-	printk(" r8: %08lx  r9: %08lx  r10: %08lx r11: %08lx\n",
+	raw_printk(" r8: %08lx  r9: %08lx  r10: %08lx r11: %08lx\n",
 	       regs->r8, regs->r9, regs->r10, regs->r11);
-	printk("r12: %08lx r13: %08lx oR10: %08lx\n",
-	       regs->r12, regs->r13, regs->orig_r10);
-	printk("R_MMU_CAUSE: %08lx\n", (unsigned long)*R_MMU_CAUSE);
-	printk("Process %s (pid: %d, stackpage=%08lx)\n",
+	raw_printk("r12: %08lx r13: %08lx oR10: %08lx  sp: %08lx\n",
+	       regs->r12, regs->r13, regs->orig_r10, regs);
+	raw_printk("R_MMU_CAUSE: %08lx\n", (unsigned long)*R_MMU_CAUSE);
+	raw_printk("Process %s (pid: %d, stackpage=%08lx)\n",
 	       current->comm, current->pid, (unsigned long)current);
 
 	/*
@@ -53,7 +55,7 @@ show_registers(struct pt_regs * regs)
 		if (usp != 0)
 			show_stack (NULL, NULL);
 
-                printk("\nCode: ");
+                raw_printk("\nCode: ");
                 if(regs->irp < PAGE_OFFSET)
                         goto bad;
 
@@ -70,16 +72,16 @@ show_registers(struct pt_regs * regs)
                         unsigned char c;
                         if(__get_user(c, &((unsigned char*)regs->irp)[i])) {
 bad:
-                                printk(" Bad IP value.");
+                                raw_printk(" Bad IP value.");
                                 break;
                         }
 
 			if (i == 0)
-			  printk("(%02x) ", c);
+			  raw_printk("(%02x) ", c);
 			else
-			  printk("%02x ", c);
+			  raw_printk("%02x ", c);
                 }
-		printk("\n");
+		raw_printk("\n");
         }
 }
 
@@ -121,7 +123,7 @@ die_if_kernel(const char * str, struct pt_regs * regs, long err)
 	stop_watchdog();
 #endif
 
-	printk("%s: %04lx\n", str, err & 0xffff);
+	raw_printk("%s: %04lx\n", str, err & 0xffff);
 
 	show_registers(regs);
 
@@ -129,4 +131,9 @@ die_if_kernel(const char * str, struct pt_regs * regs, long err)
 	reset_watchdog();
 #endif
 	do_exit(SIGSEGV);
+}
+
+void arch_enable_nmi(void)
+{
+  asm volatile("setf m");
 }

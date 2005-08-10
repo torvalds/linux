@@ -2,6 +2,7 @@
 #define _LINUX_NFS_XDR_H
 
 #include <linux/sunrpc/xprt.h>
+#include <linux/nfsacl.h>
 
 struct nfs4_fsid {
 	__u64 major;
@@ -326,6 +327,20 @@ struct nfs_setattrargs {
 	const u32 *			bitmask;
 };
 
+struct nfs_setaclargs {
+	struct nfs_fh *			fh;
+	size_t				acl_len;
+	unsigned int			acl_pgbase;
+	struct page **			acl_pages;
+};
+
+struct nfs_getaclargs {
+	struct nfs_fh *			fh;
+	size_t				acl_len;
+	unsigned int			acl_pgbase;
+	struct page **			acl_pages;
+};
+
 struct nfs_setattrres {
 	struct nfs_fattr *              fattr;
 	const struct nfs_server *	server;
@@ -351,6 +366,20 @@ struct nfs_readdirargs {
 	struct nfs_fh *		fh;
 	__u32			cookie;
 	unsigned int		count;
+	struct page **		pages;
+};
+
+struct nfs3_getaclargs {
+	struct nfs_fh *		fh;
+	int			mask;
+	struct page **		pages;
+};
+
+struct nfs3_setaclargs {
+	struct inode *		inode;
+	int			mask;
+	struct posix_acl *	acl_access;
+	struct posix_acl *	acl_default;
 	struct page **		pages;
 };
 
@@ -475,6 +504,15 @@ struct nfs3_readdirres {
 	struct nfs_fattr *	dir_attr;
 	__u32 *			verf;
 	int			plus;
+};
+
+struct nfs3_getaclres {
+	struct nfs_fattr *	fattr;
+	int			mask;
+	unsigned int		acl_access_count;
+	unsigned int		acl_default_count;
+	struct posix_acl *	acl_access;
+	struct posix_acl *	acl_default;
 };
 
 #ifdef CONFIG_NFS_V4
@@ -667,6 +705,7 @@ struct nfs_rpc_ops {
 	int	version;		/* Protocol version */
 	struct dentry_operations *dentry_ops;
 	struct inode_operations *dir_inode_ops;
+	struct inode_operations *file_inode_ops;
 
 	int	(*getroot) (struct nfs_server *, struct nfs_fh *,
 			    struct nfs_fsinfo *);
@@ -713,6 +752,7 @@ struct nfs_rpc_ops {
 	int	(*file_open)   (struct inode *, struct file *);
 	int	(*file_release) (struct inode *, struct file *);
 	int	(*lock)(struct file *, int, struct file_lock *);
+	void	(*clear_acl_cache)(struct inode *);
 };
 
 /*
@@ -731,5 +771,8 @@ extern struct nfs_rpc_ops	nfs_v4_clientops;
 extern struct rpc_version	nfs_version2;
 extern struct rpc_version	nfs_version3;
 extern struct rpc_version	nfs_version4;
+
+extern struct rpc_version	nfsacl_version3;
+extern struct rpc_program	nfsacl_program;
 
 #endif

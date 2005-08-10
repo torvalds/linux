@@ -97,7 +97,7 @@ static WORD initAMD[] = {
 };
 
 
-void /* macro wWordAMD */
+static void /* macro wWordAMD */
 WriteWordAmd7930(struct IsdnCardState *cs, BYTE reg, WORD val)
 {
         wByteAMD(cs, 0x00, reg);
@@ -105,7 +105,7 @@ WriteWordAmd7930(struct IsdnCardState *cs, BYTE reg, WORD val)
         wByteAMD(cs, 0x01, HIBYTE(val));
 }
 
-WORD /* macro rWordAMD */
+static WORD /* macro rWordAMD */
 ReadWordAmd7930(struct IsdnCardState *cs, BYTE reg)
 {
         WORD res;
@@ -665,7 +665,7 @@ Amd7930_l1hw(struct PStack *st, int pr, void *arg)
 	}
 }
 
-void
+static void
 setstack_Amd7930(struct PStack *st, struct IsdnCardState *cs)
 {
 
@@ -676,7 +676,7 @@ setstack_Amd7930(struct PStack *st, struct IsdnCardState *cs)
 }
 
 
-void
+static void
 DC_Close_Amd7930(struct IsdnCardState *cs) {
         if (cs->debug & L1_DEB_ISAC)
 		debugl1(cs, "Amd7930: DC_Close called");

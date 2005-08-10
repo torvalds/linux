@@ -29,13 +29,19 @@ extern void release_vm86_irqs(struct task_struct *);
 
 #ifdef CONFIG_4KSTACKS
   extern void irq_ctx_init(int cpu);
+  extern void irq_ctx_exit(int cpu);
 # define __ARCH_HAS_DO_SOFTIRQ
 #else
 # define irq_ctx_init(cpu) do { } while (0)
+# define irq_ctx_exit(cpu) do { } while (0)
 #endif
 
 #ifdef CONFIG_IRQBALANCE
 extern int irqbalance_disable(char *str);
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+extern void fixup_irqs(cpumask_t map);
 #endif
 
 #endif /* _ASM_IRQ_H */

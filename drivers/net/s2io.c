@@ -42,6 +42,7 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -1698,11 +1699,9 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 #else
 		ba = &nic->ba[ring_no][block_no][off];
 		skb_reserve(skb, BUF0_LEN);
-		tmp = (unsigned long) skb->data;
-		tmp += ALIGN_SIZE;
-		tmp &= ~ALIGN_SIZE;
-		skb->data = (void *) tmp;
-		skb->tail = (void *) tmp;
+		tmp = ((unsigned long) skb->data & ALIGN_SIZE);
+		if (tmp)
+			skb_reserve(skb, (ALIGN_SIZE + 1) - tmp);
 
 		memset(rxdp, 0, sizeof(RxD_t));
 		rxdp->Buffer2_ptr = pci_map_single
@@ -4593,19 +4592,19 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		return ret;
 	}
 
-	if (!pci_set_dma_mask(pdev, 0xffffffffffffffffULL)) {
+	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
 		DBG_PRINT(INIT_DBG, "s2io_init_nic: Using 64bit DMA\n");
 		dma_flag = TRUE;
 
 		if (pci_set_consistent_dma_mask
-		    (pdev, 0xffffffffffffffffULL)) {
+		    (pdev, DMA_64BIT_MASK)) {
 			DBG_PRINT(ERR_DBG,
 				  "Unable to obtain 64bit DMA for \
 					consistent allocations\n");
 			pci_disable_device(pdev);
 			return -ENOMEM;
 		}
-	} else if (!pci_set_dma_mask(pdev, 0xffffffffUL)) {
+	} else if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
 		DBG_PRINT(INIT_DBG, "s2io_init_nic: Using 32bit DMA\n");
 	} else {
 		pci_disable_device(pdev);

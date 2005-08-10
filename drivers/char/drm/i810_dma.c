@@ -90,16 +90,7 @@ static int i810_freelist_put(drm_device_t *dev, drm_buf_t *buf)
    	return 0;
 }
 
-static struct file_operations i810_buffer_fops = {
-	.open	 = drm_open,
-	.flush	 = drm_flush,
-	.release = drm_release,
-	.ioctl	 = drm_ioctl,
-	.mmap	 = i810_mmap_buffers,
-	.fasync  = drm_fasync,
-};
-
-int i810_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
+static int i810_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 {
 	drm_file_t	    *priv	  = filp->private_data;
 	drm_device_t	    *dev;
@@ -125,6 +116,15 @@ int i810_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 			     vma->vm_page_prot)) return -EAGAIN;
 	return 0;
 }
+
+static struct file_operations i810_buffer_fops = {
+	.open	 = drm_open,
+	.flush	 = drm_flush,
+	.release = drm_release,
+	.ioctl	 = drm_ioctl,
+	.mmap	 = i810_mmap_buffers,
+	.fasync  = drm_fasync,
+};
 
 static int i810_map_buffer(drm_buf_t *buf, struct file *filp)
 {
@@ -1003,8 +1003,8 @@ void i810_reclaim_buffers(drm_device_t *dev, struct file *filp)
 	}
 }
 
-int i810_flush_ioctl(struct inode *inode, struct file *filp,
-		     unsigned int cmd, unsigned long arg)
+static int i810_flush_ioctl(struct inode *inode, struct file *filp,
+			    unsigned int cmd, unsigned long arg)
 {
    	drm_file_t	  *priv	  = filp->private_data;
    	drm_device_t	  *dev	  = priv->head->dev;

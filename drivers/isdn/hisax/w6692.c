@@ -41,7 +41,7 @@ static const PCI_ENTRY id_list[] =
 
 extern const char *CardType[];
 
-const char *w6692_revision = "$Revision: 1.18.2.4 $";
+static const char *w6692_revision = "$Revision: 1.18.2.4 $";
 
 #define DBUSY_TIMER_VALUE 80
 
@@ -880,7 +880,7 @@ setstack_w6692(struct PStack *st, struct BCState *bcs)
 	return (0);
 }
 
-void resetW6692(struct IsdnCardState *cs)
+static void resetW6692(struct IsdnCardState *cs)
 {
 	cs->writeW6692(cs, W_D_CTL, W_D_CTL_SRST);
 	mdelay(10);
@@ -902,7 +902,7 @@ void resetW6692(struct IsdnCardState *cs)
 	}
 }
 
-void __init initW6692(struct IsdnCardState *cs, int part)
+static void __init initW6692(struct IsdnCardState *cs, int part)
 {
 	if (part & 1) {
 		cs->setstack_d = setstack_W6692;

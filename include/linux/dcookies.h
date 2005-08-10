@@ -48,12 +48,12 @@ int get_dcookie(struct dentry * dentry, struct vfsmount * vfsmnt,
 
 #else
 
-struct dcookie_user * dcookie_register(void)
+static inline struct dcookie_user * dcookie_register(void)
 {
 	return NULL;
 }
 
-void dcookie_unregister(struct dcookie_user * user)
+static inline void dcookie_unregister(struct dcookie_user * user)
 {
 	return;
 }

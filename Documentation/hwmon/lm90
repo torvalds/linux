@@ -1,0 +1,121 @@
+Kernel driver lm90
+==================
+
+Supported chips:
+  * National Semiconductor LM90
+    Prefix: 'lm90'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/pf/LM/LM90.html
+  * National Semiconductor LM89
+    Prefix: 'lm99'
+    Addresses scanned: I2C 0x4c and 0x4d
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/pf/LM/LM89.html
+  * National Semiconductor LM99
+    Prefix: 'lm99'
+    Addresses scanned: I2C 0x4c and 0x4d
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/pf/LM/LM99.html
+  * National Semiconductor LM86
+    Prefix: 'lm86'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/pf/LM/LM86.html
+  * Analog Devices ADM1032
+    Prefix: 'adm1032'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Publicly available at the Analog Devices website
+               http://products.analog.com/products/info.asp?product=ADM1032
+  * Analog Devices ADT7461
+    Prefix: 'adt7461'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Publicly available at the Analog Devices website
+               http://products.analog.com/products/info.asp?product=ADT7461
+    Note: Only if in ADM1032 compatibility mode
+  * Maxim MAX6657
+    Prefix: 'max6657'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
+  * Maxim MAX6658
+    Prefix: 'max6657'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
+  * Maxim MAX6659
+    Prefix: 'max6657'
+    Addresses scanned: I2C 0x4c, 0x4d (unsupported 0x4e)
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
+
+
+Author: Jean Delvare <khali@linux-fr.org>
+
+
+Description
+-----------
+
+The LM90 is a digital temperature sensor. It senses its own temperature as
+well as the temperature of up to one external diode. It is compatible
+with many other devices such as the LM86, the LM89, the LM99, the ADM1032,
+the MAX6657, MAX6658 and the MAX6659 all of which are supported by this driver.
+Note that there is no easy way to differentiate between the last three
+variants. The extra address and features of the MAX6659 are not supported by
+this driver. Additionally, the ADT7461 is supported if found in ADM1032
+compatibility mode.
+
+The specificity of this family of chipsets over the ADM1021/LM84
+family is that it features critical limits with hysteresis, and an
+increased resolution of the remote temperature measurement.
+
+The different chipsets of the family are not strictly identical, although
+very similar. This driver doesn't handle any specific feature for now,
+but could if there ever was a need for it. For reference, here comes a
+non-exhaustive list of specific features:
+
+LM90:
+  * Filter and alert configuration register at 0xBF.
+  * ALERT is triggered by temperatures over critical limits.
+
+LM86 and LM89:
+  * Same as LM90
+  * Better external channel accuracy
+
+LM99:
+  * Same as LM89
+  * External temperature shifted by 16 degrees down
+
+ADM1032:
+  * Consecutive alert register at 0x22.
+  * Conversion averaging.
+  * Up to 64 conversions/s.
+  * ALERT is triggered by open remote sensor.
+
+ADT7461
+  * Extended temperature range (breaks compatibility)
+  * Lower resolution for remote temperature
+
+MAX6657 and MAX6658:
+  * Remote sensor type selection
+
+MAX6659
+  * Selectable address
+  * Second critical temperature limit
+  * Remote sensor type selection
+
+All temperature values are given in degrees Celsius. Resolution
+is 1.0 degree for the local temperature, 0.125 degree for the remote
+temperature.
+
+Each sensor has its own high and low limits, plus a critical limit.
+Additionally, there is a relative hysteresis value common to both critical
+values. To make life easier to user-space applications, two absolute values
+are exported, one for each channel, but these values are of course linked.
+Only the local hysteresis can be set from user-space, and the same delta
+applies to the remote hysteresis.
+
+The lm90 driver will not update its values more frequently than every
+other second; reading them more often will do no harm, but will return
+'old' values.
+

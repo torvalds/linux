@@ -36,6 +36,7 @@
 #include <linux/kallsyms.h>
 #include <linux/interrupt.h>
 #include <linux/utsname.h>
+#include <linux/kprobes.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -307,6 +308,8 @@ void show_regs(struct pt_regs * regs)
 
 void exit_thread(void)
 {
+	kprobe_flush_task(current);
+
 #ifndef CONFIG_SMP
 	if (last_task_used_math == current)
 		last_task_used_math = NULL;
@@ -321,6 +324,7 @@ void flush_thread(void)
 {
 	struct thread_info *t = current_thread_info();
 
+	kprobe_flush_task(current);
 	if (t->flags & _TIF_ABI_PENDING)
 		t->flags ^= (_TIF_ABI_PENDING | _TIF_32BIT);
 

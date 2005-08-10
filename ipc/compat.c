@@ -572,6 +572,7 @@ static inline int put_compat_shminfo(struct shminfo64 *smi,
 	err |= __put_user(smi->shmmni, &up->shmmni);
 	err |= __put_user(smi->shmseg, &up->shmseg);
 	err |= __put_user(smi->shmall, &up->shmall);
+	return err;
 }
 
 static inline int put_compat_shm_info(struct shm_info __user *ip,

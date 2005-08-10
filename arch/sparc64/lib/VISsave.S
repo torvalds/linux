@@ -72,7 +72,11 @@ vis1:	ldub		[%g6 + TI_FPSAVED], %g3
 
 	stda		%f48, [%g3 + %g1] ASI_BLK_P
 5:	membar		#Sync
-	jmpl		%g7 + %g0, %g0
+	ba,pt		%xcc, 80f
+	 nop
+
+	.align		32
+80:	jmpl		%g7 + %g0, %g0
 	 nop
 
 6:	ldub		[%g3 + TI_FPSAVED], %o5
@@ -87,8 +91,11 @@ vis1:	ldub		[%g6 + TI_FPSAVED], %g3
 	stda		%f32, [%g2 + %g1] ASI_BLK_P
 	stda		%f48, [%g3 + %g1] ASI_BLK_P
 	membar		#Sync
-	jmpl		%g7 + %g0, %g0
+	ba,pt		%xcc, 80f
+	 nop
 
+	.align		32
+80:	jmpl		%g7 + %g0, %g0
 	 nop
 
 	.align		32
@@ -126,6 +133,10 @@ VISenterhalf:
 	stda		%f0, [%g2 + %g1] ASI_BLK_P
 	stda		%f16, [%g3 + %g1] ASI_BLK_P
 	membar		#Sync
+	ba,pt		%xcc, 4f
+	 nop
+
+	.align		32
 4:	and		%o5, FPRS_DU, %o5
 	jmpl		%g7 + %g0, %g0
 	 wr		%o5, FPRS_FEF, %fprs

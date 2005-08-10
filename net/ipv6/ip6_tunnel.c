@@ -1110,10 +1110,38 @@ ip6ip6_fb_tnl_dev_init(struct net_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_INET6_TUNNEL
 static struct xfrm6_tunnel ip6ip6_handler = {
-	.handler = ip6ip6_rcv,
-	.err_handler = ip6ip6_err,
+	.handler	= ip6ip6_rcv,
+	.err_handler	= ip6ip6_err,
 };
+
+static inline int ip6ip6_register(void)
+{
+	return xfrm6_tunnel_register(&ip6ip6_handler);
+}
+
+static inline int ip6ip6_unregister(void)
+{
+	return xfrm6_tunnel_deregister(&ip6ip6_handler);
+}
+#else
+static struct inet6_protocol xfrm6_tunnel_protocol = {
+	.handler	= ip6ip6_rcv,
+	.err_handler	= ip6ip6_err,
+	.flags		= INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
+};
+
+static inline int ip6ip6_register(void)
+{
+	return inet6_add_protocol(&xfrm6_tunnel_protocol, IPPROTO_IPV6);
+}
+
+static inline int ip6ip6_unregister(void)
+{
+	return inet6_del_protocol(&xfrm6_tunnel_protocol, IPPROTO_IPV6);
+}
+#endif
 
 /**
  * ip6_tunnel_init - register protocol and reserve needed resources
@@ -1125,7 +1153,7 @@ static int __init ip6_tunnel_init(void)
 {
 	int  err;
 
-	if (xfrm6_tunnel_register(&ip6ip6_handler) < 0) {
+	if (ip6ip6_register() < 0) {
 		printk(KERN_ERR "ip6ip6 init: can't register tunnel\n");
 		return -EAGAIN;
 	}
@@ -1144,7 +1172,7 @@ static int __init ip6_tunnel_init(void)
 	}
 	return 0;
 fail:
-	xfrm6_tunnel_deregister(&ip6ip6_handler);
+	ip6ip6_unregister();
 	return err;
 }
 
@@ -1154,7 +1182,7 @@ fail:
 
 static void __exit ip6_tunnel_cleanup(void)
 {
-	if (xfrm6_tunnel_deregister(&ip6ip6_handler) < 0)
+	if (ip6ip6_unregister() < 0)
 		printk(KERN_INFO "ip6ip6 close: can't deregister tunnel\n");
 
 	unregister_netdev(ip6ip6_fb_tnl_dev);

@@ -57,11 +57,6 @@
      (val) = ((unsigned long)__a) | (((unsigned long)__d)<<32); \
 } while(0)
 
-#define rdpmc(counter,low,high) \
-     __asm__ __volatile__("rdpmc" \
-			  : "=a" (low), "=d" (high) \
-			  : "c" (counter))
-
 #define write_tsc(val1,val2) wrmsr(0x10, val1, val2)
 
 #define rdpmc(counter,low,high) \
@@ -223,7 +218,7 @@ extern inline unsigned int cpuid_edx(unsigned int op)
 #define MSR_K7_PERFCTR3            0xC0010007
 #define MSR_K8_TOP_MEM1		   0xC001001A
 #define MSR_K8_TOP_MEM2		   0xC001001D
-#define MSR_K8_SYSCFG		   0xC0000010	
+#define MSR_K8_SYSCFG		   0xC0010010
 
 /* K6 MSRs */
 #define MSR_K6_EFER			0xC0000080

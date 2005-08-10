@@ -276,6 +276,7 @@ struct tc_rsvp_pinfo
 	__u8	protocol;
 	__u8	tunnelid;
 	__u8	tunnelhdr;
+	__u8	pad;
 };
 
 /* ROUTE filter */
@@ -408,6 +409,7 @@ enum
 	TCF_EM_NBYTE,
 	TCF_EM_U32,
 	TCF_EM_META,
+	TCF_EM_TEXT,
 	__TCF_EM_MAX
 };
 

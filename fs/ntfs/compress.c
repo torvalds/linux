@@ -96,13 +96,14 @@ void free_compression_buffers(void)
 /**
  * zero_partial_compressed_page - zero out of bounds compressed page region
  */
-static void zero_partial_compressed_page(ntfs_inode *ni, struct page *page)
+static void zero_partial_compressed_page(struct page *page,
+		const s64 initialized_size)
 {
 	u8 *kp = page_address(page);
 	unsigned int kp_ofs;
 
 	ntfs_debug("Zeroing page region outside initialized size.");
-	if (((s64)page->index << PAGE_CACHE_SHIFT) >= ni->initialized_size) {
+	if (((s64)page->index << PAGE_CACHE_SHIFT) >= initialized_size) {
 		/*
 		 * FIXME: Using clear_page() will become wrong when we get
 		 * PAGE_CACHE_SIZE != PAGE_SIZE but for now there is no problem.
@@ -110,7 +111,7 @@ static void zero_partial_compressed_page(ntfs_inode *ni, struct page *page)
 		clear_page(kp);
 		return;
 	}
-	kp_ofs = ni->initialized_size & ~PAGE_CACHE_MASK;
+	kp_ofs = initialized_size & ~PAGE_CACHE_MASK;
 	memset(kp + kp_ofs, 0, PAGE_CACHE_SIZE - kp_ofs);
 	return;
 }
@@ -118,12 +119,12 @@ static void zero_partial_compressed_page(ntfs_inode *ni, struct page *page)
 /**
  * handle_bounds_compressed_page - test for&handle out of bounds compressed page
  */
-static inline void handle_bounds_compressed_page(ntfs_inode *ni,
-		struct page *page)
+static inline void handle_bounds_compressed_page(struct page *page,
+		const loff_t i_size, const s64 initialized_size)
 {
-	if ((page->index >= (ni->initialized_size >> PAGE_CACHE_SHIFT)) &&
-			(ni->initialized_size < VFS_I(ni)->i_size))
-		zero_partial_compressed_page(ni, page);
+	if ((page->index >= (initialized_size >> PAGE_CACHE_SHIFT)) &&
+			(initialized_size < i_size))
+		zero_partial_compressed_page(page, initialized_size);
 	return;
 }
 
@@ -138,6 +139,8 @@ static inline void handle_bounds_compressed_page(ntfs_inode *ni,
  * @xpage_done:		set to 1 if xpage was completed successfully (IN/OUT)
  * @cb_start:		compression block to decompress (IN)
  * @cb_size:		size of compression block @cb_start in bytes (IN)
+ * @i_size:		file size when we started the read (IN)
+ * @initialized_size:	initialized file size when we started the read (IN)
  *
  * The caller must have disabled preemption. ntfs_decompress() reenables it when
  * the critical section is finished.
@@ -165,7 +168,8 @@ static inline void handle_bounds_compressed_page(ntfs_inode *ni,
 static int ntfs_decompress(struct page *dest_pages[], int *dest_index,
 		int *dest_ofs, const int dest_max_index, const int dest_max_ofs,
 		const int xpage, char *xpage_done, u8 *const cb_start,
-		const u32 cb_size)
+		const u32 cb_size, const loff_t i_size,
+		const s64 initialized_size)
 {
 	/*
 	 * Pointers into the compressed data, i.e. the compression block (cb),
@@ -219,9 +223,6 @@ return_error:
 		spin_unlock(&ntfs_cb_lock);
 		/* Second stage: finalize completed pages. */
 		if (nr_completed_pages > 0) {
-			struct page *page = dest_pages[completed_pages[0]];
-			ntfs_inode *ni = NTFS_I(page->mapping->host);
-
 			for (i = 0; i < nr_completed_pages; i++) {
 				int di = completed_pages[i];
 
@@ -230,7 +231,8 @@ return_error:
 				 * If we are outside the initialized size, zero
 				 * the out of bounds page range.
 				 */
-				handle_bounds_compressed_page(ni, dp);
+				handle_bounds_compressed_page(dp, i_size,
+						initialized_size);
 				flush_dcache_page(dp);
 				kunmap(dp);
 				SetPageUptodate(dp);
@@ -478,12 +480,14 @@ return_overflow:
  */
 int ntfs_read_compressed_block(struct page *page)
 {
+	loff_t i_size;
+	s64 initialized_size;
 	struct address_space *mapping = page->mapping;
 	ntfs_inode *ni = NTFS_I(mapping->host);
 	ntfs_volume *vol = ni->vol;
 	struct super_block *sb = vol->sb;
 	runlist_element *rl;
-	unsigned long block_size = sb->s_blocksize;
+	unsigned long flags, block_size = sb->s_blocksize;
 	unsigned char block_size_bits = sb->s_blocksize_bits;
 	u8 *cb, *cb_pos, *cb_end;
 	struct buffer_head **bhs;
@@ -552,8 +556,12 @@ int ntfs_read_compressed_block(struct page *page)
 	 * The remaining pages need to be allocated and inserted into the page
 	 * cache, alignment guarantees keep all the below much simpler. (-8
 	 */
-	max_page = ((VFS_I(ni)->i_size + PAGE_CACHE_SIZE - 1) >>
-			PAGE_CACHE_SHIFT) - offset;
+	read_lock_irqsave(&ni->size_lock, flags);
+	i_size = i_size_read(VFS_I(ni));
+	initialized_size = ni->initialized_size;
+	read_unlock_irqrestore(&ni->size_lock, flags);
+	max_page = ((i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT) -
+			offset;
 	if (nr_pages < max_page)
 		max_page = nr_pages;
 	for (i = 0; i < max_page; i++, offset++) {
@@ -824,7 +832,8 @@ lock_retry_remap:
 				 * If we are outside the initialized size, zero
 				 * the out of bounds page range.
 				 */
-				handle_bounds_compressed_page(ni, page);
+				handle_bounds_compressed_page(page, i_size,
+						initialized_size);
 				flush_dcache_page(page);
 				kunmap(page);
 				SetPageUptodate(page);
@@ -847,7 +856,8 @@ lock_retry_remap:
 		ntfs_debug("Found compressed compression block.");
 		err = ntfs_decompress(pages, &cur_page, &cur_ofs,
 				cb_max_page, cb_max_ofs, xpage, &xpage_done,
-				cb_pos,	cb_size - (cb_pos - cb));
+				cb_pos,	cb_size - (cb_pos - cb), i_size,
+				initialized_size);
 		/*
 		 * We can sleep from now on, lock already dropped by
 		 * ntfs_decompress().

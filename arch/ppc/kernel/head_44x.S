@@ -179,24 +179,26 @@ skpinv:	addi	r4,r4,1				/* Increment */
 4:
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	/*
-	 * Add temporary UART mapping for early debug.  This
-	 * mapping must be identical to that used by the early
-	 * bootloader code since the same asm/serial.h parameters
-	 * are used for polled operation.
+	 * Add temporary UART mapping for early debug.
+	 * We can map UART registers wherever we want as long as they don't
+	 * interfere with other system mappings (e.g. with pinned entries).
+	 * For an example of how we handle this - see ocotea.h.       --ebs
 	 */
  	/* pageid fields */
 	lis	r3,UART0_IO_BASE@h
-	ori	r3,r3,PPC44x_TLB_VALID | PPC44x_TLB_256M
+	ori	r3,r3,PPC44x_TLB_VALID | PPC44x_TLB_4K
 
 	/* xlat fields */
 	lis	r4,UART0_PHYS_IO_BASE@h		/* RPN depends on SoC */
+#ifndef CONFIG_440EP
 	ori	r4,r4,0x0001		/* ERPN is 1 for second 4GB page */
+#endif
 
 	/* attrib fields */
 	li	r5,0
 	ori	r5,r5,(PPC44x_TLB_SW | PPC44x_TLB_SR | PPC44x_TLB_I | PPC44x_TLB_G)
 
-        li      r0,1                    /* TLB slot 1 */
+        li      r0,0                    /* TLB slot 0 */
 
 	tlbwe	r3,r0,PPC44x_TLB_PAGEID	/* Load the pageid fields */
 	tlbwe	r4,r0,PPC44x_TLB_XLAT	/* Load the translation fields */
@@ -227,6 +229,16 @@ skpinv:	addi	r4,r4,1				/* Increment */
 	/* Establish the interrupt vector base */
 	lis	r4,interrupt_base@h	/* IVPR only uses the high 16-bits */
 	mtspr	SPRN_IVPR,r4
+
+#ifdef CONFIG_440EP
+	/* Clear DAPUIB flag in CCR0 (enable APU between CPU and FPU) */
+	mfspr	r2,SPRN_CCR0
+	lis	r3,0xffef
+	ori	r3,r3,0xffff
+	and	r2,r2,r3
+	mtspr	SPRN_CCR0,r2
+	isync
+#endif
 
 	/*
 	 * This is where the main kernel code starts.

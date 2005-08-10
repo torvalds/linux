@@ -472,6 +472,7 @@ void snd_trident_write_voice_regs(trident_t * trident,
 		break;
 	default:
 		snd_BUG();
+		return;
 	}
 
 	outb(voice->number, TRID_REG(trident, T4D_LFO_GC_CIR));
@@ -3152,8 +3153,7 @@ static int snd_trident_gameport_open(struct gameport *gameport, int mode)
 	switch (mode) {
 		case GAMEPORT_MODE_COOKED:
 			outb(GAMEPORT_MODE_ADC, TRID_REG(chip, GAMEPORT_GCR));
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1 + 20 * HZ / 1000); /* 20msec */
+			msleep(20);
 			return 0;
 		case GAMEPORT_MODE_RAW:
 			outb(0, TRID_REG(chip, GAMEPORT_GCR));
@@ -3204,7 +3204,7 @@ static inline void snd_trident_free_gameport(trident_t *chip) { }
 /*
  * delay for 1 tick
  */
-inline static void do_delay(trident_t *chip)
+static inline void do_delay(trident_t *chip)
 {
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule_timeout(1);

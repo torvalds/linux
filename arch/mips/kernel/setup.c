@@ -33,6 +33,7 @@
 #include <linux/root_dev.h>
 #include <linux/highmem.h>
 #include <linux/console.h>
+#include <linux/mmzone.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -356,6 +357,8 @@ static inline void bootmem_init(void)
 	}
 #endif
 
+	memory_present(0, first_usable_pfn, max_low_pfn);
+
 	/* Initialize the boot-time allocator with low memory only.  */
 	bootmap_size = init_bootmem(first_usable_pfn, max_low_pfn);
 
@@ -557,6 +560,7 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_cmdline_early();
 	bootmem_init();
+	sparse_init();
 	paging_init();
 	resource_init();
 }

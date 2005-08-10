@@ -1,8 +1,8 @@
 /*
- * 	w1_smem.c
+ *	w1_smem.c
  *
  * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
- * 
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the smems of the GNU General Public License as published by
@@ -37,14 +37,11 @@ MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, 64bit memory family.");
 
 static ssize_t w1_smem_read_name(struct device *, struct device_attribute *attr, char *);
-static ssize_t w1_smem_read_val(struct device *, struct device_attribute *attr, char *);
 static ssize_t w1_smem_read_bin(struct kobject *, char *, loff_t, size_t);
 
 static struct w1_family_ops w1_smem_fops = {
 	.rname = &w1_smem_read_name,
 	.rbin = &w1_smem_read_bin,
-	.rval = &w1_smem_read_val,
-	.rvalname = "id",
 };
 
 static ssize_t w1_smem_read_name(struct device *dev, struct device_attribute *attr, char *buf)
@@ -54,23 +51,10 @@ static ssize_t w1_smem_read_name(struct device *dev, struct device_attribute *at
 	return sprintf(buf, "%s\n", sl->name);
 }
 
-static ssize_t w1_smem_read_val(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
-	int i;
-	ssize_t count = 0;
-	
-	for (i = 0; i < 8; ++i)
-		count += sprintf(buf + count, "%02x ", ((u8 *)&sl->reg_num)[i]);
-	count += sprintf(buf + count, "\n");
-
-	return count;
-}
-
 static ssize_t w1_smem_read_bin(struct kobject *kobj, char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = container_of(container_of(kobj, struct device, kobj),
-			      			struct w1_slave, dev);
+					   struct w1_slave, dev);
 	int i;
 
 	atomic_inc(&sl->refcnt);
@@ -90,7 +74,7 @@ static ssize_t w1_smem_read_bin(struct kobject *kobj, char *buf, loff_t off, siz
 	for (i = 0; i < 8; ++i)
 		count += sprintf(buf + count, "%02x ", ((u8 *)&sl->reg_num)[i]);
 	count += sprintf(buf + count, "\n");
-	
+
 out:
 	up(&sl->master->mutex);
 out_dec:
@@ -99,19 +83,37 @@ out_dec:
 	return count;
 }
 
-static struct w1_family w1_smem_family = {
-	.fid = W1_FAMILY_SMEM,
+static struct w1_family w1_smem_family_01 = {
+	.fid = W1_FAMILY_SMEM_01,
+	.fops = &w1_smem_fops,
+};
+
+static struct w1_family w1_smem_family_81 = {
+	.fid = W1_FAMILY_SMEM_81,
 	.fops = &w1_smem_fops,
 };
 
 static int __init w1_smem_init(void)
 {
-	return w1_register_family(&w1_smem_family);
+	int err;
+
+	err = w1_register_family(&w1_smem_family_01);
+	if (err)
+		return err;
+	
+	err = w1_register_family(&w1_smem_family_81);
+	if (err) {
+		w1_unregister_family(&w1_smem_family_01);
+		return err;
+	}
+
+	return 0;
 }
 
 static void __exit w1_smem_fini(void)
 {
-	w1_unregister_family(&w1_smem_family);
+	w1_unregister_family(&w1_smem_family_01);
+	w1_unregister_family(&w1_smem_family_81);
 }
 
 module_init(w1_smem_init);

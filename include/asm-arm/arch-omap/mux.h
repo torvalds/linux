@@ -231,7 +231,7 @@ typedef enum {
 	J19_1610_ETM_D6,
 	J18_1610_ETM_D7,
 
-	/* OMAP-1610 GPIO */
+	/* OMAP16XX GPIO */
 	P20_1610_GPIO4,
 	V9_1610_GPIO7,
 	W8_1610_GPIO9,
@@ -241,6 +241,9 @@ typedef enum {
 	AA20_1610_GPIO_41,
 	W19_1610_GPIO48,
 	M7_1610_GPIO62,
+	V14_16XX_GPIO37,
+	R9_16XX_GPIO18,
+	L14_16XX_GPIO49,
 
 	/* OMAP-1610 uWire */
 	V19_1610_UWIRE_SCLK,
@@ -285,12 +288,13 @@ typedef enum {
 	V6_USB2_TXD,
 	W5_USB2_SE0,
 
-	/* UART1 1610 */
-
+	/* 16XX UART */
 	R13_1610_UART1_TX,
-	V14_1610_UART1_RX,
+	V14_16XX_UART1_RX,
 	R14_1610_UART1_CTS,
 	AA15_1610_UART1_RTS,
+	R9_16XX_UART2_RX,
+	L14_16XX_UART3_RX,
 
 	/* I2C OMAP-1610 */
 	I2C_SCL,
@@ -332,7 +336,7 @@ typedef enum {
  * Table of various FUNC_MUX and PULL_DWN combinations for each device.
  * See also reg_cfg_t above for the lookup table.
  */
-static reg_cfg_set __initdata_or_module
+static const reg_cfg_set __initdata_or_module
 reg_cfg_table[] = {
 /*
  *	 description		mux  mode   mux	 pull pull  pull  pu_pd	 pu  dbg
@@ -455,7 +459,7 @@ MUX_CFG("L19_1610_ETM_D0",	 5,   18,    1,	  0,  26,   0,	  0,	 0,  1)
 MUX_CFG("J19_1610_ETM_D6",	 5,    0,    1,	  0,  20,   0,	  0,	 0,  1)
 MUX_CFG("J18_1610_ETM_D7",	 5,   27,    1,	  0,  19,   0,	  0,	 0,  1)
 
-/* OMAP-1610 GPIO */
+/* OMAP16XX GPIO */
 MUX_CFG("P20_1610_GPIO4",	 6,   27,    0,	  1,   7,   0,	  1,	 1,  1)
 MUX_CFG("V9_1610_GPIO7",	 B,   12,    1,	  2,  20,   0,	  2,	 1,  1)
 MUX_CFG("W8_1610_GPIO9",	 B,   21,    0,	  2,  23,   0,	  2,	 1,  1)
@@ -465,6 +469,9 @@ MUX_CFG("V5_1610_GPIO24",	 B,   15,    7,	  2,  21,   0,	  2,	 1,  1)
 MUX_CFG("AA20_1610_GPIO_41",	 9,    9,    7,	  1,  31,   0,	  1,	 1,  1)
 MUX_CFG("W19_1610_GPIO48",	 8,   15,    7,   1,  23,   1,    1,     0,  1)
 MUX_CFG("M7_1610_GPIO62",	10,    0,    0,   4,  24,   0,    4,     0,  1)
+MUX_CFG("V14_16XX_GPIO37",	 9,   18,    7,	  2,   2,   0,	  2,	 2,  0)
+MUX_CFG("R9_16XX_GPIO18",	 C,   18,    7,   3,   0,   0,    3,     0,  0)
+MUX_CFG("L14_16XX_GPIO49",	 6,    3,    7,   0,  31,   0,    0,    31,  0)
 
 /* OMAP-1610 uWire */
 MUX_CFG("V19_1610_UWIRE_SCLK",	 8,    6,    0,	  1,  20,   0,	  1,	 1,  1)
@@ -503,16 +510,17 @@ MUX_CFG("Y10_USB0_SUSP",	 B,   3,     5,	  2,  17,   0,	  2,	 0,  1)
 MUX_CFG("W9_USB2_TXEN",		 B,   9,     1,	 NA,   0,   0,	 NA,	 0,  1)
 MUX_CFG("AA9_USB2_VP",		 B,   6,     1,	 NA,   0,   0,	 NA,	 0,  1)
 MUX_CFG("Y5_USB2_RCV",		 C,  21,     1,	 NA,   0,   0,	 NA,	 0,  1)
-MUX_CFG("R8_USB2_VM",		 C,  18,     1,	 NA,   0,   0,	 NA,	 0,  1)
+MUX_CFG("R9_USB2_VM",		 C,  18,     1,	 NA,   0,   0,	 NA,	 0,  1)
 MUX_CFG("V6_USB2_TXD",		 C,  27,     2,	 NA,   0,   0,	 NA,	 0,  1)
 MUX_CFG("W5_USB2_SE0",		 C,  24,     2,	 NA,   0,   0,	 NA,	 0,  1)
 
-
-/* UART1 */
+/* 16XX UART */
 MUX_CFG("R13_1610_UART1_TX",	 A,  12,     6,	  2,  10,   0,	  2,	10,  1)
-MUX_CFG("V14_1610_UART1_RX",	 9,  18,     0,	  2,   2,   0,	  2,	 2,  1)
+MUX_CFG("V14_16XX_UART1_RX",	 9,  18,     0,	  2,   2,   0,	  2,	 2,  1)
 MUX_CFG("R14_1610_UART1_CTS",	 9,  15,     0,	  2,   1,   0,	  2,	 1,  1)
 MUX_CFG("AA15_1610_UART1_RTS",	 9,  12,     1,	  2,   0,   0,	  2,	 0,  1)
+MUX_CFG("R9_16XX_UART2_RX",	 C,  18,     0,   3,   0,   0,    3,     0,  1)
+MUX_CFG("L14_16XX_UART3_RX",	 6,   3,     0,   0,  31,   0,    0,    31,  1)
 
 /* I2C interface */
 MUX_CFG("I2C_SCL",		 7,  24,     0,	 NA,   0,   0,	 NA,	 0,  0)

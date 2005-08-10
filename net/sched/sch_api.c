@@ -399,10 +399,8 @@ qdisc_create(struct net_device *dev, u32 handle, struct rtattr **tca, int *errp)
 {
 	int err;
 	struct rtattr *kind = tca[TCA_KIND-1];
-	void *p = NULL;
 	struct Qdisc *sch;
 	struct Qdisc_ops *ops;
-	int size;
 
 	ops = qdisc_lookup_ops(kind);
 #ifdef CONFIG_KMOD
@@ -437,64 +435,55 @@ qdisc_create(struct net_device *dev, u32 handle, struct rtattr **tca, int *errp)
 	if (ops == NULL)
 		goto err_out;
 
-	/* ensure that the Qdisc and the private data are 32-byte aligned */
-	size = ((sizeof(*sch) + QDISC_ALIGN_CONST) & ~QDISC_ALIGN_CONST);
-	size += ops->priv_size + QDISC_ALIGN_CONST;
-
-	p = kmalloc(size, GFP_KERNEL);
-	err = -ENOBUFS;
-	if (!p)
+	sch = qdisc_alloc(dev, ops);
+	if (IS_ERR(sch)) {
+		err = PTR_ERR(sch);
 		goto err_out2;
-	memset(p, 0, size);
-	sch = (struct Qdisc *)(((unsigned long)p + QDISC_ALIGN_CONST)
-	                       & ~QDISC_ALIGN_CONST);
-	sch->padded = (char *)sch - (char *)p;
+	}
 
-	INIT_LIST_HEAD(&sch->list);
-	skb_queue_head_init(&sch->q);
-
-	if (handle == TC_H_INGRESS)
+	if (handle == TC_H_INGRESS) {
 		sch->flags |= TCQ_F_INGRESS;
-
-	sch->ops = ops;
-	sch->enqueue = ops->enqueue;
-	sch->dequeue = ops->dequeue;
-	sch->dev = dev;
-	dev_hold(dev);
-	atomic_set(&sch->refcnt, 1);
-	sch->stats_lock = &dev->queue_lock;
-	if (handle == 0) {
+		handle = TC_H_MAKE(TC_H_INGRESS, 0);
+	} else if (handle == 0) {
 		handle = qdisc_alloc_handle(dev);
 		err = -ENOMEM;
 		if (handle == 0)
 			goto err_out3;
 	}
 
-	if (handle == TC_H_INGRESS)
-                sch->handle =TC_H_MAKE(TC_H_INGRESS, 0);
-        else
-                sch->handle = handle;
+	sch->handle = handle;
 
 	if (!ops->init || (err = ops->init(sch, tca[TCA_OPTIONS-1])) == 0) {
+#ifdef CONFIG_NET_ESTIMATOR
+		if (tca[TCA_RATE-1]) {
+			err = gen_new_estimator(&sch->bstats, &sch->rate_est,
+						sch->stats_lock,
+						tca[TCA_RATE-1]);
+			if (err) {
+				/*
+				 * Any broken qdiscs that would require
+				 * a ops->reset() here? The qdisc was never
+				 * in action so it shouldn't be necessary.
+				 */
+				if (ops->destroy)
+					ops->destroy(sch);
+				goto err_out3;
+			}
+		}
+#endif
 		qdisc_lock_tree(dev);
 		list_add_tail(&sch->list, &dev->qdisc_list);
 		qdisc_unlock_tree(dev);
 
-#ifdef CONFIG_NET_ESTIMATOR
-		if (tca[TCA_RATE-1])
-			gen_new_estimator(&sch->bstats, &sch->rate_est,
-				sch->stats_lock, tca[TCA_RATE-1]);
-#endif
 		return sch;
 	}
 err_out3:
 	dev_put(dev);
+	kfree((char *) sch - sch->padded);
 err_out2:
 	module_put(ops->owner);
 err_out:
 	*errp = err;
-	if (p)
-		kfree(p);
 	return NULL;
 }
 
@@ -770,6 +759,8 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*tcm), flags);
 	tcm = NLMSG_DATA(nlh);
 	tcm->tcm_family = AF_UNSPEC;
+	tcm->tcm__pad1 = 0;
+	tcm->tcm__pad2 = 0;
 	tcm->tcm_ifindex = q->dev->ifindex;
 	tcm->tcm_parent = clid;
 	tcm->tcm_handle = q->handle;

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.10 2004/05/14 10:18:12 starvik Exp $
+# $Id: Makefile,v 1.12 2004/10/19 13:07:43 starvik Exp $
 #
 # Makefile for the linux kernel.
 #
@@ -10,6 +10,7 @@ obj-y   := process.o traps.o irq.o ptrace.o setup.o \
 
 obj-$(CONFIG_MODULES)    += crisksyms.o
 obj-$(CONFIG_MODULES)	 += module.o
+obj-$(CONFIG_SYSTEM_PROFILER)   += profile.o
 
 clean:
 

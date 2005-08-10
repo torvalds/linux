@@ -1030,7 +1030,8 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
 	 * starting until all current transactions are completed
 	 * by setting syncbarrier flag.
 	 */
-	if (written > LOGSYNC_BARRIER(logsize) && logsize > 32 * LOGPSIZE) {
+	if (!test_bit(log_SYNCBARRIER, &log->flag) &&
+	    (written > LOGSYNC_BARRIER(logsize)) && log->active) {
 		set_bit(log_SYNCBARRIER, &log->flag);
 		jfs_info("log barrier on: lsn=0x%x syncpt=0x%x", lsn,
 			 log->syncpt);
@@ -2359,9 +2360,9 @@ int jfsIOWait(void *arg)
 			lbmStartIO(bp);
 			spin_lock_irq(&log_redrive_lock);
 		}
-		if (current->flags & PF_FREEZE) {
+		if (freezing(current)) {
 			spin_unlock_irq(&log_redrive_lock);
-			refrigerator(PF_FREEZE);
+			refrigerator();
 		} else {
 			add_wait_queue(&jfs_IO_thread_wait, &wq);
 			set_current_state(TASK_INTERRUPTIBLE);

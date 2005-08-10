@@ -27,7 +27,7 @@
    */
 #  define HZ	  32
 # else
-#  define HZ	1024
+#  define HZ	CONFIG_HZ
 # endif
 # define USER_HZ	HZ
 # define CLOCKS_PER_SEC	HZ	/* frequency at which times() counts */

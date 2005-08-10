@@ -373,6 +373,25 @@ static void __devinit quirk_vt82c686_acpi(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C686_4,	quirk_vt82c686_acpi );
 
+/*
+ * VIA VT8235 ISA Bridge: Two IO regions pointed to by words at
+ *	0x88 (128 bytes of power management registers)
+ *	0xd0 (16 bytes of SMB registers)
+ */
+static void __devinit quirk_vt8235_acpi(struct pci_dev *dev)
+{
+	u16 pm, smb;
+
+	pci_read_config_word(dev, 0x88, &pm);
+	pm &= PCI_BASE_ADDRESS_IO_MASK;
+	quirk_io_region(dev, pm, 128, PCI_BRIDGE_RESOURCES);
+
+	pci_read_config_word(dev, 0xd0, &smb);
+	smb &= PCI_BASE_ADDRESS_IO_MASK;
+	quirk_io_region(dev, smb, 16, PCI_BRIDGE_RESOURCES + 1);
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8235,	quirk_vt8235_acpi);
+
 
 #ifdef CONFIG_X86_IO_APIC 
 
@@ -767,6 +786,7 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 	if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_ASUSTEK)) {
 		if (dev->device == PCI_DEVICE_ID_INTEL_82845_HB)
 			switch(dev->subsystem_device) {
+			case 0x8025: /* P4B-LX */
 			case 0x8070: /* P4B */
 			case 0x8088: /* P4B533 */
 			case 0x1626: /* L3C notebook */
@@ -817,6 +837,11 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 		if (dev->device == PCI_DEVICE_ID_INTEL_82855GM_HB)
 			switch(dev->subsystem_device) {
 			case 0x0001: /* Toshiba Satellite A40 */
+				asus_hides_smbus = 1;
+			}
+		if (dev->device == PCI_DEVICE_ID_INTEL_82855PM_HB)
+			switch(dev->subsystem_device) {
+			case 0x0001: /* Toshiba Tecra M2 */
 				asus_hides_smbus = 1;
 			}
        } else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG)) {

@@ -112,10 +112,10 @@ isl38xx_handle_wakeup(isl38xx_control_block *control_block,
 void
 isl38xx_trigger_device(int asleep, void __iomem *device_base)
 {
-	struct timeval current_time;
 	u32 reg, counter = 0;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
+	struct timeval current_time;
 	DEBUG(SHOW_FUNCTION_CALLS, "isl38xx trigger device\n");
 #endif
 
@@ -126,11 +126,11 @@ isl38xx_trigger_device(int asleep, void __iomem *device_base)
 		do_gettimeofday(&current_time);
 		DEBUG(SHOW_TRACING, "%08li.%08li Device wakeup triggered\n",
 		      current_time.tv_sec, (long)current_time.tv_usec);
-#endif
 
 		DEBUG(SHOW_TRACING, "%08li.%08li Device register read %08x\n",
 		      current_time.tv_sec, (long)current_time.tv_usec,
 		      readl(device_base + ISL38XX_CTRL_STAT_REG));
+#endif
 		udelay(ISL38XX_WRITEIO_DELAY);
 
 		reg = readl(device_base + ISL38XX_INT_IDENT_REG);
@@ -148,10 +148,12 @@ isl38xx_trigger_device(int asleep, void __iomem *device_base)
 				counter++;
 			}
 
+#if VERBOSE > SHOW_ERROR_MESSAGES
 			DEBUG(SHOW_TRACING,
 			      "%08li.%08li Device register read %08x\n",
 			      current_time.tv_sec, (long)current_time.tv_usec,
 			      readl(device_base + ISL38XX_CTRL_STAT_REG));
+#endif
 			udelay(ISL38XX_WRITEIO_DELAY);
 
 #if VERBOSE > SHOW_ERROR_MESSAGES

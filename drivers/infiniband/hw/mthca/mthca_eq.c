@@ -469,7 +469,7 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 		PAGE_SIZE;
 	u64 *dma_list = NULL;
 	dma_addr_t t;
-	void *mailbox = NULL;
+	struct mthca_mailbox *mailbox;
 	struct mthca_eq_context *eq_context;
 	int err = -ENOMEM;
 	int i;
@@ -494,17 +494,16 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 	if (!dma_list)
 		goto err_out_free;
 
-	mailbox = kmalloc(sizeof *eq_context + MTHCA_CMD_MAILBOX_EXTRA,
-			  GFP_KERNEL);
-	if (!mailbox)
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
 		goto err_out_free;
-	eq_context = MAILBOX_ALIGN(mailbox);
+	eq_context = mailbox->buf;
 
 	for (i = 0; i < npages; ++i) {
-		eq->page_list[i].buf = pci_alloc_consistent(dev->pdev,
-							    PAGE_SIZE, &t);
+		eq->page_list[i].buf = dma_alloc_coherent(&dev->pdev->dev,
+							  PAGE_SIZE, &t, GFP_KERNEL);
 		if (!eq->page_list[i].buf)
-			goto err_out_free;
+			goto err_out_free_pages;
 
 		dma_list[i] = t;
 		pci_unmap_addr_set(&eq->page_list[i], mapping, t);
@@ -517,7 +516,7 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 
 	eq->eqn = mthca_alloc(&dev->eq_table.alloc);
 	if (eq->eqn == -1)
-		goto err_out_free;
+		goto err_out_free_pages;
 
 	err = mthca_mr_alloc_phys(dev, dev->driver_pd.pd_num,
 				  dma_list, PAGE_SHIFT, npages,
@@ -548,7 +547,7 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 	eq_context->intr            = intr;
 	eq_context->lkey            = cpu_to_be32(eq->mr.ibmr.lkey);
 
-	err = mthca_SW2HW_EQ(dev, eq_context, eq->eqn, &status);
+	err = mthca_SW2HW_EQ(dev, mailbox, eq->eqn, &status);
 	if (err) {
 		mthca_warn(dev, "SW2HW_EQ failed (%d)\n", err);
 		goto err_out_free_mr;
@@ -561,7 +560,7 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 	}
 
 	kfree(dma_list);
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 
 	eq->eqn_mask   = swab32(1 << eq->eqn);
 	eq->cons_index = 0;
@@ -579,17 +578,19 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
  err_out_free_eq:
 	mthca_free(&dev->eq_table.alloc, eq->eqn);
 
- err_out_free:
+ err_out_free_pages:
 	for (i = 0; i < npages; ++i)
 		if (eq->page_list[i].buf)
-			pci_free_consistent(dev->pdev, PAGE_SIZE,
-					    eq->page_list[i].buf,
-					    pci_unmap_addr(&eq->page_list[i],
-							   mapping));
+			dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
+					  eq->page_list[i].buf,
+					  pci_unmap_addr(&eq->page_list[i],
+							 mapping));
 
+	mthca_free_mailbox(dev, mailbox);
+
+ err_out_free:
 	kfree(eq->page_list);
 	kfree(dma_list);
-	kfree(mailbox);
 
  err_out:
 	return err;
@@ -598,25 +599,22 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 static void mthca_free_eq(struct mthca_dev *dev,
 			  struct mthca_eq *eq)
 {
-	void *mailbox = NULL;
+	struct mthca_mailbox *mailbox;
 	int err;
 	u8 status;
 	int npages = (eq->nent * MTHCA_EQ_ENTRY_SIZE + PAGE_SIZE - 1) /
 		PAGE_SIZE;
 	int i;
 
-	mailbox = kmalloc(sizeof (struct mthca_eq_context) + MTHCA_CMD_MAILBOX_EXTRA,
-			  GFP_KERNEL);
-	if (!mailbox)
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
 		return;
 
-	err = mthca_HW2SW_EQ(dev, MAILBOX_ALIGN(mailbox),
-			     eq->eqn, &status);
+	err = mthca_HW2SW_EQ(dev, mailbox, eq->eqn, &status);
 	if (err)
 		mthca_warn(dev, "HW2SW_EQ failed (%d)\n", err);
 	if (status)
-		mthca_warn(dev, "HW2SW_EQ returned status 0x%02x\n",
-			   status);
+		mthca_warn(dev, "HW2SW_EQ returned status 0x%02x\n", status);
 
 	dev->eq_table.arm_mask &= ~eq->eqn_mask;
 
@@ -625,7 +623,7 @@ static void mthca_free_eq(struct mthca_dev *dev,
 		for (i = 0; i < sizeof (struct mthca_eq_context) / 4; ++i) {
 			if (i % 4 == 0)
 				printk("[%02x] ", i * 4);
-			printk(" %08x", be32_to_cpup(MAILBOX_ALIGN(mailbox) + i * 4));
+			printk(" %08x", be32_to_cpup(mailbox->buf + i * 4));
 			if ((i + 1) % 4 == 0)
 				printk("\n");
 		}
@@ -638,7 +636,7 @@ static void mthca_free_eq(struct mthca_dev *dev,
 				    pci_unmap_addr(&eq->page_list[i], mapping));
 
 	kfree(eq->page_list);
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 }
 
 static void mthca_free_irqs(struct mthca_dev *dev)
@@ -709,8 +707,7 @@ static int __devinit mthca_map_eq_regs(struct mthca_dev *dev)
 		if (mthca_map_reg(dev, ((pci_resource_len(dev->pdev, 0) - 1) &
 					dev->fw.arbel.eq_arm_base) + 4, 4,
 				  &dev->eq_regs.arbel.eq_arm)) {
-			mthca_err(dev, "Couldn't map interrupt clear register, "
-				  "aborting.\n");
+			mthca_err(dev, "Couldn't map EQ arm register, aborting.\n");
 			mthca_unmap_reg(dev, (pci_resource_len(dev->pdev, 0) - 1) &
 					dev->fw.arbel.clr_int_base, MTHCA_CLR_INT_SIZE,
 					dev->clr_base);
@@ -721,8 +718,7 @@ static int __devinit mthca_map_eq_regs(struct mthca_dev *dev)
 				  dev->fw.arbel.eq_set_ci_base,
 				  MTHCA_EQ_SET_CI_SIZE,
 				  &dev->eq_regs.arbel.eq_set_ci_base)) {
-			mthca_err(dev, "Couldn't map interrupt clear register, "
-				  "aborting.\n");
+			mthca_err(dev, "Couldn't map EQ CI register, aborting.\n");
 			mthca_unmap_reg(dev, ((pci_resource_len(dev->pdev, 0) - 1) &
 					      dev->fw.arbel.eq_arm_base) + 4, 4,
 					dev->eq_regs.arbel.eq_arm);

@@ -22,7 +22,7 @@
 
 extern const char *CardType[];
 
-const char *Asuscom_revision = "$Revision: 1.14.2.4 $";
+static const char *Asuscom_revision = "$Revision: 1.14.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
 #define bytein(addr) inb(addr)
@@ -239,7 +239,7 @@ Start_IPAC:
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_asuscom(struct IsdnCardState *cs)
 {
 	int bytecnt = 8;

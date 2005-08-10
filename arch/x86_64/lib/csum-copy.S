@@ -188,8 +188,8 @@ csum_partial_copy_generic:
 	source
 	movw (%rdi),%bx
 	adcl %ebx,%eax
-	dest
 	decl %ecx
+	dest
 	movw %bx,(%rsi)
 	leaq 2(%rdi),%rdi
 	leaq 2(%rsi),%rsi

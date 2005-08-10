@@ -191,8 +191,8 @@ struct platform_device ppc_sys_platform_devices[] = {
 		.num_resources	 = 2,
 		.resource = (struct resource[]) {
 			{
-				.start	= 0x22000,
-				.end	= 0x22fff,
+				.start	= 0x23000,
+				.end	= 0x23fff,
 				.flags	= IORESOURCE_MEM,
 			},
 			{
@@ -208,8 +208,8 @@ struct platform_device ppc_sys_platform_devices[] = {
 		.num_resources	 = 2,
 		.resource = (struct resource[]) {
 			{
-				.start	= 0x23000,
-				.end	= 0x23fff,
+				.start	= 0x22000,
+				.end	= 0x22fff,
 				.flags	= IORESOURCE_MEM,
 			},
 			{

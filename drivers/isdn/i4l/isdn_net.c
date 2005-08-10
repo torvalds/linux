@@ -176,7 +176,7 @@ static __inline__ void isdn_net_zero_frame_cnt(isdn_net_local *lp)
 
 /* Prototypes */
 
-int isdn_net_force_dial_lp(isdn_net_local *);
+static int isdn_net_force_dial_lp(isdn_net_local *);
 static int isdn_net_start_xmit(struct sk_buff *, struct net_device *);
 
 static void isdn_net_ciscohdlck_connected(isdn_net_local *lp);
@@ -312,7 +312,7 @@ isdn_net_unbind_channel(isdn_net_local * lp)
  * Since this function is called every second, simply reset the
  * byte-counter of the interface after copying it to the cps-variable.
  */
-unsigned long last_jiffies = -HZ;
+static unsigned long last_jiffies = -HZ;
 
 void
 isdn_net_autohup(void)
@@ -1131,7 +1131,7 @@ isdn_net_adjust_hdr(struct sk_buff *skb, struct net_device *dev)
 }
 
 
-void isdn_net_tx_timeout(struct net_device * ndev)
+static void isdn_net_tx_timeout(struct net_device * ndev)
 {
 	isdn_net_local *lp = (isdn_net_local *) ndev->priv;
 
@@ -1424,7 +1424,7 @@ isdn_net_ciscohdlck_alloc_skb(isdn_net_local *lp, int len)
 }
 
 /* cisco hdlck device private ioctls */
-int
+static int
 isdn_ciscohdlck_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	isdn_net_local *lp = (isdn_net_local *) dev->priv;
@@ -2461,7 +2461,7 @@ isdn_net_findif(char *name)
  * This is called from the userlevel-routine below or
  * from isdn_net_start_xmit().
  */
-int
+static int
 isdn_net_force_dial_lp(isdn_net_local * lp)
 {
 	if ((!(lp->flags & ISDN_NET_CONNECTED)) && !lp->dialstate) {

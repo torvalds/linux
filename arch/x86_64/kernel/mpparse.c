@@ -23,6 +23,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
 #include <linux/acpi.h>
+#include <linux/module.h>
 
 #include <asm/smp.h>
 #include <asm/mtrr.h>
@@ -45,7 +46,8 @@ int acpi_found_madt;
 int apic_version [MAX_APICS];
 unsigned char mp_bus_id_to_type [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
 int mp_bus_id_to_pci_bus [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
-cpumask_t pci_bus_to_cpumask [256] = { [0 ... 255] = CPU_MASK_ALL };
+unsigned char pci_bus_to_node [256];
+EXPORT_SYMBOL(pci_bus_to_node);
 
 static int mp_current_pci_id = 0;
 /* I/O APIC entries */
@@ -107,7 +109,7 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 
 static void __init MP_processor_info (struct mpc_config_processor *m)
 {
-	int ver;
+	int ver, cpu;
 	static int found_bsp=0;
 
 	if (!(m->mpc_cpuflag & CPU_ENABLED))
@@ -129,7 +131,7 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 		return;
 	}
 
-	num_processors++;
+	cpu = num_processors++;
 
 	if (m->mpc_apicid > MAX_APICS) {
 		printk(KERN_ERR "Processor #%d INVALID. (Max ID: %d).\n",
@@ -153,13 +155,18 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
  		 * in same order as logical cpu numbers. Hence the first
  		 * entry is BSP, and so on.
  		 */
+		cpu = 0;
+
  		bios_cpu_apicid[0] = m->mpc_apicid;
  		x86_cpu_to_apicid[0] = m->mpc_apicid;
  		found_bsp = 1;
- 	} else {
- 		bios_cpu_apicid[num_processors - found_bsp] = m->mpc_apicid;
- 		x86_cpu_to_apicid[num_processors - found_bsp] = m->mpc_apicid;
- 	}
+ 	} else
+		cpu = num_processors - found_bsp;
+	bios_cpu_apicid[cpu] = m->mpc_apicid;
+	x86_cpu_to_apicid[cpu] = m->mpc_apicid;
+
+	cpu_set(cpu, cpu_possible_map);
+	cpu_set(cpu, cpu_present_map);
 }
 
 static void __init MP_bus_info (struct mpc_config_bus *m)
@@ -904,11 +911,20 @@ void __init mp_config_acpi_legacy_irqs (void)
 	return;
 }
 
+#define MAX_GSI_NUM	4096
+
 int mp_register_gsi(u32 gsi, int edge_level, int active_high_low)
 {
 	int			ioapic = -1;
 	int			ioapic_pin = 0;
 	int			idx, bit = 0;
+	static int		pci_irq = 16;
+	/*
+	 * Mapping between Global System Interrupts, which
+	 * represent all possible interrupts, to the IRQs
+	 * assigned to actual devices.
+	 */
+	static int		gsi_to_irq[MAX_GSI_NUM];
 
 	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
 		return gsi;
@@ -943,10 +959,33 @@ int mp_register_gsi(u32 gsi, int edge_level, int active_high_low)
 	if ((1<<bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
 		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
 			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
-		return gsi;
+		return gsi_to_irq[gsi];
 	}
 
 	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1<<bit);
+
+	if (edge_level) {
+		/*
+		 * For PCI devices assign IRQs in order, avoiding gaps
+		 * due to unused I/O APIC pins.
+		 */
+		int irq = gsi;
+		if (gsi < MAX_GSI_NUM) {
+			if (gsi > 15)
+				gsi = pci_irq++;
+#ifdef CONFIG_ACPI_BUS
+			/*
+			 * Don't assign IRQ used by ACPI SCI
+			 */
+			if (gsi == acpi_fadt.sci_int)
+				gsi = pci_irq++;
+#endif
+			gsi_to_irq[irq] = gsi;
+		} else {
+			printk(KERN_ERR "GSI %u is too high\n", gsi);
+			return gsi;
+		}
+	}
 
 	io_apic_set_pci_routing(ioapic, ioapic_pin, gsi,
 		edge_level == ACPI_EDGE_SENSITIVE ? 0 : 1,

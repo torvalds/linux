@@ -173,7 +173,6 @@ static int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	if (len < PAGE_CACHE_SIZE)
 		memclear_highpage_flush(page, len, PAGE_CACHE_SIZE - len);
 
-	nfs_lock_request(new);
 	nfs_list_add_request(new, &one_request);
 	nfs_pagein_one(&one_request, inode);
 	return 0;
@@ -185,7 +184,6 @@ static void nfs_readpage_release(struct nfs_page *req)
 
 	nfs_clear_request(req);
 	nfs_release_request(req);
-	nfs_unlock_request(req);
 
 	dprintk("NFS: read done (%s/%Ld %d@%Ld)\n",
 			req->wb_context->dentry->d_inode->i_sb->s_id,
@@ -553,7 +551,6 @@ readpage_async_filler(void *data, struct page *page)
 	}
 	if (len < PAGE_CACHE_SIZE)
 		memclear_highpage_flush(page, len, PAGE_CACHE_SIZE - len);
-	nfs_lock_request(new);
 	nfs_list_add_request(new, desc->head);
 	return 0;
 }

@@ -445,6 +445,7 @@ struct _hdsp {
 	u32                   control2_register;     /* cached value */
 	u32                   creg_spdif;
 	u32                   creg_spdif_stream;
+	int                   clock_source_locked;
 	char                 *card_name;	     /* digiface/multiface */
 	HDSP_IO_Type          io_type;               /* ditto, but for code use */
         unsigned short        firmware_rev;
@@ -559,18 +560,22 @@ static int snd_hammerfall_get_buffer(struct pci_dev *pci, struct snd_dma_buffer 
 {
 	dmab->dev.type = SNDRV_DMA_TYPE_DEV;
 	dmab->dev.dev = snd_dma_pci_data(pci);
-	if (! snd_dma_get_reserved_buf(dmab, snd_dma_pci_buf_id(pci))) {
-		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-					size, dmab) < 0)
-			return -ENOMEM;
+	if (snd_dma_get_reserved_buf(dmab, snd_dma_pci_buf_id(pci))) {
+		if (dmab->bytes >= size)
+			return 0;
 	}
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+				size, dmab) < 0)
+		return -ENOMEM;
 	return 0;
 }
 
 static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_dev *pci)
 {
-	if (dmab->area)
+	if (dmab->area) {
+		dmab->dev.dev = NULL; /* make it anonymous */
 		snd_dma_reserve_buf(dmab, snd_dma_pci_buf_id(pci));
+	}
 }
 
 
@@ -674,8 +679,7 @@ static int snd_hdsp_load_firmware_from_cache(hdsp_t *hdsp) {
 		}
 
 		if ((1000 / HZ) < 3000) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout((3000 * HZ + 999) / 1000);
+			ssleep(3);
 		} else {
 			mdelay(3000);
 		}
@@ -2091,6 +2095,34 @@ static int snd_hdsp_put_clock_source(snd_kcontrol_t * kcontrol, snd_ctl_elem_val
 	return change;
 }
 
+static int snd_hdsp_info_clock_source_lock(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}
+
+static int snd_hdsp_get_clock_source_lock(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+{
+	hdsp_t *hdsp = snd_kcontrol_chip(kcontrol);
+	
+	ucontrol->value.integer.value[0] = hdsp->clock_source_locked;
+	return 0;
+}
+
+static int snd_hdsp_put_clock_source_lock(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+{
+	hdsp_t *hdsp = snd_kcontrol_chip(kcontrol);
+	int change;
+
+	change = (int)ucontrol->value.integer.value[0] != hdsp->clock_source_locked;
+	if (change)
+		hdsp->clock_source_locked = ucontrol->value.integer.value[0];
+	return change;
+}
+
 #define HDSP_DA_GAIN(xname, xindex) \
 { .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
   .name = xname, \
@@ -3113,6 +3145,15 @@ HDSP_SPDIF_EMPHASIS("IEC958 Emphasis Bit", 0),
 HDSP_SPDIF_NON_AUDIO("IEC958 Non-audio Bit", 0),
 /* 'Sample Clock Source' complies with the alsa control naming scheme */ 
 HDSP_CLOCK_SOURCE("Sample Clock Source", 0),
+{
+	/* FIXME: should be PCM or MIXER? */
+	/* .iface = SNDRV_CTL_ELEM_IFACE_PCM, */
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Sample Clock Source Locking",
+	.info = snd_hdsp_info_clock_source_lock,
+	.get = snd_hdsp_get_clock_source_lock,
+	.put = snd_hdsp_put_clock_source_lock,
+},
 HDSP_SYSTEM_CLOCK_MODE("System Clock Mode", 0),
 HDSP_PREF_SYNC_REF("Preferred Sync Reference", 0),
 HDSP_AUTOSYNC_REF("AutoSync Reference", 0),
@@ -3345,6 +3386,7 @@ snd_hdsp_proc_read(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
 	snd_iprintf (buffer, "System Clock Mode: %s\n", system_clock_mode);
 
 	snd_iprintf (buffer, "System Clock Frequency: %d\n", hdsp->system_sample_rate);
+	snd_iprintf (buffer, "System Clock Locked: %s\n", hdsp->clock_source_locked ? "Yes" : "No");
 		
 	snd_iprintf(buffer, "\n");
 
@@ -3849,13 +3891,14 @@ static int snd_hdsp_hw_params(snd_pcm_substream_t *substream,
 	 */
 
 	spin_lock_irq(&hdsp->lock);
-	if ((err = hdsp_set_rate(hdsp, params_rate(params), 0)) < 0) {
-		spin_unlock_irq(&hdsp->lock);
-		_snd_pcm_hw_param_setempty(params, SNDRV_PCM_HW_PARAM_RATE);
-		return err;
-	} else {
-		spin_unlock_irq(&hdsp->lock);
+	if (! hdsp->clock_source_locked) {
+		if ((err = hdsp_set_rate(hdsp, params_rate(params), 0)) < 0) {
+			spin_unlock_irq(&hdsp->lock);
+			_snd_pcm_hw_param_setempty(params, SNDRV_PCM_HW_PARAM_RATE);
+			return err;
+		}
 	}
+	spin_unlock_irq(&hdsp->lock);
 
 	if ((err = hdsp_set_interrupt_interval(hdsp, params_period_size(params))) < 0) {
 		_snd_pcm_hw_param_setempty(params, SNDRV_PCM_HW_PARAM_PERIOD_SIZE);
@@ -4280,13 +4323,17 @@ static int snd_hdsp_playback_open(snd_pcm_substream_t *substream)
 
 	snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE, &hdsp_hw_constraints_period_sizes);
-	if (hdsp->io_type == H9632) {
-		runtime->hw.channels_min = hdsp->qs_out_channels;
-		runtime->hw.channels_max = hdsp->ss_out_channels;
+	if (hdsp->clock_source_locked) {
+		runtime->hw.rate_min = runtime->hw.rate_max = hdsp->system_sample_rate;
+	} else if (hdsp->io_type == H9632) {
 		runtime->hw.rate_max = 192000;
 		runtime->hw.rates = SNDRV_PCM_RATE_KNOT;
 		snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hdsp_hw_constraints_9632_sample_rates);
 	}
+	if (hdsp->io_type == H9632) {
+		runtime->hw.channels_min = hdsp->qs_out_channels;
+		runtime->hw.channels_max = hdsp->ss_out_channels;
+	}	
 	
 	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 			     snd_hdsp_hw_rule_out_channels, hdsp,
@@ -4912,19 +4959,9 @@ static int __devinit hdsp_request_fw_loader(hdsp_t *hdsp)
 		release_firmware(fw);
 		return -EINVAL;
 	}
-#ifdef SNDRV_BIG_ENDIAN
-	{
-		int i;
-		u32 *src = (u32*)fw->data;
-		for (i = 0; i < ARRAY_SIZE(hdsp->firmware_cache); i++, src++)
-			hdsp->firmware_cache[i] = ((*src & 0x000000ff) << 16) |
-				((*src & 0x0000ff00) << 8)  |
-				((*src & 0x00ff0000) >> 8)  |
-				((*src & 0xff000000) >> 16);
-	}
-#else
+
 	memcpy(hdsp->firmware_cache, fw->data, sizeof(hdsp->firmware_cache));
-#endif
+
 	release_firmware(fw);
 		
 	hdsp->state |= HDSP_FirmwareCached;
@@ -5042,8 +5079,7 @@ static int __devinit snd_hdsp_create(snd_card_t *card,
 	if (!is_9652 && !is_9632) {
 		/* we wait 2 seconds to let freshly inserted cardbus cards do their hardware init */
  		if ((1000 / HZ) < 2000) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout((2000 * HZ + 999) / 1000);
+			ssleep(2);
 		} else {
 			mdelay(2000);
 		}
@@ -5194,7 +5230,7 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_hdsp_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_hdsp_exit(void)

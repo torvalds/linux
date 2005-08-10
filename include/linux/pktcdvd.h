@@ -159,7 +159,7 @@ struct packet_iosched
 	struct bio		*read_queue_tail;
 	struct bio		*write_queue;
 	struct bio		*write_queue_tail;
-	int			high_prio_read;	/* An important read request has been queued */
+	sector_t		last_write;	/* The sector where the last write ended */
 	int			successive_reads;
 };
 

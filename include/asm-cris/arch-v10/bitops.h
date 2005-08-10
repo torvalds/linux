@@ -51,7 +51,7 @@ extern inline unsigned long ffz(unsigned long w)
  *
  * Undefined if no bit exists, so code should check against 0 first.
  */
-extern __inline__ unsigned long __ffs(unsigned long word)
+extern inline unsigned long __ffs(unsigned long word)
 {
 	return cris_swapnwbrlz(~word);
 }

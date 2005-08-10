@@ -28,6 +28,8 @@
 
 #ifdef __KERNEL__
 
+#include <acpi/pdc_intel.h>
+
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
 
@@ -98,12 +100,6 @@ __acpi_release_global_lock (unsigned int *lock)
         "rcrl   $1,%3;"             \
         :"=r"(n_hi), "=r"(n_lo)     \
         :"0"(n_hi), "1"(n_lo))
-
-/*
- * Refer Intel ACPI _PDC support document for bit definitions
- */
-#define ACPI_PDC_EST_CAPABILITY_SMP 	0xa
-#define ACPI_PDC_EST_CAPABILITY_MSR	0x1
 
 #ifdef CONFIG_ACPI_BOOT
 extern int acpi_lapic;

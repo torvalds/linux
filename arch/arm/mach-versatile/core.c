@@ -33,6 +33,7 @@
 #include <asm/mach-types.h>
 #include <asm/hardware/amba.h>
 #include <asm/hardware/amba_clcd.h>
+#include <asm/hardware/arm_timer.h>
 #include <asm/hardware/icst307.h>
 
 #include <asm/mach/arch.h>
@@ -788,30 +789,18 @@ void __init versatile_init(void)
  */
 #define TIMER_INTERVAL	(TICKS_PER_uSEC * mSEC_10)
 #if TIMER_INTERVAL >= 0x100000
-#define TIMER_RELOAD	(TIMER_INTERVAL >> 8)		/* Divide by 256 */
-#define TIMER_CTRL	0x88				/* Enable, Clock / 256 */
+#define TIMER_RELOAD	(TIMER_INTERVAL >> 8)
+#define TIMER_DIVISOR	(TIMER_CTRL_DIV256)
 #define TICKS2USECS(x)	(256 * (x) / TICKS_PER_uSEC)
 #elif TIMER_INTERVAL >= 0x10000
 #define TIMER_RELOAD	(TIMER_INTERVAL >> 4)		/* Divide by 16 */
-#define TIMER_CTRL	0x84				/* Enable, Clock / 16 */
+#define TIMER_DIVISOR	(TIMER_CTRL_DIV16)
 #define TICKS2USECS(x)	(16 * (x) / TICKS_PER_uSEC)
 #else
 #define TIMER_RELOAD	(TIMER_INTERVAL)
-#define TIMER_CTRL	0x80				/* Enable */
+#define TIMER_DIVISOR	(TIMER_CTRL_DIV1)
 #define TICKS2USECS(x)	((x) / TICKS_PER_uSEC)
 #endif
-
-#define TIMER_CTRL_IE	(1 << 5)	/* Interrupt Enable */
-
-/*
- * What does it look like?
- */
-typedef struct TimerStruct {
-	unsigned long TimerLoad;
-	unsigned long TimerValue;
-	unsigned long TimerControl;
-	unsigned long TimerClear;
-} TimerStruct_t;
 
 /*
  * Returns number of ms since last clock interrupt.  Note that interrupts
@@ -819,7 +808,6 @@ typedef struct TimerStruct {
  */
 static unsigned long versatile_gettimeoffset(void)
 {
-	volatile TimerStruct_t *timer0 = (TimerStruct_t *)TIMER0_VA_BASE;
 	unsigned long ticks1, ticks2, status;
 
 	/*
@@ -828,11 +816,11 @@ static unsigned long versatile_gettimeoffset(void)
 	 * an interrupt.  We get around this by ensuring that the
 	 * counter has not reloaded between our two reads.
 	 */
-	ticks2 = timer0->TimerValue & 0xffff;
+	ticks2 = readl(TIMER0_VA_BASE + TIMER_VALUE) & 0xffff;
 	do {
 		ticks1 = ticks2;
 		status = __raw_readl(VA_IC_BASE + VIC_IRQ_RAW_STATUS);
-		ticks2 = timer0->TimerValue & 0xffff;
+		ticks2 = readl(TIMER0_VA_BASE + TIMER_VALUE) & 0xffff;
 	} while (ticks2 > ticks1);
 
 	/*
@@ -859,12 +847,10 @@ static unsigned long versatile_gettimeoffset(void)
  */
 static irqreturn_t versatile_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	volatile TimerStruct_t *timer0 = (volatile TimerStruct_t *)TIMER0_VA_BASE;
-
 	write_seqlock(&xtime_lock);
 
 	// ...clear the interrupt
-	timer0->TimerClear = 1;
+	writel(1, TIMER0_VA_BASE + TIMER_INTCLR);
 
 	timer_tick(regs);
 
@@ -875,8 +861,8 @@ static irqreturn_t versatile_timer_interrupt(int irq, void *dev_id, struct pt_re
 
 static struct irqaction versatile_timer_irq = {
 	.name		= "Versatile Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= versatile_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= versatile_timer_interrupt,
 };
 
 /*
@@ -884,31 +870,32 @@ static struct irqaction versatile_timer_irq = {
  */
 static void __init versatile_timer_init(void)
 {
-	volatile TimerStruct_t *timer0 = (volatile TimerStruct_t *)TIMER0_VA_BASE;
-	volatile TimerStruct_t *timer1 = (volatile TimerStruct_t *)TIMER1_VA_BASE;
-	volatile TimerStruct_t *timer2 = (volatile TimerStruct_t *)TIMER2_VA_BASE;
-	volatile TimerStruct_t *timer3 = (volatile TimerStruct_t *)TIMER3_VA_BASE;
+	u32 val;
 
 	/* 
 	 * set clock frequency: 
 	 *	VERSATILE_REFCLK is 32KHz
 	 *	VERSATILE_TIMCLK is 1MHz
 	 */
-	*(volatile unsigned int *)IO_ADDRESS(VERSATILE_SCTL_BASE) |= 
-	  ((VERSATILE_TIMCLK << VERSATILE_TIMER1_EnSel) | (VERSATILE_TIMCLK << VERSATILE_TIMER2_EnSel) | 
-	   (VERSATILE_TIMCLK << VERSATILE_TIMER3_EnSel) | (VERSATILE_TIMCLK << VERSATILE_TIMER4_EnSel));
+	val = readl(IO_ADDRESS(VERSATILE_SCTL_BASE));
+	writel((VERSATILE_TIMCLK << VERSATILE_TIMER1_EnSel) |
+	       (VERSATILE_TIMCLK << VERSATILE_TIMER2_EnSel) | 
+	       (VERSATILE_TIMCLK << VERSATILE_TIMER3_EnSel) |
+	       (VERSATILE_TIMCLK << VERSATILE_TIMER4_EnSel) | val,
+	       IO_ADDRESS(VERSATILE_SCTL_BASE));
 
 	/*
 	 * Initialise to a known state (all timers off)
 	 */
-	timer0->TimerControl = 0;
-	timer1->TimerControl = 0;
-	timer2->TimerControl = 0;
-	timer3->TimerControl = 0;
+	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
+	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
+	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
+	writel(0, TIMER3_VA_BASE + TIMER_CTRL);
 
-	timer0->TimerLoad    = TIMER_RELOAD;
-	timer0->TimerValue   = TIMER_RELOAD;
-	timer0->TimerControl = TIMER_CTRL | 0x40 | TIMER_CTRL_IE;  /* periodic + IE */
+	writel(TIMER_RELOAD, TIMER0_VA_BASE + TIMER_LOAD);
+	writel(TIMER_RELOAD, TIMER0_VA_BASE + TIMER_VALUE);
+	writel(TIMER_DIVISOR | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC |
+	       TIMER_CTRL_IE, TIMER0_VA_BASE + TIMER_CTRL);
 
 	/* 
 	 * Make irqs happen for the system timer

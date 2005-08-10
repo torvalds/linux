@@ -153,12 +153,11 @@ acpi_ds_parse_method (
 	/*
 	 * Parse the method, first pass
 	 *
-	 * The first pass load is where newly declared named objects are
-	 * added into the namespace.  Actual evaluation of
-	 * the named objects (what would be called a "second
-	 * pass") happens during the actual execution of the
-	 * method so that operands to the named objects can
-	 * take on dynamic run-time values.
+	 * The first pass load is where newly declared named objects are added into
+	 * the namespace.  Actual evaluation of the named objects (what would be
+	 * called a "second pass") happens during the actual execution of the
+	 * method so that operands to the named objects can take on dynamic
+	 * run-time values.
 	 */
 	status = acpi_ps_parse_aml (walk_state);
 	if (ACPI_FAILURE (status)) {

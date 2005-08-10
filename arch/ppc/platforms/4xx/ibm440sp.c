@@ -36,8 +36,8 @@ static struct ocp_func_emac_data ibm440sp_emac0_def = {
 OCP_SYSFS_EMAC_DATA()
 
 static struct ocp_func_mal_data ibm440sp_mal0_def = {
-	.num_tx_chans   = 4,    	/* Number of TX channels */
-	.num_rx_chans   = 4,    	/* Number of RX channels */
+	.num_tx_chans   = 1,    	/* Number of TX channels */
+	.num_rx_chans   = 1,    	/* Number of RX channels */
 	.txeob_irq	= 38,		/* TX End Of Buffer IRQ  */
 	.rxeob_irq	= 39,		/* RX End Of Buffer IRQ  */
 	.txde_irq	= 34,		/* TX Descriptor Error IRQ */

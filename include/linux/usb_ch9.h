@@ -6,17 +6,20 @@
  *
  * - the master/host side Linux-USB kernel driver API;
  * - the "usbfs" user space API; and
- * - (eventually) a Linux "gadget" slave/device side driver API.
+ * - the Linux "gadget" slave/device/peripheral side driver API.
  *
  * USB 2.0 adds an additional "On The Go" (OTG) mode, which lets systems
  * act either as a USB master/host or as a USB slave/device.  That means
- * the master and slave side APIs will benefit from working well together.
+ * the master and slave side APIs benefit from working well together.
+ *
+ * There's also "Wireless USB", using low power short range radios for
+ * peripheral interconnection but otherwise building on the USB framework.
  */
 
 #ifndef __LINUX_USB_CH9_H
 #define __LINUX_USB_CH9_H
 
-#include <asm/types.h>		/* __u8 etc */
+#include <linux/types.h>	/* __u8 etc */
 
 /*-------------------------------------------------------------------------*/
 
@@ -68,6 +71,18 @@
 #define USB_REQ_SET_INTERFACE		0x0B
 #define USB_REQ_SYNCH_FRAME		0x0C
 
+#define USB_REQ_SET_ENCRYPTION		0x0D	/* Wireless USB */
+#define USB_REQ_GET_ENCRYPTION		0x0E
+#define USB_REQ_SET_HANDSHAKE		0x0F
+#define USB_REQ_GET_HANDSHAKE		0x10
+#define USB_REQ_SET_CONNECTION		0x11
+#define USB_REQ_SET_SECURITY_DATA	0x12
+#define USB_REQ_GET_SECURITY_DATA	0x13
+#define USB_REQ_SET_WUSB_DATA		0x14
+#define USB_REQ_LOOPBACK_DATA_WRITE	0x15
+#define USB_REQ_LOOPBACK_DATA_READ	0x16
+#define USB_REQ_SET_INTERFACE_DS	0x17
+
 /*
  * USB feature flags are written using USB_REQ_{CLEAR,SET}_FEATURE, and
  * are read as a bit array returned by USB_REQ_GET_STATUS.  (So there
@@ -75,10 +90,12 @@
  */
 #define USB_DEVICE_SELF_POWERED		0	/* (read only) */
 #define USB_DEVICE_REMOTE_WAKEUP	1	/* dev may initiate wakeup */
-#define USB_DEVICE_TEST_MODE		2	/* (high speed only) */
-#define USB_DEVICE_B_HNP_ENABLE		3	/* dev may initiate HNP */
-#define USB_DEVICE_A_HNP_SUPPORT	4	/* RH port supports HNP */
-#define USB_DEVICE_A_ALT_HNP_SUPPORT	5	/* other RH port does */
+#define USB_DEVICE_TEST_MODE		2	/* (wired high speed only) */
+#define USB_DEVICE_BATTERY		2	/* (wireless) */
+#define USB_DEVICE_B_HNP_ENABLE		3	/* (otg) dev may initiate HNP */
+#define USB_DEVICE_WUSB_DEVICE		3	/* (wireless)*/
+#define USB_DEVICE_A_HNP_SUPPORT	4	/* (otg) RH port supports HNP */
+#define USB_DEVICE_A_ALT_HNP_SUPPORT	5	/* (otg) other RH port does */
 #define USB_DEVICE_DEBUG_MODE		6	/* (special devices only) */
 
 #define USB_ENDPOINT_HALT		0	/* IN/OUT will STALL */
@@ -135,6 +152,13 @@ struct usb_ctrlrequest {
 #define USB_DT_OTG			0x09
 #define USB_DT_DEBUG			0x0a
 #define USB_DT_INTERFACE_ASSOCIATION	0x0b
+/* these are from the Wireless USB spec */
+#define USB_DT_SECURITY			0x0c
+#define USB_DT_KEY			0x0d
+#define USB_DT_ENCRYPTION_TYPE		0x0e
+#define USB_DT_BOS			0x0f
+#define USB_DT_DEVICE_CAPABILITY	0x10
+#define USB_DT_WIRELESS_ENDPOINT_COMP	0x11
 
 /* conventional codes for class-specific descriptors */
 #define USB_DT_CS_DEVICE		0x21
@@ -192,6 +216,7 @@ struct usb_device_descriptor {
 #define USB_CLASS_CSCID			0x0b	/* chip+ smart card */
 #define USB_CLASS_CONTENT_SEC		0x0d	/* content security */
 #define USB_CLASS_VIDEO			0x0e
+#define USB_CLASS_WIRELESS_CONTROLLER	0xe0
 #define USB_CLASS_APP_SPEC		0xfe
 #define USB_CLASS_VENDOR_SPEC		0xff
 
@@ -223,6 +248,7 @@ struct usb_config_descriptor {
 #define USB_CONFIG_ATT_ONE		(1 << 7)	/* must be set */
 #define USB_CONFIG_ATT_SELFPOWER	(1 << 6)	/* self powered */
 #define USB_CONFIG_ATT_WAKEUP		(1 << 5)	/* can wakeup */
+#define USB_CONFIG_ATT_BATTERY		(1 << 4)	/* battery powered */
 
 /*-------------------------------------------------------------------------*/
 
@@ -268,8 +294,8 @@ struct usb_endpoint_descriptor {
 	__le16 wMaxPacketSize;
 	__u8  bInterval;
 
-	// NOTE:  these two are _only_ in audio endpoints.
-	// use USB_DT_ENDPOINT*_SIZE in bLength, not sizeof.
+	/* NOTE:  these two are _only_ in audio endpoints. */
+	/* use USB_DT_ENDPOINT*_SIZE in bLength, not sizeof. */
 	__u8  bRefresh;
 	__u8  bSynchAddress;
 } __attribute__ ((packed));
@@ -289,6 +315,7 @@ struct usb_endpoint_descriptor {
 #define USB_ENDPOINT_XFER_ISOC		1
 #define USB_ENDPOINT_XFER_BULK		2
 #define USB_ENDPOINT_XFER_INT		3
+#define USB_ENDPOINT_MAX_ADJUSTABLE	0x80
 
 
 /*-------------------------------------------------------------------------*/
@@ -352,12 +379,154 @@ struct usb_interface_assoc_descriptor {
 
 /*-------------------------------------------------------------------------*/
 
+/* USB_DT_SECURITY:  group of wireless security descriptors, including
+ * encryption types available for setting up a CC/association.
+ */
+struct usb_security_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+
+	__le16 wTotalLength;
+	__u8  bNumEncryptionTypes;
+};
+
+/*-------------------------------------------------------------------------*/
+
+/* USB_DT_KEY:  used with {GET,SET}_SECURITY_DATA; only public keys
+ * may be retrieved.
+ */
+struct usb_key_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+
+	__u8  tTKID[3];
+	__u8  bReserved;
+	__u8  bKeyData[0];
+};
+
+/*-------------------------------------------------------------------------*/
+
+/* USB_DT_ENCRYPTION_TYPE:  bundled in DT_SECURITY groups */
+struct usb_encryption_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+
+	__u8  bEncryptionType;
+#define	USB_ENC_TYPE_UNSECURE		0
+#define	USB_ENC_TYPE_WIRED		1	/* non-wireless mode */
+#define	USB_ENC_TYPE_CCM_1		2	/* aes128/cbc session */
+#define	USB_ENC_TYPE_RSA_1		3	/* rsa3072/sha1 auth */
+	__u8  bEncryptionValue;		/* use in SET_ENCRYPTION */
+	__u8  bAuthKeyIndex;
+};
+
+
+/*-------------------------------------------------------------------------*/
+
+/* USB_DT_BOS:  group of wireless capabilities */
+struct usb_bos_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+
+	__le16 wTotalLength;
+	__u8  bNumDeviceCaps;
+};
+
+/*-------------------------------------------------------------------------*/
+
+/* USB_DT_DEVICE_CAPABILITY:  grouped with BOS */
+struct usb_dev_cap_header {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDevCapabilityType;
+};
+
+#define	USB_CAP_TYPE_WIRELESS_USB	1
+
+struct usb_wireless_cap_descriptor {	/* Ultra Wide Band */
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDevCapabilityType;
+
+	__u8  bmAttributes;
+#define	USB_WIRELESS_P2P_DRD		(1 << 1)
+#define	USB_WIRELESS_BEACON_MASK	(3 << 2)
+#define	USB_WIRELESS_BEACON_SELF	(1 << 2)
+#define	USB_WIRELESS_BEACON_DIRECTED	(2 << 2)
+#define	USB_WIRELESS_BEACON_NONE	(3 << 2)
+	__le16 wPHYRates;	/* bit rates, Mbps */
+#define	USB_WIRELESS_PHY_53		(1 << 0)	/* always set */
+#define	USB_WIRELESS_PHY_80		(1 << 1)
+#define	USB_WIRELESS_PHY_107		(1 << 2)	/* always set */
+#define	USB_WIRELESS_PHY_160		(1 << 3)
+#define	USB_WIRELESS_PHY_200		(1 << 4)	/* always set */
+#define	USB_WIRELESS_PHY_320		(1 << 5)
+#define	USB_WIRELESS_PHY_400		(1 << 6)
+#define	USB_WIRELESS_PHY_480		(1 << 7)
+	__u8  bmTFITXPowerInfo;	/* TFI power levels */
+	__u8  bmFFITXPowerInfo;	/* FFI power levels */
+	__le16 bmBandGroup;
+	__u8  bReserved;
+};
+
+/*-------------------------------------------------------------------------*/
+
+/* USB_DT_WIRELESS_ENDPOINT_COMP:  companion descriptor associated with
+ * each endpoint descriptor for a wireless device
+ */
+struct usb_wireless_ep_comp_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+
+	__u8  bMaxBurst;
+	__u8  bMaxSequence;
+	__le16 wMaxStreamDelay;
+	__le16 wOverTheAirPacketSize;
+	__u8  bOverTheAirInterval;
+	__u8  bmCompAttributes;
+#define USB_ENDPOINT_SWITCH_MASK	0x03	/* in bmCompAttributes */
+#define USB_ENDPOINT_SWITCH_NO		0
+#define USB_ENDPOINT_SWITCH_SWITCH	1
+#define USB_ENDPOINT_SWITCH_SCALE	2
+};
+
+/*-------------------------------------------------------------------------*/
+
+/* USB_REQ_SET_HANDSHAKE is a four-way handshake used between a wireless
+ * host and a device for connection set up, mutual authentication, and
+ * exchanging short lived session keys.  The handshake depends on a CC.
+ */
+struct usb_handshake {
+	__u8 bMessageNumber;
+	__u8 bStatus;
+	__u8 tTKID[3];
+	__u8 bReserved;
+	__u8 CDID[16];
+	__u8 nonce[16];
+	__u8 MIC[8];
+};
+
+/*-------------------------------------------------------------------------*/
+
+/* USB_REQ_SET_CONNECTION modifies or revokes a connection context (CC).
+ * A CC may also be set up using non-wireless secure channels (including
+ * wired USB!), and some devices may support CCs with multiple hosts.
+ */
+struct usb_connection_context {
+	__u8 CHID[16];		/* persistent host id */
+	__u8 CDID[16];		/* device id (unique w/in host context) */
+	__u8 CK[16];		/* connection key */
+};
+
+/*-------------------------------------------------------------------------*/
+
 /* USB 2.0 defines three speeds, here's how Linux identifies them */
 
 enum usb_device_speed {
 	USB_SPEED_UNKNOWN = 0,			/* enumerating */
 	USB_SPEED_LOW, USB_SPEED_FULL,		/* usb 1.1 */
-	USB_SPEED_HIGH				/* usb 2.0 */
+	USB_SPEED_HIGH,				/* usb 2.0 */
+	USB_SPEED_VARIABLE,			/* wireless (usb 2.5) */
 };
 
 enum usb_device_state {

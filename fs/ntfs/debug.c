@@ -164,14 +164,17 @@ void ntfs_debug_dump_runlist(const runlist_element *rl)
 			if (index > -LCN_ENOENT - 1)
 				index = 3;
 			printk(KERN_DEBUG "%-16Lx %s %-16Lx%s\n",
-					(rl + i)->vcn, lcn_str[index],
-					(rl + i)->length, (rl + i)->length ?
-					"" : " (runlist end)");
+					(long long)(rl + i)->vcn, lcn_str[index],
+					(long long)(rl + i)->length,
+					(rl + i)->length ? "" :
+						" (runlist end)");
 		} else
 			printk(KERN_DEBUG "%-16Lx %-16Lx  %-16Lx%s\n",
-					(rl + i)->vcn, (rl + i)->lcn,
-					(rl + i)->length, (rl + i)->length ?
-					"" : " (runlist end)");
+					(long long)(rl + i)->vcn,
+					(long long)(rl + i)->lcn,
+					(long long)(rl + i)->length,
+					(rl + i)->length ? "" :
+						" (runlist end)");
 		if (!(rl + i)->length)
 			break;
 	}

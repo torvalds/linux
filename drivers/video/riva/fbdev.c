@@ -1826,7 +1826,7 @@ static void __devinit riva_get_EDID(struct fb_info *info, struct pci_dev *pdev)
 #ifdef CONFIG_PPC_OF
 	if (!riva_get_EDID_OF(info, pdev))
 		printk(PFX "could not retrieve EDID from OF\n");
-#elif CONFIG_FB_RIVA_I2C
+#elif defined(CONFIG_FB_RIVA_I2C)
 	if (!riva_get_EDID_i2c(info))
 		printk(PFX "could not retrieve EDID from DDC/I2C\n");
 #endif

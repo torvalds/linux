@@ -1374,7 +1374,8 @@ static void reset_chip (struct fs_dev *dev)
 	}
 }
 
-static void __devinit *aligned_kmalloc (int size, int flags, int alignment)
+static void __devinit *aligned_kmalloc (int size, unsigned int __nocast flags,
+					int alignment)
 {
 	void  *t;
 
@@ -1464,7 +1465,8 @@ static inline int nr_buffers_in_freepool (struct fs_dev *dev, struct freepool *f
    does. I've seen "receive abort: no buffers" and things started
    working again after that...  -- REW */
 
-static void top_off_fp (struct fs_dev *dev, struct freepool *fp, int gfp_flags)
+static void top_off_fp (struct fs_dev *dev, struct freepool *fp,
+			unsigned int __nocast gfp_flags)
 {
 	struct FS_BPENTRY *qe, *ne;
 	struct sk_buff *skb;

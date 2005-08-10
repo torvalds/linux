@@ -33,8 +33,6 @@ static int arlan_EEPROM_bad;
 
 #ifdef ARLAN_DEBUGGING
 
-static int arlan_entry_debug;
-static int arlan_exit_debug;
 static int testMemory = testMemoryUNKNOWN;
 static int irq = irqUNKNOWN;
 static int txScrambled = 1;
@@ -43,15 +41,13 @@ static int mdebug;
 module_param(irq, int, 0);
 module_param(mdebug, int, 0);
 module_param(testMemory, int, 0);
-module_param(arlan_entry_debug, int, 0);
-module_param(arlan_exit_debug, int, 0);
 module_param(txScrambled, int, 0);
 MODULE_PARM_DESC(irq, "(unused)");
 MODULE_PARM_DESC(testMemory, "(unused)");
 MODULE_PARM_DESC(mdebug, "Arlan multicast debugging (0-1)");
 #endif
 
-module_param(arlan_debug, int, 0);
+module_param_named(debug, arlan_debug, int, 0);
 module_param(spreadingCode, int, 0);
 module_param(channelNumber, int, 0);
 module_param(channelSet, int, 0);
@@ -63,17 +59,19 @@ module_param(keyStart, int, 0);
 module_param(tx_delay_ms, int, 0);
 module_param(retries, int, 0);
 module_param(tx_queue_len, int, 0);
-module_param(arlan_EEPROM_bad, int, 0);
-MODULE_PARM_DESC(arlan_debug, "Arlan debug enable (0-1)");
+module_param_named(EEPROM_bad, arlan_EEPROM_bad, int, 0);
+MODULE_PARM_DESC(debug, "Arlan debug enable (0-1)");
 MODULE_PARM_DESC(retries, "Arlan maximum packet retransmisions");
 #ifdef ARLAN_ENTRY_EXIT_DEBUGGING
-MODULE_PARM_DESC(arlan_entry_debug, "Arlan driver function entry debugging");
-MODULE_PARM_DESC(arlan_exit_debug, "Arlan driver function exit debugging");
-MODULE_PARM_DESC(arlan_entry_and_exit_debug, "Arlan driver function entry and exit debugging");
-#else
-MODULE_PARM_DESC(arlan_entry_debug, "(ignored)");
-MODULE_PARM_DESC(arlan_exit_debug, "(ignored)");
-MODULE_PARM_DESC(arlan_entry_and_exit_debug, "(ignored)");
+static int arlan_entry_debug;
+static int arlan_exit_debug;
+static int arlan_entry_and_exit_debug;
+module_param_named(entry_debug, arlan_entry_debug, int, 0);
+module_param_named(exit_debug, arlan_exit_debug, int, 0);
+module_param_named(entry_and_exit_debug, arlan_entry_and_exit_debug, int, 0);
+MODULE_PARM_DESC(entry_debug, "Arlan driver function entry debugging");
+MODULE_PARM_DESC(exit_debug, "Arlan driver function exit debugging");
+MODULE_PARM_DESC(entry_and_exit_debug, "Arlan driver function entry and exit debugging");
 #endif
 
 struct arlan_conf_stru arlan_conf[MAX_ARLANS];

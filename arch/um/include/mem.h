@@ -13,6 +13,7 @@ extern int physmem_subst_mapping(void *virt, int fd, __u64 offset, int w);
 extern int is_remapped(void *virt);
 extern int physmem_remove_mapping(void *virt);
 extern void physmem_forget_descriptor(int fd);
+extern unsigned long to_phys(void *virt);
 
 #endif
 

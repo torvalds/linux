@@ -155,12 +155,11 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 
 	sbp->s_flags |= MS_RDONLY;
 
-	infp = kmalloc(sizeof(*infp), GFP_KERNEL);
+	infp = kcalloc(1, sizeof(*infp), GFP_KERNEL);
 	if (!infp) {
 		printk(KERN_WARNING "vxfs: unable to allocate incore superblock\n");
 		return -ENOMEM;
 	}
-	memset(infp, 0, sizeof(*infp));
 
 	bsize = sb_min_blocksize(sbp, BLOCK_SIZE);
 	if (!bsize) {
@@ -196,7 +195,7 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 #endif
 
 	sbp->s_magic = rsbp->vs_magic;
-	sbp->s_fs_info = (void *)infp;
+	sbp->s_fs_info = infp;
 
 	infp->vsi_raw = rsbp;
 	infp->vsi_bp = bp;
@@ -263,7 +262,7 @@ vxfs_init(void)
 			sizeof(struct vxfs_inode_info), 0, 
 			SLAB_RECLAIM_ACCOUNT, NULL, NULL);
 	if (vxfs_inode_cachep)
-		return (register_filesystem(&vxfs_fs_type));
+		return register_filesystem(&vxfs_fs_type);
 	return -ENOMEM;
 }
 

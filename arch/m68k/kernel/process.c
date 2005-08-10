@@ -113,8 +113,6 @@ void machine_restart(char * __unused)
 	for (;;);
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_halt(void)
 {
 	if (mach_halt)
@@ -122,16 +120,12 @@ void machine_halt(void)
 	for (;;);
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off(void)
 {
 	if (mach_power_off)
 		mach_power_off();
 	for (;;);
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 void show_regs(struct pt_regs * regs)
 {

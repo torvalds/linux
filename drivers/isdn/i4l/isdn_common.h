@@ -41,7 +41,6 @@ extern int  isdn_get_free_channel(int, int, int, int, int, char *);
 extern int  isdn_writebuf_skb_stub(int, int, int, struct sk_buff *);
 extern int  register_isdn(isdn_if * i);
 extern int  isdn_msncmp( const char *,  const char *);
-extern int  isdn_add_channels(isdn_driver_t *, int, int, int);
 #if defined(ISDN_DEBUG_NET_DUMP) || defined(ISDN_DEBUG_MODEM_DUMP)
 extern void isdn_dumppkt(char *, u_char *, int, int);
 #endif

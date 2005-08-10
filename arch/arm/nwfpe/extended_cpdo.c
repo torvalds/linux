@@ -35,17 +35,17 @@ floatx80 floatx80_arccos(floatx80 rFm);
 floatx80 floatx80_pow(floatx80 rFn, floatx80 rFm);
 floatx80 floatx80_pol(floatx80 rFn, floatx80 rFm);
 
-static floatx80 floatx80_rsf(floatx80 rFn, floatx80 rFm)
+static floatx80 floatx80_rsf(struct roundingData *roundData, floatx80 rFn, floatx80 rFm)
 {
-	return floatx80_sub(rFm, rFn);
+	return floatx80_sub(roundData, rFm, rFn);
 }
 
-static floatx80 floatx80_rdv(floatx80 rFn, floatx80 rFm)
+static floatx80 floatx80_rdv(struct roundingData *roundData, floatx80 rFn, floatx80 rFm)
 {
-	return floatx80_div(rFm, rFn);
+	return floatx80_div(roundData, rFm, rFn);
 }
 
-static floatx80 (*const dyadic_extended[16])(floatx80 rFn, floatx80 rFm) = {
+static floatx80 (*const dyadic_extended[16])(struct roundingData*, floatx80 rFn, floatx80 rFm) = {
 	[ADF_CODE >> 20] = floatx80_add,
 	[MUF_CODE >> 20] = floatx80_mul,
 	[SUF_CODE >> 20] = floatx80_sub,
@@ -60,24 +60,24 @@ static floatx80 (*const dyadic_extended[16])(floatx80 rFn, floatx80 rFm) = {
 	[FRD_CODE >> 20] = floatx80_rdv,
 };
 
-static floatx80 floatx80_mvf(floatx80 rFm)
+static floatx80 floatx80_mvf(struct roundingData *roundData, floatx80 rFm)
 {
 	return rFm;
 }
 
-static floatx80 floatx80_mnf(floatx80 rFm)
+static floatx80 floatx80_mnf(struct roundingData *roundData, floatx80 rFm)
 {
 	rFm.high ^= 0x8000;
 	return rFm;
 }
 
-static floatx80 floatx80_abs(floatx80 rFm)
+static floatx80 floatx80_abs(struct roundingData *roundData, floatx80 rFm)
 {
 	rFm.high &= 0x7fff;
 	return rFm;
 }
 
-static floatx80 (*const monadic_extended[16])(floatx80 rFm) = {
+static floatx80 (*const monadic_extended[16])(struct roundingData*, floatx80 rFm) = {
 	[MVF_CODE >> 20] = floatx80_mvf,
 	[MNF_CODE >> 20] = floatx80_mnf,
 	[ABS_CODE >> 20] = floatx80_abs,
@@ -87,7 +87,7 @@ static floatx80 (*const monadic_extended[16])(floatx80 rFm) = {
 	[NRM_CODE >> 20] = floatx80_mvf,
 };
 
-unsigned int ExtendedCPDO(const unsigned int opcode, FPREG * rFd)
+unsigned int ExtendedCPDO(struct roundingData *roundData, const unsigned int opcode, FPREG * rFd)
 {
 	FPA11 *fpa11 = GET_FPA11();
 	floatx80 rFm;
@@ -138,13 +138,13 @@ unsigned int ExtendedCPDO(const unsigned int opcode, FPREG * rFd)
 		}
 
 		if (dyadic_extended[opc_mask_shift]) {
-			rFd->fExtended = dyadic_extended[opc_mask_shift](rFn, rFm);
+			rFd->fExtended = dyadic_extended[opc_mask_shift](roundData, rFn, rFm);
 		} else {
 			return 0;
 		}
 	} else {
 		if (monadic_extended[opc_mask_shift]) {
-			rFd->fExtended = monadic_extended[opc_mask_shift](rFm);
+			rFd->fExtended = monadic_extended[opc_mask_shift](roundData, rFm);
 		} else {
 			return 0;
 		}

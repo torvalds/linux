@@ -612,25 +612,35 @@ static int net_config(char *str)
 	return(err);
 }
 
-static int net_remove(char *str)
+static int net_id(char **str, int *start_out, int *end_out)
+{
+        char *end;
+        int n;
+
+	n = simple_strtoul(*str, &end, 0);
+	if((*end != '\0') || (end == *str))
+		return -1;
+
+        *start_out = n;
+        *end_out = n;
+        *str = end;
+        return n;
+}
+
+static int net_remove(int n)
 {
 	struct uml_net *device;
 	struct net_device *dev;
 	struct uml_net_private *lp;
-	char *end;
-	int n;
-
-	n = simple_strtoul(str, &end, 0);
-	if((*end != '\0') || (end == str))
-		return(-1);
 
 	device = find_device(n);
 	if(device == NULL)
-		return(0);
+		return -ENODEV;
 
 	dev = device->dev;
 	lp = dev->priv;
-	if(lp->fd > 0) return(-1);
+	if(lp->fd > 0)
+                return -EBUSY;
 	if(lp->remove != NULL) (*lp->remove)(&lp->user);
 	unregister_netdev(dev);
 	platform_device_unregister(&device->pdev);
@@ -638,13 +648,14 @@ static int net_remove(char *str)
 	list_del(&device->list);
 	kfree(device);
 	free_netdev(dev);
-	return(0);
+	return 0;
 }
 
 static struct mc_device net_mc = {
 	.name		= "eth",
 	.config		= net_config,
 	.get_config	= NULL,
+        .id		= net_id,
 	.remove		= net_remove,
 };
 

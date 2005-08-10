@@ -83,7 +83,7 @@ iop331_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static struct irqaction iop331_timer_irq = {
 	.name		= "IOP331 Timer Tick",
 	.handler	= iop331_timer_interrupt,
-	.flags		= SA_INTERRUPT
+	.flags		= SA_INTERRUPT | SA_TIMER,
 };
 
 static void __init iop331_timer_init(void)

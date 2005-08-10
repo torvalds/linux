@@ -1,0 +1,69 @@
+Kernel driver pcf8574
+=====================
+
+Supported chips:
+  * Philips PCF8574
+    Prefix: 'pcf8574'
+    Addresses scanned: I2C 0x20 - 0x27
+    Datasheet: Publicly available at the Philips Semiconductors website
+               http://www.semiconductors.philips.com/pip/PCF8574P.html
+
+ * Philips PCF8574A
+    Prefix: 'pcf8574a'
+    Addresses scanned: I2C 0x38 - 0x3f
+    Datasheet: Publicly available at the Philips Semiconductors website
+               http://www.semiconductors.philips.com/pip/PCF8574P.html
+
+Authors:
+        Frodo Looijaard <frodol@dds.nl>,
+        Philip Edelbrock <phil@netroedge.com>,
+        Dan Eaton <dan.eaton@rocketlogix.com>,
+        Aurelien Jarno <aurelien@aurel32.net>,
+        Jean Delvare <khali@linux-fr.org>,
+
+
+Description
+-----------
+The PCF8574(A) is an 8-bit I/O expander for the I2C bus produced by Philips
+Semiconductors. It is designed to provide a byte I2C interface to up to 16
+separate devices (8 x PCF8574 and 8 x PCF8574A).
+
+This device consists of a quasi-bidirectional port. Each of the eight I/Os
+can be independently used as an input or output. To setup an I/O as an
+input, you have to write a 1 to the corresponding output.
+
+For more informations see the datasheet.
+
+
+Accessing PCF8574(A) via /sys interface
+-------------------------------------
+
+! Be careful !
+The PCF8574(A) is plainly impossible to detect ! Stupid chip.
+So every chip with address in the interval [20..27] and [38..3f] are
+detected as PCF8574(A). If you have other chips in this address
+range, the workaround is to load this module after the one
+for your others chips.
+
+On detection (i.e. insmod, modprobe et al.), directories are being
+created for each detected PCF8574(A):
+
+/sys/bus/i2c/devices/<0>-<1>/
+where <0> is the bus the chip was detected on (e. g. i2c-0)
+and <1> the chip address ([20..27] or [38..3f]):
+
+(example: /sys/bus/i2c/devices/1-0020/)
+
+Inside these directories, there are two files each:
+read and write (and one file with chip name).
+
+The read file is read-only. Reading gives you the current I/O input
+if the corresponding output is set as 1, otherwise the current output
+value, that is to say 0.
+
+The write file is read/write. Writing a value outputs it on the I/O
+port. Reading returns the last written value.
+
+On module initialization the chip is configured as eight inputs (all
+outputs to 1), so you can connect any circuit to the PCF8574(A) without
+being afraid of short-circuit.

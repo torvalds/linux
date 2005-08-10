@@ -41,6 +41,7 @@ COPYING
 CREDITS
 CVS
 ChangeSet
+Image
 Kerntypes
 MODS.txt
 Module.symvers
@@ -103,6 +104,8 @@ logo_*.c
 logo_*_clut224.c
 logo_*_mono.c
 lxdialog
+mach-types
+mach-types.h
 make_times_h
 map
 maui_boot.h
@@ -111,6 +114,7 @@ mkdep
 mktables
 modpost
 modversions.h*
+offset.h
 offsets.h
 oui.c*
 parse.c*

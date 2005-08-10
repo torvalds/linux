@@ -68,6 +68,7 @@ static int snd_emu10k1_spdif_get_mask(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
+#if 0
 static int snd_audigy_spdif_output_rate_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
 {
 	static char *texts[] = {"44100", "48000", "96000"};
@@ -152,6 +153,7 @@ static snd_kcontrol_new_t snd_audigy_spdif_output_rate =
 	.get =          snd_audigy_spdif_output_rate_get,
 	.put =          snd_audigy_spdif_output_rate_put
 };
+#endif
 
 static int snd_emu10k1_spdif_put(snd_kcontrol_t * kcontrol,
                                  snd_ctl_elem_value_t * ucontrol)
@@ -791,7 +793,7 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 		NULL
 	};
 
-	if (!emu->no_ac97) {
+	if (emu->card_capabilities->ac97_chip) {
 		ac97_bus_t *pbus;
 		ac97_template_t ac97;
 		static ac97_bus_ops_t ops = {
@@ -833,7 +835,7 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 		for (; *c; c++)
 			remove_ctl(card, *c);
 	} else {
-		if (emu->APS)
+		if (emu->card_capabilities->ecard)
 			strcpy(emu->card->mixername, "EMU APS");
 		else if (emu->audigy)
 			strcpy(emu->card->mixername, "SB Audigy");
@@ -918,7 +920,7 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 		mix->attn[0] = 0xffff;
 	}
 	
-	if (! emu->APS) { /* FIXME: APS has these controls? */
+	if (! emu->card_capabilities->ecard) { /* FIXME: APS has these controls? */
 		/* sb live! and audigy */
 		if ((kctl = snd_ctl_new1(&snd_emu10k1_spdif_mask_control, emu)) == NULL)
 			return -ENOMEM;
@@ -935,18 +937,20 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 			return -ENOMEM;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
+#if 0
 		if ((kctl = snd_ctl_new1(&snd_audigy_spdif_output_rate, emu)) == NULL)
 			return -ENOMEM;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
-	} else if (! emu->APS) {
+#endif
+	} else if (! emu->card_capabilities->ecard) {
 		/* sb live! */
 		if ((kctl = snd_ctl_new1(&snd_emu10k1_shared_spdif, emu)) == NULL)
 			return -ENOMEM;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
 	}
-	if (emu->audigy && emu->revision == 4) { /* P16V */
+	if (emu->card_capabilities->ca0151_chip) { /* P16V */
 		if ((err = snd_p16v_mixer(emu)))
 			return err;
 	}

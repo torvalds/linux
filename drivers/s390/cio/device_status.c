@@ -39,15 +39,14 @@ ccw_device_msg_control_check(struct ccw_device *cdev, struct irb *irb)
 		      " ... device %04X on subchannel %04X, dev_stat "
 		      ": %02X sch_stat : %02X\n",
 		      cdev->private->devno, cdev->private->irq,
-		      cdev->private->irb.scsw.dstat,
-		      cdev->private->irb.scsw.cstat);
+		      irb->scsw.dstat, irb->scsw.cstat);
 
 	if (irb->scsw.cc != 3) {
 		char dbf_text[15];
 
 		sprintf(dbf_text, "chk%x", cdev->private->irq);
 		CIO_TRACE_EVENT(0, dbf_text);
-		CIO_HEX_EVENT(0, &cdev->private->irb, sizeof (struct irb));
+		CIO_HEX_EVENT(0, irb, sizeof (struct irb));
 	}
 }
 

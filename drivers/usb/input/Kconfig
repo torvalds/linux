@@ -151,6 +151,18 @@ config USB_WACOM
 	  To compile this driver as a module, choose M here: the
 	  module will be called wacom.
 
+config USB_ACECAD
+	tristate "Acecad Flair tablet support"
+	depends on USB && INPUT
+	help
+	  Say Y here if you want to use the USB version of the Acecad Flair
+	  tablet.  Make sure to say Y to "Mouse support"
+	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
+	  (CONFIG_INPUT_EVDEV) as well.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called acecad.
+
 config USB_KBTAB
 	tristate "KB Gear JamStudio tablet support"
 	depends on USB && INPUT
@@ -189,6 +201,18 @@ config USB_MTOUCH
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mtouchusb.
+
+config USB_ITMTOUCH
+	tristate "ITM Touch USB Touchscreen Driver"
+	depends on USB && INPUT
+	---help---
+	  Say Y here if you want to use a ITM Touch USB
+	  Touchscreen controller.
+
+	  This touchscreen is used in LG 1510SF monitors.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called itmtouch.
 
 config USB_EGALAX
 	tristate "eGalax TouchKit USB Touchscreen Driver"
@@ -235,3 +259,16 @@ config USB_ATI_REMOTE
 	  To compile this driver as a module, choose M here: the module will be
 	  called ati_remote.
 
+config USB_KEYSPAN_REMOTE
+	tristate "Keyspan DMR USB remote control (EXPERIMENTAL)"
+	depends on USB && INPUT && EXPERIMENTAL
+	---help---
+	  Say Y here if you want to use a Keyspan DMR USB remote control.
+	  Currently only the UIA-11 type of receiver has been tested.  The tag
+	  on the receiver that connects to the USB port should have a P/N that
+	  will tell you what type of DMR you have.  The UIA-10 type is not
+	  supported at this time.  This driver maps all buttons to keypress
+	  events.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called keyspan_remote.

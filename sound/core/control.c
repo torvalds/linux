@@ -215,7 +215,7 @@ snd_kcontrol_t *snd_ctl_new(snd_kcontrol_t * control, unsigned int access)
  *
  * Returns the pointer of the newly generated instance, or NULL on failure.
  */
-snd_kcontrol_t *snd_ctl_new1(snd_kcontrol_new_t * ncontrol, void *private_data)
+snd_kcontrol_t *snd_ctl_new1(const snd_kcontrol_new_t * ncontrol, void *private_data)
 {
 	snd_kcontrol_t kctl;
 	unsigned int access;
@@ -1102,7 +1102,7 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		}
 	}
 	up_read(&snd_ioctl_rwsem);
-	snd_printd("unknown ioctl = 0x%x\n", cmd);
+	snd_printdd("unknown ioctl = 0x%x\n", cmd);
 	return -ENOTTY;
 }
 

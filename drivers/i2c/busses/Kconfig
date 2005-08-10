@@ -7,7 +7,7 @@ menu "I2C Hardware Bus support"
 
 config I2C_ALI1535
 	tristate "ALI 1535"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the SMB
 	  Host controller on Acer Labs Inc. (ALI) M1535 South Bridges.  The SMB
@@ -31,7 +31,7 @@ config I2C_ALI1563
 
 config I2C_ALI15X3
 	tristate "ALI 15x3"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the
 	  Acer Labs Inc. (ALI) M1514 and M1543 motherboard I2C interfaces.
@@ -41,7 +41,7 @@ config I2C_ALI15X3
 
 config I2C_AMD756
 	tristate "AMD 756/766/768/8111 and nVidia nForce"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the AMD
 	  756/766/768 mainboard I2C interfaces.  The driver also includes
@@ -66,7 +66,7 @@ config I2C_AMD756_S4882
 
 config I2C_AMD8111
 	tristate "AMD 8111"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the
 	  second (SMBus 2.0) AMD 8111 mainboard I2C interface.
@@ -109,7 +109,7 @@ config I2C_HYDRA
 
 config I2C_I801
 	tristate "Intel 82801 (ICH)"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the Intel
 	  801 family of mainboard I2C interfaces.  Specifically, the following
@@ -130,7 +130,7 @@ config I2C_I801
 
 config I2C_I810
 	tristate "Intel 810/815"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	select I2C_ALGOBIT
 	help
 	  If you say yes to this option, support will be included for the Intel
@@ -183,7 +183,7 @@ config I2C_IOP3XX
 
 config I2C_ISA
 	tristate "ISA Bus support"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	help
 	  If you say yes to this option, support will be included for i2c
 	  interfaces that are on the ISA bus.
@@ -248,12 +248,11 @@ config I2C_MPC
 	  will be called i2c-mpc.
 
 config I2C_NFORCE2
-	tristate "Nvidia Nforce2"
-	depends on I2C && PCI && EXPERIMENTAL
+	tristate "Nvidia nForce2, nForce3 and nForce4"
+	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the Nvidia
-	  Nforce2 family of mainboard I2C interfaces.
-	  This driver also supports the nForce3 Pro 150 MCP.
+	  nForce2, nForce3 and nForce4 families of mainboard I2C interfaces.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-nforce2.
@@ -305,7 +304,7 @@ config I2C_PARPORT_LIGHT
 
 config I2C_PROSAVAGE
 	tristate "S3/VIA (Pro)Savage"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	select I2C_ALGOBIT
 	help
 	  If you say yes to this option, support will be included for the
@@ -388,7 +387,7 @@ config SCx200_ACB
 
 config I2C_SIS5595
 	tristate "SiS 5595"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the 
 	  SiS5595 SMBus (a subset of I2C) interface.
@@ -398,7 +397,7 @@ config I2C_SIS5595
 
 config I2C_SIS630
 	tristate "SiS 630/730"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the 
 	  SiS630 and SiS730 SMBus (a subset of I2C) interface.
@@ -408,7 +407,7 @@ config I2C_SIS630
 
 config I2C_SIS96X
 	tristate "SiS 96x"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the SiS
 	  96x SMBus (a subset of I2C) interfaces.  Specifically, the following
@@ -419,6 +418,7 @@ config I2C_SIS96X
 	    648/961
 	    650/961
 	    735
+	    745
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sis96x.
@@ -449,7 +449,7 @@ config I2C_VIA
 
 config I2C_VIAPRO
 	tristate "VIA 82C596/82C686/823x"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the VIA
 	  82C596/82C686/823x I2C interfaces.  Specifically, the following 
@@ -467,7 +467,7 @@ config I2C_VIAPRO
 
 config I2C_VOODOO3
 	tristate "Voodoo 3"
-	depends on I2C && PCI && EXPERIMENTAL
+	depends on I2C && PCI
 	select I2C_ALGOBIT
 	help
 	  If you say yes to this option, support will be included for the

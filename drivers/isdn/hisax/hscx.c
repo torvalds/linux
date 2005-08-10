@@ -151,7 +151,7 @@ hscx_l2l1(struct PStack *st, int pr, void *arg)
 	}
 }
 
-void
+static void
 close_hscxstate(struct BCState *bcs)
 {
 	modehscx(bcs, 0, bcs->channel);
@@ -203,7 +203,7 @@ open_hscxstate(struct IsdnCardState *cs, struct BCState *bcs)
 	return (0);
 }
 
-int
+static int
 setstack_hscx(struct PStack *st, struct BCState *bcs)
 {
 	bcs->channel = st->l1.bc;

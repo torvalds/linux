@@ -228,13 +228,7 @@ static struct dentry_operations cpuset_dops = {
 
 static struct dentry *cpuset_get_dentry(struct dentry *parent, const char *name)
 {
-	struct qstr qstr;
-	struct dentry *d;
-
-	qstr.name = name;
-	qstr.len = strlen(name);
-	qstr.hash = full_name_hash(name, qstr.len);
-	d = lookup_hash(&qstr, parent);
+	struct dentry *d = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(d))
 		d->d_op = &cpuset_dops;
 	return d;
@@ -404,21 +398,31 @@ static int cpuset_path(const struct cpuset *cs, char *buf, int buflen)
  * to continue to serve a useful existence.  Next time it's released,
  * we will get notified again, if it still has 'notify_on_release' set.
  *
- * Note final arg to call_usermodehelper() is 0 - that means
- * don't wait.  Since we are holding the global cpuset_sem here,
- * and we are asking another thread (started from keventd) to rmdir a
- * cpuset, we can't wait - or we'd deadlock with the removing thread
- * on cpuset_sem.
+ * The final arg to call_usermodehelper() is 0, which means don't
+ * wait.  The separate /sbin/cpuset_release_agent task is forked by
+ * call_usermodehelper(), then control in this thread returns here,
+ * without waiting for the release agent task.  We don't bother to
+ * wait because the caller of this routine has no use for the exit
+ * status of the /sbin/cpuset_release_agent task, so no sense holding
+ * our caller up for that.
+ *
+ * The simple act of forking that task might require more memory,
+ * which might need cpuset_sem.  So this routine must be called while
+ * cpuset_sem is not held, to avoid a possible deadlock.  See also
+ * comments for check_for_release(), below.
  */
 
-static int cpuset_release_agent(char *cpuset_str)
+static void cpuset_release_agent(const char *pathbuf)
 {
 	char *argv[3], *envp[3];
 	int i;
 
+	if (!pathbuf)
+		return;
+
 	i = 0;
 	argv[i++] = "/sbin/cpuset_release_agent";
-	argv[i++] = cpuset_str;
+	argv[i++] = (char *)pathbuf;
 	argv[i] = NULL;
 
 	i = 0;
@@ -427,17 +431,29 @@ static int cpuset_release_agent(char *cpuset_str)
 	envp[i++] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
 	envp[i] = NULL;
 
-	return call_usermodehelper(argv[0], argv, envp, 0);
+	call_usermodehelper(argv[0], argv, envp, 0);
+	kfree(pathbuf);
 }
 
 /*
  * Either cs->count of using tasks transitioned to zero, or the
  * cs->children list of child cpusets just became empty.  If this
  * cs is notify_on_release() and now both the user count is zero and
- * the list of children is empty, send notice to user land.
+ * the list of children is empty, prepare cpuset path in a kmalloc'd
+ * buffer, to be returned via ppathbuf, so that the caller can invoke
+ * cpuset_release_agent() with it later on, once cpuset_sem is dropped.
+ * Call here with cpuset_sem held.
+ *
+ * This check_for_release() routine is responsible for kmalloc'ing
+ * pathbuf.  The above cpuset_release_agent() is responsible for
+ * kfree'ing pathbuf.  The caller of these routines is responsible
+ * for providing a pathbuf pointer, initialized to NULL, then
+ * calling check_for_release() with cpuset_sem held and the address
+ * of the pathbuf pointer, then dropping cpuset_sem, then calling
+ * cpuset_release_agent() with pathbuf, as set by check_for_release().
  */
 
-static void check_for_release(struct cpuset *cs)
+static void check_for_release(struct cpuset *cs, char **ppathbuf)
 {
 	if (notify_on_release(cs) && atomic_read(&cs->count) == 0 &&
 	    list_empty(&cs->children)) {
@@ -447,10 +463,9 @@ static void check_for_release(struct cpuset *cs)
 		if (!buf)
 			return;
 		if (cpuset_path(cs, buf, PAGE_SIZE) < 0)
-			goto out;
-		cpuset_release_agent(buf);
-out:
-		kfree(buf);
+			kfree(buf);
+		else
+			*ppathbuf = buf;
 	}
 }
 
@@ -601,10 +616,62 @@ static int validate_change(const struct cpuset *cur, const struct cpuset *trial)
 	return 0;
 }
 
+/*
+ * For a given cpuset cur, partition the system as follows
+ * a. All cpus in the parent cpuset's cpus_allowed that are not part of any
+ *    exclusive child cpusets
+ * b. All cpus in the current cpuset's cpus_allowed that are not part of any
+ *    exclusive child cpusets
+ * Build these two partitions by calling partition_sched_domains
+ *
+ * Call with cpuset_sem held.  May nest a call to the
+ * lock_cpu_hotplug()/unlock_cpu_hotplug() pair.
+ */
+static void update_cpu_domains(struct cpuset *cur)
+{
+	struct cpuset *c, *par = cur->parent;
+	cpumask_t pspan, cspan;
+
+	if (par == NULL || cpus_empty(cur->cpus_allowed))
+		return;
+
+	/*
+	 * Get all cpus from parent's cpus_allowed not part of exclusive
+	 * children
+	 */
+	pspan = par->cpus_allowed;
+	list_for_each_entry(c, &par->children, sibling) {
+		if (is_cpu_exclusive(c))
+			cpus_andnot(pspan, pspan, c->cpus_allowed);
+	}
+	if (is_removed(cur) || !is_cpu_exclusive(cur)) {
+		cpus_or(pspan, pspan, cur->cpus_allowed);
+		if (cpus_equal(pspan, cur->cpus_allowed))
+			return;
+		cspan = CPU_MASK_NONE;
+	} else {
+		if (cpus_empty(pspan))
+			return;
+		cspan = cur->cpus_allowed;
+		/*
+		 * Get all cpus from current cpuset's cpus_allowed not part
+		 * of exclusive children
+		 */
+		list_for_each_entry(c, &cur->children, sibling) {
+			if (is_cpu_exclusive(c))
+				cpus_andnot(cspan, cspan, c->cpus_allowed);
+		}
+	}
+
+	lock_cpu_hotplug();
+	partition_sched_domains(&pspan, &cspan);
+	unlock_cpu_hotplug();
+}
+
 static int update_cpumask(struct cpuset *cs, char *buf)
 {
 	struct cpuset trialcs;
-	int retval;
+	int retval, cpus_unchanged;
 
 	trialcs = *cs;
 	retval = cpulist_parse(buf, trialcs.cpus_allowed);
@@ -614,9 +681,13 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 	if (cpus_empty(trialcs.cpus_allowed))
 		return -ENOSPC;
 	retval = validate_change(cs, &trialcs);
-	if (retval == 0)
-		cs->cpus_allowed = trialcs.cpus_allowed;
-	return retval;
+	if (retval < 0)
+		return retval;
+	cpus_unchanged = cpus_equal(cs->cpus_allowed, trialcs.cpus_allowed);
+	cs->cpus_allowed = trialcs.cpus_allowed;
+	if (is_cpu_exclusive(cs) && !cpus_unchanged)
+		update_cpu_domains(cs);
+	return 0;
 }
 
 static int update_nodemask(struct cpuset *cs, char *buf)
@@ -652,7 +723,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, char *buf)
 {
 	int turning_on;
 	struct cpuset trialcs;
-	int err;
+	int err, cpu_exclusive_changed;
 
 	turning_on = (simple_strtoul(buf, NULL, 10) != 0);
 
@@ -663,23 +734,28 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, char *buf)
 		clear_bit(bit, &trialcs.flags);
 
 	err = validate_change(cs, &trialcs);
-	if (err == 0) {
-		if (turning_on)
-			set_bit(bit, &cs->flags);
-		else
-			clear_bit(bit, &cs->flags);
-	}
-	return err;
+	if (err < 0)
+		return err;
+	cpu_exclusive_changed =
+		(is_cpu_exclusive(cs) != is_cpu_exclusive(&trialcs));
+	if (turning_on)
+		set_bit(bit, &cs->flags);
+	else
+		clear_bit(bit, &cs->flags);
+
+	if (cpu_exclusive_changed)
+                update_cpu_domains(cs);
+	return 0;
 }
 
-static int attach_task(struct cpuset *cs, char *buf)
+static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 {
 	pid_t pid;
 	struct task_struct *tsk;
 	struct cpuset *oldcs;
 	cpumask_t cpus;
 
-	if (sscanf(buf, "%d", &pid) != 1)
+	if (sscanf(pidbuf, "%d", &pid) != 1)
 		return -EIO;
 	if (cpus_empty(cs->cpus_allowed) || nodes_empty(cs->mems_allowed))
 		return -ENOSPC;
@@ -722,7 +798,7 @@ static int attach_task(struct cpuset *cs, char *buf)
 
 	put_task_struct(tsk);
 	if (atomic_dec_and_test(&oldcs->count))
-		check_for_release(oldcs);
+		check_for_release(oldcs, ppathbuf);
 	return 0;
 }
 
@@ -746,6 +822,7 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 	struct cftype *cft = __d_cft(file->f_dentry);
 	cpuset_filetype_t type = cft->private;
 	char *buffer;
+	char *pathbuf = NULL;
 	int retval = 0;
 
 	/* Crude upper limit on largest legitimate cpulist user might write. */
@@ -786,7 +863,7 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 		retval = update_flag(CS_NOTIFY_ON_RELEASE, cs, buffer);
 		break;
 	case FILE_TASKLIST:
-		retval = attach_task(cs, buffer);
+		retval = attach_task(cs, buffer, &pathbuf);
 		break;
 	default:
 		retval = -EINVAL;
@@ -797,6 +874,7 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 		retval = nbytes;
 out2:
 	up(&cpuset_sem);
+	cpuset_release_agent(pathbuf);
 out1:
 	kfree(buffer);
 	return retval;
@@ -1302,6 +1380,7 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	struct cpuset *cs = dentry->d_fsdata;
 	struct dentry *d;
 	struct cpuset *parent;
+	char *pathbuf = NULL;
 
 	/* the vfs holds both inode->i_sem already */
 
@@ -1315,18 +1394,21 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 		up(&cpuset_sem);
 		return -EBUSY;
 	}
-	spin_lock(&cs->dentry->d_lock);
 	parent = cs->parent;
 	set_bit(CS_REMOVED, &cs->flags);
+	if (is_cpu_exclusive(cs))
+		update_cpu_domains(cs);
 	list_del(&cs->sibling);	/* delete my sibling from parent->children */
 	if (list_empty(&parent->children))
-		check_for_release(parent);
+		check_for_release(parent, &pathbuf);
+	spin_lock(&cs->dentry->d_lock);
 	d = dget(cs->dentry);
 	cs->dentry = NULL;
 	spin_unlock(&d->d_lock);
 	cpuset_d_remove_dir(d);
 	dput(d);
 	up(&cpuset_sem);
+	cpuset_release_agent(pathbuf);
 	return 0;
 }
 
@@ -1383,10 +1465,10 @@ void __init cpuset_init_smp(void)
 
 /**
  * cpuset_fork - attach newly forked task to its parents cpuset.
- * @p: pointer to task_struct of forking parent process.
+ * @tsk: pointer to task_struct of forking parent process.
  *
  * Description: By default, on fork, a task inherits its
- * parents cpuset.  The pointer to the shared cpuset is
+ * parent's cpuset.  The pointer to the shared cpuset is
  * automatically copied in fork.c by dup_task_struct().
  * This cpuset_fork() routine need only increment the usage
  * counter in that cpuset.
@@ -1414,7 +1496,6 @@ void cpuset_fork(struct task_struct *tsk)
  * by the cpuset_sem semaphore.  If you don't hold cpuset_sem,
  * then a zero cpuset use count is a license to any other task to
  * nuke the cpuset immediately.
- *
  **/
 
 void cpuset_exit(struct task_struct *tsk)
@@ -1427,10 +1508,13 @@ void cpuset_exit(struct task_struct *tsk)
 	task_unlock(tsk);
 
 	if (notify_on_release(cs)) {
+		char *pathbuf = NULL;
+
 		down(&cpuset_sem);
 		if (atomic_dec_and_test(&cs->count))
-			check_for_release(cs);
+			check_for_release(cs, &pathbuf);
 		up(&cpuset_sem);
+		cpuset_release_agent(pathbuf);
 	} else {
 		atomic_dec(&cs->count);
 	}
@@ -1464,7 +1548,9 @@ void cpuset_init_current_mems_allowed(void)
 	current->mems_allowed = NODE_MASK_ALL;
 }
 
-/*
+/**
+ * cpuset_update_current_mems_allowed - update mems parameters to new values
+ *
  * If the current tasks cpusets mems_allowed changed behind our backs,
  * update current->mems_allowed and mems_generation to the new value.
  * Do not call this routine if in_interrupt().
@@ -1483,13 +1569,20 @@ void cpuset_update_current_mems_allowed(void)
 	}
 }
 
+/**
+ * cpuset_restrict_to_mems_allowed - limit nodes to current mems_allowed
+ * @nodes: pointer to a node bitmap that is and-ed with mems_allowed
+ */
 void cpuset_restrict_to_mems_allowed(unsigned long *nodes)
 {
 	bitmap_and(nodes, nodes, nodes_addr(current->mems_allowed),
 							MAX_NUMNODES);
 }
 
-/*
+/**
+ * cpuset_zonelist_valid_mems_allowed - check zonelist vs. curremt mems_allowed
+ * @zl: the zonelist to be checked
+ *
  * Are any of the nodes on zonelist zl allowed in current->mems_allowed?
  */
 int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
@@ -1505,8 +1598,12 @@ int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
 	return 0;
 }
 
-/*
- * Is 'current' valid, and is zone z allowed in current->mems_allowed?
+/**
+ * cpuset_zone_allowed - is zone z allowed in current->mems_allowed
+ * @z: zone in question
+ *
+ * Is zone z allowed in current->mems_allowed, or is
+ * the CPU in interrupt context? (zone is always allowed in this case)
  */
 int cpuset_zone_allowed(struct zone *z)
 {

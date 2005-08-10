@@ -532,6 +532,8 @@ config ROMKERNEL
 
 endchoice
 
+source "mm/Kconfig"
+
 endmenu
 
 config ISA_DMA_API
@@ -572,6 +574,8 @@ config PM
 	  Support processor power management modes
 
 endmenu
+
+source "net/Kconfig"
 
 source "drivers/Kconfig"
 

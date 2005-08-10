@@ -37,7 +37,6 @@
 
 /* Note: we assume there can only be one nForce2, with two SMBus interfaces */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>

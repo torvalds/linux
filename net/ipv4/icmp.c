@@ -936,8 +936,7 @@ int icmp_rcv(struct sk_buff *skb)
 	case CHECKSUM_HW:
 		if (!(u16)csum_fold(skb->csum))
 			break;
-		NETDEBUG(if (net_ratelimit())
-				printk(KERN_DEBUG "icmp v4 hw csum failure\n"));
+		LIMIT_NETDEBUG(printk(KERN_DEBUG "icmp v4 hw csum failure\n"));
 	case CHECKSUM_NONE:
 		if ((u16)csum_fold(skb_checksum(skb, 0, skb->len, 0)))
 			goto error;
@@ -970,7 +969,8 @@ int icmp_rcv(struct sk_buff *skb)
 		 *	RFC 1122: 3.2.2.8 An ICMP_TIMESTAMP MAY be silently
 		 *	  discarded if to broadcast/multicast.
 		 */
-		if (icmph->type == ICMP_ECHO &&
+		if ((icmph->type == ICMP_ECHO ||
+		     icmph->type == ICMP_TIMESTAMP) &&
 		    sysctl_icmp_echo_ignore_broadcasts) {
 			goto error;
 		}

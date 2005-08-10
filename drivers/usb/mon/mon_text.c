@@ -19,11 +19,16 @@
 #define DATA_MAX  32
 
 /*
+ * Defined by USB 2.0 clause 9.3, table 9.2.
+ */
+#define SETUP_MAX  8
+
+/*
  * This limit exists to prevent OOMs when the user process stops reading.
  */
 #define EVENT_MAX  25
 
-#define PRINTF_DFL  120
+#define PRINTF_DFL  130
 
 struct mon_event_text {
 	struct list_head e_link;
@@ -33,7 +38,9 @@ struct mon_event_text {
 	unsigned int tstamp;
 	int length;		/* Depends on type: xfer length or act length */
 	int status;
+	char setup_flag;
 	char data_flag;
+	unsigned char setup[SETUP_MAX];
 	unsigned char data[DATA_MAX];
 };
 
@@ -64,6 +71,22 @@ static void mon_text_dtor(void *, kmem_cache_t *, unsigned long);
  * This is called with the whole mon_bus locked, so no additional lock.
  */
 
+static inline char mon_text_get_setup(struct mon_event_text *ep,
+    struct urb *urb, char ev_type)
+{
+
+	if (!usb_pipecontrol(urb->pipe) || ev_type != 'S')
+		return '-';
+
+	if (urb->transfer_flags & URB_NO_SETUP_DMA_MAP)
+		return 'D';
+	if (urb->setup_packet == NULL)
+		return 'Z';	/* '0' would be not as pretty. */
+
+	memcpy(ep->setup, urb->setup_packet, SETUP_MAX);
+	return 0;
+}
+
 static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
     int len, char ev_type)
 {
@@ -90,7 +113,6 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 
 	/*
 	 * Bulk is easy to shortcut reliably. 
-	 * XXX Control needs setup packet taken.
 	 * XXX Other pipe types need consideration. Currently, we overdo it
 	 * and collect garbage for them: better more than less.
 	 */
@@ -144,6 +166,7 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 	/* Collecting status makes debugging sense for submits, too */
 	ep->status = urb->status;
 
+	ep->setup_flag = mon_text_get_setup(ep, urb, ev_type);
 	ep->data_flag = mon_text_get_data(ep, urb, ep->length, ev_type);
 
 	rp->nevents++;
@@ -299,10 +322,25 @@ static ssize_t mon_text_read(struct file *file, char __user *buf,
 	default: /* PIPE_BULK */  utype = 'B';
 	}
 	cnt += snprintf(pbuf + cnt, limit - cnt,
-	    "%lx %u %c %c%c:%03u:%02u %d %d",
+	    "%lx %u %c %c%c:%03u:%02u",
 	    ep->id, ep->tstamp, ep->type,
-	    utype, udir, usb_pipedevice(ep->pipe), usb_pipeendpoint(ep->pipe),
-	    ep->status, ep->length);
+	    utype, udir, usb_pipedevice(ep->pipe), usb_pipeendpoint(ep->pipe));
+
+	if (ep->setup_flag == 0) {   /* Setup packet is present and captured */
+		cnt += snprintf(pbuf + cnt, limit - cnt,
+		    " s %02x %02x %04x %04x %04x",
+		    ep->setup[0],
+		    ep->setup[1],
+		    (ep->setup[3] << 8) | ep->setup[2],
+		    (ep->setup[5] << 8) | ep->setup[4],
+		    (ep->setup[7] << 8) | ep->setup[6]);
+	} else if (ep->setup_flag != '-') { /* Unable to capture setup packet */
+		cnt += snprintf(pbuf + cnt, limit - cnt,
+		    " %c __ __ ____ ____ ____", ep->setup_flag);
+	} else {                     /* No setup for this kind of URB */
+		cnt += snprintf(pbuf + cnt, limit - cnt, " %d", ep->status);
+	}
+	cnt += snprintf(pbuf + cnt, limit - cnt, " %d", ep->length);
 
 	if ((data_len = ep->length) > 0) {
 		if (ep->data_flag == 0) {

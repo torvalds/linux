@@ -63,7 +63,7 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 #define LAST_CONTEXT    	255
 #define FIRST_CONTEXT    	1
 
-#elif defined(CONFIG_E500)
+#elif defined(CONFIG_E200) || defined(CONFIG_E500)
 #define NO_CONTEXT      	256
 #define LAST_CONTEXT    	255
 #define FIRST_CONTEXT    	1
@@ -149,6 +149,7 @@ static inline void get_mmu_context(struct mm_struct *mm)
  */
 static inline void destroy_context(struct mm_struct *mm)
 {
+	preempt_disable();
 	if (mm->context != NO_CONTEXT) {
 		clear_bit(mm->context, context_map);
 		mm->context = NO_CONTEXT;
@@ -156,6 +157,7 @@ static inline void destroy_context(struct mm_struct *mm)
 		atomic_inc(&nr_free_contexts);
 #endif
 	}
+	preempt_enable();
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,

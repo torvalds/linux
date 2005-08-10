@@ -1018,11 +1018,10 @@ void irlap_resend_rejected_frames(struct irlap_cb *self, int command)
 	/*
 	 *  We can now fill the window with additional data frames
 	 */
-	while (skb_queue_len( &self->txq) > 0) {
+	while (!skb_queue_empty(&self->txq)) {
 
 		IRDA_DEBUG(0, "%s(), sending additional frames!\n", __FUNCTION__);
-		if ((skb_queue_len( &self->txq) > 0) &&
-		    (self->window > 0)) {
+		if (self->window > 0) {
 			skb = skb_dequeue( &self->txq);
 			IRDA_ASSERT(skb != NULL, return;);
 
@@ -1031,8 +1030,7 @@ void irlap_resend_rejected_frames(struct irlap_cb *self, int command)
 			 *  bit cleared
 			 */
 			if ((self->window > 1) &&
-			    skb_queue_len(&self->txq) > 0)
-			{
+			    !skb_queue_empty(&self->txq)) {
 				irlap_send_data_primary(self, skb);
 			} else {
 				irlap_send_data_primary_poll(self, skb);

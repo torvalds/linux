@@ -3,7 +3,7 @@
  *	      the Linux-NTFS project. Adapted from the old NTFS driver,
  *	      Copyright (C) 1997 Martin von Löwis, Régis Duchesne
  *
- * Copyright (c) 2002-2004 Anton Altaparmakov
+ * Copyright (c) 2002-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -67,7 +67,7 @@ int ntfs_sysctl(int add)
 			return -ENOMEM;
 #ifdef CONFIG_PROC_FS
 		/*
-		 * If the proc file system is in use and we are a module, need
+		 * If the proc filesystem is in use and we are a module, need
 		 * to set the owner of our proc entry to our module. In the
 		 * non-modular case, THIS_MODULE is NULL, so this is ok.
 		 */

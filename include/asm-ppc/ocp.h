@@ -202,10 +202,6 @@ static DEVICE_ATTR(name##_##field, S_IRUGO, show_##name##_##field, NULL);
 #include <asm/ibm_ocp.h>
 #endif
 
-#ifdef CONFIG_FSL_OCP
-#include <asm/fsl_ocp.h>
-#endif
-
 #endif				/* CONFIG_PPC_OCP */
 #endif				/* __OCP_H__ */
 #endif				/* __KERNEL__ */

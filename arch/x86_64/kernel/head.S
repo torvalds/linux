@@ -137,14 +137,14 @@ startup_64:
 	wrmsr
 
 	/* Setup cr0 */
-	xorq	%rax, %rax
-	btsq	$31, %rax			/* Enable paging */
-	btsq	$0, %rax			/* Enable protected mode */
-	btsq	$1, %rax			/* Enable MP */
-	btsq	$4, %rax			/* Enable ET */
-	btsq	$5, %rax			/* Enable NE */
-	btsq	$16, %rax			/* Enable WP */
-	btsq	$18, %rax			/* Enable AM */
+#define CR0_PM				1		/* protected mode */
+#define CR0_MP				(1<<1)
+#define CR0_ET				(1<<4)
+#define CR0_NE				(1<<5)
+#define CR0_WP				(1<<16)
+#define CR0_AM				(1<<18)
+#define CR0_PAGING 			(1<<31)
+	movl $CR0_PM|CR0_MP|CR0_ET|CR0_NE|CR0_WP|CR0_AM|CR0_PAGING,%eax
 	/* Make changes effective */
 	movq	%rax, %cr0
 
@@ -248,23 +248,23 @@ ENTRY(_stext)
 	 */
 .org 0x1000
 ENTRY(init_level4_pgt)
-	.quad	0x0000000000102007		/* -> level3_ident_pgt */
+	.quad	0x0000000000002007 + __PHYSICAL_START	/* -> level3_ident_pgt */
 	.fill	255,8,0
-	.quad	0x000000000010a007
+	.quad	0x000000000000a007 + __PHYSICAL_START
 	.fill	254,8,0
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad	0x0000000000103007		/* -> level3_kernel_pgt */
+	.quad	0x0000000000003007 + __PHYSICAL_START	/* -> level3_kernel_pgt */
 
 .org 0x2000
 ENTRY(level3_ident_pgt)
-	.quad	0x0000000000104007
+	.quad	0x0000000000004007 + __PHYSICAL_START
 	.fill	511,8,0
 
 .org 0x3000
 ENTRY(level3_kernel_pgt)
 	.fill	510,8,0
 	/* (2^48-(2*1024*1024*1024)-((2^39)*511))/(2^30) = 510 */
-	.quad	0x0000000000105007		/* -> level2_kernel_pgt */
+	.quad	0x0000000000005007 + __PHYSICAL_START	/* -> level2_kernel_pgt */
 	.fill	1,8,0
 
 .org 0x4000
@@ -337,17 +337,17 @@ ENTRY(empty_bad_pmd_table)
 
 .org 0xa000
 ENTRY(level3_physmem_pgt)
-	.quad	0x0000000000105007		/* -> level2_kernel_pgt (so that __va works even before pagetable_init) */
+	.quad	0x0000000000005007 + __PHYSICAL_START	/* -> level2_kernel_pgt (so that __va works even before pagetable_init) */
 
 	.org 0xb000
 #ifdef CONFIG_ACPI_SLEEP
 ENTRY(wakeup_level4_pgt)
-	.quad	0x0000000000102007		/* -> level3_ident_pgt */
+	.quad	0x0000000000002007 + __PHYSICAL_START	/* -> level3_ident_pgt */
 	.fill	255,8,0
-	.quad	0x000000000010a007
+	.quad	0x000000000000a007 + __PHYSICAL_START
 	.fill	254,8,0
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad	0x0000000000103007		/* -> level3_kernel_pgt */
+	.quad	0x0000000000003007 + __PHYSICAL_START	/* -> level3_kernel_pgt */
 #endif
 
 	.data

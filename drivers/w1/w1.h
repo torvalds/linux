@@ -1,8 +1,8 @@
 /*
- * 	w1.h
+ *	w1.h
  *
  * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
- * 
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,35 +74,85 @@ struct w1_slave
 	int			ttl;
 
 	struct w1_master	*master;
-	struct w1_family 	*family;
-	struct device 		dev;
-	struct completion 	dev_released;
+	struct w1_family	*family;
+	struct device		dev;
+	struct completion	dev_released;
 
-	struct bin_attribute 	attr_bin;
-	struct device_attribute	attr_name, attr_val;
+	struct bin_attribute	attr_bin;
+	struct device_attribute	attr_name;
 };
 
 typedef void (* w1_slave_found_callback)(unsigned long, u64);
 
+
+/**
+ * Note: read_bit and write_bit are very low level functions and should only
+ * be used with hardware that doesn't really support 1-wire operations,
+ * like a parallel/serial port.
+ * Either define read_bit and write_bit OR define, at minimum, touch_bit and
+ * reset_bus.
+ */
 struct w1_bus_master
 {
-	unsigned long		data;
+	/** the first parameter in all the functions below */
+	unsigned long	data;
 
-	u8			(*read_bit)(unsigned long);
-	void			(*write_bit)(unsigned long, u8);
-  	
-	u8			(*read_byte)(unsigned long);
-  	void			(*write_byte)(unsigned long, u8);
-  	
-	u8			(*read_block)(unsigned long, u8 *, int);
-	void			(*write_block)(unsigned long, u8 *, int);
-	
-  	u8			(*touch_bit)(unsigned long, u8);
-  
-  	u8			(*reset_bus)(unsigned long);
+	/**
+	 * Sample the line level
+	 * @return the level read (0 or 1)
+	 */
+	u8		(*read_bit)(unsigned long);
 
-	void			(*search)(unsigned long, w1_slave_found_callback);
+	/** Sets the line level */
+	void		(*write_bit)(unsigned long, u8);
+
+	/**
+	 * touch_bit is the lowest-level function for devices that really
+	 * support the 1-wire protocol.
+	 * touch_bit(0) = write-0 cycle
+	 * touch_bit(1) = write-1 / read cycle
+	 * @return the bit read (0 or 1)
+	 */
+	u8		(*touch_bit)(unsigned long, u8);
+
+	/**
+	 * Reads a bytes. Same as 8 touch_bit(1) calls.
+	 * @return the byte read
+	 */
+	u8		(*read_byte)(unsigned long);
+
+	/**
+	 * Writes a byte. Same as 8 touch_bit(x) calls.
+	 */
+	void		(*write_byte)(unsigned long, u8);
+
+	/**
+	 * Same as a series of read_byte() calls
+	 * @return the number of bytes read
+	 */
+	u8		(*read_block)(unsigned long, u8 *, int);
+
+	/** Same as a series of write_byte() calls */
+	void		(*write_block)(unsigned long, const u8 *, int);
+
+	/**
+	 * Combines two reads and a smart write for ROM searches
+	 * @return bit0=Id bit1=comp_id bit2=dir_taken
+	 */
+	u8		(*triplet)(unsigned long, u8);
+
+	/**
+	 * long write-0 with a read for the presence pulse detection
+	 * @return -1=Error, 0=Device present, 1=No device present
+	 */
+	u8		(*reset_bus)(unsigned long);
+
+	/** Really nice hardware can handles the ROM searches */
+	void		(*search)(unsigned long, w1_slave_found_callback);
 };
+
+#define W1_MASTER_NEED_EXIT		0
+#define W1_MASTER_NEED_RECONNECT	1
 
 struct w1_master
 {
@@ -115,30 +165,31 @@ struct w1_master
 	int			slave_ttl;
 	int			initialized;
 	u32			id;
+	int			search_count;
 
 	atomic_t		refcnt;
 
 	void			*priv;
 	int			priv_size;
 
-	int			need_exit;
+	long			flags;
+
 	pid_t			kpid;
-	struct semaphore 	mutex;
+	struct semaphore	mutex;
 
 	struct device_driver	*driver;
-	struct device 		dev;
-	struct completion 	dev_released;
-	struct completion 	dev_exited;
+	struct device		dev;
+	struct completion	dev_released;
+	struct completion	dev_exited;
 
 	struct w1_bus_master	*bus_master;
 
 	u32			seq, groups;
-	struct sock 		*nls;
+	struct sock		*nls;
 };
 
 int w1_create_master_attributes(struct w1_master *);
-void w1_destroy_master_attributes(struct w1_master *);
-void w1_search(struct w1_master *dev);
+void w1_search(struct w1_master *dev, w1_slave_found_callback cb);
 
 #endif /* __KERNEL__ */
 

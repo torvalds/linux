@@ -31,7 +31,6 @@ struct rpc_wait_queue;
 struct rpc_wait {
 	struct list_head	list;		/* wait queue links */
 	struct list_head	links;		/* Links to related tasks */
-	wait_queue_head_t	waitq;		/* sync: sleep on this q */
 	struct rpc_wait_queue *	rpc_waitq;	/* RPC wait queue we're on */
 };
 

@@ -35,7 +35,7 @@
 #define DEBUG
 #endif
 #include <linux/usb.h>
-
+#include <linux/usb_input.h>
 
 #define TOUCHKIT_MIN_XC			0x0
 #define TOUCHKIT_MAX_XC			0x07ff
@@ -69,7 +69,6 @@ struct touchkit_usb {
 	struct urb *irq;
 	struct usb_device *udev;
 	struct input_dev input;
-	int open;
 	char name[128];
 	char phys[64];
 };
@@ -134,15 +133,10 @@ static int touchkit_open(struct input_dev *input)
 {
 	struct touchkit_usb *touchkit = input->private;
 
-	if (touchkit->open++)
-		return 0;
-
 	touchkit->irq->dev = touchkit->udev;
 
-	if (usb_submit_urb(touchkit->irq, GFP_ATOMIC)) {
-		touchkit->open--;
+	if (usb_submit_urb(touchkit->irq, GFP_ATOMIC))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -151,8 +145,7 @@ static void touchkit_close(struct input_dev *input)
 {
 	struct touchkit_usb *touchkit = input->private;
 
-	if (!--touchkit->open)
-		usb_kill_urb(touchkit->irq);
+	usb_kill_urb(touchkit->irq);
 }
 
 static int touchkit_alloc_buffers(struct usb_device *udev,
@@ -209,10 +202,7 @@ static int touchkit_probe(struct usb_interface *intf,
 
 	touchkit->input.name = touchkit->name;
 	touchkit->input.phys = touchkit->phys;
-	touchkit->input.id.bustype = BUS_USB;
-	touchkit->input.id.vendor = le16_to_cpu(udev->descriptor.idVendor);
-	touchkit->input.id.product = le16_to_cpu(udev->descriptor.idProduct);
-	touchkit->input.id.version = le16_to_cpu(udev->descriptor.bcdDevice);
+	usb_to_input_id(udev, &touchkit->input.id);
 	touchkit->input.dev = &intf->dev;
 
 	touchkit->input.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);

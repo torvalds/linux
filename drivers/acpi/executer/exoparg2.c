@@ -118,7 +118,7 @@ acpi_ex_opcode_2A_0T_0R (
 
 		value = (u32) operand[1]->integer.value;
 
-		/* Notifies allowed on this object? */
+		/* Are notifies allowed on this object? */
 
 		if (!acpi_ev_is_notify_object (node)) {
 			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
@@ -203,11 +203,12 @@ acpi_ex_opcode_2A_2T_1R (
 		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
-	/*
-	 * Execute the opcode
-	 */
+	/* Execute the opcode */
+
 	switch (walk_state->opcode) {
-	case AML_DIVIDE_OP:             /* Divide (Dividend, Divisor, remainder_result quotient_result) */
+	case AML_DIVIDE_OP:
+
+		/* Divide (Dividend, Divisor, remainder_result quotient_result) */
 
 		return_desc1 = acpi_ut_create_internal_object (ACPI_TYPE_INTEGER);
 		if (!return_desc1) {
@@ -240,7 +241,6 @@ acpi_ex_opcode_2A_2T_1R (
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
-
 
 	/* Store the results to the target reference operands */
 
@@ -295,7 +295,7 @@ acpi_ex_opcode_2A_1T_1R (
 {
 	union acpi_operand_object       **operand = &walk_state->operands[0];
 	union acpi_operand_object       *return_desc = NULL;
-	u32                             index;
+	acpi_integer                    index;
 	acpi_status                     status = AE_OK;
 	acpi_size                       length;
 
@@ -304,9 +304,8 @@ acpi_ex_opcode_2A_1T_1R (
 		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
-	/*
-	 * Execute the opcode
-	 */
+	/* Execute the opcode */
+
 	if (walk_state->op_info->flags & AML_MATH) {
 		/* All simple math opcodes (add, etc.) */
 
@@ -322,9 +321,8 @@ acpi_ex_opcode_2A_1T_1R (
 		goto store_result_to_target;
 	}
 
-
 	switch (walk_state->opcode) {
-	case AML_MOD_OP:                /* Mod (Dividend, Divisor, remainder_result (ACPI 2.0) */
+	case AML_MOD_OP: /* Mod (Dividend, Divisor, remainder_result (ACPI 2.0) */
 
 		return_desc = acpi_ut_create_internal_object (ACPI_TYPE_INTEGER);
 		if (!return_desc) {
@@ -341,18 +339,19 @@ acpi_ex_opcode_2A_1T_1R (
 		break;
 
 
-	case AML_CONCAT_OP:             /* Concatenate (Data1, Data2, Result) */
+	case AML_CONCAT_OP: /* Concatenate (Data1, Data2, Result) */
 
 		status = acpi_ex_do_concatenate (operand[0], operand[1],
 				 &return_desc, walk_state);
 		break;
 
 
-	case AML_TO_STRING_OP:          /* to_string (Buffer, Length, Result) (ACPI 2.0) */
+	case AML_TO_STRING_OP: /* to_string (Buffer, Length, Result) (ACPI 2.0) */
 
 		/*
 		 * Input object is guaranteed to be a buffer at this point (it may have
-		 * been converted.)  Copy the raw buffer data to a new object of type String.
+		 * been converted.)  Copy the raw buffer data to a new object of
+		 * type String.
 		 */
 
 		/*
@@ -383,14 +382,16 @@ acpi_ex_opcode_2A_1T_1R (
 			goto cleanup;
 		}
 
-		/* Copy the raw buffer data with no transform. NULL terminated already. */
+		/* Copy the raw buffer data with no transform. NULL terminated already*/
 
 		ACPI_MEMCPY (return_desc->string.pointer,
 			operand[0]->buffer.pointer, length);
 		break;
 
 
-	case AML_CONCAT_RES_OP:         /* concatenate_res_template (Buffer, Buffer, Result) (ACPI 2.0) */
+	case AML_CONCAT_RES_OP:
+
+		/* concatenate_res_template (Buffer, Buffer, Result) (ACPI 2.0) */
 
 		status = acpi_ex_concat_template (operand[0], operand[1],
 				 &return_desc, walk_state);
@@ -407,33 +408,33 @@ acpi_ex_opcode_2A_1T_1R (
 			goto cleanup;
 		}
 
-		index = (u32) operand[1]->integer.value;
+		index = operand[1]->integer.value;
 
-		/*
-		 * At this point, the Source operand is a Package, Buffer, or String
-		 */
+		/* At this point, the Source operand is a Package, Buffer, or String */
+
 		if (ACPI_GET_OBJECT_TYPE (operand[0]) == ACPI_TYPE_PACKAGE) {
 			/* Object to be indexed is a Package */
 
 			if (index >= operand[0]->package.count) {
 				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-					"Index value (%X) beyond package end (%X)\n",
-					index, operand[0]->package.count));
+					"Index value (%X%8.8X) beyond package end (%X)\n",
+					ACPI_FORMAT_UINT64 (index), operand[0]->package.count));
 				status = AE_AML_PACKAGE_LIMIT;
 				goto cleanup;
 			}
 
 			return_desc->reference.target_type = ACPI_TYPE_PACKAGE;
 			return_desc->reference.object    = operand[0];
-			return_desc->reference.where     = &operand[0]->package.elements [index];
+			return_desc->reference.where     = &operand[0]->package.elements [
+					  index];
 		}
 		else {
 			/* Object to be indexed is a Buffer/String */
 
 			if (index >= operand[0]->buffer.length) {
 				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-					"Index value (%X) beyond end of buffer (%X)\n",
-					index, operand[0]->buffer.length));
+					"Index value (%X%8.8X) beyond end of buffer (%X)\n",
+					ACPI_FORMAT_UINT64 (index), operand[0]->buffer.length));
 				status = AE_AML_BUFFER_LIMIT;
 				goto cleanup;
 			}
@@ -451,7 +452,7 @@ acpi_ex_opcode_2A_1T_1R (
 		/* Complete the Index reference object */
 
 		return_desc->reference.opcode    = AML_INDEX_OP;
-		return_desc->reference.offset    = index;
+		return_desc->reference.offset    = (u32) index;
 
 		/* Store the reference to the Target */
 
@@ -536,21 +537,23 @@ acpi_ex_opcode_2A_0T_1R (
 		goto cleanup;
 	}
 
-	/*
-	 * Execute the Opcode
-	 */
-	if (walk_state->op_info->flags & AML_LOGICAL_NUMERIC) /* logical_op (Operand0, Operand1) */ {
+	/* Execute the Opcode */
+
+	if (walk_state->op_info->flags & AML_LOGICAL_NUMERIC) {
+		/* logical_op (Operand0, Operand1) */
+
 		status = acpi_ex_do_logical_numeric_op (walk_state->opcode,
 				  operand[0]->integer.value, operand[1]->integer.value,
 				  &logical_result);
 		goto store_logical_result;
 	}
-	else if (walk_state->op_info->flags & AML_LOGICAL)  /* logical_op (Operand0, Operand1) */ {
+	else if (walk_state->op_info->flags & AML_LOGICAL) {
+		/* logical_op (Operand0, Operand1) */
+
 		status = acpi_ex_do_logical_op (walk_state->opcode, operand[0],
 				 operand[1], &logical_result);
 		goto store_logical_result;
 	}
-
 
 	switch (walk_state->opcode) {
 	case AML_ACQUIRE_OP:            /* Acquire (mutex_object, Timeout) */

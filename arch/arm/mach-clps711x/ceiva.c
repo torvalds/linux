@@ -53,10 +53,12 @@ static void __init ceiva_map_io(void)
 
 
 MACHINE_START(CEIVA, "CEIVA/Polaroid Photo MAX Digital Picture Frame")
-	MAINTAINER("Rob Scott")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xff000000)
-	BOOT_PARAMS(0xc0000100)
-	MAPIO(ceiva_map_io)
-	INITIRQ(clps711x_init_irq)
+	/* Maintainer: Rob Scott */
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xff000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.map_io		= ceiva_map_io,
+	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
 MACHINE_END

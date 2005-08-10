@@ -39,6 +39,11 @@
  * know that this PLIC does not support running an OS "that old".
  */
 
+#define	HVREL_TAGSINACTIVE	0x8000
+#define HVREL_32BIT		0x4000
+#define HVREL_NOSHAREDPROCS	0x2000
+#define HVREL_NOHMT		0x1000
+
 struct HvReleaseData {
 	u32	xDesc;		/* Descriptor "HvRD" ebcdic	x00-x03 */
 	u16	xSize;		/* Size of this control block	x04-x05 */
@@ -46,11 +51,7 @@ struct HvReleaseData {
 	struct  naca_struct	*xSlicNacaAddr; /* Virt addr of SLIC NACA x08-x0F */
 	u32	xMsNucDataOffset; /* Offset of Linux Mapping Data x10-x13 */
 	u32	xRsvd1;		/* Reserved			x14-x17 */
-	u16	xTagsMode:1;	/* 0 == tags active, 1 == tags inactive */
-	u16	xAddressSize:1;	/* 0 == 64-bit, 1 == 32-bit */
-	u16	xNoSharedProcs:1; /* 0 == shared procs, 1 == no shared */
-	u16	xNoHMT:1;	/* 0 == allow HMT, 1 == no HMT */
-	u16	xRsvd2:12;	/* Reserved			x18-x19 */
+	u16	xFlags;
 	u16	xVrmIndex;	/* VRM Index of OS image	x1A-x1B */
 	u16	xMinSupportedPlicVrmIndex; /* Min PLIC level  (soft) x1C-x1D */
 	u16	xMinCompatablePlicVrmIndex; /* Min PLIC levelP (hard) x1E-x1F */

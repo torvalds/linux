@@ -845,46 +845,6 @@ out:
 	return result;
 }
 
-/* Search for everything */
-int ncp_search_for_file_or_subdir(struct ncp_server *server,
-				  struct nw_search_sequence *seq,
-				  struct nw_info_struct *target)
-{
-	int result;
-
-	ncp_init_request(server);
-	ncp_add_byte(server, 3);	/* subfunction */
-	ncp_add_byte(server, server->name_space[seq->volNumber]);
-	ncp_add_byte(server, 0);	/* data stream (???) */
-	ncp_add_word(server, cpu_to_le16(0x8006));	/* Search attribs */
-	ncp_add_dword(server, RIM_ALL);		/* return info mask */
-	ncp_add_mem(server, seq, 9);
-#ifdef CONFIG_NCPFS_NFS_NS
-	if (server->name_space[seq->volNumber] == NW_NS_NFS) {
-		ncp_add_byte(server, 0);	/* 0 byte pattern */
-	} else 
-#endif
-	{
-		ncp_add_byte(server, 2);	/* 2 byte pattern */
-		ncp_add_byte(server, 0xff);	/* following is a wildcard */
-		ncp_add_byte(server, '*');
-	}
-	
-	if ((result = ncp_request(server, 87)) != 0)
-		goto out;
-	memcpy(seq, ncp_reply_data(server, 0), sizeof(*seq));
-	ncp_extract_file_info(ncp_reply_data(server, 10), target);
-
-	ncp_unlock_server(server);
-	
-	result = ncp_obtain_nfs_info(server, target);
-	return result;
-
-out:
-	ncp_unlock_server(server);
-	return result;
-}
-
 int ncp_search_for_fileset(struct ncp_server *server,
 			   struct nw_search_sequence *seq,
 			   int* more,

@@ -33,7 +33,7 @@ int default_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key
 struct __wait_queue {
 	unsigned int flags;
 #define WQ_FLAG_EXCLUSIVE	0x01
-	struct task_struct * task;
+	void *private;
 	wait_queue_func_t func;
 	struct list_head task_list;
 };
@@ -60,7 +60,7 @@ typedef struct __wait_queue_head wait_queue_head_t;
  */
 
 #define __WAITQUEUE_INITIALIZER(name, tsk) {				\
-	.task		= tsk,						\
+	.private	= tsk,						\
 	.func		= default_wake_function,			\
 	.task_list	= { NULL, NULL } }
 
@@ -86,7 +86,7 @@ static inline void init_waitqueue_head(wait_queue_head_t *q)
 static inline void init_waitqueue_entry(wait_queue_t *q, struct task_struct *p)
 {
 	q->flags = 0;
-	q->task = p;
+	q->private = p;
 	q->func = default_wake_function;
 }
 
@@ -94,7 +94,7 @@ static inline void init_waitqueue_func_entry(wait_queue_t *q,
 					wait_queue_func_t func)
 {
 	q->flags = 0;
-	q->task = NULL;
+	q->private = NULL;
 	q->func = func;
 }
 
@@ -110,7 +110,7 @@ static inline int waitqueue_active(wait_queue_head_t *q)
  * aio specifies a wait queue entry with an async notification
  * callback routine, not associated with any task.
  */
-#define is_sync_wait(wait)	(!(wait) || ((wait)->task))
+#define is_sync_wait(wait)	(!(wait) || ((wait)->private))
 
 extern void FASTCALL(add_wait_queue(wait_queue_head_t *q, wait_queue_t * wait));
 extern void FASTCALL(add_wait_queue_exclusive(wait_queue_head_t *q, wait_queue_t * wait));
@@ -384,7 +384,7 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 
 #define DEFINE_WAIT(name)						\
 	wait_queue_t name = {						\
-		.task		= current,				\
+		.private	= current,				\
 		.func		= autoremove_wake_function,		\
 		.task_list	= LIST_HEAD_INIT((name).task_list),	\
 	}
@@ -393,7 +393,7 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 	struct wait_bit_queue name = {					\
 		.key = __WAIT_BIT_KEY_INITIALIZER(word, bit),		\
 		.wait	= {						\
-			.task		= current,			\
+			.private	= current,			\
 			.func		= wake_bit_function,		\
 			.task_list	=				\
 				LIST_HEAD_INIT((name).wait.task_list),	\
@@ -402,7 +402,7 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 
 #define init_wait(wait)							\
 	do {								\
-		(wait)->task = current;					\
+		(wait)->private = current;				\
 		(wait)->func = autoremove_wake_function;		\
 		INIT_LIST_HEAD(&(wait)->task_list);			\
 	} while (0)

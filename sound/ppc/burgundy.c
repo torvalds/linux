@@ -30,7 +30,7 @@
 
 
 /* Waits for busy flag to clear */
-inline static void
+static inline void
 snd_pmac_burgundy_busy_wait(pmac_t *chip)
 {
 	int timeout = 50;
@@ -40,7 +40,7 @@ snd_pmac_burgundy_busy_wait(pmac_t *chip)
 		printk(KERN_DEBUG "burgundy_busy_wait: timeout\n");
 }
 
-inline static void
+static inline void
 snd_pmac_burgundy_extend_wait(pmac_t *chip)
 {
 	int timeout;

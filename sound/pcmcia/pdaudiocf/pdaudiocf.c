@@ -22,7 +22,6 @@
 #include <sound/core.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
-#include <pcmcia/version.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/cisreg.h>
 #include "pdaudiocf.h"
@@ -171,14 +170,6 @@ static dev_link_t *snd_pdacf_attach(void)
 
 	/* Register with Card Services */
 	client_reg.dev_info = &dev_info;
-	client_reg.EventMask = 
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL
-#ifdef CONFIG_PM
-		| CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET
-		| CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME
-#endif
-		;
-	client_reg.event_handler = &pdacf_event;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 
@@ -380,13 +371,21 @@ static int pdacf_event(event_t event, int priority, event_callback_args_t *args)
 /*
  * Module entry points
  */
+static struct pcmcia_device_id snd_pdacf_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x015d, 0x4c45),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, snd_pdacf_ids);
+
 static struct pcmcia_driver pdacf_cs_driver = {
-	.owner          = THIS_MODULE,
-	.drv            = {
-		.name   = "snd-pdaudiocf",
+	.owner		= THIS_MODULE,
+	.drv		= {
+		.name	= "snd-pdaudiocf",
 	},
-	.attach         = snd_pdacf_attach,
-	.detach         = snd_pdacf_detach
+	.attach		= snd_pdacf_attach,
+	.event		= pdacf_event,
+	.detach		= snd_pdacf_detach,
+	.id_table	= snd_pdacf_ids,
 };
 
 static int __init init_pdacf(void)

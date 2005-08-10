@@ -280,6 +280,14 @@ struct thread_struct {
 	set_fs(USER_DS);							 \
 } while(0) 
 
+#define get_debugreg(var, register)				\
+		__asm__("movq %%db" #register ", %0"		\
+			:"=r" (var))
+#define set_debugreg(value, register)			\
+		__asm__("movq %0,%%db" #register		\
+			: /* no output */			\
+			:"r" (value))
+
 struct task_struct;
 struct mm_struct;
 

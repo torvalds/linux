@@ -105,8 +105,8 @@ pxa_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction pxa_timer_irq = {
 	.name		= "PXA Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= pxa_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= pxa_timer_interrupt,
 };
 
 static void __init pxa_timer_init(void)

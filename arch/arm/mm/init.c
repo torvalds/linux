@@ -93,14 +93,7 @@ struct node_info {
 };
 
 #define O_PFN_DOWN(x)	((x) >> PAGE_SHIFT)
-#define V_PFN_DOWN(x)	O_PFN_DOWN(__pa(x))
-
 #define O_PFN_UP(x)	(PAGE_ALIGN(x) >> PAGE_SHIFT)
-#define V_PFN_UP(x)	O_PFN_UP(__pa(x))
-
-#define PFN_SIZE(x)	((x) >> PAGE_SHIFT)
-#define PFN_RANGE(s,e)	PFN_SIZE(PAGE_ALIGN((unsigned long)(e)) - \
-				(((unsigned long)(s)) & PAGE_MASK))
 
 /*
  * FIXME: We really want to avoid allocating the bootmap bitmap
@@ -113,7 +106,7 @@ find_bootmap_pfn(int node, struct meminfo *mi, unsigned int bootmap_pages)
 {
 	unsigned int start_pfn, bank, bootmap_pfn;
 
-	start_pfn   = V_PFN_UP(&_end);
+	start_pfn   = O_PFN_UP(__pa(&_end));
 	bootmap_pfn = 0;
 
 	for (bank = 0; bank < mi->nr_banks; bank ++) {
@@ -122,9 +115,9 @@ find_bootmap_pfn(int node, struct meminfo *mi, unsigned int bootmap_pages)
 		if (mi->bank[bank].node != node)
 			continue;
 
-		start = O_PFN_UP(mi->bank[bank].start);
-		end   = O_PFN_DOWN(mi->bank[bank].size +
-				   mi->bank[bank].start);
+		start = mi->bank[bank].start >> PAGE_SHIFT;
+		end   = (mi->bank[bank].size +
+			 mi->bank[bank].start) >> PAGE_SHIFT;
 
 		if (end < start_pfn)
 			continue;
@@ -191,8 +184,8 @@ find_memend_and_nodes(struct meminfo *mi, struct node_info *np)
 		/*
 		 * Get the start and end pfns for this bank
 		 */
-		start = O_PFN_UP(mi->bank[i].start);
-		end   = O_PFN_DOWN(mi->bank[i].start + mi->bank[i].size);
+		start = mi->bank[i].start >> PAGE_SHIFT;
+		end   = (mi->bank[i].start + mi->bank[i].size) >> PAGE_SHIFT;
 
 		if (np[node].start > start)
 			np[node].start = start;
@@ -444,7 +437,7 @@ void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
 	memtable_init(mi);
 	if (mdesc->map_io)
 		mdesc->map_io();
-	flush_tlb_all();
+	local_flush_tlb_all();
 
 	/*
 	 * initialise the zones within each node
@@ -529,6 +522,69 @@ static inline void free_area(unsigned long addr, unsigned long end, char *s)
 		printk(KERN_INFO "Freeing %s memory: %dK\n", s, size);
 }
 
+static inline void
+free_memmap(int node, unsigned long start_pfn, unsigned long end_pfn)
+{
+	struct page *start_pg, *end_pg;
+	unsigned long pg, pgend;
+
+	/*
+	 * Convert start_pfn/end_pfn to a struct page pointer.
+	 */
+	start_pg = pfn_to_page(start_pfn);
+	end_pg = pfn_to_page(end_pfn);
+
+	/*
+	 * Convert to physical addresses, and
+	 * round start upwards and end downwards.
+	 */
+	pg = PAGE_ALIGN(__pa(start_pg));
+	pgend = __pa(end_pg) & PAGE_MASK;
+
+	/*
+	 * If there are free pages between these,
+	 * free the section of the memmap array.
+	 */
+	if (pg < pgend)
+		free_bootmem_node(NODE_DATA(node), pg, pgend - pg);
+}
+
+/*
+ * The mem_map array can get very big.  Free the unused area of the memory map.
+ */
+static void __init free_unused_memmap_node(int node, struct meminfo *mi)
+{
+	unsigned long bank_start, prev_bank_end = 0;
+	unsigned int i;
+
+	/*
+	 * [FIXME] This relies on each bank being in address order.  This
+	 * may not be the case, especially if the user has provided the
+	 * information on the command line.
+	 */
+	for (i = 0; i < mi->nr_banks; i++) {
+		if (mi->bank[i].size == 0 || mi->bank[i].node != node)
+			continue;
+
+		bank_start = mi->bank[i].start >> PAGE_SHIFT;
+		if (bank_start < prev_bank_end) {
+			printk(KERN_ERR "MEM: unordered memory banks.  "
+				"Not freeing memmap.\n");
+			break;
+		}
+
+		/*
+		 * If we had a previous bank, and there is a space
+		 * between the current bank and the previous, free it.
+		 */
+		if (prev_bank_end && prev_bank_end != bank_start)
+			free_memmap(node, prev_bank_end, bank_start);
+
+		prev_bank_end = (mi->bank[i].start +
+				 mi->bank[i].size) >> PAGE_SHIFT;
+	}
+}
+
 /*
  * mem_init() marks the free areas in the mem_map and tells us how much
  * memory is free.  This is done after various parts of the system have
@@ -547,15 +603,11 @@ void __init mem_init(void)
 	max_mapnr   = virt_to_page(high_memory) - mem_map;
 #endif
 
-	/*
-	 * We may have non-contiguous memory.
-	 */
-	if (meminfo.nr_banks != 1)
-		create_memmap_holes(&meminfo);
-
 	/* this will put all unused low memory onto the freelists */
 	for_each_online_node(node) {
 		pg_data_t *pgdat = NODE_DATA(node);
+
+		free_unused_memmap_node(node, &meminfo);
 
 		if (pgdat->node_spanned_pages != 0)
 			totalram_pages += free_all_bootmem_node(pgdat);

@@ -71,7 +71,6 @@
 #include <linux/workqueue.h>
 #include <linux/hdlc.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -581,7 +580,7 @@ static dev_link_t *mgslpc_attach(void)
 
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.IRQInfo1   = IRQ_INFO2_VALID | IRQ_LEVEL_ID;
+    link->irq.IRQInfo1   = IRQ_LEVEL_ID;
     link->irq.Handler = NULL;
     
     link->conf.Attributes = 0;
@@ -593,11 +592,6 @@ static dev_link_t *mgslpc_attach(void)
     dev_list = link;
 
     client_reg.dev_info = &dev_info;
-    client_reg.EventMask =
-	    CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	    CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	    CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &mgslpc_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
 
@@ -3081,13 +3075,21 @@ void mgslpc_remove_device(MGSLPC_INFO *remove_info)
 	}
 }
 
+static struct pcmcia_device_id mgslpc_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x02c5, 0x0050),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, mgslpc_ids);
+
 static struct pcmcia_driver mgslpc_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "synclink_cs",
 	},
 	.attach		= mgslpc_attach,
+	.event		= mgslpc_event,
 	.detach		= mgslpc_detach,
+	.id_table	= mgslpc_ids,
 };
 
 static struct tty_operations mgslpc_ops = {

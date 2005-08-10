@@ -516,7 +516,7 @@ struct MessageType cause_1tr6[] =
 	{CAUSE_UserInfoDiscarded, "User Info Discarded"}
 };
 
-int cause_1tr6_len = (sizeof(cause_1tr6) / sizeof(struct MessageType));
+static int cause_1tr6_len = (sizeof(cause_1tr6) / sizeof(struct MessageType));
 
 static int
 prcause_1tr6(char *dest, u_char * p)
@@ -935,7 +935,7 @@ display(char *dest, u_char * p)
 	return (dp - dest);
 }
 
-int
+static int
 prfacility(char *dest, u_char * p)
 {
 	char *dp = dest;

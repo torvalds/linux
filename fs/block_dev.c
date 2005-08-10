@@ -777,8 +777,7 @@ static ssize_t blkdev_file_aio_write(struct kiocb *iocb, const char __user *buf,
 	return generic_file_aio_write_nolock(iocb, &local_iov, 1, &iocb->ki_pos);
 }
 
-static int block_ioctl(struct inode *inode, struct file *file, unsigned cmd,
-			unsigned long arg)
+static long block_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	return blkdev_ioctl(file->f_mapping->host, file, cmd, arg);
 }
@@ -803,7 +802,7 @@ struct file_operations def_blk_fops = {
   	.aio_write	= blkdev_file_aio_write, 
 	.mmap		= generic_file_mmap,
 	.fsync		= block_fsync,
-	.ioctl		= block_ioctl,
+	.unlocked_ioctl	= block_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= compat_blkdev_ioctl,
 #endif

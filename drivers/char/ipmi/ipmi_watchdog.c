@@ -131,11 +131,7 @@
 #define	WDIOC_GET_PRETIMEOUT     _IOW(WATCHDOG_IOCTL_BASE, 22, int)
 #endif
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout;
-#endif
+static int nowayout = WATCHDOG_NOWAYOUT;
 
 static ipmi_user_t watchdog_user = NULL;
 

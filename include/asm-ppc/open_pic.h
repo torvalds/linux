@@ -25,6 +25,11 @@
 #define OPENPIC_VEC_IPI		118	/* and up */
 #define OPENPIC_VEC_SPURIOUS	255
 
+/* Priorities */
+#define OPENPIC_PRIORITY_IPI_BASE	10
+#define OPENPIC_PRIORITY_DEFAULT	4
+#define OPENPIC_PRIORITY_NMI		9
+
 /* OpenPIC IRQ controller structure */
 extern struct hw_interrupt_type open_pic;
 
@@ -42,6 +47,7 @@ extern int epic_serial_mode;
 extern void openpic_set_sources(int first_irq, int num_irqs, void __iomem *isr);
 extern void openpic_init(int linux_irq_offset);
 extern void openpic_init_nmi_irq(u_int irq);
+extern void openpic_set_irq_priority(u_int irq, u_int pri);
 extern void openpic_hookup_cascade(u_int irq, char *name,
 				   int (*cascade_fn)(struct pt_regs *));
 extern u_int openpic_irq(void);

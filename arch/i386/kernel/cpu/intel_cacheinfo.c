@@ -28,7 +28,7 @@ struct _cache_table
 };
 
 /* all the cache descriptor types we care about (no TLB or trace cache entries) */
-static struct _cache_table cache_table[] __initdata =
+static struct _cache_table cache_table[] __devinitdata =
 {
 	{ 0x06, LVL_1_INST, 8 },	/* 4-way set assoc, 32 byte line size */
 	{ 0x08, LVL_1_INST, 16 },	/* 4-way set assoc, 32 byte line size */
@@ -128,7 +128,7 @@ static int __devinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_le
 	cpuid_count(4, index, &eax, &ebx, &ecx, &edx);
 	cache_eax.full = eax;
 	if (cache_eax.split.type == CACHE_TYPE_NULL)
-		return -1;
+		return -EIO; /* better error ? */
 
 	this_leaf->eax.full = eax;
 	this_leaf->ebx.full = ebx;
@@ -160,7 +160,7 @@ static int __init find_num_cache_leaves(void)
 	return retval;
 }
 
-unsigned int __init init_intel_cacheinfo(struct cpuinfo_x86 *c)
+unsigned int __devinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 {
 	unsigned int trace = 0, l1i = 0, l1d = 0, l2 = 0, l3 = 0; /* Cache sizes */
 	unsigned int new_l1d = 0, new_l1i = 0; /* Cache sizes from cpuid(4) */
@@ -334,6 +334,7 @@ static int __devinit detect_cache_attributes(unsigned int cpu)
 	struct _cpuid4_info	*this_leaf;
 	unsigned long 		j;
 	int 			retval;
+	cpumask_t		oldmask;
 
 	if (num_cache_leaves == 0)
 		return -ENOENT;
@@ -345,19 +346,26 @@ static int __devinit detect_cache_attributes(unsigned int cpu)
 	memset(cpuid4_info[cpu], 0,
 	    sizeof(struct _cpuid4_info) * num_cache_leaves);
 
+	oldmask = current->cpus_allowed;
+	retval = set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	if (retval)
+		goto out;
+
 	/* Do cpuid and store the results */
+	retval = 0;
 	for (j = 0; j < num_cache_leaves; j++) {
 		this_leaf = CPUID4_INFO_IDX(cpu, j);
 		retval = cpuid4_cache_lookup(j, this_leaf);
 		if (unlikely(retval < 0))
-			goto err_out;
+			break;
 		cache_shared_cpu_map_setup(cpu, j);
 	}
-	return 0;
+	set_cpus_allowed(current, oldmask);
 
-err_out:
-	free_cache_attributes(cpu);
-	return -ENOMEM;
+out:
+	if (retval)
+		free_cache_attributes(cpu);
+	return retval;
 }
 
 #ifdef CONFIG_SYSFS

@@ -43,7 +43,7 @@ timer1_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static struct irqaction footbridge_timer_irq = {
 	.name		= "Timer1 timer tick",
 	.handler	= timer1_interrupt,
-	.flags		= SA_INTERRUPT,
+	.flags		= SA_INTERRUPT | SA_TIMER,
 };
 
 /*

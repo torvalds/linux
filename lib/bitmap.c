@@ -289,7 +289,6 @@ EXPORT_SYMBOL(__bitmap_weight);
 
 #define CHUNKSZ				32
 #define nbits_to_hold_value(val)	fls(val)
-#define roundup_power2(val,modulus)	(((val) + (modulus) - 1) & ~((modulus) - 1))
 #define unhex(c)			(isdigit(c) ? (c - '0') : (toupper(c) - 'A' + 10))
 #define BASEDEC 10		/* fancier cpuset lists input in decimal */
 
@@ -316,7 +315,7 @@ int bitmap_scnprintf(char *buf, unsigned int buflen,
 	if (chunksz == 0)
 		chunksz = CHUNKSZ;
 
-	i = roundup_power2(nmaskbits, CHUNKSZ) - CHUNKSZ;
+	i = ALIGN(nmaskbits, CHUNKSZ) - CHUNKSZ;
 	for (; i >= 0; i -= CHUNKSZ) {
 		chunkmask = ((1ULL << chunksz) - 1);
 		word = i / BITS_PER_LONG;

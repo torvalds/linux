@@ -33,7 +33,6 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Amiga mouse driver");
 MODULE_LICENSE("GPL");
 
-static int amimouse_used = 0;
 static int amimouse_lastx, amimouse_lasty;
 static struct input_dev amimouse_dev;
 
@@ -81,16 +80,12 @@ static int amimouse_open(struct input_dev *dev)
 {
 	unsigned short joy0dat;
 
-        if (amimouse_used++)
-                return 0;
-
 	joy0dat = custom.joy0dat;
 
 	amimouse_lastx = joy0dat & 0xff;
 	amimouse_lasty = joy0dat >> 8;
 
 	if (request_irq(IRQ_AMIGA_VERTB, amimouse_interrupt, 0, "amimouse", amimouse_interrupt)) {
-                amimouse_used--;
                 printk(KERN_ERR "amimouse.c: Can't allocate irq %d\n", IRQ_AMIGA_VERTB);
                 return -EBUSY;
         }
@@ -100,8 +95,7 @@ static int amimouse_open(struct input_dev *dev)
 
 static void amimouse_close(struct input_dev *dev)
 {
-        if (!--amimouse_used)
-		free_irq(IRQ_AMIGA_VERTB, amimouse_interrupt);
+	free_irq(IRQ_AMIGA_VERTB, amimouse_interrupt);
 }
 
 static int __init amimouse_init(void)

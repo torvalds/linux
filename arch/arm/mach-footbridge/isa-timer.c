@@ -72,7 +72,7 @@ isa_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static struct irqaction isa_timer_irq = {
 	.name		= "ISA timer tick",
 	.handler	= isa_timer_interrupt,
-	.flags		= SA_INTERRUPT,
+	.flags		= SA_INTERRUPT | SA_TIMER,
 };
 
 static void __init isa_timer_init(void)

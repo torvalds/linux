@@ -78,6 +78,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -354,7 +355,7 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	if (pci_set_dma_mask(pdev, 0xffffffff)) {
+	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
 		printk(KERN_WARNING DRV_NAME ": 32-bit PCI DMA not available.\n");
 		err = -ENODEV;
 		goto err_out_free;
@@ -743,11 +744,6 @@ static irqreturn_t dmfe_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	DMFE_DBUG(0, "dmfe_interrupt()", 0);
 
-	if (!dev) {
-		DMFE_DBUG(1, "dmfe_interrupt() without DEVICE arg", 0);
-		return IRQ_NONE;
-	}
-
 	spin_lock_irqsave(&db->lock, flags);
 
 	/* Got DM910X status */
@@ -949,8 +945,8 @@ static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
 
 				/* Received Packet CRC check need or not */
 				if ( (db->dm910x_chk_mode & 1) &&
-					(cal_CRC(skb->tail, rxlen, 1) !=
-					(*(u32 *) (skb->tail+rxlen) ))) { /* FIXME (?) */
+					(cal_CRC(skb->data, rxlen, 1) !=
+					(*(u32 *) (skb->data+rxlen) ))) { /* FIXME (?) */
 					/* Found a error received packet */
 					dmfe_reuse_skb(db, rxptr->rx_skb_ptr);
 					db->dm910x_chk_mode = 3;
@@ -963,7 +959,7 @@ static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
 						/* size less than COPY_SIZE, allocate a rxlen SKB */
 						skb->dev = dev;
 						skb_reserve(skb, 2); /* 16byte align */
-						memcpy(skb_put(skb, rxlen), rxptr->rx_skb_ptr->tail, rxlen);
+						memcpy(skb_put(skb, rxlen), rxptr->rx_skb_ptr->data, rxlen);
 						dmfe_reuse_skb(db, rxptr->rx_skb_ptr);
 					} else {
 						skb->dev = dev;
@@ -1256,7 +1252,7 @@ static void dmfe_reuse_skb(struct dmfe_board_info *db, struct sk_buff * skb)
 
 	if (!(rxptr->rdes0 & cpu_to_le32(0x80000000))) {
 		rxptr->rx_skb_ptr = skb;
-		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->tail, RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
+		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->data, RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
 		wmb();
 		rxptr->rdes0 = cpu_to_le32(0x80000000);
 		db->rx_avail_cnt++;
@@ -1467,7 +1463,7 @@ static void allocate_rx_buffer(struct dmfe_board_info *db)
 		if ( ( skb = dev_alloc_skb(RX_ALLOC_SIZE) ) == NULL )
 			break;
 		rxptr->rx_skb_ptr = skb; /* FIXME (?) */
-		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->tail, RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
+		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->data, RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
 		wmb();
 		rxptr->rdes0 = cpu_to_le32(0x80000000);
 		rxptr = rxptr->next_rx_desc;
@@ -1806,7 +1802,7 @@ static void dmfe_parse_srom(struct dmfe_board_info * db)
 	if ( ( (int) srom[18] & 0xff) == SROM_V41_CODE) {
 		/* SROM V4.01 */
 		/* Get NIC support media mode */
-		db->NIC_capability = le16_to_cpup(srom + 34);
+		db->NIC_capability = le16_to_cpup((__le16 *)srom + 34/2);
 		db->PHY_reg4 = 0;
 		for (tmp_reg = 1; tmp_reg < 0x10; tmp_reg <<= 1) {
 			switch( db->NIC_capability & tmp_reg ) {
@@ -1818,7 +1814,8 @@ static void dmfe_parse_srom(struct dmfe_board_info * db)
 		}
 
 		/* Media Mode Force or not check */
-		dmfe_mode = le32_to_cpup(srom + 34) & le32_to_cpup(srom + 36);
+		dmfe_mode = le32_to_cpup((__le32 *)srom + 34/4) &
+				le32_to_cpup((__le32 *)srom + 36/4);
 		switch(dmfe_mode) {
 		case 0x4: dmfe_media_mode = DMFE_100MHF; break;	/* 100MHF */
 		case 0x2: dmfe_media_mode = DMFE_10MFD; break;	/* 10MFD */

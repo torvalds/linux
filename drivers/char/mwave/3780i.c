@@ -107,8 +107,8 @@ void dsp3780I_WriteMsaCfg(unsigned short usDspBaseIO,
 	spin_unlock_irqrestore(&dsp_lock, flags);
 }
 
-void dsp3780I_WriteGenCfg(unsigned short usDspBaseIO, unsigned uIndex,
-                          unsigned char ucValue)
+static void dsp3780I_WriteGenCfg(unsigned short usDspBaseIO, unsigned uIndex,
+				 unsigned char ucValue)
 {
 	DSP_ISA_SLAVE_CONTROL rSlaveControl;
 	DSP_ISA_SLAVE_CONTROL rSlaveControl_Save;
@@ -141,6 +141,7 @@ void dsp3780I_WriteGenCfg(unsigned short usDspBaseIO, unsigned uIndex,
 
 }
 
+#if 0
 unsigned char dsp3780I_ReadGenCfg(unsigned short usDspBaseIO,
                                   unsigned uIndex)
 {
@@ -167,6 +168,7 @@ unsigned char dsp3780I_ReadGenCfg(unsigned short usDspBaseIO,
 
 	return ucValue;
 }
+#endif  /*  0  */
 
 int dsp3780I_EnableDSP(DSP_3780I_CONFIG_SETTINGS * pSettings,
                        unsigned short *pIrqMap,

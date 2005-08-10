@@ -28,10 +28,10 @@ static struct msi_desc* msi_desc[NR_IRQS] = { [0 ... NR_IRQS-1] = NULL };
 static kmem_cache_t* msi_cachep;
 
 static int pci_msi_enable = 1;
-static int last_alloc_vector = 0;
-static int nr_released_vectors = 0;
+static int last_alloc_vector;
+static int nr_released_vectors;
 static int nr_reserved_vectors = NR_HP_RESERVED_VECTORS;
-static int nr_msix_devices = 0;
+static int nr_msix_devices;
 
 #ifndef CONFIG_X86_IO_APIC
 int vector_irq[NR_VECTORS] = { [0 ... NR_VECTORS - 1] = -1};
@@ -170,50 +170,40 @@ static unsigned int startup_msi_irq_wo_maskbit(unsigned int vector)
 	return 0;	/* never anything pending */
 }
 
-static void release_msi(unsigned int vector);
-static void shutdown_msi_irq(unsigned int vector)
-{
-	release_msi(vector);
-}
-
-#define shutdown_msi_irq_wo_maskbit	shutdown_msi_irq
-static void enable_msi_irq_wo_maskbit(unsigned int vector) {}
-static void disable_msi_irq_wo_maskbit(unsigned int vector) {}
-static void ack_msi_irq_wo_maskbit(unsigned int vector) {}
-static void end_msi_irq_wo_maskbit(unsigned int vector)
-{
-	move_msi(vector);
-	ack_APIC_irq();
-}
-
 static unsigned int startup_msi_irq_w_maskbit(unsigned int vector)
+{
+	startup_msi_irq_wo_maskbit(vector);
+	unmask_MSI_irq(vector);
+	return 0;	/* never anything pending */
+}
+
+static void shutdown_msi_irq(unsigned int vector)
 {
 	struct msi_desc *entry;
 	unsigned long flags;
 
 	spin_lock_irqsave(&msi_lock, flags);
 	entry = msi_desc[vector];
-	if (!entry || !entry->dev) {
-		spin_unlock_irqrestore(&msi_lock, flags);
-		return 0;
-	}
-	entry->msi_attrib.state = 1;	/* Mark it active */
+	if (entry && entry->dev)
+		entry->msi_attrib.state = 0;	/* Mark it not active */
 	spin_unlock_irqrestore(&msi_lock, flags);
-
-	unmask_MSI_irq(vector);
-	return 0;	/* never anything pending */
 }
 
-#define shutdown_msi_irq_w_maskbit	shutdown_msi_irq
-#define enable_msi_irq_w_maskbit	unmask_MSI_irq
-#define disable_msi_irq_w_maskbit	mask_MSI_irq
-#define ack_msi_irq_w_maskbit		mask_MSI_irq
+static void end_msi_irq_wo_maskbit(unsigned int vector)
+{
+	move_msi(vector);
+	ack_APIC_irq();
+}
 
 static void end_msi_irq_w_maskbit(unsigned int vector)
 {
 	move_msi(vector);
 	unmask_MSI_irq(vector);
 	ack_APIC_irq();
+}
+
+static void do_nothing(unsigned int vector)
+{
 }
 
 /*
@@ -223,10 +213,10 @@ static void end_msi_irq_w_maskbit(unsigned int vector)
 static struct hw_interrupt_type msix_irq_type = {
 	.typename	= "PCI-MSI-X",
 	.startup	= startup_msi_irq_w_maskbit,
-	.shutdown	= shutdown_msi_irq_w_maskbit,
-	.enable		= enable_msi_irq_w_maskbit,
-	.disable	= disable_msi_irq_w_maskbit,
-	.ack		= ack_msi_irq_w_maskbit,
+	.shutdown	= shutdown_msi_irq,
+	.enable		= unmask_MSI_irq,
+	.disable	= mask_MSI_irq,
+	.ack		= mask_MSI_irq,
 	.end		= end_msi_irq_w_maskbit,
 	.set_affinity	= set_msi_irq_affinity
 };
@@ -239,10 +229,10 @@ static struct hw_interrupt_type msix_irq_type = {
 static struct hw_interrupt_type msi_irq_w_maskbit_type = {
 	.typename	= "PCI-MSI",
 	.startup	= startup_msi_irq_w_maskbit,
-	.shutdown	= shutdown_msi_irq_w_maskbit,
-	.enable		= enable_msi_irq_w_maskbit,
-	.disable	= disable_msi_irq_w_maskbit,
-	.ack		= ack_msi_irq_w_maskbit,
+	.shutdown	= shutdown_msi_irq,
+	.enable		= unmask_MSI_irq,
+	.disable	= mask_MSI_irq,
+	.ack		= mask_MSI_irq,
 	.end		= end_msi_irq_w_maskbit,
 	.set_affinity	= set_msi_irq_affinity
 };
@@ -255,10 +245,10 @@ static struct hw_interrupt_type msi_irq_w_maskbit_type = {
 static struct hw_interrupt_type msi_irq_wo_maskbit_type = {
 	.typename	= "PCI-MSI",
 	.startup	= startup_msi_irq_wo_maskbit,
-	.shutdown	= shutdown_msi_irq_wo_maskbit,
-	.enable		= enable_msi_irq_wo_maskbit,
-	.disable	= disable_msi_irq_wo_maskbit,
-	.ack		= ack_msi_irq_wo_maskbit,
+	.shutdown	= shutdown_msi_irq,
+	.enable		= do_nothing,
+	.disable	= do_nothing,
+	.ack		= do_nothing,
 	.end		= end_msi_irq_wo_maskbit,
 	.set_affinity	= set_msi_irq_affinity
 };
@@ -407,7 +397,7 @@ static struct msi_desc* alloc_msi_entry(void)
 {
 	struct msi_desc *entry;
 
-	entry = (struct msi_desc*) kmem_cache_alloc(msi_cachep, SLAB_KERNEL);
+	entry = kmem_cache_alloc(msi_cachep, SLAB_KERNEL);
 	if (!entry)
 		return NULL;
 
@@ -796,18 +786,6 @@ void pci_disable_msi(struct pci_dev* dev)
 	}
 }
 
-static void release_msi(unsigned int vector)
-{
-	struct msi_desc *entry;
-	unsigned long flags;
-
-	spin_lock_irqsave(&msi_lock, flags);
-	entry = msi_desc[vector];
-	if (entry && entry->dev)
-		entry->msi_attrib.state = 0;	/* Mark it not active */
-	spin_unlock_irqrestore(&msi_lock, flags);
-}
-
 static int msi_free_vector(struct pci_dev* dev, int vector, int reassign)
 {
 	struct msi_desc *entry;
@@ -924,7 +902,7 @@ static int reroute_msix_table(int head, struct msix_entry *entries, int *nvec)
 /**
  * pci_enable_msix - configure device's MSI-X capability structure
  * @dev: pointer to the pci_dev data structure of MSI-X device function
- * @data: pointer to an array of MSI-X entries
+ * @entries: pointer to an array of MSI-X entries
  * @nvec: number of MSI-X vectors requested for allocation by device driver
  *
  * Setup the MSI-X capability structure of device function with the number

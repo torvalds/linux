@@ -122,6 +122,9 @@
 
 #include "dm.h"
 
+#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#define SUPPORT_JOYSTICK 1
+#endif
 
 /* --------------------------------------------------------------------- */
 
@@ -365,7 +368,9 @@ struct sv_state {
 		unsigned char obuf[MIDIOUTBUF];
 	} midi;
 
+#if SUPPORT_JOYSTICK
 	struct gameport *gameport;
+#endif
 };
 
 /* --------------------------------------------------------------------- */
@@ -2485,6 +2490,7 @@ static struct initvol {
 #define RSRCISIOREGION(dev,num) (pci_resource_start((dev), (num)) != 0 && \
 				 (pci_resource_flags((dev), (num)) & IORESOURCE_IO))
 
+#ifdef SUPPORT_JOYSTICK
 static int __devinit sv_register_gameport(struct sv_state *s, int io_port)
 {
 	struct gameport *gp;
@@ -2510,6 +2516,19 @@ static int __devinit sv_register_gameport(struct sv_state *s, int io_port)
 
 	return 0;
 }
+
+static inline void sv_unregister_gameport(struct sv_state *s)
+{
+	if (s->gameport) {
+		int gpio = s->gameport->io;
+		gameport_unregister_port(s->gameport);
+		release_region(gpio, SV_EXTENT_GAME);
+	}
+}
+#else
+static inline int sv_register_gameport(struct sv_state *s, int io_port) { return -ENOSYS; }
+static inline void sv_unregister_gameport(struct sv_state *s) { }
+#endif /* SUPPORT_JOYSTICK */
 
 static int __devinit sv_probe(struct pci_dev *pcidev, const struct pci_device_id *pciid)
 {
@@ -2711,11 +2730,7 @@ static void __devexit sv_remove(struct pci_dev *dev)
 	/*outb(0, s->iodmaa + SV_DMA_RESET);*/
 	/*outb(0, s->iodmac + SV_DMA_RESET);*/
 	free_irq(s->irq, s);
-	if (s->gameport) {
-		int gpio = s->gameport->io;
-		gameport_unregister_port(s->gameport);
-		release_region(gpio, SV_EXTENT_GAME);
-	}
+	sv_unregister_gameport(s);
 	release_region(s->iodmac, SV_EXTENT_DMA);
 	release_region(s->iodmaa, SV_EXTENT_DMA);
 	release_region(s->ioenh, SV_EXTENT_ENH);

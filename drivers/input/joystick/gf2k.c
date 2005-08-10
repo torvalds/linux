@@ -329,7 +329,7 @@ static int gf2k_connect(struct gameport *gameport, struct gameport_driver *drv)
 
 	for (i = 0; i < gf2k_axes[gf2k->id]; i++) {
 		gf2k->dev.absmax[gf2k_abs[i]] = (i < 2) ? gf2k->dev.abs[gf2k_abs[i]] * 2 - 32 :
-	      		  gf2k->dev.abs[gf2k_abs[0]] + gf2k->dev.abs[gf2k_abs[1]] - 32;
+			  gf2k->dev.abs[gf2k_abs[0]] + gf2k->dev.abs[gf2k_abs[1]] - 32;
 		gf2k->dev.absmin[gf2k_abs[i]] = 32;
 		gf2k->dev.absfuzz[gf2k_abs[i]] = 8;
 		gf2k->dev.absflat[gf2k_abs[i]] = (i < 2) ? 24 : 0;

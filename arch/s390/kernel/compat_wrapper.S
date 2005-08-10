@@ -1251,12 +1251,12 @@ sys32_fadvise64_wrapper:
 	or	%r3,%r4			# get low word of 64bit loff_t
 	llgfr	%r4,%r5			# size_t (unsigned long)
 	lgfr	%r5,%r6			# int
-	jg	sys_fadvise64
+	jg	sys32_fadvise64
 
 	.globl	sys32_fadvise64_64_wrapper
 sys32_fadvise64_64_wrapper:
 	llgtr	%r2,%r2			# struct fadvise64_64_args *
-	jg	s390_fadvise64_64
+	jg	sys32_fadvise64_64
 
 	.globl	sys32_clock_settime_wrapper
 sys32_clock_settime_wrapper:
@@ -1441,3 +1441,37 @@ compat_sys_waitid_wrapper:
 	lgfr	%r5,%r5			# int
 	llgtr	%r6,%r6			# struct rusage_emu31 *
 	jg	compat_sys_waitid
+
+	.globl	compat_sys_kexec_load_wrapper
+compat_sys_kexec_load_wrapper:
+	llgfr	%r2,%r2			# unsigned long
+	llgfr	%r3,%r3			# unsigned long
+	llgtr	%r4,%r4			# struct kexec_segment *
+	llgfr	%r5,%r5			# unsigned long
+	jg	compat_sys_kexec_load
+
+	.globl	sys_ioprio_set_wrapper
+sys_ioprio_set_wrapper:
+	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
+	lgfr	%r4,%r4			# int
+	jg	sys_ioprio_set
+
+	.globl	sys_ioprio_get_wrapper
+sys_ioprio_get_wrapper:
+	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
+	jg	sys_ioprio_get
+
+	.globl	sys_inotify_add_watch_wrapper
+sys_inotify_add_watch_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char *
+	llgfr	%r4,%r4			# u32
+	jg	sys_inotify_add_watch
+
+	.globl	sys_inotify_rm_watch_wrapper
+sys_inotify_rm_watch_wrapper:
+	lgfr	%r2,%r2			# int
+	llgfr	%r3,%r3			# u32
+	jg	sys_inotify_rm_watch

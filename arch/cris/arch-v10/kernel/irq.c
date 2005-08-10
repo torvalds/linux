@@ -1,4 +1,4 @@
-/* $Id: irq.c,v 1.2 2004/06/09 05:30:27 starvik Exp $
+/* $Id: irq.c,v 1.4 2005/01/04 12:22:28 starvik Exp $
  *
  *	linux/arch/cris/kernel/irq.c
  *
@@ -12,11 +12,13 @@
  */
 
 #include <asm/irq.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/config.h>
 
-irqvectptr irq_shortcuts[NR_IRQS]; /* vector of shortcut jumps after the irq prologue */
+#define mask_irq(irq_nr) (*R_VECT_MASK_CLR = 1 << (irq_nr));
+#define unmask_irq(irq_nr) (*R_VECT_MASK_SET = 1 << (irq_nr));
 
 /* don't use set_int_vector, it bypasses the linux interrupt handlers. it is
  * global just so that the kernel gdb can use it.
@@ -102,33 +104,44 @@ static void (*interrupt[NR_IRQS])(void) = {
 	IRQ31_interrupt
 };
 
-static void (*bad_interrupt[NR_IRQS])(void) = {
-        NULL, NULL,
-	NULL, bad_IRQ3_interrupt,
-	bad_IRQ4_interrupt, bad_IRQ5_interrupt,
-	bad_IRQ6_interrupt, bad_IRQ7_interrupt,
-	bad_IRQ8_interrupt, bad_IRQ9_interrupt,
-	bad_IRQ10_interrupt, bad_IRQ11_interrupt,
-	bad_IRQ12_interrupt, bad_IRQ13_interrupt,
-	NULL, NULL,
-	bad_IRQ16_interrupt, bad_IRQ17_interrupt,
-	bad_IRQ18_interrupt, bad_IRQ19_interrupt,
-	bad_IRQ20_interrupt, bad_IRQ21_interrupt,
-	bad_IRQ22_interrupt, bad_IRQ23_interrupt,
-	bad_IRQ24_interrupt, bad_IRQ25_interrupt,
-	NULL, NULL, NULL, NULL, NULL,
-	bad_IRQ31_interrupt
+static void enable_crisv10_irq(unsigned int irq);
+
+static unsigned int startup_crisv10_irq(unsigned int irq)
+{
+	enable_crisv10_irq(irq);
+	return 0;
+}
+
+#define shutdown_crisv10_irq	disable_crisv10_irq
+
+static void enable_crisv10_irq(unsigned int irq)
+{
+	unmask_irq(irq);
+}
+
+static void disable_crisv10_irq(unsigned int irq)
+{
+	mask_irq(irq);
+}
+
+static void ack_crisv10_irq(unsigned int irq)
+{
+}
+
+static void end_crisv10_irq(unsigned int irq)
+{
+}
+
+static struct hw_interrupt_type crisv10_irq_type = {
+	.typename =    "CRISv10",
+	.startup =     startup_crisv10_irq,
+	.shutdown =    shutdown_crisv10_irq,
+	.enable =      enable_crisv10_irq,
+	.disable =     disable_crisv10_irq,
+	.ack =         ack_crisv10_irq,
+	.end =         end_crisv10_irq,
+	.set_affinity = NULL
 };
-
-void arch_setup_irq(int irq)
-{
-  set_int_vector(irq, interrupt[irq]);
-}
-
-void arch_free_irq(int irq)
-{
-  set_int_vector(irq, bad_interrupt[irq]);
-}
 
 void weird_irq(void);
 void system_call(void);  /* from entry.S */
@@ -136,7 +149,7 @@ void do_sigtrap(void); /* from entry.S */
 void gdb_handle_breakpoint(void); /* from entry.S */
 
 /* init_IRQ() is called by start_kernel and is responsible for fixing IRQ masks and
-   setting the irq vector table to point to bad_interrupt ptrs.
+   setting the irq vector table.
 */
 
 void __init
@@ -154,13 +167,14 @@ init_IRQ(void)
 
 	*R_VECT_MASK_CLR = 0xffffffff;
 
-	/* clear the shortcut entry points */
-
-	for(i = 0; i < NR_IRQS; i++)
-		irq_shortcuts[i] = NULL;
-        
         for (i = 0; i < 256; i++)
                etrax_irv->v[i] = weird_irq;
+
+	/* Initialize IRQ handler descriptiors. */
+	for(i = 2; i < NR_IRQS; i++) {
+		irq_desc[i].handler = &crisv10_irq_type;
+		set_int_vector(i, interrupt[i]);
+	}
 
         /* the entries in the break vector contain actual code to be
            executed by the associated break handler, rather than just a jump
@@ -169,10 +183,6 @@ init_IRQ(void)
 
 	for (i = 0; i < 16; i++)
                 set_break_vector(i, do_sigtrap);
-        
-	/* set all etrax irq's to the bad handlers */
-	for (i = 2; i < NR_IRQS; i++)
-		set_int_vector(i, bad_interrupt[i]);
         
 	/* except IRQ 15 which is the multiple-IRQ handler on Etrax100 */
 

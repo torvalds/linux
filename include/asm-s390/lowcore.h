@@ -90,7 +90,6 @@
 #define __LC_SYSTEM_TIMER		0x278
 #define __LC_LAST_UPDATE_CLOCK		0x280
 #define __LC_STEAL_CLOCK		0x288
-#define __LC_DIAG44_OPCODE		0x290
 #define __LC_KERNEL_STACK               0xD40
 #define __LC_THREAD_INFO		0xD48
 #define __LC_ASYNC_STACK                0xD50
@@ -109,10 +108,14 @@
 
 #ifndef __s390x__
 #define __LC_PFAULT_INTPARM             0x080
+#define __LC_CPU_TIMER_SAVE_AREA        0x0D8
 #define __LC_AREGS_SAVE_AREA            0x120
+#define __LC_GPREGS_SAVE_AREA           0x180
 #define __LC_CREGS_SAVE_AREA            0x1C0
 #else /* __s390x__ */
 #define __LC_PFAULT_INTPARM             0x11B8
+#define __LC_GPREGS_SAVE_AREA           0x1280
+#define __LC_CPU_TIMER_SAVE_AREA        0x1328
 #define __LC_AREGS_SAVE_AREA            0x1340
 #define __LC_CREGS_SAVE_AREA            0x1380
 #endif /* __s390x__ */
@@ -167,7 +170,8 @@ struct _lowcore
 	__u16        subchannel_nr;            /* 0x0ba */
 	__u32        io_int_parm;              /* 0x0bc */
 	__u32        io_int_word;              /* 0x0c0 */
-        __u8         pad3[0xD8-0xC4];          /* 0x0c4 */
+        __u8         pad3[0xD4-0xC4];          /* 0x0c4 */
+	__u32        extended_save_area_addr;  /* 0x0d4 */
 	__u32        cpu_timer_save_area[2];   /* 0x0d8 */
 	__u32        clock_comp_save_area[2];  /* 0x0e0 */
 	__u32        mcck_interruption_code[2]; /* 0x0e8 */
@@ -281,8 +285,7 @@ struct _lowcore
 	__u64        system_timer;             /* 0x278 */
 	__u64        last_update_clock;        /* 0x280 */
 	__u64        steal_clock;              /* 0x288 */
-	__u32        diag44_opcode;            /* 0x290 */
-        __u8         pad8[0xc00-0x294];        /* 0x294 */
+        __u8         pad8[0xc00-0x290];        /* 0x290 */
         /* System info area */
 	__u64        save_area[16];            /* 0xc00 */
         __u8         pad9[0xd40-0xc80];        /* 0xc80 */

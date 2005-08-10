@@ -102,6 +102,10 @@ ip_nat_fn(unsigned int hooknum,
 		return NF_ACCEPT;
 	}
 
+	/* Don't try to NAT if this packet is not conntracked */
+	if (ct == &ip_conntrack_untracked)
+		return NF_ACCEPT;
+
 	switch (ctinfo) {
 	case IP_CT_RELATED:
 	case IP_CT_RELATED+IP_CT_IS_REPLY:

@@ -137,10 +137,11 @@ void __init n30_init(void)
 }
 
 MACHINE_START(N30, "Acer-N30")
-     MAINTAINER("Christer Weinigel <christer@weinigel.se>, Ben Dooks <ben-linux@fluff.org>")
-     BOOT_MEM(S3C2410_SDRAM_PA, S3C2410_PA_UART, (u32)S3C24XX_VA_UART)
-     BOOT_PARAMS(S3C2410_SDRAM_PA + 0x100)
-
+	/* Maintainer: Christer Weinigel <christer@weinigel.se>, Ben Dooks <ben-linux@fluff.org> */
+	.phys_ram	= S3C2410_SDRAM_PA,
+	.phys_io	= S3C2410_PA_UART,
+	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
+	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.timer		= &s3c24xx_timer,
 	.init_machine	= n30_init,
 	.init_irq	= n30_init_irq,

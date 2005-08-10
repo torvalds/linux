@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
@@ -31,6 +30,14 @@
 static int disable_clkrun;
 module_param(disable_clkrun, bool, 0444);
 MODULE_PARM_DESC(disable_clkrun, "If PC card doesn't function properly, please try this option");
+
+static int isa_probe = 1;
+module_param(isa_probe, bool, 0444);
+MODULE_PARM_DESC(isa_probe, "If set ISA interrupts are probed (default). Set to N to disable probing");
+
+static int pwr_irqs_off;
+module_param(pwr_irqs_off, bool, 0644);
+MODULE_PARM_DESC(pwr_irqs_off, "Force IRQs off during power-on of slot. Use only when seeing IRQ storms!");
 
 #if 0
 #define debug(x,args...) printk(KERN_DEBUG "%s: " x, __func__ , ##args)
@@ -150,15 +157,16 @@ static int yenta_get_status(struct pcmcia_socket *sock, unsigned int *value)
 
 	val  = (state & CB_3VCARD) ? SS_3VCARD : 0;
 	val |= (state & CB_XVCARD) ? SS_XVCARD : 0;
-	val |= (state & (CB_CDETECT1 | CB_CDETECT2 | CB_5VCARD | CB_3VCARD
-			 | CB_XVCARD | CB_YVCARD)) ? 0 : SS_PENDING;
+	val |= (state & (CB_5VCARD | CB_3VCARD | CB_XVCARD | CB_YVCARD)) ? 0 : SS_PENDING;
+	val |= (state & (CB_CDETECT1 | CB_CDETECT2)) ? SS_PENDING : 0;
+
 
 	if (state & CB_CBCARD) {
 		val |= SS_CARDBUS;	
 		val |= (state & CB_CARDSTS) ? SS_STSCHG : 0;
 		val |= (state & (CB_CDETECT1 | CB_CDETECT2)) ? 0 : SS_DETECT;
 		val |= (state & CB_PWRCYCLE) ? SS_POWERON | SS_READY : 0;
-	} else {
+	} else if (state & CB_16BITCARD) {
 		u8 status = exca_readb(socket, I365_STATUS);
 		val |= ((status & I365_CS_DETECT) == I365_CS_DETECT) ? SS_DETECT : 0;
 		if (exca_readb(socket, I365_INTCTL) & I365_PC_IOCARD) {
@@ -405,11 +413,13 @@ static int yenta_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map *
 }
 
 
-static unsigned int yenta_events(struct yenta_socket *socket)
+
+static irqreturn_t yenta_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
+	unsigned int events;
+	struct yenta_socket *socket = (struct yenta_socket *) dev_id;
 	u8 csc;
 	u32 cb_event;
-	unsigned int events;
 
 	/* Clear interrupt status for the event */
 	cb_event = cb_readl(socket, CB_SOCKET_EVENT);
@@ -426,20 +436,13 @@ static unsigned int yenta_events(struct yenta_socket *socket)
 		events |= (csc & I365_CSC_BVD2) ? SS_BATWARN : 0;
 		events |= (csc & I365_CSC_READY) ? SS_READY : 0;
 	}
-	return events;
-}
 
-
-static irqreturn_t yenta_interrupt(int irq, void *dev_id, struct pt_regs *regs)
-{
-	unsigned int events;
-	struct yenta_socket *socket = (struct yenta_socket *) dev_id;
-
-	events = yenta_events(socket);
-	if (events) {
+	if (events)
 		pcmcia_parse_events(&socket->socket, events);
+
+	if (cb_event || csc)
 		return IRQ_HANDLED;
-	}
+
 	return IRQ_NONE;
 }
 
@@ -470,11 +473,22 @@ static void yenta_clear_maps(struct yenta_socket *socket)
 	}
 }
 
+/* redoes voltage interrogation if required */
+static void yenta_interrogate(struct yenta_socket *socket)
+{
+	u32 state;
+
+	state = cb_readl(socket, CB_SOCKET_STATE);
+	if (!(state & (CB_5VCARD | CB_3VCARD | CB_XVCARD | CB_YVCARD)) ||
+	    (state & (CB_CDETECT1 | CB_CDETECT2 | CB_NOTACARD | CB_BADVCCREQ)) ||
+	    ((state & (CB_16BITCARD | CB_CBCARD)) == (CB_16BITCARD | CB_CBCARD)))
+		cb_writel(socket, CB_SOCKET_FORCE, CB_CVSTEST);
+}
+
 /* Called at resume and initialization events */
 static int yenta_sock_init(struct pcmcia_socket *sock)
 {
 	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
-	u32 state;
 	u16 bridge;
 
 	bridge = config_readw(socket, CB_BRIDGE_CONTROL) & ~CB_BRIDGE_INTR;
@@ -486,10 +500,7 @@ static int yenta_sock_init(struct pcmcia_socket *sock)
 	exca_writeb(socket, I365_GENCTL, 0x00);
 
 	/* Redo card voltage interrogation */
-	state = cb_readl(socket, CB_SOCKET_STATE);
-	if (!(state & (CB_CDETECT1 | CB_CDETECT2 | CB_5VCARD |
-	               CB_3VCARD | CB_XVCARD | CB_YVCARD)))
-		cb_writel(socket, CB_SOCKET_FORCE, CB_CVSTEST);
+	yenta_interrogate(socket);
 
 	yenta_clear_maps(socket);
 
@@ -516,60 +527,29 @@ static int yenta_sock_suspend(struct pcmcia_socket *sock)
  * Use an adaptive allocation for the memory resource,
  * sometimes the memory behind pci bridges is limited:
  * 1/8 of the size of the io window of the parent.
- * max 4 MB, min 16 kB.
+ * max 4 MB, min 16 kB. We try very hard to not get below
+ * the "ACC" values, though.
  */
 #define BRIDGE_MEM_MAX 4*1024*1024
+#define BRIDGE_MEM_ACC 128*1024
 #define BRIDGE_MEM_MIN 16*1024
 
-#define BRIDGE_IO_MAX 256
+#define BRIDGE_IO_MAX 512
+#define BRIDGE_IO_ACC 256
 #define BRIDGE_IO_MIN 32
 
 #ifndef PCIBIOS_MIN_CARDBUS_IO
 #define PCIBIOS_MIN_CARDBUS_IO PCIBIOS_MIN_IO
 #endif
 
-static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type)
+static int yenta_search_one_res(struct resource *root, struct resource *res,
+				u32 min)
 {
-	struct pci_bus *bus;
-	struct resource *root, *res;
-	u32 start, end;
-	u32 align, size, min;
-	unsigned offset;
-	unsigned mask;
+	u32 align, size, start, end;
 
-	/* The granularity of the memory limit is 4kB, on IO it's 4 bytes */
-	mask = ~0xfff;
-	if (type & IORESOURCE_IO)
-		mask = ~3;
-
-	offset = 0x1c + 8*nr;
-	bus = socket->dev->subordinate;
-	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
-	res->name = bus->name;
-	res->flags = type;
-	res->start = 0;
-	res->end = 0;
-	root = pci_find_parent_resource(socket->dev, res);
-
-	if (!root)
-		return;
-
-	start = config_readl(socket, offset) & mask;
-	end = config_readl(socket, offset+4) | ~mask;
-	if (start && end > start && !override_bios) {
-		res->start = start;
-		res->end = end;
-		if (request_resource(root, res) == 0)
-			return;
-		printk(KERN_INFO "yenta %s: Preassigned resource %d busy, reconfiguring...\n",
-				pci_name(socket->dev), nr);
-		res->start = res->end = 0;
-	}
-
-	if (type & IORESOURCE_IO) {
+	if (res->flags & IORESOURCE_IO) {
 		align = 1024;
 		size = BRIDGE_IO_MAX;
-		min = BRIDGE_IO_MIN;
 		start = PCIBIOS_MIN_CARDBUS_IO;
 		end = ~0U;
 	} else {
@@ -584,26 +564,107 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 				i++;
 			size = 1 << i;
 		}
-		if (size < BRIDGE_MEM_MIN)
-			size = BRIDGE_MEM_MIN;
-		min = BRIDGE_MEM_MIN;
+		if (size < min)
+			size = min;
 		align = size;
 		start = PCIBIOS_MIN_MEM;
 		end = ~0U;
 	}
-	
+
 	do {
-		if (allocate_resource(root, res, size, start, end, align, NULL, NULL)==0) {
-			config_writel(socket, offset, res->start);
-			config_writel(socket, offset+4, res->end);
-			return;
+		if (allocate_resource(root, res, size, start, end, align,
+				      NULL, NULL)==0) {
+			return 1;
 		}
 		size = size/2;
 		align = size;
 	} while (size >= min);
+
+	return 0;
+}
+
+
+static int yenta_search_res(struct yenta_socket *socket, struct resource *res,
+			    u32 min)
+{
+	int i;
+	for (i=0; i<PCI_BUS_NUM_RESOURCES; i++) {
+		struct resource * root = socket->dev->bus->resource[i];
+		if (!root)
+			continue;
+
+		if ((res->flags ^ root->flags) &
+		    (IORESOURCE_IO | IORESOURCE_MEM | IORESOURCE_PREFETCH))
+			continue; /* Wrong type */
+
+		if (yenta_search_one_res(root, res, min))
+			return 1;
+	}
+	return 0;
+}
+
+static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type, int addr_start, int addr_end)
+{
+	struct resource *root, *res;
+	struct pci_bus_region region;
+	unsigned mask;
+
+	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
+	/* Already allocated? */
+	if (res->parent)
+		return;
+
+	/* The granularity of the memory limit is 4kB, on IO it's 4 bytes */
+	mask = ~0xfff;
+	if (type & IORESOURCE_IO)
+		mask = ~3;
+
+	res->name = socket->dev->subordinate->name;
+	res->flags = type;
+
+	region.start = config_readl(socket, addr_start) & mask;
+	region.end = config_readl(socket, addr_end) | ~mask;
+	if (region.start && region.end > region.start && !override_bios) {
+		pcibios_bus_to_resource(socket->dev, res, &region);
+		root = pci_find_parent_resource(socket->dev, res);
+		if (root && (request_resource(root, res) == 0))
+			return;
+		printk(KERN_INFO "yenta %s: Preassigned resource %d busy or not available, reconfiguring...\n",
+				pci_name(socket->dev), nr);
+	}
+
+	if (type & IORESOURCE_IO) {
+		if ((yenta_search_res(socket, res, BRIDGE_IO_MAX)) ||
+		    (yenta_search_res(socket, res, BRIDGE_IO_ACC)) ||
+		    (yenta_search_res(socket, res, BRIDGE_IO_MIN))) {
+			config_writel(socket, addr_start, res->start);
+			config_writel(socket, addr_end, res->end);
+			return;
+		}
+	} else {
+		if (type & IORESOURCE_PREFETCH) {
+			if ((yenta_search_res(socket, res, BRIDGE_MEM_MAX)) ||
+			    (yenta_search_res(socket, res, BRIDGE_MEM_ACC)) ||
+			    (yenta_search_res(socket, res, BRIDGE_MEM_MIN))) {
+				config_writel(socket, addr_start, res->start);
+				config_writel(socket, addr_end, res->end);
+				return;
+			}
+			/* Approximating prefetchable by non-prefetchable */
+			res->flags = IORESOURCE_MEM;
+		}
+		if ((yenta_search_res(socket, res, BRIDGE_MEM_MAX)) ||
+		    (yenta_search_res(socket, res, BRIDGE_MEM_ACC)) ||
+		    (yenta_search_res(socket, res, BRIDGE_MEM_MIN))) {
+			config_writel(socket, addr_start, res->start);
+			config_writel(socket, addr_end, res->end);
+			return;
+		}
+	}
+
 	printk(KERN_INFO "yenta %s: no resource of type %x available, trying to continue...\n",
-			pci_name(socket->dev), type);
-	res->start = res->end = 0;
+	       pci_name(socket->dev), type);
+	res->start = res->end = res->flags = 0;
 }
 
 /*
@@ -611,10 +672,14 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
  */
 static void yenta_allocate_resources(struct yenta_socket *socket)
 {
-	yenta_allocate_res(socket, 0, IORESOURCE_MEM|IORESOURCE_PREFETCH);
-	yenta_allocate_res(socket, 1, IORESOURCE_MEM);
-	yenta_allocate_res(socket, 2, IORESOURCE_IO);
-	yenta_allocate_res(socket, 3, IORESOURCE_IO);	/* PCI isn't clever enough to use this one yet */
+	yenta_allocate_res(socket, 0, IORESOURCE_IO,
+			   PCI_CB_IO_BASE_0, PCI_CB_IO_LIMIT_0);
+	yenta_allocate_res(socket, 1, IORESOURCE_IO,
+			   PCI_CB_IO_BASE_1, PCI_CB_IO_LIMIT_1);
+	yenta_allocate_res(socket, 2, IORESOURCE_MEM|IORESOURCE_PREFETCH,
+			   PCI_CB_MEMORY_BASE_0, PCI_CB_MEMORY_LIMIT_0);
+	yenta_allocate_res(socket, 3, IORESOURCE_MEM,
+			   PCI_CB_MEMORY_BASE_1, PCI_CB_MEMORY_LIMIT_1);
 }
 
 
@@ -853,11 +918,11 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
  */
 static void yenta_get_socket_capabilities(struct yenta_socket *socket, u32 isa_irq_mask)
 {
-	socket->socket.features |= SS_CAP_PAGE_REGS | SS_CAP_PCCARD | SS_CAP_CARDBUS;
-	socket->socket.map_size = 0x1000;
 	socket->socket.pci_irq = socket->cb_irq;
-	socket->socket.irq_mask = yenta_probe_irq(socket, isa_irq_mask);
-	socket->socket.cb_dev = socket->dev;
+	if (isa_probe)
+		socket->socket.irq_mask = yenta_probe_irq(socket, isa_irq_mask);
+	else
+		socket->socket.irq_mask = 0;
 
 	printk(KERN_INFO "Yenta: ISA IRQ mask 0x%04x, PCI irq %d\n",
 	       socket->socket.irq_mask, socket->cb_irq);
@@ -923,6 +988,9 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 	socket->socket.dev.dev = &dev->dev;
 	socket->socket.driver_data = socket;
 	socket->socket.owner = THIS_MODULE;
+	socket->socket.features = SS_CAP_PAGE_REGS | SS_CAP_PCCARD;
+	socket->socket.map_size = 0x1000;
+	socket->socket.cb_dev = dev;
 
 	/* prepare struct yenta_socket */
 	socket->dev = dev;
@@ -993,9 +1061,14 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 		socket->poll_timer.data = (unsigned long)socket;
 		socket->poll_timer.expires = jiffies + HZ;
 		add_timer(&socket->poll_timer);
+		printk(KERN_INFO "Yenta: no PCI IRQ, CardBus support disabled for this socket.\n"
+		       KERN_INFO "Yenta: check your BIOS CardBus, BIOS IRQ or ACPI settings.\n");
+	} else {
+		socket->socket.features |= SS_CAP_CARDBUS;
 	}
 
 	/* Figure out what the dang thing can do for the PCMCIA layer... */
+	yenta_interrogate(socket);
 	yenta_get_socket_capabilities(socket, isa_interrupts);
 	printk(KERN_INFO "Socket status: %08x\n", cb_readl(socket, CB_SOCKET_STATE));
 
@@ -1032,6 +1105,7 @@ static int yenta_dev_suspend (struct pci_dev *dev, pm_message_t state)
 		pci_save_state(dev);
 		pci_read_config_dword(dev, 16*4, &socket->saved_state[0]);
 		pci_read_config_dword(dev, 17*4, &socket->saved_state[1]);
+		pci_disable_device(dev);
 
 		/*
 		 * Some laptops (IBM T22) do not like us putting the Cardbus
@@ -1055,6 +1129,8 @@ static int yenta_dev_resume (struct pci_dev *dev)
 		pci_restore_state(dev);
 		pci_write_config_dword(dev, 16*4, socket->saved_state[0]);
 		pci_write_config_dword(dev, 17*4, socket->saved_state[1]);
+		pci_enable_device(dev);
+		pci_set_master(dev);
 
 		if (socket->type && socket->type->restore_state)
 			socket->type->restore_state(socket);

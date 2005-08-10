@@ -219,7 +219,7 @@ static int parse_afs_partitions(struct mtd_info *mtd,
 	 */
 	for (idx = off = 0; off < mtd->size; off += mtd->erasesize) {
 		struct image_info_struct iis;
-		u_int iis_ptr, img_ptr, size;
+		u_int iis_ptr, img_ptr;
 
 		/* Read the footer. */
 		ret = afs_read_footer(mtd, &img_ptr, &iis_ptr, off, mask);
@@ -236,21 +236,9 @@ static int parse_afs_partitions(struct mtd_info *mtd,
 			continue;
 
 		strcpy(str, iis.name);
-		size = mtd->erasesize + off - img_ptr;
-
-		/*
-		 * In order to support JFFS2 partitions on this layout,
-		 * we must lie to MTD about the real size of JFFS2
-		 * partitions; this ensures that the AFS flash footer
-		 * won't be erased by JFFS2.  Please ensure that your
-		 * JFFS2 partitions are given image numbers between
-		 * 1000 and 2000 inclusive.
-		 */
-		if (iis.imageNumber >= 1000 && iis.imageNumber < 2000)
-			size -= mtd->erasesize;
 
 		parts[idx].name		= str;
-		parts[idx].size		= size;
+		parts[idx].size		= (iis.length + mtd->erasesize - 1) & ~(mtd->erasesize - 1);
 		parts[idx].offset	= img_ptr;
 		parts[idx].mask_flags	= 0;
 

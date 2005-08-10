@@ -60,6 +60,11 @@ mcheck_transfer_to_handler:
 	TRANSFER_TO_HANDLER_EXC_LEVEL(MCHECK)
 	b	transfer_to_handler_full
 
+	.globl	debug_transfer_to_handler
+debug_transfer_to_handler:
+	TRANSFER_TO_HANDLER_EXC_LEVEL(DEBUG)
+	b	transfer_to_handler_full
+
 	.globl	crit_transfer_to_handler
 crit_transfer_to_handler:
 	TRANSFER_TO_HANDLER_EXC_LEVEL(CRIT)
@@ -210,6 +215,7 @@ syscall_dotrace_cont:
 	lwzx	r10,r10,r0	/* Fetch system call handler [ptr] */
 	mtlr	r10
 	addi	r9,r1,STACK_FRAME_OVERHEAD
+	PPC440EP_ERR42
 	blrl			/* Call handler */
 	.globl	ret_from_syscall
 ret_from_syscall:
@@ -835,6 +841,10 @@ ret_from_crit_exc:
 	RET_FROM_EXC_LEVEL(SPRN_CSRR0, SPRN_CSRR1, RFCI)
 
 #ifdef CONFIG_BOOKE
+	.globl	ret_from_debug_exc
+ret_from_debug_exc:
+	RET_FROM_EXC_LEVEL(SPRN_DSRR0, SPRN_DSRR1, RFDI)
+
 	.globl	ret_from_mcheck_exc
 ret_from_mcheck_exc:
 	RET_FROM_EXC_LEVEL(SPRN_MCSRR0, SPRN_MCSRR1, RFMCI)

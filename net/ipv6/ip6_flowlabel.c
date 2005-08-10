@@ -244,7 +244,6 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions * opt_space,
 		opt_space->opt_nflen = 0;
 	}
 	opt_space->dst1opt = fopt->dst1opt;
-	opt_space->auth = fopt->auth;
 	opt_space->opt_flen = fopt->opt_flen;
 	return opt_space;
 }

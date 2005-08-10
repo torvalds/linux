@@ -57,12 +57,6 @@
 #define BT_DBG(fmt, arg...)  printk(KERN_INFO "%s: " fmt "\n" , __FUNCTION__ , ## arg)
 #define BT_ERR(fmt, arg...)  printk(KERN_ERR  "%s: " fmt "\n" , __FUNCTION__ , ## arg)
 
-#ifdef HCI_DATA_DUMP
-#define BT_DMP(buf, len) bt_dump(__FUNCTION__, buf, len)
-#else
-#define BT_DMP(D...)
-#endif
-
 extern struct proc_dir_entry *proc_bt;
 
 /* Connection and socket states */
@@ -173,8 +167,6 @@ static inline int skb_frags_no(struct sk_buff *skb)
 	for (; frag; frag=frag->next, n++);
 	return n;
 }
-
-void bt_dump(char *pref, __u8 *buf, int count);
 
 int bt_err(__u16 code);
 

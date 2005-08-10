@@ -507,7 +507,6 @@ void pcm_status_state(struct s_smc *smc, int np, int *type, int *state,
 		      int *remote, int *mac);
 void plc_config_mux(struct s_smc *smc, int mux);
 void sm_lem_evaluate(struct s_smc *smc);
-void smt_clear_una_dna(struct s_smc *smc);
 void mac_update_counter(struct s_smc *smc);
 void sm_pm_ls_latch(struct s_smc *smc, int phy, int on_off);
 void sm_ma_control(struct s_smc *smc, int mode);
@@ -541,11 +540,9 @@ void smt_timer_poll(struct s_smc *smc);
 u_long smt_get_time(void);
 u_long smt_get_tid(struct s_smc *smc);
 void smt_timer_done(struct s_smc *smc);
-void smt_set_defaults(struct s_smc *smc);
 void smt_fixup_mib(struct s_smc *smc);
 void smt_reset_defaults(struct s_smc *smc, int level);
 void smt_agent_task(struct s_smc *smc);
-void smt_please_reconnect(struct s_smc *smc, int reconn_time);
 int smt_check_para(struct s_smc *smc, struct smt_header *sm,
 		   const u_short list[]);
 void driver_get_bia(struct s_smc *smc, struct fddi_addr *bia_addr);
@@ -568,7 +565,6 @@ int pcm_get_s_port(struct s_smc *smc);
 int pcm_rooted_station(struct s_smc *smc);
 int cfm_get_mac_input(struct s_smc *smc);
 int cfm_get_mac_output(struct s_smc *smc);
-int port_to_mib(struct s_smc *smc, int p);
 int cem_build_path(struct s_smc *smc, char *to, int path_index);
 int sm_mac_get_tx_state(struct s_smc *smc);
 char *get_pcmstate(struct s_smc *smc, int np);
@@ -580,8 +576,6 @@ void smt_send_frame(struct s_smc *smc, SMbuf *mb, int fc, int local);
 void smt_set_timestamp(struct s_smc *smc, u_char *p);
 void mac_set_rx_mode(struct s_smc *smc,	int mode);
 int mac_add_multicast(struct s_smc *smc, struct fddi_addr *addr, int can);
-int mac_set_func_addr(struct s_smc *smc, u_long f_addr);
-void mac_del_multicast(struct s_smc *smc, struct fddi_addr *addr, int can);
 void mac_update_multicast(struct s_smc *smc);
 void mac_clear_multicast(struct s_smc *smc);
 void set_formac_tsync(struct s_smc *smc, long sync_bw);
@@ -599,7 +593,6 @@ void plc_irq(struct s_smc *smc,	int np,	unsigned int cmd);
 int smt_set_mac_opvalues(struct s_smc *smc);
 
 #ifdef TAG_MODE
-void mac_drv_pci_fix(struct s_smc *smc, u_long fix_value);
 void mac_do_pci_fix(struct s_smc *smc);
 void mac_drv_clear_tx_queue(struct s_smc *smc);
 void mac_drv_repair_descr(struct s_smc *smc);

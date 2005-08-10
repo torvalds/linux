@@ -115,6 +115,7 @@ static inline unsigned int ixp2000_is_pcimaster(void)
 }
 
 void ixp2000_map_io(void);
+void ixp2000_uart_init(void);
 void ixp2000_init_irq(void);
 void ixp2000_init_time(unsigned long);
 unsigned long ixp2000_gettimeoffset(void);
@@ -138,30 +139,10 @@ struct ixp2000_flash_data {
 	unsigned long (*bank_setup)(unsigned long);
 };
 
-/*
- * GPIO helper functions
- */
-#define	GPIO_IN		0
-#define	GPIO_OUT	1
-
-extern void gpio_line_config(int line, int style);
-
-static inline int gpio_line_get(int line)
-{
-	return (((*IXP2000_GPIO_PLR) >> line) & 1);
-}
-
-static inline void gpio_line_set(int line, int value)
-{
-	if (value) 
-		ixp2000_reg_write(IXP2000_GPIO_POSR, (1 << line));
-	else 
-		ixp2000_reg_write(IXP2000_GPIO_POCR, (1 << line));
-}
-
 struct ixp2000_i2c_pins {
 	unsigned long sda_pin;
 	unsigned long scl_pin;
 };
+
 
 #endif /*  !__ASSEMBLY__ */

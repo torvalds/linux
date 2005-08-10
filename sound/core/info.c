@@ -24,6 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/time.h>
 #include <linux/smp_lock.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/info.h>
@@ -701,7 +702,7 @@ int snd_info_get_line(snd_info_buffer_t * buffer, char *line, int len)
 }
 
 /**
- * snd_info_get_line - parse a string token
+ * snd_info_get_str - parse a string token
  * @dest: the buffer to store the string token
  * @src: the original string
  * @len: the max. length of token - 1
@@ -754,7 +755,7 @@ static snd_info_entry_t *snd_info_create_entry(const char *name)
 	entry = kcalloc(1, sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL)
 		return NULL;
-	entry->name = snd_kmalloc_strdup(name, GFP_KERNEL);
+	entry->name = kstrdup(name, GFP_KERNEL);
 	if (entry->name == NULL) {
 		kfree(entry);
 		return NULL;
@@ -938,7 +939,8 @@ int snd_info_unregister(snd_info_entry_t * entry)
 {
 	struct proc_dir_entry *root;
 
-	snd_assert(entry != NULL && entry->p != NULL, return -ENXIO);
+	snd_assert(entry != NULL, return -ENXIO);
+	snd_assert(entry->p != NULL, return -ENXIO);
 	root = entry->parent == NULL ? snd_proc_root : entry->parent->p;
 	snd_assert(root, return -ENXIO);
 	down(&info_mutex);

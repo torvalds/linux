@@ -27,7 +27,7 @@
 #include <linux/fs.h>
 
 #ifdef CONFIG_SND_DEBUG_MEMORY
-void *snd_wrapper_kmalloc(size_t size, int flags)
+void *snd_wrapper_kmalloc(size_t size, unsigned int __nocast flags)
 {
 	return kmalloc(size, flags);
 }

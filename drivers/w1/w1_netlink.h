@@ -33,13 +33,13 @@ enum w1_netlink_message_types {
 	W1_MASTER_REMOVE,
 };
 
-struct w1_netlink_msg 
+struct w1_netlink_msg
 {
 	__u8				type;
 	__u8				reserved[3];
 	union
 	{
-		struct w1_reg_num 	id;
+		struct w1_reg_num	id;
 		__u64			w1_id;
 		struct
 		{

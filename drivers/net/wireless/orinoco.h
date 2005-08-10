@@ -7,7 +7,7 @@
 #ifndef _ORINOCO_H
 #define _ORINOCO_H
 
-#define DRIVER_VERSION "0.14alpha2"
+#define DRIVER_VERSION "0.15rc2"
 
 #include <linux/types.h>
 #include <linux/spinlock.h>
@@ -22,12 +22,28 @@
 
 #define WIRELESS_SPY		// enable iwspy support
 
+#define MAX_SCAN_LEN		4096
+
 #define ORINOCO_MAX_KEY_SIZE	14
 #define ORINOCO_MAX_KEYS	4
 
 struct orinoco_key {
 	u16 len;	/* always stored as little-endian */
 	char data[ORINOCO_MAX_KEY_SIZE];
+} __attribute__ ((packed));
+
+struct header_struct {
+	/* 802.3 */
+	u8 dest[ETH_ALEN];
+	u8 src[ETH_ALEN];
+	u16 len;
+	/* 802.2 */
+	u8 dsap;
+	u8 ssap;
+	u8 ctrl;
+	/* SNAP */
+	u8 oui[3];
+	u16 ethertype;
 } __attribute__ ((packed));
 
 typedef enum {
@@ -48,6 +64,8 @@ struct orinoco_private {
 	/* driver state */
 	int open;
 	u16 last_linkstatus;
+	struct work_struct join_work;
+	struct work_struct wevent_work;
 
 	/* Net device stuff */
 	struct net_device *ndev;
@@ -74,7 +92,9 @@ struct orinoco_private {
 	unsigned int has_pm:1;
 	unsigned int has_preamble:1;
 	unsigned int has_sensitivity:1;
+	unsigned int has_hostscan:1;
 	unsigned int broken_disableport:1;
+	unsigned int broken_monitor:1;
 
 	/* Configuration paramaters */
 	u32 iw_mode;
@@ -84,6 +104,8 @@ struct orinoco_private {
 	int bitratemode;
  	char nick[IW_ESSID_MAX_SIZE+1];
 	char desired_essid[IW_ESSID_MAX_SIZE+1];
+	char desired_bssid[ETH_ALEN];
+	int bssid_fixed;
 	u16 frag_thresh, mwo_robust;
 	u16 channel;
 	u16 ap_density, rts_thresh;
@@ -98,6 +120,12 @@ struct orinoco_private {
 	/* Configuration dependent variables */
 	int port_type, createibss;
 	int promiscuous, mc_count;
+
+	/* Scanning support */
+	int	scan_inprogress;	/* Scan pending... */
+	u32	scan_mode;		/* Type of scan done */
+	char *	scan_result;		/* Result of previous scan */
+	int	scan_len;		/* Lenght of result */
 };
 
 #ifdef ORINOCO_DEBUG

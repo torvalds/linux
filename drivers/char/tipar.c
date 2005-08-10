@@ -396,7 +396,7 @@ static struct file_operations tipar_fops = {
 static int __init
 tipar_setup(char *str)
 {
-	int ints[2];
+	int ints[3];
 
 	str = get_options(str, ARRAY_SIZE(ints), ints);
 

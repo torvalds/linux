@@ -22,6 +22,7 @@
  * Scott H Kilau <Scott_Kilau@digi.com>
  * Wendy Xiong   <wendyx@us.ltcfwd.linux.ibm.com>
  *
+ *
  ***********************************************************************/
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
@@ -42,7 +43,7 @@ struct uart_driver jsm_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= JSM_DRIVER_NAME,
 	.dev_name	= "ttyn",
-	.major		= 253,
+	.major		= 0,
 	.minor		= JSM_MINOR_START,
 	.nr		= NR_PORTS,
 };

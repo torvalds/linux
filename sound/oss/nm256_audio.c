@@ -28,11 +28,12 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include "sound_config.h"
+
+static int nm256_debug;
+static int force_load;
+
 #include "nm256.h"
 #include "nm256_coeff.h"
-
-int nm256_debug;
-static int force_load;
 
 /* 
  * The size of the playback reserve.  When the playback buffer has less
@@ -138,7 +139,7 @@ static int usecache;
 static int buffertop;
 
 /* Check to see if we're using the bank of cached coefficients. */
-int
+static int
 nm256_cachedCoefficients (struct nm256_info *card)
 {
     return usecache;

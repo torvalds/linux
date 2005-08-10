@@ -1,8 +1,8 @@
 /*
  * arch/v850/vmlinux.lds.S -- kernel linker script for v850 platforms
  *
- *  Copyright (C) 2002,03,04  NEC Electronics Corporation
- *  Copyright (C) 2002,03,04  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2002,03,04,05  NEC Electronics Corporation
+ *  Copyright (C) 2002,03,04,05  Miles Bader <miles@gnu.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -12,6 +12,7 @@
  */
 
 #include <linux/config.h>
+
 #define VMLINUX_SYMBOL(_sym_) _##_sym_
 #include <asm-generic/vmlinux.lds.h>
 
@@ -42,6 +43,19 @@
 			*(.rodata) *(.rodata.*)				      \
 			*(__vermagic)		/* Kernel version magic */    \
 			*(.rodata1)					      \
+		/* PCI quirks */					      \
+		___start_pci_fixups_early = . ;				      \
+			*(.pci_fixup_early)				      \
+		___end_pci_fixups_early = . ;				      \
+		___start_pci_fixups_header = . ;			      \
+			*(.pci_fixup_header)				      \
+		___end_pci_fixups_header = . ;				      \
+		___start_pci_fixups_final = . ;				      \
+			*(.pci_fixup_final)				      \
+		___end_pci_fixups_final = . ;				      \
+		___start_pci_fixups_enable = . ;			      \
+			*(.pci_fixup_enable)				      \
+		___end_pci_fixups_enable = . ;				      \
 		/* Kernel symbol table: Normal symbols */		      \
 		___start___ksymtab = .;					      \
 			*(__ksymtab)					      \
@@ -61,6 +75,7 @@
 			*(__kcrctab_gpl)				      \
 		___stop___kcrctab_gpl = .;				      \
 		/* Built-in module parameters */			      \
+		. = ALIGN (4) ;						      \
 		___start___param = .;					      \
 		*(__param)						      \
 		___stop___param = .;

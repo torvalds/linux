@@ -43,7 +43,6 @@
 #include <linux/arcdevice.h>
 #include <linux/com20020.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -200,11 +199,6 @@ static dev_link_t *com20020_attach(void)
     link->next = dev_list;
     dev_list = link;
     client_reg.dev_info = &dev_info;
-    client_reg.EventMask =
-        CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-        CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-        CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &com20020_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -483,7 +477,11 @@ static int com20020_event(event_t event, int priority,
     return 0;
 } /* com20020_event */
 
-
+static struct pcmcia_device_id com20020_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("Contemporary Control Systems, Inc.", "PCM20 Arcnet Adapter", 0x59991666, 0x95dfffaf),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, com20020_ids);
 
 static struct pcmcia_driver com20020_cs_driver = {
 	.owner		= THIS_MODULE,
@@ -491,7 +489,9 @@ static struct pcmcia_driver com20020_cs_driver = {
 		.name	= "com20020_cs",
 	},
 	.attach		= com20020_attach,
+	.event		= com20020_event,
 	.detach		= com20020_detach,
+	.id_table	= com20020_ids,
 };
 
 static int __init init_com20020_cs(void)

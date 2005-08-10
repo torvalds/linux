@@ -13,7 +13,7 @@
          are enabled.
  *
  *
- * For ETRAX 200 (ARCH_V32):
+ * For ETRAX FS (ARCH_V32):
  * /dev/gpioa  minor 0,  8 bit GPIO, each bit can change direction
  * /dev/gpiob  minor 1, 18 bit GPIO, each bit can change direction
  * /dev/gpioc  minor 2, 18 bit GPIO, each bit can change direction
@@ -39,10 +39,10 @@
 #define ETRAXGPIO_IOCTYPE 43
 #define GPIO_MINOR_A 0
 #define GPIO_MINOR_B 1
-#define GPIO_MINOR_C 2
-#define GPIO_MINOR_D 3
-#define GPIO_MINOR_E 4
-#define GPIO_MINOR_LEDS 5
+#define GPIO_MINOR_LEDS 2
+#define GPIO_MINOR_C 3
+#define GPIO_MINOR_D 4
+#define GPIO_MINOR_E 5
 #define GPIO_MINOR_LAST 5
 #endif
 

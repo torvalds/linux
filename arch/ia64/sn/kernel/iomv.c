@@ -9,11 +9,15 @@
 #include <linux/module.h>
 #include <asm/io.h>
 #include <asm/delay.h>
+#include <asm/vga.h>
 #include <asm/sn/nodepda.h>
 #include <asm/sn/simulator.h>
 #include <asm/sn/pda.h>
 #include <asm/sn/sn_cpuid.h>
 #include <asm/sn/shub_mmr.h>
+
+#define IS_LEGACY_VGA_IOPORT(p) \
+	(((p) >= 0x3b0 && (p) <= 0x3bb) || ((p) >= 0x3c0 && (p) <= 0x3df))
 
 /**
  * sn_io_addr - convert an in/out port to an i/o address
@@ -26,6 +30,8 @@
 void *sn_io_addr(unsigned long port)
 {
 	if (!IS_RUNNING_ON_SIMULATOR()) {
+		if (IS_LEGACY_VGA_IOPORT(port))
+			port += vga_console_iobase;
 		/* On sn2, legacy I/O ports don't point at anything */
 		if (port < (64 * 1024))
 			return NULL;

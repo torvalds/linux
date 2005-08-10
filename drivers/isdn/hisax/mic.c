@@ -18,7 +18,7 @@
 
 extern const char *CardType[];
 
-const char *mic_revision = "$Revision: 1.12.2.4 $";
+static const char *mic_revision = "$Revision: 1.12.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
 #define bytein(addr) inb(addr)
@@ -157,7 +157,7 @@ mic_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_mic(struct IsdnCardState *cs)
 {
 	int bytecnt = 8;

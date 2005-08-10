@@ -62,12 +62,7 @@ static int mixcomwd_timer_alive;
 static struct timer_list mixcomwd_timer = TIMER_INITIALIZER(NULL, 0, 0);
 static char expect_close;
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
-
+static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 

@@ -63,6 +63,7 @@ struct multipath {
 	unsigned nr_priority_groups;
 	struct list_head priority_groups;
 	unsigned pg_init_required;	/* pg_init needs calling? */
+	unsigned pg_init_in_progress;	/* Only one pg_init allowed at once */
 
 	unsigned nr_valid_paths;	/* Total number of usable paths */
 	struct pgpath *current_pgpath;
@@ -72,7 +73,7 @@ struct multipath {
 
 	unsigned queue_io;		/* Must we queue all I/O? */
 	unsigned queue_if_no_path;	/* Queue I/O if last path fails? */
-	unsigned suspended;		/* Has dm core suspended our I/O? */
+	unsigned saved_queue_if_no_path;/* Saved state during suspension */
 
 	struct work_struct process_queued_ios;
 	struct bio_list queued_ios;
@@ -304,11 +305,12 @@ static int map_io(struct multipath *m, struct bio *bio, struct mpath_io *mpio,
 		m->queue_size--;
 
 	if ((pgpath && m->queue_io) ||
-	    (!pgpath && m->queue_if_no_path && !m->suspended)) {
+	    (!pgpath && m->queue_if_no_path)) {
 		/* Queue for the daemon to resubmit */
 		bio_list_add(&m->queued_ios, bio);
 		m->queue_size++;
-		if (m->pg_init_required || !m->queue_io)
+		if ((m->pg_init_required && !m->pg_init_in_progress) ||
+		    !m->queue_io)
 			queue_work(kmultipathd, &m->process_queued_ios);
 		pgpath = NULL;
 		r = 0;
@@ -333,8 +335,9 @@ static int queue_if_no_path(struct multipath *m, unsigned queue_if_no_path)
 
 	spin_lock_irqsave(&m->lock, flags);
 
+	m->saved_queue_if_no_path = m->queue_if_no_path;
 	m->queue_if_no_path = queue_if_no_path;
-	if (!m->queue_if_no_path)
+	if (!m->queue_if_no_path && m->queue_size)
 		queue_work(kmultipathd, &m->process_queued_ios);
 
 	spin_unlock_irqrestore(&m->lock, flags);
@@ -379,25 +382,31 @@ static void process_queued_ios(void *data)
 {
 	struct multipath *m = (struct multipath *) data;
 	struct hw_handler *hwh = &m->hw_handler;
-	struct pgpath *pgpath;
-	unsigned init_required, must_queue = 0;
+	struct pgpath *pgpath = NULL;
+	unsigned init_required = 0, must_queue = 1;
 	unsigned long flags;
 
 	spin_lock_irqsave(&m->lock, flags);
+
+	if (!m->queue_size)
+		goto out;
 
 	if (!m->current_pgpath)
 		__choose_pgpath(m);
 
 	pgpath = m->current_pgpath;
 
-	if ((pgpath && m->queue_io) ||
-	    (!pgpath && m->queue_if_no_path && !m->suspended))
-		must_queue = 1;
+	if ((pgpath && !m->queue_io) ||
+	    (!pgpath && !m->queue_if_no_path))
+		must_queue = 0;
 
-	init_required = m->pg_init_required;
-	if (init_required)
+	if (m->pg_init_required && !m->pg_init_in_progress) {
 		m->pg_init_required = 0;
+		m->pg_init_in_progress = 1;
+		init_required = 1;
+	}
 
+out:
 	spin_unlock_irqrestore(&m->lock, flags);
 
 	if (init_required)
@@ -752,6 +761,8 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 static void multipath_dtr(struct dm_target *ti)
 {
 	struct multipath *m = (struct multipath *) ti->private;
+
+	flush_workqueue(kmultipathd);
 	free_multipath(m);
 }
 
@@ -764,6 +775,9 @@ static int multipath_map(struct dm_target *ti, struct bio *bio,
 	int r;
 	struct mpath_io *mpio;
 	struct multipath *m = (struct multipath *) ti->private;
+
+	if (bio_barrier(bio))
+		return -EOPNOTSUPP;
 
 	mpio = mempool_alloc(m->mpio_pool, GFP_NOIO);
 	dm_bio_record(&mpio->details, bio);
@@ -837,7 +851,7 @@ static int reinstate_path(struct pgpath *pgpath)
 	pgpath->path.is_active = 1;
 
 	m->current_pgpath = NULL;
-	if (!m->nr_valid_paths++)
+	if (!m->nr_valid_paths++ && m->queue_size)
 		queue_work(kmultipathd, &m->process_queued_ios);
 
 	queue_work(kmultipathd, &m->trigger_event);
@@ -963,12 +977,13 @@ void dm_pg_init_complete(struct path *path, unsigned err_flags)
 		bypass_pg(m, pg, 1);
 
 	spin_lock_irqsave(&m->lock, flags);
-	if (!err_flags)
-		m->queue_io = 0;
-	else {
+	if (err_flags) {
 		m->current_pgpath = NULL;
 		m->current_pg = NULL;
-	}
+	} else if (!m->pg_init_required)
+		m->queue_io = 0;
+
+	m->pg_init_in_progress = 0;
 	queue_work(kmultipathd, &m->process_queued_ios);
 	spin_unlock_irqrestore(&m->lock, flags);
 }
@@ -988,9 +1003,12 @@ static int do_end_io(struct multipath *m, struct bio *bio,
 	if ((error == -EWOULDBLOCK) && bio_rw_ahead(bio))
 		return error;
 
+	if (error == -EOPNOTSUPP)
+		return error;
+
 	spin_lock(&m->lock);
 	if (!m->nr_valid_paths) {
-		if (!m->queue_if_no_path || m->suspended) {
+		if (!m->queue_if_no_path) {
 			spin_unlock(&m->lock);
 			return -EIO;
 		} else {
@@ -1051,27 +1069,27 @@ static int multipath_end_io(struct dm_target *ti, struct bio *bio,
 
 /*
  * Suspend can't complete until all the I/O is processed so if
- * the last path failed we will now error any queued I/O.
+ * the last path fails we must error any remaining I/O.
+ * Note that if the freeze_bdev fails while suspending, the
+ * queue_if_no_path state is lost - userspace should reset it.
  */
 static void multipath_presuspend(struct dm_target *ti)
 {
 	struct multipath *m = (struct multipath *) ti->private;
-	unsigned long flags;
 
-	spin_lock_irqsave(&m->lock, flags);
-	m->suspended = 1;
-	if (m->queue_if_no_path)
-		queue_work(kmultipathd, &m->process_queued_ios);
-	spin_unlock_irqrestore(&m->lock, flags);
+	queue_if_no_path(m, 0);
 }
 
+/*
+ * Restore the queue_if_no_path setting.
+ */
 static void multipath_resume(struct dm_target *ti)
 {
 	struct multipath *m = (struct multipath *) ti->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&m->lock, flags);
-	m->suspended = 0;
+	m->queue_if_no_path = m->saved_queue_if_no_path;
 	spin_unlock_irqrestore(&m->lock, flags);
 }
 

@@ -7,19 +7,25 @@
 #include <linux/config.h>
 #include <asm/asi.h>
 
+	.text
+
 	/* On SMP we need to use memory barriers to ensure
 	 * correct memory operation ordering, nop these out
 	 * for uniprocessor.
 	 */
+
 #ifdef CONFIG_SMP
 #define BITOP_PRE_BARRIER	membar #StoreLoad | #LoadLoad
-#define BITOP_POST_BARRIER	membar #StoreLoad | #StoreStore
-#else
-#define BITOP_PRE_BARRIER	nop
-#define BITOP_POST_BARRIER	nop
-#endif
+#define BITOP_POST_BARRIER	\
+	ba,pt	%xcc, 80b;	\
+	membar #StoreLoad | #StoreStore
 
-	.text
+80:	retl
+	 nop
+#else
+#define BITOP_PRE_BARRIER
+#define BITOP_POST_BARRIER
+#endif
 
 	.globl	test_and_set_bit
 	.type	test_and_set_bit,#function
@@ -37,10 +43,11 @@ test_and_set_bit:	/* %o0=nr, %o1=addr */
 	cmp	%g7, %g1
 	bne,pn	%xcc, 1b
 	 and	%g7, %o2, %g2
-	BITOP_POST_BARRIER
 	clr	%o0
+	movrne	%g2, 1, %o0
+	BITOP_POST_BARRIER
 	retl
-	 movrne	%g2, 1, %o0
+	 nop
 	.size	test_and_set_bit, .-test_and_set_bit
 
 	.globl	test_and_clear_bit
@@ -59,10 +66,11 @@ test_and_clear_bit:	/* %o0=nr, %o1=addr */
 	cmp	%g7, %g1
 	bne,pn	%xcc, 1b
 	 and	%g7, %o2, %g2
-	BITOP_POST_BARRIER
 	clr	%o0
+	movrne	%g2, 1, %o0
+	BITOP_POST_BARRIER
 	retl
-	 movrne	%g2, 1, %o0
+	 nop
 	.size	test_and_clear_bit, .-test_and_clear_bit
 
 	.globl	test_and_change_bit
@@ -81,10 +89,11 @@ test_and_change_bit:	/* %o0=nr, %o1=addr */
 	cmp	%g7, %g1
 	bne,pn	%xcc, 1b
 	 and	%g7, %o2, %g2
-	BITOP_POST_BARRIER
 	clr	%o0
+	movrne	%g2, 1, %o0
+	BITOP_POST_BARRIER
 	retl
-	 movrne	%g2, 1, %o0
+	 nop
 	.size	test_and_change_bit, .-test_and_change_bit
 
 	.globl	set_bit

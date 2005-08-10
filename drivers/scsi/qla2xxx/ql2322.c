@@ -1,6 +1,6 @@
 /*
  * QLogic ISP2322 device driver for Linux 2.6.x
- * Copyright (C) 2003-2004 QLogic Corporation (www.qlogic.com)
+ * Copyright (C) 2003-2005 QLogic Corporation (www.qlogic.com)
  *
  * Released under GPL v2.
  */

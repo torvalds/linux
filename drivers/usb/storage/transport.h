@@ -171,4 +171,5 @@ extern int usb_stor_bulk_transfer_buf(struct us_data *us, unsigned int pipe,
 extern int usb_stor_bulk_transfer_sg(struct us_data *us, unsigned int pipe,
 		void *buf, unsigned int length, int use_sg, int *residual);
 
+extern int usb_stor_port_reset(struct us_data *us);
 #endif

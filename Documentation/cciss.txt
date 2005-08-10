@@ -17,6 +17,7 @@ This driver is known to work with the following cards:
 	* SA P600
 	* SA P800
 	* SA E400
+	* SA E300
 
 If nodes are not already created in the /dev/cciss directory, run as root:
 

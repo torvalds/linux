@@ -19,6 +19,8 @@
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/security.h>
+#include <linux/seccomp.h>
+#include <linux/audit.h>
 #include <linux/signal.h>
 
 #include <asm/asi.h>
@@ -628,15 +630,27 @@ out:
 	unlock_kernel();
 }
 
-asmlinkage void syscall_trace(void)
+asmlinkage void syscall_trace(struct pt_regs *regs, int syscall_exit_p)
 {
-#ifdef DEBUG_PTRACE
-	printk("%s [%d]: syscall_trace\n", current->comm, current->pid);
-#endif
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
+	/* do the secure computing check first */
+	secure_computing(regs->u_regs[UREG_G1]);
+
+	if (unlikely(current->audit_context) && syscall_exit_p) {
+		unsigned long tstate = regs->tstate;
+		int result = AUDITSC_SUCCESS;
+
+		if (unlikely(tstate & (TSTATE_XCARRY | TSTATE_ICARRY)))
+			result = AUDITSC_FAILURE;
+
+		audit_syscall_exit(current, result, regs->u_regs[UREG_I0]);
+	}
+
 	if (!(current->ptrace & PT_PTRACED))
-		return;
+		goto out;
+
+	if (!test_thread_flag(TIF_SYSCALL_TRACE))
+		goto out;
+
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
 				 ? 0x80 : 0));
 
@@ -645,12 +659,20 @@ asmlinkage void syscall_trace(void)
 	 * for normal use.  strace only continues with a signal if the
 	 * stopping signal is not SIGTRAP.  -brl
 	 */
-#ifdef DEBUG_PTRACE
-	printk("%s [%d]: syscall_trace exit= %x\n", current->comm,
-		current->pid, current->exit_code);
-#endif
 	if (current->exit_code) {
-		send_sig (current->exit_code, current, 1);
+		send_sig(current->exit_code, current, 1);
 		current->exit_code = 0;
 	}
+
+out:
+	if (unlikely(current->audit_context) && !syscall_exit_p)
+		audit_syscall_entry(current,
+				    (test_thread_flag(TIF_32BIT) ?
+				     AUDIT_ARCH_SPARC :
+				     AUDIT_ARCH_SPARC64),
+				    regs->u_regs[UREG_G1],
+				    regs->u_regs[UREG_I0],
+				    regs->u_regs[UREG_I1],
+				    regs->u_regs[UREG_I2],
+				    regs->u_regs[UREG_I3]);
 }

@@ -1,4 +1,4 @@
-/* $Id: shadows.c,v 1.1 2001/12/17 13:59:27 bjornw Exp $
+/* $Id: shadows.c,v 1.2 2004/12/13 12:21:51 starvik Exp $
  * 
  * Various shadow registers. Defines for these are in include/asm-etrax100/io.h
  */
@@ -6,6 +6,7 @@
 /* Shadows for internal Etrax-registers */
 
 unsigned long genconfig_shadow;
+unsigned long gen_config_ii_shadow;
 unsigned long port_g_data_shadow;
 unsigned char port_pa_dir_shadow;
 unsigned char port_pa_data_shadow;

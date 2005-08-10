@@ -1,7 +1,7 @@
 /*
  * logfile.c - NTFS kernel journal handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2002-2004 Anton Altaparmakov
+ * Copyright (c) 2002-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -410,7 +410,7 @@ err_out:
 }
 
 /**
- * ntfs_ckeck_logfile - check in the journal if the volume is consistent
+ * ntfs_check_logfile - check the journal for consistency
  * @log_vi:	struct inode of loaded journal $LogFile to check
  *
  * Check the $LogFile journal for consistency and return TRUE if it is
@@ -443,7 +443,7 @@ BOOL ntfs_check_logfile(struct inode *log_vi)
 	/* An empty $LogFile must have been clean before it got emptied. */
 	if (NVolLogFileEmpty(vol))
 		goto is_empty;
-	size = log_vi->i_size;
+	size = i_size_read(log_vi);
 	/* Make sure the file doesn't exceed the maximum allowed size. */
 	if (size > MaxLogFileSize)
 		size = MaxLogFileSize;
@@ -464,7 +464,7 @@ BOOL ntfs_check_logfile(struct inode *log_vi)
 	 * optimize log_page_size and log_page_bits into constants.
 	 */
 	log_page_bits = generic_ffs(log_page_size) - 1;
-	size &= ~(log_page_size - 1);
+	size &= ~(s64)(log_page_size - 1);
 	/*
 	 * Ensure the log file is big enough to store at least the two restart
 	 * pages and the minimum number of log record pages.
@@ -689,7 +689,8 @@ BOOL ntfs_empty_logfile(struct inode *log_vi)
 	if (!NVolLogFileEmpty(vol)) {
 		int err;
 		
-		err = ntfs_attr_set(NTFS_I(log_vi), 0, log_vi->i_size, 0xff);
+		err = ntfs_attr_set(NTFS_I(log_vi), 0, i_size_read(log_vi),
+				0xff);
 		if (unlikely(err)) {
 			ntfs_error(vol->sb, "Failed to fill $LogFile with "
 					"0xff bytes (error code %i).", err);

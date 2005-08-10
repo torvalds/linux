@@ -22,7 +22,7 @@ copy of the structure. You must not re-register over the top of the line
 discipline even with the same data or your computer again will be eaten by
 demons.
 
-In order to remove a line discipline call tty_register_ldisc passing NULL.
+In order to remove a line discipline call tty_unregister_ldisc().
 In ancient times this always worked. In modern times the function will
 return -EBUSY if the ldisc is currently in use. Since the ldisc referencing
 code manages the module counts this should not usually be a concern.

@@ -32,9 +32,8 @@ struct dib3000_config
 	u8 demod_address;
 
 	/* PLL maintenance and the i2c address of the PLL */
-	u8 (*pll_addr)(struct dvb_frontend *fe);
-	int (*pll_init)(struct dvb_frontend *fe, u8 pll_buf[5]);
-	int (*pll_set)(struct dvb_frontend *fe, struct dvb_frontend_parameters* params, u8 pll_buf[5]);
+	int (*pll_init)(struct dvb_frontend *fe);
+	int (*pll_set)(struct dvb_frontend *fe, struct dvb_frontend_parameters* params);
 };
 
 struct dib_fe_xfer_ops

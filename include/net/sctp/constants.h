@@ -263,23 +263,11 @@ enum { SCTP_MIN_PMTU = 576 };
 enum { SCTP_MAX_DUP_TSNS = 16 };
 enum { SCTP_MAX_GABS = 16 };
 
-/* Here we define the default timers.  */
+/* Heartbeat interval - 30 secs */
+#define SCTP_DEFAULT_TIMEOUT_HEARTBEAT	(30 * HZ)
 
-/* cookie timer def = ? seconds */
-#define SCTP_DEFAULT_TIMEOUT_T1_COOKIE	(3 * HZ)
-
-/* init timer def = 3 seconds  */
-#define SCTP_DEFAULT_TIMEOUT_T1_INIT	(3 * HZ)
-
-/* shutdown timer def = 300 ms */
-#define SCTP_DEFAULT_TIMEOUT_T2_SHUTDOWN ((300 * HZ) / 1000)
-
-/* 0 seconds + RTO */
-#define SCTP_DEFAULT_TIMEOUT_HEARTBEAT	(10 * HZ)
-
-/* recv timer def = 200ms (in usec) */
+/* Delayed sack timer - 200ms */
 #define SCTP_DEFAULT_TIMEOUT_SACK	((200 * HZ) / 1000)
-#define SCTP_DEFAULT_TIMEOUT_SACK_MAX	((500 * HZ) / 1000) /* 500 ms */
 
 /* RTO.Initial              - 3  seconds
  * RTO.Min                  - 1  second
