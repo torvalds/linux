@@ -990,11 +990,10 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 			 * to destinations, already remembered
 			 * to the moment of synflood.
 			 */
-			LIMIT_NETDEBUG(printk(KERN_DEBUG "TCP: drop open "
-					      "request from %u.%u."
-					      "%u.%u/%u\n",
-					      NIPQUAD(saddr),
-					      ntohs(skb->h.th->source)));
+			LIMIT_NETDEBUG(KERN_DEBUG "TCP: drop open "
+				       "request from %u.%u.%u.%u/%u\n",
+				       NIPQUAD(saddr),
+				       ntohs(skb->h.th->source));
 			dst_release(dst);
 			goto drop_and_free;
 		}
@@ -1118,7 +1117,7 @@ static int tcp_v4_checksum_init(struct sk_buff *skb)
 				  skb->nh.iph->daddr, skb->csum))
 			return 0;
 
-		LIMIT_NETDEBUG(printk(KERN_DEBUG "hw tcp v4 csum failed\n"));
+		LIMIT_NETDEBUG(KERN_DEBUG "hw tcp v4 csum failed\n");
 		skb->ip_summed = CHECKSUM_NONE;
 	}
 	if (skb->len <= 76) {

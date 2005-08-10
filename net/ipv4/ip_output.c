@@ -573,7 +573,7 @@ slow_path:
 		 */
 
 		if ((skb2 = alloc_skb(len+hlen+ll_rs, GFP_ATOMIC)) == NULL) {
-			NETDEBUG(printk(KERN_INFO "IP: frag: no memory for new fragment!\n"));
+			NETDEBUG(KERN_INFO "IP: frag: no memory for new fragment!\n");
 			err = -ENOMEM;
 			goto fail;
 		}

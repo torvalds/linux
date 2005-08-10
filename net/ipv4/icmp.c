@@ -627,11 +627,10 @@ static void icmp_unreach(struct sk_buff *skb)
 			break;
 		case ICMP_FRAG_NEEDED:
 			if (ipv4_config.no_pmtu_disc) {
-				LIMIT_NETDEBUG(
-					printk(KERN_INFO "ICMP: %u.%u.%u.%u: "
+				LIMIT_NETDEBUG(KERN_INFO "ICMP: %u.%u.%u.%u: "
 							 "fragmentation needed "
 							 "and DF set.\n",
-					       NIPQUAD(iph->daddr)));
+					       NIPQUAD(iph->daddr));
 			} else {
 				info = ip_rt_frag_needed(iph,
 						     ntohs(icmph->un.frag.mtu));
@@ -640,10 +639,9 @@ static void icmp_unreach(struct sk_buff *skb)
 			}
 			break;
 		case ICMP_SR_FAILED:
-			LIMIT_NETDEBUG(
-				printk(KERN_INFO "ICMP: %u.%u.%u.%u: Source "
+			LIMIT_NETDEBUG(KERN_INFO "ICMP: %u.%u.%u.%u: Source "
 						 "Route Failed.\n",
-				       NIPQUAD(iph->daddr)));
+				       NIPQUAD(iph->daddr));
 			break;
 		default:
 			break;
@@ -936,7 +934,7 @@ int icmp_rcv(struct sk_buff *skb)
 	case CHECKSUM_HW:
 		if (!(u16)csum_fold(skb->csum))
 			break;
-		LIMIT_NETDEBUG(printk(KERN_DEBUG "icmp v4 hw csum failure\n"));
+		LIMIT_NETDEBUG(KERN_DEBUG "icmp v4 hw csum failure\n");
 	case CHECKSUM_NONE:
 		if ((u16)csum_fold(skb_checksum(skb, 0, skb->len, 0)))
 			goto error;

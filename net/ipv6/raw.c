@@ -343,8 +343,7 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 			if (csum_ipv6_magic(&skb->nh.ipv6h->saddr,
 					    &skb->nh.ipv6h->daddr,
 					    skb->len, inet->num, skb->csum)) {
-				LIMIT_NETDEBUG(
-			        printk(KERN_DEBUG "raw v6 hw csum failure.\n"));
+				LIMIT_NETDEBUG(KERN_DEBUG "raw v6 hw csum failure.\n");
 				skb->ip_summed = CHECKSUM_NONE;
 			}
 		}

@@ -1564,7 +1564,7 @@ static int tcp_v6_checksum_init(struct sk_buff *skb)
 		if (!tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
 				  &skb->nh.ipv6h->daddr,skb->csum))
 			return 0;
-		LIMIT_NETDEBUG(printk(KERN_DEBUG "hw tcp v6 csum failed\n"));
+		LIMIT_NETDEBUG(KERN_DEBUG "hw tcp v6 csum failed\n");
 	}
 	if (skb->len <= 76) {
 		if (tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,

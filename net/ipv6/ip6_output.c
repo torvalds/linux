@@ -625,7 +625,7 @@ slow_path:
 		 */
 
 		if ((frag = alloc_skb(len+hlen+sizeof(struct frag_hdr)+LL_RESERVED_SPACE(rt->u.dst.dev), GFP_ATOMIC)) == NULL) {
-			NETDEBUG(printk(KERN_INFO "IPv6: frag: no memory for new fragment!\n"));
+			NETDEBUG(KERN_INFO "IPv6: frag: no memory for new fragment!\n");
 			IP6_INC_STATS(IPSTATS_MIB_FRAGFAILS);
 			err = -ENOMEM;
 			goto fail;

@@ -212,8 +212,7 @@ static int esp6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, stru
 
 		padlen = nexthdr[0];
 		if (padlen+2 >= elen) {
-			LIMIT_NETDEBUG(
-				printk(KERN_WARNING "ipsec esp packet is garbage padlen=%d, elen=%d\n", padlen+2, elen));
+			LIMIT_NETDEBUG(KERN_WARNING "ipsec esp packet is garbage padlen=%d, elen=%d\n", padlen+2, elen);
 			ret = -EINVAL;
 			goto out;
 		}

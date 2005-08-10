@@ -1316,11 +1316,11 @@ extern int sock_get_timestamp(struct sock *, struct timeval __user *);
  */
 
 #if 0
-#define NETDEBUG(x)	do { } while (0)
-#define LIMIT_NETDEBUG(x) do {} while(0)
+#define NETDEBUG(fmt, args...)	do { } while (0)
+#define LIMIT_NETDEBUG(fmt, args...) do { } while(0)
 #else
-#define NETDEBUG(x)	do { x; } while (0)
-#define LIMIT_NETDEBUG(x) do { if (net_ratelimit()) { x; } } while(0)
+#define NETDEBUG(fmt, args...)	printk(fmt,##args)
+#define LIMIT_NETDEBUG(fmt, args...) do { if (net_ratelimit()) printk(fmt,##args); } while(0)
 #endif
 
 /*

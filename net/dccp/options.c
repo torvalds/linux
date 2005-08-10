@@ -231,7 +231,7 @@ void dccp_insert_option(struct sock *sk, struct sk_buff *skb,
 	unsigned char *to;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len + 2 > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(pr_info("DCCP: packet too small to insert %d option!\n", option));
+		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert %d option!\n", option);
 		return;
 	}
 
@@ -299,7 +299,7 @@ void dccp_insert_option_elapsed_time(struct sock *sk,
 		return;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(pr_info("DCCP: packet too small to insert elapsed time!\n"));
+		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert elapsed time!\n");
 		return;
 	}
 
@@ -335,7 +335,7 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 		dccp_insert_option_elapsed_time(sk, skb, elapsed_time);
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(pr_info("DCCP: packet too small to insert ACK Vector!\n"));
+		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert ACK Vector!\n");
 		return;
 	}
 
@@ -412,7 +412,7 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk, struct sk_buff *s
 	unsigned char *to;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(pr_info("DCCP: packet too small to insert timestamp echo!\n"));
+		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert timestamp echo!\n");
 		return;
 	}
 

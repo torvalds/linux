@@ -161,7 +161,7 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 		if (dccp_ackpkts_add(dp->dccps_hc_rx_ackpkts,
 				     DCCP_SKB_CB(skb)->dccpd_seq,
 				     DCCP_ACKPKTS_STATE_RECEIVED)) {
-			LIMIT_NETDEBUG(pr_info("DCCP: acknowledgeable packets buffer full!\n"));
+			LIMIT_NETDEBUG(KERN_INFO "DCCP: acknowledgeable packets buffer full!\n");
 			ap->dccpap_ack_seqno = DCCP_MAX_SEQNO + 1;
 			inet_csk_schedule_ack(sk);
 			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, TCP_DELACK_MIN, TCP_RTO_MAX);
