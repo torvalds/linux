@@ -799,8 +799,6 @@ extern void			tcp_parse_options(struct sk_buff *skb,
  *	TCP v4 functions exported for the inet6 API
  */
 
-extern int		       	tcp_v4_rebuild_header(struct sock *sk);
-
 extern int		       	tcp_v4_build_header(struct sock *sk, 
 						    struct sk_buff *skb);
 

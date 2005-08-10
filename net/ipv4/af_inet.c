@@ -951,6 +951,119 @@ void inet_unregister_protosw(struct inet_protosw *p)
 	}
 }
 
+/*
+ *      Shall we try to damage output packets if routing dev changes?
+ */
+
+int sysctl_ip_dynaddr;
+
+static int inet_sk_reselect_saddr(struct sock *sk)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	int err;
+	struct rtable *rt;
+	__u32 old_saddr = inet->saddr;
+	__u32 new_saddr;
+	__u32 daddr = inet->daddr;
+
+	if (inet->opt && inet->opt->srr)
+		daddr = inet->opt->faddr;
+
+	/* Query new route. */
+	err = ip_route_connect(&rt, daddr, 0,
+			       RT_CONN_FLAGS(sk),
+			       sk->sk_bound_dev_if,
+			       sk->sk_protocol,
+			       inet->sport, inet->dport, sk);
+	if (err)
+		return err;
+
+	sk_setup_caps(sk, &rt->u.dst);
+
+	new_saddr = rt->rt_src;
+
+	if (new_saddr == old_saddr)
+		return 0;
+
+	if (sysctl_ip_dynaddr > 1) {
+		printk(KERN_INFO "%s(): shifting inet->"
+				 "saddr from %d.%d.%d.%d to %d.%d.%d.%d\n",
+		       __FUNCTION__,
+		       NIPQUAD(old_saddr),
+		       NIPQUAD(new_saddr));
+	}
+
+	inet->saddr = inet->rcv_saddr = new_saddr;
+
+	/*
+	 * XXX The only one ugly spot where we need to
+	 * XXX really change the sockets identity after
+	 * XXX it has entered the hashes. -DaveM
+	 *
+	 * Besides that, it does not check for connection
+	 * uniqueness. Wait for troubles.
+	 */
+	__sk_prot_rehash(sk);
+	return 0;
+}
+
+int inet_sk_rebuild_header(struct sock *sk)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	struct rtable *rt = (struct rtable *)__sk_dst_check(sk, 0);
+	u32 daddr;
+	int err;
+
+	/* Route is OK, nothing to do. */
+	if (rt)
+		return 0;
+
+	/* Reroute. */
+	daddr = inet->daddr;
+	if (inet->opt && inet->opt->srr)
+		daddr = inet->opt->faddr;
+{
+	struct flowi fl = {
+		.oif = sk->sk_bound_dev_if,
+		.nl_u = {
+			.ip4_u = {
+				.daddr	= daddr,
+				.saddr	= inet->saddr,
+				.tos	= RT_CONN_FLAGS(sk),
+			},
+		},
+		.proto = sk->sk_protocol,
+		.uli_u = {
+			.ports = {
+				.sport = inet->sport,
+				.dport = inet->dport,
+			},
+		},
+	};
+						
+	err = ip_route_output_flow(&rt, &fl, sk, 0);
+}
+	if (!err)
+		sk_setup_caps(sk, &rt->u.dst);
+	else {
+		/* Routing failed... */
+		sk->sk_route_caps = 0;
+		/*
+		 * Other protocols have to map its equivalent state to TCP_SYN_SENT.
+		 * DCCP maps its DCCP_REQUESTING state to TCP_SYN_SENT. -acme
+		 */
+		if (!sysctl_ip_dynaddr ||
+		    sk->sk_state != TCP_SYN_SENT ||
+		    (sk->sk_userlocks & SOCK_BINDADDR_LOCK) ||
+		    (err = inet_sk_reselect_saddr(sk)) != 0)
+			sk->sk_err_soft = -err;
+	}
+
+	return err;
+}
+
+EXPORT_SYMBOL(inet_sk_rebuild_header);
+
 #ifdef CONFIG_IP_MULTICAST
 static struct net_protocol igmp_protocol = {
 	.handler =	igmp_rcv,

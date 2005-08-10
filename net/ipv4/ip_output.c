@@ -83,11 +83,6 @@
 #include <linux/netlink.h>
 #include <linux/tcp.h>
 
-/*
- *      Shall we try to damage output packets if routing dev changes?
- */
-
-int sysctl_ip_dynaddr;
 int sysctl_ip_default_ttl = IPDEFTTL;
 
 /* Generate a checksum for an outgoing IP datagram. */

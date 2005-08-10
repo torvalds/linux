@@ -1832,101 +1832,6 @@ do_time_wait:
 	goto discard_it;
 }
 
-static int tcp_v4_reselect_saddr(struct sock *sk)
-{
-	struct inet_sock *inet = inet_sk(sk);
-	int err;
-	struct rtable *rt;
-	__u32 old_saddr = inet->saddr;
-	__u32 new_saddr;
-	__u32 daddr = inet->daddr;
-
-	if (inet->opt && inet->opt->srr)
-		daddr = inet->opt->faddr;
-
-	/* Query new route. */
-	err = ip_route_connect(&rt, daddr, 0,
-			       RT_CONN_FLAGS(sk),
-			       sk->sk_bound_dev_if,
-			       IPPROTO_TCP,
-			       inet->sport, inet->dport, sk);
-	if (err)
-		return err;
-
-	sk_setup_caps(sk, &rt->u.dst);
-
-	new_saddr = rt->rt_src;
-
-	if (new_saddr == old_saddr)
-		return 0;
-
-	if (sysctl_ip_dynaddr > 1) {
-		printk(KERN_INFO "tcp_v4_rebuild_header(): shifting inet->"
-				 "saddr from %d.%d.%d.%d to %d.%d.%d.%d\n",
-		       NIPQUAD(old_saddr),
-		       NIPQUAD(new_saddr));
-	}
-
-	inet->saddr = new_saddr;
-	inet->rcv_saddr = new_saddr;
-
-	/* XXX The only one ugly spot where we need to
-	 * XXX really change the sockets identity after
-	 * XXX it has entered the hashes. -DaveM
-	 *
-	 * Besides that, it does not check for connection
-	 * uniqueness. Wait for troubles.
-	 */
-	__sk_prot_rehash(sk);
-	return 0;
-}
-
-int tcp_v4_rebuild_header(struct sock *sk)
-{
-	struct inet_sock *inet = inet_sk(sk);
-	struct rtable *rt = (struct rtable *)__sk_dst_check(sk, 0);
-	u32 daddr;
-	int err;
-
-	/* Route is OK, nothing to do. */
-	if (rt)
-		return 0;
-
-	/* Reroute. */
-	daddr = inet->daddr;
-	if (inet->opt && inet->opt->srr)
-		daddr = inet->opt->faddr;
-
-	{
-		struct flowi fl = { .oif = sk->sk_bound_dev_if,
-				    .nl_u = { .ip4_u =
-					      { .daddr = daddr,
-						.saddr = inet->saddr,
-						.tos = RT_CONN_FLAGS(sk) } },
-				    .proto = IPPROTO_TCP,
-				    .uli_u = { .ports =
-					       { .sport = inet->sport,
-						 .dport = inet->dport } } };
-						
-		err = ip_route_output_flow(&rt, &fl, sk, 0);
-	}
-	if (!err) {
-		sk_setup_caps(sk, &rt->u.dst);
-		return 0;
-	}
-
-	/* Routing failed... */
-	sk->sk_route_caps = 0;
-
-	if (!sysctl_ip_dynaddr ||
-	    sk->sk_state != TCP_SYN_SENT ||
-	    (sk->sk_userlocks & SOCK_BINDADDR_LOCK) ||
-	    (err = tcp_v4_reselect_saddr(sk)) != 0)
-		sk->sk_err_soft = -err;
-
-	return err;
-}
-
 static void v4_addr2sockaddr(struct sock *sk, struct sockaddr * uaddr)
 {
 	struct sockaddr_in *sin = (struct sockaddr_in *) uaddr;
@@ -1998,7 +1903,7 @@ int tcp_v4_tw_remember_stamp(struct tcp_tw_bucket *tw)
 struct tcp_func ipv4_specific = {
 	.queue_xmit	=	ip_queue_xmit,
 	.send_check	=	tcp_v4_send_check,
-	.rebuild_header	=	tcp_v4_rebuild_header,
+	.rebuild_header	=	inet_sk_rebuild_header,
 	.conn_request	=	tcp_v4_conn_request,
 	.syn_recv_sock	=	tcp_v4_syn_recv_sock,
 	.remember_stamp	=	tcp_v4_remember_stamp,
@@ -2630,7 +2535,6 @@ EXPORT_SYMBOL(tcp_unhash);
 EXPORT_SYMBOL(tcp_v4_conn_request);
 EXPORT_SYMBOL(tcp_v4_connect);
 EXPORT_SYMBOL(tcp_v4_do_rcv);
-EXPORT_SYMBOL(tcp_v4_rebuild_header);
 EXPORT_SYMBOL(tcp_v4_remember_stamp);
 EXPORT_SYMBOL(tcp_v4_send_check);
 EXPORT_SYMBOL(tcp_v4_syn_recv_sock);
