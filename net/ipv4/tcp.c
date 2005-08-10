@@ -487,7 +487,7 @@ int tcp_listen_start(struct sock *sk)
 	}
 
 	sk->sk_state = TCP_CLOSE;
-	reqsk_queue_destroy(&tp->accept_queue);
+	__reqsk_queue_destroy(&tp->accept_queue);
 	return -EADDRINUSE;
 }
 
@@ -499,38 +499,23 @@ int tcp_listen_start(struct sock *sk)
 static void tcp_listen_stop (struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct listen_sock *lopt;
 	struct request_sock *acc_req;
 	struct request_sock *req;
-	int i;
 
 	tcp_delete_keepalive_timer(sk);
 
 	/* make all the listen_opt local to us */
-	lopt = reqsk_queue_yank_listen_sk(&tp->accept_queue);
 	acc_req = reqsk_queue_yank_acceptq(&tp->accept_queue);
 
-	if (lopt->qlen) {
-		for (i = 0; i < TCP_SYNQ_HSIZE; i++) {
-			while ((req = lopt->syn_table[i]) != NULL) {
-				lopt->syn_table[i] = req->dl_next;
-				lopt->qlen--;
-				reqsk_free(req);
-
-		/* Following specs, it would be better either to send FIN
-		 * (and enter FIN-WAIT-1, it is normal close)
-		 * or to send active reset (abort).
-		 * Certainly, it is pretty dangerous while synflood, but it is
-		 * bad justification for our negligence 8)
-		 * To be honest, we are not able to make either
-		 * of the variants now.			--ANK
-		 */
-			}
-		}
-	}
-	BUG_TRAP(!lopt->qlen);
-
-	kfree(lopt);
+	/* Following specs, it would be better either to send FIN
+	 * (and enter FIN-WAIT-1, it is normal close)
+	 * or to send active reset (abort).
+	 * Certainly, it is pretty dangerous while synflood, but it is
+	 * bad justification for our negligence 8)
+	 * To be honest, we are not able to make either
+	 * of the variants now.			--ANK
+	 */
+	reqsk_queue_destroy(&tp->accept_queue);
 
 	while ((req = acc_req) != NULL) {
 		struct sock *child = req->sk;

@@ -89,6 +89,7 @@ struct listen_sock {
 	int			qlen_young;
 	int			clock_hand;
 	u32			hash_rnd;
+	u32			nr_table_entries;
 	struct request_sock	*syn_table[0];
 };
 
@@ -129,10 +130,12 @@ static inline struct listen_sock *reqsk_queue_yank_listen_sk(struct request_sock
 	return lopt;
 }
 
-static inline void reqsk_queue_destroy(struct request_sock_queue *queue)
+static inline void __reqsk_queue_destroy(struct request_sock_queue *queue)
 {
 	kfree(reqsk_queue_yank_listen_sk(queue));
 }
+
+extern void reqsk_queue_destroy(struct request_sock_queue *queue);
 
 static inline struct request_sock *
 	reqsk_queue_yank_acceptq(struct request_sock_queue *queue)
