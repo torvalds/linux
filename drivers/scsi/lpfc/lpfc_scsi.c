@@ -753,6 +753,10 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 			cmnd->result = ScsiResult(DID_NO_CONNECT, 0);
 			goto out_fail_command;
 		}
+		else if (ndlp->nlp_state == NLP_STE_NPR_NODE) {
+			cmnd->result = ScsiResult(DID_BUS_BUSY, 0);
+			goto out_fail_command;
+		}
 		/*
 		 * The device is most likely recovered and the driver
 		 * needs a bit more time to finish.  Ask the midlayer
