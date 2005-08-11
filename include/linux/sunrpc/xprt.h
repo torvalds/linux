@@ -232,6 +232,7 @@ void			xprt_reserve(struct rpc_task *);
 int			xprt_prepare_transmit(struct rpc_task *);
 void			xprt_transmit(struct rpc_task *);
 void			xprt_receive(struct rpc_task *);
+void			xprt_wake_pending_tasks(struct rpc_xprt *, int);
 int			xprt_adjust_timeout(struct rpc_rqst *req);
 void			xprt_release(struct rpc_task *);
 void			xprt_connect(struct rpc_task *);

@@ -227,6 +227,20 @@ xprt_adjust_cwnd(struct rpc_xprt *xprt, int result)
 	xprt->cwnd = cwnd;
 }
 
+/**
+ * xprt_wake_pending_tasks - wake all tasks on a transport's pending queue
+ * @xprt: transport with waiting tasks
+ * @status: result code to plant in each task before waking it
+ *
+ */
+void xprt_wake_pending_tasks(struct rpc_xprt *xprt, int status)
+{
+	if (status < 0)
+		rpc_wake_up_status(&xprt->pending, status);
+	else
+		rpc_wake_up(&xprt->pending);
+}
+
 static void xprt_reset_majortimeo(struct rpc_rqst *req)
 {
 	struct rpc_timeout *to = &req->rq_xprt->timeout;
@@ -300,7 +314,7 @@ void xprt_disconnect(struct rpc_xprt *xprt)
 	dprintk("RPC:      disconnected transport %p\n", xprt);
 	spin_lock_bh(&xprt->transport_lock);
 	xprt_clear_connected(xprt);
-	rpc_wake_up_status(&xprt->pending, -ENOTCONN);
+	xprt_wake_pending_tasks(xprt, -ENOTCONN);
 	spin_unlock_bh(&xprt->transport_lock);
 }
 
@@ -803,7 +817,7 @@ static void xprt_shutdown(struct rpc_xprt *xprt)
 	xprt->shutdown = 1;
 	rpc_wake_up(&xprt->sending);
 	rpc_wake_up(&xprt->resend);
-	rpc_wake_up(&xprt->pending);
+	xprt_wake_pending_tasks(xprt, -EIO);
 	rpc_wake_up(&xprt->backlog);
 	wake_up(&xprt->cong_wait);
 	del_timer_sync(&xprt->timer);

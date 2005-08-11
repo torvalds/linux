@@ -703,7 +703,7 @@ static void xs_tcp_state_change(struct sock *sk)
 			xprt->tcp_reclen = 0;
 			xprt->tcp_copied = 0;
 			xprt->tcp_flags = XPRT_COPY_RECM | XPRT_COPY_XID;
-			rpc_wake_up(&xprt->pending);
+			xprt_wake_pending_tasks(xprt, 0);
 		}
 		spin_unlock_bh(&xprt->transport_lock);
 		break;
@@ -920,10 +920,7 @@ static void xs_connect_worker(void *args)
 		}
 	}
 out:
-	if (status < 0)
-		rpc_wake_up_status(&xprt->pending, status);
-	else
-		rpc_wake_up(&xprt->pending);
+	xprt_wake_pending_tasks(xprt, status);
 out_clear:
 	xprt_clear_connecting(xprt);
 }
