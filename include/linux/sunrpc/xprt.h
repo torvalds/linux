@@ -240,6 +240,8 @@ int			xprt_destroy(struct rpc_xprt *xprt);
  * Transport switch helper functions
  */
 void			xprt_wake_pending_tasks(struct rpc_xprt *xprt, int status);
+void			xprt_wait_for_buffer_space(struct rpc_task *task);
+void			xprt_write_space(struct rpc_xprt *xprt);
 struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, u32 xid);
 void			xprt_complete_rqst(struct rpc_xprt *xprt, struct rpc_rqst *req, int copied);
 void			xprt_disconnect(struct rpc_xprt *xprt);

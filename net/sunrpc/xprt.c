@@ -241,6 +241,40 @@ void xprt_wake_pending_tasks(struct rpc_xprt *xprt, int status)
 		rpc_wake_up(&xprt->pending);
 }
 
+/**
+ * xprt_wait_for_buffer_space - wait for transport output buffer to clear
+ * @task: task to be put to sleep
+ *
+ */
+void xprt_wait_for_buffer_space(struct rpc_task *task)
+{
+	struct rpc_rqst *req = task->tk_rqstp;
+	struct rpc_xprt *xprt = req->rq_xprt;
+
+	task->tk_timeout = req->rq_timeout;
+	rpc_sleep_on(&xprt->pending, task, NULL, NULL);
+}
+
+/**
+ * xprt_write_space - wake the task waiting for transport output buffer space
+ * @xprt: transport with waiting tasks
+ *
+ * Can be called in a soft IRQ context, so xprt_write_space never sleeps.
+ */
+void xprt_write_space(struct rpc_xprt *xprt)
+{
+	if (unlikely(xprt->shutdown))
+		return;
+
+	spin_lock_bh(&xprt->transport_lock);
+	if (xprt->snd_task) {
+		dprintk("RPC:      write space: waking waiting task on xprt %p\n",
+				xprt);
+		rpc_wake_up_task(xprt->snd_task);
+	}
+	spin_unlock_bh(&xprt->transport_lock);
+}
+
 static void xprt_reset_majortimeo(struct rpc_rqst *req)
 {
 	struct rpc_timeout *to = &req->rq_xprt->timeout;
