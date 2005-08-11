@@ -35,10 +35,12 @@
 
 #define MAXNAMELEN		32
 
+struct w1_slave;
+
 struct w1_family_ops
 {
-	ssize_t (* rname)(struct device *, struct device_attribute *, char *);
-	ssize_t (* rbin)(struct kobject *, char *, loff_t, size_t);
+	int  (* add_slave)(struct w1_slave *);
+	void (* remove_slave)(struct w1_slave *);
 };
 
 struct w1_family

@@ -59,19 +59,6 @@ static pid_t control_thread;
 static int control_needs_exit;
 static DECLARE_COMPLETION(w1_control_complete);
 
-/* stuff for the default family */
-static ssize_t w1_famdefault_read_name(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
-	return(sprintf(buf, "%s\n", sl->name));
-}
-static struct w1_family_ops w1_default_fops = {
-	.rname = &w1_famdefault_read_name,
-};
-static struct w1_family w1_default_family = {
-	.fops = &w1_default_fops,
-};
-
 static int w1_master_match(struct device *dev, struct device_driver *drv)
 {
 	return 1;
@@ -99,29 +86,46 @@ static void w1_slave_release(struct device *dev)
 	complete(&sl->dev_released);
 }
 
-static ssize_t w1_default_read_name(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t w1_slave_read_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "No family registered.\n");
+      struct w1_slave *sl = dev_to_w1_slave(dev);
+
+      return sprintf(buf, "%s\n", sl->name);
 }
 
-static ssize_t w1_default_read_bin(struct kobject *kobj, char *buf, loff_t off,
-		     size_t count)
+static ssize_t w1_slave_read_id(struct kobject *kobj, char *buf, loff_t off, size_t count)
 {
-	return sprintf(buf, "No family registered.\n");
-}
+      struct w1_slave *sl = kobj_to_w1_slave(kobj);
 
-static struct device_attribute w1_slave_attribute =
-	__ATTR(name, S_IRUGO, w1_default_read_name, NULL);
+      atomic_inc(&sl->refcnt);
+      if (off > 8) {
+              count = 0;
+	} else {
+		if (off + count > 8)
+			count = 8 - off;
 
-static struct bin_attribute w1_slave_bin_attribute = {
-	.attr = {
-		.name = "w1_slave",
-		.mode = S_IRUGO,
-		.owner = THIS_MODULE,
-	},
-	.size = W1_SLAVE_DATA_SIZE,
-	.read = &w1_default_read_bin,
+		memcpy(buf, (u8 *)&sl->reg_num, count);
+	}
+	atomic_dec(&sl->refcnt);
+
+	return count;
+  }
+
+static struct device_attribute w1_slave_attr_name =
+	__ATTR(name, S_IRUGO, w1_slave_read_name, NULL);
+
+static struct bin_attribute w1_slave_attr_bin_id = {
+      .attr = {
+              .name = "id",
+              .mode = S_IRUGO,
+              .owner = THIS_MODULE,
+      },
+      .size = 8,
+      .read = w1_slave_read_id,
 };
+
+/* Default family */
+static struct w1_family w1_default_family;
 
 static int w1_hotplug(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size);
 
@@ -413,36 +417,44 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 		return err;
 	}
 
-	memcpy(&sl->attr_bin, &w1_slave_bin_attribute, sizeof(sl->attr_bin));
-	memcpy(&sl->attr_name, &w1_slave_attribute, sizeof(sl->attr_name));
-
-	sl->attr_bin.read = sl->family->fops->rbin;
-	sl->attr_name.show = sl->family->fops->rname;
-
-	err = device_create_file(&sl->dev, &sl->attr_name);
+	/* Create "name" entry */
+	err = device_create_file(&sl->dev, &w1_slave_attr_name);
 	if (err < 0) {
 		dev_err(&sl->dev,
 			"sysfs file creation for [%s] failed. err=%d\n",
 			sl->dev.bus_id, err);
-		device_unregister(&sl->dev);
-		return err;
+		goto out_unreg;
 	}
 
-	if ( sl->attr_bin.read ) {
-		err = sysfs_create_bin_file(&sl->dev.kobj, &sl->attr_bin);
-		if (err < 0) {
-			dev_err(&sl->dev,
-				"sysfs file creation for [%s] failed. err=%d\n",
-				sl->dev.bus_id, err);
-			device_remove_file(&sl->dev, &sl->attr_name);
-			device_unregister(&sl->dev);
-			return err;
-		}
+	/* Create "id" entry */
+	err = sysfs_create_bin_file(&sl->dev.kobj, &w1_slave_attr_bin_id);
+	if (err < 0) {
+		dev_err(&sl->dev,
+			"sysfs file creation for [%s] failed. err=%d\n",
+			sl->dev.bus_id, err);
+		goto out_rem1;
+	}
+
+	/* if the family driver needs to initialize something... */
+	if (sl->family->fops && sl->family->fops->add_slave &&
+	    ((err = sl->family->fops->add_slave(sl)) < 0)) {
+		dev_err(&sl->dev,
+			"sysfs file creation for [%s] failed. err=%d\n",
+			sl->dev.bus_id, err);
+		goto out_rem2;
 	}
 
 	list_add_tail(&sl->w1_slave_entry, &sl->master->slist);
 
 	return 0;
+
+out_rem2:
+	sysfs_remove_bin_file(&sl->dev.kobj, &w1_slave_attr_bin_id);
+out_rem1:
+	device_remove_file(&sl->dev, &w1_slave_attr_name);
+out_unreg:
+	device_unregister(&sl->dev);
+	return err;
 }
 
 static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
@@ -517,10 +529,11 @@ static void w1_slave_detach(struct w1_slave *sl)
 			flush_signals(current);
 	}
 
-	if ( sl->attr_bin.read ) {
-		sysfs_remove_bin_file (&sl->dev.kobj, &sl->attr_bin);
-	}
-	device_remove_file(&sl->dev, &sl->attr_name);
+	if (sl->family->fops && sl->family->fops->remove_slave)
+		sl->family->fops->remove_slave(sl);
+
+	sysfs_remove_bin_file(&sl->dev.kobj, &w1_slave_attr_bin_id);
+	device_remove_file(&sl->dev, &w1_slave_attr_name);
 	device_unregister(&sl->dev);
 	w1_family_put(sl->family);
 
@@ -805,8 +818,8 @@ int w1_process(void *data)
 			if (!test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags) && !--sl->ttl) {
 				list_del (&sl->w1_slave_entry);
 
-				w1_slave_detach (sl);
-				kfree (sl);
+				w1_slave_detach(sl);
+				kfree(sl);
 
 				dev->slave_count--;
 			} else if (test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags))
