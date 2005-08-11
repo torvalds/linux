@@ -6,15 +6,12 @@
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
+#include <linux/module.h>
 #include <linux/types.h>
-#include <linux/socket.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
 #include <linux/errno.h>
-#include <linux/in.h>
-#include <linux/net.h>
-#include <net/sock.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
 
@@ -174,103 +171,6 @@ xdr_inline_pages(struct xdr_buf *xdr, unsigned int offset,
 	tail->iov_len = buflen - offset;
 
 	xdr->buflen += len;
-}
-
-
-int
-xdr_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen,
-		struct xdr_buf *xdr, unsigned int base, int msgflags)
-{
-	struct page **ppage = xdr->pages;
-	unsigned int len, pglen = xdr->page_len;
-	int err, ret = 0;
-	ssize_t (*sendpage)(struct socket *, struct page *, int, size_t, int);
-
-	len = xdr->head[0].iov_len;
-	if (base < len || (addr != NULL && base == 0)) {
-		struct kvec iov = {
-			.iov_base = xdr->head[0].iov_base + base,
-			.iov_len  = len - base,
-		};
-		struct msghdr msg = {
-			.msg_name    = addr,
-			.msg_namelen = addrlen,
-			.msg_flags   = msgflags,
-		};
-		if (xdr->len > len)
-			msg.msg_flags |= MSG_MORE;
-
-		if (iov.iov_len != 0)
-			err = kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
-		else
-			err = kernel_sendmsg(sock, &msg, NULL, 0, 0);
-		if (ret == 0)
-			ret = err;
-		else if (err > 0)
-			ret += err;
-		if (err != iov.iov_len)
-			goto out;
-		base = 0;
-	} else
-		base -= len;
-
-	if (pglen == 0)
-		goto copy_tail;
-	if (base >= pglen) {
-		base -= pglen;
-		goto copy_tail;
-	}
-	if (base || xdr->page_base) {
-		pglen -= base;
-		base  += xdr->page_base;
-		ppage += base >> PAGE_CACHE_SHIFT;
-		base &= ~PAGE_CACHE_MASK;
-	}
-
-	sendpage = sock->ops->sendpage ? : sock_no_sendpage;
-	do {
-		int flags = msgflags;
-
-		len = PAGE_CACHE_SIZE;
-		if (base)
-			len -= base;
-		if (pglen < len)
-			len = pglen;
-
-		if (pglen != len || xdr->tail[0].iov_len != 0)
-			flags |= MSG_MORE;
-
-		/* Hmm... We might be dealing with highmem pages */
-		if (PageHighMem(*ppage))
-			sendpage = sock_no_sendpage;
-		err = sendpage(sock, *ppage, base, len, flags);
-		if (ret == 0)
-			ret = err;
-		else if (err > 0)
-			ret += err;
-		if (err != len)
-			goto out;
-		base = 0;
-		ppage++;
-	} while ((pglen -= len) != 0);
-copy_tail:
-	len = xdr->tail[0].iov_len;
-	if (base < len) {
-		struct kvec iov = {
-			.iov_base = xdr->tail[0].iov_base + base,
-			.iov_len  = len - base,
-		};
-		struct msghdr msg = {
-			.msg_flags   = msgflags,
-		};
-		err = kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
-		if (ret == 0)
-			ret = err;
-		else if (err > 0)
-			ret += err;
-	}
-out:
-	return ret;
 }
 
 

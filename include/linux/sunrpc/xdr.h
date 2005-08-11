@@ -165,11 +165,6 @@ extern int csum_partial_copy_to_xdr(struct xdr_buf *, struct sk_buff *);
 extern ssize_t xdr_partial_copy_from_skb(struct xdr_buf *, unsigned int,
 		skb_reader_t *, skb_read_actor_t);
 
-struct socket;
-struct sockaddr;
-extern int xdr_sendpages(struct socket *, struct sockaddr *, int,
-		struct xdr_buf *, unsigned int, int);
-
 extern int xdr_encode_word(struct xdr_buf *, int, u32);
 extern int xdr_decode_word(struct xdr_buf *, int, u32 *);
 

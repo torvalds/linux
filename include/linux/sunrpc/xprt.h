@@ -59,7 +59,13 @@ extern unsigned int xprt_tcp_slot_table_entries;
  */
 #define RPC_REESTABLISH_TIMEOUT	(15*HZ)
 
-/* RPC call and reply header size as number of 32bit words (verifier
+/*
+ * RPC transport idle timeout.
+ */
+#define RPC_IDLE_DISCONNECT_TIMEOUT	(5*60*HZ)
+
+/*
+ * RPC call and reply header size as number of 32bit words (verifier
  * size computed separately)
  */
 #define RPC_CALLHDRSIZE		6
@@ -121,12 +127,19 @@ struct rpc_rqst {
 #define rq_svec			rq_snd_buf.head
 #define rq_slen			rq_snd_buf.len
 
-#define XPRT_LAST_FRAG		(1 << 0)
-#define XPRT_COPY_RECM		(1 << 1)
-#define XPRT_COPY_XID		(1 << 2)
-#define XPRT_COPY_DATA		(1 << 3)
+struct rpc_task;
+struct rpc_xprt;
+
+struct rpc_xprt_ops {
+	void		(*set_buffer_size)(struct rpc_xprt *xprt);
+	void		(*connect)(struct rpc_task *task);
+	int		(*send_request)(struct rpc_task *task);
+	void		(*close)(struct rpc_xprt *xprt);
+	void		(*destroy)(struct rpc_xprt *xprt);
+};
 
 struct rpc_xprt {
+	struct rpc_xprt_ops *	ops;		/* transport methods */
 	struct socket *		sock;		/* BSD socket layer */
 	struct sock *		inet;		/* INET layer */
 
@@ -199,14 +212,22 @@ struct rpc_xprt {
 	wait_queue_head_t	cong_wait;
 };
 
+#define XPRT_LAST_FRAG		(1 << 0)
+#define XPRT_COPY_RECM		(1 << 1)
+#define XPRT_COPY_XID		(1 << 2)
+#define XPRT_COPY_DATA		(1 << 3)
+
 #ifdef __KERNEL__
 
 struct rpc_xprt *	xprt_create_proto(int proto, struct sockaddr_in *addr,
 					struct rpc_timeout *toparms);
+void			xprt_disconnect(struct rpc_xprt *);
 int			xprt_destroy(struct rpc_xprt *);
 void			xprt_set_timeout(struct rpc_timeout *, unsigned int,
 					unsigned long);
-
+struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *, u32);
+void			xprt_complete_rqst(struct rpc_xprt *,
+					struct rpc_rqst *, int);
 void			xprt_reserve(struct rpc_task *);
 int			xprt_prepare_transmit(struct rpc_task *);
 void			xprt_transmit(struct rpc_task *);
@@ -214,7 +235,10 @@ void			xprt_receive(struct rpc_task *);
 int			xprt_adjust_timeout(struct rpc_rqst *req);
 void			xprt_release(struct rpc_task *);
 void			xprt_connect(struct rpc_task *);
-void			xprt_sock_setbufsize(struct rpc_xprt *);
+int			xs_setup_udp(struct rpc_xprt *,
+					struct rpc_timeout *);
+int			xs_setup_tcp(struct rpc_xprt *,
+					struct rpc_timeout *);
 
 #define XPRT_LOCKED	0
 #define XPRT_CONNECT	1
