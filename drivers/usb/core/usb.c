@@ -912,7 +912,7 @@ int usb_trylock_device(struct usb_device *udev)
  * is neither BINDING nor BOUND.  Rather than sleeping to wait for the
  * lock, the routine polls repeatedly.  This is to prevent deadlock with
  * disconnect; in some drivers (such as usb-storage) the disconnect()
- * callback will block waiting for a device reset to complete.
+ * or suspend() method will block waiting for a device reset to complete.
  *
  * Returns a negative error code for failure, otherwise 1 or 0 to indicate
  * that the device will or will not have to be unlocked.  (0 can be
@@ -922,6 +922,8 @@ int usb_trylock_device(struct usb_device *udev)
 int usb_lock_device_for_reset(struct usb_device *udev,
 		struct usb_interface *iface)
 {
+	unsigned long jiffies_expire = jiffies + HZ;
+
 	if (udev->state == USB_STATE_NOTATTACHED)
 		return -ENODEV;
 	if (udev->state == USB_STATE_SUSPENDED)
@@ -938,6 +940,12 @@ int usb_lock_device_for_reset(struct usb_device *udev,
 	}
 
 	while (!usb_trylock_device(udev)) {
+
+		/* If we can't acquire the lock after waiting one second,
+		 * we're probably deadlocked */
+		if (time_after(jiffies, jiffies_expire))
+			return -EBUSY;
+
 		msleep(15);
 		if (udev->state == USB_STATE_NOTATTACHED)
 			return -ENODEV;
