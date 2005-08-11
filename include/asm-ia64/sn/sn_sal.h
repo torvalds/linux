@@ -749,7 +749,8 @@ ia64_sn_power_down(void)
 {
 	struct ia64_sal_retval ret_stuff;
 	SAL_CALL(ret_stuff, SN_SAL_SYSTEM_POWER_DOWN, 0, 0, 0, 0, 0, 0, 0);
-	while(1);
+	while(1)
+		cpu_relax();
 	/* never returns */
 }
 

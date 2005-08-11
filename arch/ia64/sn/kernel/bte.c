@@ -215,6 +215,7 @@ retry_bteop:
 	}
 
 	while ((transfer_stat = *bte->most_rcnt_na) == BTE_WORD_BUSY) {
+		cpu_relax();
 		if (ia64_get_itc() > itc_end) {
 			BTE_PRINTK(("BTE timeout nasid 0x%x bte%d IBLS = 0x%lx na 0x%lx\n",
 				NASID_GET(bte->bte_base_addr), bte->bte_num,

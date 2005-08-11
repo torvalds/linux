@@ -317,7 +317,8 @@ void sn_dma_flush(uint64_t addr)
 		*(volatile uint32_t *)(p->sfdl_force_int_addr) = 1;
 
 		/* wait for the interrupt to come back. */
-		while (*(p->sfdl_flush_addr) != 0x10f) ;
+		while (*(p->sfdl_flush_addr) != 0x10f)
+			cpu_relax();
 
 		/* okay, everything is synched up. */
 		spin_unlock_irqrestore((spinlock_t *)&p->sfdl_flush_lock, flags);
