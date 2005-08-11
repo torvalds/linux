@@ -887,9 +887,9 @@ static struct {
 	int is_memfree;
 	int is_pcie;
 } mthca_hca_table[] = {
-	[TAVOR]        = { .latest_fw = MTHCA_FW_VER(3, 3, 2), .is_memfree = 0, .is_pcie = 0 },
-	[ARBEL_COMPAT] = { .latest_fw = MTHCA_FW_VER(4, 6, 2), .is_memfree = 0, .is_pcie = 1 },
-	[ARBEL_NATIVE] = { .latest_fw = MTHCA_FW_VER(5, 0, 1), .is_memfree = 1, .is_pcie = 1 },
+	[TAVOR]        = { .latest_fw = MTHCA_FW_VER(3, 3, 3), .is_memfree = 0, .is_pcie = 0 },
+	[ARBEL_COMPAT] = { .latest_fw = MTHCA_FW_VER(4, 7, 0), .is_memfree = 0, .is_pcie = 1 },
+	[ARBEL_NATIVE] = { .latest_fw = MTHCA_FW_VER(5, 1, 0), .is_memfree = 1, .is_pcie = 1 },
 	[SINAI]        = { .latest_fw = MTHCA_FW_VER(1, 0, 1), .is_memfree = 1, .is_pcie = 1 }
 };
 
