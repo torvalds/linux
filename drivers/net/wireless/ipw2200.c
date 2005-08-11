@@ -8957,7 +8957,7 @@ static int ipw_wx_get_txpow(struct net_device *dev,
 	up(&priv->sem);
 
 	IPW_DEBUG_WX("GET TX Power -> %s %d \n",
-		     wrqu->power.disabled ? "ON" : "OFF", wrqu->power.value);
+		     wrqu->power.disabled ? "OFF" : "ON", wrqu->power.value);
 
 	return 0;
 }
