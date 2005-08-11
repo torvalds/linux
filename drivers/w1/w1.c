@@ -373,7 +373,7 @@ static int w1_hotplug(struct device *dev, char **envp, int num_envp, char *buffe
 	if (err)
 		return err;
 
-	err = add_hotplug_env_var(envp, num_envp, &cur_index, buffer, buffer_size, &cur_len, "W1_SLAVE_ID=%024llX", sl->reg_num.id);
+	err = add_hotplug_env_var(envp, num_envp, &cur_index, buffer, buffer_size, &cur_len, "W1_SLAVE_ID=%024LX", (u64)sl->reg_num.id);
 	if (err)
 		return err;
 
