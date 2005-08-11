@@ -1453,7 +1453,7 @@ xprt_default_timeout(struct rpc_timeout *to, int proto)
 	if (proto == IPPROTO_UDP)
 		xprt_set_timeout(to, 5,  5 * HZ);
 	else
-		xprt_set_timeout(to, 5, 60 * HZ);
+		xprt_set_timeout(to, 2, 60 * HZ);
 }
 
 /*
@@ -1464,7 +1464,7 @@ xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long incr)
 {
 	to->to_initval   = 
 	to->to_increment = incr;
-	to->to_maxval    = incr * retr;
+	to->to_maxval    = to->to_initval + (incr * retr);
 	to->to_retries   = retr;
 	to->to_exponential = 0;
 }

@@ -358,6 +358,35 @@ out_no_root:
 	return no_root_error;
 }
 
+static void nfs_init_timeout_values(struct rpc_timeout *to, int proto, unsigned int timeo, unsigned int retrans)
+{
+	to->to_initval = timeo * HZ / 10;
+	to->to_retries = retrans;
+	if (!to->to_retries)
+		to->to_retries = 2;
+
+	switch (proto) {
+	case IPPROTO_TCP:
+		if (!to->to_initval)
+			to->to_initval = 60 * HZ;
+		if (to->to_initval > RPC_MAX_TCP_TIMEOUT)
+			to->to_initval = RPC_MAX_TCP_TIMEOUT;
+		to->to_increment = to->to_initval;
+		to->to_maxval = to->to_initval + (to->to_increment * to->to_retries);
+		to->to_exponential = 0;
+		break;
+	case IPPROTO_UDP:
+	default:
+		if (!to->to_initval)
+			to->to_initval = 11 * HZ / 10;
+		if (to->to_initval > RPC_MAX_UDP_TIMEOUT)
+			to->to_initval = RPC_MAX_UDP_TIMEOUT;
+		to->to_maxval = RPC_MAX_UDP_TIMEOUT;
+		to->to_exponential = 1;
+		break;
+	}
+}
+
 /*
  * Create an RPC client handle.
  */
@@ -367,22 +396,12 @@ nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 	struct rpc_timeout	timeparms;
 	struct rpc_xprt		*xprt = NULL;
 	struct rpc_clnt		*clnt = NULL;
-	int			tcp   = (data->flags & NFS_MOUNT_TCP);
+	int			proto = (data->flags & NFS_MOUNT_TCP) ? IPPROTO_TCP : IPPROTO_UDP;
 
-	/* Initialize timeout values */
-	timeparms.to_initval = data->timeo * HZ / 10;
-	timeparms.to_retries = data->retrans;
-	timeparms.to_maxval  = tcp ? RPC_MAX_TCP_TIMEOUT : RPC_MAX_UDP_TIMEOUT;
-	timeparms.to_exponential = 1;
-
-	if (!timeparms.to_initval)
-		timeparms.to_initval = (tcp ? 600 : 11) * HZ / 10;
-	if (!timeparms.to_retries)
-		timeparms.to_retries = 5;
+	nfs_init_timeout_values(&timeparms, proto, data->timeo, data->retrans);
 
 	/* create transport and client */
-	xprt = xprt_create_proto(tcp ? IPPROTO_TCP : IPPROTO_UDP,
-				 &server->addr, &timeparms);
+	xprt = xprt_create_proto(proto, &server->addr, &timeparms);
 	if (IS_ERR(xprt)) {
 		dprintk("%s: cannot create RPC transport. Error = %ld\n",
 				__FUNCTION__, PTR_ERR(xprt));
@@ -1674,7 +1693,7 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 	struct rpc_clnt *clnt = NULL;
 	struct rpc_timeout timeparms;
 	rpc_authflavor_t authflavour;
-	int proto, err = -EIO;
+	int err = -EIO;
 
 	sb->s_blocksize_bits = 0;
 	sb->s_blocksize = 0;
@@ -1692,30 +1711,8 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 	server->acdirmax = data->acdirmax*HZ;
 
 	server->rpc_ops = &nfs_v4_clientops;
-	/* Initialize timeout values */
 
-	timeparms.to_initval = data->timeo * HZ / 10;
-	timeparms.to_retries = data->retrans;
-	timeparms.to_exponential = 1;
-	if (!timeparms.to_retries)
-		timeparms.to_retries = 5;
-
-	proto = data->proto;
-	/* Which IP protocol do we use? */
-	switch (proto) {
-	case IPPROTO_TCP:
-		timeparms.to_maxval  = RPC_MAX_TCP_TIMEOUT;
-		if (!timeparms.to_initval)
-			timeparms.to_initval = 600 * HZ / 10;
-		break;
-	case IPPROTO_UDP:
-		timeparms.to_maxval  = RPC_MAX_UDP_TIMEOUT;
-		if (!timeparms.to_initval)
-			timeparms.to_initval = 11 * HZ / 10;
-		break;
-	default:
-		return -EINVAL;
-	}
+	nfs_init_timeout_values(&timeparms, data->proto, data->timeo, data->retrans);
 
 	clp = nfs4_get_client(&server->addr.sin_addr);
 	if (!clp) {
@@ -1740,7 +1737,7 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 
 	down_write(&clp->cl_sem);
 	if (IS_ERR(clp->cl_rpcclient)) {
-		xprt = xprt_create_proto(proto, &server->addr, &timeparms);
+		xprt = xprt_create_proto(data->proto, &server->addr, &timeparms);
 		if (IS_ERR(xprt)) {
 			up_write(&clp->cl_sem);
 			err = PTR_ERR(xprt);
