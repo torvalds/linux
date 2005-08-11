@@ -1370,15 +1370,21 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 
 	if (skb->len > cur_mss) {
 		int old_factor = tcp_skb_pcount(skb);
-		int new_factor;
+		int diff;
 
 		if (tcp_fragment(sk, skb, cur_mss, cur_mss))
 			return -ENOMEM; /* We'll try again later. */
 
 		/* New SKB created, account for it. */
-		new_factor = tcp_skb_pcount(skb);
-		tp->packets_out -= old_factor - new_factor;
-		tp->packets_out += tcp_skb_pcount(skb->next);
+		diff = old_factor - tcp_skb_pcount(skb) -
+		       tcp_skb_pcount(skb->next);
+		tp->packets_out -= diff;
+
+		if (diff > 0) {
+			tp->fackets_out -= diff;
+			if ((int)tp->fackets_out < 0)
+				tp->fackets_out = 0;
+		}
 	}
 
 	/* Collapse two adjacent packets if worthwhile and we can. */
