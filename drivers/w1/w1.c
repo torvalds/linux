@@ -527,8 +527,6 @@ static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 	msg.type = W1_SLAVE_ADD;
 	w1_netlink_send(dev, &msg);
 
-	dev_info(&dev->dev, "Finished %s for sl=%p.\n", __func__, sl);
-
 	return 0;
 }
 
@@ -536,7 +534,7 @@ static void w1_slave_detach(struct w1_slave *sl)
 {
 	struct w1_netlink_msg msg;
 
-	dev_info(&sl->dev, "%s: detaching %s [%p].\n", __func__, sl->name, sl);
+	dev_dbg(&sl->dev, "%s: detaching %s [%p].\n", __func__, sl->name, sl);
 
 	list_del(&sl->w1_slave_entry);
 
@@ -579,7 +577,7 @@ void w1_reconnect_slaves(struct w1_family *f)
 
 	spin_lock_bh(&w1_mlock);
 	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
-		dev_info(&dev->dev, "Reconnecting slaves in %s into new family %02x.\n",
+		dev_dbg(&dev->dev, "Reconnecting slaves in %s into new family %02x.\n",
 				dev->name, f->fid);
 		set_bit(W1_MASTER_NEED_RECONNECT, &dev->flags);
 	}
@@ -768,7 +766,7 @@ static int w1_control(void *data)
 			}
 
 			if (test_bit(W1_MASTER_NEED_RECONNECT, &dev->flags)) {
-				dev_info(&dev->dev, "Reconnecting slaves in device %s.\n", dev->name);
+				dev_dbg(&dev->dev, "Reconnecting slaves in device %s.\n", dev->name);
 				down(&dev->mutex);
 				list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
 					if (sl->family->fid == W1_FAMILY_DEFAULT) {
@@ -780,7 +778,7 @@ static int w1_control(void *data)
 						w1_attach_slave_device(dev, &rn);
 					}
 				}
-				dev_info(&dev->dev, "Reconnecting slaves in device %s has been finished.\n", dev->name);
+				dev_dbg(&dev->dev, "Reconnecting slaves in device %s has been finished.\n", dev->name);
 				clear_bit(W1_MASTER_NEED_RECONNECT, &dev->flags);
 				up(&dev->mutex);
 			}
