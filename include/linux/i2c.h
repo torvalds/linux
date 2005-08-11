@@ -192,8 +192,6 @@ static inline char *i2c_clientname(struct i2c_client *c)
  * to name two of the most common.
  */
 struct i2c_algorithm {
-	unsigned int id;
-
 	/* If an adapter algorithm can't do I2C-level access, set master_xfer
 	   to NULL. If an adapter algorithm can do SMBus access, set 
 	   smbus_xfer. If set to NULL, the SMBus protocol is simulated

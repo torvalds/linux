@@ -1573,7 +1573,6 @@ static int w9968cf_i2c_init(struct w9968cf_device* cam)
 	int err = 0;
 
 	static struct i2c_algorithm algo = {
-		.id =            I2C_ALGO_SMBUS,
 		.smbus_xfer =    w9968cf_i2c_smbus_xfer,
 		.algo_control =  w9968cf_i2c_control,
 		.functionality = w9968cf_i2c_func,

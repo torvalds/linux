@@ -713,7 +713,6 @@ static u32 iic_func(struct i2c_adapter *adap)
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm iic_algo = {
-	.id		= I2C_ALGO_IIC,
 	.master_xfer	= iic_xfer,
 	.algo_control	= algo_control, /* ioctl */
 	.functionality	= iic_func,

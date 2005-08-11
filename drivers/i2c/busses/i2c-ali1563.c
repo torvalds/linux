@@ -366,7 +366,6 @@ static void ali1563_shutdown(struct pci_dev *dev)
 }
 
 static struct i2c_algorithm ali1563_algorithm = {
-	.id		= I2C_ALGO_SMBUS,
 	.smbus_xfer	= ali1563_access,
 	.functionality	= ali1563_func,
 };

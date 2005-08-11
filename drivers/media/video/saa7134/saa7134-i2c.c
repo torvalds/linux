@@ -370,7 +370,6 @@ static int attach_inform(struct i2c_client *client)
 }
 
 static struct i2c_algorithm saa7134_algo = {
-	.id            = I2C_ALGO_SAA7134,
 	.master_xfer   = saa7134_i2c_xfer,
 	.algo_control  = algo_control,
 	.functionality = functionality,

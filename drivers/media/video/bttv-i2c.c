@@ -270,7 +270,6 @@ static int bttv_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int
 }
 
 static struct i2c_algorithm bttv_algo = {
-	.id            = I2C_ALGO_BIT | I2C_HW_B_BT848 /* FIXME */,
 	.master_xfer   = bttv_i2c_xfer,
 	.algo_control  = algo_control,
 	.functionality = functionality,

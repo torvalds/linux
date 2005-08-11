@@ -323,7 +323,6 @@ static u32 amd8111_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm smbus_algorithm = {
-	.id = I2C_ALGO_SMBUS,
 	.smbus_xfer = amd8111_access,
 	.functionality = amd8111_func,
 };

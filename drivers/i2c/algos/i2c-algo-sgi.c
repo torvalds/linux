@@ -158,7 +158,6 @@ static u32 sgi_func(struct i2c_adapter *adap)
 }
 
 static struct i2c_algorithm sgi_algo = {
-	.id		= I2C_ALGO_SGI,
 	.master_xfer	= sgi_xfer,
 	.functionality	= sgi_func,
 };

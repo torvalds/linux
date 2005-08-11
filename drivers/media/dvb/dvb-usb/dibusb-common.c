@@ -156,7 +156,6 @@ static u32 dibusb_i2c_func(struct i2c_adapter *adapter)
 }
 
 struct i2c_algorithm dibusb_i2c_algo = {
-	.id            = I2C_ALGO_BIT,
 	.master_xfer   = dibusb_i2c_xfer,
 	.functionality = dibusb_i2c_func,
 };

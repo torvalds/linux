@@ -172,7 +172,6 @@ static u32 flexcop_i2c_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm flexcop_algo = {
-	.id				= I2C_ALGO_BIT,
 	.master_xfer	= flexcop_master_xfer,
 	.functionality	= flexcop_i2c_func,
 };

@@ -498,7 +498,6 @@ keywest_func(struct i2c_adapter * adapter)
 
 /* For now, we only handle combined mode (smbus) */
 static struct i2c_algorithm keywest_algorithm = {
-	.id		= I2C_ALGO_SMBUS,
 	.smbus_xfer	= keywest_smbus_xfer,
 	.master_xfer	= keywest_xfer,
 	.functionality	= keywest_func,
