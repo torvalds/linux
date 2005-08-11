@@ -176,14 +176,9 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 	crc = 0;
 
 	while (max_trying--) {
-		if (!w1_reset_bus (dev)) {
+		if (!w1_reset_select_slave(sl)) {
 			int count = 0;
-			u8 match[9] = {W1_MATCH_ROM, };
 			unsigned int tm = 750;
-
-			memcpy(&match[1], (u64 *) & sl->reg_num, 8);
-
-			w1_write_block(dev, match, 9);
 
 			w1_write_8(dev, W1_CONVERT_TEMP);
 
@@ -193,8 +188,7 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 					flush_signals(current);
 			}
 
-			if (!w1_reset_bus (dev)) {
-				w1_write_block(dev, match, 9);
+			if (!w1_reset_select_slave(sl)) {
 
 				w1_write_8(dev, W1_READ_SCRATCHPAD);
 				if ((count = w1_read_block(dev, rom, 9)) != 9) {
@@ -205,7 +199,6 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 
 				if (rom[8] == crc && rom[0])
 					verdict = 1;
-
 			}
 		}
 
