@@ -11,6 +11,8 @@
  * Rewrite of larges part of the code in order to stabilize TCP stuff.
  * Fix behaviour when socket buffer is full.
  *  (C) 1999 Trond Myklebust <trond.myklebust@fys.uio.no>
+ *
+ * IP socket transport implementation, (C) 2005 Chuck Lever <cel@netapp.com>
  */
 
 #include <linux/types.h>
@@ -363,7 +365,7 @@ static void xs_destroy(struct rpc_xprt *xprt)
 {
 	dprintk("RPC:      xs_destroy xprt %p\n", xprt);
 
-	cancel_delayed_work(&xprt->sock_connect);
+	cancel_delayed_work(&xprt->connect_worker);
 	flush_scheduled_work();
 
 	xprt_disconnect(xprt);
@@ -938,11 +940,11 @@ static void xs_connect(struct rpc_task *task)
 	if (!xprt_test_and_set_connecting(xprt)) {
 		if (xprt->sock != NULL) {
 			dprintk("RPC:      xs_connect delayed xprt %p\n", xprt);
-			schedule_delayed_work(&xprt->sock_connect,
+			schedule_delayed_work(&xprt->connect_worker,
 					RPC_REESTABLISH_TIMEOUT);
 		} else {
 			dprintk("RPC:      xs_connect scheduled xprt %p\n", xprt);
-			schedule_work(&xprt->sock_connect);
+			schedule_work(&xprt->connect_worker);
 			/* flush_scheduled_work can sleep... */
 			if (!RPC_IS_ASYNC(task))
 				flush_scheduled_work();
@@ -989,7 +991,7 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
 	xprt->max_payload = (1U << 16) - (MAX_HEADER << 3);
 
-	INIT_WORK(&xprt->sock_connect, xs_connect_worker, xprt);
+	INIT_WORK(&xprt->connect_worker, xs_connect_worker, xprt);
 
 	xprt->ops = &xs_ops;
 
@@ -1028,7 +1030,7 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	xprt->max_payload = (1U << 31) - 1;
 
-	INIT_WORK(&xprt->sock_connect, xs_connect_worker, xprt);
+	INIT_WORK(&xprt->connect_worker, xs_connect_worker, xprt);
 
 	xprt->ops = &xs_ops;
 

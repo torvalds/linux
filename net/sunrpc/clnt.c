@@ -1,5 +1,5 @@
 /*
- *  linux/net/sunrpc/rpcclnt.c
+ *  linux/net/sunrpc/clnt.c
  *
  *  This file contains the high-level RPC interface.
  *  It is modeled as a finite state machine to support both synchronous

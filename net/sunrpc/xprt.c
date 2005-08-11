@@ -10,12 +10,12 @@
  *	one is available. Otherwise, it sleeps on the backlog queue
  *	(xprt_reserve).
  *  -	Next, the caller puts together the RPC message, stuffs it into
- *	the request struct, and calls xprt_call().
- *  -	xprt_call transmits the message and installs the caller on the
- *	socket's wait list. At the same time, it installs a timer that
+ *	the request struct, and calls xprt_transmit().
+ *  -	xprt_transmit sends the message and installs the caller on the
+ *	transport's wait list. At the same time, it installs a timer that
  *	is run after the packet's timeout has expired.
  *  -	When a packet arrives, the data_ready handler walks the list of
- *	pending requests for that socket. If a matching XID is found, the
+ *	pending requests for that transport. If a matching XID is found, the
  *	caller is woken up, and the timer removed.
  *  -	When no reply arrives within the timeout interval, the timer is
  *	fired by the kernel and runs xprt_timer(). It either adjusts the
@@ -32,6 +32,8 @@
  *  tasks that rely on callbacks.
  *
  *  Copyright (C) 1995-1997, Olaf Kirch <okir@monad.swb.de>
+ *
+ *  Transport switch API copyright (C) 2005, Chuck Lever <cel@netapp.com>
  */
 
 #include <linux/module.h>
@@ -52,8 +54,6 @@
 # define RPCDBG_FACILITY	RPCDBG_XPRT
 #endif
 
-#define XPRT_MAX_BACKOFF	(8)
-
 /*
  * Local functions
  */
@@ -65,9 +65,9 @@ static int      __xprt_get_cong(struct rpc_xprt *, struct rpc_task *);
 static int	xprt_clear_backlog(struct rpc_xprt *xprt);
 
 /*
- * Serialize write access to sockets, in order to prevent different
+ * Serialize write access to transports, in order to prevent different
  * requests from interfering with each other.
- * Also prevents TCP socket connects from colliding with writes.
+ * Also prevents transport connects from colliding with writes.
  */
 static int
 __xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
@@ -91,7 +91,7 @@ __xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
 	clear_bit(XPRT_LOCKED, &xprt->state);
 	smp_mb__after_clear_bit();
 out_sleep:
-	dprintk("RPC: %4d failed to lock socket %p\n", task->tk_pid, xprt);
+	dprintk("RPC: %4d failed to lock transport %p\n", task->tk_pid, xprt);
 	task->tk_timeout = 0;
 	task->tk_status = -EAGAIN;
 	if (req && req->rq_ntrans)
@@ -144,7 +144,7 @@ out_unlock:
 }
 
 /*
- * Releases the socket for use by other requests.
+ * Releases the transport for use by other requests.
  */
 static void
 __xprt_release_write(struct rpc_xprt *xprt, struct rpc_task *task)
@@ -294,8 +294,7 @@ int xprt_adjust_timeout(struct rpc_rqst *req)
 	return status;
 }
 
-static void
-xprt_socket_autoclose(void *args)
+static void xprt_autoclose(void *args)
 {
 	struct rpc_xprt *xprt = (struct rpc_xprt *)args;
 
@@ -329,7 +328,6 @@ xprt_init_autodisconnect(unsigned long data)
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->state))
 		goto out_abort;
 	spin_unlock(&xprt->transport_lock);
-	/* Let keventd close the socket */
 	if (xprt_connecting(xprt))
 		xprt_release_write(xprt, NULL);
 	else
@@ -770,7 +768,7 @@ static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc
 
 	INIT_LIST_HEAD(&xprt->free);
 	INIT_LIST_HEAD(&xprt->recv);
-	INIT_WORK(&xprt->task_cleanup, xprt_socket_autoclose, xprt);
+	INIT_WORK(&xprt->task_cleanup, xprt_autoclose, xprt);
 	init_timer(&xprt->timer);
 	xprt->timer.function = xprt_init_autodisconnect;
 	xprt->timer.data = (unsigned long) xprt;
