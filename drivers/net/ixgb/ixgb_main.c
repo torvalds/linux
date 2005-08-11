@@ -145,10 +145,12 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
 /* some defines for controlling descriptor fetches in h/w */
-#define RXDCTL_PTHRESH_DEFAULT 128	/* chip considers prefech below this */
-#define RXDCTL_HTHRESH_DEFAULT 16	/* chip will only prefetch if tail is 
-					   pushed this many descriptors from head */
 #define RXDCTL_WTHRESH_DEFAULT 16	/* chip writes back at this many or RXT0 */
+#define RXDCTL_PTHRESH_DEFAULT 0		/* chip considers prefech below
+						 * this */
+#define RXDCTL_HTHRESH_DEFAULT 0		/* chip will only prefetch if tail
+						 * is pushed this many descriptors
+						 * from head */
 
 /**
  * ixgb_init_module - Driver Registration Routine
