@@ -68,6 +68,41 @@ static inline void xs_pktdump(char *msg, u32 *packet, unsigned int count)
 }
 #endif
 
+#define XS_SENDMSG_FLAGS	(MSG_DONTWAIT | MSG_NOSIGNAL)
+
+static inline int xs_send_head(struct socket *sock, struct sockaddr *addr, int addrlen, struct xdr_buf *xdr, unsigned int base, unsigned int len)
+{
+	struct kvec iov = {
+		.iov_base	= xdr->head[0].iov_base + base,
+		.iov_len	= len - base,
+	};
+	struct msghdr msg = {
+		.msg_name	= addr,
+		.msg_namelen	= addrlen,
+		.msg_flags	= XS_SENDMSG_FLAGS,
+	};
+
+	if (xdr->len > len)
+		msg.msg_flags |= MSG_MORE;
+
+	if (likely(iov.iov_len))
+		return kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
+	return kernel_sendmsg(sock, &msg, NULL, 0, 0);
+}
+
+static int xs_send_tail(struct socket *sock, struct xdr_buf *xdr, unsigned int base, unsigned int len)
+{
+	struct kvec iov = {
+		.iov_base	= xdr->tail[0].iov_base + base,
+		.iov_len	= len - base,
+	};
+	struct msghdr msg = {
+		.msg_flags	= XS_SENDMSG_FLAGS,
+	};
+
+	return kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
+}
+
 /**
  * xs_sendpages - write pages directly to a socket
  * @sock: socket to send on
@@ -77,7 +112,7 @@ static inline void xs_pktdump(char *msg, u32 *packet, unsigned int count)
  * @base: starting position in the buffer
  *
  */
-static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen, struct xdr_buf *xdr, unsigned int base, int msgflags)
+static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen, struct xdr_buf *xdr, unsigned int base)
 {
 	struct page **ppage = xdr->pages;
 	unsigned int len, pglen = xdr->page_len;
@@ -86,35 +121,20 @@ static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen,
 
 	len = xdr->head[0].iov_len;
 	if (base < len || (addr != NULL && base == 0)) {
-		struct kvec iov = {
-			.iov_base = xdr->head[0].iov_base + base,
-			.iov_len  = len - base,
-		};
-		struct msghdr msg = {
-			.msg_name    = addr,
-			.msg_namelen = addrlen,
-			.msg_flags   = msgflags,
-		};
-		if (xdr->len > len)
-			msg.msg_flags |= MSG_MORE;
-
-		if (iov.iov_len != 0)
-			err = kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
-		else
-			err = kernel_sendmsg(sock, &msg, NULL, 0, 0);
+		err = xs_send_head(sock, addr, addrlen, xdr, base, len);
 		if (ret == 0)
 			ret = err;
 		else if (err > 0)
 			ret += err;
-		if (err != iov.iov_len)
+		if (err != (len - base))
 			goto out;
 		base = 0;
 	} else
 		base -= len;
 
-	if (pglen == 0)
+	if (unlikely(pglen == 0))
 		goto copy_tail;
-	if (base >= pglen) {
+	if (unlikely(base >= pglen)) {
 		base -= pglen;
 		goto copy_tail;
 	}
@@ -127,7 +147,7 @@ static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen,
 
 	sendpage = sock->ops->sendpage ? : sock_no_sendpage;
 	do {
-		int flags = msgflags;
+		int flags = XS_SENDMSG_FLAGS;
 
 		len = PAGE_CACHE_SIZE;
 		if (base)
@@ -154,14 +174,7 @@ static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen,
 copy_tail:
 	len = xdr->tail[0].iov_len;
 	if (base < len) {
-		struct kvec iov = {
-			.iov_base = xdr->tail[0].iov_base + base,
-			.iov_len  = len - base,
-		};
-		struct msghdr msg = {
-			.msg_flags   = msgflags,
-		};
-		err = kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
+		err = xs_send_tail(sock, xdr, base, len);
 		if (ret == 0)
 			ret = err;
 		else if (err > 0)
@@ -202,7 +215,7 @@ static int xs_sendmsg(struct rpc_xprt *xprt, struct rpc_rqst *req)
 	skip = req->rq_bytes_sent;
 
 	clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags);
-	result = xs_sendpages(sock, addr, addrlen, xdr, skip, MSG_DONTWAIT);
+	result = xs_sendpages(sock, addr, addrlen, xdr, skip);
 
 	dprintk("RPC:      xs_sendmsg(%d) = %d\n", xdr->len - skip, result);
 
