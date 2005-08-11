@@ -27,6 +27,9 @@
 
 #include <linux/sysctl.h>
 
+#define NUM_LOW_AREAS	(0x100000000UL >> SID_SHIFT)
+#define NUM_HIGH_AREAS	(PGTABLE_RANGE >> HTLB_AREA_SHIFT)
+
 /* Modelled after find_linux_pte() */
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {
@@ -129,15 +132,17 @@ int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
 	return 0;
 }
 
-static void flush_segments(void *parm)
+static void flush_low_segments(void *parm)
 {
-	u16 segs = (unsigned long) parm;
+	u16 areas = (unsigned long) parm;
 	unsigned long i;
 
 	asm volatile("isync" : : : "memory");
 
-	for (i = 0; i < 16; i++) {
-		if (! (segs & (1U << i)))
+	BUILD_BUG_ON((sizeof(areas)*8) != NUM_LOW_AREAS);
+
+	for (i = 0; i < NUM_LOW_AREAS; i++) {
+		if (! (areas & (1U << i)))
 			continue;
 		asm volatile("slbie %0" : : "r" (i << SID_SHIFT));
 	}
@@ -145,13 +150,33 @@ static void flush_segments(void *parm)
 	asm volatile("isync" : : : "memory");
 }
 
-static int prepare_low_seg_for_htlb(struct mm_struct *mm, unsigned long seg)
+static void flush_high_segments(void *parm)
 {
-	unsigned long start = seg << SID_SHIFT;
-	unsigned long end = (seg+1) << SID_SHIFT;
+	u16 areas = (unsigned long) parm;
+	unsigned long i, j;
+
+	asm volatile("isync" : : : "memory");
+
+	BUILD_BUG_ON((sizeof(areas)*8) != NUM_HIGH_AREAS);
+
+	for (i = 0; i < NUM_HIGH_AREAS; i++) {
+		if (! (areas & (1U << i)))
+			continue;
+		for (j = 0; j < (1UL << (HTLB_AREA_SHIFT-SID_SHIFT)); j++)
+			asm volatile("slbie %0"
+				     :: "r" ((i << HTLB_AREA_SHIFT) + (j << SID_SHIFT)));
+	}
+
+	asm volatile("isync" : : : "memory");
+}
+
+static int prepare_low_area_for_htlb(struct mm_struct *mm, unsigned long area)
+{
+	unsigned long start = area << SID_SHIFT;
+	unsigned long end = (area+1) << SID_SHIFT;
 	struct vm_area_struct *vma;
 
-	BUG_ON(seg >= 16);
+	BUG_ON(area >= NUM_LOW_AREAS);
 
 	/* Check no VMAs are in the region */
 	vma = find_vma(mm, start);
@@ -161,20 +186,39 @@ static int prepare_low_seg_for_htlb(struct mm_struct *mm, unsigned long seg)
 	return 0;
 }
 
-static int open_low_hpage_segs(struct mm_struct *mm, u16 newsegs)
+static int prepare_high_area_for_htlb(struct mm_struct *mm, unsigned long area)
+{
+	unsigned long start = area << HTLB_AREA_SHIFT;
+	unsigned long end = (area+1) << HTLB_AREA_SHIFT;
+	struct vm_area_struct *vma;
+
+	BUG_ON(area >= NUM_HIGH_AREAS);
+
+	/* Check no VMAs are in the region */
+	vma = find_vma(mm, start);
+	if (vma && (vma->vm_start < end))
+		return -EBUSY;
+
+	return 0;
+}
+
+static int open_low_hpage_areas(struct mm_struct *mm, u16 newareas)
 {
 	unsigned long i;
 
-	newsegs &= ~(mm->context.htlb_segs);
-	if (! newsegs)
+	BUILD_BUG_ON((sizeof(newareas)*8) != NUM_LOW_AREAS);
+	BUILD_BUG_ON((sizeof(mm->context.low_htlb_areas)*8) != NUM_LOW_AREAS);
+
+	newareas &= ~(mm->context.low_htlb_areas);
+	if (! newareas)
 		return 0; /* The segments we want are already open */
 
-	for (i = 0; i < 16; i++)
-		if ((1 << i) & newsegs)
-			if (prepare_low_seg_for_htlb(mm, i) != 0)
+	for (i = 0; i < NUM_LOW_AREAS; i++)
+		if ((1 << i) & newareas)
+			if (prepare_low_area_for_htlb(mm, i) != 0)
 				return -EBUSY;
 
-	mm->context.htlb_segs |= newsegs;
+	mm->context.low_htlb_areas |= newareas;
 
 	/* update the paca copy of the context struct */
 	get_paca()->context = mm->context;
@@ -182,29 +226,63 @@ static int open_low_hpage_segs(struct mm_struct *mm, u16 newsegs)
 	/* the context change must make it to memory before the flush,
 	 * so that further SLB misses do the right thing. */
 	mb();
-	on_each_cpu(flush_segments, (void *)(unsigned long)newsegs, 0, 1);
+	on_each_cpu(flush_low_segments, (void *)(unsigned long)newareas, 0, 1);
+
+	return 0;
+}
+
+static int open_high_hpage_areas(struct mm_struct *mm, u16 newareas)
+{
+	unsigned long i;
+
+	BUILD_BUG_ON((sizeof(newareas)*8) != NUM_HIGH_AREAS);
+	BUILD_BUG_ON((sizeof(mm->context.high_htlb_areas)*8)
+		     != NUM_HIGH_AREAS);
+
+	newareas &= ~(mm->context.high_htlb_areas);
+	if (! newareas)
+		return 0; /* The areas we want are already open */
+
+	for (i = 0; i < NUM_HIGH_AREAS; i++)
+		if ((1 << i) & newareas)
+			if (prepare_high_area_for_htlb(mm, i) != 0)
+				return -EBUSY;
+
+	mm->context.high_htlb_areas |= newareas;
+
+	/* update the paca copy of the context struct */
+	get_paca()->context = mm->context;
+
+	/* the context change must make it to memory before the flush,
+	 * so that further SLB misses do the right thing. */
+	mb();
+	on_each_cpu(flush_high_segments, (void *)(unsigned long)newareas, 0, 1);
 
 	return 0;
 }
 
 int prepare_hugepage_range(unsigned long addr, unsigned long len)
 {
-	if (within_hugepage_high_range(addr, len))
-		return 0;
-	else if ((addr < 0x100000000UL) && ((addr+len) < 0x100000000UL)) {
-		int err;
-		/* Yes, we need both tests, in case addr+len overflows
-		 * 64-bit arithmetic */
-		err = open_low_hpage_segs(current->mm,
+	int err;
+
+	if ( (addr+len) < addr )
+		return -EINVAL;
+
+	if ((addr + len) < 0x100000000UL)
+		err = open_low_hpage_areas(current->mm,
 					  LOW_ESID_MASK(addr, len));
-		if (err)
-			printk(KERN_DEBUG "prepare_hugepage_range(%lx, %lx)"
-			       " failed (segs: 0x%04hx)\n", addr, len,
-			       LOW_ESID_MASK(addr, len));
+	else
+		err = open_high_hpage_areas(current->mm,
+					    HTLB_AREA_MASK(addr, len));
+	if (err) {
+		printk(KERN_DEBUG "prepare_hugepage_range(%lx, %lx)"
+		       " failed (lowmask: 0x%04hx, highmask: 0x%04hx)\n",
+		       addr, len,
+		       LOW_ESID_MASK(addr, len), HTLB_AREA_MASK(addr, len));
 		return err;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 struct page *
@@ -276,8 +354,8 @@ full_search:
 			vma = find_vma(mm, addr);
 			continue;
 		}
-		if (touches_hugepage_high_range(addr, len)) {
-			addr = TASK_HPAGE_END;
+		if (touches_hugepage_high_range(mm, addr, len)) {
+			addr = ALIGN(addr+1, 1UL<<HTLB_AREA_SHIFT);
 			vma = find_vma(mm, addr);
 			continue;
 		}
@@ -356,8 +434,9 @@ hugepage_recheck:
 		if (touches_hugepage_low_range(mm, addr, len)) {
 			addr = (addr & ((~0) << SID_SHIFT)) - len;
 			goto hugepage_recheck;
-		} else if (touches_hugepage_high_range(addr, len)) {
-			addr = TASK_HPAGE_BASE - len;
+		} else if (touches_hugepage_high_range(mm, addr, len)) {
+			addr = (addr & ((~0UL) << HTLB_AREA_SHIFT)) - len;
+			goto hugepage_recheck;
 		}
 
 		/*
@@ -448,23 +527,28 @@ static unsigned long htlb_get_low_area(unsigned long len, u16 segmask)
 	return -ENOMEM;
 }
 
-static unsigned long htlb_get_high_area(unsigned long len)
+static unsigned long htlb_get_high_area(unsigned long len, u16 areamask)
 {
-	unsigned long addr = TASK_HPAGE_BASE;
+	unsigned long addr = 0x100000000UL;
 	struct vm_area_struct *vma;
 
 	vma = find_vma(current->mm, addr);
-	for (vma = find_vma(current->mm, addr);
-	     addr + len <= TASK_HPAGE_END;
-	     vma = vma->vm_next) {
+	while (addr + len <= TASK_SIZE_USER64) {
 		BUG_ON(vma && (addr >= vma->vm_end)); /* invariant */
-		BUG_ON(! within_hugepage_high_range(addr, len));
+
+		if (! __within_hugepage_high_range(addr, len, areamask)) {
+			addr = ALIGN(addr+1, 1UL<<HTLB_AREA_SHIFT);
+			vma = find_vma(current->mm, addr);
+			continue;
+		}
 
 		if (!vma || (addr + len) <= vma->vm_start)
 			return addr;
 		addr = ALIGN(vma->vm_end, HPAGE_SIZE);
-		/* Because we're in a hugepage region, this alignment
-		 * should not skip us over any VMAs */
+		/* Depending on segmask this might not be a confirmed
+		 * hugepage region, so the ALIGN could have skipped
+		 * some VMAs */
+		vma = find_vma(current->mm, addr);
 	}
 
 	return -ENOMEM;
@@ -474,6 +558,9 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 					unsigned long len, unsigned long pgoff,
 					unsigned long flags)
 {
+	int lastshift;
+	u16 areamask, curareas;
+
 	if (len & ~HPAGE_MASK)
 		return -EINVAL;
 
@@ -481,31 +568,49 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		return -EINVAL;
 
 	if (test_thread_flag(TIF_32BIT)) {
-		int lastshift = 0;
-		u16 segmask, cursegs = current->mm->context.htlb_segs;
+		curareas = current->mm->context.low_htlb_areas;
 
 		/* First see if we can do the mapping in the existing
-		 * low hpage segments */
-		addr = htlb_get_low_area(len, cursegs);
+		 * low areas */
+		addr = htlb_get_low_area(len, curareas);
 		if (addr != -ENOMEM)
 			return addr;
 
-		for (segmask = LOW_ESID_MASK(0x100000000UL-len, len);
-		     ! lastshift; segmask >>=1) {
-			if (segmask & 1)
+		lastshift = 0;
+		for (areamask = LOW_ESID_MASK(0x100000000UL-len, len);
+		     ! lastshift; areamask >>=1) {
+			if (areamask & 1)
 				lastshift = 1;
 
-			addr = htlb_get_low_area(len, cursegs | segmask);
+			addr = htlb_get_low_area(len, curareas | areamask);
 			if ((addr != -ENOMEM)
-			    && open_low_hpage_segs(current->mm, segmask) == 0)
+			    && open_low_hpage_areas(current->mm, areamask) == 0)
 				return addr;
 		}
-		printk(KERN_DEBUG "hugetlb_get_unmapped_area() unable to open"
-		       " enough segments\n");
-		return -ENOMEM;
 	} else {
-		return htlb_get_high_area(len);
+		curareas = current->mm->context.high_htlb_areas;
+
+		/* First see if we can do the mapping in the existing
+		 * high areas */
+		addr = htlb_get_high_area(len, curareas);
+		if (addr != -ENOMEM)
+			return addr;
+
+		lastshift = 0;
+		for (areamask = HTLB_AREA_MASK(TASK_SIZE_USER64-len, len);
+		     ! lastshift; areamask >>=1) {
+			if (areamask & 1)
+				lastshift = 1;
+
+			addr = htlb_get_high_area(len, curareas | areamask);
+			if ((addr != -ENOMEM)
+			    && open_high_hpage_areas(current->mm, areamask) == 0)
+				return addr;
+		}
 	}
+	printk(KERN_DEBUG "hugetlb_get_unmapped_area() unable to open"
+	       " enough areas\n");
+	return -ENOMEM;
 }
 
 int hash_huge_page(struct mm_struct *mm, unsigned long access,

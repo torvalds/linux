@@ -307,7 +307,7 @@ typedef unsigned long mm_context_id_t;
 typedef struct {
 	mm_context_id_t id;
 #ifdef CONFIG_HUGETLB_PAGE
-	u16 htlb_segs; /* bitmask */
+	u16 low_htlb_areas, high_htlb_areas;
 #endif
 } mm_context_t;
 

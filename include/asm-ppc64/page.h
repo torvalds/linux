@@ -37,40 +37,45 @@
 
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 
-/* For 64-bit processes the hugepage range is 1T-1.5T */
-#define TASK_HPAGE_BASE ASM_CONST(0x0000010000000000)
-#define TASK_HPAGE_END 	ASM_CONST(0x0000018000000000)
+#define HTLB_AREA_SHIFT		40
+#define HTLB_AREA_SIZE		(1UL << HTLB_AREA_SHIFT)
+#define GET_HTLB_AREA(x)	((x) >> HTLB_AREA_SHIFT)
 
 #define LOW_ESID_MASK(addr, len)	(((1U << (GET_ESID(addr+len-1)+1)) \
 	   	                	- (1U << GET_ESID(addr))) & 0xffff)
+#define HTLB_AREA_MASK(addr, len)	(((1U << (GET_HTLB_AREA(addr+len-1)+1)) \
+	   	                	- (1U << GET_HTLB_AREA(addr))) & 0xffff)
 
 #define ARCH_HAS_HUGEPAGE_ONLY_RANGE
 #define ARCH_HAS_PREPARE_HUGEPAGE_RANGE
 #define ARCH_HAS_SETCLEAR_HUGE_PTE
 
 #define touches_hugepage_low_range(mm, addr, len) \
-	(LOW_ESID_MASK((addr), (len)) & mm->context.htlb_segs)
-#define touches_hugepage_high_range(addr, len) \
-	(((addr) > (TASK_HPAGE_BASE-(len))) && ((addr) < TASK_HPAGE_END))
+	(LOW_ESID_MASK((addr), (len)) & (mm)->context.low_htlb_areas)
+#define touches_hugepage_high_range(mm, addr, len) \
+	(HTLB_AREA_MASK((addr), (len)) & (mm)->context.high_htlb_areas)
 
 #define __within_hugepage_low_range(addr, len, segmask) \
 	((LOW_ESID_MASK((addr), (len)) | (segmask)) == (segmask))
 #define within_hugepage_low_range(addr, len) \
 	__within_hugepage_low_range((addr), (len), \
-				    current->mm->context.htlb_segs)
-#define within_hugepage_high_range(addr, len) (((addr) >= TASK_HPAGE_BASE) \
-	  && ((addr)+(len) <= TASK_HPAGE_END) && ((addr)+(len) >= (addr)))
+				    current->mm->context.low_htlb_areas)
+#define __within_hugepage_high_range(addr, len, zonemask) \
+	((HTLB_AREA_MASK((addr), (len)) | (zonemask)) == (zonemask))
+#define within_hugepage_high_range(addr, len) \
+	__within_hugepage_high_range((addr), (len), \
+				    current->mm->context.high_htlb_areas)
 
 #define is_hugepage_only_range(mm, addr, len) \
-	(touches_hugepage_high_range((addr), (len)) || \
+	(touches_hugepage_high_range((mm), (addr), (len)) || \
 	  touches_hugepage_low_range((mm), (addr), (len)))
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
 
 #define in_hugepage_area(context, addr) \
 	(cpu_has_feature(CPU_FTR_16M_PAGE) && \
-	 ( (((addr) >= TASK_HPAGE_BASE) && ((addr) < TASK_HPAGE_END)) || \
+	 ( ((1 << GET_HTLB_AREA(addr)) & (context).high_htlb_areas) || \
 	   ( ((addr) < 0x100000000L) && \
-	     ((1 << GET_ESID(addr)) & (context).htlb_segs) ) ) )
+	     ((1 << GET_ESID(addr)) & (context).low_htlb_areas) ) ) )
 
 #else /* !CONFIG_HUGETLB_PAGE */
 
