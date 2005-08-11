@@ -227,9 +227,6 @@ xprt_adjust_cwnd(struct rpc_xprt *xprt, int result)
 	xprt->cwnd = cwnd;
 }
 
-/*
- * Reset the major timeout value
- */
 static void xprt_reset_majortimeo(struct rpc_rqst *req)
 {
 	struct rpc_timeout *to = &req->rq_xprt->timeout;
@@ -244,8 +241,10 @@ static void xprt_reset_majortimeo(struct rpc_rqst *req)
 	req->rq_majortimeo += jiffies;
 }
 
-/*
- * Adjust timeout values etc for next retransmit
+/**
+ * xprt_adjust_timeout - adjust timeout values for next retransmit
+ * @req: RPC request containing parameters to use for the adjustment
+ *
  */
 int xprt_adjust_timeout(struct rpc_rqst *req)
 {
@@ -291,8 +290,10 @@ xprt_socket_autoclose(void *args)
 	xprt_release_write(xprt, NULL);
 }
 
-/*
- * Mark a transport as disconnected
+/**
+ * xprt_disconnect - mark a transport as disconnected
+ * @xprt: transport to flag for disconnect
+ *
  */
 void xprt_disconnect(struct rpc_xprt *xprt)
 {
@@ -303,9 +304,6 @@ void xprt_disconnect(struct rpc_xprt *xprt)
 	spin_unlock_bh(&xprt->sock_lock);
 }
 
-/*
- * Used to allow disconnection when we've been idle
- */
 static void
 xprt_init_autodisconnect(unsigned long data)
 {
@@ -327,8 +325,9 @@ out_abort:
 	spin_unlock(&xprt->sock_lock);
 }
 
-/*
- * Attempt to connect a TCP socket.
+/**
+ * xprt_connect - schedule a transport connect operation
+ * @task: RPC task that is requesting the connect
  *
  */
 void xprt_connect(struct rpc_task *task)
@@ -361,11 +360,7 @@ void xprt_connect(struct rpc_task *task)
 	return;
 }
 
-/*
- * We arrive here when awoken from waiting on connection establishment.
- */
-static void
-xprt_connect_status(struct rpc_task *task)
+static void xprt_connect_status(struct rpc_task *task)
 {
 	struct rpc_xprt	*xprt = task->tk_xprt;
 
@@ -404,8 +399,11 @@ xprt_connect_status(struct rpc_task *task)
 	}
 }
 
-/*
- * Look up the RPC request corresponding to a reply, and then lock it.
+/**
+ * xprt_lookup_rqst - find an RPC request corresponding to an XID
+ * @xprt: transport on which the original request was transmitted
+ * @xid: RPC XID of incoming reply
+ *
  */
 struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, u32 xid)
 {
@@ -422,9 +420,12 @@ struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, u32 xid)
 	return req;
 }
 
-/*
- * Complete reply received.
- * The TCP code relies on us to remove the request from xprt->pending.
+/**
+ * xprt_complete_rqst - called when reply processing is complete
+ * @xprt: controlling transport
+ * @req: RPC request that just completed
+ * @copied: actual number of bytes received from the transport
+ *
  */
 void xprt_complete_rqst(struct rpc_xprt *xprt, struct rpc_rqst *req, int copied)
 {
@@ -498,12 +499,12 @@ out:
 	spin_unlock(&xprt->sock_lock);
 }
 
-/*
- * Place the actual RPC call.
- * We have to copy the iovec because sendmsg fiddles with its contents.
+/**
+ * xprt_prepare_transmit - reserve the transport before sending a request
+ * @task: RPC task about to send a request
+ *
  */
-int
-xprt_prepare_transmit(struct rpc_task *task)
+int xprt_prepare_transmit(struct rpc_task *task)
 {
 	struct rpc_rqst	*req = task->tk_rqstp;
 	struct rpc_xprt	*xprt = req->rq_xprt;
@@ -533,8 +534,13 @@ out_unlock:
 	return err;
 }
 
-void
-xprt_transmit(struct rpc_task *task)
+/**
+ * xprt_transmit - send an RPC request on a transport
+ * @task: controlling RPC task
+ *
+ * We have to copy the iovec because sendmsg fiddles with its contents.
+ */
+void xprt_transmit(struct rpc_task *task)
 {
 	struct rpc_clnt *clnt = task->tk_client;
 	struct rpc_rqst	*req = task->tk_rqstp;
@@ -604,11 +610,7 @@ xprt_transmit(struct rpc_task *task)
 	spin_unlock_bh(&xprt->sock_lock);
 }
 
-/*
- * Reserve an RPC call slot.
- */
-static inline void
-do_xprt_reserve(struct rpc_task *task)
+static inline void do_xprt_reserve(struct rpc_task *task)
 {
 	struct rpc_xprt	*xprt = task->tk_xprt;
 
@@ -628,8 +630,14 @@ do_xprt_reserve(struct rpc_task *task)
 	rpc_sleep_on(&xprt->backlog, task, NULL, NULL);
 }
 
-void
-xprt_reserve(struct rpc_task *task)
+/**
+ * xprt_reserve - allocate an RPC request slot
+ * @task: RPC task requesting a slot allocation
+ *
+ * If no more slots are available, place the task on the transport's
+ * backlog queue.
+ */
+void xprt_reserve(struct rpc_task *task)
 {
 	struct rpc_xprt	*xprt = task->tk_xprt;
 
@@ -641,9 +649,6 @@ xprt_reserve(struct rpc_task *task)
 	}
 }
 
-/*
- * Allocate a 'unique' XID
- */
 static inline u32 xprt_alloc_xid(struct rpc_xprt *xprt)
 {
 	return xprt->xid++;
@@ -654,11 +659,7 @@ static inline void xprt_init_xid(struct rpc_xprt *xprt)
 	get_random_bytes(&xprt->xid, sizeof(xprt->xid));
 }
 
-/*
- * Initialize RPC request
- */
-static void
-xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)
+static void xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)
 {
 	struct rpc_rqst	*req = task->tk_rqstp;
 
@@ -670,11 +671,12 @@ xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)
 			req, ntohl(req->rq_xid));
 }
 
-/*
- * Release an RPC call slot
+/**
+ * xprt_release - release an RPC request slot
+ * @task: task which is finished with the slot
+ *
  */
-void
-xprt_release(struct rpc_task *task)
+void xprt_release(struct rpc_task *task)
 {
 	struct rpc_xprt	*xprt = task->tk_xprt;
 	struct rpc_rqst	*req;
@@ -702,11 +704,14 @@ xprt_release(struct rpc_task *task)
 	spin_unlock(&xprt->xprt_lock);
 }
 
-/*
- * Set constant timeout
+/**
+ * xprt_set_timeout - set constant RPC timeout
+ * @to: RPC timeout parameters to set up
+ * @retr: number of retries
+ * @incr: amount of increase after each retry
+ *
  */
-void
-xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long incr)
+void xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long incr)
 {
 	to->to_initval   = 
 	to->to_increment = incr;
@@ -715,11 +720,7 @@ xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long incr)
 	to->to_exponential = 0;
 }
 
-/*
- * Initialize an RPC client
- */
-static struct rpc_xprt *
-xprt_setup(int proto, struct sockaddr_in *ap, struct rpc_timeout *to)
+static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc_timeout *to)
 {
 	int result;
 	struct rpc_xprt	*xprt;
@@ -778,11 +779,14 @@ xprt_setup(int proto, struct sockaddr_in *ap, struct rpc_timeout *to)
 	return xprt;
 }
 
-/*
- * Create an RPC client transport given the protocol and peer address.
+/**
+ * xprt_create_proto - create an RPC client transport
+ * @proto: requested transport protocol
+ * @sap: remote peer's address
+ * @to: timeout parameters for new transport
+ *
  */
-struct rpc_xprt *
-xprt_create_proto(int proto, struct sockaddr_in *sap, struct rpc_timeout *to)
+struct rpc_xprt *xprt_create_proto(int proto, struct sockaddr_in *sap, struct rpc_timeout *to)
 {
 	struct rpc_xprt	*xprt;
 
@@ -794,11 +798,7 @@ xprt_create_proto(int proto, struct sockaddr_in *sap, struct rpc_timeout *to)
 	return xprt;
 }
 
-/*
- * Prepare for transport shutdown.
- */
-static void
-xprt_shutdown(struct rpc_xprt *xprt)
+static void xprt_shutdown(struct rpc_xprt *xprt)
 {
 	xprt->shutdown = 1;
 	rpc_wake_up(&xprt->sending);
@@ -809,21 +809,18 @@ xprt_shutdown(struct rpc_xprt *xprt)
 	del_timer_sync(&xprt->timer);
 }
 
-/*
- * Clear the xprt backlog queue
- */
-static int
-xprt_clear_backlog(struct rpc_xprt *xprt) {
+static int xprt_clear_backlog(struct rpc_xprt *xprt) {
 	rpc_wake_up_next(&xprt->backlog);
 	wake_up(&xprt->cong_wait);
 	return 1;
 }
 
-/*
- * Destroy an RPC transport, killing off all requests.
+/**
+ * xprt_destroy - destroy an RPC transport, killing off all requests.
+ * @xprt: transport to destroy
+ *
  */
-int
-xprt_destroy(struct rpc_xprt *xprt)
+int xprt_destroy(struct rpc_xprt *xprt)
 {
 	dprintk("RPC:      destroying transport %p\n", xprt);
 	xprt_shutdown(xprt);
