@@ -245,6 +245,9 @@
 #define I2C_HW_B_ZR36067	0x010019 /* Zoran-36057/36067 based boards */
 #define I2C_HW_B_PCILYNX	0x01001a /* TI PCILynx I2C adapter */
 #define I2C_HW_B_CX2388x	0x01001b /* connexant 2388x based tv cards */
+#define I2C_HW_B_NVIDIA		0x01001c /* nvidia framebuffer driver */
+#define I2C_HW_B_SAVAGE		0x01001d /* savage framebuffer driver */
+#define I2C_HW_B_RADEON		0x01001e /* radeon framebuffer driver */
 
 /* --- PCF 8584 based algorithms					*/
 #define I2C_HW_P_LP		0x020000 /* Parallel port interface */
@@ -316,5 +319,9 @@
 
 /* --- Marvell mv64xxx i2c adapter */
 #define I2C_HW_MV64XXX		0x190000
+
+/* --- Miscellaneous adapters */
+#define I2C_HW_SAA7146		0x060000 /* SAA7146 video decoder bus */
+#define I2C_HW_SAA7134		0x090000 /* SAA7134 video decoder bus */
 
 #endif /* LINUX_I2C_ID_H */

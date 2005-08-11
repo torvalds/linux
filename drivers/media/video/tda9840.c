@@ -205,7 +205,7 @@ static int detect(struct i2c_adapter *adapter, int address, int kind)
 static int attach(struct i2c_adapter *adapter)
 {
 	/* let's see whether this is a know adapter we can attach to */
-	if (adapter->id != I2C_ALGO_SAA7146) {
+	if (adapter->id != I2C_HW_SAA7146) {
 		dprintk("refusing to probe on unknown adapter [name='%s',id=0x%x]\n", adapter->name, adapter->id);
 		return -ENODEV;
 	}

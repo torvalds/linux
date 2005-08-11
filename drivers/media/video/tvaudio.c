@@ -1548,7 +1548,7 @@ static int chip_probe(struct i2c_adapter *adap)
 {
 	/* don't attach on saa7146 based cards,
 	   because dedicated drivers are used */
-	if ((adap->id & I2C_ALGO_SAA7146))
+	if (adap->id == I2C_HW_SAA7146)
 		return 0;
 #ifdef I2C_CLASS_TV_ANALOG
 	if (adap->class & I2C_CLASS_TV_ANALOG)
@@ -1557,7 +1557,7 @@ static int chip_probe(struct i2c_adapter *adap)
 	switch (adap->id) {
 	case I2C_HW_B_BT848:
 	case I2C_HW_B_RIVA:
-	case I2C_ALGO_SAA7134:
+	case I2C_HW_SAA7134:
 		return i2c_probe(adap, &addr_data, chip_attach);
 	}
 #endif

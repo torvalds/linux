@@ -381,7 +381,7 @@ static struct i2c_adapter saa7134_adap_template = {
 	.class         = I2C_CLASS_TV_ANALOG,
 #endif
 	I2C_DEVNAME("saa7134"),
-	.id            = I2C_ALGO_SAA7134,
+	.id            = I2C_HW_SAA7134,
 	.algo          = &saa7134_algo,
 	.client_register = attach_inform,
 };

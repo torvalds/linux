@@ -432,7 +432,7 @@ static int ir_probe(struct i2c_adapter *adap)
 	case I2C_HW_B_BT848:
 		probe = probe_bttv;
 		break;
-	case I2C_ALGO_SAA7134:
+	case I2C_HW_SAA7134:
 		probe = probe_saa7134;
 		break;
 	}

@@ -34,8 +34,3 @@
 #ifndef  I2C_DRIVERID_SAA6752HS
 # define I2C_DRIVERID_SAA6752HS I2C_DRIVERID_EXP0+8
 #endif
-
-/* algorithms */
-#ifndef I2C_ALGO_SAA7134
-# define I2C_ALGO_SAA7134 0x090000
-#endif
