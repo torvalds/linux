@@ -1524,7 +1524,8 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
 
 		multi |= ((u64)IXGB_READ_REG(&adapter->hw, MPRCH) << 32);
 		/* fix up multicast stats by removing broadcasts */
-		multi -= bcast;
+		if(multi >= bcast)
+			multi -= bcast;
 		
 		adapter->stats.mprcl += (multi & 0xFFFFFFFF);
 		adapter->stats.mprch += (multi >> 32);
