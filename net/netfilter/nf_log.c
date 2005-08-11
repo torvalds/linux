@@ -167,12 +167,12 @@ int __init netfilter_log_init(void)
 {
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *pde;
+
 	pde = create_proc_entry("nf_log", S_IRUGO, proc_net_netfilter);
-#endif
 	if (!pde)
 		return -1;
 
 	pde->proc_fops = &nflog_file_ops;
-
+#endif
 	return 0;
 }
