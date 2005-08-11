@@ -2084,6 +2084,50 @@ static int ipw_send_tx_power(struct ipw_priv *priv, struct ipw_tx_power *power)
 	return 0;
 }
 
+static int ipw_set_tx_power(struct ipw_priv *priv)
+{
+	const struct ieee80211_geo *geo = ieee80211_get_geo(priv->ieee);
+	struct ipw_tx_power tx_power;
+	s8 max_power;
+	int i;
+
+	memset(&tx_power, 0, sizeof(tx_power));
+
+	/* configure device for 'G' band */
+	tx_power.ieee_mode = IPW_G_MODE;
+	tx_power.num_channels = geo->bg_channels;
+	for (i = 0; i < geo->bg_channels; i++) {
+		max_power = geo->bg[i].max_power;
+		tx_power.channels_tx_power[i].channel_number =
+		    geo->bg[i].channel;
+		tx_power.channels_tx_power[i].tx_power = max_power ?
+		    min(max_power, priv->tx_power) : priv->tx_power;
+	}
+	if (ipw_send_tx_power(priv, &tx_power))
+		return -EIO;
+
+	/* configure device to also handle 'B' band */
+	tx_power.ieee_mode = IPW_B_MODE;
+	if (ipw_send_tx_power(priv, &tx_power))
+		return -EIO;
+
+	/* configure device to also handle 'A' band */
+	if (priv->ieee->abg_true) {
+		tx_power.ieee_mode = IPW_A_MODE;
+		tx_power.num_channels = geo->a_channels;
+		for (i = 0; i < tx_power.num_channels; i++) {
+			max_power = geo->a[i].max_power;
+			tx_power.channels_tx_power[i].channel_number =
+			    geo->a[i].channel;
+			tx_power.channels_tx_power[i].tx_power = max_power ?
+			    min(max_power, priv->tx_power) : priv->tx_power;
+		}
+		if (ipw_send_tx_power(priv, &tx_power))
+			return -EIO;
+	}
+	return 0;
+}
+
 static int ipw_send_rts_threshold(struct ipw_priv *priv, u16 rts)
 {
 	struct ipw_rts_threshold rts_threshold = {
@@ -8869,79 +8913,33 @@ static int ipw_wx_set_txpow(struct net_device *dev,
 			    union iwreq_data *wrqu, char *extra)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
-	const struct ieee80211_geo *geo = ieee80211_get_geo(priv->ieee);
-	struct ipw_tx_power tx_power;
-	int i;
+	int err = 0;
 
 	down(&priv->sem);
 	if (ipw_radio_kill_sw(priv, wrqu->power.disabled)) {
-		up(&priv->sem);
-		return -EINPROGRESS;
+		err = -EINPROGRESS;
+		goto out;
 	}
 
 	if (!wrqu->power.fixed)
 		wrqu->power.value = IPW_TX_POWER_DEFAULT;
 
 	if (wrqu->power.flags != IW_TXPOW_DBM) {
-		up(&priv->sem);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 
 	if ((wrqu->power.value > IPW_TX_POWER_MAX) ||
 	    (wrqu->power.value < IPW_TX_POWER_MIN)) {
-		up(&priv->sem);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 
 	priv->tx_power = wrqu->power.value;
-
-	memset(&tx_power, 0, sizeof(tx_power));
-
-	/* configure device for 'G' band */
-	tx_power.ieee_mode = IPW_G_MODE;
-	tx_power.num_channels = geo->bg_channels;
-	for (i = 0; i < geo->bg_channels; i++) {
-		int max_power = geo->bg[i].max_power;
-
-		tx_power.channels_tx_power[i].channel_number = i + 1;
-		if (max_power != 0 && priv->tx_power > max_power)
-			tx_power.channels_tx_power[i].tx_power = max_power;
-		else
-			tx_power.channels_tx_power[i].tx_power = priv->tx_power;
-	}
-	if (ipw_send_tx_power(priv, &tx_power))
-		goto error;
-
-	/* configure device to also handle 'B' band */
-	tx_power.ieee_mode = IPW_B_MODE;
-	if (ipw_send_tx_power(priv, &tx_power))
-		goto error;
-
-	/* configure device to also handle 'A' band */
-	if (priv->ieee->abg_true) {
-		tx_power.ieee_mode = IPW_A_MODE;
-		tx_power.num_channels = geo->a_channels;
-		for (i = 0; i < geo->a_channels; i++) {
-			int max_power = geo->a[i].max_power;
-
-			tx_power.channels_tx_power[i].channel_number = i + 1;
-			if (max_power != 0 && priv->tx_power > max_power)
-				tx_power.channels_tx_power[i].tx_power =
-				    max_power;
-			else
-				tx_power.channels_tx_power[i].tx_power =
-				    priv->tx_power;
-		}
-		if (ipw_send_tx_power(priv, &tx_power))
-			goto error;
-	}
-
+	err = ipw_set_tx_power(priv);
+      out:
 	up(&priv->sem);
-	return 0;
-
-      error:
-	up(&priv->sem);
-	return -EIO;
+	return err;
 }
 
 static int ipw_wx_get_txpow(struct net_device *dev,
@@ -10426,29 +10424,10 @@ static int init_supported_rates(struct ipw_priv *priv,
 
 static int ipw_config(struct ipw_priv *priv)
 {
-	int i;
-	struct ipw_tx_power tx_power;
-
-	memset(&priv->sys_config, 0, sizeof(priv->sys_config));
-	memset(&tx_power, 0, sizeof(tx_power));
-
 	/* This is only called from ipw_up, which resets/reloads the firmware
 	   so, we don't need to first disable the card before we configure
 	   it */
-
-	/* configure device for 'G' band */
-	tx_power.ieee_mode = IPW_G_MODE;
-	tx_power.num_channels = 11;
-	for (i = 0; i < 11; i++) {
-		tx_power.channels_tx_power[i].channel_number = i + 1;
-		tx_power.channels_tx_power[i].tx_power = priv->tx_power;
-	}
-	if (ipw_send_tx_power(priv, &tx_power))
-		goto error;
-
-	/* configure device to also handle 'B' band */
-	tx_power.ieee_mode = IPW_B_MODE;
-	if (ipw_send_tx_power(priv, &tx_power))
+	if (ipw_set_tx_power(priv))
 		goto error;
 
 	/* initialize adapter address */
