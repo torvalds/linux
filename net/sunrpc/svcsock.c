@@ -548,9 +548,6 @@ svc_write_space(struct sock *sk)
 /*
  * Receive a datagram from a UDP socket.
  */
-extern int
-csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb);
-
 static int
 svc_udp_recvfrom(struct svc_rqst *rqstp)
 {
