@@ -124,133 +124,6 @@ void phy_prepare_link(struct phy_device *phydev,
 	phydev->adjust_link = handler;
 }
 
-#ifdef CONFIG_PHYCONTROL
-/* phy_connect:
- *
- * description: Convenience function for connecting ethernet
- *   devices to PHY devices.  The default behavior is for
- *   the PHY infrastructure to handle everything, and only notify
- *   the connected driver when the link status changes.  If you
- *   don't want, or can't use the provided functionality, you may
- *   choose to call only the subset of functions which provide
- *   the desired functionality.
- */
-struct phy_device * phy_connect(struct net_device *dev, const char *phy_id,
-		void (*handler)(struct net_device *), u32 flags)
-{
-	struct phy_device *phydev;
-
-	phydev = phy_attach(dev, phy_id, flags);
-
-	if (IS_ERR(phydev))
-		return phydev;
-
-	phy_prepare_link(phydev, handler);
-
-	phy_start_machine(phydev, NULL);
-
-	if (phydev->irq > 0)
-		phy_start_interrupts(phydev);
-
-	return phydev;
-}
-EXPORT_SYMBOL(phy_connect);
-
-void phy_disconnect(struct phy_device *phydev)
-{
-	if (phydev->irq > 0)
-		phy_stop_interrupts(phydev);
-
-	phy_stop_machine(phydev);
-	
-	phydev->adjust_link = NULL;
-
-	phy_detach(phydev);
-}
-EXPORT_SYMBOL(phy_disconnect);
-
-#endif /* CONFIG_PHYCONTROL */
-
-/* phy_attach:
- *
- *   description: Called by drivers to attach to a particular PHY
- *     device. The phy_device is found, and properly hooked up
- *     to the phy_driver.  If no driver is attached, then the
- *     genphy_driver is used.  The phy_device is given a ptr to
- *     the attaching device, and given a callback for link status
- *     change.  The phy_device is returned to the attaching
- *     driver.
- */
-static int phy_compare_id(struct device *dev, void *data)
-{
-	return strcmp((char *)data, dev->bus_id) ? 0 : 1;
-}
-
-struct phy_device *phy_attach(struct net_device *dev,
-		const char *phy_id, u32 flags)
-{
-	struct bus_type *bus = &mdio_bus_type;
-	struct phy_device *phydev;
-	struct device *d;
-
-	/* Search the list of PHY devices on the mdio bus for the
-	 * PHY with the requested name */
-	d = bus_find_device(bus, NULL, (void *)phy_id, phy_compare_id);
-
-	if (d) {
-		phydev = to_phy_device(d);
-	} else {
-		printk(KERN_ERR "%s not found\n", phy_id);
-		return ERR_PTR(-ENODEV);
-	}
-
-	/* Assume that if there is no driver, that it doesn't
-	 * exist, and we should use the genphy driver. */
-	if (NULL == d->driver) {
-		int err;
-		down_write(&d->bus->subsys.rwsem);
-		d->driver = &genphy_driver.driver;
-
-		err = d->driver->probe(d);
-
-		if (err < 0)
-			return ERR_PTR(err);
-
-		device_bind_driver(d);
-		up_write(&d->bus->subsys.rwsem);
-	}
-
-	if (phydev->attached_dev) {
-		printk(KERN_ERR "%s: %s already attached\n",
-				dev->name, phy_id);
-		return ERR_PTR(-EBUSY);
-	}
-
-	phydev->attached_dev = dev;
-
-	phydev->dev_flags = flags;
-
-	return phydev;
-}
-EXPORT_SYMBOL(phy_attach);
-
-void phy_detach(struct phy_device *phydev)
-{
-	phydev->attached_dev = NULL;
-
-	/* If the device had no specific driver before (i.e. - it
-	 * was using the generic driver), we unbind the device
-	 * from the generic driver so that there's a chance a
-	 * real driver could be loaded */
-	if (phydev->dev.driver == &genphy_driver.driver) {
-		down_write(&phydev->dev.bus->subsys.rwsem);
-		device_release_driver(&phydev->dev);
-		up_write(&phydev->dev.bus->subsys.rwsem);
-	}
-}
-EXPORT_SYMBOL(phy_detach);
-
-
 /* Generic PHY support and helper functions */
 
 /* genphy_config_advert
@@ -259,7 +132,7 @@ EXPORT_SYMBOL(phy_detach);
  *   after sanitizing the values to make sure we only advertise
  *   what is supported
  */
-int genphy_config_advert(struct phy_device *phydev)
+static int genphy_config_advert(struct phy_device *phydev)
 {
 	u32 advertise;
 	int adv;
@@ -317,7 +190,6 @@ int genphy_config_advert(struct phy_device *phydev)
 
 	return adv;
 }
-EXPORT_SYMBOL(genphy_config_advert);
 
 /* genphy_setup_forced
  *
