@@ -1,5 +1,5 @@
 /*
- * $Id: mtdcore.c,v 1.45 2005/02/18 14:34:50 dedekind Exp $
+ * $Id: mtdcore.c,v 1.46 2005/08/11 17:13:43 gleixner Exp $
  *
  * Core registration and callback routines for MTD
  * drivers and users.
@@ -297,39 +297,6 @@ EXPORT_SYMBOL(default_mtd_writev);
 EXPORT_SYMBOL(default_mtd_readv);
 
 /*====================================================================*/
-/* Power management code */
-
-#ifdef CONFIG_PM
-
-#include <linux/pm.h>
-
-static struct pm_dev *mtd_pm_dev = NULL;
-
-static int mtd_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data)
-{
-	int ret = 0, i;
-
-	if (down_trylock(&mtd_table_mutex))
-		return -EAGAIN;
-	if (rqst == PM_SUSPEND) {
-		for (i = 0; ret == 0 && i < MAX_MTD_DEVICES; i++) {
-			if (mtd_table[i] && mtd_table[i]->suspend)
-				ret = mtd_table[i]->suspend(mtd_table[i]);
-		}
-	} else i = MAX_MTD_DEVICES-1;
-
-	if (rqst == PM_RESUME || ret) {
-		for ( ; i >= 0; i--) {
-			if (mtd_table[i] && mtd_table[i]->resume)
-				mtd_table[i]->resume(mtd_table[i]);
-		}
-	}
-	up(&mtd_table_mutex);
-	return ret;
-}
-#endif
-
-/*====================================================================*/
 /* Support for /proc/mtd */
 
 #ifdef CONFIG_PROC_FS
@@ -388,22 +355,11 @@ static int __init init_mtd(void)
 	if ((proc_mtd = create_proc_entry( "mtd", 0, NULL )))
 		proc_mtd->read_proc = mtd_read_proc;
 #endif
-
-#ifdef CONFIG_PM
-	mtd_pm_dev = pm_register(PM_UNKNOWN_DEV, 0, mtd_pm_callback);
-#endif
 	return 0;
 }
 
 static void __exit cleanup_mtd(void)
 {
-#ifdef CONFIG_PM
-	if (mtd_pm_dev) {
-		pm_unregister(mtd_pm_dev);
-		mtd_pm_dev = NULL;
-	}
-#endif
-
 #ifdef CONFIG_PROC_FS
         if (proc_mtd)
 		remove_proc_entry( "mtd", NULL);
