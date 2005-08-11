@@ -199,7 +199,7 @@ struct rpc_xprt {
 	 * Send stuff
 	 */
 	spinlock_t		transport_lock;	/* lock transport info */
-	spinlock_t		xprt_lock;	/* lock xprt info */
+	spinlock_t		reserve_lock;	/* lock slot table */
 	struct rpc_task *	snd_task;	/* Task blocked in send */
 
 	struct list_head	recv;

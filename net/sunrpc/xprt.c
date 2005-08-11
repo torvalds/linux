@@ -643,9 +643,9 @@ void xprt_reserve(struct rpc_task *task)
 
 	task->tk_status = -EIO;
 	if (!xprt->shutdown) {
-		spin_lock(&xprt->xprt_lock);
+		spin_lock(&xprt->reserve_lock);
 		do_xprt_reserve(task);
-		spin_unlock(&xprt->xprt_lock);
+		spin_unlock(&xprt->reserve_lock);
 	}
 }
 
@@ -698,10 +698,10 @@ void xprt_release(struct rpc_task *task)
 
 	dprintk("RPC: %4d release request %p\n", task->tk_pid, req);
 
-	spin_lock(&xprt->xprt_lock);
+	spin_lock(&xprt->reserve_lock);
 	list_add(&req->rq_list, &xprt->free);
 	xprt_clear_backlog(xprt);
-	spin_unlock(&xprt->xprt_lock);
+	spin_unlock(&xprt->reserve_lock);
 }
 
 /**
@@ -751,7 +751,7 @@ static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc
 	}
 
 	spin_lock_init(&xprt->transport_lock);
-	spin_lock_init(&xprt->xprt_lock);
+	spin_lock_init(&xprt->reserve_lock);
 	init_waitqueue_head(&xprt->cong_wait);
 
 	INIT_LIST_HEAD(&xprt->free);
