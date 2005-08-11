@@ -165,9 +165,9 @@ struct bus_type mdio_bus_type = {
 	.resume		= mdio_bus_resume,
 };
 
-static int __init mdio_bus_init(void)
+int __init mdio_bus_init(void)
 {
 	return bus_register(&mdio_bus_type);
 }
 
-subsys_initcall(mdio_bus_init);
+

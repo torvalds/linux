@@ -39,7 +39,6 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
-static void phy_change(void *data);
 static void phy_timer(unsigned long data);
 
 /* Convenience function to print out the current phy status
@@ -464,7 +463,6 @@ void phy_stop_machine(struct phy_device *phydev)
 	phydev->adjust_state = NULL;
 }
 
-#ifdef CONFIG_PHYCONTROL
 /* phy_error:
  *
  * Moves the PHY to the HALTED state in response to a read
@@ -478,6 +476,10 @@ void phy_error(struct phy_device *phydev)
 	phydev->state = PHY_HALTED;
 	spin_unlock(&phydev->lock);
 }
+
+#ifdef CONFIG_PHYCONTROL
+
+static void phy_change(void *data);
 
 /* phy_interrupt
  *
@@ -672,6 +674,8 @@ void phy_start(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_stop);
 EXPORT_SYMBOL(phy_start);
 
+#endif /* CONFIG_PHYCONTROL */
+
 /* PHY timer which handles the state machine */
 static void phy_timer(unsigned long data)
 {
@@ -859,4 +863,3 @@ static void phy_timer(unsigned long data)
 	mod_timer(&phydev->phy_timer, jiffies + PHY_STATE_TIME * HZ);
 }
 
-#endif /* CONFIG_PHYCONTROL */

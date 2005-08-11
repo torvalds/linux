@@ -39,6 +39,19 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
+static int genphy_config_init(struct phy_device *phydev);
+
+static struct phy_driver genphy_driver = {
+	.phy_id		= 0xffffffff,
+	.phy_id_mask	= 0xffffffff,
+	.name		= "Generic PHY",
+	.config_init	= genphy_config_init,
+	.features	= 0,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
+	.driver	=	{.owner	= THIS_MODULE, },
+};
+
 /* get_phy_device
  *
  * description: Reads the ID registers of the PHY at addr on the
@@ -656,27 +669,32 @@ void phy_driver_unregister(struct phy_driver *drv)
 }
 EXPORT_SYMBOL(phy_driver_unregister);
 
-static struct phy_driver genphy_driver = {
-	.phy_id		= 0xffffffff,
-	.phy_id_mask	= 0xffffffff,
-	.name		= "Generic PHY",
-	.config_init	= genphy_config_init,
-	.features	= 0,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.driver	=	{.owner	= THIS_MODULE, },
-};
 
-static int __init genphy_init(void)
+static int __init phy_init(void)
 {
-	return phy_driver_register(&genphy_driver);
+	int rc;
+	extern int mdio_bus_init(void);
 
+	rc = phy_driver_register(&genphy_driver);
+	if (rc)
+		goto out;
+
+	rc = mdio_bus_init();
+	if (rc)
+		goto out_unreg;
+
+	return 0;
+
+out_unreg:
+	phy_driver_unregister(&genphy_driver);
+out:
+	return rc;
 }
 
-static void __exit genphy_exit(void)
+static void __exit phy_exit(void)
 {
 	phy_driver_unregister(&genphy_driver);
 }
 
-module_init(genphy_init);
-module_exit(genphy_exit);
+module_init(phy_init);
+module_exit(phy_exit);

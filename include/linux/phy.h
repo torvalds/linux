@@ -374,5 +374,4 @@ int phy_start_interrupts(struct phy_device *phydev);
 void phy_print_status(struct phy_device *phydev);
 
 extern struct bus_type mdio_bus_type;
-extern struct phy_driver genphy_driver;
 #endif /* __PHY_H */
