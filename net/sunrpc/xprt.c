@@ -106,9 +106,9 @@ xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	int retval;
 
-	spin_lock_bh(&xprt->sock_lock);
+	spin_lock_bh(&xprt->transport_lock);
 	retval = __xprt_lock_write(xprt, task);
-	spin_unlock_bh(&xprt->sock_lock);
+	spin_unlock_bh(&xprt->transport_lock);
 	return retval;
 }
 
@@ -161,9 +161,9 @@ __xprt_release_write(struct rpc_xprt *xprt, struct rpc_task *task)
 static inline void
 xprt_release_write(struct rpc_xprt *xprt, struct rpc_task *task)
 {
-	spin_lock_bh(&xprt->sock_lock);
+	spin_lock_bh(&xprt->transport_lock);
 	__xprt_release_write(xprt, task);
-	spin_unlock_bh(&xprt->sock_lock);
+	spin_unlock_bh(&xprt->transport_lock);
 }
 
 /*
@@ -266,9 +266,9 @@ int xprt_adjust_timeout(struct rpc_rqst *req)
 		req->rq_retries = 0;
 		xprt_reset_majortimeo(req);
 		/* Reset the RTT counters == "slow start" */
-		spin_lock_bh(&xprt->sock_lock);
+		spin_lock_bh(&xprt->transport_lock);
 		rpc_init_rtt(req->rq_task->tk_client->cl_rtt, to->to_initval);
-		spin_unlock_bh(&xprt->sock_lock);
+		spin_unlock_bh(&xprt->transport_lock);
 		pprintk("RPC: %lu timeout\n", jiffies);
 		status = -ETIMEDOUT;
 	}
@@ -298,10 +298,10 @@ xprt_socket_autoclose(void *args)
 void xprt_disconnect(struct rpc_xprt *xprt)
 {
 	dprintk("RPC:      disconnected transport %p\n", xprt);
-	spin_lock_bh(&xprt->sock_lock);
+	spin_lock_bh(&xprt->transport_lock);
 	xprt_clear_connected(xprt);
 	rpc_wake_up_status(&xprt->pending, -ENOTCONN);
-	spin_unlock_bh(&xprt->sock_lock);
+	spin_unlock_bh(&xprt->transport_lock);
 }
 
 static void
@@ -309,12 +309,12 @@ xprt_init_autodisconnect(unsigned long data)
 {
 	struct rpc_xprt *xprt = (struct rpc_xprt *)data;
 
-	spin_lock(&xprt->sock_lock);
+	spin_lock(&xprt->transport_lock);
 	if (!list_empty(&xprt->recv) || xprt->shutdown)
 		goto out_abort;
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->sockstate))
 		goto out_abort;
-	spin_unlock(&xprt->sock_lock);
+	spin_unlock(&xprt->transport_lock);
 	/* Let keventd close the socket */
 	if (test_bit(XPRT_CONNECTING, &xprt->sockstate) != 0)
 		xprt_release_write(xprt, NULL);
@@ -322,7 +322,7 @@ xprt_init_autodisconnect(unsigned long data)
 		schedule_work(&xprt->task_cleanup);
 	return;
 out_abort:
-	spin_unlock(&xprt->sock_lock);
+	spin_unlock(&xprt->transport_lock);
 }
 
 /**
@@ -482,7 +482,7 @@ xprt_timer(struct rpc_task *task)
 	struct rpc_rqst	*req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 
-	spin_lock(&xprt->sock_lock);
+	spin_lock(&xprt->transport_lock);
 	if (req->rq_received)
 		goto out;
 
@@ -496,7 +496,7 @@ xprt_timer(struct rpc_task *task)
 out:
 	task->tk_timeout = 0;
 	rpc_wake_up_task(task);
-	spin_unlock(&xprt->sock_lock);
+	spin_unlock(&xprt->transport_lock);
 }
 
 /**
@@ -515,7 +515,7 @@ int xprt_prepare_transmit(struct rpc_task *task)
 	if (xprt->shutdown)
 		return -EIO;
 
-	spin_lock_bh(&xprt->sock_lock);
+	spin_lock_bh(&xprt->transport_lock);
 	if (req->rq_received && !req->rq_bytes_sent) {
 		err = req->rq_received;
 		goto out_unlock;
@@ -530,7 +530,7 @@ int xprt_prepare_transmit(struct rpc_task *task)
 		goto out_unlock;
 	}
 out_unlock:
-	spin_unlock_bh(&xprt->sock_lock);
+	spin_unlock_bh(&xprt->transport_lock);
 	return err;
 }
 
@@ -552,13 +552,13 @@ void xprt_transmit(struct rpc_task *task)
 	smp_rmb();
 	if (!req->rq_received) {
 		if (list_empty(&req->rq_list)) {
-			spin_lock_bh(&xprt->sock_lock);
+			spin_lock_bh(&xprt->transport_lock);
 			/* Update the softirq receive buffer */
 			memcpy(&req->rq_private_buf, &req->rq_rcv_buf,
 					sizeof(req->rq_private_buf));
 			/* Add request to the receive list */
 			list_add_tail(&req->rq_list, &xprt->recv);
-			spin_unlock_bh(&xprt->sock_lock);
+			spin_unlock_bh(&xprt->transport_lock);
 			xprt_reset_majortimeo(req);
 			/* Turn off autodisconnect */
 			del_singleshot_timer_sync(&xprt->timer);
@@ -592,7 +592,7 @@ void xprt_transmit(struct rpc_task *task)
  out_receive:
 	dprintk("RPC: %4d xmit complete\n", task->tk_pid);
 	/* Set the task's receive timeout value */
-	spin_lock_bh(&xprt->sock_lock);
+	spin_lock_bh(&xprt->transport_lock);
 	if (!xprt->nocong) {
 		int timer = task->tk_msg.rpc_proc->p_timer;
 		task->tk_timeout = rpc_calc_rto(clnt->cl_rtt, timer);
@@ -607,7 +607,7 @@ void xprt_transmit(struct rpc_task *task)
 	else if (!req->rq_received)
 		rpc_sleep_on(&xprt->pending, task, NULL, xprt_timer);
 	__xprt_release_write(xprt, task);
-	spin_unlock_bh(&xprt->sock_lock);
+	spin_unlock_bh(&xprt->transport_lock);
 }
 
 static inline void do_xprt_reserve(struct rpc_task *task)
@@ -683,7 +683,7 @@ void xprt_release(struct rpc_task *task)
 
 	if (!(req = task->tk_rqstp))
 		return;
-	spin_lock_bh(&xprt->sock_lock);
+	spin_lock_bh(&xprt->transport_lock);
 	__xprt_release_write(xprt, task);
 	__xprt_put_cong(xprt, req);
 	if (!list_empty(&req->rq_list))
@@ -692,7 +692,7 @@ void xprt_release(struct rpc_task *task)
 	if (list_empty(&xprt->recv) && !xprt->shutdown)
 		mod_timer(&xprt->timer,
 				xprt->last_used + RPC_IDLE_DISCONNECT_TIMEOUT);
-	spin_unlock_bh(&xprt->sock_lock);
+	spin_unlock_bh(&xprt->transport_lock);
 	task->tk_rqstp = NULL;
 	memset(req, 0, sizeof(*req));	/* mark unused */
 
@@ -750,7 +750,7 @@ static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc
 		return ERR_PTR(result);
 	}
 
-	spin_lock_init(&xprt->sock_lock);
+	spin_lock_init(&xprt->transport_lock);
 	spin_lock_init(&xprt->xprt_lock);
 	init_waitqueue_head(&xprt->cong_wait);
 

@@ -307,7 +307,7 @@ static int xs_send_request(struct rpc_task *task)
 	if (status == -EAGAIN) {
 		if (test_bit(SOCK_ASYNC_NOSPACE, &xprt->sock->flags)) {
 			/* Protect against races with xs_write_space */
-			spin_lock_bh(&xprt->sock_lock);
+			spin_lock_bh(&xprt->transport_lock);
 			/* Don't race with disconnect */
 			if (!xprt_connected(xprt))
 				task->tk_status = -ENOTCONN;
@@ -315,7 +315,7 @@ static int xs_send_request(struct rpc_task *task)
 				task->tk_timeout = req->rq_timeout;
 				rpc_sleep_on(&xprt->pending, task, NULL, NULL);
 			}
-			spin_unlock_bh(&xprt->sock_lock);
+			spin_unlock_bh(&xprt->transport_lock);
 			return status;
 		}
 		/* Keep holding the socket if it is blocked */
@@ -415,7 +415,7 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 		goto dropit;
 
 	/* Look up and lock the request corresponding to the given XID */
-	spin_lock(&xprt->sock_lock);
+	spin_lock(&xprt->transport_lock);
 	rovr = xprt_lookup_rqst(xprt, *xp);
 	if (!rovr)
 		goto out_unlock;
@@ -436,7 +436,7 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 	xprt_complete_rqst(xprt, rovr, copied);
 
  out_unlock:
-	spin_unlock(&xprt->sock_lock);
+	spin_unlock(&xprt->transport_lock);
  dropit:
 	skb_free_datagram(sk, skb);
  out:
@@ -531,13 +531,13 @@ static inline void xs_tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc
 	ssize_t r;
 
 	/* Find and lock the request corresponding to this xid */
-	spin_lock(&xprt->sock_lock);
+	spin_lock(&xprt->transport_lock);
 	req = xprt_lookup_rqst(xprt, xprt->tcp_xid);
 	if (!req) {
 		xprt->tcp_flags &= ~XPRT_COPY_DATA;
 		dprintk("RPC:      XID %08x request not found!\n",
 				ntohl(xprt->tcp_xid));
-		spin_unlock(&xprt->sock_lock);
+		spin_unlock(&xprt->transport_lock);
 		return;
 	}
 
@@ -597,7 +597,7 @@ out:
 				req->rq_task->tk_pid);
 		xprt_complete_rqst(xprt, req, xprt->tcp_copied);
 	}
-	spin_unlock(&xprt->sock_lock);
+	spin_unlock(&xprt->transport_lock);
 	xs_tcp_check_recm(xprt);
 }
 
@@ -696,7 +696,7 @@ static void xs_tcp_state_change(struct sock *sk)
 
 	switch (sk->sk_state) {
 	case TCP_ESTABLISHED:
-		spin_lock_bh(&xprt->sock_lock);
+		spin_lock_bh(&xprt->transport_lock);
 		if (!xprt_test_and_set_connected(xprt)) {
 			/* Reset TCP record info */
 			xprt->tcp_offset = 0;
@@ -705,7 +705,7 @@ static void xs_tcp_state_change(struct sock *sk)
 			xprt->tcp_flags = XPRT_COPY_RECM | XPRT_COPY_XID;
 			rpc_wake_up(&xprt->pending);
 		}
-		spin_unlock_bh(&xprt->sock_lock);
+		spin_unlock_bh(&xprt->transport_lock);
 		break;
 	case TCP_SYN_SENT:
 	case TCP_SYN_RECV:
@@ -753,10 +753,10 @@ static void xs_write_space(struct sock *sk)
 	if (!test_and_clear_bit(SOCK_NOSPACE, &sock->flags))
 		goto out;
 
-	spin_lock_bh(&xprt->sock_lock);
+	spin_lock_bh(&xprt->transport_lock);
 	if (xprt->snd_task)
 		rpc_wake_up_task(xprt->snd_task);
-	spin_unlock_bh(&xprt->sock_lock);
+	spin_unlock_bh(&xprt->transport_lock);
 out:
 	read_unlock(&sk->sk_callback_lock);
 }

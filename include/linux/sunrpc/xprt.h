@@ -198,7 +198,7 @@ struct rpc_xprt {
 	/*
 	 * Send stuff
 	 */
-	spinlock_t		sock_lock;	/* lock socket info */
+	spinlock_t		transport_lock;	/* lock transport info */
 	spinlock_t		xprt_lock;	/* lock xprt info */
 	struct rpc_task *	snd_task;	/* Task blocked in send */
 
