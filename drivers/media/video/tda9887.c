@@ -618,8 +618,8 @@ static int tda9887_probe(struct i2c_adapter *adap)
 		return i2c_probe(adap, &addr_data, tda9887_attach);
 #else
 	switch (adap->id) {
-	case I2C_ALGO_BIT | I2C_HW_B_BT848:
-	case I2C_ALGO_BIT | I2C_HW_B_RIVA:
+	case I2C_HW_B_BT848:
+	case I2C_HW_B_RIVA:
 	case I2C_ALGO_SAA7134:
 		return i2c_probe(adap, &addr_data, tda9887_attach);
 		break;

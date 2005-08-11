@@ -1098,7 +1098,7 @@ static int tda8425_initialize(struct CHIPSTATE *chip)
 			    /* extern	*/ TDA8425_S1_CH1, /* intern */ TDA8425_S1_OFF,
 			    /* off	*/ TDA8425_S1_OFF, /* on     */ TDA8425_S1_CH2};
 
-	if (chip->c.adapter->id == (I2C_ALGO_BIT | I2C_HW_B_RIVA)) {
+	if (chip->c.adapter->id == I2C_HW_B_RIVA) {
 		memcpy (desc->inputmap, inputmap, sizeof (inputmap));
 	}
 	return 0;
@@ -1555,8 +1555,8 @@ static int chip_probe(struct i2c_adapter *adap)
 		return i2c_probe(adap, &addr_data, chip_attach);
 #else
 	switch (adap->id) {
-	case I2C_ALGO_BIT | I2C_HW_B_BT848:
-	case I2C_ALGO_BIT | I2C_HW_B_RIVA:
+	case I2C_HW_B_BT848:
+	case I2C_HW_B_RIVA:
 	case I2C_ALGO_SAA7134:
 		return i2c_probe(adap, &addr_data, chip_attach);
 	}

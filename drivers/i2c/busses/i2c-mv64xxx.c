@@ -521,7 +521,7 @@ mv64xxx_i2c_probe(struct device *dev)
 	drv_data->freq_m = pdata->freq_m;
 	drv_data->freq_n = pdata->freq_n;
 	drv_data->irq = platform_get_irq(pd, 0);
-	drv_data->adapter.id = I2C_ALGO_MV64XXX | I2C_HW_MV64XXX;
+	drv_data->adapter.id = I2C_HW_MV64XXX;
 	drv_data->adapter.algo = &mv64xxx_i2c_algo;
 	drv_data->adapter.owner = THIS_MODULE;
 	drv_data->adapter.class = I2C_CLASS_HWMON;

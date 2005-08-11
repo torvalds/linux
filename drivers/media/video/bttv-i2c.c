@@ -281,7 +281,7 @@ static struct i2c_adapter bttv_i2c_adap_hw_template = {
 	.class         = I2C_CLASS_TV_ANALOG,
 #endif
 	I2C_DEVNAME("bt878"),
-	.id            = I2C_ALGO_BIT | I2C_HW_B_BT848 /* FIXME */,
+	.id            = I2C_HW_B_BT848 /* FIXME */,
 	.algo          = &bttv_algo,
 	.client_register = attach_inform,
 };

@@ -165,7 +165,7 @@ static int
 tuner_probe(struct i2c_adapter *adap)
 {
 	this_adap = 0;
-	if (adap->id == (I2C_ALGO_BIT | I2C_HW_B_LP))
+	if (adap->id == I2C_HW_B_LP)
 		return i2c_probe(adap, &addr_data, tuner_attach);
 	return 0;
 }

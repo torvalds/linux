@@ -539,8 +539,6 @@ int i2c_bit_add_bus(struct i2c_adapter *adap)
 	DEB2(dev_dbg(&adap->dev, "hw routines registered.\n"));
 
 	/* register new adapter to i2c module... */
-
-	adap->id |= I2C_ALGO_BIT;
 	adap->algo = &i2c_bit_algo;
 
 	adap->timeout = 100;	/* default values, should	*/

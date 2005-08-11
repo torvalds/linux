@@ -149,8 +149,6 @@ int i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
 	struct i2c_algo_sibyte_data *adap = i2c_adap->algo_data;
 
 	/* register new adapter to i2c module... */
-
-	i2c_adap->id |= I2C_ALGO_SIBYTE;
 	i2c_adap->algo = &i2c_sibyte_algo;
         
         /* Set the frequency to 100 kHz */

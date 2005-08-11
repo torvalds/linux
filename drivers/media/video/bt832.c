@@ -188,7 +188,7 @@ static int bt832_probe(struct i2c_adapter *adap)
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, bt832_attach);
 #else
-	if (adap->id == (I2C_ALGO_BIT | I2C_HW_B_BT848))
+	if (adap->id == I2C_HW_B_BT848)
 		return i2c_probe(adap, &addr_data, bt832_attach);
 #endif
 	return 0;

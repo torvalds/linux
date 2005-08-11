@@ -736,8 +736,6 @@ int i2c_iic_add_bus(struct i2c_adapter *adap)
 	            adap->name));
 
 	/* register new adapter to i2c module... */
-
-	adap->id |= I2C_ALGO_IIC;
 	adap->algo = &iic_algo;
 
 	adap->timeout = 100;	/* default values, should	*/

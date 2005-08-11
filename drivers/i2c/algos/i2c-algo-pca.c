@@ -369,8 +369,6 @@ int i2c_pca_add_bus(struct i2c_adapter *adap)
 	int rval;
 
 	/* register new adapter to i2c module... */
-
-	adap->id |= I2C_ALGO_PCA;
 	adap->algo = &pca_algo;
 
 	adap->timeout = 100;		/* default values, should	*/
