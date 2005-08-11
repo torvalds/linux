@@ -297,7 +297,7 @@ void sn_dma_flush(uint64_t addr)
 		 * If CE ever needs the sn_dma_flush mechanism, we will have
 		 * to account for that here and in tioce_bus_fixup().
 	 	 */
-		uint32_t tio_id = REMOTE_HUB_L(nasid, TIO_NODE_ID);
+		uint32_t tio_id = HUB_L(TIO_IOSPACE_ADDR(nasid, TIO_NODE_ID));
 		uint32_t revnum = XWIDGET_PART_REV_NUM(tio_id);
 
 		/* TIOCP BRINGUP WAR (PV907516): Don't write buffer flush reg */
