@@ -592,24 +592,33 @@ xprt_connect_status(struct rpc_task *task)
 		return;
 	}
 
-	/* if soft mounted, just cause this RPC to fail */
-	if (RPC_IS_SOFT(task))
-		task->tk_status = -EIO;
-
 	switch (task->tk_status) {
 	case -ECONNREFUSED:
 	case -ECONNRESET:
+		dprintk("RPC: %4d xprt_connect_status: server %s refused connection\n",
+				task->tk_pid, task->tk_client->cl_server);
+		break;
 	case -ENOTCONN:
-		return;
+		dprintk("RPC: %4d xprt_connect_status: connection broken\n",
+				task->tk_pid);
+		break;
 	case -ETIMEDOUT:
-		dprintk("RPC: %4d xprt_connect_status: timed out\n",
+		dprintk("RPC: %4d xprt_connect_status: connect attempt timed out\n",
 				task->tk_pid);
 		break;
 	default:
-		printk(KERN_ERR "RPC: error %d connecting to server %s\n",
-				-task->tk_status, task->tk_client->cl_server);
+		dprintk("RPC: %4d xprt_connect_status: error %d connecting to server %s\n",
+				task->tk_pid, -task->tk_status, task->tk_client->cl_server);
+		xprt_release_write(xprt, task);
+		task->tk_status = -EIO;
+		return;
 	}
-	xprt_release_write(xprt, task);
+
+	/* if soft mounted, just cause this RPC to fail */
+	if (RPC_IS_SOFT(task)) {
+		xprt_release_write(xprt, task);
+		task->tk_status = -EIO;
+	}
 }
 
 /*
