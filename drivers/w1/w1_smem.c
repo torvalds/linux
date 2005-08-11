@@ -46,15 +46,13 @@ static struct w1_family_ops w1_smem_fops = {
 
 static ssize_t w1_smem_read_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
-
+	struct w1_slave *sl = dev_to_w1_slave(dev);
 	return sprintf(buf, "%s\n", sl->name);
 }
 
 static ssize_t w1_smem_read_bin(struct kobject *kobj, char *buf, loff_t off, size_t count)
 {
-	struct w1_slave *sl = container_of(container_of(kobj, struct device, kobj),
-					   struct w1_slave, dev);
+	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 	int i;
 
 	atomic_inc(&sl->refcnt);

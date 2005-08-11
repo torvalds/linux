@@ -89,15 +89,13 @@ static int w1_master_remove(struct device *dev)
 
 static void w1_master_release(struct device *dev)
 {
-	struct w1_master *md = container_of(dev, struct w1_master, dev);
-
+	struct w1_master *md = dev_to_w1_master(dev);
 	complete(&md->dev_released);
 }
 
 static void w1_slave_release(struct device *dev)
 {
-	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
-
+	struct w1_slave *sl = dev_to_w1_slave(dev);
 	complete(&sl->dev_released);
 }
 
@@ -162,7 +160,7 @@ struct device w1_slave_device = {
 
 static ssize_t w1_master_attribute_show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct w1_master *md = container_of(dev, struct w1_master, dev);
+	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
 	if (down_interruptible (&md->mutex))
@@ -179,7 +177,7 @@ static ssize_t w1_master_attribute_store_search(struct device * dev,
 						struct device_attribute *attr,
 						const char * buf, size_t count)
 {
-	struct w1_master *md = container_of(dev, struct w1_master, dev);
+	struct w1_master *md = dev_to_w1_master(dev);
 
 	if (down_interruptible (&md->mutex))
 		return -EBUSY;
@@ -195,7 +193,7 @@ static ssize_t w1_master_attribute_show_search(struct device *dev,
 					       struct device_attribute *attr,
 					       char *buf)
 {
-	struct w1_master *md = container_of(dev, struct w1_master, dev);
+	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
 	if (down_interruptible (&md->mutex))
@@ -210,7 +208,7 @@ static ssize_t w1_master_attribute_show_search(struct device *dev,
 
 static ssize_t w1_master_attribute_show_pointer(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct w1_master *md = container_of(dev, struct w1_master, dev);
+	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
 	if (down_interruptible(&md->mutex))
@@ -231,7 +229,7 @@ static ssize_t w1_master_attribute_show_timeout(struct device *dev, struct devic
 
 static ssize_t w1_master_attribute_show_max_slave_count(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct w1_master *md = container_of(dev, struct w1_master, dev);
+	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
 	if (down_interruptible(&md->mutex))
@@ -245,7 +243,7 @@ static ssize_t w1_master_attribute_show_max_slave_count(struct device *dev, stru
 
 static ssize_t w1_master_attribute_show_attempts(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct w1_master *md = container_of(dev, struct w1_master, dev);
+	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
 	if (down_interruptible(&md->mutex))
@@ -259,7 +257,7 @@ static ssize_t w1_master_attribute_show_attempts(struct device *dev, struct devi
 
 static ssize_t w1_master_attribute_show_slave_count(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct w1_master *md = container_of(dev, struct w1_master, dev);
+	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
 	if (down_interruptible(&md->mutex))
@@ -273,7 +271,7 @@ static ssize_t w1_master_attribute_show_slave_count(struct device *dev, struct d
 
 static ssize_t w1_master_attribute_show_slaves(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct w1_master *md = container_of(dev, struct w1_master, dev);
+	struct w1_master *md = dev_to_w1_master(dev);
 	int c = PAGE_SIZE;
 
 	if (down_interruptible(&md->mutex))

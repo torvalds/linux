@@ -92,8 +92,7 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 
 static ssize_t w1_therm_read_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
-
+	struct w1_slave *sl = dev_to_w1_slave(dev);
 	return sprintf(buf, "%s\n", sl->name);
 }
 
@@ -148,8 +147,7 @@ static int w1_therm_check_rom(u8 rom[9])
 
 static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, size_t count)
 {
-	struct w1_slave *sl = container_of(container_of(kobj, struct device, kobj),
-					   struct w1_slave, dev);
+	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 	struct w1_master *dev = sl->master;
 	u8 rom[9], crc, verdict;
 	int i, max_trying = 10;
