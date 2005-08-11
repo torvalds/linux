@@ -66,7 +66,7 @@ extra-y			:= initrd.o
 quiet_cmd_ramdisk = RAMDISK $@
       cmd_ramdisk = $(obj)/addRamDisk $(obj)/ramdisk.image.gz $< $@
 
-quiet_cmd_stripvm = STRIP $@
+quiet_cmd_stripvm = STRIP   $@
       cmd_stripvm = $(STRIP) -s $< -o $@
 
 vmlinux.strip: vmlinux FORCE
@@ -74,9 +74,17 @@ vmlinux.strip: vmlinux FORCE
 $(obj)/vmlinux.initrd: vmlinux.strip $(obj)/addRamDisk $(obj)/ramdisk.image.gz FORCE
 	$(call if_changed,ramdisk)
 
-addsection = $(CROSS32OBJCOPY) $(1) \
-		--add-section=.kernel:$(strip $(patsubst $(obj)/kernel-%.o,%, $(1)))=$(patsubst %.o,%.gz, $(1)) \
-		--set-section-flags=.kernel:$(strip $(patsubst $(obj)/kernel-%.o,%, $(1)))=$(OBJCOPYFLAGS)
+quiet_cmd_addsection = ADDSEC  $@
+      cmd_addsection = $(CROSS32OBJCOPY) $@ \
+		--add-section=.kernel:$(strip $(patsubst $(obj)/kernel-%.o,%, $@))=$(patsubst %.o,%.gz, $@) \
+		--set-section-flags=.kernel:$(strip $(patsubst $(obj)/kernel-%.o,%, $@))=$(OBJCOPYFLAGS)
+
+quiet_cmd_imagesize = GENSIZE $@
+      cmd_imagesize = ls -l vmlinux.strip | \
+		awk '{printf "/* generated -- do not edit! */\n" "unsigned long vmlinux_filesize = %d;\n", $$5}' \
+		> $(obj)/imagesize.c && \
+		$(CROSS_COMPILE)nm -n vmlinux | tail -n 1 | \
+		awk '{printf "unsigned long vmlinux_memsize = 0x%s;\n", substr($$1,8)}' >> $(obj)/imagesize.c
 
 quiet_cmd_addnote = ADDNOTE $@
       cmd_addnote = $(obj)/addnote $@
@@ -88,11 +96,11 @@ $(obj)/kernel-initrd.gz: $(obj)/ramdisk.image.gz
 	cp -f $(obj)/ramdisk.image.gz $@
 
 $(call src-sec, $(required) $(initrd)): $(obj)/kernel-%.c: $(obj)/kernel-%.gz FORCE
-	touch $@
+	@touch $@
 
 $(call obj-sec, $(required) $(initrd)): $(obj)/kernel-%.o: $(obj)/kernel-%.c FORCE
 	$(call if_changed_dep,bootcc)
-	$(call addsection, $@)
+	$(call cmd,addsection)
 
 $(obj)/zImage.vmode: obj-boot += $(call obj-sec, $(required))
 $(obj)/zImage.vmode: $(call obj-sec, $(required)) $(obj-boot) FORCE
@@ -111,13 +119,7 @@ $(obj)/zImage.initrd: $(obj)/zImage.initrd.vmode $(obj)/addnote FORCE
 	$(call if_changed,addnote)
 
 $(obj)/imagesize.c: vmlinux.strip
-	@echo Generating $@
-	ls -l vmlinux.strip | \
-	awk '{printf "/* generated -- do not edit! */\n" \
-		"unsigned long vmlinux_filesize = %d;\n", $$5}' > $(obj)/imagesize.c
-	$(CROSS_COMPILE)nm -n vmlinux | tail -n 1 | \
-	awk '{printf "unsigned long vmlinux_memsize = 0x%s;\n", substr($$1,8)}' \
-		>> $(obj)/imagesize.c
+	$(call cmd,imagesize)
 
 install: $(CONFIGURE) $(BOOTIMAGE)
 	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" "$(BOOTIMAGE)"
