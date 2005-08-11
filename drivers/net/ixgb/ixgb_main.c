@@ -29,6 +29,11 @@
 #include "ixgb.h"
 
 /* Change Log
+ * 1.0.96 04/19/05
+ * - Make needlessly global code static -- bunk@stusta.de
+ * - ethtool cleanup -- shemminger@osdl.org
+ * - Support for MODULE_VERSION -- linville@tuxdriver.com
+ * - add skb_header_cloned check to the tso path -- herbert@apana.org.au
  * 1.0.88 01/05/05
  * - include fix to the condition that determines when to quit NAPI - Robert Olsson
  * - use netif_poll_{disable/enable} to synchronize between NAPI and i/f up/down
@@ -47,10 +52,9 @@ char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-
-#define DRV_VERSION "1.0.95-k2"DRIVERNAPI
+#define DRV_VERSION		"1.0.100-k2"DRIVERNAPI
 char ixgb_driver_version[] = DRV_VERSION;
-char ixgb_copyright[] = "Copyright (c) 1999-2005 Intel Corporation.";
+static char ixgb_copyright[] = "Copyright (c) 1999-2005 Intel Corporation.";
 
 /* ixgb_pci_tbl - PCI Device ID Table
  *

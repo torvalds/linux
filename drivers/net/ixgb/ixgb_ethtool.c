@@ -271,7 +271,8 @@ ixgb_get_regs(struct net_device *netdev,
 	uint8_t i;
 
 	/* the 1 (one) below indicates an attempt at versioning, if the
-	 * interface in ethtool or the driver this 1 should be incremented */
+	 * interface in ethtool or the driver changes, this 1 should be
+	 * incremented */
 	regs->version = (1<<24) | hw->revision_id << 16 | hw->device_id;
 
 	/* General Registers */
