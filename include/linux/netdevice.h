@@ -699,19 +699,9 @@ static inline int netif_carrier_ok(const struct net_device *dev)
 
 extern void __netdev_watchdog_up(struct net_device *dev);
 
-static inline void netif_carrier_on(struct net_device *dev)
-{
-	if (test_and_clear_bit(__LINK_STATE_NOCARRIER, &dev->state))
-		linkwatch_fire_event(dev);
-	if (netif_running(dev))
-		__netdev_watchdog_up(dev);
-}
+extern void netif_carrier_on(struct net_device *dev);
 
-static inline void netif_carrier_off(struct net_device *dev)
-{
-	if (!test_and_set_bit(__LINK_STATE_NOCARRIER, &dev->state))
-		linkwatch_fire_event(dev);
-}
+extern void netif_carrier_off(struct net_device *dev);
 
 /* Hot-plugging. */
 static inline int netif_device_present(struct net_device *dev)
