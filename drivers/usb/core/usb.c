@@ -65,6 +65,16 @@ static int generic_probe (struct device *dev)
 }
 static int generic_remove (struct device *dev)
 {
+	struct usb_device *udev = to_usb_device(dev);
+
+	/* if this is only an unbind, not a physical disconnect, then
+	 * unconfigure the device */
+	if (udev->state == USB_STATE_CONFIGURED)
+		usb_set_configuration(udev, 0);
+
+	/* in case the call failed or the device was suspended */
+	if (udev->state >= USB_STATE_CONFIGURED)
+		usb_disable_device(udev, 0);
 	return 0;
 }
 
