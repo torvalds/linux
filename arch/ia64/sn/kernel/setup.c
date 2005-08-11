@@ -403,6 +403,7 @@ static void __init sn_init_pdas(char **cmdline_p)
 		memset(nodepdaindr[cnode], 0, sizeof(nodepda_t));
 		memset(nodepdaindr[cnode]->phys_cpuid, -1,
 		    sizeof(nodepdaindr[cnode]->phys_cpuid));
+		spin_lock_init(&nodepdaindr[cnode]->ptc_lock);
 	}
 
 	/*
