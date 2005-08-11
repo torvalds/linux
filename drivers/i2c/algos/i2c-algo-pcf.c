@@ -476,7 +476,7 @@ int i2c_pcf_add_bus(struct i2c_adapter *adap)
 
 	/* register new adapter to i2c module... */
 
-	adap->id |= pcf_algo.id;
+	adap->id |= I2C_ALGO_PCF;
 	adap->algo = &pcf_algo;
 
 	adap->timeout = 100;		/* default values, should	*/

@@ -541,7 +541,7 @@ int i2c_bit_add_bus(struct i2c_adapter *adap)
 
 	/* register new adapter to i2c module... */
 
-	adap->id |= i2c_bit_algo.id;
+	adap->id |= I2C_ALGO_BIT;
 	adap->algo = &i2c_bit_algo;
 
 	adap->timeout = 100;	/* default values, should	*/

@@ -168,7 +168,7 @@ static struct i2c_algorithm sgi_algo = {
  */
 int i2c_sgi_add_bus(struct i2c_adapter *adap)
 {
-	adap->id |= sgi_algo.id;
+	adap->id |= I2C_ALGO_SGI;
 	adap->algo = &sgi_algo;
 
 	return i2c_add_adapter(adap);
