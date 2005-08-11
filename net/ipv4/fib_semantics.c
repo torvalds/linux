@@ -593,10 +593,13 @@ static void fib_hash_move(struct hlist_head *new_info_hash,
 			  struct hlist_head *new_laddrhash,
 			  unsigned int new_size)
 {
+	struct hlist_head *old_info_hash, *old_laddrhash;
 	unsigned int old_size = fib_hash_size;
-	unsigned int i;
+	unsigned int i, bytes;
 
 	write_lock(&fib_info_lock);
+	old_info_hash = fib_info_hash;
+	old_laddrhash = fib_info_laddrhash;
 	fib_hash_size = new_size;
 
 	for (i = 0; i < old_size; i++) {
@@ -636,6 +639,10 @@ static void fib_hash_move(struct hlist_head *new_info_hash,
 	fib_info_laddrhash = new_laddrhash;
 
 	write_unlock(&fib_info_lock);
+
+	bytes = old_size * sizeof(struct hlist_head *);
+	fib_hash_free(old_info_hash, bytes);
+	fib_hash_free(old_laddrhash, bytes);
 }
 
 struct fib_info *

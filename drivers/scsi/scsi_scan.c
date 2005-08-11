@@ -336,9 +336,23 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	unsigned long flags;
 	const int size = sizeof(struct scsi_target)
 		+ shost->transportt->target_size;
-	struct scsi_target *starget = kmalloc(size, GFP_ATOMIC);
+	struct scsi_target *starget;
 	struct scsi_target *found_target;
 
+	/*
+	 * Obtain the real parent from the transport. The transport
+	 * is allowed to fail (no error) if there is nothing at that
+	 * target id.
+	 */
+	if (shost->transportt->target_parent) {
+		spin_lock_irqsave(shost->host_lock, flags);
+		parent = shost->transportt->target_parent(shost, channel, id);
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		if (!parent)
+			return NULL;
+	}
+
+	starget = kmalloc(size, GFP_KERNEL);
 	if (!starget) {
 		printk(KERN_ERR "%s: allocation failure\n", __FUNCTION__);
 		return NULL;

@@ -1283,8 +1283,7 @@ static void do_fd_request(request_queue_t* q)
 	if (fdc_busy) return;
 	save_flags(flags);
 	cli();
-	while (fdc_busy)
-		sleep_on(&fdc_wait);
+	wait_event(fdc_wait, !fdc_busy);
 	fdc_busy = 1;
 	ENABLE_IRQ();
 	restore_flags(flags);

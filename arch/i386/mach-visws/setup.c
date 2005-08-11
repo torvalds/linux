@@ -14,6 +14,8 @@
 #include "cobalt.h"
 #include "piix4.h"
 
+int no_broadcast;
+
 char visws_board_type = -1;
 char visws_board_rev = -1;
 

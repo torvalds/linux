@@ -7,7 +7,6 @@
 #include <linux/mmzone.h>
 #include <linux/list.h>
 #include <linux/sched.h>
-#include <linux/pagemap.h>
 
 #include <asm/atomic.h>
 #include <asm/page.h>
@@ -255,6 +254,8 @@ static inline void put_swap_token(struct mm_struct *mm)
 
 #define si_swapinfo(val) \
 	do { (val)->freeswap = (val)->totalswap = 0; } while (0)
+/* only sparc can not include linux/pagemap.h in this file
+ * so leave page_cache_release and release_pages undeclared... */
 #define free_page_and_swap_cache(page) \
 	page_cache_release(page)
 #define free_pages_and_swap_cache(pages, nr) \

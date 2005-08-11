@@ -26,12 +26,17 @@
 #include "pci.h"
 
 
-void
+static void
 pci_update_resource(struct pci_dev *dev, struct resource *res, int resno)
 {
 	struct pci_bus_region region;
 	u32 new, check, mask;
 	int reg;
+
+	/* Ignore resources for unimplemented BARs and unused resource slots
+	   for 64 bit BARs. */
+	if (!res->flags)
+		return;
 
 	pcibios_resource_to_bus(dev, &region, res);
 
@@ -67,7 +72,7 @@ pci_update_resource(struct pci_dev *dev, struct resource *res, int resno)
 
 	if ((new & (PCI_BASE_ADDRESS_SPACE|PCI_BASE_ADDRESS_MEM_TYPE_MASK)) ==
 	    (PCI_BASE_ADDRESS_SPACE_MEMORY|PCI_BASE_ADDRESS_MEM_TYPE_64)) {
-		new = 0; /* currently everyone zeros the high address */
+		new = region.start >> 16 >> 16;
 		pci_write_config_dword(dev, reg + 4, new);
 		pci_read_config_dword(dev, reg + 4, &check);
 		if (check != new) {

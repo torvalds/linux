@@ -907,9 +907,13 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 		raptorFlag = TRUE;
 	}
 
-
+	if (pci_request_regions(pDev, "dpt_i2o")) {
+		PERROR("dpti: adpt_config_hba: pci request region failed\n");
+		return -EINVAL;
+	}
 	base_addr_virt = ioremap(base_addr0_phys,hba_map0_area_size);
 	if (!base_addr_virt) {
+		pci_release_regions(pDev);
 		PERROR("dpti: adpt_config_hba: io remap failed\n");
 		return -EINVAL;
 	}
@@ -919,6 +923,7 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 		if (!msg_addr_virt) {
 			PERROR("dpti: adpt_config_hba: io remap failed on BAR1\n");
 			iounmap(base_addr_virt);
+			pci_release_regions(pDev);
 			return -EINVAL;
 		}
 	} else {
@@ -932,6 +937,7 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 			iounmap(msg_addr_virt);
 		}
 		iounmap(base_addr_virt);
+		pci_release_regions(pDev);
 		return -ENOMEM;
 	}
 	memset(pHba, 0, sizeof(adpt_hba));
@@ -1027,6 +1033,7 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 	up(&adpt_configuration_lock);
 
 	iounmap(pHba->base_addr_virt);
+	pci_release_regions(pHba->pDev);
 	if(pHba->msg_addr_virt != pHba->base_addr_virt){
 		iounmap(pHba->msg_addr_virt);
 	}

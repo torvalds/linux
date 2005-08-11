@@ -12,6 +12,7 @@
  * Changelog:
  *  11-Sep-2004 BJD  Created file
  *  21-Sep-2004 BJD  Updated port info
+ *  09-Aug-2005 BJD  Renamed s3c2410_report_oc s3c2410_usb_report_oc
 */
 
 #ifndef __ASM_ARCH_USBCONTROL_H
@@ -35,7 +36,7 @@ struct s3c2410_hcd_info {
 	void		(*report_oc)(struct s3c2410_hcd_info *, int ports);
 };
 
-static void inline s3c2410_report_oc(struct s3c2410_hcd_info *info, int ports)
+static void inline s3c2410_usb_report_oc(struct s3c2410_hcd_info *info, int ports)
 {
 	if (info->report_oc != NULL) {
 		(info->report_oc)(info, ports);

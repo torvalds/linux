@@ -36,6 +36,7 @@ static unsigned long bank[NR_BANKS] = { [0 ... NR_BANKS-1] = ~0UL };
 static unsigned long console_logged;
 static int notify_user;
 static int rip_msr;
+static int mce_bootlog;
 
 /*
  * Lockless MCE logging infrastructure.
@@ -197,10 +198,11 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 			rdmsrl(MSR_IA32_MC0_ADDR + i*4, m.addr);
 
 		mce_get_rip(&m, regs);
-		if (error_code != -1)
+		if (error_code >= 0)
 			rdtscll(m.tsc);
 		wrmsrl(MSR_IA32_MC0_STATUS + i*4, 0);
-		mce_log(&m);
+		if (error_code != -2)
+			mce_log(&m);
 
 		/* Did this bank cause the exception? */
 		/* Assume that the bank with uncorrectable errors did it,
@@ -315,7 +317,7 @@ static void mce_init(void *dummy)
 
 	/* Log the machine checks left over from the previous reset.
 	   This also clears all registers */
-	do_machine_check(NULL, -1);
+	do_machine_check(NULL, mce_bootlog ? -1 : -2);
 
 	set_in_cr4(X86_CR4_MCE);
 
@@ -476,11 +478,17 @@ static int __init mcheck_disable(char *str)
 }
 
 /* mce=off disables machine check. Note you can reenable it later
-   using sysfs */
+   using sysfs.
+   mce=bootlog Log MCEs from before booting. Disabled by default to work
+   around buggy BIOS that leave bogus MCEs.  */
 static int __init mcheck_enable(char *str)
 {
+	if (*str == '=')
+		str++;
 	if (!strcmp(str, "off"))
 		mce_dont_init = 1;
+	else if (!strcmp(str, "bootlog"))
+		mce_bootlog = 1;
 	else
 		printk("mce= argument %s ignored. Please use /sys", str); 
 	return 0;

@@ -586,7 +586,7 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 	}
 	if (skb->stamp.tv_sec == 0) {
 		skb->stamp.tv_sec = xtime.tv_sec; 
-		skb->stamp.tv_usec = xtime.tv_nsec * 1000; 
+		skb->stamp.tv_usec = xtime.tv_nsec / NSEC_PER_USEC; 
 		/* Don't enable netstamp, sunrpc doesn't 
 		   need that much accuracy */
 	}
