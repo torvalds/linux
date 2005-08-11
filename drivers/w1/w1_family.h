@@ -31,6 +31,7 @@
 #define W1_FAMILY_SMEM_81	0x81
 #define W1_THERM_DS18S20 	0x10
 #define W1_THERM_DS1822  	0x22
+#define W1_EEPROM_DS2433  	0x23
 #define W1_THERM_DS18B20 	0x28
 
 #define MAXNAMELEN		32
