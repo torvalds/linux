@@ -101,7 +101,7 @@ ixgb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
-	ecmd->advertising = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
+	ecmd->advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_FIBRE);
 	ecmd->port = PORT_FIBRE;
 	ecmd->transceiver = XCVR_EXTERNAL;
 
