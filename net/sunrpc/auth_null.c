@@ -7,9 +7,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/socket.h>
 #include <linux/module.h>
-#include <linux/in.h>
 #include <linux/utsname.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sched.h>

@@ -35,7 +35,6 @@
 
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/socket.h>
 #include <linux/module.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/gss_asn1.h>

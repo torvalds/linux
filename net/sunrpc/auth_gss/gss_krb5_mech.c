@@ -39,7 +39,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/sunrpc/auth.h>
-#include <linux/in.h>
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/crypto.h>
