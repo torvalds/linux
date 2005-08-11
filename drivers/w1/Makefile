@@ -18,3 +18,4 @@ ds9490r-objs    := dscore.o
 
 obj-$(CONFIG_W1_DS9490_BRIDGE)	+= ds_w1_bridge.o
 
+obj-$(CONFIG_W1_DS2433)		+= w1_ds2433.o

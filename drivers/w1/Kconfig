@@ -54,4 +54,11 @@ config W1_SMEM
 	  Say Y here if you want to connect 1-wire
 	  simple 64bit memory rom(ds2401/ds2411/ds1990*) to you wire.
 
+config W1_DS2433
+	tristate "4kb EEPROM family support (DS2433)"
+	depends on W1
+	help
+	  Say Y here if you want to use a 1-wire
+	  4kb EEPROM family device (DS2433).
+
 endmenu
