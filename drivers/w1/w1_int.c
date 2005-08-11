@@ -29,9 +29,9 @@
 
 static u32 w1_ids = 1;
 
-extern struct device_driver w1_driver;
+extern struct device_driver w1_master_driver;
 extern struct bus_type w1_bus_type;
-extern struct device w1_device;
+extern struct device w1_master_device;
 extern int w1_max_slave_count;
 extern int w1_max_slave_ttl;
 extern struct list_head w1_masters;
@@ -125,7 +125,7 @@ int w1_add_master_device(struct w1_bus_master *master)
 		return(-EINVAL);
         }
 
-	dev = w1_alloc_dev(w1_ids++, w1_max_slave_count, w1_max_slave_ttl, &w1_driver, &w1_device);
+	dev = w1_alloc_dev(w1_ids++, w1_max_slave_count, w1_max_slave_ttl, &w1_master_driver, &w1_master_device);
 	if (!dev)
 		return -ENOMEM;
 
