@@ -301,7 +301,8 @@ ixgb_get_regs(struct net_device *netdev,
 	*reg++ = IXGB_READ_REG(hw, RAIDC);	/*  19 */
 	*reg++ = IXGB_READ_REG(hw, RXCSUM);	/*  20 */
 
-	for (i = 0; i < IXGB_RAR_ENTRIES; i++) {
+	/* there are 16 RAR entries in hardware, we only use 3 */
+	for(i = 0; i < 16; i++) {
 		*reg++ = IXGB_READ_REG_ARRAY(hw, RAL, (i << 1)); /*21,...,51 */
 		*reg++ = IXGB_READ_REG_ARRAY(hw, RAH, (i << 1)); /*22,...,52 */
 	}
