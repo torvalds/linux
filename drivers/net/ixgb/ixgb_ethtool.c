@@ -130,6 +130,12 @@ ixgb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ixgb_down(adapter, TRUE);
 		ixgb_reset(adapter);
 		ixgb_up(adapter);
+		/* be optimistic about our link, since we were up before */
+		adapter->link_speed = 10000;
+		adapter->link_duplex = FULL_DUPLEX;
+		netif_carrier_on(netdev);
+		netif_wake_queue(netdev);
+		
 	} else
 		ixgb_reset(adapter);
 
@@ -177,6 +183,11 @@ ixgb_set_pauseparam(struct net_device *netdev,
 	if(netif_running(adapter->netdev)) {
 		ixgb_down(adapter, TRUE);
 		ixgb_up(adapter);
+		/* be optimistic about our link, since we were up before */
+		adapter->link_speed = 10000;
+		adapter->link_duplex = FULL_DUPLEX;
+		netif_carrier_on(netdev);
+		netif_wake_queue(netdev);
 	} else
 		ixgb_reset(adapter);
 		
@@ -199,6 +210,11 @@ ixgb_set_rx_csum(struct net_device *netdev, uint32_t data)
 	if(netif_running(netdev)) {
 		ixgb_down(adapter,TRUE);
 		ixgb_up(adapter);
+		/* be optimistic about our link, since we were up before */
+		adapter->link_speed = 10000;
+		adapter->link_duplex = FULL_DUPLEX;
+		netif_carrier_on(netdev);
+		netif_wake_queue(netdev);
 	} else
 		ixgb_reset(adapter);
 	return 0;
@@ -573,6 +589,11 @@ ixgb_set_ringparam(struct net_device *netdev,
 		adapter->tx_ring = tx_new;
 		if((err = ixgb_up(adapter)))
 			return err;
+		/* be optimistic about our link, since we were up before */
+		adapter->link_speed = 10000;
+		adapter->link_duplex = FULL_DUPLEX;
+		netif_carrier_on(netdev);
+		netif_wake_queue(netdev);
 	}
 
 	return 0;
