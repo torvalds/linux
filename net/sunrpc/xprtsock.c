@@ -925,9 +925,7 @@ out:
 	else
 		rpc_wake_up(&xprt->pending);
 out_clear:
-	smp_mb__before_clear_bit();
-	clear_bit(XPRT_CONNECTING, &xprt->sockstate);
-	smp_mb__after_clear_bit();
+	xprt_clear_connecting(xprt);
 }
 
 /**
@@ -940,7 +938,7 @@ static void xs_connect(struct rpc_task *task)
 {
 	struct rpc_xprt *xprt = task->tk_xprt;
 
-	if (!test_and_set_bit(XPRT_CONNECTING, &xprt->sockstate)) {
+	if (!xprt_test_and_set_connecting(xprt)) {
 		if (xprt->sock != NULL) {
 			dprintk("RPC:      xs_connect delayed xprt %p\n", xprt);
 			schedule_delayed_work(&xprt->sock_connect,

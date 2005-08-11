@@ -74,7 +74,7 @@ __xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 
-	if (test_and_set_bit(XPRT_LOCKED, &xprt->sockstate)) {
+	if (test_and_set_bit(XPRT_LOCKED, &xprt->state)) {
 		if (task == xprt->snd_task)
 			return 1;
 		goto out_sleep;
@@ -88,7 +88,7 @@ __xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
 		return 1;
 	}
 	smp_mb__before_clear_bit();
-	clear_bit(XPRT_LOCKED, &xprt->sockstate);
+	clear_bit(XPRT_LOCKED, &xprt->state);
 	smp_mb__after_clear_bit();
 out_sleep:
 	dprintk("RPC: %4d failed to lock socket %p\n", task->tk_pid, xprt);
@@ -118,7 +118,7 @@ __xprt_lock_write_next(struct rpc_xprt *xprt)
 {
 	struct rpc_task *task;
 
-	if (test_and_set_bit(XPRT_LOCKED, &xprt->sockstate))
+	if (test_and_set_bit(XPRT_LOCKED, &xprt->state))
 		return;
 	if (!xprt->nocong && RPCXPRT_CONGESTED(xprt))
 		goto out_unlock;
@@ -139,7 +139,7 @@ __xprt_lock_write_next(struct rpc_xprt *xprt)
 	}
 out_unlock:
 	smp_mb__before_clear_bit();
-	clear_bit(XPRT_LOCKED, &xprt->sockstate);
+	clear_bit(XPRT_LOCKED, &xprt->state);
 	smp_mb__after_clear_bit();
 }
 
@@ -152,7 +152,7 @@ __xprt_release_write(struct rpc_xprt *xprt, struct rpc_task *task)
 	if (xprt->snd_task == task) {
 		xprt->snd_task = NULL;
 		smp_mb__before_clear_bit();
-		clear_bit(XPRT_LOCKED, &xprt->sockstate);
+		clear_bit(XPRT_LOCKED, &xprt->state);
 		smp_mb__after_clear_bit();
 		__xprt_lock_write_next(xprt);
 	}
@@ -312,11 +312,11 @@ xprt_init_autodisconnect(unsigned long data)
 	spin_lock(&xprt->transport_lock);
 	if (!list_empty(&xprt->recv) || xprt->shutdown)
 		goto out_abort;
-	if (test_and_set_bit(XPRT_LOCKED, &xprt->sockstate))
+	if (test_and_set_bit(XPRT_LOCKED, &xprt->state))
 		goto out_abort;
 	spin_unlock(&xprt->transport_lock);
 	/* Let keventd close the socket */
-	if (test_bit(XPRT_CONNECTING, &xprt->sockstate) != 0)
+	if (xprt_connecting(xprt))
 		xprt_release_write(xprt, NULL);
 	else
 		schedule_work(&xprt->task_cleanup);

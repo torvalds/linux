@@ -163,7 +163,7 @@ struct rpc_xprt {
 	struct list_head	free;		/* free slots */
 	struct rpc_rqst *	slot;		/* slot table storage */
 	unsigned int		max_reqs;	/* total slots */
-	unsigned long		sockstate;	/* Socket state */
+	unsigned long		state;		/* transport state */
 	unsigned char		shutdown   : 1,	/* being shut down */
 				nocong	   : 1,	/* no congestion control */
 				resvport   : 1, /* use a reserved port */
@@ -240,16 +240,54 @@ int			xs_setup_udp(struct rpc_xprt *,
 int			xs_setup_tcp(struct rpc_xprt *,
 					struct rpc_timeout *);
 
-#define XPRT_LOCKED	0
-#define XPRT_CONNECT	1
-#define XPRT_CONNECTING	2
+/*
+ * Reserved bit positions in xprt->state
+ */
+#define XPRT_LOCKED		(0)
+#define XPRT_CONNECTED		(1)
+#define XPRT_CONNECTING		(2)
 
-#define xprt_connected(xp)		(test_bit(XPRT_CONNECT, &(xp)->sockstate))
-#define xprt_set_connected(xp)		(set_bit(XPRT_CONNECT, &(xp)->sockstate))
-#define xprt_test_and_set_connected(xp)	(test_and_set_bit(XPRT_CONNECT, &(xp)->sockstate))
-#define xprt_test_and_clear_connected(xp) \
-					(test_and_clear_bit(XPRT_CONNECT, &(xp)->sockstate))
-#define xprt_clear_connected(xp)	(clear_bit(XPRT_CONNECT, &(xp)->sockstate))
+static inline void xprt_set_connected(struct rpc_xprt *xprt)
+{
+	set_bit(XPRT_CONNECTED, &xprt->state);
+}
+
+static inline void xprt_clear_connected(struct rpc_xprt *xprt)
+{
+	clear_bit(XPRT_CONNECTED, &xprt->state);
+}
+
+static inline int xprt_connected(struct rpc_xprt *xprt)
+{
+	return test_bit(XPRT_CONNECTED, &xprt->state);
+}
+
+static inline int xprt_test_and_set_connected(struct rpc_xprt *xprt)
+{
+	return test_and_set_bit(XPRT_CONNECTED, &xprt->state);
+}
+
+static inline int xprt_test_and_clear_connected(struct rpc_xprt *xprt)
+{
+	return test_and_clear_bit(XPRT_CONNECTED, &xprt->state);
+}
+
+static inline void xprt_clear_connecting(struct rpc_xprt *xprt)
+{
+	smp_mb__before_clear_bit();
+	clear_bit(XPRT_CONNECTING, &xprt->state);
+	smp_mb__after_clear_bit();
+}
+
+static inline int xprt_connecting(struct rpc_xprt *xprt)
+{
+	return test_bit(XPRT_CONNECTING, &xprt->state);
+}
+
+static inline int xprt_test_and_set_connecting(struct rpc_xprt *xprt)
+{
+	return test_and_set_bit(XPRT_CONNECTING, &xprt->state);
+}
 
 #endif /* __KERNEL__*/
 
