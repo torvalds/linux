@@ -76,7 +76,7 @@ struct w1_slave
 	struct w1_master	*master;
 	struct w1_family	*family;
 	struct device		dev;
-	struct completion	dev_released;
+	struct completion	released;
 };
 
 typedef void (* w1_slave_found_callback)(unsigned long, u64);
@@ -176,7 +176,6 @@ struct w1_master
 
 	struct device_driver	*driver;
 	struct device		dev;
-	struct completion	dev_released;
 	struct completion	dev_exited;
 
 	struct w1_bus_master	*bus_master;

@@ -76,7 +76,6 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	INIT_LIST_HEAD(&dev->slist);
 	init_MUTEX(&dev->mutex);
 
-	init_completion(&dev->dev_released);
 	init_completion(&dev->dev_exited);
 
 	memcpy(&dev->dev, device, sizeof(struct device));
@@ -107,9 +106,6 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 void w1_free_dev(struct w1_master *dev)
 {
 	device_unregister(&dev->dev);
-	dev_fini_netlink(dev);
-	memset(dev, 0, sizeof(struct w1_master) + sizeof(struct w1_bus_master));
-	kfree(dev);
 }
 
 int w1_add_master_device(struct w1_bus_master *master)
@@ -184,7 +180,7 @@ void __w1_remove_master_device(struct w1_master *dev)
 			 __func__, dev->kpid);
 
 	while (atomic_read(&dev->refcnt)) {
-		printk(KERN_INFO "Waiting for %s to become free: refcnt=%d.\n",
+		dev_dbg(&dev->dev, "Waiting for %s to become free: refcnt=%d.\n",
 				dev->name, atomic_read(&dev->refcnt));
 
 		if (msleep_interruptible(1000))

@@ -45,10 +45,12 @@ MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol.");
 
 static int w1_timeout = 10;
+static int w1_control_timeout = 1;
 int w1_max_slave_count = 10;
 int w1_max_slave_ttl = 10;
 
 module_param_named(timeout, w1_timeout, int, 0);
+module_param_named(control_timeout, w1_control_timeout, int, 0);
 module_param_named(max_slave_count, w1_max_slave_count, int, 0);
 module_param_named(slave_ttl, w1_max_slave_ttl, int, 0);
 
@@ -69,37 +71,51 @@ static int w1_master_probe(struct device *dev)
 	return -ENODEV;
 }
 
-static int w1_master_remove(struct device *dev)
-{
-	return 0;
-}
-
 static void w1_master_release(struct device *dev)
 {
 	struct w1_master *md = dev_to_w1_master(dev);
-	complete(&md->dev_released);
+
+	dev_dbg(dev, "%s: Releasing %s.\n", __func__, md->name);
+
+	if (md->nls && md->nls->sk_socket)
+		sock_release(md->nls->sk_socket);
+	memset(md, 0, sizeof(struct w1_master) + sizeof(struct w1_bus_master));
+	kfree(md);
 }
 
 static void w1_slave_release(struct device *dev)
 {
 	struct w1_slave *sl = dev_to_w1_slave(dev);
-	complete(&sl->dev_released);
+
+	dev_dbg(dev, "%s: Releasing %s.\n", __func__, sl->name);
+
+	while (atomic_read(&sl->refcnt)) {
+		dev_dbg(dev, "Waiting for %s to become free: refcnt=%d.\n",
+				sl->name, atomic_read(&sl->refcnt));
+		if (msleep_interruptible(1000))
+			flush_signals(current);
+	}
+
+	w1_family_put(sl->family);
+	sl->master->slave_count--;
+
+	complete(&sl->released);
 }
 
 static ssize_t w1_slave_read_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
-      struct w1_slave *sl = dev_to_w1_slave(dev);
+	struct w1_slave *sl = dev_to_w1_slave(dev);
 
-      return sprintf(buf, "%s\n", sl->name);
+	return sprintf(buf, "%s\n", sl->name);
 }
 
 static ssize_t w1_slave_read_id(struct kobject *kobj, char *buf, loff_t off, size_t count)
 {
-      struct w1_slave *sl = kobj_to_w1_slave(kobj);
+	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 
-      atomic_inc(&sl->refcnt);
-      if (off > 8) {
-              count = 0;
+	atomic_inc(&sl->refcnt);
+	if (off > 8) {
+		count = 0;
 	} else {
 		if (off + count > 8)
 			count = 8 - off;
@@ -109,7 +125,7 @@ static ssize_t w1_slave_read_id(struct kobject *kobj, char *buf, loff_t off, siz
 	atomic_dec(&sl->refcnt);
 
 	return count;
-  }
+}
 
 static struct device_attribute w1_slave_attr_name =
 	__ATTR(name, S_IRUGO, w1_slave_read_name, NULL);
@@ -139,7 +155,6 @@ struct device_driver w1_master_driver = {
 	.name = "w1_master_driver",
 	.bus = &w1_bus_type,
 	.probe = w1_master_probe,
-	.remove = w1_master_remove,
 };
 
 struct device w1_master_device = {
@@ -160,6 +175,7 @@ struct device w1_slave_device = {
 	.bus = &w1_bus_type,
 	.bus_id = "w1 bus slave",
 	.driver = &w1_slave_driver,
+	.release = &w1_slave_release
 };
 
 static ssize_t w1_master_attribute_show_name(struct device *dev, struct device_attribute *attr, char *buf)
@@ -406,8 +422,7 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 		 (unsigned int) sl->reg_num.family,
 		 (unsigned long long) sl->reg_num.id);
 
-	dev_dbg(&sl->dev, "%s: registering %s.\n", __func__,
-		&sl->dev.bus_id[0]);
+	dev_dbg(&sl->dev, "%s: registering %s as %p.\n", __func__, &sl->dev.bus_id[0]);
 
 	err = device_register(&sl->dev);
 	if (err < 0) {
@@ -480,7 +495,7 @@ static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 
 	memcpy(&sl->reg_num, rn, sizeof(sl->reg_num));
 	atomic_set(&sl->refcnt, 0);
-	init_completion(&sl->dev_released);
+	init_completion(&sl->released);
 
 	spin_lock(&w1_flock);
 	f = w1_family_registered(rn->family);
@@ -512,6 +527,8 @@ static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 	msg.type = W1_SLAVE_ADD;
 	w1_netlink_send(dev, &msg);
 
+	dev_info(&dev->dev, "Finished %s for sl=%p.\n", __func__, sl);
+
 	return 0;
 }
 
@@ -519,29 +536,23 @@ static void w1_slave_detach(struct w1_slave *sl)
 {
 	struct w1_netlink_msg msg;
 
-	dev_info(&sl->dev, "%s: detaching %s.\n", __func__, sl->name);
+	dev_info(&sl->dev, "%s: detaching %s [%p].\n", __func__, sl->name, sl);
 
-	while (atomic_read(&sl->refcnt)) {
-		printk(KERN_INFO "Waiting for %s to become free: refcnt=%d.\n",
-				sl->name, atomic_read(&sl->refcnt));
-
-		if (msleep_interruptible(1000))
-			flush_signals(current);
-	}
+	list_del(&sl->w1_slave_entry);
 
 	if (sl->family->fops && sl->family->fops->remove_slave)
 		sl->family->fops->remove_slave(sl);
 
-	sysfs_remove_bin_file(&sl->dev.kobj, &w1_slave_attr_bin_id);
-	device_remove_file(&sl->dev, &w1_slave_attr_name);
-	device_unregister(&sl->dev);
-	w1_family_put(sl->family);
-
-	sl->master->slave_count--;
-
 	memcpy(&msg.id.id, &sl->reg_num, sizeof(msg.id.id));
 	msg.type = W1_SLAVE_REMOVE;
 	w1_netlink_send(sl->master, &msg);
+
+	sysfs_remove_bin_file(&sl->dev.kobj, &w1_slave_attr_bin_id);
+	device_remove_file(&sl->dev, &w1_slave_attr_name);
+	device_unregister(&sl->dev);
+
+	wait_for_completion(&sl->released);
+	kfree(sl);
 }
 
 static struct w1_master *w1_search_master(unsigned long data)
@@ -713,7 +724,7 @@ static int w1_control(void *data)
 		have_to_wait = 0;
 
 		try_to_freeze();
-		msleep_interruptible(w1_timeout * 1000);
+		msleep_interruptible(w1_control_timeout * 1000);
 
 		if (signal_pending(current))
 			flush_signals(current);
@@ -746,13 +757,12 @@ static int w1_control(void *data)
 				list_del(&dev->w1_master_entry);
 				spin_unlock_bh(&w1_mlock);
 
+				down(&dev->mutex);
 				list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
-					list_del(&sl->w1_slave_entry);
-
 					w1_slave_detach(sl);
-					kfree(sl);
 				}
 				w1_destroy_master_attributes(dev);
+				up(&dev->mutex);
 				atomic_dec(&dev->refcnt);
 				continue;
 			}
@@ -760,19 +770,17 @@ static int w1_control(void *data)
 			if (test_bit(W1_MASTER_NEED_RECONNECT, &dev->flags)) {
 				dev_info(&dev->dev, "Reconnecting slaves in device %s.\n", dev->name);
 				down(&dev->mutex);
-				list_for_each_entry(sl, &dev->slist, w1_slave_entry) {
+				list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
 					if (sl->family->fid == W1_FAMILY_DEFAULT) {
 						struct w1_reg_num rn;
-						list_del(&sl->w1_slave_entry);
-						w1_slave_detach(sl);
 
 						memcpy(&rn, &sl->reg_num, sizeof(rn));
-
-						kfree(sl);
+						w1_slave_detach(sl);
 
 						w1_attach_slave_device(dev, &rn);
 					}
 				}
+				dev_info(&dev->dev, "Reconnecting slaves in device %s has been finished.\n", dev->name);
 				clear_bit(W1_MASTER_NEED_RECONNECT, &dev->flags);
 				up(&dev->mutex);
 			}
@@ -816,10 +824,7 @@ int w1_process(void *data)
 
 		list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
 			if (!test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags) && !--sl->ttl) {
-				list_del (&sl->w1_slave_entry);
-
 				w1_slave_detach(sl);
-				kfree(sl);
 
 				dev->slave_count--;
 			} else if (test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags))
