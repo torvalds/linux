@@ -98,7 +98,7 @@ static struct ixgb_stats ixgb_gstrings_stats[] = {
 static int
 ixgb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
 	ecmd->advertising = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
@@ -120,7 +120,7 @@ ixgb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 static int
 ixgb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	if(ecmd->autoneg == AUTONEG_ENABLE ||
 	   ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL)
@@ -146,7 +146,7 @@ static void
 ixgb_get_pauseparam(struct net_device *netdev,
 			 struct ethtool_pauseparam *pause)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
 	
 	pause->autoneg = AUTONEG_DISABLE;
@@ -165,7 +165,7 @@ static int
 ixgb_set_pauseparam(struct net_device *netdev,
 			 struct ethtool_pauseparam *pause)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
 	
 	if(pause->autoneg == AUTONEG_ENABLE)
@@ -197,14 +197,16 @@ ixgb_set_pauseparam(struct net_device *netdev,
 static uint32_t
 ixgb_get_rx_csum(struct net_device *netdev)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
+
 	return adapter->rx_csum;
 }
 
 static int
 ixgb_set_rx_csum(struct net_device *netdev, uint32_t data)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
+
 	adapter->rx_csum = data;
 
 	if(netif_running(netdev)) {
@@ -262,7 +264,7 @@ static void
 ixgb_get_regs(struct net_device *netdev,
 		   struct ethtool_regs *regs, void *p)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
 	uint32_t *reg = p;
 	uint32_t *reg_start = reg;
@@ -407,7 +409,7 @@ static int
 ixgb_get_eeprom(struct net_device *netdev,
 		  struct ethtool_eeprom *eeprom, uint8_t *bytes)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
 	uint16_t *eeprom_buff;
 	int i, max_len, first_word, last_word;
@@ -455,7 +457,7 @@ static int
 ixgb_set_eeprom(struct net_device *netdev,
 		  struct ethtool_eeprom *eeprom, uint8_t *bytes)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
 	uint16_t *eeprom_buff;
 	void *ptr;
@@ -513,7 +515,7 @@ static void
 ixgb_get_drvinfo(struct net_device *netdev,
 		   struct ethtool_drvinfo *drvinfo)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	strncpy(drvinfo->driver,  ixgb_driver_name, 32);
 	strncpy(drvinfo->version, ixgb_driver_version, 32);
@@ -528,7 +530,7 @@ static void
 ixgb_get_ringparam(struct net_device *netdev,
 		struct ethtool_ringparam *ring)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_desc_ring *txdr = &adapter->tx_ring;
 	struct ixgb_desc_ring *rxdr = &adapter->rx_ring;
 
@@ -546,7 +548,7 @@ static int
 ixgb_set_ringparam(struct net_device *netdev,
 		struct ethtool_ringparam *ring)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_desc_ring *txdr = &adapter->tx_ring;
 	struct ixgb_desc_ring *rxdr = &adapter->rx_ring;
 	struct ixgb_desc_ring tx_old, tx_new, rx_old, rx_new;
@@ -628,7 +630,7 @@ ixgb_led_blink_callback(unsigned long data)
 static int
 ixgb_phys_id(struct net_device *netdev, uint32_t data)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	if(!data || data > (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ))
 		data = (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ);
@@ -664,7 +666,7 @@ static void
 ixgb_get_ethtool_stats(struct net_device *netdev, 
 		struct ethtool_stats *stats, uint64_t *data)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	int i;
 
 	ixgb_update_stats(adapter);
