@@ -395,7 +395,6 @@ static u32 scx200_acb_func(struct i2c_adapter *adapter)
 
 /* For now, we only handle combined mode (smbus) */
 static struct i2c_algorithm scx200_acb_algorithm = {
-	.name		= "NatSemi SCx200 ACCESS.bus",
 	.id		= I2C_ALGO_SMBUS,
 	.smbus_xfer	= scx200_acb_smbus_xfer,
 	.functionality	= scx200_acb_func,

@@ -519,7 +519,6 @@ static u32 bit_func(struct i2c_adapter *adap)
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm i2c_bit_algo = {
-	.name		= "Bit-shift algorithm",
 	.id		= I2C_ALGO_BIT,
 	.master_xfer	= bit_xfer,
 	.functionality	= bit_func,

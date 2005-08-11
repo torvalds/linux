@@ -459,7 +459,6 @@ static u32 pcf_func(struct i2c_adapter *adap)
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm pcf_algo = {
-	.name		= "PCF8584 algorithm",
 	.id		= I2C_ALGO_PCF,
 	.master_xfer	= pcf_xfer,
 	.functionality	= pcf_func,

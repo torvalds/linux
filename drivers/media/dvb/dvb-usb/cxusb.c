@@ -141,7 +141,6 @@ static u32 cxusb_i2c_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm cxusb_i2c_algo = {
-	.name          = "Conexant USB I2C algorithm",
 	.id            = I2C_ALGO_BIT,
 	.master_xfer   = cxusb_i2c_xfer,
 	.functionality = cxusb_i2c_func,

@@ -77,7 +77,6 @@ static u32 digitv_i2c_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm digitv_i2c_algo = {
-	.name          = "Nebula DigiTV USB I2C algorithm",
 	.id            = I2C_ALGO_BIT,
 	.master_xfer   = digitv_i2c_xfer,
 	.functionality = digitv_i2c_func,

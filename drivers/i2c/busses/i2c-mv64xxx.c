@@ -433,7 +433,6 @@ mv64xxx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 }
 
 static struct i2c_algorithm mv64xxx_i2c_algo = {
-	.name = MV64XXX_I2C_CTLR_NAME " algorithm",
 	.id = I2C_ALGO_MV64XXX,
 	.master_xfer = mv64xxx_i2c_xfer,
 	.functionality = mv64xxx_i2c_functionality,
