@@ -419,14 +419,17 @@ config IP_TCPDIAG
 	---help---
 	  Support for TCP socket monitoring interface used by native Linux
 	  tools such as ss. ss is included in iproute2, currently downloadable
-	  at <http://developer.osdl.org/dev/iproute2>. If you want IPv6 support
-	  and have selected IPv6 as a module, you need to build this as a
-	  module too.
+	  at <http://developer.osdl.org/dev/iproute2>. If you want IPv6 or DCCP
+	  support and have selected IPv6 or DCCP as a module, you need to build
+	  this as a module too.
 	  
 	  If unsure, say Y.
 
 config IP_TCPDIAG_IPV6
 	def_bool (IP_TCPDIAG=y && IPV6=y) || (IP_TCPDIAG=m && IPV6)
+
+config IP_TCPDIAG_DCCP
+	def_bool (IP_TCPDIAG=y && IP_DCCP=y) || (IP_TCPDIAG=m && IP_DCCP)
 
 config TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"

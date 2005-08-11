@@ -45,7 +45,7 @@ static struct sock *tcpnl;
 #define TCPDIAG_PUT(skb, attrtype, attrlen) \
 	RTA_DATA(__RTA_PUT(skb, attrtype, attrlen))
 
-#if defined(CONFIG_IP_DCCP) || defined(CONFIG_IP_DCCP_MODULE)
+#ifdef CONFIG_IP_TCPDIAG_DCCP
 extern struct inet_hashinfo dccp_hashinfo;
 #endif
 
@@ -216,7 +216,7 @@ static int tcpdiag_get_exact(struct sk_buff *in_skb, const struct nlmsghdr *nlh)
 	struct tcpdiagreq *req = NLMSG_DATA(nlh);
 	struct sk_buff *rep;
 	struct inet_hashinfo *hashinfo = &tcp_hashinfo;
-#if defined(CONFIG_IP_DCCP) || defined(CONFIG_IP_DCCP_MODULE)
+#ifdef CONFIG_IP_TCPDIAG_DCCP
 	if (nlh->nlmsg_type == DCCPDIAG_GETSOCK)
 		hashinfo = &dccp_hashinfo;
 #endif
@@ -614,7 +614,7 @@ static int tcpdiag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	s_i = cb->args[1];
 	s_num = num = cb->args[2];
 		hashinfo = &tcp_hashinfo;
-#if defined(CONFIG_IP_DCCP) || defined(CONFIG_IP_DCCP_MODULE)
+#ifdef CONFIG_IP_TCPDIAG_DCCP
 	if (cb->nlh->nlmsg_type == DCCPDIAG_GETSOCK)
 		hashinfo = &dccp_hashinfo;
 #endif
@@ -752,7 +752,7 @@ tcpdiag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return 0;
 
 	if (nlh->nlmsg_type != TCPDIAG_GETSOCK
-#if defined(CONFIG_IP_DCCP) || defined(CONFIG_IP_DCCP_MODULE)
+#ifdef CONFIG_IP_TCPDIAG_DCCP
 	    && nlh->nlmsg_type != DCCPDIAG_GETSOCK
 #endif
 	   )
