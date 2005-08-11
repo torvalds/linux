@@ -188,12 +188,18 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 /*
  *   - extended small page/tiny page
  */
+#define PTE_EXT_XN		(1 << 0)	/* v6 */
 #define PTE_EXT_AP_MASK		(3 << 4)
+#define PTE_EXT_AP0		(1 << 4)
+#define PTE_EXT_AP1		(2 << 4)
 #define PTE_EXT_AP_UNO_SRO	(0 << 4)
-#define PTE_EXT_AP_UNO_SRW	(1 << 4)
-#define PTE_EXT_AP_URO_SRW	(2 << 4)
-#define PTE_EXT_AP_URW_SRW	(3 << 4)
+#define PTE_EXT_AP_UNO_SRW	(PTE_EXT_AP0)
+#define PTE_EXT_AP_URO_SRW	(PTE_EXT_AP1)
+#define PTE_EXT_AP_URW_SRW	(PTE_EXT_AP1|PTE_EXT_AP0)
 #define PTE_EXT_TEX(x)		((x) << 6)	/* v5 */
+#define PTE_EXT_APX		(1 << 9)	/* v6 */
+#define PTE_EXT_SHARED		(1 << 10)	/* v6 */
+#define PTE_EXT_NG		(1 << 11)	/* v6 */
 
 /*
  *   - small page
@@ -224,6 +230,8 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define L_PTE_WRITE		(1 << 5)
 #define L_PTE_EXEC		(1 << 6)
 #define L_PTE_DIRTY		(1 << 7)
+#define L_PTE_SHARED		(1 << 10)	/* shared between CPUs (v6) */
+#define L_PTE_ASID		(1 << 11)	/* non-global (use ASID, v6) */
 
 #ifndef __ASSEMBLY__
 

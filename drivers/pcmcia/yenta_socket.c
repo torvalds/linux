@@ -605,9 +605,8 @@ static int yenta_search_res(struct yenta_socket *socket, struct resource *res,
 
 static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type, int addr_start, int addr_end)
 {
-	struct pci_bus *bus;
 	struct resource *root, *res;
-	u32 start, end;
+	struct pci_bus_region region;
 	unsigned mask;
 
 	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
@@ -620,15 +619,13 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 	if (type & IORESOURCE_IO)
 		mask = ~3;
 
-	bus = socket->dev->subordinate;
-	res->name = bus->name;
+	res->name = socket->dev->subordinate->name;
 	res->flags = type;
 
-	start = config_readl(socket, addr_start) & mask;
-	end = config_readl(socket, addr_end) | ~mask;
-	if (start && end > start && !override_bios) {
-		res->start = start;
-		res->end = end;
+	region.start = config_readl(socket, addr_start) & mask;
+	region.end = config_readl(socket, addr_end) | ~mask;
+	if (region.start && region.end > region.start && !override_bios) {
+		pcibios_bus_to_resource(socket->dev, res, &region);
 		root = pci_find_parent_resource(socket->dev, res);
 		if (root && (request_resource(root, res) == 0))
 			return;
@@ -642,6 +639,7 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 		    (yenta_search_res(socket, res, BRIDGE_IO_MIN))) {
 			config_writel(socket, addr_start, res->start);
 			config_writel(socket, addr_end, res->end);
+			return;
 		}
 	} else {
 		if (type & IORESOURCE_PREFETCH) {
@@ -650,6 +648,7 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 			    (yenta_search_res(socket, res, BRIDGE_MEM_MIN))) {
 				config_writel(socket, addr_start, res->start);
 				config_writel(socket, addr_end, res->end);
+				return;
 			}
 			/* Approximating prefetchable by non-prefetchable */
 			res->flags = IORESOURCE_MEM;
@@ -659,6 +658,7 @@ static void yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned typ
 		    (yenta_search_res(socket, res, BRIDGE_MEM_MIN))) {
 			config_writel(socket, addr_start, res->start);
 			config_writel(socket, addr_end, res->end);
+			return;
 		}
 	}
 
@@ -1107,8 +1107,6 @@ static int yenta_dev_suspend (struct pci_dev *dev, pm_message_t state)
 		pci_read_config_dword(dev, 17*4, &socket->saved_state[1]);
 		pci_disable_device(dev);
 
-		free_irq(dev->irq, socket);
-
 		/*
 		 * Some laptops (IBM T22) do not like us putting the Cardbus
 		 * bridge into D3.  At a guess, some other laptop will
@@ -1133,13 +1131,6 @@ static int yenta_dev_resume (struct pci_dev *dev)
 		pci_write_config_dword(dev, 17*4, socket->saved_state[1]);
 		pci_enable_device(dev);
 		pci_set_master(dev);
-
-		if (socket->cb_irq)
-			if (request_irq(socket->cb_irq, yenta_interrupt,
-			                SA_SHIRQ, "yenta", socket)) {
-				printk(KERN_WARNING "Yenta: request_irq() failed on resume!\n");
-				socket->cb_irq = 0;
-			}
 
 		if (socket->type && socket->type->restore_state)
 			socket->type->restore_state(socket);

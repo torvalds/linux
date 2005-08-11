@@ -1,7 +1,7 @@
 /*
  * Description:
  * Device Driver for the Infineon Technologies
- * SLD 9630 TT Trusted Platform Module
+ * SLD 9630 TT 1.1 and SLB 9635 TT 1.2 Trusted Platform Module
  * Specifications at www.trustedcomputinggroup.org
  *
  * Copyright (C) 2005, Marcel Selhorst <selhorst@crypto.rub.de>
@@ -12,9 +12,10 @@
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, version 2 of the
  * License.
- *
  */
 
+#include <acpi/acpi_bus.h>
+#include <linux/pnp.h>
 #include "tpm.h"
 
 /* Infineon specific definitions */
@@ -26,8 +27,11 @@
 #define	TPM_MSLEEP_TIME 	3
 /* gives number of max. msleep()-calls before throwing timeout */
 #define	TPM_MAX_TRIES		5000
-#define	TCPA_INFINEON_DEV_VEN_VALUE	0x15D1
-#define	TPM_DATA 			(TPM_ADDR + 1) & 0xff
+#define	TPM_INFINEON_DEV_VEN_VALUE	0x15D1
+
+/* These values will be filled after ACPI-call */
+static int TPM_INF_DATA = 0;
+static int TPM_INF_ADDR = 0;
 
 /* TPM header definitions */
 enum infineon_tpm_header {
@@ -305,9 +309,10 @@ static int tpm_inf_send(struct tpm_chip *chip, u8 * buf, size_t count)
 
 static void tpm_inf_cancel(struct tpm_chip *chip)
 {
-	/* Nothing yet!
-	   This has something to do with the internal functions
-	   of the TPM. Abort isn't really necessary...
+	/*
+	   Since we are using the legacy mode to communicate
+	   with the TPM, we have no cancel functions, but have
+	   a workaround for interrupting the TPM through WTX.
 	 */
 }
 
@@ -345,6 +350,32 @@ static struct tpm_vendor_specific tpm_inf = {
 	.miscdev = {.fops = &inf_ops,},
 };
 
+static const struct pnp_device_id tpm_pnp_tbl[] = {
+	/* Infineon TPMs */
+	{"IFX0101", 0},
+	{"IFX0102", 0},
+	{"", 0}
+};
+
+static int __devinit tpm_inf_acpi_probe(struct pnp_dev *dev,
+					const struct pnp_device_id *dev_id)
+{
+	TPM_INF_ADDR = (pnp_port_start(dev, 0) & 0xff);
+	TPM_INF_DATA = ((TPM_INF_ADDR + 1) & 0xff);
+	tpm_inf.base = pnp_port_start(dev, 1);
+	dev_info(&dev->dev, "Found %s with ID %s\n",
+		 dev->name, dev_id->id);
+	if (!((tpm_inf.base >> 8) & 0xff))
+		tpm_inf.base = 0;
+	return 0;
+}
+
+static struct pnp_driver tpm_inf_pnp = {
+	.name = "tpm_inf_pnp",
+	.id_table = tpm_pnp_tbl,
+	.probe = tpm_inf_acpi_probe,
+};
+
 static int __devinit tpm_inf_probe(struct pci_dev *pci_dev,
 				   const struct pci_device_id *pci_id)
 {
@@ -353,64 +384,99 @@ static int __devinit tpm_inf_probe(struct pci_dev *pci_dev,
 	int vendorid[2];
 	int version[2];
 	int productid[2];
+	char chipname[20];
 
 	if (pci_enable_device(pci_dev))
 		return -EIO;
 
 	dev_info(&pci_dev->dev, "LPC-bus found at 0x%x\n", pci_id->device);
 
+	/* read IO-ports from ACPI */
+	pnp_register_driver(&tpm_inf_pnp);
+	pnp_unregister_driver(&tpm_inf_pnp);
+
+	/* Make sure, we have received valid config ports */
+	if (!TPM_INF_ADDR) {
+		pci_disable_device(pci_dev);
+		return -EIO;
+	}
+
 	/* query chip for its vendor, its version number a.s.o. */
-	outb(ENABLE_REGISTER_PAIR, TPM_ADDR);
-	outb(IDVENL, TPM_ADDR);
-	vendorid[1] = inb(TPM_DATA);
-	outb(IDVENH, TPM_ADDR);
-	vendorid[0] = inb(TPM_DATA);
-	outb(IDPDL, TPM_ADDR);
-	productid[1] = inb(TPM_DATA);
-	outb(IDPDH, TPM_ADDR);
-	productid[0] = inb(TPM_DATA);
-	outb(CHIP_ID1, TPM_ADDR);
-	version[1] = inb(TPM_DATA);
-	outb(CHIP_ID2, TPM_ADDR);
-	version[0] = inb(TPM_DATA);
+	outb(ENABLE_REGISTER_PAIR, TPM_INF_ADDR);
+	outb(IDVENL, TPM_INF_ADDR);
+	vendorid[1] = inb(TPM_INF_DATA);
+	outb(IDVENH, TPM_INF_ADDR);
+	vendorid[0] = inb(TPM_INF_DATA);
+	outb(IDPDL, TPM_INF_ADDR);
+	productid[1] = inb(TPM_INF_DATA);
+	outb(IDPDH, TPM_INF_ADDR);
+	productid[0] = inb(TPM_INF_DATA);
+	outb(CHIP_ID1, TPM_INF_ADDR);
+	version[1] = inb(TPM_INF_DATA);
+	outb(CHIP_ID2, TPM_INF_ADDR);
+	version[0] = inb(TPM_INF_DATA);
 
-	if ((vendorid[0] << 8 | vendorid[1]) == (TCPA_INFINEON_DEV_VEN_VALUE)) {
+	switch ((productid[0] << 8) | productid[1]) {
+	case 6:
+		sprintf(chipname, " (SLD 9630 TT 1.1)");
+		break;
+	case 11:
+		sprintf(chipname, " (SLB 9635 TT 1.2)");
+		break;
+	default:
+		sprintf(chipname, " (unknown chip)");
+		break;
+	}
+	chipname[19] = 0;
 
-		/* read IO-ports from TPM */
-		outb(IOLIMH, TPM_ADDR);
-		ioh = inb(TPM_DATA);
-		outb(IOLIML, TPM_ADDR);
-		iol = inb(TPM_DATA);
-		tpm_inf.base = (ioh << 8) | iol;
+	if ((vendorid[0] << 8 | vendorid[1]) == (TPM_INFINEON_DEV_VEN_VALUE)) {
 
 		if (tpm_inf.base == 0) {
-			dev_err(&pci_dev->dev, "No IO-ports set!\n");
+			dev_err(&pci_dev->dev, "No IO-ports found!\n");
 			pci_disable_device(pci_dev);
-			return -ENODEV;
+			return -EIO;
+		}
+		/* configure TPM with IO-ports */
+		outb(IOLIMH, TPM_INF_ADDR);
+		outb(((tpm_inf.base >> 8) & 0xff), TPM_INF_DATA);
+		outb(IOLIML, TPM_INF_ADDR);
+		outb((tpm_inf.base & 0xff), TPM_INF_DATA);
+
+		/* control if IO-ports are set correctly */
+		outb(IOLIMH, TPM_INF_ADDR);
+		ioh = inb(TPM_INF_DATA);
+		outb(IOLIML, TPM_INF_ADDR);
+		iol = inb(TPM_INF_DATA);
+
+		if ((ioh << 8 | iol) != tpm_inf.base) {
+			dev_err(&pci_dev->dev,
+				"Could not set IO-ports to %04x\n",
+				tpm_inf.base);
+			pci_disable_device(pci_dev);
+			return -EIO;
 		}
 
 		/* activate register */
-		outb(TPM_DAR, TPM_ADDR);
-		outb(0x01, TPM_DATA);
-		outb(DISABLE_REGISTER_PAIR, TPM_ADDR);
+		outb(TPM_DAR, TPM_INF_ADDR);
+		outb(0x01, TPM_INF_DATA);
+		outb(DISABLE_REGISTER_PAIR, TPM_INF_ADDR);
 
 		/* disable RESET, LP and IRQC */
 		outb(RESET_LP_IRQC_DISABLE, tpm_inf.base + CMD);
 
 		/* Finally, we're done, print some infos */
 		dev_info(&pci_dev->dev, "TPM found: "
+			 "config base 0x%x, "
 			 "io base 0x%x, "
 			 "chip version %02x%02x, "
 			 "vendor id %x%x (Infineon), "
 			 "product id %02x%02x"
 			 "%s\n",
+			 TPM_INF_ADDR,
 			 tpm_inf.base,
 			 version[0], version[1],
 			 vendorid[0], vendorid[1],
-			 productid[0], productid[1], ((productid[0] == 0)
-						      && (productid[1] ==
-							  6)) ?
-			 " (SLD 9630 TT 1.1)" : "");
+			 productid[0], productid[1], chipname);
 
 		rc = tpm_register_hardware(pci_dev, &tpm_inf);
 		if (rc < 0) {
@@ -462,6 +528,6 @@ module_init(init_inf);
 module_exit(cleanup_inf);
 
 MODULE_AUTHOR("Marcel Selhorst <selhorst@crypto.rub.de>");
-MODULE_DESCRIPTION("Driver for Infineon TPM SLD 9630 TT");
-MODULE_VERSION("1.4");
+MODULE_DESCRIPTION("Driver for Infineon TPM SLD 9630 TT 1.1 / SLB 9635 TT 1.2");
+MODULE_VERSION("1.5");
 MODULE_LICENSE("GPL");

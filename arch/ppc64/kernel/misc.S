@@ -1129,6 +1129,9 @@ _GLOBAL(sys_call_table32)
 	.llong .compat_sys_waitid
 	.llong .sys32_ioprio_set
 	.llong .sys32_ioprio_get
+	.llong .sys_inotify_init	/* 275 */
+	.llong .sys_inotify_add_watch
+	.llong .sys_inotify_rm_watch
 
 	.balign 8
 _GLOBAL(sys_call_table)
@@ -1407,3 +1410,6 @@ _GLOBAL(sys_call_table)
 	.llong .sys_waitid
 	.llong .sys_ioprio_set
 	.llong .sys_ioprio_get
+	.llong .sys_inotify_init	/* 275 */
+	.llong .sys_inotify_add_watch
+	.llong .sys_inotify_rm_watch

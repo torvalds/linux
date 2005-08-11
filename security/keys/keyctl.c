@@ -49,9 +49,6 @@ asmlinkage long sys_add_key(const char __user *_type,
 		goto error;
 	type[31] = '\0';
 
-	if (!type[0])
-		goto error;
-
 	ret = -EPERM;
 	if (type[0] == '.')
 		goto error;
@@ -143,6 +140,10 @@ asmlinkage long sys_request_key(const char __user *_type,
 	if (ret < 0)
 		goto error;
 	type[31] = '\0';
+
+	ret = -EPERM;
+	if (type[0] == '.')
+		goto error;
 
 	/* pull the description into kernel space */
 	ret = -EFAULT;
@@ -362,7 +363,7 @@ long keyctl_revoke_key(key_serial_t id)
 
 	key_put(key);
  error:
-	return 0;
+	return ret;
 
 } /* end keyctl_revoke_key() */
 
@@ -685,6 +686,8 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 			goto can_read_key2;
 
 		ret = PTR_ERR(skey);
+		if (ret == -EAGAIN)
+			ret = -EACCES;
 		goto error2;
 	}
 

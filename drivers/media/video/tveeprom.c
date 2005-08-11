@@ -189,7 +189,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "Philips FQ1236 MK3"},
 	{ TUNER_ABSENT,        "Samsung TCPN 2121P30A"},
 	{ TUNER_ABSENT,        "Samsung TCPE 4121P30A"},
-	{ TUNER_ABSENT,        "TCL MFPE05 2"},
+	{ TUNER_PHILIPS_FM1216ME_MK3, "TCL MFPE05 2"},
 	/* 90-99 */
 	{ TUNER_ABSENT,        "LG TALN H202T"},
 	{ TUNER_PHILIPS_FQ1216AME_MK4, "Philips FQ1216AME MK4"},

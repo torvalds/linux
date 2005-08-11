@@ -248,17 +248,13 @@ inline void __bio_clone(struct bio *bio, struct bio *bio_src)
 {
 	request_queue_t *q = bdev_get_queue(bio_src->bi_bdev);
 
-	memcpy(bio->bi_io_vec, bio_src->bi_io_vec, bio_src->bi_max_vecs * sizeof(struct bio_vec));
+	memcpy(bio->bi_io_vec, bio_src->bi_io_vec,
+		bio_src->bi_max_vecs * sizeof(struct bio_vec));
 
 	bio->bi_sector = bio_src->bi_sector;
 	bio->bi_bdev = bio_src->bi_bdev;
 	bio->bi_flags |= 1 << BIO_CLONED;
 	bio->bi_rw = bio_src->bi_rw;
-
-	/*
-	 * notes -- maybe just leave bi_idx alone. assume identical mapping
-	 * for the clone
-	 */
 	bio->bi_vcnt = bio_src->bi_vcnt;
 	bio->bi_size = bio_src->bi_size;
 	bio->bi_idx = bio_src->bi_idx;

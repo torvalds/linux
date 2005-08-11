@@ -250,13 +250,18 @@ static inline unsigned int block_size(int val)
 /* Created by linker magic */
 extern char __per_cpu_start[], __per_cpu_end[];
 
-static void *percpu_modalloc(unsigned long size, unsigned long align)
+static void *percpu_modalloc(unsigned long size, unsigned long align,
+			     const char *name)
 {
 	unsigned long extra;
 	unsigned int i;
 	void *ptr;
 
-	BUG_ON(align > SMP_CACHE_BYTES);
+	if (align > SMP_CACHE_BYTES) {
+		printk(KERN_WARNING "%s: per-cpu alignment %li > %i\n",
+		       name, align, SMP_CACHE_BYTES);
+		align = SMP_CACHE_BYTES;
+	}
 
 	ptr = __per_cpu_start;
 	for (i = 0; i < pcpu_num_used; ptr += block_size(pcpu_size[i]), i++) {
@@ -348,7 +353,8 @@ static int percpu_modinit(void)
 }	
 __initcall(percpu_modinit);
 #else /* ... !CONFIG_SMP */
-static inline void *percpu_modalloc(unsigned long size, unsigned long align)
+static inline void *percpu_modalloc(unsigned long size, unsigned long align,
+				    const char *name)
 {
 	return NULL;
 }
@@ -1644,7 +1650,8 @@ static struct module *load_module(void __user *umod,
 	if (pcpuindex) {
 		/* We have a special allocation for this section. */
 		percpu = percpu_modalloc(sechdrs[pcpuindex].sh_size,
-					 sechdrs[pcpuindex].sh_addralign);
+					 sechdrs[pcpuindex].sh_addralign,
+					 mod->name);
 		if (!percpu) {
 			err = -ENOMEM;
 			goto free_mod;

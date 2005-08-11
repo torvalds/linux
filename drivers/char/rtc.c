@@ -1209,6 +1209,7 @@ static int rtc_proc_open(struct inode *inode, struct file *file)
 
 void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 {
+	unsigned long uip_watchdog = jiffies;
 	unsigned char ctrl;
 #ifdef CONFIG_MACH_DECSTATION
 	unsigned int real_year;
@@ -1224,8 +1225,10 @@ void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 	 * Once the read clears, read the RTC time (again via ioctl). Easy.
 	 */
 
-	if (rtc_is_updating() != 0)
-		msleep(20);
+	while (rtc_is_updating() != 0 && jiffies - uip_watchdog < 2*HZ/100) {
+		barrier();
+		cpu_relax();
+	}
 
 	/*
 	 * Only the values that we read from the RTC are set. We leave

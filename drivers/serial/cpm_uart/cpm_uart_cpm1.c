@@ -5,7 +5,7 @@
  *
  *  Maintainer: Kumar Gala (kumar.gala@freescale.com) (CPM2)
  *              Pantelis Antoniou (panto@intracom.gr) (CPM1)
- * 
+ *
  *  Copyright (C) 2004 Freescale Semiconductor, Inc.
  *            (C) 2004 Intracom, S.A.
  *
@@ -82,6 +82,17 @@ void cpm_line_cr_cmd(int line, int cmd)
 void smc1_lineif(struct uart_cpm_port *pinfo)
 {
 	volatile cpm8xx_t *cp = cpmp;
+
+	(void)cp;	/* fix warning */
+#if defined (CONFIG_MPC885ADS)
+	/* Enable SMC1 transceivers */
+	{
+		cp->cp_pepar |= 0x000000c0;
+		cp->cp_pedir &= ~0x000000c0;
+		cp->cp_peso &= ~0x00000040;
+		cp->cp_peso |= 0x00000080;
+	}
+#elif defined (CONFIG_MPC86XADS)
 	unsigned int iobits = 0x000000c0;
 
 	if (!pinfo->is_portb) {
@@ -93,41 +104,33 @@ void smc1_lineif(struct uart_cpm_port *pinfo)
 		((immap_t *)IMAP_ADDR)->im_ioport.iop_padir &= ~iobits;
 		((immap_t *)IMAP_ADDR)->im_ioport.iop_paodr &= ~iobits;
 	}
-
-#ifdef CONFIG_MPC885ADS
-	/* Enable SMC1 transceivers */
-	{
-		volatile uint __iomem *bcsr1 = ioremap(BCSR1, 4);
-		uint tmp;
-
-		tmp = in_be32(bcsr1);
-		tmp &= ~BCSR1_RS232EN_1;
-		out_be32(bcsr1, tmp);
-		iounmap(bcsr1);
-	}
 #endif
-
 	pinfo->brg = 1;
 }
 
 void smc2_lineif(struct uart_cpm_port *pinfo)
 {
-#ifdef CONFIG_MPC885ADS
 	volatile cpm8xx_t *cp = cpmp;
-	volatile uint __iomem *bcsr1;
-	uint tmp;
 
+	(void)cp;	/* fix warning */
+#if defined (CONFIG_MPC885ADS)
 	cp->cp_pepar |= 0x00000c00;
 	cp->cp_pedir &= ~0x00000c00;
 	cp->cp_peso &= ~0x00000400;
 	cp->cp_peso |= 0x00000800;
+#elif defined (CONFIG_MPC86XADS)
+	unsigned int iobits = 0x00000c00;
 
-	/* Enable SMC2 transceivers */
-	bcsr1 = ioremap(BCSR1, 4);
-	tmp = in_be32(bcsr1);
-	tmp &= ~BCSR1_RS232EN_2;
-	out_be32(bcsr1, tmp);
-	iounmap(bcsr1);
+	if (!pinfo->is_portb) {
+		cp->cp_pbpar |= iobits;
+		cp->cp_pbdir &= ~iobits;
+		cp->cp_pbodr &= ~iobits;
+	} else {
+		((immap_t *)IMAP_ADDR)->im_ioport.iop_papar |= iobits;
+		((immap_t *)IMAP_ADDR)->im_ioport.iop_padir &= ~iobits;
+		((immap_t *)IMAP_ADDR)->im_ioport.iop_paodr &= ~iobits;
+	}
+
 #endif
 
 	pinfo->brg = 2;
@@ -158,7 +161,7 @@ void scc4_lineif(struct uart_cpm_port *pinfo)
 }
 
 /*
- * Allocate DP-Ram and memory buffers. We need to allocate a transmit and 
+ * Allocate DP-Ram and memory buffers. We need to allocate a transmit and
  * receive buffer descriptors from dual port ram, and a character
  * buffer area from host mem. If we are allocating for the console we need
  * to do it from bootmem
@@ -185,6 +188,8 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 	memsz = L1_CACHE_ALIGN(pinfo->rx_nrfifos * pinfo->rx_fifosize) +
 	    L1_CACHE_ALIGN(pinfo->tx_nrfifos * pinfo->tx_fifosize);
 	if (is_con) {
+		/* was hostalloc but changed cause it blows away the */
+		/* large tlb mapping when pinning the kernel area    */
 		mem_addr = (u8 *) cpm_dpram_addr(cpm_dpalloc(memsz, 8));
 		dma_addr = 0;
 	} else

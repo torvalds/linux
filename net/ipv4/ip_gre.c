@@ -290,7 +290,6 @@ static struct ip_tunnel * ipgre_tunnel_locate(struct ip_tunnel_parm *parms, int 
 
 	dev_hold(dev);
 	ipgre_tunnel_link(nt);
-	/* Do not decrement MOD_USE_COUNT here. */
 	return nt;
 
 failed:
@@ -1277,12 +1276,28 @@ err1:
 	goto out;
 }
 
-static void ipgre_fini(void)
+static void __exit ipgre_destroy_tunnels(void)
+{
+	int prio;
+
+	for (prio = 0; prio < 4; prio++) {
+		int h;
+		for (h = 0; h < HASH_SIZE; h++) {
+			struct ip_tunnel *t;
+			while ((t = tunnels[prio][h]) != NULL)
+				unregister_netdevice(t->dev);
+		}
+	}
+}
+
+static void __exit ipgre_fini(void)
 {
 	if (inet_del_protocol(&ipgre_protocol, IPPROTO_GRE) < 0)
 		printk(KERN_INFO "ipgre close: can't remove protocol\n");
 
-	unregister_netdev(ipgre_fb_tunnel_dev);
+	rtnl_lock();
+	ipgre_destroy_tunnels();
+	rtnl_unlock();
 }
 
 module_init(ipgre_init);

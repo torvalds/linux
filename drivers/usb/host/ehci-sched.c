@@ -301,7 +301,7 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	dev_dbg (&qh->dev->dev,
 		"link qh%d-%04x/%p start %d [%d/%d us]\n",
-		period, le32_to_cpup (&qh->hw_info2) & 0xffff,
+		period, le32_to_cpup (&qh->hw_info2) & (QH_CMASK | QH_SMASK),
 		qh, qh->start, qh->usecs, qh->c_usecs);
 
 	/* high bandwidth, or otherwise every microframe */
@@ -385,7 +385,8 @@ static void qh_unlink_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	dev_dbg (&qh->dev->dev,
 		"unlink qh%d-%04x/%p start %d [%d/%d us]\n",
-		qh->period, le32_to_cpup (&qh->hw_info2) & 0xffff,
+		qh->period,
+		le32_to_cpup (&qh->hw_info2) & (QH_CMASK | QH_SMASK),
 		qh, qh->start, qh->usecs, qh->c_usecs);
 
 	/* qh->qh_next still "live" to HC */
@@ -411,7 +412,7 @@ static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 * active high speed queues may need bigger delays...
 	 */
 	if (list_empty (&qh->qtd_list)
-			|| (__constant_cpu_to_le32 (0x0ff << 8)
+			|| (__constant_cpu_to_le32 (QH_CMASK)
 					& qh->hw_info2) != 0)
 		wait = 2;
 	else
@@ -533,7 +534,7 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	/* reuse the previous schedule slots, if we can */
 	if (frame < qh->period) {
-		uframe = ffs (le32_to_cpup (&qh->hw_info2) & 0x00ff);
+		uframe = ffs (le32_to_cpup (&qh->hw_info2) & QH_SMASK);
 		status = check_intr_schedule (ehci, frame, --uframe,
 				qh, &c_mask);
 	} else {
@@ -569,10 +570,10 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		qh->start = frame;
 
 		/* reset S-frame and (maybe) C-frame masks */
-		qh->hw_info2 &= __constant_cpu_to_le32 (~0xffff);
+		qh->hw_info2 &= __constant_cpu_to_le32(~(QH_CMASK | QH_SMASK));
 		qh->hw_info2 |= qh->period
 			? cpu_to_le32 (1 << uframe)
-			: __constant_cpu_to_le32 (0xff);
+			: __constant_cpu_to_le32 (QH_SMASK);
 		qh->hw_info2 |= c_mask;
 	} else
 		ehci_dbg (ehci, "reused qh %p schedule\n", qh);

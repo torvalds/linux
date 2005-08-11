@@ -741,11 +741,9 @@ static int msp34xx_sleep(struct msp3400c *msp, int timeout)
 			schedule_timeout(msecs_to_jiffies(timeout));
 		}
 	}
-	if (current->flags & PF_FREEZE) {
-		refrigerator ();
-	}
 
 	remove_wait_queue(&msp->wq, &wait);
+	try_to_freeze();
 	return msp->restart;
 }
 

@@ -1653,6 +1653,7 @@ static int run (mddev_t *mddev)
 
 	/* device size must be a multiple of chunk size */
 	mddev->size &= ~(mddev->chunk_size/1024 -1);
+	mddev->resync_max_sectors = mddev->size << 1;
 
 	if (!conf->chunk_size || conf->chunk_size % 4) {
 		printk(KERN_ERR "raid5: invalid chunk size %d for %s\n",

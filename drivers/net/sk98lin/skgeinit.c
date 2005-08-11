@@ -2016,7 +2016,7 @@ SK_IOC	IoC)		/* IO context */
 	 * we set the PHY to coma mode and switch to D3 power state.
 	 */
 	if (pAC->GIni.GIYukonLite &&
-		pAC->GIni.GIChipRev == CHIP_REV_YU_LITE_A3) {
+		pAC->GIni.GIChipRev >= CHIP_REV_YU_LITE_A3) {
 
 		/* for all ports switch PHY to coma mode */
 		for (i = 0; i < pAC->GIni.GIMacsFound; i++) {

@@ -454,13 +454,16 @@ static struct accel_switch accel_image = {
 static void tridentfb_fillrect(struct fb_info * info, const struct fb_fillrect *fr)
 {
 	int bpp = info->var.bits_per_pixel;
-	int col;
+	int col = 0;
 	
 	switch (bpp) {
 		default:
-		case 8: col = fr->color;
+		case 8: col |= fr->color;
+			col |= col << 8;
+			col |= col << 16;
 			break;
 		case 16: col = ((u32 *)(info->pseudo_palette))[fr->color];
+			
 			 break;
 		case 32: col = ((u32 *)(info->pseudo_palette))[fr->color];
 			 break;
@@ -882,8 +885,9 @@ static int tridentfb_set_par(struct fb_info *info)
 
 	write3X4(GraphEngReg, 0x80);	//enable GE for text acceleration
 
-//	if (info->var.accel_flags & FB_ACCELF_TEXT)
-//FIXME		acc->init_accel(info->var.xres,bpp);
+#ifdef CONFIG_FB_TRIDENT_ACCEL	
+	acc->init_accel(info->var.xres,bpp);
+#endif
 	
 	switch (bpp) {
 		case 8:  tmp = 0x00; break;
@@ -900,7 +904,7 @@ static int tridentfb_set_par(struct fb_info *info)
 	write3X4(DRAMControl, tmp);	//both IO,linear enable
 
 	write3X4(InterfaceSel, read3X4(InterfaceSel) | 0x40);
-	write3X4(Performance,0x20);
+	write3X4(Performance,0x92);
 	write3X4(PCIReg,0x07);		//MMIO & PCI read and write burst enable
 
 	/* convert from picoseconds to MHz */
@@ -981,12 +985,14 @@ static int tridentfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		t_outb(green>>10,0x3C9);
 		t_outb(blue>>10,0x3C9);
 
-	} else
-	if (bpp == 16) 			/* RGB 565 */
-			((u32*)info->pseudo_palette)[regno] = (red & 0xF800) |
-			((green & 0xFC00) >> 5) | ((blue & 0xF800) >> 11);
-	else
-	if (bpp == 32)		/* ARGB 8888 */
+	} else if (bpp == 16) {	/* RGB 565 */
+		u32 col;
+
+		col = (red & 0xF800) | ((green & 0xFC00) >> 5) |
+			((blue & 0xF800) >> 11);
+		col |= col << 16;	
+		((u32 *)(info->pseudo_palette))[regno] = col;
+	} else if (bpp == 32)		/* ARGB 8888 */
 		((u32*)info->pseudo_palette)[regno] =
 			((transp & 0xFF00) <<16) 	|
 			((red & 0xFF00) << 8) 		|

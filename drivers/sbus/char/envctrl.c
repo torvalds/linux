@@ -24,6 +24,7 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/kthread.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -1010,16 +1011,13 @@ static int kenvctrld(void *__unused)
 
 	poll_interval = 5000; /* TODO env_mon_interval */
 
-	daemonize("kenvctrld");
-	allow_signal(SIGKILL);
-
-	kenvctrld_task = current;
-
 	printk(KERN_INFO "envctrl: %s starting...\n", current->comm);
 	for (;;) {
-		if(msleep_interruptible(poll_interval))
-			break;
+		msleep_interruptible(poll_interval);
 
+		if (kthread_should_stop())
+			break;
+		
 		for (whichcpu = 0; whichcpu < ENVCTRL_MAX_CPU; ++whichcpu) {
 			if (0 < envctrl_read_cpu_info(whichcpu, cputemp,
 						      ENVCTRL_CPUTEMP_MON,
@@ -1041,7 +1039,6 @@ static int kenvctrld(void *__unused)
 
 static int __init envctrl_init(void)
 {
-#ifdef CONFIG_PCI
 	struct linux_ebus *ebus = NULL;
 	struct linux_ebus_device *edev = NULL;
 	struct linux_ebus_child *edev_child = NULL;
@@ -1118,9 +1115,11 @@ done:
 			i2c_childlist[i].addr, (0 == i) ? ("\n") : (" "));
 	}
 
-	err = kernel_thread(kenvctrld, NULL, CLONE_FS | CLONE_FILES);
-	if (err < 0)
+	kenvctrld_task = kthread_run(kenvctrld, NULL, "kenvctrld");
+	if (IS_ERR(kenvctrld_task)) {
+		err = PTR_ERR(kenvctrld_task);
 		goto out_deregister;
+	}
 
 	return 0;
 
@@ -1133,37 +1132,13 @@ out_iounmap:
 			kfree(i2c_childlist[i].tables);
 	}
 	return err;
-#else
-	return -ENODEV;
-#endif
 }
 
 static void __exit envctrl_cleanup(void)
 {
 	int i;
 
-	if (NULL != kenvctrld_task) {
-		force_sig(SIGKILL, kenvctrld_task);
-		for (;;) {
-			struct task_struct *p;
-			int found = 0;
-
-			read_lock(&tasklist_lock);
-			for_each_process(p) {
-				if (p == kenvctrld_task) {
-					found = 1;
-					break;
-				}
-			}
-			read_unlock(&tasklist_lock);
-
-			if (!found)
-				break;
-
-			msleep(1000);
-		}
-		kenvctrld_task = NULL;
-	}
+	kthread_stop(kenvctrld_task);
 
 	iounmap(i2c);
 	misc_deregister(&envctrl_dev);

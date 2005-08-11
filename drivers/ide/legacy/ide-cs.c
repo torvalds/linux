@@ -508,5 +508,5 @@ static void __exit exit_ide_cs(void)
 	BUG_ON(dev_list != NULL);
 }
 
-module_init(init_ide_cs);
+late_initcall(init_ide_cs);
 module_exit(exit_ide_cs);
