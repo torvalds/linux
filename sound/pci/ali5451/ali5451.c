@@ -1842,7 +1842,7 @@ static int __devinit snd_ali_pcm(ali_t * codec, int device, struct ali_pcm_descr
 	return 0;
 }
 
-struct ali_pcm_description ali_pcms[] = {
+static struct ali_pcm_description ali_pcms[] = {
 	{ "ALI 5451", ALI_CHANNELS, 1, &snd_ali_playback_ops, &snd_ali_capture_ops },
 	{ "ALI 5451 modem", 1, 1, &snd_ali_modem_playback_ops, &snd_ali_modem_capture_ops }
 };

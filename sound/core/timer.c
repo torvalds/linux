@@ -799,13 +799,13 @@ static int snd_timer_free(snd_timer_t *timer)
 	return 0;
 }
 
-int snd_timer_dev_free(snd_device_t *device)
+static int snd_timer_dev_free(snd_device_t *device)
 {
 	snd_timer_t *timer = device->device_data;
 	return snd_timer_free(timer);
 }
 
-int snd_timer_dev_register(snd_device_t *dev)
+static int snd_timer_dev_register(snd_device_t *dev)
 {
 	snd_timer_t *timer = dev->device_data;
 	snd_timer_t *timer1;

@@ -1104,14 +1104,14 @@ static int snd_hdspm_midi_output_close(snd_rawmidi_substream_t * substream)
 	return 0;
 }
 
-snd_rawmidi_ops_t snd_hdspm_midi_output =
+static snd_rawmidi_ops_t snd_hdspm_midi_output =
 {
 	.open =		snd_hdspm_midi_output_open,
 	.close =	snd_hdspm_midi_output_close,
 	.trigger =	snd_hdspm_midi_output_trigger,
 };
 
-snd_rawmidi_ops_t snd_hdspm_midi_input =
+static snd_rawmidi_ops_t snd_hdspm_midi_input =
 {
 	.open =		snd_hdspm_midi_input_open,
 	.close =	snd_hdspm_midi_input_close,

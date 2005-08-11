@@ -512,7 +512,7 @@ static void free_all_reserved_pages(void)
  * proc file interface
  */
 #define SND_MEM_PROC_FILE	"driver/snd-page-alloc"
-struct proc_dir_entry *snd_mem_proc;
+static struct proc_dir_entry *snd_mem_proc;
 
 static int snd_mem_proc_read(char *page, char **start, off_t off,
 			     int count, int *eof, void *data)
