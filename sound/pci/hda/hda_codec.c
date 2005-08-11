@@ -432,22 +432,26 @@ void snd_hda_get_codec_name(struct hda_codec *codec,
 }
 
 /*
- * look for an AFG node
- *
- * return 0 if not found
+ * look for an AFG and MFG nodes
  */
-static int look_for_afg_node(struct hda_codec *codec)
+static void setup_fg_nodes(struct hda_codec *codec)
 {
 	int i, total_nodes;
 	hda_nid_t nid;
 
 	total_nodes = snd_hda_get_sub_nodes(codec, AC_NODE_ROOT, &nid);
 	for (i = 0; i < total_nodes; i++, nid++) {
-		if ((snd_hda_param_read(codec, nid, AC_PAR_FUNCTION_TYPE) & 0xff) ==
-		    AC_GRP_AUDIO_FUNCTION)
-			return nid;
+		switch((snd_hda_param_read(codec, nid, AC_PAR_FUNCTION_TYPE) & 0xff)) {
+		case AC_GRP_AUDIO_FUNCTION:
+			codec->afg = nid;
+			break;
+		case AC_GRP_MODEM_FUNCTION:
+			codec->mfg = nid;
+			break;
+		default:
+			break;
+		}
 	}
-	return 0;
 }
 
 /*
@@ -507,10 +511,9 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	codec->subsystem_id = snd_hda_param_read(codec, AC_NODE_ROOT, AC_PAR_SUBSYSTEM_ID);
 	codec->revision_id = snd_hda_param_read(codec, AC_NODE_ROOT, AC_PAR_REV_ID);
 
-	/* FIXME: support for multiple AFGs? */
-	codec->afg = look_for_afg_node(codec);
-	if (! codec->afg) {
-		snd_printdd("hda_codec: no AFG node found\n");
+	setup_fg_nodes(codec);
+	if (! codec->afg && ! codec->mfg) {
+		snd_printdd("hda_codec: no AFG or MFG node found\n");
 		snd_hda_codec_free(codec);
 		return -ENODEV;
 	}
@@ -1163,6 +1166,7 @@ int snd_hda_build_controls(struct hda_bus *bus)
 static unsigned int rate_bits[][3] = {
 	/* rate in Hz, ALSA rate bitmask, HDA format value */
 	{ 8000, SNDRV_PCM_RATE_8000, 0x0500 }, /* 1/6 x 48 */
+	{ 9600, SNDRV_PCM_RATE_KNOT, 0x0400 }, /* 1/5 x 48 */
 	{ 11025, SNDRV_PCM_RATE_11025, 0x4300 }, /* 1/4 x 44 */
 	{ 16000, SNDRV_PCM_RATE_16000, 0x0200 }, /* 1/3 x 48 */
 	{ 22050, SNDRV_PCM_RATE_22050, 0x4100 }, /* 1/2 x 44 */
