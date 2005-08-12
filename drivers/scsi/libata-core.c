@@ -2697,10 +2697,33 @@ static void __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 	unsigned char *buf;
 	unsigned int offset, count;
 
-	if (qc->curbytes == qc->nbytes - bytes)
+	if (qc->curbytes + bytes >= qc->nbytes)
 		ap->pio_task_state = PIO_ST_LAST;
 
 next_sg:
+	if (unlikely(qc->cursg >= qc->n_elem)) {
+		/* 
+		 * The end of qc->sg is reached and the device expects
+		 * more data to transfer. In order not to overrun qc->sg
+		 * and fulfill length specified in the byte count register,
+		 *    - for read case, discard trailing data from the device
+		 *    - for write case, padding zero data to the device
+		 */
+		u16 pad_buf[1] = { 0 };
+		unsigned int words = bytes >> 1;
+		unsigned int i;
+
+		if (words) /* warning if bytes > 1 */
+			printk(KERN_WARNING "ata%u: %u bytes trailing data\n", 
+			       ap->id, bytes);
+
+		for (i = 0; i < words; i++)
+			ata_data_xfer(ap, (unsigned char*)pad_buf, 2, do_write);
+
+		ap->pio_task_state = PIO_ST_LAST;
+		return;
+	}
+
 	sg = &qc->sg[qc->cursg];
 
 	page = sg->page;
@@ -2734,9 +2757,8 @@ next_sg:
 
 	kunmap(page);
 
-	if (bytes) {
+	if (bytes)
 		goto next_sg;
-	}
 }
 
 /**
