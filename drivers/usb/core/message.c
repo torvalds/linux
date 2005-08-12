@@ -265,7 +265,9 @@ static void sg_complete (struct urb *urb, struct pt_regs *regs)
 				continue;
 			if (found) {
 				status = usb_unlink_urb (io->urbs [i]);
-				if (status != -EINPROGRESS && status != -EBUSY)
+				if (status != -EINPROGRESS
+						&& status != -ENODEV
+						&& status != -EBUSY)
 					dev_err (&io->dev->dev,
 						"%s, unlink --> %d\n",
 						__FUNCTION__, status);
