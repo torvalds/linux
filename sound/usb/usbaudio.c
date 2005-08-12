@@ -79,7 +79,7 @@ module_param_array(vid, int, NULL, 0444);
 MODULE_PARM_DESC(vid, "Vendor ID for the USB audio device.");
 module_param_array(pid, int, NULL, 0444);
 MODULE_PARM_DESC(pid, "Product ID for the USB audio device.");
-module_param(nrpacks, int, 0444);
+module_param(nrpacks, int, 0644);
 MODULE_PARM_DESC(nrpacks, "Max. number of packets per URB.");
 module_param(async_unlink, bool, 0444);
 MODULE_PARM_DESC(async_unlink, "Use async unlink mode.");
@@ -920,9 +920,11 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 	else
 		subs->curpacksize = maxsize;
 
-	if (is_playback)
+	if (is_playback) {
 		urb_packs = nrpacks;
-	else
+		urb_packs = max(urb_packs, (unsigned int)MIN_PACKS_URB);
+		urb_packs = min(urb_packs, (unsigned int)MAX_PACKS);
+	} else
 		urb_packs = 1;
 	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH)
 		urb_packs = (urb_packs * 8) >> subs->datainterval;
