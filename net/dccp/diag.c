@@ -16,10 +16,10 @@
 
 #include "dccp.h"
 
-static void dccp_diag_get_info(struct sock *sk, struct tcpdiagmsg *r,
+static void dccp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 			       void *_info)
 {
-	r->tcpdiag_rqueue = r->tcpdiag_wqueue = 0;
+	r->idiag_rqueue = r->idiag_wqueue = 0;
 }
 
 static struct inet_diag_handler dccp_diag_handler = {

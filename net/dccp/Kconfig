@@ -20,8 +20,8 @@ config IP_DCCP
 	  If in doubt, say N.
 
 config IP_DCCP_DIAG
-	depends on IP_DCCP && IP_TCPDIAG
-	def_tristate y if (IP_DCCP = y && IP_TCPDIAG = y)
+	depends on IP_DCCP && IP_INET_DIAG
+	def_tristate y if (IP_DCCP = y && IP_INET_DIAG = y)
 	def_tristate m
 
 source "net/dccp/ccids/Kconfig"

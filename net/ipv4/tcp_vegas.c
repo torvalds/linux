@@ -365,10 +365,10 @@ static void tcp_vegas_get_info(struct sock *sk, u32 ext,
 			       struct sk_buff *skb)
 {
 	const struct vegas *ca = inet_csk_ca(sk);
-	if (ext & (1<<(TCPDIAG_VEGASINFO-1))) {
+	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
 		struct tcpvegas_info *info;
 
-		info = RTA_DATA(__RTA_PUT(skb, TCPDIAG_VEGASINFO,
+		info = RTA_DATA(__RTA_PUT(skb, INET_DIAG_VEGASINFO,
 					  sizeof(*info)));
 
 		info->tcpv_enabled = ca->doing_vegas_now;

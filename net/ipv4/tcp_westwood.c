@@ -216,11 +216,11 @@ static void tcp_westwood_info(struct sock *sk, u32 ext,
 			      struct sk_buff *skb)
 {
 	const struct westwood *ca = inet_csk_ca(sk);
-	if (ext & (1<<(TCPDIAG_VEGASINFO-1))) {
+	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
 		struct rtattr *rta;
 		struct tcpvegas_info *info;
 
-		rta = __RTA_PUT(skb, TCPDIAG_VEGASINFO, sizeof(*info));
+		rta = __RTA_PUT(skb, INET_DIAG_VEGASINFO, sizeof(*info));
 		info = RTA_DATA(rta);
 		info->tcpv_enabled = 1;
 		info->tcpv_rttcnt = 0;

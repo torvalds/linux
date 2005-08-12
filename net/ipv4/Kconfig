@@ -413,13 +413,13 @@ config INET_TUNNEL
 	  
 	  If unsure, say Y.
 
-config IP_TCPDIAG
-	tristate "IP: TCP socket monitoring interface"
+config IP_INET_DIAG
+	tristate "IP: INET socket monitoring interface"
 	default y
 	---help---
-	  Support for TCP socket monitoring interface used by native Linux
-	  tools such as ss. ss is included in iproute2, currently downloadable
-	  at <http://developer.osdl.org/dev/iproute2>. 
+	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
+	  native Linux tools such as ss. ss is included in iproute2, currently
+	  downloadable at <http://developer.osdl.org/dev/iproute2>. 
 	  
 	  If unsure, say Y.
 

@@ -8,7 +8,7 @@
 #define NETLINK_W1		1	/* 1-wire subsystem				*/
 #define NETLINK_USERSOCK	2	/* Reserved for user mode socket protocols 	*/
 #define NETLINK_FIREWALL	3	/* Firewalling hook				*/
-#define NETLINK_TCPDIAG		4	/* TCP socket monitoring			*/
+#define NETLINK_INET_DIAG	4	/* INET socket monitoring			*/
 #define NETLINK_NFLOG		5	/* netfilter/iptables ULOG */
 #define NETLINK_XFRM		6	/* ipsec */
 #define NETLINK_SELINUX		7	/* SELinux event notifications */

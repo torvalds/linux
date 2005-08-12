@@ -1,5 +1,5 @@
-#ifndef _TCP_DIAG_H_
-#define _TCP_DIAG_H_ 1
+#ifndef _INET_DIAG_H_
+#define _INET_DIAG_H_ 1
 
 /* Just some random number */
 #define TCPDIAG_GETSOCK 18
@@ -8,39 +8,36 @@
 #define INET_DIAG_GETSOCK_MAX 24
 
 /* Socket identity */
-struct tcpdiag_sockid
-{
-	__u16	tcpdiag_sport;
-	__u16	tcpdiag_dport;
-	__u32	tcpdiag_src[4];
-	__u32	tcpdiag_dst[4];
-	__u32	tcpdiag_if;
-	__u32	tcpdiag_cookie[2];
-#define TCPDIAG_NOCOOKIE (~0U)
+struct inet_diag_sockid {
+	__u16	idiag_sport;
+	__u16	idiag_dport;
+	__u32	idiag_src[4];
+	__u32	idiag_dst[4];
+	__u32	idiag_if;
+	__u32	idiag_cookie[2];
+#define INET_DIAG_NOCOOKIE (~0U)
 };
 
 /* Request structure */
 
-struct tcpdiagreq
-{
-	__u8	tcpdiag_family;		/* Family of addresses. */
-	__u8	tcpdiag_src_len;
-	__u8	tcpdiag_dst_len;
-	__u8	tcpdiag_ext;		/* Query extended information */
+struct inet_diag_req {
+	__u8	idiag_family;		/* Family of addresses. */
+	__u8	idiag_src_len;
+	__u8	idiag_dst_len;
+	__u8	idiag_ext;		/* Query extended information */
 
-	struct tcpdiag_sockid id;
+	struct inet_diag_sockid id;
 
-	__u32	tcpdiag_states;		/* States to dump */
-	__u32	tcpdiag_dbs;		/* Tables to dump (NI) */
+	__u32	idiag_states;		/* States to dump */
+	__u32	idiag_dbs;		/* Tables to dump (NI) */
 };
 
-enum
-{
-	TCPDIAG_REQ_NONE,
-	TCPDIAG_REQ_BYTECODE,
+enum {
+	INET_DIAG_REQ_NONE,
+	INET_DIAG_REQ_BYTECODE,
 };
 
-#define TCPDIAG_REQ_MAX TCPDIAG_REQ_BYTECODE
+#define INET_DIAG_REQ_MAX INET_DIAG_REQ_BYTECODE
 
 /* Bytecode is sequence of 4 byte commands followed by variable arguments.
  * All the commands identified by "code" are conditional jumps forward:
@@ -48,28 +45,25 @@ enum
  * length of the command and its arguments.
  */
  
-struct tcpdiag_bc_op
-{
+struct inet_diag_bc_op {
 	unsigned char	code;
 	unsigned char	yes;
 	unsigned short	no;
 };
 
-enum
-{
-	TCPDIAG_BC_NOP,
-	TCPDIAG_BC_JMP,
-	TCPDIAG_BC_S_GE,
-	TCPDIAG_BC_S_LE,
-	TCPDIAG_BC_D_GE,
-	TCPDIAG_BC_D_LE,
-	TCPDIAG_BC_AUTO,
-	TCPDIAG_BC_S_COND,
-	TCPDIAG_BC_D_COND,
+enum {
+	INET_DIAG_BC_NOP,
+	INET_DIAG_BC_JMP,
+	INET_DIAG_BC_S_GE,
+	INET_DIAG_BC_S_LE,
+	INET_DIAG_BC_D_GE,
+	INET_DIAG_BC_D_LE,
+	INET_DIAG_BC_AUTO,
+	INET_DIAG_BC_S_COND,
+	INET_DIAG_BC_D_COND,
 };
 
-struct tcpdiag_hostcond
-{
+struct inet_diag_hostcond {
 	__u8	family;
 	__u8	prefix_len;
 	int	port;
@@ -78,47 +72,44 @@ struct tcpdiag_hostcond
 
 /* Base info structure. It contains socket identity (addrs/ports/cookie)
  * and, alas, the information shown by netstat. */
-struct tcpdiagmsg
-{
-	__u8	tcpdiag_family;
-	__u8	tcpdiag_state;
-	__u8	tcpdiag_timer;
-	__u8	tcpdiag_retrans;
+struct inet_diag_msg {
+	__u8	idiag_family;
+	__u8	idiag_state;
+	__u8	idiag_timer;
+	__u8	idiag_retrans;
 
-	struct tcpdiag_sockid id;
+	struct inet_diag_sockid id;
 
-	__u32	tcpdiag_expires;
-	__u32	tcpdiag_rqueue;
-	__u32	tcpdiag_wqueue;
-	__u32	tcpdiag_uid;
-	__u32	tcpdiag_inode;
+	__u32	idiag_expires;
+	__u32	idiag_rqueue;
+	__u32	idiag_wqueue;
+	__u32	idiag_uid;
+	__u32	idiag_inode;
 };
 
 /* Extensions */
 
-enum
-{
-	TCPDIAG_NONE,
-	TCPDIAG_MEMINFO,
-	TCPDIAG_INFO,
-	TCPDIAG_VEGASINFO,
-	TCPDIAG_CONG,
+enum {
+	INET_DIAG_NONE,
+	INET_DIAG_MEMINFO,
+	INET_DIAG_INFO,
+	INET_DIAG_VEGASINFO,
+	INET_DIAG_CONG,
 };
 
-#define TCPDIAG_MAX TCPDIAG_CONG
+#define INET_DIAG_MAX INET_DIAG_CONG
 
 
-/* TCPDIAG_MEM */
+/* INET_DIAG_MEM */
 
-struct tcpdiag_meminfo
-{
-	__u32	tcpdiag_rmem;
-	__u32	tcpdiag_wmem;
-	__u32	tcpdiag_fmem;
-	__u32	tcpdiag_tmem;
+struct inet_diag_meminfo {
+	__u32	idiag_rmem;
+	__u32	idiag_wmem;
+	__u32	idiag_fmem;
+	__u32	idiag_tmem;
 };
 
-/* TCPDIAG_VEGASINFO */
+/* INET_DIAG_VEGASINFO */
 
 struct tcpvegas_info {
 	__u32	tcpv_enabled;
@@ -134,7 +125,7 @@ struct inet_hashinfo;
 struct inet_diag_handler {
 	struct inet_hashinfo    *idiag_hashinfo;
 	void			(*idiag_get_info)(struct sock *sk,
-						  struct tcpdiagmsg *r,
+						  struct inet_diag_msg *r,
 						  void *info);
 	__u16                   idiag_info_size;
 	__u16                   idiag_type;
@@ -144,4 +135,4 @@ extern int  inet_diag_register(const struct inet_diag_handler *handler);
 extern void inet_diag_unregister(const struct inet_diag_handler *handler);
 #endif /* __KERNEL__ */
 
-#endif /* _TCP_DIAG_H_ */
+#endif /* _INET_DIAG_H_ */
