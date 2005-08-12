@@ -428,6 +428,7 @@ static inline void ipw_disable_interrupts(struct ipw_priv *priv)
 	ipw_write32(priv, IPW_INTA_MASK_R, ~IPW_INTA_MASK_ALL);
 }
 
+#ifdef CONFIG_IPW_DEBUG
 static char *ipw_error_desc(u32 val)
 {
 	switch (val) {
@@ -466,56 +467,35 @@ static char *ipw_error_desc(u32 val)
 	}
 }
 
-static void ipw_dump_nic_error_log(struct ipw_priv *priv)
+static void ipw_dump_error_log(struct ipw_priv *priv,
+			       struct ipw_fw_error *error)
 {
-	u32 desc, time, blink1, blink2, ilink1, ilink2, idata, i, count, base;
+	u32 i;
 
-	base = ipw_read32(priv, IPWSTATUS_ERROR_LOG);
-	count = ipw_read_reg32(priv, base);
-
-	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
-		IPW_ERROR("Start IPW Error Log Dump:\n");
-		IPW_ERROR("Status: 0x%08X, Config: %08X\n",
-			  priv->status, priv->config);
+	if (!error) {
+		IPW_ERROR("Error allocating and capturing error log.  "
+			  "Nothing to dump.\n");
+		return;
 	}
 
-	for (i = ERROR_START_OFFSET;
-	     i <= count * ERROR_ELEM_SIZE; i += ERROR_ELEM_SIZE) {
-		desc = ipw_read_reg32(priv, base + i);
-		time = ipw_read_reg32(priv, base + i + 1 * sizeof(u32));
-		blink1 = ipw_read_reg32(priv, base + i + 2 * sizeof(u32));
-		blink2 = ipw_read_reg32(priv, base + i + 3 * sizeof(u32));
-		ilink1 = ipw_read_reg32(priv, base + i + 4 * sizeof(u32));
-		ilink2 = ipw_read_reg32(priv, base + i + 5 * sizeof(u32));
-		idata = ipw_read_reg32(priv, base + i + 6 * sizeof(u32));
+	IPW_ERROR("Start IPW Error Log Dump:\n");
+	IPW_ERROR("Status: 0x%08X, Config: %08X\n",
+		  error->status, error->config);
 
+	for (i = 0; i < error->elem_len; i++)
 		IPW_ERROR("%s %i 0x%08x  0x%08x  0x%08x  0x%08x  0x%08x\n",
-			  ipw_error_desc(desc), time, blink1, blink2,
-			  ilink1, ilink2, idata);
-	}
+			  ipw_error_desc(error->elem[i].desc),
+			  error->elem[i].time,
+			  error->elem[i].blink1,
+			  error->elem[i].blink2,
+			  error->elem[i].link1,
+			  error->elem[i].link2, error->elem[i].data);
+	for (i = 0; i < error->log_len; i++)
+		IPW_ERROR("%i\t0x%08x\t%i\n",
+			  error->log[i].time,
+			  error->log[i].event, error->log[i].data);
 }
-
-static void ipw_dump_nic_event_log(struct ipw_priv *priv)
-{
-	u32 ev, time, data, i, count, base;
-
-	base = ipw_read32(priv, IPW_EVENT_LOG);
-	count = ipw_read_reg32(priv, base);
-
-	if (EVENT_START_OFFSET <= count * EVENT_ELEM_SIZE)
-		IPW_ERROR("Start IPW Event Log Dump:\n");
-
-	for (i = EVENT_START_OFFSET;
-	     i <= count * EVENT_ELEM_SIZE; i += EVENT_ELEM_SIZE) {
-		ev = ipw_read_reg32(priv, base + i);
-		time = ipw_read_reg32(priv, base + i + 1 * sizeof(u32));
-		data = ipw_read_reg32(priv, base + i + 2 * sizeof(u32));
-
-#ifdef CONFIG_IPW_DEBUG
-		IPW_ERROR("%i\t0x%08x\t%i\n", time, data, ev);
 #endif
-	}
-}
 
 static inline int ipw_is_init(struct ipw_priv *priv)
 {
@@ -1058,6 +1038,130 @@ static ssize_t store_debug_level(struct device_driver *d, const char *buf,
 static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO,
 		   show_debug_level, store_debug_level);
 
+static inline u32 ipw_get_event_log_len(struct ipw_priv *priv)
+{
+	return ipw_read_reg32(priv, ipw_read32(priv, IPW_EVENT_LOG));
+}
+
+static void ipw_capture_event_log(struct ipw_priv *priv,
+				  u32 log_len, struct ipw_event *log)
+{
+	u32 base;
+
+	if (log_len) {
+		base = ipw_read32(priv, IPW_EVENT_LOG);
+		ipw_read_indirect(priv, base + sizeof(base) + sizeof(u32),
+				  (u8 *) log, sizeof(*log) * log_len);
+	}
+}
+
+static struct ipw_fw_error *ipw_alloc_error_log(struct ipw_priv *priv)
+{
+	struct ipw_fw_error *error;
+	u32 log_len = ipw_get_event_log_len(priv);
+	u32 base = ipw_read32(priv, IPW_ERROR_LOG);
+	u32 elem_len = ipw_read_reg32(priv, base);
+
+	error = kmalloc(sizeof(*error) +
+			sizeof(*error->elem) * elem_len +
+			sizeof(*error->log) * log_len, GFP_ATOMIC);
+	if (!error) {
+		IPW_ERROR("Memory allocation for firmware error log "
+			  "failed.\n");
+		return NULL;
+	}
+	error->status = priv->status;
+	error->config = priv->config;
+	error->elem_len = elem_len;
+	error->log_len = log_len;
+	error->elem = (struct ipw_error_elem *)error->payload;
+	error->log = (struct ipw_event *)(error->elem +
+					  (sizeof(*error->elem) * elem_len));
+
+	ipw_capture_event_log(priv, log_len, error->log);
+
+	if (elem_len)
+		ipw_read_indirect(priv, base + sizeof(base), (u8 *) error->elem,
+				  sizeof(*error->elem) * elem_len);
+
+	return error;
+}
+
+static void ipw_free_error_log(struct ipw_fw_error *error)
+{
+	if (error)
+		kfree(error);
+}
+
+static ssize_t show_event_log(struct device *d,
+			      struct device_attribute *attr, char *buf)
+{
+	struct ipw_priv *priv = dev_get_drvdata(d);
+	u32 log_len = ipw_get_event_log_len(priv);
+	struct ipw_event log[log_len];
+	u32 len = 0, i;
+
+	ipw_capture_event_log(priv, log_len, log);
+
+	len += snprintf(buf + len, PAGE_SIZE - len, "%08X", log_len);
+	for (i = 0; i < log_len; i++)
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"\n%08X%08X%08X",
+				log[i].time, log[i].event, log[i].data);
+	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	return len;
+}
+
+static DEVICE_ATTR(event_log, S_IRUGO, show_event_log, NULL);
+
+static ssize_t show_error(struct device *d,
+			  struct device_attribute *attr, char *buf)
+{
+	struct ipw_priv *priv = dev_get_drvdata(d);
+	u32 len = 0, i;
+	if (!priv->error)
+		return 0;
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"%08X%08X%08X",
+			priv->error->status,
+			priv->error->config, priv->error->elem_len);
+	for (i = 0; i < priv->error->elem_len; i++)
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"\n%08X%08X%08X%08X%08X%08X%08X",
+				priv->error->elem[i].time,
+				priv->error->elem[i].desc,
+				priv->error->elem[i].blink1,
+				priv->error->elem[i].blink2,
+				priv->error->elem[i].link1,
+				priv->error->elem[i].link2,
+				priv->error->elem[i].data);
+
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"\n%08X", priv->error->log_len);
+	for (i = 0; i < priv->error->log_len; i++)
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"\n%08X%08X%08X",
+				priv->error->log[i].time,
+				priv->error->log[i].event,
+				priv->error->log[i].data);
+	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	return len;
+}
+
+static ssize_t clear_error(struct device *d,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct ipw_priv *priv = dev_get_drvdata(d);
+	if (priv->error) {
+		ipw_free_error_log(priv->error);
+		priv->error = NULL;
+	}
+	return count;
+}
+
+static DEVICE_ATTR(error, S_IRUGO | S_IWUSR, show_error, clear_error);
+
 static ssize_t show_scan_age(struct device *d, struct device_attribute *attr,
 			     char *buf)
 {
@@ -1162,34 +1266,6 @@ static ssize_t show_nic_type(struct device *d,
 }
 
 static DEVICE_ATTR(nic_type, S_IRUGO, show_nic_type, NULL);
-
-static ssize_t dump_error_log(struct device *d,
-			      struct device_attribute *attr, const char *buf,
-			      size_t count)
-{
-	char *p = (char *)buf;
-
-	if (p[0] == '1')
-		ipw_dump_nic_error_log((struct ipw_priv *)d->driver_data);
-
-	return strnlen(buf, count);
-}
-
-static DEVICE_ATTR(dump_errors, S_IWUSR, NULL, dump_error_log);
-
-static ssize_t dump_event_log(struct device *d,
-			      struct device_attribute *attr, const char *buf,
-			      size_t count)
-{
-	char *p = (char *)buf;
-
-	if (p[0] == '1')
-		ipw_dump_nic_event_log((struct ipw_priv *)d->driver_data);
-
-	return strnlen(buf, count);
-}
-
-static DEVICE_ATTR(dump_events, S_IWUSR, NULL, dump_event_log);
 
 static ssize_t show_ucode_version(struct device *d,
 				  struct device_attribute *attr, char *buf)
@@ -1614,12 +1690,30 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 
 	if (inta & IPW_INTA_BIT_FATAL_ERROR) {
 		IPW_ERROR("Firmware error detected.  Restarting.\n");
+		if (priv->error) {
+			IPW_ERROR("Sysfs 'error' log already exists.\n");
 #ifdef CONFIG_IPW_DEBUG
-		if (ipw_debug_level & IPW_DL_FW_ERRORS) {
-			ipw_dump_nic_error_log(priv);
-			ipw_dump_nic_event_log(priv);
-		}
+			if (ipw_debug_level & IPW_DL_FW_ERRORS) {
+				struct ipw_fw_error *error =
+				    ipw_alloc_error_log(priv);
+				ipw_dump_error_log(priv, error);
+				if (error)
+					ipw_free_error_log(error);
+			}
 #endif
+		} else {
+			priv->error = ipw_alloc_error_log(priv);
+			if (priv->error)
+				IPW_ERROR("Sysfs 'error' log captured.\n");
+			else
+				IPW_ERROR("Error allocating sysfs 'error' "
+					  "log.\n");
+#ifdef CONFIG_IPW_DEBUG
+			if (ipw_debug_level & IPW_DL_FW_ERRORS)
+				ipw_dump_error_log(priv, priv->error);
+#endif
+		}
+
 		/* XXX: If hardware encryption is for WPA/WPA2,
 		 * we have to notify the supplicant. */
 		if (priv->ieee->sec.encrypt) {
@@ -10958,8 +11052,8 @@ static struct attribute *ipw_sysfs_entries[] = {
 	&dev_attr_nic_type.attr,
 	&dev_attr_status.attr,
 	&dev_attr_cfg.attr,
-	&dev_attr_dump_errors.attr,
-	&dev_attr_dump_events.attr,
+	&dev_attr_error.attr,
+	&dev_attr_event_log.attr,
 	&dev_attr_eeprom_delay.attr,
 	&dev_attr_ucode_version.attr,
 	&dev_attr_rtc.attr,
@@ -11170,6 +11264,11 @@ static void ipw_pci_remove(struct pci_dev *pdev)
 			kfree(list_entry(p, struct ipw_ibss_seq, list));
 			list_del(p);
 		}
+	}
+
+	if (priv->error) {
+		ipw_free_error_log(priv->error);
+		priv->error = NULL;
 	}
 
 	free_irq(pdev->irq, priv);

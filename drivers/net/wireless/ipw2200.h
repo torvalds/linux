@@ -1085,6 +1085,32 @@ struct ipw_ibss_seq {
 	struct list_head list;
 };
 
+struct ipw_error_elem {
+	u32 desc;
+	u32 time;
+	u32 blink1;
+	u32 blink2;
+	u32 link1;
+	u32 link2;
+	u32 data;
+};
+
+struct ipw_event {
+	u32 event;
+	u32 time;
+	u32 data;
+} __attribute__ ((packed));
+
+struct ipw_fw_error {
+	u32 status;
+	u32 config;
+	u32 elem_len;
+	u32 log_len;
+	struct ipw_error_elem *elem;
+	struct ipw_event *log;
+	u8 payload[0];
+} __attribute__ ((packed));
+
 struct ipw_priv {
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_device *ieee;
@@ -1244,6 +1270,8 @@ struct ipw_priv {
 #ifdef CONFIG_PM
 	u32 pm_state[16];
 #endif
+
+	struct ipw_fw_error *error;
 
 	/* network state */
 
@@ -1803,7 +1831,7 @@ enum {
 	IPW_ORD_TABLE_7_LAST
 };
 
-#define IPWSTATUS_ERROR_LOG     (IPW_SHARED_LOWER_BOUND + 0x410)
+#define IPW_ERROR_LOG     (IPW_SHARED_LOWER_BOUND + 0x410)
 #define IPW_EVENT_LOG     (IPW_SHARED_LOWER_BOUND + 0x414)
 #define IPW_ORDINALS_TABLE_LOWER        (IPW_SHARED_LOWER_BOUND + 0x500)
 #define IPW_ORDINALS_TABLE_0            (IPW_SHARED_LOWER_BOUND + 0x180)
