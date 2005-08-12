@@ -732,6 +732,9 @@ int netpoll_setup(struct netpoll *np)
 	/* last thing to do is link it to the net device structure */
 	ndev->npinfo = npinfo;
 
+	/* avoid racing with NAPI reading npinfo */
+	synchronize_rcu();
+
 	return 0;
 
  release:
