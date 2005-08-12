@@ -357,7 +357,6 @@ static void arp_reply(struct sk_buff *skb)
 	unsigned char *arp_ptr;
 	int size, type = ARPOP_REPLY, ptype = ETH_P_ARP;
 	u32 sip, tip;
-	unsigned long flags;
 	struct sk_buff *send_skb;
 	struct netpoll *np = NULL;
 
