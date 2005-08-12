@@ -419,9 +419,7 @@ config IP_TCPDIAG
 	---help---
 	  Support for TCP socket monitoring interface used by native Linux
 	  tools such as ss. ss is included in iproute2, currently downloadable
-	  at <http://developer.osdl.org/dev/iproute2>. If you want IPv6 or DCCP
-	  support and have selected IPv6 or DCCP as a module, you need to build
-	  this as a module too.
+	  at <http://developer.osdl.org/dev/iproute2>. 
 	  
 	  If unsure, say Y.
 

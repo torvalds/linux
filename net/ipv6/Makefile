@@ -23,3 +23,5 @@ obj-$(CONFIG_NETFILTER)	+= netfilter/
 obj-$(CONFIG_IPV6_TUNNEL) += ip6_tunnel.o
 
 obj-y += exthdrs_core.o
+
+obj-$(subst m,y,$(CONFIG_IPV6)) += inet6_hashtables.o

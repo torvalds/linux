@@ -47,6 +47,7 @@
 
 #include <net/tcp.h>
 #include <net/ndisc.h>
+#include <net/inet6_hashtables.h>
 #include <net/ipv6.h>
 #include <net/transp_v6.h>
 #include <net/addrconf.h>
@@ -74,30 +75,6 @@ static int	tcp_v6_xmit(struct sk_buff *skb, int ipfragok);
 
 static struct tcp_func ipv6_mapped;
 static struct tcp_func ipv6_specific;
-
-/* I have no idea if this is a good hash for v6 or not. -DaveM */
-static inline int inet6_ehashfn(const struct in6_addr *laddr, const u16 lport,
-				const struct in6_addr *faddr, const u16 fport,
-				const int ehash_size)
-{
-	int hashent = (lport ^ fport);
-
-	hashent ^= (laddr->s6_addr32[3] ^ faddr->s6_addr32[3]);
-	hashent ^= hashent>>16;
-	hashent ^= hashent>>8;
-	return (hashent & (ehash_size - 1));
-}
-
-static inline int inet6_sk_ehashfn(const struct sock *sk, const int ehash_size)
-{
-	const struct inet_sock *inet = inet_sk(sk);
-	const struct ipv6_pinfo *np = inet6_sk(sk);
-	const struct in6_addr *laddr = &np->rcv_saddr;
-	const struct in6_addr *faddr = &np->daddr;
-	const __u16 lport = inet->num;
-	const __u16 fport = inet->dport;
-	return inet6_ehashfn(laddr, lport, faddr, fport, ehash_size);
-}
 
 static inline int tcp_v6_bind_conflict(const struct sock *sk,
 				       const struct inet_bind_bucket *tb)
@@ -258,135 +235,6 @@ static void tcp_v6_hash(struct sock *sk)
 		local_bh_enable();
 	}
 }
-
-static struct sock *inet6_lookup_listener(struct inet_hashinfo *hashinfo,
-					  const struct in6_addr *daddr,
-					  const unsigned short hnum,
-					  const int dif)
-{
-	struct sock *sk;
-	struct hlist_node *node;
-	struct sock *result = NULL;
-	int score, hiscore;
-
-	hiscore=0;
-	read_lock(&hashinfo->lhash_lock);
-	sk_for_each(sk, node, &hashinfo->listening_hash[inet_lhashfn(hnum)]) {
-		if (inet_sk(sk)->num == hnum && sk->sk_family == PF_INET6) {
-			struct ipv6_pinfo *np = inet6_sk(sk);
-			
-			score = 1;
-			if (!ipv6_addr_any(&np->rcv_saddr)) {
-				if (!ipv6_addr_equal(&np->rcv_saddr, daddr))
-					continue;
-				score++;
-			}
-			if (sk->sk_bound_dev_if) {
-				if (sk->sk_bound_dev_if != dif)
-					continue;
-				score++;
-			}
-			if (score == 3) {
-				result = sk;
-				break;
-			}
-			if (score > hiscore) {
-				hiscore = score;
-				result = sk;
-			}
-		}
-	}
-	if (result)
-		sock_hold(result);
-	read_unlock(&hashinfo->lhash_lock);
-	return result;
-}
-
-/* Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
- * we need not check it for TCP lookups anymore, thanks Alexey. -DaveM
- *
- * The sockhash lock must be held as a reader here.
- */
-
-static inline struct sock *
-		__inet6_lookup_established(struct inet_hashinfo *hashinfo,
-					   const struct in6_addr *saddr,
-					   const u16 sport,
-					   const struct in6_addr *daddr,
-					   const u16 hnum,
-					   const int dif)
-{
-	struct sock *sk;
-	const struct hlist_node *node;
-	const __u32 ports = INET_COMBINED_PORTS(sport, hnum);
-	/* Optimize here for direct hit, only listening connections can
-	 * have wildcards anyways.
-	 */
-	const int hash = inet6_ehashfn(daddr, hnum, saddr, sport,
-				       hashinfo->ehash_size);
-	struct inet_ehash_bucket *head = &hashinfo->ehash[hash];
-
-	read_lock(&head->lock);
-	sk_for_each(sk, node, &head->chain) {
-		/* For IPV6 do the cheaper port and family tests first. */
-		if (INET6_MATCH(sk, saddr, daddr, ports, dif))
-			goto hit; /* You sunk my battleship! */
-	}
-	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_for_each(sk, node, &(head + hashinfo->ehash_size)->chain) {
-		const struct inet_timewait_sock *tw = inet_twsk(sk);
-
-		if(*((__u32 *)&(tw->tw_dport))	== ports	&&
-		   sk->sk_family		== PF_INET6) {
-			const struct tcp6_timewait_sock *tcp6tw = tcp6_twsk(sk);
-
-			if (ipv6_addr_equal(&tcp6tw->tw_v6_daddr, saddr)	&&
-			    ipv6_addr_equal(&tcp6tw->tw_v6_rcv_saddr, daddr)	&&
-			    (!sk->sk_bound_dev_if || sk->sk_bound_dev_if == dif))
-				goto hit;
-		}
-	}
-	read_unlock(&head->lock);
-	return NULL;
-
-hit:
-	sock_hold(sk);
-	read_unlock(&head->lock);
-	return sk;
-}
-
-
-static inline struct sock *__inet6_lookup(struct inet_hashinfo *hashinfo,
-					  const struct in6_addr *saddr,
-					  const u16 sport,
-					  const struct in6_addr *daddr,
-					  const u16 hnum,
-					  const int dif)
-{
-	struct sock *sk = __inet6_lookup_established(hashinfo, saddr, sport,
-						     daddr, hnum, dif);
-	if (sk)
-		return sk;
-
-	return inet6_lookup_listener(hashinfo, daddr, hnum, dif);
-}
-
-inline struct sock *inet6_lookup(struct inet_hashinfo *hashinfo,
-				 const struct in6_addr *saddr, const u16 sport,
-				 const struct in6_addr *daddr, const u16 dport,
-				 const int dif)
-{
-	struct sock *sk;
-
-	local_bh_disable();
-	sk = __inet6_lookup(hashinfo, saddr, sport, daddr, ntohs(dport), dif);
-	local_bh_enable();
-
-	return sk;
-}
-
-EXPORT_SYMBOL_GPL(inet6_lookup);
-
 
 /*
  * Open request hash tables.
