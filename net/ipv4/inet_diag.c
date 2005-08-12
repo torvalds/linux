@@ -32,7 +32,7 @@
 #include <linux/inet.h>
 #include <linux/stddef.h>
 
-#include <linux/tcp_diag.h>
+#include <linux/inet_diag.h>
 
 static const struct inet_diag_handler **inet_diag_table;
 
@@ -140,7 +140,7 @@ static int inet_diag_fill(struct sk_buff *skb, struct sock *sk,
 	}
 #endif
 
-#define EXPIRES_IN_MS(tmo)  ((tmo-jiffies)*1000+HZ-1)/HZ
+#define EXPIRES_IN_MS(tmo)  ((tmo - jiffies) * 1000 + HZ - 1) / HZ
 
 	if (icsk->icsk_pending == ICSK_TIME_RETRANS) {
 		r->idiag_timer = 1;
@@ -311,11 +311,11 @@ static int inet_diag_bc_run(const void *bc, int len,
 			yes = !(entry->userlocks & SOCK_BINDPORT_LOCK);
 			break;
 		case INET_DIAG_BC_S_COND:
-		case INET_DIAG_BC_D_COND:
-		{
-			struct inet_diag_hostcond *cond = (struct inet_diag_hostcond*)(op+1);
+		case INET_DIAG_BC_D_COND: {
+			struct inet_diag_hostcond *cond;
 			u32 *addr;
 
+			cond = (struct inet_diag_hostcond *)(op + 1);
 			if (cond->port != -1 &&
 			    cond->port != (op->code == INET_DIAG_BC_S_COND ?
 					     entry->sport : entry->dport)) {
@@ -337,7 +337,8 @@ static int inet_diag_bc_run(const void *bc, int len,
 			    cond->family == AF_INET) {
 				if (addr[0] == 0 && addr[1] == 0 &&
 				    addr[2] == htonl(0xffff) &&
-				    bitstring_match(addr+3, cond->addr, cond->prefix_len))
+				    bitstring_match(addr + 3, cond->addr,
+					    	    cond->prefix_len))
 					break;
 			}
 			yes = 0;
@@ -379,7 +380,7 @@ static int inet_diag_bc_audit(const void *bytecode, int bytecode_len)
 	int  len = bytecode_len;
 
 	while (len > 0) {
-		struct inet_diag_bc_op *op = (struct inet_diag_bc_op*)bc;
+		struct inet_diag_bc_op *op = (struct inet_diag_bc_op *)bc;
 
 //printk("BC: %d %d %d {%d} / %d\n", op->code, op->yes, op->no, op[1].no, len);
 		switch (op->code) {
@@ -390,17 +391,17 @@ static int inet_diag_bc_audit(const void *bytecode, int bytecode_len)
 		case INET_DIAG_BC_S_LE:
 		case INET_DIAG_BC_D_GE:
 		case INET_DIAG_BC_D_LE:
-			if (op->yes < 4 || op->yes > len+4)
+			if (op->yes < 4 || op->yes > len + 4)
 				return -EINVAL;
 		case INET_DIAG_BC_JMP:
-			if (op->no < 4 || op->no > len+4)
+			if (op->no < 4 || op->no > len + 4)
 				return -EINVAL;
 			if (op->no < len &&
-			    !valid_cc(bytecode, bytecode_len, len-op->no))
+			    !valid_cc(bytecode, bytecode_len, len - op->no))
 				return -EINVAL;
 			break;
 		case INET_DIAG_BC_NOP:
-			if (op->yes < 4 || op->yes > len+4)
+			if (op->yes < 4 || op->yes > len + 4)
 				return -EINVAL;
 			break;
 		default:

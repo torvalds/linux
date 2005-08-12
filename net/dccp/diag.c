@@ -12,7 +12,7 @@
 #include <linux/config.h>
 
 #include <linux/module.h>
-#include <linux/tcp_diag.h>
+#include <linux/inet_diag.h>
 
 #include "dccp.h"
 
