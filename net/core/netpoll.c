@@ -248,14 +248,14 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	int status;
 	struct netpoll_info *npinfo;
 
-repeat:
-	if(!np || !np->dev || !netif_running(np->dev)) {
+	if (!np || !np->dev || !netif_running(np->dev)) {
 		__kfree_skb(skb);
 		return;
 	}
 
-	/* avoid recursion */
 	npinfo = np->dev->npinfo;
+
+	/* avoid recursion */
 	if (npinfo->poll_owner == smp_processor_id() ||
 	    np->dev->xmit_lock_owner == smp_processor_id()) {
 		if (np->drop)
@@ -265,29 +265,31 @@ repeat:
 		return;
 	}
 
-	spin_lock(&np->dev->xmit_lock);
-	np->dev->xmit_lock_owner = smp_processor_id();
+	while (1) {
+		spin_lock(&np->dev->xmit_lock);
+		np->dev->xmit_lock_owner = smp_processor_id();
 
-	/*
-	 * network drivers do not expect to be called if the queue is
-	 * stopped.
-	 */
-	if (netif_queue_stopped(np->dev)) {
+		/*
+		 * network drivers do not expect to be called if the queue is
+		 * stopped.
+		 */
+		if (netif_queue_stopped(np->dev)) {
+			np->dev->xmit_lock_owner = -1;
+			spin_unlock(&np->dev->xmit_lock);
+			netpoll_poll(np);
+			continue;
+		}
+
+		status = np->dev->hard_start_xmit(skb, np->dev);
 		np->dev->xmit_lock_owner = -1;
 		spin_unlock(&np->dev->xmit_lock);
 
-		netpoll_poll(np);
-		goto repeat;
-	}
+		/* success */
+		if(!status)
+			return;
 
-	status = np->dev->hard_start_xmit(skb, np->dev);
-	np->dev->xmit_lock_owner = -1;
-	spin_unlock(&np->dev->xmit_lock);
-
-	/* transmit busy */
-	if(status) {
+		/* transmit busy */
 		netpoll_poll(np);
-		goto repeat;
 	}
 }
 
