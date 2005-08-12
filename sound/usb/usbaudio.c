@@ -938,7 +938,15 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 
 	/* decide how many packets to be used */
 	if (is_playback) {
-		total_packs = (period_bytes + maxsize - 1) / maxsize;
+		unsigned int minsize;
+		/* determine how small a packet can be */
+		minsize = (subs->freqn >> (16 - subs->datainterval))
+			  * (frame_bits >> 3);
+		/* with sync from device, assume it can be 25% lower */
+		if (subs->syncpipe)
+			minsize -= minsize >> 2;
+		minsize = max(minsize, 1u);
+		total_packs = (period_bytes + minsize - 1) / minsize;
 		if (total_packs < 2 * MIN_PACKS_URB)
 			total_packs = 2 * MIN_PACKS_URB;
 	} else {
