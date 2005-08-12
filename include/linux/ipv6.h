@@ -193,6 +193,11 @@ struct inet6_skb_parm {
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))
 
+static inline int inet6_iif(const struct sk_buff *skb)
+{
+	return IP6CB(skb)->iif;
+}
+
 struct tcp6_request_sock {
 	struct tcp_request_sock	req;
 	struct in6_addr		loc_addr;

@@ -24,6 +24,10 @@
 #include <net/tcp.h>
 #include <net/ipv6.h>
 #include <net/inet_common.h>
+#include <net/inet_connection_sock.h>
+#include <net/inet_hashtables.h>
+#include <net/inet_timewait_sock.h>
+#include <net/inet6_hashtables.h>
 
 #include <linux/inet.h>
 #include <linux/stddef.h>
@@ -102,7 +106,7 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 		r->tcpdiag_wqueue = 0;
 		r->tcpdiag_uid = 0;
 		r->tcpdiag_inode = 0;
-#ifdef CONFIG_IP_TCPDIAG_IPV6
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 		if (r->tcpdiag_family == AF_INET6) {
 			const struct tcp6_timewait_sock *tcp6tw = tcp6_twsk(sk);
 
@@ -121,7 +125,7 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 	r->id.tcpdiag_src[0] = inet->rcv_saddr;
 	r->id.tcpdiag_dst[0] = inet->daddr;
 
-#ifdef CONFIG_IP_TCPDIAG_IPV6
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 	if (r->tcpdiag_family == AF_INET6) {
 		struct ipv6_pinfo *np = inet6_sk(sk);
 
@@ -196,19 +200,6 @@ nlmsg_failure:
 	return -1;
 }
 
-#ifdef CONFIG_IP_TCPDIAG_IPV6
-extern struct sock *tcp_v6_lookup(struct in6_addr *saddr, u16 sport,
-				  struct in6_addr *daddr, u16 dport,
-				  int dif);
-#else
-static inline struct sock *tcp_v6_lookup(struct in6_addr *saddr, u16 sport,
-					 struct in6_addr *daddr, u16 dport,
-					 int dif)
-{
-	return NULL;
-}
-#endif
-
 static int tcpdiag_get_exact(struct sk_buff *in_skb, const struct nlmsghdr *nlh)
 {
 	int err;
@@ -225,11 +216,14 @@ static int tcpdiag_get_exact(struct sk_buff *in_skb, const struct nlmsghdr *nlh)
 				 req->id.tcpdiag_dport, req->id.tcpdiag_src[0],
 				 req->id.tcpdiag_sport, req->id.tcpdiag_if);
 	}
-#ifdef CONFIG_IP_TCPDIAG_IPV6
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 	else if (req->tcpdiag_family == AF_INET6) {
-		sk = tcp_v6_lookup((struct in6_addr*)req->id.tcpdiag_dst, req->id.tcpdiag_dport,
-				   (struct in6_addr*)req->id.tcpdiag_src, req->id.tcpdiag_sport,
-				   req->id.tcpdiag_if);
+		sk = inet6_lookup(hashinfo,
+				  (struct in6_addr*)req->id.tcpdiag_dst,
+				  req->id.tcpdiag_dport,
+				  (struct in6_addr*)req->id.tcpdiag_src,
+				  req->id.tcpdiag_sport,
+				  req->id.tcpdiag_if);
 	}
 #endif
 	else {
@@ -440,7 +434,7 @@ static int tcpdiag_dump_sock(struct sk_buff *skb, struct sock *sk,
 		struct inet_sock *inet = inet_sk(sk);
 
 		entry.family = sk->sk_family;
-#ifdef CONFIG_IP_TCPDIAG_IPV6
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 		if (entry.family == AF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
 
@@ -502,7 +496,7 @@ static int tcpdiag_fill_req(struct sk_buff *skb, struct sock *sk,
 	r->tcpdiag_wqueue = 0;
 	r->tcpdiag_uid = sock_i_uid(sk);
 	r->tcpdiag_inode = 0;
-#ifdef CONFIG_IP_TCPDIAG_IPV6
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 	if (r->tcpdiag_family == AF_INET6) {
 		ipv6_addr_copy((struct in6_addr *)r->id.tcpdiag_src,
 			       &tcp6_rsk(req)->loc_addr);
@@ -567,13 +561,13 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 
 			if (bc) {
 				entry.saddr =
-#ifdef CONFIG_IP_TCPDIAG_IPV6
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 					(entry.family == AF_INET6) ?
 					tcp6_rsk(req)->loc_addr.s6_addr32 :
 #endif
 					&ireq->loc_addr;
 				entry.daddr = 
-#ifdef CONFIG_IP_TCPDIAG_IPV6
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 					(entry.family == AF_INET6) ?
 					tcp6_rsk(req)->rmt_addr.s6_addr32 :
 #endif

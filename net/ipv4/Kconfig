@@ -425,9 +425,6 @@ config IP_TCPDIAG
 	  
 	  If unsure, say Y.
 
-config IP_TCPDIAG_IPV6
-	def_bool (IP_TCPDIAG=y && IPV6=y) || (IP_TCPDIAG=m && IPV6)
-
 config IP_TCPDIAG_DCCP
 	def_bool (IP_TCPDIAG=y && IP_DCCP=y) || (IP_TCPDIAG=m && IP_DCCP)
 

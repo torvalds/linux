@@ -76,26 +76,27 @@ static struct tcp_func ipv6_mapped;
 static struct tcp_func ipv6_specific;
 
 /* I have no idea if this is a good hash for v6 or not. -DaveM */
-static __inline__ int tcp_v6_hashfn(struct in6_addr *laddr, u16 lport,
-				    struct in6_addr *faddr, u16 fport)
+static inline int inet6_ehashfn(const struct in6_addr *laddr, const u16 lport,
+				const struct in6_addr *faddr, const u16 fport,
+				const int ehash_size)
 {
 	int hashent = (lport ^ fport);
 
 	hashent ^= (laddr->s6_addr32[3] ^ faddr->s6_addr32[3]);
 	hashent ^= hashent>>16;
 	hashent ^= hashent>>8;
-	return (hashent & (tcp_hashinfo.ehash_size - 1));
+	return (hashent & (ehash_size - 1));
 }
 
-static __inline__ int tcp_v6_sk_hashfn(struct sock *sk)
+static inline int inet6_sk_ehashfn(const struct sock *sk, const int ehash_size)
 {
-	struct inet_sock *inet = inet_sk(sk);
-	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct in6_addr *laddr = &np->rcv_saddr;
-	struct in6_addr *faddr = &np->daddr;
-	__u16 lport = inet->num;
-	__u16 fport = inet->dport;
-	return tcp_v6_hashfn(laddr, lport, faddr, fport);
+	const struct inet_sock *inet = inet_sk(sk);
+	const struct ipv6_pinfo *np = inet6_sk(sk);
+	const struct in6_addr *laddr = &np->rcv_saddr;
+	const struct in6_addr *faddr = &np->daddr;
+	const __u16 lport = inet->num;
+	const __u16 fport = inet->dport;
+	return inet6_ehashfn(laddr, lport, faddr, fport, ehash_size);
 }
 
 static inline int tcp_v6_bind_conflict(const struct sock *sk,
@@ -231,7 +232,7 @@ static __inline__ void __tcp_v6_hash(struct sock *sk)
 		lock = &tcp_hashinfo.lhash_lock;
 		inet_listen_wlock(&tcp_hashinfo);
 	} else {
-		sk->sk_hashent = tcp_v6_sk_hashfn(sk);
+		sk->sk_hashent = inet6_sk_ehashfn(sk, tcp_hashinfo.ehash_size);
 		list = &tcp_hashinfo.ehash[sk->sk_hashent].chain;
 		lock = &tcp_hashinfo.ehash[sk->sk_hashent].lock;
 		write_lock(lock);
@@ -258,7 +259,10 @@ static void tcp_v6_hash(struct sock *sk)
 	}
 }
 
-static struct sock *tcp_v6_lookup_listener(struct in6_addr *daddr, unsigned short hnum, int dif)
+static struct sock *inet6_lookup_listener(struct inet_hashinfo *hashinfo,
+					  const struct in6_addr *daddr,
+					  const unsigned short hnum,
+					  const int dif)
 {
 	struct sock *sk;
 	struct hlist_node *node;
@@ -266,8 +270,8 @@ static struct sock *tcp_v6_lookup_listener(struct in6_addr *daddr, unsigned shor
 	int score, hiscore;
 
 	hiscore=0;
-	read_lock(&tcp_hashinfo.lhash_lock);
-	sk_for_each(sk, node, &tcp_hashinfo.listening_hash[inet_lhashfn(hnum)]) {
+	read_lock(&hashinfo->lhash_lock);
+	sk_for_each(sk, node, &hashinfo->listening_hash[inet_lhashfn(hnum)]) {
 		if (inet_sk(sk)->num == hnum && sk->sk_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
 			
@@ -294,7 +298,7 @@ static struct sock *tcp_v6_lookup_listener(struct in6_addr *daddr, unsigned shor
 	}
 	if (result)
 		sock_hold(result);
-	read_unlock(&tcp_hashinfo.lhash_lock);
+	read_unlock(&hashinfo->lhash_lock);
 	return result;
 }
 
@@ -304,9 +308,13 @@ static struct sock *tcp_v6_lookup_listener(struct in6_addr *daddr, unsigned shor
  * The sockhash lock must be held as a reader here.
  */
 
-static inline struct sock *__tcp_v6_lookup_established(struct in6_addr *saddr, u16 sport,
-						       struct in6_addr *daddr, u16 hnum,
-						       int dif)
+static inline struct sock *
+		__inet6_lookup_established(struct inet_hashinfo *hashinfo,
+					   const struct in6_addr *saddr,
+					   const u16 sport,
+					   const struct in6_addr *daddr,
+					   const u16 hnum,
+					   const int dif)
 {
 	struct sock *sk;
 	const struct hlist_node *node;
@@ -314,8 +322,9 @@ static inline struct sock *__tcp_v6_lookup_established(struct in6_addr *saddr, u
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
-	const int hash = tcp_v6_hashfn(daddr, hnum, saddr, sport);
-	struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[hash];
+	const int hash = inet6_ehashfn(daddr, hnum, saddr, sport,
+				       hashinfo->ehash_size);
+	struct inet_ehash_bucket *head = &hashinfo->ehash[hash];
 
 	read_lock(&head->lock);
 	sk_for_each(sk, node, &head->chain) {
@@ -324,7 +333,7 @@ static inline struct sock *__tcp_v6_lookup_established(struct in6_addr *saddr, u
 			goto hit; /* You sunk my battleship! */
 	}
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_for_each(sk, node, &(head + tcp_hashinfo.ehash_size)->chain) {
+	sk_for_each(sk, node, &(head + hashinfo->ehash_size)->chain) {
 		const struct inet_timewait_sock *tw = inet_twsk(sk);
 
 		if(*((__u32 *)&(tw->tw_dport))	== ports	&&
@@ -347,34 +356,36 @@ hit:
 }
 
 
-static inline struct sock *__tcp_v6_lookup(struct in6_addr *saddr, u16 sport,
-					   struct in6_addr *daddr, u16 hnum,
-					   int dif)
+static inline struct sock *__inet6_lookup(struct inet_hashinfo *hashinfo,
+					  const struct in6_addr *saddr,
+					  const u16 sport,
+					  const struct in6_addr *daddr,
+					  const u16 hnum,
+					  const int dif)
 {
-	struct sock *sk;
-
-	sk = __tcp_v6_lookup_established(saddr, sport, daddr, hnum, dif);
-
+	struct sock *sk = __inet6_lookup_established(hashinfo, saddr, sport,
+						     daddr, hnum, dif);
 	if (sk)
 		return sk;
 
-	return tcp_v6_lookup_listener(daddr, hnum, dif);
+	return inet6_lookup_listener(hashinfo, daddr, hnum, dif);
 }
 
-inline struct sock *tcp_v6_lookup(struct in6_addr *saddr, u16 sport,
-				  struct in6_addr *daddr, u16 dport,
-				  int dif)
+inline struct sock *inet6_lookup(struct inet_hashinfo *hashinfo,
+				 const struct in6_addr *saddr, const u16 sport,
+				 const struct in6_addr *daddr, const u16 dport,
+				 const int dif)
 {
 	struct sock *sk;
 
 	local_bh_disable();
-	sk = __tcp_v6_lookup(saddr, sport, daddr, ntohs(dport), dif);
+	sk = __inet6_lookup(hashinfo, saddr, sport, daddr, ntohs(dport), dif);
 	local_bh_enable();
 
 	return sk;
 }
 
-EXPORT_SYMBOL_GPL(tcp_v6_lookup);
+EXPORT_SYMBOL_GPL(inet6_lookup);
 
 
 /*
@@ -454,16 +465,17 @@ static __u32 tcp_v6_init_sequence(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
-static int __tcp_v6_check_established(struct sock *sk, __u16 lport,
+static int __tcp_v6_check_established(struct sock *sk, const __u16 lport,
 				      struct inet_timewait_sock **twp)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct in6_addr *daddr = &np->rcv_saddr;
-	struct in6_addr *saddr = &np->daddr;
-	int dif = sk->sk_bound_dev_if;
+	const struct ipv6_pinfo *np = inet6_sk(sk);
+	const struct in6_addr *daddr = &np->rcv_saddr;
+	const struct in6_addr *saddr = &np->daddr;
+	const int dif = sk->sk_bound_dev_if;
 	const u32 ports = INET_COMBINED_PORTS(inet->dport, lport);
-	const int hash = tcp_v6_hashfn(daddr, inet->num, saddr, inet->dport);
+	const int hash = inet6_ehashfn(daddr, inet->num, saddr, inet->dport,
+				       tcp_hashinfo.ehash_size);
 	struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[hash];
 	struct sock *sk2;
 	const struct hlist_node *node;
@@ -635,11 +647,6 @@ out:
 		local_bh_enable();
 		return ret;
 	}
-}
-
-static __inline__ int tcp_v6_iif(struct sk_buff *skb)
-{
-	return IP6CB(skb)->iif;
 }
 
 static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr, 
@@ -833,14 +840,15 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		int type, int code, int offset, __u32 info)
 {
 	struct ipv6hdr *hdr = (struct ipv6hdr*)skb->data;
-	struct tcphdr *th = (struct tcphdr *)(skb->data+offset);
+	const struct tcphdr *th = (struct tcphdr *)(skb->data+offset);
 	struct ipv6_pinfo *np;
 	struct sock *sk;
 	int err;
 	struct tcp_sock *tp; 
 	__u32 seq;
 
-	sk = tcp_v6_lookup(&hdr->daddr, th->dest, &hdr->saddr, th->source, skb->dev->ifindex);
+	sk = inet6_lookup(&tcp_hashinfo, &hdr->daddr, th->dest, &hdr->saddr,
+			  th->source, skb->dev->ifindex);
 
 	if (sk == NULL) {
 		ICMP6_INC_STATS_BH(__in6_dev_get(skb->dev), ICMP6_MIB_INERRORS);
@@ -927,7 +935,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			goto out;
 
 		req = tcp_v6_search_req(sk, &prev, th->dest, &hdr->daddr,
-					&hdr->saddr, tcp_v6_iif(skb));
+					&hdr->saddr, inet6_iif(skb));
 		if (!req)
 			goto out;
 
@@ -1138,7 +1146,7 @@ static void tcp_v6_send_reset(struct sk_buff *skb)
 				    buff->csum);
 
 	fl.proto = IPPROTO_TCP;
-	fl.oif = tcp_v6_iif(skb);
+	fl.oif = inet6_iif(skb);
 	fl.fl_ip_dport = t1->dest;
 	fl.fl_ip_sport = t1->source;
 
@@ -1207,7 +1215,7 @@ static void tcp_v6_send_ack(struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 
 				    buff->csum);
 
 	fl.proto = IPPROTO_TCP;
-	fl.oif = tcp_v6_iif(skb);
+	fl.oif = inet6_iif(skb);
 	fl.fl_ip_dport = t1->dest;
 	fl.fl_ip_sport = t1->source;
 
@@ -1245,20 +1253,18 @@ static void tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req)
 static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 {
 	struct request_sock *req, **prev;
-	struct tcphdr *th = skb->h.th;
+	const struct tcphdr *th = skb->h.th;
 	struct sock *nsk;
 
 	/* Find possible connection requests. */
 	req = tcp_v6_search_req(sk, &prev, th->source, &skb->nh.ipv6h->saddr,
-				&skb->nh.ipv6h->daddr, tcp_v6_iif(skb));
+				&skb->nh.ipv6h->daddr, inet6_iif(skb));
 	if (req)
 		return tcp_check_req(sk, skb, req, prev);
 
-	nsk = __tcp_v6_lookup_established(&skb->nh.ipv6h->saddr,
-					  th->source,
-					  &skb->nh.ipv6h->daddr,
-					  ntohs(th->dest),
-					  tcp_v6_iif(skb));
+	nsk = __inet6_lookup_established(&tcp_hashinfo, &skb->nh.ipv6h->saddr,
+					 th->source, &skb->nh.ipv6h->daddr,
+					 ntohs(th->dest), inet6_iif(skb));
 
 	if (nsk) {
 		if (nsk->sk_state != TCP_TIME_WAIT) {
@@ -1346,7 +1352,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	/* So that link locals have meaning */
 	if (!sk->sk_bound_dev_if &&
 	    ipv6_addr_type(&treq->rmt_addr) & IPV6_ADDR_LINKLOCAL)
-		treq->iif = tcp_v6_iif(skb);
+		treq->iif = inet6_iif(skb);
 
 	if (isn == 0) 
 		isn = tcp_v6_init_sequence(sk,skb);
@@ -1411,7 +1417,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		newsk->sk_backlog_rcv = tcp_v4_do_rcv;
 		newnp->pktoptions  = NULL;
 		newnp->opt	   = NULL;
-		newnp->mcast_oif   = tcp_v6_iif(skb);
+		newnp->mcast_oif   = inet6_iif(skb);
 		newnp->mcast_hops  = skb->nh.ipv6h->hop_limit;
 
 		/*
@@ -1516,7 +1522,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 			skb_set_owner_r(newnp->pktoptions, newsk);
 	}
 	newnp->opt	  = NULL;
-	newnp->mcast_oif  = tcp_v6_iif(skb);
+	newnp->mcast_oif  = inet6_iif(skb);
 	newnp->mcast_hops = skb->nh.ipv6h->hop_limit;
 
 	/* Clone native IPv6 options from listening socket (if any)
@@ -1691,7 +1697,7 @@ ipv6_pktoptions:
 	if (TCP_SKB_CB(opt_skb)->end_seq == tp->rcv_nxt &&
 	    !((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN))) {
 		if (np->rxopt.bits.rxinfo)
-			np->mcast_oif = tcp_v6_iif(opt_skb);
+			np->mcast_oif = inet6_iif(opt_skb);
 		if (np->rxopt.bits.rxhlim)
 			np->mcast_hops = opt_skb->nh.ipv6h->hop_limit;
 		if (ipv6_opt_accepted(sk, opt_skb)) {
@@ -1746,8 +1752,9 @@ static int tcp_v6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	TCP_SKB_CB(skb)->flags = ipv6_get_dsfield(skb->nh.ipv6h);
 	TCP_SKB_CB(skb)->sacked = 0;
 
-	sk = __tcp_v6_lookup(&skb->nh.ipv6h->saddr, th->source,
-			     &skb->nh.ipv6h->daddr, ntohs(th->dest), tcp_v6_iif(skb));
+	sk = __inet6_lookup(&tcp_hashinfo, &skb->nh.ipv6h->saddr, th->source,
+			    &skb->nh.ipv6h->daddr, ntohs(th->dest),
+			    inet6_iif(skb));
 
 	if (!sk)
 		goto no_tcp_socket;
@@ -1818,7 +1825,9 @@ do_time_wait:
 	{
 		struct sock *sk2;
 
-		sk2 = tcp_v6_lookup_listener(&skb->nh.ipv6h->daddr, ntohs(th->dest), tcp_v6_iif(skb));
+		sk2 = inet6_lookup_listener(&tcp_hashinfo,
+					    &skb->nh.ipv6h->daddr,
+					    ntohs(th->dest), inet6_iif(skb));
 		if (sk2 != NULL) {
 			struct inet_timewait_sock *tw = inet_twsk(sk);
 			inet_twsk_deschedule(tw, &tcp_death_row);
