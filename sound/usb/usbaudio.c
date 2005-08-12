@@ -893,7 +893,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 {
 	unsigned int maxsize, n, i;
 	int is_playback = subs->direction == SNDRV_PCM_STREAM_PLAYBACK;
-	unsigned int npacks[MAX_URBS], urb_packs, total_packs;
+	unsigned int npacks[MAX_URBS], urb_packs, total_packs, packs_per_ms;
 
 	/* calculate the frequency in 16.16 format */
 	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
@@ -920,14 +920,18 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 	else
 		subs->curpacksize = maxsize;
 
+	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH)
+		packs_per_ms = 8 >> subs->datainterval;
+	else
+		packs_per_ms = 1;
+
 	if (is_playback) {
 		urb_packs = nrpacks;
 		urb_packs = max(urb_packs, (unsigned int)MIN_PACKS_URB);
 		urb_packs = min(urb_packs, (unsigned int)MAX_PACKS);
 	} else
 		urb_packs = 1;
-	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH)
-		urb_packs = (urb_packs * 8) >> subs->datainterval;
+	urb_packs *= packs_per_ms;
 
 	/* allocate a temporary buffer for playback */
 	if (is_playback) {
@@ -949,8 +953,12 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 			minsize -= minsize >> 2;
 		minsize = max(minsize, 1u);
 		total_packs = (period_bytes + minsize - 1) / minsize;
-		if (total_packs < 2 * MIN_PACKS_URB)
-			total_packs = 2 * MIN_PACKS_URB;
+		/* round up to multiple of packs_per_ms */
+		total_packs = (total_packs + packs_per_ms - 1)
+				& ~(packs_per_ms - 1);
+		/* we need at least two URBs for queueing */
+		if (total_packs < 2 * MIN_PACKS_URB * packs_per_ms)
+			total_packs = 2 * MIN_PACKS_URB * packs_per_ms;
 	} else {
 		total_packs = MAX_URBS * urb_packs;
 	}
@@ -972,7 +980,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 		subs->nurbs = 2;
 		npacks[0] = (total_packs + 1) / 2;
 		npacks[1] = total_packs - npacks[0];
-	} else if (npacks[subs->nurbs-1] < MIN_PACKS_URB) {
+	} else if (npacks[subs->nurbs-1] < MIN_PACKS_URB * packs_per_ms) {
 		/* the last packet is too small.. */
 		if (subs->nurbs > 2) {
 			/* merge to the first one */
