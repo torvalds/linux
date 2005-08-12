@@ -33,6 +33,7 @@
 #define MAX_UDP_CHUNK 1460
 #define MAX_SKBS 32
 #define MAX_QUEUE_DEPTH (MAX_SKBS / 2)
+#define MAX_RETRIES 20000
 
 static DEFINE_SPINLOCK(skb_list_lock);
 static int nr_skbs;
@@ -265,7 +266,8 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		return;
 	}
 
-	while (1) {
+	do {
+		npinfo->tries--;
 		spin_lock(&np->dev->xmit_lock);
 		np->dev->xmit_lock_owner = smp_processor_id();
 
@@ -277,6 +279,7 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 			np->dev->xmit_lock_owner = -1;
 			spin_unlock(&np->dev->xmit_lock);
 			netpoll_poll(np);
+			udelay(50);
 			continue;
 		}
 
@@ -285,12 +288,15 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		spin_unlock(&np->dev->xmit_lock);
 
 		/* success */
-		if(!status)
+		if(!status) {
+			npinfo->tries = MAX_RETRIES; /* reset */
 			return;
+		}
 
 		/* transmit busy */
 		netpoll_poll(np);
-	}
+		udelay(50);
+	} while (npinfo->tries > 0);
 }
 
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
@@ -642,6 +648,7 @@ int netpoll_setup(struct netpoll *np)
 		npinfo->rx_np = NULL;
 		npinfo->poll_lock = SPIN_LOCK_UNLOCKED;
 		npinfo->poll_owner = -1;
+		npinfo->tries = MAX_RETRIES;
 		npinfo->rx_lock = SPIN_LOCK_UNLOCKED;
 	} else
 		npinfo = ndev->npinfo;
