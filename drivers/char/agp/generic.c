@@ -319,7 +319,6 @@ int agp_copy_info(struct agp_bridge_data *bridge, struct agp_kern_info *info)
 		info->mode = bridge->mode & ~AGP3_RESERVED_MASK;
 	else
 		info->mode = bridge->mode & ~AGP2_RESERVED_MASK;
-	info->mode = bridge->mode;
 	info->aper_base = bridge->gart_bus_addr;
 	info->aper_size = agp_return_size();
 	info->max_memory = bridge->max_memory_agp;
