@@ -375,7 +375,7 @@ AC97_DOUBLE("Front Playback Volume", AC97_WM97XX_FMIXER_VOL, 8, 0, 31, 1),
 AC97_SINGLE("Front Playback Switch", AC97_WM97XX_FMIXER_VOL, 15, 1, 1),
 };
 
-static int patch_wolfson_wm9703_specific(ac97_t * ac97)
+int patch_wolfson_wm9703_specific(ac97_t * ac97)
 {
 	/* This is known to work for the ViewSonic ViewPad 1000
 	 * Randolph Bentson <bentson@holmsjoen.com>
@@ -410,7 +410,7 @@ AC97_DOUBLE("Rear DAC Volume", AC97_WM9704_RPCM_VOL, 8, 0, 31, 1),
 AC97_DOUBLE("Surround Volume", AC97_SURROUND_MASTER, 8, 0, 31, 1),
 };
 
-static int patch_wolfson_wm9704_specific(ac97_t * ac97)
+int patch_wolfson_wm9704_specific(ac97_t * ac97)
 {
 	int err, i;
 	for (i = 0; i < ARRAY_SIZE(wm9704_snd_ac97_controls); i++) {
@@ -433,7 +433,7 @@ int patch_wolfson04(ac97_t * ac97)
 	return 0;
 }
 
-static int patch_wolfson_wm9705_specific(ac97_t * ac97)
+int patch_wolfson_wm9705_specific(ac97_t * ac97)
 {
 	int err, i;
 	for (i = 0; i < ARRAY_SIZE(wm97xx_snd_ac97_controls); i++) {
@@ -558,7 +558,7 @@ AC97_SINGLE("Headphone ZC Switch", AC97_HEADPHONE, 7, 1, 0),
 AC97_SINGLE("Mono ZC Switch", AC97_MASTER_MONO, 7, 1, 0),
 };
 
-static int patch_wolfson_wm9711_specific(ac97_t * ac97)
+int patch_wolfson_wm9711_specific(ac97_t * ac97)
 {
 	int err, i;
 	
@@ -2662,6 +2662,16 @@ static struct snd_ac97_build_ops patch_vt1616_ops = {
 int patch_vt1616(ac97_t * ac97)
 {
 	ac97->build_ops = &patch_vt1616_ops;
+	return 0;
+}
+
+/*
+ * VT1617A codec
+ */
+int patch_vt1617a(ac97_t * ac97)
+{
+	ac97->ext_id |= AC97_EI_SPDIF;	/* force the detection of spdif */
+	ac97->rates[AC97_RATES_SPDIF] = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000;
 	return 0;
 }
 
