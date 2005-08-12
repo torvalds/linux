@@ -10465,9 +10465,17 @@ static int ipw_config(struct ipw_priv *priv)
 	if (ipw_send_host_complete(priv))
 		goto error;
 
-	/* If configured to try and auto-associate, kick off a scan */
-	if (priv->config & CFG_ASSOCIATE)
-		queue_work(priv->workqueue, &priv->request_scan);
+	priv->status |= STATUS_INIT;
+
+	ipw_led_init(priv);
+	ipw_led_radio_on(priv);
+	priv->notif_missed_beacons = 0;
+
+	/* Set hardware WEP key if it is configured. */
+	if ((priv->capability & CAP_PRIVACY_ON) &&
+	    (priv->ieee->sec.level == SEC_LEVEL_1) &&
+	    !(priv->ieee->host_encrypt || priv->ieee->host_decrypt))
+		ipw_set_hwcrypto_keys(priv);
 
 	return 0;
 
@@ -10773,17 +10781,10 @@ static int ipw_up(struct ipw_priv *priv)
 		rc = ipw_config(priv);
 		if (!rc) {
 			IPW_DEBUG_INFO("Configured device on count %i\n", i);
-			ipw_led_init(priv);
-			ipw_led_radio_on(priv);
-			priv->notif_missed_beacons = 0;
-			priv->status |= STATUS_INIT;
 
-			/* Set hardware WEP key if it is configured. */
-			if ((priv->capability & CAP_PRIVACY_ON) &&
-			    (priv->ieee->sec.level == SEC_LEVEL_1) &&
-			    !(priv->ieee->host_encrypt ||
-			      priv->ieee->host_decrypt))
-				ipw_set_hwcrypto_keys(priv);
+			/* If configure to try and auto-associate, kick
+			 * off a scan. */
+			queue_work(priv->workqueue, &priv->request_scan);
 
 			return 0;
 		}
