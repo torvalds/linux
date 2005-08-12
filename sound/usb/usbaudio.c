@@ -97,7 +97,7 @@ MODULE_PARM_DESC(async_unlink, "Use async unlink mode.");
 
 #define MAX_PACKS	10
 #define MAX_PACKS_HS	(MAX_PACKS * 8)	/* in high speed mode */
-#define MAX_URBS	5	/* max. 20ms long packets */
+#define MAX_URBS	8
 #define SYNC_URBS	4	/* always four urbs for sync */
 #define MIN_PACKS_URB	1	/* minimum 1 packet per urb */
 
@@ -920,10 +920,12 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 	else
 		subs->curpacksize = maxsize;
 
-	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
+	if (is_playback)
 		urb_packs = nrpacks;
 	else
-		urb_packs = (nrpacks * 8) >> subs->datainterval;
+		urb_packs = 1;
+	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH)
+		urb_packs = (urb_packs * 8) >> subs->datainterval;
 
 	/* allocate a temporary buffer for playback */
 	if (is_playback) {
@@ -935,9 +937,13 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 	}
 
 	/* decide how many packets to be used */
-	total_packs = (period_bytes + maxsize - 1) / maxsize;
-	if (total_packs < 2 * MIN_PACKS_URB)
-		total_packs = 2 * MIN_PACKS_URB;
+	if (is_playback) {
+		total_packs = (period_bytes + maxsize - 1) / maxsize;
+		if (total_packs < 2 * MIN_PACKS_URB)
+			total_packs = 2 * MIN_PACKS_URB;
+	} else {
+		total_packs = MAX_URBS * urb_packs;
+	}
 	subs->nurbs = (total_packs + urb_packs - 1) / urb_packs;
 	if (subs->nurbs > MAX_URBS) {
 		/* too much... */
