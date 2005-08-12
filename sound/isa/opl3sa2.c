@@ -146,7 +146,7 @@ static snd_card_t *snd_opl3sa2_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 #ifdef CONFIG_PNP
 
 static struct pnp_device_id snd_opl3sa2_pnpbiosids[] = {
-	{ .id = "YMF0021" },
+	{ .id = "YMH0021" },
 	{ .id = "NMX2210" },	/* Gateway Solo 2500 */
 	{ .id = "" }		/* end */
 };
