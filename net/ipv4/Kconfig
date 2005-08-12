@@ -413,8 +413,8 @@ config INET_TUNNEL
 	  
 	  If unsure, say Y.
 
-config IP_INET_DIAG
-	tristate "IP: INET socket monitoring interface"
+config INET_DIAG
+	tristate "INET: socket monitoring interface"
 	default y
 	---help---
 	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
@@ -422,6 +422,10 @@ config IP_INET_DIAG
 	  downloadable at <http://developer.osdl.org/dev/iproute2>. 
 	  
 	  If unsure, say Y.
+
+config INET_TCP_DIAG
+	depends on INET_DIAG
+	def_tristate INET_DIAG
 
 config TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"

@@ -479,7 +479,7 @@ static inline void tcp_clear_xmit_timers(struct sock *sk)
 extern unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu);
 extern unsigned int tcp_current_mss(struct sock *sk, int large);
 
-/* tcp_diag.c */
+/* tcp.c */
 extern void tcp_get_info(struct sock *, struct tcp_info *);
 
 /* Read 'sendfile()'-style from a TCP socket */

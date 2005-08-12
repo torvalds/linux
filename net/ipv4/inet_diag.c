@@ -797,25 +797,6 @@ static void inet_diag_rcv(struct sock *sk, int len)
 	}
 }
 
-static void tcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
-			      void *_info)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	struct tcp_info *info = _info;
-
-	r->idiag_rqueue = tp->rcv_nxt - tp->copied_seq;
-	r->idiag_wqueue = tp->write_seq - tp->snd_una;
-	if (info != NULL)
-		tcp_get_info(sk, info);
-}
-
-static struct inet_diag_handler tcp_diag_handler = {
-	.idiag_hashinfo	 = &tcp_hashinfo,
-	.idiag_get_info	 = tcp_diag_get_info,
-	.idiag_type	 = TCPDIAG_GETSOCK,
-	.idiag_info_size = sizeof(struct tcp_info),
-};
-
 static DEFINE_SPINLOCK(inet_diag_register_lock);
 
 int inet_diag_register(const struct inet_diag_handler *h)
@@ -864,19 +845,13 @@ static int __init inet_diag_init(void)
 		goto out;
 
 	memset(inet_diag_table, 0, inet_diag_table_size);
-
 	idiagnl = netlink_kernel_create(NETLINK_INET_DIAG, inet_diag_rcv,
 					THIS_MODULE);
 	if (idiagnl == NULL)
 		goto out_free_table;
-
-	err = inet_diag_register(&tcp_diag_handler);
-	if (err)
-		goto out_sock_release;
+	err = 0;
 out:
 	return err;
-out_sock_release:
-	sock_release(idiagnl->sk_socket);
 out_free_table:
 	kfree(inet_diag_table);
 	goto out;
