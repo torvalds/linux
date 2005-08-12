@@ -423,9 +423,6 @@ config IP_TCPDIAG
 	  
 	  If unsure, say Y.
 
-config IP_TCPDIAG_DCCP
-	def_bool (IP_TCPDIAG=y && IP_DCCP=y) || (IP_TCPDIAG=m && IP_DCCP)
-
 config TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"
 	---help---

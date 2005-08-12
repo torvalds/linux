@@ -5,6 +5,8 @@
 #define TCPDIAG_GETSOCK 18
 #define DCCPDIAG_GETSOCK 19
 
+#define INET_DIAG_GETSOCK_MAX 24
+
 /* Socket identity */
 struct tcpdiag_sockid
 {
@@ -124,5 +126,22 @@ struct tcpvegas_info {
 	__u32	tcpv_rtt;
 	__u32	tcpv_minrtt;
 };
+
+#ifdef __KERNEL__
+struct sock;
+struct inet_hashinfo;
+
+struct inet_diag_handler {
+	struct inet_hashinfo    *idiag_hashinfo;
+	void			(*idiag_get_info)(struct sock *sk,
+						  struct tcpdiagmsg *r,
+						  void *info);
+	__u16                   idiag_info_size;
+	__u16                   idiag_type;
+};
+
+extern int  inet_diag_register(const struct inet_diag_handler *handler);
+extern void inet_diag_unregister(const struct inet_diag_handler *handler);
+#endif /* __KERNEL__ */
 
 #endif /* _TCP_DIAG_H_ */
