@@ -725,6 +725,10 @@ int netpoll_setup(struct netpoll *np)
 		npinfo->rx_np = np;
 		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 	}
+
+	/* fill up the skb queue */
+	refill_skbs();
+
 	/* last thing to do is link it to the net device structure */
 	ndev->npinfo = npinfo;
 
