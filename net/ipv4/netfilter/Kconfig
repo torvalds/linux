@@ -386,6 +386,16 @@ config IP_NF_MATCH_CONNMARK
 	  <file:Documentation/modules.txt>.  The module will be called
 	  ipt_connmark.o.  If unsure, say `N'.
 
+config IP_NF_MATCH_CONNBYTES
+	tristate  'Connection byte/packet counter match support'
+	depends on IP_NF_CT_ACCT && IP_NF_IPTABLES
+	help
+	  This option adds a `connbytes' match, which allows you to match the
+	  number of bytes and/or packets for each direction within a connection.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+
 config IP_NF_MATCH_HASHLIMIT
 	tristate  'hashlimit match support'
 	depends on IP_NF_IPTABLES
@@ -722,7 +732,6 @@ config IP_NF_CONNTRACK_NETLINK
         depends on IP_NF_CONNTRACK && NETFILTER_NETLINK
         help
           This option enables support for a netlink-based userspace interface
-
 
 endmenu
 
