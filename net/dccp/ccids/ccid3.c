@@ -1004,7 +1004,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 
 	/* Can we send? if so add options and add to packet history */
 	if (rc == 0)
-		new_packet->dccphtx_win_count =
+		new_packet->dccphtx_ccval =
 			DCCP_SKB_CB(skb)->dccpd_ccval =
 				hctx->ccid3hctx_last_win_count;
 out:
@@ -1060,7 +1060,7 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 							    min_t(unsigned long, quarter_rtt, 5)) % 16;
 			ccid3_pr_debug("%s, sk=%p, window changed from %u to %u!\n",
 				       dccp_role(sk), sk,
-				       packet->dccphtx_win_count,
+				       packet->dccphtx_ccval,
 				       hctx->ccid3hctx_last_win_count);
 		}
 		/* COMPLIANCE_END */
@@ -1068,9 +1068,10 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 		ccid3_pr_debug("%s, sk=%p, packet sent (%llu,%u)\n",
 			       dccp_role(sk), sk,
 			       packet->dccphtx_seqno,
-			       packet->dccphtx_win_count);
+			       packet->dccphtx_ccval);
 #endif
 		hctx->ccid3hctx_idle = 0;
+		packet->dccphtx_rtt  = hctx->ccid3hctx_rtt;
 		packet->dccphtx_sent = 1;
 	} else
 		ccid3_pr_debug("%s, sk=%p, seqno=%llu NOT inserted!\n",
@@ -1489,11 +1490,10 @@ trim_history:
 					step = 2;
 					/* OK, find next data packet */
 					num_later = 1;
-					win_count = entry->dccphrx_win_count;
+					win_count = entry->dccphrx_ccval;
 					break;
 				case 2:
-					tmp = (win_count -
-					       entry->dccphrx_win_count);
+					tmp = win_count - entry->dccphrx_ccval;
 					if (tmp < 0)
 						tmp += TFRC_WIN_COUNT_LIMIT;
 					if (tmp > TFRC_WIN_COUNT_PER_RTT + 1) {
@@ -1553,7 +1553,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	}
 
 	do_gettimeofday(&(hcrx->ccid3hcrx_tstamp_last_feedback));
-	hcrx->ccid3hcrx_last_counter	     = packet->dccphrx_win_count;
+	hcrx->ccid3hcrx_last_counter	     = packet->dccphrx_ccval;
 	hcrx->ccid3hcrx_seqno_last_counter   = packet->dccphrx_seqno;
 	hcrx->ccid3hcrx_bytes_recv	     = 0;
 
@@ -1645,11 +1645,11 @@ static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
 			switch (step) {
 			case 0:
 				tstamp	  = entry->dccphrx_tstamp;
-				win_count = entry->dccphrx_win_count;
+				win_count = entry->dccphrx_ccval;
 				step = 1;
 				break;
 			case 1:
-				interval = win_count - entry->dccphrx_win_count;
+				interval = win_count - entry->dccphrx_ccval;
 				if (interval < 0)
 					interval += TFRC_WIN_COUNT_LIMIT;
 				if (interval > 4)
@@ -1816,7 +1816,7 @@ static void ccid3_hc_rx_detect_loss(struct sock *sk)
 	}
 
 	if (seq_loss != DCCP_MAX_SEQNO + 1)
-		win_loss = a_loss->dccphrx_win_count;
+		win_loss = a_loss->dccphrx_ccval;
 
 out_update_li:
 	ccid3_hc_rx_update_li(sk, seq_loss, win_loss);
@@ -1918,7 +1918,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	win_count = packet->dccphrx_win_count;
+	win_count = packet->dccphrx_ccval;
 
 	ins = ccid3_hc_rx_add_hist(sk, packet);
 

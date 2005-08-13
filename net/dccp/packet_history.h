@@ -47,15 +47,16 @@
 struct dccp_tx_hist_entry {
 	struct list_head dccphtx_node;
 	u64		 dccphtx_seqno:48,
-			 dccphtx_win_count:8,
+			 dccphtx_ccval:4,
 			 dccphtx_sent:1;
+	u32		 dccphtx_rtt;
 	struct timeval	 dccphtx_tstamp;
 };
 
 struct dccp_rx_hist_entry {
 	struct list_head dccphrx_node;
 	u64		 dccphrx_seqno:48,
-			 dccphrx_win_count:4,
+			 dccphrx_ccval:4,
 			 dccphrx_type:4;
 	u32		 dccphrx_ndp; /* In fact it is from 8 to 24 bits */
 	struct timeval	 dccphrx_tstamp;
@@ -136,10 +137,10 @@ static inline struct dccp_rx_hist_entry *
 	if (entry != NULL) {
 		const struct dccp_hdr *dh = dccp_hdr(skb);
 
-		entry->dccphrx_seqno	 = DCCP_SKB_CB(skb)->dccpd_seq;
-		entry->dccphrx_win_count = dh->dccph_ccval;
-		entry->dccphrx_type	 = dh->dccph_type;
-		entry->dccphrx_ndp	 = ndp;
+		entry->dccphrx_seqno = DCCP_SKB_CB(skb)->dccpd_seq;
+		entry->dccphrx_ccval = dh->dccph_ccval;
+		entry->dccphrx_type  = dh->dccph_type;
+		entry->dccphrx_ndp   = ndp;
 		do_gettimeofday(&(entry->dccphrx_tstamp));
 	}
 
