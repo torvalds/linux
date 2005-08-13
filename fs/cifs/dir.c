@@ -226,7 +226,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		}
 
 		if (rc != 0) {
-			cFYI(1,("Create worked but get_inode_info failed with rc = %d",
+			cFYI(1,
+			     ("Create worked but get_inode_info failed rc = %d",
 			      rc));
 		} else {
 			direntry->d_op = &cifs_dentry_ops;
@@ -303,8 +304,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 	up(&direntry->d_sb->s_vfs_rename_sem);
 	if(full_path == NULL)
 		rc = -ENOMEM;
-	
-	if (full_path && (pTcon->ses->capabilities & CAP_UNIX)) {
+	else if (pTcon->ses->capabilities & CAP_UNIX) {
 		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 			rc = CIFSSMBUnixSetPerms(xid, pTcon, full_path,
 				mode,(__u64)current->euid,(__u64)current->egid,

@@ -415,15 +415,16 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			if(server->secMode & SECMODE_SIGN_REQUIRED)
 				cERROR(1,
 				 ("Server requires /proc/fs/cifs/PacketSigningEnabled"));
-			server->secMode &= ~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+			server->secMode &= ~(SECMODE_SIGN_ENABLED | 
+							SECMODE_SIGN_REQUIRED);
 		} else if(sign_CIFS_PDUs == 1) {
 			if((server->secMode & SECMODE_SIGN_REQUIRED) == 0)
-				server->secMode &= ~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+				server->secMode &= ~(SECMODE_SIGN_ENABLED |
+							 SECMODE_SIGN_REQUIRED);
 		}
 				
 	}
-	if (pSMB)
-		cifs_buf_release(pSMB);
+	cifs_buf_release(pSMB);
 	return rc;
 }
 
@@ -537,9 +538,8 @@ CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses)
 			rc = -ESHUTDOWN;
 		}
 	}
-	if (pSMB)
-		cifs_small_buf_release(pSMB);
-	up(&ses->sesSem);
+	up(&ses->sesSem)	
+	cifs_small_buf_release(pSMB);
 
 	/* if session dead then we do not need to do ulogoff,
 		since server closed smb session, no sense reporting 
@@ -1796,8 +1796,7 @@ CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 		}
 	}
 qreparse_out:
-	if (pSMB)
-		cifs_buf_release(pSMB);
+	cifs_buf_release(pSMB);
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls
 		since file handle passed in no longer valid */
@@ -2520,12 +2519,11 @@ findFirstRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 
-	if (rc) {/* BB add logic to retry regular search if Unix search rejected unexpectedly by server */
+	if (rc) {/* BB add logic to retry regular search if Unix search 
+			rejected unexpectedly by server */
 		/* BB Add code to handle unsupported level rc */
 		cFYI(1, ("Error in FindFirst = %d", rc));
-
-		if (pSMB)
-			cifs_buf_release(pSMB);
+		cifs_buf_release(pSMB);
 
 		/* BB eventually could optimize out free and realloc of buf */
 		/*    for this case */
