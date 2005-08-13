@@ -115,7 +115,8 @@ extern void dccp_tx_hist_purge_older(struct dccp_tx_hist *hist,
 extern void dccp_tx_hist_purge(struct dccp_tx_hist *hist,
 			       struct list_head *list);
 
-static inline struct dccp_tx_hist_entry *dccp_tx_hist_head(struct list_head *list)
+static inline struct dccp_tx_hist_entry *
+		dccp_tx_hist_head(struct list_head *list)
 {
 	struct dccp_tx_hist_entry *head = NULL;
 
@@ -163,7 +164,8 @@ static inline void dccp_rx_hist_add_entry(struct list_head *list,
 	list_add(&entry->dccphrx_node, list);
 }
 
-static inline struct dccp_rx_hist_entry *dccp_rx_hist_head(struct list_head *list)
+static inline struct dccp_rx_hist_entry *
+		dccp_rx_hist_head(struct list_head *list)
 {
 	struct dccp_rx_hist_entry *head = NULL;
 

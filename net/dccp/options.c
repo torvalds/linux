@@ -59,14 +59,15 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 #ifdef DCCP_DEBUG
-	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ? "CLIENT rx opt: " :
-									"server rx opt: ";
+	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
+					"CLIENT rx opt: " : "server rx opt: ";
 #endif
 	const struct dccp_hdr *dh = dccp_hdr(skb);
 	const u8 pkt_type = DCCP_SKB_CB(skb)->dccpd_type;
 	unsigned char *options = (unsigned char *)dh + dccp_hdr_len(skb);
 	unsigned char *opt_ptr = options;
-	const unsigned char *opt_end = (unsigned char *)dh + (dh->dccph_doff * 4);
+	const unsigned char *opt_end = (unsigned char *)dh +
+					(dh->dccph_doff * 4);
 	struct dccp_options_received *opt_recv = &dp->dccps_options_received;
 	unsigned char opt, len;
 	unsigned char *value;
@@ -106,7 +107,8 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				goto out_invalid_option;
 
 			opt_recv->dccpor_ndp = dccp_decode_value_var(value, len);
-			dccp_pr_debug("%sNDP count=%d\n", debug_prefix, opt_recv->dccpor_ndp);
+			dccp_pr_debug("%sNDP count=%d\n", debug_prefix,
+				      opt_recv->dccpor_ndp);
 			break;
 		case DCCPO_ACK_VECTOR_0:
 			if (len > DCCP_MAX_ACK_VECTOR_LEN)
@@ -124,8 +126,9 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
 			dccp_ackvector_print(DCCP_SKB_CB(skb)->dccpd_ack_seq,
 					     value, len);
-			dccp_ackpkts_check_rcv_ackvector(dp->dccps_hc_rx_ackpkts, sk,
-							 DCCP_SKB_CB(skb)->dccpd_ack_seq,
+			dccp_ackpkts_check_rcv_ackvector(dp->dccps_hc_rx_ackpkts,
+							 sk,
+						 DCCP_SKB_CB(skb)->dccpd_ack_seq,
 							 len, value);
 			break;
 		case DCCPO_TIMESTAMP:
@@ -148,15 +151,21 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 
 			opt_recv->dccpor_timestamp_echo = ntohl(*(u32 *)value);
 
-			dccp_pr_debug("%sTIMESTAMP_ECHO=%u, len=%d, ackno=%llu, diff=%u\n",
-				      debug_prefix, opt_recv->dccpor_timestamp_echo,
+			dccp_pr_debug("%sTIMESTAMP_ECHO=%u, len=%d, ackno=%llu, "
+				      "diff=%u\n",
+				      debug_prefix,
+				      opt_recv->dccpor_timestamp_echo,
 				      len + 2,
 				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq,
-				      tcp_time_stamp - opt_recv->dccpor_timestamp_echo);
+				      (tcp_time_stamp -
+				       opt_recv->dccpor_timestamp_echo));
 
-			opt_recv->dccpor_elapsed_time = dccp_decode_value_var(value + 4, len - 4);
-			dccp_pr_debug("%sTIMESTAMP_ECHO ELAPSED_TIME=%d\n", debug_prefix,
+			opt_recv->dccpor_elapsed_time =
+					dccp_decode_value_var(value + 4,
+							     len - 4);
+			dccp_pr_debug("%sTIMESTAMP_ECHO ELAPSED_TIME=%d\n",
+				      debug_prefix,
 				      opt_recv->dccpor_elapsed_time);
 			break;
 		case DCCPO_ELAPSED_TIME:
@@ -165,33 +174,41 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 
 			if (pkt_type == DCCP_PKT_DATA)
 				continue;
-			opt_recv->dccpor_elapsed_time = dccp_decode_value_var(value, len);
+			opt_recv->dccpor_elapsed_time =
+					dccp_decode_value_var(value, len);
 			dccp_pr_debug("%sELAPSED_TIME=%d\n", debug_prefix,
 				      opt_recv->dccpor_elapsed_time);
 			break;
 			/*
 			 * From draft-ietf-dccp-spec-11.txt:
 			 *
-			 *	Option numbers 128 through 191 are for options sent from the HC-
-			 *	Sender to the HC-Receiver; option numbers 192 through 255 are for
-			 *	options sent from the HC-Receiver to the HC-Sender.
+			 *	Option numbers 128 through 191 are for
+			 *	options sent from the HC-Sender to the
+			 *	HC-Receiver; option numbers 192 through 255
+			 *	are for options sent from the HC-Receiver to
+			 *	the HC-Sender.
 			 */
 		case 128 ... 191: {
 			const u16 idx = value - options;
 
-			if (ccid_hc_rx_parse_options(dp->dccps_hc_rx_ccid, sk, opt, len, idx, value) != 0)
+			if (ccid_hc_rx_parse_options(dp->dccps_hc_rx_ccid, sk,
+						     opt, len, idx,
+						     value) != 0)
 				goto out_invalid_option;
 		}
 			break;
 		case 192 ... 255: {
 			const u16 idx = value - options;
 
-			if (ccid_hc_tx_parse_options(dp->dccps_hc_tx_ccid, sk, opt, len, idx, value) != 0)
+			if (ccid_hc_tx_parse_options(dp->dccps_hc_tx_ccid, sk,
+						     opt, len, idx,
+						     value) != 0)
 				goto out_invalid_option;
 		}
 			break;
 		default:
-			pr_info("DCCP(%p): option %d(len=%d) not implemented, ignoring\n",
+			pr_info("DCCP(%p): option %d(len=%d) not "
+				"implemented, ignoring\n",
 				sk, opt, len);
 			break;
 	        }
@@ -231,7 +248,8 @@ void dccp_insert_option(struct sock *sk, struct sk_buff *skb,
 	unsigned char *to;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len + 2 > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert %d option!\n", option);
+		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert "
+			       "%d option!\n", option);
 		return;
 	}
 
@@ -287,8 +305,8 @@ void dccp_insert_option_elapsed_time(struct sock *sk,
 {
 #ifdef DCCP_DEBUG
 	struct dccp_sock *dp = dccp_sk(sk);
-	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ? "CLIENT TX opt: " :
-									"server TX opt: ";
+	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
+					"CLIENT TX opt: " : "server TX opt: ";
 #endif
 	const int elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
 	const int len = 2 + elapsed_time_len;
@@ -299,7 +317,8 @@ void dccp_insert_option_elapsed_time(struct sock *sk,
 		return;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert elapsed time!\n");
+		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to "
+					 "insert elapsed time!\n");
 		return;
 	}
 
@@ -323,8 +342,8 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 #ifdef DCCP_DEBUG
-	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ? "CLIENT TX opt: " :
-									"server TX opt: ";
+	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
+					"CLIENT TX opt: " : "server TX opt: ";
 #endif
 	struct dccp_ackpkts *ap = dp->dccps_hc_rx_ackpkts;
 	int len = ap->dccpap_buf_vector_len + 2;
@@ -335,7 +354,8 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 		dccp_insert_option_elapsed_time(sk, skb, elapsed_time);
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert ACK Vector!\n");
+		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to "
+					 "insert ACK Vector!\n");
 		return;
 	}
 
@@ -360,7 +380,8 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 
 	/* Check if buf_head wraps */
 	if (ap->dccpap_buf_head + len > ap->dccpap_buf_len) {
-		const unsigned int tailsize = ap->dccpap_buf_len - ap->dccpap_buf_head;
+		const unsigned int tailsize = (ap->dccpap_buf_len -
+					       ap->dccpap_buf_head);
 
 		memcpy(to, from, tailsize);
 		to   += tailsize;
@@ -375,8 +396,8 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 	 *	For each acknowledgement it sends, the HC-Receiver will add an
 	 *	acknowledgement record.  ack_seqno will equal the HC-Receiver
 	 *	sequence number it used for the ack packet; ack_ptr will equal
-	 *	buf_head; ack_ackno will equal buf_ackno; and ack_nonce will equal
-	 *	buf_nonce.
+	 *	buf_head; ack_ackno will equal buf_ackno; and ack_nonce will
+	 *	equal buf_nonce.
 	 *
 	 * This implemention uses just one ack record for now.
 	 */
@@ -386,33 +407,38 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 	ap->dccpap_ack_nonce	  = ap->dccpap_buf_nonce;
 	ap->dccpap_ack_vector_len = ap->dccpap_buf_vector_len;
 
-	dccp_pr_debug("%sACK Vector 0, len=%d, ack_seqno=%llu, ack_ackno=%llu\n",
+	dccp_pr_debug("%sACK Vector 0, len=%d, ack_seqno=%llu, "
+		      "ack_ackno=%llu\n",
 		      debug_prefix, ap->dccpap_ack_vector_len,
 		      (unsigned long long) ap->dccpap_ack_seqno,
 		      (unsigned long long) ap->dccpap_ack_ackno);
 }
 
-static inline void dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
+static inline void dccp_insert_option_timestamp(struct sock *sk,
+						struct sk_buff *skb)
 {
 	const u32 now = htonl(tcp_time_stamp);
 	dccp_insert_option(sk, skb, DCCPO_TIMESTAMP, &now, sizeof(now));
 }
 
-static void dccp_insert_option_timestamp_echo(struct sock *sk, struct sk_buff *skb)
+static void dccp_insert_option_timestamp_echo(struct sock *sk,
+					      struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 #ifdef DCCP_DEBUG
-	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ? "CLIENT TX opt: " :
-									"server TX opt: ";
+	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
+					"CLIENT TX opt: " : "server TX opt: ";
 #endif
 	u32 tstamp_echo;
-	const u32 elapsed_time = jiffies_to_usecs(jiffies - dp->dccps_timestamp_time) / 10;
+	const u32 elapsed_time = jiffies_to_usecs(jiffies -
+						  dp->dccps_timestamp_time) / 10;
 	const int elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
 	const int len = 6 + elapsed_time_len;
 	unsigned char *to;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert timestamp echo!\n");
+		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert "
+					 "timestamp echo!\n");
 		return;
 	}
 
@@ -447,7 +473,8 @@ void dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 
 	if (!dccp_packet_without_ack(skb)) {
 		if (dp->dccps_options.dccpo_send_ack_vector &&
-		    dp->dccps_hc_rx_ackpkts->dccpap_buf_ackno != DCCP_MAX_SEQNO + 1)
+		    (dp->dccps_hc_rx_ackpkts->dccpap_buf_ackno !=
+		     DCCP_MAX_SEQNO + 1))
 			dccp_insert_option_ack_vector(sk, skb);
 
 		dccp_insert_option_timestamp(sk, skb);
@@ -480,12 +507,16 @@ struct dccp_ackpkts *dccp_ackpkts_alloc(unsigned int len, int priority)
 #ifdef DCCP_DEBUG
 		memset(ap->dccpap_buf, 0xFF, len);
 #endif
-		ap->dccpap_buf_len	  = len;
-		ap->dccpap_buf_head	  = ap->dccpap_buf_tail = ap->dccpap_buf_len - 1;
-		ap->dccpap_buf_ackno	  = ap->dccpap_ack_ackno = ap->dccpap_ack_seqno = DCCP_MAX_SEQNO + 1;
-		ap->dccpap_buf_nonce	  = ap->dccpap_buf_nonce = 0;
-		ap->dccpap_ack_ptr	  = 0;
-		ap->dccpap_time		  = 0;
+		ap->dccpap_buf_len   = len;
+		ap->dccpap_buf_head  =
+			ap->dccpap_buf_tail =
+				ap->dccpap_buf_len - 1;
+		ap->dccpap_buf_ackno =
+			ap->dccpap_ack_ackno =
+				ap->dccpap_ack_seqno = DCCP_MAX_SEQNO + 1;
+		ap->dccpap_buf_nonce = ap->dccpap_buf_nonce = 0;
+		ap->dccpap_ack_ptr   = 0;
+		ap->dccpap_time	     = 0;
 		ap->dccpap_buf_vector_len = ap->dccpap_ack_vector_len = 0;
 	}
 
@@ -567,15 +598,16 @@ int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state)
 	 *
 	 * From Appendix A:
 	 *
-	 *	Of course, the circular buffer may overflow, either when the HC-
-	 *	Sender is sending data at a very high rate, when the HC-Receiver's
-	 *	acknowledgements are not reaching the HC-Sender, or when the HC-
-	 *	Sender is forgetting to acknowledge those acks (so the HC-Receiver
-	 *	is unable to clean up old state).  In this case, the HC-Receiver
-	 *	should either compress the buffer (by increasing run lengths when
-	 *	possible), transfer its state to a larger buffer, or, as a last
-	 *	resort, drop all received packets, without processing them
-	 *	whatsoever, until its buffer shrinks again.
+	 *	Of course, the circular buffer may overflow, either when the
+	 *	HC-Sender is sending data at a very high rate, when the
+	 *	HC-Receiver's acknowledgements are not reaching the HC-Sender,
+	 *	or when the HC-Sender is forgetting to acknowledge those acks
+	 *	(so the HC-Receiver is unable to clean up old state). In this
+	 *	case, the HC-Receiver should either compress the buffer (by
+	 *	increasing run lengths when possible), transfer its state to
+	 *	a larger buffer, or, as a last resort, drop all received
+	 *	packets, without processing them whatsoever, until its buffer
+	 *	shrinks again.
 	 */
 
 	/* See if this is the first ackno being inserted */
@@ -583,15 +615,17 @@ int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state)
 		ap->dccpap_buf[ap->dccpap_buf_head] = state;
 		ap->dccpap_buf_vector_len = 1;
 	} else if (after48(ackno, ap->dccpap_buf_ackno)) {
-		const u64 delta = dccp_delta_seqno(ap->dccpap_buf_ackno, ackno);
+		const u64 delta = dccp_delta_seqno(ap->dccpap_buf_ackno,
+						   ackno);
 
 		/*
-		 * Look if the state of this packet is the same as the previous ackno
-		 * and if so if we can bump the head len.
+		 * Look if the state of this packet is the same as the
+		 * previous ackno and if so if we can bump the head len.
 		 */
 		if (delta == 1 &&
 		    dccp_ackpkts_state(ap, ap->dccpap_buf_head) == state &&
-		    dccp_ackpkts_len(ap, ap->dccpap_buf_head) < DCCP_ACKPKTS_LEN_MASK)
+		    (dccp_ackpkts_len(ap, ap->dccpap_buf_head) <
+		     DCCP_ACKPKTS_LEN_MASK))
 			ap->dccpap_buf[ap->dccpap_buf_head]++;
 		else if (dccp_ackpkts_set_buf_head_state(ap, delta, state))
 			return -ENOBUFS;
@@ -599,9 +633,10 @@ int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state)
 		/*
 		 * A.1.2.  Old Packets
 		 *
-		 *	When a packet with Sequence Number S arrives, and S <= buf_ackno,
-		 *	the HC-Receiver will scan the table for the byte corresponding to S.
-		 *	(Indexing structures could reduce the complexity of this scan.)
+		 *	When a packet with Sequence Number S arrives, and
+		 *	S <= buf_ackno, the HC-Receiver will scan the table
+		 *	for the byte corresponding to S. (Indexing structures
+		 *	could reduce the complexity of this scan.)
 		 */
 		u64 delta = dccp_delta_seqno(ackno, ap->dccpap_buf_ackno);
 		unsigned int index = ap->dccpap_buf_head;
@@ -610,11 +645,12 @@ int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state)
 			const u8 len = dccp_ackpkts_len(ap, index);
 			const u8 state = dccp_ackpkts_state(ap, index);
 			/*
-			 * valid packets not yet in dccpap_buf have a reserved entry, with
-			 * a len equal to 0
+			 * valid packets not yet in dccpap_buf have a reserved
+			 * entry, with a len equal to 0.
 			 */
 			if (state == DCCP_ACKPKTS_STATE_NOT_RECEIVED &&
-			    len == 0 && delta == 0) { /* Found our reserved seat! */
+			    len == 0 && delta == 0) { /* Found our
+							 reserved seat! */
 				dccp_pr_debug("Found %llu reserved seat!\n",
 					      (unsigned long long) ackno);
 				ap->dccpap_buf[index] = state;
@@ -639,13 +675,14 @@ out:
 
 out_duplicate:
 	/* Duplicate packet */
-	dccp_pr_debug("Received a dup or already considered lost packet: %llu\n",
-		      (unsigned long long) ackno);
+	dccp_pr_debug("Received a dup or already considered lost "
+		      "packet: %llu\n", (unsigned long long) ackno);
 	return -EILSEQ;
 }
 
 #ifdef DCCP_DEBUG
-void dccp_ackvector_print(const u64 ackno, const unsigned char *vector, int len)
+void dccp_ackvector_print(const u64 ackno, const unsigned char *vector,
+			  int len)
 {
 	if (!dccp_debug)
 		return;
@@ -678,8 +715,9 @@ static void dccp_ackpkts_trow_away_ack_record(struct dccp_ackpkts *ap)
 	 * As we're keeping track of the ack vector size
 	 * (dccpap_buf_vector_len) and the sent ack vector size
 	 * (dccpap_ack_vector_len) we don't need dccpap_buf_tail at all, but
-	 * keep this code here as in the future we'll implement a vector of ack
-	 * records, as suggested in draft-ietf-dccp-spec-11.txt Appendix A. -acme
+	 * keep this code here as in the future we'll implement a vector of
+	 * ack records, as suggested in draft-ietf-dccp-spec-11.txt
+	 * Appendix A. -acme
 	 */
 #if 0
 	ap->dccpap_buf_tail = ap->dccpap_ack_ptr + 1;
@@ -699,10 +737,11 @@ void dccp_ackpkts_check_rcv_ackno(struct dccp_ackpkts *ap, struct sock *sk,
 	if (ackno == ap->dccpap_ack_seqno) {
 #ifdef DCCP_DEBUG
 		struct dccp_sock *dp = dccp_sk(sk);
-		const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ? "CLIENT rx ack: " :
-										"server rx ack: ";
+		const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
+					"CLIENT rx ack: " : "server rx ack: ";
 #endif
-		dccp_pr_debug("%sACK packet 0, len=%d, ack_seqno=%llu, ack_ackno=%llu, ACKED!\n",
+		dccp_pr_debug("%sACK packet 0, len=%d, ack_seqno=%llu, "
+			      "ack_ackno=%llu, ACKED!\n",
 			      debug_prefix, 1,
 			      (unsigned long long) ap->dccpap_ack_seqno,
 			      (unsigned long long) ap->dccpap_ack_ackno);
@@ -722,20 +761,21 @@ static void dccp_ackpkts_check_rcv_ackvector(struct dccp_ackpkts *ap,
 	if (ap->dccpap_ack_seqno == DCCP_MAX_SEQNO + 1)
 		return;
 	/*
-	 * We're in the receiver half connection, so if the received an ACK vector
-	 * ackno (e.g. 50) before dccpap_ack_seqno (e.g. 52), we're not interested.
+	 * We're in the receiver half connection, so if the received an ACK
+	 * vector ackno (e.g. 50) before dccpap_ack_seqno (e.g. 52), we're
+	 * not interested.
 	 *
 	 * Extra explanation with example:
 	 * 
 	 * if we received an ACK vector with ackno 50, it can only be acking
 	 * 50, 49, 48, etc, not 52 (the seqno for the ACK vector we sent).
 	 */
-	// dccp_pr_debug("is %llu < %llu? ", ackno, ap->dccpap_ack_seqno);
+	/* dccp_pr_debug("is %llu < %llu? ", ackno, ap->dccpap_ack_seqno); */
 	if (before48(ackno, ap->dccpap_ack_seqno)) {
-		// dccp_pr_debug_cat("yes\n");
+		/* dccp_pr_debug_cat("yes\n"); */
 		return;
 	}
-	// dccp_pr_debug_cat("no\n");
+	/* dccp_pr_debug_cat("no\n"); */
 
 	i = len;
 	while (i--) {
@@ -744,18 +784,25 @@ static void dccp_ackpkts_check_rcv_ackvector(struct dccp_ackpkts *ap,
 
 		dccp_set_seqno(&ackno_end_rl, ackno - rl);
 
-		// dccp_pr_debug("is %llu <= %llu <= %llu? ", ackno_end_rl, ap->dccpap_ack_seqno, ackno);
+		/*
+		 * dccp_pr_debug("is %llu <= %llu <= %llu? ", ackno_end_rl,
+		 * ap->dccpap_ack_seqno, ackno);
+		 */
 		if (between48(ap->dccpap_ack_seqno, ackno_end_rl, ackno)) {
-			const u8 state = (*vector & DCCP_ACKPKTS_STATE_MASK) >> 6;
-			// dccp_pr_debug_cat("yes\n");
+			const u8 state = (*vector &
+					  DCCP_ACKPKTS_STATE_MASK) >> 6;
+			/* dccp_pr_debug_cat("yes\n"); */
 
 			if (state != DCCP_ACKPKTS_STATE_NOT_RECEIVED) {
 #ifdef DCCP_DEBUG
 				struct dccp_sock *dp = dccp_sk(sk);
-				const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ? "CLIENT rx ack: " :
-												"server rx ack: ";
+				const char *debug_prefix =
+					dp->dccps_role == DCCP_ROLE_CLIENT ?
+					"CLIENT rx ack: " : "server rx ack: ";
 #endif
-				dccp_pr_debug("%sACK vector 0, len=%d, ack_seqno=%llu, ack_ackno=%llu, ACKED!\n",
+				dccp_pr_debug("%sACK vector 0, len=%d, "
+					      "ack_seqno=%llu, ack_ackno=%llu, "
+					      "ACKED!\n",
 					      debug_prefix, len,
 					      (unsigned long long)
 					      ap->dccpap_ack_seqno,
@@ -764,13 +811,13 @@ static void dccp_ackpkts_check_rcv_ackvector(struct dccp_ackpkts *ap,
 				dccp_ackpkts_trow_away_ack_record(ap);
 			}
 			/*
-			 * If dccpap_ack_seqno was not received, no problem we'll
-			 * send another ACK vector.
+			 * If dccpap_ack_seqno was not received, no problem
+			 * we'll send another ACK vector.
 			 */
 			ap->dccpap_ack_seqno = DCCP_MAX_SEQNO + 1;
 			break;
 		}
-		// dccp_pr_debug_cat("no\n");
+		/* dccp_pr_debug_cat("no\n"); */
 
 		dccp_set_seqno(&ackno, ackno_end_rl - 1);
 		++vector;

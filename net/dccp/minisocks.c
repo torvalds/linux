@@ -69,8 +69,8 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
 		 * socket up.  We've got bigger problems than
 		 * non-graceful socket closings.
 		 */
-		if (net_ratelimit())
-			printk(KERN_INFO "DCCP: time wait bucket table overflow\n");
+		LIMIT_NETDEBUG(KERN_INFO "DCCP: time wait bucket "
+					 "table overflow\n");
 	}
 
 	dccp_done(sk);
@@ -98,19 +98,23 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		newicsk->icsk_rto = DCCP_TIMEOUT_INIT;
 
 		if (newdp->dccps_options.dccpo_send_ack_vector) {
-			newdp->dccps_hc_rx_ackpkts = dccp_ackpkts_alloc(DCCP_MAX_ACK_VECTOR_LEN,
-									GFP_ATOMIC);
+			newdp->dccps_hc_rx_ackpkts =
+				dccp_ackpkts_alloc(DCCP_MAX_ACK_VECTOR_LEN,
+						   GFP_ATOMIC);
 			/*
-			 * XXX: We're using the same CCIDs set on the parent, i.e. sk_clone
-			 * copied the master sock and left the CCID pointers for this child,
-			 * that is why we do the __ccid_get calls.
+			 * XXX: We're using the same CCIDs set on the parent,
+			 * i.e. sk_clone copied the master sock and left the
+			 * CCID pointers for this child, that is why we do the
+			 * __ccid_get calls.
 			 */
 			if (unlikely(newdp->dccps_hc_rx_ackpkts == NULL))
 				goto out_free;
 		}
 
-		if (unlikely(ccid_hc_rx_init(newdp->dccps_hc_rx_ccid, newsk) != 0 ||
-			     ccid_hc_tx_init(newdp->dccps_hc_tx_ccid, newsk) != 0)) {
+		if (unlikely(ccid_hc_rx_init(newdp->dccps_hc_rx_ccid,
+					     newsk) != 0 ||
+			     ccid_hc_tx_init(newdp->dccps_hc_tx_ccid,
+				     	     newsk) != 0)) {
 			dccp_ackpkts_free(newdp->dccps_hc_rx_ackpkts);
 			ccid_hc_rx_exit(newdp->dccps_hc_rx_ccid, newsk);
 			ccid_hc_tx_exit(newdp->dccps_hc_tx_ccid, newsk);
@@ -129,7 +133,8 @@ out_free:
 		 * Step 3: Process LISTEN state
 		 *
 		 *	Choose S.ISS (initial seqno) or set from Init Cookie
-		 *	Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init Cookie
+		 *	Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init
+		 *	Cookie
 		 */
 
 		/* See dccp_v4_conn_request */
@@ -160,13 +165,15 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 
 	/* Check for retransmitted REQUEST */
 	if (dccp_hdr(skb)->dccph_type == DCCP_PKT_REQUEST) {
-		if (after48(DCCP_SKB_CB(skb)->dccpd_seq, dccp_rsk(req)->dreq_isr)) {
+		if (after48(DCCP_SKB_CB(skb)->dccpd_seq,
+			    dccp_rsk(req)->dreq_isr)) {
 			struct dccp_request_sock *dreq = dccp_rsk(req);
 
 			dccp_pr_debug("Retransmitted REQUEST\n");
 			/* Send another RESPONSE packet */
 			dccp_set_seqno(&dreq->dreq_iss, dreq->dreq_iss + 1);
-			dccp_set_seqno(&dreq->dreq_isr, DCCP_SKB_CB(skb)->dccpd_seq);
+			dccp_set_seqno(&dreq->dreq_isr,
+				       DCCP_SKB_CB(skb)->dccpd_seq);
 			req->rsk_ops->rtx_syn_ack(sk, req, NULL);
 		}
 		/* Network Duplicate, discard packet */
@@ -181,7 +188,8 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 
 	/* Invalid ACK */
 	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != dccp_rsk(req)->dreq_iss) {
-		dccp_pr_debug("Invalid ACK number: ack_seq=%llu, dreq_iss=%llu\n",
+		dccp_pr_debug("Invalid ACK number: ack_seq=%llu, "
+			      "dreq_iss=%llu\n",
 			      (unsigned long long)
 			      DCCP_SKB_CB(skb)->dccpd_ack_seq,
 			      (unsigned long long)
@@ -223,7 +231,8 @@ int dccp_child_process(struct sock *parent, struct sock *child,
 	const int state = child->sk_state;
 
 	if (!sock_owned_by_user(child)) {
-		ret = dccp_rcv_state_process(child, skb, dccp_hdr(skb), skb->len);
+		ret = dccp_rcv_state_process(child, skb, dccp_hdr(skb),
+					     skb->len);
 
 		/* Wakeup parent, send SIGIO */
 		if (state == DCCP_RESPOND && child->sk_state != state)

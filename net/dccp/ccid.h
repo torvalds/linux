@@ -30,21 +30,26 @@ struct ccid {
 	int		(*ccid_hc_tx_init)(struct sock *sk);
 	void		(*ccid_hc_rx_exit)(struct sock *sk);
 	void		(*ccid_hc_tx_exit)(struct sock *sk);
-	void		(*ccid_hc_rx_packet_recv)(struct sock *sk, struct sk_buff *skb);
+	void		(*ccid_hc_rx_packet_recv)(struct sock *sk,
+						  struct sk_buff *skb);
 	int		(*ccid_hc_rx_parse_options)(struct sock *sk,
 						    unsigned char option,
 						    unsigned char len, u16 idx,
 						    unsigned char* value);
-	void		(*ccid_hc_rx_insert_options)(struct sock *sk, struct sk_buff *skb);
-	void		(*ccid_hc_tx_insert_options)(struct sock *sk, struct sk_buff *skb);
-	void		(*ccid_hc_tx_packet_recv)(struct sock *sk, struct sk_buff *skb);
+	void		(*ccid_hc_rx_insert_options)(struct sock *sk,
+						     struct sk_buff *skb);
+	void		(*ccid_hc_tx_insert_options)(struct sock *sk,
+						     struct sk_buff *skb);
+	void		(*ccid_hc_tx_packet_recv)(struct sock *sk,
+						  struct sk_buff *skb);
 	int		(*ccid_hc_tx_parse_options)(struct sock *sk,
 						    unsigned char option,
 						    unsigned char len, u16 idx,
 						    unsigned char* value);
 	int		(*ccid_hc_tx_send_packet)(struct sock *sk,
 						  struct sk_buff *skb, int len);
-	void		(*ccid_hc_tx_packet_sent)(struct sock *sk, int more, int len);
+	void		(*ccid_hc_tx_packet_sent)(struct sock *sk, int more,
+						  int len);
 };
 
 extern int	   ccid_register(struct ccid *ccid);
@@ -123,7 +128,8 @@ static inline int ccid_hc_tx_parse_options(struct ccid *ccid, struct sock *sk,
 {
 	int rc = 0;
 	if (ccid->ccid_hc_tx_parse_options != NULL)
-		rc = ccid->ccid_hc_tx_parse_options(sk, option, len, idx, value);
+		rc = ccid->ccid_hc_tx_parse_options(sk, option, len, idx,
+						    value);
 	return rc;
 }
 

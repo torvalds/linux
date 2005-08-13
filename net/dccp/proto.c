@@ -255,12 +255,16 @@ int dccp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	/* FIXME */
 #if 0
-		/* Are we at urgent data? Stop if we have read anything or have SIGURG pending. */
+		/*
+		 * Are we at urgent data? Stop if we have read anything or
+		 * have SIGURG pending.
+		 */
 		if (tp->urg_data && tp->urg_seq == *seq) {
 			if (copied)
 				break;
 			if (signal_pending(current)) {
-				copied = timeo ? sock_intr_errno(timeo) : -EAGAIN;
+				copied = timeo ? sock_intr_errno(timeo) :
+						 -EAGAIN;
 				break;
 			}
 		}
@@ -285,7 +289,8 @@ int dccp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 				dccp_pr_debug("found fin ok!\n");
 				goto found_fin_ok;
 			}
-			dccp_pr_debug("packet_type=%s\n", dccp_packet_name(dh->dccph_type));
+			dccp_pr_debug("packet_type=%s\n",
+				      dccp_packet_name(dh->dccph_type));
 			BUG_TRAP(flags & MSG_PEEK);
 			skb = skb->next;
 		} while (skb != (struct sk_buff *)&sk->sk_receive_queue);
@@ -439,16 +444,16 @@ out:
 }
 
 static const unsigned char dccp_new_state[] = {
-	/* current state:        new state:      action:	*/
-	[0]			= DCCP_CLOSED,
-	[DCCP_OPEN] 		= DCCP_CLOSING | DCCP_ACTION_FIN,
-	[DCCP_REQUESTING] 	= DCCP_CLOSED,
-	[DCCP_PARTOPEN]	= DCCP_CLOSING | DCCP_ACTION_FIN,
-	[DCCP_LISTEN]		= DCCP_CLOSED,
-	[DCCP_RESPOND] 	= DCCP_CLOSED,
-	[DCCP_CLOSING]	= DCCP_CLOSED,
-	[DCCP_TIME_WAIT] 	= DCCP_CLOSED,
-	[DCCP_CLOSED] 	= DCCP_CLOSED,
+	/* current state:   new state:      action:	*/
+	[0]		  = DCCP_CLOSED,
+	[DCCP_OPEN] 	  = DCCP_CLOSING | DCCP_ACTION_FIN,
+	[DCCP_REQUESTING] = DCCP_CLOSED,
+	[DCCP_PARTOPEN]	  = DCCP_CLOSING | DCCP_ACTION_FIN,
+	[DCCP_LISTEN]	  = DCCP_CLOSED,
+	[DCCP_RESPOND]	  = DCCP_CLOSED,
+	[DCCP_CLOSING]	  = DCCP_CLOSED,
+	[DCCP_TIME_WAIT]  = DCCP_CLOSED,
+	[DCCP_CLOSED]	  = DCCP_CLOSED,
 };
 
 static int dccp_close_state(struct sock *sk)
@@ -541,7 +546,8 @@ struct proto_ops inet_dccp_ops = {
 	.getname	= inet_getname,
 	.poll		= sock_no_poll,
 	.ioctl		= inet_ioctl,
-	.listen		= inet_dccp_listen, /* FIXME: work on inet_listen to rename it to sock_common_listen */
+	/* FIXME: work on inet_listen to rename it to sock_common_listen */
+	.listen		= inet_dccp_listen,
 	.shutdown	= inet_shutdown,
 	.setsockopt	= sock_common_setsockopt,
 	.getsockopt	= sock_common_getsockopt,
@@ -638,10 +644,10 @@ static int __init dccp_init(void)
 	if (rc)
 		goto out;
 
-	dccp_hashinfo.bind_bucket_cachep = kmem_cache_create("dccp_bind_bucket",
-					       sizeof(struct inet_bind_bucket),
-					       0, SLAB_HWCACHE_ALIGN,
-					       NULL, NULL);
+	dccp_hashinfo.bind_bucket_cachep =
+		kmem_cache_create("dccp_bind_bucket",
+				  sizeof(struct inet_bind_bucket), 0,
+				  SLAB_HWCACHE_ALIGN, NULL, NULL);
 	if (!dccp_hashinfo.bind_bucket_cachep)
 		goto out_proto_unregister;
 
@@ -657,14 +663,16 @@ static int __init dccp_init(void)
 		goal = num_physpages >> (23 - PAGE_SHIFT);
 
 	if (thash_entries)
-		goal = (thash_entries * sizeof(struct inet_ehash_bucket)) >> PAGE_SHIFT;
+		goal = (thash_entries *
+			sizeof(struct inet_ehash_bucket)) >> PAGE_SHIFT;
 	for (ehash_order = 0; (1UL << ehash_order) < goal; ehash_order++)
 		;
 	do {
 		dccp_hashinfo.ehash_size = (1UL << ehash_order) * PAGE_SIZE /
 					sizeof(struct inet_ehash_bucket);
 		dccp_hashinfo.ehash_size >>= 1;
-		while (dccp_hashinfo.ehash_size & (dccp_hashinfo.ehash_size - 1))
+		while (dccp_hashinfo.ehash_size &
+		       (dccp_hashinfo.ehash_size - 1))
 			dccp_hashinfo.ehash_size--;
 		dccp_hashinfo.ehash = (struct inet_ehash_bucket *)
 			__get_free_pages(GFP_ATOMIC, ehash_order);
@@ -686,7 +694,8 @@ static int __init dccp_init(void)
 	do {
 		dccp_hashinfo.bhash_size = (1UL << bhash_order) * PAGE_SIZE /
 					sizeof(struct inet_bind_hashbucket);
-		if ((dccp_hashinfo.bhash_size > (64 * 1024)) && bhash_order > 0)
+		if ((dccp_hashinfo.bhash_size > (64 * 1024)) &&
+		    bhash_order > 0)
 			continue;
 		dccp_hashinfo.bhash = (struct inet_bind_hashbucket *)
 			__get_free_pages(GFP_ATOMIC, bhash_order);

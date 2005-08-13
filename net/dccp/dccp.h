@@ -25,7 +25,8 @@ extern int dccp_debug;
 	do { if (dccp_debug) \
 		printk(KERN_DEBUG "%s: " format, __FUNCTION__ , ##a); \
 	} while (0)
-#define dccp_pr_debug_cat(format, a...) do { if (dccp_debug) printk(format, ##a); } while (0)
+#define dccp_pr_debug_cat(format, a...) do { if (dccp_debug) \
+					     printk(format, ##a); } while (0)
 #else
 #define dccp_pr_debug(format, a...)
 #define dccp_pr_debug_cat(format, a...)
@@ -72,7 +73,8 @@ static inline const  int after48(const u64 seq1, const u64 seq2)
 }
 
 /* is seq2 <= seq1 <= seq3 ? */
-static inline const int between48(const u64 seq1, const u64 seq2, const u64 seq3)
+static inline const int between48(const u64 seq1, const u64 seq2,
+				  const u64 seq3)
 {
 	return (seq3 << 16) - (seq2 << 16) >= (seq1 << 16) - (seq2 << 16);
 }
@@ -107,12 +109,14 @@ struct dccp_mib {
 } __SNMP_MIB_ALIGN__;
 
 DECLARE_SNMP_STAT(struct dccp_mib, dccp_statistics);
-#define DCCP_INC_STATS(field)		SNMP_INC_STATS(dccp_statistics, field)
-#define DCCP_INC_STATS_BH(field)	SNMP_INC_STATS_BH(dccp_statistics, field)
-#define DCCP_INC_STATS_USER(field) 	SNMP_INC_STATS_USER(dccp_statistics, field)
-#define DCCP_DEC_STATS(field)		SNMP_DEC_STATS(dccp_statistics, field)
-#define DCCP_ADD_STATS_BH(field, val)	SNMP_ADD_STATS_BH(dccp_statistics, field, val)
-#define DCCP_ADD_STATS_USER(field, val)	SNMP_ADD_STATS_USER(dccp_statistics, field, val)
+#define DCCP_INC_STATS(field)	    SNMP_INC_STATS(dccp_statistics, field)
+#define DCCP_INC_STATS_BH(field)    SNMP_INC_STATS_BH(dccp_statistics, field)
+#define DCCP_INC_STATS_USER(field)  SNMP_INC_STATS_USER(dccp_statistics, field)
+#define DCCP_DEC_STATS(field)	    SNMP_DEC_STATS(dccp_statistics, field)
+#define DCCP_ADD_STATS_BH(field, val) \
+			SNMP_ADD_STATS_BH(dccp_statistics, field, val)
+#define DCCP_ADD_STATS_USER(field, val)	\
+			SNMP_ADD_STATS_USER(dccp_statistics, field, val)
 
 extern int  dccp_transmit_skb(struct sock *sk, struct sk_buff *skb);
 extern int  dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb);
@@ -234,8 +238,8 @@ extern int	   dccp_disconnect(struct sock *sk, int flags);
 extern int	   dccp_getsockopt(struct sock *sk, int level, int optname,
 				   char *optval, int *optlen);
 extern int	   dccp_ioctl(struct sock *sk, int cmd, unsigned long arg);
-extern int	   dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
-				size_t size);
+extern int	   dccp_sendmsg(struct kiocb *iocb, struct sock *sk,
+				struct msghdr *msg, size_t size);
 extern int	   dccp_recvmsg(struct kiocb *iocb, struct sock *sk,
 				struct msghdr *msg, size_t len, int nonblock,
 				int flags, int *addr_len);
@@ -246,7 +250,8 @@ extern void	   dccp_shutdown(struct sock *sk, int how);
 extern int	   dccp_v4_checksum(const struct sk_buff *skb,
 				    const u32 saddr, const u32 daddr);
 
-extern int	   dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code);
+extern int	   dccp_v4_send_reset(struct sock *sk,
+				      enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk);
 
 struct dccp_skb_cb {
@@ -303,7 +308,8 @@ static inline void dccp_inc_seqno(u64 *seqno)
 
 static inline void dccp_hdr_set_seq(struct dccp_hdr *dh, const u64 gss)
 {
-	struct dccp_hdr_ext *dhx = (struct dccp_hdr_ext *)((void *)dh + sizeof(*dh));
+	struct dccp_hdr_ext *dhx = (struct dccp_hdr_ext *)((void *)dh +
+							   sizeof(*dh));
 
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	dh->dccph_seq	   = htonl((gss >> 32)) >> 8;
@@ -315,7 +321,8 @@ static inline void dccp_hdr_set_seq(struct dccp_hdr *dh, const u64 gss)
 	dhx->dccph_seq_low = htonl(gss & 0xffffffff);
 }
 
-static inline void dccp_hdr_set_ack(struct dccp_hdr_ack_bits *dhack, const u64 gsr)
+static inline void dccp_hdr_set_ack(struct dccp_hdr_ack_bits *dhack,
+				    const u64 gsr)
 {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	dhack->dccph_ack_nr_high = htonl((gsr >> 32)) >> 8;
@@ -332,11 +339,14 @@ static inline void dccp_update_gsr(struct sock *sk, u64 seq)
 	struct dccp_sock *dp = dccp_sk(sk);
 	u64 tmp_gsr;
 
-	dccp_set_seqno(&tmp_gsr, dp->dccps_gsr + 1 - (dp->dccps_options.dccpo_sequence_window / 4));
+	dccp_set_seqno(&tmp_gsr,
+		       (dp->dccps_gsr + 1 -
+		        (dp->dccps_options.dccpo_sequence_window / 4)));
 	dp->dccps_gsr = seq;
 	dccp_set_seqno(&dp->dccps_swl, max48(tmp_gsr, dp->dccps_isr));
 	dccp_set_seqno(&dp->dccps_swh,
-		       dp->dccps_gsr + (3 * dp->dccps_options.dccpo_sequence_window) / 4);
+		       (dp->dccps_gsr +
+			(3 * dp->dccps_options.dccpo_sequence_window) / 4));
 }
 
 static inline void dccp_update_gss(struct sock *sk, u64 seq)
@@ -344,7 +354,9 @@ static inline void dccp_update_gss(struct sock *sk, u64 seq)
 	struct dccp_sock *dp = dccp_sk(sk);
 	u64 tmp_gss;
 
-	dccp_set_seqno(&tmp_gss, dp->dccps_gss - dp->dccps_options.dccpo_sequence_window + 1);
+	dccp_set_seqno(&tmp_gss,
+		       (dp->dccps_gss -
+			dp->dccps_options.dccpo_sequence_window + 1));
 	dp->dccps_awl = max48(tmp_gss, dp->dccps_iss);
 	dp->dccps_awh = dp->dccps_gss = seq;
 }
@@ -373,16 +385,20 @@ extern struct socket *dccp_ctl_socket;
  *
  * @dccpap_buf_head - circular buffer head
  * @dccpap_buf_tail - circular buffer tail
- * @dccpap_buf_ackno - ack # of the most recent packet acknoldgeable in the buffer (i.e. %dccpap_buf_head)
- * @dccpap_buf_nonce - the one-bit sum of the ECN Nonces on all packets acked by the buffer with State 0
+ * @dccpap_buf_ackno - ack # of the most recent packet acknowledgeable in the
+ * 		       buffer (i.e. %dccpap_buf_head)
+ * @dccpap_buf_nonce - the one-bit sum of the ECN Nonces on all packets acked
+ * 		       by the buffer with State 0
  *
  * Additionally, the HC-Receiver must keep some information about the
  * Ack Vectors it has recently sent. For each packet sent carrying an
  * Ack Vector, it remembers four variables:
  *
- * @dccpap_ack_seqno - the Sequence Number used for the packet (HC-Receiver seqno)
+ * @dccpap_ack_seqno - the Sequence Number used for the packet
+ * 		       (HC-Receiver seqno)
  * @dccpap_ack_ptr - the value of buf_head at the time of acknowledgement.
- * @dccpap_ack_ackno - the Acknowledgement Number used for the packet (HC-Sender seqno)
+ * @dccpap_ack_ackno - the Acknowledgement Number used for the packet
+ * 		       (HC-Sender seqno)
  * @dccpap_ack_nonce - the one-bit sum of the ECN Nonces for all State 0.
  *
  * @dccpap_buf_len - circular buffer length

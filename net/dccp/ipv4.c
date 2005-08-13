@@ -29,7 +29,7 @@
 struct inet_hashinfo __cacheline_aligned dccp_hashinfo = {
 	.lhash_lock	= RW_LOCK_UNLOCKED,
 	.lhash_users	= ATOMIC_INIT(0),
-	.lhash_wait	= __WAIT_QUEUE_HEAD_INITIALIZER(dccp_hashinfo.lhash_wait),
+	.lhash_wait = __WAIT_QUEUE_HEAD_INITIALIZER(dccp_hashinfo.lhash_wait),
 	.portalloc_lock	= SPIN_LOCK_UNLOCKED,
 	.port_rover	= 1024 - 1,
 };
@@ -61,7 +61,8 @@ static int __dccp_v4_check_established(struct sock *sk, const __u16 lport,
 	const int dif = sk->sk_bound_dev_if;
 	INET_ADDR_COOKIE(acookie, saddr, daddr)
 	const __u32 ports = INET_COMBINED_PORTS(inet->dport, lport);
-	const int hash = inet_ehashfn(daddr, lport, saddr, inet->dport, dccp_hashinfo.ehash_size);
+	const int hash = inet_ehashfn(daddr, lport, saddr, inet->dport,
+				      dccp_hashinfo.ehash_size);
 	struct inet_ehash_bucket *head = &dccp_hashinfo.ehash[hash];
 	const struct sock *sk2;
 	const struct hlist_node *node;
@@ -133,11 +134,12 @@ static int dccp_v4_hash_connect(struct sock *sk)
  		local_bh_disable();
 
  		/* TODO. Actually it is not so bad idea to remove
- 		 * dccp_hashinfo.portalloc_lock before next submission to Linus.
+ 		 * dccp_hashinfo.portalloc_lock before next submission to
+		 * Linus.
  		 * As soon as we touch this place at all it is time to think.
  		 *
- 		 * Now it protects single _advisory_ variable dccp_hashinfo.port_rover,
- 		 * hence it is mostly useless.
+ 		 * Now it protects single _advisory_ variable
+		 * dccp_hashinfo.port_rover, hence it is mostly useless.
  		 * Code will work nicely if we just delete it, but
  		 * I am afraid in contented case it will work not better or
  		 * even worse: another cpu just will hit the same bucket
@@ -152,7 +154,8 @@ static int dccp_v4_hash_connect(struct sock *sk)
  			rover++;
  			if ((rover < low) || (rover > high))
  				rover = low;
- 			head = &dccp_hashinfo.bhash[inet_bhashfn(rover, dccp_hashinfo.bhash_size)];
+ 			head = &dccp_hashinfo.bhash[inet_bhashfn(rover,
+						    dccp_hashinfo.bhash_size)];
  			spin_lock(&head->lock);
 
  			/* Does not bother with rcv_saddr checks,
@@ -172,7 +175,8 @@ static int dccp_v4_hash_connect(struct sock *sk)
  				}
  			}
 
- 			tb = inet_bind_bucket_create(dccp_hashinfo.bind_bucket_cachep, head, rover);
+ 			tb = inet_bind_bucket_create(dccp_hashinfo.bind_bucket_cachep,
+						     head, rover);
  			if (tb == NULL) {
  				spin_unlock(&head->lock);
  				break;
@@ -211,7 +215,8 @@ ok:
 		goto out;
  	}
 
- 	head = &dccp_hashinfo.bhash[inet_bhashfn(snum, dccp_hashinfo.bhash_size)];
+ 	head = &dccp_hashinfo.bhash[inet_bhashfn(snum,
+						 dccp_hashinfo.bhash_size)];
  	tb   = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && sk->sk_bind_node.next == NULL) {
@@ -313,7 +318,9 @@ static int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 out:
 	return err;
 failure:
-	/* This unhashes the socket and releases the local port, if necessary. */
+	/*
+	 * This unhashes the socket and releases the local port, if necessary.
+	 */
 	dccp_set_state(sk, DCCP_CLOSED);
 	ip_rt_put(rt);
 	sk->sk_route_caps = 0;
@@ -365,8 +372,9 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 		/*
 		 * From: draft-ietf-dccp-spec-11.txt
 		 *
-		 *	DCCP-Sync packets are the best choice for upward probing,
-		 *	since DCCP-Sync probes do not risk application data loss.
+		 *	DCCP-Sync packets are the best choice for upward
+		 *	probing, since DCCP-Sync probes do not risk application
+		 *	data loss.
 		 */
 		dccp_send_sync(sk, dp->dccps_gsr);
 	} /* else let the usual retransmit timer handle it */
@@ -405,11 +413,13 @@ static void dccp_v4_ctl_send_ack(struct sk_buff *rxskb)
 	dh->dccph_x	   = 1;
 
 	dccp_hdr_set_seq(dh, DCCP_SKB_CB(rxskb)->dccpd_ack_seq);
-	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), DCCP_SKB_CB(rxskb)->dccpd_seq);
+	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb),
+			 DCCP_SKB_CB(rxskb)->dccpd_seq);
 
 	bh_lock_sock(dccp_ctl_socket->sk);
 	err = ip_build_and_send_pkt(skb, dccp_ctl_socket->sk,
-				    rxskb->nh.iph->daddr, rxskb->nh.iph->saddr, NULL);
+				    rxskb->nh.iph->daddr,
+				    rxskb->nh.iph->saddr, NULL);
 	bh_unlock_sock(dccp_ctl_socket->sk);
 
 	if (err == NET_XMIT_CN || err == 0) {
@@ -418,7 +428,8 @@ static void dccp_v4_ctl_send_ack(struct sk_buff *rxskb)
 	}
 }
 
-static void dccp_v4_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req)
+static void dccp_v4_reqsk_send_ack(struct sk_buff *skb,
+				   struct request_sock *req)
 {
 	dccp_v4_ctl_send_ack(skb);
 }
@@ -465,7 +476,8 @@ out:
 void dccp_v4_err(struct sk_buff *skb, u32 info)
 {
 	const struct iphdr *iph = (struct iphdr *)skb->data;
-	const struct dccp_hdr *dh = (struct dccp_hdr *)(skb->data + (iph->ihl << 2));
+	const struct dccp_hdr *dh = (struct dccp_hdr *)(skb->data +
+							(iph->ihl << 2));
 	struct dccp_sock *dp;
 	struct inet_sock *inet;
 	const int type = skb->h.icmph->type;
@@ -605,7 +617,8 @@ out:
 	sock_put(sk);
 }
 
-extern struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst, enum dccp_reset_codes code);
+extern struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
+				       enum dccp_reset_codes code);
 
 int dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code)
 {
@@ -689,7 +702,8 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq->loc_addr = daddr;
 	ireq->rmt_addr = saddr;
 	/* FIXME: Merge Aristeu's option parsing code when ready */
-	req->rcv_wnd	= 100; /* Fake, option parsing will get the right value */
+	req->rcv_wnd	= 100; /* Fake, option parsing will get the
+				  right value */
 	ireq->opt	= NULL;
 
 	/* 
@@ -804,7 +818,8 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	return sk;
 }
 
-int dccp_v4_checksum(const struct sk_buff *skb, const u32 saddr, const u32 daddr)
+int dccp_v4_checksum(const struct sk_buff *skb, const u32 saddr,
+		     const u32 daddr)
 {
 	const struct dccp_hdr* dh = dccp_hdr(skb);
 	int checksum_len;
@@ -814,11 +829,13 @@ int dccp_v4_checksum(const struct sk_buff *skb, const u32 saddr, const u32 daddr
 		checksum_len = skb->len;
 	else {
 		checksum_len = (dh->dccph_cscov + dh->dccph_x) * sizeof(u32);
-		checksum_len = checksum_len < skb->len ? checksum_len : skb->len;
+		checksum_len = checksum_len < skb->len ? checksum_len :
+							 skb->len;
 	}
 
 	tmp = csum_partial((unsigned char *)dh, checksum_len, 0);
-	return csum_tcpudp_magic(saddr, daddr, checksum_len, IPPROTO_DCCP, tmp);
+	return csum_tcpudp_magic(saddr, daddr, checksum_len,
+				 IPPROTO_DCCP, tmp);
 }
 
 static int dccp_v4_verify_checksum(struct sk_buff *skb,
@@ -832,10 +849,12 @@ static int dccp_v4_verify_checksum(struct sk_buff *skb,
 		checksum_len = skb->len;
 	else {
 		checksum_len = (dh->dccph_cscov + dh->dccph_x) * sizeof(u32);
-		checksum_len = checksum_len < skb->len ? checksum_len : skb->len;
+		checksum_len = checksum_len < skb->len ? checksum_len :
+							 skb->len;
 	}
 	tmp = csum_partial((unsigned char *)dh, checksum_len, 0);
-	return csum_tcpudp_magic(saddr, daddr, checksum_len, IPPROTO_DCCP, tmp) == 0 ? 0 : -1;
+	return csum_tcpudp_magic(saddr, daddr, checksum_len,
+				 IPPROTO_DCCP, tmp) == 0 ? 0 : -1;
 }
 
 static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
@@ -850,7 +869,9 @@ static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
 			    .proto = sk->sk_protocol,
 			    .uli_u = { .ports =
 				       { .sport = dccp_hdr(skb)->dccph_dport,
-					 .dport = dccp_hdr(skb)->dccph_sport } } };
+					 .dport = dccp_hdr(skb)->dccph_sport }
+			   	     }
+			  };
 
 	if (ip_route_output_flow(&rt, &fl, sk, 0)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
@@ -899,17 +920,20 @@ void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 	dh->dccph_dport	   = rxdh->dccph_sport;
 	dh->dccph_doff	   = dccp_hdr_reset_len / 4;
 	dh->dccph_x	   = 1;
-	dccp_hdr_reset(skb)->dccph_reset_code = DCCP_SKB_CB(rxskb)->dccpd_reset_code;
+	dccp_hdr_reset(skb)->dccph_reset_code =
+				DCCP_SKB_CB(rxskb)->dccpd_reset_code;
 
 	dccp_hdr_set_seq(dh, DCCP_SKB_CB(rxskb)->dccpd_ack_seq);
-	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), DCCP_SKB_CB(rxskb)->dccpd_seq);
+	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb),
+			 DCCP_SKB_CB(rxskb)->dccpd_seq);
 
 	dh->dccph_checksum = dccp_v4_checksum(skb, rxskb->nh.iph->saddr,
 					      rxskb->nh.iph->daddr);
 
 	bh_lock_sock(dccp_ctl_socket->sk);
 	err = ip_build_and_send_pkt(skb, dccp_ctl_socket->sk,
-				    rxskb->nh.iph->daddr, rxskb->nh.iph->saddr, NULL);
+				    rxskb->nh.iph->daddr,
+				    rxskb->nh.iph->saddr, NULL);
 	bh_unlock_sock(dccp_ctl_socket->sk);
 
 	if (err == NET_XMIT_CN || err == 0) {
@@ -933,7 +957,8 @@ int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 	/*
 	 *  Step 3: Process LISTEN state
 	 *     If S.state == LISTEN,
-	 *	  If P.type == Request or P contains a valid Init Cookie option,
+	 *	  If P.type == Request or P contains a valid Init Cookie
+	 *	  	option,
 	 *	     * Must scan the packet's options to check for an Init
 	 *		Cookie.  Only the Init Cookie is processed here,
 	 *		however; other options are processed in Step 8.  This
@@ -950,7 +975,8 @@ int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 	 *	     Generate Reset(No Connection) unless P.type == Reset
 	 *	     Drop packet and return
 	 *
-	 * NOTE: the check for the packet types is done in dccp_rcv_state_process
+	 * NOTE: the check for the packet types is done in
+	 *	 dccp_rcv_state_process
 	 */
 	if (sk->sk_state == DCCP_LISTEN) {
 		struct sock *nsk = dccp_v4_hnd_req(sk, skb);
@@ -1007,7 +1033,8 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 	}
 
 	if (!pskb_may_pull(skb, dh->dccph_doff * sizeof(u32))) {
-		dccp_pr_debug("P.Data Offset(%u) too small 2\n", dh->dccph_doff);
+		dccp_pr_debug("P.Data Offset(%u) too small 2\n",
+			      dh->dccph_doff);
 		return 1;
 	}
 
@@ -1021,8 +1048,8 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 	    dh->dccph_type != DCCP_PKT_DATA &&
 	    dh->dccph_type != DCCP_PKT_ACK &&
 	    dh->dccph_type != DCCP_PKT_DATAACK) {
-		dccp_pr_debug("P.type (%s) not Data, Ack nor DataAck and P.X == 0\n",
-			      dccp_packet_name(dh->dccph_type));
+		dccp_pr_debug("P.type (%s) not Data, Ack nor DataAck and "
+			      "P.X == 0\n", dccp_packet_name(dh->dccph_type));
 		return 1;
 	}
 
@@ -1055,10 +1082,11 @@ int dccp_v4_rcv(struct sk_buff *skb)
 	 * dccp_ackpkts_add, you'll get something like this on a session that
 	 * sends 10 DATA/DATAACK packets:
 	 *
-	 * dccp_ackpkts_print: 281473596467422 |0,0|3,0|0,0|3,0|0,0|3,0|0,0|3,0|0,1|
+	 * ackpkts_print: 281473596467422 |0,0|3,0|0,0|3,0|0,0|3,0|0,0|3,0|0,1|
 	 *
 	 * 0, 0 means: DCCP_ACKPKTS_STATE_RECEIVED, RLE == just this packet
-	 * 0, 1 means: DCCP_ACKPKTS_STATE_RECEIVED, RLE == two adjacent packets with the same state
+	 * 0, 1 means: DCCP_ACKPKTS_STATE_RECEIVED, RLE == two adjacent packets
+	 * 						   with the same state
 	 * 3, 0 means: DCCP_ACKPKTS_STATE_NOT_RECEIVED, RLE == just this packet
 	 *
 	 * So...
@@ -1072,10 +1100,12 @@ int dccp_v4_rcv(struct sk_buff *skb)
 	 * 281473596467416 was received
 	 * 281473596467415 was not received
 	 * 281473596467414 was received
-	 * 281473596467413 was received (this one was the 3way handshake RESPONSE)
+	 * 281473596467413 was received (this one was the 3way handshake
+	 * 				 RESPONSE)
 	 *
 	 */
-	if (dh->dccph_type == DCCP_PKT_DATA || dh->dccph_type == DCCP_PKT_DATAACK) {
+	if (dh->dccph_type == DCCP_PKT_DATA ||
+	    dh->dccph_type == DCCP_PKT_DATAACK) {
 		static int discard = 0;
 
 		if (discard) {
@@ -1170,7 +1200,8 @@ no_dccp_socket:
 	 *		Drop packet and return
 	 */
 	if (dh->dccph_type != DCCP_PKT_RESET) {
-		DCCP_SKB_CB(skb)->dccpd_reset_code = DCCP_RESET_CODE_NO_CONNECTION;
+		DCCP_SKB_CB(skb)->dccpd_reset_code =
+					DCCP_RESET_CODE_NO_CONNECTION;
 		dccp_v4_ctl_send_reset(skb);
 	}
 
@@ -1196,8 +1227,9 @@ static int dccp_v4_init_sock(struct sock *sk)
 	dccp_options_init(&dp->dccps_options);
 
 	if (dp->dccps_options.dccpo_send_ack_vector) {
-		dp->dccps_hc_rx_ackpkts = dccp_ackpkts_alloc(DCCP_MAX_ACK_VECTOR_LEN,
-							     GFP_KERNEL);
+		dp->dccps_hc_rx_ackpkts =
+			dccp_ackpkts_alloc(DCCP_MAX_ACK_VECTOR_LEN,
+					   GFP_KERNEL);
 
 		if (dp->dccps_hc_rx_ackpkts == NULL)
 			return -ENOMEM;
@@ -1211,8 +1243,10 @@ static int dccp_v4_init_sock(struct sock *sk)
 	 * setsockopt(CCIDs-I-want/accept). -acme
 	 */
 	if (likely(!dccp_ctl_socket_init)) {
-		dp->dccps_hc_rx_ccid = ccid_init(dp->dccps_options.dccpo_ccid, sk);
-		dp->dccps_hc_tx_ccid = ccid_init(dp->dccps_options.dccpo_ccid, sk);
+		dp->dccps_hc_rx_ccid = ccid_init(dp->dccps_options.dccpo_ccid,
+						 sk);
+		dp->dccps_hc_tx_ccid = ccid_init(dp->dccps_options.dccpo_ccid,
+						 sk);
 	    	if (dp->dccps_hc_rx_ccid == NULL ||
 		    dp->dccps_hc_tx_ccid == NULL) {
 			ccid_exit(dp->dccps_hc_rx_ccid, sk);

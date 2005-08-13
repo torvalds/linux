@@ -40,13 +40,13 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		/* XXX For now we're using only 48 bits sequence numbers */
 		const int dccp_header_size = sizeof(*dh) +
 					     sizeof(struct dccp_hdr_ext) +
-					     dccp_packet_hdr_len(dcb->dccpd_type);
+					  dccp_packet_hdr_len(dcb->dccpd_type);
 		int err, set_ack = 1;
 		u64 ackno = dp->dccps_gsr;
 
 		/*
-		 * FIXME: study DCCP_PKT_SYNC[ACK] to see what is the right thing 
-		 * to do here...
+		 * FIXME: study DCCP_PKT_SYNC[ACK] to see what is the right
+		 * thing to do here...
 		 */
 		dccp_inc_seqno(&dp->dccps_gss);
 
@@ -65,7 +65,9 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		
 		skb->h.raw = skb_push(skb, dccp_header_size);
 		dh = dccp_hdr(skb);
-		/* Data packets are not cloned as they are never retransmitted */
+		/*
+		 * Data packets are not cloned as they are never retransmitted
+		 */
 		if (skb_cloned(skb))
 			skb_set_owner_w(skb, sk);
 
@@ -86,10 +88,12 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 
 		switch (dcb->dccpd_type) {
 		case DCCP_PKT_REQUEST:
-			dccp_hdr_request(skb)->dccph_req_service = dcb->dccpd_service;
+			dccp_hdr_request(skb)->dccph_req_service =
+							dcb->dccpd_service;
 			break;
 		case DCCP_PKT_RESET:
-			dccp_hdr_reset(skb)->dccph_reset_code = dcb->dccpd_reset_code;
+			dccp_hdr_reset(skb)->dccph_reset_code =
+							dcb->dccpd_reset_code;
 			break;
 		}
 
@@ -123,10 +127,13 @@ unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu)
 	int mss_now;
 
 	/*
-	 * FIXME: we really should be using the af_specific thing to support IPv6.
-	 * mss_now = pmtu - tp->af_specific->net_header_len - sizeof(struct dccp_hdr) - sizeof(struct dccp_hdr_ext);
+	 * FIXME: we really should be using the af_specific thing to support
+	 * 	  IPv6.
+	 * mss_now = pmtu - tp->af_specific->net_header_len -
+	 * 	     sizeof(struct dccp_hdr) - sizeof(struct dccp_hdr_ext);
 	 */
-	mss_now = pmtu - sizeof(struct iphdr) - sizeof(struct dccp_hdr) - sizeof(struct dccp_hdr_ext);
+	mss_now = pmtu - sizeof(struct iphdr) - sizeof(struct dccp_hdr) -
+		  sizeof(struct dccp_hdr_ext);
 
 	/* Now subtract optional transport overhead */
 	mss_now -= dp->dccps_ext_header_len;
@@ -223,7 +230,8 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 
 	dh->dccph_sport	= inet_sk(sk)->sport;
 	dh->dccph_dport	= inet_rsk(req)->rmt_port;
-	dh->dccph_doff	= (dccp_header_size + DCCP_SKB_CB(skb)->dccpd_opt_len) / 4;
+	dh->dccph_doff	= (dccp_header_size +
+			   DCCP_SKB_CB(skb)->dccpd_opt_len) / 4;
 	dh->dccph_type	= DCCP_PKT_RESPONSE;
 	dh->dccph_x	= 1;
 	dccp_hdr_set_seq(dh, dccp_rsk(req)->dreq_iss);
@@ -271,7 +279,8 @@ struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
 
 	dh->dccph_sport	= inet_sk(sk)->sport;
 	dh->dccph_dport	= inet_sk(sk)->dport;
-	dh->dccph_doff	= (dccp_header_size + DCCP_SKB_CB(skb)->dccpd_opt_len) / 4;
+	dh->dccph_doff	= (dccp_header_size +
+			   DCCP_SKB_CB(skb)->dccpd_opt_len) / 4;
 	dh->dccph_type	= DCCP_PKT_RESET;
 	dh->dccph_x	= 1;
 	dccp_hdr_set_seq(dh, dp->dccps_gss);
@@ -348,7 +357,9 @@ void dccp_send_ack(struct sock *sk)
 		if (skb == NULL) {
 			inet_csk_schedule_ack(sk);
 			inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
-			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, TCP_DELACK_MAX, TCP_RTO_MAX);
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
+						  TCP_DELACK_MAX,
+						  DCCP_RTO_MAX);
 			return;
 		}
 
@@ -416,8 +427,10 @@ void dccp_send_sync(struct sock *sk, u64 seq)
 	dccp_transmit_skb(sk, skb);
 }
 
-/* Send a DCCP_PKT_CLOSE/CLOSEREQ.  The caller locks the socket for us.  This cannot be
- * allowed to fail queueing a DCCP_PKT_CLOSE/CLOSEREQ frame under any circumstances.
+/*
+ * Send a DCCP_PKT_CLOSE/CLOSEREQ. The caller locks the socket for us. This
+ * cannot be allowed to fail queueing a DCCP_PKT_CLOSE/CLOSEREQ frame under
+ * any circumstances.
  */
 void dccp_send_close(struct sock *sk)
 {
@@ -435,7 +448,8 @@ void dccp_send_close(struct sock *sk)
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, sk->sk_prot->max_header);
 	skb->csum = 0;
-	DCCP_SKB_CB(skb)->dccpd_type = dp->dccps_role == DCCP_ROLE_CLIENT ? DCCP_PKT_CLOSE : DCCP_PKT_CLOSEREQ;
+	DCCP_SKB_CB(skb)->dccpd_type = dp->dccps_role == DCCP_ROLE_CLIENT ?
+					DCCP_PKT_CLOSE : DCCP_PKT_CLOSEREQ;
 
 	skb_set_owner_w(skb, sk);
 	dccp_transmit_skb(sk, skb);

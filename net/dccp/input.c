@@ -93,7 +93,8 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 	 */
 	if (dh->dccph_type == DCCP_PKT_SYNC || 
 	    dh->dccph_type == DCCP_PKT_SYNCACK) {
-		if (between48(DCCP_SKB_CB(skb)->dccpd_ack_seq, dp->dccps_awl, dp->dccps_awh) &&
+		if (between48(DCCP_SKB_CB(skb)->dccpd_ack_seq,
+			      dp->dccps_awl, dp->dccps_awh) &&
 		    !before48(DCCP_SKB_CB(skb)->dccpd_seq, dp->dccps_swl))
 			dccp_update_gsr(sk, DCCP_SKB_CB(skb)->dccpd_seq);
 		else
@@ -122,11 +123,13 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 
 	if (between48(DCCP_SKB_CB(skb)->dccpd_seq, lswl, dp->dccps_swh) &&
 	    (DCCP_SKB_CB(skb)->dccpd_ack_seq == DCCP_PKT_WITHOUT_ACK_SEQ ||
-	     between48(DCCP_SKB_CB(skb)->dccpd_ack_seq, lawl, dp->dccps_awh))) {
+	     between48(DCCP_SKB_CB(skb)->dccpd_ack_seq,
+		       lawl, dp->dccps_awh))) {
 		dccp_update_gsr(sk, DCCP_SKB_CB(skb)->dccpd_seq);
 
 		if (dh->dccph_type != DCCP_PKT_SYNC &&
-		    DCCP_SKB_CB(skb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
+		    (DCCP_SKB_CB(skb)->dccpd_ack_seq !=
+		     DCCP_PKT_WITHOUT_ACK_SEQ))
 			dp->dccps_gar = DCCP_SKB_CB(skb)->dccpd_ack_seq;
 	} else {
 		dccp_pr_debug("Step 6 failed, sending SYNC...\n");
@@ -161,10 +164,13 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 		if (dccp_ackpkts_add(dp->dccps_hc_rx_ackpkts,
 				     DCCP_SKB_CB(skb)->dccpd_seq,
 				     DCCP_ACKPKTS_STATE_RECEIVED)) {
-			LIMIT_NETDEBUG(KERN_INFO "DCCP: acknowledgeable packets buffer full!\n");
+			LIMIT_NETDEBUG(KERN_INFO "DCCP: acknowledgeable "
+						 "packets buffer full!\n");
 			ap->dccpap_ack_seqno = DCCP_MAX_SEQNO + 1;
 			inet_csk_schedule_ack(sk);
-			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, TCP_DELACK_MIN, TCP_RTO_MAX);
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
+						  TCP_DELACK_MIN,
+						  DCCP_RTO_MAX);
 			goto discard;
 		}
 
@@ -175,7 +181,8 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 		 */
 		if (!inet_csk_ack_scheduled(sk)) {
 			inet_csk_schedule_ack(sk);
-			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, 5 * HZ, TCP_RTO_MAX);
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, 5 * HZ,
+						  DCCP_RTO_MAX);
 		}
 	}
 
@@ -186,8 +193,8 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	case DCCP_PKT_DATAACK:
 	case DCCP_PKT_DATA:
 		/*
-		 * FIXME: check if sk_receive_queue is full, schedule DATA_DROPPED option
-		 * if it is.
+		 * FIXME: check if sk_receive_queue is full, schedule DATA_DROPPED
+		 * option if it is.
 		 */
 		__skb_pull(skb, dh->dccph_doff * 4);
 		__skb_queue_tail(&sk->sk_receive_queue, skb);
@@ -272,11 +279,13 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		__kfree_skb(sk->sk_send_head);
 		sk->sk_send_head = NULL;
 
-		if (!between48(DCCP_SKB_CB(skb)->dccpd_ack_seq, dp->dccps_awl, dp->dccps_awh)) {
-			dccp_pr_debug("invalid ackno: S.AWL=%llu, P.ackno=%llu, S.AWH=%llu \n",
-				      (unsigned long long) dp->dccps_awl,
-				      (unsigned long long) DCCP_SKB_CB(skb)->dccpd_ack_seq,
-				      (unsigned long long) dp->dccps_awh);
+		if (!between48(DCCP_SKB_CB(skb)->dccpd_ack_seq,
+			       dp->dccps_awl, dp->dccps_awh)) {
+			dccp_pr_debug("invalid ackno: S.AWL=%llu, "
+				      "P.ackno=%llu, S.AWH=%llu \n",
+				      (unsigned long long)dp->dccps_awl,
+			   (unsigned long long)DCCP_SKB_CB(skb)->dccpd_ack_seq,
+				      (unsigned long long)dp->dccps_awh);
 			goto out_invalid_packet;
 		}
 
@@ -296,16 +305,17 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		/*
 		 *    Step 10: Process REQUEST state (second part)
 		 *       If S.state == REQUEST,
-		 *	  / * If we get here, P is a valid Response from the server (see
-		 *	     Step 4), and we should move to PARTOPEN state.  PARTOPEN
-		 *	     means send an Ack, don't send Data packets, retransmit
-		 *	     Acks periodically, and always include any Init Cookie from
-		 *	     the Response * /
+		 *	  / * If we get here, P is a valid Response from the
+		 *	      server (see Step 4), and we should move to
+		 *	      PARTOPEN state. PARTOPEN means send an Ack,
+		 *	      don't send Data packets, retransmit Acks
+		 *	      periodically, and always include any Init Cookie
+		 *	      from the Response * /
 		 *	  S.state := PARTOPEN
 		 *	  Set PARTOPEN timer
 		 * 	  Continue with S.state == PARTOPEN
-		 *	  / * Step 12 will send the Ack completing the three-way
-		 *	     handshake * /
+		 *	  / * Step 12 will send the Ack completing the
+		 *	      three-way handshake * /
 		 */
 		dccp_set_state(sk, DCCP_PARTOPEN);
 
@@ -341,7 +351,8 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 
 out_invalid_packet:
 	return 1; /* dccp_v4_do_rcv will send a reset, but...
-		     FIXME: the reset code should be DCCP_RESET_CODE_PACKET_ERROR  */
+		     FIXME: the reset code should be
+			    DCCP_RESET_CODE_PACKET_ERROR */
 }
 
 static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
@@ -358,11 +369,12 @@ static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
 	case DCCP_PKT_DATAACK:
 	case DCCP_PKT_ACK:
 		/*
-		 * FIXME: we should be reseting the PARTOPEN (DELACK) timer here,
-		 * but only if we haven't used the DELACK timer for something else,
-		 * like sending a delayed ack for a TIMESTAMP echo, etc, for now
-		 * were not clearing it, sending an extra ACK when there is nothing
-		 * else to do in DELACK is not a big deal after all.
+		 * FIXME: we should be reseting the PARTOPEN (DELACK) timer
+		 * here but only if we haven't used the DELACK timer for
+		 * something else, like sending a delayed ack for a TIMESTAMP
+		 * echo, etc, for now were not clearing it, sending an extra
+		 * ACK when there is nothing else to do in DELACK is not a big
+		 * deal after all.
 		 */
 
 		/* Stop the PARTOPEN timer */
@@ -374,7 +386,8 @@ static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
 
 		if (dh->dccph_type == DCCP_PKT_DATAACK) {
 			dccp_rcv_established(sk, skb, dh, len);
-			queued = 1; /* packet was queued (by dccp_rcv_established) */
+			queued = 1; /* packet was queued
+				       (by dccp_rcv_established) */
 		}
 		break;
 	}
@@ -399,7 +412,8 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (dccp_parse_options(sk, skb))
 			goto discard;
 
-		if (DCCP_SKB_CB(skb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
+		if (DCCP_SKB_CB(skb)->dccpd_ack_seq !=
+		    DCCP_PKT_WITHOUT_ACK_SEQ)
 			dccp_event_ack_recv(sk, skb);
 
 		ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
@@ -415,14 +429,17 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 					     DCCP_ACKPKTS_STATE_RECEIVED))
 				goto discard;
 			/*
-			 * FIXME: this activation is probably wrong, have to study more
-			 * TCP delack machinery and how it fits into DCCP draft, but
-			 * for now it kinda "works" 8)
+			 * FIXME: this activation is probably wrong, have to
+			 * study more TCP delack machinery and how it fits into
+			 * DCCP draft, but for now it kinda "works" 8)
 			 */
-			if (dp->dccps_hc_rx_ackpkts->dccpap_ack_seqno == DCCP_MAX_SEQNO + 1 &&
+			if ((dp->dccps_hc_rx_ackpkts->dccpap_ack_seqno ==
+			     DCCP_MAX_SEQNO + 1) &&
 			    !inet_csk_ack_scheduled(sk)) {
 				inet_csk_schedule_ack(sk);
-				inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, TCP_DELACK_MIN, TCP_RTO_MAX);
+				inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
+							  TCP_DELACK_MIN,
+							  DCCP_RTO_MAX);
 			}
 		}
 	}
@@ -436,7 +453,10 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	 *		Drop packet and return
 	*/
 	if (dh->dccph_type == DCCP_PKT_RESET) {
-		/* Queue the equivalent of TCP fin so that dccp_recvmsg exits the loop */
+		/*
+		 * Queue the equivalent of TCP fin so that dccp_recvmsg
+		 * exits the loop
+		 */
 		dccp_fin(sk, skb);
 		dccp_time_wait(sk, DCCP_TIME_WAIT, 0);
 		return 0;
@@ -450,10 +470,12 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		 *	  Drop packet and return
 		 */
 	} else if ((dp->dccps_role != DCCP_ROLE_CLIENT &&
-		    (dh->dccph_type == DCCP_PKT_RESPONSE || dh->dccph_type == DCCP_PKT_CLOSEREQ)) ||
+		    (dh->dccph_type == DCCP_PKT_RESPONSE ||
+		     dh->dccph_type == DCCP_PKT_CLOSEREQ)) ||
 		    (dp->dccps_role == DCCP_ROLE_CLIENT &&
 		     dh->dccph_type == DCCP_PKT_REQUEST) ||
-		    (sk->sk_state == DCCP_RESPOND && dh->dccph_type == DCCP_PKT_DATA)) {
+		    (sk->sk_state == DCCP_RESPOND &&
+		     dh->dccph_type == DCCP_PKT_DATA)) {
 		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq);
 		goto discard;
 	}
@@ -491,11 +513,13 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 
 	case DCCP_RESPOND:
 	case DCCP_PARTOPEN:
-		queued = dccp_rcv_respond_partopen_state_process(sk, skb, dh, len);
+		queued = dccp_rcv_respond_partopen_state_process(sk, skb,
+								 dh, len);
 		break;
 	}
 
-	if (dh->dccph_type == DCCP_PKT_ACK || dh->dccph_type == DCCP_PKT_DATAACK) {
+	if (dh->dccph_type == DCCP_PKT_ACK ||
+	    dh->dccph_type == DCCP_PKT_DATAACK) {
 		switch (old_state) {
 		case DCCP_PARTOPEN:
 			sk->sk_state_change(sk);

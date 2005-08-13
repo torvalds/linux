@@ -45,11 +45,13 @@ static int dccp_write_timeout(struct sock *sk)
 	if (sk->sk_state == DCCP_REQUESTING || sk->sk_state == DCCP_PARTOPEN) {
 		if (icsk->icsk_retransmits != 0)
 			dst_negative_advice(&sk->sk_dst_cache);
-		retry_until = icsk->icsk_syn_retries ? :  /* FIXME! */ 3 /* FIXME! sysctl_tcp_syn_retries */;
+		retry_until = icsk->icsk_syn_retries ? :
+			    /* FIXME! */ 3 /* FIXME! sysctl_tcp_syn_retries */;
 	} else {
-		if (icsk->icsk_retransmits >= /* FIXME! sysctl_tcp_retries1 */ 5 /* FIXME! */) {
-			/* NOTE. draft-ietf-tcpimpl-pmtud-01.txt requires pmtu black
-			   hole detection. :-(
+		if (icsk->icsk_retransmits >=
+		     /* FIXME! sysctl_tcp_retries1 */ 5 /* FIXME! */) {
+			/* NOTE. draft-ietf-tcpimpl-pmtud-01.txt requires pmtu
+			   black hole detection. :-(
 
 			   It is place to make it. It is not made. I do not want
 			   to make it. It is disguisting. It does not work in any
@@ -96,14 +98,17 @@ static void dccp_delack_timer(unsigned long data)
 		/* Try again later. */
 		icsk->icsk_ack.blocked = 1;
 		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKLOCKED);
-		sk_reset_timer(sk, &icsk->icsk_delack_timer, jiffies + TCP_DELACK_MIN);
+		sk_reset_timer(sk, &icsk->icsk_delack_timer,
+			       jiffies + TCP_DELACK_MIN);
 		goto out;
 	}
 
-	if (sk->sk_state == DCCP_CLOSED || !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
+	if (sk->sk_state == DCCP_CLOSED ||
+	    !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
 		goto out;
 	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
-		sk_reset_timer(sk, &icsk->icsk_delack_timer, icsk->icsk_ack.timeout);
+		sk_reset_timer(sk, &icsk->icsk_delack_timer,
+			       icsk->icsk_ack.timeout);
 		goto out;
 	}
 
@@ -112,7 +117,8 @@ static void dccp_delack_timer(unsigned long data)
 	if (inet_csk_ack_scheduled(sk)) {
 		if (!icsk->icsk_ack.pingpong) {
 			/* Delayed ACK missed: inflate ATO. */
-			icsk->icsk_ack.ato = min(icsk->icsk_ack.ato << 1, icsk->icsk_rto);
+			icsk->icsk_ack.ato = min(icsk->icsk_ack.ato << 1,
+						 icsk->icsk_rto);
 		} else {
 			/* Delayed ACK missed: leave pingpong mode and
 			 * deflate ATO.
@@ -167,7 +173,7 @@ static void dccp_retransmit_timer(struct sock *sk)
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
 					  min(icsk->icsk_rto,
 					      TCP_RESOURCE_PROBE_INTERVAL),
-					  TCP_RTO_MAX);
+					  DCCP_RTO_MAX);
 		goto out;
 	}
 
@@ -175,7 +181,8 @@ static void dccp_retransmit_timer(struct sock *sk)
 	icsk->icsk_retransmits++;
 
 	icsk->icsk_rto = min(icsk->icsk_rto << 1, DCCP_RTO_MAX);
-	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, icsk->icsk_rto, TCP_RTO_MAX);
+	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, icsk->icsk_rto,
+				  DCCP_RTO_MAX);
 	if (icsk->icsk_retransmits > 3 /* FIXME: sysctl_dccp_retries1 */)
 		__sk_dst_reset(sk);
 out:;
@@ -190,7 +197,8 @@ static void dccp_write_timer(unsigned long data)
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
 		/* Try again later */
-		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, jiffies + (HZ / 20));
+		sk_reset_timer(sk, &icsk->icsk_retransmit_timer,
+			       jiffies + (HZ / 20));
 		goto out;
 	}
 
@@ -198,7 +206,8 @@ static void dccp_write_timer(unsigned long data)
 		goto out;
 
 	if (time_after(icsk->icsk_timeout, jiffies)) {
-		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, icsk->icsk_timeout);
+		sk_reset_timer(sk, &icsk->icsk_retransmit_timer,
+			       icsk->icsk_timeout);
 		goto out;
 	}
 
@@ -220,7 +229,8 @@ out:
  */
 static void dccp_response_timer(struct sock *sk)
 {
-	inet_csk_reqsk_queue_prune(sk, TCP_SYNQ_INTERVAL, DCCP_TIMEOUT_INIT, DCCP_RTO_MAX);
+	inet_csk_reqsk_queue_prune(sk, TCP_SYNQ_INTERVAL, DCCP_TIMEOUT_INIT,
+				   DCCP_RTO_MAX);
 }
 
 static void dccp_keepalive_timer(unsigned long data)

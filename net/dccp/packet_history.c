@@ -55,7 +55,7 @@ struct dccp_rx_hist *dccp_rx_hist_new(const char *name)
 
 	sprintf(slab_name, dccp_rx_hist_mask, name);
 	hist->dccprxh_slab = kmem_cache_create(slab_name,
-					       sizeof(struct dccp_rx_hist_entry),
+					     sizeof(struct dccp_rx_hist_entry),
 					       0, SLAB_HWCACHE_ALIGN,
 					       NULL, NULL);
 	if (hist->dccprxh_slab == NULL)
@@ -128,7 +128,7 @@ struct dccp_tx_hist *dccp_tx_hist_new(const char *name)
 
 	sprintf(slab_name, dccp_tx_hist_mask, name);
 	hist->dccptxh_slab = kmem_cache_create(slab_name,
-					       sizeof(struct dccp_tx_hist_entry),
+					     sizeof(struct dccp_tx_hist_entry),
 					       0, SLAB_HWCACHE_ALIGN,
 					       NULL, NULL);
 	if (hist->dccptxh_slab == NULL)
@@ -156,8 +156,8 @@ void dccp_tx_hist_delete(struct dccp_tx_hist *hist)
 
 EXPORT_SYMBOL_GPL(dccp_tx_hist_delete);
 
-struct dccp_tx_hist_entry *dccp_tx_hist_find_entry(const struct list_head *list,
-						   const u64 seq)
+struct dccp_tx_hist_entry *
+	dccp_tx_hist_find_entry(const struct list_head *list, const u64 seq)
 {
 	struct dccp_tx_hist_entry *packet = NULL, *entry;
 
@@ -172,7 +172,8 @@ struct dccp_tx_hist_entry *dccp_tx_hist_find_entry(const struct list_head *list,
 
 EXPORT_SYMBOL_GPL(dccp_tx_hist_find_entry);
 
-void dccp_tx_hist_purge_older(struct dccp_tx_hist *hist, struct list_head *list,
+void dccp_tx_hist_purge_older(struct dccp_tx_hist *hist,
+			      struct list_head *list,
 			      struct dccp_tx_hist_entry *packet)
 {
 	struct dccp_tx_hist_entry *next;
