@@ -22,23 +22,19 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("iptables match for matching number of pkts/bytes per connection");
 
 /* 64bit divisor, dividend and result. dynamic precision */
-static u_int64_t div64_64(u_int64_t divisor, u_int64_t dividend)
+static u_int64_t div64_64(u_int64_t dividend, u_int64_t divisor)
 {
-	u_int64_t result = divisor;
+	u_int32_t d = divisor;
 
-	if (dividend > 0xffffffff) {
-		int first_bit = find_first_bit((unsigned long *) &dividend, sizeof(dividend));
-		/* calculate number of bits to shift. shift exactly enough
-		 * bits to make dividend fit in 32bits. */
-		int num_shift = (64 - 32 - first_bit);
-		/* first bit has to be < 32, since dividend was > 0xffffffff */
-		result = result >> num_shift;
-		dividend = dividend >> num_shift;
+	if (divisor > 0xffffffffULL) {
+		unsigned int shift = fls(divisor >> 32);
+
+		d = divisor >> shift;
+		dividend >>= shift;
 	}
 
-	do_div(divisor, dividend);
-
-	return divisor;
+	do_div(dividend, d);
+	return dividend;
 }
 
 static int
