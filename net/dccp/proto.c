@@ -214,197 +214,101 @@ out_discard:
 	goto out_release;
 }
 
-EXPORT_SYMBOL(dccp_sendmsg);
-
 int dccp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		 size_t len, int nonblock, int flags, int *addr_len)
 {
 	const struct dccp_hdr *dh;
-	int copied = 0;
-	unsigned long used;
-	int err;
-	int target;		/* Read at least this many bytes */
 	long timeo;
 
 	lock_sock(sk);
 
-	err = -ENOTCONN;
-	if (sk->sk_state == DCCP_LISTEN)
+	if (sk->sk_state == DCCP_LISTEN) {
+		len = -ENOTCONN;
 		goto out;
+	}
 
 	timeo = sock_rcvtimeo(sk, nonblock);
 
-	/* Urgent data needs to be handled specially. */
-	if (flags & MSG_OOB)
-		goto recv_urg;
-
-	/* FIXME */
-#if 0
-	seq = &tp->copied_seq;
-	if (flags & MSG_PEEK) {
-		peek_seq = tp->copied_seq;
-		seq = &peek_seq;
-	}
-#endif
-
-	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
-
 	do {
-		struct sk_buff *skb;
-		u32 offset;
+		struct sk_buff *skb = skb_peek(&sk->sk_receive_queue);
 
-	/* FIXME */
-#if 0
-		/*
-		 * Are we at urgent data? Stop if we have read anything or
-		 * have SIGURG pending.
-		 */
-		if (tp->urg_data && tp->urg_seq == *seq) {
-			if (copied)
-				break;
-			if (signal_pending(current)) {
-				copied = timeo ? sock_intr_errno(timeo) :
-						 -EAGAIN;
-				break;
-			}
+		if (skb == NULL)
+			goto verify_sock_status;
+
+		dh = dccp_hdr(skb);
+
+		if (dh->dccph_type == DCCP_PKT_DATA ||
+		    dh->dccph_type == DCCP_PKT_DATAACK)
+			goto found_ok_skb;
+
+		if (dh->dccph_type == DCCP_PKT_RESET ||
+		    dh->dccph_type == DCCP_PKT_CLOSE) {
+			dccp_pr_debug("found fin ok!\n");
+			len = 0;
+			goto found_fin_ok;
 		}
-#endif
-
-		/* Next get a buffer. */
-
-		skb = skb_peek(&sk->sk_receive_queue);
-		do {
-			if (!skb)
-				break;
-
-			offset = 0;
-			dh = dccp_hdr(skb);
-
-			if (dh->dccph_type == DCCP_PKT_DATA ||
-			    dh->dccph_type == DCCP_PKT_DATAACK)
-				goto found_ok_skb;
-
-			if (dh->dccph_type == DCCP_PKT_RESET ||
-			    dh->dccph_type == DCCP_PKT_CLOSE) {
-				dccp_pr_debug("found fin ok!\n");
-				goto found_fin_ok;
-			}
-			dccp_pr_debug("packet_type=%s\n",
-				      dccp_packet_name(dh->dccph_type));
-			BUG_TRAP(flags & MSG_PEEK);
-			skb = skb->next;
-		} while (skb != (struct sk_buff *)&sk->sk_receive_queue);
-
-		/* Well, if we have backlog, try to process it now yet. */
-		if (copied >= target && !sk->sk_backlog.tail)
+		dccp_pr_debug("packet_type=%s\n",
+			      dccp_packet_name(dh->dccph_type));
+		sk_eat_skb(sk, skb);
+verify_sock_status:
+		if (sock_flag(sk, SOCK_DONE)) {
+			len = 0;
 			break;
-
-		if (copied) {
-			if (sk->sk_err ||
-			    sk->sk_state == DCCP_CLOSED ||
-			    (sk->sk_shutdown & RCV_SHUTDOWN) ||
-			    !timeo ||
-			    signal_pending(current) ||
-			    (flags & MSG_PEEK))
-				break;
-		} else {
-			if (sock_flag(sk, SOCK_DONE))
-				break;
-
-			if (sk->sk_err) {
-				copied = sock_error(sk);
-				break;
-			}
-
-			if (sk->sk_shutdown & RCV_SHUTDOWN)
-				break;
-
-			if (sk->sk_state == DCCP_CLOSED) {
-				if (!sock_flag(sk, SOCK_DONE)) {
-					/* This occurs when user tries to read
-					 * from never connected socket.
-					 */
-					copied = -ENOTCONN;
-					break;
-				}
-				break;
-			}
-
-			if (!timeo) {
-				copied = -EAGAIN;
-				break;
-			}
-
-			if (signal_pending(current)) {
-				copied = sock_intr_errno(timeo);
-				break;
-			}
 		}
 
-		/* FIXME: cleanup_rbuf(sk, copied); */
+		if (sk->sk_err) {
+			len = sock_error(sk);
+			break;
+		}
 
-		if (copied >= target) {
-			/* Do not sleep, just process backlog. */
-			release_sock(sk);
-			lock_sock(sk);
-		} else
-			sk_wait_data(sk, &timeo);
+		if (sk->sk_shutdown & RCV_SHUTDOWN) {
+			len = 0;
+			break;
+		}
 
+		if (sk->sk_state == DCCP_CLOSED) {
+			if (!sock_flag(sk, SOCK_DONE)) {
+				/* This occurs when user tries to read
+				 * from never connected socket.
+				 */
+				len = -ENOTCONN;
+				break;
+			}
+			len = 0;
+			break;
+		}
+
+		if (!timeo) {
+			len = -EAGAIN;
+			break;
+		}
+
+		if (signal_pending(current)) {
+			len = sock_intr_errno(timeo);
+			break;
+		}
+
+		sk_wait_data(sk, &timeo);
 		continue;
-
 	found_ok_skb:
-		/* Ok so how much can we use? */
-		used = skb->len - offset;
-		if (len < used)
-			used = len;
+		if (len > skb->len)
+			len = skb->len;
+		else if (len < skb->len)
+			msg->msg_flags |= MSG_TRUNC;
 
-		if (!(flags & MSG_TRUNC)) {
-			err = skb_copy_datagram_iovec(skb, offset,
-						      msg->msg_iov, used);
-			if (err) {
-				/* Exception. Bailout! */
-				if (!copied)
-					copied = -EFAULT;
-				break;
-			}
+		if (skb_copy_datagram_iovec(skb, 0, msg->msg_iov, len)) {
+			/* Exception. Bailout! */
+			len = -EFAULT;
+			break;
 		}
-
-		copied += used;
-		len -= used;
-
-		/* FIXME: tcp_rcv_space_adjust(sk); */
-
-//skip_copy:
-		if (used + offset < skb->len)
-			continue;
-
-		if (!(flags & MSG_PEEK))
-			sk_eat_skb(sk, skb);
-		continue;
 	found_fin_ok:
 		if (!(flags & MSG_PEEK))
 			sk_eat_skb(sk, skb);
 		break;
-		
-	} while (len > 0);
-
-	/* According to UNIX98, msg_name/msg_namelen are ignored
-	 * on connected socket. I was just happy when found this 8) --ANK
-	 */
-
-	/* Clean up data we have read: This will do ACK frames. */
-	/* FIXME: cleanup_rbuf(sk, copied); */
-
-	release_sock(sk);
-	return copied;
-
+	} while (1);
 out:
 	release_sock(sk);
-	return err;
-
-recv_urg:
-	/* FIXME: err = tcp_recv_urg(sk, timeo, msg, len, flags, addr_len); */
-	goto out;
+	return len;
 }
 
 static int inet_dccp_listen(struct socket *sock, int backlog)
