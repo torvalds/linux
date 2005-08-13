@@ -5,6 +5,7 @@
  * and not any kind of function definitions.  It is shared between kernel and
  * userspace.  Don't put kernel specific stuff in here */
 
+#include <linux/types.h>
 #include <linux/netfilter/nfnetlink.h>
 
 enum nfulnl_msg_types {
@@ -27,8 +28,8 @@ struct nfulnl_msg_packet_hw {
 } __attribute__ ((packed));
 
 struct nfulnl_msg_packet_timestamp {
-	u_int64_t	sec;
-	u_int64_t	usec;
+	aligned_u64	sec;
+	aligned_u64	usec;
 } __attribute__ ((packed));
 
 #define NFULNL_PREFIXLEN	30	/* just like old log target */

@@ -1,6 +1,7 @@
 #ifndef _NFNETLINK_QUEUE_H
 #define _NFNETLINK_QUEUE_H
 
+#include <linux/types.h>
 #include <linux/netfilter/nfnetlink.h>
 
 enum nfqnl_msg_types {
@@ -24,8 +25,8 @@ struct nfqnl_msg_packet_hw {
 } __attribute__ ((packed));
 
 struct nfqnl_msg_packet_timestamp {
-	u_int64_t	sec;
-	u_int64_t	usec;
+	aligned_u64	sec;
+	aligned_u64	usec;
 } __attribute__ ((packed));
 
 enum nfqnl_attr_type {
