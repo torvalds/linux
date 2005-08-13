@@ -54,7 +54,7 @@ match(const struct sk_buff *skb,
 		return 0; /* no match */
 
 	switch (sinfo->what) {
-	case IPT_CONNBYTES_WHAT_PKTS:
+	case IPT_CONNBYTES_PKTS:
 		switch (sinfo->direction) {
 		case IPT_CONNBYTES_DIR_ORIGINAL:
 			what = ct->counters[IP_CT_DIR_ORIGINAL].packets;
@@ -68,7 +68,7 @@ match(const struct sk_buff *skb,
 			break;
 		}
 		break;
-	case IPT_CONNBYTES_WHAT_BYTES:
+	case IPT_CONNBYTES_BYTES:
 		switch (sinfo->direction) {
 		case IPT_CONNBYTES_DIR_ORIGINAL:
 			what = ct->counters[IP_CT_DIR_ORIGINAL].bytes;
@@ -82,7 +82,7 @@ match(const struct sk_buff *skb,
 			break;
 		}
 		break;
-	case IPT_CONNBYTES_WHAT_AVGPKT:
+	case IPT_CONNBYTES_AVGPKT:
 		switch (sinfo->direction) {
 		case IPT_CONNBYTES_DIR_ORIGINAL:
 			what = div64_64(ct->counters[IP_CT_DIR_ORIGINAL].bytes,
@@ -128,9 +128,9 @@ static int check(const char *tablename,
 	if (matchsize != IPT_ALIGN(sizeof(struct ipt_connbytes_info)))
 		return 0;
 
-	if (sinfo->what != IPT_CONNBYTES_WHAT_PKTS &&
-	    sinfo->what != IPT_CONNBYTES_WHAT_BYTES &&
-	    sinfo->what != IPT_CONNBYTES_WHAT_AVGPKT)
+	if (sinfo->what != IPT_CONNBYTES_PKTS &&
+	    sinfo->what != IPT_CONNBYTES_BYTES &&
+	    sinfo->what != IPT_CONNBYTES_AVGPKT)
 		return 0;
 
 	if (sinfo->direction != IPT_CONNBYTES_DIR_ORIGINAL &&

@@ -2,9 +2,9 @@
 #define _IPT_CONNBYTES_H
 
 enum ipt_connbytes_what {
-	IPT_CONNBYTES_WHAT_PKTS,
-	IPT_CONNBYTES_WHAT_BYTES,
-	IPT_CONNBYTES_WHAT_AVGPKT,
+	IPT_CONNBYTES_PKTS,
+	IPT_CONNBYTES_BYTES,
+	IPT_CONNBYTES_AVGPKT,
 };
 
 enum ipt_connbytes_direction {
