@@ -503,11 +503,15 @@ static int __init dccp_ctl_sock_init(void)
 	return rc;
 }
 
-static void __exit dccp_ctl_sock_exit(void)
+#ifdef CONFIG_IP_DCCP_UNLOAD_HACK
+void dccp_ctl_sock_exit(void)
 {
 	if (dccp_ctl_socket != NULL)
 		sock_release(dccp_ctl_socket);
 }
+
+EXPORT_SYMBOL_GPL(dccp_ctl_sock_exit);
+#endif
 
 static int __init init_dccp_v4_mibs(void)
 {
@@ -655,19 +659,21 @@ static const char dccp_del_proto_err_msg[] __exitdata =
 
 static void __exit dccp_fini(void)
 {
-	dccp_ctl_sock_exit();
-
 	inet_unregister_protosw(&dccp_v4_protosw);
 
 	if (inet_del_protocol(&dccp_protocol, IPPROTO_DCCP) < 0)
 		printk(dccp_del_proto_err_msg);
 
-	/* Free the control endpoint.  */
-	sock_release(dccp_ctl_socket);
-
-	proto_unregister(&dccp_v4_prot);
-
+	free_percpu(dccp_statistics[0]);
+	free_percpu(dccp_statistics[1]);
+	free_pages((unsigned long)dccp_hashinfo.bhash,
+		   get_order(dccp_hashinfo.bhash_size *
+			     sizeof(struct inet_bind_hashbucket)));
+	free_pages((unsigned long)dccp_hashinfo.ehash,
+		   get_order(dccp_hashinfo.ehash_size *
+			     sizeof(struct inet_ehash_bucket)));
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
+	proto_unregister(&dccp_v4_prot);
 }
 
 module_init(dccp_init);

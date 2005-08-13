@@ -11,14 +11,13 @@
  *	published by the Free Software Foundation.
  */
 
+#include <linux/config.h>
 #include <linux/dccp.h>
 #include <net/snmp.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 
-#define DCCP_DEBUG
-
-#ifdef DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DEBUG
 extern int dccp_debug;
 
 #define dccp_pr_debug(format, a...) \
@@ -426,7 +425,7 @@ extern int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state);
 extern void dccp_ackpkts_check_rcv_ackno(struct dccp_ackpkts *ap,
 					 struct sock *sk, u64 ackno);
 
-#ifdef DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DEBUG
 extern void dccp_ackvector_print(const u64 ackno,
 				 const unsigned char *vector, int len);
 extern void dccp_ackpkts_print(const struct dccp_ackpkts *ap);

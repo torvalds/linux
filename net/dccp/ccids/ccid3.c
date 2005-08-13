@@ -2078,6 +2078,15 @@ module_init(ccid3_module_init);
 
 static __exit void ccid3_module_exit(void)
 {
+#ifdef CONFIG_IP_DCCP_UNLOAD_HACK
+	/*
+	 * Hack to use while developing, so that we get rid of the control
+	 * sock, that is what keeps a refcount on dccp.ko -acme
+	 */
+	extern void dccp_ctl_sock_exit(void);
+
+	dccp_ctl_sock_exit();
+#endif
 	ccid_unregister(&ccid3);
 
 	if (ccid3_tx_hist != NULL) {

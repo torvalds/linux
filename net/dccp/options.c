@@ -58,7 +58,7 @@ static u32 dccp_decode_value_var(const unsigned char *bf, const u8 len)
 int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-#ifdef DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DEBUG
 	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
 					"CLIENT rx opt: " : "server rx opt: ";
 #endif
@@ -303,7 +303,7 @@ void dccp_insert_option_elapsed_time(struct sock *sk,
 				     struct sk_buff *skb,
 				     u32 elapsed_time)
 {
-#ifdef DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DEBUG
 	struct dccp_sock *dp = dccp_sk(sk);
 	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
 					"CLIENT TX opt: " : "server TX opt: ";
@@ -341,7 +341,7 @@ EXPORT_SYMBOL(dccp_insert_option_elapsed_time);
 static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-#ifdef DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DEBUG
 	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
 					"CLIENT TX opt: " : "server TX opt: ";
 #endif
@@ -425,7 +425,7 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk,
 					      struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-#ifdef DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DEBUG
 	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
 					"CLIENT TX opt: " : "server TX opt: ";
 #endif
@@ -504,7 +504,7 @@ struct dccp_ackpkts *dccp_ackpkts_alloc(unsigned int len, int priority)
 	struct dccp_ackpkts *ap = kmalloc(sizeof(*ap) + len, priority);
 
 	if (ap != NULL) {
-#ifdef DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DEBUG
 		memset(ap->dccpap_buf, 0xFF, len);
 #endif
 		ap->dccpap_buf_len   = len;
@@ -526,7 +526,7 @@ struct dccp_ackpkts *dccp_ackpkts_alloc(unsigned int len, int priority)
 void dccp_ackpkts_free(struct dccp_ackpkts *ap)
 {
 	if (ap != NULL) {
-#ifdef DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DEBUG
 		memset(ap, 0xFF, sizeof(*ap) + ap->dccpap_buf_len);
 #endif
 		kfree(ap);
@@ -680,7 +680,7 @@ out_duplicate:
 	return -EILSEQ;
 }
 
-#ifdef DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DEBUG
 void dccp_ackvector_print(const u64 ackno, const unsigned char *vector,
 			  int len)
 {
@@ -735,7 +735,7 @@ void dccp_ackpkts_check_rcv_ackno(struct dccp_ackpkts *ap, struct sock *sk,
 		return;
 
 	if (ackno == ap->dccpap_ack_seqno) {
-#ifdef DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DEBUG
 		struct dccp_sock *dp = dccp_sk(sk);
 		const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
 					"CLIENT rx ack: " : "server rx ack: ";
@@ -794,7 +794,7 @@ static void dccp_ackpkts_check_rcv_ackvector(struct dccp_ackpkts *ap,
 			/* dccp_pr_debug_cat("yes\n"); */
 
 			if (state != DCCP_ACKPKTS_STATE_NOT_RECEIVED) {
-#ifdef DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DEBUG
 				struct dccp_sock *dp = dccp_sk(sk);
 				const char *debug_prefix =
 					dp->dccps_role == DCCP_ROLE_CLIENT ?
