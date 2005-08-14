@@ -213,7 +213,6 @@ static int __devinit mthca_init_tavor(struct mthca_dev *mdev)
 	struct mthca_dev_lim        dev_lim;
 	struct mthca_profile        profile;
 	struct mthca_init_hca_param init_hca;
-	struct mthca_adapter        adapter;
 
 	err = mthca_SYS_EN(mdev, &status);
 	if (err) {
@@ -271,25 +270,7 @@ static int __devinit mthca_init_tavor(struct mthca_dev *mdev)
 		goto err_disable;
 	}
 
-	err = mthca_QUERY_ADAPTER(mdev, &adapter, &status);
-	if (err) {
-		mthca_err(mdev, "QUERY_ADAPTER command failed, aborting.\n");
-		goto err_close;
-	}
-	if (status) {
-		mthca_err(mdev, "QUERY_ADAPTER returned status 0x%02x, "
-			  "aborting.\n", status);
-		err = -EINVAL;
-		goto err_close;
-	}
-
-	mdev->eq_table.inta_pin = adapter.inta_pin;
-	mdev->rev_id            = adapter.revision_id;
-
 	return 0;
-
-err_close:
-	mthca_CLOSE_HCA(mdev, 0, &status);
 
 err_disable:
 	mthca_SYS_DIS(mdev, &status);
@@ -507,7 +488,6 @@ static int __devinit mthca_init_arbel(struct mthca_dev *mdev)
 	struct mthca_dev_lim        dev_lim;
 	struct mthca_profile        profile;
 	struct mthca_init_hca_param init_hca;
-	struct mthca_adapter        adapter;
 	u64 icm_size;
 	u8 status;
 	int err;
@@ -575,21 +555,6 @@ static int __devinit mthca_init_arbel(struct mthca_dev *mdev)
 		goto err_free_icm;
 	}
 
-	err = mthca_QUERY_ADAPTER(mdev, &adapter, &status);
-	if (err) {
-		mthca_err(mdev, "QUERY_ADAPTER command failed, aborting.\n");
-		goto err_free_icm;
-	}
-	if (status) {
-		mthca_err(mdev, "QUERY_ADAPTER returned status 0x%02x, "
-			  "aborting.\n", status);
-		err = -EINVAL;
-		goto err_free_icm;
-	}
-
-	mdev->eq_table.inta_pin = adapter.inta_pin;
-	mdev->rev_id            = adapter.revision_id;
-
 	return 0;
 
 err_free_icm:
@@ -615,12 +580,68 @@ err_disable:
 	return err;
 }
 
+static void mthca_close_hca(struct mthca_dev *mdev)
+{
+	u8 status;
+
+	mthca_CLOSE_HCA(mdev, 0, &status);
+
+	if (mthca_is_memfree(mdev)) {
+		mthca_free_icm_table(mdev, mdev->cq_table.table);
+		mthca_free_icm_table(mdev, mdev->qp_table.rdb_table);
+		mthca_free_icm_table(mdev, mdev->qp_table.eqp_table);
+		mthca_free_icm_table(mdev, mdev->qp_table.qp_table);
+		mthca_free_icm_table(mdev, mdev->mr_table.mpt_table);
+		mthca_free_icm_table(mdev, mdev->mr_table.mtt_table);
+		mthca_unmap_eq_icm(mdev);
+
+		mthca_UNMAP_ICM_AUX(mdev, &status);
+		mthca_free_icm(mdev, mdev->fw.arbel.aux_icm);
+
+		mthca_UNMAP_FA(mdev, &status);
+		mthca_free_icm(mdev, mdev->fw.arbel.fw_icm);
+
+		if (!(mdev->mthca_flags & MTHCA_FLAG_NO_LAM))
+			mthca_DISABLE_LAM(mdev, &status);
+	} else
+		mthca_SYS_DIS(mdev, &status);
+}
+
 static int __devinit mthca_init_hca(struct mthca_dev *mdev)
 {
+	u8 status;
+	int err;
+	struct mthca_adapter adapter;
+
 	if (mthca_is_memfree(mdev))
-		return mthca_init_arbel(mdev);
+		err = mthca_init_arbel(mdev);
 	else
-		return mthca_init_tavor(mdev);
+		err = mthca_init_tavor(mdev);
+
+	if (err)
+		return err;
+
+	err = mthca_QUERY_ADAPTER(mdev, &adapter, &status);
+	if (err) {
+		mthca_err(mdev, "QUERY_ADAPTER command failed, aborting.\n");
+		goto err_close;
+	}
+	if (status) {
+		mthca_err(mdev, "QUERY_ADAPTER returned status 0x%02x, "
+			  "aborting.\n", status);
+		err = -EINVAL;
+		goto err_close;
+	}
+
+	mdev->eq_table.inta_pin = adapter.inta_pin;
+	mdev->rev_id            = adapter.revision_id;
+	memcpy(mdev->board_id, adapter.board_id, sizeof mdev->board_id);
+
+	return 0;
+
+err_close:
+	mthca_close_hca(mdev);
+	return err;
 }
 
 static int __devinit mthca_setup_hca(struct mthca_dev *dev)
@@ -843,33 +864,6 @@ static int __devinit mthca_enable_msi_x(struct mthca_dev *mdev)
 	mdev->eq_table.eq[MTHCA_EQ_CMD  ].msi_x_vector = entries[2].vector;
 
 	return 0;
-}
-
-static void mthca_close_hca(struct mthca_dev *mdev)
-{
-	u8 status;
-
-	mthca_CLOSE_HCA(mdev, 0, &status);
-
-	if (mthca_is_memfree(mdev)) {
-		mthca_free_icm_table(mdev, mdev->cq_table.table);
-		mthca_free_icm_table(mdev, mdev->qp_table.rdb_table);
-		mthca_free_icm_table(mdev, mdev->qp_table.eqp_table);
-		mthca_free_icm_table(mdev, mdev->qp_table.qp_table);
-		mthca_free_icm_table(mdev, mdev->mr_table.mpt_table);
-		mthca_free_icm_table(mdev, mdev->mr_table.mtt_table);
-		mthca_unmap_eq_icm(mdev);
-
-		mthca_UNMAP_ICM_AUX(mdev, &status);
-		mthca_free_icm(mdev, mdev->fw.arbel.aux_icm);
-
-		mthca_UNMAP_FA(mdev, &status);
-		mthca_free_icm(mdev, mdev->fw.arbel.fw_icm);
-
-		if (!(mdev->mthca_flags & MTHCA_FLAG_NO_LAM))
-			mthca_DISABLE_LAM(mdev, &status);
-	} else
-		mthca_SYS_DIS(mdev, &status);
 }
 
 /* Types of supported HCA */

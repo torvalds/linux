@@ -184,10 +184,11 @@ struct mthca_dev_lim {
 };
 
 struct mthca_adapter {
-	u32 vendor_id;
-	u32 device_id;
-	u32 revision_id;
-	u8  inta_pin;
+	u32  vendor_id;
+	u32  device_id;
+	u32  revision_id;
+	char board_id[MTHCA_BOARD_ID_LEN];
+	u8   inta_pin;
 };
 
 struct mthca_init_hca_param {

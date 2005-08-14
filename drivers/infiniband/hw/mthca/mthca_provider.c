@@ -958,14 +958,22 @@ static ssize_t show_hca(struct class_device *cdev, char *buf)
 	}
 }
 
+static ssize_t show_board(struct class_device *cdev, char *buf)
+{
+	struct mthca_dev *dev = container_of(cdev, struct mthca_dev, ib_dev.class_dev);
+	return sprintf(buf, "%.*s\n", MTHCA_BOARD_ID_LEN, dev->board_id);
+}
+
 static CLASS_DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
 static CLASS_DEVICE_ATTR(fw_ver,   S_IRUGO, show_fw_ver, NULL);
 static CLASS_DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
+static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
 
 static struct class_device_attribute *mthca_class_attributes[] = {
 	&class_device_attr_hw_rev,
 	&class_device_attr_fw_ver,
-	&class_device_attr_hca_type
+	&class_device_attr_hca_type,
+	&class_device_attr_board_id
 };
 
 int mthca_register_device(struct mthca_dev *dev)

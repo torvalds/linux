@@ -1085,6 +1085,34 @@ out:
 	return err;
 }
 
+static void get_board_id(void *vsd, char *board_id)
+{
+	int i;
+
+#define VSD_OFFSET_SIG1		0x00
+#define VSD_OFFSET_SIG2		0xde
+#define VSD_OFFSET_MLX_BOARD_ID	0xd0
+#define VSD_OFFSET_TS_BOARD_ID	0x20
+
+#define VSD_SIGNATURE_TOPSPIN	0x5ad
+
+	memset(board_id, 0, MTHCA_BOARD_ID_LEN);
+
+	if (be16_to_cpup(vsd + VSD_OFFSET_SIG1) == VSD_SIGNATURE_TOPSPIN &&
+	    be16_to_cpup(vsd + VSD_OFFSET_SIG2) == VSD_SIGNATURE_TOPSPIN) {
+		strlcpy(board_id, vsd + VSD_OFFSET_TS_BOARD_ID, MTHCA_BOARD_ID_LEN);
+	} else {
+		/*
+		 * The board ID is a string but the firmware byte
+		 * swaps each 4-byte word before passing it back to
+		 * us.  Therefore we need to swab it before printing.
+		 */
+		for (i = 0; i < 4; ++i)
+			((u32 *) board_id)[i] =
+				swab32(*(u32 *) (vsd + VSD_OFFSET_MLX_BOARD_ID + i * 4));
+	}
+}
+
 int mthca_QUERY_ADAPTER(struct mthca_dev *dev,
 			struct mthca_adapter *adapter, u8 *status)
 {
@@ -1097,6 +1125,7 @@ int mthca_QUERY_ADAPTER(struct mthca_dev *dev,
 #define QUERY_ADAPTER_DEVICE_ID_OFFSET     0x04
 #define QUERY_ADAPTER_REVISION_ID_OFFSET   0x08
 #define QUERY_ADAPTER_INTA_PIN_OFFSET      0x10
+#define QUERY_ADAPTER_VSD_OFFSET           0x20
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox))
@@ -1113,6 +1142,9 @@ int mthca_QUERY_ADAPTER(struct mthca_dev *dev,
 	MTHCA_GET(adapter->device_id, outbox,   QUERY_ADAPTER_DEVICE_ID_OFFSET);
 	MTHCA_GET(adapter->revision_id, outbox, QUERY_ADAPTER_REVISION_ID_OFFSET);
 	MTHCA_GET(adapter->inta_pin, outbox,    QUERY_ADAPTER_INTA_PIN_OFFSET);
+
+	get_board_id(outbox + QUERY_ADAPTER_VSD_OFFSET / 4,
+		     adapter->board_id);
 
 out:
 	mthca_free_mailbox(dev, mailbox);

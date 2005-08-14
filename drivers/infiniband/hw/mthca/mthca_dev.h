@@ -69,6 +69,10 @@ enum {
 };
 
 enum {
+	MTHCA_BOARD_ID_LEN = 64
+};
+
+enum {
 	MTHCA_EQ_CONTEXT_SIZE =  0x40,
 	MTHCA_CQ_CONTEXT_SIZE =  0x40,
 	MTHCA_QP_CONTEXT_SIZE = 0x200,
@@ -248,6 +252,7 @@ struct mthca_dev {
 	unsigned long    device_cap_flags;
 
 	u32              rev_id;
+	char             board_id[MTHCA_BOARD_ID_LEN];
 
 	/* firmware info */
 	u64              fw_ver;
