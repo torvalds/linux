@@ -609,8 +609,8 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				ipoib_warn(priv, "Unicast, no %s: type %04x, QPN %06x "
 					   IPOIB_GID_FMT "\n",
 					   skb->dst ? "neigh" : "dst",
-					   be16_to_cpup((u16 *) skb->data),
-					   be32_to_cpup((u32 *) phdr->hwaddr),
+					   be16_to_cpup((__be16 *) skb->data),
+					   be32_to_cpup((__be32 *) phdr->hwaddr),
 					   IPOIB_GID_ARG(*(union ib_gid *) (phdr->hwaddr + 4)));
 				dev_kfree_skb_any(skb);
 				++priv->stats.tx_dropped;

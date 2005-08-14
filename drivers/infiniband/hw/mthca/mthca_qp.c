@@ -97,62 +97,62 @@ enum {
 };
 
 struct mthca_qp_path {
-	u32 port_pkey;
-	u8  rnr_retry;
-	u8  g_mylmc;
-	u16 rlid;
-	u8  ackto;
-	u8  mgid_index;
-	u8  static_rate;
-	u8  hop_limit;
-	u32 sl_tclass_flowlabel;
-	u8  rgid[16];
+	__be32 port_pkey;
+	u8     rnr_retry;
+	u8     g_mylmc;
+	__be16 rlid;
+	u8     ackto;
+	u8     mgid_index;
+	u8     static_rate;
+	u8     hop_limit;
+	__be32 sl_tclass_flowlabel;
+	u8     rgid[16];
 } __attribute__((packed));
 
 struct mthca_qp_context {
-	u32 flags;
-	u32 tavor_sched_queue;	/* Reserved on Arbel */
-	u8  mtu_msgmax;
-	u8  rq_size_stride;	/* Reserved on Tavor */
-	u8  sq_size_stride;	/* Reserved on Tavor */
-	u8  rlkey_arbel_sched_queue;	/* Reserved on Tavor */
-	u32 usr_page;
-	u32 local_qpn;
-	u32 remote_qpn;
-	u32 reserved1[2];
+	__be32 flags;
+	__be32 tavor_sched_queue; /* Reserved on Arbel */
+	u8     mtu_msgmax;
+	u8     rq_size_stride;	/* Reserved on Tavor */
+	u8     sq_size_stride;	/* Reserved on Tavor */
+	u8     rlkey_arbel_sched_queue;	/* Reserved on Tavor */
+	__be32 usr_page;
+	__be32 local_qpn;
+	__be32 remote_qpn;
+	u32    reserved1[2];
 	struct mthca_qp_path pri_path;
 	struct mthca_qp_path alt_path;
-	u32 rdd;
-	u32 pd;
-	u32 wqe_base;
-	u32 wqe_lkey;
-	u32 params1;
-	u32 reserved2;
-	u32 next_send_psn;
-	u32 cqn_snd;
-	u32 snd_wqe_base_l;	/* Next send WQE on Tavor */
-	u32 snd_db_index;	/* (debugging only entries) */
-	u32 last_acked_psn;
-	u32 ssn;
-	u32 params2;
-	u32 rnr_nextrecvpsn;
-	u32 ra_buff_indx;
-	u32 cqn_rcv;
-	u32 rcv_wqe_base_l;	/* Next recv WQE on Tavor */
-	u32 rcv_db_index;	/* (debugging only entries) */
-	u32 qkey;
-	u32 srqn;
-	u32 rmsn;
-	u16 rq_wqe_counter;	/* reserved on Tavor */
-	u16 sq_wqe_counter;	/* reserved on Tavor */
-	u32 reserved3[18];
+	__be32 rdd;
+	__be32 pd;
+	__be32 wqe_base;
+	__be32 wqe_lkey;
+	__be32 params1;
+	__be32 reserved2;
+	__be32 next_send_psn;
+	__be32 cqn_snd;
+	__be32 snd_wqe_base_l;	/* Next send WQE on Tavor */
+	__be32 snd_db_index;	/* (debugging only entries) */
+	__be32 last_acked_psn;
+	__be32 ssn;
+	__be32 params2;
+	__be32 rnr_nextrecvpsn;
+	__be32 ra_buff_indx;
+	__be32 cqn_rcv;
+	__be32 rcv_wqe_base_l;	/* Next recv WQE on Tavor */
+	__be32 rcv_db_index;	/* (debugging only entries) */
+	__be32 qkey;
+	__be32 srqn;
+	__be32 rmsn;
+	__be16 rq_wqe_counter;	/* reserved on Tavor */
+	__be16 sq_wqe_counter;	/* reserved on Tavor */
+	u32    reserved3[18];
 } __attribute__((packed));
 
 struct mthca_qp_param {
-	u32 opt_param_mask;
-	u32 reserved1;
+	__be32 opt_param_mask;
+	u32    reserved1;
 	struct mthca_qp_context context;
-	u32 reserved2[62];
+	u32    reserved2[62];
 } __attribute__((packed));
 
 enum {
@@ -191,62 +191,62 @@ enum {
 };
 
 struct mthca_next_seg {
-	u32 nda_op;		/* [31:6] next WQE [4:0] next opcode */
-	u32 ee_nds;		/* [31:8] next EE  [7] DBD [6] F [5:0] next WQE size */
-	u32 flags;		/* [3] CQ [2] Event [1] Solicit */
-	u32 imm;		/* immediate data */
+	__be32 nda_op;		/* [31:6] next WQE [4:0] next opcode */
+	__be32 ee_nds;		/* [31:8] next EE  [7] DBD [6] F [5:0] next WQE size */
+	__be32 flags;		/* [3] CQ [2] Event [1] Solicit */
+	__be32 imm;		/* immediate data */
 };
 
 struct mthca_tavor_ud_seg {
-	u32 reserved1;
-	u32 lkey;
-	u64 av_addr;
-	u32 reserved2[4];
-	u32 dqpn;
-	u32 qkey;
-	u32 reserved3[2];
+	u32    reserved1;
+	__be32 lkey;
+	__be64 av_addr;
+	u32    reserved2[4];
+	__be32 dqpn;
+	__be32 qkey;
+	u32    reserved3[2];
 };
 
 struct mthca_arbel_ud_seg {
-	u32 av[8];
-	u32 dqpn;
-	u32 qkey;
-	u32 reserved[2];
+	__be32 av[8];
+	__be32 dqpn;
+	__be32 qkey;
+	u32    reserved[2];
 };
 
 struct mthca_bind_seg {
-	u32 flags;		/* [31] Atomic [30] rem write [29] rem read */
-	u32 reserved;
-	u32 new_rkey;
-	u32 lkey;
-	u64 addr;
-	u64 length;
+	__be32 flags;		/* [31] Atomic [30] rem write [29] rem read */
+	u32    reserved;
+	__be32 new_rkey;
+	__be32 lkey;
+	__be64 addr;
+	__be64 length;
 };
 
 struct mthca_raddr_seg {
-	u64 raddr;
-	u32 rkey;
-	u32 reserved;
+	__be64 raddr;
+	__be32 rkey;
+	u32    reserved;
 };
 
 struct mthca_atomic_seg {
-	u64 swap_add;
-	u64 compare;
+	__be64 swap_add;
+	__be64 compare;
 };
 
 struct mthca_data_seg {
-	u32 byte_count;
-	u32 lkey;
-	u64 addr;
+	__be32 byte_count;
+	__be32 lkey;
+	__be64 addr;
 };
 
 struct mthca_mlx_seg {
-	u32 nda_op;
-	u32 nds;
-	u32 flags;		/* [17] VL15 [16] SLR [14:12] static rate
+	__be32 nda_op;
+	__be32 nds;
+	__be32 flags;		/* [17] VL15 [16] SLR [14:12] static rate
 				   [11:8] SL [3] C [2] E */
-	u16 rlid;
-	u16 vcrc;
+	__be16 rlid;
+	__be16 vcrc;
 };
 
 static const u8 mthca_opcode[] = {
@@ -1459,6 +1459,7 @@ static int build_mlx_header(struct mthca_dev *dev, struct mthca_sqp *sqp,
 {
 	int header_size;
 	int err;
+	u16 pkey;
 
 	ib_ud_header_init(256, /* assume a MAD */
 			  sqp->ud_header.grh_present,
@@ -1469,8 +1470,8 @@ static int build_mlx_header(struct mthca_dev *dev, struct mthca_sqp *sqp,
 		return err;
 	mlx->flags &= ~cpu_to_be32(MTHCA_NEXT_SOLICIT | 1);
 	mlx->flags |= cpu_to_be32((!sqp->qp.ibqp.qp_num ? MTHCA_MLX_VL15 : 0) |
-				  (sqp->ud_header.lrh.destination_lid == 0xffff ?
-				   MTHCA_MLX_SLR : 0) |
+				  (sqp->ud_header.lrh.destination_lid ==
+				   IB_LID_PERMISSIVE ? MTHCA_MLX_SLR : 0) |
 				  (sqp->ud_header.lrh.service_level << 8));
 	mlx->rlid = sqp->ud_header.lrh.destination_lid;
 	mlx->vcrc = 0;
@@ -1490,18 +1491,16 @@ static int build_mlx_header(struct mthca_dev *dev, struct mthca_sqp *sqp,
 	}
 
 	sqp->ud_header.lrh.virtual_lane    = !sqp->qp.ibqp.qp_num ? 15 : 0;
-	if (sqp->ud_header.lrh.destination_lid == 0xffff)
-		sqp->ud_header.lrh.source_lid = 0xffff;
+	if (sqp->ud_header.lrh.destination_lid == IB_LID_PERMISSIVE)
+		sqp->ud_header.lrh.source_lid = IB_LID_PERMISSIVE;
 	sqp->ud_header.bth.solicited_event = !!(wr->send_flags & IB_SEND_SOLICITED);
 	if (!sqp->qp.ibqp.qp_num)
 		ib_get_cached_pkey(&dev->ib_dev, sqp->port,
-				   sqp->pkey_index,
-				   &sqp->ud_header.bth.pkey);
+				   sqp->pkey_index, &pkey);
 	else
 		ib_get_cached_pkey(&dev->ib_dev, sqp->port,
-				   wr->wr.ud.pkey_index,
-				   &sqp->ud_header.bth.pkey);
-	cpu_to_be16s(&sqp->ud_header.bth.pkey);
+				   wr->wr.ud.pkey_index, &pkey);
+	sqp->ud_header.bth.pkey = cpu_to_be16(pkey);
 	sqp->ud_header.bth.destination_qpn = cpu_to_be32(wr->wr.ud.remote_qpn);
 	sqp->ud_header.bth.psn = cpu_to_be32((sqp->send_psn++) & ((1 << 24) - 1));
 	sqp->ud_header.deth.qkey = cpu_to_be32(wr->wr.ud.remote_qkey & 0x80000000 ?
@@ -1744,7 +1743,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 out:
 	if (likely(nreq)) {
-		u32 doorbell[2];
+		__be32 doorbell[2];
 
 		doorbell[0] = cpu_to_be32(((qp->sq.next_ind << qp->sq.wqe_shift) +
 					   qp->send_wqe_offset) | f0 | op0);
@@ -1845,7 +1844,7 @@ int mthca_tavor_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 out:
 	if (likely(nreq)) {
-		u32 doorbell[2];
+		__be32 doorbell[2];
 
 		doorbell[0] = cpu_to_be32((qp->rq.next_ind << qp->rq.wqe_shift) | size0);
 		doorbell[1] = cpu_to_be32((qp->qpn << 8) | nreq);
@@ -2066,7 +2065,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 out:
 	if (likely(nreq)) {
-		u32 doorbell[2];
+		__be32 doorbell[2];
 
 		doorbell[0] = cpu_to_be32((nreq << 24)                  |
 					  ((qp->sq.head & 0xffff) << 8) |
@@ -2176,7 +2175,7 @@ out:
 }
 
 int mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
-		       int index, int *dbd, u32 *new_wqe)
+		       int index, int *dbd, __be32 *new_wqe)
 {
 	struct mthca_next_seg *next;
 

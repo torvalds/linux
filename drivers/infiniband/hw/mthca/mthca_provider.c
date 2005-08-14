@@ -81,10 +81,10 @@ static int mthca_query_device(struct ib_device *ibdev,
 	}
 
 	props->device_cap_flags    = mdev->device_cap_flags;
-	props->vendor_id           = be32_to_cpup((u32 *) (out_mad->data + 36)) &
+	props->vendor_id           = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;
-	props->vendor_part_id      = be16_to_cpup((u16 *) (out_mad->data + 30));
-	props->hw_ver              = be16_to_cpup((u16 *) (out_mad->data + 32));
+	props->vendor_part_id      = be16_to_cpup((__be16 *) (out_mad->data + 30));
+	props->hw_ver              = be16_to_cpup((__be16 *) (out_mad->data + 32));
 	memcpy(&props->sys_image_guid, out_mad->data +  4, 8);
 	memcpy(&props->node_guid,      out_mad->data + 12, 8);
 
@@ -138,16 +138,16 @@ static int mthca_query_port(struct ib_device *ibdev,
 		goto out;
 	}
 
-	props->lid               = be16_to_cpup((u16 *) (out_mad->data + 16));
+	props->lid               = be16_to_cpup((__be16 *) (out_mad->data + 16));
 	props->lmc               = out_mad->data[34] & 0x7;
-	props->sm_lid            = be16_to_cpup((u16 *) (out_mad->data + 18));
+	props->sm_lid            = be16_to_cpup((__be16 *) (out_mad->data + 18));
 	props->sm_sl             = out_mad->data[36] & 0xf;
 	props->state             = out_mad->data[32] & 0xf;
 	props->phys_state        = out_mad->data[33] >> 4;
-	props->port_cap_flags    = be32_to_cpup((u32 *) (out_mad->data + 20));
+	props->port_cap_flags    = be32_to_cpup((__be32 *) (out_mad->data + 20));
 	props->gid_tbl_len       = to_mdev(ibdev)->limits.gid_table_len;
 	props->pkey_tbl_len      = to_mdev(ibdev)->limits.pkey_table_len;
-	props->qkey_viol_cntr    = be16_to_cpup((u16 *) (out_mad->data + 48));
+	props->qkey_viol_cntr    = be16_to_cpup((__be16 *) (out_mad->data + 48));
 	props->active_width      = out_mad->data[31] & 0xf;
 	props->active_speed      = out_mad->data[35] >> 4;
 
@@ -223,7 +223,7 @@ static int mthca_query_pkey(struct ib_device *ibdev,
 		goto out;
 	}
 
-	*pkey = be16_to_cpu(((u16 *) out_mad->data)[index % 32]);
+	*pkey = be16_to_cpu(((__be16 *) out_mad->data)[index % 32]);
 
  out:
 	kfree(in_mad);

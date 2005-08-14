@@ -182,9 +182,9 @@ struct mthca_cq {
 
 	/* Next fields are Arbel only */
 	int                    set_ci_db_index;
-	u32                   *set_ci_db;
+	__be32                *set_ci_db;
 	int                    arm_db_index;
-	u32                   *arm_db;
+	__be32                *arm_db;
 	int                    arm_sn;
 
 	union {
@@ -207,7 +207,7 @@ struct mthca_wq {
 	int        wqe_shift;
 
 	int        db_index;	/* Arbel only */
-	u32       *db;
+	__be32    *db;
 };
 
 struct mthca_qp {

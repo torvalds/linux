@@ -115,7 +115,7 @@ struct ib_cm_req_event_param {
 	struct ib_sa_path_rec	*primary_path;
 	struct ib_sa_path_rec	*alternate_path;
 
-	u64			remote_ca_guid;
+	__be64			remote_ca_guid;
 	u32			remote_qkey;
 	u32			remote_qpn;
 	enum ib_qp_type		qp_type;
@@ -132,7 +132,7 @@ struct ib_cm_req_event_param {
 };
 
 struct ib_cm_rep_event_param {
-	u64			remote_ca_guid;
+	__be64			remote_ca_guid;
 	u32			remote_qkey;
 	u32			remote_qpn;
 	u32			starting_psn;
@@ -146,39 +146,39 @@ struct ib_cm_rep_event_param {
 };
 
 enum ib_cm_rej_reason {
-	IB_CM_REJ_NO_QP				= __constant_htons(1),
-	IB_CM_REJ_NO_EEC			= __constant_htons(2),
-	IB_CM_REJ_NO_RESOURCES			= __constant_htons(3),
-	IB_CM_REJ_TIMEOUT			= __constant_htons(4),
-	IB_CM_REJ_UNSUPPORTED			= __constant_htons(5),
-	IB_CM_REJ_INVALID_COMM_ID		= __constant_htons(6),
-	IB_CM_REJ_INVALID_COMM_INSTANCE		= __constant_htons(7),
-	IB_CM_REJ_INVALID_SERVICE_ID		= __constant_htons(8),
-	IB_CM_REJ_INVALID_TRANSPORT_TYPE	= __constant_htons(9),
-	IB_CM_REJ_STALE_CONN			= __constant_htons(10),
-	IB_CM_REJ_RDC_NOT_EXIST			= __constant_htons(11),
-	IB_CM_REJ_INVALID_GID			= __constant_htons(12),
-	IB_CM_REJ_INVALID_LID			= __constant_htons(13),
-	IB_CM_REJ_INVALID_SL			= __constant_htons(14),
-	IB_CM_REJ_INVALID_TRAFFIC_CLASS		= __constant_htons(15),
-	IB_CM_REJ_INVALID_HOP_LIMIT		= __constant_htons(16),
-	IB_CM_REJ_INVALID_PACKET_RATE		= __constant_htons(17),
-	IB_CM_REJ_INVALID_ALT_GID		= __constant_htons(18),
-	IB_CM_REJ_INVALID_ALT_LID		= __constant_htons(19),
-	IB_CM_REJ_INVALID_ALT_SL		= __constant_htons(20),
-	IB_CM_REJ_INVALID_ALT_TRAFFIC_CLASS	= __constant_htons(21),
-	IB_CM_REJ_INVALID_ALT_HOP_LIMIT		= __constant_htons(22),
-	IB_CM_REJ_INVALID_ALT_PACKET_RATE	= __constant_htons(23),
-	IB_CM_REJ_PORT_CM_REDIRECT		= __constant_htons(24),
-	IB_CM_REJ_PORT_REDIRECT			= __constant_htons(25),
-	IB_CM_REJ_INVALID_MTU			= __constant_htons(26),
-	IB_CM_REJ_INSUFFICIENT_RESP_RESOURCES	= __constant_htons(27),
-	IB_CM_REJ_CONSUMER_DEFINED		= __constant_htons(28),
-	IB_CM_REJ_INVALID_RNR_RETRY		= __constant_htons(29),
-	IB_CM_REJ_DUPLICATE_LOCAL_COMM_ID	= __constant_htons(30),
-	IB_CM_REJ_INVALID_CLASS_VERSION		= __constant_htons(31),
-	IB_CM_REJ_INVALID_FLOW_LABEL		= __constant_htons(32),
-	IB_CM_REJ_INVALID_ALT_FLOW_LABEL	= __constant_htons(33)
+	IB_CM_REJ_NO_QP				= 1,
+	IB_CM_REJ_NO_EEC			= 2,
+	IB_CM_REJ_NO_RESOURCES			= 3,
+	IB_CM_REJ_TIMEOUT			= 4,
+	IB_CM_REJ_UNSUPPORTED			= 5,
+	IB_CM_REJ_INVALID_COMM_ID		= 6,
+	IB_CM_REJ_INVALID_COMM_INSTANCE		= 7,
+	IB_CM_REJ_INVALID_SERVICE_ID		= 8,
+	IB_CM_REJ_INVALID_TRANSPORT_TYPE	= 9,
+	IB_CM_REJ_STALE_CONN			= 10,
+	IB_CM_REJ_RDC_NOT_EXIST			= 11,
+	IB_CM_REJ_INVALID_GID			= 12,
+	IB_CM_REJ_INVALID_LID			= 13,
+	IB_CM_REJ_INVALID_SL			= 14,
+	IB_CM_REJ_INVALID_TRAFFIC_CLASS		= 15,
+	IB_CM_REJ_INVALID_HOP_LIMIT		= 16,
+	IB_CM_REJ_INVALID_PACKET_RATE		= 17,
+	IB_CM_REJ_INVALID_ALT_GID		= 18,
+	IB_CM_REJ_INVALID_ALT_LID		= 19,
+	IB_CM_REJ_INVALID_ALT_SL		= 20,
+	IB_CM_REJ_INVALID_ALT_TRAFFIC_CLASS	= 21,
+	IB_CM_REJ_INVALID_ALT_HOP_LIMIT		= 22,
+	IB_CM_REJ_INVALID_ALT_PACKET_RATE	= 23,
+	IB_CM_REJ_PORT_CM_REDIRECT		= 24,
+	IB_CM_REJ_PORT_REDIRECT			= 25,
+	IB_CM_REJ_INVALID_MTU			= 26,
+	IB_CM_REJ_INSUFFICIENT_RESP_RESOURCES	= 27,
+	IB_CM_REJ_CONSUMER_DEFINED		= 28,
+	IB_CM_REJ_INVALID_RNR_RETRY		= 29,
+	IB_CM_REJ_DUPLICATE_LOCAL_COMM_ID	= 30,
+	IB_CM_REJ_INVALID_CLASS_VERSION		= 31,
+	IB_CM_REJ_INVALID_FLOW_LABEL		= 32,
+	IB_CM_REJ_INVALID_ALT_FLOW_LABEL	= 33
 };
 
 struct ib_cm_rej_event_param {
@@ -222,8 +222,7 @@ struct ib_cm_sidr_req_event_param {
 	struct ib_cm_id		*listen_id;
 	struct ib_device	*device;
 	u8			port;
-
-	u16	pkey;
+	u16			pkey;
 };
 
 enum ib_cm_sidr_status {
@@ -285,12 +284,12 @@ typedef int (*ib_cm_handler)(struct ib_cm_id *cm_id,
 struct ib_cm_id {
 	ib_cm_handler		cm_handler;
 	void			*context;
-	u64			service_id;
-	u64			service_mask;
+	__be64			service_id;
+	__be64			service_mask;
 	enum ib_cm_state	state;		/* internal CM/debug use */
 	enum ib_cm_lap_state	lap_state;	/* internal CM/debug use */
-	u32			local_id;
-	u32			remote_id;
+	__be32			local_id;
+	__be32			remote_id;
 };
 
 /**
@@ -330,13 +329,13 @@ void ib_destroy_cm_id(struct ib_cm_id *cm_id);
  *   IB_CM_ASSIGN_SERVICE_ID.
  */
 int ib_cm_listen(struct ib_cm_id *cm_id,
-		 u64 service_id,
-		 u64 service_mask);
+		 __be64 service_id,
+		 __be64 service_mask);
 
 struct ib_cm_req_param {
 	struct ib_sa_path_rec	*primary_path;
 	struct ib_sa_path_rec	*alternate_path;
-	u64			service_id;
+	__be64			service_id;
 	u32			qp_num;
 	enum ib_qp_type		qp_type;
 	u32			starting_psn;
@@ -528,7 +527,7 @@ int ib_send_cm_apr(struct ib_cm_id *cm_id,
 
 struct ib_cm_sidr_req_param {
 	struct ib_sa_path_rec	*path;
-	u64			service_id;
+	__be64			service_id;
 	int			timeout_ms;
 	const void		*private_data;
 	u8			private_data_len;

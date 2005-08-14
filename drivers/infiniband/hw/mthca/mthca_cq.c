@@ -57,21 +57,21 @@ enum {
  * Must be packed because start is 64 bits but only aligned to 32 bits.
  */
 struct mthca_cq_context {
-	u32 flags;
-	u64 start;
-	u32 logsize_usrpage;
-	u32 error_eqn;		/* Tavor only */
-	u32 comp_eqn;
-	u32 pd;
-	u32 lkey;
-	u32 last_notified_index;
-	u32 solicit_producer_index;
-	u32 consumer_index;
-	u32 producer_index;
-	u32 cqn;
-	u32 ci_db;		/* Arbel only */
-	u32 state_db;		/* Arbel only */
-	u32 reserved;
+	__be32 flags;
+	__be64 start;
+	__be32 logsize_usrpage;
+	__be32 error_eqn;	/* Tavor only */
+	__be32 comp_eqn;
+	__be32 pd;
+	__be32 lkey;
+	__be32 last_notified_index;
+	__be32 solicit_producer_index;
+	__be32 consumer_index;
+	__be32 producer_index;
+	__be32 cqn;
+	__be32 ci_db;		/* Arbel only */
+	__be32 state_db;	/* Arbel only */
+	u32    reserved;
 } __attribute__((packed));
 
 #define MTHCA_CQ_STATUS_OK          ( 0 << 28)
@@ -110,31 +110,31 @@ enum {
 };
 
 struct mthca_cqe {
-	u32 my_qpn;
-	u32 my_ee;
-	u32 rqpn;
-	u16 sl_g_mlpath;
-	u16 rlid;
-	u32 imm_etype_pkey_eec;
-	u32 byte_cnt;
-	u32 wqe;
-	u8  opcode;
-	u8  is_send;
-	u8  reserved;
-	u8  owner;
+	__be32 my_qpn;
+	__be32 my_ee;
+	__be32 rqpn;
+	__be16 sl_g_mlpath;
+	__be16 rlid;
+	__be32 imm_etype_pkey_eec;
+	__be32 byte_cnt;
+	__be32 wqe;
+	u8     opcode;
+	u8     is_send;
+	u8     reserved;
+	u8     owner;
 };
 
 struct mthca_err_cqe {
-	u32 my_qpn;
-	u32 reserved1[3];
-	u8  syndrome;
-	u8  reserved2;
-	u16 db_cnt;
-	u32 reserved3;
-	u32 wqe;
-	u8  opcode;
-	u8  reserved4[2];
-	u8  owner;
+	__be32 my_qpn;
+	u32    reserved1[3];
+	u8     syndrome;
+	u8     reserved2;
+	__be16 db_cnt;
+	u32    reserved3;
+	__be32 wqe;
+	u8     opcode;
+	u8     reserved4[2];
+	u8     owner;
 };
 
 #define MTHCA_CQ_ENTRY_OWNER_SW      (0 << 7)
@@ -193,7 +193,7 @@ static void dump_cqe(struct mthca_dev *dev, void *cqe_ptr)
 static inline void update_cons_index(struct mthca_dev *dev, struct mthca_cq *cq,
 				     int incr)
 {
-	u32 doorbell[2];
+	__be32 doorbell[2];
 
 	if (mthca_is_memfree(dev)) {
 		*cq->set_ci_db = cpu_to_be32(cq->cons_index);
@@ -293,7 +293,7 @@ static int handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
 {
 	int err;
 	int dbd;
-	u32 new_wqe;
+	__be32 new_wqe;
 
 	if (cqe->syndrome == SYNDROME_LOCAL_QP_OP_ERR) {
 		mthca_dbg(dev, "local QP operation err "
@@ -586,13 +586,13 @@ int mthca_poll_cq(struct ib_cq *ibcq, int num_entries,
 
 int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify notify)
 {
-	u32 doorbell[2];
+	__be32 doorbell[2];
 
 	doorbell[0] = cpu_to_be32((notify == IB_CQ_SOLICITED ?
 				   MTHCA_TAVOR_CQ_DB_REQ_NOT_SOL :
 				   MTHCA_TAVOR_CQ_DB_REQ_NOT)      |
 				  to_mcq(cq)->cqn);
-	doorbell[1] = 0xffffffff;
+	doorbell[1] = (__force __be32) 0xffffffff;
 
 	mthca_write64(doorbell,
 		      to_mdev(cq->device)->kar + MTHCA_CQ_DOORBELL,
@@ -604,9 +604,9 @@ int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify notify)
 int mthca_arbel_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 {
 	struct mthca_cq *cq = to_mcq(ibcq);
-	u32 doorbell[2];
+	__be32 doorbell[2];
 	u32 sn;
-	u32 ci;
+	__be32 ci;
 
 	sn = cq->arm_sn & 3;
 	ci = cpu_to_be32(cq->cons_index);
@@ -813,7 +813,6 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	cq_context->flags           = cpu_to_be32(MTHCA_CQ_STATUS_OK      |
 						  MTHCA_CQ_STATE_DISARMED |
 						  MTHCA_CQ_FLAG_TR);
-	cq_context->start           = cpu_to_be64(0);
 	cq_context->logsize_usrpage = cpu_to_be32((ffs(nent) - 1) << 24);
 	if (ctx)
 		cq_context->logsize_usrpage |= cpu_to_be32(ctx->uar.index);
@@ -906,7 +905,7 @@ void mthca_free_cq(struct mthca_dev *dev,
 		mthca_warn(dev, "HW2SW_CQ returned status 0x%02x\n", status);
 
 	if (0) {
-		u32 *ctx = mailbox->buf;
+		__be32 *ctx = mailbox->buf;
 		int j;
 
 		printk(KERN_ERR "context for CQN %x (cons index %x, next sw %d)\n",

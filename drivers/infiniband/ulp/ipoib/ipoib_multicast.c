@@ -359,7 +359,7 @@ static int ipoib_mcast_sendonly_join(struct ipoib_mcast *mcast)
 
 	rec.mgid     = mcast->mcmember.mgid;
 	rec.port_gid = priv->local_gid;
-	rec.pkey     = be16_to_cpu(priv->pkey);
+	rec.pkey     = cpu_to_be16(priv->pkey);
 
 	ret = ib_sa_mcmember_rec_set(priv->ca, priv->port, &rec,
 				     IB_SA_MCMEMBER_REC_MGID		|
@@ -459,7 +459,7 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 
 	rec.mgid     = mcast->mcmember.mgid;
 	rec.port_gid = priv->local_gid;
-	rec.pkey     = be16_to_cpu(priv->pkey);
+	rec.pkey     = cpu_to_be16(priv->pkey);
 
 	comp_mask =
 		IB_SA_MCMEMBER_REC_MGID		|
@@ -648,7 +648,7 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 
 	rec.mgid     = mcast->mcmember.mgid;
 	rec.port_gid = priv->local_gid;
-	rec.pkey     = be16_to_cpu(priv->pkey);
+	rec.pkey     = cpu_to_be16(priv->pkey);
 
 	/* Remove ourselves from the multicast group */
 	ret = ipoib_mcast_detach(dev, be16_to_cpu(mcast->mcmember.mlid),

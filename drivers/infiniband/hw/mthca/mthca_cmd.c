@@ -220,20 +220,20 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 	 * (and some architectures such as ia64 implement memcpy_toio
 	 * in terms of writeb).
 	 */
-	__raw_writel(cpu_to_be32(in_param >> 32),           dev->hcr + 0 * 4);
-	__raw_writel(cpu_to_be32(in_param & 0xfffffffful),  dev->hcr + 1 * 4);
-	__raw_writel(cpu_to_be32(in_modifier),              dev->hcr + 2 * 4);
-	__raw_writel(cpu_to_be32(out_param >> 32),          dev->hcr + 3 * 4);
-	__raw_writel(cpu_to_be32(out_param & 0xfffffffful), dev->hcr + 4 * 4);
-	__raw_writel(cpu_to_be32(token << 16),              dev->hcr + 5 * 4);
+	__raw_writel((__force u32) cpu_to_be32(in_param >> 32),           dev->hcr + 0 * 4);
+	__raw_writel((__force u32) cpu_to_be32(in_param & 0xfffffffful),  dev->hcr + 1 * 4);
+	__raw_writel((__force u32) cpu_to_be32(in_modifier),              dev->hcr + 2 * 4);
+	__raw_writel((__force u32) cpu_to_be32(out_param >> 32),          dev->hcr + 3 * 4);
+	__raw_writel((__force u32) cpu_to_be32(out_param & 0xfffffffful), dev->hcr + 4 * 4);
+	__raw_writel((__force u32) cpu_to_be32(token << 16),              dev->hcr + 5 * 4);
 
 	/* __raw_writel may not order writes. */
 	wmb();
 
-	__raw_writel(cpu_to_be32((1 << HCR_GO_BIT)                |
-				 (event ? (1 << HCA_E_BIT) : 0)   |
-				 (op_modifier << HCR_OPMOD_SHIFT) |
-				 op),                       dev->hcr + 6 * 4);
+	__raw_writel((__force u32) cpu_to_be32((1 << HCR_GO_BIT)                |
+					       (event ? (1 << HCA_E_BIT) : 0)   |
+					       (op_modifier << HCR_OPMOD_SHIFT) |
+					       op),                       dev->hcr + 6 * 4);
 
 out:
 	up(&dev->cmd.hcr_sem);
@@ -274,12 +274,14 @@ static int mthca_cmd_poll(struct mthca_dev *dev,
 		goto out;
 	}
 
-	if (out_is_imm) {
-		memcpy_fromio(out_param, dev->hcr + HCR_OUT_PARAM_OFFSET, sizeof (u64));
-		be64_to_cpus(out_param);
-	}
+	if (out_is_imm)
+		*out_param = 
+			(u64) be32_to_cpu((__force __be32)
+					  __raw_readl(dev->hcr + HCR_OUT_PARAM_OFFSET)) << 32 |
+			(u64) be32_to_cpu((__force __be32)
+					  __raw_readl(dev->hcr + HCR_OUT_PARAM_OFFSET + 4));
 
-	*status = be32_to_cpu(__raw_readl(dev->hcr + HCR_STATUS_OFFSET)) >> 24;
+	*status = be32_to_cpu((__force __be32) __raw_readl(dev->hcr + HCR_STATUS_OFFSET)) >> 24;
 
 out:
 	up(&dev->cmd.poll_sem);
@@ -1122,7 +1124,7 @@ int mthca_INIT_HCA(struct mthca_dev *dev,
 		   u8 *status)
 {
 	struct mthca_mailbox *mailbox;
-	u32 *inbox;
+	__be32 *inbox;
 	int err;
 
 #define INIT_HCA_IN_SIZE             	 0x200
@@ -1343,7 +1345,7 @@ int mthca_MAP_ICM(struct mthca_dev *dev, struct mthca_icm *icm, u64 virt, u8 *st
 int mthca_MAP_ICM_page(struct mthca_dev *dev, u64 dma_addr, u64 virt, u8 *status)
 {
 	struct mthca_mailbox *mailbox;
-	u64 *inbox;
+	__be64 *inbox;
 	int err;
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
@@ -1514,7 +1516,7 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 				if (i % 8 == 0)
 					printk("  [%02x] ", i * 4);
 				printk(" %08x",
-				       be32_to_cpu(((u32 *) mailbox->buf)[i + 2]));
+				       be32_to_cpu(((__be32 *) mailbox->buf)[i + 2]));
 				if ((i + 1) % 8 == 0)
 					printk("\n");
 			}
@@ -1534,7 +1536,7 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 				if (i % 8 == 0)
 					printk("[%02x] ", i * 4);
 				printk(" %08x",
-				       be32_to_cpu(((u32 *) mailbox->buf)[i + 2]));
+				       be32_to_cpu(((__be32 *) mailbox->buf)[i + 2]));
 				if ((i + 1) % 8 == 0)
 					printk("\n");
 			}

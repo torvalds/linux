@@ -194,7 +194,7 @@ int mthca_process_mad(struct ib_device *ibdev,
 {
 	int err;
 	u8 status;
-	u16 slid = in_wc ? in_wc->slid : IB_LID_PERMISSIVE;
+	u16 slid = in_wc ? in_wc->slid : be16_to_cpu(IB_LID_PERMISSIVE);
 
 	/* Forward locally generated traps to the SM */
 	if (in_mad->mad_hdr.method == IB_MGMT_METHOD_TRAP &&

@@ -482,7 +482,7 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
 	}
 }
 
-int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, u32 **db)
+int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, __be32 **db)
 {
 	int group;
 	int start, end, dir;
@@ -565,7 +565,7 @@ found:
 
 	page->db_rec[j] = cpu_to_be64((qn << 8) | (type << 5));
 
-	*db = (u32 *) &page->db_rec[j];
+	*db = (__be32 *) &page->db_rec[j];
 
 out:
 	up(&dev->db_tab->mutex);

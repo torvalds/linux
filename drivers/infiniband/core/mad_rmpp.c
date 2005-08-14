@@ -61,7 +61,7 @@ struct mad_rmpp_recv {
 	int seg_num;
 	int newwin;
 
-	u64 tid;
+	__be64 tid;
 	u32 src_qp;
 	u16 slid;
 	u8 mgmt_class;

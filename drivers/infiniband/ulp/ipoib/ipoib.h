@@ -90,8 +90,8 @@ enum {
 /* structs */
 
 struct ipoib_header {
-	u16 proto;
-	u16 reserved;
+	__be16	proto;
+	u16	reserved;
 };
 
 struct ipoib_pseudoheader {

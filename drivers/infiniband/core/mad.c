@@ -693,7 +693,8 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 		goto out;
 	}
 
-	build_smp_wc(send_wr->wr_id, smp->dr_slid, send_wr->wr.ud.pkey_index,
+	build_smp_wc(send_wr->wr_id, be16_to_cpu(smp->dr_slid),
+		     send_wr->wr.ud.pkey_index,
 		     send_wr->wr.ud.port_num, &mad_wc);
 
 	/* No GRH for DR SMP */
@@ -1554,7 +1555,7 @@ static int is_data_mad(struct ib_mad_agent_private *mad_agent_priv,
 }
 
 struct ib_mad_send_wr_private*
-ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv, u64 tid)
+ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv, __be64 tid)
 {
 	struct ib_mad_send_wr_private *mad_send_wr;
 
@@ -1597,7 +1598,7 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 	struct ib_mad_send_wr_private *mad_send_wr;
 	struct ib_mad_send_wc mad_send_wc;
 	unsigned long flags;
-	u64 tid;
+	__be64 tid;
 
 	INIT_LIST_HEAD(&mad_recv_wc->rmpp_list);
 	list_add(&mad_recv_wc->recv_buf.list, &mad_recv_wc->rmpp_list);
@@ -2165,7 +2166,8 @@ static void local_completions(void *data)
 			 * Defined behavior is to complete response
 			 * before request
 			 */
-			build_smp_wc(local->wr_id, IB_LID_PERMISSIVE,
+			build_smp_wc(local->wr_id,
+				     be16_to_cpu(IB_LID_PERMISSIVE),
 				     0 /* pkey index */,
 				     recv_mad_agent->agent.port_num, &wc);
 

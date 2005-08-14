@@ -333,14 +333,13 @@ extern void __buggy_use_of_MTHCA_PUT(void);
 
 #define MTHCA_PUT(dest, source, offset)                               \
 	do {                                                          \
-		__typeof__(source) *__p =                             \
-			(__typeof__(source) *) ((char *) (dest) + (offset)); \
+		void *__d = ((char *) (dest) + (offset));	      \
 		switch (sizeof(source)) {                             \
-			case 1: *__p = (source);            break;    \
-			case 2: *__p = cpu_to_be16(source); break;    \
-			case 4: *__p = cpu_to_be32(source); break;    \
-			case 8: *__p = cpu_to_be64(source); break;    \
-			default: __buggy_use_of_MTHCA_PUT();          \
+		case 1: *(u8 *) __d = (source);                break; \
+		case 2:	*(__be16 *) __d = cpu_to_be16(source); break; \
+		case 4:	*(__be32 *) __d = cpu_to_be32(source); break; \
+		case 8:	*(__be64 *) __d = cpu_to_be64(source); break; \
+		default: __buggy_use_of_MTHCA_PUT();		      \
 		}                                                     \
 	} while (0)
 
@@ -435,7 +434,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 int mthca_arbel_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			     struct ib_recv_wr **bad_wr);
 int mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
-		       int index, int *dbd, u32 *new_wqe);
+		       int index, int *dbd, __be32 *new_wqe);
 int mthca_alloc_qp(struct mthca_dev *dev,
 		   struct mthca_pd *pd,
 		   struct mthca_cq *send_cq,

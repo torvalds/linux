@@ -58,13 +58,13 @@ static inline void mthca_write64_raw(__be64 val, void __iomem *dest)
 	__raw_writeq((__force u64) val, dest);
 }
 
-static inline void mthca_write64(u32 val[2], void __iomem *dest,
+static inline void mthca_write64(__be32 val[2], void __iomem *dest,
 				 spinlock_t *doorbell_lock)
 {
 	__raw_writeq(*(u64 *) val, dest);
 }
 
-static inline void mthca_write_db_rec(u32 val[2], u32 *db)
+static inline void mthca_write_db_rec(__be32 val[2], __be32 *db)
 {
 	*(u64 *) db = *(u64 *) val;
 }
@@ -87,18 +87,18 @@ static inline void mthca_write64_raw(__be64 val, void __iomem *dest)
 	__raw_writel(((__force u32 *) &val)[1], dest + 4);
 }
 
-static inline void mthca_write64(u32 val[2], void __iomem *dest,
+static inline void mthca_write64(__be32 val[2], void __iomem *dest,
 				 spinlock_t *doorbell_lock)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(doorbell_lock, flags);
-	__raw_writel(val[0], dest);
-	__raw_writel(val[1], dest + 4);
+	__raw_writel((__force u32) val[0], dest);
+	__raw_writel((__force u32) val[1], dest + 4);
 	spin_unlock_irqrestore(doorbell_lock, flags);
 }
 
-static inline void mthca_write_db_rec(u32 val[2], u32 *db)
+static inline void mthca_write_db_rec(__be32 val[2], __be32 *db)
 {
 	db[0] = val[0];
 	wmb();

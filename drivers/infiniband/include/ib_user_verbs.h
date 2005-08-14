@@ -143,8 +143,8 @@ struct ib_uverbs_query_device {
 
 struct ib_uverbs_query_device_resp {
 	__u64 fw_ver;
-	__u64 node_guid;
-	__u64 sys_image_guid;
+	__be64 node_guid;
+	__be64 sys_image_guid;
 	__u64 max_mr_size;
 	__u64 page_size_cap;
 	__u32 vendor_id;

@@ -111,12 +111,12 @@ struct ib_mad_hdr {
 	u8	mgmt_class;
 	u8	class_version;
 	u8	method;
-	u16	status;
-	u16	class_specific;
-	u64	tid;
-	u16	attr_id;
-	u16	resv;
-	u32	attr_mod;
+	__be16	status;
+	__be16	class_specific;
+	__be64	tid;
+	__be16	attr_id;
+	__be16	resv;
+	__be32	attr_mod;
 };
 
 struct ib_rmpp_hdr {
@@ -124,8 +124,8 @@ struct ib_rmpp_hdr {
 	u8	rmpp_type;
 	u8	rmpp_rtime_flags;
 	u8	rmpp_status;
-	u32	seg_num;
-	u32	paylen_newwin;
+	__be32	seg_num;
+	__be32	paylen_newwin;
 };
 
 typedef u64 __bitwise ib_sa_comp_mask;
@@ -139,9 +139,9 @@ typedef u64 __bitwise ib_sa_comp_mask;
  * the wire so we can't change the layout)
  */
 struct ib_sa_hdr {
-	u64			sm_key;
-	u16			attr_offset;
-	u16			reserved;
+	__be64			sm_key;
+	__be16			attr_offset;
+	__be16			reserved;
 	ib_sa_comp_mask		comp_mask;
 } __attribute__ ((packed));
 

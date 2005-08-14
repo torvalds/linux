@@ -51,8 +51,8 @@
 union ib_gid {
 	u8	raw[16];
 	struct {
-		u64	subnet_prefix;
-		u64	interface_id;
+		__be64	subnet_prefix;
+		__be64	interface_id;
 	} global;
 };
 
@@ -88,8 +88,8 @@ enum ib_atomic_cap {
 
 struct ib_device_attr {
 	u64			fw_ver;
-	u64			node_guid;
-	u64			sys_image_guid;
+	__be64			node_guid;
+	__be64			sys_image_guid;
 	u64			max_mr_size;
 	u64			page_size_cap;
 	u32			vendor_id;
@@ -291,8 +291,8 @@ struct ib_global_route {
 };
 
 struct ib_grh {
-	u32		version_tclass_flow;
-	u16		paylen;
+	__be32		version_tclass_flow;
+	__be16		paylen;
 	u8		next_hdr;
 	u8		hop_limit;
 	union ib_gid	sgid;
@@ -302,6 +302,8 @@ struct ib_grh {
 enum {
 	IB_MULTICAST_QPN = 0xffffff
 };
+
+#define IB_LID_PERMISSIVE	__constant_htons(0xFFFF)
 
 enum ib_ah_flags {
 	IB_AH_GRH	= 1

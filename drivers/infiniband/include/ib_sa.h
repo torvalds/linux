@@ -133,16 +133,16 @@ struct ib_sa_path_rec {
 	/* reserved */
 	union ib_gid dgid;
 	union ib_gid sgid;
-	u16          dlid;
-	u16          slid;
+	__be16       dlid;
+	__be16       slid;
 	int          raw_traffic;
 	/* reserved */
-	u32          flow_label;
+	__be32       flow_label;
 	u8           hop_limit;
 	u8           traffic_class;
 	int          reversible;
 	u8           numb_path;
-	u16          pkey;
+	__be16       pkey;
 	/* reserved */
 	u8           sl;
 	u8           mtu_selector;
@@ -176,18 +176,18 @@ struct ib_sa_path_rec {
 struct ib_sa_mcmember_rec {
 	union ib_gid mgid;
 	union ib_gid port_gid;
-	u32          qkey;
-	u16          mlid;
+	__be32       qkey;
+	__be16       mlid;
 	u8           mtu_selector;
 	u8           mtu;
 	u8           traffic_class;
-	u16          pkey;
+	__be16       pkey;
 	u8 	     rate_selector;
 	u8 	     rate;
 	u8 	     packet_life_time_selector;
 	u8 	     packet_life_time;
 	u8           sl;
-	u32          flow_label;
+	__be32       flow_label;
 	u8           hop_limit;
 	u8           scope;
 	u8           join_state;
@@ -238,7 +238,7 @@ struct ib_sa_mcmember_rec {
 struct ib_sa_service_rec {
 	u64		id;
 	union ib_gid	gid;
-	u16 		pkey;
+	__be16 		pkey;
 	/* reserved */
 	u32		lease;
 	u8		key[16];
