@@ -162,7 +162,8 @@ static inline enum spi_signal_type spi_signal_to_value(const char *name)
 	return SPI_SIGNAL_UNKNOWN;
 }
 
-static int spi_host_setup(struct device *dev)
+static int spi_host_setup(struct transport_container *tc, struct device *dev,
+			  struct class_device *cdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
 
@@ -196,7 +197,9 @@ static int spi_host_match(struct attribute_container *cont,
 	return &i->t.host_attrs.ac == cont;
 }
 
-static int spi_device_configure(struct device *dev)
+static int spi_device_configure(struct transport_container *tc,
+				struct device *dev,
+				struct class_device *cdev)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct scsi_target *starget = sdev->sdev_target;
@@ -214,7 +217,9 @@ static int spi_device_configure(struct device *dev)
 	return 0;
 }
 
-static int spi_setup_transport_attrs(struct device *dev)
+static int spi_setup_transport_attrs(struct transport_container *tc,
+				     struct device *dev,
+				     struct class_device *cdev)
 {
 	struct scsi_target *starget = to_scsi_target(dev);
 

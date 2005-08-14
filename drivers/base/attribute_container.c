@@ -58,6 +58,7 @@ attribute_container_register(struct attribute_container *cont)
 {
 	INIT_LIST_HEAD(&cont->node);
 	INIT_LIST_HEAD(&cont->containers);
+	spin_lock_init(&cont->containers_lock);
 		
 	down(&attribute_container_mutex);
 	list_add_tail(&cont->node, &attribute_container_list);
@@ -77,11 +78,13 @@ attribute_container_unregister(struct attribute_container *cont)
 {
 	int retval = -EBUSY;
 	down(&attribute_container_mutex);
+	spin_lock(&cont->containers_lock);
 	if (!list_empty(&cont->containers))
 		goto out;
 	retval = 0;
 	list_del(&cont->node);
  out:
+	spin_unlock(&cont->containers_lock);
 	up(&attribute_container_mutex);
 	return retval;
 		
@@ -151,7 +154,9 @@ attribute_container_add_device(struct device *dev,
 			fn(cont, dev, &ic->classdev);
 		else
 			attribute_container_add_class_device(&ic->classdev);
+		spin_lock(&cont->containers_lock);
 		list_add_tail(&ic->node, &cont->containers);
+		spin_unlock(&cont->containers_lock);
 	}
 	up(&attribute_container_mutex);
 }
@@ -189,6 +194,7 @@ attribute_container_remove_device(struct device *dev,
 
 		if (!cont->match(cont, dev))
 			continue;
+		spin_lock(&cont->containers_lock);
 		list_for_each_entry_safe(ic, tmp, &cont->containers, node) {
 			if (dev != ic->classdev.dev)
 				continue;
@@ -200,6 +206,7 @@ attribute_container_remove_device(struct device *dev,
 				class_device_unregister(&ic->classdev);
 			}
 		}
+		spin_unlock(&cont->containers_lock);
 	}
 	up(&attribute_container_mutex);
 }
@@ -230,10 +237,12 @@ attribute_container_device_trigger(struct device *dev,
 		if (!cont->match(cont, dev))
 			continue;
 
+		spin_lock(&cont->containers_lock);
 		list_for_each_entry_safe(ic, tmp, &cont->containers, node) {
 			if (dev == ic->classdev.dev)
 				fn(cont, dev, &ic->classdev);
 		}
+		spin_unlock(&cont->containers_lock);
 	}
 	up(&attribute_container_mutex);
 }
@@ -367,6 +376,35 @@ attribute_container_class_device_del(struct class_device *classdev)
 	class_device_del(classdev);
 }
 EXPORT_SYMBOL_GPL(attribute_container_class_device_del);
+
+/**
+ * attribute_container_find_class_device - find the corresponding class_device
+ *
+ * @cont:	the container
+ * @dev:	the generic device
+ *
+ * Looks up the device in the container's list of class devices and returns
+ * the corresponding class_device.
+ */
+struct class_device *
+attribute_container_find_class_device(struct attribute_container *cont,
+				      struct device *dev)
+{
+	struct class_device *cdev = NULL;
+	struct internal_container *ic;
+
+	spin_lock(&cont->containers_lock);
+	list_for_each_entry(ic, &cont->containers, node) {
+		if (ic->classdev.dev == dev) {
+			cdev = &ic->classdev;
+			break;
+		}
+	}
+	spin_unlock(&cont->containers_lock);
+
+	return cdev;
+}
+EXPORT_SYMBOL_GPL(attribute_container_find_class_device);
 
 int __init
 attribute_container_init(void)
