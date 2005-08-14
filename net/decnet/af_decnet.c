@@ -1876,15 +1876,6 @@ static inline unsigned int dn_current_mss(struct sock *sk, int flags)
 	return mss_now;
 }
 
-static int dn_error(struct sock *sk, int flags, int err)
-{
-	if (err == -EPIPE)
-		err = sock_error(sk) ? : -EPIPE;
-	if (err == -EPIPE && !(flags & MSG_NOSIGNAL))
-		send_sig(SIGPIPE, current, 0);
-	return err;
-}
-
 static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 	   struct msghdr *msg, size_t size)
 {
@@ -2045,7 +2036,7 @@ out:
 	return sent ? sent : err;
 
 out_err:
-	err = dn_error(sk, flags, err);
+	err = sk_stream_error(sk, flags, err);
 	release_sock(sk);
 	return err;
 }
