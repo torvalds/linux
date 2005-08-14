@@ -782,15 +782,11 @@ void ipoib_dev_cleanup(struct net_device *dev)
 
 	ipoib_ib_dev_cleanup(dev);
 
-	if (priv->rx_ring) {
-		kfree(priv->rx_ring);
-		priv->rx_ring = NULL;
-	}
+	kfree(priv->rx_ring);
+	kfree(priv->tx_ring);
 
-	if (priv->tx_ring) {
-		kfree(priv->tx_ring);
-		priv->tx_ring = NULL;
-	}
+	priv->rx_ring = NULL;
+	priv->tx_ring = NULL;
 }
 
 static void ipoib_setup(struct net_device *dev)
