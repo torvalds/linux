@@ -120,6 +120,7 @@ struct spi_function_template {
 	void	(*set_hold_mcs)(struct scsi_target *, int);
 	void	(*get_signalling)(struct Scsi_Host *);
 	void	(*set_signalling)(struct Scsi_Host *, enum spi_signal_type);
+	int	(*deny_binding)(struct scsi_target *);
 	/* The driver sets these to tell the transport class it
 	 * wants the attributes displayed in sysfs.  If the show_ flag
 	 * is not set, the attribute will be private to the transport

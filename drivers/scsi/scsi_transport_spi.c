@@ -1082,6 +1082,7 @@ static int spi_device_match(struct attribute_container *cont,
 {
 	struct scsi_device *sdev;
 	struct Scsi_Host *shost;
+	struct spi_internal *i;
 
 	if (!scsi_is_sdev_device(dev))
 		return 0;
@@ -1094,6 +1095,9 @@ static int spi_device_match(struct attribute_container *cont,
 	/* Note: this class has no device attributes, so it has
 	 * no per-HBA allocation and thus we don't need to distinguish
 	 * the attribute containers for the device */
+	i = to_spi_internal(shost->transportt);
+	if (i->f->deny_binding && i->f->deny_binding(sdev->sdev_target))
+		return 0;
 	return 1;
 }
 
@@ -1101,6 +1105,7 @@ static int spi_target_match(struct attribute_container *cont,
 			    struct device *dev)
 {
 	struct Scsi_Host *shost;
+	struct scsi_target *starget;
 	struct spi_internal *i;
 
 	if (!scsi_is_target_device(dev))
@@ -1112,7 +1117,11 @@ static int spi_target_match(struct attribute_container *cont,
 		return 0;
 
 	i = to_spi_internal(shost->transportt);
-	
+	starget = to_scsi_target(dev);
+
+	if (i->f->deny_binding && i->f->deny_binding(starget))
+		return 0;
+
 	return &i->t.target_attrs.ac == cont;
 }
 
