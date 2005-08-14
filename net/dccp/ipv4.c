@@ -617,9 +617,6 @@ out:
 	sock_put(sk);
 }
 
-extern struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
-				       enum dccp_reset_codes code);
-
 int dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code)
 {
 	struct sk_buff *skb;
@@ -881,7 +878,7 @@ static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
 	return &rt->u.dst;
 }
 
-void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
+static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 {
 	int err;
 	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
@@ -1268,7 +1265,7 @@ static int dccp_v4_init_sock(struct sock *sk)
 	return 0;
 }
 
-int dccp_v4_destroy_sock(struct sock *sk)
+static int dccp_v4_destroy_sock(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 

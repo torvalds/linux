@@ -82,12 +82,13 @@ enum ccid3_options {
 
 static int ccid3_debug;
 
-struct dccp_tx_hist *ccid3_tx_hist;
-struct dccp_rx_hist *ccid3_rx_hist;
+static struct dccp_tx_hist *ccid3_tx_hist;
+static struct dccp_rx_hist *ccid3_rx_hist;
 
 static kmem_cache_t *ccid3_loss_interval_hist_slab;
 
-static inline struct ccid3_loss_interval_hist_entry *ccid3_loss_interval_hist_entry_new(int prio)
+static inline struct ccid3_loss_interval_hist_entry *
+	ccid3_loss_interval_hist_entry_new(const unsigned int __nocast prio)
 {
 	return kmem_cache_alloc(ccid3_loss_interval_hist_slab, prio);
 }
@@ -1593,7 +1594,9 @@ static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
  * These are integers as per section 8 of RFC3448. We can then divide by 4 *
  * when we use it.
  */
-const int ccid3_hc_rx_w[TFRC_RECV_IVAL_F_LENGTH] = { 4, 4, 4, 4, 3, 2, 1, 1, };
+static const int ccid3_hc_rx_w[TFRC_RECV_IVAL_F_LENGTH] = {
+	4, 4, 4, 4, 3, 2, 1, 1,
+};
 
 /*
  * args: fvalue - function value to match
@@ -1601,7 +1604,7 @@ const int ccid3_hc_rx_w[TFRC_RECV_IVAL_F_LENGTH] = { 4, 4, 4, 4, 3, 2, 1, 1, };
  *
  * both fvalue and p are multiplied by 1,000,000 to use ints
  */
-u32 calcx_reverse_lookup(u32 fvalue) {
+static u32 calcx_reverse_lookup(u32 fvalue) {
 	int ctr = 0;
 	int small;
 

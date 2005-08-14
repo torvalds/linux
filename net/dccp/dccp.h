@@ -231,19 +231,22 @@ extern void		dccp_close(struct sock *sk, long timeout);
 extern struct sk_buff	*dccp_make_response(struct sock *sk,
 					    struct dst_entry *dst,
 					    struct request_sock *req);
+extern struct sk_buff	*dccp_make_reset(struct sock *sk,
+					 struct dst_entry *dst,
+					 enum dccp_reset_codes code);
 
 extern int	   dccp_connect(struct sock *sk);
 extern int	   dccp_disconnect(struct sock *sk, int flags);
 extern int	   dccp_getsockopt(struct sock *sk, int level, int optname,
-				   char *optval, int *optlen);
+				   char __user *optval, int __user *optlen);
+extern int	   dccp_setsockopt(struct sock *sk, int level, int optname,
+				   char __user *optval, int optlen);
 extern int	   dccp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 extern int	   dccp_sendmsg(struct kiocb *iocb, struct sock *sk,
 				struct msghdr *msg, size_t size);
 extern int	   dccp_recvmsg(struct kiocb *iocb, struct sock *sk,
 				struct msghdr *msg, size_t len, int nonblock,
 				int flags, int *addr_len);
-extern int	   dccp_setsockopt(struct sock *sk, int level, int optname,
-				   char *optval, int optlen);
 extern void	   dccp_shutdown(struct sock *sk, int how);
 
 extern int	   dccp_v4_checksum(const struct sk_buff *skb,
@@ -419,7 +422,9 @@ struct dccp_ackpkts {
 	u8			dccpap_buf[0];
 };
 
-extern struct dccp_ackpkts *dccp_ackpkts_alloc(unsigned int len, int priority);
+extern struct dccp_ackpkts *
+		dccp_ackpkts_alloc(unsigned int len,
+				  const unsigned int __nocast priority);
 extern void dccp_ackpkts_free(struct dccp_ackpkts *ap);
 extern int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state);
 extern void dccp_ackpkts_check_rcv_ackno(struct dccp_ackpkts *ap,

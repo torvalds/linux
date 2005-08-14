@@ -79,8 +79,8 @@ extern struct dccp_rx_hist_entry *
 		dccp_rx_hist_find_data_packet(const struct list_head *list);
 
 static inline struct dccp_tx_hist_entry *
-			dccp_tx_hist_entry_new(struct dccp_tx_hist *hist,
-					       const int prio)
+		dccp_tx_hist_entry_new(struct dccp_tx_hist *hist,
+				       const unsigned int __nocast prio)
 {
 	struct dccp_tx_hist_entry *entry = kmem_cache_alloc(hist->dccptxh_slab,
 							    prio);
@@ -127,10 +127,10 @@ static inline struct dccp_tx_hist_entry *
 }
 
 static inline struct dccp_rx_hist_entry *
-			     dccp_rx_hist_entry_new(struct dccp_rx_hist *hist,
-					     	    const u32 ndp, 
-						    const struct sk_buff *skb,
-						    const int prio)
+		     dccp_rx_hist_entry_new(struct dccp_rx_hist *hist,
+				     	    const u32 ndp, 
+					    const struct sk_buff *skb,
+					    const unsigned int __nocast prio)
 {
 	struct dccp_rx_hist_entry *entry = kmem_cache_alloc(hist->dccprxh_slab,
 							    prio);

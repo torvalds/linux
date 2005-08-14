@@ -147,7 +147,7 @@ int dccp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 }
 
 int dccp_setsockopt(struct sock *sk, int level, int optname,
-		    char *optval, int optlen)
+		    char __user *optval, int optlen)
 {
 	dccp_pr_debug("entry\n");
 
@@ -158,7 +158,7 @@ int dccp_setsockopt(struct sock *sk, int level, int optname,
 }
 
 int dccp_getsockopt(struct sock *sk, int level, int optname,
-		    char *optval, int *optlen)
+		    char __user *optval, int __user *optlen)
 {
 	dccp_pr_debug("entry\n");
 
@@ -439,7 +439,7 @@ void dccp_shutdown(struct sock *sk, int how)
 	dccp_pr_debug("entry\n");
 }
 
-struct proto_ops inet_dccp_ops = {
+static struct proto_ops inet_dccp_ops = {
 	.family		= PF_INET,
 	.owner		= THIS_MODULE,
 	.release	= inet_release,
@@ -539,9 +539,11 @@ static int thash_entries;
 module_param(thash_entries, int, 0444);
 MODULE_PARM_DESC(thash_entries, "Number of ehash buckets");
 
+#ifdef CONFIG_IP_DCCP_DEBUG
 int dccp_debug;
 module_param(dccp_debug, int, 0444);
 MODULE_PARM_DESC(dccp_debug, "Enable debug messages");
+#endif
 
 static int __init dccp_init(void)
 {

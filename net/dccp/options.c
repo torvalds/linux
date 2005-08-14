@@ -499,7 +499,8 @@ void dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
-struct dccp_ackpkts *dccp_ackpkts_alloc(unsigned int len, int priority)
+struct dccp_ackpkts *dccp_ackpkts_alloc(const unsigned int len,
+				        const unsigned int __nocast priority)
 {
 	struct dccp_ackpkts *ap = kmalloc(sizeof(*ap) + len, priority);
 
