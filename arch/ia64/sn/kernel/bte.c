@@ -105,7 +105,7 @@ bte_result_t bte_copy(u64 src, u64 dest, u64 len, u64 mode, void *notification)
 	/*
 	 * Start with interface corresponding to cpu number
 	 */
-	bte_first = get_cpu() % btes_per_node;
+	bte_first = raw_smp_processor_id() % btes_per_node;
 
 	if (mode & BTE_USE_DEST) {
 		/* try remote then local */
