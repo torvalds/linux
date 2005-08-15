@@ -382,8 +382,7 @@ sanitize:
 			goto sanitize;
 		}
 		spin_unlock_irqrestore (&ohci->lock, flags);
-		set_current_state (TASK_UNINTERRUPTIBLE);
-		schedule_timeout (1);
+		schedule_timeout_uninterruptible(1);
 		goto rescan;
 	case ED_IDLE:		/* fully unlinked */
 		if (list_empty (&ed->td_list)) {

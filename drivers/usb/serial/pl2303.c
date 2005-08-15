@@ -652,8 +652,7 @@ static void pl2303_close (struct usb_serial_port *port, struct file *filp)
 		timeout = max((HZ*2560)/bps,HZ/10);
 	else
 		timeout = 2*HZ;
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(timeout);
+	schedule_timeout_interruptible(timeout);
 
 	/* shutdown our urbs */
 	dbg("%s - shutting down urbs", __FUNCTION__);

@@ -1147,8 +1147,7 @@ rescan:
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 idle_timeout:
 		spin_unlock_irqrestore (&ehci->lock, flags);
-		set_current_state (TASK_UNINTERRUPTIBLE);
-		schedule_timeout (1);
+		schedule_timeout_uninterruptible(1);
 		goto rescan;
 	case QH_STATE_IDLE:		/* fully unlinked */
 		if (list_empty (&qh->qtd_list)) {

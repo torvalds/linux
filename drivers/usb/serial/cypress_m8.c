@@ -610,8 +610,7 @@ static void cypress_close(struct usb_serial_port *port, struct file * filp)
 		timeout = max((HZ*2560)/bps,HZ/10);
 	else
 		timeout = 2*HZ;
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(timeout);
+	schedule_timeout_interruptible(timeout);
 
 	dbg("%s - stopping urbs", __FUNCTION__);
 	usb_kill_urb (port->interrupt_in_urb);
