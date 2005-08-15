@@ -459,7 +459,7 @@ int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 static void mthca_free_region(struct mthca_dev *dev, u32 lkey)
 {
 	mthca_table_put(dev, dev->mr_table.mpt_table,
-			arbel_key_to_hw_index(lkey));
+			key_to_hw_index(dev, lkey));
 
 	mthca_free(&dev->mr_table.mpt_alloc, key_to_hw_index(dev, lkey));
 }
