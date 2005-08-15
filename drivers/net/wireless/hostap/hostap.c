@@ -597,8 +597,8 @@ void hostap_dump_rx_header(const char *name, const struct hfa384x_rx_frame *rx)
 	       fc, WLAN_FC_GET_TYPE(fc) >> 2, WLAN_FC_GET_STYPE(fc) >> 4,
 	       __le16_to_cpu(rx->duration_id), __le16_to_cpu(rx->seq_ctrl),
 	       __le16_to_cpu(rx->data_len),
-	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
-	       fc & WLAN_FC_FROMDS ? " [FromDS]" : "");
+	       fc & IEEE80211_FCTL_TODS ? " [ToDS]" : "",
+	       fc & IEEE80211_FCTL_FROMDS ? " [FromDS]" : "");
 
 	printk(KERN_DEBUG "   A1=" MACSTR " A2=" MACSTR " A3=" MACSTR " A4="
 	       MACSTR "\n",
@@ -626,8 +626,8 @@ void hostap_dump_tx_header(const char *name, const struct hfa384x_tx_frame *tx)
 	       fc, WLAN_FC_GET_TYPE(fc) >> 2, WLAN_FC_GET_STYPE(fc) >> 4,
 	       __le16_to_cpu(tx->duration_id), __le16_to_cpu(tx->seq_ctrl),
 	       __le16_to_cpu(tx->data_len),
-	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
-	       fc & WLAN_FC_FROMDS ? " [FromDS]" : "");
+	       fc & IEEE80211_FCTL_TODS ? " [ToDS]" : "",
+	       fc & IEEE80211_FCTL_FROMDS ? " [FromDS]" : "");
 
 	printk(KERN_DEBUG "   A1=" MACSTR " A2=" MACSTR " A3=" MACSTR " A4="
 	       MACSTR "\n",
@@ -668,7 +668,7 @@ int hostap_80211_get_hdrlen(u16 fc)
 
 	switch (WLAN_FC_GET_TYPE(fc)) {
 	case IEEE80211_FTYPE_DATA:
-		if ((fc & WLAN_FC_FROMDS) && (fc & WLAN_FC_TODS))
+		if ((fc & IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS))
 			hdrlen = 30; /* Addr4 */
 		break;
 	case IEEE80211_FTYPE_CTL:

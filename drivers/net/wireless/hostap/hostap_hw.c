@@ -1844,7 +1844,8 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 	memcpy(&txdesc.frame_control, skb->data, hdr_len);
  	fc = le16_to_cpu(txdesc.frame_control);
 	if (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA &&
-	    (fc & WLAN_FC_FROMDS) && (fc & WLAN_FC_TODS) && skb->len >= 30) {
+	    (fc & IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS) &&
+	    skb->len >= 30) {
 		/* Addr4 */
 		memcpy(txdesc.addr4, skb->data + hdr_len, ETH_ALEN);
 		hdr_len += ETH_ALEN;
@@ -2399,8 +2400,8 @@ static void prism2_txexc(local_info_t *local)
 	       WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_CTL ? "Ctrl" : "",
 	       WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA ? "Data" : "",
 	       WLAN_FC_GET_STYPE(fc) >> 4,
-	       fc & WLAN_FC_TODS ? " ToDS" : "",
-	       fc & WLAN_FC_FROMDS ? " FromDS" : "");
+	       fc & IEEE80211_FCTL_TODS ? " ToDS" : "",
+	       fc & IEEE80211_FCTL_FROMDS ? " FromDS" : "");
 	PDEBUG(DEBUG_EXTRA, "   A1=" MACSTR " A2=" MACSTR " A3="
 	       MACSTR " A4=" MACSTR "\n",
 	       MAC2STR(txdesc.addr1), MAC2STR(txdesc.addr2),

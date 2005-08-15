@@ -9,16 +9,6 @@
 
 /* IEEE 802.11 defines */
 
-#define WLAN_FC_PVER (BIT(1) | BIT(0))
-#define WLAN_FC_TODS BIT(8)
-#define WLAN_FC_FROMDS BIT(9)
-#define WLAN_FC_MOREFRAG BIT(10)
-#define WLAN_FC_RETRY BIT(11)
-#define WLAN_FC_PWRMGT BIT(12)
-#define WLAN_FC_MOREDATA BIT(13)
-#define WLAN_FC_ISWEP BIT(14)
-#define WLAN_FC_ORDER BIT(15)
-
 /* Information Element IDs */
 #define WLAN_EID_SSID 0
 #define WLAN_EID_SUPP_RATES 1

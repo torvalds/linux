@@ -14,8 +14,8 @@ void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 	fc = le16_to_cpu(hdr->frame_ctl);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d)%s%s",
 	       fc, WLAN_FC_GET_TYPE(fc) >> 2, WLAN_FC_GET_STYPE(fc) >> 4,
-	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
-	       fc & WLAN_FC_FROMDS ? " [FromDS]" : "");
+	       fc & IEEE80211_FCTL_TODS ? " [ToDS]" : "",
+	       fc & IEEE80211_FCTL_FROMDS ? " [FromDS]" : "");
 
 	if (skb->len < IEEE80211_DATA_HDR3_LEN) {
 		printk("\n");
@@ -128,7 +128,7 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * frame format */
 
 		if (use_wds == WDS_COMPLIANT_FRAME) {
-			fc |= WLAN_FC_FROMDS | WLAN_FC_TODS;
+			fc |= IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS;
 			/* From&To DS: Addr1 = RA, Addr2 = TA, Addr3 = DA,
 			 * Addr4 = SA */
 			memcpy(&hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
@@ -136,7 +136,7 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		} else {
 			/* bogus 4-addr format to workaround Prism2 station
 			 * f/w bug */
-			fc |= WLAN_FC_TODS;
+			fc |= IEEE80211_FCTL_TODS;
 			/* From DS: Addr1 = DA (used as RA),
 			 * Addr2 = BSSID (used as TA), Addr3 = SA (used as DA),
 			 */
@@ -161,13 +161,13 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		memcpy(&hdr.addr2, dev->dev_addr, ETH_ALEN);
 		memcpy(&hdr.addr3, skb->data, ETH_ALEN);
 	} else if (local->iw_mode == IW_MODE_MASTER && !to_assoc_ap) {
-		fc |= WLAN_FC_FROMDS;
+		fc |= IEEE80211_FCTL_FROMDS;
 		/* From DS: Addr1 = DA, Addr2 = BSSID, Addr3 = SA */
 		memcpy(&hdr.addr1, skb->data, ETH_ALEN);
 		memcpy(&hdr.addr2, dev->dev_addr, ETH_ALEN);
 		memcpy(&hdr.addr3, skb->data + ETH_ALEN, ETH_ALEN);
 	} else if (local->iw_mode == IW_MODE_INFRA || to_assoc_ap) {
-		fc |= WLAN_FC_TODS;
+		fc |= IEEE80211_FCTL_TODS;
 		/* To DS: Addr1 = BSSID, Addr2 = SA, Addr3 = DA */
 		memcpy(&hdr.addr1, to_assoc_ap ?
 		       local->assoc_ap_addr : local->bssid, ETH_ALEN);
@@ -439,12 +439,12 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Request TX callback if protocol version is 2 in 802.11 header;
 	 * this version 2 is a special case used between hostapd and kernel
 	 * driver */
-	if (((fc & WLAN_FC_PVER) == BIT(1)) &&
+	if (((fc & IEEE80211_FCTL_VERS) == BIT(1)) &&
 	    local->ap && local->ap->tx_callback_idx && meta->tx_cb_idx == 0) {
 		meta->tx_cb_idx = local->ap->tx_callback_idx;
 
 		/* remove special version from the frame header */
-		fc &= ~WLAN_FC_PVER;
+		fc &= ~IEEE80211_FCTL_VERS;
 		hdr->frame_ctl = cpu_to_le16(fc);
 	}
 
@@ -454,7 +454,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (local->ieee_802_1x && meta->ethertype == ETH_P_PAE && tx.crypt &&
-	    !(fc & WLAN_FC_ISWEP)) {
+	    !(fc & IEEE80211_FCTL_VERS)) {
 		no_encrypt = 1;
 		PDEBUG(DEBUG_EXTRA2, "%s: TX: IEEE 802.1X - passing "
 		       "unencrypted EAPOL frame\n", dev->name);
@@ -466,7 +466,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	else if ((tx.crypt || local->crypt[local->tx_keyidx]) && !no_encrypt) {
 		/* Add ISWEP flag both for firmware and host based encryption
 		 */
-		fc |= WLAN_FC_ISWEP;
+		fc |= IEEE80211_FCTL_WEP;
 		hdr->frame_ctl = cpu_to_le16(fc);
 	} else if (local->drop_unencrypted &&
 		   WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA &&

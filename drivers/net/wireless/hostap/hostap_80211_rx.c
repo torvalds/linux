@@ -22,8 +22,8 @@ void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 	fc = le16_to_cpu(hdr->frame_ctl);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d)%s%s",
 	       fc, WLAN_FC_GET_TYPE(fc) >> 2, WLAN_FC_GET_STYPE(fc) >> 4,
-	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
-	       fc & WLAN_FC_FROMDS ? " [FromDS]" : "");
+	       fc & IEEE80211_FCTL_TODS ? " [ToDS]" : "",
+	       fc & IEEE80211_FCTL_FROMDS ? " [FromDS]" : "");
 
 	if (skb->len < IEEE80211_DATA_HDR3_LEN) {
 		printk("\n");
@@ -73,9 +73,9 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 
-	if (type == PRISM2_RX_MGMT && (fc & WLAN_FC_PVER)) {
+	if (type == PRISM2_RX_MGMT && (fc & IEEE80211_FCTL_VERS)) {
 		printk(KERN_DEBUG "%s: dropped management frame with header "
-		       "version %d\n", dev->name, fc & WLAN_FC_PVER);
+		       "version %d\n", dev->name, fc & IEEE80211_FCTL_VERS);
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -525,9 +525,9 @@ hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr *hdr,
 {
 	/* FIX: is this really supposed to accept WDS frames only in Master
 	 * mode? What about Repeater or Managed with WDS frames? */
-	if ((fc & (WLAN_FC_TODS | WLAN_FC_FROMDS)) !=
-	    (WLAN_FC_TODS | WLAN_FC_FROMDS) &&
-	    (local->iw_mode != IW_MODE_MASTER || !(fc & WLAN_FC_TODS)))
+	if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) !=
+	    (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS) &&
+	    (local->iw_mode != IW_MODE_MASTER || !(fc & IEEE80211_FCTL_TODS)))
 		return 0; /* not a WDS frame */
 
 	/* Possible WDS frame: either IEEE 802.11 compliant (if FromDS)
@@ -539,14 +539,15 @@ hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr *hdr,
 		/* RA (or BSSID) is not ours - drop */
 		PDEBUG(DEBUG_EXTRA, "%s: received WDS frame with "
 		       "not own or broadcast %s=" MACSTR "\n",
-		       local->dev->name, fc & WLAN_FC_FROMDS ? "RA" : "BSSID",
+		       local->dev->name,
+		       fc & IEEE80211_FCTL_FROMDS ? "RA" : "BSSID",
 		       MAC2STR(hdr->addr1));
 		return -1;
 	}
 
 	/* check if the frame came from a registered WDS connection */
 	*wds = prism2_rx_get_wds(local, hdr->addr2);
-	if (*wds == NULL && fc & WLAN_FC_FROMDS &&
+	if (*wds == NULL && fc & IEEE80211_FCTL_FROMDS &&
 	    (local->iw_mode != IW_MODE_INFRA ||
 	     !(local->wds_type & HOSTAP_WDS_AP_CLIENT) ||
 	     memcmp(hdr->addr2, local->bssid, ETH_ALEN) != 0)) {
@@ -560,7 +561,7 @@ hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr *hdr,
 		return -1;
 	}
 
-	if (*wds && !(fc & WLAN_FC_FROMDS) && local->ap &&
+	if (*wds && !(fc & IEEE80211_FCTL_FROMDS) && local->ap &&
 	    hostap_is_sta_assoc(local->ap, hdr->addr2)) {
 		/* STA is actually associated with us even though it has a
 		 * registered WDS link. Assume it is in 'AP client' mode.
@@ -588,11 +589,13 @@ static int hostap_is_eapol_frame(local_info_t *local, struct sk_buff *skb)
 	fc = le16_to_cpu(hdr->frame_ctl);
 
 	/* check that the frame is unicast frame to us */
-	if ((fc & (WLAN_FC_TODS | WLAN_FC_FROMDS)) == WLAN_FC_TODS &&
+	if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
+	    IEEE80211_FCTL_TODS &&
 	    memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN) == 0 &&
 	    memcmp(hdr->addr3, dev->dev_addr, ETH_ALEN) == 0) {
 		/* ToDS frame with own addr BSSID and DA */
-	} else if ((fc & (WLAN_FC_TODS | WLAN_FC_FROMDS)) == WLAN_FC_FROMDS &&
+	} else if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
+		   IEEE80211_FCTL_FROMDS &&
 		   memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN) == 0) {
 		/* FromDS frame with own addr as DA */
 	} else
@@ -770,7 +773,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 			      crypt->ops->decrypt_mpdu == NULL))
 			crypt = NULL;
 
-		if (!crypt && (fc & WLAN_FC_ISWEP)) {
+		if (!crypt && (fc & IEEE80211_FCTL_WEP)) {
 #if 0
 			/* This seems to be triggered by some (multicast?)
 			 * frames from other than current BSS, so just drop the
@@ -788,7 +791,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	if (type != IEEE80211_FTYPE_DATA) {
 		if (type == IEEE80211_FTYPE_MGMT &&
 		    stype == IEEE80211_STYPE_AUTH &&
-		    fc & WLAN_FC_ISWEP && local->host_decrypt &&
+		    fc & IEEE80211_FCTL_WEP && local->host_decrypt &&
 		    (keyidx = hostap_rx_frame_decrypt(local, skb, crypt)) < 0)
 		{
 			printk(KERN_DEBUG "%s: failed to decrypt mgmt::auth "
@@ -809,16 +812,16 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	if (skb->len < IEEE80211_DATA_HDR3_LEN)
 		goto rx_dropped;
 
-	switch (fc & (WLAN_FC_FROMDS | WLAN_FC_TODS)) {
-	case WLAN_FC_FROMDS:
+	switch (fc & (IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
+	case IEEE80211_FCTL_FROMDS:
 		memcpy(dst, hdr->addr1, ETH_ALEN);
 		memcpy(src, hdr->addr3, ETH_ALEN);
 		break;
-	case WLAN_FC_TODS:
+	case IEEE80211_FCTL_TODS:
 		memcpy(dst, hdr->addr3, ETH_ALEN);
 		memcpy(src, hdr->addr2, ETH_ALEN);
 		break;
-	case WLAN_FC_FROMDS | WLAN_FC_TODS:
+	case IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS:
 		if (skb->len < IEEE80211_DATA_HDR4_LEN)
 			goto rx_dropped;
 		memcpy(dst, hdr->addr3, ETH_ALEN);
@@ -838,7 +841,8 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	}
 
 	if (local->iw_mode == IW_MODE_MASTER && !wds &&
-	    (fc & (WLAN_FC_TODS | WLAN_FC_FROMDS)) == WLAN_FC_FROMDS &&
+	    (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
+	    IEEE80211_FCTL_FROMDS &&
 	    local->stadev &&
 	    memcmp(hdr->addr2, local->assoc_ap_addr, ETH_ALEN) == 0) {
 		/* Frame from BSSID of the AP for which we are a client */
@@ -882,22 +886,22 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 
 	/* skb: hdr + (possibly fragmented, possibly encrypted) payload */
 
-	if (local->host_decrypt && (fc & WLAN_FC_ISWEP) &&
+	if (local->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
 	    (keyidx = hostap_rx_frame_decrypt(local, skb, crypt)) < 0)
 		goto rx_dropped;
 	hdr = (struct ieee80211_hdr *) skb->data;
 
 	/* skb: hdr + (possibly fragmented) plaintext payload */
 
-	if (local->host_decrypt && (fc & WLAN_FC_ISWEP) &&
-	    (frag != 0 || (fc & WLAN_FC_MOREFRAG))) {
+	if (local->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
+	    (frag != 0 || (fc & IEEE80211_FCTL_MOREFRAGS))) {
 		int flen;
 		struct sk_buff *frag_skb =
 			prism2_frag_cache_get(local, hdr);
 		if (!frag_skb) {
 			printk(KERN_DEBUG "%s: Rx cannot get skb from "
 			       "fragment cache (morefrag=%d seq=%u frag=%u)\n",
-			       dev->name, (fc & WLAN_FC_MOREFRAG) != 0,
+			       dev->name, (fc & IEEE80211_FCTL_MOREFRAGS) != 0,
 			       WLAN_GET_SEQ_SEQ(sc) >> 4, frag);
 			goto rx_dropped;
 		}
@@ -927,7 +931,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		dev_kfree_skb(skb);
 		skb = NULL;
 
-		if (fc & WLAN_FC_MOREFRAG) {
+		if (fc & IEEE80211_FCTL_MOREFRAGS) {
 			/* more fragments expected - leave the skb in fragment
 			 * cache for now; it will be delivered to upper layers
 			 * after all fragments have been received */
@@ -944,12 +948,12 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	/* skb: hdr + (possible reassembled) full MSDU payload; possibly still
 	 * encrypted/authenticated */
 
-	if (local->host_decrypt && (fc & WLAN_FC_ISWEP) &&
+	if (local->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
 	    hostap_rx_frame_decrypt_msdu(local, skb, keyidx, crypt))
 		goto rx_dropped;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
-	if (crypt && !(fc & WLAN_FC_ISWEP) && !local->open_wep) {
+	if (crypt && !(fc & IEEE80211_FCTL_WEP) && !local->open_wep) {
 		if (local->ieee_802_1x &&
 		    hostap_is_eapol_frame(local, skb)) {
 			/* pass unencrypted EAPOL frames even if encryption is
@@ -964,7 +968,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		}
 	}
 
-	if (local->drop_unencrypted && !(fc & WLAN_FC_ISWEP) &&
+	if (local->drop_unencrypted && !(fc & IEEE80211_FCTL_WEP) &&
 	    !hostap_is_eapol_frame(local, skb)) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: dropped unencrypted RX data "
@@ -1023,7 +1027,8 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		memcpy(skb_push(skb, ETH_ALEN), dst, ETH_ALEN);
 	}
 
-	if (wds && ((fc & (WLAN_FC_TODS | WLAN_FC_FROMDS)) == WLAN_FC_TODS) &&
+	if (wds && ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
+		    IEEE80211_FCTL_TODS) &&
 	    skb->len >= ETH_HLEN + ETH_ALEN) {
 		/* Non-standard frame: get addr4 from its bogus location after
 		 * the payload */

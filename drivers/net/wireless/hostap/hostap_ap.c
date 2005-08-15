@@ -604,7 +604,7 @@ static void hostap_ap_tx_cb(struct sk_buff *skb, int ok, void *data)
 	/* Pass the TX callback frame to the hostapd; use 802.11 header version
 	 * 1 to indicate failure (no ACK) and 2 success (frame ACKed) */
 
-	fc &= ~WLAN_FC_PVER;
+	fc &= ~IEEE80211_FCTL_VERS;
 	fc |= ok ? BIT(1) : BIT(0);
 	hdr->frame_ctl = cpu_to_le16(fc);
 
@@ -956,7 +956,7 @@ static void prism2_send_mgmt(struct net_device *dev,
 
 	memcpy(hdr->addr1, addr, ETH_ALEN); /* DA / RA */
 	if (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA) {
-		fc |= WLAN_FC_FROMDS;
+		fc |= IEEE80211_FCTL_FROMDS;
 		memcpy(hdr->addr2, dev->dev_addr, ETH_ALEN); /* BSSID */
 		memcpy(hdr->addr3, dev->dev_addr, ETH_ALEN); /* SA */
 	} else if (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_CTL) {
@@ -1436,7 +1436,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 			    challenge == NULL ||
 			    memcmp(sta->u.sta.challenge, challenge,
 				   WLAN_AUTH_CHALLENGE_LEN) != 0 ||
-			    !(fc & WLAN_FC_ISWEP)) {
+			    !(fc & IEEE80211_FCTL_WEP)) {
 				txt = "challenge response incorrect";
 				resp = WLAN_STATUS_CHALLENGE_FAIL;
 				goto fail;
@@ -1871,7 +1871,7 @@ static void handle_pspoll(local_info_t *local,
 	PDEBUG(DEBUG_PS2, "handle_pspoll: BSSID=" MACSTR ", TA=" MACSTR
 	       " PWRMGT=%d\n",
 	       MAC2STR(hdr->addr1), MAC2STR(hdr->addr2),
-	       !!(le16_to_cpu(hdr->frame_ctl) & WLAN_FC_PWRMGT));
+	       !!(le16_to_cpu(hdr->frame_ctl) & IEEE80211_FCTL_PM));
 
 	if (memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN)) {
 		PDEBUG(DEBUG_AP, "handle_pspoll - addr1(BSSID)=" MACSTR
@@ -2150,7 +2150,8 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 	if (!local->hostapd && type == IEEE80211_FTYPE_DATA) {
 		PDEBUG(DEBUG_AP, "handle_ap_item - data frame\n");
 
-		if (!(fc & WLAN_FC_TODS) || (fc & WLAN_FC_FROMDS)) {
+		if (!(fc & IEEE80211_FCTL_TODS) ||
+		    (fc & IEEE80211_FCTL_FROMDS)) {
 			if (stype == IEEE80211_STYPE_NULLFUNC) {
 				/* no ToDS nullfunc seems to be used to check
 				 * AP association; so send reject message to
@@ -2746,7 +2747,8 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 
 	if (meta->flags & HOSTAP_TX_FLAGS_ADD_MOREDATA) {
 		/* indicate to STA that more frames follow */
-		hdr->frame_ctl |= __constant_cpu_to_le16(WLAN_FC_MOREDATA);
+		hdr->frame_ctl |=
+			__constant_cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 	}
 
 	if (meta->flags & HOSTAP_TX_FLAGS_BUFFERED_FRAME) {
@@ -2905,7 +2907,7 @@ int hostap_update_sta_ps(local_info_t *local, struct ieee80211_hdr *hdr)
 		return -1;
 
 	fc = le16_to_cpu(hdr->frame_ctl);
-	hostap_update_sta_ps2(local, sta, fc & WLAN_FC_PWRMGT,
+	hostap_update_sta_ps2(local, sta, fc & IEEE80211_FCTL_PM,
 			      WLAN_FC_GET_TYPE(fc), WLAN_FC_GET_STYPE(fc));
 
 	atomic_dec(&sta->users);
@@ -2946,7 +2948,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 		ret = AP_RX_CONTINUE;
 
 
-	if (fc & WLAN_FC_TODS) {
+	if (fc & IEEE80211_FCTL_TODS) {
 		if (!wds && (sta == NULL || !(sta->flags & WLAN_STA_ASSOC))) {
 			if (local->hostapd) {
 				prism2_rx_80211(local->apdev, skb, rx_stats,
@@ -2964,7 +2966,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 			ret = AP_RX_EXIT;
 			goto out;
 		}
-	} else if (fc & WLAN_FC_FROMDS) {
+	} else if (fc & IEEE80211_FCTL_FROMDS) {
 		if (!wds) {
 			/* FromDS frame - not for us; probably
 			 * broadcast/multicast in another BSS - drop */
@@ -3019,7 +3021,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 	}
 
 	if (sta) {
-		hostap_update_sta_ps2(local, sta, fc & WLAN_FC_PWRMGT,
+		hostap_update_sta_ps2(local, sta, fc & IEEE80211_FCTL_PM,
 				      type, stype);
 
 		sta->rx_packets++;
@@ -3028,7 +3030,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 	}
 
 	if (local->ap->nullfunc_ack && stype == IEEE80211_STYPE_NULLFUNC &&
-	    fc & WLAN_FC_TODS) {
+	    fc & IEEE80211_FCTL_TODS) {
 		if (local->hostapd) {
 			prism2_rx_80211(local->apdev, skb, rx_stats,
 					PRISM2_RX_NULLFUNC_ACK);
