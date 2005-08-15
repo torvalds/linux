@@ -19,9 +19,6 @@
 #define WLAN_FC_ISWEP BIT(14)
 #define WLAN_FC_ORDER BIT(15)
 
-#define WLAN_CAPABILITY_ESS WLAN_CAPABILITY_BSS
-
-
 /* Information Element IDs */
 #define WLAN_EID_SSID 0
 #define WLAN_EID_SUPP_RATES 1
