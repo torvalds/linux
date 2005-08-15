@@ -941,16 +941,21 @@ struct hostap_interface {
 
 #define HOSTAP_SKB_TX_DATA_MAGIC 0xf08a36a2
 
-/* TX meta data - stored in skb->cb buffer, so this must be not increase over
- * 48-byte limit */
+/*
+ * TX meta data - stored in skb->cb buffer, so this must not be increased over
+ * the 40-byte limit
+ */
 struct hostap_skb_tx_data {
-	unsigned int magic; /* HOSTAP_SKB_TX_DATA_MAGIC */
-	int rate; /* transmit rate */
+	u32 magic; /* HOSTAP_SKB_TX_DATA_MAGIC */
+	u8 rate; /* transmit rate */
+#define HOSTAP_TX_FLAGS_WDS BIT(0)
+#define HOSTAP_TX_FLAGS_BUFFERED_FRAME BIT(1)
+#define HOSTAP_TX_FLAGS_ADD_MOREDATA BIT(2)
+	u8 flags; /* HOSTAP_TX_FLAGS_* */
+	u16 tx_cb_idx;
 	struct hostap_interface *iface;
 	unsigned long jiffies; /* queueing timestamp */
-	int wds;
 	unsigned short ethertype;
-	int tx_cb_idx;
 };
 
 

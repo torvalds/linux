@@ -1840,6 +1840,8 @@ static void ap_handle_dropped_data(local_info_t *local,
 static void pspoll_send_buffered(local_info_t *local, struct sta_info *sta,
 				 struct sk_buff *skb)
 {
+	struct hostap_skb_tx_data *meta;
+
 	if (!(sta->flags & WLAN_STA_PS)) {
 		/* Station has moved to non-PS mode, so send all buffered
 		 * frames using normal device queue. */
@@ -1849,11 +1851,11 @@ static void pspoll_send_buffered(local_info_t *local, struct sta_info *sta,
 
 	/* add a flag for hostap_handle_sta_tx() to know that this skb should
 	 * be passed through even though STA is using PS */
-	memcpy(skb->cb, AP_SKB_CB_MAGIC, AP_SKB_CB_MAGIC_LEN);
-	skb->cb[AP_SKB_CB_MAGIC_LEN] = AP_SKB_CB_BUFFERED_FRAME;
+	meta = (struct hostap_skb_tx_data *) skb->cb;
+	meta->flags |= HOSTAP_TX_FLAGS_BUFFERED_FRAME;
 	if (!skb_queue_empty(&sta->tx_buf)) {
 		/* indicate to STA that more frames follow */
-		skb->cb[AP_SKB_CB_MAGIC_LEN] |= AP_SKB_CB_ADD_MOREDATA;
+		meta->flags |= HOSTAP_TX_FLAGS_ADD_MOREDATA;
 	}
 	dev_queue_xmit(skb);
 }
@@ -2707,7 +2709,8 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 		atomic_inc(&sta->users);
 	spin_unlock(&local->ap->sta_table_lock);
 
-	if (local->iw_mode == IW_MODE_MASTER && sta == NULL && !meta->wds &&
+	if (local->iw_mode == IW_MODE_MASTER && sta == NULL &&
+	    !(meta->flags & HOSTAP_TX_FLAGS_WDS) &&
 	    meta->iface->type != HOSTAP_INTERFACE_MASTER &&
 	    meta->iface->type != HOSTAP_INTERFACE_AP) {
 #if 0
@@ -2743,18 +2746,15 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 	if (!(sta->flags & WLAN_STA_PS))
 		goto out;
 
-	if (memcmp(skb->cb, AP_SKB_CB_MAGIC, AP_SKB_CB_MAGIC_LEN) == 0) {
-		if (skb->cb[AP_SKB_CB_MAGIC_LEN] & AP_SKB_CB_ADD_MOREDATA) {
-			/* indicate to STA that more frames follow */
-			hdr->frame_control |=
-				__constant_cpu_to_le16(WLAN_FC_MOREDATA);
-		}
+	if (meta->flags & HOSTAP_TX_FLAGS_ADD_MOREDATA) {
+		/* indicate to STA that more frames follow */
+		hdr->frame_control |= __constant_cpu_to_le16(WLAN_FC_MOREDATA);
+	}
 
-		if (skb->cb[AP_SKB_CB_MAGIC_LEN] & AP_SKB_CB_BUFFERED_FRAME) {
-			/* packet was already buffered and now send due to
-			 * PS poll, so do not rebuffer it */
-			goto out;
-		}
+	if (meta->flags & HOSTAP_TX_FLAGS_BUFFERED_FRAME) {
+		/* packet was already buffered and now send due to
+		 * PS poll, so do not rebuffer it */
+		goto out;
 	}
 
 	if (skb_queue_len(&sta->tx_buf) >= STA_MAX_TX_BUFFER) {

@@ -226,7 +226,8 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	meta = (struct hostap_skb_tx_data *) skb->cb;
 	memset(meta, 0, sizeof(*meta));
 	meta->magic = HOSTAP_SKB_TX_DATA_MAGIC;
-	meta->wds = use_wds;
+	if (use_wds)
+		meta->flags |= HOSTAP_TX_FLAGS_WDS;
 	meta->ethertype = ethertype;
 	meta->iface = iface;
 
@@ -410,7 +411,8 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	case AP_TX_CONTINUE_NOT_AUTHORIZED:
 		if (local->ieee_802_1x &&
 		    HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
-		    meta->ethertype != ETH_P_PAE && !meta->wds) {
+		    meta->ethertype != ETH_P_PAE &&
+		    !(meta->flags & HOSTAP_TX_FLAGS_WDS)) {
 			printk(KERN_DEBUG "%s: dropped frame to unauthorized "
 			       "port (IEEE 802.1X): ethertype=0x%04x\n",
 			       dev->name, meta->ethertype);

@@ -6,15 +6,6 @@
 /* maximum number of frames to buffer per STA */
 #define STA_MAX_TX_BUFFER 32
 
-/* Flags used in skb->cb[6] to control how the packet is handled in TX path.
- * skb->cb[0..5] must contain magic value 'hostap' to indicate that cb[6] is
- * used. */
-#define AP_SKB_CB_MAGIC "hostap"
-#define AP_SKB_CB_MAGIC_LEN 6
-#define AP_SKB_CB_BUFFERED_FRAME BIT(0)
-#define AP_SKB_CB_ADD_MOREDATA BIT(1)
-
-
 /* STA flags */
 #define WLAN_STA_AUTH BIT(0)
 #define WLAN_STA_ASSOC BIT(1)
