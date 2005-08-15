@@ -127,6 +127,7 @@ struct audioformat {
 
 struct snd_urb_ctx {
 	struct urb *urb;
+	unsigned int buffer_size;	/* size of data buffer, if data URB */
 	snd_usb_substream_t *subs;
 	int index;	/* index for urb array */
 	int packets;	/* number of packets per urb */
@@ -176,7 +177,8 @@ struct snd_usb_substream {
 	unsigned int nurbs;			/* # urbs */
 	snd_urb_ctx_t dataurb[MAX_URBS];	/* data urb table */
 	snd_urb_ctx_t syncurb[SYNC_URBS];	/* sync urb table */
-	char syncbuf[SYNC_URBS * 4];	/* sync buffer; it's so small - let's get static */
+	char *syncbuf;				/* sync buffer for all sync URBs */
+	dma_addr_t sync_dma;			/* DMA address of syncbuf */
 
 	u64 formats;			/* format bitmasks (all or'ed) */
 	unsigned int num_formats;		/* number of supported audio formats (list) */
@@ -855,7 +857,10 @@ static int snd_usb_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
 static void release_urb_ctx(snd_urb_ctx_t *u)
 {
 	if (u->urb) {
-		kfree(u->urb->transfer_buffer);
+		if (u->buffer_size)
+			usb_buffer_free(u->subs->dev, u->buffer_size,
+					u->urb->transfer_buffer,
+					u->urb->transfer_dma);
 		usb_free_urb(u->urb);
 		u->urb = NULL;
 	}
@@ -876,6 +881,9 @@ static void release_substream_urbs(snd_usb_substream_t *subs, int force)
 		release_urb_ctx(&subs->dataurb[i]);
 	for (i = 0; i < SYNC_URBS; i++)
 		release_urb_ctx(&subs->syncurb[i]);
+	usb_buffer_free(subs->dev, SYNC_URBS * 4,
+			subs->syncbuf, subs->sync_dma);
+	subs->syncbuf = NULL;
 	subs->nurbs = 0;
 }
 
@@ -986,21 +994,19 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 		u->index = i;
 		u->subs = subs;
 		u->packets = npacks[i];
+		u->buffer_size = maxsize * u->packets;
 		if (subs->fmt_type == USB_FORMAT_TYPE_II)
 			u->packets++; /* for transfer delimiter */
 		u->urb = usb_alloc_urb(u->packets, GFP_KERNEL);
-		if (! u->urb) {
-			release_substream_urbs(subs, 0);
-			return -ENOMEM;
-		}
-		u->urb->transfer_buffer = kmalloc(maxsize * u->packets,
-						  GFP_KERNEL);
-		if (! u->urb->transfer_buffer) {
-			release_substream_urbs(subs, 0);
-			return -ENOMEM;
-		}
+		if (! u->urb)
+			goto out_of_memory;
+		u->urb->transfer_buffer =
+			usb_buffer_alloc(subs->dev, u->buffer_size, GFP_KERNEL,
+					 &u->urb->transfer_dma);
+		if (! u->urb->transfer_buffer)
+			goto out_of_memory;
 		u->urb->pipe = subs->datapipe;
-		u->urb->transfer_flags = URB_ISO_ASAP;
+		u->urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		u->urb->interval = 1 << subs->datainterval;
 		u->urb->context = u;
 		u->urb->complete = snd_usb_complete_callback(snd_complete_urb);
@@ -1008,20 +1014,24 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 
 	if (subs->syncpipe) {
 		/* allocate and initialize sync urbs */
+		subs->syncbuf = usb_buffer_alloc(subs->dev, SYNC_URBS * 4,
+						 GFP_KERNEL, &subs->sync_dma);
+		if (! subs->syncbuf)
+			goto out_of_memory;
 		for (i = 0; i < SYNC_URBS; i++) {
 			snd_urb_ctx_t *u = &subs->syncurb[i];
 			u->index = i;
 			u->subs = subs;
 			u->packets = 1;
 			u->urb = usb_alloc_urb(1, GFP_KERNEL);
-			if (! u->urb) {
-				release_substream_urbs(subs, 0);
-				return -ENOMEM;
-			}
+			if (! u->urb)
+				goto out_of_memory;
 			u->urb->transfer_buffer = subs->syncbuf + i * 4;
+			u->urb->transfer_dma = subs->sync_dma + i * 4;
 			u->urb->transfer_buffer_length = 4;
 			u->urb->pipe = subs->syncpipe;
-			u->urb->transfer_flags = URB_ISO_ASAP;
+			u->urb->transfer_flags = URB_ISO_ASAP |
+						 URB_NO_TRANSFER_DMA_MAP;
 			u->urb->number_of_packets = 1;
 			u->urb->interval = 1 << subs->syncinterval;
 			u->urb->context = u;
@@ -1029,6 +1039,10 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 		}
 	}
 	return 0;
+
+out_of_memory:
+	release_substream_urbs(subs, 0);
+	return -ENOMEM;
 }
 
 
@@ -2036,7 +2050,7 @@ static void init_substream(snd_usb_stream_t *as, int stream, struct audioformat 
 		subs->ops = audio_urb_ops_high_speed[stream];
 	snd_pcm_lib_preallocate_pages(as->pcm->streams[stream].substream,
 				      SNDRV_DMA_TYPE_CONTINUOUS,
-				      snd_dma_continuous_data(GFP_KERNEL),
+				      snd_dma_continuous_data(GFP_NOIO),
 				      64 * 1024, 128 * 1024);
 	snd_pcm_set_ops(as->pcm, stream,
 			stream == SNDRV_PCM_STREAM_PLAYBACK ?

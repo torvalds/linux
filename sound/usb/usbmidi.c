@@ -765,7 +765,10 @@ static snd_rawmidi_ops_t snd_usbmidi_input_ops = {
 static void snd_usbmidi_in_endpoint_delete(snd_usb_midi_in_endpoint_t* ep)
 {
 	if (ep->urb) {
-		kfree(ep->urb->transfer_buffer);
+		usb_buffer_free(ep->umidi->chip->dev,
+				ep->urb->transfer_buffer_length,
+				ep->urb->transfer_buffer,
+				ep->urb->transfer_dma);
 		usb_free_urb(ep->urb);
 	}
 	kfree(ep);
@@ -799,7 +802,8 @@ static int snd_usbmidi_in_endpoint_create(snd_usb_midi_t* umidi,
 	else
 		pipe = usb_rcvbulkpipe(umidi->chip->dev, ep_info->in_ep);
 	length = usb_maxpacket(umidi->chip->dev, pipe, 0);
-	buffer = kmalloc(length, GFP_KERNEL);
+	buffer = usb_buffer_alloc(umidi->chip->dev, length, GFP_KERNEL,
+				  &ep->urb->transfer_dma);
 	if (!buffer) {
 		snd_usbmidi_in_endpoint_delete(ep);
 		return -ENOMEM;
@@ -812,6 +816,7 @@ static int snd_usbmidi_in_endpoint_create(snd_usb_midi_t* umidi,
 		usb_fill_bulk_urb(ep->urb, umidi->chip->dev, pipe, buffer, length,
 				  snd_usb_complete_callback(snd_usbmidi_in_urb_complete),
 				  ep);
+	ep->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 
 	rep->in = ep;
 	return 0;
@@ -835,7 +840,9 @@ static void snd_usbmidi_out_endpoint_delete(snd_usb_midi_out_endpoint_t* ep)
 	if (ep->tasklet.func)
 		tasklet_kill(&ep->tasklet);
 	if (ep->urb) {
-		kfree(ep->urb->transfer_buffer);
+		usb_buffer_free(ep->umidi->chip->dev, ep->max_transfer,
+				ep->urb->transfer_buffer,
+				ep->urb->transfer_dma);
 		usb_free_urb(ep->urb);
 	}
 	kfree(ep);
@@ -867,7 +874,8 @@ static int snd_usbmidi_out_endpoint_create(snd_usb_midi_t* umidi,
 	/* we never use interrupt output pipes */
 	pipe = usb_sndbulkpipe(umidi->chip->dev, ep_info->out_ep);
 	ep->max_transfer = usb_maxpacket(umidi->chip->dev, pipe, 1);
-	buffer = kmalloc(ep->max_transfer, GFP_KERNEL);
+	buffer = usb_buffer_alloc(umidi->chip->dev, ep->max_transfer,
+				  GFP_KERNEL, &ep->urb->transfer_dma);
 	if (!buffer) {
 		snd_usbmidi_out_endpoint_delete(ep);
 		return -ENOMEM;
@@ -875,6 +883,7 @@ static int snd_usbmidi_out_endpoint_create(snd_usb_midi_t* umidi,
 	usb_fill_bulk_urb(ep->urb, umidi->chip->dev, pipe, buffer,
 			  ep->max_transfer,
 			  snd_usb_complete_callback(snd_usbmidi_out_urb_complete), ep);
+	ep->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 
 	spin_lock_init(&ep->buffer_lock);
 	tasklet_init(&ep->tasklet, snd_usbmidi_out_tasklet, (unsigned long)ep);
