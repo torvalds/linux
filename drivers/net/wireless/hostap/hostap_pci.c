@@ -305,10 +305,6 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 		goto fail;
 	}
 
-#ifdef PRISM2_BUS_MASTER
-	pci_set_master(pdev);
-#endif /* PRISM2_BUS_MASTER */
-
 	dev = prism2_init_local_data(&prism2_pci_funcs, cards_found,
 				     &pdev->dev);
 	if (dev == NULL)

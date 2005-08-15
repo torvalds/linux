@@ -83,18 +83,6 @@ static int dtim_period[MAX_PARM_DEVICES] = { 1, DEF_INTS };
 module_param_array(dtim_period, int, NULL, 0444);
 MODULE_PARM_DESC(dtim_period, "DTIM period");
 
-#if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
-static int bus_master_threshold_rx[MAX_PARM_DEVICES] = { 100, DEF_INTS };
-module_param_array(bus_master_threshold_rx, int, NULL, 0444);
-MODULE_PARM_DESC(bus_master_threshold_rx, "Packet length threshold for using "
-		 "PCI bus master on RX");
-
-static int bus_master_threshold_tx[MAX_PARM_DEVICES] = { 100, DEF_INTS };
-module_param_array(bus_master_threshold_tx, int, NULL, 0444);
-MODULE_PARM_DESC(bus_master_threshold_tx, "Packet length threshold for using "
-		 "PCI bus master on TX");
-#endif /* PRISM2_PCI and PRISM2_BUS_MASTER */
-
 static char dev_template[16] = "wlan%d";
 module_param_string(dev_template, dev_template, sizeof(dev_template), 0444);
 MODULE_PARM_DESC(dev_template, "Prefix for network device name (default: "
@@ -107,12 +95,6 @@ MODULE_PARM_DESC(dev_template, "Prefix for network device name (default: "
 #define EXTRA_EVENTS_WTERR HFA384X_EV_WTERR
 #endif
 
-#if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
-#define EXTRA_EVENTS_BUS_MASTER (HFA384X_EV_PCI_M0 | HFA384X_EV_PCI_M1)
-#else
-#define EXTRA_EVENTS_BUS_MASTER 0
-#endif
-
 /* Events that will be using BAP0 */
 #define HFA384X_BAP0_EVENTS \
 	(HFA384X_EV_TXEXC | HFA384X_EV_RX | HFA384X_EV_INFO | HFA384X_EV_TX)
@@ -121,7 +103,7 @@ MODULE_PARM_DESC(dev_template, "Prefix for network device name (default: "
 #define HFA384X_EVENT_MASK \
 	(HFA384X_BAP0_EVENTS | HFA384X_EV_ALLOC | HFA384X_EV_INFDROP | \
 	HFA384X_EV_CMD | HFA384X_EV_TICK | \
-	EXTRA_EVENTS_WTERR | EXTRA_EVENTS_BUS_MASTER)
+	EXTRA_EVENTS_WTERR)
 
 /* Default TX control flags: use 802.11 headers and request interrupt for
  * failed transmits. Frames that request ACK callback, will add
@@ -1827,34 +1809,6 @@ static int prism2_transmit(struct net_device *dev, int idx)
 }
 
 
-#if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
-/* Called only from hardware IRQ */
-static void prism2_tx_cb(struct net_device *dev, void *context,
-			 u16 resp0, u16 res)
-{
-	struct hostap_interface *iface;
-	local_info_t *local;
-	unsigned long addr;
-	int buf_len = (int) context;
-
-	iface = netdev_priv(dev);
-	local = iface->local;
-
-	if (res) {
-		printk(KERN_DEBUG "%s: prism2_tx_cb - res=0x%02x\n",
-		       dev->name, res);
-		return;
-	}
-
-	addr = virt_to_phys(local->bus_m0_buf);
-	HFA384X_OUTW((addr & 0xffff0000) >> 16, HFA384X_PCI_M0_ADDRH_OFF);
-	HFA384X_OUTW(addr & 0x0000ffff, HFA384X_PCI_M0_ADDRL_OFF);
-	HFA384X_OUTW(buf_len / 2, HFA384X_PCI_M0_LEN_OFF);
-	HFA384X_OUTW(HFA384X_PCI_CTL_TO_BAP, HFA384X_PCI_M0_CTL_OFF);
-}
-#endif /* PRISM2_PCI and PRISM2_BUS_MASTER */
-
-
 /* Send IEEE 802.11 frame (convert the header into Prism2 TX descriptor and
  * send the payload with this descriptor) */
 /* Called only from software IRQ */
@@ -1919,53 +1873,6 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock(&local->baplock);
 	res = hfa384x_setup_bap(dev, BAP0, local->txfid[idx], 0);
-
-#if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
-	if (!res && skb->len >= local->bus_master_threshold_tx) {
-		u8 *pos;
-		int buf_len;
-
-		local->bus_m0_tx_idx = idx;
-
-		/* FIX: BAP0 should be locked during bus master transfer, but
-		 * baplock with BH's disabled is not OK for this; netif queue
-		 * stopping is not enough since BAP0 is used also for RID
-		 * read/write */
-
-		/* stop the queue for the time that bus mastering on BAP0 is
-		 * in use */
-		netif_stop_queue(dev);
-
-		spin_unlock(&local->baplock);
-
-		/* Copy frame data to bus_m0_buf */
-		pos = local->bus_m0_buf;
-		memcpy(pos, &txdesc, sizeof(txdesc));
-		pos += sizeof(txdesc);
-		memcpy(pos, skb->data + hdr_len, skb->len - hdr_len);
-		pos += skb->len - hdr_len;
-		buf_len = pos - local->bus_m0_buf;
-		if (buf_len & 1)
-			buf_len++;
-
-#ifdef PRISM2_ENABLE_BEFORE_TX_BUS_MASTER
-		/* Any RX packet seems to break something with TX bus
-		 * mastering; enable command is enough to fix this.. */
-		if (hfa384x_cmd_callback(dev, HFA384X_CMDCODE_ENABLE, 0,
-					 prism2_tx_cb, (long) buf_len)) {
-			printk(KERN_DEBUG "%s: TX: enable port0 failed\n",
-			       dev->name);
-		}
-#else /* PRISM2_ENABLE_BEFORE_TX_BUS_MASTER */
-		prism2_tx_cb(dev, (void *) buf_len, 0, 0);
-#endif /* PRISM2_ENABLE_BEFORE_TX_BUS_MASTER */
-
-		/* Bus master transfer will be started from command completion
-		 * event handler and TX handling will be finished by calling
-		 * prism2_transmit() from bus master event handler */
-		goto tx_stats;
-	}
-#endif /* PRISM2_PCI and PRISM2_BUS_MASTER */
 
 	if (!res)
 		res = hfa384x_to_bap(dev, BAP0, &txdesc, sizeof(txdesc));
@@ -2107,49 +2014,17 @@ static void prism2_rx(local_info_t *local)
 	skb->dev = dev;
 	memcpy(skb_put(skb, hdr_len), &rxdesc, hdr_len);
 
-#if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
-	if (len >= local->bus_master_threshold_rx) {
-		unsigned long addr;
-
-		hfa384x_events_no_bap1(dev);
-
-		local->rx_skb = skb;
-		/* Internal BAP0 offset points to the byte following rxdesc;
-		 * copy rest of the data using bus master */
-		addr = virt_to_phys(skb_put(skb, len));
-		HFA384X_OUTW((addr & 0xffff0000) >> 16,
-			     HFA384X_PCI_M0_ADDRH_OFF);
-		HFA384X_OUTW(addr & 0x0000ffff, HFA384X_PCI_M0_ADDRL_OFF);
-		if (len & 1)
-			len++;
-		HFA384X_OUTW(len / 2, HFA384X_PCI_M0_LEN_OFF);
-		HFA384X_OUTW(HFA384X_PCI_CTL_FROM_BAP, HFA384X_PCI_M0_CTL_OFF);
-
-		/* pci_bus_m1 event will be generated when data transfer is
-		 * complete and the frame will then be added to rx_list and
-		 * rx_tasklet is scheduled */
-		rx_pending = 1;
-
-		/* Have to release baplock before returning, although BAP0
-		 * should really not be used before DMA transfer has been
-		 * completed. */
-		spin_unlock(&local->baplock);
-	} else
-#endif /* PRISM2_PCI and PRISM2_BUS_MASTER */
-	{
-		if (len > 0)
-			res = hfa384x_from_bap(dev, BAP0, skb_put(skb, len),
-					       len);
-		spin_unlock(&local->baplock);
-		if (res) {
-			printk(KERN_DEBUG "%s: RX failed to read "
-			       "frame data\n", dev->name);
-			goto rx_dropped;
-		}
-
-		skb_queue_tail(&local->rx_list, skb);
-		tasklet_schedule(&local->rx_tasklet);
+	if (len > 0)
+		res = hfa384x_from_bap(dev, BAP0, skb_put(skb, len), len);
+	spin_unlock(&local->baplock);
+	if (res) {
+		printk(KERN_DEBUG "%s: RX failed to read "
+		       "frame data\n", dev->name);
+		goto rx_dropped;
 	}
+
+	skb_queue_tail(&local->rx_list, skb);
+	tasklet_schedule(&local->rx_tasklet);
 
  rx_exit:
 	prism2_callback(local, PRISM2_CALLBACK_RX_END);
@@ -2654,36 +2529,6 @@ static void hostap_bap_tasklet(unsigned long data)
 }
 
 
-#if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
-/* Called only from hardware IRQ */
-static void prism2_bus_master_ev(struct net_device *dev, int bap)
-{
-	struct hostap_interface *iface;
-	local_info_t *local;
-
-	iface = netdev_priv(dev);
-	local = iface->local;
-
-	if (bap == BAP1) {
-		/* FIX: frame payload was DMA'd to skb->data; might need to
-		 * invalidate data cache for that memory area */
-		skb_queue_tail(&local->rx_list, local->rx_skb);
-		tasklet_schedule(&local->rx_tasklet);
-		HFA384X_OUTW(HFA384X_EV_RX, HFA384X_EVACK_OFF);
-	} else {
-		if (prism2_transmit(dev, local->bus_m0_tx_idx)) {
-			printk(KERN_DEBUG "%s: prism2_transmit() failed "
-			       "when called from bus master event\n",
-			       dev->name);
-			local->intransmitfid[local->bus_m0_tx_idx] =
-				PRISM2_TXFID_EMPTY;
-			schedule_work(&local->reset_queue);
-		}
-	}
-}
-#endif /* PRISM2_PCI and PRISM2_BUS_MASTER */
-
-
 /* Called only from hardware IRQ */
 static void prism2_infdrop(struct net_device *dev)
 {
@@ -2851,21 +2696,6 @@ static irqreturn_t prism2_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			prism2_ev_tick(dev);
 			HFA384X_OUTW(HFA384X_EV_TICK, HFA384X_EVACK_OFF);
 		}
-
-#if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
-		if (ev & HFA384X_EV_PCI_M0) {
-			prism2_bus_master_ev(dev, BAP0);
-			HFA384X_OUTW(HFA384X_EV_PCI_M0, HFA384X_EVACK_OFF);
-		}
-
-		if (ev & HFA384X_EV_PCI_M1) {
-			/* previous RX has been copied can be ACKed now */
-			HFA384X_OUTW(HFA384X_EV_RX, HFA384X_EVACK_OFF);
-
-			prism2_bus_master_ev(dev, BAP1);
-			HFA384X_OUTW(HFA384X_EV_PCI_M1, HFA384X_EVACK_OFF);
-		}
-#endif /* PRISM2_PCI and PRISM2_BUS_MASTER */
 
 		if (ev & HFA384X_EV_ALLOC) {
 			prism2_alloc_ev(dev);
@@ -3309,13 +3139,6 @@ prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 	local->io_debug_enabled = 1;
 #endif /* PRISM2_IO_DEBUG */
 
-#if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
-	local->bus_m0_buf = (u8 *) kmalloc(sizeof(struct hfa384x_tx_frame) +
-					   PRISM2_DATA_MAXLEN, GFP_DMA);
-	if (local->bus_m0_buf == NULL)
-		goto fail;
-#endif /* PRISM2_PCI and PRISM2_BUS_MASTER */
-
 	local->func = funcs;
 	local->func->cmd = hfa384x_cmd;
 	local->func->read_regs = hfa384x_read_regs;
@@ -3376,12 +3199,6 @@ prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 	local->auth_algs = PRISM2_AUTH_OPEN | PRISM2_AUTH_SHARED_KEY;
 	local->sram_type = -1;
 	local->scan_channel_mask = 0xffff;
-#if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
-	local->bus_master_threshold_rx = GET_INT_PARM(bus_master_threshold_rx,
-						      card_idx);
-	local->bus_master_threshold_tx = GET_INT_PARM(bus_master_threshold_tx,
-						      card_idx);
-#endif /* PRISM2_PCI and PRISM2_BUS_MASTER */
 
 	/* Initialize task queue structures */
 	INIT_WORK(&local->reset_queue, handle_reset_queue, local);
@@ -3462,9 +3279,6 @@ while (0)
 	return dev;
 
  fail:
-#if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
-	kfree(local->bus_m0_buf);
-#endif /* PRISM2_PCI and PRISM2_BUS_MASTER */
 	free_netdev(dev);
 	return NULL;
 }
@@ -3586,9 +3400,6 @@ static void prism2_free_local_data(struct net_device *dev)
 		kfree(bss);
 	}
 
-#if defined(PRISM2_PCI) && defined(PRISM2_BUS_MASTER)
-	kfree(local->bus_m0_buf);
-#endif /* PRISM2_PCI and PRISM2_BUS_MASTER */
 	kfree(local->pda);
 	kfree(local->last_scan_results);
 	kfree(local->generic_elem);

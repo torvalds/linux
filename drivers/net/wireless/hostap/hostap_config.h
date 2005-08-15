@@ -13,37 +13,6 @@
 /* Maximum number of events handler per one interrupt */
 #define PRISM2_MAX_INTERRUPT_EVENTS 20
 
-/* Use PCI bus master to copy data to/from BAP (only available for
- * hostap_pci.o).
- *
- * Note! This is extremely experimental. PCI bus master is not supported by
- * Intersil and it seems to have some problems at least on TX path (see below).
- * The driver code for implementing bus master support is based on guessing
- * and experimenting suitable control bits and these might not be correct.
- * This code is included because using bus master makes a huge difference in
- * host CPU load (something like 40% host CPU usage to 5-10% when sending or
- * receiving at maximum throughput).
- *
- * Note2! Station firmware version 1.3.5 and primary firmware version 1.0.7
- * have some fixes for PCI corruption and these (or newer) versions are
- * recommended especially when using bus mastering.
- *
- * NOTE: PCI bus mastering code has not been updated for long time and it is
- * not likely to compile and it will _not_ work as is. Only enable this if you
- * are prepared to first fix the implementation..
- */
-/* #define PRISM2_BUS_MASTER */
-
-#ifdef PRISM2_BUS_MASTER
-
-/* PCI bus master implementation seems to be broken in current
- * hardware/firmware versions. Enable this to use enable command to fix
- * something before starting bus master operation on TX path. This will add
- * some latency and an extra interrupt to each TX packet. */
-#define PRISM2_ENABLE_BEFORE_TX_BUS_MASTER
-
-#endif /* PRISM2_BUS_MASTER */
-
 /* Include code for downloading firmware images into volatile RAM. */
 #define PRISM2_DOWNLOAD_SUPPORT
 

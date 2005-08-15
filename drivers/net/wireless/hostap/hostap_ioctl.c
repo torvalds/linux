@@ -2239,14 +2239,6 @@ static const struct iw_priv_args prism2_priv[] = {
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "host_decrypt" },
 	{ PRISM2_PARAM_HOST_DECRYPT,
 	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "gethost_decrypt" },
-	{ PRISM2_PARAM_BUS_MASTER_THRESHOLD_RX,
-	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "busmaster_rx" },
-	{ PRISM2_PARAM_BUS_MASTER_THRESHOLD_RX,
-	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getbusmaster_rx" },
-	{ PRISM2_PARAM_BUS_MASTER_THRESHOLD_TX,
-	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "busmaster_tx" },
-	{ PRISM2_PARAM_BUS_MASTER_THRESHOLD_TX,
-	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getbusmaster_tx" },
 #ifndef PRISM2_NO_STATION_MODES
 	{ PRISM2_PARAM_HOST_ROAMING,
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "host_roaming" },
@@ -2493,14 +2485,6 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 		if (hostap_set_encryption(local) ||
 		    local->func->reset_port(dev))
 			ret = -EINVAL;
-		break;
-
-	case PRISM2_PARAM_BUS_MASTER_THRESHOLD_RX:
-		local->bus_master_threshold_rx = value;
-		break;
-
-	case PRISM2_PARAM_BUS_MASTER_THRESHOLD_TX:
-		local->bus_master_threshold_tx = value;
 		break;
 
 #ifndef PRISM2_NO_STATION_MODES
@@ -2797,14 +2781,6 @@ static int prism2_ioctl_priv_get_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_HOST_DECRYPT:
 		*param = local->host_decrypt;
-		break;
-
-	case PRISM2_PARAM_BUS_MASTER_THRESHOLD_RX:
-		*param = local->bus_master_threshold_rx;
-		break;
-
-	case PRISM2_PARAM_BUS_MASTER_THRESHOLD_TX:
-		*param = local->bus_master_threshold_tx;
 		break;
 
 	case PRISM2_PARAM_HOST_ROAMING:

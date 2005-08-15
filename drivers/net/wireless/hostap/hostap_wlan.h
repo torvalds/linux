@@ -787,10 +787,6 @@ struct local_info {
 
 	struct prism2_helper_functions *func;
 
-	int bus_master_threshold_tx;
-	int bus_master_threshold_rx;
-	u8 *bus_m1_buf;
-
 	u8 *pda;
 	int fw_ap;
 #define PRISM2_FW_VER(major, minor, variant) \
@@ -897,14 +893,6 @@ struct local_info {
 
 #ifdef PRISM2_PCI
 	void __iomem *mem_start;
-#ifdef PRISM2_BUS_MASTER
-	/* bus master for BAP0 (TX) */
-	int bus_m0_tx_idx;
-	u8 *bus_m0_buf;
-
-	/* bus master for BAP1 (RX) */
-	struct sk_buff *rx_skb;
-#endif /* PRISM2_BUS_MASTER */
 #endif /* PRISM2_PCI */
 
 	/* NOTE! Do not add common entries here after hardware version
