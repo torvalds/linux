@@ -102,6 +102,7 @@ struct netlink_table {
 	struct hlist_head mc_list;
 	unsigned int nl_nonroot;
 	struct module *module;
+	int registered;
 };
 
 static struct netlink_table *nl_table;
@@ -343,11 +344,32 @@ static struct proto netlink_proto = {
 	.obj_size = sizeof(struct netlink_sock),
 };
 
-static int netlink_create(struct socket *sock, int protocol)
+static int __netlink_create(struct socket *sock, int protocol)
 {
 	struct sock *sk;
 	struct netlink_sock *nlk;
-	struct module *module;
+
+	sock->ops = &netlink_ops;
+
+	sk = sk_alloc(PF_NETLINK, GFP_KERNEL, &netlink_proto, 1);
+	if (!sk)
+		return -ENOMEM;
+
+	sock_init_data(sock, sk);
+
+	nlk = nlk_sk(sk);
+	spin_lock_init(&nlk->cb_lock);
+	init_waitqueue_head(&nlk->wait);
+
+	sk->sk_destruct = netlink_sock_destruct;
+	sk->sk_protocol = protocol;
+	return 0;
+}
+
+static int netlink_create(struct socket *sock, int protocol)
+{
+	struct module *module = NULL;
+	int err = 0;
 
 	sock->state = SS_UNCONNECTED;
 
@@ -358,41 +380,33 @@ static int netlink_create(struct socket *sock, int protocol)
 		return -EPROTONOSUPPORT;
 
 	netlink_lock_table();
-	if (!nl_table[protocol].hash.entries) {
 #ifdef CONFIG_KMOD
-		/* We do 'best effort'.  If we find a matching module,
-		 * it is loaded.  If not, we don't return an error to
-		 * allow pure userspace<->userspace communication. -HW
-		 */
+	if (!nl_table[protocol].registered) {
 		netlink_unlock_table();
 		request_module("net-pf-%d-proto-%d", PF_NETLINK, protocol);
 		netlink_lock_table();
-#endif
 	}
-	module = nl_table[protocol].module;
-	if (!try_module_get(module))
-		module = NULL;
+#endif
+	if (nl_table[protocol].registered &&
+	    try_module_get(nl_table[protocol].module))
+		module = nl_table[protocol].module;
+	else
+		err = -EPROTONOSUPPORT;
 	netlink_unlock_table();
 
-	sock->ops = &netlink_ops;
+	if (err)
+		goto out;
 
-	sk = sk_alloc(PF_NETLINK, GFP_KERNEL, &netlink_proto, 1);
-	if (!sk) {
-		module_put(module);
-		return -ENOMEM;
-	}
+	if ((err = __netlink_create(sock, protocol) < 0))
+		goto out_module;
 
-	sock_init_data(sock, sk);
+	nlk_sk(sock->sk)->module = module;
+out:
+	return err;
 
-	nlk = nlk_sk(sk);
-
-	nlk->module = module;
-	spin_lock_init(&nlk->cb_lock);
-	init_waitqueue_head(&nlk->wait);
-	sk->sk_destruct = netlink_sock_destruct;
-
-	sk->sk_protocol = protocol;
-	return 0;
+out_module:
+	module_put(module);
+	goto out;
 }
 
 static int netlink_release(struct socket *sock)
@@ -437,6 +451,7 @@ static int netlink_release(struct socket *sock)
 	if (nlk->flags & NETLINK_KERNEL_SOCKET) {
 		netlink_table_grab();
 		nl_table[sk->sk_protocol].module = NULL;
+		nl_table[sk->sk_protocol].registered = 0;
 		netlink_table_ungrab();
 	}
 
@@ -1082,7 +1097,7 @@ netlink_kernel_create(int unit, void (*input)(struct sock *sk, int len), struct 
 	if (sock_create_lite(PF_NETLINK, SOCK_DGRAM, unit, &sock))
 		return NULL;
 
-	if (netlink_create(sock, unit) < 0)
+	if (__netlink_create(sock, unit) < 0)
 		goto out_sock_release;
 
 	sk = sock->sk;
@@ -1098,6 +1113,7 @@ netlink_kernel_create(int unit, void (*input)(struct sock *sk, int len), struct 
 
 	netlink_table_grab();
 	nl_table[unit].module = module;
+	nl_table[unit].registered = 1;
 	netlink_table_ungrab();
 
 	return sk;
