@@ -826,11 +826,13 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 	struct srp_event_struct *tmp_evt, *found_evt;
 	union viosrp_iu srp_rsp;
 	int rsp_rc;
+	unsigned long flags;
 	u16 lun = lun_from_dev(cmd->device);
 
 	/* First, find this command in our sent list so we can figure
 	 * out the correct tag
 	 */
+	spin_lock_irqsave(hostdata->host->host_lock, flags);
 	found_evt = NULL;
 	list_for_each_entry(tmp_evt, &hostdata->sent, list) {
 		if (tmp_evt->cmnd == cmd) {
@@ -839,11 +841,14 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 		}
 	}
 
-	if (!found_evt) 
+	if (!found_evt) {
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 		return FAILED;
+	}
 
 	evt = get_event_struct(&hostdata->pool);
 	if (evt == NULL) {
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 		printk(KERN_ERR "ibmvscsi: failed to allocate abort event\n");
 		return FAILED;
 	}
@@ -867,7 +872,9 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 
 	evt->sync_srp = &srp_rsp;
 	init_completion(&evt->comp);
-	if (ibmvscsi_send_srp_event(evt, hostdata) != 0) {
+	rsp_rc = ibmvscsi_send_srp_event(evt, hostdata);
+	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+	if (rsp_rc != 0) {
 		printk(KERN_ERR "ibmvscsi: failed to send abort() event\n");
 		return FAILED;
 	}
@@ -901,6 +908,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 	 * The event is no longer in our list.  Make sure it didn't
 	 * complete while we were aborting
 	 */
+	spin_lock_irqsave(hostdata->host->host_lock, flags);
 	found_evt = NULL;
 	list_for_each_entry(tmp_evt, &hostdata->sent, list) {
 		if (tmp_evt->cmnd == cmd) {
@@ -910,6 +918,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 	}
 
 	if (found_evt == NULL) {
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 		printk(KERN_INFO
 		       "ibmvscsi: aborted task tag 0x%lx completed\n",
 		       tsk_mgmt->managed_task_tag);
@@ -924,6 +933,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 	list_del(&found_evt->list);
 	unmap_cmd_data(&found_evt->iu.srp.cmd, found_evt->hostdata->dev);
 	free_event_struct(&found_evt->hostdata->pool, found_evt);
+	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 	atomic_inc(&hostdata->request_limit);
 	return SUCCESS;
 }
@@ -943,10 +953,13 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	struct srp_event_struct *tmp_evt, *pos;
 	union viosrp_iu srp_rsp;
 	int rsp_rc;
+	unsigned long flags;
 	u16 lun = lun_from_dev(cmd->device);
 
+	spin_lock_irqsave(hostdata->host->host_lock, flags);
 	evt = get_event_struct(&hostdata->pool);
 	if (evt == NULL) {
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 		printk(KERN_ERR "ibmvscsi: failed to allocate reset event\n");
 		return FAILED;
 	}
@@ -969,7 +982,9 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 
 	evt->sync_srp = &srp_rsp;
 	init_completion(&evt->comp);
-	if (ibmvscsi_send_srp_event(evt, hostdata) != 0) {
+	rsp_rc = ibmvscsi_send_srp_event(evt, hostdata);
+	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+	if (rsp_rc != 0) {
 		printk(KERN_ERR "ibmvscsi: failed to send reset event\n");
 		return FAILED;
 	}
@@ -1002,6 +1017,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	/* We need to find all commands for this LUN that have not yet been
 	 * responded to, and fail them with DID_RESET
 	 */
+	spin_lock_irqsave(hostdata->host->host_lock, flags);
 	list_for_each_entry_safe(tmp_evt, pos, &hostdata->sent, list) {
 		if ((tmp_evt->cmnd) && (tmp_evt->cmnd->device == cmd->device)) {
 			if (tmp_evt->cmnd)
@@ -1017,6 +1033,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 				tmp_evt->done(tmp_evt);
 		}
 	}
+	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 	return SUCCESS;
 }
 
