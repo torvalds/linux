@@ -46,6 +46,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/usb.h>
+#include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/info.h>
@@ -673,6 +674,42 @@ static void snd_complete_sync_urb(struct urb *urb, struct pt_regs *regs)
 			snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
 		}
 	}
+}
+
+
+/* get the physical page pointer at the given offset */
+static struct page *snd_pcm_get_vmalloc_page(snd_pcm_substream_t *subs,
+					     unsigned long offset)
+{
+	void *pageptr = subs->runtime->dma_area + offset;
+	return vmalloc_to_page(pageptr);
+}
+
+/* allocate virtual buffer; may be called more than once */
+static int snd_pcm_alloc_vmalloc_buffer(snd_pcm_substream_t *subs, size_t size)
+{
+	snd_pcm_runtime_t *runtime = subs->runtime;
+	if (runtime->dma_area) {
+		if (runtime->dma_bytes >= size)
+			return 0; /* already large enough */
+		vfree_nocheck(runtime->dma_area);
+	}
+	runtime->dma_area = vmalloc_nocheck(size);
+	if (! runtime->dma_area)
+		return -ENOMEM;
+	runtime->dma_bytes = size;
+	return 0;
+}
+
+/* free virtual buffer; may be called more than once */
+static int snd_pcm_free_vmalloc_buffer(snd_pcm_substream_t *subs)
+{
+	snd_pcm_runtime_t *runtime = subs->runtime;
+	if (runtime->dma_area) {
+		vfree_nocheck(runtime->dma_area);
+		runtime->dma_area = NULL;
+	}
+	return 0;
 }
 
 
@@ -1311,7 +1348,8 @@ static int snd_usb_hw_params(snd_pcm_substream_t *substream,
 	unsigned int channels, rate, format;
 	int ret, changed;
 
-	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
+	ret = snd_pcm_alloc_vmalloc_buffer(substream,
+					   params_buffer_bytes(hw_params));
 	if (ret < 0)
 		return ret;
 
@@ -1367,7 +1405,7 @@ static int snd_usb_hw_free(snd_pcm_substream_t *substream)
 	subs->cur_rate = 0;
 	subs->period_bytes = 0;
 	release_substream_urbs(subs, 0);
-	return snd_pcm_lib_free_pages(substream);
+	return snd_pcm_free_vmalloc_buffer(substream);
 }
 
 /*
@@ -1406,7 +1444,7 @@ static snd_pcm_hardware_t snd_usb_playback =
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID),
-	.buffer_bytes_max =	(128*1024),
+	.buffer_bytes_max =	(256*1024),
 	.period_bytes_min =	64,
 	.period_bytes_max =	(128*1024),
 	.periods_min =		2,
@@ -1418,7 +1456,7 @@ static snd_pcm_hardware_t snd_usb_capture =
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID),
-	.buffer_bytes_max =	(128*1024),
+	.buffer_bytes_max =	(256*1024),
 	.period_bytes_min =	64,
 	.period_bytes_max =	(128*1024),
 	.periods_min =		2,
@@ -1810,6 +1848,7 @@ static snd_pcm_ops_t snd_usb_playback_ops = {
 	.prepare =	snd_usb_pcm_prepare,
 	.trigger =	snd_usb_pcm_trigger,
 	.pointer =	snd_usb_pcm_pointer,
+	.page =		snd_pcm_get_vmalloc_page,
 };
 
 static snd_pcm_ops_t snd_usb_capture_ops = {
@@ -1821,6 +1860,7 @@ static snd_pcm_ops_t snd_usb_capture_ops = {
 	.prepare =	snd_usb_pcm_prepare,
 	.trigger =	snd_usb_pcm_trigger,
 	.pointer =	snd_usb_pcm_pointer,
+	.page =		snd_pcm_get_vmalloc_page,
 };
 
 
@@ -2048,10 +2088,6 @@ static void init_substream(snd_usb_stream_t *as, int stream, struct audioformat 
 		subs->ops = audio_urb_ops[stream];
 	else
 		subs->ops = audio_urb_ops_high_speed[stream];
-	snd_pcm_lib_preallocate_pages(as->pcm->streams[stream].substream,
-				      SNDRV_DMA_TYPE_CONTINUOUS,
-				      snd_dma_continuous_data(GFP_NOIO),
-				      64 * 1024, 128 * 1024);
 	snd_pcm_set_ops(as->pcm, stream,
 			stream == SNDRV_PCM_STREAM_PLAYBACK ?
 			&snd_usb_playback_ops : &snd_usb_capture_ops);
@@ -2097,7 +2133,6 @@ static void snd_usb_audio_pcm_free(snd_pcm_t *pcm)
 	snd_usb_stream_t *stream = pcm->private_data;
 	if (stream) {
 		stream->pcm = NULL;
-		snd_pcm_lib_preallocate_free_for_all(pcm);
 		snd_usb_audio_stream_free(stream);
 	}
 }
