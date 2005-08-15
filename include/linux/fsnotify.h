@@ -21,7 +21,7 @@
  */
 static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 				 const char *old_name, const char *new_name,
-				 int isdir, struct inode *target)
+				 int isdir, struct inode *target, struct inode *source)
 {
 	u32 cookie = inotify_get_cookie();
 
@@ -40,6 +40,10 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 	if (target) {
 		inotify_inode_queue_event(target, IN_DELETE_SELF, 0, NULL);
 		inotify_inode_is_dead(target);
+	}
+
+	if (source) {
+		inotify_inode_queue_event(source, IN_MOVE_SELF, 0, NULL);
 	}
 }
 

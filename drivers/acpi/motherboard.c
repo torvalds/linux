@@ -42,7 +42,7 @@ ACPI_MODULE_NAME("acpi_motherboard")
  */
 #define IS_RESERVED_ADDR(base, len) \
 	(((len) > 0) && ((base) > 0) && ((base) + (len) < IO_SPACE_LIMIT) \
-	&& ((base) + (len) > 0x1000))
+	&& ((base) + (len) > PCIBIOS_MIN_IO))
 /*
  * Clearing the flag (IORESOURCE_BUSY) allows drivers to use
  * the io ports if they really know they can use it, while

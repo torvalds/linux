@@ -33,6 +33,7 @@
 #define MAX_UDP_CHUNK 1460
 #define MAX_SKBS 32
 #define MAX_QUEUE_DEPTH (MAX_SKBS / 2)
+#define MAX_RETRIES 20000
 
 static DEFINE_SPINLOCK(skb_list_lock);
 static int nr_skbs;
@@ -248,14 +249,14 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	int status;
 	struct netpoll_info *npinfo;
 
-repeat:
-	if(!np || !np->dev || !netif_running(np->dev)) {
+	if (!np || !np->dev || !netif_running(np->dev)) {
 		__kfree_skb(skb);
 		return;
 	}
 
-	/* avoid recursion */
 	npinfo = np->dev->npinfo;
+
+	/* avoid recursion */
 	if (npinfo->poll_owner == smp_processor_id() ||
 	    np->dev->xmit_lock_owner == smp_processor_id()) {
 		if (np->drop)
@@ -265,30 +266,37 @@ repeat:
 		return;
 	}
 
-	spin_lock(&np->dev->xmit_lock);
-	np->dev->xmit_lock_owner = smp_processor_id();
+	do {
+		npinfo->tries--;
+		spin_lock(&np->dev->xmit_lock);
+		np->dev->xmit_lock_owner = smp_processor_id();
 
-	/*
-	 * network drivers do not expect to be called if the queue is
-	 * stopped.
-	 */
-	if (netif_queue_stopped(np->dev)) {
+		/*
+		 * network drivers do not expect to be called if the queue is
+		 * stopped.
+		 */
+		if (netif_queue_stopped(np->dev)) {
+			np->dev->xmit_lock_owner = -1;
+			spin_unlock(&np->dev->xmit_lock);
+			netpoll_poll(np);
+			udelay(50);
+			continue;
+		}
+
+		status = np->dev->hard_start_xmit(skb, np->dev);
 		np->dev->xmit_lock_owner = -1;
 		spin_unlock(&np->dev->xmit_lock);
 
-		netpoll_poll(np);
-		goto repeat;
-	}
+		/* success */
+		if(!status) {
+			npinfo->tries = MAX_RETRIES; /* reset */
+			return;
+		}
 
-	status = np->dev->hard_start_xmit(skb, np->dev);
-	np->dev->xmit_lock_owner = -1;
-	spin_unlock(&np->dev->xmit_lock);
-
-	/* transmit busy */
-	if(status) {
+		/* transmit busy */
 		netpoll_poll(np);
-		goto repeat;
-	}
+		udelay(50);
+	} while (npinfo->tries > 0);
 }
 
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
@@ -349,15 +357,11 @@ static void arp_reply(struct sk_buff *skb)
 	unsigned char *arp_ptr;
 	int size, type = ARPOP_REPLY, ptype = ETH_P_ARP;
 	u32 sip, tip;
-	unsigned long flags;
 	struct sk_buff *send_skb;
 	struct netpoll *np = NULL;
 
-	spin_lock_irqsave(&npinfo->rx_lock, flags);
 	if (npinfo->rx_np && npinfo->rx_np->dev == skb->dev)
 		np = npinfo->rx_np;
-	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
-
 	if (!np)
 		return;
 
@@ -639,9 +643,11 @@ int netpoll_setup(struct netpoll *np)
 		if (!npinfo)
 			goto release;
 
+		npinfo->rx_flags = 0;
 		npinfo->rx_np = NULL;
 		npinfo->poll_lock = SPIN_LOCK_UNLOCKED;
 		npinfo->poll_owner = -1;
+		npinfo->tries = MAX_RETRIES;
 		npinfo->rx_lock = SPIN_LOCK_UNLOCKED;
 	} else
 		npinfo = ndev->npinfo;
@@ -718,8 +724,15 @@ int netpoll_setup(struct netpoll *np)
 		npinfo->rx_np = np;
 		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 	}
+
+	/* fill up the skb queue */
+	refill_skbs();
+
 	/* last thing to do is link it to the net device structure */
 	ndev->npinfo = npinfo;
+
+	/* avoid racing with NAPI reading npinfo */
+	synchronize_rcu();
 
 	return 0;
 
