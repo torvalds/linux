@@ -568,18 +568,6 @@ static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	}
 }
 
-/* move to PCI layer, integrate w/ MSI stuff */
-static void pci_enable_intx(struct pci_dev *pdev)
-{
-	u16 pci_command;
-
-	pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
-	if (pci_command & PCI_COMMAND_INTX_DISABLE) {
-		pci_command &= ~PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(pdev, PCI_COMMAND, pci_command);
-	}
-}
-
 #define AHCI_PCI_BAR 5
 #define AHCI_GLOBAL_CTL 0x04
 #define AHCI_ENABLE (1 << 31)
@@ -677,7 +665,7 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * message-signalled interrupts currently).
 	 */
 	if (port_info[0]->host_flags & PIIX_FLAG_CHECKINTR)
-		pci_enable_intx(pdev);
+		pci_intx(pdev, 1);
 
 	if (combined) {
 		port_info[sata_chan] = &piix_port_info[ent->driver_data];
