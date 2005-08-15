@@ -1843,7 +1843,7 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 	hdr_len = 24;
 	memcpy(&txdesc.frame_control, skb->data, hdr_len);
  	fc = le16_to_cpu(txdesc.frame_control);
-	if (HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
+	if (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA &&
 	    (fc & WLAN_FC_FROMDS) && (fc & WLAN_FC_TODS) && skb->len >= 30) {
 		/* Addr4 */
 		memcpy(txdesc.addr4, skb->data + hdr_len, ETH_ALEN);
@@ -2395,10 +2395,10 @@ static void prism2_txexc(local_info_t *local)
 	PDEBUG(DEBUG_EXTRA, "   retry_count=%d tx_rate=%d fc=0x%04x "
 	       "(%s%s%s::%d%s%s)\n",
 	       txdesc.retry_count, txdesc.tx_rate, fc,
-	       HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT ? "Mgmt" : "",
-	       HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_CTRL ? "Ctrl" : "",
-	       HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA ? "Data" : "",
-	       HOSTAP_FC_GET_STYPE(fc),
+	       WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_MGMT ? "Mgmt" : "",
+	       WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_CTL ? "Ctrl" : "",
+	       WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA ? "Data" : "",
+	       WLAN_FC_GET_STYPE(fc) >> 4,
 	       fc & WLAN_FC_TODS ? " ToDS" : "",
 	       fc & WLAN_FC_FROMDS ? " FromDS" : "");
 	PDEBUG(DEBUG_EXTRA, "   A1=" MACSTR " A2=" MACSTR " A3="

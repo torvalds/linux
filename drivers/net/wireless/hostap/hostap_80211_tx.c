@@ -13,7 +13,7 @@ void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 
 	fc = le16_to_cpu(hdr->frame_ctl);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d)%s%s",
-	       fc, HOSTAP_FC_GET_TYPE(fc), HOSTAP_FC_GET_STYPE(fc),
+	       fc, WLAN_FC_GET_TYPE(fc) >> 2, WLAN_FC_GET_STYPE(fc) >> 4,
 	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
 	       fc & WLAN_FC_FROMDS ? " [FromDS]" : "");
 
@@ -115,7 +115,7 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skip_header_bytes -= 2;
 	}
 
-	fc = (WLAN_FC_TYPE_DATA << 2) | (WLAN_FC_STYPE_DATA << 4);
+	fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA;
 	hdr_len = IEEE80211_DATA_HDR3_LEN;
 
 	if (use_wds != WDS_NO) {
@@ -268,8 +268,8 @@ int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len >= IEEE80211_DATA_HDR3_LEN + sizeof(rfc1042_header) + 2) {
 		hdr = (struct ieee80211_hdr *) skb->data;
 		fc = le16_to_cpu(hdr->frame_ctl);
-		if (HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
-		    HOSTAP_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DATA) {
+		if (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA &&
+		    WLAN_FC_GET_STYPE(fc) == IEEE80211_STYPE_DATA) {
 			u8 *pos = &skb->data[IEEE80211_DATA_HDR3_LEN +
 					     sizeof(rfc1042_header)];
 			meta->ethertype = (pos[0] << 8) | pos[1];
@@ -410,7 +410,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		break;
 	case AP_TX_CONTINUE_NOT_AUTHORIZED:
 		if (local->ieee_802_1x &&
-		    HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
+		    WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA &&
 		    meta->ethertype != ETH_P_PAE &&
 		    !(meta->flags & HOSTAP_TX_FLAGS_WDS)) {
 			printk(KERN_DEBUG "%s: dropped frame to unauthorized "
@@ -448,7 +448,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hdr->frame_ctl = cpu_to_le16(fc);
 	}
 
-	if (HOSTAP_FC_GET_TYPE(fc) != WLAN_FC_TYPE_DATA) {
+	if (WLAN_FC_GET_TYPE(fc) != IEEE80211_FTYPE_DATA) {
 		no_encrypt = 1;
 		tx.crypt = NULL;
 	}
@@ -469,7 +469,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		fc |= WLAN_FC_ISWEP;
 		hdr->frame_ctl = cpu_to_le16(fc);
 	} else if (local->drop_unencrypted &&
-		   HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
+		   WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA &&
 		   meta->ethertype != ETH_P_PAE) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: dropped unencrypted TX data "

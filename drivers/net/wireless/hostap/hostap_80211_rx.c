@@ -21,7 +21,7 @@ void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 
 	fc = le16_to_cpu(hdr->frame_ctl);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d)%s%s",
-	       fc, HOSTAP_FC_GET_TYPE(fc), HOSTAP_FC_GET_STYPE(fc),
+	       fc, WLAN_FC_GET_TYPE(fc) >> 2, WLAN_FC_GET_STYPE(fc) >> 4,
 	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
 	       fc & WLAN_FC_FROMDS ? " [FromDS]" : "");
 
@@ -445,8 +445,8 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 				     skb->data);
 	}
 
-	if (local->hostapd && type == WLAN_FC_TYPE_MGMT) {
-		if (stype == WLAN_FC_STYPE_BEACON &&
+	if (local->hostapd && type == IEEE80211_FTYPE_MGMT) {
+		if (stype == IEEE80211_STYPE_BEACON &&
 		    local->iw_mode == IW_MODE_MASTER) {
 			struct sk_buff *skb2;
 			/* Process beacon frames also in kernel driver to
@@ -467,23 +467,24 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 	}
 
 	if (local->iw_mode == IW_MODE_MASTER) {
-		if (type != WLAN_FC_TYPE_MGMT && type != WLAN_FC_TYPE_CTRL) {
+		if (type != IEEE80211_FTYPE_MGMT &&
+		    type != IEEE80211_FTYPE_CTL) {
 			printk(KERN_DEBUG "%s: unknown management frame "
 			       "(type=0x%02x, stype=0x%02x) dropped\n",
-			       skb->dev->name, type, stype);
+			       skb->dev->name, type >> 2, stype >> 4);
 			return -1;
 		}
 
 		hostap_rx(skb->dev, skb, rx_stats);
 		return 0;
-	} else if (type == WLAN_FC_TYPE_MGMT &&
-		   (stype == WLAN_FC_STYPE_BEACON ||
-		    stype == WLAN_FC_STYPE_PROBE_RESP)) {
+	} else if (type == IEEE80211_FTYPE_MGMT &&
+		   (stype == IEEE80211_STYPE_BEACON ||
+		    stype == IEEE80211_STYPE_PROBE_RESP)) {
 		hostap_rx_sta_beacon(local, skb, stype);
 		return -1;
-	} else if (type == WLAN_FC_TYPE_MGMT &&
-		   (stype == WLAN_FC_STYPE_ASSOC_RESP ||
-		    stype == WLAN_FC_STYPE_REASSOC_RESP)) {
+	} else if (type == IEEE80211_FTYPE_MGMT &&
+		   (stype == IEEE80211_STYPE_ASSOC_RESP ||
+		    stype == IEEE80211_STYPE_REASSOC_RESP)) {
 		/* Ignore (Re)AssocResp silently since these are not currently
 		 * needed but are still received when WPA/RSN mode is enabled.
 		 */
@@ -491,7 +492,7 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 	} else {
 		printk(KERN_DEBUG "%s: hostap_rx_frame_mgmt: dropped unhandled"
 		       " management frame in non-Host AP mode (type=%d:%d)\n",
-		       skb->dev->name, type, stype);
+		       skb->dev->name, type >> 2, stype >> 4);
 		return -1;
 	}
 }
@@ -719,8 +720,8 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		goto rx_dropped;
 
 	fc = le16_to_cpu(hdr->frame_ctl);
-	type = HOSTAP_FC_GET_TYPE(fc);
-	stype = HOSTAP_FC_GET_STYPE(fc);
+	type = WLAN_FC_GET_TYPE(fc);
+	stype = WLAN_FC_GET_STYPE(fc);
 	sc = le16_to_cpu(hdr->seq_ctl);
 	frag = WLAN_GET_SEQ_FRAG(sc);
 	hdrlen = hostap_80211_get_hdrlen(fc);
@@ -784,8 +785,9 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		}
 	}
 
-	if (type != WLAN_FC_TYPE_DATA) {
-		if (type == WLAN_FC_TYPE_MGMT && stype == WLAN_FC_STYPE_AUTH &&
+	if (type != IEEE80211_FTYPE_DATA) {
+		if (type == IEEE80211_FTYPE_MGMT &&
+		    stype == IEEE80211_STYPE_AUTH &&
 		    fc & WLAN_FC_ISWEP && local->host_decrypt &&
 		    (keyidx = hostap_rx_frame_decrypt(local, skb, crypt)) < 0)
 		{
@@ -867,14 +869,14 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 
 	/* Nullfunc frames may have PS-bit set, so they must be passed to
 	 * hostap_handle_sta_rx() before being dropped here. */
-	if (stype != WLAN_FC_STYPE_DATA &&
-	    stype != WLAN_FC_STYPE_DATA_CFACK &&
-	    stype != WLAN_FC_STYPE_DATA_CFPOLL &&
-	    stype != WLAN_FC_STYPE_DATA_CFACKPOLL) {
-		if (stype != WLAN_FC_STYPE_NULLFUNC)
+	if (stype != IEEE80211_STYPE_DATA &&
+	    stype != IEEE80211_STYPE_DATA_CFACK &&
+	    stype != IEEE80211_STYPE_DATA_CFPOLL &&
+	    stype != IEEE80211_STYPE_DATA_CFACKPOLL) {
+		if (stype != IEEE80211_STYPE_NULLFUNC)
 			printk(KERN_DEBUG "%s: RX: dropped data frame "
 			       "with no data (type=0x%02x, subtype=0x%02x)\n",
-			       dev->name, type, stype);
+			       dev->name, type >> 2, stype >> 4);
 		goto rx_dropped;
 	}
 

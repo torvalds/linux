@@ -594,7 +594,7 @@ void hostap_dump_rx_header(const char *name, const struct hfa384x_rx_frame *rx)
 	fc = __le16_to_cpu(rx->frame_control);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d) dur=0x%04x seq=0x%04x "
 	       "data_len=%d%s%s\n",
-	       fc, HOSTAP_FC_GET_TYPE(fc), HOSTAP_FC_GET_STYPE(fc),
+	       fc, WLAN_FC_GET_TYPE(fc) >> 2, WLAN_FC_GET_STYPE(fc) >> 4,
 	       __le16_to_cpu(rx->duration_id), __le16_to_cpu(rx->seq_ctrl),
 	       __le16_to_cpu(rx->data_len),
 	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
@@ -623,7 +623,7 @@ void hostap_dump_tx_header(const char *name, const struct hfa384x_tx_frame *tx)
 	fc = __le16_to_cpu(tx->frame_control);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d) dur=0x%04x seq=0x%04x "
 	       "data_len=%d%s%s\n",
-	       fc, HOSTAP_FC_GET_TYPE(fc), HOSTAP_FC_GET_STYPE(fc),
+	       fc, WLAN_FC_GET_TYPE(fc) >> 2, WLAN_FC_GET_STYPE(fc) >> 4,
 	       __le16_to_cpu(tx->duration_id), __le16_to_cpu(tx->seq_ctrl),
 	       __le16_to_cpu(tx->data_len),
 	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
@@ -666,15 +666,15 @@ int hostap_80211_get_hdrlen(u16 fc)
 {
 	int hdrlen = 24;
 
-	switch (HOSTAP_FC_GET_TYPE(fc)) {
-	case WLAN_FC_TYPE_DATA:
+	switch (WLAN_FC_GET_TYPE(fc)) {
+	case IEEE80211_FTYPE_DATA:
 		if ((fc & WLAN_FC_FROMDS) && (fc & WLAN_FC_TODS))
 			hdrlen = 30; /* Addr4 */
 		break;
-	case WLAN_FC_TYPE_CTRL:
-		switch (HOSTAP_FC_GET_STYPE(fc)) {
-		case WLAN_FC_STYPE_CTS:
-		case WLAN_FC_STYPE_ACK:
+	case IEEE80211_FTYPE_CTL:
+		switch (WLAN_FC_GET_STYPE(fc)) {
+		case IEEE80211_STYPE_CTS:
+		case IEEE80211_STYPE_ACK:
 			hdrlen = 10;
 			break;
 		default:
@@ -1093,7 +1093,7 @@ int prism2_update_comms_qual(struct net_device *dev)
 }
 
 
-int prism2_sta_send_mgmt(local_info_t *local, u8 *dst, u8 stype,
+int prism2_sta_send_mgmt(local_info_t *local, u8 *dst, u16 stype,
 			 u8 *body, size_t bodylen)
 {
 	struct sk_buff *skb;
@@ -1108,8 +1108,7 @@ int prism2_sta_send_mgmt(local_info_t *local, u8 *dst, u8 stype,
 	mgmt = (struct hostap_ieee80211_mgmt *)
 		skb_put(skb, IEEE80211_MGMT_HDR_LEN);
 	memset(mgmt, 0, IEEE80211_MGMT_HDR_LEN);
-	mgmt->frame_control =
-		cpu_to_le16((WLAN_FC_TYPE_MGMT << 2) | (stype << 4));
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | stype);
 	memcpy(mgmt->da, dst, ETH_ALEN);
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
 	memcpy(mgmt->bssid, dst, ETH_ALEN);
@@ -1140,7 +1139,7 @@ int prism2_sta_deauth(local_info_t *local, u16 reason)
 		return 0;
 
 	reason = cpu_to_le16(reason);
-	ret = prism2_sta_send_mgmt(local, local->bssid, WLAN_FC_STYPE_DEAUTH,
+	ret = prism2_sta_send_mgmt(local, local->bssid, IEEE80211_STYPE_DEAUTH,
 				   (u8 *) &reason, 2);
 	memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
 	wireless_send_event(local->dev, SIOCGIWAP, &wrqu, NULL);

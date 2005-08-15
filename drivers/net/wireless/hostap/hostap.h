@@ -37,7 +37,7 @@ struct net_device * hostap_add_interface(struct local_info *local,
 void hostap_remove_interface(struct net_device *dev, int rtnl_locked,
 			     int remove_from_list);
 int prism2_update_comms_qual(struct net_device *dev);
-int prism2_sta_send_mgmt(local_info_t *local, u8 *dst, u8 stype,
+int prism2_sta_send_mgmt(local_info_t *local, u8 *dst, u16 stype,
 			 u8 *body, size_t bodylen);
 int prism2_sta_deauth(local_info_t *local, u16 reason);
 

@@ -19,49 +19,6 @@
 #define WLAN_FC_ISWEP BIT(14)
 #define WLAN_FC_ORDER BIT(15)
 
-/*
- * To be replaced with ieee80211.h WLAN_FC_GET_* once HostAP code is updated to
- * use the versions without right shift.
- */
-#define HOSTAP_FC_GET_TYPE(fc) (((fc) & (BIT(3) | BIT(2))) >> 2)
-#define HOSTAP_FC_GET_STYPE(fc) \
-	(((fc) & (BIT(7) | BIT(6) | BIT(5) | BIT(4))) >> 4)
-
-#define WLAN_FC_TYPE_MGMT 0
-#define WLAN_FC_TYPE_CTRL 1
-#define WLAN_FC_TYPE_DATA 2
-
-/* management */
-#define WLAN_FC_STYPE_ASSOC_REQ 0
-#define WLAN_FC_STYPE_ASSOC_RESP 1
-#define WLAN_FC_STYPE_REASSOC_REQ 2
-#define WLAN_FC_STYPE_REASSOC_RESP 3
-#define WLAN_FC_STYPE_PROBE_REQ 4
-#define WLAN_FC_STYPE_PROBE_RESP 5
-#define WLAN_FC_STYPE_BEACON 8
-#define WLAN_FC_STYPE_ATIM 9
-#define WLAN_FC_STYPE_DISASSOC 10
-#define WLAN_FC_STYPE_AUTH 11
-#define WLAN_FC_STYPE_DEAUTH 12
-
-/* control */
-#define WLAN_FC_STYPE_PSPOLL 10
-#define WLAN_FC_STYPE_RTS 11
-#define WLAN_FC_STYPE_CTS 12
-#define WLAN_FC_STYPE_ACK 13
-#define WLAN_FC_STYPE_CFEND 14
-#define WLAN_FC_STYPE_CFENDACK 15
-
-/* data */
-#define WLAN_FC_STYPE_DATA 0
-#define WLAN_FC_STYPE_DATA_CFACK 1
-#define WLAN_FC_STYPE_DATA_CFPOLL 2
-#define WLAN_FC_STYPE_DATA_CFACKPOLL 3
-#define WLAN_FC_STYPE_NULLFUNC 4
-#define WLAN_FC_STYPE_CFACK 5
-#define WLAN_FC_STYPE_CFPOLL 6
-#define WLAN_FC_STYPE_CFACKPOLL 7
-
 #define WLAN_CAPABILITY_ESS WLAN_CAPABILITY_BSS
 
 

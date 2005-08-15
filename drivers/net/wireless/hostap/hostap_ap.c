@@ -46,7 +46,7 @@ static void handle_add_proc_queue(void *data);
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
 static void handle_wds_oper_queue(void *data);
 static void prism2_send_mgmt(struct net_device *dev,
-			     int type, int subtype, char *body,
+			     u16 type_subtype, char *body,
 			     int body_len, u8 *addr, u16 tx_cb_idx);
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
@@ -237,12 +237,12 @@ static void ap_handle_timer(unsigned long data)
 	} else if (sta->timeout_next == STA_NULLFUNC) {
 		/* send data frame to poll STA and check whether this frame
 		 * is ACKed */
-		/* FIX: WLAN_FC_STYPE_NULLFUNC would be more appropriate, but
+		/* FIX: IEEE80211_STYPE_NULLFUNC would be more appropriate, but
 		 * it is apparently not retried so TX Exc events are not
 		 * received for it */
 		sta->flags |= WLAN_STA_PENDING_POLL;
-		prism2_send_mgmt(local->dev, WLAN_FC_TYPE_DATA,
-				 WLAN_FC_STYPE_DATA, NULL, 0,
+		prism2_send_mgmt(local->dev, IEEE80211_FTYPE_DATA |
+				 IEEE80211_STYPE_DATA, NULL, 0,
 				 sta->addr, ap->tx_callback_poll);
 	} else {
 		int deauth = sta->timeout_next == STA_DEAUTH;
@@ -255,9 +255,9 @@ static void ap_handle_timer(unsigned long data)
 
 		resp = cpu_to_le16(deauth ? WLAN_REASON_PREV_AUTH_NOT_VALID :
 				   WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY);
-		prism2_send_mgmt(local->dev, WLAN_FC_TYPE_MGMT,
-				 (deauth ? WLAN_FC_STYPE_DEAUTH :
-				  WLAN_FC_STYPE_DISASSOC),
+		prism2_send_mgmt(local->dev, IEEE80211_FTYPE_MGMT |
+				 (deauth ? IEEE80211_STYPE_DEAUTH :
+				  IEEE80211_STYPE_DISASSOC),
 				 (char *) &resp, 2, sta->addr, 0);
 	}
 
@@ -300,7 +300,8 @@ void hostap_deauth_all_stas(struct net_device *dev, struct ap_data *ap,
 	 * else we can do at this point since the driver is going to be shut
 	 * down */
 	for (i = 0; i < 5; i++) {
-		prism2_send_mgmt(dev, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_DEAUTH,
+		prism2_send_mgmt(dev, IEEE80211_FTYPE_MGMT |
+				 IEEE80211_STYPE_DEAUTH,
 				 (char *) &resp, 2, addr, 0);
 
 		if (!resend || ap->num_sta <= 0)
@@ -471,7 +472,7 @@ static int ap_control_kick_mac(struct ap_data *ap, struct net_device *dev,
 		return -EINVAL;
 
 	resp = cpu_to_le16(WLAN_REASON_PREV_AUTH_NOT_VALID);
-	prism2_send_mgmt(dev, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_DEAUTH,
+	prism2_send_mgmt(dev, IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_DEAUTH,
 			 (char *) &resp, 2, sta->addr, 0);
 
 	if ((sta->flags & WLAN_STA_ASSOC) && !sta->ap)
@@ -634,8 +635,8 @@ static void hostap_ap_tx_cb_auth(struct sk_buff *skb, int ok, void *data)
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
-	if (HOSTAP_FC_GET_TYPE(fc) != WLAN_FC_TYPE_MGMT ||
-	    HOSTAP_FC_GET_STYPE(fc) != WLAN_FC_STYPE_AUTH ||
+	if (WLAN_FC_GET_TYPE(fc) != IEEE80211_FTYPE_MGMT ||
+	    WLAN_FC_GET_STYPE(fc) != IEEE80211_STYPE_AUTH ||
 	    skb->len < IEEE80211_MGMT_HDR_LEN + 6) {
 		printk(KERN_DEBUG "%s: hostap_ap_tx_cb_auth received invalid "
 		       "frame\n", dev->name);
@@ -703,9 +704,9 @@ static void hostap_ap_tx_cb_assoc(struct sk_buff *skb, int ok, void *data)
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
-	if (HOSTAP_FC_GET_TYPE(fc) != WLAN_FC_TYPE_MGMT ||
-	    (HOSTAP_FC_GET_STYPE(fc) != WLAN_FC_STYPE_ASSOC_RESP &&
-	     HOSTAP_FC_GET_STYPE(fc) != WLAN_FC_STYPE_REASSOC_RESP) ||
+	if (WLAN_FC_GET_TYPE(fc) != IEEE80211_FTYPE_MGMT ||
+	    (WLAN_FC_GET_STYPE(fc) != IEEE80211_STYPE_ASSOC_RESP &&
+	     WLAN_FC_GET_STYPE(fc) != IEEE80211_STYPE_REASSOC_RESP) ||
 	    skb->len < IEEE80211_MGMT_HDR_LEN + 4) {
 		printk(KERN_DEBUG "%s: hostap_ap_tx_cb_assoc received invalid "
 		       "frame\n", dev->name);
@@ -912,7 +913,7 @@ static struct sta_info* ap_get_sta(struct ap_data *ap, u8 *sta)
 
 /* Called from timer handler and from scheduled AP queue handlers */
 static void prism2_send_mgmt(struct net_device *dev,
-			     int type, int subtype, char *body,
+			     u16 type_subtype, char *body,
 			     int body_len, u8 *addr, u16 tx_cb_idx)
 {
 	struct hostap_interface *iface;
@@ -941,7 +942,7 @@ static void prism2_send_mgmt(struct net_device *dev,
 		return;
 	}
 
-	fc = (type << 2) | (subtype << 4);
+	fc = type_subtype;
 	hdrlen = hostap_80211_get_hdrlen(fc);
 	hdr = (struct ieee80211_hdr *) skb_put(skb, hdrlen);
 	if (body)
@@ -954,11 +955,11 @@ static void prism2_send_mgmt(struct net_device *dev,
 
 
 	memcpy(hdr->addr1, addr, ETH_ALEN); /* DA / RA */
-	if (type == WLAN_FC_TYPE_DATA) {
+	if (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA) {
 		fc |= WLAN_FC_FROMDS;
 		memcpy(hdr->addr2, dev->dev_addr, ETH_ALEN); /* BSSID */
 		memcpy(hdr->addr3, dev->dev_addr, ETH_ALEN); /* SA */
-	} else if (type == WLAN_FC_TYPE_CTRL) {
+	} else if (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_CTL) {
 		/* control:ACK does not have addr2 or addr3 */
 		memset(hdr->addr2, 0, ETH_ALEN);
 		memset(hdr->addr3, 0, ETH_ALEN);
@@ -1475,7 +1476,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 		olen += 2 + WLAN_AUTH_CHALLENGE_LEN;
 	}
 
-	prism2_send_mgmt(dev, WLAN_FC_TYPE_MGMT, WLAN_FC_STYPE_AUTH,
+	prism2_send_mgmt(dev, IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_AUTH,
 			 body, olen, hdr->addr2, ap->tx_callback_auth);
 
 	if (sta) {
@@ -1673,10 +1674,10 @@ static void handle_assoc(local_info_t *local, struct sk_buff *skb,
 		pos = (u16 *) p;
 	}
 
-	prism2_send_mgmt(dev, WLAN_FC_TYPE_MGMT,
-			 (send_deauth ? WLAN_FC_STYPE_DEAUTH :
-			  (reassoc ? WLAN_FC_STYPE_REASSOC_RESP :
-			   WLAN_FC_STYPE_ASSOC_RESP)),
+	prism2_send_mgmt(dev, IEEE80211_FTYPE_MGMT |
+			 (send_deauth ? IEEE80211_STYPE_DEAUTH :
+			  (reassoc ? IEEE80211_STYPE_REASSOC_RESP :
+			   IEEE80211_STYPE_ASSOC_RESP)),
 			 body, (u8 *) pos - (u8 *) body,
 			 hdr->addr2,
 			 send_deauth ? 0 : local->ap->tx_callback_assoc);
@@ -1793,7 +1794,7 @@ static void ap_handle_data_nullfunc(local_info_t *local,
 	 * send control::ACK for the data::nullfunc */
 
 	printk(KERN_DEBUG "Sending control::ACK for data::nullfunc\n");
-	prism2_send_mgmt(dev, WLAN_FC_TYPE_CTRL, WLAN_FC_STYPE_ACK,
+	prism2_send_mgmt(dev, IEEE80211_FTYPE_CTL | IEEE80211_STYPE_ACK,
 			 NULL, 0, hdr->addr2, 0);
 }
 
@@ -1820,9 +1821,9 @@ static void ap_handle_dropped_data(local_info_t *local,
 
 	reason = __constant_cpu_to_le16(
 		WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
-	prism2_send_mgmt(dev, WLAN_FC_TYPE_MGMT,
+	prism2_send_mgmt(dev, IEEE80211_FTYPE_MGMT |
 			 ((sta == NULL || !(sta->flags & WLAN_STA_ASSOC)) ?
-			  WLAN_FC_STYPE_DEAUTH : WLAN_FC_STYPE_DISASSOC),
+			  IEEE80211_STYPE_DEAUTH : IEEE80211_STYPE_DISASSOC),
 			 (char *) &reason, sizeof(reason), hdr->addr2, 0);
 
 	if (sta)
@@ -2142,15 +2143,15 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 	 * buffer is long enough */
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
-	type = HOSTAP_FC_GET_TYPE(fc);
-	stype = HOSTAP_FC_GET_STYPE(fc);
+	type = WLAN_FC_GET_TYPE(fc);
+	stype = WLAN_FC_GET_STYPE(fc);
 
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
-	if (!local->hostapd && type == WLAN_FC_TYPE_DATA) {
+	if (!local->hostapd && type == IEEE80211_FTYPE_DATA) {
 		PDEBUG(DEBUG_AP, "handle_ap_item - data frame\n");
 
 		if (!(fc & WLAN_FC_TODS) || (fc & WLAN_FC_FROMDS)) {
-			if (stype == WLAN_FC_STYPE_NULLFUNC) {
+			if (stype == IEEE80211_STYPE_NULLFUNC) {
 				/* no ToDS nullfunc seems to be used to check
 				 * AP association; so send reject message to
 				 * speed up re-association */
@@ -2169,20 +2170,21 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 			goto done;
 		}
 
-		if (local->ap->nullfunc_ack && stype == WLAN_FC_STYPE_NULLFUNC)
+		if (local->ap->nullfunc_ack &&
+		    stype == IEEE80211_STYPE_NULLFUNC)
 			ap_handle_data_nullfunc(local, hdr);
 		else
 			ap_handle_dropped_data(local, hdr);
 		goto done;
 	}
 
-	if (type == WLAN_FC_TYPE_MGMT && stype == WLAN_FC_STYPE_BEACON) {
+	if (type == IEEE80211_FTYPE_MGMT && stype == IEEE80211_STYPE_BEACON) {
 		handle_beacon(local, skb, rx_stats);
 		goto done;
 	}
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
-	if (type == WLAN_FC_TYPE_CTRL && stype == WLAN_FC_STYPE_PSPOLL) {
+	if (type == IEEE80211_FTYPE_CTL && stype == IEEE80211_STYPE_PSPOLL) {
 		handle_pspoll(local, hdr, rx_stats);
 		goto done;
 	}
@@ -2194,7 +2196,7 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 	}
 
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
-	if (type != WLAN_FC_TYPE_MGMT) {
+	if (type != IEEE80211_FTYPE_MGMT) {
 		PDEBUG(DEBUG_AP, "handle_ap_item - not a management frame?\n");
 		goto done;
 	}
@@ -2212,32 +2214,33 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 	}
 
 	switch (stype) {
-	case WLAN_FC_STYPE_ASSOC_REQ:
+	case IEEE80211_STYPE_ASSOC_REQ:
 		handle_assoc(local, skb, rx_stats, 0);
 		break;
-	case WLAN_FC_STYPE_ASSOC_RESP:
+	case IEEE80211_STYPE_ASSOC_RESP:
 		PDEBUG(DEBUG_AP, "==> ASSOC RESP (ignored)\n");
 		break;
-	case WLAN_FC_STYPE_REASSOC_REQ:
+	case IEEE80211_STYPE_REASSOC_REQ:
 		handle_assoc(local, skb, rx_stats, 1);
 		break;
-	case WLAN_FC_STYPE_REASSOC_RESP:
+	case IEEE80211_STYPE_REASSOC_RESP:
 		PDEBUG(DEBUG_AP, "==> REASSOC RESP (ignored)\n");
 		break;
-	case WLAN_FC_STYPE_ATIM:
+	case IEEE80211_STYPE_ATIM:
 		PDEBUG(DEBUG_AP, "==> ATIM (ignored)\n");
 		break;
-	case WLAN_FC_STYPE_DISASSOC:
+	case IEEE80211_STYPE_DISASSOC:
 		handle_disassoc(local, skb, rx_stats);
 		break;
-	case WLAN_FC_STYPE_AUTH:
+	case IEEE80211_STYPE_AUTH:
 		handle_authen(local, skb, rx_stats);
 		break;
-	case WLAN_FC_STYPE_DEAUTH:
+	case IEEE80211_STYPE_DEAUTH:
 		handle_deauth(local, skb, rx_stats);
 		break;
 	default:
-		PDEBUG(DEBUG_AP, "Unknown mgmt frame subtype 0x%02x\n", stype);
+		PDEBUG(DEBUG_AP, "Unknown mgmt frame subtype 0x%02x\n",
+		       stype >> 4);
 		break;
 	}
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
@@ -2268,8 +2271,8 @@ void hostap_rx(struct net_device *dev, struct sk_buff *skb,
 	fc = le16_to_cpu(hdr->frame_ctl);
 
 	if (local->ap->ap_policy == AP_OTHER_AP_SKIP_ALL &&
-	    HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT &&
-	    HOSTAP_FC_GET_STYPE(fc) == WLAN_FC_STYPE_BEACON)
+	    WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_MGMT &&
+	    WLAN_FC_GET_STYPE(fc) == IEEE80211_STYPE_BEACON)
 		goto drop;
 
 	skb->protocol = __constant_htons(ETH_P_HOSTAP);
@@ -2302,7 +2305,7 @@ static void schedule_packet_send(local_info_t *local, struct sta_info *sta)
 
 	/* Generate a fake pspoll frame to start packet delivery */
 	hdr->frame_ctl = __constant_cpu_to_le16(
-		(WLAN_FC_TYPE_CTRL << 2) | (WLAN_FC_STYPE_PSPOLL << 4));
+		IEEE80211_FTYPE_CTL | IEEE80211_STYPE_PSPOLL);
 	memcpy(hdr->addr1, local->dev->dev_addr, ETH_ALEN);
 	memcpy(hdr->addr2, sta->addr, ETH_ALEN);
 	hdr->duration_id = cpu_to_le16(sta->aid | BIT(15) | BIT(14));
@@ -2872,13 +2875,14 @@ static void hostap_update_sta_ps2(local_info_t *local, struct sta_info *sta,
 		sta->flags |= WLAN_STA_PS;
 		PDEBUG(DEBUG_PS2, "STA " MACSTR " changed to use PS "
 		       "mode (type=0x%02X, stype=0x%02X)\n",
-		       MAC2STR(sta->addr), type, stype);
+		       MAC2STR(sta->addr), type >> 2, stype >> 4);
 	} else if (!pwrmgt && (sta->flags & WLAN_STA_PS)) {
 		sta->flags &= ~WLAN_STA_PS;
 		PDEBUG(DEBUG_PS2, "STA " MACSTR " changed to not use "
 		       "PS mode (type=0x%02X, stype=0x%02X)\n",
-		       MAC2STR(sta->addr), type, stype);
-		if (type != WLAN_FC_TYPE_CTRL || stype != WLAN_FC_STYPE_PSPOLL)
+		       MAC2STR(sta->addr), type >> 2, stype >> 4);
+		if (type != IEEE80211_FTYPE_CTL ||
+		    stype != IEEE80211_STYPE_PSPOLL)
 			schedule_packet_send(local, sta);
 	}
 }
@@ -2902,7 +2906,7 @@ int hostap_update_sta_ps(local_info_t *local, struct ieee80211_hdr *hdr)
 
 	fc = le16_to_cpu(hdr->frame_ctl);
 	hostap_update_sta_ps2(local, sta, fc & WLAN_FC_PWRMGT,
-			      HOSTAP_FC_GET_TYPE(fc), HOSTAP_FC_GET_STYPE(fc));
+			      WLAN_FC_GET_TYPE(fc), WLAN_FC_GET_STYPE(fc));
 
 	atomic_dec(&sta->users);
 	return 0;
@@ -2927,8 +2931,8 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 	hdr = (struct ieee80211_hdr *) skb->data;
 
 	fc = le16_to_cpu(hdr->frame_ctl);
-	type = HOSTAP_FC_GET_TYPE(fc);
-	stype = HOSTAP_FC_GET_STYPE(fc);
+	type = WLAN_FC_GET_TYPE(fc);
+	stype = WLAN_FC_GET_STYPE(fc);
 
 	spin_lock(&local->ap->sta_table_lock);
 	sta = ap_get_sta(local->ap, hdr->addr2);
@@ -2952,8 +2956,8 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 				printk(KERN_DEBUG "%s: dropped received packet"
 				       " from non-associated STA " MACSTR
 				       " (type=0x%02x, subtype=0x%02x)\n",
-				       dev->name, MAC2STR(hdr->addr2), type,
-				       stype);
+				       dev->name, MAC2STR(hdr->addr2),
+				       type >> 2, stype >> 4);
 				hostap_rx(dev, skb, rx_stats);
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 			}
@@ -2972,7 +2976,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 			ret = AP_RX_DROP;
 			goto out;
 		}
-	} else if (stype == WLAN_FC_STYPE_NULLFUNC && sta == NULL &&
+	} else if (stype == IEEE80211_STYPE_NULLFUNC && sta == NULL &&
 		   memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN) == 0) {
 
 		if (local->hostapd) {
@@ -2994,7 +2998,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 		}
 		ret = AP_RX_EXIT;
 		goto out;
-	} else if (stype == WLAN_FC_STYPE_NULLFUNC) {
+	} else if (stype == IEEE80211_STYPE_NULLFUNC) {
 		/* At least Lucent cards seem to send periodic nullfunc
 		 * frames with ToDS. Let these through to update SQ
 		 * stats and PS state. Nullfunc frames do not contain
@@ -3007,7 +3011,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 			printk(KERN_DEBUG "%s: dropped received packet from "
 			       MACSTR " with no ToDS flag (type=0x%02x, "
 			       "subtype=0x%02x)\n", dev->name,
-			       MAC2STR(hdr->addr2), type, stype);
+			       MAC2STR(hdr->addr2), type >> 2, stype >> 4);
 			hostap_dump_rx_80211(dev->name, skb, rx_stats);
 		}
 		ret = AP_RX_DROP;
@@ -3023,7 +3027,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 		sta->last_rx = jiffies;
 	}
 
-	if (local->ap->nullfunc_ack && stype == WLAN_FC_STYPE_NULLFUNC &&
+	if (local->ap->nullfunc_ack && stype == IEEE80211_STYPE_NULLFUNC &&
 	    fc & WLAN_FC_TODS) {
 		if (local->hostapd) {
 			prism2_rx_80211(local->apdev, skb, rx_stats,

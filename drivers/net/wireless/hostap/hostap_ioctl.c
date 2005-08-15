@@ -3784,11 +3784,11 @@ static int prism2_ioctl_siwmlme(struct net_device *dev,
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
 		return prism2_sta_send_mgmt(local, mlme->addr.sa_data,
-					    WLAN_FC_STYPE_DEAUTH,
+					    IEEE80211_STYPE_DEAUTH,
 					    (u8 *) &reason, 2);
 	case IW_MLME_DISASSOC:
 		return prism2_sta_send_mgmt(local, mlme->addr.sa_data,
-					    WLAN_FC_STYPE_DISASSOC,
+					    IEEE80211_STYPE_DISASSOC,
 					    (u8 *) &reason, 2);
 	default:
 		return -EOPNOTSUPP;
@@ -3805,11 +3805,11 @@ static int prism2_ioctl_mlme(local_info_t *local,
 	switch (param->u.mlme.cmd) {
 	case MLME_STA_DEAUTH:
 		return prism2_sta_send_mgmt(local, param->sta_addr,
-					    WLAN_FC_STYPE_DEAUTH,
+					    IEEE80211_STYPE_DEAUTH,
 					    (u8 *) &reason, 2);
 	case MLME_STA_DISASSOC:
 		return prism2_sta_send_mgmt(local, param->sta_addr,
-					    WLAN_FC_STYPE_DISASSOC,
+					    IEEE80211_STYPE_DISASSOC,
 					    (u8 *) &reason, 2);
 	default:
 		return -EOPNOTSUPP;
