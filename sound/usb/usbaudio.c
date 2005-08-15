@@ -311,27 +311,18 @@ static int prepare_capture_urb(snd_usb_substream_t *subs,
 			       struct urb *urb)
 {
 	int i, offs;
-	unsigned long flags;
 	snd_urb_ctx_t *ctx = (snd_urb_ctx_t *)urb->context;
 
 	offs = 0;
 	urb->dev = ctx->subs->dev; /* we need to set this at each time */
-	urb->number_of_packets = 0;
-	spin_lock_irqsave(&subs->lock, flags);
 	for (i = 0; i < ctx->packets; i++) {
 		urb->iso_frame_desc[i].offset = offs;
 		urb->iso_frame_desc[i].length = subs->curpacksize;
 		offs += subs->curpacksize;
-		urb->number_of_packets++;
-		subs->transfer_sched += subs->curframesize;
-		if (subs->transfer_sched >= runtime->period_size) {
-			subs->transfer_sched -= runtime->period_size;
-			break;
-		}
 	}
-	spin_unlock_irqrestore(&subs->lock, flags);
 	urb->transfer_buffer = ctx->buf;
 	urb->transfer_buffer_length = offs;
+	urb->number_of_packets = ctx->packets;
 #if 0 // for check
 	if (! urb->bandwidth) {
 		int bustime;
@@ -359,6 +350,7 @@ static int retire_capture_urb(snd_usb_substream_t *subs,
 	unsigned char *cp;
 	int i;
 	unsigned int stride, len, oldptr;
+	int period_elapsed = 0;
 
 	stride = runtime->frame_bits >> 3;
 
@@ -378,6 +370,10 @@ static int retire_capture_urb(snd_usb_substream_t *subs,
 		if (subs->hwptr_done >= runtime->buffer_size)
 			subs->hwptr_done -= runtime->buffer_size;
 		subs->transfer_done += len;
+		if (subs->transfer_done >= runtime->period_size) {
+			subs->transfer_done -= runtime->period_size;
+			period_elapsed = 1;
+		}
 		spin_unlock_irqrestore(&subs->lock, flags);
 		/* copy a data chunk */
 		if (oldptr + len > runtime->buffer_size) {
@@ -388,15 +384,9 @@ static int retire_capture_urb(snd_usb_substream_t *subs,
 		} else {
 			memcpy(runtime->dma_area + oldptr * stride, cp, len * stride);
 		}
-		/* update the pointer, call callback if necessary */
-		spin_lock_irqsave(&subs->lock, flags);
-		if (subs->transfer_done >= runtime->period_size) {
-			subs->transfer_done -= runtime->period_size;
-			spin_unlock_irqrestore(&subs->lock, flags);
-			snd_pcm_period_elapsed(subs->pcm_substream);
-		} else
-			spin_unlock_irqrestore(&subs->lock, flags);
 	}
+	if (period_elapsed)
+		snd_pcm_period_elapsed(subs->pcm_substream);
 	return 0;
 }
 
