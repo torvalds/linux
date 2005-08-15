@@ -4190,7 +4190,7 @@ static int ipw_best_network(
 	/* Verify that this network's capability is compatible with the
 	 * current mode (AdHoc or Infrastructure) */
 	if ((priv->ieee->iw_mode == IW_MODE_INFRA &&
-	     !(network->capability & WLAN_CAPABILITY_BSS)) ||
+	     !(network->capability & WLAN_CAPABILITY_ESS)) ||
 	    (priv->ieee->iw_mode == IW_MODE_ADHOC &&
 	     !(network->capability & WLAN_CAPABILITY_IBSS))) {
 		IPW_DEBUG_ASSOC("Network '%s (" MAC_FMT ")' excluded due to "
