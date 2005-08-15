@@ -86,7 +86,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 
 	dev->driver = driver;
 
-	dev->groups = 23;
+	dev->groups = 1;
 	dev->seq = 1;
 	dev->nls = netlink_kernel_create(NETLINK_W1, NULL, THIS_MODULE);
 	if (!dev->nls) {
