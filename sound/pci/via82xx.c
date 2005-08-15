@@ -929,12 +929,12 @@ static int snd_via8233_playback_prepare(snd_pcm_substream_t *substream)
 
 	if ((rate_changed = via_lock_rate(&chip->rates[0], ac97_rate)) < 0)
 		return rate_changed;
-	if (rate_changed) {
+	if (rate_changed)
 		snd_ac97_set_rate(chip->ac97, AC97_PCM_FRONT_DAC_RATE,
 				  chip->no_vra ? 48000 : runtime->rate);
-		snd_ac97_set_rate(chip->ac97, AC97_SPDIF,
-				  chip->no_vra ? 48000 : runtime->rate);
-	}
+	if (chip->spdif_on && viadev->reg_offset == 0x30)
+		snd_ac97_set_rate(chip->ac97, AC97_SPDIF, runtime->rate);
+
 	if (runtime->rate == 48000)
 		rbits = 0xfffff;
 	else
