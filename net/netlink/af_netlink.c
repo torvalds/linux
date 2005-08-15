@@ -81,6 +81,7 @@ struct netlink_sock {
 };
 
 #define NETLINK_KERNEL_SOCKET	0x1
+#define NETLINK_RECV_PKTINFO	0x2
 
 static inline struct netlink_sock *nlk_sk(struct sock *sk)
 {
@@ -946,6 +947,94 @@ void netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
 	read_unlock(&nl_table_lock);
 }
 
+static int netlink_setsockopt(struct socket *sock, int level, int optname,
+                              char __user *optval, int optlen)
+{
+	struct sock *sk = sock->sk;
+	struct netlink_sock *nlk = nlk_sk(sk);
+	int val = 0, err;
+
+	if (level != SOL_NETLINK)
+		return -ENOPROTOOPT;
+
+	if (optlen >= sizeof(int) &&
+	    get_user(val, (int __user *)optval))
+		return -EFAULT;
+
+	switch (optname) {
+	case NETLINK_PKTINFO:
+		if (val)
+			nlk->flags |= NETLINK_RECV_PKTINFO;
+		else
+			nlk->flags &= ~NETLINK_RECV_PKTINFO;
+		err = 0;
+		break;
+	case NETLINK_ADD_MEMBERSHIP:
+	case NETLINK_DROP_MEMBERSHIP: {
+		unsigned int subscriptions;
+		int old, new = optname == NETLINK_ADD_MEMBERSHIP ? 1 : 0;
+
+		if (!netlink_capable(sock, NL_NONROOT_RECV))
+			return -EPERM;
+		if (!val || val - 1 >= nlk->ngroups)
+			return -EINVAL;
+		netlink_table_grab();
+		old = test_bit(val - 1, nlk->groups);
+		subscriptions = nlk->subscriptions - old + new;
+		if (new)
+			__set_bit(val - 1, nlk->groups);
+		else
+			__clear_bit(val - 1, nlk->groups);
+		netlink_update_subscriptions(sk, subscriptions);
+		netlink_table_ungrab();
+		err = 0;
+		break;
+	}
+	default:
+		err = -ENOPROTOOPT;
+	}
+	return err;
+}
+
+static int netlink_getsockopt(struct socket *sock, int level, int optname,
+                              char __user *optval, int __user *optlen)
+{
+	struct sock *sk = sock->sk;
+	struct netlink_sock *nlk = nlk_sk(sk);
+	int len, val, err;
+
+	if (level != SOL_NETLINK)
+		return -ENOPROTOOPT;
+
+	if (get_user(len, optlen))
+		return -EFAULT;
+	if (len < 0)
+		return -EINVAL;
+
+	switch (optname) {
+	case NETLINK_PKTINFO:
+		if (len < sizeof(int))
+			return -EINVAL;
+		len = sizeof(int);
+		val = nlk->flags & NETLINK_RECV_PKTINFO ? 1 : 0;
+		put_user(len, optlen);
+		put_user(val, optval);
+		err = 0;
+		break;
+	default:
+		err = -ENOPROTOOPT;
+	}
+	return err;
+}
+
+static void netlink_cmsg_recv_pktinfo(struct msghdr *msg, struct sk_buff *skb)
+{
+	struct nl_pktinfo info;
+
+	info.group = NETLINK_CB(skb).dst_group;
+	put_cmsg(msg, SOL_NETLINK, NETLINK_PKTINFO, sizeof(info), &info);
+}
+
 static inline void netlink_rcv_wake(struct sock *sk)
 {
 	struct netlink_sock *nlk = nlk_sk(sk);
@@ -1091,6 +1180,8 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 		netlink_dump(sk);
 
 	scm_recv(sock, msg, siocb->scm, flags);
+	if (nlk->flags & NETLINK_RECV_PKTINFO)
+		netlink_cmsg_recv_pktinfo(msg, skb);
 
 out:
 	netlink_rcv_wake(sk);
@@ -1465,8 +1556,8 @@ static struct proto_ops netlink_ops = {
 	.ioctl =	sock_no_ioctl,
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,
-	.setsockopt =	sock_no_setsockopt,
-	.getsockopt =	sock_no_getsockopt,
+	.setsockopt =	netlink_setsockopt,
+	.getsockopt =	netlink_getsockopt,
 	.sendmsg =	netlink_sendmsg,
 	.recvmsg =	netlink_recvmsg,
 	.mmap =		sock_no_mmap,

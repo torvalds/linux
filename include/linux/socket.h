@@ -272,6 +272,7 @@ struct ucred {
 #define SOL_NETBEUI	267
 #define SOL_LLC		268
 #define SOL_DCCP	269
+#define SOL_NETLINK	270
 
 /* IPX options */
 #define IPX_TYPE	1

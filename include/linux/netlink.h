@@ -90,6 +90,15 @@ struct nlmsgerr
 	struct nlmsghdr msg;
 };
 
+#define NETLINK_ADD_MEMBERSHIP	1
+#define NETLINK_DROP_MEMBERSHIP	2
+#define NETLINK_PKTINFO		3
+
+struct nl_pktinfo
+{
+	__u32	group;
+};
+
 #define NET_MAJOR 36		/* Major 36 is reserved for networking 						*/
 
 enum {
