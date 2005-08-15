@@ -200,7 +200,7 @@ static struct i2c_driver driver = {
 };
 
 static struct i2c_client client_template = {
-	I2C_DEVNAME("tea6415c"),
+	.name = "tea6415c",
 	.driver = &driver,
 };
 

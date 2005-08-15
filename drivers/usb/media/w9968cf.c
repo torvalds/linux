@@ -1523,7 +1523,6 @@ static u32 w9968cf_i2c_func(struct i2c_adapter* adap)
 static int w9968cf_i2c_attach_inform(struct i2c_client* client)
 {
 	struct w9968cf_device* cam = i2c_get_adapdata(client->adapter);
-	const char* clientname = i2c_clientname(client);
 	int id = client->driver->id, err = 0;
 
 	if (id == I2C_DRIVERID_OVCAMCHIP) {
@@ -1535,12 +1534,12 @@ static int w9968cf_i2c_attach_inform(struct i2c_client* client)
 		}
 	} else {
 		DBG(4, "Rejected client [%s] with driver [%s]", 
-		    clientname, client->driver->name)
+		    client->name, client->driver->name)
 		return -EINVAL;
 	}
 
 	DBG(5, "I2C attach client [%s] with driver [%s]",
-	    clientname, client->driver->name)
+	    client->name, client->driver->name)
 
 	return 0;
 }
@@ -1549,12 +1548,11 @@ static int w9968cf_i2c_attach_inform(struct i2c_client* client)
 static int w9968cf_i2c_detach_inform(struct i2c_client* client)
 {
 	struct w9968cf_device* cam = i2c_get_adapdata(client->adapter);
-	const char* clientname = i2c_clientname(client);
 
 	if (cam->sensor_client == client)
 		cam->sensor_client = NULL;
 
-	DBG(5, "I2C detach client [%s]", clientname)
+	DBG(5, "I2C detach client [%s]", client->name)
 
 	return 0;
 }

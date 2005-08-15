@@ -314,7 +314,7 @@ static int ovcamchip_attach(struct i2c_adapter *adap)
 	}
 	memcpy(c, &client_template, sizeof *c);
 	c->adapter = adap;
-	strcpy(i2c_clientname(c), "OV????");
+	strcpy(c->name, "OV????");
 
 	ov = kmalloc(sizeof *ov, GFP_KERNEL);
 	if (!ov) {
@@ -328,7 +328,7 @@ static int ovcamchip_attach(struct i2c_adapter *adap)
 	if (rc < 0)
 		goto error;
 
-	strcpy(i2c_clientname(c), chip_names[ov->subtype]);
+	strcpy(c->name, chip_names[ov->subtype]);
 
 	PDEBUG(1, "Camera chip detection complete");
 
@@ -421,7 +421,7 @@ static struct i2c_driver driver = {
 };
 
 static struct i2c_client client_template = {
-	I2C_DEVNAME("(unset)"),
+	.name =		"(unset)",
 	.driver =	&driver,
 };
 

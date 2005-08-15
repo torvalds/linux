@@ -334,7 +334,7 @@ static int attach_inform(struct i2c_client *client)
 	struct tuner_setup tun_setup;
 
 	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
-		client->driver->name,client->addr,i2c_clientname(client));
+		 client->driver->name, client->addr, client->name);
 
 	if (!client->driver->command)
 		return 0;
@@ -380,14 +380,14 @@ static struct i2c_adapter saa7134_adap_template = {
 #ifdef I2C_CLASS_TV_ANALOG
 	.class         = I2C_CLASS_TV_ANALOG,
 #endif
-	I2C_DEVNAME("saa7134"),
+	.name          = "saa7134",
 	.id            = I2C_HW_SAA7134,
 	.algo          = &saa7134_algo,
 	.client_register = attach_inform,
 };
 
 static struct i2c_client saa7134_client_template = {
-	I2C_DEVNAME("saa7134 internal"),
+	.name	= "saa7134 internal",
 };
 
 /* ----------------------------------------------------------- */

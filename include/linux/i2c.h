@@ -178,13 +178,6 @@ static inline void i2c_set_clientdata (struct i2c_client *dev, void *data)
 	dev_set_drvdata (&dev->dev, data);
 }
 
-#define I2C_DEVNAME(str)	.name = str
-
-static inline char *i2c_clientname(struct i2c_client *c)
-{
-	return &c->name[0];
-}
-
 /*
  * The following structs are for those who like to implement new bus drivers:
  * i2c_algorithm is the interface to a class of hardware solutions which can

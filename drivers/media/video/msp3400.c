@@ -1437,7 +1437,7 @@ static struct i2c_driver driver = {
 
 static struct i2c_client client_template =
 {
-	I2C_DEVNAME("(unset)"),
+	.name      = "(unset)",
 	.flags     = I2C_CLIENT_ALLOW_USE,
         .driver    = &driver,
 };
@@ -1509,7 +1509,7 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 	}
 
 	/* hello world :-) */
-	printk(KERN_INFO "msp34xx: init: chip=%s",i2c_clientname(c));
+	printk(KERN_INFO "msp34xx: init: chip=%s", c->name);
 	if (HAVE_NICAM(msp))
 		printk(" +nicam");
 	if (HAVE_SIMPLE(msp))
