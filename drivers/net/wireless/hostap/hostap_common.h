@@ -7,14 +7,6 @@
 #define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
 
 
-#ifndef ETH_P_PAE
-#define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
-#endif /* ETH_P_PAE */
-
-#define ETH_P_PREAUTH 0x88C7 /* IEEE 802.11i pre-authentication */
-
-
-
 /* IEEE 802.11 defines */
 
 #define WLAN_FC_PVER (BIT(1) | BIT(0))

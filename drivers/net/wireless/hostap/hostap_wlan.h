@@ -18,13 +18,6 @@
  * prism2_send_mgmt() sends these with dev_queue_xmit() to prism2_tx(). */
 #define ETH_P_HOSTAP ETH_P_CONTROL
 
-#ifndef ARPHRD_IEEE80211
-#define ARPHRD_IEEE80211 801
-#endif
-#ifndef ARPHRD_IEEE80211_PRISM
-#define ARPHRD_IEEE80211_PRISM 802
-#endif
-
 /* ARPHRD_IEEE80211_PRISM uses a bloated version of Prism2 RX frame header
  * (from linux-wlan-ng) */
 struct linux_wlan_ng_val {
