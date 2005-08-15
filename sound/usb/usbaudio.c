@@ -164,6 +164,7 @@ struct snd_usb_substream {
 	unsigned int curframesize;	/* current packet size in frames (for capture) */
 	unsigned int fill_max: 1;	/* fill max packet size always */
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
+	unsigned int packs_per_ms;	/* packets per millisecond (for playback) */
 
 	unsigned int running: 1;	/* running status */
 
@@ -537,9 +538,13 @@ static int prepare_playback_urb(snd_usb_substream_t *subs,
 					urb->iso_frame_desc[i].length = 0;
 					urb->number_of_packets++;
 				}
+				break;
 			}
-			break;
  		}
+		/* finish at the frame boundary at/after the period boundary */
+		if (period_elapsed &&
+		    (i & (subs->packs_per_ms - 1)) == subs->packs_per_ms - 1)
+			break;
 	}
 	if (subs->hwptr_done + offs > runtime->buffer_size) {
 		/* err, the transferred area goes over buffer boundary. */
@@ -907,6 +912,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 		packs_per_ms = 8 >> subs->datainterval;
 	else
 		packs_per_ms = 1;
+	subs->packs_per_ms = packs_per_ms;
 
 	if (is_playback) {
 		urb_packs = nrpacks;
