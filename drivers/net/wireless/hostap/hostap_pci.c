@@ -34,6 +34,12 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(PRISM2_VERSION);
 
 
+/* struct local_info::hw_priv */
+struct hostap_pci_priv {
+	void __iomem *mem_start;
+};
+
+
 /* FIX: do we need mb/wmb/rmb with memory operations? */
 
 
@@ -61,7 +67,7 @@ static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
 
 	spin_lock_irqsave(&local->lock, flags);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTB, a, v);
-	writeb(v, local->mem_start + a);
+	writeb(v, hw_priv->mem_start + a);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
@@ -76,7 +82,7 @@ static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
 	local = iface->local;
 
 	spin_lock_irqsave(&local->lock, flags);
-	v = readb(local->mem_start + a);
+	v = readb(hw_priv->mem_start + a);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INB, a, v);
 	spin_unlock_irqrestore(&local->lock, flags);
 	return v;
@@ -93,7 +99,7 @@ static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
 
 	spin_lock_irqsave(&local->lock, flags);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTW, a, v);
-	writew(v, local->mem_start + a);
+	writew(v, hw_priv->mem_start + a);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
@@ -108,7 +114,7 @@ static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
 	local = iface->local;
 
 	spin_lock_irqsave(&local->lock, flags);
-	v = readw(local->mem_start + a);
+	v = readw(hw_priv->mem_start + a);
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INW, a, v);
 	spin_unlock_irqrestore(&local->lock, flags);
 	return v;
@@ -126,37 +132,37 @@ static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
 static inline void hfa384x_outb(struct net_device *dev, int a, u8 v)
 {
 	struct hostap_interface *iface;
-	local_info_t *local;
+	struct hostap_pci_priv *hw_priv;
 	iface = netdev_priv(dev);
-	local = iface->local;
-	writeb(v, local->mem_start + a);
+	hw_priv = iface->local->hw_priv;
+	writeb(v, hw_priv->mem_start + a);
 }
 
 static inline u8 hfa384x_inb(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
-	local_info_t *local;
+	struct hostap_pci_priv *hw_priv;
 	iface = netdev_priv(dev);
-	local = iface->local;
-	return readb(local->mem_start + a);
+	hw_priv = iface->local->hw_priv;
+	return readb(hw_priv->mem_start + a);
 }
 
 static inline void hfa384x_outw(struct net_device *dev, int a, u16 v)
 {
 	struct hostap_interface *iface;
-	local_info_t *local;
+	struct hostap_pci_priv *hw_priv;
 	iface = netdev_priv(dev);
-	local = iface->local;
-	writew(v, local->mem_start + a);
+	hw_priv = iface->local->hw_priv;
+	writew(v, hw_priv->mem_start + a);
 }
 
 static inline u16 hfa384x_inw(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
-	local_info_t *local;
+	struct hostap_pci_priv *hw_priv;
 	iface = netdev_priv(dev);
-	local = iface->local;
-	return readw(local->mem_start + a);
+	hw_priv = iface->local->hw_priv;
+	return readw(hw_priv->mem_start + a);
 }
 
 #define HFA384X_OUTB(v,a) hfa384x_outb(dev, (a), (v))
@@ -288,6 +294,12 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 	static int cards_found /* = 0 */;
 	int irq_registered = 0;
 	struct hostap_interface *iface;
+	struct hostap_pci_priv *hw_priv;
+
+	hw_priv = kmalloc(sizeof(*hw_priv), GFP_KERNEL);
+	if (hw_priv == NULL)
+		return -ENOMEM;
+	memset(hw_priv, 0, sizeof(*hw_priv));
 
 	if (pci_enable_device(pdev))
 		return -EIO;
@@ -311,10 +323,11 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 		goto fail;
 	iface = netdev_priv(dev);
 	local = iface->local;
+	local->hw_priv = hw_priv;
 	cards_found++;
 
         dev->irq = pdev->irq;
-        local->mem_start = mem;
+        hw_priv->mem_start = mem;
 
 	prism2_pci_cor_sreset(local);
 
@@ -339,6 +352,8 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 	return hostap_hw_ready(dev);
 
  fail:
+	kfree(hw_priv);
+
 	if (irq_registered && dev)
 		free_irq(dev->irq, dev);
 
@@ -349,6 +364,9 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 
  err_out_disable:
 	pci_disable_device(pdev);
+	kfree(hw_priv);
+	if (local)
+		local->hw_priv = NULL;
 	prism2_free_local_data(dev);
 
 	return -ENODEV;
@@ -360,9 +378,11 @@ static void prism2_pci_remove(struct pci_dev *pdev)
 	struct net_device *dev;
 	struct hostap_interface *iface;
 	void __iomem *mem_start;
+	struct hostap_pci_priv *hw_priv;
 
 	dev = pci_get_drvdata(pdev);
 	iface = netdev_priv(dev);
+	hw_priv = iface->local->hw_priv;
 
 	/* Reset the hardware, and ensure interrupts are disabled. */
 	prism2_pci_cor_sreset(iface->local);
@@ -371,7 +391,9 @@ static void prism2_pci_remove(struct pci_dev *pdev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 
-	mem_start = iface->local->mem_start;
+	mem_start = hw_priv->mem_start;
+	kfree(hw_priv);
+	iface->local->hw_priv = NULL;
 	prism2_free_local_data(dev);
 
 	iounmap(mem_start);

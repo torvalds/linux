@@ -876,27 +876,8 @@ struct local_info {
 	int io_debug_enabled;
 #endif /* PRISM2_IO_DEBUG */
 
-	/* struct local_info is used also in hostap.o that does not define
-	 * any PRISM2_{PCCARD,PLX,PCI}. Make sure that the hardware version
-	 * specific fields are in the end of the struct (these could also be
-	 * moved to void *priv or something like that). */
-#ifdef PRISM2_PCCARD
-	dev_node_t node;
-	dev_link_t *link;
-	int sandisk_connectplus;
-#endif /* PRISM2_PCCARD */
-
-#ifdef PRISM2_PLX
-	void __iomem *attr_mem;
-	unsigned int cor_offset;
-#endif /* PRISM2_PLX */
-
-#ifdef PRISM2_PCI
-	void __iomem *mem_start;
-#endif /* PRISM2_PCI */
-
-	/* NOTE! Do not add common entries here after hardware version
-	 * specific blocks. */
+	/* Pointer to hardware model specific (cs,pci,plx) private data. */
+	void *hw_priv;
 };
 
 

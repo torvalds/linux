@@ -42,6 +42,13 @@ module_param(ignore_cis, int, 0444);
 MODULE_PARM_DESC(ignore_cis, "Do not verify manfid information in CIS");
 
 
+/* struct local_info::hw_priv */
+struct hostap_plx_priv {
+	void __iomem *attr_mem;
+	unsigned int cor_offset;
+};
+
+
 #define PLX_MIN_ATTR_LEN 512	/* at least 2 x 256 is needed for CIS */
 #define COR_SRESET       0x80
 #define COR_LEVLREQ      0x40
@@ -261,27 +268,28 @@ static int hfa384x_to_bap(struct net_device *dev, u16 bap, void *buf, int len)
 static void prism2_plx_cor_sreset(local_info_t *local)
 {
 	unsigned char corsave;
+	struct hostap_plx_priv *hw_priv = local->hw_priv;
 
 	printk(KERN_DEBUG "%s: Doing reset via direct COR access.\n",
 	       dev_info);
 
 	/* Set sreset bit of COR and clear it after hold time */
 
-	if (local->attr_mem == NULL) {
+	if (hw_priv->attr_mem == NULL) {
 		/* TMD7160 - COR at card's first I/O addr */
-		corsave = inb(local->cor_offset);
-		outb(corsave | COR_SRESET, local->cor_offset);
+		corsave = inb(hw_priv->cor_offset);
+		outb(corsave | COR_SRESET, hw_priv->cor_offset);
 		mdelay(2);
-		outb(corsave & ~COR_SRESET, local->cor_offset);
+		outb(corsave & ~COR_SRESET, hw_priv->cor_offset);
 		mdelay(2);
 	} else {
 		/* PLX9052 */
-		corsave = readb(local->attr_mem + local->cor_offset);
+		corsave = readb(hw_priv->attr_mem + hw_priv->cor_offset);
 		writeb(corsave | COR_SRESET,
-		       local->attr_mem + local->cor_offset);
+		       hw_priv->attr_mem + hw_priv->cor_offset);
 		mdelay(2);
 		writeb(corsave & ~COR_SRESET,
-		       local->attr_mem + local->cor_offset);
+		       hw_priv->attr_mem + hw_priv->cor_offset);
 		mdelay(2);
 	}
 }
@@ -290,26 +298,27 @@ static void prism2_plx_cor_sreset(local_info_t *local)
 static void prism2_plx_genesis_reset(local_info_t *local, int hcr)
 {
 	unsigned char corsave;
+	struct hostap_plx_priv *hw_priv = local->hw_priv;
 
-	if (local->attr_mem == NULL) {
+	if (hw_priv->attr_mem == NULL) {
 		/* TMD7160 - COR at card's first I/O addr */
-		corsave = inb(local->cor_offset);
-		outb(corsave | COR_SRESET, local->cor_offset);
+		corsave = inb(hw_priv->cor_offset);
+		outb(corsave | COR_SRESET, hw_priv->cor_offset);
 		mdelay(10);
-		outb(hcr, local->cor_offset + 2);
+		outb(hcr, hw_priv->cor_offset + 2);
 		mdelay(10);
-		outb(corsave & ~COR_SRESET, local->cor_offset);
+		outb(corsave & ~COR_SRESET, hw_priv->cor_offset);
 		mdelay(10);
 	} else {
 		/* PLX9052 */
-		corsave = readb(local->attr_mem + local->cor_offset);
+		corsave = readb(hw_priv->attr_mem + hw_priv->cor_offset);
 		writeb(corsave | COR_SRESET,
-		       local->attr_mem + local->cor_offset);
+		       hw_priv->attr_mem + hw_priv->cor_offset);
 		mdelay(10);
-		writeb(hcr, local->attr_mem + local->cor_offset + 2);
+		writeb(hcr, hw_priv->attr_mem + hw_priv->cor_offset + 2);
 		mdelay(10);
 		writeb(corsave & ~COR_SRESET,
-		       local->attr_mem + local->cor_offset);
+		       hw_priv->attr_mem + hw_priv->cor_offset);
 		mdelay(10);
 	}
 }
@@ -438,6 +447,12 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	static int cards_found /* = 0 */;
 	int irq_registered = 0;
 	int tmd7160;
+	struct hostap_plx_priv *hw_priv;
+
+	hw_priv = kmalloc(sizeof(*hw_priv), GFP_KERNEL);
+	if (hw_priv == NULL)
+		return -ENOMEM;
+	memset(hw_priv, 0, sizeof(*hw_priv));
 
 	if (pci_enable_device(pdev))
 		return -EIO;
@@ -529,12 +544,13 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 		goto fail;
 	iface = netdev_priv(dev);
 	local = iface->local;
+	local->hw_priv = hw_priv;
 	cards_found++;
 
 	dev->irq = pdev->irq;
 	dev->base_addr = pccard_ioaddr;
-	local->attr_mem = attr_mem;
-	local->cor_offset = cor_offset;
+	hw_priv->attr_mem = attr_mem;
+	hw_priv->cor_offset = cor_offset;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -554,6 +570,9 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	return hostap_hw_ready(dev);
 
  fail:
+	kfree(hw_priv);
+	if (local)
+		local->hw_priv = NULL;
 	prism2_free_local_data(dev);
 
 	if (irq_registered && dev)
@@ -572,19 +591,23 @@ static void prism2_plx_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev;
 	struct hostap_interface *iface;
+	struct hostap_plx_priv *hw_priv;
 
 	dev = pci_get_drvdata(pdev);
 	iface = netdev_priv(dev);
+	hw_priv = iface->local->hw_priv;
 
 	/* Reset the hardware, and ensure interrupts are disabled. */
 	prism2_plx_cor_sreset(iface->local);
 	hfa384x_disable_interrupts(dev);
 
-	if (iface->local->attr_mem)
-		iounmap(iface->local->attr_mem);
+	if (hw_priv->attr_mem)
+		iounmap(hw_priv->attr_mem);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 
+	kfree(iface->local->hw_priv);
+	iface->local->hw_priv = NULL;
 	prism2_free_local_data(dev);
 	pci_disable_device(pdev);
 }
