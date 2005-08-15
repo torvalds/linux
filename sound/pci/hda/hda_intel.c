@@ -900,8 +900,8 @@ static snd_pcm_hardware_t azx_pcm_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID |
-				 SNDRV_PCM_INFO_PAUSE |
-				 SNDRV_PCM_INFO_RESUME),
+				 SNDRV_PCM_INFO_PAUSE /*|*/
+				 /*SNDRV_PCM_INFO_RESUME*/),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_48000,
 	.rate_min =		48000,
@@ -1050,6 +1050,7 @@ static int azx_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
 		azx_dev->running = 1;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 		azx_stream_stop(chip, azx_dev);
 		azx_dev->running = 0;
@@ -1059,6 +1060,7 @@ static int azx_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
 	}
 	spin_unlock(&chip->reg_lock);
 	if (cmd == SNDRV_PCM_TRIGGER_PAUSE_PUSH ||
+	    cmd == SNDRV_PCM_TRIGGER_SUSPEND ||
 	    cmd == SNDRV_PCM_TRIGGER_STOP) {
 		int timeout = 5000;
 		while (azx_sd_readb(azx_dev, SD_CTL) & SD_CTL_DMA_START && --timeout)
@@ -1137,6 +1139,7 @@ static int __devinit create_codec_pcm(azx_t *chip, struct hda_codec *codec,
 					      snd_dma_pci_data(chip->pci),
 					      1024 * 64, 1024 * 128);
 	chip->pcm[pcm_dev] = pcm;
+	chip->pcm_devs = pcm_dev + 1;
 
 	return 0;
 }
