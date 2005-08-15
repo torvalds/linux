@@ -78,6 +78,10 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 
 	for (i = 0; i < 32; i++) {
 		if (!(acpi_gbl_owner_id_mask & (1 << i))) {
+			ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
+					  "Current owner_id mask: %8.8X New ID: %2.2X\n",
+					  acpi_gbl_owner_id_mask, (i + 1)));
+
 			acpi_gbl_owner_id_mask |= (1 << i);
 			*owner_id = (acpi_owner_id) (i + 1);
 			goto exit;
@@ -119,7 +123,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 	acpi_owner_id owner_id = *owner_id_ptr;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_release_owner_id");
+	ACPI_FUNCTION_TRACE_U32("ut_release_owner_id", owner_id);
 
 	/* Always clear the input owner_id (zero is an invalid ID) */
 

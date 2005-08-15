@@ -80,14 +80,24 @@ acpi_status acpi_tb_is_table_installed(struct acpi_table_desc *new_table_desc)
 	/* Examine all installed tables of this type */
 
 	while (table_desc) {
-		/* Compare Revision and oem_table_id */
-
+		/*
+		 * If the table lengths match, perform a full bytewise compare. This
+		 * means that we will allow tables with duplicate oem_table_id(s), as
+		 * long as the tables are different in some way.
+		 *
+		 * Checking if the table has been loaded into the namespace means that
+		 * we don't check for duplicate tables during the initial installation
+		 * of tables within the RSDT/XSDT.
+		 */
 		if ((table_desc->loaded_into_namespace) &&
-		    (table_desc->pointer->revision ==
-		     new_table_desc->pointer->revision) &&
-		    (!ACPI_MEMCMP(table_desc->pointer->oem_table_id,
-				  new_table_desc->pointer->oem_table_id, 8))) {
-			/* This table is already installed */
+		    (table_desc->pointer->length ==
+		     new_table_desc->pointer->length)
+		    &&
+		    (!ACPI_MEMCMP
+		     ((const char *)table_desc->pointer,
+		      (const char *)new_table_desc->pointer,
+		      (acpi_size) new_table_desc->pointer->length))) {
+			/* Match: this table is already installed */
 
 			ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
 					  "Table [%4.4s] already installed: Rev %X oem_table_id [%8.8s]\n",
