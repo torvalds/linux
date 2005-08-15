@@ -1,9 +1,9 @@
 void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 {
-	struct hostap_ieee80211_hdr *hdr;
+	struct ieee80211_hdr *hdr;
 	u16 fc;
 
-	hdr = (struct hostap_ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr *) skb->data;
 
 	printk(KERN_DEBUG "%s: TX len=%d jiffies=%ld\n",
 	       name, skb->len, jiffies);
@@ -11,7 +11,7 @@ void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 	if (skb->len < 2)
 		return;
 
-	fc = le16_to_cpu(hdr->frame_control);
+	fc = le16_to_cpu(hdr->frame_ctl);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d)%s%s",
 	       fc, HOSTAP_FC_GET_TYPE(fc), HOSTAP_FC_GET_STYPE(fc),
 	       fc & WLAN_FC_TODS ? " [ToDS]" : "",
@@ -23,7 +23,7 @@ void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 	}
 
 	printk(" dur=0x%04x seq=0x%04x\n", le16_to_cpu(hdr->duration_id),
-	       le16_to_cpu(hdr->seq_ctrl));
+	       le16_to_cpu(hdr->seq_ctl));
 
 	printk(KERN_DEBUG "   A1=" MACSTR " A2=" MACSTR " A3=" MACSTR,
 	       MAC2STR(hdr->addr1), MAC2STR(hdr->addr2), MAC2STR(hdr->addr3));
@@ -41,7 +41,7 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct hostap_interface *iface;
 	local_info_t *local;
 	int need_headroom, need_tailroom = 0;
-	struct hostap_ieee80211_hdr hdr;
+	struct ieee80211_hdr hdr;
 	u16 fc, ethertype = 0;
 	enum {
 		WDS_NO = 0, WDS_OWN_FRAME, WDS_COMPLIANT_FRAME
@@ -180,7 +180,7 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		memcpy(&hdr.addr3, local->bssid, ETH_ALEN);
 	}
 
-	hdr.frame_control = cpu_to_le16(fc);
+	hdr.frame_ctl = cpu_to_le16(fc);
 
 	skb_pull(skb, skip_header_bytes);
 	need_headroom = local->func->need_tx_headroom + hdr_len + encaps_len;
@@ -244,7 +244,7 @@ int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct hostap_interface *iface;
 	local_info_t *local;
 	struct hostap_skb_tx_data *meta;
-	struct hostap_ieee80211_hdr *hdr;
+	struct ieee80211_hdr *hdr;
 	u16 fc;
 
 	iface = netdev_priv(dev);
@@ -266,8 +266,8 @@ int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	meta->iface = iface;
 
 	if (skb->len >= IEEE80211_DATA_HDR3_LEN + sizeof(rfc1042_header) + 2) {
-		hdr = (struct hostap_ieee80211_hdr *) skb->data;
-		fc = le16_to_cpu(hdr->frame_control);
+		hdr = (struct ieee80211_hdr *) skb->data;
+		fc = le16_to_cpu(hdr->frame_ctl);
 		if (HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
 		    HOSTAP_FC_GET_STYPE(fc) == WLAN_FC_STYPE_DATA) {
 			u8 *pos = &skb->data[IEEE80211_DATA_HDR3_LEN +
@@ -289,7 +289,7 @@ struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
-	struct hostap_ieee80211_hdr *hdr;
+	struct ieee80211_hdr *hdr;
 	u16 fc;
 	int hdr_len, res;
 
@@ -303,7 +303,7 @@ struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 
 	if (local->tkip_countermeasures &&
 	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
-		hdr = (struct hostap_ieee80211_hdr *) skb->data;
+		hdr = (struct ieee80211_hdr *) skb->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
 			       "TX packet to " MACSTR "\n",
@@ -325,8 +325,8 @@ struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 		return NULL;
 	}
 
-	hdr = (struct hostap_ieee80211_hdr *) skb->data;
- 	fc = le16_to_cpu(hdr->frame_control);
+	hdr = (struct ieee80211_hdr *) skb->data;
+ 	fc = le16_to_cpu(hdr->frame_ctl);
 	hdr_len = hostap_80211_get_hdrlen(fc);
 
 	/* Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
@@ -360,7 +360,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	ap_tx_ret tx_ret;
 	struct hostap_skb_tx_data *meta;
 	int no_encrypt = 0;
-	struct hostap_ieee80211_hdr *hdr;
+	struct ieee80211_hdr *hdr;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
@@ -403,8 +403,8 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ret = hostap_handle_sta_tx(local, &tx);
 	skb = tx.skb;
 	meta = (struct hostap_skb_tx_data *) skb->cb;
-	hdr = (struct hostap_ieee80211_hdr *) skb->data;
- 	fc = le16_to_cpu(hdr->frame_control);
+	hdr = (struct ieee80211_hdr *) skb->data;
+ 	fc = le16_to_cpu(hdr->frame_ctl);
 	switch (tx_ret) {
 	case AP_TX_CONTINUE:
 		break;
@@ -445,7 +445,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* remove special version from the frame header */
 		fc &= ~WLAN_FC_PVER;
-		hdr->frame_control = cpu_to_le16(fc);
+		hdr->frame_ctl = cpu_to_le16(fc);
 	}
 
 	if (HOSTAP_FC_GET_TYPE(fc) != WLAN_FC_TYPE_DATA) {
@@ -467,7 +467,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Add ISWEP flag both for firmware and host based encryption
 		 */
 		fc |= WLAN_FC_ISWEP;
-		hdr->frame_control = cpu_to_le16(fc);
+		hdr->frame_ctl = cpu_to_le16(fc);
 	} else if (local->drop_unencrypted &&
 		   HOSTAP_FC_GET_TYPE(fc) == WLAN_FC_TYPE_DATA &&
 		   meta->ethertype != ETH_P_PAE) {

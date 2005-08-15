@@ -1817,7 +1817,6 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 	struct hostap_interface *iface;
 	local_info_t *local;
 	struct hfa384x_tx_frame txdesc;
-	struct hostap_ieee80211_hdr *hdr;
 	struct hostap_skb_tx_data *meta;
 	int hdr_len, data_len, idx, res, ret = -1;
 	u16 tx_control, fc;
@@ -1826,7 +1825,6 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 	local = iface->local;
 
 	meta = (struct hostap_skb_tx_data *) skb->cb;
-	hdr = (struct hostap_ieee80211_hdr *) skb->data;
 
 	prism2_callback(local, PRISM2_CALLBACK_TX_START);
 

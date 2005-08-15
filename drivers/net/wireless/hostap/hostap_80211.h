@@ -1,17 +1,6 @@
 #ifndef HOSTAP_80211_H
 #define HOSTAP_80211_H
 
-struct hostap_ieee80211_hdr {
-	u16 frame_control;
-	u16 duration_id;
-	u8 addr1[6];
-	u8 addr2[6];
-	u8 addr3[6];
-	u16 seq_ctrl;
-	u8 addr4[6];
-} __attribute__ ((packed));
-
-
 struct hostap_ieee80211_mgmt {
 	u16 frame_control;
 	u16 duration;
