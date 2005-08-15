@@ -106,7 +106,6 @@ struct netlink_skb_parms
 {
 	struct ucred		creds;		/* Skb credentials	*/
 	__u32			pid;
-	__u32			groups;
 	__u32			dst_pid;
 	__u32			dst_groups;
 	kernel_cap_t		eff_cap;

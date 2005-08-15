@@ -558,7 +558,6 @@ static void nl_fib_input(struct sock *sk, int len)
 	nl_fib_lookup(frn, tb);
 	
 	pid = nlh->nlmsg_pid;           /*pid of sending process */
-	NETLINK_CB(skb).groups = 0;     /* not in mcast group */
 	NETLINK_CB(skb).pid = 0;         /* from kernel */
 	NETLINK_CB(skb).dst_pid = pid;
 	NETLINK_CB(skb).dst_groups = 0;  /* unicast */
