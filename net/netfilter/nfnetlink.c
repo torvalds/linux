@@ -355,8 +355,8 @@ int __init nfnetlink_init(void)
 {
 	printk("Netfilter messages via NETLINK v%s.\n", nfversion);
 
-	nfnl = netlink_kernel_create(NETLINK_NETFILTER, nfnetlink_rcv,
-				     THIS_MODULE);
+	nfnl = netlink_kernel_create(NETLINK_NETFILTER, NFNLGRP_MAX,
+	                             nfnetlink_rcv, THIS_MODULE);
 	if (!nfnl) {
 		printk(KERN_ERR "cannot initialize nfnetlink!\n");
 		return -1;

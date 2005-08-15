@@ -154,7 +154,7 @@ EXPORT_SYMBOL_GPL(kobject_uevent_atomic);
 
 static int __init kobject_uevent_init(void)
 {
-	uevent_sock = netlink_kernel_create(NETLINK_KOBJECT_UEVENT, NULL,
+	uevent_sock = netlink_kernel_create(NETLINK_KOBJECT_UEVENT, 1, NULL,
 					    THIS_MODULE);
 
 	if (!uevent_sock) {

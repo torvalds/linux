@@ -138,8 +138,8 @@ static int __init init(void)
 {
 	int rv = 0;
 
-	dnrmg = netlink_kernel_create(NETLINK_DNRTMSG, dnrmg_receive_user_sk,
-				      THIS_MODULE);
+	dnrmg = netlink_kernel_create(NETLINK_DNRTMSG, DNRNG_NLGRP_MAX,
+	                              dnrmg_receive_user_sk, THIS_MODULE);
 	if (dnrmg == NULL) {
 		printk(KERN_ERR "dn_rtmsg: Cannot create netlink socket");
 		return -ENOMEM;

@@ -667,7 +667,8 @@ init_or_cleanup(int init)
 		goto cleanup;
 
 	netlink_register_notifier(&ipq_nl_notifier);
-	ipqnl = netlink_kernel_create(NETLINK_IP6_FW, ipq_rcv_sk, THIS_MODULE);
+	ipqnl = netlink_kernel_create(NETLINK_IP6_FW, 0, ipq_rcv_sk,
+	                              THIS_MODULE);
 	if (ipqnl == NULL) {
 		printk(KERN_ERR "ip6_queue: failed to create netlink socket\n");
 		goto cleanup_netlink_notifier;

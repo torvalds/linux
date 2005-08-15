@@ -388,7 +388,8 @@ static int __init init(void)
 		ulog_buffers[i].timer.data = i;
 	}
 
-	nflognl = netlink_kernel_create(NETLINK_NFLOG, NULL, THIS_MODULE);
+	nflognl = netlink_kernel_create(NETLINK_NFLOG, ULOG_MAXNLGROUPS, NULL,
+	                                THIS_MODULE);
 	if (!nflognl)
 		return -ENOMEM;
 

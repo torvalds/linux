@@ -88,7 +88,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 
 	dev->groups = 1;
 	dev->seq = 1;
-	dev->nls = netlink_kernel_create(NETLINK_W1, NULL, THIS_MODULE);
+	dev->nls = netlink_kernel_create(NETLINK_W1, 1, NULL, THIS_MODULE);
 	if (!dev->nls) {
 		printk(KERN_ERR "Failed to create new netlink socket(%u) for w1 master %s.\n",
 			NETLINK_NFLOG, dev->dev.bus_id);

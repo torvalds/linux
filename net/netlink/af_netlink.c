@@ -1204,7 +1204,9 @@ static void netlink_data_ready(struct sock *sk, int len)
  */
 
 struct sock *
-netlink_kernel_create(int unit, void (*input)(struct sock *sk, int len), struct module *module)
+netlink_kernel_create(int unit, unsigned int groups,
+                      void (*input)(struct sock *sk, int len),
+                      struct module *module)
 {
 	struct socket *sock;
 	struct sock *sk;
@@ -1234,7 +1236,7 @@ netlink_kernel_create(int unit, void (*input)(struct sock *sk, int len), struct 
 	nlk->flags |= NETLINK_KERNEL_SOCKET;
 
 	netlink_table_grab();
-	nl_table[unit].groups = 32;
+	nl_table[unit].groups = groups < 32 ? 32 : groups;
 	nl_table[unit].module = module;
 	nl_table[unit].registered = 1;
 	netlink_table_ungrab();

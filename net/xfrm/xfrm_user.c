@@ -1520,8 +1520,8 @@ static int __init xfrm_user_init(void)
 {
 	printk(KERN_INFO "Initializing IPsec netlink socket\n");
 
-	xfrm_nl = netlink_kernel_create(NETLINK_XFRM, xfrm_netlink_rcv,
-					THIS_MODULE);
+	xfrm_nl = netlink_kernel_create(NETLINK_XFRM, XFRMNLGRP_MAX,
+	                                xfrm_netlink_rcv, THIS_MODULE);
 	if (xfrm_nl == NULL)
 		return -ENOMEM;
 

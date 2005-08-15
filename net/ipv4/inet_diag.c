@@ -845,7 +845,7 @@ static int __init inet_diag_init(void)
 		goto out;
 
 	memset(inet_diag_table, 0, inet_diag_table_size);
-	idiagnl = netlink_kernel_create(NETLINK_INET_DIAG, inet_diag_rcv,
+	idiagnl = netlink_kernel_create(NETLINK_INET_DIAG, 0, inet_diag_rcv,
 					THIS_MODULE);
 	if (idiagnl == NULL)
 		goto out_free_table;
