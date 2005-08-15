@@ -77,8 +77,8 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
         /* Add mode */
         iwe.cmd = SIOCGIWMODE;
         if (network->capability &
-	    (WLAN_CAPABILITY_BSS | WLAN_CAPABILITY_IBSS)) {
-		if (network->capability & WLAN_CAPABILITY_BSS)
+	    (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)) {
+		if (network->capability & WLAN_CAPABILITY_ESS)
 			iwe.u.mode = IW_MODE_MASTER;
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
