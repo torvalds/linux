@@ -60,11 +60,6 @@ static struct scsi_transport_template *ahd_linux_transport_template = NULL;
 #include <linux/delay.h>	/* For ssleep/msleep */
 
 /*
- * Lock protecting manipulation of the ahd softc list.
- */
-spinlock_t ahd_list_spinlock;
-
-/*
  * Bucket size for counting good commands in between bad ones.
  */
 #define AHD_LINUX_ERR_THRESH	1000
@@ -303,13 +298,6 @@ static uint32_t aic79xx_pci_parity = ~0;
 uint32_t aic79xx_allow_memio = ~0;
 
 /*
- * aic79xx_detect() has been run, so register all device arrivals
- * immediately with the system rather than deferring to the sorted
- * attachment performed by aic79xx_detect().
- */
-int aic79xx_detect_complete;
-
-/*
  * So that we can set how long each device is given as a selection timeout.
  * The table of values goes like this:
  *   0 - 256ms
@@ -387,7 +375,9 @@ static void ahd_linux_setup_tag_info_global(char *p);
 static aic_option_callback_t ahd_linux_setup_tag_info;
 static aic_option_callback_t ahd_linux_setup_iocell_info;
 static int  aic79xx_setup(char *c);
-static int  ahd_linux_next_unit(void);
+
+static int ahd_linux_unit;
+
 
 /****************************** Inlines ***************************************/
 static __inline void ahd_linux_unmap_scb(struct ahd_softc*, struct scb*);
@@ -416,50 +406,6 @@ ahd_linux_unmap_scb(struct ahd_softc *ahd, struct scb *scb)
 /******************************** Macros **************************************/
 #define BUILD_SCSIID(ahd, cmd)						\
 	((((cmd)->device->id << TID_SHIFT) & TID) | (ahd)->our_id)
-
-/*
- * Try to detect an Adaptec 79XX controller.
- */
-static int
-ahd_linux_detect(struct scsi_host_template *template)
-{
-	struct	ahd_softc *ahd;
-	int     found;
-	int	error = 0;
-
-	/*
-	 * If we've been passed any parameters, process them now.
-	 */
-	if (aic79xx)
-		aic79xx_setup(aic79xx);
-
-	template->proc_name = "aic79xx";
-
-	/*
-	 * Initialize our softc list lock prior to
-	 * probing for any adapters.
-	 */
-	ahd_list_lockinit();
-
-#ifdef CONFIG_PCI
-	error = ahd_linux_pci_init();
-	if (error)
-		return error;
-#endif
-
-	/*
-	 * Register with the SCSI layer all
-	 * controllers we've found.
-	 */
-	found = 0;
-	TAILQ_FOREACH(ahd, &ahd_tailq, links) {
-
-		if (ahd_linux_register_host(ahd, template) == 0)
-			found++;
-	}
-	aic79xx_detect_complete++;
-	return found;
-}
 
 /*
  * Return a string describing the driver.
@@ -760,6 +706,7 @@ ahd_linux_bus_reset(struct scsi_cmnd *cmd)
 struct scsi_host_template aic79xx_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= "aic79xx",
+	.proc_name		= "aic79xx",
 	.proc_info		= ahd_linux_proc_info,
 	.info			= ahd_linux_info,
 	.queuecommand		= ahd_linux_queue,
@@ -1072,7 +1019,7 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 	host->max_lun = AHD_NUM_LUNS;
 	host->max_channel = 0;
 	host->sg_tablesize = AHD_NSEG;
-	ahd_set_unit(ahd, ahd_linux_next_unit());
+	ahd_set_unit(ahd, ahd_linux_unit++);
 	sprintf(buf, "scsi%d", host->host_no);
 	new_name = malloc(strlen(buf) + 1, M_DEVBUF, M_NOWAIT);
 	if (new_name != NULL) {
@@ -1098,29 +1045,6 @@ ahd_linux_get_memsize(void)
 
 	si_meminfo(&si);
 	return ((uint64_t)si.totalram << PAGE_SHIFT);
-}
-
-/*
- * Find the smallest available unit number to use
- * for a new device.  We don't just use a static
- * count to handle the "repeated hot-(un)plug"
- * scenario.
- */
-static int
-ahd_linux_next_unit(void)
-{
-	struct ahd_softc *ahd;
-	int unit;
-
-	unit = 0;
-retry:
-	TAILQ_FOREACH(ahd, &ahd_tailq, links) {
-		if (ahd->unit == unit) {
-			unit++;
-			goto retry;
-		}
-	}
-	return (unit);
 }
 
 /*
@@ -2755,23 +2679,31 @@ static struct spi_function_template ahd_linux_transport_functions = {
 	.show_hold_mcs	= 1,
 };
 
-
-
 static int __init
 ahd_linux_init(void)
 {
-	ahd_linux_transport_template = spi_attach_transport(&ahd_linux_transport_functions);
+	int	error = 0;
+
+	/*
+	 * If we've been passed any parameters, process them now.
+	 */
+	if (aic79xx)
+		aic79xx_setup(aic79xx);
+
+	ahd_linux_transport_template =
+		spi_attach_transport(&ahd_linux_transport_functions);
 	if (!ahd_linux_transport_template)
 		return -ENODEV;
+
 	scsi_transport_reserve_target(ahd_linux_transport_template,
 				      sizeof(struct ahd_linux_target));
 	scsi_transport_reserve_device(ahd_linux_transport_template,
 				      sizeof(struct ahd_linux_device));
-	if (ahd_linux_detect(&aic79xx_driver_template) > 0)
-		return 0;
-	spi_release_transport(ahd_linux_transport_template);
 
-	return -ENODEV;
+	error = ahd_linux_pci_init();
+	if (error)
+		spi_release_transport(ahd_linux_transport_template);
+	return error;
 }
 
 static void __exit

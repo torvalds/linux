@@ -92,27 +92,31 @@ struct pci_driver aic79xx_pci_driver = {
 static void
 ahd_linux_pci_dev_remove(struct pci_dev *pdev)
 {
-	struct ahd_softc *ahd;
-	u_long l;
+	struct ahd_softc *ahd = pci_get_drvdata(pdev);
+	u_long s;
 
-	/*
-	 * We should be able to just perform
-	 * the free directly, but check our
-	 * list for extra sanity.
-	 */
-	ahd_list_lock(&l);
-	ahd = ahd_find_softc((struct ahd_softc *)pci_get_drvdata(pdev));
-	if (ahd != NULL) {
-		u_long s;
+	ahd_lock(ahd, &s);
+	ahd_intr_enable(ahd, FALSE);
+	ahd_unlock(ahd, &s);
+	ahd_free(ahd);
+}
 
-		TAILQ_REMOVE(&ahd_tailq, ahd, links);
-		ahd_list_unlock(&l);
-		ahd_lock(ahd, &s);
-		ahd_intr_enable(ahd, FALSE);
-		ahd_unlock(ahd, &s);
-		ahd_free(ahd);
-	} else
-		ahd_list_unlock(&l);
+static void
+ahd_linux_pci_inherit_flags(struct ahd_softc *ahd)
+{
+	struct pci_dev *pdev = ahd->dev_softc, *master_pdev;
+	unsigned int master_devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
+
+	master_pdev = pci_get_slot(pdev->bus, master_devfn);
+	if (master_pdev) {
+		struct ahd_softc *master = pci_get_drvdata(master_pdev);
+		if (master) {
+			ahd->flags &= ~AHD_BIOS_ENABLED;
+			ahd->flags |= master->flags & AHD_BIOS_ENABLED;
+		} else
+			printk(KERN_ERR "aic79xx: no multichannel peer found!\n");
+		pci_dev_put(master_pdev);
+	}
 }
 
 static int
@@ -124,22 +128,6 @@ ahd_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct		 ahd_pci_identity *entry;
 	char		*name;
 	int		 error;
-
-	/*
-	 * Some BIOSen report the same device multiple times.
-	 */
-	TAILQ_FOREACH(ahd, &ahd_tailq, links) {
-		struct pci_dev *probed_pdev;
-
-		probed_pdev = ahd->dev_softc;
-		if (probed_pdev->bus->number == pdev->bus->number
-		 && probed_pdev->devfn == pdev->devfn)
-			break;
-	}
-	if (ahd != NULL) {
-		/* Skip duplicate. */
-		return (-ENODEV);
-	}
 
 	pci = pdev;
 	entry = ahd_find_pci_device(pci);
@@ -190,16 +178,17 @@ ahd_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ahd_free(ahd);
 		return (-error);
 	}
+
+	/*
+	 * Second Function PCI devices need to inherit some
+	 * * settings from function 0.
+	 */
+	if ((ahd->features & AHD_MULTI_FUNC) && PCI_FUNC(pdev->devfn) != 0)
+		ahd_linux_pci_inherit_flags(ahd);
+
 	pci_set_drvdata(pdev, ahd);
-	if (aic79xx_detect_complete) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-		ahd_linux_register_host(ahd, &aic79xx_driver_template);
-#else
-		printf("aic79xx: ignoring PCI device found after "
-		       "initialization\n");
-		return (-ENODEV);
-#endif
-	}
+
+	ahd_linux_register_host(ahd, &aic79xx_driver_template);
 	return (0);
 }
 

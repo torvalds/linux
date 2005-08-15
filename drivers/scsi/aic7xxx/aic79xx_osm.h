@@ -120,7 +120,6 @@ typedef struct scsi_cmnd      *ahd_io_ctx_t;
 
 /************************* Configuration Data *********************************/
 extern uint32_t aic79xx_allow_memio;
-extern int aic79xx_detect_complete;
 extern struct scsi_host_template aic79xx_driver_template;
 
 /***************************** Bus Space/DMA **********************************/
@@ -532,17 +531,6 @@ void	ahd_format_transinfo(struct info_str *info,
 			     struct ahd_transinfo *tinfo);
 
 /******************************** Locking *************************************/
-/* Lock protecting internal data structures */
-static __inline void ahd_lockinit(struct ahd_softc *);
-static __inline void ahd_lock(struct ahd_softc *, unsigned long *flags);
-static __inline void ahd_unlock(struct ahd_softc *, unsigned long *flags);
-
-/* Lock held during ahd_list manipulation and ahd softc frees */
-extern spinlock_t ahd_list_spinlock;
-static __inline void ahd_list_lockinit(void);
-static __inline void ahd_list_lock(unsigned long *flags);
-static __inline void ahd_list_unlock(unsigned long *flags);
-
 static __inline void
 ahd_lockinit(struct ahd_softc *ahd)
 {
@@ -559,24 +547,6 @@ static __inline void
 ahd_unlock(struct ahd_softc *ahd, unsigned long *flags)
 {
 	spin_unlock_irqrestore(&ahd->platform_data->spin_lock, *flags);
-}
-
-static __inline void
-ahd_list_lockinit(void)
-{
-	spin_lock_init(&ahd_list_spinlock);
-}
-
-static __inline void
-ahd_list_lock(unsigned long *flags)
-{
-	spin_lock_irqsave(&ahd_list_spinlock, *flags);
-}
-
-static __inline void
-ahd_list_unlock(unsigned long *flags)
-{
-	spin_unlock_irqrestore(&ahd_list_spinlock, *flags);
 }
 
 /******************************* PCI Definitions ******************************/
