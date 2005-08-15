@@ -583,23 +583,6 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	/* Map the fb and MMIO regions */
-	dinfo->aperture.virtual = (u8 __iomem *)ioremap_nocache
-		(dinfo->aperture.physical, dinfo->aperture.size);
-	if (!dinfo->aperture.virtual) {
-		ERR_MSG("Cannot remap FB region.\n");
-		cleanup(dinfo);
-		return -ENODEV;
-	}
-	dinfo->mmio_base =
-		(u8 __iomem *)ioremap_nocache(dinfo->mmio_base_phys,
-					       INTEL_REG_SIZE);
-	if (!dinfo->mmio_base) {
-		ERR_MSG("Cannot remap MMIO region.\n");
-		cleanup(dinfo);
-		return -ENODEV;
-	}
-
 	/* Get the chipset info. */
 	dinfo->pci_chipset = pdev->device;
 
@@ -630,9 +613,15 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dinfo->accel = 0;
 	}
 
+	if (MB(voffset) < stolen_size)
+		offset = (stolen_size >> 12);
+	else
+		offset = ROUND_UP_TO_PAGE(MB(voffset))/GTT_PAGE_SIZE;
+
 	/* Framebuffer parameters - Use all the stolen memory if >= vram */
-	if (ROUND_UP_TO_PAGE(stolen_size) >= MB(vram)) {
+	if (ROUND_UP_TO_PAGE(stolen_size) >= ((offset << 12) +  MB(vram))) {
 		dinfo->fb.size = ROUND_UP_TO_PAGE(stolen_size);
+		dinfo->fb.offset = 0;
 		dinfo->fbmem_gart = 0;
 	} else {
 		dinfo->fb.size =  MB(vram);
@@ -663,11 +652,6 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	if (MB(voffset) < stolen_size)
-		offset = (stolen_size >> 12);
-	else
-		offset = ROUND_UP_TO_PAGE(MB(voffset))/GTT_PAGE_SIZE;
-
 	/* set the mem offsets - set them after the already used pages */
 	if (dinfo->accel) {
 		dinfo->ring.offset = offset + gtt_info.current_memory;
@@ -680,6 +664,26 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dinfo->fb.offset = offset +
 			+ gtt_info.current_memory + (dinfo->ring.size >> 12)
 			+ (dinfo->cursor.size >> 12);
+	}
+
+	/* Map the fb and MMIO regions */
+	/* ioremap only up to the end of used aperture */
+	dinfo->aperture.virtual = (u8 __iomem *)ioremap_nocache
+		(dinfo->aperture.physical, (dinfo->fb.offset << 12)
+		 + dinfo->fb.size);
+	if (!dinfo->aperture.virtual) {
+		ERR_MSG("Cannot remap FB region.\n");
+		cleanup(dinfo);
+		return -ENODEV;
+	}
+
+	dinfo->mmio_base =
+		(u8 __iomem *)ioremap_nocache(dinfo->mmio_base_phys,
+					       INTEL_REG_SIZE);
+	if (!dinfo->mmio_base) {
+		ERR_MSG("Cannot remap MMIO region.\n");
+		cleanup(dinfo);
+		return -ENODEV;
 	}
 
 	/* Allocate memories (which aren't stolen) */
