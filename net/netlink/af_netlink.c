@@ -67,7 +67,7 @@ struct netlink_sock {
 	u32			pid;
 	unsigned int		groups;
 	u32			dst_pid;
-	unsigned int		dst_groups;
+	u32			dst_group;
 	unsigned long		state;
 	wait_queue_head_t	wait;
 	struct netlink_callback	*cb;
@@ -115,6 +115,11 @@ static DEFINE_RWLOCK(nl_table_lock);
 static atomic_t nl_table_users = ATOMIC_INIT(0);
 
 static struct notifier_block *netlink_chain;
+
+static u32 netlink_group_mask(u32 group)
+{
+	return group ? 1 << (group - 1) : 0;
+}
 
 static struct hlist_head *nl_pid_hashfn(struct nl_pid_hash *hash, u32 pid)
 {
@@ -533,7 +538,7 @@ static int netlink_connect(struct socket *sock, struct sockaddr *addr,
 	if (addr->sa_family == AF_UNSPEC) {
 		sk->sk_state	= NETLINK_UNCONNECTED;
 		nlk->dst_pid	= 0;
-		nlk->dst_groups = 0;
+		nlk->dst_group  = 0;
 		return 0;
 	}
 	if (addr->sa_family != AF_NETLINK)
@@ -549,7 +554,7 @@ static int netlink_connect(struct socket *sock, struct sockaddr *addr,
 	if (err == 0) {
 		sk->sk_state	= NETLINK_CONNECTED;
 		nlk->dst_pid 	= nladdr->nl_pid;
-		nlk->dst_groups = nladdr->nl_groups;
+		nlk->dst_group  = ffs(nladdr->nl_groups);
 	}
 
 	return err;
@@ -567,10 +572,10 @@ static int netlink_getname(struct socket *sock, struct sockaddr *addr, int *addr
 
 	if (peer) {
 		nladdr->nl_pid = nlk->dst_pid;
-		nladdr->nl_groups = nlk->dst_groups;
+		nladdr->nl_groups = netlink_group_mask(nlk->dst_group);
 	} else {
 		nladdr->nl_pid = nlk->pid;
-		nladdr->nl_groups = nlk->groups;
+		nladdr->nl_groups = nlk->groups; 
 	}
 	return 0;
 }
@@ -771,7 +776,7 @@ static inline int do_one_broadcast(struct sock *sk,
 	if (p->exclude_sk == sk)
 		goto out;
 
-	if (nlk->pid == p->pid || !(nlk->groups & p->group))
+	if (nlk->pid == p->pid || !(nlk->groups & netlink_group_mask(p->group)))
 		goto out;
 
 	if (p->failure) {
@@ -867,7 +872,7 @@ static inline int do_one_set_err(struct sock *sk,
 	if (sk == p->exclude_sk)
 		goto out;
 
-	if (nlk->pid == p->pid || !(nlk->groups & p->group))
+	if (nlk->pid == p->pid || !(nlk->groups & netlink_group_mask(p->group)))
 		goto out;
 
 	sk->sk_err = p->code;
@@ -913,7 +918,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct sockaddr_nl *addr=msg->msg_name;
 	u32 dst_pid;
-	u32 dst_groups;
+	u32 dst_group;
 	struct sk_buff *skb;
 	int err;
 	struct scm_cookie scm;
@@ -931,12 +936,12 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		if (addr->nl_family != AF_NETLINK)
 			return -EINVAL;
 		dst_pid = addr->nl_pid;
-		dst_groups = addr->nl_groups;
-		if (dst_groups && !netlink_capable(sock, NL_NONROOT_SEND))
+		dst_group = ffs(addr->nl_groups);
+		if (dst_group && !netlink_capable(sock, NL_NONROOT_SEND))
 			return -EPERM;
 	} else {
 		dst_pid = nlk->dst_pid;
-		dst_groups = nlk->dst_groups;
+		dst_group = nlk->dst_group;
 	}
 
 	if (!nlk->pid) {
@@ -955,7 +960,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	NETLINK_CB(skb).pid	= nlk->pid;
 	NETLINK_CB(skb).dst_pid = dst_pid;
-	NETLINK_CB(skb).dst_groups = dst_groups;
+	NETLINK_CB(skb).dst_group = dst_group;
 	NETLINK_CB(skb).loginuid = audit_get_loginuid(current->audit_context);
 	memcpy(NETLINK_CREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
 
@@ -977,9 +982,9 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto out;
 	}
 
-	if (dst_groups) {
+	if (dst_group) {
 		atomic_inc(&skb->users);
-		netlink_broadcast(sk, skb, dst_pid, dst_groups, GFP_KERNEL);
+		netlink_broadcast(sk, skb, dst_pid, dst_group, GFP_KERNEL);
 	}
 	err = netlink_unicast(sk, skb, dst_pid, msg->msg_flags&MSG_DONTWAIT);
 
@@ -1025,7 +1030,7 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 		addr->nl_family = AF_NETLINK;
 		addr->nl_pad    = 0;
 		addr->nl_pid	= NETLINK_CB(skb).pid;
-		addr->nl_groups	= NETLINK_CB(skb).dst_groups;
+		addr->nl_groups	= netlink_group_mask(NETLINK_CB(skb).dst_group);
 		msg->msg_namelen = sizeof(*addr);
 	}
 
