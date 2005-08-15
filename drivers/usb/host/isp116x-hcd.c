@@ -229,9 +229,11 @@ static void preproc_atl_queue(struct isp116x *isp116x)
 	struct isp116x_ep *ep;
 	struct urb *urb;
 	struct ptd *ptd;
-	u16 toggle = 0, dir = PTD_DIR_SETUP, len;
+	u16 len;
 
 	for (ep = isp116x->atl_active; ep; ep = ep->active) {
+		u16 toggle = 0, dir = PTD_DIR_SETUP;
+
 		BUG_ON(list_empty(&ep->hep->urb_list));
 		urb = container_of(ep->hep->urb_list.next,
 				   struct urb, urb_list);

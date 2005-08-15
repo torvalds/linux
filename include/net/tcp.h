@@ -1236,7 +1236,7 @@ static inline void tcp_sync_left_out(struct tcp_sock *tp)
 	tp->left_out = tp->sacked_out + tp->lost_out;
 }
 
-/* Set slow start threshould and cwnd not falling to slow start */
+/* Set slow start threshold and cwnd not falling to slow start */
 static inline void __tcp_enter_cwr(struct tcp_sock *tp)
 {
 	tp->undo_marker = 0;

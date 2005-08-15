@@ -39,8 +39,6 @@
 #include <asm/tlbflush.h>
 #include <asm/rheap.h>
 
-extern int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep);
-
 static void m8xx_cpm_dpinit(void);
 static	uint	host_buffer;	/* One page of host buffer */
 static	uint	host_end;	/* end + 1 */
@@ -108,14 +106,11 @@ struct hw_interrupt_type cpm_pic = {
 	.end		= cpm_eoi,
 };
 
-extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
-
 void
-m8xx_cpm_reset(uint bootpage)
+m8xx_cpm_reset(void)
 {
 	volatile immap_t	 *imp;
 	volatile cpm8xx_t	*commproc;
-	pte_t *pte;
 
 	imp = (immap_t *)IMAP_ADDR;
 	commproc = (cpm8xx_t *)&imp->im_cpm;
@@ -142,17 +137,6 @@ m8xx_cpm_reset(uint bootpage)
 
 	/* Reclaim the DP memory for our use. */
 	m8xx_cpm_dpinit();
-
-	/* get the PTE for the bootpage */
-	if (!get_pteptr(&init_mm, bootpage, &pte))
-	       panic("get_pteptr failed\n");
-																							
-	/* and make it uncachable */
-	pte_val(*pte) |= _PAGE_NO_CACHE;
-	_tlbie(bootpage);
-
-	host_buffer = bootpage;
-	host_end = host_buffer + PAGE_SIZE;
 
 	/* Tell everyone where the comm processor resides.
 	*/
@@ -384,8 +368,6 @@ static rh_info_t cpm_dpmem_info;
 
 void m8xx_cpm_dpinit(void)
 {
-	cpm8xx_t *cp = &((immap_t *)IMAP_ADDR)->im_cpm;
-
 	spin_lock_init(&cpm_dpmem_lock);
 
 	/* Initialize the info header */

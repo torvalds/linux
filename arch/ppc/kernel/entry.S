@@ -215,6 +215,7 @@ syscall_dotrace_cont:
 	lwzx	r10,r10,r0	/* Fetch system call handler [ptr] */
 	mtlr	r10
 	addi	r9,r1,STACK_FRAME_OVERHEAD
+	PPC440EP_ERR42
 	blrl			/* Call handler */
 	.globl	ret_from_syscall
 ret_from_syscall:

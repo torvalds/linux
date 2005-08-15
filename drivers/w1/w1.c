@@ -593,7 +593,7 @@ void w1_search(struct w1_master *dev, w1_slave_found_callback cb)
 		 * Return 0 - device(s) present, 1 - no devices present.
 		 */
 		if (w1_reset_bus(dev)) {
-			dev_info(&dev->dev, "No devices present on the wire.\n");
+			dev_dbg(&dev->dev, "No devices present on the wire.\n");
 			break;
 		}
 

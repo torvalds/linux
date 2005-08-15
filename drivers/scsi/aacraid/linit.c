@@ -374,7 +374,8 @@ static int aac_slave_configure(struct scsi_device *sdev)
 	else
 		scsi_adjust_queue_depth(sdev, 0, 1);
 
-	if (host->max_sectors < AAC_MAX_32BIT_SGBCOUNT)
+	if (!(((struct aac_dev *)host->hostdata)->adapter_info.options
+	  & AAC_OPT_NEW_COMM))
 		blk_queue_max_segment_size(sdev->request_queue, 65536);
 
 	return 0;

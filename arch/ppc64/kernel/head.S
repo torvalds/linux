@@ -2071,7 +2071,7 @@ _GLOBAL(hmt_start_secondary)
 	blr
 #endif
 
-#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_ISERIES)
+#if defined(CONFIG_KEXEC) || (defined(CONFIG_SMP) && !defined(CONFIG_PPC_ISERIES))
 _GLOBAL(smp_release_cpus)
 	/* All secondary cpus are spinning on a common
 	 * spinloop, release them all now so they can start

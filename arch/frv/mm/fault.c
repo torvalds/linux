@@ -163,13 +163,13 @@ asmlinkage void do_page_fault(int datammu, unsigned long esr0, unsigned long ear
 	 * the fault.
 	 */
 	switch (handle_mm_fault(mm, vma, ear0, write)) {
-	case 1:
+	case VM_FAULT_MINOR:
 		current->min_flt++;
 		break;
-	case 2:
+	case VM_FAULT_MAJOR:
 		current->maj_flt++;
 		break;
-	case 0:
+	case VM_FAULT_SIGBUS:
 		goto do_sigbus;
 	default:
 		goto out_of_memory;

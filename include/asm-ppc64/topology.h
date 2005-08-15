@@ -33,6 +33,7 @@ static inline int node_to_first_cpu(int node)
 	return first_cpu(tmp);
 }
 
+#define pcibus_to_node(node)    (-1)
 #define pcibus_to_cpumask(bus)	(cpu_online_map)
 
 #define nr_cpus_node(node)	(nr_cpus_in_node[node])
@@ -59,8 +60,10 @@ static inline int node_to_first_cpu(int node)
 	.nr_balance_failed	= 0,			\
 }
 
-#endif /* CONFIG_NUMA */
+#else
 
 #include <asm-generic/topology.h>
+
+#endif /* CONFIG_NUMA */
 
 #endif /* _ASM_PPC64_TOPOLOGY_H */

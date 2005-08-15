@@ -970,8 +970,21 @@ int mp_register_gsi(u32 gsi, int edge_level, int active_high_low)
 		 * due to unused I/O APIC pins.
 		 */
 		int irq = gsi;
-		gsi = pci_irq++;
-		gsi_to_irq[irq] = gsi;
+		if (gsi < MAX_GSI_NUM) {
+			if (gsi > 15)
+				gsi = pci_irq++;
+#ifdef CONFIG_ACPI_BUS
+			/*
+			 * Don't assign IRQ used by ACPI SCI
+			 */
+			if (gsi == acpi_fadt.sci_int)
+				gsi = pci_irq++;
+#endif
+			gsi_to_irq[irq] = gsi;
+		} else {
+			printk(KERN_ERR "GSI %u is too high\n", gsi);
+			return gsi;
+		}
 	}
 
 	io_apic_set_pci_routing(ioapic, ioapic_pin, gsi,

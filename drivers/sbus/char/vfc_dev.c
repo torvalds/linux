@@ -137,7 +137,6 @@ int init_vfc_devstruct(struct vfc_dev *dev, int instance)
 	dev->instance=instance;
 	init_MUTEX(&dev->device_lock_sem);
 	dev->control_reg=0;
-	init_waitqueue_head(&dev->poll_wait);
 	dev->busy=0;
 	return 0;
 }

@@ -4149,12 +4149,10 @@ static int __init init_st(void)
 			do_create_driverfs_files();
 			return 0;
 		}
-		if (st_sysfs_class)
-			class_destroy(st_sysfs_class);
 		unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
-
 					 ST_MAX_TAPE_ENTRIES);
 	}
+	class_destroy(st_sysfs_class);
 
 	printk(KERN_ERR "Unable to get major %d for SCSI tapes\n", SCSI_TAPE_MAJOR);
 	return 1;
@@ -4162,13 +4160,11 @@ static int __init init_st(void)
 
 static void __exit exit_st(void)
 {
-	if (st_sysfs_class)
-		class_destroy(st_sysfs_class);
-	st_sysfs_class = NULL;
 	do_remove_driverfs_files();
 	scsi_unregister_driver(&st_template.gendrv);
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
+	class_destroy(st_sysfs_class);
 	kfree(scsi_tapes);
 	printk(KERN_INFO "st: Unloaded.\n");
 }

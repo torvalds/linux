@@ -385,6 +385,7 @@ int ata_scsi_error(struct Scsi_Host *host)
 	 * appropriate place
 	 */
 	host->host_failed--;
+	INIT_LIST_HEAD(&host->eh_cmd_q);
 
 	DPRINTK("EXIT\n");
 	return 0;

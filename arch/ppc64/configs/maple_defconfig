@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.13-rc3
-# Wed Jul 13 14:46:18 2005
+# Linux kernel version: 2.6.13-rc6
+# Mon Aug  8 14:17:04 2005
 #
 CONFIG_64BIT=y
 CONFIG_MMU=y
@@ -193,8 +193,6 @@ CONFIG_TCP_CONG_BIC=y
 # Network testing
 #
 # CONFIG_NET_PKTGEN is not set
-# CONFIG_NETPOLL is not set
-# CONFIG_NET_POLL_CONTROLLER is not set
 # CONFIG_HAMRADIO is not set
 # CONFIG_IRDA is not set
 # CONFIG_BT is not set
@@ -433,6 +431,8 @@ CONFIG_E1000=y
 # CONFIG_SLIP is not set
 # CONFIG_SHAPER is not set
 # CONFIG_NETCONSOLE is not set
+# CONFIG_NETPOLL is not set
+# CONFIG_NET_POLL_CONTROLLER is not set
 
 #
 # ISDN subsystem
@@ -512,7 +512,6 @@ CONFIG_LEGACY_PTY_COUNT=256
 #
 # CONFIG_WATCHDOG is not set
 # CONFIG_RTC is not set
-# CONFIG_GEN_RTC is not set
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
 # CONFIG_APPLICOM is not set

@@ -93,6 +93,7 @@
 #endif
 
 #define CHIP_EISA_ID_SIG 0x630E   /*  Product ID Code for Crystal Chip (CS8900 spec 4.3) */
+#define CHIP_EISA_ID_SIG_STR "0x630E"
 
 #ifdef IBMEIPKT
 #define EISA_ID_SIG 0x4D24	/*  IBM */

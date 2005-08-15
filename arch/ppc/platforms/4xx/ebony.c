@@ -7,7 +7,7 @@
  * Copyright 2002-2005 MontaVista Software Inc.
  *
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- * Copyright (c) 2003, 2004 Zultys Technologies
+ * Copyright (c) 2003-2005 Zultys Technologies
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -50,6 +50,7 @@
 #include <asm/bootinfo.h>
 #include <asm/ppc4xx_pic.h>
 #include <asm/ppcboot.h>
+#include <asm/tlbflush.h>
 
 #include <syslib/gen550.h>
 #include <syslib/ibm440gp_common.h>
@@ -248,6 +249,9 @@ ebony_early_serial_map(void)
 #if defined(CONFIG_SERIAL_TEXT_DEBUG) || defined(CONFIG_KGDB)
 	/* Configure debug serial access */
 	gen550_init(0, &port);
+
+	/* Purge TLB entry added in head_44x.S for early serial access */
+	_tlbie(UART0_IO_BASE);
 #endif
 
 	port.membase = ioremap64(PPC440GP_UART1_ADDR, 8);

@@ -62,3 +62,5 @@ tuner=60 - Thomson DDT 7611 (ATSC/NTSC)
 tuner=61 - Tena TNF9533-D/IF/TNF9533-B/DF
 tuner=62 - Philips TEA5767HN FM Radio
 tuner=63 - Philips FMD1216ME MK3 Hybrid Tuner
+tuner=64 - LG TDVS-H062F/TUA6034
+tuner=65 - Ymec TVF66T5-B/DFF

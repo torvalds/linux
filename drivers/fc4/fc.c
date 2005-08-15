@@ -1004,8 +1004,8 @@ int fcp_scsi_dev_reset(Scsi_Cmnd *SCpnt)
 		return FAILED;
 	}
 	fc->rst_pkt->eh_state = SCSI_STATE_UNUSED;
-	return SUCCESS;
 #endif
+	return SUCCESS;
 }
 
 static int __fcp_scsi_host_reset(Scsi_Cmnd *SCpnt)

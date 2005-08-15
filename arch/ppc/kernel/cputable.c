@@ -852,6 +852,26 @@ struct cpu_spec	cpu_specs[] = {
 
 #endif /* CONFIG_40x */
 #ifdef CONFIG_44x
+	{
+		.pvr_mask		= 0xf0000fff,
+		.pvr_value		= 0x40000850,
+		.cpu_name		= "440EP Rev. A",
+		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
+			CPU_FTR_USE_TB,
+		.cpu_user_features	= COMMON_PPC, /* 440EP has an FPU */
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+	},
+	{
+		.pvr_mask		= 0xf0000fff,
+		.pvr_value		= 0x400008d3,
+		.cpu_name		= "440EP Rev. B",
+		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
+			CPU_FTR_USE_TB,
+		.cpu_user_features	= COMMON_PPC, /* 440EP has an FPU */
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+	},
 	{ 	/* 440GP Rev. B */
 		.pvr_mask		= 0xf0000fff,
 		.pvr_value		= 0x40000440,

@@ -770,6 +770,9 @@ vfp_double_add(struct vfp_double *vdd, struct vfp_double *vdn,
 		if ((s64)m_sig < 0) {
 			vdd->sign = vfp_sign_negate(vdd->sign);
 			m_sig = -m_sig;
+		} else if (m_sig == 0) {
+			vdd->sign = (fpscr & FPSCR_RMODE_MASK) ==
+				      FPSCR_ROUND_MINUSINF ? 0x8000 : 0;
 		}
 	} else {
 		m_sig += vdn->significand;

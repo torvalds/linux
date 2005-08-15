@@ -51,48 +51,42 @@ static void resetFPA11(void)
 	fpa11->fpsr = FP_EMULATOR | BIT_AC;
 }
 
-void SetRoundingMode(const unsigned int opcode)
+int8 SetRoundingMode(const unsigned int opcode)
 {
 	switch (opcode & MASK_ROUNDING_MODE) {
 	default:
 	case ROUND_TO_NEAREST:
-		float_rounding_mode = float_round_nearest_even;
-		break;
+		return float_round_nearest_even;
 
 	case ROUND_TO_PLUS_INFINITY:
-		float_rounding_mode = float_round_up;
-		break;
+		return float_round_up;
 
 	case ROUND_TO_MINUS_INFINITY:
-		float_rounding_mode = float_round_down;
-		break;
+		return float_round_down;
 
 	case ROUND_TO_ZERO:
-		float_rounding_mode = float_round_to_zero;
-		break;
+		return float_round_to_zero;
 	}
 }
 
-void SetRoundingPrecision(const unsigned int opcode)
+int8 SetRoundingPrecision(const unsigned int opcode)
 {
 #ifdef CONFIG_FPE_NWFPE_XP
 	switch (opcode & MASK_ROUNDING_PRECISION) {
 	case ROUND_SINGLE:
-		floatx80_rounding_precision = 32;
-		break;
+		return 32;
 
 	case ROUND_DOUBLE:
-		floatx80_rounding_precision = 64;
-		break;
+		return 64;
 
 	case ROUND_EXTENDED:
-		floatx80_rounding_precision = 80;
-		break;
+		return 80;
 
 	default:
-		floatx80_rounding_precision = 80;
+		return 80;
 	}
 #endif
+	return 80;
 }
 
 void nwfpe_init_fpa(union fp_state *fp)
@@ -103,8 +97,6 @@ void nwfpe_init_fpa(union fp_state *fp)
 #endif
  	memset(fpa11, 0, sizeof(FPA11));
 	resetFPA11();
-	SetRoundingMode(ROUND_TO_NEAREST);
-	SetRoundingPrecision(ROUND_EXTENDED);
 	fpa11->initflag = 1;
 }
 
