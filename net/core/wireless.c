@@ -1144,8 +1144,8 @@ static inline void rtmsg_iwinfo(struct net_device *	dev,
 		kfree_skb(skb);
 		return;
 	}
-	NETLINK_CB(skb).dst_groups = RTMGRP_LINK;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_LINK, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group = RTNLGRP_LINK;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_LINK, GFP_ATOMIC);
 }
 #endif	/* WE_EVENT_NETLINK */
 

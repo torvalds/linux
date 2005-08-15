@@ -290,10 +290,10 @@ void rtmsg_fib(int event, u32 key, struct fib_alias *fa,
 		kfree_skb(skb);
 		return;
 	}
-	NETLINK_CB(skb).dst_groups = RTMGRP_IPV4_ROUTE;
+	NETLINK_CB(skb).dst_group = RTNLGRP_IPV4_ROUTE;
 	if (n->nlmsg_flags&NLM_F_ECHO)
 		atomic_inc(&skb->users);
-	netlink_broadcast(rtnl, skb, pid, RTMGRP_IPV4_ROUTE, GFP_KERNEL);
+	netlink_broadcast(rtnl, skb, pid, RTNLGRP_IPV4_ROUTE, GFP_KERNEL);
 	if (n->nlmsg_flags&NLM_F_ECHO)
 		netlink_unicast(rtnl, skb, pid, MSG_DONTWAIT);
 }

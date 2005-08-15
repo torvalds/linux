@@ -297,7 +297,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	struct sk_buff *skb;
 	unsigned int type;
 	unsigned char *b;
-	unsigned int flags = 0, groups;
+	unsigned int flags = 0, group;
 
 	/* ignore our fake conntrack entry */
 	if (ct == &ip_conntrack_untracked)
@@ -305,7 +305,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 
 	if (events & IPCT_DESTROY) {
 		type = IPCTNL_MSG_CT_DELETE;
-		groups = NF_NETLINK_CONNTRACK_DESTROY;
+		group = NFNLGRP_CONNTRACK_DESTROY;
 		goto alloc_skb;
 	}
 	if (events & (IPCT_NEW | IPCT_RELATED)) {
@@ -313,7 +313,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 		flags = NLM_F_CREATE|NLM_F_EXCL;
 		/* dump everything */
 		events = ~0UL;
-		groups = NF_NETLINK_CONNTRACK_NEW;
+		group = NFNLGRP_CONNTRACK_NEW;
 		goto alloc_skb;
 	}
 	if (events & (IPCT_STATUS |
@@ -322,7 +322,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 		      IPCT_HELPINFO |
 		      IPCT_NATINFO)) {
 		type = IPCTNL_MSG_CT_NEW;
-		groups = NF_NETLINK_CONNTRACK_UPDATE;
+		group = NFNLGRP_CONNTRACK_UPDATE;
 		goto alloc_skb;
 	} 
 	
@@ -375,7 +375,7 @@ alloc_skb:
 		goto nfattr_failure;
 
 	nlh->nlmsg_len = skb->tail - b;
-	nfnetlink_send(skb, 0, groups, 0);
+	nfnetlink_send(skb, 0, group, 0);
 	return NOTIFY_DONE;
 
 nlmsg_failure:
@@ -1194,7 +1194,7 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 
 	nlh->nlmsg_len = skb->tail - b;
 	proto = exp->tuple.dst.protonum;
-	nfnetlink_send(skb, 0, NF_NETLINK_CONNTRACK_EXP_NEW, 0);
+	nfnetlink_send(skb, 0, NFNLGRP_CONNTRACK_EXP_NEW, 0);
 	return NOTIFY_DONE;
 
 nlmsg_failure:

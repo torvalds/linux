@@ -93,7 +93,7 @@ static int send_uevent(const char *signal, const char *obj,
 		}
 	}
 
-	NETLINK_CB(skb).dst_groups = 1;
+	NETLINK_CB(skb).dst_group = 1;
 	return netlink_broadcast(uevent_sock, skb, 0, 1, gfp_mask);
 }
 

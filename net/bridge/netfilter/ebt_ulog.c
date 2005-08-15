@@ -78,8 +78,8 @@ static void ulog_send(unsigned int nlgroup)
 	if (ub->qlen > 1)
 		ub->lastnlh->nlmsg_type = NLMSG_DONE;
 
-	NETLINK_CB(ub->skb).dst_groups = 1 << nlgroup;
-	netlink_broadcast(ebtulognl, ub->skb, 0, 1 << nlgroup, GFP_ATOMIC);
+	NETLINK_CB(ub->skb).dst_group = nlgroup + 1;
+	netlink_broadcast(ebtulognl, ub->skb, 0, nlgroup + 1, GFP_ATOMIC);
 
 	ub->qlen = 0;
 	ub->skb = NULL;

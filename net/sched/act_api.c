@@ -593,7 +593,7 @@ static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
 	nlh->nlmsg_flags |= NLM_F_ROOT;
 	module_put(a->ops->owner);
 	kfree(a);
-	err = rtnetlink_send(skb, pid, RTMGRP_TC, n->nlmsg_flags&NLM_F_ECHO);
+	err = rtnetlink_send(skb, pid, RTNLGRP_TC, n->nlmsg_flags&NLM_F_ECHO);
 	if (err > 0)
 		return 0;
 
@@ -656,7 +656,7 @@ tca_action_gd(struct rtattr *rta, struct nlmsghdr *n, u32 pid, int event)
 
 		/* now do the delete */
 		tcf_action_destroy(head, 0);
-		ret = rtnetlink_send(skb, pid, RTMGRP_TC,
+		ret = rtnetlink_send(skb, pid, RTNLGRP_TC,
 		                     n->nlmsg_flags&NLM_F_ECHO);
 		if (ret > 0)
 			return 0;
@@ -698,9 +698,9 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 	x->rta_len = skb->tail - (u8*)x;
 	
 	nlh->nlmsg_len = skb->tail - b;
-	NETLINK_CB(skb).dst_groups = RTMGRP_TC;
+	NETLINK_CB(skb).dst_group = RTNLGRP_TC;
 	
-	err = rtnetlink_send(skb, pid, RTMGRP_TC, flags&NLM_F_ECHO);
+	err = rtnetlink_send(skb, pid, RTNLGRP_TC, flags&NLM_F_ECHO);
 	if (err > 0)
 		err = 0;
 	return err;

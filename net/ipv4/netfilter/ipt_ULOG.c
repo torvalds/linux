@@ -116,10 +116,10 @@ static void ulog_send(unsigned int nlgroupnum)
 	if (ub->qlen > 1)
 		ub->lastnlh->nlmsg_type = NLMSG_DONE;
 
-	NETLINK_CB(ub->skb).dst_groups = (1 << nlgroupnum);
-	DEBUGP("ipt_ULOG: throwing %d packets to netlink mask %u\n",
-		ub->qlen, nlgroupnum);
-	netlink_broadcast(nflognl, ub->skb, 0, (1 << nlgroupnum), GFP_ATOMIC);
+	NETLINK_CB(ub->skb).dst_group = nlgroupnum + 1;
+	DEBUGP("ipt_ULOG: throwing %d packets to netlink group %u\n",
+		ub->qlen, nlgroupnum + 1);
+	netlink_broadcast(nflognl, ub->skb, 0, nlgroupnum + 1, GFP_ATOMIC);
 
 	ub->qlen = 0;
 	ub->skb = NULL;

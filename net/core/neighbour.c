@@ -2343,8 +2343,8 @@ void neigh_app_ns(struct neighbour *n)
 	}
 	nlh			   = (struct nlmsghdr *)skb->data;
 	nlh->nlmsg_flags	   = NLM_F_REQUEST;
-	NETLINK_CB(skb).dst_groups = RTMGRP_NEIGH;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_NEIGH, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group  = RTNLGRP_NEIGH;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_NEIGH, GFP_ATOMIC);
 }
 
 static void neigh_app_notify(struct neighbour *n)
@@ -2361,8 +2361,8 @@ static void neigh_app_notify(struct neighbour *n)
 		return;
 	}
 	nlh			   = (struct nlmsghdr *)skb->data;
-	NETLINK_CB(skb).dst_groups = RTMGRP_NEIGH;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_NEIGH, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group  = RTNLGRP_NEIGH;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_NEIGH, GFP_ATOMIC);
 }
 
 #endif /* CONFIG_ARPD */

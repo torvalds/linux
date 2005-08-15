@@ -80,8 +80,8 @@ static void selnl_notify(int msgtype, void *data)
 	nlh = NLMSG_PUT(skb, 0, 0, msgtype, len);
 	selnl_add_payload(nlh, len, msgtype, data);
 	nlh->nlmsg_len = skb->tail - tmp;
-	NETLINK_CB(skb).dst_groups = SELNL_GRP_AVC;
-	netlink_broadcast(selnl, skb, 0, SELNL_GRP_AVC, GFP_USER);
+	NETLINK_CB(skb).dst_group = SELNLGRP_AVC;
+	netlink_broadcast(selnl, skb, 0, SELNLGRP_AVC, GFP_USER);
 out:
 	return;
 	

@@ -349,10 +349,10 @@ static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, int tb_id,
                 kfree_skb(skb);
                 return;
         }
-        NETLINK_CB(skb).dst_groups = RTMGRP_DECnet_ROUTE;
+        NETLINK_CB(skb).dst_group = RTNLGRP_DECnet_ROUTE;
         if (nlh->nlmsg_flags & NLM_F_ECHO)
                 atomic_inc(&skb->users);
-        netlink_broadcast(rtnl, skb, pid, RTMGRP_DECnet_ROUTE, GFP_KERNEL);
+        netlink_broadcast(rtnl, skb, pid, RTNLGRP_DECnet_ROUTE, GFP_KERNEL);
         if (nlh->nlmsg_flags & NLM_F_ECHO)
                 netlink_unicast(rtnl, skb, pid, MSG_DONTWAIT);
 }

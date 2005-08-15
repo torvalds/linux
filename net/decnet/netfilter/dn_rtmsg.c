@@ -71,10 +71,10 @@ static void dnrmg_send_peer(struct sk_buff *skb)
 
 	switch(flags & DN_RT_CNTL_MSK) {
 		case DN_RT_PKT_L1RT:
-			group = DNRMG_L1_GROUP;
+			group = DNRMG_L1_NLGRP;
 			break;
 		case DN_RT_PKT_L2RT:
-			group = DNRMG_L2_GROUP;
+			group = DNRMG_L2_NLGRP;
 			break;
 		default:
 			return;
@@ -83,7 +83,7 @@ static void dnrmg_send_peer(struct sk_buff *skb)
 	skb2 = dnrmg_build_message(skb, &status);
 	if (skb2 == NULL)
 		return;
-	NETLINK_CB(skb2).dst_groups = group;
+	NETLINK_CB(skb2).dst_group = group;
 	netlink_broadcast(dnrmg, skb2, 0, group, GFP_ATOMIC);
 }
 

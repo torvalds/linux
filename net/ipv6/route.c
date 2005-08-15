@@ -1850,16 +1850,16 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nlmsghdr *nlh,
 	
 	skb = alloc_skb(size, gfp_any());
 	if (!skb) {
-		netlink_set_err(rtnl, 0, RTMGRP_IPV6_ROUTE, ENOBUFS);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_ROUTE, ENOBUFS);
 		return;
 	}
 	if (rt6_fill_node(skb, rt, NULL, NULL, 0, event, pid, seq, 0, 0) < 0) {
 		kfree_skb(skb);
-		netlink_set_err(rtnl, 0, RTMGRP_IPV6_ROUTE, EINVAL);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_ROUTE, EINVAL);
 		return;
 	}
-	NETLINK_CB(skb).dst_groups = RTMGRP_IPV6_ROUTE;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_IPV6_ROUTE, gfp_any());
+	NETLINK_CB(skb).dst_group = RTNLGRP_IPV6_ROUTE;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_IPV6_ROUTE, gfp_any());
 }
 
 /*

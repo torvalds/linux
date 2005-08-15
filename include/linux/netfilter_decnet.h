@@ -56,7 +56,21 @@ struct nf_dn_rtmsg {
 
 #define NFDN_RTMSG(r) ((unsigned char *)(r) + NLMSG_ALIGN(sizeof(struct nf_dn_rtmsg)))
 
+#ifndef __KERNEL__
+/* backwards compatibility for userspace */
 #define DNRMG_L1_GROUP 0x01
 #define DNRMG_L2_GROUP 0x02
+#endif
+
+enum {
+	DNRNG_NLGRP_NONE,
+#define DNRNG_NLGRP_NONE	DNRNG_NLGRP_NONE
+	DNRNG_NLGRP_L1,
+#define DNRNG_NLGRP_L1		DNRNG_NLGRP_L1
+	DNRNG_NLGRP_L2,
+#define DNRNG_NLGRP_L2		DNRNG_NLGRP_L2
+	__DNRNG_NLGRP_MAX
+};
+#define DNRNG_NLGRP_MAX	(__DNRNG_NLGRP_MAX - 1)
 
 #endif /*__LINUX_DECNET_NETFILTER_H*/

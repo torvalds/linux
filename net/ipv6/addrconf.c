@@ -2858,16 +2858,16 @@ static void inet6_ifa_notify(int event, struct inet6_ifaddr *ifa)
 
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb) {
-		netlink_set_err(rtnl, 0, RTMGRP_IPV6_IFADDR, ENOBUFS);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_IFADDR, ENOBUFS);
 		return;
 	}
 	if (inet6_fill_ifaddr(skb, ifa, current->pid, 0, event, 0) < 0) {
 		kfree_skb(skb);
-		netlink_set_err(rtnl, 0, RTMGRP_IPV6_IFADDR, EINVAL);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_IFADDR, EINVAL);
 		return;
 	}
-	NETLINK_CB(skb).dst_groups = RTMGRP_IPV6_IFADDR;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_IPV6_IFADDR, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group = RTNLGRP_IPV6_IFADDR;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_IPV6_IFADDR, GFP_ATOMIC);
 }
 
 static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
@@ -2994,16 +2994,16 @@ void inet6_ifinfo_notify(int event, struct inet6_dev *idev)
 	
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb) {
-		netlink_set_err(rtnl, 0, RTMGRP_IPV6_IFINFO, ENOBUFS);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_IFINFO, ENOBUFS);
 		return;
 	}
 	if (inet6_fill_ifinfo(skb, idev, current->pid, 0, event, 0) < 0) {
 		kfree_skb(skb);
-		netlink_set_err(rtnl, 0, RTMGRP_IPV6_IFINFO, EINVAL);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_IFINFO, EINVAL);
 		return;
 	}
-	NETLINK_CB(skb).dst_groups = RTMGRP_IPV6_IFINFO;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_IPV6_IFINFO, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group = RTNLGRP_IPV6_IFINFO;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_IPV6_IFINFO, GFP_ATOMIC);
 }
 
 static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
@@ -3054,16 +3054,16 @@ static void inet6_prefix_notify(int event, struct inet6_dev *idev,
 
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb) {
-		netlink_set_err(rtnl, 0, RTMGRP_IPV6_PREFIX, ENOBUFS);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_PREFIX, ENOBUFS);
 		return;
 	}
 	if (inet6_fill_prefix(skb, idev, pinfo, current->pid, 0, event, 0) < 0) {
 		kfree_skb(skb);
-		netlink_set_err(rtnl, 0, RTMGRP_IPV6_PREFIX, EINVAL);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV6_PREFIX, EINVAL);
 		return;
 	}
-	NETLINK_CB(skb).dst_groups = RTMGRP_IPV6_PREFIX;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_IPV6_PREFIX, GFP_ATOMIC);
+	NETLINK_CB(skb).dst_group = RTNLGRP_IPV6_PREFIX;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_IPV6_PREFIX, GFP_ATOMIC);
 }
 
 static struct rtnetlink_link inet6_rtnetlink_table[RTM_NR_MSGTYPES] = {
