@@ -37,6 +37,9 @@ quiet_cmd_bootcc = BOOTCC  $@
 quiet_cmd_bootas = BOOTAS  $@
       cmd_bootas = $(CROSS32CC) -Wp,-MD,$(depfile) $(BOOTAFLAGS) -c -o $@ $<
 
+quiet_cmd_bootld = BOOTLD  $@
+      cmd_bootld = $(CROSS32LD) $(BOOTLFLAGS) -o $@ $(2)
+
 $(patsubst %.c,%.o, $(filter %.c, $(src-boot))): %.o: %.c
 	$(call if_changed_dep,bootcc)
 $(patsubst %.S,%.o, $(filter %.S, $(src-boot))): %.o: %.S
@@ -53,7 +56,7 @@ src-sec = $(foreach section, $(1), $(patsubst %,$(obj)/kernel-%.c, $(section)))
 gz-sec  = $(foreach section, $(1), $(patsubst %,$(obj)/kernel-%.gz, $(section)))
 
 hostprogs-y		:= addnote addRamDisk
-targets 		+= zImage zImage.initrd imagesize.c \
+targets 		+= zImage.vmode zImage.initrd.vmode zImage zImage.initrd imagesize.c \
 			   $(patsubst $(obj)/%,%, $(call obj-sec, $(required) $(initrd))) \
 			   $(patsubst $(obj)/%,%, $(call src-sec, $(required) $(initrd))) \
 			   $(patsubst $(obj)/%,%, $(call gz-sec, $(required) $(initrd))) \
@@ -75,8 +78,8 @@ addsection = $(CROSS32OBJCOPY) $(1) \
 		--add-section=.kernel:$(strip $(patsubst $(obj)/kernel-%.o,%, $(1)))=$(patsubst %.o,%.gz, $(1)) \
 		--set-section-flags=.kernel:$(strip $(patsubst $(obj)/kernel-%.o,%, $(1)))=$(OBJCOPYFLAGS)
 
-quiet_cmd_addnote = ADDNOTE $@ 
-      cmd_addnote = $(CROSS32LD) $(BOOTLFLAGS) -o $@ $(obj-boot) && $(obj)/addnote $@
+quiet_cmd_addnote = ADDNOTE $@
+      cmd_addnote = $(obj)/addnote $@
 
 $(call gz-sec, $(required)): $(obj)/kernel-%.gz: % FORCE
 	$(call if_changed,gzip)
@@ -91,12 +94,20 @@ $(call obj-sec, $(required) $(initrd)): $(obj)/kernel-%.o: $(obj)/kernel-%.c FOR
 	$(call if_changed_dep,bootcc)
 	$(call addsection, $@)
 
-$(obj)/zImage: obj-boot += $(call obj-sec, $(required))
-$(obj)/zImage: $(call obj-sec, $(required)) $(obj-boot) $(obj)/addnote FORCE
+$(obj)/zImage.vmode: obj-boot += $(call obj-sec, $(required))
+$(obj)/zImage.vmode: $(call obj-sec, $(required)) $(obj-boot) FORCE
+	$(call cmd,bootld,$(obj-boot))
+
+$(obj)/zImage.initrd.vmode: obj-boot += $(call obj-sec, $(required) $(initrd))
+$(obj)/zImage.initrd.vmode: $(call obj-sec, $(required) $(initrd)) $(obj-boot) FORCE
+	$(call cmd,bootld,$(obj-boot))
+
+$(obj)/zImage: $(obj)/zImage.vmode $(obj)/addnote FORCE
+	@cp -f $< $@
 	$(call if_changed,addnote)
 
-$(obj)/zImage.initrd: obj-boot += $(call obj-sec, $(required) $(initrd))
-$(obj)/zImage.initrd: $(call obj-sec, $(required) $(initrd)) $(obj-boot) $(obj)/addnote FORCE
+$(obj)/zImage.initrd: $(obj)/zImage.initrd.vmode $(obj)/addnote FORCE
+	@cp -f $< $@
 	$(call if_changed,addnote)
 
 $(obj)/imagesize.c: vmlinux.strip
