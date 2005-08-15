@@ -1634,7 +1634,7 @@ static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
 	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 	struct dccp_rx_hist_entry *entry, *next, *tail = NULL;
 	u32 rtt, delta, x_recv, fval, p, tmp2;
-	struct timeval tstamp, tmp_tv;
+	struct timeval tstamp = { 0 }, tmp_tv;
 	int interval = 0;
 	int win_count = 0;
 	int step = 0;
