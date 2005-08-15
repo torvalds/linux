@@ -815,8 +815,14 @@ static int wait_clear_urbs(snd_usb_substream_t *subs)
  */
 static snd_pcm_uframes_t snd_usb_pcm_pointer(snd_pcm_substream_t *substream)
 {
-	snd_usb_substream_t *subs = (snd_usb_substream_t *)substream->runtime->private_data;
-	return subs->hwptr_done;
+	snd_usb_substream_t *subs;
+	snd_pcm_uframes_t hwptr_done;
+	
+	subs = (snd_usb_substream_t *)substream->runtime->private_data;
+	spin_lock(&subs->lock);
+	hwptr_done = subs->hwptr_done;
+	spin_unlock(&subs->lock);
+	return hwptr_done;
 }
 
 
