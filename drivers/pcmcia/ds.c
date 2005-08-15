@@ -589,8 +589,8 @@ static void pcmcia_delayed_add_pseudo_device(void *data)
 static inline void pcmcia_add_pseudo_device(struct pcmcia_socket *s)
 {
 	if (!s->pcmcia_state.device_add_pending) {
-		schedule_work(&s->device_add);
 		s->pcmcia_state.device_add_pending = 1;
+		schedule_work(&s->device_add);
 	}
 	return;
 }

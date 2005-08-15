@@ -104,7 +104,7 @@ struct eapol {
 #define	MAX_FRAG_THRESHOLD     2346U
 
 /* Frame control field constants */
-#define IEEE80211_FCTL_VERS		0x0002
+#define IEEE80211_FCTL_VERS		0x0003
 #define IEEE80211_FCTL_FTYPE		0x000c
 #define IEEE80211_FCTL_STYPE		0x00f0
 #define IEEE80211_FCTL_TODS		0x0100

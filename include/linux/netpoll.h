@@ -9,6 +9,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
+#include <linux/rcupdate.h>
 #include <linux/list.h>
 
 struct netpoll;
@@ -26,6 +27,7 @@ struct netpoll {
 struct netpoll_info {
 	spinlock_t poll_lock;
 	int poll_owner;
+	int tries;
 	int rx_flags;
 	spinlock_t rx_lock;
 	struct netpoll *rx_np; /* netpoll that registered an rx_hook */
@@ -60,25 +62,31 @@ static inline int netpoll_rx(struct sk_buff *skb)
 	return ret;
 }
 
-static inline void netpoll_poll_lock(struct net_device *dev)
+static inline void *netpoll_poll_lock(struct net_device *dev)
 {
+	rcu_read_lock(); /* deal with race on ->npinfo */
 	if (dev->npinfo) {
 		spin_lock(&dev->npinfo->poll_lock);
 		dev->npinfo->poll_owner = smp_processor_id();
+		return dev->npinfo;
 	}
+	return NULL;
 }
 
-static inline void netpoll_poll_unlock(struct net_device *dev)
+static inline void netpoll_poll_unlock(void *have)
 {
-	if (dev->npinfo) {
-		dev->npinfo->poll_owner = -1;
-		spin_unlock(&dev->npinfo->poll_lock);
+	struct netpoll_info *npi = have;
+
+	if (npi) {
+		npi->poll_owner = -1;
+		spin_unlock(&npi->poll_lock);
 	}
+	rcu_read_unlock();
 }
 
 #else
 #define netpoll_rx(a) 0
-#define netpoll_poll_lock(a)
+#define netpoll_poll_lock(a) 0
 #define netpoll_poll_unlock(a)
 #endif
 

@@ -255,7 +255,6 @@ static struct ip_tunnel * ipip_tunnel_locate(struct ip_tunnel_parm *parms, int c
 
 	dev_hold(dev);
 	ipip_tunnel_link(nt);
-	/* Do not decrement MOD_USE_COUNT here. */
 	return nt;
 
 failed:
@@ -920,12 +919,29 @@ static int __init ipip_init(void)
 	goto out;
 }
 
+static void __exit ipip_destroy_tunnels(void)
+{
+	int prio;
+
+	for (prio = 1; prio < 4; prio++) {
+		int h;
+		for (h = 0; h < HASH_SIZE; h++) {
+			struct ip_tunnel *t;
+			while ((t = tunnels[prio][h]) != NULL)
+				unregister_netdevice(t->dev);
+		}
+	}
+}
+
 static void __exit ipip_fini(void)
 {
 	if (ipip_unregister() < 0)
 		printk(KERN_INFO "ipip close: can't deregister tunnel\n");
 
-	unregister_netdev(ipip_fb_tunnel_dev);
+	rtnl_lock();
+	ipip_destroy_tunnels();
+	unregister_netdevice(ipip_fb_tunnel_dev);
+	rtnl_unlock();
 }
 
 module_init(ipip_init);

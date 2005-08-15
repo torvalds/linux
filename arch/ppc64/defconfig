@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.13-rc3
-# Wed Jul 13 14:37:07 2005
+# Linux kernel version: 2.6.13-rc6
+# Mon Aug  8 14:16:54 2005
 #
 CONFIG_64BIT=y
 CONFIG_MMU=y
@@ -289,10 +289,6 @@ CONFIG_NET_CLS_ROUTE=y
 # Network testing
 #
 # CONFIG_NET_PKTGEN is not set
-CONFIG_NETPOLL=y
-CONFIG_NETPOLL_RX=y
-CONFIG_NETPOLL_TRAP=y
-CONFIG_NET_POLL_CONTROLLER=y
 # CONFIG_HAMRADIO is not set
 # CONFIG_IRDA is not set
 # CONFIG_BT is not set
@@ -506,6 +502,7 @@ CONFIG_SCSI_QLA22XX=m
 CONFIG_SCSI_QLA2300=m
 CONFIG_SCSI_QLA2322=m
 CONFIG_SCSI_QLA6312=m
+CONFIG_SCSI_QLA24XX=m
 CONFIG_SCSI_LPFC=m
 # CONFIG_SCSI_DC395x is not set
 # CONFIG_SCSI_DC390T is not set
@@ -579,11 +576,9 @@ CONFIG_IEEE1394_AMDTP=m
 #
 # Macintosh device drivers
 #
-CONFIG_ADB=y
 CONFIG_ADB_PMU=y
 CONFIG_PMAC_SMU=y
 # CONFIG_PMAC_BACKLIGHT is not set
-# CONFIG_INPUT_ADBHID is not set
 CONFIG_THERM_PM72=y
 
 #
@@ -694,6 +689,10 @@ CONFIG_PPPOE=m
 # CONFIG_NET_FC is not set
 # CONFIG_SHAPER is not set
 CONFIG_NETCONSOLE=y
+CONFIG_NETPOLL=y
+CONFIG_NETPOLL_RX=y
+CONFIG_NETPOLL_TRAP=y
+CONFIG_NET_POLL_CONTROLLER=y
 
 #
 # ISDN subsystem
@@ -797,7 +796,6 @@ CONFIG_HVCS=m
 #
 # CONFIG_WATCHDOG is not set
 # CONFIG_RTC is not set
-# CONFIG_GEN_RTC is not set
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
 # CONFIG_APPLICOM is not set

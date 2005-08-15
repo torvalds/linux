@@ -628,7 +628,7 @@ back_from_confirm:
 		/* ... which is an evident application bug. --ANK */
 		release_sock(sk);
 
-		NETDEBUG(if (net_ratelimit()) printk(KERN_DEBUG "udp cork app bug 2\n"));
+		LIMIT_NETDEBUG(printk(KERN_DEBUG "udp cork app bug 2\n"));
 		err = -EINVAL;
 		goto out;
 	}
@@ -693,7 +693,7 @@ static int udp_sendpage(struct sock *sk, struct page *page, int offset,
 	if (unlikely(!up->pending)) {
 		release_sock(sk);
 
-		NETDEBUG(if (net_ratelimit()) printk(KERN_DEBUG "udp cork app bug 3\n"));
+		LIMIT_NETDEBUG(printk(KERN_DEBUG "udp cork app bug 3\n"));
 		return -EINVAL;
 	}
 
@@ -1102,7 +1102,7 @@ static int udp_checksum_init(struct sk_buff *skb, struct udphdr *uh,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		if (!udp_check(uh, ulen, saddr, daddr, skb->csum))
 			return 0;
-		NETDEBUG(if (net_ratelimit()) printk(KERN_DEBUG "udp v4 hw csum failure.\n"));
+		LIMIT_NETDEBUG(printk(KERN_DEBUG "udp v4 hw csum failure.\n"));
 		skb->ip_summed = CHECKSUM_NONE;
 	}
 	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
@@ -1181,14 +1181,13 @@ int udp_rcv(struct sk_buff *skb)
 	return(0);
 
 short_packet:
-	NETDEBUG(if (net_ratelimit())
-		printk(KERN_DEBUG "UDP: short packet: From %u.%u.%u.%u:%u %d/%d to %u.%u.%u.%u:%u\n",
-			NIPQUAD(saddr),
-			ntohs(uh->source),
-			ulen,
-			len,
-			NIPQUAD(daddr),
-			ntohs(uh->dest)));
+	LIMIT_NETDEBUG(printk(KERN_DEBUG "UDP: short packet: From %u.%u.%u.%u:%u %d/%d to %u.%u.%u.%u:%u\n",
+			      NIPQUAD(saddr),
+			      ntohs(uh->source),
+			      ulen,
+			      len,
+			      NIPQUAD(daddr),
+			      ntohs(uh->dest)));
 no_header:
 	UDP_INC_STATS_BH(UDP_MIB_INERRORS);
 	kfree_skb(skb);
@@ -1199,13 +1198,12 @@ csum_error:
 	 * RFC1122: OK.  Discards the bad packet silently (as far as 
 	 * the network is concerned, anyway) as per 4.1.3.4 (MUST). 
 	 */
-	NETDEBUG(if (net_ratelimit())
-		 printk(KERN_DEBUG "UDP: bad checksum. From %d.%d.%d.%d:%d to %d.%d.%d.%d:%d ulen %d\n",
-			NIPQUAD(saddr),
-			ntohs(uh->source),
-			NIPQUAD(daddr),
-			ntohs(uh->dest),
-			ulen));
+	LIMIT_NETDEBUG(printk(KERN_DEBUG "UDP: bad checksum. From %d.%d.%d.%d:%d to %d.%d.%d.%d:%d ulen %d\n",
+			      NIPQUAD(saddr),
+			      ntohs(uh->source),
+			      NIPQUAD(daddr),
+			      ntohs(uh->dest),
+			      ulen));
 drop:
 	UDP_INC_STATS_BH(UDP_MIB_INERRORS);
 	kfree_skb(skb);

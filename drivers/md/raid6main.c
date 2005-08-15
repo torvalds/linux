@@ -1813,6 +1813,7 @@ static int run (mddev_t *mddev)
 
 	/* device size must be a multiple of chunk size */
 	mddev->size &= ~(mddev->chunk_size/1024 -1);
+	mddev->resync_max_sectors = mddev->size << 1;
 
 	if (conf->raid_disks < 4) {
 		printk(KERN_ERR "raid6: not enough configured devices for %s (%d, minimum 4)\n",

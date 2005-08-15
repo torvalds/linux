@@ -274,8 +274,13 @@
 #define __NR_request_key	279
 #define __NR_keyctl		280
 #define __NR_waitid		281
+#define __NR_ioprio_set		282
+#define __NR_ioprio_get		283
+#define __NR_inotify_init	284
+#define __NR_inotify_add_watch	285
+#define __NR_inotify_rm_watch	286
 
-#define NR_syscalls 282
+#define NR_syscalls 287
 
 /* 
  * There are some system calls that are not present on 64 bit, some

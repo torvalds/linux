@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/usb-simtec.c
  *
- * Copyright (c) 2004 Simtec Electronics
+ * Copyright (c) 2004,2005 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.simtec.co.uk/products/EB2410ITX/
@@ -14,6 +14,8 @@
  * Modifications:
  *	14-Sep-2004 BJD  Created
  *	18-Oct-2004 BJD  Cleanups, and added code to report OC cleared
+ *	09-Aug-2005 BJD  Renamed s3c2410_report_oc to s3c2410_usb_report_oc
+ *	09-Aug-2005 BJD  Ports powered only if both are enabled
 */
 
 #define DEBUG
@@ -47,13 +49,19 @@
  * designed boards.
 */
 
+static unsigned int power_state[2];
+
 static void
 usb_simtec_powercontrol(int port, int to)
 {
 	pr_debug("usb_simtec_powercontrol(%d,%d)\n", port, to);
 
-	if (port == 1)
-		s3c2410_gpio_setpin(S3C2410_GPB4, to ? 0:1);
+	power_state[port] = to;
+
+	if (power_state[0] && power_state[1])
+		s3c2410_gpio_setpin(S3C2410_GPB4, 0);
+	else
+		s3c2410_gpio_setpin(S3C2410_GPB4, 1);
 }
 
 static irqreturn_t
@@ -63,10 +71,10 @@ usb_simtec_ocirq(int irq, void *pw, struct pt_regs *regs)
 
 	if (s3c2410_gpio_getpin(S3C2410_GPG10) == 0) {
 		pr_debug("usb_simtec: over-current irq (oc detected)\n");
-		s3c2410_report_oc(info, 3);
+		s3c2410_usb_report_oc(info, 3);
 	} else {
 		pr_debug("usb_simtec: over-current irq (oc cleared)\n");
-		s3c2410_report_oc(info, 0);
+		s3c2410_usb_report_oc(info, 0);
 	}
 
 	return IRQ_HANDLED;

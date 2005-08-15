@@ -1,5 +1,5 @@
 /*
- *    Support for LGDT3302 & LGDT3303 (DViCO FustionHDTV Gold) - VSB/QAM
+ *    Support for LGDT3302 and LGDT3303 - VSB/QAM
  *
  *    Copyright (C) 2005 Wilson Michaels <wilsonmichaels@earthlink.net>
  *
@@ -24,14 +24,26 @@
 
 #include <linux/dvb/frontend.h>
 
+typedef enum lg_chip_t {
+		UNDEFINED,
+		LGDT3302,
+		LGDT3303
+}lg_chip_type;
+
 struct lgdt330x_config
 {
 	/* The demodulator's i2c address */
 	u8 demod_address;
 
+	/* LG demodulator chip LGDT3302 or LGDT3303 */
+	lg_chip_type demod_chip;
+
+	/* MPEG hardware interface - 0:parallel 1:serial */
+	int serial_mpeg;
+
 	/* PLL interface */
 	int (*pll_rf_set) (struct dvb_frontend* fe, int index);
-	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pll_address);
+	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 
 	/* Need to set device param for start_dma */
 	int (*set_ts_params)(struct dvb_frontend* fe, int is_punctured);

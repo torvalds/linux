@@ -406,7 +406,7 @@ register long __sc6 __asm__ ("r6") = (long) arg3; \
 register long __sc7 __asm__ ("r7") = (long) arg4; \
 register long __sc0 __asm__ ("r0") = (long) arg5; \
 register long __sc1 __asm__ ("r1") = (long) arg6; \
-__asm__ __volatile__ ("trapa	#0x15" \
+__asm__ __volatile__ ("trapa	#0x16" \
 	: "=z" (__sc0) \
 	: "0" (__sc0), "r" (__sc4), "r" (__sc5), "r" (__sc6), "r" (__sc7),  \
 	  "r" (__sc3), "r" (__sc1) \

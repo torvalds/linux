@@ -129,8 +129,6 @@ struct vfc_dev {
 	struct vfc_regs *phys_regs;
 	unsigned int control_reg;
 	struct semaphore device_lock_sem;
-	struct timer_list poll_timer;
-	wait_queue_head_t poll_wait;
 	int instance;
 	int busy;
 	unsigned long which_io;

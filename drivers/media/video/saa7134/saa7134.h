@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134.h,v 1.48 2005/07/01 08:22:24 nsh Exp $
+ * $Id: saa7134.h,v 1.49 2005/07/13 17:25:25 mchehab Exp $
  *
  * v4l2 device driver for philips saa7134 based TV cards
  *
@@ -21,7 +21,7 @@
  */
 
 #include <linux/version.h>
-#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,13)
+#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,14)
 
 #include <linux/pci.h>
 #include <linux/i2c.h>
