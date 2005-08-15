@@ -35,7 +35,6 @@
  * $Id: cache.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
