@@ -607,7 +607,7 @@ static int __init snd_opl3sa2_pnp(int dev, opl3sa2_t *chip,
 	if (irq[dev] != SNDRV_AUTO_IRQ)
 		pnp_resource_change(&cfg->irq_resource[0], irq[dev], 1);
 	err = pnp_manual_config_dev(pdev, cfg, 0);
-	if (err < 0)
+	if (err < 0 && isapnp)
 		snd_printk(KERN_ERR "PnP manual resources are invalid, using auto config\n");
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
@@ -839,7 +839,7 @@ static void __devexit snd_opl3sa2_pnp_remove(struct pnp_dev * pdev)
 }
 
 static struct pnp_driver opl3sa2_pnp_driver = {
-	.name = "opl3sa2",
+	.name = "opl3sa2-pnpbios",
 	.id_table = snd_opl3sa2_pnpbiosids,
 	.probe = snd_opl3sa2_pnp_detect,
 	.remove = __devexit_p(snd_opl3sa2_pnp_remove),
