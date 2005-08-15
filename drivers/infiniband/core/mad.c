@@ -2296,7 +2296,7 @@ static void timeout_sends(void *data)
 	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 }
 
-static void ib_mad_thread_completion_handler(struct ib_cq *cq)
+static void ib_mad_thread_completion_handler(struct ib_cq *cq, void *arg)
 {
 	struct ib_mad_port_private *port_priv = cq->cq_context;
 
@@ -2576,8 +2576,7 @@ static int ib_mad_port_open(struct ib_device *device,
 
 	cq_size = (IB_MAD_QP_SEND_SIZE + IB_MAD_QP_RECV_SIZE) * 2;
 	port_priv->cq = ib_create_cq(port_priv->device,
-				     (ib_comp_handler)
-					ib_mad_thread_completion_handler,
+				     ib_mad_thread_completion_handler,
 				     NULL, port_priv, cq_size);
 	if (IS_ERR(port_priv->cq)) {
 		printk(KERN_ERR PFX "Couldn't create ib_mad CQ\n");
