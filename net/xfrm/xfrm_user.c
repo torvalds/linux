@@ -1152,6 +1152,8 @@ static int xfrm_notify_sa_flush(struct km_event *c)
 
 	nlh->nlmsg_len = skb->tail - b;
 
+	NETLINK_CB(skb).dst_groups = XFRMGRP_SA;
+
 	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_SA, GFP_ATOMIC);
 
 nlmsg_failure:
@@ -1225,6 +1227,8 @@ static int xfrm_notify_sa(struct xfrm_state *x, struct km_event *c)
 		RTA_PUT(skb, XFRMA_ENCAP, sizeof(*x->encap), x->encap);
 
 	nlh->nlmsg_len = skb->tail - b;
+
+	NETLINK_CB(skb).dst_groups = XFRMGRP_SA;
 
 	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_SA, GFP_ATOMIC);
 
@@ -1455,6 +1459,8 @@ static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *
 
 	nlh->nlmsg_len = skb->tail - b;
 
+	NETLINK_CB(skb).dst_groups = XFRMGRP_POLICY;
+
 	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_POLICY, GFP_ATOMIC);
 
 nlmsg_failure:
@@ -1479,6 +1485,8 @@ static int xfrm_notify_policy_flush(struct km_event *c)
 	nlh = NLMSG_PUT(skb, c->pid, c->seq, XFRM_MSG_FLUSHPOLICY, 0);
 
 	nlh->nlmsg_len = skb->tail - b;
+
+	NETLINK_CB(skb).dst_groups = XFRMGRP_POLICY;
 
 	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_POLICY, GFP_ATOMIC);
 
