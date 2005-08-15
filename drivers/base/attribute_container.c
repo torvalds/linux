@@ -237,6 +237,11 @@ attribute_container_device_trigger(struct device *dev,
 		if (!cont->match(cont, dev))
 			continue;
 
+		if (attribute_container_no_classdevs(cont)) {
+			fn(cont, dev, NULL);
+			continue;
+		}
+
 		spin_lock(&cont->containers_lock);
 		list_for_each_entry_safe(ic, tmp, &cont->containers, node) {
 			if (dev == ic->classdev.dev)
