@@ -1009,13 +1009,22 @@ void net_disable_timestamp(void)
 	atomic_dec(&netstamp_needed);
 }
 
-static inline void net_timestamp(struct timeval *stamp)
+void __net_timestamp(struct sk_buff *skb)
+{
+	struct timeval tv;
+
+	do_gettimeofday(&tv);
+	skb_set_timestamp(skb, &tv);
+}
+EXPORT_SYMBOL(__net_timestamp);
+
+static inline void net_timestamp(struct sk_buff *skb)
 {
 	if (atomic_read(&netstamp_needed))
-		do_gettimeofday(stamp);
+		__net_timestamp(skb);
 	else {
-		stamp->tv_sec = 0;
-		stamp->tv_usec = 0;
+		skb->tstamp.off_sec = 0;
+		skb->tstamp.off_usec = 0;
 	}
 }
 
@@ -1027,7 +1036,8 @@ static inline void net_timestamp(struct timeval *stamp)
 void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct packet_type *ptype;
-	net_timestamp(&skb->stamp);
+
+	net_timestamp(skb);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
@@ -1379,8 +1389,8 @@ int netif_rx(struct sk_buff *skb)
 	if (netpoll_rx(skb))
 		return NET_RX_DROP;
 
-	if (!skb->stamp.tv_sec)
-		net_timestamp(&skb->stamp);
+	if (!skb->tstamp.off_sec)
+		net_timestamp(skb);
 
 	/*
 	 * The code is rearranged so that the path is the most
@@ -1566,8 +1576,8 @@ int netif_receive_skb(struct sk_buff *skb)
 	if (skb->dev->poll && netpoll_rx(skb))
 		return NET_RX_DROP;
 
-	if (!skb->stamp.tv_sec)
-		net_timestamp(&skb->stamp);
+	if (!skb->tstamp.off_sec)
+		net_timestamp(skb);
 
 	if (!skb->input_dev)
 		skb->input_dev = skb->dev;

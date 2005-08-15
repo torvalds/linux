@@ -1176,7 +1176,7 @@ fore200e_push_rpd(struct fore200e* fore200e, struct atm_vcc* vcc, struct rpd* rp
 	return -ENOMEM;
     } 
 
-    do_gettimeofday(&skb->stamp);
+    __net_timestamp(skb);
     
 #ifdef FORE200E_52BYTE_AAL0_SDU
     if (cell_header) {

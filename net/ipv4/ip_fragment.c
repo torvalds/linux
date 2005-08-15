@@ -533,7 +533,7 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
  	if (skb->dev)
  		qp->iif = skb->dev->ifindex;
 	skb->dev = NULL;
-	qp->stamp = skb->stamp;
+	skb_get_timestamp(skb, &qp->stamp);
 	qp->meat += skb->len;
 	atomic_add(skb->truesize, &ip_frag_mem);
 	if (offset == 0)
@@ -615,7 +615,7 @@ static struct sk_buff *ip_frag_reasm(struct ipq *qp, struct net_device *dev)
 
 	head->next = NULL;
 	head->dev = dev;
-	head->stamp = qp->stamp;
+	skb_set_timestamp(head, &qp->stamp);
 
 	iph = head->nh.iph;
 	iph->frag_off = 0;

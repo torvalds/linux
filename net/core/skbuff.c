@@ -70,6 +70,8 @@
 
 static kmem_cache_t *skbuff_head_cache;
 
+struct timeval __read_mostly skb_tv_base;
+
 /*
  *	Keep out-of-line to prevent kernel bloat.
  *	__builtin_return_address is not used because it is not always
@@ -331,7 +333,7 @@ struct sk_buff *skb_clone(struct sk_buff *skb, unsigned int __nocast gfp_mask)
 
 	n->next = n->prev = NULL;
 	n->sk = NULL;
-	C(stamp);
+	C(tstamp);
 	C(dev);
 	C(h);
 	C(nh);
@@ -408,7 +410,7 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	memcpy(new->cb, old->cb, sizeof(old->cb));
 	new->local_df	= old->local_df;
 	new->pkt_type	= old->pkt_type;
-	new->stamp	= old->stamp;
+	new->tstamp	= old->tstamp;
 	new->destructor = NULL;
 #ifdef CONFIG_NETFILTER
 	new->nfmark	= old->nfmark;
@@ -1645,6 +1647,7 @@ void __init skb_init(void)
 					      NULL, NULL);
 	if (!skbuff_head_cache)
 		panic("cannot create skbuff cache");
+	do_gettimeofday(&skb_tv_base);
 }
 
 EXPORT_SYMBOL(___pskb_trim);
@@ -1678,3 +1681,4 @@ EXPORT_SYMBOL(skb_prepare_seq_read);
 EXPORT_SYMBOL(skb_seq_read);
 EXPORT_SYMBOL(skb_abort_seq_read);
 EXPORT_SYMBOL(skb_find_text);
+EXPORT_SYMBOL(skb_tv_base);

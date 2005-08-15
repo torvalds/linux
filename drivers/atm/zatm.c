@@ -400,7 +400,7 @@ unsigned long *x;
 EVENT("error code 0x%x/0x%x\n",(here[3] & uPD98401_AAL5_ES) >>
   uPD98401_AAL5_ES_SHIFT,error);
 		skb = ((struct rx_buffer_head *) bus_to_virt(here[2]))->skb;
-		do_gettimeofday(&skb->stamp);
+		__net_timestamp(skb);
 #if 0
 printk("[-3..0] 0x%08lx 0x%08lx 0x%08lx 0x%08lx\n",((unsigned *) skb->data)[-3],
   ((unsigned *) skb->data)[-2],((unsigned *) skb->data)[-1],

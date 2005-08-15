@@ -282,7 +282,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 
 		/* If congestion control is doing timestamping */
 		if (icsk->icsk_ca_ops->rtt_sample)
-			do_gettimeofday(&skb->stamp);
+			__net_timestamp(skb);
 
 		sysctl_flags = 0;
 		if (tcb->flags & TCPCB_FLAG_SYN) {
@@ -483,7 +483,7 @@ static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned 
 	 * skbs, which it never sent before. --ANK
 	 */
 	TCP_SKB_CB(buff)->when = TCP_SKB_CB(skb)->when;
-	buff->stamp = skb->stamp;
+	buff->tstamp = skb->tstamp;
 
 	if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST) {
 		tp->lost_out -= tcp_skb_pcount(skb);

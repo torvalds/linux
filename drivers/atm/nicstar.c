@@ -2213,7 +2213,7 @@ static void dequeue_rx(ns_dev *card, ns_rsqe *rsqe)
          memcpy(sb->tail, cell, ATM_CELL_PAYLOAD);
          skb_put(sb, ATM_CELL_PAYLOAD);
          ATM_SKB(sb)->vcc = vcc;
-         do_gettimeofday(&sb->stamp);
+	 __net_timestamp(sb);
          vcc->push(vcc, sb);
          atomic_inc(&vcc->stats->rx);
          cell += ATM_CELL_PAYLOAD;
@@ -2346,7 +2346,7 @@ static void dequeue_rx(ns_dev *card, ns_rsqe *rsqe)
             skb->destructor = ns_sb_destructor;
 #endif /* NS_USE_DESTRUCTORS */
             ATM_SKB(skb)->vcc = vcc;
-            do_gettimeofday(&skb->stamp);
+	    __net_timestamp(skb);
             vcc->push(vcc, skb);
             atomic_inc(&vcc->stats->rx);
          }
@@ -2373,7 +2373,7 @@ static void dequeue_rx(ns_dev *card, ns_rsqe *rsqe)
                sb->destructor = ns_sb_destructor;
 #endif /* NS_USE_DESTRUCTORS */
                ATM_SKB(sb)->vcc = vcc;
-               do_gettimeofday(&sb->stamp);
+	       __net_timestamp(sb);
                vcc->push(vcc, sb);
                atomic_inc(&vcc->stats->rx);
             }
@@ -2398,7 +2398,7 @@ static void dequeue_rx(ns_dev *card, ns_rsqe *rsqe)
                memcpy(skb->data, sb->data, NS_SMBUFSIZE);
                skb_put(skb, len - NS_SMBUFSIZE);
                ATM_SKB(skb)->vcc = vcc;
-               do_gettimeofday(&skb->stamp);
+	       __net_timestamp(skb);
                vcc->push(vcc, skb);
                atomic_inc(&vcc->stats->rx);
             }
@@ -2505,7 +2505,7 @@ static void dequeue_rx(ns_dev *card, ns_rsqe *rsqe)
 #ifdef NS_USE_DESTRUCTORS
             hb->destructor = ns_hb_destructor;
 #endif /* NS_USE_DESTRUCTORS */
-            do_gettimeofday(&hb->stamp);
+	    __net_timestamp(hb);
             vcc->push(vcc, hb);
             atomic_inc(&vcc->stats->rx);
          }

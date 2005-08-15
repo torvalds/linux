@@ -1087,7 +1087,7 @@ void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 	memcpy(ev->data, data, dlen);
 
 	bt_cb(skb)->incoming = 1;
-	do_gettimeofday(&skb->stamp);
+	__net_timestamp(skb);
 
 	bt_cb(skb)->pkt_type = HCI_EVENT_PKT;
 	skb->dev = (void *) hdev;

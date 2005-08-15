@@ -635,12 +635,12 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	h->tp_snaplen = snaplen;
 	h->tp_mac = macoff;
 	h->tp_net = netoff;
-	if (skb->stamp.tv_sec == 0) { 
-		do_gettimeofday(&skb->stamp);
+	if (skb->tstamp.off_sec == 0) { 
+		__net_timestamp(skb);
 		sock_enable_timestamp(sk);
 	}
-	h->tp_sec = skb->stamp.tv_sec;
-	h->tp_usec = skb->stamp.tv_usec;
+	h->tp_sec = skb_tv_base.tv_sec + skb->tstamp.off_sec;
+	h->tp_usec = skb_tv_base.tv_usec + skb->tstamp.off_usec;
 
 	sll = (struct sockaddr_ll*)((u8*)h + TPACKET_ALIGN(sizeof(*h)));
 	sll->sll_halen = 0;

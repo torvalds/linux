@@ -1282,16 +1282,19 @@ static inline int sock_intr_errno(long timeo)
 static __inline__ void
 sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
 {
-	struct timeval *stamp = &skb->stamp;
+	struct timeval stamp;
+
+	skb_get_timestamp(skb, &stamp);
 	if (sock_flag(sk, SOCK_RCVTSTAMP)) {
 		/* Race occurred between timestamp enabling and packet
 		   receiving.  Fill in the current time for now. */
-		if (stamp->tv_sec == 0)
-			do_gettimeofday(stamp);
+		if (stamp.tv_sec == 0)
+			do_gettimeofday(&stamp);
+		skb_set_timestamp(skb, &stamp);
 		put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMP, sizeof(struct timeval),
-			 stamp);
+			 &stamp);
 	} else
-		sk->sk_stamp = *stamp;
+		sk->sk_stamp = stamp;
 }
 
 /**

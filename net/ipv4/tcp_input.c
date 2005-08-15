@@ -2097,9 +2097,13 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p, s32 *seq_usrtt
 				seq_rtt = -1;
 			} else if (seq_rtt < 0)
 				seq_rtt = now - scb->when;
-			if (seq_usrtt)
-				*seq_usrtt = (usnow.tv_sec - skb->stamp.tv_sec) * 1000000
-					+ (usnow.tv_usec - skb->stamp.tv_usec);
+			if (seq_usrtt) {
+				struct timeval tv;
+			
+				skb_get_timestamp(skb, &tv);
+				*seq_usrtt = (usnow.tv_sec - tv.tv_sec) * 1000000
+					+ (usnow.tv_usec - tv.tv_usec);
+			}
 
 			if (sacked & TCPCB_SACKED_ACKED)
 				tp->sacked_out -= tcp_skb_pcount(skb);

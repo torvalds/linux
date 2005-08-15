@@ -1796,8 +1796,8 @@ static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
 				     copied);
 	if (rc)
 		goto out_free;
-	if (skb->stamp.tv_sec)
-		sk->sk_stamp = skb->stamp;
+	if (skb->tstamp.off_sec)
+		skb_get_timestamp(skb, &sk->sk_stamp)
 
 	msg->msg_namelen = sizeof(*sipx);
 

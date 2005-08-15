@@ -999,7 +999,7 @@ static int hci_send_frame(struct sk_buff *skb)
 
 	if (atomic_read(&hdev->promisc)) {
 		/* Time stamp */
-		do_gettimeofday(&skb->stamp);
+		__net_timestamp(skb);
 
 		hci_send_to_sock(hdev, skb);
 	}

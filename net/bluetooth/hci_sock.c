@@ -332,8 +332,12 @@ static inline void hci_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_
 		put_cmsg(msg, SOL_HCI, HCI_CMSG_DIR, sizeof(incoming), &incoming);
 	}
 
-	if (mask & HCI_CMSG_TSTAMP)
-		put_cmsg(msg, SOL_HCI, HCI_CMSG_TSTAMP, sizeof(skb->stamp), &skb->stamp);
+	if (mask & HCI_CMSG_TSTAMP) {
+		struct timeval tv;
+
+		skb_get_timestamp(skb, &tv);
+		put_cmsg(msg, SOL_HCI, HCI_CMSG_TSTAMP, sizeof(tv), &tv);
+	}
 }
  
 static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock, 

@@ -491,11 +491,11 @@ __build_packet_message(struct nfulnl_instance *inst,
 		NFA_PUT(inst->skb, NFULA_HWADDR, sizeof(phw), &phw);
 	}
 
-	if (skb->stamp.tv_sec) {
+	if (skb->tstamp.off_sec) {
 		struct nfulnl_msg_packet_timestamp ts;
 
-		ts.sec = cpu_to_be64(skb->stamp.tv_sec);
-		ts.usec = cpu_to_be64(skb->stamp.tv_usec);
+		ts.sec = cpu_to_be64(skb_tv_base.tv_sec + skb->tstamp.off_sec);
+		ts.usec = cpu_to_be64(skb_tv_base.tv_usec + skb->tstamp.off_usec);
 
 		NFA_PUT(inst->skb, NFULA_TIMESTAMP, sizeof(ts), &ts);
 	}

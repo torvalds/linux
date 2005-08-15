@@ -155,13 +155,20 @@ struct skb_shared_info {
 #define SKB_DATAREF_SHIFT 16
 #define SKB_DATAREF_MASK ((1 << SKB_DATAREF_SHIFT) - 1)
 
+extern struct timeval skb_tv_base;
+
+struct skb_timeval {
+	u32	off_sec;
+	u32	off_usec;
+};
+
 /** 
  *	struct sk_buff - socket buffer
  *	@next: Next buffer in list
  *	@prev: Previous buffer in list
  *	@list: List we are on
  *	@sk: Socket we are owned by
- *	@stamp: Time we arrived
+ *	@tstamp: Time we arrived stored as offset to skb_tv_base
  *	@dev: Device we arrived on/are leaving by
  *	@input_dev: Device we arrived on
  *	@h: Transport layer header
@@ -202,7 +209,7 @@ struct sk_buff {
 	struct sk_buff		*prev;
 
 	struct sock		*sk;
-	struct timeval		stamp;
+	struct skb_timeval	tstamp;
 	struct net_device	*dev;
 	struct net_device	*input_dev;
 
@@ -1212,6 +1219,42 @@ static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 
 extern void skb_init(void);
 extern void skb_add_mtu(int mtu);
+
+/**
+ *	skb_get_timestamp - get timestamp from a skb
+ *	@skb: skb to get stamp from
+ *	@stamp: pointer to struct timeval to store stamp in
+ *
+ *	Timestamps are stored in the skb as offsets to a base timestamp.
+ *	This function converts the offset back to a struct timeval and stores
+ *	it in stamp.
+ */
+static inline void skb_get_timestamp(struct sk_buff *skb, struct timeval *stamp)
+{
+	stamp->tv_sec  = skb->tstamp.off_sec;
+	stamp->tv_usec = skb->tstamp.off_usec;
+	if (skb->tstamp.off_sec) {
+		stamp->tv_sec  += skb_tv_base.tv_sec;
+		stamp->tv_usec += skb_tv_base.tv_usec;
+	}
+}
+
+/**
+ * 	skb_set_timestamp - set timestamp of a skb
+ *	@skb: skb to set stamp of
+ *	@stamp: pointer to struct timeval to get stamp from
+ *
+ *	Timestamps are stored in the skb as offsets to a base timestamp.
+ *	This function converts a struct timeval to an offset and stores
+ *	it in the skb.
+ */
+static inline void skb_set_timestamp(struct sk_buff *skb, struct timeval *stamp)
+{
+	skb->tstamp.off_sec  = stamp->tv_sec - skb_tv_base.tv_sec;
+	skb->tstamp.off_usec = stamp->tv_usec - skb_tv_base.tv_usec;
+}
+
+extern void __net_timestamp(struct sk_buff *skb);
 
 #ifdef CONFIG_NETFILTER
 static inline void nf_conntrack_put(struct nf_conntrack *nfct)

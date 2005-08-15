@@ -162,7 +162,7 @@ static void ebt_ulog(const struct sk_buff *skb, unsigned int hooknr,
 	pm->version = EBT_ULOG_VERSION;
 	do_gettimeofday(&pm->stamp);
 	if (ub->qlen == 1)
-		ub->skb->stamp = pm->stamp;
+		skb_set_timestamp(ub->skb, &pm->stamp);
 	pm->data_len = copy_len;
 	pm->mark = skb->nfmark;
 	pm->hook = hooknr;

@@ -494,11 +494,11 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		NFA_PUT(skb, NFQA_HWADDR, sizeof(phw), &phw);
 	}
 
-	if (entry->skb->stamp.tv_sec) {
+	if (entry->skb->tstamp.off_sec) {
 		struct nfqnl_msg_packet_timestamp ts;
 
-		ts.sec = htonll(entry->skb->stamp.tv_sec);
-		ts.usec = htonll(entry->skb->stamp.tv_usec);
+		ts.sec = htonll(skb_tv_base.tv_sec + entry->skb->tstamp.off_sec);
+		ts.usec = htonll(skb_tv_base.tv_usec + entry->skb->tstamp.off_usec);
 
 		NFA_PUT(skb, NFQA_TIMESTAMP, sizeof(ts), &ts);
 	}
