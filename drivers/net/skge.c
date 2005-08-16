@@ -1780,7 +1780,12 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 		reg &= ~GMF_RX_F_FL_ON;
 	skge_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
 	skge_write16(hw, SK_REG(port, RX_GMF_CTRL_T), reg);
-	skge_write16(hw, SK_REG(port, RX_GMF_FL_THR), RX_GMF_FL_THR_DEF);
+	/*
+	 * because Pause Packet Truncation in GMAC is not working
+	 * we have to increase the Flush Threshold to 64 bytes
+	 * in order to flush pause packets in Rx FIFO on Yukon-1
+	 */
+	skge_write16(hw, SK_REG(port, RX_GMF_FL_THR), RX_GMF_FL_THR_DEF+1);
 
 	/* Configure Tx MAC FIFO */
 	skge_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_CLR);
