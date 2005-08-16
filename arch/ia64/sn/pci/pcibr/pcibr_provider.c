@@ -15,6 +15,7 @@
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
 #include <asm/sn/sn_sal.h>
+#include <asm/sn/sn2/sn_hwperf.h>
 #include "xtalk/xwidgetdev.h"
 #include "xtalk/hubdev.h"
 
@@ -88,6 +89,7 @@ void *
 pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *controller)
 {
 	int nasid, cnode, j;
+	cnodeid_t near_cnode;
 	struct hubdev_info *hubdev_info;
 	struct pcibus_info *soft;
 	struct sn_flush_device_list *sn_flush_device_list;
@@ -161,12 +163,18 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	memset(soft->pbi_int_ate_resource.ate, 0,
  	       (soft->pbi_int_ate_size * sizeof(uint64_t)));
 
-	if (prom_bussoft->bs_asic_type == PCIIO_ASIC_TYPE_TIOCP)
-		/*
-		 * TIO PCI Bridge with no closest node information.
-		 * FIXME: Find another way to determine the closest node
-		 */
-		controller->node = -1;
+	if (prom_bussoft->bs_asic_type == PCIIO_ASIC_TYPE_TIOCP) {
+		/* TIO PCI Bridge: find nearest node with CPUs */
+		int e = sn_hwperf_get_nearest_node(cnode, NULL, &near_cnode);
+
+		if (e < 0) {
+			near_cnode = (cnodeid_t)-1; /* use any node */
+			printk(KERN_WARNING "pcibr_bus_fixup: failed to find "
+				"near node with CPUs to TIO node %d, err=%d\n",
+				cnode, e);
+		}
+		controller->node = near_cnode;
+	}
 	else
 		controller->node = cnode;
 	return soft;
