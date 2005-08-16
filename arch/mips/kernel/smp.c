@@ -50,7 +50,6 @@ static void smp_tune_scheduling (void)
 {
 	struct cache_desc *cd = &current_cpu_data.scache;
 	unsigned long cachesize;       /* kB   */
-	unsigned long bandwidth = 350; /* MB/s */
 	unsigned long cpu_khz;
 
 	/*
