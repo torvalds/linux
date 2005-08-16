@@ -694,7 +694,7 @@ enum sndrv_timer_event {
 	SNDRV_TIMER_EVENT_PAUSE,		/* val = 0 */
 	SNDRV_TIMER_EVENT_EARLY,		/* val = 0, early event */
 	SNDRV_TIMER_EVENT_SUSPEND,		/* val = 0 */
-	SNDRV_TIMER_EVENT_RESUME,		/* val = 0 */
+	SNDRV_TIMER_EVENT_RESUME,		/* val = resolution in ns */
 	/* master timer events for slave timer instances */
 	SNDRV_TIMER_EVENT_MSTART = SNDRV_TIMER_EVENT_START + 10,
 	SNDRV_TIMER_EVENT_MSTOP = SNDRV_TIMER_EVENT_STOP + 10,
