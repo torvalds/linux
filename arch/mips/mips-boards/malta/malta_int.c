@@ -57,6 +57,7 @@ static inline int mips_pcibios_iack(void)
 	switch(mips_revision_corid) {
 	case MIPS_REVISION_CORID_CORE_MSC:
 	case MIPS_REVISION_CORID_CORE_FPGA2:
+	case MIPS_REVISION_CORID_CORE_FPGA3:
 	case MIPS_REVISION_CORID_CORE_EMUL_MSC:
 	        MSC_READ(MSC01_PCI_IACK, irq);
 		irq &= 0xff;
@@ -103,22 +104,10 @@ static inline int get_int(void)
 	irq = mips_pcibios_iack();
 
 	/*
-	 * IRQ7 is used to detect spurious interrupts.
-	 * The interrupt acknowledge cycle returns IRQ7, if no
-	 * interrupts is requested.
-	 * We can differentiate between this situation and a
-	 * "Normal" IRQ7 by reading the ISR.
+	 * The only way we can decide if an interrupt is spurious
+	 * is by checking the 8259 registers.  This needs a spinlock
+	 * on an SMP system,  so leave it up to the generic code...
 	 */
-	if (irq == 7)
-	{
-		outb(PIIX4_OCW3_SEL | PIIX4_OCW3_ISR,
-		     PIIX4_ICTLR1_OCW3);
-		if (!(inb(PIIX4_ICTLR1_OCW3) & (1 << 7))) {
-			irq = -1; /* Spurious interrupt */
-			printk("We got a spurious interrupt from PIIX4.\n");
-			atomic_inc(&irq_err_count);
-		}
-	}
 
 	spin_unlock_irqrestore(&mips_irq_lock, flags);
 
@@ -153,6 +142,7 @@ void corehi_irqdispatch(struct pt_regs *regs)
         switch(mips_revision_corid) {
         case MIPS_REVISION_CORID_CORE_MSC:
         case MIPS_REVISION_CORID_CORE_FPGA2:
+        case MIPS_REVISION_CORID_CORE_FPGA3:
         case MIPS_REVISION_CORID_CORE_EMUL_MSC:
                 ll_msc_irq(regs);
                 break;
@@ -233,6 +223,7 @@ void __init arch_init_irq(void)
         switch(mips_revision_corid) {
         case MIPS_REVISION_CORID_CORE_MSC:
         case MIPS_REVISION_CORID_CORE_FPGA2:
+        case MIPS_REVISION_CORID_CORE_FPGA3:
         case MIPS_REVISION_CORID_CORE_EMUL_MSC:
 		if (cpu_has_veic)
 			init_msc_irqs (MSC01E_INT_BASE, msc_eicirqmap, msc_nr_eicirqs);
