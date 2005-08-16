@@ -121,11 +121,14 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	              cpu_has_divec ? "yes" : "no");
 	seq_printf(m, "hardware watchpoint\t: %s\n",
 	              cpu_has_watch ? "yes" : "no");
-	seq_printf(m, "ASEs implemented\t:%s%s%s%s\n",
+	seq_printf(m, "ASEs implemented\t:%s%s%s%s%s%s\n",
 		      cpu_has_mips16 ? " mips16" : "",
 		      cpu_has_mdmx ? " mdmx" : "",
 		      cpu_has_mips3d ? " mips3d" : "",
-		      cpu_has_smartmips ? " smartmips" : "");
+		      cpu_has_smartmips ? " smartmips" : "",
+		      cpu_has_dsp ? " dsp" : "",
+		      cpu_has_mipsmt ? " mt" : ""
+		);
 
 	sprintf(fmt, "VCE%%c exceptions\t\t: %s\n",
 	        cpu_has_vce ? "%u" : "not available");
