@@ -64,6 +64,7 @@ int attribute_container_add_class_device_adapter(struct attribute_container *con
 						 struct class_device *classdev);
 void attribute_container_remove_attrs(struct class_device *classdev);
 void attribute_container_class_device_del(struct class_device *classdev);
+struct attribute_container *attribute_container_classdev_to_container(struct class_device *);
 struct class_device *attribute_container_find_class_device(struct attribute_container *, struct device *);
 struct class_device_attribute **attribute_container_classdev_to_attrs(const struct class_device *classdev);
 
