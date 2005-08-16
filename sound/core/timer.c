@@ -1562,8 +1562,8 @@ static int snd_timer_user_params(struct file *file, snd_timer_params_t __user *_
 			      (1<<SNDRV_TIMER_EVENT_MSTART)|
 			      (1<<SNDRV_TIMER_EVENT_MSTOP)|
 			      (1<<SNDRV_TIMER_EVENT_MCONTINUE)|
-			      (1<<SNDRV_TIMER_EVENT_MPAUSE|
-			      (1<<SNDRV_TIMER_EVENT_MSUSPEND|
+			      (1<<SNDRV_TIMER_EVENT_MPAUSE)|
+			      (1<<SNDRV_TIMER_EVENT_MSUSPEND)|
 			      (1<<SNDRV_TIMER_EVENT_MRESUME))) {
 		err = -EINVAL;
 		goto _end;
