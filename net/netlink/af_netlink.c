@@ -861,7 +861,7 @@ out:
 }
 
 int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
-		      u32 group, int allocation)
+		      u32 group, unsigned int __nocast allocation)
 {
 	struct netlink_broadcast_data info;
 	struct hlist_node *node;
