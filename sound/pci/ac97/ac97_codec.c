@@ -1829,7 +1829,7 @@ static int snd_ac97_dev_register(snd_device_t *device)
 	ac97->dev.parent = ac97->bus->card->dev;
 	ac97->dev.platform_data = ac97;
 	ac97->dev.release = ac97_device_release;
-	strncpy(ac97->dev.bus_id, snd_ac97_get_short_name(ac97), BUS_ID_SIZE);
+	snprintf(ac97->dev.bus_id, BUS_ID_SIZE, "card%d-%d", ac97->bus->card->number, ac97->num);
 	if ((err = device_register(&ac97->dev)) < 0) {
 		snd_printk(KERN_ERR "Can't register ac97 bus\n");
 		ac97->dev.bus = NULL;
