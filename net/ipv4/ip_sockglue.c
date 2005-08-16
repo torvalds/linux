@@ -153,7 +153,7 @@ int ip_cmsg_send(struct msghdr *msg, struct ipcm_cookie *ipc)
 		switch (cmsg->cmsg_type) {
 		case IP_RETOPTS:
 			err = cmsg->cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr));
-			err = ip_options_get(&ipc->opt, CMSG_DATA(cmsg), err < 40 ? err : 40, 0);
+			err = ip_options_get(&ipc->opt, CMSG_DATA(cmsg), err < 40 ? err : 40);
 			if (err)
 				return err;
 			break;
@@ -425,7 +425,7 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 			struct ip_options * opt = NULL;
 			if (optlen > 40 || optlen < 0)
 				goto e_inval;
-			err = ip_options_get(&opt, optval, optlen, 1);
+			err = ip_options_get_from_user(&opt, optval, optlen);
 			if (err)
 				break;
 			if (sk->sk_type == SOCK_STREAM) {
