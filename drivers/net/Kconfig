@@ -1932,7 +1932,25 @@ config SKGE
 
 	  It does not support the link failover and network management 
 	  features that "portable" vendor supplied sk98lin driver does.
-	
+
+
+config SKY2
+	tristate "SysKonnect Yukon2 support (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select CRC32
+	---help---
+	  This driver support the Marvell Yukon 2 Gigabit Ethernet adapter.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sky2.  This is recommended.
+
+config SKY2_EC_A1
+	bool "Support old Yukon-EC A1 chipset"
+	depends on SKY2
+	---help---
+	  Include support for early revisions of the Yukon EC chipset
+	  that required extra workarounds. If in doubt, say N.
+
 config SK98LIN
 	tristate "Marvell Yukon Chipset / SysKonnect SK-98xx Support"
 	depends on PCI
