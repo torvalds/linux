@@ -1,5 +1,11 @@
 menu "SCSI device support"
 
+config RAID_ATTRS
+	tristate "RAID Transport Class"
+	default n
+	---help---
+	  Provides RAID
+
 config SCSI
 	tristate "SCSI device support"
 	---help---
