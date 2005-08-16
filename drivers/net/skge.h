@@ -214,8 +214,6 @@ enum {
 
 /*	B2_IRQM_HWE_MSK	32 bit	IRQ Moderation HW Error Mask */
 enum {
-	IS_ERR_MSK	= 0x00003fff,/* 		All Error bits */
-
 	IS_IRQ_TIST_OV	= 1<<13, /* Time Stamp Timer Overflow (YUKON only) */
 	IS_IRQ_SENSOR	= 1<<12, /* IRQ from Sensor (YUKON only) */
 	IS_IRQ_MST_ERR	= 1<<11, /* IRQ master error detected */
@@ -230,6 +228,12 @@ enum {
 	IS_M2_PAR_ERR	= 1<<2,	/* MAC 2 Parity Error */
 	IS_R1_PAR_ERR	= 1<<1,	/* Queue R1 Parity Error */
 	IS_R2_PAR_ERR	= 1<<0,	/* Queue R2 Parity Error */
+
+	IS_ERR_MSK	= IS_IRQ_MST_ERR | IS_IRQ_STAT
+			| IS_NO_STAT_M1 | IS_NO_STAT_M2
+			| IS_RAM_RD_PAR | IS_RAM_WR_PAR
+			| IS_M1_PAR_ERR | IS_M2_PAR_ERR
+			| IS_R1_PAR_ERR | IS_R2_PAR_ERR,
 };
 
 /*	B2_TST_CTRL1	 8 bit	Test Control Register 1 */

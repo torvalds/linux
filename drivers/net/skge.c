@@ -2670,18 +2670,6 @@ static void skge_error_irq(struct skge_hw *hw)
 		/* Timestamp (unused) overflow */
 		if (hwstatus & IS_IRQ_TIST_OV)
 			skge_write8(hw, GMAC_TI_ST_CTRL, GMT_ST_CLR_IRQ);
-
-		if (hwstatus & IS_IRQ_SENSOR) {
-			/* no sensors on 32-bit Yukon */
-			if (!(skge_read16(hw, B0_CTST) & CS_BUS_SLOT_SZ)) {
-				printk(KERN_ERR PFX "ignoring bogus sensor interrups\n");
-				skge_write32(hw, B0_HWE_IMSK,
-					     IS_ERR_MSK & ~IS_IRQ_SENSOR);
-			} else
-				printk(KERN_WARNING PFX "sensor interrupt\n");
-		}
-
-
 	}
 
 	if (hwstatus & IS_RAM_RD_PAR) {
@@ -2712,9 +2700,10 @@ static void skge_error_irq(struct skge_hw *hw)
 
 		skge_pci_clear(hw);
 
+		/* if error still set then just ignore it */
 		hwstatus = skge_read32(hw, B0_HWE_ISRC);
 		if (hwstatus & IS_IRQ_STAT) {
-			printk(KERN_WARNING PFX "IRQ status %x: still set ignoring hardware errors\n",
+			pr_debug("IRQ status %x: still set ignoring hardware errors\n",
 			       hwstatus);
 			hw->intr_mask &= ~IS_HW_ERR;
 		}
@@ -2948,12 +2937,20 @@ static int skge_reset(struct skge_hw *hw)
 	else
 		hw->ram_size = t8 * 4096;
 
+	hw->intr_mask = IS_HW_ERR | IS_EXT_REG;
 	if (hw->chip_id == CHIP_ID_GENESIS)
 		genesis_init(hw);
 	else {
 		/* switch power to VCC (WA for VAUX problem) */
 		skge_write8(hw, B0_POWER_CTRL,
 			    PC_VAUX_ENA | PC_VCC_ENA | PC_VAUX_OFF | PC_VCC_ON);
+		/* avoid boards with stuck Hardware error bits */
+		if ((skge_read32(hw, B0_ISRC) & IS_HW_ERR) &&
+		    (skge_read32(hw, B0_HWE_ISRC) & IS_IRQ_SENSOR)) {
+			printk(KERN_WARNING PFX "stuck hardware sensor bit\n");
+			hw->intr_mask &= ~IS_HW_ERR;
+		}
+
 		for (i = 0; i < hw->ports; i++) {
 			skge_write16(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_SET);
 			skge_write16(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_CLR);
@@ -2994,7 +2991,6 @@ static int skge_reset(struct skge_hw *hw)
 	skge_write32(hw, B2_IRQM_INI, skge_usecs2clk(hw, 100));
 	skge_write32(hw, B2_IRQM_CTRL, TIM_START);
 
-	hw->intr_mask = IS_HW_ERR | IS_EXT_REG;
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
 
 	if (hw->chip_id != CHIP_ID_GENESIS)
