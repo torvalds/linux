@@ -46,7 +46,7 @@ extern int pci_msi_quirk;
 #else
 #define pci_msi_quirk 0
 #endif
-
+void disable_msi_mode(struct pci_dev *dev, int pos, int type);
 extern int pcie_mch_quirk;
 extern struct device_attribute pci_dev_attrs[];
 extern struct class_device_attribute class_device_attr_cpuaffinity;
