@@ -2797,6 +2797,17 @@ static int radeon_cp_cmdbuf( DRM_IOCTL_ARGS )
 
 	orig_nbox = cmdbuf.nbox;
 
+	if(dev_priv->microcode_version == UCODE_R300) {
+		int temp;
+		temp=r300_do_cp_cmdbuf(dev, filp, filp_priv, &cmdbuf);
+	
+		if (orig_bufsz != 0)
+			drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
+	
+		return temp;
+	}
+
+	/* microcode_version != r300 */
 	while ( cmdbuf.bufsz >= sizeof(header) ) {
 
 		header.i = *(int *)cmdbuf.buf;

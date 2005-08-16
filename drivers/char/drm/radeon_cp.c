@@ -32,6 +32,7 @@
 #include "drm.h"
 #include "radeon_drm.h"
 #include "radeon_drv.h"
+#include "r300_reg.h"
 
 #define RADEON_FIFO_DEBUG	0
 
@@ -1151,6 +1152,8 @@ static void radeon_cp_init_ring_buffer( drm_device_t *dev,
 
 #if __OS_HAS_AGP
 	if ( !dev_priv->is_pci ) {
+		/* set RADEON_AGP_BASE here instead of relying on X from user space */
+		RADEON_WRITE(RADEON_AGP_BASE, (unsigned int)dev->agp->base);
 		RADEON_WRITE( RADEON_CP_RB_RPTR_ADDR,
 			      dev_priv->ring_rptr->offset
 			      - dev->agp->base
@@ -1626,6 +1629,9 @@ int radeon_cp_init( DRM_IOCTL_ARGS )
 
 	DRM_COPY_FROM_USER_IOCTL( init, (drm_radeon_init_t __user *)data, sizeof(init) );
 
+	if(init.func == RADEON_INIT_R300_CP)
+		r300_init_reg_flags();
+
 	switch ( init.func ) {
 	case RADEON_INIT_CP:
 	case RADEON_INIT_R200_CP:
@@ -2040,12 +2046,19 @@ int radeon_driver_preinit(struct drm_device *dev, unsigned long flags)
 	case CHIP_RV200:
 	case CHIP_R200:
 	case CHIP_R300:
+	case CHIP_R420:
 		dev_priv->flags |= CHIP_HAS_HIERZ;
 		break;
 	default:
 	/* all other chips have no hierarchical z buffer */
 		break;
 	}
+
+	if (drm_device_is_agp(dev))
+		dev_priv->flags |= CHIP_IS_AGP;
+	
+	DRM_DEBUG("%s card detected\n",
+		  ((dev_priv->flags & CHIP_IS_AGP) ? "AGP" : "PCI"));
 	return ret;
 }
 
