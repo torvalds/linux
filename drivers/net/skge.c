@@ -42,7 +42,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"0.8"
+#define DRV_VERSION		"0.9"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
@@ -876,6 +876,9 @@ static int skge_rx_fill(struct skge_port *skge)
 
 static void skge_link_up(struct skge_port *skge)
 {
+	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), 
+		    LED_BLK_OFF|LED_SYNC_OFF|LED_ON);
+
 	netif_carrier_on(skge->netdev);
 	if (skge->tx_avail > MAX_SKB_FRAGS + 1)
 		netif_wake_queue(skge->netdev);
@@ -894,6 +897,7 @@ static void skge_link_up(struct skge_port *skge)
 
 static void skge_link_down(struct skge_port *skge)
 {
+	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_OFF);
 	netif_carrier_off(skge->netdev);
 	netif_stop_queue(skge->netdev);
 
