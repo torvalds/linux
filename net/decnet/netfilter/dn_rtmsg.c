@@ -19,6 +19,7 @@
 #include <linux/netfilter.h>
 #include <linux/spinlock.h>
 #include <linux/netlink.h>
+#include <linux/netfilter_decnet.h>
 
 #include <net/sock.h>
 #include <net/flow.h>
@@ -71,10 +72,10 @@ static void dnrmg_send_peer(struct sk_buff *skb)
 
 	switch(flags & DN_RT_CNTL_MSK) {
 		case DN_RT_PKT_L1RT:
-			group = DNRMG_L1_NLGRP;
+			group = DNRNG_NLGRP_L1;
 			break;
 		case DN_RT_PKT_L2RT:
-			group = DNRMG_L2_NLGRP;
+			group = DNRNG_NLGRP_L2;
 			break;
 		default:
 			return;
