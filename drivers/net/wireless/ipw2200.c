@@ -1817,9 +1817,10 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->status & STATUS_HCMD_ACTIVE) {
-		IPW_ERROR("Already sending a command\n");
+		IPW_ERROR("Failed to send %s: Already sending a command.\n",
+			  get_cmd_string(cmd->cmd));
 		spin_unlock_irqrestore(&priv->lock, flags);
-		return -1;
+		return -EAGAIN;
 	}
 
 	priv->status |= STATUS_HCMD_ACTIVE;
@@ -1832,6 +1833,8 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 	rc = ipw_queue_tx_hcmd(priv, cmd->cmd, &cmd->param, cmd->len, 0);
 	if (rc) {
 		priv->status &= ~STATUS_HCMD_ACTIVE;
+		IPW_ERROR("Failed to send %s: Reason %d\n",
+			  get_cmd_string(cmd->cmd), rc);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return rc;
 	}
@@ -1844,9 +1847,8 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 	if (rc == 0) {
 		spin_lock_irqsave(&priv->lock, flags);
 		if (priv->status & STATUS_HCMD_ACTIVE) {
-			IPW_DEBUG_INFO("Command completion failed out after "
-				       "%dms.\n",
-				       1000 * (HOST_COMPLETE_TIMEOUT / HZ));
+			IPW_ERROR("Failed to send %s: Command timed out.\n",
+				  get_cmd_string(cmd->cmd));
 			priv->status &= ~STATUS_HCMD_ACTIVE;
 			spin_unlock_irqrestore(&priv->lock, flags);
 			return -EIO;
@@ -1855,7 +1857,8 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 	}
 
 	if (priv->status & STATUS_RF_KILL_HW) {
-		IPW_DEBUG_INFO("Command aborted due to RF Kill Switch\n");
+		IPW_ERROR("Failed to send %s: Aborted due to RF kill switch.\n",
+			  get_cmd_string(cmd->cmd));
 		return -EIO;
 	}
 
@@ -1874,12 +1877,7 @@ static int ipw_send_host_complete(struct ipw_priv *priv)
 		return -1;
 	}
 
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send HOST_COMPLETE command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_system_config(struct ipw_priv *priv,
@@ -1896,12 +1894,7 @@ static int ipw_send_system_config(struct ipw_priv *priv,
 	}
 
 	memcpy(cmd.param, config, sizeof(*config));
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send SYSTEM_CONFIG command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_ssid(struct ipw_priv *priv, u8 * ssid, int len)
@@ -1917,12 +1910,7 @@ static int ipw_send_ssid(struct ipw_priv *priv, u8 * ssid, int len)
 	}
 
 	memcpy(cmd.param, ssid, cmd.len);
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send SSID command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_adapter_address(struct ipw_priv *priv, u8 * mac)
@@ -1941,12 +1929,7 @@ static int ipw_send_adapter_address(struct ipw_priv *priv, u8 * mac)
 		       priv->net_dev->name, MAC_ARG(mac));
 
 	memcpy(cmd.param, mac, ETH_ALEN);
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send ADAPTER_ADDRESS command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 /*
@@ -2011,12 +1994,7 @@ static int ipw_send_scan_request_ext(struct ipw_priv *priv,
 	};
 
 	memcpy(cmd.param, request, sizeof(*request));
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send SCAN_REQUEST_EXT command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_scan_abort(struct ipw_priv *priv)
@@ -2031,12 +2009,7 @@ static int ipw_send_scan_abort(struct ipw_priv *priv)
 		return -1;
 	}
 
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send SCAN_ABORT command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_set_sensitivity(struct ipw_priv *priv, u16 sens)
@@ -2048,12 +2021,7 @@ static int ipw_set_sensitivity(struct ipw_priv *priv, u16 sens)
 	struct ipw_sensitivity_calib *calib = (struct ipw_sensitivity_calib *)
 	    &cmd.param;
 	calib->beacon_rssi_raw = sens;
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send SENSITIVITY CALIB command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_associate(struct ipw_priv *priv,
@@ -2083,12 +2051,7 @@ static int ipw_send_associate(struct ipw_priv *priv,
 	}
 
 	memcpy(cmd.param, &tmp_associate, sizeof(*associate));
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send ASSOCIATE command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_supported_rates(struct ipw_priv *priv,
@@ -2105,12 +2068,7 @@ static int ipw_send_supported_rates(struct ipw_priv *priv,
 	}
 
 	memcpy(cmd.param, rates, sizeof(*rates));
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send SUPPORTED_RATES command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_set_random_seed(struct ipw_priv *priv)
@@ -2127,12 +2085,7 @@ static int ipw_set_random_seed(struct ipw_priv *priv)
 
 	get_random_bytes(&cmd.param, sizeof(u32));
 
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send SEED_NUMBER command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_card_disable(struct ipw_priv *priv, u32 phy_off)
@@ -2149,12 +2102,7 @@ static int ipw_send_card_disable(struct ipw_priv *priv, u32 phy_off)
 
 	*((u32 *) & cmd.param) = phy_off;
 
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send CARD_DISABLE command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_tx_power(struct ipw_priv *priv, struct ipw_tx_power *power)
@@ -2170,12 +2118,7 @@ static int ipw_send_tx_power(struct ipw_priv *priv, struct ipw_tx_power *power)
 	}
 
 	memcpy(cmd.param, power, sizeof(*power));
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send TX_POWER command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_set_tx_power(struct ipw_priv *priv)
@@ -2238,12 +2181,7 @@ static int ipw_send_rts_threshold(struct ipw_priv *priv, u16 rts)
 	}
 
 	memcpy(cmd.param, &rts_threshold, sizeof(rts_threshold));
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send RTS_THRESHOLD command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_frag_threshold(struct ipw_priv *priv, u16 frag)
@@ -2262,12 +2200,7 @@ static int ipw_send_frag_threshold(struct ipw_priv *priv, u16 frag)
 	}
 
 	memcpy(cmd.param, &frag_threshold, sizeof(frag_threshold));
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send FRAG_THRESHOLD command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_power_mode(struct ipw_priv *priv, u32 mode)
@@ -2297,12 +2230,7 @@ static int ipw_send_power_mode(struct ipw_priv *priv, u32 mode)
 		break;
 	}
 
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send POWER_MODE command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_retry_limit(struct ipw_priv *priv, u8 slimit, u8 llimit)
@@ -2322,12 +2250,7 @@ static int ipw_send_retry_limit(struct ipw_priv *priv, u8 slimit, u8 llimit)
 	}
 
 	memcpy(cmd.param, &retry_limit, sizeof(retry_limit));
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send RETRY_LIMIT command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 /*
@@ -3608,20 +3531,6 @@ static void ipw_tx_queue_free(struct ipw_priv *priv)
 	ipw_queue_tx_free(priv, &priv->txq[3]);
 }
 
-static void inline __maybe_wake_tx(struct ipw_priv *priv)
-{
-	if (netif_running(priv->net_dev)) {
-		switch (priv->port_type) {
-		case DCR_TYPE_MU_BSS:
-		case DCR_TYPE_MU_IBSS:
-			if (!(priv->status & STATUS_ASSOCIATED))
-				return;
-		}
-		netif_wake_queue(priv->net_dev);
-	}
-
-}
-
 static inline void ipw_create_bssid(struct ipw_priv *priv, u8 * bssid)
 {
 	/* First 3 bytes are manufacturer */
@@ -4713,8 +4622,10 @@ static int ipw_queue_tx_reclaim(struct ipw_priv *priv,
 		priv->tx_packets++;
 	}
       done:
-	if (ipw_queue_space(q) > q->low_mark && qindex >= 0)
-		__maybe_wake_tx(priv);
+	if ((ipw_queue_space(q) > q->low_mark) &&
+	    (qindex >= 0) &&
+	    (priv->status & STATUS_ASSOCIATED) && netif_running(priv->net_dev))
+		netif_wake_queue(priv->net_dev);
 	used = q->first_empty - q->last_used;
 	if (used < 0)
 		used += q->n_bd;
@@ -5657,10 +5568,7 @@ static void ipw_send_tgi_tx_key(struct ipw_priv *priv, int type, int index)
 	key->tx_counter[0] = 0;
 	key->tx_counter[1] = 0;
 
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send TGI_TX_KEY command\n");
-		return;
-	}
+	ipw_send_cmd(priv, &cmd);
 }
 
 static void ipw_send_wep_keys(struct ipw_priv *priv, int type)
@@ -5688,10 +5596,7 @@ static void ipw_send_wep_keys(struct ipw_priv *priv, int type)
 		key->key_size = priv->ieee->sec.key_sizes[i];
 		memcpy(key->key, priv->ieee->sec.keys[i], key->key_size);
 
-		if (ipw_send_cmd(priv, &cmd)) {
-			IPW_ERROR("failed to send WEP_KEY command\n");
-			return;
-		}
+		ipw_send_cmd(priv, &cmd);
 	}
 }
 
@@ -6249,11 +6154,7 @@ static int ipw_set_rsn_capa(struct ipw_priv *priv,
 	IPW_DEBUG_HC("HOST_CMD_RSN_CAPABILITIES\n");
 
 	memcpy(cmd.param, capabilities, length);
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send HOST_CMD_RSN_CAPABILITIES command\n");
-		return -1;
-	}
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 #if WIRELESS_EXT < 18
@@ -7435,18 +7336,8 @@ static int ipw_send_qos_params_command(struct ipw_priv *priv, struct ieee80211_q
 		.len = (sizeof(struct ieee80211_qos_parameters) * 3)
 	};
 
-	if (!priv || !qos_param) {
-		IPW_ERROR("Invalid args\n");
-		return -1;
-	}
-
 	memcpy(cmd.param, qos_param, sizeof(*qos_param) * 3);
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send IPW_CMD_QOS_PARAMETERS command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 static int ipw_send_qos_info_command(struct ipw_priv *priv, struct ieee80211_qos_information_element
@@ -7457,18 +7348,8 @@ static int ipw_send_qos_info_command(struct ipw_priv *priv, struct ieee80211_qos
 		.len = sizeof(*qos_param)
 	};
 
-	if (!priv || !qos_param) {
-		IPW_ERROR("Invalid args\n");
-		return -1;
-	}
-
 	memcpy(cmd.param, qos_param, sizeof(*qos_param));
-	if (ipw_send_cmd(priv, &cmd)) {
-		IPW_ERROR("failed to send CMD_QOS_INFO command\n");
-		return -1;
-	}
-
-	return 0;
+	return ipw_send_cmd(priv, &cmd);
 }
 
 #endif				/* CONFIG_IPW_QOS */
