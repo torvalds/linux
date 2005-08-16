@@ -1940,9 +1940,7 @@ static struct notifier_block ipx_dev_notifier = {
 };
 
 extern struct datalink_proto *make_EII_client(void);
-extern struct datalink_proto *make_8023_client(void);
 extern void destroy_EII_client(struct datalink_proto *);
-extern void destroy_8023_client(struct datalink_proto *);
 
 static unsigned char ipx_8022_type = 0xE0;
 static unsigned char ipx_snap_id[5] = { 0x0, 0x0, 0x0, 0x81, 0x37 };

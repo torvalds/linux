@@ -62,8 +62,6 @@
 #include <asm/system.h>
 #include <asm/checksum.h>
 
-extern int __init netdev_boot_setup(char *str);
-
 __setup("ether=", netdev_boot_setup);
 
 /*

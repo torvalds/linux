@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/net.h>
+#include <net/ip.h>
 #include <net/inetpeer.h>
 
 /*

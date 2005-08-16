@@ -244,6 +244,7 @@ struct netdev_boot_setup {
 };
 #define NETDEV_BOOT_SETUP_MAX 8
 
+extern int __init netdev_boot_setup(char *str);
 
 /*
  *	The DEVICE structure.
@@ -673,6 +674,7 @@ extern void		dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev);
 extern void		dev_init(void);
 
 extern int		netdev_nit;
+extern int		netdev_budget;
 
 /* Called by rtnetlink.c:rtnl_unlock() */
 extern void netdev_run_todo(void);
@@ -907,6 +909,14 @@ extern int skb_checksum_help(struct sk_buff *skb, int inward);
 /* rx skb timestamps */
 extern void		net_enable_timestamp(void);
 extern void		net_disable_timestamp(void);
+
+#ifdef CONFIG_PROC_FS
+extern void *dev_seq_start(struct seq_file *seq, loff_t *pos);
+extern void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos);
+extern void dev_seq_stop(struct seq_file *seq, void *v);
+#endif
+
+extern void linkwatch_run_queue(void);
 
 #endif /* __KERNEL__ */
 

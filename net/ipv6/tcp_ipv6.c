@@ -1910,8 +1910,6 @@ static int tcp_v6_init_sock(struct sock *sk)
 
 static int tcp_v6_destroy_sock(struct sock *sk)
 {
-	extern int tcp_v4_destroy_sock(struct sock *sk);
-
 	tcp_v4_destroy_sock(sk);
 	return inet6_destroy_sock(sk);
 }
@@ -2122,8 +2120,6 @@ static struct inet6_protocol tcpv6_protocol = {
 	.err_handler	=	tcp_v6_err,
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
-
-extern struct proto_ops inet6_stream_ops;
 
 static struct inet_protosw tcpv6_protosw = {
 	.type		=	SOCK_STREAM,

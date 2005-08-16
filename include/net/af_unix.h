@@ -1,5 +1,11 @@
 #ifndef __LINUX_NET_AFUNIX_H
 #define __LINUX_NET_AFUNIX_H
+
+#include <linux/config.h>
+#include <linux/socket.h>
+#include <linux/un.h>
+#include <net/sock.h>
+
 extern void unix_inflight(struct file *fp);
 extern void unix_notinflight(struct file *fp);
 extern void unix_gc(void);
@@ -74,5 +80,14 @@ struct unix_sock {
         wait_queue_head_t       peer_wait;
 };
 #define unix_sk(__sk) ((struct unix_sock *)__sk)
+
+#ifdef CONFIG_SYSCTL
+extern int sysctl_unix_max_dgram_qlen;
+extern void unix_sysctl_register(void);
+extern void unix_sysctl_unregister(void);
+#else
+static inline void unix_sysctl_register(void) {}
+static inline void unix_sysctl_unregister(void) {}
+#endif
 #endif
 #endif

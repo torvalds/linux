@@ -1054,8 +1054,6 @@ struct proto udpv6_prot = {
 	.obj_size =	sizeof(struct udp6_sock),
 };
 
-extern struct proto_ops inet6_dgram_ops;
-
 static struct inet_protosw udpv6_protosw = {
 	.type =      SOCK_DGRAM,
 	.protocol =  IPPROTO_UDP,

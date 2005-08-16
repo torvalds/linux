@@ -2026,14 +2026,6 @@ static struct net_proto_family unix_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-#ifdef CONFIG_SYSCTL
-extern void unix_sysctl_register(void);
-extern void unix_sysctl_unregister(void);
-#else
-static inline void unix_sysctl_register(void) {}
-static inline void unix_sysctl_unregister(void) {}
-#endif
-
 static int __init af_unix_init(void)
 {
 	int rc = -1;

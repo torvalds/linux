@@ -267,10 +267,6 @@ void dev_add_pack(struct packet_type *pt)
 	spin_unlock_bh(&ptype_lock);
 }
 
-extern void linkwatch_run_queue(void);
-
-
-
 /**
  *	__dev_remove_pack	 - remove packet handler
  *	@pt: packet type declaration
@@ -1132,8 +1128,6 @@ static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 #else
 #define illegal_highdma(dev, skb)	(0)
 #endif
-
-extern void skb_release_data(struct sk_buff *);
 
 /* Keep head the same: replace data */
 int __skb_linearize(struct sk_buff *skb, unsigned int __nocast gfp_mask)

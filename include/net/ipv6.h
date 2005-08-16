@@ -104,6 +104,7 @@ struct frag_hdr {
 
 #ifdef __KERNEL__
 
+#include <linux/config.h>
 #include <net/sock.h>
 
 /* sysctls */
@@ -464,8 +465,38 @@ extern int sysctl_ip6frag_low_thresh;
 extern int sysctl_ip6frag_time;
 extern int sysctl_ip6frag_secret_interval;
 
+extern struct proto_ops inet6_stream_ops;
+extern struct proto_ops inet6_dgram_ops;
+
+extern int ip6_mc_source(int add, int omode, struct sock *sk,
+			 struct group_source_req *pgsr);
+extern int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf);
+extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
+			 struct group_filter __user *optval,
+			 int __user *optlen);
+
+#ifdef CONFIG_PROC_FS
+extern int  ac6_proc_init(void);
+extern void ac6_proc_exit(void);
+extern int  raw6_proc_init(void);
+extern void raw6_proc_exit(void);
+extern int  tcp6_proc_init(void);
+extern void tcp6_proc_exit(void);
+extern int  udp6_proc_init(void);
+extern void udp6_proc_exit(void);
+extern int  ipv6_misc_proc_init(void);
+extern void ipv6_misc_proc_exit(void);
+
+extern struct rt6_statistics rt6_stats;
+#endif
+
+#ifdef CONFIG_SYSCTL
+extern ctl_table ipv6_route_table[];
+extern ctl_table ipv6_icmp_table[];
+
+extern void ipv6_sysctl_register(void);
+extern void ipv6_sysctl_unregister(void);
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* _NET_IPV6_H */
-
-
-

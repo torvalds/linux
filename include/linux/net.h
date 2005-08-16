@@ -286,5 +286,12 @@ static struct proto_ops name##_ops = {			\
 #define MODULE_ALIAS_NET_PF_PROTO(pf, proto) \
 	MODULE_ALIAS("net-pf-" __stringify(pf) "-proto-" __stringify(proto))
 
+#ifdef CONFIG_SYSCTL
+#include <linux/sysctl.h>
+extern ctl_table net_table[];
+extern int net_msg_cost;
+extern int net_msg_burst;
+#endif
+
 #endif /* __KERNEL__ */
 #endif	/* _LINUX_NET_H */

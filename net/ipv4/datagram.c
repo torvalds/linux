@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/in.h>
+#include <net/ip.h>
 #include <net/sock.h>
 #include <net/route.h>
 #include <net/tcp_states.h>

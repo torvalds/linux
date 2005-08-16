@@ -163,6 +163,24 @@ extern int sysctl_local_port_range[2];
 extern int sysctl_ip_default_ttl;
 extern int sysctl_ip_nonlocal_bind;
 
+/* From ip_fragment.c */
+extern int sysctl_ipfrag_high_thresh; 
+extern int sysctl_ipfrag_low_thresh;
+extern int sysctl_ipfrag_time;
+extern int sysctl_ipfrag_secret_interval;
+
+/* From inetpeer.c */
+extern int inet_peer_threshold;
+extern int inet_peer_minttl;
+extern int inet_peer_maxttl;
+extern int inet_peer_gc_mintime;
+extern int inet_peer_gc_maxtime;
+
+/* From ip_output.c */
+extern int sysctl_ip_dynaddr;
+
+extern void ipfrag_init(void);
+
 #ifdef CONFIG_INET
 /* The function in 2.2 was invalid, producing wrong result for
  * check=0xFEFF. It was noticed by Arthur Skawina _year_ ago. --ANK(000625) */
@@ -348,5 +366,10 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 				  void __user *oldval, size_t __user *oldlenp,
 				  void __user *newval, size_t newlen, 
 				  void **context);
+#ifdef CONFIG_PROC_FS
+extern int ip_misc_proc_init(void);
+#endif
+
+extern struct ctl_table ipv4_table[];
 
 #endif	/* _IP_H */

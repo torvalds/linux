@@ -70,6 +70,8 @@
 #include <linux/seq_file.h>
 #include <linux/wanrouter.h>
 #include <linux/if_bridge.h>
+#include <linux/if_frad.h>
+#include <linux/if_vlan.h>
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/cache.h>
@@ -724,8 +726,8 @@ static ssize_t sock_aio_write(struct kiocb *iocb, const char __user *ubuf,
 	return __sock_sendmsg(iocb, sock, &x->async_msg, size);
 }
 
-ssize_t sock_sendpage(struct file *file, struct page *page,
-		      int offset, size_t size, loff_t *ppos, int more)
+static ssize_t sock_sendpage(struct file *file, struct page *page,
+			     int offset, size_t size, loff_t *ppos, int more)
 {
 	struct socket *sock;
 	int flags;
@@ -948,7 +950,7 @@ static int sock_mmap(struct file * file, struct vm_area_struct * vma)
 	return sock->ops->mmap(file, sock, vma);
 }
 
-int sock_close(struct inode *inode, struct file *filp)
+static int sock_close(struct inode *inode, struct file *filp)
 {
 	/*
 	 *	It was possible the inode is NULL we were 
@@ -2026,9 +2028,6 @@ int sock_unregister(int family)
 	       family);
 	return 0;
 }
-
-
-extern void sk_init(void);
 
 void __init sock_init(void)
 {

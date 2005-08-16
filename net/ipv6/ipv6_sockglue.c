@@ -109,13 +109,6 @@ int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
 	return 0;
 }
 
-extern int ip6_mc_source(int add, int omode, struct sock *sk,
-	struct group_source_req *pgsr);
-extern int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf);
-extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
-	struct group_filter __user *optval, int __user *optlen);
-
-
 int ipv6_setsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int optlen)
 {
@@ -446,7 +439,6 @@ done:
 	}
 	case MCAST_MSFILTER:
 	{
-		extern int sysctl_optmem_max;
 		extern int sysctl_mld_max_msf;
 		struct group_filter *gsf;
 

@@ -66,6 +66,7 @@
 #include <net/icmp.h>
 #include <net/inet_hashtables.h>
 #include <net/tcp.h>
+#include <net/transp_v6.h>
 #include <net/ipv6.h>
 #include <net/inet_common.h>
 #include <net/xfrm.h>
@@ -76,7 +77,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
-extern int sysctl_ip_dynaddr;
 int sysctl_tcp_tw_reuse;
 int sysctl_tcp_low_latency;
 

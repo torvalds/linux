@@ -1372,7 +1372,7 @@ int ipv6_route_ioctl(unsigned int cmd, void __user *arg)
  *	Drop the packet on the floor
  */
 
-int ip6_pkt_discard(struct sk_buff *skb)
+static int ip6_pkt_discard(struct sk_buff *skb)
 {
 	IP6_INC_STATS(IPSTATS_MIB_OUTNOROUTES);
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_NOROUTE, 0, skb->dev);
@@ -1380,7 +1380,7 @@ int ip6_pkt_discard(struct sk_buff *skb)
 	return 0;
 }
 
-int ip6_pkt_discard_out(struct sk_buff *skb)
+static int ip6_pkt_discard_out(struct sk_buff *skb)
 {
 	skb->dev = skb->dst->dev;
 	return ip6_pkt_discard(skb);
@@ -1959,8 +1959,6 @@ static int rt6_proc_info(char *buffer, char **start, off_t offset, int length)
 
 	return arg.len;
 }
-
-extern struct rt6_statistics rt6_stats;
 
 static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 {

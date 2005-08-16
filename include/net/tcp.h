@@ -1183,4 +1183,16 @@ struct tcp_iter_state {
 extern int tcp_proc_register(struct tcp_seq_afinfo *afinfo);
 extern void tcp_proc_unregister(struct tcp_seq_afinfo *afinfo);
 
+extern struct request_sock_ops tcp_request_sock_ops;
+
+extern int tcp_v4_destroy_sock(struct sock *sk);
+
+#ifdef CONFIG_PROC_FS
+extern int  tcp4_proc_init(void);
+extern void tcp4_proc_exit(void);
+#endif
+
+extern void tcp_v4_init(struct net_proto_family *ops);
+extern void tcp_init(void);
+
 #endif	/* _TCP_H */

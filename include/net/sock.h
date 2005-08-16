@@ -1370,4 +1370,16 @@ static inline int siocdevprivate_ioctl(unsigned int fd, unsigned int cmd, unsign
 }
 #endif
 
+extern void sk_init(void);
+
+#ifdef CONFIG_SYSCTL
+extern struct ctl_table core_table[];
+extern int sysctl_optmem_max;
+#endif
+
+#ifdef CONFIG_PROC_FS
+extern __u32 sysctl_wmem_default;
+extern __u32 sysctl_rmem_default;
+#endif
+
 #endif	/* _SOCK_H */

@@ -770,7 +770,7 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
-int __init ipip6_fb_tunnel_init(struct net_device *dev)
+static int __init ipip6_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = dev->priv;
 	struct iphdr *iph = &tunnel->parms.iph;

@@ -571,10 +571,6 @@ static int wireless_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-extern void *dev_seq_start(struct seq_file *seq, loff_t *pos);
-extern void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos);
-extern void dev_seq_stop(struct seq_file *seq, void *v);
-
 static struct seq_operations wireless_seq_ops = {
 	.start = dev_seq_start,
 	.next  = dev_seq_next,

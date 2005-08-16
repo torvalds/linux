@@ -1126,7 +1126,7 @@ void addrconf_leave_solict(struct inet6_dev *idev, struct in6_addr *addr)
 	__ipv6_dev_mc_dec(idev, &maddr);
 }
 
-void addrconf_join_anycast(struct inet6_ifaddr *ifp)
+static void addrconf_join_anycast(struct inet6_ifaddr *ifp)
 {
 	struct in6_addr addr;
 	ipv6_addr_prefix(&addr, &ifp->addr, ifp->prefix_len);
@@ -1135,7 +1135,7 @@ void addrconf_join_anycast(struct inet6_ifaddr *ifp)
 	ipv6_dev_ac_inc(ifp->idev->dev, &addr);
 }
 
-void addrconf_leave_anycast(struct inet6_ifaddr *ifp)
+static void addrconf_leave_anycast(struct inet6_ifaddr *ifp)
 {
 	struct in6_addr addr;
 	ipv6_addr_prefix(&addr, &ifp->addr, ifp->prefix_len);

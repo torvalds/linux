@@ -59,9 +59,6 @@ static int fold_prot_inuse(struct proto *proto)
  */
 static int sockstat_seq_show(struct seq_file *seq, void *v)
 {
-	/* From net/socket.c */
-	extern void socket_seq_show(struct seq_file *seq);
-
 	socket_seq_show(seq);
 	seq_printf(seq, "TCP: inuse %d orphan %d tw %d alloc %d mem %d\n",
 		   fold_prot_inuse(&tcp_prot), atomic_read(&tcp_orphan_count),

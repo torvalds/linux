@@ -614,7 +614,6 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 		}
 		case IP_MSFILTER:
 		{
-			extern int sysctl_optmem_max;
 			extern int sysctl_igmp_max_msf;
 			struct ip_msfilter *msf;
 
@@ -769,7 +768,6 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 		}
 		case MCAST_MSFILTER:
 		{
-			extern int sysctl_optmem_max;
 			extern int sysctl_igmp_max_msf;
 			struct sockaddr_in *psin;
 			struct ip_msfilter *msf = NULL;

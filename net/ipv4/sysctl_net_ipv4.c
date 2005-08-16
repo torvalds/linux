@@ -11,43 +11,15 @@
 #include <linux/module.h>
 #include <linux/sysctl.h>
 #include <linux/config.h>
+#include <linux/igmp.h>
 #include <net/snmp.h>
+#include <net/icmp.h>
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/tcp.h>
 
 /* From af_inet.c */
 extern int sysctl_ip_nonlocal_bind;
-
-/* From icmp.c */
-extern int sysctl_icmp_echo_ignore_all;
-extern int sysctl_icmp_echo_ignore_broadcasts;
-extern int sysctl_icmp_ignore_bogus_error_responses;
-extern int sysctl_icmp_errors_use_inbound_ifaddr;
-
-/* From ip_fragment.c */
-extern int sysctl_ipfrag_low_thresh;
-extern int sysctl_ipfrag_high_thresh; 
-extern int sysctl_ipfrag_time;
-extern int sysctl_ipfrag_secret_interval;
-
-/* From ip_output.c */
-extern int sysctl_ip_dynaddr;
-
-/* From icmp.c */
-extern int sysctl_icmp_ratelimit;
-extern int sysctl_icmp_ratemask;
-
-/* From igmp.c */
-extern int sysctl_igmp_max_memberships;
-extern int sysctl_igmp_max_msf;
-
-/* From inetpeer.c */
-extern int inet_peer_threshold;
-extern int inet_peer_minttl;
-extern int inet_peer_maxttl;
-extern int inet_peer_gc_mintime;
-extern int inet_peer_gc_maxtime;
 
 #ifdef CONFIG_SYSCTL
 static int tcp_retr1_max = 255; 
@@ -56,8 +28,6 @@ static int ip_local_port_range_max[] = { 65535, 65535 };
 #endif
 
 struct ipv4_config ipv4_config;
-
-extern ctl_table ipv4_route_table[];
 
 #ifdef CONFIG_SYSCTL
 
@@ -136,10 +106,11 @@ static int proc_tcp_congestion_control(ctl_table *ctl, int write, struct file * 
 	return ret;
 }
 
-int sysctl_tcp_congestion_control(ctl_table *table, int __user *name, int nlen,
-				  void __user *oldval, size_t __user *oldlenp,
-				  void __user *newval, size_t newlen,
-				  void **context)
+static int sysctl_tcp_congestion_control(ctl_table *table, int __user *name,
+					 int nlen, void __user *oldval,
+					 size_t __user *oldlenp,
+					 void __user *newval, size_t newlen,
+					 void **context)
 {
 	char val[TCP_CA_NAME_MAX];
 	ctl_table tbl = {

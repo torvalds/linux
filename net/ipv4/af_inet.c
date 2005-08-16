@@ -859,10 +859,6 @@ static struct net_proto_family inet_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-
-extern void tcp_init(void);
-extern void tcp_v4_init(struct net_proto_family *);
-
 /* Upon startup we insert all the elements in inetsw_array[] into
  * the linked list inetsw.
  */
@@ -1132,7 +1128,6 @@ static int __init init_ipv4_mibs(void)
 }
 
 static int ipv4_proc_init(void);
-extern void ipfrag_init(void);
 
 /*
  *	IP protocol layer initialiser
@@ -1253,19 +1248,10 @@ module_init(inet_init);
 /* ------------------------------------------------------------------------ */
 
 #ifdef CONFIG_PROC_FS
-extern int  fib_proc_init(void);
-extern void fib_proc_exit(void);
 #ifdef CONFIG_IP_FIB_TRIE
 extern int  fib_stat_proc_init(void);
 extern void fib_stat_proc_exit(void);
 #endif
-extern int  ip_misc_proc_init(void);
-extern int  raw_proc_init(void);
-extern void raw_proc_exit(void);
-extern int  tcp4_proc_init(void);
-extern void tcp4_proc_exit(void);
-extern int  udp4_proc_init(void);
-extern void udp4_proc_exit(void);
 
 static int __init ipv4_proc_init(void)
 {

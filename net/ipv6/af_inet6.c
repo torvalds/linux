@@ -67,23 +67,6 @@ MODULE_AUTHOR("Cast of dozens");
 MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
 MODULE_LICENSE("GPL");
 
-/* IPv6 procfs goodies... */
-
-#ifdef CONFIG_PROC_FS
-extern int raw6_proc_init(void);
-extern void raw6_proc_exit(void);
-extern int tcp6_proc_init(void);
-extern void tcp6_proc_exit(void);
-extern int udp6_proc_init(void);
-extern void udp6_proc_exit(void);
-extern int ipv6_misc_proc_init(void);
-extern void ipv6_misc_proc_exit(void);
-extern int ac6_proc_init(void);
-extern void ac6_proc_exit(void);
-extern int if6_proc_init(void);
-extern void if6_proc_exit(void);
-#endif
-
 int sysctl_ipv6_bindv6only;
 
 /* The inetsw table contains everything that inet_create needs to
@@ -505,11 +488,6 @@ static struct net_proto_family inet6_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-#ifdef CONFIG_SYSCTL
-extern void ipv6_sysctl_register(void);
-extern void ipv6_sysctl_unregister(void);
-#endif
-
 /* Same as inet6_dgram_ops, sans udp_poll.  */
 static struct proto_ops inet6_sockraw_ops = {
 	.family =	PF_INET6,
@@ -675,8 +653,6 @@ static void cleanup_ipv6_mibs(void)
 	snmp6_mib_free((void **)icmpv6_statistics);
 	snmp6_mib_free((void **)udp_stats_in6);
 }
-
-extern int ipv6_misc_proc_init(void);
 
 static int __init inet6_init(void)
 {
