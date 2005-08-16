@@ -65,7 +65,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable/disable specific HDSPM soundcards.");
 
 module_param_array(precise_ptr, bool, NULL, 0444);
-MODULE_PARM_DESC(precise_ptr, "Enable precise pointer, or disable.");
+MODULE_PARM_DESC(precise_ptr, "Enable or disable precise pointer.");
 
 module_param_array(line_outs_monitor, bool, NULL, 0444);
 MODULE_PARM_DESC(line_outs_monitor,
