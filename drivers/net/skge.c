@@ -189,7 +189,7 @@ static u32 skge_supported_modes(const struct skge_hw *hw)
 {
 	u32 supported;
 
-	if (iscopper(hw)) {
+	if (hw->copper) {
 		supported = SUPPORTED_10baseT_Half
 			| SUPPORTED_10baseT_Full
 			| SUPPORTED_100baseT_Half
@@ -222,7 +222,7 @@ static int skge_get_settings(struct net_device *dev,
 	ecmd->transceiver = XCVR_INTERNAL;
 	ecmd->supported = skge_supported_modes(hw);
 
-	if (iscopper(hw)) {
+	if (hw->copper) {
 		ecmd->port = PORT_TP;
 		ecmd->phy_address = hw->phy_addr;
 	} else
@@ -1599,7 +1599,7 @@ static void yukon_init(struct skge_hw *hw, int port)
 	adv = PHY_AN_CSMA;
 
 	if (skge->autoneg == AUTONEG_ENABLE) {
-		if (iscopper(hw)) {
+		if (hw->copper) {
 			if (skge->advertising & ADVERTISED_1000baseT_Full)
 				ct1000 |= PHY_M_1000C_AFD;
 			if (skge->advertising & ADVERTISED_1000baseT_Half)
@@ -1691,7 +1691,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	/* Set hardware config mode */
 	reg = GPC_INT_POL_HI | GPC_DIS_FC | GPC_DIS_SLEEP |
 		GPC_ENA_XC | GPC_ANEG_ADV_ALL_M | GPC_ENA_PAUSE;
-	reg |= iscopper(hw) ? GPC_HWCFG_GMII_COP : GPC_HWCFG_GMII_FIB;
+	reg |= hw->copper ? GPC_HWCFG_GMII_COP : GPC_HWCFG_GMII_FIB;
 
 	/* Clear GMC reset */
 	skge_write32(hw, SK_REG(port, GPHY_CTRL), reg | GPC_RST_SET);
@@ -2865,7 +2865,7 @@ static const char *skge_board_name(const struct skge_hw *hw)
 static int skge_reset(struct skge_hw *hw)
 {
 	u16 ctst;
-	u8 t8, mac_cfg;
+	u8 t8, mac_cfg, pmd_type, phy_type;
 	int i;
 
 	ctst = skge_read16(hw, B0_CTST);
@@ -2884,18 +2884,19 @@ static int skge_reset(struct skge_hw *hw)
 		     ctst & (CS_CLK_RUN_HOT|CS_CLK_RUN_RST|CS_CLK_RUN_ENA));
 
 	hw->chip_id = skge_read8(hw, B2_CHIP_ID);
-	hw->phy_type = skge_read8(hw, B2_E_1) & 0xf;
-	hw->pmd_type = skge_read8(hw, B2_PMD_TYP);
+	phy_type = skge_read8(hw, B2_E_1) & 0xf;
+	pmd_type = skge_read8(hw, B2_PMD_TYP);
+	hw->copper = (pmd_type == 'T' || pmd_type == '1');
 
 	switch (hw->chip_id) {
 	case CHIP_ID_GENESIS:
-		switch (hw->phy_type) {
+		switch (phy_type) {
 		case SK_PHY_BCOM:
 			hw->phy_addr = PHY_ADDR_BCOM;
 			break;
 		default:
 			printk(KERN_ERR PFX "%s: unsupported phy type 0x%x\n",
-			       pci_name(hw->pdev), hw->phy_type);
+			       pci_name(hw->pdev), phy_type);
 			return -EOPNOTSUPP;
 		}
 		break;
@@ -2903,13 +2904,10 @@ static int skge_reset(struct skge_hw *hw)
 	case CHIP_ID_YUKON:
 	case CHIP_ID_YUKON_LITE:
 	case CHIP_ID_YUKON_LP:
-		if (hw->phy_type < SK_PHY_MARV_COPPER && hw->pmd_type != 'S')
-			hw->phy_type = SK_PHY_MARV_COPPER;
+		if (phy_type < SK_PHY_MARV_COPPER && pmd_type != 'S')
+			hw->copper = 1;
 
 		hw->phy_addr = PHY_ADDR_MARV;
-		if (!iscopper(hw))
-			hw->phy_type = SK_PHY_MARV_FIBER;
-
 		break;
 
 	default:

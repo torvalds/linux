@@ -2460,23 +2460,16 @@ struct skge_hw {
 
 	u8	     	     chip_id;
 	u8		     chip_rev;
-	u8		     phy_type;
-	u8		     pmd_type;
-	u16		     phy_addr;
+	u8		     copper;
 	u8		     ports;
 
 	u32	     	     ram_size;
 	u32	     	     ram_offset;
+	u16		     phy_addr;
 
 	struct tasklet_struct ext_tasklet;
 	spinlock_t	     phy_lock;
 };
-
-
-static inline int iscopper(const struct skge_hw *hw)
-{
-	return (hw->pmd_type == 'T');
-}
 
 enum {
 	FLOW_MODE_NONE 		= 0, /* No Flow-Control */
