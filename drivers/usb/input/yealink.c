@@ -840,9 +840,12 @@ static void usb_disconnect(struct usb_interface *intf)
 static int usb_match(struct usb_device *udev)
 {
 	int i;
+	u16 idVendor = le16_to_cpu(udev->descriptor.idVendor);
+	u16 idProduct = le16_to_cpu(udev->descriptor.idProduct);
+
 	for (i = 0; i < ARRAY_SIZE(yld_device); i++) {
-		if ((udev->descriptor.idVendor == yld_device[i].idVendor) &&
-		    (udev->descriptor.idProduct == yld_device[i].idProduct))
+		if ((idVendor == yld_device[i].idVendor) &&
+		    (idProduct == yld_device[i].idProduct))
 			return i;
 	}
 	return -ENODEV;
