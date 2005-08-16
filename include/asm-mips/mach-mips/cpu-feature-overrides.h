@@ -37,6 +37,7 @@
 /* #define cpu_has_64bits	? */
 /* #define cpu_has_64bit_zero_reg ? */
 /* #define cpu_has_subset_pcaches ? */
+#define cpu_icache_snoops_remote_store 1
 #endif
 
 #ifdef CONFIG_CPU_MIPS64_R1
@@ -62,6 +63,7 @@
 /* #define cpu_has_64bits	? */
 /* #define cpu_has_64bit_zero_reg ? */
 /* #define cpu_has_subset_pcaches ? */
+#define cpu_icache_snoops_remote_store 1
 #endif
 
 #endif /* __ASM_MACH_MIPS_CPU_FEATURE_OVERRIDES_H */
