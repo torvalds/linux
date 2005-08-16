@@ -628,7 +628,7 @@ fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var)
 int
 fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 {
-	int err;
+	int err, flags = info->flags;
 
 	if (var->activate & FB_ACTIVATE_INV_MODE) {
 		struct fb_videomode mode1, mode2;
@@ -682,7 +682,7 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 			    !list_empty(&info->modelist))
 				err = fb_add_videomode(&mode, &info->modelist);
 
-			if (!err && info->flags & FBINFO_MISC_USEREVENT) {
+			if (!err && (flags & FBINFO_MISC_USEREVENT)) {
 				struct fb_event event;
 
 				info->flags &= ~FBINFO_MISC_USEREVENT;
