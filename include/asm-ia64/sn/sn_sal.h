@@ -78,7 +78,8 @@
 
 #define SN_SAL_HUB_ERROR_INTERRUPT		   0x02000060
 #define SN_SAL_BTE_RECOVER			   0x02000061
-#define SN_SAL_IOIF_GET_PCI_TOPOLOGY	           0x02000062
+#define SN_SAL_RESERVED_DO_NOT_USE		   0x02000062
+#define SN_SAL_IOIF_GET_PCI_TOPOLOGY		   0x02000064
 
 /*
  * Service-specific constants
@@ -1069,12 +1070,10 @@ ia64_sn_hwperf_op(nasid_t nasid, u64 opcode, u64 a0, u64 a1, u64 a2,
 }
 
 static inline int
-ia64_sn_ioif_get_pci_topology(u64 rack, u64 bay, u64 slot, u64 slab,
-			      u64 buf, u64 len)
+ia64_sn_ioif_get_pci_topology(u64 buf, u64 len)
 {
 	struct ia64_sal_retval rv;
-	SAL_CALL_NOLOCK(rv, SN_SAL_IOIF_GET_PCI_TOPOLOGY,
-		rack, bay, slot, slab, buf, len, 0);
+	SAL_CALL_NOLOCK(rv, SN_SAL_IOIF_GET_PCI_TOPOLOGY, buf, len, 0, 0, 0, 0, 0);
 	return (int) rv.status;
 }
 

@@ -174,29 +174,22 @@ static const char *sn_hwperf_get_slabname(struct sn_hwperf_object_info *obj,
 	return slabname;
 }
 
-static void print_pci_topology(struct seq_file *s,
-	struct sn_hwperf_object_info *obj, int *ordinal,
-	u64 rack, u64 bay, u64 slot, u64 slab)
+static void print_pci_topology(struct seq_file *s)
 {
-	char *p1;
-	char *p2;
-	char *pg;
+	char *p;
+	size_t sz;
+	int e;
 
-	if (!(pg = (char *)get_zeroed_page(GFP_KERNEL)))
-		return; /* ignore */
-	if (ia64_sn_ioif_get_pci_topology(rack, bay, slot, slab,
-		__pa(pg), PAGE_SIZE) == SN_HWPERF_OP_OK) {
-		for (p1=pg; *p1 && p1 < pg + PAGE_SIZE;) {
-			if (!(p2 = strchr(p1, '\n')))
-				break;
-			*p2 = '\0';
-			seq_printf(s, "pcibus %d %s-%s\n",
-				*ordinal, obj->location, p1);
-			(*ordinal)++;
-			p1 = p2 + 1;
-		}
+	for (sz = PAGE_SIZE; sz < 16 * PAGE_SIZE; sz += PAGE_SIZE) {
+		if (!(p = (char *)kmalloc(sz, GFP_KERNEL)))
+			break;
+		e = ia64_sn_ioif_get_pci_topology(__pa(p), sz);
+		if (e == SALRET_OK)
+			seq_puts(s, p);
+		kfree(p);
+		if (e == SALRET_OK || e == SALRET_NOT_IMPLEMENTED)
+			break;
 	}
-	free_page((unsigned long)pg);
 }
 
 static int sn_topology_show(struct seq_file *s, void *d)
@@ -215,7 +208,6 @@ static int sn_topology_show(struct seq_file *s, void *d)
 	struct sn_hwperf_object_info *p;
 	struct sn_hwperf_object_info *obj = d;	/* this object */
 	struct sn_hwperf_object_info *objs = s->private; /* all objects */
-	int rack, bay, slot, slab;
 	u8 shubtype;
 	u8 system_size;
 	u8 sharing_size;
@@ -225,7 +217,6 @@ static int sn_topology_show(struct seq_file *s, void *d)
 	u8 region_size;
 	u16 nasid_mask;
 	int nasid_msb;
-	int pci_bus_ordinal = 0;
 
 	if (obj == objs) {
 		seq_printf(s, "# sn_topology version 2\n");
@@ -253,6 +244,8 @@ static int sn_topology_show(struct seq_file *s, void *d)
 			shubtype ? "shub2" : "shub1", 
 			(u64)nasid_mask << nasid_shift, nasid_msb, nasid_shift,
 			system_size, sharing_size, coher, region_size);
+
+		print_pci_topology(s);
 	}
 
 	if (SN_HWPERF_FOREIGN(obj)) {
@@ -299,17 +292,6 @@ static int sn_topology_show(struct seq_file *s, void *d)
 				}
 				seq_putc(s, '\n');
 			}
-		}
-
-		/*
-		 * PCI busses attached to this node, if any
-		 */
-		if (sn_hwperf_location_to_bpos(obj->location,
-			&rack, &bay, &slot, &slab)) {
-			/* export pci bus info */
-			print_pci_topology(s, obj, &pci_bus_ordinal,
-				rack, bay, slot, slab);
-
 		}
 	}
 
