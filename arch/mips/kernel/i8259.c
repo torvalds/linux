@@ -307,7 +307,7 @@ static struct resource pic2_io_resource = {
 
 /*
  * On systems with i8259-style interrupt controllers we assume for
- * driver compatibility reasons interrupts 0 - 15 to be the i8295
+ * driver compatibility reasons interrupts 0 - 15 to be the i8259
  * interrupts even if the hardware uses a different interrupt numbering.
  */
 void __init init_i8259_irqs (void)
