@@ -160,24 +160,27 @@ void dump_list_process(struct task_struct *t, void *address)
 
 	if (addr > KSEG0)
 		page_dir = pgd_offset_k(0);
-	else
+	else if (t->mm) {
 		page_dir = pgd_offset(t->mm, 0);
-	printk("page_dir == %08x\n", (unsigned int) page_dir);
+		printk("page_dir == %08x\n", (unsigned int) page_dir);
+	} else
+		printk("Current thread has no mm\n");
 
 	if (addr > KSEG0)
 		pgd = pgd_offset_k(addr);
-	else
+	else if (t->mm) {
 		pgd = pgd_offset(t->mm, addr);
-	printk("pgd == %08x, ", (unsigned int) pgd);
+		printk("pgd == %08x, ", (unsigned int) pgd);
+		pud = pud_offset(pgd, addr);
+		printk("pud == %08x, ", (unsigned int) pud);
 
-	pud = pud_offset(pgd, addr);
-	printk("pud == %08x, ", (unsigned int) pud);
+		pmd = pmd_offset(pud, addr);
+		printk("pmd == %08x, ", (unsigned int) pmd);
 
-	pmd = pmd_offset(pud, addr);
-	printk("pmd == %08x, ", (unsigned int) pmd);
-
-	pte = pte_offset(pmd, addr);
-	printk("pte == %08x, ", (unsigned int) pte);
+		pte = pte_offset(pmd, addr);
+		printk("pte == %08x, ", (unsigned int) pte);
+	} else
+		printk("Current thread has no mm\n");
 
 	page = *pte;
 #ifdef CONFIG_64BIT_PHYS_ADDR
