@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.h,v 1.12 2005/08/05 10:43:47 dedekind Exp $
+ * $Id: debug.h,v 1.13 2005/08/17 13:42:06 dedekind Exp $
  *
  */
 #ifndef _JFFS2_DEBUG_H_
@@ -68,28 +68,28 @@
 #define JFFS2_ERROR(fmt, ...)						\
 	do {								\
 		printk(JFFS2_ERR_LVL JFFS2_ERR_MSG_PREFIX		\
-			" %d,%s: " fmt, current->pid,			\
+			" %d (%s): " fmt, current->pid,			\
 			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 
 #define JFFS2_WARNING(fmt, ...)						\
 	do {								\
 		printk(JFFS2_WARN_LVL JFFS2_WARN_MSG_PREFIX		\
-			" %d,%s: " fmt, current->pid,			\
+			" %d (%s): " fmt, current->pid,			\
 			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 			
 #define JFFS2_NOTICE(fmt, ...)						\
 	do {								\
 		printk(JFFS2_NOTICE_LVL JFFS2_NOTICE_MSG_PREFIX		\
-			" %d,%s: " fmt, current->pid,			\
+			" %d (%s): " fmt, current->pid,			\
 			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 
 #define JFFS2_DEBUG(fmt, ...)						\
 	do {								\
 		printk(JFFS2_DBG_LVL JFFS2_DBG_MSG_PREFIX		\
-			" %d,%s: " fmt, current->pid,			\
+			" %d (%s): " fmt, current->pid,			\
 			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 
