@@ -294,7 +294,7 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		return -EIO; 
 
 	pci_read_config_word(dev,pm + PCI_PM_PMC,&pmc);
-	if ((pmc & PCI_PM_CAP_VER_MASK) > 2) {
+	if ((pmc & PCI_PM_CAP_VER_MASK) > 3) {
 		printk(KERN_DEBUG
 		       "PCI: %s has unsupported PM cap regs version (%u)\n",
 		       pci_name(dev), pmc & PCI_PM_CAP_VER_MASK);
@@ -302,12 +302,10 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	}
 
 	/* check if this device supports the desired state */
-	if (state == PCI_D1 || state == PCI_D2) {
-		if (state == PCI_D1 && !(pmc & PCI_PM_CAP_D1))
-			return -EIO;
-		else if (state == PCI_D2 && !(pmc & PCI_PM_CAP_D2))
-			return -EIO;
-	}
+	if (state == PCI_D1 && !(pmc & PCI_PM_CAP_D1))
+		return -EIO;
+	else if (state == PCI_D2 && !(pmc & PCI_PM_CAP_D2))
+		return -EIO;
 
 	pci_read_config_word(dev, pm + PCI_PM_CTRL, &pmcsr);
 
