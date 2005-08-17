@@ -299,10 +299,8 @@ static void class_dev_release(struct kobject * kobj)
 
 	pr_debug("device class '%s': release.\n", cd->class_id);
 
-	if (cd->devt_attr) {
-		kfree(cd->devt_attr);
-		cd->devt_attr = NULL;
-	}
+	kfree(cd->devt_attr);
+	cd->devt_attr = NULL;
 
 	if (cls->release)
 		cls->release(cd);
