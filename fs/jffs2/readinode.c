@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.140 2005/08/17 13:46:23 dedekind Exp $
+ * $Id: readinode.c,v 1.141 2005/08/17 14:57:39 dedekind Exp $
  *
  */
 
@@ -272,9 +272,9 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 			buf = (unsigned char *)rd + sizeof(*rd);
 			/* len will be the read data length */
 			len = min_t(uint32_t, rdlen - sizeof(*rd), csize);
-			
-			if (len)
-				tn->partial_crc = crc = crc32(0, buf, len);
+			tn->partial_crc = crc32(0, buf, len);
+
+			JFFS2_DBG_READINODE("Calculates CRC (%#08x) for %d bytes, csize %d\n", tn->partial_crc, len, csize);
 
 			/* If we actually calculated the whole data CRC
 			 * and it is wrong, drop the node. */
@@ -327,8 +327,8 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 	else // normal case...
 		tn->fn->size = je32_to_cpu(rd->dsize);
 
-	JFFS2_DBG_READINODE("dnode @%08x: ver %u, offset %#04x, dsize %#04x\n",
-		  ref_offset(ref), je32_to_cpu(rd->version), je32_to_cpu(rd->offset), je32_to_cpu(rd->dsize));
+	JFFS2_DBG_READINODE("dnode @%08x: ver %u, offset %#04x, dsize %#04x, csize %#04x\n",
+		  ref_offset(ref), je32_to_cpu(rd->version), je32_to_cpu(rd->offset), je32_to_cpu(rd->dsize), csize);
 	
 	jffs2_add_tn_to_tree(tn, tnp);
 

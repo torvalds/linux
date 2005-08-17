@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.110 2005/08/17 14:13:45 dedekind Exp $
+ * $Id: nodelist.c,v 1.111 2005/08/17 14:57:39 dedekind Exp $
  *
  */
 
@@ -413,7 +413,8 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 	/* Calculate how many bytes were already checked */
 	ofs = ref_offset(ref) + sizeof(struct jffs2_raw_inode);
 	len = ofs & (c->wbuf_pagesize - 1);
-	len = c->wbuf_pagesize - len;
+	if (likely(len))
+		len = c->wbuf_pagesize - len;
 
 	if (len >= tn->csize) {
 		JFFS2_DBG_READINODE("no need to check node at %#08x, data length %u, data starts at %#08x - it has already been checked.\n",
