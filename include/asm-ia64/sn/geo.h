@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1992 - 1997, 2000-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1992 - 1997, 2000-2005 Silicon Graphics, Inc. All rights reserved.
  */
 
 #ifndef _ASM_IA64_SN_GEO_H
@@ -108,7 +108,6 @@ typedef union geoid_u {
 #define INVALID_SLAB            (slabid_t)-1
 #define INVALID_SLOT            (slotid_t)-1
 #define INVALID_MODULE          ((moduleid_t)-1)
-#define INVALID_PARTID          ((partid_t)-1)
 
 static inline slabid_t geo_slab(geoid_t g)
 {

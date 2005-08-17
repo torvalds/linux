@@ -80,8 +80,6 @@ EXPORT_PER_CPU_SYMBOL(__sn_cnodeid_to_nasid);
 DEFINE_PER_CPU(struct nodepda_s *, __sn_nodepda);
 EXPORT_PER_CPU_SYMBOL(__sn_nodepda);
 
-partid_t sn_partid = -1;
-EXPORT_SYMBOL(sn_partid);
 char sn_system_serial_number_string[128];
 EXPORT_SYMBOL(sn_system_serial_number_string);
 u64 sn_partition_serial_number;
