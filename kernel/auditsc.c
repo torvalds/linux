@@ -1007,7 +1007,7 @@ void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 	/* Not having a context here is ok, since the parent may have
 	 * called __put_task_struct. */
 	if (likely(!context))
-		return;
+		goto out;
 
 	if (context->in_syscall && context->auditable)
 		audit_log_exit(context, GFP_KERNEL);
@@ -1026,6 +1026,7 @@ void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 		audit_zero_context(context, context->state);
 		tsk->audit_context = context;
 	}
+ out:
 	put_task_struct(tsk);
 }
 
