@@ -513,20 +513,23 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 					     struct list_head *list)
 {
 	struct audit_entry *e;
-	enum audit_state   state;
-	int		   word = AUDIT_WORD(ctx->major);
-	int		   bit  = AUDIT_BIT(ctx->major);
+	enum audit_state state;
 
 	if (audit_pid && tsk->tgid == audit_pid)
 		return AUDIT_DISABLED;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(e, list, list) {
-		if ((e->rule.mask[word] & bit) == bit
- 		    && audit_filter_rules(tsk, &e->rule, ctx, &state)) {
-			rcu_read_unlock();
-			return state;
-		}
+	if (!list_empty(list)) {
+		    int word = AUDIT_WORD(ctx->major);
+		    int bit  = AUDIT_BIT(ctx->major);
+
+		    list_for_each_entry_rcu(e, list, list) {
+			    if ((e->rule.mask[word] & bit) == bit
+				&& audit_filter_rules(tsk, &e->rule, ctx, &state)) {
+				    rcu_read_unlock();
+				    return state;
+			    }
+		    }
 	}
 	rcu_read_unlock();
 	return AUDIT_BUILD_CONTEXT;
@@ -1023,7 +1026,6 @@ void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 	} else {
 		audit_free_names(context);
 		audit_free_aux(context);
-		audit_zero_context(context, context->state);
 		tsk->audit_context = context;
 	}
  out:
