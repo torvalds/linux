@@ -61,9 +61,9 @@ extern int decode_negTokenInit(unsigned char *security_blob, int length,
 extern int cifs_inet_pton(int, char * source, void *dst);
 extern int map_smb_to_linux_error(struct smb_hdr *smb);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
-			const struct cifsTconInfo *, int /* specifies length
-			    of fixed section (word count) in two byte units */
-			);
+			    const struct cifsTconInfo *, int /* length of
+			    fixed section (word count) in two byte units */);
+extern __u16 GetNextMid(struct TCP_Server_Info *server);
 extern struct oplock_q_entry * AllocOplockQEntry(struct inode *, u16, 
 						 struct cifsTconInfo *);
 extern void DeleteOplockQEntry(struct oplock_q_entry *);

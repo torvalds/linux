@@ -1961,18 +1961,17 @@ struct data_blob {
 	perhaps add a CreateDevice - to create Pipes and other special .inodes
 	Also note POSIX open flags
 	2) Close - to return the last write time to do cache across close more safely
-	3) PosixQFSInfo - to return statfs info
-	4) FindFirst return unique inode number - what about resume key, two forms short (matches readdir) and full (enough info to cache inodes)
-	5) Mkdir - set mode
+	3) FindFirst return unique inode number - what about resume key, two 
+	forms short (matches readdir) and full (enough info to cache inodes)
+	4) Mkdir - set mode
 	
 	And under consideration: 
-	6) FindClose2 (return nanosecond timestamp ??)
-	7) Use nanosecond timestamps throughout all time fields if 
+	5) FindClose2 (return nanosecond timestamp ??)
+	6) Use nanosecond timestamps throughout all time fields if 
 	   corresponding attribute flag is set
-	8) sendfile - handle based copy
-	9) Direct i/o
-	10) "POSIX ACL" support
-	11) Misc fcntls?
+	7) sendfile - handle based copy
+	8) Direct i/o
+	9) Misc fcntls?
 	
 	what about fixing 64 bit alignment
 	
@@ -2028,7 +2027,7 @@ struct data_blob {
 	
  */
 
-/* xsymlink is a symlink format that can be used
+/* xsymlink is a symlink format (used by MacOS) that can be used
    to save symlink info in a regular file when 
    mounted to operating systems that do not
    support the cifs Unix extensions or EAs (for xattr

@@ -330,7 +330,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		      (void **) &pSMB, (void **) &pSMBr);
 	if (rc)
 		return rc;
-
+	pSMB->hdr.Mid = GetNextMid(server);
 	pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
 	if (extended_security)
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
@@ -415,15 +415,14 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			if(server->secMode & SECMODE_SIGN_REQUIRED)
 				cERROR(1,
 				 ("Server requires /proc/fs/cifs/PacketSigningEnabled"));
-			server->secMode &= ~(SECMODE_SIGN_ENABLED | 
-							SECMODE_SIGN_REQUIRED);
+			server->secMode &= ~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
 		} else if(sign_CIFS_PDUs == 1) {
 			if((server->secMode & SECMODE_SIGN_REQUIRED) == 0)
-				server->secMode &= ~(SECMODE_SIGN_ENABLED |
-							 SECMODE_SIGN_REQUIRED);
+				server->secMode &= ~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
 		}
 				
 	}
+	
 	cifs_buf_release(pSMB);
 	return rc;
 }
@@ -519,6 +518,8 @@ CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses)
 	smb_buffer_response = (struct smb_hdr *)pSMB; /* BB removeme BB */
 	
 	if(ses->server) {
+		pSMB->hdr.Mid = GetNextMid(ses->server);
+
 		if(ses->server->secMode & 
 		   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
 			pSMB->hdr.Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
@@ -2519,11 +2520,12 @@ findFirstRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 
-	if (rc) {/* BB add logic to retry regular search if Unix search 
-			rejected unexpectedly by server */
+	if (rc) {/* BB add logic to retry regular search if Unix search rejected unexpectedly by server */
 		/* BB Add code to handle unsupported level rc */
 		cFYI(1, ("Error in FindFirst = %d", rc));
-		cifs_buf_release(pSMB);
+
+		if (pSMB)
+			cifs_buf_release(pSMB);
 
 		/* BB eventually could optimize out free and realloc of buf */
 		/*    for this case */
@@ -2857,7 +2859,10 @@ getDFSRetry:
 		      (void **) &pSMBr);
 	if (rc)
 		return rc;
-
+	
+	/* server pointer checked in called function, 
+	but should never be null here anyway */
+	pSMB->hdr.Mid = GetNextMid(ses->server);
 	pSMB->hdr.Tid = ses->ipc_tid;
 	pSMB->hdr.Uid = ses->Suid;
 	if (ses->capabilities & CAP_STATUS32) {

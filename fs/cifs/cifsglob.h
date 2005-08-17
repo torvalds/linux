@@ -147,6 +147,7 @@ struct TCP_Server_Info {
 	/* (returned on Negotiate */
 	int capabilities; /* allow selective disabling of caps by smb sess */
 	__u16 timeZone;
+	__u16 CurrentMid;         /* multiplex id - rotating counter */
 	char cryptKey[CIFS_CRYPTO_KEY_SIZE];
 	char workstation_RFC1001_name[16]; /* 16th byte is always zero */
 	__u32 sequence_number; /* needed for CIFS PDU signature */
