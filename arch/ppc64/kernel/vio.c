@@ -111,7 +111,7 @@ EXPORT_SYMBOL(vio_unregister_driver);
 static const struct vio_device_id *vio_match_device(
 		const struct vio_device_id *ids, const struct vio_dev *dev)
 {
-	while (ids->type) {
+	while (ids->type[0] != '\0') {
 		if (vio_bus_ops.match(ids, dev))
 			return ids;
 		ids++;

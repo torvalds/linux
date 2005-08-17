@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/mod_devicetable.h>
 
 #include <asm/hvcall.h>
 #include <asm/scatterlist.h>
@@ -50,11 +51,6 @@ struct vio_dev {
 	uint32_t unit_address;
 	unsigned int irq;
 	struct device dev;
-};
-
-struct vio_device_id {
-	char *type;
-	char *compat;
 };
 
 struct vio_driver {

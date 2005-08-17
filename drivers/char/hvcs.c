@@ -527,7 +527,7 @@ static int khvcsd(void *unused)
 
 static struct vio_device_id hvcs_driver_table[] __devinitdata= {
 	{"serial-server", "hvterm2"},
-	{ NULL, }
+	{ "", "" }
 };
 MODULE_DEVICE_TABLE(vio, hvcs_driver_table);
 
