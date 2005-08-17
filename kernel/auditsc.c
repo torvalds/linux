@@ -190,9 +190,36 @@ struct audit_entry {
 
 extern int audit_pid;
 
+/* Copy rule from user-space to kernel-space.  Called from 
+ * audit_add_rule during AUDIT_ADD. */
+static inline int audit_copy_rule(struct audit_rule *d, struct audit_rule *s)
+{
+	int i;
+
+	if (s->action != AUDIT_NEVER
+	    && s->action != AUDIT_POSSIBLE
+	    && s->action != AUDIT_ALWAYS)
+		return -1;
+	if (s->field_count < 0 || s->field_count > AUDIT_MAX_FIELDS)
+		return -1;
+	if ((s->flags & ~AUDIT_FILTER_PREPEND) >= AUDIT_NR_FILTERS)
+		return -1;
+
+	d->flags	= s->flags;
+	d->action	= s->action;
+	d->field_count	= s->field_count;
+	for (i = 0; i < d->field_count; i++) {
+		d->fields[i] = s->fields[i];
+		d->values[i] = s->values[i];
+	}
+	for (i = 0; i < AUDIT_BITMASK_SIZE; i++) d->mask[i] = s->mask[i];
+	return 0;
+}
+
 /* Check to see if two rules are identical.  It is called from
+ * audit_add_rule during AUDIT_ADD and 
  * audit_del_rule during AUDIT_DEL. */
-static int audit_compare_rule(struct audit_rule *a, struct audit_rule *b)
+static inline int audit_compare_rule(struct audit_rule *a, struct audit_rule *b)
 {
 	int i;
 
@@ -221,18 +248,37 @@ static int audit_compare_rule(struct audit_rule *a, struct audit_rule *b)
 /* Note that audit_add_rule and audit_del_rule are called via
  * audit_receive() in audit.c, and are protected by
  * audit_netlink_sem. */
-static inline void audit_add_rule(struct audit_entry *entry,
+static inline int audit_add_rule(struct audit_rule *rule,
 				  struct list_head *list)
 {
+	struct audit_entry  *entry;
+
+	/* Do not use the _rcu iterator here, since this is the only
+	 * addition routine. */
+	list_for_each_entry(entry, list, list) {
+		if (!audit_compare_rule(rule, &entry->rule)) {
+			return -EEXIST;
+		}
+	}
+
+	if (!(entry = kmalloc(sizeof(*entry), GFP_KERNEL)))
+		return -ENOMEM;
+	if (audit_copy_rule(&entry->rule, rule)) {
+		kfree(entry);
+		return -EINVAL;
+	}
+
 	if (entry->rule.flags & AUDIT_FILTER_PREPEND) {
 		entry->rule.flags &= ~AUDIT_FILTER_PREPEND;
 		list_add_rcu(&entry->list, list);
 	} else {
 		list_add_tail_rcu(&entry->list, list);
 	}
+
+	return 0;
 }
 
-static void audit_free_rule(struct rcu_head *head)
+static inline void audit_free_rule(struct rcu_head *head)
 {
 	struct audit_entry *e = container_of(head, struct audit_entry, rcu);
 	kfree(e);
@@ -256,32 +302,6 @@ static inline int audit_del_rule(struct audit_rule *rule,
 		}
 	}
 	return -ENOENT;		/* No matching rule */
-}
-
-/* Copy rule from user-space to kernel-space.  Called during
- * AUDIT_ADD. */
-static int audit_copy_rule(struct audit_rule *d, struct audit_rule *s)
-{
-	int i;
-
-	if (s->action != AUDIT_NEVER
-	    && s->action != AUDIT_POSSIBLE
-	    && s->action != AUDIT_ALWAYS)
-		return -1;
-	if (s->field_count < 0 || s->field_count > AUDIT_MAX_FIELDS)
-		return -1;
-	if ((s->flags & ~AUDIT_FILTER_PREPEND) >= AUDIT_NR_FILTERS)
-		return -1;
-
-	d->flags	= s->flags;
-	d->action	= s->action;
-	d->field_count	= s->field_count;
-	for (i = 0; i < d->field_count; i++) {
-		d->fields[i] = s->fields[i];
-		d->values[i] = s->values[i];
-	}
-	for (i = 0; i < AUDIT_BITMASK_SIZE; i++) d->mask[i] = s->mask[i];
-	return 0;
 }
 
 static int audit_list_rules(void *_dest)
@@ -313,7 +333,6 @@ static int audit_list_rules(void *_dest)
 int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 							uid_t loginuid)
 {
-	struct audit_entry *entry;
 	struct task_struct *tsk;
 	int *dest;
 	int		   err = 0;
@@ -340,16 +359,14 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 		}
 		break;
 	case AUDIT_ADD:
-		if (!(entry = kmalloc(sizeof(*entry), GFP_KERNEL)))
-			return -ENOMEM;
-		if (audit_copy_rule(&entry->rule, data)) {
-			kfree(entry);
+		listnr =((struct audit_rule *)data)->flags & ~AUDIT_FILTER_PREPEND;
+		if (listnr >= AUDIT_NR_FILTERS)
 			return -EINVAL;
-		}
-		listnr = entry->rule.flags & ~AUDIT_FILTER_PREPEND;
-		audit_add_rule(entry, &audit_filter_list[listnr]);
-		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE, 
-				"auid=%u added an audit rule\n", loginuid);
+
+		err = audit_add_rule(data, &audit_filter_list[listnr]);
+		if (!err)
+			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+				  "auid=%u added an audit rule\n", loginuid);
 		break;
 	case AUDIT_DEL:
 		listnr =((struct audit_rule *)data)->flags & ~AUDIT_FILTER_PREPEND;
