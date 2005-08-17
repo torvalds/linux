@@ -535,17 +535,12 @@ static irqreturn_t sil24_interrupt(int irq, void *dev_instance, struct pt_regs *
 	for (i = 0; i < host_set->n_ports; i++)
 		if (status & (1 << i)) {
 			struct ata_port *ap = host_set->ports[i];
-			if (ap && !(ap->flags & ATA_FLAG_PORT_DISABLED))
+			if (ap && !(ap->flags & ATA_FLAG_PORT_DISABLED)) {
 				sil24_host_intr(host_set->ports[i]);
-			else {
-				u32 tmp;
-				printk(KERN_WARNING DRV_NAME
-				       ": spurious interrupt from port %d\n", i);
-				tmp = readl(hpriv->host_base + HOST_CTRL);
-				tmp &= ~(1 << i);
-				writel(tmp, hpriv->host_base + HOST_CTRL);
-			}
-			handled++;
+				handled++;
+			} else
+				printk(KERN_ERR DRV_NAME
+				       ": interrupt from disabled port %d\n", i);
 		}
 
 	spin_unlock(&host_set->lock);
