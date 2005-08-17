@@ -198,12 +198,13 @@ resubmit:
 		if (!raw_sk) {
 			if (xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 				IP6_INC_STATS_BH(IPSTATS_MIB_INUNKNOWNPROTOS);
-				icmpv6_param_prob(skb, ICMPV6_UNK_NEXTHDR, nhoff);
+				icmpv6_send(skb, ICMPV6_PARAMPROB,
+				            ICMPV6_UNK_NEXTHDR, nhoff,
+				            skb->dev);
 			}
-		} else {
+		} else
 			IP6_INC_STATS_BH(IPSTATS_MIB_INDELIVERS);
-			kfree_skb(skb);
-		}
+		kfree_skb(skb);
 	}
 	rcu_read_unlock();
 	return 0;
