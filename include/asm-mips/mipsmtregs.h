@@ -7,6 +7,7 @@
 #ifndef _ASM_MIPSMTREGS_H
 #define _ASM_MIPSMTREGS_H
 
+#include <asm/mipsregs.h>
 #include <asm/war.h>
 
 #ifndef __ASSEMBLY__
@@ -383,6 +384,7 @@ do {									\
 #define read_tc_gpr_gp()		mftgpr(28)
 #define write_tc_gpr_gp(val)		mttgpr(28, val)
 
+__BUILD_SET_C0(mvpcontrol)
 
 #endif /* Not __ASSEMBLY__ */
 

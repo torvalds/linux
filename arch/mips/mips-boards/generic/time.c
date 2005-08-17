@@ -61,6 +61,15 @@ static unsigned int display_count = 0;
 static unsigned int timer_tick_count=0;
 static int mips_cpu_timer_irq;
 
+static inline void scroll_display_message(void)
+{
+	if ((timer_tick_count++ % HZ) == 0) {
+		mips_display_message(&display_string[display_count++]);
+		if (display_count == MAX_DISPLAY_COUNT)
+			display_count = 0;
+	}
+}
+
 static void mips_timer_dispatch (struct pt_regs *regs)
 {
 	do_IRQ (mips_cpu_timer_irq, regs);
@@ -68,17 +77,42 @@ static void mips_timer_dispatch (struct pt_regs *regs)
 
 irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
+#ifdef CONFIG_SMP
+	int cpu = smp_processor_id();
+
+	if (cpu == 0) {
+		/*
+		 * CPU 0 handles the global timer interrupt job and process accounting
+		 * resets count/compare registers to trigger next timer int.
+		 */
+		(void) timer_interrupt(irq, dev_id, regs);
+		scroll_display_message();
+	}
+	else {
+		/* Everyone else needs to reset the timer int here as
+		   ll_local_timer_interrupt doesn't */
+		/*
+		 * FIXME: need to cope with counter underflow.
+		 * More support needs to be added to kernel/time for
+		 * counter/timer interrupts on multiple CPU's
+		 */
+		write_c0_compare (read_c0_count() + (mips_hpt_frequency/HZ));
+		/*
+		 * other CPUs should do profiling and process accounting
+		 */
+		local_timer_interrupt (irq, dev_id, regs);
+	}
+
+	return IRQ_HANDLED;
+#else
 	irqreturn_t r;
 
 	r = timer_interrupt(irq, dev_id, regs);
 
-	if ((timer_tick_count++ % HZ) == 0) {
-		mips_display_message(&display_string[display_count++]);
-		if (display_count == MAX_DISPLAY_COUNT)
-			display_count = 0;
-	}
+	scroll_display_message();
 
 	return r;
+#endif
 }
 
 /*
@@ -176,6 +210,13 @@ void __init mips_timer_setup(struct irqaction *irq)
 	irq->handler = mips_timer_interrupt;	/* we use our own handler */
 	setup_irq(mips_cpu_timer_irq, irq);
 
+#ifdef CONFIG_SMP
+	/* irq_desc(riptor) is a global resource, when the interrupt overlaps
+	   on seperate cpu's the first one tries to handle the second interrupt.
+	   The effect is that the int remains disabled on the second cpu.
+	   Mark the interrupt with IRQ_PER_CPU to avoid any confusion */
+	irq_desc[mips_cpu_timer_irq].status |= IRQ_PER_CPU;
+#endif
 
         /* to generate the first timer interrupt */
 	write_c0_compare (read_c0_count() + mips_hpt_frequency/HZ);

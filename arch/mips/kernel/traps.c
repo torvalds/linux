@@ -28,6 +28,8 @@
 #include <asm/cpu.h>
 #include <asm/dsp.h>
 #include <asm/fpu.h>
+#include <asm/mipsregs.h>
+#include <asm/mipsmtregs.h>
 #include <asm/module.h>
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
@@ -56,6 +58,7 @@ extern asmlinkage void handle_tr(void);
 extern asmlinkage void handle_fpe(void);
 extern asmlinkage void handle_mdmx(void);
 extern asmlinkage void handle_watch(void);
+extern asmlinkage void handle_mt(void);
 extern asmlinkage void handle_dsp(void);
 extern asmlinkage void handle_mcheck(void);
 extern asmlinkage void handle_reserved(void);
@@ -797,6 +800,14 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 	      (regs->cp0_status & ST0_TS) ? "" : "not ");
 }
 
+asmlinkage void do_mt(struct pt_regs *regs)
+{
+	die_if_kernel("MIPS MT Thread exception in kernel", regs);
+
+	force_sig(SIGILL, current);
+}
+
+
 asmlinkage void do_dsp(struct pt_regs *regs)
 {
 	if (cpu_has_dsp)
@@ -1337,6 +1348,9 @@ void __init trap_init(void)
 
 	if (cpu_has_mcheck)
 		set_except_vector(24, handle_mcheck);
+
+	if (cpu_has_mipsmt)
+		set_except_vector(25, handle_mt);
 
 	if (cpu_has_dsp)
 		set_except_vector(26, handle_dsp);
