@@ -538,7 +538,7 @@ CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses)
 			rc = -ESHUTDOWN;
 		}
 	}
-	up(&ses->sesSem)	
+	up(&ses->sesSem);
 	cifs_small_buf_release(pSMB);
 
 	/* if session dead then we do not need to do ulogoff,
