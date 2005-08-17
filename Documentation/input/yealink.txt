@@ -1,16 +1,18 @@
-yealink - Linux driver for usb-p1k phones
+Driver documentation for yealink usb-p1k phones
 
 0. Status
 ~~~~~~~~~
 
 The p1k is a relatively cheap usb 1.1 phone with:
-  - keyboard		full support
-  - LCD			full support
-  - LED			full support
-  - dialtone		full support
-  - ringtone		full support
-  - audio playback   	via generic usb audio diver
-  - audio record     	via generic usb audio diver
+  - keyboard		full support, yealink.ko / input event API
+  - LCD			full support, yealink.ko / sysfs API
+  - LED			full support, yealink.ko / sysfs API
+  - dialtone		full support, yealink.ko / sysfs API
+  - ringtone		full support, yealink.ko / sysfs API
+  - audio playback   	full support, snd_usb_audio.ko / alsa API
+  - audio record     	full support, snd_usb_audio.ko / alsa API
+
+For vendor documentation see http://www.yealink.com
 
 
 1. Compilation (stand alone version)
@@ -178,7 +180,21 @@ updated with the first letter of the icon.
   echo -n RINGTONE > /sys/..../hide_icon
 
 
-5. Credits & Acknowledgments
+5. Sound features
+~~~~~~~~~~~~~~~~~
+Sound is supported by the ALSA driver: snd_usb_audio
+
+One 16-bit channel with sample and playback rates of 8000 Hz is the practical
+limit of the device.
+
+  Example - recording test:
+  arecord -v -d 10 -r 8000 -f S16_LE -t wav  foobar.wav
+
+  Example - playback test:
+  aplay foobar.wav
+
+
+6. Credits & Acknowledgments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   - Olivier Vandorpe, for starting the usbb2k-api project doing much of
 	the reverse engineering.

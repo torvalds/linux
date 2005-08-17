@@ -318,7 +318,7 @@ static int yealink_set_ringtone(struct yealink_dev *yld, u8 *buf, size_t size)
 		if (len > sizeof(p->data))
 			len = sizeof(p->data);
 		p->size	  = len;
-		p->offset = htons(ix);
+		p->offset = cpu_to_be16(ix);
 		memcpy(p->data, &buf[ix], len);
 		yealink_cmd(yld, p);
 		ix += len;
@@ -383,7 +383,7 @@ send_update:
 		val--;
 		val &= 0x1f;
 		yld->ctl_data->cmd	= CMD_SCANCODE;
-		yld->ctl_data->offset	= htons(val);
+		yld->ctl_data->offset	= cpu_to_be16(val);
 		yld->ctl_data->data[0]	= 0;
 		yld->ctl_data->sum	= -1 - CMD_SCANCODE - val;
 		break;
@@ -395,7 +395,7 @@ send_update:
 		/* Combine up to <len> consecutive LCD bytes in a singe request
 		 */
 		yld->ctl_data->cmd	= CMD_LCD;
-		yld->ctl_data->offset	= htons(ix);
+		yld->ctl_data->offset	= cpu_to_be16(ix);
 		yld->ctl_data->size	= len;
 		yld->ctl_data->sum	= -CMD_LCD - ix - val - len;
 		for(i=1; i<len; i++) {
