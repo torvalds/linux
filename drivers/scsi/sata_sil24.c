@@ -527,6 +527,12 @@ static irqreturn_t sil24_interrupt(int irq, void *dev_instance, struct pt_regs *
 
 	status = readl(hpriv->host_base + HOST_IRQ_STAT);
 
+	if (status == 0xffffffff) {
+		printk(KERN_ERR DRV_NAME ": IRQ status == 0xffffffff, "
+		       "PCI fault or device removal?\n");
+		goto out;
+	}
+
 	if (!(status & IRQ_STAT_4PORTS))
 		goto out;
 
