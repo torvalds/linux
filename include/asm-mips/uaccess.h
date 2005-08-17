@@ -213,7 +213,6 @@ struct __large_struct { unsigned long buf[100]; };
 	__typeof(*(ptr)) __gu_val =  (__typeof(*(ptr))) 0;		\
 	long __gu_err = 0;						\
 									\
-	might_sleep();							\
 	switch (size) {							\
 	case 1: __get_user_asm("lb", ptr); break;			\
 	case 2: __get_user_asm("lh", ptr); break;			\
@@ -300,7 +299,6 @@ extern void __get_user_unknown(void);
 	__typeof__(*(ptr)) __pu_val;					\
 	long __pu_err = 0;						\
 									\
-	might_sleep();							\
 	__pu_val = (x);							\
 	switch (size) {							\
 	case 1: __put_user_asm("sb", ptr); break;			\
