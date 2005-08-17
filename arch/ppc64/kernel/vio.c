@@ -32,10 +32,7 @@ struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.dev.bus = &vio_bus_type,
 };
 
-static int (*is_match)(const struct vio_device_id *id,
-		const struct vio_dev *dev);
-static void (*unregister_device_callback)(struct vio_dev *dev);
-static void (*release_device_callback)(struct device *dev);
+static struct vio_bus_ops vio_bus_ops;
 
 /*
  * Convert from struct device to struct vio_dev and pass to driver.
@@ -115,7 +112,7 @@ static const struct vio_device_id *vio_match_device(
 		const struct vio_device_id *ids, const struct vio_dev *dev)
 {
 	while (ids->type) {
-		if (is_match(ids, dev))
+		if (vio_bus_ops.match(ids, dev))
 			return ids;
 		ids++;
 	}
@@ -125,16 +122,11 @@ static const struct vio_device_id *vio_match_device(
 /**
  * vio_bus_init: - Initialize the virtual IO bus
  */
-int __init vio_bus_init(int (*match_func)(const struct vio_device_id *id,
-			const struct vio_dev *dev),
-		void (*unregister_dev)(struct vio_dev *),
-		void (*release_dev)(struct device *))
+int __init vio_bus_init(struct vio_bus_ops *ops)
 {
 	int err;
 
-	is_match = match_func;
-	unregister_device_callback = unregister_dev;
-	release_device_callback = release_dev;
+	vio_bus_ops = *ops;
 
 	err = bus_register(&vio_bus_type);
 	if (err) {
@@ -159,8 +151,8 @@ int __init vio_bus_init(int (*match_func)(const struct vio_device_id *id,
 /* vio_dev refcount hit 0 */
 static void __devinit vio_dev_release(struct device *dev)
 {
-	if (release_device_callback)
-		release_device_callback(dev);
+	if (vio_bus_ops.release_device)
+		vio_bus_ops.release_device(dev);
 	kfree(to_vio_dev(dev));
 }
 
@@ -191,8 +183,8 @@ struct vio_dev * __devinit vio_register_device(struct vio_dev *viodev)
 
 void __devinit vio_unregister_device(struct vio_dev *viodev)
 {
-	if (unregister_device_callback)
-		unregister_device_callback(viodev);
+	if (vio_bus_ops.unregister_device)
+		vio_bus_ops.unregister_device(viodev);
 	device_remove_file(&viodev->dev, &dev_attr_name);
 	device_unregister(&viodev->dev);
 }

@@ -76,6 +76,12 @@ static void vio_unregister_device_pseries(struct vio_dev *viodev)
 	device_remove_file(&viodev->dev, &dev_attr_devspec);
 }
 
+static struct vio_bus_ops vio_bus_ops_pseries = {
+	.match = vio_match_device_pseries,
+	.unregister_device = vio_unregister_device_pseries,
+	.release_device = vio_release_device_pseries,
+};
+
 /**
  * vio_bus_init_pseries: - Initialize the pSeries virtual IO bus
  */
@@ -83,9 +89,7 @@ static int __init vio_bus_init_pseries(void)
 {
 	int err;
 
-	err = vio_bus_init(vio_match_device_pseries,
-			vio_unregister_device_pseries,
-			vio_release_device_pseries);
+	err = vio_bus_init(&vio_bus_ops_pseries);
 	if (err == 0)
 		probe_bus_pseries();
 	return err;

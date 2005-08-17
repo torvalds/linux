@@ -131,6 +131,10 @@ static int vio_match_device_iseries(const struct vio_device_id *id,
 	return strncmp(dev->type, id->type, strlen(id->type)) == 0;
 }
 
+static struct vio_bus_ops vio_bus_ops_iseries = {
+	.match = vio_match_device_iseries,
+};
+
 /**
  * vio_bus_init_iseries: - Initialize the iSeries virtual IO bus
  */
@@ -138,7 +142,7 @@ static int __init vio_bus_init_iseries(void)
 {
 	int err;
 
-	err = vio_bus_init(vio_match_device_iseries, NULL, NULL);
+	err = vio_bus_init(&vio_bus_ops_iseries);
 	if (err == 0) {
 		iommu_vio_init();
 		vio_bus_device.iommu_table = &vio_iommu_table;
