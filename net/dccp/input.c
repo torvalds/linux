@@ -50,7 +50,7 @@ static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 	 *	  Drop packet and return
 	 */
 	if (dccp_sk(sk)->dccps_role != DCCP_ROLE_CLIENT) {
-		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq);
+		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq, DCCP_PKT_SYNC);
 		return;
 	}
 
@@ -76,8 +76,7 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh = dccp_hdr(skb);
 	struct dccp_sock *dp = dccp_sk(sk);
-	u64 lswl = dp->dccps_swl;
-	u64 lawl = dp->dccps_awl;
+	u64 lswl, lawl;
 
 	/*
 	 *   Step 5: Prepare sequence numbers for Sync
@@ -99,6 +98,8 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 			dccp_update_gsr(sk, DCCP_SKB_CB(skb)->dccpd_seq);
 		else
 			return -1;
+	}
+	
 	/*
 	 *   Step 6: Check sequence numbers
 	 *      Let LSWL = S.SWL and LAWL = S.AWL
@@ -113,7 +114,10 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 	 *	  Send Sync packet acknowledging P.seqno
 	 *	  Drop packet and return
 	 */
-	} else if (dh->dccph_type == DCCP_PKT_CLOSEREQ ||
+	lswl = dp->dccps_swl;
+	lawl = dp->dccps_awl;
+
+	if (dh->dccph_type == DCCP_PKT_CLOSEREQ ||
 		   dh->dccph_type == DCCP_PKT_CLOSE ||
 		   dh->dccph_type == DCCP_PKT_RESET) {
 		lswl = dp->dccps_gsr;
@@ -132,8 +136,8 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 		     DCCP_PKT_WITHOUT_ACK_SEQ))
 			dp->dccps_gar = DCCP_SKB_CB(skb)->dccpd_ack_seq;
 	} else {
-		dccp_pr_debug("Step 6 failed, sending SYNC...\n");
-		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq);
+		LIMIT_NETDEBUG("Step 6 failed, sending SYNC...\n");
+		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq, DCCP_PKT_SYNC);
 		return -1;
 	}
 
@@ -242,9 +246,21 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 check_seq:
 		if (!before48(DCCP_SKB_CB(skb)->dccpd_seq, dp->dccps_osr)) {
 send_sync:
-			dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq);
+			dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
+				       DCCP_PKT_SYNC);
 		}
 		break;
+	case DCCP_PKT_SYNC:
+		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
+			       DCCP_PKT_SYNCACK);
+		/*
+		 * From the draft:
+		 *
+		 * As with DCCP-Ack packets, DCCP-Sync and DCCP-SyncAck packets
+		 * MAY have non-zero-length application data areas, whose
+		 * contents * receivers MUST ignore.
+		 */
+		goto discard;
 	}
 
 	DCCP_INC_STATS_BH(DCCP_MIB_INERRS);
@@ -517,7 +533,8 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		     dh->dccph_type == DCCP_PKT_REQUEST) ||
 		    (sk->sk_state == DCCP_RESPOND &&
 		     dh->dccph_type == DCCP_PKT_DATA)) {
-		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq);
+		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
+			       DCCP_PKT_SYNC);
 		goto discard;
 	}
 

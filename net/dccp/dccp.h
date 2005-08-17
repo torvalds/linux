@@ -122,7 +122,8 @@ extern int  dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb);
 extern int dccp_send_response(struct sock *sk);
 extern void dccp_send_ack(struct sock *sk);
 extern void dccp_send_delayed_ack(struct sock *sk);
-extern void dccp_send_sync(struct sock *sk, u64 seq);
+extern void dccp_send_sync(struct sock *sk, const u64 seq,
+			   const enum dccp_pkt_type pkt_type);
 
 extern int dccp_write_xmit(struct sock *sk, struct sk_buff *skb,
 			   const int len);

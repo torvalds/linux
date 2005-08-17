@@ -404,7 +404,8 @@ void dccp_send_delayed_ack(struct sock *sk)
 	sk_reset_timer(sk, &icsk->icsk_delack_timer, timeout);
 }
 
-void dccp_send_sync(struct sock *sk, u64 seq)
+void dccp_send_sync(struct sock *sk, const u64 seq,
+		    const enum dccp_pkt_type pkt_type)
 {
 	/*
 	 * We are not putting this on the write queue, so
@@ -420,7 +421,7 @@ void dccp_send_sync(struct sock *sk, u64 seq)
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, MAX_DCCP_HEADER);
 	skb->csum = 0;
-	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_SYNC;
+	DCCP_SKB_CB(skb)->dccpd_type = pkt_type;
 	DCCP_SKB_CB(skb)->dccpd_seq = seq;
 
 	skb_set_owner_w(skb, sk);

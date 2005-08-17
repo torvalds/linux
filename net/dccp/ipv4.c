@@ -376,7 +376,7 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 		 *	probing, since DCCP-Sync probes do not risk application
 		 *	data loss.
 		 */
-		dccp_send_sync(sk, dp->dccps_gsr);
+		dccp_send_sync(sk, dp->dccps_gsr, DCCP_PKT_SYNC);
 	} /* else let the usual retransmit timer handle it */
 }
 
@@ -1008,7 +1008,7 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 		return 1;
 
 	if (!pskb_may_pull(skb, sizeof(struct dccp_hdr))) {
-		dccp_pr_debug("pskb_may_pull failed\n");
+		printk(KERN_WARNING "DCCP: pskb_may_pull failed\n");
 		return 1;
 	}
 
@@ -1016,7 +1016,7 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 
 	/* If the packet type is not understood, drop packet and return */
 	if (dh->dccph_type >= DCCP_PKT_INVALID) {
-		dccp_pr_debug("invalid packet type\n");
+		printk(KERN_WARNING "DCCP: invalid packet type\n");
 		return 1;
 	}
 
@@ -1025,12 +1025,13 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 	 * packet, drop packet and return
 	 */
 	if (dh->dccph_doff < dccp_hdr_len(skb) / sizeof(u32)) {
-		dccp_pr_debug("Offset(%u) too small 1\n", dh->dccph_doff);
+		printk(KERN_WARNING "DCCP: Offset(%u) too small 1\n",
+		       dh->dccph_doff);
 		return 1;
 	}
 
 	if (!pskb_may_pull(skb, dh->dccph_doff * sizeof(u32))) {
-		dccp_pr_debug("P.Data Offset(%u) too small 2\n",
+		printk(KERN_WARNING "DCCP: P.Data Offset(%u) too small 2\n",
 			      dh->dccph_doff);
 		return 1;
 	}
@@ -1045,15 +1046,16 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 	    dh->dccph_type != DCCP_PKT_DATA &&
 	    dh->dccph_type != DCCP_PKT_ACK &&
 	    dh->dccph_type != DCCP_PKT_DATAACK) {
-		dccp_pr_debug("P.type (%s) not Data, Ack nor DataAck and "
-			      "P.X == 0\n", dccp_packet_name(dh->dccph_type));
+		printk(KERN_WARNING "DCCP: P.type (%s) not Data, Ack nor "
+				    "DataAck and P.X == 0\n",
+		       dccp_packet_name(dh->dccph_type));
 		return 1;
 	}
 
 	/* If the header checksum is incorrect, drop packet and return */
 	if (dccp_v4_verify_checksum(skb, skb->nh.iph->saddr,
 				    skb->nh.iph->daddr) < 0) {
-		dccp_pr_debug("header checksum is incorrect\n");
+		printk(KERN_WARNING "DCCP: header checksum is incorrect\n");
 		return 1;
 	}
 
