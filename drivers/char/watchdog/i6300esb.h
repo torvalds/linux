@@ -54,6 +54,8 @@
 #define ESB_WDT_FREQ    ( 0x01 << 2 )   /* Decrement frequency               */
 #define ESB_WDT_INTTYPE ( 0x11 << 0 )   /* Interrupt type on timer1 timeout  */
 
+/* Reload register bits */
+#define ESB_WDT_RELOAD ( 0x01 << 8 )    /* prevent timeout                   */
 
 /*
  * Some magic constants

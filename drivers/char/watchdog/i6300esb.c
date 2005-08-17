@@ -109,7 +109,7 @@ static int esb_timer_stop(void)
 	spin_lock(&esb_lock);
 	/* First, reset timers as suggested by the docs */
 	esb_unlock_registers();
-	writew(0x10, ESB_RELOAD_REG);
+	writew(ESB_WDT_RELOAD, ESB_RELOAD_REG);
 	/* Then disable the WDT */
 	pci_write_config_byte(esb_pci, ESB_LOCK_REG, 0x0);
 	pci_read_config_byte(esb_pci, ESB_LOCK_REG, &val);
@@ -123,7 +123,7 @@ static void esb_timer_keepalive(void)
 {
 	spin_lock(&esb_lock);
 	esb_unlock_registers();
-	writew(0x10, ESB_RELOAD_REG);
+	writew(ESB_WDT_RELOAD, ESB_RELOAD_REG);
         /* FIXME: Do we need to flush anything here? */
 	spin_unlock(&esb_lock);
 }
@@ -153,7 +153,7 @@ static int esb_timer_set_heartbeat(int time)
 
         /* Reload */
 	esb_unlock_registers();
-	writew(0x10, ESB_RELOAD_REG);
+	writew(ESB_WDT_RELOAD, ESB_RELOAD_REG);
 
 	/* FIXME: Do we need to flush everything out? */
 
