@@ -140,10 +140,10 @@ enum {
 	PORT_CS_DEV_RST		= (1 << 1), /* device reset */
 	PORT_CS_INIT		= (1 << 2), /* port initialize */
 	PORT_CS_IRQ_WOC		= (1 << 3), /* interrupt write one to clear */
-	PORT_CS_RESUME		= (1 << 4), /* port resume */
-	PORT_CS_32BIT_ACTV	= (1 << 5), /* 32-bit activation */
-	PORT_CS_PM_EN		= (1 << 6), /* port multiplier enable */
-	PORT_CS_RDY		= (1 << 7), /* port ready to accept commands */
+	PORT_CS_RESUME		= (1 << 6), /* port resume */
+	PORT_CS_32BIT_ACTV	= (1 << 10), /* 32-bit activation */
+	PORT_CS_PM_EN		= (1 << 13), /* port multiplier enable */
+	PORT_CS_RDY		= (1 << 31), /* port ready to accept commands */
 
 	/* PORT_IRQ_STAT/ENABLE_SET/CLR */
 	/* bits[11:0] are masked */
