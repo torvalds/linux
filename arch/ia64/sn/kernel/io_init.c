@@ -203,6 +203,7 @@ static void sn_fixup_ionodes(void)
 				continue;
 			}
 
+			spin_lock_init(&sn_flush_device_list->sfdl_flush_lock);
 			hubdev->hdi_flush_nasid_list.widget_p[widget] =
 			    sn_flush_device_list;
 		}
