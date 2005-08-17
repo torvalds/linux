@@ -346,6 +346,10 @@ config 8xx_WDT
 	tristate "MPC8xx Watchdog Timer"
 	depends on WATCHDOG && 8xx
 
+config MV64X60_WDT
+	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"
+	depends on WATCHDOG && MV64X60
+
 config BOOKE_WDT
 	tristate "PowerPC Book-E Watchdog Timer"
 	depends on WATCHDOG && (BOOKE || 4xx)
