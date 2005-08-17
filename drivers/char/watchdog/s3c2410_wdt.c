@@ -27,7 +27,9 @@
  *				Fixed tmr_count / wdt_count confusion
  *				Added configurable debug
  *
- *	11-Jan-2004	BJD	Fixed divide-by-2 in timeout code
+ *	11-Jan-2005	BJD	Fixed divide-by-2 in timeout code
+ *
+ *	25-Jan-2005	DA	Added suspend/resume support
  *
  *	10-Mar-2005	LCVR	Changed S3C2410_VA to S3C24XX_VA
 */
@@ -479,13 +481,55 @@ static int s3c2410wdt_remove(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+
+static unsigned long wtcon_save;
+static unsigned long wtdat_save;
+
+static int s3c2410wdt_suspend(struct device *dev, u32 state, u32 level)
+{
+	if (level == SUSPEND_POWER_DOWN) {
+		/* Save watchdog state, and turn it off. */
+		wtcon_save = readl(wdt_base + S3C2410_WTCON);
+		wtdat_save = readl(wdt_base + S3C2410_WTDAT);
+
+		/* Note that WTCNT doesn't need to be saved. */
+		s3c2410wdt_stop();
+	}
+
+	return 0;
+}
+
+static int s3c2410wdt_resume(struct device *dev, u32 level)
+{
+	if (level == RESUME_POWER_ON) {
+		/* Restore watchdog state. */
+
+		writel(wtdat_save, wdt_base + S3C2410_WTDAT);
+		writel(wtdat_save, wdt_base + S3C2410_WTCNT); /* Reset count */
+		writel(wtcon_save, wdt_base + S3C2410_WTCON);
+
+		printk(KERN_INFO PFX "watchdog %sabled\n",
+		       (wtcon_save & S3C2410_WTCON_ENABLE) ? "en" : "dis");
+	}
+
+	return 0;
+}
+
+#else
+#define s3c2410wdt_suspend NULL
+#define s3c2410wdt_resume  NULL
+#endif /* CONFIG_PM */
+
+
 static struct device_driver s3c2410wdt_driver = {
 	.name		= "s3c2410-wdt",
 	.bus		= &platform_bus_type,
 	.probe		= s3c2410wdt_probe,
 	.remove		= s3c2410wdt_remove,
+	.suspend	= s3c2410wdt_suspend,
+	.resume		= s3c2410wdt_resume,
 };
-
 
 
 static char banner[] __initdata = KERN_INFO "S3C2410 Watchdog Timer, (c) 2004 Simtec Electronics\n";
@@ -505,7 +549,8 @@ static void __exit watchdog_exit(void)
 module_init(watchdog_init);
 module_exit(watchdog_exit);
 
-MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
+MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>, "
+	      "Dimitry Andric <dimitry.andric@tomtom.com>");
 MODULE_DESCRIPTION("S3C2410 Watchdog Device Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
