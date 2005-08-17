@@ -107,14 +107,14 @@ enum {
 
 	PORT_PM			= 0x0f80, /* 8 bytes PM * 16 (128 bytes) */
 		/* 32 bit regs */
-	PORT_CTRL_STAT		= 0x1000, /* write:ctrl, read:stat */
-	PORT_CTRL_CLR		= 0x1004,
-	PORT_IRQ_STAT		= 0x1008,
-	PORT_IRQ_ENABLE_SET	= 0x1010,
-	PORT_IRQ_ENABLE_CLR	= 0x1014,
+	PORT_CTRL_STAT		= 0x1000, /* write: ctrl-set, read: stat */
+	PORT_CTRL_CLR		= 0x1004, /* write: ctrl-clear */
+	PORT_IRQ_STAT		= 0x1008, /* high: status, low: interrupt */
+	PORT_IRQ_ENABLE_SET	= 0x1010, /* write: enable-set */
+	PORT_IRQ_ENABLE_CLR	= 0x1014, /* write: enable-clear */
 	PORT_ACTIVATE_UPPER_ADDR= 0x101c,
-	PORT_EXEC_FIFO		= 0x1020,
-	PORT_CMD_ERR		= 0x1024,
+	PORT_EXEC_FIFO		= 0x1020, /* command execution fifo */
+	PORT_CMD_ERR		= 0x1024, /* command error number */
 	PORT_FIS_CFG		= 0x1028,
 	PORT_FIFO_THRES		= 0x102c,
 		/* 16 bit regs */
@@ -187,7 +187,7 @@ enum {
 	PORT_CERR_XFR_TGTABRT	= 33, /* PSD ecode 01 - target abort */
 	PORT_CERR_XFR_MSGABRT	= 34, /* PSD ecode 10 - master abort */
 	PORT_CERR_XFR_PCIPERR	= 35, /* PSD ecode 11 - PCI prity err during transfer */
-	PORT_CERR_SENDSERVICE	= 36, /* FIS received whiel sending service */
+	PORT_CERR_SENDSERVICE	= 36, /* FIS received while sending service */
 
 	/*
 	 * Other constants
