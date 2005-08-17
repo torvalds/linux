@@ -1,5 +1,7 @@
 /*
  * The USB Monitor, inspired by Dave Harding's USBMon.
+ *
+ * Copyright (C) 2005 Pete Zaitcev (zaitcev@redhat.com)
  */
 
 #ifndef __USB_MON_H

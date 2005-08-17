@@ -334,7 +334,7 @@ static void __cpuinit tsc_sync_wait(void)
 {
 	if (notscsync || !cpu_has_tsc)
 		return;
-	sync_tsc(boot_cpu_id);
+	sync_tsc(0);
 }
 
 static __init int notscsync_setup(char *s)

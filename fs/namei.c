@@ -2216,7 +2216,8 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		error = vfs_rename_other(old_dir,old_dentry,new_dir,new_dentry);
 	if (!error) {
 		const char *new_name = old_dentry->d_name.name;
-		fsnotify_move(old_dir, new_dir, old_name, new_name, is_dir, new_dentry->d_inode);
+		fsnotify_move(old_dir, new_dir, old_name, new_name, is_dir,
+			      new_dentry->d_inode, old_dentry->d_inode);
 	}
 	fsnotify_oldname_free(old_name);
 

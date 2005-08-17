@@ -255,7 +255,7 @@ struct sk_buff {
 				nohdr:1;
 				/* 3 bits spare */
 	__u8			pkt_type;
-	__u16			protocol;
+	__be16			protocol;
 
 	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_NETFILTER
