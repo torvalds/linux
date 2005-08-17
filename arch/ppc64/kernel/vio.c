@@ -171,14 +171,8 @@ static ssize_t viodev_show_name(struct device *dev,
 }
 DEVICE_ATTR(name, S_IRUSR | S_IRGRP | S_IROTH, viodev_show_name, NULL);
 
-struct vio_dev * __devinit vio_register_device_common(
-		struct vio_dev *viodev, char *name, char *type,
-		uint32_t unit_address, struct iommu_table *iommu_table)
+struct vio_dev * __devinit vio_register_device(struct vio_dev *viodev)
 {
-	viodev->name = name;
-	viodev->type = type;
-	viodev->unit_address = unit_address;
-	viodev->iommu_table = iommu_table;
 	/* init generic 'struct device' fields: */
 	viodev->dev.parent = &vio_bus_device.dev;
 	viodev->dev.bus = &vio_bus_type;

@@ -19,6 +19,7 @@
 #include <linux/kobject.h>
 #include <asm/iommu.h>
 #include <asm/dma.h>
+#include <asm/prom.h>
 #include <asm/vio.h>
 #include <asm/hvcall.h>
 
@@ -181,11 +182,13 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 	}
 
 	snprintf(viodev->dev.bus_id, BUS_ID_SIZE, "%x", *unit_address);
+	viodev->name = of_node->name;
+	viodev->type = of_node->type;
+	viodev->unit_address = *unit_address;
+	viodev->iommu_table = vio_build_iommu_table(viodev);
 
 	/* register with generic device framework */
-	if (vio_register_device_common(viodev, of_node->name, of_node->type,
-				*unit_address, vio_build_iommu_table(viodev))
-			== NULL) {
+	if (vio_register_device(viodev) == NULL) {
 		/* XXX free TCE table */
 		kfree(viodev);
 		return NULL;
