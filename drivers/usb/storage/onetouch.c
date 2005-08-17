@@ -5,7 +5,7 @@
  *	Copyright (c) 2005 Nick Sillik <n.sillik@temple.edu>
  *
  * Initial work by:
- * 	Copyright (c) 2003 Erik Thyrén <erth7411@student.uu.se>
+ * 	Copyright (c) 2003 Erik Thyren <erth7411@student.uu.se>
  *
  * Based on usbmouse.c (Vojtech Pavlik) and xpad.c (Marko Friedemann)
  *
@@ -35,6 +35,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/usb_ch9.h>
+#include <linux/usb_input.h>
 #include "usb.h"
 #include "onetouch.h"
 #include "debug.h"
@@ -116,10 +118,14 @@ int onetouch_connect_input(struct us_data *ss)
 
 	interface = ss->pusb_intf->cur_altsetting;
 
-	endpoint = &interface->endpoint[2].desc;
-	if(!(endpoint->bEndpointAddress & 0x80))
+	if (interface->desc.bNumEndpoints != 3)
 		return -ENODEV;
-	if((endpoint->bmAttributes & 3) != 3)
+
+	endpoint = &interface->endpoint[2].desc;
+	if(!(endpoint->bEndpointAddress & USB_DIR_IN))
+		return -ENODEV;
+	if((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+			!= USB_ENDPOINT_XFER_INT)
 		return -ENODEV;
 
 	pipe = usb_rcvintpipe(udev, endpoint->bEndpointAddress);
@@ -128,7 +134,8 @@ int onetouch_connect_input(struct us_data *ss)
 	if (!(onetouch = kcalloc(1, sizeof(struct usb_onetouch), GFP_KERNEL)))
 		return -ENOMEM;
 
-	onetouch->data = usb_buffer_alloc(udev, ONETOUCH_PKT_LEN, SLAB_ATOMIC, &onetouch->data_dma);
+	onetouch->data = usb_buffer_alloc(udev, ONETOUCH_PKT_LEN,
+					  SLAB_ATOMIC, &onetouch->data_dma);
 	if (!onetouch->data){
 		kfree(onetouch);
 		return -ENOMEM;
@@ -137,7 +144,8 @@ int onetouch_connect_input(struct us_data *ss)
 	onetouch->irq = usb_alloc_urb(0, GFP_KERNEL);
 	if (!onetouch->irq){
 		kfree(onetouch);
-		usb_buffer_free(udev, ONETOUCH_PKT_LEN, onetouch->data, onetouch->data_dma);
+		usb_buffer_free(udev, ONETOUCH_PKT_LEN,
+				onetouch->data, onetouch->data_dma);
 		return -ENODEV;
 	}
 
@@ -152,16 +160,13 @@ int onetouch_connect_input(struct us_data *ss)
 	onetouch->dev.open = usb_onetouch_open;
 	onetouch->dev.close = usb_onetouch_close;
 
-	usb_make_path(udev, path, 64);
+	usb_make_path(udev, path, sizeof(path));
 	sprintf(onetouch->phys, "%s/input0", path);
 
 	onetouch->dev.name = onetouch->name;
 	onetouch->dev.phys = onetouch->phys;
 
-	onetouch->dev.id.bustype = BUS_USB;
-	onetouch->dev.id.vendor = le16_to_cpu(udev->descriptor.idVendor);
-	onetouch->dev.id.product = le16_to_cpu(udev->descriptor.idProduct);
-	onetouch->dev.id.version = le16_to_cpu(udev->descriptor.bcdDevice);
+	usb_to_input_id(udev, &onetouch->dev.id);
 
 	onetouch->dev.dev = &udev->dev;
 
@@ -199,7 +204,7 @@ void onetouch_release_input(void *onetouch_)
 		usb_free_urb(onetouch->irq);
 		usb_buffer_free(onetouch->udev, ONETOUCH_PKT_LEN,
 				onetouch->data, onetouch->data_dma);
-		printk(KERN_INFO "Maxtor Onetouch %04x:%04x Deregistered\n",
-			onetouch->dev.id.vendor, onetouch->dev.id.product);
+		printk(KERN_INFO "usb-input: deregistering %s\n",
+				onetouch->dev.name);
 	}
 }
