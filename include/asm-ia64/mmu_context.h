@@ -19,6 +19,7 @@
 
 #define ia64_rid(ctx,addr)	(((ctx) << 3) | (addr >> 61))
 
+# include <asm/page.h>
 # ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
@@ -110,7 +111,7 @@ reload_context (mm_context_t context)
 	unsigned long rid_incr = 0;
 	unsigned long rr0, rr1, rr2, rr3, rr4, old_rr4;
 
-	old_rr4 = ia64_get_rr(0x8000000000000000UL);
+	old_rr4 = ia64_get_rr(RGN_BASE(RGN_HPAGE));
 	rid = context << 3;	/* make space for encoding the region number */
 	rid_incr = 1 << 8;
 
@@ -122,6 +123,10 @@ reload_context (mm_context_t context)
 	rr4 = rr0 + 4*rid_incr;
 #ifdef  CONFIG_HUGETLB_PAGE
 	rr4 = (rr4 & (~(0xfcUL))) | (old_rr4 & 0xfc);
+
+#  if RGN_HPAGE != 4
+#    error "reload_context assumes RGN_HPAGE is 4"
+#  endif
 #endif
 
 	ia64_set_rr(0x0000000000000000UL, rr0);
