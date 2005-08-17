@@ -234,6 +234,16 @@ config WAFER_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called wafer5823wdt.
 
+config I6300ESB_WDT
+	tristate "Intel 6300ESB Timer/Watchdog"
+	depends on WATCHDOG && X86 && PCI
+	---help---
+	  Hardware driver for the watchdog timer built into the Intel
+	  6300ESB controller hub.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called i6300esb.
+
 config I8XX_TCO
 	tristate "Intel i8xx TCO Timer/Watchdog"
 	depends on WATCHDOG && (X86 || IA64) && PCI
