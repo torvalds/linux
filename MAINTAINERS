@@ -784,7 +784,7 @@ DVB SUBSYSTEM AND DRIVERS
 P:	LinuxTV.org Project
 M: 	linux-dvb-maintainer@linuxtv.org
 L: 	linux-dvb@linuxtv.org (subscription required)
-W:	http://linuxtv.org/developer/dvb.xml
+W:	http://linuxtv.org/
 S:	Supported
 
 EATA-DMA SCSI DRIVER
@@ -1416,9 +1416,16 @@ W:	http://www.penguinppc.org/
 L:	linuxppc-embedded@ozlabs.org
 S:	Maintained
 
-LINUX FOR POWERPC EMBEDDED PPC8XX AND BOOT CODE
+LINUX FOR POWERPC BOOT CODE
 P:	Tom Rini
 M:	trini@kernel.crashing.org
+W:	http://www.penguinppc.org/
+L:	linuxppc-embedded@ozlabs.org
+S:	Maintained
+
+LINUX FOR POWERPC EMBEDDED PPC8XX
+P:	Marcelo Tosatti
+M:	marcelo.tosatti@cyclades.com
 W:	http://www.penguinppc.org/
 L:	linuxppc-embedded@ozlabs.org
 S:	Maintained
@@ -1513,6 +1520,12 @@ MAESTRO PCI SOUND DRIVERS
 P:	Zach Brown
 M:	zab@zabbo.net
 S:	Odd Fixes
+
+MAN-PAGES: MANUAL PAGES FOR LINUX -- Sections 2, 3, 4, 5, and 7
+P: Michael Kerrisk
+M: mtk-manpages@gmx.net
+W: ftp://ftp.kernel.org/pub/linux/docs/manpages
+S: Maintained
 
 MARVELL MV64340 ETHERNET DRIVER
 P:	Manish Lachwani
@@ -1645,7 +1658,7 @@ M:	kuznet@ms2.inr.ac.ru
 P:	Pekka Savola (ipv6)
 M:	pekkas@netcore.fi
 P:	James Morris
-M:	jmorris@redhat.com
+M:	jmorris@namei.org
 P:	Hideaki YOSHIFUJI
 M:	yoshfuji@linux-ipv6.org
 P:	Patrick McHardy
@@ -1810,6 +1823,12 @@ S:	Supported
 PCI HOTPLUG COMPAQ DRIVER
 P:	Greg Kroah-Hartman
 M:	greg@kroah.com
+S:	Maintained
+
+PCIE HOTPLUG DRIVER
+P:	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
+L:	pcihpd-discuss@lists.sourceforge.net
 S:	Maintained
 
 PCMCIA SUBSYSTEM
@@ -2034,7 +2053,7 @@ SELINUX SECURITY MODULE
 P:	Stephen Smalley
 M:	sds@epoch.ncsc.mil
 P:	James Morris
-M:	jmorris@redhat.com
+M:	jmorris@namei.org
 L:	linux-kernel@vger.kernel.org (kernel issues)
 L: 	selinux@tycho.nsa.gov (general discussion)
 W:	http://www.nsa.gov/selinux
@@ -2186,6 +2205,12 @@ P:	Marc Singer
 M:	elf@buici.com
 W:	http://projects.buici.com/arm
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+S:	Maintained
+
+SHPC HOTPLUG DRIVER
+P:	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
+L:	pcihpd-discuss@lists.sourceforge.net
 S:	Maintained
 
 SPARC (sparc32):

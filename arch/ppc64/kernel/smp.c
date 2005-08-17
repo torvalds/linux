@@ -65,8 +65,6 @@ struct smp_ops_t *smp_ops;
 
 static volatile unsigned int cpu_callin_map[NR_CPUS];
 
-extern unsigned char stab_array[];
-
 void smp_call_function_interrupt(void);
 
 int smt_enabled_at_boot = 1;
@@ -491,19 +489,6 @@ int __devinit __cpu_up(unsigned int cpu)
 		return -EINVAL;
 
 	paca[cpu].default_decr = tb_ticks_per_jiffy;
-
-	if (!cpu_has_feature(CPU_FTR_SLB)) {
-		void *tmp;
-
-		/* maximum of 48 CPUs on machines with a segment table */
-		if (cpu >= 48)
-			BUG();
-
-		tmp = &stab_array[PAGE_SIZE * cpu];
-		memset(tmp, 0, PAGE_SIZE); 
-		paca[cpu].stab_addr = (unsigned long)tmp;
-		paca[cpu].stab_real = virt_to_abs(tmp);
-	}
 
 	/* Make sure callin-map entry is 0 (can be leftover a CPU
 	 * hotplug

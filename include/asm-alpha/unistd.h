@@ -377,8 +377,13 @@
 #define __NR_add_key			439
 #define __NR_request_key		440
 #define __NR_keyctl			441
+#define __NR_ioprio_set			442
+#define __NR_ioprio_get			443
+#define __NR_inotify_init		444
+#define __NR_inotify_add_watch		445
+#define __NR_inotify_rm_watch		446
 
-#define NR_SYSCALLS			442
+#define NR_SYSCALLS			447
 
 #if defined(__GNUC__)
 

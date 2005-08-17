@@ -299,6 +299,11 @@ static void class_dev_release(struct kobject * kobj)
 
 	pr_debug("device class '%s': release.\n", cd->class_id);
 
+	if (cd->devt_attr) {
+		kfree(cd->devt_attr);
+		cd->devt_attr = NULL;
+	}
+
 	if (cls->release)
 		cls->release(cd);
 	else {
@@ -591,11 +596,8 @@ void class_device_del(struct class_device *class_dev)
 
 	if (class_dev->dev)
 		sysfs_remove_link(&class_dev->kobj, "device");
-	if (class_dev->devt_attr) {
+	if (class_dev->devt_attr)
 		class_device_remove_file(class_dev, class_dev->devt_attr);
-		kfree(class_dev->devt_attr);
-		class_dev->devt_attr = NULL;
-	}
 	class_device_remove_attrs(class_dev);
 
 	kobject_hotplug(&class_dev->kobj, KOBJ_REMOVE);

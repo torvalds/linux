@@ -212,9 +212,4 @@ int snd_pmac_boolean_mono_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *ui
 
 int snd_pmac_add_automute(pmac_t *chip);
 
-#define big_mdelay(msec) do {\
-	set_current_state(TASK_UNINTERRUPTIBLE);\
-	schedule_timeout(((msec) * HZ + 999) / 1000);\
-} while (0)
-
 #endif /* __PMAC_H */

@@ -165,7 +165,7 @@ typedef union {
 #  undef  CONFIG_FT_FDC_DMA
 #  define CONFIG_FT_FDC_DMA 2
 # endif
-#elif CONFIG_FT_ALT_FDC == 1  /* CONFIG_FT_MACH2 */
+#elif defined(CONFIG_FT_ALT_FDC)  /* CONFIG_FT_MACH2 */
 # if CONFIG_FT_FDC_BASE == 0
 #  undef  CONFIG_FT_FDC_BASE
 #  define CONFIG_FT_FDC_BASE 0x370

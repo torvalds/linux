@@ -561,7 +561,6 @@ static int metapage_releasepage(struct page *page, int gfp_mask)
 			dump_mem("page", page, sizeof(struct page));
 			dump_stack();
 		}
-		WARN_ON(mp->lsn);
 		if (mp->lsn)
 			remove_from_logsync(mp);
 		remove_metapage(page, mp);
@@ -641,7 +640,7 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 	} else {
 		page = read_cache_page(mapping, page_index,
 			    (filler_t *)mapping->a_ops->readpage, NULL);
-		if (IS_ERR(page)) {
+		if (IS_ERR(page) || !PageUptodate(page)) {
 			jfs_err("read_cache_page failed!");
 			return NULL;
 		}
@@ -783,14 +782,6 @@ void release_metapage(struct metapage * mp)
 	if (test_bit(META_discard, &mp->flag) && !mp->count) {
 		clear_page_dirty(page);
 		ClearPageUptodate(page);
-#ifdef _NOT_YET
-		if (page->mapping) {
-		/* Remove from page cache and page cache reference */
-			remove_from_page_cache(page);
-			page_cache_release(page);
-			metapage_releasepage(page, 0);
-		}
-#endif
 	}
 #else
 	/* Try to keep metapages from using up too much memory */

@@ -524,16 +524,16 @@ static struct usb_protocol_ops snd_usbmidi_novation_ops = {
 };
 
 /*
- * Mark of the Unicorn USB MIDI protocol: raw MIDI.
+ * "raw" protocol: used by the MOTU FastLane.
  */
 
-static void snd_usbmidi_motu_input(snd_usb_midi_in_endpoint_t* ep,
-				   uint8_t* buffer, int buffer_length)
+static void snd_usbmidi_raw_input(snd_usb_midi_in_endpoint_t* ep,
+				  uint8_t* buffer, int buffer_length)
 {
 	snd_usbmidi_input_data(ep, 0, buffer, buffer_length);
 }
 
-static void snd_usbmidi_motu_output(snd_usb_midi_out_endpoint_t* ep)
+static void snd_usbmidi_raw_output(snd_usb_midi_out_endpoint_t* ep)
 {
 	int count;
 
@@ -549,9 +549,9 @@ static void snd_usbmidi_motu_output(snd_usb_midi_out_endpoint_t* ep)
 	ep->urb->transfer_buffer_length = count;
 }
 
-static struct usb_protocol_ops snd_usbmidi_motu_ops = {
-	.input = snd_usbmidi_motu_input,
-	.output = snd_usbmidi_motu_output,
+static struct usb_protocol_ops snd_usbmidi_raw_ops = {
+	.input = snd_usbmidi_raw_input,
+	.output = snd_usbmidi_raw_output,
 };
 
 /*
@@ -1505,8 +1505,8 @@ int snd_usb_create_midi_interface(snd_usb_audio_t* chip,
 			umidi->usb_protocol_ops = &snd_usbmidi_novation_ops;
 			err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 			break;
-		case QUIRK_MIDI_MOTU:
-			umidi->usb_protocol_ops = &snd_usbmidi_motu_ops;
+		case QUIRK_MIDI_RAW:
+			umidi->usb_protocol_ops = &snd_usbmidi_raw_ops;
 			err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 			break;
 		case QUIRK_MIDI_EMAGIC:
@@ -1514,6 +1514,9 @@ int snd_usb_create_midi_interface(snd_usb_audio_t* chip,
 			memcpy(&endpoints[0], quirk->data,
 			       sizeof(snd_usb_midi_endpoint_info_t));
 			err = snd_usbmidi_detect_endpoints(umidi, &endpoints[0], 1);
+			break;
+		case QUIRK_MIDI_MIDITECH:
+			err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 			break;
 		default:
 			snd_printd(KERN_ERR "invalid quirk type %d\n", quirk->type);

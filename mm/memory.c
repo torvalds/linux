@@ -776,8 +776,8 @@ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
  * Do a quick page-table lookup for a single page.
  * mm->page_table_lock must be held.
  */
-static struct page *
-__follow_page(struct mm_struct *mm, unsigned long address, int read, int write)
+static struct page *__follow_page(struct mm_struct *mm, unsigned long address,
+			int read, int write, int accessed)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -818,9 +818,11 @@ __follow_page(struct mm_struct *mm, unsigned long address, int read, int write)
 		pfn = pte_pfn(pte);
 		if (pfn_valid(pfn)) {
 			page = pfn_to_page(pfn);
-			if (write && !pte_dirty(pte) && !PageDirty(page))
-				set_page_dirty(page);
-			mark_page_accessed(page);
+			if (accessed) {
+				if (write && !pte_dirty(pte) &&!PageDirty(page))
+					set_page_dirty(page);
+				mark_page_accessed(page);
+			}
 			return page;
 		}
 	}
@@ -829,16 +831,19 @@ out:
 	return NULL;
 }
 
-struct page *
+inline struct page *
 follow_page(struct mm_struct *mm, unsigned long address, int write)
 {
-	return __follow_page(mm, address, /*read*/0, write);
+	return __follow_page(mm, address, 0, write, 1);
 }
 
-int
-check_user_page_readable(struct mm_struct *mm, unsigned long address)
+/*
+ * check_user_page_readable() can be called frm niterrupt context by oprofile,
+ * so we need to avoid taking any non-irq-safe locks
+ */
+int check_user_page_readable(struct mm_struct *mm, unsigned long address)
 {
-	return __follow_page(mm, address, /*read*/1, /*write*/0) != NULL;
+	return __follow_page(mm, address, 1, 0, 0) != NULL;
 }
 EXPORT_SYMBOL(check_user_page_readable);
 
@@ -908,9 +913,13 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			pud = pud_offset(pgd, pg);
 			BUG_ON(pud_none(*pud));
 			pmd = pmd_offset(pud, pg);
-			BUG_ON(pmd_none(*pmd));
+			if (pmd_none(*pmd))
+				return i ? : -EFAULT;
 			pte = pte_offset_map(pmd, pg);
-			BUG_ON(pte_none(*pte));
+			if (pte_none(*pte)) {
+				pte_unmap(pte);
+				return i ? : -EFAULT;
+			}
 			if (pages) {
 				pages[i] = pte_page(*pte);
 				get_page(pages[i]);
@@ -935,11 +944,13 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		}
 		spin_lock(&mm->page_table_lock);
 		do {
+			int write_access = write;
 			struct page *page;
-			int lookup_write = write;
 
 			cond_resched_lock(&mm->page_table_lock);
-			while (!(page = follow_page(mm, start, lookup_write))) {
+			while (!(page = follow_page(mm, start, write_access))) {
+				int ret;
+
 				/*
 				 * Shortcut for anonymous pages. We don't want
 				 * to force the creation of pages tables for
@@ -947,13 +958,23 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				 * nobody touched so far. This is important
 				 * for doing a core dump for these mappings.
 				 */
-				if (!lookup_write &&
-				    untouched_anonymous_page(mm,vma,start)) {
+				if (!write && untouched_anonymous_page(mm,vma,start)) {
 					page = ZERO_PAGE(start);
 					break;
 				}
 				spin_unlock(&mm->page_table_lock);
-				switch (handle_mm_fault(mm,vma,start,write)) {
+				ret = __handle_mm_fault(mm, vma, start, write_access);
+
+				/*
+				 * The VM_FAULT_WRITE bit tells us that do_wp_page has
+				 * broken COW when necessary, even if maybe_mkwrite
+				 * decided not to set pte_write. We can thus safely do
+				 * subsequent page lookups as if they were reads.
+				 */
+				if (ret & VM_FAULT_WRITE)
+					write_access = 0;
+				
+				switch (ret & ~VM_FAULT_WRITE) {
 				case VM_FAULT_MINOR:
 					tsk->min_flt++;
 					break;
@@ -967,14 +988,6 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				default:
 					BUG();
 				}
-				/*
-				 * Now that we have performed a write fault
-				 * and surely no longer have a shared page we
-				 * shouldn't write, we shouldn't ignore an
-				 * unwritable page in the page table if
-				 * we are forcing write access.
-				 */
-				lookup_write = write && !force;
 				spin_lock(&mm->page_table_lock);
 			}
 			if (pages) {
@@ -1224,6 +1237,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct * vma,
 	struct page *old_page, *new_page;
 	unsigned long pfn = pte_pfn(pte);
 	pte_t entry;
+	int ret;
 
 	if (unlikely(!pfn_valid(pfn))) {
 		/*
@@ -1251,7 +1265,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct * vma,
 			lazy_mmu_prot_update(entry);
 			pte_unmap(page_table);
 			spin_unlock(&mm->page_table_lock);
-			return VM_FAULT_MINOR;
+			return VM_FAULT_MINOR|VM_FAULT_WRITE;
 		}
 	}
 	pte_unmap(page_table);
@@ -1278,6 +1292,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct * vma,
 	/*
 	 * Re-check the pte - we dropped the lock
 	 */
+	ret = VM_FAULT_MINOR;
 	spin_lock(&mm->page_table_lock);
 	page_table = pte_offset_map(pmd, address);
 	if (likely(pte_same(*page_table, pte))) {
@@ -1294,12 +1309,13 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct * vma,
 
 		/* Free the old page.. */
 		new_page = old_page;
+		ret |= VM_FAULT_WRITE;
 	}
 	pte_unmap(page_table);
 	page_cache_release(new_page);
 	page_cache_release(old_page);
 	spin_unlock(&mm->page_table_lock);
-	return VM_FAULT_MINOR;
+	return ret;
 
 no_new_page:
 	page_cache_release(old_page);
@@ -1991,7 +2007,6 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 	if (write_access) {
 		if (!pte_write(entry))
 			return do_wp_page(mm, vma, address, pte, pmd, entry);
-
 		entry = pte_mkdirty(entry);
 	}
 	entry = pte_mkyoung(entry);
@@ -2006,7 +2021,7 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 /*
  * By the time we get here, we already hold the mm semaphore
  */
-int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct * vma,
+int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct * vma,
 		unsigned long address, int write_access)
 {
 	pgd_t *pgd;

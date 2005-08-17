@@ -83,6 +83,9 @@ EXPORT_SYMBOL_PROTO(statfs64);
 
 EXPORT_SYMBOL_PROTO(getuid);
 
+EXPORT_SYMBOL_PROTO(fsync);
+EXPORT_SYMBOL_PROTO(fdatasync);
+
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
  * Emacs will notice this stuff at the end of the file and automatically

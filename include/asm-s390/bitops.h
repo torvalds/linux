@@ -527,13 +527,64 @@ __constant_test_bit(unsigned long nr, const volatile unsigned long *addr) {
  __constant_test_bit((nr),(addr)) : \
  __test_bit((nr),(addr)) )
 
-#ifndef __s390x__
+/*
+ * ffz = Find First Zero in word. Undefined if no zero exists,
+ * so code should check against ~0UL first..
+ */
+static inline unsigned long ffz(unsigned long word)
+{
+        unsigned long bit = 0;
+
+#ifdef __s390x__
+	if (likely((word & 0xffffffff) == 0xffffffff)) {
+		word >>= 32;
+		bit += 32;
+	}
+#endif
+	if (likely((word & 0xffff) == 0xffff)) {
+		word >>= 16;
+		bit += 16;
+	}
+	if (likely((word & 0xff) == 0xff)) {
+		word >>= 8;
+		bit += 8;
+	}
+	return bit + _zb_findmap[word & 0xff];
+}
+
+/*
+ * __ffs = find first bit in word. Undefined if no bit exists,
+ * so code should check against 0UL first..
+ */
+static inline unsigned long __ffs (unsigned long word)
+{
+	unsigned long bit = 0;
+
+#ifdef __s390x__
+	if (likely((word & 0xffffffff) == 0)) {
+		word >>= 32;
+		bit += 32;
+	}
+#endif
+	if (likely((word & 0xffff) == 0)) {
+		word >>= 16;
+		bit += 16;
+	}
+	if (likely((word & 0xff) == 0)) {
+		word >>= 8;
+		bit += 8;
+	}
+	return bit + _sb_findmap[word & 0xff];
+}
 
 /*
  * Find-bit routines..
  */
+
+#ifndef __s390x__
+
 static inline int
-find_first_zero_bit(const unsigned long * addr, unsigned int size)
+find_first_zero_bit(const unsigned long * addr, unsigned long size)
 {
 	typedef struct { long _[__BITOPS_WORDS(size)]; } addrtype;
 	unsigned long cmp, count;
@@ -548,7 +599,7 @@ find_first_zero_bit(const unsigned long * addr, unsigned int size)
                 "   srl  %2,5\n"
                 "0: c    %1,0(%0,%4)\n"
                 "   jne  1f\n"
-                "   ahi  %0,4\n"
+                "   la   %0,4(%0)\n"
                 "   brct %2,0b\n"
                 "   lr   %0,%3\n"
                 "   j    4f\n"
@@ -574,7 +625,7 @@ find_first_zero_bit(const unsigned long * addr, unsigned int size)
 }
 
 static inline int
-find_first_bit(const unsigned long * addr, unsigned int size)
+find_first_bit(const unsigned long * addr, unsigned long size)
 {
 	typedef struct { long _[__BITOPS_WORDS(size)]; } addrtype;
 	unsigned long cmp, count;
@@ -589,7 +640,7 @@ find_first_bit(const unsigned long * addr, unsigned int size)
                 "   srl  %2,5\n"
                 "0: c    %1,0(%0,%4)\n"
                 "   jne  1f\n"
-                "   ahi  %0,4\n"
+                "   la   %0,4(%0)\n"
                 "   brct %2,0b\n"
                 "   lr   %0,%3\n"
                 "   j    4f\n"
@@ -614,89 +665,8 @@ find_first_bit(const unsigned long * addr, unsigned int size)
         return (res < size) ? res : size;
 }
 
-static inline int
-find_next_zero_bit (const unsigned long * addr, int size, int offset)
-{
-        unsigned long * p = ((unsigned long *) addr) + (offset >> 5);
-        unsigned long bitvec, reg;
-        int set, bit = offset & 31, res;
-
-        if (bit) {
-                /*
-                 * Look for zero in first word
-                 */
-                bitvec = (*p) >> bit;
-                __asm__("   slr  %0,%0\n"
-                        "   lhi  %2,0xff\n"
-                        "   tml  %1,0xffff\n"
-                        "   jno  0f\n"
-                        "   ahi  %0,16\n"
-                        "   srl  %1,16\n"
-                        "0: tml  %1,0x00ff\n"
-                        "   jno  1f\n"
-                        "   ahi  %0,8\n"
-                        "   srl  %1,8\n"
-                        "1: nr   %1,%2\n"
-                        "   ic   %1,0(%1,%3)\n"
-                        "   alr  %0,%1"
-                        : "=&d" (set), "+a" (bitvec), "=&d" (reg)
-                        : "a" (&_zb_findmap) : "cc" );
-                if (set < (32 - bit))
-                        return set + offset;
-                offset += 32 - bit;
-                p++;
-        }
-        /*
-         * No zero yet, search remaining full words for a zero
-         */
-        res = find_first_zero_bit (p, size - 32 * (p - (unsigned long *) addr));
-        return (offset + res);
-}
-
-static inline int
-find_next_bit (const unsigned long * addr, int size, int offset)
-{
-        unsigned long * p = ((unsigned long *) addr) + (offset >> 5);
-        unsigned long bitvec, reg;
-        int set, bit = offset & 31, res;
-
-        if (bit) {
-                /*
-                 * Look for set bit in first word
-                 */
-                bitvec = (*p) >> bit;
-                __asm__("   slr  %0,%0\n"
-                        "   lhi  %2,0xff\n"
-                        "   tml  %1,0xffff\n"
-                        "   jnz  0f\n"
-                        "   ahi  %0,16\n"
-                        "   srl  %1,16\n"
-                        "0: tml  %1,0x00ff\n"
-                        "   jnz  1f\n"
-                        "   ahi  %0,8\n"
-                        "   srl  %1,8\n"
-                        "1: nr   %1,%2\n"
-                        "   ic   %1,0(%1,%3)\n"
-                        "   alr  %0,%1"
-                        : "=&d" (set), "+a" (bitvec), "=&d" (reg)
-                        : "a" (&_sb_findmap) : "cc" );
-                if (set < (32 - bit))
-                        return set + offset;
-                offset += 32 - bit;
-                p++;
-        }
-        /*
-         * No set bit yet, search remaining full words for a bit
-         */
-        res = find_first_bit (p, size - 32 * (p - (unsigned long *) addr));
-        return (offset + res);
-}
-
 #else /* __s390x__ */
 
-/*
- * Find-bit routines..
- */
 static inline unsigned long
 find_first_zero_bit(const unsigned long * addr, unsigned long size)
 {
@@ -712,7 +682,7 @@ find_first_zero_bit(const unsigned long * addr, unsigned long size)
                 "   srlg  %2,%2,6\n"
                 "0: cg    %1,0(%0,%4)\n"
                 "   jne   1f\n"
-                "   aghi  %0,8\n"
+                "   la    %0,8(%0)\n"
                 "   brct  %2,0b\n"
                 "   lgr   %0,%3\n"
                 "   j     5f\n"
@@ -785,143 +755,66 @@ find_first_bit(const unsigned long * addr, unsigned long size)
         return (res < size) ? res : size;
 }
 
-static inline unsigned long
-find_next_zero_bit (const unsigned long * addr, unsigned long size, unsigned long offset)
-{
-        unsigned long * p = ((unsigned long *) addr) + (offset >> 6);
-        unsigned long bitvec, reg;
-        unsigned long set, bit = offset & 63, res;
-
-        if (bit) {
-                /*
-                 * Look for zero in first word
-                 */
-                bitvec = (*p) >> bit;
-                __asm__("   lhi  %2,-1\n"
-                        "   slgr %0,%0\n"
-                        "   clr  %1,%2\n"
-                        "   jne  0f\n"
-                        "   aghi %0,32\n"
-                        "   srlg %1,%1,32\n"
-			"0: lghi %2,0xff\n"
-                        "   tmll %1,0xffff\n"
-                        "   jno  1f\n"
-                        "   aghi %0,16\n"
-                        "   srlg %1,%1,16\n"
-                        "1: tmll %1,0x00ff\n"
-                        "   jno  2f\n"
-                        "   aghi %0,8\n"
-                        "   srlg %1,%1,8\n"
-                        "2: ngr  %1,%2\n"
-                        "   ic   %1,0(%1,%3)\n"
-                        "   algr %0,%1"
-                        : "=&d" (set), "+a" (bitvec), "=&d" (reg)
-                        : "a" (&_zb_findmap) : "cc" );
-                if (set < (64 - bit))
-                        return set + offset;
-                offset += 64 - bit;
-                p++;
-        }
-        /*
-         * No zero yet, search remaining full words for a zero
-         */
-        res = find_first_zero_bit (p, size - 64 * (p - (unsigned long *) addr));
-        return (offset + res);
-}
-
-static inline unsigned long
-find_next_bit (const unsigned long * addr, unsigned long size, unsigned long offset)
-{
-        unsigned long * p = ((unsigned long *) addr) + (offset >> 6);
-        unsigned long bitvec, reg;
-        unsigned long set, bit = offset & 63, res;
-
-        if (bit) {
-                /*
-                 * Look for zero in first word
-                 */
-                bitvec = (*p) >> bit;
-                __asm__("   slgr %0,%0\n"
-                        "   ltr  %1,%1\n"
-                        "   jnz  0f\n"
-                        "   aghi %0,32\n"
-                        "   srlg %1,%1,32\n"
-			"0: lghi %2,0xff\n"
-                        "   tmll %1,0xffff\n"
-                        "   jnz  1f\n"
-                        "   aghi %0,16\n"
-                        "   srlg %1,%1,16\n"
-                        "1: tmll %1,0x00ff\n"
-                        "   jnz  2f\n"
-                        "   aghi %0,8\n"
-                        "   srlg %1,%1,8\n"
-                        "2: ngr  %1,%2\n"
-                        "   ic   %1,0(%1,%3)\n"
-                        "   algr %0,%1"
-                        : "=&d" (set), "+a" (bitvec), "=&d" (reg)
-                        : "a" (&_sb_findmap) : "cc" );
-                if (set < (64 - bit))
-                        return set + offset;
-                offset += 64 - bit;
-                p++;
-        }
-        /*
-         * No set bit yet, search remaining full words for a bit
-         */
-        res = find_first_bit (p, size - 64 * (p - (unsigned long *) addr));
-        return (offset + res);
-}
-
 #endif /* __s390x__ */
 
-/*
- * ffz = Find First Zero in word. Undefined if no zero exists,
- * so code should check against ~0UL first..
- */
-static inline unsigned long ffz(unsigned long word)
+static inline int
+find_next_zero_bit (const unsigned long * addr, unsigned long size,
+		    unsigned long offset)
 {
-        unsigned long bit = 0;
+        const unsigned long *p;
+	unsigned long bit, set;
 
-#ifdef __s390x__
-	if (likely((word & 0xffffffff) == 0xffffffff)) {
-		word >>= 32;
-		bit += 32;
+	if (offset >= size)
+		return size;
+	bit = offset & (__BITOPS_WORDSIZE - 1);
+	offset -= bit;
+	size -= offset;
+	p = addr + offset / __BITOPS_WORDSIZE;
+	if (bit) {
+		/*
+		 * s390 version of ffz returns __BITOPS_WORDSIZE
+		 * if no zero bit is present in the word.
+		 */
+		set = ffz(*p >> bit) + bit;
+		if (set >= size)
+			return size + offset;
+		if (set < __BITOPS_WORDSIZE)
+			return set + offset;
+		offset += __BITOPS_WORDSIZE;
+		size -= __BITOPS_WORDSIZE;
+		p++;
 	}
-#endif
-	if (likely((word & 0xffff) == 0xffff)) {
-		word >>= 16;
-		bit += 16;
-	}
-	if (likely((word & 0xff) == 0xff)) {
-		word >>= 8;
-		bit += 8;
-	}
-	return bit + _zb_findmap[word & 0xff];
+	return offset + find_first_zero_bit(p, size);
 }
 
-/*
- * __ffs = find first bit in word. Undefined if no bit exists,
- * so code should check against 0UL first..
- */
-static inline unsigned long __ffs (unsigned long word)
+static inline int
+find_next_bit (const unsigned long * addr, unsigned long size,
+	       unsigned long offset)
 {
-	unsigned long bit = 0;
+        const unsigned long *p;
+	unsigned long bit, set;
 
-#ifdef __s390x__
-	if (likely((word & 0xffffffff) == 0)) {
-		word >>= 32;
-		bit += 32;
+	if (offset >= size)
+		return size;
+	bit = offset & (__BITOPS_WORDSIZE - 1);
+	offset -= bit;
+	size -= offset;
+	p = addr + offset / __BITOPS_WORDSIZE;
+	if (bit) {
+		/*
+		 * s390 version of __ffs returns __BITOPS_WORDSIZE
+		 * if no one bit is present in the word.
+		 */
+		set = __ffs(*p & (~0UL << bit));
+		if (set >= size)
+			return size + offset;
+		if (set < __BITOPS_WORDSIZE)
+			return set + offset;
+		offset += __BITOPS_WORDSIZE;
+		size -= __BITOPS_WORDSIZE;
+		p++;
 	}
-#endif
-	if (likely((word & 0xffff) == 0)) {
-		word >>= 16;
-		bit += 16;
-	}
-	if (likely((word & 0xff) == 0)) {
-		word >>= 8;
-		bit += 8;
-	}
-	return bit + _sb_findmap[word & 0xff];
+	return offset + find_first_bit(p, size);
 }
 
 /*
@@ -1031,49 +924,6 @@ ext2_find_first_zero_bit(void *vaddr, unsigned int size)
         return (res < size) ? res : size;
 }
 
-static inline int 
-ext2_find_next_zero_bit(void *vaddr, unsigned int size, unsigned offset)
-{
-        unsigned long *addr = vaddr;
-        unsigned long *p = addr + (offset >> 5);
-        unsigned long word, reg;
-        unsigned int bit = offset & 31UL, res;
-
-        if (offset >= size)
-                return size;
-
-        if (bit) {
-                __asm__("   ic   %0,0(%1)\n"
-                        "   icm  %0,2,1(%1)\n"
-                        "   icm  %0,4,2(%1)\n"
-                        "   icm  %0,8,3(%1)"
-                        : "=&a" (word) : "a" (p) : "cc" );
-		word >>= bit;
-                res = bit;
-                /* Look for zero in first longword */
-                __asm__("   lhi  %2,0xff\n"
-                        "   tml  %1,0xffff\n"
-                	"   jno  0f\n"
-                	"   ahi  %0,16\n"
-                	"   srl  %1,16\n"
-                	"0: tml  %1,0x00ff\n"
-                	"   jno  1f\n"
-                	"   ahi  %0,8\n"
-                	"   srl  %1,8\n"
-                	"1: nr   %1,%2\n"
-                	"   ic   %1,0(%1,%3)\n"
-                	"   alr  %0,%1"
-                	: "+&d" (res), "+&a" (word), "=&d" (reg)
-                  	: "a" (&_zb_findmap) : "cc" );
-                if (res < 32)
-			return (p - addr)*32 + res;
-                p++;
-        }
-        /* No zero yet, search remaining full bytes for a zero */
-        res = ext2_find_first_zero_bit (p, size - 32 * (p - addr));
-        return (p - addr) * 32 + res;
-}
-
 #else /* __s390x__ */
 
 static inline unsigned long
@@ -1120,55 +970,45 @@ ext2_find_first_zero_bit(void *vaddr, unsigned long size)
         return (res < size) ? res : size;
 }
 
-static inline unsigned long
+#endif /* __s390x__ */
+
+static inline int
 ext2_find_next_zero_bit(void *vaddr, unsigned long size, unsigned long offset)
 {
-        unsigned long *addr = vaddr;
-        unsigned long *p = addr + (offset >> 6);
-        unsigned long word, reg;
-        unsigned long bit = offset & 63UL, res;
+        unsigned long *addr = vaddr, *p;
+	unsigned long word, bit, set;
 
         if (offset >= size)
                 return size;
-
+	bit = offset & (__BITOPS_WORDSIZE - 1);
+	offset -= bit;
+	size -= offset;
+	p = addr + offset / __BITOPS_WORDSIZE;
         if (bit) {
-                __asm__("   lrvg %0,%1" /* load reversed, neat instruction */
-                        : "=a" (word) : "m" (*p) );
-                word >>= bit;
-                res = bit;
-                /* Look for zero in first 8 byte word */
-                __asm__("   lghi %2,0xff\n"
-			"   tmll %1,0xffff\n"
-			"   jno  2f\n"
-			"   ahi  %0,16\n"
-			"   srlg %1,%1,16\n"
-                	"0: tmll %1,0xffff\n"
-                        "   jno  2f\n"
-                        "   ahi  %0,16\n"
-                        "   srlg %1,%1,16\n"
-                        "1: tmll %1,0xffff\n"
-                        "   jno  2f\n"
-                        "   ahi  %0,16\n"
-                        "   srl  %1,16\n"
-                        "2: tmll %1,0x00ff\n"
-                	"   jno  3f\n"
-                	"   ahi  %0,8\n"
-                	"   srl  %1,8\n"
-                	"3: ngr  %1,%2\n"
-                	"   ic   %1,0(%1,%3)\n"
-                	"   alr  %0,%1"
-                	: "+&d" (res), "+a" (word), "=&d" (reg)
-                  	: "a" (&_zb_findmap) : "cc" );
-                if (res < 64)
-			return (p - addr)*64 + res;
-                p++;
+#ifndef __s390x__
+                asm("   ic   %0,0(%1)\n"
+		    "   icm  %0,2,1(%1)\n"
+		    "   icm  %0,4,2(%1)\n"
+		    "   icm  %0,8,3(%1)"
+		    : "=&a" (word) : "a" (p), "m" (*p) : "cc" );
+#else
+                asm("   lrvg %0,%1" : "=a" (word) : "m" (*p) );
+#endif
+		/*
+		 * s390 version of ffz returns __BITOPS_WORDSIZE
+		 * if no zero bit is present in the word.
+		 */
+		set = ffz(word >> bit) + bit;
+		if (set >= size)
+			return size + offset;
+		if (set < __BITOPS_WORDSIZE)
+			return set + offset;
+		offset += __BITOPS_WORDSIZE;
+		size -= __BITOPS_WORDSIZE;
+		p++;
         }
-        /* No zero yet, search remaining full bytes for a zero */
-        res = ext2_find_first_zero_bit (p, size - 64 * (p - addr));
-        return (p - addr) * 64 + res;
+	return offset + ext2_find_first_zero_bit(p, size);
 }
-
-#endif /* __s390x__ */
 
 /* Bitmap functions for the minix filesystem.  */
 /* FIXME !!! */

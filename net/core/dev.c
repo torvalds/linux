@@ -901,8 +901,7 @@ int dev_close(struct net_device *dev)
 	smp_mb__after_clear_bit(); /* Commit netif_running(). */
 	while (test_bit(__LINK_STATE_RX_SCHED, &dev->state)) {
 		/* No hurry. */
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1);
+		msleep(1);
 	}
 
 	/*
@@ -1697,7 +1696,8 @@ static void net_rx_action(struct softirq_action *h)
 	struct softnet_data *queue = &__get_cpu_var(softnet_data);
 	unsigned long start_time = jiffies;
 	int budget = netdev_budget;
-	
+	void *have;
+
 	local_irq_disable();
 
 	while (!list_empty(&queue->poll_list)) {
@@ -1710,10 +1710,10 @@ static void net_rx_action(struct softirq_action *h)
 
 		dev = list_entry(queue->poll_list.next,
 				 struct net_device, poll_list);
-		netpoll_poll_lock(dev);
+		have = netpoll_poll_lock(dev);
 
 		if (dev->quota <= 0 || dev->poll(dev, &budget)) {
-			netpoll_poll_unlock(dev);
+			netpoll_poll_unlock(have);
 			local_irq_disable();
 			list_del(&dev->poll_list);
 			list_add_tail(&dev->poll_list, &queue->poll_list);
@@ -1722,7 +1722,7 @@ static void net_rx_action(struct softirq_action *h)
 			else
 				dev->quota = dev->weight;
 		} else {
-			netpoll_poll_unlock(dev);
+			netpoll_poll_unlock(have);
 			dev_put(dev);
 			local_irq_disable();
 		}

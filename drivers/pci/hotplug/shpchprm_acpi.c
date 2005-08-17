@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * Send feedback to <dely.l.sy@intel.com>
+ * Send feedback to <kristen.c.accardi@intel.com>
  *
  */
 

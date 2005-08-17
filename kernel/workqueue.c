@@ -308,8 +308,6 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	struct workqueue_struct *wq;
 	struct task_struct *p;
 
-	BUG_ON(strlen(name) > 10);
-
 	wq = kmalloc(sizeof(*wq), GFP_KERNEL);
 	if (!wq)
 		return NULL;

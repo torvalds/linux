@@ -424,6 +424,7 @@ struct _snd_intel8x0 {
 	unsigned xbox: 1;		/* workaround for Xbox AC'97 detection */
 
 	int spdif_idx;	/* SPDIF BAR index; *_SPBAR or -1 if use PCMOUT */
+	unsigned int sdm_saved;	/* SDM reg value */
 
 	ac97_bus_t *ac97_bus;
 	ac97_t *ac97[3];
@@ -2373,6 +2374,11 @@ static int intel8x0_suspend(snd_card_t *card, pm_message_t state)
 	for (i = 0; i < 3; i++)
 		if (chip->ac97[i])
 			snd_ac97_suspend(chip->ac97[i]);
+	if (chip->device_type == DEVICE_INTEL_ICH4)
+		chip->sdm_saved = igetbyte(chip, ICHREG(SDM));
+
+	if (chip->irq >= 0)
+		free_irq(chip->irq, (void *)chip);
 	pci_disable_device(chip->pci);
 	return 0;
 }
@@ -2384,7 +2390,19 @@ static int intel8x0_resume(snd_card_t *card)
 
 	pci_enable_device(chip->pci);
 	pci_set_master(chip->pci);
-	snd_intel8x0_chip_init(chip, 0);
+	request_irq(chip->irq, snd_intel8x0_interrupt, SA_INTERRUPT|SA_SHIRQ, card->shortname, (void *)chip);
+	synchronize_irq(chip->irq);
+	snd_intel8x0_chip_init(chip, 1);
+
+	/* re-initialize mixer stuff */
+	if (chip->device_type == DEVICE_INTEL_ICH4) {
+		/* enable separate SDINs for ICH4 */
+		iputbyte(chip, ICHREG(SDM), chip->sdm_saved);
+		/* use slot 10/11 for SPDIF */
+		iputdword(chip, ICHREG(GLOB_CNT),
+			  (igetdword(chip, ICHREG(GLOB_CNT)) & ~ICH_PCM_SPDIF_MASK) |
+			  ICH_PCM_SPDIF_1011);
+	}
 
 	/* refill nocache */
 	if (chip->fix_nocache)
@@ -2451,8 +2469,7 @@ static void __devinit intel8x0_measure_ac97_clock(intel8x0_t *chip)
 	}
 	do_gettimeofday(&start_time);
 	spin_unlock_irq(&chip->reg_lock);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ / 20);
+	msleep(50);
 	spin_lock_irq(&chip->reg_lock);
 	/* check the position */
 	pos = ichdev->fragsize1;

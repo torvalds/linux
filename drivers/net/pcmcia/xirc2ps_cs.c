@@ -1985,7 +1985,7 @@ static struct pcmcia_device_id xirc2ps_ids[] = {
 	PCMCIA_PFC_DEVICE_PROD_ID13(0, "Xircom", "CEM56", 0x2e3ee845, 0xa650c32a),
 	PCMCIA_PFC_DEVICE_PROD_ID13(0, "Xircom", "REM10", 0x2e3ee845, 0x76df1d29),
 	PCMCIA_PFC_DEVICE_PROD_ID13(0, "Xircom", "XEM5600", 0x2e3ee845, 0xf1403719),
-	PCMCIA_PFC_DEVICE_PROD_ID12(0, "Xircom", "CreditCard Ethernet", 0x2e3ee845, 0xc0e778c2),
+	PCMCIA_PFC_DEVICE_PROD_ID12(0, "Xircom", "CreditCard Ethernet+Modem II", 0x2e3ee845, 0xeca401bf),
 	PCMCIA_DEVICE_MANF_CARD(0x01bf, 0x010a),
 	PCMCIA_DEVICE_PROD_ID13("Toshiba Information Systems", "TPCENET", 0x1b3b94fe, 0xf381c1a2),
 	PCMCIA_DEVICE_PROD_ID13("Xircom", "CE3-10/100", 0x2e3ee845, 0x0ec0ac37),

@@ -678,7 +678,7 @@ long join_session_keyring(const char *name)
 		keyring = keyring_alloc(name, tsk->uid, tsk->gid, 0, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
-			goto error;
+			goto error2;
 		}
 	}
 	else if (IS_ERR(keyring)) {

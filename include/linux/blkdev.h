@@ -301,6 +301,7 @@ struct blk_queue_tag {
 	struct list_head busy_list;	/* fifo list of busy tags */
 	int busy;			/* current depth */
 	int max_depth;			/* what we will send to device */
+	int real_max_depth;		/* what the array can hold */
 	atomic_t refcnt;		/* map can be shared */
 };
 

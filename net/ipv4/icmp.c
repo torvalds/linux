@@ -936,8 +936,7 @@ int icmp_rcv(struct sk_buff *skb)
 	case CHECKSUM_HW:
 		if (!(u16)csum_fold(skb->csum))
 			break;
-		NETDEBUG(if (net_ratelimit())
-				printk(KERN_DEBUG "icmp v4 hw csum failure\n"));
+		LIMIT_NETDEBUG(printk(KERN_DEBUG "icmp v4 hw csum failure\n"));
 	case CHECKSUM_NONE:
 		if ((u16)csum_fold(skb_checksum(skb, 0, skb->len, 0)))
 			goto error;

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,7 +30,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: ib_fmr_pool.h 1349 2004-12-16 21:09:43Z roland $
+ * $Id: ib_fmr_pool.h 2730 2005-06-28 16:43:03Z sean.hefty $
  */
 
 #if !defined(IB_FMR_POOL_H)
@@ -78,7 +79,7 @@ struct ib_pool_fmr {
 struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 				       struct ib_fmr_pool_param *params);
 
-int ib_destroy_fmr_pool(struct ib_fmr_pool *pool);
+void ib_destroy_fmr_pool(struct ib_fmr_pool *pool);
 
 int ib_flush_fmr_pool(struct ib_fmr_pool *pool);
 

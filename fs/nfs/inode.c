@@ -814,28 +814,39 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 		nfs_wb_all(inode);
 	}
 	error = NFS_PROTO(inode)->setattr(dentry, &fattr, attr);
-	if (error == 0) {
+	if (error == 0)
 		nfs_refresh_inode(inode, &fattr);
+	nfs_end_data_update(inode);
+	unlock_kernel();
+	return error;
+}
+
+/**
+ * nfs_setattr_update_inode - Update inode metadata after a setattr call.
+ * @inode: pointer to struct inode
+ * @attr: pointer to struct iattr
+ *
+ * Note: we do this in the *proc.c in order to ensure that
+ *       it works for things like exclusive creates too.
+ */
+void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr)
+{
+	if ((attr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID)) != 0) {
 		if ((attr->ia_valid & ATTR_MODE) != 0) {
-			int mode;
-			mode = inode->i_mode & ~S_IALLUGO;
-			mode |= attr->ia_mode & S_IALLUGO;
+			int mode = attr->ia_mode & S_IALLUGO;
+			mode |= inode->i_mode & ~S_IALLUGO;
 			inode->i_mode = mode;
 		}
 		if ((attr->ia_valid & ATTR_UID) != 0)
 			inode->i_uid = attr->ia_uid;
 		if ((attr->ia_valid & ATTR_GID) != 0)
 			inode->i_gid = attr->ia_gid;
-		if ((attr->ia_valid & ATTR_SIZE) != 0) {
-			inode->i_size = attr->ia_size;
-			vmtruncate(inode, attr->ia_size);
-		}
-	}
-	if ((attr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID)) != 0)
 		NFS_FLAGS(inode) |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
-	nfs_end_data_update(inode);
-	unlock_kernel();
-	return error;
+	}
+	if ((attr->ia_valid & ATTR_SIZE) != 0) {
+		inode->i_size = attr->ia_size;
+		vmtruncate(inode, attr->ia_size);
+	}
 }
 
 /*

@@ -232,7 +232,11 @@ static int appldata_diag(char record_nr, u16 function, unsigned long buffer,
 	ry = -1;
 	asm volatile(
 			"diag %1,%0,0xDC\n\t"
-			: "=d" (ry) : "d" (&(appldata_parameter_list)) : "cc");
+			: "=d" (ry)
+			: "d" (&appldata_parameter_list),
+			  "m" (appldata_parameter_list),
+			  "m" (appldata_product_id)
+			: "cc");
 	return (int) ry;
 }
 /************************ timer, work, DIAG <END> ****************************/

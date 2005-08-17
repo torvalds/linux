@@ -1,4 +1,4 @@
-/* $Id: head.S,v 1.6 2003/04/09 08:12:43 pkj Exp $
+/* $Id: head.S,v 1.7 2005/03/07 12:11:06 starvik Exp $
  * 
  * Rescue code, made to reside at the beginning of the
  * flash-memory. when it starts, it checks a partition
@@ -121,12 +121,13 @@
 	;; 0x80000000 if loaded in flash (as it should be)
 	;; since etrax actually starts at address 2 when booting from flash, we
 	;; put a nop (2 bytes) here first so we dont accidentally skip the di
-	
+
 	nop	
 	di
 
 	jump	in_cache	; enter cached area instead
-in_cache:	
+in_cache:
+
 
 	;; first put a jump test to give a possibility of upgrading the rescue code
 	;; without erasing/reflashing the sector. we put a longword of -1 here and if
@@ -325,9 +326,29 @@ flash_ok:
 	;; result will be in r0
 checksum:
 	moveq	0, $r0
-1:	addu.b	[$r1+], $r0
-	subq	1, $r2
-	bne	1b
+	moveq   CONFIG_ETRAX_FLASH1_SIZE, $r6
+
+	;; If the first physical flash memory is exceeded wrap to the second one.
+	btstq	26, $r1		; Are we addressing first flash?
+	bpl	1f
+	nop
+	clear.d	$r6
+
+1:	test.d  $r6		; 0 = no wrapping
+	beq	2f
+	nop
+	lslq	20, $r6		; Convert MB to bytes
+	sub.d	$r1, $r6
+
+2:	addu.b	[$r1+], $r0
+	subq	1, $r6		; Flash memory left
+	beq	3f
+	subq	1, $r2		; Length left
+	bne	2b
 	nop
 	ret
+	nop
+
+3:	move.d	MEM_CSE1_START, $r1 ; wrap to second flash
+	ba	2b
 	nop

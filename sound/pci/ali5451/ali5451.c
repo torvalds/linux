@@ -399,7 +399,7 @@ static int snd_ali_codec_ready(	ali_t *codec,
 	unsigned long end_time;
 	unsigned int res;
 	
-	end_time = jiffies + 10 * (HZ >> 2);
+	end_time = jiffies + 10 * msecs_to_jiffies(250);
 	do {
 		res = snd_ali_5451_peek(codec,port);
 		if (! (res & 0x8000))
@@ -422,7 +422,7 @@ static int snd_ali_stimer_ready(ali_t *codec, int sched)
 	dwChk1 = snd_ali_5451_peek(codec, ALI_STIMER);
 	dwChk2 = snd_ali_5451_peek(codec, ALI_STIMER);
 
-	end_time = jiffies + 10 * (HZ >> 2);
+	end_time = jiffies + 10 * msecs_to_jiffies(250);
 	do {
 		dwChk2 = snd_ali_5451_peek(codec, ALI_STIMER);
 		if (dwChk2 != dwChk1)

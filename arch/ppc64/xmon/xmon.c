@@ -329,13 +329,16 @@ int xmon_core(struct pt_regs *regs, int fromipi)
 		printf("cpu 0x%x: Exception %lx %s in xmon, "
 		       "returning to main loop\n",
 		       cpu, regs->trap, getvecname(TRAP(regs)));
+		release_output_lock();
 		longjmp(xmon_fault_jmp[cpu], 1);
 	}
 
 	if (setjmp(recurse_jmp) != 0) {
 		if (!in_xmon || !xmon_gate) {
+			get_output_lock();
 			printf("xmon: WARNING: bad recursive fault "
 			       "on cpu 0x%x\n", cpu);
+			release_output_lock();
 			goto waiting;
 		}
 		secondary = !(xmon_taken && cpu == xmon_owner);

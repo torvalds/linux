@@ -80,10 +80,12 @@ EXPORT_SYMBOL(fb_get_color_depth);
  */
 void fb_pad_aligned_buffer(u8 *dst, u32 d_pitch, u8 *src, u32 s_pitch, u32 height)
 {
-	int i;
+	int i, j;
 
 	for (i = height; i--; ) {
-		memcpy(dst, src, s_pitch);
+		/* s_pitch is a few bytes at the most, memcpy is suboptimal */
+		for (j = 0; j < s_pitch; j++)
+			dst[j] = src[j];
 		src += s_pitch;
 		dst += d_pitch;
 	}
@@ -626,7 +628,7 @@ fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var)
 int
 fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 {
-	int err;
+	int err, flags = info->flags;
 
 	if (var->activate & FB_ACTIVATE_INV_MODE) {
 		struct fb_videomode mode1, mode2;
@@ -680,7 +682,7 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 			    !list_empty(&info->modelist))
 				err = fb_add_videomode(&mode, &info->modelist);
 
-			if (!err && info->flags & FBINFO_MISC_USEREVENT) {
+			if (!err && (flags & FBINFO_MISC_USEREVENT)) {
 				struct fb_event event;
 
 				info->flags &= ~FBINFO_MISC_USEREVENT;
@@ -1164,6 +1166,7 @@ static void __exit
 fbmem_exit(void)
 {
 	class_destroy(fb_class);
+	unregister_chrdev(FB_MAJOR, "fb");
 }
 
 module_exit(fbmem_exit);

@@ -917,6 +917,8 @@ asmlinkage int sys_get_thread_area(struct user_desc __user *u_info)
 	if (idx < GDT_ENTRY_TLS_MIN || idx > GDT_ENTRY_TLS_MAX)
 		return -EINVAL;
 
+	memset(&info, 0, sizeof(info));
+
 	desc = current->thread.tls_array + idx - GDT_ENTRY_TLS_MIN;
 
 	info.entry_number = idx;

@@ -179,7 +179,7 @@ static int can_do_pal_halt = 1;
 
 static int __init nohalt_setup(char * str)
 {
-	pal_halt = 0;
+	pal_halt = can_do_pal_halt = 0;
 	return 1;
 }
 __setup("nohalt", nohalt_setup);
@@ -807,15 +807,11 @@ machine_restart (char *restart_cmd)
 	(*efi.reset_system)(EFI_RESET_WARM, 0, 0, NULL);
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void
 machine_halt (void)
 {
 	cpu_halt();
 }
-
-EXPORT_SYMBOL(machine_halt);
 
 void
 machine_power_off (void)
@@ -825,4 +821,3 @@ machine_power_off (void)
 	machine_halt();
 }
 
-EXPORT_SYMBOL(machine_power_off);

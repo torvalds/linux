@@ -245,7 +245,7 @@ $(ARCH_DIR)/util: scripts_basic $(SYS_DIR)/sc.h $(ARCH_DIR)/kernel-offsets.h FOR
 $(ARCH_DIR)/kernel/skas/util: scripts_basic $(ARCH_DIR)/user-offsets.h FORCE
 	$(Q)$(MAKE) $(build)=$@
 
-$(ARCH_DIR)/os-$(OS)/util: scripts_basic FORCE
+$(ARCH_DIR)/os-$(OS)/util: scripts_basic $(ARCH_DIR)/user-offsets.h FORCE
 	$(Q)$(MAKE) $(build)=$@
 
 export SUBARCH USER_CFLAGS OS

@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/workqueue.h>
+#include <linux/reboot.h>
 
 /*
  * When the user hits Sys-Rq o to power down the machine this is the
@@ -17,8 +18,7 @@
 
 static void do_poweroff(void *dummy)
 {
-	if (pm_power_off)
-		pm_power_off();
+	kernel_power_off();
 }
 
 static DECLARE_WORK(poweroff_work, do_poweroff, NULL);

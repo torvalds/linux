@@ -284,7 +284,7 @@ static mdk_rdev_t * find_rdev(mddev_t * mddev, dev_t dev)
 	return NULL;
 }
 
-inline static sector_t calc_dev_sboffset(struct block_device *bdev)
+static inline sector_t calc_dev_sboffset(struct block_device *bdev)
 {
 	sector_t size = bdev->bd_inode->i_size >> BLOCK_SIZE_BITS;
 	return MD_NEW_SIZE_BLOCKS(size);
@@ -1798,6 +1798,8 @@ static int do_md_stop(mddev_t * mddev, int ro)
 				goto out;
 			mddev->ro = 1;
 		} else {
+			bitmap_flush(mddev);
+			wait_event(mddev->sb_wait, atomic_read(&mddev->pending_writes)==0);
 			if (mddev->ro)
 				set_disk_ro(disk, 0);
 			blk_queue_make_request(mddev->queue, md_fail_request);
@@ -3484,7 +3486,6 @@ static void md_do_sync(mddev_t *mddev)
 			goto skip;
 		}
 		ITERATE_MDDEV(mddev2,tmp) {
-			printk(".");
 			if (mddev2 == mddev)
 				continue;
 			if (mddev2->curr_resync && 
@@ -4007,3 +4008,4 @@ EXPORT_SYMBOL(md_wakeup_thread);
 EXPORT_SYMBOL(md_print_devices);
 EXPORT_SYMBOL(md_check_recovery);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("md");

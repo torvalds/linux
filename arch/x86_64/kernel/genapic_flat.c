@@ -2,13 +2,11 @@
  * Copyright 2004 James Cleverdon, IBM.
  * Subject to the GNU Public License, v.2
  *
- * Flat APIC subarch code.  Maximum 8 CPUs, logical delivery.
+ * Flat APIC subarch code.
  *
  * Hacked for x86-64 by James Cleverdon from i386 architecture code by
  * Martin Bligh, Andi Kleen, James Bottomley, John Stultz, and
  * James Cleverdon.
- * Ashok Raj <ashok.raj@intel.com>
- * 	Removed IPI broadcast shortcut to support CPU hotplug
  */
 #include <linux/config.h>
 #include <linux/threads.h>
@@ -19,47 +17,6 @@
 #include <linux/init.h>
 #include <asm/smp.h>
 #include <asm/ipi.h>
-
-/*
- * The following permit choosing broadcast IPI shortcut v.s sending IPI only
- * to online cpus via the send_IPI_mask varient.
- * The mask version is my preferred option, since it eliminates a lot of
- * other extra code that would need to be written to cleanup intrs sent
- * to a CPU while offline.
- *
- * Sending broadcast introduces lots of trouble in CPU hotplug situations.
- * These IPI's are delivered to cpu's irrespective of their offline status
- * and could pickup stale intr data when these CPUS are turned online.
- *
- * Not using broadcast is a cleaner approach IMO, but Andi Kleen disagrees with
- * the idea of not using broadcast IPI's anymore. Hence the run time check
- * is introduced, on his request so we can choose an alternate mechanism.
- *
- * Initial wacky performance tests that collect cycle counts show
- * no increase in using mask v.s broadcast version. In fact they seem
- * identical in terms of cycle counts.
- *
- * if we need to use broadcast, we need to do the following.
- *
- * cli;
- * hold call_lock;
- * clear any pending IPI, just ack and clear all pending intr
- * set cpu_online_map;
- * release call_lock;
- * sti;
- *
- * The complicated dummy irq processing shown above is not required if
- * we didnt sent IPI's to wrong CPU's in the first place.
- *
- * - Ashok Raj <ashok.raj@intel.com>
- */
-#ifdef CONFIG_HOTPLUG_CPU
-#define DEFAULT_SEND_IPI	(1)
-#else
-#define DEFAULT_SEND_IPI	(0)
-#endif
-
-static int no_broadcast=DEFAULT_SEND_IPI;
 
 static cpumask_t flat_target_cpus(void)
 {
@@ -119,37 +76,15 @@ static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 	local_irq_restore(flags);
 }
 
-static inline void __local_flat_send_IPI_allbutself(int vector)
-{
-	if (no_broadcast) {
-		cpumask_t mask = cpu_online_map;
-		int this_cpu = get_cpu();
-
-		cpu_clear(this_cpu, mask);
-		flat_send_IPI_mask(mask, vector);
-		put_cpu();
-	}
-	else
-		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector, APIC_DEST_LOGICAL);
-}
-
-static inline void __local_flat_send_IPI_all(int vector)
-{
-	if (no_broadcast)
-		flat_send_IPI_mask(cpu_online_map, vector);
-	else
-		__send_IPI_shortcut(APIC_DEST_ALLINC, vector, APIC_DEST_LOGICAL);
-}
-
 static void flat_send_IPI_allbutself(int vector)
 {
 	if (((num_online_cpus()) - 1) >= 1)
-		__local_flat_send_IPI_allbutself(vector);
+		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector,APIC_DEST_LOGICAL);
 }
 
 static void flat_send_IPI_all(int vector)
 {
-	__local_flat_send_IPI_all(vector);
+	__send_IPI_shortcut(APIC_DEST_ALLINC, vector, APIC_DEST_LOGICAL);
 }
 
 static int flat_apic_id_registered(void)
@@ -170,16 +105,6 @@ static unsigned int phys_pkg_id(int index_msb)
 	return ((ebx >> 24) & 0xFF) >> index_msb;
 }
 
-static __init int no_ipi_broadcast(char *str)
-{
-	get_option(&str, &no_broadcast);
-	printk ("Using %s mode\n", no_broadcast ? "No IPI Broadcast" :
-											"IPI Broadcast");
-	return 1;
-}
-
-__setup("no_ipi_broadcast", no_ipi_broadcast);
-
 struct genapic apic_flat =  {
 	.name = "flat",
 	.int_delivery_mode = dest_LowestPrio,
@@ -195,11 +120,62 @@ struct genapic apic_flat =  {
 	.phys_pkg_id = phys_pkg_id,
 };
 
-static int __init print_ipi_mode(void)
+/*
+ * Physflat mode is used when there are more than 8 CPUs on a AMD system.
+ * We cannot use logical delivery in this case because the mask
+ * overflows, so use physical mode.
+ */
+
+static cpumask_t physflat_target_cpus(void)
 {
-	printk ("Using IPI %s mode\n", no_broadcast ? "No-Shortcut" :
-											"Shortcut");
-	return 0;
+	return cpumask_of_cpu(0);
 }
 
-late_initcall(print_ipi_mode);
+static void physflat_send_IPI_mask(cpumask_t cpumask, int vector)
+{
+	send_IPI_mask_sequence(cpumask, vector);
+}
+
+static void physflat_send_IPI_allbutself(int vector)
+{
+	cpumask_t allbutme = cpu_online_map;
+	int me = get_cpu();
+	cpu_clear(me, allbutme);
+	physflat_send_IPI_mask(allbutme, vector);
+	put_cpu();
+}
+
+static void physflat_send_IPI_all(int vector)
+{
+	physflat_send_IPI_mask(cpu_online_map, vector);
+}
+
+static unsigned int physflat_cpu_mask_to_apicid(cpumask_t cpumask)
+{
+	int cpu;
+
+	/*
+	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
+	 * May as well be the first.
+	 */
+	cpu = first_cpu(cpumask);
+	if ((unsigned)cpu < NR_CPUS)
+		return x86_cpu_to_apicid[cpu];
+	else
+		return BAD_APICID;
+}
+
+struct genapic apic_physflat =  {
+	.name = "physical flat",
+	.int_delivery_mode = dest_LowestPrio,
+	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
+	.int_delivery_dest = APIC_DEST_PHYSICAL | APIC_DM_LOWEST,
+	.target_cpus = physflat_target_cpus,
+	.apic_id_registered = flat_apic_id_registered,
+	.init_apic_ldr = flat_init_apic_ldr,/*not needed, but shouldn't hurt*/
+	.send_IPI_all = physflat_send_IPI_all,
+	.send_IPI_allbutself = physflat_send_IPI_allbutself,
+	.send_IPI_mask = physflat_send_IPI_mask,
+	.cpu_mask_to_apicid = physflat_cpu_mask_to_apicid,
+	.phys_pkg_id = phys_pkg_id,
+};

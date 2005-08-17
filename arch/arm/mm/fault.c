@@ -238,9 +238,9 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	up_read(&mm->mmap_sem);
 
 	/*
-	 * Handle the "normal" case first
+	 * Handle the "normal" case first - VM_FAULT_MAJOR / VM_FAULT_MINOR
 	 */
-	if (fault > 0)
+	if (fault >= VM_FAULT_MINOR)
 		return 0;
 
 	/*
@@ -261,7 +261,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		do_exit(SIGKILL);
 		return 0;
 
-	case 0:
+	case VM_FAULT_SIGBUS:
 		/*
 		 * We had some memory, but were unable to
 		 * successfully fix up this page fault.

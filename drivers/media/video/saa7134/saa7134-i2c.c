@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-i2c.c,v 1.19 2005/07/07 01:49:30 mkrufky Exp $
+ * $Id: saa7134-i2c.c,v 1.22 2005/07/22 04:09:41 mkrufky Exp $
  *
  * device driver for philips saa7134 based TV cards
  * i2c interface support
@@ -300,6 +300,8 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
   	status = i2c_get_status(dev);
 	if (i2c_is_error(status))
 		goto err;
+	/* ensure that the bus is idle for at least one bit slot */
+	msleep(1);
 
 	d1printk("\n");
 	return num;

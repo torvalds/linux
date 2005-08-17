@@ -36,7 +36,7 @@ __ext2_get_sector(struct inode *inode, sector_t offset, int create,
 	*result = tmp.b_blocknr;
 
 	/* did we get a sparse block (hole in the file)? */
-	if (!(*result)) {
+	if (!tmp.b_blocknr && !rc) {
 		BUG_ON(create);
 		rc = -ENODATA;
 	}

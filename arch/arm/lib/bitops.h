@@ -1,4 +1,6 @@
-#if __LINUX_ARM_ARCH__ >= 6
+#include <linux/config.h>
+
+#if __LINUX_ARM_ARCH__ >= 6 && defined(CONFIG_CPU_MPCORE)
 	.macro	bitop, instr
 	mov	r2, #1
 	and	r3, r0, #7		@ Get bit offset
@@ -7,7 +9,7 @@
 1:	ldrexb	r2, [r1]
 	\instr	r2, r2, r3
 	strexb	r0, r2, [r1]
-	cmpne	r0, #0
+	cmp	r0, #0
 	bne	1b
 	mov	pc, lr
 	.endm
@@ -19,9 +21,9 @@
 	mov	r3, r2, lsl r3		@ create mask
 1:	ldrexb	r2, [r1]
 	ands	r0, r2, r3		@ save old value of bit
-	\instr	ip, r2, r3			@ toggle bit
-	strexb	r2, ip, [r1]
-	cmp	r2, #0
+	\instr	r2, r2, r3			@ toggle bit
+	strexb	ip, r2, [r1]
+	cmp	ip, #0
 	bne	1b
 	cmp	r0, #0
 	movne	r0, #1

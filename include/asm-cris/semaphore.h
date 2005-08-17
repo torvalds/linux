@@ -72,10 +72,9 @@ extern inline void down(struct semaphore * sem)
 	might_sleep();
 
 	/* atomically decrement the semaphores count, and if its negative, we wait */
-	local_save_flags(flags);
-	local_irq_disable();
+	cris_atomic_save(sem, flags);
 	failed = --(sem->count.counter) < 0;
-	local_irq_restore(flags);
+	cris_atomic_restore(sem, flags);
 	if(failed) {
 		__down(sem);
 	}
@@ -95,10 +94,9 @@ extern inline int down_interruptible(struct semaphore * sem)
 	might_sleep();
 
 	/* atomically decrement the semaphores count, and if its negative, we wait */
-	local_save_flags(flags);
-	local_irq_disable();
+	cris_atomic_save(sem, flags);
 	failed = --(sem->count.counter) < 0;
-	local_irq_restore(flags);
+	cris_atomic_restore(sem, flags);
 	if(failed)
 		failed = __down_interruptible(sem);
 	return(failed);
@@ -109,13 +107,13 @@ extern inline int down_trylock(struct semaphore * sem)
 	unsigned long flags;
 	int failed;
 
-	local_save_flags(flags);
-	local_irq_disable();
+	cris_atomic_save(sem, flags);
 	failed = --(sem->count.counter) < 0;
-	local_irq_restore(flags);
+	cris_atomic_restore(sem, flags);
 	if(failed)
 		failed = __down_trylock(sem);
 	return(failed);
+
 }
 
 /*
@@ -130,10 +128,9 @@ extern inline void up(struct semaphore * sem)
 	int wakeup;
 
 	/* atomically increment the semaphores count, and if it was negative, we wake people */
-	local_save_flags(flags);
-	local_irq_disable();
+	cris_atomic_save(sem, flags);
 	wakeup = ++(sem->count.counter) <= 0;
-	local_irq_restore(flags);
+	cris_atomic_restore(sem, flags);
 	if(wakeup) {
 		__up(sem);
 	}

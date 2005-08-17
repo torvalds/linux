@@ -232,8 +232,7 @@ static int snd_usX2Y_hwdep_dsp_load(snd_hwdep_t *hw, snd_hwdep_dsp_image_t *dsp)
 	if (err)
 		return err;
 	if (dsp->index == 1) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ/4);			// give the device some time 
+		msleep(250);				// give the device some time
 		err = usX2Y_AsyncSeq04_init(priv);
 		if (err) {
 			snd_printk("usX2Y_AsyncSeq04_init error \n");

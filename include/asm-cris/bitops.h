@@ -16,6 +16,7 @@
 
 #include <asm/arch/bitops.h>
 #include <asm/system.h>
+#include <asm/atomic.h>
 #include <linux/compiler.h>
 
 /*
@@ -88,7 +89,7 @@ struct __dummy { unsigned long a[100]; };
  * It also implies a memory barrier.
  */
 
-extern inline int test_and_set_bit(int nr, void *addr)
+extern inline int test_and_set_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned long flags;
@@ -96,15 +97,15 @@ extern inline int test_and_set_bit(int nr, void *addr)
 	
 	adr += nr >> 5;
 	mask = 1 << (nr & 0x1f);
-	local_save_flags(flags);
-	local_irq_disable();
+	cris_atomic_save(addr, flags);
 	retval = (mask & *adr) != 0;
 	*adr |= mask;
+	cris_atomic_restore(addr, flags);
 	local_irq_restore(flags);
 	return retval;
 }
 
-extern inline int __test_and_set_bit(int nr, void *addr)
+extern inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned int *adr = (unsigned int *)addr;
@@ -131,7 +132,7 @@ extern inline int __test_and_set_bit(int nr, void *addr)
  * It also implies a memory barrier.
  */
 
-extern inline int test_and_clear_bit(int nr, void *addr)
+extern inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned long flags;
@@ -139,11 +140,10 @@ extern inline int test_and_clear_bit(int nr, void *addr)
 	
 	adr += nr >> 5;
 	mask = 1 << (nr & 0x1f);
-	local_save_flags(flags);
-	local_irq_disable();
+	cris_atomic_save(addr, flags);
 	retval = (mask & *adr) != 0;
 	*adr &= ~mask;
-	local_irq_restore(flags);
+	cris_atomic_restore(addr, flags);
 	return retval;
 }
 
@@ -157,7 +157,7 @@ extern inline int test_and_clear_bit(int nr, void *addr)
  * but actually fail.  You must protect multiple accesses with a lock.
  */
 
-extern inline int __test_and_clear_bit(int nr, void *addr)
+extern inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned int *adr = (unsigned int *)addr;
@@ -177,24 +177,23 @@ extern inline int __test_and_clear_bit(int nr, void *addr)
  * It also implies a memory barrier.
  */
 
-extern inline int test_and_change_bit(int nr, void *addr)
+extern inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned long flags;
 	unsigned int *adr = (unsigned int *)addr;
 	adr += nr >> 5;
 	mask = 1 << (nr & 0x1f);
-	local_save_flags(flags);
-	local_irq_disable();
+	cris_atomic_save(addr, flags);
 	retval = (mask & *adr) != 0;
 	*adr ^= mask;
-	local_irq_restore(flags);
+	cris_atomic_restore(addr, flags);
 	return retval;
 }
 
 /* WARNING: non atomic and it can be reordered! */
 
-extern inline int __test_and_change_bit(int nr, void *addr)
+extern inline int __test_and_change_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned int *adr = (unsigned int *)addr;
@@ -215,7 +214,7 @@ extern inline int __test_and_change_bit(int nr, void *addr)
  * This routine doesn't need to be atomic.
  */
 
-extern inline int test_bit(int nr, const void *addr)
+extern inline int test_bit(int nr, const volatile unsigned long *addr)
 {
 	unsigned int mask;
 	unsigned int *adr = (unsigned int *)addr;
@@ -259,7 +258,7 @@ extern inline int test_bit(int nr, const void *addr)
  * @offset: The bitnumber to start searching at
  * @size: The maximum size to search
  */
-extern inline int find_next_zero_bit (void * addr, int size, int offset)
+extern inline int find_next_zero_bit (const unsigned long * addr, int size, int offset)
 {
 	unsigned long *p = ((unsigned long *) addr) + (offset >> 5);
 	unsigned long result = offset & ~31UL;
@@ -301,7 +300,7 @@ extern inline int find_next_zero_bit (void * addr, int size, int offset)
  * @offset: The bitnumber to start searching at
  * @size: The maximum size to search
  */
-static __inline__ int find_next_bit(void *addr, int size, int offset)
+static __inline__ int find_next_bit(const unsigned long *addr, int size, int offset)
 {
 	unsigned long *p = ((unsigned long *) addr) + (offset >> 5);
         unsigned long result = offset & ~31UL;
@@ -367,7 +366,7 @@ found_middle:
 #define minix_test_bit(nr,addr) test_bit(nr,addr)
 #define minix_find_first_zero_bit(addr,size) find_first_zero_bit(addr,size)
 
-extern inline int sched_find_first_bit(unsigned long *b)
+extern inline int sched_find_first_bit(const unsigned long *b)
 {
 	if (unlikely(b[0]))
 		return __ffs(b[0]);

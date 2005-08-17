@@ -1061,20 +1061,19 @@ unsigned int nr_free_pages_pgdat(pg_data_t *pgdat)
 
 static unsigned int nr_free_zone_pages(int offset)
 {
-	pg_data_t *pgdat;
+	/* Just pick one node, since fallback list is circular */
+	pg_data_t *pgdat = NODE_DATA(numa_node_id());
 	unsigned int sum = 0;
 
-	for_each_pgdat(pgdat) {
-		struct zonelist *zonelist = pgdat->node_zonelists + offset;
-		struct zone **zonep = zonelist->zones;
-		struct zone *zone;
+	struct zonelist *zonelist = pgdat->node_zonelists + offset;
+	struct zone **zonep = zonelist->zones;
+	struct zone *zone;
 
-		for (zone = *zonep++; zone; zone = *zonep++) {
-			unsigned long size = zone->present_pages;
-			unsigned long high = zone->pages_high;
-			if (size > high)
-				sum += size - high;
-		}
+	for (zone = *zonep++; zone; zone = *zonep++) {
+		unsigned long size = zone->present_pages;
+		unsigned long high = zone->pages_high;
+		if (size > high)
+			sum += size - high;
 	}
 
 	return sum;
@@ -1861,7 +1860,6 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 		unsigned long *zones_size, unsigned long *zholes_size)
 {
 	unsigned long i, j;
-	const unsigned long zone_required_alignment = 1UL << (MAX_ORDER-1);
 	int cpu, nid = pgdat->node_id;
 	unsigned long zone_start_pfn = pgdat->node_start_pfn;
 
@@ -1933,9 +1931,6 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 
 		zone->zone_mem_map = pfn_to_page(zone_start_pfn);
 		zone->zone_start_pfn = zone_start_pfn;
-
-		if ((zone_start_pfn) & (zone_required_alignment-1))
-			printk(KERN_CRIT "BUG: wrong zone alignment, it will crash\n");
 
 		memmap_init(size, nid, j, zone_start_pfn);
 

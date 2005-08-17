@@ -82,7 +82,7 @@ static int vx2_reg_index[VX_REG_MAX] = {
 	[VX_GPIOC]	= 0,	/* on the PLX */
 };
 
-inline static unsigned long vx2_reg_addr(vx_core_t *_chip, int reg)
+static inline unsigned long vx2_reg_addr(vx_core_t *_chip, int reg)
 {
 	struct snd_vx222 *chip = (struct snd_vx222 *)_chip;
 	return chip->port[vx2_reg_index[reg]] + vx2_reg_offset[reg];
@@ -235,7 +235,7 @@ static void vx2_setup_pseudo_dma(vx_core_t *chip, int do_write)
 /*
  * vx_release_pseudo_dma - disable the pseudo-DMA mode
  */
-inline static void vx2_release_pseudo_dma(vx_core_t *chip)
+static inline void vx2_release_pseudo_dma(vx_core_t *chip)
 {
 	/* HREQ pin disabled. */
 	vx_outl(chip, ICR, 0);

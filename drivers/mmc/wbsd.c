@@ -42,7 +42,7 @@
 #include "wbsd.h"
 
 #define DRIVER_NAME "wbsd"
-#define DRIVER_VERSION "1.2"
+#define DRIVER_VERSION "1.3"
 
 #ifdef CONFIG_MMC_DEBUG
 #define DBG(x...) \
@@ -1053,7 +1053,7 @@ static void wbsd_detect_card(unsigned long data)
  * Tasklets
  */
 
-inline static struct mmc_data* wbsd_get_data(struct wbsd_host* host)
+static inline struct mmc_data* wbsd_get_data(struct wbsd_host* host)
 {
 	WARN_ON(!host->mrq);
 	if (!host->mrq)

@@ -26,7 +26,7 @@
 
 #include <linux/config.h>
 
-#if (DEBUG && CONFIG_SYSCTL)
+#if defined(DEBUG) && defined(CONFIG_SYSCTL)
 
 extern int ntfs_sysctl(int add);
 

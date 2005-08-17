@@ -363,12 +363,15 @@ config INOTIFY
 	bool "Inotify file change notification support"
 	default y
 	---help---
-	  Say Y here to enable inotify support and the /dev/inotify character
-	  device.  Inotify is a file change notification system and a
+	  Say Y here to enable inotify support and the associated system
+	  calls.  Inotify is a file change notification system and a
 	  replacement for dnotify.  Inotify fixes numerous shortcomings in
 	  dnotify and introduces several new features.  It allows monitoring
-	  of both files and directories via a single open fd.  Multiple file
-	  events are supported.
+	  of both files and directories via a single open fd.  Other features
+	  include multiple file events, one-shot support, and unmount
+	  notification.
+
+	  For more information, see Documentation/filesystems/inotify.txt
 
 	  If unsure, say Y.
 

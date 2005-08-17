@@ -120,6 +120,8 @@ nfs3_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	dprintk("NFS call  setattr\n");
 	fattr->valid = 0;
 	status = rpc_call(NFS_CLIENT(inode), NFS3PROC_SETATTR, &arg, fattr, 0);
+	if (status == 0)
+		nfs_setattr_update_inode(inode, sattr);
 	dprintk("NFS reply setattr: %d\n", status);
 	return status;
 }
@@ -370,6 +372,8 @@ again:
 		 * not sure this buys us anything (and I'd have
 		 * to revamp the NFSv3 XDR code) */
 		status = nfs3_proc_setattr(dentry, &fattr, sattr);
+		if (status == 0)
+			nfs_setattr_update_inode(dentry->d_inode, sattr);
 		nfs_refresh_inode(dentry->d_inode, &fattr);
 		dprintk("NFS reply setattr (post-create): %d\n", status);
 	}

@@ -30,20 +30,9 @@ static int jornada720_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
    */
   GRER |= 0x00000002;
   /* Set GPIO_A<3:1> to be outputs for PCMCIA/CF power controller: */
-  PA_DDR = 0;
-  PA_DWR = 0;
-  PA_SDR = 0;
-  PA_SSR = 0;
-
-  PB_DDR = 0;
-  PB_DWR = 0x01;
-  PB_SDR = 0;
-  PB_SSR = 0;
-
-  PC_DDR = 0x88;
-  PC_DWR = 0x20;
-  PC_SDR = 0;
-  PC_SSR = 0;
+  sa1111_set_io_dir(SA1111_DEV(skt->dev), GPIO_A0|GPIO_A1|GPIO_A2|GPIO_A3, 0, 0);
+  sa1111_set_io(SA1111_DEV(skt->dev), GPIO_A0|GPIO_A1|GPIO_A2|GPIO_A3, 0);
+  sa1111_set_sleep_io(SA1111_DEV(skt->dev), GPIO_A0|GPIO_A1|GPIO_A2|GPIO_A3, 0);
 
   return sa1111_pcmcia_hw_init(skt);
 }
@@ -95,7 +84,7 @@ printk("%s(): config socket %d vcc %d vpp %d\n", __FUNCTION__,
     unsigned long flags;
 
     local_irq_save(flags);
-    PA_DWR = (PA_DWR & ~pa_dwr_mask) | pa_dwr_set;
+    sa1111_set_io(SA1111_DEV(skt->dev), pa_dwr_mask, pa_dwr_set);
     local_irq_restore(flags);
   }
 

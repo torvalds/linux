@@ -14,16 +14,6 @@
 #include <asm/tlbflush.h>
 #include <asm/ia32_unistd.h>
 
-/* 32bit VDSOs mapped into user space. */ 
-asm(".section \".init.data\",\"aw\"\n"
-    "syscall32_syscall:\n"
-    ".incbin \"arch/x86_64/ia32/vsyscall-syscall.so\"\n"
-    "syscall32_syscall_end:\n"
-    "syscall32_sysenter:\n"
-    ".incbin \"arch/x86_64/ia32/vsyscall-sysenter.so\"\n"
-    "syscall32_sysenter_end:\n"
-    ".previous");
-
 extern unsigned char syscall32_syscall[], syscall32_syscall_end[];
 extern unsigned char syscall32_sysenter[], syscall32_sysenter_end[];
 extern int sysctl_vsyscall32;

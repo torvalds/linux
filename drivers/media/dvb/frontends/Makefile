@@ -30,4 +30,4 @@ obj-$(CONFIG_DVB_OR51211) += or51211.o
 obj-$(CONFIG_DVB_OR51132) += or51132.o
 obj-$(CONFIG_DVB_BCM3510) += bcm3510.o
 obj-$(CONFIG_DVB_S5H1420) += s5h1420.o
-obj-$(CONFIG_DVB_LGDT3302) += lgdt3302.o
+obj-$(CONFIG_DVB_LGDT330X) += lgdt330x.o

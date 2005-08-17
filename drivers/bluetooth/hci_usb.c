@@ -57,8 +57,6 @@
 #ifndef CONFIG_BT_HCIUSB_DEBUG
 #undef  BT_DBG
 #define BT_DBG(D...)
-#undef  BT_DMP
-#define BT_DMP(D...)
 #endif
 
 #ifndef CONFIG_BT_HCIUSB_ZERO_PACKET
@@ -109,6 +107,9 @@ static struct usb_device_id blacklist_ids[] = {
 
 	/* Microsoft Wireless Transceiver for Bluetooth 2.0 */
 	{ USB_DEVICE(0x045e, 0x009c), .driver_info = HCI_RESET },
+
+	/* Kensington Bluetooth USB adapter */
+	{ USB_DEVICE(0x047d, 0x105d), .driver_info = HCI_RESET },
 
 	/* ISSC Bluetooth Adapter v3.1 */
 	{ USB_DEVICE(0x1131, 0x1001), .driver_info = HCI_RESET },
@@ -387,10 +388,8 @@ static void hci_usb_unlink_urbs(struct hci_usb *husb)
 			urb = &_urb->urb;
 			BT_DBG("%s freeing _urb %p type %d urb %p",
 					husb->hdev->name, _urb, _urb->type, urb);
-			if (urb->setup_packet)
-				kfree(urb->setup_packet);
-			if (urb->transfer_buffer)
-				kfree(urb->transfer_buffer);
+			kfree(urb->setup_packet);
+			kfree(urb->transfer_buffer);
 			_urb_free(_urb);
 		}
 

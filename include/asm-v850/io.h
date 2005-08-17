@@ -1,8 +1,8 @@
 /*
  * include/asm-v850/io.h -- Misc I/O operations
  *
- *  Copyright (C) 2001,02,03,04  NEC Electronics Corporation
- *  Copyright (C) 2001,02,03,04  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2001,02,03,04,05  NEC Electronics Corporation
+ *  Copyright (C) 2001,02,03,04,05  Miles Bader <miles@gnu.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -27,12 +27,12 @@
 #define readw_relaxed(a) readw(a)
 #define readl_relaxed(a) readl(a)
 
-#define writeb(b, addr) \
-  (void)((*(volatile unsigned char *) (addr)) = (b))
-#define writew(b, addr) \
-  (void)((*(volatile unsigned short *) (addr)) = (b))
-#define writel(b, addr) \
-  (void)((*(volatile unsigned int *) (addr)) = (b))
+#define writeb(val, addr) \
+  (void)((*(volatile unsigned char *) (addr)) = (val))
+#define writew(val, addr) \
+  (void)((*(volatile unsigned short *) (addr)) = (val))
+#define writel(val, addr) \
+  (void)((*(volatile unsigned int *) (addr)) = (val))
 
 #define __raw_readb readb
 #define __raw_readw readw
@@ -96,11 +96,22 @@ outsl (unsigned long port, const void *src, unsigned long count)
 		outl (*p++, port);
 }
 
-#define iounmap(addr)				((void)0)
-#define ioremap(physaddr, size)			(physaddr)
-#define ioremap_nocache(physaddr, size)		(physaddr)
-#define ioremap_writethrough(physaddr, size)	(physaddr)
-#define ioremap_fullcache(physaddr, size)	(physaddr)
+
+/* Some places try to pass in an loff_t for PHYSADDR (?!), so we cast it to
+   long before casting it to a pointer to avoid compiler warnings.  */
+#define ioremap(physaddr, size)	((void __iomem *)(unsigned long)(physaddr))
+#define iounmap(addr)		((void)0)
+
+#define ioremap_nocache(physaddr, size)		ioremap (physaddr, size)
+#define ioremap_writethrough(physaddr, size)	ioremap (physaddr, size)
+#define ioremap_fullcache(physaddr, size)	ioremap (physaddr, size)
+
+#define ioread8(addr)		readb (addr)
+#define ioread16(addr)		readw (addr)
+#define ioread32(addr)		readl (addr)
+#define iowrite8(val, addr)	writeb (val, addr)
+#define iowrite16(val, addr)	writew (val, addr)
+#define iowrite32(val, addr)	writel (val, addr)
 
 #define mmiowb()
 

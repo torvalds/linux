@@ -115,7 +115,7 @@ static int valid_kernel_stack(struct frame_tail *tail, struct pt_regs *regs)
 	return (tailaddr > stack) && (tailaddr < stack_base);
 }
 
-void arm_backtrace(struct pt_regs const *regs, unsigned int depth)
+void arm_backtrace(struct pt_regs * const regs, unsigned int depth)
 {
 	struct frame_tail *tail;
 	unsigned long last_address = 0;

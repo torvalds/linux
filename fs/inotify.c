@@ -62,8 +62,8 @@ int inotify_max_queued_events;
  * Lifetimes of the three main data structures--inotify_device, inode, and
  * inotify_watch--are managed by reference count.
  *
- * inotify_device: Lifetime is from open until release.  Additional references
- * can bump the count via get_inotify_dev() and drop the count via
+ * inotify_device: Lifetime is from inotify_init() until release.  Additional
+ * references can bump the count via get_inotify_dev() and drop the count via
  * put_inotify_dev().
  *
  * inotify_watch: Lifetime is from create_watch() to destory_watch().
@@ -75,7 +75,7 @@ int inotify_max_queued_events;
  */
 
 /*
- * struct inotify_device - represents an open instance of an inotify device
+ * struct inotify_device - represents an inotify instance
  *
  * This structure is protected by the semaphore 'sem'.
  */
@@ -90,6 +90,7 @@ struct inotify_device {
 	unsigned int		queue_size;	/* size of the queue (bytes) */
 	unsigned int		event_count;	/* number of pending events */
 	unsigned int		max_events;	/* maximum number of events */
+	u32			last_wd;	/* the last wd allocated */
 };
 
 /*
@@ -352,7 +353,7 @@ static int inotify_dev_get_wd(struct inotify_device *dev,
 	do {
 		if (unlikely(!idr_pre_get(&dev->idr, GFP_KERNEL)))
 			return -ENOSPC;
-		ret = idr_get_new(&dev->idr, watch, &watch->wd);
+		ret = idr_get_new_above(&dev->idr, watch, dev->last_wd, &watch->wd);
 	} while (ret == -EAGAIN);
 
 	return ret;
@@ -371,7 +372,7 @@ static int find_inode(const char __user *dirname, struct nameidata *nd)
 	/* you can only watch an inode if you have read permissions on it */
 	error = permission(nd->dentry->d_inode, MAY_READ, NULL);
 	if (error) 
-		path_release (nd);
+		path_release(nd);
 	return error;
 }
 
@@ -387,7 +388,8 @@ static struct inotify_watch *create_watch(struct inotify_device *dev,
 	struct inotify_watch *watch;
 	int ret;
 
-	if (atomic_read(&dev->user->inotify_watches) >= inotify_max_user_watches)
+	if (atomic_read(&dev->user->inotify_watches) >=
+			inotify_max_user_watches)
 		return ERR_PTR(-ENOSPC);
 
 	watch = kmem_cache_alloc(watch_cachep, GFP_KERNEL);
@@ -400,6 +402,7 @@ static struct inotify_watch *create_watch(struct inotify_device *dev,
 		return ERR_PTR(ret);
 	}
 
+	dev->last_wd = watch->wd;
 	watch->mask = mask;
 	atomic_set(&watch->count, 0);
 	INIT_LIST_HEAD(&watch->d_list);
@@ -783,15 +786,14 @@ static int inotify_release(struct inode *ignored, struct file *file)
 		inotify_dev_event_dequeue(dev);
 	up(&dev->sem);
 
-	/* free this device: the put matching the get in inotify_open() */
+	/* free this device: the put matching the get in inotify_init() */
 	put_inotify_dev(dev);
 
 	return 0;
 }
 
 /*
- * inotify_ignore - handle the INOTIFY_IGNORE ioctl, asking that a given wd be
- * removed from the device.
+ * inotify_ignore - remove a given wd from this inotify instance.
  *
  * Can sleep.
  */
@@ -856,41 +858,39 @@ asmlinkage long sys_inotify_init(void)
 {
 	struct inotify_device *dev;
 	struct user_struct *user;
-	int ret = -ENOTTY;
-	int fd;
-	struct file *filp;
+	struct file *filp;	
+	int fd, ret;
 
 	fd = get_unused_fd();
-	if (fd < 0) {
-		ret = fd;
-		goto out;
-	}
+	if (fd < 0)
+		return fd;
 
 	filp = get_empty_filp();
 	if (!filp) {
-		put_unused_fd(fd);
 		ret = -ENFILE;
-		goto out;
+		goto out_put_fd;
 	}
+
+	user = get_uid(current->user);
+	if (unlikely(atomic_read(&user->inotify_devs) >=
+			inotify_max_user_instances)) {
+		ret = -EMFILE;
+		goto out_free_uid;
+	}
+
+	dev = kmalloc(sizeof(struct inotify_device), GFP_KERNEL);
+	if (unlikely(!dev)) {
+		ret = -ENOMEM;
+		goto out_free_uid;
+	}
+
 	filp->f_op = &inotify_fops;
 	filp->f_vfsmnt = mntget(inotify_mnt);
 	filp->f_dentry = dget(inotify_mnt->mnt_root);
 	filp->f_mapping = filp->f_dentry->d_inode->i_mapping;
 	filp->f_mode = FMODE_READ;
 	filp->f_flags = O_RDONLY;
-
-	user = get_uid(current->user);
-
-	if (unlikely(atomic_read(&user->inotify_devs) >= inotify_max_user_instances)) {
-		ret = -EMFILE;
-		goto out_err;
-	}
-
-	dev = kmalloc(sizeof(struct inotify_device), GFP_KERNEL);
-	if (unlikely(!dev)) {
-		ret = -ENOMEM;
-		goto out_err;
-	}
+	filp->private_data = dev;
 
 	idr_init(&dev->idr);
 	INIT_LIST_HEAD(&dev->events);
@@ -901,50 +901,55 @@ asmlinkage long sys_inotify_init(void)
 	dev->queue_size = 0;
 	dev->max_events = inotify_max_queued_events;
 	dev->user = user;
+	dev->last_wd = 0;
 	atomic_set(&dev->count, 0);
 
 	get_inotify_dev(dev);
 	atomic_inc(&user->inotify_devs);
+	fd_install(fd, filp);
 
-	filp->private_data = dev;
-	fd_install (fd, filp);
 	return fd;
-out_err:
-	put_unused_fd (fd);
-	put_filp (filp);
+out_free_uid:
 	free_uid(user);
-out:
+	put_filp(filp);
+out_put_fd:
+	put_unused_fd(fd);
 	return ret;
 }
 
-asmlinkage long sys_inotify_add_watch(int fd, const char *path, u32 mask)
+asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 {
 	struct inotify_watch *watch, *old;
 	struct inode *inode;
 	struct inotify_device *dev;
 	struct nameidata nd;
 	struct file *filp;
-	int ret;
+	int ret, fput_needed;
 
-	filp = fget(fd);
-	if (!filp)
+	filp = fget_light(fd, &fput_needed);
+	if (unlikely(!filp))
 		return -EBADF;
 
-	dev = filp->private_data;
+	/* verify that this is indeed an inotify instance */
+	if (unlikely(filp->f_op != &inotify_fops)) {
+		ret = -EINVAL;
+		goto fput_and_out;
+	}
 
-	ret = find_inode((const char __user*) path, &nd);
-	if (ret)
+	ret = find_inode(path, &nd);
+	if (unlikely(ret))
 		goto fput_and_out;
 
-	/* Held in place by reference in nd */
+	/* inode held in place by reference to nd; dev by fget on fd */
 	inode = nd.dentry->d_inode;
+	dev = filp->private_data;
 
 	down(&inode->inotify_sem);
 	down(&dev->sem);
 
 	/* don't let user-space set invalid bits: we don't want flags set */
 	mask &= IN_ALL_EVENTS;
-	if (!mask) {
+	if (unlikely(!mask)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -971,11 +976,11 @@ asmlinkage long sys_inotify_add_watch(int fd, const char *path, u32 mask)
 	list_add(&watch->i_list, &inode->inotify_watches);
 	ret = watch->wd;
 out:
-	path_release (&nd);
 	up(&dev->sem);
 	up(&inode->inotify_sem);
+	path_release(&nd);
 fput_and_out:
-	fput(filp);
+	fput_light(filp, fput_needed);
 	return ret;
 }
 
@@ -983,15 +988,23 @@ asmlinkage long sys_inotify_rm_watch(int fd, u32 wd)
 {
 	struct file *filp;
 	struct inotify_device *dev;
-	int ret;
+	int ret, fput_needed;
 
-	filp = fget(fd);
-	if (!filp)
+	filp = fget_light(fd, &fput_needed);
+	if (unlikely(!filp))
 		return -EBADF;
+
+	/* verify that this is indeed an inotify instance */
+	if (unlikely(filp->f_op != &inotify_fops)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	dev = filp->private_data;
 	ret = inotify_ignore(dev, wd);
-	fput(filp);
 
+out:
+	fput_light(filp, fput_needed);
 	return ret;
 }
 
@@ -1009,17 +1022,24 @@ static struct file_system_type inotify_fs_type = {
 };
 
 /*
- * inotify_init - Our initialization function.  Note that we cannnot return
+ * inotify_setup - Our initialization function.  Note that we cannnot return
  * error because we have compiled-in VFS hooks.  So an (unlikely) failure here
  * must result in panic().
  */
-static int __init inotify_init(void)
+static int __init inotify_setup(void)
 {
-	register_filesystem(&inotify_fs_type);
-	inotify_mnt = kern_mount(&inotify_fs_type);
+	int ret;
 
-	inotify_max_queued_events = 8192;
-	inotify_max_user_instances = 8;
+	ret = register_filesystem(&inotify_fs_type);
+	if (unlikely(ret))
+		panic("inotify: register_filesystem returned %d!\n", ret);
+
+	inotify_mnt = kern_mount(&inotify_fs_type);
+	if (IS_ERR(inotify_mnt))
+		panic("inotify: kern_mount ret %ld!\n", PTR_ERR(inotify_mnt));
+
+	inotify_max_queued_events = 16384;
+	inotify_max_user_instances = 128;
 	inotify_max_user_watches = 8192;
 
 	atomic_set(&inotify_cookie, 0);
@@ -1034,4 +1054,4 @@ static int __init inotify_init(void)
 	return 0;
 }
 
-module_init(inotify_init);
+module_init(inotify_setup);

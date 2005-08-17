@@ -38,4 +38,9 @@ config FRAME_POINTER
           If you don't debug the kernel, you can say N, but we may not be able
           to solve problems without frame pointers.
 
+config DEBUG_NMI_OOPS
+       bool "NMI causes oops printout"
+       help
+         If the system locks up without any debug information you can say Y
+         here to make it possible to dump an OOPS with an external NMI.
 endmenu

@@ -28,13 +28,37 @@ Creating MAD agents
 
 Receiving MADs
 
-  MADs are received using read().  The buffer passed to read() must be
-  large enough to hold at least one struct ib_user_mad.  For example:
+  MADs are received using read().  The receive side now supports
+  RMPP. The buffer passed to read() must be at least one
+  struct ib_user_mad + 256 bytes. For example:
 
-	struct ib_user_mad mad;
-	ret = read(fd, &mad, sizeof mad);
-	if (ret != sizeof mad)
+  If the buffer passed is not large enough to hold the received
+  MAD (RMPP), the errno is set to ENOSPC and the length of the
+  buffer needed is set in mad.length.
+
+  Example for normal MAD (non RMPP) reads:
+	struct ib_user_mad *mad;
+	mad = malloc(sizeof *mad + 256);
+	ret = read(fd, mad, sizeof *mad + 256);
+	if (ret != sizeof mad + 256) {
 		perror("read");
+		free(mad);
+	}
+
+  Example for RMPP reads:
+	struct ib_user_mad *mad;
+	mad = malloc(sizeof *mad + 256);
+	ret = read(fd, mad, sizeof *mad + 256);
+	if (ret == -ENOSPC)) {
+		length = mad.length;
+		free(mad);
+		mad = malloc(sizeof *mad + length);
+		ret = read(fd, mad, sizeof *mad + length);
+	}
+	if (ret < 0) {
+		perror("read");
+		free(mad);
+	}
 
   In addition to the actual MAD contents, the other struct ib_user_mad
   fields will be filled in with information on the received MAD.  For
@@ -50,18 +74,21 @@ Sending MADs
 
   MADs are sent using write().  The agent ID for sending should be
   filled into the id field of the MAD, the destination LID should be
-  filled into the lid field, and so on.  For example:
+  filled into the lid field, and so on.  The send side does support
+  RMPP so arbitrary length MAD can be sent. For example:
 
-	struct ib_user_mad mad;
+	struct ib_user_mad *mad;
 
-	/* fill in mad.data */
+	mad = malloc(sizeof *mad + mad_length);
 
-	mad.id  = my_agent;	/* req.id from agent registration */
-	mad.lid = my_dest;	/* in network byte order... */
+	/* fill in mad->data */
+
+	mad->hdr.id  = my_agent;	/* req.id from agent registration */
+	mad->hdr.lid = my_dest;		/* in network byte order... */
 	/* etc. */
 
-	ret = write(fd, &mad, sizeof mad);
-	if (ret != sizeof mad)
+	ret = write(fd, &mad, sizeof *mad + mad_length);
+	if (ret != sizeof *mad + mad_length)
 		perror("write");
 
 Setting IsSM Capability Bit

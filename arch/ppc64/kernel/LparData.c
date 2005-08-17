@@ -32,18 +32,17 @@
 /* The HvReleaseData is the root of the information shared between 
  * the hypervisor and Linux.  
  */
-
 struct HvReleaseData hvReleaseData = {
 	.xDesc = 0xc8a5d9c4,	/* "HvRD" ebcdic */
 	.xSize = sizeof(struct HvReleaseData),
 	.xVpdAreasPtrOffset = offsetof(struct naca_struct, xItVpdAreas),
 	.xSlicNacaAddr = &naca,		/* 64-bit Naca address */
-	.xMsNucDataOffset = 0x4800,	/* offset of LparMap within loadarea (see head.S) */
-	.xTagsMode = 1,			/* tags inactive       */
-	.xAddressSize = 0,		/* 64 bit              */
-	.xNoSharedProcs = 0,		/* shared processors   */
-	.xNoHMT = 0,			/* HMT allowed         */
-	.xRsvd2 = 6,			/* TEMP: This allows non-GA driver */
+	.xMsNucDataOffset = LPARMAP_PHYS,
+	.xFlags = HVREL_TAGSINACTIVE	/* tags inactive       */
+					/* 64 bit              */
+					/* shared processors   */
+					/* HMT allowed         */
+		  | 6,			/* TEMP: This allows non-GA driver */
 	.xVrmIndex = 4,			/* We are v5r2m0               */
 	.xMinSupportedPlicVrmIndex = 3,		/* v5r1m0 */
 	.xMinCompatablePlicVrmIndex = 3,	/* v5r1m0 */

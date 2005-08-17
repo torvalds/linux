@@ -36,17 +36,17 @@ float32 float32_arccos(float32 rFm);
 float32 float32_pow(float32 rFn, float32 rFm);
 float32 float32_pol(float32 rFn, float32 rFm);
 
-static float32 float32_rsf(float32 rFn, float32 rFm)
+static float32 float32_rsf(struct roundingData *roundData, float32 rFn, float32 rFm)
 {
-	return float32_sub(rFm, rFn);
+	return float32_sub(roundData, rFm, rFn);
 }
 
-static float32 float32_rdv(float32 rFn, float32 rFm)
+static float32 float32_rdv(struct roundingData *roundData, float32 rFn, float32 rFm)
 {
-	return float32_div(rFm, rFn);
+	return float32_div(roundData, rFm, rFn);
 }
 
-static float32 (*const dyadic_single[16])(float32 rFn, float32 rFm) = {
+static float32 (*const dyadic_single[16])(struct roundingData *, float32 rFn, float32 rFm) = {
 	[ADF_CODE >> 20] = float32_add,
 	[MUF_CODE >> 20] = float32_mul,
 	[SUF_CODE >> 20] = float32_sub,
@@ -60,22 +60,22 @@ static float32 (*const dyadic_single[16])(float32 rFn, float32 rFm) = {
 	[FRD_CODE >> 20] = float32_rdv,
 };
 
-static float32 float32_mvf(float32 rFm)
+static float32 float32_mvf(struct roundingData *roundData, float32 rFm)
 {
 	return rFm;
 }
 
-static float32 float32_mnf(float32 rFm)
+static float32 float32_mnf(struct roundingData *roundData, float32 rFm)
 {
 	return rFm ^ 0x80000000;
 }
 
-static float32 float32_abs(float32 rFm)
+static float32 float32_abs(struct roundingData *roundData, float32 rFm)
 {
 	return rFm & 0x7fffffff;
 }
 
-static float32 (*const monadic_single[16])(float32 rFm) = {
+static float32 (*const monadic_single[16])(struct roundingData*, float32 rFm) = {
 	[MVF_CODE >> 20] = float32_mvf,
 	[MNF_CODE >> 20] = float32_mnf,
 	[ABS_CODE >> 20] = float32_abs,
@@ -85,7 +85,7 @@ static float32 (*const monadic_single[16])(float32 rFm) = {
 	[NRM_CODE >> 20] = float32_mvf,
 };
 
-unsigned int SingleCPDO(const unsigned int opcode, FPREG * rFd)
+unsigned int SingleCPDO(struct roundingData *roundData, const unsigned int opcode, FPREG * rFd)
 {
 	FPA11 *fpa11 = GET_FPA11();
 	float32 rFm;
@@ -108,13 +108,13 @@ unsigned int SingleCPDO(const unsigned int opcode, FPREG * rFd)
 		if (fpa11->fType[Fn] == typeSingle &&
 		    dyadic_single[opc_mask_shift]) {
 			rFn = fpa11->fpreg[Fn].fSingle;
-			rFd->fSingle = dyadic_single[opc_mask_shift](rFn, rFm);
+			rFd->fSingle = dyadic_single[opc_mask_shift](roundData, rFn, rFm);
 		} else {
 			return 0;
 		}
 	} else {
 		if (monadic_single[opc_mask_shift]) {
-			rFd->fSingle = monadic_single[opc_mask_shift](rFm);
+			rFd->fSingle = monadic_single[opc_mask_shift](roundData, rFm);
 		} else {
 			return 0;
 		}

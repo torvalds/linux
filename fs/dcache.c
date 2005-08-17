@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/fsnotify.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/smp_lock.h>
@@ -101,6 +102,7 @@ static inline void dentry_iput(struct dentry * dentry)
 		list_del_init(&dentry->d_alias);
 		spin_unlock(&dentry->d_lock);
 		spin_unlock(&dcache_lock);
+		fsnotify_inoderemove(inode);
 		if (dentry->d_op && dentry->d_op->d_iput)
 			dentry->d_op->d_iput(dentry, inode);
 		else
@@ -1165,13 +1167,16 @@ out:
  
 void d_delete(struct dentry * dentry)
 {
+	int isdir = 0;
 	/*
 	 * Are we the only user?
 	 */
 	spin_lock(&dcache_lock);
 	spin_lock(&dentry->d_lock);
+	isdir = S_ISDIR(dentry->d_inode->i_mode);
 	if (atomic_read(&dentry->d_count) == 1) {
 		dentry_iput(dentry);
+		fsnotify_nameremove(dentry, isdir);
 		return;
 	}
 
@@ -1180,6 +1185,8 @@ void d_delete(struct dentry * dentry)
 
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dcache_lock);
+
+	fsnotify_nameremove(dentry, isdir);
 }
 
 static void __d_rehash(struct dentry * entry, struct hlist_head *list)

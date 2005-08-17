@@ -81,7 +81,7 @@ void ipoib_free_ah(struct kref *kref)
 
 	unsigned long flags;
 
-	if (ah->last_send <= priv->tx_tail) {
+	if ((int) priv->tx_tail - (int) ah->last_send >= 0) {
 		ipoib_dbg(priv, "Freeing ah %p\n", ah->ah);
 		ib_destroy_ah(ah->ah);
 		kfree(ah);
@@ -355,7 +355,7 @@ static void __ipoib_reap_ah(struct net_device *dev)
 
 	spin_lock_irq(&priv->lock);
 	list_for_each_entry_safe(ah, tah, &priv->dead_ahs, list)
-		if (ah->last_send <= priv->tx_tail) {
+		if ((int) priv->tx_tail - (int) ah->last_send >= 0) {
 			list_del(&ah->list);
 			list_add_tail(&ah->list, &remove_list);
 		}
@@ -486,7 +486,7 @@ int ipoib_ib_dev_stop(struct net_device *dev)
 			 * assume the HW is wedged and just free up
 			 * all our pending work requests.
 			 */
-			while (priv->tx_tail < priv->tx_head) {
+			while ((int) priv->tx_tail - (int) priv->tx_head < 0) {
 				tx_req = &priv->tx_ring[priv->tx_tail &
 							(IPOIB_TX_RING_SIZE - 1)];
 				dma_unmap_single(priv->ca->dma_device,

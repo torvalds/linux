@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
+#include <linux/reboot.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -675,6 +676,19 @@ asmlinkage void kernel_stack_overflow(struct pt_regs * regs)
 	panic("Corrupt kernel stack, can't continue.");
 }
 
+#ifndef CONFIG_ARCH_S390X
+static int
+pagex_reboot_event(struct notifier_block *this, unsigned long event, void *ptr)
+{
+	if (MACHINE_IS_VM)
+		cpcmd("SET PAGEX OFF", NULL, 0, NULL);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block pagex_reboot_notifier = {
+	.notifier_call = &pagex_reboot_event,
+};
+#endif
 
 /* init is done in lowcore.S and head.S */
 
@@ -735,6 +749,7 @@ void __init trap_init(void)
 						    &ext_int_pfault);
 #endif
 #ifndef CONFIG_ARCH_S390X
+		register_reboot_notifier(&pagex_reboot_notifier);
 		cpcmd("SET PAGEX ON", NULL, 0, NULL);
 #endif
 	}

@@ -598,7 +598,7 @@ sa1100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
  *    requests for the LCD controller.  If we hit this, it means we're
  *    doing nothing but LCD DMA.
  */
-static unsigned int sa1100fb_display_dma_period(struct fb_var_screeninfo *var)
+static inline unsigned int sa1100fb_display_dma_period(struct fb_var_screeninfo *var)
 {
 	/*
 	 * Period = pixclock * bits_per_byte * bytes_per_transfer

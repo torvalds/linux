@@ -25,10 +25,12 @@
  *     14-Jan-2005 BJD  Add support for muitlple NAND devices
  *     03-Mar-2005 BJD  Ensured that bast-cpld.h is included
  *     10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
- *     14-Mar-2006 BJD  Updated for __iomem changes
- *     22-Jun-2006 BJD  Added DM9000 platform information
- *     28-Jun-2006 BJD  Moved pm functionality out to common code
- *     17-Jul-2006 BJD  Changed to platform device for SuperIO 16550s
+ *     14-Mar-2005 BJD  Updated for __iomem changes
+ *     22-Jun-2005 BJD  Added DM9000 platform information
+ *     28-Jun-2005 BJD  Moved pm functionality out to common code
+ *     17-Jul-2005 BJD  Changed to platform device for SuperIO 16550s
+ *     25-Jul-2005 BJD  Removed ASIX static mappings
+ *     27-Jul-2005 BJD  Ensure maximum frequency of i2c bus
 */
 
 #include <linux/kernel.h>
@@ -59,6 +61,7 @@
 #include <asm/arch/regs-mem.h>
 #include <asm/arch/regs-lcd.h>
 #include <asm/arch/nand.h>
+#include <asm/arch/iic.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -116,7 +119,6 @@ static struct map_desc bast_iodesc[] __initdata = {
   /* slow, byte */
   { VA_C2(BAST_VA_ISAIO),   PA_CS2(BAST_PA_ISAIO),    SZ_16M, MT_DEVICE },
   { VA_C2(BAST_VA_ISAMEM),  PA_CS2(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
-  { VA_C2(BAST_VA_ASIXNET), PA_CS3(BAST_PA_ASIXNET),  SZ_1M,  MT_DEVICE },
   { VA_C2(BAST_VA_SUPERIO), PA_CS2(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
   { VA_C2(BAST_VA_IDEPRI),  PA_CS3(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
   { VA_C2(BAST_VA_IDESEC),  PA_CS3(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
@@ -126,7 +128,6 @@ static struct map_desc bast_iodesc[] __initdata = {
   /* slow, word */
   { VA_C3(BAST_VA_ISAIO),   PA_CS3(BAST_PA_ISAIO),    SZ_16M, MT_DEVICE },
   { VA_C3(BAST_VA_ISAMEM),  PA_CS3(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
-  { VA_C3(BAST_VA_ASIXNET), PA_CS3(BAST_PA_ASIXNET),  SZ_1M,  MT_DEVICE },
   { VA_C3(BAST_VA_SUPERIO), PA_CS3(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
   { VA_C3(BAST_VA_IDEPRI),  PA_CS3(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
   { VA_C3(BAST_VA_IDESEC),  PA_CS3(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
@@ -136,7 +137,6 @@ static struct map_desc bast_iodesc[] __initdata = {
   /* fast, byte */
   { VA_C4(BAST_VA_ISAIO),   PA_CS4(BAST_PA_ISAIO),    SZ_16M, MT_DEVICE },
   { VA_C4(BAST_VA_ISAMEM),  PA_CS4(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
-  { VA_C4(BAST_VA_ASIXNET), PA_CS5(BAST_PA_ASIXNET),  SZ_1M,  MT_DEVICE },
   { VA_C4(BAST_VA_SUPERIO), PA_CS4(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
   { VA_C4(BAST_VA_IDEPRI),  PA_CS5(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
   { VA_C4(BAST_VA_IDESEC),  PA_CS5(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
@@ -146,7 +146,6 @@ static struct map_desc bast_iodesc[] __initdata = {
   /* fast, word */
   { VA_C5(BAST_VA_ISAIO),   PA_CS5(BAST_PA_ISAIO),    SZ_16M, MT_DEVICE },
   { VA_C5(BAST_VA_ISAMEM),  PA_CS5(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
-  { VA_C5(BAST_VA_ASIXNET), PA_CS5(BAST_PA_ASIXNET),  SZ_1M,  MT_DEVICE },
   { VA_C5(BAST_VA_SUPERIO), PA_CS5(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
   { VA_C5(BAST_VA_IDEPRI),  PA_CS5(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
   { VA_C5(BAST_VA_IDESEC),  PA_CS5(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
@@ -307,7 +306,7 @@ static void bast_nand_select(struct s3c2410_nand_set *set, int slot)
 }
 
 static struct s3c2410_platform_nand bast_nand_info = {
-	.tacls		= 80,
+	.tacls		= 40,
 	.twrph0		= 80,
 	.twrph1		= 80,
 	.nr_sets	= ARRAY_SIZE(bast_nand_sets),
@@ -388,6 +387,17 @@ static struct platform_device bast_sio = {
 	},
 };
 
+/* we have devices on the bus which cannot work much over the
+ * standard 100KHz i2c bus frequency
+*/
+
+static struct s3c2410_platform_i2c bast_i2c_info = {
+	.flags		= 0,
+	.slave_addr	= 0x10,
+	.bus_freq	= 100*1000,
+	.max_freq	= 130*1000,
+};
+
 /* Standard BAST devices */
 
 static struct platform_device *bast_devices[] __initdata = {
@@ -434,6 +444,7 @@ void __init bast_map_io(void)
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
 
 	s3c_device_nand.dev.platform_data = &bast_nand_info;
+	s3c_device_i2c.dev.platform_data = &bast_i2c_info;
 
 	s3c24xx_init_io(bast_iodesc, ARRAY_SIZE(bast_iodesc));
 	s3c24xx_init_clocks(0);
