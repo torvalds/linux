@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: dir.c,v 1.87 2005/07/17 11:13:46 dedekind Exp $
+ * $Id: dir.c,v 1.88 2005/08/17 13:46:22 dedekind Exp $
  *
  */
 
@@ -232,11 +232,14 @@ static int jffs2_unlink(struct inode *dir_i, struct dentry *dentry)
 	struct jffs2_inode_info *dir_f = JFFS2_INODE_INFO(dir_i);
 	struct jffs2_inode_info *dead_f = JFFS2_INODE_INFO(dentry->d_inode);
 	int ret;
+	uint32_t now = get_seconds();
 
 	ret = jffs2_do_unlink(c, dir_f, dentry->d_name.name, 
-			       dentry->d_name.len, dead_f);
+			      dentry->d_name.len, dead_f, now);
 	if (dead_f->inocache)
 		dentry->d_inode->i_nlink = dead_f->inocache->nlink;
+	if (!ret)
+		dir_i->i_mtime = dir_i->i_ctime = ITIME(now);
 	return ret;
 }
 /***********************************************************************/
@@ -249,6 +252,7 @@ static int jffs2_link (struct dentry *old_dentry, struct inode *dir_i, struct de
 	struct jffs2_inode_info *dir_f = JFFS2_INODE_INFO(dir_i);
 	int ret;
 	uint8_t type;
+	uint32_t now;
 
 	/* Don't let people make hard links to bad inodes. */
 	if (!f->inocache)
@@ -261,13 +265,15 @@ static int jffs2_link (struct dentry *old_dentry, struct inode *dir_i, struct de
 	type = (old_dentry->d_inode->i_mode & S_IFMT) >> 12;
 	if (!type) type = DT_REG;
 
-	ret = jffs2_do_link(c, dir_f, f->inocache->ino, type, dentry->d_name.name, dentry->d_name.len);
+	now = get_seconds();
+	ret = jffs2_do_link(c, dir_f, f->inocache->ino, type, dentry->d_name.name, dentry->d_name.len, now);
 
 	if (!ret) {
 		down(&f->sem);
 		old_dentry->d_inode->i_nlink = ++f->inocache->nlink;
 		up(&f->sem);
 		d_instantiate(dentry, old_dentry->d_inode);
+		dir_i->i_mtime = dir_i->i_ctime = ITIME(now);
 		atomic_inc(&old_dentry->d_inode->i_count);
 	}
 	return ret;
@@ -716,6 +722,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(old_dir_i->i_sb);
 	struct jffs2_inode_info *victim_f = NULL;
 	uint8_t type;
+	uint32_t now;
 
 	/* The VFS will check for us and prevent trying to rename a 
 	 * file over a directory and vice versa, but if it's a directory,
@@ -749,9 +756,10 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 	type = (old_dentry->d_inode->i_mode & S_IFMT) >> 12;
 	if (!type) type = DT_REG;
 
+	now = get_seconds();
 	ret = jffs2_do_link(c, JFFS2_INODE_INFO(new_dir_i), 
 			    old_dentry->d_inode->i_ino, type,
-			    new_dentry->d_name.name, new_dentry->d_name.len);
+			    new_dentry->d_name.name, new_dentry->d_name.len, now);
 
 	if (ret)
 		return ret;
@@ -775,7 +783,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 
 	/* Unlink the original */
 	ret = jffs2_do_unlink(c, JFFS2_INODE_INFO(old_dir_i), 
-		      old_dentry->d_name.name, old_dentry->d_name.len, NULL);
+			      old_dentry->d_name.name, old_dentry->d_name.len, NULL, now);
 
 	/* We don't touch inode->i_nlink */
 
@@ -792,11 +800,14 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 		/* Might as well let the VFS know */
 		d_instantiate(new_dentry, old_dentry->d_inode);
 		atomic_inc(&old_dentry->d_inode->i_count);
+		new_dir_i->i_mtime = new_dir_i->i_ctime = ITIME(now);
 		return ret;
 	}
 
 	if (S_ISDIR(old_dentry->d_inode->i_mode))
 		old_dir_i->i_nlink--;
+
+	new_dir_i->i_mtime = new_dir_i->i_ctime = old_dir_i->i_mtime = old_dir_i->i_ctime = ITIME(now);
 
 	return 0;
 }

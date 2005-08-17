@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.139 2005/08/04 11:41:31 dedekind Exp $
+ * $Id: readinode.c,v 1.140 2005/08/17 13:46:23 dedekind Exp $
  *
  */
 
@@ -139,7 +139,7 @@ static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 	fd->type = rd->type;
 
 	/* Pick out the mctime of the latest dirent */
-	if(fd->version > *mctime_ver) {
+	if(fd->version > *mctime_ver && je32_to_cpu(rd->mctime)) {
 		*mctime_ver = fd->version;
 		*latest_mctime = je32_to_cpu(rd->mctime);
 	}

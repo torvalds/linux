@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: write.c,v 1.94 2005/07/20 15:50:51 dedekind Exp $
+ * $Id: write.c,v 1.95 2005/08/17 13:46:23 dedekind Exp $
  *
  */
 
@@ -533,7 +533,8 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 
 
 int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
-		    const char *name, int namelen, struct jffs2_inode_info *dead_f)
+		    const char *name, int namelen, struct jffs2_inode_info *dead_f,
+		    uint32_t time)
 {
 	struct jffs2_raw_dirent *rd;
 	struct jffs2_full_dirent *fd;
@@ -565,7 +566,7 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 		rd->pino = cpu_to_je32(dir_f->inocache->ino);
 		rd->version = cpu_to_je32(++dir_f->highest_version);
 		rd->ino = cpu_to_je32(0);
-		rd->mctime = cpu_to_je32(get_seconds());
+		rd->mctime = cpu_to_je32(time);
 		rd->nsize = namelen;
 		rd->type = DT_UNKNOWN;
 		rd->node_crc = cpu_to_je32(crc32(0, rd, sizeof(*rd)-8));
@@ -646,7 +647,7 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 }
 
 
-int jffs2_do_link (struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint32_t ino, uint8_t type, const char *name, int namelen)
+int jffs2_do_link (struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint32_t ino, uint8_t type, const char *name, int namelen, uint32_t time)
 {
 	struct jffs2_raw_dirent *rd;
 	struct jffs2_full_dirent *fd;
@@ -674,7 +675,7 @@ int jffs2_do_link (struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint
 	rd->pino = cpu_to_je32(dir_f->inocache->ino);
 	rd->version = cpu_to_je32(++dir_f->highest_version);
 	rd->ino = cpu_to_je32(ino);
-	rd->mctime = cpu_to_je32(get_seconds());
+	rd->mctime = cpu_to_je32(time);
 	rd->nsize = namelen;
 
 	rd->type = type;

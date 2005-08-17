@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: gc.c,v 1.152 2005/07/24 15:14:14 dedekind Exp $
+ * $Id: gc.c,v 1.153 2005/08/17 13:46:22 dedekind Exp $
  *
  */
 
@@ -771,7 +771,12 @@ static int jffs2_garbage_collect_dirent(struct jffs2_sb_info *c, struct jffs2_er
 	rd.pino = cpu_to_je32(f->inocache->ino);
 	rd.version = cpu_to_je32(++f->highest_version);
 	rd.ino = cpu_to_je32(fd->ino);
-	rd.mctime = cpu_to_je32(max(JFFS2_F_I_MTIME(f), JFFS2_F_I_CTIME(f)));
+	/* If the times on this inode were set by explicit utime() they can be different,
+	   so refrain from splatting them. */
+	if (JFFS2_F_I_MTIME(f) == JFFS2_F_I_CTIME(f))
+		rd.mctime = cpu_to_je32(JFFS2_F_I_MTIME(f));
+	else 
+		rd.mctime = cpu_to_je32(0);
 	rd.type = fd->type;
 	rd.node_crc = cpu_to_je32(crc32(0, &rd, sizeof(rd)-8));
 	rd.name_crc = cpu_to_je32(crc32(0, fd->name, rd.nsize));
@@ -882,6 +887,9 @@ static int jffs2_garbage_collect_deletion_dirent(struct jffs2_sb_info *c, struct
 		up(&c->erase_free_sem);
 		kfree(rd);
 	}
+
+	/* FIXME: If we're deleting a dirent which contains the current mtime and ctime, 
+	   we should update the metadata node with those times accordingly */
 
 	/* No need for it any more. Just mark it obsolete and remove it from the list */
 	while (*fdp) {
