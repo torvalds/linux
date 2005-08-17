@@ -30,6 +30,7 @@
  *	11-Jan-2005	BJD	Fixed divide-by-2 in timeout code
  *
  *	25-Jan-2005	DA	Added suspend/resume support
+ *				Replaced reboot notifier with .shutdown method
  *
  *	10-Mar-2005	LCVR	Changed S3C2410_VA to S3C24XX_VA
 */
@@ -42,8 +43,6 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/fs.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -319,20 +318,6 @@ static int s3c2410wdt_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-/*
- *	Notifier for system down
- */
-
-static int s3c2410wdt_notify_sys(struct notifier_block *this, unsigned long code,
-			      void *unused)
-{
-	if(code==SYS_DOWN || code==SYS_HALT) {
-		/* Turn the WDT off */
-		s3c2410wdt_stop();
-	}
-	return NOTIFY_DONE;
-}
-
 /* kernel interface */
 
 static struct file_operations s3c2410wdt_fops = {
@@ -348,10 +333,6 @@ static struct miscdevice s3c2410wdt_miscdev = {
 	.minor		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &s3c2410wdt_fops,
-};
-
-static struct notifier_block s3c2410wdt_notifier = {
-	.notifier_call	= s3c2410wdt_notify_sys,
 };
 
 /* interrupt handler code */
@@ -434,18 +415,10 @@ static int s3c2410wdt_probe(struct device *dev)
 		}
 	}
 
-	ret = register_reboot_notifier(&s3c2410wdt_notifier);
-	if (ret) {
-		printk (KERN_ERR PFX "cannot register reboot notifier (%d)\n",
-			ret);
-		return ret;
-	}
-
 	ret = misc_register(&s3c2410wdt_miscdev);
 	if (ret) {
 		printk (KERN_ERR PFX "cannot register miscdev on minor=%d (%d)\n",
 			WATCHDOG_MINOR, ret);
-		unregister_reboot_notifier(&s3c2410wdt_notifier);
 		return ret;
 	}
 
@@ -479,6 +452,11 @@ static int s3c2410wdt_remove(struct device *dev)
 
 	misc_deregister(&s3c2410wdt_miscdev);
 	return 0;
+}
+
+static void s3c2410wdt_shutdown(struct device *dev)
+{
+	s3c2410wdt_stop();	
 }
 
 #ifdef CONFIG_PM
@@ -527,6 +505,7 @@ static struct device_driver s3c2410wdt_driver = {
 	.bus		= &platform_bus_type,
 	.probe		= s3c2410wdt_probe,
 	.remove		= s3c2410wdt_remove,
+	.shutdown	= s3c2410wdt_shutdown,
 	.suspend	= s3c2410wdt_suspend,
 	.resume		= s3c2410wdt_resume,
 };
@@ -543,7 +522,6 @@ static int __init watchdog_init(void)
 static void __exit watchdog_exit(void)
 {
 	driver_unregister(&s3c2410wdt_driver);
-	unregister_reboot_notifier(&s3c2410wdt_notifier);
 }
 
 module_init(watchdog_init);
