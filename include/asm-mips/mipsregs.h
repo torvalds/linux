@@ -693,13 +693,13 @@ do {									\
 	if (sel == 0)							\
 		__asm__ __volatile__(					\
 			"mtc0\t%z0, " #register "\n\t"			\
-			: : "Jr" ((unsigned int)value));		\
+			: : "Jr" ((unsigned int)(value)));		\
 	else								\
 		__asm__ __volatile__(					\
 			".set\tmips32\n\t"				\
 			"mtc0\t%z0, " #register ", " #sel "\n\t"	\
 			".set\tmips0"					\
-			: : "Jr" ((unsigned int)value));		\
+			: : "Jr" ((unsigned int)(value)));		\
 } while (0)
 
 #define __write_64bit_c0_register(register, sel, value)			\
@@ -748,7 +748,7 @@ do {									\
 do {									\
 	__asm__ __volatile__(						\
 		"ctc0\t%z0, " #register "\n\t"				\
-		: : "Jr" ((unsigned int)value));			\
+		: : "Jr" ((unsigned int)(value)));			\
 } while (0)
 
 /*
