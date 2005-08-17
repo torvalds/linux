@@ -1282,10 +1282,8 @@ int mthca_INIT_IB(struct mthca_dev *dev,
 #define INIT_IB_FLAG_SIG         (1 << 18)
 #define INIT_IB_FLAG_NG          (1 << 17)
 #define INIT_IB_FLAG_G0          (1 << 16)
-#define INIT_IB_FLAG_1X          (1 << 8)
-#define INIT_IB_FLAG_4X          (1 << 9)
-#define INIT_IB_FLAG_12X         (1 << 11)
 #define INIT_IB_VL_SHIFT         4
+#define INIT_IB_PORT_WIDTH_SHIFT 8
 #define INIT_IB_MTU_SHIFT        12
 #define INIT_IB_MAX_GID_OFFSET   0x06
 #define INIT_IB_MAX_PKEY_OFFSET  0x0a
@@ -1301,12 +1299,11 @@ int mthca_INIT_IB(struct mthca_dev *dev,
 	memset(inbox, 0, INIT_IB_IN_SIZE);
 
 	flags = 0;
-	flags |= param->enable_1x     ? INIT_IB_FLAG_1X  : 0;
-	flags |= param->enable_4x     ? INIT_IB_FLAG_4X  : 0;
 	flags |= param->set_guid0     ? INIT_IB_FLAG_G0  : 0;
 	flags |= param->set_node_guid ? INIT_IB_FLAG_NG  : 0;
 	flags |= param->set_si_guid   ? INIT_IB_FLAG_SIG : 0;
 	flags |= param->vl_cap << INIT_IB_VL_SHIFT;
+	flags |= param->port_width << INIT_IB_PORT_WIDTH_SHIFT;
 	flags |= param->mtu_cap << INIT_IB_MTU_SHIFT;
 	MTHCA_PUT(inbox, flags, INIT_IB_FLAGS_OFFSET);
 

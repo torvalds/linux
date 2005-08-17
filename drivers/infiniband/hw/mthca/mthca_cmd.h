@@ -220,8 +220,7 @@ struct mthca_init_hca_param {
 };
 
 struct mthca_init_ib_param {
-	int enable_1x;
-	int enable_4x;
+	int port_width;
 	int vl_cap;
 	int mtu_cap;
 	u16 gid_cap;

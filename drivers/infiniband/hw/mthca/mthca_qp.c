@@ -575,12 +575,11 @@ static void init_port(struct mthca_dev *dev, int port)
 
 	memset(&param, 0, sizeof param);
 
-	param.enable_1x = 1;
-	param.enable_4x = 1;
-	param.vl_cap    = dev->limits.vl_cap;
-	param.mtu_cap   = dev->limits.mtu_cap;
-	param.gid_cap   = dev->limits.gid_table_len;
-	param.pkey_cap  = dev->limits.pkey_table_len;
+	param.port_width = dev->limits.port_width_cap;
+	param.vl_cap     = dev->limits.vl_cap;
+	param.mtu_cap    = dev->limits.mtu_cap;
+	param.gid_cap    = dev->limits.gid_table_len;
+	param.pkey_cap   = dev->limits.pkey_table_len;
 
 	err = mthca_INIT_IB(dev, &param, port, &status);
 	if (err)
