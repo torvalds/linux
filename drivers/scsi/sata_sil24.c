@@ -104,9 +104,6 @@ enum {
 	 */
 	PORT_REGS_SIZE		= 0x2000,
 	PORT_PRB		= 0x0000, /* (32 bytes PRB + 16 bytes SGEs * 6) * 31 (3968 bytes) */
-		/* TF is overlayed w/ PRB regs in the preview driver,
-		 * but it doesn't seem to work. */
-	PORT_TF			= 0x0000,
 
 	PORT_PM			= 0x0f80, /* 8 bytes PM * 16 (128 bytes) */
 		/* 32 bit regs */
@@ -703,9 +700,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		u32 tmp;
 		int cnt;
 
-		probe_ent->port[i].cmd_addr = portu + PORT_TF;
-		probe_ent->port[i].ctl_addr = portu + PORT_TF + 0xa;
-		probe_ent->port[i].altstatus_addr = portu + PORT_TF + 0xa;
+		probe_ent->port[i].cmd_addr = portu;
 		probe_ent->port[i].scr_addr = portu + PORT_SCONTROL;
 
 		ata_std_ports(&probe_ent->port[i]);
