@@ -162,6 +162,13 @@ struct skb_timeval {
 	u32	off_usec;
 };
 
+
+enum {
+	SKB_FCLONE_UNAVAILABLE,
+	SKB_FCLONE_ORIG,
+	SKB_FCLONE_CLONE,
+};
+
 /** 
  *	struct sk_buff - socket buffer
  *	@next: Next buffer in list
@@ -255,7 +262,8 @@ struct sk_buff {
 				ip_summed:2,
 				nohdr:1,
 				nfctinfo:3;
-	__u8			pkt_type;
+	__u8			pkt_type:3,
+				fclone:2;
 	__be16			protocol;
 
 	void			(*destructor)(struct sk_buff *skb);
@@ -295,8 +303,20 @@ struct sk_buff {
 #include <asm/system.h>
 
 extern void	       __kfree_skb(struct sk_buff *skb);
-extern struct sk_buff *alloc_skb(unsigned int size,
-				 unsigned int __nocast priority);
+extern struct sk_buff *__alloc_skb(unsigned int size,
+				   unsigned int __nocast priority, int fclone);
+static inline struct sk_buff *alloc_skb(unsigned int size,
+					unsigned int __nocast priority)
+{
+	return __alloc_skb(size, priority, 0);
+}
+
+static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
+					       unsigned int __nocast priority)
+{
+	return __alloc_skb(size, priority, 1);
+}
+
 extern struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
 					    unsigned int size,
 					    unsigned int __nocast priority);

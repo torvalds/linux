@@ -69,6 +69,7 @@
 #include <asm/system.h>
 
 static kmem_cache_t *skbuff_head_cache;
+static kmem_cache_t *skbuff_fclone_cache;
 
 struct timeval __read_mostly skb_tv_base;
 
@@ -120,7 +121,7 @@ void skb_under_panic(struct sk_buff *skb, int sz, void *here)
  */
 
 /**
- *	alloc_skb	-	allocate a network buffer
+ *	__alloc_skb	-	allocate a network buffer
  *	@size: size to allocate
  *	@gfp_mask: allocation mask
  *
@@ -131,14 +132,20 @@ void skb_under_panic(struct sk_buff *skb, int sz, void *here)
  *	Buffers may only be allocated from interrupts using a @gfp_mask of
  *	%GFP_ATOMIC.
  */
-struct sk_buff *alloc_skb(unsigned int size, unsigned int __nocast gfp_mask)
+struct sk_buff *__alloc_skb(unsigned int size, unsigned int __nocast gfp_mask,
+			    int fclone)
 {
 	struct sk_buff *skb;
 	u8 *data;
 
 	/* Get the HEAD */
-	skb = kmem_cache_alloc(skbuff_head_cache,
-			       gfp_mask & ~__GFP_DMA);
+	if (fclone)
+		skb = kmem_cache_alloc(skbuff_fclone_cache,
+				       gfp_mask & ~__GFP_DMA);
+	else
+		skb = kmem_cache_alloc(skbuff_head_cache,
+				       gfp_mask & ~__GFP_DMA);
+
 	if (!skb)
 		goto out;
 
@@ -155,7 +162,15 @@ struct sk_buff *alloc_skb(unsigned int size, unsigned int __nocast gfp_mask)
 	skb->data = data;
 	skb->tail = data;
 	skb->end  = data + size;
+	if (fclone) {
+		struct sk_buff *child = skb + 1;
+		atomic_t *fclone_ref = (atomic_t *) (child + 1);
 
+		skb->fclone = SKB_FCLONE_ORIG;
+		atomic_set(fclone_ref, 1);
+
+		child->fclone = SKB_FCLONE_UNAVAILABLE;
+	}
 	atomic_set(&(skb_shinfo(skb)->dataref), 1);
 	skb_shinfo(skb)->nr_frags  = 0;
 	skb_shinfo(skb)->tso_size = 0;
@@ -268,8 +283,34 @@ void skb_release_data(struct sk_buff *skb)
  */
 void kfree_skbmem(struct sk_buff *skb)
 {
+	struct sk_buff *other;
+	atomic_t *fclone_ref;
+
 	skb_release_data(skb);
-	kmem_cache_free(skbuff_head_cache, skb);
+	switch (skb->fclone) {
+	case SKB_FCLONE_UNAVAILABLE:
+		kmem_cache_free(skbuff_head_cache, skb);
+		break;
+
+	case SKB_FCLONE_ORIG:
+		fclone_ref = (atomic_t *) (skb + 2);
+		if (atomic_dec_and_test(fclone_ref))
+			kmem_cache_free(skbuff_fclone_cache, skb);
+		break;
+
+	case SKB_FCLONE_CLONE:
+		fclone_ref = (atomic_t *) (skb + 1);
+		other = skb - 1;
+
+		/* The clone portion is available for
+		 * fast-cloning again.
+		 */
+		skb->fclone = SKB_FCLONE_UNAVAILABLE;
+
+		if (atomic_dec_and_test(fclone_ref))
+			kmem_cache_free(skbuff_fclone_cache, other);
+		break;
+	};
 }
 
 /**
@@ -324,10 +365,20 @@ void __kfree_skb(struct sk_buff *skb)
 
 struct sk_buff *skb_clone(struct sk_buff *skb, unsigned int __nocast gfp_mask)
 {
-	struct sk_buff *n = kmem_cache_alloc(skbuff_head_cache, gfp_mask);
+	struct sk_buff *n;
 
-	if (!n) 
-		return NULL;
+	n = skb + 1;
+	if (skb->fclone == SKB_FCLONE_ORIG &&
+	    n->fclone == SKB_FCLONE_UNAVAILABLE) {
+		atomic_t *fclone_ref = (atomic_t *) (n + 1);
+		n->fclone = SKB_FCLONE_CLONE;
+		atomic_inc(fclone_ref);
+	} else {
+		n = kmem_cache_alloc(skbuff_head_cache, gfp_mask);
+		if (!n)
+			return NULL;
+		n->fclone = SKB_FCLONE_UNAVAILABLE;
+	}
 
 #define C(x) n->x = skb->x
 
@@ -409,6 +460,7 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->mac.raw	= old->mac.raw + offset;
 	memcpy(new->cb, old->cb, sizeof(old->cb));
 	new->local_df	= old->local_df;
+	new->fclone	= SKB_FCLONE_UNAVAILABLE;
 	new->pkt_type	= old->pkt_type;
 	new->tstamp	= old->tstamp;
 	new->destructor = NULL;
@@ -1647,13 +1699,23 @@ void __init skb_init(void)
 					      NULL, NULL);
 	if (!skbuff_head_cache)
 		panic("cannot create skbuff cache");
+
+	skbuff_fclone_cache = kmem_cache_create("skbuff_fclone_cache",
+						(2*sizeof(struct sk_buff)) +
+						sizeof(atomic_t),
+						0,
+						SLAB_HWCACHE_ALIGN,
+						NULL, NULL);
+	if (!skbuff_fclone_cache)
+		panic("cannot create skbuff cache");
+
 	do_gettimeofday(&skb_tv_base);
 }
 
 EXPORT_SYMBOL(___pskb_trim);
 EXPORT_SYMBOL(__kfree_skb);
 EXPORT_SYMBOL(__pskb_pull_tail);
-EXPORT_SYMBOL(alloc_skb);
+EXPORT_SYMBOL(__alloc_skb);
 EXPORT_SYMBOL(pskb_copy);
 EXPORT_SYMBOL(pskb_expand_head);
 EXPORT_SYMBOL(skb_checksum);
