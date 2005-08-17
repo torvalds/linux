@@ -749,6 +749,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
+	/* FIXME: check ata_device_add return value */
 	ata_device_add(probe_ent);
 
 	kfree(probe_ent);
