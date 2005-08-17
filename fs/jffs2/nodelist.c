@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.109 2005/08/04 11:41:30 dedekind Exp $
+ * $Id: nodelist.c,v 1.110 2005/08/17 14:13:45 dedekind Exp $
  *
  */
 
@@ -263,7 +263,7 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *r
 					this->ofs, this->ofs+this->size, ref_offset(this->node->raw));
 			else 
 				JFFS2_DBG_FRAGTREE2("split old hole frag 0x%04x-0x%04x\n",
-					this->ofs, this->ofs+this->size, ref_offset(this->node->raw));
+					this->ofs, this->ofs+this->size);
 			
 			/* New second frag pointing to this's node */
 			newfrag2 = new_fragment(this->node, newfrag->ofs + newfrag->size,
