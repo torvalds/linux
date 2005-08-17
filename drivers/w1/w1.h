@@ -75,6 +75,7 @@ struct w1_slave
 
 	struct w1_master	*master;
 	struct w1_family	*family;
+	void			*family_data;
 	struct device		dev;
 	struct completion	released;
 };
