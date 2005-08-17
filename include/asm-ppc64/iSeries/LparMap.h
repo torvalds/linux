@@ -19,6 +19,8 @@
 #ifndef _LPARMAP_H
 #define _LPARMAP_H
 
+#ifndef __ASSEMBLY__
+
 #include <asm/types.h>
 
 /*
@@ -71,6 +73,11 @@ struct LparMap {
 	} xRanges[HvRangesToMap];
 };
 
-extern struct LparMap		xLparMap;
+extern const struct LparMap	xLparMap;
+
+#endif /* __ASSEMBLY__ */
+
+/* the fixed address where the LparMap exists */
+#define LPARMAP_PHYS		0x7000
 
 #endif /* _LPARMAP_H */

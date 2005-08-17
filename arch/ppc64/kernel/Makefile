@@ -73,3 +73,8 @@ obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 
 CFLAGS_ioctl32.o += -Ifs/
+
+ifeq ($(CONFIG_PPC_ISERIES),y)
+arch/ppc64/kernel/head.o: arch/ppc64/kernel/lparmap.s
+AFLAGS_head.o += -Iarch/ppc64/kernel
+endif
