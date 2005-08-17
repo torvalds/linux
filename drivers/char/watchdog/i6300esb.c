@@ -97,7 +97,7 @@ static void esb_timer_start(void)
 	u8 val;
 
 	/* Enable or Enable + Lock? */
-	val = 0x02 | nowayout ? 0x01 : 0x00;
+	val = 0x02 | (nowayout ? 0x01 : 0x00);
 
         pci_write_config_byte(esb_pci, ESB_LOCK_REG, val);
 }
