@@ -1186,8 +1186,14 @@ void __init per_cpu_trap_init(void)
 		/* Setting vector spacing enables EI/VI mode  */
 		change_c0_intctl (0x3e0, VECTORSPACING);
 	}
-	if (cpu_has_divec)
-		set_c0_cause(CAUSEF_IV);
+	if (cpu_has_divec) {
+		if (cpu_has_mipsmt) {
+			unsigned int vpflags = dvpe();
+			set_c0_cause(CAUSEF_IV);
+			evpe(vpflags);
+		} else
+			set_c0_cause(CAUSEF_IV);
+	}
 
 	cpu_data[cpu].asid_cache = ASID_FIRST_VERSION;
 	TLBMISS_HANDLER_SETUP();
