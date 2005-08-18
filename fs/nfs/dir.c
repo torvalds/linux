@@ -189,7 +189,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 		goto error;
 	}
 	SetPageUptodate(page);
-	NFS_FLAGS(inode) |= NFS_INO_INVALID_ATIME;
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
 	/* Ensure consistent page alignment of the data.
 	 * Note: assumes we have exclusive access to this mapping either
 	 *	 through inode->i_sem or some other mechanism.
@@ -462,7 +462,7 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 						page,
 						NFS_SERVER(inode)->dtsize,
 						desc->plus);
-	NFS_FLAGS(inode) |= NFS_INO_INVALID_ATIME;
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
 	desc->page = page;
 	desc->ptr = kmap(page);		/* matching kunmap in nfs_do_filldir */
 	if (desc->error >= 0) {
@@ -608,7 +608,7 @@ static inline int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 {
 	if (IS_ROOT(dentry))
 		return 1;
-	if ((NFS_FLAGS(dir) & NFS_INO_INVALID_ATTR) != 0
+	if ((NFS_I(dir)->cache_validity & NFS_INO_INVALID_ATTR) != 0
 			|| nfs_attribute_timeout(dir))
 		return 0;
 	return nfs_verify_change_attribute(dir, (unsigned long)dentry->d_fsdata);
@@ -1575,11 +1575,12 @@ out:
 
 int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, struct nfs_access_entry *res)
 {
-	struct nfs_access_entry *cache = &NFS_I(inode)->cache_access;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_access_entry *cache = &nfsi->cache_access;
 
 	if (cache->cred != cred
 			|| time_after(jiffies, cache->jiffies + NFS_ATTRTIMEO(inode))
-			|| (NFS_FLAGS(inode) & NFS_INO_INVALID_ACCESS))
+			|| (nfsi->cache_validity & NFS_INO_INVALID_ACCESS))
 		return -ENOENT;
 	memcpy(res, cache, sizeof(*res));
 	return 0;
@@ -1587,14 +1588,15 @@ int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, struct nfs
 
 void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 {
-	struct nfs_access_entry *cache = &NFS_I(inode)->cache_access;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_access_entry *cache = &nfsi->cache_access;
 
 	if (cache->cred != set->cred) {
 		if (cache->cred)
 			put_rpccred(cache->cred);
 		cache->cred = get_rpccred(set->cred);
 	}
-	NFS_FLAGS(inode) &= ~NFS_INO_INVALID_ACCESS;
+	nfsi->cache_validity &= ~NFS_INO_INVALID_ACCESS;
 	cache->jiffies = set->jiffies;
 	cache->mask = set->mask;
 }

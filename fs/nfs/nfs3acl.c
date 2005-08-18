@@ -308,7 +308,7 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 	nfs_begin_data_update(inode);
 	status = rpc_call(server->client_acl, ACLPROC3_SETACL,
 			  &args, &fattr, 0);
-	NFS_FLAGS(inode) |= NFS_INO_INVALID_ACCESS;
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ACCESS;
 	nfs_end_data_update(inode);
 	dprintk("NFS reply setacl: %d\n", status);
 

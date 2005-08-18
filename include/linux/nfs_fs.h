@@ -113,6 +113,7 @@ struct nfs_inode {
 	 * Various flags
 	 */
 	unsigned int		flags;
+	unsigned long		cache_validity;
 
 	/*
 	 * read_cache_jiffies is when we started read-caching this inode,
@@ -188,17 +189,21 @@ struct nfs_inode {
 };
 
 /*
- * Legal inode flag values
+ * Cache validity bit flags
  */
-#define NFS_INO_STALE		0x0001		/* possible stale inode */
-#define NFS_INO_ADVISE_RDPLUS   0x0002          /* advise readdirplus */
-#define NFS_INO_REVALIDATING	0x0004		/* revalidating attrs */
-#define NFS_INO_INVALID_ATTR	0x0008		/* cached attrs are invalid */
-#define NFS_INO_INVALID_DATA	0x0010		/* cached data is invalid */
-#define NFS_INO_INVALID_ATIME	0x0020		/* cached atime is invalid */
-#define NFS_INO_INVALID_ACCESS	0x0040		/* cached access cred invalid */
-#define NFS_INO_INVALID_ACL	0x0080		/* cached acls are invalid */
-#define NFS_INO_REVAL_PAGECACHE	0x1000		/* must revalidate pagecache */
+#define NFS_INO_INVALID_ATTR	0x0001		/* cached attrs are invalid */
+#define NFS_INO_INVALID_DATA	0x0002		/* cached data is invalid */
+#define NFS_INO_INVALID_ATIME	0x0004		/* cached atime is invalid */
+#define NFS_INO_INVALID_ACCESS	0x0008		/* cached access cred invalid */
+#define NFS_INO_INVALID_ACL	0x0010		/* cached acls are invalid */
+#define NFS_INO_REVAL_PAGECACHE	0x0020		/* must revalidate pagecache */
+
+/*
+ * Legal values of flags field
+ */
+#define NFS_INO_REVALIDATING	0x0001		/* revalidating attrs */
+#define NFS_INO_ADVISE_RDPLUS	0x0002		/* advise readdirplus */
+#define NFS_INO_STALE		0x0004		/* possible stale inode */
 
 static inline struct nfs_inode *NFS_I(struct inode *inode)
 {
@@ -237,7 +242,7 @@ static inline int nfs_caches_unstable(struct inode *inode)
 static inline void NFS_CACHEINV(struct inode *inode)
 {
 	if (!nfs_caches_unstable(inode))
-		NFS_FLAGS(inode) |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS;
+		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS;
 }
 
 static inline int nfs_server_capable(struct inode *inode, int cap)
