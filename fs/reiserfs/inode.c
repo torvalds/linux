@@ -1985,7 +1985,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	 * iput doesn't deadlock in reiserfs_delete_xattrs. The locking
 	 * code really needs to be reworked, but this will take care of it
 	 * for now. -jeffm */
-	if (REISERFS_I(dir)->i_acl_default) {
+	if (REISERFS_I(dir)->i_acl_default && !IS_ERR(REISERFS_I(dir)->i_acl_default)) {
 		reiserfs_write_unlock_xattrs(dir->i_sb);
 		iput(inode);
 		reiserfs_write_lock_xattrs(dir->i_sb);
