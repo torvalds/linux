@@ -506,8 +506,10 @@ static int __init dccp_ctl_sock_init(void)
 #ifdef CONFIG_IP_DCCP_UNLOAD_HACK
 void dccp_ctl_sock_exit(void)
 {
-	if (dccp_ctl_socket != NULL)
+	if (dccp_ctl_socket != NULL) {
 		sock_release(dccp_ctl_socket);
+		dccp_ctl_socket = NULL;
+	}
 }
 
 EXPORT_SYMBOL_GPL(dccp_ctl_sock_exit);
