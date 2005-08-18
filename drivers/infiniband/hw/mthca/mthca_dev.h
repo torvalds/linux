@@ -361,6 +361,11 @@ int mthca_array_set(struct mthca_array *array, int index, void *value);
 void mthca_array_clear(struct mthca_array *array, int index);
 int mthca_array_init(struct mthca_array *array, int nent);
 void mthca_array_cleanup(struct mthca_array *array, int nent);
+int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
+		    union mthca_buf *buf, int *is_direct, struct mthca_pd *pd,
+		    int hca_write, struct mthca_mr *mr);
+void mthca_buf_free(struct mthca_dev *dev, int size, union mthca_buf *buf,
+		    int is_direct, struct mthca_mr *mr);
 
 int mthca_init_uar_table(struct mthca_dev *dev);
 int mthca_init_pd_table(struct mthca_dev *dev);

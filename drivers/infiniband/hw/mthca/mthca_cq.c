@@ -639,113 +639,8 @@ int mthca_arbel_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 
 static void mthca_free_cq_buf(struct mthca_dev *dev, struct mthca_cq *cq)
 {
-	int i;
-	int size;
-
-	if (cq->is_direct)
-		dma_free_coherent(&dev->pdev->dev,
-				  (cq->ibcq.cqe + 1) * MTHCA_CQ_ENTRY_SIZE,
-				  cq->queue.direct.buf,
-				  pci_unmap_addr(&cq->queue.direct,
-						 mapping));
-	else {
-		size = (cq->ibcq.cqe + 1) * MTHCA_CQ_ENTRY_SIZE;
-		for (i = 0; i < (size + PAGE_SIZE - 1) / PAGE_SIZE; ++i)
-			if (cq->queue.page_list[i].buf)
-				dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
-						  cq->queue.page_list[i].buf,
-						  pci_unmap_addr(&cq->queue.page_list[i],
-								 mapping));
-
-		kfree(cq->queue.page_list);
-	}
-}
-
-static int mthca_alloc_cq_buf(struct mthca_dev *dev, int size,
-			      struct mthca_cq *cq)
-{
-	int err = -ENOMEM;
-	int npages, shift;
-	u64 *dma_list = NULL;
-	dma_addr_t t;
-	int i;
-
-	if (size <= MTHCA_MAX_DIRECT_CQ_SIZE) {
-		cq->is_direct = 1;
-		npages        = 1;
-		shift         = get_order(size) + PAGE_SHIFT;
-
-		cq->queue.direct.buf = dma_alloc_coherent(&dev->pdev->dev,
-							  size, &t, GFP_KERNEL);
-		if (!cq->queue.direct.buf)
-			return -ENOMEM;
-
-		pci_unmap_addr_set(&cq->queue.direct, mapping, t);
-
-		memset(cq->queue.direct.buf, 0, size);
-
-		while (t & ((1 << shift) - 1)) {
-			--shift;
-			npages *= 2;
-		}
-
-		dma_list = kmalloc(npages * sizeof *dma_list, GFP_KERNEL);
-		if (!dma_list)
-			goto err_free;
-
-		for (i = 0; i < npages; ++i)
-			dma_list[i] = t + i * (1 << shift);
-	} else {
-		cq->is_direct = 0;
-		npages        = (size + PAGE_SIZE - 1) / PAGE_SIZE;
-		shift         = PAGE_SHIFT;
-
-		dma_list = kmalloc(npages * sizeof *dma_list, GFP_KERNEL);
-		if (!dma_list)
-			return -ENOMEM;
-
-		cq->queue.page_list = kmalloc(npages * sizeof *cq->queue.page_list,
-					      GFP_KERNEL);
-		if (!cq->queue.page_list)
-			goto err_out;
-
-		for (i = 0; i < npages; ++i)
-			cq->queue.page_list[i].buf = NULL;
-
-		for (i = 0; i < npages; ++i) {
-			cq->queue.page_list[i].buf =
-				dma_alloc_coherent(&dev->pdev->dev, PAGE_SIZE,
-						   &t, GFP_KERNEL);
-			if (!cq->queue.page_list[i].buf)
-				goto err_free;
-
-			dma_list[i] = t;
-			pci_unmap_addr_set(&cq->queue.page_list[i], mapping, t);
-
-			memset(cq->queue.page_list[i].buf, 0, PAGE_SIZE);
-		}
-	}
-
-	err = mthca_mr_alloc_phys(dev, dev->driver_pd.pd_num,
-				  dma_list, shift, npages,
-				  0, size,
-				  MTHCA_MPT_FLAG_LOCAL_WRITE |
-				  MTHCA_MPT_FLAG_LOCAL_READ,
-				  &cq->mr);
-	if (err)
-		goto err_free;
-
-	kfree(dma_list);
-
-	return 0;
-
-err_free:
-	mthca_free_cq_buf(dev, cq);
-
-err_out:
-	kfree(dma_list);
-
-	return err;
+	mthca_buf_free(dev, (cq->ibcq.cqe + 1) * MTHCA_CQ_ENTRY_SIZE,
+		       &cq->queue, cq->is_direct, &cq->mr);
 }
 
 int mthca_init_cq(struct mthca_dev *dev, int nent,
@@ -797,7 +692,9 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	cq_context = mailbox->buf;
 
 	if (cq->is_kernel) {
-		err = mthca_alloc_cq_buf(dev, size, cq);
+		err = mthca_buf_alloc(dev, size, MTHCA_MAX_DIRECT_CQ_SIZE,
+				      &cq->queue, &cq->is_direct,
+				      &dev->driver_pd, 1, &cq->mr);
 		if (err)
 			goto err_out_mailbox;
 
@@ -858,10 +755,8 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	return 0;
 
 err_out_free_mr:
-	if (cq->is_kernel) {
-		mthca_free_mr(dev, &cq->mr);
+	if (cq->is_kernel)
 		mthca_free_cq_buf(dev, cq);
-	}
 
 err_out_mailbox:
 	mthca_free_mailbox(dev, mailbox);
@@ -929,7 +824,6 @@ void mthca_free_cq(struct mthca_dev *dev,
 	wait_event(cq->wait, !atomic_read(&cq->refcount));
 
 	if (cq->is_kernel) {
-		mthca_free_mr(dev, &cq->mr);
 		mthca_free_cq_buf(dev, cq);
 		if (mthca_is_memfree(dev)) {
 			mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM,    cq->arm_db_index);

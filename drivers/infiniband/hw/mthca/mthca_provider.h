@@ -51,6 +51,11 @@ struct mthca_buf_list {
 	DECLARE_PCI_UNMAP_ADDR(mapping)
 };
 
+union mthca_buf {
+	struct mthca_buf_list direct;
+	struct mthca_buf_list *page_list;
+};
+
 struct mthca_uar {
 	unsigned long pfn;
 	int           index;
@@ -187,10 +192,7 @@ struct mthca_cq {
 	__be32                *arm_db;
 	int                    arm_sn;
 
-	union {
-		struct mthca_buf_list direct;
-		struct mthca_buf_list *page_list;
-	}                      queue;
+	union mthca_buf        queue;
 	struct mthca_mr        mr;
 	wait_queue_head_t      wait;
 };
@@ -228,10 +230,7 @@ struct mthca_qp {
 	int                    send_wqe_offset;
 
 	u64                   *wrid;
-	union {
-		struct mthca_buf_list direct;
-		struct mthca_buf_list *page_list;
-	}                      queue;
+	union mthca_buf	       queue;
 
 	wait_queue_head_t      wait;
 };
