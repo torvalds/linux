@@ -156,7 +156,9 @@ static ssize_t driver_unbind(struct device_driver *drv,
 		device_release_driver(dev);
 		err = count;
 	}
-	return err;
+	if (err)
+		return err;
+	return count;
 }
 static DRIVER_ATTR(unbind, S_IWUSR, NULL, driver_unbind);
 
