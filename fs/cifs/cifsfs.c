@@ -59,6 +59,8 @@ unsigned int ntlmv2_support = 0;
 unsigned int sign_CIFS_PDUs = 1;
 extern struct task_struct * oplockThread; /* remove sparse warning */
 struct task_struct * oplockThread = NULL;
+extern struct task_struct * dnotifyThread; /* remove sparse warning */
+struct task_struct * dnotifyThread = NULL;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
 MODULE_PARM_DESC(CIFSMaxBufSize,"Network buffer size (not including header). Default: 16384 Range: 8192 to 130048");
@@ -73,6 +75,7 @@ module_param(cifs_max_pending, int, 0);
 MODULE_PARM_DESC(cifs_max_pending,"Simultaneous requests to server. Default: 50 Range: 2 to 256");
 
 static DECLARE_COMPLETION(cifs_oplock_exited);
+static DECLARE_COMPLETION(cifs_dnotify_exited);
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -838,6 +841,19 @@ static int cifs_oplock_thread(void * dummyarg)
 	complete_and_exit (&cifs_oplock_exited, 0);
 }
 
+static int cifs_dnotify_thread(void * dummyarg)
+{
+	daemonize("cifsdnotifyd");
+	allow_signal(SIGTERM);
+
+	dnotifyThread = current;
+	do {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(39*HZ);
+	} while(!signal_pending(current));
+	complete_and_exit (&cifs_dnotify_exited, 0);
+}
+
 static int __init
 init_cifs(void)
 {
@@ -884,10 +900,16 @@ init_cifs(void)
 				if (!rc) {                
 					rc = (int)kernel_thread(cifs_oplock_thread, NULL, 
 						CLONE_FS | CLONE_FILES | CLONE_VM);
-					if(rc > 0)
-						return 0;
-					else 
+					if(rc > 0) {
+						rc = (int)kernel_thread(cifs_dnotify_thread, NULL,
+							CLONE_FS | CLONE_FILES | CLONE_VM);
+						if(rc > 0)
+							return 0;
+						else
+							cERROR(1,("error %d create dnotify thread", rc));
+					} else {
 						cERROR(1,("error %d create oplock thread",rc));
+					}
 				}
 				cifs_destroy_request_bufs();
 			}
@@ -915,6 +937,10 @@ exit_cifs(void)
 	if(oplockThread) {
 		send_sig(SIGTERM, oplockThread, 1);
 		wait_for_completion(&cifs_oplock_exited);
+	}
+	if(dnotifyThread) {
+		send_sig(SIGTERM, dnotifyThread, 1);
+		wait_for_completion(&cifs_dnotify_exited);
 	}
 }
 
