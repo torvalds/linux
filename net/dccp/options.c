@@ -293,10 +293,7 @@ static void dccp_insert_option_ndp(struct sock *sk, struct sk_buff *skb)
 
 static inline int dccp_elapsed_time_len(const u32 elapsed_time)
 {
-	return elapsed_time == 0 ? 0 :
-	       elapsed_time <= 0xFF ? 1 :
-	       elapsed_time <= 0xFFFF ? 2 :
-	       elapsed_time <= 0xFFFFFF ? 3 : 4;
+	return elapsed_time == 0 ? 0 : elapsed_time <= 0xFFFF ? 2 : 4;
 }
 
 void dccp_insert_option_elapsed_time(struct sock *sk,
