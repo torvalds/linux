@@ -51,6 +51,7 @@ struct gianfar_platform_data {
 
 	/* board specific information */
 	u32 board_flags;
+	u32 phy_flags;
 	u32 phyid;
 	u32 interruptPHY;
 	u8 mac_addr[6];
@@ -61,9 +62,14 @@ struct gianfar_platform_data {
 #define FSL_GIANFAR_DEV_HAS_COALESCE		0x00000002
 #define FSL_GIANFAR_DEV_HAS_RMON		0x00000004
 #define FSL_GIANFAR_DEV_HAS_MULTI_INTR		0x00000008
+#define FSL_GIANFAR_DEV_HAS_CSUM		0x00000010
+#define FSL_GIANFAR_DEV_HAS_VLAN		0x00000020
+#define FSL_GIANFAR_DEV_HAS_EXTENDED_HASH	0x00000040
+#define FSL_GIANFAR_DEV_HAS_PADDING		0x00000080
 
 /* Flags in gianfar_platform_data */
-#define FSL_GIANFAR_BRD_HAS_PHY_INTR	0x00000001	/* if not set use a timer */
+#define FSL_GIANFAR_BRD_HAS_PHY_INTR	0x00000001 /* set or use a timer */
+#define FSL_GIANFAR_BRD_IS_REDUCED	0x00000002 /* Set if RGMII, RMII */
 
 struct fsl_i2c_platform_data {
 	/* device specific information */

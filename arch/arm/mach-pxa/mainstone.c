@@ -15,6 +15,7 @@
 
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/sysdev.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
@@ -62,7 +63,6 @@ static struct irqchip mainstone_irq_chip = {
 	.unmask		= mainstone_unmask_irq,
 };
 
-
 static void mainstone_irq_handler(unsigned int irq, struct irqdesc *desc,
 				  struct pt_regs *regs)
 {
@@ -99,6 +99,35 @@ static void __init mainstone_init_irq(void)
 	set_irq_chained_handler(IRQ_GPIO(0), mainstone_irq_handler);
 	set_irq_type(IRQ_GPIO(0), IRQT_FALLING);
 }
+
+#ifdef CONFIG_PM
+
+static int mainstone_irq_resume(struct sys_device *dev)
+{
+	MST_INTMSKENA = mainstone_irq_enabled;
+	return 0;
+}
+
+static struct sysdev_class mainstone_irq_sysclass = {
+	set_kset_name("cpld_irq"),
+	.resume = mainstone_irq_resume,
+};
+
+static struct sys_device mainstone_irq_device = {
+	.cls = &mainstone_irq_sysclass,
+};
+
+static int __init mainstone_irq_device_init(void)
+{
+	int ret = sysdev_class_register(&mainstone_irq_sysclass);
+	if (ret == 0)
+		ret = sysdev_register(&mainstone_irq_device);
+	return ret;
+}
+
+device_initcall(mainstone_irq_device_init);
+
+#endif
 
 
 static struct resource smc91x_resources[] = {
@@ -304,13 +333,24 @@ static void __init mainstone_map_io(void)
 	PWER  = 0xC0000002;
 	PRER  = 0x00000002;
 	PFER  = 0x00000002;
+ 	/*	for use I SRAM as framebuffer.	*/
+ 	PSLR |= 0xF04;
+ 	PCFR = 0x66;
+ 	/*	For Keypad wakeup.	*/
+ 	KPC &=~KPC_ASACT;
+ 	KPC |=KPC_AS;
+ 	PKWR  = 0x000FD000;
+ 	/*	Need read PKWR back after set it.	*/
+ 	PKWR;
 }
 
 MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
-	MAINTAINER("MontaVista Software Inc.")
-	BOOT_MEM(0xa0000000, 0x40000000, io_p2v(0x40000000))
-	MAPIO(mainstone_map_io)
-	INITIRQ(mainstone_init_irq)
+	/* Maintainer: MontaVista Software Inc. */
+	.phys_ram	= 0xa0000000,
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
+	.map_io		= mainstone_map_io,
+	.init_irq	= mainstone_init_irq,
 	.timer		= &pxa_timer,
-	INIT_MACHINE(mainstone_init)
+	.init_machine	= mainstone_init,
 MACHINE_END

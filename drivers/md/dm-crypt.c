@@ -704,8 +704,7 @@ static void crypt_dtr(struct dm_target *ti)
 	mempool_destroy(cc->page_pool);
 	mempool_destroy(cc->io_pool);
 
-	if (cc->iv_mode)
-		kfree(cc->iv_mode);
+	kfree(cc->iv_mode);
 	if (cc->iv_gen_ops && cc->iv_gen_ops->dtr)
 		cc->iv_gen_ops->dtr(cc);
 	crypto_free_tfm(cc->tfm);

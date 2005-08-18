@@ -76,6 +76,14 @@ driver_data:   Driver-specific data.
 
 platform_data: Platform data specific to the device.
 
+	       Example:  for devices on custom boards, as typical of embedded
+	       and SOC based hardware, Linux often uses platform_data to point
+	       to board-specific structures describing devices and how they
+	       are wired.  That can include what ports are available, chip
+	       variants, which GPIO pins act in what additional roles, and so
+	       on.  This shrinks the "Board Support Packages" (BSPs) and
+	       minimizes board-specific #ifdefs in drivers.
+
 current_state: Current power state of the device.
 
 saved_state:   Pointer to saved state of the device. This is usable by

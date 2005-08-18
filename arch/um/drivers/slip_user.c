@@ -13,7 +13,7 @@
 #include "user.h"
 #include "net_user.h"
 #include "slip.h"
-#include "slip_proto.h"
+#include "slip_common.h"
 #include "helper.h"
 #include "os.h"
 
@@ -77,41 +77,51 @@ static int slip_tramp(char **argv, int fd)
 	err = os_pipe(fds, 1, 0);
 	if(err < 0){
 		printk("slip_tramp : pipe failed, err = %d\n", -err);
-		return(err);
+		goto out;
 	}
 
 	err = 0;
 	pe_data.stdin = fd;
 	pe_data.stdout = fds[1];
 	pe_data.close_me = fds[0];
-	pid = run_helper(slip_pre_exec, &pe_data, argv, NULL);
+	err = run_helper(slip_pre_exec, &pe_data, argv, NULL);
+	if(err < 0)
+		goto out_close;
+	pid = err;
 
-	if(pid < 0) err = pid;
-	else {
-		output_len = page_size();
-		output = um_kmalloc(output_len);
-		if(output == NULL)
-			printk("slip_tramp : failed to allocate output "
-			       "buffer\n");
-
-		os_close_file(fds[1]);
-		read_output(fds[0], output, output_len);
-		if(output != NULL){
-			printk("%s", output);
-			kfree(output);
-		}
-		CATCH_EINTR(err = waitpid(pid, &status, 0));
-		if(err < 0)
-			err = errno;
-		else if(!WIFEXITED(status) || (WEXITSTATUS(status) != 0)){
-			printk("'%s' didn't exit with status 0\n", argv[0]);
-			err = -EINVAL;
-		}
+	output_len = page_size();
+	output = um_kmalloc(output_len);
+	if(output == NULL){
+		printk("slip_tramp : failed to allocate output buffer\n");
+		os_kill_process(pid, 1);
+		err = -ENOMEM;
+		goto out_free;
 	}
+
+	os_close_file(fds[1]);
+	read_output(fds[0], output, output_len);
+	printk("%s", output);
+
+	CATCH_EINTR(err = waitpid(pid, &status, 0));
+	if(err < 0)
+		err = errno;
+	else if(!WIFEXITED(status) || (WEXITSTATUS(status) != 0)){
+		printk("'%s' didn't exit with status 0\n", argv[0]);
+		err = -EINVAL;
+	}
+	else err = 0;
 
 	os_close_file(fds[0]);
 
-	return(err);
+out_free:
+	kfree(output);
+	return err;
+
+out_close:
+	os_close_file(fds[0]);
+	os_close_file(fds[1]);
+out:
+	return err;
 }
 
 static int slip_open(void *data)
@@ -123,21 +133,26 @@ static int slip_open(void *data)
 			 NULL };
 	int sfd, mfd, err;
 
-	mfd = get_pty();
-	if(mfd < 0){
-		printk("umn : Failed to open pty, err = %d\n", -mfd);
-		return(mfd);
+	err = get_pty();
+	if(err < 0){
+		printk("slip-open : Failed to open pty, err = %d\n", -err);
+		goto out;
 	}
-	sfd = os_open_file(ptsname(mfd), of_rdwr(OPENFLAGS()), 0);
-	if(sfd < 0){
-		printk("Couldn't open tty for slip line, err = %d\n", -sfd);
-		os_close_file(mfd);
-		return(sfd);
+	mfd = err;
+
+	err = os_open_file(ptsname(mfd), of_rdwr(OPENFLAGS()), 0);
+	if(err < 0){
+		printk("Couldn't open tty for slip line, err = %d\n", -err);
+		goto out_close;
 	}
-	if(set_up_tty(sfd)) return(-1);
+	sfd = err;
+
+	if(set_up_tty(sfd))
+		goto out_close2;
+
 	pri->slave = sfd;
-	pri->pos = 0;
-	pri->esc = 0;
+	pri->slip.pos = 0;
+	pri->slip.esc = 0;
 	if(pri->gate_addr != NULL){
 		sprintf(version_buf, "%d", UML_NET_VERSION);
 		strcpy(gate_buf, pri->gate_addr);
@@ -146,12 +161,12 @@ static int slip_open(void *data)
 
 		if(err < 0){
 			printk("slip_tramp failed - err = %d\n", -err);
-			return(err);
+			goto out_close2;
 		}
 		err = os_get_ifname(pri->slave, pri->name);
 		if(err < 0){
 			printk("get_ifname failed, err = %d\n", -err);
-			return(err);
+			goto out_close2;
 		}
 		iter_addresses(pri->dev, open_addr, pri->name);
 	}
@@ -160,10 +175,16 @@ static int slip_open(void *data)
 		if(err < 0){
 			printk("Failed to set slip discipline encapsulation - "
 			       "err = %d\n", -err);
-			return(err);
+			goto out_close2;
 		}
 	}
 	return(mfd);
+out_close2:
+	os_close_file(sfd);
+out_close:
+	os_close_file(mfd);
+out:
+	return err;
 }
 
 static void slip_close(int fd, void *data)
@@ -190,48 +211,12 @@ static void slip_close(int fd, void *data)
 
 int slip_user_read(int fd, void *buf, int len, struct slip_data *pri)
 {
-	int i, n, size, start;
-
-	if(pri->more>0) {
-		i = 0;
-		while(i < pri->more) {
-			size = slip_unesc(pri->ibuf[i++],
-					pri->ibuf, &pri->pos, &pri->esc);
-			if(size){
-				memcpy(buf, pri->ibuf, size);
-				memmove(pri->ibuf, &pri->ibuf[i], pri->more-i);
-				pri->more=pri->more-i; 
-				return(size);
-			}
-		}
-		pri->more=0;
-	}
-
-	n = net_read(fd, &pri->ibuf[pri->pos], sizeof(pri->ibuf) - pri->pos);
-	if(n <= 0) return(n);
-
-	start = pri->pos;
-	for(i = 0; i < n; i++){
-		size = slip_unesc(pri->ibuf[start + i],
-				pri->ibuf, &pri->pos, &pri->esc);
-		if(size){
-			memcpy(buf, pri->ibuf, size);
-			memmove(pri->ibuf, &pri->ibuf[start+i+1], n-(i+1));
-			pri->more=n-(i+1); 
-			return(size);
-		}
-	}
-	return(0);
+	return slip_proto_read(fd, buf, len, &pri->slip);
 }
 
 int slip_user_write(int fd, void *buf, int len, struct slip_data *pri)
 {
-	int actual, n;
-
-	actual = slip_esc(buf, pri->obuf, len);
-	n = net_write(fd, pri->obuf, actual);
-	if(n < 0) return(n);
-	else return(len);
+	return slip_proto_write(fd, buf, len, &pri->slip);
 }
 
 static int slip_set_mtu(int mtu, void *data)
@@ -267,14 +252,3 @@ struct net_user_info slip_user_info = {
 	.delete_address = slip_del_addr,
 	.max_packet	= BUF_SIZE
 };
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

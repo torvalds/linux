@@ -107,7 +107,7 @@ struct rt_cache_stat
 
 extern struct rt_cache_stat *rt_cache_stat;
 #define RT_CACHE_STAT_INC(field)					  \
-		(per_cpu_ptr(rt_cache_stat, _smp_processor_id())->field++)
+		(per_cpu_ptr(rt_cache_stat, raw_smp_processor_id())->field++)
 
 extern struct ip_rt_acct *ip_rt_acct;
 

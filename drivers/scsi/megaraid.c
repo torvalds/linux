@@ -35,6 +35,7 @@
 #include <linux/blkdev.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/reboot.h>
@@ -1938,7 +1939,7 @@ megaraid_abort(Scsi_Cmnd *cmd)
 
 
 static int
-megaraid_reset(Scsi_Cmnd *cmd)
+megaraid_reset(struct scsi_cmnd *cmd)
 {
 	adapter_t	*adapter;
 	megacmd_t	mc;
@@ -1950,7 +1951,6 @@ megaraid_reset(Scsi_Cmnd *cmd)
 	mc.cmd = MEGA_CLUSTER_CMD;
 	mc.opcode = MEGA_RESET_RESERVATIONS;
 
-	spin_unlock_irq(&adapter->lock);
 	if( mega_internal_command(adapter, LOCK_INT, &mc, NULL) != 0 ) {
 		printk(KERN_WARNING
 				"megaraid: reservation reset failed.\n");
@@ -1958,8 +1958,9 @@ megaraid_reset(Scsi_Cmnd *cmd)
 	else {
 		printk(KERN_INFO "megaraid: reservation reset.\n");
 	}
-	spin_lock_irq(&adapter->lock);
 #endif
+
+	spin_lock_irq(&adapter->lock);
 
 	rval =  megaraid_abort_and_reset(adapter, cmd, SCB_RESET);
 
@@ -1968,11 +1969,10 @@ megaraid_reset(Scsi_Cmnd *cmd)
 	 * to be communicated over to the mid layer.
 	 */
 	mega_rundoneq(adapter);
+	spin_unlock_irq(&adapter->lock);
 
 	return rval;
 }
-
-
 
 /**
  * megaraid_abort_and_reset()
@@ -4478,8 +4478,6 @@ mega_internal_command(adapter_t *adapter, lockscope_t ls, megacmd_t *mc,
 
 	scb->idx = CMDID_INT_CMDS;
 
-	scmd->state = 0;
-
 	/*
 	 * Get the lock only if the caller has not acquired it already
 	 */
@@ -4489,15 +4487,7 @@ mega_internal_command(adapter_t *adapter, lockscope_t ls, megacmd_t *mc,
 
 	if( ls == LOCK_INT ) spin_unlock_irqrestore(&adapter->lock, flags);
 
-	/*
-	 * Wait till this command finishes. Do not use
-	 * wait_event_interruptible(). It causes panic if CTRL-C is hit when
-	 * dumping e.g., physical disk information through /proc interface.
-	 */
-#if 0
-	wait_event_interruptible(adapter->int_waitq, scmd->state);
-#endif
-	wait_event(adapter->int_waitq, scmd->state);
+	wait_for_completion(&adapter->int_waitq);
 
 	rval = scmd->result;
 	mc->status = scmd->result;
@@ -4531,16 +4521,7 @@ mega_internal_done(Scsi_Cmnd *scmd)
 
 	adapter = (adapter_t *)scmd->device->host->hostdata;
 
-	scmd->state = 1; /* thread waiting for its command to complete */
-
-	/*
-	 * See comment in mega_internal_command() routine for
-	 * wait_event_interruptible()
-	 */
-#if 0
-	wake_up_interruptible(&adapter->int_waitq);
-#endif
-	wake_up(&adapter->int_waitq);
+	complete(&adapter->int_waitq);
 
 }
 
@@ -4862,7 +4843,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 		
 	init_MUTEX(&adapter->int_mtx);
-	init_waitqueue_head(&adapter->int_waitq);
+	init_completion(&adapter->int_waitq);
 
 	adapter->this_id = DEFAULT_INITIATOR_ID;
 	adapter->host->this_id = DEFAULT_INITIATOR_ID;
@@ -5024,9 +5005,9 @@ megaraid_remove_one(struct pci_dev *pdev)
 }
 
 static void
-megaraid_shutdown(struct device *dev)
+megaraid_shutdown(struct pci_dev *pdev)
 {
-	struct Scsi_Host *host = pci_get_drvdata(to_pci_dev(dev));
+	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	adapter_t *adapter = (adapter_t *)host->hostdata;
 
 	__megaraid_shutdown(adapter);
@@ -5058,9 +5039,7 @@ static struct pci_driver megaraid_pci_driver = {
 	.id_table	= megaraid_pci_tbl,
 	.probe		= megaraid_probe_one,
 	.remove		= __devexit_p(megaraid_remove_one),
-	.driver		= {
-		.shutdown = megaraid_shutdown,
-	},
+	.shutdown	= megaraid_shutdown,
 };
 
 static int __init megaraid_init(void)

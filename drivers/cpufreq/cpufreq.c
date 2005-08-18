@@ -521,7 +521,7 @@ static ssize_t show(struct kobject * kobj, struct attribute * attr ,char * buf)
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
 		return -EINVAL;
-	ret = fattr->show ? fattr->show(policy,buf) : 0;
+	ret = fattr->show ? fattr->show(policy,buf) : -EIO;
 	cpufreq_cpu_put(policy);
 	return ret;
 }
@@ -535,7 +535,7 @@ static ssize_t store(struct kobject * kobj, struct attribute * attr,
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
 		return -EINVAL;
-	ret = fattr->store ? fattr->store(policy,buf,count) : 0;
+	ret = fattr->store ? fattr->store(policy,buf,count) : -EIO;
 	cpufreq_cpu_put(policy);
 	return ret;
 }
@@ -869,7 +869,7 @@ EXPORT_SYMBOL(cpufreq_get);
  *	cpufreq_suspend - let the low level driver prepare for suspend
  */
 
-static int cpufreq_suspend(struct sys_device * sysdev, u32 state)
+static int cpufreq_suspend(struct sys_device * sysdev, pm_message_t pmsg)
 {
 	int cpu = sysdev->id;
 	unsigned int ret = 0;
@@ -897,7 +897,7 @@ static int cpufreq_suspend(struct sys_device * sysdev, u32 state)
 	}
 
 	if (cpufreq_driver->suspend) {
-		ret = cpufreq_driver->suspend(cpu_policy, state);
+		ret = cpufreq_driver->suspend(cpu_policy, pmsg);
 		if (ret) {
 			printk(KERN_ERR "cpufreq: suspend failed in ->suspend "
 					"step on CPU %u\n", cpu_policy->cpu);
@@ -1130,7 +1130,7 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 			  unsigned int target_freq,
 			  unsigned int relation)
 {
-	unsigned int ret;
+	int ret;
 
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
@@ -1151,7 +1151,7 @@ EXPORT_SYMBOL_GPL(cpufreq_driver_target);
 
 static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event)
 {
-	int ret = -EINVAL;
+	int ret;
 
 	if (!try_module_get(policy->governor->owner))
 		return -EINVAL;

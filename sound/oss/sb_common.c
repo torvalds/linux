@@ -915,8 +915,8 @@ void sb_dsp_unload(struct address_info *hw_config, int sbmpu)
 	}
 	else
 		release_region(hw_config->io_base, 16);
-	if(detected_devc)
-		kfree(detected_devc);
+
+	kfree(detected_devc);
 }
 
 /*

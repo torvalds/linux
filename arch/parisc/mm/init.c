@@ -506,7 +506,7 @@ void show_mem(void)
 		for (j = node_start_pfn(i); j < node_end_pfn(i); j++) {
 			struct page *p;
 
-			p = node_mem_map(i) + j - node_start_pfn(i);
+			p = nid_page_nr(i, j) - node_start_pfn(i);
 
 			total++;
 			if (PageReserved(p))

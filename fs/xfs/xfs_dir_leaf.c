@@ -91,6 +91,10 @@ STATIC int xfs_dir_leaf_figure_balance(xfs_da_state_t *state,
 					  int *number_entries_in_blk1,
 					  int *number_namebytes_in_blk1);
 
+STATIC int xfs_dir_leaf_create(struct xfs_da_args *args,
+				xfs_dablk_t which_block,
+				struct xfs_dabuf **bpp);
+
 /*
  * Utility routines.
  */
@@ -781,7 +785,7 @@ xfs_dir_leaf_to_node(xfs_da_args_t *args)
  * Create the initial contents of a leaf directory
  * or a leaf in a node directory.
  */
-int
+STATIC int
 xfs_dir_leaf_create(xfs_da_args_t *args, xfs_dablk_t blkno, xfs_dabuf_t **bpp)
 {
 	xfs_dir_leafblock_t *leaf;

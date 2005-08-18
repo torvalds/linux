@@ -1,0 +1,65 @@
+Kernel driver lm75
+==================
+
+Supported chips:
+  * National Semiconductor LM75
+    Prefix: 'lm75'
+    Addresses scanned: I2C 0x48 - 0x4f
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/
+  * Dallas Semiconductor DS75
+    Prefix: 'lm75'
+    Addresses scanned: I2C 0x48 - 0x4f
+    Datasheet: Publicly available at the Dallas Semiconductor website
+               http://www.maxim-ic.com/
+  * Dallas Semiconductor DS1775
+    Prefix: 'lm75'
+    Addresses scanned: I2C 0x48 - 0x4f
+    Datasheet: Publicly available at the Dallas Semiconductor website
+               http://www.maxim-ic.com/
+  * Maxim MAX6625, MAX6626
+    Prefix: 'lm75'
+    Addresses scanned: I2C 0x48 - 0x4b
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/
+  * Microchip (TelCom) TCN75
+    Prefix: 'lm75'
+    Addresses scanned: I2C 0x48 - 0x4f
+    Datasheet: Publicly available at the Microchip website
+               http://www.microchip.com/
+
+Author: Frodo Looijaard <frodol@dds.nl>
+
+Description
+-----------
+
+The LM75 implements one temperature sensor. Limits can be set through the
+Overtemperature Shutdown register and Hysteresis register. Each value can be
+set and read to half-degree accuracy.
+An alarm is issued (usually to a connected LM78) when the temperature
+gets higher then the Overtemperature Shutdown value; it stays on until
+the temperature falls below the Hysteresis value.
+All temperatures are in degrees Celsius, and are guaranteed within a
+range of -55 to +125 degrees.
+
+The LM75 only updates its values each 1.5 seconds; reading it more often
+will do no harm, but will return 'old' values.
+
+The LM75 is usually used in combination with LM78-like chips, to measure
+the temperature of the processor(s).
+
+The DS75, DS1775, MAX6625, and MAX6626 are supported as well.
+They are not distinguished from an LM75. While most of these chips
+have three additional bits of accuracy (12 vs. 9 for the LM75),
+the additional bits are not supported. Not only that, but these chips will
+not be detected if not in 9-bit precision mode (use the force parameter if
+needed).
+
+The TCN75 is supported as well, and is not distinguished from an LM75.
+
+The LM75 is essentially an industry standard; there may be other
+LM75 clones not listed here, with or without various enhancements,
+that are supported.
+
+The LM77 is not supported, contrary to what we pretended for a long time.
+Both chips are simply not compatible, value encoding differs.

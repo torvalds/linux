@@ -171,6 +171,7 @@
 #include <linux/ioport.h>
 #include <linux/eisa.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
@@ -566,7 +567,7 @@ static int __devinit TLan_probe1(struct pci_dev *pdev,
 
 		priv->adapter = &board_info[ent->driver_data];
 
-		rc = pci_set_dma_mask(pdev, 0xFFFFFFFF);
+		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
 			printk(KERN_ERR "TLAN: No suitable PCI mapping available.\n");
 			goto err_out_free_dev;
@@ -2819,7 +2820,7 @@ void TLan_PhyMonitor( struct net_device *dev )
  	       if (priv->link) {
 		      priv->link = 0;
 	              printk(KERN_DEBUG "TLAN: %s has lost link\n", dev->name);
-	              dev->flags &= ~IFF_RUNNING;
+		      netif_carrier_off(dev);
 		      TLan_SetTimer( dev, (2*HZ), TLAN_TIMER_LINK_BEAT );
 		      return;
 		}
@@ -2829,7 +2830,7 @@ void TLan_PhyMonitor( struct net_device *dev )
         if ((phy_status & MII_GS_LINK) && !priv->link) {
  		priv->link = 1;
         	printk(KERN_DEBUG "TLAN: %s has reestablished link\n", dev->name);
-        	dev->flags |= IFF_RUNNING;
+		netif_carrier_on(dev);
         }
 
 	/* Setup a new monitor */

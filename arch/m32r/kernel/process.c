@@ -115,8 +115,6 @@ void machine_restart(char *__unused)
 		cpu_relax();
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_halt(void)
 {
 	printk("Please push reset button!\n");
@@ -124,14 +122,10 @@ void machine_halt(void)
 		cpu_relax();
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off(void)
 {
 	/* M32R_FIXME */
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 static int __init idle_setup (char *str)
 {

@@ -50,10 +50,9 @@ struct ip_nat_multi_range_compat
 
 #ifdef __KERNEL__
 #include <linux/list.h>
-#include <linux/netfilter_ipv4/lockhelp.h>
 
 /* Protects NAT hash tables, and NAT-private part of conntracks. */
-DECLARE_RWLOCK_EXTERN(ip_nat_lock);
+extern rwlock_t ip_nat_lock;
 
 /* The structure embedded in the conntrack structure. */
 struct ip_nat_info

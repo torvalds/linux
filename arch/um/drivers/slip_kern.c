@@ -26,16 +26,16 @@ void slip_init(struct net_device *dev, void *data)
 		  .addr		= NULL,
 		  .gate_addr 	= init->gate_addr,
 		  .slave  	= -1,
-		  .ibuf  	= { '\0' },
-		  .obuf  	= { '\0' },
-		  .pos 		= 0,
-		  .esc 		= 0,
+		  .slip		= SLIP_PROTO_INIT,
 		  .dev 		= dev });
 
 	dev->init = NULL;
+	dev->header_cache_update = NULL;
+	dev->hard_header_cache = NULL;
+	dev->hard_header = NULL;
 	dev->hard_header_len = 0;
-	dev->addr_len = 4;
-	dev->type = ARPHRD_ETHER;
+	dev->addr_len = 0;
+	dev->type = ARPHRD_SLIP;
 	dev->tx_queue_len = 256;
 	dev->flags = IFF_NOARP;
 	printk("SLIP backend - SLIP IP = %s\n", spri->gate_addr);

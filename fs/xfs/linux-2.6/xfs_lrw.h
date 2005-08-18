@@ -94,8 +94,6 @@ extern int xfs_bdstrat_cb(struct xfs_buf *);
 
 extern int xfs_zero_eof(struct vnode *, struct xfs_iocore *, xfs_off_t,
 				xfs_fsize_t, xfs_fsize_t);
-extern void xfs_inval_cached_pages(struct vnode	*, struct xfs_iocore *,
-				xfs_off_t, int, int);
 extern ssize_t xfs_read(struct bhv_desc *, struct kiocb *,
 				const struct iovec *, unsigned int,
 				loff_t *, int, struct cred *);

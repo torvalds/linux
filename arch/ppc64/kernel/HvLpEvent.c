@@ -12,7 +12,7 @@
 #include <asm/system.h>
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/HvCallEvent.h>
-#include <asm/iSeries/LparData.h>
+#include <asm/iSeries/ItLpNaca.h>
 
 /* Array of LpEvent handler functions */
 LpEventHandler lpEventHandler[HvLpEvent_Type_NumTypes];

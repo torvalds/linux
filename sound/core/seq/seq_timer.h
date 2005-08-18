@@ -64,8 +64,6 @@ extern seq_timer_t *snd_seq_timer_new(void);
 /* delete timer (destructor) */
 extern void snd_seq_timer_delete(seq_timer_t **tmr);
 
-void snd_seq_timer_set_tick_resolution(seq_timer_tick_t *tick, int tempo, int ppq, int nticks);
-
 /* */
 static inline void snd_seq_timer_update_tick(seq_timer_tick_t *tick, unsigned long resolution)
 {

@@ -38,7 +38,7 @@
 #include "vxfs_olt.h"
 
 
-static __inline__ void
+static inline void
 vxfs_get_fshead(struct vxfs_oltfshead *fshp, struct vxfs_sb_info *infp)
 {
 	if (infp->vsi_fshino)
@@ -46,7 +46,7 @@ vxfs_get_fshead(struct vxfs_oltfshead *fshp, struct vxfs_sb_info *infp)
 	infp->vsi_fshino = fshp->olt_fsino[0];
 }
 
-static __inline__ void
+static inline void
 vxfs_get_ilist(struct vxfs_oltilist *ilistp, struct vxfs_sb_info *infp)
 {
 	if (infp->vsi_iext)
@@ -54,7 +54,7 @@ vxfs_get_ilist(struct vxfs_oltilist *ilistp, struct vxfs_sb_info *infp)
 	infp->vsi_iext = ilistp->olt_iext[0]; 
 }
 
-static __inline__ u_long
+static inline u_long
 vxfs_oblock(struct super_block *sbp, daddr_t block, u_long bsize)
 {
 	if (sbp->s_blocksize % bsize)
@@ -104,8 +104,8 @@ vxfs_read_olt(struct super_block *sbp, u_long bsize)
 		goto fail;
 	}
 
-	oaddr = (char *)bp->b_data + op->olt_size;
-	eaddr = (char *)bp->b_data + (infp->vsi_oltsize * sbp->s_blocksize);
+	oaddr = bp->b_data + op->olt_size;
+	eaddr = bp->b_data + (infp->vsi_oltsize * sbp->s_blocksize);
 
 	while (oaddr < eaddr) {
 		struct vxfs_oltcommon	*ocp =

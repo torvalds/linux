@@ -1,0 +1,184 @@
+/******************************************************************************
+ *  usbatm.h - Generic USB xDSL driver core
+ *
+ *  Copyright (C) 2001, Alcatel
+ *  Copyright (C) 2003, Duncan Sands, SolNegro, Josep Comas
+ *  Copyright (C) 2004, David Woodhouse
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ *  more details.
+ *
+ *  You should have received a copy of the GNU General Public License along with
+ *  this program; if not, write to the Free Software Foundation, Inc., 59
+ *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ ******************************************************************************/
+
+#ifndef	_USBATM_H_
+#define	_USBATM_H_
+
+#include <linux/config.h>
+
+/*
+#define DEBUG
+#define VERBOSE_DEBUG
+*/
+
+#if !defined (DEBUG) && defined (CONFIG_USB_DEBUG)
+#	define DEBUG
+#endif
+
+#include <asm/semaphore.h>
+#include <linux/atm.h>
+#include <linux/atmdev.h>
+#include <linux/completion.h>
+#include <linux/device.h>
+#include <linux/kref.h>
+#include <linux/list.h>
+#include <linux/stringify.h>
+#include <linux/usb.h>
+
+#ifdef DEBUG
+#define UDSL_ASSERT(x)	BUG_ON(!(x))
+#else
+#define UDSL_ASSERT(x)	do { if (!(x)) warn("failed assertion '%s' at line %d", __stringify(x), __LINE__); } while(0)
+#endif
+
+#define usb_err(instance, format, arg...)	\
+	dev_err(&(instance)->usb_intf->dev , format , ## arg)
+#define usb_info(instance, format, arg...)	\
+	dev_info(&(instance)->usb_intf->dev , format , ## arg)
+#define usb_warn(instance, format, arg...)	\
+	dev_warn(&(instance)->usb_intf->dev , format , ## arg)
+#define usb_dbg(instance, format, arg...)	\
+	dev_dbg(&(instance)->usb_intf->dev , format , ## arg)
+
+/* FIXME: move to dev_* once ATM is driver model aware */
+#define atm_printk(level, instance, format, arg...)	\
+	printk(level "ATM dev %d: " format ,		\
+	(instance)->atm_dev->number , ## arg)
+
+#define atm_err(instance, format, arg...)	\
+	atm_printk(KERN_ERR, instance , format , ## arg)
+#define atm_info(instance, format, arg...)	\
+	atm_printk(KERN_INFO, instance , format , ## arg)
+#define atm_warn(instance, format, arg...)	\
+	atm_printk(KERN_WARNING, instance , format , ## arg)
+#ifdef DEBUG
+#define atm_dbg(instance, format, arg...)	\
+	atm_printk(KERN_DEBUG, instance , format , ## arg)
+#else
+#define atm_dbg(instance, format, arg...)	\
+	do {} while (0)
+#endif
+
+
+/* mini driver */
+
+struct usbatm_data;
+
+/*
+*  Assuming all methods exist and succeed, they are called in this order:
+*
+*  	bind, heavy_init, atm_start, ..., atm_stop, unbind
+*/
+
+struct usbatm_driver {
+	struct module *owner;
+
+	const char *driver_name;
+
+	/*
+	*  init device ... can sleep, or cause probe() failure.  Drivers with a heavy_init
+	*  method can avoid having it called by setting need_heavy_init to zero.
+	*/
+        int (*bind) (struct usbatm_data *, struct usb_interface *,
+		     const struct usb_device_id *id, int *need_heavy_init);
+
+	/* additional device initialization that is too slow to be done in probe() */
+        int (*heavy_init) (struct usbatm_data *, struct usb_interface *);
+
+	/* cleanup device ... can sleep, but can't fail */
+        void (*unbind) (struct usbatm_data *, struct usb_interface *);
+
+	/* init ATM device ... can sleep, or cause ATM initialization failure */
+	int (*atm_start) (struct usbatm_data *, struct atm_dev *);
+
+	/* cleanup ATM device ... can sleep, but can't fail */
+	void (*atm_stop) (struct usbatm_data *, struct atm_dev *);
+
+        int in;		/* rx endpoint */
+        int out;	/* tx endpoint */
+
+	unsigned rx_padding;
+	unsigned tx_padding;
+};
+
+extern int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
+		struct usbatm_driver *driver);
+extern void usbatm_usb_disconnect(struct usb_interface *intf);
+
+
+struct usbatm_channel {
+	int endpoint;			/* usb pipe */
+	unsigned int stride;		/* ATM cell size + padding */
+	unsigned int buf_size;		/* urb buffer size */
+	spinlock_t lock;
+	struct list_head list;
+	struct tasklet_struct tasklet;
+	struct timer_list delay;
+	struct usbatm_data *usbatm;
+};
+
+/* main driver data */
+
+struct usbatm_data {
+	/******************
+	*  public fields  *
+        ******************/
+
+	/* mini driver */
+	struct usbatm_driver *driver;
+	void *driver_data;
+	char driver_name[16];
+
+	/* USB device */
+	struct usb_device *usb_dev;
+	struct usb_interface *usb_intf;
+	char description[64];
+
+	/* ATM device */
+	struct atm_dev *atm_dev;
+
+	/********************************
+	*  private fields - do not use  *
+        ********************************/
+
+	struct kref refcount;
+	struct semaphore serialize;
+
+	/* heavy init */
+	int thread_pid;
+	struct completion thread_started;
+	struct completion thread_exited;
+
+	/* ATM device */
+	struct list_head vcc_list;
+
+	struct usbatm_channel rx_channel;
+	struct usbatm_channel tx_channel;
+
+	struct sk_buff_head sndqueue;
+	struct sk_buff *current_skb;			/* being emptied */
+
+	struct urb *urbs[0];
+};
+
+#endif	/* _USBATM_H_ */

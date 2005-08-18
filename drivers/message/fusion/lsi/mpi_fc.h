@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2003 LSI Logic Corporation.
+ *  Copyright (c) 2000-2004 LSI Logic Corporation.
  *
  *
  *           Name:  mpi_fc.h
  *          Title:  MPI Fibre Channel messages and structures
  *  Creation Date:  June 12, 2000
  *
- *    mpi_fc.h Version:  01.05.xx
+ *    mpi_fc.h Version:  01.05.01
  *
  *  Version History
  *  ---------------
@@ -36,6 +36,9 @@
  *  09-28-01  01.02.02  Change name of reserved field in
  *                      MSG_LINK_SERVICE_RSP_REPLY.
  *  05-31-02  01.02.03  Adding AliasIndex to FC Direct Access requests.
+ *  01-16-04  01.02.04  Added define for MPI_FC_PRIM_SEND_FLAGS_ML_RESET_LINK.
+ *  05-11-04  01.03.01  Original release for MPI v1.3.
+ *  08-19-04  01.05.01  Original release for MPI v1.5.
  *  --------------------------------------------------------------------------
  */
 

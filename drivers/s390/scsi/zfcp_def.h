@@ -62,9 +62,6 @@
 #include <linux/syscalls.h>
 #include <linux/ioctl.h>
 
-/************************ DEBUG FLAGS *****************************************/
-
-#define	ZFCP_PRINT_FLAGS
 
 /********************* GENERAL DEFINES *********************************/
 
@@ -152,8 +149,10 @@ typedef u32 scsi_lun_t;
 #define FSF_QTCB_UNSOLICITED_STATUS		0x6305
 #define ZFCP_STATUS_READ_FAILED_THRESHOLD	3
 #define ZFCP_STATUS_READS_RECOM		        FSF_STATUS_READS_RECOM
-#define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	6
-#define ZFCP_EXCHANGE_CONFIG_DATA_SLEEP		50
+
+/* Do 1st retry in 1 second, then double the timeout for each following retry */
+#define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	100
+#define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	7
 
 /* timeout value for "default timer" for fsf requests */
 #define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ);
@@ -472,17 +471,6 @@ do { \
 	ZFCP_LOG(ZFCP_LOG_LEVEL_TRACE, fmt , ##args)
 #endif
 
-#ifndef ZFCP_PRINT_FLAGS
-# define ZFCP_LOG_FLAGS(level, fmt, args...)
-#else
-extern u32 flags_dump;
-# define ZFCP_LOG_FLAGS(level, fmt, args...) \
-do { \
-	if (level <= flags_dump) \
-		_ZFCP_LOG(fmt, ##args); \
-} while (0)
-#endif
-
 /*************** ADAPTER/PORT/UNIT AND FSF_REQ STATUS FLAGS ******************/
 
 /* 
@@ -502,6 +490,7 @@ do { \
 #define ZFCP_STATUS_COMMON_CLOSING              0x02000000
 #define ZFCP_STATUS_COMMON_ERP_INUSE		0x01000000
 #define ZFCP_STATUS_COMMON_ACCESS_DENIED	0x00800000
+#define ZFCP_STATUS_COMMON_ACCESS_BOXED		0x00400000
 
 /* adapter status */
 #define ZFCP_STATUS_ADAPTER_QDIOUP		0x00000002
@@ -763,6 +752,7 @@ typedef void (*zfcp_send_els_handler_t)(unsigned long);
 /**
  * struct zfcp_send_els - used to pass parameters to function zfcp_fsf_send_els
  * @adapter: adapter where request is sent from
+ * @port: port where ELS is destinated (port reference count has to be increased)
  * @d_id: destiniation id of port where request is sent to
  * @req: scatter-gather list for request
  * @resp: scatter-gather list for response
@@ -777,6 +767,7 @@ typedef void (*zfcp_send_els_handler_t)(unsigned long);
  */
 struct zfcp_send_els {
 	struct zfcp_adapter *adapter;
+	struct zfcp_port *port;
 	fc_id_t d_id;
 	struct scatterlist *req;
 	struct scatterlist *resp;
@@ -871,7 +862,7 @@ struct zfcp_adapter {
 	u32			ports;	           /* number of remote ports */
         struct timer_list       scsi_er_timer;     /* SCSI err recovery watch */
 	struct list_head	fsf_req_list_head; /* head of FSF req list */
-	rwlock_t		fsf_req_list_lock; /* lock for ops on list of
+	spinlock_t		fsf_req_list_lock; /* lock for ops on list of
 						      FSF requests */
         atomic_t       		fsf_reqs_active;   /* # active FSF reqs */
 	struct zfcp_qdio_queue	request_queue;	   /* request queue */

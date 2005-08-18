@@ -51,8 +51,6 @@ pbus_assign_resources_sorted(struct pci_bus *bus)
 	struct resource_list head, *list, *tmp;
 	int idx;
 
-	bus->bridge_ctl &= ~PCI_BRIDGE_CTL_VGA;
-
 	head.next = NULL;
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		u16 class = dev->class >> 8;
@@ -62,17 +60,17 @@ pbus_assign_resources_sorted(struct pci_bus *bus)
 		    class == PCI_CLASS_BRIDGE_HOST)
 			continue;
 
-		if (class == PCI_CLASS_DISPLAY_VGA ||
-		    class == PCI_CLASS_NOT_DEFINED_VGA)
-			bus->bridge_ctl |= PCI_BRIDGE_CTL_VGA;
-
 		pdev_sort_resources(dev, &head);
 	}
 
 	for (list = head.next; list;) {
 		res = list->res;
 		idx = res - &list->dev->resource[0];
-		pci_assign_resource(list->dev, idx);
+		if (pci_assign_resource(list->dev, idx)) {
+			res->start = 0;
+			res->end = 0;
+			res->flags = 0;
+		}
 		tmp = list;
 		list = list->next;
 		kfree(tmp);
@@ -270,6 +268,8 @@ find_free_bus_resource(struct pci_bus *bus, unsigned long type)
 
 	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
 		r = bus->resource[i];
+		if (r == &ioport_resource || r == &iomem_resource)
+			continue;
 		if (r && (r->flags & type_mask) == type && !r->parent)
 			return r;
 	}
@@ -503,12 +503,6 @@ pci_bus_assign_resources(struct pci_bus *bus)
 
 	pbus_assign_resources_sorted(bus);
 
-	if (bus->bridge_ctl & PCI_BRIDGE_CTL_VGA) {
-		/* Propagate presence of the VGA to upstream bridges */
-		for (b = bus; b->parent; b = b->parent) {
-			b->bridge_ctl |= PCI_BRIDGE_CTL_VGA;
-		}
-	}
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		b = dev->subordinate;
 		if (!b)

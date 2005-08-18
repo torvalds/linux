@@ -166,9 +166,6 @@ typedef struct sigaltstack {
 #include <asm/sigcontext.h>
 
 #define sigmask(sig)	(1UL << ((sig) - 1))
-//FIXME!!!
-//#define HAVE_ARCH_GET_SIGNAL_TO_DELIVER
-
 #endif
 
 

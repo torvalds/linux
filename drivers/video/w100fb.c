@@ -101,7 +101,7 @@ static void(*w100fb_ssp_send)(u8 adrs, u8 data);
  * Sysfs functions
  */
 
-static ssize_t rotation_show(struct device *dev, char *buf)
+static ssize_t rotation_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct w100fb_par *par=info->par;
@@ -109,7 +109,7 @@ static ssize_t rotation_show(struct device *dev, char *buf)
 	return sprintf(buf, "%d\n",par->rotation_flag);
 }
 
-static ssize_t rotation_store(struct device *dev, const char *buf, size_t count)
+static ssize_t rotation_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned int rotate;
 	struct fb_info *info = dev_get_drvdata(dev);
@@ -134,7 +134,7 @@ static ssize_t rotation_store(struct device *dev, const char *buf, size_t count)
 
 static DEVICE_ATTR(rotation, 0644, rotation_show, rotation_store);
 
-static ssize_t w100fb_reg_read(struct device *dev, const char *buf, size_t count)
+static ssize_t w100fb_reg_read(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long param;
 	unsigned long regs;
@@ -146,7 +146,7 @@ static ssize_t w100fb_reg_read(struct device *dev, const char *buf, size_t count
 
 static DEVICE_ATTR(reg_read, 0200, NULL, w100fb_reg_read);
 
-static ssize_t w100fb_reg_write(struct device *dev, const char *buf, size_t count)
+static ssize_t w100fb_reg_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long regs;
 	unsigned long param;
@@ -163,7 +163,7 @@ static ssize_t w100fb_reg_write(struct device *dev, const char *buf, size_t coun
 static DEVICE_ATTR(reg_write, 0200, NULL, w100fb_reg_write);
 
 
-static ssize_t fastsysclk_show(struct device *dev, char *buf)
+static ssize_t fastsysclk_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct w100fb_par *par=info->par;
@@ -171,7 +171,7 @@ static ssize_t fastsysclk_show(struct device *dev, char *buf)
 	return sprintf(buf, "%d\n",par->fastsysclk_mode);
 }
 
-static ssize_t fastsysclk_store(struct device *dev, const char *buf, size_t count)
+static ssize_t fastsysclk_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int param;
 	struct fb_info *info = dev_get_drvdata(dev);

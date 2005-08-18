@@ -446,8 +446,6 @@ static struct scsi_host_template driver_template = {
                 .release                 = u14_34f_release,
                 .queuecommand            = u14_34f_queuecommand,
                 .eh_abort_handler        = u14_34f_eh_abort,
-                .eh_device_reset_handler = NULL,
-                .eh_bus_reset_handler    = NULL,
                 .eh_host_reset_handler   = u14_34f_eh_host_reset,
                 .bios_param              = u14_34f_bios_param,
                 .slave_configure         = u14_34f_slave_configure,
@@ -1374,15 +1372,6 @@ static int u14_34f_eh_abort(struct scsi_cmnd *SCarg) {
       if (inb(sh[j]->io_port + REG_SYS_INTR) & IRQ_ASSERTED)
          printk("%s: abort, mbox %d, interrupt pending.\n", BN(j), i);
 
-      if (SCarg->eh_state == SCSI_STATE_TIMEOUT) {
-         unmap_dma(i, j);
-         SCarg->host_scribble = NULL;
-         HD(j)->cp_stat[i] = FREE;
-         printk("%s, abort, mbox %d, eh_state timeout, pid %ld.\n",
-                BN(j), i, SCarg->pid);
-         return SUCCESS;
-         }
-
       return FAILED;
       }
 
@@ -1419,16 +1408,20 @@ static int u14_34f_eh_host_reset(struct scsi_cmnd *SCarg) {
    printk("%s: reset, enter, target %d.%d:%d, pid %ld.\n",
           BN(j), SCarg->device->channel, SCarg->device->id, SCarg->device->lun, SCarg->pid);
 
+   spin_lock_irq(sh[j]->host_lock);
+
    if (SCarg->host_scribble == NULL)
       printk("%s: reset, pid %ld inactive.\n", BN(j), SCarg->pid);
 
    if (HD(j)->in_reset) {
       printk("%s: reset, exit, already in reset.\n", BN(j));
+      spin_unlock_irq(sh[j]->host_lock);
       return FAILED;
       }
 
    if (wait_on_busy(sh[j]->io_port, MAXLOOP)) {
       printk("%s: reset, exit, timeout error.\n", BN(j));
+      spin_unlock_irq(sh[j]->host_lock);
       return FAILED;
       }
 
@@ -1479,6 +1472,7 @@ static int u14_34f_eh_host_reset(struct scsi_cmnd *SCarg) {
 
    if (wait_on_busy(sh[j]->io_port, MAXLOOP)) {
       printk("%s: reset, cannot reset, timeout error.\n", BN(j));
+      spin_unlock_irq(sh[j]->host_lock);
       return FAILED;
       }
 
@@ -1540,6 +1534,7 @@ static int u14_34f_eh_host_reset(struct scsi_cmnd *SCarg) {
    if (arg_done) printk("%s: reset, exit, pid %ld done.\n", BN(j), SCarg->pid);
    else          printk("%s: reset, exit.\n", BN(j));
 
+   spin_unlock_irq(sh[j]->host_lock);
    return SUCCESS;
 }
 

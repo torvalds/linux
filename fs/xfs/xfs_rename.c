@@ -234,9 +234,6 @@ xfs_lock_for_rename(
 	return 0;
 }
 
-
-int rename_which_error_return = 0;
-
 /*
  * xfs_rename
  */
@@ -316,7 +313,6 @@ xfs_rename(
 			&num_inodes);
 
 	if (error) {
-		rename_which_error_return = __LINE__;
 		/*
 		 * We have nothing locked, no inode references, and
 		 * no transaction, so just get out.
@@ -332,7 +328,6 @@ xfs_rename(
 		 */
 		if (target_ip == NULL && (src_dp != target_dp) &&
 		    target_dp->i_d.di_nlink >= XFS_MAXLINK) {
-			rename_which_error_return = __LINE__;
 			error = XFS_ERROR(EMLINK);
 			xfs_rename_unlock4(inodes, XFS_ILOCK_SHARED);
 			goto rele_return;
@@ -359,7 +354,6 @@ xfs_rename(
 				XFS_TRANS_PERM_LOG_RES, XFS_RENAME_LOG_COUNT);
 	}
 	if (error) {
-		rename_which_error_return = __LINE__;
 		xfs_trans_cancel(tp, 0);
 		goto rele_return;
 	}
@@ -369,7 +363,6 @@ xfs_rename(
 	 */
 	if ((error = XFS_QM_DQVOPRENAME(mp, inodes))) {
 		xfs_trans_cancel(tp, cancel_flags);
-		rename_which_error_return = __LINE__;
 		goto rele_return;
 	}
 
@@ -413,7 +406,6 @@ xfs_rename(
 		if (spaceres == 0 &&
 		    (error = XFS_DIR_CANENTER(mp, tp, target_dp, target_name,
 				target_namelen))) {
-			rename_which_error_return = __LINE__;
 			goto error_return;
 		}
 		/*
@@ -425,11 +417,9 @@ xfs_rename(
 					   target_namelen, src_ip->i_ino,
 					   &first_block, &free_list, spaceres);
 		if (error == ENOSPC) {
-			rename_which_error_return = __LINE__;
 			goto error_return;
 		}
 		if (error) {
-			rename_which_error_return = __LINE__;
 			goto abort_return;
 		}
 		xfs_ichgtime(target_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
@@ -437,7 +427,6 @@ xfs_rename(
 		if (new_parent && src_is_directory) {
 			error = xfs_bumplink(tp, target_dp);
 			if (error) {
-				rename_which_error_return = __LINE__;
 				goto abort_return;
 			}
 		}
@@ -455,7 +444,6 @@ xfs_rename(
 			if (!(XFS_DIR_ISEMPTY(target_ip->i_mount, target_ip)) ||
 			    (target_ip->i_d.di_nlink > 2)) {
 				error = XFS_ERROR(EEXIST);
-				rename_which_error_return = __LINE__;
 				goto error_return;
 			}
 		}
@@ -473,7 +461,6 @@ xfs_rename(
 			target_namelen, src_ip->i_ino, &first_block,
 			&free_list, spaceres);
 		if (error) {
-			rename_which_error_return = __LINE__;
 			goto abort_return;
 		}
 		xfs_ichgtime(target_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
@@ -484,7 +471,6 @@ xfs_rename(
 		 */
 		error = xfs_droplink(tp, target_ip);
 		if (error) {
-			rename_which_error_return = __LINE__;
 			goto abort_return;
 		}
 		target_ip_dropped = 1;
@@ -495,7 +481,6 @@ xfs_rename(
 			 */
 			error = xfs_droplink(tp, target_ip);
 			if (error) {
-				rename_which_error_return = __LINE__;
 				goto abort_return;
 			}
 		}
@@ -519,7 +504,6 @@ xfs_rename(
 					&free_list, spaceres);
 		ASSERT(error != EEXIST);
 		if (error) {
-			rename_which_error_return = __LINE__;
 			goto abort_return;
 		}
 		xfs_ichgtime(src_ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
@@ -550,7 +534,6 @@ xfs_rename(
 		 */
 		error = xfs_droplink(tp, src_dp);
 		if (error) {
-			rename_which_error_return = __LINE__;
 			goto abort_return;
 		}
 	}
@@ -558,7 +541,6 @@ xfs_rename(
 	error = XFS_DIR_REMOVENAME(mp, tp, src_dp, src_name, src_namelen,
 			src_ip->i_ino, &first_block, &free_list, spaceres);
 	if (error) {
-		rename_which_error_return = __LINE__;
 		goto abort_return;
 	}
 	xfs_ichgtime(src_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);

@@ -304,7 +304,7 @@ xfs_dir2_data_freeinsert(
 /*
  * Remove a bestfree entry from the table.
  */
-void
+STATIC void
 xfs_dir2_data_freeremove(
 	xfs_dir2_data_t		*d,		/* data block pointer */
 	xfs_dir2_data_free_t	*dfp,		/* bestfree entry pointer */

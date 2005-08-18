@@ -63,6 +63,12 @@ struct per_cpu_pageset {
 #endif
 } ____cacheline_aligned_in_smp;
 
+#ifdef CONFIG_NUMA
+#define zone_pcp(__z, __cpu) ((__z)->pageset[(__cpu)])
+#else
+#define zone_pcp(__z, __cpu) (&(__z)->pageset[(__cpu)])
+#endif
+
 #define ZONE_DMA		0
 #define ZONE_NORMAL		1
 #define ZONE_HIGHMEM		2
@@ -122,8 +128,11 @@ struct zone {
 	 */
 	unsigned long		lowmem_reserve[MAX_NR_ZONES];
 
+#ifdef CONFIG_NUMA
+	struct per_cpu_pageset	*pageset[NR_CPUS];
+#else
 	struct per_cpu_pageset	pageset[NR_CPUS];
-
+#endif
 	/*
 	 * free areas of different sizes
 	 */
@@ -143,6 +152,14 @@ struct zone {
 	unsigned long		nr_inactive;
 	unsigned long		pages_scanned;	   /* since last reclaim */
 	int			all_unreclaimable; /* All pages pinned */
+
+	/*
+	 * Does the allocator try to reclaim pages from the zone as soon
+	 * as it fails a watermark_ok() in __alloc_pages?
+	 */
+	int			reclaim_pages;
+	/* A count of how many reclaimers are scanning this zone */
+	atomic_t		reclaim_in_progress;
 
 	/*
 	 * prev_priority holds the scanning priority for this zone.  It is
@@ -252,7 +269,9 @@ typedef struct pglist_data {
 	struct zone node_zones[MAX_NR_ZONES];
 	struct zonelist node_zonelists[GFP_ZONETYPES];
 	int nr_zones;
+#ifdef CONFIG_FLAT_NODE_MEM_MAP
 	struct page *node_mem_map;
+#endif
 	struct bootmem_data *bdata;
 	unsigned long node_start_pfn;
 	unsigned long node_present_pages; /* total number of physical pages */
@@ -267,6 +286,12 @@ typedef struct pglist_data {
 
 #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
 #define node_spanned_pages(nid)	(NODE_DATA(nid)->node_spanned_pages)
+#ifdef CONFIG_FLAT_NODE_MEM_MAP
+#define pgdat_page_nr(pgdat, pagenr)	((pgdat)->node_mem_map + (pagenr))
+#else
+#define pgdat_page_nr(pgdat, pagenr)	pfn_to_page((pgdat)->node_start_pfn + (pagenr))
+#endif
+#define nid_page_nr(nid, pagenr) 	pgdat_page_nr(NODE_DATA(nid),(pagenr))
 
 extern struct pglist_data *pgdat_list;
 
@@ -381,9 +406,9 @@ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, struct file *,
 
 #include <linux/topology.h>
 /* Returns the number of the current Node. */
-#define numa_node_id()		(cpu_to_node(_smp_processor_id()))
+#define numa_node_id()		(cpu_to_node(raw_smp_processor_id()))
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 
 extern struct pglist_data contig_page_data;
 #define NODE_DATA(nid)		(&contig_page_data)
@@ -391,35 +416,176 @@ extern struct pglist_data contig_page_data;
 #define MAX_NODES_SHIFT		1
 #define pfn_to_nid(pfn)		(0)
 
-#else /* CONFIG_DISCONTIGMEM */
+#else /* CONFIG_NEED_MULTIPLE_NODES */
 
 #include <asm/mmzone.h>
+
+#endif /* !CONFIG_NEED_MULTIPLE_NODES */
+
+#ifdef CONFIG_SPARSEMEM
+#include <asm/sparsemem.h>
+#endif
 
 #if BITS_PER_LONG == 32 || defined(ARCH_HAS_ATOMIC_UNSIGNED)
 /*
  * with 32 bit page->flags field, we reserve 8 bits for node/zone info.
  * there are 3 zones (2 bits) and this leaves 8-2=6 bits for nodes.
  */
-#define MAX_NODES_SHIFT		6
+#define FLAGS_RESERVED		8
+
 #elif BITS_PER_LONG == 64
 /*
  * with 64 bit flags field, there's plenty of room.
  */
-#define MAX_NODES_SHIFT		10
+#define FLAGS_RESERVED		32
+
+#else
+
+#error BITS_PER_LONG not defined
+
 #endif
 
-#endif /* !CONFIG_DISCONTIGMEM */
-
-#if NODES_SHIFT > MAX_NODES_SHIFT
-#error NODES_SHIFT > MAX_NODES_SHIFT
+#ifndef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+#define early_pfn_to_nid(nid)  (0UL)
 #endif
 
-/* There are currently 3 zones: DMA, Normal & Highmem, thus we need 2 bits */
-#define MAX_ZONES_SHIFT		2
+#define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
+#define section_nr_to_pfn(sec) ((sec) << PFN_SECTION_SHIFT)
 
-#if ZONES_SHIFT > MAX_ZONES_SHIFT
-#error ZONES_SHIFT > MAX_ZONES_SHIFT
+#ifdef CONFIG_SPARSEMEM
+
+/*
+ * SECTION_SHIFT    		#bits space required to store a section #
+ *
+ * PA_SECTION_SHIFT		physical address to/from section number
+ * PFN_SECTION_SHIFT		pfn to/from section number
+ */
+#define SECTIONS_SHIFT		(MAX_PHYSMEM_BITS - SECTION_SIZE_BITS)
+
+#define PA_SECTION_SHIFT	(SECTION_SIZE_BITS)
+#define PFN_SECTION_SHIFT	(SECTION_SIZE_BITS - PAGE_SHIFT)
+
+#define NR_MEM_SECTIONS		(1UL << SECTIONS_SHIFT)
+
+#define PAGES_PER_SECTION       (1UL << PFN_SECTION_SHIFT)
+#define PAGE_SECTION_MASK	(~(PAGES_PER_SECTION-1))
+
+#if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
+#error Allocator MAX_ORDER exceeds SECTION_SIZE
 #endif
+
+struct page;
+struct mem_section {
+	/*
+	 * This is, logically, a pointer to an array of struct
+	 * pages.  However, it is stored with some other magic.
+	 * (see sparse.c::sparse_init_one_section())
+	 *
+	 * Making it a UL at least makes someone do a cast
+	 * before using it wrong.
+	 */
+	unsigned long section_mem_map;
+};
+
+extern struct mem_section mem_section[NR_MEM_SECTIONS];
+
+static inline struct mem_section *__nr_to_section(unsigned long nr)
+{
+	return &mem_section[nr];
+}
+
+/*
+ * We use the lower bits of the mem_map pointer to store
+ * a little bit of information.  There should be at least
+ * 3 bits here due to 32-bit alignment.
+ */
+#define	SECTION_MARKED_PRESENT	(1UL<<0)
+#define SECTION_HAS_MEM_MAP	(1UL<<1)
+#define SECTION_MAP_LAST_BIT	(1UL<<2)
+#define SECTION_MAP_MASK	(~(SECTION_MAP_LAST_BIT-1))
+
+static inline struct page *__section_mem_map_addr(struct mem_section *section)
+{
+	unsigned long map = section->section_mem_map;
+	map &= SECTION_MAP_MASK;
+	return (struct page *)map;
+}
+
+static inline int valid_section(struct mem_section *section)
+{
+	return (section->section_mem_map & SECTION_MARKED_PRESENT);
+}
+
+static inline int section_has_mem_map(struct mem_section *section)
+{
+	return (section->section_mem_map & SECTION_HAS_MEM_MAP);
+}
+
+static inline int valid_section_nr(unsigned long nr)
+{
+	return valid_section(__nr_to_section(nr));
+}
+
+/*
+ * Given a kernel address, find the home node of the underlying memory.
+ */
+#define kvaddr_to_nid(kaddr)	pfn_to_nid(__pa(kaddr) >> PAGE_SHIFT)
+
+static inline struct mem_section *__pfn_to_section(unsigned long pfn)
+{
+	return __nr_to_section(pfn_to_section_nr(pfn));
+}
+
+#define pfn_to_page(pfn) 						\
+({ 									\
+	unsigned long __pfn = (pfn);					\
+	__section_mem_map_addr(__pfn_to_section(__pfn)) + __pfn;	\
+})
+#define page_to_pfn(page)						\
+({									\
+	page - __section_mem_map_addr(__nr_to_section(			\
+		page_to_section(page)));				\
+})
+
+static inline int pfn_valid(unsigned long pfn)
+{
+	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+		return 0;
+	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
+}
+
+/*
+ * These are _only_ used during initialisation, therefore they
+ * can use __initdata ...  They could have names to indicate
+ * this restriction.
+ */
+#ifdef CONFIG_NUMA
+#define pfn_to_nid		early_pfn_to_nid
+#endif
+
+#define pfn_to_pgdat(pfn)						\
+({									\
+	NODE_DATA(pfn_to_nid(pfn));					\
+})
+
+#define early_pfn_valid(pfn)	pfn_valid(pfn)
+void sparse_init(void);
+#else
+#define sparse_init()	do {} while (0)
+#endif /* CONFIG_SPARSEMEM */
+
+#ifdef CONFIG_NODES_SPAN_OTHER_NODES
+#define early_pfn_in_nid(pfn, nid)	(early_pfn_to_nid(pfn) == (nid))
+#else
+#define early_pfn_in_nid(pfn, nid)	(1)
+#endif
+
+#ifndef early_pfn_valid
+#define early_pfn_valid(pfn)	(1)
+#endif
+
+void memory_present(int nid, unsigned long start, unsigned long end);
+unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
 
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */

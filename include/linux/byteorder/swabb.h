@@ -92,29 +92,32 @@
 #endif /* OPTIMIZE */
 
 
-static __inline__ __const__ __u32 __fswahw32(__u32 x)
+static inline __u32 __fswahw32(__u32 x)
 {
 	return __arch__swahw32(x);
 }
-static __inline__ __u32 __swahw32p(__u32 *x)
+
+static inline __u32 __swahw32p(__u32 *x)
 {
 	return __arch__swahw32p(x);
 }
-static __inline__ void __swahw32s(__u32 *addr)
+
+static inline void __swahw32s(__u32 *addr)
 {
 	__arch__swahw32s(addr);
 }
 
-
-static __inline__ __const__ __u32 __fswahb32(__u32 x)
+static inline __u32 __fswahb32(__u32 x)
 {
 	return __arch__swahb32(x);
 }
-static __inline__ __u32 __swahb32p(__u32 *x)
+
+static inline __u32 __swahb32p(__u32 *x)
 {
 	return __arch__swahb32p(x);
 }
-static __inline__ void __swahb32s(__u32 *addr)
+
+static inline void __swahb32s(__u32 *addr)
 {
 	__arch__swahb32s(addr);
 }

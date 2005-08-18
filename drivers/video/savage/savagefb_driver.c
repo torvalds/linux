@@ -1897,7 +1897,7 @@ static int __devinit savage_init_fb_info (struct fb_info *info,
 		info->pixmap.size = 8*1024;
 		info->pixmap.scan_align = 4;
 		info->pixmap.buf_align = 4;
-		info->pixmap.access_align = 4;
+		info->pixmap.access_align = 32;
 
 		fb_alloc_cmap (&info->cmap, NR_PALETTE, 0);
 		info->flags |= FBINFO_HWACCEL_COPYAREA |
@@ -2113,7 +2113,7 @@ static int savagefb_suspend (struct pci_dev* dev, pm_message_t state)
 	printk(KERN_DEBUG "state: %u\n", state);
 
 	acquire_console_sem();
-	fb_set_suspend(info, state);
+	fb_set_suspend(info, pci_choose_state(dev, state));
 	savage_disable_mmio(par);
 	release_console_sem();
 

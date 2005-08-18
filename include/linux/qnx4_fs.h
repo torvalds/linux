@@ -46,11 +46,11 @@ struct qnx4_inode_entry {
 	char		di_fname[QNX4_SHORT_NAME_MAX];
 	qnx4_off_t	di_size;
 	qnx4_xtnt_t	di_first_xtnt;
-	__u32		di_xblk;
-	__s32		di_ftime;
-	__s32		di_mtime;
-	__s32		di_atime;
-	__s32		di_ctime;
+	__le32		di_xblk;
+	__le32		di_ftime;
+	__le32		di_mtime;
+	__le32		di_atime;
+	__le32		di_ctime;
 	qnx4_nxtnt_t	di_num_xtnts;
 	qnx4_mode_t	di_mode;
 	qnx4_muid_t	di_uid;
@@ -63,18 +63,18 @@ struct qnx4_inode_entry {
 
 struct qnx4_link_info {
 	char		dl_fname[QNX4_NAME_MAX];
-	__u32		dl_inode_blk;
+	__le32		dl_inode_blk;
 	__u8		dl_inode_ndx;
 	__u8		dl_spare[10];
 	__u8		dl_status;
 };
 
 struct qnx4_xblk {
-	__u32		xblk_next_xblk;
-	__u32		xblk_prev_xblk;
+	__le32		xblk_next_xblk;
+	__le32		xblk_prev_xblk;
 	__u8		xblk_num_xtnts;
 	__u8		xblk_spare[3];
-	__s32		xblk_num_blocks;
+	__le32		xblk_num_blocks;
 	qnx4_xtnt_t	xblk_xtnts[QNX4_MAX_XTNTS_PER_XBLK];
 	char		xblk_signature[8];
 	qnx4_xtnt_t	xblk_first_xtnt;

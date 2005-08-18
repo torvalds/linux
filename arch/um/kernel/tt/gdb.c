@@ -153,10 +153,10 @@ void remove_gdb_cb(void *unused)
 	exit_debugger_cb(NULL);
 }
 
-int gdb_remove(char *unused)
+int gdb_remove(int unused)
 {
 	initial_thread_cb(remove_gdb_cb, NULL);
-	return(0);
+        return 0;
 }
 
 void signal_usr1(int sig)

@@ -332,10 +332,6 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 #endif	 
 	;
 	 }
-	if (kbuf == NULL) {
-	   Err("Failed to allocate decompress table.\n");
-	   return -ENOMEM;
-	}
 	pdev->decompress_data = kbuf;
 	
 	/* Allocate image buffer; double buffer for mmap() */

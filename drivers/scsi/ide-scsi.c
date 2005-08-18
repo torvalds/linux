@@ -46,6 +46,7 @@
 #include <linux/slab.h>
 #include <linux/ide.h>
 #include <linux/scatterlist.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 #include <asm/bitops.h>
@@ -1026,11 +1027,13 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(cmd->device->host->host_lock);
+	spin_lock(&ide_lock);
 
 	if (!scsi->pc || (req = scsi->pc->rq) != HWGROUP(drive)->rq || !HWGROUP(drive)->handler) {
 		printk (KERN_WARNING "ide-scsi: No active request in idescsi_eh_reset\n");
 		spin_unlock(&ide_lock);
+		spin_unlock_irq(cmd->device->host->host_lock);
 		return FAILED;
 	}
 
@@ -1052,16 +1055,15 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 	HWGROUP(drive)->rq = NULL;
 	HWGROUP(drive)->handler = NULL;
 	HWGROUP(drive)->busy = 1;		/* will set this to zero when ide reset finished */
-	spin_unlock_irq(&ide_lock);
+	spin_unlock(&ide_lock);
 
 	ide_do_reset(drive);
 
 	/* ide_do_reset starts a polling handler which restarts itself every 50ms until the reset finishes */
 
 	do {
-		set_current_state(TASK_UNINTERRUPTIBLE);
 		spin_unlock_irq(cmd->device->host->host_lock);
-		schedule_timeout(HZ/20);
+		msleep(50);
 		spin_lock_irq(cmd->device->host->host_lock);
 	} while ( HWGROUP(drive)->handler );
 
@@ -1072,6 +1074,7 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 		ret = FAILED;
 	}
 
+	spin_unlock_irq(cmd->device->host->host_lock);
 	return ret;
 }
 

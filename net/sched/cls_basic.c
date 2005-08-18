@@ -261,6 +261,9 @@ static int basic_dump(struct tcf_proto *tp, unsigned long fh,
 	rta = (struct rtattr *) b;
 	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
 
+	if (f->res.classid)
+		RTA_PUT(skb, TCA_BASIC_CLASSID, sizeof(u32), &f->res.classid);
+
 	if (tcf_exts_dump(skb, &f->exts, &basic_ext_map) < 0 ||
 	    tcf_em_tree_dump(skb, &f->ematches, TCA_BASIC_EMATCHES) < 0)
 		goto rtattr_failure;

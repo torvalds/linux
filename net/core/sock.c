@@ -118,6 +118,7 @@
 #include <linux/netdevice.h>
 #include <net/protocol.h>
 #include <linux/skbuff.h>
+#include <net/request_sock.h>
 #include <net/sock.h>
 #include <net/xfrm.h>
 #include <linux/ipsec.h>
@@ -205,13 +206,14 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	 */
 
 #ifdef SO_DONTLINGER		/* Compatibility item... */
-	switch (optname) {
-		case SO_DONTLINGER:
-			sock_reset_flag(sk, SOCK_LINGER);
-			return 0;
+	if (optname == SO_DONTLINGER) {
+		lock_sock(sk);
+		sock_reset_flag(sk, SOCK_LINGER);
+		release_sock(sk);
+		return 0;
 	}
-#endif	
-		
+#endif
+	
   	if(optlen<sizeof(int))
   		return(-EINVAL);
   	
@@ -621,7 +623,8 @@ lenout:
  *	@prot: struct proto associated with this new sock instance
  *	@zero_it: if we should zero the newly allocated sock
  */
-struct sock *sk_alloc(int family, int priority, struct proto *prot, int zero_it)
+struct sock *sk_alloc(int family, unsigned int __nocast priority,
+		      struct proto *prot, int zero_it)
 {
 	struct sock *sk = NULL;
 	kmem_cache_t *slab = prot->slab;
@@ -749,7 +752,8 @@ unsigned long sock_i_ino(struct sock *sk)
 /*
  * Allocate a skb from the socket's send buffer.
  */
-struct sk_buff *sock_wmalloc(struct sock *sk, unsigned long size, int force, int priority)
+struct sk_buff *sock_wmalloc(struct sock *sk, unsigned long size, int force,
+			     unsigned int __nocast priority)
 {
 	if (force || atomic_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf) {
 		struct sk_buff * skb = alloc_skb(size, priority);
@@ -764,7 +768,8 @@ struct sk_buff *sock_wmalloc(struct sock *sk, unsigned long size, int force, int
 /*
  * Allocate a skb from the socket's receive buffer.
  */ 
-struct sk_buff *sock_rmalloc(struct sock *sk, unsigned long size, int force, int priority)
+struct sk_buff *sock_rmalloc(struct sock *sk, unsigned long size, int force,
+			     unsigned int __nocast priority)
 {
 	if (force || atomic_read(&sk->sk_rmem_alloc) < sk->sk_rcvbuf) {
 		struct sk_buff *skb = alloc_skb(size, priority);
@@ -779,7 +784,7 @@ struct sk_buff *sock_rmalloc(struct sock *sk, unsigned long size, int force, int
 /* 
  * Allocate a memory block from the socket's option memory buffer.
  */ 
-void *sock_kmalloc(struct sock *sk, int size, int priority)
+void *sock_kmalloc(struct sock *sk, int size, unsigned int __nocast priority)
 {
 	if ((unsigned)size <= sysctl_optmem_max &&
 	    atomic_read(&sk->sk_omem_alloc) + size < sysctl_optmem_max) {
@@ -1363,6 +1368,7 @@ static LIST_HEAD(proto_list);
 
 int proto_register(struct proto *prot, int alloc_slab)
 {
+	char *request_sock_slab_name;
 	int rc = -ENOBUFS;
 
 	if (alloc_slab) {
@@ -1374,6 +1380,25 @@ int proto_register(struct proto *prot, int alloc_slab)
 			       prot->name);
 			goto out;
 		}
+
+		if (prot->rsk_prot != NULL) {
+			static const char mask[] = "request_sock_%s";
+
+			request_sock_slab_name = kmalloc(strlen(prot->name) + sizeof(mask) - 1, GFP_KERNEL);
+			if (request_sock_slab_name == NULL)
+				goto out_free_sock_slab;
+
+			sprintf(request_sock_slab_name, mask, prot->name);
+			prot->rsk_prot->slab = kmem_cache_create(request_sock_slab_name,
+								 prot->rsk_prot->obj_size, 0,
+								 SLAB_HWCACHE_ALIGN, NULL, NULL);
+
+			if (prot->rsk_prot->slab == NULL) {
+				printk(KERN_CRIT "%s: Can't create request sock SLAB cache!\n",
+				       prot->name);
+				goto out_free_request_sock_slab_name;
+			}
+		}
 	}
 
 	write_lock(&proto_list_lock);
@@ -1382,6 +1407,12 @@ int proto_register(struct proto *prot, int alloc_slab)
 	rc = 0;
 out:
 	return rc;
+out_free_request_sock_slab_name:
+	kfree(request_sock_slab_name);
+out_free_sock_slab:
+	kmem_cache_destroy(prot->slab);
+	prot->slab = NULL;
+	goto out;
 }
 
 EXPORT_SYMBOL(proto_register);
@@ -1393,6 +1424,14 @@ void proto_unregister(struct proto *prot)
 	if (prot->slab != NULL) {
 		kmem_cache_destroy(prot->slab);
 		prot->slab = NULL;
+	}
+
+	if (prot->rsk_prot != NULL && prot->rsk_prot->slab != NULL) {
+		const char *name = kmem_cache_name(prot->rsk_prot->slab);
+
+		kmem_cache_destroy(prot->rsk_prot->slab);
+		kfree(name);
+		prot->rsk_prot->slab = NULL;
 	}
 
 	list_del(&prot->node);

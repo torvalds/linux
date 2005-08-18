@@ -28,29 +28,21 @@
 #include <asm/iSeries/IoHriProcessorVpd.h>
 #include <asm/iSeries/ItSpCommArea.h>
 
-/* The LpQueue is used to pass event data from the hypervisor to
- * the partition.  This is where I/O interrupt events are communicated.
- */
-
-/* May be filled in by the hypervisor so cannot end up in the BSS */
-struct ItLpQueue xItLpQueue __attribute__((__section__(".data")));
-
 
 /* The HvReleaseData is the root of the information shared between 
  * the hypervisor and Linux.  
  */
-
 struct HvReleaseData hvReleaseData = {
 	.xDesc = 0xc8a5d9c4,	/* "HvRD" ebcdic */
 	.xSize = sizeof(struct HvReleaseData),
 	.xVpdAreasPtrOffset = offsetof(struct naca_struct, xItVpdAreas),
 	.xSlicNacaAddr = &naca,		/* 64-bit Naca address */
-	.xMsNucDataOffset = 0x4800,	/* offset of LparMap within loadarea (see head.S) */
-	.xTagsMode = 1,			/* tags inactive       */
-	.xAddressSize = 0,		/* 64 bit              */
-	.xNoSharedProcs = 0,		/* shared processors   */
-	.xNoHMT = 0,			/* HMT allowed         */
-	.xRsvd2 = 6,			/* TEMP: This allows non-GA driver */
+	.xMsNucDataOffset = LPARMAP_PHYS,
+	.xFlags = HVREL_TAGSINACTIVE	/* tags inactive       */
+					/* 64 bit              */
+					/* shared processors   */
+					/* HMT allowed         */
+		  | 6,			/* TEMP: This allows non-GA driver */
 	.xVrmIndex = 4,			/* We are v5r2m0               */
 	.xMinSupportedPlicVrmIndex = 3,		/* v5r1m0 */
 	.xMinCompatablePlicVrmIndex = 3,	/* v5r1m0 */
@@ -200,7 +192,7 @@ struct ItVpdAreas itVpdAreas = {
 		0,0,0,			/* 13 - 15 */
 		sizeof(struct IoHriProcessorVpd),/* 16 length of Proc Vpd */
 		0,0,0,0,0,0,		/* 17 - 22  */
-		sizeof(struct ItLpQueue),/*     23 length of Lp Queue */
+		sizeof(struct hvlpevent_queue),	/* 23 length of Lp Queue */
 		0,0			/* 24 - 25 */
 		},
 	.xSlicVpdAdrs = {			/* VPD addresses */
@@ -218,7 +210,7 @@ struct ItVpdAreas itVpdAreas = {
 		0,0,0,			/* 13 - 15 */
 		&xIoHriProcessorVpd,	/*      16 Proc Vpd */
 		0,0,0,0,0,0,		/* 17 - 22 */
-		&xItLpQueue,		/*      23 Lp Queue */
+		&hvlpevent_queue,	/*      23 Lp Queue */
 		0,0
 	}
 };

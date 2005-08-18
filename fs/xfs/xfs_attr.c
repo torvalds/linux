@@ -71,6 +71,11 @@
  * Provide the external interfaces to manage attribute lists.
  */
 
+#define ATTR_SYSCOUNT	2
+STATIC struct attrnames posix_acl_access;
+STATIC struct attrnames posix_acl_default;
+STATIC struct attrnames *attr_system_names[ATTR_SYSCOUNT];
+
 /*========================================================================
  * Function prototypes for the kernel.
  *========================================================================*/
@@ -83,6 +88,7 @@ STATIC int xfs_attr_shortform_addname(xfs_da_args_t *args);
 /*
  * Internal routines when attribute list is one block.
  */
+STATIC int xfs_attr_leaf_get(xfs_da_args_t *args);
 STATIC int xfs_attr_leaf_addname(xfs_da_args_t *args);
 STATIC int xfs_attr_leaf_removename(xfs_da_args_t *args);
 STATIC int xfs_attr_leaf_list(xfs_attr_list_context_t *context);
@@ -90,6 +96,7 @@ STATIC int xfs_attr_leaf_list(xfs_attr_list_context_t *context);
 /*
  * Internal routines when attribute list is more than one block.
  */
+STATIC int xfs_attr_node_get(xfs_da_args_t *args);
 STATIC int xfs_attr_node_addname(xfs_da_args_t *args);
 STATIC int xfs_attr_node_removename(xfs_da_args_t *args);
 STATIC int xfs_attr_node_list(xfs_attr_list_context_t *context);
@@ -1102,7 +1109,7 @@ xfs_attr_leaf_removename(xfs_da_args_t *args)
  * This leaf block cannot have a "remote" value, we only call this routine
  * if bmap_one_block() says there is only one block (ie: no remote blks).
  */
-int
+STATIC int
 xfs_attr_leaf_get(xfs_da_args_t *args)
 {
 	xfs_dabuf_t *bp;
@@ -1707,7 +1714,7 @@ xfs_attr_refillstate(xfs_da_state_t *state)
  * block, ie: both true Btree attr lists and for single-leaf-blocks with
  * "remote" values taking up more blocks.
  */
-int
+STATIC int
 xfs_attr_node_get(xfs_da_args_t *args)
 {
 	xfs_da_state_t *state;
@@ -2398,7 +2405,7 @@ posix_acl_default_exists(
 	return xfs_acl_vhasacl_default(vp);
 }
 
-struct attrnames posix_acl_access = {
+STATIC struct attrnames posix_acl_access = {
 	.attr_name	= "posix_acl_access",
 	.attr_namelen	= sizeof("posix_acl_access") - 1,
 	.attr_get	= posix_acl_access_get,
@@ -2407,7 +2414,7 @@ struct attrnames posix_acl_access = {
 	.attr_exists	= posix_acl_access_exists,
 };
 
-struct attrnames posix_acl_default = {
+STATIC struct attrnames posix_acl_default = {
 	.attr_name	= "posix_acl_default",
 	.attr_namelen	= sizeof("posix_acl_default") - 1,
 	.attr_get	= posix_acl_default_get,
@@ -2416,7 +2423,7 @@ struct attrnames posix_acl_default = {
 	.attr_exists	= posix_acl_default_exists,
 };
 
-struct attrnames *attr_system_names[] =
+STATIC struct attrnames *attr_system_names[] =
 	{ &posix_acl_access, &posix_acl_default };
 
 

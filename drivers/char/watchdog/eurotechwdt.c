@@ -72,12 +72,7 @@ static char *ev = "int";
 
 #define WDT_TIMEOUT		60                /* 1 minute */
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
-
+static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 
@@ -167,7 +162,7 @@ static irqreturn_t eurwdt_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	printk(KERN_CRIT "Would Reboot.\n");
 #else
 	printk(KERN_CRIT "Initiating system reboot.\n");
-	machine_restart(NULL);
+	emergency_restart();
 #endif
 	return IRQ_HANDLED;
 }

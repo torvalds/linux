@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/quotaops.h>
 #include "jfs_incore.h"
+#include "jfs_inode.h"
 #include "jfs_superblock.h"
 #include "jfs_dmap.h"
 #include "jfs_extent.h"
@@ -32,12 +33,6 @@ static int extBalloc(struct inode *, s64, s64 *, s64 *);
 static int extBrealloc(struct inode *, s64, s64, s64 *, s64 *);
 #endif
 static s64 extRoundDown(s64 nb);
-
-/*
- * external references
- */
-extern int jfs_commit_inode(struct inode *, int);
-
 
 #define DPD(a)          (printk("(a): %d\n",(a)))
 #define DPC(a)          (printk("(a): %c\n",(a)))

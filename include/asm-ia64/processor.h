@@ -403,7 +403,10 @@ extern void ia64_setreg_unknown_kr (void);
  * task_struct at this point.
  */
 
-/* Return TRUE if task T owns the fph partition of the CPU we're running on. */
+/*
+ * Return TRUE if task T owns the fph partition of the CPU we're running on.
+ * Must be called from code that has preemption disabled.
+ */
 #define ia64_is_local_fpu_owner(t)								\
 ({												\
 	struct task_struct *__ia64_islfo_task = (t);						\
@@ -411,7 +414,10 @@ extern void ia64_setreg_unknown_kr (void);
 	 && __ia64_islfo_task == (struct task_struct *) ia64_get_kr(IA64_KR_FPU_OWNER));	\
 })
 
-/* Mark task T as owning the fph partition of the CPU we're running on. */
+/*
+ * Mark task T as owning the fph partition of the CPU we're running on.
+ * Must be called from code that has preemption disabled.
+ */
 #define ia64_set_local_fpu_owner(t) do {						\
 	struct task_struct *__ia64_slfo_task = (t);					\
 	__ia64_slfo_task->thread.last_fph_cpu = smp_processor_id();			\

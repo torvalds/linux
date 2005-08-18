@@ -332,19 +332,6 @@ xfs_getbmap(
 	int			iflags);	/* interface flags */
 
 /*
- * Check the last inode extent to determine whether this allocation will result
- * in blocks being allocated at the end of the file. When we allocate new data
- * blocks at the end of the file which do not start at the previous data block,
- * we will try to align the new blocks at stripe unit boundaries.
- */
-int
-xfs_bmap_isaeof(
-	struct xfs_inode	*ip,
-	xfs_fileoff_t		off,
-	int			whichfork,
-	char			*aeof);
-
-/*
  * Check if the endoff is outside the last extent. If so the caller will grow
  * the allocation to a stripe unit boundary
  */

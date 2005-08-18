@@ -69,90 +69,6 @@
 #define OID_PNP_ENABLE_WAKE_UP			0xFD010106
 
 
-/* supported OIDs */
-static const u32 oid_supported_list [] = 
-{
-	/* the general stuff */
-	OID_GEN_SUPPORTED_LIST,
-	OID_GEN_HARDWARE_STATUS,
-	OID_GEN_MEDIA_SUPPORTED,
-	OID_GEN_MEDIA_IN_USE,
-	OID_GEN_MAXIMUM_FRAME_SIZE,
-	OID_GEN_LINK_SPEED,
-	OID_GEN_TRANSMIT_BLOCK_SIZE,
-	OID_GEN_RECEIVE_BLOCK_SIZE,
-	OID_GEN_VENDOR_ID,
-	OID_GEN_VENDOR_DESCRIPTION,
-	OID_GEN_VENDOR_DRIVER_VERSION,
-	OID_GEN_CURRENT_PACKET_FILTER,
-	OID_GEN_MAXIMUM_TOTAL_SIZE,
-	OID_GEN_MEDIA_CONNECT_STATUS,
-	OID_GEN_PHYSICAL_MEDIUM,
-#if 0
-	OID_GEN_RNDIS_CONFIG_PARAMETER,
-#endif
-	
-	/* the statistical stuff */
-	OID_GEN_XMIT_OK,
-	OID_GEN_RCV_OK,
-	OID_GEN_XMIT_ERROR,
-	OID_GEN_RCV_ERROR,
-	OID_GEN_RCV_NO_BUFFER,
-#ifdef	RNDIS_OPTIONAL_STATS
-	OID_GEN_DIRECTED_BYTES_XMIT,
-	OID_GEN_DIRECTED_FRAMES_XMIT,
-	OID_GEN_MULTICAST_BYTES_XMIT,
-	OID_GEN_MULTICAST_FRAMES_XMIT,
-	OID_GEN_BROADCAST_BYTES_XMIT,
-	OID_GEN_BROADCAST_FRAMES_XMIT,
-	OID_GEN_DIRECTED_BYTES_RCV,
-	OID_GEN_DIRECTED_FRAMES_RCV,
-	OID_GEN_MULTICAST_BYTES_RCV,
-	OID_GEN_MULTICAST_FRAMES_RCV,
-	OID_GEN_BROADCAST_BYTES_RCV,
-	OID_GEN_BROADCAST_FRAMES_RCV,
-	OID_GEN_RCV_CRC_ERROR,
-	OID_GEN_TRANSMIT_QUEUE_LENGTH,
-#endif	/* RNDIS_OPTIONAL_STATS */
-
-    	/* mandatory 802.3 */
-	/* the general stuff */
-	OID_802_3_PERMANENT_ADDRESS,
-	OID_802_3_CURRENT_ADDRESS,
-	OID_802_3_MULTICAST_LIST,
-	OID_802_3_MAC_OPTIONS,
-	OID_802_3_MAXIMUM_LIST_SIZE,
-	
-	/* the statistical stuff */
-	OID_802_3_RCV_ERROR_ALIGNMENT,
-	OID_802_3_XMIT_ONE_COLLISION,
-	OID_802_3_XMIT_MORE_COLLISIONS,
-#ifdef	RNDIS_OPTIONAL_STATS
-	OID_802_3_XMIT_DEFERRED,
-	OID_802_3_XMIT_MAX_COLLISIONS,
-	OID_802_3_RCV_OVERRUN,
-	OID_802_3_XMIT_UNDERRUN,
-	OID_802_3_XMIT_HEARTBEAT_FAILURE,
-	OID_802_3_XMIT_TIMES_CRS_LOST,
-	OID_802_3_XMIT_LATE_COLLISIONS,
-#endif	/* RNDIS_OPTIONAL_STATS */
-
-#ifdef	RNDIS_PM
-	/* PM and wakeup are mandatory for USB: */
-
-	/* power management */
-	OID_PNP_CAPABILITIES,
-	OID_PNP_QUERY_POWER,
-	OID_PNP_SET_POWER,
-
-	/* wake up host */
-	OID_PNP_ENABLE_WAKE_UP,
-	OID_PNP_ADD_WAKE_UP_PATTERN,
-	OID_PNP_REMOVE_WAKE_UP_PATTERN,
-#endif
-};
-
-
 typedef struct rndis_init_msg_type 
 {
 	__le32	MessageType;
@@ -309,15 +225,18 @@ typedef struct rndis_resp_t
 typedef struct rndis_params
 {
 	u8			confignr;
-	int			used;
+	u8			used;
+	u16			saved_filter;
 	enum rndis_state	state;
-	u32			filter;
 	u32			medium;
 	u32			speed;
 	u32			media_state;
+
 	const u8		*host_mac;
+	u16			*filter;
 	struct net_device 	*dev;
 	struct net_device_stats *stats;
+
 	u32			vendorID;
 	const char		*vendorDescr;
 	int 			(*ack) (struct net_device *);
@@ -329,7 +248,8 @@ int  rndis_msg_parser (u8 configNr, u8 *buf);
 int  rndis_register (int (*rndis_control_ack) (struct net_device *));
 void rndis_deregister (int configNr);
 int  rndis_set_param_dev (u8 configNr, struct net_device *dev,
-			 struct net_device_stats *stats);
+			 struct net_device_stats *stats,
+			 u16 *cdc_filter);
 int  rndis_set_param_vendor (u8 configNr, u32 vendorID, 
 			    const char *vendorDescr);
 int  rndis_set_param_medium (u8 configNr, u32 medium, u32 speed);
@@ -338,6 +258,7 @@ int rndis_rm_hdr (struct sk_buff *skb);
 u8   *rndis_get_next_response (int configNr, u32 *length);
 void rndis_free_response (int configNr, u8 *buf);
 
+void rndis_uninit (int configNr);
 int  rndis_signal_connect (int configNr);
 int  rndis_signal_disconnect (int configNr);
 int  rndis_state (int configNr);

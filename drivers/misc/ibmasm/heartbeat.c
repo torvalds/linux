@@ -25,6 +25,7 @@
 #include <linux/notifier.h>
 #include "ibmasm.h"
 #include "dot_command.h"
+#include "lowlevel.h"
 
 static int suspend_heartbeats = 0;
 
@@ -62,7 +63,7 @@ void ibmasm_unregister_panic_notifier(void)
 
 int ibmasm_heartbeat_init(struct service_processor *sp)
 {
-	sp->heartbeat = ibmasm_new_command(HEARTBEAT_BUFFER_SIZE);
+	sp->heartbeat = ibmasm_new_command(sp, HEARTBEAT_BUFFER_SIZE);
 	if (sp->heartbeat == NULL)
 		return -ENOMEM;
 
@@ -71,6 +72,12 @@ int ibmasm_heartbeat_init(struct service_processor *sp)
 
 void ibmasm_heartbeat_exit(struct service_processor *sp)
 {
+	char tsbuf[32];
+
+	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
+	ibmasm_wait_for_response(sp->heartbeat, IBMASM_CMD_TIMEOUT_NORMAL);
+	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
+	suspend_heartbeats = 1;
 	command_put(sp->heartbeat);
 }
 
@@ -78,14 +85,16 @@ void ibmasm_receive_heartbeat(struct service_processor *sp,  void *message, size
 {
 	struct command *cmd = sp->heartbeat;
 	struct dot_command_header *header = (struct dot_command_header *)cmd->buffer;
+	char tsbuf[32];
 
+	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
 	if (suspend_heartbeats)
 		return;
 
 	/* return the received dot command to sender */
 	cmd->status = IBMASM_CMD_PENDING;
 	size = min(size, cmd->buffer_size);
-	memcpy(cmd->buffer, message, size);
+	memcpy_fromio(cmd->buffer, message, size);
 	header->type = sp_write;
 	ibmasm_exec_command(sp, cmd);
 }

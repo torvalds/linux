@@ -122,6 +122,9 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 
 	start_addr = mm->free_area_cache;
 
+	if (len <= mm->cached_hole_size)
+		start_addr = TASK_UNMAPPED_BASE;
+
 full_search:
 	addr = ALIGN(start_addr, HPAGE_SIZE);
 

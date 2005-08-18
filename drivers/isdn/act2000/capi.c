@@ -224,6 +224,7 @@ actcapi_manufacturer_req_net(act2000_card *card)
 /*
  * Switch V.42 on or off
  */
+#if 0
 int
 actcapi_manufacturer_req_v42(act2000_card *card, ulong arg)
 {
@@ -242,6 +243,7 @@ actcapi_manufacturer_req_v42(act2000_card *card, ulong arg)
 	ACTCAPI_QUEUE_TX;
         return 0;
 }
+#endif  /*  0  */
 
 /*
  * Set error-handler

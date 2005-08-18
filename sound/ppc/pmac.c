@@ -36,7 +36,7 @@
 #include <asm/pci-bridge.h>
 
 
-#if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
+#ifdef CONFIG_PM
 static int snd_pmac_register_sleep_notifier(pmac_t *chip);
 static int snd_pmac_unregister_sleep_notifier(pmac_t *chip);
 static int snd_pmac_suspend(snd_card_t *card, pm_message_t state);
@@ -153,7 +153,7 @@ static pmac_stream_t *snd_pmac_get_stream(pmac_t *chip, int stream)
 /*
  * wait while run status is on
  */
-inline static void
+static inline void
 snd_pmac_wait_ack(pmac_stream_t *rec)
 {
 	int timeout = 50000;
@@ -177,7 +177,7 @@ static void snd_pmac_pcm_set_format(pmac_t *chip)
 /*
  * stop the DMA transfer
  */
-inline static void snd_pmac_dma_stop(pmac_stream_t *rec)
+static inline void snd_pmac_dma_stop(pmac_stream_t *rec)
 {
 	out_le32(&rec->dma->control, (RUN|WAKE|FLUSH|PAUSE) << 16);
 	snd_pmac_wait_ack(rec);
@@ -186,7 +186,7 @@ inline static void snd_pmac_dma_stop(pmac_stream_t *rec)
 /*
  * set the command pointer address
  */
-inline static void snd_pmac_dma_set_command(pmac_stream_t *rec, pmac_dbdma_t *cmd)
+static inline void snd_pmac_dma_set_command(pmac_stream_t *rec, pmac_dbdma_t *cmd)
 {
 	out_le32(&rec->dma->cmdptr, cmd->addr);
 }
@@ -194,7 +194,7 @@ inline static void snd_pmac_dma_set_command(pmac_stream_t *rec, pmac_dbdma_t *cm
 /*
  * start the DMA
  */
-inline static void snd_pmac_dma_run(pmac_stream_t *rec, int status)
+static inline void snd_pmac_dma_run(pmac_stream_t *rec, int status)
 {
 	out_le32(&rec->dma->control, status | (status << 16));
 }
@@ -765,7 +765,8 @@ snd_pmac_ctrl_intr(int irq, void *devid, struct pt_regs *regs)
  */
 static void snd_pmac_sound_feature(pmac_t *chip, int enable)
 {
-	ppc_md.feature_call(PMAC_FTR_SOUND_CHIP_ENABLE, chip->node, 0, enable);
+	if (ppc_md.feature_call)
+		ppc_md.feature_call(PMAC_FTR_SOUND_CHIP_ENABLE, chip->node, 0, enable);
 }
 
 /*
@@ -782,7 +783,7 @@ static int snd_pmac_free(pmac_t *chip)
 	}
 
 	snd_pmac_sound_feature(chip, 0);
-#if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
+#ifdef CONFIG_PM
 	snd_pmac_unregister_sleep_notifier(chip);
 #endif
 
@@ -1292,7 +1293,7 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
 	/* Reset dbdma channels */
 	snd_pmac_dbdma_reset(chip);
 
-#if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
+#ifdef CONFIG_PM
 	/* add sleep notifier */
 	if (! snd_pmac_register_sleep_notifier(chip))
 		snd_card_set_pm_callback(chip->card, snd_pmac_suspend, snd_pmac_resume, chip);
@@ -1316,7 +1317,7 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
  * sleep notify for powerbook
  */
 
-#if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
+#ifdef CONFIG_PM
 
 /*
  * Save state when going to sleep, restore it afterwards.
@@ -1414,4 +1415,5 @@ static int snd_pmac_unregister_sleep_notifier(pmac_t *chip)
 	return 0;
 }
 
-#endif /* CONFIG_PM && CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
+

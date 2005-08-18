@@ -140,7 +140,7 @@ static void pnp_release_card(struct device *dmdev)
 }
 
 
-static ssize_t pnp_show_card_name(struct device *dmdev, char *buf)
+static ssize_t pnp_show_card_name(struct device *dmdev, struct device_attribute *attr, char *buf)
 {
 	char *str = buf;
 	struct pnp_card *card = to_pnp_card(dmdev);
@@ -150,7 +150,7 @@ static ssize_t pnp_show_card_name(struct device *dmdev, char *buf)
 
 static DEVICE_ATTR(name,S_IRUGO,pnp_show_card_name,NULL);
 
-static ssize_t pnp_show_card_ids(struct device *dmdev, char *buf)
+static ssize_t pnp_show_card_ids(struct device *dmdev, struct device_attribute *attr, char *buf)
 {
 	char *str = buf;
 	struct pnp_card *card = to_pnp_card(dmdev);
@@ -259,7 +259,6 @@ int pnp_add_card_device(struct pnp_card * card, struct pnp_dev * dev)
 
 /**
  * pnp_remove_card_device- removes a device from the specified card
- * @card: pointer to the card to remove from
  * @dev: pointer to the device to remove
  */
 
@@ -274,7 +273,7 @@ void pnp_remove_card_device(struct pnp_dev * dev)
 
 /**
  * pnp_request_card_device - Searches for a PnP device under the specified card
- * @lcard: pointer to the card link, cannot be NULL
+ * @clink: pointer to the card link, cannot be NULL
  * @id: pointer to a PnP ID structure that explains the rules for finding the device
  * @from: Starting place to search from. If NULL it will start from the begining.
  */

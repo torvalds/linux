@@ -21,6 +21,11 @@ config MPC8540_ADS
 	help
 	  This option enables support for the MPC 8540 ADS evaluation board.
 
+config MPC8548_CDS
+	bool "Freescale MPC8548 CDS"
+	help
+	  This option enablese support for the MPC8548 CDS evaluation board.
+
 config MPC8555_CDS
 	bool "Freescale MPC8555 CDS"
 	help
@@ -51,6 +56,11 @@ endchoice
 config MPC8540
 	bool
 	depends on MPC8540_ADS
+	default y
+
+config MPC8548
+	bool
+	depends on MPC8548_CDS
 	default y
 
 config MPC8555

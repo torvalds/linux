@@ -346,7 +346,6 @@ typedef enum {
 					  * controller.
 					  */
 	AHC_NEWEEPROM_FMT     = 0x4000,
-	AHC_RESOURCE_SHORTAGE = 0x8000,
 	AHC_TQINFIFO_BLOCKED  = 0x10000,  /* Blocked waiting for ATIOs */
 	AHC_INT50_SPEEDFLEX   = 0x20000,  /*
 					   * Internal 50pin connector
@@ -1024,9 +1023,6 @@ struct ahc_softc {
 	struct cs		 *critical_sections;
 	u_int			  num_critical_sections;
 
-	/* Links for chaining softcs */
-	TAILQ_ENTRY(ahc_softc)	  links;
-
 	/* Channel Names ('A', 'B', etc.) */
 	char			  channel;
 	char			  channel_b;
@@ -1110,9 +1106,6 @@ struct ahc_softc {
 	uint16_t	 	  user_discenable;/* Disconnection allowed  */
 	uint16_t		  user_tagenable;/* Tagged Queuing allowed */
 };
-
-TAILQ_HEAD(ahc_softc_tailq, ahc_softc);
-extern struct ahc_softc_tailq ahc_tailq;
 
 /************************ Active Device Information ***************************/
 typedef enum {
@@ -1199,8 +1192,6 @@ void			 ahc_intr_enable(struct ahc_softc *ahc, int enable);
 void			 ahc_pause_and_flushwork(struct ahc_softc *ahc);
 int			 ahc_suspend(struct ahc_softc *ahc); 
 int			 ahc_resume(struct ahc_softc *ahc);
-void			 ahc_softc_insert(struct ahc_softc *);
-struct ahc_softc	*ahc_find_softc(struct ahc_softc *ahc);
 void			 ahc_set_unit(struct ahc_softc *, int);
 void			 ahc_set_name(struct ahc_softc *, char *);
 void			 ahc_alloc_scbs(struct ahc_softc *ahc);

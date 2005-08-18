@@ -69,6 +69,16 @@
 #define IXP4XX_PERIPHERAL_BASE_VIRT	(0xFFBF2000)
 #define IXP4XX_PERIPHERAL_REGION_SIZE	(0x0000C000)
 
+/*
+ * Debug UART
+ *
+ * This is basically a remap of UART1 into a region that is section
+ * aligned so that it * can be used with the low-level debug code.
+ */
+#define	IXP4XX_DEBUG_UART_BASE_PHYS	(0xC8000000)
+#define	IXP4XX_DEBUG_UART_BASE_VIRT	(0xffb00000)
+#define	IXP4XX_DEBUG_UART_REGION_SIZE	(0x00001000)
+
 #define IXP4XX_EXP_CS0_OFFSET	0x00
 #define IXP4XX_EXP_CS1_OFFSET   0x04
 #define IXP4XX_EXP_CS2_OFFSET   0x08

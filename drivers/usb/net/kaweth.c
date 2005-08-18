@@ -477,7 +477,7 @@ static int kaweth_reset(struct kaweth_device *kaweth)
 }
 
 static void kaweth_usb_receive(struct urb *, struct pt_regs *regs);
-static int kaweth_resubmit_rx_urb(struct kaweth_device *, int);
+static int kaweth_resubmit_rx_urb(struct kaweth_device *, unsigned);
 
 /****************************************************************
 	int_callback
@@ -520,7 +520,7 @@ static void int_callback(struct urb *u, struct pt_regs *regs)
 
 	/* we check the link state to report changes */
 	if (kaweth->linkstate != (act_state = ( kaweth->intbuffer[STATE_OFFSET] | STATE_MASK) >> STATE_SHIFT)) {
-		if (!act_state)
+		if (act_state)
 			netif_carrier_on(kaweth->net);
 		else
 			netif_carrier_off(kaweth->net);
@@ -550,7 +550,7 @@ static void kaweth_resubmit_tl(void *d)
  *     kaweth_resubmit_rx_urb
  ****************************************************************/
 static int kaweth_resubmit_rx_urb(struct kaweth_device *kaweth,
-						int mem_flags)
+						unsigned mem_flags)
 {
 	int result;
 

@@ -96,6 +96,7 @@ typedef struct mdp_device_descriptor_s {
 #define MD_SB_CLEAN		0
 #define MD_SB_ERRORS		1
 
+#define	MD_SB_BITMAP_PRESENT	8 /* bitmap may be present nearby */
 typedef struct mdp_superblock_s {
 	/*
 	 * Constant generic information
@@ -184,7 +185,7 @@ struct mdp_superblock_1 {
 	/* constant array information - 128 bytes */
 	__u32	magic;		/* MD_SB_MAGIC: 0xa92b4efc - little endian */
 	__u32	major_version;	/* 1 */
-	__u32	feature_map;	/* 0 for now */
+	__u32	feature_map;	/* bit 0 set if 'bitmap_offset' is meaningful */
 	__u32	pad0;		/* always set to 0 when writing */
 
 	__u8	set_uuid[16];	/* user-space generated. */
@@ -197,7 +198,11 @@ struct mdp_superblock_1 {
 
 	__u32	chunksize;	/* in 512byte sectors */
 	__u32	raid_disks;
-	__u8	pad1[128-96];	/* set to 0 when written */
+	__u32	bitmap_offset;	/* sectors after start of superblock that bitmap starts
+				 * NOTE: signed, so bitmap can be before superblock
+				 * only meaningful of feature_map[0] is set.
+				 */
+	__u8	pad1[128-100];	/* set to 0 when written */
 
 	/* constant this-device information - 64 bytes */
 	__u64	data_offset;	/* sector start of data, often 0 */

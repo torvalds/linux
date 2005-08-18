@@ -242,7 +242,7 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 	dma_addr_t dma_next = 0, dma_addr;
 	unsigned long flags;
 	struct scatterlist *s, *outs, *segstart;
-	int outcount;
+	int outcount, incount;
 	unsigned long handle;
 
 	BUG_ON(direction == DMA_NONE);
@@ -252,6 +252,7 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 
 	outs = s = segstart = &sglist[0];
 	outcount = 1;
+	incount = nelems;
 	handle = 0;
 
 	/* Init first segment length for backout at failure */
@@ -338,10 +339,10 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 
 	DBG("mapped %d elements:\n", outcount);
 
-	/* For the sake of iommu_free_sg, we clear out the length in the
+	/* For the sake of iommu_unmap_sg, we clear out the length in the
 	 * next entry of the sglist if we didn't fill the list completely
 	 */
-	if (outcount < nelems) {
+	if (outcount < incount) {
 		outs++;
 		outs->dma_address = DMA_ERROR_CODE;
 		outs->dma_length = 0;
@@ -422,6 +423,9 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl)
 	tbl->it_hint = 0;
 	tbl->it_largehint = tbl->it_halfpoint;
 	spin_lock_init(&tbl->it_lock);
+
+	/* Clear the hardware table in case firmware left allocations in it */
+	ppc_md.tce_free(tbl, tbl->it_offset, tbl->it_size);
 
 	if (!welcomed) {
 		printk(KERN_INFO "IOMMU table initialized, virtual merging %s\n",

@@ -74,11 +74,8 @@ struct etrax_interrupt_vector {
 };
 
 extern struct etrax_interrupt_vector *etrax_irv;
-void set_int_vector(int n, irqvectptr addr, irqvectptr saddr);
+void set_int_vector(int n, irqvectptr addr);
 void set_break_vector(int n, irqvectptr addr);
-
-#define mask_irq(irq_nr) (*R_VECT_MASK_CLR = 1 << (irq_nr));
-#define unmask_irq(irq_nr) (*R_VECT_MASK_SET = 1 << (irq_nr));
 
 #define __STR(x) #x
 #define STR(x) __STR(x)
@@ -121,26 +118,17 @@ void set_break_vector(int n, irqvectptr addr);
 
 #define BUILD_IRQ(nr,mask) \
 void IRQ_NAME(nr); \
-void sIRQ_NAME(nr); \
-void BAD_IRQ_NAME(nr); \
 __asm__ ( \
           ".text\n\t" \
           "IRQ" #nr "_interrupt:\n\t" \
 	  SAVE_ALL \
-	  "sIRQ" #nr "_interrupt:\n\t" /* shortcut for the multiple irq handler */ \
 	  BLOCK_IRQ(mask,nr) /* this must be done to prevent irq loops when we ei later */ \
 	  "moveq "#nr",$r10\n\t" \
 	  "move.d $sp,$r11\n\t" \
 	  "jsr do_IRQ\n\t" /* irq.c, r10 and r11 are arguments */ \
 	  UNBLOCK_IRQ(mask) \
 	  "moveq 0,$r9\n\t" /* make ret_from_intr realise we came from an irq */ \
-	  "jump ret_from_intr\n\t" \
-          "bad_IRQ" #nr "_interrupt:\n\t" \
-	  "push $r0\n\t" \
-	  BLOCK_IRQ(mask,nr) \
-	  "pop $r0\n\t" \
-          "reti\n\t" \
-          "nop\n");
+	  "jump ret_from_intr\n\t");
 
 /* This is subtle. The timer interrupt is crucial and it should not be disabled for 
  * too long. However, if it had been a normal interrupt as per BUILD_IRQ, it would
@@ -159,23 +147,14 @@ __asm__ ( \
 
 #define BUILD_TIMER_IRQ(nr,mask) \
 void IRQ_NAME(nr); \
-void sIRQ_NAME(nr); \
-void BAD_IRQ_NAME(nr); \
 __asm__ ( \
           ".text\n\t" \
           "IRQ" #nr "_interrupt:\n\t" \
 	  SAVE_ALL \
-	  "sIRQ" #nr "_interrupt:\n\t" /* shortcut for the multiple irq handler */ \
 	  "moveq "#nr",$r10\n\t" \
 	  "move.d $sp,$r11\n\t" \
 	  "jsr do_IRQ\n\t" /* irq.c, r10 and r11 are arguments */ \
 	  "moveq 0,$r9\n\t" /* make ret_from_intr realise we came from an irq */ \
-	  "jump ret_from_intr\n\t" \
-          "bad_IRQ" #nr "_interrupt:\n\t" \
-	  "push $r0\n\t" \
-	  BLOCK_IRQ(mask,nr) \
-	  "pop $r0\n\t" \
-          "reti\n\t" \
-          "nop\n");
+	  "jump ret_from_intr\n\t");
 
 #endif

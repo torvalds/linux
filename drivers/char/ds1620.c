@@ -163,8 +163,7 @@ static void ds1620_out(int cmd, int bits, int value)
 	netwinder_ds1620_reset();
 	netwinder_unlock(&flags);
 
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(2);
+	msleep(20);
 }
 
 static unsigned int ds1620_in(int cmd, int bits)

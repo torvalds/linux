@@ -40,6 +40,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/doc2000.h>
 
+#define DEBUG 0
 /* need to undef it (from asm/termbits.h) */
 #undef B0
 

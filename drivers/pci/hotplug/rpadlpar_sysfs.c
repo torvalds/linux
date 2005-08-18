@@ -48,7 +48,7 @@ dlpar_attr_store(struct kobject * kobj, struct attribute * attr,
 	struct dlpar_io_attr *dlpar_attr = container_of(attr,
 						struct dlpar_io_attr, attr);
 	return dlpar_attr->store ?
-		dlpar_attr->store(dlpar_attr, buf, nbytes) : 0;
+		dlpar_attr->store(dlpar_attr, buf, nbytes) : -EIO;
 }
 
 static struct sysfs_ops dlpar_attr_sysfs_ops = {

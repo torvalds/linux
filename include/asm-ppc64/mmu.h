@@ -47,9 +47,10 @@
 #define SLB_VSID_KS		ASM_CONST(0x0000000000000800)
 #define SLB_VSID_KP		ASM_CONST(0x0000000000000400)
 #define SLB_VSID_N		ASM_CONST(0x0000000000000200) /* no-execute */
-#define SLB_VSID_L		ASM_CONST(0x0000000000000100) /* largepage 16M */
+#define SLB_VSID_L		ASM_CONST(0x0000000000000100) /* largepage */
 #define SLB_VSID_C		ASM_CONST(0x0000000000000080) /* class */
-
+#define SLB_VSID_LS		ASM_CONST(0x0000000000000070) /* size of largepage */
+ 
 #define SLB_VSID_KERNEL		(SLB_VSID_KP|SLB_VSID_C)
 #define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS)
 
@@ -58,6 +59,22 @@
  */
 
 #define HPTES_PER_GROUP 8
+
+#define HPTE_V_AVPN_SHIFT	7
+#define HPTE_V_AVPN		ASM_CONST(0xffffffffffffff80)
+#define HPTE_V_AVPN_VAL(x)	(((x) & HPTE_V_AVPN) >> HPTE_V_AVPN_SHIFT)
+#define HPTE_V_BOLTED		ASM_CONST(0x0000000000000010)
+#define HPTE_V_LOCK		ASM_CONST(0x0000000000000008)
+#define HPTE_V_LARGE		ASM_CONST(0x0000000000000004)
+#define HPTE_V_SECONDARY	ASM_CONST(0x0000000000000002)
+#define HPTE_V_VALID		ASM_CONST(0x0000000000000001)
+
+#define HPTE_R_PP0		ASM_CONST(0x8000000000000000)
+#define HPTE_R_TS		ASM_CONST(0x4000000000000000)
+#define HPTE_R_RPN_SHIFT	12
+#define HPTE_R_RPN		ASM_CONST(0x3ffffffffffff000)
+#define HPTE_R_FLAGS		ASM_CONST(0x00000000000003ff)
+#define HPTE_R_PP		ASM_CONST(0x0000000000000003)
 
 /* Values for PP (assumes Ks=0, Kp=1) */
 /* pp0 will always be 0 for linux     */
@@ -68,54 +85,13 @@
 
 #ifndef __ASSEMBLY__
 
-/* Hardware Page Table Entry */
 typedef struct {
-	unsigned long avpn:57; /* vsid | api == avpn  */
-	unsigned long :     2; /* Software use */
-	unsigned long bolted: 1; /* HPTE is "bolted" */
-	unsigned long lock: 1; /* lock on pSeries SMP */
-	unsigned long l:    1; /* Virtual page is large (L=1) or 4 KB (L=0) */
-	unsigned long h:    1; /* Hash function identifier */
-	unsigned long v:    1; /* Valid (v=1) or invalid (v=0) */
-} Hpte_dword0;
+	unsigned long v;
+	unsigned long r;
+} hpte_t;
 
-typedef struct {
-	unsigned long pp0:  1; /* Page protection bit 0 */
-	unsigned long ts:   1; /* Tag set bit */
-	unsigned long rpn: 50; /* Real page number */
-	unsigned long :     2; /* Reserved */
-	unsigned long ac:   1; /* Address compare */ 
-	unsigned long r:    1; /* Referenced */
-	unsigned long c:    1; /* Changed */
-	unsigned long w:    1; /* Write-thru cache mode */
-	unsigned long i:    1; /* Cache inhibited */
-	unsigned long m:    1; /* Memory coherence required */
-	unsigned long g:    1; /* Guarded */
-	unsigned long n:    1; /* No-execute */
-	unsigned long pp:   2; /* Page protection bits 1:2 */
-} Hpte_dword1;
-
-typedef struct {
-	char padding[6];	   	/* padding */
-	unsigned long :       6;	/* padding */ 
-	unsigned long flags: 10;	/* HPTE flags */
-} Hpte_dword1_flags;
-
-typedef struct {
-	union {
-		unsigned long dword0;
-		Hpte_dword0   dw0;
-	} dw0;
-
-	union {
-		unsigned long dword1;
-		Hpte_dword1 dw1;
-		Hpte_dword1_flags flags;
-	} dw1;
-} HPTE; 
-
-extern HPTE *		htab_address;
-extern unsigned long	htab_hash_mask;
+extern hpte_t *htab_address;
+extern unsigned long htab_hash_mask;
 
 static inline unsigned long hpt_hash(unsigned long vpn, int large)
 {
@@ -180,6 +156,28 @@ static inline void tlbiel(unsigned long va)
 	asm volatile("ptesync": : :"memory");
 }
 
+static inline unsigned long slot2va(unsigned long hpte_v, unsigned long slot)
+{
+	unsigned long avpn = HPTE_V_AVPN_VAL(hpte_v);
+	unsigned long va;
+
+	va = avpn << 23;
+
+	if (! (hpte_v & HPTE_V_LARGE)) {
+		unsigned long vpi, pteg;
+
+		pteg = slot / HPTES_PER_GROUP;
+		if (hpte_v & HPTE_V_SECONDARY)
+			pteg = ~pteg;
+
+		vpi = ((va >> 28) ^ pteg) & htab_hash_mask;
+
+		va |= vpi << PAGE_SHIFT;
+	}
+
+	return va;
+}
+
 /*
  * Handle a fault by adding an HPTE. If the address can't be determined
  * to be valid via Linux page tables, return 1. If handled return 0
@@ -196,11 +194,13 @@ extern void hpte_init_iSeries(void);
 
 extern long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 				     unsigned long va, unsigned long prpn,
-				     int secondary, unsigned long hpteflags,
-				     int bolted, int large);
+				     unsigned long vflags,
+				     unsigned long rflags);
 extern long native_hpte_insert(unsigned long hpte_group, unsigned long va,
-			       unsigned long prpn, int secondary,
-			       unsigned long hpteflags, int bolted, int large);
+			       unsigned long prpn,
+			       unsigned long vflags, unsigned long rflags);
+
+extern void stabs_alloc(void);
 
 #endif /* __ASSEMBLY__ */
 
@@ -337,6 +337,9 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea)
 	return vsid_scramble((context << USER_ESID_BITS)
 			     | (ea >> SID_SHIFT));
 }
+
+#define VSID_SCRAMBLE(pvsid)	(((pvsid) * VSID_MULTIPLIER) % VSID_MODULUS)
+#define KERNEL_VSID(ea)		VSID_SCRAMBLE(GET_ESID(ea))
 
 #endif /* __ASSEMBLY */
 

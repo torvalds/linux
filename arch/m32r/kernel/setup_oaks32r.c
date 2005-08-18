@@ -3,8 +3,8 @@
  *
  *  Setup routines for OAKS32R Board
  *
- *  Copyright (c) 2002-2004   Hiroyuki Kondo, Hirokazu Takata,
- *                            Hitoshi Yamamoto, Mamoru Sakugawa
+ *  Copyright (c) 2002-2005  Hiroyuki Kondo, Hirokazu Takata,
+ *                           Hitoshi Yamamoto, Mamoru Sakugawa
  */
 
 #include <linux/config.h>
@@ -70,13 +70,13 @@ static void shutdown_oaks32r_irq(unsigned int irq)
 
 static struct hw_interrupt_type oaks32r_irq_type =
 {
-	"OAKS32R-IRQ",
-	startup_oaks32r_irq,
-	shutdown_oaks32r_irq,
-	enable_oaks32r_irq,
-	disable_oaks32r_irq,
-	mask_and_ack_mappi,
-	end_oaks32r_irq
+	.typename = "OAKS32R-IRQ",
+	.startup = startup_oaks32r_irq,
+	.shutdown = shutdown_oaks32r_irq,
+	.enable = enable_oaks32r_irq,
+	.disable = disable_oaks32r_irq,
+	.ack = mask_and_ack_mappi,
+	.end = end_oaks32r_irq
 };
 
 void __init init_IRQ(void)
@@ -139,5 +139,4 @@ void __init init_IRQ(void)
 	icu_data[M32R_IRQ_SIO1_S].icucr = 0;
 	disable_oaks32r_irq(M32R_IRQ_SIO1_S);
 #endif /* CONFIG_SERIAL_M32R_SIO */
-
 }

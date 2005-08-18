@@ -2825,39 +2825,17 @@ static int NCR5380_abort(Scsi_Cmnd * cmd) {
  * Locks: host lock taken by caller
  */
 
-static int NCR5380_bus_reset(Scsi_Cmnd * cmd) {
+static int NCR5380_bus_reset(Scsi_Cmnd * cmd)
+{
+	struct Scsi_Host *instance = cmd->device->host;
+
 	NCR5380_local_declare();
-	NCR5380_setup(cmd->device->host);
+	NCR5380_setup(instance);
+	NCR5380_print_status(instance);
 
-	NCR5380_print_status(cmd->device->host);
-	do_reset(cmd->device->host);
+	spin_lock_irq(instance->host_lock);
+	do_reset(instance);
+	spin_unlock_irq(instance->host_lock);
+
 	return SUCCESS;
-}
-
-/* 
- * Function : int NCR5380_device_reset (Scsi_Cmnd *cmd)
- * 
- * Purpose : reset a SCSI device
- *
- * Returns : FAILED
- *
- * Locks: io_request_lock held by caller
- */
-
-static int NCR5380_device_reset(Scsi_Cmnd * cmd) {
-	return FAILED;
-}
-
-/* 
- * Function : int NCR5380_host_reset (Scsi_Cmnd *cmd)
- * 
- * Purpose : reset a SCSI device
- *
- * Returns : FAILED
- *
- * Locks: io_request_lock held by caller
- */
-
-static int NCR5380_host_reset(Scsi_Cmnd * cmd) {
-	return FAILED;
 }

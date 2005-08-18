@@ -426,17 +426,14 @@ static void sunsab_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		sunsab_tx_idle(up);
 }
 
-/* port->lock is not held.  */
+/* port->lock is held by caller and interrupts are disabled.  */
 static unsigned int sunsab_get_mctrl(struct uart_port *port)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
-	unsigned long flags;
 	unsigned char val;
 	unsigned int result;
 
 	result = 0;
-
-	spin_lock_irqsave(&up->port.lock, flags);
 
 	val = readb(&up->regs->r.pvr);
 	result |= (val & up->pvr_dsr_bit) ? 0 : TIOCM_DSR;
@@ -446,8 +443,6 @@ static unsigned int sunsab_get_mctrl(struct uart_port *port)
 
 	val = readb(&up->regs->r.star);
 	result |= (val & SAB82532_STAR_CTS) ? TIOCM_CTS : 0;
-
-	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	return result;
 }

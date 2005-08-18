@@ -1,19 +1,20 @@
 /*
- *  Copyright (c) 2003 LSI Logic Corporation.
+ *  Copyright (c) 2003-2004 LSI Logic Corporation.
  *
  *
  *           Name:  mpi_inb.h
  *          Title:  MPI Inband structures and definitions
  *  Creation Date:  September 30, 2003
  *
- *    mpi_inb.h Version:  01.03.xx
+ *    mpi_inb.h Version:  01.05.01
  *
  *  Version History
  *  ---------------
  *
  *  Date      Version   Description
  *  --------  --------  ------------------------------------------------------
- *  ??-??-??  01.03.01  Original release.
+ *  05-11-04  01.03.01  Original release.
+ *  08-19-04  01.05.01  Original release for MPI v1.5.
  *  --------------------------------------------------------------------------
  */
 

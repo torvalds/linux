@@ -22,6 +22,8 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/smp.h>
+#include <linux/spinlock.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -85,4 +87,4 @@ static int __init leds_init(void)
 	return 0;
 }
 
-__initcall(leds_init);
+core_initcall(leds_init);

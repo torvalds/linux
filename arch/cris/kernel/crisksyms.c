@@ -27,13 +27,13 @@ extern void __Udiv(void);
 extern void __Umod(void);
 extern void __Div(void);
 extern void __Mod(void);
+extern void __ashldi3(void);
 extern void __ashrdi3(void);
-extern void iounmap(void *addr);
+extern void __lshrdi3(void);
+extern void iounmap(volatile void * __iomem);
 
 /* Platform dependent support */
 EXPORT_SYMBOL(dump_thread);
-EXPORT_SYMBOL(enable_irq);
-EXPORT_SYMBOL(disable_irq);
 EXPORT_SYMBOL(kernel_thread);
 EXPORT_SYMBOL(get_cmos_time);
 EXPORT_SYMBOL(loops_per_usec);
@@ -57,7 +57,9 @@ EXPORT_SYMBOL(__Udiv);
 EXPORT_SYMBOL(__Umod);
 EXPORT_SYMBOL(__Div);
 EXPORT_SYMBOL(__Mod);
+EXPORT_SYMBOL(__ashldi3);
 EXPORT_SYMBOL(__ashrdi3);
+EXPORT_SYMBOL(__lshrdi3);
 
 /* Memory functions */
 EXPORT_SYMBOL(__ioremap);
@@ -69,22 +71,9 @@ EXPORT_SYMBOL(__down);
 EXPORT_SYMBOL(__down_interruptible);
 EXPORT_SYMBOL(__down_trylock);
 
-/* Export shadow registers for the CPU I/O pins */
-EXPORT_SYMBOL(genconfig_shadow);
-EXPORT_SYMBOL(port_pa_data_shadow);
-EXPORT_SYMBOL(port_pa_dir_shadow);
-EXPORT_SYMBOL(port_pb_data_shadow);
-EXPORT_SYMBOL(port_pb_dir_shadow);
-EXPORT_SYMBOL(port_pb_config_shadow);
-EXPORT_SYMBOL(port_g_data_shadow);
-
 /* Userspace access functions */
 EXPORT_SYMBOL(__copy_user_zeroing);
 EXPORT_SYMBOL(__copy_user);
-
-/* Cache flush functions */
-EXPORT_SYMBOL(flush_etrax_cache);
-EXPORT_SYMBOL(prepare_rx_descriptor);
 
 #undef memcpy
 #undef memset

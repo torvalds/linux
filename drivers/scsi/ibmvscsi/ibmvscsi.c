@@ -87,7 +87,7 @@ static int max_channel = 3;
 static int init_timeout = 5;
 static int max_requests = 50;
 
-#define IBMVSCSI_VERSION "1.5.5"
+#define IBMVSCSI_VERSION "1.5.6"
 
 MODULE_DESCRIPTION("IBM Virtual SCSI");
 MODULE_AUTHOR("Dave Boutcher");
@@ -675,8 +675,6 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 	struct viosrp_adapter_info *req;
 	struct srp_event_struct *evt_struct;
 	
-	memset(&hostdata->madapter_info, 0x00, sizeof(hostdata->madapter_info));
-	
 	evt_struct = get_event_struct(&hostdata->pool);
 	if (!evt_struct) {
 		printk(KERN_ERR "ibmvscsi: couldn't allocate an event "
@@ -874,9 +872,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	spin_unlock_irq(hostdata->host->host_lock);
 	wait_for_completion(&evt->comp);
-	spin_lock_irq(hostdata->host->host_lock);
 
 	/* make sure we got a good response */
 	if (unlikely(srp_rsp.srp.generic.type != SRP_RSP_TYPE)) {
@@ -978,9 +974,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	spin_unlock_irq(hostdata->host->host_lock);
 	wait_for_completion(&evt->comp);
-	spin_lock_irq(hostdata->host->host_lock);
 
 	/* make sure we got a good response */
 	if (unlikely(srp_rsp.srp.generic.type != SRP_RSP_TYPE)) {

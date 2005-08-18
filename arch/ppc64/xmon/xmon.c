@@ -329,13 +329,16 @@ int xmon_core(struct pt_regs *regs, int fromipi)
 		printf("cpu 0x%x: Exception %lx %s in xmon, "
 		       "returning to main loop\n",
 		       cpu, regs->trap, getvecname(TRAP(regs)));
+		release_output_lock();
 		longjmp(xmon_fault_jmp[cpu], 1);
 	}
 
 	if (setjmp(recurse_jmp) != 0) {
 		if (!in_xmon || !xmon_gate) {
+			get_output_lock();
 			printf("xmon: WARNING: bad recursive fault "
 			       "on cpu 0x%x\n", cpu);
+			release_output_lock();
 			goto waiting;
 		}
 		secondary = !(xmon_taken && cpu == xmon_owner);
@@ -2247,7 +2250,14 @@ scanhex(unsigned long *vp)
 			tmpstr[i] = c;
 		}
 		tmpstr[i++] = 0;
-		*vp = kallsyms_lookup_name(tmpstr);
+		*vp = 0;
+		if (setjmp(bus_error_jmp) == 0) {
+			catch_memory_errors = 1;
+			sync();
+			*vp = kallsyms_lookup_name(tmpstr);
+			sync();
+		}
+		catch_memory_errors = 0;
 		if (!(*vp)) {
 			printf("unknown symbol '%s'\n", tmpstr);
 			return 0;

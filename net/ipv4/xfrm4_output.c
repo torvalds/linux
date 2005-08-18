@@ -33,6 +33,7 @@ static void xfrm4_encap(struct sk_buff *skb)
 	struct dst_entry *dst = skb->dst;
 	struct xfrm_state *x = dst->xfrm;
 	struct iphdr *iph, *top_iph;
+	int flags;
 
 	iph = skb->nh.iph;
 	skb->h.ipiph = iph;
@@ -51,10 +52,13 @@ static void xfrm4_encap(struct sk_buff *skb)
 
 	/* DS disclosed */
 	top_iph->tos = INET_ECN_encapsulate(iph->tos, iph->tos);
-	if (x->props.flags & XFRM_STATE_NOECN)
+
+	flags = x->props.flags;
+	if (flags & XFRM_STATE_NOECN)
 		IP_ECN_clear(top_iph);
 
-	top_iph->frag_off = iph->frag_off & htons(IP_DF);
+	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
+		0 : (iph->frag_off & htons(IP_DF));
 	if (!top_iph->frag_off)
 		__ip_select_ident(top_iph, dst, 0);
 

@@ -625,7 +625,7 @@ static int madgemc_chipset_init(struct net_device *dev)
 /*
  * Disable the board, and put back into power-up state.
  */
-void madgemc_chipset_close(struct net_device *dev)
+static void madgemc_chipset_close(struct net_device *dev)
 {
 	/* disable interrupts */
 	madgemc_setint(dev, 0);
@@ -785,16 +785,4 @@ module_init(madgemc_probe);
 module_exit(madgemc_exit);
 
 MODULE_LICENSE("GPL");
-
-
-/*
- * Local variables:
- *  compile-command: "gcc -DMODVERSIONS  -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer -I/usr/src/linux/drivers/net/tokenring/ -c madgemc.c"
- *  alt-compile-command: "gcc -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer -I/usr/src/linux/drivers/net/tokenring/ -c madgemc.c"
- *  c-set-style "K&R"
- *  c-indent-level: 8
- *  c-basic-offset: 8
- *  tab-width: 8
- * End:
- */
 

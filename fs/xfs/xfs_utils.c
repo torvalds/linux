@@ -428,7 +428,7 @@ xfs_truncate_file(
 		if (ip->i_ino != mp->m_sb.sb_uquotino)
 			ASSERT(ip->i_udquot);
 	}
-	if (XFS_IS_GQUOTA_ON(mp)) {
+	if (XFS_IS_OQUOTA_ON(mp)) {
 		if (ip->i_ino != mp->m_sb.sb_gquotino)
 			ASSERT(ip->i_gdquot);
 	}

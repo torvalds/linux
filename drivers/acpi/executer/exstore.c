@@ -48,10 +48,170 @@
 #include <acpi/acinterp.h>
 #include <acpi/amlcode.h>
 #include <acpi/acnamesp.h>
+#include <acpi/acparser.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER
 	 ACPI_MODULE_NAME    ("exstore")
+
+/* Local prototypes */
+
+static void
+acpi_ex_do_debug_object (
+	union acpi_operand_object       *source_desc,
+	u32                             level,
+	u32                             index);
+
+static acpi_status
+acpi_ex_store_object_to_index (
+	union acpi_operand_object       *val_desc,
+	union acpi_operand_object       *dest_desc,
+	struct acpi_walk_state          *walk_state);
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_do_debug_object
+ *
+ * PARAMETERS:  source_desc         - Value to be stored
+ *              Level               - Indentation level (used for packages)
+ *              Index               - Current package element, zero if not pkg
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Handles stores to the Debug Object.
+ *
+ ******************************************************************************/
+
+static void
+acpi_ex_do_debug_object (
+	union acpi_operand_object       *source_desc,
+	u32                             level,
+	u32                             index)
+{
+	u32                             i;
+
+
+	ACPI_FUNCTION_TRACE_PTR ("ex_do_debug_object", source_desc);
+
+
+	ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[ACPI Debug] %*s",
+		level, " "));
+
+	/* Display index for package output only */
+
+	if (index > 0) {
+	   ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT,
+		   "(%.2u) ", index -1));
+	}
+
+	if (!source_desc) {
+		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "<Null Object>\n"));
+		return_VOID;
+	}
+
+	if (ACPI_GET_DESCRIPTOR_TYPE (source_desc) == ACPI_DESC_TYPE_OPERAND) {
+		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "%s: ",
+			acpi_ut_get_object_type_name (source_desc)));
+
+		if (!acpi_ut_valid_internal_object (source_desc)) {
+		   ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT,
+			   "%p, Invalid Internal Object!\n", source_desc));
+		   return_VOID;
+		}
+	}
+	else if (ACPI_GET_DESCRIPTOR_TYPE (source_desc) == ACPI_DESC_TYPE_NAMED) {
+		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "%s: %p\n",
+			acpi_ut_get_type_name (((struct acpi_namespace_node *) source_desc)->type),
+			source_desc));
+		return_VOID;
+	}
+	else {
+		return_VOID;
+	}
+
+	switch (ACPI_GET_OBJECT_TYPE (source_desc)) {
+	case ACPI_TYPE_INTEGER:
+
+		/* Output correct integer width */
+
+		if (acpi_gbl_integer_byte_width == 4) {
+			ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "0x%8.8X\n",
+				(u32) source_desc->integer.value));
+		}
+		else {
+			ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "0x%8.8X%8.8X\n",
+				ACPI_FORMAT_UINT64 (source_desc->integer.value)));
+		}
+		break;
+
+	case ACPI_TYPE_BUFFER:
+
+		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[0x%.2X]",
+			(u32) source_desc->buffer.length));
+		ACPI_DUMP_BUFFER (source_desc->buffer.pointer,
+			(source_desc->buffer.length < 32) ? source_desc->buffer.length : 32);
+		break;
+
+	case ACPI_TYPE_STRING:
+
+		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[0x%.2X] \"%s\"\n",
+			source_desc->string.length, source_desc->string.pointer));
+		break;
+
+	case ACPI_TYPE_PACKAGE:
+
+		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[0x%.2X Elements]\n",
+			source_desc->package.count));
+
+		/* Output the entire contents of the package */
+
+		for (i = 0; i < source_desc->package.count; i++) {
+			acpi_ex_do_debug_object (source_desc->package.elements[i],
+				level+4, i+1);
+		}
+		break;
+
+	case ACPI_TYPE_LOCAL_REFERENCE:
+
+		if (source_desc->reference.opcode == AML_INDEX_OP) {
+			ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[%s, 0x%X]\n",
+				acpi_ps_get_opcode_name (source_desc->reference.opcode),
+				source_desc->reference.offset));
+		}
+		else {
+			ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[%s]\n",
+				acpi_ps_get_opcode_name (source_desc->reference.opcode)));
+		}
+
+
+		if (source_desc->reference.object) {
+			if (ACPI_GET_DESCRIPTOR_TYPE (source_desc->reference.object) ==
+					ACPI_DESC_TYPE_NAMED) {
+				acpi_ex_do_debug_object (((struct acpi_namespace_node *)
+					source_desc->reference.object)->object,
+					level+4, 0);
+			}
+			else {
+				acpi_ex_do_debug_object (source_desc->reference.object, level+4, 0);
+			}
+		}
+		else if (source_desc->reference.node) {
+			acpi_ex_do_debug_object ((source_desc->reference.node)->object,
+				level+4, 0);
+		}
+		break;
+
+	default:
+
+		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "%p %s\n",
+			source_desc, acpi_ut_get_object_type_name (source_desc)));
+		break;
+	}
+
+	ACPI_DEBUG_PRINT_RAW ((ACPI_DB_EXEC, "\n"));
+	return_VOID;
+}
 
 
 /*******************************************************************************
@@ -154,8 +314,9 @@ acpi_ex_store (
 
 		/* Storing an object into a Name "container" */
 
-		status = acpi_ex_store_object_to_node (source_desc, ref_desc->reference.object,
-				  walk_state, ACPI_IMPLICIT_CONVERSION);
+		status = acpi_ex_store_object_to_node (source_desc,
+				 ref_desc->reference.object,
+				 walk_state, ACPI_IMPLICIT_CONVERSION);
 		break;
 
 
@@ -173,7 +334,7 @@ acpi_ex_store (
 		/* Store to a method local/arg  */
 
 		status = acpi_ds_store_object_to_local (ref_desc->reference.opcode,
-				  ref_desc->reference.offset, source_desc, walk_state);
+				 ref_desc->reference.offset, source_desc, walk_state);
 		break;
 
 
@@ -187,60 +348,7 @@ acpi_ex_store (
 			"**** Write to Debug Object: Object %p %s ****:\n\n",
 			source_desc, acpi_ut_get_object_type_name (source_desc)));
 
-		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[ACPI Debug] %s: ",
-			acpi_ut_get_object_type_name (source_desc)));
-
-		if (!acpi_ut_valid_internal_object (source_desc)) {
-		   ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT,
-			   "%p, Invalid Internal Object!\n", source_desc));
-		   break;
-		}
-
-		switch (ACPI_GET_OBJECT_TYPE (source_desc)) {
-		case ACPI_TYPE_INTEGER:
-
-			if (acpi_gbl_integer_byte_width == 4) {
-				ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "0x%8.8X\n",
-					(u32) source_desc->integer.value));
-			}
-			else {
-				ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "0x%8.8X%8.8X\n",
-					ACPI_FORMAT_UINT64 (source_desc->integer.value)));
-			}
-			break;
-
-
-		case ACPI_TYPE_BUFFER:
-
-			ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[0x%.2X]",
-				(u32) source_desc->buffer.length));
-			ACPI_DUMP_BUFFER (source_desc->buffer.pointer,
-				(source_desc->buffer.length < 32) ? source_desc->buffer.length : 32);
-			break;
-
-
-		case ACPI_TYPE_STRING:
-
-			ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[0x%.2X] \"%s\"\n",
-				source_desc->string.length, source_desc->string.pointer));
-			break;
-
-
-		case ACPI_TYPE_PACKAGE:
-
-			ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[0x%.2X] Elements Ptr - %p\n",
-				source_desc->package.count, source_desc->package.elements));
-			break;
-
-
-		default:
-
-			ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "%p\n",
-				source_desc));
-			break;
-		}
-
-		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_EXEC, "\n"));
+		acpi_ex_do_debug_object (source_desc, 0, 0);
 		break;
 
 
@@ -272,7 +380,7 @@ acpi_ex_store (
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ex_store_object_to_index (
 	union acpi_operand_object       *source_desc,
 	union acpi_operand_object       *index_desc,
@@ -313,16 +421,22 @@ acpi_ex_store_object_to_index (
 		if (obj_desc) {
 			/* Decrement reference count by the ref count of the parent package */
 
-			for (i = 0; i < ((union acpi_operand_object *) index_desc->reference.object)->common.reference_count; i++) {
+			for (i = 0;
+				 i < ((union acpi_operand_object *)
+						index_desc->reference.object)->common.reference_count;
+				 i++) {
 				acpi_ut_remove_reference (obj_desc);
 			}
 		}
 
 		*(index_desc->reference.where) = new_desc;
 
-		/* Increment reference count by the ref count of the parent package -1 */
+		/* Increment ref count by the ref count of the parent package-1 */
 
-		for (i = 1; i < ((union acpi_operand_object *) index_desc->reference.object)->common.reference_count; i++) {
+		for (i = 1;
+			 i < ((union acpi_operand_object *)
+					index_desc->reference.object)->common.reference_count;
+			 i++) {
 			acpi_ut_add_reference (new_desc);
 		}
 
@@ -440,9 +554,8 @@ acpi_ex_store_object_to_node (
 	ACPI_FUNCTION_TRACE_PTR ("ex_store_object_to_node", source_desc);
 
 
-	/*
-	 * Get current type of the node, and object attached to Node
-	 */
+	/* Get current type of the node, and object attached to Node */
+
 	target_type = acpi_ns_get_type (node);
 	target_desc = acpi_ns_get_attached_object (node);
 
@@ -467,19 +580,18 @@ acpi_ex_store_object_to_node (
 		target_type = ACPI_TYPE_ANY;
 	}
 
-	/*
-	 * Do the actual store operation
-	 */
+	/* Do the actual store operation */
+
 	switch (target_type) {
 	case ACPI_TYPE_BUFFER_FIELD:
 	case ACPI_TYPE_LOCAL_REGION_FIELD:
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
-		/*
-		 * For fields, copy the source data to the target field.
-		 */
-		status = acpi_ex_write_data_to_field (source_desc, target_desc, &walk_state->result_obj);
+		/* For fields, copy the source data to the target field. */
+
+		status = acpi_ex_write_data_to_field (source_desc, target_desc,
+				 &walk_state->result_obj);
 		break;
 
 
@@ -493,7 +605,8 @@ acpi_ex_store_object_to_node (
 		 *
 		 * Copy and/or convert the source object to a new target object
 		 */
-		status = acpi_ex_store_object_to_object (source_desc, target_desc, &new_desc, walk_state);
+		status = acpi_ex_store_object_to_object (source_desc, target_desc,
+				 &new_desc, walk_state);
 		if (ACPI_FAILURE (status)) {
 			return_ACPI_STATUS (status);
 		}
@@ -526,7 +639,8 @@ acpi_ex_store_object_to_node (
 
 		/* No conversions for all other types.  Just attach the source object */
 
-		status = acpi_ns_attach_object (node, source_desc, ACPI_GET_OBJECT_TYPE (source_desc));
+		status = acpi_ns_attach_object (node, source_desc,
+				 ACPI_GET_OBJECT_TYPE (source_desc));
 		break;
 	}
 

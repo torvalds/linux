@@ -92,10 +92,6 @@
 
 #define DTC_PUBLIC_RELEASE 2
 
-/*#define DTCDEBUG 0x1*/
-#define DTCDEBUG_INIT	0x1
-#define DTCDEBUG_TRANSFER 0x2
-
 /*
  * The DTC3180 & 3280 boards are memory mapped.
  * 
@@ -482,8 +478,6 @@ static Scsi_Host_Template driver_template = {
 	.queuecommand			= dtc_queue_command,
 	.eh_abort_handler		= dtc_abort,
 	.eh_bus_reset_handler		= dtc_bus_reset,
-	.eh_device_reset_handler	= dtc_device_reset,
-	.eh_host_reset_handler          = dtc_host_reset,
 	.bios_param     		= dtc_biosparam,
 	.can_queue      		= CAN_QUEUE,
 	.this_id        		= 7,

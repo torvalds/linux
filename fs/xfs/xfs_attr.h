@@ -76,11 +76,6 @@ extern struct attrnames attr_system;
 extern struct attrnames attr_trusted;
 extern struct attrnames *attr_namespaces[ATTR_NAMECOUNT];
 
-#define ATTR_SYSCOUNT	2
-extern struct attrnames posix_acl_access;
-extern struct attrnames posix_acl_default;
-extern struct attrnames *attr_system_names[ATTR_SYSCOUNT];
-
 extern attrnames_t *attr_lookup_namespace(char *, attrnames_t **, int);
 extern int attr_generic_list(struct vnode *, void *, size_t, int, ssize_t *);
 
@@ -184,8 +179,6 @@ int xfs_attr_list(bhv_desc_t *, char *, int, int,
 			 struct attrlist_cursor_kern *, struct cred *);
 int xfs_attr_inactive(struct xfs_inode *dp);
 
-int xfs_attr_node_get(struct xfs_da_args *);
-int xfs_attr_leaf_get(struct xfs_da_args *);
 int xfs_attr_shortform_getvalue(struct xfs_da_args *);
 int xfs_attr_fetch(struct xfs_inode *, char *, int,
 			char *, int *, int, struct cred *);

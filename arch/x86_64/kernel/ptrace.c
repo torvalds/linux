@@ -257,12 +257,12 @@ static int putreg(struct task_struct *child,
 			value &= 0xffff;
 			return 0;
 		case offsetof(struct user_regs_struct,fs_base):
-			if (value >= TASK_SIZE)
+			if (value >= TASK_SIZE_OF(child))
 				return -EIO;
 			child->thread.fs = value;
 			return 0;
 		case offsetof(struct user_regs_struct,gs_base):
-			if (value >= TASK_SIZE)
+			if (value >= TASK_SIZE_OF(child))
 				return -EIO;
 			child->thread.gs = value;
 			return 0;
@@ -279,7 +279,7 @@ static int putreg(struct task_struct *child,
 			break;
 		case offsetof(struct user_regs_struct, rip):
 			/* Check if the new RIP address is canonical */
-			if (value >= TASK_SIZE)
+			if (value >= TASK_SIZE_OF(child))
 				return -EIO;
 			break;
 	}
@@ -419,6 +419,8 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 		break;
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
+	{
+		int dsize = test_tsk_thread_flag(child, TIF_IA32) ? 3 : 7;
 		ret = -EIO;
 		if ((addr & 7) ||
 		    addr > sizeof(struct user) - 7)
@@ -430,22 +432,22 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 			break;
 		/* Disallows to set a breakpoint into the vsyscall */
 		case offsetof(struct user, u_debugreg[0]):
-			if (data >= TASK_SIZE-7) break;
+			if (data >= TASK_SIZE_OF(child) - dsize) break;
 			child->thread.debugreg0 = data;
 			ret = 0;
 			break;
 		case offsetof(struct user, u_debugreg[1]):
-			if (data >= TASK_SIZE-7) break;
+			if (data >= TASK_SIZE_OF(child) - dsize) break;
 			child->thread.debugreg1 = data;
 			ret = 0;
 			break;
 		case offsetof(struct user, u_debugreg[2]):
-			if (data >= TASK_SIZE-7) break;
+			if (data >= TASK_SIZE_OF(child) - dsize) break;
 			child->thread.debugreg2 = data;
 			ret = 0;
 			break;
 		case offsetof(struct user, u_debugreg[3]):
-			if (data >= TASK_SIZE-7) break;
+			if (data >= TASK_SIZE_OF(child) - dsize) break;
 			child->thread.debugreg3 = data;
 			ret = 0;
 			break;
@@ -469,6 +471,7 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 		  break;
 		}
 		break;
+	}
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 	case PTRACE_CONT:    /* restart after signal. */
 

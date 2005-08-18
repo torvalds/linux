@@ -81,7 +81,7 @@
 #include "sbp2.h"
 
 static char version[] __devinitdata =
-	"$Rev: 1219 $ Ben Collins <bcollins@debian.org>";
+	"$Rev: 1306 $ Ben Collins <bcollins@debian.org>";
 
 /*
  * Module load parameter definitions
@@ -104,7 +104,7 @@ MODULE_PARM_DESC(max_speed, "Force max speed (3 = 800mb, 2 = 400mb default, 1 = 
  * down to us at a time (debugging). This might be necessary for very
  * badly behaved sbp2 devices.
  */
-static int serialize_io = 0;
+static int serialize_io;
 module_param(serialize_io, int, 0444);
 MODULE_PARM_DESC(serialize_io, "Serialize all I/O coming down from the scsi drivers (default = 0)");
 
@@ -145,7 +145,7 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device (default = 1)"
  * please submit the logged sbp2_firmware_revision value of this device to
  * the linux1394-devel mailing list.
  */
-static int force_inquiry_hack = 0;
+static int force_inquiry_hack;
 module_param(force_inquiry_hack, int, 0444);
 MODULE_PARM_DESC(force_inquiry_hack, "Force SCSI inquiry hack (default = 0)");
 
@@ -169,6 +169,7 @@ MODULE_DEVICE_TABLE(ieee1394, sbp2_id_table);
  * Debug levels, configured via kernel config, or enable here.
  */
 
+#define CONFIG_IEEE1394_SBP2_DEBUG 0
 /* #define CONFIG_IEEE1394_SBP2_DEBUG_ORBS */
 /* #define CONFIG_IEEE1394_SBP2_DEBUG_DMA */
 /* #define CONFIG_IEEE1394_SBP2_DEBUG 1 */
@@ -745,7 +746,8 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	list_add_tail(&scsi_id->scsi_list, &hi->scsi_ids);
 
 	/* Register our host with the SCSI stack. */
-	scsi_host = scsi_host_alloc(&scsi_driver_template, 0);
+	scsi_host = scsi_host_alloc(&scsi_driver_template,
+				    sizeof (unsigned long));
 	if (!scsi_host) {
 		SBP2_ERR("failed to register scsi host");
 		goto failed_alloc;
@@ -1070,7 +1072,7 @@ static int sbp2_handle_physdma_read(struct hpsb_host *host, int nodeid, quadlet_
 static __inline__ int sbp2_command_conversion_device_type(u8 device_type)
 {
 	return (((device_type == TYPE_DISK) ||
-		 (device_type == TYPE_SDAD) ||
+		 (device_type == TYPE_RBC) ||
 		 (device_type == TYPE_ROM)) ? 1:0);
 }
 
@@ -2274,8 +2276,8 @@ static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
 			/*
 			 * Check for Simple Direct Access Device and change it to TYPE_DISK
 			 */
-			if ((scsi_buf[0] & 0x1f) == TYPE_SDAD) {
-				SBP2_DEBUG("Changing TYPE_SDAD to TYPE_DISK");
+			if ((scsi_buf[0] & 0x1f) == TYPE_RBC) {
+				SBP2_DEBUG("Changing TYPE_RBC to TYPE_DISK");
 				scsi_buf[0] &= 0xe0;
 			}
 
@@ -2579,8 +2581,6 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 				      u32 scsi_status, struct scsi_cmnd *SCpnt,
 				      void (*done)(struct scsi_cmnd *))
 {
-	unsigned long flags;
-
 	SBP2_DEBUG("sbp2scsi_complete_command");
 
 	/*
@@ -2679,11 +2679,7 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 	/*
 	 * Tell scsi stack that we're done with this command
 	 */
-	spin_lock_irqsave(scsi_id->scsi_host->host_lock,flags);
 	done (SCpnt);
-	spin_unlock_irqrestore(scsi_id->scsi_host->host_lock,flags);
-
-	return;
 }
 
 
@@ -2746,7 +2742,7 @@ static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 /*
  * Called by scsi stack when something has really gone wrong.
  */
-static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
+static int __sbp2scsi_reset(struct scsi_cmnd *SCpnt)
 {
 	struct scsi_id_instance_data *scsi_id =
 		(struct scsi_id_instance_data *)SCpnt->device->host->hostdata[0];
@@ -2761,12 +2757,24 @@ static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
 	return(SUCCESS);
 }
 
+static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
+{
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
+	rc = __sbp2scsi_reset(SCpnt);
+	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
+
+	return rc;
+}
+
 static const char *sbp2scsi_info (struct Scsi_Host *host)
 {
         return "SCSI emulation for IEEE-1394 SBP-2 Devices";
 }
 
-static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *dev, char *buf)
+static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev;
 	struct scsi_id_instance_data *scsi_id;

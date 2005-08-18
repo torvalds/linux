@@ -112,23 +112,6 @@ typedef Scsi_Cmnd      *ahd_io_ctx_t;
 #define ahd_le32toh(x)	le32_to_cpu(x)
 #define ahd_le64toh(x)	le64_to_cpu(x)
 
-#ifndef LITTLE_ENDIAN
-#define LITTLE_ENDIAN 1234
-#endif
-
-#ifndef BIG_ENDIAN
-#define BIG_ENDIAN 4321
-#endif
-
-#ifndef BYTE_ORDER
-#if defined(__BIG_ENDIAN)
-#define BYTE_ORDER BIG_ENDIAN
-#endif
-#if defined(__LITTLE_ENDIAN)
-#define BYTE_ORDER LITTLE_ENDIAN
-#endif
-#endif /* BYTE_ORDER */
-
 /************************* Configuration Data *********************************/
 extern uint32_t aic79xx_allow_memio;
 extern int aic79xx_detect_complete;

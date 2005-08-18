@@ -77,6 +77,10 @@ static void xfs_dir2_leaf_check(xfs_inode_t *dp, xfs_dabuf_t *bp);
 #endif
 static int xfs_dir2_leaf_lookup_int(xfs_da_args_t *args, xfs_dabuf_t **lbpp,
 				    int *indexp, xfs_dabuf_t **dbpp);
+static void xfs_dir2_leaf_log_bests(struct xfs_trans *tp, struct xfs_dabuf *bp,
+				    int first, int last);
+static void xfs_dir2_leaf_log_tail(struct xfs_trans *tp, struct xfs_dabuf *bp);
+
 
 /*
  * Convert a block form directory to a leaf form directory.
@@ -1214,7 +1218,7 @@ xfs_dir2_leaf_init(
 /*
  * Log the bests entries indicated from a leaf1 block.
  */
-void
+static void
 xfs_dir2_leaf_log_bests(
 	xfs_trans_t		*tp,		/* transaction pointer */
 	xfs_dabuf_t		*bp,		/* leaf buffer */
@@ -1278,7 +1282,7 @@ xfs_dir2_leaf_log_header(
 /*
  * Log the tail of the leaf1 block.
  */
-void
+STATIC void
 xfs_dir2_leaf_log_tail(
 	xfs_trans_t		*tp,		/* transaction pointer */
 	xfs_dabuf_t		*bp)		/* leaf buffer */

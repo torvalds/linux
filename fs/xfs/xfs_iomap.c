@@ -385,15 +385,15 @@ xfs_iomap_write_direct(
 	int		nimaps, maps;
 	int		error;
 	int		bmapi_flag;
+	int		quota_flag;
 	int		rt;
 	xfs_trans_t	*tp;
 	xfs_bmbt_irec_t imap[XFS_WRITE_IMAPS], *imapp;
 	xfs_bmap_free_t free_list;
 	int		aeof;
-	xfs_filblks_t	datablocks;
+	xfs_filblks_t	datablocks, qblocks, resblks;
 	int		committed;
 	int		numrtextents;
-	uint		resblks;
 
 	/*
 	 * Make sure that the dquots are there. This doesn't hold
@@ -419,7 +419,6 @@ xfs_iomap_write_direct(
 		xfs_fileoff_t	map_last_fsb;
 
 		map_last_fsb = ret_imap->br_blockcount + ret_imap->br_startoff;
-
 		if (map_last_fsb < last_fsb) {
 			last_fsb = map_last_fsb;
 			count_fsb = last_fsb - offset_fsb;
@@ -428,56 +427,47 @@ xfs_iomap_write_direct(
 	}
 
 	/*
-	 * determine if reserving space on
-	 * the data or realtime partition.
+	 * Determine if reserving space on the data or realtime partition.
 	 */
 	if ((rt = XFS_IS_REALTIME_INODE(ip))) {
-		int	sbrtextsize, iprtextsize;
+		xfs_extlen_t	extsz;
 
-		sbrtextsize = mp->m_sb.sb_rextsize;
-		iprtextsize =
-			ip->i_d.di_extsize ? ip->i_d.di_extsize : sbrtextsize;
-		numrtextents = (count_fsb + iprtextsize - 1);
-		do_div(numrtextents, sbrtextsize);
+		if (!(extsz = ip->i_d.di_extsize))
+			extsz = mp->m_sb.sb_rextsize;
+		numrtextents = qblocks = (count_fsb + extsz - 1);
+		do_div(numrtextents, mp->m_sb.sb_rextsize);
+		quota_flag = XFS_QMOPT_RES_RTBLKS;
 		datablocks = 0;
 	} else {
-		datablocks = count_fsb;
+		datablocks = qblocks = count_fsb;
+		quota_flag = XFS_QMOPT_RES_REGBLKS;
 		numrtextents = 0;
 	}
 
 	/*
-	 * allocate and setup the transaction
+	 * Allocate and setup the transaction
 	 */
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
-
 	resblks = XFS_DIOSTRAT_SPACE_RES(mp, datablocks);
-
 	error = xfs_trans_reserve(tp, resblks,
 			XFS_WRITE_LOG_RES(mp), numrtextents,
 			XFS_TRANS_PERM_LOG_RES,
 			XFS_WRITE_LOG_COUNT);
 
 	/*
-	 * check for running out of space
+	 * Check for running out of space, note: need lock to return
 	 */
 	if (error)
-		/*
-		 * Free the transaction structure.
-		 */
 		xfs_trans_cancel(tp, 0);
-
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-
 	if (error)
-		goto error_out; /* Don't return in above if .. trans ..,
-					need lock to return */
+		goto error_out;
 
-	if (XFS_TRANS_RESERVE_BLKQUOTA(mp, tp, ip, resblks)) {
+	if (XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, tp, ip, qblocks, 0, quota_flag)) {
 		error = (EDQUOT);
 		goto error1;
 	}
-	nimaps = 1;
 
 	bmapi_flag = XFS_BMAPI_WRITE;
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
@@ -487,31 +477,29 @@ xfs_iomap_write_direct(
 		bmapi_flag |= XFS_BMAPI_PREALLOC;
 
 	/*
-	 * issue the bmapi() call to allocate the blocks
+	 * Issue the bmapi() call to allocate the blocks
 	 */
 	XFS_BMAP_INIT(&free_list, &firstfsb);
+	nimaps = 1;
 	imapp = &imap[0];
 	error = xfs_bmapi(tp, ip, offset_fsb, count_fsb,
 		bmapi_flag, &firstfsb, 0, imapp, &nimaps, &free_list);
-	if (error) {
+	if (error)
 		goto error0;
-	}
 
 	/*
-	 * complete the transaction
+	 * Complete the transaction
 	 */
-
 	error = xfs_bmap_finish(&tp, &free_list, firstfsb, &committed);
-	if (error) {
+	if (error)
 		goto error0;
-	}
-
 	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
-	if (error) {
+	if (error)
 		goto error_out;
-	}
 
-	/* copy any maps to caller's array and return any error. */
+	/*
+	 * Copy any maps to caller's array and return any error.
+	 */
 	if (nimaps == 0) {
 		error = (ENOSPC);
 		goto error_out;
@@ -530,10 +518,11 @@ xfs_iomap_write_direct(
         }
 	return 0;
 
- error0:	/* Cancel bmap, unlock inode, and cancel trans */
+error0:	/* Cancel bmap, unlock inode, unreserve quota blocks, cancel trans */
 	xfs_bmap_cancel(&free_list);
+	XFS_TRANS_UNRESERVE_QUOTA_NBLKS(mp, tp, ip, qblocks, 0, quota_flag);
 
- error1:	/* Just cancel transaction */
+error1:	/* Just cancel transaction */
 	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
 	*nmaps = 0;	/* nothing set-up here */
 

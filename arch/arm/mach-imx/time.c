@@ -72,8 +72,8 @@ imx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction imx_timer_irq = {
 	.name		= "i.MX Timer Tick",
-	.flags		= SA_INTERRUPT,
-	.handler	= imx_timer_interrupt
+	.flags		= SA_INTERRUPT | SA_TIMER,
+	.handler	= imx_timer_interrupt,
 };
 
 /*

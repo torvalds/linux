@@ -19,6 +19,7 @@
 #include <asm/unistd.h>
 
 #include "ptrace.h"
+#include "signal.h"
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
@@ -35,7 +36,7 @@
 #define SWI_THUMB_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_sigreturn - __NR_SYSCALL_BASE))
 #define SWI_THUMB_RT_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_rt_sigreturn - __NR_SYSCALL_BASE))
 
-static const unsigned long retcodes[4] = {
+const unsigned long sigreturn_codes[4] = {
 	SWI_SYS_SIGRETURN,	SWI_THUMB_SIGRETURN,
 	SWI_SYS_RT_SIGRETURN,	SWI_THUMB_RT_SIGRETURN
 };
@@ -500,17 +501,25 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 		if (ka->sa.sa_flags & SA_SIGINFO)
 			idx += 2;
 
-		if (__put_user(retcodes[idx], rc))
+		if (__put_user(sigreturn_codes[idx], rc))
 			return 1;
 
-		/*
-		 * Ensure that the instruction cache sees
-		 * the return code written onto the stack.
-		 */
-		flush_icache_range((unsigned long)rc,
-				   (unsigned long)(rc + 1));
+		if (cpsr & MODE32_BIT) {
+			/*
+			 * 32-bit code can use the new high-page
+			 * signal return code support.
+			 */
+			retcode = KERN_SIGRETURN_CODE + (idx << 2) + thumb;
+		} else {
+			/*
+			 * Ensure that the instruction cache sees
+			 * the return code written onto the stack.
+			 */
+			flush_icache_range((unsigned long)rc,
+					   (unsigned long)(rc + 1));
 
-		retcode = ((unsigned long)rc) + thumb;
+			retcode = ((unsigned long)rc) + thumb;
+		}
 	}
 
 	regs->ARM_r0 = usig;
@@ -688,7 +697,7 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 	if (!user_mode(regs))
 		return 0;
 
-	if (try_to_freeze(0))
+	if (try_to_freeze())
 		goto no_signal;
 
 	if (current->ptrace & PT_SINGLESTEP)

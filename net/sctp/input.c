@@ -115,6 +115,17 @@ static void sctp_rcv_set_owner_r(struct sk_buff *skb, struct sock *sk)
 	atomic_add(sizeof(struct sctp_chunk),&sk->sk_rmem_alloc);
 }
 
+struct sctp_input_cb {
+	union {
+		struct inet_skb_parm	h4;
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+		struct inet6_skb_parm	h6;
+#endif
+	} header;
+	struct sctp_chunk *chunk;
+};
+#define SCTP_INPUT_CB(__skb)	((struct sctp_input_cb *)&((__skb)->cb[0]))
+
 /*
  * This is the routine which IP calls when receiving an SCTP packet.
  */
@@ -178,6 +189,37 @@ int sctp_rcv(struct sk_buff *skb)
 
 	asoc = __sctp_rcv_lookup(skb, &src, &dest, &transport);
 
+	if (!asoc)
+		ep = __sctp_rcv_lookup_endpoint(&dest);
+
+	/* Retrieve the common input handling substructure. */
+	rcvr = asoc ? &asoc->base : &ep->base;
+	sk = rcvr->sk;
+
+	/*
+	 * If a frame arrives on an interface and the receiving socket is
+	 * bound to another interface, via SO_BINDTODEVICE, treat it as OOTB
+	 */
+	if (sk->sk_bound_dev_if && (sk->sk_bound_dev_if != af->skb_iif(skb)))
+	{
+		sock_put(sk);
+		if (asoc) {
+			sctp_association_put(asoc);
+			asoc = NULL;
+		} else {
+			sctp_endpoint_put(ep);
+			ep = NULL;
+		}
+		sk = sctp_get_ctl_sock();
+		ep = sctp_sk(sk)->ep;
+		sctp_endpoint_hold(ep);
+		sock_hold(sk);
+		rcvr = &ep->base;
+	}
+
+	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)
+		goto discard_release;
+
 	/*
 	 * RFC 2960, 8.4 - Handle "Out of the blue" Packets.
 	 * An SCTP packet is called an "out of the blue" (OOTB)
@@ -187,21 +229,11 @@ int sctp_rcv(struct sk_buff *skb)
 	 * packet belongs.
 	 */
 	if (!asoc) {
-		ep = __sctp_rcv_lookup_endpoint(&dest);
 		if (sctp_rcv_ootb(skb)) {
 			SCTP_INC_STATS_BH(SCTP_MIB_OUTOFBLUES);
 			goto discard_release;
 		}
 	}
-
-	/* Retrieve the common input handling substructure. */
-	rcvr = asoc ? &asoc->base : &ep->base;
-	sk = rcvr->sk;
-
-	if ((sk) && (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)) {
-		goto discard_release;
-	}
-
 
 	/* SCTP seems to always need a timestamp right now (FIXME) */
 	if (skb->stamp.tv_sec == 0) {
@@ -222,6 +254,7 @@ int sctp_rcv(struct sk_buff *skb)
 		ret = -ENOMEM;
 		goto discard_release;
 	}
+	SCTP_INPUT_CB(skb)->chunk = chunk;
 
 	sctp_rcv_set_owner_r(skb,sk);
 
@@ -244,9 +277,9 @@ int sctp_rcv(struct sk_buff *skb)
 	sctp_bh_lock_sock(sk);
 
 	if (sock_owned_by_user(sk))
-		sk_add_backlog(sk, (struct sk_buff *) chunk);
+		sk_add_backlog(sk, skb);
 	else
-		sctp_backlog_rcv(sk, (struct sk_buff *) chunk);
+		sctp_backlog_rcv(sk, skb);
 
 	/* Release the sock and any reference counts we took in the
 	 * lookup calls.
@@ -265,13 +298,11 @@ discard_it:
 
 discard_release:
 	/* Release any structures we may be holding. */
-	if (asoc) {
-		sock_put(asoc->base.sk);
+	sock_put(sk);
+	if (asoc)
 		sctp_association_put(asoc);
-	} else {
-		sock_put(ep->base.sk);
+	else
 		sctp_endpoint_put(ep);
-	}
 
 	goto discard_it;
 }
@@ -283,14 +314,8 @@ discard_release:
  */
 int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
-	struct sctp_chunk *chunk;
-	struct sctp_inq *inqueue;
-
-	/* One day chunk will live inside the skb, but for
-	 * now this works.
-	 */
-	chunk = (struct sctp_chunk *) skb;
-	inqueue = &chunk->rcvr->inqueue;
+	struct sctp_chunk *chunk = SCTP_INPUT_CB(skb)->chunk;
+	struct sctp_inq *inqueue = &chunk->rcvr->inqueue;
 
 	sctp_inq_push(inqueue, chunk);
         return 0;
@@ -326,7 +351,6 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
  *
  */
 void sctp_icmp_proto_unreachable(struct sock *sk,
-                           struct sctp_endpoint *ep,
                            struct sctp_association *asoc,
                            struct sctp_transport *t)
 {
@@ -334,7 +358,7 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 
 	sctp_do_sm(SCTP_EVENT_T_OTHER,
 		   SCTP_ST_OTHER(SCTP_EVENT_ICMP_PROTO_UNREACH),
-		   asoc->state, asoc->ep, asoc, NULL,
+		   asoc->state, asoc->ep, asoc, t,
 		   GFP_ATOMIC);
 
 }
@@ -342,7 +366,6 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 /* Common lookup code for icmp/icmpv6 error handler. */
 struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 			     struct sctphdr *sctphdr,
-			     struct sctp_endpoint **epp,
 			     struct sctp_association **app,
 			     struct sctp_transport **tpp)
 {
@@ -350,11 +373,10 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 	union sctp_addr daddr;
 	struct sctp_af *af;
 	struct sock *sk = NULL;
-	struct sctp_endpoint *ep = NULL;
 	struct sctp_association *asoc = NULL;
 	struct sctp_transport *transport = NULL;
 
-	*app = NULL; *epp = NULL; *tpp = NULL;
+	*app = NULL; *tpp = NULL;
 
 	af = sctp_get_af_specific(family);
 	if (unlikely(!af)) {
@@ -369,26 +391,15 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 	 * packet.
 	 */
 	asoc = __sctp_lookup_association(&saddr, &daddr, &transport);
-	if (!asoc) {
-		/* If there is no matching association, see if it matches any
-		 * endpoint. This may happen for an ICMP error generated in
-		 * response to an INIT_ACK.
-		 */
-		ep = __sctp_rcv_lookup_endpoint(&daddr);
-		if (!ep) {
-			return NULL;
-		}
+	if (!asoc)
+		return NULL;
+
+	sk = asoc->base.sk;
+
+	if (ntohl(sctphdr->vtag) != asoc->c.peer_vtag) {
+		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
+		goto out;
 	}
-
-	if (asoc) {
-		sk = asoc->base.sk;
-
-		if (ntohl(sctphdr->vtag) != asoc->c.peer_vtag) {
-			ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
-			goto out;
-		}
-	} else
-		sk = ep->base.sk;
 
 	sctp_bh_lock_sock(sk);
 
@@ -398,7 +409,6 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 	if (sock_owned_by_user(sk))
 		NET_INC_STATS_BH(LINUX_MIB_LOCKDROPPEDICMPS);
 
-	*epp = ep;
 	*app = asoc;
 	*tpp = transport;
 	return sk;
@@ -407,21 +417,16 @@ out:
 	sock_put(sk);
 	if (asoc)
 		sctp_association_put(asoc);
-	if (ep)
-		sctp_endpoint_put(ep);
 	return NULL;
 }
 
 /* Common cleanup code for icmp/icmpv6 error handler. */
-void sctp_err_finish(struct sock *sk, struct sctp_endpoint *ep,
-		     struct sctp_association *asoc)
+void sctp_err_finish(struct sock *sk, struct sctp_association *asoc)
 {
 	sctp_bh_unlock_sock(sk);
 	sock_put(sk);
 	if (asoc)
 		sctp_association_put(asoc);
-	if (ep)
-		sctp_endpoint_put(ep);
 }
 
 /*
@@ -446,7 +451,6 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	int type = skb->h.icmph->type;
 	int code = skb->h.icmph->code;
 	struct sock *sk;
-	struct sctp_endpoint *ep;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
 	struct inet_sock *inet;
@@ -463,7 +467,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	savesctp  = skb->h.raw;
 	skb->nh.iph = iph;
 	skb->h.raw = (char *)sh;
-	sk = sctp_err_lookup(AF_INET, skb, sh, &ep, &asoc, &transport);
+	sk = sctp_err_lookup(AF_INET, skb, sh, &asoc, &transport);
 	/* Put back, the original pointers. */
 	skb->nh.raw = saveip;
 	skb->h.raw = savesctp;
@@ -490,7 +494,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 		}
 		else {
 			if (ICMP_PROT_UNREACH == code) {
-				sctp_icmp_proto_unreachable(sk, ep, asoc,
+				sctp_icmp_proto_unreachable(sk, asoc,
 							    transport);
 				goto out_unlock;
 			}
@@ -519,7 +523,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	}
 
 out_unlock:
-	sctp_err_finish(sk, ep, asoc);
+	sctp_err_finish(sk, asoc);
 }
 
 /*

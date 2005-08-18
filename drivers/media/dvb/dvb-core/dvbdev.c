@@ -56,8 +56,7 @@ static const char * const dnames[] = {
 #define nums2minor(num,type,id)	((num << 6) | (id << 4) | type)
 #define MAX_DVB_MINORS		(DVB_MAX_ADAPTERS*64)
 
-struct class_simple *dvb_class;
-EXPORT_SYMBOL(dvb_class);
+static struct class *dvb_class;
 
 static struct dvb_device* dvbdev_find_device (int minor)
 {
@@ -236,8 +235,8 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 			S_IFCHR | S_IRUSR | S_IWUSR,
 			"dvb/adapter%d/%s%d", adap->num, dnames[type], id);
 
-	class_simple_device_add(dvb_class, MKDEV(DVB_MAJOR, nums2minor(adap->num, type, id)),
-				NULL, "dvb%d.%s%d", adap->num, dnames[type], id);
+	class_device_create(dvb_class, MKDEV(DVB_MAJOR, nums2minor(adap->num, type, id)),
+			    NULL, "dvb%d.%s%d", adap->num, dnames[type], id);
 
 	dprintk("DVB: register adapter%d/%s%d @ minor: %i (0x%02x)\n",
 		adap->num, dnames[type], id, nums2minor(adap->num, type, id),
@@ -256,7 +255,7 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 	devfs_remove("dvb/adapter%d/%s%d", dvbdev->adapter->num,
 			dnames[dvbdev->type], dvbdev->id);
 
-	class_simple_device_remove(MKDEV(DVB_MAJOR, nums2minor(dvbdev->adapter->num,
+	class_device_destroy(dvb_class, MKDEV(DVB_MAJOR, nums2minor(dvbdev->adapter->num,
 					dvbdev->type, dvbdev->id)));
 
 	list_del (&dvbdev->list_head);
@@ -412,7 +411,7 @@ static int __init init_dvbdev(void)
 
 	devfs_mk_dir("dvb");
 
-	dvb_class = class_simple_create(THIS_MODULE, "dvb");
+	dvb_class = class_create(THIS_MODULE, "dvb");
 	if (IS_ERR(dvb_class)) {
 		retval = PTR_ERR(dvb_class);
 		goto error;
@@ -429,7 +428,7 @@ error:
 static void __exit exit_dvbdev(void)
 {
         devfs_remove("dvb");
-	class_simple_destroy(dvb_class);
+	class_destroy(dvb_class);
 	cdev_del(&dvb_device_cdev);
         unregister_chrdev_region(MKDEV(DVB_MAJOR, 0), MAX_DVB_MINORS);
 }

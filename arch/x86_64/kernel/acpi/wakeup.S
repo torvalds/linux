@@ -67,7 +67,7 @@ wakeup_code:
 	shll	$4, %eax
 	addl	$(gdta - wakeup_code), %eax
 	movl	%eax, gdt_48a +2 - wakeup_code
-	lgdt	%ds:gdt_48a - wakeup_code		# load gdt with whatever is
+	lgdtl	%ds:gdt_48a - wakeup_code	# load gdt with whatever is
 						# appropriate
 
 	movl	$1, %eax			# protected mode (PE) bit

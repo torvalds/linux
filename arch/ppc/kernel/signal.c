@@ -705,8 +705,7 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	unsigned long frame, newsp;
 	int signr, ret;
 
-	if (current->flags & PF_FREEZE) {
-		refrigerator(PF_FREEZE);
+	if (try_to_freeze()) {
 		signr = 0;
 		if (!signal_pending(current))
 			goto no_signal;

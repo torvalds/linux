@@ -2,6 +2,7 @@
 #define _NET_TCP_ECN_H_ 1
 
 #include <net/inet_ecn.h>
+#include <net/request_sock.h>
 
 #define TCP_HP_BITS (~(TCP_RESERVED_BITS|TCP_FLAG_PSH))
 
@@ -38,9 +39,9 @@ static inline void TCP_ECN_send_syn(struct sock *sk, struct tcp_sock *tp,
 }
 
 static __inline__ void
-TCP_ECN_make_synack(struct open_request *req, struct tcphdr *th)
+TCP_ECN_make_synack(struct request_sock *req, struct tcphdr *th)
 {
-	if (req->ecn_ok)
+	if (inet_rsk(req)->ecn_ok)
 		th->ece = 1;
 }
 
@@ -111,16 +112,16 @@ static inline int TCP_ECN_rcv_ecn_echo(struct tcp_sock *tp, struct tcphdr *th)
 }
 
 static inline void TCP_ECN_openreq_child(struct tcp_sock *tp,
-					 struct open_request *req)
+					 struct request_sock *req)
 {
-	tp->ecn_flags = req->ecn_ok ? TCP_ECN_OK : 0;
+	tp->ecn_flags = inet_rsk(req)->ecn_ok ? TCP_ECN_OK : 0;
 }
 
 static __inline__ void
-TCP_ECN_create_request(struct open_request *req, struct tcphdr *th)
+TCP_ECN_create_request(struct request_sock *req, struct tcphdr *th)
 {
 	if (sysctl_tcp_ecn && th->ece && th->cwr)
-		req->ecn_ok = 1;
+		inet_rsk(req)->ecn_ok = 1;
 }
 
 #endif

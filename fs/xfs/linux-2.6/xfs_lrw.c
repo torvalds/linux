@@ -209,30 +209,6 @@ unlock:
 	return (-status);
 }
 
-/*
- * xfs_inval_cached_pages
- * 
- * This routine is responsible for keeping direct I/O and buffered I/O
- * somewhat coherent.  From here we make sure that we're at least
- * temporarily holding the inode I/O lock exclusively and then call
- * the page cache to flush and invalidate any cached pages.  If there
- * are no cached pages this routine will be very quick.
- */
-void
-xfs_inval_cached_pages(
-	vnode_t		*vp,
-	xfs_iocore_t	*io,
-	xfs_off_t	offset,
-	int		write,
-	int		relock)
-{
-	if (VN_CACHED(vp)) {
-		xfs_inval_cached_trace(io, offset, -1, ctooff(offtoct(offset)), -1);
-		VOP_FLUSHINVAL_PAGES(vp, ctooff(offtoct(offset)), -1, FI_REMAPF_LOCKED);
-	}
-
-}
-
 ssize_t			/* bytes read, or (-)  error */
 xfs_read(
 	bhv_desc_t		*bdp,
@@ -304,10 +280,11 @@ xfs_read(
 	if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ) &&
 	    !(ioflags & IO_INVIS)) {
 		vrwlock_t locktype = VRWLOCK_READ;
+		int dmflags = FILP_DELAY_FLAG(file) | DM_SEM_FLAG_RD(ioflags);
 
 		ret = -XFS_SEND_DATA(mp, DM_EVENT_READ,
 					BHV_TO_VNODE(bdp), *offset, size,
-					FILP_DELAY_FLAG(file), &locktype);
+					dmflags, &locktype);
 		if (ret) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 			goto unlock_isem;
@@ -867,11 +844,15 @@ retry:
 	    !(ioflags & IO_INVIS)) {
 
 		xfs_rwunlock(bdp, locktype);
+		if (need_isem)
+			up(&inode->i_sem);
 		error = XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, vp,
 				DM_RIGHT_NULL, vp, DM_RIGHT_NULL, NULL, NULL,
 				0, 0, 0); /* Delay flag intentionally  unused */
 		if (error)
-			goto out_unlock_isem;
+			goto out_nounlocks;
+		if (need_isem)
+			down(&inode->i_sem);
 		xfs_rwlock(bdp, locktype);
 		pos = xip->i_d.di_size;
 		ret = 0;
@@ -986,6 +967,7 @@ retry:
  out_unlock_isem:
 	if (need_isem)
 		up(&inode->i_sem);
+ out_nounlocks:
 	return -error;
 }
 

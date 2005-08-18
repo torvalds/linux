@@ -53,7 +53,7 @@ zfcp_sysfs_unit_release(struct device *dev)
  * Generates attribute for a unit.
  */
 #define ZFCP_DEFINE_UNIT_ATTR(_name, _format, _value)                    \
-static ssize_t zfcp_sysfs_unit_##_name##_show(struct device *dev,        \
+static ssize_t zfcp_sysfs_unit_##_name##_show(struct device *dev, struct device_attribute *attr,        \
                                               char *buf)                 \
 {                                                                        \
         struct zfcp_unit *unit;                                          \
@@ -86,7 +86,7 @@ ZFCP_DEFINE_UNIT_ATTR(access_readonly, "%d\n", atomic_test_mask
  * started for the belonging unit.
  */
 static ssize_t
-zfcp_sysfs_unit_failed_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_unit_failed_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct zfcp_unit *unit;
 	unsigned int val;
@@ -123,7 +123,7 @@ zfcp_sysfs_unit_failed_store(struct device *dev, const char *buf, size_t count)
  * "0" if unit is working, otherwise "1".
  */
 static ssize_t
-zfcp_sysfs_unit_failed_show(struct device *dev, char *buf)
+zfcp_sysfs_unit_failed_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct zfcp_unit *unit;
 

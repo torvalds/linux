@@ -45,6 +45,7 @@
 #include <linux/param.h>
 #include <linux/major.h>
 #include <linux/slab.h>
+#include <linux/file.h>
 
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
@@ -168,12 +169,6 @@ nfsd4_open(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open 
 		(int)open->op_fname.len, open->op_fname.data,
 		open->op_stateowner);
 
-	if (nfs4_in_grace() && open->op_claim_type != NFS4_OPEN_CLAIM_PREVIOUS)
-		return nfserr_grace;
-
-	if (!nfs4_in_grace() && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
-		return nfserr_no_grace;
-
 	/* This check required by spec. */
 	if (open->op_create && open->op_claim_type != NFS4_OPEN_CLAIM_NULL)
 		return nfserr_inval;
@@ -198,6 +193,11 @@ nfsd4_open(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open 
 	if (status)
 		goto out;
 	switch (open->op_claim_type) {
+		case NFS4_OPEN_CLAIM_DELEGATE_CUR:
+			status = nfserr_inval;
+			if (open->op_create)
+				goto out;
+			/* fall through */
 		case NFS4_OPEN_CLAIM_NULL:
 			/*
 			 * (1) set CURRENT_FH to the file being opened,
@@ -220,7 +220,6 @@ nfsd4_open(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open 
 			if (status)
 				goto out;
 			break;
-		case NFS4_OPEN_CLAIM_DELEGATE_CUR:
              	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
 			printk("NFSD: unsupported OPEN claim type %d\n",
 				open->op_claim_type);
@@ -473,26 +472,27 @@ static inline int
 nfsd4_read(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_read *read)
 {
 	int status;
-	struct file *filp = NULL;
 
 	/* no need to check permission - this will be done in nfsd_read() */
 
+	read->rd_filp = NULL;
 	if (read->rd_offset >= OFFSET_MAX)
 		return nfserr_inval;
 
 	nfs4_lock_state();
 	/* check stateid */
 	if ((status = nfs4_preprocess_stateid_op(current_fh, &read->rd_stateid,
-					CHECK_FH | RD_STATE, &filp))) {
+				CHECK_FH | RD_STATE, &read->rd_filp))) {
 		dprintk("NFSD: nfsd4_read: couldn't process stateid!\n");
 		goto out;
 	}
+	if (read->rd_filp)
+		get_file(read->rd_filp);
 	status = nfs_ok;
 out:
 	nfs4_unlock_state();
 	read->rd_rqstp = rqstp;
 	read->rd_fhp = current_fh;
-	read->rd_filp = filp;
 	return status;
 }
 
@@ -532,6 +532,8 @@ nfsd4_remove(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_rem
 {
 	int status;
 
+	if (nfs4_in_grace())
+		return nfserr_grace;
 	status = nfsd_unlink(rqstp, current_fh, 0, remove->rm_name, remove->rm_namelen);
 	if (status == nfserr_symlink)
 		return nfserr_notdir;
@@ -550,6 +552,9 @@ nfsd4_rename(struct svc_rqst *rqstp, struct svc_fh *current_fh,
 
 	if (!save_fh->fh_dentry)
 		return status;
+	if (nfs4_in_grace() && !(save_fh->fh_export->ex_flags
+					& NFSEXP_NOSUBTREECHECK))
+		return nfserr_grace;
 	status = nfsd_rename(rqstp, save_fh, rename->rn_sname,
 			     rename->rn_snamelen, current_fh,
 			     rename->rn_tname, rename->rn_tnamelen);
@@ -624,6 +629,8 @@ nfsd4_write(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_writ
 		dprintk("NFSD: nfsd4_write: couldn't process stateid!\n");
 		goto out;
 	}
+	if (filp)
+		get_file(filp);
 	nfs4_unlock_state();
 
 	write->wr_bytes_written = write->wr_buflen;
@@ -635,6 +642,8 @@ nfsd4_write(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_writ
 	status =  nfsd_write(rqstp, current_fh, filp, write->wr_offset,
 			write->wr_vec, write->wr_vlen, write->wr_buflen,
 			&write->wr_how_written);
+	if (filp)
+		fput(filp);
 
 	if (status == nfserr_symlink)
 		status = nfserr_inval;
@@ -923,6 +932,9 @@ encode_op:
 			nfs4_put_stateowner(replay_owner);
 			replay_owner = NULL;
 		}
+		/* XXX Ugh, we need to get rid of this kind of special case: */
+		if (op->opnum == OP_READ && op->u.read.rd_filp)
+			fput(op->u.read.rd_filp);
 	}
 
 out:

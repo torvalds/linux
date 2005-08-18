@@ -18,6 +18,7 @@
 #include <linux/blkdev.h>
 #include <linux/parport.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 
 #include <scsi/scsi.h>
@@ -610,9 +611,9 @@ static int imm_init(imm_struct *dev)
 	if (imm_connect(dev, 0) != 1)
 		return -EIO;
 	imm_reset_pulse(dev->base);
-	udelay(1000);	/* Delay to allow devices to settle */
+	mdelay(1);	/* Delay to allow devices to settle */
 	imm_disconnect(dev);
-	udelay(1000);	/* Another delay to allow devices to settle */
+	mdelay(1);	/* Another delay to allow devices to settle */
 	return device_check(dev);
 }
 
@@ -1026,9 +1027,9 @@ static int imm_reset(struct scsi_cmnd *cmd)
 
 	imm_connect(dev, CONNECT_NORMAL);
 	imm_reset_pulse(dev->base);
-	udelay(1000);		/* device settle delay */
+	mdelay(1);		/* device settle delay */
 	imm_disconnect(dev);
-	udelay(1000);		/* device settle delay */
+	mdelay(1);		/* device settle delay */
 	return SUCCESS;
 }
 

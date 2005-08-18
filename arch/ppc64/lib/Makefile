@@ -12,7 +12,7 @@ lib-$(CONFIG_SMP) += locks.o
 
 # e2a provides EBCDIC to ASCII conversions.
 ifdef CONFIG_PPC_ISERIES
-obj-$(CONFIG_PCI)	+= e2a.o
+obj-y += e2a.o
 endif
 
 lib-$(CONFIG_DEBUG_KERNEL) += sstep.o

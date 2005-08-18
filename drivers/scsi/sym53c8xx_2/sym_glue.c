@@ -155,10 +155,11 @@ pci_get_base_address(struct pci_dev *pdev, int index, unsigned long *basep)
 	base = tmp;
 	if ((tmp & 0x7) == PCI_BASE_ADDRESS_MEM_TYPE_64) {
 		pci_read_config_dword(pdev, PCI_BAR_OFFSET(index++), &tmp);
-		if (tmp > 0)
+		if (tmp > 0) {
 			dev_err(&pdev->dev,
 				"BAR %d is 64-bit, disabling\n", index - 1);
-		base = 0;
+			base = 0;
+		}
 	}
 
 	if ((base & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
@@ -389,13 +390,20 @@ static int sym_scatter_no_sglist(struct sym_hcb *np, struct sym_ccb *cp, struct 
 {
 	struct sym_tblmove *data = &cp->phys.data[SYM_CONF_MAX_SG-1];
 	int segment;
+	unsigned int len = cmd->request_bufflen;
 
-	cp->data_len = cmd->request_bufflen;
-
-	if (cmd->request_bufflen) {
+	if (len) {
 		dma_addr_t baddr = map_scsi_single_data(np, cmd);
 		if (baddr) {
-			sym_build_sge(np, data, baddr, cmd->request_bufflen);
+			if (len & 1) {
+				struct sym_tcb *tp = &np->target[cp->target];
+				if (tp->head.wval & EWS) {
+					len++;
+					cp->odd_byte_adjustment++;
+				}
+			}
+			cp->data_len = len;
+			sym_build_sge(np, data, baddr, len);
 			segment = 1;
 		} else {
 			segment = -2;
@@ -418,6 +426,7 @@ static int sym_scatter(struct sym_hcb *np, struct sym_ccb *cp, struct scsi_cmnd 
 		segment = sym_scatter_no_sglist(np, cp, cmd);
 	else if ((use_sg = map_scsi_sg_data(np, cmd)) > 0) {
 		struct scatterlist *scatter = (struct scatterlist *)cmd->buffer;
+		struct sym_tcb *tp = &np->target[cp->target];
 		struct sym_tblmove *data;
 
 		if (use_sg > SYM_CONF_MAX_SG) {
@@ -430,6 +439,11 @@ static int sym_scatter(struct sym_hcb *np, struct sym_ccb *cp, struct scsi_cmnd 
 		for (segment = 0; segment < use_sg; segment++) {
 			dma_addr_t baddr = sg_dma_address(&scatter[segment]);
 			unsigned int len = sg_dma_len(&scatter[segment]);
+
+			if ((len & 1) && (tp->head.wval & EWS)) {
+				len++;
+				cp->odd_byte_adjustment++;
+			}
 
 			sym_build_sge(np, &data[segment], baddr, len);
 			cp->data_len += len;
@@ -456,10 +470,8 @@ static int sym_queue_command(struct sym_hcb *np, struct scsi_cmnd *cmd)
 	 *  Minimal checkings, so that we will not 
 	 *  go outside our tables.
 	 */
-	if (sdev->id == np->myaddr ||
-	    sdev->id >= SYM_CONF_MAX_TARGET ||
-	    sdev->lun >= SYM_CONF_MAX_LUN) {
-		sym_xpt_done2(np, cmd, CAM_DEV_NOT_THERE);
+	if (sdev->id == np->myaddr) {
+		sym_xpt_done2(np, cmd, DID_NO_CONNECT);
 		return 0;
 	}
 
@@ -467,28 +479,6 @@ static int sym_queue_command(struct sym_hcb *np, struct scsi_cmnd *cmd)
 	 *  Retrieve the target descriptor.
 	 */
 	tp = &np->target[sdev->id];
-
-	/*
-	 *  Complete the 1st INQUIRY command with error 
-	 *  condition if the device is flagged NOSCAN 
-	 *  at BOOT in the NVRAM. This may speed up 
-	 *  the boot and maintain coherency with BIOS 
-	 *  device numbering. Clearing the flag allows 
-	 *  user to rescan skipped devices later.
-	 *  We also return error for devices not flagged 
-	 *  for SCAN LUNS in the NVRAM since some mono-lun 
-	 *  devices behave badly when asked for some non 
-	 *  zero LUN. Btw, this is an absolute hack.:-)
-	 */
-	if (cmd->cmnd[0] == 0x12 || cmd->cmnd[0] == 0x0) {
-		if ((tp->usrflags & SYM_SCAN_BOOT_DISABLED) ||
-		    ((tp->usrflags & SYM_SCAN_LUNS_DISABLED) && 
-		     sdev->lun != 0)) {
-			tp->usrflags &= ~SYM_SCAN_BOOT_DISABLED;
-			sym_xpt_done2(np, cmd, CAM_DEV_NOT_THERE);
-			return 0;
-		}
-	}
 
 	/*
 	 *  Select tagged/untagged.
@@ -511,23 +501,10 @@ static int sym_queue_command(struct sym_hcb *np, struct scsi_cmnd *cmd)
  */
 static inline int sym_setup_cdb(struct sym_hcb *np, struct scsi_cmnd *cmd, struct sym_ccb *cp)
 {
-	u32	cmd_ba;
-	int	cmd_len;
-
-	/*
-	 *  CDB is 16 bytes max.
-	 */
-	if (cmd->cmd_len > sizeof(cp->cdb_buf)) {
-		sym_set_cam_status(cp->cmd, CAM_REQ_INVALID);
-		return -1;
-	}
-
 	memcpy(cp->cdb_buf, cmd->cmnd, cmd->cmd_len);
-	cmd_ba  = CCB_BA (cp, cdb_buf[0]);
-	cmd_len = cmd->cmd_len;
 
-	cp->phys.cmd.addr	= cpu_to_scr(cmd_ba);
-	cp->phys.cmd.size	= cpu_to_scr(cmd_len);
+	cp->phys.cmd.addr = CCB_BA(cp, cdb_buf[0]);
+	cp->phys.cmd.size = cpu_to_scr(cmd->cmd_len);
 
 	return 0;
 }
@@ -554,10 +531,7 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 	if (dir != DMA_NONE) {
 		cp->segments = sym_scatter(np, cp, cmd);
 		if (cp->segments < 0) {
-			if (cp->segments == -2)
-				sym_set_cam_status(cmd, CAM_RESRC_UNAVAIL);
-			else
-				sym_set_cam_status(cmd, CAM_REQ_TOO_BIG);
+			sym_set_cam_status(cmd, DID_ERROR);
 			goto out_abort;
 		}
 	} else {
@@ -855,7 +829,7 @@ prepare:
 	ep->to_do = to_do;
 	/* Complete the command with locks held as required by the driver */
 	if (to_do == SYM_EH_DO_COMPLETE)
-		sym_xpt_done2(np, cmd, CAM_REQ_ABORTED);
+		sym_xpt_done2(np, cmd, DID_ABORT);
 
 	/* Wait for completion with locks released, as required by kernel */
 	if (to_do == SYM_EH_DO_WAIT) {
@@ -882,22 +856,46 @@ prepare:
  */
 static int sym53c8xx_eh_abort_handler(struct scsi_cmnd *cmd)
 {
-	return sym_eh_handler(SYM_EH_ABORT, "ABORT", cmd);
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = sym_eh_handler(SYM_EH_ABORT, "ABORT", cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
 }
 
 static int sym53c8xx_eh_device_reset_handler(struct scsi_cmnd *cmd)
 {
-	return sym_eh_handler(SYM_EH_DEVICE_RESET, "DEVICE RESET", cmd);
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = sym_eh_handler(SYM_EH_DEVICE_RESET, "DEVICE RESET", cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
 }
 
 static int sym53c8xx_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 {
-	return sym_eh_handler(SYM_EH_BUS_RESET, "BUS RESET", cmd);
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = sym_eh_handler(SYM_EH_BUS_RESET, "BUS RESET", cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
 }
 
 static int sym53c8xx_eh_host_reset_handler(struct scsi_cmnd *cmd)
 {
-	return sym_eh_handler(SYM_EH_HOST_RESET, "HOST RESET", cmd);
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = sym_eh_handler(SYM_EH_HOST_RESET, "HOST RESET", cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
 }
 
 /*
@@ -921,7 +919,7 @@ static void sym_tune_dev_queuing(struct sym_tcb *tp, int lun, u_short reqtags)
 	lp->s.reqtags     = reqtags;
 
 	if (reqtags != oldtags) {
-		dev_info(&tp->sdev->sdev_target->dev,
+		dev_info(&tp->starget->dev,
 		         "tagged command queuing %s, command queue depth %d.\n",
 		          lp->s.reqtags ? "enabled" : "disabled",
  		          lp->started_limit);
@@ -981,22 +979,34 @@ static int device_queue_depth(struct sym_hcb *np, int target, int lun)
 	return DEF_DEPTH;
 }
 
-static int sym53c8xx_slave_alloc(struct scsi_device *device)
+static int sym53c8xx_slave_alloc(struct scsi_device *sdev)
 {
-	struct sym_hcb *np = sym_get_hcb(device->host);
-	struct sym_tcb *tp = &np->target[device->id];
-	if (!tp->sdev)
-		tp->sdev = device;
+	struct sym_hcb *np;
+	struct sym_tcb *tp;
 
+	if (sdev->id >= SYM_CONF_MAX_TARGET || sdev->lun >= SYM_CONF_MAX_LUN)
+		return -ENXIO;
+
+	np = sym_get_hcb(sdev->host);
+	tp = &np->target[sdev->id];
+
+	/*
+	 * Fail the device init if the device is flagged NOSCAN at BOOT in
+	 * the NVRAM.  This may speed up boot and maintain coherency with
+	 * BIOS device numbering.  Clearing the flag allows the user to
+	 * rescan skipped devices later.  We also return an error for
+	 * devices not flagged for SCAN LUNS in the NVRAM since some single
+	 * lun devices behave badly when asked for a non zero LUN.
+	 */
+
+	if ((tp->usrflags & SYM_SCAN_BOOT_DISABLED) ||
+	    ((tp->usrflags & SYM_SCAN_LUNS_DISABLED) && sdev->lun != 0)) {
+		tp->usrflags &= ~SYM_SCAN_BOOT_DISABLED;
+		return -ENXIO;
+	}
+
+	tp->starget = sdev->sdev_target;
 	return 0;
-}
-
-static void sym53c8xx_slave_destroy(struct scsi_device *device)
-{
-	struct sym_hcb *np = sym_get_hcb(device->host);
-	struct sym_tcb *tp = &np->target[device->id];
-	if (tp->sdev == device)
-		tp->sdev = NULL;
 }
 
 /*
@@ -1897,6 +1907,7 @@ static int sym_detach(struct sym_hcb *np, struct pci_dev *pdev)
 	 */
 	printk("%s: resetting chip\n", sym_name(np));
 	OUTB(np, nc_istat, SRST);
+	INB(np, nc_mbox1);
 	udelay(10);
 	OUTB(np, nc_istat, 0);
 
@@ -1915,7 +1926,6 @@ static struct scsi_host_template sym2_template = {
 	.queuecommand		= sym53c8xx_queue_command,
 	.slave_alloc		= sym53c8xx_slave_alloc,
 	.slave_configure	= sym53c8xx_slave_configure,
-	.slave_destroy		= sym53c8xx_slave_destroy,
 	.eh_abort_handler	= sym53c8xx_eh_abort_handler,
 	.eh_device_reset_handler = sym53c8xx_eh_device_reset_handler,
 	.eh_bus_reset_handler	= sym53c8xx_eh_bus_reset_handler,

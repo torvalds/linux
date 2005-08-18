@@ -293,7 +293,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 	/* if interface was already added, bind now; else let
 	 * the future device_add() bind it, bypassing probe()
 	 */
-	if (!list_empty (&dev->bus_list))
+	if (klist_node_attached(&dev->knode_bus))
 		device_bind_driver(dev);
 
 	return 0;
@@ -322,9 +322,15 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	if (!dev->driver || dev->driver != &driver->driver)
 		return;
 
-	/* don't disconnect from disconnect(), or before dev_add() */
-	if (!list_empty (&dev->driver_list) && !list_empty (&dev->bus_list))
+	/* don't release from within disconnect() */
+	if (iface->condition != USB_INTERFACE_BOUND)
+		return;
+
+	/* release only after device_add() */
+	if (klist_node_attached(&dev->knode_bus)) {
+		iface->condition = USB_INTERFACE_UNBINDING;
 		device_release_driver(dev);
+	}
 
 	dev->driver = NULL;
 	usb_set_intfdata(iface, NULL);
@@ -462,6 +468,25 @@ usb_match_id(struct usb_interface *interface, const struct usb_device_id *id)
 	return NULL;
 }
 
+
+static int __find_interface(struct device * dev, void * data)
+{
+	struct usb_interface ** ret = (struct usb_interface **)data;
+	struct usb_interface * intf = *ret;
+	int *minor = (int *)data;
+
+	/* can't look at usb devices, only interfaces */
+	if (dev->driver == &usb_generic_driver)
+		return 0;
+
+	intf = to_usb_interface(dev);
+	if (intf->minor != -1 && intf->minor == *minor) {
+		*ret = intf;
+		return 1;
+	}
+	return 0;
+}
+
 /**
  * usb_find_interface - find usb_interface pointer for driver and device
  * @drv: the driver whose current configuration is considered
@@ -473,26 +498,12 @@ usb_match_id(struct usb_interface *interface, const struct usb_device_id *id)
  */
 struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
 {
-	struct list_head *entry;
-	struct device *dev;
-	struct usb_interface *intf;
+	struct usb_interface *intf = (struct usb_interface *)(long)minor;
+	int ret;
 
-	list_for_each(entry, &drv->driver.devices) {
-		dev = container_of(entry, struct device, driver_list);
+	ret = driver_for_each_device(&drv->driver, NULL, &intf, __find_interface);
 
-		/* can't look at usb devices, only interfaces */
-		if (dev->driver == &usb_generic_driver)
-			continue;
-
-		intf = to_usb_interface(dev);
-		if (intf->minor == -1)
-			continue;
-		if (intf->minor == minor)
-			return intf;
-	}
-
-	/* no device found that matches */
-	return NULL;	
+	return ret ? intf : NULL;
 }
 
 static int usb_device_match (struct device *dev, struct device_driver *drv)
@@ -1118,7 +1129,7 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 void *usb_buffer_alloc (
 	struct usb_device *dev,
 	size_t size,
-	int mem_flags,
+	unsigned mem_flags,
 	dma_addr_t *dma
 )
 {
@@ -1520,6 +1531,9 @@ module_exit(usb_exit);
 EXPORT_SYMBOL(usb_register);
 EXPORT_SYMBOL(usb_deregister);
 EXPORT_SYMBOL(usb_disabled);
+
+EXPORT_SYMBOL_GPL(usb_get_intf);
+EXPORT_SYMBOL_GPL(usb_put_intf);
 
 EXPORT_SYMBOL(usb_alloc_dev);
 EXPORT_SYMBOL(usb_put_dev);

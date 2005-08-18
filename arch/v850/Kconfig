@@ -218,6 +218,8 @@ menu "Processor type and features"
 	     a lot of RAM, and you need to able to allocate very large
 	     contiguous chunks. If unsure, say N.
 
+source "mm/Kconfig"
+
 endmenu
 
 
@@ -247,6 +249,8 @@ menu "Executable file formats"
 source "fs/Kconfig.binfmt"
 
 endmenu
+
+source "net/Kconfig"
 
 #############################################################################
 
@@ -281,7 +285,7 @@ source "drivers/ieee1394/Kconfig"
 
 source "drivers/message/i2o/Kconfig"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 source "drivers/isdn/Kconfig"
 

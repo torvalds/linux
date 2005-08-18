@@ -71,6 +71,9 @@ EXPORT_SYMBOL(acpi_in_debugger);
 extern char line_buf[80];
 #endif /*ENABLE_DEBUGGER*/
 
+int acpi_specific_hotkey_enabled = TRUE;
+EXPORT_SYMBOL(acpi_specific_hotkey_enabled);
+
 static unsigned int acpi_irq_irq;
 static acpi_osd_handler acpi_irq_handler;
 static void *acpi_irq_context;
@@ -142,10 +145,14 @@ acpi_os_vprintf(const char *fmt, va_list args)
 #endif
 }
 
+extern int acpi_in_resume;
 void *
 acpi_os_allocate(acpi_size size)
 {
-	return kmalloc(size, GFP_KERNEL);
+	if (acpi_in_resume)
+		return kmalloc(size, GFP_ATOMIC);
+	else
+		return kmalloc(size, GFP_KERNEL);
 }
 
 void
@@ -1151,6 +1158,15 @@ acpi_wake_gpes_always_on_setup(char *str)
 }
 
 __setup("acpi_wake_gpes_always_on", acpi_wake_gpes_always_on_setup);
+
+int __init
+acpi_hotkey_setup(char *str)
+{
+	acpi_specific_hotkey_enabled = FALSE;
+	return 1;
+}
+
+__setup("acpi_generic_hotkey", acpi_hotkey_setup);
 
 /*
  * max_cstate is defined in the base kernel so modules can

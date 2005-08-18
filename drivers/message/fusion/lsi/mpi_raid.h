@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2001-2003 LSI Logic Corporation.
+ *  Copyright (c) 2001-2005 LSI Logic Corporation.
  *
  *
  *           Name:  mpi_raid.h
  *          Title:  MPI RAID message and structures
  *  Creation Date:  February 27, 2001
  *
- *    mpi_raid.h Version:  01.05.xx
+ *    mpi_raid.h Version:  01.05.02
  *
  *  Version History
  *  ---------------
@@ -28,6 +28,10 @@
  *  11-15-02  01.02.08  Added missing MsgContext field to MSG_MAILBOX_REQUEST.
  *  04-01-03  01.02.09  New action data option flag for
  *                      MPI_RAID_ACTION_DELETE_VOLUME.
+ *  05-11-04  01.03.01  Original release for MPI v1.3.
+ *  08-19-04  01.05.01  Original release for MPI v1.5.
+ *  01-15-05  01.05.02  Added defines for the two new RAID Actions for
+ *                      _SET_RESYNC_RATE and _SET_DATA_SCRUB_RATE.
  *  --------------------------------------------------------------------------
  */
 
@@ -84,6 +88,8 @@ typedef struct _MSG_RAID_ACTION
 #define MPI_RAID_ACTION_REPLACE_PHYSDISK            (0x10)
 #define MPI_RAID_ACTION_ACTIVATE_VOLUME             (0x11)
 #define MPI_RAID_ACTION_INACTIVATE_VOLUME           (0x12)
+#define MPI_RAID_ACTION_SET_RESYNC_RATE             (0x13)
+#define MPI_RAID_ACTION_SET_DATA_SCRUB_RATE         (0x14)
 
 /* ActionDataWord defines for use with MPI_RAID_ACTION_CREATE_VOLUME action */
 #define MPI_RAID_ACTION_ADATA_DO_NOT_SYNC           (0x00000001)
@@ -98,6 +104,13 @@ typedef struct _MSG_RAID_ACTION
 
 /* ActionDataWord defines for use with MPI_RAID_ACTION_ACTIVATE_VOLUME action */
 #define MPI_RAID_ACTION_ADATA_INACTIVATE_ALL        (0x00000001)
+
+/* ActionDataWord defines for use with MPI_RAID_ACTION_SET_RESYNC_RATE action */
+#define MPI_RAID_ACTION_ADATA_RESYNC_RATE_MASK      (0x000000FF)
+
+/* ActionDataWord defines for use with MPI_RAID_ACTION_SET_DATA_SCRUB_RATE action */
+#define MPI_RAID_ACTION_ADATA_DATA_SCRUB_RATE_MASK  (0x000000FF)
+
 
 
 /* RAID Action reply message */

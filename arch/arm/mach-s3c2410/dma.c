@@ -436,7 +436,7 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 
 	buf = kmem_cache_alloc(dma_kmem, GFP_ATOMIC);
 	if (buf == NULL) {
-		pr_debug("%s: out of memory (%d alloc)\n",
+		pr_debug("%s: out of memory (%ld alloc)\n",
 			 __FUNCTION__, sizeof(*buf));
 		return -ENOMEM;
 	}
@@ -784,6 +784,10 @@ int s3c2410_dma_free(dmach_t channel, s3c2410_dma_client_t *client)
 
 	chan->client = NULL;
 	chan->in_use = 0;
+
+	if (chan->irq_claimed)
+		free_irq(chan->irq, (void *)chan);
+	chan->irq_claimed = 0;
 
 	local_irq_restore(flags);
 

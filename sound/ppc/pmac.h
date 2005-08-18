@@ -167,7 +167,7 @@ struct snd_pmac {
 	void (*set_format)(pmac_t *chip);
 	void (*update_automute)(pmac_t *chip, int do_notify);
 	int (*detect_headphone)(pmac_t *chip);
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	void (*suspend)(pmac_t *chip);
 	void (*resume)(pmac_t *chip);
 #endif
@@ -211,10 +211,5 @@ int snd_pmac_boolean_stereo_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 int snd_pmac_boolean_mono_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo);
 
 int snd_pmac_add_automute(pmac_t *chip);
-
-#define big_mdelay(msec) do {\
-	set_current_state(TASK_UNINTERRUPTIBLE);\
-	schedule_timeout(((msec) * HZ + 999) / 1000);\
-} while (0)
 
 #endif /* __PMAC_H */

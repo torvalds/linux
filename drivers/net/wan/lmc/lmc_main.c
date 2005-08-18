@@ -723,7 +723,7 @@ static void lmc_watchdog (unsigned long data) /*fold00*/
         /* lmc_reset (sc); Why reset??? The link can go down ok */
 
         /* Inform the world that link has been lost */
-        dev->flags &= ~IFF_RUNNING;
+	netif_carrier_off(dev);
     }
 
     /*
@@ -736,7 +736,7 @@ static void lmc_watchdog (unsigned long data) /*fold00*/
          /* lmc_reset (sc); Again why reset??? */
 
          /* Inform the world that link protocol is back up. */
-         dev->flags |= IFF_RUNNING;
+	 netif_carrier_on(dev);
 
          /* Now we have to tell the syncppp that we had an outage
           * and that it should deal.  Calling sppp_reopen here
@@ -1168,8 +1168,6 @@ static void lmc_running_reset (struct net_device *dev) /*fold00*/
     sc->lmc_media->set_link_status (sc, 1);
     sc->lmc_media->set_status (sc, NULL);
 
-    //dev->flags |= IFF_RUNNING;
-    
     netif_wake_queue(dev);
 
     sc->lmc_txfull = 0;
@@ -1232,8 +1230,6 @@ static int lmc_ifdown (struct net_device *dev) /*fold00*/
     csr6 &= ~LMC_DEC_ST;		/* Turn off the Transmission bit */
     csr6 &= ~LMC_DEC_SR;		/* Turn off the Receive bit */
     LMC_CSR_WRITE (sc, csr_command, csr6);
-
-    dev->flags &= ~IFF_RUNNING;
 
     sc->stats.rx_missed_errors +=
         LMC_CSR_READ (sc, csr_missed_frames) & 0xffff;

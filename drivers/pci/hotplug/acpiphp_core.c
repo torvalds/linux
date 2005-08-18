@@ -7,6 +7,8 @@
  * Copyright (C) 2002 Hiroshi Aono (h-aono@ap.jp.nec.com)
  * Copyright (C) 2002,2003 Takayoshi Kochi (t-kochi@bq.jp.nec.com)
  * Copyright (C) 2002,2003 NEC Corporation
+ * Copyright (C) 2003-2005 Matthew Wilcox (matthew.wilcox@hp.com)
+ * Copyright (C) 2003-2005 Hewlett Packard
  *
  * All rights reserved.
  *
@@ -53,8 +55,8 @@ int acpiphp_debug;
 static int num_slots;
 static struct acpiphp_attention_info *attention_info;
 
-#define DRIVER_VERSION	"0.4"
-#define DRIVER_AUTHOR	"Greg Kroah-Hartman <gregkh@us.ibm.com>, Takayoshi Kochi <t-kochi@bq.jp.nec.com>"
+#define DRIVER_VERSION	"0.5"
+#define DRIVER_AUTHOR	"Greg Kroah-Hartman <gregkh@us.ibm.com>, Takayoshi Kochi <t-kochi@bq.jp.nec.com>, Matthew Wilcox <willy@hp.com>"
 #define DRIVER_DESC	"ACPI Hot Plug PCI Controller Driver"
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
@@ -281,8 +283,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 /**
  * get_address - get pci address of a slot
  * @hotplug_slot: slot to get status
- * @busdev: pointer to struct pci_busdev (seg, bus, dev)
- *
+ * @value: pointer to struct pci_busdev (seg, bus, dev)
  */
 static int get_address(struct hotplug_slot *hotplug_slot, u32 *value)
 {

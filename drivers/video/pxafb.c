@@ -43,6 +43,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
+#include <asm/div64.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/bitfield.h>
 #include <asm/arch/pxafb.h>
@@ -460,7 +461,7 @@ static inline unsigned int get_pcd(unsigned int pixclock)
          * speeds */
 
 	pcd = (unsigned long long)get_lcdclk_frequency_10khz() * pixclock;
-	pcd /= 100000000 * 2;
+	do_div(pcd, 100000000 * 2);
 	/* no need for this, since we should subtract 1 anyway. they cancel */
 	/* pcd += 1; */ /* make up for integer math truncations */
 	return (unsigned int)pcd;
@@ -716,6 +717,9 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 	DPRINTK("reg_lccr2 0x%08x\n", (unsigned int) fbi->reg_lccr2);
 	DPRINTK("reg_lccr3 0x%08x\n", (unsigned int) fbi->reg_lccr3);
 
+	/* enable LCD controller clock */
+	pxa_set_cken(CKEN16_LCD, 1);
+
 	/* Sequence from 11.7.10 */
 	LCCR3 = fbi->reg_lccr3;
 	LCCR2 = fbi->reg_lccr2;
@@ -749,6 +753,9 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 
 	schedule_timeout(20 * HZ / 1000);
 	remove_wait_queue(&fbi->ctrlr_wait, &wait);
+
+	/* disable LCD controller clock */
+	pxa_set_cken(CKEN16_LCD, 0);
 }
 
 /*
@@ -1298,8 +1305,6 @@ int __init pxafb_probe(struct device *dev)
 		ret = -ENOMEM;
 		goto failed;
 	}
-	/* enable LCD controller clock */
-	pxa_set_cken(CKEN16_LCD, 1);
 
 	ret = request_irq(IRQ_LCD, pxafb_handle_irq, SA_INTERRUPT, "LCD", fbi);
 	if (ret) {

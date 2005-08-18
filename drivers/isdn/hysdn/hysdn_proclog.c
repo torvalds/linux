@@ -22,6 +22,8 @@
 /* the proc subdir for the interface is defined in the procconf module */
 extern struct proc_dir_entry *hysdn_proc_entry;
 
+static void put_log_buffer(hysdn_card * card, char *cp);
+
 /*************************************************/
 /* structure keeping ascii log for device output */
 /*************************************************/
@@ -93,7 +95,7 @@ hysdn_addlog(hysdn_card * card, char *fmt,...)
 /* opened for read got the contents.        */
 /* Flushes buffers not longer in use.       */
 /********************************************/
-void
+static void
 put_log_buffer(hysdn_card * card, char *cp)
 {
 	struct log_data *ib;

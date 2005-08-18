@@ -33,7 +33,7 @@
 #define	IFF_LOOPBACK	0x8		/* is a loopback net		*/
 #define	IFF_POINTOPOINT	0x10		/* interface is has p-p link	*/
 #define	IFF_NOTRAILERS	0x20		/* avoid use of trailers	*/
-#define	IFF_RUNNING	0x40		/* resources allocated		*/
+#define	IFF_RUNNING	0x40		/* interface running and carrier ok */
 #define	IFF_NOARP	0x80		/* no ARP protocol		*/
 #define	IFF_PROMISC	0x100		/* receive all packets		*/
 #define	IFF_ALLMULTI	0x200		/* receive all multicast packets*/

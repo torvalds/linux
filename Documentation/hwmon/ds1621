@@ -1,0 +1,108 @@
+Kernel driver ds1621
+====================
+
+Supported chips:
+  * Dallas Semiconductor DS1621
+    Prefix: 'ds1621'
+    Addresses scanned: I2C 0x48 - 0x4f
+    Datasheet: Publicly available at the Dallas Semiconductor website
+               http://www.dalsemi.com/
+  * Dallas Semiconductor DS1625
+    Prefix: 'ds1621'
+    Addresses scanned: I2C 0x48 - 0x4f
+    Datasheet: Publicly available at the Dallas Semiconductor website
+               http://www.dalsemi.com/
+
+Authors:
+        Christian W. Zuckschwerdt <zany@triq.net>
+        valuable contributions by Jan M. Sendler <sendler@sendler.de>
+        ported to 2.6 by Aurelien Jarno <aurelien@aurel32.net>
+        with the help of Jean Delvare <khali@linux-fr.org>
+
+Module Parameters
+------------------
+
+* polarity int
+  Output's polarity: 0 = active high, 1 = active low
+
+Description
+-----------
+
+The DS1621 is a (one instance) digital thermometer and thermostat. It has
+both high and low temperature limits which can be user defined (i.e.
+programmed into non-volatile on-chip registers). Temperature range is -55
+degree Celsius to +125 in 0.5 increments. You may convert this into a
+Fahrenheit range of -67 to +257 degrees with 0.9 steps. If polarity
+parameter is not provided, original value is used.
+
+As for the thermostat, behavior can also be programmed using the polarity
+toggle. On the one hand ("heater"), the thermostat output of the chip,
+Tout, will trigger when the low limit temperature is met or underrun and
+stays high until the high limit is met or exceeded. On the other hand
+("cooler"), vice versa. That way "heater" equals "active low", whereas
+"conditioner" equals "active high". Please note that the DS1621 data sheet
+is somewhat misleading in this point since setting the polarity bit does
+not simply invert Tout.
+
+A second thing is that, during extensive testing, Tout showed a tolerance
+of up to +/- 0.5 degrees even when compared against precise temperature
+readings. Be sure to have a high vs. low temperature limit gap of al least
+1.0 degree Celsius to avoid Tout "bouncing", though!
+
+As for alarms, you can read the alarm status of the DS1621 via the 'alarms'
+/sys file interface. The result consists mainly of bit 6 and 5 of the
+configuration register of the chip; bit 6 (0x40 or 64) is the high alarm
+bit and bit 5 (0x20 or 32) the low one. These bits are set when the high or
+low limits are met or exceeded and are reset by the module as soon as the
+respective temperature ranges are left.
+
+The alarm registers are in no way suitable to find out about the actual
+status of Tout. They will only tell you about its history, whether or not
+any of the limits have ever been met or exceeded since last power-up or
+reset. Be aware: When testing, it showed that the status of Tout can change
+with neither of the alarms set.
+
+Temperature conversion of the DS1621 takes up to 1000ms; internal access to
+non-volatile registers may last for 10ms or below.
+
+High Accuracy Temperature Reading
+---------------------------------
+
+As said before, the temperature issued via the 9-bit i2c-bus data is
+somewhat arbitrary. Internally, the temperature conversion is of a
+different kind that is explained (not so...) well in the DS1621 data sheet.
+To cut the long story short: Inside the DS1621 there are two oscillators,
+both of them biassed by a temperature coefficient.
+
+Higher resolution of the temperature reading can be achieved using the
+internal projection, which means taking account of REG_COUNT and REG_SLOPE
+(the driver manages them):
+
+Taken from Dallas Semiconductors App Note 068: 'Increasing Temperature
+Resolution on the DS1620' and App Note 105: 'High Resolution Temperature
+Measurement with Dallas Direct-to-Digital Temperature Sensors'
+
+- Read the 9-bit temperature and strip the LSB (Truncate the .5 degs)
+- The resulting value is TEMP_READ.
+- Then, read REG_COUNT.
+- And then, REG_SLOPE.
+
+      TEMP = TEMP_READ - 0.25 + ((REG_SLOPE - REG_COUNT) / REG_SLOPE)
+
+Note that this is what the DONE bit in the DS1621 configuration register is
+good for: Internally, one temperature conversion takes up to 1000ms. Before
+that conversion is complete you will not be able to read valid things out
+of REG_COUNT and REG_SLOPE. The DONE bit, as you may have guessed by now,
+tells you whether the conversion is complete ("done", in plain English) and
+thus, whether the values you read are good or not.
+
+The DS1621 has two modes of operation: "Continuous" conversion, which can
+be understood as the default stand-alone mode where the chip gets the
+temperature and controls external devices via its Tout pin or tells other
+i2c's about it if they care. The other mode is called "1SHOT", that means
+that it only figures out about the temperature when it is explicitly told
+to do so; this can be seen as power saving mode.
+
+Now if you want to read REG_COUNT and REG_SLOPE, you have to either stop
+the continuous conversions until the contents of these registers are valid,
+or, in 1SHOT mode, you have to have one conversion made.

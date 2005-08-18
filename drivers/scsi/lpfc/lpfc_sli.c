@@ -1,26 +1,23 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
+ * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id: lpfc_sli.c 1.232 2005/04/13 11:59:16EDT sf_support Exp  $
- */
 
 #include <linux/blkdev.h>
 #include <linux/pci.h>
@@ -225,8 +222,7 @@ lpfc_sli_ringtx_get(struct lpfc_hba * phba, struct lpfc_sli_ring * pring)
 static IOCB_t *
 lpfc_sli_next_iocb_slot (struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
-	MAILBOX_t *mbox = (MAILBOX_t *)phba->sli.MBhostaddr;
-	PGP *pgp = (PGP *)&mbox->us.s2.port[pring->ringno];
+	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
 	uint32_t  max_cmd_idx = pring->numCiocb;
 	IOCB_t *iocb = NULL;
 
@@ -411,9 +407,7 @@ lpfc_sli_resume_iocb(struct lpfc_hba * phba, struct lpfc_sli_ring * pring)
 static void
 lpfc_sli_turn_on_ring(struct lpfc_hba * phba, int ringno)
 {
-	PGP *pgp =
-		((PGP *) &
-		 (((MAILBOX_t *)phba->sli.MBhostaddr)->us.s2.port[ringno]));
+	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[ringno];
 
 	/* If the ring is active, flag it */
 	if (phba->sli.ring[ringno].cmdringaddr) {
@@ -537,7 +531,7 @@ lpfc_sli_handle_mb_event(struct lpfc_hba * phba)
 	/* Get a Mailbox buffer to setup mailbox commands for callback */
 	if ((pmb = phba->sli.mbox_active)) {
 		pmbox = &pmb->mb;
-		mbox = (MAILBOX_t *) phba->sli.MBhostaddr;
+		mbox = &phba->slim2p->mbx;
 
 		/* First check out the status word */
 		lpfc_sli_pcimem_bcopy(mbox, pmbox, sizeof (uint32_t));
@@ -905,10 +899,11 @@ static int
 lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 				struct lpfc_sli_ring * pring, uint32_t mask)
 {
+ 	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
 	IOCB_t *irsp = NULL;
+	IOCB_t *entry = NULL;
 	struct lpfc_iocbq *cmdiocbq = NULL;
 	struct lpfc_iocbq rspiocbq;
-	PGP *pgp;
 	uint32_t status;
 	uint32_t portRspPut, portRspMax;
 	int rc = 1;
@@ -919,10 +914,6 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 
 	spin_lock_irqsave(phba->host->host_lock, iflag);
 	pring->stats.iocb_event++;
-
-	/* The driver assumes SLI-2 mode */
-	pgp = (PGP *) &((MAILBOX_t *) phba->sli.MBhostaddr)
-		->us.s2.port[pring->ringno];
 
 	/*
 	 * The next available response entry should never exceed the maximum
@@ -955,7 +946,17 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 
 	rmb();
 	while (pring->rspidx != portRspPut) {
-		irsp = (IOCB_t *) IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
+		/*
+		 * Fetch an entry off the ring and copy it into a local data
+		 * structure.  The copy involves a byte-swap since the
+		 * network byte order and pci byte orders are different.
+		 */
+		entry = (IOCB_t *) IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
+		lpfc_sli_pcimem_bcopy((uint32_t *) entry,
+				      (uint32_t *) &rspiocbq.iocb,
+				      sizeof (IOCB_t));
+		irsp = &rspiocbq.iocb;
+
 		type = lpfc_sli_iocb_cmd_type(irsp->ulpCommand & CMD_IOCB_MASK);
 		pring->stats.iocb_rsp++;
 		rsp_cmpl++;
@@ -987,10 +988,6 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 				break;
 			}
 
-			rspiocbq.iocb.un.ulpWord[4] = irsp->un.ulpWord[4];
-			rspiocbq.iocb.ulpStatus = irsp->ulpStatus;
-			rspiocbq.iocb.ulpContext = irsp->ulpContext;
-			rspiocbq.iocb.ulpIoTag = irsp->ulpIoTag;
 			cmdiocbq = lpfc_sli_txcmpl_ring_iotag_lookup(phba,
 								pring,
 								&rspiocbq);
@@ -1075,9 +1072,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 	struct lpfc_iocbq *cmdiocbp;
 	struct lpfc_iocbq *saveq;
 	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
-	HGP *hgp;
-	PGP *pgp;
-	MAILBOX_t *mbox;
+	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
 	uint8_t iocb_cmd_type;
 	lpfc_iocb_type type;
 	uint32_t status, free_saveq;
@@ -1088,11 +1083,6 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 
 	spin_lock_irqsave(phba->host->host_lock, iflag);
 	pring->stats.iocb_event++;
-
-	/* The driver assumes SLI-2 mode */
-	mbox = (MAILBOX_t *) phba->sli.MBhostaddr;
-	pgp = (PGP *) & mbox->us.s2.port[pring->ringno];
-	hgp = (HGP *) & mbox->us.s2.host[pring->ringno];
 
 	/*
 	 * The next available response entry should never exceed the maximum
@@ -1738,6 +1728,8 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 		return;
 	}
 
+	phba->work_hba_events &= ~WORKER_MBOX_TMO;
+
 	pmbox = phba->sli.mbox_active;
 	mb = &pmbox->mb;
 
@@ -1752,16 +1744,14 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 		phba->sli.sli_flag,
 		phba->sli.mbox_active);
 
-	if (phba->sli.mbox_active == pmbox) {
-		phba->sli.mbox_active = NULL;
-		if (pmbox->mbox_cmpl) {
-			mb->mbxStatus = MBX_NOT_FINISHED;
-			spin_unlock_irq(phba->host->host_lock);
-			(pmbox->mbox_cmpl) (phba, pmbox);
-			spin_lock_irq(phba->host->host_lock);
-		}
-		phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
+	phba->sli.mbox_active = NULL;
+	if (pmbox->mbox_cmpl) {
+		mb->mbxStatus = MBX_NOT_FINISHED;
+		spin_unlock_irq(phba->host->host_lock);
+		(pmbox->mbox_cmpl) (phba, pmbox);
+		spin_lock_irq(phba->host->host_lock);
 	}
+	phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 
 	spin_unlock_irq(phba->host->host_lock);
 	lpfc_mbox_abort(phba);
@@ -1771,7 +1761,6 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 int
 lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 {
-	MAILBOX_t *mbox;
 	MAILBOX_t *mb;
 	struct lpfc_sli *psli;
 	uint32_t status, evtctr;
@@ -1901,15 +1890,13 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 	mb->mbxOwner = OWN_CHIP;
 
 	if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
-
 		/* First copy command data to host SLIM area */
-		mbox = (MAILBOX_t *) psli->MBhostaddr;
-		lpfc_sli_pcimem_bcopy(mb, mbox, MAILBOX_CMD_SIZE);
+		lpfc_sli_pcimem_bcopy(mb, &phba->slim2p->mbx, MAILBOX_CMD_SIZE);
 	} else {
 		if (mb->mbxCommand == MBX_CONFIG_PORT) {
 			/* copy command data into host mbox for cmpl */
-			mbox = (MAILBOX_t *) psli->MBhostaddr;
-			lpfc_sli_pcimem_bcopy(mb, mbox, MAILBOX_CMD_SIZE);
+			lpfc_sli_pcimem_bcopy(mb, &phba->slim2p->mbx,
+					MAILBOX_CMD_SIZE);
 		}
 
 		/* First copy mbox command data to HBA SLIM, skip past first
@@ -1946,8 +1933,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 		psli->mbox_active = NULL;
 		if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 			/* First read mbox status word */
-			mbox = (MAILBOX_t *) psli->MBhostaddr;
-			word0 = *((volatile uint32_t *)mbox);
+			word0 = *((volatile uint32_t *)&phba->slim2p->mbx);
 			word0 = le32_to_cpu(word0);
 		} else {
 			/* First read mbox status word */
@@ -1984,8 +1970,8 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 
 			if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 				/* First copy command data */
-				mbox = (MAILBOX_t *) psli->MBhostaddr;
-				word0 = *((volatile uint32_t *)mbox);
+				word0 = *((volatile uint32_t *)
+						&phba->slim2p->mbx);
 				word0 = le32_to_cpu(word0);
 				if (mb->mbxCommand == MBX_CONFIG_PORT) {
 					MAILBOX_t *slimmb;
@@ -2009,10 +1995,9 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 		}
 
 		if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
-			/* First copy command data */
-			mbox = (MAILBOX_t *) psli->MBhostaddr;
 			/* copy results back to user */
-			lpfc_sli_pcimem_bcopy(mbox, mb, MAILBOX_CMD_SIZE);
+			lpfc_sli_pcimem_bcopy(&phba->slim2p->mbx, mb,
+					MAILBOX_CMD_SIZE);
 		} else {
 			/* First copy command data */
 			lpfc_memcpy_from_slim(mb, phba->MBslimaddr,
@@ -2089,8 +2074,6 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		switch (piocb->iocb.ulpCommand) {
 		case CMD_QUE_RING_BUF_CN:
 		case CMD_QUE_RING_BUF64_CN:
-		case CMD_CLOSE_XRI_CN:
-		case CMD_ABORT_XRI_CN:
 			/*
 			 * For IOCBs, like QUE_RING_BUF, that have no rsp ring
 			 * completion, iocb_cmpl MUST be 0.
@@ -2573,6 +2556,16 @@ lpfc_sli_sum_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	return sum;
 }
 
+void
+lpfc_sli_abort_fcp_cmpl(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
+			   struct lpfc_iocbq * rspiocb)
+{
+	spin_lock_irq(phba->host->host_lock);
+	list_add_tail(&cmdiocb->list, &phba->lpfc_iocb_list);
+	spin_unlock_irq(phba->host->host_lock);
+	return;
+}
+
 int
 lpfc_sli_abort_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		    uint16_t tgt_id, uint64_t lun_id, uint32_t ctx,
@@ -2622,6 +2615,8 @@ lpfc_sli_abort_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		else
 			abtsiocb->iocb.ulpCommand = CMD_CLOSE_XRI_CN;
 
+		/* Setup callback routine and issue the command. */
+		abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
 		ret_val = lpfc_sli_issue_iocb(phba, pring, abtsiocb, 0);
 		if (ret_val == IOCB_ERROR) {
 			list_add_tail(&abtsiocb->list, lpfc_iocb_list);

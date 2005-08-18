@@ -90,7 +90,7 @@ snd_pmac_awacs_write_noreg(pmac_t *chip, int reg, int val)
 	snd_pmac_awacs_write(chip, val | (reg << 12));
 }
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /* Recalibrate chip */
 static void screamer_recalibrate(pmac_t *chip)
 {
@@ -103,7 +103,7 @@ static void screamer_recalibrate(pmac_t *chip)
 	snd_pmac_awacs_write_noreg(chip, 1, chip->awacs_reg[1]);
 	if (chip->manufacturer == 0x1)
 		/* delay for broken crystal part */
-		big_mdelay(750);
+		msleep(750);
 	snd_pmac_awacs_write_noreg(chip, 1,
 				   chip->awacs_reg[1] | MASK_RECALIBRATE | MASK_CMUTE | MASK_AMUTE);
 	snd_pmac_awacs_write_noreg(chip, 1, chip->awacs_reg[1]);
@@ -642,7 +642,7 @@ static void awacs_restore_all_regs(pmac_t *chip)
 	}
 }
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 static void snd_pmac_awacs_suspend(pmac_t *chip)
 {
 	snd_pmac_awacs_write_noreg(chip, 1, (chip->awacs_reg[1]
@@ -653,10 +653,10 @@ static void snd_pmac_awacs_resume(pmac_t *chip)
 {
 	if (machine_is_compatible("PowerBook3,1")
 	    || machine_is_compatible("PowerBook3,2")) {
-		big_mdelay(100);
+		msleep(100);
 		snd_pmac_awacs_write_reg(chip, 1,
 			chip->awacs_reg[1] & ~MASK_PAROUT);
-		big_mdelay(300);
+		msleep(300);
 	}
 
 	awacs_restore_all_regs(chip);
@@ -676,7 +676,7 @@ static void snd_pmac_awacs_resume(pmac_t *chip)
 	}
 #endif
 }
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 
 #ifdef PMAC_SUPPORT_AUTOMUTE
 /*
@@ -883,7 +883,7 @@ snd_pmac_awacs_init(pmac_t *chip)
 	 * set lowlevel callbacks
 	 */
 	chip->set_format = snd_pmac_awacs_set_format;
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	chip->suspend = snd_pmac_awacs_suspend;
 	chip->resume = snd_pmac_awacs_resume;
 #endif

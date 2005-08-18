@@ -103,9 +103,6 @@ void machine_power_off(void)
 {
 }
 
-EXPORT_SYMBOL(machine_halt);
-EXPORT_SYMBOL(machine_power_off);
-
 void machine_restart(char * __unused)
 {
 	/*
@@ -135,8 +132,6 @@ void machine_restart(char * __unused)
 	printk("Reboot failed -- System halted\n");
 	while (1);
 }
-
-EXPORT_SYMBOL(machine_restart);
 
 void show_regs(struct pt_regs * regs)
 {

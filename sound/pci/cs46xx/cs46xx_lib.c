@@ -1295,8 +1295,7 @@ static snd_pcm_hw_constraint_list_t hw_constraints_period_sizes = {
 
 static void snd_cs46xx_pcm_free_substream(snd_pcm_runtime_t *runtime)
 {
-	cs46xx_pcm_t * cpcm = runtime->private_data;
-	kfree(cpcm);
+	kfree(runtime->private_data);
 }
 
 static int _cs46xx_playback_open_channel (snd_pcm_substream_t * substream,int pcm_channel_id)
@@ -2401,8 +2400,7 @@ static void snd_cs46xx_codec_reset (ac97_t * ac97)
 		if ((err = snd_ac97_read(ac97, AC97_REC_GAIN)) == 0x8a05)
 			return;
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ/100);
+		msleep(10);
 	} while (time_after_eq(end_time, jiffies));
 
 	snd_printk("CS46xx secondary codec dont respond!\n");  
@@ -2436,8 +2434,7 @@ static int __devinit cs46xx_detect_codec(cs46xx_t *chip, int codec)
 			err = snd_ac97_mixer(chip->ac97_bus, &ac97, &chip->ac97[codec]);
 			return err;
 		}
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ/100);
+		msleep(10);
 	}
 	snd_printdd("snd_cs46xx: codec %d detection timeout\n", codec);
 	return -ENXIO;
@@ -3019,8 +3016,7 @@ static int snd_cs46xx_chip_init(cs46xx_t *chip)
 	/*
          *  Wait until the PLL has stabilized.
 	 */
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ/10); /* 100ms */
+	msleep(100);
 
 	/*
 	 *  Turn on clocking of the core so that we can setup the serial ports.
@@ -3073,8 +3069,7 @@ static int snd_cs46xx_chip_init(cs46xx_t *chip)
 		 */
 		if (snd_cs46xx_peekBA0(chip, BA0_ACSTS) & ACSTS_CRDY)
 			goto ok1;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout((HZ+99)/100);
+		msleep(10);
 	}
 
 
@@ -3123,8 +3118,7 @@ static int snd_cs46xx_chip_init(cs46xx_t *chip)
 		 */
 		if ((snd_cs46xx_peekBA0(chip, BA0_ACISV) & (ACISV_ISV3 | ACISV_ISV4)) == (ACISV_ISV3 | ACISV_ISV4))
 			goto ok2;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout((HZ+99)/100);
+		msleep(10);
 	}
 
 #ifndef CONFIG_SND_CS46XX_NEW_DSP

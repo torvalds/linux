@@ -1,26 +1,23 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
+ * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id: lpfc_scsi.c 1.37 2005/04/13 14:27:09EDT sf_support Exp  $
- */
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -798,7 +795,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 }
 
 static int
-lpfc_abort_handler(struct scsi_cmnd *cmnd)
+__lpfc_abort_handler(struct scsi_cmnd *cmnd)
 {
 	struct lpfc_hba *phba =
 			(struct lpfc_hba *)cmnd->device->host->hostdata[0];
@@ -874,6 +871,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		else
 			icmd->ulpCommand = CMD_CLOSE_XRI_CN;
 
+		abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
 		if (lpfc_sli_issue_iocb(phba, pring, abtsiocb, 0) ==
 								IOCB_ERROR) {
 			list_add_tail(&abtsiocb->list, lpfc_iocb_list);
@@ -918,7 +916,17 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 }
 
 static int
-lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
+lpfc_abort_handler(struct scsi_cmnd *cmnd)
+{
+	int rc;
+	spin_lock_irq(cmnd->device->host->host_lock);
+	rc = __lpfc_abort_handler(cmnd);
+	spin_unlock_irq(cmnd->device->host->host_lock);
+	return rc;
+}
+
+static int
+__lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
@@ -1030,11 +1038,21 @@ out:
 	return ret;
 }
 
+static int
+lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
+{
+	int rc;
+	spin_lock_irq(cmnd->device->host->host_lock);
+	rc = __lpfc_reset_lun_handler(cmnd);
+	spin_unlock_irq(cmnd->device->host->host_lock);
+	return rc;
+}
+
 /*
  * Note: midlayer calls this function with the host_lock held
  */
 static int
-lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
+__lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
@@ -1121,6 +1139,16 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 			phba->brd_no, ret);
 out:
 	return ret;
+}
+
+static int
+lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
+{
+	int rc;
+	spin_lock_irq(cmnd->device->host->host_lock);
+	rc = __lpfc_reset_bus_handler(cmnd);
+	spin_unlock_irq(cmnd->device->host->host_lock);
+	return rc;
 }
 
 static int
@@ -1243,4 +1271,5 @@ struct scsi_host_template lpfc_template = {
 	.cmd_per_lun		= LPFC_CMD_PER_LUN,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_host_attrs,
+	.max_sectors		= 0xFFFF,
 };

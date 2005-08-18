@@ -21,7 +21,7 @@
 #include <asm/uaccess.h>
 
 static char *sender = "VMRMSVM";
-module_param(sender, charp, 0);
+module_param(sender, charp, 0400);
 MODULE_PARM_DESC(sender,
 		 "Guest name that may send SMSG messages (default VMRMSVM)");
 

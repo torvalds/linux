@@ -185,7 +185,7 @@ static inline void list_del(struct list_head *entry)
  * list_for_each_entry_rcu().
  *
  * Note that the caller is not permitted to immediately free
- * the newly deleted entry.  Instead, either synchronize_kernel()
+ * the newly deleted entry.  Instead, either synchronize_rcu()
  * or call_rcu() must be used to defer freeing until an RCU
  * grace period has elapsed.
  */

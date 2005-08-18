@@ -152,6 +152,4 @@ extern int snd_timer_pause(snd_timer_instance_t * timeri);
 
 extern void snd_timer_interrupt(snd_timer_t * timer, unsigned long ticks_left);
 
-extern unsigned int snd_timer_system_resolution(void);
-
 #endif /* __SOUND_TIMER_H */

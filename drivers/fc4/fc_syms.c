@@ -27,7 +27,6 @@ EXPORT_SYMBOL(fc_do_prli);
 EXPORT_SYMBOL(fcp_scsi_queuecommand);
 EXPORT_SYMBOL(fcp_scsi_abort);
 EXPORT_SYMBOL(fcp_scsi_dev_reset);
-EXPORT_SYMBOL(fcp_scsi_bus_reset);
 EXPORT_SYMBOL(fcp_scsi_host_reset);
 
 #endif /* CONFIG_MODULES */

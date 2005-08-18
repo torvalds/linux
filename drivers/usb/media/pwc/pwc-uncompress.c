@@ -118,9 +118,9 @@ int pwc_decompress(struct pwc_device *pdev)
 		   return -ENXIO; /* No such device or address: missing decompressor */
 		 }
 
+#if 0
 		switch (pdev->type)
 		 {
-#if 0		 
 		  case 675:
 		  case 680:
 		  case 690:
@@ -128,18 +128,17 @@ int pwc_decompress(struct pwc_device *pdev)
 		  case 730:
 		  case 740:
 		  case 750:
-		    pwc_dec23_decompress(&pdev->image, &pdev->view, &pdev->offset,
-				yuv, image,
-				flags,
+		    pwc_dec23_decompress(&pdev->image, &pdev->view,
+				&pdev->offset, yuv, image, flags,
 				pdev->decompress_data, pdev->vbandlength);
 		    break;
 		  case 645:
 		  case 646:
 		    /* TODO & FIXME */
-#endif		    
-		    return -ENXIO; /* No such device or address: missing decompressor */
+		    return -ENXIO; /* Missing decompressor */
 		    break;
 		 }
+#endif
 	}
 	return 0;
 }

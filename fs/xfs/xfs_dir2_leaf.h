@@ -330,14 +330,7 @@ extern void
 			       int first, int last);
 
 extern void
-	xfs_dir2_leaf_log_bests(struct xfs_trans *tp, struct xfs_dabuf *bp,
-				int first, int last);
-
-extern void
 	xfs_dir2_leaf_log_header(struct xfs_trans *tp, struct xfs_dabuf *bp);
-
-extern void
-	xfs_dir2_leaf_log_tail(struct xfs_trans *tp, struct xfs_dabuf *bp);
 
 extern int
 	xfs_dir2_leaf_lookup(struct xfs_da_args *args);

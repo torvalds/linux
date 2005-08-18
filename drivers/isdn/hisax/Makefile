@@ -23,7 +23,7 @@ endif
 # Multipart objects.
 
 hisax_st5481-y 				:= st5481_init.o st5481_usb.o st5481_d.o \
-					   st5481_b.o st5481_hdlc.o
+					   st5481_b.o
 
 hisax-y	  				:= config.o isdnl1.o tei.o isdnl2.o isdnl3.o \
 		     			   lmgr.o q931.o callc.o fsm.o

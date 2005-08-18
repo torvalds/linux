@@ -109,5 +109,16 @@ struct jfs_superblock {
 extern int readSuper(struct super_block *, struct buffer_head **);
 extern int updateSuper(struct super_block *, uint);
 extern void jfs_error(struct super_block *, const char *, ...);
+extern int jfs_mount(struct super_block *);
+extern int jfs_mount_rw(struct super_block *, int);
+extern int jfs_umount(struct super_block *);
+extern int jfs_umount_rw(struct super_block *);
+
+extern int jfs_stop_threads;
+extern struct completion jfsIOwait;
+extern wait_queue_head_t jfs_IO_thread_wait;
+extern wait_queue_head_t jfs_commit_thread_wait;
+extern wait_queue_head_t jfs_sync_thread_wait;
+extern int jfs_extendfs(struct super_block *, s64, int);
 
 #endif /*_H_JFS_SUPERBLOCK */

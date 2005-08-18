@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/io_apic.h>
 
@@ -106,3 +107,50 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	return 1;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+void fixup_irqs(cpumask_t map)
+{
+	unsigned int irq;
+	static int warned;
+
+	for (irq = 0; irq < NR_IRQS; irq++) {
+		cpumask_t mask;
+		if (irq == 2)
+			continue;
+
+		cpus_and(mask, irq_affinity[irq], map);
+		if (any_online_cpu(mask) == NR_CPUS) {
+			printk("Breaking affinity for irq %i\n", irq);
+			mask = map;
+		}
+		if (irq_desc[irq].handler->set_affinity)
+			irq_desc[irq].handler->set_affinity(irq, mask);
+		else if (irq_desc[irq].action && !(warned++))
+			printk("Cannot set affinity for irq %i\n", irq);
+	}
+
+	/* That doesn't seem sufficient.  Give it 1ms. */
+	local_irq_enable();
+	mdelay(1);
+	local_irq_disable();
+}
+#endif
+
+extern void call_softirq(void);
+
+asmlinkage void do_softirq(void)
+{
+ 	__u32 pending;
+ 	unsigned long flags;
+
+ 	if (in_interrupt())
+ 		return;
+
+ 	local_irq_save(flags);
+ 	pending = local_softirq_pending();
+ 	/* Switch to interrupt stack */
+ 	if (pending)
+		call_softirq();
+ 	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(do_softirq);

@@ -33,20 +33,14 @@ int fallback_aper_force __initdata = 0;
 
 int fix_aperture __initdata = 1;
 
-#define NB_ID_3 (PCI_VENDOR_ID_AMD | (0x1103<<16))
+/* This code runs before the PCI subsystem is initialized, so just
+   access the northbridge directly. */
 
-static struct resource aper_res = {
-	.name = "Aperture",
-	.flags = IORESOURCE_MEM,
-};
+#define NB_ID_3 (PCI_VENDOR_ID_AMD | (0x1103<<16))
 
 static u32 __init allocate_aperture(void) 
 {
-#ifdef CONFIG_DISCONTIGMEM
 	pg_data_t *nd0 = NODE_DATA(0);
-#else
-	pg_data_t *nd0 = &contig_page_data;
-#endif	
 	u32 aper_size;
 	void *p; 
 
@@ -55,24 +49,11 @@ static u32 __init allocate_aperture(void)
 	aper_size = (32 * 1024 * 1024) << fallback_aper_order; 
 
 	/* 
-	 * Aperture has to be naturally aligned. This means an 2GB
-	 * aperture won't have much chances to find a place in the
-	 * lower 4GB of memory.  Unfortunately we cannot move it up
-	 * because that would make the IOMMU useless.
+	 * Aperture has to be naturally aligned. This means an 2GB aperture won't
+	 * have much chances to find a place in the lower 4GB of memory.
+	 * Unfortunately we cannot move it up because that would make the
+	 * IOMMU useless.
 	 */
-
-	/* First try to find some free unused space */
-	if (!allocate_resource(&iomem_resource, &aper_res,
-			       aper_size,
-			       0, 0xffffffff,
-			       aper_size,
-			       NULL, NULL)) {
-		printk(KERN_INFO "Putting aperture at %lx-%lx\n",
-		       aper_res.start, aper_res.end);
-		return aper_res.start;
-	}
-
-	/* No free space found. Go on to waste some memory... */
 	p = __alloc_bootmem_node(nd0, aper_size, aper_size, 0); 
 	if (!p || __pa(p)+aper_size > 0xffffffff) {
 		printk("Cannot allocate aperture memory hole (%p,%uK)\n",
@@ -81,7 +62,7 @@ static u32 __init allocate_aperture(void)
 			free_bootmem_node(nd0, (unsigned long)p, aper_size); 
 		return 0;
 	}
-	printk("Mapping aperture over %d KB of precious RAM @ %lx\n",
+	printk("Mapping aperture over %d KB of RAM @ %lx\n",
 	       aper_size >> 10, __pa(p)); 
 	return (u32)__pa(p); 
 }
@@ -102,16 +83,10 @@ static int __init aperture_valid(char *name, u64 aper_base, u32 aper_size)
 		printk("Aperture from %s pointing to e820 RAM. Ignoring.\n",name);
 		return 0; 
 	} 
-	/* Don't check the resource here because the aperture is usually
-	   in an e820 reserved area, and we allocated these earlier. */
 	return 1;
 } 
 
-/*
- * Find a PCI capability.
- * This code runs before the PCI subsystem is initialized, so just
- * access the northbridge directly.
- */
+/* Find a PCI capability */
 static __u32 __init find_cap(int num, int slot, int func, int cap) 
 { 
 	u8 pos;
@@ -276,6 +251,8 @@ void __init iommu_hole_init(void)
 		   fallback_aper_force) { 
 		printk("Your BIOS doesn't leave a aperture memory hole\n");
 		printk("Please enable the IOMMU option in the BIOS setup\n");
+		printk("This costs you %d MB of RAM\n",
+		       32 << fallback_aper_order);
 
 		aper_order = fallback_aper_order;
 		aper_alloc = allocate_aperture();

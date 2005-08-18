@@ -88,6 +88,8 @@ static int sa11x0_pm_enter(suspend_state_t state)
 	/* go zzz */
 	sa1100_cpu_suspend();
 
+	cpu_init();
+
 	/*
 	 * Ensure not to come back here if it wasn't intended
 	 */

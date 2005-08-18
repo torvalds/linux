@@ -71,6 +71,7 @@
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
+#include "jfs_superblock.h"
 #include "jfs_txnmgr.h"
 #include "jfs_debug.h"
 
@@ -167,14 +168,6 @@ static struct jfs_log *dummy_log = NULL;
 static DECLARE_MUTEX(jfs_log_sem);
 
 /*
- * external references
- */
-extern void txLazyUnlock(struct tblock * tblk);
-extern int jfs_stop_threads;
-extern struct completion jfsIOwait;
-extern int jfs_tlocks_low;
-
-/*
  * forward references
  */
 static int lmWriteRecord(struct jfs_log * log, struct tblock * tblk,
@@ -198,7 +191,7 @@ static int lbmIOWait(struct lbuf * bp, int flag);
 static bio_end_io_t lbmIODone;
 static void lbmStartIO(struct lbuf * bp);
 static void lmGCwrite(struct jfs_log * log, int cant_block);
-static int lmLogSync(struct jfs_log * log, int nosyncwait);
+static int lmLogSync(struct jfs_log * log, int hard_sync);
 
 
 
@@ -922,19 +915,17 @@ static void lmPostGC(struct lbuf * bp)
  *	if new sync address is available
  *	(normally the case if sync() is executed by back-ground
  *	process).
- *	if not, explicitly run jfs_blogsync() to initiate
- *	getting of new sync address.
  *	calculate new value of i_nextsync which determines when
  *	this code is called again.
  *
  * PARAMETERS:	log	- log structure
- * 		nosyncwait - 1 if called asynchronously
+ * 		hard_sync - 1 to force all metadata to be written
  *
  * RETURN:	0
  *			
  * serialization: LOG_LOCK() held on entry/exit
  */
-static int lmLogSync(struct jfs_log * log, int nosyncwait)
+static int lmLogSync(struct jfs_log * log, int hard_sync)
 {
 	int logsize;
 	int written;		/* written since last syncpt */
@@ -948,11 +939,18 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
 	unsigned long flags;
 
 	/* push dirty metapages out to disk */
-	list_for_each_entry(sbi, &log->sb_list, log_list) {
-		filemap_flush(sbi->ipbmap->i_mapping);
-		filemap_flush(sbi->ipimap->i_mapping);
-		filemap_flush(sbi->direct_inode->i_mapping);
-	}
+	if (hard_sync)
+		list_for_each_entry(sbi, &log->sb_list, log_list) {
+			filemap_fdatawrite(sbi->ipbmap->i_mapping);
+			filemap_fdatawrite(sbi->ipimap->i_mapping);
+			filemap_fdatawrite(sbi->direct_inode->i_mapping);
+		}
+	else
+		list_for_each_entry(sbi, &log->sb_list, log_list) {
+			filemap_flush(sbi->ipbmap->i_mapping);
+			filemap_flush(sbi->ipimap->i_mapping);
+			filemap_flush(sbi->direct_inode->i_mapping);
+		}
 
 	/*
 	 *      forward syncpt
@@ -1028,16 +1026,13 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
 		/* next syncpt trigger = written + more */
 		log->nextsync = written + more;
 
-	/* return if lmLogSync() from outside of transaction, e.g., sync() */
-	if (nosyncwait)
-		return lsn;
-
 	/* if number of bytes written from last sync point is more
 	 * than 1/4 of the log size, stop new transactions from
 	 * starting until all current transactions are completed
 	 * by setting syncbarrier flag.
 	 */
-	if (written > LOGSYNC_BARRIER(logsize) && logsize > 32 * LOGPSIZE) {
+	if (!test_bit(log_SYNCBARRIER, &log->flag) &&
+	    (written > LOGSYNC_BARRIER(logsize)) && log->active) {
 		set_bit(log_SYNCBARRIER, &log->flag);
 		jfs_info("log barrier on: lsn=0x%x syncpt=0x%x", lsn,
 			 log->syncpt);
@@ -1055,11 +1050,12 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
  *
  * FUNCTION:	write log SYNCPT record for specified log
  *
- * PARAMETERS:	log	- log structure
+ * PARAMETERS:	log	  - log structure
+ * 		hard_sync - set to 1 to force metadata to be written
  */
-void jfs_syncpt(struct jfs_log *log)
+void jfs_syncpt(struct jfs_log *log, int hard_sync)
 {	LOG_LOCK(log);
-	lmLogSync(log, 1);
+	lmLogSync(log, hard_sync);
 	LOG_UNLOCK(log);
 }
 
@@ -1624,6 +1620,8 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 		}
 	}
 	assert(list_empty(&log->cqueue));
+
+#ifdef CONFIG_JFS_DEBUG
 	if (!list_empty(&log->synclist)) {
 		struct logsyncblk *lp;
 
@@ -1638,9 +1636,8 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 				dump_mem("orphan tblock", lp,
 					 sizeof(struct tblock));
 		}
-//		current->state = TASK_INTERRUPTIBLE;
-//		schedule();
 	}
+#endif
 	//assert(list_empty(&log->synclist));
 	clear_bit(log_FLUSH, &log->flag);
 }
@@ -2365,9 +2362,9 @@ int jfsIOWait(void *arg)
 			lbmStartIO(bp);
 			spin_lock_irq(&log_redrive_lock);
 		}
-		if (current->flags & PF_FREEZE) {
+		if (freezing(current)) {
 			spin_unlock_irq(&log_redrive_lock);
-			refrigerator(PF_FREEZE);
+			refrigerator();
 		} else {
 			add_wait_queue(&jfs_IO_thread_wait, &wq);
 			set_current_state(TASK_INTERRUPTIBLE);

@@ -26,7 +26,6 @@
 #include <net/checksum.h>
 #include <net/udp.h>
 
-#include <linux/netfilter_ipv4/lockhelp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
 #include <linux/netfilter_ipv4/ip_conntrack_amanda.h>
 
@@ -42,7 +41,7 @@ static char *conns[] = { "DATA ", "MESG ", "INDEX " };
 
 /* This is slow, but it's simple. --RR */
 static char amanda_buffer[65536];
-static DECLARE_LOCK(amanda_buffer_lock);
+static DEFINE_SPINLOCK(amanda_buffer_lock);
 
 unsigned int (*ip_nat_amanda_hook)(struct sk_buff **pskb,
 				   enum ip_conntrack_info ctinfo,
@@ -76,7 +75,7 @@ static int help(struct sk_buff **pskb,
 		return NF_ACCEPT;
 	}
 
-	LOCK_BH(&amanda_buffer_lock);
+	spin_lock_bh(&amanda_buffer_lock);
 	skb_copy_bits(*pskb, dataoff, amanda_buffer, (*pskb)->len - dataoff);
 	data = amanda_buffer;
 	data_limit = amanda_buffer + (*pskb)->len - dataoff;
@@ -102,14 +101,13 @@ static int help(struct sk_buff **pskb,
 		if (port == 0 || len > 5)
 			break;
 
-		exp = ip_conntrack_expect_alloc();
+		exp = ip_conntrack_expect_alloc(ct);
 		if (exp == NULL) {
 			ret = NF_DROP;
 			goto out;
 		}
 
 		exp->expectfn = NULL;
-		exp->master = ct;
 
 		exp->tuple.src.ip = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.ip;
 		exp->tuple.src.u.tcp.port = 0;
@@ -127,14 +125,13 @@ static int help(struct sk_buff **pskb,
 			ret = ip_nat_amanda_hook(pskb, ctinfo,
 						 tmp - amanda_buffer,
 						 len, exp);
-		else if (ip_conntrack_expect_related(exp) != 0) {
-			ip_conntrack_expect_free(exp);
+		else if (ip_conntrack_expect_related(exp) != 0)
 			ret = NF_DROP;
-		}
+		ip_conntrack_expect_put(exp);
 	}
 
 out:
-	UNLOCK_BH(&amanda_buffer_lock);
+	spin_unlock_bh(&amanda_buffer_lock);
 	return ret;
 }
 

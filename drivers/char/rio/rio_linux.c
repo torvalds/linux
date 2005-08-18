@@ -354,11 +354,6 @@ int rio_ismodem(struct tty_struct *tty)
 }
 
 
-void rio_udelay (int usecs)
-{
-  udelay (usecs);
-}
-
 static int rio_set_real_termios (void *ptr)
 {
   int rv, modem;
@@ -1100,7 +1095,7 @@ static int __init rio_init(void)
 
 #ifdef CONFIG_PCI
     /* First look for the JET devices: */
-    while ((pdev = pci_find_device (PCI_VENDOR_ID_SPECIALIX, 
+    while ((pdev = pci_get_device (PCI_VENDOR_ID_SPECIALIX,
                                     PCI_DEVICE_ID_SPECIALIX_SX_XIO_IO8, 
                                     pdev))) {
        if (pci_enable_device(pdev)) continue;
@@ -1174,7 +1169,7 @@ static int __init rio_init(void)
   */
 
     /* Then look for the older RIO/PCI devices: */
-    while ((pdev = pci_find_device (PCI_VENDOR_ID_SPECIALIX, 
+    while ((pdev = pci_get_device (PCI_VENDOR_ID_SPECIALIX,
                                     PCI_DEVICE_ID_SPECIALIX_RIO, 
                                     pdev))) {
        if (pci_enable_device(pdev)) continue;

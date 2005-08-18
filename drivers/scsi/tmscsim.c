@@ -2120,6 +2120,8 @@ static int DC390_bus_reset (struct scsi_cmnd *cmd)
 	struct dc390_acb*    pACB = (struct dc390_acb*) cmd->device->host->hostdata;
 	u8   bval;
 
+	spin_lock_irq(cmd->device->host->host_lock);
+
 	bval = DC390_read8(CtrlReg1) | DIS_INT_ON_SCSI_RST;
 	DC390_write8(CtrlReg1, bval);	/* disable IRQ on bus reset */
 
@@ -2127,7 +2129,7 @@ static int DC390_bus_reset (struct scsi_cmnd *cmd)
 	dc390_ResetSCSIBus(pACB);
 
 	dc390_ResetDevParam(pACB);
-	udelay(1000);
+	mdelay(1);
 	pACB->pScsiHost->last_reset = jiffies + 3*HZ/2 
 		+ HZ * dc390_eepromBuf[pACB->AdapterIndex][EE_DELAY];
     
@@ -2141,6 +2143,8 @@ static int DC390_bus_reset (struct scsi_cmnd *cmd)
 
 	bval = DC390_read8(CtrlReg1) & ~DIS_INT_ON_SCSI_RST;
 	DC390_write8(CtrlReg1, bval);	/* re-enable interrupt */
+
+	spin_unlock_irq(cmd->device->host->host_lock);
 
 	return SUCCESS;
 }

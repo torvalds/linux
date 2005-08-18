@@ -7,6 +7,7 @@
 
 #include <linux/acpi.h>
 #include <linux/bootmem.h>
+#include <linux/dmi.h>
 #include <asm/smp.h>
 #include <asm/tlbflush.h>
 
@@ -91,3 +92,29 @@ static int __init acpi_sleep_setup(char *str)
 
 
 __setup("acpi_sleep=", acpi_sleep_setup);
+
+
+static __init int reset_videomode_after_s3(struct dmi_system_id *d)
+{
+	acpi_video_flags |= 2;
+	return 0;
+}
+
+static __initdata struct dmi_system_id acpisleep_dmi_table[] = {
+	{	/* Reset video mode after returning from ACPI S3 sleep */
+		.callback = reset_videomode_after_s3,
+		.ident = "Toshiba Satellite 4030cdt",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "S4030CDT/4.3"),
+		},
+	},
+	{ }
+};
+
+static int __init acpisleep_dmi_init(void)
+{
+	dmi_check_system(acpisleep_dmi_table);
+	return 0;
+}
+
+core_initcall(acpisleep_dmi_init);

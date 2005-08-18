@@ -22,7 +22,7 @@
  * them early in the boot process, then pass them to the appropriate drivers.
  * Not all devices use all paramaters but the format is common to all.
  */
-#ifdef ARCH_SA1100
+#ifdef CONFIG_ARCH_SA1100
 #define PARAM_BASE	0xe8ffc000
 #else
 #define PARAM_BASE	0xa0000a00

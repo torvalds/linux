@@ -30,9 +30,9 @@
 #include "init.h"
 #include "os.h"
 #include "uml-config.h"
-#include "ptrace_user.h"
 #include "choose-mode.h"
 #include "mode.h"
+#include "tempfile.h"
 #ifdef UML_CONFIG_MODE_SKAS
 #include "skas.h"
 #include "skas_ptrace.h"
@@ -219,11 +219,25 @@ static int stop_ptraced_child(int pid, void *stack, int exitcode, int mustpanic)
 
 static int force_sysemu_disabled = 0;
 
+int ptrace_faultinfo = 1;
+int proc_mm = 1;
+
+static int __init skas0_cmd_param(char *str, int* add)
+{
+	ptrace_faultinfo = proc_mm = 0;
+	return 0;
+}
+
 static int __init nosysemu_cmd_param(char *str, int* add)
 {
 	force_sysemu_disabled = 1;
 	return 0;
 }
+
+__uml_setup("skas0", skas0_cmd_param,
+		"skas0\n"
+		"    Disables SKAS3 usage, so that SKAS0 is used, unless you \n"
+		"    specify mode=tt.\n\n");
 
 __uml_setup("nosysemu", nosysemu_cmd_param,
 		"nosysemu\n"
@@ -368,50 +382,54 @@ void forward_pending_sigio(int target)
 		kill(target, SIGIO);
 }
 
+extern void *__syscall_stub_start, __syscall_stub_end;
+
 #ifdef UML_CONFIG_MODE_SKAS
-static inline int check_skas3_ptrace_support(void)
+
+static inline void check_skas3_ptrace_support(void)
 {
 	struct ptrace_faultinfo fi;
 	void *stack;
-	int pid, n, ret = 1;
+	int pid, n;
 
 	printf("Checking for the skas3 patch in the host...");
 	pid = start_ptraced_child(&stack);
 
 	n = ptrace(PTRACE_FAULTINFO, pid, 0, &fi);
 	if (n < 0) {
+		ptrace_faultinfo = 0;
 		if(errno == EIO)
 			printf("not found\n");
 		else {
 			perror("not found");
 		}
-		ret = 0;
-	} else {
-		printf("found\n");
+	}
+	else {
+		if (!ptrace_faultinfo)
+			printf("found but disabled on command line\n");
+		else
+			printf("found\n");
 	}
 
 	init_registers(pid);
 	stop_ptraced_child(pid, stack, 1, 1);
-
-	return(ret);
 }
 
 int can_do_skas(void)
 {
-	int ret = 1;
-
 	printf("Checking for /proc/mm...");
 	if (os_access("/proc/mm", OS_ACC_W_OK) < 0) {
+		proc_mm = 0;
 		printf("not found\n");
-		ret = 0;
-		goto out;
 	} else {
-		printf("found\n");
+		if (!proc_mm)
+			printf("found but disabled on command line\n");
+		else
+			printf("found\n");
 	}
 
-	ret = check_skas3_ptrace_support();
-out:
-	return ret;
+	check_skas3_ptrace_support();
+	return 1;
 }
 #else
 int can_do_skas(void)

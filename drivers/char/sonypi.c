@@ -439,6 +439,11 @@ static struct {
 	{ 0, 0 },
 };
 
+struct sonypi_keypress {
+	struct input_dev *dev;
+	int key;
+};
+
 static struct sonypi_device {
 	struct pci_dev *dev;
 	struct platform_device *pdev;
@@ -710,22 +715,61 @@ static void sonypi_setbluetoothpower(u8 state)
 
 static void input_keyrelease(void *data)
 {
-	struct input_dev *input_dev;
-	int key;
+	struct sonypi_keypress kp;
 
-	while (1) {
-		if (kfifo_get(sonypi_device.input_fifo,
-			      (unsigned char *)&input_dev,
-			      sizeof(input_dev)) != sizeof(input_dev))
-			return;
-		if (kfifo_get(sonypi_device.input_fifo,
-			      (unsigned char *)&key,
-			      sizeof(key)) != sizeof(key))
-			return;
-
+	while (kfifo_get(sonypi_device.input_fifo, (unsigned char *)&kp,
+			 sizeof(kp)) == sizeof(kp)) {
 		msleep(10);
-		input_report_key(input_dev, key, 0);
-		input_sync(input_dev);
+		input_report_key(kp.dev, kp.key, 0);
+		input_sync(kp.dev);
+	}
+}
+
+static void sonypi_report_input_event(u8 event)
+{
+	struct input_dev *jog_dev = &sonypi_device.input_jog_dev;
+	struct input_dev *key_dev = &sonypi_device.input_key_dev;
+	struct sonypi_keypress kp = { NULL };
+	int i;
+
+	switch (event) {
+	case SONYPI_EVENT_JOGDIAL_UP:
+	case SONYPI_EVENT_JOGDIAL_UP_PRESSED:
+		input_report_rel(jog_dev, REL_WHEEL, 1);
+		input_sync(jog_dev);
+		break;
+
+	case SONYPI_EVENT_JOGDIAL_DOWN:
+	case SONYPI_EVENT_JOGDIAL_DOWN_PRESSED:
+		input_report_rel(jog_dev, REL_WHEEL, -1);
+		input_sync(jog_dev);
+		break;
+
+	case SONYPI_EVENT_JOGDIAL_PRESSED:
+		kp.key = BTN_MIDDLE;
+		kp.dev = jog_dev;
+		break;
+
+	case SONYPI_EVENT_FNKEY_RELEASED:
+		/* Nothing, not all VAIOs generate this event */
+		break;
+
+	default:
+		for (i = 0; sonypi_inputkeys[i].sonypiev; i++)
+			if (event == sonypi_inputkeys[i].sonypiev) {
+				kp.dev = key_dev;
+				kp.key = sonypi_inputkeys[i].inputev;
+				break;
+			}
+		break;
+	}
+
+	if (kp.dev) {
+		input_report_key(kp.dev, kp.key, 1);
+		input_sync(kp.dev);
+		kfifo_put(sonypi_device.input_fifo,
+			  (unsigned char *)&kp, sizeof(kp));
+		schedule_work(&sonypi_device.input_work);
 	}
 }
 
@@ -768,51 +812,8 @@ found:
 		printk(KERN_INFO
 		       "sonypi: event port1=0x%02x,port2=0x%02x\n", v1, v2);
 
-	if (useinput) {
-		struct input_dev *input_jog_dev = &sonypi_device.input_jog_dev;
-		struct input_dev *input_key_dev = &sonypi_device.input_key_dev;
-		switch (event) {
-		case SONYPI_EVENT_JOGDIAL_UP:
-		case SONYPI_EVENT_JOGDIAL_UP_PRESSED:
-			input_report_rel(input_jog_dev, REL_WHEEL, 1);
-			break;
-		case SONYPI_EVENT_JOGDIAL_DOWN:
-		case SONYPI_EVENT_JOGDIAL_DOWN_PRESSED:
-			input_report_rel(input_jog_dev, REL_WHEEL, -1);
-			break;
-		case SONYPI_EVENT_JOGDIAL_PRESSED: {
-			int key = BTN_MIDDLE;
-			input_report_key(input_jog_dev, key, 1);
-			kfifo_put(sonypi_device.input_fifo,
-				  (unsigned char *)&input_jog_dev,
-				  sizeof(input_jog_dev));
-			kfifo_put(sonypi_device.input_fifo,
-				  (unsigned char *)&key, sizeof(key));
-			break;
-		}
-		case SONYPI_EVENT_FNKEY_RELEASED:
-			/* Nothing, not all VAIOs generate this event */
-			break;
-		}
-		input_sync(input_jog_dev);
-
-		for (i = 0; sonypi_inputkeys[i].sonypiev; i++) {
-			int key;
-
-			if (event != sonypi_inputkeys[i].sonypiev)
-				continue;
-
-			key = sonypi_inputkeys[i].inputev;
-			input_report_key(input_key_dev, key, 1);
-			kfifo_put(sonypi_device.input_fifo,
-				  (unsigned char *)&input_key_dev,
-				  sizeof(input_key_dev));
-			kfifo_put(sonypi_device.input_fifo,
-				  (unsigned char *)&key, sizeof(key));
-		}
-		input_sync(input_key_dev);
-		schedule_work(&sonypi_device.input_work);
-	}
+	if (useinput)
+		sonypi_report_input_event(event);
 
 	kfifo_put(sonypi_device.fifo, (unsigned char *)&event, sizeof(event));
 	kill_fasync(&sonypi_device.fifo_async, SIGIO, POLL_IN);
@@ -1227,14 +1228,7 @@ static int __devinit sonypi_probe(void)
 		sonypi_device.input_jog_dev.keybit[LONG(BTN_MOUSE)] =
 			BIT(BTN_MIDDLE);
 		sonypi_device.input_jog_dev.relbit[0] = BIT(REL_WHEEL);
-		sonypi_device.input_jog_dev.name =
-			kmalloc(sizeof(SONYPI_JOG_INPUTNAME), GFP_KERNEL);
-		if (!sonypi_device.input_jog_dev.name) {
-			printk(KERN_ERR "sonypi: kmalloc failed\n");
-			ret = -ENOMEM;
-			goto out_inkmallocinput1;
-		}
-		sprintf(sonypi_device.input_jog_dev.name, SONYPI_JOG_INPUTNAME);
+		sonypi_device.input_jog_dev.name = SONYPI_JOG_INPUTNAME;
 		sonypi_device.input_jog_dev.id.bustype = BUS_ISA;
 		sonypi_device.input_jog_dev.id.vendor = PCI_VENDOR_ID_SONY;
 
@@ -1248,14 +1242,7 @@ static int __devinit sonypi_probe(void)
 			if (sonypi_inputkeys[i].inputev)
 				set_bit(sonypi_inputkeys[i].inputev,
 					sonypi_device.input_key_dev.keybit);
-		sonypi_device.input_key_dev.name =
-			kmalloc(sizeof(SONYPI_KEY_INPUTNAME), GFP_KERNEL);
-		if (!sonypi_device.input_key_dev.name) {
-			printk(KERN_ERR "sonypi: kmalloc failed\n");
-			ret = -ENOMEM;
-			goto out_inkmallocinput2;
-		}
-		sprintf(sonypi_device.input_key_dev.name, SONYPI_KEY_INPUTNAME);
+		sonypi_device.input_key_dev.name = SONYPI_KEY_INPUTNAME;
 		sonypi_device.input_key_dev.id.bustype = BUS_ISA;
 		sonypi_device.input_key_dev.id.vendor = PCI_VENDOR_ID_SONY;
 
@@ -1313,11 +1300,7 @@ out_platformdev:
 	kfifo_free(sonypi_device.input_fifo);
 out_infifo:
 	input_unregister_device(&sonypi_device.input_key_dev);
-	kfree(sonypi_device.input_key_dev.name);
-out_inkmallocinput2:
 	input_unregister_device(&sonypi_device.input_jog_dev);
-	kfree(sonypi_device.input_jog_dev.name);
-out_inkmallocinput1:
 	free_irq(sonypi_device.irq, sonypi_irq);
 out_reqirq:
 	release_region(sonypi_device.ioport1, sonypi_device.region_size);
@@ -1337,13 +1320,14 @@ static void __devexit sonypi_remove(void)
 {
 	sonypi_disable();
 
+	synchronize_sched();  /* Allow sonypi interrupt to complete. */
+	flush_scheduled_work();
+
 	platform_device_unregister(sonypi_device.pdev);
 
 	if (useinput) {
 		input_unregister_device(&sonypi_device.input_key_dev);
-		kfree(sonypi_device.input_key_dev.name);
 		input_unregister_device(&sonypi_device.input_jog_dev);
-		kfree(sonypi_device.input_jog_dev.name);
 		kfifo_free(sonypi_device.input_fifo);
 	}
 

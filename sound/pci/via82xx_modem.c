@@ -352,10 +352,8 @@ static int clean_via_table(viadev_t *dev, snd_pcm_substream_t *substream,
 		snd_dma_free_pages(&dev->table);
 		dev->table.area = NULL;
 	}
-	if (dev->idx_table) {
-		kfree(dev->idx_table);
-		dev->idx_table = NULL;
-	}
+	kfree(dev->idx_table);
+	dev->idx_table = NULL;
 	return 0;
 }
 
@@ -410,8 +408,7 @@ static void snd_via82xx_codec_wait(ac97_t *ac97)
 	int err;
 	err = snd_via82xx_codec_ready(chip, ac97->num);
 	/* here we need to wait fairly for long time.. */
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ/2);
+	msleep(500);
 }
 
 static void snd_via82xx_codec_write(ac97_t *ac97,
@@ -420,7 +417,10 @@ static void snd_via82xx_codec_write(ac97_t *ac97,
 {
 	via82xx_t *chip = ac97->private_data;
 	unsigned int xval;
-	
+	if(reg == AC97_GPIO_STATUS) {
+		outl(val, VIAREG(chip, GPI_STATUS));
+		return;
+	}	
 	xval = !ac97->num ? VIA_REG_AC97_CODEC_ID_PRIMARY : VIA_REG_AC97_CODEC_ID_SECONDARY;
 	xval <<= VIA_REG_AC97_CODEC_ID_SHIFT;
 	xval |= reg << VIA_REG_AC97_CMD_SHIFT;
@@ -542,25 +542,6 @@ static int snd_via82xx_pcm_trigger(snd_pcm_substream_t * substream, int cmd)
 	if (cmd == SNDRV_PCM_TRIGGER_STOP)
 		snd_via82xx_channel_reset(chip, viadev);
 	return 0;
-}
-
-static int snd_via82xx_modem_pcm_trigger(snd_pcm_substream_t * substream, int cmd)
-{
-	via82xx_t *chip = snd_pcm_substream_chip(substream);
-	unsigned int val = 0;
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-		val = snd_ac97_read(chip->ac97, AC97_GPIO_STATUS);
-		outl(val|AC97_GPIO_LINE1_OH, VIAREG(chip, GPI_STATUS));
-		break;
-	case SNDRV_PCM_TRIGGER_STOP:
-		val = snd_ac97_read(chip->ac97, AC97_GPIO_STATUS);
-		outl(val&~AC97_GPIO_LINE1_OH, VIAREG(chip, GPI_STATUS));
-		break;
-	default:
-		break;
-	}
-	return snd_via82xx_pcm_trigger(substream, cmd);
 }
 
 /*
@@ -806,7 +787,7 @@ static snd_pcm_ops_t snd_via686_playback_ops = {
 	.hw_params =	snd_via82xx_hw_params,
 	.hw_free =	snd_via82xx_hw_free,
 	.prepare =	snd_via82xx_pcm_prepare,
-	.trigger =	snd_via82xx_modem_pcm_trigger,
+	.trigger =	snd_via82xx_pcm_trigger,
 	.pointer =	snd_via686_pcm_pointer,
 	.page =		snd_pcm_sgbuf_ops_page,
 };
@@ -819,7 +800,7 @@ static snd_pcm_ops_t snd_via686_capture_ops = {
 	.hw_params =	snd_via82xx_hw_params,
 	.hw_free =	snd_via82xx_hw_free,
 	.prepare =	snd_via82xx_pcm_prepare,
-	.trigger =	snd_via82xx_modem_pcm_trigger,
+	.trigger =	snd_via82xx_pcm_trigger,
 	.pointer =	snd_via686_pcm_pointer,
 	.page =		snd_pcm_sgbuf_ops_page,
 };
@@ -938,10 +919,10 @@ static void __devinit snd_via82xx_proc_init(via82xx_t *chip)
  *
  */
 
-static int __devinit snd_via82xx_chip_init(via82xx_t *chip)
+static int snd_via82xx_chip_init(via82xx_t *chip)
 {
 	unsigned int val;
-	int max_count;
+	unsigned long end_time;
 	unsigned char pval;
 
 	pci_read_config_byte(chip->pci, VIA_MC97_CTRL, &pval);
@@ -980,14 +961,14 @@ static int __devinit snd_via82xx_chip_init(via82xx_t *chip)
 	}
 
 	/* wait until codec ready */
-	max_count = ((3 * HZ) / 4) + 1;
+	end_time = jiffies + msecs_to_jiffies(750);
 	do {
 		pci_read_config_byte(chip->pci, VIA_ACLINK_STAT, &pval);
 		if (pval & VIA_ACLINK_C00_READY) /* primary codec ready */
 			break;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
-	} while (--max_count > 0);
+	} while (time_before(jiffies, end_time));
 
 	if ((val = snd_via82xx_codec_xread(chip)) & VIA_REG_AC97_BUSY)
 		snd_printk("AC'97 codec is not ready [0x%x]\n", val);
@@ -995,7 +976,7 @@ static int __devinit snd_via82xx_chip_init(via82xx_t *chip)
 	snd_via82xx_codec_xwrite(chip, VIA_REG_AC97_READ |
 				 VIA_REG_AC97_SECONDARY_VALID |
 				 (VIA_REG_AC97_CODEC_ID_SECONDARY << VIA_REG_AC97_CODEC_ID_SHIFT));
-	max_count = ((3 * HZ) / 4) + 1;
+	end_time = jiffies + msecs_to_jiffies(750);
 	snd_via82xx_codec_xwrite(chip, VIA_REG_AC97_READ |
 				 VIA_REG_AC97_SECONDARY_VALID |
 				 (VIA_REG_AC97_CODEC_ID_SECONDARY << VIA_REG_AC97_CODEC_ID_SHIFT));
@@ -1006,7 +987,7 @@ static int __devinit snd_via82xx_chip_init(via82xx_t *chip)
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(1);
-	} while (--max_count > 0);
+	} while (time_before(jiffies, end_time));
 	/* This is ok, the most of motherboards have only one codec */
 
       __ac97_ok2:
@@ -1233,7 +1214,7 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_via82xx_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_via82xx_exit(void)

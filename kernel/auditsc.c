@@ -34,7 +34,8 @@
 #include <asm/types.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-
+#include <linux/mount.h>
+#include <linux/socket.h>
 #include <linux/audit.h>
 #include <linux/personality.h>
 #include <linux/time.h>
@@ -112,6 +113,23 @@ struct audit_aux_data_ipcctl {
 	mode_t			mode;
 };
 
+struct audit_aux_data_socketcall {
+	struct audit_aux_data	d;
+	int			nargs;
+	unsigned long		args[0];
+};
+
+struct audit_aux_data_sockaddr {
+	struct audit_aux_data	d;
+	int			len;
+	char			a[0];
+};
+
+struct audit_aux_data_path {
+	struct audit_aux_data	d;
+	struct dentry		*dentry;
+	struct vfsmount		*mnt;
+};
 
 /* The per-task audit context. */
 struct audit_context {
@@ -127,6 +145,8 @@ struct audit_context {
 	int		    auditable;  /* 1 if record should be written */
 	int		    name_count;
 	struct audit_names  names[AUDIT_NAMES];
+	struct dentry *	    pwd;
+	struct vfsmount *   pwdmnt;
 	struct audit_context *previous; /* For nested syscalls */
 	struct audit_aux_data *aux;
 
@@ -156,6 +176,8 @@ struct audit_entry {
 	struct rcu_head   rcu;
 	struct audit_rule rule;
 };
+
+extern int audit_pid;
 
 /* Check to see if two rules are identical.  It is called from
  * audit_del_rule during AUDIT_DEL. */
@@ -226,7 +248,6 @@ static inline int audit_del_rule(struct audit_rule *rule,
 	return -EFAULT;		/* No matching rule */
 }
 
-#ifdef CONFIG_NET
 /* Copy rule from user-space to kernel-space.  Called during
  * AUDIT_ADD. */
 static int audit_copy_rule(struct audit_rule *d, struct audit_rule *s)
@@ -287,7 +308,8 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 			err = audit_add_rule(entry, &audit_entlist);
 		if (!err && (flags & AUDIT_AT_EXIT))
 			err = audit_add_rule(entry, &audit_extlist);
-		audit_log(NULL, "auid %u added an audit rule\n", loginuid);
+		audit_log(NULL, AUDIT_CONFIG_CHANGE, 
+				"auid=%u added an audit rule\n", loginuid);
 		break;
 	case AUDIT_DEL:
 		flags =((struct audit_rule *)data)->flags;
@@ -297,7 +319,8 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 			err = audit_del_rule(data, &audit_entlist);
 		if (!err && (flags & AUDIT_AT_EXIT))
 			err = audit_del_rule(data, &audit_extlist);
-		audit_log(NULL, "auid %u removed an audit rule\n", loginuid);
+		audit_log(NULL, AUDIT_CONFIG_CHANGE,
+				"auid=%u removed an audit rule\n", loginuid);
 		break;
 	default:
 		return -EINVAL;
@@ -305,7 +328,6 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 	return err;
 }
-#endif
 
 /* Compare a task_struct with an audit_rule.  Return 1 on match, 0
  * otherwise. */
@@ -444,7 +466,7 @@ static enum audit_state audit_filter_task(struct task_struct *tsk)
 
 /* At syscall entry and exit time, this filter is called if the
  * audit_state is not low enough that auditing cannot take place, but is
- * also not high enough that we already know we have to write and audit
+ * also not high enough that we already know we have to write an audit
  * record (i.e., the state is AUDIT_SETUP_CONTEXT or  AUDIT_BUILD_CONTEXT).
  */
 static enum audit_state audit_filter_syscall(struct task_struct *tsk,
@@ -532,6 +554,12 @@ static inline void audit_free_names(struct audit_context *context)
 		if (context->names[i].name)
 			__putname(context->names[i].name);
 	context->name_count = 0;
+	if (context->pwd)
+		dput(context->pwd);
+	if (context->pwdmnt)
+		mntput(context->pwdmnt);
+	context->pwd = NULL;
+	context->pwdmnt = NULL;
 }
 
 static inline void audit_free_aux(struct audit_context *context)
@@ -539,6 +567,11 @@ static inline void audit_free_aux(struct audit_context *context)
 	struct audit_aux_data *aux;
 
 	while ((aux = context->aux)) {
+		if (aux->type == AUDIT_AVC_PATH) {
+			struct audit_aux_data_path *axi = (void *)aux;
+			dput(axi->dentry);
+			mntput(axi->mnt);
+		}
 		context->aux = aux->next;
 		kfree(aux);
 	}
@@ -625,7 +658,8 @@ static void audit_log_task_info(struct audit_buffer *ab)
 	struct vm_area_struct *vma;
 
 	get_task_comm(name, current);
-	audit_log_format(ab, " comm=%s", name);
+	audit_log_format(ab, " comm=");
+	audit_log_untrustedstring(ab, name);
 
 	if (!mm)
 		return;
@@ -649,23 +683,24 @@ static void audit_log_exit(struct audit_context *context)
 {
 	int i;
 	struct audit_buffer *ab;
+	struct audit_aux_data *aux;
 
-	ab = audit_log_start(context);
+	ab = audit_log_start(context, AUDIT_SYSCALL);
 	if (!ab)
 		return;		/* audit_panic has been called */
-	audit_log_format(ab, "syscall=%d", context->major);
+	audit_log_format(ab, "arch=%x syscall=%d",
+			 context->arch, context->major);
 	if (context->personality != PER_LINUX)
 		audit_log_format(ab, " per=%lx", context->personality);
-	audit_log_format(ab, " arch=%x", context->arch);
 	if (context->return_valid)
 		audit_log_format(ab, " success=%s exit=%ld", 
 				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
 				 context->return_code);
 	audit_log_format(ab,
 		  " a0=%lx a1=%lx a2=%lx a3=%lx items=%d"
-		  " pid=%d loginuid=%d uid=%d gid=%d"
-		  " euid=%d suid=%d fsuid=%d"
-		  " egid=%d sgid=%d fsgid=%d",
+		  " pid=%d auid=%u uid=%u gid=%u"
+		  " euid=%u suid=%u fsuid=%u"
+		  " egid=%u sgid=%u fsgid=%u",
 		  context->argv[0],
 		  context->argv[1],
 		  context->argv[2],
@@ -679,33 +714,57 @@ static void audit_log_exit(struct audit_context *context)
 		  context->egid, context->sgid, context->fsgid);
 	audit_log_task_info(ab);
 	audit_log_end(ab);
-	while (context->aux) {
-		struct audit_aux_data *aux;
 
-		ab = audit_log_start(context);
+	for (aux = context->aux; aux; aux = aux->next) {
+
+		ab = audit_log_start(context, aux->type);
 		if (!ab)
 			continue; /* audit_panic has been called */
 
-		aux = context->aux;
-		context->aux = aux->next;
-
-		audit_log_format(ab, "auxitem=%d", aux->type);
 		switch (aux->type) {
-		case AUDIT_AUX_IPCPERM: {
+		case AUDIT_IPC: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab, 
-					 " qbytes=%lx uid=%d gid=%d mode=%x",
+					 " qbytes=%lx iuid=%u igid=%u mode=%x",
 					 axi->qbytes, axi->uid, axi->gid, axi->mode);
-			}
+			break; }
+
+		case AUDIT_SOCKETCALL: {
+			int i;
+			struct audit_aux_data_socketcall *axs = (void *)aux;
+			audit_log_format(ab, "nargs=%d", axs->nargs);
+			for (i=0; i<axs->nargs; i++)
+				audit_log_format(ab, " a%d=%lx", i, axs->args[i]);
+			break; }
+
+		case AUDIT_SOCKADDR: {
+			struct audit_aux_data_sockaddr *axs = (void *)aux;
+
+			audit_log_format(ab, "saddr=");
+			audit_log_hex(ab, axs->a, axs->len);
+			break; }
+
+		case AUDIT_AVC_PATH: {
+			struct audit_aux_data_path *axi = (void *)aux;
+			audit_log_d_path(ab, "path=", axi->dentry, axi->mnt);
+			break; }
+
 		}
 		audit_log_end(ab);
-		kfree(aux);
 	}
 
+	if (context->pwd && context->pwdmnt) {
+		ab = audit_log_start(context, AUDIT_CWD);
+		if (ab) {
+			audit_log_d_path(ab, "cwd=", context->pwd, context->pwdmnt);
+			audit_log_end(ab);
+		}
+	}
 	for (i = 0; i < context->name_count; i++) {
-		ab = audit_log_start(context);
+		ab = audit_log_start(context, AUDIT_PATH);
 		if (!ab)
 			continue; /* audit_panic has been called */
+
 		audit_log_format(ab, "item=%d", i);
 		if (context->names[i].name) {
 			audit_log_format(ab, " name=");
@@ -713,7 +772,7 @@ static void audit_log_exit(struct audit_context *context)
 		}
 		if (context->names[i].ino != (unsigned long)-1)
 			audit_log_format(ab, " inode=%lu dev=%02x:%02x mode=%#o"
-					     " uid=%d gid=%d rdev=%02x:%02x",
+					     " ouid=%u ogid=%u rdev=%02x:%02x",
 					 context->names[i].ino,
 					 MAJOR(context->names[i].dev),
 					 MINOR(context->names[i].dev),
@@ -741,40 +800,10 @@ void audit_free(struct task_struct *tsk)
 
 	/* Check for system calls that do not go through the exit
 	 * function (e.g., exit_group), then free context block. */
-	if (context->in_syscall && context->auditable)
+	if (context->in_syscall && context->auditable && context->pid != audit_pid)
 		audit_log_exit(context);
 
 	audit_free_context(context);
-}
-
-/* Compute a serial number for the audit record.  Audit records are
- * written to user-space as soon as they are generated, so a complete
- * audit record may be written in several pieces.  The timestamp of the
- * record and this serial number are used by the user-space daemon to
- * determine which pieces belong to the same audit record.  The
- * (timestamp,serial) tuple is unique for each syscall and is live from
- * syscall entry to syscall exit.
- *
- * Atomic values are only guaranteed to be 24-bit, so we count down.
- *
- * NOTE: Another possibility is to store the formatted records off the
- * audit context (for those records that have a context), and emit them
- * all at syscall exit.  However, this could delay the reporting of
- * significant errors until syscall exit (or never, if the system
- * halts). */
-static inline unsigned int audit_serial(void)
-{
-	static atomic_t serial = ATOMIC_INIT(0xffffff);
-	unsigned int a, b;
-
-	do {
-		a = atomic_read(&serial);
-		if (atomic_dec_and_test(&serial))
-			atomic_set(&serial, 0xffffff);
-		b = atomic_read(&serial);
-	} while (b != a - 1);
-
-	return 0xffffff - b;
 }
 
 /* Fill in audit context at syscall entry.  This only happens if the
@@ -876,7 +905,7 @@ void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 	if (likely(!context))
 		return;
 
-	if (context->in_syscall && context->auditable)
+	if (context->in_syscall && context->auditable && context->pid != audit_pid)
 		audit_log_exit(context);
 
 	context->in_syscall = 0;
@@ -916,6 +945,13 @@ void audit_getname(const char *name)
 	context->names[context->name_count].name = name;
 	context->names[context->name_count].ino  = (unsigned long)-1;
 	++context->name_count;
+	if (!context->pwd) {
+		read_lock(&current->fs->lock);
+		context->pwd = dget(current->fs->pwd);
+		context->pwdmnt = mntget(current->fs->pwdmnt);
+		read_unlock(&current->fs->lock);
+	}
+		
 }
 
 /* Intercept a putname request.  Called from
@@ -994,34 +1030,26 @@ void audit_inode(const char *name, const struct inode *inode)
 	context->names[idx].rdev = inode->i_rdev;
 }
 
-void audit_get_stamp(struct audit_context *ctx,
-		     struct timespec *t, unsigned int *serial)
+void auditsc_get_stamp(struct audit_context *ctx,
+		       struct timespec *t, unsigned int *serial)
 {
-	if (ctx) {
-		t->tv_sec  = ctx->ctime.tv_sec;
-		t->tv_nsec = ctx->ctime.tv_nsec;
-		*serial    = ctx->serial;
-		ctx->auditable = 1;
-	} else {
-		*t      = CURRENT_TIME;
-		*serial = 0;
-	}
+	t->tv_sec  = ctx->ctime.tv_sec;
+	t->tv_nsec = ctx->ctime.tv_nsec;
+	*serial    = ctx->serial;
+	ctx->auditable = 1;
 }
-
-extern int audit_set_type(struct audit_buffer *ab, int type);
 
 int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 {
 	if (task->audit_context) {
 		struct audit_buffer *ab;
 
-		ab = audit_log_start(NULL);
+		ab = audit_log_start(NULL, AUDIT_LOGIN);
 		if (ab) {
 			audit_log_format(ab, "login pid=%d uid=%u "
-				"old loginuid=%u new loginuid=%u",
+				"old auid=%u new auid=%u",
 				task->pid, task->uid, 
 				task->audit_context->loginuid, loginuid);
-			audit_set_type(ab, AUDIT_LOGIN);
 			audit_log_end(ab);
 		}
 		task->audit_context->loginuid = loginuid;
@@ -1051,8 +1079,89 @@ int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 	ax->gid = gid;
 	ax->mode = mode;
 
-	ax->d.type = AUDIT_AUX_IPCPERM;
+	ax->d.type = AUDIT_IPC;
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 	return 0;
 }
+
+int audit_socketcall(int nargs, unsigned long *args)
+{
+	struct audit_aux_data_socketcall *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax) + nargs * sizeof(unsigned long), GFP_KERNEL);
+	if (!ax)
+		return -ENOMEM;
+
+	ax->nargs = nargs;
+	memcpy(ax->args, args, nargs * sizeof(unsigned long));
+
+	ax->d.type = AUDIT_SOCKETCALL;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+int audit_sockaddr(int len, void *a)
+{
+	struct audit_aux_data_sockaddr *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax) + len, GFP_KERNEL);
+	if (!ax)
+		return -ENOMEM;
+
+	ax->len = len;
+	memcpy(ax->a, a, len);
+
+	ax->d.type = AUDIT_SOCKADDR;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt)
+{
+	struct audit_aux_data_path *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
+	if (!ax)
+		return -ENOMEM;
+
+	ax->dentry = dget(dentry);
+	ax->mnt = mntget(mnt);
+
+	ax->d.type = AUDIT_AVC_PATH;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+void audit_signal_info(int sig, struct task_struct *t)
+{
+	extern pid_t audit_sig_pid;
+	extern uid_t audit_sig_uid;
+
+	if (unlikely(audit_pid && t->pid == audit_pid)) {
+		if (sig == SIGTERM || sig == SIGHUP) {
+			struct audit_context *ctx = current->audit_context;
+			audit_sig_pid = current->pid;
+			if (ctx)
+				audit_sig_uid = ctx->loginuid;
+			else
+				audit_sig_uid = current->uid;
+		}
+	}
+}
+

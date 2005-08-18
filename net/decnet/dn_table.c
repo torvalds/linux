@@ -270,13 +270,13 @@ static int dn_fib_nh_match(struct rtmsg *r, struct nlmsghdr *nlh, struct dn_kern
 
 static int dn_fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
                         u8 tb_id, u8 type, u8 scope, void *dst, int dst_len,
-                        struct dn_fib_info *fi)
+                        struct dn_fib_info *fi, unsigned int flags)
 {
         struct rtmsg *rtm;
         struct nlmsghdr *nlh;
         unsigned char *b = skb->tail;
 
-        nlh = NLMSG_PUT(skb, pid, seq, event, sizeof(*rtm));
+        nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*rtm), flags);
         rtm = NLMSG_DATA(nlh);
         rtm->rtm_family = AF_DECnet;
         rtm->rtm_dst_len = dst_len;
@@ -345,7 +345,7 @@ static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, int tb_id,
 
         if (dn_fib_dump_info(skb, pid, nlh->nlmsg_seq, event, tb_id, 
                                 f->fn_type, f->fn_scope, &f->fn_key, z, 
-                                DN_FIB_INFO(f)) < 0) {
+                                DN_FIB_INFO(f), 0) < 0) {
                 kfree_skb(skb);
                 return;
         }
@@ -377,7 +377,7 @@ static __inline__ int dn_hash_dump_bucket(struct sk_buff *skb,
 				tb->n, 
 				(f->fn_state & DN_S_ZOMBIE) ? 0 : f->fn_type,
 				f->fn_scope, &f->fn_key, dz->dz_order, 
-				f->fn_info) < 0) {
+				f->fn_info, NLM_F_MULTI) < 0) {
 			cb->args[3] = i;
 			return -1;
 		}

@@ -82,12 +82,12 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		/* get new inode */
 		if (*pinode == NULL) {
 			*pinode = new_inode(sb);
-			if(*pinode == NULL) 
+			if (*pinode == NULL) 
 				return -ENOMEM;
 			/* Is an i_ino of zero legal? */
 			/* Are there sanity checks we can use to ensure that
 			   the server is really filling in that field? */
-			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 				(*pinode)->i_ino =
 					(unsigned long)findData.UniqueId;
 			} /* note ino incremented to unique num in new_inode */
@@ -134,7 +134,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		inode->i_gid = le64_to_cpu(findData.Gid);
 		inode->i_nlink = le64_to_cpu(findData.Nlinks);
 
-		if(is_size_safe_to_change(cifsInfo)) {
+		if (is_size_safe_to_change(cifsInfo)) {
 		/* can not safely change the file size here if the
 		   client is writing to it due to potential races */
 
@@ -162,7 +162,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		if (S_ISREG(inode->i_mode)) {
 			cFYI(1, (" File inode "));
 			inode->i_op = &cifs_file_inode_ops;
-			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
 				inode->i_fop = &cifs_file_direct_ops;
 			else
 				inode->i_fop = &cifs_file_ops;
@@ -198,17 +198,17 @@ int cifs_get_inode_info(struct inode **pinode,
 	pTcon = cifs_sb->tcon;
 	cFYI(1,("Getting info on %s ", search_path));
 
-	if((pfindData == NULL) && (*pinode != NULL)) {
-		if(CIFS_I(*pinode)->clientCanCacheRead) {
+	if ((pfindData == NULL) && (*pinode != NULL)) {
+		if (CIFS_I(*pinode)->clientCanCacheRead) {
 			cFYI(1,("No need to revalidate cached inode sizes"));
 			return rc;
 		}
 	}
 
 	/* if file info not passed in then get it from server */
-	if(pfindData == NULL) {
+	if (pfindData == NULL) {
 		buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
-		if(buf == NULL)
+		if (buf == NULL)
 			return -ENOMEM;
 		pfindData = (FILE_ALL_INFO *)buf;
 		/* could do find first instead but this returns more info */
@@ -268,7 +268,7 @@ int cifs_get_inode_info(struct inode **pinode,
 			   IndexNumber field is not guaranteed unique? */
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL		
-			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM){
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM){
 				int rc1 = 0;
 				__u64 inode_num;
 
@@ -277,7 +277,7 @@ int cifs_get_inode_info(struct inode **pinode,
 					cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-				if(rc1) {
+				if (rc1) {
 					cFYI(1,("GetSrvInodeNum rc %d", rc1));
 					/* BB EOPNOSUPP disable SERVER_INUM? */
 				} else /* do we need cast or hash to ino? */
@@ -355,7 +355,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		if (S_ISREG(inode->i_mode)) {
 			cFYI(1, (" File inode "));
 			inode->i_op = &cifs_file_inode_ops;
-			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
 				inode->i_fop = &cifs_file_direct_ops;
 			else
 				inode->i_fop = &cifs_file_ops;
@@ -422,7 +422,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 	if (!rc) {
-		if(direntry->d_inode)
+		if (direntry->d_inode)
 			direntry->d_inode->i_nlink--;
 	} else if (rc == -ENOENT) {
 		d_drop(direntry);
@@ -441,7 +441,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 					      cifs_sb->mnt_cifs_flags & 
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			CIFSSMBClose(xid, pTcon, netfid);
-			if(direntry->d_inode)
+			if (direntry->d_inode)
 				direntry->d_inode->i_nlink--;
 		}
 	} else if (rc == -EACCES) {
@@ -496,7 +496,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 					    cifs_sb->mnt_cifs_flags & 
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (!rc) {
-				if(direntry->d_inode)
+				if (direntry->d_inode)
 					direntry->d_inode->i_nlink--;
 			} else if (rc == -ETXTBSY) {
 				int oplock = FALSE;
@@ -517,14 +517,14 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 						cifs_sb->mnt_cifs_flags &
 						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 					CIFSSMBClose(xid, pTcon, netfid);
-					if(direntry->d_inode)
+					if (direntry->d_inode)
 			                        direntry->d_inode->i_nlink--;
 				}
 			/* BB if rc = -ETXTBUSY goto the rename logic BB */
 			}
 		}
 	}
-	if(direntry->d_inode) {
+	if (direntry->d_inode) {
 		cifsInode = CIFS_I(direntry->d_inode);
 		cifsInode->time = 0;	/* will force revalidate to get info
 					   when needed */
@@ -582,7 +582,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		if (direntry->d_inode)
 			direntry->d_inode->i_nlink = 2;
 		if (cifs_sb->tcon->ses->capabilities & CAP_UNIX)
-			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path,
 						    mode,
 						    (__u64)current->euid,

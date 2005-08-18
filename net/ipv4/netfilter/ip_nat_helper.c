@@ -28,8 +28,8 @@
 #include <net/tcp.h>
 #include <net/udp.h>
 
-#define ASSERT_READ_LOCK(x) MUST_BE_READ_LOCKED(&ip_nat_lock)
-#define ASSERT_WRITE_LOCK(x) MUST_BE_WRITE_LOCKED(&ip_nat_lock)
+#define ASSERT_READ_LOCK(x)
+#define ASSERT_WRITE_LOCK(x)
 
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
@@ -47,7 +47,7 @@
 #define DUMP_OFFSET(x)
 #endif
 
-static DECLARE_LOCK(ip_nat_seqofs_lock);
+static DEFINE_SPINLOCK(ip_nat_seqofs_lock);
 
 /* Setup TCP sequence correction given this change at this sequence */
 static inline void 
@@ -70,7 +70,7 @@ adjust_tcp_sequence(u32 seq,
 	DEBUGP("ip_nat_resize_packet: Seq_offset before: ");
 	DUMP_OFFSET(this_way);
 
-	LOCK_BH(&ip_nat_seqofs_lock);
+	spin_lock_bh(&ip_nat_seqofs_lock);
 
 	/* SYN adjust. If it's uninitialized, or this is after last
 	 * correction, record it: we don't handle more than one
@@ -82,7 +82,7 @@ adjust_tcp_sequence(u32 seq,
 		    this_way->offset_before = this_way->offset_after;
 		    this_way->offset_after += sizediff;
 	}
-	UNLOCK_BH(&ip_nat_seqofs_lock);
+	spin_unlock_bh(&ip_nat_seqofs_lock);
 
 	DEBUGP("ip_nat_resize_packet: Seq_offset after: ");
 	DUMP_OFFSET(this_way);
@@ -142,9 +142,6 @@ static int enlarge_skb(struct sk_buff **pskb, unsigned int extra)
 	/* Transfer socket to new skb. */
 	if ((*pskb)->sk)
 		skb_set_owner_w(nskb, (*pskb)->sk);
-#ifdef CONFIG_NETFILTER_DEBUG
-	nskb->nf_debug = (*pskb)->nf_debug;
-#endif
 	kfree_skb(*pskb);
 	*pskb = nskb;
 	return 1;

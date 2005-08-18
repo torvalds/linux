@@ -23,7 +23,6 @@
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 
-#include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/mpc85xx.h>
 #include <asm/immap_85xx.h>
@@ -32,6 +31,8 @@
 #include <asm/kgdb.h>
 
 #include <syslib/ppc85xx_setup.h>
+
+extern void abort(void);
 
 /* Return the amount of memory */
 unsigned long __init
@@ -133,7 +134,7 @@ mpc85xx_halt(void)
 
 #ifdef CONFIG_PCI
 
-#if defined(CONFIG_MPC8555_CDS)
+#if defined(CONFIG_MPC8555_CDS) || defined(CONFIG_MPC8548_CDS)
 extern void mpc85xx_cds_enable_via(struct pci_controller *hose);
 extern void mpc85xx_cds_fixup_via(struct pci_controller *hose);
 #endif
@@ -232,14 +233,14 @@ mpc85xx_setup_pci2(struct pci_controller *hose)
 	pci->powbar1 = (MPC85XX_PCI2_LOWER_MEM >> 12) & 0x000fffff;
 	/* Enable, Mem R/W */
 	pci->powar1 = 0x80044000 |
-	   (__ilog2(MPC85XX_PCI1_UPPER_MEM - MPC85XX_PCI1_LOWER_MEM + 1) - 1);
+	   (__ilog2(MPC85XX_PCI2_UPPER_MEM - MPC85XX_PCI2_LOWER_MEM + 1) - 1);
 
 	/* Setup outboud IO windows @ MPC85XX_PCI2_IO_BASE */
 	pci->potar2 = 0x00000000;
 	pci->potear2 = 0x00000000;
 	pci->powbar2 = (MPC85XX_PCI2_IO_BASE >> 12) & 0x000fffff;
 	/* Enable, IO R/W */
-	pci->powar2 = 0x80088000 | (__ilog2(MPC85XX_PCI1_IO_SIZE) - 1);
+	pci->powar2 = 0x80088000 | (__ilog2(MPC85XX_PCI2_IO_SIZE) - 1);
 
 	/* Setup 2G inbound Memory Window @ 0 */
 	pci->pitar1 = 0x00000000;
@@ -308,14 +309,14 @@ mpc85xx_setup_hose(void)
 
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 
-#if defined(CONFIG_MPC8555_CDS)
+#if defined(CONFIG_MPC8555_CDS) || defined(CONFIG_MPC8548_CDS)
 	/* Pre pciauto_bus_scan VIA init */
 	mpc85xx_cds_enable_via(hose_a);
 #endif
 
 	hose_a->last_busno = pciauto_bus_scan(hose_a, hose_a->first_busno);
 
-#if defined(CONFIG_MPC8555_CDS)
+#if defined(CONFIG_MPC8555_CDS) || defined(CONFIG_MPC8548_CDS)
 	/* Post pciauto_bus_scan VIA fixup */
 	mpc85xx_cds_fixup_via(hose_a);
 #endif

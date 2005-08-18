@@ -401,7 +401,7 @@ out_err:
 }
 
 /* Find a match for a specific network:node pair */
-static struct atalk_iface *atalk_find_interface(int net, int node)
+static struct atalk_iface *atalk_find_interface(__be16 net, int node)
 {
 	struct atalk_iface *iface;
 

@@ -311,7 +311,6 @@ static Scsi_Host_Template driver_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_abort_handler	= fcp_scsi_abort,
 	.eh_device_reset_handler = fcp_scsi_dev_reset,
-	.eh_bus_reset_handler	= fcp_scsi_bus_reset,
 	.eh_host_reset_handler	= fcp_scsi_host_reset,
 };
 #include "scsi_module.c"

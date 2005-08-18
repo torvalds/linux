@@ -152,6 +152,7 @@
 #include <asm/io.h>		/* for inb(), outb(), etc. */
 #include <linux/time.h>	 	/* for do_gettimeofday */	
 #include <linux/in.h>		/* sockaddr_in */
+#include <linux/jiffies.h>	/* time_after() macro */
 #include <asm/errno.h>
 
 #include <linux/ip.h>
@@ -773,7 +774,7 @@ static int update(struct wan_device* wandev)
        	for(;;) {
 		if(card->u.f.update_comms_stats == 0)
 			break;
-                if ((jiffies - timeout) > (1 * HZ)){
+                if (time_after(jiffies, timeout + 1 * HZ)){
     			card->u.f.update_comms_stats = 0;
  			return -EAGAIN;
 		}
@@ -4799,7 +4800,7 @@ static void trigger_unconfig_fr(struct net_device *dev)
 {
 	fr_channel_t *chan = dev->priv;
 	volatile sdla_t *card = chan->card;
-	u32 timeout;
+	unsigned long timeout;
 	fr508_flags_t* flags = card->flags;
 	int reset_critical=0;
 	
@@ -4821,7 +4822,7 @@ static void trigger_unconfig_fr(struct net_device *dev)
 		if(!(card->u.f.timer_int_enabled & TMR_INT_ENABLED_UNCONFIG))
 			break;
 
-             	if ((jiffies - timeout) > (1 * HZ)){
+             	if (time_after(jiffies, timeout + 1 * HZ)){
     			card->u.f.timer_int_enabled &= ~TMR_INT_ENABLED_UNCONFIG;
 			printk(KERN_INFO "%s: Failed to delete DLCI %i\n",
 				card->devname,chan->dlci);

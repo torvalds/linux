@@ -26,6 +26,7 @@
 #include <linux/wanrouter.h>	/* WAN router definitions */
 #include <linux/wanpipe.h>	/* WANPIPE common user API definitions */
 #include <linux/if_arp.h>	/* ARPHRD_* defines */
+#include <linux/jiffies.h>	/* time_after() macro */
 
 #include <linux/in.h>		/* sockaddr_in */
 #include <linux/inet.h>	
@@ -270,9 +271,9 @@ int wsppp_init (sdla_t* card, wandev_conf_t* conf)
 	   	ready to accept commands.  We expect this to be completed in less
            	than 1 second. */
 
-		timeout = jiffies;
+		timeout = jiffies + 1 * HZ;
 		while (mb->return_code != 'I')	/* Wait 1s for board to initialize */
-			if ((jiffies - timeout) > 1*HZ) break;
+			if (time_after(jiffies, timeout)) break;
 
 		if (mb->return_code != 'I') {
 			printk(KERN_INFO
@@ -493,11 +494,11 @@ static int update(struct wan_device* wandev)
 	chdlc_priv_area->timer_int_enabled = TMR_INT_ENABLED_UPDATE;
   
 	/* wait a maximum of 1 second for the statistics to be updated */ 
-        timeout = jiffies;
+        timeout = jiffies + 1 * HZ;
         for(;;) {
 		if(chdlc_priv_area->update_comms_stats == 0)
 			break;
-                if ((jiffies - timeout) > (1 * HZ)){
+                if (time_after(jiffies, timeout)){
     			chdlc_priv_area->update_comms_stats = 0;
  			chdlc_priv_area->timer_int_enabled &=
 				~TMR_INT_ENABLED_UPDATE; 

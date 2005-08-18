@@ -389,8 +389,6 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 		rfcomm_dlc_unlock(d);
 
 		skb_queue_purge(&d->tx_queue);
-		rfcomm_session_put(s);
-
 		rfcomm_dlc_unlink(d);
 	}
 
@@ -599,8 +597,6 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src, bdaddr_t *dst
 		*err = -ENOMEM;
 		goto failed;
 	}
-
-	rfcomm_session_hold(s);
 
 	s->initiator = 1;
 

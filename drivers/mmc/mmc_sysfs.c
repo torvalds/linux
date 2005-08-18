@@ -22,7 +22,7 @@
 #define to_mmc_driver(d)	container_of(d, struct mmc_driver, drv)
 
 #define MMC_ATTR(name, fmt, args...)					\
-static ssize_t mmc_##name##_show (struct device *dev, char *buf)	\
+static ssize_t mmc_##name##_show (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	struct mmc_card *card = dev_to_mmc_card(dev);			\
 	return sprintf(buf, fmt, args);					\

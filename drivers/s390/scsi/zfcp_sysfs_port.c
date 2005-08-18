@@ -53,7 +53,7 @@ zfcp_sysfs_port_release(struct device *dev)
  * Generates attributes for a port.
  */
 #define ZFCP_DEFINE_PORT_ATTR(_name, _format, _value)                    \
-static ssize_t zfcp_sysfs_port_##_name##_show(struct device *dev,        \
+static ssize_t zfcp_sysfs_port_##_name##_show(struct device *dev, struct device_attribute *attr,        \
                                               char *buf)                 \
 {                                                                        \
         struct zfcp_port *port;                                          \
@@ -82,7 +82,7 @@ ZFCP_DEFINE_PORT_ATTR(access_denied, "%d\n", atomic_test_mask
  * Store function of the "unit_add" attribute of a port.
  */
 static ssize_t
-zfcp_sysfs_unit_add_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_unit_add_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	fcp_lun_t fcp_lun;
 	char *endp;
@@ -125,7 +125,7 @@ static DEVICE_ATTR(unit_add, S_IWUSR, NULL, zfcp_sysfs_unit_add_store);
  * @count: number of bytes in buffer
  */
 static ssize_t
-zfcp_sysfs_unit_remove_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_unit_remove_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct zfcp_port *port;
 	struct zfcp_unit *unit;
@@ -186,7 +186,7 @@ static DEVICE_ATTR(unit_remove, S_IWUSR, NULL, zfcp_sysfs_unit_remove_store);
  * started for the belonging port.
  */
 static ssize_t
-zfcp_sysfs_port_failed_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_port_failed_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct zfcp_port *port;
 	unsigned int val;
@@ -224,7 +224,7 @@ zfcp_sysfs_port_failed_store(struct device *dev, const char *buf, size_t count)
  * "0" if port is working, otherwise "1".
  */
 static ssize_t
-zfcp_sysfs_port_failed_show(struct device *dev, char *buf)
+zfcp_sysfs_port_failed_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct zfcp_port *port;
 

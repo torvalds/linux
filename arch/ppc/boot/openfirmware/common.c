@@ -15,7 +15,6 @@
 #include <asm/page.h>
 
 /* Information from the linker */
-extern char __sysmap_begin, __sysmap_end;
 
 extern int strcmp(const char *s1, const char *s2);
 extern char *avail_ram, *avail_high;
@@ -116,14 +115,8 @@ void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
 void make_bi_recs(unsigned long addr, char *name, unsigned int mach,
 		unsigned long progend)
 {
-	unsigned long sysmap_size;
 	struct bi_record *rec;
 
-	/* Figure out the size of a possible System.map we're going to
-	 * pass along.
-	 * */
-	sysmap_size = (unsigned long)(&__sysmap_end) -
-		(unsigned long)(&__sysmap_begin);
 
 	/* leave a 1MB gap then align to the next 1MB boundary */
 	addr = _ALIGN(addr+ (1<<20) - 1, (1<<20));
@@ -146,15 +139,6 @@ void make_bi_recs(unsigned long addr, char *name, unsigned int mach,
 	rec->data[1] = 1;
 	rec->size = sizeof(struct bi_record) + 2 * sizeof(unsigned long);
 	rec = (struct bi_record *)((unsigned long)rec + rec->size);
-
-	if (sysmap_size) {
-		rec->tag = BI_SYSMAP;
-		rec->data[0] = (unsigned long)(&__sysmap_begin);
-		rec->data[1] = sysmap_size;
-		rec->size = sizeof(struct bi_record) + 2 *
-			sizeof(unsigned long);
-		rec = (struct bi_record *)((unsigned long)rec + rec->size);
-	}
 
 	rec->tag = BI_LAST;
 	rec->size = sizeof(struct bi_record);

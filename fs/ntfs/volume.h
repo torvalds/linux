@@ -2,7 +2,7 @@
  * volume.h - Defines for volume structures in NTFS Linux kernel driver. Part
  *	      of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -54,7 +54,7 @@ typedef struct {
 	mode_t dmask;			/* The mask for directory
 					   permissions. */
 	u8 mft_zone_multiplier;		/* Initial mft zone multiplier. */
-	u8 on_errors;			/* What to do on file system errors. */
+	u8 on_errors;			/* What to do on filesystem errors. */
 	/* NTFS bootsector provided information. */
 	u16 sector_size;		/* in bytes */
 	u8 sector_size_bits;		/* log2(sector_size) */
@@ -125,6 +125,10 @@ typedef struct {
 	/* $Quota stuff is NTFS3.0+ specific.  Unused/NULL otherwise. */
 	struct inode *quota_ino;	/* The VFS inode of $Quota. */
 	struct inode *quota_q_ino;	/* Attribute inode for $Quota/$Q. */
+	/* $UsnJrnl stuff is NTFS3.0+ specific.  Unused/NULL otherwise. */
+	struct inode *usnjrnl_ino;	/* The VFS inode of $UsnJrnl. */
+	struct inode *usnjrnl_max_ino;	/* Attribute inode for $UsnJrnl/$Max. */
+	struct inode *usnjrnl_j_ino;	/* Attribute inode for $UsnJrnl/$J. */
 #endif /* NTFS_RW */
 	struct nls_table *nls_map;
 } ntfs_volume;
@@ -141,6 +145,8 @@ typedef enum {
 				      file names in WIN32 namespace. */
 	NV_LogFileEmpty,	/* 1: $LogFile journal is empty. */
 	NV_QuotaOutOfDate,	/* 1: $Quota is out of date. */
+	NV_UsnJrnlStamped,	/* 1: $UsnJrnl has been stamped. */
+	NV_SparseEnabled,	/* 1: May create sparse files. */
 } ntfs_volume_flags;
 
 /*
@@ -167,5 +173,7 @@ NVOL_FNS(ShowSystemFiles)
 NVOL_FNS(CaseSensitive)
 NVOL_FNS(LogFileEmpty)
 NVOL_FNS(QuotaOutOfDate)
+NVOL_FNS(UsnJrnlStamped)
+NVOL_FNS(SparseEnabled)
 
 #endif /* _LINUX_NTFS_VOLUME_H */

@@ -27,6 +27,8 @@
 /* Doesn't really apply... */
 #define MAX_DMA_ADDRESS  (~0UL)
 
+#if !defined(CONFIG_PPC_ISERIES) || defined(CONFIG_PCI)
+
 #define dma_outb	outb
 #define dma_inb		inb
 
@@ -323,4 +325,5 @@ extern int isa_dma_bridge_buggy;
 #else                                                         
 #define isa_dma_bridge_buggy   (0)
 #endif
+#endif	/* !defined(CONFIG_PPC_ISERIES) || defined(CONFIG_PCI) */
 #endif /* _ASM_DMA_H */

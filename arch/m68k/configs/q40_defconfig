@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.12-rc2-m68k
-# Tue Apr  5 14:06:34 2005
+# Linux kernel version: 2.6.12-rc6-m68k
+# Tue Jun  7 20:34:58 2005
 #
 CONFIG_M68K=y
 CONFIG_MMU=y
@@ -35,6 +35,8 @@ CONFIG_KOBJECT_UEVENT=y
 CONFIG_KALLSYMS=y
 # CONFIG_KALLSYMS_ALL is not set
 # CONFIG_KALLSYMS_EXTRA_PASS is not set
+CONFIG_PRINTK=y
+CONFIG_BUG=y
 CONFIG_BASE_FULL=y
 CONFIG_FUTEX=y
 CONFIG_EPOLL=y
@@ -125,7 +127,6 @@ CONFIG_FW_LOADER=m
 # Block devices
 #
 # CONFIG_BLK_DEV_FD is not set
-# CONFIG_BLK_DEV_XD is not set
 # CONFIG_BLK_DEV_COW_COMMON is not set
 CONFIG_BLK_DEV_LOOP=y
 CONFIG_BLK_DEV_CRYPTOLOOP=m
@@ -210,17 +211,12 @@ CONFIG_SCSI_CONSTANTS=y
 #
 # SCSI low-level drivers
 #
-# CONFIG_SCSI_7000FASST is not set
 # CONFIG_SCSI_AHA152X is not set
-# CONFIG_SCSI_AHA1542 is not set
 # CONFIG_SCSI_AIC7XXX_OLD is not set
 # CONFIG_SCSI_IN2000 is not set
 # CONFIG_SCSI_SATA is not set
-# CONFIG_SCSI_BUSLOGIC is not set
 # CONFIG_SCSI_DTC3280 is not set
-# CONFIG_SCSI_EATA is not set
 # CONFIG_SCSI_FUTURE_DOMAIN is not set
-# CONFIG_SCSI_GDTH is not set
 # CONFIG_SCSI_GENERIC_NCR5380 is not set
 # CONFIG_SCSI_GENERIC_NCR5380_MMIO is not set
 # CONFIG_SCSI_NCR53C406A is not set
@@ -229,7 +225,6 @@ CONFIG_SCSI_CONSTANTS=y
 # CONFIG_SCSI_QLOGIC_FAS is not set
 # CONFIG_SCSI_SYM53C416 is not set
 # CONFIG_SCSI_T128 is not set
-# CONFIG_SCSI_U14_34F is not set
 # CONFIG_SCSI_DEBUG is not set
 
 #
@@ -466,7 +461,6 @@ CONFIG_EQUALIZER=m
 CONFIG_NET_ETHERNET=y
 CONFIG_MII=m
 # CONFIG_NET_VENDOR_3COM is not set
-# CONFIG_LANCE is not set
 # CONFIG_NET_VENDOR_SMC is not set
 # CONFIG_NET_VENDOR_RACAL is not set
 # CONFIG_AT1700 is not set
@@ -570,7 +564,6 @@ CONFIG_SERIO_Q40KBD=m
 CONFIG_SERIO_LIBPS2=m
 # CONFIG_SERIO_RAW is not set
 # CONFIG_GAMEPORT is not set
-CONFIG_SOUND_GAMEPORT=y
 
 #
 # Character devices

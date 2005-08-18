@@ -1334,8 +1334,8 @@ static irqreturn_t snd_atiixp_interrupt(int irq, void *dev_id, struct pt_regs *r
 
 static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	{
-		.vendor = 0x103c,
-		.device = 0x006b,
+		.subvendor = 0x103c,
+		.subdevice = 0x006b,
 		.name = "HP Pavilion ZV5030US",
 		.type = AC97_TUNE_MUTE_LED
 	},
@@ -1645,7 +1645,7 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_atiixp_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_atiixp_exit(void)

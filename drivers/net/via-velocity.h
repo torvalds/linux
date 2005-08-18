@@ -1414,7 +1414,7 @@ static inline void mac_get_cam(struct mac_regs __iomem * regs, int idx, u8 *addr
  *	the rest of the logic from the result of sleep/wakeup
  */
 
-inline static void mac_wol_reset(struct mac_regs __iomem * regs)
+static inline void mac_wol_reset(struct mac_regs __iomem * regs)
 {
 
 	/* Turn off SWPTAG right after leaving power mode */
@@ -1811,7 +1811,7 @@ struct velocity_info {
  *	CHECK ME: locking
  */
 
-inline static int velocity_get_ip(struct velocity_info *vptr)
+static inline int velocity_get_ip(struct velocity_info *vptr)
 {
 	struct in_device *in_dev = (struct in_device *) vptr->dev->ip_ptr;
 	struct in_ifaddr *ifa;

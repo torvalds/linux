@@ -802,12 +802,13 @@ static void veth_tx_timeout(struct net_device *dev)
 
 	spin_lock_irqsave(&port->pending_gate, flags);
 
+	if (!port->pending_lpmask) {
+		spin_unlock_irqrestore(&port->pending_gate, flags);
+		return;
+	}
+
 	printk(KERN_WARNING "%s: Tx timeout!  Resetting lp connections: %08x\n",
 	       dev->name, port->pending_lpmask);
-
-	/* If we've timed out the queue must be stopped, which should
-	 * only ever happen when there is a pending packet. */
-	WARN_ON(! port->pending_lpmask);
 
 	for (i = 0; i < HVMAXARCHITECTEDLPS; i++) {
 		struct veth_lpar_connection *cnx = veth_cnx[i];

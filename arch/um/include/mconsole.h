@@ -56,7 +56,7 @@ struct mc_request
 	int as_interrupt;
 
 	int originating_fd;
-	int originlen;
+	unsigned int originlen;
 	unsigned char origin[128];			/* sockaddr_un */
 
 	struct mconsole_request request;

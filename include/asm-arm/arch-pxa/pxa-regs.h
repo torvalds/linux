@@ -1296,6 +1296,7 @@
 #define GPIO111_MMCDAT3		111	/* MMC DAT3 (PXA27x) */
 #define GPIO111_MMCCS1		111	/* MMC Chip Select 1 (PXA27x) */
 #define GPIO112_MMCCMD		112	/* MMC CMD (PXA27x) */
+#define GPIO113_I2S_SYSCLK	113	/* I2S System Clock (PXA27x) */
 #define GPIO113_AC97_RESET_N	113	/* AC97 NRESET on (PXA27x) */
 
 /* GPIO alternate function mode & direction */
@@ -1428,6 +1429,7 @@
 #define GPIO111_MMCDAT3_MD	(111 | GPIO_ALT_FN_1_OUT)
 #define GPIO110_MMCCS1_MD	(111 | GPIO_ALT_FN_1_OUT)
 #define GPIO112_MMCCMD_MD	(112 | GPIO_ALT_FN_1_OUT)
+#define GPIO113_I2S_SYSCLK_MD	(113 | GPIO_ALT_FN_1_OUT)
 #define GPIO113_AC97_RESET_N_MD	(113 | GPIO_ALT_FN_2_OUT)
 #define GPIO117_I2CSCL_MD	(117 | GPIO_ALT_FN_1_OUT)
 #define GPIO118_I2CSDA_MD	(118 | GPIO_ALT_FN_1_IN)
@@ -1503,6 +1505,7 @@
 #define PSSR_OTGPH	(1 << 6)	/* OTG Peripheral control Hold */
 #define PSSR_RDH	(1 << 5)	/* Read Disable Hold */
 #define PSSR_PH		(1 << 4)	/* Peripheral Control Hold */
+#define PSSR_STS	(1 << 3)	/* Standby Mode Status */
 #define PSSR_VFS	(1 << 2)	/* VDD Fault Status */
 #define PSSR_BFS	(1 << 1)	/* Battery Fault Status */
 #define PSSR_SSS	(1 << 0)	/* Software Sleep Status */
@@ -1963,6 +1966,7 @@
 #define MECR_NOS	(1 << 0)	/* Number Of Sockets: 0 -> 1 sock, 1 -> 2 sock */
 #define MECR_CIT	(1 << 1)	/* Card Is There: 0 -> no card, 1 -> card inserted */
 
+#define MDREFR_K0DB4	(1 << 29)	/* SDCLK0 Divide by 4 Control/Status */
 #define MDREFR_K2FREE	(1 << 25)	/* SDRAM Free-Running Control */
 #define MDREFR_K1FREE	(1 << 24)	/* SDRAM Free-Running Control */
 #define MDREFR_K0FREE	(1 << 23)	/* SDRAM Free-Running Control */

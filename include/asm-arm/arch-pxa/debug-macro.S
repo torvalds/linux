@@ -11,6 +11,8 @@
  *
 */
 
+#include "hardware.h"
+
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?

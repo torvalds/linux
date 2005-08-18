@@ -3,4 +3,4 @@
 #
 #
 
-obj-$(CONFIG_BLK_DEV_SGIIOC4) += ioc4.o
+obj-$(CONFIG_SGI_IOC4) += ioc4.o

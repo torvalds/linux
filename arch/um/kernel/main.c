@@ -24,8 +24,6 @@
 #include "mode.h"
 #include "choose-mode.h"
 #include "uml-config.h"
-#include "irq_user.h"
-#include "time_user.h"
 #include "os.h"
 
 /* Set in set_stklim, which is called from main and __wrap_malloc.
@@ -71,7 +69,6 @@ static __init void do_uml_initcalls(void)
 
 static void last_ditch_exit(int sig)
 {
-        kmalloc_ok = 0;
 	signal(SIGINT, SIG_DFL);
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGHUP, SIG_DFL);

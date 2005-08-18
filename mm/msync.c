@@ -34,6 +34,8 @@ static void sync_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 
 		if (!pte_present(*pte))
 			continue;
+		if (!pte_maybe_dirty(*pte))
+			continue;
 		pfn = pte_pfn(*pte);
 		if (!pfn_valid(pfn))
 			continue;

@@ -362,7 +362,7 @@ static void esp_destroy(struct xfrm_state *x)
 	kfree(esp);
 }
 
-static int esp_init_state(struct xfrm_state *x, void *args)
+static int esp_init_state(struct xfrm_state *x)
 {
 	struct esp_data *esp = NULL;
 

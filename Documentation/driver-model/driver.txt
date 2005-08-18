@@ -5,21 +5,17 @@ struct device_driver {
         char                    * name;
         struct bus_type         * bus;
 
-        rwlock_t                lock;
-        atomic_t                refcount;
-
-        list_t                  bus_list;
+        struct completion	unloaded;
+        struct kobject		kobj;
         list_t                  devices;
 
-        struct driver_dir_entry dir;
+        struct module		*owner;
 
         int     (*probe)        (struct device * dev);
         int     (*remove)       (struct device * dev);
 
         int     (*suspend)      (struct device * dev, pm_message_t state, u32 level);
         int     (*resume)       (struct device * dev, u32 level);
-
-        void    (*release)      (struct device_driver * drv);
 };
 
 
@@ -51,7 +47,6 @@ being converted completely to the new model.
 static struct device_driver eepro100_driver = {
        .name		= "eepro100",
        .bus		= &pci_bus_type,
-       .devclass	= &ethernet_devclass,	/* when it's implemented */
        
        .probe		= eepro100_probe,
        .remove		= eepro100_remove,
@@ -85,7 +80,6 @@ static struct pci_driver eepro100_driver = {
        .driver	       = {
 		.name		= "eepro100",
 		.bus		= &pci_bus_type,
-		.devclass	= &ethernet_devclass,	/* when it's implemented */
 		.probe		= eepro100_probe,
 		.remove		= eepro100_remove,
 		.suspend	= eepro100_suspend,
@@ -166,27 +160,32 @@ Callbacks
 
 	int	(*probe)	(struct device * dev);
 
-probe is called to verify the existence of a certain type of
-hardware. This is called during the driver binding process, after the
-bus has verified that the device ID of a device matches one of the
-device IDs supported by the driver. 
+The probe() entry is called in task context, with the bus's rwsem locked
+and the driver partially bound to the device.  Drivers commonly use
+container_of() to convert "dev" to a bus-specific type, both in probe()
+and other routines.  That type often provides device resource data, such
+as pci_dev.resource[] or platform_device.resources, which is used in
+addition to dev->platform_data to initialize the driver.
 
-This callback only verifies that there actually is supported hardware
-present. It may allocate a driver-specific structure, but it should
-not do any initialization of the hardware itself. The device-specific
-structure may be stored in the device's driver_data field. 
+This callback holds the driver-specific logic to bind the driver to a
+given device.  That includes verifying that the device is present, that
+it's a version the driver can handle, that driver data structures can
+be allocated and initialized, and that any hardware can be initialized.
+Drivers often store a pointer to their state with dev_set_drvdata().
+When the driver has successfully bound itself to that device, then probe()
+returns zero and the driver model code will finish its part of binding
+the driver to that device.
 
-	int	(*init)		(struct device * dev);
-
-init is called during the binding stage. It is called after probe has
-successfully returned and the device has been registered with its
-class. It is responsible for initializing the hardware.
+A driver's probe() may return a negative errno value to indicate that
+the driver did not bind to this device, in which case it should have
+released all reasources it allocated.
 
 	int 	(*remove)	(struct device * dev);
 
-remove is called to dissociate a driver with a device. This may be
+remove is called to unbind a driver from a device. This may be
 called if a device is physically removed from the system, if the
-driver module is being unloaded, or during a reboot sequence. 
+driver module is being unloaded, during a reboot sequence, or
+in other cases.
 
 It is up to the driver to determine if the device is present or
 not. It should free any resources allocated specifically for the

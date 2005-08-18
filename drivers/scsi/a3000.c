@@ -208,7 +208,14 @@ fail_register:
 static int a3000_bus_reset(Scsi_Cmnd *cmd)
 {
 	/* FIXME perform bus-specific reset */
+	
+	/* FIXME 2: kill this entire function, which should
+	   cause mid-layer to call wd33c93_host_reset anyway? */
+
+	spin_lock_irq(cmd->device->host->host_lock);
 	wd33c93_host_reset(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
 	return SUCCESS;
 }
 

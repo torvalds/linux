@@ -83,7 +83,7 @@ static void tce_free_iSeries(struct iommu_table *tbl, long index, long npages)
 	}
 }
 
-
+#ifdef CONFIG_PCI
 /*
  * This function compares the known tables to find an iommu_table
  * that has already been built for hardware TCEs.
@@ -159,6 +159,7 @@ void iommu_devnode_init_iSeries(struct iSeries_Device_Node *dn)
 	else
 		kfree(tbl);
 }
+#endif
 
 static void iommu_dev_setup_iSeries(struct pci_dev *dev) { }
 static void iommu_bus_setup_iSeries(struct pci_bus *bus) { }

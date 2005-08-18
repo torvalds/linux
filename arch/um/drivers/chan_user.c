@@ -143,22 +143,22 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 {
 	struct winch_data data;
 	unsigned long stack;
-	int fds[2], pid, n, err;
+	int fds[2], n, err;
 	char c;
 
 	err = os_pipe(fds, 1, 1);
 	if(err < 0){
 		printk("winch_tramp : os_pipe failed, err = %d\n", -err);
-		return(err);
+		goto out;
 	}
 
 	data = ((struct winch_data) { .pty_fd 		= fd,
 				      .pipe_fd 		= fds[1],
 				      .close_me 	= fds[0] } );
-	pid = run_helper_thread(winch_thread, &data, 0, &stack, 0);
-	if(pid < 0){
+	err = run_helper_thread(winch_thread, &data, 0, &stack, 0);
+	if(err < 0){
 		printk("fork of winch_thread failed - errno = %d\n", errno);
-		return(pid);
+		goto out_close;
 	}
 
 	os_close_file(fds[1]);
@@ -168,14 +168,22 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 		printk("winch_tramp : failed to read synchronization byte\n");
 		printk("read failed, err = %d\n", -n);
 		printk("fd %d will not support SIGWINCH\n", fd);
-		*fd_out = -1;
+                err = -EINVAL;
+		goto out_close1;
 	}
-	return(pid);
+	return err ;
+
+ out_close:
+	os_close_file(fds[1]);
+ out_close1:
+	os_close_file(fds[0]);
+ out:
+	return err;
 }
 
 void register_winch(int fd, struct tty_struct *tty)
 {
-	int pid, thread, thread_fd;
+	int pid, thread, thread_fd = -1;
 	int count;
 	char c = 1;
 
@@ -186,7 +194,7 @@ void register_winch(int fd, struct tty_struct *tty)
 	if(!CHOOSE_MODE_PROC(is_tracer_winch, is_skas_winch, pid, fd,
 			     tty) && (pid == -1)){
 		thread = winch_tramp(fd, tty, &thread_fd);
-		if(fd != -1){
+		if(thread > 0){
 			register_winch_irq(thread_fd, fd, thread, tty);
 
 			count = os_write_file(thread_fd, &c, sizeof(c));

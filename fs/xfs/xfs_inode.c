@@ -146,51 +146,6 @@ xfs_inobp_check(
 #endif
 
 /*
- * called from bwrite on xfs inode buffers
- */
-void
-xfs_inobp_bwcheck(xfs_buf_t *bp)
-{
-	xfs_mount_t	*mp;
-	int		i;
-	int		j;
-	xfs_dinode_t	*dip;
-
-	ASSERT(XFS_BUF_FSPRIVATE3(bp, void *) != NULL);
-
-	mp = XFS_BUF_FSPRIVATE3(bp, xfs_mount_t *);
-
-
-	j = mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog;
-
-	for (i = 0; i < j; i++)  {
-		dip = (xfs_dinode_t *) xfs_buf_offset(bp,
-						i * mp->m_sb.sb_inodesize);
-		if (INT_GET(dip->di_core.di_magic, ARCH_CONVERT) != XFS_DINODE_MAGIC) {
-			cmn_err(CE_WARN,
-"Bad magic # 0x%x in XFS inode buffer 0x%Lx, starting blockno %Ld, offset 0x%x",
-				INT_GET(dip->di_core.di_magic, ARCH_CONVERT),
-				(__uint64_t)(__psunsigned_t) bp,
-				(__int64_t) XFS_BUF_ADDR(bp),
-				xfs_buf_offset(bp, i * mp->m_sb.sb_inodesize));
-			xfs_fs_cmn_err(CE_WARN, mp,
-				"corrupt, unmount and run xfs_repair");
-		}
-		if (!dip->di_next_unlinked)  {
-			cmn_err(CE_WARN,
-"Bad next_unlinked field (0) in XFS inode buffer 0x%p, starting blockno %Ld, offset 0x%x",
-				(__uint64_t)(__psunsigned_t) bp,
-				(__int64_t) XFS_BUF_ADDR(bp),
-				xfs_buf_offset(bp, i * mp->m_sb.sb_inodesize));
-			xfs_fs_cmn_err(CE_WARN, mp,
-				"corrupt, unmount and run xfs_repair");
-		}
-	}
-
-	return;
-}
-
-/*
  * This routine is called to map an inode number within a file
  * system to the buffer containing the on-disk version of the
  * inode.  It returns a pointer to the buffer containing the
@@ -203,7 +158,7 @@ xfs_inobp_bwcheck(xfs_buf_t *bp)
  * Use xfs_imap() to determine the size and location of the
  * buffer to read from disk.
  */
-int
+STATIC int
 xfs_inotobp(
 	xfs_mount_t	*mp,
 	xfs_trans_t	*tp,
@@ -1247,26 +1202,32 @@ xfs_ialloc(
 	case S_IFREG:
 	case S_IFDIR:
 		if (unlikely(pip->i_d.di_flags & XFS_DIFLAG_ANY)) {
-			if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT) {
-				if ((mode & S_IFMT) == S_IFDIR) {
-					ip->i_d.di_flags |= XFS_DIFLAG_RTINHERIT;
-				} else {
-					ip->i_d.di_flags |= XFS_DIFLAG_REALTIME;
+			uint	di_flags = 0;
+
+			if ((mode & S_IFMT) == S_IFDIR) {
+				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT)
+					di_flags |= XFS_DIFLAG_RTINHERIT;
+			} else {
+				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT) {
+					di_flags |= XFS_DIFLAG_REALTIME;
 					ip->i_iocore.io_flags |= XFS_IOCORE_RT;
 				}
 			}
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NOATIME) &&
 			    xfs_inherit_noatime)
-				ip->i_d.di_flags |= XFS_DIFLAG_NOATIME;
+				di_flags |= XFS_DIFLAG_NOATIME;
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NODUMP) &&
 			    xfs_inherit_nodump)
-				ip->i_d.di_flags |= XFS_DIFLAG_NODUMP;
+				di_flags |= XFS_DIFLAG_NODUMP;
 			if ((pip->i_d.di_flags & XFS_DIFLAG_SYNC) &&
 			    xfs_inherit_sync)
-				ip->i_d.di_flags |= XFS_DIFLAG_SYNC;
+				di_flags |= XFS_DIFLAG_SYNC;
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NOSYMLINKS) &&
 			    xfs_inherit_nosymlinks)
-				ip->i_d.di_flags |= XFS_DIFLAG_NOSYMLINKS;
+				di_flags |= XFS_DIFLAG_NOSYMLINKS;
+			if (pip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
+				di_flags |= XFS_DIFLAG_PROJINHERIT;
+			ip->i_d.di_flags |= di_flags;
 		}
 		/* FALLTHROUGH */
 	case S_IFLNK:
@@ -2156,7 +2117,7 @@ static __inline__ int xfs_inode_clean(xfs_inode_t *ip)
 		(ip->i_update_core == 0));
 }
 
-void
+STATIC void
 xfs_ifree_cluster(
 	xfs_inode_t	*free_ip,
 	xfs_trans_t	*tp,
@@ -2875,7 +2836,7 @@ xfs_iunpin(
  * be subsequently pinned once someone is waiting for it to be
  * unpinned.
  */
-void
+STATIC void
 xfs_iunpin_wait(
 	xfs_inode_t	*ip)
 {
@@ -3601,106 +3562,42 @@ corrupt_out:
 
 
 /*
- * Flush all inactive inodes in mp.  Return true if no user references
- * were found, false otherwise.
+ * Flush all inactive inodes in mp.
  */
-int
+void
 xfs_iflush_all(
-	xfs_mount_t	*mp,
-	int		flag)
+	xfs_mount_t	*mp)
 {
-	int		busy;
-	int		done;
-	int		purged;
 	xfs_inode_t	*ip;
-	vmap_t		vmap;
 	vnode_t		*vp;
 
-	busy = done = 0;
-	while (!done) {
-		purged = 0;
-		XFS_MOUNT_ILOCK(mp);
-		ip = mp->m_inodes;
-		if (ip == NULL) {
-			break;
+ again:
+	XFS_MOUNT_ILOCK(mp);
+	ip = mp->m_inodes;
+	if (ip == NULL)
+		goto out;
+
+	do {
+		/* Make sure we skip markers inserted by sync */
+		if (ip->i_mount == NULL) {
+			ip = ip->i_mnext;
+			continue;
 		}
-		do {
-			/* Make sure we skip markers inserted by sync */
-			if (ip->i_mount == NULL) {
-				ip = ip->i_mnext;
-				continue;
-			}
 
-			/*
-			 * It's up to our caller to purge the root
-			 * and quota vnodes later.
-			 */
-			vp = XFS_ITOV_NULL(ip);
-
-			if (!vp) {
-				XFS_MOUNT_IUNLOCK(mp);
-				xfs_finish_reclaim(ip, 0, XFS_IFLUSH_ASYNC);
-				purged = 1;
-				break;
-			}
-
-			if (vn_count(vp) != 0) {
-				if (vn_count(vp) == 1 &&
-				    (ip == mp->m_rootip ||
-				     (mp->m_quotainfo &&
-				      (ip->i_ino == mp->m_sb.sb_uquotino ||
-				       ip->i_ino == mp->m_sb.sb_gquotino)))) {
-
-					ip = ip->i_mnext;
-					continue;
-				}
-				if (!(flag & XFS_FLUSH_ALL)) {
-					busy = 1;
-					done = 1;
-					break;
-				}
-				/*
-				 * Ignore busy inodes but continue flushing
-				 * others.
-				 */
-				ip = ip->i_mnext;
-				continue;
-			}
-			/*
-			 * Sample vp mapping while holding mp locked on MP
-			 * systems, so we don't purge a reclaimed or
-			 * nonexistent vnode.  We break from the loop
-			 * since we know that we modify
-			 * it by pulling ourselves from it in xfs_reclaim()
-			 * called via vn_purge() below.  Set ip to the next
-			 * entry in the list anyway so we'll know below
-			 * whether we reached the end or not.
-			 */
-			VMAP(vp, vmap);
+		vp = XFS_ITOV_NULL(ip);
+		if (!vp) {
 			XFS_MOUNT_IUNLOCK(mp);
-
-			vn_purge(vp, &vmap);
-
-			purged = 1;
-			break;
-		} while (ip != mp->m_inodes);
-		/*
-		 * We need to distinguish between when we exit the loop
-		 * after a purge and when we simply hit the end of the
-		 * list.  We can't use the (ip == mp->m_inodes) test,
-		 * because when we purge an inode at the start of the list
-		 * the next inode on the list becomes mp->m_inodes.  That
-		 * would cause such a test to bail out early.  The purged
-		 * variable tells us how we got out of the loop.
-		 */
-		if (!purged) {
-			done = 1;
+			xfs_finish_reclaim(ip, 0, XFS_IFLUSH_ASYNC);
+			goto again;
 		}
-	}
-	XFS_MOUNT_IUNLOCK(mp);
-	return !busy;
-}
 
+		ASSERT(vn_count(vp) == 0);
+
+		ip = ip->i_mnext;
+	} while (ip != mp->m_inodes);
+ out:
+	XFS_MOUNT_IUNLOCK(mp);
+}
 
 /*
  * xfs_iaccess: check accessibility of inode for mode.

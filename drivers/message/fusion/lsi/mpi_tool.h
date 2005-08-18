@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2001-2003 LSI Logic Corporation.
+ *  Copyright (c) 2001-2005 LSI Logic Corporation.
  *
  *
  *           Name:  mpi_tool.h
  *          Title:  MPI Toolbox structures and definitions
  *  Creation Date:  July 30, 2001
  *
- *    mpi_tool.h Version:  01.05.xx
+ *    mpi_tool.h Version:  01.05.03
  *
  *  Version History
  *  ---------------
@@ -15,6 +15,16 @@
  *  --------  --------  ------------------------------------------------------
  *  08-08-01  01.02.01  Original release.
  *  08-29-01  01.02.02  Added DIAG_DATA_UPLOAD_HEADER and related defines.
+ *  01-16-04  01.02.03  Added defines and structures for new tools
+ *.                     MPI_TOOLBOX_ISTWI_READ_WRITE_TOOL and
+ *                      MPI_TOOLBOX_FC_MANAGEMENT_TOOL.
+ *  04-29-04  01.02.04  Added message structures for Diagnostic Buffer Post and
+ *                      Diagnostic Release requests and replies.
+ *  05-11-04  01.03.01  Original release for MPI v1.3.
+ *  08-19-04  01.05.01  Original release for MPI v1.5.
+ *  10-06-04  01.05.02  Added define for MPI_DIAG_BUF_TYPE_COUNT.
+ *  02-09-05  01.05.03  Added frame size option to FC management tool.
+ *                      Added Beacon tool to the Toolbox.
  *  --------------------------------------------------------------------------
  */
 
@@ -26,6 +36,7 @@
 #define MPI_TOOLBOX_DIAG_DATA_UPLOAD_TOOL           (0x02)
 #define MPI_TOOLBOX_ISTWI_READ_WRITE_TOOL           (0x03)
 #define MPI_TOOLBOX_FC_MANAGEMENT_TOOL              (0x04)
+#define MPI_TOOLBOX_BEACON_TOOL                     (0x05)
 
 
 /****************************************************************************/
@@ -185,11 +196,21 @@ typedef struct _MPI_TB_FC_MANAGE_PID_AI
 } MPI_TB_FC_MANAGE_PID_AI, MPI_POINTER PTR_MPI_TB_FC_MANAGE_PID_AI,
   MpiTbFcManagePidAi_t, MPI_POINTER pMpiTbFcManagePidAi_t;
 
+/* ActionInfo for set max frame size */
+typedef struct _MPI_TB_FC_MANAGE_FRAME_SIZE_AI
+{
+    U16                     FrameSize;                  /* 00h */
+    U8                      PortNum;                    /* 02h */
+    U8                      Reserved1;                  /* 03h */
+} MPI_TB_FC_MANAGE_FRAME_SIZE_AI, MPI_POINTER PTR_MPI_TB_FC_MANAGE_FRAME_SIZE_AI,
+  MpiTbFcManageFrameSizeAi_t, MPI_POINTER pMpiTbFcManageFrameSizeAi_t;
+
 /* union of ActionInfo */
 typedef union _MPI_TB_FC_MANAGE_AI_UNION
 {
     MPI_TB_FC_MANAGE_BUS_TID_AI     BusTid;
     MPI_TB_FC_MANAGE_PID_AI         Port;
+    MPI_TB_FC_MANAGE_FRAME_SIZE_AI  FrameSize;
 } MPI_TB_FC_MANAGE_AI_UNION, MPI_POINTER PTR_MPI_TB_FC_MANAGE_AI_UNION,
   MpiTbFcManageAiUnion_t, MPI_POINTER pMpiTbFcManageAiUnion_t;
 
@@ -214,6 +235,32 @@ typedef struct _MSG_TOOLBOX_FC_MANAGE_REQUEST
 #define MPI_TB_FC_MANAGE_ACTION_DISC_ALL            (0x00)
 #define MPI_TB_FC_MANAGE_ACTION_DISC_PID            (0x01)
 #define MPI_TB_FC_MANAGE_ACTION_DISC_BUS_TID        (0x02)
+#define MPI_TB_FC_MANAGE_ACTION_SET_MAX_FRAME_SIZE  (0x03)
+
+
+/****************************************************************************/
+/* Toolbox Beacon Tool request                                               */
+/****************************************************************************/
+
+typedef struct _MSG_TOOLBOX_BEACON_REQUEST
+{
+    U8                      Tool;                       /* 00h */
+    U8                      Reserved;                   /* 01h */
+    U8                      ChainOffset;                /* 02h */
+    U8                      Function;                   /* 03h */
+    U16                     Reserved1;                  /* 04h */
+    U8                      Reserved2;                  /* 06h */
+    U8                      MsgFlags;                   /* 07h */
+    U32                     MsgContext;                 /* 08h */
+    U8                      ConnectNum;                 /* 0Ch */
+    U8                      PortNum;                    /* 0Dh */
+    U8                      Reserved3;                  /* 0Eh */
+    U8                      Flags;                      /* 0Fh */
+} MSG_TOOLBOX_BEACON_REQUEST, MPI_POINTER PTR_MSG_TOOLBOX_BEACON_REQUEST,
+  ToolboxBeaconRequest_t, MPI_POINTER pToolboxBeaconRequest_t;
+
+#define MPI_TOOLBOX_FLAGS_BEACON_MODE_OFF       (0x00)
+#define MPI_TOOLBOX_FLAGS_BEACON_MODE_ON        (0x01)
 
 
 /****************************************************************************/
@@ -233,14 +280,16 @@ typedef struct _MSG_DIAG_BUFFER_POST_REQUEST
     U32                     ExtendedType;               /* 0Ch */
     U32                     BufferLength;               /* 10h */
     U32                     ProductSpecific[4];         /* 14h */
-    U32                     Reserved3;                  /* 18h */
-    SGE_SIMPLE_UNION        SGL;                        /* 28h */
+    U32                     Reserved3;                  /* 24h */
+    U64                     BufferAddress;              /* 28h */
 } MSG_DIAG_BUFFER_POST_REQUEST, MPI_POINTER PTR_MSG_DIAG_BUFFER_POST_REQUEST,
   DiagBufferPostRequest_t, MPI_POINTER pDiagBufferPostRequest_t;
 
 #define MPI_DIAG_BUF_TYPE_TRACE                     (0x00)
 #define MPI_DIAG_BUF_TYPE_SNAPSHOT                  (0x01)
 #define MPI_DIAG_BUF_TYPE_EXTENDED                  (0x02)
+/* count of the number of buffer types */
+#define MPI_DIAG_BUF_TYPE_COUNT                     (0x03)
 
 #define MPI_DIAG_EXTENDED_QTAG                      (0x00000001)
 

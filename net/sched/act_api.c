@@ -428,17 +428,19 @@ errout:
 
 static int
 tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
-             unsigned flags, int event, int bind, int ref)
+             u16 flags, int event, int bind, int ref)
 {
 	struct tcamsg *t;
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb->tail;
 	struct rtattr *x;
 
-	nlh = NLMSG_PUT(skb, pid, seq, event, sizeof(*t));
-	nlh->nlmsg_flags = flags;
+	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*t), flags);
+
 	t = NLMSG_DATA(nlh);
 	t->tca_family = AF_UNSPEC;
+	t->tca__pad1 = 0;
+	t->tca__pad2 = 0;
 	
 	x = (struct rtattr*) skb->tail;
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
@@ -580,6 +582,8 @@ static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
 	nlh = NLMSG_PUT(skb, pid, n->nlmsg_seq, RTM_DELACTION, sizeof(*t));
 	t = NLMSG_DATA(nlh);
 	t->tca_family = AF_UNSPEC;
+	t->tca__pad1 = 0;
+	t->tca__pad2 = 0;
 
 	x = (struct rtattr *) skb->tail;
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
@@ -669,7 +673,7 @@ err:
 }
 
 static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
-                          unsigned flags)
+                          u16 flags)
 {
 	struct tcamsg *t;
 	struct nlmsghdr *nlh;
@@ -684,11 +688,12 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 
 	b = (unsigned char *)skb->tail;
 
-	nlh = NLMSG_PUT(skb, pid, seq, event, sizeof(*t));
-	nlh->nlmsg_flags = flags;
+	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*t), flags);
 	t = NLMSG_DATA(nlh);
 	t->tca_family = AF_UNSPEC;
-	
+	t->tca__pad1 = 0;
+	t->tca__pad2 = 0;
+
 	x = (struct rtattr*) skb->tail;
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
 
@@ -843,6 +848,8 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	                cb->nlh->nlmsg_type, sizeof(*t));
 	t = NLMSG_DATA(nlh);
 	t->tca_family = AF_UNSPEC;
+	t->tca__pad1 = 0;
+	t->tca__pad2 = 0;
 
 	x = (struct rtattr *) skb->tail;
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
@@ -881,7 +888,7 @@ static int __init tc_action_init(void)
 		link_p[RTM_GETACTION-RTM_BASE].dumpit = tc_dump_action;
 	}
 
-	printk("TC classifier action (bugs to netdev@oss.sgi.com cc "
+	printk("TC classifier action (bugs to netdev@vger.kernel.org cc "
 	       "hadi@cyberus.ca)\n");
 	return 0;
 }

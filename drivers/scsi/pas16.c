@@ -2,6 +2,7 @@
 #define PSEUDO_DMA
 #define FOO
 #define UNSAFE  /* Not unsafe for PAS16 -- use it */
+#define PDEBUG 0
 
 /*
  * This driver adapted from Drew Eckhardt's Trantor T128 driver
@@ -621,8 +622,6 @@ static Scsi_Host_Template driver_template = {
 	.queuecommand   = pas16_queue_command,
 	.eh_abort_handler = pas16_abort,
 	.eh_bus_reset_handler = pas16_bus_reset,
-	.eh_device_reset_handler = pas16_device_reset,
-	.eh_host_reset_handler = pas16_host_reset,
 	.bios_param     = pas16_biosparam, 
 	.can_queue      = CAN_QUEUE,
 	.this_id        = 7,

@@ -41,7 +41,6 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
 #include <linux/highmem.h>
 
 #include <asm/pgalloc.h>
@@ -63,6 +62,8 @@ static unsigned long __cam0, __cam1, __cam2;
 extern unsigned long total_lowmem;
 extern unsigned long __max_low_memory;
 #define MAX_LOW_MEM	CONFIG_LOWMEM_SIZE
+
+#define NUM_TLBCAMS	(16)
 
 struct tlbcam {
    	u32	MAS0;
@@ -124,7 +125,7 @@ void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 		flags |= _PAGE_COHERENT;
 #endif
 
-	TLBCAM[index].MAS0 = MAS0_TLBSEL(1) | MAS0_ESEL(index);
+	TLBCAM[index].MAS0 = MAS0_TLBSEL(1) | MAS0_ESEL(index) | MAS0_NV(index+1);
 	TLBCAM[index].MAS1 = MAS1_VALID | MAS1_IPROT | MAS1_TSIZE(tsize) | MAS1_TID(pid);
 	TLBCAM[index].MAS2 = virt & PAGE_MASK;
 

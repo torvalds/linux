@@ -92,6 +92,7 @@ struct autofs_wait_queue {
 
 struct autofs_sb_info {
 	u32 magic;
+	struct dentry *root;
 	struct file *pipe;
 	pid_t oz_pgrp;
 	int catatonic;
@@ -184,6 +185,19 @@ enum autofs_notify
 int autofs4_wait(struct autofs_sb_info *,struct dentry *, enum autofs_notify);
 int autofs4_wait_release(struct autofs_sb_info *,autofs_wqt_t,int);
 void autofs4_catatonic_mode(struct autofs_sb_info *);
+
+static inline int autofs4_follow_mount(struct vfsmount **mnt, struct dentry **dentry)
+{
+	int res = 0;
+
+	while (d_mountpoint(*dentry)) {
+		int followed = follow_down(mnt, dentry);
+		if (!followed)
+			break;
+		res = 1;
+	}
+	return res;
+}
 
 static inline int simple_positive(struct dentry *dentry)
 {

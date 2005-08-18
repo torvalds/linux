@@ -222,7 +222,7 @@ static int pg_identify(struct pg *dev, int log);
 
 static char pg_scratch[512];	/* scratch block buffer */
 
-static struct class_simple *pg_class;
+static struct class *pg_class;
 
 /* kernel glue structures */
 
@@ -666,7 +666,7 @@ static int __init pg_init(void)
 		err = -1;
 		goto out;
 	}
-	pg_class = class_simple_create(THIS_MODULE, "pg");
+	pg_class = class_create(THIS_MODULE, "pg");
 	if (IS_ERR(pg_class)) {
 		err = PTR_ERR(pg_class);
 		goto out_chrdev;
@@ -675,7 +675,7 @@ static int __init pg_init(void)
 	for (unit = 0; unit < PG_UNITS; unit++) {
 		struct pg *dev = &devices[unit];
 		if (dev->present) {
-			class_simple_device_add(pg_class, MKDEV(major, unit), 
+			class_device_create(pg_class, MKDEV(major, unit),
 					NULL, "pg%u", unit);
 			err = devfs_mk_cdev(MKDEV(major, unit),
 				      S_IFCHR | S_IRUSR | S_IWUSR, "pg/%u",
@@ -688,8 +688,8 @@ static int __init pg_init(void)
 	goto out;
 
 out_class:
-	class_simple_device_remove(MKDEV(major, unit));
-	class_simple_destroy(pg_class);
+	class_device_destroy(pg_class, MKDEV(major, unit));
+	class_destroy(pg_class);
 out_chrdev:
 	unregister_chrdev(major, "pg");
 out:
@@ -703,11 +703,11 @@ static void __exit pg_exit(void)
 	for (unit = 0; unit < PG_UNITS; unit++) {
 		struct pg *dev = &devices[unit];
 		if (dev->present) {
-			class_simple_device_remove(MKDEV(major, unit));
+			class_device_destroy(pg_class, MKDEV(major, unit));
 			devfs_remove("pg/%u", unit);
 		}
 	}
-	class_simple_destroy(pg_class);
+	class_destroy(pg_class);
 	devfs_remove("pg");
 	unregister_chrdev(major, name);
 

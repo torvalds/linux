@@ -217,6 +217,8 @@ config PREEMPT
 	bool "Preemptible Kernel (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 
+source "mm/Kconfig"
+
 endmenu
 
 menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
@@ -265,6 +267,8 @@ menu "Executable file formats"
 source "fs/Kconfig.binfmt"
 
 endmenu
+
+source "net/Kconfig"
 
 source "drivers/Kconfig"
 

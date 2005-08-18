@@ -29,7 +29,6 @@
 #include <net/checksum.h>
 #include <net/tcp.h>
 
-#include <linux/netfilter_ipv4/lockhelp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
 #include <linux/netfilter_ipv4/ip_conntrack_irc.h>
 #include <linux/moduleparam.h>
@@ -41,7 +40,7 @@ static int max_dcc_channels = 8;
 static unsigned int dcc_timeout = 300;
 /* This is slow, but it's simple. --RR */
 static char irc_buffer[65536];
-static DECLARE_LOCK(irc_buffer_lock);
+static DEFINE_SPINLOCK(irc_buffer_lock);
 
 unsigned int (*ip_nat_irc_hook)(struct sk_buff **pskb,
 				enum ip_conntrack_info ctinfo,
@@ -141,7 +140,7 @@ static int help(struct sk_buff **pskb,
 	if (dataoff >= (*pskb)->len)
 		return NF_ACCEPT;
 
-	LOCK_BH(&irc_buffer_lock);
+	spin_lock_bh(&irc_buffer_lock);
 	ib_ptr = skb_header_pointer(*pskb, dataoff,
 				    (*pskb)->len - dataoff, irc_buffer);
 	BUG_ON(ib_ptr == NULL);
@@ -198,7 +197,7 @@ static int help(struct sk_buff **pskb,
 				continue;
 			}
 
-			exp = ip_conntrack_expect_alloc();
+			exp = ip_conntrack_expect_alloc(ct);
 			if (exp == NULL) {
 				ret = NF_DROP;
 				goto out;
@@ -222,22 +221,20 @@ static int help(struct sk_buff **pskb,
 				{ { 0, { 0 } },
 				  { 0xFFFFFFFF, { .tcp = { 0xFFFF } }, 0xFF }});
 			exp->expectfn = NULL;
-			exp->master = ct;
 			if (ip_nat_irc_hook)
 				ret = ip_nat_irc_hook(pskb, ctinfo, 
 						      addr_beg_p - ib_ptr,
 						      addr_end_p - addr_beg_p,
 						      exp);
-			else if (ip_conntrack_expect_related(exp) != 0) {
-				ip_conntrack_expect_free(exp);
+			else if (ip_conntrack_expect_related(exp) != 0)
 				ret = NF_DROP;
-			}
+			ip_conntrack_expect_put(exp);
 			goto out;
 		} /* for .. NUM_DCCPROTO */
 	} /* while data < ... */
 
  out:
-	UNLOCK_BH(&irc_buffer_lock);
+	spin_unlock_bh(&irc_buffer_lock);
 	return ret;
 }
 

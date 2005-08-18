@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: super.c,v 1.104 2004/11/23 15:37:31 gleixner Exp $
+ * $Id: super.c,v 1.107 2005/07/12 16:37:08 dedekind Exp $
  *
  */
 
@@ -140,6 +140,15 @@ static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
 	D1(printk(KERN_DEBUG "jffs2_get_sb_mtd(): New superblock for device %d (\"%s\")\n",
 		  mtd->index, mtd->name));
 
+	/* Initialize JFFS2 superblock locks, the further initialization will be
+	 * done later */
+	init_MUTEX(&c->alloc_sem);
+	init_MUTEX(&c->erase_free_sem);
+	init_waitqueue_head(&c->erase_wait);
+	init_waitqueue_head(&c->inocache_wq);
+	spin_lock_init(&c->erase_completion_lock);
+	spin_lock_init(&c->inocache_lock);
+
 	sb->s_op = &jffs2_super_operations;
 	sb->s_flags = flags | MS_NOATIME;
 
@@ -270,8 +279,6 @@ static void jffs2_put_super (struct super_block *sb)
 
 	D2(printk(KERN_DEBUG "jffs2: jffs2_put_super()\n"));
 
-	if (!(sb->s_flags & MS_RDONLY))
-		jffs2_stop_garbage_collect_thread(c);
 	down(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
 	up(&c->alloc_sem);
@@ -292,6 +299,8 @@ static void jffs2_put_super (struct super_block *sb)
 static void jffs2_kill_sb(struct super_block *sb)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
+	if (!(sb->s_flags & MS_RDONLY))
+		jffs2_stop_garbage_collect_thread(c);
 	generic_shutdown_super(sb);
 	put_mtd_device(c->mtd);
 	kfree(c);
@@ -309,7 +318,7 @@ static int __init init_jffs2_fs(void)
 	int ret;
 
 	printk(KERN_INFO "JFFS2 version 2.2."
-#ifdef CONFIG_JFFS2_FS_NAND
+#ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	       " (NAND)"
 #endif
 	       " (C) 2001-2003 Red Hat, Inc.\n");

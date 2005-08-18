@@ -22,14 +22,14 @@
 #include "card.h"
 #include "scioc.h"
 
-int dial(int card, unsigned long channel, setup_parm setup);
-int hangup(int card, unsigned long channel);
-int answer(int card, unsigned long channel);
-int clreaz(int card, unsigned long channel);
-int seteaz(int card, unsigned long channel, char *);
-int setl2(int card, unsigned long arg);
-int setl3(int card, unsigned long arg);
-int acceptb(int card, unsigned long channel);
+static int dial(int card, unsigned long channel, setup_parm setup);
+static int hangup(int card, unsigned long channel);
+static int answer(int card, unsigned long channel);
+static int clreaz(int card, unsigned long channel);
+static int seteaz(int card, unsigned long channel, char *);
+static int setl2(int card, unsigned long arg);
+static int setl3(int card, unsigned long arg);
+static int acceptb(int card, unsigned long channel);
 
 extern int cinst;
 extern board *sc_adapter[];
@@ -148,56 +148,6 @@ int command(isdn_ctrl *cmd)
 }
 
 /*
- * Confirm our ability to communicate with the board.  This test assumes no
- * other message activity is present
- */
-int loopback(int card) 
-{
-
-	int status;
-	static char testmsg[] = "Test Message";
-	RspMessage rspmsg;
-
-	if(!IS_VALID_CARD(card)) {
-		pr_debug("Invalid param: %d is not a valid card id\n", card);
-		return -ENODEV;
-	}
-
-	pr_debug("%s: Sending loopback message\n",
-		sc_adapter[card]->devicename);
-
-	/*
-	 * Send the loopback message to confirm that memory transfer is
-	 * operational
-	 */
-	status = send_and_receive(card, CMPID, cmReqType1,
-				  cmReqClass0,
-				  cmReqMsgLpbk,
-				  0,
-				  (unsigned char) strlen(testmsg),
-				  (unsigned char *)testmsg,
-				  &rspmsg, SAR_TIMEOUT);
-
-
-	if (!status) {
-		pr_debug("%s: Loopback message successfully sent\n",
-			sc_adapter[card]->devicename);
-		if(strcmp(rspmsg.msg_data.byte_array, testmsg)) {
-			pr_debug("%s: Loopback return != sent\n",
-				sc_adapter[card]->devicename);
-			return -EIO;
-		}
-		return 0;
-	}
-	else {
-		pr_debug("%s: Send loopback message failed\n",
-			sc_adapter[card]->devicename);
-		return -EIO;
-	}
-
-}
-
-/*
  * start the onboard firmware
  */
 int startproc(int card) 
@@ -222,16 +172,10 @@ int startproc(int card)
 }
 
 
-int loadproc(int card, char *data) 
-{
-	return -1;
-}
-
-
 /*
  * Dials the number passed in 
  */
-int dial(int card, unsigned long channel, setup_parm setup) 
+static int dial(int card, unsigned long channel, setup_parm setup)
 {
 	int status;
 	char Phone[48];
@@ -261,7 +205,7 @@ int dial(int card, unsigned long channel, setup_parm setup)
 /*
  * Answer an incoming call 
  */
-int answer(int card, unsigned long channel) 
+static int answer(int card, unsigned long channel)
 {
 	if(!IS_VALID_CARD(card)) {
 		pr_debug("Invalid param: %d is not a valid card id\n", card);
@@ -282,7 +226,7 @@ int answer(int card, unsigned long channel)
 /*
  * Hangup up the call on specified channel
  */
-int hangup(int card, unsigned long channel) 
+static int hangup(int card, unsigned long channel)
 {
 	int status;
 
@@ -305,7 +249,7 @@ int hangup(int card, unsigned long channel)
 /*
  * Set the layer 2 protocol (X.25, HDLC, Raw)
  */
-int setl2(int card, unsigned long arg) 
+static int setl2(int card, unsigned long arg)
 {
 	int status =0;
 	int protocol,channel;
@@ -340,7 +284,7 @@ int setl2(int card, unsigned long arg)
 /*
  * Set the layer 3 protocol
  */
-int setl3(int card, unsigned long channel) 
+static int setl3(int card, unsigned long channel)
 {
 	int protocol = channel >> 8;
 
@@ -355,7 +299,7 @@ int setl3(int card, unsigned long channel)
 	return 0;
 }
 
-int acceptb(int card, unsigned long channel)
+static int acceptb(int card, unsigned long channel)
 {
 	if(!IS_VALID_CARD(card)) {
 		pr_debug("Invalid param: %d is not a valid card id\n", card);
@@ -374,7 +318,7 @@ int acceptb(int card, unsigned long channel)
 	return 0;
 }
 
-int clreaz(int card, unsigned long arg)
+static int clreaz(int card, unsigned long arg)
 {
 	if(!IS_VALID_CARD(card)) {
 		pr_debug("Invalid param: %d is not a valid card id\n", card);
@@ -388,7 +332,7 @@ int clreaz(int card, unsigned long arg)
 	return 0;
 }
 
-int seteaz(int card, unsigned long arg, char *num)
+static int seteaz(int card, unsigned long arg, char *num)
 {
 	if(!IS_VALID_CARD(card)) {
 		pr_debug("Invalid param: %d is not a valid card id\n", card);

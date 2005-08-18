@@ -161,6 +161,9 @@ extern struct sctp_globals {
 	 */
 	int sndbuf_policy;
 
+	/* Delayed SACK timeout  200ms default*/
+	int sack_timeout;
+
 	/* HB.interval		    - 30 seconds  */
 	int hb_interval;
 
@@ -217,6 +220,7 @@ extern struct sctp_globals {
 #define sctp_sndbuf_policy	 	(sctp_globals.sndbuf_policy)
 #define sctp_max_retrans_path		(sctp_globals.max_retrans_path)
 #define sctp_max_retrans_init		(sctp_globals.max_retrans_init)
+#define sctp_sack_timeout		(sctp_globals.sack_timeout)
 #define sctp_hb_interval		(sctp_globals.hb_interval)
 #define sctp_max_instreams		(sctp_globals.max_instreams)
 #define sctp_max_outstreams		(sctp_globals.max_outstreams)
@@ -441,7 +445,8 @@ struct sctp_ssnmap {
 	int malloced;
 };
 
-struct sctp_ssnmap *sctp_ssnmap_new(__u16 in, __u16 out, int gfp);
+struct sctp_ssnmap *sctp_ssnmap_new(__u16 in, __u16 out,
+				    unsigned int __nocast gfp);
 void sctp_ssnmap_free(struct sctp_ssnmap *map);
 void sctp_ssnmap_clear(struct sctp_ssnmap *map);
 
@@ -578,7 +583,6 @@ void sctp_datamsg_track(struct sctp_chunk *);
 void sctp_chunk_fail(struct sctp_chunk *, int error);
 int sctp_chunk_abandoned(struct sctp_chunk *);
 
-
 /* RFC2960 1.4 Key Terms
  *
  * o Chunk: A unit of information within an SCTP packet, consisting of
@@ -588,13 +592,8 @@ int sctp_chunk_abandoned(struct sctp_chunk *);
  * each chunk as well as a few other header pointers...
  */
 struct sctp_chunk {
-	/* These first three elements MUST PRECISELY match the first
-	 * three elements of struct sk_buff.  This allows us to reuse
-	 * all the skb_* queue management functions.
-	 */
-	struct sctp_chunk *next;
-	struct sctp_chunk *prev;
-	struct sk_buff_head *list;
+	struct list_head list;
+
 	atomic_t refcnt;
 
 	/* This is our link to the per-transport transmitted list.  */
@@ -713,7 +712,7 @@ struct sctp_packet {
 	__u32 vtag;
 
 	/* This contains the payload chunks.  */
-	struct sk_buff_head chunks;
+	struct list_head chunk_list;
 
 	/* This is the overhead of the sctp and ip headers. */
 	size_t overhead;
@@ -867,10 +866,13 @@ struct sctp_transport {
 	 */
 	unsigned long last_time_ecne_reduced;
 
-	/* active      : The current active state of this destination,
-	 *	       :  i.e. DOWN, UP, etc.
+	/* The number of times INIT has been sent on this transport. */
+	int init_sent_count;
+
+	/* state       : The current state of this destination,
+	 *             : i.e. SCTP_ACTIVE, SCTP_INACTIVE, SCTP_UNKOWN.
 	 */
-	int active;
+	int state;
 
 	/* hb_allowed  : The current heartbeat state of this destination,
 	 *	       :  i.e. ALLOW-HB, NO-HEARTBEAT, etc.
@@ -944,7 +946,8 @@ struct sctp_transport {
 	} cacc;
 };
 
-struct sctp_transport *sctp_transport_new(const union sctp_addr *, int);
+struct sctp_transport *sctp_transport_new(const union sctp_addr *,
+					  unsigned int __nocast);
 void sctp_transport_set_owner(struct sctp_transport *,
 			      struct sctp_association *);
 void sctp_transport_route(struct sctp_transport *, union sctp_addr *,
@@ -967,7 +970,7 @@ struct sctp_inq {
 	/* This is actually a queue of sctp_chunk each
 	 * containing a partially decoded packet.
 	 */
-	struct sk_buff_head in;
+	struct list_head in_chunk_list;
 	/* This is the packet which is currently off the in queue and is
 	 * being worked on through the inbound chunk processing.
 	 */
@@ -1010,7 +1013,7 @@ struct sctp_outq {
 	struct sctp_association *asoc;
 
 	/* Data pending that has never been transmitted.  */
-	struct sk_buff_head out;
+	struct list_head out_chunk_list;
 
 	unsigned out_qlen;	/* Total length of queued data chunks. */
 
@@ -1018,7 +1021,7 @@ struct sctp_outq {
 	unsigned error;
 
 	/* These are control chunks we want to send.  */
-	struct sk_buff_head control;
+	struct list_head control_chunk_list;
 
 	/* These are chunks that have been sacked but are above the
 	 * CTSN, or cumulative tsn ack point.
@@ -1092,9 +1095,10 @@ void sctp_bind_addr_init(struct sctp_bind_addr *, __u16 port);
 void sctp_bind_addr_free(struct sctp_bind_addr *);
 int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 			const struct sctp_bind_addr *src,
-			sctp_scope_t scope, int gfp,int flags);
+			sctp_scope_t scope, unsigned int __nocast gfp,
+			int flags);
 int sctp_add_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
-		       int gfp);
+		       unsigned int __nocast gfp);
 int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *);
 int sctp_bind_addr_match(struct sctp_bind_addr *, const union sctp_addr *,
 			 struct sctp_sock *);
@@ -1103,9 +1107,10 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 					int			addrcnt,
 					struct sctp_sock	*opt);
 union sctp_params sctp_bind_addrs_to_raw(const struct sctp_bind_addr *bp,
-					 int *addrs_len, int gfp);
+					 int *addrs_len,
+					 unsigned int __nocast gfp);
 int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw, int len,
-			   __u16 port, int gfp);
+			   __u16 port, unsigned int __nocast gfp);
 
 sctp_scope_t sctp_scope(const union sctp_addr *);
 int sctp_in_scope(const union sctp_addr *addr, const sctp_scope_t scope);
@@ -1222,9 +1227,6 @@ struct sctp_endpoint {
 
 	/* sendbuf acct. policy.	*/
 	__u32 sndbuf_policy;
-
-	/* Name for debugging output... */
-	char *debug_name;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1237,7 +1239,7 @@ static inline struct sctp_endpoint *sctp_ep(struct sctp_ep_common *base)
 }
 
 /* These are function signatures for manipulating endpoints.  */
-struct sctp_endpoint *sctp_endpoint_new(struct sock *, int);
+struct sctp_endpoint *sctp_endpoint_new(struct sock *, unsigned int __nocast);
 void sctp_endpoint_free(struct sctp_endpoint *);
 void sctp_endpoint_put(struct sctp_endpoint *);
 void sctp_endpoint_hold(struct sctp_endpoint *);
@@ -1258,7 +1260,7 @@ int sctp_verify_init(const struct sctp_association *asoc, sctp_cid_t,
 		     struct sctp_chunk **err_chunk);
 int sctp_process_init(struct sctp_association *, sctp_cid_t cid,
 		      const union sctp_addr *peer,
-		      sctp_init_chunk_t *init, int gfp);
+		      sctp_init_chunk_t *init, unsigned int __nocast gfp);
 __u32 sctp_generate_tag(const struct sctp_endpoint *);
 __u32 sctp_generate_tsn(const struct sctp_endpoint *);
 
@@ -1314,10 +1316,22 @@ struct sctp_association {
 		 *	       : association. Normally this information is
 		 *	       : hashed or keyed for quick lookup and access
 		 *	       : of the TCB.
+		 *	       : The list is also initialized with the list
+		 *	       : of addresses passed with the sctp_connectx()
+		 *	       : call.
 		 *
 		 * It is a list of SCTP_transport's.
 		 */
 		struct list_head transport_addr_list;
+
+		/* transport_count
+		 *
+		 * Peer        : A count of the number of peer addresses
+		 * Transport   : in the Peer Transport Address List.
+		 * Address     :
+		 * Count       :
+		 */
+		__u16 transport_count;
 
 		/* port
 		 *   The transport layer port number.
@@ -1486,6 +1500,9 @@ struct sctp_association {
 	/* Transport to which SHUTDOWN chunk was last sent.  */
 	struct sctp_transport *shutdown_last_sent_to;
 
+	/* Transport to which INIT chunk was last sent.  */
+	struct sctp_transport *init_last_sent_to;
+
 	/* Next TSN    : The next TSN number to be assigned to a new
 	 *	       : DATA chunk.  This is sent in the INIT or INIT
 	 *	       : ACK chunk to the peer and incremented each
@@ -1549,8 +1566,11 @@ struct sctp_association {
 	/* The message size at which SCTP fragmentation will occur. */
 	__u32 frag_point;
 
-	/* Currently only one counter is used to count INIT errors. */
-	int counters[SCTP_NUMBER_COUNTERS];
+	/* Counter used to count INIT errors. */
+	int init_err_counter;
+
+	/* Count the number of INIT cycles (for doubling timeout). */
+	int init_cycle;
 
 	/* Default send parameters. */
 	__u16 default_stream;
@@ -1650,7 +1670,7 @@ struct sctp_association {
 	 *  which already resides in sctp_outq.	 Please move this
 	 *  queue and its supporting logic down there.	--piggy]
 	 */
-	struct sk_buff_head addip_chunks;
+	struct list_head addip_chunk_list;
 
 	/* ADDIP Section 4.1 ASCONF Chunk Procedures
 	 *
@@ -1703,11 +1723,13 @@ static inline struct sctp_association *sctp_assoc(struct sctp_ep_common *base)
 
 struct sctp_association *
 sctp_association_new(const struct sctp_endpoint *, const struct sock *,
-		     sctp_scope_t scope, int gfp);
+		     sctp_scope_t scope, unsigned int __nocast gfp);
 void sctp_association_free(struct sctp_association *);
 void sctp_association_put(struct sctp_association *);
 void sctp_association_hold(struct sctp_association *);
 
+struct sctp_transport *sctp_assoc_choose_init_transport(
+	struct sctp_association *);
 struct sctp_transport *sctp_assoc_choose_shutdown_transport(
 	struct sctp_association *);
 void sctp_assoc_update_retran_path(struct sctp_association *);
@@ -1717,9 +1739,12 @@ int sctp_assoc_lookup_laddr(struct sctp_association *asoc,
 			    const union sctp_addr *laddr);
 struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *,
 				     const union sctp_addr *address,
-				     const int gfp);
+				     const unsigned int __nocast gfp,
+				     const int peer_state);
 void sctp_assoc_del_peer(struct sctp_association *asoc,
 			 const union sctp_addr *addr);
+void sctp_assoc_rm_peer(struct sctp_association *asoc,
+			 struct sctp_transport *peer);
 void sctp_assoc_control_transport(struct sctp_association *,
 				  struct sctp_transport *,
 				  sctp_transport_cmd_t, sctp_sn_error_t);
@@ -1738,9 +1763,11 @@ void sctp_assoc_rwnd_increase(struct sctp_association *, unsigned);
 void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned);
 void sctp_assoc_set_primary(struct sctp_association *,
 			    struct sctp_transport *);
-int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *, int);
+int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *,
+				     unsigned int __nocast);
 int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *,
-					 struct sctp_cookie*, int gfp);
+					 struct sctp_cookie*,
+					 unsigned int __nocast gfp);
 
 int sctp_cmp_addr_exact(const union sctp_addr *ss1,
 			const union sctp_addr *ss2);

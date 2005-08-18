@@ -286,6 +286,7 @@ static inline pte_t pte_modify(pte_t orig_pte, pgprot_t new_prot)
 #define pte_mkyoung(pte)	(__pte(pte_val(pte) | _PAGE_ACCESSED | _PAGE_R))
 #define pte_mkwrite(pte)	(__pte(pte_val(pte) | _PAGE_WRITE))
 #define pte_mkdirty(pte)	(__pte(pte_val(pte) | _PAGE_MODIFIED | _PAGE_W))
+#define pte_mkhuge(pte)		(__pte(pte_val(pte) | _PAGE_SZHUGE))
 
 /* to find an entry in a page-table-directory. */
 #define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))

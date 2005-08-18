@@ -59,7 +59,7 @@
 #define	XFSA_FIXUP_BNO_OK	1
 #define	XFSA_FIXUP_CNT_OK	2
 
-int
+STATIC int
 xfs_alloc_search_busy(xfs_trans_t *tp,
 		    xfs_agnumber_t agno,
 		    xfs_agblock_t bno,
@@ -2562,7 +2562,7 @@ xfs_alloc_clear_busy(xfs_trans_t *tp,
 /*
  * returns non-zero if any of (agno,bno):len is in a busy list
  */
-int
+STATIC int
 xfs_alloc_search_busy(xfs_trans_t *tp,
 		    xfs_agnumber_t agno,
 		    xfs_agblock_t bno,

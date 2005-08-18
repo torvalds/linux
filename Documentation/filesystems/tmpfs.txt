@@ -71,8 +71,8 @@ can be changed on remount.  The size parameter also accepts a suffix %
 to limit this tmpfs instance to that percentage of your physical RAM:
 the default, when neither size nor nr_blocks is specified, is size=50%
 
-If both nr_blocks (or size) and nr_inodes are set to 0, neither blocks
-nor inodes will be limited in that instance.  It is generally unwise to
+If nr_blocks=0 (or size=0), blocks will not be limited in that instance;
+if nr_inodes=0, inodes will not be limited.  It is generally unwise to
 mount with such options, since it allows any user with write access to
 use up all the memory on the machine; but enhances the scalability of
 that instance in a system with many cpus making intensive use of it.
@@ -97,4 +97,4 @@ RAM/SWAP in 10240 inodes and it is only accessible by root.
 Author:
    Christoph Rohland <cr@sap.com>, 1.12.01
 Updated:
-   Hugh Dickins <hugh@veritas.com>, 01 September 2004
+   Hugh Dickins <hugh@veritas.com>, 13 March 2005

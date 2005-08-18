@@ -3,8 +3,8 @@
  *
  *  Typical I/O routines for uServer board.
  *
- *  Copyright (c) 2001 - 2003  Hiroyuki Kondo, Hirokazu Takata,
- *                             Hitoshi Yamamoto, Takeo Takahashi
+ *  Copyright (c) 2001-2005  Hiroyuki Kondo, Hirokazu Takata,
+ *                           Hitoshi Yamamoto, Takeo Takahashi
  *
  *  This file is subject to the terms and conditions of the GNU General
  *  Public License.  See the file "COPYING" in the main directory of this
@@ -39,7 +39,7 @@ extern void pcc_iowrite_word(int, unsigned long, void *, size_t, size_t, int);
 
 #define PORT2ADDR(port)	_port2addr(port)
 
-static __inline__ void *_port2addr(unsigned long port)
+static inline void *_port2addr(unsigned long port)
 {
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
 	if (port >= UART0_IOSTART && port <= UART0_IOEND)
@@ -50,7 +50,7 @@ static __inline__ void *_port2addr(unsigned long port)
 	return (void *)(port + NONCACHE_OFFSET);
 }
 
-static __inline__ void delay(void)
+static inline void delay(void)
 {
 	__asm__ __volatile__ ("push r0; \n\t pop r0;" : : :"memory");
 }
@@ -87,39 +87,22 @@ unsigned long _inl(unsigned long port)
 
 unsigned char _inb_p(unsigned long port)
 {
-	unsigned char b;
-
-	if (port >= CFC_IOSTART && port <= CFC_IOEND) {
-		pcc_ioread_byte(0, port, &b, sizeof(b), 1, 0);
-		return b;
-	} else {
-		b = *(volatile unsigned char *)PORT2ADDR(port);
-		delay();
-		return b;
-	}
+	unsigned char v = _inb(port);
+	delay();
+	return v;
 }
 
 unsigned short _inw_p(unsigned long port)
 {
-	unsigned short w;
-
-	if (port >= CFC_IOSTART && port <= CFC_IOEND) {
-		pcc_ioread_word(0, port, &w, sizeof(w), 1, 0);
-		return w;
-	} else {
-		w = *(volatile unsigned short *)PORT2ADDR(port);
-		delay();
-		return w;
-	}
+	unsigned short v = _inw(port);
+	delay();
+	return v;
 }
 
 unsigned long _inl_p(unsigned long port)
 {
-	unsigned long v;
-
-	v = *(volatile unsigned long *)PORT2ADDR(port);
+	unsigned long v = _inl(port);
 	delay();
-
 	return v;
 }
 
@@ -149,25 +132,19 @@ void _outl(unsigned long l, unsigned long port)
 
 void _outb_p(unsigned char b, unsigned long port)
 {
-	if (port >= CFC_IOSTART && port <= CFC_IOEND)
-		pcc_iowrite_byte(0, port, &b, sizeof(b), 1, 0);
-	else
-		*(volatile unsigned char *)PORT2ADDR(port) = b;
+	_outb(b, port);
 	delay();
 }
 
 void _outw_p(unsigned short w, unsigned long port)
 {
-	if (port >= CFC_IOSTART && port <= CFC_IOEND)
-		pcc_iowrite_word(0, port, &w, sizeof(w), 1, 0);
-	else
-		*(volatile unsigned short *)PORT2ADDR(port) = w;
+	_outw(w, port);
 	delay();
 }
 
 void _outl_p(unsigned long l, unsigned long port)
 {
-	*(volatile unsigned long *)PORT2ADDR(port) = l;
+	_outl(l, port);
 	delay();
 }
 

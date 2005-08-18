@@ -2,6 +2,8 @@
  *  linux/arch/arm/kernel/head.S
  *
  *  Copyright (C) 1994-2002 Russell King
+ *  Copyright (c) 2003 ARM Limited
+ *  All Rights Reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -165,6 +167,48 @@ __mmap_switched:
 	stmia	r6, {r0, r4}			@ Save control register values
 	b	start_kernel
 
+#if defined(CONFIG_SMP)
+	.type   secondary_startup, #function
+ENTRY(secondary_startup)
+	/*
+	 * Common entry point for secondary CPUs.
+	 *
+	 * Ensure that we're in SVC mode, and IRQs are disabled.  Lookup
+	 * the processor type - there is no need to check the machine type
+	 * as it has already been validated by the primary processor.
+	 */
+	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | MODE_SVC
+	bl	__lookup_processor_type
+	movs	r10, r5				@ invalid processor?
+	moveq	r0, #'p'			@ yes, error 'p'
+	beq	__error
+
+	/*
+	 * Use the page tables supplied from  __cpu_up.
+	 */
+	adr	r4, __secondary_data
+	ldmia	r4, {r5, r6, r13}		@ address to jump to after
+	sub	r4, r4, r5			@ mmu has been enabled
+	ldr	r4, [r6, r4]			@ get secondary_data.pgdir
+	adr	lr, __enable_mmu		@ return address
+	add	pc, r10, #12			@ initialise processor
+						@ (return control reg)
+
+	/*
+	 * r6  = &secondary_data
+	 */
+ENTRY(__secondary_switched)
+	ldr	sp, [r6, #4]			@ get secondary_data.stack
+	mov	fp, #0
+	b	secondary_start_kernel
+
+	.type	__secondary_data, %object
+__secondary_data:
+	.long	.
+	.long	secondary_data
+	.long	__secondary_switched
+#endif /* defined(CONFIG_SMP) */
+
 
 
 /*
@@ -300,9 +344,9 @@ __create_page_tables:
 	str	r6, [r0]
 #endif
 
+#ifdef CONFIG_DEBUG_LL
 	bic	r7, r7, #0x0c			@ turn off cacheable
 						@ and bufferable bits
-#ifdef CONFIG_DEBUG_LL
 	/*
 	 * Map in IO space for serial debugging.
 	 * This allows debug messages to be output
@@ -328,14 +372,10 @@ __create_page_tables:
 	teq	r1, #MACH_TYPE_NETWINDER
 	teqne	r1, #MACH_TYPE_CATS
 	bne	1f
-	add	r0, r4, #0x3fc0			@ ff000000
-	mov	r3, #0x7c000000
-	orr	r3, r3, r7
-	str	r3, [r0], #4
-	add	r3, r3, #1 << 20
-	str	r3, [r0], #4
+	add	r0, r4, #0xff000000 >> 18
+	orr	r3, r7, #0x7c000000
+	str	r3, [r0]
 1:
-#endif
 #endif
 #ifdef CONFIG_ARCH_RPC
 	/*
@@ -343,12 +383,12 @@ __create_page_tables:
 	 * Similar reasons here - for debug.  This is
 	 * only for Acorn RiscPC architectures.
 	 */
-	add	r0, r4, #0x80			@ 02000000
-	mov	r3, #0x02000000
-	orr	r3, r3, r7
+	add	r0, r4, #0x02000000 >> 18
+	orr	r3, r7, #0x02000000
 	str	r3, [r0]
-	add	r0, r4, #0x3600			@ d8000000
+	add	r0, r4, #0xd8000000 >> 18
 	str	r3, [r0]
+#endif
 #endif
 	mov	pc, lr
 	.ltorg

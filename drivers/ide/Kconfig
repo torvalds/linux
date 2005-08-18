@@ -606,6 +606,12 @@ config BLK_DEV_IT8172
 	  <http://www.ite.com.tw/ia/brief_it8172bsp.htm>; picture of the
 	  board at <http://www.mvista.com/partners/semiconductor/ite.html>.
 
+config BLK_DEV_IT821X
+	tristate "IT821X IDE support"
+	help
+	  This driver adds support for the ITE 8211 IDE controller and the
+	  IT 8212 IDE RAID controller in both RAID and pass-through mode.
+
 config BLK_DEV_NS87415
 	tristate "NS87415 chipset support"
 	help
@@ -672,8 +678,8 @@ config BLK_DEV_SVWKS
 	  chipsets.
 
 config BLK_DEV_SGIIOC4
-	tristate "Silicon Graphics IOC4 chipset support"
-	depends on IA64_SGI_SN2 || IA64_GENERIC
+	tristate "Silicon Graphics IOC4 chipset ATA/ATAPI support"
+	depends on (IA64_SGI_SN2 || IA64_GENERIC) && SGI_IOC4
 	help
 	  This driver adds PIO & MultiMode DMA-2 support for the SGI IOC4
 	  chipset, which has one channel and can support two devices.

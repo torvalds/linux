@@ -104,23 +104,17 @@ void machine_restart (char *__unused)
 	V850_SIM_SYSCALL (exit, 0);
 }
 
-EXPORT_SYMBOL(machine_restart);
-
 void machine_halt (void)
 {
 	V850_SIM_SYSCALL (write, 1, "HALT\n", 5);
 	V850_SIM_SYSCALL (exit, 0);
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off (void)
 {
 	V850_SIM_SYSCALL (write, 1, "POWER OFF\n", 10);
 	V850_SIM_SYSCALL (exit, 0);
 }
-
-EXPORT_SYMBOL(machine_power_off);
 
 
 /* Load data from a file called NAME into ram.  The address and length

@@ -47,7 +47,7 @@ extern int smp_call_function_on(void (*func) (void *info), void *info,
  
 #define PROC_CHANGE_PENALTY	20		/* Schedule penalty */
 
-#define smp_processor_id() (S390_lowcore.cpu_data.cpu_nr)
+#define raw_smp_processor_id()	(S390_lowcore.cpu_data.cpu_nr)
 
 extern int smp_get_cpu(cpumask_t cpu_map);
 extern void smp_put_cpu(int cpu);

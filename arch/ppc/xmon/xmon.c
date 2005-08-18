@@ -9,6 +9,7 @@
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
+#include <linux/kallsyms.h>
 #include <asm/ptrace.h>
 #include <asm/string.h>
 #include <asm/prom.h>
@@ -93,8 +94,7 @@ static void take_input(char *);
 static unsigned read_spr(int);
 static void write_spr(int, unsigned);
 static void super_regs(void);
-static void print_sysmap(void);
-static void sysmap_lookup(void);
+static void symbol_lookup(void);
 static void remove_bpts(void);
 static void insert_bpts(void);
 static struct bpt *at_breakpoint(unsigned pc);
@@ -103,7 +103,6 @@ static void cacheflush(void);
 #ifdef CONFIG_SMP
 static void cpu_cmd(void);
 #endif /* CONFIG_SMP */
-static int pretty_print_addr(unsigned long addr);
 static void csum(void);
 #ifdef CONFIG_BOOTX_TEXT
 static void vidcmds(void);
@@ -120,8 +119,6 @@ extern void longjmp(u_int *, int);
 
 extern void xmon_enter(void);
 extern void xmon_leave(void);
-extern char* xmon_find_symbol(unsigned long addr, unsigned long* saddr);
-extern unsigned long xmon_symbol_to_addr(char* symbol);
 
 static unsigned start_tb[NR_CPUS][2];
 static unsigned stop_tb[NR_CPUS][2];
@@ -148,7 +145,6 @@ Commands:\n\
   mm	move a block of memory\n\
   ms	set a block of memory\n\
   md	compare two blocks of memory\n\
-  M	print System.map\n\
   r	print registers\n\
   S	print special registers\n\
   t	print backtrace\n\
@@ -173,6 +169,35 @@ extern inline void __delay(unsigned int loops)
 	if (loops != 0)
 		__asm__ __volatile__("mtctr %0; 1: bdnz 1b" : :
 				     "r" (loops) : "ctr");
+}
+
+/* Print an address in numeric and symbolic form (if possible) */
+static void xmon_print_symbol(unsigned long address, const char *mid,
+			      const char *after)
+{
+	char *modname;
+	const char *name = NULL;
+	unsigned long offset, size;
+	static char tmpstr[128];
+
+	printf("%.8lx", address);
+	if (setjmp(bus_error_jmp) == 0) {
+		debugger_fault_handler = handle_fault;
+		sync();
+		name = kallsyms_lookup(address, &size, &offset, &modname,
+				       tmpstr);
+		sync();
+		/* wait a little while to see if we get a machine check */
+		__delay(200);
+	}
+	debugger_fault_handler = NULL;
+
+	if (name) {
+		printf("%s%s+%#lx/%#lx", mid, name, offset, size);
+		if (modname)
+			printf(" [%s]", modname);
+	}
+	printf("%s", after);
 }
 
 static void get_tb(unsigned *p)
@@ -454,7 +479,7 @@ cmds(struct pt_regs *excp)
 			dump();
 			break;
 		case 'l':
-			sysmap_lookup();
+			symbol_lookup();
 			break;
 		case 'r':
 			if (excp != NULL)
@@ -465,9 +490,6 @@ cmds(struct pt_regs *excp)
 				printf("No exception information\n");
 			else
 				excprint(excp);
-			break;
-		case 'M':
-			print_sysmap();
 			break;
 		case 'S':
 			super_regs();
@@ -825,20 +847,19 @@ backtrace(struct pt_regs *excp)
 	for (; sp != 0; sp = stack[0]) {
 		if (mread(sp, stack, sizeof(stack)) != sizeof(stack))
 			break;
-		pretty_print_addr(stack[1]);
-		printf(" ");
+		printf("[%.8lx] ", stack);
+		xmon_print_symbol(stack[1], " ", "\n");
 		if (stack[1] == (unsigned) &ret_from_except
 		    || stack[1] == (unsigned) &ret_from_except_full
 		    || stack[1] == (unsigned) &ret_from_syscall) {
 			if (mread(sp+16, &regs, sizeof(regs)) != sizeof(regs))
 				break;
-			printf("\nexception:%x [%x] %x ", regs.trap, sp+16,
+			printf("exception:%x [%x] %x\n", regs.trap, sp+16,
 			       regs.nip);
 			sp = regs.gpr[1];
 			if (mread(sp, stack, sizeof(stack)) != sizeof(stack))
 				break;
 		}
-		printf("\n");
 	}
 }
 
@@ -859,11 +880,10 @@ excprint(struct pt_regs *fp)
 #ifdef CONFIG_SMP
 	printf("cpu %d: ", smp_processor_id());
 #endif /* CONFIG_SMP */
-	printf("vector: %x at pc = ", fp->trap);
-	pretty_print_addr(fp->nip);
-	printf(", lr = ");
-	pretty_print_addr(fp->link);
-	printf("\nmsr = %x, sp = %x [%x]\n", fp->msr, fp->gpr[1], fp);
+	printf("vector: %x at pc=", fp->trap);
+	xmon_print_symbol(fp->nip, ": ", ", lr=");
+	xmon_print_symbol(fp->link, ": ", "\n");
+	printf("msr = %x, sp = %x [%x]\n", fp->msr, fp->gpr[1], fp);
 	trap = TRAP(fp);
 	if (trap == 0x300 || trap == 0x600)
 		printf("dar = %x, dsisr = %x\n", fp->dar, fp->dsisr);
@@ -949,24 +969,6 @@ write_spr(int n, unsigned int val)
 static unsigned int regno;
 extern char exc_prolog;
 extern char dec_exc;
-
-void
-print_sysmap(void)
-{
-	extern char *sysmap;
-	if ( sysmap ) {
-		printf("System.map: \n");
-		if( setjmp(bus_error_jmp) == 0 ) {
-			debugger_fault_handler = handle_fault;
-			sync();
-			xmon_puts(sysmap);
-			sync();
-		}
-		debugger_fault_handler = NULL;
-	}
-	else
-		printf("No System.map\n");
-}
 
 void
 super_regs(void)
@@ -1738,7 +1740,7 @@ scanhex(unsigned *vp)
 		printf("invalid register name '%%%s'\n", regname);
 		return 0;
 	} else if (c == '$') {
-		static char symname[64];
+		static char symname[128];
 		int i;
 		for (i=0; i<63; i++) {
 			c = inchar();
@@ -1749,7 +1751,14 @@ scanhex(unsigned *vp)
 			symname[i] = c;
 		}
 		symname[i++] = 0;
-		*vp = xmon_symbol_to_addr(symname);
+		*vp = 0;
+		if (setjmp(bus_error_jmp) == 0) {
+			debugger_fault_handler = handle_fault;
+			sync();
+			*vp = kallsyms_lookup_name(symname);
+			sync();
+		}
+		debugger_fault_handler = NULL;
 		if (!(*vp)) {
 			printf("unknown symbol\n");
 			return 0;
@@ -1840,169 +1849,34 @@ take_input(char *str)
 	lineptr = str;
 }
 
-void
-sysmap_lookup(void)
+static void
+symbol_lookup(void)
 {
 	int type = inchar();
 	unsigned addr;
-	static char tmp[64];
-	char* cur;
+	static char tmp[128];
 
-	extern char *sysmap;
-	extern unsigned long sysmap_size;
-	if ( !sysmap || !sysmap_size )
-		return;
-
-	switch(type) {
-		case 'a':
-			if (scanhex(&addr)) {
-				pretty_print_addr(addr);
-				printf("\n");
-			}
-			termch = 0;
-			break;
-		case 's':
-			getstring(tmp, 64);
-			if( setjmp(bus_error_jmp) == 0 ) {
-				debugger_fault_handler = handle_fault;
-				sync();
-				cur = sysmap;
-				do {
-					cur = strstr(cur, tmp);
-					if (cur) {
-						static char res[64];
-						char *p, *d;
-						p = cur;
-						while(p > sysmap && *p != 10)
-							p--;
-						if (*p == 10) p++;
-						d = res;
-						while(*p && p < (sysmap + sysmap_size) && *p != 10)
-							*(d++) = *(p++);
-						*(d++) = 0;
-						printf("%s\n", res);
-						cur++;
-					}
-				} while (cur);
-				sync();
-			}
-			debugger_fault_handler = NULL;
-			termch = 0;
-			break;
-	}
-}
-
-static int
-pretty_print_addr(unsigned long addr)
-{
-	char *sym;
-	unsigned long saddr;
-	
-	printf("%08x", addr);
-	sym = xmon_find_symbol(addr, &saddr);
-	if (sym)
-		printf(" (%s+0x%x)", sym, addr-saddr);
-	return (sym != 0);
-}
-
-char*
-xmon_find_symbol(unsigned long addr, unsigned long* saddr)
-{
-	static char rbuffer[64];
-	char *p, *ep, *limit;
-	unsigned long prev, next;
-	char* psym;
-
-	extern char *sysmap;
-	extern unsigned long sysmap_size;
-	if ( !sysmap || !sysmap_size )
-		return NULL;
-	
-	prev = 0;
-	psym = NULL;
-	p = sysmap;
-	limit = p + sysmap_size;
-	if( setjmp(bus_error_jmp) == 0 ) {
-		debugger_fault_handler = handle_fault;
-		sync();
-		do {
-			next = simple_strtoul(p, &p, 16);
-			if (next > addr && prev <= addr) {
-				if (!psym)
-					goto bail;
-				ep = rbuffer;
-				p = psym;
-				while(*p && p < limit && *p == 32)
-					p++;
-				while(*p && p < limit && *p != 10 && (ep - rbuffer) < 63)
-					*(ep++) = *(p++);
-				*(ep++) = 0;
-				if (saddr)
-					*saddr = prev;
-				debugger_fault_handler = NULL;
-				return rbuffer;
-			}
-			prev = next;
-			psym = p;
-			while(*p && p < limit && *p != 10)
-				p++;
-			if (*p) p++;
-		} while(*p && p < limit && next);
-bail:
-		sync();
-	}
-	debugger_fault_handler = NULL;
-	return NULL;
-}
-
-unsigned long
-xmon_symbol_to_addr(char* symbol)
-{
-	char *p, *cur;
-	char *match = NULL;
-	int goodness = 0;
-	int result = 0;
-	
-	extern char *sysmap;
-	extern unsigned long sysmap_size;
-	if ( !sysmap || !sysmap_size )
-		return 0;
-
-	if( setjmp(bus_error_jmp) == 0 ) {
-		debugger_fault_handler = handle_fault;
-		sync();
-		cur = sysmap;
-		while(cur) {
-			cur = strstr(cur, symbol);
-			if (cur) {
-				int gd = 1;
-
-				/* best match if equal, better match if
-				 * begins with
-				 */
-				if (cur == sysmap || *(cur-1) == ' ') {
-					gd++;
-					if (cur[strlen(symbol)] == 10)
-						gd++;
-				}
-				if (gd > goodness) {
-					match = cur;
-					goodness = gd;
-					if (gd == 3)
-						break;
-				}
-				cur++;
-			}
-		}	
-		if (goodness) {
-			p = match;
-			while(p > sysmap && *p != 10)
-				p--;
-			if (*p == 10) p++;
-			result = simple_strtoul(p, &p, 16);
+	switch (type) {
+	case 'a':
+		if (scanhex(&addr))
+			xmon_print_symbol(addr, ": ", "\n");
+		termch = 0;
+		break;
+	case 's':
+		getstring(tmp, 64);
+		if (setjmp(bus_error_jmp) == 0) {
+			debugger_fault_handler = handle_fault;
+			sync();
+			addr = kallsyms_lookup_name(tmp);
+			if (addr)
+				printf("%s: %lx\n", tmp, addr);
+			else
+				printf("Symbol '%s' not found.\n", tmp);
+			sync();
 		}
-		sync();
+		debugger_fault_handler = NULL;
+		termch = 0;
+		break;
 	}
-	debugger_fault_handler = NULL;
-	return result;
-}		
+}
+

@@ -1,0 +1,38 @@
+driver/acpi/hotkey.c implement:
+1. /proc/acpi/hotkey/event_config 
+(event based hotkey or event config interface):
+a. add a  event based hotkey(event) : 
+echo "0:bus::action:method:num:num" > event_config
+
+b. delete a event based hotkey(event): 
+echo "1:::::num:num" > event_config
+
+c.  modify a event based hotkey(event):    
+echo "2:bus::action:method:num:num" > event_config
+
+2. /proc/acpi/hotkey/poll_config 
+(polling based hotkey or event config interface):
+a.add a polling based hotkey(event) : 	
+echo "0:bus:method:action:method:num" > poll_config
+this adding command will create a proc file 
+/proc/acpi/hotkey/method, which is used to get 
+result of polling.
+
+b.delete a polling based hotkey(event): 	
+echo "1:::::num" > event_config
+
+c.modify a polling based hotkey(event):    
+echo "2:bus:method:action:method:num" > poll_config
+
+3./proc/acpi/hotkey/action 
+(interface to call aml method associated with a 
+specific hotkey(event))
+echo "event_num:event_type:event_argument" > 
+	/proc/acpi/hotkey/action.
+The result of the execution of this aml method is 
+attached to /proc/acpi/hotkey/poll_method, which is dnyamically
+created.  Please use command "cat /proc/acpi/hotkey/polling_method" 
+to retrieve it.
+
+Note: Use cmdline "acpi_generic_hotkey" to over-ride
+loading any platform specific drivers.

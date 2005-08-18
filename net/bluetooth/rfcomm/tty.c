@@ -781,7 +781,7 @@ static int rfcomm_tty_chars_in_buffer(struct tty_struct *tty)
 
 	BT_DBG("tty %p dev %p", tty, dev);
 
-	if (skb_queue_len(&dlc->tx_queue))
+	if (!skb_queue_empty(&dlc->tx_queue))
 		return dlc->mtu;
 
 	return 0;

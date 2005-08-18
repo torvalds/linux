@@ -35,7 +35,7 @@ extern void *get_output_buffer(int *len_out);
 extern void free_output_buffer(void *buffer);
 
 extern int tap_open_common(void *dev, char *gate_addr);
-extern void tap_check_ips(char *gate_addr, char *eth_addr);
+extern void tap_check_ips(char *gate_addr, unsigned char *eth_addr);
 
 extern void read_output(int fd, char *output_out, int len);
 

@@ -36,7 +36,7 @@ typedef struct { void *null; } elf_fpregset_t;
  * These are used to set parameters in the core dumps.
  */
 #define ELF_CLASS	ELFCLASS32
-#define ELF_DATA	ELFDATA2LSB;
+#define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_ARM
 
 #define USE_ELF_CORE_DUMP

@@ -22,8 +22,8 @@
 #include <linux/udp.h>
 #include <linux/jhash.h>
 
-#define ASSERT_READ_LOCK(x) MUST_BE_READ_LOCKED(&ip_nat_lock)
-#define ASSERT_WRITE_LOCK(x) MUST_BE_WRITE_LOCKED(&ip_nat_lock)
+#define ASSERT_READ_LOCK(x)
+#define ASSERT_WRITE_LOCK(x)
 
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter_ipv4/ip_conntrack_core.h>
@@ -41,7 +41,7 @@
 #define DEBUGP(format, args...)
 #endif
 
-DECLARE_RWLOCK(ip_nat_lock);
+DEFINE_RWLOCK(ip_nat_lock);
 
 /* Calculated at init based on memory size */
 static unsigned int ip_nat_htable_size;
@@ -65,9 +65,9 @@ static void ip_nat_cleanup_conntrack(struct ip_conntrack *conn)
 	if (!(conn->status & IPS_NAT_DONE_MASK))
 		return;
 
-	WRITE_LOCK(&ip_nat_lock);
+	write_lock_bh(&ip_nat_lock);
 	list_del(&conn->nat.info.bysource);
-	WRITE_UNLOCK(&ip_nat_lock);
+	write_unlock_bh(&ip_nat_lock);
 }
 
 /* We do checksum mangling, so if they were wrong before they're still
@@ -142,7 +142,7 @@ find_appropriate_src(const struct ip_conntrack_tuple *tuple,
 	unsigned int h = hash_by_src(tuple);
 	struct ip_conntrack *ct;
 
-	READ_LOCK(&ip_nat_lock);
+	read_lock_bh(&ip_nat_lock);
 	list_for_each_entry(ct, &bysource[h], nat.info.bysource) {
 		if (same_src(ct, tuple)) {
 			/* Copy source part from reply tuple. */
@@ -151,12 +151,12 @@ find_appropriate_src(const struct ip_conntrack_tuple *tuple,
 			result->dst = tuple->dst;
 
 			if (in_range(result, range)) {
-				READ_UNLOCK(&ip_nat_lock);
+				read_unlock_bh(&ip_nat_lock);
 				return 1;
 			}
 		}
 	}
-	READ_UNLOCK(&ip_nat_lock);
+	read_unlock_bh(&ip_nat_lock);
 	return 0;
 }
 
@@ -297,9 +297,9 @@ ip_nat_setup_info(struct ip_conntrack *conntrack,
 		unsigned int srchash
 			= hash_by_src(&conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
 				      .tuple);
-		WRITE_LOCK(&ip_nat_lock);
+		write_lock_bh(&ip_nat_lock);
 		list_add(&info->bysource, &bysource[srchash]);
-		WRITE_UNLOCK(&ip_nat_lock);
+		write_unlock_bh(&ip_nat_lock);
 	}
 
 	/* It's done. */
@@ -474,23 +474,23 @@ int ip_nat_protocol_register(struct ip_nat_protocol *proto)
 {
 	int ret = 0;
 
-	WRITE_LOCK(&ip_nat_lock);
+	write_lock_bh(&ip_nat_lock);
 	if (ip_nat_protos[proto->protonum] != &ip_nat_unknown_protocol) {
 		ret = -EBUSY;
 		goto out;
 	}
 	ip_nat_protos[proto->protonum] = proto;
  out:
-	WRITE_UNLOCK(&ip_nat_lock);
+	write_unlock_bh(&ip_nat_lock);
 	return ret;
 }
 
 /* Noone stores the protocol anywhere; simply delete it. */
 void ip_nat_protocol_unregister(struct ip_nat_protocol *proto)
 {
-	WRITE_LOCK(&ip_nat_lock);
+	write_lock_bh(&ip_nat_lock);
 	ip_nat_protos[proto->protonum] = &ip_nat_unknown_protocol;
-	WRITE_UNLOCK(&ip_nat_lock);
+	write_unlock_bh(&ip_nat_lock);
 
 	/* Someone could be still looking at the proto in a bh. */
 	synchronize_net();
@@ -509,13 +509,13 @@ int __init ip_nat_init(void)
 		return -ENOMEM;
 
 	/* Sew in builtin protocols. */
-	WRITE_LOCK(&ip_nat_lock);
+	write_lock_bh(&ip_nat_lock);
 	for (i = 0; i < MAX_IP_NAT_PROTO; i++)
 		ip_nat_protos[i] = &ip_nat_unknown_protocol;
 	ip_nat_protos[IPPROTO_TCP] = &ip_nat_protocol_tcp;
 	ip_nat_protos[IPPROTO_UDP] = &ip_nat_protocol_udp;
 	ip_nat_protos[IPPROTO_ICMP] = &ip_nat_protocol_icmp;
-	WRITE_UNLOCK(&ip_nat_lock);
+	write_unlock_bh(&ip_nat_lock);
 
 	for (i = 0; i < ip_nat_htable_size; i++) {
 		INIT_LIST_HEAD(&bysource[i]);

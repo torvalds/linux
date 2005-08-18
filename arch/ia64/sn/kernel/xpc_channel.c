@@ -72,7 +72,7 @@ xpc_initialize_channels(struct xpc_partition *part, partid_t partid)
 enum xpc_retval
 xpc_setup_infrastructure(struct xpc_partition *part)
 {
-	int ret;
+	int ret, cpuid;
 	struct timer_list *timer;
 	partid_t partid = XPC_PARTID(part);
 
@@ -209,7 +209,7 @@ xpc_setup_infrastructure(struct xpc_partition *part)
 	 * With the setting of the partition setup_state to XPC_P_SETUP, we're
 	 * declaring that this partition is ready to go.
 	 */
-	(volatile u8) part->setup_state = XPC_P_SETUP;
+	part->setup_state = XPC_P_SETUP;
 
 
 	/*
@@ -223,11 +223,11 @@ xpc_setup_infrastructure(struct xpc_partition *part)
 	xpc_vars_part[partid].openclose_args_pa =
 					__pa(part->local_openclose_args);
 	xpc_vars_part[partid].IPI_amo_pa = __pa(part->local_IPI_amo_va);
-	xpc_vars_part[partid].IPI_nasid = cpuid_to_nasid(smp_processor_id());
-	xpc_vars_part[partid].IPI_phys_cpuid =
-					cpu_physical_id(smp_processor_id());
+	cpuid = raw_smp_processor_id();	/* any CPU in this partition will do */
+	xpc_vars_part[partid].IPI_nasid = cpuid_to_nasid(cpuid);
+	xpc_vars_part[partid].IPI_phys_cpuid = cpu_physical_id(cpuid);
 	xpc_vars_part[partid].nchannels = part->nchannels;
-	(volatile u64) xpc_vars_part[partid].magic = XPC_VP_MAGIC1;
+	xpc_vars_part[partid].magic = XPC_VP_MAGIC1;
 
 	return xpcSuccess;
 }
@@ -355,7 +355,7 @@ xpc_pull_remote_vars_part(struct xpc_partition *part)
 
 		/* let the other side know that we've pulled their variables */
 
-		(volatile u64) xpc_vars_part[partid].magic = XPC_VP_MAGIC2;
+		xpc_vars_part[partid].magic = XPC_VP_MAGIC2;
 	}
 
 	if (pulled_entry->magic == XPC_VP_MAGIC1) {
@@ -1183,7 +1183,7 @@ xpc_process_msg_IPI(struct xpc_partition *part, int ch_number)
 		 */
 		xpc_clear_local_msgqueue_flags(ch);
 
-		(volatile s64) ch->w_remote_GP.get = ch->remote_GP.get;
+		ch->w_remote_GP.get = ch->remote_GP.get;
 
 		dev_dbg(xpc_chan, "w_remote_GP.get changed to %ld, partid=%d, "
 			"channel=%d\n", ch->w_remote_GP.get, ch->partid,
@@ -1211,7 +1211,7 @@ xpc_process_msg_IPI(struct xpc_partition *part, int ch_number)
 		 */
 		xpc_clear_remote_msgqueue_flags(ch);
 
-		(volatile s64) ch->w_remote_GP.put = ch->remote_GP.put;
+		ch->w_remote_GP.put = ch->remote_GP.put;
 
 		dev_dbg(xpc_chan, "w_remote_GP.put changed to %ld, partid=%d, "
 			"channel=%d\n", ch->w_remote_GP.put, ch->partid,
@@ -1875,7 +1875,7 @@ xpc_send_msg(struct xpc_channel *ch, struct xpc_msg *msg, u8 notify_type,
 		notify = &ch->notify_queue[msg_number % ch->local_nentries];
 		notify->func = func;
 		notify->key = key;
-		(volatile u8) notify->type = notify_type;
+		notify->type = notify_type;
 
 		// >>> is a mb() needed here?
 

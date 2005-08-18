@@ -11,7 +11,7 @@
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
 #else
-inline void pcibios_penalize_isa_irq(int irq) {}
+inline void pcibios_penalize_isa_irq(int irq, int active) {}
 #endif /* CONFIG_PCI */
 
 #include "pnpbios.h"
@@ -64,7 +64,7 @@ pnpbios_parse_allocated_irqresource(struct pnp_resource_table * res, int irq)
 		}
 		res->irq_resource[i].start =
 		res->irq_resource[i].end = (unsigned long) irq;
-		pcibios_penalize_isa_irq(irq);
+		pcibios_penalize_isa_irq(irq, 1);
 	}
 }
 

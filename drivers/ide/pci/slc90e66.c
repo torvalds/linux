@@ -196,7 +196,7 @@ fast_ata_pio:
 }
 #endif /* CONFIG_BLK_DEV_IDEDMA */
 
-static void __init init_hwif_slc90e66 (ide_hwif_t *hwif)
+static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 {
 	u8 reg47 = 0;
 	u8 mask = hwif->channel ? 0x01 : 0x02;  /* bit0:Primary */

@@ -3,14 +3,15 @@
  *
  *  Setup routines for Renesas MAPPI Board
  *
- *  Copyright (c) 2001, 2002  Hiroyuki Kondo, Hirokazu Takata,
- *                            Hitoshi Yamamoto
+ *  Copyright (c) 2001-2005  Hiroyuki Kondo, Hirokazu Takata,
+ *                           Hitoshi Yamamoto
  */
 
 #include <linux/config.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/device.h>
 
 #include <asm/system.h>
 #include <asm/m32r.h>
@@ -70,13 +71,13 @@ static void shutdown_mappi_irq(unsigned int irq)
 
 static struct hw_interrupt_type mappi_irq_type =
 {
-	"MAPPI-IRQ",
-	startup_mappi_irq,
-	shutdown_mappi_irq,
-	enable_mappi_irq,
-	disable_mappi_irq,
-	mask_and_ack_mappi,
-	end_mappi_irq
+	.typename = "MAPPI-IRQ",
+	.startup = startup_mappi_irq,
+	.shutdown = shutdown_mappi_irq,
+	.enable = enable_mappi_irq,
+	.disable = disable_mappi_irq,
+	.ack = mask_and_ack_mappi,
+	.end = end_mappi_irq
 };
 
 void __init init_IRQ(void)
@@ -158,3 +159,49 @@ void __init init_IRQ(void)
 	disable_mappi_irq(M32R_IRQ_INT2);
 #endif /* CONFIG_M32RPCC */
 }
+
+#if defined(CONFIG_FB_S1D13XXX)
+
+#include <video/s1d13xxxfb.h>
+#include <asm/s1d13806.h>
+
+static struct s1d13xxxfb_pdata s1d13xxxfb_data = {
+	.initregs		= s1d13xxxfb_initregs,
+	.initregssize		= ARRAY_SIZE(s1d13xxxfb_initregs),
+	.platform_init_video	= NULL,
+#ifdef CONFIG_PM
+	.platform_suspend_video	= NULL,
+	.platform_resume_video	= NULL,
+#endif
+};
+
+static struct resource s1d13xxxfb_resources[] = {
+	[0] = {
+		.start  = 0x10200000UL,
+		.end    = 0x1033FFFFUL,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 0x10000000UL,
+		.end    = 0x100001FFUL,
+		.flags  = IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device s1d13xxxfb_device = {
+	.name		= S1D_DEVICENAME,
+	.id		= 0,
+	.dev            = {
+		.platform_data  = &s1d13xxxfb_data,
+	},
+	.num_resources  = ARRAY_SIZE(s1d13xxxfb_resources),
+	.resource       = s1d13xxxfb_resources,
+};
+
+static int __init platform_init(void)
+{
+	platform_device_register(&s1d13xxxfb_device);
+	return 0;
+}
+arch_initcall(platform_init);
+#endif

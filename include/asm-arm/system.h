@@ -85,7 +85,9 @@ struct pt_regs;
 void die(const char *msg, struct pt_regs *regs, int err)
 		__attribute__((noreturn));
 
-void die_if_kernel(const char *str, struct pt_regs *regs, int err);
+struct siginfo;
+void notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
+		unsigned long err, unsigned long trap);
 
 void hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
 				       struct pt_regs *),
@@ -104,6 +106,7 @@ extern void show_pte(struct mm_struct *mm, unsigned long addr);
 extern void __show_regs(struct pt_regs *);
 
 extern int cpu_architecture(void);
+extern void cpu_init(void);
 
 #define set_cr(x)					\
 	__asm__ __volatile__(				\
@@ -136,7 +139,12 @@ extern unsigned int user_debug;
 #define vectors_high()	(0)
 #endif
 
+#if __LINUX_ARM_ARCH__ >= 6
+#define mb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" \
+                                   : : "r" (0) : "memory")
+#else
 #define mb() __asm__ __volatile__ ("" : : : "memory")
+#endif
 #define rmb() mb()
 #define wmb() mb()
 #define read_barrier_depends() do { } while(0)
@@ -144,34 +152,12 @@ extern unsigned int user_debug;
 #define set_wmb(var, value) do { var = value; wmb(); } while (0)
 #define nop() __asm__ __volatile__("mov\tr0,r0\t@ nop\n\t");
 
-#ifdef CONFIG_SMP
 /*
- * Define our own context switch locking.  This allows us to enable
- * interrupts over the context switch, otherwise we end up with high
- * interrupt latency.  The real problem area is switch_mm() which may
- * do a full cache flush.
+ * switch_mm() may do a full cache flush over the context switch,
+ * so enable interrupts over the context switch to avoid high
+ * latency.
  */
-#define prepare_arch_switch(rq,next)					\
-do {									\
-	spin_lock(&(next)->switch_lock);				\
-	spin_unlock_irq(&(rq)->lock);					\
-} while (0)
-
-#define finish_arch_switch(rq,prev)					\
-	spin_unlock(&(prev)->switch_lock)
-
-#define task_running(rq,p)						\
-	((rq)->curr == (p) || spin_is_locked(&(p)->switch_lock))
-#else
-/*
- * Our UP-case is more simple, but we assume knowledge of how
- * spin_unlock_irq() and friends are implemented.  This avoids
- * us needlessly decrementing and incrementing the preempt count.
- */
-#define prepare_arch_switch(rq,next)	local_irq_enable()
-#define finish_arch_switch(rq,prev)	spin_unlock(&(rq)->lock)
-#define task_running(rq,p)		((rq)->curr == (p))
-#endif
+#define __ARCH_WANT_INTERRUPTS_ON_CTXSW
 
 /*
  * switch_to(prev, next) should switch from task `prev' to `next'
@@ -307,11 +293,10 @@ do {									\
 ({					\
 	unsigned long flags;		\
 	local_save_flags(flags);	\
-	flags & PSR_I_BIT;		\
+	(int)(flags & PSR_I_BIT);	\
 })
 
 #ifdef CONFIG_SMP
-#error SMP not supported
 
 #define smp_mb()		mb()
 #define smp_rmb()		rmb()
@@ -325,6 +310,8 @@ do {									\
 #define smp_wmb()		barrier()
 #define smp_read_barrier_depends()		do { } while(0)
 
+#endif /* CONFIG_SMP */
+
 #if defined(CONFIG_CPU_SA1100) || defined(CONFIG_CPU_SA110)
 /*
  * On the StrongARM, "swp" is terminally broken since it bypasses the
@@ -337,6 +324,9 @@ do {									\
  *
  * We choose (1) since its the "easiest" to achieve here and is not
  * dependent on the processor type.
+ *
+ * NOTE that this solution won't work on an SMP system, so explcitly
+ * forbid it here.
  */
 #define swp_is_buggy
 #endif
@@ -348,41 +338,72 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 #ifdef swp_is_buggy
 	unsigned long flags;
 #endif
+#if __LINUX_ARM_ARCH__ >= 6
+	unsigned int tmp;
+#endif
 
 	switch (size) {
-#ifdef swp_is_buggy
-		case 1:
-			local_irq_save(flags);
-			ret = *(volatile unsigned char *)ptr;
-			*(volatile unsigned char *)ptr = x;
-			local_irq_restore(flags);
-			break;
-
-		case 4:
-			local_irq_save(flags);
-			ret = *(volatile unsigned long *)ptr;
-			*(volatile unsigned long *)ptr = x;
-			local_irq_restore(flags);
-			break;
-#else
-		case 1:	__asm__ __volatile__ ("swpb %0, %1, [%2]"
-					: "=&r" (ret)
-					: "r" (x), "r" (ptr)
-					: "memory", "cc");
-			break;
-		case 4:	__asm__ __volatile__ ("swp %0, %1, [%2]"
-					: "=&r" (ret)
-					: "r" (x), "r" (ptr)
-					: "memory", "cc");
-			break;
+#if __LINUX_ARM_ARCH__ >= 6
+	case 1:
+		asm volatile("@	__xchg1\n"
+		"1:	ldrexb	%0, [%3]\n"
+		"	strexb	%1, %2, [%3]\n"
+		"	teq	%1, #0\n"
+		"	bne	1b"
+			: "=&r" (ret), "=&r" (tmp)
+			: "r" (x), "r" (ptr)
+			: "memory", "cc");
+		break;
+	case 4:
+		asm volatile("@	__xchg4\n"
+		"1:	ldrex	%0, [%3]\n"
+		"	strex	%1, %2, [%3]\n"
+		"	teq	%1, #0\n"
+		"	bne	1b"
+			: "=&r" (ret), "=&r" (tmp)
+			: "r" (x), "r" (ptr)
+			: "memory", "cc");
+		break;
+#elif defined(swp_is_buggy)
+#ifdef CONFIG_SMP
+#error SMP is not supported on this platform
 #endif
-		default: __bad_xchg(ptr, size), ret = 0;
+	case 1:
+		local_irq_save(flags);
+		ret = *(volatile unsigned char *)ptr;
+		*(volatile unsigned char *)ptr = x;
+		local_irq_restore(flags);
+		break;
+
+	case 4:
+		local_irq_save(flags);
+		ret = *(volatile unsigned long *)ptr;
+		*(volatile unsigned long *)ptr = x;
+		local_irq_restore(flags);
+		break;
+#else
+	case 1:
+		asm volatile("@	__xchg1\n"
+		"	swpb	%0, %1, [%2]"
+			: "=&r" (ret)
+			: "r" (x), "r" (ptr)
+			: "memory", "cc");
+		break;
+	case 4:
+		asm volatile("@	__xchg4\n"
+		"	swp	%0, %1, [%2]"
+			: "=&r" (ret)
+			: "r" (x), "r" (ptr)
+			: "memory", "cc");
+		break;
+#endif
+	default:
+		__bad_xchg(ptr, size), ret = 0;
+		break;
 	}
 
 	return ret;
 }
-
-#endif /* CONFIG_SMP */
 
 #endif /* __ASSEMBLY__ */
 

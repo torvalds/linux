@@ -993,6 +993,7 @@ dino_driver_callback(struct parisc_device *dev)
 	bus = pci_scan_bus_parented(&dev->dev, dino_current_bus,
 				    &dino_cfg_ops, NULL);
 	if(bus) {
+		pci_bus_add_devices(bus);
 		/* This code *depends* on scanning being single threaded
 		 * if it isn't, this global bus number count will fail
 		 */

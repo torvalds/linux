@@ -49,12 +49,21 @@
 #define _COMPONENT          ACPI_DISPATCHER
 	 ACPI_MODULE_NAME    ("dsinit")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ds_init_one_object (
+	acpi_handle                     obj_handle,
+	u32                             level,
+	void                            *context,
+	void                            **return_value);
+
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_init_one_object
  *
- * PARAMETERS:  obj_handle      - Node
+ * PARAMETERS:  obj_handle      - Node for the object
  *              Level           - Current nesting level
  *              Context         - Points to a init info struct
  *              return_value    - Not used
@@ -70,7 +79,7 @@
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ds_init_one_object (
 	acpi_handle                     obj_handle,
 	u32                             level,
@@ -105,7 +114,8 @@ acpi_ds_init_one_object (
 
 		status = acpi_ds_initialize_region (obj_handle);
 		if (ACPI_FAILURE (status)) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Region %p [%4.4s] - Init failure, %s\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"Region %p [%4.4s] - Init failure, %s\n",
 				obj_handle, acpi_ut_get_node_name (obj_handle),
 				acpi_format_exception (status)));
 		}
@@ -118,8 +128,10 @@ acpi_ds_init_one_object (
 
 		info->method_count++;
 
-		/* Print a dot for each method unless we are going to print the entire pathname */
-
+		/*
+		 * Print a dot for each method unless we are going to print
+		 * the entire pathname
+		 */
 		if (!(acpi_dbg_level & ACPI_LV_INIT_NAMES)) {
 			ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "."));
 		}
@@ -140,7 +152,8 @@ acpi_ds_init_one_object (
 		 */
 		status = acpi_ds_parse_method (obj_handle);
 		if (ACPI_FAILURE (status)) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Method %p [%4.4s] - parse failure, %s\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"Method %p [%4.4s] - parse failure, %s\n",
 				obj_handle, acpi_ut_get_node_name (obj_handle),
 				acpi_format_exception (status)));
 
@@ -154,7 +167,8 @@ acpi_ds_init_one_object (
 		 * for every execution since there isn't much overhead
 		 */
 		acpi_ns_delete_namespace_subtree (obj_handle);
-		acpi_ns_delete_namespace_by_owner (((struct acpi_namespace_node *) obj_handle)->object->method.owning_id);
+		acpi_ns_delete_namespace_by_owner (
+			((struct acpi_namespace_node *) obj_handle)->object->method.owning_id);
 		break;
 
 

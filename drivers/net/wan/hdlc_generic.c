@@ -1,7 +1,7 @@
 /*
  * Generic HDLC support routines for Linux
  *
- * Copyright (C) 1999 - 2003 Krzysztof Halasa <khc@pm.waw.pl>
+ * Copyright (C) 1999 - 2005 Krzysztof Halasa <khc@pm.waw.pl>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -38,7 +38,7 @@
 #include <linux/hdlc.h>
 
 
-static const char* version = "HDLC support module revision 1.17";
+static const char* version = "HDLC support module revision 1.18";
 
 #undef DEBUG_LINK
 
@@ -126,10 +126,13 @@ void hdlc_set_carrier(int on, struct net_device *dev)
 	if (!hdlc->open)
 		goto carrier_exit;
 
-	if (hdlc->carrier)
+	if (hdlc->carrier) {
+		printk(KERN_INFO "%s: Carrier detected\n", dev->name);
 		__hdlc_set_carrier_on(dev);
-	else
+	} else {
+		printk(KERN_INFO "%s: Carrier lost\n", dev->name);
 		__hdlc_set_carrier_off(dev);
+	}
 
 carrier_exit:
 	spin_unlock_irqrestore(&hdlc->state_lock, flags);
@@ -157,8 +160,11 @@ int hdlc_open(struct net_device *dev)
 
 	spin_lock_irq(&hdlc->state_lock);
 
-	if (hdlc->carrier)
+	if (hdlc->carrier) {
+		printk(KERN_INFO "%s: Carrier detected\n", dev->name);
 		__hdlc_set_carrier_on(dev);
+	} else
+		printk(KERN_INFO "%s: No carrier\n", dev->name);
 
 	hdlc->open = 1;
 

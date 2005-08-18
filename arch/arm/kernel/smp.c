@@ -24,6 +24,9 @@
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu.h>
+#include <asm/mmu_context.h>
+#include <asm/pgtable.h>
+#include <asm/pgalloc.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
@@ -33,8 +36,15 @@
  * The present bitmask indicates that the CPU is physically present.
  * The online bitmask indicates that the CPU is up and running.
  */
-cpumask_t cpu_present_mask;
+cpumask_t cpu_possible_map;
 cpumask_t cpu_online_map;
+
+/*
+ * as from 2.5, kernels no longer have an init_tasks structure
+ * so we need some other way of telling a new secondary core
+ * where to place its SVC stack
+ */
+struct secondary_data secondary_data;
 
 /*
  * structures for inter-processor calls
@@ -68,9 +78,11 @@ struct smp_call_struct {
 static struct smp_call_struct * volatile smp_call_function_data;
 static DEFINE_SPINLOCK(smp_call_function_lock);
 
-int __init __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu)
 {
 	struct task_struct *idle;
+	pgd_t *pgd;
+	pmd_t *pmd;
 	int ret;
 
 	/*
@@ -84,11 +96,57 @@ int __init __cpu_up(unsigned int cpu)
 	}
 
 	/*
+	 * Allocate initial page tables to allow the new CPU to
+	 * enable the MMU safely.  This essentially means a set
+	 * of our "standard" page tables, with the addition of
+	 * a 1:1 mapping for the physical address of the kernel.
+	 */
+	pgd = pgd_alloc(&init_mm);
+	pmd = pmd_offset(pgd, PHYS_OFFSET);
+	*pmd = __pmd((PHYS_OFFSET & PGDIR_MASK) |
+		     PMD_TYPE_SECT | PMD_SECT_AP_WRITE);
+
+	/*
+	 * We need to tell the secondary core where to find
+	 * its stack and the page tables.
+	 */
+	secondary_data.stack = (void *)idle->thread_info + THREAD_SIZE - 8;
+	secondary_data.pgdir = virt_to_phys(pgd);
+	wmb();
+
+	/*
 	 * Now bring the CPU into our world.
 	 */
 	ret = boot_secondary(cpu, idle);
+	if (ret == 0) {
+		unsigned long timeout;
+
+		/*
+		 * CPU was successfully started, wait for it
+		 * to come online or time out.
+		 */
+		timeout = jiffies + HZ;
+		while (time_before(jiffies, timeout)) {
+			if (cpu_online(cpu))
+				break;
+
+			udelay(10);
+			barrier();
+		}
+
+		if (!cpu_online(cpu))
+			ret = -EIO;
+	}
+
+	secondary_data.stack = 0;
+	secondary_data.pgdir = 0;
+
+	*pmd_offset(pgd, PHYS_OFFSET) = __pmd(0);
+	pgd_free(pgd);
+
 	if (ret) {
-		printk(KERN_CRIT "cpu_up: processor %d failed to boot\n", cpu);
+		printk(KERN_CRIT "CPU%u: processor failed to boot\n", cpu);
+
 		/*
 		 * FIXME: We need to clean up the new idle thread. --rmk
 		 */
@@ -98,10 +156,61 @@ int __init __cpu_up(unsigned int cpu)
 }
 
 /*
+ * This is the secondary CPU boot entry.  We're using this CPUs
+ * idle thread stack, but a set of temporary page tables.
+ */
+asmlinkage void __cpuinit secondary_start_kernel(void)
+{
+	struct mm_struct *mm = &init_mm;
+	unsigned int cpu = smp_processor_id();
+
+	printk("CPU%u: Booted secondary processor\n", cpu);
+
+	/*
+	 * All kernel threads share the same mm context; grab a
+	 * reference and switch to it.
+	 */
+	atomic_inc(&mm->mm_users);
+	atomic_inc(&mm->mm_count);
+	current->active_mm = mm;
+	cpu_set(cpu, mm->cpu_vm_mask);
+	cpu_switch_mm(mm->pgd, mm);
+	enter_lazy_tlb(mm, current);
+	local_flush_tlb_all();
+
+	cpu_init();
+
+	/*
+	 * Give the platform a chance to do its own initialisation.
+	 */
+	platform_secondary_init(cpu);
+
+	/*
+	 * Enable local interrupts.
+	 */
+	local_irq_enable();
+	local_fiq_enable();
+
+	calibrate_delay();
+
+	smp_store_cpu_info(cpu);
+
+	/*
+	 * OK, now it's safe to let the boot CPU continue
+	 */
+	cpu_set(cpu, cpu_online_map);
+
+	/*
+	 * OK, it's off to the idle thread for us
+	 */
+	cpu_idle();
+}
+
+/*
  * Called by both boot and secondaries to move global data into
  * per-processor storage.
  */
-void __init smp_store_cpu_info(unsigned int cpuid)
+void __cpuinit smp_store_cpu_info(unsigned int cpuid)
 {
 	struct cpuinfo_arm *cpu_info = &per_cpu(cpu_data, cpuid);
 
@@ -127,7 +236,8 @@ void __init smp_prepare_boot_cpu(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-	cpu_set(cpu, cpu_present_mask);
+	cpu_set(cpu, cpu_possible_map);
+	cpu_set(cpu, cpu_present_map);
 	cpu_set(cpu, cpu_online_map);
 }
 
@@ -247,7 +357,7 @@ void show_ipi_list(struct seq_file *p)
 
 	seq_puts(p, "IPI:");
 
-	for_each_online_cpu(cpu)
+	for_each_present_cpu(cpu)
 		seq_printf(p, " %10lu", per_cpu(ipi_data, cpu).ipi_count);
 
 	seq_putc(p, '\n');
@@ -393,4 +503,127 @@ void smp_send_stop(void)
 int __init setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
+}
+
+static int
+on_each_cpu_mask(void (*func)(void *), void *info, int retry, int wait,
+		 cpumask_t mask)
+{
+	int ret = 0;
+
+	preempt_disable();
+
+	ret = smp_call_function_on_cpu(func, info, retry, wait, mask);
+	if (cpu_isset(smp_processor_id(), mask))
+		func(info);
+
+	preempt_enable();
+
+	return ret;
+}
+
+/**********************************************************************/
+
+/*
+ * TLB operations
+ */
+struct tlb_args {
+	struct vm_area_struct *ta_vma;
+	unsigned long ta_start;
+	unsigned long ta_end;
+};
+
+static inline void ipi_flush_tlb_all(void *ignored)
+{
+	local_flush_tlb_all();
+}
+
+static inline void ipi_flush_tlb_mm(void *arg)
+{
+	struct mm_struct *mm = (struct mm_struct *)arg;
+
+	local_flush_tlb_mm(mm);
+}
+
+static inline void ipi_flush_tlb_page(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_page(ta->ta_vma, ta->ta_start);
+}
+
+static inline void ipi_flush_tlb_kernel_page(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_kernel_page(ta->ta_start);
+}
+
+static inline void ipi_flush_tlb_range(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
+}
+
+static inline void ipi_flush_tlb_kernel_range(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_tlb_kernel_range(ta->ta_start, ta->ta_end);
+}
+
+void flush_tlb_all(void)
+{
+	on_each_cpu(ipi_flush_tlb_all, NULL, 1, 1);
+}
+
+void flush_tlb_mm(struct mm_struct *mm)
+{
+	cpumask_t mask = mm->cpu_vm_mask;
+
+	on_each_cpu_mask(ipi_flush_tlb_mm, mm, 1, 1, mask);
+}
+
+void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
+{
+	cpumask_t mask = vma->vm_mm->cpu_vm_mask;
+	struct tlb_args ta;
+
+	ta.ta_vma = vma;
+	ta.ta_start = uaddr;
+
+	on_each_cpu_mask(ipi_flush_tlb_page, &ta, 1, 1, mask);
+}
+
+void flush_tlb_kernel_page(unsigned long kaddr)
+{
+	struct tlb_args ta;
+
+	ta.ta_start = kaddr;
+
+	on_each_cpu(ipi_flush_tlb_kernel_page, &ta, 1, 1);
+}
+
+void flush_tlb_range(struct vm_area_struct *vma,
+                     unsigned long start, unsigned long end)
+{
+	cpumask_t mask = vma->vm_mm->cpu_vm_mask;
+	struct tlb_args ta;
+
+	ta.ta_vma = vma;
+	ta.ta_start = start;
+	ta.ta_end = end;
+
+	on_each_cpu_mask(ipi_flush_tlb_range, &ta, 1, 1, mask);
+}
+
+void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	struct tlb_args ta;
+
+	ta.ta_start = start;
+	ta.ta_end = end;
+
+	on_each_cpu(ipi_flush_tlb_kernel_range, &ta, 1, 1);
 }

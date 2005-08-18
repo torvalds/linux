@@ -417,11 +417,13 @@ static int snd_gus_check_version(snd_gus_card_t * gus)
 	return 0;
 }
 
+#if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
 static void snd_gus_seq_dev_free(snd_seq_device_t *seq_dev)
 {
 	snd_gus_card_t *gus = seq_dev->private_data;
 	gus->seq_dev = NULL;
 }
+#endif
 
 int snd_gus_initialize(snd_gus_card_t *gus)
 {
@@ -459,7 +461,6 @@ EXPORT_SYMBOL(snd_gf1_write16);
 EXPORT_SYMBOL(snd_gf1_look16);
 EXPORT_SYMBOL(snd_gf1_i_write8);
 EXPORT_SYMBOL(snd_gf1_i_look8);
-EXPORT_SYMBOL(snd_gf1_i_write16);
 EXPORT_SYMBOL(snd_gf1_i_look16);
 EXPORT_SYMBOL(snd_gf1_dram_addr);
 EXPORT_SYMBOL(snd_gf1_write_addr);
@@ -470,8 +471,6 @@ EXPORT_SYMBOL(snd_gf1_alloc_voice);
 EXPORT_SYMBOL(snd_gf1_free_voice);
 EXPORT_SYMBOL(snd_gf1_ctrl_stop);
 EXPORT_SYMBOL(snd_gf1_stop_voice);
-EXPORT_SYMBOL(snd_gf1_start);
-EXPORT_SYMBOL(snd_gf1_stop);
   /* gus_mixer.c */
 EXPORT_SYMBOL(snd_gf1_new_mixer);
   /* gus_pcm.c */

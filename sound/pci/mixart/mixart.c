@@ -445,9 +445,9 @@ static int snd_mixart_trigger(snd_pcm_substream_t *subs, int cmd)
 
 static int mixart_sync_nonblock_events(mixart_mgr_t *mgr)
 {
-	int timeout = HZ;
+	unsigned long timeout = jiffies + HZ;
 	while (atomic_read(&mgr->msg_processed) > 0) {
-		if (! timeout--) {
+		if (time_after(jiffies, timeout)) {
 			snd_printk(KERN_ERR "mixart: cannot process nonblock events!\n");
 			return -EBUSY;
 		}
@@ -1431,7 +1431,7 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_mixart_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_mixart_exit(void)

@@ -1174,7 +1174,8 @@ xfs_ioc_xattr(
 
 	switch (cmd) {
 	case XFS_IOC_FSGETXATTR: {
-		va.va_mask = XFS_AT_XFLAGS|XFS_AT_EXTSIZE|XFS_AT_NEXTENTS;
+		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
+			     XFS_AT_NEXTENTS | XFS_AT_PROJID;
 		VOP_GETATTR(vp, &va, 0, NULL, error);
 		if (error)
 			return -error;
@@ -1182,6 +1183,7 @@ xfs_ioc_xattr(
 		fa.fsx_xflags	= va.va_xflags;
 		fa.fsx_extsize	= va.va_extsize;
 		fa.fsx_nextents = va.va_nextents;
+		fa.fsx_projid	= va.va_projid;
 
 		if (copy_to_user(arg, &fa, sizeof(fa)))
 			return -XFS_ERROR(EFAULT);
@@ -1196,9 +1198,10 @@ xfs_ioc_xattr(
 		if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
 			attr_flags |= ATTR_NONBLOCK;
 
-		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE;
+		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | XFS_AT_PROJID;
 		va.va_xflags  = fa.fsx_xflags;
 		va.va_extsize = fa.fsx_extsize;
+		va.va_projid  = fa.fsx_projid;
 
 		VOP_SETATTR(vp, &va, attr_flags, NULL, error);
 		if (!error)
@@ -1207,7 +1210,8 @@ xfs_ioc_xattr(
 	}
 
 	case XFS_IOC_FSGETXATTRA: {
-		va.va_mask = XFS_AT_XFLAGS|XFS_AT_EXTSIZE|XFS_AT_ANEXTENTS;
+		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
+			     XFS_AT_ANEXTENTS | XFS_AT_PROJID;
 		VOP_GETATTR(vp, &va, 0, NULL, error);
 		if (error)
 			return -error;
@@ -1215,6 +1219,7 @@ xfs_ioc_xattr(
 		fa.fsx_xflags	= va.va_xflags;
 		fa.fsx_extsize	= va.va_extsize;
 		fa.fsx_nextents = va.va_anextents;
+		fa.fsx_projid	= va.va_projid;
 
 		if (copy_to_user(arg, &fa, sizeof(fa)))
 			return -XFS_ERROR(EFAULT);

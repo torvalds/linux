@@ -236,7 +236,7 @@ vmlogrdr_get_recording_class_AB(void) {
 	int len,i;
 
 	printk (KERN_DEBUG "vmlogrdr: query command: %s\n", cp_command);
-	cpcmd(cp_command, cp_response, sizeof(cp_response));
+	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 	printk (KERN_DEBUG "vmlogrdr: response: %s", cp_response);
 	len = strnlen(cp_response,sizeof(cp_response));
 	// now the parsing
@@ -288,7 +288,7 @@ vmlogrdr_recording(struct vmlogrdr_priv_t * logptr, int action, int purge) {
 
 		printk (KERN_DEBUG "vmlogrdr: recording command: %s\n",
 			cp_command);
-		cpcmd(cp_command, cp_response, sizeof(cp_response));
+		cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 		printk (KERN_DEBUG "vmlogrdr: recording response: %s",
 			cp_response);
 	}
@@ -301,7 +301,7 @@ vmlogrdr_recording(struct vmlogrdr_priv_t * logptr, int action, int purge) {
 		qid_string);
 
 	printk (KERN_DEBUG "vmlogrdr: recording command: %s\n", cp_command);
-	cpcmd(cp_command, cp_response, sizeof(cp_response));
+	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 	printk (KERN_DEBUG "vmlogrdr: recording response: %s",
 		cp_response);
 	/* The recording command will usually answer with 'Command complete'
@@ -548,7 +548,7 @@ vmlogrdr_read (struct file *filp, char *data, size_t count, loff_t * ppos)
 }
 
 static ssize_t
-vmlogrdr_autopurge_store(struct device * dev, const char * buf, size_t count) {
+vmlogrdr_autopurge_store(struct device * dev, struct device_attribute *attr, const char * buf, size_t count) {
 	struct vmlogrdr_priv_t *priv = dev->driver_data;
 	ssize_t ret = count;
 
@@ -567,7 +567,7 @@ vmlogrdr_autopurge_store(struct device * dev, const char * buf, size_t count) {
 
 
 static ssize_t
-vmlogrdr_autopurge_show(struct device *dev, char *buf) {
+vmlogrdr_autopurge_show(struct device *dev, struct device_attribute *attr, char *buf) {
 	struct vmlogrdr_priv_t *priv = dev->driver_data;
 	return sprintf(buf, "%u\n", priv->autopurge);
 }
@@ -578,7 +578,7 @@ static DEVICE_ATTR(autopurge, 0644, vmlogrdr_autopurge_show,
 
 
 static ssize_t
-vmlogrdr_purge_store(struct device * dev, const char * buf, size_t count) {
+vmlogrdr_purge_store(struct device * dev, struct device_attribute *attr, const char * buf, size_t count) {
 
 	char cp_command[80];
 	char cp_response[80];
@@ -607,7 +607,7 @@ vmlogrdr_purge_store(struct device * dev, const char * buf, size_t count) {
 			 priv->recording_name);
 
 	printk (KERN_DEBUG "vmlogrdr: recording command: %s\n", cp_command);
-	cpcmd(cp_command, cp_response, sizeof(cp_response));
+	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 	printk (KERN_DEBUG "vmlogrdr: recording response: %s",
 		cp_response);
 
@@ -619,7 +619,7 @@ static DEVICE_ATTR(purge, 0200, NULL, vmlogrdr_purge_store);
 
 
 static ssize_t
-vmlogrdr_autorecording_store(struct device *dev, const char *buf,
+vmlogrdr_autorecording_store(struct device *dev, struct device_attribute *attr, const char *buf,
 			     size_t count) {
 	struct vmlogrdr_priv_t *priv = dev->driver_data;
 	ssize_t ret = count;
@@ -639,7 +639,7 @@ vmlogrdr_autorecording_store(struct device *dev, const char *buf,
 
 
 static ssize_t
-vmlogrdr_autorecording_show(struct device *dev, char *buf) {
+vmlogrdr_autorecording_show(struct device *dev, struct device_attribute *attr, char *buf) {
 	struct vmlogrdr_priv_t *priv = dev->driver_data;
 	return sprintf(buf, "%u\n", priv->autorecording);
 }
@@ -650,7 +650,7 @@ static DEVICE_ATTR(autorecording, 0644, vmlogrdr_autorecording_show,
 
 
 static ssize_t
-vmlogrdr_recording_store(struct device * dev, const char * buf, size_t count) {
+vmlogrdr_recording_store(struct device * dev, struct device_attribute *attr, const char * buf, size_t count) {
 
 	struct vmlogrdr_priv_t *priv = dev->driver_data;
 	ssize_t ret;
@@ -682,7 +682,7 @@ vmlogrdr_recording_status_show(struct device_driver *driver, char *buf) {
 	char cp_command[] = "QUERY RECORDING ";
 	int len;
 
-	cpcmd(cp_command, buf, 4096);
+	cpcmd(cp_command, buf, 4096, NULL);
 	len = strlen(buf);
 	return len;
 }
@@ -703,7 +703,7 @@ static struct attribute_group vmlogrdr_attr_group = {
 	.attrs = vmlogrdr_attrs,
 };
 
-static struct class_simple *vmlogrdr_class;
+static struct class *vmlogrdr_class;
 static struct device_driver vmlogrdr_driver = {
 	.name = "vmlogrdr",
 	.bus  = &iucv_bus,
@@ -727,7 +727,7 @@ vmlogrdr_register_driver(void) {
 		goto unregdriver;
 	}
 
-	vmlogrdr_class = class_simple_create(THIS_MODULE, "vmlogrdr");
+	vmlogrdr_class = class_create(THIS_MODULE, "vmlogrdr");
 	if (IS_ERR(vmlogrdr_class)) {
 		printk(KERN_ERR "vmlogrdr: failed to create class.\n");
 		ret=PTR_ERR(vmlogrdr_class);
@@ -746,7 +746,7 @@ unregdriver:
 
 static void
 vmlogrdr_unregister_driver(void) {
-	class_simple_destroy(vmlogrdr_class);
+	class_destroy(vmlogrdr_class);
 	vmlogrdr_class = NULL;
 	driver_remove_file(&vmlogrdr_driver, &driver_attr_recording_status);
 	driver_unregister(&vmlogrdr_driver);
@@ -786,7 +786,7 @@ vmlogrdr_register_device(struct vmlogrdr_priv_t *priv) {
 		device_unregister(dev);
 		return ret;
 	}
-	priv->class_device = class_simple_device_add(
+	priv->class_device = class_device_create(
 				vmlogrdr_class,
 				MKDEV(vmlogrdr_major, priv->minor_num),
 				dev,
@@ -806,7 +806,7 @@ vmlogrdr_register_device(struct vmlogrdr_priv_t *priv) {
 
 static int
 vmlogrdr_unregister_device(struct vmlogrdr_priv_t *priv ) {
-	class_simple_device_remove(MKDEV(vmlogrdr_major, priv->minor_num));
+	class_device_destroy(vmlogrdr_class, MKDEV(vmlogrdr_major, priv->minor_num));
 	if (priv->device != NULL) {
 		sysfs_remove_group(&priv->device->kobj, &vmlogrdr_attr_group);
 		device_unregister(priv->device);

@@ -3146,8 +3146,8 @@ static const char *atp870u_info(struct Scsi_Host *notused)
 }
 
 #define BLS buffer + len + size
-int atp870u_proc_info(struct Scsi_Host *HBAptr, char *buffer, 
-		      char **start, off_t offset, int length, int inout)
+static int atp870u_proc_info(struct Scsi_Host *HBAptr, char *buffer, 
+			     char **start, off_t offset, int length, int inout)
 {
 	static u8 buff[512];
 	int size = 0;

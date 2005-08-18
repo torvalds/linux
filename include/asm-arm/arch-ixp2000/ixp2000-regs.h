@@ -18,6 +18,21 @@
 #ifndef _IXP2000_REGS_H_
 #define _IXP2000_REGS_H_
 
+/*
+ * IXP2000 linux memory map:
+ *
+ * virt		phys		size
+ * fb000000	db000000	16M		PCI CFG1
+ * fc000000	da000000	16M		PCI CFG0
+ * fd000000	d8000000	16M		PCI I/O
+ * fe[0-7]00000			8M		per-platform mappings
+ * feb00000	c8000000	1M		MSF
+ * fec00000	df000000	1M		PCI CSRs
+ * fed00000	de000000	1M		PCI CREG
+ * fee00000	d6000000	1M		INTCTL
+ * fef00000	c0000000	1M		CAP
+ */
+
 /* 
  * Static I/O regions.
  *
@@ -70,6 +85,10 @@
 #define IXP2000_PCI_CSR_PHYS_BASE	0xdf000000
 #define	IXP2000_PCI_CSR_VIRT_BASE	0xfec00000
 #define	IXP2000_PCI_CSR_SIZE		0x00100000
+
+#define IXP2000_MSF_PHYS_BASE		0xc8000000
+#define IXP2000_MSF_VIRT_BASE		0xfeb00000
+#define IXP2000_MSF_SIZE		0x00100000
 
 #define IXP2000_PCI_IO_PHYS_BASE	0xd8000000
 #define	IXP2000_PCI_IO_VIRT_BASE	0xfd000000
@@ -241,7 +260,7 @@
 #define PCI_CONTROL_BE_DEI		(1 << 21)	/* Big Endian Data Enable In  */
 #define PCI_CONTROL_BE_BEO		(1 << 20)	/* Big Endian Byte Enable Out */
 #define PCI_CONTROL_BE_BEI		(1 << 19)	/* Big Endian Byte Enable In  */
-#define PCI_CONTROL_PNR			(1 << 17)	/* PCI Not Reset bit */
+#define PCI_CONTROL_IEE			(1 << 17)	/* I/O cycle Endian swap Enable */
 
 #define IXP2000_PCI_RST_REL		(1 << 2)
 #define CFG_RST_DIR			(*IXP2000_PCI_CONTROL & IXP2000_PCICNTL_PCF)
@@ -363,6 +382,7 @@
 #define IXP2000_MIN_REV_MASK	      	0x0000000F
 #define IXP2000_PROD_ID_MASK		0xFFFFFFFF
 
+#define IXP2000_PRODUCT_ID		GLOBAL_REG(0x00)
 #define IXP2000_MISC_CONTROL		GLOBAL_REG(0x04)
 #define IXP2000_MSF_CLK_CNTRL  		GLOBAL_REG(0x08)
 #define IXP2000_RESET0      		GLOBAL_REG(0x0c)

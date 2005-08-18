@@ -5,15 +5,9 @@
  *          LSIFC9xx/LSI409xx Fibre Channel
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
- *  Credits:
- *     (see mptbase.c)
- *
- *  Copyright (c) 1999-2004 LSI Logic Corporation
- *  Originally By: Steven J. Ralston
- *  (mailto:sjralston1@netscape.net)
+ *  Copyright (c) 1999-2005 LSI Logic Corporation
  *  (mailto:mpt_linux_developer@lsil.com)
  *
- *  $Id: mptbase.h,v 1.144 2003/01/28 21:31:56 pdelaney Exp $
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -71,7 +65,6 @@
 #include "lsi/mpi_fc.h"		/* Fibre Channel (lowlevel) support */
 #include "lsi/mpi_targ.h"	/* SCSI/FCP Target protcol support */
 #include "lsi/mpi_tool.h"	/* Tools support */
-#include "lsi/fc_log.h"
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
@@ -80,11 +73,11 @@
 #endif
 
 #ifndef COPYRIGHT
-#define COPYRIGHT	"Copyright (c) 1999-2004 " MODULEAUTHOR
+#define COPYRIGHT	"Copyright (c) 1999-2005 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.01.20"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.01.20"
+#define MPT_LINUX_VERSION_COMMON	"3.03.02"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.02"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -203,7 +196,9 @@
 typedef enum {
 	MPTBASE_DRIVER,		/* MPT base class */
 	MPTCTL_DRIVER,		/* MPT ioctl class */
-	MPTSCSIH_DRIVER,	/* MPT SCSI host (initiator) class */
+	MPTSPI_DRIVER,		/* MPT SPI host class */
+	MPTFC_DRIVER,		/* MPT FC host class */
+	MPTSAS_DRIVER,		/* MPT SAS host class */
 	MPTLAN_DRIVER,		/* MPT LAN class */
 	MPTSTM_DRIVER,		/* MPT SCSI target mode class */
 	MPTUNKNOWN_DRIVER
@@ -212,11 +207,6 @@ typedef enum {
 struct mpt_pci_driver{
 	int  (*probe) (struct pci_dev *dev, const struct pci_device_id *id);
 	void (*remove) (struct pci_dev *dev);
-	void (*shutdown) (struct device * dev);
-#ifdef CONFIG_PM
-	int  (*resume) (struct pci_dev *dev);
-	int  (*suspend) (struct pci_dev *dev, pm_message_t state);
-#endif
 };
 
 /*
@@ -483,6 +473,7 @@ typedef	struct _ScsiCfgData {
 	u8		 forceDv;		/* 1 to force DV scheduling */
 	u8		 noQas;			/* Disable QAS for this adapter */
 	u8		 Saf_Te;		/* 1 to force all Processors as SAF-TE if Inquiry data length is too short to check for SAF-TE */
+	u8		 mpt_dv;		/* command line option: enhanced=1, basic=0 */
 	u8		 rsvd[1];
 } ScsiCfgData;
 
@@ -571,11 +562,21 @@ typedef struct _MPT_ADAPTER
 	FCPortPage0_t		 fc_port_page0[2];
 	LANPage0_t		 lan_cnfg_page0;
 	LANPage1_t		 lan_cnfg_page1;
+	/*  
+	 * Description: errata_flag_1064
+	 * If a PCIX read occurs within 1 or 2 cycles after the chip receives
+	 * a split completion for a read data, an internal address pointer incorrectly
+	 * increments by 32 bytes
+	 */
+	int			 errata_flag_1064;	
 	u8			 FirstWhoInit;
 	u8			 upload_fw;	/* If set, do a fw upload */
 	u8			 reload_fw;	/* Force a FW Reload on next reset */
 	u8			 NBShiftFactor;  /* NB Shift Factor based on Block Size (Facts)  */     
 	u8			 pad1[4];
+	int			 DoneCtx;
+	int			 TaskCtx;
+	int			 InternalCtx;
 	struct list_head	 list; 
 	struct net_device	*netdev;
 } MPT_ADAPTER;
@@ -773,12 +774,6 @@ typedef struct _mpt_sge {
 #define DBG_DUMP_TM_REPLY_FRAME(mfp)
 #endif
 
-#ifdef MPT_DEBUG_NEH
-#define nehprintk(x) printk x
-#else
-#define nehprintk(x)
-#endif
-
 #if defined(MPT_DEBUG_CONFIG) || defined(MPT_DEBUG)
 #define dcprintk(x) printk x
 #else
@@ -898,6 +893,11 @@ typedef struct _MPT_SCSI_HOST {
 	unsigned long		  soft_resets;		/* fw/external bus resets count */
 	unsigned long		  timeouts;		/* cmd timeouts */
 	ushort			  sel_timeout[MPT_MAX_FC_DEVICES];
+	char 			  *info_kbuf;
+	wait_queue_head_t	  scandv_waitq;
+	int			  scandv_wait_done;
+	long			  last_queue_full;
+	u8		 	  mpt_pq_filter;
 } MPT_SCSI_HOST;
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -931,6 +931,12 @@ typedef struct _x_config_parms {
 /*
  *  Public entry points...
  */
+extern int	 mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id);
+extern void	 mpt_detach(struct pci_dev *pdev);
+#ifdef CONFIG_PM
+extern int	 mpt_suspend(struct pci_dev *pdev, pm_message_t state);
+extern int	 mpt_resume(struct pci_dev *pdev);
+#endif
 extern int	 mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass);
 extern void	 mpt_deregister(int cb_idx);
 extern int	 mpt_event_register(int cb_idx, MPT_EVHANDLER ev_cbfunc);

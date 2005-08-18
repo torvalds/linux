@@ -20,6 +20,7 @@
 #include <asm/ptrace.h>
 #include <asm/types.h>
 #include <asm/systemcfg.h>
+#include <asm/cputable.h>
 
 /* Machine State Register (MSR) Fields */
 #define MSR_SF_LG	63              /* Enable 64 bit mode */
@@ -138,8 +139,16 @@
 #define	SPRN_NIADORM	0x3F3	/* Hardware Implementation Register 2 */
 #define SPRN_HID4	0x3F4	/* 970 HID4 */
 #define SPRN_HID5	0x3F6	/* 970 HID5 */
-#define	SPRN_TSC 	0x3FD	/* Thread switch control */
-#define	SPRN_TST 	0x3FC	/* Thread switch timeout */
+#define	SPRN_HID6	0x3F9	/* BE HID 6 */
+#define	  HID6_LB	(0x0F<<12) /* Concurrent Large Page Modes */
+#define	  HID6_DLP	(1<<20)	/* Disable all large page modes (4K only) */
+#define	SPRN_TSCR	0x399   /* Thread switch control on BE */
+#define	SPRN_TTR	0x39A   /* Thread switch timeout on BE */
+#define	  TSCR_DEC_ENABLE	0x200000 /* Decrementer Interrupt */
+#define	  TSCR_EE_ENABLE	0x100000 /* External Interrupt */
+#define	  TSCR_EE_BOOST		0x080000 /* External Interrupt Boost */
+#define	SPRN_TSC 	0x3FD	/* Thread switch control on others */
+#define	SPRN_TST 	0x3FC	/* Thread switch timeout on others */
 #define	SPRN_L2CR	0x3F9	/* Level 2 Cache Control Regsiter */
 #define	SPRN_LR		0x008	/* Link Register */
 #define	SPRN_PIR	0x3FF	/* Processor Identification Register */
@@ -259,6 +268,7 @@
 #define PV_970FX	0x003C
 #define	PV_630        	0x0040
 #define	PV_630p	        0x0041
+#define	PV_BE		0x0070
 
 /* Platforms supported by PPC64 */
 #define PLATFORM_PSERIES      0x0100
@@ -267,6 +277,7 @@
 #define PLATFORM_LPAR         0x0001
 #define PLATFORM_POWERMAC     0x0400
 #define PLATFORM_MAPLE        0x0500
+#define PLATFORM_BPA          0x1000
 
 /* Compatibility with drivers coming from PPC32 world */
 #define _machine	(systemcfg->platform)
@@ -278,6 +289,7 @@
 #define IC_INVALID    0
 #define IC_OPEN_PIC   1
 #define IC_PPC_XIC    2
+#define IC_BPA_IIC    3
 
 #define XGLUE(a,b) a##b
 #define GLUE(a,b) XGLUE(a,b)
@@ -430,16 +442,6 @@ struct thread_struct {
 }
 
 /*
- * Note: the vm_start and vm_end fields here should *not*
- * be in kernel space.  (Could vm_end == vm_start perhaps?)
- */
-#define IOREMAP_MMAP { &ioremap_mm, 0, 0x1000, NULL, \
-		    PAGE_SHARED, VM_READ | VM_WRITE | VM_EXEC, \
-		    1, NULL, NULL }
-
-extern struct mm_struct ioremap_mm;
-
-/*
  * Return saved PC of a blocked thread. For now, this is the "user" PC
  */
 #define thread_saved_pc(tsk)    \
@@ -500,23 +502,36 @@ static inline void ppc64_runlatch_on(void)
 {
 	unsigned long ctrl;
 
-	ctrl = mfspr(SPRN_CTRLF);
-	ctrl |= CTRL_RUNLATCH;
-	mtspr(SPRN_CTRLT, ctrl);
+	if (cpu_has_feature(CPU_FTR_CTRL)) {
+		ctrl = mfspr(SPRN_CTRLF);
+		ctrl |= CTRL_RUNLATCH;
+		mtspr(SPRN_CTRLT, ctrl);
+	}
 }
 
 static inline void ppc64_runlatch_off(void)
 {
 	unsigned long ctrl;
 
-	ctrl = mfspr(SPRN_CTRLF);
-	ctrl &= ~CTRL_RUNLATCH;
-	mtspr(SPRN_CTRLT, ctrl);
+	if (cpu_has_feature(CPU_FTR_CTRL)) {
+		ctrl = mfspr(SPRN_CTRLF);
+		ctrl &= ~CTRL_RUNLATCH;
+		mtspr(SPRN_CTRLT, ctrl);
+	}
 }
 
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
+
+#ifdef __KERNEL__
+#define RUNLATCH_ON(REG)			\
+BEGIN_FTR_SECTION				\
+	mfspr	(REG),SPRN_CTRLF;		\
+	ori	(REG),(REG),CTRL_RUNLATCH;	\
+	mtspr	SPRN_CTRLT,(REG);		\
+END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
+#endif
 
 /*
  * Number of entries in the SLB. If this ever changes we should handle

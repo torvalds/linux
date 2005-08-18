@@ -57,7 +57,6 @@ PLAT_NODE_DATA_LOCALNR(unsigned long p, int n)
  * Given a kernel address, find the home node of the underlying memory.
  */
 #define kvaddr_to_nid(kaddr)	pa_to_nid(__pa(kaddr))
-#define node_mem_map(nid)	(NODE_DATA(nid)->node_mem_map)
 #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
 
 #define local_mapnr(kvaddr) \
@@ -108,7 +107,7 @@ PLAT_NODE_DATA_LOCALNR(unsigned long p, int n)
 #define pfn_to_page(pfn)						\
 ({									\
  	unsigned long kaddr = (unsigned long)__va((pfn) << PAGE_SHIFT);	\
-	(node_mem_map(kvaddr_to_nid(kaddr)) + local_mapnr(kaddr));	\
+	(NODE_DATA(kvaddr_to_nid(kaddr))->node_mem_map + local_mapnr(kaddr));	\
 })
 
 #define page_to_pfn(page)						\

@@ -86,6 +86,7 @@ static u_long repair_txd_ring(struct s_smc *smc, struct s_smt_tx_queue *queue);
 static u_long repair_rxd_ring(struct s_smc *smc, struct s_smt_rx_queue *queue);
 static SMbuf* get_llc_rx(struct s_smc *smc);
 static SMbuf* get_txd_mb(struct s_smc *smc);
+static void mac_drv_clear_txd(struct s_smc *smc);
 
 /*
 	-------------------------------------------------------------
@@ -146,7 +147,6 @@ extern int mac_drv_rx_init(struct s_smc *smc, int len, int fc, char *look_ahead,
 */
 void process_receive(struct s_smc *smc);
 void fddi_isr(struct s_smc *smc);
-void mac_drv_clear_txd(struct s_smc *smc);
 void smt_free_mbuf(struct s_smc *smc, SMbuf *mb);
 void init_driver_fplus(struct s_smc *smc);
 void mac_drv_rx_mode(struct s_smc *smc, int mode);
@@ -158,7 +158,6 @@ void hwm_tx_frag(struct s_smc *smc, char far *virt, u_long phys, int len,
 void hwm_rx_frag(struct s_smc *smc, char far *virt, u_long phys, int len,
 		 int frame_status);
 
-int mac_drv_rx_frag(struct s_smc *smc, void far *virt, int len);
 int mac_drv_init(struct s_smc *smc);
 int hwm_tx_init(struct s_smc *smc, u_char fc, int frag_count, int frame_len,
 		int frame_status);
@@ -1448,35 +1447,6 @@ void hwm_rx_frag(struct s_smc *smc, char far *virt, u_long phys, int len,
 	NDD_TRACE("RHfE",r,AIX_REVERSE(r->rxd_rbadr),0) ;
 }
 
-#ifndef	NDIS_OS2
-/*
- *	BEGIN_MANUAL_ENTRY(mac_drv_rx_frag)
- *	int mac_drv_rx_frag(smc,virt,len)
- *
- * function	DOWNCALL	(hwmtm.c)
- *		mac_drv_rx_frag fills the fragment with a part of the frame.
- *
- * para	virt	the virtual address of the fragment
- *	len	the length in bytes of the fragment
- *
- * return 0:	success code, no errors possible
- *
- *	END_MANUAL_ENTRY
- */
-int mac_drv_rx_frag(struct s_smc *smc, void far *virt, int len)
-{
-	NDD_TRACE("RHSB",virt,len,smc->os.hwm.r.mb_pos) ;
-
-	DB_RX("receive from queue: len/virt: = %d/%x",len,virt,4) ;
-	memcpy((char far *)virt,smc->os.hwm.r.mb_pos,len) ;
-	smc->os.hwm.r.mb_pos += len ;
-
-	NDD_TRACE("RHSE",smc->os.hwm.r.mb_pos,0,0) ;
-	return(0) ;
-}
-#endif
-
-
 /*
  *	BEGINN_MANUAL_ENTRY(mac_drv_clear_rx_queue)
  *
@@ -1978,7 +1948,7 @@ void smt_send_mbuf(struct s_smc *smc, SMbuf *mb, int fc)
  *
  *	END_MANUAL_ENTRY
  */
-void mac_drv_clear_txd(struct s_smc *smc)
+static void mac_drv_clear_txd(struct s_smc *smc)
 {
 	struct s_smt_tx_queue *queue ;
 	struct s_smt_fp_txd volatile *t1 ;

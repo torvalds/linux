@@ -108,6 +108,7 @@ void memcpy_fromshmem(int card, void *dest, const void *src, size_t n)
 		sc_adapter[card]->rambase + ((unsigned long) src %0x4000), (unsigned long) dest); */
 }
 
+#if 0
 void memset_shmem(int card, void *dest, int c, size_t n)
 {
 	unsigned long flags;
@@ -141,3 +142,4 @@ void memset_shmem(int card, void *dest, int c, size_t n)
 		((sc_adapter[card]->shmem_magic + ch * SRAM_PAGESIZE)>>14)|0x80);
 	spin_unlock_irqrestore(&sc_adapter[card]->lock, flags);
 }
+#endif  /*  0  */

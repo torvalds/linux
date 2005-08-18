@@ -895,7 +895,7 @@ static inline void lock_semundo(void)
 	struct sem_undo_list *undo_list;
 
 	undo_list = current->sysvsem.undo_list;
-	if ((undo_list != NULL) && (atomic_read(&undo_list->refcnt) != 1))
+	if (undo_list)
 		spin_lock(&undo_list->lock);
 }
 
@@ -915,7 +915,7 @@ static inline void unlock_semundo(void)
 	struct sem_undo_list *undo_list;
 
 	undo_list = current->sysvsem.undo_list;
-	if ((undo_list != NULL) && (atomic_read(&undo_list->refcnt) != 1))
+	if (undo_list)
 		spin_unlock(&undo_list->lock);
 }
 
@@ -943,9 +943,7 @@ static inline int get_undo_list(struct sem_undo_list **undo_listp)
 		if (undo_list == NULL)
 			return -ENOMEM;
 		memset(undo_list, 0, size);
-		/* don't initialize unodhd->lock here.  It's done
-		 * in copy_semundo() instead.
-		 */
+		spin_lock_init(&undo_list->lock);
 		atomic_set(&undo_list->refcnt, 1);
 		current->sysvsem.undo_list = undo_list;
 	}
@@ -1054,7 +1052,7 @@ asmlinkage long sys_semtimedop(int semid, struct sembuf __user *tsops,
 	struct sembuf fast_sops[SEMOPM_FAST];
 	struct sembuf* sops = fast_sops, *sop;
 	struct sem_undo *un;
-	int undos = 0, decrease = 0, alter = 0, max;
+	int undos = 0, alter = 0, max;
 	struct sem_queue queue;
 	unsigned long jiffies_left = 0;
 
@@ -1089,13 +1087,10 @@ asmlinkage long sys_semtimedop(int semid, struct sembuf __user *tsops,
 		if (sop->sem_num >= max)
 			max = sop->sem_num;
 		if (sop->sem_flg & SEM_UNDO)
-			undos++;
-		if (sop->sem_op < 0)
-			decrease = 1;
-		if (sop->sem_op > 0)
+			undos = 1;
+		if (sop->sem_op != 0)
 			alter = 1;
 	}
-	alter |= decrease;
 
 retry_undos:
 	if (undos) {
@@ -1234,8 +1229,6 @@ int copy_semundo(unsigned long clone_flags, struct task_struct *tsk)
 		error = get_undo_list(&undo_list);
 		if (error)
 			return error;
-		if (atomic_read(&undo_list->refcnt) == 1)
-			spin_lock_init(&undo_list->lock);
 		atomic_inc(&undo_list->refcnt);
 		tsk->sysvsem.undo_list = undo_list;
 	} else 

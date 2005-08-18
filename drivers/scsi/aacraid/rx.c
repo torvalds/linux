@@ -63,7 +63,7 @@ static irqreturn_t aac_rx_intr(int irq, void *dev_id, struct pt_regs *regs)
 	{
 		bellbits = rx_readl(dev, OutboundDoorbellReg);
 		if (bellbits & DoorBellPrintfReady) {
-			aac_printf(dev, le32_to_cpu(rx_readl (dev, IndexRegs.Mailbox[5])));
+			aac_printf(dev, rx_readl(dev, IndexRegs.Mailbox[5]));
 			rx_writel(dev, MUnit.ODR,DoorBellPrintfReady);
 			rx_writel(dev, InboundDoorbellReg,DoorBellPrintfDone);
 		}
@@ -98,7 +98,9 @@ static irqreturn_t aac_rx_intr(int irq, void *dev_id, struct pt_regs *regs)
  *	for its	completion.
  */
 
-static int rx_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
+static int rx_sync_cmd(struct aac_dev *dev, u32 command,
+	u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6,
+	u32 *status, u32 * r1, u32 * r2, u32 * r3, u32 * r4)
 {
 	unsigned long start;
 	int ok;
@@ -107,12 +109,12 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 	 */
 	rx_writel(dev, InboundMailbox0, command);
 	/*
-	 *	Write the parameters into Mailboxes 1 - 4
+	 *	Write the parameters into Mailboxes 1 - 6
 	 */
 	rx_writel(dev, InboundMailbox1, p1);
-	rx_writel(dev, InboundMailbox2, 0);
-	rx_writel(dev, InboundMailbox3, 0);
-	rx_writel(dev, InboundMailbox4, 0);
+	rx_writel(dev, InboundMailbox2, p2);
+	rx_writel(dev, InboundMailbox3, p3);
+	rx_writel(dev, InboundMailbox4, p4);
 	/*
 	 *	Clear the synch command doorbell to start on a clean slate.
 	 */
@@ -120,7 +122,7 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 	/*
 	 *	Disable doorbell interrupts
 	 */
-	rx_writeb(dev, MUnit.OIMR, dev->OIMR |= 0x04);
+	rx_writeb(dev, MUnit.OIMR, dev->OIMR = 0xff);
 	/*
 	 *	Force the completion of the mask register write before issuing
 	 *	the interrupt.
@@ -169,6 +171,14 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 	 */
 	if (status)
 		*status = rx_readl(dev, IndexRegs.Mailbox[0]);
+	if (r1)
+		*r1 = rx_readl(dev, IndexRegs.Mailbox[1]);
+	if (r2)
+		*r2 = rx_readl(dev, IndexRegs.Mailbox[2]);
+	if (r3)
+		*r3 = rx_readl(dev, IndexRegs.Mailbox[3]);
+	if (r4)
+		*r4 = rx_readl(dev, IndexRegs.Mailbox[4]);
 	/*
 	 *	Clear the synch command doorbell.
 	 */
@@ -190,8 +200,7 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 
 static void aac_rx_interrupt_adapter(struct aac_dev *dev)
 {
-	u32 ret;
-	rx_sync_cmd(dev, BREAKPOINT_REQUEST, 0, &ret);
+	rx_sync_cmd(dev, BREAKPOINT_REQUEST, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL);
 }
 
 /**
@@ -220,7 +229,8 @@ static void aac_rx_notify_adapter(struct aac_dev *dev, u32 event)
 		rx_writel(dev, MUnit.IDR,INBOUNDDOORBELL_3);
 		break;
 	case HostShutdown:
-//		rx_sync_cmd(dev, HOST_CRASHING, 0, 0, 0, 0, &ret);
+//		rx_sync_cmd(dev, HOST_CRASHING, 0, 0, 0, 0, 0, 0,
+//		  NULL, NULL, NULL, NULL, NULL);
 		break;
 	case FastIo:
 		rx_writel(dev, MUnit.IDR,INBOUNDDOORBELL_6);
@@ -243,16 +253,10 @@ static void aac_rx_notify_adapter(struct aac_dev *dev, u32 event)
 
 static void aac_rx_start_adapter(struct aac_dev *dev)
 {
-	u32 status;
 	struct aac_init *init;
 
 	init = dev->init;
 	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
-	/*
-	 *	Tell the adapter we are back and up and running so it will scan
-	 *	its command queues and enable our interrupts
-	 */
-	dev->irq_mask = (DoorBellPrintfReady | OUTBOUNDDOORBELL_1 | OUTBOUNDDOORBELL_2 | OUTBOUNDDOORBELL_3 | OUTBOUNDDOORBELL_4);
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that we
 	 *	can handle.
@@ -263,7 +267,8 @@ static void aac_rx_start_adapter(struct aac_dev *dev)
 	rx_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
 
 	// We can only use a 32 bit address here
-	rx_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, (u32)(ulong)dev->init_pa, &status);
+	rx_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, (u32)(ulong)dev->init_pa,
+	  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL);
 }
 
 /**
@@ -288,8 +293,8 @@ static int aac_rx_check_health(struct aac_dev *dev)
 	if (status & KERNEL_PANIC) {
 		char * buffer;
 		struct POSTSTATUS {
-			u32 Post_Command;
-			u32 Post_Address;
+			__le32 Post_Command;
+			__le32 Post_Address;
 		} * post;
 		dma_addr_t paddr, baddr;
 		int ret;
@@ -310,7 +315,8 @@ static int aac_rx_check_health(struct aac_dev *dev)
 		post->Post_Command = cpu_to_le32(COMMAND_POST_RESULTS);
 		post->Post_Address = cpu_to_le32(baddr);
 		rx_writel(dev, MUnit.IMRx[0], paddr);
-		rx_sync_cmd(dev, COMMAND_POST_RESULTS, baddr, &status);
+		rx_sync_cmd(dev, COMMAND_POST_RESULTS, baddr, 0, 0, 0, 0, 0,
+		  NULL, NULL, NULL, NULL, NULL);
 		pci_free_consistent(dev->pdev, sizeof(struct POSTSTATUS),
 		  post, paddr);
 		if ((buffer[0] == '0') && (buffer[1] == 'x')) {

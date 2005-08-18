@@ -35,6 +35,11 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+# Used in kernel/irq/manage.c and include/linux/irq.h
+config IRQ_RELEASE_METHOD
+	bool
+	default y
+
 menu "UML-specific options"
 
 config MODE_TT
@@ -69,6 +74,7 @@ config MODE_SKAS
 	option will shrink the UML binary slightly.
 
 source "arch/um/Kconfig_arch"
+source "mm/Kconfig"
 
 config LD_SCRIPT_STATIC
 	bool
@@ -122,7 +128,6 @@ config HOSTFS
 
 config HPPFS
 	tristate "HoneyPot ProcFS (EXPERIMENTAL)"
-	depends on BROKEN
 	help
 	hppfs (HoneyPot ProcFS) is a filesystem which allows UML /proc
 	entries to be overridden, removed, or fabricated from the host.
@@ -135,8 +140,9 @@ config HPPFS
 	You only need this if you are setting up a UML honeypot.  Otherwise,
 	it is safe to say 'N' here.
 
-	If you are actively using it, please ask for it to be fixed. In this
-	moment, it does not work on 2.6 (it works somehow on 2.4).
+	If you are actively using it, please report any problems, since it's
+	getting fixed. In this moment, it is experimental on 2.6 (it works on
+	2.4).
 
 config MCONSOLE
 	bool "Management console"
@@ -269,6 +275,8 @@ endmenu
 
 source "init/Kconfig"
 
+source "net/Kconfig"
+
 source "drivers/base/Kconfig"
 
 source "arch/um/Kconfig_char"
@@ -281,7 +289,7 @@ config NETDEVICES
 
 source "arch/um/Kconfig_net"
 
-source "net/Kconfig"
+source "drivers/net/Kconfig"
 
 source "fs/Kconfig"
 

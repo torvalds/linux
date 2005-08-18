@@ -431,6 +431,36 @@ static int mthca_cmd_imm(struct mthca_dev *dev,
 				      timeout, status);
 }
 
+int mthca_cmd_init(struct mthca_dev *dev)
+{
+	sema_init(&dev->cmd.hcr_sem, 1);
+	sema_init(&dev->cmd.poll_sem, 1);
+	dev->cmd.use_events = 0;
+
+	dev->hcr = ioremap(pci_resource_start(dev->pdev, 0) + MTHCA_HCR_BASE,
+			   MTHCA_HCR_SIZE);
+	if (!dev->hcr) {
+		mthca_err(dev, "Couldn't map command register.");
+		return -ENOMEM;
+	}
+
+	dev->cmd.pool = pci_pool_create("mthca_cmd", dev->pdev,
+					MTHCA_MAILBOX_SIZE,
+					MTHCA_MAILBOX_SIZE, 0);
+	if (!dev->cmd.pool) {
+		iounmap(dev->hcr);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void mthca_cmd_cleanup(struct mthca_dev *dev)
+{
+	pci_pool_destroy(dev->cmd.pool);
+	iounmap(dev->hcr);
+}
+
 /*
  * Switch to using events to issue FW commands (should be called after
  * event queue to command events has been initialized).
@@ -489,6 +519,33 @@ void mthca_cmd_use_polling(struct mthca_dev *dev)
 	up(&dev->cmd.poll_sem);
 }
 
+struct mthca_mailbox *mthca_alloc_mailbox(struct mthca_dev *dev,
+					  unsigned int gfp_mask)
+{
+	struct mthca_mailbox *mailbox;
+
+	mailbox = kmalloc(sizeof *mailbox, gfp_mask);
+	if (!mailbox)
+		return ERR_PTR(-ENOMEM);
+
+	mailbox->buf = pci_pool_alloc(dev->cmd.pool, gfp_mask, &mailbox->dma);
+	if (!mailbox->buf) {
+		kfree(mailbox);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	return mailbox;
+}
+
+void mthca_free_mailbox(struct mthca_dev *dev, struct mthca_mailbox *mailbox)
+{
+	if (!mailbox)
+		return;
+
+	pci_pool_free(dev->cmd.pool, mailbox->buf, mailbox->dma);
+	kfree(mailbox);
+}
+
 int mthca_SYS_EN(struct mthca_dev *dev, u8 *status)
 {
 	u64 out;
@@ -513,20 +570,20 @@ int mthca_SYS_DIS(struct mthca_dev *dev, u8 *status)
 static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 			 u64 virt, u8 *status)
 {
-	u32 *inbox;
-	dma_addr_t indma;
+	struct mthca_mailbox *mailbox;
 	struct mthca_icm_iter iter;
+	__be64 *pages;
 	int lg;
 	int nent = 0;
 	int i;
 	int err = 0;
 	int ts = 0, tc = 0;
 
-	inbox = pci_alloc_consistent(dev->pdev, PAGE_SIZE, &indma);
-	if (!inbox)
-		return -ENOMEM;
-
-	memset(inbox, 0, PAGE_SIZE);
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	memset(mailbox->buf, 0, MTHCA_MAILBOX_SIZE);
+	pages = mailbox->buf;
 
 	for (mthca_icm_first(icm, &iter);
 	     !mthca_icm_last(&iter);
@@ -546,19 +603,17 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 		}
 		for (i = 0; i < mthca_icm_size(&iter) / (1 << lg); ++i, ++nent) {
 			if (virt != -1) {
-				*((__be64 *) (inbox + nent * 4)) =
-					cpu_to_be64(virt);
+				pages[nent * 2] = cpu_to_be64(virt);
 				virt += 1 << lg;
 			}
 
-			*((__be64 *) (inbox + nent * 4 + 2)) =
-				cpu_to_be64((mthca_icm_addr(&iter) +
-					     (i << lg)) | (lg - 12));
+			pages[nent * 2 + 1] = cpu_to_be64((mthca_icm_addr(&iter) +
+							   (i << lg)) | (lg - 12));
 			ts += 1 << (lg - 10);
 			++tc;
 
-			if (nent == PAGE_SIZE / 16) {
-				err = mthca_cmd(dev, indma, nent, 0, op,
+			if (nent == MTHCA_MAILBOX_SIZE / 16) {
+				err = mthca_cmd(dev, mailbox->dma, nent, 0, op,
 						CMD_TIME_CLASS_B, status);
 				if (err || *status)
 					goto out;
@@ -568,7 +623,7 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 	}
 
 	if (nent)
-		err = mthca_cmd(dev, indma, nent, 0, op,
+		err = mthca_cmd(dev, mailbox->dma, nent, 0, op,
 				CMD_TIME_CLASS_B, status);
 
 	switch (op) {
@@ -585,7 +640,7 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 	}
 
 out:
-	pci_free_consistent(dev->pdev, PAGE_SIZE, inbox, indma);
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
@@ -606,8 +661,8 @@ int mthca_RUN_FW(struct mthca_dev *dev, u8 *status)
 
 int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 {
+	struct mthca_mailbox *mailbox;
 	u32 *outbox;
-	dma_addr_t outdma;
 	int err = 0;
 	u8 lg;
 
@@ -625,12 +680,12 @@ int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 #define QUERY_FW_EQ_ARM_BASE_OFFSET    0x40
 #define QUERY_FW_EQ_SET_CI_BASE_OFFSET 0x48
 
-	outbox = pci_alloc_consistent(dev->pdev, QUERY_FW_OUT_SIZE, &outdma);
-	if (!outbox) {
-		return -ENOMEM;
-	}
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	outbox = mailbox->buf;
 
-	err = mthca_cmd_box(dev, 0, outdma, 0, 0, CMD_QUERY_FW,
+	err = mthca_cmd_box(dev, 0, mailbox->dma, 0, 0, CMD_QUERY_FW,
 			    CMD_TIME_CLASS_A, status);
 
 	if (err)
@@ -681,15 +736,15 @@ int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 	}
 
 out:
-	pci_free_consistent(dev->pdev, QUERY_FW_OUT_SIZE, outbox, outdma);
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
 int mthca_ENABLE_LAM(struct mthca_dev *dev, u8 *status)
 {
+	struct mthca_mailbox *mailbox;
 	u8 info;
 	u32 *outbox;
-	dma_addr_t outdma;
 	int err = 0;
 
 #define ENABLE_LAM_OUT_SIZE         0x100
@@ -700,11 +755,12 @@ int mthca_ENABLE_LAM(struct mthca_dev *dev, u8 *status)
 #define ENABLE_LAM_INFO_HIDDEN_FLAG (1 << 4)
 #define ENABLE_LAM_INFO_ECC_MASK    0x3
 
-	outbox = pci_alloc_consistent(dev->pdev, ENABLE_LAM_OUT_SIZE, &outdma);
-	if (!outbox)
-		return -ENOMEM;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	outbox = mailbox->buf;
 
-	err = mthca_cmd_box(dev, 0, outdma, 0, 0, CMD_ENABLE_LAM,
+	err = mthca_cmd_box(dev, 0, mailbox->dma, 0, 0, CMD_ENABLE_LAM,
 			    CMD_TIME_CLASS_C, status);
 
 	if (err)
@@ -733,7 +789,7 @@ int mthca_ENABLE_LAM(struct mthca_dev *dev, u8 *status)
 		  (unsigned long long) dev->ddr_end);
 
 out:
-	pci_free_consistent(dev->pdev, ENABLE_LAM_OUT_SIZE, outbox, outdma);
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
@@ -744,9 +800,9 @@ int mthca_DISABLE_LAM(struct mthca_dev *dev, u8 *status)
 
 int mthca_QUERY_DDR(struct mthca_dev *dev, u8 *status)
 {
+	struct mthca_mailbox *mailbox;
 	u8 info;
 	u32 *outbox;
-	dma_addr_t outdma;
 	int err = 0;
 
 #define QUERY_DDR_OUT_SIZE         0x100
@@ -757,11 +813,12 @@ int mthca_QUERY_DDR(struct mthca_dev *dev, u8 *status)
 #define QUERY_DDR_INFO_HIDDEN_FLAG (1 << 4)
 #define QUERY_DDR_INFO_ECC_MASK    0x3
 
-	outbox = pci_alloc_consistent(dev->pdev, QUERY_DDR_OUT_SIZE, &outdma);
-	if (!outbox)
-		return -ENOMEM;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	outbox = mailbox->buf;
 
-	err = mthca_cmd_box(dev, 0, outdma, 0, 0, CMD_QUERY_DDR,
+	err = mthca_cmd_box(dev, 0, mailbox->dma, 0, 0, CMD_QUERY_DDR,
 			    CMD_TIME_CLASS_A, status);
 
 	if (err)
@@ -787,15 +844,15 @@ int mthca_QUERY_DDR(struct mthca_dev *dev, u8 *status)
 		  (unsigned long long) dev->ddr_end);
 
 out:
-	pci_free_consistent(dev->pdev, QUERY_DDR_OUT_SIZE, outbox, outdma);
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
 int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 			struct mthca_dev_lim *dev_lim, u8 *status)
 {
+	struct mthca_mailbox *mailbox;
 	u32 *outbox;
-	dma_addr_t outdma;
 	u8 field;
 	u16 size;
 	int err;
@@ -860,11 +917,12 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 #define QUERY_DEV_LIM_LAMR_OFFSET           0x9f
 #define QUERY_DEV_LIM_MAX_ICM_SZ_OFFSET     0xa0
 
-	outbox = pci_alloc_consistent(dev->pdev, QUERY_DEV_LIM_OUT_SIZE, &outdma);
-	if (!outbox)
-		return -ENOMEM;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	outbox = mailbox->buf;
 
-	err = mthca_cmd_box(dev, 0, outdma, 0, 0, CMD_QUERY_DEV_LIM,
+	err = mthca_cmd_box(dev, 0, mailbox->dma, 0, 0, CMD_QUERY_DEV_LIM,
 			    CMD_TIME_CLASS_A, status);
 
 	if (err)
@@ -1020,15 +1078,15 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 	}
 
 out:
-	pci_free_consistent(dev->pdev, QUERY_DEV_LIM_OUT_SIZE, outbox, outdma);
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
 int mthca_QUERY_ADAPTER(struct mthca_dev *dev,
 			struct mthca_adapter *adapter, u8 *status)
 {
+	struct mthca_mailbox *mailbox;
 	u32 *outbox;
-	dma_addr_t outdma;
 	int err;
 
 #define QUERY_ADAPTER_OUT_SIZE             0x100
@@ -1037,23 +1095,24 @@ int mthca_QUERY_ADAPTER(struct mthca_dev *dev,
 #define QUERY_ADAPTER_REVISION_ID_OFFSET   0x08
 #define QUERY_ADAPTER_INTA_PIN_OFFSET      0x10
 
-	outbox = pci_alloc_consistent(dev->pdev, QUERY_ADAPTER_OUT_SIZE, &outdma);
-	if (!outbox)
-		return -ENOMEM;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	outbox = mailbox->buf;
 
-	err = mthca_cmd_box(dev, 0, outdma, 0, 0, CMD_QUERY_ADAPTER,
+	err = mthca_cmd_box(dev, 0, mailbox->dma, 0, 0, CMD_QUERY_ADAPTER,
 			    CMD_TIME_CLASS_A, status);
 
 	if (err)
 		goto out;
 
-	MTHCA_GET(adapter->vendor_id, outbox, QUERY_ADAPTER_VENDOR_ID_OFFSET);
-	MTHCA_GET(adapter->device_id, outbox, QUERY_ADAPTER_DEVICE_ID_OFFSET);
+	MTHCA_GET(adapter->vendor_id, outbox,   QUERY_ADAPTER_VENDOR_ID_OFFSET);
+	MTHCA_GET(adapter->device_id, outbox,   QUERY_ADAPTER_DEVICE_ID_OFFSET);
 	MTHCA_GET(adapter->revision_id, outbox, QUERY_ADAPTER_REVISION_ID_OFFSET);
-	MTHCA_GET(adapter->inta_pin, outbox, QUERY_ADAPTER_INTA_PIN_OFFSET);
+	MTHCA_GET(adapter->inta_pin, outbox,    QUERY_ADAPTER_INTA_PIN_OFFSET);
 
 out:
-	pci_free_consistent(dev->pdev, QUERY_DEV_LIM_OUT_SIZE, outbox, outdma);
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
@@ -1061,8 +1120,8 @@ int mthca_INIT_HCA(struct mthca_dev *dev,
 		   struct mthca_init_hca_param *param,
 		   u8 *status)
 {
+	struct mthca_mailbox *mailbox;
 	u32 *inbox;
-	dma_addr_t indma;
 	int err;
 
 #define INIT_HCA_IN_SIZE             	 0x200
@@ -1102,9 +1161,10 @@ int mthca_INIT_HCA(struct mthca_dev *dev,
 #define  INIT_HCA_UAR_SCATCH_BASE_OFFSET (INIT_HCA_UAR_OFFSET + 0x10)
 #define  INIT_HCA_UAR_CTX_BASE_OFFSET    (INIT_HCA_UAR_OFFSET + 0x18)
 
-	inbox = pci_alloc_consistent(dev->pdev, INIT_HCA_IN_SIZE, &indma);
-	if (!inbox)
-		return -ENOMEM;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	inbox = mailbox->buf;
 
 	memset(inbox, 0, INIT_HCA_IN_SIZE);
 
@@ -1167,10 +1227,9 @@ int mthca_INIT_HCA(struct mthca_dev *dev,
 		MTHCA_PUT(inbox, param->uarc_base,   INIT_HCA_UAR_CTX_BASE_OFFSET);
 	}
 
-	err = mthca_cmd(dev, indma, 0, 0, CMD_INIT_HCA,
-			HZ, status);
+	err = mthca_cmd(dev, mailbox->dma, 0, 0, CMD_INIT_HCA, HZ, status);
 
-	pci_free_consistent(dev->pdev, INIT_HCA_IN_SIZE, inbox, indma);
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
@@ -1178,8 +1237,8 @@ int mthca_INIT_IB(struct mthca_dev *dev,
 		  struct mthca_init_ib_param *param,
 		  int port, u8 *status)
 {
+	struct mthca_mailbox *mailbox;
 	u32 *inbox;
-	dma_addr_t indma;
 	int err;
 	u32 flags;
 
@@ -1199,9 +1258,10 @@ int mthca_INIT_IB(struct mthca_dev *dev,
 #define INIT_IB_NODE_GUID_OFFSET 0x18
 #define INIT_IB_SI_GUID_OFFSET   0x20
 
-	inbox = pci_alloc_consistent(dev->pdev, INIT_IB_IN_SIZE, &indma);
-	if (!inbox)
-		return -ENOMEM;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	inbox = mailbox->buf;
 
 	memset(inbox, 0, INIT_IB_IN_SIZE);
 
@@ -1221,10 +1281,10 @@ int mthca_INIT_IB(struct mthca_dev *dev,
 	MTHCA_PUT(inbox, param->node_guid, INIT_IB_NODE_GUID_OFFSET);
 	MTHCA_PUT(inbox, param->si_guid,   INIT_IB_SI_GUID_OFFSET);
 
-	err = mthca_cmd(dev, indma, port, 0, CMD_INIT_IB,
+	err = mthca_cmd(dev, mailbox->dma, port, 0, CMD_INIT_IB,
 			CMD_TIME_CLASS_A, status);
 
-	pci_free_consistent(dev->pdev, INIT_HCA_IN_SIZE, inbox, indma);
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
@@ -1241,8 +1301,8 @@ int mthca_CLOSE_HCA(struct mthca_dev *dev, int panic, u8 *status)
 int mthca_SET_IB(struct mthca_dev *dev, struct mthca_set_ib_param *param,
 		 int port, u8 *status)
 {
+	struct mthca_mailbox *mailbox;
 	u32 *inbox;
-	dma_addr_t indma;
 	int err;
 	u32 flags = 0;
 
@@ -1253,9 +1313,10 @@ int mthca_SET_IB(struct mthca_dev *dev, struct mthca_set_ib_param *param,
 #define SET_IB_CAP_MASK_OFFSET 0x04
 #define SET_IB_SI_GUID_OFFSET  0x08
 
-	inbox = pci_alloc_consistent(dev->pdev, SET_IB_IN_SIZE, &indma);
-	if (!inbox)
-		return -ENOMEM;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	inbox = mailbox->buf;
 
 	memset(inbox, 0, SET_IB_IN_SIZE);
 
@@ -1266,10 +1327,10 @@ int mthca_SET_IB(struct mthca_dev *dev, struct mthca_set_ib_param *param,
 	MTHCA_PUT(inbox, param->cap_mask, SET_IB_CAP_MASK_OFFSET);
 	MTHCA_PUT(inbox, param->si_guid,  SET_IB_SI_GUID_OFFSET);
 
-	err = mthca_cmd(dev, indma, port, 0, CMD_SET_IB,
+	err = mthca_cmd(dev, mailbox->dma, port, 0, CMD_SET_IB,
 			CMD_TIME_CLASS_B, status);
 
-	pci_free_consistent(dev->pdev, INIT_HCA_IN_SIZE, inbox, indma);
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
@@ -1280,20 +1341,22 @@ int mthca_MAP_ICM(struct mthca_dev *dev, struct mthca_icm *icm, u64 virt, u8 *st
 
 int mthca_MAP_ICM_page(struct mthca_dev *dev, u64 dma_addr, u64 virt, u8 *status)
 {
+	struct mthca_mailbox *mailbox;
 	u64 *inbox;
-	dma_addr_t indma;
 	int err;
 
-	inbox = pci_alloc_consistent(dev->pdev, 16, &indma);
-	if (!inbox)
-		return -ENOMEM;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	inbox = mailbox->buf;
 
 	inbox[0] = cpu_to_be64(virt);
 	inbox[1] = cpu_to_be64(dma_addr);
 
-	err = mthca_cmd(dev, indma, 1, 0, CMD_MAP_ICM, CMD_TIME_CLASS_B, status);
+	err = mthca_cmd(dev, mailbox->dma, 1, 0, CMD_MAP_ICM,
+			CMD_TIME_CLASS_B, status);
 
-	pci_free_consistent(dev->pdev, 16, inbox, indma);
+	mthca_free_mailbox(dev, mailbox);
 
 	if (!err)
 		mthca_dbg(dev, "Mapped page at %llx to %llx for ICM.\n",
@@ -1338,69 +1401,26 @@ int mthca_SET_ICM_SIZE(struct mthca_dev *dev, u64 icm_size, u64 *aux_pages,
 	return 0;
 }
 
-int mthca_SW2HW_MPT(struct mthca_dev *dev, void *mpt_entry,
+int mthca_SW2HW_MPT(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int mpt_index, u8 *status)
 {
-	dma_addr_t indma;
-	int err;
-
-	indma = pci_map_single(dev->pdev, mpt_entry,
-			       MTHCA_MPT_ENTRY_SIZE,
-			       PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(indma))
-		return -ENOMEM;
-
-	err = mthca_cmd(dev, indma, mpt_index, 0, CMD_SW2HW_MPT,
-			CMD_TIME_CLASS_B, status);
-
-	pci_unmap_single(dev->pdev, indma,
-			 MTHCA_MPT_ENTRY_SIZE, PCI_DMA_TODEVICE);
-	return err;
+	return mthca_cmd(dev, mailbox->dma, mpt_index, 0, CMD_SW2HW_MPT,
+			 CMD_TIME_CLASS_B, status);
 }
 
-int mthca_HW2SW_MPT(struct mthca_dev *dev, void *mpt_entry,
+int mthca_HW2SW_MPT(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int mpt_index, u8 *status)
 {
-	dma_addr_t outdma = 0;
-	int err;
-
-	if (mpt_entry) {
-		outdma = pci_map_single(dev->pdev, mpt_entry,
-					MTHCA_MPT_ENTRY_SIZE,
-					PCI_DMA_FROMDEVICE);
-		if (pci_dma_mapping_error(outdma))
-			return -ENOMEM;
-	}
-
-	err = mthca_cmd_box(dev, 0, outdma, mpt_index, !mpt_entry,
-			    CMD_HW2SW_MPT,
-			    CMD_TIME_CLASS_B, status);
-
-	if (mpt_entry)
-		pci_unmap_single(dev->pdev, outdma,
-				 MTHCA_MPT_ENTRY_SIZE,
-				 PCI_DMA_FROMDEVICE);
-	return err;
+	return mthca_cmd_box(dev, 0, mailbox ? mailbox->dma : 0, mpt_index,
+			     !mailbox, CMD_HW2SW_MPT,
+			     CMD_TIME_CLASS_B, status);
 }
 
-int mthca_WRITE_MTT(struct mthca_dev *dev, u64 *mtt_entry,
+int mthca_WRITE_MTT(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int num_mtt, u8 *status)
 {
-	dma_addr_t indma;
-	int err;
-
-	indma = pci_map_single(dev->pdev, mtt_entry,
-			       (num_mtt + 2) * 8,
-			       PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(indma))
-		return -ENOMEM;
-
-	err = mthca_cmd(dev, indma, num_mtt, 0, CMD_WRITE_MTT,
-			CMD_TIME_CLASS_B, status);
-
-	pci_unmap_single(dev->pdev, indma,
-			 (num_mtt + 2) * 8, PCI_DMA_TODEVICE);
-	return err;
+	return mthca_cmd(dev, mailbox->dma, num_mtt, 0, CMD_WRITE_MTT,
+			 CMD_TIME_CLASS_B, status);
 }
 
 int mthca_SYNC_TPT(struct mthca_dev *dev, u8 *status)
@@ -1418,92 +1438,38 @@ int mthca_MAP_EQ(struct mthca_dev *dev, u64 event_mask, int unmap,
 			 0, CMD_MAP_EQ, CMD_TIME_CLASS_B, status);
 }
 
-int mthca_SW2HW_EQ(struct mthca_dev *dev, void *eq_context,
+int mthca_SW2HW_EQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int eq_num, u8 *status)
 {
-	dma_addr_t indma;
-	int err;
-
-	indma = pci_map_single(dev->pdev, eq_context,
-			       MTHCA_EQ_CONTEXT_SIZE,
-			       PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(indma))
-		return -ENOMEM;
-
-	err = mthca_cmd(dev, indma, eq_num, 0, CMD_SW2HW_EQ,
-			CMD_TIME_CLASS_A, status);
-
-	pci_unmap_single(dev->pdev, indma,
-			 MTHCA_EQ_CONTEXT_SIZE, PCI_DMA_TODEVICE);
-	return err;
+	return mthca_cmd(dev, mailbox->dma, eq_num, 0, CMD_SW2HW_EQ,
+			 CMD_TIME_CLASS_A, status);
 }
 
-int mthca_HW2SW_EQ(struct mthca_dev *dev, void *eq_context,
+int mthca_HW2SW_EQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int eq_num, u8 *status)
 {
-	dma_addr_t outdma = 0;
-	int err;
-
-	outdma = pci_map_single(dev->pdev, eq_context,
-				MTHCA_EQ_CONTEXT_SIZE,
-				PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(outdma))
-		return -ENOMEM;
-
-	err = mthca_cmd_box(dev, 0, outdma, eq_num, 0,
-			    CMD_HW2SW_EQ,
-			    CMD_TIME_CLASS_A, status);
-
-	pci_unmap_single(dev->pdev, outdma,
-			 MTHCA_EQ_CONTEXT_SIZE,
-			 PCI_DMA_FROMDEVICE);
-	return err;
+	return mthca_cmd_box(dev, 0, mailbox->dma, eq_num, 0,
+			     CMD_HW2SW_EQ,
+			     CMD_TIME_CLASS_A, status);
 }
 
-int mthca_SW2HW_CQ(struct mthca_dev *dev, void *cq_context,
+int mthca_SW2HW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int cq_num, u8 *status)
 {
-	dma_addr_t indma;
-	int err;
-
-	indma = pci_map_single(dev->pdev, cq_context,
-			       MTHCA_CQ_CONTEXT_SIZE,
-			       PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(indma))
-		return -ENOMEM;
-
-	err = mthca_cmd(dev, indma, cq_num, 0, CMD_SW2HW_CQ,
+	return mthca_cmd(dev, mailbox->dma, cq_num, 0, CMD_SW2HW_CQ,
 			CMD_TIME_CLASS_A, status);
-
-	pci_unmap_single(dev->pdev, indma,
-			 MTHCA_CQ_CONTEXT_SIZE, PCI_DMA_TODEVICE);
-	return err;
 }
 
-int mthca_HW2SW_CQ(struct mthca_dev *dev, void *cq_context,
+int mthca_HW2SW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int cq_num, u8 *status)
 {
-	dma_addr_t outdma = 0;
-	int err;
-
-	outdma = pci_map_single(dev->pdev, cq_context,
-				MTHCA_CQ_CONTEXT_SIZE,
-				PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(outdma))
-		return -ENOMEM;
-
-	err = mthca_cmd_box(dev, 0, outdma, cq_num, 0,
-			    CMD_HW2SW_CQ,
-			    CMD_TIME_CLASS_A, status);
-
-	pci_unmap_single(dev->pdev, outdma,
-			 MTHCA_CQ_CONTEXT_SIZE,
-			 PCI_DMA_FROMDEVICE);
-	return err;
+	return mthca_cmd_box(dev, 0, mailbox->dma, cq_num, 0,
+			     CMD_HW2SW_CQ,
+			     CMD_TIME_CLASS_A, status);
 }
 
 int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
-		    int is_ee, void *qp_context, u32 optmask,
+		    int is_ee, struct mthca_mailbox *mailbox, u32 optmask,
 		    u8 *status)
 {
 	static const u16 op[] = {
@@ -1520,36 +1486,34 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 		[MTHCA_TRANS_ANY2RST]   = CMD_ERR2RST_QPEE
 	};
 	u8 op_mod = 0;
-
-	dma_addr_t indma;
+	int my_mailbox = 0;
 	int err;
 
 	if (trans < 0 || trans >= ARRAY_SIZE(op))
 		return -EINVAL;
 
 	if (trans == MTHCA_TRANS_ANY2RST) {
-		indma  = 0;
 		op_mod = 3;	/* don't write outbox, any->reset */
 
 		/* For debugging */
-		qp_context = pci_alloc_consistent(dev->pdev, MTHCA_QP_CONTEXT_SIZE,
-						  &indma);
-		op_mod = 2;	/* write outbox, any->reset */
+		if (!mailbox) {
+			mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+			if (!IS_ERR(mailbox)) {
+				my_mailbox = 1;
+				op_mod     = 2;	/* write outbox, any->reset */
+			} else
+				mailbox = NULL;
+		}
 	} else {
-		indma = pci_map_single(dev->pdev, qp_context,
-				       MTHCA_QP_CONTEXT_SIZE,
-				       PCI_DMA_TODEVICE);
-		if (pci_dma_mapping_error(indma))
-			return -ENOMEM;
-
 		if (0) {
 			int i;
 			mthca_dbg(dev, "Dumping QP context:\n");
-			printk("  opt param mask: %08x\n", be32_to_cpup(qp_context));
+			printk("  opt param mask: %08x\n", be32_to_cpup(mailbox->buf));
 			for (i = 0; i < 0x100 / 4; ++i) {
 				if (i % 8 == 0)
 					printk("  [%02x] ", i * 4);
-				printk(" %08x", be32_to_cpu(((u32 *) qp_context)[i + 2]));
+				printk(" %08x",
+				       be32_to_cpu(((u32 *) mailbox->buf)[i + 2]));
 				if ((i + 1) % 8 == 0)
 					printk("\n");
 			}
@@ -1557,55 +1521,39 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 	}
 
 	if (trans == MTHCA_TRANS_ANY2RST) {
-		err = mthca_cmd_box(dev, 0, indma, (!!is_ee << 24) | num,
-				    op_mod, op[trans], CMD_TIME_CLASS_C, status);
+		err = mthca_cmd_box(dev, 0, mailbox ? mailbox->dma : 0,
+				    (!!is_ee << 24) | num, op_mod,
+				    op[trans], CMD_TIME_CLASS_C, status);
 
-		if (0) {
+		if (0 && mailbox) {
 			int i;
 			mthca_dbg(dev, "Dumping QP context:\n");
-			printk(" %08x\n", be32_to_cpup(qp_context));
+			printk(" %08x\n", be32_to_cpup(mailbox->buf));
 			for (i = 0; i < 0x100 / 4; ++i) {
 				if (i % 8 == 0)
 					printk("[%02x] ", i * 4);
-				printk(" %08x", be32_to_cpu(((u32 *) qp_context)[i + 2]));
+				printk(" %08x",
+				       be32_to_cpu(((u32 *) mailbox->buf)[i + 2]));
 				if ((i + 1) % 8 == 0)
 					printk("\n");
 			}
 		}
 
 	} else
-		err = mthca_cmd(dev, indma, (!!is_ee << 24) | num,
+		err = mthca_cmd(dev, mailbox->dma, (!!is_ee << 24) | num,
 				op_mod, op[trans], CMD_TIME_CLASS_C, status);
 
-	if (trans != MTHCA_TRANS_ANY2RST)
-		pci_unmap_single(dev->pdev, indma,
-				 MTHCA_QP_CONTEXT_SIZE, PCI_DMA_TODEVICE);
-	else
-		pci_free_consistent(dev->pdev, MTHCA_QP_CONTEXT_SIZE,
-				    qp_context, indma);
+	if (my_mailbox)
+		mthca_free_mailbox(dev, mailbox);
+
 	return err;
 }
 
 int mthca_QUERY_QP(struct mthca_dev *dev, u32 num, int is_ee,
-		   void *qp_context, u8 *status)
+		   struct mthca_mailbox *mailbox, u8 *status)
 {
-	dma_addr_t outdma = 0;
-	int err;
-
-	outdma = pci_map_single(dev->pdev, qp_context,
-				MTHCA_QP_CONTEXT_SIZE,
-				PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(outdma))
-		return -ENOMEM;
-
-	err = mthca_cmd_box(dev, 0, outdma, (!!is_ee << 24) | num, 0,
-			    CMD_QUERY_QPEE,
-			    CMD_TIME_CLASS_A, status);
-
-	pci_unmap_single(dev->pdev, outdma,
-			 MTHCA_QP_CONTEXT_SIZE,
-			 PCI_DMA_FROMDEVICE);
-	return err;
+	return mthca_cmd_box(dev, 0, mailbox->dma, (!!is_ee << 24) | num, 0,
+			     CMD_QUERY_QPEE, CMD_TIME_CLASS_A, status);
 }
 
 int mthca_CONF_SPECIAL_QP(struct mthca_dev *dev, int type, u32 qpn,
@@ -1635,11 +1583,11 @@ int mthca_CONF_SPECIAL_QP(struct mthca_dev *dev, int type, u32 qpn,
 }
 
 int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
-		  int port, struct ib_wc* in_wc, struct ib_grh* in_grh,
+		  int port, struct ib_wc *in_wc, struct ib_grh *in_grh,
 		  void *in_mad, void *response_mad, u8 *status)
 {
-	void *box;
-	dma_addr_t dma;
+	struct mthca_mailbox *inmailbox, *outmailbox;
+	void *inbox;
 	int err;
 	u32 in_modifier = port;
 	u8 op_modifier = 0;
@@ -1653,11 +1601,18 @@ int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
 #define MAD_IFC_PKEY_OFFSET   0x10e
 #define MAD_IFC_GRH_OFFSET    0x140
 
-	box = pci_alloc_consistent(dev->pdev, MAD_IFC_BOX_SIZE, &dma);
-	if (!box)
-		return -ENOMEM;
+	inmailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(inmailbox))
+		return PTR_ERR(inmailbox);
+	inbox = inmailbox->buf;
 
-	memcpy(box, in_mad, 256);
+	outmailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(outmailbox)) {
+		mthca_free_mailbox(dev, inmailbox);
+		return PTR_ERR(outmailbox);
+	}
+
+	memcpy(inbox, in_mad, 256);
 
 	/*
 	 * Key check traps can't be generated unless we have in_wc to
@@ -1671,97 +1626,65 @@ int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
 	if (in_wc) {
 		u8 val;
 
-		memset(box + 256, 0, 256);
+		memset(inbox + 256, 0, 256);
 
-		MTHCA_PUT(box, in_wc->qp_num, 	  MAD_IFC_MY_QPN_OFFSET);
-		MTHCA_PUT(box, in_wc->src_qp, 	  MAD_IFC_RQPN_OFFSET);
+		MTHCA_PUT(inbox, in_wc->qp_num,     MAD_IFC_MY_QPN_OFFSET);
+		MTHCA_PUT(inbox, in_wc->src_qp,     MAD_IFC_RQPN_OFFSET);
 
 		val = in_wc->sl << 4;
-		MTHCA_PUT(box, val,               MAD_IFC_SL_OFFSET);
+		MTHCA_PUT(inbox, val,               MAD_IFC_SL_OFFSET);
 
 		val = in_wc->dlid_path_bits |
 			(in_wc->wc_flags & IB_WC_GRH ? 0x80 : 0);
-		MTHCA_PUT(box, val,               MAD_IFC_GRH_OFFSET);
+		MTHCA_PUT(inbox, val,               MAD_IFC_GRH_OFFSET);
 
-		MTHCA_PUT(box, in_wc->slid,       MAD_IFC_RLID_OFFSET);
-		MTHCA_PUT(box, in_wc->pkey_index, MAD_IFC_PKEY_OFFSET);
+		MTHCA_PUT(inbox, in_wc->slid,       MAD_IFC_RLID_OFFSET);
+		MTHCA_PUT(inbox, in_wc->pkey_index, MAD_IFC_PKEY_OFFSET);
 
 		if (in_grh)
-			memcpy((u8 *) box + MAD_IFC_GRH_OFFSET, in_grh, 40);
+			memcpy(inbox + MAD_IFC_GRH_OFFSET, in_grh, 40);
 
 		op_modifier |= 0x10;
 
 		in_modifier |= in_wc->slid << 16;
 	}
 
-	err = mthca_cmd_box(dev, dma, dma + 512, in_modifier, op_modifier,
+	err = mthca_cmd_box(dev, inmailbox->dma, outmailbox->dma,
+			    in_modifier, op_modifier,
 			    CMD_MAD_IFC, CMD_TIME_CLASS_C, status);
 
 	if (!err && !*status)
-		memcpy(response_mad, box + 512, 256);
+		memcpy(response_mad, outmailbox->buf, 256);
 
-	pci_free_consistent(dev->pdev, MAD_IFC_BOX_SIZE, box, dma);
+	mthca_free_mailbox(dev, inmailbox);
+	mthca_free_mailbox(dev, outmailbox);
 	return err;
 }
 
-int mthca_READ_MGM(struct mthca_dev *dev, int index, void *mgm,
-		   u8 *status)
+int mthca_READ_MGM(struct mthca_dev *dev, int index,
+		   struct mthca_mailbox *mailbox, u8 *status)
 {
-	dma_addr_t outdma = 0;
-	int err;
-
-	outdma = pci_map_single(dev->pdev, mgm,
-				MTHCA_MGM_ENTRY_SIZE,
-				PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(outdma))
-		return -ENOMEM;
-
-	err = mthca_cmd_box(dev, 0, outdma, index, 0,
-			    CMD_READ_MGM,
-			    CMD_TIME_CLASS_A, status);
-
-	pci_unmap_single(dev->pdev, outdma,
-			 MTHCA_MGM_ENTRY_SIZE,
-			 PCI_DMA_FROMDEVICE);
-	return err;
+	return mthca_cmd_box(dev, 0, mailbox->dma, index, 0,
+			     CMD_READ_MGM, CMD_TIME_CLASS_A, status);
 }
 
-int mthca_WRITE_MGM(struct mthca_dev *dev, int index, void *mgm,
-		    u8 *status)
+int mthca_WRITE_MGM(struct mthca_dev *dev, int index,
+		    struct mthca_mailbox *mailbox, u8 *status)
 {
-	dma_addr_t indma;
-	int err;
-
-	indma = pci_map_single(dev->pdev, mgm,
-			       MTHCA_MGM_ENTRY_SIZE,
-			       PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(indma))
-		return -ENOMEM;
-
-	err = mthca_cmd(dev, indma, index, 0, CMD_WRITE_MGM,
-			CMD_TIME_CLASS_A, status);
-
-	pci_unmap_single(dev->pdev, indma,
-			 MTHCA_MGM_ENTRY_SIZE, PCI_DMA_TODEVICE);
-	return err;
+	return mthca_cmd(dev, mailbox->dma, index, 0, CMD_WRITE_MGM,
+			 CMD_TIME_CLASS_A, status);
 }
 
-int mthca_MGID_HASH(struct mthca_dev *dev, void *gid, u16 *hash,
-		    u8 *status)
+int mthca_MGID_HASH(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
+		    u16 *hash, u8 *status)
 {
-	dma_addr_t indma;
 	u64 imm;
 	int err;
 
-	indma = pci_map_single(dev->pdev, gid, 16, PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(indma))
-		return -ENOMEM;
-
-	err = mthca_cmd_imm(dev, indma, &imm, 0, 0, CMD_MGID_HASH,
+	err = mthca_cmd_imm(dev, mailbox->dma, &imm, 0, 0, CMD_MGID_HASH,
 			    CMD_TIME_CLASS_A, status);
-	*hash = imm;
 
-	pci_unmap_single(dev->pdev, indma, 16, PCI_DMA_TODEVICE);
+	*hash = imm;
 	return err;
 }
 

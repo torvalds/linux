@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/pci.h>
+#include <linux/module.h>
 #include <asm/io.h>
 
 struct dma_coherent_mem {
@@ -54,6 +55,7 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	}
 	return ret;
 }
+EXPORT_SYMBOL(dma_alloc_coherent);
 
 void dma_free_coherent(struct device *dev, size_t size,
 			 void *vaddr, dma_addr_t dma_handle)
@@ -68,6 +70,7 @@ void dma_free_coherent(struct device *dev, size_t size,
 	} else
 		free_pages((unsigned long)vaddr, order);
 }
+EXPORT_SYMBOL(dma_free_coherent);
 
 int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
 				dma_addr_t device_addr, size_t size, int flags)

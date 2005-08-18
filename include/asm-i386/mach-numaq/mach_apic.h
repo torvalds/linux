@@ -17,8 +17,6 @@ static inline cpumask_t target_cpus(void)
 #define NO_BALANCE_IRQ (1)
 #define esr_disable (1)
 
-#define NO_IOAPIC_CHECK (0)
-
 #define INT_DELIVERY_MODE dest_LowestPrio
 #define INT_DEST_MODE 0     /* physical delivery on LOCAL quad */
  

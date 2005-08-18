@@ -663,10 +663,7 @@ static int snd_pcm_plug_playback_channels_mask(snd_pcm_plug_t *plug,
 		bitset_t *dstmask = bs;
 		int err;
 		bitset_one(dstmask, schannels);
-		if (plugin == NULL) {
-			bitset_and(client_vmask, dstmask, schannels);
-			return 0;
-		}
+
 		while (1) {
 			err = plugin->src_channels_mask(plugin, dstmask, &srcmask);
 			if (err < 0)

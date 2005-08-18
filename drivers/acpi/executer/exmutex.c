@@ -49,6 +49,13 @@
 #define _COMPONENT          ACPI_EXECUTER
 	 ACPI_MODULE_NAME    ("exmutex")
 
+/* Local prototypes */
+
+static void
+acpi_ex_link_mutex (
+	union acpi_operand_object       *obj_desc,
+	struct acpi_thread_state        *thread);
+
 
 /*******************************************************************************
  *
@@ -56,7 +63,7 @@
  *
  * PARAMETERS:  obj_desc            - The mutex to be unlinked
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Remove a mutex from the "acquired_mutex" list
  *
@@ -92,16 +99,16 @@ acpi_ex_unlink_mutex (
  *
  * FUNCTION:    acpi_ex_link_mutex
  *
- * PARAMETERS:  obj_desc            - The mutex to be linked
- *              list_head           - head of the "acquired_mutex" list
+ * PARAMETERS:  obj_desc        - The mutex to be linked
+ *              Thread          - Current executing thread object
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Add a mutex to the "acquired_mutex" list for this walk
  *
  ******************************************************************************/
 
-void
+static void
 acpi_ex_link_mutex (
 	union acpi_operand_object       *obj_desc,
 	struct acpi_thread_state        *thread)
@@ -132,8 +139,9 @@ acpi_ex_link_mutex (
  *
  * FUNCTION:    acpi_ex_acquire_mutex
  *
- * PARAMETERS:  time_desc           - The 'time to delay' object descriptor
- *              obj_desc            - The object descriptor for this op
+ * PARAMETERS:  time_desc           - Timeout integer
+ *              obj_desc            - Mutex object
+ *              walk_state          - Current method execution state
  *
  * RETURN:      Status
  *
@@ -161,7 +169,7 @@ acpi_ex_acquire_mutex (
 
 	if (!walk_state->thread) {
 		ACPI_REPORT_ERROR (("Cannot acquire Mutex [%4.4s], null thread info\n",
-				acpi_ut_get_node_name (obj_desc->mutex.node)));
+			acpi_ut_get_node_name (obj_desc->mutex.node)));
 		return_ACPI_STATUS (AE_AML_INTERNAL);
 	}
 
@@ -170,8 +178,9 @@ acpi_ex_acquire_mutex (
 	 * mutex.  This mechanism provides some deadlock prevention
 	 */
 	if (walk_state->thread->current_sync_level > obj_desc->mutex.sync_level) {
-		ACPI_REPORT_ERROR (("Cannot acquire Mutex [%4.4s], incorrect sync_level\n",
-				acpi_ut_get_node_name (obj_desc->mutex.node)));
+		ACPI_REPORT_ERROR ((
+			"Cannot acquire Mutex [%4.4s], incorrect sync_level\n",
+			acpi_ut_get_node_name (obj_desc->mutex.node)));
 		return_ACPI_STATUS (AE_AML_MUTEX_ORDER);
 	}
 
@@ -180,8 +189,10 @@ acpi_ex_acquire_mutex (
 	if (obj_desc->mutex.owner_thread) {
 		/* Special case for Global Lock, allow all threads */
 
-		if ((obj_desc->mutex.owner_thread->thread_id == walk_state->thread->thread_id) ||
-			(obj_desc->mutex.semaphore == acpi_gbl_global_lock_semaphore)) {
+		if ((obj_desc->mutex.owner_thread->thread_id ==
+				walk_state->thread->thread_id)      ||
+			(obj_desc->mutex.semaphore ==
+				acpi_gbl_global_lock_semaphore)) {
 			/*
 			 * The mutex is already owned by this thread,
 			 * just increment the acquisition depth
@@ -221,6 +232,7 @@ acpi_ex_acquire_mutex (
  * FUNCTION:    acpi_ex_release_mutex
  *
  * PARAMETERS:  obj_desc            - The object descriptor for this op
+ *              walk_state          - Current method execution state
  *
  * RETURN:      Status
  *
@@ -278,8 +290,9 @@ acpi_ex_release_mutex (
 	 * equal to the current sync level
 	 */
 	if (obj_desc->mutex.sync_level > walk_state->thread->current_sync_level) {
-		ACPI_REPORT_ERROR (("Cannot release Mutex [%4.4s], incorrect sync_level\n",
-				acpi_ut_get_node_name (obj_desc->mutex.node)));
+		ACPI_REPORT_ERROR ((
+			"Cannot release Mutex [%4.4s], incorrect sync_level\n",
+			acpi_ut_get_node_name (obj_desc->mutex.node)));
 		return_ACPI_STATUS (AE_AML_MUTEX_ORDER);
 	}
 
@@ -313,11 +326,11 @@ acpi_ex_release_mutex (
  *
  * FUNCTION:    acpi_ex_release_all_mutexes
  *
- * PARAMETERS:  mutex_list            - Head of the mutex list
+ * PARAMETERS:  Thread          - Current executing thread object
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Release all mutexes in the list
+ * DESCRIPTION: Release all mutexes held by this thread
  *
  ******************************************************************************/
 

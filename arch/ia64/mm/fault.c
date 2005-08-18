@@ -14,6 +14,7 @@
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/kdebug.h>
 
 extern void die (char *, struct pt_regs *, long);
 
@@ -101,6 +102,13 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 	if ((REGION_NUMBER(address) == 5) && !user_mode(regs))
 		goto bad_area_no_up;
 #endif
+
+	/*
+	 * This is to handle the kprobes on user space access instructions
+	 */
+	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, code, TRAP_BRKPT,
+					SIGSEGV) == NOTIFY_STOP)
+		return;
 
 	down_read(&mm->mmap_sem);
 

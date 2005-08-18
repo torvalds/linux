@@ -4,7 +4,7 @@
   (C) 2001 Andreas Gruenbacher, <a.gruenbacher@computer.org>
 */
 
-#include <linux/xattr_acl.h>
+#include <linux/posix_acl_xattr.h>
 
 #define EXT2_ACL_VERSION	0x0001
 

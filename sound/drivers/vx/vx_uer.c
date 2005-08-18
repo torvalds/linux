@@ -162,34 +162,24 @@ static int vx_read_uer_status(vx_core_t *chip, int *mode)
 
 static int vx_calc_clock_from_freq(vx_core_t *chip, int freq)
 {
-#define XX_FECH48000                    0x0000004B
-#define XX_FECH32000                    0x00000171
-#define XX_FECH24000                    0x0000024B
-#define XX_FECH16000                    0x00000371
-#define XX_FECH12000                    0x0000044B
-#define XX_FECH8000                     0x00000571
-#define XX_FECH44100                    0x0000007F
-#define XX_FECH29400                    0x0000016F
-#define XX_FECH22050                    0x0000027F
-#define XX_FECH14000                    0x000003EF
-#define XX_FECH11025                    0x0000047F
-#define XX_FECH7350                     0x000005BF
+	int hexfreq;
 
-	switch (freq) {
-	case 48000:     return XX_FECH48000;
-	case 44100:     return XX_FECH44100;
-	case 32000:     return XX_FECH32000;
-	case 29400:     return XX_FECH29400;
-	case 24000:     return XX_FECH24000;
-	case 22050:     return XX_FECH22050;
-	case 16000:     return XX_FECH16000;
-	case 14000:     return XX_FECH14000;
-	case 12000:     return XX_FECH12000;
-	case 11025:     return XX_FECH11025;
-	case 8000:      return XX_FECH8000;
-	case 7350:      return XX_FECH7350;
-	default:        return freq;   /* The value is already correct */
-	}
+	snd_assert(freq > 0, return 0);
+
+	hexfreq = (28224000 * 10) / freq;
+	hexfreq = (hexfreq + 5) / 10;
+
+	/* max freq = 55125 Hz */
+	snd_assert(hexfreq > 0x00000200, return 0);
+
+	if (hexfreq <= 0x03ff)
+		return hexfreq - 0x00000201;
+	if (hexfreq <= 0x07ff) 
+		return (hexfreq / 2) - 1;
+	if (hexfreq <= 0x0fff)
+		return (hexfreq / 4) + 0x000001ff;
+
+	return 0x5fe; 	/* min freq = 6893 Hz */
 }
 
 

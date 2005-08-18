@@ -8448,7 +8448,6 @@ aic7xxx_alloc(Scsi_Host_Template *sht, struct aic7xxx_host *temp)
     }
     p->host_no = host->host_no;
   }
-  scsi_set_device(host, &p->pdev->dev);
   return (p);
 }
 
@@ -10358,7 +10357,7 @@ aic7xxx_queue(Scsi_Cmnd *cmd, void (*fn)(Scsi_Cmnd *))
  *   Returns an enumerated type that indicates the status of the operation.
  *-F*************************************************************************/
 static int
-aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
+__aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
 {
   struct aic7xxx_host  *p;
   struct aic7xxx_scb   *scb;
@@ -10551,6 +10550,18 @@ aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
     return SUCCESS;
 }
 
+static int
+aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
+{
+      int rc;
+
+      spin_lock_irq(cmd->device->host->host_lock);
+      rc = __aic7xxx_bus_device_reset(cmd);
+      spin_unlock_irq(cmd->device->host->host_lock);
+
+      return rc;
+}
+
 
 /*+F*************************************************************************
  * Function:
@@ -10585,7 +10596,7 @@ aic7xxx_panic_abort(struct aic7xxx_host *p, Scsi_Cmnd *cmd)
  *   Abort the current SCSI command(s).
  *-F*************************************************************************/
 static int
-aic7xxx_abort(Scsi_Cmnd *cmd)
+__aic7xxx_abort(Scsi_Cmnd *cmd)
 {
   struct aic7xxx_scb  *scb = NULL;
   struct aic7xxx_host *p;
@@ -10802,6 +10813,19 @@ success:
   return SUCCESS;
 }
 
+static int
+aic7xxx_abort(Scsi_Cmnd *cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __aic7xxx_abort(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
+}
+
+
 /*+F*************************************************************************
  * Function:
  *   aic7xxx_reset
@@ -10820,6 +10844,8 @@ aic7xxx_reset(Scsi_Cmnd *cmd)
   struct aic_dev_data *aic_dev;
 
   p = (struct aic7xxx_host *) cmd->device->host->hostdata;
+  spin_lock_irq(p->host->host_lock);
+
   aic_dev = AIC_DEV(cmd);
   if(aic7xxx_position(cmd) < p->scb_data->numscbs)
   {
@@ -10859,6 +10885,7 @@ aic7xxx_reset(Scsi_Cmnd *cmd)
      * longer have it.
      */
     unpause_sequencer(p, FALSE);
+    spin_unlock_irq(p->host->host_lock);
     return SUCCESS;
   }
     
@@ -10882,7 +10909,6 @@ aic7xxx_reset(Scsi_Cmnd *cmd)
   unpause_sequencer(p, FALSE);
   spin_unlock_irq(p->host->host_lock);
   ssleep(2);
-  spin_lock_irq(p->host->host_lock);
   return SUCCESS;
 }
 

@@ -23,8 +23,6 @@
 #include <asm/dvma.h>
 #include <asm/irq.h>
 
-extern struct NCR_ESP *espchain;
-
 static void dma_barrier(struct NCR_ESP *esp);
 static int  dma_bytes_sent(struct NCR_ESP *esp, int fifo_count);
 static int  dma_can_transfer(struct NCR_ESP *esp, Scsi_Cmnd *sp);

@@ -25,7 +25,7 @@ fill_read(struct dentry *dentry, char *buffer, loff_t off, size_t count)
 	struct kobject * kobj = to_kobj(dentry->d_parent);
 
 	if (!attr->read)
-		return -EINVAL;
+		return -EIO;
 
 	return attr->read(kobj, buffer, off, count);
 }
@@ -71,7 +71,7 @@ flush_write(struct dentry *dentry, char *buffer, loff_t offset, size_t count)
 	struct kobject *kobj = to_kobj(dentry->d_parent);
 
 	if (!attr->write)
-		return -EINVAL;
+		return -EIO;
 
 	return attr->write(kobj, buffer, offset, count);
 }

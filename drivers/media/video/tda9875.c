@@ -44,7 +44,6 @@ static unsigned short normal_i2c[] =  {
     I2C_TDA9875 >> 1,
     I2C_CLIENT_END
 };
-static unsigned short normal_i2c_range[] = {I2C_CLIENT_END};
 I2C_CLIENT_INSMOD;
 
 /* This is a superset of the TDA9875 */
@@ -124,19 +123,6 @@ static int tda9875_write(struct i2c_client *client, int subaddr, unsigned char v
 	return 0;
 }
 
-#if 0
-static int tda9875_read(struct i2c_client *client)
-{
-	unsigned char buffer;
-	dprintk("In tda9875_read\n");
-	if (1 != i2c_master_recv(client,&buffer,1)) {
-		printk(KERN_WARNING "tda9875: I/O error, trying (read)\n");
-		return -1;
-	}
-	dprintk("Read 0x%02x\n", buffer);
-	return buffer;
-}
-#endif
 
 static int i2c_read_register(struct i2c_adapter *adap, int addr, int reg)
 {

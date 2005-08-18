@@ -83,7 +83,6 @@ static struct map_desc intcp_io_desc[] __initdata = {
  { IO_ADDRESS(INTEGRATOR_UART1_BASE), INTEGRATOR_UART1_BASE, SZ_4K,  MT_DEVICE },
  { IO_ADDRESS(INTEGRATOR_DBG_BASE),   INTEGRATOR_DBG_BASE,   SZ_4K,  MT_DEVICE },
  { IO_ADDRESS(INTEGRATOR_GPIO_BASE),  INTEGRATOR_GPIO_BASE,  SZ_4K,  MT_DEVICE },
- { 0xfc900000, 0xc9000000, SZ_4K, MT_DEVICE },
  { 0xfca00000, 0xca000000, SZ_4K, MT_DEVICE },
  { 0xfcb00000, 0xcb000000, SZ_4K, MT_DEVICE },
 };
@@ -533,11 +532,13 @@ static struct sys_timer cp_timer = {
 };
 
 MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
-	MAINTAINER("ARM Ltd/Deep Blue Solutions Ltd")
-	BOOT_MEM(0x00000000, 0x16000000, 0xf1600000)
-	BOOT_PARAMS(0x00000100)
-	MAPIO(intcp_map_io)
-	INITIRQ(intcp_init_irq)
+	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
+	.phys_ram	= 0x00000000,
+	.phys_io	= 0x16000000,
+	.io_pg_offst	= ((0xf1600000) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.map_io		= intcp_map_io,
+	.init_irq	= intcp_init_irq,
 	.timer		= &cp_timer,
-	INIT_MACHINE(intcp_init)
+	.init_machine	= intcp_init,
 MACHINE_END

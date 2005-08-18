@@ -116,7 +116,14 @@ int mvme147_detect(Scsi_Host_Template *tpnt)
 static int mvme147_bus_reset(Scsi_Cmnd *cmd)
 {
 	/* FIXME perform bus-specific reset */
+
+	/* FIXME 2: kill this function, and let midlayer fallback to 
+	   the same result, calling wd33c93_host_reset() */
+
+	spin_lock_irq(cmd->device->host->host_lock);
 	wd33c93_host_reset(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
 	return SUCCESS;
 }
 

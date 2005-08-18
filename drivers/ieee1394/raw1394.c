@@ -98,7 +98,7 @@ static struct hpsb_address_ops arm_ops = {
 
 static void queue_complete_cb(struct pending_request *req);
 
-static struct pending_request *__alloc_pending_request(int flags)
+static struct pending_request *__alloc_pending_request(unsigned int __nocast flags)
 {
 	struct pending_request *req;
 
@@ -2506,8 +2506,11 @@ static int raw1394_iso_send_packets(struct file_info *fi, void __user * uaddr)
 	if (copy_from_user(&upackets, uaddr, sizeof(upackets)))
 		return -EFAULT;
 
-	if (upackets.n_packets > hpsb_iso_n_ready(fi->iso_handle))
+	if (upackets.n_packets >= fi->iso_handle->buf_packets)
 		return -EINVAL;
+
+	if (upackets.n_packets >= hpsb_iso_n_ready(fi->iso_handle))
+		return -EAGAIN;
 
 	/* ensure user-supplied buffer is accessible and big enough */
 	if (!access_ok(VERIFY_READ, upackets.infos,
@@ -2901,7 +2904,7 @@ static int __init init_raw1394(void)
 
 	hpsb_register_highlevel(&raw1394_highlevel);
 
-	if (IS_ERR(class_simple_device_add(hpsb_protocol_class, MKDEV(
+	if (IS_ERR(class_device_create(hpsb_protocol_class, MKDEV(
 		IEEE1394_MAJOR,	IEEE1394_MINOR_BLOCK_RAW1394 * 16), 
 		NULL, RAW1394_DEVICE_NAME))) {
 		ret = -EFAULT;
@@ -2934,8 +2937,8 @@ static int __init init_raw1394(void)
 
 out_dev:
 	devfs_remove(RAW1394_DEVICE_NAME);
-	class_simple_device_remove(MKDEV(
-		IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16));
+	class_device_destroy(hpsb_protocol_class,
+		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16));
 out_unreg:
 	hpsb_unregister_highlevel(&raw1394_highlevel);
 out:
@@ -2944,8 +2947,8 @@ out:
 
 static void __exit cleanup_raw1394(void)
 {
-	class_simple_device_remove(MKDEV(
-		IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16));
+	class_device_destroy(hpsb_protocol_class,
+		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16));
 	cdev_del(&raw1394_cdev);
 	devfs_remove(RAW1394_DEVICE_NAME);
 	hpsb_unregister_highlevel(&raw1394_highlevel);

@@ -1,4 +1,4 @@
-/* $Id: time.c,v 1.14 2004/06/01 05:38:11 starvik Exp $
+/* $Id: time.c,v 1.18 2005/03/04 08:16:17 starvik Exp $
  *
  *  linux/arch/cris/kernel/time.c
  *
@@ -30,6 +30,7 @@
 #include <linux/bcd.h>
 #include <linux/timex.h>
 #include <linux/init.h>
+#include <linux/profile.h>
 
 u64 jiffies_64 = INITIAL_JIFFIES;
 
@@ -212,6 +213,21 @@ update_xtime_from_cmos(void)
 		xtime.tv_sec = get_cmos_time();
 		xtime.tv_nsec = 0;
 	}
+}
+
+extern void cris_profile_sample(struct pt_regs* regs);
+
+void
+cris_do_profile(struct pt_regs* regs)
+{
+
+#if CONFIG_SYSTEM_PROFILER
+        cris_profile_sample(regs);
+#endif
+
+#if CONFIG_PROFILING
+        profile_tick(CPU_PROFILING, regs);
+#endif
 }
 
 /*

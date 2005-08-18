@@ -284,9 +284,6 @@ ppp.c:
 seeq8005.c: *Not modularized*
 	(Probes ports: 0x300, 0x320, 0x340, 0x360)
 
-sk_g16.c: *Not modularized*
-	(Probes ports: 0x100, 0x180, 0x208, 0x220m 0x288, 0x320, 0x328, 0x390)
-
 skeleton.c: *Skeleton*
 
 slhc.c:

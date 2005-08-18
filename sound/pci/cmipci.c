@@ -306,7 +306,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_REG_FM_PCI		0x50
 
 /*
- * for CMI-8338 .. this is not valid for CMI-8738.
+ * access from SB-mixer port
  */
 #define CM_REG_EXTENT_IND	0xf0
 #define CM_VPHONE_MASK		0xe0	/* Phone volume control (0-3) << 5 */
@@ -315,6 +315,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_VSPKM		0x08	/* Speaker mute control, default high */
 #define CM_RLOOPREN		0x04    /* Rec. R-channel enable */
 #define CM_RLOOPLEN		0x02	/* Rec. L-channel enable */
+#define CM_VADMIC3		0x01	/* Mic record boost */
 
 /*
  * CMI-8338 spec ver 0.5 (this is not valid for CMI-8738):
@@ -488,71 +489,83 @@ struct snd_stru_cmipci {
 
 
 /* read/write operations for dword register */
-inline static void snd_cmipci_write(cmipci_t *cm, unsigned int cmd, unsigned int data)
+static inline void snd_cmipci_write(cmipci_t *cm, unsigned int cmd, unsigned int data)
 {
 	outl(data, cm->iobase + cmd);
 }
-inline static unsigned int snd_cmipci_read(cmipci_t *cm, unsigned int cmd)
+
+static inline unsigned int snd_cmipci_read(cmipci_t *cm, unsigned int cmd)
 {
 	return inl(cm->iobase + cmd);
 }
 
 /* read/write operations for word register */
-inline static void snd_cmipci_write_w(cmipci_t *cm, unsigned int cmd, unsigned short data)
+static inline void snd_cmipci_write_w(cmipci_t *cm, unsigned int cmd, unsigned short data)
 {
 	outw(data, cm->iobase + cmd);
 }
-inline static unsigned short snd_cmipci_read_w(cmipci_t *cm, unsigned int cmd)
+
+static inline unsigned short snd_cmipci_read_w(cmipci_t *cm, unsigned int cmd)
 {
 	return inw(cm->iobase + cmd);
 }
 
 /* read/write operations for byte register */
-inline static void snd_cmipci_write_b(cmipci_t *cm, unsigned int cmd, unsigned char data)
+static inline void snd_cmipci_write_b(cmipci_t *cm, unsigned int cmd, unsigned char data)
 {
 	outb(data, cm->iobase + cmd);
 }
 
-inline static unsigned char snd_cmipci_read_b(cmipci_t *cm, unsigned int cmd)
+static inline unsigned char snd_cmipci_read_b(cmipci_t *cm, unsigned int cmd)
 {
 	return inb(cm->iobase + cmd);
 }
 
 /* bit operations for dword register */
-static void snd_cmipci_set_bit(cmipci_t *cm, unsigned int cmd, unsigned int flag)
+static int snd_cmipci_set_bit(cmipci_t *cm, unsigned int cmd, unsigned int flag)
 {
-	unsigned int val;
-	val = inl(cm->iobase + cmd);
+	unsigned int val, oval;
+	val = oval = inl(cm->iobase + cmd);
 	val |= flag;
+	if (val == oval)
+		return 0;
 	outl(val, cm->iobase + cmd);
+	return 1;
 }
 
-static void snd_cmipci_clear_bit(cmipci_t *cm, unsigned int cmd, unsigned int flag)
+static int snd_cmipci_clear_bit(cmipci_t *cm, unsigned int cmd, unsigned int flag)
 {
-	unsigned int val;
-	val = inl(cm->iobase + cmd);
+	unsigned int val, oval;
+	val = oval = inl(cm->iobase + cmd);
 	val &= ~flag;
+	if (val == oval)
+		return 0;
 	outl(val, cm->iobase + cmd);
+	return 1;
 }
 
-#if 0 // not used
 /* bit operations for byte register */
-static void snd_cmipci_set_bit_b(cmipci_t *cm, unsigned int cmd, unsigned char flag)
+static int snd_cmipci_set_bit_b(cmipci_t *cm, unsigned int cmd, unsigned char flag)
 {
-	unsigned char val;
-	val = inb(cm->iobase + cmd);
+	unsigned char val, oval;
+	val = oval = inb(cm->iobase + cmd);
 	val |= flag;
+	if (val == oval)
+		return 0;
 	outb(val, cm->iobase + cmd);
+	return 1;
 }
 
-static void snd_cmipci_clear_bit_b(cmipci_t *cm, unsigned int cmd, unsigned char flag)
+static int snd_cmipci_clear_bit_b(cmipci_t *cm, unsigned int cmd, unsigned char flag)
 {
-	unsigned char val;
-	val = inb(cm->iobase + cmd);
+	unsigned char val, oval;
+	val = oval = inb(cm->iobase + cmd);
 	val &= ~flag;
+	if (val == oval)
+		return 0;
 	outb(val, cm->iobase + cmd);
+	return 1;
 }
-#endif
 
 
 /*
@@ -2123,8 +2136,12 @@ static snd_kcontrol_new_t snd_cmipci_mixers[] __devinitdata = {
 	CMIPCI_MIXER_VOL_STEREO("Aux Playback Volume", CM_REG_AUX_VOL, 4, 0, 15),
 	CMIPCI_MIXER_SW_STEREO("Aux Playback Switch", CM_REG_MIXER2, CM_VAUXLM_SHIFT, CM_VAUXRM_SHIFT, 0),
 	CMIPCI_MIXER_SW_STEREO("Aux Capture Switch", CM_REG_MIXER2, CM_RAUXLEN_SHIFT, CM_RAUXREN_SHIFT, 0),
-	CMIPCI_MIXER_SW_MONO("Mic Boost", CM_REG_MIXER2, CM_MICGAINZ_SHIFT, 1),
+	CMIPCI_MIXER_SW_MONO("Mic Boost Playback Switch", CM_REG_MIXER2, CM_MICGAINZ_SHIFT, 1),
 	CMIPCI_MIXER_VOL_MONO("Mic Capture Volume", CM_REG_MIXER2, CM_VADMIC_SHIFT, 7),
+	CMIPCI_SB_VOL_MONO("Phone Playback Volume", CM_REG_EXTENT_IND, 5, 7),
+	CMIPCI_DOUBLE("Phone Playback Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 4, 4, 1, 0, 0),
+	CMIPCI_DOUBLE("PC Speaker Playnack Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 3, 3, 1, 0, 0),
+	CMIPCI_DOUBLE("Mic Boost Capture Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 0, 0, 1, 0, 0),
 };
 
 /*
@@ -2250,8 +2267,8 @@ DEFINE_SWITCH_ARG(exchange_dac, CM_REG_MISC_CTRL, CM_XCHGDAC, 0, 0, 0); /* rever
 DEFINE_SWITCH_ARG(exchange_dac, CM_REG_MISC_CTRL, CM_XCHGDAC, CM_XCHGDAC, 0, 0);
 #endif
 DEFINE_BIT_SWITCH_ARG(fourch, CM_REG_MISC_CTRL, CM_N4SPK3D, 0, 0);
-DEFINE_BIT_SWITCH_ARG(line_rear, CM_REG_MIXER1, CM_SPK4, 1, 0);
-DEFINE_BIT_SWITCH_ARG(line_bass, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS, 0, 0);
+// DEFINE_BIT_SWITCH_ARG(line_rear, CM_REG_MIXER1, CM_SPK4, 1, 0);
+// DEFINE_BIT_SWITCH_ARG(line_bass, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS, 0, 0);
 // DEFINE_BIT_SWITCH_ARG(joystick, CM_REG_FUNCTRL1, CM_JYSTK_EN, 0, 0); /* now module option */
 DEFINE_SWITCH_ARG(modem, CM_REG_MISC_CTRL, CM_FLINKON|CM_FLINKOFF, CM_FLINKON, 0, 0);
 
@@ -2300,10 +2317,114 @@ static int snd_cmipci_spdout_enable_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
 }
 
 
+static int snd_cmipci_line_in_mode_info(snd_kcontrol_t *kcontrol,
+					snd_ctl_elem_info_t *uinfo)
+{
+	cmipci_t *cm = snd_kcontrol_chip(kcontrol);
+	static char *texts[3] = { "Line-In", "Rear Output", "Bass Output" };
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = cm->chip_version >= 39 ? 3 : 2;
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static inline unsigned int get_line_in_mode(cmipci_t *cm)
+{
+	unsigned int val;
+	if (cm->chip_version >= 39) {
+		val = snd_cmipci_read(cm, CM_REG_LEGACY_CTRL);
+		if (val & CM_LINE_AS_BASS)
+			return 2;
+	}
+	val = snd_cmipci_read_b(cm, CM_REG_MIXER1);
+	if (val & CM_SPK4)
+		return 1;
+	return 0;
+}
+
+static int snd_cmipci_line_in_mode_get(snd_kcontrol_t *kcontrol,
+				       snd_ctl_elem_value_t *ucontrol)
+{
+	cmipci_t *cm = snd_kcontrol_chip(kcontrol);
+
+	spin_lock_irq(&cm->reg_lock);
+	ucontrol->value.enumerated.item[0] = get_line_in_mode(cm);
+	spin_unlock_irq(&cm->reg_lock);
+	return 0;
+}
+
+static int snd_cmipci_line_in_mode_put(snd_kcontrol_t *kcontrol,
+				       snd_ctl_elem_value_t *ucontrol)
+{
+	cmipci_t *cm = snd_kcontrol_chip(kcontrol);
+	int change;
+
+	spin_lock_irq(&cm->reg_lock);
+	if (ucontrol->value.enumerated.item[0] == 2)
+		change = snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS);
+	else
+		change = snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS);
+	if (ucontrol->value.enumerated.item[0] == 1)
+		change |= snd_cmipci_set_bit_b(cm, CM_REG_MIXER1, CM_SPK4);
+	else
+		change |= snd_cmipci_clear_bit_b(cm, CM_REG_MIXER1, CM_SPK4);
+	spin_unlock_irq(&cm->reg_lock);
+	return change;
+}
+
+static int snd_cmipci_mic_in_mode_info(snd_kcontrol_t *kcontrol,
+				       snd_ctl_elem_info_t *uinfo)
+{
+	static char *texts[2] = { "Mic-In", "Center/LFE Output" };
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 2;
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int snd_cmipci_mic_in_mode_get(snd_kcontrol_t *kcontrol,
+				      snd_ctl_elem_value_t *ucontrol)
+{
+	cmipci_t *cm = snd_kcontrol_chip(kcontrol);
+	/* same bit as spdi_phase */
+	spin_lock_irq(&cm->reg_lock);
+	ucontrol->value.enumerated.item[0] = 
+		(snd_cmipci_read_b(cm, CM_REG_MISC) & CM_SPDIF_INVERSE) ? 1 : 0;
+	spin_unlock_irq(&cm->reg_lock);
+	return 0;
+}
+
+static int snd_cmipci_mic_in_mode_put(snd_kcontrol_t *kcontrol,
+				      snd_ctl_elem_value_t *ucontrol)
+{
+	cmipci_t *cm = snd_kcontrol_chip(kcontrol);
+	int change;
+
+	spin_lock_irq(&cm->reg_lock);
+	if (ucontrol->value.enumerated.item[0])
+		change = snd_cmipci_set_bit_b(cm, CM_REG_MISC, CM_SPDIF_INVERSE);
+	else
+		change = snd_cmipci_clear_bit_b(cm, CM_REG_MISC, CM_SPDIF_INVERSE);
+	spin_unlock_irq(&cm->reg_lock);
+	return change;
+}
+
 /* both for CM8338/8738 */
 static snd_kcontrol_new_t snd_cmipci_mixer_switches[] __devinitdata = {
 	DEFINE_MIXER_SWITCH("Four Channel Mode", fourch),
-	DEFINE_MIXER_SWITCH("Line-In As Rear", line_rear),
+	{
+		.name = "Line-In Mode",
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.info = snd_cmipci_line_in_mode_info,
+		.get = snd_cmipci_line_in_mode_get,
+		.put = snd_cmipci_line_in_mode_put,
+	},
 };
 
 /* for non-multichannel chips */
@@ -2341,10 +2462,15 @@ static snd_kcontrol_new_t snd_cmipci_old_mixer_switches[] __devinitdata = {
 
 /* only for model 039 or later */
 static snd_kcontrol_new_t snd_cmipci_extra_mixer_switches[] __devinitdata = {
-	DEFINE_MIXER_SWITCH("Line-In As Bass", line_bass),
 	DEFINE_MIXER_SWITCH("IEC958 In Select", spdif_in_sel2),
 	DEFINE_MIXER_SWITCH("IEC958 In Phase Inverse", spdi_phase2),
-	DEFINE_MIXER_SWITCH("Mic As Center/LFE", spdi_phase), /* same bit as spdi_phase */
+	{
+		.name = "Mic-In Mode",
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.info = snd_cmipci_mic_in_mode_info,
+		.get = snd_cmipci_mic_in_mode_get,
+		.put = snd_cmipci_mic_in_mode_put,
+	}
 };
 
 /* card control switches */
@@ -2944,7 +3070,7 @@ static struct pci_driver driver = {
 	
 static int __init alsa_card_cmipci_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_cmipci_exit(void)

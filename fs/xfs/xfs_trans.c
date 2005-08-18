@@ -332,25 +332,6 @@ undo_blocks:
 
 
 /*
- * This is called to set the a callback to be called when the given
- * transaction is committed to disk.  The transaction pointer and the
- * argument pointer will be passed to the callback routine.
- *
- * Only one callback can be associated with any single transaction.
- */
-void
-xfs_trans_callback(
-	xfs_trans_t		*tp,
-	xfs_trans_callback_t	callback,
-	void			*arg)
-{
-	ASSERT(tp->t_callback == NULL);
-	tp->t_callback = callback;
-	tp->t_callarg = arg;
-}
-
-
-/*
  * Record the indicated change to the given field for application
  * to the file system's superblock when the transaction commits.
  * For now, just store the change in the transaction structure.
@@ -551,7 +532,7 @@ xfs_trans_apply_sb_deltas(
  *
  * This is done efficiently with a single call to xfs_mod_incore_sb_batch().
  */
-void
+STATIC void
 xfs_trans_unreserve_and_mod_sb(
 	xfs_trans_t	*tp)
 {

@@ -569,8 +569,11 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 			free_page((unsigned long)tbuf);
 			return -EINVAL;
 		}
-		snoop(&dev->dev, "control read: bRequest=%02x bRrequestType=%02x wValue=%04x wIndex=%04x\n", 
-			ctrl.bRequest, ctrl.bRequestType, ctrl.wValue, ctrl.wIndex);
+		snoop(&dev->dev, "control read: bRequest=%02x "
+				"bRrequestType=%02x wValue=%04x "
+				"wIndex=%04x wLength=%04x\n",
+			ctrl.bRequest, ctrl.bRequestType, ctrl.wValue,
+				ctrl.wIndex, ctrl.wLength);
 
 		usb_unlock_device(dev);
 		i = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), ctrl.bRequest, ctrl.bRequestType,
@@ -579,11 +582,11 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 		if ((i > 0) && ctrl.wLength) {
 			if (usbfs_snoop) {
 				dev_info(&dev->dev, "control read: data ");
-				for (j = 0; j < ctrl.wLength; ++j)
+				for (j = 0; j < i; ++j)
 					printk ("%02x ", (unsigned char)(tbuf)[j]);
 				printk("\n");
 			}
-			if (copy_to_user(ctrl.data, tbuf, ctrl.wLength)) {
+			if (copy_to_user(ctrl.data, tbuf, i)) {
 				free_page((unsigned long)tbuf);
 				return -EFAULT;
 			}
@@ -595,8 +598,11 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 				return -EFAULT;
 			}
 		}
-		snoop(&dev->dev, "control write: bRequest=%02x bRrequestType=%02x wValue=%04x wIndex=%04x\n", 
-			ctrl.bRequest, ctrl.bRequestType, ctrl.wValue, ctrl.wIndex);
+		snoop(&dev->dev, "control write: bRequest=%02x "
+				"bRrequestType=%02x wValue=%04x "
+				"wIndex=%04x wLength=%04x\n",
+			ctrl.bRequest, ctrl.bRequestType, ctrl.wValue,
+				ctrl.wIndex, ctrl.wLength);
 		if (usbfs_snoop) {
 			dev_info(&dev->dev, "control write: data: ");
 			for (j = 0; j < ctrl.wLength; ++j)
@@ -784,16 +790,16 @@ static int proc_setconfig(struct dev_state *ps, void __user *arg)
  		for (i = 0; i < actconfig->desc.bNumInterfaces; ++i) {
  			if (usb_interface_claimed(actconfig->interface[i])) {
 				dev_warn (&ps->dev->dev,
-					"usbfs: interface %d claimed "
+					"usbfs: interface %d claimed by %s "
 					"while '%s' sets config #%d\n",
 					actconfig->interface[i]
 						->cur_altsetting
 						->desc.bInterfaceNumber,
+					actconfig->interface[i]
+						->dev.driver->name,
 					current->comm, u);
-#if 0	/* FIXME:  enable in 2.6.10 or so */
  				status = -EBUSY;
 				break;
-#endif
 			}
  		}
  	}

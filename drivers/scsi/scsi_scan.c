@@ -293,6 +293,10 @@ static void scsi_target_dev_release(struct device *dev)
 {
 	struct device *parent = dev->parent;
 	struct scsi_target *starget = to_scsi_target(dev);
+	struct Scsi_Host *shost = dev_to_shost(parent);
+
+	if (shost->hostt->target_destroy)
+		shost->hostt->target_destroy(starget);
 	kfree(starget);
 	put_device(parent);
 }
@@ -332,9 +336,23 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	unsigned long flags;
 	const int size = sizeof(struct scsi_target)
 		+ shost->transportt->target_size;
-	struct scsi_target *starget = kmalloc(size, GFP_ATOMIC);
+	struct scsi_target *starget;
 	struct scsi_target *found_target;
 
+	/*
+	 * Obtain the real parent from the transport. The transport
+	 * is allowed to fail (no error) if there is nothing at that
+	 * target id.
+	 */
+	if (shost->transportt->target_parent) {
+		spin_lock_irqsave(shost->host_lock, flags);
+		parent = shost->transportt->target_parent(shost, channel, id);
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		if (!parent)
+			return NULL;
+	}
+
+	starget = kmalloc(size, GFP_KERNEL);
 	if (!starget) {
 		printk(KERN_ERR "%s: allocation failure\n", __FUNCTION__);
 		return NULL;
@@ -360,9 +378,23 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	list_add_tail(&starget->siblings, &shost->__targets);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	/* allocate and add */
-	transport_setup_device(&starget->dev);
-	device_add(&starget->dev);
-	transport_add_device(&starget->dev);
+	transport_setup_device(dev);
+	device_add(dev);
+	transport_add_device(dev);
+	if (shost->hostt->target_alloc) {
+		int error = shost->hostt->target_alloc(starget);
+
+		if(error) {
+			dev_printk(KERN_ERR, dev, "target allocation failed, error %d\n", error);
+			/* don't want scsi_target_reap to do the final
+			 * put because it will be under the host lock */
+			get_device(dev);
+			scsi_target_reap(starget);
+			put_device(dev);
+			return NULL;
+		}
+	}
+
 	return starget;
 
  found:
@@ -625,6 +657,7 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	case TYPE_MEDIUM_CHANGER:
 	case TYPE_ENCLOSURE:
 	case TYPE_COMM:
+	case TYPE_RBC:
 		sdev->writeable = 1;
 		break;
 	case TYPE_WORM:
@@ -737,7 +770,8 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	 * register it and tell the rest of the kernel
 	 * about it.
 	 */
-	scsi_sysfs_add_sdev(sdev);
+	if (scsi_sysfs_add_sdev(sdev) != 0)
+		return SCSI_SCAN_NO_RESPONSE;
 
 	return SCSI_SCAN_LUN_PRESENT;
 }
@@ -979,6 +1013,38 @@ static int scsilun_to_int(struct scsi_lun *scsilun)
 			      scsilun->scsi_lun[i + 1]) << (i * 8));
 	return lun;
 }
+
+/**
+ * int_to_scsilun: reverts an int into a scsi_lun
+ * @int:        integer to be reverted
+ * @scsilun:	struct scsi_lun to be set.
+ *
+ * Description:
+ *     Reverts the functionality of the scsilun_to_int, which packed
+ *     an 8-byte lun value into an int. This routine unpacks the int
+ *     back into the lun value.
+ *     Note: the scsilun_to_int() routine does not truly handle all
+ *     8bytes of the lun value. This functions restores only as much
+ *     as was set by the routine.
+ *
+ * Notes:
+ *     Given an integer : 0x0b030a04,  this function returns a
+ *     scsi_lun of : struct scsi_lun of: 0a 04 0b 03 00 00 00 00
+ *
+ **/
+void int_to_scsilun(unsigned int lun, struct scsi_lun *scsilun)
+{
+	int i;
+
+	memset(scsilun->scsi_lun, 0, sizeof(scsilun->scsi_lun));
+
+	for (i = 0; i < sizeof(lun); i += 2) {
+		scsilun->scsi_lun[i] = (lun >> 8) & 0xFF;
+		scsilun->scsi_lun[i+1] = lun & 0xFF;
+		lun = lun >> 16;
+	}
+}
+EXPORT_SYMBOL(int_to_scsilun);
 
 /**
  * scsi_report_lun_scan - Scan using SCSI REPORT LUN results

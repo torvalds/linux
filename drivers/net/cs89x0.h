@@ -16,7 +16,7 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_ARCH_IXDP2X01
+#if defined(CONFIG_ARCH_IXDP2X01) || defined(CONFIG_ARCH_PNX0105)
 /* IXDP2401/IXDP2801 uses dword-aligned register addressing */
 #define CS89x0_PORT(reg) ((reg) * 2)
 #else
@@ -93,6 +93,7 @@
 #endif
 
 #define CHIP_EISA_ID_SIG 0x630E   /*  Product ID Code for Crystal Chip (CS8900 spec 4.3) */
+#define CHIP_EISA_ID_SIG_STR "0x630E"
 
 #ifdef IBMEIPKT
 #define EISA_ID_SIG 0x4D24	/*  IBM */

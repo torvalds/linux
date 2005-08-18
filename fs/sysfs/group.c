@@ -11,6 +11,7 @@
 #include <linux/kobject.h>
 #include <linux/module.h>
 #include <linux/dcache.h>
+#include <linux/namei.h>
 #include <linux/err.h>
 #include "sysfs.h"
 
@@ -68,7 +69,8 @@ void sysfs_remove_group(struct kobject * kobj,
 	struct dentry * dir;
 
 	if (grp->name)
-		dir = sysfs_get_dentry(kobj->dentry,grp->name);
+		dir = lookup_one_len(grp->name, kobj->dentry,
+				strlen(grp->name));
 	else
 		dir = dget(kobj->dentry);
 

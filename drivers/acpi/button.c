@@ -156,6 +156,10 @@ static int acpi_button_state_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_button_state_seq_show, PDE(inode)->data);
 }
 
+static struct proc_dir_entry *acpi_power_dir;
+static struct proc_dir_entry *acpi_sleep_dir;
+static struct proc_dir_entry *acpi_lid_dir;
+
 static int
 acpi_button_add_fs (
 	struct acpi_device	*device)
@@ -173,17 +177,23 @@ acpi_button_add_fs (
 	switch (button->type) {
 	case ACPI_BUTTON_TYPE_POWER:
 	case ACPI_BUTTON_TYPE_POWERF:
-			entry = proc_mkdir(ACPI_BUTTON_SUBCLASS_POWER, 
+		if (!acpi_power_dir)
+			acpi_power_dir = proc_mkdir(ACPI_BUTTON_SUBCLASS_POWER, 
 				acpi_button_dir);
+		entry = acpi_power_dir;
 		break;
 	case ACPI_BUTTON_TYPE_SLEEP:
 	case ACPI_BUTTON_TYPE_SLEEPF:
-			entry = proc_mkdir(ACPI_BUTTON_SUBCLASS_SLEEP, 
+		if (!acpi_sleep_dir)
+			acpi_sleep_dir = proc_mkdir(ACPI_BUTTON_SUBCLASS_SLEEP, 
 				acpi_button_dir);
+		entry = acpi_sleep_dir;
 		break;
 	case ACPI_BUTTON_TYPE_LID:
-			entry = proc_mkdir(ACPI_BUTTON_SUBCLASS_LID, 
+		if (!acpi_lid_dir)
+			acpi_lid_dir = proc_mkdir(ACPI_BUTTON_SUBCLASS_LID, 
 				acpi_button_dir);
+		entry = acpi_lid_dir;
 		break;
 	}
 
@@ -246,24 +256,6 @@ acpi_button_remove_fs (
 
 		remove_proc_entry(acpi_device_bid(device),
 				     acpi_device_dir(device)->parent);
-
-
-		switch (button->type) {
-			case ACPI_BUTTON_TYPE_POWER:
-			case ACPI_BUTTON_TYPE_POWERF:
-				remove_proc_entry(ACPI_BUTTON_SUBCLASS_POWER, 
-					acpi_button_dir);
-				break;
-			case ACPI_BUTTON_TYPE_SLEEP:
-			case ACPI_BUTTON_TYPE_SLEEPF:
-				remove_proc_entry(ACPI_BUTTON_SUBCLASS_SLEEP, 
-					acpi_button_dir);
-				break;
-			case ACPI_BUTTON_TYPE_LID:
-				remove_proc_entry(ACPI_BUTTON_SUBCLASS_LID, 
-					acpi_button_dir);
-				break;
-		}
 		acpi_device_dir(device) = NULL;
 	}
 
@@ -327,10 +319,6 @@ acpi_button_add (
 	acpi_status		status = AE_OK;
 	struct acpi_button	*button = NULL;
 
-	static struct acpi_device *power_button;
-	static struct acpi_device *sleep_button;
-	static struct acpi_device *lid_button;
-
 	ACPI_FUNCTION_TRACE("acpi_button_add");
 
 	if (!device)
@@ -389,38 +377,6 @@ acpi_button_add (
 			acpi_device_hid(device)));
 		result = -ENODEV;
 		goto end;
-	}
-
-	/*
-	 * Ensure only one button of each type is used.
-	 */
-	switch (button->type) {
-	case ACPI_BUTTON_TYPE_POWER:
-	case ACPI_BUTTON_TYPE_POWERF:
-		if (!power_button)
-			power_button = device;
-		else {
-			kfree(button);
-			return_VALUE(-ENODEV);
-		}
-		break;
-	case ACPI_BUTTON_TYPE_SLEEP:
-	case ACPI_BUTTON_TYPE_SLEEPF:
-		if (!sleep_button)
-			sleep_button = device;
-		else {
-			kfree(button);
-			return_VALUE(-ENODEV);
-		}
-		break;
-	case ACPI_BUTTON_TYPE_LID:
-		if (!lid_button)
-			lid_button = device;
-		else {
-			kfree(button);
-			return_VALUE(-ENODEV);
-		}
-		break;
 	}
 
 	result = acpi_button_add_fs(device);
@@ -530,7 +486,6 @@ acpi_button_init (void)
 	if (!acpi_button_dir)
 		return_VALUE(-ENODEV);
 	acpi_button_dir->owner = THIS_MODULE;
-
 	result = acpi_bus_register_driver(&acpi_button_driver);
 	if (result < 0) {
 		remove_proc_entry(ACPI_BUTTON_CLASS, acpi_root_dir);
@@ -548,6 +503,12 @@ acpi_button_exit (void)
 
 	acpi_bus_unregister_driver(&acpi_button_driver);
 
+	if (acpi_power_dir) 
+		remove_proc_entry(ACPI_BUTTON_SUBCLASS_POWER, acpi_button_dir);
+	if (acpi_sleep_dir)
+		remove_proc_entry(ACPI_BUTTON_SUBCLASS_SLEEP, acpi_button_dir);
+	if (acpi_lid_dir)
+		remove_proc_entry(ACPI_BUTTON_SUBCLASS_LID, acpi_button_dir);
 	remove_proc_entry(ACPI_BUTTON_CLASS, acpi_root_dir);
 
 	return_VOID;

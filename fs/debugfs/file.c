@@ -45,44 +45,15 @@ struct file_operations debugfs_file_operations = {
 	.open =		default_open,
 };
 
-#define simple_type(type, format, temptype, strtolfn)				\
-static ssize_t read_file_##type(struct file *file, char __user *user_buf,	\
-				size_t count, loff_t *ppos)			\
-{										\
-	char buf[32];								\
-	type *val = file->private_data;						\
-										\
-	snprintf(buf, sizeof(buf), format "\n", *val);				\
-	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));\
-}										\
-static ssize_t write_file_##type(struct file *file, const char __user *user_buf,\
-				 size_t count, loff_t *ppos)			\
-{										\
-	char *endp;								\
-	char buf[32];								\
-	int buf_size;								\
-	type *val = file->private_data;						\
-	temptype tmp;								\
-										\
-	memset(buf, 0x00, sizeof(buf));						\
-	buf_size = min(count, (sizeof(buf)-1));					\
-	if (copy_from_user(buf, user_buf, buf_size))				\
-		return -EFAULT;							\
-										\
-	tmp = strtolfn(buf, &endp, 0);						\
-	if ((endp == buf) || ((type)tmp != tmp))				\
-		return -EINVAL;							\
-	*val = tmp;								\
-	return count;								\
-}										\
-static struct file_operations fops_##type = {					\
-	.read =		read_file_##type,					\
-	.write =	write_file_##type,					\
-	.open =		default_open,						\
-};
-simple_type(u8, "%c", unsigned long, simple_strtoul);
-simple_type(u16, "%hi", unsigned long, simple_strtoul);
-simple_type(u32, "%i", unsigned long, simple_strtoul);
+static void debugfs_u8_set(void *data, u64 val)
+{
+	*(u8 *)data = val;
+}
+static u64 debugfs_u8_get(void *data)
+{
+	return *(u8 *)data;
+}
+DEFINE_SIMPLE_ATTRIBUTE(fops_u8, debugfs_u8_get, debugfs_u8_set, "%llu\n");
 
 /**
  * debugfs_create_u8 - create a file in the debugfs filesystem that is used to read and write a unsigned 8 bit value.
@@ -116,6 +87,16 @@ struct dentry *debugfs_create_u8(const char *name, mode_t mode,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u8);
 
+static void debugfs_u16_set(void *data, u64 val)
+{
+	*(u16 *)data = val;
+}
+static u64 debugfs_u16_get(void *data)
+{
+	return *(u16 *)data;
+}
+DEFINE_SIMPLE_ATTRIBUTE(fops_u16, debugfs_u16_get, debugfs_u16_set, "%llu\n");
+
 /**
  * debugfs_create_u16 - create a file in the debugfs filesystem that is used to read and write a unsigned 8 bit value.
  *
@@ -147,6 +128,16 @@ struct dentry *debugfs_create_u16(const char *name, mode_t mode,
 	return debugfs_create_file(name, mode, parent, value, &fops_u16);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u16);
+
+static void debugfs_u32_set(void *data, u64 val)
+{
+	*(u32 *)data = val;
+}
+static u64 debugfs_u32_get(void *data)
+{
+	return *(u32 *)data;
+}
+DEFINE_SIMPLE_ATTRIBUTE(fops_u32, debugfs_u32_get, debugfs_u32_set, "%llu\n");
 
 /**
  * debugfs_create_u32 - create a file in the debugfs filesystem that is used to read and write a unsigned 8 bit value.

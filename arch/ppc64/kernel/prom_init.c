@@ -1803,7 +1803,7 @@ static void __init fixup_device_tree(void)
 	if (prom_getprop(u3, "device-rev", &u3_rev, sizeof(u3_rev))
 	    == PROM_ERROR)
 		return;
-	if (u3_rev != 0x35)
+	if (u3_rev != 0x35 && u3_rev != 0x37)
 		return;
 	/* does it need fixup ? */
 	if (prom_getproplen(i2c, "interrupts") > 0)
@@ -1915,9 +1915,9 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4, unsigned long
 		prom_send_capabilities();
 
 	/*
-	 * On pSeries, copy the CPU hold code
+	 * On pSeries and BPA, copy the CPU hold code
 	 */
-       	if (RELOC(of_platform) & PLATFORM_PSERIES)
+       	if (RELOC(of_platform) & (PLATFORM_PSERIES | PLATFORM_BPA))
        		copy_and_flush(0, KERNELBASE - offset, 0x100, 0);
 
 	/*

@@ -112,6 +112,7 @@
 #include	<linux/moduleparam.h>
 #include	<linux/init.h>
 #include 	<linux/proc_fs.h>
+#include	<linux/dma-mapping.h>
 
 #include	"h/skdrv1st.h"
 #include	"h/skdrv2nd.h"
@@ -4212,7 +4213,7 @@ SK_BOOL		DualNet;
 			Flags);
 
 		SkGeStopPort(pAC, IoC, FromPort, SK_STOP_ALL, SK_HARD_RST);
-		pAC->dev[Param.Para32[0]]->flags &= ~IFF_RUNNING;
+		netif_carrier_off(pAC->dev[Param.Para32[0]]);
 		spin_unlock_irqrestore(
 			&pAC->TxPort[FromPort][TX_PRIO_LOW].TxDesRingLock,
 			Flags);
@@ -4355,7 +4356,7 @@ SK_BOOL		DualNet;
 		}
 
 		/* Inform the world that link protocol is up. */
-		pAC->dev[Param.Para32[0]]->flags |= IFF_RUNNING;
+		netif_carrier_on(pAC->dev[Param.Para32[0]]);
 
 		break;
 	case SK_DRV_NET_DOWN:	 /* SK_U32 Reason */
@@ -4368,7 +4369,7 @@ SK_BOOL		DualNet;
 		} else {
 			DoPrintInterfaceChange = SK_TRUE;
 		}
-		pAC->dev[Param.Para32[1]]->flags &= ~IFF_RUNNING;
+		netif_carrier_off(pAC->dev[Param.Para32[1]]);
 		break;
 	case SK_DRV_SWITCH_HARD: /* SK_U32 FromPortIdx SK_U32 ToPortIdx */
 		SK_DBG_MSG(NULL, SK_DBGMOD_DRV, SK_DBGCAT_DRV_EVENT,
@@ -4912,8 +4913,8 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 		goto out;
  
 	/* Configure DMA attributes. */
-	if (pci_set_dma_mask(pdev, (u64) 0xffffffffffffffffULL) &&
-	    pci_set_dma_mask(pdev, (u64) 0xffffffff))
+	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) &&
+	    pci_set_dma_mask(pdev, DMA_32BIT_MASK))
 		goto out_disable_device;
 
 
@@ -4961,7 +4962,6 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller =	&SkGePollController;
 #endif
-	dev->flags &= 		~IFF_RUNNING;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	SET_ETHTOOL_OPS(dev, &SkGeEthtoolOps);
 
@@ -5035,7 +5035,6 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 		dev->set_mac_address    = &SkGeSetMacAddr;
 		dev->do_ioctl           = &SkGeIoctl;
 		dev->change_mtu         = &SkGeChangeMtu;
-		dev->flags             &= ~IFF_RUNNING;
 		SET_NETDEV_DEV(dev, &pdev->dev);
 		SET_ETHTOOL_OPS(dev, &SkGeEthtoolOps);
 
@@ -5134,6 +5133,84 @@ static void __devexit skge_remove_one(struct pci_dev *pdev)
 	kfree(pAC);
 }
 
+#ifdef CONFIG_PM
+static int skge_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	DEV_NET *pNet = netdev_priv(dev);
+	SK_AC *pAC = pNet->pAC;
+	struct net_device *otherdev = pAC->dev[1];
+
+	if (netif_running(dev)) {
+		netif_carrier_off(dev);
+		DoPrintInterfaceChange = SK_FALSE;
+		SkDrvDeInitAdapter(pAC, 0);  /* performs SkGeClose */
+		netif_device_detach(dev);
+	}
+	if (otherdev != dev) {
+		if (netif_running(otherdev)) {
+			netif_carrier_off(otherdev);
+			DoPrintInterfaceChange = SK_FALSE;
+			SkDrvDeInitAdapter(pAC, 1);  /* performs SkGeClose */
+			netif_device_detach(otherdev);
+		}
+	}
+
+	pci_save_state(pdev);
+	pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
+	if (pAC->AllocFlag & SK_ALLOC_IRQ) {
+		free_irq(dev->irq, dev);
+	}
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	return 0;
+}
+
+static int skge_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	DEV_NET *pNet = netdev_priv(dev);
+	SK_AC *pAC = pNet->pAC;
+	struct net_device *otherdev = pAC->dev[1];
+	int ret;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_enable_device(pdev);
+	pci_set_master(pdev);
+	if (pAC->GIni.GIMacsFound == 2)
+		ret = request_irq(dev->irq, SkGeIsr, SA_SHIRQ, pAC->Name, dev);
+	else
+		ret = request_irq(dev->irq, SkGeIsrOnePort, SA_SHIRQ, pAC->Name, dev);
+	if (ret) {
+		printk(KERN_WARNING "sk98lin: unable to acquire IRQ %d\n", dev->irq);
+		pAC->AllocFlag &= ~SK_ALLOC_IRQ;
+		dev->irq = 0;
+		pci_disable_device(pdev);
+		return -EBUSY;
+	}
+
+	netif_device_attach(dev);
+	if (netif_running(dev)) {
+		DoPrintInterfaceChange = SK_FALSE;
+		SkDrvInitAdapter(pAC, 0);    /* first device  */
+	}
+	if (otherdev != dev) {
+		netif_device_attach(otherdev);
+		if (netif_running(otherdev)) {
+			DoPrintInterfaceChange = SK_FALSE;
+			SkDrvInitAdapter(pAC, 1);    /* second device  */
+		}
+	}
+
+	return 0;
+}
+#else
+#define skge_suspend NULL
+#define skge_resume NULL
+#endif
+
 static struct pci_device_id skge_pci_tbl[] = {
 	{ PCI_VENDOR_ID_3COM, 0x1700, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_3COM, 0x80eb, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
@@ -5159,6 +5236,8 @@ static struct pci_driver skge_driver = {
 	.id_table	= skge_pci_tbl,
 	.probe		= skge_probe_one,
 	.remove		= __devexit_p(skge_remove_one),
+	.suspend	= skge_suspend,
+	.resume		= skge_resume,
 };
 
 static int __init skge_init(void)

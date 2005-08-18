@@ -30,7 +30,7 @@ Command line parameters
   device numbers (0xabcd or abcd, for 2.4 backward compatibility).
   You can use the 'all' keyword to ignore all devices.
   The '!' operator will cause the I/O-layer to _not_ ignore a device.
-  The order on the command line is not important.
+  The command line is parsed from left to right.
 
   For example, 
 	cio_ignore=0.0.0023-0.0.0042,0.0.4711
@@ -72,13 +72,14 @@ Command line parameters
   /proc/cio_ignore; "add <device range>, <device range>, ..." will ignore the
   specified devices.
 
-  Note: Already known devices cannot be ignored.
+  Note: While already known devices can be added to the list of devices to be
+        ignored, there will be no effect on then. However, if such a device
+        disappears and then reappeares, it will then be ignored.
 
-  For example, if device 0.0.abcd is already known and all other devices
-  0.0.a000-0.0.afff are not known,
+  For example,
 	"echo add 0.0.a000-0.0.accc, 0.0.af00-0.0.afff > /proc/cio_ignore"
-  will add 0.0.a000-0.0.abcc, 0.0.abce-0.0.accc and 0.0.af00-0.0.afff to the
-  list of ignored devices and skip 0.0.abcd.
+  will add 0.0.a000-0.0.accc and 0.0.af00-0.0.afff to the list of ignored
+  devices.
 
   The devices can be specified either by bus id (0.0.abcd) or, for 2.4 backward
   compatibilty, by the device number in hexadecimal (0xabcd or abcd).
@@ -98,7 +99,8 @@ Command line parameters
 
   - /proc/s390dbf/cio_trace/hex_ascii
     Logs the calling of functions in the common I/O-layer and, if applicable, 
-    which subchannel they were called for.
+    which subchannel they were called for, as well as dumps of some data
+    structures (like irb in an error case).
 
   The level of logging can be changed to be more or less verbose by piping to 
   /proc/s390dbf/cio_*/level a number between 0 and 6; see the documentation on

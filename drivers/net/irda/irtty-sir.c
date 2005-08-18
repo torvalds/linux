@@ -626,7 +626,7 @@ static void __exit irtty_sir_cleanup(void)
 {
 	int err;
 
-	if ((err = tty_register_ldisc(N_IRDA, NULL))) {
+	if ((err = tty_unregister_ldisc(N_IRDA))) {
 		IRDA_ERROR("%s(), can't unregister line discipline (err = %d)\n",
 			   __FUNCTION__, err);
 	}

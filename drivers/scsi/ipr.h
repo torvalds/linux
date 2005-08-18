@@ -36,8 +36,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.0.13"
-#define IPR_DRIVER_DATE "(February 21, 2005)"
+#define IPR_DRIVER_VERSION "2.0.14"
+#define IPR_DRIVER_DATE "(May 2, 2005)"
 
 /*
  * IPR_DBG_TRACE: Setting this to 1 will turn on some general function tracing

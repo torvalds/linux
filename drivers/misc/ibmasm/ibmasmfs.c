@@ -37,9 +37,7 @@
  *    |   |-- event
  *    |   |-- reverse_heartbeat
  *    |   `-- remote_video
- *    |       |-- connected
  *    |       |-- depth
- *    |       |-- events
  *    |       |-- height
  *    |       `-- width
  *    .
@@ -50,9 +48,7 @@
  *        |-- event
  *        |-- reverse_heartbeat
  *        `-- remote_video
- *            |-- connected
  *            |-- depth
- *            |-- events
  *            |-- height
  *            `-- width
  *
@@ -75,14 +71,6 @@
  * remote_video/width: control remote display settings
  * 	write: set value
  * 	read: read value
- *
- * remote_video/connected
- * 	read: return "1" if web browser VNC java applet is connected, 
- * 		"0" otherwise
- *
- * remote_video/events
- * 	read: sleep until a remote mouse or keyboard event occurs, then return
- * 		then event.
  */
 
 #include <linux/fs.h>
@@ -333,7 +321,7 @@ static ssize_t command_file_write(struct file *file, const char __user *ubuff, s
 	if (command_data->command)
 		return -EAGAIN;
 
-	cmd = ibmasm_new_command(count);
+	cmd = ibmasm_new_command(command_data->sp, count);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -374,6 +362,7 @@ static int event_file_open(struct inode *inode, struct file *file)
 	ibmasm_event_reader_register(sp, &event_data->reader);
 
 	event_data->sp = sp;
+	event_data->active = 0;
 	file->private_data = event_data;
 	return 0;
 }
@@ -391,7 +380,9 @@ static ssize_t event_file_read(struct file *file, char __user *buf, size_t count
 {
 	struct ibmasmfs_event_data *event_data = file->private_data;
 	struct event_reader *reader = &event_data->reader;
+	struct service_processor *sp = event_data->sp;
 	int ret;
+	unsigned long flags;
 
 	if (*offset < 0)
 		return -EINVAL;
@@ -400,17 +391,32 @@ static ssize_t event_file_read(struct file *file, char __user *buf, size_t count
 	if (*offset != 0)
 		return 0;
 
-	ret = ibmasm_get_next_event(event_data->sp, reader);
+	spin_lock_irqsave(&sp->lock, flags);
+	if (event_data->active) {
+		spin_unlock_irqrestore(&sp->lock, flags);
+		return -EBUSY;
+	}
+	event_data->active = 1;
+	spin_unlock_irqrestore(&sp->lock, flags);
+
+	ret = ibmasm_get_next_event(sp, reader);
 	if (ret <= 0)
-		return ret;
+		goto out;
 
-	if (count < reader->data_size)
-		return -EINVAL;
+	if (count < reader->data_size) {
+		ret = -EINVAL;
+		goto out;
+	}
 
-        if (copy_to_user(buf, reader->data, reader->data_size))
-		return -EFAULT;
+        if (copy_to_user(buf, reader->data, reader->data_size)) {
+		ret = -EFAULT;
+		goto out;
+	}
+	ret = reader->data_size;
 
-	return reader->data_size;
+out:
+	event_data->active = 0;
+	return ret;
 }
 
 static ssize_t event_file_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
@@ -424,7 +430,7 @@ static ssize_t event_file_write(struct file *file, const char __user *buf, size_
 	if (*offset != 0)
 		return 0;
 
-	wake_up_interruptible(&event_data->reader.wait);
+	ibmasm_cancel_next_event(&event_data->reader);
 	return 0;
 }
 
@@ -575,75 +581,6 @@ static ssize_t remote_settings_file_write(struct file *file, const char __user *
 	return count;
 }
 
-static int remote_event_file_open(struct inode *inode, struct file *file)
-{
-	struct service_processor *sp;
-	unsigned long flags;
-	struct remote_queue *q;
-	
-	file->private_data = inode->u.generic_ip;
-	sp = file->private_data;
-	q = &sp->remote_queue;
-
-	/* allow only one event reader */
-	spin_lock_irqsave(&sp->lock, flags);
-	if (q->open) {
-		spin_unlock_irqrestore(&sp->lock, flags);
-		return -EBUSY;
-	}
-	q->open = 1;
-	spin_unlock_irqrestore(&sp->lock, flags);
-
-	enable_mouse_interrupts(sp);
-	
-	return 0;
-}
-
-static int remote_event_file_close(struct inode *inode, struct file *file)
-{
-	struct service_processor *sp = file->private_data;
-
-	disable_mouse_interrupts(sp);
-	wake_up_interruptible(&sp->remote_queue.wait);
-	sp->remote_queue.open = 0;
-
-	return 0;
-}
-
-static ssize_t remote_event_file_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
-{
-	struct service_processor *sp = file->private_data;
-	struct remote_queue *q = &sp->remote_queue;
-	size_t data_size;
-	struct remote_event *reader = q->reader;
-	size_t num_events;
-
-	if (*offset < 0)
-		return -EINVAL;
-	if (count == 0 || count > 1024)
-		return 0;
-	if (*offset != 0)
-		return 0;
-
-	if (wait_event_interruptible(q->wait, q->reader != q->writer))
-		return -ERESTARTSYS;
-
-	/* only get multiples of struct remote_event */
-	num_events = min((count/sizeof(struct remote_event)), ibmasm_events_available(q));
-	if (!num_events)
-		return 0;
-
-	data_size = num_events * sizeof(struct remote_event);
-
-	if (copy_to_user(buf, reader, data_size))
-		return -EFAULT;
-
-	ibmasm_advance_reader(q, num_events);
-
-	return data_size;
-}
-
-
 static struct file_operations command_fops = {
 	.open =		command_file_open,
 	.release =	command_file_close,
@@ -672,12 +609,6 @@ static struct file_operations remote_settings_fops = {
 	.write =	remote_settings_file_write,
 };
 
-static struct file_operations remote_event_fops = {
-	.open =		remote_event_file_open,
-	.release =	remote_event_file_close,
-	.read =		remote_event_file_read,
-};
-
 
 static void ibmasmfs_create_files (struct super_block *sb, struct dentry *root)
 {
@@ -703,7 +634,5 @@ static void ibmasmfs_create_files (struct super_block *sb, struct dentry *root)
 		ibmasmfs_create_file(sb, remote_dir, "width", &remote_settings_fops, (void *)display_width(sp), S_IRUSR|S_IWUSR);
 		ibmasmfs_create_file(sb, remote_dir, "height", &remote_settings_fops, (void *)display_height(sp), S_IRUSR|S_IWUSR);
 		ibmasmfs_create_file(sb, remote_dir, "depth", &remote_settings_fops, (void *)display_depth(sp), S_IRUSR|S_IWUSR);
-		ibmasmfs_create_file(sb, remote_dir, "connected", &remote_settings_fops, (void *)vnc_status(sp), S_IRUSR);
-		ibmasmfs_create_file(sb, remote_dir, "events", &remote_event_fops, (void *)sp, S_IRUSR);
 	}
 }

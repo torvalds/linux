@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/chsc.c
  *   S/390 common I/O routines -- channel subsystem call
- *   $Revision: 1.119 $
+ *   $Revision: 1.120 $
  *
  *    Copyright (C) 1999-2002 IBM Deutschland Entwicklung GmbH,
  *			      IBM Corporation
@@ -412,11 +412,7 @@ s390_process_res_acc (u8 chpid, __u16 fla, u32 fla_mask)
 		if (chp_mask == 0) {
 
 			spin_unlock_irq(&sch->lock);
-
-			if (fla_mask != 0)
-				break;
-			else
-				continue;
+			continue;
 		}
 		old_lpm = sch->lpm;
 		sch->lpm = ((sch->schib.pmcw.pim &
@@ -430,7 +426,7 @@ s390_process_res_acc (u8 chpid, __u16 fla, u32 fla_mask)
 
 		spin_unlock_irq(&sch->lock);
 		put_device(&sch->dev);
-		if (fla_mask != 0)
+		if (fla_mask == 0xffff)
 			break;
 	}
 	return rc;
@@ -852,7 +848,7 @@ out:
  * Files for the channel path entries.
  */
 static ssize_t
-chp_status_show(struct device *dev, char *buf)
+chp_status_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct channel_path *chp = container_of(dev, struct channel_path, dev);
 
@@ -863,7 +859,7 @@ chp_status_show(struct device *dev, char *buf)
 }
 
 static ssize_t
-chp_status_write(struct device *dev, const char *buf, size_t count)
+chp_status_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct channel_path *cp = container_of(dev, struct channel_path, dev);
 	char cmd[10];
@@ -888,7 +884,7 @@ chp_status_write(struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(status, 0644, chp_status_show, chp_status_write);
 
 static ssize_t
-chp_type_show(struct device *dev, char *buf)
+chp_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct channel_path *chp = container_of(dev, struct channel_path, dev);
 

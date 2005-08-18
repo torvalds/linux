@@ -128,7 +128,7 @@ snd_emu8000_write_wait(emu8000_t *emu)
  * This is therefore much slower than need be, but is at least
  * working.
  */
-inline static void
+static inline void
 write_word(emu8000_t *emu, int *offset, unsigned short data)
 {
 	if (emu8000_reset_addr) {

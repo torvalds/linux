@@ -305,6 +305,8 @@ static void do_syscall_trace(void)
 
 void do_syscall_trace_enter(struct pt_regs *regs)
 {
+	secure_computing(regs->gpr[0]);
+
 	if (test_thread_flag(TIF_SYSCALL_TRACE)
 	    && (current->ptrace & PT_PTRACED))
 		do_syscall_trace();
@@ -320,8 +322,6 @@ void do_syscall_trace_enter(struct pt_regs *regs)
 
 void do_syscall_trace_leave(struct pt_regs *regs)
 {
-	secure_computing(regs->gpr[0]);
-
 	if (unlikely(current->audit_context))
 		audit_syscall_exit(current, 
 				   (regs->ccr&0x1000)?AUDITSC_FAILURE:AUDITSC_SUCCESS,

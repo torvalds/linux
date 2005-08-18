@@ -36,7 +36,6 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
-#include <linux/netfilter_ipv4/lockhelp.h>
 
 #if 0
 #define DEBUGP printk
@@ -46,7 +45,7 @@
 #endif
 
 /* Protects conntrack->proto.tcp */
-static DECLARE_RWLOCK(tcp_lock);
+static DEFINE_RWLOCK(tcp_lock);
 
 /* "Be conservative in what you do, 
     be liberal in what you accept from others." 
@@ -330,9 +329,9 @@ static int tcp_print_conntrack(struct seq_file *s,
 {
 	enum tcp_conntrack state;
 
-	READ_LOCK(&tcp_lock);
+	read_lock_bh(&tcp_lock);
 	state = conntrack->proto.tcp.state;
-	READ_UNLOCK(&tcp_lock);
+	read_unlock_bh(&tcp_lock);
 
 	return seq_printf(s, "%s ", tcp_conntrack_names[state]);
 }
@@ -738,14 +737,14 @@ void ip_conntrack_tcp_update(struct sk_buff *skb,
 
 	end = segment_seq_plus_len(ntohl(tcph->seq), skb->len, iph, tcph);
 	
-	WRITE_LOCK(&tcp_lock);
+	write_lock_bh(&tcp_lock);
 	/*
 	 * We have to worry for the ack in the reply packet only...
 	 */
 	if (after(end, conntrack->proto.tcp.seen[dir].td_end))
 		conntrack->proto.tcp.seen[dir].td_end = end;
 	conntrack->proto.tcp.last_end = end;
-	WRITE_UNLOCK(&tcp_lock);
+	write_unlock_bh(&tcp_lock);
 	DEBUGP("tcp_update: sender end=%u maxend=%u maxwin=%u scale=%i "
 	       "receiver end=%u maxend=%u maxwin=%u scale=%i\n",
 		sender->td_end, sender->td_maxend, sender->td_maxwin,
@@ -857,7 +856,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 				sizeof(_tcph), &_tcph);
 	BUG_ON(th == NULL);
 	
-	WRITE_LOCK(&tcp_lock);
+	write_lock_bh(&tcp_lock);
 	old_state = conntrack->proto.tcp.state;
 	dir = CTINFO2DIR(ctinfo);
 	index = get_conntrack_index(th);
@@ -879,7 +878,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 			 * that the client cannot but retransmit its SYN and 
 			 * thus initiate a clean new session.
 			 */
-		    	WRITE_UNLOCK(&tcp_lock);
+		    	write_unlock_bh(&tcp_lock);
 			if (LOG_INVALID(IPPROTO_TCP))
 				nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
 					  "ip_ct_tcp: killing out of sync session ");
@@ -894,7 +893,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 		conntrack->proto.tcp.last_end = 
 		    segment_seq_plus_len(ntohl(th->seq), skb->len, iph, th);
 		
-		WRITE_UNLOCK(&tcp_lock);
+		write_unlock_bh(&tcp_lock);
 		if (LOG_INVALID(IPPROTO_TCP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
 				  "ip_ct_tcp: invalid packet ignored ");
@@ -904,7 +903,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 		DEBUGP("ip_ct_tcp: Invalid dir=%i index=%u ostate=%u\n",
 		       dir, get_conntrack_index(th),
 		       old_state);
-		WRITE_UNLOCK(&tcp_lock);
+		write_unlock_bh(&tcp_lock);
 		if (LOG_INVALID(IPPROTO_TCP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, 
 				  "ip_ct_tcp: invalid state ");
@@ -918,13 +917,13 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 		    	     conntrack->proto.tcp.seen[dir].td_end)) {	
 		    	/* Attempt to reopen a closed connection.
 		    	* Delete this connection and look up again. */
-		    	WRITE_UNLOCK(&tcp_lock);
+		    	write_unlock_bh(&tcp_lock);
 		    	if (del_timer(&conntrack->timeout))
 		    		conntrack->timeout.function((unsigned long)
 		    					    conntrack);
 		    	return -NF_REPEAT;
 		} else {
-			WRITE_UNLOCK(&tcp_lock);
+			write_unlock_bh(&tcp_lock);
 			if (LOG_INVALID(IPPROTO_TCP))
 				nf_log_packet(PF_INET, 0, skb, NULL, NULL,
 				              "ip_ct_tcp: invalid SYN");
@@ -949,7 +948,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 
 	if (!tcp_in_window(&conntrack->proto.tcp, dir, index, 
 			   skb, iph, th)) {
-		WRITE_UNLOCK(&tcp_lock);
+		write_unlock_bh(&tcp_lock);
 		return -NF_ACCEPT;
 	}
     in_window:
@@ -972,7 +971,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 	timeout = conntrack->proto.tcp.retrans >= ip_ct_tcp_max_retrans
 		  && *tcp_timeouts[new_state] > ip_ct_tcp_timeout_max_retrans
 		  ? ip_ct_tcp_timeout_max_retrans : *tcp_timeouts[new_state];
-	WRITE_UNLOCK(&tcp_lock);
+	write_unlock_bh(&tcp_lock);
 
 	if (!test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status)) {
 		/* If only reply is a RST, we can consider ourselves not to

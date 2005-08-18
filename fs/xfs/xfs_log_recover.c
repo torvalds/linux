@@ -148,7 +148,7 @@ xlog_bread(
  * The buffer is kept locked across the write and is returned locked.
  * This can only be used for synchronous log writes.
  */
-int
+STATIC int
 xlog_bwrite(
 	xlog_t		*log,
 	xfs_daddr_t	blk_no,
@@ -179,7 +179,7 @@ xlog_bwrite(
 	return error;
 }
 
-xfs_caddr_t
+STATIC xfs_caddr_t
 xlog_align(
 	xlog_t		*log,
 	xfs_daddr_t	blk_no,
@@ -528,7 +528,7 @@ out:
  *
  * Return: zero if normal, non-zero if error.
  */
-int
+STATIC int
 xlog_find_head(
 	xlog_t 		*log,
 	xfs_daddr_t	*return_head_blk)
@@ -1964,7 +1964,8 @@ xlog_recover_do_reg_buffer(
 		 * probably a good thing to do for other buf types also.
 		 */
 		error = 0;
-		if (buf_f->blf_flags & (XFS_BLI_UDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
+		if (buf_f->blf_flags &
+		   (XFS_BLI_UDQUOT_BUF|XFS_BLI_PDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
 			error = xfs_qm_dqcheck((xfs_disk_dquot_t *)
 					       item->ri_buf[i].i_addr,
 					       -1, 0, XFS_QMOPT_DOWARN,
@@ -2030,6 +2031,7 @@ xfs_qm_dqcheck(
 	}
 
 	if (INT_GET(ddq->d_flags, ARCH_CONVERT) != XFS_DQ_USER &&
+	    INT_GET(ddq->d_flags, ARCH_CONVERT) != XFS_DQ_PROJ &&
 	    INT_GET(ddq->d_flags, ARCH_CONVERT) != XFS_DQ_GROUP) {
 		if (flags & XFS_QMOPT_DOWARN)
 			cmn_err(CE_ALERT,
@@ -2135,6 +2137,8 @@ xlog_recover_do_dquot_buffer(
 	type = 0;
 	if (buf_f->blf_flags & XFS_BLI_UDQUOT_BUF)
 		type |= XFS_DQ_USER;
+	if (buf_f->blf_flags & XFS_BLI_PDQUOT_BUF)
+		type |= XFS_DQ_PROJ;
 	if (buf_f->blf_flags & XFS_BLI_GDQUOT_BUF)
 		type |= XFS_DQ_GROUP;
 	/*
@@ -2247,7 +2251,8 @@ xlog_recover_do_buffer_trans(
 	error = 0;
 	if (flags & XFS_BLI_INODE_BUF) {
 		error = xlog_recover_do_inode_buffer(mp, item, bp, buf_f);
-	} else if (flags & (XFS_BLI_UDQUOT_BUF | XFS_BLI_GDQUOT_BUF)) {
+	} else if (flags &
+		  (XFS_BLI_UDQUOT_BUF|XFS_BLI_PDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
 		xlog_recover_do_dquot_buffer(mp, log, item, bp, buf_f);
 	} else {
 		xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
@@ -2619,7 +2624,7 @@ xlog_recover_do_dquot_trans(
 	 * This type of quotas was turned off, so ignore this record.
 	 */
 	type = INT_GET(recddq->d_flags, ARCH_CONVERT) &
-			(XFS_DQ_USER | XFS_DQ_GROUP);
+			(XFS_DQ_USER | XFS_DQ_PROJ | XFS_DQ_GROUP);
 	ASSERT(type);
 	if (log->l_quotaoffs_flag & type)
 		return (0);
@@ -2742,7 +2747,6 @@ xlog_recover_do_efd_trans(
 	xfs_efi_log_item_t	*efip = NULL;
 	xfs_log_item_t		*lip;
 	int			gen;
-	int			nexts;
 	__uint64_t		efi_id;
 	SPLDECL(s);
 
@@ -2777,22 +2781,15 @@ xlog_recover_do_efd_trans(
 		}
 		lip = xfs_trans_next_ail(mp, lip, &gen, NULL);
 	}
-	if (lip == NULL) {
-		AIL_UNLOCK(mp, s);
-	}
 
 	/*
 	 * If we found it, then free it up.  If it wasn't there, it
 	 * must have been overwritten in the log.  Oh well.
 	 */
 	if (lip != NULL) {
-		nexts = efip->efi_format.efi_nextents;
-		if (nexts > XFS_EFI_MAX_FAST_EXTENTS) {
-			kmem_free(lip, sizeof(xfs_efi_log_item_t) +
-				  ((nexts - 1) * sizeof(xfs_extent_t)));
-		} else {
-			kmem_zone_free(xfs_efi_zone, efip);
-		}
+		xfs_efi_item_free(efip);
+	} else {
+		AIL_UNLOCK(mp, s);
 	}
 }
 

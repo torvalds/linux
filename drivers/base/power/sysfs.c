@@ -24,12 +24,12 @@
  *	low-power state.
  */
 
-static ssize_t state_show(struct device * dev, char * buf)
+static ssize_t state_show(struct device * dev, struct device_attribute *attr, char * buf)
 {
 	return sprintf(buf, "%u\n", dev->power.power_state);
 }
 
-static ssize_t state_store(struct device * dev, const char * buf, size_t n)
+static ssize_t state_store(struct device * dev, struct device_attribute *attr, const char * buf, size_t n)
 {
 	u32 state;
 	char * rest;

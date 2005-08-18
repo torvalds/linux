@@ -1,6 +1,6 @@
 /*
  *    Disk Array driver for HP SA 5xxx and 6xxx Controllers
- *    Copyright 2000, 2002 Hewlett-Packard Development Company, L.P.
+ *    Copyright 2000, 2005 Hewlett-Packard Development Company, L.P.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+#include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
 #include <linux/genhd.h>
 #include <linux/completion.h>
@@ -53,7 +54,7 @@
 MODULE_AUTHOR("Hewlett-Packard Company");
 MODULE_DESCRIPTION("Driver for HP Controller SA5xxx SA6xxx version 2.6.6");
 MODULE_SUPPORTED_DEVICE("HP SA5i SA5i+ SA532 SA5300 SA5312 SA641 SA642 SA6400"
-			" SA6i P600 P800 E400");
+			" SA6i P600 P800 E400 E300");
 MODULE_LICENSE("GPL");
 
 #include "cciss_cmd.h"
@@ -84,8 +85,10 @@ static const struct pci_device_id cciss_pci_device_id[] = {
 		0x103C, 0x3225, 0, 0, 0},
 	{ PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_CISSB,
 		0x103c, 0x3223, 0, 0, 0},
-	{ PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_CISSB,
+	{ PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_CISSC,
 		0x103c, 0x3231, 0, 0, 0},
+	{ PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_CISSC,
+		0x103c, 0x3233, 0, 0, 0},
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, cciss_pci_device_id);
@@ -109,6 +112,7 @@ static struct board_type products[] = {
 	{ 0x3225103C, "Smart Array P600", &SA5_access},
 	{ 0x3223103C, "Smart Array P800", &SA5_access},
 	{ 0x3231103C, "Smart Array E400", &SA5_access},
+	{ 0x3233103C, "Smart Array E300", &SA5_access},
 };
 
 /* How long to wait (in millesconds) for board to go into simple mode */
@@ -125,8 +129,6 @@ static struct board_type products[] = {
 /* Originally cciss driver only supports 8 major numbers */
 #define MAX_CTLR_ORIG 	8
 
-
-#define CCISS_DMA_MASK	0xFFFFFFFF	/* 32 bit DMA */
 
 static ctlr_info_t *hba[MAX_CTLR];
 
@@ -636,6 +638,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 		cciss_pci_info_struct pciinfo;
 
 		if (!arg) return -EINVAL;
+		pciinfo.domain = pci_domain_nr(host->pdev->bus);
 		pciinfo.bus = host->pdev->bus->number;
 		pciinfo.dev_fn = host->pdev->devfn;
 		pciinfo.board_id = host->board_id;
@@ -783,18 +786,10 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 
  	case CCISS_GETLUNINFO: {
  		LogvolInfo_struct luninfo;
- 		int i;
  		
  		luninfo.LunID = drv->LunID;
  		luninfo.num_opens = drv->usage_count;
  		luninfo.num_parts = 0;
- 		/* count partitions 1 to 15 with sizes > 0 */
- 		for (i = 0; i < MAX_PART - 1; i++) {
-			if (!disk->part[i])
-				continue;
-			if (disk->part[i]->nr_sects != 0)
-				luninfo.num_parts++;
-		}
  		if (copy_to_user(argp, &luninfo,
  				sizeof(LogvolInfo_struct)))
  			return -EFAULT;
@@ -1140,7 +1135,7 @@ static int revalidate_allvol(ctlr_info_t *host)
 		/* this is for the online array utilities */
 		if (!drv->heads && i)
 			continue;
-		blk_queue_hardsect_size(host->queue, drv->block_size);
+		blk_queue_hardsect_size(drv->queue, drv->block_size);
 		set_capacity(disk, drv->nr_blocks);
 		add_disk(disk);
 	}
@@ -1696,7 +1691,7 @@ static int cciss_revalidate(struct gendisk *disk)
 	cciss_read_capacity(h->ctlr, logvol, size_buff, 1, &total_size, &block_size);
 	cciss_geometry_inquiry(h->ctlr, logvol, 1, total_size, block_size, inq_buff, drv);
 
-	blk_queue_hardsect_size(h->queue, drv->block_size);
+	blk_queue_hardsect_size(drv->queue, drv->block_size);
 	set_capacity(disk, drv->nr_blocks);
 
 	kfree(size_buff);
@@ -2253,12 +2248,12 @@ static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs)
  	 * them up.  We will also keep track of the next queue to run so
  	 * that every queue gets a chance to be started first.
  	*/
- 	for (j=0; j < NWD; j++){
- 		int curr_queue = (start_queue + j) % NWD;
+	for (j=0; j < h->highest_lun + 1; j++){
+		int curr_queue = (start_queue + j) % (h->highest_lun + 1);
  		/* make sure the disk has been added and the drive is real
  		 * because this can be called from the middle of init_one.
  		*/
- 		if(!(h->gendisk[curr_queue]->queue) ||
+		if(!(h->drv[curr_queue].queue) ||
 		 		   !(h->drv[curr_queue].heads))
  			continue;
  		blk_start_queue(h->gendisk[curr_queue]->queue);
@@ -2269,14 +2264,14 @@ static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs)
  		if ((find_first_zero_bit(h->cmd_pool_bits, NR_CMDS)) == NR_CMDS)
  		{
  			if (curr_queue == start_queue){
- 				h->next_to_run = (start_queue + 1) % NWD;
+				h->next_to_run = (start_queue + 1) % (h->highest_lun + 1);
  				goto cleanup;
  			} else {
  				h->next_to_run = curr_queue;
  				goto cleanup;
  	}
  		} else {
- 			curr_queue = (curr_queue + 1) % NWD;
+			curr_queue = (curr_queue + 1) % (h->highest_lun + 1);
  		}
  	}
 
@@ -2284,7 +2279,6 @@ cleanup:
 	spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
 	return IRQ_HANDLED;
 }
-
 /* 
  *  We cannot read the structure directly, for portablity we must use 
  *   the io functions.
@@ -2392,11 +2386,6 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	{
 		printk(KERN_ERR "cciss: Unable to Enable PCI device\n");
 		return( -1);
-	}
-	if (pci_set_dma_mask(pdev, CCISS_DMA_MASK ) != 0)
-	{
-		printk(KERN_ERR "cciss:  Unable to set DMA mask\n");
-		return(-1);
 	}
 
 	subsystem_vendor_id = pdev->subsystem_vendor;
@@ -2747,9 +2736,9 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	hba[i]->pdev = pdev;
 
 	/* configure PCI DMA stuff */
-	if (!pci_set_dma_mask(pdev, 0xffffffffffffffffULL))
+	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK))
 		printk("cciss: using DAC cycles\n");
-	else if (!pci_set_dma_mask(pdev, 0xffffffff))
+	else if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK))
 		printk("cciss: not using DAC cycles\n");
 	else {
 		printk("cciss: no suitable DMA available\n");
@@ -2799,13 +2788,6 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	}
 
 	spin_lock_init(&hba[i]->lock);
-	q = blk_init_queue(do_cciss_request, &hba[i]->lock);
-	if (!q)
-		goto clean4;
-
-	q->backing_dev_info.ra_pages = READ_AHEAD;
-	hba[i]->queue = q;
-	q->queuedata = hba[i];
 
 	/* Initialize the pdev driver private data. 
 		have it point to hba[i].  */
@@ -2827,6 +2809,20 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 	cciss_procinit(i);
 
+	for(j=0; j < NWD; j++) { /* mfm */
+		drive_info_struct *drv = &(hba[i]->drv[j]);
+		struct gendisk *disk = hba[i]->gendisk[j];
+
+		q = blk_init_queue(do_cciss_request, &hba[i]->lock);
+		if (!q) {
+			printk(KERN_ERR
+			   "cciss:  unable to allocate queue for disk %d\n",
+			   j);
+			break;
+		}
+		drv->queue = q;
+
+		q->backing_dev_info.ra_pages = READ_AHEAD;
 	blk_queue_bounce_limit(q, hba[i]->pdev->dma_mask);
 
 	/* This is a hardware imposed limit. */
@@ -2837,26 +2833,23 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 	blk_queue_max_sectors(q, 512);
 
-
-	for(j=0; j<NWD; j++) {
-		drive_info_struct *drv = &(hba[i]->drv[j]);
-		struct gendisk *disk = hba[i]->gendisk[j];
-
+		q->queuedata = hba[i];
 		sprintf(disk->disk_name, "cciss/c%dd%d", i, j);
 		sprintf(disk->devfs_name, "cciss/host%d/target%d", i, j);
 		disk->major = hba[i]->major;
 		disk->first_minor = j << NWD_SHIFT;
 		disk->fops = &cciss_fops;
-		disk->queue = hba[i]->queue;
+		disk->queue = q;
 		disk->private_data = drv;
 		/* we must register the controller even if no disks exist */
 		/* this is for the online array utilities */
 		if(!drv->heads && j)
 			continue;
-		blk_queue_hardsect_size(hba[i]->queue, drv->block_size);
+		blk_queue_hardsect_size(q, drv->block_size);
 		set_capacity(disk, drv->nr_blocks);
 		add_disk(disk);
 	}
+
 	return(1);
 
 clean4:
@@ -2922,10 +2915,10 @@ static void __devexit cciss_remove_one (struct pci_dev *pdev)
 	for (j = 0; j < NWD; j++) {
 		struct gendisk *disk = hba[i]->gendisk[j];
 		if (disk->flags & GENHD_FL_UP)
+			blk_cleanup_queue(disk->queue);
 			del_gendisk(disk);
 	}
 
-	blk_cleanup_queue(hba[i]->queue);
 	pci_free_consistent(hba[i]->pdev, NR_CMDS * sizeof(CommandList_struct),
 			    hba[i]->cmd_pool, hba[i]->cmd_pool_dhandle);
 	pci_free_consistent(hba[i]->pdev, NR_CMDS * sizeof( ErrorInfo_struct),

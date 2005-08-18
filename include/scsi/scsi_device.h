@@ -9,7 +9,7 @@
 struct request_queue;
 struct scsi_cmnd;
 struct scsi_mode_data;
-
+struct scsi_lun;
 
 /*
  * sdev state: If you alter this, you also need to alter scsi_sysfs.c
@@ -154,7 +154,9 @@ struct scsi_target {
 	unsigned int		id; /* target id ... replace
 				     * scsi_device.id eventually */
 	unsigned long		create:1; /* signal that it needs to be added */
-	unsigned long		starget_data[0];
+	void 			*hostdata; /* available to low-level driver */
+	unsigned long		starget_data[0]; /* for the transport */
+	/* starget_data must be the last element!!!! */
 } __attribute__((aligned(sizeof(unsigned long))));
 
 #define to_scsi_target(d)	container_of(d, struct scsi_target, dev)
@@ -241,6 +243,7 @@ extern void scsi_target_reap(struct scsi_target *);
 extern void scsi_target_block(struct device *);
 extern void scsi_target_unblock(struct device *);
 extern void scsi_remove_target(struct device *);
+extern void int_to_scsilun(unsigned int, struct scsi_lun *);
 extern const char *scsi_device_state_name(enum scsi_device_state);
 extern int scsi_is_sdev_device(const struct device *);
 extern int scsi_is_target_device(const struct device *);

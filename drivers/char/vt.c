@@ -2796,7 +2796,7 @@ void do_blank_screen(int entering_gfx)
 		return;
 
 	if (vesa_off_interval) {
-		blank_state = blank_vesa_wait,
+		blank_state = blank_vesa_wait;
 		mod_timer(&console_timer, jiffies + vesa_off_interval);
 	}
 
@@ -2867,6 +2867,10 @@ void unblank_screen(void)
  */
 static void blank_screen_t(unsigned long dummy)
 {
+	if (unlikely(!keventd_up())) {
+		mod_timer(&console_timer, jiffies + blankinterval);
+		return;
+	}
 	blank_timer_expired = 1;
 	schedule_work(&console_work);
 }

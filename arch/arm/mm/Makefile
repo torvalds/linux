@@ -31,8 +31,6 @@ obj-$(CONFIG_CPU_COPY_V6)	+= copypage-v6.o mmu.o
 obj-$(CONFIG_CPU_SA1100)	+= copypage-v4mc.o
 obj-$(CONFIG_CPU_XSCALE)	+= copypage-xscale.o
 
-obj-$(CONFIG_CPU_MINICACHE)	+= minicache.o
-
 obj-$(CONFIG_CPU_TLB_V3)	+= tlb-v3.o
 obj-$(CONFIG_CPU_TLB_V4WT)	+= tlb-v4.o
 obj-$(CONFIG_CPU_TLB_V4WB)	+= tlb-v4wb.o

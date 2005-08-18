@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2002 by David Brownell
+ * Copyright (C) 2001-2004 by David Brownell
  * 
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -439,9 +439,12 @@ static int ehci_hub_control (
 			/* force reset to complete */
 			writel (temp & ~PORT_RESET,
 					&ehci->regs->port_status [wIndex]);
+			/* REVISIT:  some hardware needs 550+ usec to clear
+			 * this bit; seems too long to spin routinely...
+			 */
 			retval = handshake (
 					&ehci->regs->port_status [wIndex],
-					PORT_RESET, 0, 500);
+					PORT_RESET, 0, 750);
 			if (retval != 0) {
 				ehci_err (ehci, "port %d reset error %d\n",
 					wIndex + 1, retval);

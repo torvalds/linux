@@ -42,7 +42,6 @@
  * hold on to mp+lock thru update of maps
  */
 
-
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
 #include <linux/smp_lock.h>
@@ -51,6 +50,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include "jfs_incore.h"
+#include "jfs_inode.h"
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
 #include "jfs_dinode.h"
@@ -109,7 +109,6 @@ static int TxLockHWM;		/* High water mark for number of txLocks used */
 static int TxLockVHWM;		/* Very High water mark */
 struct tlock *TxLock;           /* transaction lock table */
 
-
 /*
  *      transaction management lock
  */
@@ -149,7 +148,6 @@ static inline void TXN_SLEEP_DROP_LOCK(wait_queue_head_t * event)
 
 #define TXN_WAKEUP(event) wake_up_all(event)
 
-
 /*
  *      statistics
  */
@@ -160,16 +158,6 @@ static struct {
 	int nlid;		/* 4: # of tlocks acquired */
 	int waitlock;		/* 4: # of tlock wait */
 } stattx;
-
-
-/*
- * external references
- */
-extern int lmGroupCommit(struct jfs_log *, struct tblock *);
-extern int jfs_commit_inode(struct inode *, int);
-extern int jfs_stop_threads;
-
-extern struct completion jfsIOwait;
 
 /*
  * forward references
@@ -358,7 +346,6 @@ void txExit(void)
 	TxBlock = NULL;
 }
 
-
 /*
  * NAME:        txBegin()
  *
@@ -460,7 +447,6 @@ tid_t txBegin(struct super_block *sb, int flag)
 	return t;
 }
 
-
 /*
  * NAME:        txBeginAnon()
  *
@@ -502,7 +488,6 @@ void txBeginAnon(struct super_block *sb)
 	}
 	TXN_UNLOCK();
 }
-
 
 /*
  *      txEnd()
@@ -567,6 +552,11 @@ void txEnd(tid_t tid)
 		 * synchronize with logsync barrier
 		 */
 		if (test_bit(log_SYNCBARRIER, &log->flag)) {
+			TXN_UNLOCK();
+
+			/* write dirty metadata & forward log syncpt */
+			jfs_syncpt(log, 1);
+
 			jfs_info("log barrier off: 0x%x", log->lsn);
 
 			/* enable new transactions start */
@@ -574,11 +564,6 @@ void txEnd(tid_t tid)
 
 			/* wakeup all waitors for logsync barrier */
 			TXN_WAKEUP(&log->syncwait);
-
-			TXN_UNLOCK();
-
-			/* forward log syncpt */
-			jfs_syncpt(log);
 
 			goto wakeup;
 		}
@@ -591,7 +576,6 @@ wakeup:
 	 */
 	TXN_WAKEUP(&TxAnchor.freewait);
 }
-
 
 /*
  *      txLock()
@@ -673,7 +657,9 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 				/* only anonymous txn.
 				 * Remove from anon_list
 				 */
+				TXN_LOCK();
 				list_del_init(&jfs_ip->anon_inode_list);
+				TXN_UNLOCK();
 			}
 			jfs_ip->atlhead = tlck->next;
 		} else {
@@ -868,7 +854,6 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	return NULL;
 }
 
-
 /*
  * NAME:        txRelease()
  *
@@ -907,7 +892,6 @@ static void txRelease(struct tblock * tblk)
 
 	TXN_UNLOCK();
 }
-
 
 /*
  * NAME:        txUnlock()
@@ -996,7 +980,6 @@ static void txUnlock(struct tblock * tblk)
 	}
 }
 
-
 /*
  *      txMaplock()
  *
@@ -1069,7 +1052,6 @@ struct tlock *txMaplock(tid_t tid, struct inode *ip, int type)
 	return tlck;
 }
 
-
 /*
  *      txLinelock()
  *
@@ -1102,8 +1084,6 @@ struct linelock *txLinelock(struct linelock * tlock)
 
 	return linelock;
 }
-
-
 
 /*
  *              transaction commit management
@@ -1373,7 +1353,6 @@ int txCommit(tid_t tid,		/* transaction identifier */
 	return rc;
 }
 
-
 /*
  * NAME:        txLog()
  *
@@ -1437,7 +1416,6 @@ static int txLog(struct jfs_log * log, struct tblock * tblk, struct commit * cd)
 	return rc;
 }
 
-
 /*
  *      diLog()
  *
@@ -1465,7 +1443,6 @@ static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	if (tlck->type & tlckENTRY) {
 		/* log after-image for logredo(): */
 		lrd->type = cpu_to_le16(LOG_REDOPAGE);
-//              *pxd = mp->cm_pxd;
 		PXDaddress(pxd, mp->index);
 		PXDlength(pxd,
 			  mp->logical_size >> tblk->sb->s_blocksize_bits);
@@ -1552,7 +1529,6 @@ static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	return rc;
 }
 
-
 /*
  *      dataLog()
  *
@@ -1599,7 +1575,6 @@ static int dataLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	return 0;
 }
 
-
 /*
  *      dtLog()
  *
@@ -1639,7 +1614,6 @@ static void dtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 			lrd->log.redopage.type |= cpu_to_le16(LOG_EXTEND);
 		else
 			lrd->log.redopage.type |= cpu_to_le16(LOG_NEW);
-//              *pxd = mp->cm_pxd;
 		PXDaddress(pxd, mp->index);
 		PXDlength(pxd,
 			  mp->logical_size >> tblk->sb->s_blocksize_bits);
@@ -1704,7 +1678,6 @@ static void dtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	return;
 }
 
-
 /*
  *      xtLog()
  *
@@ -1760,7 +1733,6 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		 * applying the after-image to the meta-data page.
 		 */
 		lrd->type = cpu_to_le16(LOG_REDOPAGE);
-//              *page_pxd = mp->cm_pxd;
 		PXDaddress(page_pxd, mp->index);
 		PXDlength(page_pxd,
 			  mp->logical_size >> tblk->sb->s_blocksize_bits);
@@ -2093,7 +2065,6 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	return;
 }
 
-
 /*
  *      mapLog()
  *
@@ -2180,7 +2151,6 @@ void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	}
 }
 
-
 /*
  *      txEA()
  *
@@ -2232,7 +2202,6 @@ void txEA(tid_t tid, struct inode *ip, dxd_t * oldea, dxd_t * newea)
 		maplock->index++;
 	}
 }
-
 
 /*
  *      txForce()
@@ -2299,7 +2268,6 @@ void txForce(struct tblock * tblk)
 		}
 	}
 }
-
 
 /*
  *      txUpdateMap()
@@ -2437,7 +2405,6 @@ static void txUpdateMap(struct tblock * tblk)
 	}
 }
 
-
 /*
  *      txAllocPMap()
  *
@@ -2508,7 +2475,6 @@ static void txAllocPMap(struct inode *ip, struct maplock * maplock,
 		}
 	}
 }
-
 
 /*
  *      txFreeMap()
@@ -2611,7 +2577,6 @@ void txFreeMap(struct inode *ip,
 	}
 }
 
-
 /*
  *      txFreelock()
  *
@@ -2651,7 +2616,6 @@ void txFreelock(struct inode *ip)
 	}
 	TXN_UNLOCK();
 }
-
 
 /*
  *      txAbort()
@@ -2826,9 +2790,9 @@ int jfs_lazycommit(void *arg)
 		/* In case a wakeup came while all threads were active */
 		jfs_commit_thread_waking = 0;
 
-		if (current->flags & PF_FREEZE) {
+		if (freezing(current)) {
 			LAZY_UNLOCK(flags);
-			refrigerator(PF_FREEZE);
+			refrigerator();
 		} else {
 			DECLARE_WAITQUEUE(wq, current);
 
@@ -3025,9 +2989,9 @@ int jfs_sync(void *arg)
 		/* Add anon_list2 back to anon_list */
 		list_splice_init(&TxAnchor.anon_list2, &TxAnchor.anon_list);
 
-		if (current->flags & PF_FREEZE) {
+		if (freezing(current)) {
 			TXN_UNLOCK();
-			refrigerator(PF_FREEZE);
+			refrigerator();
 		} else {
 			DECLARE_WAITQUEUE(wq, current);
 

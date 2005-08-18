@@ -13,352 +13,542 @@
 #include "isofs.h"
 #include "rock.h"
 
-/* These functions are designed to read the system areas of a directory record
+/*
+ * These functions are designed to read the system areas of a directory record
  * and extract relevant information.  There are different functions provided
  * depending upon what information we need at the time.  One function fills
  * out an inode structure, a second one extracts a filename, a third one
  * returns a symbolic link name, and a fourth one returns the extent number
- * for the file. */
+ * for the file.
+ */
 
-#define SIG(A,B) ((A) | ((B) << 8)) /* isonum_721() */
+#define SIG(A,B) ((A) | ((B) << 8))	/* isonum_721() */
 
+struct rock_state {
+	void *buffer;
+	unsigned char *chr;
+	int len;
+	int cont_size;
+	int cont_extent;
+	int cont_offset;
+	struct inode *inode;
+};
 
-/* This is a way of ensuring that we have something in the system
-   use fields that is compatible with Rock Ridge */
-#define CHECK_SP(FAIL)	       			\
-      if(rr->u.SP.magic[0] != 0xbe) FAIL;	\
-      if(rr->u.SP.magic[1] != 0xef) FAIL;       \
-      ISOFS_SB(inode->i_sb)->s_rock_offset=rr->u.SP.skip;
-/* We define a series of macros because each function must do exactly the
-   same thing in certain places.  We use the macros to ensure that everything
-   is done correctly */
+/*
+ * This is a way of ensuring that we have something in the system
+ * use fields that is compatible with Rock Ridge.  Return zero on success.
+ */
 
-#define CONTINUE_DECLS \
-  int cont_extent = 0, cont_offset = 0, cont_size = 0;   \
-  void *buffer = NULL
-
-#define CHECK_CE	       			\
-      {cont_extent = isonum_733(rr->u.CE.extent); \
-      cont_offset = isonum_733(rr->u.CE.offset); \
-      cont_size = isonum_733(rr->u.CE.size);}
-
-#define SETUP_ROCK_RIDGE(DE,CHR,LEN)	      		      	\
-  {LEN= sizeof(struct iso_directory_record) + DE->name_len[0];	\
-  if(LEN & 1) LEN++;						\
-  CHR = ((unsigned char *) DE) + LEN;				\
-  LEN = *((unsigned char *) DE) - LEN;                          \
-  if (LEN<0) LEN=0;                                             \
-  if (ISOFS_SB(inode->i_sb)->s_rock_offset!=-1)                \
-  {                                                             \
-     LEN-=ISOFS_SB(inode->i_sb)->s_rock_offset;                \
-     CHR+=ISOFS_SB(inode->i_sb)->s_rock_offset;                \
-     if (LEN<0) LEN=0;                                          \
-  }                                                             \
-}                                     
-
-#define MAYBE_CONTINUE(LABEL,DEV) \
-  {if (buffer) { kfree(buffer); buffer = NULL; } \
-  if (cont_extent){ \
-    int block, offset, offset1; \
-    struct buffer_head * pbh; \
-    buffer = kmalloc(cont_size,GFP_KERNEL); \
-    if (!buffer) goto out; \
-    block = cont_extent; \
-    offset = cont_offset; \
-    offset1 = 0; \
-    pbh = sb_bread(DEV->i_sb, block); \
-    if(pbh){       \
-      if (offset > pbh->b_size || offset + cont_size > pbh->b_size){	\
-	brelse(pbh); \
-	goto out; \
-      } \
-      memcpy(buffer + offset1, pbh->b_data + offset, cont_size - offset1); \
-      brelse(pbh); \
-      chr = (unsigned char *) buffer; \
-      len = cont_size; \
-      cont_extent = 0; \
-      cont_size = 0; \
-      cont_offset = 0; \
-      goto LABEL; \
-    }    \
-    printk("Unable to read rock-ridge attributes\n");    \
-  }}
-
-/* return length of name field; 0: not found, -1: to be ignored */
-int get_rock_ridge_filename(struct iso_directory_record * de,
-			    char * retname, struct inode * inode)
+static int check_sp(struct rock_ridge *rr, struct inode *inode)
 {
-  int len;
-  unsigned char * chr;
-  CONTINUE_DECLS;
-  int retnamlen = 0, truncate=0;
- 
-  if (!ISOFS_SB(inode->i_sb)->s_rock) return 0;
-  *retname = 0;
+	if (rr->u.SP.magic[0] != 0xbe)
+		return -1;
+	if (rr->u.SP.magic[1] != 0xef)
+		return -1;
+	ISOFS_SB(inode->i_sb)->s_rock_offset = rr->u.SP.skip;
+	return 0;
+}
 
-  SETUP_ROCK_RIDGE(de, chr, len);
- repeat:
-  {
-    struct rock_ridge * rr;
-    int sig;
-    
-    while (len > 2){ /* There may be one byte for padding somewhere */
-      rr = (struct rock_ridge *) chr;
-      if (rr->len < 3) goto out; /* Something got screwed up here */
-      sig = isonum_721(chr);
-      chr += rr->len; 
-      len -= rr->len;
-      if (len < 0) goto out;	/* corrupted isofs */
+static void setup_rock_ridge(struct iso_directory_record *de,
+			struct inode *inode, struct rock_state *rs)
+{
+	rs->len = sizeof(struct iso_directory_record) + de->name_len[0];
+	if (rs->len & 1)
+		(rs->len)++;
+	rs->chr = (unsigned char *)de + rs->len;
+	rs->len = *((unsigned char *)de) - rs->len;
+	if (rs->len < 0)
+		rs->len = 0;
 
-      switch(sig){
-      case SIG('R','R'):
-	if((rr->u.RR.flags[0] & RR_NM) == 0) goto out;
-	break;
-      case SIG('S','P'):
-	CHECK_SP(goto out);
-	break;
-      case SIG('C','E'):
-	CHECK_CE;
-	break;
-      case SIG('N','M'):
-	if (truncate) break;
-	if (rr->len < 5) break;
-        /*
-	 * If the flags are 2 or 4, this indicates '.' or '..'.
-	 * We don't want to do anything with this, because it
-	 * screws up the code that calls us.  We don't really
-	 * care anyways, since we can just use the non-RR
-	 * name.
-	 */
-	if (rr->u.NM.flags & 6) {
-	  break;
+	if (ISOFS_SB(inode->i_sb)->s_rock_offset != -1) {
+		rs->len -= ISOFS_SB(inode->i_sb)->s_rock_offset;
+		rs->chr += ISOFS_SB(inode->i_sb)->s_rock_offset;
+		if (rs->len < 0)
+			rs->len = 0;
+	}
+}
+
+static void init_rock_state(struct rock_state *rs, struct inode *inode)
+{
+	memset(rs, 0, sizeof(*rs));
+	rs->inode = inode;
+}
+
+/*
+ * Returns 0 if the caller should continue scanning, 1 if the scan must end
+ * and -ve on error.
+ */
+static int rock_continue(struct rock_state *rs)
+{
+	int ret = 1;
+	int blocksize = 1 << rs->inode->i_blkbits;
+	const int min_de_size = offsetof(struct rock_ridge, u);
+
+	kfree(rs->buffer);
+	rs->buffer = NULL;
+
+	if ((unsigned)rs->cont_offset > blocksize - min_de_size ||
+	    (unsigned)rs->cont_size > blocksize ||
+	    (unsigned)(rs->cont_offset + rs->cont_size) > blocksize) {
+		printk(KERN_NOTICE "rock: corrupted directory entry. "
+			"extent=%d, offset=%d, size=%d\n",
+			rs->cont_extent, rs->cont_offset, rs->cont_size);
+		ret = -EIO;
+		goto out;
 	}
 
-	if (rr->u.NM.flags & ~1) {
-	  printk("Unsupported NM flag settings (%d)\n",rr->u.NM.flags);
-	  break;
+	if (rs->cont_extent) {
+		struct buffer_head *bh;
+
+		rs->buffer = kmalloc(rs->cont_size, GFP_KERNEL);
+		if (!rs->buffer) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		ret = -EIO;
+		bh = sb_bread(rs->inode->i_sb, rs->cont_extent);
+		if (bh) {
+			memcpy(rs->buffer, bh->b_data + rs->cont_offset,
+					rs->cont_size);
+			put_bh(bh);
+			rs->chr = rs->buffer;
+			rs->len = rs->cont_size;
+			rs->cont_extent = 0;
+			rs->cont_size = 0;
+			rs->cont_offset = 0;
+			return 0;
+		}
+		printk("Unable to read rock-ridge attributes\n");
 	}
-	if((strlen(retname) + rr->len - 5) >= 254) {
-	  truncate = 1;
-	  break;
+out:
+	kfree(rs->buffer);
+	rs->buffer = NULL;
+	return ret;
+}
+
+/*
+ * We think there's a record of type `sig' at rs->chr.  Parse the signature
+ * and make sure that there's really room for a record of that type.
+ */
+static int rock_check_overflow(struct rock_state *rs, int sig)
+{
+	int len;
+
+	switch (sig) {
+	case SIG('S', 'P'):
+		len = sizeof(struct SU_SP_s);
+		break;
+	case SIG('C', 'E'):
+		len = sizeof(struct SU_CE_s);
+		break;
+	case SIG('E', 'R'):
+		len = sizeof(struct SU_ER_s);
+		break;
+	case SIG('R', 'R'):
+		len = sizeof(struct RR_RR_s);
+		break;
+	case SIG('P', 'X'):
+		len = sizeof(struct RR_PX_s);
+		break;
+	case SIG('P', 'N'):
+		len = sizeof(struct RR_PN_s);
+		break;
+	case SIG('S', 'L'):
+		len = sizeof(struct RR_SL_s);
+		break;
+	case SIG('N', 'M'):
+		len = sizeof(struct RR_NM_s);
+		break;
+	case SIG('C', 'L'):
+		len = sizeof(struct RR_CL_s);
+		break;
+	case SIG('P', 'L'):
+		len = sizeof(struct RR_PL_s);
+		break;
+	case SIG('T', 'F'):
+		len = sizeof(struct RR_TF_s);
+		break;
+	case SIG('Z', 'F'):
+		len = sizeof(struct RR_ZF_s);
+		break;
+	default:
+		len = 0;
+		break;
 	}
-	strncat(retname, rr->u.NM.name, rr->len - 5);
-	retnamlen += rr->len - 5;
-	break;
-      case SIG('R','E'):
-	if (buffer) kfree(buffer);
-	return -1;
-      default:
-	break;
-      }
-    }
-  }
-  MAYBE_CONTINUE(repeat,inode);
-  if (buffer) kfree(buffer);
-  return retnamlen; /* If 0, this file did not have a NM field */
- out:
-  if(buffer) kfree(buffer);
-  return 0;
+	len += offsetof(struct rock_ridge, u);
+	if (len > rs->len) {
+		printk(KERN_NOTICE "rock: directory entry would overflow "
+				"storage\n");
+		printk(KERN_NOTICE "rock: sig=0x%02x, size=%d, remaining=%d\n",
+				sig, len, rs->len);
+		return -EIO;
+	}
+	return 0;
+}
+
+/*
+ * return length of name field; 0: not found, -1: to be ignored
+ */
+int get_rock_ridge_filename(struct iso_directory_record *de,
+			    char *retname, struct inode *inode)
+{
+	struct rock_state rs;
+	struct rock_ridge *rr;
+	int sig;
+	int retnamlen = 0;
+	int truncate = 0;
+	int ret = 0;
+
+	if (!ISOFS_SB(inode->i_sb)->s_rock)
+		return 0;
+	*retname = 0;
+
+	init_rock_state(&rs, inode);
+	setup_rock_ridge(de, inode, &rs);
+repeat:
+
+	while (rs.len > 2) { /* There may be one byte for padding somewhere */
+		rr = (struct rock_ridge *)rs.chr;
+		if (rr->len < 3)
+			goto out;	/* Something got screwed up here */
+		sig = isonum_721(rs.chr);
+		if (rock_check_overflow(&rs, sig))
+			goto eio;
+		rs.chr += rr->len;
+		rs.len -= rr->len;
+		if (rs.len < 0)
+			goto eio;	/* corrupted isofs */
+
+		switch (sig) {
+		case SIG('R', 'R'):
+			if ((rr->u.RR.flags[0] & RR_NM) == 0)
+				goto out;
+			break;
+		case SIG('S', 'P'):
+			if (check_sp(rr, inode))
+				goto out;
+			break;
+		case SIG('C', 'E'):
+			rs.cont_extent = isonum_733(rr->u.CE.extent);
+			rs.cont_offset = isonum_733(rr->u.CE.offset);
+			rs.cont_size = isonum_733(rr->u.CE.size);
+			break;
+		case SIG('N', 'M'):
+			if (truncate)
+				break;
+			if (rr->len < 5)
+				break;
+			/*
+			 * If the flags are 2 or 4, this indicates '.' or '..'.
+			 * We don't want to do anything with this, because it
+			 * screws up the code that calls us.  We don't really
+			 * care anyways, since we can just use the non-RR
+			 * name.
+			 */
+			if (rr->u.NM.flags & 6)
+				break;
+
+			if (rr->u.NM.flags & ~1) {
+				printk("Unsupported NM flag settings (%d)\n",
+					rr->u.NM.flags);
+				break;
+			}
+			if ((strlen(retname) + rr->len - 5) >= 254) {
+				truncate = 1;
+				break;
+			}
+			strncat(retname, rr->u.NM.name, rr->len - 5);
+			retnamlen += rr->len - 5;
+			break;
+		case SIG('R', 'E'):
+			kfree(rs.buffer);
+			return -1;
+		default:
+			break;
+		}
+	}
+	ret = rock_continue(&rs);
+	if (ret == 0)
+		goto repeat;
+	if (ret == 1)
+		return retnamlen; /* If 0, this file did not have a NM field */
+out:
+	kfree(rs.buffer);
+	return ret;
+eio:
+	ret = -EIO;
+	goto out;
 }
 
 static int
 parse_rock_ridge_inode_internal(struct iso_directory_record *de,
 				struct inode *inode, int regard_xa)
 {
-  int len;
-  unsigned char * chr;
-  int symlink_len = 0;
-  CONTINUE_DECLS;
+	int symlink_len = 0;
+	int cnt, sig;
+	struct inode *reloc;
+	struct rock_ridge *rr;
+	int rootflag;
+	struct rock_state rs;
+	int ret = 0;
 
-  if (!ISOFS_SB(inode->i_sb)->s_rock) return 0;
+	if (!ISOFS_SB(inode->i_sb)->s_rock)
+		return 0;
 
-  SETUP_ROCK_RIDGE(de, chr, len);
-  if (regard_xa)
-   {
-     chr+=14;
-     len-=14;
-     if (len<0) len=0;
-   }
-   
- repeat:
-  {
-    int cnt, sig;
-    struct inode * reloc;
-    struct rock_ridge * rr;
-    int rootflag;
-    
-    while (len > 2){ /* There may be one byte for padding somewhere */
-      rr = (struct rock_ridge *) chr;
-      if (rr->len < 3) goto out; /* Something got screwed up here */
-      sig = isonum_721(chr);
-      chr += rr->len; 
-      len -= rr->len;
-      if (len < 0) goto out;	/* corrupted isofs */
-      
-      switch(sig){
+	init_rock_state(&rs, inode);
+	setup_rock_ridge(de, inode, &rs);
+	if (regard_xa) {
+		rs.chr += 14;
+		rs.len -= 14;
+		if (rs.len < 0)
+			rs.len = 0;
+	}
+
+repeat:
+	while (rs.len > 2) { /* There may be one byte for padding somewhere */
+		rr = (struct rock_ridge *)rs.chr;
+		if (rr->len < 3)
+			goto out;	/* Something got screwed up here */
+		sig = isonum_721(rs.chr);
+		if (rock_check_overflow(&rs, sig))
+			goto eio;
+		rs.chr += rr->len;
+		rs.len -= rr->len;
+		if (rs.len < 0)
+			goto eio;	/* corrupted isofs */
+
+		switch (sig) {
 #ifndef CONFIG_ZISOFS		/* No flag for SF or ZF */
-      case SIG('R','R'):
-	if((rr->u.RR.flags[0] & 
- 	    (RR_PX | RR_TF | RR_SL | RR_CL)) == 0) goto out;
-	break;
+		case SIG('R', 'R'):
+			if ((rr->u.RR.flags[0] &
+			     (RR_PX | RR_TF | RR_SL | RR_CL)) == 0)
+				goto out;
+			break;
 #endif
-      case SIG('S','P'):
-	CHECK_SP(goto out);
-	break;
-      case SIG('C','E'):
-	CHECK_CE;
-	break;
-      case SIG('E','R'):
-	ISOFS_SB(inode->i_sb)->s_rock = 1;
-	printk(KERN_DEBUG "ISO 9660 Extensions: ");
-	{ int p;
-	  for(p=0;p<rr->u.ER.len_id;p++) printk("%c",rr->u.ER.data[p]);
-	}
-	  printk("\n");
-	break;
-      case SIG('P','X'):
-	inode->i_mode  = isonum_733(rr->u.PX.mode);
-	inode->i_nlink = isonum_733(rr->u.PX.n_links);
-	inode->i_uid   = isonum_733(rr->u.PX.uid);
-	inode->i_gid   = isonum_733(rr->u.PX.gid);
-	break;
-      case SIG('P','N'):
-	{ int high, low;
-	  high = isonum_733(rr->u.PN.dev_high);
-	  low = isonum_733(rr->u.PN.dev_low);
-	  /*
-	   * The Rock Ridge standard specifies that if sizeof(dev_t) <= 4,
-	   * then the high field is unused, and the device number is completely
-	   * stored in the low field.  Some writers may ignore this subtlety,
-	   * and as a result we test to see if the entire device number is
-	   * stored in the low field, and use that.
-	   */
-	  if((low & ~0xff) && high == 0) {
-	    inode->i_rdev = MKDEV(low >> 8, low & 0xff);
-	  } else {
-	    inode->i_rdev = MKDEV(high, low);
-	  }
-	}
-	break;
-      case SIG('T','F'):
-	/* Some RRIP writers incorrectly place ctime in the TF_CREATE field.
-	   Try to handle this correctly for either case. */
-	cnt = 0; /* Rock ridge never appears on a High Sierra disk */
-	if(rr->u.TF.flags & TF_CREATE) { 
-	  inode->i_ctime.tv_sec = iso_date(rr->u.TF.times[cnt++].time, 0);
-	  inode->i_ctime.tv_nsec = 0;
-	}
-	if(rr->u.TF.flags & TF_MODIFY) {
-	  inode->i_mtime.tv_sec = iso_date(rr->u.TF.times[cnt++].time, 0);
-	  inode->i_mtime.tv_nsec = 0;
-	}
-	if(rr->u.TF.flags & TF_ACCESS) {
-	  inode->i_atime.tv_sec = iso_date(rr->u.TF.times[cnt++].time, 0);
-	  inode->i_atime.tv_nsec = 0;
-	}
-	if(rr->u.TF.flags & TF_ATTRIBUTES) { 
-	  inode->i_ctime.tv_sec = iso_date(rr->u.TF.times[cnt++].time, 0);
-	  inode->i_ctime.tv_nsec = 0;
-	} 
-	break;
-      case SIG('S','L'):
-	{int slen;
-	 struct SL_component * slp;
-	 struct SL_component * oldslp;
-	 slen = rr->len - 5;
-	 slp = &rr->u.SL.link;
-	 inode->i_size = symlink_len;
-	 while (slen > 1){
-	   rootflag = 0;
-	   switch(slp->flags &~1){
-	   case 0:
-	     inode->i_size += slp->len;
-	     break;
-	   case 2:
-	     inode->i_size += 1;
-	     break;
-	   case 4:
-	     inode->i_size += 2;
-	     break;
-	   case 8:
-	     rootflag = 1;
-	     inode->i_size += 1;
-	     break;
-	   default:
-	     printk("Symlink component flag not implemented\n");
-	   }
-	   slen -= slp->len + 2;
-	   oldslp = slp;
-	   slp = (struct SL_component *) (((char *) slp) + slp->len + 2);
+		case SIG('S', 'P'):
+			if (check_sp(rr, inode))
+				goto out;
+			break;
+		case SIG('C', 'E'):
+			rs.cont_extent = isonum_733(rr->u.CE.extent);
+			rs.cont_offset = isonum_733(rr->u.CE.offset);
+			rs.cont_size = isonum_733(rr->u.CE.size);
+			break;
+		case SIG('E', 'R'):
+			ISOFS_SB(inode->i_sb)->s_rock = 1;
+			printk(KERN_DEBUG "ISO 9660 Extensions: ");
+			{
+				int p;
+				for (p = 0; p < rr->u.ER.len_id; p++)
+					printk("%c", rr->u.ER.data[p]);
+			}
+			printk("\n");
+			break;
+		case SIG('P', 'X'):
+			inode->i_mode = isonum_733(rr->u.PX.mode);
+			inode->i_nlink = isonum_733(rr->u.PX.n_links);
+			inode->i_uid = isonum_733(rr->u.PX.uid);
+			inode->i_gid = isonum_733(rr->u.PX.gid);
+			break;
+		case SIG('P', 'N'):
+			{
+				int high, low;
+				high = isonum_733(rr->u.PN.dev_high);
+				low = isonum_733(rr->u.PN.dev_low);
+				/*
+				 * The Rock Ridge standard specifies that if
+				 * sizeof(dev_t) <= 4, then the high field is
+				 * unused, and the device number is completely
+				 * stored in the low field.  Some writers may
+				 * ignore this subtlety,
+				 * and as a result we test to see if the entire
+				 * device number is
+				 * stored in the low field, and use that.
+				 */
+				if ((low & ~0xff) && high == 0) {
+					inode->i_rdev =
+					    MKDEV(low >> 8, low & 0xff);
+				} else {
+					inode->i_rdev =
+					    MKDEV(high, low);
+				}
+			}
+			break;
+		case SIG('T', 'F'):
+			/*
+			 * Some RRIP writers incorrectly place ctime in the
+			 * TF_CREATE field. Try to handle this correctly for
+			 * either case.
+			 */
+			/* Rock ridge never appears on a High Sierra disk */
+			cnt = 0;
+			if (rr->u.TF.flags & TF_CREATE) {
+				inode->i_ctime.tv_sec =
+				    iso_date(rr->u.TF.times[cnt++].time,
+					     0);
+				inode->i_ctime.tv_nsec = 0;
+			}
+			if (rr->u.TF.flags & TF_MODIFY) {
+				inode->i_mtime.tv_sec =
+				    iso_date(rr->u.TF.times[cnt++].time,
+					     0);
+				inode->i_mtime.tv_nsec = 0;
+			}
+			if (rr->u.TF.flags & TF_ACCESS) {
+				inode->i_atime.tv_sec =
+				    iso_date(rr->u.TF.times[cnt++].time,
+					     0);
+				inode->i_atime.tv_nsec = 0;
+			}
+			if (rr->u.TF.flags & TF_ATTRIBUTES) {
+				inode->i_ctime.tv_sec =
+				    iso_date(rr->u.TF.times[cnt++].time,
+					     0);
+				inode->i_ctime.tv_nsec = 0;
+			}
+			break;
+		case SIG('S', 'L'):
+			{
+				int slen;
+				struct SL_component *slp;
+				struct SL_component *oldslp;
+				slen = rr->len - 5;
+				slp = &rr->u.SL.link;
+				inode->i_size = symlink_len;
+				while (slen > 1) {
+					rootflag = 0;
+					switch (slp->flags & ~1) {
+					case 0:
+						inode->i_size +=
+						    slp->len;
+						break;
+					case 2:
+						inode->i_size += 1;
+						break;
+					case 4:
+						inode->i_size += 2;
+						break;
+					case 8:
+						rootflag = 1;
+						inode->i_size += 1;
+						break;
+					default:
+						printk("Symlink component flag "
+							"not implemented\n");
+					}
+					slen -= slp->len + 2;
+					oldslp = slp;
+					slp = (struct SL_component *)
+						(((char *)slp) + slp->len + 2);
 
-	   if(slen < 2) {
-	     if(    ((rr->u.SL.flags & 1) != 0) 
-		    && ((oldslp->flags & 1) == 0) ) inode->i_size += 1;
-	     break;
-	   }
+					if (slen < 2) {
+						if (((rr->u.SL.
+						      flags & 1) != 0)
+						    &&
+						    ((oldslp->
+						      flags & 1) == 0))
+							inode->i_size +=
+							    1;
+						break;
+					}
 
-	   /*
-	    * If this component record isn't continued, then append a '/'.
-	    */
-	   if (!rootflag && (oldslp->flags & 1) == 0)
-		   inode->i_size += 1;
-	 }
-	}
-	symlink_len = inode->i_size;
-	break;
-      case SIG('R','E'):
-	printk(KERN_WARNING "Attempt to read inode for relocated directory\n");
-	goto out;
-      case SIG('C','L'):
-	ISOFS_I(inode)->i_first_extent = isonum_733(rr->u.CL.location);
-	reloc = isofs_iget(inode->i_sb, ISOFS_I(inode)->i_first_extent, 0);
-	if (!reloc)
-		goto out;
-	inode->i_mode = reloc->i_mode;
-	inode->i_nlink = reloc->i_nlink;
-	inode->i_uid = reloc->i_uid;
-	inode->i_gid = reloc->i_gid;
-	inode->i_rdev = reloc->i_rdev;
-	inode->i_size = reloc->i_size;
-	inode->i_blocks = reloc->i_blocks;
-	inode->i_atime = reloc->i_atime;
-	inode->i_ctime = reloc->i_ctime;
-	inode->i_mtime = reloc->i_mtime;
-	iput(reloc);
-	break;
+					/*
+					 * If this component record isn't
+					 * continued, then append a '/'.
+					 */
+					if (!rootflag
+					    && (oldslp->flags & 1) == 0)
+						inode->i_size += 1;
+				}
+			}
+			symlink_len = inode->i_size;
+			break;
+		case SIG('R', 'E'):
+			printk(KERN_WARNING "Attempt to read inode for "
+					"relocated directory\n");
+			goto out;
+		case SIG('C', 'L'):
+			ISOFS_I(inode)->i_first_extent =
+			    isonum_733(rr->u.CL.location);
+			reloc =
+			    isofs_iget(inode->i_sb,
+				       ISOFS_I(inode)->i_first_extent,
+				       0);
+			if (!reloc)
+				goto out;
+			inode->i_mode = reloc->i_mode;
+			inode->i_nlink = reloc->i_nlink;
+			inode->i_uid = reloc->i_uid;
+			inode->i_gid = reloc->i_gid;
+			inode->i_rdev = reloc->i_rdev;
+			inode->i_size = reloc->i_size;
+			inode->i_blocks = reloc->i_blocks;
+			inode->i_atime = reloc->i_atime;
+			inode->i_ctime = reloc->i_ctime;
+			inode->i_mtime = reloc->i_mtime;
+			iput(reloc);
+			break;
 #ifdef CONFIG_ZISOFS
-      case SIG('Z','F'):
-	      if ( !ISOFS_SB(inode->i_sb)->s_nocompress ) {
-		      int algo;
-		      algo = isonum_721(rr->u.ZF.algorithm);
-		      if ( algo == SIG('p','z') ) {
-			      int block_shift = isonum_711(&rr->u.ZF.parms[1]);
-			      if ( block_shift < PAGE_CACHE_SHIFT || block_shift > 17 ) {
-				      printk(KERN_WARNING "isofs: Can't handle ZF block size of 2^%d\n", block_shift);
-			      } else {
-				/* Note: we don't change i_blocks here */
-				      ISOFS_I(inode)->i_file_format = isofs_file_compressed;
-				/* Parameters to compression algorithm (header size, block size) */
-				      ISOFS_I(inode)->i_format_parm[0] = isonum_711(&rr->u.ZF.parms[0]);
-				      ISOFS_I(inode)->i_format_parm[1] = isonum_711(&rr->u.ZF.parms[1]);
-				      inode->i_size = isonum_733(rr->u.ZF.real_size);
-			      }
-		      } else {
-			      printk(KERN_WARNING "isofs: Unknown ZF compression algorithm: %c%c\n",
-				     rr->u.ZF.algorithm[0], rr->u.ZF.algorithm[1]);
-		      }
-	      }
-	      break;
+		case SIG('Z', 'F'): {
+			int algo;
+
+			if (ISOFS_SB(inode->i_sb)->s_nocompress)
+				break;
+			algo = isonum_721(rr->u.ZF.algorithm);
+			if (algo == SIG('p', 'z')) {
+				int block_shift =
+					isonum_711(&rr->u.ZF.parms[1]);
+				if (block_shift < PAGE_CACHE_SHIFT
+						|| block_shift > 17) {
+					printk(KERN_WARNING "isofs: "
+						"Can't handle ZF block "
+						"size of 2^%d\n",
+						block_shift);
+				} else {
+					/*
+					 * Note: we don't change
+					 * i_blocks here
+					 */
+					ISOFS_I(inode)->i_file_format =
+						isofs_file_compressed;
+					/*
+					 * Parameters to compression
+					 * algorithm (header size,
+					 * block size)
+					 */
+					ISOFS_I(inode)->i_format_parm[0] =
+						isonum_711(&rr->u.ZF.parms[0]);
+					ISOFS_I(inode)->i_format_parm[1] =
+						isonum_711(&rr->u.ZF.parms[1]);
+					inode->i_size =
+					    isonum_733(rr->u.ZF.
+						       real_size);
+				}
+			} else {
+				printk(KERN_WARNING
+				       "isofs: Unknown ZF compression "
+						"algorithm: %c%c\n",
+				       rr->u.ZF.algorithm[0],
+				       rr->u.ZF.algorithm[1]);
+			}
+			break;
+		}
 #endif
-      default:
-	break;
-      }
-    }
-  }
-  MAYBE_CONTINUE(repeat,inode);
- out:
-  if(buffer) kfree(buffer);
-  return 0;
+		default:
+			break;
+		}
+	}
+	ret = rock_continue(&rs);
+	if (ret == 0)
+		goto repeat;
+	if (ret == 1)
+		ret = 0;
+out:
+	kfree(rs.buffer);
+	return ret;
+eio:
+	ret = -EIO;
+	goto out;
 }
 
 static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
@@ -376,32 +566,32 @@ static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
 			if (slp->len > plimit - rpnt)
 				return NULL;
 			memcpy(rpnt, slp->text, slp->len);
-			rpnt+=slp->len;
+			rpnt += slp->len;
 			break;
 		case 2:
 			if (rpnt >= plimit)
 				return NULL;
-			*rpnt++='.';
+			*rpnt++ = '.';
 			break;
 		case 4:
 			if (2 > plimit - rpnt)
 				return NULL;
-			*rpnt++='.';
-			*rpnt++='.';
+			*rpnt++ = '.';
+			*rpnt++ = '.';
 			break;
 		case 8:
 			if (rpnt >= plimit)
 				return NULL;
 			rootflag = 1;
-			*rpnt++='/';
+			*rpnt++ = '/';
 			break;
 		default:
 			printk("Symlink component flag not implemented (%d)\n",
-			     slp->flags);
+			       slp->flags);
 		}
 		slen -= slp->len + 2;
 		oldslp = slp;
-		slp = (struct SL_component *) ((char *) slp + slp->len + 2);
+		slp = (struct SL_component *)((char *)slp + slp->len + 2);
 
 		if (slen < 2) {
 			/*
@@ -412,7 +602,7 @@ static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
 			    !(oldslp->flags & 1)) {
 				if (rpnt >= plimit)
 					return NULL;
-				*rpnt++='/';
+				*rpnt++ = '/';
 			}
 			break;
 		}
@@ -423,59 +613,61 @@ static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
 		if (!rootflag && !(oldslp->flags & 1)) {
 			if (rpnt >= plimit)
 				return NULL;
-			*rpnt++='/';
+			*rpnt++ = '/';
 		}
 	}
 	return rpnt;
 }
 
-int parse_rock_ridge_inode(struct iso_directory_record * de,
-			   struct inode * inode)
+int parse_rock_ridge_inode(struct iso_directory_record *de, struct inode *inode)
 {
-   int result=parse_rock_ridge_inode_internal(de,inode,0);
-   /* if rockridge flag was reset and we didn't look for attributes
-    * behind eventual XA attributes, have a look there */
-   if ((ISOFS_SB(inode->i_sb)->s_rock_offset==-1)
-       &&(ISOFS_SB(inode->i_sb)->s_rock==2))
-     {
-	result=parse_rock_ridge_inode_internal(de,inode,14);
-     }
-   return result;
+	int result = parse_rock_ridge_inode_internal(de, inode, 0);
+
+	/*
+	 * if rockridge flag was reset and we didn't look for attributes
+	 * behind eventual XA attributes, have a look there
+	 */
+	if ((ISOFS_SB(inode->i_sb)->s_rock_offset == -1)
+	    && (ISOFS_SB(inode->i_sb)->s_rock == 2)) {
+		result = parse_rock_ridge_inode_internal(de, inode, 14);
+	}
+	return result;
 }
 
-/* readpage() for symlinks: reads symlink contents into the page and either
-   makes it uptodate and returns 0 or returns error (-EIO) */
-
+/*
+ * readpage() for symlinks: reads symlink contents into the page and either
+ * makes it uptodate and returns 0 or returns error (-EIO)
+ */
 static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
-        struct iso_inode_info *ei = ISOFS_I(inode);
+	struct iso_inode_info *ei = ISOFS_I(inode);
 	char *link = kmap(page);
 	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
 	struct buffer_head *bh;
 	char *rpnt = link;
 	unsigned char *pnt;
-	struct iso_directory_record *raw_inode;
-	CONTINUE_DECLS;
+	struct iso_directory_record *raw_de;
 	unsigned long block, offset;
 	int sig;
-	int len;
-	unsigned char *chr;
 	struct rock_ridge *rr;
+	struct rock_state rs;
+	int ret;
 
 	if (!ISOFS_SB(inode->i_sb)->s_rock)
 		goto error;
 
+	init_rock_state(&rs, inode);
 	block = ei->i_iget5_block;
 	lock_kernel();
 	bh = sb_bread(inode->i_sb, block);
 	if (!bh)
 		goto out_noread;
 
-        offset = ei->i_iget5_offset;
-	pnt = (unsigned char *) bh->b_data + offset;
+	offset = ei->i_iget5_offset;
+	pnt = (unsigned char *)bh->b_data + offset;
 
-	raw_inode = (struct iso_directory_record *) pnt;
+	raw_de = (struct iso_directory_record *)pnt;
 
 	/*
 	 * If we go past the end of the buffer, there is some sort of error.
@@ -483,20 +675,24 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 	if (offset + *pnt > bufsize)
 		goto out_bad_span;
 
-	/* Now test for possible Rock Ridge extensions which will override
-	   some of these numbers in the inode structure. */
+	/*
+	 * Now test for possible Rock Ridge extensions which will override
+	 * some of these numbers in the inode structure.
+	 */
 
-	SETUP_ROCK_RIDGE(raw_inode, chr, len);
+	setup_rock_ridge(raw_de, inode, &rs);
 
-      repeat:
-	while (len > 2) { /* There may be one byte for padding somewhere */
-		rr = (struct rock_ridge *) chr;
+repeat:
+	while (rs.len > 2) { /* There may be one byte for padding somewhere */
+		rr = (struct rock_ridge *)rs.chr;
 		if (rr->len < 3)
 			goto out;	/* Something got screwed up here */
-		sig = isonum_721(chr);
-		chr += rr->len;
-		len -= rr->len;
-		if (len < 0)
+		sig = isonum_721(rs.chr);
+		if (rock_check_overflow(&rs, sig))
+			goto out;
+		rs.chr += rr->len;
+		rs.len -= rr->len;
+		if (rs.len < 0)
 			goto out;	/* corrupted isofs */
 
 		switch (sig) {
@@ -505,7 +701,8 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 				goto out;
 			break;
 		case SIG('S', 'P'):
-			CHECK_SP(goto out);
+			if (check_sp(rr, inode))
+				goto out;
 			break;
 		case SIG('S', 'L'):
 			rpnt = get_symlink_chunk(rpnt, rr,
@@ -515,14 +712,18 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 			break;
 		case SIG('C', 'E'):
 			/* This tells is if there is a continuation record */
-			CHECK_CE;
+			rs.cont_extent = isonum_733(rr->u.CE.extent);
+			rs.cont_offset = isonum_733(rr->u.CE.offset);
+			rs.cont_size = isonum_733(rr->u.CE.size);
 		default:
 			break;
 		}
 	}
-	MAYBE_CONTINUE(repeat, inode);
-	if (buffer)
-		kfree(buffer);
+	ret = rock_continue(&rs);
+	if (ret == 0)
+		goto repeat;
+	if (ret < 0)
+		goto fail;
 
 	if (rpnt == link)
 		goto fail;
@@ -535,19 +736,18 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 	return 0;
 
 	/* error exit from macro */
-      out:
-	if (buffer)
-		kfree(buffer);
+out:
+	kfree(rs.buffer);
 	goto fail;
-      out_noread:
+out_noread:
 	printk("unable to read i-node block");
 	goto fail;
-      out_bad_span:
+out_bad_span:
 	printk("symlink spans iso9660 blocks\n");
-      fail:
+fail:
 	brelse(bh);
 	unlock_kernel();
-      error:
+error:
 	SetPageError(page);
 	kunmap(page);
 	unlock_page(page);
@@ -555,5 +755,5 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 }
 
 struct address_space_operations isofs_symlink_aops = {
-	.readpage	= rock_ridge_symlink_readpage
+	.readpage = rock_ridge_symlink_readpage
 };

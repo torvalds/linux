@@ -182,13 +182,13 @@ static int irq_probe(void);
 static void *bios_base;
 #endif
 
-#if PORT_BASE
+#ifdef PORT_BASE
 static int port_base = PORT_BASE;
 #else
 static int port_base;
 #endif
 
-#if IRQ_LEV
+#ifdef IRQ_LEV
 static int irq_level = IRQ_LEV;
 #else
 static int irq_level = -1;	/* 0 is 'no irq', so use -1 for 'uninitialized' */
@@ -722,15 +722,12 @@ static int NCR53c406a_queue(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 	return 0;
 }
 
-static int NCR53c406a_abort(Scsi_Cmnd * SCpnt)
-{
-	DEB(printk("NCR53c406a_abort called\n"));
-	return FAILED;		/* Don't know how to abort */
-}
-
 static int NCR53c406a_host_reset(Scsi_Cmnd * SCpnt)
 {
 	DEB(printk("NCR53c406a_reset called\n"));
+
+	spin_lock_irq(SCpnt->device->host->host_lock);
+
 	outb(C4_IMG, CONFIG4);	/* Select reg set 0 */
 	outb(CHIP_RESET, CMD_REG);
 	outb(SCSI_NOP, CMD_REG);	/* required after reset */
@@ -738,17 +735,10 @@ static int NCR53c406a_host_reset(Scsi_Cmnd * SCpnt)
 	chip_init();
 
 	rtrc(2);
+
+	spin_unlock_irq(SCpnt->device->host->host_lock);
+
 	return SUCCESS;
-}
-
-static int NCR53c406a_device_reset(Scsi_Cmnd * SCpnt)
-{
-	return FAILED;
-}
-
-static int NCR53c406a_bus_reset(Scsi_Cmnd * SCpnt)
-{
-	return FAILED;
 }
 
 static int NCR53c406a_biosparm(struct scsi_device *disk,
@@ -1075,9 +1065,6 @@ static Scsi_Host_Template driver_template =
      .release            	= NCR53c406a_release,
      .info              	= NCR53c406a_info		/* info */,             
      .queuecommand      	= NCR53c406a_queue	/* queuecommand */,     
-     .eh_abort_handler  	= NCR53c406a_abort	/* abort */,            
-     .eh_bus_reset_handler      = NCR53c406a_bus_reset	/* reset */,            
-     .eh_device_reset_handler   = NCR53c406a_device_reset	/* reset */,            
      .eh_host_reset_handler     = NCR53c406a_host_reset	/* reset */,            
      .bios_param        	= NCR53c406a_biosparm	/* biosparm */,         
      .can_queue         	= 1			/* can_queue */,        

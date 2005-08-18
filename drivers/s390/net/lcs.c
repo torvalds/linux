@@ -11,7 +11,7 @@
  *			  Frank Pavlic (pavlic@de.ibm.com) and
  *		 	  Martin Schwidefsky <schwidefsky@de.ibm.com>
  *
- *    $Revision: 1.98 $	 $Date: 2005/04/18 13:41:29 $
+ *    $Revision: 1.99 $	 $Date: 2005/05/11 08:10:17 $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@
 /**
  * initialization string for output
  */
-#define VERSION_LCS_C  "$Revision: 1.98 $"
+#define VERSION_LCS_C  "$Revision: 1.99 $"
 
 static char version[] __initdata = "LCS driver ("VERSION_LCS_C "/" VERSION_LCS_H ")";
 static char debug_buffer[255];
@@ -93,8 +93,8 @@ lcs_unregister_debug_facility(void)
 static int
 lcs_register_debug_facility(void)
 {
-	lcs_dbf_setup = debug_register("lcs_setup", 1, 1, 8);
-	lcs_dbf_trace = debug_register("lcs_trace", 1, 2, 8);
+	lcs_dbf_setup = debug_register("lcs_setup", 2, 1, 8);
+	lcs_dbf_trace = debug_register("lcs_trace", 2, 2, 8);
 	if (lcs_dbf_setup == NULL || lcs_dbf_trace == NULL) {
 		PRINT_ERR("Not enough memory for debug facility.\n");
 		lcs_unregister_debug_facility();
@@ -1984,7 +1984,7 @@ lcs_open_device(struct net_device *dev)
  * show function for portno called by cat or similar things
  */
 static ssize_t
-lcs_portno_show (struct device *dev, char *buf)
+lcs_portno_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
         struct lcs_card *card;
 
@@ -2000,7 +2000,7 @@ lcs_portno_show (struct device *dev, char *buf)
  * store the value which is piped to file portno
  */
 static ssize_t
-lcs_portno_store (struct device *dev, const char *buf, size_t count)
+lcs_portno_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
         struct lcs_card *card;
         int value;
@@ -2021,7 +2021,7 @@ lcs_portno_store (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(portno, 0644, lcs_portno_show, lcs_portno_store);
 
 static ssize_t
-lcs_type_show(struct device *dev, char *buf)
+lcs_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccwgroup_device *cgdev;
 
@@ -2035,7 +2035,7 @@ lcs_type_show(struct device *dev, char *buf)
 static DEVICE_ATTR(type, 0444, lcs_type_show, NULL);
 
 static ssize_t
-lcs_timeout_show(struct device *dev, char *buf)
+lcs_timeout_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lcs_card *card;
 
@@ -2045,7 +2045,7 @@ lcs_timeout_show(struct device *dev, char *buf)
 }
 
 static ssize_t
-lcs_timeout_store (struct device *dev, const char *buf, size_t count)
+lcs_timeout_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
         struct lcs_card *card;
         int value;

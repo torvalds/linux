@@ -120,6 +120,7 @@
 #include <asm/system.h>
 #include <asm/sections.h>
 #include <asm/of_device.h>
+#include <asm/macio.h>
 
 #include "therm_pm72.h"
 
@@ -685,7 +686,7 @@ static void fetch_cpu_pumps_minmax(void)
  * the input twice... I accept patches :)
  */
 #define BUILD_SHOW_FUNC_FIX(name, data)				\
-static ssize_t show_##name(struct device *dev, char *buf)	\
+static ssize_t show_##name(struct device *dev, struct device_attribute *attr, char *buf)	\
 {								\
 	ssize_t r;						\
 	down(&driver_lock);					\
@@ -694,7 +695,7 @@ static ssize_t show_##name(struct device *dev, char *buf)	\
 	return r;						\
 }
 #define BUILD_SHOW_FUNC_INT(name, data)				\
-static ssize_t show_##name(struct device *dev, char *buf)	\
+static ssize_t show_##name(struct device *dev, struct device_attribute *attr, char *buf)	\
 {								\
 	return sprintf(buf, "%d", data);			\
 }
@@ -1986,7 +1987,7 @@ static void fcu_lookup_fans(struct device_node *fcu_node)
 	}
 }
 
-static int fcu_of_probe(struct of_device* dev, const struct of_match *match)
+static int fcu_of_probe(struct of_device* dev, const struct of_device_id *match)
 {
 	int rc;
 
@@ -2009,12 +2010,10 @@ static int fcu_of_remove(struct of_device* dev)
 	return 0;
 }
 
-static struct of_match fcu_of_match[] = 
+static struct of_device_id fcu_match[] = 
 {
 	{
-	.name 		= OF_ANY_MATCH,
 	.type		= "fcu",
-	.compatible	= OF_ANY_MATCH
 	},
 	{},
 };
@@ -2022,7 +2021,7 @@ static struct of_match fcu_of_match[] =
 static struct of_platform_driver fcu_of_platform_driver = 
 {
 	.name 		= "temperature",
-	.match_table	= fcu_of_match,
+	.match_table	= fcu_match,
 	.probe		= fcu_of_probe,
 	.remove		= fcu_of_remove
 };

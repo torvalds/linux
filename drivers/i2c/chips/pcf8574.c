@@ -57,7 +57,7 @@ SENSORS_INSMOD_2(pcf8574, pcf8574a);
 struct pcf8574_data {
 	struct i2c_client client;
 
-	u8 read, write;			/* Register values */
+	u8 write;			/* Remember last written value */
 };
 
 static int pcf8574_attach_adapter(struct i2c_adapter *adapter);
@@ -76,23 +76,21 @@ static struct i2c_driver pcf8574_driver = {
 };
 
 /* following are the sysfs callback functions */
-static ssize_t show_read(struct device *dev, char *buf)
+static ssize_t show_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct pcf8574_data *data = i2c_get_clientdata(client);
-	data->read = i2c_smbus_read_byte(client); 
-	return sprintf(buf, "%u\n", data->read);
+	return sprintf(buf, "%u\n", i2c_smbus_read_byte(client));
 }
 
 static DEVICE_ATTR(read, S_IRUGO, show_read, NULL);
 
-static ssize_t show_write(struct device *dev, char *buf)
+static ssize_t show_write(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pcf8574_data *data = i2c_get_clientdata(to_i2c_client(dev));
 	return sprintf(buf, "%u\n", data->write);
 }
 
-static ssize_t set_write(struct device *dev, const char *buf,
+static ssize_t set_write(struct device *dev, struct device_attribute *attr, const char *buf,
 			 size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);

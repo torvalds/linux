@@ -89,7 +89,7 @@ static irqreturn_t aac_sa_intr(int irq, void *dev_id, struct pt_regs *regs)
  *	Notify the adapter of an event
  */
  
-void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
+static void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
 {
 	switch (event) {
 
@@ -106,7 +106,10 @@ void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
 		sa_writew(dev, DoorbellReg_s,DOORBELL_3);
 		break;
 	case HostShutdown:
-		//sa_sync_cmd(dev, HOST_CRASHING, 0, &ret);
+		/*
+		sa_sync_cmd(dev, HOST_CRASHING, 0, 0, 0, 0, 0, 0,
+		NULL, NULL, NULL, NULL, NULL);
+		*/
 		break;
 	case FastIo:
 		sa_writew(dev, DoorbellReg_s,DOORBELL_6);
@@ -132,7 +135,9 @@ void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
  *	for its	completion.
  */
 
-static int sa_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *ret)
+static int sa_sync_cmd(struct aac_dev *dev, u32 command, 
+		u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6,
+		u32 *ret, u32 *r1, u32 *r2, u32 *r3, u32 *r4)
 {
 	unsigned long start;
  	int ok;
@@ -144,9 +149,10 @@ static int sa_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *ret)
 	 *	Write the parameters into Mailboxes 1 - 4
 	 */
 	sa_writel(dev, Mailbox1, p1);
-	sa_writel(dev, Mailbox2, 0);
-	sa_writel(dev, Mailbox3, 0);
-	sa_writel(dev, Mailbox4, 0);
+	sa_writel(dev, Mailbox2, p2);
+	sa_writel(dev, Mailbox3, p3);
+	sa_writel(dev, Mailbox4, p4);
+
 	/*
 	 *	Clear the synch command doorbell to start on a clean slate.
 	 */
@@ -188,6 +194,14 @@ static int sa_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *ret)
 	 */
 	if (ret)
 		*ret = sa_readl(dev, Mailbox0);
+	if (r1)
+		*r1 = sa_readl(dev, Mailbox1);
+	if (r2)
+		*r2 = sa_readl(dev, Mailbox2);
+	if (r3)
+		*r3 = sa_readl(dev, Mailbox3);
+	if (r4)
+		*r4 = sa_readl(dev, Mailbox4);
 	return 0;
 }
 
@@ -201,7 +215,8 @@ static int sa_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *ret)
 static void aac_sa_interrupt_adapter (struct aac_dev *dev)
 {
 	u32 ret;
-	sa_sync_cmd(dev, BREAKPOINT_REQUEST, 0, &ret);
+	sa_sync_cmd(dev, BREAKPOINT_REQUEST, 0, 0, 0, 0, 0, 0,
+			&ret, NULL, NULL, NULL, NULL);
 }
 
 /**
@@ -230,10 +245,12 @@ static void aac_sa_start_adapter(struct aac_dev *dev)
 	 *	First clear out all interrupts.  Then enable the one's that 
 	 *	we can handle.
 	 */
-	sa_writew(dev, SaDbCSR.PRISETIRQMASK, cpu_to_le16(0xffff));
+	sa_writew(dev, SaDbCSR.PRISETIRQMASK, 0xffff);
 	sa_writew(dev, SaDbCSR.PRICLEARIRQMASK, (PrintfReady | DOORBELL_1 | DOORBELL_2 | DOORBELL_3 | DOORBELL_4));
 	/* We can only use a 32 bit address here */
-	sa_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, (u32)(ulong)dev->init_pa, &ret);
+	sa_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, 
+			(u32)(ulong)dev->init_pa, 0, 0, 0, 0, 0,
+			&ret, NULL, NULL, NULL, NULL);
 }
 
 /**

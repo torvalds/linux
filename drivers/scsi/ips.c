@@ -133,10 +133,12 @@
 /* 6.10.00  - Remove 1G Addressing Limitations                               */
 /* 6.11.xx  - Get VersionInfo buffer off the stack !              DDTS 60401 */
 /* 6.11.xx  - Make Logical Drive Info structure safe for DMA      DDTS 60639 */
-/* 7.10.xx  - Add highmem_io flag in SCSI Templete for 2.4 kernels           */
+/* 7.10.18  - Add highmem_io flag in SCSI Templete for 2.4 kernels           */
 /*          - Fix path/name for scsi_hosts.h include for 2.6 kernels         */
 /*          - Fix sort order of 7k                                           */
 /*          - Remove 3 unused "inline" functions                             */
+/* 7.12.xx  - Use STATIC functions whereever possible                        */
+/*          - Clean up deprecated MODULE_PARM calls                          */
 /*****************************************************************************/
 
 /*
@@ -207,8 +209,8 @@ module_param(ips, charp, 0);
 /*
  * DRIVER_VER
  */
-#define IPS_VERSION_HIGH        "7.10"
-#define IPS_VERSION_LOW         ".18 "
+#define IPS_VERSION_HIGH        "7.12"
+#define IPS_VERSION_LOW         ".02 "
 
 #if !defined(__i386__) && !defined(__ia64__) && !defined(__x86_64__)
 #warning "This driver has only been tested on the x86/ia64/x86_64 platforms"
@@ -819,12 +821,15 @@ ips_eh_abort(Scsi_Cmnd * SC)
 	ips_ha_t *ha;
 	ips_copp_wait_item_t *item;
 	int ret;
+	unsigned long cpu_flags;
+	struct Scsi_Host *host;
 
 	METHOD_TRACE("ips_eh_abort", 1);
 
 	if (!SC)
 		return (FAILED);
 
+	host = SC->device->host;
 	ha = (ips_ha_t *) SC->device->host->hostdata;
 
 	if (!ha)
@@ -832,6 +837,8 @@ ips_eh_abort(Scsi_Cmnd * SC)
 
 	if (!ha->active)
 		return (FAILED);
+
+	IPS_LOCK_SAVE(host->host_lock, cpu_flags);
 
 	/* See if the command is on the copp queue */
 	item = ha->copp_waitlist.head;
@@ -851,6 +858,8 @@ ips_eh_abort(Scsi_Cmnd * SC)
 		/* command must have already been sent */
 		ret = (FAILED);
 	}
+
+	IPS_UNLOCK_RESTORE(host->host_lock, cpu_flags);
 	return ret;
 }
 
@@ -866,7 +875,7 @@ ips_eh_abort(Scsi_Cmnd * SC)
 /*                                                                          */
 /****************************************************************************/
 static int
-ips_eh_reset(Scsi_Cmnd * SC)
+__ips_eh_reset(Scsi_Cmnd * SC)
 {
 	int ret;
 	int i;
@@ -1051,6 +1060,18 @@ ips_eh_reset(Scsi_Cmnd * SC)
 	return (SUCCESS);
 #endif				/* NO_IPS_RESET */
 
+}
+
+static int
+ips_eh_reset(Scsi_Cmnd * SC)
+{
+	int rc;
+
+	spin_lock_irq(SC->device->host->host_lock);
+	rc = __ips_eh_reset(SC);
+	spin_unlock_irq(SC->device->host->host_lock);
+
+	return rc;
 }
 
 /****************************************************************************/

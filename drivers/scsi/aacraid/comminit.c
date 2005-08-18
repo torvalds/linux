@@ -39,6 +39,7 @@
 #include <linux/blkdev.h>
 #include <linux/completion.h>
 #include <linux/mm.h>
+#include <scsi/scsi_host.h>
 #include <asm/semaphore.h>
 
 #include "aacraid.h"
@@ -49,8 +50,8 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 {
 	unsigned char *base;
 	unsigned long size, align;
-	unsigned long fibsize = 4096;
-	unsigned long printfbufsiz = 256;
+	const unsigned long fibsize = 4096;
+	const unsigned long printfbufsiz = 256;
 	struct aac_init *init;
 	dma_addr_t phys;
 
@@ -74,6 +75,8 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	init = dev->init;
 
 	init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION);
+	if (dev->max_fib_size != sizeof(struct hw_fib))
+		init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4);
 	init->MiniPortRevision = cpu_to_le32(Sa_MINIPORT_REVISION);
 	init->fsrev = cpu_to_le32(dev->fsrev);
 
@@ -110,6 +113,10 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 		init->HostPhysMemPages = cpu_to_le32(AAC_MAX_HOSTPHYSMEMPAGES);
 	}
 
+	init->InitFlags = 0;
+	init->MaxIoCommands = cpu_to_le32(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB);
+	init->MaxIoSize = cpu_to_le32(dev->scsi_host_ptr->max_sectors << 9);
+	init->MaxFibSize = cpu_to_le32(dev->max_fib_size);
 
 	/*
 	 * Increment the base address by the amount already used
@@ -152,8 +159,8 @@ static void aac_queue_init(struct aac_dev * dev, struct aac_queue * q, u32 *mem,
 	init_waitqueue_head(&q->qfull);
 	spin_lock_init(&q->lockdata);
 	q->lock = &q->lockdata;
-	q->headers.producer = mem;
-	q->headers.consumer = mem+1;
+	q->headers.producer = (__le32 *)mem;
+	q->headers.consumer = (__le32 *)(mem+1);
 	*(q->headers.producer) = cpu_to_le32(qsize);
 	*(q->headers.consumer) = cpu_to_le32(qsize);
 	q->entries = qsize;
@@ -173,6 +180,8 @@ int aac_send_shutdown(struct aac_dev * dev)
 	int status;
 
 	fibctx = fib_alloc(dev);
+	if (!fibctx)
+		return -ENOMEM;
 	fib_init(fibctx);
 
 	cmd = (struct aac_close *) fib_data(fibctx);
@@ -204,7 +213,7 @@ int aac_send_shutdown(struct aac_dev * dev)
  *		0 - If there were errors initing. This is a fatal error.
  */
  
-int aac_comm_init(struct aac_dev * dev)
+static int aac_comm_init(struct aac_dev * dev)
 {
 	unsigned long hdrsize = (sizeof(u32) * NUMBER_OF_COMM_QUEUES) * 2;
 	unsigned long queuesize = sizeof(struct aac_entry) * TOTAL_QUEUE_ENTRIES;
@@ -293,6 +302,79 @@ int aac_comm_init(struct aac_dev * dev)
 
 struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 {
+	u32 status[5];
+	struct Scsi_Host * host = dev->scsi_host_ptr;
+
+	/*
+	 *	Check the preferred comm settings, defaults from template.
+	 */
+	dev->max_fib_size = sizeof(struct hw_fib);
+	dev->sg_tablesize = host->sg_tablesize = (dev->max_fib_size
+		- sizeof(struct aac_fibhdr)
+		- sizeof(struct aac_write) + sizeof(struct sgmap))
+			/ sizeof(struct sgmap);
+	if ((!aac_adapter_sync_cmd(dev, GET_COMM_PREFERRED_SETTINGS,
+	  0, 0, 0, 0, 0, 0,
+	  status+0, status+1, status+2, status+3, status+4))
+	 && (status[0] == 0x00000001)) {
+		/*
+		 *	status[1] >> 16		maximum command size in KB
+		 *	status[1] & 0xFFFF	maximum FIB size
+		 *	status[2] >> 16		maximum SG elements to driver
+		 *	status[2] & 0xFFFF	maximum SG elements from driver
+		 *	status[3] & 0xFFFF	maximum number FIBs outstanding
+		 */
+		host->max_sectors = (status[1] >> 16) << 1;
+		dev->max_fib_size = status[1] & 0xFFFF;
+		host->sg_tablesize = status[2] >> 16;
+		dev->sg_tablesize = status[2] & 0xFFFF;
+		host->can_queue = (status[3] & 0xFFFF) - AAC_NUM_MGT_FIB;
+		/*
+		 *	NOTE:
+		 *	All these overrides are based on a fixed internal
+		 *	knowledge and understanding of existing adapters,
+		 *	acbsize should be set with caution.
+		 */
+		if (acbsize == 512) {
+			host->max_sectors = AAC_MAX_32BIT_SGBCOUNT;
+			dev->max_fib_size = 512;
+			dev->sg_tablesize = host->sg_tablesize
+			  = (512 - sizeof(struct aac_fibhdr)
+			    - sizeof(struct aac_write) + sizeof(struct sgmap))
+			     / sizeof(struct sgmap);
+			host->can_queue = AAC_NUM_IO_FIB;
+		} else if (acbsize == 2048) {
+			host->max_sectors = 512;
+			dev->max_fib_size = 2048;
+			host->sg_tablesize = 65;
+			dev->sg_tablesize = 81;
+			host->can_queue = 512 - AAC_NUM_MGT_FIB;
+		} else if (acbsize == 4096) {
+			host->max_sectors = 1024;
+			dev->max_fib_size = 4096;
+			host->sg_tablesize = 129;
+			dev->sg_tablesize = 166;
+			host->can_queue = 256 - AAC_NUM_MGT_FIB;
+		} else if (acbsize == 8192) {
+			host->max_sectors = 2048;
+			dev->max_fib_size = 8192;
+			host->sg_tablesize = 257;
+			dev->sg_tablesize = 337;
+			host->can_queue = 128 - AAC_NUM_MGT_FIB;
+		} else if (acbsize > 0) {
+			printk("Illegal acbsize=%d ignored\n", acbsize);
+		}
+	}
+	{
+
+		if (numacb > 0) {
+			if (numacb < host->can_queue)
+				host->can_queue = numacb;
+			else
+				printk("numacb=%d ignored\n", numacb);
+		}
+	}
+
 	/*
 	 *	Ok now init the communication subsystem
 	 */

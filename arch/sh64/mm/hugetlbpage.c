@@ -24,7 +24,7 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 
-static pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
+pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
 	pmd_t *pmd;
@@ -39,7 +39,7 @@ static pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 	return pte;
 }
 
-static pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
 	pmd_t *pmd;
@@ -78,6 +78,20 @@ static void set_huge_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 
 		pte_val(entry) += PAGE_SIZE;
 	}
+}
+
+pte_t huge_ptep_get_and_clear(pte_t *ptep)
+{
+	pte_t entry;
+
+	entry = *ptep;
+
+	for (i = 0; i < (1 << HUGETLB_PAGE_ORDER); i++) {
+		pte_clear(pte);
+		pte++;
+	}
+
+	return entry;
 }
 
 /*

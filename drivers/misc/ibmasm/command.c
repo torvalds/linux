@@ -23,6 +23,7 @@
  */
 
 #include "ibmasm.h"
+#include "lowlevel.h"
 
 static void exec_next_command(struct service_processor *sp);
 static void free_command(struct kobject *kobj);
@@ -31,8 +32,9 @@ static struct kobj_type ibmasm_cmd_kobj_type = {
 	.release = free_command,
 };
 
+static atomic_t command_count = ATOMIC_INIT(0);
 
-struct command *ibmasm_new_command(size_t buffer_size)
+struct command *ibmasm_new_command(struct service_processor *sp, size_t buffer_size)
 {
 	struct command *cmd;
 
@@ -55,10 +57,14 @@ struct command *ibmasm_new_command(size_t buffer_size)
 
 	kobject_init(&cmd->kobj);
 	cmd->kobj.ktype = &ibmasm_cmd_kobj_type;
+	cmd->lock = &sp->lock;
 
 	cmd->status = IBMASM_CMD_PENDING;
 	init_waitqueue_head(&cmd->wait);
 	INIT_LIST_HEAD(&cmd->queue_node);
+
+	atomic_inc(&command_count);
+	dbg("command count: %d\n", atomic_read(&command_count));
 
 	return cmd;
 }
@@ -68,6 +74,8 @@ static void free_command(struct kobject *kobj)
 	struct command *cmd = to_command(kobj);
  
 	list_del(&cmd->queue_node);
+	atomic_dec(&command_count);
+	dbg("command count: %d\n", atomic_read(&command_count));
 	kfree(cmd->buffer);
 	kfree(cmd);
 }
@@ -94,8 +102,14 @@ static struct command *dequeue_command(struct service_processor *sp)
 
 static inline void do_exec_command(struct service_processor *sp)
 {
+	char tsbuf[32];
+
+	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
+
 	if (ibmasm_send_i2o_message(sp)) {
 		sp->current_command->status = IBMASM_CMD_FAILED;
+		wake_up(&sp->current_command->wait);
+		command_put(sp->current_command);
 		exec_next_command(sp);
 	}
 }
@@ -111,14 +125,16 @@ static inline void do_exec_command(struct service_processor *sp)
 void ibmasm_exec_command(struct service_processor *sp, struct command *cmd)
 {
 	unsigned long flags;
+	char tsbuf[32];
+
+	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
 
 	spin_lock_irqsave(&sp->lock, flags);
 
 	if (!sp->current_command) {
-		command_get(cmd);
 		sp->current_command = cmd;
+		command_get(sp->current_command);
 		spin_unlock_irqrestore(&sp->lock, flags);
-
 		do_exec_command(sp);
 	} else {
 		enqueue_command(sp, cmd);
@@ -129,9 +145,9 @@ void ibmasm_exec_command(struct service_processor *sp, struct command *cmd)
 static void exec_next_command(struct service_processor *sp)
 {
 	unsigned long flags;
+	char tsbuf[32];
 
-	wake_up(&sp->current_command->wait);
-	command_put(sp->current_command);
+	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
 
 	spin_lock_irqsave(&sp->lock, flags);
 	sp->current_command = dequeue_command(sp);
@@ -169,7 +185,9 @@ void ibmasm_receive_command_response(struct service_processor *sp, void *respons
 	if (!sp->current_command) 
 		return; 
 
-	memcpy(cmd->buffer, response, min(size, cmd->buffer_size));
+	memcpy_fromio(cmd->buffer, response, min(size, cmd->buffer_size));
 	cmd->status = IBMASM_CMD_COMPLETE;
+	wake_up(&sp->current_command->wait);
+	command_put(sp->current_command);
 	exec_next_command(sp);
 }

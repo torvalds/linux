@@ -315,8 +315,8 @@ err:
 static void netlink_remove(struct sock *sk)
 {
 	netlink_table_grab();
-	nl_table[sk->sk_protocol].hash.entries--;
-	sk_del_node_init(sk);
+	if (sk_del_node_init(sk))
+		nl_table[sk->sk_protocol].hash.entries--;
 	if (nlk_sk(sk)->groups)
 		__sk_del_bind_node(sk);
 	netlink_table_ungrab();
@@ -429,7 +429,12 @@ retry:
 	err = netlink_insert(sk, pid);
 	if (err == -EADDRINUSE)
 		goto retry;
-	return 0;
+
+	/* If 2 threads race to autobind, that is fine.  */
+	if (err == -EBUSY)
+		err = 0;
+
+	return err;
 }
 
 static inline int netlink_capable(struct socket *sock, unsigned int flag) 
@@ -643,7 +648,8 @@ void netlink_detachskb(struct sock *sk, struct sk_buff *skb)
 	sock_put(sk);
 }
 
-static inline struct sk_buff *netlink_trim(struct sk_buff *skb, int allocation)
+static inline struct sk_buff *netlink_trim(struct sk_buff *skb,
+					   unsigned int __nocast allocation)
 {
 	int delta;
 
@@ -712,7 +718,7 @@ struct netlink_broadcast_data {
 	int failure;
 	int congested;
 	int delivered;
-	int allocation;
+	unsigned int allocation;
 	struct sk_buff *skb, *skb2;
 };
 
@@ -853,7 +859,7 @@ static inline void netlink_rcv_wake(struct sock *sk)
 {
 	struct netlink_sock *nlk = nlk_sk(sk);
 
-	if (!skb_queue_len(&sk->sk_receive_queue))
+	if (skb_queue_empty(&sk->sk_receive_queue))
 		clear_bit(0, &nlk->state);
 	if (!test_bit(0, &nlk->state))
 		wake_up_interruptible(&nlk->wait);
@@ -1095,8 +1101,7 @@ static int netlink_dump(struct sock *sk)
 		return 0;
 	}
 
-	nlh = __nlmsg_put(skb, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq, NLMSG_DONE, sizeof(int));
-	nlh->nlmsg_flags |= NLM_F_MULTI;
+	nlh = NLMSG_NEW_ANSWER(skb, cb, NLMSG_DONE, sizeof(len), NLM_F_MULTI);
 	memcpy(NLMSG_DATA(nlh), &len, sizeof(len));
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk, skb->len);
@@ -1107,6 +1112,9 @@ static int netlink_dump(struct sock *sk)
 
 	netlink_destroy_callback(cb);
 	return 0;
+
+nlmsg_failure:
+	return -ENOBUFS;
 }
 
 int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
@@ -1178,7 +1186,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 	}
 
 	rep = __nlmsg_put(skb, NETLINK_CB(in_skb).pid, nlh->nlmsg_seq,
-			  NLMSG_ERROR, sizeof(struct nlmsgerr));
+			  NLMSG_ERROR, sizeof(struct nlmsgerr), 0);
 	errmsg = NLMSG_DATA(rep);
 	errmsg->error = err;
 	memcpy(&errmsg->msg, nlh, err ? nlh->nlmsg_len : sizeof(struct nlmsghdr));

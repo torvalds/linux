@@ -205,7 +205,7 @@ static void pnp_print_option(pnp_info_buffer_t *buffer, char *space,
 }
 
 
-static ssize_t pnp_show_options(struct device *dmdev, char *buf)
+static ssize_t pnp_show_options(struct device *dmdev, struct device_attribute *attr, char *buf)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 	struct pnp_option * independent = dev->independent;
@@ -236,7 +236,7 @@ static ssize_t pnp_show_options(struct device *dmdev, char *buf)
 static DEVICE_ATTR(options,S_IRUGO,pnp_show_options,NULL);
 
 
-static ssize_t pnp_show_current_resources(struct device *dmdev, char *buf)
+static ssize_t pnp_show_current_resources(struct device *dmdev, struct device_attribute *attr, char *buf)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 	int i, ret;
@@ -308,7 +308,7 @@ static ssize_t pnp_show_current_resources(struct device *dmdev, char *buf)
 extern struct semaphore pnp_res_mutex;
 
 static ssize_t
-pnp_set_current_resources(struct device * dmdev, const char * ubuf, size_t count)
+pnp_set_current_resources(struct device * dmdev, struct device_attribute *attr, const char * ubuf, size_t count)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 	char	*buf = (void *)ubuf;
@@ -444,7 +444,7 @@ pnp_set_current_resources(struct device * dmdev, const char * ubuf, size_t count
 static DEVICE_ATTR(resources,S_IRUGO | S_IWUSR,
 		   pnp_show_current_resources,pnp_set_current_resources);
 
-static ssize_t pnp_show_current_ids(struct device *dmdev, char *buf)
+static ssize_t pnp_show_current_ids(struct device *dmdev, struct device_attribute *attr, char *buf)
 {
 	char *str = buf;
 	struct pnp_dev *dev = to_pnp_dev(dmdev);

@@ -253,10 +253,16 @@ static struct mm_struct *oom_kill_process(struct task_struct *p)
  * OR try to be smart about which process to kill. Note that we
  * don't have to be perfect here, we just have to be good.
  */
-void out_of_memory(unsigned int __nocast gfp_mask)
+void out_of_memory(unsigned int __nocast gfp_mask, int order)
 {
 	struct mm_struct *mm = NULL;
 	task_t * p;
+
+	if (printk_ratelimit()) {
+		printk("oom-killer: gfp_mask=0x%x, order=%d\n",
+			gfp_mask, order);
+		show_mem();
+	}
 
 	read_lock(&tasklist_lock);
 retry:
@@ -268,12 +274,9 @@ retry:
 	/* Found nothing?!?! Either we hang forever, or we panic. */
 	if (!p) {
 		read_unlock(&tasklist_lock);
-		show_free_areas();
 		panic("Out of memory and no killable processes...\n");
 	}
 
-	printk("oom-killer: gfp_mask=0x%x\n", gfp_mask);
-	show_free_areas();
 	mm = oom_kill_process(p);
 	if (!mm)
 		goto retry;

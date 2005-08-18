@@ -1681,10 +1681,6 @@ static int au1000_init(struct net_device *dev)
 		control |= MAC_FULL_DUPLEX;
 	}
 
-	/* fix for startup without cable */
-	if (!link) 
-		dev->flags &= ~IFF_RUNNING;
-
 	aup->mac->control = control;
 	aup->mac->vlan1_tag = 0x8100; /* activate vlan support */
 	au_sync();
@@ -1709,16 +1705,14 @@ static void au1000_timer(unsigned long data)
 	if_port = dev->if_port;
 	if (aup->phy_ops->phy_status(dev, aup->phy_addr, &link, &speed) == 0) {
 		if (link) {
-			if (!(dev->flags & IFF_RUNNING)) {
+			if (!netif_carrier_ok(dev)) {
 				netif_carrier_on(dev);
-				dev->flags |= IFF_RUNNING;
 				printk(KERN_INFO "%s: link up\n", dev->name);
 			}
 		}
 		else {
-			if (dev->flags & IFF_RUNNING) {
+			if (netif_carrier_ok(dev)) {
 				netif_carrier_off(dev);
-				dev->flags &= ~IFF_RUNNING;
 				dev->if_port = 0;
 				printk(KERN_INFO "%s: link down\n", dev->name);
 			}

@@ -31,8 +31,8 @@
 #include <net/checksum.h>
 #include <linux/spinlock.h>
 
-#define ASSERT_READ_LOCK(x) MUST_BE_READ_LOCKED(&ip_nat_lock)
-#define ASSERT_WRITE_LOCK(x) MUST_BE_WRITE_LOCKED(&ip_nat_lock)
+#define ASSERT_READ_LOCK(x)
+#define ASSERT_WRITE_LOCK(x)
 
 #include <linux/netfilter_ipv4/ip_nat.h>
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
@@ -101,6 +101,10 @@ ip_nat_fn(unsigned int hooknum,
 		}
 		return NF_ACCEPT;
 	}
+
+	/* Don't try to NAT if this packet is not conntracked */
+	if (ct == &ip_conntrack_untracked)
+		return NF_ACCEPT;
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:
@@ -373,7 +377,6 @@ static int init_or_cleanup(int init)
  cleanup_rule_init:
 	ip_nat_rule_cleanup();
  cleanup_nothing:
-	MUST_BE_READ_WRITE_UNLOCKED(&ip_nat_lock);
 	return ret;
 }
 

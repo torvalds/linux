@@ -31,6 +31,7 @@
 #include <linux/igmp.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/module.h>
 #include <linux/mroute.h>
 #include <linux/init.h>
 #include <net/ip.h>
@@ -247,3 +248,4 @@ static void __exit drr_exit(void)
 
 module_init(drr_init);
 module_exit(drr_exit);
+MODULE_LICENSE("GPL");

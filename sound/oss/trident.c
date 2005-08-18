@@ -228,6 +228,10 @@
 
 #define DRIVER_VERSION "0.14.10j-2.6"
 
+#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#define SUPPORT_JOYSTICK 1
+#endif
+
 /* magic numbers to protect our data structures */
 #define TRIDENT_CARD_MAGIC	0x5072696E	/* "Prin" */
 #define TRIDENT_STATE_MAGIC	0x63657373	/* "cess" */
@@ -4252,24 +4256,25 @@ trident_ac97_init(struct trident_card *card)
 	return num_ac97 + 1;
 }
 
+#ifdef SUPPORT_JOYSTICK
 /* Gameport functions for the cards ADC gameport */
 
-static unsigned char
-trident_game_read(struct gameport *gameport)
+static unsigned char trident_game_read(struct gameport *gameport)
 {
 	struct trident_card *card = gameport->port_data;
+
 	return inb(TRID_REG(card, T4D_GAME_LEG));
 }
 
-static void
-trident_game_trigger(struct gameport *gameport)
+static void trident_game_trigger(struct gameport *gameport)
 {
 	struct trident_card *card = gameport->port_data;
+
 	outb(0xff, TRID_REG(card, T4D_GAME_LEG));
 }
 
-static int
-trident_game_cooked_read(struct gameport *gameport, int *axes, int *buttons)
+static int trident_game_cooked_read(struct gameport *gameport,
+				    int *axes, int *buttons)
 {
 	struct trident_card *card = gameport->port_data;
 	int i;
@@ -4285,8 +4290,7 @@ trident_game_cooked_read(struct gameport *gameport, int *axes, int *buttons)
 	return 0;
 }
 
-static int
-trident_game_open(struct gameport *gameport, int mode)
+static int trident_game_open(struct gameport *gameport, int mode)
 {
 	struct trident_card *card = gameport->port_data;
 
@@ -4305,8 +4309,7 @@ trident_game_open(struct gameport *gameport, int mode)
 	return 0;
 }
 
-static int __devinit
-trident_register_gameport(struct trident_card *card)
+static int __devinit trident_register_gameport(struct trident_card *card)
 {
 	struct gameport *gp;
 
@@ -4329,6 +4332,17 @@ trident_register_gameport(struct trident_card *card)
 
 	return 0;
 }
+
+static inline void trident_unregister_gameport(struct trident_card *card)
+{
+	if (card->gameport)
+		gameport_unregister_port(card->gameport);
+}
+
+#else
+static inline int trident_register_gameport(struct trident_card *card) { return -ENOSYS; }
+static inline void trident_unregister_gameport(struct trident_card *card) { }
+#endif /* SUPPORT_JOYSTICK */
 
 /* install the driver, we do not allocate hardware channel nor DMA buffer */ 
 /* now, they are defered until "ACCESS" time (in prog_dmabuf called by */ 
@@ -4569,8 +4583,7 @@ trident_remove(struct pci_dev *pci_dev)
 	}
 
 	/* Unregister gameport */
-	if (card->gameport)
-		gameport_unregister_port(card->gameport);
+	trident_unregister_gameport(card);
 
 	/* Kill interrupts, and SP/DIF */
 	trident_disable_loop_interrupts(card);

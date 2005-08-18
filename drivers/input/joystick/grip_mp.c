@@ -171,7 +171,7 @@ static int mp_io(struct gameport* gameport, int sendflags, int sendcode, u32 *pa
 	*packet = 0;
 	raw_data = gameport_read(gameport);
 	if (raw_data & 1)
- 		return IO_RETRY;
+		return IO_RETRY;
 
 	for (i = 0; i < 64; i++) {
 		raw_data = gameport_read(gameport);

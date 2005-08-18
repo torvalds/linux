@@ -63,8 +63,8 @@ __beginning:	mov	r4, r0				@ save the entry to the firmware
 
 		mov	pc, r2
 
-__copy_target:	.long	0x08508000
-__copy_end:	.long	0x08608000
+__copy_target:	.long	0x08507FFC
+__copy_end:	.long	0x08607FFC
 		
 		.word	_start
 		.word	__bss_start
@@ -73,9 +73,10 @@ __copy_end:	.long	0x08608000
 __temp_stack:	.space 128
 
 __mmu_off:
-		adr	r0, __ofw_data
+		adr	r0, __ofw_data			@ read the 1. entry of the memory map
 		ldr	r0, [r0, #4]
 		orr	r0, r0, #0x00600000
+		sub	r0, r0, #4
 	
 		ldr	r1, __copy_end
 		ldr	r3, __copy_target
@@ -89,20 +90,43 @@ __mmu_off:
  * from 0x08500000 to 0x08508000 if we have only 8MB
  */
 
+/* As we get more 2.6-kernels it gets more and more
+ * uncomfortable to be bound to kernel images of 1MB only.
+ * So we add a loop here, to be able to copy some more.
+ * Alexander Schulz 2005-07-17
+ */
+
+		mov	r4, #3				@ How many megabytes to copy
+
+
+__MoveCode:	sub	r4, r4, #1
 	
 __Copy:		ldr	r2, [r0], #-4
 		str	r2, [r1], #-4
 		teq	r1, r3
 		bne	__Copy
+
+		/* The firmware maps us in blocks of 1 MB, the next block is
+		   _below_ the last one. So our decrementing source pointer
+		   ist right here, but the destination pointer must be increased
+		   by 2 MB */
+		add	r1, r1, #0x00200000
+		add	r3, r3, #0x00100000
+
+		teq	r4, #0
+		bne	__MoveCode
+
+
 		/* and jump to it */
-		adr	r2, __go_on
-		adr	r0, __ofw_data
+		adr	r2, __go_on			@ where we want to jump
+		adr	r0, __ofw_data			@ read the 1. entry of the memory map
 		ldr	r0, [r0, #4]
-		sub	r2, r2, r0
-		sub	r2, r2, #0x00500000
-		ldr	r0, __copy_target
+		sub	r2, r2, r0			@ we are mapped add 0e50 now, sub that (-0e00)
+		sub	r2, r2, #0x00500000		@ -0050
+		ldr	r0, __copy_target		@ and add 0850 8000 instead
+		add	r0, r0, #4
 		add	r2, r2, r0
-		mov	pc, r2
+		mov	pc, r2				@ and jump there
 
 __go_on:
 		adr	sp, __temp_stack
