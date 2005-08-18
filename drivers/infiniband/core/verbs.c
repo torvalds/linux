@@ -154,6 +154,66 @@ int ib_destroy_ah(struct ib_ah *ah)
 }
 EXPORT_SYMBOL(ib_destroy_ah);
 
+/* Shared receive queues */
+
+struct ib_srq *ib_create_srq(struct ib_pd *pd,
+			     struct ib_srq_init_attr *srq_init_attr)
+{
+	struct ib_srq *srq;
+
+	if (!pd->device->create_srq)
+		return ERR_PTR(-ENOSYS);
+
+	srq = pd->device->create_srq(pd, srq_init_attr, NULL);
+
+	if (!IS_ERR(srq)) {
+		srq->device    	   = pd->device;
+		srq->pd        	   = pd;
+		srq->uobject       = NULL;
+		srq->event_handler = srq_init_attr->event_handler;
+		srq->srq_context   = srq_init_attr->srq_context;
+		atomic_inc(&pd->usecnt);
+		atomic_set(&srq->usecnt, 0);
+	}
+
+	return srq;
+}
+EXPORT_SYMBOL(ib_create_srq);
+
+int ib_modify_srq(struct ib_srq *srq,
+		  struct ib_srq_attr *srq_attr,
+		  enum ib_srq_attr_mask srq_attr_mask)
+{
+	return srq->device->modify_srq(srq, srq_attr, srq_attr_mask);
+}
+EXPORT_SYMBOL(ib_modify_srq);
+
+int ib_query_srq(struct ib_srq *srq,
+		 struct ib_srq_attr *srq_attr)
+{
+	return srq->device->query_srq ?
+		srq->device->query_srq(srq, srq_attr) : -ENOSYS;
+}
+EXPORT_SYMBOL(ib_query_srq);
+
+int ib_destroy_srq(struct ib_srq *srq)
+{
+	struct ib_pd *pd;
+	int ret;
+
+	if (atomic_read(&srq->usecnt))
+		return -EBUSY;
+
+	pd = srq->pd;
+
+	ret = srq->device->destroy_srq(srq);
+	if (!ret)
+		atomic_dec(&pd->usecnt);
+
+	return ret;
+}
+EXPORT_SYMBOL(ib_destroy_srq);
+
 /* Queue pairs */
 
 struct ib_qp *ib_create_qp(struct ib_pd *pd,
