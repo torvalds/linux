@@ -724,6 +724,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	struct ib_uobject              *uobj;
 	struct ib_pd                   *pd;
 	struct ib_cq                   *scq, *rcq;
+	struct ib_srq                  *srq;
 	struct ib_qp                   *qp;
 	struct ib_qp_init_attr          attr;
 	int ret;
@@ -747,10 +748,12 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	pd  = idr_find(&ib_uverbs_pd_idr, cmd.pd_handle);
 	scq = idr_find(&ib_uverbs_cq_idr, cmd.send_cq_handle);
 	rcq = idr_find(&ib_uverbs_cq_idr, cmd.recv_cq_handle);
+	srq = cmd.is_srq ? idr_find(&ib_uverbs_srq_idr, cmd.srq_handle) : NULL;
 
 	if (!pd  || pd->uobject->context  != file->ucontext ||
 	    !scq || scq->uobject->context != file->ucontext ||
-	    !rcq || rcq->uobject->context != file->ucontext) {
+	    !rcq || rcq->uobject->context != file->ucontext ||
+	    (cmd.is_srq && (!srq || srq->uobject->context != file->ucontext))) {
 		ret = -EINVAL;
 		goto err_up;
 	}
@@ -759,7 +762,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	attr.qp_context    = file;
 	attr.send_cq       = scq;
 	attr.recv_cq       = rcq;
-	attr.srq           = NULL;
+	attr.srq           = srq;
 	attr.sq_sig_type   = cmd.sq_sig_all ? IB_SIGNAL_ALL_WR : IB_SIGNAL_REQ_WR;
 	attr.qp_type       = cmd.qp_type;
 
@@ -1000,6 +1003,181 @@ ssize_t ib_uverbs_detach_mcast(struct ib_uverbs_file *file,
 	if (qp && qp->uobject->context == file->ucontext)
 		ret = ib_detach_mcast(qp, (union ib_gid *) cmd.gid, cmd.mlid);
 
+	up(&ib_uverbs_idr_mutex);
+
+	return ret ? ret : in_len;
+}
+
+ssize_t ib_uverbs_create_srq(struct ib_uverbs_file *file,
+			     const char __user *buf, int in_len,
+			     int out_len)
+{
+	struct ib_uverbs_create_srq      cmd;
+	struct ib_uverbs_create_srq_resp resp;
+	struct ib_udata                  udata;
+	struct ib_uobject               *uobj;
+	struct ib_pd                    *pd;
+	struct ib_srq                   *srq;
+	struct ib_srq_init_attr          attr;
+	int ret;
+
+	if (out_len < sizeof resp)
+		return -ENOSPC;
+
+	if (copy_from_user(&cmd, buf, sizeof cmd))
+		return -EFAULT;
+
+	INIT_UDATA(&udata, buf + sizeof cmd,
+		   (unsigned long) cmd.response + sizeof resp,
+		   in_len - sizeof cmd, out_len - sizeof resp);
+
+	uobj = kmalloc(sizeof *uobj, GFP_KERNEL);
+	if (!uobj)
+		return -ENOMEM;
+
+	down(&ib_uverbs_idr_mutex);
+
+	pd  = idr_find(&ib_uverbs_pd_idr, cmd.pd_handle);
+
+	if (!pd || pd->uobject->context != file->ucontext) {
+		ret = -EINVAL;
+		goto err_up;
+	}
+
+	attr.event_handler  = ib_uverbs_srq_event_handler;
+	attr.srq_context    = file;
+	attr.attr.max_wr    = cmd.max_wr;
+	attr.attr.max_sge   = cmd.max_sge;
+	attr.attr.srq_limit = cmd.srq_limit;
+
+	uobj->user_handle = cmd.user_handle;
+	uobj->context     = file->ucontext;
+
+	srq = pd->device->create_srq(pd, &attr, &udata);
+	if (IS_ERR(srq)) {
+		ret = PTR_ERR(srq);
+		goto err_up;
+	}
+
+	srq->device    	   = pd->device;
+	srq->pd        	   = pd;
+	srq->uobject       = uobj;
+	srq->event_handler = attr.event_handler;
+	srq->srq_context   = attr.srq_context;
+	atomic_inc(&pd->usecnt);
+	atomic_set(&srq->usecnt, 0);
+
+	memset(&resp, 0, sizeof resp);
+
+retry:
+	if (!idr_pre_get(&ib_uverbs_srq_idr, GFP_KERNEL)) {
+		ret = -ENOMEM;
+		goto err_destroy;
+	}
+
+	ret = idr_get_new(&ib_uverbs_srq_idr, srq, &uobj->id);
+
+	if (ret == -EAGAIN)
+		goto retry;
+	if (ret)
+		goto err_destroy;
+
+	resp.srq_handle = uobj->id;
+
+	spin_lock_irq(&file->ucontext->lock);
+	list_add_tail(&uobj->list, &file->ucontext->srq_list);
+	spin_unlock_irq(&file->ucontext->lock);
+
+	if (copy_to_user((void __user *) (unsigned long) cmd.response,
+			 &resp, sizeof resp)) {
+		ret = -EFAULT;
+		goto err_list;
+	}
+
+	up(&ib_uverbs_idr_mutex);
+
+	return in_len;
+
+err_list:
+	spin_lock_irq(&file->ucontext->lock);
+	list_del(&uobj->list);
+	spin_unlock_irq(&file->ucontext->lock);
+
+err_destroy:
+	ib_destroy_srq(srq);
+
+err_up:
+	up(&ib_uverbs_idr_mutex);
+
+	kfree(uobj);
+	return ret;
+}
+
+ssize_t ib_uverbs_modify_srq(struct ib_uverbs_file *file,
+			     const char __user *buf, int in_len,
+			     int out_len)
+{
+	struct ib_uverbs_modify_srq cmd;
+	struct ib_srq              *srq;
+	struct ib_srq_attr          attr;
+	int                         ret;
+
+	if (copy_from_user(&cmd, buf, sizeof cmd))
+		return -EFAULT;
+
+	down(&ib_uverbs_idr_mutex);
+
+	srq = idr_find(&ib_uverbs_srq_idr, cmd.srq_handle);
+	if (!srq || srq->uobject->context != file->ucontext) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	attr.max_wr    = cmd.max_wr;
+	attr.max_sge   = cmd.max_sge;
+	attr.srq_limit = cmd.srq_limit;
+
+	ret = ib_modify_srq(srq, &attr, cmd.attr_mask);
+
+out:
+	up(&ib_uverbs_idr_mutex);
+
+	return ret ? ret : in_len;
+}
+
+ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
+			      const char __user *buf, int in_len,
+			      int out_len)
+{
+	struct ib_uverbs_destroy_srq cmd;
+	struct ib_srq               *srq;
+	struct ib_uobject           *uobj;
+	int                          ret = -EINVAL;
+
+	if (copy_from_user(&cmd, buf, sizeof cmd))
+		return -EFAULT;
+
+	down(&ib_uverbs_idr_mutex);
+
+	srq = idr_find(&ib_uverbs_srq_idr, cmd.srq_handle);
+	if (!srq || srq->uobject->context != file->ucontext)
+		goto out;
+
+	uobj = srq->uobject;
+
+	ret = ib_destroy_srq(srq);
+	if (ret)
+		goto out;
+
+	idr_remove(&ib_uverbs_srq_idr, cmd.srq_handle);
+
+	spin_lock_irq(&file->ucontext->lock);
+	list_del(&uobj->list);
+	spin_unlock_irq(&file->ucontext->lock);
+
+	kfree(uobj);
+
+out:
 	up(&ib_uverbs_idr_mutex);
 
 	return ret ? ret : in_len;

@@ -99,10 +99,12 @@ extern struct idr ib_uverbs_mw_idr;
 extern struct idr ib_uverbs_ah_idr;
 extern struct idr ib_uverbs_cq_idr;
 extern struct idr ib_uverbs_qp_idr;
+extern struct idr ib_uverbs_srq_idr;
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context);
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr);
+void ib_uverbs_srq_event_handler(struct ib_event *event, void *context_ptr);
 
 int ib_umem_get(struct ib_device *dev, struct ib_umem *mem,
 		void *addr, size_t size, int write);
@@ -131,5 +133,8 @@ IB_UVERBS_DECLARE_CMD(modify_qp);
 IB_UVERBS_DECLARE_CMD(destroy_qp);
 IB_UVERBS_DECLARE_CMD(attach_mcast);
 IB_UVERBS_DECLARE_CMD(detach_mcast);
+IB_UVERBS_DECLARE_CMD(create_srq);
+IB_UVERBS_DECLARE_CMD(modify_srq);
+IB_UVERBS_DECLARE_CMD(destroy_srq);
 
 #endif /* UVERBS_H */
