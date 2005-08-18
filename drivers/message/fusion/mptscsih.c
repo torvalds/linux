@@ -3955,7 +3955,7 @@ mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, int portnum)
 				header1.PageLength = ioc->spi_data.sdp1length;
 				header1.PageNumber = 1;
 				header1.PageType = MPI_CONFIG_PAGETYPE_SCSI_DEVICE;
-				cfg.hdr = &header1;
+				cfg.cfghdr.hdr = &header1;
 				cfg.physAddr = cfg1_dma_addr;
 				cfg.action = MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT;
 				cfg.dir = 1;
@@ -4353,7 +4353,7 @@ mptscsih_doDv(MPT_SCSI_HOST *hd, int bus_number, int id)
 	/* Prep cfg structure
 	 */
 	cfg.pageAddr = (bus<<8) | id;
-	cfg.hdr = NULL;
+	cfg.cfghdr.hdr = NULL;
 
 	/* Prep SDP0 header
 	 */
@@ -4399,7 +4399,7 @@ mptscsih_doDv(MPT_SCSI_HOST *hd, int bus_number, int id)
 	pcfg1Data = (SCSIDevicePage1_t *) (pDvBuf + sz);
 	cfg1_dma_addr = dvbuf_dma + sz;
 
-	/* Skip this ID? Set cfg.hdr to force config page write
+	/* Skip this ID? Set cfg.cfghdr.hdr to force config page write
 	 */
 	{
 		ScsiCfgData *pspi_data = &hd->ioc->spi_data;
@@ -4417,7 +4417,7 @@ mptscsih_doDv(MPT_SCSI_HOST *hd, int bus_number, int id)
 
 				dv.cmd = MPT_SET_MAX;
 				mptscsih_dv_parms(hd, &dv, (void *)pcfg1Data);
-				cfg.hdr = &header1;
+				cfg.cfghdr.hdr = &header1;
 
 				/* Save the final negotiated settings to
 				 * SCSI device page 1.
@@ -4483,7 +4483,7 @@ mptscsih_doDv(MPT_SCSI_HOST *hd, int bus_number, int id)
 		dv.cmd = MPT_SET_MIN;
 		mptscsih_dv_parms(hd, &dv, (void *)pcfg1Data);
 
-		cfg.hdr = &header1;
+		cfg.cfghdr.hdr = &header1;
 		cfg.physAddr = cfg1_dma_addr;
 		cfg.action = MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT;
 		cfg.dir = 1;
@@ -4637,7 +4637,7 @@ mptscsih_doDv(MPT_SCSI_HOST *hd, int bus_number, int id)
 					u32 sdp0_info;
 					u32 sdp0_nego;
 
-					cfg.hdr = &header0;
+					cfg.cfghdr.hdr = &header0;
 					cfg.physAddr = cfg0_dma_addr;
 					cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 					cfg.dir = 0;
@@ -4722,7 +4722,7 @@ mptscsih_doDv(MPT_SCSI_HOST *hd, int bus_number, int id)
 	 * 4) release
 	 * 5) update nego parms to target struct
 	 */
-	cfg.hdr = &header1;
+	cfg.cfghdr.hdr = &header1;
 	cfg.physAddr = cfg1_dma_addr;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT;
 	cfg.dir = 1;
@@ -5121,7 +5121,7 @@ target_done:
 
 	/* Set if cfg1_dma_addr contents is valid
 	 */
-	if ((cfg.hdr != NULL) && (retcode == 0)){
+	if ((cfg.cfghdr.hdr != NULL) && (retcode == 0)){
 		/* If disk, not U320, disable QAS
 		 */
 		if ((inq0 == 0) && (dv.now.factor > MPT_ULTRA320)) {
@@ -5137,7 +5137,7 @@ target_done:
 		 * skip save of the final negotiated settings to
 		 * SCSI device page 1.
 		 *
-		cfg.hdr = &header1;
+		cfg.cfghdr.hdr = &header1;
 		cfg.physAddr = cfg1_dma_addr;
 		cfg.action = MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT;
 		cfg.dir = 1;

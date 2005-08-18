@@ -491,10 +491,21 @@ mpt_base_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 
 				pCfg->status = status;
 				if (status == MPI_IOCSTATUS_SUCCESS) {
-					pCfg->hdr->PageVersion = pReply->Header.PageVersion;
-					pCfg->hdr->PageLength = pReply->Header.PageLength;
-					pCfg->hdr->PageNumber = pReply->Header.PageNumber;
-					pCfg->hdr->PageType = pReply->Header.PageType;
+					if ((pReply->Header.PageType &
+					    MPI_CONFIG_PAGETYPE_MASK) ==
+					    MPI_CONFIG_PAGETYPE_EXTENDED) {
+						pCfg->cfghdr.ehdr->ExtPageLength =
+						    le16_to_cpu(pReply->ExtPageLength);
+						pCfg->cfghdr.ehdr->ExtPageType =
+						    pReply->ExtPageType;
+					}
+					pCfg->cfghdr.hdr->PageVersion = pReply->Header.PageVersion;
+
+					/* If this is a regular header, save PageLength. */
+					/* LMP Do this better so not using a reserved field! */
+					pCfg->cfghdr.hdr->PageLength = pReply->Header.PageLength;
+					pCfg->cfghdr.hdr->PageNumber = pReply->Header.PageNumber;
+					pCfg->cfghdr.hdr->PageType = pReply->Header.PageType;
 				}
 			}
 
@@ -3819,7 +3830,7 @@ GetLanConfigPages(MPT_ADAPTER *ioc)
 	hdr.PageLength = 0;
 	hdr.PageNumber = 0;
 	hdr.PageType = MPI_CONFIG_PAGETYPE_LAN;
-	cfg.hdr = &hdr;
+	cfg.cfghdr.hdr = &hdr;
 	cfg.physAddr = -1;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
 	cfg.dir = 0;
@@ -3863,7 +3874,7 @@ GetLanConfigPages(MPT_ADAPTER *ioc)
 	hdr.PageLength = 0;
 	hdr.PageNumber = 1;
 	hdr.PageType = MPI_CONFIG_PAGETYPE_LAN;
-	cfg.hdr = &hdr;
+	cfg.cfghdr.hdr = &hdr;
 	cfg.physAddr = -1;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
 	cfg.dir = 0;
@@ -3930,7 +3941,7 @@ GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 	hdr.PageLength = 0;
 	hdr.PageNumber = 0;
 	hdr.PageType = MPI_CONFIG_PAGETYPE_FC_PORT;
-	cfg.hdr = &hdr;
+	cfg.cfghdr.hdr = &hdr;
 	cfg.physAddr = -1;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
 	cfg.dir = 0;
@@ -4012,7 +4023,7 @@ GetIoUnitPage2(MPT_ADAPTER *ioc)
 	hdr.PageLength = 0;
 	hdr.PageNumber = 2;
 	hdr.PageType = MPI_CONFIG_PAGETYPE_IO_UNIT;
-	cfg.hdr = &hdr;
+	cfg.cfghdr.hdr = &hdr;
 	cfg.physAddr = -1;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
 	cfg.dir = 0;
@@ -4102,7 +4113,7 @@ mpt_GetScsiPortSettings(MPT_ADAPTER *ioc, int portnum)
 	header.PageLength = 0;
 	header.PageNumber = 0;
 	header.PageType = MPI_CONFIG_PAGETYPE_SCSI_PORT;
-	cfg.hdr = &header;
+	cfg.cfghdr.hdr = &header;
 	cfg.physAddr = -1;
 	cfg.pageAddr = portnum;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
@@ -4168,7 +4179,7 @@ mpt_GetScsiPortSettings(MPT_ADAPTER *ioc, int portnum)
 	header.PageLength = 0;
 	header.PageNumber = 2;
 	header.PageType = MPI_CONFIG_PAGETYPE_SCSI_PORT;
-	cfg.hdr = &header;
+	cfg.cfghdr.hdr = &header;
 	cfg.physAddr = -1;
 	cfg.pageAddr = portnum;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
@@ -4236,7 +4247,7 @@ mpt_readScsiDevicePageHeaders(MPT_ADAPTER *ioc, int portnum)
 	header.PageLength = 0;
 	header.PageNumber = 1;
 	header.PageType = MPI_CONFIG_PAGETYPE_SCSI_DEVICE;
-	cfg.hdr = &header;
+	cfg.cfghdr.hdr = &header;
 	cfg.physAddr = -1;
 	cfg.pageAddr = portnum;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
@@ -4245,8 +4256,8 @@ mpt_readScsiDevicePageHeaders(MPT_ADAPTER *ioc, int portnum)
 	if (mpt_config(ioc, &cfg) != 0)
 		 return -EFAULT;
 
-	ioc->spi_data.sdp1version = cfg.hdr->PageVersion;
-	ioc->spi_data.sdp1length = cfg.hdr->PageLength;
+	ioc->spi_data.sdp1version = cfg.cfghdr.hdr->PageVersion;
+	ioc->spi_data.sdp1length = cfg.cfghdr.hdr->PageLength;
 
 	header.PageVersion = 0;
 	header.PageLength = 0;
@@ -4255,8 +4266,8 @@ mpt_readScsiDevicePageHeaders(MPT_ADAPTER *ioc, int portnum)
 	if (mpt_config(ioc, &cfg) != 0)
 		 return -EFAULT;
 
-	ioc->spi_data.sdp0version = cfg.hdr->PageVersion;
-	ioc->spi_data.sdp0length = cfg.hdr->PageLength;
+	ioc->spi_data.sdp0version = cfg.cfghdr.hdr->PageVersion;
+	ioc->spi_data.sdp0length = cfg.cfghdr.hdr->PageLength;
 
 	dcprintk((MYIOC_s_INFO_FMT "Headers: 0: version %d length %d\n",
 			ioc->name, ioc->spi_data.sdp0version, ioc->spi_data.sdp0length));
@@ -4298,7 +4309,7 @@ mpt_findImVolumes(MPT_ADAPTER *ioc)
 	header.PageLength = 0;
 	header.PageNumber = 2;
 	header.PageType = MPI_CONFIG_PAGETYPE_IOC;
-	cfg.hdr = &header;
+	cfg.cfghdr.hdr = &header;
 	cfg.physAddr = -1;
 	cfg.pageAddr = 0;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
@@ -4394,7 +4405,7 @@ mpt_read_ioc_pg_3(MPT_ADAPTER *ioc)
 	header.PageLength = 0;
 	header.PageNumber = 3;
 	header.PageType = MPI_CONFIG_PAGETYPE_IOC;
-	cfg.hdr = &header;
+	cfg.cfghdr.hdr = &header;
 	cfg.physAddr = -1;
 	cfg.pageAddr = 0;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
@@ -4446,7 +4457,7 @@ mpt_read_ioc_pg_4(MPT_ADAPTER *ioc)
 	header.PageLength = 0;
 	header.PageNumber = 4;
 	header.PageType = MPI_CONFIG_PAGETYPE_IOC;
-	cfg.hdr = &header;
+	cfg.cfghdr.hdr = &header;
 	cfg.physAddr = -1;
 	cfg.pageAddr = 0;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
@@ -4498,7 +4509,7 @@ mpt_read_ioc_pg_1(MPT_ADAPTER *ioc)
 	header.PageLength = 0;
 	header.PageNumber = 1;
 	header.PageType = MPI_CONFIG_PAGETYPE_IOC;
-	cfg.hdr = &header;
+	cfg.cfghdr.hdr = &header;
 	cfg.physAddr = -1;
 	cfg.pageAddr = 0;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
@@ -4647,10 +4658,11 @@ int
 mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 {
 	Config_t	*pReq;
+	ConfigExtendedPageHeader_t  *pExtHdr = NULL;
 	MPT_FRAME_HDR	*mf;
 	unsigned long	 flags;
 	int		 ii, rc;
-	u32		 flagsLength;
+	int		 flagsLength;
 	int		 in_isr;
 
 	/*	Prevent calling wait_event() (below), if caller happens
@@ -4675,16 +4687,30 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 	pReq->Reserved = 0;
 	pReq->ChainOffset = 0;
 	pReq->Function = MPI_FUNCTION_CONFIG;
+
+	/* Assume page type is not extended and clear "reserved" fields. */
 	pReq->ExtPageLength = 0;
 	pReq->ExtPageType = 0;
 	pReq->MsgFlags = 0;
+
 	for (ii=0; ii < 8; ii++)
 		pReq->Reserved2[ii] = 0;
 
-	pReq->Header.PageVersion = pCfg->hdr->PageVersion;
-	pReq->Header.PageLength = pCfg->hdr->PageLength;
-	pReq->Header.PageNumber = pCfg->hdr->PageNumber;
-	pReq->Header.PageType = (pCfg->hdr->PageType & MPI_CONFIG_PAGETYPE_MASK);
+	pReq->Header.PageVersion = pCfg->cfghdr.hdr->PageVersion;
+	pReq->Header.PageLength = pCfg->cfghdr.hdr->PageLength;
+	pReq->Header.PageNumber = pCfg->cfghdr.hdr->PageNumber;
+	pReq->Header.PageType = (pCfg->cfghdr.hdr->PageType & MPI_CONFIG_PAGETYPE_MASK);
+
+	if ((pCfg->cfghdr.hdr->PageType & MPI_CONFIG_PAGETYPE_MASK) == MPI_CONFIG_PAGETYPE_EXTENDED) {
+		pExtHdr = (ConfigExtendedPageHeader_t *)pCfg->cfghdr.ehdr;
+		pReq->ExtPageLength = cpu_to_le16(pExtHdr->ExtPageLength);
+		pReq->ExtPageType = pExtHdr->ExtPageType;
+		pReq->Header.PageType = MPI_CONFIG_PAGETYPE_EXTENDED;
+
+		/* Page Length must be treated as a reserved field for the extended header. */
+		pReq->Header.PageLength = 0;
+	}
+
 	pReq->PageAddress = cpu_to_le32(pCfg->pageAddr);
 
 	/* Add a SGE to the config request.
@@ -4694,12 +4720,20 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 	else
 		flagsLength = MPT_SGE_FLAGS_SSIMPLE_READ;
 
-	flagsLength |= pCfg->hdr->PageLength * 4;
+	if ((pCfg->cfghdr.hdr->PageType & MPI_CONFIG_PAGETYPE_MASK) == MPI_CONFIG_PAGETYPE_EXTENDED) {
+		flagsLength |= pExtHdr->ExtPageLength * 4;
+
+		dcprintk((MYIOC_s_INFO_FMT "Sending Config request type %d, page %d and action %d\n",
+			ioc->name, pReq->ExtPageType, pReq->Header.PageNumber, pReq->Action));
+	}
+	else {
+		flagsLength |= pCfg->cfghdr.hdr->PageLength * 4;
+
+		dcprintk((MYIOC_s_INFO_FMT "Sending Config request type %d, page %d and action %d\n",
+			ioc->name, pReq->Header.PageType, pReq->Header.PageNumber, pReq->Action));
+	}
 
 	mpt_add_sge((char *)&pReq->PageBufferSGE, flagsLength, pCfg->physAddr);
-
-	dcprintk((MYIOC_s_INFO_FMT "Sending Config request type %d, page %d and action %d\n",
-		ioc->name, pReq->Header.PageType, pReq->Header.PageNumber, pReq->Action));
 
 	/* Append pCfg pointer to end of mf
 	 */
