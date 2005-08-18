@@ -739,7 +739,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 			inode->i_fop = &nfs_dir_operations;
 			if (nfs_server_capable(inode, NFS_CAP_READDIRPLUS)
 			    && fattr->size <= NFS_LIMIT_READDIRPLUS)
-				NFS_FLAGS(inode) |= NFS_INO_ADVISE_RDPLUS;
+				set_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
 		} else if (S_ISLNK(inode->i_mode))
 			inode->i_op = &nfs_symlink_inode_operations;
 		else
@@ -849,24 +849,41 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr)
 	}
 }
 
+static int nfs_wait_schedule(void *word)
+{
+	if (signal_pending(current))
+		return -ERESTARTSYS;
+	schedule();
+	return 0;
+}
+
 /*
  * Wait for the inode to get unlocked.
- * (Used for NFS_INO_LOCKED and NFS_INO_REVALIDATING).
  */
-static int
-nfs_wait_on_inode(struct inode *inode, int flag)
+static int nfs_wait_on_inode(struct inode *inode)
 {
 	struct rpc_clnt	*clnt = NFS_CLIENT(inode);
 	struct nfs_inode *nfsi = NFS_I(inode);
-
+	sigset_t oldmask;
 	int error;
-	if (!(NFS_FLAGS(inode) & flag))
-		return 0;
+
 	atomic_inc(&inode->i_count);
-	error = nfs_wait_event(clnt, nfsi->nfs_i_wait,
-				!(NFS_FLAGS(inode) & flag));
+	rpc_clnt_sigmask(clnt, &oldmask);
+	error = wait_on_bit_lock(&nfsi->flags, NFS_INO_REVALIDATING,
+					nfs_wait_schedule, TASK_INTERRUPTIBLE);
+	rpc_clnt_sigunmask(clnt, &oldmask);
 	iput(inode);
+
 	return error;
+}
+
+static void nfs_wake_up_inode(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	clear_bit(NFS_INO_REVALIDATING, &nfsi->flags);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&nfsi->flags, NFS_INO_REVALIDATING);
 }
 
 int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
@@ -1029,18 +1046,19 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	if (NFS_STALE(inode))
  		goto out_nowait;
 
-	while (NFS_REVALIDATING(inode)) {
-		status = nfs_wait_on_inode(inode, NFS_INO_REVALIDATING);
-		if (status < 0)
-			goto out_nowait;
-		if (NFS_ATTRTIMEO(inode) == 0)
-			continue;
-		if (nfsi->cache_validity & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ATIME))
-			continue;
-		status = NFS_STALE(inode) ? -ESTALE : 0;
-		goto out_nowait;
+	status = nfs_wait_on_inode(inode);
+	if (status < 0)
+		goto out;
+	if (NFS_STALE(inode)) {
+		status = -ESTALE;
+		/* Do we trust the cached ESTALE? */
+		if (NFS_ATTRTIMEO(inode) != 0) {
+			if (nfsi->cache_validity & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ATIME)) {
+				/* no */
+			} else
+				goto out;
+		}
 	}
-	NFS_FLAGS(inode) |= NFS_INO_REVALIDATING;
 
 	/* Protect against RPC races by saving the change attribute */
 	verifier = nfs_save_change_attribute(inode);
@@ -1052,7 +1070,7 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		if (status == -ESTALE) {
 			nfs_zap_caches(inode);
 			if (!S_ISDIR(inode->i_mode))
-				NFS_FLAGS(inode) |= NFS_INO_STALE;
+				set_bit(NFS_INO_STALE, &NFS_FLAGS(inode));
 		}
 		goto out;
 	}
@@ -1083,9 +1101,9 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		inode->i_sb->s_id,
 		(long long)NFS_FILEID(inode));
 
-out:
-	NFS_FLAGS(inode) &= ~NFS_INO_REVALIDATING;
-	wake_up(&nfsi->nfs_i_wait);
+ out:
+	nfs_wake_up_inode(inode);
+
  out_nowait:
 	unlock_kernel();
 	return status;
@@ -1404,7 +1422,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr, unsign
 	 */
 	nfs_invalidate_inode(inode);
  out_err:
-	NFS_FLAGS(inode) |= NFS_INO_STALE;
+	set_bit(NFS_INO_STALE, &NFS_FLAGS(inode));
 	return -ESTALE;
 }
 
@@ -1996,7 +2014,6 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 		nfsi->ndirty = 0;
 		nfsi->ncommit = 0;
 		nfsi->npages = 0;
-		init_waitqueue_head(&nfsi->nfs_i_wait);
 		nfs4_init_once(nfsi);
 	}
 }

@@ -182,7 +182,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 		/* We requested READDIRPLUS, but the server doesn't grok it */
 		if (error == -ENOTSUPP && desc->plus) {
 			NFS_SERVER(inode)->caps &= ~NFS_CAP_READDIRPLUS;
-			NFS_FLAGS(inode) &= ~NFS_INO_ADVISE_RDPLUS;
+			clear_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
 			desc->plus = 0;
 			goto again;
 		}
@@ -545,7 +545,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			break;
 		}
 		if (res == -ETOOSMALL && desc->plus) {
-			NFS_FLAGS(inode) &= ~NFS_INO_ADVISE_RDPLUS;
+			clear_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
 			nfs_zap_caches(inode);
 			desc->plus = 0;
 			desc->entry->eof = 0;
