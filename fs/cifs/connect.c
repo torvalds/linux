@@ -29,6 +29,7 @@
 #include <linux/utsname.h>
 #include <linux/mempool.h>
 #include <linux/delay.h>
+#include <linux/completion.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include "cifspdu.h"
@@ -43,6 +44,8 @@
 
 #define CIFS_PORT 445
 #define RFC1001_PORT 139
+
+static DECLARE_COMPLETION(cifsd_complete);
 
 extern void SMBencrypt(unsigned char *passwd, unsigned char *c8,
 		       unsigned char *p24);
@@ -339,6 +342,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	atomic_inc(&tcpSesAllocCount);
 	length = tcpSesAllocCount.counter;
 	write_unlock(&GlobalSMBSeslock);
+	complete(&cifsd_complete);
 	if(length  > 1) {
 		mempool_resize(cifs_req_poolp,
 			length + cifs_min_rcv,
@@ -676,7 +680,7 @@ multi_t2_fnd:
 		msleep(125);
 	}
 
-	if (list_empty(&server->pending_mid_q)) {
+	if (!list_empty(&server->pending_mid_q)) {
 		/* mpx threads have not exited yet give them 
 		at least the smb send timeout time for long ops */
 		/* due to delays on oplock break requests, we need
@@ -713,7 +717,7 @@ multi_t2_fnd:
 			GFP_KERNEL);
 	}
 	
-	msleep(250);
+	complete_and_exit(&cifsd_complete, 0);
 	return 0;
 }
 
@@ -1617,8 +1621,9 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 					kfree(volume_info.password);
 				FreeXid(xid);
 				return rc;
-			} else
-				rc = 0;
+			}
+			wait_for_completion(&cifsd_complete);
+			rc = 0;
 			memcpy(srvTcp->workstation_RFC1001_name, volume_info.source_rfc1001_name,16);
 			srvTcp->sequence_number = 0;
 		}
@@ -1759,8 +1764,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			spin_lock(&GlobalMid_Lock);
 			srvTcp->tcpStatus = CifsExiting;
 			spin_unlock(&GlobalMid_Lock);
-			if(srvTcp->tsk)
+			if(srvTcp->tsk) {
 				send_sig(SIGKILL,srvTcp->tsk,1);
+				wait_for_completion(&cifsd_complete);
+			}
 		}
 		 /* If find_unc succeeded then rc == 0 so we can not end */
 		if (tcon)  /* up accidently freeing someone elses tcon struct */
@@ -1773,8 +1780,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 					temp_rc = CIFSSMBLogoff(xid, pSesInfo);
 					/* if the socketUseCount is now zero */
 					if((temp_rc == -ESHUTDOWN) &&
-					   (pSesInfo->server->tsk))
+					   (pSesInfo->server->tsk)) {
 						send_sig(SIGKILL,pSesInfo->server->tsk,1);
+						wait_for_completion(&cifsd_complete);
+					}
 				} else
 					cFYI(1, ("No session or bad tcon"));
 				sesInfoFree(pSesInfo);
@@ -3241,8 +3250,10 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 				return 0;
 			} else if (rc == -ESHUTDOWN) {
 				cFYI(1,("Waking up socket by sending it signal"));
-				if(cifsd_task)
+				if(cifsd_task) {
 					send_sig(SIGKILL,cifsd_task,1);
+					wait_for_completion(&cifsd_complete);
+				}
 				rc = 0;
 			} /* else - we have an smb session
 				left on this socket do not kill cifsd */

@@ -834,8 +834,8 @@ static int cifs_oplock_thread(void * dummyarg)
 				spin_unlock(&GlobalMid_Lock);
 		}
 	} while(!signal_pending(current));
-	complete_and_exit (&cifs_oplock_exited, 0);
 	oplockThread = NULL;
+	complete_and_exit (&cifs_oplock_exited, 0);
 }
 
 static int __init
