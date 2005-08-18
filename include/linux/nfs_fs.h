@@ -238,8 +238,11 @@ static inline int nfs_caches_unstable(struct inode *inode)
 
 static inline void NFS_CACHEINV(struct inode *inode)
 {
-	if (!nfs_caches_unstable(inode))
+	if (!nfs_caches_unstable(inode)) {
+		spin_lock(&inode->i_lock);
 		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS;
+		spin_unlock(&inode->i_lock);
+	}
 }
 
 static inline int nfs_server_capable(struct inode *inode, int cap)

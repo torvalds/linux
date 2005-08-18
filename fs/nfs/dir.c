@@ -189,7 +189,9 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 		goto error;
 	}
 	SetPageUptodate(page);
+	spin_lock(&inode->i_lock);
 	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
+	spin_unlock(&inode->i_lock);
 	/* Ensure consistent page alignment of the data.
 	 * Note: assumes we have exclusive access to this mapping either
 	 *	 through inode->i_sem or some other mechanism.
@@ -462,7 +464,9 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 						page,
 						NFS_SERVER(inode)->dtsize,
 						desc->plus);
+	spin_lock(&inode->i_lock);
 	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
+	spin_unlock(&inode->i_lock);
 	desc->page = page;
 	desc->ptr = kmap(page);		/* matching kunmap in nfs_do_filldir */
 	if (desc->error >= 0) {
@@ -1596,7 +1600,10 @@ void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 			put_rpccred(cache->cred);
 		cache->cred = get_rpccred(set->cred);
 	}
+	/* FIXME: replace current access_cache BKL reliance with inode->i_lock */
+	spin_lock(&inode->i_lock);
 	nfsi->cache_validity &= ~NFS_INO_INVALID_ACCESS;
+	spin_unlock(&inode->i_lock);
 	cache->jiffies = set->jiffies;
 	cache->mask = set->mask;
 }
