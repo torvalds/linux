@@ -2185,7 +2185,7 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
 		facts->IOCExceptions = le16_to_cpu(facts->IOCExceptions);
 		facts->IOCStatus = le16_to_cpu(facts->IOCStatus);
 		facts->IOCLogInfo = le32_to_cpu(facts->IOCLogInfo);
-		status = facts->IOCStatus & MPI_IOCSTATUS_MASK;
+		status = le16_to_cpu(facts->IOCStatus) & MPI_IOCSTATUS_MASK;
 		/* CHECKME! IOCStatus, IOCLogInfo */
 
 		facts->ReplyQueueDepth = le16_to_cpu(facts->ReplyQueueDepth);
@@ -4823,8 +4823,8 @@ mpt_toolbox(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 	pReq->Reserved3 = 0;
 	pReq->NumAddressBytes = 0x01;
 	pReq->Reserved4 = 0;
-	pReq->DataLength = 0x04;
-	pdev = (struct pci_dev *) ioc->pcidev;
+	pReq->DataLength = cpu_to_le16(0x04);
+	pdev = ioc->pcidev;
 	if (pdev->devfn & 1)
 		pReq->DeviceAddr = 0xB2;
 	else

@@ -3447,7 +3447,7 @@ mptscsih_scandv_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 				 * some type of error occurred.
 				 */
 				MpiRaidActionReply_t	*pr = (MpiRaidActionReply_t *)mr;
-				if (pr->ActionStatus == MPI_RAID_ACTION_ASTATUS_SUCCESS)
+				if (le16_to_cpu(pr->ActionStatus) == MPI_RAID_ACTION_ASTATUS_SUCCESS)
 					completionCode = MPT_SCANDV_GOOD;
 				else
 					completionCode = MPT_SCANDV_SOME_ERROR;
@@ -3996,9 +3996,9 @@ mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, int portnum)
 			dnegoprintk(("syncronize cache: id=%d width=0 factor=MPT_ASYNC "
 				"offset=0 negoFlags=%x request=%x config=%x\n",
 				id, flags, requested, configuration));
-			pcfg1Data->RequestedParameters = le32_to_cpu(requested);
+			pcfg1Data->RequestedParameters = cpu_to_le32(requested);
 			pcfg1Data->Reserved = 0;
-			pcfg1Data->Configuration = le32_to_cpu(configuration);
+			pcfg1Data->Configuration = cpu_to_le32(configuration);
 			cfg.pageAddr = (bus<<8) | id;
 			mpt_config(hd->ioc, &cfg);
 		}
@@ -5248,7 +5248,7 @@ mptscsih_dv_parms(MPT_SCSI_HOST *hd, DVPARAMETERS *dv,void *pPage)
 		/* Update tmax values with those from Device Page 0.*/
 		pPage0 = (SCSIDevicePage0_t *) pPage;
 		if (pPage0) {
-			val = cpu_to_le32(pPage0->NegotiatedParameters);
+			val = le32_to_cpu(pPage0->NegotiatedParameters);
 			dv->max.width = val & MPI_SCSIDEVPAGE0_NP_WIDE ? 1 : 0;
 			dv->max.offset = (val&MPI_SCSIDEVPAGE0_NP_NEG_SYNC_OFFSET_MASK) >> 16;
 			dv->max.factor = (val&MPI_SCSIDEVPAGE0_NP_NEG_SYNC_PERIOD_MASK) >> 8;
@@ -5276,12 +5276,12 @@ mptscsih_dv_parms(MPT_SCSI_HOST *hd, DVPARAMETERS *dv,void *pPage)
 				dv->now.offset, &val, &configuration, dv->now.flags);
 			dnegoprintk(("Setting Max: id=%d width=%d factor=%x offset=%x negoFlags=%x request=%x config=%x\n",
 				id, dv->now.width, dv->now.factor, dv->now.offset, dv->now.flags, val, configuration));
-			pPage1->RequestedParameters = le32_to_cpu(val);
+			pPage1->RequestedParameters = cpu_to_le32(val);
 			pPage1->Reserved = 0;
-			pPage1->Configuration = le32_to_cpu(configuration);
+			pPage1->Configuration = cpu_to_le32(configuration);
 		}
 
-		ddvprintk(("id=%d width=%d factor=%x offset=%x flags=%x request=%x configuration=%x\n",
+		ddvprintk(("id=%d width=%d factor=%x offset=%x negoFlags=%x request=%x configuration=%x\n",
 				id, dv->now.width, dv->now.factor, dv->now.offset, dv->now.flags, val, configuration));
 		break;
 
@@ -5301,9 +5301,9 @@ mptscsih_dv_parms(MPT_SCSI_HOST *hd, DVPARAMETERS *dv,void *pPage)
 				offset, &val, &configuration, negoFlags);
 			dnegoprintk(("Setting Min: id=%d width=%d factor=%x offset=%x negoFlags=%x request=%x config=%x\n",
 				id, width, factor, offset, negoFlags, val, configuration));
-			pPage1->RequestedParameters = le32_to_cpu(val);
+			pPage1->RequestedParameters = cpu_to_le32(val);
 			pPage1->Reserved = 0;
-			pPage1->Configuration = le32_to_cpu(configuration);
+			pPage1->Configuration = cpu_to_le32(configuration);
 		}
 		ddvprintk(("id=%d width=%d factor=%x offset=%x request=%x config=%x negoFlags=%x\n",
 				id, width, factor, offset, val, configuration, negoFlags));
@@ -5377,12 +5377,12 @@ mptscsih_dv_parms(MPT_SCSI_HOST *hd, DVPARAMETERS *dv,void *pPage)
 		if (pPage1) {
 			mptscsih_setDevicePage1Flags (width, factor, offset, &val,
 						&configuration, dv->now.flags);
-			dnegoprintk(("Finish: id=%d width=%d offset=%d factor=%x flags=%x request=%x config=%x\n",
+			dnegoprintk(("Finish: id=%d width=%d offset=%d factor=%x negoFlags=%x request=%x config=%x\n",
 			     id, width, offset, factor, dv->now.flags, val, configuration));
 
-			pPage1->RequestedParameters = le32_to_cpu(val);
+			pPage1->RequestedParameters = cpu_to_le32(val);
 			pPage1->Reserved = 0;
-			pPage1->Configuration = le32_to_cpu(configuration);
+			pPage1->Configuration = cpu_to_le32(configuration);
 		}
 
 		ddvprintk(("Finish: id=%d offset=%d factor=%x width=%d request=%x config=%x\n",

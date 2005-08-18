@@ -242,7 +242,7 @@ mptctl_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 		/* Set the command status to GOOD if IOC Status is GOOD
 		 * OR if SCSI I/O cmd and data underrun or recovered error.
 		 */
-		iocStatus = reply->u.reply.IOCStatus & MPI_IOCSTATUS_MASK;
+		iocStatus = le16_to_cpu(reply->u.reply.IOCStatus) & MPI_IOCSTATUS_MASK;
 		if (iocStatus  == MPI_IOCSTATUS_SUCCESS)
 			ioc->ioctl->status |= MPT_IOCTL_STATUS_COMMAND_GOOD;
 
