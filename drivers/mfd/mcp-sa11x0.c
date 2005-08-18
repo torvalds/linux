@@ -24,6 +24,7 @@
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/system.h>
+#include <asm/arch/mcp.h>
 
 #include <asm/arch/assabet.h>
 
@@ -140,16 +141,11 @@ static struct mcp_ops mcp_sa11x0 = {
 static int mcp_sa11x0_probe(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct mcp_plat_data *data = pdev->dev.platform_data;
 	struct mcp *mcp;
 	int ret;
 
-	if (!machine_is_adsbitsy()       && !machine_is_assabet()        &&
-	    !machine_is_cerf()           && !machine_is_flexanet()       &&
-	    !machine_is_freebird()       && !machine_is_graphicsclient() &&
-	    !machine_is_graphicsmaster() && !machine_is_lart()           &&
-	    !machine_is_omnimeter()      && !machine_is_pfs168()         &&
-	    !machine_is_shannon()        && !machine_is_simpad()         &&
-	    !machine_is_yopy())
+	if (!data)
 		return -ENODEV;
 
 	if (!request_mem_region(0x80060000, 0x60, "sa11x0-mcp"))
@@ -163,7 +159,7 @@ static int mcp_sa11x0_probe(struct device *dev)
 
 	mcp->owner		= THIS_MODULE;
 	mcp->ops		= &mcp_sa11x0;
-	mcp->sclk_rate		= 11981000,
+	mcp->sclk_rate		= data->sclk_rate;
 	mcp->dma_audio_rd	= DMA_Ser4MCP0Rd;
 	mcp->dma_audio_wr	= DMA_Ser4MCP0Wr;
 	mcp->dma_telco_rd	= DMA_Ser4MCP1Rd;
@@ -184,9 +180,13 @@ static int mcp_sa11x0_probe(struct device *dev)
 	PSDR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
 	PPSR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
 
+	/*
+	 * Initialise device.  Note that we initially
+	 * set the sampling rate to minimum.
+	 */
 	Ser4MCSR = -1;
-	Ser4MCCR1 = 0;
-	Ser4MCCR0 = 0x00007f7f | MCCR0_ADM;
+	Ser4MCCR1 = data->mccr1;
+	Ser4MCCR0 = data->mccr0 | 0x7f7f;
 
 	/*
 	 * Calculate the read/write timeout (us) from the bit clock
