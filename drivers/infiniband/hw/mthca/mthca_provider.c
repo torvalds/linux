@@ -120,6 +120,8 @@ static int mthca_query_port(struct ib_device *ibdev,
 	if (!in_mad || !out_mad)
 		goto out;
 
+	memset(props, 0, sizeof *props);
+
 	memset(in_mad, 0, sizeof *in_mad);
 	in_mad->base_version       = 1;
 	in_mad->mgmt_class     	   = IB_MGMT_CLASS_SUBN_LID_ROUTED;
@@ -146,6 +148,7 @@ static int mthca_query_port(struct ib_device *ibdev,
 	props->phys_state        = out_mad->data[33] >> 4;
 	props->port_cap_flags    = be32_to_cpup((__be32 *) (out_mad->data + 20));
 	props->gid_tbl_len       = to_mdev(ibdev)->limits.gid_table_len;
+	props->max_msg_sz        = 0x80000000;
 	props->pkey_tbl_len      = to_mdev(ibdev)->limits.pkey_table_len;
 	props->qkey_viol_cntr    = be16_to_cpup((__be16 *) (out_mad->data + 48));
 	props->active_width      = out_mad->data[31] & 0xf;
