@@ -752,6 +752,8 @@ source "drivers/hwmon/Kconfig"
 
 source "drivers/misc/Kconfig"
 
+source "drivers/mfd/Kconfig"
+
 source "drivers/media/Kconfig"
 
 source "drivers/video/Kconfig"

@@ -1,0 +1,10 @@
+#
+# Multifunction miscellaneous devices
+#
+
+menu "Multimedia Capabilities Port drivers"
+
+config MCP
+	tristate
+
+endmenu
