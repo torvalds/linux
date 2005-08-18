@@ -33,7 +33,7 @@
 /* hardware definition */
 static snd_pcm_hardware_t snd_vortex_playback_hw_adb = {
 	.info =
-	    (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_RESUME |
+	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
 	     SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =
@@ -58,7 +58,7 @@ static snd_pcm_hardware_t snd_vortex_playback_hw_adb = {
 #ifndef CHIP_AU8820
 static snd_pcm_hardware_t snd_vortex_playback_hw_a3d = {
 	.info =
-	    (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_RESUME |
+	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
 	     SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =
@@ -78,7 +78,7 @@ static snd_pcm_hardware_t snd_vortex_playback_hw_a3d = {
 #endif
 static snd_pcm_hardware_t snd_vortex_playback_hw_spdif = {
 	.info =
-	    (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_RESUME |
+	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
 	     SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =
