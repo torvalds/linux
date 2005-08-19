@@ -18,7 +18,7 @@
 #include <linux/namei.h>
 #include "nodelist.h"
 
-static int jffs2_follow_link(struct dentry *dentry, struct nameidata *nd);
+static void *jffs2_follow_link(struct dentry *dentry, struct nameidata *nd);
 
 struct inode_operations jffs2_symlink_inode_operations =
 {	
@@ -27,7 +27,7 @@ struct inode_operations jffs2_symlink_inode_operations =
 	.setattr =	jffs2_setattr
 };
 
-static int jffs2_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *jffs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(dentry->d_inode);
 	char *p = (char *)f->dents;
@@ -60,6 +60,6 @@ static int jffs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 	 * since the only way that may cause f->dents to be changed is iput() operation.
 	 * But VFS will not use f->dents after iput() has been called.
 	 */
-	return 0;
+	return NULL;
 }
 

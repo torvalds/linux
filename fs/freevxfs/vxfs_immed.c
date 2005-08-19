@@ -38,7 +38,7 @@
 #include "vxfs_inode.h"
 
 
-static int	vxfs_immed_follow_link(struct dentry *, struct nameidata *);
+static void *	vxfs_immed_follow_link(struct dentry *, struct nameidata *);
 
 static int	vxfs_immed_readpage(struct file *, struct page *);
 
@@ -77,7 +77,7 @@ vxfs_immed_follow_link(struct dentry *dp, struct nameidata *np)
 {
 	struct vxfs_inode_info		*vip = VXFS_INO(dp->d_inode);
 	nd_set_link(np, vip->vii_immed.vi_immed);
-	return 0;
+	return NULL;
 }
 
 /**
