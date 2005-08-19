@@ -28,9 +28,12 @@
 #define STE_VSID_SHIFT	12
 
 /* Location of cpu0's segment table */
-#define STAB0_PAGE	0x9
+#define STAB0_PAGE	0x6
 #define STAB0_PHYS_ADDR	(STAB0_PAGE<<PAGE_SHIFT)
-#define STAB0_VIRT_ADDR	(KERNELBASE+STAB0_PHYS_ADDR)
+
+#ifndef __ASSEMBLY__
+extern char initial_stab[];
+#endif /* ! __ASSEMBLY */
 
 /*
  * SLB

@@ -52,9 +52,10 @@
  * We layout physical memory as follows:
  * 0x0000 - 0x00ff : Secondary processor spin code
  * 0x0100 - 0x2fff : pSeries Interrupt prologs
- * 0x3000 - 0x6fff : interrupt support, iSeries and common interrupt prologs
+ * 0x3000 - 0x5fff : interrupt support, iSeries and common interrupt prologs
+ * 0x6000 - 0x6fff : Initial (CPU0) segment table
  * 0x7000 - 0x7fff : FWNMI data area
- * 0x9000 - 0x9fff : Initial segment table
+ * 0x8000 -        : Early init and support code
  */
 
 /*
@@ -1257,6 +1258,20 @@ unrecov_slb:
 	b	1b
 
 /*
+ * Space for CPU0's segment table.
+ *
+ * On iSeries, the hypervisor must fill in at least one entry before
+ * we get control (with relocate on).  The address is give to the hv
+ * as a page number (see xLparMap in LparData.c), so this must be at a
+ * fixed address (the linker can't compute (u64)&initial_stab >>
+ * PAGE_SHIFT).
+ */
+	. = STAB0_PHYS_ADDR	/* 0x6000 */
+	.globl initial_stab
+initial_stab:
+	.space	4096
+
+/*
  * Data area reserved for FWNMI option.
  * This address (0x7000) is fixed by the RPA.
  */
@@ -1264,19 +1279,6 @@ unrecov_slb:
 	.globl fwnmi_data_area
 fwnmi_data_area:
 	.space	PAGE_SIZE
-
-	/*
-	 * Space for the initial segment table
-	 * For LPAR, the hypervisor must fill in at least one entry
-	 * before we get control (with relocate on)
-	 */
-	. = STAB0_PHYS_ADDR
-	.globl __start_stab
-__start_stab:
-
-	. = (STAB0_PHYS_ADDR + PAGE_SIZE)
-	.globl __end_stab
-__end_stab:
 
 /*
  * On pSeries, secondary processors spin in the following code.
