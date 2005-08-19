@@ -1925,7 +1925,8 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 			goto exit;
 		}
 		spin_unlock_irqrestore(&priv->lock, flags);
-	}
+	} else
+		rc = 0;
 
 	if (priv->status & STATUS_RF_KILL_HW) {
 		IPW_ERROR("Failed to send %s: Aborted due to RF kill switch.\n",
@@ -7011,9 +7012,9 @@ u8 ipw_qos_current_mode(struct ipw_priv * priv)
 /*
 * Handle management frame beacon and probe response
 */
-static int ipw_qos_handle_probe_reponse(struct ipw_priv *priv,
-					int active_network,
-					struct ieee80211_network *network)
+static int ipw_qos_handle_probe_response(struct ipw_priv *priv,
+					 int active_network,
+					 struct ieee80211_network *network)
 {
 	u32 size = sizeof(struct ieee80211_qos_parameters);
 
@@ -7407,32 +7408,38 @@ static void ipw_bg_qos_activate(void *data)
 	up(&priv->sem);
 }
 
-/*
-* Handler for probe responce and beacon frame
-*/
-static int ipw_handle_management(struct net_device *dev,
-				 struct ieee80211_network *network, u16 type)
+static int ipw_handle_probe_response(struct net_device *dev,
+				     struct ieee80211_probe_response *resp,
+				     struct ieee80211_network *network)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
-	int active_network;
+	int active_network = ((priv->status & STATUS_ASSOCIATED) &&
+			      (network == priv->assoc_network));
 
-	if (priv->status & STATUS_ASSOCIATED && network == priv->assoc_network)
-		active_network = 1;
-	else
-		active_network = 0;
+	ipw_qos_handle_probe_response(priv, active_network, network);
 
-	switch (type) {
-	case IEEE80211_STYPE_PROBE_RESP:
-	case IEEE80211_STYPE_BEACON:
-		ipw_qos_handle_probe_reponse(priv, active_network, network);
-		break;
-	case IEEE80211_STYPE_ASSOC_RESP:
-		ipw_qos_association_resp(priv, network);
-		break;
-	default:
-		break;
-	}
+	return 0;
+}
 
+static int ipw_handle_beacon(struct net_device *dev,
+			     struct ieee80211_beacon *resp,
+			     struct ieee80211_network *network)
+{
+	struct ipw_priv *priv = ieee80211_priv(dev);
+	int active_network = ((priv->status & STATUS_ASSOCIATED) &&
+			      (network == priv->assoc_network));
+
+	ipw_qos_handle_probe_response(priv, active_network, network);
+
+	return 0;
+}
+
+static int ipw_handle_assoc_response(struct net_device *dev,
+				     struct ieee80211_assoc_response *resp,
+				     struct ieee80211_network *network)
+{
+	struct ipw_priv *priv = ieee80211_priv(dev);
+	ipw_qos_association_resp(priv, network);
 	return 0;
 }
 
@@ -11260,7 +11267,9 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->ieee->is_queue_full = ipw_net_is_queue_full;
 
 #ifdef CONFIG_IPW_QOS
-	priv->ieee->handle_management = ipw_handle_management;
+	priv->ieee->handle_probe_response = ipw_handle_beacon;
+	priv->ieee->handle_beacon = ipw_handle_probe_response;
+	priv->ieee->handle_assoc_response = ipw_handle_assoc_response;
 #endif				/* CONFIG_IPW_QOS */
 
 	priv->ieee->perfect_rssi = -20;
