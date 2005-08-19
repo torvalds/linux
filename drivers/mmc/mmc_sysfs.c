@@ -263,10 +263,9 @@ int mmc_add_host_sysfs(struct mmc_host *host)
 {
 	static unsigned int host_num;
 
-	snprintf(host->host_name, sizeof(host->host_name),
+	snprintf(host->class_dev.class_id, BUS_ID_SIZE,
 		 "mmc%d", host_num++);
 
-	strlcpy(host->class_dev.class_id, host->host_name, BUS_ID_SIZE);
 	return class_device_add(&host->class_dev);
 }
 
