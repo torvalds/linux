@@ -367,6 +367,13 @@ static int handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
 		break;
 	}
 
+	/*
+	 * Mem-free HCAs always generate one CQE per WQE, even in the
+	 * error case, so we don't have to check the doorbell count, etc.
+	 */
+	if (mthca_is_memfree(dev))
+		return 0;
+
 	err = mthca_free_err_wqe(dev, qp, is_send, wqe_index, &dbd, &new_wqe);
 	if (err)
 		return err;
@@ -375,12 +382,8 @@ static int handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
 	 * If we're at the end of the WQE chain, or we've used up our
 	 * doorbell count, free the CQE.  Otherwise just update it for
 	 * the next poll operation.
-	 *
-	 * This does not apply to mem-free HCAs: they don't use the
-	 * doorbell count field, and so we should always free the CQE.
 	 */
-	if (mthca_is_memfree(dev) ||
-	    !(new_wqe & cpu_to_be32(0x3f)) || (!cqe->db_cnt && dbd))
+	if (!(new_wqe & cpu_to_be32(0x3f)) || (!cqe->db_cnt && dbd))
 		return 0;
 
 	cqe->db_cnt   = cpu_to_be16(be16_to_cpu(cqe->db_cnt) - dbd);

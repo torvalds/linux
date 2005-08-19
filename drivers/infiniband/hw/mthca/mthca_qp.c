@@ -2086,10 +2086,7 @@ int mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
 	else
 		next = get_recv_wqe(qp, index);
 
-	if (mthca_is_memfree(dev))
-		*dbd = 1;
-	else
-		*dbd = !!(next->ee_nds & cpu_to_be32(MTHCA_NEXT_DBD));
+	*dbd = !!(next->ee_nds & cpu_to_be32(MTHCA_NEXT_DBD));
 	if (next->ee_nds & cpu_to_be32(0x3f))
 		*new_wqe = (next->nda_op & cpu_to_be32(~0x3f)) |
 			(next->ee_nds & cpu_to_be32(0x3f));
