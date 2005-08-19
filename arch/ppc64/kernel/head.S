@@ -23,8 +23,6 @@
  *  2 of the License, or (at your option) any later version.
  */
 
-#define SECONDARY_PROCESSORS
-
 #include <linux/config.h>
 #include <linux/threads.h>
 #include <asm/processor.h>
@@ -42,11 +40,6 @@
 #ifdef CONFIG_PPC_ISERIES
 #define DO_SOFT_DISABLE
 #endif
-
-/*
- * hcall interface to pSeries LPAR
- */
-#define H_SET_ASR	0x30
 
 /*
  * We layout physical memory as follows:
@@ -629,9 +622,7 @@ system_reset_iSeries:
 
 	cmpwi	0,r23,0
 	beq	iSeries_secondary_smp_loop	/* Loop until told to go */
-#ifdef SECONDARY_PROCESSORS
 	bne	.__secondary_start		/* Loop until told to go */
-#endif
 iSeries_secondary_smp_loop:
 	/* Let the Hypervisor know we are alive */
 	/* 8002 is a call to HvCallCfg::getLps, a harmless Hypervisor function */
@@ -1325,9 +1316,7 @@ _GLOBAL(pSeries_secondary_smp_init)
 
 	cmpwi	0,r23,0
 #ifdef CONFIG_SMP
-#ifdef SECONDARY_PROCESSORS
 	bne	.__secondary_start
-#endif
 #endif
 	b 	3b			/* Loop until told to go	 */
 
