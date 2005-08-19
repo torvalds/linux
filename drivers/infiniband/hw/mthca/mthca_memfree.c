@@ -286,6 +286,7 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 {
 	struct mthca_icm_table *table;
 	int num_icm;
+	unsigned chunk_size;
 	int i;
 	u8 status;
 
@@ -306,7 +307,11 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 		table->icm[i] = NULL;
 
 	for (i = 0; i * MTHCA_TABLE_CHUNK_SIZE < reserved * obj_size; ++i) {
-		table->icm[i] = mthca_alloc_icm(dev, MTHCA_TABLE_CHUNK_SIZE >> PAGE_SHIFT,
+		chunk_size = MTHCA_TABLE_CHUNK_SIZE;
+		if ((i + 1) * MTHCA_TABLE_CHUNK_SIZE > nobj * obj_size)
+			chunk_size = nobj * obj_size - i * MTHCA_TABLE_CHUNK_SIZE;
+
+		table->icm[i] = mthca_alloc_icm(dev, chunk_size >> PAGE_SHIFT,
 						(use_lowmem ? GFP_KERNEL : GFP_HIGHUSER) |
 						__GFP_NOWARN);
 		if (!table->icm[i])
