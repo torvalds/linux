@@ -224,6 +224,16 @@ config IB700_WDT
 
 	  Most people will say N.
 
+config IBMASR
+        tristate "IBM Automatic Server Restart"
+        depends on WATCHDOG && X86
+        help
+	  This is the driver for the IBM Automatic Server Restart watchdog
+	  timer builtin into some eServer xSeries machines.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ibmasr.
+
 config WAFER_WDT
 	tristate "ICP Wafer 5823 Single Board Computer Watchdog"
 	depends on WATCHDOG && X86
