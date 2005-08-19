@@ -30,6 +30,7 @@ struct inode_operations jffs2_symlink_inode_operations =
 static int jffs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(dentry->d_inode);
+	char *p = (char *)f->dents;
 	
 	/*
 	 * We don't acquire the f->sem mutex here since the only data we
@@ -45,13 +46,14 @@ static int jffs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 	 * nd_set_link() call.
 	 */
 	
-	if (!f->dents) {
+	if (!p) {
 		printk(KERN_ERR "jffs2_follow_link(): can't find symlink taerget\n");
-		return -EIO;
+		p = ERR_PTR(-EIO);
+	} else {
+		D1(printk(KERN_DEBUG "jffs2_follow_link(): target path is '%s'\n", (char *) f->dents));
 	}
-	D1(printk(KERN_DEBUG "jffs2_follow_link(): target path is '%s'\n", (char *) f->dents));
 
-	nd_set_link(nd, (char *)f->dents);
+	nd_set_link(nd, p);
 	
 	/*
 	 * We unlock the f->sem mutex but VFS will use the f->dents string. This is safe
