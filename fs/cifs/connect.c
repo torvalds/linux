@@ -79,6 +79,8 @@ struct smb_vol {
 	unsigned remap:1;   /* set to remap seven reserved chars in filenames */
 	unsigned posix_paths:1;   /* unset to not ask for posix pathnames. */
 	unsigned sfu_emul:1;
+	unsigned nocase;     /* request case insensitive filenames */
+	unsigned nobrl;      /* disable sending byte range locks to srv */
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int sockopt;
@@ -1040,6 +1042,12 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			vol->posix_paths = 1;
 		} else if (strnicmp(data, "noposixpaths", 12) == 0) {
 			vol->posix_paths = 0;
+                } else if (strnicmp(data, "nocase", 6) == 0) {
+                        vol->nocase = 1;
+		} else if (strnicmp(data, "brl", 3) == 0) {
+			vol->nobrl =  0;
+		} else if (strnicmp(data, "nobrl", 5) == 0) {
+			vol->nobrl =  1;
 		} else if (strnicmp(data, "setuids", 7) == 0) {
 			vol->setuids = 1;
 		} else if (strnicmp(data, "nosetuids", 9) == 0) {
@@ -1699,9 +1707,13 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_XATTR;
 		if(volume_info.sfu_emul)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
+		if(volume_info.nocase)
+			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CASE_INSENS;
+		if(volume_info.nobrl)
+			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
 
 		if(volume_info.direct_io) {
-			cERROR(1,("mounting share using direct i/o"));
+			cFYI(1,("mounting share using direct i/o"));
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
 		}
 

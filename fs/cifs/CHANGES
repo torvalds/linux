@@ -1,3 +1,11 @@
+Version 1.36
+------------
+Add mount option for disabling the default behavior of sending byte range lock
+requests to the server (necessary for certain applications which break with
+mandatory lock behavior such as Evolution), and also mount option for
+requesting case insensitive matching for path based requests (requesting
+case sensitive is the default).
+
 Version 1.35
 ------------
 Add writepage performance improvements.  Fix path name conversions

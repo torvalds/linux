@@ -194,6 +194,8 @@ static void fill_in_inode(struct inode *tmp_inode,
 			tmp_inode->i_fop = &cifs_file_direct_ops;
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			tmp_inode->i_fop->lock = NULL;
 		tmp_inode->i_data.a_ops = &cifs_addr_ops;
 
 		if(isNewInode)
@@ -298,6 +300,8 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 			tmp_inode->i_fop = &cifs_file_direct_ops;
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			tmp_inode->i_fop->lock = NULL;
 		tmp_inode->i_data.a_ops = &cifs_addr_ops;
 
 		if(isNewInode)
@@ -557,7 +561,6 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		char * end_of_smb = cifsFile->srch_inf.ntwrk_buf_start + 
 			smbCalcSize((struct smb_hdr *)
 				cifsFile->srch_inf.ntwrk_buf_start);
-/*	dump_cifs_file_struct(file,"found entry in fce "); */
 		first_entry_in_buffer = cifsFile->srch_inf.index_of_last_entry
 					- cifsFile->srch_inf.entries_in_buffer;
 		pos_in_buf = index_to_find - first_entry_in_buffer;
@@ -595,7 +598,6 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		*num_to_ret = 0;
 	} else
 		*num_to_ret = cifsFile->srch_inf.entries_in_buffer - pos_in_buf;
-/*	dump_cifs_file_struct(file, "end fce ");*/
 
 	return rc;
 }
@@ -815,14 +817,12 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		FreeXid(xid);
 		return -EIO;
 	}
-/*	dump_cifs_file_struct(file, "Begin rdir "); */
 
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 	if(pTcon == NULL)
 		return -EINVAL;
 
-/*	cFYI(1,("readdir2 pos: %lld",file->f_pos)); */
 
 	switch ((int) file->f_pos) {
 	case 0:
@@ -876,7 +876,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		cifsFile->search_resume_name = NULL; */
 
 		/* BB account for . and .. in f_pos as special case */
-		/* dump_cifs_file_struct(file, "rdir after default ");*/
 
 		rc = find_cifs_entry(xid,pTcon, file,
 				&current_entry,&num_to_fill);
@@ -924,7 +923,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	} /* end switch */
 
 rddir2_exit:
-	/* dump_cifs_file_struct(file, "end rdir ");  */
 	FreeXid(xid);
 	return rc;
 }

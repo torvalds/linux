@@ -407,6 +407,13 @@ A partial list of the supported mount options follows:
 		This has no effect if the server does not support
 		Unicode on the wire.
  nomapchars     Do not translate any of these seven characters (default).
+ nocase         Request case insensitive path name matching (case
+		sensitive is the default if the server suports it).
+ nobrl          Do not send byte range lock requests to the server.
+		This is necessary for certain applications that break
+		with cifs style mandatory byte range locks (and most
+		cifs servers do not yet support requesting advisory
+		byte range locks).
  remount        remount the share (often used to change from ro to rw mounts
 	        or vice versa)
 		

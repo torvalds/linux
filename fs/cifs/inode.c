@@ -166,6 +166,8 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 				inode->i_fop = &cifs_file_direct_ops;
 			else
 				inode->i_fop = &cifs_file_ops;
+			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+				inode->i_fop->lock = NULL;
 			inode->i_data.a_ops = &cifs_addr_ops;
 		} else if (S_ISDIR(inode->i_mode)) {
 			cFYI(1, (" Directory inode"));
@@ -369,6 +371,8 @@ int cifs_get_inode_info(struct inode **pinode,
 				inode->i_fop = &cifs_file_direct_ops;
 			else
 				inode->i_fop = &cifs_file_ops;
+			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+				inode->i_fop->lock = NULL;
 			inode->i_data.a_ops = &cifs_addr_ops;
 		} else if (S_ISDIR(inode->i_mode)) {
 			cFYI(1, (" Directory inode "));

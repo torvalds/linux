@@ -26,6 +26,8 @@
 #define CIFS_MOUNT_MAP_SPECIAL_CHR 0x20 /* remap illegal chars in filenames */
 #define CIFS_MOUNT_POSIX_PATHS 0x40 /* Negotiate posix pathnames if possible. */
 #define CIFS_MOUNT_UNX_EMUL    0x80 /* Network compat with SFUnix emulation */
+#define CIFS_MOUNT_CASE_INSENS  0x100 /* Request case insenstive searches */
+#define CIFS_MOUNT_NO_BRL	0x200 /* No sending byte range locks to srv */
 
 struct cifs_sb_info {
 	struct cifsTconInfo *tcon;	/* primary mount */
