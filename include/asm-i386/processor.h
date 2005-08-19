@@ -29,7 +29,7 @@ struct desc_struct {
 };
 
 #define desc_empty(desc) \
-		(!((desc)->a + (desc)->b))
+		(!((desc)->a | (desc)->b))
 
 #define desc_equal(desc1, desc2) \
 		(((desc1)->a == (desc2)->a) && ((desc1)->b == (desc2)->b))

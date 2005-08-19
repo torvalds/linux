@@ -1825,6 +1825,12 @@ P:	Greg Kroah-Hartman
 M:	greg@kroah.com
 S:	Maintained
 
+PCIE HOTPLUG DRIVER
+P:	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
+L:	pcihpd-discuss@lists.sourceforge.net
+S:	Maintained
+
 PCMCIA SUBSYSTEM
 P:	Linux PCMCIA Team
 L:	http://lists.infradead.org/mailman/listinfo/linux-pcmcia
@@ -2199,6 +2205,12 @@ P:	Marc Singer
 M:	elf@buici.com
 W:	http://projects.buici.com/arm
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+S:	Maintained
+
+SHPC HOTPLUG DRIVER
+P:	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
+L:	pcihpd-discuss@lists.sourceforge.net
 S:	Maintained
 
 SPARC (sparc32):
