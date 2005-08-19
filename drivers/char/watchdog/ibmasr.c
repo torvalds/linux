@@ -246,7 +246,7 @@ static int asr_ioctl(struct inode *inode, struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
 	static const struct watchdog_info ident = {
-		.options =	WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
+		.options =	WDIOF_KEEPALIVEPING | 
 				WDIOF_MAGICCLOSE,
 		.identity =	"IBM ASR"
 	};
@@ -268,14 +268,9 @@ static int asr_ioctl(struct inode *inode, struct file *file,
 			return 0;
 
 		/*
-		 * The hardware has a fixed timeout value, so WDIOC_SETTIMEOUT
-		 * is a noop and WDIOC_GETTIMEOUT always returns 256.
+		 * The hardware has a fixed timeout value, so no WDIOC_SETTIMEOUT
+		 * and WDIOC_GETTIMEOUT always returns 256.
 		 */
-		case WDIOC_SETTIMEOUT:
-			if (get_user(heartbeat, p))
-				return -EFAULT;
-			/* Fall */
-
 		case WDIOC_GETTIMEOUT:
 			heartbeat = 256;
 			return put_user(heartbeat, p);
