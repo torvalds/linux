@@ -140,7 +140,9 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 		if (rdata->res.eof != 0 || result == 0)
 			break;
 	} while (count);
-	NFS_FLAGS(inode) |= NFS_INO_INVALID_ATIME;
+	spin_lock(&inode->i_lock);
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
+	spin_unlock(&inode->i_lock);
 
 	if (count)
 		memclear_highpage_flush(page, rdata->args.pgbase, count);
@@ -473,7 +475,9 @@ void nfs_readpage_result(struct rpc_task *task)
 		}
 		task->tk_status = -EIO;
 	}
-	NFS_FLAGS(data->inode) |= NFS_INO_INVALID_ATIME;
+	spin_lock(&data->inode->i_lock);
+	NFS_I(data->inode)->cache_validity |= NFS_INO_INVALID_ATIME;
+	spin_unlock(&data->inode->i_lock);
 	data->complete(data, status);
 }
 

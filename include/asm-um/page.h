@@ -104,8 +104,8 @@ extern void *to_virt(unsigned long phys);
  * casting is the right thing, but 32-bit UML can't have 64-bit virtual
  * addresses
  */
-#define __pa(virt) to_phys((void *) (unsigned long) virt)
-#define __va(phys) to_virt((unsigned long) phys)
+#define __pa(virt) to_phys((void *) (unsigned long) (virt))
+#define __va(phys) to_virt((unsigned long) (phys))
 
 #define page_to_pfn(page) ((page) - mem_map)
 #define pfn_to_page(pfn) (mem_map + (pfn))

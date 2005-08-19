@@ -1602,9 +1602,7 @@ flag float32_le_quiet( float32 a, float32 b )
     if (    ( ( extractFloat32Exp( a ) == 0xFF ) && extractFloat32Frac( a ) )
          || ( ( extractFloat32Exp( b ) == 0xFF ) && extractFloat32Frac( b ) )
        ) {
-        if ( float32_is_signaling_nan( a ) || float32_is_signaling_nan( b ) ) {
-            float_raise( float_flag_invalid );
-        }
+        /* Do nothing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloat32Sign( a );
@@ -1629,9 +1627,7 @@ flag float32_lt_quiet( float32 a, float32 b )
     if (    ( ( extractFloat32Exp( a ) == 0xFF ) && extractFloat32Frac( a ) )
          || ( ( extractFloat32Exp( b ) == 0xFF ) && extractFloat32Frac( b ) )
        ) {
-        if ( float32_is_signaling_nan( a ) || float32_is_signaling_nan( b ) ) {
-            float_raise( float_flag_invalid );
-        }
+        /* Do nothing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloat32Sign( a );
@@ -2493,9 +2489,7 @@ flag float64_le_quiet( float64 a, float64 b )
     if (    ( ( extractFloat64Exp( a ) == 0x7FF ) && extractFloat64Frac( a ) )
          || ( ( extractFloat64Exp( b ) == 0x7FF ) && extractFloat64Frac( b ) )
        ) {
-        if ( float64_is_signaling_nan( a ) || float64_is_signaling_nan( b ) ) {
-            float_raise( float_flag_invalid );
-        }
+        /* Do nothing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloat64Sign( a );
@@ -2520,9 +2514,7 @@ flag float64_lt_quiet( float64 a, float64 b )
     if (    ( ( extractFloat64Exp( a ) == 0x7FF ) && extractFloat64Frac( a ) )
          || ( ( extractFloat64Exp( b ) == 0x7FF ) && extractFloat64Frac( b ) )
        ) {
-        if ( float64_is_signaling_nan( a ) || float64_is_signaling_nan( b ) ) {
-            float_raise( float_flag_invalid );
-        }
+        /* Do nothing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloat64Sign( a );
@@ -3256,7 +3248,7 @@ flag floatx80_eq( floatx80 a, floatx80 b )
        ) {
         if (    floatx80_is_signaling_nan( a )
              || floatx80_is_signaling_nan( b ) ) {
-            roundData->exception |= float_flag_invalid;
+            float_raise( float_flag_invalid );
         }
         return 0;
     }
@@ -3286,7 +3278,7 @@ flag floatx80_le( floatx80 a, floatx80 b )
          || (    ( extractFloatx80Exp( b ) == 0x7FFF )
               && (bits64) ( extractFloatx80Frac( b )<<1 ) )
        ) {
-        roundData->exception |= float_flag_invalid;
+        float_raise( float_flag_invalid );
         return 0;
     }
     aSign = extractFloatx80Sign( a );
@@ -3320,7 +3312,7 @@ flag floatx80_lt( floatx80 a, floatx80 b )
          || (    ( extractFloatx80Exp( b ) == 0x7FFF )
               && (bits64) ( extractFloatx80Frac( b )<<1 ) )
        ) {
-        roundData->exception |= float_flag_invalid;
+        float_raise( float_flag_invalid );
         return 0;
     }
     aSign = extractFloatx80Sign( a );
@@ -3353,7 +3345,7 @@ flag floatx80_eq_signaling( floatx80 a, floatx80 b )
          || (    ( extractFloatx80Exp( b ) == 0x7FFF )
               && (bits64) ( extractFloatx80Frac( b )<<1 ) )
        ) {
-        roundData->exception |= float_flag_invalid;
+        float_raise( float_flag_invalid );
         return 0;
     }
     return
@@ -3382,10 +3374,7 @@ flag floatx80_le_quiet( floatx80 a, floatx80 b )
          || (    ( extractFloatx80Exp( b ) == 0x7FFF )
               && (bits64) ( extractFloatx80Frac( b )<<1 ) )
        ) {
-        if (    floatx80_is_signaling_nan( a )
-             || floatx80_is_signaling_nan( b ) ) {
-            roundData->exception |= float_flag_invalid;
-        }
+        /* Do nothing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloatx80Sign( a );
@@ -3419,10 +3408,7 @@ flag floatx80_lt_quiet( floatx80 a, floatx80 b )
          || (    ( extractFloatx80Exp( b ) == 0x7FFF )
               && (bits64) ( extractFloatx80Frac( b )<<1 ) )
        ) {
-        if (    floatx80_is_signaling_nan( a )
-             || floatx80_is_signaling_nan( b ) ) {
-            roundData->exception |= float_flag_invalid;
-        }
+        /* Do nothing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloatx80Sign( a );

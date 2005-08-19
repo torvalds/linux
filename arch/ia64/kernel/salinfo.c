@@ -143,7 +143,8 @@ struct salinfo_data {
 
 static struct salinfo_data salinfo_data[ARRAY_SIZE(salinfo_log_name)];
 
-static spinlock_t data_lock, data_saved_lock;
+static DEFINE_SPINLOCK(data_lock);
+static DEFINE_SPINLOCK(data_saved_lock);
 
 /** salinfo_platform_oemdata - optional callback to decode oemdata from an error
  * record.

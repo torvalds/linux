@@ -295,8 +295,14 @@
 #define __NR_add_key		285
 #define __NR_request_key	286
 #define __NR_keyctl		287
+#define __NR_ioprio_set		288
+#define __NR_ioprio_get		289
+#define __NR_inotify_init	290
+#define __NR_inotify_add_watch	291
+#define __NR_inotify_rm_watch	292
 
-#define NR_syscalls 288
+
+#define NR_syscalls 293
 
 /* user-visible error numbers are in the range -1 - -124: see <asm-sh/errno.h> */
 
@@ -406,7 +412,7 @@ register long __sc6 __asm__ ("r6") = (long) arg3; \
 register long __sc7 __asm__ ("r7") = (long) arg4; \
 register long __sc0 __asm__ ("r0") = (long) arg5; \
 register long __sc1 __asm__ ("r1") = (long) arg6; \
-__asm__ __volatile__ ("trapa	#0x15" \
+__asm__ __volatile__ ("trapa	#0x16" \
 	: "=z" (__sc0) \
 	: "0" (__sc0), "r" (__sc4), "r" (__sc5), "r" (__sc6), "r" (__sc7),  \
 	  "r" (__sc3), "r" (__sc1) \

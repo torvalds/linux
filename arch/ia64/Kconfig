@@ -392,15 +392,8 @@ menu "Bus options (PCI, PCMCIA)"
 config PCI
 	bool "PCI support"
 	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
-	  The PCI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, contains valuable
-	  information about which PCI hardware does work under Linux and which
-	  doesn't.
+	  Real IA-64 machines all have PCI/PCI-X/PCI Express busses.  Say Y
+	  here unless you are using a simulator without PCI support.
 
 config PCI_DOMAINS
 	bool
