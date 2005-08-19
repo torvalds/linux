@@ -249,7 +249,7 @@ int device_add(struct device *dev)
 	if ((error = bus_add_device(dev)))
 		goto BusError;
 	if (parent)
-		klist_add_tail(&parent->klist_children, &dev->knode_parent);
+		klist_add_tail(&dev->knode_parent, &parent->klist_children);
 
 	/* notify platform of device entry */
 	if (platform_notify)

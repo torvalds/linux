@@ -79,11 +79,11 @@ static void klist_node_init(struct klist * k, struct klist_node * n)
 
 /**
  *	klist_add_head - Initialize a klist_node and add it to front.
- *	@k:	klist it's going on.
  *	@n:	node we're adding.
+ *	@k:	klist it's going on.
  */
 
-void klist_add_head(struct klist * k, struct klist_node * n)
+void klist_add_head(struct klist_node * n, struct klist * k)
 {
 	klist_node_init(k, n);
 	add_head(k, n);
@@ -94,11 +94,11 @@ EXPORT_SYMBOL_GPL(klist_add_head);
 
 /**
  *	klist_add_tail - Initialize a klist_node and add it to back.
- *	@k:	klist it's going on.
  *	@n:	node we're adding.
+ *	@k:	klist it's going on.
  */
 
-void klist_add_tail(struct klist * k, struct klist_node * n)
+void klist_add_tail(struct klist_node * n, struct klist * k)
 {
 	klist_node_init(k, n);
 	add_tail(k, n);
