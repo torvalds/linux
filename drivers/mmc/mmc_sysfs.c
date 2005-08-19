@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/idr.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -236,6 +237,9 @@ static struct class mmc_host_class = {
 	.release	= mmc_host_classdev_release,
 };
 
+static DEFINE_IDR(mmc_host_idr);
+static DEFINE_SPINLOCK(mmc_host_lock);
+
 /*
  * Internal function. Allocate a new MMC host.
  */
@@ -261,10 +265,19 @@ struct mmc_host *mmc_alloc_host_sysfs(int extra, struct device *dev)
  */
 int mmc_add_host_sysfs(struct mmc_host *host)
 {
-	static unsigned int host_num;
+	int err;
+
+	if (!idr_pre_get(&mmc_host_idr, GFP_KERNEL))
+		return -ENOMEM;
+
+	spin_lock(&mmc_host_lock);
+	err = idr_get_new(&mmc_host_idr, host, &host->index);
+	spin_unlock(&mmc_host_lock);
+	if (err)
+		return err;
 
 	snprintf(host->class_dev.class_id, BUS_ID_SIZE,
-		 "mmc%d", host_num++);
+		 "mmc%d", host->index);
 
 	return class_device_add(&host->class_dev);
 }
@@ -275,6 +288,10 @@ int mmc_add_host_sysfs(struct mmc_host *host)
 void mmc_remove_host_sysfs(struct mmc_host *host)
 {
 	class_device_del(&host->class_dev);
+
+	spin_lock(&mmc_host_lock);
+	idr_remove(&mmc_host_idr, host->index);
+	spin_unlock(&mmc_host_lock);
 }
 
 /*
