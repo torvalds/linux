@@ -1971,20 +1971,19 @@ _GLOBAL(smp_release_cpus)
 
 /*
  * We put a few things here that have to be page-aligned.
- * This stuff goes at the beginning of the data segment,
- * which is page-aligned.
+ * This stuff goes at the beginning of the bss, which is page-aligned.
  */
-	.data
+	.section ".bss"
+
 	.align	12
-	.globl	sdata
-sdata:
+
 	.globl	empty_zero_page
 empty_zero_page:
-	.space	4096
+	.space	PAGE_SIZE
 
 	.globl	swapper_pg_dir
 swapper_pg_dir:
-	.space	4096
+	.space	PAGE_SIZE
 
 /*
  * This space gets a copy of optional info passed to us by the bootstrap
