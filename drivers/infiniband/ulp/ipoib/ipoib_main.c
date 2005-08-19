@@ -883,6 +883,12 @@ static ssize_t create_child(struct class_device *cdev,
 	if (pkey < 0 || pkey > 0xffff)
 		return -EINVAL;
 
+	/*
+	 * Set the full membership bit, so that we join the right
+	 * broadcast group, etc.
+	 */
+	pkey |= 0x8000;
+
 	ret = ipoib_vlan_add(container_of(cdev, struct net_device, class_dev),
 			     pkey);
 
@@ -934,6 +940,12 @@ static struct net_device *ipoib_add_port(const char *format,
 		       hca->name, port, result);
 		goto alloc_mem_failed;
 	}
+
+	/*
+	 * Set the full membership bit, so that we join the right
+	 * broadcast group, etc.
+	 */
+	priv->pkey |= 0x8000;
 
 	priv->dev->broadcast[8] = priv->pkey >> 8;
 	priv->dev->broadcast[9] = priv->pkey & 0xff;
