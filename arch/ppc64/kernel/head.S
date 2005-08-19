@@ -148,7 +148,7 @@ _GLOBAL(__secondary_hold)
 	std	r24,__secondary_hold_acknowledge@l(0)
 	sync
 
-	/* All secondary cpu's wait here until told to start. */
+	/* All secondary cpus wait here until told to start. */
 100:	ld	r4,__secondary_hold_spinloop@l(0)
 	cmpdi	0,r4,1
 	bne	100b
@@ -703,8 +703,8 @@ machine_check_common:
  * R9 contains the saved CR, r13 points to the paca,
  * r10 contains the (bad) kernel stack pointer,
  * r11 and r12 contain the saved SRR0 and SRR1.
- * We switch to using the paca guard page as an emergency stack,
- * save the registers there, and call kernel_bad_stack(), which panics.
+ * We switch to using an emergency stack, save the registers there,
+ * and call kernel_bad_stack(), which panics.
  */
 bad_stack:
 	ld	r1,PACAEMERGSP(r13)
@@ -1303,7 +1303,7 @@ _GLOBAL(pSeries_secondary_smp_init)
 	b	.kexec_wait		/* next kernel might do better	 */
 
 2:	mtspr	SPRG3,r13		/* Save vaddr of paca in SPRG3	 */
-	/* From now on, r24 is expected to be logica cpuid */
+	/* From now on, r24 is expected to be logical cpuid */
 	mr	r24,r5
 3:	HMT_LOW
 	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor should */
