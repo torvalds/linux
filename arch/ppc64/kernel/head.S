@@ -1542,98 +1542,6 @@ _GLOBAL(copy_and_flush)
 .align 8
 copy_to_here:
 
-/*
- * disable_kernel_fp()
- * Disable the FPU.
- */
-_GLOBAL(disable_kernel_fp)
-	mfmsr	r3
-	rldicl	r0,r3,(63-MSR_FP_LG),1
-	rldicl	r3,r0,(MSR_FP_LG+1),0
-	mtmsrd	r3			/* disable use of fpu now */
-	isync
-	blr
-
-/*
- * giveup_fpu(tsk)
- * Disable FP for the task given as the argument,
- * and save the floating-point registers in its thread_struct.
- * Enables the FPU for use in the kernel on return.
- */
-_GLOBAL(giveup_fpu)
-	mfmsr	r5
-	ori	r5,r5,MSR_FP
-	mtmsrd	r5			/* enable use of fpu now */
-	isync
-	cmpdi	0,r3,0
-	beqlr-				/* if no previous owner, done */
-	addi	r3,r3,THREAD		/* want THREAD of task */
-	ld	r5,PT_REGS(r3)
-	cmpdi	0,r5,0
-	SAVE_32FPRS(0, r3)
-	mffs	fr0
-	stfd	fr0,THREAD_FPSCR(r3)
-	beq	1f
-	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	li	r3,MSR_FP|MSR_FE0|MSR_FE1
-	andc	r4,r4,r3		/* disable FP for previous task */
-	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#ifndef CONFIG_SMP
-	li	r5,0
-	ld	r4,last_task_used_math@got(r2)
-	std	r5,0(r4)
-#endif /* CONFIG_SMP */
-	blr
-
-#ifdef CONFIG_ALTIVEC
-/*
- * disable_kernel_altivec()
- * Disable the VMX.
- */
-_GLOBAL(disable_kernel_altivec)
-	mfmsr	r3
-	rldicl	r0,r3,(63-MSR_VEC_LG),1
-	rldicl	r3,r0,(MSR_VEC_LG+1),0
-	mtmsrd	r3			/* disable use of VMX now */
-	isync
-	blr
-
-/*
- * giveup_altivec(tsk)
- * Disable VMX for the task given as the argument,
- * and save the vector registers in its thread_struct.
- * Enables the VMX for use in the kernel on return.
- */
-_GLOBAL(giveup_altivec)
-	mfmsr	r5
-	oris	r5,r5,MSR_VEC@h
-	mtmsrd	r5			/* enable use of VMX now */
-	isync
-	cmpdi	0,r3,0
-	beqlr-				/* if no previous owner, done */
-	addi	r3,r3,THREAD		/* want THREAD of task */
-	ld	r5,PT_REGS(r3)
-	cmpdi	0,r5,0
-	SAVE_32VRS(0,r4,r3)
-	mfvscr	vr0
-	li	r4,THREAD_VSCR
-	stvx	vr0,r4,r3
-	beq	1f
-	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	lis	r3,MSR_VEC@h
-	andc	r4,r4,r3		/* disable FP for previous task */
-	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#ifndef CONFIG_SMP
-	li	r5,0
-	ld	r4,last_task_used_altivec@got(r2)
-	std	r5,0(r4)
-#endif /* CONFIG_SMP */
-	blr
-
-#endif /* CONFIG_ALTIVEC */
-
 #ifdef CONFIG_SMP
 #ifdef CONFIG_PPC_PMAC
 /*
@@ -1983,9 +1891,6 @@ _STATIC(start_here_common)
 #endif
 
 	bl .start_kernel
-
-_GLOBAL(__setup_cpu_power3)
-	blr
 
 _GLOBAL(hmt_init)
 #ifdef CONFIG_HMT
