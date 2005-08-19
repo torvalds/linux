@@ -1048,6 +1048,11 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			vol->nobrl =  0;
 		} else if (strnicmp(data, "nobrl", 5) == 0) {
 			vol->nobrl =  1;
+			/* turn off mandatory locking in mode
+			if remote locking is turned off since the
+			local vfs will do advisory */
+			if(vol->file_mode == (S_IALLUGO & ~(S_ISUID | S_IXGRP)))
+				vol->file_mode = S_IALLUGO;
 		} else if (strnicmp(data, "setuids", 7) == 0) {
 			vol->setuids = 1;
 		} else if (strnicmp(data, "nosetuids", 9) == 0) {
@@ -1707,8 +1712,6 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_XATTR;
 		if(volume_info.sfu_emul)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
-		if(volume_info.nocase)
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CASE_INSENS;
 		if(volume_info.nobrl)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
 
@@ -1727,6 +1730,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			   to the same server share the last value passed in 
 			   for the retry flag is used */
 			tcon->retry = volume_info.retry;
+			tcon->nocase = volume_info.nocase;
 		} else {
 			tcon = tconInfoAlloc();
 			if (tcon == NULL)
@@ -1755,6 +1759,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				if (!rc) {
 					atomic_inc(&pSesInfo->inUse);
 					tcon->retry = volume_info.retry;
+					tcon->nocase = volume_info.nocase;
 				}
 			}
 		}

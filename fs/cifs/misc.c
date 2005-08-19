@@ -375,6 +375,8 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		}
 		if (treeCon->Flags & SMB_SHARE_IS_IN_DFS)
 			buffer->Flags2 |= SMBFLG2_DFS;
+		if (treeCon->nocase)
+			buffer->Flags  |= SMBFLG_CASELESS;
 		if((treeCon->ses) && (treeCon->ses->server))
 			if(treeCon->ses->server->secMode & 
 			  (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))

@@ -110,8 +110,8 @@ enum protocolEnum {
  */
 
 struct TCP_Server_Info {
-	char server_Name[SERVER_NAME_LEN_WITH_NULL];	/* 15 chars + X'20'in 16th */
-	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];	/* Unicode version of server_Name */
+	char server_Name[SERVER_NAME_LEN_WITH_NULL]; /* 15 chars + X'20' 16th */
+	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];
 	struct socket *ssocket;
 	union {
 		struct sockaddr_in sockAddr;
@@ -231,6 +231,7 @@ struct cifsTconInfo {
 	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo;	/* ok if file system name truncated */
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;
 	unsigned retry:1;
+	unsigned nocase:1;
 	/* BB add field for back pointer to sb struct? */
 };
 
