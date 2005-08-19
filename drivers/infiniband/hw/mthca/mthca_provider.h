@@ -197,6 +197,29 @@ struct mthca_cq {
 	wait_queue_head_t      wait;
 };
 
+struct mthca_srq {
+	struct ib_srq		ibsrq;
+	spinlock_t		lock;
+	atomic_t		refcount;
+	int			srqn;
+	int			max;
+	int			max_gs;
+	int			wqe_shift;
+	int			first_free;
+	int			last_free;
+	u16			counter;  /* Arbel only */
+	int			db_index; /* Arbel only */
+	__be32		       *db;       /* Arbel only */
+	void		       *last;
+
+	int			is_direct;
+	u64		       *wrid;
+	union mthca_buf		queue;
+	struct mthca_mr		mr;
+
+	wait_queue_head_t	wait;
+};
+
 struct mthca_wq {
 	spinlock_t lock;
 	int        max;
@@ -275,6 +298,11 @@ static inline struct mthca_ah *to_mah(struct ib_ah *ibah)
 static inline struct mthca_cq *to_mcq(struct ib_cq *ibcq)
 {
 	return container_of(ibcq, struct mthca_cq, ibcq);
+}
+
+static inline struct mthca_srq *to_msrq(struct ib_srq *ibsrq)
+{
+	return container_of(ibsrq, struct mthca_srq, ibsrq);
 }
 
 static inline struct mthca_qp *to_mqp(struct ib_qp *ibqp)

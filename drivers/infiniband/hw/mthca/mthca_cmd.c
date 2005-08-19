@@ -109,6 +109,7 @@ enum {
 	CMD_SW2HW_SRQ 	    = 0x35,
 	CMD_HW2SW_SRQ 	    = 0x36,
 	CMD_QUERY_SRQ       = 0x37,
+	CMD_ARM_SRQ         = 0x40,
 
 	/* QP/EE commands */
 	CMD_RST2INIT_QPEE   = 0x19,
@@ -1032,6 +1033,8 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 
 	mthca_dbg(dev, "Max QPs: %d, reserved QPs: %d, entry size: %d\n",
 		  dev_lim->max_qps, dev_lim->reserved_qps, dev_lim->qpc_entry_sz);
+	mthca_dbg(dev, "Max SRQs: %d, reserved SRQs: %d, entry size: %d\n",
+		  dev_lim->max_srqs, dev_lim->reserved_srqs, dev_lim->srq_entry_sz);
 	mthca_dbg(dev, "Max CQs: %d, reserved CQs: %d, entry size: %d\n",
 		  dev_lim->max_cqs, dev_lim->reserved_cqs, dev_lim->cqc_entry_sz);
 	mthca_dbg(dev, "Max EQs: %d, reserved EQs: %d, entry size: %d\n",
@@ -1498,6 +1501,27 @@ int mthca_HW2SW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 	return mthca_cmd_box(dev, 0, mailbox->dma, cq_num, 0,
 			     CMD_HW2SW_CQ,
 			     CMD_TIME_CLASS_A, status);
+}
+
+int mthca_SW2HW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
+		    int srq_num, u8 *status)
+{
+	return mthca_cmd(dev, mailbox->dma, srq_num, 0, CMD_SW2HW_SRQ,
+			CMD_TIME_CLASS_A, status);
+}
+
+int mthca_HW2SW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
+		    int srq_num, u8 *status)
+{
+	return mthca_cmd_box(dev, 0, mailbox->dma, srq_num, 0,
+			     CMD_HW2SW_SRQ,
+			     CMD_TIME_CLASS_A, status);
+}
+
+int mthca_ARM_SRQ(struct mthca_dev *dev, int srq_num, int limit, u8 *status)
+{
+	return mthca_cmd(dev, limit, srq_num, 0, CMD_ARM_SRQ,
+			 CMD_TIME_CLASS_B, status);
 }
 
 int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,

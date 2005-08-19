@@ -224,7 +224,8 @@ void mthca_cq_event(struct mthca_dev *dev, u32 cqn)
 	cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
 
-void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn)
+void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
+		    struct mthca_srq *srq)
 {
 	struct mthca_cq *cq;
 	struct mthca_cqe *cqe;
@@ -265,8 +266,11 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn)
 	 */
 	while (prod_index > cq->cons_index) {
 		cqe = get_cqe(cq, (prod_index - 1) & cq->ibcq.cqe);
-		if (cqe->my_qpn == cpu_to_be32(qpn))
+		if (cqe->my_qpn == cpu_to_be32(qpn)) {
+			if (srq)
+				mthca_free_srq_wqe(srq, be32_to_cpu(cqe->wqe));
 			++nfreed;
+		}
 		else if (nfreed)
 			memcpy(get_cqe(cq, (prod_index - 1 + nfreed) &
 				       cq->ibcq.cqe),
@@ -455,23 +459,27 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 			     >> wq->wqe_shift);
 		entry->wr_id = (*cur_qp)->wrid[wqe_index +
 					       (*cur_qp)->rq.max];
+	} else if ((*cur_qp)->ibqp.srq) {
+		struct mthca_srq *srq = to_msrq((*cur_qp)->ibqp.srq);
+		u32 wqe = be32_to_cpu(cqe->wqe);
+		wq = NULL;
+		wqe_index = wqe >> srq->wqe_shift;
+		entry->wr_id = srq->wrid[wqe_index];
+		mthca_free_srq_wqe(srq, wqe);
 	} else {
 		wq = &(*cur_qp)->rq;
 		wqe_index = be32_to_cpu(cqe->wqe) >> wq->wqe_shift;
 		entry->wr_id = (*cur_qp)->wrid[wqe_index];
 	}
 
-	if (wq->last_comp < wqe_index)
-		wq->tail += wqe_index - wq->last_comp;
-	else
-		wq->tail += wqe_index + wq->max - wq->last_comp;
+	if (wq) {
+		if (wq->last_comp < wqe_index)
+			wq->tail += wqe_index - wq->last_comp;
+		else
+			wq->tail += wqe_index + wq->max - wq->last_comp;
 
-	wq->last_comp = wqe_index;
-
-	if (0)
-		mthca_dbg(dev, "%s completion for QP %06x, index %d (nr %d)\n",
-			  is_send ? "Send" : "Receive",
-			  (*cur_qp)->qpn, wqe_index, wq->max);
+		wq->last_comp = wqe_index;
+	}
 
 	if (is_error) {
 		err = handle_error_cqe(dev, cq, *cur_qp, wqe_index, is_send,

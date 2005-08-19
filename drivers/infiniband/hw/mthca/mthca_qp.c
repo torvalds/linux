@@ -612,10 +612,13 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		qp_context->mtu_msgmax = (attr->path_mtu << 5) | 31;
 
 	if (mthca_is_memfree(dev)) {
-		qp_context->rq_size_stride =
-			((ffs(qp->rq.max) - 1) << 3) | (qp->rq.wqe_shift - 4);
-		qp_context->sq_size_stride =
-			((ffs(qp->sq.max) - 1) << 3) | (qp->sq.wqe_shift - 4);
+		if (qp->rq.max)
+			qp_context->rq_size_stride = long_log2(qp->rq.max) << 3;
+		qp_context->rq_size_stride |= qp->rq.wqe_shift - 4;
+
+		if (qp->sq.max)
+			qp_context->sq_size_stride = long_log2(qp->sq.max) << 3;
+		qp_context->sq_size_stride |= qp->sq.wqe_shift - 4;
 	}
 
 	/* leave arbel_sched_queue as 0 */
@@ -784,6 +787,9 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 
 	qp_context->params2 |= cpu_to_be32(MTHCA_QP_BIT_RSC);
 
+	if (ibqp->srq)
+		qp_context->params2 |= cpu_to_be32(MTHCA_QP_BIT_RIC);
+
 	if (attr_mask & IB_QP_MIN_RNR_TIMER) {
 		qp_context->rnr_nextrecvpsn |= cpu_to_be32(attr->min_rnr_timer << 24);
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RNR_TIMEOUT);
@@ -805,6 +811,10 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		qp_context->qkey = cpu_to_be32(attr->qkey);
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_Q_KEY);
 	}
+
+	if (ibqp->srq)
+		qp_context->srqn = cpu_to_be32(1 << 24 |
+					       to_msrq(ibqp->srq)->srqn);
 
 	err = mthca_MODIFY_QP(dev, state_table[cur_state][new_state].trans,
 			      qp->qpn, 0, mailbox, 0, &status);
@@ -1260,9 +1270,11 @@ void mthca_free_qp(struct mthca_dev *dev,
 	 * unref the mem-free tables and free the QPN in our table.
 	 */
 	if (!qp->ibqp.uobject) {
-		mthca_cq_clean(dev, to_mcq(qp->ibqp.send_cq)->cqn, qp->qpn);
+		mthca_cq_clean(dev, to_mcq(qp->ibqp.send_cq)->cqn, qp->qpn,
+			       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 		if (qp->ibqp.send_cq != qp->ibqp.recv_cq)
-			mthca_cq_clean(dev, to_mcq(qp->ibqp.recv_cq)->cqn, qp->qpn);
+			mthca_cq_clean(dev, to_mcq(qp->ibqp.recv_cq)->cqn, qp->qpn,
+				       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 
 		mthca_free_memfree(dev, qp);
 		mthca_free_wqe_buf(dev, qp);
@@ -2007,6 +2019,15 @@ int mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
 		       int index, int *dbd, __be32 *new_wqe)
 {
 	struct mthca_next_seg *next;
+
+	/*
+	 * For SRQs, all WQEs generate a CQE, so we're always at the
+	 * end of the doorbell chain.
+	 */
+	if (qp->ibqp.srq) {
+		*new_wqe = 0;
+		return 0;
+	}
 
 	if (is_send)
 		next = get_send_wqe(qp, index);

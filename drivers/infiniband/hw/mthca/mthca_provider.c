@@ -425,6 +425,77 @@ static int mthca_ah_destroy(struct ib_ah *ah)
 	return 0;
 }
 
+static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
+				       struct ib_srq_init_attr *init_attr,
+				       struct ib_udata *udata)
+{
+	struct mthca_create_srq ucmd;
+	struct mthca_ucontext *context = NULL;
+	struct mthca_srq *srq;
+	int err;
+
+	srq = kmalloc(sizeof *srq, GFP_KERNEL);
+	if (!srq)
+		return ERR_PTR(-ENOMEM);
+
+	if (pd->uobject) {
+		context = to_mucontext(pd->uobject->context);
+
+		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
+			return ERR_PTR(-EFAULT);
+
+		err = mthca_map_user_db(to_mdev(pd->device), &context->uar,
+					context->db_tab, ucmd.db_index,
+					ucmd.db_page);
+
+		if (err)
+			goto err_free;
+
+		srq->mr.ibmr.lkey = ucmd.lkey;
+		srq->db_index     = ucmd.db_index;
+	}
+
+	err = mthca_alloc_srq(to_mdev(pd->device), to_mpd(pd),
+			      &init_attr->attr, srq);
+
+	if (err && pd->uobject)
+		mthca_unmap_user_db(to_mdev(pd->device), &context->uar,
+				    context->db_tab, ucmd.db_index);
+
+	if (err)
+		goto err_free;
+
+	if (context && ib_copy_to_udata(udata, &srq->srqn, sizeof (__u32))) {
+		mthca_free_srq(to_mdev(pd->device), srq);
+		err = -EFAULT;
+		goto err_free;
+	}
+
+	return &srq->ibsrq;
+
+err_free:
+	kfree(srq);
+
+	return ERR_PTR(err);
+}
+
+static int mthca_destroy_srq(struct ib_srq *srq)
+{
+	struct mthca_ucontext *context;
+
+	if (srq->uobject) {
+		context = to_mucontext(srq->uobject->context);
+
+		mthca_unmap_user_db(to_mdev(srq->device), &context->uar,
+				    context->db_tab, to_msrq(srq)->db_index);
+	}
+
+	mthca_free_srq(to_mdev(srq->device), to_msrq(srq));
+	kfree(srq);
+
+	return 0;
+}
+
 static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				     struct ib_qp_init_attr *init_attr,
 				     struct ib_udata *udata)
@@ -1003,6 +1074,17 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.dealloc_pd           = mthca_dealloc_pd;
 	dev->ib_dev.create_ah            = mthca_ah_create;
 	dev->ib_dev.destroy_ah           = mthca_ah_destroy;
+
+	if (dev->mthca_flags & MTHCA_FLAG_SRQ) {
+		dev->ib_dev.create_srq           = mthca_create_srq;
+		dev->ib_dev.destroy_srq          = mthca_destroy_srq;
+
+		if (mthca_is_memfree(dev))
+			dev->ib_dev.post_srq_recv = mthca_arbel_post_srq_recv;
+		else
+			dev->ib_dev.post_srq_recv = mthca_tavor_post_srq_recv;
+	}
+
 	dev->ib_dev.create_qp            = mthca_create_qp;
 	dev->ib_dev.modify_qp            = mthca_modify_qp;
 	dev->ib_dev.destroy_qp           = mthca_destroy_qp;

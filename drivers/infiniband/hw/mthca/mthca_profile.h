@@ -42,6 +42,7 @@
 struct mthca_profile {
 	int num_qp;
 	int rdb_per_qp;
+	int num_srq;
 	int num_cq;
 	int num_mcg;
 	int num_mpt;

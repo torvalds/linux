@@ -253,6 +253,8 @@ static int __devinit mthca_init_tavor(struct mthca_dev *mdev)
 	profile = default_profile;
 	profile.num_uar   = dev_lim.uar_size / PAGE_SIZE;
 	profile.uarc_size = 0;
+	if (mdev->mthca_flags & MTHCA_FLAG_SRQ)
+		profile.num_srq = dev_lim.max_srqs;
 
 	err = mthca_make_profile(mdev, &profile, &dev_lim, &init_hca);
 	if (err < 0)
@@ -424,13 +426,27 @@ static int __devinit mthca_init_icm(struct mthca_dev *mdev,
 	}
 
        mdev->cq_table.table = mthca_alloc_icm_table(mdev, init_hca->cqc_base,
-						     dev_lim->cqc_entry_sz,
-						     mdev->limits.num_cqs,
-						     mdev->limits.reserved_cqs, 0);
+						    dev_lim->cqc_entry_sz,
+						    mdev->limits.num_cqs,
+						    mdev->limits.reserved_cqs, 0);
 	if (!mdev->cq_table.table) {
 		mthca_err(mdev, "Failed to map CQ context memory, aborting.\n");
 		err = -ENOMEM;
 		goto err_unmap_rdb;
+	}
+
+	if (mdev->mthca_flags & MTHCA_FLAG_SRQ) {
+		mdev->srq_table.table =
+			mthca_alloc_icm_table(mdev, init_hca->srqc_base,
+					      dev_lim->srq_entry_sz,
+					      mdev->limits.num_srqs,
+					      mdev->limits.reserved_srqs, 0);
+		if (!mdev->srq_table.table) {
+			mthca_err(mdev, "Failed to map SRQ context memory, "
+				  "aborting.\n");
+			err = -ENOMEM;
+			goto err_unmap_cq;
+		}
 	}
 
 	/*
@@ -448,10 +464,14 @@ static int __devinit mthca_init_icm(struct mthca_dev *mdev,
 	if (!mdev->mcg_table.table) {
 		mthca_err(mdev, "Failed to map MCG context memory, aborting.\n");
 		err = -ENOMEM;
-		goto err_unmap_cq;
+		goto err_unmap_srq;
 	}
 
 	return 0;
+
+err_unmap_srq:
+	if (mdev->mthca_flags & MTHCA_FLAG_SRQ)
+		mthca_free_icm_table(mdev, mdev->srq_table.table);
 
 err_unmap_cq:
 	mthca_free_icm_table(mdev, mdev->cq_table.table);
@@ -532,6 +552,8 @@ static int __devinit mthca_init_arbel(struct mthca_dev *mdev)
 	profile = default_profile;
 	profile.num_uar  = dev_lim.uar_size / PAGE_SIZE;
 	profile.num_udav = 0;
+	if (mdev->mthca_flags & MTHCA_FLAG_SRQ)
+		profile.num_srq = dev_lim.max_srqs;
 
 	icm_size = mthca_make_profile(mdev, &profile, &dev_lim, &init_hca);
 	if ((int) icm_size < 0) {
@@ -558,6 +580,8 @@ static int __devinit mthca_init_arbel(struct mthca_dev *mdev)
 	return 0;
 
 err_free_icm:
+	if (mdev->mthca_flags & MTHCA_FLAG_SRQ)
+		mthca_free_icm_table(mdev, mdev->srq_table.table);
 	mthca_free_icm_table(mdev, mdev->cq_table.table);
 	mthca_free_icm_table(mdev, mdev->qp_table.rdb_table);
 	mthca_free_icm_table(mdev, mdev->qp_table.eqp_table);
@@ -587,6 +611,8 @@ static void mthca_close_hca(struct mthca_dev *mdev)
 	mthca_CLOSE_HCA(mdev, 0, &status);
 
 	if (mthca_is_memfree(mdev)) {
+		if (mdev->mthca_flags & MTHCA_FLAG_SRQ)
+			mthca_free_icm_table(mdev, mdev->srq_table.table);
 		mthca_free_icm_table(mdev, mdev->cq_table.table);
 		mthca_free_icm_table(mdev, mdev->qp_table.rdb_table);
 		mthca_free_icm_table(mdev, mdev->qp_table.eqp_table);
@@ -731,11 +757,18 @@ static int __devinit mthca_setup_hca(struct mthca_dev *dev)
 		goto err_cmd_poll;
 	}
 
+	err = mthca_init_srq_table(dev);
+	if (err) {
+		mthca_err(dev, "Failed to initialize "
+			  "shared receive queue table, aborting.\n");
+		goto err_cq_table_free;
+	}
+
 	err = mthca_init_qp_table(dev);
 	if (err) {
 		mthca_err(dev, "Failed to initialize "
 			  "queue pair table, aborting.\n");
-		goto err_cq_table_free;
+		goto err_srq_table_free;
 	}
 
 	err = mthca_init_av_table(dev);
@@ -759,6 +792,9 @@ err_av_table_free:
 
 err_qp_table_free:
 	mthca_cleanup_qp_table(dev);
+
+err_srq_table_free:
+	mthca_cleanup_srq_table(dev);
 
 err_cq_table_free:
 	mthca_cleanup_cq_table(dev);
@@ -1046,6 +1082,7 @@ err_cleanup:
 	mthca_cleanup_mcg_table(mdev);
 	mthca_cleanup_av_table(mdev);
 	mthca_cleanup_qp_table(mdev);
+	mthca_cleanup_srq_table(mdev);
 	mthca_cleanup_cq_table(mdev);
 	mthca_cmd_use_polling(mdev);
 	mthca_cleanup_eq_table(mdev);
@@ -1095,6 +1132,7 @@ static void __devexit mthca_remove_one(struct pci_dev *pdev)
 		mthca_cleanup_mcg_table(mdev);
 		mthca_cleanup_av_table(mdev);
 		mthca_cleanup_qp_table(mdev);
+		mthca_cleanup_srq_table(mdev);
 		mthca_cleanup_cq_table(mdev);
 		mthca_cmd_use_polling(mdev);
 		mthca_cleanup_eq_table(mdev);

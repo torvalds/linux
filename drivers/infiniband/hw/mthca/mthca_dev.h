@@ -218,6 +218,13 @@ struct mthca_cq_table {
 	struct mthca_icm_table *table;
 };
 
+struct mthca_srq_table {
+	struct mthca_alloc 	alloc;
+	spinlock_t         	lock;
+	struct mthca_array      srq;
+	struct mthca_icm_table *table;
+};
+
 struct mthca_qp_table {
 	struct mthca_alloc     	alloc;
 	u32                    	rdb_base;
@@ -299,6 +306,7 @@ struct mthca_dev {
 	struct mthca_mr_table  mr_table;
 	struct mthca_eq_table  eq_table;
 	struct mthca_cq_table  cq_table;
+	struct mthca_srq_table srq_table;
 	struct mthca_qp_table  qp_table;
 	struct mthca_av_table  av_table;
 	struct mthca_mcg_table mcg_table;
@@ -372,6 +380,7 @@ int mthca_init_pd_table(struct mthca_dev *dev);
 int mthca_init_mr_table(struct mthca_dev *dev);
 int mthca_init_eq_table(struct mthca_dev *dev);
 int mthca_init_cq_table(struct mthca_dev *dev);
+int mthca_init_srq_table(struct mthca_dev *dev);
 int mthca_init_qp_table(struct mthca_dev *dev);
 int mthca_init_av_table(struct mthca_dev *dev);
 int mthca_init_mcg_table(struct mthca_dev *dev);
@@ -381,6 +390,7 @@ void mthca_cleanup_pd_table(struct mthca_dev *dev);
 void mthca_cleanup_mr_table(struct mthca_dev *dev);
 void mthca_cleanup_eq_table(struct mthca_dev *dev);
 void mthca_cleanup_cq_table(struct mthca_dev *dev);
+void mthca_cleanup_srq_table(struct mthca_dev *dev);
 void mthca_cleanup_qp_table(struct mthca_dev *dev);
 void mthca_cleanup_av_table(struct mthca_dev *dev);
 void mthca_cleanup_mcg_table(struct mthca_dev *dev);
@@ -431,7 +441,19 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 void mthca_free_cq(struct mthca_dev *dev,
 		   struct mthca_cq *cq);
 void mthca_cq_event(struct mthca_dev *dev, u32 cqn);
-void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn);
+void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
+		    struct mthca_srq *srq);
+
+int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
+		    struct ib_srq_attr *attr, struct mthca_srq *srq);
+void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq);
+void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
+		     enum ib_event_type event_type);
+void mthca_free_srq_wqe(struct mthca_srq *srq, u32 wqe_addr);
+int mthca_tavor_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *wr,
+			      struct ib_recv_wr **bad_wr);
+int mthca_arbel_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *wr,
+			      struct ib_recv_wr **bad_wr);
 
 void mthca_qp_event(struct mthca_dev *dev, u32 qpn,
 		    enum ib_event_type event_type);
