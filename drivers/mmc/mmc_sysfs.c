@@ -206,7 +206,7 @@ void mmc_init_card(struct mmc_card *card, struct mmc_host *host)
 int mmc_register_card(struct mmc_card *card)
 {
 	snprintf(card->dev.bus_id, sizeof(card->dev.bus_id),
-		 "%s:%04x", card->host->host_name, card->rca);
+		 "%s:%04x", mmc_hostname(card->host), card->rca);
 
 	return device_add(&card->dev);
 }

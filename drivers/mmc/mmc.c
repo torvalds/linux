@@ -361,7 +361,7 @@ static void mmc_decode_cid(struct mmc_card *card)
 
 	default:
 		printk("%s: card has unknown MMCA version %d\n",
-			card->host->host_name, card->csd.mmca_vsn);
+			mmc_hostname(card->host), card->csd.mmca_vsn);
 		mmc_card_set_bad(card);
 		break;
 	}
@@ -383,7 +383,7 @@ static void mmc_decode_csd(struct mmc_card *card)
 	csd_struct = UNSTUFF_BITS(resp, 126, 2);
 	if (csd_struct != 1 && csd_struct != 2) {
 		printk("%s: unrecognised CSD structure version %d\n",
-			card->host->host_name, csd_struct);
+			mmc_hostname(card->host), csd_struct);
 		mmc_card_set_bad(card);
 		return;
 	}
@@ -551,7 +551,7 @@ static void mmc_discover_cards(struct mmc_host *host)
 		}
 		if (err != MMC_ERR_NONE) {
 			printk(KERN_ERR "%s: error requesting CID: %d\n",
-				host->host_name, err);
+				mmc_hostname(host), err);
 			break;
 		}
 
