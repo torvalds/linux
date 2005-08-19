@@ -51,6 +51,17 @@ struct HvReleaseData hvReleaseData = {
 		0xf4, 0x4b, 0xf6, 0xf4 },
 };
 
+/*
+ * The NACA.  The first dword of the naca is required by the iSeries
+ * hypervisor to point to itVpdAreas.  The hypervisor finds the NACA
+ * through the pointer in hvReleaseData.
+ */
+struct naca_struct naca = {
+	.xItVpdAreas = &itVpdAreas,
+	.xRamDisk = 0,
+	.xRamDiskSize = 0,
+};
+
 extern void system_reset_iSeries(void);
 extern void machine_check_iSeries(void);
 extern void data_access_iSeries(void);

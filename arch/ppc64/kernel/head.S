@@ -30,7 +30,6 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
-#include <asm/naca.h>
 #include <asm/systemcfg.h>
 #include <asm/ppc_asm.h>
 #include <asm/offsets.h>
@@ -511,24 +510,10 @@ _GLOBAL(do_stab_bolted_pSeries)
 	mfspr	r12,SPRG2
 	EXCEPTION_PROLOG_PSERIES(PACA_EXSLB, .do_stab_bolted)
 
-	
-	/* Space for the naca.  Architected to be located at real address
-	 * NACA_PHYS_ADDR.  Various tools rely on this location being fixed.
-	 * The first dword of the naca is required by iSeries LPAR to
-	 * point to itVpdAreas.  On pSeries native, this value is not used.
-	 */
-	. = NACA_PHYS_ADDR
-	.globl __end_interrupts
-__end_interrupts:
-#ifdef CONFIG_PPC_ISERIES
-	.globl naca
-naca:
-	.llong	itVpdAreas
-	.llong	0		/* xRamDisk */
-	.llong	0		/* xRamDiskSize */
 
 	. = 0x6100
 
+#ifdef CONFIG_PPC_ISERIES
 /***  ISeries-LPAR interrupt handlers ***/
 
 	STD_EXCEPTION_ISERIES(0x200, machine_check, PACA_EXMC)
