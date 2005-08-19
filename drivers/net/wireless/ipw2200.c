@@ -149,6 +149,12 @@ static int init_supported_rates(struct ipw_priv *priv,
 static void ipw_set_hwcrypto_keys(struct ipw_priv *);
 static void ipw_send_wep_keys(struct ipw_priv *, int);
 
+static int ipw_is_valid_channel(struct ieee80211_device *, u8);
+static int ipw_channel_to_index(struct ieee80211_device *, u8);
+static u8 ipw_freq_to_channel(struct ieee80211_device *, u32);
+static int ipw_set_geo(struct ieee80211_device *, const struct ieee80211_geo *);
+static const struct ieee80211_geo *ipw_get_geo(struct ieee80211_device *);
+
 static int snprint_line(char *buf, size_t count,
 			const u8 * data, u32 len, u32 ofs)
 {
@@ -1596,7 +1602,7 @@ static ssize_t store_speed_scan(struct device *d, struct device_attribute *attr,
 			break;
 		}
 
-		if (ieee80211_is_valid_channel(priv->ieee, channel))
+		if (ipw_is_valid_channel(priv->ieee, channel))
 			priv->speed_scan[pos++] = channel;
 		else
 			IPW_WARNING("Skipping invalid channel request: %d\n",
@@ -2194,7 +2200,7 @@ static int ipw_send_tx_power(struct ipw_priv *priv, struct ipw_tx_power *power)
 
 static int ipw_set_tx_power(struct ipw_priv *priv)
 {
-	const struct ieee80211_geo *geo = ieee80211_get_geo(priv->ieee);
+	const struct ieee80211_geo *geo = ipw_get_geo(priv->ieee);
 	struct ipw_tx_power tx_power;
 	s8 max_power;
 	int i;
@@ -5503,6 +5509,15 @@ static int ipw_best_network(struct ipw_priv *priv,
 		return 0;
 	}
 
+	/* Filter out invalid channel in current GEO */
+	if (!ipw_is_valid_channel(priv->ieee, network->channel)) {
+		IPW_DEBUG_ASSOC("Network '%s (" MAC_FMT ")' excluded "
+				"because of invalid channel in current GEO\n",
+				escape_essid(network->ssid, network->ssid_len),
+				MAC_ARG(network->bssid));
+		return 0;
+	}
+
 	/* Ensure that the rates supported by the driver are compatible with
 	 * this AP, including verification of basic rates (mandatory) */
 	if (!ipw_compatible_rates(priv, network, &rates)) {
@@ -5540,7 +5555,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 static void ipw_adhoc_create(struct ipw_priv *priv,
 			     struct ieee80211_network *network)
 {
-	const struct ieee80211_geo *geo = ieee80211_get_geo(priv->ieee);
+	const struct ieee80211_geo *geo = ipw_get_geo(priv->ieee);
 	int i;
 
 	/*
@@ -5555,10 +5570,10 @@ static void ipw_adhoc_create(struct ipw_priv *priv,
 	 * FW fatal error.
 	 *
 	 */
-	switch (ieee80211_is_valid_channel(priv->ieee, priv->channel)) {
+	switch (ipw_is_valid_channel(priv->ieee, priv->channel)) {
 	case IEEE80211_52GHZ_BAND:
 		network->mode = IEEE_A;
-		i = ieee80211_channel_to_index(priv->ieee, priv->channel);
+		i = ipw_channel_to_index(priv->ieee, priv->channel);
 		if (i == -1)
 			BUG();
 		if (geo->a[i].flags & IEEE80211_CH_PASSIVE_ONLY) {
@@ -5572,6 +5587,13 @@ static void ipw_adhoc_create(struct ipw_priv *priv,
 			network->mode = IEEE_G;
 		else
 			network->mode = IEEE_B;
+		i = ipw_channel_to_index(priv->ieee, priv->channel);
+		if (i == -1)
+			BUG();
+		if (geo->bg[i].flags & IEEE80211_CH_PASSIVE_ONLY) {
+			IPW_WARNING("Overriding invalid channel\n");
+			priv->channel = geo->bg[0].channel;
+		}
 		break;
 
 	default:
@@ -5899,7 +5921,7 @@ static void ipw_add_scan_channels(struct ipw_priv *priv,
 	const struct ieee80211_geo *geo;
 	int i;
 
-	geo = ieee80211_get_geo(priv->ieee);
+	geo = ipw_get_geo(priv->ieee);
 
 	if (priv->ieee->freq_band & IEEE80211_52GHZ_BAND) {
 		int start = channel_index;
@@ -5909,7 +5931,11 @@ static void ipw_add_scan_channels(struct ipw_priv *priv,
 				continue;
 			channel_index++;
 			scan->channels_list[channel_index] = geo->a[i].channel;
-			ipw_set_scan_type(scan, channel_index, scan_type);
+			ipw_set_scan_type(scan, channel_index,
+					  geo->a[i].
+					  flags & IEEE80211_CH_PASSIVE_ONLY ?
+					  IPW_SCAN_PASSIVE_FULL_DWELL_SCAN :
+					  scan_type);
 		}
 
 		if (start != channel_index) {
@@ -5922,6 +5948,7 @@ static void ipw_add_scan_channels(struct ipw_priv *priv,
 	if (priv->ieee->freq_band & IEEE80211_24GHZ_BAND) {
 		int start = channel_index;
 		if (priv->config & CFG_SPEED_SCAN) {
+			int index;
 			u8 channels[IEEE80211_24GHZ_CHANNELS] = {
 				/* nop out the list */
 				[0] = 0
@@ -5953,8 +5980,14 @@ static void ipw_add_scan_channels(struct ipw_priv *priv,
 				priv->speed_scan_pos++;
 				channel_index++;
 				scan->channels_list[channel_index] = channel;
+				index =
+				    ipw_channel_to_index(priv->ieee, channel);
 				ipw_set_scan_type(scan, channel_index,
-						  scan_type);
+						  geo->bg[index].
+						  flags &
+						  IEEE80211_CH_PASSIVE_ONLY ?
+						  IPW_SCAN_PASSIVE_FULL_DWELL_SCAN
+						  : scan_type);
 			}
 		} else {
 			for (i = 0; i < geo->bg_channels; i++) {
@@ -5965,7 +5998,11 @@ static void ipw_add_scan_channels(struct ipw_priv *priv,
 				scan->channels_list[channel_index] =
 				    geo->bg[i].channel;
 				ipw_set_scan_type(scan, channel_index,
-						  scan_type);
+						  geo->bg[i].
+						  flags &
+						  IEEE80211_CH_PASSIVE_ONLY ?
+						  IPW_SCAN_PASSIVE_FULL_DWELL_SCAN
+						  : scan_type);
 			}
 		}
 
@@ -6017,7 +6054,7 @@ static int ipw_request_scan(struct ipw_priv *priv)
 
 	scan.dwell_time[IPW_SCAN_ACTIVE_BROADCAST_AND_DIRECT_SCAN] =
 	    cpu_to_le16(20);
-	scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] = cpu_to_le16(20);
+	scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] = cpu_to_le16(120);
 
 	scan.full_scan_index = cpu_to_le32(ieee80211_get_scans(priv->ieee));
 
@@ -6026,7 +6063,7 @@ static int ipw_request_scan(struct ipw_priv *priv)
 		u8 channel;
 		u8 band = 0;
 
-		switch (ieee80211_is_valid_channel(priv->ieee, priv->channel)) {
+		switch (ipw_is_valid_channel(priv->ieee, priv->channel)) {
 		case IEEE80211_52GHZ_BAND:
 			band = (u8) (IPW_A_MODE << 6) | 1;
 			channel = priv->channel;
@@ -8401,10 +8438,11 @@ static int ipw_wx_set_freq(struct net_device *dev,
 			   union iwreq_data *wrqu, char *extra)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
-	const struct ieee80211_geo *geo = ieee80211_get_geo(priv->ieee);
+	const struct ieee80211_geo *geo = ipw_get_geo(priv->ieee);
 	struct iw_freq *fwrq = &wrqu->freq;
 	int ret = 0, i;
-	u8 channel;
+	u8 channel, flags;
+	int band;
 
 	if (fwrq->m == 0) {
 		IPW_DEBUG_WX("SET Freq/Channel -> any\n");
@@ -8415,20 +8453,23 @@ static int ipw_wx_set_freq(struct net_device *dev,
 	}
 	/* if setting by freq convert to channel */
 	if (fwrq->e == 1) {
-		channel = ieee80211_freq_to_channel(priv->ieee, fwrq->m);
+		channel = ipw_freq_to_channel(priv->ieee, fwrq->m);
 		if (channel == 0)
 			return -EINVAL;
 	} else
 		channel = fwrq->m;
 
-	if (!ieee80211_is_valid_channel(priv->ieee, channel))
+	if (!(band = ipw_is_valid_channel(priv->ieee, channel)))
 		return -EINVAL;
 
-	if (priv->ieee->iw_mode == IW_MODE_ADHOC && priv->ieee->mode & IEEE_A) {
-		i = ieee80211_channel_to_index(priv->ieee, channel);
+	if (priv->ieee->iw_mode == IW_MODE_ADHOC) {
+		i = ipw_channel_to_index(priv->ieee, channel);
 		if (i == -1)
 			return -EINVAL;
-		if (geo->a[i].flags & IEEE80211_CH_PASSIVE_ONLY) {
+
+		flags = (band == IEEE80211_24GHZ_BAND) ?
+		    geo->bg[i].flags : geo->a[i].flags;
+		if (flags & IEEE80211_CH_PASSIVE_ONLY) {
 			IPW_DEBUG_WX("Invalid Ad-Hoc channel for 802.11a\n");
 			return -EINVAL;
 		}
@@ -8546,7 +8587,7 @@ static int ipw_wx_get_range(struct net_device *dev,
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	struct iw_range *range = (struct iw_range *)extra;
-	const struct ieee80211_geo *geo = ieee80211_get_geo(priv->ieee);
+	const struct ieee80211_geo *geo = ipw_get_geo(priv->ieee);
 	int i = 0, j;
 
 	wrqu->data.length = sizeof(*range);
@@ -9147,7 +9188,7 @@ static int ipw_request_direct_scan(struct ipw_priv *priv, char *essid,
 
 	scan.dwell_time[IPW_SCAN_ACTIVE_BROADCAST_AND_DIRECT_SCAN] =
 	    cpu_to_le16(20);
-	scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] = cpu_to_le16(20);
+	scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] = cpu_to_le16(120);
 	scan.dwell_time[IPW_SCAN_ACTIVE_DIRECT_SCAN] = cpu_to_le16(20);
 
 	scan.full_scan_index = cpu_to_le32(ieee80211_get_scans(priv->ieee));
@@ -10775,6 +10816,96 @@ static const struct ieee80211_geo ipw_geos[] = {
 	 }
 };
 
+/* GEO code borrowed from ieee80211_geo.c */
+static int ipw_is_valid_channel(struct ieee80211_device *ieee, u8 channel)
+{
+	int i;
+
+	/* Driver needs to initialize the geography map before using
+	 * these helper functions */
+	BUG_ON(ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0);
+
+	if (ieee->freq_band & IEEE80211_24GHZ_BAND)
+		for (i = 0; i < ieee->geo.bg_channels; i++)
+			/* NOTE: If G mode is currently supported but
+			 * this is a B only channel, we don't see it
+			 * as valid. */
+			if ((ieee->geo.bg[i].channel == channel) &&
+			    (!(ieee->mode & IEEE_G) ||
+			     !(ieee->geo.bg[i].flags & IEEE80211_CH_B_ONLY)))
+				return IEEE80211_24GHZ_BAND;
+
+	if (ieee->freq_band & IEEE80211_52GHZ_BAND)
+		for (i = 0; i < ieee->geo.a_channels; i++)
+			if (ieee->geo.a[i].channel == channel)
+				return IEEE80211_52GHZ_BAND;
+
+	return 0;
+}
+
+static int ipw_channel_to_index(struct ieee80211_device *ieee, u8 channel)
+{
+	int i;
+
+	/* Driver needs to initialize the geography map before using
+	 * these helper functions */
+	BUG_ON(ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0);
+
+	if (ieee->freq_band & IEEE80211_24GHZ_BAND)
+		for (i = 0; i < ieee->geo.bg_channels; i++)
+			if (ieee->geo.bg[i].channel == channel)
+				return i;
+
+	if (ieee->freq_band & IEEE80211_52GHZ_BAND)
+		for (i = 0; i < ieee->geo.a_channels; i++)
+			if (ieee->geo.a[i].channel == channel)
+				return i;
+
+	return -1;
+}
+
+static u8 ipw_freq_to_channel(struct ieee80211_device *ieee, u32 freq)
+{
+	int i;
+
+	/* Driver needs to initialize the geography map before using
+	 * these helper functions */
+	BUG_ON(ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0);
+
+	freq /= 100000;
+
+	if (ieee->freq_band & IEEE80211_24GHZ_BAND)
+		for (i = 0; i < ieee->geo.bg_channels; i++)
+			if (ieee->geo.bg[i].freq == freq)
+				return ieee->geo.bg[i].channel;
+
+	if (ieee->freq_band & IEEE80211_52GHZ_BAND)
+		for (i = 0; i < ieee->geo.a_channels; i++)
+			if (ieee->geo.a[i].freq == freq)
+				return ieee->geo.a[i].channel;
+
+	return 0;
+}
+
+static int ipw_set_geo(struct ieee80211_device *ieee,
+		       const struct ieee80211_geo *geo)
+{
+	memcpy(ieee->geo.name, geo->name, 3);
+	ieee->geo.name[3] = '\0';
+	ieee->geo.bg_channels = geo->bg_channels;
+	ieee->geo.a_channels = geo->a_channels;
+	memcpy(ieee->geo.bg, geo->bg, geo->bg_channels *
+	       sizeof(struct ieee80211_channel));
+	memcpy(ieee->geo.a, geo->a, ieee->geo.a_channels *
+	       sizeof(struct ieee80211_channel));
+	return 0;
+}
+
+static const struct ieee80211_geo *ipw_get_geo(struct ieee80211_device *ieee)
+{
+	return &ieee->geo;
+}
+
 #define MAX_HW_RESTARTS 5
 static int ipw_up(struct ipw_priv *priv)
 {
@@ -10816,7 +10947,7 @@ static int ipw_up(struct ipw_priv *priv)
 		}
 		if (j == ARRAY_SIZE(ipw_geos))
 			j = 0;
-		if (ieee80211_set_geo(priv->ieee, &ipw_geos[j])) {
+		if (ipw_set_geo(priv->ieee, &ipw_geos[j])) {
 			IPW_WARNING("Could not set geography.");
 			return 0;
 		}
