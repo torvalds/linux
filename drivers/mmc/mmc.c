@@ -796,16 +796,12 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 {
 	struct mmc_host *host;
 
-	host = kmalloc(sizeof(struct mmc_host) + extra, GFP_KERNEL);
+	host = mmc_alloc_host_sysfs(extra, dev);
 	if (host) {
-		memset(host, 0, sizeof(struct mmc_host) + extra);
-
 		spin_lock_init(&host->lock);
 		init_waitqueue_head(&host->wq);
 		INIT_LIST_HEAD(&host->cards);
 		INIT_WORK(&host->detect, mmc_rescan, host);
-
-		host->dev = dev;
 
 		/*
 		 * By default, hosts do not support SGIO or large requests.
@@ -828,15 +824,15 @@ EXPORT_SYMBOL(mmc_alloc_host);
  */
 int mmc_add_host(struct mmc_host *host)
 {
-	static unsigned int host_num;
+	int ret;
 
-	snprintf(host->host_name, sizeof(host->host_name),
-		 "mmc%d", host_num++);
+	ret = mmc_add_host_sysfs(host);
+	if (ret == 0) {
+		mmc_power_off(host);
+		mmc_detect_change(host);
+	}
 
-	mmc_power_off(host);
-	mmc_detect_change(host);
-
-	return 0;
+	return ret;
 }
 
 EXPORT_SYMBOL(mmc_add_host);
@@ -859,6 +855,7 @@ void mmc_remove_host(struct mmc_host *host)
 	}
 
 	mmc_power_off(host);
+	mmc_remove_host_sysfs(host);
 }
 
 EXPORT_SYMBOL(mmc_remove_host);
@@ -872,7 +869,7 @@ EXPORT_SYMBOL(mmc_remove_host);
 void mmc_free_host(struct mmc_host *host)
 {
 	flush_scheduled_work();
-	kfree(host);
+	mmc_free_host_sysfs(host);
 }
 
 EXPORT_SYMBOL(mmc_free_host);
