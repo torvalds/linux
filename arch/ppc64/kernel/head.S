@@ -52,9 +52,8 @@
  * We layout physical memory as follows:
  * 0x0000 - 0x00ff : Secondary processor spin code
  * 0x0100 - 0x2fff : pSeries Interrupt prologs
- * 0x3000 - 0x3fff : Interrupt support
- * 0x4000 - 0x4fff : NACA
- * 0x6000	   : iSeries and common interrupt prologs
+ * 0x3000 - 0x6fff : interrupt support, iSeries and common interrupt prologs
+ * 0x7000 - 0x7fff : FWNMI data area
  * 0x9000 - 0x9fff : Initial segment table
  */
 
@@ -501,17 +500,35 @@ system_call_pSeries:
 	STD_EXCEPTION_PSERIES(0x1300, instruction_breakpoint)
 	STD_EXCEPTION_PSERIES(0x1700, altivec_assist)
 
-	/* moved from 0xf00 */
-	STD_EXCEPTION_PSERIES(0x3000, performance_monitor)
+	. = 0x3000
 
-	. = 0x3100
+/*** pSeries interrupt support ***/
+
+	/* moved from 0xf00 */
+	STD_EXCEPTION_PSERIES(., performance_monitor)
+
+	.align	7
 _GLOBAL(do_stab_bolted_pSeries)
 	mtcrf	0x80,r12
 	mfspr	r12,SPRG2
 	EXCEPTION_PROLOG_PSERIES(PACA_EXSLB, .do_stab_bolted)
 
+/*
+ * Vectors for the FWNMI option.  Share common code.
+ */
+      .globl system_reset_fwnmi
+system_reset_fwnmi:
+      HMT_MEDIUM
+      mtspr   SPRG1,r13               /* save r13 */
+      RUNLATCH_ON(r13)
+      EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
 
-	. = 0x6100
+      .globl machine_check_fwnmi
+machine_check_fwnmi:
+      HMT_MEDIUM
+      mtspr   SPRG1,r13               /* save r13 */
+      RUNLATCH_ON(r13)
+      EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
 #ifdef CONFIG_PPC_ISERIES
 /***  ISeries-LPAR interrupt handlers ***/
@@ -656,50 +673,7 @@ hardware_interrupt_iSeries_masked:
 	ld	r13,PACA_EXGEN+EX_R13(r13)
 	rfid
 	b	.	/* prevent speculative execution */
-#endif
-
-/*
- * Data area reserved for FWNMI option.
- */
-	.= 0x7000
-	.globl fwnmi_data_area
-fwnmi_data_area:
-
-#ifdef CONFIG_PPC_ISERIES
-	. = LPARMAP_PHYS
-#include "lparmap.s"
 #endif /* CONFIG_PPC_ISERIES */
-
-/*
- * Vectors for the FWNMI option.  Share common code.
- */
-	. = 0x8000
-	.globl system_reset_fwnmi
-system_reset_fwnmi:
-	HMT_MEDIUM
-	mtspr	SPRG1,r13		/* save r13 */
-	RUNLATCH_ON(r13)
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
-	.globl machine_check_fwnmi
-machine_check_fwnmi:
-	HMT_MEDIUM
-	mtspr	SPRG1,r13		/* save r13 */
-	RUNLATCH_ON(r13)
-	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
-
-	/*
-	 * Space for the initial segment table
-	 * For LPAR, the hypervisor must fill in at least one entry
-	 * before we get control (with relocate on)
-	 */
-	. = STAB0_PHYS_ADDR
-	.globl __start_stab
-__start_stab:
-
-	. = (STAB0_PHYS_ADDR + PAGE_SIZE)
-	.globl __end_stab
-__end_stab:
-
 
 /*** Common interrupt handlers ***/
 
@@ -891,6 +865,62 @@ fp_unavailable_common:
 	bl	.kernel_fp_unavailable_exception
 	BUG_OPCODE
 
+/*
+ * load_up_fpu(unused, unused, tsk)
+ * Disable FP for the task which had the FPU previously,
+ * and save its floating-point registers in its thread_struct.
+ * Enables the FPU for use in the kernel on return.
+ * On SMP we know the fpu is free, since we give it up every
+ * switch (ie, no lazy save of the FP registers).
+ * On entry: r13 == 'current' && last_task_used_math != 'current'
+ */
+_STATIC(load_up_fpu)
+	mfmsr	r5			/* grab the current MSR */
+	ori	r5,r5,MSR_FP
+	mtmsrd	r5			/* enable use of fpu now */
+	isync
+/*
+ * For SMP, we don't do lazy FPU switching because it just gets too
+ * horrendously complex, especially when a task switches from one CPU
+ * to another.  Instead we call giveup_fpu in switch_to.
+ *
+ */
+#ifndef CONFIG_SMP
+	ld	r3,last_task_used_math@got(r2)
+	ld	r4,0(r3)
+	cmpdi	0,r4,0
+	beq	1f
+	/* Save FP state to last_task_used_math's THREAD struct */
+	addi	r4,r4,THREAD
+	SAVE_32FPRS(0, r4)
+	mffs	fr0
+	stfd	fr0,THREAD_FPSCR(r4)
+	/* Disable FP for last_task_used_math */
+	ld	r5,PT_REGS(r4)
+	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	li	r6,MSR_FP|MSR_FE0|MSR_FE1
+	andc	r4,r4,r6
+	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+1:
+#endif /* CONFIG_SMP */
+	/* enable use of FP after return */
+	ld	r4,PACACURRENT(r13)
+	addi	r5,r4,THREAD		/* Get THREAD */
+	ld	r4,THREAD_FPEXC_MODE(r5)
+	ori	r12,r12,MSR_FP
+	or	r12,r12,r4
+	std	r12,_MSR(r1)
+	lfd	fr0,THREAD_FPSCR(r5)
+	mtfsf	0xff,fr0
+	REST_32FPRS(0, r5)
+#ifndef CONFIG_SMP
+	/* Update last_task_used_math to 'current' */
+	subi	r4,r5,THREAD		/* Back to 'current' */
+	std	r4,0(r3)
+#endif /* CONFIG_SMP */
+	/* restore registers and return */
+	b	fast_exception_return
+
 	.align	7
 	.globl altivec_unavailable_common
 altivec_unavailable_common:
@@ -905,6 +935,80 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	ENABLE_INTS
 	bl	.altivec_unavailable_exception
 	b	.ret_from_except
+
+#ifdef CONFIG_ALTIVEC
+/*
+ * load_up_altivec(unused, unused, tsk)
+ * Disable VMX for the task which had it previously,
+ * and save its vector registers in its thread_struct.
+ * Enables the VMX for use in the kernel on return.
+ * On SMP we know the VMX is free, since we give it up every
+ * switch (ie, no lazy save of the vector registers).
+ * On entry: r13 == 'current' && last_task_used_altivec != 'current'
+ */
+_STATIC(load_up_altivec)
+	mfmsr	r5			/* grab the current MSR */
+	oris	r5,r5,MSR_VEC@h
+	mtmsrd	r5			/* enable use of VMX now */
+	isync
+
+/*
+ * For SMP, we don't do lazy VMX switching because it just gets too
+ * horrendously complex, especially when a task switches from one CPU
+ * to another.  Instead we call giveup_altvec in switch_to.
+ * VRSAVE isn't dealt with here, that is done in the normal context
+ * switch code. Note that we could rely on vrsave value to eventually
+ * avoid saving all of the VREGs here...
+ */
+#ifndef CONFIG_SMP
+	ld	r3,last_task_used_altivec@got(r2)
+	ld	r4,0(r3)
+	cmpdi	0,r4,0
+	beq	1f
+	/* Save VMX state to last_task_used_altivec's THREAD struct */
+	addi	r4,r4,THREAD
+	SAVE_32VRS(0,r5,r4)
+	mfvscr	vr0
+	li	r10,THREAD_VSCR
+	stvx	vr0,r10,r4
+	/* Disable VMX for last_task_used_altivec */
+	ld	r5,PT_REGS(r4)
+	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	lis	r6,MSR_VEC@h
+	andc	r4,r4,r6
+	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+1:
+#endif /* CONFIG_SMP */
+	/* Hack: if we get an altivec unavailable trap with VRSAVE
+	 * set to all zeros, we assume this is a broken application
+	 * that fails to set it properly, and thus we switch it to
+	 * all 1's
+	 */
+	mfspr	r4,SPRN_VRSAVE
+	cmpdi	0,r4,0
+	bne+	1f
+	li	r4,-1
+	mtspr	SPRN_VRSAVE,r4
+1:
+	/* enable use of VMX after return */
+	ld	r4,PACACURRENT(r13)
+	addi	r5,r4,THREAD		/* Get THREAD */
+	oris	r12,r12,MSR_VEC@h
+	std	r12,_MSR(r1)
+	li	r4,1
+	li	r10,THREAD_VSCR
+	stw	r4,THREAD_USED_VR(r5)
+	lvx	vr0,r10,r5
+	mtvscr	vr0
+	REST_32VRS(0,r4,r5)
+#ifndef CONFIG_SMP
+	/* Update last_task_used_math to 'current' */
+	subi	r4,r5,THREAD		/* Back to 'current' */
+	std	r4,0(r3)
+#endif /* CONFIG_SMP */
+	/* restore registers and return */
+	b	fast_exception_return
+#endif /* CONFIG_ALTIVEC */
 
 /*
  * Hash table stuff
@@ -1152,6 +1256,27 @@ unrecov_slb:
 	bl	.unrecoverable_exception
 	b	1b
 
+/*
+ * Data area reserved for FWNMI option.
+ * This address (0x7000) is fixed by the RPA.
+ */
+	.= 0x7000
+	.globl fwnmi_data_area
+fwnmi_data_area:
+	.space	PAGE_SIZE
+
+	/*
+	 * Space for the initial segment table
+	 * For LPAR, the hypervisor must fill in at least one entry
+	 * before we get control (with relocate on)
+	 */
+	. = STAB0_PHYS_ADDR
+	.globl __start_stab
+__start_stab:
+
+	. = (STAB0_PHYS_ADDR + PAGE_SIZE)
+	.globl __end_stab
+__end_stab:
 
 /*
  * On pSeries, secondary processors spin in the following code.
@@ -1416,62 +1541,6 @@ _GLOBAL(copy_and_flush)
 copy_to_here:
 
 /*
- * load_up_fpu(unused, unused, tsk)
- * Disable FP for the task which had the FPU previously,
- * and save its floating-point registers in its thread_struct.
- * Enables the FPU for use in the kernel on return.
- * On SMP we know the fpu is free, since we give it up every
- * switch (ie, no lazy save of the FP registers).
- * On entry: r13 == 'current' && last_task_used_math != 'current'
- */
-_STATIC(load_up_fpu)
-	mfmsr	r5			/* grab the current MSR */
-	ori	r5,r5,MSR_FP
-	mtmsrd	r5			/* enable use of fpu now */
-	isync
-/*
- * For SMP, we don't do lazy FPU switching because it just gets too
- * horrendously complex, especially when a task switches from one CPU
- * to another.  Instead we call giveup_fpu in switch_to.
- *
- */
-#ifndef CONFIG_SMP
-	ld	r3,last_task_used_math@got(r2)
-	ld	r4,0(r3)
-	cmpdi	0,r4,0
-	beq	1f
-	/* Save FP state to last_task_used_math's THREAD struct */
-	addi	r4,r4,THREAD
-	SAVE_32FPRS(0, r4)
-	mffs	fr0
-	stfd	fr0,THREAD_FPSCR(r4)
-	/* Disable FP for last_task_used_math */
-	ld	r5,PT_REGS(r4)
-	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	li	r6,MSR_FP|MSR_FE0|MSR_FE1
-	andc	r4,r4,r6
-	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#endif /* CONFIG_SMP */
-	/* enable use of FP after return */
-	ld	r4,PACACURRENT(r13)
-	addi	r5,r4,THREAD		/* Get THREAD */
-	ld	r4,THREAD_FPEXC_MODE(r5)
-	ori	r12,r12,MSR_FP
-	or	r12,r12,r4
-	std	r12,_MSR(r1)
-	lfd	fr0,THREAD_FPSCR(r5)
-	mtfsf	0xff,fr0
-	REST_32FPRS(0, r5)
-#ifndef CONFIG_SMP
-	/* Update last_task_used_math to 'current' */
-	subi	r4,r5,THREAD		/* Back to 'current' */
-	std	r4,0(r3)
-#endif /* CONFIG_SMP */
-	/* restore registers and return */
-	b	fast_exception_return
-
-/*
  * disable_kernel_fp()
  * Disable the FPU.
  */
@@ -1515,81 +1584,7 @@ _GLOBAL(giveup_fpu)
 #endif /* CONFIG_SMP */
 	blr
 
-
 #ifdef CONFIG_ALTIVEC
-		
-/*
- * load_up_altivec(unused, unused, tsk)
- * Disable VMX for the task which had it previously,
- * and save its vector registers in its thread_struct.
- * Enables the VMX for use in the kernel on return.
- * On SMP we know the VMX is free, since we give it up every
- * switch (ie, no lazy save of the vector registers).
- * On entry: r13 == 'current' && last_task_used_altivec != 'current'
- */
-_STATIC(load_up_altivec)
-	mfmsr	r5			/* grab the current MSR */
-	oris	r5,r5,MSR_VEC@h
-	mtmsrd	r5			/* enable use of VMX now */
-	isync
-	
-/*
- * For SMP, we don't do lazy VMX switching because it just gets too
- * horrendously complex, especially when a task switches from one CPU
- * to another.  Instead we call giveup_altvec in switch_to.
- * VRSAVE isn't dealt with here, that is done in the normal context
- * switch code. Note that we could rely on vrsave value to eventually
- * avoid saving all of the VREGs here...
- */
-#ifndef CONFIG_SMP
-	ld	r3,last_task_used_altivec@got(r2)
-	ld	r4,0(r3)
-	cmpdi	0,r4,0
-	beq	1f
-	/* Save VMX state to last_task_used_altivec's THREAD struct */
-	addi	r4,r4,THREAD
-	SAVE_32VRS(0,r5,r4)
-	mfvscr	vr0
-	li	r10,THREAD_VSCR
-	stvx	vr0,r10,r4
-	/* Disable VMX for last_task_used_altivec */
-	ld	r5,PT_REGS(r4)
-	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	lis	r6,MSR_VEC@h
-	andc	r4,r4,r6
-	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#endif /* CONFIG_SMP */
-	/* Hack: if we get an altivec unavailable trap with VRSAVE
-	 * set to all zeros, we assume this is a broken application
-	 * that fails to set it properly, and thus we switch it to
-	 * all 1's
-	 */
-	mfspr	r4,SPRN_VRSAVE
-	cmpdi	0,r4,0
-	bne+	1f
-	li	r4,-1
-	mtspr	SPRN_VRSAVE,r4
-1:
-	/* enable use of VMX after return */
-	ld	r4,PACACURRENT(r13)
-	addi	r5,r4,THREAD		/* Get THREAD */
-	oris	r12,r12,MSR_VEC@h
-	std	r12,_MSR(r1)
-	li	r4,1
-	li	r10,THREAD_VSCR
-	stw	r4,THREAD_USED_VR(r5)
-	lvx	vr0,r10,r5
-	mtvscr	vr0
-	REST_32VRS(0,r4,r5)
-#ifndef CONFIG_SMP
-	/* Update last_task_used_math to 'current' */
-	subi	r4,r5,THREAD		/* Back to 'current' */
-	std	r4,0(r3)
-#endif /* CONFIG_SMP */
-	/* restore registers and return */
-	b	fast_exception_return
-
 /*
  * disable_kernel_altivec()
  * Disable the VMX.
