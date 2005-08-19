@@ -93,6 +93,7 @@ END_FTR_SECTION(0, 1)
 
 	/* Catch branch to 0 in real mode */
 	trap
+
 #ifdef CONFIG_PPC_ISERIES
 	/*
 	 * At offset 0x20, there is a pointer to iSeries LPAR data.
@@ -119,7 +120,7 @@ embedded_sysmap_start:
 embedded_sysmap_end:
 	.llong	0
 
-#else /* CONFIG_PPC_ISERIES */
+#endif /* CONFIG_PPC_ISERIES */
 
 	/* Secondary processors spin on this value until it goes to 1. */
 	.globl  __secondary_hold_spinloop
@@ -167,7 +168,6 @@ _GLOBAL(__secondary_hold)
 	b	.pSeries_secondary_smp_init
 #else
 	BUG_OPCODE
-#endif
 #endif
 #endif
 
