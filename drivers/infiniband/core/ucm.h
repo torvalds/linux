@@ -48,9 +48,7 @@
 struct ib_ucm_file {
 	struct semaphore mutex;
 	struct file *filp;
-	/*
-	 * list of pending events
-	 */
+
 	struct list_head  ctxs;   /* list of active connections */
 	struct list_head  events; /* list of pending events */
 	wait_queue_head_t poll_wait;
@@ -58,12 +56,11 @@ struct ib_ucm_file {
 
 struct ib_ucm_context {
 	int                 id;
-	int                 ref;
-	int                 error;
+	wait_queue_head_t   wait;
+	atomic_t            ref;
 
 	struct ib_ucm_file *file;
 	struct ib_cm_id    *cm_id;
-	struct semaphore    mutex;
 
 	struct list_head    events;    /* list of pending events. */
 	struct list_head    file_list; /* member in file ctx list */
