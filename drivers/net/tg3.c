@@ -8970,6 +8970,8 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 		tp->phy_id = hw_phy_id;
 		if (hw_phy_id_masked == PHY_ID_BCM8002)
 			tp->tg3_flags2 |= TG3_FLG2_PHY_SERDES;
+		else
+			tp->tg3_flags2 &= ~TG3_FLG2_PHY_SERDES;
 	} else {
 		if (tp->phy_id != PHY_ID_INVALID) {
 			/* Do nothing, phy ID already set up in
