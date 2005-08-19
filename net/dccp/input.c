@@ -118,8 +118,8 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 	lawl = dp->dccps_awl;
 
 	if (dh->dccph_type == DCCP_PKT_CLOSEREQ ||
-		   dh->dccph_type == DCCP_PKT_CLOSE ||
-		   dh->dccph_type == DCCP_PKT_RESET) {
+	    dh->dccph_type == DCCP_PKT_CLOSE ||
+	    dh->dccph_type == DCCP_PKT_RESET) {
 		lswl = dp->dccps_gsr;
 		dccp_inc_seqno(&lswl);
 		lawl = dp->dccps_gar;
@@ -136,7 +136,8 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 		     DCCP_PKT_WITHOUT_ACK_SEQ))
 			dp->dccps_gar = DCCP_SKB_CB(skb)->dccpd_ack_seq;
 	} else {
-		LIMIT_NETDEBUG("Step 6 failed, sending SYNC...\n");
+		LIMIT_NETDEBUG(KERN_WARNING "DCCP: Step 6 failed, "
+					    "sending SYNC...\n");
 		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq, DCCP_PKT_SYNC);
 		return -1;
 	}
@@ -168,8 +169,8 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 		if (dccp_ackpkts_add(dp->dccps_hc_rx_ackpkts,
 				     DCCP_SKB_CB(skb)->dccpd_seq,
 				     DCCP_ACKPKTS_STATE_RECEIVED)) {
-			LIMIT_NETDEBUG(KERN_INFO "DCCP: acknowledgeable "
-						 "packets buffer full!\n");
+			LIMIT_NETDEBUG(KERN_WARNING "DCCP: acknowledgeable "
+						    "packets buffer full!\n");
 			ap->dccpap_ack_seqno = DCCP_MAX_SEQNO + 1;
 			inet_csk_schedule_ack(sk);
 			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,

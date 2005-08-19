@@ -1008,7 +1008,7 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 		return 1;
 
 	if (!pskb_may_pull(skb, sizeof(struct dccp_hdr))) {
-		printk(KERN_WARNING "DCCP: pskb_may_pull failed\n");
+		LIMIT_NETDEBUG(KERN_WARNING "DCCP: pskb_may_pull failed\n");
 		return 1;
 	}
 
@@ -1016,7 +1016,7 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 
 	/* If the packet type is not understood, drop packet and return */
 	if (dh->dccph_type >= DCCP_PKT_INVALID) {
-		printk(KERN_WARNING "DCCP: invalid packet type\n");
+		LIMIT_NETDEBUG(KERN_WARNING "DCCP: invalid packet type\n");
 		return 1;
 	}
 
@@ -1025,14 +1025,16 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 	 * packet, drop packet and return
 	 */
 	if (dh->dccph_doff < dccp_hdr_len(skb) / sizeof(u32)) {
-		printk(KERN_WARNING "DCCP: Offset(%u) too small 1\n",
-		       dh->dccph_doff);
+		LIMIT_NETDEBUG(KERN_WARNING "DCCP: P.Data Offset(%u) "
+					    "too small 1\n",
+			       dh->dccph_doff);
 		return 1;
 	}
 
 	if (!pskb_may_pull(skb, dh->dccph_doff * sizeof(u32))) {
-		printk(KERN_WARNING "DCCP: P.Data Offset(%u) too small 2\n",
-			      dh->dccph_doff);
+		LIMIT_NETDEBUG(KERN_WARNING "DCCP: P.Data Offset(%u) "
+					    "too small 2\n",
+			       dh->dccph_doff);
 		return 1;
 	}
 
@@ -1046,16 +1048,17 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 	    dh->dccph_type != DCCP_PKT_DATA &&
 	    dh->dccph_type != DCCP_PKT_ACK &&
 	    dh->dccph_type != DCCP_PKT_DATAACK) {
-		printk(KERN_WARNING "DCCP: P.type (%s) not Data, Ack nor "
-				    "DataAck and P.X == 0\n",
-		       dccp_packet_name(dh->dccph_type));
+		LIMIT_NETDEBUG(KERN_WARNING "DCCP: P.type (%s) not Data, Ack "
+					    "nor DataAck and P.X == 0\n",
+			       dccp_packet_name(dh->dccph_type));
 		return 1;
 	}
 
 	/* If the header checksum is incorrect, drop packet and return */
 	if (dccp_v4_verify_checksum(skb, skb->nh.iph->saddr,
 				    skb->nh.iph->daddr) < 0) {
-		printk(KERN_WARNING "DCCP: header checksum is incorrect\n");
+		LIMIT_NETDEBUG(KERN_WARNING "DCCP: header checksum is "
+					    "incorrect\n");
 		return 1;
 	}
 
