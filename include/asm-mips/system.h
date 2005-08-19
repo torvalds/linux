@@ -164,10 +164,6 @@ do {									\
 		__restore_dsp(current);					\
 } while(0)
 
-#define ROT_IN_PIECES							\
-	"	.set	noreorder	\n"				\
-	"	.set	reorder		\n"
-
 static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 {
 	__u32 retval;
@@ -183,7 +179,6 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 		"	.set	mips3					\n"
 		"	sc	%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
-		ROT_IN_PIECES
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
@@ -235,7 +230,6 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 		"	move	%2, %z4					\n"
 		"	scd	%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
-		ROT_IN_PIECES
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
@@ -311,7 +305,6 @@ static inline unsigned long __cmpxchg_u32(volatile int * m, unsigned long old,
 		"	move	$1, %z4					\n"
 		"	sc	$1, %1					\n"
 		"	beqzl	$1, 1b					\n"
-		ROT_IN_PIECES
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
@@ -367,7 +360,6 @@ static inline unsigned long __cmpxchg_u64(volatile int * m, unsigned long old,
 		"	move	$1, %z4					\n"
 		"	scd	$1, %1					\n"
 		"	beqzl	$1, 1b					\n"
-		ROT_IN_PIECES
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
