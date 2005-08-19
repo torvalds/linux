@@ -48,12 +48,6 @@
 
 static struct scsi_transport_template *ahd_linux_transport_template = NULL;
 
-/*
- * Include aiclib.c as part of our
- * "module dependencies are hard" work around.
- */
-#include "aiclib.c"
-
 #include <linux/init.h>		/* __setup */
 #include <linux/mm.h>		/* For fetching system memory size */
 #include <linux/blkdev.h>		/* For block_size() */
@@ -372,8 +366,6 @@ static int ahd_linux_run_command(struct ahd_softc*,
 				 struct ahd_linux_device *,
 				 struct scsi_cmnd *);
 static void ahd_linux_setup_tag_info_global(char *p);
-static aic_option_callback_t ahd_linux_setup_tag_info;
-static aic_option_callback_t ahd_linux_setup_iocell_info;
 static int  aic79xx_setup(char *c);
 
 static int ahd_linux_unit;
@@ -907,6 +899,86 @@ ahd_linux_setup_tag_info(u_long arg, int instance, int targ, int32_t value)
 	}
 }
 
+static char *
+ahd_parse_brace_option(char *opt_name, char *opt_arg, char *end, int depth,
+		       void (*callback)(u_long, int, int, int32_t),
+		       u_long callback_arg)
+{
+	char	*tok_end;
+	char	*tok_end2;
+	int      i;
+	int      instance;
+	int	 targ;
+	int	 done;
+	char	 tok_list[] = {'.', ',', '{', '}', '\0'};
+
+	/* All options use a ':' name/arg separator */
+	if (*opt_arg != ':')
+		return (opt_arg);
+	opt_arg++;
+	instance = -1;
+	targ = -1;
+	done = FALSE;
+	/*
+	 * Restore separator that may be in
+	 * the middle of our option argument.
+	 */
+	tok_end = strchr(opt_arg, '\0');
+	if (tok_end < end)
+		*tok_end = ',';
+	while (!done) {
+		switch (*opt_arg) {
+		case '{':
+			if (instance == -1) {
+				instance = 0;
+			} else {
+				if (depth > 1) {
+					if (targ == -1)
+						targ = 0;
+				} else {
+					printf("Malformed Option %s\n",
+					       opt_name);
+					done = TRUE;
+				}
+			}
+			opt_arg++;
+			break;
+		case '}':
+			if (targ != -1)
+				targ = -1;
+			else if (instance != -1)
+				instance = -1;
+			opt_arg++;
+			break;
+		case ',':
+		case '.':
+			if (instance == -1)
+				done = TRUE;
+			else if (targ >= 0)
+				targ++;
+			else if (instance >= 0)
+				instance++;
+			opt_arg++;
+			break;
+		case '\0':
+			done = TRUE;
+			break;
+		default:
+			tok_end = end;
+			for (i = 0; tok_list[i]; i++) {
+				tok_end2 = strchr(opt_arg, tok_list[i]);
+				if ((tok_end2) && (tok_end2 < tok_end))
+					tok_end = tok_end2;
+			}
+			callback(callback_arg, instance, targ,
+				 simple_strtol(opt_arg, NULL, 0));
+			opt_arg = tok_end;
+			break;
+		}
+	}
+	return (opt_arg);
+}
+
 /*
  * Handle Linux boot parameters. This routine allows for assigning a value
  * to a parameter with a ':' between the parameter and the value.
@@ -964,18 +1036,18 @@ aic79xx_setup(char *s)
 		if (strncmp(p, "global_tag_depth", n) == 0) {
 			ahd_linux_setup_tag_info_global(p + n);
 		} else if (strncmp(p, "tag_info", n) == 0) {
-			s = aic_parse_brace_option("tag_info", p + n, end,
+			s = ahd_parse_brace_option("tag_info", p + n, end,
 			    2, ahd_linux_setup_tag_info, 0);
 		} else if (strncmp(p, "slewrate", n) == 0) {
-			s = aic_parse_brace_option("slewrate",
+			s = ahd_parse_brace_option("slewrate",
 			    p + n, end, 1, ahd_linux_setup_iocell_info,
 			    AIC79XX_SLEWRATE_INDEX);
 		} else if (strncmp(p, "precomp", n) == 0) {
-			s = aic_parse_brace_option("precomp",
+			s = ahd_parse_brace_option("precomp",
 			    p + n, end, 1, ahd_linux_setup_iocell_info,
 			    AIC79XX_PRECOMP_INDEX);
 		} else if (strncmp(p, "amplitude", n) == 0) {
-			s = aic_parse_brace_option("amplitude",
+			s = ahd_parse_brace_option("amplitude",
 			    p + n, end, 1, ahd_linux_setup_iocell_info,
 			    AIC79XX_AMPLITUDE_INDEX);
 		} else if (p[n] == ':') {
