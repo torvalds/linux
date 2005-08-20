@@ -578,17 +578,17 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
                 /* fall through to _DRM_FRAME_BUFFER... */        
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
-		if (map->offset >= __pa(high_memory)) {
 #if defined(__i386__) || defined(__x86_64__)
-			if (boot_cpu_data.x86 > 3 && map->type != _DRM_AGP) {
-				pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
-				pgprot_val(vma->vm_page_prot) &= ~_PAGE_PWT;
-			}
-#elif defined(__powerpc__)
-			pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE | _PAGE_GUARDED;
-#endif
-			vma->vm_flags |= VM_IO;	/* not in core dump */
+		if (boot_cpu_data.x86 > 3 && map->type != _DRM_AGP) {
+			pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
+			pgprot_val(vma->vm_page_prot) &= ~_PAGE_PWT;
 		}
+#elif defined(__powerpc__)
+		pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
+		if (map->type == _DRM_REGISTERS)
+			pgprot_val(vma->vm_page_prot) |= _PAGE_GUARDED;
+#endif
+		vma->vm_flags |= VM_IO;	/* not in core dump */
 #if defined(__ia64__)
 		if (efi_range_is_wc(vma->vm_start, vma->vm_end -
 				    vma->vm_start))
