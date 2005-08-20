@@ -939,6 +939,7 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	error = nfs_revalidate_inode(NFS_SERVER(dir), dir);
 	if (error < 0) {
 		res = ERR_PTR(error);
+		unlock_kernel();
 		goto out;
 	}
 
