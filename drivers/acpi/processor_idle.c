@@ -532,17 +532,9 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	if (!pr->pblk)
 		return_VALUE(-ENODEV);
 
-	memset(pr->power.states, 0, sizeof(pr->power.states));
-
 	/* if info is obtained from pblk/fadt, type equals state */
-	pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
 	pr->power.states[ACPI_STATE_C2].type = ACPI_STATE_C2;
 	pr->power.states[ACPI_STATE_C3].type = ACPI_STATE_C3;
-
-	/* the C0 state only exists as a filler in our array,
-	 * and all processors need to support C1 */
-	pr->power.states[ACPI_STATE_C0].valid = 1;
-	pr->power.states[ACPI_STATE_C1].valid = 1;
 
 #ifndef CONFIG_HOTPLUG_CPU
 	/*
@@ -573,12 +565,11 @@ static int acpi_processor_get_power_info_default_c1(struct acpi_processor *pr)
 {
 	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_default_c1");
 
+	/* Zero initialize all the C-states info. */
 	memset(pr->power.states, 0, sizeof(pr->power.states));
 
-	/* if info is obtained from pblk/fadt, type equals state */
+	/* set the first C-State to C1 */
 	pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
-	pr->power.states[ACPI_STATE_C2].type = ACPI_STATE_C2;
-	pr->power.states[ACPI_STATE_C3].type = ACPI_STATE_C3;
 
 	/* the C0 state only exists as a filler in our array,
 	 * and all processors need to support C1 */
@@ -592,6 +583,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 {
 	acpi_status status = 0;
 	acpi_integer count;
+	int current_count;
 	int i;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *cst;
@@ -601,10 +593,12 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 	if (nocst)
 		return_VALUE(-ENODEV);
 
-	pr->power.count = 0;
-	for (i = 0; i < ACPI_PROCESSOR_MAX_POWER; i++)
-		memset(&(pr->power.states[i]), 0,
-		       sizeof(struct acpi_processor_cx));
+	current_count = 1;
+
+	/* Zero initialize C2 onwards and prepare for fresh CST lookup */
+	for (i = 2; i < ACPI_PROCESSOR_MAX_POWER; i++)
+		memset(&(pr->power.states[i]), 0, 
+				sizeof(struct acpi_processor_cx));
 
 	status = acpi_evaluate_object(pr->handle, "_CST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -630,16 +624,6 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 				  "count given by _CST is not valid\n"));
 		status = -EFAULT;
 		goto end;
-	}
-
-	/* We support up to ACPI_PROCESSOR_MAX_POWER. */
-	if (count > ACPI_PROCESSOR_MAX_POWER) {
-		printk(KERN_WARNING
-		       "Limiting number of power states to max (%d)\n",
-		       ACPI_PROCESSOR_MAX_POWER);
-		printk(KERN_WARNING
-		       "Please increase ACPI_PROCESSOR_MAX_POWER if needed.\n");
-		count = ACPI_PROCESSOR_MAX_POWER;
 	}
 
 	/* Tell driver that at least _CST is supported. */
@@ -685,7 +669,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		    (reg->space_id != ACPI_ADR_SPACE_SYSTEM_IO))
 			continue;
 
-		if ((cx.type < ACPI_STATE_C1) || (cx.type > ACPI_STATE_C3))
+		if ((cx.type < ACPI_STATE_C2) || (cx.type > ACPI_STATE_C3))
 			continue;
 
 		obj = (union acpi_object *)&(element->package.elements[2]);
@@ -700,15 +684,28 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 		cx.power = obj->integer.value;
 
-		(pr->power.count)++;
-		memcpy(&(pr->power.states[pr->power.count]), &cx, sizeof(cx));
+		current_count++;
+		memcpy(&(pr->power.states[current_count]), &cx, sizeof(cx));
+
+		/*
+		 * We support total ACPI_PROCESSOR_MAX_POWER - 1
+		 * (From 1 through ACPI_PROCESSOR_MAX_POWER - 1)
+		 */
+		if (current_count >= (ACPI_PROCESSOR_MAX_POWER - 1)) {
+			printk(KERN_WARNING
+			       "Limiting number of power states to max (%d)\n",
+			       ACPI_PROCESSOR_MAX_POWER);
+			printk(KERN_WARNING
+			       "Please increase ACPI_PROCESSOR_MAX_POWER if needed.\n");
+			break;
+		}
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %d power states\n",
-			  pr->power.count));
+			  current_count));
 
 	/* Validate number of power states discovered */
-	if (pr->power.count < 2)
+	if (current_count < 2)
 		status = -EFAULT;
 
       end:
@@ -859,12 +856,13 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 	/* NOTE: the idle thread may not be running while calling
 	 * this function */
 
+	/* Adding C1 state */
+	acpi_processor_get_power_info_default_c1(pr);
 	result = acpi_processor_get_power_info_cst(pr);
 	if (result == -ENODEV)
-		result = acpi_processor_get_power_info_fadt(pr);
+		acpi_processor_get_power_info_fadt(pr);
 
-	if ((result) || (acpi_processor_power_verify(pr) < 2))
-		result = acpi_processor_get_power_info_default_c1(pr);
+	pr->power.count = acpi_processor_power_verify(pr);
 
 	/*
 	 * Set Default Policy
