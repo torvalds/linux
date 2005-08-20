@@ -1,5 +1,10 @@
 /*
- * sonic.c
+ * jazzsonic.c
+ *
+ * (C) 2005 Finn Thain
+ *
+ * Converted to DMA API, and (from the mac68k project) introduced
+ * dhd's support for 16-bit cards.
  *
  * (C) 1996,1998 by Thomas Bogendoerfer (tsbogend@alpha.franken.de)
  * 
@@ -28,8 +33,8 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/bitops.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/bootinfo.h>
 #include <asm/system.h>
@@ -44,22 +49,20 @@ static struct platform_device *jazz_sonic_device;
 
 #define SONIC_MEM_SIZE	0x100
 
-#define SREGS_PAD(n)    u16 n;
-
 #include "sonic.h"
 
 /*
  * Macros to access SONIC registers
  */
-#define SONIC_READ(reg) (*((volatile unsigned int *)base_addr+reg))
+#define SONIC_READ(reg) (*((volatile unsigned int *)dev->base_addr+reg))
 
 #define SONIC_WRITE(reg,val)						\
 do {									\
-	*((volatile unsigned int *)base_addr+(reg)) = (val);		\
+	*((volatile unsigned int *)dev->base_addr+(reg)) = (val);		\
 } while (0)
 
 
-/* use 0 for production, 1 for verification, >2 for debug */
+/* use 0 for production, 1 for verification, >1 for debug */
 #ifdef SONIC_DEBUG
 static unsigned int sonic_debug = SONIC_DEBUG;
 #else 
@@ -85,18 +88,18 @@ static unsigned short known_revisions[] =
 	0xffff			/* end of list */
 };
 
-static int __init sonic_probe1(struct net_device *dev, unsigned long base_addr,
-                               unsigned int irq)
+static int __init sonic_probe1(struct net_device *dev)
 {
 	static unsigned version_printed;
 	unsigned int silicon_revision;
 	unsigned int val;
-	struct sonic_local *lp;
+	struct sonic_local *lp = netdev_priv(dev);
 	int err = -ENODEV;
 	int i;
 
-	if (!request_mem_region(base_addr, SONIC_MEM_SIZE, jazz_sonic_string))
+	if (!request_mem_region(dev->base_addr, SONIC_MEM_SIZE, jazz_sonic_string))
 		return -EBUSY;
+
 	/*
 	 * get the Silicon Revision ID. If this is one of the known
 	 * one assume that we found a SONIC ethernet controller at
@@ -120,11 +123,7 @@ static int __init sonic_probe1(struct net_device *dev, unsigned long base_addr,
 	if (sonic_debug  &&  version_printed++ == 0)
 		printk(version);
 
-	printk("%s: Sonic ethernet found at 0x%08lx, ", dev->name, base_addr);
-
-	/* Fill in the 'dev' fields. */
-	dev->base_addr = base_addr;
-	dev->irq = irq;
+	printk(KERN_INFO "%s: Sonic ethernet found at 0x%08lx, ", lp->device->bus_id, dev->base_addr);
 
 	/*
 	 * Put the sonic into software reset, then
@@ -138,84 +137,44 @@ static int __init sonic_probe1(struct net_device *dev, unsigned long base_addr,
 		dev->dev_addr[i*2+1] = val >> 8;
 	}
 
-	printk("HW Address ");
-	for (i = 0; i < 6; i++) {
-		printk("%2.2x", dev->dev_addr[i]);
-		if (i<5)
-			printk(":");
-	}
-
-	printk(" IRQ %d\n", irq);
-
 	err = -ENOMEM;
     
 	/* Initialize the device structure. */
-	if (dev->priv == NULL) {
-		/*
-		 * the memory be located in the same 64kb segment
-		 */
-		lp = NULL;
-		i = 0;
-		do {
-			lp = kmalloc(sizeof(*lp), GFP_KERNEL);
-			if ((unsigned long) lp >> 16
-			    != ((unsigned long)lp + sizeof(*lp) ) >> 16) {
-				/* FIXME, free the memory later */
-				kfree(lp);
-				lp = NULL;
-			}
-		} while (lp == NULL && i++ < 20);
 
-		if (lp == NULL) {
-			printk("%s: couldn't allocate memory for descriptors\n",
-			       dev->name);
-			goto out;
-		}
+	lp->dma_bitmode = SONIC_BITMODE32;
 
-		memset(lp, 0, sizeof(struct sonic_local));
-
-		/* get the virtual dma address */
-		lp->cda_laddr = vdma_alloc(CPHYSADDR(lp),sizeof(*lp));
-		if (lp->cda_laddr == ~0UL) {
-			printk("%s: couldn't get DMA page entry for "
-			       "descriptors\n", dev->name);
-			goto out1;
-		}
-
-		lp->tda_laddr = lp->cda_laddr + sizeof (lp->cda);
-		lp->rra_laddr = lp->tda_laddr + sizeof (lp->tda);
-		lp->rda_laddr = lp->rra_laddr + sizeof (lp->rra);
-	
-		/* allocate receive buffer area */
-		/* FIXME, maybe we should use skbs */
-		lp->rba = kmalloc(SONIC_NUM_RRS * SONIC_RBSIZE, GFP_KERNEL);
-		if (!lp->rba) {
-			printk("%s: couldn't allocate receive buffers\n",
-			       dev->name);
-			goto out2;
-		}
-
-		/* get virtual dma address */
-		lp->rba_laddr = vdma_alloc(CPHYSADDR(lp->rba),
-		                           SONIC_NUM_RRS * SONIC_RBSIZE);
-		if (lp->rba_laddr == ~0UL) {
-			printk("%s: couldn't get DMA page entry for receive "
-			       "buffers\n",dev->name);
-			goto out3;
-		}
-
-		/* now convert pointer to KSEG1 pointer */
-		lp->rba = (char *)KSEG1ADDR(lp->rba);
-		flush_cache_all();
-		dev->priv = (struct sonic_local *)KSEG1ADDR(lp);
+	/* Allocate the entire chunk of memory for the descriptors.
+           Note that this cannot cross a 64K boundary. */
+	if ((lp->descriptors = dma_alloc_coherent(lp->device,
+				SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
+				&lp->descriptors_laddr, GFP_KERNEL)) == NULL) {
+		printk(KERN_ERR "%s: couldn't alloc DMA memory for descriptors.\n", lp->device->bus_id);
+		goto out;
 	}
 
-	lp = (struct sonic_local *)dev->priv;
+	/* Now set up the pointers to point to the appropriate places */
+	lp->cda = lp->descriptors;
+	lp->tda = lp->cda + (SIZEOF_SONIC_CDA
+	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
+	lp->rda = lp->tda + (SIZEOF_SONIC_TD * SONIC_NUM_TDS
+	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
+	lp->rra = lp->rda + (SIZEOF_SONIC_RD * SONIC_NUM_RDS
+	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
+
+	lp->cda_laddr = lp->descriptors_laddr;
+	lp->tda_laddr = lp->cda_laddr + (SIZEOF_SONIC_CDA
+	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
+	lp->rda_laddr = lp->tda_laddr + (SIZEOF_SONIC_TD * SONIC_NUM_TDS
+	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
+	lp->rra_laddr = lp->rda_laddr + (SIZEOF_SONIC_RD * SONIC_NUM_RDS
+	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
+
 	dev->open = sonic_open;
 	dev->stop = sonic_close;
 	dev->hard_start_xmit = sonic_send_packet;
-	dev->get_stats	= sonic_get_stats;
+	dev->get_stats = sonic_get_stats;
 	dev->set_multicast_list = &sonic_multicast_list;
+	dev->tx_timeout = sonic_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	/*
@@ -226,14 +185,8 @@ static int __init sonic_probe1(struct net_device *dev, unsigned long base_addr,
 	SONIC_WRITE(SONIC_MPT,0xffff);
 
 	return 0;
-out3:
-	kfree(lp->rba);
-out2:
-	vdma_free(lp->cda_laddr);
-out1:
-	kfree(lp);
 out:
-	release_region(base_addr, SONIC_MEM_SIZE);
+	release_region(dev->base_addr, SONIC_MEM_SIZE);
 	return err;
 }
 
@@ -245,7 +198,6 @@ static int __init jazz_sonic_probe(struct device *device)
 {
 	struct net_device *dev;
 	struct sonic_local *lp;
-	unsigned long base_addr;
 	int err = 0;
 	int i;
 
@@ -255,21 +207,26 @@ static int __init jazz_sonic_probe(struct device *device)
 	if (mips_machgroup != MACH_GROUP_JAZZ)
 		return -ENODEV;
 
-	dev = alloc_etherdev(0);
+	dev = alloc_etherdev(sizeof(struct sonic_local));
 	if (!dev)
 		return -ENOMEM;
 
-	netdev_boot_setup_check(dev);
-	base_addr = dev->base_addr;
+	lp = netdev_priv(dev);
+	lp->device = device;
+	SET_NETDEV_DEV(dev, device);
+ 	SET_MODULE_OWNER(dev);
 
-	if (base_addr >= KSEG0)	{ /* Check a single specified location. */
-		err = sonic_probe1(dev, base_addr, dev->irq);
-	} else if (base_addr != 0) { /* Don't probe at all. */
+	netdev_boot_setup_check(dev);
+
+	if (dev->base_addr >= KSEG0) { /* Check a single specified location. */
+		err = sonic_probe1(dev);
+	} else if (dev->base_addr != 0) { /* Don't probe at all. */
 		err = -ENXIO;
 	} else {
 		for (i = 0; sonic_portlist[i].port; i++) {
-			int io = sonic_portlist[i].port;
-			if (sonic_probe1(dev, io, sonic_portlist[i].irq) == 0)
+			dev->base_addr = sonic_portlist[i].port;
+			dev->irq = sonic_portlist[i].irq;
+			if (sonic_probe1(dev) == 0)
 				break;
 		}
 		if (!sonic_portlist[i].port)
@@ -281,14 +238,17 @@ static int __init jazz_sonic_probe(struct device *device)
 	if (err)
 		goto out1;
 
+	printk("%s: MAC ", dev->name);
+	for (i = 0; i < 6; i++) {
+		printk("%2.2x", dev->dev_addr[i]);
+		if (i < 5)
+			printk(":");
+	}
+	printk(" IRQ %d\n", dev->irq);
+
 	return 0;
 
 out1:
-	lp = dev->priv;
-	vdma_free(lp->rba_laddr);
-	kfree(lp->rba);
-	vdma_free(lp->cda_laddr);
-	kfree(lp);
 	release_region(dev->base_addr, SONIC_MEM_SIZE);
 out:
 	free_netdev(dev);
@@ -296,21 +256,22 @@ out:
 	return err;
 }
 
-/*
- *      SONIC uses a normal IRQ
- */
-#define sonic_request_irq       request_irq
-#define sonic_free_irq          free_irq
+MODULE_DESCRIPTION("Jazz SONIC ethernet driver");
+module_param(sonic_debug, int, 0);
+MODULE_PARM_DESC(sonic_debug, "jazzsonic debug level (1-4)");
 
-#define sonic_chiptomem(x)      KSEG1ADDR(vdma_log2phys(x))
+#define SONIC_IRQ_FLAG SA_INTERRUPT
 
 #include "sonic.c"
 
 static int __devexit jazz_sonic_device_remove (struct device *device)
 {
 	struct net_device *dev = device->driver_data;
+	struct sonic_local* lp = netdev_priv(dev);
 
 	unregister_netdev (dev);
+	dma_free_coherent(lp->device, SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
+	                  lp->descriptors, lp->descriptors_laddr);
 	release_region (dev->base_addr, SONIC_MEM_SIZE);
 	free_netdev (dev);
 
@@ -323,7 +284,7 @@ static struct device_driver jazz_sonic_driver = {
 	.probe	= jazz_sonic_probe,
 	.remove	= __devexit_p(jazz_sonic_device_remove),
 };
-                                                                                
+
 static void jazz_sonic_platform_release (struct device *device)
 {
 	struct platform_device *pldev;
@@ -336,10 +297,11 @@ static void jazz_sonic_platform_release (struct device *device)
 static int __init jazz_sonic_init_module(void)
 {
 	struct platform_device *pldev;
+	int err;
 
-	if (driver_register(&jazz_sonic_driver)) {
+	if ((err = driver_register(&jazz_sonic_driver))) {
 		printk(KERN_ERR "Driver registration failed\n");
-		return -ENOMEM;
+		return err;
 	}
 
 	jazz_sonic_device = NULL;
