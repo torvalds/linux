@@ -72,7 +72,7 @@ struct address_space_operations vxfs_immed_aops = {
  * Returns:
  *   Zero on success, else a negative error code.
  */
-static int
+static void *
 vxfs_immed_follow_link(struct dentry *dp, struct nameidata *np)
 {
 	struct vxfs_inode_info		*vip = VXFS_INO(dp->d_inode);
