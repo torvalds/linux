@@ -17,8 +17,7 @@
 int tms380tr_open(struct net_device *dev);
 int tms380tr_close(struct net_device *dev);
 irqreturn_t tms380tr_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-int tmsdev_init(struct net_device *dev, unsigned long dmalimit,
-		struct device *pdev);
+int tmsdev_init(struct net_device *dev, struct device *pdev);
 void tmsdev_term(struct net_device *dev);
 void tms380tr_wait(unsigned long time);
 

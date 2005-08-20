@@ -143,7 +143,7 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 		printk(":%2.2x", dev->dev_addr[i]);
 	printk("\n");
 		
-	ret = tmsdev_init(dev, PCI_MAX_ADDRESS, &pdev->dev);
+	ret = tmsdev_init(dev, &pdev->dev);
 	if (ret) {
 		printk("%s: unable to get memory for dev->priv.\n", dev->name);
 		goto err_out_irq;

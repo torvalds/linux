@@ -2333,19 +2333,22 @@ void tmsdev_term(struct net_device *dev)
 		DMA_BIDIRECTIONAL);
 }
 
-int tmsdev_init(struct net_device *dev, unsigned long dmalimit, 
-		struct device *pdev)
+int tmsdev_init(struct net_device *dev, struct device *pdev)
 {
 	struct net_local *tms_local;
 
 	memset(dev->priv, 0, sizeof(struct net_local));
 	tms_local = netdev_priv(dev);
 	init_waitqueue_head(&tms_local->wait_for_tok_int);
-	tms_local->dmalimit = dmalimit;
+	if (pdev->dma_mask)
+		tms_local->dmalimit = *pdev->dma_mask;
+	else
+		return -ENOMEM;
 	tms_local->pdev = pdev;
 	tms_local->dmabuffer = dma_map_single(pdev, (void *)tms_local,
 	    sizeof(struct net_local), DMA_BIDIRECTIONAL);
-	if (tms_local->dmabuffer + sizeof(struct net_local) > dmalimit)
+	if (tms_local->dmabuffer + sizeof(struct net_local) > 
+			tms_local->dmalimit)
 	{
 		printk(KERN_INFO "%s: Memory not accessible for DMA\n",
 			dev->name);

@@ -145,7 +145,7 @@ static int __init setup_card(struct net_device *dev, struct device *pdev)
 
 	err = -EIO;
 	pdev->dma_mask = &dma_mask;
-	if (tmsdev_init(dev, ISA_MAX_ADDRESS, pdev))
+	if (tmsdev_init(dev, pdev))
 		goto out4;
 
 	dev->base_addr &= ~3; 
