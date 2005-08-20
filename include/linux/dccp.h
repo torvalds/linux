@@ -415,7 +415,7 @@ struct dccp_sock {
 	__u64				dccps_gsr;
 	__u64				dccps_gar;
 	unsigned long			dccps_service;
-	unsigned long			dccps_timestamp_time;
+	struct timeval			dccps_timestamp_time;
 	__u32				dccps_timestamp_echo;
 	__u32				dccps_avg_packet_size;
 	unsigned long			dccps_ndp_count;

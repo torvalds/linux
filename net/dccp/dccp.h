@@ -4,7 +4,8 @@
  *  net/dccp/dccp.h
  *
  *  An implementation of the DCCP protocol
- *  Arnaldo Carvalho de Melo <acme@conectiva.com.br>
+ *  Copyright (c) 2005 Arnaldo Carvalho de Melo <acme@conectiva.com.br>
+ *  Copyright (c) 2005 Ian McDonald <iam4@cs.waikato.ac.nz>
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License version 2 as
@@ -404,6 +405,7 @@ extern struct socket *dccp_ctl_socket;
  * @dccpap_ack_nonce - the one-bit sum of the ECN Nonces for all State 0.
  *
  * @dccpap_buf_len - circular buffer length
+ * @dccpap_time		- the time in usecs
  * @dccpap_buf - circular buffer of acknowledgeable packets
  */
 struct dccp_ackpkts {
@@ -416,7 +418,7 @@ struct dccp_ackpkts {
 	unsigned int		dccpap_buf_vector_len;
 	unsigned int		dccpap_ack_vector_len;
 	unsigned int		dccpap_buf_len;
-	unsigned long           dccpap_time;
+	struct timeval		dccpap_time;
 	u8			dccpap_buf_nonce;
 	u8			dccpap_ack_nonce;
 	u8			dccpap_buf[0];
@@ -429,6 +431,19 @@ extern void dccp_ackpkts_free(struct dccp_ackpkts *ap);
 extern int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state);
 extern void dccp_ackpkts_check_rcv_ackno(struct dccp_ackpkts *ap,
 					 struct sock *sk, u64 ackno);
+
+/*
+ * Returns the difference in usecs between timeval
+ * passed in and current time
+ */
+static inline u32 now_delta(struct timeval tv)
+{
+	struct timeval now;
+	
+	do_gettimeofday(&now);
+	return (now.tv_sec  - tv.tv_sec) * USEC_PER_SEC +
+	       (now.tv_usec - tv.tv_usec);
+}
 
 #ifdef CONFIG_IP_DCCP_DEBUG
 extern void dccp_ackvector_print(const u64 ackno,

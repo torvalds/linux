@@ -2,8 +2,9 @@
  *  net/dccp/options.c
  *
  *  An implementation of the DCCP protocol
- *  Aristeu Sergio Rozanski Filho <aris@cathedrallabs.org>
- *  Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
+ *  Copyright (c) 2005 Aristeu Sergio Rozanski Filho <aris@cathedrallabs.org>
+ *  Copyright (c) 2005 Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
+ *  Copyright (c) 2005 Ian McDonald <iam4@cs.waikato.ac.nz>
  *
  *      This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
@@ -138,7 +139,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			opt_recv->dccpor_timestamp = ntohl(*(u32 *)value);
 
 			dp->dccps_timestamp_echo = opt_recv->dccpor_timestamp;
-			dp->dccps_timestamp_time = jiffies;
+			do_gettimeofday(&dp->dccps_timestamp_time);
 
 			dccp_pr_debug("%sTIMESTAMP=%u, ackno=%llu\n",
 				      debug_prefix, opt_recv->dccpor_timestamp,
@@ -146,36 +147,45 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
 			break;
 		case DCCPO_TIMESTAMP_ECHO:
-			if (len < 4 || len > 8)
+			if (len != 4 && len != 6 && len != 8)
 				goto out_invalid_option;
 
 			opt_recv->dccpor_timestamp_echo = ntohl(*(u32 *)value);
 
-			dccp_pr_debug("%sTIMESTAMP_ECHO=%u, len=%d, ackno=%llu, "
-				      "diff=%u\n",
+			dccp_pr_debug("%sTIMESTAMP_ECHO=%u, len=%d, ackno=%llu, ",
 				      debug_prefix,
 				      opt_recv->dccpor_timestamp_echo,
 				      len + 2,
 				      (unsigned long long)
-				      DCCP_SKB_CB(skb)->dccpd_ack_seq,
-				      (tcp_time_stamp -
-				       opt_recv->dccpor_timestamp_echo));
+				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
 
-			opt_recv->dccpor_elapsed_time =
-					dccp_decode_value_var(value + 4,
-							     len - 4);
-			dccp_pr_debug("%sTIMESTAMP_ECHO ELAPSED_TIME=%d\n",
+			if (len > 4) {
+				if (len == 6)
+					opt_recv->dccpor_elapsed_time =
+						 ntohs(*(u16 *)(value + 4));
+				else
+					opt_recv->dccpor_elapsed_time =
+						 ntohl(*(u32 *)(value + 4));
+
+				dccp_pr_debug("%sTIMESTAMP_ECHO ELAPSED_TIME=%d\n",
 				      debug_prefix,
 				      opt_recv->dccpor_elapsed_time);
+			}
 			break;
 		case DCCPO_ELAPSED_TIME:
-			if (len > 4)
+			if (len != 2 && len != 4)
 				goto out_invalid_option;
 
 			if (pkt_type == DCCP_PKT_DATA)
 				continue;
-			opt_recv->dccpor_elapsed_time =
-					dccp_decode_value_var(value, len);
+
+			if (len == 2)
+				opt_recv->dccpor_elapsed_time =
+							ntohs(*(u16 *)value);
+			else
+				opt_recv->dccpor_elapsed_time =
+							ntohl(*(u32 *)value);
+
 			dccp_pr_debug("%sELAPSED_TIME=%d\n", debug_prefix,
 				      opt_recv->dccpor_elapsed_time);
 			break;
@@ -309,8 +319,7 @@ void dccp_insert_option_elapsed_time(struct sock *sk,
 	const int len = 2 + elapsed_time_len;
 	unsigned char *to;
 
-	/* If elapsed_time == 0... */
-	if (elapsed_time_len == 2)
+	if (elapsed_time_len == 0)
 		return;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
@@ -325,7 +334,13 @@ void dccp_insert_option_elapsed_time(struct sock *sk,
 	*to++ = DCCPO_ELAPSED_TIME;
 	*to++ = len;
 
-	dccp_encode_value_var(elapsed_time, to, elapsed_time_len);
+	if (elapsed_time_len == 2) {
+		const u16 var16 = htons((u16)elapsed_time);
+		memcpy(to, &var16, 2);
+	} else {
+		const u32 var32 = htonl(elapsed_time);
+		memcpy(to, &var32, 4);
+	}
 
 	dccp_pr_debug("%sELAPSED_TIME=%u, len=%d, seqno=%llu\n",
 		      debug_prefix, elapsed_time,
@@ -344,7 +359,7 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 #endif
 	struct dccp_ackpkts *ap = dp->dccps_hc_rx_ackpkts;
 	int len = ap->dccpap_buf_vector_len + 2;
-	const u32 elapsed_time = jiffies_to_usecs(jiffies - ap->dccpap_time) / 10;
+	const u32 elapsed_time = now_delta(ap->dccpap_time) / 10;
 	unsigned char *to, *from;
 
 	if (elapsed_time != 0)
@@ -414,7 +429,15 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 static inline void dccp_insert_option_timestamp(struct sock *sk,
 						struct sk_buff *skb)
 {
-	const u32 now = htonl(tcp_time_stamp);
+	struct timeval tv;
+	u32 now;
+	
+	do_gettimeofday(&tv);
+	now = (tv.tv_sec * USEC_PER_SEC + tv.tv_usec) / 10;
+	/* yes this will overflow but that is the point as we want a
+	 * 10 usec 32 bit timer which mean it wraps every 11.9 hours */
+
+	now = htonl(now);
 	dccp_insert_option(sk, skb, DCCPO_TIMESTAMP, &now, sizeof(now));
 }
 
@@ -427,8 +450,7 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk,
 					"CLIENT TX opt: " : "server TX opt: ";
 #endif
 	u32 tstamp_echo;
-	const u32 elapsed_time = jiffies_to_usecs(jiffies -
-						  dp->dccps_timestamp_time) / 10;
+	const u32 elapsed_time = now_delta(dp->dccps_timestamp_time) / 10;
 	const int elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
 	const int len = 6 + elapsed_time_len;
 	unsigned char *to;
@@ -448,7 +470,14 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk,
 	tstamp_echo = htonl(dp->dccps_timestamp_echo);
 	memcpy(to, &tstamp_echo, 4);
 	to += 4;
-	dccp_encode_value_var(elapsed_time, to, elapsed_time_len);
+	
+	if (elapsed_time_len == 2) {
+		const u16 var16 = htons((u16)elapsed_time);
+		memcpy(to, &var16, 2);
+	} else if (elapsed_time_len == 4) {
+		const u32 var32 = htonl(elapsed_time);
+		memcpy(to, &var32, 4);
+	}
 
 	dccp_pr_debug("%sTIMESTAMP_ECHO=%u, len=%d, seqno=%llu\n",
 		      debug_prefix, dp->dccps_timestamp_echo,
@@ -456,7 +485,8 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk,
 		      (unsigned long long) DCCP_SKB_CB(skb)->dccpd_seq);
 
 	dp->dccps_timestamp_echo = 0;
-	dp->dccps_timestamp_time = 0;
+	dp->dccps_timestamp_time.tv_sec = 0;
+	dp->dccps_timestamp_time.tv_usec = 0;
 }
 
 void dccp_insert_options(struct sock *sk, struct sk_buff *skb)
@@ -514,7 +544,8 @@ struct dccp_ackpkts *dccp_ackpkts_alloc(const unsigned int len,
 				ap->dccpap_ack_seqno = DCCP_MAX_SEQNO + 1;
 		ap->dccpap_buf_nonce = ap->dccpap_buf_nonce = 0;
 		ap->dccpap_ack_ptr   = 0;
-		ap->dccpap_time	     = 0;
+		ap->dccpap_time.tv_sec = 0;
+		ap->dccpap_time.tv_usec = 0;
 		ap->dccpap_buf_vector_len = ap->dccpap_ack_vector_len = 0;
 	}
 
@@ -665,7 +696,7 @@ int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state)
 	}
 
 	ap->dccpap_buf_ackno = ackno;
-	ap->dccpap_time = jiffies;
+	do_gettimeofday(&ap->dccpap_time);
 out:
 	dccp_pr_debug("");
 	dccp_ackpkts_print(ap);

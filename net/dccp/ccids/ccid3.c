@@ -2,12 +2,12 @@
  *  net/dccp/ccids/ccid3.c
  *
  *  Copyright (c) 2005 The University of Waikato, Hamilton, New Zealand.
+ *  Copyright (c) 2005 Ian McDonald <iam4@cs.waikato.ac.nz>
  *
  *  An implementation of the DCCP protocol
  *
  *  This code has been developed by the University of Waikato WAND
  *  research group. For further information please see http://www.wand.net.nz/
- *  or e-mail Ian McDonald - iam4@cs.waikato.ac.nz
  *
  *  This code also uses code from Lulea University, rereleased as GPL by its
  *  authors:
@@ -172,14 +172,6 @@ static inline void timeval_fix(struct timeval *tv)
 		tv->tv_sec++;
 		tv->tv_usec -= USEC_PER_SEC;
 	}
-}
-
-/* returns the difference in usecs between timeval passed in and current time */
-static inline u32 now_delta(struct timeval tv) {
-	struct timeval now;
-	
-	do_gettimeofday(&now);
-	return ((now.tv_sec-tv.tv_sec)*1000000+now.tv_usec-tv.tv_usec);
 }
 
 #define CALCX_ARRSIZE 500
@@ -1110,7 +1102,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct ccid3_options_received *opt_recv;
 	struct dccp_tx_hist_entry *packet;
 	unsigned long next_tmout; 
-	u16 t_elapsed;
+	u32 t_elapsed;
 	u32 pinv;
 	u32 x_recv;
 	u32 r_sample;
