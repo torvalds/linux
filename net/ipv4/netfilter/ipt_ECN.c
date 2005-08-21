@@ -61,10 +61,10 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo, int inward)
 	if (!tcph)
 		return 0;
 
-	if (!(einfo->operation & IPT_ECN_OP_SET_ECE
-	      || tcph->ece == einfo->proto.tcp.ece)
-	    && (!(einfo->operation & IPT_ECN_OP_SET_CWR
-		  || tcph->cwr == einfo->proto.tcp.cwr)))
+	if ((!(einfo->operation & IPT_ECN_OP_SET_ECE) ||
+	     tcph->ece == einfo->proto.tcp.ece) &&
+	    ((!(einfo->operation & IPT_ECN_OP_SET_CWR) ||
+	     tcph->cwr == einfo->proto.tcp.cwr)))
 		return 1;
 
 	if (!skb_ip_make_writable(pskb, (*pskb)->nh.iph->ihl*4+sizeof(*tcph)))
