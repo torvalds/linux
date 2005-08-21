@@ -400,7 +400,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 
 	iph = skb->nh.iph;
 
-	if (ip_fast_csum((u8 *)iph, iph->ihl) != 0)
+	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
 		goto inhdr_error;
 
 	len = ntohs(iph->tot_len);
