@@ -314,7 +314,19 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		}
 
 		dp->dccps_isr = DCCP_SKB_CB(skb)->dccpd_seq;
-		dccp_update_gsr(sk, DCCP_SKB_CB(skb)->dccpd_seq);
+		dccp_update_gsr(sk, dp->dccps_isr);
+		/*
+		 * SWL and AWL are initially adjusted so that they are not less than
+		 * the initial Sequence Numbers received and sent, respectively:
+		 *	SWL := max(GSR + 1 - floor(W/4), ISR),
+		 *	AWL := max(GSS - W' + 1, ISS).
+		 * These adjustments MUST be applied only at the beginning of the
+		 * connection.
+		 *
+		 * AWL was adjusted in dccp_v4_connect -acme
+		 */
+		dccp_set_seqno(&dp->dccps_swl,
+			       max48(dp->dccps_swl, dp->dccps_isr));
 
 		if (ccid_hc_rx_init(dp->dccps_hc_rx_ccid, sk) != 0 ||
 		    ccid_hc_tx_init(dp->dccps_hc_tx_ccid, sk) != 0) {

@@ -340,13 +340,11 @@ static inline void dccp_hdr_set_ack(struct dccp_hdr_ack_bits *dhack,
 static inline void dccp_update_gsr(struct sock *sk, u64 seq)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	u64 tmp_gsr;
 
-	dccp_set_seqno(&tmp_gsr,
+	dp->dccps_gsr = seq;
+	dccp_set_seqno(&dp->dccps_swl,
 		       (dp->dccps_gsr + 1 -
 		        (dp->dccps_options.dccpo_sequence_window / 4)));
-	dp->dccps_gsr = seq;
-	dccp_set_seqno(&dp->dccps_swl, max48(tmp_gsr, dp->dccps_isr));
 	dccp_set_seqno(&dp->dccps_swh,
 		       (dp->dccps_gsr +
 			(3 * dp->dccps_options.dccpo_sequence_window) / 4));
@@ -355,13 +353,11 @@ static inline void dccp_update_gsr(struct sock *sk, u64 seq)
 static inline void dccp_update_gss(struct sock *sk, u64 seq)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	u64 tmp_gss;
 
-	dccp_set_seqno(&tmp_gss,
+	dp->dccps_awh = dp->dccps_gss = seq;
+	dccp_set_seqno(&dp->dccps_awl,
 		       (dp->dccps_gss -
 			dp->dccps_options.dccpo_sequence_window + 1));
-	dp->dccps_awl = max48(tmp_gss, dp->dccps_iss);
-	dp->dccps_awh = dp->dccps_gss = seq;
 }
 
 extern void dccp_insert_options(struct sock *sk, struct sk_buff *skb);

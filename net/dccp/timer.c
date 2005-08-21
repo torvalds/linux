@@ -144,7 +144,7 @@ static void dccp_retransmit_timer(struct sock *sk)
 	/*
 	 * sk->sk_send_head has to have one skb with
 	 * DCCP_SKB_CB(skb)->dccpd_type set to one of the retransmittable DCCP
-	 * packet types (REQUEST, RESPONSE, the ACK in the 3way hanshake
+	 * packet types (REQUEST, RESPONSE, the ACK in the 3way handshake
 	 * (PARTOPEN timer), etc).
 	 */
 	BUG_TRAP(sk->sk_send_head != NULL);
