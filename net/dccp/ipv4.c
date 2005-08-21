@@ -887,6 +887,7 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 				       sizeof(struct dccp_hdr_reset);
 	struct sk_buff *skb;
 	struct dst_entry *dst;
+	u64 seqno;
 
 	/* Never send a reset in response to a reset. */
 	if (rxdh->dccph_type == DCCP_PKT_RESET)
@@ -920,7 +921,12 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 	dccp_hdr_reset(skb)->dccph_reset_code =
 				DCCP_SKB_CB(rxskb)->dccpd_reset_code;
 
-	dccp_hdr_set_seq(dh, DCCP_SKB_CB(rxskb)->dccpd_ack_seq);
+	/* See "8.3.1. Abnormal Termination" in draft-ietf-dccp-spec-11 */
+	seqno = 0;
+	if (DCCP_SKB_CB(rxskb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
+		dccp_set_seqno(&seqno, DCCP_SKB_CB(rxskb)->dccpd_ack_seq + 1);
+
+	dccp_hdr_set_seq(dh, seqno);
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb),
 			 DCCP_SKB_CB(rxskb)->dccpd_seq);
 
