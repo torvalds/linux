@@ -905,7 +905,7 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 			hctx->ccid3hctx_x = 10;
 		}
 		/* Schedule no feedback timer to expire in max(4 * R, 2 * s / X) */
-		next_tmout = max_t(u32, inet_csk(sk)->icsk_rto, 
+		next_tmout = max_t(u32, hctx->ccid3hctx_t_rto, 
 				   2 * (hctx->ccid3hctx_s * 100000) / (hctx->ccid3hctx_x / 10));
 		break;
 	default:
@@ -1180,8 +1180,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			       r_sample);
 
 		/* Update timeout interval */
-		inet_csk(sk)->icsk_rto = max_t(u32, 4 * hctx->ccid3hctx_rtt,
-					       USEC_PER_SEC);
+		hctx->ccid3hctx_t_rto = max_t(u32, 4 * hctx->ccid3hctx_rtt,
+					      USEC_PER_SEC);
 
 		/* Update receive rate */
 		hctx->ccid3hctx_x_recv = x_recv;   /* x_recv in bytes per second */
@@ -1227,7 +1227,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/* to prevent divide by zero below */
 
 		/* Schedule no feedback timer to expire in max(4 * R, 2 * s / X) */
-		next_tmout = max(inet_csk(sk)->icsk_rto,
+		next_tmout = max(hctx->ccid3hctx_t_rto,
 				 (2 * (hctx->ccid3hctx_s * 100000) /
 				  (hctx->ccid3hctx_x / 10)));
 		/* maths with 100000 and 10 is to prevent overflow with 32 bit */
@@ -1340,7 +1340,7 @@ static int ccid3_hc_tx_init(struct sock *sk)
 
 	hctx->ccid3hctx_x     = hctx->ccid3hctx_s; /* set transmission rate to 1 packet per second */
 	hctx->ccid3hctx_rtt   = 4; /* See ccid3_hc_tx_packet_sent win_count calculatation */
-	inet_csk(sk)->icsk_rto = USEC_PER_SEC;
+	hctx->ccid3hctx_t_rto = USEC_PER_SEC;
 	hctx->ccid3hctx_state = TFRC_SSTATE_NO_SENT;
 	INIT_LIST_HEAD(&hctx->ccid3hctx_hist);
 	init_timer(&hctx->ccid3hctx_no_feedback_timer);

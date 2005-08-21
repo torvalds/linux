@@ -80,6 +80,7 @@ struct ccid3_hc_tx_sock {
 	struct timer_list		ccid3hctx_no_feedback_timer;
 	struct timeval			ccid3hctx_t_ld;
 	struct timeval			ccid3hctx_t_nom;
+	u32				ccid3hctx_t_rto;
 	u32				ccid3hctx_t_ipi;
 	u32				ccid3hctx_delta;
 	struct list_head		ccid3hctx_hist;
