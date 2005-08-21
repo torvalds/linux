@@ -333,16 +333,16 @@ drop:
 
 static inline int ip_rcv_finish(struct sk_buff *skb)
 {
-	struct net_device *dev = skb->dev;
 	struct iphdr *iph = skb->nh.iph;
-	int err;
 
 	/*
 	 *	Initialise the virtual path cache for the packet. It describes
 	 *	how the packet travels inside Linux networking.
 	 */ 
-	if (skb->dst == NULL) {
-		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
+	if (likely(skb->dst == NULL)) {
+		int err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos,
+					 skb->dev);
+		if (unlikely(err)) {
 			if (err == -EHOSTUNREACH)
 				IP_INC_STATS_BH(IPSTATS_MIB_INADDRERRORS);
 			goto drop; 
@@ -350,7 +350,7 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 	}
 
 #ifdef CONFIG_NET_CLS_ROUTE
-	if (skb->dst->tclassid) {
+	if (unlikely(skb->dst->tclassid)) {
 		struct ip_rt_acct *st = ip_rt_acct + 256*smp_processor_id();
 		u32 idx = skb->dst->tclassid;
 		st[idx&0xFF].o_packets++;
