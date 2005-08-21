@@ -136,8 +136,15 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 		     DCCP_PKT_WITHOUT_ACK_SEQ))
 			dp->dccps_gar = DCCP_SKB_CB(skb)->dccpd_ack_seq;
 	} else {
-		LIMIT_NETDEBUG(KERN_WARNING "DCCP: Step 6 failed, "
-					    "sending SYNC...\n");
+		LIMIT_NETDEBUG(KERN_WARNING "DCCP: Step 6 failed for %s packet, "
+					    "(LSWL(%llu) <= P.seqno(%llu) <= S.SWH(%llu)) and "
+					    "(P.ackno %s or LAWL(%llu) <= P.ackno(%llu) <= S.AWH(%llu), "
+					    "sending SYNC...\n",
+			       dccp_packet_name(dh->dccph_type),
+			       lswl, DCCP_SKB_CB(skb)->dccpd_seq, dp->dccps_swh,
+			       (DCCP_SKB_CB(skb)->dccpd_ack_seq ==
+			        DCCP_PKT_WITHOUT_ACK_SEQ) ? "doesn't exist" : "exists",
+			       lawl, DCCP_SKB_CB(skb)->dccpd_ack_seq, dp->dccps_awh);
 		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq, DCCP_PKT_SYNC);
 		return -1;
 	}
