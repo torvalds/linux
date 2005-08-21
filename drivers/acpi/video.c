@@ -297,11 +297,12 @@ acpi_video_device_set_state(struct acpi_video_device *device, int state)
 	int status;
 	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
 	struct acpi_object_list args = { 1, &arg0 };
+	unsigned long ret;
 
 	ACPI_FUNCTION_TRACE("acpi_video_device_set_state");
 
 	arg0.integer.value = state;
-	status = acpi_evaluate_integer(device->handle, "_DSS", &args, NULL);
+	status = acpi_evaluate_integer(device->handle, "_DSS", &args, &ret);
 
 	return_VALUE(status);
 }
