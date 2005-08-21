@@ -279,6 +279,58 @@ int ip_local_deliver(struct sk_buff *skb)
 		       ip_local_deliver_finish);
 }
 
+static inline int ip_rcv_options(struct sk_buff *skb)
+{
+	struct ip_options *opt;
+	struct iphdr *iph;
+	struct net_device *dev = skb->dev;
+
+	/* It looks as overkill, because not all
+	   IP options require packet mangling.
+	   But it is the easiest for now, especially taking
+	   into account that combination of IP options
+	   and running sniffer is extremely rare condition.
+					      --ANK (980813)
+	*/
+	if (skb_cow(skb, skb_headroom(skb))) {
+		IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
+		goto drop;
+	}
+
+	iph = skb->nh.iph;
+
+	if (ip_options_compile(NULL, skb)) {
+		IP_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
+		goto drop;
+	}
+
+	opt = &(IPCB(skb)->opt);
+	if (unlikely(opt->srr)) {
+		struct in_device *in_dev = in_dev_get(dev);
+		if (in_dev) {
+			if (!IN_DEV_SOURCE_ROUTE(in_dev)) {
+				if (IN_DEV_LOG_MARTIANS(in_dev) &&
+				    net_ratelimit())
+					printk(KERN_INFO "source route option "
+					       "%u.%u.%u.%u -> %u.%u.%u.%u\n",
+					       NIPQUAD(iph->saddr),
+					       NIPQUAD(iph->daddr));
+				in_dev_put(in_dev);
+				goto drop;
+			}
+
+			in_dev_put(in_dev);
+		}
+
+		if (ip_options_rcv_srr(skb))
+			goto drop;
+	}
+
+	return 0;
+drop:
+	return -1;
+}
+
 static inline int ip_rcv_finish(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
@@ -308,48 +360,11 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 	}
 #endif
 
-	if (iph->ihl > 5) {
-		struct ip_options *opt;
-
-		/* It looks as overkill, because not all
-		   IP options require packet mangling.
-		   But it is the easiest for now, especially taking
-		   into account that combination of IP options
-		   and running sniffer is extremely rare condition.
-		                                      --ANK (980813)
-		*/
-
-		if (skb_cow(skb, skb_headroom(skb))) {
-			IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
-			goto drop;
-		}
-		iph = skb->nh.iph;
-
-		if (ip_options_compile(NULL, skb))
-			goto inhdr_error;
-
-		opt = &(IPCB(skb)->opt);
-		if (opt->srr) {
-			struct in_device *in_dev = in_dev_get(dev);
-			if (in_dev) {
-				if (!IN_DEV_SOURCE_ROUTE(in_dev)) {
-					if (IN_DEV_LOG_MARTIANS(in_dev) && net_ratelimit())
-						printk(KERN_INFO "source route option %u.%u.%u.%u -> %u.%u.%u.%u\n",
-						       NIPQUAD(iph->saddr), NIPQUAD(iph->daddr));
-					in_dev_put(in_dev);
-					goto drop;
-				}
-				in_dev_put(in_dev);
-			}
-			if (ip_options_rcv_srr(skb))
-				goto drop;
-		}
-	}
+	if (iph->ihl > 5 && ip_rcv_options(skb))
+		goto drop;
 
 	return dst_input(skb);
 
-inhdr_error:
-	IP_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
 drop:
         kfree_skb(skb);
         return NET_RX_DROP;
