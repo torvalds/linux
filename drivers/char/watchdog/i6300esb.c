@@ -69,11 +69,7 @@ static int heartbeat = WATCHDOG_HEARTBEAT;  /* in seconds */
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (1<heartbeat<2046, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
+static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 
@@ -368,16 +364,17 @@ static unsigned char __init esb_getdevice (void)
          *      Find the PCI device
          */
 
-        for_each_pci_dev(dev)
+        for_each_pci_dev(dev) {
                 if (pci_match_device(esb_pci_tbl, dev)) {
                         esb_pci = dev;
                         break;
                 }
+	}
 
         if (esb_pci) {
         	if (pci_enable_device(esb_pci)) {
 			printk (KERN_ERR PFX "failed to enable device\n");
-			goto out;
+			goto err_devput;
 		}
 
 		if (pci_request_region(esb_pci, 0, ESB_MODULE_NAME)) {
@@ -429,9 +426,9 @@ err_release:
 		pci_release_region(esb_pci, 0);
 err_disable:
 		pci_disable_device(esb_pci);
+err_devput:
 		pci_dev_put(esb_pci);
 	}
-out:
 	return 0;
 }
 
@@ -481,8 +478,8 @@ err_unmap:
 	pci_release_region(esb_pci, 0);
 /* err_disable: */
 	pci_disable_device(esb_pci);
+/* err_devput: */
 	pci_dev_put(esb_pci);
-/* out: */
         return ret;
 }
 
