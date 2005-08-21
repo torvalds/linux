@@ -2,6 +2,8 @@
  * The USB Monitor, inspired by Dave Harding's USBMon.
  *
  * mon_main.c: Main file, module initiation and exit, registrations, etc.
+ *
+ * Copyright (C) 2005 Pete Zaitcev (zaitcev@redhat.com)
  */
 
 #include <linux/kernel.h>
@@ -311,7 +313,7 @@ static int __init mon_init(void)
 
 	mondir = debugfs_create_dir("usbmon", NULL);
 	if (IS_ERR(mondir)) {
-		printk(KERN_NOTICE TAG ": debugs is not available\n");
+		printk(KERN_NOTICE TAG ": debugfs is not available\n");
 		return -ENODEV;
 	}
 	if (mondir == NULL) {

@@ -92,7 +92,7 @@ cifs_hl_exit:
 	return rc;
 }
 
-int
+void *
 cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 {
 	struct inode *inode = direntry->d_inode;
@@ -149,7 +149,7 @@ out:
 out_no_free:
 	FreeXid(xid);
 	nd_set_link(nd, target_path);
-	return 0;
+	return NULL;	/* No cookie */
 }
 
 int
@@ -331,7 +331,7 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 	return rc;
 }
 
-void cifs_put_link(struct dentry *direntry, struct nameidata *nd)
+void cifs_put_link(struct dentry *direntry, struct nameidata *nd, void *cookie)
 {
 	char *p = nd_get_link(nd);
 	if (!IS_ERR(p))

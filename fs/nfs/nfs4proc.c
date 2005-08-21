@@ -753,6 +753,7 @@ static int _nfs4_do_setattr(struct nfs_server *server, struct nfs_fattr *fattr,
                 .rpc_argp       = &arg,
                 .rpc_resp       = &res,
         };
+	int status;
 
         fattr->valid = 0;
 
@@ -762,7 +763,8 @@ static int _nfs4_do_setattr(struct nfs_server *server, struct nfs_fattr *fattr,
 	} else
 		memcpy(&arg.stateid, &zero_stateid, sizeof(arg.stateid));
 
-	return rpc_call_sync(server->client, &msg, 0);
+	status = rpc_call_sync(server->client, &msg, 0);
+	return status;
 }
 
 static int nfs4_do_setattr(struct nfs_server *server, struct nfs_fattr *fattr,
@@ -1145,6 +1147,8 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 
 	status = nfs4_do_setattr(NFS_SERVER(inode), fattr,
 			NFS_FH(inode), sattr, state);
+	if (status == 0)
+		nfs_setattr_update_inode(inode, sattr);
 	if (state != NULL)
 		nfs4_close_state(state, FMODE_WRITE);
 	put_rpccred(cred);
@@ -1449,8 +1453,10 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		struct nfs_fattr fattr;
 		status = nfs4_do_setattr(NFS_SERVER(dir), &fattr,
 		                     NFS_FH(state->inode), sattr, state);
-		if (status == 0)
+		if (status == 0) {
+			nfs_setattr_update_inode(state->inode, sattr);
 			goto out;
+		}
 	} else if (flags != 0)
 		goto out;
 	nfs4_close_state(state, flags);

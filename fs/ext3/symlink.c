@@ -23,11 +23,11 @@
 #include <linux/namei.h>
 #include "xattr.h"
 
-static int ext3_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void * ext3_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct ext3_inode_info *ei = EXT3_I(dentry->d_inode);
 	nd_set_link(nd, (char*)ei->i_data);
-	return 0;
+	return NULL;
 }
 
 struct inode_operations ext3_symlink_inode_operations = {
