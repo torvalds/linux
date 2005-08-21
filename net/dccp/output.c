@@ -44,14 +44,7 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		int err, set_ack = 1;
 		u64 ackno = dp->dccps_gsr;
 
-		/*
-		 * FIXME: study DCCP_PKT_SYNC[ACK] to see what is the right
-		 * thing to do here...
-		 */
 		dccp_inc_seqno(&dp->dccps_gss);
-
-		dcb->dccpd_seq = dp->dccps_gss;
-		dccp_insert_options(sk, skb);
 
 		switch (dcb->dccpd_type) {
 		case DCCP_PKT_DATA:
@@ -62,6 +55,9 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 			ackno = dcb->dccpd_seq;
 			break;
 		}
+
+		dcb->dccpd_seq = dp->dccps_gss;
+		dccp_insert_options(sk, skb);
 		
 		skb->h.raw = skb_push(skb, dccp_header_size);
 		dh = dccp_hdr(skb);
