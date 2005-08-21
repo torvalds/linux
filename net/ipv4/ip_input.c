@@ -361,6 +361,7 @@ drop:
 int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct iphdr *iph;
+	u32 len;
 
 	/* When the interface is in promisc. mode, drop all the crap
 	 * that it receives, do not try to analyse it.
@@ -392,7 +393,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 	 */
 
 	if (iph->ihl < 5 || iph->version != 4)
-		goto inhdr_error; 
+		goto inhdr_error;
 
 	if (!pskb_may_pull(skb, iph->ihl*4))
 		goto inhdr_error;
@@ -400,21 +401,19 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 	iph = skb->nh.iph;
 
 	if (ip_fast_csum((u8 *)iph, iph->ihl) != 0)
-		goto inhdr_error; 
+		goto inhdr_error;
 
-	{
-		__u32 len = ntohs(iph->tot_len); 
-		if (skb->len < len || len < (iph->ihl<<2))
-			goto inhdr_error;
+	len = ntohs(iph->tot_len);
+	if (skb->len < len || len < (iph->ihl*4))
+		goto inhdr_error;
 
-		/* Our transport medium may have padded the buffer out. Now we know it
-		 * is IP we can trim to the true length of the frame.
-		 * Note this now means skb->len holds ntohs(iph->tot_len).
-		 */
-		if (pskb_trim_rcsum(skb, len)) {
-			IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
-			goto drop;
-		}
+	/* Our transport medium may have padded the buffer out. Now we know it
+	 * is IP we can trim to the true length of the frame.
+	 * Note this now means skb->len holds ntohs(iph->tot_len).
+	 */
+	if (pskb_trim_rcsum(skb, len)) {
+		IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
+		goto drop;
 	}
 
 	return NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, dev, NULL,
