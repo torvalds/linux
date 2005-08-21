@@ -215,6 +215,7 @@ struct cifsTconInfo {
 	atomic_t num_reads;
 	atomic_t num_oplock_brks;
 	atomic_t num_opens;
+	atomic_t num_closes;
 	atomic_t num_deletes;
 	atomic_t num_mkdirs;
 	atomic_t num_rmdirs;
@@ -223,10 +224,27 @@ struct cifsTconInfo {
 	atomic_t num_ffirst;
 	atomic_t num_fnext;
 	atomic_t num_fclose;
+	atomic_t num_hardlinks;
+	atomic_t num_symlinks;
+	atomic_t num_locks;
+#ifdef CONFIG_CIFS_STATS2
+	unsigned long long time_writes;
+	unsigned long long time_reads;
+	unsigned long long time_opens;
+	unsigned long long time_deletes;
+	unsigned long long time_closes;
+	unsigned long long time_mkdirs;
+	unsigned long long time_rmdirs;
+	unsigned long long time_renames;
+	unsigned long long time_t2renames;
+	unsigned long long time_ffirst;
+	unsigned long long time_fnext;
+	unsigned long long time_fclose;
+#endif /* CONFIG_CIFS_STATS2 */
 	__u64    bytes_read;
 	__u64    bytes_written;
 	spinlock_t stat_lock;
-#endif
+#endif /* CONFIG_CIFS_STATS */
 	FILE_SYSTEM_DEVICE_INFO fsDevInfo;
 	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo;	/* ok if file system name truncated */
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;

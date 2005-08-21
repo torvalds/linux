@@ -254,36 +254,46 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 			buf += sprintf(buf, "\tDISCONNECTED ");
 			length += 14;
 		}
-		item_length = sprintf(buf,"\nSMBs: %d Oplock Breaks: %d",
+		item_length = sprintf(buf, "\nSMBs: %d Oplock Breaks: %d",
 			atomic_read(&tcon->num_smbs_sent),
 			atomic_read(&tcon->num_oplock_brks));
 		buf += item_length;
 		length += item_length;
-		item_length = sprintf(buf,"\nReads: %d Bytes %lld",
+		item_length = sprintf(buf, "\nReads: %d Bytes %lld",
 			atomic_read(&tcon->num_reads),
 			(long long)(tcon->bytes_read));
 		buf += item_length;
 		length += item_length;
-		item_length = sprintf(buf,"\nWrites: %d Bytes: %lld",
+		item_length = sprintf(buf, "\nWrites: %d Bytes: %lld",
 			atomic_read(&tcon->num_writes),
 			(long long)(tcon->bytes_written));
+                buf += item_length;
+                length += item_length;
+                item_length = sprintf(buf, 
+			"\nLocks: %d HardLinks: %d Symlinks: %d",
+                        atomic_read(&tcon->num_locks),
+			atomic_read(&tcon->num_hardlinks),
+			atomic_read(&tcon->num_symlinks));
+                buf += item_length;
+                length += item_length;
+
+		item_length = sprintf(buf, "\nOpens: %d Closes: %d Deletes: %d",
+			atomic_read(&tcon->num_opens),
+			atomic_read(&tcon->num_closes),
+			atomic_read(&tcon->num_deletes));
 		buf += item_length;
 		length += item_length;
-		item_length = sprintf(buf,
-			"\nOpens: %d Deletes: %d\nMkdirs: %d Rmdirs: %d",
-			atomic_read(&tcon->num_opens),
-			atomic_read(&tcon->num_deletes),
+		item_length = sprintf(buf, "\nMkdirs: %d Rmdirs: %d",
 			atomic_read(&tcon->num_mkdirs),
 			atomic_read(&tcon->num_rmdirs));
 		buf += item_length;
 		length += item_length;
-		item_length = sprintf(buf,
-			"\nRenames: %d T2 Renames %d",
+		item_length = sprintf(buf, "\nRenames: %d T2 Renames %d",
 			atomic_read(&tcon->num_renames),
 			atomic_read(&tcon->num_t2renames));
 		buf += item_length;
 		length += item_length;
-		item_length = sprintf(buf,"\nFindFirst: %d FNext %d FClose %d",
+		item_length = sprintf(buf, "\nFindFirst: %d FNext %d FClose %d",
 			atomic_read(&tcon->num_ffirst),
 			atomic_read(&tcon->num_fnext),
 			atomic_read(&tcon->num_fclose));

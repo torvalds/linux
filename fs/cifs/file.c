@@ -746,7 +746,6 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 
 #ifdef CONFIG_CIFS_STATS
 	if (total_written > 0) {
-		atomic_inc(&pTcon->num_writes);
 		spin_lock(&pTcon->stat_lock);
 		pTcon->bytes_written += total_written;
 		spin_unlock(&pTcon->stat_lock);
@@ -881,7 +880,6 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 
 #ifdef CONFIG_CIFS_STATS
 	if (total_written > 0) {
-		atomic_inc(&pTcon->num_writes);
 		spin_lock(&pTcon->stat_lock);
 		pTcon->bytes_written += total_written;
 		spin_unlock(&pTcon->stat_lock);
@@ -1248,7 +1246,6 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 			}
 		} else {
 #ifdef CONFIG_CIFS_STATS
-			atomic_inc(&pTcon->num_reads);
 			spin_lock(&pTcon->stat_lock);
 			pTcon->bytes_read += total_read;
 			spin_unlock(&pTcon->stat_lock);
@@ -1316,7 +1313,6 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 			}
 		} else {
 #ifdef CONFIG_CIFS_STATS
-			atomic_inc(&pTcon->num_reads);
 			spin_lock(&pTcon->stat_lock);
 			pTcon->bytes_read += total_read;
 			spin_unlock(&pTcon->stat_lock);
@@ -1493,7 +1489,6 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 
 			i +=  bytes_read >> PAGE_CACHE_SHIFT;
 #ifdef CONFIG_CIFS_STATS
-			atomic_inc(&pTcon->num_reads);
 			spin_lock(&pTcon->stat_lock);
 			pTcon->bytes_read += bytes_read;
 			spin_unlock(&pTcon->stat_lock);

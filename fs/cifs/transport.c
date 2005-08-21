@@ -735,7 +735,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 				BCC(out_buf) = le16_to_cpu(BCC(out_buf));
 		} else {
 			rc = -EIO;
-			cFYI(1,("Bad MID state? "));
+			cERROR(1,("Bad MID state? "));
 		}
 	}
 cifs_no_response_exit:
