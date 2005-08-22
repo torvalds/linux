@@ -153,6 +153,12 @@
 /* EnE test register */
 #define ENE_TEST_C9			0xc9	/* 8bit */
 #define ENE_TEST_C9_TLTENABLE		0x02
+#define ENE_TEST_C9_PFENABLE_F0		0x04
+#define ENE_TEST_C9_PFENABLE_F1		0x08
+#define ENE_TEST_C9_PFENABLE		(ENE_TEST_C9_PFENABLE_F0 | ENE_TEST_C9_PFENABLE_F0)
+#define ENE_TEST_C9_WPDISALBLE_F0	0x40
+#define ENE_TEST_C9_WPDISALBLE_F1	0x80
+#define ENE_TEST_C9_WPDISALBLE		(ENE_TEST_C9_WPDISALBLE_F0 | ENE_TEST_C9_WPDISALBLE_F1)
 
 /*
  * Texas Instruments CardBus controller overrides.
@@ -791,16 +797,6 @@ static int ti12xx_override(struct yenta_socket *socket)
 		config_writel(socket, TI113X_SYSTEM_CONTROL, val);
 
 	/*
-	 * for EnE bridges only: clear testbit TLTEnable. this makes the
-	 * RME Hammerfall DSP sound card working.
-	 */
-	if (socket->dev->vendor == PCI_VENDOR_ID_ENE) {
-		u8 test_c9 = config_readb(socket, ENE_TEST_C9);
-		test_c9 &= ~ENE_TEST_C9_TLTENABLE;
-		config_writeb(socket, ENE_TEST_C9, test_c9);
-	}
-
-	/*
 	 * Yenta expects controllers to use CSCINT to route
 	 * CSC interrupts to PCI rather than INTVAL.
 	 */
@@ -839,6 +835,76 @@ static int ti1250_override(struct yenta_socket *socket)
 	}
 
 	return ti12xx_override(socket);
+}
+
+
+/**
+ * EnE specific part. EnE bridges are register compatible with TI bridges but
+ * have their own test registers and more important their own little problems.
+ * Some fixup code to make everybody happy (TM).
+ */
+
+/**
+ * set/clear various test bits:
+ * Defaults to clear the bit.
+ * - mask (u8) defines what bits to change
+ * - bits (u8) is the values to change them to
+ * -> it's
+ * 	current = (current & ~mask) | bits
+ */
+/* pci ids of devices that wants to have the bit set */
+#define DEVID(_vend,_dev,_subvend,_subdev,mask,bits) {		\
+		.vendor		= _vend,			\
+		.device		= _dev,				\
+		.subvendor	= _subvend,			\
+		.subdevice	= _subdev,			\
+		.driver_data	= ((mask) << 8 | (bits)),	\
+	}
+static struct pci_device_id ene_tune_tbl[] = {
+	/* Echo Audio products based on motorola DSP56301 and DSP56361 */
+	DEVID(PCI_VENDOR_ID_MOTOROLA, 0x1801, 0xECC0, PCI_ANY_ID,
+		ENE_TEST_C9_TLTENABLE | ENE_TEST_C9_PFENABLE, ENE_TEST_C9_TLTENABLE),
+	DEVID(PCI_VENDOR_ID_MOTOROLA, 0x3410, 0xECC0, PCI_ANY_ID,
+		ENE_TEST_C9_TLTENABLE | ENE_TEST_C9_PFENABLE, ENE_TEST_C9_TLTENABLE),
+
+	{}
+};
+
+static void ene_tune_bridge(struct pcmcia_socket *sock, struct pci_bus *bus)
+{
+	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
+	struct pci_dev *dev;
+	struct pci_device_id *id = NULL;
+	u8 test_c9, old_c9, mask, bits;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		id = (struct pci_device_id *) pci_match_id(ene_tune_tbl, dev);
+		if (id)
+			break;
+	}
+
+	test_c9 = old_c9 = config_readb(socket, ENE_TEST_C9);
+	if (id) {
+		mask = (id->driver_data >> 8) & 0xFF;
+		bits = id->driver_data & 0xFF;
+
+		test_c9 = (test_c9 & ~mask) | bits;
+	}
+	else
+		/* default to clear TLTEnable bit, old behaviour */
+		test_c9 &= ~ENE_TEST_C9_TLTENABLE;
+
+	printk(KERN_INFO "yenta EnE: chaning testregister 0xC9, %02x -> %02x\n", old_c9, test_c9);
+	config_writeb(socket, ENE_TEST_C9, test_c9);
+}
+
+
+static int ene_override(struct yenta_socket *socket)
+{
+	/* install tune_bridge() function */
+	socket->socket.tune_bridge = ene_tune_bridge;
+
+	return ti1250_override(socket);
 }
 
 #endif /* _LINUX_TI113X_H */
