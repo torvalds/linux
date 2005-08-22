@@ -11,12 +11,12 @@
 
 #include <linux/device.h>
 #include <linux/list.h>
+#include <linux/klist.h>
 #include <linux/spinlock.h>
 
 struct attribute_container {
 	struct list_head	node;
-	struct list_head	containers;
-	spinlock_t		containers_lock;
+	struct klist		containers;
 	struct class		*class;
 	struct class_device_attribute **attrs;
 	int (*match)(struct attribute_container *, struct device *);
