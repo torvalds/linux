@@ -11,7 +11,7 @@
  * (at your option) any later version.
  */
 
-#include <sound/driver.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/string.h>
