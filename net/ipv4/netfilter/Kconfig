@@ -410,6 +410,18 @@ config IP_NF_MATCH_HASHLIMIT
 	  destination IP' or `500pps from any given source IP'  with a single
 	  IPtables rule.
 
+config IP_NF_MATCH_STRING
+	tristate  'string match support'
+	depends on IP_NF_IPTABLES 
+	select TEXTSEARCH
+	select TEXTSEARCH_KMP
+	select TEXTSEARCH_FSM
+	help
+	  This option adds a `string' match, which allows you to look for
+	  pattern matchings in packets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 # `filter', generic and specific targets
 config IP_NF_FILTER
 	tristate "Packet filtering"
