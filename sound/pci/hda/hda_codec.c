@@ -1165,8 +1165,9 @@ int snd_hda_build_controls(struct hda_bus *bus)
  */
 static unsigned int rate_bits[][3] = {
 	/* rate in Hz, ALSA rate bitmask, HDA format value */
+
+	/* autodetected value used in snd_hda_query_supported_pcm */
 	{ 8000, SNDRV_PCM_RATE_8000, 0x0500 }, /* 1/6 x 48 */
-	{ 9600, SNDRV_PCM_RATE_KNOT, 0x0400 }, /* 1/5 x 48 */
 	{ 11025, SNDRV_PCM_RATE_11025, 0x4300 }, /* 1/4 x 44 */
 	{ 16000, SNDRV_PCM_RATE_16000, 0x0200 }, /* 1/3 x 48 */
 	{ 22050, SNDRV_PCM_RATE_22050, 0x4100 }, /* 1/2 x 44 */
@@ -1177,6 +1178,9 @@ static unsigned int rate_bits[][3] = {
 	{ 96000, SNDRV_PCM_RATE_96000, 0x0800 }, /* 2 x 48 */
 	{ 176400, SNDRV_PCM_RATE_176400, 0x5800 },/* 4 x 44 */
 	{ 192000, SNDRV_PCM_RATE_192000, 0x1800 }, /* 4 x 48 */
+
+	/* not autodetected value */
+	{ 9600, SNDRV_PCM_RATE_KNOT, 0x0400 }, /* 1/5 x 48 */
 	{ 0 }
 };
 
