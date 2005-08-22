@@ -345,7 +345,7 @@ static struct notifier_block esb_notifier = {
  * want to register another driver on the same PCI id.
  */
 static struct pci_device_id esb_pci_tbl[] = {
-        { PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB_9, PCI_ANY_ID, PCI_ANY_ID, },
+        { PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB_9), },
         { 0, },                 /* End of list */
 };
 MODULE_DEVICE_TABLE (pci, esb_pci_tbl);
@@ -365,7 +365,7 @@ static unsigned char __init esb_getdevice (void)
          */
 
         for_each_pci_dev(dev) {
-                if (pci_match_device(esb_pci_tbl, dev)) {
+                if (pci_match_id(esb_pci_tbl, dev)) {
                         esb_pci = dev;
                         break;
                 }
