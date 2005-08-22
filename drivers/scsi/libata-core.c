@@ -3350,11 +3350,13 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		break;
 
 	case ATA_PROT_ATAPI_NODATA:
+		ap->flags |= ATA_FLAG_NOINTR;
 		ata_tf_to_host_nolock(ap, &qc->tf);
 		queue_work(ata_wq, &ap->packet_task);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
+		ap->flags |= ATA_FLAG_NOINTR;
 		ap->ops->tf_load(ap, &qc->tf);	 /* load tf registers */
 		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
 		queue_work(ata_wq, &ap->packet_task);
@@ -3708,7 +3710,8 @@ irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 		struct ata_port *ap;
 
 		ap = host_set->ports[i];
-		if (ap && (!(ap->flags & ATA_FLAG_PORT_DISABLED))) {
+		if (ap &&
+		    !(ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))) {
 			struct ata_queued_cmd *qc;
 
 			qc = ata_qc_from_tag(ap, ap->active_tag);
@@ -3760,19 +3763,27 @@ static void atapi_packet_task(void *_data)
 	/* send SCSI cdb */
 	DPRINTK("send cdb\n");
 	assert(ap->cdb_len >= 12);
-	ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
 
-	/* if we are DMA'ing, irq handler takes over from here */
-	if (qc->tf.protocol == ATA_PROT_ATAPI_DMA)
-		ap->ops->bmdma_start(qc);	    /* initiate bmdma */
+	if (qc->tf.protocol == ATA_PROT_ATAPI_DMA ||
+	    qc->tf.protocol == ATA_PROT_ATAPI_NODATA) {
+		unsigned long flags;
 
-	/* non-data commands are also handled via irq */
-	else if (qc->tf.protocol == ATA_PROT_ATAPI_NODATA) {
-		/* do nothing */
-	}
+		/* Once we're done issuing command and kicking bmdma,
+		 * irq handler takes over.  To not lose irq, we need
+		 * to clear NOINTR flag before sending cdb, but
+		 * interrupt handler shouldn't be invoked before we're
+		 * finished.  Hence, the following locking.
+		 */
+		spin_lock_irqsave(&ap->host_set->lock, flags);
+		ap->flags &= ~ATA_FLAG_NOINTR;
+		ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
+		if (qc->tf.protocol == ATA_PROT_ATAPI_DMA)
+			ap->ops->bmdma_start(qc);	/* initiate bmdma */
+		spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	} else {
+		ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
 
-	/* PIO commands are handled by polling */
-	else {
+		/* PIO commands are handled by polling */
 		ap->pio_task_state = PIO_ST;
 		queue_work(ata_wq, &ap->pio_task);
 	}
