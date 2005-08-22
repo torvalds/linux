@@ -22,11 +22,11 @@
 #include "jfs_inode.h"
 #include "jfs_xattr.h"
 
-static int jfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *jfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	char *s = JFS_IP(dentry->d_inode)->i_inline;
 	nd_set_link(nd, s);
-	return 0;
+	return NULL;
 }
 
 struct inode_operations jfs_symlink_inode_operations = {

@@ -764,6 +764,7 @@ config BLK_DEV_IDE_PMAC_ATA100FIRST
 config BLK_DEV_IDEDMA_PMAC
 	bool "PowerMac IDE DMA support"
 	depends on BLK_DEV_IDE_PMAC
+	select BLK_DEV_IDEDMA_PCI
 	help
 	  This option allows the driver for the built-in IDE controller on
 	  Power Macintoshes and PowerBooks to use DMA (direct memory access)
