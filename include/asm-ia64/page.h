@@ -17,9 +17,9 @@
  * Different regions are assigned to different purposes.
  */
 #define RGN_SHIFT	(61)
-#define RGN_BASE(r)  (__IA64_UL_CONST(r)<<RGN_SHIFT)
+#define RGN_BASE(r)	(__IA64_UL_CONST(r)<<RGN_SHIFT)
+#define RGN_BITS	(RGN_BASE(-1))
 
-#define KHIGH -1	/* high three bits of Kernel virtual address */
 #define RGN_KERNEL	7	/* Identity mapped region */
 #define RGN_UNCACHED    6	/* Identity mapped I/O region */
 #define RGN_GATE	5	/* Gate page, Kernel text, etc */
