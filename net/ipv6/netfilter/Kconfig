@@ -199,6 +199,16 @@ config IP6_NF_TARGET_LOG
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP6_NF_TARGET_REJECT
+	tristate "REJECT target support"
+	depends on IP6_NF_FILTER
+	help
+	  The REJECT target allows a filtering rule to specify that an ICMPv6
+	  error should be issued in response to an incoming packet, rather
+	  than silently being dropped.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 #  if [ "$CONFIG_IP6_NF_FILTER" != "n" ]; then
 #    dep_tristate '    REJECT target support' CONFIG_IP6_NF_TARGET_REJECT $CONFIG_IP6_NF_FILTER
 #    if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
