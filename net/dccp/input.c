@@ -141,10 +141,16 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 					    "(P.ackno %s or LAWL(%llu) <= P.ackno(%llu) <= S.AWH(%llu), "
 					    "sending SYNC...\n",
 			       dccp_packet_name(dh->dccph_type),
-			       lswl, DCCP_SKB_CB(skb)->dccpd_seq, dp->dccps_swh,
+			       (unsigned long long) lswl,
+			       (unsigned long long)
+			       DCCP_SKB_CB(skb)->dccpd_seq,
+			       (unsigned long long) dp->dccps_swh,
 			       (DCCP_SKB_CB(skb)->dccpd_ack_seq ==
 			        DCCP_PKT_WITHOUT_ACK_SEQ) ? "doesn't exist" : "exists",
-			       lawl, DCCP_SKB_CB(skb)->dccpd_ack_seq, dp->dccps_awh);
+			       (unsigned long long) lawl,
+			       (unsigned long long)
+			       DCCP_SKB_CB(skb)->dccpd_ack_seq,
+			       (unsigned long long) dp->dccps_awh);
 		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq, DCCP_PKT_SYNC);
 		return -1;
 	}
