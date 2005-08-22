@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.111 2005/08/17 14:57:39 dedekind Exp $
+ * $Id: nodelist.c,v 1.112 2005/08/22 09:07:09 dedekind Exp $
  *
  */
 
@@ -80,7 +80,7 @@ void jffs2_truncate_fragtree(struct jffs2_sb_info *c, struct rb_root *list, uint
 	 * REF_PRISTINE irrespective of its size.
 	 */
 	frag = frag_last(list);
-	if ((frag->ofs & (PAGE_CACHE_SIZE - 1)) == 0) {
+	if (frag->node && (frag->ofs & (PAGE_CACHE_SIZE - 1)) == 0) {
 		JFFS2_DBG_FRAGTREE2("marking the last fragment 0x%08x-0x%08x REF_PRISTINE.\n",
 			frag->ofs, frag->ofs + frag->size); 
 		frag->node->raw->flash_offset = ref_offset(frag->node->raw) | REF_PRISTINE;
