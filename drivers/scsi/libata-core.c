@@ -2402,6 +2402,26 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	ata_poll_qc_complete - turn irq back on and finish qc
+ *	@qc: Command to complete
+ *	@drv_stat: ATA status register content
+ *
+ *	LOCKING:
+ *	None.  (grabs host lock)
+ */
+
+void ata_poll_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
+{
+	struct ata_port *ap = qc->ap;
+
+	spin_lock_irq(&ap->host_set->lock);
+	ap->flags &= ~ATA_FLAG_NOINTR;
+	ata_irq_on(ap);
+	ata_qc_complete(qc, drv_stat);
+	spin_unlock_irq(&ap->host_set->lock);
+}
+
+/**
  *	ata_pio_poll -
  *	@ap:
  *
@@ -2492,9 +2512,7 @@ static void ata_pio_complete (struct ata_port *ap)
 
 	ap->pio_task_state = PIO_ST_IDLE;
 
-	ata_irq_on(ap);
-
-	ata_qc_complete(qc, drv_stat);
+	ata_poll_qc_complete(qc, drv_stat);
 }
 
 
@@ -2844,9 +2862,7 @@ static void ata_pio_block(struct ata_port *ap)
 		if ((status & ATA_DRQ) == 0) {
 			ap->pio_task_state = PIO_ST_IDLE;
 
-			ata_irq_on(ap);
-
-			ata_qc_complete(qc, status);
+			ata_poll_qc_complete(qc, status);
 			return;
 		}
 
@@ -2876,9 +2892,7 @@ static void ata_pio_error(struct ata_port *ap)
 
 	ap->pio_task_state = PIO_ST_IDLE;
 
-	ata_irq_on(ap);
-
-	ata_qc_complete(qc, drv_stat | ATA_ERR);
+	ata_poll_qc_complete(qc, drv_stat | ATA_ERR);
 }
 
 static void ata_pio_task(void *_data)
@@ -3791,7 +3805,7 @@ static void atapi_packet_task(void *_data)
 	return;
 
 err_out:
-	ata_qc_complete(qc, ATA_ERR);
+	ata_poll_qc_complete(qc, ATA_ERR);
 }
 
 
