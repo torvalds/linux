@@ -1163,7 +1163,13 @@ int snd_hda_build_controls(struct hda_bus *bus)
 /*
  * stream formats
  */
-static unsigned int rate_bits[][3] = {
+struct hda_rate_tbl {
+	unsigned int hz;
+	unsigned int alsa_bits;
+	unsigned int hda_fmt;
+};
+
+static struct hda_rate_tbl rate_bits[] = {
 	/* rate in Hz, ALSA rate bitmask, HDA format value */
 
 	/* autodetected value used in snd_hda_query_supported_pcm */
@@ -1181,7 +1187,8 @@ static unsigned int rate_bits[][3] = {
 
 	/* not autodetected value */
 	{ 9600, SNDRV_PCM_RATE_KNOT, 0x0400 }, /* 1/5 x 48 */
-	{ 0 }
+
+	{ 0 } /* terminator */
 };
 
 /**
@@ -1203,12 +1210,12 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
 	int i;
 	unsigned int val = 0;
 
-	for (i = 0; rate_bits[i][0]; i++)
-		if (rate_bits[i][0] == rate) {
-			val = rate_bits[i][2];
+	for (i = 0; rate_bits[i].hz; i++)
+		if (rate_bits[i].hz == rate) {
+			val = rate_bits[i].hda_fmt;
 			break;
 		}
-	if (! rate_bits[i][0]) {
+	if (! rate_bits[i].hz) {
 		snd_printdd("invalid rate %d\n", rate);
 		return 0;
 	}
@@ -1271,9 +1278,9 @@ int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 
 	if (ratesp) {
 		u32 rates = 0;
-		for (i = 0; rate_bits[i][0]; i++) {
+		for (i = 0; rate_bits[i].hz; i++) {
 			if (val & (1 << i))
-				rates |= rate_bits[i][1];
+				rates |= rate_bits[i].alsa_bits;
 		}
 		*ratesp = rates;
 	}
@@ -1365,13 +1372,13 @@ int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
 	}
 
 	rate = format & 0xff00;
-	for (i = 0; rate_bits[i][0]; i++)
-		if (rate_bits[i][2] == rate) {
+	for (i = 0; rate_bits[i].hz; i++)
+		if (rate_bits[i].hda_fmt == rate) {
 			if (val & (1 << i))
 				break;
 			return 0;
 		}
-	if (! rate_bits[i][0])
+	if (! rate_bits[i].hz)
 		return 0;
 
 	stream = snd_hda_param_read(codec, nid, AC_PAR_STREAM);
