@@ -340,8 +340,8 @@ ipt_do_table(struct sk_buff **pskb,
 							 back->comefrom);
 					continue;
 				}
-				if (table_base + v
-				    != (void *)e + e->next_offset) {
+				if (table_base + v != (void *)e + e->next_offset
+				    && !(e->ip.flags & IPT_F_GOTO)) {
 					/* Save old back ptr in next entry */
 					struct ipt_entry *next
 						= (void *)e + e->next_offset;
