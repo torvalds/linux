@@ -346,8 +346,7 @@ static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
 			if (datalen<14)
 				goto resubmit;
 			if ((seq & IEEE802_11_SCTL_FRAG) == 0) {
-				frag = kmalloc(sizeof(struct zd1201_frag*),
-				    GFP_ATOMIC);
+				frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
 				if (!frag)
 					goto resubmit;
 				skb = dev_alloc_skb(IEEE802_11_DATA_LEN +14+2);
