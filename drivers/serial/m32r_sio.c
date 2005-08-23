@@ -1123,7 +1123,7 @@ static int __init m32r_sio_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver m32r_sio_reg;
+static struct uart_driver m32r_sio_reg;
 static struct console m32r_sio_console = {
 	.name		= "ttyS",
 	.write		= m32r_sio_console_write,
