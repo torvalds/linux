@@ -407,7 +407,7 @@ static dev_link_t *vxpocket_attach(void)
 		return NULL;
 	}
 
-	vxp->index = index[i];
+	vxp->index = i;
 	card_alloc |= 1 << i;
 
 	/* Chain drivers */
