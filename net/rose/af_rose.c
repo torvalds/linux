@@ -556,12 +556,7 @@ static struct sock *rose_make_new(struct sock *osk)
 	sk->sk_sndbuf   = osk->sk_sndbuf;
 	sk->sk_state    = TCP_ESTABLISHED;
 	sk->sk_sleep    = osk->sk_sleep;
-
-	if (sock_flag(osk, SOCK_ZAPPED))
-		sock_set_flag(sk, SOCK_ZAPPED);
-
-	if (sock_flag(osk, SOCK_DBG))
-		sock_set_flag(sk, SOCK_DBG);
+	sock_copy_flags(sk, osk);
 
 	init_timer(&rose->timer);
 	init_timer(&rose->idletimer);
