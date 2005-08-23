@@ -103,6 +103,16 @@ UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
  		US_SC_SCSI, US_PR_DPCM_USB, NULL, 0 ),
 #endif
 
+/*
+ * Pete Zaitcev <zaitcev@yahoo.com>, from Patrick C. F. Ernzer, bz#162559.
+ * The key does not actually break, but it returns zero sense which
+ * makes our SCSI stack to print confusing messages.
+ */
+UNUSUAL_DEV(  0x0457, 0x0150, 0x0100, 0x0100,
+		"USBest Technology",	/* sold by Transcend */
+		"USB Mass Storage Device",
+		US_SC_DEVICE, US_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
+
 /* Patch submitted by Philipp Friedrich <philipp@void.at> */
 UNUSUAL_DEV(  0x0482, 0x0100, 0x0100, 0x0100,
 		"Kyocera",
