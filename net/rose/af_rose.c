@@ -626,7 +626,8 @@ static int rose_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct rose_sock *rose = rose_sk(sk);
 	struct sockaddr_rose *addr = (struct sockaddr_rose *)uaddr;
 	struct net_device *dev;
-	ax25_address *user, *source;
+	ax25_address *source;
+	ax25_uid_assoc *user;
 	int n;
 
 	if (!sock_flag(sk, SOCK_ZAPPED))
@@ -651,14 +652,17 @@ static int rose_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	source = &addr->srose_call;
 
-	if ((user = ax25_findbyuid(current->euid)) == NULL) {
+	user = ax25_findbyuid(current->euid);
+	if (user) {
+		rose->source_call = user->call;
+		ax25_uid_put(user);
+	} else {
 		if (ax25_uid_policy && !capable(CAP_NET_BIND_SERVICE))
 			return -EACCES;
-		user = source;
+		rose->source_call   = *source;
 	}
 
 	rose->source_addr   = addr->srose_addr;
-	rose->source_call   = *user;
 	rose->device        = dev;
 	rose->source_ndigis = addr->srose_ndigis;
 
@@ -685,8 +689,8 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 	struct rose_sock *rose = rose_sk(sk);
 	struct sockaddr_rose *addr = (struct sockaddr_rose *)uaddr;
 	unsigned char cause, diagnostic;
-	ax25_address *user;
 	struct net_device *dev;
+	ax25_uid_assoc *user;
 	int n;
 
 	if (sk->sk_state == TCP_ESTABLISHED && sock->state == SS_CONNECTING) {
@@ -736,12 +740,14 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 		if ((dev = rose_dev_first()) == NULL)
 			return -ENETUNREACH;
 
-		if ((user = ax25_findbyuid(current->euid)) == NULL)
+		user = ax25_findbyuid(current->euid);
+		if (!user)
 			return -EINVAL;
 
 		memcpy(&rose->source_addr, dev->dev_addr, ROSE_ADDR_LEN);
-		rose->source_call = *user;
+		rose->source_call = user->call;
 		rose->device      = dev;
+		ax25_uid_put(user);
 
 		rose_insert_socket(sk);		/* Finish the bind */
 	}
