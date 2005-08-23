@@ -30,14 +30,10 @@ struct disk_req {
 	unsigned len;
 };
 
-/* SSC_WAIT_COMPLETION appears to want this large alignment.  gcc < 4
- * seems to give it by default, however gcc > 4 is smarter and may
- * not.
- */
 struct disk_stat {
 	int fd;
 	unsigned count;
-} __attribute__ ((aligned (16)));
+};
 
 extern void jmp_to_kernel (unsigned long bp, unsigned long e_entry);
 extern struct ia64_boot_param *sys_fw_init (const char *args, int arglen);
