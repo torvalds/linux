@@ -426,13 +426,8 @@ drm_agp_head_t *drm_agp_init(drm_device_t *dev)
 		return NULL;
 	}
 	head->memory = NULL;
-#if LINUX_VERSION_CODE <= 0x020408
-	head->cant_use_aperture = 0;
-	head->page_mask = ~(0xfff);
-#else
 	head->cant_use_aperture = head->agp_info.cant_use_aperture;
 	head->page_mask = head->agp_info.page_mask;
-#endif
 
 	return head;
 }
