@@ -1,7 +1,7 @@
 # ALSA ISA drivers
 
 menu "ISA devices"
-	depends on SND!=n && ISA
+	depends on SND!=n && ISA && ISA_DMA_API
 
 config SND_AD1848_LIB
         tristate
