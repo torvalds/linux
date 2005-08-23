@@ -584,7 +584,7 @@ static inline void skb_entail(struct sock *sk, struct tcp_sock *tp,
 	sk_charge_skb(sk, skb);
 	if (!sk->sk_send_head)
 		sk->sk_send_head = skb;
-	else if (tp->nonagle&TCP_NAGLE_PUSH)
+	if (tp->nonagle & TCP_NAGLE_PUSH)
 		tp->nonagle &= ~TCP_NAGLE_PUSH; 
 }
 
