@@ -297,6 +297,7 @@ static void vxpocket_config(dev_link_t *link)
 	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
 
 	chip->dev = &handle_to_dev(link->handle);
+	snd_card_set_dev(chip->card, chip->dev);
 
 	if (snd_vxpocket_assign_resources(chip, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
 		goto failed;
