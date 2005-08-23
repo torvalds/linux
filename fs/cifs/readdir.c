@@ -91,7 +91,10 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 		}
 
 		*ptmp_inode = new_inode(file->f_dentry->d_sb);
-		tmp_dentry->d_op = &cifs_dentry_ops;
+		if (pTcon->nocase)
+			tmp_dentry->d_op = &cifs_ci_dentry_ops;
+		else
+			tmp_dentry->d_op = &cifs_dentry_ops;
 		if(*ptmp_inode == NULL)
 			return rc;
 		rc = 1;

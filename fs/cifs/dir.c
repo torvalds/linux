@@ -230,7 +230,10 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			     ("Create worked but get_inode_info failed rc = %d",
 			      rc));
 		} else {
-			direntry->d_op = &cifs_dentry_ops;
+			if (pTcon->nocase)
+				direntry->d_op = &cifs_ci_dentry_ops;
+			else
+				direntry->d_op = &cifs_dentry_ops;
 			d_instantiate(direntry, newinode);
 		}
 		if((nd->flags & LOOKUP_OPEN) == FALSE) {
@@ -322,7 +325,10 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 		if(!rc) {
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
 						inode->i_sb,xid);
-			direntry->d_op = &cifs_dentry_ops;
+			if (pTcon->nocase)
+				direntry->d_op = &cifs_ci_dentry_ops;
+			else
+				direntry->d_op = &cifs_dentry_ops;
 			if(rc == 0)
 				d_instantiate(direntry, newinode);
 		}
@@ -418,7 +424,10 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct name
 					 parent_dir_inode->i_sb,xid);
 
 	if ((rc == 0) && (newInode != NULL)) {
-		direntry->d_op = &cifs_dentry_ops;
+		if (pTcon->nocase)
+			direntry->d_op = &cifs_ci_dentry_ops;
+		else
+			direntry->d_op = &cifs_dentry_ops;
 		d_add(direntry, newInode);
 
 		/* since paths are not looked up by component - the parent directories are presumed to be good here */
@@ -476,4 +485,43 @@ struct dentry_operations cifs_dentry_ops = {
 	.d_revalidate = cifs_d_revalidate,
 /* d_delete:       cifs_d_delete,       *//* not needed except for debugging */
 	/* no need for d_hash, d_compare, d_release, d_iput ... yet. BB confirm this BB */
+};
+
+static int cifs_ci_hash(struct dentry *dentry, struct qstr *q)
+{
+	struct nls_table *codepage = CIFS_SB(dentry->d_inode->i_sb)->local_nls;
+	unsigned long hash;
+	int i;
+
+	hash = init_name_hash();
+	for (i = 0; i < q->len; i++)
+		hash = partial_name_hash(nls_tolower(codepage, q->name[i]),
+					 hash);
+	q->hash = end_name_hash(hash);
+
+	return 0;
+}
+
+static int cifs_ci_compare(struct dentry *dentry, struct qstr *a,
+			   struct qstr *b)
+{
+	struct nls_table *codepage = CIFS_SB(dentry->d_inode->i_sb)->local_nls;
+
+	if ((a->len == b->len) &&
+	    (nls_strnicmp(codepage, a->name, b->name, a->len) == 0)) {
+		/*
+		 * To preserve case, don't let an existing negative dentry's
+		 * case take precedence.  If a is not a negative dentry, this
+		 * should have no side effects
+		 */
+		memcpy((unsigned char *)a->name, b->name, a->len);
+		return 0;
+	}
+	return 1;
+}
+
+struct dentry_operations cifs_ci_dentry_ops = {
+	.d_revalidate = cifs_d_revalidate,
+	.d_hash = cifs_ci_hash,
+	.d_compare = cifs_ci_compare,
 };

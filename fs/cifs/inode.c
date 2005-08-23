@@ -591,7 +591,10 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			rc = cifs_get_inode_info(&newinode, full_path, NULL,
 						 inode->i_sb,xid);
 
-		direntry->d_op = &cifs_dentry_ops;
+		if (pTcon->nocase)
+			direntry->d_op = &cifs_ci_dentry_ops;
+		else
+			direntry->d_op = &cifs_dentry_ops;
 		d_instantiate(direntry, newinode);
 		if (direntry->d_inode)
 			direntry->d_inode->i_nlink = 2;
