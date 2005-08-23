@@ -2268,19 +2268,6 @@ void ata_qc_prep(struct ata_queued_cmd *qc)
  *	spin_lock_irqsave(host_set lock)
  */
 
-
-
-/**
- *	ata_sg_init_one - Prepare a one-entry scatter-gather list.
- *	@qc:  Queued command
- *	@buf:  transfer buffer
- *	@buflen:  length of buf
- *
- *	Builds a single-entry scatter-gather list to initiate a
- *	transfer utilizing the specified buffer.
- *
- *	LOCKING:
- */
 void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 {
 	struct scatterlist *sg;
@@ -2310,18 +2297,6 @@ void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
- */
-
-
-/**
- *	ata_sg_init - Assign a scatter gather list to a queued command
- *	@qc:  Queued command
- *	@sg:  Scatter-gather list
- *	@n_elem:  length of sg list
- *
- *	Attaches a scatter-gather list to a queued command.
- *
- *	LOCKING:
  */
 
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
