@@ -995,7 +995,7 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	 *	2. It isn't "owned" by any existing route.
 	 */
 	if (frametype != ROSE_CALL_REQUEST) {	/* XXX */
-		ret = 0;
+		res = 0;
 		goto out;
 	}
 
