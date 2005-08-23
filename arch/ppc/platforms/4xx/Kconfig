@@ -240,10 +240,6 @@ config PPC_GEN550
 	depends on 4xx
 	default y
 
-config PM
-	bool "Power Management support (EXPERIMENTAL)"
-	depends on 4xx && EXPERIMENTAL
-
 choice
 	prompt "TTYS0 device and default console"
 	depends on 40x

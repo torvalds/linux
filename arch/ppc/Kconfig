@@ -1122,7 +1122,9 @@ config PROC_HARDWARE
 
 source "drivers/zorro/Kconfig"
 
+if !44x || BROKEN
 source kernel/power/Kconfig
+endif
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
