@@ -499,7 +499,7 @@ static int ioc3_mdio_read(struct net_device *dev, int phy, int reg)
 	ioc3_w_micr((phy << MICR_PHYADDR_SHIFT) | reg | MICR_READTRIG);
 	while (ioc3_r_micr() & MICR_BUSY);
 
-	return ioc3_r_micr() & MIDR_DATA_MASK;
+	return ioc3_r_midr_r() & MIDR_DATA_MASK;
 }
 
 static void ioc3_mdio_write(struct net_device *dev, int phy, int reg, int data)
@@ -1291,7 +1291,6 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->features		= NETIF_F_IP_CSUM;
 #endif
 
-	ioc3_setup_duplex(ip);
 	sw_physid1 = ioc3_mdio_read(dev, ip->mii.phy_id, MII_PHYSID1);
 	sw_physid2 = ioc3_mdio_read(dev, ip->mii.phy_id, MII_PHYSID2);
 
@@ -1300,6 +1299,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_stop;
 
 	mii_check_media(&ip->mii, 1, 1);
+	ioc3_setup_duplex(ip);
 
 	vendor = (sw_physid1 << 12) | (sw_physid2 >> 4);
 	model  = (sw_physid2 >> 4) & 0x3f;
@@ -1524,7 +1524,7 @@ static void ioc3_get_drvinfo (struct net_device *dev,
 	struct ethtool_drvinfo *info)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
-                                                                                
+
         strcpy (info->driver, IOC3_NAME);
         strcpy (info->version, IOC3_VERSION);
         strcpy (info->bus_info, pci_name(ip->pdev));
@@ -1550,7 +1550,7 @@ static int ioc3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	spin_lock_irq(&ip->ioc3_lock);
 	rc = mii_ethtool_sset(&ip->mii, cmd);
 	spin_unlock_irq(&ip->ioc3_lock);
-                                                                        
+
 	return rc;
 }
 
