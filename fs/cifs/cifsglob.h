@@ -110,7 +110,8 @@ enum protocolEnum {
  */
 
 struct TCP_Server_Info {
-	char server_Name[SERVER_NAME_LEN_WITH_NULL]; /* 15 chars + X'20' 16th */
+	/* 15 character server name + 0x20 16th byte indicating type = srv */
+	char server_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];
 	struct socket *ssocket;
 	union {
@@ -149,7 +150,8 @@ struct TCP_Server_Info {
 	__u16 timeZone;
 	__u16 CurrentMid;         /* multiplex id - rotating counter */
 	char cryptKey[CIFS_CRYPTO_KEY_SIZE];
-	char workstation_RFC1001_name[16]; /* 16th byte is always zero */
+	/* 16th byte of RFC1001 workstation name is always null */
+	char workstation_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* needed for CIFS PDU signature */
 	char mac_signing_key[CIFS_SESSION_KEY_SIZE + 16]; 
 };

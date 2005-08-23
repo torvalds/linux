@@ -1,5 +1,6 @@
 Version 1.36
 ------------
+Add support for moounting to older pre-CIFS servers such as Windows9x and ME.
 Add mount option for disabling the default behavior of sending byte range lock
 requests to the server (necessary for certain applications which break with
 mandatory lock behavior such as Evolution), and also mount option for
@@ -10,7 +11,11 @@ Version 1.35
 ------------
 Add writepage performance improvements.  Fix path name conversions
 for long filenames on mounts which were done with "mapchars" mount option
-specified.
+specified.  Ensure multiplex ids do not collide.  Fix case in which 
+rmmod can oops if done soon after last unmount.  Fix truncated
+search (readdir) output when resume filename was a long filename.
+Fix filename conversion when mapchars mount option was specified and
+filename was a long filename.
 
 Version 1.34
 ------------

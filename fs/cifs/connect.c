@@ -63,6 +63,7 @@ struct smb_vol {
 	char *in6_addr;  /* ipv6 address as human readable form of in6_addr */
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[16]; /* netbios name of client */
+	char target_rfc1001_name[16]; /* netbios name of server for Win9x/ME */
 	uid_t linux_uid;
 	gid_t linux_gid;
 	mode_t file_mode;
@@ -89,7 +90,8 @@ struct smb_vol {
 
 static int ipv4_connect(struct sockaddr_in *psin_server, 
 			struct socket **csocket,
-			char * netb_name);
+			char * netb_name,
+			char * server_netb_name);
 static int ipv6_connect(struct sockaddr_in6 *psin_server, 
 			struct socket **csocket);
 
@@ -182,7 +184,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		} else {
 			rc = ipv4_connect(&server->addr.sockAddr, 
 					&server->ssocket,
-					server->workstation_RFC1001_name);
+					server->workstation_RFC1001_name,
+					server->server_RFC1001_name);
 		}
 		if(rc) {
 			msleep(3000);
@@ -743,7 +746,9 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			toupper(system_utsname.nodename[i]);
 	}
 	vol->source_rfc1001_name[15] = 0;
-
+	/* null target name indicates to use *SMBSERVR default called name
+	   if we end up sending RFC1001 session initialize */
+	vol->target_rfc1001_name[0] = 0;
 	vol->linux_uid = current->uid;	/* current->euid instead? */
 	vol->linux_gid = current->gid;
 	vol->dir_mode = S_IRWXUGO;
@@ -996,7 +1001,31 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 				/* The string has 16th byte zero still from
 				set at top of the function  */
 				if((i==15) && (value[i] != 0))
-					printk(KERN_WARNING "CIFS: netbiosname longer than 15 and was truncated.\n");
+					printk(KERN_WARNING "CIFS: netbiosname longer than 15 truncated.\n");
+			}
+		} else if (strnicmp(data, "servern", 7) == 0) {
+			/* servernetbiosname specified override *SMBSERVER */
+			if (!value || !*value || (*value == ' ')) {
+				cFYI(1,("empty server netbiosname specified"));
+			} else {
+				/* last byte, type, is 0x20 for servr type */
+				memset(vol->target_rfc1001_name,0x20,16);
+
+				for(i=0;i<15;i++) {
+				/* BB are there cases in which a comma can be
+				   valid in this workstation netbios name (and need
+				   special handling)? */
+
+				/* user or mount helper must uppercase netbiosname */
+					if (value[i]==0)
+						break;
+					else
+						vol->target_rfc1001_name[i] = value[i];
+				}
+				/* The string has 16th byte zero still from
+				   set at top of the function  */
+				if((i==15) && (value[i] != 0))
+					printk(KERN_WARNING "CIFS: server netbiosname longer than 15 truncated.\n");
 			}
 		} else if (strnicmp(data, "credentials", 4) == 0) {
 			/* ignore */
@@ -1042,7 +1071,8 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			vol->posix_paths = 1;
 		} else if (strnicmp(data, "noposixpaths", 12) == 0) {
 			vol->posix_paths = 0;
-                } else if (strnicmp(data, "nocase", 6) == 0) {
+                } else if ((strnicmp(data, "nocase", 6) == 0) ||
+			   (strnicmp(data, "ignorecase", 10)  == 0)) {
                         vol->nocase = 1;
 		} else if (strnicmp(data, "brl", 3) == 0) {
 			vol->nobrl =  0;
@@ -1272,7 +1302,7 @@ static void rfc1002mangle(char * target,char * source, unsigned int length)
 
 static int
 ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket, 
-			 char * netbios_name)
+	     char * netbios_name, char * target_name)
 {
 	int rc = 0;
 	int connected = 0;
@@ -1350,8 +1380,14 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 		ses_init_buf = kcalloc(1, sizeof(struct rfc1002_session_packet), GFP_KERNEL);
 		if(ses_init_buf) {
 			ses_init_buf->trailer.session_req.called_len = 32;
-			rfc1002mangle(ses_init_buf->trailer.session_req.called_name,
-				DEFAULT_CIFS_CALLED_NAME,16);
+			if(target_name && (target_name[0] != 0)) {
+				rfc1002mangle(ses_init_buf->trailer.session_req.called_name,
+					target_name, 16);
+			} else {
+				rfc1002mangle(ses_init_buf->trailer.session_req.called_name,
+					DEFAULT_CIFS_CALLED_NAME,16);
+			}
+
 			ses_init_buf->trailer.session_req.calling_len = 32;
 			/* calling name ends in null (byte 16) from old smb
 			convention. */
@@ -1584,7 +1620,9 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			sin_server.sin_port = htons(volume_info.port);
 		else
 			sin_server.sin_port = 0;
-		rc = ipv4_connect(&sin_server,&csocket,volume_info.source_rfc1001_name);
+		rc = ipv4_connect(&sin_server,&csocket,
+				  volume_info.source_rfc1001_name,
+				  volume_info.target_rfc1001_name);
 		if (rc < 0) {
 			cERROR(1,
 			       ("Error connecting to IPv4 socket. Aborting operation"));
@@ -1638,6 +1676,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			wait_for_completion(&cifsd_complete);
 			rc = 0;
 			memcpy(srvTcp->workstation_RFC1001_name, volume_info.source_rfc1001_name,16);
+			memcpy(srvTcp->server_RFC1001_name, volume_info.target_rfc1001_name,16);
 			srvTcp->sequence_number = 0;
 		}
 	}
