@@ -286,6 +286,7 @@ menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
 
 config PCI
 	bool "PCI support"
+	depends on BROKEN
 	default n
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
