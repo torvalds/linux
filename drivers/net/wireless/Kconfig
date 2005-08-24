@@ -270,7 +270,7 @@ config PCMCIA_HERMES
 
 config AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
-	depends on NET_RADIO && PCMCIA
+	depends on NET_RADIO && PCMCIA && (BROKEN || !M32R)
 	---help---
 	  This is the standard Linux driver to support Cisco/Aironet PCMCIA
 	  802.11 wireless cards.  This driver is the same as the Aironet

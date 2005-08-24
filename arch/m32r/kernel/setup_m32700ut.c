@@ -30,9 +30,11 @@
 typedef struct {
 	unsigned long icucr;  /* ICU Control Register */
 } icu_data_t;
+static icu_data_t icu_data[M32700UT_NUM_CPU_IRQ];
+#else
+icu_data_t icu_data[M32700UT_NUM_CPU_IRQ];
 #endif /* CONFIG_SMP */
 
-static icu_data_t icu_data[M32700UT_NUM_CPU_IRQ];
 
 static void disable_m32700ut_irq(unsigned int irq)
 {

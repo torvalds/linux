@@ -120,14 +120,6 @@ static inline void ___ia64_mmiowb(void)
 	ia64_mfa();
 }
 
-static inline const unsigned long
-__ia64_get_io_port_base (void)
-{
-	extern unsigned long ia64_iobase;
-
-	return ia64_iobase;
-}
-
 static inline void*
 __ia64_mk_io_addr (unsigned long port)
 {

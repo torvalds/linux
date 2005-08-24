@@ -443,22 +443,19 @@ __xchg_u64(volatile long *m, unsigned long val)
    if something tries to do an invalid xchg().  */
 extern void __xchg_called_with_bad_pointer(void);
 
-static inline unsigned long
-__xchg(volatile void *ptr, unsigned long x, int size)
-{
-	switch (size) {
-		case 1:
-			return __xchg_u8(ptr, x);
-		case 2:
-			return __xchg_u16(ptr, x);
-		case 4:
-			return __xchg_u32(ptr, x);
-		case 8:
-			return __xchg_u64(ptr, x);
-	}
-	__xchg_called_with_bad_pointer();
-	return x;
-}
+#define __xchg(ptr, x, size) \
+({ \
+	unsigned long __xchg__res; \
+	volatile void *__xchg__ptr = (ptr); \
+	switch (size) { \
+		case 1: __xchg__res = __xchg_u8(__xchg__ptr, x); break; \
+		case 2: __xchg__res = __xchg_u16(__xchg__ptr, x); break; \
+		case 4: __xchg__res = __xchg_u32(__xchg__ptr, x); break; \
+		case 8: __xchg__res = __xchg_u64(__xchg__ptr, x); break; \
+		default: __xchg_called_with_bad_pointer(); __xchg__res = x; \
+	} \
+	__xchg__res; \
+})
 
 #define xchg(ptr,x)							     \
   ({									     \
