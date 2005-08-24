@@ -38,6 +38,80 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
+/* mdiobus_register 
+ *
+ * description: Called by a bus driver to bring up all the PHYs
+ *   on a given bus, and attach them to the bus
+ */
+int mdiobus_register(struct mii_bus *bus)
+{
+	int i;
+	int err = 0;
+
+	spin_lock_init(&bus->mdio_lock);
+
+	if (NULL == bus || NULL == bus->name ||
+			NULL == bus->read ||
+			NULL == bus->write)
+		return -EINVAL;
+
+	if (bus->reset)
+		bus->reset(bus);
+
+	for (i = 0; i < PHY_MAX_ADDR; i++) {
+		struct phy_device *phydev;
+
+		phydev = get_phy_device(bus, i);
+
+		if (IS_ERR(phydev))
+			return PTR_ERR(phydev);
+
+		/* There's a PHY at this address
+		 * We need to set:
+		 * 1) IRQ
+		 * 2) bus_id
+		 * 3) parent
+		 * 4) bus
+		 * 5) mii_bus
+		 * And, we need to register it */
+		if (phydev) {
+			phydev->irq = bus->irq[i];
+
+			phydev->dev.parent = bus->dev;
+			phydev->dev.bus = &mdio_bus_type;
+			sprintf(phydev->dev.bus_id, "phy%d:%d", bus->id, i);
+
+			phydev->bus = bus;
+
+			err = device_register(&phydev->dev);
+
+			if (err)
+				printk(KERN_ERR "phy %d failed to register\n",
+						i);
+		}
+
+		bus->phy_map[i] = phydev;
+	}
+
+	pr_info("%s: probed\n", bus->name);
+
+	return err;
+}
+EXPORT_SYMBOL(mdiobus_register);
+
+void mdiobus_unregister(struct mii_bus *bus)
+{
+	int i;
+
+	for (i = 0; i < PHY_MAX_ADDR; i++) {
+		if (bus->phy_map[i]) {
+			device_unregister(&bus->phy_map[i]->dev);
+			kfree(bus->phy_map[i]);
+		}
+	}
+}
+EXPORT_SYMBOL(mdiobus_unregister);
+
 /* mdio_bus_match
  *
  * description: Given a PHY device, and a PHY driver, return 1 if
@@ -96,4 +170,7 @@ int __init mdio_bus_init(void)
 	return bus_register(&mdio_bus_type);
 }
 
-
+void __exit mdio_bus_exit(void)
+{
+	bus_unregister(&mdio_bus_type);
+}

@@ -334,11 +334,26 @@ int phy_write(struct phy_device *phydev, u16 regnum, u16 val);
 struct phy_device* get_phy_device(struct mii_bus *bus, int addr);
 int phy_clear_interrupt(struct phy_device *phydev);
 int phy_config_interrupt(struct phy_device *phydev, u32 interrupts);
+struct phy_device * phy_attach(struct net_device *dev,
+		const char *phy_id, u32 flags);
+struct phy_device * phy_connect(struct net_device *dev, const char *phy_id,
+		void (*handler)(struct net_device *), u32 flags);
+void phy_disconnect(struct phy_device *phydev);
+void phy_detach(struct phy_device *phydev);
+void phy_start(struct phy_device *phydev);
+void phy_stop(struct phy_device *phydev);
+int phy_start_aneg(struct phy_device *phydev);
+
+int mdiobus_register(struct mii_bus *bus);
+void mdiobus_unregister(struct mii_bus *bus);
+void phy_sanitize_settings(struct phy_device *phydev);
+int phy_stop_interrupts(struct phy_device *phydev);
 
 static inline int phy_read_status(struct phy_device *phydev) {
 	return phydev->drv->read_status(phydev);
 }
 
+int genphy_config_advert(struct phy_device *phydev);
 int genphy_setup_forced(struct phy_device *phydev);
 int genphy_restart_aneg(struct phy_device *phydev);
 int genphy_config_aneg(struct phy_device *phydev);
@@ -355,6 +370,8 @@ int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 int phy_mii_ioctl(struct phy_device *phydev,
 		struct mii_ioctl_data *mii_data, int cmd);
+int phy_start_interrupts(struct phy_device *phydev);
+void phy_print_status(struct phy_device *phydev);
 
 extern struct bus_type mdio_bus_type;
 #endif /* __PHY_H */
