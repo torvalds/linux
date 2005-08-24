@@ -1730,8 +1730,9 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		else
 			cifs_sb->wsize = CIFSMaxBufSize; /* default */
 		if(cifs_sb->rsize < PAGE_CACHE_SIZE) {
-			cifs_sb->rsize = PAGE_CACHE_SIZE;
-			cERROR(1,("Attempt to set readsize for mount to less than one page (4096)"));
+			cifs_sb->rsize = PAGE_CACHE_SIZE; 
+			/* Windows ME does this */
+			cFYI(1,("Attempt to set readsize for mount to less than one page (4096)"));
 		}
 		cifs_sb->mnt_uid = volume_info.linux_uid;
 		cifs_sb->mnt_gid = volume_info.linux_gid;

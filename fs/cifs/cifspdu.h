@@ -36,6 +36,7 @@
 #define SMB_COM_CLOSE                 0x04 /* triv req/rsp, timestamp ignored */
 #define SMB_COM_DELETE                0x06 /* trivial response */
 #define SMB_COM_RENAME                0x07 /* trivial response */
+#define SMB_COM_QUERY_INFORMATION     0x08 /* aka getattr */
 #define SMB_COM_SETATTR               0x09 /* trivial response */
 #define SMB_COM_LOCKING_ANDX          0x24 /* trivial response */
 #define SMB_COM_COPY                  0x29 /* trivial rsp, fail filename ignrd*/
@@ -884,6 +885,22 @@ typedef struct smb_com_create_directory_rsp {
 	struct smb_hdr hdr;	/* wct = 0 */
 	__u16 ByteCount;	/* bct = 0 */
 } CREATE_DIRECTORY_RSP;
+
+typedef struct smb_com_query_information_req {
+	struct smb_hdr hdr;     /* wct = 0 */
+	__le16 ByteCount;	/* 1 + namelen + 1 */
+	__u8 BufferFormat;      /* 4 = ASCII */
+	unsigned char FileName[1];
+} QUERY_INFORMATION_REQ;
+
+typedef struct smb_com_query_information_rsp {
+	struct smb_hdr hdr;     /* wct = 10 */
+	__le16 attr;
+	__le32  last_write_time;
+	__le32 size;
+	__u16  reserved[5];
+	__le16 ByteCount;	/* bcc = 0 */
+} QUERY_INFORMATION_RSP;
 
 typedef struct smb_com_setattr_req {
 	struct smb_hdr hdr; /* wct = 8 */

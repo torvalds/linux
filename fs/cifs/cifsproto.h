@@ -105,6 +105,10 @@ extern int CIFSSMBQPathInfo(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
 			FILE_ALL_INFO * findData,
 			const struct nls_table *nls_codepage, int remap);
+extern int SMBQueryInformation(const int xid, struct cifsTconInfo *tcon,
+                        const unsigned char *searchName,
+                        FILE_ALL_INFO * findData,
+                        const struct nls_table *nls_codepage, int remap);
 
 extern int CIFSSMBUnixQPathInfo(const int xid,
 			struct cifsTconInfo *tcon,

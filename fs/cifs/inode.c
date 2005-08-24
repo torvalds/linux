@@ -215,8 +215,18 @@ int cifs_get_inode_info(struct inode **pinode,
 		pfindData = (FILE_ALL_INFO *)buf;
 		/* could do find first instead but this returns more info */
 		rc = CIFSSMBQPathInfo(xid, pTcon, search_path, pfindData,
-			      cifs_sb->local_nls, cifs_sb->mnt_cifs_flags & 
+			      cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
+		/* BB optimize code so we do not make the above call
+		when server claims no NT SMB support and the above call
+		failed at least once - set flag in tcon or mount */
+		if((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
+			rc = SMBQueryInformation(xid, pTcon, search_path,
+					pfindData, cifs_sb->local_nls, 
+					cifs_sb->mnt_cifs_flags &
+					  CIFS_MOUNT_MAP_SPECIAL_CHR);
+		}
+		
 	}
 	/* dump_mem("\nQPathInfo return data",&findData, sizeof(findData)); */
 	if (rc) {

@@ -1,6 +1,8 @@
 Version 1.36
 ------------
 Add support for moounting to older pre-CIFS servers such as Windows9x and ME.
+For these older servers, add option for passing netbios name of server in
+on mount (servernetbiosname).
 Add mount option for disabling the default behavior of sending byte range lock
 requests to the server (necessary for certain applications which break with
 mandatory lock behavior such as Evolution), and also mount option for

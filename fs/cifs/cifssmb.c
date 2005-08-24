@@ -2200,6 +2200,65 @@ GetExtAttrOut:
 
 #endif /* CONFIG_POSIX */
 
+/* Legacy Query Path Information call for lookup to old servers such
+   as Win9x/WinME */
+int SMBQueryInformation(const int xid, struct cifsTconInfo *tcon,
+                 const unsigned char *searchName,
+                 FILE_ALL_INFO * pFinfo,
+                 const struct nls_table *nls_codepage, int remap)
+{
+	QUERY_INFORMATION_REQ * pSMB;
+	QUERY_INFORMATION_RSP * pSMBr;
+	int rc = 0;
+	int bytes_returned;
+	int name_len;
+
+	cFYI(1, ("In SMBQPath path %s", searchName)); 
+QInfRetry:
+	rc = smb_init(SMB_COM_QUERY_INFORMATION, 0, tcon, (void **) &pSMB,
+                      (void **) &pSMBr);
+	if (rc)
+		return rc;
+
+	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
+		name_len =
+                    cifsConvertToUCS((__le16 *) pSMB->FileName, searchName,
+                                     PATH_MAX, nls_codepage, remap);
+		name_len++;     /* trailing null */
+		name_len *= 2;
+	} else {               
+		name_len = strnlen(searchName, PATH_MAX);
+		name_len++;     /* trailing null */
+		strncpy(pSMB->FileName, searchName, name_len);
+	}
+	pSMB->BufferFormat = 0x04;
+	name_len++; /* account for buffer type byte */	
+	pSMB->hdr.smb_buf_length += (__u16) name_len;
+	pSMB->ByteCount = cpu_to_le16(name_len);
+
+	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+                         (struct smb_hdr *) pSMBr, &bytes_returned, 0);
+	if (rc) {
+		cFYI(1, ("Send error in QueryInfo = %d", rc));
+	} else if (pFinfo) {            /* decode response */
+		memset(pFinfo, 0, sizeof(FILE_ALL_INFO));
+		pFinfo->AllocationSize = (__le64) pSMBr->size;
+		pFinfo->EndOfFile = (__le64) pSMBr->size;
+		pFinfo->Attributes = (__le32) pSMBr->attr;
+	} else
+		rc = -EIO; /* bad buffer passed in */
+
+	cifs_buf_release(pSMB);
+
+	if (rc == -EAGAIN)
+		goto QInfRetry;
+
+	return rc;
+}
+
+
+
+
 int
 CIFSSMBQPathInfo(const int xid, struct cifsTconInfo *tcon,
 		 const unsigned char *searchName,
