@@ -61,9 +61,7 @@ extern physid_mask_t phys_cpu_present_map;
  * Some lowlevel functions might want to know about
  * the real CPU ID <-> CPU # mapping.
  */
-extern volatile int physid_2_cpu[NR_CPUS];
 extern volatile int cpu_2_physid[NR_CPUS];
-#define physid_to_cpu(physid)	physid_2_cpu[physid]
 #define cpu_to_physid(cpu_id)	cpu_2_physid[cpu_id]
 
 #define raw_smp_processor_id()	(current_thread_info()->cpu)

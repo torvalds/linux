@@ -459,12 +459,7 @@ static struct sock *nr_make_new(struct sock *osk)
 	sk->sk_sndbuf   = osk->sk_sndbuf;
 	sk->sk_state    = TCP_ESTABLISHED;
 	sk->sk_sleep    = osk->sk_sleep;
-
-	if (sock_flag(osk, SOCK_ZAPPED))
-		sock_set_flag(sk, SOCK_ZAPPED);
-
-	if (sock_flag(osk, SOCK_DBG))
-		sock_set_flag(sk, SOCK_DBG);
+	sock_copy_flags(sk, osk);
 
 	skb_queue_head_init(&nr->ack_queue);
 	skb_queue_head_init(&nr->reseq_queue);
@@ -541,7 +536,8 @@ static int nr_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct nr_sock *nr = nr_sk(sk);
 	struct full_sockaddr_ax25 *addr = (struct full_sockaddr_ax25 *)uaddr;
 	struct net_device *dev;
-	ax25_address *user, *source;
+	ax25_uid_assoc *user;
+	ax25_address *source;
 
 	lock_sock(sk);
 	if (!sock_flag(sk, SOCK_ZAPPED)) {
@@ -580,16 +576,19 @@ static int nr_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	} else {
 		source = &addr->fsa_ax25.sax25_call;
 
-		if ((user = ax25_findbyuid(current->euid)) == NULL) {
+		user = ax25_findbyuid(current->euid);
+		if (user) {
+			nr->user_addr   = user->call;
+			ax25_uid_put(user);
+		} else {
 			if (ax25_uid_policy && !capable(CAP_NET_BIND_SERVICE)) {
 				release_sock(sk);
 				dev_put(dev);
 				return -EPERM;
 			}
-			user = source;
+			nr->user_addr   = *source;
 		}
 
-		nr->user_addr   = *user;
 		nr->source_addr = *source;
 	}
 
@@ -609,7 +608,8 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 	struct sock *sk = sock->sk;
 	struct nr_sock *nr = nr_sk(sk);
 	struct sockaddr_ax25 *addr = (struct sockaddr_ax25 *)uaddr;
-	ax25_address *user, *source = NULL;
+	ax25_address *source = NULL;
+	ax25_uid_assoc *user;
 	struct net_device *dev;
 
 	lock_sock(sk);
@@ -650,16 +650,19 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 		}
 		source = (ax25_address *)dev->dev_addr;
 
-		if ((user = ax25_findbyuid(current->euid)) == NULL) {
+		user = ax25_findbyuid(current->euid);
+		if (user) {
+			nr->user_addr   = user->call;
+			ax25_uid_put(user);
+		} else {
 			if (ax25_uid_policy && !capable(CAP_NET_ADMIN)) {
 				dev_put(dev);
 				release_sock(sk);
 				return -EPERM;
 			}
-			user = source;
+			nr->user_addr   = *source;
 		}
 
-		nr->user_addr   = *user;
 		nr->source_addr = *source;
 		nr->device      = dev;
 

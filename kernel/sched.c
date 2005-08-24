@@ -3378,8 +3378,8 @@ EXPORT_SYMBOL(set_user_nice);
  */
 int can_nice(const task_t *p, const int nice)
 {
-	/* convert nice value [19,-20] to rlimit style value [0,39] */
-	int nice_rlim = 19 - nice;
+	/* convert nice value [19,-20] to rlimit style value [1,40] */
+	int nice_rlim = 20 - nice;
 	return (nice_rlim <= p->signal->rlim[RLIMIT_NICE].rlim_cur ||
 		capable(CAP_SYS_NICE));
 }

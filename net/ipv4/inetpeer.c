@@ -450,10 +450,13 @@ static void peer_check_expire(unsigned long dummy)
 	/* Trigger the timer after inet_peer_gc_mintime .. inet_peer_gc_maxtime
 	 * interval depending on the total number of entries (more entries,
 	 * less interval). */
-	peer_periodic_timer.expires = jiffies
-		+ inet_peer_gc_maxtime
-		- (inet_peer_gc_maxtime - inet_peer_gc_mintime) / HZ *
-			peer_total / inet_peer_threshold * HZ;
+	if (peer_total >= inet_peer_threshold)
+		peer_periodic_timer.expires = jiffies + inet_peer_gc_mintime;
+	else
+		peer_periodic_timer.expires = jiffies
+			+ inet_peer_gc_maxtime
+			- (inet_peer_gc_maxtime - inet_peer_gc_mintime) / HZ *
+				peer_total / inet_peer_threshold * HZ;
 	add_timer(&peer_periodic_timer);
 }
 

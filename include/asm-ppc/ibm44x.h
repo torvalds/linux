@@ -423,11 +423,7 @@
 #define MQ0_CONFIG_SIZE_2G		0x0000c000
 
 /* Internal SRAM Controller 440GX/440SP */
-#ifdef CONFIG_440SP
-#define DCRN_SRAM0_BASE		0x100
-#else /* 440GX */
 #define DCRN_SRAM0_BASE		0x000
-#endif
 
 #define DCRN_SRAM0_SB0CR	(DCRN_SRAM0_BASE + 0x020)
 #define DCRN_SRAM0_SB1CR	(DCRN_SRAM0_BASE + 0x021)

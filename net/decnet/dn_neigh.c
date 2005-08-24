@@ -148,12 +148,12 @@ static int dn_neigh_construct(struct neighbour *neigh)
 
 	__neigh_parms_put(neigh->parms);
 	neigh->parms = neigh_parms_clone(parms);
-	rcu_read_unlock();
 
 	if (dn_db->use_long)
 		neigh->ops = &dn_long_ops;
 	else
 		neigh->ops = &dn_short_ops;
+	rcu_read_unlock();
 
 	if (dn->flags & DN_NDFLAG_P3)
 		neigh->ops = &dn_phase3_ops;

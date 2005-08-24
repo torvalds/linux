@@ -453,7 +453,7 @@ static void enable_msi_mode(struct pci_dev *dev, int pos, int type)
 	}
 }
 
-static void disable_msi_mode(struct pci_dev *dev, int pos, int type)
+void disable_msi_mode(struct pci_dev *dev, int pos, int type)
 {
 	u16 control;
 
@@ -698,6 +698,9 @@ int pci_enable_msi(struct pci_dev* dev)
 
 	if (!pci_msi_enable || !dev)
  		return status;
+
+	if (dev->no_msi)
+		return status;
 
 	temp = dev->irq;
 

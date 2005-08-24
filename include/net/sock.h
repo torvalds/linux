@@ -384,6 +384,11 @@ enum sock_flags {
 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
 };
 
+static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
+{
+	nsk->sk_flags = osk->sk_flags;
+}
+
 static inline void sock_set_flag(struct sock *sk, enum sock_flags flag)
 {
 	__set_bit(flag, &sk->sk_flags);

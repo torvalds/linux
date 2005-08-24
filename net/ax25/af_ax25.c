@@ -875,12 +875,7 @@ struct sock *ax25_make_new(struct sock *osk, struct ax25_dev *ax25_dev)
 	sk->sk_sndbuf   = osk->sk_sndbuf;
 	sk->sk_state    = TCP_ESTABLISHED;
 	sk->sk_sleep    = osk->sk_sleep;
-
-	if (sock_flag(osk, SOCK_DBG))
-		sock_set_flag(sk, SOCK_DBG);
-
-	if (sock_flag(osk, SOCK_ZAPPED))
-		sock_set_flag(sk, SOCK_ZAPPED);
+	sock_copy_flags(sk, osk);
 
 	oax25 = ax25_sk(osk);
 
@@ -1007,7 +1002,8 @@ static int ax25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct sock *sk = sock->sk;
 	struct full_sockaddr_ax25 *addr = (struct full_sockaddr_ax25 *)uaddr;
 	ax25_dev *ax25_dev = NULL;
-	ax25_address *call;
+	ax25_uid_assoc *user;
+	ax25_address call;
 	ax25_cb *ax25;
 	int err = 0;
 
@@ -1026,9 +1022,15 @@ static int ax25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (addr->fsa_ax25.sax25_family != AF_AX25)
 		return -EINVAL;
 
-	call = ax25_findbyuid(current->euid);
-	if (call == NULL && ax25_uid_policy && !capable(CAP_NET_ADMIN)) {
-		return -EACCES;
+	user = ax25_findbyuid(current->euid);
+	if (user) {
+		call = user->call;
+		ax25_uid_put(user);
+	} else {
+		if (ax25_uid_policy && !capable(CAP_NET_ADMIN))
+			return -EACCES;
+
+		call = addr->fsa_ax25.sax25_call;
 	}
 
 	lock_sock(sk);
@@ -1039,10 +1041,7 @@ static int ax25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto out;
 	}
 
-	if (call == NULL)
-		ax25->source_addr = addr->fsa_ax25.sax25_call;
-	else
-		ax25->source_addr = *call;
+	ax25->source_addr = call;
 
 	/*
 	 * User already set interface with SO_BINDTODEVICE

@@ -211,6 +211,12 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 		break;
 	
 	case IPQ_COPY_PACKET:
+		if (entry->skb->ip_summed == CHECKSUM_HW &&
+		    (*errp = skb_checksum_help(entry->skb,
+		                               entry->info->outdev == NULL))) {
+			read_unlock_bh(&queue_lock);
+			return NULL;
+		}
 		if (copy_range == 0 || copy_range > entry->skb->len)
 			data_len = entry->skb->len;
 		else
@@ -381,6 +387,7 @@ ipq_mangle_ipv6(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 	if (!skb_ip_make_writable(&e->skb, v->data_len))
 		return -ENOMEM;
 	memcpy(e->skb->data, v->payload, v->data_len);
+	e->skb->ip_summed = CHECKSUM_NONE;
 	e->skb->nfcache |= NFC_ALTERED;
 
 	/*

@@ -636,6 +636,23 @@ static void update_cpu_domains(struct cpuset *cur)
 		return;
 
 	/*
+	 * Hack to avoid 2.6.13 partial node dynamic sched domain bug.
+	 * Require the 'cpu_exclusive' cpuset to include all (or none)
+	 * of the CPUs on each node, or return w/o changing sched domains.
+	 * Remove this hack when dynamic sched domains fixed.
+	 */
+	{
+		int i, j;
+
+		for_each_cpu_mask(i, cur->cpus_allowed) {
+			for_each_cpu_mask(j, node_to_cpumask(cpu_to_node(i))) {
+				if (!cpu_isset(j, cur->cpus_allowed))
+					return;
+			}
+		}
+	}
+
+	/*
 	 * Get all cpus from parent's cpus_allowed not part of exclusive
 	 * children
 	 */
