@@ -220,8 +220,10 @@ snd_vortex_pcm_hw_params(snd_pcm_substream_t * substream,
 		    vortex_adb_allocroute(chip, -1,
 					  params_channels(hw_params),
 					  substream->stream, type);
-		if (dma < 0)
+		if (dma < 0) {
+			spin_unlock_irq(&chip->lock);
 			return dma;
+		}
 		stream = substream->runtime->private_data = &chip->dma_adb[dma];
 		stream->substream = substream;
 		/* Setup Buffers. */
