@@ -310,15 +310,6 @@ void tcp_enter_memory_pressure(void)
 EXPORT_SYMBOL(tcp_enter_memory_pressure);
 
 /*
- * LISTEN is a special case for poll..
- */
-static __inline__ unsigned int tcp_listen_poll(struct sock *sk,
-					       poll_table *wait)
-{
-	return !reqsk_queue_empty(&inet_csk(sk)->icsk_accept_queue) ? (POLLIN | POLLRDNORM) : 0;
-}
-
-/*
  *	Wait for a TCP event.
  *
  *	Note that we don't need to lock the socket, as the upper poll layers
@@ -333,7 +324,7 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 
 	poll_wait(file, sk->sk_sleep, wait);
 	if (sk->sk_state == TCP_LISTEN)
-		return tcp_listen_poll(sk, wait);
+		return inet_csk_listen_poll(sk);
 
 	/* Socket is not locked. We are protected from async events
 	   by poll logic and correct handling of state changes
