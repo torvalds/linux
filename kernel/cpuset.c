@@ -645,7 +645,9 @@ static void update_cpu_domains(struct cpuset *cur)
 		int i, j;
 
 		for_each_cpu_mask(i, cur->cpus_allowed) {
-			for_each_cpu_mask(j, node_to_cpumask(cpu_to_node(i))) {
+			cpumask_t mask = node_to_cpumask(cpu_to_node(i));
+
+			for_each_cpu_mask(j, mask) {
 				if (!cpu_isset(j, cur->cpus_allowed))
 					return;
 			}
