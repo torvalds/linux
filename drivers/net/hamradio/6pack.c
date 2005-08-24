@@ -308,12 +308,6 @@ static int sp_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr_ax25 *sa = addr;
 
-	if (sa->sax25_family != AF_AX25)
-		return -EINVAL;
-
-	if (!sa->sax25_ndigis)
-		return -EINVAL;
-
 	spin_lock_irq(&dev->xmit_lock);
 	memcpy(dev->dev_addr, &sa->sax25_call, AX25_ADDR_LEN);
 	spin_unlock_irq(&dev->xmit_lock);
