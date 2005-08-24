@@ -50,6 +50,10 @@ struct ccid {
 						  struct sk_buff *skb, int len);
 	void		(*ccid_hc_tx_packet_sent)(struct sock *sk, int more,
 						  int len);
+	void		(*ccid_hc_rx_get_info)(struct sock *sk,
+					       struct tcp_info *info);
+	void		(*ccid_hc_tx_get_info)(struct sock *sk,
+					       struct tcp_info *info);
 };
 
 extern int	   ccid_register(struct ccid *ccid);
@@ -158,5 +162,19 @@ static inline void ccid_hc_rx_insert_options(struct ccid *ccid, struct sock *sk,
 {
 	if (ccid->ccid_hc_rx_insert_options != NULL)
 		ccid->ccid_hc_rx_insert_options(sk, skb);
+}
+
+static inline void ccid_hc_rx_get_info(struct ccid *ccid, struct sock *sk,
+				       struct tcp_info *info)
+{
+	if (ccid->ccid_hc_rx_get_info != NULL)
+		ccid->ccid_hc_rx_get_info(sk, info);
+}
+
+static inline void ccid_hc_tx_get_info(struct ccid *ccid, struct sock *sk,
+				       struct tcp_info *info)
+{
+	if (ccid->ccid_hc_tx_get_info != NULL)
+		ccid->ccid_hc_tx_get_info(sk, info);
 }
 #endif /* _CCID_H */

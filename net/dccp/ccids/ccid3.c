@@ -2020,6 +2020,31 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 	dp->dccps_hc_rx_ccid_private = NULL;
 }
 
+static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
+{
+	const struct dccp_sock *dp = dccp_sk(sk);
+	const struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+
+	if (hcrx == NULL)
+		return;
+
+	info->tcpi_ca_state	= hcrx->ccid3hcrx_state;
+	info->tcpi_options	|= TCPI_OPT_TIMESTAMPS;
+	info->tcpi_rcv_rtt	= hcrx->ccid3hcrx_rtt;
+}
+
+static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
+{
+	const struct dccp_sock *dp = dccp_sk(sk);
+	const struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
+
+	if (hctx == NULL)
+		return;
+
+	info->tcpi_rto = hctx->ccid3hctx_t_rto;
+	info->tcpi_rtt = hctx->ccid3hctx_rtt;
+}
+
 static struct ccid ccid3 = {
 	.ccid_id		   = 3,
 	.ccid_name		   = "ccid3",
@@ -2037,6 +2062,8 @@ static struct ccid ccid3 = {
 	.ccid_hc_rx_exit	   = ccid3_hc_rx_exit,
 	.ccid_hc_rx_insert_options = ccid3_hc_rx_insert_options,
 	.ccid_hc_rx_packet_recv	   = ccid3_hc_rx_packet_recv,
+	.ccid_hc_rx_get_info	   = ccid3_hc_rx_get_info,
+	.ccid_hc_tx_get_info	   = ccid3_hc_tx_get_info,
 };
  
 module_param(ccid3_debug, int, 0444);
