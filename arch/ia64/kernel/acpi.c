@@ -132,7 +132,7 @@ const char *acpi_get_sysname(void)
 #endif
 }
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 
 #define ACPI_MAX_PLATFORM_INTERRUPTS	256
 
@@ -917,4 +917,4 @@ int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base)
 
 EXPORT_SYMBOL(acpi_unregister_ioapic);
 
-#endif				/* CONFIG_ACPI_BOOT */
+#endif				/* CONFIG_ACPI */

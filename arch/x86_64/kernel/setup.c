@@ -71,7 +71,7 @@ unsigned long mmu_cr4_features;
 
 int acpi_disabled;
 EXPORT_SYMBOL(acpi_disabled);
-#ifdef	CONFIG_ACPI_BOOT
+#ifdef	CONFIG_ACPI
 extern int __initdata acpi_ht;
 extern acpi_interrupt_flags	acpi_sci_flags;
 int __initdata acpi_force = 0;
@@ -294,7 +294,7 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 			maxcpus = simple_strtoul(from + 8, NULL, 0);
 		}
 #endif
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 		/* "acpi=off" disables both ACPI table parsing and interpreter init */
 		if (!memcmp(from, "acpi=off", 8))
 			disable_acpi();
@@ -566,7 +566,7 @@ void __init setup_arch(char **cmdline_p)
 
 	init_memory_mapping(0, (end_pfn_map << PAGE_SHIFT));
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 	/*
 	 * Initialize the ACPI boot-time table parser (gets the RSDP and SDT).
 	 * Call this early for SRAT node setup.
@@ -658,7 +658,7 @@ void __init setup_arch(char **cmdline_p)
 
 	check_ioapic();
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 	/*
 	 * Read APIC and some other early information from ACPI tables.
 	 */

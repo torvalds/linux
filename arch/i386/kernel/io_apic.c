@@ -2421,7 +2421,7 @@ device_initcall(ioapic_init_sysfs);
                           ACPI-based IOAPIC Configuration
    -------------------------------------------------------------------------- */
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 
 int __init io_apic_get_unique_id (int ioapic, int apic_id)
 {
@@ -2574,4 +2574,4 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	return 0;
 }
 
-#endif /*CONFIG_ACPI_BOOT*/
+#endif /* CONFIG_ACPI */

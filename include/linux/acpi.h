@@ -41,7 +41,7 @@
 #include <asm/acpi.h>
 
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,
@@ -429,11 +429,11 @@ extern int pci_mmcfg_config_num;
 
 extern int sbf_port ;
 
-#else	/*!CONFIG_ACPI_BOOT*/
+#else	/* !CONFIG_ACPI */
 
 #define acpi_mp_config	0
 
-#endif 	/*!CONFIG_ACPI_BOOT*/
+#endif 	/* !CONFIG_ACPI */
 
 int acpi_register_gsi (u32 gsi, int edge_level, int active_high_low);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);

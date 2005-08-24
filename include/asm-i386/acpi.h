@@ -103,7 +103,7 @@ __acpi_release_global_lock (unsigned int *lock)
         :"=r"(n_hi), "=r"(n_lo)     \
         :"0"(n_hi), "1"(n_lo))
 
-#ifdef CONFIG_ACPI_BOOT 
+#ifdef CONFIG_ACPI 
 extern int acpi_lapic;
 extern int acpi_ioapic;
 extern int acpi_noirq;
@@ -146,7 +146,7 @@ static inline void check_acpi_pci(void) { }
 
 #endif
 
-#else	/* CONFIG_ACPI_BOOT */
+#else	/* !CONFIG_ACPI */
 #  define acpi_lapic 0
 #  define acpi_ioapic 0
 

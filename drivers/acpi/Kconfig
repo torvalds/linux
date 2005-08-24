@@ -43,10 +43,6 @@ config ACPI
 
 if ACPI
 
-config ACPI_BOOT
-	bool
-	default y
-
 config ACPI_INTERPRETER
 	bool
 	default y
@@ -312,7 +308,7 @@ endif	# ACPI_INTERPRETER
 config X86_PM_TIMER
 	bool "Power Management Timer Support"
 	depends on X86
-	depends on ACPI_BOOT && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	depends on !X86_64
 	default n
 	help

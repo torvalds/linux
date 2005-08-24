@@ -15,7 +15,7 @@ EXTRA_CFLAGS	+= $(ACPI_CFLAGS)
 #
 # ACPI Boot-Time Table Parsing
 #
-obj-$(CONFIG_ACPI_BOOT)		+= tables.o
+obj-y				+= tables.o
 obj-$(CONFIG_ACPI_INTERPRETER)	+= blacklist.o
 
 #

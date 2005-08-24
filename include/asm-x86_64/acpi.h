@@ -101,7 +101,7 @@ __acpi_release_global_lock (unsigned int *lock)
         :"=r"(n_hi), "=r"(n_lo)     \
         :"0"(n_hi), "1"(n_lo))
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 extern int acpi_lapic;
 extern int acpi_ioapic;
 extern int acpi_noirq;
@@ -122,10 +122,10 @@ static inline void disable_acpi(void)
 
 extern int acpi_gsi_to_irq(u32 gsi, unsigned int *irq);
 
-#else	/* !CONFIG_ACPI_BOOT */
+#else	/* !CONFIG_ACPI */
 #define acpi_lapic 0
 #define acpi_ioapic 0
-#endif /* !CONFIG_ACPI_BOOT */
+#endif /* !CONFIG_ACPI */
 
 extern int acpi_numa;
 extern int acpi_scan_nodes(unsigned long start, unsigned long end);
