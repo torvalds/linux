@@ -195,7 +195,7 @@ static void disable_lapic_nmi_watchdog(void)
 			wrmsr(MSR_P6_EVNTSEL0, 0, 0);
 			break;
 		case 15:
-			if (boot_cpu_data.x86_model > 0x3)
+			if (boot_cpu_data.x86_model > 0x4)
 				break;
 
 			wrmsr(MSR_P4_IQ_CCCR0, 0, 0);
@@ -432,7 +432,7 @@ void setup_apic_nmi_watchdog (void)
 			setup_p6_watchdog();
 			break;
 		case 15:
-			if (boot_cpu_data.x86_model > 0x3)
+			if (boot_cpu_data.x86_model > 0x4)
 				return;
 
 			if (!setup_p4_watchdog())

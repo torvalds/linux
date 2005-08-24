@@ -141,7 +141,7 @@ static int huft_build(
   {
     *t = NULL;
     *m = 0;
-    return Z_DATA_ERROR;
+    return Z_OK;
   }
 
 

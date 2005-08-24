@@ -38,6 +38,7 @@
 #include <asm/cputable.h>
 #include <asm/setup.h>
 #include <asm/hvcall.h>
+#include <asm/iSeries/LparMap.h>
 
 #ifdef CONFIG_PPC_ISERIES
 #define DO_SOFT_DISABLE
@@ -678,6 +679,11 @@ hardware_interrupt_iSeries_masked:
 	.= 0x7000
 	.globl fwnmi_data_area
 fwnmi_data_area:
+
+#ifdef CONFIG_PPC_ISERIES
+	. = LPARMAP_PHYS
+#include "lparmap.s"
+#endif /* CONFIG_PPC_ISERIES */
 
 /*
  * Vectors for the FWNMI option.  Share common code.

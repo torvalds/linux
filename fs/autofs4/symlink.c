@@ -12,11 +12,11 @@
 
 #include "autofs_i.h"
 
-static int autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	nd_set_link(nd, (char *)ino->u.symlink);
-	return 0;
+	return NULL;
 }
 
 struct inode_operations autofs4_symlink_inode_operations = {

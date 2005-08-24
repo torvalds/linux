@@ -61,7 +61,11 @@ void wait_stub_done(int pid, int sig, char * fname)
 
                 CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
         } while((n >= 0) && WIFSTOPPED(status) &&
-                (WSTOPSIG(status) == SIGVTALRM));
+                ((WSTOPSIG(status) == SIGVTALRM) ||
+		 /* running UML inside a detached screen can cause
+		  * SIGWINCHes
+		  */
+		 (WSTOPSIG(status) == SIGWINCH)));
 
         if((n < 0) || !WIFSTOPPED(status) ||
            (WSTOPSIG(status) != SIGUSR1 && WSTOPSIG(status) != SIGTRAP)){

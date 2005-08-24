@@ -327,6 +327,12 @@ __syscall_start:
 /* 310 */	.long	sys_request_key
 		.long	sys_keyctl
 		.long	sys_semtimedop
+/* vserver */	.long	sys_ni_syscall
+		.long	sys_ioprio_set
+/* 315 */	.long	sys_ioprio_get
+		.long	sys_inotify_init
+		.long	sys_inotify_add_watch
+		.long	sys_inotify_rm_watch
 __syscall_end:
 
 		.rept	NR_syscalls - (__syscall_end - __syscall_start) / 4

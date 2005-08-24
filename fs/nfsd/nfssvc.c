@@ -287,6 +287,7 @@ out:
 	svc_exit_thread(rqstp);
 
 	/* Release module */
+	unlock_kernel();
 	module_put_and_exit(0);
 }
 

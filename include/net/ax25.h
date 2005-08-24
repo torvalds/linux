@@ -139,10 +139,24 @@ enum {
 #define AX25_DEF_DS_TIMEOUT	(3 * 60 * HZ)		/* DAMA timeout 3 minutes */
 
 typedef struct ax25_uid_assoc {
-	struct ax25_uid_assoc	*next;
+	struct hlist_node	uid_node;
+	atomic_t		refcount;
 	uid_t			uid;
 	ax25_address		call;
 } ax25_uid_assoc;
+
+#define ax25_uid_for_each(__ax25, node, list) \
+	hlist_for_each_entry(__ax25, node, list, uid_node)
+
+#define ax25_uid_hold(ax25) \
+	atomic_inc(&((ax25)->refcount))
+
+static inline void ax25_uid_put(ax25_uid_assoc *assoc)
+{
+	if (atomic_dec_and_test(&assoc->refcount)) {
+		kfree(assoc);
+	}
+}
 
 typedef struct {
 	ax25_address		calls[AX25_MAX_DIGIS];
@@ -376,7 +390,7 @@ extern unsigned long ax25_display_timer(struct timer_list *);
 
 /* ax25_uid.c */
 extern int  ax25_uid_policy;
-extern ax25_address *ax25_findbyuid(uid_t);
+extern ax25_uid_assoc *ax25_findbyuid(uid_t);
 extern int  ax25_uid_ioctl(int, struct sockaddr_ax25 *);
 extern struct file_operations ax25_uid_fops;
 extern void ax25_uid_free(void);

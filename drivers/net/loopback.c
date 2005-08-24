@@ -214,7 +214,7 @@ struct net_device loopback_dev = {
 	.ethtool_ops		= &loopback_ethtool_ops,
 };
 
-/* Setup and register the of the LOOPBACK device. */
+/* Setup and register the loopback device. */
 int __init loopback_init(void)
 {
 	struct net_device_stats *stats;

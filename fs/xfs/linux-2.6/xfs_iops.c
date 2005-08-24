@@ -374,7 +374,7 @@ linvfs_rename(
  * we need to be very careful about how much stack we use.
  * uio is kmalloced for this reason...
  */
-STATIC int
+STATIC void *
 linvfs_follow_link(
 	struct dentry		*dentry,
 	struct nameidata	*nd)
@@ -391,14 +391,14 @@ linvfs_follow_link(
 	link = (char *)kmalloc(MAXNAMELEN+1, GFP_KERNEL);
 	if (!link) {
 		nd_set_link(nd, ERR_PTR(-ENOMEM));
-		return 0;
+		return NULL;
 	}
 
 	uio = (uio_t *)kmalloc(sizeof(uio_t), GFP_KERNEL);
 	if (!uio) {
 		kfree(link);
 		nd_set_link(nd, ERR_PTR(-ENOMEM));
-		return 0;
+		return NULL;
 	}
 
 	vp = LINVFS_GET_VP(dentry->d_inode);
@@ -422,10 +422,10 @@ linvfs_follow_link(
 	kfree(uio);
 
 	nd_set_link(nd, link);
-	return 0;
+	return NULL;
 }
 
-static void linvfs_put_link(struct dentry *dentry, struct nameidata *nd)
+static void linvfs_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
 {
 	char *s = nd_get_link(nd);
 	if (!IS_ERR(s))

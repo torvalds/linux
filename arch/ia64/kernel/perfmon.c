@@ -4312,6 +4312,7 @@ pfm_context_load(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 	DPRINT(("before cmpxchg() old_ctx=%p new_ctx=%p\n",
 		thread->pfm_context, ctx));
 
+	ret = -EBUSY;
 	old = ia64_cmpxchg(acq, &thread->pfm_context, NULL, ctx, sizeof(pfm_context_t *));
 	if (old != NULL) {
 		DPRINT(("load_pid [%d] already has a context\n", req->load_pid));
