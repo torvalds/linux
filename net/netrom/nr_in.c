@@ -23,7 +23,6 @@
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
-#include <net/ip.h>			/* For ip_rcv */
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <linux/fcntl.h>
