@@ -206,6 +206,18 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		goto out_discard;
 
 	rc = dccp_write_xmit(sk, skb, len);
+	/*
+	 * XXX we don't use sk_write_queue, so just discard the packet.
+	 *     Current plan however is to _use_ sk_write_queue with
+	 *     an algorith similar to tcp_sendmsg, where the main difference
+	 *     is that in DCCP we have to respect packet boundaries, so
+	 *     no coalescing of skbs.
+	 *
+	 *     This bug was _quickly_ found & fixed by just looking at an OSTRA
+	 *     generated callgraph 8) -acme
+	 */
+	if (rc != 0)
+		goto out_discard;
 out_release:
 	release_sock(sk);
 	return rc ? : len;
