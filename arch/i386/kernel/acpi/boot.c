@@ -303,7 +303,7 @@ acpi_parse_lapic_nmi(acpi_table_entry_header * header, const unsigned long end)
 
 #endif				/*CONFIG_X86_LOCAL_APIC */
 
-#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_ACPI_INTERPRETER)
+#ifdef CONFIG_X86_IO_APIC
 
 static int __init
 acpi_parse_ioapic(acpi_table_entry_header * header, const unsigned long end)
@@ -634,10 +634,8 @@ static int __init acpi_parse_fadt(unsigned long phys, unsigned long size)
 		printk(KERN_WARNING PREFIX "Unable to map FADT\n");
 		return 0;
 	}
-#ifdef	CONFIG_ACPI_INTERPRETER
 	/* initialize sci_int early for INT_SRC_OVR MADT parsing */
 	acpi_fadt.sci_int = fadt->sci_int;
-#endif
 
 #ifdef CONFIG_ACPI_BUS
 	/* initialize rev and apic_phys_dest_mode for x86_64 genapic */
@@ -735,7 +733,7 @@ static int __init acpi_parse_madt_lapic_entries(void)
 }
 #endif				/* CONFIG_X86_LOCAL_APIC */
 
-#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_ACPI_INTERPRETER)
+#ifdef	CONFIG_X86_IO_APIC
 /*
  * Parse IOAPIC related entries in MADT
  * returns 0 on success, < 0 on error
@@ -810,7 +808,7 @@ static inline int acpi_parse_madt_ioapic_entries(void)
 {
 	return -1;
 }
-#endif				/* !(CONFIG_X86_IO_APIC && CONFIG_ACPI_INTERPRETER) */
+#endif	/* !CONFIG_X86_IO_APIC */
 
 static void __init acpi_process_madt(void)
 {

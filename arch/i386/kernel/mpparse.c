@@ -854,7 +854,7 @@ void __init mp_register_lapic (
 	MP_processor_info(&processor);
 }
 
-#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_ACPI_INTERPRETER)
+#ifdef	CONFIG_X86_IO_APIC
 
 #define MP_ISA_BUS		0
 #define MP_MAX_IOAPIC_PIN	127
@@ -1136,5 +1136,5 @@ int mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
 	return gsi;
 }
 
-#endif /* CONFIG_X86_IO_APIC && CONFIG_ACPI_INTERPRETER */
+#endif /* CONFIG_X86_IO_APIC */
 #endif /* CONFIG_ACPI */

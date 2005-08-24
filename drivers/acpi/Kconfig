@@ -43,12 +43,6 @@ config ACPI
 
 if ACPI
 
-config ACPI_INTERPRETER
-	bool
-	default y
-
-if ACPI_INTERPRETER
-
 config ACPI_SLEEP
 	bool "Sleep States (EXPERIMENTAL)"
 	depends on X86 && (!SMP || SUSPEND_SMP)
@@ -126,7 +120,6 @@ config ACPI_VIDEO
 
 config ACPI_HOTKEY
 	tristate "Generic Hotkey"
-	depends on ACPI_INTERPRETER
 	depends on EXPERIMENTAL
 	depends on !IA64_SGI_SN
 	default n
@@ -257,7 +250,6 @@ config ACPI_CUSTOM_DSDT_FILE
 
 config ACPI_BLACKLIST_YEAR
 	int "Disable ACPI for systems before Jan 1st this year"
-	depends on ACPI_INTERPRETER
 	default 0
 	help
 	  enter a 4-digit year, eg. 2001 to disable ACPI by default
@@ -302,8 +294,6 @@ config ACPI_SYSTEM
 	help
 	  This driver will enable your system to shut down using ACPI, and
 	  dump your ACPI DSDT table using /proc/acpi/dsdt.
-
-endif	# ACPI_INTERPRETER
 
 config X86_PM_TIMER
 	bool "Power Management Timer Support"

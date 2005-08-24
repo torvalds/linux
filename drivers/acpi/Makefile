@@ -16,12 +16,12 @@ EXTRA_CFLAGS	+= $(ACPI_CFLAGS)
 # ACPI Boot-Time Table Parsing
 #
 obj-y				+= tables.o
-obj-$(CONFIG_ACPI_INTERPRETER)	+= blacklist.o
+obj-y				+= blacklist.o
 
 #
 # ACPI Core Subsystem (Interpreter)
 #
-obj-$(CONFIG_ACPI_INTERPRETER)	+= osl.o utils.o \
+obj-y				+= osl.o utils.o \
 				   dispatcher/ events/ executer/ hardware/ \
 				   namespace/ parser/ resources/ tables/ \
 				   utilities/

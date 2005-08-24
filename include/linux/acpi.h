@@ -488,19 +488,8 @@ extern int ec_write(u8 addr, u8 val);
 
 #endif /*CONFIG_ACPI_EC*/
 
-#ifdef CONFIG_ACPI_INTERPRETER
-
 extern int acpi_blacklisted(void);
 extern void acpi_bios_year(char *s);
-
-#else /*!CONFIG_ACPI_INTERPRETER*/
-
-static inline int acpi_blacklisted(void)
-{
-	return 0;
-}
-
-#endif /*!CONFIG_ACPI_INTERPRETER*/
 
 #define	ACPI_CSTATE_LIMIT_DEFINED	/* for driver builds */
 #ifdef	CONFIG_ACPI
