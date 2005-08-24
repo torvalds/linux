@@ -927,11 +927,9 @@ int mp_register_gsi(u32 gsi, int edge_level, int active_high_low)
 	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
 		return gsi;
 
-#ifdef CONFIG_ACPI_BUS
 	/* Don't set up the ACPI SCI because it's already set up */
 	if (acpi_fadt.sci_int == gsi)
 		return gsi;
-#endif
 
 	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0) {
@@ -971,13 +969,11 @@ int mp_register_gsi(u32 gsi, int edge_level, int active_high_low)
 		if (gsi < MAX_GSI_NUM) {
 			if (gsi > 15)
 				gsi = pci_irq++;
-#ifdef CONFIG_ACPI_BUS
 			/*
 			 * Don't assign IRQ used by ACPI SCI
 			 */
 			if (gsi == acpi_fadt.sci_int)
 				gsi = pci_irq++;
-#endif
 			gsi_to_irq[irq] = gsi;
 		} else {
 			printk(KERN_ERR "GSI %u is too high\n", gsi);

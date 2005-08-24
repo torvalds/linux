@@ -267,10 +267,6 @@ config ACPI_DEBUG
 	  of verbosity. Saying Y enables these statements. This will increase
 	  your kernel size by around 50K.
 
-config ACPI_BUS
-	bool
-	default y
-
 config ACPI_EC
 	bool
 	depends on X86

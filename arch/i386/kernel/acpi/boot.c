@@ -408,8 +408,6 @@ acpi_parse_nmi_src(acpi_table_entry_header * header, const unsigned long end)
 
 #endif				/* CONFIG_X86_IO_APIC */
 
-#ifdef	CONFIG_ACPI_BUS
-
 /*
  * acpi_pic_sci_set_trigger()
  * 
@@ -459,8 +457,6 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 	outb(new, 0x4d0);
 	outb(new >> 8, 0x4d1);
 }
-
-#endif				/* CONFIG_ACPI_BUS */
 
 int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 {
@@ -637,12 +633,10 @@ static int __init acpi_parse_fadt(unsigned long phys, unsigned long size)
 	/* initialize sci_int early for INT_SRC_OVR MADT parsing */
 	acpi_fadt.sci_int = fadt->sci_int;
 
-#ifdef CONFIG_ACPI_BUS
 	/* initialize rev and apic_phys_dest_mode for x86_64 genapic */
 	acpi_fadt.revision = fadt->revision;
 	acpi_fadt.force_apic_physical_destination_mode =
 	    fadt->force_apic_physical_destination_mode;
-#endif
 
 #ifdef CONFIG_X86_PM_TIMER
 	/* detect the location of the ACPI PM Timer */

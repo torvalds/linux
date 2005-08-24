@@ -20,7 +20,7 @@
 #include <asm/smp.h>
 #include <asm/ipi.h>
 
-#if defined(CONFIG_ACPI_BUS)
+#if defined(CONFIG_ACPI)
 #include <acpi/acpi_bus.h>
 #endif
 
@@ -47,7 +47,7 @@ void __init clustered_apic_check(void)
 	u8 cluster_cnt[NUM_APIC_CLUSTERS];
 	int num_cpus = 0;
 
-#if defined(CONFIG_ACPI_BUS)
+#if defined(CONFIG_ACPI)
 	/*
 	 * Some x86_64 machines use physical APIC mode regardless of how many
 	 * procs/clusters are present (x86_64 ES7000 is an example).

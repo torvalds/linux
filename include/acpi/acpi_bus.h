@@ -53,7 +53,7 @@ acpi_evaluate_reference(acpi_handle handle,
 			struct acpi_object_list *arguments,
 			struct acpi_handle_list *list);
 
-#ifdef CONFIG_ACPI_BUS
+#ifdef CONFIG_ACPI
 
 #include <linux/proc_fs.h>
 
@@ -356,6 +356,6 @@ acpi_handle acpi_get_child(acpi_handle, acpi_integer);
 acpi_handle acpi_get_pci_rootbridge_handle(unsigned int, unsigned int);
 #define DEVICE_ACPI_HANDLE(dev) ((acpi_handle)((dev)->firmware_data))
 
-#endif				/*CONFIG_ACPI_BUS */
+#endif /* CONFIG_ACPI */
 
 #endif /*__ACPI_BUS_H__*/
