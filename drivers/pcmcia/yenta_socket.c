@@ -559,12 +559,6 @@ static void yenta_interrogate(struct yenta_socket *socket)
 static int yenta_sock_init(struct pcmcia_socket *sock)
 {
 	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
-	u16 bridge;
-
-	bridge = config_readw(socket, CB_BRIDGE_CONTROL) & ~CB_BRIDGE_INTR;
-	if (!socket->cb_irq)
-		bridge |= CB_BRIDGE_INTR;
-	config_writew(socket, CB_BRIDGE_CONTROL, bridge);
 
 	exca_writeb(socket, I365_GBLCTL, 0x00);
 	exca_writeb(socket, I365_GENCTL, 0x00);
@@ -890,15 +884,7 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 {
 	int i;
 	unsigned long val;
-	u16 bridge_ctrl;
 	u32 mask;
-
-	/* Set up ISA irq routing to probe the ISA irqs.. */
-	bridge_ctrl = config_readw(socket, CB_BRIDGE_CONTROL);
-	if (!(bridge_ctrl & CB_BRIDGE_INTR)) {
-		bridge_ctrl |= CB_BRIDGE_INTR;
-		config_writew(socket, CB_BRIDGE_CONTROL, bridge_ctrl);
-	}
 
 	/*
 	 * Probe for usable interrupts using the force
@@ -920,9 +906,6 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 	exca_writeb(socket, I365_CSCINT, 0);
 
 	mask = probe_irq_mask(val) & 0xffff;
-
-	bridge_ctrl &= ~CB_BRIDGE_INTR;
-	config_writew(socket, CB_BRIDGE_CONTROL, bridge_ctrl);
 
 	return mask;
 }
@@ -951,17 +934,10 @@ static irqreturn_t yenta_probe_handler(int irq, void *dev_id, struct pt_regs *re
 /* probes the PCI interrupt, use only on override functions */
 static int yenta_probe_cb_irq(struct yenta_socket *socket)
 {
-	u16 bridge_ctrl;
-
 	if (!socket->cb_irq)
 		return -1;
 
 	socket->probe_status = 0;
-
-	/* disable ISA interrupts */
-	bridge_ctrl = config_readw(socket, CB_BRIDGE_CONTROL);
-	bridge_ctrl &= ~CB_BRIDGE_INTR;
-	config_writew(socket, CB_BRIDGE_CONTROL, bridge_ctrl);
 
 	if (request_irq(socket->cb_irq, yenta_probe_handler, SA_SHIRQ, "yenta", socket)) {
 		printk(KERN_WARNING "Yenta: request_irq() in yenta_probe_cb_irq() failed!\n");
@@ -973,7 +949,7 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
 	cb_writel(socket, CB_SOCKET_EVENT, -1);
 	cb_writel(socket, CB_SOCKET_MASK, CB_CSTSMASK);
 	cb_writel(socket, CB_SOCKET_FORCE, CB_FCARDSTS);
-	
+
 	msleep(100);
 
 	/* disable interrupts */
@@ -1038,8 +1014,8 @@ static void yenta_config_init(struct yenta_socket *socket)
 	 *  - PCI interrupts enabled if a PCI interrupt exists..
 	 */
 	bridge = config_readw(socket, CB_BRIDGE_CONTROL);
-	bridge &= ~(CB_BRIDGE_CRST | CB_BRIDGE_PREFETCH1 | CB_BRIDGE_INTR | CB_BRIDGE_ISAEN | CB_BRIDGE_VGAEN);
-	bridge |= CB_BRIDGE_PREFETCH0 | CB_BRIDGE_POSTEN | CB_BRIDGE_INTR;
+	bridge &= ~(CB_BRIDGE_CRST | CB_BRIDGE_PREFETCH1 | CB_BRIDGE_ISAEN | CB_BRIDGE_VGAEN);
+	bridge |= CB_BRIDGE_PREFETCH0 | CB_BRIDGE_POSTEN;
 	config_writew(socket, CB_BRIDGE_CONTROL, bridge);
 }
 
