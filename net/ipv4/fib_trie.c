@@ -157,10 +157,6 @@ struct trie {
 	unsigned int revision;
 };
 
-static int trie_debug = 0;
-
-#define DBG(x...) do { if (trie_debug) printk(x); } while (0)
-
 static void put_child(struct trie *t, struct tnode *tn, int i, struct node *n);
 static void tnode_put_child_reorg(struct tnode *tn, int i, struct node *n, int wasfull);
 static struct node *resize(struct trie *t, struct tnode *tn);
@@ -168,12 +164,6 @@ static struct tnode *inflate(struct trie *t, struct tnode *tn);
 static struct tnode *halve(struct trie *t, struct tnode *tn);
 static void tnode_free(struct tnode *tn);
 static void trie_dump_seq(struct seq_file *seq, struct trie *t);
-extern struct fib_alias *fib_find_alias(struct list_head *fah, u8 tos, u32 prio);
-extern int fib_detect_death(struct fib_info *fi, int order,
-			    struct fib_info **last_resort, int *last_idx, int *dflt);
-
-extern void rtmsg_fib(int event, u32 key, struct fib_alias *fa, int z, int tb_id,
-		      struct nlmsghdr *n, struct netlink_skb_parms *req);
 
 static kmem_cache_t *fn_alias_kmem;
 static struct trie *trie_local = NULL, *trie_main = NULL;
@@ -294,11 +284,9 @@ static void fn_free_alias(struct fib_alias *fa)
 
 */
 
-static void check_tnode(struct tnode *tn)
+static inline void check_tnode(const struct tnode *tn)
 {
-	if (tn && tn->pos+tn->bits > 32) {
-		printk("TNODE ERROR tn=%p, pos=%d, bits=%d\n", tn, tn->pos, tn->bits);
-	}
+	WARN_ON(tn && tn->pos+tn->bits > 32);
 }
 
 static int halve_threshold = 25;
@@ -374,21 +362,19 @@ static struct tnode* tnode_new(t_key key, int pos, int bits)
 		tn->empty_children = 1<<bits;
 	}
 
-	DBG("AT %p s=%u %u\n", tn, (unsigned int) sizeof(struct tnode),
-	       (unsigned int) (sizeof(struct node) * 1<<bits));
+	pr_debug("AT %p s=%u %u\n", tn, (unsigned int) sizeof(struct tnode),
+		 (unsigned int) (sizeof(struct node) * 1<<bits));
 	return tn;
 }
 
 static void tnode_free(struct tnode *tn)
 {
-	BUG_ON(!tn);
-
 	if (IS_LEAF(tn)) {
 		free_leaf((struct leaf *)tn);
-		DBG("FL %p \n", tn);
+		pr_debug("FL %p \n", tn);
 	} else {
 		__tnode_free(tn);
-		DBG("FT %p \n", tn);
+		pr_debug("FT %p \n", tn);
 	}
 }
 
@@ -420,10 +406,8 @@ static void tnode_put_child_reorg(struct tnode *tn, int i, struct node *n, int w
 	struct node *chi;
 	int isfull;
 
-	if (i >= 1<<tn->bits) {
-		printk("bits=%d, i=%d\n", tn->bits, i);
-		BUG();
-	}
+	BUG_ON(i >= 1<<tn->bits);
+
 	write_lock_bh(&fib_lock);
 	chi = tn->child[i];
 
@@ -459,8 +443,8 @@ static struct node *resize(struct trie *t, struct tnode *tn)
  	if (!tn)
 		return NULL;
 
-	DBG("In tnode_resize %p inflate_threshold=%d threshold=%d\n",
-	      tn, inflate_threshold, halve_threshold);
+	pr_debug("In tnode_resize %p inflate_threshold=%d threshold=%d\n",
+		 tn, inflate_threshold, halve_threshold);
 
 	/* No children */
 	if (tn->empty_children == tnode_child_length(tn)) {
@@ -625,11 +609,11 @@ static struct tnode *inflate(struct trie *t, struct tnode *tn)
 	int olen = tnode_child_length(tn);
 	int i;
 
-	DBG("In inflate\n");
+	pr_debug("In inflate\n");
 
 	tn = tnode_new(oldtnode->key, oldtnode->pos, oldtnode->bits + 1);
 
-	if (!tn) 
+	if (!tn)
 		return ERR_PTR(-ENOMEM);
 
 	/*
@@ -749,12 +733,12 @@ nomem:
 		int size = tnode_child_length(tn);
 		int j;
 
-		for(j = 0; j < size; j++)
+		for (j = 0; j < size; j++)
 			if (tn->child[j])
 				tnode_free((struct tnode *)tn->child[j]);
 
 		tnode_free(tn);
-	
+
 		return ERR_PTR(-ENOMEM);
 	}
 }
@@ -766,7 +750,7 @@ static struct tnode *halve(struct trie *t, struct tnode *tn)
 	int i;
 	int olen = tnode_child_length(tn);
 
-	DBG("In halve\n");
+	pr_debug("In halve\n");
 
 	tn = tnode_new(oldtnode->key, oldtnode->pos, oldtnode->bits - 1);
 
@@ -785,14 +769,14 @@ static struct tnode *halve(struct trie *t, struct tnode *tn)
 		right = tnode_get_child(oldtnode, i+1);
 
 		/* Two nonempty children */
-		if (left && right)  {
+		if (left && right) {
 			struct tnode *newn;
-  
+
 			newn = tnode_new(left->key, tn->pos + tn->bits, 1);
-  
-			if (!newn) 
+
+			if (!newn)
 				goto nomem;
-  
+
 			put_child(t, tn, i/2, (struct node *)newn);
 		}
 
@@ -810,7 +794,7 @@ static struct tnode *halve(struct trie *t, struct tnode *tn)
 				continue;
 			put_child(t, tn, i/2, right);
 			continue;
-		} 
+		}
 
 		if (right == NULL) {
 			put_child(t, tn, i/2, left);
@@ -820,9 +804,6 @@ static struct tnode *halve(struct trie *t, struct tnode *tn)
 		/* Two nonempty children */
 		newBinNode = (struct tnode *) tnode_get_child(tn, i/2);
 		put_child(t, tn, i/2, NULL);
-
-		BUG_ON(!newBinNode);
-
 		put_child(t, newBinNode, 0, left);
 		put_child(t, newBinNode, 1, right);
 		put_child(t, tn, i/2, resize(t, newBinNode));
@@ -834,12 +815,12 @@ nomem:
 		int size = tnode_child_length(tn);
 		int j;
 
-		for(j = 0; j < size; j++)
+		for (j = 0; j < size; j++)
 			if (tn->child[j])
 				tnode_free((struct tnode *)tn->child[j]);
 
 		tnode_free(tn);
-	
+
 		return ERR_PTR(-ENOMEM);
 	}
 }
@@ -939,22 +920,10 @@ static struct node *trie_rebalance(struct trie *t, struct tnode *tn)
 	t_key cindex, key;
 	struct tnode *tp = NULL;
 
-	BUG_ON(!tn);
-
 	key = tn->key;
 	i = 0;
 
 	while (tn != NULL && NODE_PARENT(tn) != NULL) {
-		if (i > 10) {
-			printk("Rebalance tn=%p \n", tn);
-			if (tn)
-				printk("tn->parent=%p \n", NODE_PARENT(tn));
-
-			printk("Rebalance tp=%p \n", tp);
-			if (tp)
-				printk("tp->parent=%p \n", NODE_PARENT(tp));
-		}
-
 		BUG_ON(i > 12); /* Why is this a bug? -ojn */
 		i++;
 
@@ -1019,10 +988,7 @@ fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 			pos = tn->pos + tn->bits;
 			n = tnode_get_child(tn, tkey_extract_bits(key, tn->pos, tn->bits));
 
-			if (n && NODE_PARENT(n) != tn) {
-				printk("BUG tn=%p, n->parent=%p\n", tn, NODE_PARENT(n));
-				BUG();
-			}
+			BUG_ON(n && NODE_PARENT(n) != tn);
 		} else
 			break;
 	}
@@ -1075,8 +1041,6 @@ fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 		/* Case 2: n is NULL, and will just insert a new leaf */
 
 		NODE_SET_PARENT(l, tp);
-
-		BUG_ON(!tp);
 
 		cindex = tkey_extract_bits(key, tp->pos, tp->bits);
 		put_child(t, (struct tnode *)tp, cindex, (struct node *)l);
@@ -1158,7 +1122,7 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 
 	key = ntohl(key);
 
-	DBG("Insert table=%d %08x/%d\n", tb->tb_id, key, plen);
+	pr_debug("Insert table=%d %08x/%d\n", tb->tb_id, key, plen);
 
 	mask = ntohl(inet_make_mask(plen));
 
@@ -1282,7 +1246,8 @@ err:
 	return err;
 }
 
-static inline int check_leaf(struct trie *t, struct leaf *l,  t_key key, int *plen, const struct flowi *flp,
+static inline int check_leaf(struct trie *t, struct leaf *l,
+			     t_key key, int *plen, const struct flowi *flp,
 			     struct fib_result *res)
 {
 	int err, i;
@@ -1511,7 +1476,7 @@ static int trie_leaf_remove(struct trie *t, t_key key)
 	struct node *n = t->trie;
 	struct leaf *l;
 
-	DBG("entering trie_leaf_remove(%p)\n", n);
+	pr_debug("entering trie_leaf_remove(%p)\n", n);
 
 	/* Note that in the case skipped bits, those bits are *not* checked!
 	 * When we finish this, we will have NULL or a T_LEAF, and the
@@ -1523,10 +1488,7 @@ static int trie_leaf_remove(struct trie *t, t_key key)
 		check_tnode(tn);
 		n = tnode_get_child(tn ,tkey_extract_bits(key, tn->pos, tn->bits));
 
-		if (n && NODE_PARENT(n) != tn) {
-			printk("BUG tn=%p, n->parent=%p\n", tn, NODE_PARENT(n));
-			BUG();
-		}
+		BUG_ON(n && NODE_PARENT(n) != tn);
 	}
 	l = (struct leaf *) n;
 
@@ -1594,7 +1556,7 @@ fn_trie_delete(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 	if (!fa)
 		return -ESRCH;
 
-	DBG("Deleting %08x/%d tos=%d t=%p\n", key, plen, tos, t);
+	pr_debug("Deleting %08x/%d tos=%d t=%p\n", key, plen, tos, t);
 
 	fa_to_delete = NULL;
 	fa_head = fa->fa_list.prev;
@@ -1762,7 +1724,7 @@ static int fn_trie_flush(struct fib_table *tb)
 	if (ll && hlist_empty(&ll->list))
 		trie_leaf_remove(t, ll->key);
 
-	DBG("trie_flush found=%d\n", found);
+	pr_debug("trie_flush found=%d\n", found);
 	return found;
 }
 
