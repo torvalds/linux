@@ -672,7 +672,7 @@ static void ipoib_set_mcast_list(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	schedule_work(&priv->restart_task);
+	queue_work(ipoib_workqueue, &priv->restart_task);
 }
 
 static void ipoib_neigh_destructor(struct neighbour *n)
