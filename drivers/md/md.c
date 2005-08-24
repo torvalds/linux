@@ -256,8 +256,7 @@ static inline void mddev_unlock(mddev_t * mddev)
 {
 	up(&mddev->reconfig_sem);
 
-	if (mddev->thread)
-		md_wakeup_thread(mddev->thread);
+	md_wakeup_thread(mddev->thread);
 }
 
 mdk_rdev_t * find_rdev_nr(mddev_t *mddev, int nr)
@@ -1714,6 +1713,7 @@ static int do_md_run(mddev_t * mddev)
 	mddev->in_sync = 1;
 	
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	md_wakeup_thread(mddev->thread);
 	
 	if (mddev->sb_dirty)
 		md_update_sb(mddev);
@@ -2236,8 +2236,7 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 			export_rdev(rdev);
 
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-		if (mddev->thread)
-			md_wakeup_thread(mddev->thread);
+		md_wakeup_thread(mddev->thread);
 		return err;
 	}
 
