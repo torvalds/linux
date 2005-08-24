@@ -51,7 +51,6 @@
 #include <linux/cpu.h>
 #include <linux/security.h>
 
-#include <asm/segment.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/nvram.h>
