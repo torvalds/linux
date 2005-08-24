@@ -402,12 +402,15 @@ void dccp_close(struct sock *sk, long timeout)
 		/* Check zero linger _after_ checking for unread data. */
 		sk->sk_prot->disconnect(sk, 0);
 	} else if (dccp_close_state(sk)) {
-		dccp_send_close(sk);
+		dccp_send_close(sk, 1);
 	}
 
 	sk_stream_wait_close(sk, timeout);
 
 adjudge_to_death:
+	/*
+	 * It is the last release_sock in its life. It will remove backlog.
+	 */
 	release_sock(sk);
 	/*
 	 * Now socket is owned by kernel and we acquire BH lock
@@ -419,11 +422,26 @@ adjudge_to_death:
 
 	sock_hold(sk);
 	sock_orphan(sk);
-						
-	if (sk->sk_state != DCCP_CLOSED)
-		dccp_set_state(sk, DCCP_CLOSED);
 
-	atomic_inc(&dccp_orphan_count);
+	/*
+	 * The last release_sock may have processed the CLOSE or RESET
+	 * packet moving sock to CLOSED state, if not we have to fire
+	 * the CLOSE/CLOSEREQ retransmission timer, see "8.3. Termination"
+	 * in draft-ietf-dccp-spec-11. -acme
+	 */
+	if (sk->sk_state == DCCP_CLOSING) {
+		/* FIXME: should start at 2 * RTT */
+		/* Timer for repeating the CLOSE/CLOSEREQ until an answer. */
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+					  inet_csk(sk)->icsk_rto,
+					  DCCP_RTO_MAX);
+#if 0
+		/* Yeah, we should use sk->sk_prot->orphan_count, etc */
+		dccp_set_state(sk, DCCP_CLOSED);
+#endif
+	}
+
+	atomic_inc(sk->sk_prot->orphan_count);
 	if (sk->sk_state == DCCP_CLOSED)
 		inet_csk_destroy_sock(sk);
 

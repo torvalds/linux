@@ -255,7 +255,7 @@ extern int	   dccp_v4_checksum(const struct sk_buff *skb,
 
 extern int	   dccp_v4_send_reset(struct sock *sk,
 				      enum dccp_reset_codes code);
-extern void	   dccp_send_close(struct sock *sk);
+extern void	   dccp_send_close(struct sock *sk, const int active);
 
 struct dccp_skb_cb {
 	__u8 dccpd_type;

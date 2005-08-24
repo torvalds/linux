@@ -96,8 +96,7 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		dh->dccph_checksum = dccp_v4_checksum(skb, inet->saddr,
 						      inet->daddr);
 
-		if (dcb->dccpd_type == DCCP_PKT_ACK ||
-		    dcb->dccpd_type == DCCP_PKT_DATAACK)
+		if (set_ack)
 			dccp_event_ack_sent(sk);
 
 		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
@@ -429,18 +428,15 @@ void dccp_send_sync(struct sock *sk, const u64 seq,
  * cannot be allowed to fail queueing a DCCP_PKT_CLOSE/CLOSEREQ frame under
  * any circumstances.
  */
-void dccp_send_close(struct sock *sk)
+void dccp_send_close(struct sock *sk, const int active)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct sk_buff *skb;
+	const unsigned int prio = active ? GFP_KERNEL : GFP_ATOMIC;
 
-	/* Socket is locked, keep trying until memory is available. */
-	for (;;) {
-		skb = alloc_skb(sk->sk_prot->max_header, GFP_KERNEL);
-		if (skb != NULL)
-			break;
-		yield();
-	}
+	skb = alloc_skb(sk->sk_prot->max_header, prio);
+	if (skb == NULL)
+		return;
 
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, sk->sk_prot->max_header);
@@ -449,7 +445,12 @@ void dccp_send_close(struct sock *sk)
 					DCCP_PKT_CLOSE : DCCP_PKT_CLOSEREQ;
 
 	skb_set_owner_w(skb, sk);
-	dccp_transmit_skb(sk, skb);
+	if (active) {
+		BUG_TRAP(sk->sk_send_head == NULL);
+		sk->sk_send_head = skb;
+		dccp_transmit_skb(sk, skb_clone(skb, prio));
+	} else
+		dccp_transmit_skb(sk, skb);
 
 	ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
 	ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);

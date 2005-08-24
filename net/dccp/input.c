@@ -31,14 +31,9 @@ static void dccp_fin(struct sock *sk, struct sk_buff *skb)
 
 static void dccp_rcv_close(struct sock *sk, struct sk_buff *skb)
 {
-	switch (sk->sk_state) {
-	case DCCP_PARTOPEN:
-	case DCCP_OPEN:
-		dccp_v4_send_reset(sk, DCCP_RESET_CODE_CLOSED);
-		dccp_fin(sk, skb);
-		dccp_set_state(sk, DCCP_CLOSED);
-		break;
-	}
+	dccp_v4_send_reset(sk, DCCP_RESET_CODE_CLOSED);
+	dccp_fin(sk, skb);
+	dccp_set_state(sk, DCCP_CLOSED);
 }
 
 static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
@@ -54,13 +49,8 @@ static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	switch (sk->sk_state) {
-	case DCCP_PARTOPEN:
-	case DCCP_OPEN:
-		dccp_set_state(sk, DCCP_CLOSING);
-		dccp_send_close(sk);
-		break;
-	}
+	dccp_set_state(sk, DCCP_CLOSING);
+	dccp_send_close(sk, 0);
 }
 
 static inline void dccp_event_ack_recv(struct sock *sk, struct sk_buff *skb)
@@ -562,6 +552,12 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
 			       DCCP_PKT_SYNC);
 		goto discard;
+	} else if (dh->dccph_type == DCCP_PKT_CLOSEREQ) {
+		dccp_rcv_closereq(sk, skb);
+		goto discard;
+	} else if (dh->dccph_type == DCCP_PKT_CLOSE) {
+		dccp_rcv_close(sk, skb);
+		return 0;
 	}
 
 	switch (sk->sk_state) {
