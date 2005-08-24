@@ -744,13 +744,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 				    15 seconds is plenty */
 	}
 
-#ifdef CONFIG_CIFS_STATS
-	if (total_written > 0) {
-		spin_lock(&pTcon->stat_lock);
-		pTcon->bytes_written += total_written;
-		spin_unlock(&pTcon->stat_lock);
-	}
-#endif		
+	cifs_stats_bytes_written(pTcon, total_written);
 
 	/* since the write may have blocked check these pointers again */
 	if (file->f_dentry) {
@@ -878,13 +872,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 				    15 seconds is plenty */
 	}
 
-#ifdef CONFIG_CIFS_STATS
-	if (total_written > 0) {
-		spin_lock(&pTcon->stat_lock);
-		pTcon->bytes_written += total_written;
-		spin_unlock(&pTcon->stat_lock);
-	}
-#endif		
+	cifs_stats_bytes_written(pTcon, total_written);
 
 	/* since the write may have blocked check these pointers again */
 	if (file->f_dentry) {
@@ -1245,11 +1233,7 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 				return rc;
 			}
 		} else {
-#ifdef CONFIG_CIFS_STATS
-			spin_lock(&pTcon->stat_lock);
-			pTcon->bytes_read += total_read;
-			spin_unlock(&pTcon->stat_lock);
-#endif
+			cifs_stats_bytes_read(pTcon, bytes_read);
 			*poffset += bytes_read;
 		}
 	}
@@ -1312,11 +1296,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 				return rc;
 			}
 		} else {
-#ifdef CONFIG_CIFS_STATS
-			spin_lock(&pTcon->stat_lock);
-			pTcon->bytes_read += total_read;
-			spin_unlock(&pTcon->stat_lock);
-#endif
+			cifs_stats_bytes_read(pTcon, total_read);
 			*poffset += bytes_read;
 		}
 	}
@@ -1488,11 +1468,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 				le16_to_cpu(pSMBr->DataOffset), &lru_pvec);
 
 			i +=  bytes_read >> PAGE_CACHE_SHIFT;
-#ifdef CONFIG_CIFS_STATS
-			spin_lock(&pTcon->stat_lock);
-			pTcon->bytes_read += bytes_read;
-			spin_unlock(&pTcon->stat_lock);
-#endif
+			cifs_stats_bytes_read(pTcon, bytes_read);
 			if ((int)(bytes_read & PAGE_CACHE_MASK) != bytes_read) {
 				i++; /* account for partial page */
 

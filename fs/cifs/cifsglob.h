@@ -339,6 +339,34 @@ static inline const char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
 		return '\\';
 }
 
+#ifdef CONFIG_CIFS_STATS
+#define cifs_stats_inc atomic_inc
+
+static inline void cifs_stats_bytes_written(struct cifsTconInfo *tcon,
+					    unsigned int bytes)
+{
+	if (bytes) {
+		spin_lock(&tcon->stat_lock);
+		tcon->bytes_written += bytes;
+		spin_unlock(&tcon->stat_lock);
+	}
+}
+
+static inline void cifs_stats_bytes_read(struct cifsTconInfo *tcon,
+					 unsigned int bytes)
+{
+	spin_lock(&tcon->stat_lock);
+	tcon->bytes_read += bytes;
+	spin_unlock(&tcon->stat_lock);
+}
+#else
+
+#define  cifs_stats_inc(field) do {} while(0)
+#define  cifs_stats_bytes_written(tcon, bytes) do {} while(0)
+#define  cifs_stats_bytes_read(tcon, bytes) do {} while(0)
+
+#endif
+
 /* one of these for every pending CIFS request to the server */
 struct mid_q_entry {
 	struct list_head qhead;	/* mids waiting on reply from this server */

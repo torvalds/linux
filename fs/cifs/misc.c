@@ -520,9 +520,7 @@ is_valid_oplock_break(struct smb_hdr *buf)
 	list_for_each(tmp, &GlobalTreeConnectionList) {
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
 		if (tcon->tid == buf->Tid) {
-#ifdef CONFIG_CIFS_STATS
-			atomic_inc(&tcon->num_oplock_brks);
-#endif
+			cifs_stats_inc(&tcon->num_oplock_brks);
 			list_for_each(tmp1,&tcon->openFileList){
 				netfile = list_entry(tmp1,struct cifsFileInfo,
 						     tlist);

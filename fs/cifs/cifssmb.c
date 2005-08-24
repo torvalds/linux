@@ -166,11 +166,9 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 
 	header_assemble((struct smb_hdr *) *request_buf, smb_command, tcon,wct);
 
-#ifdef CONFIG_CIFS_STATS
-        if(tcon != NULL) {
-                atomic_inc(&tcon->num_smbs_sent);
-        }
-#endif /* CONFIG_CIFS_STATS */
+        if(tcon != NULL)
+                cifs_stats_inc(&tcon->num_smbs_sent);
+
 	return rc;
 }  
 
@@ -269,11 +267,9 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	header_assemble((struct smb_hdr *) *request_buf, smb_command, tcon,
 			wct /*wct */ );
 
-#ifdef CONFIG_CIFS_STATS
-        if(tcon != NULL) {
-                atomic_inc(&tcon->num_smbs_sent);
-        }
-#endif /* CONFIG_CIFS_STATS */
+        if(tcon != NULL)
+                cifs_stats_inc(&tcon->num_smbs_sent);
+
 	return rc;
 }
 
@@ -584,9 +580,7 @@ DelFileRetry:
 	pSMB->ByteCount = cpu_to_le16(name_len + 1);
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_deletes);
-#endif
+	cifs_stats_inc(&tcon->num_deletes);
 	if (rc) {
 		cFYI(1, ("Error in RMFile = %d", rc));
 	} 
@@ -631,9 +625,7 @@ RmDirRetry:
 	pSMB->ByteCount = cpu_to_le16(name_len + 1);
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_rmdirs);
-#endif
+	cifs_stats_inc(&tcon->num_rmdirs);
 	if (rc) {
 		cFYI(1, ("Error in RMDir = %d", rc));
 	}
@@ -677,9 +669,7 @@ MkDirRetry:
 	pSMB->ByteCount = cpu_to_le16(name_len + 1);
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_mkdirs);
-#endif
+	cifs_stats_inc(&tcon->num_mkdirs);
 	if (rc) {
 		cFYI(1, ("Error in Mkdir = %d", rc));
 	}
@@ -767,9 +757,7 @@ openRetry:
 	/* long_op set to 1 to allow for oplock break timeouts */
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 1);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_opens);
-#endif
+	cifs_stats_inc(&tcon->num_opens);
 	if (rc) {
 		cFYI(1, ("Error in Open = %d", rc));
 	} else {
@@ -833,9 +821,7 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
 
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_reads);
-#endif 	
+	cifs_stats_inc(&tcon->num_reads);
 	if (rc) {
 		cERROR(1, ("Send error in read = %d", rc));
 	} else {
@@ -938,9 +924,7 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, long_op);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_writes);
-#endif
+	cifs_stats_inc(&tcon->num_writes);
 	if (rc) {
 		cFYI(1, ("Send error in write = %d", rc));
 		*nbytes = 0;
@@ -1013,9 +997,7 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 
 	rc = SendReceive2(xid, tcon->ses, (struct smb_hdr *) pSMB, smb_hdr_len,
 			  buf, bytes_sent, &bytes_returned, long_op);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_writes);
-#endif
+	cifs_stats_inc(&tcon->num_writes);
 	if (rc) {
 		cFYI(1, ("Send error in write = %d", rc));
 		*nbytes = 0;
@@ -1091,9 +1073,7 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, timeout);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_locks);
-#endif
+	cifs_stats_inc(&tcon->num_locks);
 	if (rc) {
 		cFYI(1, ("Send error in Lock = %d", rc));
 	}
@@ -1127,9 +1107,7 @@ CIFSSMBClose(const int xid, struct cifsTconInfo *tcon, int smb_file_id)
 	pSMB->ByteCount = 0;
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_closes);
-#endif 
+	cifs_stats_inc(&tcon->num_closes);
 	if (rc) {
 		if(rc!=-EINTR) {
 			/* EINTR is expected when user ctl-c to kill app */
@@ -1202,9 +1180,7 @@ renameRetry:
 
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_renames);
-#endif
+	cifs_stats_inc(&tcon->num_renames);
 	if (rc) {
 		cFYI(1, ("Send error in rename = %d", rc));
 	} 
@@ -1283,9 +1259,7 @@ int CIFSSMBRenameOpenFile(const int xid,struct cifsTconInfo *pTcon,
 	pSMB->ByteCount = cpu_to_le16(byte_count);
 	rc = SendReceive(xid, pTcon->ses, (struct smb_hdr *) pSMB,
                          (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&pTcon->num_t2renames);
-#endif 
+	cifs_stats_inc(&pTcon->num_t2renames);
 	if (rc) {
 		cFYI(1,("Send error in Rename (by file handle) = %d", rc));
 	}
@@ -1443,9 +1417,7 @@ createSymLinkRetry:
 	pSMB->ByteCount = cpu_to_le16(byte_count);
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_symlinks);
-#endif
+	cifs_stats_inc(&tcon->num_symlinks);
 	if (rc) {
 		cFYI(1,
 		     ("Send error in SetPathInfo (create symlink) = %d",
@@ -1535,9 +1507,7 @@ createHardLinkRetry:
 	pSMB->ByteCount = cpu_to_le16(byte_count);
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_hardlinks);
-#endif
+	cifs_stats_inc(&tcon->num_hardlinks);
 	if (rc) {
 		cFYI(1, ("Send error in SetPathInfo (hard link) = %d", rc));
 	}
@@ -1608,9 +1578,7 @@ winCreateHardLinkRetry:
 
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_hardlinks);
-#endif
+	cifs_stats_inc(&tcon->num_hardlinks);
 	if (rc) {
 		cFYI(1, ("Send error in hard link (NT rename) = %d", rc));
 	}
@@ -2490,9 +2458,7 @@ findUniqueRetry:
 	if (rc) {
 		cFYI(1, ("Send error in FindFileDirInfo = %d", rc));
 	} else {		/* decode response */
-#ifdef CONFIG_CIFS_STATS
-		atomic_inc(&tcon->num_ffirst);
-#endif
+		cifs_stats_inc(&tcon->num_ffirst);
 		/* BB fill in */
 	}
 
@@ -2592,9 +2558,7 @@ findFirstRetry:
 
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_ffirst);
-#endif
+	cifs_stats_inc(&tcon->num_ffirst);
 
 	if (rc) {/* BB add logic to retry regular search if Unix search rejected unexpectedly by server */
 		/* BB Add code to handle unsupported level rc */
@@ -2716,9 +2680,7 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
                                                                                               
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			(struct smb_hdr *) pSMBr, &bytes_returned, 0);
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_fnext);
-#endif                                                                                          
+	cifs_stats_inc(&tcon->num_fnext);
 	if (rc) {
 		if (rc == -EBADF) {
 			psrch_inf->endOfSearch = TRUE;
@@ -2795,9 +2757,7 @@ CIFSFindClose(const int xid, struct cifsTconInfo *tcon, const __u16 searchHandle
 	if (rc) {
 		cERROR(1, ("Send error in FindClose = %d", rc));
 	}
-#ifdef CONFIG_CIFS_STATS
-	atomic_inc(&tcon->num_fclose);
-#endif
+	cifs_stats_inc(&tcon->num_fclose);
 	cifs_small_buf_release(pSMB);
 
 	/* Since session is dead, search handle closed on server already */
