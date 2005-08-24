@@ -171,6 +171,7 @@ int dccp_write_xmit(struct sock *sk, struct sk_buff *skb, const int len)
 			 * dccps_ack_pending or use icsk.
 			 */
 		} else if (inet_csk_ack_scheduled(sk) ||
+			   dp->dccps_timestamp_echo != 0 ||
 			   (dp->dccps_options.dccpo_send_ack_vector &&
 			    ap->dccpap_buf_ackno != DCCP_MAX_SEQNO + 1 &&
 			    ap->dccpap_ack_seqno == DCCP_MAX_SEQNO + 1))
