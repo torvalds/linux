@@ -1303,6 +1303,8 @@ static int dccp_v4_destroy_sock(struct sock *sk)
 	if (inet_csk(sk)->icsk_bind_hash != NULL)
 		inet_put_port(&dccp_hashinfo, sk);
 
+	ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
+	ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);
 	dccp_ackpkts_free(dp->dccps_hc_rx_ackpkts);
 	dp->dccps_hc_rx_ackpkts = NULL;
 	ccid_exit(dp->dccps_hc_rx_ccid, sk);
