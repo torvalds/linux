@@ -9,7 +9,6 @@
  * Copyright (C) Joerg Reuter DL1BKE (jreuter@yaina.de)
  * Copyright (C) Hans-Joachim Hetscher DD8NE (dd8ne@bnv-bamberg.de)
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -26,9 +25,7 @@
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
 #include <net/sock.h>
-#include <net/ip.h>			/* For ip_rcv */
 #include <net/tcp_states.h>
-#include <net/arp.h>			/* For arp_rcv */
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <linux/fcntl.h>
@@ -114,7 +111,6 @@ int ax25_rx_iframe(ax25_cb *ax25, struct sk_buff *skb)
 
 	pid = *skb->data;
 
-#ifdef CONFIG_INET
 	if (pid == AX25_P_IP) {
 		/* working around a TCP bug to keep additional listeners
 		 * happy. TCP re-uses the buffer and destroys the original
@@ -132,10 +128,9 @@ int ax25_rx_iframe(ax25_cb *ax25, struct sk_buff *skb)
 		skb->dev      = ax25->ax25_dev->dev;
 		skb->pkt_type = PACKET_HOST;
 		skb->protocol = htons(ETH_P_IP);
-		ip_rcv(skb, skb->dev, NULL, skb->dev);	/* Wrong ptype */
+		netif_rx(skb);
 		return 1;
 	}
-#endif
 	if (pid == AX25_P_SEGMENT) {
 		skb_pull(skb, 1);	/* Remove PID */
 		return ax25_rx_fragment(ax25, skb);
@@ -250,7 +245,6 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 
 		/* Now we are pointing at the pid byte */
 		switch (skb->data[1]) {
-#ifdef CONFIG_INET
 		case AX25_P_IP:
 			skb_pull(skb,2);		/* drop PID/CTRL */
 			skb->h.raw    = skb->data;
@@ -258,7 +252,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 			skb->dev      = dev;
 			skb->pkt_type = PACKET_HOST;
 			skb->protocol = htons(ETH_P_IP);
-			ip_rcv(skb, dev, ptype, dev);	/* Note ptype here is the wrong one, fix me later */
+			netif_rx(skb);
 			break;
 
 		case AX25_P_ARP:
@@ -268,9 +262,8 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 			skb->dev      = dev;
 			skb->pkt_type = PACKET_HOST;
 			skb->protocol = htons(ETH_P_ARP);
-			arp_rcv(skb, dev, ptype, dev);	/* Note ptype here is wrong... */
+			netif_rx(skb);
 			break;
-#endif
 		case AX25_P_TEXT:
 			/* Now find a suitable dgram socket */
 			sk = ax25_get_socket(&dest, &src, SOCK_DGRAM);
