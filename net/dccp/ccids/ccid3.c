@@ -1010,7 +1010,6 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
 	struct timeval now;
 
-//	ccid3_pr_debug("%s, sk=%p, more=%d, len=%d\n", dccp_role(sk), sk, more, len);
 	BUG_ON(hctx == NULL);
 
 	if (hctx->ccid3hctx_state == TFRC_SSTATE_TERM) {
@@ -1562,23 +1561,27 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
 	const struct dccp_sock *dp = dccp_sk(sk);
+	u32 x_recv, pinv;
 	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 
 	if (hcrx == NULL || !(sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN))
 		return;
 
-	if (hcrx->ccid3hcrx_elapsed_time != 0 && !dccp_packet_without_ack(skb))
-		dccp_insert_option_elapsed_time(sk, skb, hcrx->ccid3hcrx_elapsed_time);
-
-	if (DCCP_SKB_CB(skb)->dccpd_type != DCCP_PKT_DATA) {
-		const u32 x_recv = htonl(hcrx->ccid3hcrx_x_recv);
-		const u32 pinv   = htonl(hcrx->ccid3hcrx_pinv);
-
-		dccp_insert_option(sk, skb, TFRC_OPT_LOSS_EVENT_RATE, &pinv, sizeof(pinv));
-		dccp_insert_option(sk, skb, TFRC_OPT_RECEIVE_RATE, &x_recv, sizeof(x_recv));
-	}
-
 	DCCP_SKB_CB(skb)->dccpd_ccval = hcrx->ccid3hcrx_last_counter;
+
+	if (dccp_packet_without_ack(skb))
+		return;
+		
+	if (hcrx->ccid3hcrx_elapsed_time != 0)
+		dccp_insert_option_elapsed_time(sk, skb,
+						hcrx->ccid3hcrx_elapsed_time);
+	dccp_insert_option_timestamp(sk, skb);
+	x_recv = htonl(hcrx->ccid3hcrx_x_recv);
+	pinv   = htonl(hcrx->ccid3hcrx_pinv);
+	dccp_insert_option(sk, skb, TFRC_OPT_LOSS_EVENT_RATE,
+			   &pinv, sizeof(pinv));
+	dccp_insert_option(sk, skb, TFRC_OPT_RECEIVE_RATE,
+			   &x_recv, sizeof(x_recv));
 }
 
 /* Weights used to calculate loss event rate */
@@ -1860,8 +1863,10 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
+	const struct dccp_options_received *opt_recv;
 	struct dccp_rx_hist_entry *packet;
 	struct timeval now;
+	u32 now_usecs;
 	u8 win_count;
 	u32 p_prev;
 	int ins;
@@ -1876,24 +1881,25 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	BUG_ON(!(hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA ||
 		 hcrx->ccid3hcrx_state == TFRC_RSTATE_DATA));
 
+	opt_recv = &dp->dccps_options_received;
+
 	switch (DCCP_SKB_CB(skb)->dccpd_type) {
 	case DCCP_PKT_ACK:
 		if (hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA)
 			return;
 	case DCCP_PKT_DATAACK:
-		if (dp->dccps_options_received.dccpor_timestamp_echo == 0)
+		if (opt_recv->dccpor_timestamp_echo == 0)
 			break;
 		p_prev = hcrx->ccid3hcrx_rtt;
 		do_gettimeofday(&now);
-		/* hcrx->ccid3hcrx_rtt = now - dp->dccps_options_received.dccpor_timestamp_echo -
-				      usecs_to_jiffies(dp->dccps_options_received.dccpor_elapsed_time * 10);
-		FIXME - I think above code is broken - have to look at options more, will also need
-		to fix pr_debug below */
+		now_usecs = now.tv_sec * USEC_PER_SEC + now.tv_usec;
+		hcrx->ccid3hcrx_rtt = now_usecs -
+				     (opt_recv->dccpor_timestamp_echo -
+				      opt_recv->dccpor_elapsed_time) * 10;
 		if (p_prev != hcrx->ccid3hcrx_rtt)
-			ccid3_pr_debug("%s, sk=%p, New RTT estimate=%lu jiffies, tstamp_echo=%u, elapsed time=%u\n",
-				       dccp_role(sk), sk, hcrx->ccid3hcrx_rtt,
-				       dp->dccps_options_received.dccpor_timestamp_echo,
-				       dp->dccps_options_received.dccpor_elapsed_time);
+			ccid3_pr_debug("%s, New RTT=%luus, elapsed time=%u\n",
+				       dccp_role(sk), hcrx->ccid3hcrx_rtt,
+				       opt_recv->dccpor_elapsed_time);
 		break;
 	case DCCP_PKT_DATA:
 		break;
@@ -1904,8 +1910,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	packet = dccp_rx_hist_entry_new(ccid3_rx_hist,
-					dp->dccps_options_received.dccpor_ndp,
+	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, opt_recv->dccpor_ndp,
 					skb, SLAB_ATOMIC);
 	if (packet == NULL) {
 		ccid3_pr_debug("%s, sk=%p, Not enough mem to add rx packet to history (consider it lost)!",
@@ -1930,9 +1935,9 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	case TFRC_RSTATE_DATA:
 		hcrx->ccid3hcrx_bytes_recv += skb->len - dccp_hdr(skb)->dccph_doff * 4;
 		if (ins == 0) {
-			do_gettimeofday(&now);
-			if ((now_delta(hcrx->ccid3hcrx_tstamp_last_ack)) >= hcrx->ccid3hcrx_rtt) {
-				hcrx->ccid3hcrx_tstamp_last_ack = now;
+			if (now_delta(hcrx->ccid3hcrx_tstamp_last_ack) >=
+			    hcrx->ccid3hcrx_rtt) {
+				do_gettimeofday(&hcrx->ccid3hcrx_tstamp_last_ack);
 				ccid3_hc_rx_send_feedback(sk);
 			}
 			return;
@@ -1946,8 +1951,8 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	/* Dealing with packet loss */
-	ccid3_pr_debug("%s, sk=%p(%s), skb=%p, data loss! Reacting...\n",
-		       dccp_role(sk), sk, dccp_state_name(sk->sk_state), skb);
+	ccid3_pr_debug("%s, sk=%p(%s), data loss! Reacting...\n",
+		       dccp_role(sk), sk, dccp_state_name(sk->sk_state));
 
 	ccid3_hc_rx_detect_loss(sk);
 	p_prev = hcrx->ccid3hcrx_p;
@@ -1985,7 +1990,11 @@ static int ccid3_hc_rx_init(struct sock *sk)
 	hcrx->ccid3hcrx_state = TFRC_RSTATE_NO_DATA;
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_hist);
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_loss_interval_hist);
-
+	/*
+	 * XXX this seems to be paranoid, need to think more about this, for
+	 * now start with something different than zero. -acme
+	 */
+	hcrx->ccid3hcrx_rtt = USEC_PER_SEC / 5;
 	return 0;
 }
 
