@@ -317,7 +317,7 @@ typedef struct ide_floppy_obj {
 	unsigned long flags;
 } idefloppy_floppy_t;
 
-#define IDEFLOPPY_TICKS_DELAY	3	/* default delay for ZIP 100 */
+#define IDEFLOPPY_TICKS_DELAY	HZ/20	/* default delay for ZIP 100 (50ms) */
 
 /*
  *	Floppy flag bits values.

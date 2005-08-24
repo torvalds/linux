@@ -29,11 +29,11 @@
 #include <linux/namei.h>
 #include <linux/ufs_fs.h>
 
-static int ufs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *ufs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct ufs_inode_info *p = UFS_I(dentry->d_inode);
 	nd_set_link(nd, (char*)p->i_u1.i_symlink);
-	return 0;
+	return NULL;
 }
 
 struct inode_operations ufs_fast_symlink_inode_operations = {

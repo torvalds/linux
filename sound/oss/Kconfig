@@ -6,7 +6,7 @@
 # Prompt user for primary drivers.
 config SOUND_BT878
 	tristate "BT878 audio dma"
-	depends on SOUND_PRIME
+	depends on SOUND_PRIME && PCI
 	---help---
 	  Audio DMA support for bt878 based grabber boards.  As you might have
 	  already noticed, bt878 is listed with two functions in /proc/pci.
@@ -80,14 +80,14 @@ config SOUND_EMU10K1
 
 config MIDI_EMU10K1
 	bool "Creative SBLive! MIDI (EXPERIMENTAL)"
-	depends on SOUND_EMU10K1 && EXPERIMENTAL
+	depends on SOUND_EMU10K1 && EXPERIMENTAL && ISA_DMA_API
 	help
 	  Say Y if you want to be able to use the OSS /dev/sequencer
 	  interface.  This code is still experimental.
 
 config SOUND_FUSION
 	tristate "Crystal SoundFusion (CS4280/461x)"
-	depends on SOUND_PRIME
+	depends on SOUND_PRIME && PCI
 	help
 	  This module drives the Crystal SoundFusion devices (CS4280/46xx
 	  series) when wired as native sound drivers with AC97 codecs.  If
@@ -95,7 +95,7 @@ config SOUND_FUSION
 
 config SOUND_CS4281
 	tristate "Crystal Sound CS4281"
-	depends on SOUND_PRIME
+	depends on SOUND_PRIME && PCI
 	help
 	  Picture and feature list at
 	  <http://www.pcbroker.com/crystal4281.html>.
@@ -179,7 +179,7 @@ config SOUND_HARMONY
 
 config SOUND_SONICVIBES
 	tristate "S3 SonicVibes"
-	depends on SOUND_PRIME
+	depends on SOUND_PRIME && PCI
 	help
 	  Say Y or M if you have a PCI sound card utilizing the S3
 	  SonicVibes chipset. To find out if your sound card uses a
@@ -226,7 +226,7 @@ config SOUND_AU1550_AC97
 
 config SOUND_TRIDENT
 	tristate "Trident 4DWave DX/NX, SiS 7018 or ALi 5451 PCI Audio Core"
-	depends on SOUND_PRIME
+	depends on SOUND_PRIME && PCI
 	---help---
 	  Say Y or M if you have a PCI sound card utilizing the Trident
 	  4DWave-DX/NX chipset or your mother board chipset has SiS 7018
@@ -503,7 +503,7 @@ config SOUND_VIA82CXXX
 
 config MIDI_VIA82CXXX
 	bool "VIA 82C686 MIDI"
-	depends on SOUND_VIA82CXXX
+	depends on SOUND_VIA82CXXX && ISA_DMA_API
 	help
 	  Answer Y to use the MIDI interface of the Via686. You may need to
 	  enable this in the BIOS before it will work. This is for connection
@@ -512,7 +512,7 @@ config MIDI_VIA82CXXX
 
 config SOUND_OSS
 	tristate "OSS sound modules"
-	depends on SOUND_PRIME
+	depends on SOUND_PRIME && ISA_DMA_API
 	help
 	  OSS is the Open Sound System suite of sound card drivers.  They make
 	  sound programming easier since they provide a common API.  Say Y or

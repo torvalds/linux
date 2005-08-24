@@ -256,8 +256,7 @@ static inline void mddev_unlock(mddev_t * mddev)
 {
 	up(&mddev->reconfig_sem);
 
-	if (mddev->thread)
-		md_wakeup_thread(mddev->thread);
+	md_wakeup_thread(mddev->thread);
 }
 
 mdk_rdev_t * find_rdev_nr(mddev_t *mddev, int nr)
@@ -623,6 +622,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->raid_disks = sb->raid_disks;
 		mddev->size = sb->size;
 		mddev->events = md_event(sb);
+		mddev->bitmap_offset = 0;
 
 		if (sb->state & (1<<MD_SB_CLEAN))
 			mddev->recovery_cp = MaxSector;
@@ -938,6 +938,7 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->raid_disks = le32_to_cpu(sb->raid_disks);
 		mddev->size = le64_to_cpu(sb->size)/2;
 		mddev->events = le64_to_cpu(sb->events);
+		mddev->bitmap_offset = 0;
 		
 		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
 		memcpy(mddev->uuid, sb->set_uuid, 16);
@@ -1712,6 +1713,7 @@ static int do_md_run(mddev_t * mddev)
 	mddev->in_sync = 1;
 	
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	md_wakeup_thread(mddev->thread);
 	
 	if (mddev->sb_dirty)
 		md_update_sb(mddev);
@@ -1824,6 +1826,7 @@ static int do_md_stop(mddev_t * mddev, int ro)
 		fput(mddev->bitmap_file);
 		mddev->bitmap_file = NULL;
 	}
+	mddev->bitmap_offset = 0;
 
 	/*
 	 * Free resources if final stop
@@ -2233,8 +2236,7 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 			export_rdev(rdev);
 
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-		if (mddev->thread)
-			md_wakeup_thread(mddev->thread);
+		md_wakeup_thread(mddev->thread);
 		return err;
 	}
 

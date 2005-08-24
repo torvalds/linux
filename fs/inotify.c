@@ -402,7 +402,7 @@ static struct inotify_watch *create_watch(struct inotify_device *dev,
 		return ERR_PTR(ret);
 	}
 
-	dev->last_wd = ret;
+	dev->last_wd = watch->wd;
 	watch->mask = mask;
 	atomic_set(&watch->count, 0);
 	INIT_LIST_HEAD(&watch->d_list);

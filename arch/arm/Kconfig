@@ -310,7 +310,7 @@ menu "Kernel Features"
 
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
-	depends on EXPERIMENTAL #&& n
+	depends on EXPERIMENTAL && BROKEN #&& n
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If

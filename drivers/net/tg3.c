@@ -66,8 +66,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.35"
-#define DRV_MODULE_RELDATE	"August 6, 2005"
+#define DRV_MODULE_VERSION	"3.36"
+#define DRV_MODULE_RELDATE	"August 19, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -8970,6 +8970,8 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 		tp->phy_id = hw_phy_id;
 		if (hw_phy_id_masked == PHY_ID_BCM8002)
 			tp->tg3_flags2 |= TG3_FLG2_PHY_SERDES;
+		else
+			tp->tg3_flags2 &= ~TG3_FLG2_PHY_SERDES;
 	} else {
 		if (tp->phy_id != PHY_ID_INVALID) {
 			/* Do nothing, phy ID already set up in

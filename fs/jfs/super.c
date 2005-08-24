@@ -114,6 +114,8 @@ static void jfs_destroy_inode(struct inode *inode)
 {
 	struct jfs_inode_info *ji = JFS_IP(inode);
 
+	BUG_ON(!list_empty(&ji->anon_inode_list));
+
 	spin_lock_irq(&ji->ag_lock);
 	if (ji->active_ag != -1) {
 		struct bmap *bmap = JFS_SBI(inode->i_sb)->bmap;
@@ -531,7 +533,7 @@ static int jfs_sync_fs(struct super_block *sb, int wait)
 	/* log == NULL indicates read-only mount */
 	if (log) {
 		jfs_flush_journal(log, wait);
-		jfs_syncpt(log);
+		jfs_syncpt(log, 0);
 	}
 
 	return 0;

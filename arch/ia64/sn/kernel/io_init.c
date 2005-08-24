@@ -203,6 +203,7 @@ static void sn_fixup_ionodes(void)
 				continue;
 			}
 
+			spin_lock_init(&sn_flush_device_list->sfdl_flush_lock);
 			hubdev->hdi_flush_nasid_list.widget_p[widget] =
 			    sn_flush_device_list;
 		}
@@ -322,7 +323,7 @@ void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 	struct pci_controller *controller;
 	struct pcibus_bussoft *prom_bussoft_ptr;
 	struct hubdev_info *hubdev_info;
-	void *provider_soft;
+	void *provider_soft = NULL;
 	struct sn_pcibus_provider *provider;
 
  	status = sal_get_pcibus_info((u64) segment, (u64) busnum,
@@ -338,7 +339,7 @@ void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 	if (bus == NULL) {
  		bus = pci_scan_bus(busnum, &pci_root_ops, controller);
  		if (bus == NULL)
- 			return;	/* error, or bus already scanned */
+ 			goto error_return; /* error, or bus already scanned */
  		bus->sysdata = NULL;
 	}
 
@@ -351,28 +352,30 @@ void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 	 */
 
 	if (prom_bussoft_ptr->bs_asic_type >= PCIIO_ASIC_MAX_TYPES)
-		return;		/* unsupported asic type */
+		goto error_return; /* unsupported asic type */
 
 	if (prom_bussoft_ptr->bs_asic_type == PCIIO_ASIC_TYPE_PPB)
 		goto error_return; /* no further fixup necessary */
 
 	provider = sn_pci_provider[prom_bussoft_ptr->bs_asic_type];
 	if (provider == NULL)
-		return;		/* no provider registerd for this asic */
+		goto error_return; /* no provider registerd for this asic */
 
-	provider_soft = NULL;
+	bus->sysdata = controller;
 	if (provider->bus_fixup)
 		provider_soft = (*provider->bus_fixup) (prom_bussoft_ptr, controller);
 
-	if (provider_soft == NULL)
-		return;		/* fixup failed or not applicable */
+	if (provider_soft == NULL) {
+		/* fixup failed or not applicable */
+		bus->sysdata = NULL;
+		goto error_return;
+	}
 
 	/*
 	 * Generic bus fixup goes here.  Don't reference prom_bussoft_ptr
 	 * after this point.
 	 */
 
-	bus->sysdata = controller;
 	PCI_CONTROLLER(bus)->platform_data = provider_soft;
 	nasid = NASID_GET(SN_PCIBUS_BUSSOFT(bus)->bs_base);
 	cnode = nasid_to_cnodeid(nasid);

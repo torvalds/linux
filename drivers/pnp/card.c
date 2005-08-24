@@ -312,6 +312,8 @@ found:
 	if (drv->link.driver.probe) {
 		if (drv->link.driver.probe(&dev->dev)) {
 			dev->dev.driver = NULL;
+			dev->card_link = NULL;
+			up_write(&dev->dev.bus->subsys.rwsem);
 			return NULL;
 		}
 	}

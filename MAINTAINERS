@@ -1746,7 +1746,7 @@ S:	Maintained
 
 OPL3-SA2, SA3, and SAx DRIVER
 P:	Zwane Mwaikambo
-M:	zwane@commfireservices.com
+M:	zwane@arm.linux.org.uk
 L:	linux-sound@vger.kernel.org
 S:	Maintained
 
@@ -1830,6 +1830,12 @@ S:	Supported
 PCI HOTPLUG COMPAQ DRIVER
 P:	Greg Kroah-Hartman
 M:	greg@kroah.com
+S:	Maintained
+
+PCIE HOTPLUG DRIVER
+P:	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
+L:	pcihpd-discuss@lists.sourceforge.net
 S:	Maintained
 
 PCMCIA SUBSYSTEM
@@ -1996,7 +2002,7 @@ S:	Maintained
 
 SC1200 WDT DRIVER
 P:	Zwane Mwaikambo
-M:	zwane@commfireservices.com
+M:	zwane@arm.linux.org.uk
 S:	Maintained
 
 SCHEDULER
@@ -2206,6 +2212,12 @@ P:	Marc Singer
 M:	elf@buici.com
 W:	http://projects.buici.com/arm
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+S:	Maintained
+
+SHPC HOTPLUG DRIVER
+P:	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
+L:	pcihpd-discuss@lists.sourceforge.net
 S:	Maintained
 
 SPARC (sparc32):
