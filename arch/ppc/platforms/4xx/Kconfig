@@ -3,6 +3,11 @@ config 4xx
 	depends on 40x || 44x
 	default y
 
+config WANT_EARLY_SERIAL
+	bool
+	select SERIAL_8250
+	default n
+
 menu "IBM 4xx options"
 	depends on 4xx
 
@@ -18,6 +23,7 @@ config ASH
 
 config BUBINGA
 	bool "Bubinga"
+	select WANT_EARLY_SERIAL
 	help
 	  This option enables support for the IBM 405EP evaluation board.
 
@@ -70,21 +76,25 @@ choice
 
 config BAMBOO
 	bool "Bamboo"
+	select WANT_EARLY_SERIAL
 	help
 	  This option enables support for the IBM PPC440EP evaluation board.
 
 config EBONY
 	bool "Ebony"
+	select WANT_EARLY_SERIAL
 	help
 	  This option enables support for the IBM PPC440GP evaluation board.
 
 config LUAN
 	bool "Luan"
+	select WANT_EARLY_SERIAL
 	help
 	  This option enables support for the IBM PPC440SP evaluation board.
 
 config OCOTEA
 	bool "Ocotea"
+	select WANT_EARLY_SERIAL
 	help
 	  This option enables support for the IBM PPC440GX evaluation board.
 
@@ -229,10 +239,6 @@ config PPC_GEN550
 	bool
 	depends on 4xx
 	default y
-
-config PM
-	bool "Power Management support (EXPERIMENTAL)"
-	depends on 4xx && EXPERIMENTAL
 
 choice
 	prompt "TTYS0 device and default console"
