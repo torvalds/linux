@@ -442,5 +442,4 @@ out:
         return NET_RX_DROP;
 }
 
-EXPORT_SYMBOL(ip_rcv);
 EXPORT_SYMBOL(ip_statistics);
