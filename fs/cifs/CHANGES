@@ -1,6 +1,6 @@
 Version 1.36
 ------------
-Add support for moounting to older pre-CIFS servers such as Windows9x and ME.
+Add support for mounting to older pre-CIFS servers such as Windows9x and ME.
 For these older servers, add option for passing netbios name of server in
 on mount (servernetbiosname).
 Add mount option for disabling the default behavior of sending byte range lock
@@ -26,7 +26,7 @@ Do not oops if root user kills cifs oplock kernel thread or
 kills the cifsd thread (NB: killing the cifs kernel threads is not
 recommended, unmount and rmmod cifs will kill them when they are
 no longer needed).  Fix readdir to ASCII servers (ie older servers
-which do not support Unicode) and also require asterik.
+which do not support Unicode) and also require asterisk.
 Fix out of memory case in which data could be written one page
 off in the page cache.
 
@@ -116,7 +116,7 @@ improperly zeroed buffer in CIFS Unix extensions set times call.
 
 Version 1.25
 ------------
-Fix internationlization problem in cifs readdir with filenames that map to 
+Fix internationalization problem in cifs readdir with filenames that map to 
 longer UTF8 strings than the string on the wire was in Unicode.  Add workaround
 for readdir to netapp servers. Fix search rewind (seek into readdir to return 
 non-consecutive entries).  Do not do readdir when server negotiates 
@@ -291,7 +291,7 @@ Fix caching problem when files opened by multiple clients in which
 page cache could contain stale data, and write through did
 not occur often enough while file was still open when read ahead
 (read oplock) not allowed.  Treat "sep=" when first mount option
-as an overrride of comma as the default separator between mount
+as an override of comma as the default separator between mount
 options. 
 
 Version 1.01
@@ -301,7 +301,7 @@ Allow passwords longer than 16 bytes. Allow null password string.
 Version 1.00
 ------------
 Gracefully clean up failed mounts when attempting to mount to servers such as
-Windows 98 that terminate tcp sessions during prototocol negotiation.  Handle
+Windows 98 that terminate tcp sessions during protocol negotiation.  Handle
 embedded commas in mount parsing of passwords.
 
 Version 0.99
@@ -310,7 +310,7 @@ Invalidate local inode cached pages on oplock break and when last file
 instance is closed so that the client does not continue using stale local
 copy rather than later modified server copy of file.  Do not reconnect
 when server drops the tcp session prematurely before negotiate
-protocol response.  Fix oops in roepen_file when dentry freed.  Allow
+protocol response.  Fix oops in reopen_file when dentry freed.  Allow
 the support for CIFS Unix Extensions to be disabled via proc interface.
 
 Version 0.98
@@ -652,7 +652,7 @@ versions of 2.4 kernel (now builds and works again on kernels at least as early 
 Version 0.41
 ------------
 Various minor fixes for Connectathon Posix "basic" file i/o test suite.  Directory caching fixed so hardlinked
-files now return the correct rumber of links on fstat as they are repeatedly linked and unlinked.
+files now return the correct number of links on fstat as they are repeatedly linked and unlinked.
 
 Version 0.40
 ------------
@@ -719,7 +719,7 @@ session)
 and cleaned them up and made them more consistent with other cifs functions. 
 
 7) Server support for Unix extensions is now fully detected and FindFirst is implemented both ways 
-(with or without Unix exentions) but FindNext and QueryPathInfo with the Unix extensions are not completed,
+(with or without Unix extensions) but FindNext and QueryPathInfo with the Unix extensions are not completed,
 nor is the symlink support using the Unix extensions
 
 8) Started adding the readlink and follow_link code 
