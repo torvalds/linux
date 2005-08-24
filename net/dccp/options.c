@@ -348,7 +348,7 @@ void dccp_insert_option_elapsed_time(struct sock *sk,
 		      (unsigned long long) DCCP_SKB_CB(skb)->dccpd_seq);
 }
 
-EXPORT_SYMBOL(dccp_insert_option_elapsed_time);
+EXPORT_SYMBOL_GPL(dccp_insert_option_elapsed_time);
 
 static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 {
@@ -426,8 +426,7 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 		      (unsigned long long) ap->dccpap_ack_ackno);
 }
 
-static inline void dccp_insert_option_timestamp(struct sock *sk,
-						struct sk_buff *skb)
+void dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
 {
 	struct timeval tv;
 	u32 now;
@@ -440,6 +439,8 @@ static inline void dccp_insert_option_timestamp(struct sock *sk,
 	now = htonl(now);
 	dccp_insert_option(sk, skb, DCCPO_TIMESTAMP, &now, sizeof(now));
 }
+
+EXPORT_SYMBOL_GPL(dccp_insert_option_timestamp);
 
 static void dccp_insert_option_timestamp_echo(struct sock *sk,
 					      struct sk_buff *skb)
@@ -504,7 +505,6 @@ void dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 		     DCCP_MAX_SEQNO + 1))
 			dccp_insert_option_ack_vector(sk, skb);
 
-		dccp_insert_option_timestamp(sk, skb);
 		if (dp->dccps_timestamp_echo != 0)
 			dccp_insert_option_timestamp_echo(sk, skb);
 	}
