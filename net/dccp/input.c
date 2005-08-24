@@ -34,6 +34,7 @@ static void dccp_rcv_close(struct sock *sk, struct sk_buff *skb)
 	dccp_v4_send_reset(sk, DCCP_RESET_CODE_CLOSED);
 	dccp_fin(sk, skb);
 	dccp_set_state(sk, DCCP_CLOSED);
+	sk_wake_async(sk, 1, POLL_HUP);
 }
 
 static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
