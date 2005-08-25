@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -156,7 +156,7 @@
 
 #define DRV_NAME		"e100"
 #define DRV_EXT		"-NAPI"
-#define DRV_VERSION		"3.4.8-k2"DRV_EXT
+#define DRV_VERSION		"3.4.14-k2"DRV_EXT
 #define DRV_DESCRIPTION		"Intel(R) PRO/100 Network Driver"
 #define DRV_COPYRIGHT		"Copyright(c) 1999-2005 Intel Corporation"
 #define PFX			DRV_NAME ": "
@@ -1504,7 +1504,7 @@ static inline void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	cb->u.tcb.tbd_count = 1;
 	cb->u.tcb.tbd.buf_addr = cpu_to_le32(pci_map_single(nic->pdev,
 		skb->data, skb->len, PCI_DMA_TODEVICE));
-	// check for mapping failure?
+	/* check for mapping failure? */
 	cb->u.tcb.tbd.size = cpu_to_le16(skb->len);
 }
 
@@ -1896,6 +1896,7 @@ static int e100_poll(struct net_device *netdev, int *budget)
 static void e100_netpoll(struct net_device *netdev)
 {
 	struct nic *nic = netdev_priv(netdev);
+
 	e100_disable_irq(nic);
 	e100_intr(nic->pdev->irq, netdev, NULL);
 	e100_tx_clean(nic);
