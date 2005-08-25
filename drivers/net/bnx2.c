@@ -14,8 +14,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.2.19"
-#define DRV_MODULE_RELDATE	"May 23, 2005"
+#define DRV_MODULE_VERSION	"1.2.20"
+#define DRV_MODULE_RELDATE	"August 22, 2005"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -1538,15 +1538,12 @@ bnx2_msi(int irq, void *dev_instance, struct pt_regs *regs)
 		BNX2_PCICFG_INT_ACK_CMD_MASK_INT);
 
 	/* Return here if interrupt is disabled. */
-	if (unlikely(atomic_read(&bp->intr_sem) != 0)) {
-		return IRQ_RETVAL(1);
-	}
+	if (unlikely(atomic_read(&bp->intr_sem) != 0))
+		return IRQ_HANDLED;
 
-	if (netif_rx_schedule_prep(dev)) {
-		__netif_rx_schedule(dev);
-	}
+	netif_rx_schedule(dev);
 
-	return IRQ_RETVAL(1);
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t
@@ -1564,22 +1561,19 @@ bnx2_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	if ((bp->status_blk->status_idx == bp->last_status_idx) ||
 	    (REG_RD(bp, BNX2_PCICFG_MISC_STATUS) &
 	     BNX2_PCICFG_MISC_STATUS_INTA_VALUE))
-		return IRQ_RETVAL(0);
+		return IRQ_NONE;
 
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 		BNX2_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM |
 		BNX2_PCICFG_INT_ACK_CMD_MASK_INT);
 
 	/* Return here if interrupt is shared and is disabled. */
-	if (unlikely(atomic_read(&bp->intr_sem) != 0)) {
-		return IRQ_RETVAL(1);
-	}
+	if (unlikely(atomic_read(&bp->intr_sem) != 0))
+		return IRQ_HANDLED;
 
-	if (netif_rx_schedule_prep(dev)) {
-		__netif_rx_schedule(dev);
-	}
+	netif_rx_schedule(dev);
 
-	return IRQ_RETVAL(1);
+	return IRQ_HANDLED;
 }
 
 static int
@@ -5071,6 +5065,9 @@ bnx2_change_mac_addr(struct net_device *dev, void *p)
 	struct sockaddr *addr = p;
 	struct bnx2 *bp = dev->priv;
 
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	if (netif_running(dev))
 		bnx2_set_mac_addr(bp);
@@ -5369,6 +5366,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 err_out_unmap:
 	if (bp->regview) {
 		iounmap(bp->regview);
+		bp->regview = NULL;
 	}
 
 err_out_release:
