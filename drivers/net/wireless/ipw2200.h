@@ -161,6 +161,16 @@ enum connection_manager_assoc_states {
  * TX Queue Flag Definitions
  */
 
+/* tx wep key definition */
+#define DCT_WEP_KEY_NOT_IMMIDIATE	0x00
+#define DCT_WEP_KEY_64Bit		0x40
+#define DCT_WEP_KEY_128Bit		0x80
+#define DCT_WEP_KEY_128bitIV		0xC0
+#define DCT_WEP_KEY_SIZE_MASK		0xC0
+
+#define DCT_WEP_KEY_INDEX_MASK		0x0F
+#define DCT_WEP_INDEX_USE_IMMEDIATE	0x20
+
 /* abort attempt if mgmt frame is rx'd */
 #define DCT_FLAG_ABORT_MGMT                0x01
 
@@ -186,8 +196,22 @@ enum connection_manager_assoc_states {
 /* ACK rx is expected to follow */
 #define DCT_FLAG_ACK_REQD                  0x80
 
+/* TX flags extension */
 #define DCT_FLAG_EXT_MODE_CCK  0x01
 #define DCT_FLAG_EXT_MODE_OFDM 0x00
+
+#define DCT_FLAG_EXT_SECURITY_WEP     0x00
+#define DCT_FLAG_EXT_SECURITY_NO      DCT_FLAG_EXT_SECURITY_WEP
+#define DCT_FLAG_EXT_SECURITY_CKIP    0x04
+#define DCT_FLAG_EXT_SECURITY_CCM     0x08
+#define DCT_FLAG_EXT_SECURITY_TKIP    0x0C
+#define DCT_FLAG_EXT_SECURITY_MASK    0x0C
+
+#define DCT_FLAG_EXT_QOS_ENABLED      0x10
+
+#define DCT_FLAG_EXT_HC_NO_SIFS_PIFS  0x00
+#define DCT_FLAG_EXT_HC_SIFS          0x20
+#define DCT_FLAG_EXT_HC_PIFS          0x40
 
 #define TX_RX_TYPE_MASK                    0xFF
 #define TX_FRAME_TYPE                      0x00
@@ -234,6 +258,117 @@ enum connection_manager_assoc_states {
 #define DCR_TYPE_SNIFFER                  0x06
 #define DCR_TYPE_MU_BSS        DCR_TYPE_MU_ESS
 
+/* QoS  definitions */
+
+#define CW_MIN_OFDM          15
+#define CW_MAX_OFDM          1023
+#define CW_MIN_CCK           31
+#define CW_MAX_CCK           1023
+
+#define QOS_TX0_CW_MIN_OFDM      CW_MIN_OFDM
+#define QOS_TX1_CW_MIN_OFDM      CW_MIN_OFDM
+#define QOS_TX2_CW_MIN_OFDM      ( (CW_MIN_OFDM + 1) / 2 - 1 )
+#define QOS_TX3_CW_MIN_OFDM      ( (CW_MIN_OFDM + 1) / 4 - 1 )
+
+#define QOS_TX0_CW_MIN_CCK       CW_MIN_CCK
+#define QOS_TX1_CW_MIN_CCK       CW_MIN_CCK
+#define QOS_TX2_CW_MIN_CCK       ( (CW_MIN_CCK + 1) / 2 - 1 )
+#define QOS_TX3_CW_MIN_CCK       ( (CW_MIN_CCK + 1) / 4 - 1 )
+
+#define QOS_TX0_CW_MAX_OFDM      CW_MAX_OFDM
+#define QOS_TX1_CW_MAX_OFDM      CW_MAX_OFDM
+#define QOS_TX2_CW_MAX_OFDM      CW_MIN_OFDM
+#define QOS_TX3_CW_MAX_OFDM      ( (CW_MIN_OFDM + 1) / 2 - 1 )
+
+#define QOS_TX0_CW_MAX_CCK       CW_MAX_CCK
+#define QOS_TX1_CW_MAX_CCK       CW_MAX_CCK
+#define QOS_TX2_CW_MAX_CCK       CW_MIN_CCK
+#define QOS_TX3_CW_MAX_CCK       ( (CW_MIN_CCK + 1) / 2 - 1 )
+
+#define QOS_TX0_AIFS            (3 - QOS_AIFSN_MIN_VALUE)
+#define QOS_TX1_AIFS            (7 - QOS_AIFSN_MIN_VALUE)
+#define QOS_TX2_AIFS            (2 - QOS_AIFSN_MIN_VALUE)
+#define QOS_TX3_AIFS            (2 - QOS_AIFSN_MIN_VALUE)
+
+#define QOS_TX0_ACM             0
+#define QOS_TX1_ACM             0
+#define QOS_TX2_ACM             0
+#define QOS_TX3_ACM             0
+
+#define QOS_TX0_TXOP_LIMIT_CCK          0
+#define QOS_TX1_TXOP_LIMIT_CCK          0
+#define QOS_TX2_TXOP_LIMIT_CCK          6016
+#define QOS_TX3_TXOP_LIMIT_CCK          3264
+
+#define QOS_TX0_TXOP_LIMIT_OFDM      0
+#define QOS_TX1_TXOP_LIMIT_OFDM      0
+#define QOS_TX2_TXOP_LIMIT_OFDM      3008
+#define QOS_TX3_TXOP_LIMIT_OFDM      1504
+
+#define DEF_TX0_CW_MIN_OFDM      CW_MIN_OFDM
+#define DEF_TX1_CW_MIN_OFDM      CW_MIN_OFDM
+#define DEF_TX2_CW_MIN_OFDM      CW_MIN_OFDM
+#define DEF_TX3_CW_MIN_OFDM      CW_MIN_OFDM
+
+#define DEF_TX0_CW_MIN_CCK       CW_MIN_CCK
+#define DEF_TX1_CW_MIN_CCK       CW_MIN_CCK
+#define DEF_TX2_CW_MIN_CCK       CW_MIN_CCK
+#define DEF_TX3_CW_MIN_CCK       CW_MIN_CCK
+
+#define DEF_TX0_CW_MAX_OFDM      CW_MAX_OFDM
+#define DEF_TX1_CW_MAX_OFDM      CW_MAX_OFDM
+#define DEF_TX2_CW_MAX_OFDM      CW_MAX_OFDM
+#define DEF_TX3_CW_MAX_OFDM      CW_MAX_OFDM
+
+#define DEF_TX0_CW_MAX_CCK       CW_MAX_CCK
+#define DEF_TX1_CW_MAX_CCK       CW_MAX_CCK
+#define DEF_TX2_CW_MAX_CCK       CW_MAX_CCK
+#define DEF_TX3_CW_MAX_CCK       CW_MAX_CCK
+
+#define DEF_TX0_AIFS            0
+#define DEF_TX1_AIFS            0
+#define DEF_TX2_AIFS            0
+#define DEF_TX3_AIFS            0
+
+#define DEF_TX0_ACM             0
+#define DEF_TX1_ACM             0
+#define DEF_TX2_ACM             0
+#define DEF_TX3_ACM             0
+
+#define DEF_TX0_TXOP_LIMIT_CCK        0
+#define DEF_TX1_TXOP_LIMIT_CCK        0
+#define DEF_TX2_TXOP_LIMIT_CCK        0
+#define DEF_TX3_TXOP_LIMIT_CCK        0
+
+#define DEF_TX0_TXOP_LIMIT_OFDM       0
+#define DEF_TX1_TXOP_LIMIT_OFDM       0
+#define DEF_TX2_TXOP_LIMIT_OFDM       0
+#define DEF_TX3_TXOP_LIMIT_OFDM       0
+
+#define QOS_QOS_SETS                  3
+#define QOS_PARAM_SET_ACTIVE          0
+#define QOS_PARAM_SET_DEF_CCK         1
+#define QOS_PARAM_SET_DEF_OFDM        2
+
+#define CTRL_QOS_NO_ACK               (0x0020)
+
+#define IPW_TX_QUEUE_1        1
+#define IPW_TX_QUEUE_2        2
+#define IPW_TX_QUEUE_3        3
+#define IPW_TX_QUEUE_4        4
+
+/* QoS sturctures */
+struct ipw_qos_info {
+	int qos_enable;
+	struct ieee80211_qos_parameters *def_qos_parm_OFDM;
+	struct ieee80211_qos_parameters *def_qos_parm_CCK;
+	u32 burst_duration_CCK;
+	u32 burst_duration_OFDM;
+	u16 qos_no_ack_mask;
+	int burst_enable;
+};
+
+/**************************************************************/
 /**
  * Generic queue structure
  *
@@ -658,6 +793,19 @@ struct ipw_multicast_addr {
 	u8 mac4[6];
 } __attribute__ ((packed));
 
+#define DCW_WEP_KEY_INDEX_MASK		0x03	/* bits [0:1] */
+#define DCW_WEP_KEY_SEC_TYPE_MASK	0x30	/* bits [4:5] */
+
+#define DCW_WEP_KEY_SEC_TYPE_WEP	0x00
+#define DCW_WEP_KEY_SEC_TYPE_CCM	0x20
+#define DCW_WEP_KEY_SEC_TYPE_TKIP	0x30
+
+#define DCW_WEP_KEY_INVALID_SIZE	0x00	/* 0 = Invalid key */
+#define DCW_WEP_KEY64Bit_SIZE		0x05	/* 64-bit encryption */
+#define DCW_WEP_KEY128Bit_SIZE		0x0D	/* 128-bit encryption */
+#define DCW_CCM_KEY128Bit_SIZE		0x10	/* 128-bit key */
+//#define DCW_WEP_KEY128BitIV_SIZE      0x10    /* 128-bit key and 128-bit IV */
+
 struct ipw_wep_key {
 	u8 cmd_id;
 	u8 seq_num;
@@ -819,14 +967,6 @@ struct ipw_tx_power {
 	struct ipw_channel_tx_power channels_tx_power[MAX_A_CHANNELS];
 } __attribute__ ((packed));
 
-struct ipw_qos_parameters {
-	u16 cw_min[4];
-	u16 cw_max[4];
-	u8 aifs[4];
-	u8 flag[4];
-	u16 tx_op_limit[4];
-} __attribute__ ((packed));
-
 struct ipw_rsn_capabilities {
 	u8 id;
 	u8 length;
@@ -910,6 +1050,8 @@ struct ipw_cmd {
 #define CFG_ADHOC_CREATE        (1<<8)
 #define CFG_NO_LED              (1<<9)
 #define CFG_BACKGROUND_SCAN     (1<<10)
+#define CFG_SPEED_SCAN          (1<<11)
+#define CFG_NET_STATS           (1<<12)
 
 #define CAP_SHARED_KEY          (1<<0)	/* Off = OPEN */
 #define CAP_PRIVACY_ON          (1<<1)	/* Off = No privacy */
@@ -931,10 +1073,11 @@ struct average {
 	s32 sum;
 };
 
+#define MAX_SPEED_SCAN 100
+
 struct ipw_priv {
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_device *ieee;
-	struct ieee80211_security sec;
 
 	spinlock_t lock;
 	struct semaphore sem;
@@ -1030,6 +1173,9 @@ struct ipw_priv {
 	u32 tx_packets;
 	u32 quality;
 
+	u8 speed_scan[MAX_SPEED_SCAN];
+	u8 speed_scan_pos;
+
 	/* eeprom */
 	u8 eeprom[0x100];	/* 256 bytes of eeprom */
 	int eeprom_delay;
@@ -1074,8 +1220,7 @@ struct ipw_priv {
 #define IPW_2915ABG 2
 	u8 adapter;
 
-#define IPW_DEFAULT_TX_POWER 0x14
-	u8 tx_power;
+	s8 tx_power;
 
 #ifdef CONFIG_PM
 	u32 pm_state[16];
@@ -1085,6 +1230,11 @@ struct ipw_priv {
 
 	/* Used to pass the current INTA value from ISR to Tasklet */
 	u32 isr_inta;
+
+	/* QoS */
+	struct ipw_qos_info qos_data;
+	struct work_struct qos_activate;
+	/*********************************/
 
 	/* debugging info */
 	u32 indirect_dword;
@@ -1162,6 +1312,7 @@ do { if (ipw_debug_level & (level)) \
 
 #define IPW_DL_STATS         (1<<29)
 #define IPW_DL_MERGE         (1<<30)
+#define IPW_DL_QOS           (1<<31)
 
 #define IPW_ERROR(f, a...) printk(KERN_ERR DRV_NAME ": " f, ## a)
 #define IPW_WARNING(f, a...) printk(KERN_WARNING DRV_NAME ": " f, ## a)
@@ -1190,6 +1341,7 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DEBUG_ASSOC(f, a...) IPW_DEBUG(IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
 #define IPW_DEBUG_STATS(f, a...) IPW_DEBUG(IPW_DL_STATS, f, ## a)
 #define IPW_DEBUG_MERGE(f, a...) IPW_DEBUG(IPW_DL_MERGE, f, ## a)
+#define IPW_DEBUG_QOS(f, a...)   IPW_DEBUG(IPW_DL_QOS, f, ## a)
 
 #include <linux/ctype.h>
 
@@ -1204,65 +1356,65 @@ do { if (ipw_debug_level & (level)) \
 #define DINO_RXFIFO_DATA   0x01
 #define DINO_CONTROL_REG   0x00200000
 
-#define CX2_INTA_RW       0x00000008
-#define CX2_INTA_MASK_R   0x0000000C
-#define CX2_INDIRECT_ADDR 0x00000010
-#define CX2_INDIRECT_DATA 0x00000014
-#define CX2_AUTOINC_ADDR  0x00000018
-#define CX2_AUTOINC_DATA  0x0000001C
-#define CX2_RESET_REG     0x00000020
-#define CX2_GP_CNTRL_RW   0x00000024
+#define IPW_INTA_RW       0x00000008
+#define IPW_INTA_MASK_R   0x0000000C
+#define IPW_INDIRECT_ADDR 0x00000010
+#define IPW_INDIRECT_DATA 0x00000014
+#define IPW_AUTOINC_ADDR  0x00000018
+#define IPW_AUTOINC_DATA  0x0000001C
+#define IPW_RESET_REG     0x00000020
+#define IPW_GP_CNTRL_RW   0x00000024
 
-#define CX2_READ_INT_REGISTER 0xFF4
+#define IPW_READ_INT_REGISTER 0xFF4
 
-#define CX2_GP_CNTRL_BIT_INIT_DONE	0x00000004
+#define IPW_GP_CNTRL_BIT_INIT_DONE	0x00000004
 
-#define CX2_REGISTER_DOMAIN1_END        0x00001000
-#define CX2_SRAM_READ_INT_REGISTER 	0x00000ff4
+#define IPW_REGISTER_DOMAIN1_END        0x00001000
+#define IPW_SRAM_READ_INT_REGISTER 	0x00000ff4
 
-#define CX2_SHARED_LOWER_BOUND          0x00000200
-#define CX2_INTERRUPT_AREA_LOWER_BOUND  0x00000f80
+#define IPW_SHARED_LOWER_BOUND          0x00000200
+#define IPW_INTERRUPT_AREA_LOWER_BOUND  0x00000f80
 
-#define CX2_NIC_SRAM_LOWER_BOUND        0x00000000
-#define CX2_NIC_SRAM_UPPER_BOUND        0x00030000
+#define IPW_NIC_SRAM_LOWER_BOUND        0x00000000
+#define IPW_NIC_SRAM_UPPER_BOUND        0x00030000
 
-#define CX2_BIT_INT_HOST_SRAM_READ_INT_REGISTER (1 << 29)
-#define CX2_GP_CNTRL_BIT_CLOCK_READY    0x00000001
-#define CX2_GP_CNTRL_BIT_HOST_ALLOWS_STANDBY 0x00000002
+#define IPW_BIT_INT_HOST_SRAM_READ_INT_REGISTER (1 << 29)
+#define IPW_GP_CNTRL_BIT_CLOCK_READY    0x00000001
+#define IPW_GP_CNTRL_BIT_HOST_ALLOWS_STANDBY 0x00000002
 
 /*
  * RESET Register Bit Indexes
  */
 #define CBD_RESET_REG_PRINCETON_RESET (1<<0)
-#define CX2_START_STANDBY             (1<<2)
-#define CX2_ACTIVITY_LED              (1<<4)
-#define CX2_ASSOCIATED_LED            (1<<5)
-#define CX2_OFDM_LED                  (1<<6)
-#define CX2_RESET_REG_SW_RESET        (1<<7)
-#define CX2_RESET_REG_MASTER_DISABLED (1<<8)
-#define CX2_RESET_REG_STOP_MASTER     (1<<9)
-#define CX2_GATE_ODMA                 (1<<25)
-#define CX2_GATE_IDMA                 (1<<26)
-#define CX2_ARC_KESHET_CONFIG         (1<<27)
-#define CX2_GATE_ADMA                 (1<<29)
+#define IPW_START_STANDBY             (1<<2)
+#define IPW_ACTIVITY_LED              (1<<4)
+#define IPW_ASSOCIATED_LED            (1<<5)
+#define IPW_OFDM_LED                  (1<<6)
+#define IPW_RESET_REG_SW_RESET        (1<<7)
+#define IPW_RESET_REG_MASTER_DISABLED (1<<8)
+#define IPW_RESET_REG_STOP_MASTER     (1<<9)
+#define IPW_GATE_ODMA                 (1<<25)
+#define IPW_GATE_IDMA                 (1<<26)
+#define IPW_ARC_KESHET_CONFIG         (1<<27)
+#define IPW_GATE_ADMA                 (1<<29)
 
-#define CX2_CSR_CIS_UPPER_BOUND	0x00000200
-#define CX2_DOMAIN_0_END 0x1000
+#define IPW_CSR_CIS_UPPER_BOUND	0x00000200
+#define IPW_DOMAIN_0_END 0x1000
 #define CLX_MEM_BAR_SIZE 0x1000
 
-#define CX2_BASEBAND_CONTROL_STATUS	0X00200000
-#define CX2_BASEBAND_TX_FIFO_WRITE	0X00200004
-#define CX2_BASEBAND_RX_FIFO_READ	0X00200004
-#define CX2_BASEBAND_CONTROL_STORE	0X00200010
+#define IPW_BASEBAND_CONTROL_STATUS	0X00200000
+#define IPW_BASEBAND_TX_FIFO_WRITE	0X00200004
+#define IPW_BASEBAND_RX_FIFO_READ	0X00200004
+#define IPW_BASEBAND_CONTROL_STORE	0X00200010
 
-#define CX2_INTERNAL_CMD_EVENT 	0X00300004
-#define CX2_BASEBAND_POWER_DOWN 0x00000001
+#define IPW_INTERNAL_CMD_EVENT 	0X00300004
+#define IPW_BASEBAND_POWER_DOWN 0x00000001
 
-#define CX2_MEM_HALT_AND_RESET  0x003000e0
+#define IPW_MEM_HALT_AND_RESET  0x003000e0
 
 /* defgroup bits_halt_reset MEM_HALT_AND_RESET register bits */
-#define CX2_BIT_HALT_RESET_ON	0x80000000
-#define CX2_BIT_HALT_RESET_OFF 	0x00000000
+#define IPW_BIT_HALT_RESET_ON	0x80000000
+#define IPW_BIT_HALT_RESET_OFF 	0x00000000
 
 #define CB_LAST_VALID     0x20000000
 #define CB_INT_ENABLED    0x40000000
@@ -1281,63 +1433,63 @@ do { if (ipw_debug_level & (level)) \
 #define DMA_CB_STOP_AND_ABORT            0x00000C00
 #define DMA_CB_START                     0x00000100
 
-#define CX2_SHARED_SRAM_SIZE               0x00030000
-#define CX2_SHARED_SRAM_DMA_CONTROL        0x00027000
+#define IPW_SHARED_SRAM_SIZE               0x00030000
+#define IPW_SHARED_SRAM_DMA_CONTROL        0x00027000
 #define CB_MAX_LENGTH                      0x1FFF
 
-#define CX2_HOST_EEPROM_DATA_SRAM_SIZE 0xA18
-#define CX2_EEPROM_IMAGE_SIZE          0x100
+#define IPW_HOST_EEPROM_DATA_SRAM_SIZE 0xA18
+#define IPW_EEPROM_IMAGE_SIZE          0x100
 
 /* DMA defs */
-#define CX2_DMA_I_CURRENT_CB  0x003000D0
-#define CX2_DMA_O_CURRENT_CB  0x003000D4
-#define CX2_DMA_I_DMA_CONTROL 0x003000A4
-#define CX2_DMA_I_CB_BASE     0x003000A0
+#define IPW_DMA_I_CURRENT_CB  0x003000D0
+#define IPW_DMA_O_CURRENT_CB  0x003000D4
+#define IPW_DMA_I_DMA_CONTROL 0x003000A4
+#define IPW_DMA_I_CB_BASE     0x003000A0
 
-#define CX2_TX_CMD_QUEUE_BD_BASE        0x00000200
-#define CX2_TX_CMD_QUEUE_BD_SIZE        0x00000204
-#define CX2_TX_QUEUE_0_BD_BASE          0x00000208
-#define CX2_TX_QUEUE_0_BD_SIZE          (0x0000020C)
-#define CX2_TX_QUEUE_1_BD_BASE          0x00000210
-#define CX2_TX_QUEUE_1_BD_SIZE          0x00000214
-#define CX2_TX_QUEUE_2_BD_BASE          0x00000218
-#define CX2_TX_QUEUE_2_BD_SIZE          (0x0000021C)
-#define CX2_TX_QUEUE_3_BD_BASE          0x00000220
-#define CX2_TX_QUEUE_3_BD_SIZE          0x00000224
-#define CX2_RX_BD_BASE                  0x00000240
-#define CX2_RX_BD_SIZE                  0x00000244
-#define CX2_RFDS_TABLE_LOWER            0x00000500
+#define IPW_TX_CMD_QUEUE_BD_BASE        0x00000200
+#define IPW_TX_CMD_QUEUE_BD_SIZE        0x00000204
+#define IPW_TX_QUEUE_0_BD_BASE          0x00000208
+#define IPW_TX_QUEUE_0_BD_SIZE          (0x0000020C)
+#define IPW_TX_QUEUE_1_BD_BASE          0x00000210
+#define IPW_TX_QUEUE_1_BD_SIZE          0x00000214
+#define IPW_TX_QUEUE_2_BD_BASE          0x00000218
+#define IPW_TX_QUEUE_2_BD_SIZE          (0x0000021C)
+#define IPW_TX_QUEUE_3_BD_BASE          0x00000220
+#define IPW_TX_QUEUE_3_BD_SIZE          0x00000224
+#define IPW_RX_BD_BASE                  0x00000240
+#define IPW_RX_BD_SIZE                  0x00000244
+#define IPW_RFDS_TABLE_LOWER            0x00000500
 
-#define CX2_TX_CMD_QUEUE_READ_INDEX     0x00000280
-#define CX2_TX_QUEUE_0_READ_INDEX       0x00000284
-#define CX2_TX_QUEUE_1_READ_INDEX       0x00000288
-#define CX2_TX_QUEUE_2_READ_INDEX       (0x0000028C)
-#define CX2_TX_QUEUE_3_READ_INDEX       0x00000290
-#define CX2_RX_READ_INDEX               (0x000002A0)
+#define IPW_TX_CMD_QUEUE_READ_INDEX     0x00000280
+#define IPW_TX_QUEUE_0_READ_INDEX       0x00000284
+#define IPW_TX_QUEUE_1_READ_INDEX       0x00000288
+#define IPW_TX_QUEUE_2_READ_INDEX       (0x0000028C)
+#define IPW_TX_QUEUE_3_READ_INDEX       0x00000290
+#define IPW_RX_READ_INDEX               (0x000002A0)
 
-#define CX2_TX_CMD_QUEUE_WRITE_INDEX    (0x00000F80)
-#define CX2_TX_QUEUE_0_WRITE_INDEX      (0x00000F84)
-#define CX2_TX_QUEUE_1_WRITE_INDEX      (0x00000F88)
-#define CX2_TX_QUEUE_2_WRITE_INDEX      (0x00000F8C)
-#define CX2_TX_QUEUE_3_WRITE_INDEX      (0x00000F90)
-#define CX2_RX_WRITE_INDEX              (0x00000FA0)
+#define IPW_TX_CMD_QUEUE_WRITE_INDEX    (0x00000F80)
+#define IPW_TX_QUEUE_0_WRITE_INDEX      (0x00000F84)
+#define IPW_TX_QUEUE_1_WRITE_INDEX      (0x00000F88)
+#define IPW_TX_QUEUE_2_WRITE_INDEX      (0x00000F8C)
+#define IPW_TX_QUEUE_3_WRITE_INDEX      (0x00000F90)
+#define IPW_RX_WRITE_INDEX              (0x00000FA0)
 
 /*
  * EEPROM Related Definitions
  */
 
-#define IPW_EEPROM_DATA_SRAM_ADDRESS (CX2_SHARED_LOWER_BOUND + 0x814)
-#define IPW_EEPROM_DATA_SRAM_SIZE    (CX2_SHARED_LOWER_BOUND + 0x818)
-#define IPW_EEPROM_LOAD_DISABLE      (CX2_SHARED_LOWER_BOUND + 0x81C)
-#define IPW_EEPROM_DATA              (CX2_SHARED_LOWER_BOUND + 0x820)
-#define IPW_EEPROM_UPPER_ADDRESS     (CX2_SHARED_LOWER_BOUND + 0x9E0)
+#define IPW_EEPROM_DATA_SRAM_ADDRESS (IPW_SHARED_LOWER_BOUND + 0x814)
+#define IPW_EEPROM_DATA_SRAM_SIZE    (IPW_SHARED_LOWER_BOUND + 0x818)
+#define IPW_EEPROM_LOAD_DISABLE      (IPW_SHARED_LOWER_BOUND + 0x81C)
+#define IPW_EEPROM_DATA              (IPW_SHARED_LOWER_BOUND + 0x820)
+#define IPW_EEPROM_UPPER_ADDRESS     (IPW_SHARED_LOWER_BOUND + 0x9E0)
 
-#define IPW_STATION_TABLE_LOWER      (CX2_SHARED_LOWER_BOUND + 0xA0C)
-#define IPW_STATION_TABLE_UPPER      (CX2_SHARED_LOWER_BOUND + 0xB0C)
-#define IPW_REQUEST_ATIM             (CX2_SHARED_LOWER_BOUND + 0xB0C)
-#define IPW_ATIM_SENT                (CX2_SHARED_LOWER_BOUND + 0xB10)
-#define IPW_WHO_IS_AWAKE             (CX2_SHARED_LOWER_BOUND + 0xB14)
-#define IPW_DURING_ATIM_WINDOW       (CX2_SHARED_LOWER_BOUND + 0xB18)
+#define IPW_STATION_TABLE_LOWER      (IPW_SHARED_LOWER_BOUND + 0xA0C)
+#define IPW_STATION_TABLE_UPPER      (IPW_SHARED_LOWER_BOUND + 0xB0C)
+#define IPW_REQUEST_ATIM             (IPW_SHARED_LOWER_BOUND + 0xB0C)
+#define IPW_ATIM_SENT                (IPW_SHARED_LOWER_BOUND + 0xB10)
+#define IPW_WHO_IS_AWAKE             (IPW_SHARED_LOWER_BOUND + 0xB14)
+#define IPW_DURING_ATIM_WINDOW       (IPW_SHARED_LOWER_BOUND + 0xB18)
 
 #define MSB                             1
 #define LSB                             0
@@ -1367,7 +1519,7 @@ do { if (ipw_debug_level & (level)) \
 
 #define FW_MEM_REG_LOWER_BOUND          0x00300000
 #define FW_MEM_REG_EEPROM_ACCESS        (FW_MEM_REG_LOWER_BOUND + 0x40)
-#define CX2_EVENT_REG                   (FW_MEM_REG_LOWER_BOUND + 0x04)
+#define IPW_EVENT_REG                   (FW_MEM_REG_LOWER_BOUND + 0x04)
 #define EEPROM_BIT_SK                   (1<<0)
 #define EEPROM_BIT_CS                   (1<<1)
 #define EEPROM_BIT_DI                   (1<<2)
@@ -1376,50 +1528,47 @@ do { if (ipw_debug_level & (level)) \
 #define EEPROM_CMD_READ                 0x2
 
 /* Interrupts masks */
-#define CX2_INTA_NONE   0x00000000
+#define IPW_INTA_NONE   0x00000000
 
-#define CX2_INTA_BIT_RX_TRANSFER                   0x00000002
-#define CX2_INTA_BIT_STATUS_CHANGE                 0x00000010
-#define CX2_INTA_BIT_BEACON_PERIOD_EXPIRED         0x00000020
+#define IPW_INTA_BIT_RX_TRANSFER                   0x00000002
+#define IPW_INTA_BIT_STATUS_CHANGE                 0x00000010
+#define IPW_INTA_BIT_BEACON_PERIOD_EXPIRED         0x00000020
 
 //Inta Bits for CF
-#define CX2_INTA_BIT_TX_CMD_QUEUE                  0x00000800
-#define CX2_INTA_BIT_TX_QUEUE_1                    0x00001000
-#define CX2_INTA_BIT_TX_QUEUE_2                    0x00002000
-#define CX2_INTA_BIT_TX_QUEUE_3                    0x00004000
-#define CX2_INTA_BIT_TX_QUEUE_4                    0x00008000
+#define IPW_INTA_BIT_TX_CMD_QUEUE                  0x00000800
+#define IPW_INTA_BIT_TX_QUEUE_1                    0x00001000
+#define IPW_INTA_BIT_TX_QUEUE_2                    0x00002000
+#define IPW_INTA_BIT_TX_QUEUE_3                    0x00004000
+#define IPW_INTA_BIT_TX_QUEUE_4                    0x00008000
 
-#define CX2_INTA_BIT_SLAVE_MODE_HOST_CMD_DONE      0x00010000
+#define IPW_INTA_BIT_SLAVE_MODE_HOST_CMD_DONE      0x00010000
 
-#define CX2_INTA_BIT_PREPARE_FOR_POWER_DOWN        0x00100000
-#define CX2_INTA_BIT_POWER_DOWN                    0x00200000
+#define IPW_INTA_BIT_PREPARE_FOR_POWER_DOWN        0x00100000
+#define IPW_INTA_BIT_POWER_DOWN                    0x00200000
 
-#define CX2_INTA_BIT_FW_INITIALIZATION_DONE        0x01000000
-#define CX2_INTA_BIT_FW_CARD_DISABLE_PHY_OFF_DONE  0x02000000
-#define CX2_INTA_BIT_RF_KILL_DONE                  0x04000000
-#define CX2_INTA_BIT_FATAL_ERROR             0x40000000
-#define CX2_INTA_BIT_PARITY_ERROR            0x80000000
+#define IPW_INTA_BIT_FW_INITIALIZATION_DONE        0x01000000
+#define IPW_INTA_BIT_FW_CARD_DISABLE_PHY_OFF_DONE  0x02000000
+#define IPW_INTA_BIT_RF_KILL_DONE                  0x04000000
+#define IPW_INTA_BIT_FATAL_ERROR             0x40000000
+#define IPW_INTA_BIT_PARITY_ERROR            0x80000000
 
 /* Interrupts enabled at init time. */
-#define CX2_INTA_MASK_ALL                        \
-        (CX2_INTA_BIT_TX_QUEUE_1               | \
-	 CX2_INTA_BIT_TX_QUEUE_2               | \
-	 CX2_INTA_BIT_TX_QUEUE_3               | \
-	 CX2_INTA_BIT_TX_QUEUE_4               | \
-	 CX2_INTA_BIT_TX_CMD_QUEUE             | \
-	 CX2_INTA_BIT_RX_TRANSFER              | \
-	 CX2_INTA_BIT_FATAL_ERROR              | \
-	 CX2_INTA_BIT_PARITY_ERROR             | \
-	 CX2_INTA_BIT_STATUS_CHANGE            | \
-	 CX2_INTA_BIT_FW_INITIALIZATION_DONE   | \
-	 CX2_INTA_BIT_BEACON_PERIOD_EXPIRED    | \
-	 CX2_INTA_BIT_SLAVE_MODE_HOST_CMD_DONE | \
-	 CX2_INTA_BIT_PREPARE_FOR_POWER_DOWN   | \
-	 CX2_INTA_BIT_POWER_DOWN               | \
-         CX2_INTA_BIT_RF_KILL_DONE )
-
-#define IPWSTATUS_ERROR_LOG     (CX2_SHARED_LOWER_BOUND + 0x410)
-#define IPW_EVENT_LOG     (CX2_SHARED_LOWER_BOUND + 0x414)
+#define IPW_INTA_MASK_ALL                        \
+        (IPW_INTA_BIT_TX_QUEUE_1               | \
+	 IPW_INTA_BIT_TX_QUEUE_2               | \
+	 IPW_INTA_BIT_TX_QUEUE_3               | \
+	 IPW_INTA_BIT_TX_QUEUE_4               | \
+	 IPW_INTA_BIT_TX_CMD_QUEUE             | \
+	 IPW_INTA_BIT_RX_TRANSFER              | \
+	 IPW_INTA_BIT_FATAL_ERROR              | \
+	 IPW_INTA_BIT_PARITY_ERROR             | \
+	 IPW_INTA_BIT_STATUS_CHANGE            | \
+	 IPW_INTA_BIT_FW_INITIALIZATION_DONE   | \
+	 IPW_INTA_BIT_BEACON_PERIOD_EXPIRED    | \
+	 IPW_INTA_BIT_SLAVE_MODE_HOST_CMD_DONE | \
+	 IPW_INTA_BIT_PREPARE_FOR_POWER_DOWN   | \
+	 IPW_INTA_BIT_POWER_DOWN               | \
+         IPW_INTA_BIT_RF_KILL_DONE )
 
 /* FW event log definitions */
 #define EVENT_ELEM_SIZE     (3 * sizeof(u32))
@@ -1428,6 +1577,11 @@ do { if (ipw_debug_level & (level)) \
 /* FW error log definitions */
 #define ERROR_ELEM_SIZE     (7 * sizeof(u32))
 #define ERROR_START_OFFSET  (1 * sizeof(u32))
+
+/* TX power level (dbm) */
+#define IPW_TX_POWER_MIN	-12
+#define IPW_TX_POWER_MAX	20
+#define IPW_TX_POWER_DEFAULT	IPW_TX_POWER_MAX
 
 enum {
 	IPW_FW_ERROR_OK = 0,
@@ -1441,8 +1595,8 @@ enum {
 	IPW_FW_ERROR_ALLOC_FAIL,
 	IPW_FW_ERROR_DMA_UNDERRUN,
 	IPW_FW_ERROR_DMA_STATUS,
-	IPW_FW_ERROR_DINOSTATUS_ERROR,
-	IPW_FW_ERROR_EEPROMSTATUS_ERROR,
+	IPW_FW_ERROR_DINO_ERROR,
+	IPW_FW_ERROR_EEPROM_ERROR,
 	IPW_FW_ERROR_SYSASSERT,
 	IPW_FW_ERROR_FATAL_ERROR
 };
@@ -1457,6 +1611,8 @@ enum {
 #define HC_IBSS_START     3
 #define HC_IBSS_RECONF    4
 #define HC_DISASSOC_QUIET 5
+
+#define HC_QOS_SUPPORT_ASSOC  0x01
 
 #define IPW_RATE_CAPABILITIES 1
 #define IPW_RATE_CONNECT      0
@@ -1628,18 +1784,20 @@ enum {
 	IPW_ORD_TABLE_7_LAST
 };
 
-#define IPW_ORDINALS_TABLE_LOWER        (CX2_SHARED_LOWER_BOUND + 0x500)
-#define IPW_ORDINALS_TABLE_0            (CX2_SHARED_LOWER_BOUND + 0x180)
-#define IPW_ORDINALS_TABLE_1            (CX2_SHARED_LOWER_BOUND + 0x184)
-#define IPW_ORDINALS_TABLE_2            (CX2_SHARED_LOWER_BOUND + 0x188)
-#define IPW_MEM_FIXED_OVERRIDE          (CX2_SHARED_LOWER_BOUND + 0x41C)
+#define IPWSTATUS_ERROR_LOG     (IPW_SHARED_LOWER_BOUND + 0x410)
+#define IPW_EVENT_LOG     (IPW_SHARED_LOWER_BOUND + 0x414)
+#define IPW_ORDINALS_TABLE_LOWER        (IPW_SHARED_LOWER_BOUND + 0x500)
+#define IPW_ORDINALS_TABLE_0            (IPW_SHARED_LOWER_BOUND + 0x180)
+#define IPW_ORDINALS_TABLE_1            (IPW_SHARED_LOWER_BOUND + 0x184)
+#define IPW_ORDINALS_TABLE_2            (IPW_SHARED_LOWER_BOUND + 0x188)
+#define IPW_MEM_FIXED_OVERRIDE          (IPW_SHARED_LOWER_BOUND + 0x41C)
 
 struct ipw_fixed_rate {
 	u16 tx_rates;
 	u16 reserved;
 } __attribute__ ((packed));
 
-#define CX2_INDIRECT_ADDR_MASK (~0x3ul)
+#define IPW_INDIRECT_ADDR_MASK (~0x3ul)
 
 struct host_cmd {
 	u8 cmd;
@@ -1675,15 +1833,6 @@ struct host_cmd {
 
 #define REG_CHANNEL_MASK            0x00003FFF
 #define IPW_IBSS_11B_DEFAULT_MASK   0x87ff
-
-static const long ipw_frequencies[] = {
-	2412, 2417, 2422, 2427,
-	2432, 2437, 2442, 2447,
-	2452, 2457, 2462, 2467,
-	2472, 2484
-};
-
-#define FREQ_COUNT ARRAY_SIZE(ipw_frequencies)
 
 #define IPW_MAX_CONFIG_RETRIES 10
 
