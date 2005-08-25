@@ -127,6 +127,7 @@ static void sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 		int local_widget, status;
 		nasid_t local_nasid;
 		struct sn_irq_info *new_irq_info;
+		struct sn_pcibus_provider *pci_provider;
 
 		new_irq_info = kmalloc(sizeof(struct sn_irq_info), GFP_ATOMIC);
 		if (new_irq_info == NULL)
@@ -166,8 +167,9 @@ static void sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 		new_irq_info->irq_cpuid = cpuid;
 		register_intr_pda(new_irq_info);
 
-		if (IS_PCI_BRIDGE_ASIC(new_irq_info->irq_bridge_type))
-			pcibr_change_devices_irq(new_irq_info);
+		pci_provider = sn_pci_provider[new_irq_info->irq_bridge_type];
+		if (pci_provider && pci_provider->target_interrupt)
+			(pci_provider->target_interrupt)(new_irq_info);
 
 		spin_lock(&sn_irq_info_lock);
 		list_replace_rcu(&sn_irq_info->list, &new_irq_info->list);

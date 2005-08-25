@@ -50,6 +50,7 @@ struct sn_pcibus_provider {
 	void		(*dma_unmap)(struct pci_dev *, dma_addr_t, int);
 	void *		(*bus_fixup)(struct pcibus_bussoft *, struct pci_controller *);
  	void		(*force_interrupt)(struct sn_irq_info *);
+ 	void		(*target_interrupt)(struct sn_irq_info *);
 };
 
 extern struct sn_pcibus_provider *sn_pci_provider[];

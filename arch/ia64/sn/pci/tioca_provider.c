@@ -657,7 +657,8 @@ static struct sn_pcibus_provider tioca_pci_interfaces = {
 	.dma_map_consistent = tioca_dma_map,
 	.dma_unmap = tioca_dma_unmap,
 	.bus_fixup = tioca_bus_fixup,
-	.force_interrupt = NULL
+	.force_interrupt = NULL,
+	.target_interrupt = NULL
 };
 
 /**

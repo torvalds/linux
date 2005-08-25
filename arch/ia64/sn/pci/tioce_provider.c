@@ -669,6 +669,43 @@ tioce_force_interrupt(struct sn_irq_info *sn_irq_info)
 }
 
 /**
+ * tioce_target_interrupt - implement set_irq_affinity for tioce resident
+ * functions.  Note:  only applies to line interrupts, not MSI's.
+ *
+ * @sn_irq_info: SN IRQ context
+ *
+ * Given an sn_irq_info, set the associated CE device's interrupt destination
+ * register.  Since the interrupt destination registers are on a per-ce-slot
+ * basis, this will retarget line interrupts for all functions downstream of
+ * the slot.
+ */
+static void
+tioce_target_interrupt(struct sn_irq_info *sn_irq_info)
+{
+	struct pcidev_info *pcidev_info;
+	struct tioce_common *ce_common;
+	struct tioce *ce_mmr;
+	int bit;
+
+	pcidev_info = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
+	if (!pcidev_info)
+		return;
+
+	ce_common = (struct tioce_common *)pcidev_info->pdi_pcibus_info;
+	ce_mmr = (struct tioce *)ce_common->ce_pcibus.bs_base;
+
+	bit = sn_irq_info->irq_int_bit;
+
+	ce_mmr->ce_adm_int_mask |= (1UL << bit);
+	ce_mmr->ce_adm_int_dest[bit] =
+		((uint64_t)sn_irq_info->irq_irq << INTR_VECTOR_SHFT) |
+			   sn_irq_info->irq_xtalkaddr;
+	ce_mmr->ce_adm_int_mask &= ~(1UL << bit);
+
+	tioce_force_interrupt(sn_irq_info);
+}
+
+/**
  * tioce_bus_fixup - perform final PCI fixup for a TIO CE bus
  * @prom_bussoft: Common prom/kernel struct representing the bus
  *
@@ -719,7 +756,8 @@ static struct sn_pcibus_provider tioce_pci_interfaces = {
 	.dma_map_consistent = tioce_dma_consistent,
 	.dma_unmap = tioce_dma_unmap,
 	.bus_fixup = tioce_bus_fixup,
-	.force_interrupt = tioce_force_interrupt
+	.force_interrupt = tioce_force_interrupt,
+	.target_interrupt = tioce_target_interrupt
 };
 
 /**
