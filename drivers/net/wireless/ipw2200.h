@@ -1102,6 +1102,7 @@ struct ipw_event {
 } __attribute__ ((packed));
 
 struct ipw_fw_error {
+	unsigned long jiffies;
 	u32 status;
 	u32 config;
 	u32 elem_len;
@@ -1260,6 +1261,10 @@ struct ipw_priv {
 	struct work_struct led_link_off;
 	struct work_struct led_act_off;
 	struct work_struct merge_networks;
+
+	struct ipw_cmd_log *cmdlog;
+	int cmdlog_len;
+	int cmdlog_pos;
 
 #define IPW_2200BG  1
 #define IPW_2915ABG 2
@@ -1852,6 +1857,12 @@ struct host_cmd {
 	u16 reserved;
 	u32 param[TFD_CMD_IMMEDIATE_PAYLOAD_LENGTH];
 } __attribute__ ((packed));
+
+struct ipw_cmd_log {
+	unsigned long jiffies;
+	int retcode;
+	struct host_cmd cmd;
+};
 
 #define CFG_BT_COEXISTENCE_MIN                  0x00
 #define CFG_BT_COEXISTENCE_DEFER                0x02

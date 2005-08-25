@@ -44,6 +44,7 @@ MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
+static int cmdlog = 0;
 static int debug = 0;
 static int channel = 0;
 static int mode = 0;
@@ -148,8 +149,8 @@ static int init_supported_rates(struct ipw_priv *priv,
 static void ipw_set_hwcrypto_keys(struct ipw_priv *);
 static void ipw_send_wep_keys(struct ipw_priv *, int);
 
-static char *snprint_line(char *buf, size_t count,
-			  const u8 * data, u32 len, u32 ofs)
+static int snprint_line(char *buf, size_t count,
+			const u8 * data, u32 len, u32 ofs)
 {
 	int out, i, j, l;
 	char c;
@@ -180,7 +181,7 @@ static char *snprint_line(char *buf, size_t count,
 			out += snprintf(buf + out, count - out, " ");
 	}
 
-	return buf;
+	return out;
 }
 
 static void printk_buf(int level, const u8 * data, u32 len)
@@ -191,12 +192,31 @@ static void printk_buf(int level, const u8 * data, u32 len)
 		return;
 
 	while (len) {
-		printk(KERN_DEBUG "%s\n",
-		       snprint_line(line, sizeof(line), &data[ofs],
-				    min(len, 16U), ofs));
+		snprint_line(line, sizeof(line), &data[ofs],
+			     min(len, 16U), ofs);
+		printk(KERN_DEBUG "%s\n", line);
 		ofs += 16;
 		len -= min(len, 16U);
 	}
+}
+
+static int snprintk_buf(u8 * output, size_t size, const u8 * data, size_t len)
+{
+	size_t out = size;
+	u32 ofs = 0;
+	int total = 0;
+
+	while (size && len) {
+		out = snprint_line(output, size, &data[ofs],
+				   min_t(size_t, len, 16U), ofs);
+
+		ofs += 16;
+		output += out;
+		size -= out;
+		len -= min_t(size_t, len, 16U);
+		total += out;
+	}
+	return total;
 }
 
 static u32 _ipw_read_reg32(struct ipw_priv *priv, u32 reg);
@@ -272,9 +292,15 @@ static inline u32 __ipw_read32(char *f, u32 l, struct ipw_priv *ipw, u32 ofs)
 #define ipw_read32(ipw, ofs) __ipw_read32(__FILE__, __LINE__, ipw, ofs)
 
 static void _ipw_read_indirect(struct ipw_priv *, u32, u8 *, int);
-#define ipw_read_indirect(a, b, c, d) \
-	IPW_DEBUG_IO("%s %d: read_indirect(0x%08X) %d bytes\n", __FILE__, __LINE__, (u32)(b), d); \
-	_ipw_read_indirect(a, b, c, d)
+static inline void __ipw_read_indirect(const char *f, int l,
+				       struct ipw_priv *a, u32 b, u8 * c, int d)
+{
+	IPW_DEBUG_IO("%s %d: read_indirect(0x%08X) %d bytes\n", f, l, (u32) (b),
+		     d);
+	_ipw_read_indirect(a, b, c, d);
+}
+
+#define ipw_read_indirect(a, b, c, d) __ipw_read_indirect(__FILE__, __LINE__, a, b, c, d)
 
 static void _ipw_write_indirect(struct ipw_priv *priv, u32 addr, u8 * data,
 				int num);
@@ -1070,6 +1096,7 @@ static struct ipw_fw_error *ipw_alloc_error_log(struct ipw_priv *priv)
 			  "failed.\n");
 		return NULL;
 	}
+	error->jiffies = jiffies;
 	error->status = priv->status;
 	error->config = priv->config;
 	error->elem_len = elem_len;
@@ -1122,7 +1149,8 @@ static ssize_t show_error(struct device *d,
 	if (!priv->error)
 		return 0;
 	len += snprintf(buf + len, PAGE_SIZE - len,
-			"%08X%08X%08X",
+			"%08lX%08X%08X%08X",
+			priv->error->jiffies,
 			priv->error->status,
 			priv->error->config, priv->error->elem_len);
 	for (i = 0; i < priv->error->elem_len; i++)
@@ -1161,6 +1189,33 @@ static ssize_t clear_error(struct device *d,
 }
 
 static DEVICE_ATTR(error, S_IRUGO | S_IWUSR, show_error, clear_error);
+
+static ssize_t show_cmd_log(struct device *d,
+			    struct device_attribute *attr, char *buf)
+{
+	struct ipw_priv *priv = dev_get_drvdata(d);
+	u32 len = 0, i;
+	if (!priv->cmdlog)
+		return 0;
+	for (i = (priv->cmdlog_pos + 1) % priv->cmdlog_len;
+	     (i != priv->cmdlog_pos) && (PAGE_SIZE - len);
+	     i = (i + 1) % priv->cmdlog_len) {
+		len +=
+		    snprintf(buf + len, PAGE_SIZE - len,
+			     "\n%08lX%08X%08X%08X\n", priv->cmdlog[i].jiffies,
+			     priv->cmdlog[i].retcode, priv->cmdlog[i].cmd.cmd,
+			     priv->cmdlog[i].cmd.len);
+		len +=
+		    snprintk_buf(buf + len, PAGE_SIZE - len,
+				 (u8 *) priv->cmdlog[i].cmd.param,
+				 priv->cmdlog[i].cmd.len);
+		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	}
+	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	return len;
+}
+
+static DEVICE_ATTR(cmd_log, S_IRUGO, show_cmd_log, NULL);
 
 static ssize_t show_scan_age(struct device *d, struct device_attribute *attr,
 			     char *buf)
@@ -1825,6 +1880,15 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 
 	priv->status |= STATUS_HCMD_ACTIVE;
 
+	if (priv->cmdlog) {
+		priv->cmdlog[priv->cmdlog_pos].jiffies = jiffies;
+		priv->cmdlog[priv->cmdlog_pos].cmd.cmd = cmd->cmd;
+		priv->cmdlog[priv->cmdlog_pos].cmd.len = cmd->len;
+		memcpy(priv->cmdlog[priv->cmdlog_pos].cmd.param, cmd->param,
+		       cmd->len);
+		priv->cmdlog[priv->cmdlog_pos].retcode = -1;
+	}
+
 	IPW_DEBUG_HC("%s command (#%d) %d bytes: 0x%08X\n",
 		     get_cmd_string(cmd->cmd), cmd->cmd, cmd->len,
 		     priv->status);
@@ -1836,7 +1900,7 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 		IPW_ERROR("Failed to send %s: Reason %d\n",
 			  get_cmd_string(cmd->cmd), rc);
 		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
+		goto exit;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -1851,7 +1915,8 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 				  get_cmd_string(cmd->cmd));
 			priv->status &= ~STATUS_HCMD_ACTIVE;
 			spin_unlock_irqrestore(&priv->lock, flags);
-			return -EIO;
+			rc = -EIO;
+			goto exit;
 		}
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
@@ -1859,10 +1924,16 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 	if (priv->status & STATUS_RF_KILL_HW) {
 		IPW_ERROR("Failed to send %s: Aborted due to RF kill switch.\n",
 			  get_cmd_string(cmd->cmd));
-		return -EIO;
+		rc = -EIO;
+		goto exit;
 	}
 
-	return 0;
+      exit:
+	if (priv->cmdlog) {
+		priv->cmdlog[priv->cmdlog_pos++].retcode = rc;
+		priv->cmdlog_pos %= priv->cmdlog_len;
+	}
+	return rc;
 }
 
 static int ipw_send_host_complete(struct ipw_priv *priv)
@@ -10712,6 +10783,18 @@ static int ipw_up(struct ipw_priv *priv)
 	if (priv->status & STATUS_EXIT_PENDING)
 		return -EIO;
 
+	if (cmdlog && !priv->cmdlog) {
+		priv->cmdlog = kmalloc(sizeof(*priv->cmdlog) * cmdlog,
+				       GFP_KERNEL);
+		if (priv->cmdlog == NULL) {
+			IPW_ERROR("Error allocating %d command log entries.\n",
+				  cmdlog);
+		} else {
+			memset(priv->cmdlog, 0, sizeof(*priv->cmdlog) * cmdlog);
+			priv->cmdlog_len = cmdlog;
+		}
+	}
+
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
 		/* Load the microcode, firmware, and eeprom.
 		 * Also start the clocks. */
@@ -10935,6 +11018,7 @@ static struct attribute *ipw_sysfs_entries[] = {
 	&dev_attr_cfg.attr,
 	&dev_attr_error.attr,
 	&dev_attr_event_log.attr,
+	&dev_attr_cmd_log.attr,
 	&dev_attr_eeprom_delay.attr,
 	&dev_attr_ucode_version.attr,
 	&dev_attr_rtc.attr,
@@ -11129,6 +11213,10 @@ static void ipw_pci_remove(struct pci_dev *pdev)
 	}
 	ipw_tx_queue_free(priv);
 
+	if (priv->cmdlog) {
+		kfree(priv->cmdlog);
+		priv->cmdlog = NULL;
+	}
 	/* ipw_down will ensure that there is no more pending work
 	 * in the workqueue's, so we can safely remove them now. */
 	cancel_delayed_work(&priv->adhoc_check);
@@ -11301,6 +11389,10 @@ MODULE_PARM_DESC(mode, "network mode (0=BSS,1=IBSS)");
 
 module_param(hwcrypto, int, 0444);
 MODULE_PARM_DESC(hwcrypto, "enable hardware crypto (default on)");
+
+module_param(cmdlog, int, 0444);
+MODULE_PARM_DESC(cmdlog,
+		 "allocate a ring buffer for logging firmware commands");
 
 module_exit(ipw_exit);
 module_init(ipw_init);
