@@ -1047,6 +1047,7 @@ static struct rpc_xprt_ops xs_udp_ops = {
 	.set_buffer_size	= xs_udp_set_buffer_size,
 	.connect		= xs_connect,
 	.send_request		= xs_udp_send_request,
+	.set_retrans_timeout	= xprt_set_retrans_timeout_rtt,
 	.close			= xs_close,
 	.destroy		= xs_destroy,
 };
@@ -1055,6 +1056,7 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.set_buffer_size	= xs_tcp_set_buffer_size,
 	.connect		= xs_connect,
 	.send_request		= xs_tcp_send_request,
+	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
 	.close			= xs_close,
 	.destroy		= xs_destroy,
 };

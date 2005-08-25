@@ -134,6 +134,7 @@ struct rpc_xprt_ops {
 	void		(*set_buffer_size)(struct rpc_xprt *xprt);
 	void		(*connect)(struct rpc_task *task);
 	int		(*send_request)(struct rpc_task *task);
+	void		(*set_retrans_timeout)(struct rpc_task *task);
 	void		(*close)(struct rpc_xprt *xprt);
 	void		(*destroy)(struct rpc_xprt *xprt);
 };
@@ -245,6 +246,8 @@ static inline u32 *xprt_skip_transport_header(struct rpc_xprt *xprt, u32 *p)
 /*
  * Transport switch helper functions
  */
+void			xprt_set_retrans_timeout_def(struct rpc_task *task);
+void			xprt_set_retrans_timeout_rtt(struct rpc_task *task);
 void			xprt_wake_pending_tasks(struct rpc_xprt *xprt, int status);
 void			xprt_wait_for_buffer_space(struct rpc_task *task);
 void			xprt_write_space(struct rpc_xprt *xprt);

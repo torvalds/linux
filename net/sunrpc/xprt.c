@@ -275,6 +275,38 @@ void xprt_write_space(struct rpc_xprt *xprt)
 	spin_unlock_bh(&xprt->transport_lock);
 }
 
+/**
+ * xprt_set_retrans_timeout_def - set a request's retransmit timeout
+ * @task: task whose timeout is to be set
+ *
+ * Set a request's retransmit timeout based on the transport's
+ * default timeout parameters.  Used by transports that don't adjust
+ * the retransmit timeout based on round-trip time estimation.
+ */
+void xprt_set_retrans_timeout_def(struct rpc_task *task)
+{
+	task->tk_timeout = task->tk_rqstp->rq_timeout;
+}
+
+/*
+ * xprt_set_retrans_timeout_rtt - set a request's retransmit timeout
+ * @task: task whose timeout is to be set
+ * 
+ * Set a request's retransmit timeout using the RTT estimator.
+ */
+void xprt_set_retrans_timeout_rtt(struct rpc_task *task)
+{
+	int timer = task->tk_msg.rpc_proc->p_timer;
+	struct rpc_rtt *rtt = task->tk_client->cl_rtt;
+	struct rpc_rqst *req = task->tk_rqstp;
+	unsigned long max_timeout = req->rq_xprt->timeout.to_maxval;
+
+	task->tk_timeout = rpc_calc_rto(rtt, timer);
+	task->tk_timeout <<= rpc_ntimeo(rtt, timer) + req->rq_retries;
+	if (task->tk_timeout > max_timeout || task->tk_timeout == 0)
+		task->tk_timeout = max_timeout;
+}
+
 static void xprt_reset_majortimeo(struct rpc_rqst *req)
 {
 	struct rpc_timeout *to = &req->rq_xprt->timeout;
@@ -588,7 +620,6 @@ out_unlock:
  */
 void xprt_transmit(struct rpc_task *task)
 {
-	struct rpc_clnt *clnt = task->tk_client;
 	struct rpc_rqst	*req = task->tk_rqstp;
 	struct rpc_xprt	*xprt = req->rq_xprt;
 	int status;
@@ -613,8 +644,19 @@ void xprt_transmit(struct rpc_task *task)
 		return;
 
 	status = xprt->ops->send_request(task);
-	if (!status)
-		goto out_receive;
+	if (status == 0) {
+		dprintk("RPC: %4d xmit complete\n", task->tk_pid);
+		spin_lock_bh(&xprt->transport_lock);
+		xprt->ops->set_retrans_timeout(task);
+		/* Don't race with disconnect */
+		if (!xprt_connected(xprt))
+			task->tk_status = -ENOTCONN;
+		else if (!req->rq_received)
+			rpc_sleep_on(&xprt->pending, task, NULL, xprt_timer);
+		__xprt_release_write(xprt, task);
+		spin_unlock_bh(&xprt->transport_lock);
+		return;
+	}
 
 	/* Note: at this point, task->tk_sleeping has not yet been set,
 	 *	 hence there is no danger of the waking up task being put on
@@ -634,25 +676,6 @@ void xprt_transmit(struct rpc_task *task)
 	}
 	xprt_release_write(xprt, task);
 	return;
- out_receive:
-	dprintk("RPC: %4d xmit complete\n", task->tk_pid);
-	/* Set the task's receive timeout value */
-	spin_lock_bh(&xprt->transport_lock);
-	if (!xprt->nocong) {
-		int timer = task->tk_msg.rpc_proc->p_timer;
-		task->tk_timeout = rpc_calc_rto(clnt->cl_rtt, timer);
-		task->tk_timeout <<= rpc_ntimeo(clnt->cl_rtt, timer) + req->rq_retries;
-		if (task->tk_timeout > xprt->timeout.to_maxval || task->tk_timeout == 0)
-			task->tk_timeout = xprt->timeout.to_maxval;
-	} else
-		task->tk_timeout = req->rq_timeout;
-	/* Don't race with disconnect */
-	if (!xprt_connected(xprt))
-		task->tk_status = -ENOTCONN;
-	else if (!req->rq_received)
-		rpc_sleep_on(&xprt->pending, task, NULL, xprt_timer);
-	__xprt_release_write(xprt, task);
-	spin_unlock_bh(&xprt->transport_lock);
 }
 
 static inline void do_xprt_reserve(struct rpc_task *task)
