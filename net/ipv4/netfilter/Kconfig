@@ -415,6 +415,7 @@ config IP_NF_MATCH_STRING
 	depends on IP_NF_IPTABLES 
 	select TEXTSEARCH
 	select TEXTSEARCH_KMP
+	select TEXTSEARCH_BM
 	select TEXTSEARCH_FSM
 	help
 	  This option adds a `string' match, which allows you to look for
