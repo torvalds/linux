@@ -100,8 +100,10 @@ int cifs_dir_notify(struct file * file, unsigned long arg)
 		} else {
 			filter = convert_to_cifs_notify_flags(arg);
 			if(filter != 0) {
-				rc = CIFSSMBNotify(xid, pTcon, 0 /* no subdirs */, netfid, 
-					filter, cifs_sb->local_nls);
+				rc = CIFSSMBNotify(xid, pTcon, 
+					0 /* no subdirs */, netfid,
+					filter, file, arg & DN_MULTISHOT,
+					cifs_sb->local_nls);
 			} else {
 				rc = -EINVAL;
 			}
@@ -109,7 +111,7 @@ int cifs_dir_notify(struct file * file, unsigned long arg)
 			it would close automatically but may be a way
 			to do it easily when inode freed or when
 			notify info is cleared/changed */
-            cERROR(1,("notify rc %d",rc));
+			cFYI(1,("notify rc %d",rc));
 		}
 	}
 	

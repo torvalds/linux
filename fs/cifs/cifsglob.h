@@ -402,7 +402,7 @@ struct dir_notify_req {
        __u16 netfid;
        __u32 filter; /* CompletionFilter (for multishot) */
        int multishot;
-       struct dentry * dentry;
+       struct file * dentry;
 };
 
 #define   MID_FREE 0

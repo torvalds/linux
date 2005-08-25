@@ -3977,8 +3977,9 @@ setPermsRetry:
 }
 
 int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon, 
-			const int notify_subdirs, const __u16 netfid,
-			__u32 filter, const struct nls_table *nls_codepage)
+		  const int notify_subdirs, const __u16 netfid,
+		  __u32 filter, struct file * pfile, int multishot, 
+		  const struct nls_table *nls_codepage)
 {
 	int rc = 0;
 	struct smb_com_transaction_change_notify_req * pSMB = NULL;
@@ -4026,7 +4027,7 @@ int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
 		dnotify_req->Tid = pSMB->hdr.Tid;
 		dnotify_req->Uid = pSMB->hdr.Uid;
 		dnotify_req->netfid = netfid;
-		dnotify_req->dentry = dentry;
+		dnotify_req->pfile = pfile;
 		dnotify_req->filter = filter;
 		dnotify_req->multishot = multishot;
 		spin_lock(&GlobalMid_Lock);
