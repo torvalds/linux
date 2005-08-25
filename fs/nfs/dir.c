@@ -565,8 +565,6 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		}
 	}
 	unlock_kernel();
-	if (desc->error < 0)
-		return desc->error;
 	if (res < 0)
 		return res;
 	return 0;
