@@ -592,55 +592,41 @@ struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, u32 xid)
 }
 
 /**
- * xprt_complete_rqst - called when reply processing is complete
- * @xprt: controlling transport
- * @req: RPC request that just completed
- * @copied: actual number of bytes received from the transport
+ * xprt_update_rtt - update an RPC client's RTT state after receiving a reply
+ * @task: RPC request that recently completed
  *
  */
-void xprt_complete_rqst(struct rpc_xprt *xprt, struct rpc_rqst *req, int copied)
+void xprt_update_rtt(struct rpc_task *task)
 {
-	struct rpc_task	*task = req->rq_task;
-	struct rpc_clnt *clnt = task->tk_client;
+	struct rpc_rqst *req = task->tk_rqstp;
+	struct rpc_rtt *rtt = task->tk_client->cl_rtt;
+	unsigned timer = task->tk_msg.rpc_proc->p_timer;
 
-	/* Adjust congestion window */
-	if (!xprt->nocong) {
-		unsigned timer = task->tk_msg.rpc_proc->p_timer;
-		xprt_adjust_cwnd(task, copied);
-		if (timer) {
-			if (req->rq_ntrans == 1)
-				rpc_update_rtt(clnt->cl_rtt, timer,
-						(long)jiffies - req->rq_xtime);
-			rpc_set_timeo(clnt->cl_rtt, timer, req->rq_ntrans - 1);
-		}
+	if (timer) {
+		if (req->rq_ntrans == 1)
+			rpc_update_rtt(rtt, timer,
+					(long)jiffies - req->rq_xtime);
+		rpc_set_timeo(rtt, timer, req->rq_ntrans - 1);
 	}
+}
 
-#ifdef RPC_PROFILE
-	/* Profile only reads for now */
-	if (copied > 1024) {
-		static unsigned long	nextstat;
-		static unsigned long	pkt_rtt, pkt_len, pkt_cnt;
+/**
+ * xprt_complete_rqst - called when reply processing is complete
+ * @task: RPC request that recently completed
+ * @copied: actual number of bytes received from the transport
+ *
+ * Caller holds transport lock.
+ */
+void xprt_complete_rqst(struct rpc_task *task, int copied)
+{
+	struct rpc_rqst *req = task->tk_rqstp;
 
-		pkt_cnt++;
-		pkt_len += req->rq_slen + copied;
-		pkt_rtt += jiffies - req->rq_xtime;
-		if (time_before(nextstat, jiffies)) {
-			printk("RPC: %lu %ld cwnd\n", jiffies, xprt->cwnd);
-			printk("RPC: %ld %ld %ld %ld stat\n",
-					jiffies, pkt_cnt, pkt_len, pkt_rtt);
-			pkt_rtt = pkt_len = pkt_cnt = 0;
-			nextstat = jiffies + 5 * HZ;
-		}
-	}
-#endif
+	dprintk("RPC: %5u xid %08x complete (%d bytes received)\n",
+			task->tk_pid, ntohl(req->rq_xid), copied);
 
-	dprintk("RPC: %4d has input (%d bytes)\n", task->tk_pid, copied);
 	list_del_init(&req->rq_list);
 	req->rq_received = req->rq_private_buf.len = copied;
-
-	/* ... and wake up the process. */
 	rpc_wake_up_task(task);
-	return;
 }
 
 static void xprt_timer(struct rpc_task *task)

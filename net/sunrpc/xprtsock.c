@@ -460,8 +460,6 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 		goto out_unlock;
 	task = rovr->rq_task;
 
-	dprintk("RPC: %4d received reply\n", task->tk_pid);
-
 	if ((copied = rovr->rq_private_buf.buflen) > repsize)
 		copied = repsize;
 
@@ -472,7 +470,9 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 	/* Something worked... */
 	dst_confirm(skb->dst);
 
-	xprt_complete_rqst(xprt, rovr, copied);
+	xprt_adjust_cwnd(task, copied);
+	xprt_update_rtt(task);
+	xprt_complete_rqst(task, copied);
 
  out_unlock:
 	spin_unlock(&xprt->transport_lock);
@@ -634,11 +634,8 @@ static inline void xs_tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc
 	}
 
 out:
-	if (!(xprt->tcp_flags & XPRT_COPY_DATA)) {
-		dprintk("RPC: %4d received reply complete\n",
-				req->rq_task->tk_pid);
-		xprt_complete_rqst(xprt, req, xprt->tcp_copied);
-	}
+	if (!(xprt->tcp_flags & XPRT_COPY_DATA))
+		xprt_complete_rqst(req->rq_task, xprt->tcp_copied);
 	spin_unlock(&xprt->transport_lock);
 	xs_tcp_check_recm(xprt);
 }
