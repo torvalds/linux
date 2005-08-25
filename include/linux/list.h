@@ -634,6 +634,21 @@ static inline void hlist_add_after(struct hlist_node *n,
 		next->next->pprev  = &next->next;
 }
 
+/**
+ * hlist_add_before_rcu - adds the specified element to the specified hlist
+ * before the specified node while permitting racing traversals.
+ * @n: the new element to add to the hash list.
+ * @next: the existing element to add the new element before.
+ *
+ * The caller must take whatever precautions are necessary
+ * (such as holding appropriate locks) to avoid racing
+ * with another list-mutation primitive, such as hlist_add_head_rcu()
+ * or hlist_del_rcu(), running on this same list.
+ * However, it is perfectly legal to run concurrently with
+ * the _rcu list-traversal primitives, such as
+ * hlist_for_each_rcu(), used to prevent memory-consistency
+ * problems on Alpha CPUs.
+ */
 static inline void hlist_add_before_rcu(struct hlist_node *n,
 					struct hlist_node *next)
 {
@@ -644,6 +659,21 @@ static inline void hlist_add_before_rcu(struct hlist_node *n,
 	*(n->pprev) = n;
 }
 
+/**
+ * hlist_add_after_rcu - adds the specified element to the specified hlist
+ * after the specified node while permitting racing traversals.
+ * @prev: the existing element to add the new element after.
+ * @n: the new element to add to the hash list.
+ *
+ * The caller must take whatever precautions are necessary
+ * (such as holding appropriate locks) to avoid racing
+ * with another list-mutation primitive, such as hlist_add_head_rcu()
+ * or hlist_del_rcu(), running on this same list.
+ * However, it is perfectly legal to run concurrently with
+ * the _rcu list-traversal primitives, such as
+ * hlist_for_each_rcu(), used to prevent memory-consistency
+ * problems on Alpha CPUs.
+ */
 static inline void hlist_add_after_rcu(struct hlist_node *prev,
 				       struct hlist_node *n)
 {
