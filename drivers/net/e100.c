@@ -1307,7 +1307,8 @@ static inline void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 {
 	cb->command = nic->tx_command;
 	/* interrupt every 16 packets regardless of delay */
-	if((nic->cbs_avail & ~15) == nic->cbs_avail) cb->command |= cb_i;
+	if((nic->cbs_avail & ~15) == nic->cbs_avail)
+		cb->command |= cpu_to_le16(cb_i);
 	cb->u.tcb.tbd_array = cb->dma_addr + offsetof(struct cb, u.tcb.tbd);
 	cb->u.tcb.tcb_byte_count = 0;
 	cb->u.tcb.threshold = nic->tx_threshold;
