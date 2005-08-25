@@ -144,7 +144,7 @@ static int snd_pcm_ioctl_sw_params_compat(snd_pcm_substream_t *substream,
 	err = snd_pcm_sw_params(substream, &params);
 	if (err < 0)
 		return err;
-	if (put_user(boundary, &src->boundary))
+	if (boundary && put_user(boundary, &src->boundary))
 		return -EFAULT;
 	return err;
 }
@@ -252,8 +252,11 @@ static int snd_pcm_ioctl_hw_params_compat(snd_pcm_substream_t *substream,
 		goto error;
 	}
 
-	if (! refine)
-		runtime->boundary = recalculate_boundary(runtime);
+	if (! refine) {
+		unsigned int new_boundary = recalculate_boundary(runtime);
+		if (new_boundary)
+			runtime->boundary = new_boundary;
+	}
  error:
 	kfree(data);
 	return err;
@@ -408,6 +411,8 @@ static int snd_pcm_ioctl_sync_ptr_compat(snd_pcm_substream_t *substream,
 	status = runtime->status;
 	control = runtime->control;
 	boundary = recalculate_boundary(runtime);
+	if (! boundary)
+		boundary = 0x7fffffff;
 	snd_pcm_stream_lock_irq(substream);
 	/* FIXME: we should consider the boundary for the sync from app */
 	if (!(sflags & SNDRV_PCM_SYNC_PTR_APPL))
