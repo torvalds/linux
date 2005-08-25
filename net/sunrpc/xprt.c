@@ -64,14 +64,56 @@ static int      __xprt_get_cong(struct rpc_xprt *, struct rpc_task *);
 
 static int	xprt_clear_backlog(struct rpc_xprt *xprt);
 
-/*
- * Serialize write access to transports, in order to prevent different
- * requests from interfering with each other.
- * Also prevents transport connects from colliding with writes.
+/**
+ * xprt_reserve_xprt - serialize write access to transports
+ * @task: task that is requesting access to the transport
+ *
+ * This prevents mixing the payload of separate requests, and prevents
+ * transport connects from colliding with writes.  No congestion control
+ * is provided.
  */
-static int
-__xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
+int xprt_reserve_xprt(struct rpc_task *task)
 {
+	struct rpc_xprt	*xprt = task->tk_xprt;
+	struct rpc_rqst *req = task->tk_rqstp;
+
+	if (test_and_set_bit(XPRT_LOCKED, &xprt->state)) {
+		if (task == xprt->snd_task)
+			return 1;
+		if (task == NULL)
+			return 0;
+		goto out_sleep;
+	}
+	xprt->snd_task = task;
+	if (req) {
+		req->rq_bytes_sent = 0;
+		req->rq_ntrans++;
+	}
+	return 1;
+
+out_sleep:
+	dprintk("RPC: %4d failed to lock transport %p\n",
+			task->tk_pid, xprt);
+	task->tk_timeout = 0;
+	task->tk_status = -EAGAIN;
+	if (req && req->rq_ntrans)
+		rpc_sleep_on(&xprt->resend, task, NULL, NULL);
+	else
+		rpc_sleep_on(&xprt->sending, task, NULL, NULL);
+	return 0;
+}
+
+/*
+ * xprt_reserve_xprt_cong - serialize write access to transports
+ * @task: task that is requesting access to the transport
+ *
+ * Same as xprt_reserve_xprt, but Van Jacobson congestion control is
+ * integrated into the decision of whether a request is allowed to be
+ * woken up and given access to the transport.
+ */
+int xprt_reserve_xprt_cong(struct rpc_task *task)
+{
+	struct rpc_xprt	*xprt = task->tk_xprt;
 	struct rpc_rqst *req = task->tk_rqstp;
 
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->state)) {
@@ -79,7 +121,7 @@ __xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
 			return 1;
 		goto out_sleep;
 	}
-	if (xprt->nocong || __xprt_get_cong(xprt, task)) {
+	if (__xprt_get_cong(xprt, task)) {
 		xprt->snd_task = task;
 		if (req) {
 			req->rq_bytes_sent = 0;
@@ -101,20 +143,18 @@ out_sleep:
 	return 0;
 }
 
-static inline int
-xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
+static inline int xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	int retval;
 
 	spin_lock_bh(&xprt->transport_lock);
-	retval = __xprt_lock_write(xprt, task);
+	retval = xprt->ops->reserve_xprt(task);
 	spin_unlock_bh(&xprt->transport_lock);
 	return retval;
 }
 
 
-static void
-__xprt_lock_write_next(struct rpc_xprt *xprt)
+static void __xprt_lock_write_next(struct rpc_xprt *xprt)
 {
 	struct rpc_task *task;
 
@@ -598,7 +638,7 @@ int xprt_prepare_transmit(struct rpc_task *task)
 		err = req->rq_received;
 		goto out_unlock;
 	}
-	if (!__xprt_lock_write(xprt, task)) {
+	if (!xprt->ops->reserve_xprt(task)) {
 		err = -EAGAIN;
 		goto out_unlock;
 	}
