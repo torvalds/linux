@@ -4015,6 +4015,22 @@ int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
 			(struct smb_hdr *) pSMBr, &bytes_returned, -1);
 	if (rc) {
 		cFYI(1, ("Error in Notify = %d", rc));
+	} else {
+		/* Add file to outstanding requests */
+		dnotify_req = (struct dir_notify_req *) kmalloc(
+						sizeof(struct dir_notify_req), GFP_KERNEL);
+		dnotify_req->Pid = pSMB->hdr.Pid;
+		dnotify_req->PidHigh = pSMB->hdr.PidHigh;
+		dnotify_req->Mid = pSMB->hdr.Mid;
+		dnotify_req->Tid = pSMB->hdr.Tid;
+		dnotify_req->Uid = pSMB->hdr.Uid;
+		dnotify_req->netfid = netfid;
+		dnotify_req->dentry = dentry;
+		dnotify_req->filter = filter;
+		dnotify_req->multishot = multishot;
+		spin_lock(&GlobalMid_Lock);
+		list_add_tail(&dnotify_req->lhead, &GlobalDnotifyReqList);
+		spin_unlock(&GlobalMid_Lock);
 	}
 	cifs_buf_release(pSMB);
 	return rc;	

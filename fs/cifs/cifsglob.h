@@ -391,6 +391,20 @@ struct oplock_q_entry {
 	__u16 netfid;
 };
 
+/* for pending dnotify requests */
+struct dir_notify_req {
+       struct list_head lhead;
+       __le16 Pid;
+       __le16 PidHigh;
+       __u16 Mid;
+       __u16 Tid;
+       __u16 Uid;
+       __u16 netfid;
+       __u32 filter; /* CompletionFilter (for multishot) */
+       int multishot;
+       struct dentry * dentry;
+};
+
 #define   MID_FREE 0
 #define   MID_REQUEST_ALLOCATED 1
 #define   MID_REQUEST_SUBMITTED 2
@@ -458,6 +472,9 @@ GLOBAL_EXTERN struct list_head GlobalTreeConnectionList;
 GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;  /* protects list inserts on 3 above */
 
 GLOBAL_EXTERN struct list_head GlobalOplock_Q;
+
+GLOBAL_EXTERN struct list_head GlobalDnotifyReqList; /* Outstanding dir notify requests */
+GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q; /* Dir notify response queue */
 
 /*
  * Global transaction id (XID) information

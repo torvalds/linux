@@ -53,6 +53,7 @@
 #define SMB_COM_NT_TRANSACT           0xA0
 #define SMB_COM_NT_TRANSACT_SECONDARY 0xA1
 #define SMB_COM_NT_CREATE_ANDX        0xA2
+#define SMB_COM_NT_CANCEL             0xA4 /* no response */
 #define SMB_COM_NT_RENAME             0xA5 /* trivial response */
 
 /* Transact2 subcommand codes */
