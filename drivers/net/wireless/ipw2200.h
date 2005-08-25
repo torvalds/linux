@@ -936,8 +936,8 @@ struct ipw_priv {
 	struct ieee80211_device *ieee;
 	struct ieee80211_security sec;
 
-	/* spinlock */
 	spinlock_t lock;
+	struct semaphore sem;
 
 	/* basic pci-network driver stuff */
 	struct pci_dev *pci_dev;
@@ -1068,6 +1068,7 @@ struct ipw_priv {
 	struct work_struct led_link_on;
 	struct work_struct led_link_off;
 	struct work_struct led_act_off;
+	struct work_struct merge_networks;
 
 #define IPW_2200BG  1
 #define IPW_2915ABG 2
@@ -1160,6 +1161,7 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DL_TRACE         (1<<28)
 
 #define IPW_DL_STATS         (1<<29)
+#define IPW_DL_MERGE         (1<<30)
 
 #define IPW_ERROR(f, a...) printk(KERN_ERR DRV_NAME ": " f, ## a)
 #define IPW_WARNING(f, a...) printk(KERN_WARNING DRV_NAME ": " f, ## a)
@@ -1187,6 +1189,7 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DEBUG_STATE(f, a...) IPW_DEBUG(IPW_DL_STATE | IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
 #define IPW_DEBUG_ASSOC(f, a...) IPW_DEBUG(IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
 #define IPW_DEBUG_STATS(f, a...) IPW_DEBUG(IPW_DL_STATS, f, ## a)
+#define IPW_DEBUG_MERGE(f, a...) IPW_DEBUG(IPW_DL_MERGE, f, ## a)
 
 #include <linux/ctype.h>
 
