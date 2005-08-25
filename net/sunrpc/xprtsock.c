@@ -1100,7 +1100,6 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	xprt->prot = IPPROTO_UDP;
 	xprt->port = XS_MAX_RESVPORT;
 	xprt->tsh_size = 0;
-	xprt->nocong = 0;
 	xprt->cwnd = RPC_INITCWND;
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
@@ -1140,7 +1139,6 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	xprt->prot = IPPROTO_TCP;
 	xprt->port = XS_MAX_RESVPORT;
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
-	xprt->nocong = 1;
 	xprt->cwnd = RPC_MAXCWND(xprt);
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;

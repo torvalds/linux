@@ -188,7 +188,6 @@ nlm_bind_host(struct nlm_host *host)
 			goto forgetit;
 
 		xprt_set_timeout(&xprt->timeout, 5, nlmsvc_timeout);
-		xprt->nocong = 1;	/* No congestion control for NLM */
 		xprt->resvport = 1;	/* NLM requires a reserved port */
 
 		/* Existing NLM servers accept AUTH_UNIX only */
