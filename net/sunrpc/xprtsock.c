@@ -362,6 +362,8 @@ static int xs_tcp_send_request(struct rpc_task *task)
  * xs_close - close a socket
  * @xprt: transport
  *
+ * This is used when all requests are complete; ie, no DRC state remains
+ * on the server we want to save.
  */
 static void xs_close(struct rpc_xprt *xprt)
 {
@@ -949,6 +951,30 @@ out:
 	xprt_clear_connecting(xprt);
 }
 
+/*
+ * We need to preserve the port number so the reply cache on the server can
+ * find our cached RPC replies when we get around to reconnecting.
+ */
+static void xs_tcp_reuse_connection(struct rpc_xprt *xprt)
+{
+	int result;
+	struct socket *sock = xprt->sock;
+	struct sockaddr any;
+
+	dprintk("RPC:      disconnecting xprt %p to reuse port\n", xprt);
+
+	/*
+	 * Disconnect the transport socket by doing a connect operation
+	 * with AF_UNSPEC.  This should return immediately...
+	 */
+	memset(&any, 0, sizeof(any));
+	any.sa_family = AF_UNSPEC;
+	result = sock->ops->connect(sock, &any, sizeof(any), 0);
+	if (result)
+		dprintk("RPC:      AF_UNSPEC connect return code %d\n",
+				result);
+}
+
 /**
  * xs_tcp_connect_worker - connect a TCP socket to a remote endpoint
  * @args: RPC transport to connect
@@ -966,18 +992,20 @@ static void xs_tcp_connect_worker(void *args)
 
 	dprintk("RPC:      xs_tcp_connect_worker for xprt %p\n", xprt);
 
-	/* Start by resetting any existing socket state */
-	xs_close(xprt);
+	if (!xprt->sock) {
+		/* start from scratch */
+		if ((err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
+			dprintk("RPC:      can't create TCP transport socket (%d).\n", -err);
+			goto out;
+		}
 
-	if ((err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
-		dprintk("RPC:      can't create TCP transport socket (%d).\n", -err);
-		goto out;
-	}
-
-	if (xprt->resvport && xs_bindresvport(xprt, sock) < 0) {
-		sock_release(sock);
-		goto out;
-	}
+		if (xprt->resvport && xs_bindresvport(xprt, sock) < 0) {
+			sock_release(sock);
+			goto out;
+		}
+	} else
+		/* "close" the socket, preserving the local port */
+		xs_tcp_reuse_connection(xprt);
 
 	if (!xprt->inet) {
 		struct sock *sk = sock->sk;
@@ -991,7 +1019,12 @@ static void xs_tcp_connect_worker(void *args)
 		sk->sk_data_ready = xs_tcp_data_ready;
 		sk->sk_state_change = xs_tcp_state_change;
 		sk->sk_write_space = xs_tcp_write_space;
-		tcp_sk(sk)->nonagle = 1;
+
+		/* socket options */
+		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;
+		sock_reset_flag(sk, SOCK_LINGER);
+		tcp_sk(sk)->linger2 = 0;
+		tcp_sk(sk)->nonagle |= TCP_NAGLE_OFF;
 
 		xprt_clear_connected(xprt);
 
@@ -1012,6 +1045,14 @@ static void xs_tcp_connect_worker(void *args)
 			case -EINPROGRESS:
 			case -EALREADY:
 				goto out_clear;
+			case -ECONNREFUSED:
+			case -ECONNRESET:
+				/* retry with existing socket, after a delay */
+				break;
+			default:
+				/* get rid of existing socket, and retry */
+				xs_close(xprt);
+				break;
 		}
 	}
 out:
