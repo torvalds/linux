@@ -5443,8 +5443,11 @@ static void shim__set_security(struct net_device *dev,
 			else
 				memcpy(priv->ieee->sec.keys[i], sec->keys[i],
 				       sec->key_sizes[i]);
-			priv->ieee->sec.flags |= (1 << i);
-			priv->status |= STATUS_SECURITY_UPDATED;
+			if (sec->level == SEC_LEVEL_1) {
+				priv->ieee->sec.flags |= (1 << i);
+				priv->status |= STATUS_SECURITY_UPDATED;
+			} else
+				priv->ieee->sec.flags &= ~(1 << i);
 		}
 	}
 
