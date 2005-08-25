@@ -34,9 +34,9 @@
  * $Id: mthca_mad.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <ib_verbs.h>
-#include <ib_mad.h>
-#include <ib_smi.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_mad.h>
+#include <rdma/ib_smi.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"

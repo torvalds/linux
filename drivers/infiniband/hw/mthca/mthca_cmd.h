@@ -36,7 +36,7 @@
 #ifndef MTHCA_CMD_H
 #define MTHCA_CMD_H
 
-#include <ib_verbs.h>
+#include <rdma/ib_verbs.h>
 
 #define MTHCA_MAILBOX_SIZE 4096
 

@@ -37,7 +37,7 @@
 #include <linux/pci.h>
 #include <linux/errno.h>
 #include <asm/io.h>
-#include <ib_mad.h>
+#include <rdma/ib_mad.h>
 
 #include "mthca_dev.h"
 #include "mthca_config_reg.h"

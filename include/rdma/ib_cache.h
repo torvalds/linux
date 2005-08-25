@@ -37,7 +37,7 @@
 #ifndef _IB_CACHE_H
 #define _IB_CACHE_H
 
-#include <ib_verbs.h>
+#include <rdma/ib_verbs.h>
 
 /**
  * ib_get_cached_gid - Returns a cached GID table entry

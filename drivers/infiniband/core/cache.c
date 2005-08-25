@@ -39,7 +39,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
-#include <ib_cache.h>
+#include <rdma/ib_cache.h>
 
 #include "core_priv.h"
 

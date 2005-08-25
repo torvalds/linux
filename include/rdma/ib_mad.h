@@ -41,7 +41,7 @@
 
 #include <linux/pci.h>
 
-#include <ib_verbs.h>
+#include <rdma/ib_verbs.h>
 
 /* Management base version */
 #define IB_MGMT_BASE_VERSION			1

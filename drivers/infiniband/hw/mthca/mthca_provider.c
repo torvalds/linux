@@ -36,7 +36,7 @@
  * $Id: mthca_provider.c 1397 2004-12-28 05:09:00Z roland $
  */
 
-#include <ib_smi.h>
+#include <rdma/ib_smi.h>
 #include <linux/mm.h>
 
 #include "mthca_dev.h"

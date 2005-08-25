@@ -37,7 +37,7 @@
  * $Id: smi.c 1389 2004-12-27 22:56:47Z roland $
  */
 
-#include <ib_smi.h>
+#include <rdma/ib_smi.h>
 #include "smi.h"
 
 /*

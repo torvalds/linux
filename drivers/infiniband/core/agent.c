@@ -41,7 +41,7 @@
 
 #include <asm/bug.h>
 
-#include <ib_smi.h>
+#include <rdma/ib_smi.h>
 
 #include "smi.h"
 #include "agent_priv.h"

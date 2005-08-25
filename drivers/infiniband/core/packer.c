@@ -33,7 +33,7 @@
  * $Id: packer.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <ib_pack.h>
+#include <rdma/ib_pack.h>
 
 static u64 value_read(int offset, int size, void *structure)
 {

@@ -35,7 +35,7 @@
 
 #include <linux/errno.h>
 
-#include <ib_pack.h>
+#include <rdma/ib_pack.h>
 
 #define STRUCT_FIELD(header, field) \
 	.struct_offset_bytes = offsetof(struct ib_unpacked_ ## header, field),      \

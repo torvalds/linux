@@ -44,8 +44,8 @@
 #include <linux/kref.h>
 #include <linux/idr.h>
 
-#include <ib_pack.h>
-#include <ib_sa.h>
+#include <rdma/ib_pack.h>
+#include <rdma/ib_sa.h>
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand subnet administration query support");

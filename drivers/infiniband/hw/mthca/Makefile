@@ -1,5 +1,3 @@
-EXTRA_CFLAGS += -Idrivers/infiniband/include
-
 ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
 EXTRA_CFLAGS += -DDEBUG
 endif

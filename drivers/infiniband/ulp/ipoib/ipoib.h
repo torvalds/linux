@@ -51,9 +51,9 @@
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
 
-#include <ib_verbs.h>
-#include <ib_pack.h>
-#include <ib_sa.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_pack.h>
+#include <rdma/ib_sa.h>
 
 /* constants */
 

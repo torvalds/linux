@@ -38,7 +38,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 
-#include <ib_cache.h>
+#include <rdma/ib_cache.h>
 
 #include "ipoib.h"
 

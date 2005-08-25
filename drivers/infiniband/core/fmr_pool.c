@@ -39,7 +39,7 @@
 #include <linux/jhash.h>
 #include <linux/kthread.h>
 
-#include <ib_fmr_pool.h>
+#include <rdma/ib_fmr_pool.h>
 
 #include "core_priv.h"
 

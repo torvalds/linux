@@ -45,8 +45,8 @@
 #include <linux/kref.h>
 #include <linux/idr.h>
 
-#include <ib_verbs.h>
-#include <ib_user_verbs.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_user_verbs.h>
 
 struct ib_uverbs_device {
 	int					devnum;

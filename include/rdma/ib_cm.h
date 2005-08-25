@@ -37,8 +37,8 @@
 #if !defined(IB_CM_H)
 #define IB_CM_H
 
-#include <ib_mad.h>
-#include <ib_sa.h>
+#include <rdma/ib_mad.h>
+#include <rdma/ib_sa.h>
 
 enum ib_cm_state {
 	IB_CM_IDLE,

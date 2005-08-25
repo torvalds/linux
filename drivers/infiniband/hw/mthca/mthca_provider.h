@@ -37,8 +37,8 @@
 #ifndef MTHCA_PROVIDER_H
 #define MTHCA_PROVIDER_H
 
-#include <ib_verbs.h>
-#include <ib_pack.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_pack.h>
 
 #define MTHCA_MPT_FLAG_ATOMIC        (1 << 14)
 #define MTHCA_MPT_FLAG_REMOTE_WRITE  (1 << 13)

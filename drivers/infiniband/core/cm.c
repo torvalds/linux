@@ -43,8 +43,8 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
-#include <ib_cache.h>
-#include <ib_cm.h>
+#include <rdma/ib_cache.h>
+#include <rdma/ib_cm.h>
 #include "cm_msgs.h"
 
 MODULE_AUTHOR("Sean Hefty");

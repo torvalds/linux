@@ -34,7 +34,7 @@
 #if !defined(CM_MSGS_H)
 #define CM_MSGS_H
 
-#include <ib_mad.h>
+#include <rdma/ib_mad.h>
 
 /*
  * Parameters to routines below should be in network-byte order, and values

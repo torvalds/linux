@@ -40,8 +40,8 @@
 #include <linux/pci.h>
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
-#include <ib_mad.h>
-#include <ib_smi.h>
+#include <rdma/ib_mad.h>
+#include <rdma/ib_smi.h>
 
 
 #define PFX "ib_mad: "

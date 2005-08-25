@@ -33,7 +33,7 @@
  * $Id: ipoib_verbs.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <ib_cache.h>
+#include <rdma/ib_cache.h>
 
 #include "ipoib.h"
 

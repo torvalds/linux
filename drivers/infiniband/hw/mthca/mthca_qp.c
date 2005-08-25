@@ -37,9 +37,9 @@
 
 #include <linux/init.h>
 
-#include <ib_verbs.h>
-#include <ib_cache.h>
-#include <ib_pack.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_cache.h>
+#include <rdma/ib_pack.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"

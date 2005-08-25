@@ -38,8 +38,8 @@
 
 #include <linux/compiler.h>
 
-#include <ib_verbs.h>
-#include <ib_mad.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_mad.h>
 
 enum {
 	IB_SA_CLASS_VERSION		= 2,	/* IB spec version 1.1/1.2 */

@@ -40,8 +40,8 @@
 #include <linux/cdev.h>
 #include <linux/idr.h>
 
-#include <ib_cm.h>
-#include <ib_user_cm.h>
+#include <rdma/ib_cm.h>
+#include <rdma/ib_user_cm.h>
 
 #define IB_UCM_CM_ID_INVALID 0xffffffff
 
