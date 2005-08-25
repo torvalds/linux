@@ -1350,15 +1350,13 @@ bnx2_tx_int(struct bnx2 *bp)
 	bp->tx_cons = sw_cons;
 
 	if (unlikely(netif_queue_stopped(bp->dev))) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&bp->tx_lock, flags);
+		spin_lock(&bp->tx_lock);
 		if ((netif_queue_stopped(bp->dev)) &&
 		    (bnx2_tx_avail(bp) > MAX_SKB_FRAGS)) {
 
 			netif_wake_queue(bp->dev);
 		}
-		spin_unlock_irqrestore(&bp->tx_lock, flags);
+		spin_unlock(&bp->tx_lock);
 	}
 }
 
@@ -1598,11 +1596,9 @@ bnx2_poll(struct net_device *dev, int *budget)
 		(bp->status_blk->status_attn_bits_ack &
 		STATUS_ATTN_BITS_LINK_STATE)) {
 
-		unsigned long flags;
-
-		spin_lock_irqsave(&bp->phy_lock, flags);
+		spin_lock(&bp->phy_lock);
 		bnx2_phy_int(bp);
-		spin_unlock_irqrestore(&bp->phy_lock, flags);
+		spin_unlock(&bp->phy_lock);
 	}
 
 	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->tx_cons) {
@@ -1645,9 +1641,8 @@ bnx2_set_rx_mode(struct net_device *dev)
 	struct bnx2 *bp = dev->priv;
 	u32 rx_mode, sort_mode;
 	int i;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bp->phy_lock, flags);
+	spin_lock_bh(&bp->phy_lock);
 
 	rx_mode = bp->rx_mode & ~(BNX2_EMAC_RX_MODE_PROMISCUOUS |
 				  BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG);
@@ -1708,7 +1703,7 @@ bnx2_set_rx_mode(struct net_device *dev)
 	REG_WR(bp, BNX2_RPM_SORT_USER0, sort_mode);
 	REG_WR(bp, BNX2_RPM_SORT_USER0, sort_mode | BNX2_RPM_SORT_USER0_ENA);
 
-	spin_unlock_irqrestore(&bp->phy_lock, flags);
+	spin_unlock_bh(&bp->phy_lock);
 }
 
 static void
@@ -3768,10 +3763,10 @@ bnx2_test_link(struct bnx2 *bp)
 {
 	u32 bmsr;
 
-	spin_lock_irq(&bp->phy_lock);
+	spin_lock_bh(&bp->phy_lock);
 	bnx2_read_phy(bp, MII_BMSR, &bmsr);
 	bnx2_read_phy(bp, MII_BMSR, &bmsr);
-	spin_unlock_irq(&bp->phy_lock);
+	spin_unlock_bh(&bp->phy_lock);
 		
 	if (bmsr & BMSR_LSTATUS) {
 		return 0;
@@ -3828,9 +3823,8 @@ bnx2_timer(unsigned long data)
 
 	if ((bp->phy_flags & PHY_SERDES_FLAG) &&
 	    (CHIP_NUM(bp) == CHIP_NUM_5706)) {
-		unsigned long flags;
 
-		spin_lock_irqsave(&bp->phy_lock, flags);
+		spin_lock(&bp->phy_lock);
 		if (bp->serdes_an_pending) {
 			bp->serdes_an_pending--;
 		}
@@ -3884,7 +3878,7 @@ bnx2_timer(unsigned long data)
 		else
 			bp->current_interval = bp->timer_interval;
 
-		spin_unlock_irqrestore(&bp->phy_lock, flags);
+		spin_unlock(&bp->phy_lock);
 	}
 
 bnx2_restart_timer:
@@ -4168,14 +4162,12 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->trans_start = jiffies;
 
 	if (unlikely(bnx2_tx_avail(bp) <= MAX_SKB_FRAGS)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&bp->tx_lock, flags);
+		spin_lock(&bp->tx_lock);
 		netif_stop_queue(dev);
 		
 		if (bnx2_tx_avail(bp) > MAX_SKB_FRAGS)
 			netif_wake_queue(dev);
-		spin_unlock_irqrestore(&bp->tx_lock, flags);
+		spin_unlock(&bp->tx_lock);
 	}
 
 	return NETDEV_TX_OK;
@@ -4411,11 +4403,11 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	bp->req_line_speed = req_line_speed;
 	bp->req_duplex = req_duplex;
 
-	spin_lock_irq(&bp->phy_lock);
+	spin_lock_bh(&bp->phy_lock);
 
 	bnx2_setup_phy(bp);
 
-	spin_unlock_irq(&bp->phy_lock);
+	spin_unlock_bh(&bp->phy_lock);
 
 	return 0;
 }
@@ -4485,16 +4477,16 @@ bnx2_nway_reset(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	spin_lock_irq(&bp->phy_lock);
+	spin_lock_bh(&bp->phy_lock);
 
 	/* Force a link down visible on the other side */
 	if (bp->phy_flags & PHY_SERDES_FLAG) {
 		bnx2_write_phy(bp, MII_BMCR, BMCR_LOOPBACK);
-		spin_unlock_irq(&bp->phy_lock);
+		spin_unlock_bh(&bp->phy_lock);
 
 		msleep(20);
 
-		spin_lock_irq(&bp->phy_lock);
+		spin_lock_bh(&bp->phy_lock);
 		if (CHIP_NUM(bp) == CHIP_NUM_5706) {
 			bp->current_interval = SERDES_AN_TIMEOUT;
 			bp->serdes_an_pending = 1;
@@ -4506,7 +4498,7 @@ bnx2_nway_reset(struct net_device *dev)
 	bmcr &= ~BMCR_LOOPBACK;
 	bnx2_write_phy(bp, MII_BMCR, bmcr | BMCR_ANRESTART | BMCR_ANENABLE);
 
-	spin_unlock_irq(&bp->phy_lock);
+	spin_unlock_bh(&bp->phy_lock);
 
 	return 0;
 }
@@ -4692,11 +4684,11 @@ bnx2_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam *epause)
 		bp->autoneg &= ~AUTONEG_FLOW_CTRL;
 	}
 
-	spin_lock_irq(&bp->phy_lock);
+	spin_lock_bh(&bp->phy_lock);
 
 	bnx2_setup_phy(bp);
 
-	spin_unlock_irq(&bp->phy_lock);
+	spin_unlock_bh(&bp->phy_lock);
 
 	return 0;
 }
@@ -5046,9 +5038,9 @@ bnx2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIREG: {
 		u32 mii_regval;
 
-		spin_lock_irq(&bp->phy_lock);
+		spin_lock_bh(&bp->phy_lock);
 		err = bnx2_read_phy(bp, data->reg_num & 0x1f, &mii_regval);
-		spin_unlock_irq(&bp->phy_lock);
+		spin_unlock_bh(&bp->phy_lock);
 
 		data->val_out = mii_regval;
 
@@ -5059,9 +5051,9 @@ bnx2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
-		spin_lock_irq(&bp->phy_lock);
+		spin_lock_bh(&bp->phy_lock);
 		err = bnx2_write_phy(bp, data->reg_num & 0x1f, data->val_in);
-		spin_unlock_irq(&bp->phy_lock);
+		spin_unlock_bh(&bp->phy_lock);
 
 		return err;
 
