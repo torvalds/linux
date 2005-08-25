@@ -168,7 +168,8 @@ enum connection_manager_assoc_states {
 #define DCT_FLAG_CTS_REQUIRED              0x02
 
 /* use short preamble */
-#define DCT_FLAG_SHORT_PREMBL              0x04
+#define DCT_FLAG_LONG_PREAMBLE             0x00
+#define DCT_FLAG_SHORT_PREAMBLE            0x04
 
 /* RTS/CTS first */
 #define DCT_FLAG_RTS_REQD                  0x08
@@ -899,7 +900,7 @@ struct ipw_cmd {
 #define CFG_STATIC_ESSID        (1<<1)	/* Restrict assoc. to single SSID */
 #define CFG_STATIC_BSSID        (1<<2)	/* Restrict assoc. to single BSSID */
 #define CFG_CUSTOM_MAC          (1<<3)
-#define CFG_PREAMBLE            (1<<4)
+#define CFG_PREAMBLE_LONG       (1<<4)
 #define CFG_ADHOC_PERSIST       (1<<5)
 #define CFG_ASSOCIATE           (1<<6)
 #define CFG_FIXED_RATE          (1<<7)
@@ -1206,12 +1207,18 @@ do { if (ipw_debug_level & (level)) \
 /*
  * RESET Register Bit Indexes
  */
-#define CBD_RESET_REG_PRINCETON_RESET 0x00000001	/* Bit 0 (LSB) */
-#define CX2_RESET_REG_SW_RESET        0x00000080	/* Bit 7       */
-#define CX2_RESET_REG_MASTER_DISABLED 0x00000100	/* Bit 8       */
-#define CX2_RESET_REG_STOP_MASTER     0x00000200	/* Bit 9       */
-#define CX2_ARC_KESHET_CONFIG         0x08000000	/* Bit 27      */
-#define CX2_START_STANDBY             0x00000004	/* Bit 2       */
+#define CBD_RESET_REG_PRINCETON_RESET (1<<0)
+#define CX2_START_STANDBY             (1<<2)
+#define CX2_ACTIVITY_LED              (1<<4)
+#define CX2_ASSOCIATED_LED            (1<<5)
+#define CX2_OFDM_LED                  (1<<6)
+#define CX2_RESET_REG_SW_RESET        (1<<7)
+#define CX2_RESET_REG_MASTER_DISABLED (1<<8)
+#define CX2_RESET_REG_STOP_MASTER     (1<<9)
+#define CX2_GATE_ODMA                 (1<<25)
+#define CX2_GATE_IDMA                 (1<<26)
+#define CX2_ARC_KESHET_CONFIG         (1<<27)
+#define CX2_GATE_ADMA                 (1<<29)
 
 #define CX2_CSR_CIS_UPPER_BOUND	0x00000200
 #define CX2_DOMAIN_0_END 0x1000
