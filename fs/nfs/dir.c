@@ -1539,7 +1539,8 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 #endif
 			goto out;
 		}
-	}
+	} else
+		new_inode->i_nlink--;
 
 go_ahead:
 	/*
