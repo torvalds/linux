@@ -133,6 +133,7 @@ struct rpc_xprt;
 struct rpc_xprt_ops {
 	void		(*set_buffer_size)(struct rpc_xprt *xprt);
 	int		(*reserve_xprt)(struct rpc_task *task);
+	void		(*release_xprt)(struct rpc_xprt *xprt, struct rpc_task *task);
 	void		(*connect)(struct rpc_task *task);
 	int		(*send_request)(struct rpc_task *task);
 	void		(*set_retrans_timeout)(struct rpc_task *task);
@@ -238,6 +239,8 @@ int			xprt_reserve_xprt_cong(struct rpc_task *task);
 int			xprt_prepare_transmit(struct rpc_task *task);
 void			xprt_transmit(struct rpc_task *task);
 int			xprt_adjust_timeout(struct rpc_rqst *req);
+void			xprt_release_xprt(struct rpc_xprt *xprt, struct rpc_task *task);
+void			xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task);
 void			xprt_release(struct rpc_task *task);
 int			xprt_destroy(struct rpc_xprt *xprt);
 
