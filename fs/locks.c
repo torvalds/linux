@@ -829,12 +829,16 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request)
 		/* Detect adjacent or overlapping regions (if same lock type)
 		 */
 		if (request->fl_type == fl->fl_type) {
+			/* In all comparisons of start vs end, use
+			 * "start - 1" rather than "end + 1". If end
+			 * is OFFSET_MAX, end + 1 will become negative.
+			 */
 			if (fl->fl_end < request->fl_start - 1)
 				goto next_lock;
 			/* If the next lock in the list has entirely bigger
 			 * addresses than the new one, insert the lock here.
 			 */
-			if (fl->fl_start > request->fl_end + 1)
+			if (fl->fl_start - 1 > request->fl_end)
 				break;
 
 			/* If we come here, the new and old lock are of the
