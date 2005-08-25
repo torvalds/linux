@@ -40,6 +40,7 @@
 #define SMB_COM_SETATTR               0x09 /* trivial response */
 #define SMB_COM_LOCKING_ANDX          0x24 /* trivial response */
 #define SMB_COM_COPY                  0x29 /* trivial rsp, fail filename ignrd*/
+#define SMB_COM_OPEN_ANDX             0x2D /* Legacy open for old servers */
 #define SMB_COM_READ_ANDX             0x2E
 #define SMB_COM_WRITE_ANDX            0x2F
 #define SMB_COM_TRANSACTION2          0x32
@@ -625,6 +626,7 @@ typedef struct smb_com_findclose_req {
 } FINDCLOSE_REQ;
 
 /* OpenFlags */
+#define REQ_MORE_INFO      0x00000001  /* legacy (OPEN_AND_X) only */
 #define REQ_OPLOCK         0x00000002
 #define REQ_BATCHOPLOCK    0x00000004
 #define REQ_OPENDIRONLY    0x00000008
@@ -680,6 +682,62 @@ typedef struct smb_com_open_rsp {
 	__u16 ByteCount;	/* bct = 0 */
 } OPEN_RSP;
 
+/* format of legacy open request */
+typedef struct smb_com_openx_req {
+	struct smb_hdr	hdr;	/* wct = 15 */
+	__u8 AndXCommand;
+	__u8 AndXReserved;
+	__le16 AndXOffset;
+	__le16 OpenFlags;
+	__le16 Mode;
+	__le16 Sattr; /* search attributes */
+	__le16 FileAttributes;  /* dos attrs */
+	__le32 CreateTime; /* os2 format */
+	__le16 OpenFunction;
+	__le32 EndOfFile;
+	__le32 Timeout;
+	__le32 Reserved;
+	__u16  ByteCount;  /* file name follows */
+	char   fileName[1];
+} OPENX_REQ;
+
+typedef struct smb_com_openx_rsp {
+	struct smb_hdr	hdr;	/* wct = 15 */
+	__u8 AndXCommand;
+	__u8 AndXReserved;
+	__le16 AndXOffset;
+	__u16  Fid;
+	__le16 FileAttributes;
+	__le32 LastWriteTime; /* os2 format */
+	__le32 EndOfFile;
+	__le16 Access;
+	__le16 FileType;
+	__le16 IPCState;
+	__le16 Action;
+	__u32  FileId;
+	__u16  Reserved;
+	__u16  ByteCount;
+} OPENX_RSP; 
+
+/* Legacy write request for older servers */
+typedef struct smb_com_writex_req {
+        struct smb_hdr hdr;     /* wct = 12 */
+        __u8 AndXCommand;
+        __u8 AndXReserved;
+        __le16 AndXOffset;
+        __u16 Fid;
+        __le32 OffsetLow;
+        __u32 Reserved; /* Timeout */
+        __le16 WriteMode; /* 1 = write through */
+        __le16 Remaining;
+        __le16 Reserved2;
+        __le16 DataLengthLow;
+        __le16 DataOffset;
+        __le16 ByteCount;
+        __u8 Pad;               /* BB check for whether padded to DWORD boundary and optimum performance here */
+        char Data[0];
+} WRITEX_REQ;
+
 typedef struct smb_com_write_req {
 	struct smb_hdr hdr;	/* wct = 14 */
 	__u8 AndXCommand;
@@ -710,6 +768,21 @@ typedef struct smb_com_write_rsp {
 	__u16  Reserved;
 	__u16 ByteCount;
 } WRITE_RSP;
+
+/* legacy read request for older servers */
+typedef struct smb_com_readx_req {
+        struct smb_hdr hdr;     /* wct = 10 */
+        __u8 AndXCommand;
+        __u8 AndXReserved;
+        __le16 AndXOffset;
+        __u16 Fid;
+        __le32 OffsetLow;
+        __le16 MaxCount;
+        __le16 MinCount;                /* obsolete */
+        __le32 Reserved;
+        __le16 Remaining;
+        __le16 ByteCount;
+} READX_REQ;
 
 typedef struct smb_com_read_req {
 	struct smb_hdr hdr;	/* wct = 12 */

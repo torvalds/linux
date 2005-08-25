@@ -680,6 +680,146 @@ MkDirRetry:
 	return rc;
 }
 
+static __u16 convert_disposition(int disposition)
+{
+	__u16 ofun = 0;
+
+	switch (disposition) {
+		case FILE_SUPERSEDE:
+			ofun = SMBOPEN_OCREATE | SMBOPEN_OTRUNC;
+			break;
+		case FILE_OPEN:
+			ofun = SMBOPEN_OAPPEND;
+			break;
+		case FILE_CREATE:
+			ofun = SMBOPEN_OCREATE;
+			break;
+		case FILE_OPEN_IF:
+			ofun = SMBOPEN_OCREATE | SMBOPEN_OAPPEND;
+			break;
+		case FILE_OVERWRITE:
+			ofun = SMBOPEN_OTRUNC;
+			break;
+		case FILE_OVERWRITE_IF:
+			ofun = SMBOPEN_OCREATE | SMBOPEN_OTRUNC;
+			break;
+		default:
+			cFYI(1,("unknown disposition %d",disposition));
+			ofun =  SMBOPEN_OAPPEND; /* regular open */
+	}
+	return ofun;
+}
+
+int
+SMBLegacyOpen(const int xid, struct cifsTconInfo *tcon,
+	    const char *fileName, const int openDisposition,
+	    const int access_flags, const int create_options, __u16 * netfid,
+            int *pOplock, FILE_ALL_INFO * pfile_info,
+	    const struct nls_table *nls_codepage, int remap)
+{
+	int rc = -EACCES;
+	OPENX_REQ *pSMB = NULL;
+	OPENX_RSP *pSMBr = NULL;
+	int bytes_returned;
+	int name_len;
+	__u16 count;
+
+OldOpenRetry:
+	rc = smb_init(SMB_COM_OPEN_ANDX, 15, tcon, (void **) &pSMB,
+		      (void **) &pSMBr);
+	if (rc)
+		return rc;
+
+	pSMB->AndXCommand = 0xFF;       /* none */
+
+	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
+		count = 1;      /* account for one byte pad to word boundary */
+		name_len =
+		   cifsConvertToUCS((__le16 *) (pSMB->fileName + 1),
+				    fileName, PATH_MAX, nls_codepage, remap);
+		name_len++;     /* trailing null */
+		name_len *= 2;
+	} else {                /* BB improve check for buffer overruns BB */
+		count = 0;      /* no pad */
+		name_len = strnlen(fileName, PATH_MAX);
+		name_len++;     /* trailing null */
+		strncpy(pSMB->fileName, fileName, name_len);
+	}
+	if (*pOplock & REQ_OPLOCK)
+		pSMB->OpenFlags = cpu_to_le16(REQ_OPLOCK);
+	else if (*pOplock & REQ_BATCHOPLOCK) {
+		pSMB->OpenFlags = cpu_to_le16(REQ_BATCHOPLOCK);
+	}
+	pSMB->OpenFlags |= cpu_to_le16(REQ_MORE_INFO);
+	/* BB fixme add conversion for access_flags to bits 0 - 2 of mode */
+	/* 0 = read
+	   1 = write
+	   2 = rw
+	   3 = execute
+        */
+	pSMB->Mode = cpu_to_le16(2);
+	pSMB->Mode |= cpu_to_le16(0x40); /* deny none */
+	/* set file as system file if special file such
+	   as fifo and server expecting SFU style and
+	   no Unix extensions */
+
+        if(create_options & CREATE_OPTION_SPECIAL)
+                pSMB->FileAttributes = cpu_to_le16(ATTR_SYSTEM);
+        else
+                pSMB->FileAttributes = cpu_to_le16(ATTR_NORMAL);
+
+	/* if ((omode & S_IWUGO) == 0)
+		pSMB->FileAttributes |= cpu_to_le32(ATTR_READONLY);*/
+	/*  Above line causes problems due to vfs splitting create into two
+	    pieces - need to set mode after file created not while it is
+	    being created */
+
+	/* BB FIXME BB */
+/*	pSMB->CreateOptions = cpu_to_le32(create_options & CREATE_OPTIONS_MASK); */
+	/* BB FIXME END BB */
+	pSMB->OpenFunction = convert_disposition(openDisposition);
+	count += name_len;
+	pSMB->hdr.smb_buf_length += count;
+
+	pSMB->ByteCount = cpu_to_le16(count);
+	/* long_op set to 1 to allow for oplock break timeouts */
+	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+		         (struct smb_hdr *) pSMBr, &bytes_returned, 1);
+	cifs_stats_inc(&tcon->num_opens);
+	if (rc) {
+		cFYI(1, ("Error in Open = %d", rc));
+	} else {
+	/* BB verify if wct == 15 */
+
+/*		*pOplock = pSMBr->OplockLevel; */  /* BB take from action field BB */
+
+		*netfid = pSMBr->Fid;   /* cifs fid stays in le */
+		/* Let caller know file was created so we can set the mode. */
+		/* Do we care about the CreateAction in any other cases? */
+	/* BB FIXME BB */
+/*		if(cpu_to_le32(FILE_CREATE) == pSMBr->CreateAction)
+			*pOplock |= CIFS_CREATE_ACTION; */
+	/* BB FIXME END */
+
+		if(pfile_info) {
+			pfile_info->CreationTime = 0; /* BB convert CreateTime*/
+			pfile_info->LastAccessTime = 0; /* BB fixme */
+			pfile_info->LastWriteTime = 0; /* BB fixme */
+			pfile_info->ChangeTime = 0;  /* BB fixme */
+			pfile_info->Attributes = pSMBr->FileAttributes; 
+			/* the file_info buf is endian converted by caller */
+			pfile_info->AllocationSize = pSMBr->EndOfFile;
+			pfile_info->EndOfFile = pSMBr->EndOfFile;
+			pfile_info->NumberOfLinks = cpu_to_le32(1);
+		}
+	}
+
+	cifs_buf_release(pSMB);
+	if (rc == -EAGAIN)
+		goto OldOpenRetry;
+	return rc;
+}
+
 int
 CIFSSMBOpen(const int xid, struct cifsTconInfo *tcon,
 	    const char *fileName, const int openDisposition,
@@ -780,6 +920,81 @@ openRetry:
 	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
 		goto openRetry;
+	return rc;
+}
+
+int
+SMBLegacyRead(const int xid, struct cifsTconInfo *tcon,
+            const int netfid, unsigned int count,
+            const __u64 lseek, unsigned int *nbytes, char **buf)
+{
+	int rc = -EACCES;
+	READX_REQ *pSMB = NULL;
+	READ_RSP *pSMBr = NULL;
+	char *pReadData = NULL;
+	int bytes_returned;
+
+	cFYI(1,("Legacy read %d bytes fid %d",count,netfid));
+
+	/* field is shorter in legacy read, only 16 bits */
+	if(count > 2048)
+		count = 2048;  /* BB FIXME make this configurable */
+
+	if(lseek > 0xFFFFFFFF)
+		return -EIO; /* can not read that far into file on old server */
+
+	*nbytes = 0;
+	rc = smb_init(SMB_COM_READ_ANDX, 10, tcon, (void **) &pSMB,
+		      (void **) &pSMBr);
+	if (rc)
+		return rc;
+
+	/* tcon and ses pointer are checked in smb_init */
+	if (tcon->ses->server == NULL)
+		return -ECONNABORTED;
+
+	pSMB->AndXCommand = 0xFF;       /* none */
+	pSMB->Fid = netfid;
+	pSMB->OffsetLow = cpu_to_le32(lseek & 0xFFFFFFFF);
+	pSMB->Remaining = 0;
+	pSMB->MaxCount = cpu_to_le16(count);
+	pSMB->Reserved = 0; /* Must Be Zero */
+	pSMB->ByteCount = 0;  /* no need to do le conversion since it is 0 */
+
+	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
+	cifs_stats_inc(&tcon->num_reads);
+	if (rc) {
+		cERROR(1, ("Send error in legacy read = %d", rc));
+	} else {
+		int data_length = le16_to_cpu(pSMBr->DataLengthHigh);
+		data_length = data_length << 16;
+		data_length += le16_to_cpu(pSMBr->DataLength);
+		*nbytes = data_length;
+
+		/*check that DataLength would not go beyond end of SMB */
+		if ((data_length > CIFSMaxBufSize) || (data_length > count)) {
+			cFYI(1,("bad length %d for count %d",data_length,count));
+			rc = -EIO;
+			*nbytes = 0;
+		} else {
+			pReadData = (char *) (&pSMBr->hdr.Protocol) +
+						le16_to_cpu(pSMBr->DataOffset);
+/*                      if(rc = copy_to_user(buf, pReadData, data_length)) {
+			 	cERROR(1,("Faulting on read rc = %d",rc));
+				rc = -EFAULT;
+			}*/ /* can not use copy_to_user when using page cache*/
+			if(*buf)
+				memcpy(*buf,pReadData,data_length);
+		}
+	}
+	if(*buf)
+		cifs_buf_release(pSMB);
+	else
+		*buf = (char *)pSMB;
+
+	/* Note: On -EAGAIN error only caller can retry on handle based calls
+		since file handle passed in no longer valid */
 	return rc;
 }
 

@@ -256,6 +256,13 @@ int cifs_open(struct inode *inode, struct file *file)
 			 CREATE_NOT_DIR, &netfid, &oplock, buf,
 			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
 				 & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc == -EIO) {
+		/* Old server, try legacy style OpenX */
+		rc = SMBLegacyOpen(xid, pTcon, full_path, disposition,
+			desiredAccess, CREATE_NOT_DIR, &netfid, &oplock, buf,
+			cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
+				& CIFS_MOUNT_MAP_SPECIAL_CHR);
+	}
 	if (rc) {
 		cFYI(1, ("cifs_open returned 0x%x ", rc));
 		goto out;
@@ -1210,7 +1217,12 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 				 open_file->netfid,
 				 current_read_size, *poffset,
 				 &bytes_read, &smb_read_data);
-
+			if(rc == -EINVAL) {
+				rc = SMBLegacyRead(xid, pTcon,
+					open_file->netfid,
+					current_read_size, *poffset,
+					&bytes_read, &smb_read_data);
+			}
 			pSMBr = (struct smb_com_read_rsp *)smb_read_data;
 			if (copy_to_user(current_offset, 
 					 smb_read_data + 4 /* RFC1001 hdr */
@@ -1287,6 +1299,12 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 				 open_file->netfid,
 				 current_read_size, *poffset,
 				 &bytes_read, &current_offset);
+			if(rc == -EINVAL) {
+				rc = SMBLegacyRead(xid, pTcon,
+					open_file->netfid,
+					current_read_size, *poffset,
+					&bytes_read, &current_offset);
+			}
 		}
 		if (rc || (bytes_read == 0)) {
 			if (total_read) {
@@ -1443,7 +1461,14 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 				open_file->netfid,
 				read_size, offset,
 				&bytes_read, &smb_read_data);
-			/* BB need to check return code here */
+			if (rc == -EINVAL) {
+				rc = SMBLegacyRead(xid, pTcon,
+					open_file->netfid,
+					read_size, offset,
+					&bytes_read, &smb_read_data);
+			}
+
+			/* BB more RC checks ? */
 			if (rc== -EAGAIN) {
 				if (smb_read_data) {
 					cifs_buf_release(smb_read_data);

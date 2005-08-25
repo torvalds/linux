@@ -184,6 +184,13 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			 desiredAccess, CREATE_NOT_DIR,
 			 &fileHandle, &oplock, buf, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if(rc == -EIO) {
+		/* old server, retry the open legacy style */
+		rc = SMBLegacyOpen(xid, pTcon, full_path, disposition,
+			desiredAccess, CREATE_NOT_DIR,
+			&fileHandle, &oplock, buf, cifs_sb->local_nls,
+			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	} 
 	if (rc) {
 		cFYI(1, ("cifs_create returned 0x%x ", rc));
 	} else {
