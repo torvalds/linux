@@ -124,7 +124,7 @@ static int hippi_rebuild_header(struct sk_buff *skb)
  *	Determine the packet's protocol ID.
  */
  
-unsigned short hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
+__be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hippi_hdr *hip;
 	
