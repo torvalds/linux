@@ -1271,7 +1271,7 @@ static u16 sis190_default_phy(struct net_device *dev)
 		mii_if->phy_id = phy_default->phy_id;
 		net_probe(tp, KERN_INFO
 		       "%s: Using transceiver at address %d as default.\n",
-		       dev->name, mii_if->phy_id);
+		       pci_name(tp->pci_dev), mii_if->phy_id);
 	}
 
 	status = mdio_read(ioaddr, mii_if->phy_id, MII_BMCR);
@@ -1312,8 +1312,8 @@ static void sis190_init_phy(struct net_device *dev, struct sis190_private *tp,
 		phy->type = UNKNOWN;
 
 	net_probe(tp, KERN_INFO "%s: %s transceiver at address %d.\n",
-		  dev->name, (phy->type == UNKNOWN) ? "Unknown PHY" : p->name,
-		  phy_id);
+		  pci_name(tp->pci_dev),
+		  (phy->type == UNKNOWN) ? "Unknown PHY" : p->name, phy_id);
 }
 
 /**
@@ -1358,7 +1358,7 @@ static int __devinit sis190_mii_probe(struct net_device *dev)
 
 	if (list_empty(&tp->first_phy)) {
 		net_probe(tp, KERN_INFO "%s: No MII transceivers found!\n",
-			  dev->name);
+			  pci_name(tp->pci_dev));
 		rc = -EIO;
 		goto out;
 	}
@@ -1780,15 +1780,16 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	dev->base_addr = (unsigned long) 0xdead;
 
 	spin_lock_init(&tp->lock);
-	rc = register_netdev(dev);
-	if (rc < 0)
-		goto err_release_board;
-
-	pci_set_drvdata(pdev, dev);
 
 	rc = sis190_mii_probe(dev);
 	if (rc < 0)
-		goto err_unregister_dev;
+		goto err_release_board;
+
+	rc = register_netdev(dev);
+	if (rc < 0)
+		goto err_remove_mii;
+
+	pci_set_drvdata(pdev, dev);
 
 	net_probe(tp, KERN_INFO "%s: %s at %p (IRQ: %d), "
 	       "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
@@ -1804,8 +1805,8 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 out:
 	return rc;
 
-err_unregister_dev:
-	unregister_netdev(dev);
+err_remove_mii:
+	sis190_mii_remove(dev);
 err_release_board:
 	sis190_release_board(pdev);
 	goto out;
