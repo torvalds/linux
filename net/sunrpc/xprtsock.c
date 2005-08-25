@@ -860,6 +860,17 @@ static void xs_tcp_set_buffer_size(struct rpc_xprt *xprt)
 	return;
 }
 
+/**
+ * xs_udp_timer - called when a retransmit timeout occurs on a UDP transport
+ * @task: task that timed out
+ *
+ * Adjust the congestion window after a retransmit timeout has occurred.
+ */
+static void xs_udp_timer(struct rpc_task *task)
+{
+	xprt_adjust_cwnd(task, -ETIMEDOUT);
+}
+
 static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
 {
 	struct sockaddr_in myaddr = {
@@ -1050,6 +1061,7 @@ static struct rpc_xprt_ops xs_udp_ops = {
 	.connect		= xs_connect,
 	.send_request		= xs_udp_send_request,
 	.set_retrans_timeout	= xprt_set_retrans_timeout_rtt,
+	.timer			= xs_udp_timer,
 	.close			= xs_close,
 	.destroy		= xs_destroy,
 };

@@ -289,16 +289,19 @@ __xprt_put_cong(struct rpc_xprt *xprt, struct rpc_rqst *req)
 	__xprt_lock_write_next_cong(xprt);
 }
 
-/*
- * Adjust RPC congestion window
+/**
+ * xprt_adjust_cwnd - adjust transport congestion window
+ * @task: recently completed RPC request used to adjust window
+ * @result: result code of completed RPC request
+ *
  * We use a time-smoothed congestion estimator to avoid heavy oscillation.
  */
-static void
-xprt_adjust_cwnd(struct rpc_xprt *xprt, int result)
+void xprt_adjust_cwnd(struct rpc_task *task, int result)
 {
-	unsigned long	cwnd;
+	struct rpc_rqst *req = task->tk_rqstp;
+	struct rpc_xprt *xprt = task->tk_xprt;
+	unsigned long cwnd = xprt->cwnd;
 
-	cwnd = xprt->cwnd;
 	if (result >= 0 && cwnd <= xprt->cong) {
 		/* The (cwnd >> 1) term makes sure
 		 * the result gets rounded properly. */
@@ -314,6 +317,7 @@ xprt_adjust_cwnd(struct rpc_xprt *xprt, int result)
 	dprintk("RPC:      cong %ld, cwnd was %ld, now %ld\n",
 			xprt->cong, xprt->cwnd, cwnd);
 	xprt->cwnd = cwnd;
+	__xprt_put_cong(xprt, req);
 }
 
 /**
@@ -602,8 +606,7 @@ void xprt_complete_rqst(struct rpc_xprt *xprt, struct rpc_rqst *req, int copied)
 	/* Adjust congestion window */
 	if (!xprt->nocong) {
 		unsigned timer = task->tk_msg.rpc_proc->p_timer;
-		xprt_adjust_cwnd(xprt, copied);
-		__xprt_put_cong(xprt, req);
+		xprt_adjust_cwnd(task, copied);
 		if (timer) {
 			if (req->rq_ntrans == 1)
 				rpc_update_rtt(clnt->cl_rtt, timer,
@@ -640,27 +643,19 @@ void xprt_complete_rqst(struct rpc_xprt *xprt, struct rpc_rqst *req, int copied)
 	return;
 }
 
-/*
- * RPC receive timeout handler.
- */
-static void
-xprt_timer(struct rpc_task *task)
+static void xprt_timer(struct rpc_task *task)
 {
-	struct rpc_rqst	*req = task->tk_rqstp;
+	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 
+	dprintk("RPC: %4d xprt_timer\n", task->tk_pid);
+
 	spin_lock(&xprt->transport_lock);
-	if (req->rq_received)
-		goto out;
-
-	xprt_adjust_cwnd(req->rq_xprt, -ETIMEDOUT);
-	__xprt_put_cong(xprt, req);
-
-	dprintk("RPC: %4d xprt_timer (%s request)\n",
-		task->tk_pid, req ? "pending" : "backlogged");
-
-	task->tk_status  = -ETIMEDOUT;
-out:
+	if (!req->rq_received) {
+		if (xprt->ops->timer)
+			xprt->ops->timer(task);
+		task->tk_status = -ETIMEDOUT;
+	}
 	task->tk_timeout = 0;
 	rpc_wake_up_task(task);
 	spin_unlock(&xprt->transport_lock);
