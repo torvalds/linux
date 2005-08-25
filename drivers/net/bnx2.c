@@ -806,7 +806,19 @@ bnx2_setup_serdes_phy(struct bnx2 *bp)
 		bnx2_write_phy(bp, MII_ADVERTISE, new_adv);
 		bnx2_write_phy(bp, MII_BMCR, bmcr | BMCR_ANRESTART |
 			BMCR_ANENABLE);
-		bp->serdes_an_pending = SERDES_AN_TIMEOUT / bp->timer_interval;
+		if (CHIP_NUM(bp) == CHIP_NUM_5706) {
+			/* Speed up link-up time when the link partner
+			 * does not autonegotiate which is very common
+			 * in blade servers. Some blade servers use
+			 * IPMI for kerboard input and it's important
+			 * to minimize link disruptions. Autoneg. involves
+			 * exchanging base pages plus 3 next pages and
+			 * normally completes in about 120 msec.
+			 */
+			bp->current_interval = SERDES_AN_TIMEOUT;
+			bp->serdes_an_pending = 1;
+			mod_timer(&bp->timer, jiffies + bp->current_interval);
+		}
 	}
 
 	return 0;
@@ -3800,6 +3812,9 @@ bnx2_timer(unsigned long data)
 	struct bnx2 *bp = (struct bnx2 *) data;
 	u32 msg;
 
+	if (!netif_running(bp->dev))
+		return;
+
 	if (atomic_read(&bp->intr_sem) != 0)
 		goto bnx2_restart_timer;
 
@@ -3816,6 +3831,8 @@ bnx2_timer(unsigned long data)
 		}
 		else if ((bp->link_up == 0) && (bp->autoneg & AUTONEG_SPEED)) {
 			u32 bmcr;
+
+			bp->current_interval = bp->timer_interval;
 
 			bnx2_read_phy(bp, MII_BMCR, &bmcr);
 
@@ -3859,14 +3876,14 @@ bnx2_timer(unsigned long data)
 
 			}
 		}
+		else
+			bp->current_interval = bp->timer_interval;
 
 		spin_unlock_irqrestore(&bp->phy_lock, flags);
 	}
 
 bnx2_restart_timer:
-	bp->timer.expires = RUN_AT(bp->timer_interval);
-
-	add_timer(&bp->timer);
+	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
 
 /* Called with rtnl_lock */
@@ -3919,12 +3936,7 @@ bnx2_open(struct net_device *dev)
 		return rc;
 	}
 	
-	init_timer(&bp->timer);
-
-	bp->timer.expires = RUN_AT(bp->timer_interval);
-	bp->timer.data = (unsigned long) bp;
-	bp->timer.function = bnx2_timer;
-	add_timer(&bp->timer);
+	mod_timer(&bp->timer, jiffies + bp->current_interval);
 
 	atomic_set(&bp->intr_sem, 0);
 
@@ -4485,8 +4497,9 @@ bnx2_nway_reset(struct net_device *dev)
 
 		spin_lock_irq(&bp->phy_lock);
 		if (CHIP_NUM(bp) == CHIP_NUM_5706) {
-			bp->serdes_an_pending = SERDES_AN_TIMEOUT /
-				bp->timer_interval;
+			bp->current_interval = SERDES_AN_TIMEOUT;
+			bp->serdes_an_pending = 1;
+			mod_timer(&bp->timer, jiffies + bp->current_interval);
 		}
 	}
 
@@ -5315,6 +5328,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->stats_ticks = 1000000 & 0xffff00;
 
 	bp->timer_interval =  HZ;
+	bp->current_interval =  HZ;
 
 	/* Disable WOL support if we are running on a SERDES chip. */
 	if (CHIP_BOND_ID(bp) & CHIP_BOND_ID_SERDES_BIT) {
@@ -5338,12 +5352,26 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->req_line_speed = 0;
 	if (bp->phy_flags & PHY_SERDES_FLAG) {
 		bp->advertising = ETHTOOL_ALL_FIBRE_SPEED | ADVERTISED_Autoneg;
+
+		reg = REG_RD_IND(bp, HOST_VIEW_SHMEM_BASE +
+				 BNX2_PORT_HW_CFG_CONFIG);
+		reg &= BNX2_PORT_HW_CFG_CFG_DFLT_LINK_MASK;
+		if (reg == BNX2_PORT_HW_CFG_CFG_DFLT_LINK_1G) {
+			bp->autoneg = 0;
+			bp->req_line_speed = bp->line_speed = SPEED_1000;
+			bp->req_duplex = DUPLEX_FULL;
+		}
 	}
 	else {
 		bp->advertising = ETHTOOL_ALL_COPPER_SPEED | ADVERTISED_Autoneg;
 	}
 
 	bp->req_flow_ctrl = FLOW_CTRL_RX | FLOW_CTRL_TX;
+
+	init_timer(&bp->timer);
+	bp->timer.expires = RUN_AT(bp->timer_interval);
+	bp->timer.data = (unsigned long) bp;
+	bp->timer.function = bnx2_timer;
 
 	return 0;
 

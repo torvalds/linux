@@ -3872,6 +3872,7 @@ struct bnx2 {
 	char			*name;
 
 	int			timer_interval;
+	int			current_interval;
 	struct			timer_list timer;
 	struct work_struct	reset_task;
 	int			in_reset_task;
@@ -3986,7 +3987,7 @@ struct bnx2 {
 #define PHY_LOOPBACK		2
 
 	u8			serdes_an_pending;
-#define SERDES_AN_TIMEOUT	(2 * HZ)
+#define SERDES_AN_TIMEOUT	(HZ / 3)
 
 	u8			mac_addr[8];
 
@@ -4172,6 +4173,9 @@ struct fw_info {
 
 #define BNX2_PORT_HW_CFG_MAC_LOWER		0x00000054
 #define BNX2_PORT_HW_CFG_CONFIG			0x00000058
+#define BNX2_PORT_HW_CFG_CFG_DFLT_LINK_MASK	 0x001f0000
+#define BNX2_PORT_HW_CFG_CFG_DFLT_LINK_AN	 0x00000000
+#define BNX2_PORT_HW_CFG_CFG_DFLT_LINK_1G	 0x00030000
 
 #define BNX2_PORT_HW_CFG_IMD_MAC_A_UPPER	0x00000068
 #define BNX2_PORT_HW_CFG_IMD_MAC_A_LOWER	0x0000006c
