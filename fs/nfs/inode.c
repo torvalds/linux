@@ -595,7 +595,6 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 		{ NFS_MOUNT_SOFT, ",soft", ",hard" },
 		{ NFS_MOUNT_INTR, ",intr", "" },
 		{ NFS_MOUNT_POSIX, ",posix", "" },
-		{ NFS_MOUNT_TCP, ",tcp", ",udp" },
 		{ NFS_MOUNT_NOCTO, ",nocto", "" },
 		{ NFS_MOUNT_NOAC, ",noac", "" },
 		{ NFS_MOUNT_NONLM, ",nolock", ",lock" },
@@ -604,6 +603,8 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 	};
 	struct proc_nfs_info *nfs_infop;
 	struct nfs_server *nfss = NFS_SB(mnt->mnt_sb);
+	char buf[12];
+	char *proto;
 
 	seq_printf(m, ",v%d", nfss->rpc_ops->version);
 	seq_printf(m, ",rsize=%d", nfss->rsize);
@@ -622,6 +623,18 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 		else
 			seq_puts(m, nfs_infop->nostr);
 	}
+	switch (nfss->client->cl_xprt->prot) {
+		case IPPROTO_TCP:
+			proto = "tcp";
+			break;
+		case IPPROTO_UDP:
+			proto = "udp";
+			break;
+		default:
+			snprintf(buf, sizeof(buf), "%u", nfss->client->cl_xprt->prot);
+			proto = buf;
+	}
+	seq_printf(m, ",proto=%s", proto);
 	seq_puts(m, ",addr=");
 	seq_escape(m, nfss->hostname, " \t\n\\");
 	return 0;
