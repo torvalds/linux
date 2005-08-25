@@ -403,9 +403,9 @@ struct clx2_tx_queue {
 #define RX_FREE_BUFFERS 32
 #define RX_LOW_WATERMARK 8
 
-#define SUP_RATE_11A_MAX_NUM_CHANNELS  (8)
-#define SUP_RATE_11B_MAX_NUM_CHANNELS  (4)
-#define SUP_RATE_11G_MAX_NUM_CHANNELS  (12)
+#define SUP_RATE_11A_MAX_NUM_CHANNELS  8
+#define SUP_RATE_11B_MAX_NUM_CHANNELS  4
+#define SUP_RATE_11G_MAX_NUM_CHANNELS  12
 
 // Used for passing to driver number of successes and failures per rate
 struct rate_histogram {
@@ -890,6 +890,9 @@ struct ipw_cmd {
 #define STATUS_SCANNING         (1<<21)
 #define STATUS_SCAN_ABORTING    (1<<22)
 
+#define STATUS_LED_LINK_ON      (1<<24)
+#define STATUS_LED_ACT_ON       (1<<25)
+
 #define STATUS_INDIRECT_BYTE    (1<<28)	/* sysfs entry configured for access */
 #define STATUS_INDIRECT_DWORD   (1<<29)	/* sysfs entry configured for access */
 #define STATUS_DIRECT_DWORD     (1<<30)	/* sysfs entry configured for access */
@@ -905,6 +908,8 @@ struct ipw_cmd {
 #define CFG_ASSOCIATE           (1<<6)
 #define CFG_FIXED_RATE          (1<<7)
 #define CFG_ADHOC_CREATE        (1<<8)
+#define CFG_NO_LED              (1<<9)
+#define CFG_BACKGROUND_SCAN     (1<<10)
 
 #define CAP_SHARED_KEY          (1<<0)	/* Off = OPEN */
 #define CAP_PRIVACY_ON          (1<<1)	/* Off = No privacy */
@@ -1046,8 +1051,23 @@ struct ipw_priv {
 	struct work_struct abort_scan;
 	struct work_struct roam;
 	struct work_struct scan_check;
+	struct work_struct link_up;
+	struct work_struct link_down;
 
 	struct tasklet_struct irq_tasklet;
+
+	/* LED related variables and work_struct */
+	u8 nic_type;
+	u32 led_activity_on;
+	u32 led_activity_off;
+	u32 led_association_on;
+	u32 led_association_off;
+	u32 led_ofdm_on;
+	u32 led_ofdm_off;
+
+	struct work_struct led_link_on;
+	struct work_struct led_link_off;
+	struct work_struct led_act_off;
 
 #define IPW_2200BG  1
 #define IPW_2915ABG 2
@@ -1126,6 +1146,8 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DL_RF_KILL       (1<<17)
 #define IPW_DL_FW_ERRORS     (1<<18)
 
+#define IPW_DL_LED           (1<<19)
+
 #define IPW_DL_ORD           (1<<20)
 
 #define IPW_DL_FRAG          (1<<21)
@@ -1151,6 +1173,7 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DEBUG_TX(f, a...)     IPW_DEBUG(IPW_DL_TX, f, ## a)
 #define IPW_DEBUG_ISR(f, a...)    IPW_DEBUG(IPW_DL_ISR, f, ## a)
 #define IPW_DEBUG_MANAGEMENT(f, a...) IPW_DEBUG(IPW_DL_MANAGE, f, ## a)
+#define IPW_DEBUG_LED(f, a...) IPW_DEBUG(IPW_DL_LED, f, ## a)
 #define IPW_DEBUG_WEP(f, a...)    IPW_DEBUG(IPW_DL_WEP, f, ## a)
 #define IPW_DEBUG_HC(f, a...) IPW_DEBUG(IPW_DL_HOST_COMMAND, f, ## a)
 #define IPW_DEBUG_FRAG(f, a...) IPW_DEBUG(IPW_DL_FRAG, f, ## a)
@@ -1268,25 +1291,25 @@ do { if (ipw_debug_level & (level)) \
 #define CX2_DMA_I_DMA_CONTROL 0x003000A4
 #define CX2_DMA_I_CB_BASE     0x003000A0
 
-#define CX2_TX_CMD_QUEUE_BD_BASE        (0x00000200)
-#define CX2_TX_CMD_QUEUE_BD_SIZE        (0x00000204)
-#define CX2_TX_QUEUE_0_BD_BASE          (0x00000208)
+#define CX2_TX_CMD_QUEUE_BD_BASE        0x00000200
+#define CX2_TX_CMD_QUEUE_BD_SIZE        0x00000204
+#define CX2_TX_QUEUE_0_BD_BASE          0x00000208
 #define CX2_TX_QUEUE_0_BD_SIZE          (0x0000020C)
-#define CX2_TX_QUEUE_1_BD_BASE          (0x00000210)
-#define CX2_TX_QUEUE_1_BD_SIZE          (0x00000214)
-#define CX2_TX_QUEUE_2_BD_BASE          (0x00000218)
+#define CX2_TX_QUEUE_1_BD_BASE          0x00000210
+#define CX2_TX_QUEUE_1_BD_SIZE          0x00000214
+#define CX2_TX_QUEUE_2_BD_BASE          0x00000218
 #define CX2_TX_QUEUE_2_BD_SIZE          (0x0000021C)
-#define CX2_TX_QUEUE_3_BD_BASE          (0x00000220)
-#define CX2_TX_QUEUE_3_BD_SIZE          (0x00000224)
-#define CX2_RX_BD_BASE                  (0x00000240)
-#define CX2_RX_BD_SIZE                  (0x00000244)
-#define CX2_RFDS_TABLE_LOWER            (0x00000500)
+#define CX2_TX_QUEUE_3_BD_BASE          0x00000220
+#define CX2_TX_QUEUE_3_BD_SIZE          0x00000224
+#define CX2_RX_BD_BASE                  0x00000240
+#define CX2_RX_BD_SIZE                  0x00000244
+#define CX2_RFDS_TABLE_LOWER            0x00000500
 
-#define CX2_TX_CMD_QUEUE_READ_INDEX     (0x00000280)
-#define CX2_TX_QUEUE_0_READ_INDEX       (0x00000284)
-#define CX2_TX_QUEUE_1_READ_INDEX       (0x00000288)
+#define CX2_TX_CMD_QUEUE_READ_INDEX     0x00000280
+#define CX2_TX_QUEUE_0_READ_INDEX       0x00000284
+#define CX2_TX_QUEUE_1_READ_INDEX       0x00000288
 #define CX2_TX_QUEUE_2_READ_INDEX       (0x0000028C)
-#define CX2_TX_QUEUE_3_READ_INDEX       (0x00000290)
+#define CX2_TX_QUEUE_3_READ_INDEX       0x00000290
 #define CX2_RX_READ_INDEX               (0x000002A0)
 
 #define CX2_TX_CMD_QUEUE_WRITE_INDEX    (0x00000F80)
@@ -1333,15 +1356,15 @@ do { if (ipw_debug_level & (level)) \
 #define EEPROM_HW_VERSION       (GET_EEPROM_ADDR(0x72,LSB))	/* 2 bytes  */
 
 /* NIC type as found in the one byte EEPROM_NIC_TYPE  offset*/
-#define EEPROM_NIC_TYPE_STANDARD        0
-#define EEPROM_NIC_TYPE_DELL            1
-#define EEPROM_NIC_TYPE_FUJITSU         2
-#define EEPROM_NIC_TYPE_IBM             3
-#define EEPROM_NIC_TYPE_HP              4
+#define EEPROM_NIC_TYPE_0 0
+#define EEPROM_NIC_TYPE_1 1
+#define EEPROM_NIC_TYPE_2 2
+#define EEPROM_NIC_TYPE_3 3
+#define EEPROM_NIC_TYPE_4 4
 
 #define FW_MEM_REG_LOWER_BOUND          0x00300000
 #define FW_MEM_REG_EEPROM_ACCESS        (FW_MEM_REG_LOWER_BOUND + 0x40)
-
+#define CX2_EVENT_REG                   (FW_MEM_REG_LOWER_BOUND + 0x04)
 #define EEPROM_BIT_SK                   (1<<0)
 #define EEPROM_BIT_CS                   (1<<1)
 #define EEPROM_BIT_DI                   (1<<2)
