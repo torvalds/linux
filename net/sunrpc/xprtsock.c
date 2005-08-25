@@ -282,6 +282,13 @@ static int xs_udp_send_request(struct rpc_task *task)
 	return status;
 }
 
+static inline void xs_encode_tcp_record_marker(struct xdr_buf *buf)
+{
+	u32 reclen = buf->len - sizeof(rpc_fraghdr);
+	rpc_fraghdr *base = buf->head[0].iov_base;
+	*base = htonl(RPC_LAST_STREAM_FRAGMENT | reclen);
+}
+
 /**
  * xs_tcp_send_request - write an RPC request to a TCP socket
  * @task: address of RPC task that manages the state of an RPC request
@@ -301,11 +308,9 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct xdr_buf *xdr = &req->rq_snd_buf;
-	u32 *marker = req->rq_svec[0].iov_base;
 	int status, retry = 0;
 
-	/* Write the record marker */
-	*marker = htonl(0x80000000|(req->rq_slen-sizeof(*marker)));
+	xs_encode_tcp_record_marker(&req->rq_snd_buf);
 
 	xs_pktdump("packet data:",
 				req->rq_svec->iov_base,
@@ -503,16 +508,19 @@ static inline void xs_tcp_read_fraghdr(struct rpc_xprt *xprt, skb_reader_t *desc
 	xprt->tcp_offset += used;
 	if (used != len)
 		return;
+
 	xprt->tcp_reclen = ntohl(xprt->tcp_recm);
-	if (xprt->tcp_reclen & 0x80000000)
+	if (xprt->tcp_reclen & RPC_LAST_STREAM_FRAGMENT)
 		xprt->tcp_flags |= XPRT_LAST_FRAG;
 	else
 		xprt->tcp_flags &= ~XPRT_LAST_FRAG;
-	xprt->tcp_reclen &= 0x7fffffff;
+	xprt->tcp_reclen &= RPC_FRAGMENT_SIZE_MASK;
+
 	xprt->tcp_flags &= ~XPRT_COPY_RECM;
 	xprt->tcp_offset = 0;
+
 	/* Sanity check of the record length */
-	if (xprt->tcp_reclen < 4) {
+	if (unlikely(xprt->tcp_reclen < 4)) {
 		dprintk("RPC:      invalid TCP record fragment length\n");
 		xprt_disconnect(xprt);
 		return;
@@ -1065,6 +1073,7 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 
 	xprt->prot = IPPROTO_UDP;
 	xprt->port = XS_MAX_RESVPORT;
+	xprt->tsh_size = 0;
 	xprt->stream = 0;
 	xprt->nocong = 0;
 	xprt->cwnd = RPC_INITCWND;
@@ -1105,11 +1114,12 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 
 	xprt->prot = IPPROTO_TCP;
 	xprt->port = XS_MAX_RESVPORT;
+	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->stream = 1;
 	xprt->nocong = 1;
 	xprt->cwnd = RPC_MAXCWND(xprt);
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
-	xprt->max_payload = (1U << 31) - 1;
+	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 
 	INIT_WORK(&xprt->connect_worker, xs_tcp_connect_worker, xprt);
 

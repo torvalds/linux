@@ -1075,13 +1075,12 @@ static u32 *
 call_header(struct rpc_task *task)
 {
 	struct rpc_clnt *clnt = task->tk_client;
-	struct rpc_xprt *xprt = clnt->cl_xprt;
 	struct rpc_rqst	*req = task->tk_rqstp;
 	u32		*p = req->rq_svec[0].iov_base;
 
 	/* FIXME: check buffer size? */
-	if (xprt->stream)
-		*p++ = 0;		/* fill in later */
+
+	p = xprt_skip_transport_header(task->tk_xprt, p);
 	*p++ = req->rq_xid;		/* XID */
 	*p++ = htonl(RPC_CALL);		/* CALL */
 	*p++ = htonl(RPC_VERSION);	/* RPC version */

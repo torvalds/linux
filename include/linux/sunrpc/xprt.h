@@ -155,6 +155,8 @@ struct rpc_xprt {
 
 	size_t			max_payload;	/* largest RPC payload size,
 						   in bytes */
+	unsigned int		tsh_size;	/* size of transport specific
+						   header */
 
 	struct rpc_wait_queue	sending;	/* requests waiting to send */
 	struct rpc_wait_queue	resend;		/* requests waiting to resend */
@@ -235,6 +237,11 @@ void			xprt_transmit(struct rpc_task *task);
 int			xprt_adjust_timeout(struct rpc_rqst *req);
 void			xprt_release(struct rpc_task *task);
 int			xprt_destroy(struct rpc_xprt *xprt);
+
+static inline u32 *xprt_skip_transport_header(struct rpc_xprt *xprt, u32 *p)
+{
+	return p + xprt->tsh_size;
+}
 
 /*
  * Transport switch helper functions
