@@ -36,11 +36,6 @@
 #include <net/tcp.h>
 
 /*
- * Maximum port number to use when requesting a reserved port.
- */
-#define XS_MAX_RESVPORT		(800U)
-
-/*
  * How many times to try sending a request on a socket before waiting
  * for the socket buffer to clear.
  */
@@ -873,10 +868,9 @@ static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
 	struct sockaddr_in myaddr = {
 		.sin_family = AF_INET,
 	};
-	int err, port;
+	int err;
+	unsigned short port = xprt->port;
 
-	/* Were we already bound to a given port? Try to reuse it */
-	port = xprt->port;
 	do {
 		myaddr.sin_port = htons(port);
 		err = sock->ops->bind(sock, (struct sockaddr *) &myaddr,
@@ -887,8 +881,10 @@ static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
 					port);
 			return 0;
 		}
-		if (--port == 0)
-			port = XS_MAX_RESVPORT;
+		if (port <= xprt_min_resvport)
+			port = xprt_max_resvport;
+		else
+			port--;
 	} while (err == -EADDRINUSE && port != xprt->port);
 
 	dprintk("RPC:      can't bind to reserved port (%d).\n", -err);
@@ -1075,9 +1071,6 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.destroy		= xs_destroy,
 };
 
-extern unsigned int xprt_udp_slot_table_entries;
-extern unsigned int xprt_tcp_slot_table_entries;
-
 /**
  * xs_setup_udp - Set up transport to use a UDP socket
  * @xprt: transport to set up
@@ -1098,7 +1091,7 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	memset(xprt->slot, 0, slot_table_size);
 
 	xprt->prot = IPPROTO_UDP;
-	xprt->port = XS_MAX_RESVPORT;
+	xprt->port = xprt_max_resvport;
 	xprt->tsh_size = 0;
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
@@ -1136,7 +1129,7 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	memset(xprt->slot, 0, slot_table_size);
 
 	xprt->prot = IPPROTO_TCP;
-	xprt->port = XS_MAX_RESVPORT;
+	xprt->port = xprt_max_resvport;
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;

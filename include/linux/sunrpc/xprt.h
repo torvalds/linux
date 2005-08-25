@@ -52,6 +52,17 @@ extern unsigned int xprt_tcp_slot_table_entries;
 #define RPC_REPHDRSIZE		4
 
 /*
+ * Parameters for choosing a free port
+ */
+extern unsigned int xprt_min_resvport;
+extern unsigned int xprt_max_resvport;
+
+#define RPC_MIN_RESVPORT	(1U)
+#define RPC_MAX_RESVPORT	(65535U)
+#define RPC_DEF_MIN_RESVPORT	(650U)
+#define RPC_DEF_MAX_RESVPORT	(1023U)
+
+/*
  * This describes a timeout strategy
  */
 struct rpc_timeout {
@@ -61,6 +72,9 @@ struct rpc_timeout {
 	unsigned int		to_retries;		/* max # of retries */
 	unsigned char		to_exponential;
 };
+
+struct rpc_task;
+struct rpc_xprt;
 
 /*
  * This describes a complete RPC request
@@ -106,9 +120,6 @@ struct rpc_rqst {
 };
 #define rq_svec			rq_snd_buf.head
 #define rq_slen			rq_snd_buf.len
-
-struct rpc_task;
-struct rpc_xprt;
 
 struct rpc_xprt_ops {
 	void		(*set_buffer_size)(struct rpc_xprt *xprt);
