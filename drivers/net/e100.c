@@ -2108,6 +2108,8 @@ static void e100_diag_test(struct net_device *netdev,
 	}
 	for(i = 0; i < E100_TEST_LEN; i++)
 		test->flags |= data[i] ? ETH_TEST_FL_FAILED : 0;
+
+	msleep_interruptible(4 * 1000);
 }
 
 static int e100_phys_id(struct net_device *netdev, u32 data)
