@@ -397,7 +397,7 @@ config SUN3LANCE
 	  If you're not building a kernel for a Sun 3, say N.
 
 config SUN3_82586
-	tristate "Sun3 on-board Intel 82586 support"
+	bool "Sun3 on-board Intel 82586 support"
 	depends on NET_ETHERNET && SUN3
 	help
 	  This driver enables support for the on-board Intel 82586 based
