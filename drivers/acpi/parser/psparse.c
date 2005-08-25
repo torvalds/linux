@@ -438,7 +438,6 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 {
 	acpi_status status;
-	acpi_status terminate_status;
 	struct acpi_thread_state *thread;
 	struct acpi_thread_state *prev_walk_list = acpi_gbl_current_walk_list;
 	struct acpi_walk_state *previous_walk_state;
@@ -508,6 +507,9 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 						 walk_state->method_node, NULL,
 						 status);
 
+			/* Make sure that failed method will be cleaned as if it was executed */
+			walk_state->parse_flags |= ACPI_PARSE_EXECUTE;
+			
 			/* Check for possible multi-thread reentrancy problem */
 
 			if ((status == AE_ALREADY_EXISTS) &&
@@ -521,14 +523,6 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 				walk_state->method_desc->method.method_flags |=
 				    AML_METHOD_SERIALIZED;
 				walk_state->method_desc->method.concurrency = 1;
-			}
-		}
-
-		if (walk_state->method_desc) {
-			/* Decrement the thread count on the method parse tree */
-
-			if (walk_state->method_desc->method.thread_count) {
-				walk_state->method_desc->method.thread_count--;
 			}
 		}
 
@@ -546,13 +540,10 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		 */
 		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) ==
 		    ACPI_PARSE_EXECUTE) {
-			terminate_status =
-			    acpi_ds_terminate_control_method(walk_state);
-			if (ACPI_FAILURE(terminate_status)) {
-				ACPI_REPORT_ERROR(("Could not terminate control method properly\n"));
-
-				/* Ignore error and continue */
+			if (walk_state->method_desc) {
+				walk_state->method_desc->method.thread_count--;
 			}
+			acpi_ds_terminate_control_method (walk_state);
 		}
 
 		/* Delete this walk state and all linked control states */
