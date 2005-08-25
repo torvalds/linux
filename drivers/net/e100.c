@@ -1539,7 +1539,7 @@ static inline int e100_rx_indicate(struct nic *nic, struct rx *rx,
 		/* Don't indicate if hardware indicates errors */
 		nic->net_stats.rx_dropped++;
 		dev_kfree_skb_any(skb);
-	} else if(actual_size > nic->netdev->mtu + VLAN_ETH_HLEN) {
+	} else if(actual_size > ETH_DATA_LEN + VLAN_ETH_HLEN) {
 		/* Don't indicate oversized frames */
 		nic->rx_over_length_errors++;
 		nic->net_stats.rx_dropped++;
