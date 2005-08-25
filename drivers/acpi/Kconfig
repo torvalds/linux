@@ -44,9 +44,9 @@ config ACPI
 if ACPI
 
 config ACPI_SLEEP
-	bool "Sleep States (EXPERIMENTAL)"
+	bool "Sleep States"
 	depends on X86 && (!SMP || SUSPEND_SMP)
-	depends on EXPERIMENTAL && PM
+	depends on PM
 	default y
 	---help---
 	  This option adds support for ACPI suspend states. 
@@ -108,7 +108,6 @@ config ACPI_BUTTON
 config ACPI_VIDEO
 	tristate "Video"
 	depends on X86
-	depends on EXPERIMENTAL
 	default m
 	help
 	  This driver implement the ACPI Extensions For Display Adapters
@@ -120,7 +119,7 @@ config ACPI_VIDEO
 	  for your integrated video device.
 
 config ACPI_HOTKEY
-	tristate "Generic Hotkey"
+	tristate "Generic Hotkey (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 	depends on X86
 	default n
@@ -296,7 +295,6 @@ config ACPI_SYSTEM
 config X86_PM_TIMER
 	bool "Power Management Timer Support"
 	depends on X86
-	depends on EXPERIMENTAL
 	depends on !X86_64
 	default n
 	help
