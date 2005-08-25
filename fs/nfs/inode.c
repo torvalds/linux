@@ -369,8 +369,8 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto, unsigned 
 	case IPPROTO_TCP:
 		if (!to->to_initval)
 			to->to_initval = 60 * HZ;
-		if (to->to_initval > RPC_MAX_TCP_TIMEOUT)
-			to->to_initval = RPC_MAX_TCP_TIMEOUT;
+		if (to->to_initval > NFS_MAX_TCP_TIMEOUT)
+			to->to_initval = NFS_MAX_TCP_TIMEOUT;
 		to->to_increment = to->to_initval;
 		to->to_maxval = to->to_initval + (to->to_increment * to->to_retries);
 		to->to_exponential = 0;
@@ -379,9 +379,9 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto, unsigned 
 	default:
 		if (!to->to_initval)
 			to->to_initval = 11 * HZ / 10;
-		if (to->to_initval > RPC_MAX_UDP_TIMEOUT)
-			to->to_initval = RPC_MAX_UDP_TIMEOUT;
-		to->to_maxval = RPC_MAX_UDP_TIMEOUT;
+		if (to->to_initval > NFS_MAX_UDP_TIMEOUT)
+			to->to_initval = NFS_MAX_UDP_TIMEOUT;
+		to->to_maxval = NFS_MAX_UDP_TIMEOUT;
 		to->to_exponential = 1;
 		break;
 	}

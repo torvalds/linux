@@ -41,6 +41,50 @@
  */
 #define XS_SENDMSG_RETRY	(10U)
 
+/*
+ * Time out for an RPC UDP socket connect.  UDP socket connects are
+ * synchronous, but we set a timeout anyway in case of resource
+ * exhaustion on the local host.
+ */
+#define XS_UDP_CONN_TO		(5U * HZ)
+
+/*
+ * Wait duration for an RPC TCP connection to be established.  Solaris
+ * NFS over TCP uses 60 seconds, for example, which is in line with how
+ * long a server takes to reboot.
+ */
+#define XS_TCP_CONN_TO		(60U * HZ)
+
+/*
+ * Wait duration for a reply from the RPC portmapper.
+ */
+#define XS_BIND_TO		(60U * HZ)
+
+/*
+ * Delay if a UDP socket connect error occurs.  This is most likely some
+ * kind of resource problem on the local host.
+ */
+#define XS_UDP_REEST_TO		(2U * HZ)
+
+/*
+ * The reestablish timeout allows clients to delay for a bit before attempting
+ * to reconnect to a server that just dropped our connection.
+ *
+ * We implement an exponential backoff when trying to reestablish a TCP
+ * transport connection with the server.  Some servers like to drop a TCP
+ * connection when they are overworked, so we start with a short timeout and
+ * increase over time if the server is down or not responding.
+ */
+#define XS_TCP_INIT_REEST_TO	(3U * HZ)
+#define XS_TCP_MAX_REEST_TO	(5U * 60 * HZ)
+
+/*
+ * TCP idle timeout; client drops the transport socket if it is idle
+ * for this long.  Note that we also timeout UDP sockets to prevent
+ * holding port numbers when there is no RPC traffic.
+ */
+#define XS_IDLE_DISC_TO		(5U * 60 * HZ)
+
 #ifdef RPC_DEBUG
 # undef  RPC_DEBUG_DATA
 # define RPCDBG_FACILITY	RPCDBG_TRANS
@@ -739,6 +783,7 @@ static void xs_tcp_state_change(struct sock *sk)
 			xprt->tcp_reclen = 0;
 			xprt->tcp_copied = 0;
 			xprt->tcp_flags = XPRT_COPY_RECM | XPRT_COPY_XID;
+			xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
 			xprt_wake_pending_tasks(xprt, 0);
 		}
 		spin_unlock_bh(&xprt->transport_lock);
@@ -1066,6 +1111,13 @@ out_clear:
  * @task: address of RPC task that manages state of connect request
  *
  * TCP: If the remote end dropped the connection, delay reconnecting.
+ *
+ * UDP socket connects are synchronous, but we use a work queue anyway
+ * to guarantee that even unprivileged user processes can set up a
+ * socket on a privileged port.
+ *
+ * If a UDP socket connect fails, the delay behavior here prevents
+ * retry floods (hard mounts).
  */
 static void xs_connect(struct rpc_task *task)
 {
@@ -1075,9 +1127,13 @@ static void xs_connect(struct rpc_task *task)
 		return;
 
 	if (xprt->sock != NULL) {
-		dprintk("RPC:      xs_connect delayed xprt %p\n", xprt);
+		dprintk("RPC:      xs_connect delayed xprt %p for %lu seconds\n",
+				xprt, xprt->reestablish_timeout / HZ);
 		schedule_delayed_work(&xprt->connect_worker,
-					RPC_REESTABLISH_TIMEOUT);
+					xprt->reestablish_timeout);
+		xprt->reestablish_timeout <<= 1;
+		if (xprt->reestablish_timeout > XS_TCP_MAX_REEST_TO)
+			xprt->reestablish_timeout = XS_TCP_MAX_REEST_TO;
 	} else {
 		dprintk("RPC:      xs_connect scheduled xprt %p\n", xprt);
 		schedule_work(&xprt->connect_worker);
@@ -1139,6 +1195,10 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	xprt->max_payload = (1U << 16) - (MAX_HEADER << 3);
 
 	INIT_WORK(&xprt->connect_worker, xs_udp_connect_worker, xprt);
+	xprt->bind_timeout = XS_BIND_TO;
+	xprt->connect_timeout = XS_UDP_CONN_TO;
+	xprt->reestablish_timeout = XS_UDP_REEST_TO;
+	xprt->idle_timeout = XS_IDLE_DISC_TO;
 
 	xprt->ops = &xs_udp_ops;
 
@@ -1176,6 +1236,10 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 
 	INIT_WORK(&xprt->connect_worker, xs_tcp_connect_worker, xprt);
+	xprt->bind_timeout = XS_BIND_TO;
+	xprt->connect_timeout = XS_TCP_CONN_TO;
+	xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
+	xprt->idle_timeout = XS_IDLE_DISC_TO;
 
 	xprt->ops = &xs_tcp_ops;
 

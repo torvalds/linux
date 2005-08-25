@@ -551,7 +551,7 @@ void xprt_connect(struct rpc_task *task)
 		if (task->tk_rqstp)
 			task->tk_rqstp->rq_bytes_sent = 0;
 
-		task->tk_timeout = RPC_CONNECT_TIMEOUT;
+		task->tk_timeout = xprt->connect_timeout;
 		rpc_sleep_on(&xprt->pending, task, xprt_connect_status, NULL);
 		xprt->ops->connect(task);
 	}
@@ -763,7 +763,6 @@ void xprt_transmit(struct rpc_task *task)
 
 	switch (status) {
 	case -ECONNREFUSED:
-		task->tk_timeout = RPC_REESTABLISH_TIMEOUT;
 		rpc_sleep_on(&xprt->sending, task, NULL, NULL);
 	case -EAGAIN:
 	case -ENOTCONN:
@@ -857,7 +856,7 @@ void xprt_release(struct rpc_task *task)
 	xprt->last_used = jiffies;
 	if (list_empty(&xprt->recv) && !xprt->shutdown)
 		mod_timer(&xprt->timer,
-				xprt->last_used + RPC_IDLE_DISCONNECT_TIMEOUT);
+				xprt->last_used + xprt->idle_timeout);
 	spin_unlock_bh(&xprt->transport_lock);
 	task->tk_rqstp = NULL;
 	memset(req, 0, sizeof(*req));	/* mark unused */

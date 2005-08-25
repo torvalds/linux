@@ -22,28 +22,6 @@ extern unsigned int xprt_tcp_slot_table_entries;
 #define RPC_DEF_SLOT_TABLE	(16U)
 #define RPC_MAX_SLOT_TABLE	(128U)
 
-/* Default timeout values */
-#define RPC_MAX_UDP_TIMEOUT	(60*HZ)
-#define RPC_MAX_TCP_TIMEOUT	(600*HZ)
-
-/*
- * Wait duration for an RPC TCP connection to be established.  Solaris
- * NFS over TCP uses 60 seconds, for example, which is in line with how
- * long a server takes to reboot.
- */
-#define RPC_CONNECT_TIMEOUT	(60*HZ)
-
-/*
- * Delay an arbitrary number of seconds before attempting to reconnect
- * after an error.
- */
-#define RPC_REESTABLISH_TIMEOUT	(15*HZ)
-
-/*
- * RPC transport idle timeout.
- */
-#define RPC_IDLE_DISCONNECT_TIMEOUT	(5*60*HZ)
-
 /*
  * RPC call and reply header size as number of 32bit words (verifier
  * size computed separately)
@@ -182,14 +160,19 @@ struct rpc_xprt {
 	/*
 	 * Connection of transports
 	 */
+	unsigned long		connect_timeout,
+				bind_timeout,
+				reestablish_timeout;
 	struct work_struct	connect_worker;
 	unsigned short		port;
+
 	/*
 	 * Disconnection of idle transports
 	 */
 	struct work_struct	task_cleanup;
 	struct timer_list	timer;
-	unsigned long		last_used;
+	unsigned long		last_used,
+				idle_timeout;
 
 	/*
 	 * Send stuff

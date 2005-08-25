@@ -41,6 +41,10 @@
 #define NFS_MAX_FILE_IO_BUFFER_SIZE	32768
 #define NFS_DEF_FILE_IO_BUFFER_SIZE	4096
 
+/* Default timeout values */
+#define NFS_MAX_UDP_TIMEOUT	(60*HZ)
+#define NFS_MAX_TCP_TIMEOUT	(600*HZ)
+
 /*
  * superblock magic number for NFS
  */
