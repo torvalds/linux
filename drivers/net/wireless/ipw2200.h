@@ -244,7 +244,7 @@ enum connection_manager_assoc_states {
 #define HOST_NOTIFICATION_S36_MEASUREMENT_REFUSED       31
 
 #define HOST_NOTIFICATION_STATUS_BEACON_MISSING         1
-#define IPW_MB_DISASSOCIATE_THRESHOLD_DEFAULT           24
+#define IPW_MB_DISASSOCIATE_THRESHOLD_DEFAULT           9
 #define IPW_MB_ROAMING_THRESHOLD_DEFAULT                8
 #define IPW_REAL_RATE_RX_PACKET_THRESHOLD               300
 
@@ -699,8 +699,8 @@ struct ipw_rx_packet {
 } __attribute__ ((packed));
 
 #define IPW_RX_NOTIFICATION_SIZE sizeof(struct ipw_rx_header) + 12
-#define IPW_RX_FRAME_SIZE        sizeof(struct ipw_rx_header) + \
-                                 sizeof(struct ipw_rx_frame)
+#define IPW_RX_FRAME_SIZE        (unsigned int)(sizeof(struct ipw_rx_header) + \
+                                 sizeof(struct ipw_rx_frame))
 
 struct ipw_rx_mem_buffer {
 	dma_addr_t dma_addr;
@@ -1029,6 +1029,7 @@ struct ipw_cmd {
 #define STATUS_SCAN_PENDING     (1<<20)
 #define STATUS_SCANNING         (1<<21)
 #define STATUS_SCAN_ABORTING    (1<<22)
+#define STATUS_SCAN_FORCED      (1<<23)
 
 #define STATUS_LED_LINK_ON      (1<<24)
 #define STATUS_LED_ACT_ON       (1<<25)
@@ -1074,6 +1075,15 @@ struct average {
 };
 
 #define MAX_SPEED_SCAN 100
+#define IPW_IBSS_MAC_HASH_SIZE 31
+
+struct ipw_ibss_seq {
+	u8 mac[ETH_ALEN];
+	u16 seq_num;
+	u16 frag_num;
+	unsigned long packet_time;
+	struct list_head list;
+};
 
 struct ipw_priv {
 	/* ieee device used by generic ieee processing code */
@@ -1115,7 +1125,7 @@ struct ipw_priv {
 	int rx_bufs_min;	  /**< minimum number of bufs in Rx queue */
 	int rx_pend_max;	  /**< maximum pending buffers for one IRQ */
 	u32 hcmd_seq;		  /**< sequence number for hcmd */
-	u32 missed_beacon_threshold;
+	u32 disassociate_threshold;
 	u32 roaming_threshold;
 
 	struct ipw_associate assoc_request;
@@ -1156,6 +1166,8 @@ struct ipw_priv {
 	u8 mac_addr[ETH_ALEN];
 	u8 num_stations;
 	u8 stations[MAX_STATIONS][ETH_ALEN];
+	u8 short_retry_limit;
+	u8 long_retry_limit;
 
 	u32 notif_missed_beacons;
 
@@ -1176,8 +1188,14 @@ struct ipw_priv {
 	u8 speed_scan[MAX_SPEED_SCAN];
 	u8 speed_scan_pos;
 
+	u16 last_seq_num;
+	u16 last_frag_num;
+	unsigned long last_packet_time;
+	struct list_head ibss_mac_hash[IPW_IBSS_MAC_HASH_SIZE];
+
 	/* eeprom */
 	u8 eeprom[0x100];	/* 256 bytes of eeprom */
+	u8 country[4];
 	int eeprom_delay;
 
 	struct iw_statistics wstats;
