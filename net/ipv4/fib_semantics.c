@@ -854,6 +854,7 @@ failure:
 	return NULL;
 }
 
+/* Note! fib_semantic_match intentionally uses  RCU list functions. */
 int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 		       struct fib_result *res, __u32 zone, __u32 mask, 
 			int prefixlen)
@@ -861,7 +862,7 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 	struct fib_alias *fa;
 	int nh_sel = 0;
 
-	list_for_each_entry(fa, head, fa_list) {
+	list_for_each_entry_rcu(fa, head, fa_list) {
 		int err;
 
 		if (fa->fa_tos &&

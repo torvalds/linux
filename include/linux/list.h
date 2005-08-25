@@ -634,6 +634,27 @@ static inline void hlist_add_after(struct hlist_node *n,
 		next->next->pprev  = &next->next;
 }
 
+static inline void hlist_add_before_rcu(struct hlist_node *n,
+					struct hlist_node *next)
+{
+	n->pprev = next->pprev;
+	n->next = next;
+	smp_wmb();
+	next->pprev = &n->next;
+	*(n->pprev) = n;
+}
+
+static inline void hlist_add_after_rcu(struct hlist_node *prev,
+				       struct hlist_node *n)
+{
+	n->next = prev->next;
+	n->pprev = &prev->next;
+	smp_wmb();
+	prev->next = n;
+	if (n->next)
+		n->next->pprev = &n->next;
+}
+
 #define hlist_entry(ptr, type, member) container_of(ptr,type,member)
 
 #define hlist_for_each(pos, head) \
