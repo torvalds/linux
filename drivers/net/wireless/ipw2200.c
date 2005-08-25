@@ -2834,7 +2834,7 @@ struct fw_chunk {
 };
 
 #define IPW_FW_MAJOR_VERSION 2
-#define IPW_FW_MINOR_VERSION 3
+#define IPW_FW_MINOR_VERSION 4
 
 #define IPW_FW_MINOR(x) ((x & 0xff) >> 8)
 #define IPW_FW_MAJOR(x) (x & 0xff)
