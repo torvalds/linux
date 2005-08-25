@@ -1691,7 +1691,7 @@ int adm1026_detect(struct i2c_adapter *adapter, int address,
 
 	/* Error out and cleanup code */
 exitfree:
-	kfree(new_client);
+	kfree(data);
 exit:
 	return err;
 }

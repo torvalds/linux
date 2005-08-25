@@ -834,7 +834,7 @@ static int adm1031_detect(struct i2c_adapter *adapter, int address, int kind)
 	return 0;
 
 exit_free:
-	kfree(new_client);
+	kfree(data);
 exit:
 	return err;
 }

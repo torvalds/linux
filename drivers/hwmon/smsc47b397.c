@@ -298,7 +298,7 @@ static int smsc47b397_detect(struct i2c_adapter *adapter, int addr, int kind)
 	return 0;
 
 error_free:
-	kfree(new_client);
+	kfree(data);
 error_release:
 	release_region(addr, SMSC_EXTENT);
 	return err;
