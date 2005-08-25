@@ -356,6 +356,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	default:
 		dprintk("RPC:      sendmsg returned unrecognized error %d\n",
 			-status);
+		xprt_disconnect(xprt);
 		break;
 	}
 
@@ -826,19 +827,17 @@ static void xs_tcp_write_space(struct sock *sk)
 }
 
 /**
- * xs_set_buffer_size - set send and receive limits
+ * xs_udp_set_buffer_size - set send and receive limits
  * @xprt: generic transport
  *
  * Set socket send and receive limits based on the
  * sndsize and rcvsize fields in the generic transport
- * structure. This applies only to UDP sockets.
+ * structure.
  */
-static void xs_set_buffer_size(struct rpc_xprt *xprt)
+static void xs_udp_set_buffer_size(struct rpc_xprt *xprt)
 {
 	struct sock *sk = xprt->inet;
 
-	if (xprt->stream)
-		return;
 	if (xprt->rcvsize) {
 		sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
 		sk->sk_rcvbuf = xprt->rcvsize * xprt->max_reqs *  2;
@@ -848,6 +847,17 @@ static void xs_set_buffer_size(struct rpc_xprt *xprt)
 		sk->sk_sndbuf = xprt->sndsize * xprt->max_reqs * 2;
 		sk->sk_write_space(sk);
 	}
+}
+
+/**
+ * xs_tcp_set_buffer_size - set send and receive limits
+ * @xprt: generic transport
+ *
+ * Nothing to do for TCP.
+ */
+static void xs_tcp_set_buffer_size(struct rpc_xprt *xprt)
+{
+	return;
 }
 
 static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
@@ -928,7 +938,7 @@ static void xs_udp_connect_worker(void *args)
 
 		write_unlock_bh(&sk->sk_callback_lock);
 	}
-	xs_set_buffer_size(xprt);
+	xs_udp_set_buffer_size(xprt);
 	status = 0;
 out:
 	xprt_wake_pending_tasks(xprt, status);
@@ -1034,7 +1044,7 @@ static void xs_connect(struct rpc_task *task)
 }
 
 static struct rpc_xprt_ops xs_udp_ops = {
-	.set_buffer_size	= xs_set_buffer_size,
+	.set_buffer_size	= xs_udp_set_buffer_size,
 	.connect		= xs_connect,
 	.send_request		= xs_udp_send_request,
 	.close			= xs_close,
@@ -1042,7 +1052,7 @@ static struct rpc_xprt_ops xs_udp_ops = {
 };
 
 static struct rpc_xprt_ops xs_tcp_ops = {
-	.set_buffer_size	= xs_set_buffer_size,
+	.set_buffer_size	= xs_tcp_set_buffer_size,
 	.connect		= xs_connect,
 	.send_request		= xs_tcp_send_request,
 	.close			= xs_close,
@@ -1074,7 +1084,6 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	xprt->prot = IPPROTO_UDP;
 	xprt->port = XS_MAX_RESVPORT;
 	xprt->tsh_size = 0;
-	xprt->stream = 0;
 	xprt->nocong = 0;
 	xprt->cwnd = RPC_INITCWND;
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
@@ -1115,7 +1124,6 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	xprt->prot = IPPROTO_TCP;
 	xprt->port = XS_MAX_RESVPORT;
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
-	xprt->stream = 1;
 	xprt->nocong = 1;
 	xprt->cwnd = RPC_MAXCWND(xprt);
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;

@@ -630,8 +630,7 @@ void xprt_transmit(struct rpc_task *task)
 	case -ENOTCONN:
 		return;
 	default:
-		if (xprt->stream)
-			xprt_disconnect(xprt);
+		break;
 	}
 	xprt_release_write(xprt, task);
 	return;
