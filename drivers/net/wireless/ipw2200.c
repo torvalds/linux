@@ -7907,7 +7907,7 @@ static void ipw_handle_data_packet(struct ipw_priv *priv,
 	IPW_DEBUG_RX("Rx packet of %d bytes.\n", rxb->skb->len);
 
 	/* HW decrypt will not clear the WEP bit, MIC, PN, etc. */
-	if (!priv->ieee->host_decrypt)
+	if (!priv->ieee->host_decrypt && priv->ieee->iw_mode != IW_MODE_MONITOR)
 		ipw_rebuild_decrypted_skb(priv, rxb->skb);
 
 	if (!ieee80211_rx(priv->ieee, rxb->skb, stats))
