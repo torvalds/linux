@@ -107,6 +107,7 @@ config ACPI_BUTTON
 
 config ACPI_VIDEO
 	tristate "Video"
+	depends on X86
 	depends on EXPERIMENTAL
 	default m
 	help
@@ -121,7 +122,7 @@ config ACPI_VIDEO
 config ACPI_HOTKEY
 	tristate "Generic Hotkey"
 	depends on EXPERIMENTAL
-	depends on !IA64_SGI_SN
+	depends on X86
 	default n
 	help
 	  Experimental consolidated hotkey driver.
@@ -250,6 +251,7 @@ config ACPI_CUSTOM_DSDT_FILE
 
 config ACPI_BLACKLIST_YEAR
 	int "Disable ACPI for systems before Jan 1st this year"
+	depends on X86
 	default 0
 	help
 	  enter a 4-digit year, eg. 2001 to disable ACPI by default
