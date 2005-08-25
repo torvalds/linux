@@ -865,15 +865,7 @@ static void xs_tcp_write_space(struct sock *sk)
 	read_unlock(&sk->sk_callback_lock);
 }
 
-/**
- * xs_udp_set_buffer_size - set send and receive limits
- * @xprt: generic transport
- *
- * Set socket send and receive limits based on the
- * sndsize and rcvsize fields in the generic transport
- * structure.
- */
-static void xs_udp_set_buffer_size(struct rpc_xprt *xprt)
+static void xs_udp_do_set_buffer_size(struct rpc_xprt *xprt)
 {
 	struct sock *sk = xprt->inet;
 
@@ -889,14 +881,23 @@ static void xs_udp_set_buffer_size(struct rpc_xprt *xprt)
 }
 
 /**
- * xs_tcp_set_buffer_size - set send and receive limits
+ * xs_udp_set_buffer_size - set send and receive limits
  * @xprt: generic transport
+ * @sndsize: requested size of send buffer, in bytes
+ * @rcvsize: requested size of receive buffer, in bytes
  *
- * Nothing to do for TCP.
+ * Set socket send and receive buffer size limits.
  */
-static void xs_tcp_set_buffer_size(struct rpc_xprt *xprt)
+static void xs_udp_set_buffer_size(struct rpc_xprt *xprt, size_t sndsize, size_t rcvsize)
 {
-	return;
+	xprt->sndsize = 0;
+	if (sndsize)
+		xprt->sndsize = sndsize + 1024;
+	xprt->rcvsize = 0;
+	if (rcvsize)
+		xprt->rcvsize = rcvsize + 1024;
+
+	xs_udp_do_set_buffer_size(xprt);
 }
 
 /**
@@ -989,7 +990,7 @@ static void xs_udp_connect_worker(void *args)
 
 		write_unlock_bh(&sk->sk_callback_lock);
 	}
-	xs_udp_set_buffer_size(xprt);
+	xs_udp_do_set_buffer_size(xprt);
 	status = 0;
 out:
 	xprt_wake_pending_tasks(xprt, status);
@@ -1158,7 +1159,6 @@ static struct rpc_xprt_ops xs_udp_ops = {
 };
 
 static struct rpc_xprt_ops xs_tcp_ops = {
-	.set_buffer_size	= xs_tcp_set_buffer_size,
 	.reserve_xprt		= xprt_reserve_xprt,
 	.release_xprt		= xprt_release_xprt,
 	.connect		= xs_connect,

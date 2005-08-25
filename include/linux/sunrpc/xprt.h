@@ -100,7 +100,7 @@ struct rpc_rqst {
 #define rq_slen			rq_snd_buf.len
 
 struct rpc_xprt_ops {
-	void		(*set_buffer_size)(struct rpc_xprt *xprt);
+	void		(*set_buffer_size)(struct rpc_xprt *xprt, size_t sndsize, size_t rcvsize);
 	int		(*reserve_xprt)(struct rpc_task *task);
 	void		(*release_xprt)(struct rpc_xprt *xprt, struct rpc_task *task);
 	void		(*connect)(struct rpc_task *task);
@@ -124,7 +124,7 @@ struct rpc_xprt {
 	unsigned long		cong;		/* current congestion */
 	unsigned long		cwnd;		/* congestion window */
 
-	unsigned int		rcvsize,	/* transport rcv buffer size */
+	size_t			rcvsize,	/* transport rcv buffer size */
 				sndsize;	/* transport send buffer size */
 
 	size_t			max_payload;	/* largest RPC payload size,

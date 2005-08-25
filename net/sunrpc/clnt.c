@@ -517,14 +517,8 @@ void
 rpc_setbufsize(struct rpc_clnt *clnt, unsigned int sndsize, unsigned int rcvsize)
 {
 	struct rpc_xprt *xprt = clnt->cl_xprt;
-
-	xprt->sndsize = 0;
-	if (sndsize)
-		xprt->sndsize = sndsize + RPC_SLACK_SPACE;
-	xprt->rcvsize = 0;
-	if (rcvsize)
-		xprt->rcvsize = rcvsize + RPC_SLACK_SPACE;
-	xprt->ops->set_buffer_size(xprt);
+	if (xprt->ops->set_buffer_size)
+		xprt->ops->set_buffer_size(xprt, sndsize, rcvsize);
 }
 
 /*
