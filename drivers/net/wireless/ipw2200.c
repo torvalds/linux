@@ -1884,6 +1884,18 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 		return -EAGAIN;
 	}
 
+	if (priv->status & STATUS_ASSOCIATING) {
+		IPW_DEBUG_HC("abandon a command while associating\n");
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return -1;
+	}
+
+	if (priv->status & STATUS_DISASSOCIATING) {
+		IPW_DEBUG_HC("abandon a command while disassociating\n");
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return -1;
+	}
+
 	priv->status |= STATUS_HCMD_ACTIVE;
 
 	if (priv->cmdlog) {
@@ -3671,7 +3683,13 @@ static void ipw_send_disassociate(struct ipw_priv *priv, int quiet)
 {
 	int err;
 
-	if (!(priv->status & (STATUS_ASSOCIATING | STATUS_ASSOCIATED))) {
+	if (priv->status & STATUS_ASSOCIATING) {
+		IPW_DEBUG_ASSOC("Disassociating while associating.\n");
+		queue_work(priv->workqueue, &priv->disassociate);
+		return;
+	}
+
+	if (!(priv->status & STATUS_ASSOCIATED)) {
 		IPW_DEBUG_ASSOC("Disassociating while not associated.\n");
 		return;
 	}
@@ -3680,9 +3698,6 @@ static void ipw_send_disassociate(struct ipw_priv *priv, int quiet)
 			"on channel %d.\n",
 			MAC_ARG(priv->assoc_request.bssid),
 			priv->assoc_request.channel);
-
-	priv->status &= ~(STATUS_ASSOCIATING | STATUS_ASSOCIATED);
-	priv->status |= STATUS_DISASSOCIATING;
 
 	if (quiet)
 		priv->assoc_request.assoc_type = HC_DISASSOC_QUIET;
@@ -3694,6 +3709,9 @@ static void ipw_send_disassociate(struct ipw_priv *priv, int quiet)
 			     "failed.\n");
 		return;
 	}
+
+	priv->status &= ~(STATUS_ASSOCIATING | STATUS_ASSOCIATED);
+	priv->status |= STATUS_DISASSOCIATING;
 
 }
 
@@ -7625,8 +7643,6 @@ static int ipw_associate_network(struct ipw_priv *priv,
 	 */
 	priv->channel = network->channel;
 	memcpy(priv->bssid, network->bssid, ETH_ALEN);
-	priv->status |= STATUS_ASSOCIATING;
-	priv->status &= ~STATUS_SECURITY_UPDATED;
 
 	priv->assoc_network = network;
 
@@ -7639,6 +7655,9 @@ static int ipw_associate_network(struct ipw_priv *priv,
 		IPW_DEBUG_HC("Attempt to send associate command failed.\n");
 		return err;
 	}
+
+	priv->status |= STATUS_ASSOCIATING;
+	priv->status &= ~STATUS_SECURITY_UPDATED;
 
 	IPW_DEBUG(IPW_DL_STATE, "associating: '%s' " MAC_FMT " \n",
 		  escape_essid(priv->essid, priv->essid_len),
