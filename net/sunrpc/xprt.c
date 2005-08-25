@@ -62,7 +62,23 @@ static inline void	do_xprt_reserve(struct rpc_task *);
 static void	xprt_connect_status(struct rpc_task *task);
 static int      __xprt_get_cong(struct rpc_xprt *, struct rpc_task *);
 
-static int	xprt_clear_backlog(struct rpc_xprt *xprt);
+/*
+ * The transport code maintains an estimate on the maximum number of out-
+ * standing RPC requests, using a smoothed version of the congestion
+ * avoidance implemented in 44BSD. This is basically the Van Jacobson
+ * congestion algorithm: If a retransmit occurs, the congestion window is
+ * halved; otherwise, it is incremented by 1/cwnd when
+ *
+ *	-	a reply is received and
+ *	-	a full number of requests are outstanding and
+ *	-	the congestion window hasn't been updated recently.
+ */
+#define RPC_CWNDSHIFT		(8U)
+#define RPC_CWNDSCALE		(1U << RPC_CWNDSHIFT)
+#define RPC_INITCWND		RPC_CWNDSCALE
+#define RPC_MAXCWND(xprt)	((xprt)->max_reqs << RPC_CWNDSHIFT)
+
+#define RPCXPRT_CONGESTED(xprt) ((xprt)->cong >= (xprt)->cwnd)
 
 /**
  * xprt_reserve_xprt - serialize write access to transports
@@ -850,7 +866,7 @@ void xprt_release(struct rpc_task *task)
 
 	spin_lock(&xprt->reserve_lock);
 	list_add(&req->rq_list, &xprt->free);
-	xprt_clear_backlog(xprt);
+	rpc_wake_up_next(&xprt->backlog);
 	spin_unlock(&xprt->reserve_lock);
 }
 
@@ -902,7 +918,6 @@ static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc
 
 	spin_lock_init(&xprt->transport_lock);
 	spin_lock_init(&xprt->reserve_lock);
-	init_waitqueue_head(&xprt->cong_wait);
 
 	INIT_LIST_HEAD(&xprt->free);
 	INIT_LIST_HEAD(&xprt->recv);
@@ -911,6 +926,7 @@ static struct rpc_xprt *xprt_setup(int proto, struct sockaddr_in *ap, struct rpc
 	xprt->timer.function = xprt_init_autodisconnect;
 	xprt->timer.data = (unsigned long) xprt;
 	xprt->last_used = jiffies;
+	xprt->cwnd = RPC_INITCWND;
 
 	rpc_init_wait_queue(&xprt->pending, "xprt_pending");
 	rpc_init_wait_queue(&xprt->sending, "xprt_sending");
@@ -955,14 +971,7 @@ static void xprt_shutdown(struct rpc_xprt *xprt)
 	rpc_wake_up(&xprt->resend);
 	xprt_wake_pending_tasks(xprt, -EIO);
 	rpc_wake_up(&xprt->backlog);
-	wake_up(&xprt->cong_wait);
 	del_timer_sync(&xprt->timer);
-}
-
-static int xprt_clear_backlog(struct rpc_xprt *xprt) {
-	rpc_wake_up_next(&xprt->backlog);
-	wake_up(&xprt->cong_wait);
-	return 1;
 }
 
 /**
