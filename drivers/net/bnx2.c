@@ -3975,12 +3975,17 @@ bnx2_reset_task(void *data)
 {
 	struct bnx2 *bp = data;
 
+	if (!netif_running(bp->dev))
+		return;
+
+	bp->in_reset_task = 1;
 	bnx2_netif_stop(bp);
 
 	bnx2_init_nic(bp);
 
 	atomic_set(&bp->intr_sem, 1);
 	bnx2_netif_start(bp);
+	bp->in_reset_task = 0;
 }
 
 static void
@@ -4172,7 +4177,13 @@ bnx2_close(struct net_device *dev)
 	struct bnx2 *bp = dev->priv;
 	u32 reset_code;
 
-	flush_scheduled_work();
+	/* Calling flush_scheduled_work() may deadlock because
+	 * linkwatch_event() may be on the workqueue and it will try to get
+	 * the rtnl_lock which we are holding.
+	 */
+	while (bp->in_reset_task)
+		msleep(1);
+
 	bnx2_netif_stop(bp);
 	del_timer_sync(&bp->timer);
 	if (bp->wol)
@@ -5452,6 +5463,8 @@ bnx2_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2 *bp = dev->priv;
+
+	flush_scheduled_work();
 
 	unregister_netdev(dev);
 

@@ -3874,6 +3874,7 @@ struct bnx2 {
 	int			timer_interval;
 	struct			timer_list timer;
 	struct work_struct	reset_task;
+	int			in_reset_task;
 
 	/* Used to synchronize phy accesses. */
 	spinlock_t		phy_lock;
