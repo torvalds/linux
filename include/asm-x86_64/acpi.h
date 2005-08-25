@@ -121,17 +121,6 @@ static inline void disable_acpi(void)
 #define FIX_ACPI_PAGES 4
 
 extern int acpi_gsi_to_irq(u32 gsi, unsigned int *irq);
-
-#else	/* !CONFIG_ACPI */
-#define acpi_lapic 0
-#define acpi_ioapic 0
-#endif /* !CONFIG_ACPI */
-
-extern int acpi_numa;
-extern int acpi_scan_nodes(unsigned long start, unsigned long end);
-#define NR_NODE_MEMBLKS (MAX_NUMNODES*2)
-
-#ifdef CONFIG_ACPI_PCI
 static inline void acpi_noirq_set(void) { acpi_noirq = 1; }
 static inline void acpi_disable_pci(void) 
 {
@@ -139,11 +128,19 @@ static inline void acpi_disable_pci(void)
 	acpi_noirq_set();
 }
 extern int acpi_irq_balance_set(char *str);
-#else
+
+#else	/* !CONFIG_ACPI */
+
+#define acpi_lapic 0
+#define acpi_ioapic 0
 static inline void acpi_noirq_set(void) { }
 static inline void acpi_disable_pci(void) { }
-static inline int acpi_irq_balance_set(char *str) { return 0; }
-#endif
+
+#endif /* !CONFIG_ACPI */
+
+extern int acpi_numa;
+extern int acpi_scan_nodes(unsigned long start, unsigned long end);
+#define NR_NODE_MEMBLKS (MAX_NUMNODES*2)
 
 #ifdef CONFIG_ACPI_SLEEP
 

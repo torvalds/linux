@@ -3,7 +3,6 @@
 #
 
 menu "ACPI (Advanced Configuration and Power Interface) Support"
-	depends on PM
 	depends on !X86_VISWS
 	depends on !IA64_HP_SIM
 	depends on IA64 || X86
@@ -11,6 +10,8 @@ menu "ACPI (Advanced Configuration and Power Interface) Support"
 config ACPI
 	bool "ACPI Support"
 	depends on IA64 || X86
+	select PM
+	select PCI
 
 	default y
 	---help---
@@ -280,10 +281,6 @@ config ACPI_EC
 config ACPI_POWER
 	bool
 	default y
-
-config ACPI_PCI
-	bool
-	default PCI
 
 config ACPI_SYSTEM
 	bool

@@ -66,13 +66,8 @@ static inline int ioapic_setup_disabled(void)
 
 #define PREFIX			"ACPI: "
 
-#ifdef CONFIG_ACPI_PCI
 int acpi_noirq __initdata;	/* skip ACPI IRQ initialization */
 int acpi_pci_disabled __initdata;	/* skip ACPI PCI scan and IRQ initialization */
-#else
-int acpi_noirq __initdata = 1;
-int acpi_pci_disabled __initdata = 1;
-#endif
 int acpi_ht __initdata = 1;	/* enable HT */
 
 int acpi_lapic;
@@ -849,7 +844,6 @@ extern int acpi_force;
 
 #ifdef __i386__
 
-#ifdef	CONFIG_ACPI_PCI
 static int __init disable_acpi_irq(struct dmi_system_id *d)
 {
 	if (!acpi_force) {
@@ -869,7 +863,6 @@ static int __init disable_acpi_pci(struct dmi_system_id *d)
 	}
 	return 0;
 }
-#endif
 
 static int __init dmi_disable_acpi(struct dmi_system_id *d)
 {
@@ -1017,7 +1010,6 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 		     },
 	 },
 
-#ifdef	CONFIG_ACPI_PCI
 	/*
 	 * Boxes that need ACPI PCI IRQ routing disabled
 	 */
@@ -1055,7 +1047,6 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 360"),
 		     },
 	 },
-#endif
 	{}
 };
 

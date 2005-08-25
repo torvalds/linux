@@ -47,8 +47,6 @@
                                        PCI
    -------------------------------------------------------------------------- */
 
-#ifdef CONFIG_ACPI_PCI
-
 #define ACPI_PCI_COMPONENT		0x00400000
 
 /* ACPI PCI Interrupt Link (pci_link.c) */
@@ -77,8 +75,6 @@ int acpi_pci_bind_root(struct acpi_device *device, struct acpi_pci_id *id,
 
 struct pci_bus *pci_acpi_scan_root(struct acpi_device *device, int domain,
 				   int bus);
-
-#endif				/*CONFIG_ACPI_PCI */
 
 /* --------------------------------------------------------------------------
                                   Power Resource

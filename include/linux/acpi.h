@@ -445,7 +445,7 @@ int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
  */
 void acpi_unregister_gsi (u32 gsi);
 
-#ifdef CONFIG_ACPI_PCI
+#ifdef CONFIG_ACPI
 
 struct acpi_prt_entry {
 	struct list_head	node;
@@ -479,7 +479,7 @@ struct acpi_pci_driver {
 int acpi_pci_register_driver(struct acpi_pci_driver *driver);
 void acpi_pci_unregister_driver(struct acpi_pci_driver *driver);
 
-#endif /*CONFIG_ACPI_PCI*/
+#endif /* CONFIG_ACPI */
 
 #ifdef CONFIG_ACPI_EC
 

@@ -86,13 +86,11 @@ acpi_status acpi_os_initialize1(void)
 	 * Initialize PCI configuration space access, as we'll need to access
 	 * it while walking the namespace (bus 0 and root bridges w/ _BBNs).
 	 */
-#ifdef CONFIG_ACPI_PCI
 	if (!raw_pci_ops) {
 		printk(KERN_ERR PREFIX
 		       "Access to PCI configuration space unavailable\n");
 		return AE_NULL_ENTRY;
 	}
-#endif
 	kacpid_wq = create_singlethread_workqueue("kacpid");
 	BUG_ON(!kacpid_wq);
 
@@ -484,8 +482,6 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 	return AE_OK;
 }
 
-#ifdef CONFIG_ACPI_PCI
-
 acpi_status
 acpi_os_read_pci_configuration(struct acpi_pci_id * pci_id, u32 reg,
 			       void *value, u32 width)
@@ -617,30 +613,6 @@ void acpi_os_derive_pci_id(acpi_handle rhandle,	/* upper bound  */
 
 	acpi_os_derive_pci_id_2(rhandle, chandle, id, &is_bridge, &bus_number);
 }
-
-#else				/*!CONFIG_ACPI_PCI */
-
-acpi_status
-acpi_os_write_pci_configuration(struct acpi_pci_id * pci_id,
-				u32 reg, acpi_integer value, u32 width)
-{
-	return AE_SUPPORT;
-}
-
-acpi_status
-acpi_os_read_pci_configuration(struct acpi_pci_id * pci_id,
-			       u32 reg, void *value, u32 width)
-{
-	return AE_SUPPORT;
-}
-
-void acpi_os_derive_pci_id(acpi_handle rhandle,	/* upper bound  */
-			   acpi_handle chandle,	/* current node */
-			   struct acpi_pci_id **id)
-{
-}
-
-#endif				/*CONFIG_ACPI_PCI */
 
 static void acpi_os_execute_deferred(void *context)
 {
