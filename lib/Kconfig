@@ -72,6 +72,16 @@ config TEXTSEARCH
 config TEXTSEARCH_KMP
 	tristate
 
+config TEXTSEARCH_BM
+        depends on TEXTSEARCH
+        tristate "Boyer-Moore"
+        help
+          Say Y here if you want to be able to search text using the
+          Boyer-Moore textsearch algorithm.
+
+          To compile this code as a module, choose M here: the
+          module will be called ts_bm.
+
 config TEXTSEARCH_FSM
 	tristate
 
