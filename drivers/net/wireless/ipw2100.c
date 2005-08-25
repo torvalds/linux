@@ -167,12 +167,12 @@ that only one external action is invoked at a time.
 
 #include "ipw2100.h"
 
-#define IPW2100_VERSION "1.1.0"
+#define IPW2100_VERSION "1.1.1"
 
 #define DRV_NAME	"ipw2100"
 #define DRV_VERSION	IPW2100_VERSION
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2100 Network Driver"
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2004 Intel Corporation"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2005 Intel Corporation"
 
 /* Debugging stuff */
 #ifdef CONFIG_IPW_DEBUG
@@ -779,7 +779,7 @@ static int ipw2100_hw_send_command(struct ipw2100_priv *priv,
 
 	if (err == 0) {
 		IPW_DEBUG_INFO("Command completion failed out after %dms.\n",
-			       HOST_COMPLETE_TIMEOUT / (HZ / 100));
+			       1000 * (HOST_COMPLETE_TIMEOUT / HZ));
 		priv->fatal_error = IPW2100_ERR_MSG_TIMEOUT;
 		priv->status &= ~STATUS_CMD_ACTIVE;
 		schedule_reset(priv);
@@ -1986,7 +1986,7 @@ static int ipw2100_set_essid(struct ipw2100_priv *priv, char *essid,
 	IPW_DEBUG_HC("SSID: '%s'\n", escape_essid(essid, ssid_len));
 
 	if (ssid_len)
-		memcpy((char *)cmd.host_command_parameters, essid, ssid_len);
+		memcpy(cmd.host_command_parameters, essid, ssid_len);
 
 	if (!batch_mode) {
 		err = ipw2100_disable_adapter(priv);
@@ -2369,13 +2369,15 @@ static inline void isr_rx(struct ipw2100_priv *priv, int i,
 		IPW_DEBUG_DROP("Dropping packet while interface is not up.\n");
 		return;
 	}
-
+#ifdef CONFIG_IPW2100_MONITOR
 	if (unlikely(priv->ieee->iw_mode == IW_MODE_MONITOR &&
+		     priv->config & CFG_CRC_CHECK &&
 		     status->flags & IPW_STATUS_FLAG_CRC_ERROR)) {
 		IPW_DEBUG_RX("CRC error in packet.  Dropping.\n");
 		priv->ieee->stats.rx_errors++;
 		return;
 	}
+#endif
 
 	if (unlikely(priv->ieee->iw_mode != IW_MODE_MONITOR &&
 		     !(priv->status & STATUS_ASSOCIATED))) {
@@ -2744,7 +2746,6 @@ static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
 			       priv->net_dev->name, txq->oldest, packet->index);
 
 		/* DATA packet; we have to unmap and free the SKB */
-		priv->ieee->stats.tx_packets++;
 		for (i = 0; i < frag_num; i++) {
 			tbd = &txq->drv[(packet->index + 1 + i) % txq->entries];
 
@@ -2757,8 +2758,6 @@ static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
 					 tbd->buf_length, PCI_DMA_TODEVICE);
 		}
 
-		priv->ieee->stats.tx_bytes +=
-		    packet->info.d_struct.txb->payload_size;
 		ieee80211_txb_free(packet->info.d_struct.txb);
 		packet->info.d_struct.txb = NULL;
 
@@ -2767,13 +2766,8 @@ static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
 
 		/* We have a free slot in the Tx queue, so wake up the
 		 * transmit layer if it is stopped. */
-		if (priv->status & STATUS_ASSOCIATED &&
-		    netif_queue_stopped(priv->net_dev)) {
-			IPW_DEBUG_INFO(KERN_INFO
-				       "%s: Waking net queue.\n",
-				       priv->net_dev->name);
+		if (priv->status & STATUS_ASSOCIATED)
 			netif_wake_queue(priv->net_dev);
-		}
 
 		/* A packet was processed by the hardware, so update the
 		 * watchdog */
@@ -3791,6 +3785,9 @@ static ssize_t show_ordinals(struct device *d, struct device_attribute *attr,
 	u32 val_len;
 	static int loop = 0;
 
+	if (priv->status & STATUS_RF_KILL_MASK)
+		return 0;
+
 	if (loop >= sizeof(ord_data) / sizeof(*ord_data))
 		loop = 0;
 
@@ -3947,6 +3944,9 @@ static ssize_t show_bssinfo(struct device *d, struct device_attribute *attr,
 	int length;
 	int ret;
 
+	if (priv->status & STATUS_RF_KILL_MASK)
+		return 0;
+
 	memset(essid, 0, sizeof(essid));
 	memset(bssid, 0, sizeof(bssid));
 
@@ -3986,8 +3986,8 @@ static ssize_t show_debug_level(struct device_driver *d, char *buf)
 	return sprintf(buf, "0x%08X\n", ipw2100_debug_level);
 }
 
-static ssize_t store_debug_level(struct device_driver *d, const char *buf,
-				 size_t count)
+static ssize_t store_debug_level(struct device_driver *d,
+				 const char *buf, size_t count)
 {
 	char *p = (char *)buf;
 	u32 val;
@@ -4943,7 +4943,7 @@ static int ipw2100_set_mandatory_bssid(struct ipw2100_priv *priv, u8 * bssid,
 #endif
 	/* if BSSID is empty then we disable mandatory bssid mode */
 	if (bssid != NULL)
-		memcpy((u8 *) cmd.host_command_parameters, bssid, ETH_ALEN);
+		memcpy(cmd.host_command_parameters, bssid, ETH_ALEN);
 
 	if (!batch_mode) {
 		err = ipw2100_disable_adapter(priv);
@@ -4959,7 +4959,6 @@ static int ipw2100_set_mandatory_bssid(struct ipw2100_priv *priv, u8 * bssid,
 	return err;
 }
 
-#ifdef CONFIG_IEEE80211_WPA
 static int ipw2100_disassociate_bssid(struct ipw2100_priv *priv)
 {
 	struct host_command cmd = {
@@ -4983,34 +4982,6 @@ static int ipw2100_disassociate_bssid(struct ipw2100_priv *priv)
 
 	return err;
 }
-#endif
-
-/*
- * Pseudo code for setting up wpa_frame:
- */
-#if 0
-void x(struct ieee80211_assoc_frame *wpa_assoc)
-{
-	struct ipw2100_wpa_assoc_frame frame;
-	frame->fixed_ie_mask = IPW_WPA_CAPABILTIES |
-	    IPW_WPA_LISTENINTERVAL | IPW_WPA_AP_ADDRESS;
-	frame->capab_info = wpa_assoc->capab_info;
-	frame->lisen_interval = wpa_assoc->listent_interval;
-	memcpy(frame->current_ap, wpa_assoc->current_ap, ETH_ALEN);
-
-	/* UNKNOWN -- I'm not postivive about this part; don't have any WPA
-	 * setup here to test it with.
-	 *
-	 * Walk the IEs in the wpa_assoc and figure out the total size of all
-	 * that data.  Stick that into frame->var_ie_len.  Then memcpy() all of
-	 * the IEs from wpa_frame into frame.
-	 */
-	frame->var_ie_len = calculate_ie_len(wpa_assoc);
-	memcpy(frame->var_ie, wpa_assoc->variable, frame->var_ie_len);
-
-	ipw2100_set_wpa_ie(priv, &frame, 0);
-}
-#endif
 
 static int ipw2100_set_wpa_ie(struct ipw2100_priv *,
 			      struct ipw2100_wpa_assoc_frame *, int)
@@ -5750,11 +5721,10 @@ static struct net_device_stats *ipw2100_stats(struct net_device *dev)
 	return &priv->ieee->stats;
 }
 
-/* Support for wpa_supplicant. Will be replaced with WEXT once
- * they get WPA support. */
-#ifdef CONFIG_IEEE80211_WPA
+#if WIRELESS_EXT < 18
+/* Support for wpa_supplicant before WE-18, deprecated. */
 
-/* following definitions must match definitions in driver_ipw2100.c */
+/* following definitions must match definitions in driver_ipw.c */
 
 #define IPW2100_IOCTL_WPA_SUPPLICANT		SIOCIWFIRSTPRIV+30
 
@@ -5792,11 +5762,12 @@ struct ipw2100_param {
 		} wpa_param;
 		struct {
 			u32 len;
-			u8 *data;
+			u8 reserved[32];
+			u8 data[0];
 		} wpa_ie;
 		struct {
-			int command;
-			int reason_code;
+			u32 command;
+			u32 reason_code;
 		} mlme;
 		struct {
 			u8 alg[IPW2100_CRYPT_ALG_NAME_LEN];
@@ -5811,37 +5782,21 @@ struct ipw2100_param {
 	} u;
 };
 
-/* end of driver_ipw2100.c code */
+/* end of driver_ipw.c code */
+#endif				/* WIRELESS_EXT < 18 */
 
 static int ipw2100_wpa_enable(struct ipw2100_priv *priv, int value)
 {
-
-	struct ieee80211_device *ieee = priv->ieee;
-	struct ieee80211_security sec = {
-		.flags = SEC_LEVEL | SEC_ENABLED,
-	};
-	int ret = 0;
-
-	ieee->wpa_enabled = value;
-
-	if (value) {
-		sec.level = SEC_LEVEL_3;
-		sec.enabled = 1;
-	} else {
-		sec.level = SEC_LEVEL_0;
-		sec.enabled = 0;
-	}
-
-	if (ieee->set_security)
-		ieee->set_security(ieee->dev, &sec);
-	else
-		ret = -EOPNOTSUPP;
-
-	return ret;
+	/* This is called when wpa_supplicant loads and closes the driver
+	 * interface. */
+	priv->ieee->wpa_enabled = value;
+	return 0;
 }
 
-#define AUTH_ALG_OPEN_SYSTEM			0x1
-#define AUTH_ALG_SHARED_KEY			0x2
+#if WIRELESS_EXT < 18
+#define IW_AUTH_ALG_OPEN_SYSTEM			0x1
+#define IW_AUTH_ALG_SHARED_KEY			0x2
+#endif
 
 static int ipw2100_wpa_set_auth_algs(struct ipw2100_priv *priv, int value)
 {
@@ -5852,13 +5807,14 @@ static int ipw2100_wpa_set_auth_algs(struct ipw2100_priv *priv, int value)
 	};
 	int ret = 0;
 
-	if (value & AUTH_ALG_SHARED_KEY) {
+	if (value & IW_AUTH_ALG_SHARED_KEY) {
 		sec.auth_mode = WLAN_AUTH_SHARED_KEY;
 		ieee->open_wep = 0;
-	} else {
+	} else if (value & IW_AUTH_ALG_OPEN_SYSTEM) {
 		sec.auth_mode = WLAN_AUTH_OPEN;
 		ieee->open_wep = 1;
-	}
+	} else
+		return -EINVAL;
 
 	if (ieee->set_security)
 		ieee->set_security(ieee->dev, &sec);
@@ -5868,10 +5824,29 @@ static int ipw2100_wpa_set_auth_algs(struct ipw2100_priv *priv, int value)
 	return ret;
 }
 
-static int ipw2100_wpa_set_param(struct net_device *dev, u8 name, u32 value)
+void ipw2100_wpa_assoc_frame(struct ipw2100_priv *priv,
+			     char *wpa_ie, int wpa_ie_len)
 {
 
+	struct ipw2100_wpa_assoc_frame frame;
+
+	frame.fixed_ie_mask = 0;
+
+	/* copy WPA IE */
+	memcpy(frame.var_ie, wpa_ie, wpa_ie_len);
+	frame.var_ie_len = wpa_ie_len;
+
+	/* make sure WPA is enabled */
+	ipw2100_wpa_enable(priv, 1);
+	ipw2100_set_wpa_ie(priv, &frame, 0);
+}
+
+#if WIRELESS_EXT < 18
+static int ipw2100_wpa_set_param(struct net_device *dev, u8 name, u32 value)
+{
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
+	struct ieee80211_crypt_data *crypt;
+	unsigned long flags;
 	int ret = 0;
 
 	switch (name) {
@@ -5880,7 +5855,22 @@ static int ipw2100_wpa_set_param(struct net_device *dev, u8 name, u32 value)
 		break;
 
 	case IPW2100_PARAM_TKIP_COUNTERMEASURES:
-		priv->ieee->tkip_countermeasures = value;
+		crypt = priv->ieee->crypt[priv->ieee->tx_keyidx];
+		if (!crypt || !crypt->ops->set_flags || !crypt->ops->get_flags) {
+			IPW_DEBUG_WARNING("Can't set TKIP countermeasures: "
+					  "crypt not set!\n");
+			break;
+		}
+
+		flags = crypt->ops->get_flags(crypt->priv);
+
+		if (value)
+			flags |= IEEE80211_CRYPTO_TKIP_COUNTERMEASURES;
+		else
+			flags &= ~IEEE80211_CRYPTO_TKIP_COUNTERMEASURES;
+
+		crypt->ops->set_flags(flags, crypt->priv);
+
 		break;
 
 	case IPW2100_PARAM_DROP_UNENCRYPTED:
@@ -5932,23 +5922,6 @@ static int ipw2100_wpa_mlme(struct net_device *dev, int command, int reason)
 	return ret;
 }
 
-void ipw2100_wpa_assoc_frame(struct ipw2100_priv *priv,
-			     char *wpa_ie, int wpa_ie_len)
-{
-
-	struct ipw2100_wpa_assoc_frame frame;
-
-	frame.fixed_ie_mask = 0;
-
-	/* copy WPA IE */
-	memcpy(frame.var_ie, wpa_ie, wpa_ie_len);
-	frame.var_ie_len = wpa_ie_len;
-
-	/* make sure WPA is enabled */
-	ipw2100_wpa_enable(priv, 1);
-	ipw2100_set_wpa_ie(priv, &frame, 0);
-}
-
 static int ipw2100_wpa_set_wpa_ie(struct net_device *dev,
 				  struct ipw2100_param *param, int plen)
 {
@@ -5992,7 +5965,6 @@ static int ipw2100_wpa_set_encryption(struct net_device *dev,
 				      struct ipw2100_param *param,
 				      int param_len)
 {
-
 	int ret = 0;
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee;
@@ -6101,8 +6073,8 @@ static int ipw2100_wpa_set_encryption(struct net_device *dev,
 	if (ops->name != NULL) {
 
 		if (strcmp(ops->name, "WEP") == 0) {
-			memcpy(sec.keys[param->u.crypt.idx], param->u.crypt.key,
-			       param->u.crypt.key_len);
+			memcpy(sec.keys[param->u.crypt.idx],
+			       param->u.crypt.key, param->u.crypt.key_len);
 			sec.key_sizes[param->u.crypt.idx] =
 			    param->u.crypt.key_len;
 			sec.flags |= (1 << param->u.crypt.idx);
@@ -6190,11 +6162,9 @@ static int ipw2100_wpa_supplicant(struct net_device *dev, struct iw_point *p)
 	kfree(param);
 	return ret;
 }
-#endif				/* CONFIG_IEEE80211_WPA */
 
 static int ipw2100_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-#ifdef CONFIG_IEEE80211_WPA
 	struct iwreq *wrq = (struct iwreq *)rq;
 	int ret = -1;
 	switch (cmd) {
@@ -6206,10 +6176,9 @@ static int ipw2100_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return -EOPNOTSUPP;
 	}
 
-#endif				/* CONFIG_IEEE80211_WPA */
-
 	return -EOPNOTSUPP;
 }
+#endif				/* WIRELESS_EXT < 18 */
 
 static void ipw_ethtool_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *info)
@@ -6333,10 +6302,15 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	priv->ieee->hard_start_xmit = ipw2100_tx;
 	priv->ieee->set_security = shim__set_security;
 
+	priv->ieee->perfect_rssi = -20;
+	priv->ieee->worst_rssi = -85;
+
 	dev->open = ipw2100_open;
 	dev->stop = ipw2100_close;
 	dev->init = ipw2100_net_init;
+#if WIRELESS_EXT < 18
 	dev->do_ioctl = ipw2100_ioctl;
+#endif
 	dev->get_stats = ipw2100_stats;
 	dev->ethtool_ops = &ipw2100_ethtool_ops;
 	dev->tx_timeout = ipw2100_tx_timeout;
@@ -6362,13 +6336,13 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	/* If power management is turned on, default to AUTO mode */
 	priv->power_mode = IPW_POWER_AUTO;
 
-#ifdef CONFIG_IEEE80211_WPA
+#ifdef CONFIG_IPW2100_MONITOR
+	priv->config |= CFG_CRC_CHECK;
+#endif
 	priv->ieee->wpa_enabled = 0;
-	priv->ieee->tkip_countermeasures = 0;
 	priv->ieee->drop_unencrypted = 0;
 	priv->ieee->privacy_invoked = 0;
 	priv->ieee->ieee802_1x = 1;
-#endif				/* CONFIG_IEEE80211_WPA */
 
 	/* Set module parameters */
 	switch (mode) {
@@ -6429,7 +6403,7 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	INIT_LIST_HEAD(&priv->fw_pend_list);
 	INIT_STAT(&priv->fw_pend_stat);
 
-#ifdef CONFIG_SOFTWARE_SUSPEND2
+#ifdef PF_SYNCTHREAD
 	priv->workqueue = create_workqueue(DRV_NAME, 0);
 #else
 	priv->workqueue = create_workqueue(DRV_NAME);
@@ -6591,7 +6565,6 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 
 	/* perform this after register_netdev so that dev->name is set */
 	sysfs_create_group(&pci_dev->dev.kobj, &ipw2100_attribute_group);
-	netif_carrier_off(dev);
 
 	/* If the RF Kill switch is disabled, go ahead and complete the
 	 * startup sequence */
@@ -6860,10 +6833,6 @@ static int __init ipw2100_init(void)
 	printk(KERN_INFO DRV_NAME ": %s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
 	printk(KERN_INFO DRV_NAME ": %s\n", DRV_COPYRIGHT);
 
-#ifdef CONFIG_IEEE80211_NOWEP
-	IPW_DEBUG_INFO(DRV_NAME ": Compiled with WEP disabled.\n");
-#endif
-
 	ret = pci_module_init(&ipw2100_pci_driver);
 
 #ifdef CONFIG_IPW_DEBUG
@@ -6963,9 +6932,10 @@ static int ipw2100_wx_set_freq(struct net_device *dev,
 		}
 	}
 
-	if (fwrq->e > 0 || fwrq->m > 1000)
-		return -EOPNOTSUPP;
-	else {			/* Set the channel */
+	if (fwrq->e > 0 || fwrq->m > 1000) {
+		err = -EOPNOTSUPP;
+		goto done;
+	} else {		/* Set the channel */
 		IPW_DEBUG_WX("SET Freq/Channel -> %d \n", fwrq->m);
 		err = ipw2100_set_channel(priv, fwrq->m, 0);
 	}
@@ -7256,7 +7226,7 @@ static int ipw2100_wx_get_wap(struct net_device *dev,
 	 * configured BSSID then return that; otherwise return ANY */
 	if (priv->config & CFG_STATIC_BSSID || priv->status & STATUS_ASSOCIATED) {
 		wrqu->ap_addr.sa_family = ARPHRD_ETHER;
-		memcpy(wrqu->ap_addr.sa_data, &priv->bssid, ETH_ALEN);
+		memcpy(wrqu->ap_addr.sa_data, priv->bssid, ETH_ALEN);
 	} else
 		memset(wrqu->ap_addr.sa_data, 0, ETH_ALEN);
 
@@ -7711,13 +7681,13 @@ static int ipw2100_wx_get_retry(struct net_device *dev,
 		return -EINVAL;
 
 	if (wrqu->retry.flags & IW_RETRY_MAX) {
-		wrqu->retry.flags = IW_RETRY_LIMIT & IW_RETRY_MAX;
+		wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
 		wrqu->retry.value = priv->long_retry_limit;
 	} else {
 		wrqu->retry.flags =
 		    (priv->short_retry_limit !=
 		     priv->long_retry_limit) ?
-		    IW_RETRY_LIMIT & IW_RETRY_MIN : IW_RETRY_LIMIT;
+		    IW_RETRY_LIMIT | IW_RETRY_MIN : IW_RETRY_LIMIT;
 
 		wrqu->retry.value = priv->short_retry_limit;
 	}
@@ -7847,9 +7817,9 @@ static int ipw2100_wx_get_power(struct net_device *dev,
 
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 
-	if (!(priv->power_mode & IPW_POWER_ENABLED)) {
+	if (!(priv->power_mode & IPW_POWER_ENABLED))
 		wrqu->power.disabled = 1;
-	} else {
+	else {
 		wrqu->power.disabled = 0;
 		wrqu->power.flags = 0;
 	}
@@ -7858,6 +7828,273 @@ static int ipw2100_wx_get_power(struct net_device *dev,
 
 	return 0;
 }
+
+#if WIRELESS_EXT > 17
+/*
+ * WE-18 WPA support
+ */
+
+/* SIOCSIWGENIE */
+static int ipw2100_wx_set_genie(struct net_device *dev,
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *extra)
+{
+
+	struct ipw2100_priv *priv = ieee80211_priv(dev);
+	struct ieee80211_device *ieee = priv->ieee;
+	u8 *buf;
+
+	if (!ieee->wpa_enabled)
+		return -EOPNOTSUPP;
+
+	if (wrqu->data.length > MAX_WPA_IE_LEN ||
+	    (wrqu->data.length && extra == NULL))
+		return -EINVAL;
+
+	if (wrqu->data.length) {
+		buf = kmalloc(wrqu->data.length, GFP_KERNEL);
+		if (buf == NULL)
+			return -ENOMEM;
+
+		memcpy(buf, extra, wrqu->data.length);
+		kfree(ieee->wpa_ie);
+		ieee->wpa_ie = buf;
+		ieee->wpa_ie_len = wrqu->data.length;
+	} else {
+		kfree(ieee->wpa_ie);
+		ieee->wpa_ie = NULL;
+		ieee->wpa_ie_len = 0;
+	}
+
+	ipw2100_wpa_assoc_frame(priv, ieee->wpa_ie, ieee->wpa_ie_len);
+
+	return 0;
+}
+
+/* SIOCGIWGENIE */
+static int ipw2100_wx_get_genie(struct net_device *dev,
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *extra)
+{
+	struct ipw2100_priv *priv = ieee80211_priv(dev);
+	struct ieee80211_device *ieee = priv->ieee;
+
+	if (ieee->wpa_ie_len == 0 || ieee->wpa_ie == NULL) {
+		wrqu->data.length = 0;
+		return 0;
+	}
+
+	if (wrqu->data.length < ieee->wpa_ie_len)
+		return -E2BIG;
+
+	wrqu->data.length = ieee->wpa_ie_len;
+	memcpy(extra, ieee->wpa_ie, ieee->wpa_ie_len);
+
+	return 0;
+}
+
+/* SIOCSIWAUTH */
+static int ipw2100_wx_set_auth(struct net_device *dev,
+			       struct iw_request_info *info,
+			       union iwreq_data *wrqu, char *extra)
+{
+	struct ipw2100_priv *priv = ieee80211_priv(dev);
+	struct ieee80211_device *ieee = priv->ieee;
+	struct iw_param *param = &wrqu->param;
+	struct ieee80211_crypt_data *crypt;
+	unsigned long flags;
+	int ret = 0;
+
+	switch (param->flags & IW_AUTH_INDEX) {
+	case IW_AUTH_WPA_VERSION:
+	case IW_AUTH_CIPHER_PAIRWISE:
+	case IW_AUTH_CIPHER_GROUP:
+	case IW_AUTH_KEY_MGMT:
+		/*
+		 * ipw2200 does not use these parameters
+		 */
+		break;
+
+	case IW_AUTH_TKIP_COUNTERMEASURES:
+		crypt = priv->ieee->crypt[priv->ieee->tx_keyidx];
+		if (!crypt || !crypt->ops->set_flags || !crypt->ops->get_flags) {
+			IPW_DEBUG_WARNING("Can't set TKIP countermeasures: "
+					  "crypt not set!\n");
+			break;
+		}
+
+		flags = crypt->ops->get_flags(crypt->priv);
+
+		if (param->value)
+			flags |= IEEE80211_CRYPTO_TKIP_COUNTERMEASURES;
+		else
+			flags &= ~IEEE80211_CRYPTO_TKIP_COUNTERMEASURES;
+
+		crypt->ops->set_flags(flags, crypt->priv);
+
+		break;
+
+	case IW_AUTH_DROP_UNENCRYPTED:{
+			/* HACK:
+			 *
+			 * wpa_supplicant calls set_wpa_enabled when the driver
+			 * is loaded and unloaded, regardless of if WPA is being
+			 * used.  No other calls are made which can be used to
+			 * determine if encryption will be used or not prior to
+			 * association being expected.  If encryption is not being
+			 * used, drop_unencrypted is set to false, else true -- we
+			 * can use this to determine if the CAP_PRIVACY_ON bit should
+			 * be set.
+			 */
+			struct ieee80211_security sec = {
+				.flags = SEC_ENABLED,
+				.enabled = param->value,
+			};
+			priv->ieee->drop_unencrypted = param->value;
+			/* We only change SEC_LEVEL for open mode. Others
+			 * are set by ipw_wpa_set_encryption.
+			 */
+			if (!param->value) {
+				sec.flags |= SEC_LEVEL;
+				sec.level = SEC_LEVEL_0;
+			} else {
+				sec.flags |= SEC_LEVEL;
+				sec.level = SEC_LEVEL_1;
+			}
+			if (priv->ieee->set_security)
+				priv->ieee->set_security(priv->ieee->dev, &sec);
+			break;
+		}
+
+	case IW_AUTH_80211_AUTH_ALG:
+		ret = ipw2100_wpa_set_auth_algs(priv, param->value);
+		break;
+
+	case IW_AUTH_WPA_ENABLED:
+		ret = ipw2100_wpa_enable(priv, param->value);
+		break;
+
+	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
+		ieee->ieee802_1x = param->value;
+		break;
+
+		//case IW_AUTH_ROAMING_CONTROL:
+	case IW_AUTH_PRIVACY_INVOKED:
+		ieee->privacy_invoked = param->value;
+		break;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+	return ret;
+}
+
+/* SIOCGIWAUTH */
+static int ipw2100_wx_get_auth(struct net_device *dev,
+			       struct iw_request_info *info,
+			       union iwreq_data *wrqu, char *extra)
+{
+	struct ipw2100_priv *priv = ieee80211_priv(dev);
+	struct ieee80211_device *ieee = priv->ieee;
+	struct ieee80211_crypt_data *crypt;
+	struct iw_param *param = &wrqu->param;
+	int ret = 0;
+
+	switch (param->flags & IW_AUTH_INDEX) {
+	case IW_AUTH_WPA_VERSION:
+	case IW_AUTH_CIPHER_PAIRWISE:
+	case IW_AUTH_CIPHER_GROUP:
+	case IW_AUTH_KEY_MGMT:
+		/*
+		 * wpa_supplicant will control these internally
+		 */
+		ret = -EOPNOTSUPP;
+		break;
+
+	case IW_AUTH_TKIP_COUNTERMEASURES:
+		crypt = priv->ieee->crypt[priv->ieee->tx_keyidx];
+		if (!crypt || !crypt->ops->get_flags) {
+			IPW_DEBUG_WARNING("Can't get TKIP countermeasures: "
+					  "crypt not set!\n");
+			break;
+		}
+
+		param->value = (crypt->ops->get_flags(crypt->priv) &
+				IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) ? 1 : 0;
+
+		break;
+
+	case IW_AUTH_DROP_UNENCRYPTED:
+		param->value = ieee->drop_unencrypted;
+		break;
+
+	case IW_AUTH_80211_AUTH_ALG:
+		param->value = priv->sec.auth_mode;
+		break;
+
+	case IW_AUTH_WPA_ENABLED:
+		param->value = ieee->wpa_enabled;
+		break;
+
+	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
+		param->value = ieee->ieee802_1x;
+		break;
+
+	case IW_AUTH_ROAMING_CONTROL:
+	case IW_AUTH_PRIVACY_INVOKED:
+		param->value = ieee->privacy_invoked;
+		break;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+/* SIOCSIWENCODEEXT */
+static int ipw2100_wx_set_encodeext(struct net_device *dev,
+				    struct iw_request_info *info,
+				    union iwreq_data *wrqu, char *extra)
+{
+	struct ipw2100_priv *priv = ieee80211_priv(dev);
+	return ieee80211_wx_set_encodeext(priv->ieee, info, wrqu, extra);
+}
+
+/* SIOCGIWENCODEEXT */
+static int ipw2100_wx_get_encodeext(struct net_device *dev,
+				    struct iw_request_info *info,
+				    union iwreq_data *wrqu, char *extra)
+{
+	struct ipw2100_priv *priv = ieee80211_priv(dev);
+	return ieee80211_wx_get_encodeext(priv->ieee, info, wrqu, extra);
+}
+
+/* SIOCSIWMLME */
+static int ipw2100_wx_set_mlme(struct net_device *dev,
+			       struct iw_request_info *info,
+			       union iwreq_data *wrqu, char *extra)
+{
+	struct ipw2100_priv *priv = ieee80211_priv(dev);
+	struct iw_mlme *mlme = (struct iw_mlme *)extra;
+	u16 reason;
+
+	reason = cpu_to_le16(mlme->reason_code);
+
+	switch (mlme->cmd) {
+	case IW_MLME_DEAUTH:
+		// silently ignore
+		break;
+
+	case IW_MLME_DISASSOC:
+		ipw2100_disassociate_bssid(priv);
+		break;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+#endif				/* WIRELESS_EXT > 17 */
 
 /*
  *
@@ -8019,6 +8256,54 @@ static int ipw2100_wx_get_preamble(struct net_device *dev,
 	return 0;
 }
 
+#ifdef CONFIG_IPW2100_MONITOR
+static int ipw2100_wx_set_crc_check(struct net_device *dev,
+				    struct iw_request_info *info,
+				    union iwreq_data *wrqu, char *extra)
+{
+	struct ipw2100_priv *priv = ieee80211_priv(dev);
+	int err, mode = *(int *)extra;
+
+	down(&priv->action_sem);
+	if (!(priv->status & STATUS_INITIALIZED)) {
+		err = -EIO;
+		goto done;
+	}
+
+	if (mode == 1)
+		priv->config |= CFG_CRC_CHECK;
+	else if (mode == 0)
+		priv->config &= ~CFG_CRC_CHECK;
+	else {
+		err = -EINVAL;
+		goto done;
+	}
+	err = 0;
+
+      done:
+	up(&priv->action_sem);
+	return err;
+}
+
+static int ipw2100_wx_get_crc_check(struct net_device *dev,
+				    struct iw_request_info *info,
+				    union iwreq_data *wrqu, char *extra)
+{
+	/*
+	 * This can be called at any time.  No action lock required
+	 */
+
+	struct ipw2100_priv *priv = ieee80211_priv(dev);
+
+	if (priv->config & CFG_CRC_CHECK)
+		snprintf(wrqu->name, IFNAMSIZ, "CRC checked (1)");
+	else
+		snprintf(wrqu->name, IFNAMSIZ, "CRC ignored (0)");
+
+	return 0;
+}
+#endif				/* CONFIG_IPW2100_MONITOR */
+
 static iw_handler ipw2100_wx_handlers[] = {
 	NULL,			/* SIOCSIWCOMMIT */
 	ipw2100_wx_get_name,	/* SIOCGIWNAME */
@@ -8042,7 +8327,11 @@ static iw_handler ipw2100_wx_handlers[] = {
 	NULL,			/* SIOCWIWTHRSPY */
 	ipw2100_wx_set_wap,	/* SIOCSIWAP */
 	ipw2100_wx_get_wap,	/* SIOCGIWAP */
+#if WIRELESS_EXT > 17
+	ipw2100_wx_set_mlme,	/* SIOCSIWMLME */
+#else
 	NULL,			/* -- hole -- */
+#endif
 	NULL,			/* SIOCGIWAPLIST -- deprecated */
 	ipw2100_wx_set_scan,	/* SIOCSIWSCAN */
 	ipw2100_wx_get_scan,	/* SIOCGIWSCAN */
@@ -8066,6 +8355,17 @@ static iw_handler ipw2100_wx_handlers[] = {
 	ipw2100_wx_get_encode,	/* SIOCGIWENCODE */
 	ipw2100_wx_set_power,	/* SIOCSIWPOWER */
 	ipw2100_wx_get_power,	/* SIOCGIWPOWER */
+#if WIRELESS_EXT > 17
+	NULL,			/* -- hole -- */
+	NULL,			/* -- hole -- */
+	ipw2100_wx_set_genie,	/* SIOCSIWGENIE */
+	ipw2100_wx_get_genie,	/* SIOCGIWGENIE */
+	ipw2100_wx_set_auth,	/* SIOCSIWAUTH */
+	ipw2100_wx_get_auth,	/* SIOCGIWAUTH */
+	ipw2100_wx_set_encodeext,	/* SIOCSIWENCODEEXT */
+	ipw2100_wx_get_encodeext,	/* SIOCGIWENCODEEXT */
+	NULL,			/* SIOCSIWPMKSA */
+#endif
 };
 
 #define IPW2100_PRIV_SET_MONITOR	SIOCIWFIRSTPRIV
@@ -8074,6 +8374,8 @@ static iw_handler ipw2100_wx_handlers[] = {
 #define IPW2100_PRIV_GET_POWER		SIOCIWFIRSTPRIV+3
 #define IPW2100_PRIV_SET_LONGPREAMBLE	SIOCIWFIRSTPRIV+4
 #define IPW2100_PRIV_GET_LONGPREAMBLE	SIOCIWFIRSTPRIV+5
+#define IPW2100_PRIV_SET_CRC_CHECK	SIOCIWFIRSTPRIV+6
+#define IPW2100_PRIV_GET_CRC_CHECK	SIOCIWFIRSTPRIV+7
 
 static const struct iw_priv_args ipw2100_private_args[] = {
 
@@ -8099,6 +8401,14 @@ static const struct iw_priv_args ipw2100_private_args[] = {
 	{
 	 IPW2100_PRIV_GET_LONGPREAMBLE,
 	 0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED | IFNAMSIZ, "get_preamble"},
+#ifdef CONFIG_IPW2100_MONITOR
+	{
+	 IPW2100_PRIV_SET_CRC_CHECK,
+	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "set_crc_check"},
+	{
+	 IPW2100_PRIV_GET_CRC_CHECK,
+	 0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED | IFNAMSIZ, "get_crc_check"},
+#endif				/* CONFIG_IPW2100_MONITOR */
 };
 
 static iw_handler ipw2100_private_handler[] = {
@@ -8113,6 +8423,13 @@ static iw_handler ipw2100_private_handler[] = {
 	ipw2100_wx_get_powermode,
 	ipw2100_wx_set_preamble,
 	ipw2100_wx_get_preamble,
+#ifdef CONFIG_IPW2100_MONITOR
+	ipw2100_wx_set_crc_check,
+	ipw2100_wx_get_crc_check,
+#else				/* CONFIG_IPW2100_MONITOR */
+	NULL,
+	NULL,
+#endif				/* CONFIG_IPW2100_MONITOR */
 };
 
 static struct iw_handler_def ipw2100_wx_handler_def = {
@@ -8292,17 +8609,11 @@ static void ipw2100_wx_event_work(struct ipw2100_priv *priv)
 		/* We now have the BSSID, so can finish setting to the full
 		 * associated state */
 		memcpy(wrqu.ap_addr.sa_data, priv->bssid, ETH_ALEN);
-		memcpy(&priv->ieee->bssid, priv->bssid, ETH_ALEN);
+		memcpy(priv->ieee->bssid, priv->bssid, ETH_ALEN);
 		priv->status &= ~STATUS_ASSOCIATING;
 		priv->status |= STATUS_ASSOCIATED;
 		netif_carrier_on(priv->net_dev);
-		if (netif_queue_stopped(priv->net_dev)) {
-			IPW_DEBUG_INFO("Waking net queue.\n");
-			netif_wake_queue(priv->net_dev);
-		} else {
-			IPW_DEBUG_INFO("Starting net queue.\n");
-			netif_start_queue(priv->net_dev);
-		}
+		netif_wake_queue(priv->net_dev);
 	}
 
 	if (!(priv->status & STATUS_ASSOCIATED)) {

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms of version 2 of the GNU General Public License as
@@ -475,6 +475,9 @@ enum {
 #define CFG_ADHOC_CREATE        (1<<8)
 #define CFG_C3_DISABLED         (1<<9)
 #define CFG_PASSIVE_SCAN        (1<<10)
+#ifdef CONFIG_IPW2100_MONITOR
+#define CFG_CRC_CHECK           (1<<11)
+#endif
 
 #define CAP_SHARED_KEY          (1<<0)	/* Off = OPEN */
 #define CAP_PRIVACY_ON          (1<<1)	/* Off = No privacy */
@@ -858,9 +861,9 @@ struct ipw2100_rx {
 #define TYPE_ASSOCIATION_REQUEST	0x0013
 #define TYPE_REASSOCIATION_REQUEST	0x0014
 
-#define HW_FEATURE_RFKILL (0x0001)
-#define RF_KILLSWITCH_OFF (1)
-#define RF_KILLSWITCH_ON  (0)
+#define HW_FEATURE_RFKILL 0x0001
+#define RF_KILLSWITCH_OFF 1
+#define RF_KILLSWITCH_ON  0
 
 #define IPW_COMMAND_POOL_SIZE        40
 
