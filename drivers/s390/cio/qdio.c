@@ -230,7 +230,7 @@ qdio_siga_input(struct qdio_q *q)
 }
 
 /* locked by the locks in qdio_activate and qdio_cleanup */
-static __u32 * volatile 
+static __u32 volatile *
 qdio_get_indicator(void)
 {
 	int i;

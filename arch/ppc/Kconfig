@@ -911,6 +911,7 @@ config PPCBUG_NVRAM
 	default y if PPC_PREP
 
 config SMP
+	depends on PPC_STD_MMU
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU. If you have
@@ -930,7 +931,7 @@ config SMP
 
 config IRQ_ALL_CPUS
 	bool "Distribute interrupts on all CPUs by default"
-	depends on SMP
+	depends on SMP && !MV64360
 	help
 	  This option gives the kernel permission to distribute IRQs across
 	  multiple CPUs.  Saying N here will route all IRQs to the first
@@ -1121,7 +1122,9 @@ config PROC_HARDWARE
 
 source "drivers/zorro/Kconfig"
 
+if !44x || BROKEN
 source kernel/power/Kconfig
+endif
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
