@@ -290,6 +290,17 @@ __xprt_put_cong(struct rpc_xprt *xprt, struct rpc_rqst *req)
 }
 
 /**
+ * xprt_release_rqst_cong - housekeeping when request is complete
+ * @task: RPC request that recently completed
+ *
+ * Useful for transports that require congestion control.
+ */
+void xprt_release_rqst_cong(struct rpc_task *task)
+{
+	__xprt_put_cong(task->tk_xprt, task->tk_rqstp);
+}
+
+/**
  * xprt_adjust_cwnd - adjust transport congestion window
  * @task: recently completed RPC request used to adjust window
  * @result: result code of completed RPC request
@@ -823,7 +834,8 @@ void xprt_release(struct rpc_task *task)
 		return;
 	spin_lock_bh(&xprt->transport_lock);
 	xprt->ops->release_xprt(xprt, task);
-	__xprt_put_cong(xprt, req);
+	if (xprt->ops->release_request)
+		xprt->ops->release_request(task);
 	if (!list_empty(&req->rq_list))
 		list_del(&req->rq_list);
 	xprt->last_used = jiffies;

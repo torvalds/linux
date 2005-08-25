@@ -138,6 +138,7 @@ struct rpc_xprt_ops {
 	int		(*send_request)(struct rpc_task *task);
 	void		(*set_retrans_timeout)(struct rpc_task *task);
 	void		(*timer)(struct rpc_task *task);
+	void		(*release_request)(struct rpc_task *task);
 	void		(*close)(struct rpc_xprt *xprt);
 	void		(*destroy)(struct rpc_xprt *xprt);
 };
@@ -262,6 +263,7 @@ void			xprt_update_rtt(struct rpc_task *task);
 void			xprt_adjust_cwnd(struct rpc_task *task, int result);
 struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, u32 xid);
 void			xprt_complete_rqst(struct rpc_task *task, int copied);
+void			xprt_release_rqst_cong(struct rpc_task *task);
 void			xprt_disconnect(struct rpc_xprt *xprt);
 
 /*

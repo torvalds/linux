@@ -1059,6 +1059,7 @@ static struct rpc_xprt_ops xs_udp_ops = {
 	.send_request		= xs_udp_send_request,
 	.set_retrans_timeout	= xprt_set_retrans_timeout_rtt,
 	.timer			= xs_udp_timer,
+	.release_request	= xprt_release_rqst_cong,
 	.close			= xs_close,
 	.destroy		= xs_destroy,
 };
