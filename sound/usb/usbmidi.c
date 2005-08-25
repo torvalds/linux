@@ -594,17 +594,20 @@ static void snd_usbmidi_emagic_finish_out(snd_usb_midi_out_endpoint_t* ep)
 static void snd_usbmidi_emagic_input(snd_usb_midi_in_endpoint_t* ep,
 				     uint8_t* buffer, int buffer_length)
 {
-	/* ignore padding bytes at end of buffer */
-	while (buffer_length > 0 && buffer[buffer_length - 1] == 0xff)
-		--buffer_length;
+	int i;
+
+	/* FF indicates end of valid data */
+	for (i = 0; i < buffer_length; ++i)
+		if (buffer[i] == 0xff) {
+			buffer_length = i;
+			break;
+		}
 
 	/* handle F5 at end of last buffer */
 	if (ep->seen_f5)
 		goto switch_port;
 
 	while (buffer_length > 0) {
-		int i;
-
 		/* determine size of data until next F5 */
 		for (i = 0; i < buffer_length; ++i)
 			if (buffer[i] == 0xf5)
@@ -670,6 +673,10 @@ static void snd_usbmidi_emagic_output(snd_usb_midi_out_endpoint_t* ep)
 			if (buf_free < 1)
 				break;
 		}
+	}
+	if (buf_free < ep->max_transfer && buf_free > 0) {
+		*buf = 0xff;
+		--buf_free;
 	}
 	ep->urb->transfer_buffer_length = ep->max_transfer - buf_free;
 }
