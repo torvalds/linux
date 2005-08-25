@@ -4450,6 +4450,7 @@ static inline void ipw_rx_notification(struct ipw_priv *priv,
 			priv->status &=
 			    ~(STATUS_SCANNING | STATUS_SCAN_ABORTING);
 
+			wake_up_interruptible(&priv->wait_state);
 			cancel_delayed_work(&priv->scan_check);
 
 			if (priv->status & STATUS_EXIT_PENDING)
