@@ -3983,6 +3983,7 @@ int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
 	int rc = 0;
 	struct smb_com_transaction_change_notify_req * pSMB = NULL;
 	struct smb_com_transaction_change_notify_rsp * pSMBr = NULL;
+	struct dir_notify_req *dnotify_req;
 	int bytes_returned;
 
 	cFYI(1, ("In CIFSSMBNotify for file handle %d",(int)netfid));
