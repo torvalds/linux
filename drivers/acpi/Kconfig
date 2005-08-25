@@ -80,16 +80,16 @@ config ACPI_SLEEP_PROC_SLEEP
 config ACPI_AC
 	tristate "AC Adapter"
 	depends on X86
-	default m
+	default y
 	help
 	  This driver adds support for the AC Adapter object, which indicates
-	  whether a system is on AC, or not.  Typically, only mobile systems 
-	  have this object, since desktops are always on AC.
+	  whether a system is on AC, or not. If you have a system that can
+	  switch between A/C and battery, say Y.
 
 config ACPI_BATTERY
 	tristate "Battery"
 	depends on X86
-	default m
+	default y
 	help
 	  This driver adds support for battery information through
 	  /proc/acpi/battery. If you have a mobile system with a battery, 
@@ -97,18 +97,17 @@ config ACPI_BATTERY
 
 config ACPI_BUTTON
 	tristate "Button"
-	default m
+	default y
 	help
-	  This driver registers for events based on buttons, such as the
-	  power, sleep, and lid switch.  In the future, a daemon will read
-	  /proc/acpi/event and perform user-defined actions such as shutting
-	  down the system.  Until then, you can cat it, and see output when
-	  a button is pressed.
+	  This driver handles events on the power, sleep and lid buttons.
+	  A daemon reads /proc/acpi/event and perform user-defined actions
+	  such as shutting down the system.  This is necessary for
+	  software controlled poweroff.
 
 config ACPI_VIDEO
 	tristate "Video"
 	depends on X86
-	default m
+	default y
 	help
 	  This driver implement the ACPI Extensions For Display Adapters
 	  for integrated graphics devices on motherboard, as specified in
@@ -129,18 +128,19 @@ config ACPI_HOTKEY
 
 config ACPI_FAN
 	tristate "Fan"
-	default m
+	default y
 	help
 	  This driver adds support for ACPI fan devices, allowing user-mode 
 	  applications to perform basic fan control (on, off, status).
 
 config ACPI_PROCESSOR
 	tristate "Processor"
-	default m
+	default y
 	help
 	  This driver installs ACPI as the idle handler for Linux, and uses
 	  ACPI C2 and C3 processor states to save power, on systems that
-	  support it.
+	  support it.  It is required by several flavors of cpufreq
+	  Performance-state drivers.
 
 config ACPI_HOTPLUG_CPU
 	bool
@@ -151,7 +151,7 @@ config ACPI_HOTPLUG_CPU
 config ACPI_THERMAL
 	tristate "Thermal Zone"
 	depends on ACPI_PROCESSOR
-	default m
+	default y
 	help
 	  This driver adds support for ACPI thermal zones.  Most mobile and
 	  some desktop systems support ACPI thermal zones.  It is HIGHLY
@@ -167,7 +167,7 @@ config ACPI_NUMA
 config ACPI_ASUS
         tristate "ASUS/Medion Laptop Extras"
 	depends on X86
-	default m
+	default y
         ---help---
           This driver provides support for extra features of ACPI-compatible
           ASUS laptops. As some of Medion laptops are made by ASUS, it may also
@@ -196,7 +196,7 @@ config ACPI_ASUS
 config ACPI_IBM
 	tristate "IBM ThinkPad Laptop Extras"
 	depends on X86
-	default m
+	default y
 	---help---
 	  This is a Linux ACPI driver for the IBM ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -209,7 +209,7 @@ config ACPI_IBM
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on X86
-	default m
+	default y
 	---help---
 	  This driver adds support for access to certain system settings
 	  on "legacy free" Toshiba laptops.  These laptops can be recognized by
@@ -296,7 +296,7 @@ config X86_PM_TIMER
 	bool "Power Management Timer Support"
 	depends on X86
 	depends on !X86_64
-	default n
+	default y
 	help
 	  The Power Management Timer is available on all ACPI-capable,
 	  in most cases even if ACPI is unusable or blacklisted.
