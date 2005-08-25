@@ -107,6 +107,15 @@ static struct flash_spec flash_table[] =
 
 MODULE_DEVICE_TABLE(pci, bnx2_pci_tbl);
 
+static inline u32 bnx2_tx_avail(struct bnx2 *bp)
+{
+	u32 diff = TX_RING_IDX(bp->tx_prod) - TX_RING_IDX(bp->tx_cons);
+
+	if (diff > MAX_TX_DESC_CNT)
+		diff = (diff & MAX_TX_DESC_CNT) - 1;
+	return (bp->tx_ring_size - diff);
+}
+
 static u32
 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset)
 {
@@ -1338,22 +1347,19 @@ bnx2_tx_int(struct bnx2 *bp)
 		}
 	}
 
-	atomic_add(tx_free_bd, &bp->tx_avail_bd);
+	bp->tx_cons = sw_cons;
 
 	if (unlikely(netif_queue_stopped(bp->dev))) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&bp->tx_lock, flags);
 		if ((netif_queue_stopped(bp->dev)) &&
-			(atomic_read(&bp->tx_avail_bd) > MAX_SKB_FRAGS)) {
+		    (bnx2_tx_avail(bp) > MAX_SKB_FRAGS)) {
 
 			netif_wake_queue(bp->dev);
 		}
 		spin_unlock_irqrestore(&bp->tx_lock, flags);
 	}
-
-	bp->tx_cons = sw_cons;
-
 }
 
 static inline void
@@ -2971,7 +2977,6 @@ bnx2_init_tx_ring(struct bnx2 *bp)
 	bp->tx_prod = 0;
 	bp->tx_cons = 0;
 	bp->tx_prod_bseq = 0;
-	atomic_set(&bp->tx_avail_bd, bp->tx_ring_size);
 	
 	val = BNX2_L2CTX_TYPE_TYPE_L2;
 	val |= BNX2_L2CTX_TYPE_SIZE_L2;
@@ -4057,9 +4062,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 prod, ring_prod;
 	int i;
 
-	if (unlikely(atomic_read(&bp->tx_avail_bd) <
-		(skb_shinfo(skb)->nr_frags + 1))) {
-
+	if (unlikely(bnx2_tx_avail(bp) < (skb_shinfo(skb)->nr_frags + 1))) {
 		netif_stop_queue(dev);
 		printk(KERN_ERR PFX "%s: BUG! Tx ring full when queue awake!\n",
 			dev->name);
@@ -4156,8 +4159,6 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	prod = NEXT_TX_BD(prod);
 	bp->tx_prod_bseq += skb->len;
 
-	atomic_sub(last_frag + 1, &bp->tx_avail_bd);
-
 	REG_WR16(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BIDX, prod);
 	REG_WR(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BSEQ, bp->tx_prod_bseq);
 
@@ -4166,16 +4167,14 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	bp->tx_prod = prod;
 	dev->trans_start = jiffies;
 
-	if (unlikely(atomic_read(&bp->tx_avail_bd) <= MAX_SKB_FRAGS)) {
+	if (unlikely(bnx2_tx_avail(bp) <= MAX_SKB_FRAGS)) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&bp->tx_lock, flags);
-		if (atomic_read(&bp->tx_avail_bd) <= MAX_SKB_FRAGS) {
-			netif_stop_queue(dev);
-
-			if (atomic_read(&bp->tx_avail_bd) > MAX_SKB_FRAGS)
-				netif_wake_queue(dev);
-		}
+		netif_stop_queue(dev);
+		
+		if (bnx2_tx_avail(bp) > MAX_SKB_FRAGS)
+			netif_wake_queue(dev);
 		spin_unlock_irqrestore(&bp->tx_lock, flags);
 	}
 

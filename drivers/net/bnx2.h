@@ -3841,12 +3841,12 @@ struct bnx2 {
 	struct status_block	*status_blk;
 	u32 			last_status_idx;
 
-	atomic_t		tx_avail_bd;
 	struct tx_bd		*tx_desc_ring;
 	struct sw_bd		*tx_buf_ring;
 	u32			tx_prod_bseq;
 	u16			tx_prod;
 	u16			tx_cons;
+	int			tx_ring_size;
 
 #ifdef BCM_VLAN 
 	struct			vlan_group *vlgrp;
@@ -3929,7 +3929,6 @@ struct bnx2 {
 	u16			fw_wr_seq;
 	u16			fw_drv_pulse_wr_seq;
 
-	int			tx_ring_size;
 	dma_addr_t		tx_desc_mapping;
 
 
