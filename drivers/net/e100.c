@@ -785,6 +785,7 @@ static int e100_eeprom_save(struct nic *nic, u16 start, u16 count)
 }
 
 #define E100_WAIT_SCB_TIMEOUT 20000 /* we might have to wait 100ms!!! */
+#define E100_WAIT_SCB_FAST 20       /* delay like the old code */
 static inline int e100_exec_cmd(struct nic *nic, u8 cmd, dma_addr_t dma_addr)
 {
 	unsigned long flags;
@@ -798,7 +799,7 @@ static inline int e100_exec_cmd(struct nic *nic, u8 cmd, dma_addr_t dma_addr)
 		if(likely(!readb(&nic->csr->scb.cmd_lo)))
 			break;
 		cpu_relax();
-		if(unlikely(i > (E100_WAIT_SCB_TIMEOUT >> 1)))
+		if(unlikely(i > E100_WAIT_SCB_FAST))
 			udelay(5);
 	}
 	if(unlikely(i == E100_WAIT_SCB_TIMEOUT)) {
