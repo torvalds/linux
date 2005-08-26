@@ -2388,12 +2388,13 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 void ata_poll_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 {
 	struct ata_port *ap = qc->ap;
+	unsigned long flags;
 
-	spin_lock_irq(&ap->host_set->lock);
+	spin_lock_irqsave(&ap->host_set->lock, flags);
 	ap->flags &= ~ATA_FLAG_NOINTR;
 	ata_irq_on(ap);
 	ata_qc_complete(qc, drv_stat);
-	spin_unlock_irq(&ap->host_set->lock);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 }
 
 /**
@@ -2973,8 +2974,10 @@ static void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
 static void ata_qc_timeout(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
+	struct ata_host_set *host_set = ap->host_set;
 	struct ata_device *dev = qc->dev;
 	u8 host_stat = 0, drv_stat;
+	unsigned long flags;
 
 	DPRINTK("ENTER\n");
 
@@ -2985,7 +2988,9 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		if (!(cmd->eh_eflags & SCSI_EH_CANCEL_CMD)) {
 
 			/* finish completing original command */
+			spin_lock_irqsave(&host_set->lock, flags);
 			__ata_qc_complete(qc);
+			spin_unlock_irqrestore(&host_set->lock, flags);
 
 			atapi_request_sense(ap, dev, cmd);
 
@@ -2995,6 +3000,8 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 			goto out;
 		}
 	}
+
+	spin_lock_irqsave(&host_set->lock, flags);
 
 	/* hack alert!  We cannot use the supplied completion
 	 * function from inside the ->eh_strategy_handler() thread.
@@ -3029,6 +3036,9 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		ata_qc_complete(qc, drv_stat);
 		break;
 	}
+
+	spin_unlock_irqrestore(&host_set->lock, flags);
+
 out:
 	DPRINTK("EXIT\n");
 }

@@ -586,11 +586,15 @@ static void ahci_intr_error(struct ata_port *ap, u32 irq_stat)
 
 static void ahci_eng_timeout(struct ata_port *ap)
 {
-	void *mmio = ap->host_set->mmio_base;
+	struct ata_host_set *host_set = ap->host_set;
+	void *mmio = host_set->mmio_base;
 	void *port_mmio = ahci_port_base(mmio, ap->port_no);
 	struct ata_queued_cmd *qc;
+	unsigned long flags;
 
 	DPRINTK("ENTER\n");
+
+	spin_lock_irqsave(&host_set->lock, flags);
 
 	ahci_intr_error(ap, readl(port_mmio + PORT_IRQ_STAT));
 
@@ -609,6 +613,7 @@ static void ahci_eng_timeout(struct ata_port *ap)
 		ata_qc_complete(qc, ATA_ERR);
 	}
 
+	spin_unlock_irqrestore(&host_set->lock, flags);
 }
 
 static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)

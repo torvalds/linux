@@ -325,10 +325,14 @@ static void pdc_qc_prep(struct ata_queued_cmd *qc)
 
 static void pdc_eng_timeout(struct ata_port *ap)
 {
+	struct ata_host_set *host_set = ap->host_set;
 	u8 drv_stat;
 	struct ata_queued_cmd *qc;
+	unsigned long flags;
 
 	DPRINTK("ENTER\n");
+
+	spin_lock_irqsave(&host_set->lock, flags);
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	if (!qc) {
@@ -363,6 +367,7 @@ static void pdc_eng_timeout(struct ata_port *ap)
 	}
 
 out:
+	spin_unlock_irqrestore(&host_set->lock, flags);
 	DPRINTK("EXIT\n");
 }
 

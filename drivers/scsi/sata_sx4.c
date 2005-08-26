@@ -848,9 +848,13 @@ static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_re
 static void pdc_eng_timeout(struct ata_port *ap)
 {
 	u8 drv_stat;
+	struct ata_host_set *host_set = ap->host_set;
 	struct ata_queued_cmd *qc;
+	unsigned long flags;
 
 	DPRINTK("ENTER\n");
+
+	spin_lock_irqsave(&host_set->lock, flags);
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	if (!qc) {
@@ -885,6 +889,7 @@ static void pdc_eng_timeout(struct ata_port *ap)
 	}
 
 out:
+	spin_unlock_irqrestore(&host_set->lock, flags);
 	DPRINTK("EXIT\n");
 }
 
