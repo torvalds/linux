@@ -466,7 +466,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	else if ((tx.crypt || local->crypt[local->tx_keyidx]) && !no_encrypt) {
 		/* Add ISWEP flag both for firmware and host based encryption
 		 */
-		fc |= IEEE80211_FCTL_WEP;
+		fc |= IEEE80211_FCTL_PROTECTED;
 		hdr->frame_ctl = cpu_to_le16(fc);
 	} else if (local->drop_unencrypted &&
 		   WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA &&

@@ -1436,7 +1436,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 			    challenge == NULL ||
 			    memcmp(sta->u.sta.challenge, challenge,
 				   WLAN_AUTH_CHALLENGE_LEN) != 0 ||
-			    !(fc & IEEE80211_FCTL_WEP)) {
+			    !(fc & IEEE80211_FCTL_PROTECTED)) {
 				txt = "challenge response incorrect";
 				resp = WLAN_STATUS_CHALLENGE_FAIL;
 				goto fail;

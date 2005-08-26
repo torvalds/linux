@@ -773,7 +773,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 			      crypt->ops->decrypt_mpdu == NULL))
 			crypt = NULL;
 
-		if (!crypt && (fc & IEEE80211_FCTL_WEP)) {
+		if (!crypt && (fc & IEEE80211_FCTL_PROTECTED)) {
 #if 0
 			/* This seems to be triggered by some (multicast?)
 			 * frames from other than current BSS, so just drop the
@@ -791,7 +791,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	if (type != IEEE80211_FTYPE_DATA) {
 		if (type == IEEE80211_FTYPE_MGMT &&
 		    stype == IEEE80211_STYPE_AUTH &&
-		    fc & IEEE80211_FCTL_WEP && local->host_decrypt &&
+		    fc & IEEE80211_FCTL_PROTECTED && local->host_decrypt &&
 		    (keyidx = hostap_rx_frame_decrypt(local, skb, crypt)) < 0)
 		{
 			printk(KERN_DEBUG "%s: failed to decrypt mgmt::auth "
@@ -886,14 +886,14 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 
 	/* skb: hdr + (possibly fragmented, possibly encrypted) payload */
 
-	if (local->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
+	if (local->host_decrypt && (fc & IEEE80211_FCTL_PROTECTED) &&
 	    (keyidx = hostap_rx_frame_decrypt(local, skb, crypt)) < 0)
 		goto rx_dropped;
 	hdr = (struct ieee80211_hdr *) skb->data;
 
 	/* skb: hdr + (possibly fragmented) plaintext payload */
 
-	if (local->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
+	if (local->host_decrypt && (fc & IEEE80211_FCTL_PROTECTED) &&
 	    (frag != 0 || (fc & IEEE80211_FCTL_MOREFRAGS))) {
 		int flen;
 		struct sk_buff *frag_skb =
@@ -948,12 +948,12 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	/* skb: hdr + (possible reassembled) full MSDU payload; possibly still
 	 * encrypted/authenticated */
 
-	if (local->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
+	if (local->host_decrypt && (fc & IEEE80211_FCTL_PROTECTED) &&
 	    hostap_rx_frame_decrypt_msdu(local, skb, keyidx, crypt))
 		goto rx_dropped;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
-	if (crypt && !(fc & IEEE80211_FCTL_WEP) && !local->open_wep) {
+	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) && !local->open_wep) {
 		if (local->ieee_802_1x &&
 		    hostap_is_eapol_frame(local, skb)) {
 			/* pass unencrypted EAPOL frames even if encryption is
@@ -968,7 +968,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		}
 	}
 
-	if (local->drop_unencrypted && !(fc & IEEE80211_FCTL_WEP) &&
+	if (local->drop_unencrypted && !(fc & IEEE80211_FCTL_PROTECTED) &&
 	    !hostap_is_eapol_frame(local, skb)) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: dropped unencrypted RX data "
