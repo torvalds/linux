@@ -752,6 +752,7 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .driver = "EMU10K1", .name = "SBLive! Player 5.1 [SB0060]", 
 	 .id = "Live",
 	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80511102,
 	 .driver = "EMU10K1", .name = "SBLive! Value [CT4850]", 
