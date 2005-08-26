@@ -48,22 +48,6 @@ struct ipw2100_priv;
 struct ipw2100_tx_packet;
 struct ipw2100_rx_packet;
 
-#ifdef CONFIG_IPW_DEBUG
-enum { IPW_DEBUG_ENABLED = 1 };
-extern u32 ipw2100_debug_level;
-#define IPW_DEBUG(level, message...) \
-do { \
-	if (ipw2100_debug_level & (level)) { \
-		printk(KERN_DEBUG "ipw2100: %c %s ", \
-                       in_interrupt() ? 'I' : 'U',  __FUNCTION__); \
-		printk(message); \
-	} \
-} while (0)
-#else
-enum { IPW_DEBUG_ENABLED = 0 };
-#define IPW_DEBUG(level, message...) do {} while (0)
-#endif /* CONFIG_IPW_DEBUG */
-
 #define IPW_DL_UNINIT    0x80000000
 #define IPW_DL_NONE      0x00000000
 #define IPW_DL_ALL       0x7FFFFFFF
@@ -1144,10 +1128,6 @@ typedef enum _ORDINAL_TABLE_2 {	// NS - means Not Supported by FW
 #define WIRELESS_SPY		// enable iwspy support
 #endif
 
-extern struct iw_handler_def ipw2100_wx_handler_def;
-extern struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device * dev);
-extern void ipw2100_wx_event_work(struct ipw2100_priv *priv);
-
 #define IPW_HOST_FW_SHARED_AREA0 	0x0002f200
 #define IPW_HOST_FW_SHARED_AREA0_END 	0x0002f510	// 0x310 bytes
 
@@ -1182,14 +1162,6 @@ struct ipw2100_fw {
 	const struct firmware *fw_entry;
 };
 
-int ipw2100_get_firmware(struct ipw2100_priv *priv, struct ipw2100_fw *fw);
-void ipw2100_release_firmware(struct ipw2100_priv *priv, struct ipw2100_fw *fw);
-int ipw2100_fw_download(struct ipw2100_priv *priv, struct ipw2100_fw *fw);
-int ipw2100_ucode_download(struct ipw2100_priv *priv, struct ipw2100_fw *fw);
-
 #define MAX_FW_VERSION_LEN 14
-
-int ipw2100_get_fwversion(struct ipw2100_priv *priv, char *buf, size_t max);
-int ipw2100_get_ucodeversion(struct ipw2100_priv *priv, char *buf, size_t max);
 
 #endif /* _IPW2100_H */

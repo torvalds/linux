@@ -4485,7 +4485,7 @@ static void ipw_debug_config(struct ipw_priv *priv)
 	IPW_DEBUG_INFO("RATE MASK: 0x%08X\n", priv->rates_mask);
 }
 #else
-#define ipw_debug_config(x) do {} while (0);
+#define ipw_debug_config(x) do {} while (0)
 #endif
 
 static inline void ipw_set_fixed_rate(struct ipw_priv *priv,
@@ -6617,11 +6617,7 @@ static int ipw_setup_deferred_work(struct ipw_priv *priv)
 {
 	int ret = 0;
 
-#ifdef CONFIG_SOFTWARE_SUSPEND2
-	priv->workqueue = create_workqueue(DRV_NAME, 0);
-#else
 	priv->workqueue = create_workqueue(DRV_NAME);
-#endif
 	init_waitqueue_head(&priv->wait_command_queue);
 
 	INIT_WORK(&priv->adhoc_check, ipw_adhoc_check, priv);
@@ -7242,11 +7238,7 @@ static int ipw_pci_suspend(struct pci_dev *pdev, u32 state)
 	/* Remove the PRESENT state of the device */
 	netif_device_detach(dev);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-	pci_save_state(pdev, priv->pm_state);
-#else
 	pci_save_state(pdev);
-#endif
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, state);
 
