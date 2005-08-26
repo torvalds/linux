@@ -55,7 +55,7 @@
 
 #include <asm/uaccess.h>
 
-DEFINE_SNMP_STAT(struct ipstats_mib, ipv6_statistics);
+DEFINE_SNMP_STAT(struct ipstats_mib, ipv6_statistics) __read_mostly;
 
 static struct packet_type ipv6_packet_type = {
 	.type = __constant_htons(ETH_P_IPV6), 

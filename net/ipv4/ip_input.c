@@ -150,7 +150,7 @@
  *	SNMP management statistics
  */
 
-DEFINE_SNMP_STAT(struct ipstats_mib, ip_statistics);
+DEFINE_SNMP_STAT(struct ipstats_mib, ip_statistics) __read_mostly;
 
 /*
  *	Process Router Attention IP option

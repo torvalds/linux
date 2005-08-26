@@ -274,7 +274,7 @@ int move_addr_to_user(void *kaddr, int klen, void __user *uaddr, int __user *ule
 
 #define SOCKFS_MAGIC 0x534F434B
 
-static kmem_cache_t * sock_inode_cachep;
+static kmem_cache_t * sock_inode_cachep __read_mostly;
 
 static struct inode *sock_alloc_inode(struct super_block *sb)
 {
@@ -333,7 +333,7 @@ static struct super_block *sockfs_get_sb(struct file_system_type *fs_type,
 	return get_sb_pseudo(fs_type, "socket:", &sockfs_ops, SOCKFS_MAGIC);
 }
 
-static struct vfsmount *sock_mnt;
+static struct vfsmount *sock_mnt __read_mostly;
 
 static struct file_system_type sock_fs_type = {
 	.name =		"sockfs",

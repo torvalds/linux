@@ -59,7 +59,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
-DEFINE_SNMP_STAT(struct udp_mib, udp_stats_in6);
+DEFINE_SNMP_STAT(struct udp_mib, udp_stats_in6) __read_mostly;
 
 /* Grrr, addr_type already calculated by caller, but I don't want
  * to add some silly "cookie" argument to this method just for that.

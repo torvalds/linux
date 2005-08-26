@@ -85,7 +85,7 @@ static int ccid3_debug;
 static struct dccp_tx_hist *ccid3_tx_hist;
 static struct dccp_rx_hist *ccid3_rx_hist;
 
-static kmem_cache_t *ccid3_loss_interval_hist_slab;
+static kmem_cache_t *ccid3_loss_interval_hist_slab __read_mostly;
 
 static inline struct ccid3_loss_interval_hist_entry *
 	ccid3_loss_interval_hist_entry_new(const unsigned int __nocast prio)

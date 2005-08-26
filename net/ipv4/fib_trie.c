@@ -166,7 +166,7 @@ static struct tnode *halve(struct trie *t, struct tnode *tn);
 static void tnode_free(struct tnode *tn);
 static void trie_dump_seq(struct seq_file *seq, struct trie *t);
 
-static kmem_cache_t *fn_alias_kmem;
+static kmem_cache_t *fn_alias_kmem __read_mostly;
 static struct trie *trie_local = NULL, *trie_main = NULL;
 
 

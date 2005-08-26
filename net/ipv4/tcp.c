@@ -269,7 +269,7 @@
 
 int sysctl_tcp_fin_timeout = TCP_FIN_TIMEOUT;
 
-DEFINE_SNMP_STAT(struct tcp_mib, tcp_statistics);
+DEFINE_SNMP_STAT(struct tcp_mib, tcp_statistics) __read_mostly;
 
 atomic_t tcp_orphan_count = ATOMIC_INIT(0);
 

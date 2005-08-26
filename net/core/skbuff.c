@@ -68,8 +68,8 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-static kmem_cache_t *skbuff_head_cache;
-static kmem_cache_t *skbuff_fclone_cache;
+static kmem_cache_t *skbuff_head_cache __read_mostly;
+static kmem_cache_t *skbuff_fclone_cache __read_mostly;
 
 struct timeval __read_mostly skb_tv_base;
 

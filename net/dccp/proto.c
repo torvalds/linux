@@ -39,7 +39,7 @@
 #include "ccid.h"
 #include "dccp.h"
 
-DEFINE_SNMP_STAT(struct dccp_mib, dccp_statistics);
+DEFINE_SNMP_STAT(struct dccp_mib, dccp_statistics) __read_mostly;
 
 atomic_t dccp_orphan_count = ATOMIC_INIT(0);
 
