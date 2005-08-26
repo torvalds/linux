@@ -313,7 +313,7 @@ int ieee80211_xmit(struct sk_buff *skb,
 
 	if (encrypt)
 		fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
-			IEEE80211_FCTL_WEP;
+			IEEE80211_FCTL_PROTECTED;
 	else
 		fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA;
 

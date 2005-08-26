@@ -439,7 +439,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			      crypt->ops->decrypt_mpdu == NULL))
 			crypt = NULL;
 
-		if (!crypt && (fc & IEEE80211_FCTL_WEP)) {
+		if (!crypt && (fc & IEEE80211_FCTL_PROTECTED)) {
 			/* This seems to be triggered by some (multicast?)
 			 * frames from other than current BSS, so just drop the
 			 * frames silently instead of filling system log with
@@ -455,7 +455,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 #ifdef NOT_YET
 	if (type != WLAN_FC_TYPE_DATA) {
 		if (type == WLAN_FC_TYPE_MGMT && stype == WLAN_FC_STYPE_AUTH &&
-		    fc & IEEE80211_FCTL_WEP && ieee->host_decrypt &&
+		    fc & IEEE80211_FCTL_PROTECTED && ieee->host_decrypt &&
 		    (keyidx = hostap_rx_frame_decrypt(ieee, skb, crypt)) < 0)
 		{
 			printk(KERN_DEBUG "%s: failed to decrypt mgmt::auth "
@@ -556,7 +556,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	/* skb: hdr + (possibly fragmented, possibly encrypted) payload */
 
-	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
+	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_PROTECTED) &&
 	    (keyidx = ieee80211_rx_frame_decrypt(ieee, skb, crypt)) < 0)
 		goto rx_dropped;
 
@@ -564,7 +564,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	/* skb: hdr + (possibly fragmented) plaintext payload */
 	// PR: FIXME: hostap has additional conditions in the "if" below:
-	// ieee->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
+	// ieee->host_decrypt && (fc & IEEE80211_FCTL_PROTECTED) &&
 	if ((frag != 0 || (fc & IEEE80211_FCTL_MOREFRAGS))) {
 		int flen;
 		struct sk_buff *frag_skb = ieee80211_frag_cache_get(ieee, hdr);
@@ -620,12 +620,12 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	/* skb: hdr + (possible reassembled) full MSDU payload; possibly still
 	 * encrypted/authenticated */
-	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
+	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_PROTECTED) &&
 	    ieee80211_rx_frame_decrypt_msdu(ieee, skb, keyidx, crypt))
 		goto rx_dropped;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
-	if (crypt && !(fc & IEEE80211_FCTL_WEP) && !ieee->open_wep) {
+	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) && !ieee->open_wep) {
 		if (/*ieee->ieee802_1x &&*/
 		    ieee80211_is_eapol_frame(ieee, skb)) {
 #ifdef CONFIG_IEEE80211_DEBUG
@@ -646,7 +646,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 
 #ifdef CONFIG_IEEE80211_DEBUG
-	if (crypt && !(fc & IEEE80211_FCTL_WEP) &&
+	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) &&
 	    ieee80211_is_eapol_frame(ieee, skb)) {
 			struct eapol *eap = (struct eapol *)(skb->data +
 				24);
@@ -655,7 +655,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 #endif
 
-	if (crypt && !(fc & IEEE80211_FCTL_WEP) && !ieee->open_wep &&
+	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) && !ieee->open_wep &&
 	    !ieee80211_is_eapol_frame(ieee, skb)) {
 		IEEE80211_DEBUG_DROP(
 			"dropped unencrypted RX data "

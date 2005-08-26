@@ -867,7 +867,7 @@ static int start_tx (struct sk_buff *skb, struct net_device *dev)
 	header.duration_id = 0;
 	header.seq_ctl = 0;
 	if (priv->wep_is_on)
-		frame_ctl |= IEEE80211_FCTL_WEP;
+		frame_ctl |= IEEE80211_FCTL_PROTECTED;
 	if (priv->operating_mode == IW_MODE_ADHOC) {
 		memcpy(&header.addr1, skb->data, 6);
 		memcpy(&header.addr2, dev->dev_addr, 6);
@@ -1117,7 +1117,7 @@ static void rx_done_irq(struct atmel_private *priv)
 		/* probe for CRC use here if needed  once five packets have arrived with
 		   the same crc status, we assume we know what's happening and stop probing */
 		if (priv->probe_crc) {
-			if (!priv->wep_is_on || !(frame_ctl & IEEE80211_FCTL_WEP)) {
+			if (!priv->wep_is_on || !(frame_ctl & IEEE80211_FCTL_PROTECTED)) {
 				priv->do_rx_crc = probe_crc(priv, rx_packet_loc, msdu_size);
 			} else {
 				priv->do_rx_crc = probe_crc(priv, rx_packet_loc + 24, msdu_size - 24);
@@ -1132,7 +1132,7 @@ static void rx_done_irq(struct atmel_private *priv)
 		}
 		    
 		/* don't CRC header when WEP in use */
-		if (priv->do_rx_crc && (!priv->wep_is_on || !(frame_ctl & IEEE80211_FCTL_WEP))) {
+		if (priv->do_rx_crc && (!priv->wep_is_on || !(frame_ctl & IEEE80211_FCTL_PROTECTED))) {
 			crc = crc32_le(0xffffffff, (unsigned char *)&header, 24);
 		}
 		msdu_size -= 24; /* header */
@@ -2677,7 +2677,7 @@ static void send_authentication_request(struct atmel_private *priv, u8 *challeng
 		auth.alg = cpu_to_le16(C80211_MGMT_AAN_SHAREDKEY); 
 		/* no WEP for authentication frames with TrSeqNo 1 */
 		if (priv->CurrentAuthentTransactionSeqNum != 1)
-			header.frame_ctl |=  cpu_to_le16(IEEE80211_FCTL_WEP); 
+			header.frame_ctl |=  cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 	} else {
 		auth.alg = cpu_to_le16(C80211_MGMT_AAN_OPENSYSTEM);
 	}
