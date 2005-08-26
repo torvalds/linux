@@ -2459,11 +2459,10 @@ static void ata_pio_complete (struct ata_port *ap)
 	u8 drv_stat;
 
 	/*
-	 * This is purely hueristic.  This is a fast path.
-	 * Sometimes when we enter, BSY will be cleared in
-	 * a chk-status or two.  If not, the drive is probably seeking
-	 * or something.  Snooze for a couple msecs, then
-	 * chk-status again.  If still busy, fall back to
+	 * This is purely heuristic.  This is a fast path.  Sometimes when
+	 * we enter, BSY will be cleared in a chk-status or two.  If not,
+	 * the drive is probably seeking or something.  Snooze for a couple
+	 * msecs, then chk-status again.  If still busy, fall back to
 	 * PIO_ST_POLL state.
 	 */
 	drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 10);
