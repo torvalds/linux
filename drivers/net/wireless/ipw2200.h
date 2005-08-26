@@ -73,8 +73,6 @@ enum connection_manager_assoc_states
 };
 
 
-#define IPW_NORMAL                   0
-#define IPW_NOWAIT                   0
 #define IPW_WAIT                     (1<<0)
 #define IPW_QUIET                    (1<<1)
 #define IPW_ROAMING                  (1<<2)
@@ -180,7 +178,7 @@ enum connection_manager_assoc_states
 
 /* even if MAC WEP set (allows pre-encrypt) */
 #define DCT_FLAG_NO_WEP              0x20
-#define IPW_
+
 /* overwrite TSF field */
 #define DCT_FLAG_TSF_REQD                  0x40
 
@@ -511,12 +509,6 @@ struct notif_authenticate {
 	u8 state;
 	struct machdr24 addr;
 	u16 status;
-} __attribute__ ((packed));
-
-struct temperature
-{
-	s32 measured;
-	s32 active;
 } __attribute__ ((packed));
 
 struct notif_calibration {

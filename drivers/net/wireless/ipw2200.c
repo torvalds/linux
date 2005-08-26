@@ -4485,7 +4485,7 @@ static void ipw_debug_config(struct ipw_priv *priv)
 	IPW_DEBUG_INFO("RATE MASK: 0x%08X\n", priv->rates_mask);
 }
 #else
-#define ipw_debug_config(x) do {} while (0);
+#define ipw_debug_config(x) do {} while (0)
 #endif
 
 static inline void ipw_set_fixed_rate(struct ipw_priv *priv,
