@@ -5685,8 +5685,10 @@ static int ipw2100_open(struct net_device *dev)
 	IPW_DEBUG_INFO("dev->open\n");
 
 	spin_lock_irqsave(&priv->low_lock, flags);
-	if (priv->status & STATUS_ASSOCIATED)
+	if (priv->status & STATUS_ASSOCIATED) {
+		netif_carrier_on(dev);
 		netif_start_queue(dev);
+	}
 	spin_unlock_irqrestore(&priv->low_lock, flags);
 
 	return 0;
