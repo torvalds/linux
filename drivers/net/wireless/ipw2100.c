@@ -106,7 +106,7 @@ that protects the following:
 
   tx_pend_list : Holds used Tx buffers waiting to go into the TBD ring
     TAIL modified ipw2100_tx()
-    HEAD modified by X__ipw2100_tx_send_data()
+    HEAD modified by ipw2100_tx_send_data()
 
   msg_free_list : Holds pre-allocated Msg (Command) buffers
     TAIL modified in __ipw2100_tx_process()
@@ -114,7 +114,7 @@ that protects the following:
 
   msg_pend_list : Holds used Msg buffers waiting to go into the TBD ring
     TAIL modified in ipw2100_hw_send_command()
-    HEAD modified in X__ipw2100_tx_send_commands()
+    HEAD modified in ipw2100_tx_send_commands()
 
   The flow of data on the TX side is as follows:
 
@@ -287,8 +287,8 @@ static const char *command_types[] = {
 
 
 /* Pre-decl until we get the code solid and then we can clean it up */
-static void X__ipw2100_tx_send_commands(struct ipw2100_priv *priv);
-static void X__ipw2100_tx_send_data(struct ipw2100_priv *priv);
+static void ipw2100_tx_send_commands(struct ipw2100_priv *priv);
+static void ipw2100_tx_send_data(struct ipw2100_priv *priv);
 static int ipw2100_adapter_setup(struct ipw2100_priv *priv);
 
 static void ipw2100_queues_initialize(struct ipw2100_priv *priv);
@@ -736,8 +736,8 @@ static int ipw2100_hw_send_command(struct ipw2100_priv *priv,
 	list_add_tail(element, &priv->msg_pend_list);
 	INC_STAT(&priv->msg_pend_stat);
 
-	X__ipw2100_tx_send_commands(priv);
-	X__ipw2100_tx_send_data(priv);
+	ipw2100_tx_send_commands(priv);
+	ipw2100_tx_send_data(priv);
 
 	spin_unlock_irqrestore(&priv->low_lock, flags);
 
@@ -2837,14 +2837,14 @@ static inline void __ipw2100_tx_complete(struct ipw2100_priv *priv)
 	while (__ipw2100_tx_process(priv) && i < 200) i++;
 
 	if (i == 200) {
-		IPW_DEBUG_WARNING(
+		printk(KERN_WARNING DRV_NAME ": "
 		       "%s: Driver is running slow (%d iters).\n",
 		       priv->net_dev->name, i);
 	}
 }
 
 
-static void X__ipw2100_tx_send_commands(struct ipw2100_priv *priv)
+static void ipw2100_tx_send_commands(struct ipw2100_priv *priv)
 {
 	struct list_head *element;
 	struct ipw2100_tx_packet *packet;
@@ -2912,10 +2912,10 @@ static void X__ipw2100_tx_send_commands(struct ipw2100_priv *priv)
 
 
 /*
- * X__ipw2100_tx_send_data
+ * ipw2100_tx_send_data
  *
  */
-static void X__ipw2100_tx_send_data(struct ipw2100_priv *priv)
+static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 {
 	struct list_head *element;
 	struct ipw2100_tx_packet *packet;
@@ -3130,8 +3130,8 @@ static void ipw2100_irq_tasklet(struct ipw2100_priv *priv)
 			       IPW2100_INTA_TX_TRANSFER);
 
 		__ipw2100_tx_complete(priv);
-		X__ipw2100_tx_send_commands(priv);
-		X__ipw2100_tx_send_data(priv);
+		ipw2100_tx_send_commands(priv);
+		ipw2100_tx_send_data(priv);
 	}
 
 	if (inta & IPW2100_INTA_TX_COMPLETE) {
@@ -3282,7 +3282,7 @@ static int ipw2100_tx(struct ieee80211_txb *txb, struct net_device *dev)
 	list_add_tail(element, &priv->tx_pend_list);
 	INC_STAT(&priv->tx_pend_stat);
 
-	X__ipw2100_tx_send_data(priv);
+	ipw2100_tx_send_data(priv);
 
 	spin_unlock_irqrestore(&priv->low_lock, flags);
 	return 0;
