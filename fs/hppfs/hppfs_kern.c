@@ -679,25 +679,25 @@ static int hppfs_readlink(struct dentry *dentry, char *buffer, int buflen)
 	return(n);
 }
 
-static int hppfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void* hppfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct file *proc_file;
 	struct dentry *proc_dentry;
-	int (*follow_link)(struct dentry *, struct nameidata *);
-	int err, n;
+	void * (*follow_link)(struct dentry *, struct nameidata *);
+	void *ret;
 
 	proc_dentry = HPPFS_I(dentry->d_inode)->proc_dentry;
 	proc_file = dentry_open(dget(proc_dentry), NULL, O_RDONLY);
-	err = PTR_ERR(proc_dentry);
-	if(IS_ERR(proc_dentry))
-		return(err);
+
+	if (IS_ERR(proc_dentry))
+		return proc_dentry;
 
 	follow_link = proc_dentry->d_inode->i_op->follow_link;
-	n = (*follow_link)(proc_dentry, nd);
+	ret = (*follow_link)(proc_dentry, nd);
 
 	fput(proc_file);
 
-	return(n);
+	return ret;
 }
 
 static struct inode_operations hppfs_dir_iops = {
