@@ -119,7 +119,7 @@ static struct irqaction haltirq = {
 /*
  * Bus error (DBE/IBE exceptions and bus interrupts) handling setup.
  */
-void __init dec_be_init(void)
+static void __init dec_be_init(void)
 {
 	switch (mips_machtype) {
 	case MACH_DS23100:	/* DS2100/DS3100 Pmin/Pmax */
@@ -227,7 +227,7 @@ static int_ptr kn01_cpu_mask_nr_tbl[][2] __initdata = {
 		{ .p = cpu_all_int } },
 };
 
-void __init dec_init_kn01(void)
+static void __init dec_init_kn01(void)
 {
 	/* IRQ routing. */
 	memcpy(&dec_interrupt, &kn01_interrupt,
@@ -302,7 +302,7 @@ static int_ptr kn230_cpu_mask_nr_tbl[][2] __initdata = {
 		{ .p = cpu_all_int } },
 };
 
-void __init dec_init_kn230(void)
+static void __init dec_init_kn230(void)
 {
 	/* IRQ routing. */
 	memcpy(&dec_interrupt, &kn230_interrupt,
@@ -392,7 +392,7 @@ static int_ptr kn02_asic_mask_nr_tbl[][2] __initdata = {
 		{ .p = kn02_all_int } },
 };
 
-void __init dec_init_kn02(void)
+static void __init dec_init_kn02(void)
 {
 	/* IRQ routing. */
 	memcpy(&dec_interrupt, &kn02_interrupt,
@@ -493,7 +493,7 @@ static int_ptr kn02ba_asic_mask_nr_tbl[][2] __initdata = {
 		{ .p = asic_all_int } },
 };
 
-void __init dec_init_kn02ba(void)
+static void __init dec_init_kn02ba(void)
 {
 	/* IRQ routing. */
 	memcpy(&dec_interrupt, &kn02ba_interrupt,
@@ -590,7 +590,7 @@ static int_ptr kn02ca_asic_mask_nr_tbl[][2] __initdata = {
 		{ .p = asic_all_int } },
 };
 
-void __init dec_init_kn02ca(void)
+static void __init dec_init_kn02ca(void)
 {
 	/* IRQ routing. */
 	memcpy(&dec_interrupt, &kn02ca_interrupt,
@@ -691,7 +691,7 @@ static int_ptr kn03_asic_mask_nr_tbl[][2] __initdata = {
 		{ .p = asic_all_int } },
 };
 
-void __init dec_init_kn03(void)
+static void __init dec_init_kn03(void)
 {
 	/* IRQ routing. */
 	memcpy(&dec_interrupt, &kn03_interrupt,
