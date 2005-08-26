@@ -3017,7 +3017,7 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		host_stat = ap->ops->bmdma_status(ap);
 
 		/* before we do anything else, clear DMA-Start bit */
-		ap->ops->bmdma_stop(ap);
+		ap->ops->bmdma_stop(qc);
 
 		/* fall through */
 
@@ -3399,7 +3399,7 @@ static void ata_bmdma_setup_mmio (struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_bmdma_start - Start a PCI IDE BMDMA transaction
+ *	ata_bmdma_start_mmio - Start a PCI IDE BMDMA transaction
  *	@qc: Info associated with this ATA transaction.
  *
  *	LOCKING:
@@ -3570,7 +3570,7 @@ u8 ata_bmdma_status(struct ata_port *ap)
 
 /**
  *	ata_bmdma_stop - Stop PCI IDE BMDMA transfer
- *	@ap: Port associated with this ATA transaction.
+ *	@qc: Command we are ending DMA for
  *
  *	Clears the ATA_DMA_START flag in the dma control register
  *
@@ -3580,8 +3580,9 @@ u8 ata_bmdma_status(struct ata_port *ap)
  *	spin_lock_irqsave(host_set lock)
  */
 
-void ata_bmdma_stop(struct ata_port *ap)
+void ata_bmdma_stop(struct ata_queued_cmd *qc)
 {
+	struct ata_port *ap = qc->ap;
 	if (ap->flags & ATA_FLAG_MMIO) {
 		void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
 
@@ -3633,7 +3634,7 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 			goto idle_irq;
 
 		/* before we do anything else, clear DMA-Start bit */
-		ap->ops->bmdma_stop(ap);
+		ap->ops->bmdma_stop(qc);
 
 		/* fall through */
 
