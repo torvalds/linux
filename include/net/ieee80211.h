@@ -167,8 +167,19 @@ do { if (ieee80211_debug_level & (level)) \
 #define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
 
+
+/* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
+
+#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
+#define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
+
+/* escape_essid() is intended to be used in debug (and possibly error)
+ * messages. It should never be used for passing essid to user space. */
+const char *escape_essid(const char *essid, u8 essid_len);
+
+
 /*
- * To use the debug system;
+ * To use the debug system:
  *
  * If you are defining a new debug classification, simply add it to the #define
  * list here in the form of:
@@ -622,8 +633,6 @@ enum ieee80211_state {
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
 
 
 #define CFG_IEEE80211_RESERVE_FCS (1<<0)
@@ -827,27 +836,5 @@ extern inline int ieee80211_get_scans(struct ieee80211_device *ieee)
 	return ieee->scans;
 }
 
-static inline const char *escape_essid(const char *essid, u8 essid_len) {
-	static char escaped[IW_ESSID_MAX_SIZE * 2 + 1];
-	const char *s = essid;
-	char *d = escaped;
 
-	if (ieee80211_is_empty_essid(essid, essid_len)) {
-		memcpy(escaped, "<hidden>", sizeof("<hidden>"));
-		return escaped;
-	}
-
-	essid_len = min(essid_len, (u8)IW_ESSID_MAX_SIZE);
-	while (essid_len--) {
-		if (*s == '\0') {
-			*d++ = '\\';
-			*d++ = '0';
-			s++;
-		} else {
-			*d++ = *s++;
-		}
-	}
-	*d = '\0';
-	return escaped;
-}
 #endif /* IEEE80211_H */
