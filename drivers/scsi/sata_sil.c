@@ -24,6 +24,11 @@
  *  If you do not delete the provisions above, a recipient may use your
  *  version of this file under either the OSL or the GPL.
  *
+ *  Documentation for SiI 3112:
+ *  http://gkernel.sourceforge.net/specs/sii/3112A_SiI-DS-0095-B2.pdf.bz2
+ *
+ *  Other errata and documentation available under NDA.
+ *
  */
 
 #include <linux/kernel.h>
