@@ -484,7 +484,7 @@ int ipw2100_get_ordinal(struct ipw2100_priv *priv, u32 ord,
 	u32 total_length;
 
 	if (ordinals->table1_addr == 0) {
-		IPW_DEBUG_WARNING(DRV_NAME ": attempt to use fw ordinals "
+		printk(KERN_WARNING DRV_NAME ": attempt to use fw ordinals "
 		       "before they have been loaded.\n");
 		return -EINVAL;
 	}
@@ -493,7 +493,7 @@ int ipw2100_get_ordinal(struct ipw2100_priv *priv, u32 ord,
 		if (*len < IPW_ORD_TAB_1_ENTRY_SIZE) {
 			*len = IPW_ORD_TAB_1_ENTRY_SIZE;
 
-			IPW_DEBUG_WARNING(DRV_NAME
+			printk(KERN_WARNING DRV_NAME
 			       ": ordinal buffer length too small, need %zd\n",
 			       IPW_ORD_TAB_1_ENTRY_SIZE);
 
@@ -546,7 +546,7 @@ int ipw2100_get_ordinal(struct ipw2100_priv *priv, u32 ord,
 		return 0;
 	}
 
-	IPW_DEBUG_WARNING(DRV_NAME ": ordinal %d neither in table 1 nor "
+	printk(KERN_WARNING DRV_NAME ": ordinal %d neither in table 1 nor "
 	       "in table 2\n", ord);
 
 	return -EINVAL;
@@ -761,7 +761,7 @@ static int ipw2100_hw_send_command(struct ipw2100_priv *priv,
 	}
 
 	if (priv->fatal_error) {
-		IPW_DEBUG_WARNING("%s: firmware fatal error\n",
+		printk(KERN_WARNING DRV_NAME ": %s: firmware fatal error\n",
 		       priv->net_dev->name);
 		return -EIO;
 	}
@@ -999,7 +999,7 @@ static int ipw2100_download_firmware(struct ipw2100_priv *priv)
 	/* load microcode */
 	err = ipw2100_ucode_download(priv, &ipw2100_firmware);
 	if (err) {
-		IPW_DEBUG_ERROR("%s: Error loading microcode: %d\n",
+		printk(KERN_ERR DRV_NAME ": %s: Error loading microcode: %d\n",
 		       priv->net_dev->name, err);
 		goto fail;
 	}
@@ -1012,7 +1012,7 @@ static int ipw2100_download_firmware(struct ipw2100_priv *priv)
 	/* s/w reset and clock stabilization (again!!!) */
 	err = sw_reset_and_clock(priv);
 	if (err) {
-		IPW_DEBUG_ERROR("%s: sw_reset_and_clock failed: %d\n",
+		printk(KERN_ERR DRV_NAME ": %s: sw_reset_and_clock failed: %d\n",
 		       priv->net_dev->name, err);
 		goto fail;
 	}
@@ -1206,7 +1206,7 @@ static int ipw2100_start_adapter(struct ipw2100_priv *priv)
 	 * fw & dino ucode
 	 */
 	if (ipw2100_download_firmware(priv)) {
-		IPW_DEBUG_ERROR("%s: Failed to power on the adapter.\n",
+		printk(KERN_ERR DRV_NAME ": %s: Failed to power on the adapter.\n",
 		       priv->net_dev->name);
 		return -EIO;
 	}
@@ -1266,7 +1266,7 @@ static int ipw2100_start_adapter(struct ipw2100_priv *priv)
 		     i ? "SUCCESS" : "FAILED");
 
 	if (!i) {
-		IPW_DEBUG_WARNING("%s: Firmware did not initialize.\n",
+		printk(KERN_WARNING DRV_NAME ": %s: Firmware did not initialize.\n",
 		       priv->net_dev->name);
 		return -EIO;
 	}
@@ -1462,7 +1462,7 @@ static int ipw2100_hw_stop_adapter(struct ipw2100_priv *priv)
 
 		err = ipw2100_hw_phy_off(priv);
 		if (err)
-			IPW_DEBUG_WARNING("Error disabling radio %d\n", err);
+			printk(KERN_WARNING DRV_NAME ": Error disabling radio %d\n", err);
 
 		/*
 		 * If in D0-standby mode going directly to D3 may cause a
@@ -1488,7 +1488,7 @@ static int ipw2100_hw_stop_adapter(struct ipw2100_priv *priv)
 
 		err = ipw2100_hw_send_command(priv, &cmd);
 		if (err)
-			IPW_DEBUG_WARNING(
+			printk(KERN_WARNING DRV_NAME ": "
 			       "%s: Power down command failed: Error %d\n",
 			       priv->net_dev->name, err);
 		else {
@@ -1529,7 +1529,7 @@ static int ipw2100_hw_stop_adapter(struct ipw2100_priv *priv)
 	}
 
 	if (i == 0)
-		IPW_DEBUG_WARNING(DRV_NAME
+		printk(KERN_WARNING DRV_NAME
 		       ": %s: Could now power down adapter.\n",
 		       priv->net_dev->name);
 
@@ -1569,13 +1569,13 @@ static int ipw2100_disable_adapter(struct ipw2100_priv *priv)
 
 	err = ipw2100_hw_send_command(priv, &cmd);
 	if (err) {
-		IPW_DEBUG_WARNING("exit - failed to send CARD_DISABLE command\n");
+		printk(KERN_WARNING DRV_NAME ": exit - failed to send CARD_DISABLE command\n");
 		goto fail_up;
 	}
 
 	err = ipw2100_wait_for_card_state(priv, IPW_HW_STATE_DISABLED);
 	if (err) {
-		IPW_DEBUG_WARNING("exit - card failed to change to DISABLED\n");
+		printk(KERN_WARNING DRV_NAME ": exit - card failed to change to DISABLED\n");
 		goto fail_up;
 	}
 
@@ -1685,7 +1685,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	    (priv->status & STATUS_RESET_PENDING)) {
 		/* Power cycle the card ... */
 		if (ipw2100_power_cycle_adapter(priv)) {
-			IPW_DEBUG_WARNING("%s: Could not cycle adapter.\n",
+			printk(KERN_WARNING DRV_NAME ": %s: Could not cycle adapter.\n",
 					  priv->net_dev->name);
 			rc = 1;
 			goto exit;
@@ -1695,7 +1695,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 
 	/* Load the firmware, start the clocks, etc. */
 	if (ipw2100_start_adapter(priv)) {
-	       	IPW_DEBUG_ERROR("%s: Failed to start the firmware.\n",
+	       	printk(KERN_ERR DRV_NAME ": %s: Failed to start the firmware.\n",
 				priv->net_dev->name);
 		rc = 1;
 		goto exit;
@@ -1705,7 +1705,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 
 	/* Determine capabilities of this particular HW configuration */
 	if (ipw2100_get_hw_features(priv)) {
-		IPW_DEBUG_ERROR("%s: Failed to determine HW features.\n",
+		printk(KERN_ERR DRV_NAME ": %s: Failed to determine HW features.\n",
 				priv->net_dev->name);
 		rc = 1;
 		goto exit;
@@ -1713,7 +1713,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 
 	lock = LOCK_NONE;
 	if (ipw2100_set_ordinal(priv, IPW_ORD_PERS_DB_LOCK, &lock, &ord_len)) {
-		IPW_DEBUG_ERROR("%s: Failed to clear ordinal lock.\n",
+		printk(KERN_ERR DRV_NAME ": %s: Failed to clear ordinal lock.\n",
 				priv->net_dev->name);
 		rc = 1;
 		goto exit;
@@ -1739,7 +1739,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	/* Send all of the commands that must be sent prior to
 	 * HOST_COMPLETE */
 	if (ipw2100_adapter_setup(priv)) {
-		IPW_DEBUG_ERROR("%s: Failed to start the card.\n",
+		printk(KERN_ERR DRV_NAME ": %s: Failed to start the card.\n",
 				priv->net_dev->name);
 		rc = 1;
 		goto exit;
@@ -1748,7 +1748,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	if (!deferred) {
 		/* Enable the adapter - sends HOST_COMPLETE */
 		if (ipw2100_enable_adapter(priv)) {
-			IPW_DEBUG_ERROR(
+			printk(KERN_ERR DRV_NAME ": "
 				"%s: failed in call to enable adapter.\n",
 				priv->net_dev->name);
 			ipw2100_hw_stop_adapter(priv);
@@ -1806,7 +1806,7 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 	spin_unlock_irqrestore(&priv->low_lock, flags);
 
 	if (ipw2100_hw_stop_adapter(priv))
-		IPW_DEBUG_ERROR("%s: Error stopping adapter.\n",
+		printk(KERN_ERR DRV_NAME ": %s: Error stopping adapter.\n",
 		       priv->net_dev->name);
 
 	/* Do not disable the interrupt until _after_ we disable
@@ -2413,7 +2413,7 @@ static inline void isr_rx(struct ipw2100_priv *priv, int i,
 
 	/* We need to allocate a new SKB and attach it to the RDB. */
 	if (unlikely(ipw2100_alloc_skb(priv, packet))) {
-		IPW_DEBUG_WARNING(
+		printk(KERN_WARNING DRV_NAME ": "
 			"%s: Unable to allocate SKB onto RBD ring - disabling "
 			"adapter.\n", priv->net_dev->name);
 		/* TODO: schedule adapter shutdown */
@@ -2675,7 +2675,7 @@ static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
 		break;
 
 	default:
-		IPW_DEBUG_WARNING("%s: Bad fw_pend_list entry!\n",
+		printk(KERN_WARNING DRV_NAME ": %s: Bad fw_pend_list entry!\n",
 				   priv->net_dev->name);
 		return 0;
 	}
@@ -2689,7 +2689,7 @@ static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
 	read_register(priv->net_dev, IPW_MEM_HOST_SHARED_TX_QUEUE_WRITE_INDEX,
 		      &w);
 	if (w != txq->next)
-		IPW_DEBUG_WARNING("%s: write index mismatch\n",
+		printk(KERN_WARNING DRV_NAME ": %s: write index mismatch\n",
 		       priv->net_dev->name);
 
         /*
@@ -2750,7 +2750,7 @@ static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
 	switch (packet->type) {
 	case DATA:
 		if (txq->drv[txq->oldest].status.info.fields.txType != 0)
-			IPW_DEBUG_WARNING("%s: Queue mismatch.  "
+			printk(KERN_WARNING DRV_NAME ": %s: Queue mismatch.  "
 			       "Expecting DATA TBD but pulled "
 			       "something else: ids %d=%d.\n",
 			       priv->net_dev->name, txq->oldest, packet->index);
@@ -2797,7 +2797,7 @@ static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
 
 	case COMMAND:
 		if (txq->drv[txq->oldest].status.info.fields.txType != 1)
-			IPW_DEBUG_WARNING("%s: Queue mismatch.  "
+			printk(KERN_WARNING DRV_NAME ": %s: Queue mismatch.  "
 			       "Expecting COMMAND TBD but pulled "
 			       "something else: ids %d=%d.\n",
 			       priv->net_dev->name, txq->oldest, packet->index);
@@ -3081,7 +3081,7 @@ static void ipw2100_irq_tasklet(struct ipw2100_priv *priv)
 		      (unsigned long)inta & IPW_INTERRUPT_MASK);
 
 	if (inta & IPW2100_INTA_FATAL_ERROR) {
-		IPW_DEBUG_WARNING(DRV_NAME
+		printk(KERN_WARNING DRV_NAME
 				  ": Fatal interrupt. Scheduling firmware restart.\n");
 		priv->inta_other++;
 		write_register(
@@ -3101,7 +3101,7 @@ static void ipw2100_irq_tasklet(struct ipw2100_priv *priv)
 	}
 
 	if (inta & IPW2100_INTA_PARITY_ERROR) {
-		IPW_DEBUG_ERROR("***** PARITY ERROR INTERRUPT !!!! \n");
+		printk(KERN_ERR DRV_NAME ": ***** PARITY ERROR INTERRUPT !!!! \n");
 		priv->inta_other++;
 		write_register(
 			dev, IPW_REG_INTA,
@@ -3219,7 +3219,7 @@ static irqreturn_t ipw2100_interrupt(int irq, void *data,
 
 	if (inta == 0xFFFFFFFF) {
 		/* Hardware disappeared */
-		IPW_DEBUG_WARNING("IRQ INTA == 0xFFFFFFFF\n");
+		printk(KERN_WARNING DRV_NAME ": IRQ INTA == 0xFFFFFFFF\n");
 		goto none;
 	}
 
@@ -3304,7 +3304,7 @@ static int ipw2100_msg_allocate(struct ipw2100_priv *priv)
 		IPW_COMMAND_POOL_SIZE * sizeof(struct ipw2100_tx_packet),
 		GFP_KERNEL);
 	if (!priv->msg_buffers) {
-		IPW_DEBUG_ERROR("%s: PCI alloc failed for msg "
+		printk(KERN_ERR DRV_NAME ": %s: PCI alloc failed for msg "
 		       "buffers.\n", priv->net_dev->name);
 		return -ENOMEM;
 	}
@@ -3315,7 +3315,7 @@ static int ipw2100_msg_allocate(struct ipw2100_priv *priv)
 			sizeof(struct ipw2100_cmd_header),
 			&p);
 		if (!v) {
-			IPW_DEBUG_ERROR(
+			printk(KERN_ERR DRV_NAME ": "
 			       "%s: PCI alloc failed for msg "
 			       "buffers.\n",
 			       priv->net_dev->name);
@@ -3822,7 +3822,7 @@ int ipw2100_switch_mode(struct ipw2100_priv *priv, u32 mode)
 
 	err = ipw2100_disable_adapter(priv);
 	if (err) {
-		IPW_DEBUG_ERROR("%s: Could not disable adapter %d\n",
+		printk(KERN_ERR DRV_NAME ": %s: Could not disable adapter %d\n",
 		       priv->net_dev->name, err);
 		return err;
 	}
@@ -4268,7 +4268,7 @@ static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
 		TX_PENDED_QUEUE_LENGTH * sizeof(struct ipw2100_tx_packet),
 		GFP_ATOMIC);
 	if (!priv->tx_buffers) {
-		IPW_DEBUG_ERROR("%s: alloc failed form tx buffers.\n",
+		printk(KERN_ERR DRV_NAME ": %s: alloc failed form tx buffers.\n",
 		       priv->net_dev->name);
 		bd_queue_free(priv, &priv->tx_queue);
 		return -ENOMEM;
@@ -4278,7 +4278,7 @@ static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
 		v = pci_alloc_consistent(
 			priv->pci_dev, sizeof(struct ipw2100_data_header), &p);
 		if (!v) {
-			IPW_DEBUG_ERROR("%s: PCI alloc failed for tx "
+			printk(KERN_ERR DRV_NAME ": %s: PCI alloc failed for tx "
 			       "buffers.\n", priv->net_dev->name);
 			err = -ENOMEM;
 			break;
@@ -4589,7 +4589,7 @@ int ipw2100_set_port_type(struct ipw2100_priv *priv, u32 port_type,
 	if (!batch_mode) {
 		err = ipw2100_disable_adapter(priv);
 		if (err) {
-			IPW_DEBUG_ERROR("%s: Could not disable adapter %d\n",
+			printk(KERN_ERR DRV_NAME ": %s: Could not disable adapter %d\n",
 			       priv->net_dev->name, err);
 			return err;
 		}
@@ -5208,7 +5208,7 @@ static int ipw2100_set_wep_flags(struct ipw2100_priv *priv, u32 flags,
 	if (!batch_mode) {
 		err = ipw2100_disable_adapter(priv);
 		if (err) {
-			IPW_DEBUG_ERROR("%s: Could not disable adapter %d\n",
+			printk(KERN_ERR DRV_NAME ": %s: Could not disable adapter %d\n",
 			       priv->net_dev->name, err);
 			return err;
 		}
@@ -5296,7 +5296,7 @@ static int ipw2100_set_key(struct ipw2100_priv *priv,
 		err = ipw2100_disable_adapter(priv);
 		/* FIXME: IPG: shouldn't this prink be in _disable_adapter()? */
 		if (err) {
-			IPW_DEBUG_ERROR("%s: Could not disable adapter %d\n",
+			printk(KERN_ERR DRV_NAME ": %s: Could not disable adapter %d\n",
 			       priv->net_dev->name, err);
 			return err;
 		}
@@ -5332,7 +5332,7 @@ static int ipw2100_set_key_index(struct ipw2100_priv *priv,
 	if (!batch_mode) {
 		err = ipw2100_disable_adapter(priv);
 		if (err) {
-			IPW_DEBUG_ERROR("%s: Could not disable adapter %d\n",
+			printk(KERN_ERR DRV_NAME ": %s: Could not disable adapter %d\n",
 			       priv->net_dev->name, err);
 			return err;
 		}
@@ -5880,7 +5880,7 @@ static int ipw2100_wpa_set_param(struct net_device *dev, u8 name, u32 value){
 			break;
 
 		default:
-			IPW_DEBUG_ERROR("%s: Unknown WPA param: %d\n",
+			printk(KERN_ERR DRV_NAME ": %s: Unknown WPA param: %d\n",
 					    dev->name, name);
 			ret = -EOPNOTSUPP;
 	}
@@ -5903,7 +5903,7 @@ static int ipw2100_wpa_mlme(struct net_device *dev, int command, int reason){
 			break;
 
 		default:
-			IPW_DEBUG_ERROR("%s: Unknown MLME request: %d\n",
+			printk(KERN_ERR DRV_NAME ": %s: Unknown MLME request: %d\n",
 					    dev->name, command);
 			ret = -EOPNOTSUPP;
 	}
@@ -6153,7 +6153,7 @@ static int ipw2100_wpa_supplicant(struct net_device *dev, struct iw_point *p){
 		break;
 
 	default:
-		IPW_DEBUG_ERROR("%s: Unknown WPA supplicant request: %d\n",
+		printk(KERN_ERR DRV_NAME ": %s: Unknown WPA supplicant request: %d\n",
 				dev->name, param->cmd);
 		ret = -EOPNOTSUPP;
 
@@ -8375,7 +8375,7 @@ static int ipw2100_mod_firmware_load(struct ipw2100_fw *fw)
 		(struct ipw2100_fw_header *)fw->fw_entry->data;
 
 	if (IPW2100_FW_MAJOR(h->version) != IPW2100_FW_MAJOR_VERSION) {
-		IPW_DEBUG_WARNING("Firmware image not compatible "
+		printk(KERN_WARNING DRV_NAME ": Firmware image not compatible "
 		       "(detected version id of %u). "
 		       "See Documentation/networking/README.ipw2100\n",
 		       h->version);
@@ -8418,7 +8418,7 @@ int ipw2100_get_firmware(struct ipw2100_priv *priv, struct ipw2100_fw *fw)
 	rc = request_firmware(&fw->fw_entry, fw_name, &priv->pci_dev->dev);
 
 	if (rc < 0) {
-		IPW_DEBUG_ERROR(
+		printk(KERN_ERR DRV_NAME ": "
 		       "%s: Firmware '%s' not available or load failed.\n",
 		       priv->net_dev->name, fw_name);
 		return rc;
@@ -8500,7 +8500,7 @@ int ipw2100_fw_download(struct ipw2100_priv *priv, struct ipw2100_fw *fw)
 		firmware_data_left -= 2;
 
 		if (len > 32) {
-			IPW_DEBUG_ERROR(
+			printk(KERN_ERR DRV_NAME ": "
 			       "Invalid firmware run-length of %d bytes\n",
 			       len);
 			return -EINVAL;
@@ -8610,7 +8610,7 @@ int ipw2100_ucode_download(struct ipw2100_priv *priv, struct ipw2100_fw *fw)
 	}
 
 	if (i == 10) {
-		IPW_DEBUG_ERROR("%s: Error initializing Symbol\n",
+		printk(KERN_ERR DRV_NAME ": %s: Error initializing Symbol\n",
 		       dev->name);
 		return -EIO;
 	}
@@ -8631,7 +8631,7 @@ int ipw2100_ucode_download(struct ipw2100_priv *priv, struct ipw2100_fw *fw)
 	}
 
 	if (i == 30) {
-		IPW_DEBUG_ERROR("%s: No response from Symbol - hw not alive\n",
+		printk(KERN_ERR DRV_NAME ": %s: No response from Symbol - hw not alive\n",
 		       dev->name);
 		printk_buf(IPW_DL_ERROR, (u8*)&response, sizeof(response));
 		return -EIO;
