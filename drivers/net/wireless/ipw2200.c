@@ -7918,6 +7918,173 @@ static void ipw_handle_data_packet(struct ipw_priv *priv,
 	}
 }
 
+#ifdef CONFIG_IEEE80211_RADIOTAP
+static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
+					   struct ipw_rx_mem_buffer *rxb,
+					   struct ieee80211_rx_stats *stats)
+{
+	struct ipw_rx_packet *pkt = (struct ipw_rx_packet *)rxb->skb->data;
+	struct ipw_rx_frame *frame = &pkt->u.frame;
+
+	/* initial pull of some data */
+	u16 received_channel = frame->received_channel;
+	u8 antennaAndPhy = frame->antennaAndPhy;
+	s8 antsignal = frame->rssi_dbm - IPW_RSSI_TO_DBM;	/* call it signed anyhow */
+	u16 pktrate = frame->rate;
+
+	/* Magic struct that slots into the radiotap header -- no reason
+	 * to build this manually element by element, we can write it much
+	 * more efficiently than we can parse it. ORDER MATTERS HERE */
+	struct ipw_rt_hdr {
+		struct ieee80211_radiotap_header rt_hdr;
+		u8 rt_flags;	/* radiotap packet flags */
+		u8 rt_rate;	/* rate in 500kb/s */
+		u16 rt_channel;	/* channel in mhz */
+		u16 rt_chbitmask;	/* channel bitfield */
+		s8 rt_dbmsignal;	/* signal in dbM, kluged to signed */
+		u8 rt_antenna;	/* antenna number */
+	} *ipw_rt;
+
+	short len = le16_to_cpu(pkt->u.frame.length);
+
+	/* We received data from the HW, so stop the watchdog */
+	priv->net_dev->trans_start = jiffies;
+
+	/* We only process data packets if the
+	 * interface is open */
+	if (unlikely((le16_to_cpu(pkt->u.frame.length) + IPW_RX_FRAME_SIZE) >
+		     skb_tailroom(rxb->skb))) {
+		priv->ieee->stats.rx_errors++;
+		priv->wstats.discard.misc++;
+		IPW_DEBUG_DROP("Corruption detected! Oh no!\n");
+		return;
+	} else if (unlikely(!netif_running(priv->net_dev))) {
+		priv->ieee->stats.rx_dropped++;
+		priv->wstats.discard.misc++;
+		IPW_DEBUG_DROP("Dropping packet while interface is not up.\n");
+		return;
+	}
+
+	/* Libpcap 0.9.3+ can handle variable length radiotap, so we'll use
+	 * that now */
+	if (len > IPW_RX_BUF_SIZE - sizeof(struct ipw_rt_hdr)) {
+		/* FIXME: Should alloc bigger skb instead */
+		priv->ieee->stats.rx_dropped++;
+		priv->wstats.discard.misc++;
+		IPW_DEBUG_DROP("Dropping too large packet in monitor\n");
+		return;
+	}
+
+	/* copy the frame itself */
+	memmove(rxb->skb->data + sizeof(struct ipw_rt_hdr),
+		rxb->skb->data + IPW_RX_FRAME_SIZE, len);
+
+	/* Zero the radiotap static buffer  ...  We only need to zero the bytes NOT
+	 * part of our real header, saves a little time.
+	 *
+	 * No longer necessary since we fill in all our data.  Purge before merging
+	 * patch officially.
+	 * memset(rxb->skb->data + sizeof(struct ipw_rt_hdr), 0,
+	 *        IEEE80211_RADIOTAP_HDRLEN - sizeof(struct ipw_rt_hdr));
+	 */
+
+	ipw_rt = (struct ipw_rt_hdr *)rxb->skb->data;
+
+	ipw_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
+	ipw_rt->rt_hdr.it_pad = 0;	/* always good to zero */
+	ipw_rt->rt_hdr.it_len = sizeof(struct ipw_rt_hdr);	/* total header+data */
+
+	/* Big bitfield of all the fields we provide in radiotap */
+	ipw_rt->rt_hdr.it_present =
+	    ((1 << IEEE80211_RADIOTAP_FLAGS) |
+	     (1 << IEEE80211_RADIOTAP_RATE) |
+	     (1 << IEEE80211_RADIOTAP_CHANNEL) |
+	     (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
+	     (1 << IEEE80211_RADIOTAP_ANTENNA));
+
+	/* Zero the flags, we'll add to them as we go */
+	ipw_rt->rt_flags = 0;
+
+	/* Convert signal to DBM */
+	ipw_rt->rt_dbmsignal = antsignal;
+
+	/* Convert the channel data and set the flags */
+	ipw_rt->rt_channel = cpu_to_le16(ieee80211chan2mhz(received_channel));
+	if (received_channel > 14) {	/* 802.11a */
+		ipw_rt->rt_chbitmask =
+		    cpu_to_le16((IEEE80211_CHAN_OFDM | IEEE80211_CHAN_5GHZ));
+	} else if (antennaAndPhy & 32) {	/* 802.11b */
+		ipw_rt->rt_chbitmask =
+		    cpu_to_le16((IEEE80211_CHAN_CCK | IEEE80211_CHAN_2GHZ));
+	} else {		/* 802.11g */
+		ipw_rt->rt_chbitmask =
+		    (IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ);
+	}
+
+	/* set the rate in multiples of 500k/s */
+	switch (pktrate) {
+	case IPW_TX_RATE_1MB:
+		ipw_rt->rt_rate = 2;
+		break;
+	case IPW_TX_RATE_2MB:
+		ipw_rt->rt_rate = 4;
+		break;
+	case IPW_TX_RATE_5MB:
+		ipw_rt->rt_rate = 10;
+		break;
+	case IPW_TX_RATE_6MB:
+		ipw_rt->rt_rate = 12;
+		break;
+	case IPW_TX_RATE_9MB:
+		ipw_rt->rt_rate = 18;
+		break;
+	case IPW_TX_RATE_11MB:
+		ipw_rt->rt_rate = 22;
+		break;
+	case IPW_TX_RATE_12MB:
+		ipw_rt->rt_rate = 24;
+		break;
+	case IPW_TX_RATE_18MB:
+		ipw_rt->rt_rate = 36;
+		break;
+	case IPW_TX_RATE_24MB:
+		ipw_rt->rt_rate = 48;
+		break;
+	case IPW_TX_RATE_36MB:
+		ipw_rt->rt_rate = 72;
+		break;
+	case IPW_TX_RATE_48MB:
+		ipw_rt->rt_rate = 96;
+		break;
+	case IPW_TX_RATE_54MB:
+		ipw_rt->rt_rate = 108;
+		break;
+	default:
+		ipw_rt->rt_rate = 0;
+		break;
+	}
+
+	/* antenna number */
+	ipw_rt->rt_antenna = (antennaAndPhy & 3);	/* Is this right? */
+
+	/* set the preamble flag if we have it */
+	if ((antennaAndPhy & 64))
+		ipw_rt->rt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
+
+	/* Set the size of the skb to the size of the frame */
+	skb_put(rxb->skb, len + sizeof(struct ipw_rt_hdr));
+
+	IPW_DEBUG_RX("Rx packet of %d bytes.\n", rxb->skb->len);
+
+	if (!ieee80211_rx(priv->ieee, rxb->skb, stats))
+		priv->ieee->stats.rx_errors++;
+	else {			/* ieee80211_rx succeeded, so it now owns the SKB */
+		rxb->skb = NULL;
+		/* no LED during capture */
+	}
+}
+#endif
+
 static inline int is_network_packet(struct ipw_priv *priv,
 				    struct ieee80211_hdr_4addr *header)
 {
@@ -8147,8 +8314,14 @@ static void ipw_rx(struct ipw_priv *priv)
 
 #ifdef CONFIG_IPW2200_MONITOR
 				if (priv->ieee->iw_mode == IW_MODE_MONITOR) {
+#ifdef CONFIG_IEEE80211_RADIOTAP
+					ipw_handle_data_packet_monitor(priv,
+								       rxb,
+								       &stats);
+#else
 					ipw_handle_data_packet(priv, rxb,
 							       &stats);
+#endif
 					break;
 				}
 #endif
@@ -8315,7 +8488,11 @@ static int ipw_sw_reset(struct ipw_priv *priv, int init)
 #ifdef CONFIG_IPW2200_MONITOR
 	case 2:
 		priv->ieee->iw_mode = IW_MODE_MONITOR;
+#ifdef CONFIG_IEEE80211_RADIOTAP
+		priv->net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
+#else
 		priv->net_dev->type = ARPHRD_IEEE80211;
+#endif
 		break;
 #endif
 	default:
@@ -8565,7 +8742,11 @@ static int ipw_wx_set_mode(struct net_device *dev,
 		priv->net_dev->type = ARPHRD_ETHER;
 
 	if (wrqu->mode == IW_MODE_MONITOR)
+#ifdef CONFIG_IEEE80211_RADIOTAP
+		priv->net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
+#else
 		priv->net_dev->type = ARPHRD_IEEE80211;
+#endif
 #endif				/* CONFIG_IPW2200_MONITOR */
 
 	/* Free the existing firmware and reset the fw_loaded
@@ -9598,7 +9779,11 @@ static int ipw_wx_set_monitor(struct net_device *dev,
 	IPW_DEBUG_WX("SET MONITOR: %d %d\n", enable, parms[1]);
 	if (enable) {
 		if (priv->ieee->iw_mode != IW_MODE_MONITOR) {
+#ifdef CONFIG_IEEE80211_RADIOTAP
+			priv->net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
+#else
 			priv->net_dev->type = ARPHRD_IEEE80211;
+#endif
 			queue_work(priv->workqueue, &priv->adapter_restart);
 		}
 
