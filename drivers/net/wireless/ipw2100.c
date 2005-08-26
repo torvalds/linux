@@ -207,7 +207,20 @@ MODULE_PARM_DESC(channel, "channel");
 MODULE_PARM_DESC(associate, "auto associate when scanning (default on)");
 MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
 
-u32 ipw2100_debug_level = IPW_DL_NONE;
+static u32 ipw2100_debug_level = IPW_DL_NONE;
+
+#ifdef CONFIG_IPW_DEBUG
+#define IPW_DEBUG(level, message...) \
+do { \
+	if (ipw2100_debug_level & (level)) { \
+		printk(KERN_DEBUG "ipw2100: %c %s ", \
+                       in_interrupt() ? 'I' : 'U',  __FUNCTION__); \
+		printk(message); \
+	} \
+} while (0)
+#else
+#define IPW_DEBUG(level, message...) do {} while (0)
+#endif /* CONFIG_IPW_DEBUG */
 
 #ifdef CONFIG_IPW_DEBUG
 static const char *command_types[] = {
@@ -294,6 +307,22 @@ static int ipw2100_adapter_setup(struct ipw2100_priv *priv);
 static void ipw2100_queues_initialize(struct ipw2100_priv *priv);
 static void ipw2100_queues_free(struct ipw2100_priv *priv);
 static int ipw2100_queues_allocate(struct ipw2100_priv *priv);
+
+static int ipw2100_fw_download(struct ipw2100_priv *priv,
+			       struct ipw2100_fw *fw);
+static int ipw2100_get_firmware(struct ipw2100_priv *priv,
+				struct ipw2100_fw *fw);
+static int ipw2100_get_fwversion(struct ipw2100_priv *priv, char *buf,
+				 size_t max);
+static int ipw2100_get_ucodeversion(struct ipw2100_priv *priv, char *buf,
+				    size_t max);
+static void ipw2100_release_firmware(struct ipw2100_priv *priv,
+				     struct ipw2100_fw *fw);
+static int ipw2100_ucode_download(struct ipw2100_priv *priv,
+				  struct ipw2100_fw *fw);
+static void ipw2100_wx_event_work(struct ipw2100_priv *priv);
+static struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device * dev);
+static struct iw_handler_def ipw2100_wx_handler_def;
 
 
 static inline void read_register(struct net_device *dev, u32 reg, u32 *val)
@@ -473,8 +502,8 @@ static inline int ipw2100_hw_is_adapter_in_system(struct net_device *dev)
 		 == IPW_DATA_DOA_DEBUG_VALUE));
 }
 
-int ipw2100_get_ordinal(struct ipw2100_priv *priv, u32 ord,
-			void *val, u32 *len)
+static int ipw2100_get_ordinal(struct ipw2100_priv *priv, u32 ord,
+			       void *val, u32 *len)
 {
 	struct ipw2100_ordinals *ordinals = &priv->ordinals;
 	u32 addr;
@@ -1586,7 +1615,7 @@ fail_up:
 	return err;
 }
 
-int ipw2100_set_scan_options(struct ipw2100_priv *priv)
+static int ipw2100_set_scan_options(struct ipw2100_priv *priv)
 {
 	struct host_command cmd = {
 		.host_command = SET_SCAN_OPTIONS,
@@ -1618,7 +1647,7 @@ int ipw2100_set_scan_options(struct ipw2100_priv *priv)
 	return err;
 }
 
-int ipw2100_start_scan(struct ipw2100_priv *priv)
+static int ipw2100_start_scan(struct ipw2100_priv *priv)
 {
 	struct host_command cmd = {
 		.host_command = BROADCAST_SCAN,
@@ -1833,7 +1862,7 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 	netif_stop_queue(priv->net_dev);
 }
 
-void ipw2100_reset_adapter(struct ipw2100_priv *priv)
+static void ipw2100_reset_adapter(struct ipw2100_priv *priv)
 {
 	unsigned long flags;
 	union iwreq_data wrqu = {
@@ -1963,8 +1992,8 @@ static void isr_indicate_associated(struct ipw2100_priv *priv, u32 status)
 }
 
 
-int ipw2100_set_essid(struct ipw2100_priv *priv, char *essid,
-		      int length, int batch_mode)
+static int ipw2100_set_essid(struct ipw2100_priv *priv, char *essid,
+			     int length, int batch_mode)
 {
 	int ssid_len = min(length, IW_ESSID_MAX_SIZE);
 	struct host_command cmd = {
@@ -2095,7 +2124,7 @@ static void isr_indicate_scanning(struct ipw2100_priv *priv, u32 status)
 	priv->status |= STATUS_SCANNING;
 }
 
-const struct ipw2100_status_indicator status_handlers[] = {
+static const struct ipw2100_status_indicator status_handlers[] = {
 	IPW2100_HANDLER(IPW_STATE_INITIALIZED, 0),
 	IPW2100_HANDLER(IPW_STATE_COUNTRY_FOUND, 0),
 	IPW2100_HANDLER(IPW_STATE_ASSOCIATED, isr_indicate_associated),
@@ -2163,7 +2192,7 @@ static void isr_rx_complete_command(
 }
 
 #ifdef CONFIG_IPW_DEBUG
-const char *frame_types[] = {
+static const char *frame_types[] = {
 	"COMMAND_STATUS_VAL",
 	"STATUS_CHANGE_VAL",
 	"P80211_DATA_VAL",
@@ -2283,7 +2312,7 @@ static inline u32 ipw2100_match_buf(struct ipw2100_priv *priv, u8 *in_buf,
  *
  */
 #ifdef CONFIG_IPW2100_RX_DEBUG
-u8 packet_data[IPW_RX_NIC_BUFFER_LENGTH];
+static u8 packet_data[IPW_RX_NIC_BUFFER_LENGTH];
 #endif
 
 static inline void ipw2100_corruption_detected(struct ipw2100_priv *priv,
@@ -3427,7 +3456,7 @@ static DEVICE_ATTR(capability, S_IRUGO, show_capability, NULL);
 
 
 #define IPW2100_REG(x) { IPW_ ##x, #x }
-const struct {
+static const struct {
 	u32 addr;
 	const char *name;
 } hw_data[] = {
@@ -3438,7 +3467,7 @@ const struct {
 	IPW2100_REG(REG_RESET_REG),
 };
 #define IPW2100_NIC(x, s) { x, #x, s }
-const struct {
+static const struct {
 	u32 addr;
 	const char *name;
 	size_t size;
@@ -3448,7 +3477,7 @@ const struct {
 	IPW2100_NIC(0x210000, 1),
 };
 #define IPW2100_ORD(x, d) { IPW_ORD_ ##x, #x, d }
-const struct {
+static const struct {
 	u8 index;
 	const char *name;
 	const char *desc;
@@ -3813,7 +3842,7 @@ static ssize_t show_stats(struct device *d, struct device_attribute *attr,
 static DEVICE_ATTR(stats, S_IRUGO, show_stats, NULL);
 
 
-int ipw2100_switch_mode(struct ipw2100_priv *priv, u32 mode)
+static int ipw2100_switch_mode(struct ipw2100_priv *priv, u32 mode)
 {
 	int err;
 
@@ -4537,7 +4566,7 @@ static int ipw2100_read_mac_address(struct ipw2100_priv *priv)
  *
  ********************************************************************/
 
-int ipw2100_set_mac_address(struct ipw2100_priv *priv, int batch_mode)
+static int ipw2100_set_mac_address(struct ipw2100_priv *priv, int batch_mode)
 {
 	struct host_command cmd = {
 		.host_command = ADAPTER_ADDRESS,
@@ -4564,7 +4593,7 @@ int ipw2100_set_mac_address(struct ipw2100_priv *priv, int batch_mode)
 	return err;
 }
 
-int ipw2100_set_port_type(struct ipw2100_priv *priv, u32 port_type,
+static int ipw2100_set_port_type(struct ipw2100_priv *priv, u32 port_type,
 				 int batch_mode)
 {
 	struct host_command cmd = {
@@ -4605,7 +4634,8 @@ int ipw2100_set_port_type(struct ipw2100_priv *priv, u32 port_type,
 }
 
 
-int ipw2100_set_channel(struct ipw2100_priv *priv, u32 channel, int batch_mode)
+static int ipw2100_set_channel(struct ipw2100_priv *priv, u32 channel,
+			       int batch_mode)
 {
 	struct host_command cmd = {
 		.host_command = CHANNEL,
@@ -4655,7 +4685,7 @@ int ipw2100_set_channel(struct ipw2100_priv *priv, u32 channel, int batch_mode)
 	return 0;
 }
 
-int ipw2100_system_config(struct ipw2100_priv *priv, int batch_mode)
+static int ipw2100_system_config(struct ipw2100_priv *priv, int batch_mode)
 {
 	struct host_command cmd = {
 		.host_command = SYSTEM_CONFIG,
@@ -4717,7 +4747,8 @@ int ipw2100_system_config(struct ipw2100_priv *priv, int batch_mode)
 	return 0;
 }
 
-int ipw2100_set_tx_rates(struct ipw2100_priv *priv, u32 rate, int batch_mode)
+static int ipw2100_set_tx_rates(struct ipw2100_priv *priv, u32 rate,
+				int batch_mode)
 {
 	struct host_command cmd = {
 		.host_command = BASIC_TX_RATES,
@@ -4756,8 +4787,8 @@ int ipw2100_set_tx_rates(struct ipw2100_priv *priv, u32 rate, int batch_mode)
 	return 0;
 }
 
-int ipw2100_set_power_mode(struct ipw2100_priv *priv,
-			   int power_level)
+static int ipw2100_set_power_mode(struct ipw2100_priv *priv,
+				  int power_level)
 {
 	struct host_command cmd = {
 		.host_command = POWER_MODE,
@@ -4794,7 +4825,7 @@ int ipw2100_set_power_mode(struct ipw2100_priv *priv,
 }
 
 
-int ipw2100_set_rts_threshold(struct ipw2100_priv *priv, u32 threshold)
+static int ipw2100_set_rts_threshold(struct ipw2100_priv *priv, u32 threshold)
 {
 	struct host_command cmd = {
 		.host_command = RTS_THRESHOLD,
@@ -4858,7 +4889,7 @@ int ipw2100_set_fragmentation_threshold(struct ipw2100_priv *priv,
 }
 #endif
 
-int ipw2100_set_short_retry(struct ipw2100_priv *priv, u32 retry)
+static int ipw2100_set_short_retry(struct ipw2100_priv *priv, u32 retry)
 {
 	struct host_command cmd = {
 		.host_command = SHORT_RETRY_LIMIT,
@@ -4878,7 +4909,7 @@ int ipw2100_set_short_retry(struct ipw2100_priv *priv, u32 retry)
 	return 0;
 }
 
-int ipw2100_set_long_retry(struct ipw2100_priv *priv, u32 retry)
+static int ipw2100_set_long_retry(struct ipw2100_priv *priv, u32 retry)
 {
 	struct host_command cmd = {
 		.host_command = LONG_RETRY_LIMIT,
@@ -4899,8 +4930,8 @@ int ipw2100_set_long_retry(struct ipw2100_priv *priv, u32 retry)
 }
 
 
-int ipw2100_set_mandatory_bssid(struct ipw2100_priv *priv, u8 *bssid,
-				int batch_mode)
+static int ipw2100_set_mandatory_bssid(struct ipw2100_priv *priv, u8 *bssid,
+				       int batch_mode)
 {
 	struct host_command cmd = {
 		.host_command = MANDATORY_BSSID,
@@ -5037,11 +5068,11 @@ struct security_info_params {
 	u8 unicast_using_group;
 } __attribute__ ((packed));
 
-int ipw2100_set_security_information(struct ipw2100_priv *priv,
-				     int auth_mode,
-				     int security_level,
-				     int unicast_using_group,
-				     int batch_mode)
+static int ipw2100_set_security_information(struct ipw2100_priv *priv,
+					    int auth_mode,
+					    int security_level,
+					    int unicast_using_group,
+					    int batch_mode)
 {
 	struct host_command cmd = {
 		.host_command = SET_SECURITY_INFORMATION,
@@ -5103,8 +5134,8 @@ int ipw2100_set_security_information(struct ipw2100_priv *priv,
 	return err;
 }
 
-int ipw2100_set_tx_power(struct ipw2100_priv *priv,
-			 u32 tx_power)
+static int ipw2100_set_tx_power(struct ipw2100_priv *priv,
+				u32 tx_power)
 {
 	struct host_command cmd = {
 		.host_command = TX_POWER_INDEX,
@@ -5123,8 +5154,8 @@ int ipw2100_set_tx_power(struct ipw2100_priv *priv,
 	return 0;
 }
 
-int ipw2100_set_ibss_beacon_interval(struct ipw2100_priv *priv,
-				     u32 interval, int batch_mode)
+static int ipw2100_set_ibss_beacon_interval(struct ipw2100_priv *priv,
+					    u32 interval, int batch_mode)
 {
 	struct host_command cmd = {
 		.host_command = BEACON_INTERVAL,
@@ -6883,7 +6914,7 @@ module_exit(ipw2100_exit);
 
 #define WEXT_USECHANNELS 1
 
-const long ipw2100_frequencies[] = {
+static const long ipw2100_frequencies[] = {
 	2412, 2417, 2422, 2427,
 	2432, 2437, 2442, 2447,
 	2452, 2457, 2462, 2467,
@@ -6893,7 +6924,7 @@ const long ipw2100_frequencies[] = {
 #define FREQ_COUNT (sizeof(ipw2100_frequencies) / \
                     sizeof(ipw2100_frequencies[0]))
 
-const long ipw2100_rates_11b[] = {
+static const long ipw2100_rates_11b[] = {
 	1000000,
 	2000000,
 	5500000,
@@ -7052,7 +7083,7 @@ static int ipw2100_wx_get_mode(struct net_device *dev,
 #define POWER_MODES 5
 
 /* Values are in microsecond */
-const s32 timeout_duration[POWER_MODES] = {
+static const s32 timeout_duration[POWER_MODES] = {
 	350000,
 	250000,
 	75000,
@@ -7060,7 +7091,7 @@ const s32 timeout_duration[POWER_MODES] = {
 	25000,
 };
 
-const s32 period_duration[POWER_MODES] = {
+static const s32 period_duration[POWER_MODES] = {
 	400000,
 	700000,
 	1000000,
@@ -8125,7 +8156,7 @@ static iw_handler ipw2100_private_handler[] = {
 	ipw2100_wx_get_preamble,
 };
 
-struct iw_handler_def ipw2100_wx_handler_def =
+static struct iw_handler_def ipw2100_wx_handler_def =
 {
 	.standard = ipw2100_wx_handlers,
 	.num_standard = sizeof(ipw2100_wx_handlers) / sizeof(iw_handler),
@@ -8141,7 +8172,7 @@ struct iw_handler_def ipw2100_wx_handler_def =
  * Called by /proc/net/wireless
  * Also called by SIOCGIWSTATS
  */
-struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device * dev)
+static struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device * dev)
 {
 	enum {
 		POOR = 30,
@@ -8277,7 +8308,7 @@ struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device * dev)
 	return (struct iw_statistics *) NULL;
 }
 
-void ipw2100_wx_event_work(struct ipw2100_priv *priv)
+static void ipw2100_wx_event_work(struct ipw2100_priv *priv)
 {
 	union iwreq_data wrqu;
 	int len = ETH_ALEN;
@@ -8392,7 +8423,8 @@ static int ipw2100_mod_firmware_load(struct ipw2100_fw *fw)
 }
 
 
-int ipw2100_get_firmware(struct ipw2100_priv *priv, struct ipw2100_fw *fw)
+static int ipw2100_get_firmware(struct ipw2100_priv *priv,
+				struct ipw2100_fw *fw)
 {
 	char *fw_name;
 	int rc;
@@ -8431,8 +8463,8 @@ int ipw2100_get_firmware(struct ipw2100_priv *priv, struct ipw2100_fw *fw)
 	return 0;
 }
 
-void ipw2100_release_firmware(struct ipw2100_priv *priv,
-			      struct ipw2100_fw *fw)
+static void ipw2100_release_firmware(struct ipw2100_priv *priv,
+				     struct ipw2100_fw *fw)
 {
 	fw->version = 0;
 	if (fw->fw_entry)
@@ -8441,7 +8473,8 @@ void ipw2100_release_firmware(struct ipw2100_priv *priv,
 }
 
 
-int ipw2100_get_fwversion(struct ipw2100_priv *priv, char *buf, size_t max)
+static int ipw2100_get_fwversion(struct ipw2100_priv *priv, char *buf,
+				 size_t max)
 {
 	char ver[MAX_FW_VERSION_LEN];
 	u32 len = MAX_FW_VERSION_LEN;
@@ -8460,7 +8493,8 @@ int ipw2100_get_fwversion(struct ipw2100_priv *priv, char *buf, size_t max)
 	return tmp;
 }
 
-int ipw2100_get_ucodeversion(struct ipw2100_priv *priv, char *buf, size_t max)
+static int ipw2100_get_ucodeversion(struct ipw2100_priv *priv, char *buf,
+				    size_t max)
 {
 	u32 ver;
 	u32 len = sizeof(ver);
@@ -8474,7 +8508,8 @@ int ipw2100_get_ucodeversion(struct ipw2100_priv *priv, char *buf, size_t max)
 /*
  * On exit, the firmware will have been freed from the fw list
  */
-int ipw2100_fw_download(struct ipw2100_priv *priv, struct ipw2100_fw *fw)
+static int ipw2100_fw_download(struct ipw2100_priv *priv,
+			       struct ipw2100_fw *fw)
 {
 	/* firmware is constructed of N contiguous entries, each entry is
 	 * structured as:
@@ -8531,7 +8566,8 @@ struct symbol_alive_response {
 	u8 ucode_valid;
 };
 
-int ipw2100_ucode_download(struct ipw2100_priv *priv, struct ipw2100_fw *fw)
+static int ipw2100_ucode_download(struct ipw2100_priv *priv,
+				  struct ipw2100_fw *fw)
 {
 	struct net_device *dev = priv->net_dev;
 	const unsigned char *microcode_data = fw->uc.data;
