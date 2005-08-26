@@ -3304,7 +3304,7 @@ static int ipw_load(struct ipw_priv *priv)
 	rc = ipw_load_firmware(priv, bootfw->data + sizeof(struct fw_header),
 			       bootfw->size - sizeof(struct fw_header));
 	if (rc < 0) {
-		IPW_ERROR("Unable to load boot firmware\n");
+		IPW_ERROR("Unable to load boot firmware: %d\n", rc);
 		goto error;
 	}
 
@@ -3327,7 +3327,7 @@ static int ipw_load(struct ipw_priv *priv)
 	rc = ipw_load_ucode(priv, ucode->data + sizeof(struct fw_header),
 			    ucode->size - sizeof(struct fw_header));
 	if (rc < 0) {
-		IPW_ERROR("Unable to load ucode\n");
+		IPW_ERROR("Unable to load ucode: %d\n", rc);
 		goto error;
 	}
 
@@ -3339,7 +3339,7 @@ static int ipw_load(struct ipw_priv *priv)
 			       sizeof(struct fw_header),
 			       firmware->size - sizeof(struct fw_header));
 	if (rc < 0) {
-		IPW_ERROR("Unable to load firmware\n");
+		IPW_ERROR("Unable to load firmware: %d\n", rc);
 		goto error;
 	}
 
@@ -10958,7 +10958,7 @@ static int ipw_up(struct ipw_priv *priv)
 		 * Also start the clocks. */
 		rc = ipw_load(priv);
 		if (rc) {
-			IPW_ERROR("Unable to load firmware: 0x%08X\n", rc);
+			IPW_ERROR("Unable to load firmware: %d\n", rc);
 			return rc;
 		}
 
