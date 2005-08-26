@@ -8096,21 +8096,23 @@ static inline int is_network_packet(struct ipw_priv *priv,
 		if (!memcmp(header->addr2, priv->net_dev->dev_addr, ETH_ALEN))
 			return 0;
 
-		/* multicast packets to our IBSS go through */
-		if (is_multicast_ether_addr(header->addr1))
+		/* {broad,multi}cast packets to our BSSID go through */
+		if (is_multicast_ether_addr(header->addr1) ||
+		    is_broadcast_ether_addr(header->addr1))
 			return !memcmp(header->addr3, priv->bssid, ETH_ALEN);
 
 		/* packets to our adapter go through */
 		return !memcmp(header->addr1, priv->net_dev->dev_addr,
 			       ETH_ALEN);
 
-	case IW_MODE_INFRA:	/* Header: Dest. | AP{BSSID} | Source */
+	case IW_MODE_INFRA:	/* Header: Dest. | BSSID | Source */
 		/* packets from our adapter are dropped (echo) */
 		if (!memcmp(header->addr3, priv->net_dev->dev_addr, ETH_ALEN))
 			return 0;
 
-		/* {broad,multi}cast packets to our IBSS go through */
-		if (is_multicast_ether_addr(header->addr1))
+		/* {broad,multi}cast packets to our BSS go through */
+		if (is_multicast_ether_addr(header->addr1) ||
+		    is_broadcast_ether_addr(header->addr1))
 			return !memcmp(header->addr2, priv->bssid, ETH_ALEN);
 
 		/* packets to our adapter go through */
