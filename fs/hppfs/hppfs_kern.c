@@ -38,7 +38,7 @@ struct hppfs_inode_info {
 
 static inline struct hppfs_inode_info *HPPFS_I(struct inode *inode)
 {
-	return(list_entry(inode, struct hppfs_inode_info, vfs_inode));
+	return container_of(inode, struct hppfs_inode_info, vfs_inode);
 }
 
 #define HPPFS_SUPER_MAGIC 0xb00000ee
@@ -662,38 +662,32 @@ static int hppfs_readlink(struct dentry *dentry, char *buffer, int buflen)
 {
 	struct file *proc_file;
 	struct dentry *proc_dentry;
-	int (*readlink)(struct dentry *, char *, int);
-	int err, n;
+	int ret;
 
 	proc_dentry = HPPFS_I(dentry->d_inode)->proc_dentry;
 	proc_file = dentry_open(dget(proc_dentry), NULL, O_RDONLY);
-	err = PTR_ERR(proc_dentry);
-	if(IS_ERR(proc_dentry))
-		return(err);
+	if (IS_ERR(proc_file))
+		return PTR_ERR(proc_file);
 
-	readlink = proc_dentry->d_inode->i_op->readlink;
-	n = (*readlink)(proc_dentry, buffer, buflen);
+	ret = proc_dentry->d_inode->i_op->readlink(proc_dentry, buffer, buflen);
 
 	fput(proc_file);
 
-	return(n);
+	return ret;
 }
 
 static void* hppfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct file *proc_file;
 	struct dentry *proc_dentry;
-	void * (*follow_link)(struct dentry *, struct nameidata *);
 	void *ret;
 
 	proc_dentry = HPPFS_I(dentry->d_inode)->proc_dentry;
 	proc_file = dentry_open(dget(proc_dentry), NULL, O_RDONLY);
+	if (IS_ERR(proc_file))
+		return proc_file;
 
-	if (IS_ERR(proc_dentry))
-		return proc_dentry;
-
-	follow_link = proc_dentry->d_inode->i_op->follow_link;
-	ret = (*follow_link)(proc_dentry, nd);
+	ret = proc_dentry->d_inode->i_op->follow_link(proc_dentry, nd);
 
 	fput(proc_file);
 
