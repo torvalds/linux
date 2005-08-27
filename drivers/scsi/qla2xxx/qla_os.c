@@ -1113,36 +1113,23 @@ qla2xxx_slave_destroy(struct scsi_device *sdev)
 static void
 qla2x00_config_dma_addressing(scsi_qla_host_t *ha)
 {
-	/* Assume 32bit DMA address */
+	/* Assume a 32bit DMA mask. */
 	ha->flags.enable_64bit_addressing = 0;
 
-	/*
-	 * Given the two variants pci_set_dma_mask(), allow the compiler to
-	 * assist in setting the proper dma mask.
-	 */
-	if (sizeof(dma_addr_t) > 4) {
-		if (pci_set_dma_mask(ha->pdev, DMA_64BIT_MASK) == 0) {
+	if (!dma_set_mask(&ha->pdev->dev, DMA_64BIT_MASK)) {
+		/* Any upper-dword bits set? */
+		if (MSD(dma_get_required_mask(&ha->pdev->dev)) &&
+		    !pci_set_consistent_dma_mask(ha->pdev, DMA_64BIT_MASK)) {
+			/* Ok, a 64bit DMA mask is applicable. */
 			ha->flags.enable_64bit_addressing = 1;
 			ha->isp_ops.calc_req_entries = qla2x00_calc_iocbs_64;
 			ha->isp_ops.build_iocbs = qla2x00_build_scsi_iocbs_64;
-
-			if (pci_set_consistent_dma_mask(ha->pdev,
-			    DMA_64BIT_MASK)) {
-				qla_printk(KERN_DEBUG, ha,
-				    "Failed to set 64 bit PCI consistent mask; "
-				    "using 32 bit.\n");
-				pci_set_consistent_dma_mask(ha->pdev,
-				    DMA_32BIT_MASK);
-			}
-		} else {
-			qla_printk(KERN_DEBUG, ha,
-			    "Failed to set 64 bit PCI DMA mask, falling back "
-			    "to 32 bit MASK.\n");
-			pci_set_dma_mask(ha->pdev, DMA_32BIT_MASK);
+			return;
 		}
-	} else {
-		pci_set_dma_mask(ha->pdev, DMA_32BIT_MASK);
 	}
+
+	dma_set_mask(&ha->pdev->dev, DMA_32BIT_MASK);
+	pci_set_consistent_dma_mask(ha->pdev, DMA_32BIT_MASK);
 }
 
 static int
