@@ -1333,9 +1333,9 @@ err:;
 }
 
 static inline int check_leaf(struct trie *t, struct leaf *l,  t_key key, int *plen, const struct flowi *flp,
-			     struct fib_result *res, int *err)
+			     struct fib_result *res)
 {
-	int i;
+	int err, i;
 	t_key mask;
 	struct leaf_info *li;
 	struct hlist_head *hhead = &l->list;
@@ -1348,18 +1348,18 @@ static inline int check_leaf(struct trie *t, struct leaf *l,  t_key key, int *pl
 		if (l->key != (key & mask))
 			continue;
 
-		if (((*err) = fib_semantic_match(&li->falh, flp, res, l->key, mask, i)) == 0) {
+		if ((err = fib_semantic_match(&li->falh, flp, res, l->key, mask, i)) <= 0) {
 			*plen = i;
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			t->stats.semantic_match_passed++;
 #endif
-			return 1;
+			return err;
 		}
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 		t->stats.semantic_match_miss++;
 #endif
 	}
-	return 0;
+	return 1;
 }
 
 static int
@@ -1386,7 +1386,7 @@ fn_trie_lookup(struct fib_table *tb, const struct flowi *flp, struct fib_result 
 
 	/* Just a leaf? */
 	if (IS_LEAF(n)) {
-		if (check_leaf(t, (struct leaf *)n, key, &plen, flp, res, &ret))
+		if ((ret = check_leaf(t, (struct leaf *)n, key, &plen, flp, res)) <= 0)
 			goto found;
 		goto failed;
 	}
@@ -1508,7 +1508,7 @@ fn_trie_lookup(struct fib_table *tb, const struct flowi *flp, struct fib_result 
 		       continue;
 		}
 		if (IS_LEAF(n)) {
-			if (check_leaf(t, (struct leaf *)n, key, &plen, flp, res, &ret))
+			if ((ret = check_leaf(t, (struct leaf *)n, key, &plen, flp, res)) <= 0)
 				goto found;
 	       }
 backtrace:

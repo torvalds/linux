@@ -66,8 +66,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.36"
-#define DRV_MODULE_RELDATE	"August 19, 2005"
+#define DRV_MODULE_VERSION	"3.37"
+#define DRV_MODULE_RELDATE	"August 25, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -7864,8 +7864,6 @@ static int tg3_test_loopback(struct tg3 *tp)
 		return -ENODEV;
 
 	err = -EIO;
-
-	tg3_abort_hw(tp, 1);
 
 	tg3_reset_hw(tp);
 

@@ -1253,7 +1253,7 @@ static int emac_init_tah(struct ocp_enet_private *fep)
 		 TAH_MR_CVR | TAH_MR_ST_768 | TAH_MR_TFS_10KB | TAH_MR_DTFP |
 		 TAH_MR_DIG);
 
-	iounmap(&tahp);
+	iounmap(tahp);
 
 	return 0;
 }
