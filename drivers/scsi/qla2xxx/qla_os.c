@@ -1586,8 +1586,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	return 0;
 
 probe_failed:
-	fc_remove_host(ha->host);
-
 	qla2x00_free_device(ha);
 
 	scsi_host_put(host);
