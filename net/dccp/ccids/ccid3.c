@@ -142,14 +142,16 @@ static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 }
 #endif
 
-static inline void ccid3_hc_tx_set_state(struct sock *sk, enum ccid3_hc_tx_states state)
+static inline void ccid3_hc_tx_set_state(struct sock *sk,
+					 enum ccid3_hc_tx_states state)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
 	enum ccid3_hc_tx_states oldstate = hctx->ccid3hctx_state;
 
 	ccid3_pr_debug("%s(%p) %-8.8s -> %s\n",
-		       dccp_role(sk), sk, ccid3_tx_state_name(oldstate), ccid3_tx_state_name(state));
+		       dccp_role(sk), sk, ccid3_tx_state_name(oldstate),
+		       ccid3_tx_state_name(state));
 	WARN_ON(state == oldstate);
 	hctx->ccid3hctx_state = state;
 }
@@ -785,7 +787,8 @@ static inline void ccid3_calc_new_t_ipi(struct ccid3_hc_tx_sock *hctx)
 /* Calculate new delta by delta = min(t_ipi / 2, t_gran / 2) */
 static inline void ccid3_calc_new_delta(struct ccid3_hc_tx_sock *hctx)
 {
-	hctx->ccid3hctx_delta = min_t(u32, hctx->ccid3hctx_t_ipi / 2, TFRC_OPSYS_HALF_TIME_GRAN);
+	hctx->ccid3hctx_delta = min_t(u32, hctx->ccid3hctx_t_ipi / 2,
+					   TFRC_OPSYS_HALF_TIME_GRAN);
 
 }
 
@@ -804,20 +807,25 @@ static void ccid3_hc_tx_update_x(struct sock *sk)
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
 
-	if (hctx->ccid3hctx_p >= TFRC_SMALLEST_P) {  /* to avoid large error in calcX */
+	/* To avoid large error in calcX */
+	if (hctx->ccid3hctx_p >= TFRC_SMALLEST_P) {
 		hctx->ccid3hctx_x_calc = ccid3_calc_x(hctx->ccid3hctx_s,
 						      hctx->ccid3hctx_rtt,
 						      hctx->ccid3hctx_p);
-		hctx->ccid3hctx_x = max_t(u32, min_t(u32, hctx->ccid3hctx_x_calc, 2 * hctx->ccid3hctx_x_recv),
-					       hctx->ccid3hctx_s / TFRC_MAX_BACK_OFF_TIME);
+		hctx->ccid3hctx_x = max_t(u32, min_t(u32, hctx->ccid3hctx_x_calc,
+							  2 * hctx->ccid3hctx_x_recv),
+					       (hctx->ccid3hctx_s /
+					        TFRC_MAX_BACK_OFF_TIME));
 	} else if (now_delta(hctx->ccid3hctx_t_ld) >= hctx->ccid3hctx_rtt) {
 		u32 rtt = hctx->ccid3hctx_rtt;
 		if (rtt < 10) {
 			rtt = 10;
 		} /* avoid divide by zero below */
 		
-		hctx->ccid3hctx_x = max_t(u32, min_t(u32, 2 * hctx->ccid3hctx_x_recv, 2 * hctx->ccid3hctx_x),
-					(hctx->ccid3hctx_s * 100000) / (rtt / 10));
+		hctx->ccid3hctx_x = max_t(u32, min_t(u32, 2 * hctx->ccid3hctx_x_recv,
+							  2 * hctx->ccid3hctx_x),
+					       ((hctx->ccid3hctx_s * 100000) /
+					        (rtt / 10)));
 		/* Using 100000 and 10 to avoid 32 bit overflow for jumbo frames */
 		do_gettimeofday(&hctx->ccid3hctx_t_ld);
 	}
@@ -840,7 +848,8 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 	if (sock_owned_by_user(sk)) {
 		/* Try again later. */
 		/* XXX: set some sensible MIB */
-		sk_reset_timer(sk, &hctx->ccid3hctx_no_feedback_timer, jiffies + HZ / 5);
+		sk_reset_timer(sk, &hctx->ccid3hctx_no_feedback_timer,
+			       jiffies + HZ / 5);
 		goto out;
 	}
 
@@ -858,27 +867,38 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 	case TFRC_SSTATE_NO_FBACK:
 		/* Halve send rate */
 		hctx->ccid3hctx_x /= 2;
-		if (hctx->ccid3hctx_x < (hctx->ccid3hctx_s / TFRC_MAX_BACK_OFF_TIME))
-			hctx->ccid3hctx_x = hctx->ccid3hctx_s / TFRC_MAX_BACK_OFF_TIME;
+		if (hctx->ccid3hctx_x <
+		    (hctx->ccid3hctx_s / TFRC_MAX_BACK_OFF_TIME))
+			hctx->ccid3hctx_x = (hctx->ccid3hctx_s /
+					     TFRC_MAX_BACK_OFF_TIME);
 
-		ccid3_pr_debug("%s, sk=%p, state=%s, updated tx rate to %d bytes/s\n",
-			       dccp_role(sk), sk, ccid3_tx_state_name(hctx->ccid3hctx_state),
+		ccid3_pr_debug("%s, sk=%p, state=%s, updated tx rate to %d "
+			       "bytes/s\n",
+			       dccp_role(sk), sk,
+			       ccid3_tx_state_name(hctx->ccid3hctx_state),
 			       hctx->ccid3hctx_x);
-		next_tmout = max_t(u32, 2 * (hctx->ccid3hctx_s * 100000) 
-				/ (hctx->ccid3hctx_x / 10), TFRC_INITIAL_TIMEOUT);
+		next_tmout = max_t(u32, 2 * (hctx->ccid3hctx_s * 100000) / (hctx->ccid3hctx_x / 10),
+					TFRC_INITIAL_TIMEOUT);
 		/* do above maths with 100000 and 10 to prevent overflow on 32 bit */
-		/* FIXME - not sure above calculation is correct. See section 5 of CCID3 11
-		 * should adjust tx_t_ipi and double that to achieve it really */
+		/*
+		 * FIXME - not sure above calculation is correct. See section
+		 * 5 of CCID3 11 should adjust tx_t_ipi and double that to
+		 * achieve it really
+		 */
 		break;
 	case TFRC_SSTATE_FBACK:
-		/* Check if IDLE since last timeout and recv rate is less than 4 packets per RTT */
+		/*
+		 * Check if IDLE since last timeout and recv rate is less than
+		 * 4 packets per RTT
+		 */
 		rtt = hctx->ccid3hctx_rtt;
 		if (rtt < 10)
 			rtt = 10;
 		/* stop divide by zero below */
-		if (!hctx->ccid3hctx_idle || (hctx->ccid3hctx_x_recv >= 
-				4 * (hctx->ccid3hctx_s * 100000) / (rtt / 10))) {
-			ccid3_pr_debug("%s, sk=%p, state=%s, not idle\n", dccp_role(sk), sk,
+		if (!hctx->ccid3hctx_idle ||
+		    (hctx->ccid3hctx_x_recv >= 4 * (hctx->ccid3hctx_s * 100000) / (rtt / 10))) {
+			ccid3_pr_debug("%s, sk=%p, state=%s, not idle\n",
+				       dccp_role(sk), sk,
 				       ccid3_tx_state_name(hctx->ccid3hctx_state));
 			/* Halve sending rate */
 
@@ -887,7 +907,8 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 			 *  Else
 			 *    X_recv = X_calc / 4;
 			 */
-			BUG_ON(hctx->ccid3hctx_p >= TFRC_SMALLEST_P && hctx->ccid3hctx_x_calc == 0);
+			BUG_ON(hctx->ccid3hctx_p >= TFRC_SMALLEST_P &&
+			       hctx->ccid3hctx_x_calc == 0);
 
 			/* check also if p is zero -> x_calc is infinity? */
 			if (hctx->ccid3hctx_p < TFRC_SMALLEST_P ||
@@ -916,7 +937,7 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 	}
 
 	sk_reset_timer(sk, &hctx->ccid3hctx_no_feedback_timer, 
-			jiffies + max_t(u32, 1, usecs_to_jiffies(next_tmout)));
+		      jiffies + max_t(u32, 1, usecs_to_jiffies(next_tmout)));
 	hctx->ccid3hctx_idle = 1;
 out:
 	bh_unlock_sock(sk);
@@ -933,24 +954,27 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 	long delay;
 	int rc = -ENOTCONN;
 
-//	ccid3_pr_debug("%s, sk=%p, skb=%p, len=%d\n", dccp_role(sk), sk, skb, len);
+	/* Check if pure ACK or Terminating*/
+
 	/*
-	 * check if pure ACK or Terminating */
-	/* XXX: We only call this function for DATA and DATAACK, on, these packets can have
-	 * zero length, but why the comment about "pure ACK"?
+	 * XXX: We only call this function for DATA and DATAACK, on, these
+	 * packets can have zero length, but why the comment about "pure ACK"?
 	 */
-	if (hctx == NULL || len == 0 || hctx->ccid3hctx_state == TFRC_SSTATE_TERM)
+	if (hctx == NULL || len == 0 ||
+	    hctx->ccid3hctx_state == TFRC_SSTATE_TERM)
 		goto out;
 
 	/* See if last packet allocated was not sent */
 	new_packet = dccp_tx_hist_head(&hctx->ccid3hctx_hist);
 	if (new_packet == NULL || new_packet->dccphtx_sent) {
-		new_packet = dccp_tx_hist_entry_new(ccid3_tx_hist, SLAB_ATOMIC);
+		new_packet = dccp_tx_hist_entry_new(ccid3_tx_hist,
+						    SLAB_ATOMIC);
 
 		rc = -ENOBUFS;
 		if (new_packet == NULL) {
 			ccid3_pr_debug("%s, sk=%p, not enough mem to add "
-				       "to history, send refused\n", dccp_role(sk), sk);
+				       "to history, send refused\n",
+				       dccp_role(sk), sk);
 			goto out;
 		}
 
@@ -961,12 +985,13 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_SENT:
-		ccid3_pr_debug("%s, sk=%p, first packet(%llu)\n", dccp_role(sk), sk,
-			       dp->dccps_gss);
+		ccid3_pr_debug("%s, sk=%p, first packet(%llu)\n",
+			       dccp_role(sk), sk, dp->dccps_gss);
 
 		hctx->ccid3hctx_no_feedback_timer.function = ccid3_hc_tx_no_feedback_timer;
 		hctx->ccid3hctx_no_feedback_timer.data     = (unsigned long)sk;
-		sk_reset_timer(sk, &hctx->ccid3hctx_no_feedback_timer, jiffies + usecs_to_jiffies(TFRC_INITIAL_TIMEOUT));
+		sk_reset_timer(sk, &hctx->ccid3hctx_no_feedback_timer,
+			       jiffies + usecs_to_jiffies(TFRC_INITIAL_TIMEOUT));
 		hctx->ccid3hctx_last_win_count	 = 0;
 		hctx->ccid3hctx_t_last_win_count = now;
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
@@ -981,7 +1006,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		break;
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
-		delay = (now_delta(hctx->ccid3hctx_t_nom) - hctx->ccid3hctx_delta);
+		delay = now_delta(hctx->ccid3hctx_t_nom) - hctx->ccid3hctx_delta;
 		ccid3_pr_debug("send_packet delay=%ld\n", delay);
 		delay /= -1000;
 		/* divide by -1000 is to convert to ms and get sign right */
@@ -1027,41 +1052,35 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 
 		packet = dccp_tx_hist_head(&hctx->ccid3hctx_hist);
 		if (packet == NULL) {
-			printk(KERN_CRIT "%s: packet doesn't exists in history!\n", __FUNCTION__);
+			printk(KERN_CRIT "%s: packet doesn't exists in "
+					 "history!\n", __FUNCTION__);
 			return;
 		}
 		if (packet->dccphtx_sent) {
-			printk(KERN_CRIT "%s: no unsent packet in history!\n", __FUNCTION__);
+			printk(KERN_CRIT "%s: no unsent packet in history!\n",
+			       __FUNCTION__);
 			return;
 		}
 		packet->dccphtx_tstamp = now;
 		packet->dccphtx_seqno  = dp->dccps_gss;
-#if 0
-		ccid3_pr_debug("%s, sk=%p, seqno=%llu inserted!\n",
-			       dccp_role(sk), sk, packet->dccphtx_seqno);
-#endif
 		/*
-		 * Check if win_count have changed */
-		/* COMPLIANCE_BEGIN
-		 * Algorithm in "8.1. Window Counter Valuer" in draft-ietf-dccp-ccid3-11.txt
+		 * Check if win_count have changed
+		 * Algorithm in "8.1. Window Counter Valuer" in
+		 * draft-ietf-dccp-ccid3-11.txt
 		 */
-		quarter_rtt = now_delta(hctx->ccid3hctx_t_last_win_count) / (hctx->ccid3hctx_rtt / 4);
+		quarter_rtt = now_delta(hctx->ccid3hctx_t_last_win_count) /
+			      (hctx->ccid3hctx_rtt / 4);
 		if (quarter_rtt > 0) {
 			hctx->ccid3hctx_t_last_win_count = now;
 			hctx->ccid3hctx_last_win_count	 = (hctx->ccid3hctx_last_win_count +
 							    min_t(unsigned long, quarter_rtt, 5)) % 16;
-			ccid3_pr_debug("%s, sk=%p, window changed from %u to %u!\n",
+			ccid3_pr_debug("%s, sk=%p, window changed from "
+				       "%u to %u!\n",
 				       dccp_role(sk), sk,
 				       packet->dccphtx_ccval,
 				       hctx->ccid3hctx_last_win_count);
 		}
-		/* COMPLIANCE_END */
-#if 0
-		ccid3_pr_debug("%s, sk=%p, packet sent (%llu,%u)\n",
-			       dccp_role(sk), sk,
-			       packet->dccphtx_seqno,
-			       packet->dccphtx_ccval);
-#endif
+
 		hctx->ccid3hctx_idle = 0;
 		packet->dccphtx_rtt  = hctx->ccid3hctx_rtt;
 		packet->dccphtx_sent = 1;
@@ -1073,7 +1092,8 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 	case TFRC_SSTATE_NO_SENT:
 		/* if first wasn't pure ack */
 		if (len != 0)
-			printk(KERN_CRIT "%s: %s, First packet sent is noted as a data packet\n",
+			printk(KERN_CRIT "%s: %s, First packet sent is noted "
+					 "as a data packet\n",
 			       __FUNCTION__, dccp_role(sk));
 		return;
 	case TFRC_SSTATE_NO_FBACK:
@@ -1105,16 +1125,13 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	u32 pinv;
 	u32 x_recv;
 	u32 r_sample;
-#if 0
-	ccid3_pr_debug("%s, sk=%p(%s), skb=%p(%s)\n",
-		       dccp_role(sk), sk, dccp_state_name(sk->sk_state),
-		       skb, dccp_packet_name(DCCP_SKB_CB(skb)->dccpd_type));
-#endif
+
 	if (hctx == NULL)
 		return;
 
 	if (hctx->ccid3hctx_state == TFRC_SSTATE_TERM) {
-		ccid3_pr_debug("%s, sk=%p, received a packet when terminating!\n", dccp_role(sk), sk);
+		ccid3_pr_debug("%s, sk=%p, received a packet when "
+			       "terminating!\n", dccp_role(sk), sk);
 		return;
 	}
 
@@ -1141,8 +1158,10 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		packet = dccp_tx_hist_find_entry(&hctx->ccid3hctx_hist,
 						 DCCP_SKB_CB(skb)->dccpd_ack_seq);
 		if (packet == NULL) {
-			ccid3_pr_debug("%s, sk=%p, seqno %llu(%s) does't exist in history!\n",
-				       dccp_role(sk), sk, DCCP_SKB_CB(skb)->dccpd_ack_seq,
+			ccid3_pr_debug("%s, sk=%p, seqno %llu(%s) does't "
+				       "exist in history!\n",
+				       dccp_role(sk), sk,
+				       DCCP_SKB_CB(skb)->dccpd_ack_seq,
 				       dccp_packet_name(DCCP_SKB_CB(skb)->dccpd_type));
 			return;
 		}
@@ -1164,7 +1183,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			ccid3_hc_tx_set_state(sk, TFRC_SSTATE_FBACK);
 			hctx->ccid3hctx_rtt = r_sample;
 		} else
-			hctx->ccid3hctx_rtt = (hctx->ccid3hctx_rtt * 9) / 10 + r_sample / 10;
+			hctx->ccid3hctx_rtt = (hctx->ccid3hctx_rtt * 9) / 10 +
+					      r_sample / 10;
 
 		/*
 		 * XXX: this is to avoid a division by zero in ccid3_hc_tx_packet_sent
@@ -1173,17 +1193,16 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		if (hctx->ccid3hctx_rtt < 4)
 			hctx->ccid3hctx_rtt = 4;
 
-		ccid3_pr_debug("%s, sk=%p, New RTT estimate=%uus, r_sample=%us\n",
-			       dccp_role(sk), sk,
-			       hctx->ccid3hctx_rtt,
-			       r_sample);
+		ccid3_pr_debug("%s, sk=%p, New RTT estimate=%uus, "
+			       "r_sample=%us\n", dccp_role(sk), sk,
+			       hctx->ccid3hctx_rtt, r_sample);
 
 		/* Update timeout interval */
 		hctx->ccid3hctx_t_rto = max_t(u32, 4 * hctx->ccid3hctx_rtt,
 					      USEC_PER_SEC);
 
 		/* Update receive rate */
-		hctx->ccid3hctx_x_recv = x_recv;   /* x_recv in bytes per second */
+		hctx->ccid3hctx_x_recv = x_recv;/* X_recv in bytes per sec */
 
 		/* Update loss event rate */
 		if (pinv == ~0 || pinv == 0)
@@ -1193,7 +1212,8 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 			if (hctx->ccid3hctx_p < TFRC_SMALLEST_P) {
 				hctx->ccid3hctx_p = TFRC_SMALLEST_P;
-				ccid3_pr_debug("%s, sk=%p, Smallest p used!\n", dccp_role(sk), sk);
+				ccid3_pr_debug("%s, sk=%p, Smallest p used!\n",
+					       dccp_role(sk), sk);
 			}
 		}
 
@@ -1220,22 +1240,27 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 					 &hctx->ccid3hctx_hist, packet);
 
 		if (hctx->ccid3hctx_x < 10) {
-			ccid3_pr_debug("ccid3_hc_tx_packet_recv hctx->ccid3hctx_x < 10\n");
+			ccid3_pr_debug("ccid3_hc_tx_packet_recv hctx_x < 10\n");
 			hctx->ccid3hctx_x = 10;
 		}
 		/* to prevent divide by zero below */
 
-		/* Schedule no feedback timer to expire in max(4 * R, 2 * s / X) */
+		/*
+		 * Schedule no feedback timer to expire in
+		 * max(4 * R, 2 * s / X)
+		 */
 		next_tmout = max(hctx->ccid3hctx_t_rto,
 				 (2 * (hctx->ccid3hctx_s * 100000) /
 				  (hctx->ccid3hctx_x / 10)));
 		/* maths with 100000 and 10 is to prevent overflow with 32 bit */
 
-		ccid3_pr_debug("%s, sk=%p, Scheduled no feedback timer to expire in %lu jiffies (%luus)\n",
-			       dccp_role(sk), sk, usecs_to_jiffies(next_tmout), next_tmout); 
+		ccid3_pr_debug("%s, sk=%p, Scheduled no feedback timer to "
+			       "expire in %lu jiffies (%luus)\n",
+			       dccp_role(sk), sk,
+			       usecs_to_jiffies(next_tmout), next_tmout); 
 
 		sk_reset_timer(sk, &hctx->ccid3hctx_no_feedback_timer, 
-				jiffies + max_t(u32,1,usecs_to_jiffies(next_tmout)));
+			       jiffies + max_t(u32, 1, usecs_to_jiffies(next_tmout)));
 
 		/* set idle flag */
 		hctx->ccid3hctx_idle = 1;   
@@ -1253,14 +1278,16 @@ static void ccid3_hc_tx_insert_options(struct sock *sk, struct sk_buff *skb)
 	const struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
 
-	if (hctx == NULL || !(sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN))
+	if (hctx == NULL || !(sk->sk_state == DCCP_OPEN ||
+			      sk->sk_state == DCCP_PARTOPEN))
 		return;
 
 	 DCCP_SKB_CB(skb)->dccpd_ccval = hctx->ccid3hctx_last_win_count;
 }
 
 static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
-				   unsigned char len, u16 idx, unsigned char *value)
+				     unsigned char len, u16 idx,
+				     unsigned char *value)
 {
 	int rc = 0;
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -1283,7 +1310,8 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 	switch (option) {
 	case TFRC_OPT_LOSS_EVENT_RATE:
 		if (len != 4) {
-			ccid3_pr_debug("%s, sk=%p, invalid len for TFRC_OPT_LOSS_EVENT_RATE\n",
+			ccid3_pr_debug("%s, sk=%p, invalid len for "
+				       "TFRC_OPT_LOSS_EVENT_RATE\n",
 				       dccp_role(sk), sk);
 			rc = -EINVAL;
 		} else {
@@ -1303,7 +1331,8 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 		break;
 	case TFRC_OPT_RECEIVE_RATE:
 		if (len != 4) {
-			ccid3_pr_debug("%s, sk=%p, invalid len for TFRC_OPT_RECEIVE_RATE\n",
+			ccid3_pr_debug("%s, sk=%p, invalid len for "
+				       "TFRC_OPT_RECEIVE_RATE\n",
 				       dccp_role(sk), sk);
 			rc = -EINVAL;
 		} else {
@@ -1325,7 +1354,8 @@ static int ccid3_hc_tx_init(struct sock *sk)
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 
-	hctx = dp->dccps_hc_tx_ccid_private = kmalloc(sizeof(*hctx), gfp_any());
+	hctx = dp->dccps_hc_tx_ccid_private = kmalloc(sizeof(*hctx),
+						      gfp_any());
 	if (hctx == NULL)
 		return -ENOMEM;
 
@@ -1337,8 +1367,10 @@ static int ccid3_hc_tx_init(struct sock *sk)
 	else
 		hctx->ccid3hctx_s = TFRC_STD_PACKET_SIZE;
 
-	hctx->ccid3hctx_x     = hctx->ccid3hctx_s; /* set transmission rate to 1 packet per second */
-	hctx->ccid3hctx_rtt   = 4; /* See ccid3_hc_tx_packet_sent win_count calculatation */
+	/* Set transmission rate to 1 packet per second */
+	hctx->ccid3hctx_x     = hctx->ccid3hctx_s;
+	/* See ccid3_hc_tx_packet_sent win_count calculatation */
+	hctx->ccid3hctx_rtt   = 4;
 	hctx->ccid3hctx_t_rto = USEC_PER_SEC;
 	hctx->ccid3hctx_state = TFRC_SSTATE_NO_SENT;
 	INIT_LIST_HEAD(&hctx->ccid3hctx_hist);
@@ -1389,14 +1421,16 @@ static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 }
 #endif
 
-static inline void ccid3_hc_rx_set_state(struct sock *sk, enum ccid3_hc_rx_states state)
+static inline void ccid3_hc_rx_set_state(struct sock *sk,
+					 enum ccid3_hc_rx_states state)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 	enum ccid3_hc_rx_states oldstate = hcrx->ccid3hcrx_state;
 
 	ccid3_pr_debug("%s(%p) %-8.8s -> %s\n",
-		       dccp_role(sk), sk, ccid3_rx_state_name(oldstate), ccid3_rx_state_name(state));
+		       dccp_role(sk), sk, ccid3_rx_state_name(oldstate),
+		       ccid3_rx_state_name(state));
 	WARN_ON(state == oldstate);
 	hcrx->ccid3hcrx_state = state;
 }
@@ -1434,9 +1468,12 @@ static int ccid3_hc_rx_add_hist(struct sock *sk,
 					num_later++;
 
 				if (num_later == TFRC_RECV_NUM_LATE_LOSS) {
-					dccp_rx_hist_entry_delete(ccid3_rx_hist, packet);
-					ccid3_pr_debug("%s, sk=%p, packet(%llu) already lost!\n",
-						       dccp_role(sk), sk, seqno);
+					dccp_rx_hist_entry_delete(ccid3_rx_hist,
+								  packet);
+					ccid3_pr_debug("%s, sk=%p, packet"
+						       "(%llu) already lost!\n",
+						       dccp_role(sk), sk,
+						       seqno);
 					return 1;
 				}
 			}
@@ -1444,12 +1481,18 @@ static int ccid3_hc_rx_add_hist(struct sock *sk,
 			if (num_later < TFRC_RECV_NUM_LATE_LOSS)
 				dccp_rx_hist_add_entry(&hcrx->ccid3hcrx_hist,
 						       packet);
-			/* FIXME: else what? should we destroy the packet like above? */
+			/*
+			 * FIXME: else what? should we destroy the packet
+			 * like above?
+			 */
 		}
 	}
 
 trim_history:
-	/* Trim history (remove all packets after the NUM_LATE_LOSS + 1 data packets) */
+	/*
+	 * Trim history (remove all packets after the NUM_LATE_LOSS + 1
+	 * data packets)
+	 */
 	num_later = TFRC_RECV_NUM_LATE_LOSS + 1;
 
 	if (!list_empty(&hcrx->ccid3hcrx_loss_interval_hist)) {
@@ -1489,15 +1532,18 @@ trim_history:
 					if (tmp < 0)
 						tmp += TFRC_WIN_COUNT_LIMIT;
 					if (tmp > TFRC_WIN_COUNT_PER_RTT + 1) {
-						/* we have found a packet older than one rtt
-						 * remove the rest */
+						/*
+						 * We have found a packet older
+						 * than one rtt remove the rest
+						 */
 						step = 3;
 					} else /* OK, find next data packet */
 						num_later = 1;
 					break;
 				case 3:
 					list_del_init(&entry->dccphrx_node);
-					dccp_rx_hist_entry_delete(ccid3_rx_hist, entry);
+					dccp_rx_hist_entry_delete(ccid3_rx_hist,
+								  entry);
 					break;
 				}
 			} else if (dccp_rx_hist_entry_data_packet(entry))
@@ -1564,7 +1610,8 @@ static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 	u32 x_recv, pinv;
 	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 
-	if (hcrx == NULL || !(sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN))
+	if (hcrx == NULL || !(sk->sk_state == DCCP_OPEN ||
+			      sk->sk_state == DCCP_PARTOPEN))
 		return;
 
 	DCCP_SKB_CB(skb)->dccpd_ccval = hcrx->ccid3hcrx_last_counter;
@@ -1658,13 +1705,15 @@ static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
 	}
 
 	if (step == 0) {
-		printk(KERN_CRIT "%s: %s, sk=%p, packet history contains no data packets!\n",
+		printk(KERN_CRIT "%s: %s, sk=%p, packet history contains no "
+				 "data packets!\n",
 		       __FUNCTION__, dccp_role(sk), sk);
 		return ~0;
 	}
 
 	if (interval == 0) {
-		ccid3_pr_debug("%s, sk=%p, Could not find a win_count interval > 0. Defaulting to 1\n",
+		ccid3_pr_debug("%s, sk=%p, Could not find a win_count "
+			       "interval > 0. Defaulting to 1\n",
 			       dccp_role(sk), sk);
 		interval = 1;
 	}
@@ -1688,8 +1737,8 @@ found:
 	fval = (hcrx->ccid3hcrx_s * 100000) / tmp2;
 	/* do not alter order above or you will get overflow on 32 bit */
 	p = calcx_reverse_lookup(fval);
-	ccid3_pr_debug("%s, sk=%p, receive rate=%u bytes/s, implied loss rate=%u\n",\
-			dccp_role(sk), sk, x_recv, p);
+	ccid3_pr_debug("%s, sk=%p, receive rate=%u bytes/s, implied "
+		       "loss rate=%u\n", dccp_role(sk), sk, x_recv, p);
 
 	if (p == 0)
 		return ~0;
@@ -1704,25 +1753,31 @@ static void ccid3_hc_rx_update_li(struct sock *sk, u64 seq_loss, u8 win_loss)
 	struct ccid3_loss_interval_hist_entry *li_entry;
 
 	if (seq_loss != DCCP_MAX_SEQNO + 1) {
-		ccid3_pr_debug("%s, sk=%p, seq_loss=%llu, win_loss=%u, packet loss detected\n",
+		ccid3_pr_debug("%s, sk=%p, seq_loss=%llu, win_loss=%u, "
+			       "packet loss detected\n",
 			       dccp_role(sk), sk, seq_loss, win_loss);
 		
 		if (list_empty(&hcrx->ccid3hcrx_loss_interval_hist)) {
 			struct ccid3_loss_interval_hist_entry *li_tail = NULL;
 			int i;
 
-			ccid3_pr_debug("%s, sk=%p, first loss event detected, creating history\n", dccp_role(sk), sk);
+			ccid3_pr_debug("%s, sk=%p, first loss event detected, "
+				       "creating history\n",
+				       dccp_role(sk), sk);
 			for (i = 0; i <= TFRC_RECV_IVAL_F_LENGTH; ++i) {
 				li_entry = ccid3_loss_interval_hist_entry_new(SLAB_ATOMIC);
 				if (li_entry == NULL) {
 					ccid3_loss_interval_history_delete(&hcrx->ccid3hcrx_loss_interval_hist);
-					ccid3_pr_debug("%s, sk=%p, not enough mem for creating history\n",
+					ccid3_pr_debug("%s, sk=%p, not enough "
+						       "mem for creating "
+						       "history\n",
 						       dccp_role(sk), sk);
 					return;
 				}
 				if (li_tail == NULL)
 					li_tail = li_entry;
-				list_add(&li_entry->ccid3lih_node, &hcrx->ccid3hcrx_loss_interval_hist);
+				list_add(&li_entry->ccid3lih_node,
+					 &hcrx->ccid3hcrx_loss_interval_hist);
 			}
 
 			li_entry->ccid3lih_seqno     = seq_loss;
@@ -1772,11 +1827,13 @@ static void ccid3_hc_rx_detect_loss(struct sock *sk)
 		if (list_empty(&hcrx->ccid3hcrx_loss_interval_hist)) {
 			/* no loss event have occured yet */
 			ccid3_pr_debug("%s, sk=%p, TODO: find a lost data "
-					"packet by comparing to initial seqno\n",
+					"packet by comparing to initial "
+					"seqno\n",
 				       dccp_role(sk), sk);
 			goto out_update_li;
 		} else {
-			pr_info("%s: %s, sk=%p, ERROR! Less than 4 data packets in history",
+			pr_info("%s: %s, sk=%p, ERROR! Less than 4 data "
+				"packets in history",
 				__FUNCTION__, dccp_role(sk), sk);
 			return;
 		}
@@ -1831,7 +1888,9 @@ static u32 ccid3_hc_rx_calc_i_mean(struct sock *sk)
 	u32 i_tot1 = 0;
 	u32 w_tot  = 0;
 
-	list_for_each_entry_safe(li_entry, li_next, &hcrx->ccid3hcrx_loss_interval_hist, ccid3lih_node) {
+	list_for_each_entry_safe(li_entry, li_next,
+				 &hcrx->ccid3hcrx_loss_interval_hist,
+				 ccid3lih_node) {
 		if (i < TFRC_RECV_IVAL_F_LENGTH) {
 			i_tot0 += li_entry->ccid3lih_interval * ccid3_hc_rx_w[i];
 			w_tot  += ccid3_hc_rx_w[i];
@@ -1845,7 +1904,8 @@ static u32 ccid3_hc_rx_calc_i_mean(struct sock *sk)
 	}
 
 	if (i != TFRC_RECV_IVAL_F_LENGTH) {
-		pr_info("%s: %s, sk=%p, ERROR! Missing entry in interval history!\n",
+		pr_info("%s: %s, sk=%p, ERROR! Missing entry in "
+			"interval history!\n",
 			__FUNCTION__, dccp_role(sk), sk);
 		return 0;
 	}
@@ -1870,11 +1930,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	u8 win_count;
 	u32 p_prev;
 	int ins;
-#if 0
-	ccid3_pr_debug("%s, sk=%p(%s), skb=%p(%s)\n",
-		       dccp_role(sk), sk, dccp_state_name(sk->sk_state),
-		       skb, dccp_packet_name(DCCP_SKB_CB(skb)->dccpd_type));
-#endif
+
 	if (hcrx == NULL)
 		return;
 
@@ -1913,7 +1969,8 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, opt_recv->dccpor_ndp,
 					skb, SLAB_ATOMIC);
 	if (packet == NULL) {
-		ccid3_pr_debug("%s, sk=%p, Not enough mem to add rx packet to history (consider it lost)!",
+		ccid3_pr_debug("%s, sk=%p, Not enough mem to add rx packet "
+			       "to history (consider it lost)!",
 			       dccp_role(sk), sk);
 		return;
 	}
@@ -1927,13 +1984,16 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 	switch (hcrx->ccid3hcrx_state) {
 	case TFRC_RSTATE_NO_DATA:
-		ccid3_pr_debug("%s, sk=%p(%s), skb=%p, sending initial feedback\n",
-			       dccp_role(sk), sk, dccp_state_name(sk->sk_state), skb);
+		ccid3_pr_debug("%s, sk=%p(%s), skb=%p, sending initial "
+			       "feedback\n",
+			       dccp_role(sk), sk,
+			       dccp_state_name(sk->sk_state), skb);
 		ccid3_hc_rx_send_feedback(sk);
 		ccid3_hc_rx_set_state(sk, TFRC_RSTATE_DATA);
 		return;
 	case TFRC_RSTATE_DATA:
-		hcrx->ccid3hcrx_bytes_recv += skb->len - dccp_hdr(skb)->dccph_doff * 4;
+		hcrx->ccid3hcrx_bytes_recv += skb->len -
+					      dccp_hdr(skb)->dccph_doff * 4;
 		if (ins == 0) {
 			if (now_delta(hcrx->ccid3hcrx_tstamp_last_ack) >=
 			    hcrx->ccid3hcrx_rtt) {
@@ -1975,7 +2035,8 @@ static int ccid3_hc_rx_init(struct sock *sk)
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
 
-	hcrx = dp->dccps_hc_rx_ccid_private = kmalloc(sizeof(*hcrx), gfp_any());
+	hcrx = dp->dccps_hc_rx_ccid_private = kmalloc(sizeof(*hcrx),
+						      gfp_any());
 	if (hcrx == NULL)
 		return -ENOMEM;
 
@@ -2135,7 +2196,8 @@ static __exit void ccid3_module_exit(void)
 }
 module_exit(ccid3_module_exit);
 
-MODULE_AUTHOR("Ian McDonald <iam4@cs.waikato.ac.nz> & Arnaldo Carvalho de Melo <acme@ghostprotocols.net>");
+MODULE_AUTHOR("Ian McDonald <iam4@cs.waikato.ac.nz>, "
+	      "Arnaldo Carvalho de Melo <acme@ghostprotocols.net>");
 MODULE_DESCRIPTION("DCCP TFRC CCID3 CCID");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("net-dccp-ccid-3");
