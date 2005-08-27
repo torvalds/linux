@@ -140,6 +140,7 @@ static struct scsi_host_template qla2x00_driver_template = {
 	 * which equates to 0x800000 sectors.
 	 */
 	.max_sectors		= 0xFFFF,
+	.shost_attrs		= qla2x00_host_attrs,
 };
 
 static struct scsi_host_template qla24xx_driver_template = {
@@ -164,6 +165,7 @@ static struct scsi_host_template qla24xx_driver_template = {
 	.sg_tablesize		= SG_ALL,
 
 	.max_sectors		= 0xFFFF,
+	.shost_attrs		= qla2x00_host_attrs,
 };
 
 static struct scsi_transport_template *qla2xxx_transport_template = NULL;
