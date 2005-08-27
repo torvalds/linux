@@ -1673,6 +1673,7 @@ typedef struct fc_port {
     	uint8_t cur_path;		/* current path id */
 
 	struct fc_rport *rport;
+	u32 supported_classes;
 } fc_port_t;
 
 /*

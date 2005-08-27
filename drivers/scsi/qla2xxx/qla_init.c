@@ -1697,6 +1697,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, int flags)
 	fcport->iodesc_idx_sent = IODESC_INVALID_INDEX;
 	atomic_set(&fcport->state, FCS_UNCONFIGURED);
 	fcport->flags = FCF_RLC_SUPPORT;
+	fcport->supported_classes = FC_COS_UNSPECIFIED;
 
 	return (fcport);
 }
@@ -2075,6 +2076,7 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 		return;
 	}
 	rport->dd_data = fcport;
+	rport->supported_classes = fcport->supported_classes;
 
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
 	if (fcport->port_type == FCT_INITIATOR)
@@ -2793,6 +2795,11 @@ qla2x00_fabric_login(scsi_qla_host_t *ha, fc_port_t *fcport,
 					fcport->flags |= FCF_TAPE_PRESENT;
 				}
 			}
+
+			if (mb[10] & BIT_0)
+				fcport->supported_classes |= FC_COS_CLASS2;
+			if (mb[10] & BIT_1)
+				fcport->supported_classes |= FC_COS_CLASS3;
 
 			rval = QLA_SUCCESS;
 			break;

@@ -304,10 +304,13 @@ struct fc_function_template qla2xxx_transport_functions = {
 
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
+	.show_host_supported_classes = 1,
+
 	.get_host_port_id = qla2x00_get_host_port_id,
 	.show_host_port_id = 1,
 
 	.dd_fcrport_size = sizeof(struct fc_port *),
+	.show_rport_supported_classes = 1,
 
 	.get_starget_node_name = qla2x00_get_starget_node_name,
 	.show_starget_node_name = 1,
@@ -329,4 +332,5 @@ qla2x00_init_host_attr(scsi_qla_host_t *ha)
 	    be64_to_cpu(*(uint64_t *)ha->init_cb->node_name);
 	fc_host_port_name(ha->host) =
 	    be64_to_cpu(*(uint64_t *)ha->init_cb->port_name);
+	fc_host_supported_classes(ha->host) = FC_COS_CLASS3;
 }

@@ -19,6 +19,7 @@
 #include "qla_def.h"
 
 #include <linux/delay.h>
+#include <scsi/scsi_transport_fc.h>
 
 static void
 qla2x00_mbx_sem_timeout(unsigned long data)
@@ -1326,6 +1327,10 @@ qla2x00_get_port_database(scsi_qla_host_t *ha, fc_port_t *fcport, uint8_t opt)
 			fcport->port_type = FCT_INITIATOR;
 		else
 			fcport->port_type = FCT_TARGET;
+
+		/* Passback COS information. */
+		fcport->supported_classes = (pd->options & BIT_4) ?
+		    FC_COS_CLASS2: FC_COS_CLASS3;
 	}
 
 gpd_error_out:
@@ -1661,6 +1666,13 @@ qla24xx_login_fabric(scsi_qla_host_t *ha, uint16_t loop_id, uint8_t domain,
 				mb[1] |= BIT_1;
 		} else
 			mb[1] = BIT_0;
+
+		/* Passback COS information. */
+		mb[10] = 0;
+		if (lg->io_parameter[7] || lg->io_parameter[8])
+			mb[10] |= BIT_0;	/* Class 2. */
+		if (lg->io_parameter[9] || lg->io_parameter[10])
+			mb[10] |= BIT_1;	/* Class 3. */
 	}
 
 	dma_pool_free(ha->s_dma_pool, lg, lg_dma);
@@ -1723,6 +1735,8 @@ qla2x00_login_fabric(scsi_qla_host_t *ha, uint16_t loop_id, uint8_t domain,
 		mb[2] = mcp->mb[2];
 		mb[6] = mcp->mb[6];
 		mb[7] = mcp->mb[7];
+		/* COS retrieved from Get-Port-Database mailbox command. */
+		mb[10] = 0;
 	}
 
 	if (rval != QLA_SUCCESS) {
