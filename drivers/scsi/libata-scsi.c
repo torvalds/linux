@@ -630,11 +630,19 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 		tf->lbah = scsicmd[3];
 
 		VPRINTK("ten-byte command\n");
+		if (qc->nsect == 0) /* we don't support length==0 cmds */
+			return 1;
 		return 0;
 	}
 
 	if (scsicmd[0] == READ_6 || scsicmd[0] == WRITE_6) {
 		qc->nsect = tf->nsect = scsicmd[4];
+		if (!qc->nsect) {
+			qc->nsect = 256;
+			if (lba48)
+				tf->hob_nsect = 1;
+		}
+
 		tf->lbal = scsicmd[3];
 		tf->lbam = scsicmd[2];
 		tf->lbah = scsicmd[1] & 0x1f; /* mask out reserved bits */
@@ -674,6 +682,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 		tf->lbah = scsicmd[7];
 
 		VPRINTK("sixteen-byte command\n");
+		if (qc->nsect == 0) /* we don't support length==0 cmds */
+			return 1;
 		return 0;
 	}
 
