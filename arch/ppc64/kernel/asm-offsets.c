@@ -68,6 +68,7 @@ int main(void)
 	DEFINE(THREAD_USED_VR, offsetof(struct thread_struct, used_vr));
 #endif /* CONFIG_ALTIVEC */
 	DEFINE(MM, offsetof(struct task_struct, mm));
+	DEFINE(AUDITCONTEXT, offsetof(struct task_struct, audit_context));
 
 	DEFINE(DCACHEL1LINESIZE, offsetof(struct ppc64_caches, dline_size));
 	DEFINE(DCACHEL1LOGLINESIZE, offsetof(struct ppc64_caches, log_dline_size));
