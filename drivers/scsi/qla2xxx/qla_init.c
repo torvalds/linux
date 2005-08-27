@@ -1900,7 +1900,8 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 			continue;
 
 		/* Bypass if not same domain and area of adapter. */
-		if (area != ha->d_id.b.area || domain != ha->d_id.b.domain)
+		if (area && domain &&
+		    (area != ha->d_id.b.area || domain != ha->d_id.b.domain))
 			continue;
 
 		/* Bypass invalid local loop ID. */
@@ -2399,6 +2400,12 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 		/* Bypass if host adapter. */
 		if (new_fcport->d_id.b24 == ha->d_id.b24)
 			continue;
+
+		/* Bypass if same domain and area of adapter. */
+		if (((new_fcport->d_id.b24 & 0xffff00) ==
+		    (ha->d_id.b24 & 0xffff00)) && ha->current_topology ==
+			ISP_CFG_FL)
+			    continue;
 
 		/* Bypass reserved domain fields. */
 		if ((new_fcport->d_id.b.domain & 0xf0) == 0xf0)
