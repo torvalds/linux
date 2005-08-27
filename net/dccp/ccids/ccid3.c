@@ -985,7 +985,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 		ccid3_pr_debug("send_packet delay=%ld\n", delay);
 		delay /= -1000;
 		/* divide by -1000 is to convert to ms and get sign right */
-		rc = delay > 0 ? -EAGAIN : 0;
+		rc = delay > 0 ? delay : 0;
 		break;
 	default:
 		printk(KERN_CRIT "%s: %s, sk=%p, Illegal state (%d)!\n",

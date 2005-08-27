@@ -261,7 +261,7 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	if (rc != 0)
 		goto out_discard;
 
-	rc = dccp_write_xmit(sk, skb, len);
+	rc = dccp_write_xmit(sk, skb, &timeo);
 	/*
 	 * XXX we don't use sk_write_queue, so just discard the packet.
 	 *     Current plan however is to _use_ sk_write_queue with
