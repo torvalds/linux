@@ -130,13 +130,14 @@ static int ib_dealloc_ucontext(struct ib_ucontext *context)
 
 	list_for_each_entry_safe(uobj, tmp, &context->mr_list, list) {
 		struct ib_mr *mr = idr_find(&ib_uverbs_mr_idr, uobj->id);
+		struct ib_device *mrdev = mr->device;
 		struct ib_umem_object *memobj;
 
 		idr_remove(&ib_uverbs_mr_idr, uobj->id);
 		ib_dereg_mr(mr);
 
 		memobj = container_of(uobj, struct ib_umem_object, uobject);
-		ib_umem_release_on_close(mr->device, &memobj->umem);
+		ib_umem_release_on_close(mrdev, &memobj->umem);
 
 		list_del(&uobj->list);
 		kfree(memobj);
