@@ -440,8 +440,12 @@ static int audit_filter_rules(struct task_struct *tsk,
 				result = (ctx->return_code == value);
 			break;
 		case AUDIT_SUCCESS:
-			if (ctx && ctx->return_valid)
-				result = (ctx->return_valid == AUDITSC_SUCCESS);
+			if (ctx && ctx->return_valid) {
+				if (value)
+					result = (ctx->return_valid == AUDITSC_SUCCESS);
+				else
+					result = (ctx->return_valid == AUDITSC_FAILURE);
+			}
 			break;
 		case AUDIT_DEVMAJOR:
 			if (ctx) {
