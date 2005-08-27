@@ -984,58 +984,6 @@ qla2x00_abort_target(fc_port_t *fcport)
 #endif
 
 /*
- * qla2x00_target_reset
- *	Issue target reset mailbox command.
- *
- * Input:
- *	ha = adapter block pointer.
- *	TARGET_QUEUE_LOCK must be released.
- *	ADAPTER_STATE_LOCK must be released.
- *
- * Returns:
- *	qla2x00 local function return status code.
- *
- * Context:
- *	Kernel context.
- */
-int
-qla2x00_target_reset(scsi_qla_host_t *ha, struct fc_port *fcport)
-{
-	int rval;
-	mbx_cmd_t mc;
-	mbx_cmd_t *mcp = &mc;
-
-	DEBUG11(printk("qla2x00_target_reset(%ld): entered.\n", ha->host_no);)
-
-	if (atomic_read(&fcport->state) != FCS_ONLINE)
-		return 0;
-
-	mcp->mb[0] = MBC_TARGET_RESET;
-	if (HAS_EXTENDED_IDS(ha))
-		mcp->mb[1] = fcport->loop_id;
-	else
-		mcp->mb[1] = fcport->loop_id << 8;
-	mcp->mb[2] = ha->loop_reset_delay;
-	mcp->out_mb = MBX_2|MBX_1|MBX_0;
-	mcp->in_mb = MBX_0;
-	mcp->tov = 30;
-	mcp->flags = 0;
-	rval = qla2x00_mailbox_command(ha, mcp);
-
-	if (rval != QLA_SUCCESS) {
-		/*EMPTY*/
-		DEBUG2_3_11(printk("qla2x00_target_reset(%ld): failed=%x.\n",
-		    ha->host_no, rval);)
-	} else {
-		/*EMPTY*/
-		DEBUG11(printk("qla2x00_target_reset(%ld): done.\n",
-		    ha->host_no);)
-	}
-
-	return rval;
-}
-
-/*
  * qla2x00_get_adapter_id
  *	Get adapter ID and topology.
  *

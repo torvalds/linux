@@ -148,9 +148,6 @@ qla2x00_abort_target(fc_port_t *);
 #endif
 
 extern int
-qla2x00_target_reset(scsi_qla_host_t *, struct fc_port *);
-
-extern int
 qla2x00_get_adapter_id(scsi_qla_host_t *, uint16_t *, uint8_t *, uint8_t *,
     uint8_t *, uint16_t *);
 

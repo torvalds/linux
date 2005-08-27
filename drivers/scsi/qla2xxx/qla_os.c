@@ -1022,7 +1022,7 @@ qla2x00_loop_reset(scsi_qla_host_t *ha)
 			if (fcport->port_type != FCT_TARGET)
 				continue;
 
-			status = qla2x00_target_reset(ha, fcport);
+			status = qla2x00_device_reset(ha, fcport);
 			if (status != QLA_SUCCESS)
 				break;
 		}
