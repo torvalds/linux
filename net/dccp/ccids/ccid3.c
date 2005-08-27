@@ -40,6 +40,15 @@
 #include "../packet_history.h"
 #include "ccid3.h"
 
+/*
+ * Reason for maths with 10 here is to avoid 32 bit overflow when a is big.
+ */
+static inline u32 usecs_div(const u32 a, const u32 b)
+{
+	const u32 tmp = a * (USEC_PER_SEC / 10);
+	return b > 20 ? tmp / (b / 10) : tmp;
+}
+
 #ifdef CCID3_DEBUG
 extern int ccid3_debug;
 
@@ -748,20 +757,13 @@ static u32 ccid3_calc_x(u16 s, u32 R, u32 p)
 /* Calculate new t_ipi (inter packet interval) by t_ipi = s / X_inst */
 static inline void ccid3_calc_new_t_ipi(struct ccid3_hc_tx_sock *hctx)
 {
-	if (hctx->ccid3hctx_state == TFRC_SSTATE_NO_FBACK)
-		return;
-	/* if no feedback spec says t_ipi is 1 second (set elsewhere and then 
-	 * doubles after every no feedback timer (separate function) */
-	
-	if (hctx->ccid3hctx_x < 10) {
-		ccid3_pr_debug("ccid3_calc_new_t_ipi - ccid3hctx_x < 10\n");
-		hctx->ccid3hctx_x = 10;
-	}
-	hctx->ccid3hctx_t_ipi = (hctx->ccid3hctx_s * 100000) 
-		/ (hctx->ccid3hctx_x / 10);
-	/* reason for above maths with 10 in there is to avoid 32 bit
-	 * overflow for jumbo packets */
-
+	/*
+	 * If no feedback spec says t_ipi is 1 second (set elsewhere and then
+	 * doubles after every no feedback timer (separate function)
+	 */
+	if (hctx->ccid3hctx_state != TFRC_SSTATE_NO_FBACK)
+		hctx->ccid3hctx_t_ipi = usecs_div(hctx->ccid3hctx_s,
+						  hctx->ccid3hctx_x);
 }
 
 /* Calculate new delta by delta = min(t_ipi / 2, t_gran / 2) */
@@ -769,7 +771,6 @@ static inline void ccid3_calc_new_delta(struct ccid3_hc_tx_sock *hctx)
 {
 	hctx->ccid3hctx_delta = min_t(u32, hctx->ccid3hctx_t_ipi / 2,
 					   TFRC_OPSYS_HALF_TIME_GRAN);
-
 }
 
 /*
@@ -802,21 +803,12 @@ static void ccid3_hc_tx_update_x(struct sock *sk)
 		do_gettimeofday(&now);
 	       	if (timeval_delta(&now, &hctx->ccid3hctx_t_ld) >=
 		    hctx->ccid3hctx_rtt) {
-			/* Avoid divide by zero below */
-			const u32 rtt = max_t(u32, hctx->ccid3hctx_rtt, 10);
-			
-			hctx->ccid3hctx_x = max_t(u32, min_t(u32, 2 * hctx->ccid3hctx_x_recv,
-								  2 * hctx->ccid3hctx_x),
-						       ((hctx->ccid3hctx_s * 100000) /
-							(rtt / 10)));
-			/* Using 100000 and 10 to avoid 32 bit overflow for jumbo frames */
+			hctx->ccid3hctx_x = max_t(u32, min_t(u32, hctx->ccid3hctx_x_recv,
+								  hctx->ccid3hctx_x) * 2,
+						       usecs_div(hctx->ccid3hctx_s,
+							       	 hctx->ccid3hctx_rtt));
 			hctx->ccid3hctx_t_ld = now;
 		}
-	}
-
-	if (hctx->ccid3hctx_x == 0) {
-		ccid3_pr_debug("ccid3hctx_x = 0!\n");
-		hctx->ccid3hctx_x = 1;
 	}
 }
 
@@ -826,7 +818,6 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 	struct dccp_sock *dp = dccp_sk(sk);
 	unsigned long next_tmout = 0;
 	struct ccid3_hc_tx_sock *hctx = dp->dccps_hc_tx_ccid_private;
-	u32 rtt;
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
@@ -840,19 +831,14 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 	ccid3_pr_debug("%s, sk=%p, state=%s\n", dccp_role(sk), sk,
 		       ccid3_tx_state_name(hctx->ccid3hctx_state));
 	
-	if (hctx->ccid3hctx_x < 10) {
-		ccid3_pr_debug("TFRC_SSTATE_NO_FBACK ccid3hctx_x < 10\n");
-		hctx->ccid3hctx_x = 10;
-	}
-
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_TERM:
 		goto out;
 	case TFRC_SSTATE_NO_FBACK:
 		/* Halve send rate */
 		hctx->ccid3hctx_x /= 2;
-		if (hctx->ccid3hctx_x <
-		    (hctx->ccid3hctx_s / TFRC_MAX_BACK_OFF_TIME))
+		if (hctx->ccid3hctx_x < (hctx->ccid3hctx_s /
+					 TFRC_MAX_BACK_OFF_TIME))
 			hctx->ccid3hctx_x = (hctx->ccid3hctx_s /
 					     TFRC_MAX_BACK_OFF_TIME);
 
@@ -861,9 +847,9 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 			       dccp_role(sk), sk,
 			       ccid3_tx_state_name(hctx->ccid3hctx_state),
 			       hctx->ccid3hctx_x);
-		next_tmout = max_t(u32, 2 * (hctx->ccid3hctx_s * 100000) / (hctx->ccid3hctx_x / 10),
+		next_tmout = max_t(u32, 2 * usecs_div(hctx->ccid3hctx_s,
+						      hctx->ccid3hctx_x),
 					TFRC_INITIAL_TIMEOUT);
-		/* do above maths with 100000 and 10 to prevent overflow on 32 bit */
 		/*
 		 * FIXME - not sure above calculation is correct. See section
 		 * 5 of CCID3 11 should adjust tx_t_ipi and double that to
@@ -875,12 +861,9 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 		 * Check if IDLE since last timeout and recv rate is less than
 		 * 4 packets per RTT
 		 */
-		rtt = hctx->ccid3hctx_rtt;
-		if (rtt < 10)
-			rtt = 10;
-		/* stop divide by zero below */
 		if (!hctx->ccid3hctx_idle ||
-		    (hctx->ccid3hctx_x_recv >= 4 * (hctx->ccid3hctx_s * 100000) / (rtt / 10))) {
+		    (hctx->ccid3hctx_x_recv >=
+		     4 * usecs_div(hctx->ccid3hctx_s, hctx->ccid3hctx_rtt))) {
 			ccid3_pr_debug("%s, sk=%p, state=%s, not idle\n",
 				       dccp_role(sk), sk,
 				       ccid3_tx_state_name(hctx->ccid3hctx_state));
@@ -905,13 +888,13 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 			/* Update sending rate */
 			ccid3_hc_tx_update_x(sk);
 		}
-		if (hctx->ccid3hctx_x == 0) {
-			ccid3_pr_debug("TFRC_SSTATE_FBACK ccid3hctx_x = 0!\n");
-			hctx->ccid3hctx_x = 10;
-		}
-		/* Schedule no feedback timer to expire in max(4 * R, 2 * s / X) */
+		/*
+		 * Schedule no feedback timer to expire in
+		 * max(4 * R, 2 * s / X)
+		 */
 		next_tmout = max_t(u32, hctx->ccid3hctx_t_rto, 
-				   2 * (hctx->ccid3hctx_s * 100000) / (hctx->ccid3hctx_x / 10));
+					2 * usecs_div(hctx->ccid3hctx_s,
+						      hctx->ccid3hctx_x));
 		break;
 	default:
 		printk(KERN_CRIT "%s: %s, sk=%p, Illegal state (%d)!\n",
@@ -1053,8 +1036,10 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 		 * Algorithm in "8.1. Window Counter Valuer" in
 		 * draft-ietf-dccp-ccid3-11.txt
 		 */
-		quarter_rtt = timeval_delta(&now, &hctx->ccid3hctx_t_last_win_count) /
-			      (hctx->ccid3hctx_rtt / 4);
+		quarter_rtt = timeval_delta(&now, &hctx->ccid3hctx_t_last_win_count);
+		if (likely(hctx->ccid3hctx_rtt > 8))
+			quarter_rtt /= hctx->ccid3hctx_rtt / 4;
+
 		if (quarter_rtt > 0) {
 			hctx->ccid3hctx_t_last_win_count = now;
 			hctx->ccid3hctx_last_win_count	 = (hctx->ccid3hctx_last_win_count +
@@ -1171,13 +1156,6 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			hctx->ccid3hctx_rtt = (hctx->ccid3hctx_rtt * 9) / 10 +
 					      r_sample / 10;
 
-		/*
-		 * XXX: this is to avoid a division by zero in ccid3_hc_tx_packet_sent
-		 *      implemention of the new window count.
-		 */
-		if (hctx->ccid3hctx_rtt < 4)
-			hctx->ccid3hctx_rtt = 4;
-
 		ccid3_pr_debug("%s, sk=%p, New RTT estimate=%uus, "
 			       "r_sample=%us\n", dccp_role(sk), sk,
 			       hctx->ccid3hctx_rtt, r_sample);
@@ -1220,21 +1198,14 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		dccp_tx_hist_purge_older(ccid3_tx_hist,
 					 &hctx->ccid3hctx_hist, packet);
 
-		if (hctx->ccid3hctx_x < 10) {
-			ccid3_pr_debug("ccid3_hc_tx_packet_recv hctx_x < 10\n");
-			hctx->ccid3hctx_x = 10;
-		}
-		/* to prevent divide by zero below */
-
 		/*
 		 * Schedule no feedback timer to expire in
 		 * max(4 * R, 2 * s / X)
 		 */
 		next_tmout = max(hctx->ccid3hctx_t_rto,
-				 (2 * (hctx->ccid3hctx_s * 100000) /
-				  (hctx->ccid3hctx_x / 10)));
-		/* maths with 100000 and 10 is to prevent overflow with 32 bit */
-
+				 2 * usecs_div(hctx->ccid3hctx_s,
+					       hctx->ccid3hctx_x));
+			
 		ccid3_pr_debug("%s, sk=%p, Scheduled no feedback timer to "
 			       "expire in %lu jiffies (%luus)\n",
 			       dccp_role(sk), sk,
@@ -1350,8 +1321,6 @@ static int ccid3_hc_tx_init(struct sock *sk)
 
 	/* Set transmission rate to 1 packet per second */
 	hctx->ccid3hctx_x     = hctx->ccid3hctx_s;
-	/* See ccid3_hc_tx_packet_sent win_count calculatation */
-	hctx->ccid3hctx_rtt   = 4;
 	hctx->ccid3hctx_t_rto = USEC_PER_SEC;
 	hctx->ccid3hctx_state = TFRC_SSTATE_NO_SENT;
 	INIT_LIST_HEAD(&hctx->ccid3hctx_hist);
