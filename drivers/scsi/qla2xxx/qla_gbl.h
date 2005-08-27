@@ -213,6 +213,9 @@ qla2x00_get_serdes_params(scsi_qla_host_t *, uint16_t *, uint16_t *,
 extern int
 qla2x00_set_serdes_params(scsi_qla_host_t *, uint16_t, uint16_t, uint16_t);
 
+extern int
+qla2x00_stop_firmware(scsi_qla_host_t *);
+
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */

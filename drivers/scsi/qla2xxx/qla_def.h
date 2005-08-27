@@ -631,6 +631,7 @@ typedef struct {
 #define MBC_WRITE_RAM_WORD_EXTENDED	0xd	/* Write RAM word extended */
 #define MBC_READ_RAM_EXTENDED		0xf	/* Read RAM extended. */
 #define MBC_IOCB_COMMAND		0x12	/* Execute IOCB command. */
+#define MBC_STOP_FIRMWARE		0x14	/* Stop firmware. */
 #define MBC_ABORT_COMMAND		0x15	/* Abort IOCB command. */
 #define MBC_ABORT_DEVICE		0x16	/* Abort device (ID/LUN). */
 #define MBC_ABORT_TARGET		0x17	/* Abort target (ID). */

@@ -79,7 +79,7 @@ module_param(ql2xloginretrycount, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xloginretrycount,
 		"Specify an alternate value for the NVRAM login retry count.");
 
-int ql2xfwloadbin;
+int ql2xfwloadbin=1;
 module_param(ql2xfwloadbin, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xfwloadbin,
 		"Load ISP2xxx firmware image via hotplug.");
@@ -1626,10 +1626,6 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha))
 		qla2x00_cancel_io_descriptors(ha);
 
-	/* turn-off interrupts on the card */
-	if (ha->interrupts_on)
-		ha->isp_ops.disable_intrs(ha);
-
 	/* Disable timer */
 	if (ha->timer_active)
 		qla2x00_stop_timer(ha);
@@ -1649,8 +1645,14 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 		}
 	}
 
-	qla2x00_mem_free(ha);
+	/* Stop currently executing firmware. */
+	qla2x00_stop_firmware(ha);
 
+	/* turn-off interrupts on the card */
+	if (ha->interrupts_on)
+		ha->isp_ops.disable_intrs(ha);
+
+	qla2x00_mem_free(ha);
 
 	ha->flags.online = 0;
 
