@@ -502,14 +502,13 @@ qc24_fail_command:
 static int
 qla2x00_eh_wait_on_command(scsi_qla_host_t *ha, struct scsi_cmnd *cmd)
 {
-#define ABORT_POLLING_PERIOD	HZ
-#define ABORT_WAIT_ITER		((10 * HZ) / (ABORT_POLLING_PERIOD))
+#define ABORT_POLLING_PERIOD	1000
+#define ABORT_WAIT_ITER		((10 * 1000) / (ABORT_POLLING_PERIOD))
 	unsigned long wait_iter = ABORT_WAIT_ITER;
 	int ret = QLA_SUCCESS;
 
 	while (CMD_SP(cmd)) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(ABORT_POLLING_PERIOD);
+		msleep(ABORT_POLLING_PERIOD);
 
 		if (--wait_iter)
 			break;
@@ -1960,7 +1959,7 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 {
 	struct list_head	*fcpl, *fcptemp;
 	fc_port_t	*fcport;
-	unsigned long	wtime;/* max wait time if mbx cmd is busy. */
+	unsigned int	wtime;/* max wait time if mbx cmd is busy. */
 
 	if (ha == NULL) {
 		/* error */
@@ -1969,11 +1968,9 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	}
 
 	/* Make sure all other threads are stopped. */
-	wtime = 60 * HZ;
-	while (ha->dpc_wait && wtime) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		wtime = schedule_timeout(wtime);
-	}
+	wtime = 60 * 1000;
+	while (ha->dpc_wait && wtime)
+		wtime = msleep_interruptible(wtime);
 
 	/* free ioctl memory */
 	qla2x00_free_ioctl_mem(ha);
@@ -2504,15 +2501,15 @@ qla2x00_timer(scsi_qla_host_t *ha)
 int
 qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
 {
-	const unsigned int step = HZ/10;
+	const unsigned int step = 100; /* msecs */
+	unsigned int iterations = jiffies_to_msecs(timeout)/100;
 
 	do {
 		if (!down_trylock(sema))
 			return 0;
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (schedule_timeout(step))
+		if (msleep_interruptible(step))
 			break;
-	} while ((timeout -= step) > 0);
+	} while (--iterations >= 0);
 
 	return -ETIMEDOUT;
 }
