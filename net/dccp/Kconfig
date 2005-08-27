@@ -27,7 +27,7 @@ config INET_DCCP_DIAG
 source "net/dccp/ccids/Kconfig"
 
 menu "DCCP Kernel Hacking"
-	depends on IP_DCCP=m && DEBUG_KERNEL=y
+	depends on IP_DCCP && DEBUG_KERNEL=y
 
 config IP_DCCP_DEBUG
 	bool "DCCP debug messages"
@@ -37,7 +37,7 @@ config IP_DCCP_DEBUG
 	  Just say N.
 
 config IP_DCCP_UNLOAD_HACK
-	depends on IP_DCCP_CCID3=m
+	depends on IP_DCCP=m && IP_DCCP_CCID3=m
 	bool "DCCP control sock unload hack"
 	---help---
 	  Enable this to be able to unload the dccp module when the it
