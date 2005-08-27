@@ -198,7 +198,7 @@ static int qs_check_atapi_dma(struct ata_queued_cmd *qc)
 	return 1;	/* ATAPI DMA not supported */
 }
 
-static void qs_bmdma_stop(struct ata_queud_cmd *qc)
+static void qs_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	/* nothing */
 }
