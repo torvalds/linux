@@ -429,17 +429,53 @@ extern int dccp_ackpkts_add(struct dccp_ackpkts *ap, u64 ackno, u8 state);
 extern void dccp_ackpkts_check_rcv_ackno(struct dccp_ackpkts *ap,
 					 struct sock *sk, u64 ackno);
 
+static inline suseconds_t timeval_usecs(const struct timeval *tv)
+{
+	return tv->tv_sec * USEC_PER_SEC + tv->tv_usec;
+}
+
+static inline suseconds_t timeval_delta(const struct timeval *large,
+					const struct timeval *small)
+{
+	time_t	    secs  = large->tv_sec  - small->tv_sec;
+	suseconds_t usecs = large->tv_usec - small->tv_usec;
+
+	if (usecs < 0) {
+		secs--;
+		usecs += USEC_PER_SEC;
+	}
+	return secs * USEC_PER_SEC + usecs;
+}
+
+static inline void timeval_add_usecs(struct timeval *tv,
+				     const suseconds_t usecs)
+{
+	tv->tv_usec += usecs;
+	while (tv->tv_usec >= USEC_PER_SEC) {
+		tv->tv_sec++;
+		tv->tv_usec -= USEC_PER_SEC;
+	}
+}
+
+static inline void timeval_sub_usecs(struct timeval *tv,
+				     const suseconds_t usecs)
+{
+	tv->tv_usec -= usecs;
+	while (tv->tv_usec < 0) {
+		tv->tv_sec--;
+		tv->tv_usec += USEC_PER_SEC;
+	}
+}
+
 /*
  * Returns the difference in usecs between timeval
  * passed in and current time
  */
-static inline u32 now_delta(struct timeval tv)
+static inline suseconds_t timeval_now_delta(const struct timeval *tv)
 {
 	struct timeval now;
-	
 	do_gettimeofday(&now);
-	return (now.tv_sec  - tv.tv_sec) * USEC_PER_SEC +
-	       (now.tv_usec - tv.tv_usec);
+	return timeval_delta(&now, tv);
 }
 
 #ifdef CONFIG_IP_DCCP_DEBUG

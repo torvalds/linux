@@ -156,26 +156,6 @@ static inline void ccid3_hc_tx_set_state(struct sock *sk,
 	hctx->ccid3hctx_state = state;
 }
 
-static void timeval_sub(struct timeval large, struct timeval small,
-			struct timeval *result)
-{
-	result->tv_sec = large.tv_sec-small.tv_sec;
-	if (large.tv_usec < small.tv_usec) {
-		(result->tv_sec)--;
-		result->tv_usec = USEC_PER_SEC +
-				  large.tv_usec - small.tv_usec;
-	} else
-		result->tv_usec = large.tv_usec-small.tv_usec;
-}
-
-static inline void timeval_fix(struct timeval *tv)
-{
-	if (tv->tv_usec >= USEC_PER_SEC) {
-		tv->tv_sec++;
-		tv->tv_usec -= USEC_PER_SEC;
-	}
-}
-
 #define CALCX_ARRSIZE 500
 
 #define CALCX_SPLIT 50000
@@ -816,18 +796,22 @@ static void ccid3_hc_tx_update_x(struct sock *sk)
 							  2 * hctx->ccid3hctx_x_recv),
 					       (hctx->ccid3hctx_s /
 					        TFRC_MAX_BACK_OFF_TIME));
-	} else if (now_delta(hctx->ccid3hctx_t_ld) >= hctx->ccid3hctx_rtt) {
-		u32 rtt = hctx->ccid3hctx_rtt;
-		if (rtt < 10) {
-			rtt = 10;
-		} /* avoid divide by zero below */
-		
-		hctx->ccid3hctx_x = max_t(u32, min_t(u32, 2 * hctx->ccid3hctx_x_recv,
-							  2 * hctx->ccid3hctx_x),
-					       ((hctx->ccid3hctx_s * 100000) /
-					        (rtt / 10)));
-		/* Using 100000 and 10 to avoid 32 bit overflow for jumbo frames */
-		do_gettimeofday(&hctx->ccid3hctx_t_ld);
+	} else {
+		struct timeval now;
+
+		do_gettimeofday(&now);
+	       	if (timeval_delta(&now, &hctx->ccid3hctx_t_ld) >=
+		    hctx->ccid3hctx_rtt) {
+			/* Avoid divide by zero below */
+			const u32 rtt = max_t(u32, hctx->ccid3hctx_rtt, 10);
+			
+			hctx->ccid3hctx_x = max_t(u32, min_t(u32, 2 * hctx->ccid3hctx_x_recv,
+								  2 * hctx->ccid3hctx_x),
+						       ((hctx->ccid3hctx_s * 100000) /
+							(rtt / 10)));
+			/* Using 100000 and 10 to avoid 32 bit overflow for jumbo frames */
+			hctx->ccid3hctx_t_ld = now;
+		}
 	}
 
 	if (hctx->ccid3hctx_x == 0) {
@@ -999,14 +983,15 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 
 		/* Set nominal send time for initial packet */
 		hctx->ccid3hctx_t_nom = now;
-		(hctx->ccid3hctx_t_nom).tv_usec += hctx->ccid3hctx_t_ipi;
-		timeval_fix(&(hctx->ccid3hctx_t_nom));
+		timeval_add_usecs(&hctx->ccid3hctx_t_nom,
+				  hctx->ccid3hctx_t_ipi);
 		ccid3_calc_new_delta(hctx);
 		rc = 0;
 		break;
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
-		delay = now_delta(hctx->ccid3hctx_t_nom) - hctx->ccid3hctx_delta;
+		delay = (timeval_delta(&now, &hctx->ccid3hctx_t_nom) -
+		         hctx->ccid3hctx_delta);
 		ccid3_pr_debug("send_packet delay=%ld\n", delay);
 		delay /= -1000;
 		/* divide by -1000 is to convert to ms and get sign right */
@@ -1068,7 +1053,7 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 		 * Algorithm in "8.1. Window Counter Valuer" in
 		 * draft-ietf-dccp-ccid3-11.txt
 		 */
-		quarter_rtt = now_delta(hctx->ccid3hctx_t_last_win_count) /
+		quarter_rtt = timeval_delta(&now, &hctx->ccid3hctx_t_last_win_count) /
 			      (hctx->ccid3hctx_rtt / 4);
 		if (quarter_rtt > 0) {
 			hctx->ccid3hctx_t_last_win_count = now;
@@ -1102,8 +1087,8 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 			hctx->ccid3hctx_t_nom = now;
 			ccid3_calc_new_t_ipi(hctx);
 			ccid3_calc_new_delta(hctx);
-			(hctx->ccid3hctx_t_nom).tv_usec += hctx->ccid3hctx_t_ipi;
-			timeval_fix(&(hctx->ccid3hctx_t_nom));
+			timeval_add_usecs(&hctx->ccid3hctx_t_nom,
+					  hctx->ccid3hctx_t_ipi);
 		}
 		break;
 	default:
@@ -1167,7 +1152,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		}
 
 		/* Update RTT */
-		r_sample = now_delta(packet->dccphtx_tstamp);
+		r_sample = timeval_now_delta(&packet->dccphtx_tstamp);
 		/* FIXME: */
 		// r_sample -= usecs_to_jiffies(t_elapsed * 10);
 
@@ -1224,15 +1209,11 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		ccid3_hc_tx_update_x(sk);
 
 		/* Update next send time */
-		if (hctx->ccid3hctx_t_ipi > (hctx->ccid3hctx_t_nom).tv_usec) {
-			hctx->ccid3hctx_t_nom.tv_usec += USEC_PER_SEC;
-			(hctx->ccid3hctx_t_nom).tv_sec--;
-		}
-		/* FIXME - if no feedback then t_ipi can go > 1 second */
-		(hctx->ccid3hctx_t_nom).tv_usec -= hctx->ccid3hctx_t_ipi;
+		timeval_sub_usecs(&hctx->ccid3hctx_t_nom,
+				  hctx->ccid3hctx_t_ipi);
 		ccid3_calc_new_t_ipi(hctx);
-		(hctx->ccid3hctx_t_nom).tv_usec += hctx->ccid3hctx_t_ipi;
-		timeval_fix(&(hctx->ccid3hctx_t_nom));
+		timeval_add_usecs(&hctx->ccid3hctx_t_nom,
+				  hctx->ccid3hctx_t_ipi);
 		ccid3_calc_new_delta(hctx);
 
 		/* remove all packets older than the one acked from history */
@@ -1559,20 +1540,24 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 	struct dccp_rx_hist_entry *packet;
+	struct timeval now;
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
+
+	do_gettimeofday(&now);
 
 	switch (hcrx->ccid3hcrx_state) {
 	case TFRC_RSTATE_NO_DATA:
 		hcrx->ccid3hcrx_x_recv = 0;
 		break;
 	case TFRC_RSTATE_DATA: {
-		u32 delta = now_delta(hcrx->ccid3hcrx_tstamp_last_feedback);
+		const u32 delta = timeval_delta(&now,
+					&hcrx->ccid3hcrx_tstamp_last_feedback);
 
-		if (delta == 0)
-			delta = 1; /* to prevent divide by zero */
 		hcrx->ccid3hcrx_x_recv = (hcrx->ccid3hcrx_bytes_recv *
-					  USEC_PER_SEC) / delta;
+					  USEC_PER_SEC);
+		if (likely(delta > 1))
+			hcrx->ccid3hcrx_x_recv /= delta;
 	}
 		break;
 	default:
@@ -1590,13 +1575,14 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 		return;
 	}
 
-	do_gettimeofday(&(hcrx->ccid3hcrx_tstamp_last_feedback));
+	hcrx->ccid3hcrx_tstamp_last_feedback = now;
 	hcrx->ccid3hcrx_last_counter	     = packet->dccphrx_ccval;
 	hcrx->ccid3hcrx_seqno_last_counter   = packet->dccphrx_seqno;
 	hcrx->ccid3hcrx_bytes_recv	     = 0;
 
 	/* Convert to multiples of 10us */
-	hcrx->ccid3hcrx_elapsed_time = now_delta(packet->dccphrx_tstamp) / 10;
+	hcrx->ccid3hcrx_elapsed_time =
+			timeval_delta(&now, &packet->dccphrx_tstamp) / 10;
 	if (hcrx->ccid3hcrx_p == 0)
 		hcrx->ccid3hcrx_pinv = ~0;
 	else
@@ -1676,7 +1662,7 @@ static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
 	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
 	struct dccp_rx_hist_entry *entry, *next, *tail = NULL;
 	u32 rtt, delta, x_recv, fval, p, tmp2;
-	struct timeval tstamp = { 0 }, tmp_tv;
+	struct timeval tstamp = { 0, };
 	int interval = 0;
 	int win_count = 0;
 	int step = 0;
@@ -1718,18 +1704,16 @@ static u32 ccid3_hc_rx_calc_first_li(struct sock *sk)
 		interval = 1;
 	}
 found:
-	timeval_sub(tstamp,tail->dccphrx_tstamp,&tmp_tv);
-	rtt = (tmp_tv.tv_sec * USEC_PER_SEC + tmp_tv.tv_usec) * 4 / interval;
+	rtt = timeval_delta(&tstamp, &tail->dccphrx_tstamp) * 4 / interval;
 	ccid3_pr_debug("%s, sk=%p, approximated RTT to %uus\n",
 		       dccp_role(sk), sk, rtt);
 	if (rtt == 0)
 		rtt = 1;
 
-	delta = now_delta(hcrx->ccid3hcrx_tstamp_last_feedback);
-	if (delta == 0)
-		delta = 1;
-
-	x_recv = (hcrx->ccid3hcrx_bytes_recv * USEC_PER_SEC) / delta;
+	delta = timeval_now_delta(&hcrx->ccid3hcrx_tstamp_last_feedback);
+	x_recv = hcrx->ccid3hcrx_bytes_recv * USEC_PER_SEC;
+	if (likely(delta > 1))
+		x_recv /= delta;
 
 	tmp1 = (u64)x_recv * (u64)rtt;
 	do_div(tmp1,10000000);
@@ -1926,7 +1910,6 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	const struct dccp_options_received *opt_recv;
 	struct dccp_rx_hist_entry *packet;
 	struct timeval now;
-	u32 now_usecs;
 	u8 win_count;
 	u32 p_prev;
 	int ins;
@@ -1948,8 +1931,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			break;
 		p_prev = hcrx->ccid3hcrx_rtt;
 		do_gettimeofday(&now);
-		now_usecs = now.tv_sec * USEC_PER_SEC + now.tv_usec;
-		hcrx->ccid3hcrx_rtt = now_usecs -
+		hcrx->ccid3hcrx_rtt = timeval_usecs(&now) -
 				     (opt_recv->dccpor_timestamp_echo -
 				      opt_recv->dccpor_elapsed_time) * 10;
 		if (p_prev != hcrx->ccid3hcrx_rtt)
@@ -1994,15 +1976,16 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	case TFRC_RSTATE_DATA:
 		hcrx->ccid3hcrx_bytes_recv += skb->len -
 					      dccp_hdr(skb)->dccph_doff * 4;
-		if (ins == 0) {
-			if (now_delta(hcrx->ccid3hcrx_tstamp_last_ack) >=
-			    hcrx->ccid3hcrx_rtt) {
-				do_gettimeofday(&hcrx->ccid3hcrx_tstamp_last_ack);
-				ccid3_hc_rx_send_feedback(sk);
-			}
-			return;
+		if (ins != 0)
+			break;
+
+		do_gettimeofday(&now);
+		if (timeval_delta(&now, &hcrx->ccid3hcrx_tstamp_last_ack) >=
+		    hcrx->ccid3hcrx_rtt) {
+			hcrx->ccid3hcrx_tstamp_last_ack = now;
+			ccid3_hc_rx_send_feedback(sk);
 		}
-		break;
+		return;
 	default:
 		printk(KERN_CRIT "%s: %s, sk=%p, Illegal state (%d)!\n",
 		       __FUNCTION__, dccp_role(sk), sk, hcrx->ccid3hcrx_state);

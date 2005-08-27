@@ -359,7 +359,7 @@ static void dccp_insert_option_ack_vector(struct sock *sk, struct sk_buff *skb)
 #endif
 	struct dccp_ackpkts *ap = dp->dccps_hc_rx_ackpkts;
 	int len = ap->dccpap_buf_vector_len + 2;
-	const u32 elapsed_time = now_delta(ap->dccpap_time) / 10;
+	const u32 elapsed_time = timeval_now_delta(&ap->dccpap_time) / 10;
 	unsigned char *to, *from;
 
 	if (elapsed_time != 0)
@@ -451,7 +451,8 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk,
 					"CLIENT TX opt: " : "server TX opt: ";
 #endif
 	u32 tstamp_echo;
-	const u32 elapsed_time = now_delta(dp->dccps_timestamp_time) / 10;
+	const u32 elapsed_time =
+			timeval_now_delta(&dp->dccps_timestamp_time) / 10;
 	const int elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
 	const int len = 6 + elapsed_time_len;
 	unsigned char *to;
