@@ -114,7 +114,7 @@ static struct flash_platform_data gtwx5715_flash_data = {
 
 static struct resource gtwx5715_flash_resource = {
 	.start		= GTWX5715_FLASH_BASE,
-	.end		= GTWX5715_FLASH_BASE + GTWX5715_FLASH_SIZE,
+	.end		= GTWX5715_FLASH_BASE + GTWX5715_FLASH_SIZE - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
