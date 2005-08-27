@@ -88,6 +88,12 @@ static void qla2x00_free_device(scsi_qla_host_t *);
 
 static void qla2x00_config_dma_addressing(scsi_qla_host_t *ha);
 
+int ql2xfdmienable;
+module_param(ql2xfdmienable, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xfdmienable,
+		"Enables FDMI registratons "
+		"Default is 0 - no FDMI. 1 - perfom FDMI.");
+
 /*
  * SCSI host template entry points
  */
@@ -1303,6 +1309,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->prev_topology = 0;
 	ha->ports = MAX_BUSES;
 	ha->init_cb_size = sizeof(init_cb_t);
+	ha->mgmt_svr_loop_id = MANAGEMENT_SERVER;
 
 	/* Assign ISP specific operations. */
 	ha->isp_ops.pci_config		= qla2100_pci_config;
@@ -1325,6 +1332,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->isp_ops.calc_req_entries	= qla2x00_calc_iocbs_32;
 	ha->isp_ops.build_iocbs		= qla2x00_build_scsi_iocbs_32;
 	ha->isp_ops.prep_ms_iocb	= qla2x00_prep_ms_iocb;
+	ha->isp_ops.prep_ms_fdmi_iocb	= qla2x00_prep_ms_fdmi_iocb;
 	ha->isp_ops.read_nvram		= qla2x00_read_nvram_data;
 	ha->isp_ops.write_nvram		= qla2x00_write_nvram_data;
 	ha->isp_ops.fw_dump		= qla2100_fw_dump;
@@ -1362,6 +1370,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->response_q_length = RESPONSE_ENTRY_CNT_2300;
 		ha->last_loop_id = SNS_LAST_LOOP_ID_2300;
 		ha->init_cb_size = sizeof(struct init_cb_24xx);
+		ha->mgmt_svr_loop_id = 10;
 		ha->isp_ops.pci_config = qla24xx_pci_config;
 		ha->isp_ops.reset_chip = qla24xx_reset_chip;
 		ha->isp_ops.chip_diag = qla24xx_chip_diag;
@@ -1382,6 +1391,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->isp_ops.fabric_login = qla24xx_login_fabric;
 		ha->isp_ops.fabric_logout = qla24xx_fabric_logout;
 		ha->isp_ops.prep_ms_iocb = qla24xx_prep_ms_iocb;
+		ha->isp_ops.prep_ms_fdmi_iocb = qla24xx_prep_ms_fdmi_iocb;
 		ha->isp_ops.read_nvram = qla24xx_read_nvram_data;
 		ha->isp_ops.write_nvram = qla24xx_write_nvram_data;
 		ha->isp_ops.fw_dump = qla24xx_fw_dump;

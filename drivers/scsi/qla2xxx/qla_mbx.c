@@ -252,7 +252,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *ha, mbx_cmd_t *mcp)
 			mb0 = RD_REG_WORD(&reg->isp24.mailbox0);
 			ictrl = RD_REG_DWORD(&reg->isp24.ictrl);
 		} else {
-			mb0 = RD_MAILBOX_REG(ha, reg->isp, 0);
+			mb0 = RD_MAILBOX_REG(ha, &reg->isp, 0);
 			ictrl = RD_REG_WORD(&reg->isp.ictrl);
 		}
 		printk("%s(%ld): **** MB Command Timeout for cmd %x ****\n",

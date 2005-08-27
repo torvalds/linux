@@ -88,6 +88,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 	ha->mbx_flags = 0;
 	ha->isp_abort_cnt = 0;
 	ha->beacon_blink_led = 0;
+	set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
 
 	qla_printk(KERN_INFO, ha, "Configuring PCI space...\n");
 	rval = ha->isp_ops.pci_config(ha);
@@ -2132,6 +2133,11 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 		return (QLA_SUCCESS);
 	}
 	do {
+		/* FDMI support. */
+		if (ql2xfdmienable &&
+		    test_and_clear_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags))
+			qla2x00_fdmi_register(ha);
+
 		/* Ensure we are logged into the SNS. */
 		if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
 			loop_id = NPH_SNS;

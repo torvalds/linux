@@ -79,6 +79,7 @@ extern int ql2xplogiabsentdevice;
 extern int ql2xenablezio;
 extern int ql2xintrdelaytimer;
 extern int ql2xloginretrycount;
+extern int ql2xfdmienable;
 
 extern void qla2x00_sp_compl(scsi_qla_host_t *, srb_t *);
 
@@ -269,6 +270,9 @@ extern int qla2x00_rft_id(scsi_qla_host_t *);
 extern int qla2x00_rff_id(scsi_qla_host_t *);
 extern int qla2x00_rnn_id(scsi_qla_host_t *);
 extern int qla2x00_rsnn_nn(scsi_qla_host_t *);
+extern void *qla2x00_prep_ms_fdmi_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
+extern void *qla24xx_prep_ms_fdmi_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
+extern int qla2x00_fdmi_register(scsi_qla_host_t *);
 
 /*
  * Global Function Prototypes in qla_rscn.c source file.
