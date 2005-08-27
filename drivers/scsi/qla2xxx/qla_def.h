@@ -914,7 +914,7 @@ typedef struct {
 	 * MSB BIT 1 =
 	 * MSB BIT 2 =
 	 * MSB BIT 3 =
-	 * MSB BIT 4 =
+	 * MSB BIT 4 = LED mode
 	 * MSB BIT 5 = enable 50 ohm termination
 	 * MSB BIT 6 = Data Rate (2300 only)
 	 * MSB BIT 7 = Data Rate (2300 only)
@@ -1036,7 +1036,7 @@ typedef struct {
 	 * MSB BIT 1 =
 	 * MSB BIT 2 =
 	 * MSB BIT 3 =
-	 * MSB BIT 4 =
+	 * MSB BIT 4 = LED mode
 	 * MSB BIT 5 = enable 50 ohm termination
 	 * MSB BIT 6 = Data Rate (2300 only)
 	 * MSB BIT 7 = Data Rate (2300 only)

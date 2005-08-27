@@ -1564,7 +1564,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	ha->flags.enable_lip_reset = ((nv->host_p[1] & BIT_1) ? 1 : 0);
 	ha->flags.enable_lip_full_login = ((nv->host_p[1] & BIT_2) ? 1 : 0);
 	ha->flags.enable_target_reset = ((nv->host_p[1] & BIT_3) ? 1 : 0);
-	ha->flags.enable_led_scheme = ((nv->efi_parameters & BIT_3) ? 1 : 0);
+	ha->flags.enable_led_scheme = (nv->special_options[1] & BIT_4) ? 1 : 0;
 
 	ha->operating_mode =
 	    (icb->add_firmware_options[0] & (BIT_6 | BIT_5 | BIT_4)) >> 4;
