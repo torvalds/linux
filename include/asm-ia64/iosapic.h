@@ -75,6 +75,8 @@ extern int __devinit iosapic_init (unsigned long address,
 				    unsigned int gsi_base);
 #ifdef CONFIG_HOTPLUG
 extern int iosapic_remove (unsigned int gsi_base);
+#else
+#define iosapic_remove(gsi_base)				(-EINVAL)
 #endif /* CONFIG_HOTPLUG */
 extern int gsi_to_vector (unsigned int gsi);
 extern int gsi_to_irq (unsigned int gsi);
@@ -102,9 +104,7 @@ extern void __devinit map_iosapic_to_node (unsigned int, int);
 #else
 #define iosapic_system_init(pcat_compat)			do { } while (0)
 #define iosapic_init(address,gsi_base)				(-EINVAL)
-#ifdef CONFIG_HOTPLUG
 #define iosapic_remove(gsi_base)				(-ENODEV)
-#endif /* CONFIG_HOTPLUG */
 #define iosapic_register_intr(gsi,polarity,trigger)		(gsi)
 #define iosapic_unregister_intr(irq)				do { } while (0)
 #define iosapic_override_isa_irq(isa_irq,gsi,polarity,trigger)	do { } while (0)

@@ -522,7 +522,7 @@ source "mm/Kconfig"
 
 config NUMA
 	bool "NUMA Support (EXPERIMENTAL)"
-	depends on DISCONTIGMEM
+	depends on DISCONTIGMEM && BROKEN
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option is for configuring high-end multiprocessor

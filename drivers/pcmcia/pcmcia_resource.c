@@ -41,6 +41,7 @@ module_param(io_speed, int, 0444);
 
 
 #ifdef CONFIG_PCMCIA_PROBE
+#include <asm/irq.h>
 /* mask of IRQs already reserved by other cards, we should avoid using them */
 static u8 pcmcia_used_irq[NR_IRQS];
 #endif

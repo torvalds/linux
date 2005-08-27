@@ -350,6 +350,11 @@
 #endif
 
 #define __NR_vserver			(__NR_SYSCALL_BASE+313)
+#define __NR_ioprio_set			(__NR_SYSCALL_BASE+314)
+#define __NR_ioprio_get			(__NR_SYSCALL_BASE+315)
+#define __NR_inotify_init		(__NR_SYSCALL_BASE+316)
+#define __NR_inotify_add_watch		(__NR_SYSCALL_BASE+317)
+#define __NR_inotify_rm_watch		(__NR_SYSCALL_BASE+318)
 
 /*
  * The following SWIs are ARM private.

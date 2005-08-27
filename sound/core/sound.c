@@ -432,7 +432,7 @@ EXPORT_SYMBOL(snd_device_new);
 EXPORT_SYMBOL(snd_device_register);
 EXPORT_SYMBOL(snd_device_free);
   /* isadma.c */
-#ifdef CONFIG_ISA
+#ifdef CONFIG_ISA_DMA_API
 EXPORT_SYMBOL(snd_dma_program);
 EXPORT_SYMBOL(snd_dma_disable);
 EXPORT_SYMBOL(snd_dma_pointer);

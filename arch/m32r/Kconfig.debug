@@ -20,7 +20,7 @@ config DEBUG_STACK_USAGE
 
 config DEBUG_PAGEALLOC
 	bool "Page alloc debugging"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && BROKEN
 	help
 	  Unmap pages from the kernel linear mapping after free_pages().
 	  This results in a large slowdown, but helps to find certain types

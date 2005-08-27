@@ -1897,6 +1897,7 @@ static int cp_resume (struct pci_dev *pdev)
 {
 	struct net_device *dev;
 	struct cp_private *cp;
+	unsigned long flags;
 
 	dev = pci_get_drvdata (pdev);
 	cp  = netdev_priv(dev);
@@ -1910,6 +1911,12 @@ static int cp_resume (struct pci_dev *pdev)
 	
 	cp_init_hw (cp);
 	netif_start_queue (dev);
+
+	spin_lock_irqsave (&cp->lock, flags);
+
+	mii_check_media(&cp->mii_if, netif_msg_link(cp), FALSE);
+
+	spin_unlock_irqrestore (&cp->lock, flags);
 	
 	return 0;
 }
