@@ -36,8 +36,39 @@
 #ifndef _DCCP_CCID3_H_
 #define _DCCP_CCID3_H_
 
-#include <linux/types.h>
+#include <linux/config.h>
 #include <linux/list.h>
+#include <linux/time.h>
+#include <linux/types.h>
+
+#define TFRC_MIN_PACKET_SIZE	   16
+#define TFRC_STD_PACKET_SIZE	  256
+#define TFRC_MAX_PACKET_SIZE	65535
+
+/* Two seconds as per CCID3 spec */
+#define TFRC_INITIAL_TIMEOUT	   (2 * USEC_PER_SEC)
+
+/* In usecs - half the scheduling granularity as per RFC3448 4.6 */
+#define TFRC_OPSYS_HALF_TIME_GRAN  (USEC_PER_SEC / (2 * HZ))
+
+#define TFRC_WIN_COUNT_PER_RTT	    4
+#define TFRC_WIN_COUNT_LIMIT	   16
+
+/* In seconds */
+#define TFRC_MAX_BACK_OFF_TIME	   64
+
+#define TFRC_SMALLEST_P		   40
+
+#define TFRC_RECV_IVAL_F_LENGTH	    8
+
+/* Number of later packets received before one is considered lost */
+#define TFRC_RECV_NUM_LATE_LOSS	3
+
+enum ccid3_options {
+	TFRC_OPT_LOSS_EVENT_RATE = 192,
+	TFRC_OPT_LOSS_INTERVALS	 = 193,
+	TFRC_OPT_RECEIVE_RATE	 = 194,
+};
 
 struct ccid3_options_received {
 	u64 ccid3or_seqno:48,
@@ -47,7 +78,7 @@ struct ccid3_options_received {
 	u32 ccid3or_receive_rate;
 };
 
-/** struct ccid3_hc_tx_sock - CCID3 sender half connection congestion control block
+/** struct ccid3_hc_tx_sock - CCID3 sender half connection sock
  *
   * @ccid3hctx_state - Sender state
   * @ccid3hctx_x - Current sending rate
@@ -57,7 +88,8 @@ struct ccid3_options_received {
   * @ccid3hctx_rtt - Estimate of current round trip time in usecs
   * @@ccid3hctx_p - Current loss event rate (0-1) scaled by 1000000
   * @ccid3hctx_last_win_count - Last window counter sent
-  * @ccid3hctx_t_last_win_count - Timestamp of earliest packet with last_win_count value sent
+  * @ccid3hctx_t_last_win_count - Timestamp of earliest packet
+  * 				  with last_win_count value sent
   * @ccid3hctx_no_feedback_timer - Handle to no feedback timer
   * @ccid3hctx_idle - FIXME
   * @ccid3hctx_t_ld - Time last doubled during slow start
@@ -112,9 +144,9 @@ struct ccid3_hc_rx_sock {
 };
 
 #define ccid3_hc_tx_field(s,field) (s->dccps_hc_tx_ccid_private == NULL ? 0 : \
-				    ((struct ccid3_hc_tx_sock *)s->dccps_hc_tx_ccid_private)->ccid3hctx_##field)
+    ((struct ccid3_hc_tx_sock *)s->dccps_hc_tx_ccid_private)->ccid3hctx_##field)
 
 #define ccid3_hc_rx_field(s,field) (s->dccps_hc_rx_ccid_private == NULL ? 0 : \
-				    ((struct ccid3_hc_rx_sock *)s->dccps_hc_rx_ccid_private)->ccid3hcrx_##field)
+    ((struct ccid3_hc_rx_sock *)s->dccps_hc_rx_ccid_private)->ccid3hcrx_##field)
 
 #endif /* _DCCP_CCID3_H_ */

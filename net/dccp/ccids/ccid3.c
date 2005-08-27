@@ -49,9 +49,9 @@ static inline u32 usecs_div(const u32 a, const u32 b)
 	return b > 20 ? tmp / (b / 10) : tmp;
 }
 
-#ifdef CCID3_DEBUG
-extern int ccid3_debug;
+static int ccid3_debug;
 
+#ifdef CCID3_DEBUG
 #define ccid3_pr_debug(format, a...) \
 	do { if (ccid3_debug) \
 		printk(KERN_DEBUG "%s: " format, __FUNCTION__, ##a); \
@@ -59,37 +59,6 @@ extern int ccid3_debug;
 #else
 #define ccid3_pr_debug(format, a...)
 #endif
-
-#define TFRC_MIN_PACKET_SIZE	   16
-#define TFRC_STD_PACKET_SIZE	  256
-#define TFRC_MAX_PACKET_SIZE	65535
-
-#define TFRC_INITIAL_TIMEOUT	   (2 * USEC_PER_SEC)
-/* two seconds as per CCID3 spec 11 */
-
-#define TFRC_OPSYS_HALF_TIME_GRAN	(USEC_PER_SEC / (2 * HZ))
-/* above is in usecs - half the scheduling granularity as per RFC3448 4.6 */
-
-#define TFRC_WIN_COUNT_PER_RTT	    4
-#define TFRC_WIN_COUNT_LIMIT	   16
-
-#define TFRC_MAX_BACK_OFF_TIME	   64
-/* above is in seconds */
-
-#define TFRC_SMALLEST_P		   40
-
-#define TFRC_RECV_IVAL_F_LENGTH	    8          /* length(w[]) */
-
-/* Number of later packets received before one is considered lost */
-#define TFRC_RECV_NUM_LATE_LOSS	3
-
-enum ccid3_options {
-	TFRC_OPT_LOSS_EVENT_RATE = 192,
-	TFRC_OPT_LOSS_INTERVALS	 = 193,
-	TFRC_OPT_RECEIVE_RATE	 = 194,
-};
-
-static int ccid3_debug;
 
 static struct dccp_tx_hist *ccid3_tx_hist;
 static struct dccp_rx_hist *ccid3_rx_hist;
