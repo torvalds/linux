@@ -292,15 +292,6 @@ int ieee80211_xmit(struct sk_buff *skb,
 		goto success;
 	}
 
-#ifdef CONFIG_IEEE80211_DEBUG
-	if (crypt && !encrypt && ether_type == ETH_P_PAE) {
-		struct eapol *eap = (struct eapol *)(skb->data +
-			sizeof(struct ethhdr) - SNAP_SIZE - sizeof(u16));
-		IEEE80211_DEBUG_EAP("TX: IEEE 802.11 EAPOL frame: %s\n",
-			eap_get_type(eap->type));
-	}
-#endif
-
 	/* Save source and destination addresses */
 	memcpy(&dest, skb->data, ETH_ALEN);
 	memcpy(&src, skb->data+ETH_ALEN, ETH_ALEN);

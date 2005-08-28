@@ -56,35 +56,6 @@ struct ieee80211_hdr_3addr {
 	__le16 seq_ctl;
 } __attribute__ ((packed));
 
-enum eap_type {
-	EAP_PACKET = 0,
-	EAPOL_START,
-	EAPOL_LOGOFF,
-	EAPOL_KEY,
-	EAPOL_ENCAP_ASF_ALERT
-};
-
-static const char *eap_types[] = {
-	[EAP_PACKET]		= "EAP-Packet",
-	[EAPOL_START]		= "EAPOL-Start",
-	[EAPOL_LOGOFF]		= "EAPOL-Logoff",
-	[EAPOL_KEY]		= "EAPOL-Key",
-	[EAPOL_ENCAP_ASF_ALERT]	= "EAPOL-Encap-ASF-Alert"
-};
-
-static inline const char *eap_get_type(int type)
-{
-	return (type >= ARRAY_SIZE(eap_types)) ? "Unknown" : eap_types[type];
-}
-
-struct eapol {
-	u8 snap[6];
-	__be16 ethertype;
-	u8 version;
-	u8 type;
-	__be16 length;
-} __attribute__ ((packed));
-
 #define IEEE80211_1ADDR_LEN 10
 #define IEEE80211_2ADDR_LEN 16
 #define IEEE80211_3ADDR_LEN 24
@@ -202,7 +173,6 @@ const char *escape_essid(const char *essid, u8 essid_len);
 #define IEEE80211_DL_STATE         (1<<3)
 #define IEEE80211_DL_MGMT          (1<<4)
 #define IEEE80211_DL_FRAG          (1<<5)
-#define IEEE80211_DL_EAP           (1<<6)
 #define IEEE80211_DL_DROP          (1<<7)
 
 #define IEEE80211_DL_TX            (1<<8)
@@ -217,7 +187,6 @@ const char *escape_essid(const char *essid, u8 essid_len);
 #define IEEE80211_DEBUG_STATE(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_STATE, f, ## a)
 #define IEEE80211_DEBUG_MGMT(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_MGMT, f, ## a)
 #define IEEE80211_DEBUG_FRAG(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_FRAG, f, ## a)
-#define IEEE80211_DEBUG_EAP(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_EAP, f, ## a)
 #define IEEE80211_DEBUG_DROP(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_DROP, f, ## a)
 #define IEEE80211_DEBUG_TX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_TX, f, ## a)
 #define IEEE80211_DEBUG_RX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_RX, f, ## a)
