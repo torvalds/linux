@@ -212,7 +212,7 @@ static int prism2_event(event_t event, int priority,
 static int prism2_pccard_card_present(local_info_t *local)
 {
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
-	if (hw_priv->link != NULL &&
+	if (hw_priv != NULL && hw_priv->link != NULL &&
 	    ((hw_priv->link->state & (DEV_PRESENT | DEV_CONFIG)) ==
 	     (DEV_PRESENT | DEV_CONFIG)))
 		return 1;
