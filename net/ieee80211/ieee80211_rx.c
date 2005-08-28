@@ -628,14 +628,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) && !ieee->open_wep) {
 		if (/*ieee->ieee802_1x &&*/
 		    ieee80211_is_eapol_frame(ieee, skb)) {
-#ifdef CONFIG_IEEE80211_DEBUG
 			/* pass unencrypted EAPOL frames even if encryption is
 			 * configured */
-			struct eapol *eap = (struct eapol *)(skb->data +
-				24);
-			IEEE80211_DEBUG_EAP("RX: IEEE 802.1X EAPOL frame: %s\n",
-						eap_get_type(eap->type));
-#endif
 		} else {
 			IEEE80211_DEBUG_DROP(
 				"encryption configured, but RX "
@@ -644,16 +638,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			goto rx_dropped;
 		}
 	}
-
-#ifdef CONFIG_IEEE80211_DEBUG
-	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) &&
-	    ieee80211_is_eapol_frame(ieee, skb)) {
-			struct eapol *eap = (struct eapol *)(skb->data +
-				24);
-			IEEE80211_DEBUG_EAP("RX: IEEE 802.1X EAPOL frame: %s\n",
-						eap_get_type(eap->type));
-	}
-#endif
 
 	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) && !ieee->open_wep &&
 	    !ieee80211_is_eapol_frame(ieee, skb)) {

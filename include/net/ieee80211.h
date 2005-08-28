@@ -24,15 +24,6 @@
 #include <linux/kernel.h>   /* ARRAY_SIZE */
 #include <linux/wireless.h>
 
-#if WIRELESS_EXT < 17
-#define IW_QUAL_QUAL_INVALID   0x10
-#define IW_QUAL_LEVEL_INVALID  0x20
-#define IW_QUAL_NOISE_INVALID  0x40
-#define IW_QUAL_QUAL_UPDATED   0x1
-#define IW_QUAL_LEVEL_UPDATED  0x2
-#define IW_QUAL_NOISE_UPDATED  0x4
-#endif
-
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
    6.2.1.1.2.
@@ -63,35 +54,6 @@ struct ieee80211_hdr_3addr {
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
 	__le16 seq_ctl;
-} __attribute__ ((packed));
-
-enum eap_type {
-	EAP_PACKET = 0,
-	EAPOL_START,
-	EAPOL_LOGOFF,
-	EAPOL_KEY,
-	EAPOL_ENCAP_ASF_ALERT
-};
-
-static const char *eap_types[] = {
-	[EAP_PACKET]		= "EAP-Packet",
-	[EAPOL_START]		= "EAPOL-Start",
-	[EAPOL_LOGOFF]		= "EAPOL-Logoff",
-	[EAPOL_KEY]		= "EAPOL-Key",
-	[EAPOL_ENCAP_ASF_ALERT]	= "EAPOL-Encap-ASF-Alert"
-};
-
-static inline const char *eap_get_type(int type)
-{
-	return (type >= ARRAY_SIZE(eap_types)) ? "Unknown" : eap_types[type];
-}
-
-struct eapol {
-	u8 snap[6];
-	__be16 ethertype;
-	u8 version;
-	u8 type;
-	__be16 length;
 } __attribute__ ((packed));
 
 #define IEEE80211_1ADDR_LEN 10
@@ -196,11 +158,11 @@ const char *escape_essid(const char *essid, u8 essid_len);
  *
  * To add your debug level to the list of levels seen when you perform
  *
- * % cat /proc/net/ipw/debug_level
+ * % cat /proc/net/ieee80211/debug_level
  *
- * you simply need to add your entry to the ipw_debug_levels array.
+ * you simply need to add your entry to the ieee80211_debug_level array.
  *
- * If you do not see debug_level in /proc/net/ipw then you do not have
+ * If you do not see debug_level in /proc/net/ieee80211 then you do not have
  * CONFIG_IEEE80211_DEBUG defined in your kernel configuration
  *
  */
@@ -211,7 +173,6 @@ const char *escape_essid(const char *essid, u8 essid_len);
 #define IEEE80211_DL_STATE         (1<<3)
 #define IEEE80211_DL_MGMT          (1<<4)
 #define IEEE80211_DL_FRAG          (1<<5)
-#define IEEE80211_DL_EAP           (1<<6)
 #define IEEE80211_DL_DROP          (1<<7)
 
 #define IEEE80211_DL_TX            (1<<8)
@@ -226,7 +187,6 @@ const char *escape_essid(const char *essid, u8 essid_len);
 #define IEEE80211_DEBUG_STATE(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_STATE, f, ## a)
 #define IEEE80211_DEBUG_MGMT(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_MGMT, f, ## a)
 #define IEEE80211_DEBUG_FRAG(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_FRAG, f, ## a)
-#define IEEE80211_DEBUG_EAP(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_EAP, f, ## a)
 #define IEEE80211_DEBUG_DROP(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_DROP, f, ## a)
 #define IEEE80211_DEBUG_TX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_TX, f, ## a)
 #define IEEE80211_DEBUG_RX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_RX, f, ## a)
