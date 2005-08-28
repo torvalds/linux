@@ -33,7 +33,8 @@ struct ieee1394_device_id {
 	__u32 model_id;
 	__u32 specifier_id;
 	__u32 version;
-	kernel_ulong_t driver_data;
+	kernel_ulong_t driver_data
+		__attribute__((aligned(sizeof(kernel_ulong_t))));
 };
 
 
@@ -182,7 +183,11 @@ struct of_device_id
 	char	name[32];
 	char	type[32];
 	char	compatible[128];
+#if __KERNEL__
 	void	*data;
+#else
+	kernel_ulong_t data;
+#endif
 };
 
 
@@ -208,7 +213,8 @@ struct pcmcia_device_id {
 #ifdef __KERNEL__
 	const char *	prod_id[4];
 #else
-	kernel_ulong_t	prod_id[4];
+	kernel_ulong_t	prod_id[4]
+		__attribute__((aligned(sizeof(kernel_ulong_t))));
 #endif
 
 	/* not matched against */
