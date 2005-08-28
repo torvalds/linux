@@ -672,9 +672,9 @@ static int ccid3_hc_tx_init(struct sock *sk)
 
 	memset(hctx, 0, sizeof(*hctx));
 
-	if (dp->dccps_avg_packet_size >= TFRC_MIN_PACKET_SIZE &&
-	    dp->dccps_avg_packet_size <= TFRC_MAX_PACKET_SIZE)
-		hctx->ccid3hctx_s = (u16)dp->dccps_avg_packet_size;
+	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
+	    dp->dccps_packet_size <= TFRC_MAX_PACKET_SIZE)
+		hctx->ccid3hctx_s = dp->dccps_packet_size;
 	else
 		hctx->ccid3hctx_s = TFRC_STD_PACKET_SIZE;
 
@@ -1058,9 +1058,9 @@ static int ccid3_hc_rx_init(struct sock *sk)
 
 	memset(hcrx, 0, sizeof(*hcrx));
 
-	if (dp->dccps_avg_packet_size >= TFRC_MIN_PACKET_SIZE &&
-	    dp->dccps_avg_packet_size <= TFRC_MAX_PACKET_SIZE)
-		hcrx->ccid3hcrx_s = (u16)dp->dccps_avg_packet_size;
+	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
+	    dp->dccps_packet_size <= TFRC_MAX_PACKET_SIZE)
+		hcrx->ccid3hcrx_s = dp->dccps_packet_size;
 	else
 		hcrx->ccid3hcrx_s = TFRC_STD_PACKET_SIZE;
 

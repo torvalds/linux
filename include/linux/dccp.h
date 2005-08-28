@@ -186,6 +186,9 @@ enum {
 	DCCPF_MAX_CCID_SPECIFIC = 255,
 };
 
+/* DCCP socket options */
+#define DCCP_SOCKOPT_PACKET_SIZE	1
+
 #ifdef __KERNEL__
 
 #include <linux/in.h>
@@ -396,7 +399,7 @@ enum dccp_role {
  * @dccps_timestamp_echo - latest timestamp received on a TIMESTAMP option
  * @dccps_ext_header_len - network protocol overhead (IP/IPv6 options)
  * @dccps_pmtu_cookie - Last pmtu seen by socket
- * @dccps_avg_packet_size - FIXME: has to be set by the app thru some setsockopt or ioctl, CCID3 uses it
+ * @dccps_packet_size - Set thru setsockopt
  * @dccps_role - Role of this sock, one of %dccp_role
  * @dccps_ndp_count - number of Non Data Packets since last data packet
  * @dccps_hc_rx_ackpkts - receiver half connection acked packets
@@ -417,7 +420,7 @@ struct dccp_sock {
 	unsigned long			dccps_service;
 	struct timeval			dccps_timestamp_time;
 	__u32				dccps_timestamp_echo;
-	__u32				dccps_avg_packet_size;
+	__u32				dccps_packet_size;
 	unsigned long			dccps_ndp_count;
 	__u16				dccps_ext_header_len;
 	__u32				dccps_pmtu_cookie;

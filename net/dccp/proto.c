@@ -205,23 +205,67 @@ int dccp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 int dccp_setsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int optlen)
 {
-	dccp_pr_debug("entry\n");
+	struct dccp_sock *dp;
+	int err;
+	int val;
 
 	if (level != SOL_DCCP)
 		return ip_setsockopt(sk, level, optname, optval, optlen);
 
-	return -EOPNOTSUPP;
+	if (optlen < sizeof(int))
+		return -EINVAL;
+
+	if (get_user(val, (int __user *)optval))
+		return -EFAULT;
+
+	lock_sock(sk);
+
+	dp = dccp_sk(sk);
+	err = 0;
+
+	switch (optname) {
+	case DCCP_SOCKOPT_PACKET_SIZE:
+		dp->dccps_packet_size = val;
+		break;
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+	
+	release_sock(sk);
+	return err;
 }
 
 int dccp_getsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int __user *optlen)
 {
-	dccp_pr_debug("entry\n");
+	struct dccp_sock *dp;
+	int val, len;
 
 	if (level != SOL_DCCP)
 		return ip_getsockopt(sk, level, optname, optval, optlen);
 
-	return -EOPNOTSUPP;
+	if (get_user(len, optlen))
+		return -EFAULT;
+
+	len = min_t(unsigned int, len, sizeof(int));
+	if (len < 0)
+		return -EINVAL;
+
+	dp = dccp_sk(sk);
+
+	switch (optname) {
+	case DCCP_SOCKOPT_PACKET_SIZE:
+		val = dp->dccps_packet_size;
+		break;
+	default:
+		return -ENOPROTOOPT;
+	}
+
+	if (put_user(len, optlen) || copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return 0;
 }
 
 int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
