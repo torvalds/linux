@@ -239,6 +239,22 @@ config IP6_NF_TARGET_MARK
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP6_NF_TARGET_HL
+	tristate  'HL (hoplimit) target support'
+	depends on IP6_NF_MANGLE
+	help
+	  This option adds a `HL' target, which enables the user to decrement
+	  the hoplimit value of the IPv6 header or set it to a given (lower)
+	  value.
+	
+	  While it is safe to decrement the hoplimit value, this option also
+	  enables functionality to increment and set the hoplimit value of the
+	  IPv6 header to arbitrary values.  This is EXTREMELY DANGEROUS since
+	  you can easily create immortal packets that loop forever on the
+	  network.  
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 #dep_tristate '  LOG target support' CONFIG_IP6_NF_TARGET_LOG $CONFIG_IP6_NF_IPTABLES
 config IP6_NF_RAW
 	tristate  'raw table support (required for TRACE)'
