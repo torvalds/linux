@@ -158,11 +158,11 @@ const char *escape_essid(const char *essid, u8 essid_len);
  *
  * To add your debug level to the list of levels seen when you perform
  *
- * % cat /proc/net/ipw/debug_level
+ * % cat /proc/net/ieee80211/debug_level
  *
- * you simply need to add your entry to the ipw_debug_levels array.
+ * you simply need to add your entry to the ieee80211_debug_level array.
  *
- * If you do not see debug_level in /proc/net/ipw then you do not have
+ * If you do not see debug_level in /proc/net/ieee80211 then you do not have
  * CONFIG_IEEE80211_DEBUG defined in your kernel configuration
  *
  */
