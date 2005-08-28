@@ -987,7 +987,7 @@ static struct pcmcia_device_id hostap_cs_ids[] = {
 		"SMC", "SMC2632W", "Version 01.02",
 		0xc4f8b18b, 0x474a1f2a, 0x4b74baa0),
 	PCMCIA_DEVICE_PROD_ID12("BUFFALO", "WLI-CF-S11G", 
-				0x1b01a57b, 0xefd5102a),
+				0x2decece3, 0x82067c18),
 	PCMCIA_DEVICE_PROD_ID12("Compaq", "WL200_11Mbps_Wireless_PCI_Card",
 				0x54f7c49c, 0x15a75e5b),
 	PCMCIA_DEVICE_PROD_ID12("INTERSIL", "HFA384x/IEEE",
