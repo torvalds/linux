@@ -42,7 +42,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 
-#include "dccp.h"
+#include "../../dccp.h"
 
 struct dccp_tx_hist_entry {
 	struct list_head dccphtx_node;

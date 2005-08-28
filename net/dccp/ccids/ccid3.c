@@ -37,7 +37,7 @@
 #include <linux/config.h>
 #include "../ccid.h"
 #include "../dccp.h"
-#include "../packet_history.h"
+#include "lib/packet_history.h"
 #include "lib/loss_interval.h"
 #include "ccid3.h"
 
