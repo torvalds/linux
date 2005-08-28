@@ -58,19 +58,4 @@ extern int scsi_execute_req(struct scsi_device *sdev, unsigned char *cmd,
 			    int data_direction, void *buffer, unsigned bufflen,
 			    unsigned char *sense, int timeout, int retries);
 
-struct scsi_mode_data {
-	__u32	length;
-	__u16	block_descriptor_length;
-	__u8	medium_type;
-	__u8	device_specific;
-	__u8	header_length;
-	__u8	longlba:1;
-};
-
-extern int __scsi_mode_sense(struct scsi_request *SRpnt, int dbd,
-			     int modepage, unsigned char *buffer, int len,
-			     int timeout, int retries,
-			     struct scsi_mode_data *data);
-
-
 #endif /* _SCSI_SCSI_REQUEST_H */

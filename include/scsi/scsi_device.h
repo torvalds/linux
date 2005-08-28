@@ -8,8 +8,16 @@
 
 struct request_queue;
 struct scsi_cmnd;
-struct scsi_mode_data;
 struct scsi_lun;
+
+struct scsi_mode_data {
+	__u32	length;
+	__u16	block_descriptor_length;
+	__u8	medium_type;
+	__u8	device_specific;
+	__u8	header_length;
+	__u8	longlba:1;
+};
 
 /*
  * sdev state: If you alter this, you also need to alter scsi_sysfs.c
@@ -228,7 +236,8 @@ extern int scsi_set_medium_removal(struct scsi_device *, char);
 
 extern int scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 			   unsigned char *buffer, int len, int timeout,
-			   int retries, struct scsi_mode_data *data);
+			   int retries, struct scsi_mode_data *data,
+			   char *sense);
 extern int scsi_test_unit_ready(struct scsi_device *sdev, int timeout,
 				int retries);
 extern int scsi_device_set_state(struct scsi_device *sdev,

@@ -1299,8 +1299,9 @@ static inline int
 sd_do_mode_sense(struct scsi_request *SRpnt, int dbd, int modepage,
 		 unsigned char *buffer, int len, struct scsi_mode_data *data)
 {
-	return __scsi_mode_sense(SRpnt, dbd, modepage, buffer, len,
-				 SD_TIMEOUT, SD_MAX_RETRIES, data);
+	return scsi_mode_sense(SRpnt->sr_device, dbd, modepage, buffer, len,
+			       SD_TIMEOUT, SD_MAX_RETRIES, data,
+			       SRpnt->sr_sense_buffer);
 }
 
 /*
