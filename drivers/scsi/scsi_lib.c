@@ -282,7 +282,7 @@ void scsi_wait_req(struct scsi_request *sreq, const void *cmnd, void *buffer,
 EXPORT_SYMBOL(scsi_wait_req);
 
 /**
- * scsi_execute_req - insert request and wait for the result
+ * scsi_execute - insert request and wait for the result
  * @sdev:	scsi device
  * @cmd:	scsi command
  * @data_direction: data direction
@@ -291,13 +291,14 @@ EXPORT_SYMBOL(scsi_wait_req);
  * @sense:	optional sense buffer
  * @timeout:	request timeout in seconds
  * @retries:	number of times to retry request
+ * @flags:	or into request flags;
  *
  * scsi_execute_req returns the req->errors value which is the
  * the scsi_cmnd result field.
  **/
-int scsi_execute_req(struct scsi_device *sdev, unsigned char *cmd,
-		     int data_direction, void *buffer, unsigned bufflen,
-		     unsigned char *sense, int timeout, int retries)
+int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
+		 int data_direction, void *buffer, unsigned bufflen,
+		 unsigned char *sense, int timeout, int retries, int flags)
 {
 	struct request *req;
 	int write = (data_direction == DMA_TO_DEVICE);
@@ -314,7 +315,7 @@ int scsi_execute_req(struct scsi_device *sdev, unsigned char *cmd,
 	req->sense = sense;
 	req->sense_len = 0;
 	req->timeout = timeout;
-	req->flags |= REQ_BLOCK_PC | REQ_SPECIAL;
+	req->flags |= flags | REQ_BLOCK_PC | REQ_SPECIAL;
 
 	/*
 	 * head injection *required* here otherwise quiesce won't work
@@ -328,7 +329,7 @@ int scsi_execute_req(struct scsi_device *sdev, unsigned char *cmd,
 	return ret;
 }
 
-EXPORT_SYMBOL(scsi_execute_req);
+EXPORT_SYMBOL(scsi_execute);
 
 /*
  * Function:    scsi_init_cmd_errh()

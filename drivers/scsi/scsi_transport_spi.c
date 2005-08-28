@@ -28,7 +28,7 @@
 #include "scsi_priv.h"
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
-#include <scsi/scsi_request.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_spi.h>
@@ -108,25 +108,33 @@ static int sprint_frac(char *dest, int value, int denom)
 
 /* Modification of scsi_wait_req that will clear UNIT ATTENTION conditions
  * resulting from (likely) bus and device resets */
-static void spi_wait_req(struct scsi_request *sreq, const void *cmd,
-			 void *buffer, unsigned bufflen)
+static int spi_execute(struct scsi_device *sdev, const void *cmd,
+		       enum dma_data_direction dir,
+		       void *buffer, unsigned bufflen,
+		       struct scsi_sense_hdr *sshdr)
 {
-	int i;
+	int i, result;
+	unsigned char sense[SCSI_SENSE_BUFFERSIZE];
 
 	for(i = 0; i < DV_RETRIES; i++) {
-		sreq->sr_request->flags |= REQ_FAILFAST;
 
-		scsi_wait_req(sreq, cmd, buffer, bufflen,
-			      DV_TIMEOUT, /* retries */ 1);
-		if (sreq->sr_result & DRIVER_SENSE) {
-			struct scsi_sense_hdr sshdr;
+		/* FIXME: need to set REQ_FAILFAST */
+		result = scsi_execute(sdev, cmd, dir, buffer, bufflen,
+				      sense, DV_TIMEOUT, /* retries */ 1,
+				      REQ_FAILFAST);
+		if (result & DRIVER_SENSE) {
+			struct scsi_sense_hdr sshdr_tmp;
+			if (!sshdr)
+				sshdr = &sshdr_tmp;
 
-			if (scsi_request_normalize_sense(sreq, &sshdr)
-			    && sshdr.sense_key == UNIT_ATTENTION)
+			if (scsi_normalize_sense(sense, sizeof(*sense),
+						 sshdr)
+			    && sshdr->sense_key == UNIT_ATTENTION)
 				continue;
 		}
 		break;
 	}
+	return result;
 }
 
 static struct {
@@ -546,13 +554,13 @@ enum spi_compare_returns {
 /* This is for read/write Domain Validation:  If the device supports
  * an echo buffer, we do read/write tests to it */
 static enum spi_compare_returns
-spi_dv_device_echo_buffer(struct scsi_request *sreq, u8 *buffer,
+spi_dv_device_echo_buffer(struct scsi_device *sdev, u8 *buffer,
 			  u8 *ptr, const int retries)
 {
-	struct scsi_device *sdev = sreq->sr_device;
 	int len = ptr - buffer;
-	int j, k, r;
+	int j, k, r, result;
 	unsigned int pattern = 0x0000ffff;
+	struct scsi_sense_hdr sshdr;
 
 	const char spi_write_buffer[] = {
 		WRITE_BUFFER, 0x0a, 0, 0, 0, 0, 0, len >> 8, len & 0xff, 0
@@ -597,14 +605,12 @@ spi_dv_device_echo_buffer(struct scsi_request *sreq, u8 *buffer,
 	}
 
 	for (r = 0; r < retries; r++) {
-		sreq->sr_cmd_len = 0;	/* wait_req to fill in */
-		sreq->sr_data_direction = DMA_TO_DEVICE;
-		spi_wait_req(sreq, spi_write_buffer, buffer, len);
-		if(sreq->sr_result || !scsi_device_online(sdev)) {
-			struct scsi_sense_hdr sshdr;
+		result = spi_execute(sdev, spi_write_buffer, DMA_TO_DEVICE,
+				     buffer, len, &sshdr);
+		if(result || !scsi_device_online(sdev)) {
 
 			scsi_device_set_state(sdev, SDEV_QUIESCE);
-			if (scsi_request_normalize_sense(sreq, &sshdr)
+			if (scsi_sense_valid(&sshdr)
 			    && sshdr.sense_key == ILLEGAL_REQUEST
 			    /* INVALID FIELD IN CDB */
 			    && sshdr.asc == 0x24 && sshdr.ascq == 0x00)
@@ -616,14 +622,13 @@ spi_dv_device_echo_buffer(struct scsi_request *sreq, u8 *buffer,
 				return SPI_COMPARE_SKIP_TEST;
 
 
-			SPI_PRINTK(sdev->sdev_target, KERN_ERR, "Write Buffer failure %x\n", sreq->sr_result);
+			SPI_PRINTK(sdev->sdev_target, KERN_ERR, "Write Buffer failure %x\n", result);
 			return SPI_COMPARE_FAILURE;
 		}
 
 		memset(ptr, 0, len);
-		sreq->sr_cmd_len = 0;	/* wait_req to fill in */
-		sreq->sr_data_direction = DMA_FROM_DEVICE;
-		spi_wait_req(sreq, spi_read_buffer, ptr, len);
+		spi_execute(sdev, spi_read_buffer, DMA_FROM_DEVICE,
+			    ptr, len, NULL);
 		scsi_device_set_state(sdev, SDEV_QUIESCE);
 
 		if (memcmp(buffer, ptr, len) != 0)
@@ -635,25 +640,22 @@ spi_dv_device_echo_buffer(struct scsi_request *sreq, u8 *buffer,
 /* This is for the simplest form of Domain Validation: a read test
  * on the inquiry data from the device */
 static enum spi_compare_returns
-spi_dv_device_compare_inquiry(struct scsi_request *sreq, u8 *buffer,
+spi_dv_device_compare_inquiry(struct scsi_device *sdev, u8 *buffer,
 			      u8 *ptr, const int retries)
 {
-	int r;
-	const int len = sreq->sr_device->inquiry_len;
-	struct scsi_device *sdev = sreq->sr_device;
+	int r, result;
+	const int len = sdev->inquiry_len;
 	const char spi_inquiry[] = {
 		INQUIRY, 0, 0, 0, len, 0
 	};
 
 	for (r = 0; r < retries; r++) {
-		sreq->sr_cmd_len = 0;	/* wait_req to fill in */
-		sreq->sr_data_direction = DMA_FROM_DEVICE;
-
 		memset(ptr, 0, len);
 
-		spi_wait_req(sreq, spi_inquiry, ptr, len);
+		result = spi_execute(sdev, spi_inquiry, DMA_FROM_DEVICE,
+				     ptr, len, NULL);
 		
-		if(sreq->sr_result || !scsi_device_online(sdev)) {
+		if(result || !scsi_device_online(sdev)) {
 			scsi_device_set_state(sdev, SDEV_QUIESCE);
 			return SPI_COMPARE_FAILURE;
 		}
@@ -674,12 +676,11 @@ spi_dv_device_compare_inquiry(struct scsi_request *sreq, u8 *buffer,
 }
 
 static enum spi_compare_returns
-spi_dv_retrain(struct scsi_request *sreq, u8 *buffer, u8 *ptr,
+spi_dv_retrain(struct scsi_device *sdev, u8 *buffer, u8 *ptr,
 	       enum spi_compare_returns 
-	       (*compare_fn)(struct scsi_request *, u8 *, u8 *, int))
+	       (*compare_fn)(struct scsi_device *, u8 *, u8 *, int))
 {
-	struct spi_internal *i = to_spi_internal(sreq->sr_host->transportt);
-	struct scsi_device *sdev = sreq->sr_device;
+	struct spi_internal *i = to_spi_internal(sdev->host->transportt);
 	struct scsi_target *starget = sdev->sdev_target;
 	int period = 0, prevperiod = 0; 
 	enum spi_compare_returns retval;
@@ -687,7 +688,7 @@ spi_dv_retrain(struct scsi_request *sreq, u8 *buffer, u8 *ptr,
 
 	for (;;) {
 		int newperiod;
-		retval = compare_fn(sreq, buffer, ptr, DV_LOOPS);
+		retval = compare_fn(sdev, buffer, ptr, DV_LOOPS);
 
 		if (retval == SPI_COMPARE_SUCCESS
 		    || retval == SPI_COMPARE_SKIP_TEST)
@@ -733,9 +734,9 @@ spi_dv_retrain(struct scsi_request *sreq, u8 *buffer, u8 *ptr,
 }
 
 static int
-spi_dv_device_get_echo_buffer(struct scsi_request *sreq, u8 *buffer)
+spi_dv_device_get_echo_buffer(struct scsi_device *sdev, u8 *buffer)
 {
-	int l;
+	int l, result;
 
 	/* first off do a test unit ready.  This can error out 
 	 * because of reservations or some other reason.  If it
@@ -751,18 +752,16 @@ spi_dv_device_get_echo_buffer(struct scsi_request *sreq, u8 *buffer)
 	};
 
 	
-	sreq->sr_cmd_len = 0;
-	sreq->sr_data_direction = DMA_NONE;
-
 	/* We send a set of three TURs to clear any outstanding 
 	 * unit attention conditions if they exist (Otherwise the
 	 * buffer tests won't be happy).  If the TUR still fails
 	 * (reservation conflict, device not ready, etc) just
 	 * skip the write tests */
 	for (l = 0; ; l++) {
-		spi_wait_req(sreq, spi_test_unit_ready, NULL, 0);
+		result = spi_execute(sdev, spi_test_unit_ready, DMA_NONE, 
+				     NULL, 0, NULL);
 
-		if(sreq->sr_result) {
+		if(result) {
 			if(l >= 3)
 				return 0;
 		} else {
@@ -771,12 +770,10 @@ spi_dv_device_get_echo_buffer(struct scsi_request *sreq, u8 *buffer)
 		}
 	}
 
-	sreq->sr_cmd_len = 0;
-	sreq->sr_data_direction = DMA_FROM_DEVICE;
+	result = spi_execute(sdev, spi_read_buffer_descriptor, 
+			     DMA_FROM_DEVICE, buffer, 4, NULL);
 
-	spi_wait_req(sreq, spi_read_buffer_descriptor, buffer, 4);
-
-	if (sreq->sr_result)
+	if (result)
 		/* Device has no echo buffer */
 		return 0;
 
@@ -784,17 +781,16 @@ spi_dv_device_get_echo_buffer(struct scsi_request *sreq, u8 *buffer)
 }
 
 static void
-spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
+spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 {
-	struct spi_internal *i = to_spi_internal(sreq->sr_host->transportt);
-	struct scsi_device *sdev = sreq->sr_device;
+	struct spi_internal *i = to_spi_internal(sdev->host->transportt);
 	struct scsi_target *starget = sdev->sdev_target;
 	int len = sdev->inquiry_len;
 	/* first set us up for narrow async */
 	DV_SET(offset, 0);
 	DV_SET(width, 0);
 	
-	if (spi_dv_device_compare_inquiry(sreq, buffer, buffer, DV_LOOPS)
+	if (spi_dv_device_compare_inquiry(sdev, buffer, buffer, DV_LOOPS)
 	    != SPI_COMPARE_SUCCESS) {
 		SPI_PRINTK(starget, KERN_ERR, "Domain Validation Initial Inquiry Failed\n");
 		/* FIXME: should probably offline the device here? */
@@ -806,7 +802,7 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 	    scsi_device_wide(sdev)) {
 		i->f->set_width(starget, 1);
 
-		if (spi_dv_device_compare_inquiry(sreq, buffer,
+		if (spi_dv_device_compare_inquiry(sdev, buffer,
 						   buffer + len,
 						   DV_LOOPS)
 		    != SPI_COMPARE_SUCCESS) {
@@ -827,7 +823,7 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 
 	len = 0;
 	if (scsi_device_dt(sdev))
-		len = spi_dv_device_get_echo_buffer(sreq, buffer);
+		len = spi_dv_device_get_echo_buffer(sdev, buffer);
 
  retry:
 
@@ -853,7 +849,7 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 
 	if (len == 0) {
 		SPI_PRINTK(starget, KERN_INFO, "Domain Validation skipping write tests\n");
-		spi_dv_retrain(sreq, buffer, buffer + len,
+		spi_dv_retrain(sdev, buffer, buffer + len,
 			       spi_dv_device_compare_inquiry);
 		return;
 	}
@@ -863,7 +859,7 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 		len = SPI_MAX_ECHO_BUFFER_SIZE;
 	}
 
-	if (spi_dv_retrain(sreq, buffer, buffer + len,
+	if (spi_dv_retrain(sdev, buffer, buffer + len,
 			   spi_dv_device_echo_buffer)
 	    == SPI_COMPARE_SKIP_TEST) {
 		/* OK, the stupid drive can't do a write echo buffer
@@ -886,16 +882,12 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 void
 spi_dv_device(struct scsi_device *sdev)
 {
-	struct scsi_request *sreq = scsi_allocate_request(sdev, GFP_KERNEL);
 	struct scsi_target *starget = sdev->sdev_target;
 	u8 *buffer;
 	const int len = SPI_MAX_ECHO_BUFFER_SIZE*2;
 
-	if (unlikely(!sreq))
-		return;
-
 	if (unlikely(scsi_device_get(sdev)))
-		goto out_free_req;
+		return;
 
 	buffer = kmalloc(len, GFP_KERNEL);
 
@@ -916,7 +908,7 @@ spi_dv_device(struct scsi_device *sdev)
 
 	SPI_PRINTK(starget, KERN_INFO, "Beginning Domain Validation\n");
 
-	spi_dv_device_internal(sreq, buffer);
+	spi_dv_device_internal(sdev, buffer);
 
 	SPI_PRINTK(starget, KERN_INFO, "Ending Domain Validation\n");
 
@@ -931,8 +923,6 @@ spi_dv_device(struct scsi_device *sdev)
 	kfree(buffer);
  out_put:
 	scsi_device_put(sdev);
- out_free_req:
-	scsi_release_request(sreq);
 }
 EXPORT_SYMBOL(spi_dv_device);
 

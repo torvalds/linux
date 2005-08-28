@@ -1847,12 +1847,16 @@ EXPORT_SYMBOL(scsi_reset_provider);
 int scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
                          struct scsi_sense_hdr *sshdr)
 {
-	if (!sense_buffer || !sb_len || (sense_buffer[0] & 0x70) != 0x70)
+	if (!sense_buffer || !sb_len)
 		return 0;
 
 	memset(sshdr, 0, sizeof(struct scsi_sense_hdr));
 
 	sshdr->response_code = (sense_buffer[0] & 0x7f);
+
+	if (!scsi_sense_valid(sshdr))
+		return 0;
+
 	if (sshdr->response_code >= 0x72) {
 		/*
 		 * descriptor format

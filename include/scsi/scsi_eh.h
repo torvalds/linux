@@ -26,6 +26,14 @@ struct scsi_sense_hdr {		/* See SPC-3 section 4.5 */
 	u8 additional_length;	/* always 0 for fixed sense format */
 };
 
+static inline int scsi_sense_valid(struct scsi_sense_hdr *sshdr)
+{
+	if (!sshdr)
+		return 0;
+
+	return (sshdr->response_code & 0x70) == 0x70;
+}
+
 
 extern void scsi_add_timer(struct scsi_cmnd *, int,
 		void (*)(struct scsi_cmnd *));
