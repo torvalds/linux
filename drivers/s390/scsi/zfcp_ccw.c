@@ -203,7 +203,7 @@ zfcp_ccw_set_offline(struct ccw_device *ccw_device)
 {
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port;
-	struct fc_port *rport;
+	struct fc_rport *rport;
 
 	down(&zfcp_data.config_sema);
 	adapter = dev_get_drvdata(&ccw_device->dev);

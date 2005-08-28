@@ -1403,15 +1403,14 @@ zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn, u32 status,
 void
 zfcp_port_dequeue(struct zfcp_port *port)
 {
-	struct fc_port *rport;
-
 	zfcp_port_wait(port);
 	write_lock_irq(&zfcp_data.config_lock);
 	list_del(&port->list);
 	port->adapter->ports--;
 	write_unlock_irq(&zfcp_data.config_lock);
 	if (port->rport)
-		fc_remote_port_delete(rport);
+		fc_remote_port_delete(port->rport);
+	port->rport = NULL;
 	zfcp_adapter_put(port->adapter);
 	zfcp_sysfs_port_remove_files(&port->sysfs_device,
 				     atomic_read(&port->status));
