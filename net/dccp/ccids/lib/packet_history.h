@@ -193,4 +193,7 @@ extern int dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
 				   struct list_head *li_list,
 				   struct dccp_rx_hist_entry *packet);
 
+extern u64 dccp_rx_hist_detect_loss(struct list_head *rx_list,
+				    struct list_head *li_list, u8 *win_loss);
+
 #endif /* _DCCP_PKT_HIST_ */

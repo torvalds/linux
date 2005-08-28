@@ -224,6 +224,88 @@ trim_history:
 
 EXPORT_SYMBOL_GPL(dccp_rx_hist_add_packet);
 
+u64 dccp_rx_hist_detect_loss(struct list_head *rx_list,
+			     struct list_head *li_list, u8 *win_loss)
+{
+	struct dccp_rx_hist_entry *entry, *next, *packet;
+	struct dccp_rx_hist_entry *a_loss = NULL;
+	struct dccp_rx_hist_entry *b_loss = NULL;
+	u64 seq_loss = DCCP_MAX_SEQNO + 1;
+	u8 num_later = TFRC_RECV_NUM_LATE_LOSS;
+
+	list_for_each_entry_safe(entry, next, rx_list, dccphrx_node) {
+		if (num_later == 0) {
+			b_loss = entry;
+			break;
+		} else if (dccp_rx_hist_entry_data_packet(entry))
+			--num_later;
+	}
+
+	if (b_loss == NULL)
+		goto out;
+
+	num_later = 1;
+	list_for_each_entry_safe_continue(entry, next, rx_list, dccphrx_node) {
+		if (num_later == 0) {
+			a_loss = entry;
+			break;
+		} else if (dccp_rx_hist_entry_data_packet(entry))
+			--num_later;
+	}
+
+	if (a_loss == NULL) {
+		if (list_empty(li_list)) {
+			/* no loss event have occured yet */
+			LIMIT_NETDEBUG("%s: TODO: find a lost data packet by "
+				       "comparing to initial seqno\n",
+				       __FUNCTION__);
+			goto out;
+		} else {
+			LIMIT_NETDEBUG("%s: Less than 4 data pkts in history!",
+				       __FUNCTION__);
+			goto out;
+		}
+	}
+
+	/* Locate a lost data packet */
+	entry = packet = b_loss;
+	list_for_each_entry_safe_continue(entry, next, rx_list, dccphrx_node) {
+		u64 delta = dccp_delta_seqno(entry->dccphrx_seqno,
+					     packet->dccphrx_seqno);
+
+		if (delta != 0) {
+			if (dccp_rx_hist_entry_data_packet(packet))
+				--delta;
+			/*
+			 * FIXME: check this, probably this % usage is because
+			 * in earlier drafts the ndp count was just 8 bits
+			 * long, but now it cam be up to 24 bits long.
+			 */
+#if 0
+			if (delta % DCCP_NDP_LIMIT !=
+			    (packet->dccphrx_ndp -
+			     entry->dccphrx_ndp) % DCCP_NDP_LIMIT)
+#endif
+			if (delta != packet->dccphrx_ndp - entry->dccphrx_ndp) {
+				seq_loss = entry->dccphrx_seqno;
+				dccp_inc_seqno(&seq_loss);
+			}
+		}
+		packet = entry;
+		if (packet == a_loss)
+			break;
+	}
+out:
+	if (seq_loss != DCCP_MAX_SEQNO + 1)
+		*win_loss = a_loss->dccphrx_ccval;
+	else
+		*win_loss = 0; /* Paranoia */
+
+	return seq_loss;
+}
+
+EXPORT_SYMBOL_GPL(dccp_rx_hist_detect_loss);
+
 struct dccp_tx_hist *dccp_tx_hist_new(const char *name)
 {
 	struct dccp_tx_hist *hist = kmalloc(sizeof(*hist), GFP_ATOMIC);

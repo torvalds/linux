@@ -927,86 +927,11 @@ static void ccid3_hc_rx_detect_loss(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
-	struct dccp_rx_hist_entry *entry, *next, *packet;
-	struct dccp_rx_hist_entry *a_loss = NULL;
-	struct dccp_rx_hist_entry *b_loss = NULL;
-	u64 seq_loss = DCCP_MAX_SEQNO + 1;
-	u8 win_loss = 0;
-	u8 num_later = TFRC_RECV_NUM_LATE_LOSS;
+	u8 win_loss;
+	const u64 seq_loss = dccp_rx_hist_detect_loss(&hcrx->ccid3hcrx_hist,
+						      &hcrx->ccid3hcrx_li_hist,
+						      &win_loss);
 
-	list_for_each_entry_safe(entry, next, &hcrx->ccid3hcrx_hist,
-				 dccphrx_node) {
-		if (num_later == 0) {
-			b_loss = entry;
-			break;
-		} else if (dccp_rx_hist_entry_data_packet(entry))
-			--num_later;
-	}
-
-	if (b_loss == NULL)
-		goto out_update_li;
-
-	num_later = 1;
-
-	list_for_each_entry_safe_continue(entry, next, &hcrx->ccid3hcrx_hist,
-					  dccphrx_node) {
-		if (num_later == 0) {
-			a_loss = entry;
-			break;
-		} else if (dccp_rx_hist_entry_data_packet(entry))
-			--num_later;
-	}
-
-	if (a_loss == NULL) {
-		if (list_empty(&hcrx->ccid3hcrx_li_hist)) {
-			/* no loss event have occured yet */
-			LIMIT_NETDEBUG("%s: TODO: find a lost data packet by "
-				       "comparing to initial seqno\n",
-				       dccp_role(sk));
-			goto out_update_li;
-		} else {
-			pr_info("%s: %s, sk=%p, ERROR! Less than 4 data "
-				"packets in history",
-				__FUNCTION__, dccp_role(sk), sk);
-			return;
-		}
-	}
-
-	/* Locate a lost data packet */
-	entry = packet = b_loss;
-	list_for_each_entry_safe_continue(entry, next, &hcrx->ccid3hcrx_hist,
-					  dccphrx_node) {
-		u64 delta = dccp_delta_seqno(entry->dccphrx_seqno,
-					     packet->dccphrx_seqno);
-
-		if (delta != 0) {
-			if (dccp_rx_hist_entry_data_packet(packet))
-				--delta;
-			/*
-			 * FIXME: check this, probably this % usage is because
-			 * in earlier drafts the ndp count was just 8 bits
-			 * long, but now it cam be up to 24 bits long.
-			 */
-#if 0
-			if (delta % DCCP_NDP_LIMIT !=
-			    (packet->dccphrx_ndp -
-			     entry->dccphrx_ndp) % DCCP_NDP_LIMIT)
-#endif
-			if (delta !=
-			     packet->dccphrx_ndp - entry->dccphrx_ndp) {
-				seq_loss = entry->dccphrx_seqno;
-				dccp_inc_seqno(&seq_loss);
-			}
-		}
-		packet = entry;
-		if (packet == a_loss)
-			break;
-	}
-
-	if (seq_loss != DCCP_MAX_SEQNO + 1)
-		win_loss = a_loss->dccphrx_ccval;
-
-out_update_li:
 	ccid3_hc_rx_update_li(sk, seq_loss, win_loss);
 }
 
