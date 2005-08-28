@@ -44,6 +44,12 @@
 
 #include "../../dccp.h"
 
+/* Number of later packets received before one is considered lost */
+#define TFRC_RECV_NUM_LATE_LOSS	 3
+
+#define TFRC_WIN_COUNT_PER_RTT	 4
+#define TFRC_WIN_COUNT_LIMIT	16
+
 struct dccp_tx_hist_entry {
 	struct list_head dccphtx_node;
 	u64		 dccphtx_seqno:48,
@@ -181,5 +187,10 @@ static inline int
 	return entry->dccphrx_type == DCCP_PKT_DATA ||
 	       entry->dccphrx_type == DCCP_PKT_DATAACK;
 }
+
+extern int dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
+				   struct list_head *rx_list,
+				   struct list_head *li_list,
+				   struct dccp_rx_hist_entry *packet);
 
 #endif /* _DCCP_PKT_HIST_ */

@@ -51,16 +51,10 @@
 /* In usecs - half the scheduling granularity as per RFC3448 4.6 */
 #define TFRC_OPSYS_HALF_TIME_GRAN  (USEC_PER_SEC / (2 * HZ))
 
-#define TFRC_WIN_COUNT_PER_RTT	    4
-#define TFRC_WIN_COUNT_LIMIT	   16
-
 /* In seconds */
 #define TFRC_MAX_BACK_OFF_TIME	   64
 
 #define TFRC_SMALLEST_P		   40
-
-/* Number of later packets received before one is considered lost */
-#define TFRC_RECV_NUM_LATE_LOSS	3
 
 enum ccid3_options {
 	TFRC_OPT_LOSS_EVENT_RATE = 192,

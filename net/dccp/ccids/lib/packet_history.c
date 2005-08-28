@@ -113,6 +113,117 @@ struct dccp_rx_hist_entry *
 
 EXPORT_SYMBOL_GPL(dccp_rx_hist_find_data_packet);
 
+int dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
+			    struct list_head *rx_list,
+			    struct list_head *li_list,
+			    struct dccp_rx_hist_entry *packet)
+{
+	struct dccp_rx_hist_entry *entry, *next, *iter;
+	u8 num_later = 0;
+
+	iter = dccp_rx_hist_head(rx_list);
+	if (iter == NULL)
+		dccp_rx_hist_add_entry(rx_list, packet);
+	else {
+		const u64 seqno = packet->dccphrx_seqno;
+
+		if (after48(seqno, iter->dccphrx_seqno))
+			dccp_rx_hist_add_entry(rx_list, packet);
+		else {
+			if (dccp_rx_hist_entry_data_packet(iter))
+				num_later = 1;
+
+			list_for_each_entry_continue(iter, rx_list,
+						     dccphrx_node) {
+				if (after48(seqno, iter->dccphrx_seqno)) {
+					dccp_rx_hist_add_entry(&iter->dccphrx_node,
+							       packet);
+					goto trim_history;
+				}
+
+				if (dccp_rx_hist_entry_data_packet(iter))
+					num_later++;
+
+				if (num_later == TFRC_RECV_NUM_LATE_LOSS) {
+					dccp_rx_hist_entry_delete(hist, packet);
+					return 1;
+				}
+			}
+
+			if (num_later < TFRC_RECV_NUM_LATE_LOSS)
+				dccp_rx_hist_add_entry(rx_list, packet);
+			/*
+			 * FIXME: else what? should we destroy the packet
+			 * like above?
+			 */
+		}
+	}
+
+trim_history:
+	/*
+	 * Trim history (remove all packets after the NUM_LATE_LOSS + 1
+	 * data packets)
+	 */
+	num_later = TFRC_RECV_NUM_LATE_LOSS + 1;
+
+	if (!list_empty(li_list)) {
+		list_for_each_entry_safe(entry, next, rx_list, dccphrx_node) {
+			if (num_later == 0) {
+				list_del_init(&entry->dccphrx_node);
+				dccp_rx_hist_entry_delete(hist, entry);
+			} else if (dccp_rx_hist_entry_data_packet(entry))
+				--num_later;
+		}
+	} else {
+		int step = 0;
+		u8 win_count = 0; /* Not needed, but lets shut up gcc */
+		int tmp;
+		/*
+		 * We have no loss interval history so we need at least one
+		 * rtt:s of data packets to approximate rtt.
+		 */
+		list_for_each_entry_safe(entry, next, rx_list, dccphrx_node) {
+			if (num_later == 0) {
+				switch (step) {
+				case 0:
+					step = 1;
+					/* OK, find next data packet */
+					num_later = 1;
+					break;
+				case 1:
+					step = 2;
+					/* OK, find next data packet */
+					num_later = 1;
+					win_count = entry->dccphrx_ccval;
+					break;
+				case 2:
+					tmp = win_count - entry->dccphrx_ccval;
+					if (tmp < 0)
+						tmp += TFRC_WIN_COUNT_LIMIT;
+					if (tmp > TFRC_WIN_COUNT_PER_RTT + 1) {
+						/*
+						 * We have found a packet older
+						 * than one rtt remove the rest
+						 */
+						step = 3;
+					} else /* OK, find next data packet */
+						num_later = 1;
+					break;
+				case 3:
+					list_del_init(&entry->dccphrx_node);
+					dccp_rx_hist_entry_delete(hist, entry);
+					break;
+				}
+			} else if (dccp_rx_hist_entry_data_packet(entry))
+				--num_later;
+		}
+	}
+
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(dccp_rx_hist_add_packet);
+
 struct dccp_tx_hist *dccp_tx_hist_new(const char *name)
 {
 	struct dccp_tx_hist *hist = kmalloc(sizeof(*hist), GFP_ATOMIC);

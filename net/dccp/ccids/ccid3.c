@@ -744,125 +744,6 @@ static inline void ccid3_hc_rx_set_state(struct sock *sk,
 	hcrx->ccid3hcrx_state = state;
 }
 
-static int ccid3_hc_rx_add_hist(struct sock *sk,
-				struct dccp_rx_hist_entry *packet)
-{
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
-	struct dccp_rx_hist_entry *entry, *next, *iter;
-	u8 num_later = 0;
-
-	iter = dccp_rx_hist_head(&hcrx->ccid3hcrx_hist);
-	if (iter == NULL)
-		dccp_rx_hist_add_entry(&hcrx->ccid3hcrx_hist, packet);
-	else {
-		const u64 seqno = packet->dccphrx_seqno;
-
-		if (after48(seqno, iter->dccphrx_seqno))
-			dccp_rx_hist_add_entry(&hcrx->ccid3hcrx_hist, packet);
-		else {
-			if (dccp_rx_hist_entry_data_packet(iter))
-				num_later = 1;
-
-			list_for_each_entry_continue(iter,
-						     &hcrx->ccid3hcrx_hist,
-						     dccphrx_node) {
-				if (after48(seqno, iter->dccphrx_seqno)) {
-					dccp_rx_hist_add_entry(&iter->dccphrx_node,
-							       packet);
-					goto trim_history;
-				}
-
-				if (dccp_rx_hist_entry_data_packet(iter))
-					num_later++;
-
-				if (num_later == TFRC_RECV_NUM_LATE_LOSS) {
-					dccp_rx_hist_entry_delete(ccid3_rx_hist,
-								  packet);
-					ccid3_pr_debug("%s, sk=%p, packet"
-						       "(%llu) already lost!\n",
-						       dccp_role(sk), sk,
-						       seqno);
-					return 1;
-				}
-			}
-
-			if (num_later < TFRC_RECV_NUM_LATE_LOSS)
-				dccp_rx_hist_add_entry(&hcrx->ccid3hcrx_hist,
-						       packet);
-			/*
-			 * FIXME: else what? should we destroy the packet
-			 * like above?
-			 */
-		}
-	}
-
-trim_history:
-	/*
-	 * Trim history (remove all packets after the NUM_LATE_LOSS + 1
-	 * data packets)
-	 */
-	num_later = TFRC_RECV_NUM_LATE_LOSS + 1;
-
-	if (!list_empty(&hcrx->ccid3hcrx_li_hist)) {
-		list_for_each_entry_safe(entry, next, &hcrx->ccid3hcrx_hist,
-					 dccphrx_node) {
-			if (num_later == 0) {
-				list_del_init(&entry->dccphrx_node);
-				dccp_rx_hist_entry_delete(ccid3_rx_hist, entry);
-			} else if (dccp_rx_hist_entry_data_packet(entry))
-				--num_later;
-		}
-	} else {
-		int step = 0;
-		u8 win_count = 0; /* Not needed, but lets shut up gcc */
-		int tmp;
-		/*
-		 * We have no loss interval history so we need at least one
-		 * rtt:s of data packets to approximate rtt.
-		 */
-		list_for_each_entry_safe(entry, next, &hcrx->ccid3hcrx_hist,
-					 dccphrx_node) {
-			if (num_later == 0) {
-				switch (step) {
-				case 0:
-					step = 1;
-					/* OK, find next data packet */
-					num_later = 1;
-					break;
-				case 1:
-					step = 2;
-					/* OK, find next data packet */
-					num_later = 1;
-					win_count = entry->dccphrx_ccval;
-					break;
-				case 2:
-					tmp = win_count - entry->dccphrx_ccval;
-					if (tmp < 0)
-						tmp += TFRC_WIN_COUNT_LIMIT;
-					if (tmp > TFRC_WIN_COUNT_PER_RTT + 1) {
-						/*
-						 * We have found a packet older
-						 * than one rtt remove the rest
-						 */
-						step = 3;
-					} else /* OK, find next data packet */
-						num_later = 1;
-					break;
-				case 3:
-					list_del_init(&entry->dccphrx_node);
-					dccp_rx_hist_entry_delete(ccid3_rx_hist,
-								  entry);
-					break;
-				}
-			} else if (dccp_rx_hist_entry_data_packet(entry))
-				--num_later;
-		}
-	}
-
-	return 0;
-}
-
 static void ccid3_hc_rx_send_feedback(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -1185,7 +1066,8 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 	win_count = packet->dccphrx_ccval;
 
-	ins = ccid3_hc_rx_add_hist(sk, packet);
+	ins = dccp_rx_hist_add_packet(ccid3_rx_hist, &hcrx->ccid3hcrx_hist,
+				      &hcrx->ccid3hcrx_li_hist, packet);
 
 	if (DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_ACK)
 		return;
