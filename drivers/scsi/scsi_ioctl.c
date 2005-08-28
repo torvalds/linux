@@ -475,8 +475,7 @@ int scsi_nonblockable_ioctl(struct scsi_device *sdev, int cmd,
 	 * error processing, as long as the device was opened
 	 * non-blocking */
 	if (filp && filp->f_flags & O_NONBLOCK) {
-		if (test_bit(SHOST_RECOVERY,
-			     &sdev->host->shost_state))
+		if (sdev->host->shost_state == SHOST_RECOVERY)
 			return -ENODEV;
 	} else if (!scsi_block_when_processing_errors(sdev))
 		return -ENODEV;

@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.seq#56 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.seq#58 $"
 PATCH_ARG_LIST = "struct ahc_softc *ahc"
 PREFIX = "ahc_"
 
@@ -679,6 +679,7 @@ await_busfree:
 		clr	SCSIBUSL;	/* Prevent bit leakage durint SELTO */
 	}
 	and	SXFRCTL0, ~SPIOEN;
+	mvi	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT;
 	test	SSTAT1,REQINIT|BUSFREE	jz .;
 	test	SSTAT1, BUSFREE jnz poll_for_work;
 	mvi	MISSED_BUSFREE call set_seqint;
@@ -1097,7 +1098,7 @@ ultra2_dmahalt:
 		test	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG jz dma_mid_sg;
 		if ((ahc->flags & AHC_TARGETROLE) != 0) {
 			test	SSTAT0, TARGET jz dma_last_sg;
-			if ((ahc->flags & AHC_TMODE_WIDEODD_BUG) != 0) {
+			if ((ahc->bugs & AHC_TMODE_WIDEODD_BUG) != 0) {
 				test	DMAPARAMS, DIRECTION jz dma_mid_sg;
 			}
 		}

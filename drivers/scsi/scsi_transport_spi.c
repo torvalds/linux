@@ -35,7 +35,7 @@
 
 #define SPI_PRINTK(x, l, f, a...)	dev_printk(l, &(x)->dev, f , ##a)
 
-#define SPI_NUM_ATTRS 13	/* increase this if you add attributes */
+#define SPI_NUM_ATTRS 14	/* increase this if you add attributes */
 #define SPI_OTHER_ATTRS 1	/* Increase this if you add "always
 				 * on" attributes */
 #define SPI_HOST_ATTRS	1
@@ -162,7 +162,8 @@ static inline enum spi_signal_type spi_signal_to_value(const char *name)
 	return SPI_SIGNAL_UNKNOWN;
 }
 
-static int spi_host_setup(struct device *dev)
+static int spi_host_setup(struct transport_container *tc, struct device *dev,
+			  struct class_device *cdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
 
@@ -196,7 +197,9 @@ static int spi_host_match(struct attribute_container *cont,
 	return &i->t.host_attrs.ac == cont;
 }
 
-static int spi_device_configure(struct device *dev)
+static int spi_device_configure(struct transport_container *tc,
+				struct device *dev,
+				struct class_device *cdev)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct scsi_target *starget = sdev->sdev_target;
@@ -214,7 +217,9 @@ static int spi_device_configure(struct device *dev)
 	return 0;
 }
 
-static int spi_setup_transport_attrs(struct device *dev)
+static int spi_setup_transport_attrs(struct transport_container *tc,
+				     struct device *dev,
+				     struct class_device *cdev)
 {
 	struct scsi_target *starget = to_scsi_target(dev);
 
@@ -231,6 +236,7 @@ static int spi_setup_transport_attrs(struct device *dev)
 	spi_rd_strm(starget) = 0;
 	spi_rti(starget) = 0;
 	spi_pcomp_en(starget) = 0;
+	spi_hold_mcs(starget) = 0;
 	spi_dv_pending(starget) = 0;
 	spi_initial_dv(starget) = 0;
 	init_MUTEX(&spi_dv_sem(starget));
@@ -347,6 +353,7 @@ spi_transport_rd_attr(wr_flow, "%d\n");
 spi_transport_rd_attr(rd_strm, "%d\n");
 spi_transport_rd_attr(rti, "%d\n");
 spi_transport_rd_attr(pcomp_en, "%d\n");
+spi_transport_rd_attr(hold_mcs, "%d\n");
 
 /* we only care about the first child device so we return 1 */
 static int child_iter(struct device *dev, void *data)
@@ -1028,10 +1035,17 @@ void spi_display_xfer_agreement(struct scsi_target *starget)
 		sprint_frac(tmp, picosec, 1000);
 
 		dev_info(&starget->dev,
-			"%s %sSCSI %d.%d MB/s %s%s%s (%s ns, offset %d)\n",
-			scsi, tp->width ? "WIDE " : "", kb100/10, kb100 % 10,
-			tp->dt ? "DT" : "ST", tp->iu ? " IU" : "",
-			tp->qas  ? " QAS" : "", tmp, tp->offset);
+			 "%s %sSCSI %d.%d MB/s %s%s%s%s%s%s%s%s (%s ns, offset %d)\n",
+			 scsi, tp->width ? "WIDE " : "", kb100/10, kb100 % 10,
+			 tp->dt ? "DT" : "ST",
+			 tp->iu ? " IU" : "",
+			 tp->qas  ? " QAS" : "",
+			 tp->rd_strm ? " RDSTRM" : "",
+			 tp->rti ? " RTI" : "",
+			 tp->wr_flow ? " WRFLOW" : "",
+			 tp->pcomp_en ? " PCOMP" : "",
+			 tp->hold_mcs ? " HMCS" : "",
+			 tmp, tp->offset);
 	} else {
 		dev_info(&starget->dev, "%sasynchronous.\n",
 				tp->width ? "wide " : "");
@@ -1073,6 +1087,7 @@ static int spi_device_match(struct attribute_container *cont,
 {
 	struct scsi_device *sdev;
 	struct Scsi_Host *shost;
+	struct spi_internal *i;
 
 	if (!scsi_is_sdev_device(dev))
 		return 0;
@@ -1085,6 +1100,9 @@ static int spi_device_match(struct attribute_container *cont,
 	/* Note: this class has no device attributes, so it has
 	 * no per-HBA allocation and thus we don't need to distinguish
 	 * the attribute containers for the device */
+	i = to_spi_internal(shost->transportt);
+	if (i->f->deny_binding && i->f->deny_binding(sdev->sdev_target))
+		return 0;
 	return 1;
 }
 
@@ -1092,6 +1110,7 @@ static int spi_target_match(struct attribute_container *cont,
 			    struct device *dev)
 {
 	struct Scsi_Host *shost;
+	struct scsi_target *starget;
 	struct spi_internal *i;
 
 	if (!scsi_is_target_device(dev))
@@ -1103,7 +1122,11 @@ static int spi_target_match(struct attribute_container *cont,
 		return 0;
 
 	i = to_spi_internal(shost->transportt);
-	
+	starget = to_scsi_target(dev);
+
+	if (i->f->deny_binding && i->f->deny_binding(starget))
+		return 0;
+
 	return &i->t.target_attrs.ac == cont;
 }
 
@@ -1154,6 +1177,7 @@ spi_attach_transport(struct spi_function_template *ft)
 	SETUP_ATTRIBUTE(rd_strm);
 	SETUP_ATTRIBUTE(rti);
 	SETUP_ATTRIBUTE(pcomp_en);
+	SETUP_ATTRIBUTE(hold_mcs);
 
 	/* if you add an attribute but forget to increase SPI_NUM_ATTRS
 	 * this bug will trigger */

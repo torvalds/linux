@@ -49,7 +49,7 @@ static void	ahd_dump_target_state(struct ahd_softc *ahd,
 				      u_int our_id, char channel,
 				      u_int target_id, u_int target_offset);
 static void	ahd_dump_device_state(struct info_str *info,
-				      struct ahd_linux_device *dev);
+				      struct scsi_device *sdev);
 static int	ahd_proc_write_seeprom(struct ahd_softc *ahd,
 				       char *buffer, int length);
 
@@ -167,6 +167,7 @@ ahd_dump_target_state(struct ahd_softc *ahd, struct info_str *info,
 		      u_int target_offset)
 {
 	struct	ahd_linux_target *targ;
+	struct  scsi_target *starget;
 	struct	ahd_initiator_tinfo *tinfo;
 	struct	ahd_tmode_tstate *tstate;
 	int	lun;
@@ -176,20 +177,20 @@ ahd_dump_target_state(struct ahd_softc *ahd, struct info_str *info,
 	copy_info(info, "Target %d Negotiation Settings\n", target_id);
 	copy_info(info, "\tUser: ");
 	ahd_format_transinfo(info, &tinfo->user);
-	targ = ahd->platform_data->targets[target_offset];
-	if (targ == NULL)
+	starget = ahd->platform_data->starget[target_offset];
+	if (starget == NULL)
 		return;
+	targ = scsi_transport_target_data(starget);
 
 	copy_info(info, "\tGoal: ");
 	ahd_format_transinfo(info, &tinfo->goal);
 	copy_info(info, "\tCurr: ");
 	ahd_format_transinfo(info, &tinfo->curr);
-	copy_info(info, "\tTransmission Errors %ld\n", targ->errors_detected);
 
 	for (lun = 0; lun < AHD_NUM_LUNS; lun++) {
-		struct ahd_linux_device *dev;
+		struct scsi_device *dev;
 
-		dev = targ->devices[lun];
+		dev = targ->sdev[lun];
 
 		if (dev == NULL)
 			continue;
@@ -199,10 +200,13 @@ ahd_dump_target_state(struct ahd_softc *ahd, struct info_str *info,
 }
 
 static void
-ahd_dump_device_state(struct info_str *info, struct ahd_linux_device *dev)
+ahd_dump_device_state(struct info_str *info, struct scsi_device *sdev)
 {
+	struct ahd_linux_device *dev = scsi_transport_device_data(sdev);
+
 	copy_info(info, "\tChannel %c Target %d Lun %d Settings\n",
-		  dev->target->channel + 'A', dev->target->target, dev->lun);
+		  sdev->sdev_target->channel + 'A',
+		  sdev->sdev_target->id, sdev->lun);
 
 	copy_info(info, "\t\tCommands Queued %ld\n", dev->commands_issued);
 	copy_info(info, "\t\tCommands Active %d\n", dev->active);
@@ -278,35 +282,15 @@ done:
  * Return information to handle /proc support for the driver.
  */
 int
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-ahd_linux_proc_info(char *buffer, char **start, off_t offset,
-		    int length, int hostno, int inout)
-#else
 ahd_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 		    off_t offset, int length, int inout)
-#endif
 {
-	struct	ahd_softc *ahd;
+	struct	ahd_softc *ahd = *(struct ahd_softc **)shost->hostdata;
 	struct	info_str info;
 	char	ahd_info[256];
-	u_long	l;
 	u_int	max_targ;
 	u_int	i;
 	int	retval;
-
-	retval = -EINVAL;
-	ahd_list_lock(&l);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	TAILQ_FOREACH(ahd, &ahd_tailq, links) {
-		if (ahd->platform_data->host->host_no == hostno)
-			break;
-	}
-#else
-	ahd = ahd_find_softc(*(struct ahd_softc **)shost->hostdata);
-#endif
-
-	if (ahd == NULL)
-		goto done;
 
 	 /* Has data been written to the file? */ 
 	if (inout == TRUE) {
@@ -357,6 +341,5 @@ ahd_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	}
 	retval = info.pos > info.offset ? info.pos - info.offset : 0;
 done:
-	ahd_list_unlock(&l);
 	return (retval);
 }

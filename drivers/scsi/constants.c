@@ -17,6 +17,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_request.h>
 #include <scsi/scsi_eh.h>
+#include <scsi/scsi_dbg.h>
 
 
 

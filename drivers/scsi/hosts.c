@@ -52,21 +52,80 @@ static struct class shost_class = {
 };
 
 /**
- * scsi_host_cancel - cancel outstanding IO to this host
- * @shost:	pointer to struct Scsi_Host
- * recovery:	recovery requested to run.
+ *	scsi_host_set_state - Take the given host through the host
+ *		state model.
+ *	@shost:	scsi host to change the state of.
+ *	@state:	state to change to.
+ *
+ *	Returns zero if unsuccessful or an error if the requested
+ *	transition is illegal.
  **/
-static void scsi_host_cancel(struct Scsi_Host *shost, int recovery)
+int scsi_host_set_state(struct Scsi_Host *shost, enum scsi_host_state state)
 {
-	struct scsi_device *sdev;
+	enum scsi_host_state oldstate = shost->shost_state;
 
-	set_bit(SHOST_CANCEL, &shost->shost_state);
-	shost_for_each_device(sdev, shost) {
-		scsi_device_cancel(sdev, recovery);
+	if (state == oldstate)
+		return 0;
+
+	switch (state) {
+	case SHOST_CREATED:
+		/* There are no legal states that come back to
+		 * created.  This is the manually initialised start
+		 * state */
+		goto illegal;
+
+	case SHOST_RUNNING:
+		switch (oldstate) {
+		case SHOST_CREATED:
+		case SHOST_RECOVERY:
+			break;
+		default:
+			goto illegal;
+		}
+		break;
+
+	case SHOST_RECOVERY:
+		switch (oldstate) {
+		case SHOST_RUNNING:
+			break;
+		default:
+			goto illegal;
+		}
+		break;
+
+	case SHOST_CANCEL:
+		switch (oldstate) {
+		case SHOST_CREATED:
+		case SHOST_RUNNING:
+			break;
+		default:
+			goto illegal;
+		}
+		break;
+
+	case SHOST_DEL:
+		switch (oldstate) {
+		case SHOST_CANCEL:
+			break;
+		default:
+			goto illegal;
+		}
+		break;
+
 	}
-	wait_event(shost->host_wait, (!test_bit(SHOST_RECOVERY,
-						&shost->shost_state)));
+	shost->shost_state = state;
+	return 0;
+
+ illegal:
+	SCSI_LOG_ERROR_RECOVERY(1,
+				dev_printk(KERN_ERR, &shost->shost_gendev,
+					   "Illegal host state transition"
+					   "%s->%s\n",
+					   scsi_host_state_name(oldstate),
+					   scsi_host_state_name(state)));
+	return -EINVAL;
 }
+EXPORT_SYMBOL(scsi_host_set_state);
 
 /**
  * scsi_remove_host - remove a scsi host
@@ -74,11 +133,13 @@ static void scsi_host_cancel(struct Scsi_Host *shost, int recovery)
  **/
 void scsi_remove_host(struct Scsi_Host *shost)
 {
+	down(&shost->scan_mutex);
+	scsi_host_set_state(shost, SHOST_CANCEL);
+	up(&shost->scan_mutex);
 	scsi_forget_host(shost);
-	scsi_host_cancel(shost, 0);
 	scsi_proc_host_rm(shost);
 
-	set_bit(SHOST_DEL, &shost->shost_state);
+	scsi_host_set_state(shost, SHOST_DEL);
 
 	transport_unregister_device(&shost->shost_gendev);
 	class_device_unregister(&shost->shost_classdev);
@@ -115,7 +176,7 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 	if (error)
 		goto out;
 
-	set_bit(SHOST_ADD, &shost->shost_state);
+	scsi_host_set_state(shost, SHOST_RUNNING);
 	get_device(shost->shost_gendev.parent);
 
 	error = class_device_add(&shost->shost_classdev);
@@ -226,6 +287,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 
 	spin_lock_init(&shost->default_lock);
 	scsi_assign_lock(shost, &shost->default_lock);
+	shost->shost_state = SHOST_CREATED;
 	INIT_LIST_HEAD(&shost->__devices);
 	INIT_LIST_HEAD(&shost->__targets);
 	INIT_LIST_HEAD(&shost->eh_cmd_q);
@@ -382,7 +444,7 @@ EXPORT_SYMBOL(scsi_host_lookup);
  **/
 struct Scsi_Host *scsi_host_get(struct Scsi_Host *shost)
 {
-	if (test_bit(SHOST_DEL, &shost->shost_state) ||
+	if ((shost->shost_state == SHOST_DEL) ||
 		!get_device(&shost->shost_gendev))
 		return NULL;
 	return shost;

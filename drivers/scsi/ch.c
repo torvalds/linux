@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/completion.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/ioctl32.h>
 #include <linux/compat.h>
 #include <linux/chio.h>			/* here are all the ioctls */
@@ -940,8 +939,6 @@ static int ch_probe(struct device *dev)
 	if (init)
 		ch_init_elem(ch);
 
-	devfs_mk_cdev(MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
-		      S_IFCHR | S_IRUGO | S_IWUGO, ch->name);
 	class_device_create(ch_sysfs_class,
 			    MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
 			    dev, "s%s", ch->name);
@@ -974,7 +971,6 @@ static int ch_remove(struct device *dev)
 
 	class_device_destroy(ch_sysfs_class,
 			     MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
-	devfs_remove(ch->name);
 	kfree(ch->dt);
 	kfree(ch);
 	ch_devcount--;

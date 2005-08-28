@@ -44,7 +44,9 @@
 
 #include "aacraid.h"
 
-struct aac_common aac_config;
+struct aac_common aac_config = {
+	.irq_mod = 1
+};
 
 static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long commsize, unsigned long commalign)
 {

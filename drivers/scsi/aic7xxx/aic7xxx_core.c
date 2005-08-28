@@ -37,9 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#134 $
- *
- * $FreeBSD$
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#155 $
  */
 
 #ifdef __linux__
@@ -287,10 +285,19 @@ ahc_restart(struct ahc_softc *ahc)
 		ahc_outb(ahc, SEQ_FLAGS2,
 			 ahc_inb(ahc, SEQ_FLAGS2) & ~SCB_DMA);
 	}
+
+	/*
+	 * Clear any pending sequencer interrupt.  It is no
+	 * longer relevant since we're resetting the Program
+	 * Counter.
+	 */
+	ahc_outb(ahc, CLRINT, CLRSEQINT);
+
 	ahc_outb(ahc, MWI_RESIDUAL, 0);
 	ahc_outb(ahc, SEQCTL, ahc->seqctl);
 	ahc_outb(ahc, SEQADDR0, 0);
 	ahc_outb(ahc, SEQADDR1, 0);
+
 	ahc_unpause(ahc);
 }
 
@@ -1174,19 +1181,20 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 				       scb_index);
 			}
 #endif
-			/*
-			 * Force a renegotiation with this target just in
-			 * case the cable was pulled and will later be
-			 * re-attached.  The target may forget its negotiation
-			 * settings with us should it attempt to reselect
-			 * during the interruption.  The target will not issue
-			 * a unit attention in this case, so we must always
-			 * renegotiate.
-			 */
 			ahc_scb_devinfo(ahc, &devinfo, scb);
-			ahc_force_renegotiation(ahc, &devinfo);
 			ahc_set_transaction_status(scb, CAM_SEL_TIMEOUT);
 			ahc_freeze_devq(ahc, scb);
+
+			/*
+			 * Cancel any pending transactions on the device
+			 * now that it seems to be missing.  This will
+			 * also revert us to async/narrow transfers until
+			 * we can renegotiate with the device.
+			 */
+			ahc_handle_devreset(ahc, &devinfo,
+					    CAM_SEL_TIMEOUT,
+					    "Selection Timeout",
+					    /*verbose_level*/1);
 		}
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
 		ahc_restart(ahc);
@@ -3763,8 +3771,9 @@ ahc_handle_devreset(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 			 /*period*/0, /*offset*/0, /*ppr_options*/0,
 			 AHC_TRANS_CUR, /*paused*/TRUE);
 	
-	ahc_send_async(ahc, devinfo->channel, devinfo->target,
-		       CAM_LUN_WILDCARD, AC_SENT_BDR, NULL);
+	if (status != CAM_SEL_TIMEOUT)
+		ahc_send_async(ahc, devinfo->channel, devinfo->target,
+			       CAM_LUN_WILDCARD, AC_SENT_BDR, NULL);
 
 	if (message != NULL
 	 && (verbose_level <= bootverbose))
@@ -4003,14 +4012,6 @@ ahc_reset(struct ahc_softc *ahc, int reinit)
 	 * to disturb the integrity of the bus.
 	 */
 	ahc_pause(ahc);
-	if ((ahc_inb(ahc, HCNTRL) & CHIPRST) != 0) {
-		/*
-		 * The chip has not been initialized since
-		 * PCI/EISA/VLB bus reset.  Don't trust
-		 * "left over BIOS data".
-		 */
-		ahc->flags |= AHC_NO_BIOS_INIT;
-	}
 	sxfrctl1_b = 0;
 	if ((ahc->chip & AHC_CHIPID_MASK) == AHC_AIC7770) {
 		u_int sblkctl;
@@ -5036,14 +5037,23 @@ ahc_pause_and_flushwork(struct ahc_softc *ahc)
 	ahc->flags |= AHC_ALL_INTERRUPTS;
 	paused = FALSE;
 	do {
-		if (paused)
+		if (paused) {
 			ahc_unpause(ahc);
+			/*
+			 * Give the sequencer some time to service
+			 * any active selections.
+			 */
+			ahc_delay(500);
+		}
 		ahc_intr(ahc);
 		ahc_pause(ahc);
 		paused = TRUE;
 		ahc_outb(ahc, SCSISEQ, ahc_inb(ahc, SCSISEQ) & ~ENSELO);
-		ahc_clear_critical_section(ahc);
 		intstat = ahc_inb(ahc, INTSTAT);
+		if ((intstat & INT_PEND) == 0) {
+			ahc_clear_critical_section(ahc);
+			intstat = ahc_inb(ahc, INTSTAT);
+		}
 	} while (--maxloops
 	      && (intstat != 0xFF || (ahc->features & AHC_REMOVABLE) == 0)
 	      && ((intstat & INT_PEND) != 0

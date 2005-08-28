@@ -24,6 +24,7 @@
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
@@ -1135,6 +1136,8 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 	switch(list) {
 	case NLP_NO_LIST: /* No list, just remove it */
 		lpfc_nlp_remove(phba, nlp);
+		/* as node removed - stop further transport calls */
+		rport_del = none;
 		break;
 	case NLP_UNUSED_LIST:
 		spin_lock_irq(phba->host->host_lock);
