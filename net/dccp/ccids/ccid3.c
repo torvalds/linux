@@ -38,6 +38,7 @@
 #include "../ccid.h"
 #include "../dccp.h"
 #include "../packet_history.h"
+#include "lib/loss_interval.h"
 #include "ccid3.h"
 
 /*
@@ -62,30 +63,7 @@ static int ccid3_debug;
 
 static struct dccp_tx_hist *ccid3_tx_hist;
 static struct dccp_rx_hist *ccid3_rx_hist;
-
-static kmem_cache_t *ccid3_loss_interval_hist_slab __read_mostly;
-
-static inline struct ccid3_loss_interval_hist_entry *
-	ccid3_loss_interval_hist_entry_new(const unsigned int __nocast prio)
-{
-	return kmem_cache_alloc(ccid3_loss_interval_hist_slab, prio);
-}
-
-static inline void ccid3_loss_interval_hist_entry_delete(struct ccid3_loss_interval_hist_entry *entry)
-{
-	if (entry != NULL)
-		kmem_cache_free(ccid3_loss_interval_hist_slab, entry);
-}
-
-static void ccid3_loss_interval_history_delete(struct list_head *hist)
-{
-	struct ccid3_loss_interval_hist_entry *entry, *next;
-
-	list_for_each_entry_safe(entry, next, hist, ccid3lih_node) {
-		list_del_init(&entry->ccid3lih_node);
-		kmem_cache_free(ccid3_loss_interval_hist_slab, entry);
-	}
-}
+static struct dccp_li_hist *ccid3_li_hist;
 
 static int ccid3_init(struct sock *sk)
 {
@@ -1414,7 +1392,7 @@ trim_history:
 	 */
 	num_later = TFRC_RECV_NUM_LATE_LOSS + 1;
 
-	if (!list_empty(&hcrx->ccid3hcrx_loss_interval_hist)) {
+	if (!list_empty(&hcrx->ccid3hcrx_li_hist)) {
 		list_for_each_entry_safe(entry, next, &hcrx->ccid3hcrx_hist,
 					 dccphrx_node) {
 			if (num_later == 0) {
@@ -1555,15 +1533,6 @@ static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 			   &x_recv, sizeof(x_recv));
 }
 
-/* Weights used to calculate loss event rate */
-/*
- * These are integers as per section 8 of RFC3448. We can then divide by 4 *
- * when we use it.
- */
-static const int ccid3_hc_rx_w[TFRC_RECV_IVAL_F_LENGTH] = {
-	4, 4, 4, 4, 3, 2, 1, 1,
-};
-
 /*
  * args: fvalue - function value to match
  * returns:  p  closest to that value
@@ -1672,41 +1641,17 @@ static void ccid3_hc_rx_update_li(struct sock *sk, u64 seq_loss, u8 win_loss)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
-	struct ccid3_loss_interval_hist_entry *li_entry;
 
-	if (seq_loss != DCCP_MAX_SEQNO + 1) {
-		ccid3_pr_debug("%s, sk=%p, seq_loss=%llu, win_loss=%u, "
-			       "packet loss detected\n",
-			       dccp_role(sk), sk, seq_loss, win_loss);
-		
-		if (list_empty(&hcrx->ccid3hcrx_loss_interval_hist)) {
-			struct ccid3_loss_interval_hist_entry *li_tail = NULL;
-			int i;
+	if (seq_loss != DCCP_MAX_SEQNO + 1 &&
+	    list_empty(&hcrx->ccid3hcrx_li_hist)) {
+		struct dccp_li_hist_entry *li_tail;
 
-			ccid3_pr_debug("%s, sk=%p, first loss event detected, "
-				       "creating history\n",
-				       dccp_role(sk), sk);
-			for (i = 0; i <= TFRC_RECV_IVAL_F_LENGTH; ++i) {
-				li_entry = ccid3_loss_interval_hist_entry_new(SLAB_ATOMIC);
-				if (li_entry == NULL) {
-					ccid3_loss_interval_history_delete(&hcrx->ccid3hcrx_loss_interval_hist);
-					ccid3_pr_debug("%s, sk=%p, not enough "
-						       "mem for creating "
-						       "history\n",
-						       dccp_role(sk), sk);
-					return;
-				}
-				if (li_tail == NULL)
-					li_tail = li_entry;
-				list_add(&li_entry->ccid3lih_node,
-					 &hcrx->ccid3hcrx_loss_interval_hist);
-			}
-
-			li_entry->ccid3lih_seqno     = seq_loss;
-			li_entry->ccid3lih_win_count = win_loss;
-
-			li_tail->ccid3lih_interval   = ccid3_hc_rx_calc_first_li(sk);
-		}
+		li_tail = dccp_li_hist_interval_new(ccid3_li_hist,
+						    &hcrx->ccid3hcrx_li_hist,
+						    seq_loss, win_loss);
+		if (li_tail == NULL)
+			return;
+		li_tail->dccplih_interval = ccid3_hc_rx_calc_first_li(sk);
 	}
 	/* FIXME: find end of interval */
 }
@@ -1746,12 +1691,11 @@ static void ccid3_hc_rx_detect_loss(struct sock *sk)
 	}
 
 	if (a_loss == NULL) {
-		if (list_empty(&hcrx->ccid3hcrx_loss_interval_hist)) {
+		if (list_empty(&hcrx->ccid3hcrx_li_hist)) {
 			/* no loss event have occured yet */
-			ccid3_pr_debug("%s, sk=%p, TODO: find a lost data "
-					"packet by comparing to initial "
-					"seqno\n",
-				       dccp_role(sk), sk);
+			LIMIT_NETDEBUG("%s: TODO: find a lost data packet by "
+				       "comparing to initial seqno\n",
+				       dccp_role(sk));
 			goto out_update_li;
 		} else {
 			pr_info("%s: %s, sk=%p, ERROR! Less than 4 data "
@@ -1797,48 +1741,6 @@ static void ccid3_hc_rx_detect_loss(struct sock *sk)
 
 out_update_li:
 	ccid3_hc_rx_update_li(sk, seq_loss, win_loss);
-}
-
-static u32 ccid3_hc_rx_calc_i_mean(struct sock *sk)
-{
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx = dp->dccps_hc_rx_ccid_private;
-	struct ccid3_loss_interval_hist_entry *li_entry, *li_next;
-	int i = 0;
-	u32 i_tot;
-	u32 i_tot0 = 0;
-	u32 i_tot1 = 0;
-	u32 w_tot  = 0;
-
-	list_for_each_entry_safe(li_entry, li_next,
-				 &hcrx->ccid3hcrx_loss_interval_hist,
-				 ccid3lih_node) {
-		if (i < TFRC_RECV_IVAL_F_LENGTH) {
-			i_tot0 += li_entry->ccid3lih_interval * ccid3_hc_rx_w[i];
-			w_tot  += ccid3_hc_rx_w[i];
-		}
-
-		if (i != 0)
-			i_tot1 += li_entry->ccid3lih_interval * ccid3_hc_rx_w[i - 1];
-
-		if (++i > TFRC_RECV_IVAL_F_LENGTH)
-			break;
-	}
-
-	if (i != TFRC_RECV_IVAL_F_LENGTH) {
-		pr_info("%s: %s, sk=%p, ERROR! Missing entry in "
-			"interval history!\n",
-			__FUNCTION__, dccp_role(sk), sk);
-		return 0;
-	}
-
-	i_tot = max(i_tot0, i_tot1);
-
-	/* FIXME: Why do we do this? -Ian McDonald */
-	if (i_tot * 4 < w_tot)
-		i_tot = w_tot * 4;
-
-	return i_tot * 4 / w_tot;
 }
 
 static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
@@ -1939,9 +1841,9 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	p_prev = hcrx->ccid3hcrx_p;
 	
 	/* Calculate loss event rate */
-	if (!list_empty(&hcrx->ccid3hcrx_loss_interval_hist))
+	if (!list_empty(&hcrx->ccid3hcrx_li_hist))
 		/* Scaling up by 1000000 as fixed decimal */
-		hcrx->ccid3hcrx_p = 1000000 / ccid3_hc_rx_calc_i_mean(sk);
+		hcrx->ccid3hcrx_p = 1000000 / dccp_li_hist_calc_i_mean(&hcrx->ccid3hcrx_li_hist);
 
 	if (hcrx->ccid3hcrx_p > p_prev) {
 		ccid3_hc_rx_send_feedback(sk);
@@ -1971,7 +1873,7 @@ static int ccid3_hc_rx_init(struct sock *sk)
 
 	hcrx->ccid3hcrx_state = TFRC_RSTATE_NO_DATA;
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_hist);
-	INIT_LIST_HEAD(&hcrx->ccid3hcrx_loss_interval_hist);
+	INIT_LIST_HEAD(&hcrx->ccid3hcrx_li_hist);
 	/*
 	 * XXX this seems to be paranoid, need to think more about this, for
 	 * now start with something different than zero. -acme
@@ -1996,7 +1898,7 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 	dccp_rx_hist_purge(ccid3_rx_hist, &hcrx->ccid3hcrx_hist);
 
 	/* Empty loss interval history */
-	ccid3_loss_interval_history_delete(&hcrx->ccid3hcrx_loss_interval_hist);
+	dccp_li_hist_purge(ccid3_li_hist, &hcrx->ccid3hcrx_li_hist);
 
 	kfree(dp->dccps_hc_rx_ccid_private);
 	dp->dccps_hc_rx_ccid_private = NULL;
@@ -2063,11 +1965,8 @@ static __init int ccid3_module_init(void)
 	if (ccid3_tx_hist == NULL)
 		goto out_free_rx;
 
-	ccid3_loss_interval_hist_slab = kmem_cache_create("li_hist_ccid3",
-				  sizeof(struct ccid3_loss_interval_hist_entry),
-							  0, SLAB_HWCACHE_ALIGN,
-							  NULL, NULL);
-	if (ccid3_loss_interval_hist_slab == NULL)
+	ccid3_li_hist = dccp_li_hist_new("ccid3");
+	if (ccid3_li_hist == NULL)
 		goto out_free_tx;
 
 	rc = ccid_register(&ccid3);
@@ -2077,8 +1976,8 @@ out:
 	return rc;
 
 out_free_loss_interval_history:
-	kmem_cache_destroy(ccid3_loss_interval_hist_slab);
-	ccid3_loss_interval_hist_slab = NULL;
+	dccp_li_hist_delete(ccid3_li_hist);
+	ccid3_li_hist = NULL;
 out_free_tx:
 	dccp_tx_hist_delete(ccid3_tx_hist);
 	ccid3_tx_hist = NULL;
@@ -2110,9 +2009,9 @@ static __exit void ccid3_module_exit(void)
 		dccp_rx_hist_delete(ccid3_rx_hist);
 		ccid3_rx_hist = NULL;
 	}
-	if (ccid3_loss_interval_hist_slab != NULL) {
-		kmem_cache_destroy(ccid3_loss_interval_hist_slab);
-		ccid3_loss_interval_hist_slab = NULL;
+	if (ccid3_li_hist != NULL) {
+		dccp_li_hist_delete(ccid3_li_hist);
+		ccid3_li_hist = NULL;
 	}
 }
 module_exit(ccid3_module_exit);

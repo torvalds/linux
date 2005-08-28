@@ -59,8 +59,6 @@
 
 #define TFRC_SMALLEST_P		   40
 
-#define TFRC_RECV_IVAL_F_LENGTH	    8
-
 /* Number of later packets received before one is considered lost */
 #define TFRC_RECV_NUM_LATE_LOSS	3
 
@@ -119,13 +117,6 @@ struct ccid3_hc_tx_sock {
 	struct ccid3_options_received	ccid3hctx_options_received;
 };
 
-struct ccid3_loss_interval_hist_entry {
-	struct list_head	ccid3lih_node;
-	u64			ccid3lih_seqno:48,
-				ccid3lih_win_count:4;
-	u32			ccid3lih_interval;
-};
-
 struct ccid3_hc_rx_sock {
   	u64			ccid3hcrx_seqno_last_counter:48,
 				ccid3hcrx_state:8,
@@ -136,7 +127,7 @@ struct ccid3_hc_rx_sock {
   	struct timeval		ccid3hcrx_tstamp_last_feedback;
   	struct timeval		ccid3hcrx_tstamp_last_ack;
 	struct list_head	ccid3hcrx_hist;
-	struct list_head	ccid3hcrx_loss_interval_hist;
+	struct list_head	ccid3hcrx_li_hist;
   	u16			ccid3hcrx_s;
   	u32			ccid3hcrx_pinv;
   	u32			ccid3hcrx_elapsed_time;
