@@ -446,7 +446,6 @@ void scsi_target_reap(struct scsi_target *starget)
 static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
 			  int result_len, int *bflags)
 {
-	char sense[SCSI_SENSE_BUFFERSIZE];
 	unsigned char scsi_cmd[MAX_COMMAND_SIZE];
 	int first_inquiry_len, try_inquiry_len, next_inquiry_len;
 	int response_len = 0;
@@ -474,11 +473,10 @@ static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
 		scsi_cmd[0] = INQUIRY;
 		scsi_cmd[4] = (unsigned char) try_inquiry_len;
 
-		memset(sense, 0, sizeof(sense));
 		memset(inq_result, 0, try_inquiry_len);
 
 		result = scsi_execute_req(sdev,  scsi_cmd, DMA_FROM_DEVICE,
-					  inq_result, try_inquiry_len, sense,
+					  inq_result, try_inquiry_len, &sshdr,
 					  HZ / 2 + HZ * scsi_inq_timeout, 3);
 
 		SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: INQUIRY %s "
@@ -493,8 +491,7 @@ static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
 			 * but many buggy devices do so anyway. 
 			 */
 			if ((driver_byte(result) & DRIVER_SENSE) &&
-			    scsi_normalize_sense(sense, sizeof(sense),
-						 &sshdr)) {
+			    scsi_sense_valid(&sshdr)) {
 				if ((sshdr.sense_key == UNIT_ATTENTION) &&
 				    ((sshdr.asc == 0x28) ||
 				     (sshdr.asc == 0x29)) &&
@@ -1057,7 +1054,6 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 				int rescan)
 {
 	char devname[64];
-	char sense[SCSI_SENSE_BUFFERSIZE];
 	unsigned char scsi_cmd[MAX_COMMAND_SIZE];
 	unsigned int length;
 	unsigned int lun;
@@ -1134,9 +1130,8 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 				" REPORT LUNS to %s (try %d)\n", devname,
 				retries));
 
-		memset(sense, 0, sizeof(sense));
 		result = scsi_execute_req(sdev, scsi_cmd, DMA_FROM_DEVICE,
-					  lun_data, length, sense,
+					  lun_data, length, &sshdr,
 					  SCSI_TIMEOUT + 4 * HZ, 3);
 
 		SCSI_LOG_SCAN_BUS(3, printk (KERN_INFO "scsi scan: REPORT LUNS"
@@ -1144,7 +1139,7 @@ static int scsi_report_lun_scan(struct scsi_device *sdev, int bflags,
 				?  "failed" : "successful", retries, result));
 		if (result == 0)
 			break;
-		else if (scsi_normalize_sense(sense, sizeof(sense), &sshdr)) {
+		else if (scsi_sense_valid(&sshdr)) {
 			if (sshdr.sense_key != UNIT_ATTENTION)
 				break;
 		}

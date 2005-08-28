@@ -90,19 +90,16 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 {
 	int result;
 	struct scsi_sense_hdr sshdr;
-	char sense[SCSI_SENSE_BUFFERSIZE];
 
 	SCSI_LOG_IOCTL(1, printk("Trying ioctl with scsi command %d\n", *cmd));
 
-
-	memset(sense, 0, sizeof(*sense));
 	result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0,
-				  sense, timeout, retries);
+				  &sshdr, timeout, retries);
 
 	SCSI_LOG_IOCTL(2, printk("Ioctl returned  0x%x\n", result));
 
 	if ((driver_byte(result) & DRIVER_SENSE) &&
-	    (scsi_normalize_sense(sense, sizeof(*sense), &sshdr))) {
+	    (scsi_sense_valid(&sshdr))) {
 		switch (sshdr.sense_key) {
 		case ILLEGAL_REQUEST:
 			if (cmd[0] == ALLOW_MEDIUM_REMOVAL)
@@ -132,7 +129,7 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 			       sdev->id,
 			       sdev->lun,
 			       result);
-			__scsi_print_sense("   ", sense, sizeof(*sense));
+			scsi_print_sense_hdr("   ", &sshdr);
 			break;
 		}
 	}
@@ -315,9 +312,9 @@ int scsi_ioctl_send_command(struct scsi_device *sdev,
 		break;
 	}
 
-	result = scsi_execute_req(sdev, cmd, data_direction, buf, needed,
-				  sense, timeout, retries);
-				  
+	result = scsi_execute(sdev, cmd, data_direction, buf, needed,
+			      sense, timeout, retries, 0);
+
 	/* 
 	 * If there was an error condition, pass the info back to the user. 
 	 */

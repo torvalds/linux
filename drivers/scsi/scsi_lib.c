@@ -293,8 +293,8 @@ EXPORT_SYMBOL(scsi_wait_req);
  * @retries:	number of times to retry request
  * @flags:	or into request flags;
  *
- * scsi_execute_req returns the req->errors value which is the
- * the scsi_cmnd result field.
+ * returns the req->errors value which is the the scsi_cmnd result
+ * field.
  **/
 int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
@@ -328,8 +328,30 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 
 	return ret;
 }
-
 EXPORT_SYMBOL(scsi_execute);
+
+
+int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
+		     int data_direction, void *buffer, unsigned bufflen,
+		     struct scsi_sense_hdr *sshdr, int timeout, int retries)
+{
+	char *sense = NULL;
+		
+	if (sshdr) {
+		sense = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
+		if (!sense)
+			return DRIVER_ERROR << 24;
+		memset(sense, 0, sizeof(*sense));
+	}
+	int result = scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
+				  sense, timeout, retries, 0);
+	if (sshdr)
+		scsi_normalize_sense(sense, sizeof(*sense), sshdr);
+
+	kfree(sense);
+	return result;
+}
+EXPORT_SYMBOL(scsi_execute_req);
 
 /*
  * Function:    scsi_init_cmd_errh()
@@ -1614,7 +1636,7 @@ void scsi_exit_queue(void)
 	}
 }
 /**
- *	__scsi_mode_sense - issue a mode sense, falling back from 10 to 
+ *	scsi_mode_sense - issue a mode sense, falling back from 10 to 
  *		six bytes if necessary.
  *	@sdev:	SCSI device to be queried
  *	@dbd:	set if mode sense will allow block descriptors to be returned
@@ -1634,26 +1656,22 @@ void scsi_exit_queue(void)
 int
 scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 		  unsigned char *buffer, int len, int timeout, int retries,
-		  struct scsi_mode_data *data, char *sense) {
+		  struct scsi_mode_data *data, struct scsi_sense_hdr *sshdr) {
 	unsigned char cmd[12];
 	int use_10_for_ms;
 	int header_length;
 	int result;
-	char *sense_buffer = NULL;
+	struct scsi_sense_hdr my_sshdr;
 
 	memset(data, 0, sizeof(*data));
 	memset(&cmd[0], 0, 12);
 	cmd[1] = dbd & 0x18;	/* allows DBD and LLBA bits */
 	cmd[2] = modepage;
 
-	if (!sense) {
-		sense_buffer = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
-		if (!sense_buffer) {
-			dev_printk(KERN_ERR, &sdev->sdev_gendev, "failed to allocate sense buffer\n");
-			return 0;
-		}
-		sense = sense_buffer;
-	}
+	/* caller might not be interested in sense, but we need it */
+	if (!sshdr)
+		sshdr = &my_sshdr;
+
  retry:
 	use_10_for_ms = sdev->use_10_for_ms;
 
@@ -1673,12 +1691,10 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 		header_length = 4;
 	}
 
-	memset(sense, 0, SCSI_SENSE_BUFFERSIZE);
-
 	memset(buffer, 0, len);
 
 	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer, len,
-				  sense, timeout, retries);
+				  sshdr, timeout, retries);
 
 	/* This code looks awful: what it's doing is making sure an
 	 * ILLEGAL REQUEST sense return identifies the actual command
@@ -1687,11 +1703,9 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 
 	if (use_10_for_ms && !scsi_status_is_good(result) &&
 	    (driver_byte(result) & DRIVER_SENSE)) {
-		struct scsi_sense_hdr sshdr;
-
-		if (scsi_normalize_sense(sense, SCSI_SENSE_BUFFERSIZE, &sshdr)) {
-			if ((sshdr.sense_key == ILLEGAL_REQUEST) &&
-			    (sshdr.asc == 0x20) && (sshdr.ascq == 0)) {
+		if (scsi_sense_valid(sshdr)) {
+			if ((sshdr->sense_key == ILLEGAL_REQUEST) &&
+			    (sshdr->asc == 0x20) && (sshdr->ascq == 0)) {
 				/* 
 				 * Invalid command operation code
 				 */
@@ -1718,7 +1732,6 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 		}
 	}
 
-	kfree(sense_buffer);
 	return result;
 }
 EXPORT_SYMBOL(scsi_mode_sense);
@@ -1729,17 +1742,15 @@ scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries)
 	char cmd[] = {
 		TEST_UNIT_READY, 0, 0, 0, 0, 0,
 	};
-	char sense[SCSI_SENSE_BUFFERSIZE];
+	struct scsi_sense_hdr sshdr;
 	int result;
 	
-	result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, sense,
+	result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, &sshdr,
 				  timeout, retries);
 
 	if ((driver_byte(result) & DRIVER_SENSE) && sdev->removable) {
-		struct scsi_sense_hdr sshdr;
 
-		if ((scsi_normalize_sense(sense, SCSI_SENSE_BUFFERSIZE,
-					  &sshdr)) &&
+		if ((scsi_sense_valid(&sshdr)) &&
 		    ((sshdr.sense_key == UNIT_ATTENTION) ||
 		     (sshdr.sense_key == NOT_READY))) {
 			sdev->changed = 1;
