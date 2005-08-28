@@ -22,4 +22,8 @@ config IP_DCCP_CCID3
 	  
 	  If in doubt, say M.
 
+config IP_DCCP_TFRC_LIB
+	depends on IP_DCCP_CCID3
+	def_tristate IP_DCCP_CCID3
+
 endmenu

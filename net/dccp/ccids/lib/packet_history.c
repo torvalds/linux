@@ -35,6 +35,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/module.h>
 #include <linux/string.h>
 
 #include "packet_history.h"
@@ -197,3 +198,8 @@ void dccp_tx_hist_purge(struct dccp_tx_hist *hist, struct list_head *list)
 }
 
 EXPORT_SYMBOL_GPL(dccp_tx_hist_purge);
+
+MODULE_AUTHOR("Ian McDonald <iam4@cs.waikato.ac.nz>, "
+	      "Arnaldo Carvalho de Melo <acme@ghostprotocols.net>");
+MODULE_DESCRIPTION("DCCP TFRC library");
+MODULE_LICENSE("GPL");
