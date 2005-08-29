@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/idr.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -20,6 +21,7 @@
 
 #define dev_to_mmc_card(d)	container_of(d, struct mmc_card, dev)
 #define to_mmc_driver(d)	container_of(d, struct mmc_driver, drv)
+#define cls_dev_to_mmc_host(d)	container_of(d, struct mmc_host, class_dev)
 
 #define MMC_ATTR(name, fmt, args...)					\
 static ssize_t mmc_##name##_show (struct device *dev, struct device_attribute *attr, char *buf)	\
@@ -206,7 +208,7 @@ void mmc_init_card(struct mmc_card *card, struct mmc_host *host)
 int mmc_register_card(struct mmc_card *card)
 {
 	snprintf(card->dev.bus_id, sizeof(card->dev.bus_id),
-		 "%s:%04x", card->host->host_name, card->rca);
+		 "%s:%04x", mmc_hostname(card->host), card->rca);
 
 	return device_add(&card->dev);
 }
@@ -224,13 +226,97 @@ void mmc_remove_card(struct mmc_card *card)
 }
 
 
+static void mmc_host_classdev_release(struct class_device *dev)
+{
+	struct mmc_host *host = cls_dev_to_mmc_host(dev);
+	kfree(host);
+}
+
+static struct class mmc_host_class = {
+	.name		= "mmc_host",
+	.release	= mmc_host_classdev_release,
+};
+
+static DEFINE_IDR(mmc_host_idr);
+static DEFINE_SPINLOCK(mmc_host_lock);
+
+/*
+ * Internal function. Allocate a new MMC host.
+ */
+struct mmc_host *mmc_alloc_host_sysfs(int extra, struct device *dev)
+{
+	struct mmc_host *host;
+
+	host = kmalloc(sizeof(struct mmc_host) + extra, GFP_KERNEL);
+	if (host) {
+		memset(host, 0, sizeof(struct mmc_host) + extra);
+
+		host->dev = dev;
+		host->class_dev.dev = host->dev;
+		host->class_dev.class = &mmc_host_class;
+		class_device_initialize(&host->class_dev);
+	}
+
+	return host;
+}
+
+/*
+ * Internal function. Register a new MMC host with the MMC class.
+ */
+int mmc_add_host_sysfs(struct mmc_host *host)
+{
+	int err;
+
+	if (!idr_pre_get(&mmc_host_idr, GFP_KERNEL))
+		return -ENOMEM;
+
+	spin_lock(&mmc_host_lock);
+	err = idr_get_new(&mmc_host_idr, host, &host->index);
+	spin_unlock(&mmc_host_lock);
+	if (err)
+		return err;
+
+	snprintf(host->class_dev.class_id, BUS_ID_SIZE,
+		 "mmc%d", host->index);
+
+	return class_device_add(&host->class_dev);
+}
+
+/*
+ * Internal function. Unregister a MMC host with the MMC class.
+ */
+void mmc_remove_host_sysfs(struct mmc_host *host)
+{
+	class_device_del(&host->class_dev);
+
+	spin_lock(&mmc_host_lock);
+	idr_remove(&mmc_host_idr, host->index);
+	spin_unlock(&mmc_host_lock);
+}
+
+/*
+ * Internal function. Free a MMC host.
+ */
+void mmc_free_host_sysfs(struct mmc_host *host)
+{
+	class_device_put(&host->class_dev);
+}
+
+
 static int __init mmc_init(void)
 {
-	return bus_register(&mmc_bus_type);
+	int ret = bus_register(&mmc_bus_type);
+	if (ret == 0) {
+		ret = class_register(&mmc_host_class);
+		if (ret)
+			bus_unregister(&mmc_bus_type);
+	}
+	return ret;
 }
 
 static void __exit mmc_exit(void)
 {
+	class_unregister(&mmc_host_class);
 	bus_unregister(&mmc_bus_type);
 }
 

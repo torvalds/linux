@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Intel Corporation. All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,7 +37,7 @@
 #ifndef _IB_CACHE_H
 #define _IB_CACHE_H
 
-#include <ib_verbs.h>
+#include <rdma/ib_verbs.h>
 
 /**
  * ib_get_cached_gid - Returns a cached GID table entry

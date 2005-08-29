@@ -1,26 +1,34 @@
 /*
  *  ahci.c - AHCI SATA support
  *
- *  Copyright 2004 Red Hat, Inc.
+ *  Maintained by:  Jeff Garzik <jgarzik@pobox.com>
+ *    		    Please ALWAYS copy linux-ide@vger.kernel.org
+ *		    on emails.
  *
- *  The contents of this file are subject to the Open
- *  Software License version 1.1 that can be found at
- *  http://www.opensource.org/licenses/osl-1.1.txt and is included herein
- *  by reference.
+ *  Copyright 2004-2005 Red Hat, Inc.
  *
- *  Alternatively, the contents of this file may be used under the terms
- *  of the GNU General Public License version 2 (the "GPL") as distributed
- *  in the kernel source COPYING file, in which case the provisions of
- *  the GPL are applicable instead of the above.  If you wish to allow
- *  the use of your version of this file only under the terms of the
- *  GPL and not to allow others to use your version of this file under
- *  the OSL, indicate your decision by deleting the provisions above and
- *  replace them with the notice and other provisions required by the GPL.
- *  If you do not delete the provisions above, a recipient may use your
- *  version of this file under either the OSL or the GPL.
  *
- * Version 1.0 of the AHCI specification:
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ * libata documentation is available via 'make {ps|pdf}docs',
+ * as Documentation/DocBook/libata.*
+ *
+ * AHCI hardware documentation:
  * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
+ * http://www.intel.com/technology/serialata/pdf/rev1_1.pdf
  *
  */
 
@@ -269,6 +277,8 @@ static struct pci_device_id ahci_pci_tbl[] = {
 	  board_ahci }, /* ESB2 */
 	{ PCI_VENDOR_ID_INTEL, 0x2683, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_ahci }, /* ESB2 */
+	{ PCI_VENDOR_ID_INTEL, 0x27c6, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+	  board_ahci }, /* ICH7-M DH */
 	{ }	/* terminate list */
 };
 
@@ -584,11 +594,15 @@ static void ahci_intr_error(struct ata_port *ap, u32 irq_stat)
 
 static void ahci_eng_timeout(struct ata_port *ap)
 {
-	void *mmio = ap->host_set->mmio_base;
+	struct ata_host_set *host_set = ap->host_set;
+	void *mmio = host_set->mmio_base;
 	void *port_mmio = ahci_port_base(mmio, ap->port_no);
 	struct ata_queued_cmd *qc;
+	unsigned long flags;
 
 	DPRINTK("ENTER\n");
+
+	spin_lock_irqsave(&host_set->lock, flags);
 
 	ahci_intr_error(ap, readl(port_mmio + PORT_IRQ_STAT));
 
@@ -607,6 +621,7 @@ static void ahci_eng_timeout(struct ata_port *ap)
 		ata_qc_complete(qc, ATA_ERR);
 	}
 
+	spin_unlock_irqrestore(&host_set->lock, flags);
 }
 
 static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
@@ -695,9 +710,6 @@ static int ahci_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	void *port_mmio = (void *) ap->ioaddr.cmd_addr;
-
-	writel(1, port_mmio + PORT_SCR_ACT);
-	readl(port_mmio + PORT_SCR_ACT);	/* flush */
 
 	writel(1, port_mmio + PORT_CMD_ISSUE);
 	readl(port_mmio + PORT_CMD_ISSUE);	/* flush */

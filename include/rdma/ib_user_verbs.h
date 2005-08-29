@@ -78,7 +78,12 @@ enum {
 	IB_USER_VERBS_CMD_POST_SEND,
 	IB_USER_VERBS_CMD_POST_RECV,
 	IB_USER_VERBS_CMD_ATTACH_MCAST,
-	IB_USER_VERBS_CMD_DETACH_MCAST
+	IB_USER_VERBS_CMD_DETACH_MCAST,
+	IB_USER_VERBS_CMD_CREATE_SRQ,
+	IB_USER_VERBS_CMD_MODIFY_SRQ,
+	IB_USER_VERBS_CMD_QUERY_SRQ,
+	IB_USER_VERBS_CMD_DESTROY_SRQ,
+	IB_USER_VERBS_CMD_POST_SRQ_RECV
 };
 
 /*
@@ -143,8 +148,8 @@ struct ib_uverbs_query_device {
 
 struct ib_uverbs_query_device_resp {
 	__u64 fw_ver;
-	__u64 node_guid;
-	__u64 sys_image_guid;
+	__be64 node_guid;
+	__be64 sys_image_guid;
 	__u64 max_mr_size;
 	__u64 page_size_cap;
 	__u32 vendor_id;
@@ -384,6 +389,34 @@ struct ib_uverbs_detach_mcast {
 	__u16 mlid;
 	__u16 reserved;
 	__u64 driver_data[0];
+};
+
+struct ib_uverbs_create_srq {
+	__u64 response;
+	__u64 user_handle;
+	__u32 pd_handle;
+	__u32 max_wr;
+	__u32 max_sge;
+	__u32 srq_limit;
+	__u64 driver_data[0];
+};
+
+struct ib_uverbs_create_srq_resp {
+	__u32 srq_handle;
+};
+
+struct ib_uverbs_modify_srq {
+	__u32 srq_handle;
+	__u32 attr_mask;
+	__u32 max_wr;
+	__u32 max_sge;
+	__u32 srq_limit;
+	__u32 reserved;
+	__u64 driver_data[0];
+};
+
+struct ib_uverbs_destroy_srq {
+	__u32 srq_handle;
 };
 
 #endif /* IB_USER_VERBS_H */

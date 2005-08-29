@@ -2,6 +2,8 @@
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005 Cisco Systems. All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -34,7 +36,7 @@
  * $Id: mthca_provider.c 1397 2004-12-28 05:09:00Z roland $
  */
 
-#include <ib_smi.h>
+#include <rdma/ib_smi.h>
 #include <linux/mm.h>
 
 #include "mthca_dev.h"
@@ -79,10 +81,10 @@ static int mthca_query_device(struct ib_device *ibdev,
 	}
 
 	props->device_cap_flags    = mdev->device_cap_flags;
-	props->vendor_id           = be32_to_cpup((u32 *) (out_mad->data + 36)) &
+	props->vendor_id           = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;
-	props->vendor_part_id      = be16_to_cpup((u16 *) (out_mad->data + 30));
-	props->hw_ver              = be16_to_cpup((u16 *) (out_mad->data + 32));
+	props->vendor_part_id      = be16_to_cpup((__be16 *) (out_mad->data + 30));
+	props->hw_ver              = be16_to_cpup((__be16 *) (out_mad->data + 32));
 	memcpy(&props->sys_image_guid, out_mad->data +  4, 8);
 	memcpy(&props->node_guid,      out_mad->data + 12, 8);
 
@@ -118,6 +120,8 @@ static int mthca_query_port(struct ib_device *ibdev,
 	if (!in_mad || !out_mad)
 		goto out;
 
+	memset(props, 0, sizeof *props);
+
 	memset(in_mad, 0, sizeof *in_mad);
 	in_mad->base_version       = 1;
 	in_mad->mgmt_class     	   = IB_MGMT_CLASS_SUBN_LID_ROUTED;
@@ -136,16 +140,17 @@ static int mthca_query_port(struct ib_device *ibdev,
 		goto out;
 	}
 
-	props->lid               = be16_to_cpup((u16 *) (out_mad->data + 16));
+	props->lid               = be16_to_cpup((__be16 *) (out_mad->data + 16));
 	props->lmc               = out_mad->data[34] & 0x7;
-	props->sm_lid            = be16_to_cpup((u16 *) (out_mad->data + 18));
+	props->sm_lid            = be16_to_cpup((__be16 *) (out_mad->data + 18));
 	props->sm_sl             = out_mad->data[36] & 0xf;
 	props->state             = out_mad->data[32] & 0xf;
 	props->phys_state        = out_mad->data[33] >> 4;
-	props->port_cap_flags    = be32_to_cpup((u32 *) (out_mad->data + 20));
+	props->port_cap_flags    = be32_to_cpup((__be32 *) (out_mad->data + 20));
 	props->gid_tbl_len       = to_mdev(ibdev)->limits.gid_table_len;
+	props->max_msg_sz        = 0x80000000;
 	props->pkey_tbl_len      = to_mdev(ibdev)->limits.pkey_table_len;
-	props->qkey_viol_cntr    = be16_to_cpup((u16 *) (out_mad->data + 48));
+	props->qkey_viol_cntr    = be16_to_cpup((__be16 *) (out_mad->data + 48));
 	props->active_width      = out_mad->data[31] & 0xf;
 	props->active_speed      = out_mad->data[35] >> 4;
 
@@ -221,7 +226,7 @@ static int mthca_query_pkey(struct ib_device *ibdev,
 		goto out;
 	}
 
-	*pkey = be16_to_cpu(((u16 *) out_mad->data)[index % 32]);
+	*pkey = be16_to_cpu(((__be16 *) out_mad->data)[index % 32]);
 
  out:
 	kfree(in_mad);
@@ -416,6 +421,77 @@ static int mthca_ah_destroy(struct ib_ah *ah)
 {
 	mthca_destroy_ah(to_mdev(ah->device), to_mah(ah));
 	kfree(ah);
+
+	return 0;
+}
+
+static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
+				       struct ib_srq_init_attr *init_attr,
+				       struct ib_udata *udata)
+{
+	struct mthca_create_srq ucmd;
+	struct mthca_ucontext *context = NULL;
+	struct mthca_srq *srq;
+	int err;
+
+	srq = kmalloc(sizeof *srq, GFP_KERNEL);
+	if (!srq)
+		return ERR_PTR(-ENOMEM);
+
+	if (pd->uobject) {
+		context = to_mucontext(pd->uobject->context);
+
+		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
+			return ERR_PTR(-EFAULT);
+
+		err = mthca_map_user_db(to_mdev(pd->device), &context->uar,
+					context->db_tab, ucmd.db_index,
+					ucmd.db_page);
+
+		if (err)
+			goto err_free;
+
+		srq->mr.ibmr.lkey = ucmd.lkey;
+		srq->db_index     = ucmd.db_index;
+	}
+
+	err = mthca_alloc_srq(to_mdev(pd->device), to_mpd(pd),
+			      &init_attr->attr, srq);
+
+	if (err && pd->uobject)
+		mthca_unmap_user_db(to_mdev(pd->device), &context->uar,
+				    context->db_tab, ucmd.db_index);
+
+	if (err)
+		goto err_free;
+
+	if (context && ib_copy_to_udata(udata, &srq->srqn, sizeof (__u32))) {
+		mthca_free_srq(to_mdev(pd->device), srq);
+		err = -EFAULT;
+		goto err_free;
+	}
+
+	return &srq->ibsrq;
+
+err_free:
+	kfree(srq);
+
+	return ERR_PTR(err);
+}
+
+static int mthca_destroy_srq(struct ib_srq *srq)
+{
+	struct mthca_ucontext *context;
+
+	if (srq->uobject) {
+		context = to_mucontext(srq->uobject->context);
+
+		mthca_unmap_user_db(to_mdev(srq->device), &context->uar,
+				    context->db_tab, to_msrq(srq)->db_index);
+	}
+
+	mthca_free_srq(to_mdev(srq->device), to_msrq(srq));
+	kfree(srq);
 
 	return 0;
 }
@@ -956,14 +1032,22 @@ static ssize_t show_hca(struct class_device *cdev, char *buf)
 	}
 }
 
+static ssize_t show_board(struct class_device *cdev, char *buf)
+{
+	struct mthca_dev *dev = container_of(cdev, struct mthca_dev, ib_dev.class_dev);
+	return sprintf(buf, "%.*s\n", MTHCA_BOARD_ID_LEN, dev->board_id);
+}
+
 static CLASS_DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
 static CLASS_DEVICE_ATTR(fw_ver,   S_IRUGO, show_fw_ver, NULL);
 static CLASS_DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
+static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
 
 static struct class_device_attribute *mthca_class_attributes[] = {
 	&class_device_attr_hw_rev,
 	&class_device_attr_fw_ver,
-	&class_device_attr_hca_type
+	&class_device_attr_hca_type,
+	&class_device_attr_board_id
 };
 
 int mthca_register_device(struct mthca_dev *dev)
@@ -990,6 +1074,17 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.dealloc_pd           = mthca_dealloc_pd;
 	dev->ib_dev.create_ah            = mthca_ah_create;
 	dev->ib_dev.destroy_ah           = mthca_ah_destroy;
+
+	if (dev->mthca_flags & MTHCA_FLAG_SRQ) {
+		dev->ib_dev.create_srq           = mthca_create_srq;
+		dev->ib_dev.destroy_srq          = mthca_destroy_srq;
+
+		if (mthca_is_memfree(dev))
+			dev->ib_dev.post_srq_recv = mthca_arbel_post_srq_recv;
+		else
+			dev->ib_dev.post_srq_recv = mthca_tavor_post_srq_recv;
+	}
+
 	dev->ib_dev.create_qp            = mthca_create_qp;
 	dev->ib_dev.modify_qp            = mthca_modify_qp;
 	dev->ib_dev.destroy_qp           = mthca_destroy_qp;

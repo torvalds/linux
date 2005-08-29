@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -137,7 +138,7 @@ enum {
 
 struct mthca_db_page {
 	DECLARE_BITMAP(used, MTHCA_DB_REC_PER_PAGE);
-	u64       *db_rec;
+	__be64    *db_rec;
 	dma_addr_t mapping;
 };
 
@@ -172,7 +173,7 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
 
 int mthca_init_db_tab(struct mthca_dev *dev);
 void mthca_cleanup_db_tab(struct mthca_dev *dev);
-int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, u32 **db);
+int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, __be32 **db);
 void mthca_free_db(struct mthca_dev *dev, int type, int db_index);
 
 #endif /* MTHCA_MEMFREE_H */

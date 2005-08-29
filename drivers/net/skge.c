@@ -42,7 +42,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"0.8"
+#define DRV_VERSION		"0.9"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
@@ -79,8 +79,8 @@ static const struct pci_device_id skge_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4320) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5005) }, /* Belkin */
 	{ PCI_DEVICE(PCI_VENDOR_ID_CNET, PCI_DEVICE_ID_CNET_GIGACARD) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_LINKSYS, PCI_DEVICE_ID_LINKSYS_EG1032) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_LINKSYS, PCI_DEVICE_ID_LINKSYS_EG1064) },
+	{ PCI_VENDOR_ID_LINKSYS, 0x1032, PCI_ANY_ID, 0x0015, },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, skge_id_table);
@@ -189,7 +189,7 @@ static u32 skge_supported_modes(const struct skge_hw *hw)
 {
 	u32 supported;
 
-	if (iscopper(hw)) {
+	if (hw->copper) {
 		supported = SUPPORTED_10baseT_Half
 			| SUPPORTED_10baseT_Full
 			| SUPPORTED_100baseT_Half
@@ -222,7 +222,7 @@ static int skge_get_settings(struct net_device *dev,
 	ecmd->transceiver = XCVR_INTERNAL;
 	ecmd->supported = skge_supported_modes(hw);
 
-	if (iscopper(hw)) {
+	if (hw->copper) {
 		ecmd->port = PORT_TP;
 		ecmd->phy_address = hw->phy_addr;
 	} else
@@ -876,6 +876,9 @@ static int skge_rx_fill(struct skge_port *skge)
 
 static void skge_link_up(struct skge_port *skge)
 {
+	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), 
+		    LED_BLK_OFF|LED_SYNC_OFF|LED_ON);
+
 	netif_carrier_on(skge->netdev);
 	if (skge->tx_avail > MAX_SKB_FRAGS + 1)
 		netif_wake_queue(skge->netdev);
@@ -894,6 +897,7 @@ static void skge_link_up(struct skge_port *skge)
 
 static void skge_link_down(struct skge_port *skge)
 {
+	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_OFF);
 	netif_carrier_off(skge->netdev);
 	netif_stop_queue(skge->netdev);
 
@@ -1599,7 +1603,7 @@ static void yukon_init(struct skge_hw *hw, int port)
 	adv = PHY_AN_CSMA;
 
 	if (skge->autoneg == AUTONEG_ENABLE) {
-		if (iscopper(hw)) {
+		if (hw->copper) {
 			if (skge->advertising & ADVERTISED_1000baseT_Full)
 				ct1000 |= PHY_M_1000C_AFD;
 			if (skge->advertising & ADVERTISED_1000baseT_Half)
@@ -1691,7 +1695,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	/* Set hardware config mode */
 	reg = GPC_INT_POL_HI | GPC_DIS_FC | GPC_DIS_SLEEP |
 		GPC_ENA_XC | GPC_ANEG_ADV_ALL_M | GPC_ENA_PAUSE;
-	reg |= iscopper(hw) ? GPC_HWCFG_GMII_COP : GPC_HWCFG_GMII_FIB;
+	reg |= hw->copper ? GPC_HWCFG_GMII_COP : GPC_HWCFG_GMII_FIB;
 
 	/* Clear GMC reset */
 	skge_write32(hw, SK_REG(port, GPHY_CTRL), reg | GPC_RST_SET);
@@ -1780,7 +1784,12 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 		reg &= ~GMF_RX_F_FL_ON;
 	skge_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
 	skge_write16(hw, SK_REG(port, RX_GMF_CTRL_T), reg);
-	skge_write16(hw, SK_REG(port, RX_GMF_FL_THR), RX_GMF_FL_THR_DEF);
+	/*
+	 * because Pause Packet Truncation in GMAC is not working
+	 * we have to increase the Flush Threshold to 64 bytes
+	 * in order to flush pause packets in Rx FIFO on Yukon-1
+	 */
+	skge_write16(hw, SK_REG(port, RX_GMF_FL_THR), RX_GMF_FL_THR_DEF+1);
 
 	/* Configure Tx MAC FIFO */
 	skge_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_CLR);
@@ -2670,18 +2679,6 @@ static void skge_error_irq(struct skge_hw *hw)
 		/* Timestamp (unused) overflow */
 		if (hwstatus & IS_IRQ_TIST_OV)
 			skge_write8(hw, GMAC_TI_ST_CTRL, GMT_ST_CLR_IRQ);
-
-		if (hwstatus & IS_IRQ_SENSOR) {
-			/* no sensors on 32-bit Yukon */
-			if (!(skge_read16(hw, B0_CTST) & CS_BUS_SLOT_SZ)) {
-				printk(KERN_ERR PFX "ignoring bogus sensor interrups\n");
-				skge_write32(hw, B0_HWE_IMSK,
-					     IS_ERR_MSK & ~IS_IRQ_SENSOR);
-			} else
-				printk(KERN_WARNING PFX "sensor interrupt\n");
-		}
-
-
 	}
 
 	if (hwstatus & IS_RAM_RD_PAR) {
@@ -2712,9 +2709,10 @@ static void skge_error_irq(struct skge_hw *hw)
 
 		skge_pci_clear(hw);
 
+		/* if error still set then just ignore it */
 		hwstatus = skge_read32(hw, B0_HWE_ISRC);
 		if (hwstatus & IS_IRQ_STAT) {
-			printk(KERN_WARNING PFX "IRQ status %x: still set ignoring hardware errors\n",
+			pr_debug("IRQ status %x: still set ignoring hardware errors\n",
 			       hwstatus);
 			hw->intr_mask &= ~IS_HW_ERR;
 		}
@@ -2876,7 +2874,7 @@ static const char *skge_board_name(const struct skge_hw *hw)
 static int skge_reset(struct skge_hw *hw)
 {
 	u16 ctst;
-	u8 t8, mac_cfg;
+	u8 t8, mac_cfg, pmd_type, phy_type;
 	int i;
 
 	ctst = skge_read16(hw, B0_CTST);
@@ -2895,18 +2893,19 @@ static int skge_reset(struct skge_hw *hw)
 		     ctst & (CS_CLK_RUN_HOT|CS_CLK_RUN_RST|CS_CLK_RUN_ENA));
 
 	hw->chip_id = skge_read8(hw, B2_CHIP_ID);
-	hw->phy_type = skge_read8(hw, B2_E_1) & 0xf;
-	hw->pmd_type = skge_read8(hw, B2_PMD_TYP);
+	phy_type = skge_read8(hw, B2_E_1) & 0xf;
+	pmd_type = skge_read8(hw, B2_PMD_TYP);
+	hw->copper = (pmd_type == 'T' || pmd_type == '1');
 
 	switch (hw->chip_id) {
 	case CHIP_ID_GENESIS:
-		switch (hw->phy_type) {
+		switch (phy_type) {
 		case SK_PHY_BCOM:
 			hw->phy_addr = PHY_ADDR_BCOM;
 			break;
 		default:
 			printk(KERN_ERR PFX "%s: unsupported phy type 0x%x\n",
-			       pci_name(hw->pdev), hw->phy_type);
+			       pci_name(hw->pdev), phy_type);
 			return -EOPNOTSUPP;
 		}
 		break;
@@ -2914,13 +2913,10 @@ static int skge_reset(struct skge_hw *hw)
 	case CHIP_ID_YUKON:
 	case CHIP_ID_YUKON_LITE:
 	case CHIP_ID_YUKON_LP:
-		if (hw->phy_type < SK_PHY_MARV_COPPER && hw->pmd_type != 'S')
-			hw->phy_type = SK_PHY_MARV_COPPER;
+		if (phy_type < SK_PHY_MARV_COPPER && pmd_type != 'S')
+			hw->copper = 1;
 
 		hw->phy_addr = PHY_ADDR_MARV;
-		if (!iscopper(hw))
-			hw->phy_type = SK_PHY_MARV_FIBER;
-
 		break;
 
 	default:
@@ -2948,12 +2944,20 @@ static int skge_reset(struct skge_hw *hw)
 	else
 		hw->ram_size = t8 * 4096;
 
+	hw->intr_mask = IS_HW_ERR | IS_EXT_REG;
 	if (hw->chip_id == CHIP_ID_GENESIS)
 		genesis_init(hw);
 	else {
 		/* switch power to VCC (WA for VAUX problem) */
 		skge_write8(hw, B0_POWER_CTRL,
 			    PC_VAUX_ENA | PC_VCC_ENA | PC_VAUX_OFF | PC_VCC_ON);
+		/* avoid boards with stuck Hardware error bits */
+		if ((skge_read32(hw, B0_ISRC) & IS_HW_ERR) &&
+		    (skge_read32(hw, B0_HWE_ISRC) & IS_IRQ_SENSOR)) {
+			printk(KERN_WARNING PFX "stuck hardware sensor bit\n");
+			hw->intr_mask &= ~IS_HW_ERR;
+		}
+
 		for (i = 0; i < hw->ports; i++) {
 			skge_write16(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_SET);
 			skge_write16(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_CLR);
@@ -2994,7 +2998,6 @@ static int skge_reset(struct skge_hw *hw)
 	skge_write32(hw, B2_IRQM_INI, skge_usecs2clk(hw, 100));
 	skge_write32(hw, B2_IRQM_CTRL, TIM_START);
 
-	hw->intr_mask = IS_HW_ERR | IS_EXT_REG;
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
 
 	if (hw->chip_id != CHIP_ID_GENESIS)

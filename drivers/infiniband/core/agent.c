@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
- * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
- * Copyright (c) 2004 Intel Corporation.  All rights reserved.
- * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
- * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
+ * Copyright (c) 2004, 2005 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2004, 2005 Infinicon Corporation.  All rights reserved.
+ * Copyright (c) 2004, 2005 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2004, 2005 Topspin Corporation.  All rights reserved.
+ * Copyright (c) 2004, 2005 Voltaire Corporation.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -40,7 +41,7 @@
 
 #include <asm/bug.h>
 
-#include <ib_smi.h>
+#include <rdma/ib_smi.h>
 
 #include "smi.h"
 #include "agent_priv.h"
