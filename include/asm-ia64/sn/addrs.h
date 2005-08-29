@@ -65,7 +65,6 @@
 
 #define NASID_MASK              ((u64)NASID_BITMASK << NASID_SHIFT)
 #define AS_MASK			((u64)AS_BITMASK << AS_SHIFT)
-#define REGION_BITS		0xe000000000000000UL
 
 
 /*
@@ -79,38 +78,30 @@
 #define AS_CAC_SPACE		(AS_CAC_VAL << AS_SHIFT)
 
 
-/*
- * Base addresses for various address ranges.
- */
-#define CACHED			0xe000000000000000UL
-#define UNCACHED                0xc000000000000000UL
-#define UNCACHED_PHYS           0x8000000000000000UL
-
-
 /* 
  * Virtual Mode Local & Global MMR space.  
  */
 #define SH1_LOCAL_MMR_OFFSET	0x8000000000UL
 #define SH2_LOCAL_MMR_OFFSET	0x0200000000UL
 #define LOCAL_MMR_OFFSET	(is_shub2() ? SH2_LOCAL_MMR_OFFSET : SH1_LOCAL_MMR_OFFSET)
-#define LOCAL_MMR_SPACE		(UNCACHED | LOCAL_MMR_OFFSET)
-#define LOCAL_PHYS_MMR_SPACE	(UNCACHED_PHYS | LOCAL_MMR_OFFSET)
+#define LOCAL_MMR_SPACE		(__IA64_UNCACHED_OFFSET | LOCAL_MMR_OFFSET)
+#define LOCAL_PHYS_MMR_SPACE	(RGN_BASE(RGN_HPAGE) | LOCAL_MMR_OFFSET)
 
 #define SH1_GLOBAL_MMR_OFFSET	0x0800000000UL
 #define SH2_GLOBAL_MMR_OFFSET	0x0300000000UL
 #define GLOBAL_MMR_OFFSET	(is_shub2() ? SH2_GLOBAL_MMR_OFFSET : SH1_GLOBAL_MMR_OFFSET)
-#define GLOBAL_MMR_SPACE	(UNCACHED | GLOBAL_MMR_OFFSET)
+#define GLOBAL_MMR_SPACE	(__IA64_UNCACHED_OFFSET | GLOBAL_MMR_OFFSET)
 
 /*
  * Physical mode addresses
  */
-#define GLOBAL_PHYS_MMR_SPACE	(UNCACHED_PHYS | GLOBAL_MMR_OFFSET)
+#define GLOBAL_PHYS_MMR_SPACE	(RGN_BASE(RGN_HPAGE) | GLOBAL_MMR_OFFSET)
 
 
 /*
  * Clear region & AS bits.
  */
-#define TO_PHYS_MASK		(~(REGION_BITS | AS_MASK))
+#define TO_PHYS_MASK		(~(RGN_BITS | AS_MASK))
 
 
 /*
@@ -135,10 +126,10 @@
 /*
  * general address defines
  */
-#define CAC_BASE		(CACHED   | AS_CAC_SPACE)
-#define AMO_BASE		(UNCACHED | AS_AMO_SPACE)
-#define AMO_PHYS_BASE		(UNCACHED_PHYS | AS_AMO_SPACE)
-#define GET_BASE		(CACHED   | AS_GET_SPACE)
+#define CAC_BASE		(PAGE_OFFSET | AS_CAC_SPACE)
+#define AMO_BASE		(__IA64_UNCACHED_OFFSET | AS_AMO_SPACE)
+#define AMO_PHYS_BASE		(RGN_BASE(RGN_HPAGE) | AS_AMO_SPACE)
+#define GET_BASE		(PAGE_OFFSET | AS_GET_SPACE)
 
 /*
  * Convert Memory addresses between various addressing modes.
@@ -183,8 +174,8 @@
 /*
  * Macros to test for address type.
  */
-#define IS_AMO_ADDRESS(x)	(((u64)(x) & (REGION_BITS | AS_MASK)) == AMO_BASE)
-#define IS_AMO_PHYS_ADDRESS(x)	(((u64)(x) & (REGION_BITS | AS_MASK)) == AMO_PHYS_BASE)
+#define IS_AMO_ADDRESS(x)	(((u64)(x) & (RGN_BITS | AS_MASK)) == AMO_BASE)
+#define IS_AMO_PHYS_ADDRESS(x)	(((u64)(x) & (RGN_BITS | AS_MASK)) == AMO_PHYS_BASE)
 
 
 /*
@@ -199,7 +190,7 @@
 #define TIO_SWIN_BASE(n, w) 		(TIO_IO_BASE(n) + \
 					    ((u64) (w) << TIO_SWIN_SIZE_BITS))
 #define NODE_IO_BASE(n)			(GLOBAL_MMR_SPACE | NASID_SPACE(n))
-#define TIO_IO_BASE(n)                  (UNCACHED | NASID_SPACE(n))
+#define TIO_IO_BASE(n)                  (__IA64_UNCACHED_OFFSET | NASID_SPACE(n))
 #define BWIN_SIZE			(1UL << BWIN_SIZE_BITS)
 #define NODE_BWIN_BASE0(n)		(NODE_IO_BASE(n) + BWIN_SIZE)
 #define NODE_BWIN_BASE(n, w)		(NODE_BWIN_BASE0(n) + ((u64) (w) << BWIN_SIZE_BITS))
