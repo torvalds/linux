@@ -41,7 +41,7 @@
 #define IO_SPACE_BASE(space)		((space) << IO_SPACE_BITS)
 #define IO_SPACE_PORT(port)		((port) & (IO_SPACE_SIZE - 1))
 
-#define IO_SPACE_SPARSE_ENCODING(p)	((((p) >> 2) << 12) | (p & 0xfff))
+#define IO_SPACE_SPARSE_ENCODING(p)	((((p) >> 2) << 12) | ((p) & 0xfff))
 
 struct io_space {
 	unsigned long mmio_base;	/* base in MMIO space */
