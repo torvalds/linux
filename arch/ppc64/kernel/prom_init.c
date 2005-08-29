@@ -892,7 +892,10 @@ static void __init prom_init_mem(void)
 	if ( RELOC(of_platform) == PLATFORM_PSERIES_LPAR )
 		RELOC(alloc_top) = RELOC(rmo_top);
 	else
-		RELOC(alloc_top) = RELOC(rmo_top) = min(0x40000000ul, RELOC(ram_top));
+		/* Some RS64 machines have buggy firmware where claims up at 1GB
+		 * fails. Cap at 768MB as a workaround. Still plenty of room.
+		 */
+		RELOC(alloc_top) = RELOC(rmo_top) = min(0x30000000ul, RELOC(ram_top));
 
 	prom_printf("memory layout at init:\n");
 	prom_printf("  memory_limit : %x (16 MB aligned)\n", RELOC(prom_memory_limit));
