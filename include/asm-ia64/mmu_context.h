@@ -55,34 +55,46 @@ static inline void
 delayed_tlb_flush (void)
 {
 	extern void local_flush_tlb_all (void);
+	unsigned long flags;
 
 	if (unlikely(__ia64_per_cpu_var(ia64_need_tlb_flush))) {
-		local_flush_tlb_all();
-		__ia64_per_cpu_var(ia64_need_tlb_flush) = 0;
+		spin_lock_irqsave(&ia64_ctx.lock, flags);
+		{
+			if (__ia64_per_cpu_var(ia64_need_tlb_flush)) {
+				local_flush_tlb_all();
+				__ia64_per_cpu_var(ia64_need_tlb_flush) = 0;
+			}
+		}
+		spin_unlock_irqrestore(&ia64_ctx.lock, flags);
 	}
 }
 
-static inline mm_context_t
+static inline nv_mm_context_t
 get_mmu_context (struct mm_struct *mm)
 {
 	unsigned long flags;
-	mm_context_t context = mm->context;
+	nv_mm_context_t context = mm->context;
 
-	if (context)
-		return context;
-
-	spin_lock_irqsave(&ia64_ctx.lock, flags);
-	{
-		/* re-check, now that we've got the lock: */
-		context = mm->context;
-		if (context == 0) {
-			cpus_clear(mm->cpu_vm_mask);
-			if (ia64_ctx.next >= ia64_ctx.limit)
-				wrap_mmu_context(mm);
-			mm->context = context = ia64_ctx.next++;
+	if (unlikely(!context)) {
+		spin_lock_irqsave(&ia64_ctx.lock, flags);
+		{
+			/* re-check, now that we've got the lock: */
+			context = mm->context;
+			if (context == 0) {
+				cpus_clear(mm->cpu_vm_mask);
+				if (ia64_ctx.next >= ia64_ctx.limit)
+					wrap_mmu_context(mm);
+				mm->context = context = ia64_ctx.next++;
+			}
 		}
+		spin_unlock_irqrestore(&ia64_ctx.lock, flags);
 	}
-	spin_unlock_irqrestore(&ia64_ctx.lock, flags);
+	/*
+	 * Ensure we're not starting to use "context" before any old
+	 * uses of it are gone from our TLB.
+	 */
+	delayed_tlb_flush();
+
 	return context;
 }
 
@@ -104,7 +116,7 @@ destroy_context (struct mm_struct *mm)
 }
 
 static inline void
-reload_context (mm_context_t context)
+reload_context (nv_mm_context_t context)
 {
 	unsigned long rid;
 	unsigned long rid_incr = 0;
@@ -138,7 +150,7 @@ reload_context (mm_context_t context)
 static inline void
 activate_context (struct mm_struct *mm)
 {
-	mm_context_t context;
+	nv_mm_context_t context;
 
 	do {
 		context = get_mmu_context(mm);
@@ -157,8 +169,6 @@ activate_context (struct mm_struct *mm)
 static inline void
 activate_mm (struct mm_struct *prev, struct mm_struct *next)
 {
-	delayed_tlb_flush();
-
 	/*
 	 * We may get interrupts here, but that's OK because interrupt handlers cannot
 	 * touch user-space.
