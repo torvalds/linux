@@ -4,6 +4,7 @@
  * Copyright (c) 2004 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -50,8 +51,8 @@
 union ib_gid {
 	u8	raw[16];
 	struct {
-		u64	subnet_prefix;
-		u64	interface_id;
+		__be64	subnet_prefix;
+		__be64	interface_id;
 	} global;
 };
 
@@ -87,8 +88,8 @@ enum ib_atomic_cap {
 
 struct ib_device_attr {
 	u64			fw_ver;
-	u64			node_guid;
-	u64			sys_image_guid;
+	__be64			node_guid;
+	__be64			sys_image_guid;
 	u64			max_mr_size;
 	u64			page_size_cap;
 	u32			vendor_id;
@@ -255,7 +256,10 @@ enum ib_event_type {
 	IB_EVENT_PORT_ERR,
 	IB_EVENT_LID_CHANGE,
 	IB_EVENT_PKEY_CHANGE,
-	IB_EVENT_SM_CHANGE
+	IB_EVENT_SM_CHANGE,
+	IB_EVENT_SRQ_ERR,
+	IB_EVENT_SRQ_LIMIT_REACHED,
+	IB_EVENT_QP_LAST_WQE_REACHED
 };
 
 struct ib_event {
@@ -263,6 +267,7 @@ struct ib_event {
 	union {
 		struct ib_cq	*cq;
 		struct ib_qp	*qp;
+		struct ib_srq	*srq;
 		u8		port_num;
 	} element;
 	enum ib_event_type	event;
@@ -290,8 +295,8 @@ struct ib_global_route {
 };
 
 struct ib_grh {
-	u32		version_tclass_flow;
-	u16		paylen;
+	__be32		version_tclass_flow;
+	__be16		paylen;
 	u8		next_hdr;
 	u8		hop_limit;
 	union ib_gid	sgid;
@@ -301,6 +306,8 @@ struct ib_grh {
 enum {
 	IB_MULTICAST_QPN = 0xffffff
 };
+
+#define IB_LID_PERMISSIVE	__constant_htons(0xFFFF)
 
 enum ib_ah_flags {
 	IB_AH_GRH	= 1
@@ -381,6 +388,23 @@ struct ib_wc {
 enum ib_cq_notify {
 	IB_CQ_SOLICITED,
 	IB_CQ_NEXT_COMP
+};
+
+enum ib_srq_attr_mask {
+	IB_SRQ_MAX_WR	= 1 << 0,
+	IB_SRQ_LIMIT	= 1 << 1,
+};
+
+struct ib_srq_attr {
+	u32	max_wr;
+	u32	max_sge;
+	u32	srq_limit;
+};
+
+struct ib_srq_init_attr {
+	void		      (*event_handler)(struct ib_event *, void *);
+	void		       *srq_context;
+	struct ib_srq_attr	attr;
 };
 
 struct ib_qp_cap {
@@ -710,10 +734,11 @@ struct ib_cq {
 };
 
 struct ib_srq {
-	struct ib_device	*device;
-	struct ib_uobject	*uobject;
-	struct ib_pd		*pd;
-	void			*srq_context;
+	struct ib_device       *device;
+	struct ib_pd	       *pd;
+	struct ib_uobject      *uobject;
+	void		      (*event_handler)(struct ib_event *, void *);
+	void		       *srq_context;
 	atomic_t		usecnt;
 };
 
@@ -827,6 +852,18 @@ struct ib_device {
 	int                        (*query_ah)(struct ib_ah *ah,
 					       struct ib_ah_attr *ah_attr);
 	int                        (*destroy_ah)(struct ib_ah *ah);
+	struct ib_srq *            (*create_srq)(struct ib_pd *pd,
+						 struct ib_srq_init_attr *srq_init_attr,
+						 struct ib_udata *udata);
+	int                        (*modify_srq)(struct ib_srq *srq,
+						 struct ib_srq_attr *srq_attr,
+						 enum ib_srq_attr_mask srq_attr_mask);
+	int                        (*query_srq)(struct ib_srq *srq,
+						struct ib_srq_attr *srq_attr);
+	int                        (*destroy_srq)(struct ib_srq *srq);
+	int                        (*post_srq_recv)(struct ib_srq *srq,
+						    struct ib_recv_wr *recv_wr,
+						    struct ib_recv_wr **bad_recv_wr);
 	struct ib_qp *             (*create_qp)(struct ib_pd *pd,
 						struct ib_qp_init_attr *qp_init_attr,
 						struct ib_udata *udata);
@@ -1037,6 +1074,65 @@ int ib_query_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr);
  * @ah: The address handle to destroy.
  */
 int ib_destroy_ah(struct ib_ah *ah);
+
+/**
+ * ib_create_srq - Creates a SRQ associated with the specified protection
+ *   domain.
+ * @pd: The protection domain associated with the SRQ.
+ * @srq_init_attr: A list of initial attributes required to create the SRQ.
+ *
+ * srq_attr->max_wr and srq_attr->max_sge are read the determine the
+ * requested size of the SRQ, and set to the actual values allocated
+ * on return.  If ib_create_srq() succeeds, then max_wr and max_sge
+ * will always be at least as large as the requested values.
+ */
+struct ib_srq *ib_create_srq(struct ib_pd *pd,
+			     struct ib_srq_init_attr *srq_init_attr);
+
+/**
+ * ib_modify_srq - Modifies the attributes for the specified SRQ.
+ * @srq: The SRQ to modify.
+ * @srq_attr: On input, specifies the SRQ attributes to modify.  On output,
+ *   the current values of selected SRQ attributes are returned.
+ * @srq_attr_mask: A bit-mask used to specify which attributes of the SRQ
+ *   are being modified.
+ *
+ * The mask may contain IB_SRQ_MAX_WR to resize the SRQ and/or
+ * IB_SRQ_LIMIT to set the SRQ's limit and request notification when
+ * the number of receives queued drops below the limit.
+ */
+int ib_modify_srq(struct ib_srq *srq,
+		  struct ib_srq_attr *srq_attr,
+		  enum ib_srq_attr_mask srq_attr_mask);
+
+/**
+ * ib_query_srq - Returns the attribute list and current values for the
+ *   specified SRQ.
+ * @srq: The SRQ to query.
+ * @srq_attr: The attributes of the specified SRQ.
+ */
+int ib_query_srq(struct ib_srq *srq,
+		 struct ib_srq_attr *srq_attr);
+
+/**
+ * ib_destroy_srq - Destroys the specified SRQ.
+ * @srq: The SRQ to destroy.
+ */
+int ib_destroy_srq(struct ib_srq *srq);
+
+/**
+ * ib_post_srq_recv - Posts a list of work requests to the specified SRQ.
+ * @srq: The SRQ to post the work request on.
+ * @recv_wr: A list of work requests to post on the receive queue.
+ * @bad_recv_wr: On an immediate failure, this parameter will reference
+ *   the work request that failed to be posted on the QP.
+ */
+static inline int ib_post_srq_recv(struct ib_srq *srq,
+				   struct ib_recv_wr *recv_wr,
+				   struct ib_recv_wr **bad_recv_wr)
+{
+	return srq->device->post_srq_recv(srq, recv_wr, bad_recv_wr);
+}
 
 /**
  * ib_create_qp - Creates a QP associated with the specified protection
