@@ -258,7 +258,7 @@
 
 /* Shub1 TIO & MMR addressing macros */
 #define SH2_TIO_IOSPACE_ADDR(n,x)					\
-	((UNCACHED | REMOTE_ADDR(n,x) | 1UL << (NASID_SHIFT - 2)))
+	((__IA64_UNCACHED_OFFSET | REMOTE_ADDR(n,x) | 1UL << (NASID_SHIFT - 2)))
 
 #define SH2_REMOTE_MMR(n,x)						\
 	GLOBAL_MMR_ADDR(n,x)
