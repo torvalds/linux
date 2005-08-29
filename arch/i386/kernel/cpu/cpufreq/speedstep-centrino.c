@@ -498,13 +498,6 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 	if (cpu->x86_vendor != X86_VENDOR_INTEL || !cpu_has(cpu, X86_FEATURE_EST))
 		return -ENODEV;
 
-	for (i = 0; i < N_IDS; i++)
-		if (centrino_verify_cpu_id(cpu, &cpu_ids[i]))
-			break;
-
-	if (i != N_IDS)
-		centrino_cpu[policy->cpu] = &cpu_ids[i];
-
 	if (is_const_loops_cpu(policy->cpu)) {
 		centrino_driver.flags |= CPUFREQ_CONST_LOOPS;
 	}
@@ -512,6 +505,13 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 	if (centrino_cpu_init_acpi(policy)) {
 		if (policy->cpu != 0)
 			return -ENODEV;
+
+		for (i = 0; i < N_IDS; i++)
+			if (centrino_verify_cpu_id(cpu, &cpu_ids[i]))
+				break;
+
+		if (i != N_IDS)
+			centrino_cpu[policy->cpu] = &cpu_ids[i];
 
 		if (!centrino_cpu[policy->cpu]) {
 			dprintk(KERN_INFO PFX "found unsupported CPU with "
