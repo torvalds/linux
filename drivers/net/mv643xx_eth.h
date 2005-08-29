@@ -49,7 +49,7 @@
 /* Checksum offload for Tx works for most packets, but
  * fails if previous packet sent did not use hw csum
  */
-#undef	MV643XX_CHECKSUM_OFFLOAD_TX
+#define	MV643XX_CHECKSUM_OFFLOAD_TX
 #define	MV643XX_NAPI
 #define	MV643XX_TX_FAST_REFILL
 #undef	MV643XX_RX_QUEUE_FILL_ON_TASK	/* Does not work, yet */
@@ -216,6 +216,8 @@
 #define ETH_GEN_CRC				(BIT22)
 #define ETH_TX_ENABLE_INTERRUPT			(BIT23)
 #define ETH_AUTO_MODE				(BIT30)
+
+#define ETH_TX_IHL_SHIFT			11
 
 /* typedefs */
 

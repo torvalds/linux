@@ -239,7 +239,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_read_config_dword(pdev, SIS_GENCTL, &genctl);
 	if ((genctl & GENCTL_IOMAPPED_SCR) == 0)
 		probe_ent->host_flags |= SIS_FLAG_CFGSCR;
-	
+
 	/* if hardware thinks SCRs are in IO space, but there are
 	 * no IO resources assigned, change to PCI cfg space.
 	 */

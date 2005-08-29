@@ -2767,7 +2767,7 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter)
 					"  next_to_use          <%x>\n"
 					"  next_to_clean        <%x>\n"
 					"buffer_info[next_to_clean]\n"
-					"  dma                  <%zx>\n"
+					"  dma                  <%llx>\n"
 					"  time_stamp           <%lx>\n"
 					"  next_to_watch        <%x>\n"
 					"  jiffies              <%lx>\n"
@@ -2776,7 +2776,7 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter)
 				E1000_READ_REG(&adapter->hw, TDT),
 				tx_ring->next_to_use,
 				i,
-				tx_ring->buffer_info[i].dma,
+				(unsigned long long)tx_ring->buffer_info[i].dma,
 				tx_ring->buffer_info[i].time_stamp,
 				eop,
 				jiffies,

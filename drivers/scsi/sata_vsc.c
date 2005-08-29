@@ -193,7 +193,8 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 			struct ata_port *ap;
 
 			ap = host_set->ports[i];
-			if (ap && (!(ap->flags & ATA_FLAG_PORT_DISABLED))) {
+			if (ap && !(ap->flags &
+				    (ATA_FLAG_PORT_DISABLED|ATA_FLAG_NOINTR))) {
 				struct ata_queued_cmd *qc;
 
 				qc = ata_qc_from_tag(ap, ap->active_tag);
@@ -362,7 +363,7 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 
 	pci_set_master(pdev);
 
-	/* 
+	/*
 	 * Config offset 0x98 is "Extended Control and Status Register 0"
 	 * Default value is (1 << 28).  All bits except bit 28 are reserved in
 	 * DPA mode.  If bit 28 is set, LED 0 reflects all ports' activity.

@@ -627,6 +627,14 @@ static int validate_change(const struct cpuset *cur, const struct cpuset *trial)
  * Call with cpuset_sem held.  May nest a call to the
  * lock_cpu_hotplug()/unlock_cpu_hotplug() pair.
  */
+
+/*
+ * Hack to avoid 2.6.13 partial node dynamic sched domain bug.
+ * Disable letting 'cpu_exclusive' cpusets define dynamic sched
+ * domains, until the sched domain can handle partial nodes.
+ * Remove this #if hackery when sched domains fixed.
+ */
+#if 0
 static void update_cpu_domains(struct cpuset *cur)
 {
 	struct cpuset *c, *par = cur->parent;
@@ -634,23 +642,6 @@ static void update_cpu_domains(struct cpuset *cur)
 
 	if (par == NULL || cpus_empty(cur->cpus_allowed))
 		return;
-
-	/*
-	 * Hack to avoid 2.6.13 partial node dynamic sched domain bug.
-	 * Require the 'cpu_exclusive' cpuset to include all (or none)
-	 * of the CPUs on each node, or return w/o changing sched domains.
-	 * Remove this hack when dynamic sched domains fixed.
-	 */
-	{
-		int i, j;
-
-		for_each_cpu_mask(i, cur->cpus_allowed) {
-			for_each_cpu_mask(j, node_to_cpumask(cpu_to_node(i))) {
-				if (!cpu_isset(j, cur->cpus_allowed))
-					return;
-			}
-		}
-	}
 
 	/*
 	 * Get all cpus from parent's cpus_allowed not part of exclusive
@@ -684,6 +675,11 @@ static void update_cpu_domains(struct cpuset *cur)
 	partition_sched_domains(&pspan, &cspan);
 	unlock_cpu_hotplug();
 }
+#else
+static void update_cpu_domains(struct cpuset *cur)
+{
+}
+#endif
 
 static int update_cpumask(struct cpuset *cs, char *buf)
 {

@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.13-rc3
-# Fri Jul 22 16:47:31 2005
+# Linux kernel version: 2.6.13-rc6-git3
+# Fri Aug 12 16:40:34 2005
 #
 CONFIG_X86_64=y
 CONFIG_64BIT=y
@@ -284,10 +284,6 @@ CONFIG_IPV6=y
 # Network testing
 #
 # CONFIG_NET_PKTGEN is not set
-CONFIG_NETPOLL=y
-# CONFIG_NETPOLL_RX is not set
-# CONFIG_NETPOLL_TRAP is not set
-CONFIG_NET_POLL_CONTROLLER=y
 # CONFIG_HAMRADIO is not set
 # CONFIG_IRDA is not set
 # CONFIG_BT is not set
@@ -463,6 +459,7 @@ CONFIG_AIC79XX_DEBUG_MASK=0
 # CONFIG_MEGARAID_NEWGEN is not set
 # CONFIG_MEGARAID_LEGACY is not set
 CONFIG_SCSI_SATA=y
+# CONFIG_SCSI_SATA_AHCI is not set
 # CONFIG_SCSI_SATA_SVW is not set
 CONFIG_SCSI_ATA_PIIX=y
 # CONFIG_SCSI_SATA_NV is not set
@@ -492,6 +489,7 @@ CONFIG_SCSI_QLA2XXX=y
 # CONFIG_SCSI_QLA2300 is not set
 # CONFIG_SCSI_QLA2322 is not set
 # CONFIG_SCSI_QLA6312 is not set
+# CONFIG_SCSI_QLA24XX is not set
 # CONFIG_SCSI_LPFC is not set
 # CONFIG_SCSI_DC395x is not set
 # CONFIG_SCSI_DC390T is not set
@@ -512,9 +510,11 @@ CONFIG_BLK_DEV_DM=y
 #
 # Fusion MPT device support
 #
-# CONFIG_FUSION is not set
-# CONFIG_FUSION_SPI is not set
+CONFIG_FUSION=y
+CONFIG_FUSION_SPI=y
 # CONFIG_FUSION_FC is not set
+CONFIG_FUSION_MAX_SGE=128
+# CONFIG_FUSION_CTL is not set
 
 #
 # IEEE 1394 (FireWire) support
@@ -585,6 +585,7 @@ CONFIG_8139TOO=y
 # CONFIG_ACENIC is not set
 # CONFIG_DL2K is not set
 CONFIG_E1000=y
+# CONFIG_E1000_NAPI is not set
 # CONFIG_NS83820 is not set
 # CONFIG_HAMACHI is not set
 # CONFIG_YELLOWFIN is not set
@@ -624,6 +625,10 @@ CONFIG_S2IO=m
 # CONFIG_NET_FC is not set
 # CONFIG_SHAPER is not set
 CONFIG_NETCONSOLE=y
+CONFIG_NETPOLL=y
+# CONFIG_NETPOLL_RX is not set
+# CONFIG_NETPOLL_TRAP is not set
+CONFIG_NET_POLL_CONTROLLER=y
 
 #
 # ISDN subsystem

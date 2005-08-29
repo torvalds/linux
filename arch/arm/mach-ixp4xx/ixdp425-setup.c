@@ -36,7 +36,7 @@ static struct flash_platform_data ixdp425_flash_data = {
 
 static struct resource ixdp425_flash_resource = {
 	.start		= IXDP425_FLASH_BASE,
-	.end		= IXDP425_FLASH_BASE + IXDP425_FLASH_SIZE,
+	.end		= IXDP425_FLASH_BASE + IXDP425_FLASH_SIZE - 1,
 	.flags		= IORESOURCE_MEM,
 };
 

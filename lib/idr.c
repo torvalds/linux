@@ -207,7 +207,7 @@ build_up:
 }
 
 /**
- * idr_get_new_above - allocate new idr entry above a start id
+ * idr_get_new_above - allocate new idr entry above or equal to a start id
  * @idp: idr handle
  * @ptr: pointer you want associated with the ide
  * @start_id: id to start search at

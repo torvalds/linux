@@ -351,7 +351,7 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		probe_ent = vt6420_init_probe_ent(pdev);
 	else
 		probe_ent = vt6421_init_probe_ent(pdev);
-	
+
 	if (!probe_ent) {
 		printk(KERN_ERR DRV_NAME "(%s): out of memory\n",
 		       pci_name(pdev));

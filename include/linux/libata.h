@@ -116,6 +116,8 @@ enum {
 	ATA_FLAG_MMIO		= (1 << 6), /* use MMIO, not PIO */
 	ATA_FLAG_SATA_RESET	= (1 << 7), /* use COMRESET */
 	ATA_FLAG_PIO_DMA	= (1 << 8), /* PIO cmds via DMA */
+	ATA_FLAG_NOINTR		= (1 << 9), /* FIXME: Remove this once
+					     * proper HSM is in place. */
 
 	ATA_QCFLAG_ACTIVE	= (1 << 1), /* cmd not yet ack'd to scsi lyer */
 	ATA_QCFLAG_SG		= (1 << 3), /* have s/g table? */
@@ -366,7 +368,7 @@ struct ata_port_operations {
 
 	void (*host_stop) (struct ata_host_set *host_set);
 
-	void (*bmdma_stop) (struct ata_port *ap);
+	void (*bmdma_stop) (struct ata_queued_cmd *qc);
 	u8   (*bmdma_status) (struct ata_port *ap);
 };
 
@@ -427,7 +429,7 @@ extern void ata_dev_id_string(u16 *id, unsigned char *s,
 extern void ata_dev_config(struct ata_port *ap, unsigned int i);
 extern void ata_bmdma_setup (struct ata_queued_cmd *qc);
 extern void ata_bmdma_start (struct ata_queued_cmd *qc);
-extern void ata_bmdma_stop(struct ata_port *ap);
+extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
 extern u8   ata_bmdma_status(struct ata_port *ap);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
 extern void ata_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat);
@@ -647,7 +649,7 @@ static inline void scr_write(struct ata_port *ap, unsigned int reg, u32 val)
 	ap->ops->scr_write(ap, reg, val);
 }
 
-static inline void scr_write_flush(struct ata_port *ap, unsigned int reg, 
+static inline void scr_write_flush(struct ata_port *ap, unsigned int reg,
 				   u32 val)
 {
 	ap->ops->scr_write(ap, reg, val);
