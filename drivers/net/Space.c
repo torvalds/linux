@@ -87,7 +87,6 @@ extern struct net_device *mvme147lance_probe(int unit);
 extern struct net_device *tc515_probe(int unit);
 extern struct net_device *lance_probe(int unit);
 extern struct net_device *mace_probe(int unit);
-extern struct net_device *macsonic_probe(int unit);
 extern struct net_device *mac8390_probe(int unit);
 extern struct net_device *mac89x0_probe(int unit);
 extern struct net_device *mc32_probe(int unit);
@@ -284,9 +283,6 @@ static struct devprobe2 m68k_probes[] __initdata = {
 #ifdef CONFIG_MACMACE		/* Mac 68k Quadra AV builtin Ethernet */
 	{mace_probe, 0},
 #endif
-#ifdef CONFIG_MACSONIC		/* Mac SONIC-based Ethernet of all sorts */ 
-	{macsonic_probe, 0},
-#endif
 #ifdef CONFIG_MAC8390           /* NuBus NS8390-based cards */
 	{mac8390_probe, 0},
 #endif
@@ -318,17 +314,9 @@ static void __init ethif_probe2(int unit)
 #ifdef CONFIG_TR
 /* Token-ring device probe */
 extern int ibmtr_probe_card(struct net_device *);
-extern struct net_device *sk_isa_probe(int unit);
-extern struct net_device *proteon_probe(int unit);
 extern struct net_device *smctr_probe(int unit);
 
 static struct devprobe2 tr_probes2[] __initdata = {
-#ifdef CONFIG_SKISA
-	{sk_isa_probe, 0},
-#endif
-#ifdef CONFIG_PROTEON
-	{proteon_probe, 0},
-#endif
 #ifdef CONFIG_SMCTR
 	{smctr_probe, 0},
 #endif

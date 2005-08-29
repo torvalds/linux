@@ -1106,18 +1106,13 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 			}
 		}
 
-		if (found) {
-			/* a slave was found that is using the mac address
-			 * of the new slave
-			 */
-			printk(KERN_ERR DRV_NAME
-			       ": Error: the hw address of slave %s is not "
-			       "unique - cannot enslave it!",
-			       slave->dev->name);
-			return -EINVAL;
-		}
+		if (!found)
+			return 0;
 
-		return 0;
+		/* Try setting slave mac to bond address and fall-through
+		   to code handling that situation below... */
+		alb_set_slave_mac_addr(slave, bond->dev->dev_addr,
+				       bond->alb_info.rlb_enabled);
 	}
 
 	/* The slave's address is equal to the address of the bond.
