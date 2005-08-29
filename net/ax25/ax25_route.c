@@ -422,8 +422,8 @@ static inline void ax25_adjust_path(ax25_address *addr, ax25_digi *digipeat)
  */
 int ax25_rt_autobind(ax25_cb *ax25, ax25_address *addr)
 {
+	ax25_uid_assoc *user;
 	ax25_route *ax25_rt;
-	ax25_address *call;
 	int err;
 
 	if ((ax25_rt = ax25_get_route(addr, NULL)) == NULL)
@@ -434,15 +434,17 @@ int ax25_rt_autobind(ax25_cb *ax25, ax25_address *addr)
 		goto put;
 	}
 
-	if ((call = ax25_findbyuid(current->euid)) == NULL) {
+	user = ax25_findbyuid(current->euid);
+	if (user) {
+		ax25->source_addr = user->call;
+		ax25_uid_put(user);
+	} else {
 		if (ax25_uid_policy && !capable(CAP_NET_BIND_SERVICE)) {
 			err = -EPERM;
 			goto put;
 		}
-		call = (ax25_address *)ax25->ax25_dev->dev->dev_addr;
+		ax25->source_addr = *(ax25_address *)ax25->ax25_dev->dev->dev_addr;
 	}
-
-	ax25->source_addr = *call;
 
 	if (ax25_rt->digipeat != NULL) {
 		if ((ax25->digipeat = kmalloc(sizeof(ax25_digi), GFP_ATOMIC)) == NULL) {

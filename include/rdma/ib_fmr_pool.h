@@ -36,7 +36,7 @@
 #if !defined(IB_FMR_POOL_H)
 #define IB_FMR_POOL_H
 
-#include <ib_verbs.h>
+#include <rdma/ib_verbs.h>
 
 struct ib_fmr_pool;
 

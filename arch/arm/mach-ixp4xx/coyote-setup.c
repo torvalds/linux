@@ -36,7 +36,7 @@ static struct flash_platform_data coyote_flash_data = {
 
 static struct resource coyote_flash_resource = {
 	.start		= COYOTE_FLASH_BASE,
-	.end		= COYOTE_FLASH_BASE + COYOTE_FLASH_SIZE,
+	.end		= COYOTE_FLASH_BASE + COYOTE_FLASH_SIZE - 1,
 	.flags		= IORESOURCE_MEM,
 };
 

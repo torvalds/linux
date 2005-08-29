@@ -214,8 +214,6 @@ enum {
 
 /*	B2_IRQM_HWE_MSK	32 bit	IRQ Moderation HW Error Mask */
 enum {
-	IS_ERR_MSK	= 0x00003fff,/* 		All Error bits */
-
 	IS_IRQ_TIST_OV	= 1<<13, /* Time Stamp Timer Overflow (YUKON only) */
 	IS_IRQ_SENSOR	= 1<<12, /* IRQ from Sensor (YUKON only) */
 	IS_IRQ_MST_ERR	= 1<<11, /* IRQ master error detected */
@@ -230,6 +228,12 @@ enum {
 	IS_M2_PAR_ERR	= 1<<2,	/* MAC 2 Parity Error */
 	IS_R1_PAR_ERR	= 1<<1,	/* Queue R1 Parity Error */
 	IS_R2_PAR_ERR	= 1<<0,	/* Queue R2 Parity Error */
+
+	IS_ERR_MSK	= IS_IRQ_MST_ERR | IS_IRQ_STAT
+			| IS_NO_STAT_M1 | IS_NO_STAT_M2
+			| IS_RAM_RD_PAR | IS_RAM_WR_PAR
+			| IS_M1_PAR_ERR | IS_M2_PAR_ERR
+			| IS_R1_PAR_ERR | IS_R2_PAR_ERR,
 };
 
 /*	B2_TST_CTRL1	 8 bit	Test Control Register 1 */
@@ -2456,23 +2460,16 @@ struct skge_hw {
 
 	u8	     	     chip_id;
 	u8		     chip_rev;
-	u8		     phy_type;
-	u8		     pmd_type;
-	u16		     phy_addr;
+	u8		     copper;
 	u8		     ports;
 
 	u32	     	     ram_size;
 	u32	     	     ram_offset;
+	u16		     phy_addr;
 
 	struct tasklet_struct ext_tasklet;
 	spinlock_t	     phy_lock;
 };
-
-
-static inline int iscopper(const struct skge_hw *hw)
-{
-	return (hw->pmd_type == 'T');
-}
 
 enum {
 	FLOW_MODE_NONE 		= 0, /* No Flow-Control */

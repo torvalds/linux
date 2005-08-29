@@ -692,7 +692,7 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 {
 	struct task_struct *t;
 
-	if (p->flags & SIGNAL_GROUP_EXIT)
+	if (p->signal->flags & SIGNAL_GROUP_EXIT)
 		/*
 		 * The process is in the middle of dying already.
 		 */

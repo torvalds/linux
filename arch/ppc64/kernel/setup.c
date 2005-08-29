@@ -706,6 +706,8 @@ void machine_power_off(void)
 	local_irq_disable();
 	while (1) ;
 }
+/* Used by the G5 thermal driver */
+EXPORT_SYMBOL_GPL(machine_power_off);
 
 void machine_halt(void)
 {

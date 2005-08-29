@@ -275,9 +275,9 @@ static int __init ns558_init(void)
 
 static void __exit ns558_exit(void)
 {
-	struct ns558 *ns558;
+	struct ns558 *ns558, *safe;
 
-	list_for_each_entry(ns558, &ns558_list, node) {
+	list_for_each_entry_safe(ns558, safe, &ns558_list, node) {
 		gameport_unregister_port(ns558->gameport);
 		release_region(ns558->io & ~(ns558->size - 1), ns558->size);
 		kfree(ns558);

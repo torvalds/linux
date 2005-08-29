@@ -22,7 +22,7 @@ GLOBAL_ENTRY(_start)
 	.save rp, r0
 	.body
 	movl gp = __gp
-	movl sp = stack_mem
+	movl sp = stack_mem+16384-16
 	bsw.1
 	br.call.sptk.many rp=start_bootloader
 END(_start)

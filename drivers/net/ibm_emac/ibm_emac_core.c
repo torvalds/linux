@@ -1253,7 +1253,7 @@ static int emac_init_tah(struct ocp_enet_private *fep)
 		 TAH_MR_CVR | TAH_MR_ST_768 | TAH_MR_TFS_10KB | TAH_MR_DTFP |
 		 TAH_MR_DIG);
 
-	iounmap(&tahp);
+	iounmap(tahp);
 
 	return 0;
 }
@@ -1712,11 +1712,10 @@ struct mal_commac_ops emac_commac_ops = {
 };
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static int emac_netpoll(struct net_device *ndev)
+static void emac_netpoll(struct net_device *ndev)
 {
 	emac_rxeob_dev((void *)ndev, 0);
 	emac_txeob_dev((void *)ndev, 0);
-	return 0;
 }
 #endif
 

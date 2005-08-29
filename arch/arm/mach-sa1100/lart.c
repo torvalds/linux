@@ -13,11 +13,22 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
+#include <asm/arch/mcp.h>
 
 #include "generic.h"
 
 
 #warning "include/asm/arch-sa1100/ide.h needs fixing for lart"
+
+static struct mcp_plat_data lart_mcp_data = {
+	.mccr0		= MCCR0_ADM,
+	.sclk_rate	= 11981000,
+};
+
+static void __init lart_init(void)
+{
+	sa11x0_set_mcp_data(&lart_mcp_data);
+}
 
 static struct map_desc lart_io_desc[] __initdata = {
  /* virtual     physical    length      type */
@@ -47,5 +58,6 @@ MACHINE_START(LART, "LART")
 	.boot_params	= 0xc0000100,
 	.map_io		= lart_map_io,
 	.init_irq	= sa1100_init_irq,
+	.init_machine	= lart_init,
 	.timer		= &sa1100_timer,
 MACHINE_END

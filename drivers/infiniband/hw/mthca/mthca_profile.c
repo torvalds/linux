@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -101,6 +102,7 @@ u64 mthca_make_profile(struct mthca_dev *dev,
 	profile[MTHCA_RES_UARC].size = request->uarc_size;
 
 	profile[MTHCA_RES_QP].num    = request->num_qp;
+	profile[MTHCA_RES_SRQ].num   = request->num_srq;
 	profile[MTHCA_RES_EQP].num   = request->num_qp;
 	profile[MTHCA_RES_RDB].num   = request->num_qp * request->rdb_per_qp;
 	profile[MTHCA_RES_CQ].num    = request->num_cq;

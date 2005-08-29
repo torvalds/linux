@@ -478,7 +478,6 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	int num_ports, i;
 
 	spin_lock_init(&ohci->phy_reg_lock);
-	spin_lock_init(&ohci->event_lock);
 
 	/* Put some defaults to these undefined bus options */
 	buf = reg_read(ohci, OHCI1394_BusOptions);
@@ -3402,7 +3401,14 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	/* We hopefully don't have to pre-allocate IT DMA like we did
 	 * for IR DMA above. Allocate it on-demand and mark inactive. */
 	ohci->it_legacy_context.ohci = NULL;
+	spin_lock_init(&ohci->event_lock);
 
+	/*
+	 * interrupts are disabled, all right, but... due to SA_SHIRQ we
+	 * might get called anyway.  We'll see no event, of course, but
+	 * we need to get to that "no event", so enough should be initialized
+	 * by that point.
+	 */
 	if (request_irq(dev->irq, ohci_irq_handler, SA_SHIRQ,
 			 OHCI1394_DRIVER_NAME, ohci))
 		FAIL(-ENOMEM, "Failed to allocate shared interrupt %d", dev->irq);

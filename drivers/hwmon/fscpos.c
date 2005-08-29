@@ -167,7 +167,7 @@ static ssize_t set_temp_reset(struct i2c_client *client, struct fscpos_data
 				"experience to the module author.\n");
 
 	/* Supported value: 2 (clears the status) */
-	fscpos_write_value(client, FSCPOS_REG_TEMP_STATE[nr], 2);
+	fscpos_write_value(client, FSCPOS_REG_TEMP_STATE[nr - 1], 2);
 	return count;
 }
 

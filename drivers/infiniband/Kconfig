@@ -1,6 +1,7 @@
 menu "InfiniBand support"
 
 config INFINIBAND
+	depends on PCI || BROKEN
 	tristate "InfiniBand support"
 	---help---
 	  Core support for InfiniBand (IB).  Make sure to also select

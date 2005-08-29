@@ -1022,6 +1022,23 @@ static int fc_rport_match(struct attribute_container *cont,
 	return &i->rport_attr_cont.ac == cont;
 }
 
+
+/*
+ * Must be called with shost->host_lock held
+ */
+static struct device *fc_target_parent(struct Scsi_Host *shost,
+					int channel, uint id)
+{
+	struct fc_rport *rport;
+
+	list_for_each_entry(rport, &fc_host_rports(shost), peers)
+		if ((rport->channel == channel) &&
+		    (rport->scsi_target_id == id))
+			return &rport->dev;
+
+	return NULL;
+}
+
 struct scsi_transport_template *
 fc_attach_transport(struct fc_function_template *ft)
 {
@@ -1057,6 +1074,8 @@ fc_attach_transport(struct fc_function_template *ft)
 
 	/* Transport uses the shost workq for scsi scanning */
 	i->t.create_work_queue = 1;
+
+	i->t.target_parent = fc_target_parent;
 	
 	/*
 	 * Setup SCSI Target Attributes.

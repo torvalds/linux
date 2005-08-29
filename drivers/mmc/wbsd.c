@@ -42,7 +42,7 @@
 #include "wbsd.h"
 
 #define DRIVER_NAME "wbsd"
-#define DRIVER_VERSION "1.2"
+#define DRIVER_VERSION "1.3"
 
 #ifdef CONFIG_MMC_DEBUG
 #define DBG(x...) \
@@ -1796,7 +1796,7 @@ static int __devinit wbsd_init(struct device* dev, int base, int irq, int dma,
 	
 	mmc_add_host(mmc);
 
-	printk(KERN_INFO "%s: W83L51xD", mmc->host_name);
+	printk(KERN_INFO "%s: W83L51xD", mmc_hostname(mmc));
 	if (host->chip_id != 0)
 		printk(" id %x", (int)host->chip_id);
 	printk(" at 0x%x irq %d", (int)host->base, (int)host->irq);

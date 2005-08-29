@@ -182,14 +182,16 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 		/* We requested READDIRPLUS, but the server doesn't grok it */
 		if (error == -ENOTSUPP && desc->plus) {
 			NFS_SERVER(inode)->caps &= ~NFS_CAP_READDIRPLUS;
-			NFS_FLAGS(inode) &= ~NFS_INO_ADVISE_RDPLUS;
+			clear_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
 			desc->plus = 0;
 			goto again;
 		}
 		goto error;
 	}
 	SetPageUptodate(page);
-	NFS_FLAGS(inode) |= NFS_INO_INVALID_ATIME;
+	spin_lock(&inode->i_lock);
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
+	spin_unlock(&inode->i_lock);
 	/* Ensure consistent page alignment of the data.
 	 * Note: assumes we have exclusive access to this mapping either
 	 *	 through inode->i_sem or some other mechanism.
@@ -462,7 +464,9 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 						page,
 						NFS_SERVER(inode)->dtsize,
 						desc->plus);
-	NFS_FLAGS(inode) |= NFS_INO_INVALID_ATIME;
+	spin_lock(&inode->i_lock);
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
+	spin_unlock(&inode->i_lock);
 	desc->page = page;
 	desc->ptr = kmap(page);		/* matching kunmap in nfs_do_filldir */
 	if (desc->error >= 0) {
@@ -545,7 +549,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			break;
 		}
 		if (res == -ETOOSMALL && desc->plus) {
-			NFS_FLAGS(inode) &= ~NFS_INO_ADVISE_RDPLUS;
+			clear_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
 			nfs_zap_caches(inode);
 			desc->plus = 0;
 			desc->entry->eof = 0;
@@ -608,7 +612,7 @@ static inline int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 {
 	if (IS_ROOT(dentry))
 		return 1;
-	if ((NFS_FLAGS(dir) & NFS_INO_INVALID_ATTR) != 0
+	if ((NFS_I(dir)->cache_validity & NFS_INO_INVALID_ATTR) != 0
 			|| nfs_attribute_timeout(dir))
 		return 0;
 	return nfs_verify_change_attribute(dir, (unsigned long)dentry->d_fsdata);
@@ -935,6 +939,7 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	error = nfs_revalidate_inode(NFS_SERVER(dir), dir);
 	if (error < 0) {
 		res = ERR_PTR(error);
+		unlock_kernel();
 		goto out;
 	}
 
@@ -1575,11 +1580,12 @@ out:
 
 int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, struct nfs_access_entry *res)
 {
-	struct nfs_access_entry *cache = &NFS_I(inode)->cache_access;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_access_entry *cache = &nfsi->cache_access;
 
 	if (cache->cred != cred
 			|| time_after(jiffies, cache->jiffies + NFS_ATTRTIMEO(inode))
-			|| (NFS_FLAGS(inode) & NFS_INO_INVALID_ACCESS))
+			|| (nfsi->cache_validity & NFS_INO_INVALID_ACCESS))
 		return -ENOENT;
 	memcpy(res, cache, sizeof(*res));
 	return 0;
@@ -1587,14 +1593,18 @@ int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, struct nfs
 
 void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 {
-	struct nfs_access_entry *cache = &NFS_I(inode)->cache_access;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_access_entry *cache = &nfsi->cache_access;
 
 	if (cache->cred != set->cred) {
 		if (cache->cred)
 			put_rpccred(cache->cred);
 		cache->cred = get_rpccred(set->cred);
 	}
-	NFS_FLAGS(inode) &= ~NFS_INO_INVALID_ACCESS;
+	/* FIXME: replace current access_cache BKL reliance with inode->i_lock */
+	spin_lock(&inode->i_lock);
+	nfsi->cache_validity &= ~NFS_INO_INVALID_ACCESS;
+	spin_unlock(&inode->i_lock);
 	cache->jiffies = set->jiffies;
 	cache->mask = set->mask;
 }

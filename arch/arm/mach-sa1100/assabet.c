@@ -35,6 +35,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
 #include <asm/arch/assabet.h>
+#include <asm/arch/mcp.h>
 
 #include "generic.h"
 
@@ -198,6 +199,11 @@ static struct irda_platform_data assabet_irda_data = {
 	.set_speed	= assabet_irda_set_speed,
 };
 
+static struct mcp_plat_data assabet_mcp_data = {
+	.mccr0		= MCCR0_ADM,
+	.sclk_rate	= 11981000,
+};
+
 static void __init assabet_init(void)
 {
 	/*
@@ -246,6 +252,7 @@ static void __init assabet_init(void)
 	sa11x0_set_flash_data(&assabet_flash_data, assabet_flash_resources,
 			      ARRAY_SIZE(assabet_flash_resources));
 	sa11x0_set_irda_data(&assabet_irda_data);
+	sa11x0_set_mcp_data(&assabet_mcp_data);
 }
 
 /*

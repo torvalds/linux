@@ -380,6 +380,7 @@ void pcibios_bus_to_resource(struct pci_dev *dev,
 	res->start = region->start + offset;
 	res->end = region->end + offset;
 }
+EXPORT_SYMBOL(pcibios_bus_to_resource);
 
 static int __devinit is_valid_resource(struct pci_dev *dev, int idx)
 {

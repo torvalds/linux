@@ -88,15 +88,15 @@ struct ib_ucm_attr_id {
 };
 
 struct ib_ucm_attr_id_resp {
-	__u64 service_id;
-	__u64 service_mask;
-	__u32 local_id;
-	__u32 remote_id;
+	__be64 service_id;
+	__be64 service_mask;
+	__be32 local_id;
+	__be32 remote_id;
 };
 
 struct ib_ucm_listen {
-	__u64 service_id;
-	__u64 service_mask;
+	__be64 service_id;
+	__be64 service_mask;
 	__u32 id;
 };
 
@@ -114,13 +114,13 @@ struct ib_ucm_private_data {
 struct ib_ucm_path_rec {
 	__u8  dgid[16];
 	__u8  sgid[16];
-	__u16 dlid;
-	__u16 slid;
+	__be16 dlid;
+	__be16 slid;
 	__u32 raw_traffic;
-	__u32 flow_label;
+	__be32 flow_label;
 	__u32 reversible;
 	__u32 mtu;
-	__u16 pkey;
+	__be16 pkey;
 	__u8  hop_limit;
 	__u8  traffic_class;
 	__u8  numb_path;
@@ -138,7 +138,7 @@ struct ib_ucm_req {
 	__u32 qpn;
 	__u32 qp_type;
 	__u32 psn;
-	__u64 sid;
+	__be64 sid;
 	__u64 data;
 	__u64 primary_path;
 	__u64 alternate_path;
@@ -200,7 +200,7 @@ struct ib_ucm_lap {
 struct ib_ucm_sidr_req {
 	__u32 id;
 	__u32 timeout;
-	__u64 sid;
+	__be64 sid;
 	__u64 data;
 	__u64 path;
 	__u16 pkey;
@@ -237,7 +237,7 @@ struct ib_ucm_req_event_resp {
 	/* port */
 	struct ib_ucm_path_rec primary_path;
 	struct ib_ucm_path_rec alternate_path;
-	__u64                  remote_ca_guid;
+	__be64                 remote_ca_guid;
 	__u32                  remote_qkey;
 	__u32                  remote_qpn;
 	__u32                  qp_type;
@@ -253,7 +253,7 @@ struct ib_ucm_req_event_resp {
 };
 
 struct ib_ucm_rep_event_resp {
-	__u64 remote_ca_guid;
+	__be64 remote_ca_guid;
 	__u32 remote_qkey;
 	__u32 remote_qpn;
 	__u32 starting_psn;

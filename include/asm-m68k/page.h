@@ -138,13 +138,13 @@ extern unsigned long m68k_memoffset;
 #define __pa(vaddr)		((unsigned long)(vaddr)+m68k_memoffset)
 #define __va(paddr)		((void *)((unsigned long)(paddr)-m68k_memoffset))
 #else
-#define __pa(vaddr)		virt_to_phys((void *)vaddr)
-#define __va(paddr)		phys_to_virt((unsigned long)paddr)
+#define __pa(vaddr)		virt_to_phys((void *)(vaddr))
+#define __va(paddr)		phys_to_virt((unsigned long)(paddr))
 #endif
 
 #else	/* !CONFIG_SUN3 */
 /* This #define is a horrible hack to suppress lots of warnings. --m */
-#define __pa(x) ___pa((unsigned long)x)
+#define __pa(x) ___pa((unsigned long)(x))
 static inline unsigned long ___pa(unsigned long x)
 {
      if(x == 0)

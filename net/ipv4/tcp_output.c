@@ -861,7 +861,8 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len, 
 	u16 flags;
 
 	/* All of a TSO frame must be composed of paged data.  */
-	BUG_ON(skb->len != skb->data_len);
+	if (skb->len != skb->data_len)
+		return tcp_fragment(sk, skb, len, mss_now);
 
 	buff = sk_stream_alloc_pskb(sk, 0, 0, GFP_ATOMIC);
 	if (unlikely(buff == NULL))
@@ -924,10 +925,6 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 
 	limit = min(send_win, cong_win);
 
-	/* If sk_send_head can be sent fully now, just do it.  */
-	if (skb->len <= limit)
-		return 0;
-
 	if (sysctl_tcp_tso_win_divisor) {
 		u32 chunk = min(tp->snd_wnd, tp->snd_cwnd * tp->mss_cache);
 
@@ -974,6 +971,8 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 
 	sent_pkts = 0;
 	while ((skb = sk->sk_send_head)) {
+		unsigned int limit;
+
 		tso_segs = tcp_init_tso_segs(sk, skb, mss_now);
 		BUG_ON(!tso_segs);
 
@@ -994,9 +993,10 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 				break;
 		}
 
+		limit = mss_now;
 		if (tso_segs > 1) {
-			u32 limit = tcp_window_allows(tp, skb,
-						      mss_now, cwnd_quota);
+			limit = tcp_window_allows(tp, skb,
+						  mss_now, cwnd_quota);
 
 			if (skb->len < limit) {
 				unsigned int trim = skb->len % mss_now;
@@ -1004,14 +1004,11 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 				if (trim)
 					limit = skb->len - trim;
 			}
-			if (skb->len > limit) {
-				if (tso_fragment(sk, skb, limit, mss_now))
-					break;
-			}
-		} else if (unlikely(skb->len > mss_now)) {
-			if (unlikely(tcp_fragment(sk, skb,  mss_now, mss_now)))
-				break;
 		}
+
+		if (skb->len > limit &&
+		    unlikely(tso_fragment(sk, skb, limit, mss_now)))
+			break;
 
 		TCP_SKB_CB(skb)->when = tcp_time_stamp;
 
@@ -1064,11 +1061,14 @@ void tcp_push_one(struct sock *sk, unsigned int mss_now)
 	cwnd_quota = tcp_snd_test(sk, skb, mss_now, TCP_NAGLE_PUSH);
 
 	if (likely(cwnd_quota)) {
+		unsigned int limit;
+
 		BUG_ON(!tso_segs);
 
+		limit = mss_now;
 		if (tso_segs > 1) {
-			u32 limit = tcp_window_allows(tp, skb,
-						      mss_now, cwnd_quota);
+			limit = tcp_window_allows(tp, skb,
+						  mss_now, cwnd_quota);
 
 			if (skb->len < limit) {
 				unsigned int trim = skb->len % mss_now;
@@ -1076,14 +1076,11 @@ void tcp_push_one(struct sock *sk, unsigned int mss_now)
 				if (trim)
 					limit = skb->len - trim;
 			}
-			if (skb->len > limit) {
-				if (unlikely(tso_fragment(sk, skb, limit, mss_now)))
-					return;
-			}
-		} else if (unlikely(skb->len > mss_now)) {
-			if (unlikely(tcp_fragment(sk, skb, mss_now, mss_now)))
-				return;
 		}
+
+		if (skb->len > limit &&
+		    unlikely(tso_fragment(sk, skb, limit, mss_now)))
+			return;
 
 		/* Send it out now. */
 		TCP_SKB_CB(skb)->when = tcp_time_stamp;
@@ -1370,15 +1367,21 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 
 	if (skb->len > cur_mss) {
 		int old_factor = tcp_skb_pcount(skb);
-		int new_factor;
+		int diff;
 
 		if (tcp_fragment(sk, skb, cur_mss, cur_mss))
 			return -ENOMEM; /* We'll try again later. */
 
 		/* New SKB created, account for it. */
-		new_factor = tcp_skb_pcount(skb);
-		tp->packets_out -= old_factor - new_factor;
-		tp->packets_out += tcp_skb_pcount(skb->next);
+		diff = old_factor - tcp_skb_pcount(skb) -
+		       tcp_skb_pcount(skb->next);
+		tp->packets_out -= diff;
+
+		if (diff > 0) {
+			tp->fackets_out -= diff;
+			if ((int)tp->fackets_out < 0)
+				tp->fackets_out = 0;
+		}
 	}
 
 	/* Collapse two adjacent packets if worthwhile and we can. */
