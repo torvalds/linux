@@ -295,8 +295,14 @@
 #define __NR_add_key		285
 #define __NR_request_key	286
 #define __NR_keyctl		287
+#define __NR_ioprio_set		288
+#define __NR_ioprio_get		289
+#define __NR_inotify_init	290
+#define __NR_inotify_add_watch	291
+#define __NR_inotify_rm_watch	292
 
-#define NR_syscalls 288
+
+#define NR_syscalls 293
 
 /* user-visible error numbers are in the range -1 - -124: see <asm-sh/errno.h> */
 

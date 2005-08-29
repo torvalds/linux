@@ -8,7 +8,7 @@ EXTRA_CFLAGS := -Werror
 extra-y		:= head.o init_task.o vmlinux.lds
 
 obj-y		:= process.o setup.o cpu.o idprom.o \
-		   traps.o devices.o auxio.o \
+		   traps.o devices.o auxio.o una_asm.o \
 		   irq.o ptrace.o time.o sys_sparc.o signal.o \
 		   unaligned.o central.o pci.o starfire.o semaphore.o \
 		   power.o sbus.o iommu_common.o sparc64_ksyms.o chmc.o

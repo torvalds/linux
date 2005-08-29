@@ -13,4 +13,9 @@
 void mmc_init_card(struct mmc_card *card, struct mmc_host *host);
 int mmc_register_card(struct mmc_card *card);
 void mmc_remove_card(struct mmc_card *card);
+
+struct mmc_host *mmc_alloc_host_sysfs(int extra, struct device *dev);
+int mmc_add_host_sysfs(struct mmc_host *host);
+void mmc_remove_host_sysfs(struct mmc_host *host);
+void mmc_free_host_sysfs(struct mmc_host *host);
 #endif

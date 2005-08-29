@@ -134,6 +134,7 @@ config HISAX_AVM_A1
 
 config HISAX_FRITZPCI
 	bool "AVM PnP/PCI (Fritz!PnP/PCI)"
+	depends on BROKEN || !PPC64
 	help
 	  This enables HiSax support for the AVM "Fritz!PnP" and "Fritz!PCI".
 	  See <file:Documentation/isdn/README.HiSax> on how to configure it.

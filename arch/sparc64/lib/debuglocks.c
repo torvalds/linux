@@ -12,8 +12,6 @@
 
 #ifdef CONFIG_SMP
 
-#define GET_CALLER(PC) __asm__ __volatile__("mov %%i7, %0" : "=r" (PC))
-
 static inline void show (char *str, spinlock_t *lock, unsigned long caller)
 {
 	int cpu = smp_processor_id();
@@ -51,20 +49,19 @@ static inline void show_write (char *str, rwlock_t *lock, unsigned long caller)
 #undef INIT_STUCK
 #define INIT_STUCK 100000000
 
-void _do_spin_lock(spinlock_t *lock, char *str)
+void _do_spin_lock(spinlock_t *lock, char *str, unsigned long caller)
 {
-	unsigned long caller, val;
+	unsigned long val;
 	int stuck = INIT_STUCK;
 	int cpu = get_cpu();
 	int shown = 0;
 
-	GET_CALLER(caller);
 again:
 	__asm__ __volatile__("ldstub [%1], %0"
 			     : "=r" (val)
 			     : "r" (&(lock->lock))
 			     : "memory");
-	membar("#StoreLoad | #StoreStore");
+	membar_storeload_storestore();
 	if (val) {
 		while (lock->lock) {
 			if (!--stuck) {
@@ -72,7 +69,7 @@ again:
 					show(str, lock, caller);
 				stuck = INIT_STUCK;
 			}
-			membar("#LoadLoad");
+			rmb();
 		}
 		goto again;
 	}
@@ -84,17 +81,16 @@ again:
 	put_cpu();
 }
 
-int _do_spin_trylock(spinlock_t *lock)
+int _do_spin_trylock(spinlock_t *lock, unsigned long caller)
 {
-	unsigned long val, caller;
+	unsigned long val;
 	int cpu = get_cpu();
 
-	GET_CALLER(caller);
 	__asm__ __volatile__("ldstub [%1], %0"
 			     : "=r" (val)
 			     : "r" (&(lock->lock))
 			     : "memory");
-	membar("#StoreLoad | #StoreStore");
+	membar_storeload_storestore();
 	if (!val) {
 		lock->owner_pc = ((unsigned int)caller);
 		lock->owner_cpu = cpu;
@@ -111,21 +107,20 @@ void _do_spin_unlock(spinlock_t *lock)
 {
 	lock->owner_pc = 0;
 	lock->owner_cpu = NO_PROC_ID;
-	membar("#StoreStore | #LoadStore");
+	membar_storestore_loadstore();
 	lock->lock = 0;
 	current->thread.smp_lock_count--;
 }
 
 /* Keep INIT_STUCK the same... */
 
-void _do_read_lock (rwlock_t *rw, char *str)
+void _do_read_lock(rwlock_t *rw, char *str, unsigned long caller)
 {
-	unsigned long caller, val;
+	unsigned long val;
 	int stuck = INIT_STUCK;
 	int cpu = get_cpu();
 	int shown = 0;
 
-	GET_CALLER(caller);
 wlock_again:
 	/* Wait for any writer to go away.  */
 	while (((long)(rw->lock)) < 0) {
@@ -134,7 +129,7 @@ wlock_again:
 				show_read(str, rw, caller);
 			stuck = INIT_STUCK;
 		}
-		membar("#LoadLoad");
+		rmb();
 	}
 	/* Try once to increment the counter.  */
 	__asm__ __volatile__(
@@ -147,7 +142,7 @@ wlock_again:
 "2:"	: "=r" (val)
 	: "0" (&(rw->lock))
 	: "g1", "g7", "memory");
-	membar("#StoreLoad | #StoreStore");
+	membar_storeload_storestore();
 	if (val)
 		goto wlock_again;
 	rw->reader_pc[cpu] = ((unsigned int)caller);
@@ -157,14 +152,12 @@ wlock_again:
 	put_cpu();
 }
 
-void _do_read_unlock (rwlock_t *rw, char *str)
+void _do_read_unlock(rwlock_t *rw, char *str, unsigned long caller)
 {
-	unsigned long caller, val;
+	unsigned long val;
 	int stuck = INIT_STUCK;
 	int cpu = get_cpu();
 	int shown = 0;
-
-	GET_CALLER(caller);
 
 	/* Drop our identity _first_. */
 	rw->reader_pc[cpu] = 0;
@@ -193,14 +186,13 @@ runlock_again:
 	put_cpu();
 }
 
-void _do_write_lock (rwlock_t *rw, char *str)
+void _do_write_lock(rwlock_t *rw, char *str, unsigned long caller)
 {
-	unsigned long caller, val;
+	unsigned long val;
 	int stuck = INIT_STUCK;
 	int cpu = get_cpu();
 	int shown = 0;
 
-	GET_CALLER(caller);
 wlock_again:
 	/* Spin while there is another writer. */
 	while (((long)rw->lock) < 0) {
@@ -209,7 +201,7 @@ wlock_again:
 				show_write(str, rw, caller);
 			stuck = INIT_STUCK;
 		}
-		membar("#LoadLoad");
+		rmb();
 	}
 
 	/* Try to acuire the write bit.  */
@@ -264,7 +256,7 @@ wlock_again:
 					show_write(str, rw, caller);
 				stuck = INIT_STUCK;
 			}
-			membar("#LoadLoad");
+			rmb();
 		}
 		goto wlock_again;
 	}
@@ -278,13 +270,11 @@ wlock_again:
 	put_cpu();
 }
 
-void _do_write_unlock(rwlock_t *rw)
+void _do_write_unlock(rwlock_t *rw, unsigned long caller)
 {
-	unsigned long caller, val;
+	unsigned long val;
 	int stuck = INIT_STUCK;
 	int shown = 0;
-
-	GET_CALLER(caller);
 
 	/* Drop our identity _first_ */
 	rw->writer_pc = 0;
@@ -313,12 +303,10 @@ wlock_again:
 	}
 }
 
-int _do_write_trylock (rwlock_t *rw, char *str)
+int _do_write_trylock(rwlock_t *rw, char *str, unsigned long caller)
 {
-	unsigned long caller, val;
+	unsigned long val;
 	int cpu = get_cpu();
-
-	GET_CALLER(caller);
 
 	/* Try to acuire the write bit.  */
 	__asm__ __volatile__(

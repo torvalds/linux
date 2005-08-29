@@ -70,8 +70,6 @@
  * @traffic_class - Traffic class in GRH
  * @gid - Remote GID in GRH
  * @flow_label - Flow label in GRH
- *
- * All multi-byte quantities are stored in network (big endian) byte order.
  */
 struct ib_user_mad_hdr {
 	__u32	id;
@@ -79,9 +77,9 @@ struct ib_user_mad_hdr {
 	__u32	timeout_ms;
 	__u32	retries;
 	__u32	length;
-	__u32	qpn;
-	__u32   qkey;
-	__u16	lid;
+	__be32	qpn;
+	__be32  qkey;
+	__be16	lid;
 	__u8	sl;
 	__u8	path_bits;
 	__u8	grh_present;
@@ -89,7 +87,7 @@ struct ib_user_mad_hdr {
 	__u8	hop_limit;
 	__u8	traffic_class;
 	__u8	gid[16];
-	__u32	flow_label;
+	__be32	flow_label;
 };
 
 /**

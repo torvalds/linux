@@ -180,7 +180,9 @@ static ssize_t driver_bind(struct device_driver *drv,
 		up(&dev->sem);
 		put_device(dev);
 	}
-	return err;
+	if (err)
+		return err;
+	return count;
 }
 static DRIVER_ATTR(bind, S_IWUSR, NULL, driver_bind);
 

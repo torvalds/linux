@@ -134,9 +134,10 @@ nfs_file_release(struct inode *inode, struct file *filp)
  */
 static int nfs_revalidate_file(struct inode *inode, struct file *filp)
 {
+	struct nfs_inode *nfsi = NFS_I(inode);
 	int retval = 0;
 
-	if ((NFS_FLAGS(inode) & NFS_INO_REVAL_PAGECACHE) || nfs_attribute_timeout(inode))
+	if ((nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE) || nfs_attribute_timeout(inode))
 		retval = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	nfs_revalidate_mapping(inode, filp->f_mapping);
 	return 0;
@@ -164,7 +165,7 @@ static int nfs_revalidate_file_size(struct inode *inode, struct file *filp)
 		goto force_reval;
 	if (nfsi->npages != 0)
 		return 0;
-	if (!(NFS_FLAGS(inode) & NFS_INO_REVAL_PAGECACHE) && !nfs_attribute_timeout(inode))
+	if (!(nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE) && !nfs_attribute_timeout(inode))
 		return 0;
 force_reval:
 	return __nfs_revalidate_inode(server, inode);

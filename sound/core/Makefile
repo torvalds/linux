@@ -5,7 +5,7 @@
 
 snd-objs     := sound.o init.o memory.o info.o control.o misc.o \
                 device.o wrappers.o
-ifeq ($(CONFIG_ISA),y)
+ifeq ($(CONFIG_ISA_DMA_API),y)
 snd-objs     += isadma.o
 endif
 ifeq ($(CONFIG_SND_OSSEMUL),y)

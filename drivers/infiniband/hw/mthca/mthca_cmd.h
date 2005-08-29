@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,7 +36,7 @@
 #ifndef MTHCA_CMD_H
 #define MTHCA_CMD_H
 
-#include <ib_verbs.h>
+#include <rdma/ib_verbs.h>
 
 #define MTHCA_MAILBOX_SIZE 4096
 
@@ -183,10 +184,11 @@ struct mthca_dev_lim {
 };
 
 struct mthca_adapter {
-	u32 vendor_id;
-	u32 device_id;
-	u32 revision_id;
-	u8  inta_pin;
+	u32  vendor_id;
+	u32  device_id;
+	u32  revision_id;
+	char board_id[MTHCA_BOARD_ID_LEN];
+	u8   inta_pin;
 };
 
 struct mthca_init_hca_param {
@@ -218,8 +220,7 @@ struct mthca_init_hca_param {
 };
 
 struct mthca_init_ib_param {
-	int enable_1x;
-	int enable_4x;
+	int port_width;
 	int vl_cap;
 	int mtu_cap;
 	u16 gid_cap;
@@ -297,6 +298,11 @@ int mthca_SW2HW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int cq_num, u8 *status);
 int mthca_HW2SW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int cq_num, u8 *status);
+int mthca_SW2HW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
+		    int srq_num, u8 *status);
+int mthca_HW2SW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
+		    int srq_num, u8 *status);
+int mthca_ARM_SRQ(struct mthca_dev *dev, int srq_num, int limit, u8 *status);
 int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 		    int is_ee, struct mthca_mailbox *mailbox, u32 optmask,
 		    u8 *status);

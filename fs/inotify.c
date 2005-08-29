@@ -353,7 +353,7 @@ static int inotify_dev_get_wd(struct inotify_device *dev,
 	do {
 		if (unlikely(!idr_pre_get(&dev->idr, GFP_KERNEL)))
 			return -ENOSPC;
-		ret = idr_get_new_above(&dev->idr, watch, dev->last_wd, &watch->wd);
+		ret = idr_get_new_above(&dev->idr, watch, dev->last_wd+1, &watch->wd);
 	} while (ret == -EAGAIN);
 
 	return ret;

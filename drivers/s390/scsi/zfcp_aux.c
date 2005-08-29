@@ -1299,13 +1299,10 @@ struct zfcp_port *
 zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn, u32 status,
 		  u32 d_id)
 {
-	struct zfcp_port *port, *tmp_port;
+	struct zfcp_port *port;
 	int check_wwpn;
-	scsi_id_t scsi_id;
-	int found;
 
 	check_wwpn = !(status & ZFCP_STATUS_PORT_NO_WWPN);
-
 	/*
 	 * check that there is no port with this WWPN already in list
 	 */
@@ -1368,7 +1365,7 @@ zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn, u32 status,
 	} else {
 		snprintf(port->sysfs_device.bus_id,
 			 BUS_ID_SIZE, "0x%016llx", wwpn);
-	port->sysfs_device.parent = &adapter->ccw_device->dev;
+		port->sysfs_device.parent = &adapter->ccw_device->dev;
 	}
 	port->sysfs_device.release = zfcp_sysfs_port_release;
 	dev_set_drvdata(&port->sysfs_device, port);
@@ -1388,24 +1385,8 @@ zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn, u32 status,
 
 	zfcp_port_get(port);
 
-	scsi_id = 1;
-	found = 0;
 	write_lock_irq(&zfcp_data.config_lock);
-	list_for_each_entry(tmp_port, &adapter->port_list_head, list) {
-		if (atomic_test_mask(ZFCP_STATUS_PORT_NO_SCSI_ID,
-				     &tmp_port->status))
-			continue;
-		if (tmp_port->scsi_id != scsi_id) {
-			found = 1;
-			break;
-		}
-		scsi_id++;
-	}
-	port->scsi_id = scsi_id;
-	if (found)
-		list_add_tail(&port->list, &tmp_port->list);
-	else
-		list_add_tail(&port->list, &adapter->port_list_head);
+	list_add_tail(&port->list, &adapter->port_list_head);
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
 	atomic_set_mask(ZFCP_STATUS_COMMON_RUNNING, &port->status);
 	if (d_id == ZFCP_DID_DIRECTORY_SERVICE)
@@ -1427,6 +1408,9 @@ zfcp_port_dequeue(struct zfcp_port *port)
 	list_del(&port->list);
 	port->adapter->ports--;
 	write_unlock_irq(&zfcp_data.config_lock);
+	if (port->rport)
+		fc_remote_port_delete(port->rport);
+	port->rport = NULL;
 	zfcp_adapter_put(port->adapter);
 	zfcp_sysfs_port_remove_files(&port->sysfs_device,
 				     atomic_read(&port->status));

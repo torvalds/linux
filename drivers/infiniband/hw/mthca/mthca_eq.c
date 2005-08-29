@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -51,18 +52,18 @@ enum {
  * Must be packed because start is 64 bits but only aligned to 32 bits.
  */
 struct mthca_eq_context {
-	u32 flags;
-	u64 start;
-	u32 logsize_usrpage;
-	u32 tavor_pd;		/* reserved for Arbel */
-	u8  reserved1[3];
-	u8  intr;
-	u32 arbel_pd;		/* lost_count for Tavor */
-	u32 lkey;
-	u32 reserved2[2];
-	u32 consumer_index;
-	u32 producer_index;
-	u32 reserved3[4];
+	__be32 flags;
+	__be64 start;
+	__be32 logsize_usrpage;
+	__be32 tavor_pd;	/* reserved for Arbel */
+	u8     reserved1[3];
+	u8     intr;
+	__be32 arbel_pd;	/* lost_count for Tavor */
+	__be32 lkey;
+	u32    reserved2[2];
+	__be32 consumer_index;
+	__be32 producer_index;
+	u32    reserved3[4];
 } __attribute__((packed));
 
 #define MTHCA_EQ_STATUS_OK          ( 0 << 28)
@@ -127,28 +128,28 @@ struct mthca_eqe {
 	union {
 		u32 raw[6];
 		struct {
-			u32 cqn;
+			__be32 cqn;
 		} __attribute__((packed)) comp;
 		struct {
-			u16 reserved1;
-			u16 token;
-			u32 reserved2;
-			u8  reserved3[3];
-			u8  status;
-			u64 out_param;
+			u16    reserved1;
+			__be16 token;
+			u32    reserved2;
+			u8     reserved3[3];
+			u8     status;
+			__be64 out_param;
 		} __attribute__((packed)) cmd;
 		struct {
-			u32 qpn;
+			__be32 qpn;
 		} __attribute__((packed)) qp;
 		struct {
-			u32 cqn;
-			u32 reserved1;
-			u8  reserved2[3];
-			u8  syndrome;
+			__be32 cqn;
+			u32    reserved1;
+			u8     reserved2[3];
+			u8     syndrome;
 		} __attribute__((packed)) cq_err;
 		struct {
-			u32 reserved1[2];
-			u32 port;
+			u32    reserved1[2];
+			__be32 port;
 		} __attribute__((packed)) port_change;
 	} event;
 	u8 reserved3[3];
@@ -167,7 +168,7 @@ static inline u64 async_mask(struct mthca_dev *dev)
 
 static inline void tavor_set_eq_ci(struct mthca_dev *dev, struct mthca_eq *eq, u32 ci)
 {
-	u32 doorbell[2];
+	__be32 doorbell[2];
 
 	doorbell[0] = cpu_to_be32(MTHCA_EQ_DB_SET_CI | eq->eqn);
 	doorbell[1] = cpu_to_be32(ci & (eq->nent - 1));
@@ -190,8 +191,8 @@ static inline void arbel_set_eq_ci(struct mthca_dev *dev, struct mthca_eq *eq, u
 {
 	/* See comment in tavor_set_eq_ci() above. */
 	wmb();
-	__raw_writel(cpu_to_be32(ci), dev->eq_regs.arbel.eq_set_ci_base +
-		     eq->eqn * 8);
+	__raw_writel((__force u32) cpu_to_be32(ci),
+		     dev->eq_regs.arbel.eq_set_ci_base + eq->eqn * 8);
 	/* We still want ordering, just not swabbing, so add a barrier */
 	mb();
 }
@@ -206,7 +207,7 @@ static inline void set_eq_ci(struct mthca_dev *dev, struct mthca_eq *eq, u32 ci)
 
 static inline void tavor_eq_req_not(struct mthca_dev *dev, int eqn)
 {
-	u32 doorbell[2];
+	__be32 doorbell[2];
 
 	doorbell[0] = cpu_to_be32(MTHCA_EQ_DB_REQ_NOT | eqn);
 	doorbell[1] = 0;
@@ -224,7 +225,7 @@ static inline void arbel_eq_req_not(struct mthca_dev *dev, u32 eqn_mask)
 static inline void disarm_cq(struct mthca_dev *dev, int eqn, int cqn)
 {
 	if (!mthca_is_memfree(dev)) {
-		u32 doorbell[2];
+		__be32 doorbell[2];
 
 		doorbell[0] = cpu_to_be32(MTHCA_EQ_DB_DISARM_CQ | eqn);
 		doorbell[1] = cpu_to_be32(cqn);

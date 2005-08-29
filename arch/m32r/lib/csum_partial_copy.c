@@ -58,3 +58,4 @@ csum_partial_copy_from_user (const unsigned char __user *src,
 	return csum_partial(dst, len-missing, sum);
 }
 EXPORT_SYMBOL(csum_partial_copy_from_user);
+EXPORT_SYMBOL(csum_partial);

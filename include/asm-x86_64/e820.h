@@ -51,6 +51,8 @@ extern int e820_mapped(unsigned long start, unsigned long end, unsigned type);
 
 extern void e820_bootmem_free(pg_data_t *pgdat, unsigned long start,unsigned long end);
 extern void e820_setup_gap(void);
+extern unsigned long e820_hole_size(unsigned long start_pfn,
+				    unsigned long end_pfn);
 
 extern void __init parse_memopt(char *p, char **end);
 

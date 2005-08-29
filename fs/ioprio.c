@@ -62,6 +62,8 @@ asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 
 			break;
 		case IOPRIO_CLASS_IDLE:
+			if (!capable(CAP_SYS_ADMIN))
+				return -EPERM;
 			break;
 		default:
 			return -EINVAL;

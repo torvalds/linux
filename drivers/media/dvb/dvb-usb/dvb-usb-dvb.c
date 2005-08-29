@@ -23,12 +23,12 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	 */
 	if (newfeedcount == 0) {
 		deb_ts("stop feeding\n");
+		dvb_usb_urb_kill(d);
 
 		if (d->props.streaming_ctrl != NULL)
 			if ((ret = d->props.streaming_ctrl(d,0)))
 				err("error while stopping stream.");
 
-		dvb_usb_urb_kill(d);
 	}
 
 	d->feedcount = newfeedcount;
@@ -44,6 +44,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	 * for reception.
 	 */
 	if (d->feedcount == onoff && d->feedcount > 0) {
+		deb_ts("submitting all URBs\n");
+		dvb_usb_urb_submit(d);
 
 		deb_ts("controlling pid parser\n");
 		if (d->props.caps & DVB_USB_HAS_PID_FILTER &&
@@ -59,7 +61,6 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 				return -ENODEV;
 			}
 
-		dvb_usb_urb_submit(d);
 	}
 	return 0;
 }

@@ -269,6 +269,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 	int qualifier;		/* 'h', 'l', or 'L' for integer fields */
 				/* 'z' support added 23/7/1999 S.H.    */
 				/* 'z' changed to 'Z' --davidm 1/25/99 */
+				/* 't' added for ptrdiff_t */
 
 	/* Reject out-of-range values early */
 	if (unlikely((int) size < 0)) {
@@ -339,7 +340,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		/* get the conversion qualifier */
 		qualifier = -1;
 		if (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' ||
-		    *fmt =='Z' || *fmt == 'z') {
+		    *fmt =='Z' || *fmt == 'z' || *fmt == 't') {
 			qualifier = *fmt;
 			++fmt;
 			if (qualifier == 'l' && *fmt == 'l') {
@@ -467,6 +468,8 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				num = (signed long) num;
 		} else if (qualifier == 'Z' || qualifier == 'z') {
 			num = va_arg(args, size_t);
+		} else if (qualifier == 't') {
+			num = va_arg(args, ptrdiff_t);
 		} else if (qualifier == 'h') {
 			num = (unsigned short) va_arg(args, int);
 			if (flags & SIGN)
