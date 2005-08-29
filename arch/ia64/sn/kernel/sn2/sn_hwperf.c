@@ -36,7 +36,6 @@
 #include <asm/topology.h>
 #include <asm/smp.h>
 #include <asm/semaphore.h>
-#include <asm/segment.h>
 #include <asm/uaccess.h>
 #include <asm/sal.h>
 #include <asm/sn/io.h>
