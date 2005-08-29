@@ -21,6 +21,7 @@
 #include <asm/visasm.h>
 #include <asm/estate.h>
 #include <asm/auxio.h>
+#include <asm/sfafsr.h>
 
 #define curptr      g6
 
@@ -690,88 +691,102 @@ netbsd_syscall:
 	retl
 	 nop
 
-	.globl		__do_data_access_exception
-	.globl		__do_data_access_exception_tl1
-__do_data_access_exception_tl1:
-	rdpr		%pstate, %g4
-	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
-	mov		TLB_SFSR, %g3
-	mov		DMMU_SFAR, %g5
-	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
-	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
-	stxa		%g0, [%g3] ASI_DMMU	! Clear SFSR.FaultValid bit
+	/* We need to carefully read the error status, ACK
+	 * the errors, prevent recursive traps, and pass the
+	 * information on to C code for logging.
+	 *
+	 * We pass the AFAR in as-is, and we encode the status
+	 * information as described in asm-sparc64/sfafsr.h
+	 */
+	.globl		__spitfire_access_error
+__spitfire_access_error:
+	/* Disable ESTATE error reporting so that we do not
+	 * take recursive traps and RED state the processor.
+	 */
+	stxa		%g0, [%g0] ASI_ESTATE_ERROR_EN
 	membar		#Sync
+
+	mov		UDBE_UE, %g1
+	ldxa		[%g0] ASI_AFSR, %g4	! Get AFSR
+
+	/* __spitfire_cee_trap branches here with AFSR in %g4 and
+	 * UDBE_CE in %g1.  It only clears ESTATE_ERR_CE in the
+	 * ESTATE Error Enable register.
+	 */
+__spitfire_cee_trap_continue:
+	ldxa		[%g0] ASI_AFAR, %g5	! Get AFAR
+
 	rdpr		%tt, %g3
-	cmp		%g3, 0x80		! first win spill/fill trap
-	blu,pn		%xcc, 1f
-	 cmp		%g3, 0xff		! last win spill/fill trap
-	bgu,pn		%xcc, 1f
+	and		%g3, 0x1ff, %g3		! Paranoia
+	sllx		%g3, SFSTAT_TRAP_TYPE_SHIFT, %g3
+	or		%g4, %g3, %g4
+	rdpr		%tl, %g3
+	cmp		%g3, 1
+	mov		1, %g3
+	bleu		%xcc, 1f
+	 sllx		%g3, SFSTAT_TL_GT_ONE_SHIFT, %g3
+
+	or		%g4, %g3, %g4
+
+	/* Read in the UDB error register state, clearing the
+	 * sticky error bits as-needed.  We only clear them if
+	 * the UE bit is set.  Likewise, __spitfire_cee_trap
+	 * below will only do so if the CE bit is set.
+	 *
+	 * NOTE: UltraSparc-I/II have high and low UDB error
+	 *       registers, corresponding to the two UDB units
+	 *       present on those chips.  UltraSparc-IIi only
+	 *       has a single UDB, called "SDB" in the manual.
+	 *       For IIi the upper UDB register always reads
+	 *       as zero so for our purposes things will just
+	 *       work with the checks below.
+	 */
+1:	ldxa		[%g0] ASI_UDBH_ERROR_R, %g3
+	and		%g3, 0x3ff, %g7		! Paranoia
+	sllx		%g7, SFSTAT_UDBH_SHIFT, %g7
+	or		%g4, %g7, %g4
+	andcc		%g3, %g1, %g3		! UDBE_UE or UDBE_CE
+	be,pn		%xcc, 1f
 	 nop
-	ba,pt		%xcc, winfix_dax
-	 rdpr		%tpc, %g3
-1:	sethi		%hi(109f), %g7
+	stxa		%g3, [%g0] ASI_UDB_ERROR_W
+	membar		#Sync
+
+1:	mov		0x18, %g3
+	ldxa		[%g3] ASI_UDBL_ERROR_R, %g3
+	and		%g3, 0x3ff, %g7		! Paranoia
+	sllx		%g7, SFSTAT_UDBL_SHIFT, %g7
+	or		%g4, %g7, %g4
+	andcc		%g3, %g1, %g3		! UDBE_UE or UDBE_CE
+	be,pn		%xcc, 1f
+	 nop
+	mov		0x18, %g7
+	stxa		%g3, [%g7] ASI_UDB_ERROR_W
+	membar		#Sync
+
+1:	/* Ok, now that we've latched the error state,
+	 * clear the sticky bits in the AFSR.
+	 */
+	stxa		%g4, [%g0] ASI_AFSR
+	membar		#Sync
+
+	rdpr		%tl, %g2
+	cmp		%g2, 1
+	rdpr		%pil, %g2
+	bleu,pt		%xcc, 1f
+	 wrpr		%g0, 15, %pil
+
 	ba,pt		%xcc, etraptl1
-109:	 or		%g7, %lo(109b), %g7
-	mov		%l4, %o1
-	mov		%l5, %o2
-	call		data_access_exception_tl1
-	 add		%sp, PTREGS_OFF, %o0
-	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 rd		%pc, %g7
 
-__do_data_access_exception:
-	rdpr		%pstate, %g4
-	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
-	mov		TLB_SFSR, %g3
-	mov		DMMU_SFAR, %g5
-	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
-	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
-	stxa		%g0, [%g3] ASI_DMMU	! Clear SFSR.FaultValid bit
-	membar		#Sync
-	sethi		%hi(109f), %g7
-	ba,pt		%xcc, etrap
-109:	 or		%g7, %lo(109b), %g7
-	mov		%l4, %o1
-	mov		%l5, %o2
-	call		data_access_exception
-	 add		%sp, PTREGS_OFF, %o0
-	ba,pt		%xcc, rtrap
-	 clr		%l6
+	ba,pt		%xcc, 2f
+	 nop
 
-	.globl		__do_instruction_access_exception
-	.globl		__do_instruction_access_exception_tl1
-__do_instruction_access_exception_tl1:
-	rdpr		%pstate, %g4
-	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
-	mov		TLB_SFSR, %g3
-	ldxa		[%g3] ASI_IMMU, %g4	! Get SFSR
-	rdpr		%tpc, %g5		! IMMU has no SFAR, use TPC
-	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
-	membar		#Sync
-	sethi		%hi(109f), %g7
-	ba,pt		%xcc, etraptl1
-109:	 or		%g7, %lo(109b), %g7
-	mov		%l4, %o1
-	mov		%l5, %o2
-	call		instruction_access_exception_tl1
-	 add		%sp, PTREGS_OFF, %o0
-	ba,pt		%xcc, rtrap
-	 clr		%l6
+1:	ba,pt		%xcc, etrap_irq
+	 rd		%pc, %g7
 
-__do_instruction_access_exception:
-	rdpr		%pstate, %g4
-	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
-	mov		TLB_SFSR, %g3
-	ldxa		[%g3] ASI_IMMU, %g4	! Get SFSR
-	rdpr		%tpc, %g5		! IMMU has no SFAR, use TPC
-	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
-	membar		#Sync
-	sethi		%hi(109f), %g7
-	ba,pt		%xcc, etrap
-109:	 or		%g7, %lo(109b), %g7
-	mov		%l4, %o1
+2:	mov		%l4, %o1
 	mov		%l5, %o2
-	call		instruction_access_exception
+	call		spitfire_access_error
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
 	 clr		%l6
@@ -793,79 +808,124 @@ __do_instruction_access_exception:
 	 * as it is the only situation where we can safely record
 	 * and log.  For trap level >1 we just clear the CE bit
 	 * in the AFSR and return.
-	 */
-
-	/* Our trap handling infrastructure allows us to preserve
-	 * two 64-bit values during etrap for arguments to
-	 * subsequent C code.  Therefore we encode the information
-	 * as follows:
 	 *
-	 * value 1) Full 64-bits of AFAR
-	 * value 2) Low 33-bits of AFSR, then bits 33-->42
-	 *          are UDBL error status and bits 43-->52
-	 *          are UDBH error status
+	 * This is just like __spiftire_access_error above, but it
+	 * specifically handles correctable errors.  If an
+	 * uncorrectable error is indicated in the AFSR we
+	 * will branch directly above to __spitfire_access_error
+	 * to handle it instead.  Uncorrectable therefore takes
+	 * priority over correctable, and the error logging
+	 * C code will notice this case by inspecting the
+	 * trap type.
 	 */
-	.align	64
-	.globl	cee_trap
-cee_trap:
-	ldxa	[%g0] ASI_AFSR, %g1		! Read AFSR
-	ldxa	[%g0] ASI_AFAR, %g2		! Read AFAR
-	sllx	%g1, 31, %g1			! Clear reserved bits
-	srlx	%g1, 31, %g1			! in AFSR
+	.globl		__spitfire_cee_trap
+__spitfire_cee_trap:
+	ldxa		[%g0] ASI_AFSR, %g4	! Get AFSR
+	mov		1, %g3
+	sllx		%g3, SFAFSR_UE_SHIFT, %g3
+	andcc		%g4, %g3, %g0		! Check for UE
+	bne,pn		%xcc, __spitfire_access_error
+	 nop
 
-	/* NOTE: UltraSparc-I/II have high and low UDB error
-	 *       registers, corresponding to the two UDB units
-	 *       present on those chips.  UltraSparc-IIi only
-	 *       has a single UDB, called "SDB" in the manual.
-	 *       For IIi the upper UDB register always reads
-	 *       as zero so for our purposes things will just
-	 *       work with the checks below.
+	/* Ok, in this case we only have a correctable error.
+	 * Indicate we only wish to capture that state in register
+	 * %g1, and we only disable CE error reporting unlike UE
+	 * handling which disables all errors.
 	 */
-	ldxa	[%g0] ASI_UDBL_ERROR_R, %g3	! Read UDB-Low error status
-	andcc	%g3, (1 << 8), %g4		! Check CE bit
-	sllx	%g3, (64 - 10), %g3		! Clear reserved bits
-	srlx	%g3, (64 - 10), %g3		! in UDB-Low error status
+	ldxa		[%g0] ASI_ESTATE_ERROR_EN, %g3
+	andn		%g3, ESTATE_ERR_CE, %g3
+	stxa		%g3, [%g0] ASI_ESTATE_ERROR_EN
+	membar		#Sync
 
-	sllx	%g3, (33 + 0), %g3		! Shift up to encoding area
-	or	%g1, %g3, %g1			! Or it in
-	be,pn	%xcc, 1f			! Branch if CE bit was clear
+	/* Preserve AFSR in %g4, indicate UDB state to capture in %g1 */
+	ba,pt		%xcc, __spitfire_cee_trap_continue
+	 mov		UDBE_CE, %g1
+
+	.globl		__spitfire_data_access_exception
+	.globl		__spitfire_data_access_exception_tl1
+__spitfire_data_access_exception_tl1:
+	rdpr		%pstate, %g4
+	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
+	mov		TLB_SFSR, %g3
+	mov		DMMU_SFAR, %g5
+	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
+	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
+	stxa		%g0, [%g3] ASI_DMMU	! Clear SFSR.FaultValid bit
+	membar		#Sync
+	rdpr		%tt, %g3
+	cmp		%g3, 0x80		! first win spill/fill trap
+	blu,pn		%xcc, 1f
+	 cmp		%g3, 0xff		! last win spill/fill trap
+	bgu,pn		%xcc, 1f
 	 nop
-	stxa	%g4, [%g0] ASI_UDB_ERROR_W	! Clear CE sticky bit in UDBL
-	membar	#Sync				! Synchronize ASI stores
-1:	mov	0x18, %g5			! Addr of UDB-High error status
-	ldxa	[%g5] ASI_UDBH_ERROR_R, %g3	! Read it
+	ba,pt		%xcc, winfix_dax
+	 rdpr		%tpc, %g3
+1:	sethi		%hi(109f), %g7
+	ba,pt		%xcc, etraptl1
+109:	 or		%g7, %lo(109b), %g7
+	mov		%l4, %o1
+	mov		%l5, %o2
+	call		spitfire_data_access_exception_tl1
+	 add		%sp, PTREGS_OFF, %o0
+	ba,pt		%xcc, rtrap
+	 clr		%l6
 
-	andcc	%g3, (1 << 8), %g4		! Check CE bit
-	sllx	%g3, (64 - 10), %g3		! Clear reserved bits
-	srlx	%g3, (64 - 10), %g3		! in UDB-High error status
-	sllx	%g3, (33 + 10), %g3		! Shift up to encoding area
-	or	%g1, %g3, %g1			! Or it in
-	be,pn	%xcc, 1f			! Branch if CE bit was clear
-	 nop
-	nop
+__spitfire_data_access_exception:
+	rdpr		%pstate, %g4
+	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
+	mov		TLB_SFSR, %g3
+	mov		DMMU_SFAR, %g5
+	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
+	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
+	stxa		%g0, [%g3] ASI_DMMU	! Clear SFSR.FaultValid bit
+	membar		#Sync
+	sethi		%hi(109f), %g7
+	ba,pt		%xcc, etrap
+109:	 or		%g7, %lo(109b), %g7
+	mov		%l4, %o1
+	mov		%l5, %o2
+	call		spitfire_data_access_exception
+	 add		%sp, PTREGS_OFF, %o0
+	ba,pt		%xcc, rtrap
+	 clr		%l6
 
-	stxa	%g4, [%g5] ASI_UDB_ERROR_W	! Clear CE sticky bit in UDBH
-	membar	#Sync				! Synchronize ASI stores
-1:	mov	1, %g5				! AFSR CE bit is
-	sllx	%g5, 20, %g5			! bit 20
-	stxa	%g5, [%g0] ASI_AFSR		! Clear CE sticky bit in AFSR
-	membar	#Sync				! Synchronize ASI stores
-	sllx	%g2, (64 - 41), %g2		! Clear reserved bits
-	srlx	%g2, (64 - 41), %g2		! in latched AFAR
+	.globl		__spitfire_insn_access_exception
+	.globl		__spitfire_insn_access_exception_tl1
+__spitfire_insn_access_exception_tl1:
+	rdpr		%pstate, %g4
+	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
+	mov		TLB_SFSR, %g3
+	ldxa		[%g3] ASI_IMMU, %g4	! Get SFSR
+	rdpr		%tpc, %g5		! IMMU has no SFAR, use TPC
+	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
+	membar		#Sync
+	sethi		%hi(109f), %g7
+	ba,pt		%xcc, etraptl1
+109:	 or		%g7, %lo(109b), %g7
+	mov		%l4, %o1
+	mov		%l5, %o2
+	call		spitfire_insn_access_exception_tl1
+	 add		%sp, PTREGS_OFF, %o0
+	ba,pt		%xcc, rtrap
+	 clr		%l6
 
-	andn	%g2, 0x0f, %g2			! Finish resv bit clearing
-	mov	%g1, %g4			! Move AFSR+UDB* into save reg
-	mov	%g2, %g5			! Move AFAR into save reg
-	rdpr	%pil, %g2
-	wrpr	%g0, 15, %pil
-	ba,pt	%xcc, etrap_irq
-	 rd	%pc, %g7
-	mov	%l4, %o0
-
-	mov	%l5, %o1
-	call	cee_log
-	 add	%sp, PTREGS_OFF, %o2
-	ba,a,pt	%xcc, rtrap_irq
+__spitfire_insn_access_exception:
+	rdpr		%pstate, %g4
+	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
+	mov		TLB_SFSR, %g3
+	ldxa		[%g3] ASI_IMMU, %g4	! Get SFSR
+	rdpr		%tpc, %g5		! IMMU has no SFAR, use TPC
+	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
+	membar		#Sync
+	sethi		%hi(109f), %g7
+	ba,pt		%xcc, etrap
+109:	 or		%g7, %lo(109b), %g7
+	mov		%l4, %o1
+	mov		%l5, %o2
+	call		spitfire_insn_access_exception
+	 add		%sp, PTREGS_OFF, %o0
+	ba,pt		%xcc, rtrap
+	 clr		%l6
 
 	/* Capture I/D/E-cache state into per-cpu error scoreboard.
 	 *
