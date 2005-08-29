@@ -371,7 +371,6 @@ struct ohci_hcd {
 	 * other external transceivers should be software-transparent 
 	 */
 	struct otg_transceiver	*transceiver;
-	unsigned		power_budget;
 
 	/*
 	 * memory management for queue data structures
@@ -390,6 +389,7 @@ struct ohci_hcd {
 	u32			fminterval;		/* saved register */
 
 	struct work_struct	rh_resume;
+	struct notifier_block	reboot_notifier;
 
 	unsigned long		flags;		/* for HC bugs */
 #define	OHCI_QUIRK_AMD756	0x01			/* erratum #4 */

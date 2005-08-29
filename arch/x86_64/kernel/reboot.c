@@ -66,34 +66,6 @@ static int __init reboot_setup(char *str)
 
 __setup("reboot=", reboot_setup);
 
-#ifdef CONFIG_SMP
-static void smp_halt(void)
-{
-	int cpuid = safe_smp_processor_id(); 
-	static int first_entry = 1;
-
-	if (reboot_force)
-		return;
-
-	if (first_entry) {
-		first_entry = 0;
-		smp_call_function((void *)machine_restart, NULL, 1, 0);
-	}
-			
-	smp_stop_cpu(); 
-
-	/* AP calling this. Just halt */
-	if (cpuid != boot_cpu_id) { 
-		for (;;) 
-			asm("hlt");
-	}
-
-	/* Wait for all other CPUs to have run smp_stop_cpu */
-	while (!cpus_empty(cpu_online_map))
-		rep_nop(); 
-}
-#endif
-
 static inline void kb_wait(void)
 {
 	int i;
@@ -103,25 +75,44 @@ static inline void kb_wait(void)
 			break;
 }
 
-void machine_restart(char * __unused)
+void machine_shutdown(void)
+{
+	/* Stop the cpus and apics */
+#ifdef CONFIG_SMP
+	int reboot_cpu_id;
+
+	/* The boot cpu is always logical cpu 0 */
+	reboot_cpu_id = 0;
+
+	/* Make certain the cpu I'm about to reboot on is online */
+	if (!cpu_isset(reboot_cpu_id, cpu_online_map)) {
+		reboot_cpu_id = smp_processor_id();
+	}
+
+	/* Make certain I only run on the appropriate processor */
+	set_cpus_allowed(current, cpumask_of_cpu(reboot_cpu_id));
+
+	/* O.K Now that I'm on the appropriate processor,
+	 * stop all of the others.
+	 */
+	smp_send_stop();
+#endif
+
+	local_irq_disable();
+
+#ifndef CONFIG_SMP
+	disable_local_APIC();
+#endif
+
+	disable_IO_APIC();
+
+	local_irq_enable();
+}
+
+void machine_emergency_restart(void)
 {
 	int i;
 
-	printk("machine restart\n");
-
-#ifdef CONFIG_SMP
-	smp_halt(); 
-#endif
-
-	if (!reboot_force) {
-		local_irq_disable();
-#ifndef CONFIG_SMP
-		disable_local_APIC();
-#endif
-		disable_IO_APIC();
-		local_irq_enable();
-	}
-	
 	/* Tell the BIOS if we want cold or warm reboot */
 	*((unsigned short *)__va(0x472)) = reboot_mode;
        
@@ -146,18 +137,26 @@ void machine_restart(char * __unused)
 	}      
 }
 
-EXPORT_SYMBOL(machine_restart);
+void machine_restart(char * __unused)
+{
+	printk("machine restart\n");
+
+	if (!reboot_force) {
+		machine_shutdown();
+	}
+	machine_emergency_restart();
+}
 
 void machine_halt(void)
 {
 }
 
-EXPORT_SYMBOL(machine_halt);
-
 void machine_power_off(void)
 {
+	if (!reboot_force) {
+		machine_shutdown();
+	}
 	if (pm_power_off)
 		pm_power_off();
 }
 
-EXPORT_SYMBOL(machine_power_off);

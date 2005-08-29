@@ -109,7 +109,6 @@ extern int  isdn_tty_modem_init(void);
 extern void isdn_tty_exit(void);
 extern void isdn_tty_readmodem(void);
 extern int  isdn_tty_find_icall(int, int, setup_parm *);
-extern void isdn_tty_cleanup_xmit(modem_info *);
 extern int  isdn_tty_stat_callback(int, isdn_ctrl *);
 extern int  isdn_tty_rcv_skb(int, int, int, struct sk_buff *);
 extern int  isdn_tty_capi_facility(capi_msg *cm); 

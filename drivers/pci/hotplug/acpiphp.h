@@ -7,6 +7,8 @@
  * Copyright (C) 2002 Hiroshi Aono (h-aono@ap.jp.nec.com)
  * Copyright (C) 2002,2003 Takayoshi Kochi (t-kochi@bq.jp.nec.com)
  * Copyright (C) 2002,2003 NEC Corporation
+ * Copyright (C) 2003-2005 Matthew Wilcox (matthew.wilcox@hp.com)
+ * Copyright (C) 2003-2005 Hewlett Packard
  *
  * All rights reserved.
  *
@@ -52,7 +54,6 @@
 
 struct acpiphp_bridge;
 struct acpiphp_slot;
-struct pci_resource;
 
 /*
  * struct slot - slot information for each *physical* slot
@@ -63,15 +64,6 @@ struct slot {
 	struct list_head	slot_list;
 
 	struct acpiphp_slot	*acpi_slot;
-};
-
-/*
- * struct pci_resource - describes pci resource (mem, pfmem, io, bus)
- */
-struct pci_resource {
-	struct pci_resource * next;
-	u64 base;
-	u32 length;
 };
 
 /**
@@ -101,10 +93,6 @@ struct acpiphp_bridge {
 	int type;
 	int nr_slots;
 
-	u8 seg;
-	u8 bus;
-	u8 sub;
-
 	u32 flags;
 
 	/* This bus (host bridge) or Secondary bus (PCI-to-PCI bridge) */
@@ -117,12 +105,6 @@ struct acpiphp_bridge {
 	struct hpp_param hpp;
 
 	spinlock_t res_lock;
-
-	/* available resources on this bus */
-	struct pci_resource *mem_head;
-	struct pci_resource *p_mem_head;
-	struct pci_resource *io_head;
-	struct pci_resource *bus_head;
 };
 
 
@@ -163,12 +145,6 @@ struct acpiphp_func {
 
 	u8		function;	/* pci function# */
 	u32		flags;		/* see below */
-
-	/* resources used for this function */
-	struct pci_resource *mem_head;
-	struct pci_resource *p_mem_head;
-	struct pci_resource *io_head;
-	struct pci_resource *bus_head;
 };
 
 /**
@@ -242,25 +218,6 @@ extern u8 acpiphp_get_attention_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_latch_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_adapter_status (struct acpiphp_slot *slot);
 extern u32 acpiphp_get_address (struct acpiphp_slot *slot);
-
-/* acpiphp_pci.c */
-extern struct pci_dev *acpiphp_allocate_pcidev (struct pci_bus *pbus, int dev, int fn);
-extern int acpiphp_configure_slot (struct acpiphp_slot *slot);
-extern int acpiphp_configure_function (struct acpiphp_func *func);
-extern void acpiphp_unconfigure_function (struct acpiphp_func *func);
-extern int acpiphp_detect_pci_resource (struct acpiphp_bridge *bridge);
-extern int acpiphp_init_func_resource (struct acpiphp_func *func);
-
-/* acpiphp_res.c */
-extern struct pci_resource *acpiphp_get_io_resource (struct pci_resource **head, u32 size);
-extern struct pci_resource *acpiphp_get_resource (struct pci_resource **head, u32 size);
-extern struct pci_resource *acpiphp_get_resource_with_base (struct pci_resource **head, u64 base, u32 size);
-extern int acpiphp_resource_sort_and_combine (struct pci_resource **head);
-extern struct pci_resource *acpiphp_make_resource (u64 base, u32 length);
-extern void acpiphp_move_resource (struct pci_resource **from, struct pci_resource **to);
-extern void acpiphp_free_resource (struct pci_resource **res);
-extern void acpiphp_dump_resource (struct acpiphp_bridge *bridge); /* debug */
-extern void acpiphp_dump_func_resource (struct acpiphp_func *func); /* debug */
 
 /* variables */
 extern int acpiphp_debug;

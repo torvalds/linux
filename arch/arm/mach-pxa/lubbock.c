@@ -268,10 +268,12 @@ static void __init lubbock_map_io(void)
 }
 
 MACHINE_START(LUBBOCK, "Intel DBPXA250 Development Platform (aka Lubbock)")
-	MAINTAINER("MontaVista Software Inc.")
-	BOOT_MEM(0xa0000000, 0x40000000, io_p2v(0x40000000))
-	MAPIO(lubbock_map_io)
-	INITIRQ(lubbock_init_irq)
+	/* Maintainer: MontaVista Software Inc. */
+	.phys_ram	= 0xa0000000,
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
+	.map_io		= lubbock_map_io,
+	.init_irq	= lubbock_init_irq,
 	.timer		= &pxa_timer,
-	INIT_MACHINE(lubbock_init)
+	.init_machine	= lubbock_init,
 MACHINE_END

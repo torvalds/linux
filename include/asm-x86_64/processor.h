@@ -32,7 +32,7 @@
 #define ID_MASK		0x00200000
 
 #define desc_empty(desc) \
-               (!((desc)->a + (desc)->b))
+               (!((desc)->a | (desc)->b))
 
 #define desc_equal(desc1, desc2) \
                (((desc1)->a == (desc2)->a) && ((desc1)->b == (desc2)->b))
@@ -279,6 +279,14 @@ struct thread_struct {
 	(regs)->eflags = 0x200;							 \
 	set_fs(USER_DS);							 \
 } while(0) 
+
+#define get_debugreg(var, register)				\
+		__asm__("movq %%db" #register ", %0"		\
+			:"=r" (var))
+#define set_debugreg(value, register)			\
+		__asm__("movq %0,%%db" #register		\
+			: /* no output */			\
+			:"r" (value))
 
 struct task_struct;
 struct mm_struct;

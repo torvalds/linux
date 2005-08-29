@@ -56,6 +56,36 @@ struct irq_router_handler {
 };
 
 int (*pcibios_enable_irq)(struct pci_dev *dev) = NULL;
+void (*pcibios_disable_irq)(struct pci_dev *dev) = NULL;
+
+/*
+ *  Check passed address for the PCI IRQ Routing Table signature
+ *  and perform checksum verification.
+ */
+
+static inline struct irq_routing_table * pirq_check_routing_table(u8 *addr)
+{
+	struct irq_routing_table *rt;
+	int i;
+	u8 sum;
+
+	rt = (struct irq_routing_table *) addr;
+	if (rt->signature != PIRQ_SIGNATURE ||
+	    rt->version != PIRQ_VERSION ||
+	    rt->size % 16 ||
+	    rt->size < sizeof(struct irq_routing_table))
+		return NULL;
+	sum = 0;
+	for (i=0; i < rt->size; i++)
+		sum += addr[i];
+	if (!sum) {
+		DBG("PCI: Interrupt Routing Table found at 0x%p\n", rt);
+		return rt;
+	}
+	return NULL;
+}
+
+
 
 /*
  *  Search 0xf0000 -- 0xfffff for the PCI IRQ Routing Table.
@@ -65,23 +95,17 @@ static struct irq_routing_table * __init pirq_find_routing_table(void)
 {
 	u8 *addr;
 	struct irq_routing_table *rt;
-	int i;
-	u8 sum;
 
-	for(addr = (u8 *) __va(0xf0000); addr < (u8 *) __va(0x100000); addr += 16) {
-		rt = (struct irq_routing_table *) addr;
-		if (rt->signature != PIRQ_SIGNATURE ||
-		    rt->version != PIRQ_VERSION ||
-		    rt->size % 16 ||
-		    rt->size < sizeof(struct irq_routing_table))
-			continue;
-		sum = 0;
-		for(i=0; i<rt->size; i++)
-			sum += addr[i];
-		if (!sum) {
-			DBG("PCI: Interrupt Routing Table found at 0x%p\n", rt);
+	if (pirq_table_addr) {
+		rt = pirq_check_routing_table((u8 *) __va(pirq_table_addr));
+		if (rt)
 			return rt;
-		}
+		printk(KERN_WARNING "PCI: PIRQ table NOT found at pirqaddr\n");
+	}
+	for(addr = (u8 *) __va(0xf0000); addr < (u8 *) __va(0x100000); addr += 16) {
+		rt = pirq_check_routing_table(addr);
+		if (rt)
+			return rt;
 	}
 	return NULL;
 }
@@ -223,6 +247,24 @@ static int pirq_via_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 static int pirq_via_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
 	write_config_nybble(router, 0x55, pirq == 4 ? 5 : pirq, irq);
+	return 1;
+}
+
+/*
+ * The VIA pirq rules are nibble-based, like ALI,
+ * but without the ugly irq number munging.
+ * However, for 82C586, nibble map is different .
+ */
+static int pirq_via586_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
+{
+	static unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	return read_config_nybble(router, 0x55, pirqmap[pirq-1]);
+}
+
+static int pirq_via586_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
+{
+	static unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	write_config_nybble(router, 0x55, pirqmap[pirq-1], irq);
 	return 1;
 }
 
@@ -509,9 +551,20 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 static __init int via_router_probe(struct irq_router *r, struct pci_dev *router, u16 device)
 {
 	/* FIXME: We should move some of the quirk fixup stuff here */
+
+	if (router->device == PCI_DEVICE_ID_VIA_82C686 &&
+			device == PCI_DEVICE_ID_VIA_82C586_0) {
+		/* Asus k7m bios wrongly reports 82C686A as 586-compatible */
+		device = PCI_DEVICE_ID_VIA_82C686;
+	}
+
 	switch(device)
 	{
 		case PCI_DEVICE_ID_VIA_82C586_0:
+			r->name = "VIA";
+			r->get = pirq_via586_get;
+			r->set = pirq_via586_set;
+			return 1;
 		case PCI_DEVICE_ID_VIA_82C596:
 		case PCI_DEVICE_ID_VIA_82C686:
 		case PCI_DEVICE_ID_VIA_8231:
@@ -1006,24 +1059,28 @@ static int __init pcibios_irq_init(void)
 subsys_initcall(pcibios_irq_init);
 
 
-static void pirq_penalize_isa_irq(int irq)
+static void pirq_penalize_isa_irq(int irq, int active)
 {
 	/*
 	 *  If any ISAPnP device reports an IRQ in its list of possible
 	 *  IRQ's, we try to avoid assigning it to PCI devices.
 	 */
-	if (irq < 16)
-		pirq_penalty[irq] += 100;
+	if (irq < 16) {
+		if (active)
+			pirq_penalty[irq] += 1000;
+		else
+			pirq_penalty[irq] += 100;
+	}
 }
 
-void pcibios_penalize_isa_irq(int irq)
+void pcibios_penalize_isa_irq(int irq, int active)
 {
 #ifdef CONFIG_ACPI_PCI
 	if (!acpi_noirq)
-		acpi_penalize_isa_irq(irq);
+		acpi_penalize_isa_irq(irq, active);
 	else
 #endif
-		pirq_penalize_isa_irq(irq);
+		pirq_penalize_isa_irq(irq, active);
 }
 
 static int pirq_enable_irq(struct pci_dev *dev)

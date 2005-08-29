@@ -29,6 +29,7 @@
 #include <linux/ide.h>
 #include <linux/root_dev.h>
 #include <linux/slab.h>
+#include <linux/serial_reg.h>
 
 #include <asm/byteorder.h>
 #include <asm/system.h>

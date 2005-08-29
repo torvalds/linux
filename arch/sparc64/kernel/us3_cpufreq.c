@@ -56,7 +56,7 @@ static void write_safari_cfg(unsigned long val)
 
 static unsigned long get_current_freq(unsigned int cpu, unsigned long safari_cfg)
 {
-	unsigned long clock_tick = sparc64_get_clock_tick(cpu);
+	unsigned long clock_tick = sparc64_get_clock_tick(cpu) / 1000;
 	unsigned long ret;
 
 	switch (safari_cfg & SAFARI_CFG_DIV_MASK) {
@@ -76,6 +76,26 @@ static unsigned long get_current_freq(unsigned int cpu, unsigned long safari_cfg
 	return ret;
 }
 
+static unsigned int us3_freq_get(unsigned int cpu)
+{
+	cpumask_t cpus_allowed;
+	unsigned long reg;
+	unsigned int ret;
+
+	if (!cpu_online(cpu))
+		return 0;
+
+	cpus_allowed = current->cpus_allowed;
+	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+
+	reg = read_safari_cfg();
+	ret = get_current_freq(cpu, reg);
+
+	set_cpus_allowed(current, cpus_allowed);
+
+	return ret;
+}
+
 static void us3_set_cpu_divider_index(unsigned int cpu, unsigned int index)
 {
 	unsigned long new_bits, new_freq, reg;
@@ -88,7 +108,7 @@ static void us3_set_cpu_divider_index(unsigned int cpu, unsigned int index)
 	cpus_allowed = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
 
-	new_freq = sparc64_get_clock_tick(cpu);
+	new_freq = sparc64_get_clock_tick(cpu) / 1000;
 	switch (index) {
 	case 0:
 		new_bits = SAFARI_CFG_DIV_1;
@@ -150,7 +170,7 @@ static int us3_freq_verify(struct cpufreq_policy *policy)
 static int __init us3_freq_cpu_init(struct cpufreq_policy *policy)
 {
 	unsigned int cpu = policy->cpu;
-	unsigned long clock_tick = sparc64_get_clock_tick(cpu);
+	unsigned long clock_tick = sparc64_get_clock_tick(cpu) / 1000;
 	struct cpufreq_frequency_table *table =
 		&us3_freq_table[cpu].table[0];
 
@@ -206,9 +226,10 @@ static int __init us3_freq_init(void)
 		memset(us3_freq_table, 0,
 		       (NR_CPUS * sizeof(struct us3_freq_percpu_info)));
 
+		driver->init = us3_freq_cpu_init;
 		driver->verify = us3_freq_verify;
 		driver->target = us3_freq_target;
-		driver->init = us3_freq_cpu_init;
+		driver->get = us3_freq_get;
 		driver->exit = us3_freq_cpu_exit;
 		driver->owner = THIS_MODULE,
 		strcpy(driver->name, "UltraSPARC-III");

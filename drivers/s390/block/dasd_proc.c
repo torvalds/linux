@@ -9,13 +9,14 @@
  *
  * /proc interface for the dasd driver.
  *
- * $Revision: 1.31 $
+ * $Revision: 1.32 $
  */
 
 #include <linux/config.h>
 #include <linux/ctype.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
+#include <linux/proc_fs.h>
 
 #include <asm/debug.h>
 #include <asm/uaccess.h>

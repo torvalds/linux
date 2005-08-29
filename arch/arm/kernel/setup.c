@@ -359,7 +359,8 @@ void cpu_init(void)
 	      "I" (offsetof(struct stack, abt[0])),
 	      "I" (PSR_F_BIT | PSR_I_BIT | UND_MODE),
 	      "I" (offsetof(struct stack, und[0])),
-	      "I" (PSR_F_BIT | PSR_I_BIT | SVC_MODE));
+	      "I" (PSR_F_BIT | PSR_I_BIT | SVC_MODE)
+	    : "r14");
 }
 
 static struct machine_desc * __init setup_machine(unsigned int nr)
@@ -736,8 +737,8 @@ void __init setup_arch(char **cmdline_p)
 	if (mdesc->soft_reboot)
 		reboot_setup("s");
 
-	if (mdesc->param_offset)
-		tags = phys_to_virt(mdesc->param_offset);
+	if (mdesc->boot_params)
+		tags = phys_to_virt(mdesc->boot_params);
 
 	/*
 	 * If we have the old style parameters, convert them to

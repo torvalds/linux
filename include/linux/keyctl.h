@@ -20,6 +20,16 @@
 #define KEY_SPEC_USER_SESSION_KEYRING	-5	/* - key ID for UID-session keyring */
 #define KEY_SPEC_GROUP_KEYRING		-6	/* - key ID for GID-specific keyring */
 
+/* request-key default keyrings */
+#define KEY_REQKEY_DEFL_NO_CHANGE		-1
+#define KEY_REQKEY_DEFL_DEFAULT			0
+#define KEY_REQKEY_DEFL_THREAD_KEYRING		1
+#define KEY_REQKEY_DEFL_PROCESS_KEYRING		2
+#define KEY_REQKEY_DEFL_SESSION_KEYRING		3
+#define KEY_REQKEY_DEFL_USER_KEYRING		4
+#define KEY_REQKEY_DEFL_USER_SESSION_KEYRING	5
+#define KEY_REQKEY_DEFL_GROUP_KEYRING		6
+
 /* keyctl commands */
 #define KEYCTL_GET_KEYRING_ID		0	/* ask for a keyring's ID */
 #define KEYCTL_JOIN_SESSION_KEYRING	1	/* join or start named session keyring */
@@ -35,5 +45,6 @@
 #define KEYCTL_READ			11	/* read a key or keyring's contents */
 #define KEYCTL_INSTANTIATE		12	/* instantiate a partially constructed key */
 #define KEYCTL_NEGATE			13	/* negate a partially constructed key */
+#define KEYCTL_SET_REQKEY_KEYRING	14	/* set default request-key keyring */
 
 #endif /*  _LINUX_KEYCTL_H */

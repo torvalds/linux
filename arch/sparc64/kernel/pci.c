@@ -540,6 +540,7 @@ void pcibios_bus_to_resource(struct pci_dev *pdev, struct resource *res,
 
 	pbm->parent->resource_adjust(pdev, res, root);
 }
+EXPORT_SYMBOL(pcibios_bus_to_resource);
 
 char * __init pcibios_setup(char *str)
 {

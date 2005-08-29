@@ -161,6 +161,8 @@ config IA64_PAGE_SIZE_64KB
 
 endchoice
 
+source kernel/Kconfig.hz
+
 config IA64_BRL_EMU
 	bool
 	depends on ITANIUM
@@ -197,7 +199,7 @@ config HOLES_IN_ZONE
 	bool
 	default y if VIRTUAL_MEM_MAP
 
-config DISCONTIGMEM
+config ARCH_DISCONTIGMEM_ENABLE
 	bool "Discontiguous memory support"
 	depends on (IA64_DIG || IA64_SGI_SN2 || IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB) && NUMA && VIRTUAL_MEM_MAP
 	default y if (IA64_SGI_SN2 || IA64_GENERIC) && NUMA
@@ -217,13 +219,6 @@ config IOSAPIC
 	bool
 	depends on !IA64_HP_SIM
 	default y
-
-config IA64_SGI_SN_SIM
-	bool "SGI Medusa Simulator Support"
-	depends on IA64_SGI_SN2 || IA64_GENERIC
-	help
-	  If you are compiling a kernel that will run under SGI's IA-64
-	  simulator (Medusa) then say Y, otherwise say N.
 
 config IA64_SGI_SN_XP
 	tristate "Support communication between SGI SSIs"
@@ -299,6 +294,8 @@ config PREEMPT
 
           Say Y here if you are building a kernel for a desktop, embedded
           or real-time system.  Say N if you are unsure.
+
+source "mm/Kconfig"
 
 config HAVE_DEC_LOCK
 	bool
@@ -395,15 +392,8 @@ menu "Bus options (PCI, PCMCIA)"
 config PCI
 	bool "PCI support"
 	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
-	  The PCI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, contains valuable
-	  information about which PCI hardware does work under Linux and which
-	  doesn't.
+	  Real IA-64 machines all have PCI/PCI-X/PCI Express busses.  Say Y
+	  here unless you are using a simulator without PCI support.
 
 config PCI_DOMAINS
 	bool
@@ -418,6 +408,8 @@ source "drivers/pcmcia/Kconfig"
 endmenu
 
 endif
+
+source "net/Kconfig"
 
 source "drivers/Kconfig"
 

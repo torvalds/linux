@@ -61,13 +61,13 @@ struct file_operations vxfs_dir_operations = {
 };
 
  
-static __inline__ u_long
+static inline u_long
 dir_pages(struct inode *inode)
 {
 	return (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 }
  
-static __inline__ u_long
+static inline u_long
 dir_blocks(struct inode *ip)
 {
 	u_long			bsize = ip->i_sb->s_blocksize;
@@ -79,7 +79,7 @@ dir_blocks(struct inode *ip)
  *
  * len <= VXFS_NAMELEN and de != NULL are guaranteed by caller.
  */
-static __inline__ int
+static inline int
 vxfs_match(int len, const char * const name, struct vxfs_direct *de)
 {
 	if (len != de->d_namelen)
@@ -89,7 +89,7 @@ vxfs_match(int len, const char * const name, struct vxfs_direct *de)
 	return !memcmp(name, de->d_name, len);
 }
 
-static __inline__ struct vxfs_direct *
+static inline struct vxfs_direct *
 vxfs_next_entry(struct vxfs_direct *de)
 {
 	return ((struct vxfs_direct *)((char*)de + de->d_reclen));

@@ -1,4 +1,4 @@
-/* 
+/*
  * drivers/net/gianfar.h
  *
  * Gianfar Ethernet Driver
@@ -53,6 +53,12 @@
 /* The maximum number of packets to be handled in one call of gfar_poll */
 #define GFAR_DEV_WEIGHT 64
 
+/* Length for FCB */
+#define GMAC_FCB_LEN 8
+
+/* Default padding amount */
+#define DEFAULT_PADDING 2
+
 /* Number of bytes to align the rx bufs to */
 #define RXBUF_ALIGNMENT 64
 
@@ -91,7 +97,7 @@ extern const char gfar_driver_version[];
 #define JUMBO_FRAME_SIZE 9600
 
 /* Latency of interface clock in nanoseconds */
-/* Interface clock latency , in this case, means the 
+/* Interface clock latency , in this case, means the
  * time described by a value of 1 in the interrupt
  * coalescing registers' time fields.  Since those fields
  * refer to the time it takes for 64 clocks to pass, the
@@ -166,8 +172,27 @@ extern const char gfar_driver_version[];
 				mk_ic_icft(count) | \
 				mk_ic_ictt(time))
 
+#define RCTRL_PAL_MASK		0x001f0000
+#define RCTRL_VLEX		0x00002000
+#define RCTRL_FILREN		0x00001000
+#define RCTRL_GHTX		0x00000400
+#define RCTRL_IPCSEN		0x00000200
+#define RCTRL_TUCSEN		0x00000100
+#define RCTRL_PRSDEP_MASK	0x000000c0
+#define RCTRL_PRSDEP_INIT	0x000000c0
 #define RCTRL_PROM		0x00000008
+#define RCTRL_CHECKSUMMING	(RCTRL_IPCSEN \
+		| RCTRL_TUCSEN | RCTRL_PRSDEP_INIT)
+#define RCTRL_EXTHASH		(RCTRL_GHTX)
+#define RCTRL_VLAN		(RCTRL_PRSDEP_INIT)
+
+
 #define RSTAT_CLEAR_RHALT       0x00800000
+
+#define TCTRL_IPCSEN		0x00004000
+#define TCTRL_TUCSEN		0x00002000
+#define TCTRL_VLINS		0x00001000
+#define TCTRL_INIT_CSUM		(TCTRL_TUCSEN | TCTRL_IPCSEN)
 
 #define IEVENT_INIT_CLEAR	0xffffffff
 #define IEVENT_BABR		0x80000000
@@ -187,12 +212,16 @@ extern const char gfar_driver_version[];
 #define IEVENT_RXB0		0x00008000
 #define IEVENT_GRSC		0x00000100
 #define IEVENT_RXF0		0x00000080
+#define IEVENT_FIR		0x00000008
+#define IEVENT_FIQ		0x00000004
+#define IEVENT_DPE		0x00000002
+#define IEVENT_PERR		0x00000001
 #define IEVENT_RX_MASK          (IEVENT_RXB0 | IEVENT_RXF0)
 #define IEVENT_TX_MASK          (IEVENT_TXB | IEVENT_TXF)
 #define IEVENT_ERR_MASK         \
 (IEVENT_RXC | IEVENT_BSY | IEVENT_EBERR | IEVENT_MSRO | \
  IEVENT_BABT | IEVENT_TXC | IEVENT_TXE | IEVENT_LC \
- | IEVENT_CRL | IEVENT_XFUN)
+ | IEVENT_CRL | IEVENT_XFUN | IEVENT_DPE | IEVENT_PERR)
 
 #define IMASK_INIT_CLEAR	0x00000000
 #define IMASK_BABR              0x80000000
@@ -212,10 +241,15 @@ extern const char gfar_driver_version[];
 #define IMASK_RXB0              0x00008000
 #define IMASK_GTSC              0x00000100
 #define IMASK_RXFEN0		0x00000080
+#define IMASK_FIR		0x00000008
+#define IMASK_FIQ		0x00000004
+#define IMASK_DPE		0x00000002
+#define IMASK_PERR		0x00000001
 #define IMASK_RX_DISABLED ~(IMASK_RXFEN0 | IMASK_BSY)
 #define IMASK_DEFAULT  (IMASK_TXEEN | IMASK_TXFEN | IMASK_TXBEN | \
 		IMASK_RXFEN0 | IMASK_BSY | IMASK_EBERR | IMASK_BABR | \
-		IMASK_XFUN | IMASK_RXC | IMASK_BABT)
+		IMASK_XFUN | IMASK_RXC | IMASK_BABT | IMASK_DPE \
+		| IMASK_PERR)
 
 
 /* Attribute fields */
@@ -254,6 +288,18 @@ extern const char gfar_driver_version[];
 #define TXBD_RETRYLIMIT		0x0040
 #define	TXBD_RETRYCOUNTMASK	0x003c
 #define TXBD_UNDERRUN		0x0002
+#define TXBD_TOE		0x0002
+
+/* Tx FCB param bits */
+#define TXFCB_VLN		0x80
+#define TXFCB_IP		0x40
+#define TXFCB_IP6		0x20
+#define TXFCB_TUP		0x10
+#define TXFCB_UDP		0x08
+#define TXFCB_CIP		0x04
+#define TXFCB_CTU		0x02
+#define TXFCB_NPH		0x01
+#define TXFCB_DEFAULT 		(TXFCB_IP|TXFCB_TUP|TXFCB_CTU|TXFCB_NPH)
 
 /* RxBD status field bits */
 #define RXBD_EMPTY		0x8000
@@ -273,6 +319,18 @@ extern const char gfar_driver_version[];
 #define RXBD_TRUNCATED		0x0001
 #define RXBD_STATS		0x01ff
 
+/* Rx FCB status field bits */
+#define RXFCB_VLN		0x8000
+#define RXFCB_IP		0x4000
+#define RXFCB_IP6		0x2000
+#define RXFCB_TUP		0x1000
+#define RXFCB_CIP		0x0800
+#define RXFCB_CTU		0x0400
+#define RXFCB_EIP		0x0200
+#define RXFCB_ETU		0x0100
+#define RXFCB_PERR_MASK		0x000c
+#define RXFCB_PERR_BADL3	0x0008
+
 struct txbd8
 {
 	u16	status;	/* Status Fields */
@@ -280,11 +338,42 @@ struct txbd8
 	u32	bufPtr;	/* Buffer Pointer */
 };
 
+struct txfcb {
+	u8	vln:1,
+		ip:1,
+		ip6:1,
+		tup:1,
+		udp:1,
+		cip:1,
+		ctu:1,
+		nph:1;
+	u8	reserved;
+	u8	l4os;	/* Level 4 Header Offset */
+	u8	l3os; 	/* Level 3 Header Offset */
+	u16	phcs;	/* Pseudo-header Checksum */
+	u16	vlctl;	/* VLAN control word */
+};
+
 struct rxbd8
 {
 	u16	status;	/* Status Fields */
 	u16	length;	/* Buffer Length */
 	u32	bufPtr;	/* Buffer Pointer */
+};
+
+struct rxfcb {
+	u16	vln:1,
+		ip:1,
+		ip6:1,
+		tup:1,
+		cip:1,
+		ctu:1,
+		eip:1,
+		etu:1;
+	u8	rq;	/* Receive Queue index */
+	u8	pro;	/* Layer 4 Protocol */
+	u16	reserved;
+	u16	vlctl;	/* VLAN control word */
 };
 
 struct rmon_mib
@@ -371,90 +460,191 @@ struct gfar_stats {
 
 
 struct gfar {
-	u8	res1[16];
-	u32	ievent;			/* 0x.010 - Interrupt Event Register */
-	u32	imask;			/* 0x.014 - Interrupt Mask Register */
-	u32	edis;			/* 0x.018 - Error Disabled Register */
+	u32	tsec_id;	/* 0x.000 - Controller ID register */
+	u8	res1[12];
+	u32	ievent;		/* 0x.010 - Interrupt Event Register */
+	u32	imask;		/* 0x.014 - Interrupt Mask Register */
+	u32	edis;		/* 0x.018 - Error Disabled Register */
 	u8	res2[4];
-	u32	ecntrl;			/* 0x.020 - Ethernet Control Register */
-	u32	minflr;			/* 0x.024 - Minimum Frame Length Register */
-	u32	ptv;			/* 0x.028 - Pause Time Value Register */
-	u32	dmactrl;		/* 0x.02c - DMA Control Register */
-	u32	tbipa;			/* 0x.030 - TBI PHY Address Register */
+	u32	ecntrl;		/* 0x.020 - Ethernet Control Register */
+	u32	minflr;		/* 0x.024 - Minimum Frame Length Register */
+	u32	ptv;		/* 0x.028 - Pause Time Value Register */
+	u32	dmactrl;	/* 0x.02c - DMA Control Register */
+	u32	tbipa;		/* 0x.030 - TBI PHY Address Register */
 	u8	res3[88];
-	u32	fifo_tx_thr;		/* 0x.08c - FIFO transmit threshold register */
+	u32	fifo_tx_thr;	/* 0x.08c - FIFO transmit threshold register */
 	u8	res4[8];
-	u32	fifo_tx_starve;		/* 0x.098 - FIFO transmit starve register */
+	u32	fifo_tx_starve;	/* 0x.098 - FIFO transmit starve register */
 	u32	fifo_tx_starve_shutoff;	/* 0x.09c - FIFO transmit starve shutoff register */
-	u8	res5[96];
-	u32	tctrl;			/* 0x.100 - Transmit Control Register */
-	u32	tstat;			/* 0x.104 - Transmit Status Register */
-	u8	res6[4];
-	u32	tbdlen;			/* 0x.10c - Transmit Buffer Descriptor Data Length Register */
-	u32	txic;			/* 0x.110 - Transmit Interrupt Coalescing Configuration Register */
-	u8	res7[16];
-	u32	ctbptr;			/* 0x.124 - Current Transmit Buffer Descriptor Pointer Register */
-	u8	res8[92];
-	u32	tbptr;			/* 0x.184 - Transmit Buffer Descriptor Pointer Low Register */
-	u8	res9[124];
-	u32	tbase;			/* 0x.204 - Transmit Descriptor Base Address Register */
-	u8	res10[168];
-	u32	ostbd;			/* 0x.2b0 - Out-of-Sequence Transmit Buffer Descriptor Register */
-	u32	ostbdp;			/* 0x.2b4 - Out-of-Sequence Transmit Data Buffer Pointer Register */
-	u8	res11[72];
-	u32	rctrl;			/* 0x.300 - Receive Control Register */
-	u32	rstat;			/* 0x.304 - Receive Status Register */
-	u8	res12[4];
-	u32	rbdlen;			/* 0x.30c - RxBD Data Length Register */
-	u32	rxic;			/* 0x.310 - Receive Interrupt Coalescing Configuration Register */
-	u8	res13[16];
-	u32	crbptr;			/* 0x.324 - Current Receive Buffer Descriptor Pointer */
-	u8	res14[24];
-	u32	mrblr;			/* 0x.340 - Maximum Receive Buffer Length Register */
-	u8	res15[64];
-	u32	rbptr;			/* 0x.384 - Receive Buffer Descriptor Pointer */
-	u8	res16[124];
-	u32	rbase;			/* 0x.404 - Receive Descriptor Base Address */
-	u8	res17[248];
-	u32	maccfg1;		/* 0x.500 - MAC Configuration 1 Register */
-	u32	maccfg2;		/* 0x.504 - MAC Configuration 2 Register */
-	u32	ipgifg;			/* 0x.508 - Inter Packet Gap/Inter Frame Gap Register */
-	u32	hafdup;			/* 0x.50c - Half Duplex Register */
-	u32	maxfrm;			/* 0x.510 - Maximum Frame Length Register */
+	u8	res5[4];
+	u32	fifo_rx_pause;	/* 0x.0a4 - FIFO receive pause threshold register */
+	u32	fifo_rx_alarm;	/* 0x.0a8 - FIFO receive alarm threshold register */
+	u8	res6[84];
+	u32	tctrl;		/* 0x.100 - Transmit Control Register */
+	u32	tstat;		/* 0x.104 - Transmit Status Register */
+	u32	dfvlan;		/* 0x.108 - Default VLAN Control word */
+	u32	tbdlen;		/* 0x.10c - Transmit Buffer Descriptor Data Length Register */
+	u32	txic;		/* 0x.110 - Transmit Interrupt Coalescing Configuration Register */
+	u32	tqueue;		/* 0x.114 - Transmit queue control register */
+	u8	res7[40];
+	u32	tr03wt;		/* 0x.140 - TxBD Rings 0-3 round-robin weightings */
+	u32	tr47wt;		/* 0x.144 - TxBD Rings 4-7 round-robin weightings */
+	u8	res8[52];
+	u32	tbdbph;		/* 0x.17c - Tx data buffer pointer high */
+	u8	res9a[4];
+	u32	tbptr0;		/* 0x.184 - TxBD Pointer for ring 0 */
+	u8	res9b[4];
+	u32	tbptr1;		/* 0x.18c - TxBD Pointer for ring 1 */
+	u8	res9c[4];
+	u32	tbptr2;		/* 0x.194 - TxBD Pointer for ring 2 */
+	u8	res9d[4];
+	u32	tbptr3;		/* 0x.19c - TxBD Pointer for ring 3 */
+	u8	res9e[4];
+	u32	tbptr4;		/* 0x.1a4 - TxBD Pointer for ring 4 */
+	u8	res9f[4];
+	u32	tbptr5;		/* 0x.1ac - TxBD Pointer for ring 5 */
+	u8	res9g[4];
+	u32	tbptr6;		/* 0x.1b4 - TxBD Pointer for ring 6 */
+	u8	res9h[4];
+	u32	tbptr7;		/* 0x.1bc - TxBD Pointer for ring 7 */
+	u8	res9[64];
+	u32	tbaseh;		/* 0x.200 - TxBD base address high */
+	u32	tbase0;		/* 0x.204 - TxBD Base Address of ring 0 */
+	u8	res10a[4];
+	u32	tbase1;		/* 0x.20c - TxBD Base Address of ring 1 */
+	u8	res10b[4];
+	u32	tbase2;		/* 0x.214 - TxBD Base Address of ring 2 */
+	u8	res10c[4];
+	u32	tbase3;		/* 0x.21c - TxBD Base Address of ring 3 */
+	u8	res10d[4];
+	u32	tbase4;		/* 0x.224 - TxBD Base Address of ring 4 */
+	u8	res10e[4];
+	u32	tbase5;		/* 0x.22c - TxBD Base Address of ring 5 */
+	u8	res10f[4];
+	u32	tbase6;		/* 0x.234 - TxBD Base Address of ring 6 */
+	u8	res10g[4];
+	u32	tbase7;		/* 0x.23c - TxBD Base Address of ring 7 */
+	u8	res10[192];
+	u32	rctrl;		/* 0x.300 - Receive Control Register */
+	u32	rstat;		/* 0x.304 - Receive Status Register */
+	u8	res12[8];
+	u32	rxic;		/* 0x.310 - Receive Interrupt Coalescing Configuration Register */
+	u32	rqueue;		/* 0x.314 - Receive queue control register */
+	u8	res13[24];
+	u32	rbifx;		/* 0x.330 - Receive bit field extract control register */
+	u32	rqfar;		/* 0x.334 - Receive queue filing table address register */
+	u32	rqfcr;		/* 0x.338 - Receive queue filing table control register */
+	u32	rqfpr;		/* 0x.33c - Receive queue filing table property register */
+	u32	mrblr;		/* 0x.340 - Maximum Receive Buffer Length Register */
+	u8	res14[56];
+	u32	rbdbph;		/* 0x.37c - Rx data buffer pointer high */
+	u8	res15a[4];
+	u32	rbptr0;		/* 0x.384 - RxBD pointer for ring 0 */
+	u8	res15b[4];
+	u32	rbptr1;		/* 0x.38c - RxBD pointer for ring 1 */
+	u8	res15c[4];
+	u32	rbptr2;		/* 0x.394 - RxBD pointer for ring 2 */
+	u8	res15d[4];
+	u32	rbptr3;		/* 0x.39c - RxBD pointer for ring 3 */
+	u8	res15e[4];
+	u32	rbptr4;		/* 0x.3a4 - RxBD pointer for ring 4 */
+	u8	res15f[4];
+	u32	rbptr5;		/* 0x.3ac - RxBD pointer for ring 5 */
+	u8	res15g[4];
+	u32	rbptr6;		/* 0x.3b4 - RxBD pointer for ring 6 */
+	u8	res15h[4];
+	u32	rbptr7;		/* 0x.3bc - RxBD pointer for ring 7 */
+	u8	res16[64];
+	u32	rbaseh;		/* 0x.400 - RxBD base address high */
+	u32	rbase0;		/* 0x.404 - RxBD base address of ring 0 */
+	u8	res17a[4];
+	u32	rbase1;		/* 0x.40c - RxBD base address of ring 1 */
+	u8	res17b[4];
+	u32	rbase2;		/* 0x.414 - RxBD base address of ring 2 */
+	u8	res17c[4];
+	u32	rbase3;		/* 0x.41c - RxBD base address of ring 3 */
+	u8	res17d[4];
+	u32	rbase4;		/* 0x.424 - RxBD base address of ring 4 */
+	u8	res17e[4];
+	u32	rbase5;		/* 0x.42c - RxBD base address of ring 5 */
+	u8	res17f[4];
+	u32	rbase6;		/* 0x.434 - RxBD base address of ring 6 */
+	u8	res17g[4];
+	u32	rbase7;		/* 0x.43c - RxBD base address of ring 7 */
+	u8	res17[192];
+	u32	maccfg1;	/* 0x.500 - MAC Configuration 1 Register */
+	u32	maccfg2;	/* 0x.504 - MAC Configuration 2 Register */
+	u32	ipgifg;		/* 0x.508 - Inter Packet Gap/Inter Frame Gap Register */
+	u32	hafdup;		/* 0x.50c - Half Duplex Register */
+	u32	maxfrm;		/* 0x.510 - Maximum Frame Length Register */
 	u8	res18[12];
-	u32	miimcfg;		/* 0x.520 - MII Management Configuration Register */
-	u32	miimcom;		/* 0x.524 - MII Management Command Register */
-	u32	miimadd;		/* 0x.528 - MII Management Address Register */
-	u32	miimcon;		/* 0x.52c - MII Management Control Register */
-	u32	miimstat;		/* 0x.530 - MII Management Status Register */
-	u32	miimind;		/* 0x.534 - MII Management Indicator Register */
+	u32	miimcfg;	/* 0x.520 - MII Management Configuration Register */
+	u32	miimcom;	/* 0x.524 - MII Management Command Register */
+	u32	miimadd;	/* 0x.528 - MII Management Address Register */
+	u32	miimcon;	/* 0x.52c - MII Management Control Register */
+	u32	miimstat;	/* 0x.530 - MII Management Status Register */
+	u32	miimind;	/* 0x.534 - MII Management Indicator Register */
 	u8	res19[4];
-	u32	ifstat;			/* 0x.53c - Interface Status Register */
-	u32	macstnaddr1;		/* 0x.540 - Station Address Part 1 Register */
-	u32	macstnaddr2;		/* 0x.544 - Station Address Part 2 Register */
-	u8	res20[312];
-	struct rmon_mib	rmon;
-	u8	res21[192];
-	u32	iaddr0;			/* 0x.800 - Indivdual address register 0 */
-	u32	iaddr1;			/* 0x.804 - Indivdual address register 1 */
-	u32	iaddr2;			/* 0x.808 - Indivdual address register 2 */
-	u32	iaddr3;			/* 0x.80c - Indivdual address register 3 */
-	u32	iaddr4;			/* 0x.810 - Indivdual address register 4 */
-	u32	iaddr5;			/* 0x.814 - Indivdual address register 5 */
-	u32	iaddr6;			/* 0x.818 - Indivdual address register 6 */
-	u32	iaddr7;			/* 0x.81c - Indivdual address register 7 */
+	u32	ifstat;		/* 0x.53c - Interface Status Register */
+	u32	macstnaddr1;	/* 0x.540 - Station Address Part 1 Register */
+	u32	macstnaddr2;	/* 0x.544 - Station Address Part 2 Register */
+	u32	mac01addr1;	/* 0x.548 - MAC exact match address 1, part 1 */
+	u32	mac01addr2;	/* 0x.54c - MAC exact match address 1, part 2 */
+	u32	mac02addr1;	/* 0x.550 - MAC exact match address 2, part 1 */
+	u32	mac02addr2;	/* 0x.554 - MAC exact match address 2, part 2 */
+	u32	mac03addr1;	/* 0x.558 - MAC exact match address 3, part 1 */
+	u32	mac03addr2;	/* 0x.55c - MAC exact match address 3, part 2 */
+	u32	mac04addr1;	/* 0x.560 - MAC exact match address 4, part 1 */
+	u32	mac04addr2;	/* 0x.564 - MAC exact match address 4, part 2 */
+	u32	mac05addr1;	/* 0x.568 - MAC exact match address 5, part 1 */
+	u32	mac05addr2;	/* 0x.56c - MAC exact match address 5, part 2 */
+	u32	mac06addr1;	/* 0x.570 - MAC exact match address 6, part 1 */
+	u32	mac06addr2;	/* 0x.574 - MAC exact match address 6, part 2 */
+	u32	mac07addr1;	/* 0x.578 - MAC exact match address 7, part 1 */
+	u32	mac07addr2;	/* 0x.57c - MAC exact match address 7, part 2 */
+	u32	mac08addr1;	/* 0x.580 - MAC exact match address 8, part 1 */
+	u32	mac08addr2;	/* 0x.584 - MAC exact match address 8, part 2 */
+	u32	mac09addr1;	/* 0x.588 - MAC exact match address 9, part 1 */
+	u32	mac09addr2;	/* 0x.58c - MAC exact match address 9, part 2 */
+	u32	mac10addr1;	/* 0x.590 - MAC exact match address 10, part 1*/
+	u32	mac10addr2;	/* 0x.594 - MAC exact match address 10, part 2*/
+	u32	mac11addr1;	/* 0x.598 - MAC exact match address 11, part 1*/
+	u32	mac11addr2;	/* 0x.59c - MAC exact match address 11, part 2*/
+	u32	mac12addr1;	/* 0x.5a0 - MAC exact match address 12, part 1*/
+	u32	mac12addr2;	/* 0x.5a4 - MAC exact match address 12, part 2*/
+	u32	mac13addr1;	/* 0x.5a8 - MAC exact match address 13, part 1*/
+	u32	mac13addr2;	/* 0x.5ac - MAC exact match address 13, part 2*/
+	u32	mac14addr1;	/* 0x.5b0 - MAC exact match address 14, part 1*/
+	u32	mac14addr2;	/* 0x.5b4 - MAC exact match address 14, part 2*/
+	u32	mac15addr1;	/* 0x.5b8 - MAC exact match address 15, part 1*/
+	u32	mac15addr2;	/* 0x.5bc - MAC exact match address 15, part 2*/
+	u8	res20[192];
+	struct rmon_mib	rmon;	/* 0x.680-0x.73c */
+	u32	rrej;		/* 0x.740 - Receive filer rejected packet counter */
+	u8	res21[188];
+	u32	igaddr0;	/* 0x.800 - Indivdual/Group address register 0*/
+	u32	igaddr1;	/* 0x.804 - Indivdual/Group address register 1*/
+	u32	igaddr2;	/* 0x.808 - Indivdual/Group address register 2*/
+	u32	igaddr3;	/* 0x.80c - Indivdual/Group address register 3*/
+	u32	igaddr4;	/* 0x.810 - Indivdual/Group address register 4*/
+	u32	igaddr5;	/* 0x.814 - Indivdual/Group address register 5*/
+	u32	igaddr6;	/* 0x.818 - Indivdual/Group address register 6*/
+	u32	igaddr7;	/* 0x.81c - Indivdual/Group address register 7*/
 	u8	res22[96];
-	u32	gaddr0;			/* 0x.880 - Global address register 0 */
-	u32	gaddr1;			/* 0x.884 - Global address register 1 */
-	u32	gaddr2;			/* 0x.888 - Global address register 2 */
-	u32	gaddr3;			/* 0x.88c - Global address register 3 */
-	u32	gaddr4;			/* 0x.890 - Global address register 4 */
-	u32	gaddr5;			/* 0x.894 - Global address register 5 */
-	u32	gaddr6;			/* 0x.898 - Global address register 6 */
-	u32	gaddr7;			/* 0x.89c - Global address register 7 */
-	u8	res23[856];
-	u32	attr;			/* 0x.bf8 - Attributes Register */
-	u32	attreli;		/* 0x.bfc - Attributes Extract Length and Extract Index Register */
+	u32	gaddr0;		/* 0x.880 - Group address register 0 */
+	u32	gaddr1;		/* 0x.884 - Group address register 1 */
+	u32	gaddr2;		/* 0x.888 - Group address register 2 */
+	u32	gaddr3;		/* 0x.88c - Group address register 3 */
+	u32	gaddr4;		/* 0x.890 - Group address register 4 */
+	u32	gaddr5;		/* 0x.894 - Group address register 5 */
+	u32	gaddr6;		/* 0x.898 - Group address register 6 */
+	u32	gaddr7;		/* 0x.89c - Group address register 7 */
+	u8	res23a[352];
+	u32	fifocfg;	/* 0x.a00 - FIFO interface config register */
+	u8	res23b[252];
+	u8	res23c[248];
+	u32	attr;		/* 0x.bf8 - Attributes Register */
+	u32	attreli;	/* 0x.bfc - Attributes Extract Length and Extract Index Register */
 	u8	res24[1024];
 
 };
@@ -496,6 +686,8 @@ struct gfar_private {
 	struct txbd8 *cur_tx;	        /* Next free ring entry */
 	struct txbd8 *dirty_tx;		/* The Ring entry to be freed. */
 	struct gfar *regs;	/* Pointer to the GFAR memory mapped Registers */
+	u32 *hash_regs[16];
+	int hash_width;
 	struct gfar *phyregs;
 	struct work_struct tq;
 	struct timer_list phy_info_timer;
@@ -506,9 +698,12 @@ struct gfar_private {
 	unsigned int rx_stash_size;
 	unsigned int tx_ring_size;
 	unsigned int rx_ring_size;
-	wait_queue_head_t rxcleanupq;
-	unsigned int rxclean;
 
+	unsigned char vlan_enable:1,
+		rx_csum_enable:1,
+		extended_hash:1;
+	unsigned short padding;
+	struct vlan_group *vlgrp;
 	/* Info structure initialized by board setup code */
 	unsigned int interruptTransmit;
 	unsigned int interruptReceive;
@@ -519,6 +714,8 @@ struct gfar_private {
 	int oldspeed;
 	int oldduplex;
 	int oldlink;
+
+	uint32_t msg_enable;
 };
 
 extern inline u32 gfar_read(volatile unsigned *addr)

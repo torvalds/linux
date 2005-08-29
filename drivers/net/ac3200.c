@@ -146,12 +146,7 @@ struct net_device * __init ac3200_probe(int unit)
 	err = do_ac3200_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -273,7 +268,14 @@ static int __init ac_probe1(int ioaddr, struct net_device *dev)
 	dev->poll_controller = ei_poll;
 #endif
 	NS8390_init(dev, 0);
+
+	retval = register_netdev(dev);
+	if (retval)
+		goto out2;
 	return 0;
+out2:
+	if (ei_status.reg0)
+		iounmap((void *)dev->mem_start);
 out1:
 	free_irq(dev->irq, dev);
 out:
@@ -392,11 +394,8 @@ init_module(void)
 		dev->base_addr = io[this_dev];
 		dev->mem_start = mem[this_dev];		/* Currently ignored by driver */
 		if (do_ac3200_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_ac32[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_ac32[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		printk(KERN_WARNING "ac3200.c: No ac3200 card found (i/o = 0x%x).\n", io[this_dev]);

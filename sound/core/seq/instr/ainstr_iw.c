@@ -58,7 +58,7 @@ static int snd_seq_iwffff_copy_env_from_stream(__u32 req_stype,
 					       iwffff_xenv_t *ex,
 					       char __user **data,
 					       long *len,
-					       int gfp_mask)
+					       unsigned int __nocast gfp_mask)
 {
 	__u32 stype;
 	iwffff_env_record_t *rp, *rp_last;
@@ -128,7 +128,8 @@ static int snd_seq_iwffff_copy_wave_from_stream(snd_iwffff_ops_t *ops,
 {
 	iwffff_wave_t *wp, *prev;
 	iwffff_xwave_t xp;
-	int err, gfp_mask;
+	int err;
+	unsigned int gfp_mask;
 	unsigned int real_size;
 	
 	gfp_mask = atomic ? GFP_ATOMIC : GFP_KERNEL;
@@ -234,7 +235,8 @@ static int snd_seq_iwffff_put(void *private_data, snd_seq_kinstr_t *instr,
 	iwffff_xinstrument_t ix;
 	iwffff_layer_t *lp, *prev_lp;
 	iwffff_xlayer_t lx;
-	int err, gfp_mask;
+	int err;
+	unsigned int gfp_mask;
 
 	if (cmd != SNDRV_SEQ_INSTR_PUT_CMD_CREATE)
 		return -EINVAL;

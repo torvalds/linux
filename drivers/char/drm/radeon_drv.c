@@ -101,6 +101,9 @@ static struct drm_driver driver = {
 		.mmap = drm_mmap,
 		.poll = drm_poll,
 		.fasync = drm_fasync,
+#ifdef CONFIG_COMPAT
+		.compat_ioctl = radeon_compat_ioctl,
+#endif
 	},
 	.pci_driver = {
 		.name          = DRIVER_NAME,

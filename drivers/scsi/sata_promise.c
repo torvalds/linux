@@ -40,7 +40,7 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_promise"
-#define DRV_VERSION	"1.01"
+#define DRV_VERSION	"1.02"
 
 
 enum {
@@ -180,6 +180,10 @@ static struct pci_device_id pdc_ata_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, 0x3318, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_20319 },
 	{ PCI_VENDOR_ID_PROMISE, 0x3319, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+	  board_20319 },
+	{ PCI_VENDOR_ID_PROMISE, 0x3519, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+	  board_20319 },
+	{ PCI_VENDOR_ID_PROMISE, 0x3d17, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_20319 },
 	{ PCI_VENDOR_ID_PROMISE, 0x3d18, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_20319 },
@@ -321,10 +325,14 @@ static void pdc_qc_prep(struct ata_queued_cmd *qc)
 
 static void pdc_eng_timeout(struct ata_port *ap)
 {
+	struct ata_host_set *host_set = ap->host_set;
 	u8 drv_stat;
 	struct ata_queued_cmd *qc;
+	unsigned long flags;
 
 	DPRINTK("ENTER\n");
+
+	spin_lock_irqsave(&host_set->lock, flags);
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	if (!qc) {
@@ -359,6 +367,7 @@ static void pdc_eng_timeout(struct ata_port *ap)
 	}
 
 out:
+	spin_unlock_irqrestore(&host_set->lock, flags);
 	DPRINTK("EXIT\n");
 }
 
@@ -441,7 +450,8 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *r
 		VPRINTK("port %u\n", i);
 		ap = host_set->ports[i];
 		tmp = mask & (1 << (i + 1));
-		if (tmp && ap && (!(ap->flags & ATA_FLAG_PORT_DISABLED))) {
+		if (tmp && ap &&
+		    !(ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))) {
 			struct ata_queued_cmd *qc;
 
 			qc = ata_qc_from_tag(ap, ap->active_tag);

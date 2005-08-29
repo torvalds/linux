@@ -56,7 +56,7 @@
 #include "ioasm.h"
 #include "chsc.h"
 
-#define VERSION_QDIO_C "$Revision: 1.98 $"
+#define VERSION_QDIO_C "$Revision: 1.101 $"
 
 /****************** MODULE PARAMETER VARIABLES ********************/
 MODULE_AUTHOR("Utz Bacher <utz.bacher@de.ibm.com>");
@@ -112,7 +112,7 @@ qdio_min(int a,int b)
 
 /***************** SCRUBBER HELPER ROUTINES **********************/
 
-static inline volatile __u64 
+static inline __u64 
 qdio_get_micros(void)
 {
         return (get_clock() >> 10); /* time>>12 is microseconds */
@@ -230,7 +230,7 @@ qdio_siga_input(struct qdio_q *q)
 }
 
 /* locked by the locks in qdio_activate and qdio_cleanup */
-static __u32 * volatile 
+static __u32 volatile *
 qdio_get_indicator(void)
 {
 	int i;
@@ -432,7 +432,7 @@ tiqdio_clear_global_summary(void)
 
 /************************* OUTBOUND ROUTINES *******************************/
 
-inline static int
+static inline int
 qdio_get_outbound_buffer_frontier(struct qdio_q *q)
 {
 	int f,f_mod_no;
@@ -510,7 +510,7 @@ out:
 }
 
 /* all buffers are processed */
-inline static int
+static inline int
 qdio_is_outbound_q_done(struct qdio_q *q)
 {
 	int no_used;
@@ -532,7 +532,7 @@ qdio_is_outbound_q_done(struct qdio_q *q)
 	return (no_used==0);
 }
 
-inline static int
+static inline int
 qdio_has_outbound_q_moved(struct qdio_q *q)
 {
 	int i;
@@ -552,7 +552,7 @@ qdio_has_outbound_q_moved(struct qdio_q *q)
 	}
 }
 
-inline static void
+static inline void
 qdio_kick_outbound_q(struct qdio_q *q)
 {
 	int result;
@@ -641,7 +641,7 @@ qdio_kick_outbound_q(struct qdio_q *q)
 		}
 }
 
-inline static void
+static inline void
 qdio_kick_outbound_handler(struct qdio_q *q)
 {
 	int start, end, real_end, count;
@@ -740,7 +740,7 @@ qdio_outbound_processing(struct qdio_q *q)
 /************************* INBOUND ROUTINES *******************************/
 
 
-inline static int
+static inline int
 qdio_get_inbound_buffer_frontier(struct qdio_q *q)
 {
 	int f,f_mod_no;
@@ -865,7 +865,7 @@ out:
 	return q->first_to_check;
 }
 
-inline static int
+static inline int
 qdio_has_inbound_q_moved(struct qdio_q *q)
 {
 	int i;
@@ -898,7 +898,7 @@ qdio_has_inbound_q_moved(struct qdio_q *q)
 }
 
 /* means, no more buffers to be filled */
-inline static int
+static inline int
 tiqdio_is_inbound_q_done(struct qdio_q *q)
 {
 	int no_used;
@@ -951,7 +951,7 @@ tiqdio_is_inbound_q_done(struct qdio_q *q)
 	return 0;
 }
 
-inline static int
+static inline int
 qdio_is_inbound_q_done(struct qdio_q *q)
 {
 	int no_used;
@@ -1010,7 +1010,7 @@ qdio_is_inbound_q_done(struct qdio_q *q)
 	}
 }
 
-inline static void
+static inline void
 qdio_kick_inbound_handler(struct qdio_q *q)
 {
 	int count, start, end, real_end, i;
@@ -3342,7 +3342,7 @@ static int
 qdio_register_dbf_views(void)
 {
 	qdio_dbf_setup=debug_register(QDIO_DBF_SETUP_NAME,
-				      QDIO_DBF_SETUP_INDEX,
+				      QDIO_DBF_SETUP_PAGES,
 				      QDIO_DBF_SETUP_NR_AREAS,
 				      QDIO_DBF_SETUP_LEN);
 	if (!qdio_dbf_setup)
@@ -3351,7 +3351,7 @@ qdio_register_dbf_views(void)
 	debug_set_level(qdio_dbf_setup,QDIO_DBF_SETUP_LEVEL);
 
 	qdio_dbf_sbal=debug_register(QDIO_DBF_SBAL_NAME,
-				     QDIO_DBF_SBAL_INDEX,
+				     QDIO_DBF_SBAL_PAGES,
 				     QDIO_DBF_SBAL_NR_AREAS,
 				     QDIO_DBF_SBAL_LEN);
 	if (!qdio_dbf_sbal)
@@ -3361,7 +3361,7 @@ qdio_register_dbf_views(void)
 	debug_set_level(qdio_dbf_sbal,QDIO_DBF_SBAL_LEVEL);
 
 	qdio_dbf_sense=debug_register(QDIO_DBF_SENSE_NAME,
-				      QDIO_DBF_SENSE_INDEX,
+				      QDIO_DBF_SENSE_PAGES,
 				      QDIO_DBF_SENSE_NR_AREAS,
 				      QDIO_DBF_SENSE_LEN);
 	if (!qdio_dbf_sense)
@@ -3371,7 +3371,7 @@ qdio_register_dbf_views(void)
 	debug_set_level(qdio_dbf_sense,QDIO_DBF_SENSE_LEVEL);
 
 	qdio_dbf_trace=debug_register(QDIO_DBF_TRACE_NAME,
-				      QDIO_DBF_TRACE_INDEX,
+				      QDIO_DBF_TRACE_PAGES,
 				      QDIO_DBF_TRACE_NR_AREAS,
 				      QDIO_DBF_TRACE_LEN);
 	if (!qdio_dbf_trace)
@@ -3382,7 +3382,7 @@ qdio_register_dbf_views(void)
 
 #ifdef CONFIG_QDIO_DEBUG
         qdio_dbf_slsb_out=debug_register(QDIO_DBF_SLSB_OUT_NAME,
-                                         QDIO_DBF_SLSB_OUT_INDEX,
+                                         QDIO_DBF_SLSB_OUT_PAGES,
                                          QDIO_DBF_SLSB_OUT_NR_AREAS,
                                          QDIO_DBF_SLSB_OUT_LEN);
         if (!qdio_dbf_slsb_out)
@@ -3391,7 +3391,7 @@ qdio_register_dbf_views(void)
         debug_set_level(qdio_dbf_slsb_out,QDIO_DBF_SLSB_OUT_LEVEL);
 
         qdio_dbf_slsb_in=debug_register(QDIO_DBF_SLSB_IN_NAME,
-                                        QDIO_DBF_SLSB_IN_INDEX,
+                                        QDIO_DBF_SLSB_IN_PAGES,
                                         QDIO_DBF_SLSB_IN_NR_AREAS,
                                         QDIO_DBF_SLSB_IN_LEN);
         if (!qdio_dbf_slsb_in)

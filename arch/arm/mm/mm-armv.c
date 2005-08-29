@@ -169,7 +169,14 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 
 	memzero(new_pgd, FIRST_KERNEL_PGD_NR * sizeof(pgd_t));
 
+	/*
+	 * Copy over the kernel and IO PGD entries
+	 */
 	init_pgd = pgd_offset_k(0);
+	memcpy(new_pgd + FIRST_KERNEL_PGD_NR, init_pgd + FIRST_KERNEL_PGD_NR,
+		       (PTRS_PER_PGD - FIRST_KERNEL_PGD_NR) * sizeof(pgd_t));
+
+	clean_dcache_area(new_pgd, PTRS_PER_PGD * sizeof(pgd_t));
 
 	if (!vectors_high()) {
 		/*
@@ -197,14 +204,6 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 
 		spin_unlock(&mm->page_table_lock);
 	}
-
-	/*
-	 * Copy over the kernel and IO PGD entries
-	 */
-	memcpy(new_pgd + FIRST_KERNEL_PGD_NR, init_pgd + FIRST_KERNEL_PGD_NR,
-		       (PTRS_PER_PGD - FIRST_KERNEL_PGD_NR) * sizeof(pgd_t));
-
-	clean_dcache_area(new_pgd, PTRS_PER_PGD * sizeof(pgd_t));
 
 	return new_pgd;
 
@@ -384,6 +383,7 @@ static void __init build_mem_type_table(void)
 {
 	struct cachepolicy *cp;
 	unsigned int cr = get_cr();
+	unsigned int user_pgprot;
 	int cpu_arch = cpu_architecture();
 	int i;
 
@@ -400,7 +400,7 @@ static void __init build_mem_type_table(void)
 		ecc_mask = 0;
 	}
 
-	if (cpu_arch <= CPU_ARCH_ARMv5) {
+	if (cpu_arch <= CPU_ARCH_ARMv5TEJ) {
 		for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
 			if (mem_types[i].prot_l1)
 				mem_types[i].prot_l1 |= PMD_BIT4;
@@ -408,6 +408,9 @@ static void __init build_mem_type_table(void)
 				mem_types[i].prot_sect |= PMD_BIT4;
 		}
 	}
+
+	cp = &cache_policies[cachepolicy];
+	user_pgprot = cp->pte;
 
 	/*
 	 * ARMv6 and above have extended page tables.
@@ -426,9 +429,19 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_ROM].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_MINICLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_CACHECLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
-	}
 
-	cp = &cache_policies[cachepolicy];
+		/*
+		 * Mark the device area as "shared device"
+		 */
+		mem_types[MT_DEVICE].prot_pte |= L_PTE_BUFFERABLE;
+		mem_types[MT_DEVICE].prot_sect |= PMD_SECT_BUFFERED;
+
+		/*
+		 * User pages need to be mapped with the ASID
+		 * (iow, non-global)
+		 */
+		user_pgprot |= L_PTE_ASID;
+	}
 
 	if (cpu_arch >= CPU_ARCH_ARMv5) {
 		mem_types[MT_LOW_VECTORS].prot_pte |= cp->pte & PTE_CACHEABLE;
@@ -446,7 +459,7 @@ static void __init build_mem_type_table(void)
 
 	for (i = 0; i < 16; i++) {
 		unsigned long v = pgprot_val(protection_map[i]);
-		v &= (~(PTE_BUFFERABLE|PTE_CACHEABLE)) | cp->pte;
+		v &= (~(PTE_BUFFERABLE|PTE_CACHEABLE)) | user_pgprot;
 		protection_map[i] = __pgprot(v);
 	}
 
@@ -585,7 +598,7 @@ void setup_mm_for_reboot(char mode)
 		pmdval = (i << PGDIR_SHIFT) |
 			 PMD_SECT_AP_WRITE | PMD_SECT_AP_READ |
 			 PMD_TYPE_SECT;
-		if (cpu_arch <= CPU_ARCH_ARMv5)
+		if (cpu_arch <= CPU_ARCH_ARMv5TEJ)
 			pmdval |= PMD_BIT4;
 		pmd = pmd_off(pgd, i << PGDIR_SHIFT);
 		pmd[0] = __pmd(pmdval);
@@ -683,7 +696,7 @@ void __init memtable_init(struct meminfo *mi)
 	}
 
 	flush_cache_all();
-	flush_tlb_all();
+	local_flush_tlb_all();
 
 	top_pmd = pmd_off_k(0xffff0000);
 }
@@ -697,76 +710,4 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 
 	for (i = 0; i < nr; i++)
 		create_mapping(io_desc + i);
-}
-
-static inline void
-free_memmap(int node, unsigned long start_pfn, unsigned long end_pfn)
-{
-	struct page *start_pg, *end_pg;
-	unsigned long pg, pgend;
-
-	/*
-	 * Convert start_pfn/end_pfn to a struct page pointer.
-	 */
-	start_pg = pfn_to_page(start_pfn);
-	end_pg = pfn_to_page(end_pfn);
-
-	/*
-	 * Convert to physical addresses, and
-	 * round start upwards and end downwards.
-	 */
-	pg = PAGE_ALIGN(__pa(start_pg));
-	pgend = __pa(end_pg) & PAGE_MASK;
-
-	/*
-	 * If there are free pages between these,
-	 * free the section of the memmap array.
-	 */
-	if (pg < pgend)
-		free_bootmem_node(NODE_DATA(node), pg, pgend - pg);
-}
-
-static inline void free_unused_memmap_node(int node, struct meminfo *mi)
-{
-	unsigned long bank_start, prev_bank_end = 0;
-	unsigned int i;
-
-	/*
-	 * [FIXME] This relies on each bank being in address order.  This
-	 * may not be the case, especially if the user has provided the
-	 * information on the command line.
-	 */
-	for (i = 0; i < mi->nr_banks; i++) {
-		if (mi->bank[i].size == 0 || mi->bank[i].node != node)
-			continue;
-
-		bank_start = mi->bank[i].start >> PAGE_SHIFT;
-		if (bank_start < prev_bank_end) {
-			printk(KERN_ERR "MEM: unordered memory banks.  "
-				"Not freeing memmap.\n");
-			break;
-		}
-
-		/*
-		 * If we had a previous bank, and there is a space
-		 * between the current bank and the previous, free it.
-		 */
-		if (prev_bank_end && prev_bank_end != bank_start)
-			free_memmap(node, prev_bank_end, bank_start);
-
-		prev_bank_end = PAGE_ALIGN(mi->bank[i].start +
-					   mi->bank[i].size) >> PAGE_SHIFT;
-	}
-}
-
-/*
- * The mem_map array can get very big.  Free
- * the unused area of the memory map.
- */
-void __init create_memmap_holes(struct meminfo *mi)
-{
-	int node;
-
-	for_each_online_node(node)
-		free_unused_memmap_node(node, mi);
 }

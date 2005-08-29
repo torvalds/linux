@@ -314,7 +314,7 @@ config SND_YMFPCI
 
 config SND_ALS4000
 	tristate "Avance Logic ALS4000"
-	depends on SND
+	depends on SND && ISA_DMA_API
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM

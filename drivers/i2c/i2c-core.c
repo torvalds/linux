@@ -156,7 +156,7 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 		goto out_unlock;
 	}
 
-	res = idr_get_new(&i2c_adapter_idr, NULL, &id);
+	res = idr_get_new(&i2c_adapter_idr, adap, &id);
 	if (res < 0) {
 		if (res == -EAGAIN)
 			res = -ENOMEM;
@@ -231,8 +231,8 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 		if (driver->detach_adapter)
 			if ((res = driver->detach_adapter(adap))) {
 				dev_warn(&adap->dev, "can't detach adapter "
-					 "while detaching driver %s: driver not "
-					 "detached!", driver->name);
+					 "while detaching driver %s: driver "
+					 "not detached!\n", driver->name);
 				goto out_unlock;
 			}
 	}
@@ -456,8 +456,8 @@ int i2c_detach_client(struct i2c_client *client)
 		res = adapter->client_unregister(client);
 		if (res) {
 			dev_err(&client->dev,
-			       "client_unregister [%s] failed, "
-			       "client not detached", client->name);
+				"client_unregister [%s] failed, "
+				"client not detached\n", client->name);
 			goto out;
 		}
 	}
@@ -765,20 +765,15 @@ int i2c_adapter_id(struct i2c_adapter *adap)
 
 struct i2c_adapter* i2c_get_adapter(int id)
 {
-	struct list_head   *item;
 	struct i2c_adapter *adapter;
 	
 	down(&core_lists);
-	list_for_each(item,&adapters) {
-		adapter = list_entry(item, struct i2c_adapter, list);
-		if (id == adapter->nr &&
-		    try_module_get(adapter->owner)) {
-			up(&core_lists);
-			return adapter;
-		}
-	}
+	adapter = (struct i2c_adapter *)idr_find(&i2c_adapter_idr, id);
+	if (adapter && !try_module_get(adapter->owner))
+		adapter = NULL;
+
 	up(&core_lists);
-	return NULL;
+	return adapter;
 }
 
 void i2c_put_adapter(struct i2c_adapter *adap)

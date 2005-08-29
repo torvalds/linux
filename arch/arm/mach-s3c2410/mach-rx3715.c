@@ -131,11 +131,13 @@ static void __init rx3715_init_machine(void)
 #endif
 
 MACHINE_START(RX3715, "IPAQ-RX3715")
-     MAINTAINER("Ben Dooks <ben@fluff.org>")
-     BOOT_MEM(S3C2410_SDRAM_PA, S3C2410_PA_UART, (u32)S3C24XX_VA_UART)
-     BOOT_PARAMS(S3C2410_SDRAM_PA + 0x100)
-     MAPIO(rx3715_map_io)
-     INITIRQ(rx3715_init_irq)
-     INIT_MACHINE(rx3715_init_machine)
+	/* Maintainer: Ben Dooks <ben@fluff.org> */
+	.phys_ram	= S3C2410_SDRAM_PA,
+	.phys_io	= S3C2410_PA_UART,
+	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
+	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.map_io		= rx3715_map_io,
+	.init_irq	= rx3715_init_irq,
+	.init_machine	= rx3715_init_machine,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

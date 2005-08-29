@@ -586,7 +586,7 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 	}
 	if (skb->stamp.tv_sec == 0) {
 		skb->stamp.tv_sec = xtime.tv_sec; 
-		skb->stamp.tv_usec = xtime.tv_nsec * 1000; 
+		skb->stamp.tv_usec = xtime.tv_nsec / NSEC_PER_USEC; 
 		/* Don't enable netstamp, sunrpc doesn't 
 		   need that much accuracy */
 	}
@@ -1185,8 +1185,8 @@ svc_recv(struct svc_serv *serv, struct svc_rqst *rqstp, long timeout)
 	arg->page_len = (pages-2)*PAGE_SIZE;
 	arg->len = (pages-1)*PAGE_SIZE;
 	arg->tail[0].iov_len = 0;
-	
-	try_to_freeze(PF_FREEZE);
+
+	try_to_freeze();
 	if (signalled())
 		return -EINTR;
 
@@ -1227,7 +1227,7 @@ svc_recv(struct svc_serv *serv, struct svc_rqst *rqstp, long timeout)
 
 		schedule_timeout(timeout);
 
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 
 		spin_lock_bh(&serv->sv_lock);
 		remove_wait_queue(&rqstp->rq_wait, &wait);

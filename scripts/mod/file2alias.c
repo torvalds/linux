@@ -25,6 +25,8 @@ typedef Elf64_Addr	kernel_ulong_t;
 #include <stdint.h>
 #endif
 
+#include <ctype.h>
+
 typedef uint32_t	__u32;
 typedef uint16_t	__u16;
 typedef unsigned char	__u8;
@@ -287,6 +289,58 @@ static int do_pnp_card_entry(const char *filename,
 	return 1;
 }
 
+/* Looks like: pcmcia:mNcNfNfnNpfnNvaNvbNvcNvdN. */
+static int do_pcmcia_entry(const char *filename,
+			   struct pcmcia_device_id *id, char *alias)
+{
+	unsigned int i;
+
+	id->manf_id = TO_NATIVE(id->manf_id);
+	id->card_id = TO_NATIVE(id->card_id);
+	id->func_id = TO_NATIVE(id->func_id);
+	id->function = TO_NATIVE(id->function);
+	id->device_no = TO_NATIVE(id->device_no);
+	for (i=0; i<4; i++) {
+		id->prod_id_hash[i] = TO_NATIVE(id->prod_id_hash[i]);
+       }
+
+       strcpy(alias, "pcmcia:");
+       ADD(alias, "m", id->match_flags & PCMCIA_DEV_ID_MATCH_MANF_ID,
+	   id->manf_id);
+       ADD(alias, "c", id->match_flags & PCMCIA_DEV_ID_MATCH_CARD_ID,
+	   id->card_id);
+       ADD(alias, "f", id->match_flags & PCMCIA_DEV_ID_MATCH_FUNC_ID,
+	   id->func_id);
+       ADD(alias, "fn", id->match_flags & PCMCIA_DEV_ID_MATCH_FUNCTION,
+	   id->function);
+       ADD(alias, "pfn", id->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO,
+	   id->device_no);
+       ADD(alias, "pa", id->match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID1, id->prod_id_hash[0]);
+       ADD(alias, "pb", id->match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID2, id->prod_id_hash[1]);
+       ADD(alias, "pc", id->match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID3, id->prod_id_hash[2]);
+       ADD(alias, "pd", id->match_flags & PCMCIA_DEV_ID_MATCH_PROD_ID4, id->prod_id_hash[3]);
+
+       return 1;
+}
+
+
+
+static int do_of_entry (const char *filename, struct of_device_id *of, char *alias)
+{
+    char *tmp;
+    sprintf (alias, "of:N%sT%sC%s",
+                    of->name[0] ? of->name : "*",
+                    of->type[0] ? of->type : "*",
+                    of->compatible[0] ? of->compatible : "*");
+
+    /* Replace all whitespace with underscores */
+    for (tmp = alias; tmp && *tmp; tmp++)
+        if (isspace (*tmp))
+            *tmp = '_';
+
+    return 1;
+}
+
 /* Ignore any prefix, eg. v850 prepends _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -362,6 +416,13 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	else if (sym_is(symname, "__mod_pnp_card_device_table"))
 		do_table(symval, sym->st_size, sizeof(struct pnp_card_device_id),
 			 do_pnp_card_entry, mod);
+	else if (sym_is(symname, "__mod_pcmcia_device_table"))
+		do_table(symval, sym->st_size, sizeof(struct pcmcia_device_id),
+			 do_pcmcia_entry, mod);
+        else if (sym_is(symname, "__mod_of_device_table"))
+		do_table(symval, sym->st_size, sizeof(struct of_device_id),
+			 do_of_entry, mod);
+
 }
 
 /* Now add out buffered information to the generated C source */

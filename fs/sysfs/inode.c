@@ -85,7 +85,7 @@ int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
 
 		if (!in_group_p(inode->i_gid) && !capable(CAP_FSETID))
 			mode &= ~S_ISGID;
-		sd_iattr->ia_mode = mode;
+		sd_iattr->ia_mode = sd->s_mode = mode;
 	}
 
 	return error;
@@ -166,16 +166,6 @@ int sysfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *))
 	return error;
 }
 
-struct dentry * sysfs_get_dentry(struct dentry * parent, const char * name)
-{
-	struct qstr qstr;
-
-	qstr.name = name;
-	qstr.len = strlen(name);
-	qstr.hash = full_name_hash(name,qstr.len);
-	return lookup_hash(&qstr,parent);
-}
-
 /*
  * Get the name for corresponding element represented by the given sysfs_dirent
  */
@@ -237,6 +227,10 @@ void sysfs_hash_and_remove(struct dentry * dir, const char * name)
 {
 	struct sysfs_dirent * sd;
 	struct sysfs_dirent * parent_sd = dir->d_fsdata;
+
+	if (dir->d_inode == NULL)
+		/* no inode means this hasn't been made visible yet */
+		return;
 
 	down(&dir->d_inode->i_sem);
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {

@@ -313,7 +313,7 @@ static int nlm_wait_on_grace(wait_queue_head_t *queue)
 	prepare_to_wait(queue, &wait, TASK_INTERRUPTIBLE);
 	if (!signalled ()) {
 		schedule_timeout(NLMCLNT_GRACE_WAIT);
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 		if (!signalled ())
 			status = 0;
 	}

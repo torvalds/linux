@@ -18,7 +18,7 @@
 #include "mach_timer.h"
 #include <asm/hpet.h>
 
-static unsigned long hpet_usec_quotient;	/* convert hpet clks to usec */
+static unsigned long __read_mostly hpet_usec_quotient;	/* convert hpet clks to usec */
 static unsigned long tsc_hpet_quotient;		/* convert tsc to hpet clks */
 static unsigned long hpet_last; 	/* hpet counter value at last tick*/
 static unsigned long last_tsc_low;	/* lsb 32 bits of Time Stamp Counter */
@@ -158,7 +158,7 @@ static int __init init_hpet(char* override)
 			{	unsigned long eax=0, edx=1000;
 				ASM_DIV64_REG(cpu_khz, edx, tsc_quotient,
 						eax, edx);
-				printk("Detected %lu.%03lu MHz processor.\n",
+				printk("Detected %u.%03u MHz processor.\n",
 					cpu_khz / 1000, cpu_khz % 1000);
 			}
 			set_cyc2ns_scale(cpu_khz/1000);
@@ -180,12 +180,13 @@ static int __init init_hpet(char* override)
 /************************************************************/
 
 /* tsc timer_opts struct */
-static struct timer_opts timer_hpet = {
+static struct timer_opts timer_hpet __read_mostly = {
 	.name = 		"hpet",
 	.mark_offset =		mark_offset_hpet,
 	.get_offset =		get_offset_hpet,
 	.monotonic_clock =	monotonic_clock_hpet,
 	.delay = 		delay_hpet,
+	.read_timer = 		read_timer_tsc,
 };
 
 struct init_timer_opts __initdata timer_hpet_init = {

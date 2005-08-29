@@ -9,7 +9,6 @@
 #include <linux/major.h>
 #include <linux/root_dev.h>
 
-dev_t name_to_dev_t(char *name);
 void  change_floppy(char *fmt, ...);
 void  mount_block_root(char *name, int flags);
 void  mount_root(void);

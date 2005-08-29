@@ -168,7 +168,7 @@ typedef struct _snd_uart16550 {
 
 static snd_card_t *snd_serial_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
-inline static void snd_uart16550_add_timer(snd_uart16550_t *uart)
+static inline void snd_uart16550_add_timer(snd_uart16550_t *uart)
 {
 	if (! uart->timer_running) {
 		/* timer 38600bps * 10bit * 16byte */
@@ -178,7 +178,7 @@ inline static void snd_uart16550_add_timer(snd_uart16550_t *uart)
 	}
 }
 
-inline static void snd_uart16550_del_timer(snd_uart16550_t *uart)
+static inline void snd_uart16550_del_timer(snd_uart16550_t *uart)
 {
 	if (uart->timer_running) {
 		del_timer(&uart->buffer_timer);
@@ -187,7 +187,7 @@ inline static void snd_uart16550_del_timer(snd_uart16550_t *uart)
 }
 
 /* This macro is only used in snd_uart16550_io_loop */
-inline static void snd_uart16550_buffer_output(snd_uart16550_t *uart)
+static inline void snd_uart16550_buffer_output(snd_uart16550_t *uart)
 {
 	unsigned short buff_out = uart->buff_out;
 	if( uart->buff_in_count > 0 ) {
@@ -579,7 +579,7 @@ static int snd_uart16550_output_close(snd_rawmidi_substream_t * substream)
 	return 0;
 };
 
-inline static int snd_uart16550_buffer_can_write( snd_uart16550_t *uart, int Num )
+static inline int snd_uart16550_buffer_can_write( snd_uart16550_t *uart, int Num )
 {
 	if( uart->buff_in_count + Num < TX_BUFF_SIZE )
 		return 1;
@@ -587,7 +587,7 @@ inline static int snd_uart16550_buffer_can_write( snd_uart16550_t *uart, int Num
 		return 0;
 }
 
-inline static int snd_uart16550_write_buffer(snd_uart16550_t *uart, unsigned char byte)
+static inline int snd_uart16550_write_buffer(snd_uart16550_t *uart, unsigned char byte)
 {
 	unsigned short buff_in = uart->buff_in;
 	if( uart->buff_in_count < TX_BUFF_SIZE ) {

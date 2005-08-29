@@ -1,5 +1,5 @@
 /*
- * $Id: bttv.h,v 1.17 2005/02/22 14:06:32 kraxel Exp $
+ * $Id: bttv.h,v 1.22 2005/07/28 18:41:21 mchehab Exp $
  *
  *  bttv - Bt848 frame grabber driver
  *
@@ -135,6 +135,9 @@
 #define BTTV_DVICO_DVBT_LITE  0x80
 #define BTTV_TIBET_CS16  0x83
 #define BTTV_KODICOM_4400R  0x84
+#define BTTV_ADLINK_RTV24   0x86
+#define BTTV_DVICO_FUSIONHDTV_5_LITE 0x87
+#define BTTV_ACORP_Y878F   0x88
 
 /* i2c address list */
 #define I2C_TSA5522        0xc2

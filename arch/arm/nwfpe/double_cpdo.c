@@ -40,17 +40,17 @@ float64 float64_arccos(float64 rFm);
 float64 float64_pow(float64 rFn, float64 rFm);
 float64 float64_pol(float64 rFn, float64 rFm);
 
-static float64 float64_rsf(float64 rFn, float64 rFm)
+static float64 float64_rsf(struct roundingData *roundData, float64 rFn, float64 rFm)
 {
-	return float64_sub(rFm, rFn);
+	return float64_sub(roundData, rFm, rFn);
 }
 
-static float64 float64_rdv(float64 rFn, float64 rFm)
+static float64 float64_rdv(struct roundingData *roundData, float64 rFn, float64 rFm)
 {
-	return float64_div(rFm, rFn);
+	return float64_div(roundData, rFm, rFn);
 }
 
-static float64 (*const dyadic_double[16])(float64 rFn, float64 rFm) = {
+static float64 (*const dyadic_double[16])(struct roundingData*, float64 rFn, float64 rFm) = {
 	[ADF_CODE >> 20] = float64_add,
 	[MUF_CODE >> 20] = float64_mul,
 	[SUF_CODE >> 20] = float64_sub,
@@ -65,12 +65,12 @@ static float64 (*const dyadic_double[16])(float64 rFn, float64 rFm) = {
 	[FRD_CODE >> 20] = float64_rdv,
 };
 
-static float64 float64_mvf(float64 rFm)
+static float64 float64_mvf(struct roundingData *roundData,float64 rFm)
 {
 	return rFm;
 }
 
-static float64 float64_mnf(float64 rFm)
+static float64 float64_mnf(struct roundingData *roundData,float64 rFm)
 {
 	union float64_components u;
 
@@ -84,7 +84,7 @@ static float64 float64_mnf(float64 rFm)
 	return u.f64;
 }
 
-static float64 float64_abs(float64 rFm)
+static float64 float64_abs(struct roundingData *roundData,float64 rFm)
 {
 	union float64_components u;
 
@@ -98,7 +98,7 @@ static float64 float64_abs(float64 rFm)
 	return u.f64;
 }
 
-static float64 (*const monadic_double[16])(float64 rFm) = {
+static float64 (*const monadic_double[16])(struct roundingData *, float64 rFm) = {
 	[MVF_CODE >> 20] = float64_mvf,
 	[MNF_CODE >> 20] = float64_mnf,
 	[ABS_CODE >> 20] = float64_abs,
@@ -108,7 +108,7 @@ static float64 (*const monadic_double[16])(float64 rFm) = {
 	[NRM_CODE >> 20] = float64_mvf,
 };
 
-unsigned int DoubleCPDO(const unsigned int opcode, FPREG * rFd)
+unsigned int DoubleCPDO(struct roundingData *roundData, const unsigned int opcode, FPREG * rFd)
 {
 	FPA11 *fpa11 = GET_FPA11();
 	float64 rFm;
@@ -151,13 +151,13 @@ unsigned int DoubleCPDO(const unsigned int opcode, FPREG * rFd)
 		}
 
 		if (dyadic_double[opc_mask_shift]) {
-			rFd->fDouble = dyadic_double[opc_mask_shift](rFn, rFm);
+			rFd->fDouble = dyadic_double[opc_mask_shift](roundData, rFn, rFm);
 		} else {
 			return 0;
 		}
 	} else {
 		if (monadic_double[opc_mask_shift]) {
-			rFd->fDouble = monadic_double[opc_mask_shift](rFm);
+			rFd->fDouble = monadic_double[opc_mask_shift](roundData, rFm);
 		} else {
 			return 0;
 		}

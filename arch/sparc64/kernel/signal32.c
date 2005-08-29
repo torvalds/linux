@@ -102,7 +102,7 @@ typedef struct compat_siginfo{
 
 		/* POSIX.1b timers */
 		struct {
-			timer_t _tid;			/* timer id */
+			compat_timer_t _tid;			/* timer id */
 			int _overrun;			/* overrun count */
 			compat_sigval_t _sigval;		/* same as below */
 			int _sys_private;		/* not to be passed to user */
@@ -1325,13 +1325,12 @@ static inline void handle_signal32(unsigned long signr, struct k_sigaction *ka,
 		else
 			setup_frame32(&ka->sa, regs, signr, oldset, info);
 	}
-	if (!(ka->sa.sa_flags & SA_NOMASK)) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+	spin_lock_irq(&current->sighand->siglock);
+	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NOMASK))
 		sigaddset(&current->blocked,signr);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-	}
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
 }
 
 static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs,

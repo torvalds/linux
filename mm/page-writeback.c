@@ -354,7 +354,7 @@ static void background_writeout(unsigned long _min_pages)
  * the whole world.  Returns 0 if a pdflush thread was dispatched.  Returns
  * -1 if all pdflush threads were busy.
  */
-int wakeup_bdflush(long nr_pages)
+int wakeup_pdflush(long nr_pages)
 {
 	if (nr_pages == 0) {
 		struct writeback_state wbs;

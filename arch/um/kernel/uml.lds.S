@@ -16,8 +16,8 @@ SECTIONS
   __binary_start = .;
 
 #ifdef MODE_TT
-  .remap_data : { arch/um/sys-SUBARCH/unmap_fin.o (.data .bss) }
-  .remap : { arch/um/sys-SUBARCH/unmap_fin.o (.text) }
+  .remap_data : { UNMAP_PATH (.data .bss) }
+  .remap : { UNMAP_PATH (.text) }
 
   . = ALIGN(4096);		/* Init code and data */
 #endif
@@ -30,6 +30,7 @@ SECTIONS
 	_einittext = .;
   }
   . = ALIGN(4096);
+
   .text      :
   {
     *(.text)
@@ -39,6 +40,12 @@ SECTIONS
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
     *(.gnu.linkonce.t*)
+
+    . = ALIGN(4096);
+    __syscall_stub_start = .;
+    *(.__syscall_stub*)
+    __syscall_stub_end = .;
+    . = ALIGN(4096);
   }
 
   #include "asm/common.lds.S"

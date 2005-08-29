@@ -177,6 +177,7 @@ typedef int (*xdr_xcode_elem_t)(struct xdr_array2_desc *desc, void *elem);
 struct xdr_array2_desc {
 	unsigned int elem_size;
 	unsigned int array_len;
+	unsigned int array_maxlen;
 	xdr_xcode_elem_t xcode;
 };
 

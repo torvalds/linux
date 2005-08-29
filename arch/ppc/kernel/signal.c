@@ -705,8 +705,7 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	unsigned long frame, newsp;
 	int signr, ret;
 
-	if (current->flags & PF_FREEZE) {
-		refrigerator(PF_FREEZE);
+	if (try_to_freeze()) {
 		signr = 0;
 		if (!signal_pending(current))
 			goto no_signal;
@@ -760,13 +759,12 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	else
 		handle_signal(signr, &ka, &info, oldset, regs, newsp);
 
-	if (!(ka.sa.sa_flags & SA_NODEFER)) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked,&current->blocked,&ka.sa.sa_mask);
+	spin_lock_irq(&current->sighand->siglock);
+	sigorsets(&current->blocked,&current->blocked,&ka.sa.sa_mask);
+	if (!(ka.sa.sa_flags & SA_NODEFER))
 		sigaddset(&current->blocked, signr);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-	}
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
 
 	return 1;
 }

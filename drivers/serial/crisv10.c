@@ -426,8 +426,6 @@
 static char *serial_version = "$Revision: 1.25 $";
 
 #include <linux/config.h>
-#include <linux/version.h>
-
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/signal.h>

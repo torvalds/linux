@@ -16,6 +16,7 @@
 #include <linux/pagemap.h>
 #include <linux/parser.h>
 #include <linux/bitops.h>
+#include <linux/smp_lock.h>
 #include "autofs_i.h"
 #include <linux/module.h>
 
@@ -76,6 +77,66 @@ void autofs4_free_ino(struct autofs_info *ino)
 	kfree(ino);
 }
 
+/*
+ * Deal with the infamous "Busy inodes after umount ..." message.
+ *
+ * Clean up the dentry tree. This happens with autofs if the user
+ * space program goes away due to a SIGKILL, SIGSEGV etc.
+ */
+static void autofs4_force_release(struct autofs_sb_info *sbi)
+{
+	struct dentry *this_parent = sbi->root;
+	struct list_head *next;
+
+	spin_lock(&dcache_lock);
+repeat:
+	next = this_parent->d_subdirs.next;
+resume:
+	while (next != &this_parent->d_subdirs) {
+		struct dentry *dentry = list_entry(next, struct dentry, d_child);
+
+		/* Negative dentry - don`t care */
+		if (!simple_positive(dentry)) {
+			next = next->next;
+			continue;
+		}
+
+		if (!list_empty(&dentry->d_subdirs)) {
+			this_parent = dentry;
+			goto repeat;
+		}
+
+		next = next->next;
+		spin_unlock(&dcache_lock);
+
+		DPRINTK("dentry %p %.*s",
+			dentry, (int)dentry->d_name.len, dentry->d_name.name);
+
+		dput(dentry);
+		spin_lock(&dcache_lock);
+	}
+
+	if (this_parent != sbi->root) {
+		struct dentry *dentry = this_parent;
+
+		next = this_parent->d_child.next;
+		this_parent = this_parent->d_parent;
+		spin_unlock(&dcache_lock);
+		DPRINTK("parent dentry %p %.*s",
+			dentry, (int)dentry->d_name.len, dentry->d_name.name);
+		dput(dentry);
+		spin_lock(&dcache_lock);
+		goto resume;
+	}
+	spin_unlock(&dcache_lock);
+
+	dput(sbi->root);
+	sbi->root = NULL;
+	shrink_dcache_sb(sbi->sb);
+
+	return;
+}
+
 static void autofs4_put_super(struct super_block *sb)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(sb);
@@ -84,6 +145,10 @@ static void autofs4_put_super(struct super_block *sb)
 
 	if ( !sbi->catatonic )
 		autofs4_catatonic_mode(sbi); /* Free wait queues, close pipe */
+
+	/* Clean up and release dangling references */
+	if (sbi)
+		autofs4_force_release(sbi);
 
 	kfree(sbi);
 
@@ -199,6 +264,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 
 	s->s_fs_info = sbi;
 	sbi->magic = AUTOFS_SBI_MAGIC;
+	sbi->root = NULL;
 	sbi->catatonic = 0;
 	sbi->exp_timeout = 0;
 	sbi->oz_pgrp = process_group(current);
@@ -265,6 +331,13 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	if ( !pipe->f_op || !pipe->f_op->write )
 		goto fail_fput;
 	sbi->pipe = pipe;
+
+	/*
+	 * Take a reference to the root dentry so we get a chance to
+	 * clean up the dentry tree on umount.
+	 * See autofs4_force_release.
+	 */
+	sbi->root = dget(root);
 
 	/*
 	 * Success! Install the root dentry now to indicate completion.

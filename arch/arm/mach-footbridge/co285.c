@@ -28,11 +28,13 @@ fixup_coebsa285(struct machine_desc *desc, struct tag *tags,
 }
 
 MACHINE_START(CO285, "co-EBSA285")
-	MAINTAINER("Mark van Doesburg")
-	BOOT_MEM(0x00000000, DC21285_ARMCSR_BASE, 0x7cf00000)
-	FIXUP(fixup_coebsa285)
-	MAPIO(footbridge_map_io)
-	INITIRQ(footbridge_init_irq)
+	/* Maintainer: Mark van Doesburg */
+	.phys_ram	= 0x00000000,
+	.phys_io	= DC21285_ARMCSR_BASE,
+	.io_pg_offst	= ((0x7cf00000) >> 18) & 0xfffc,
+	.fixup		= fixup_coebsa285,
+	.map_io		= footbridge_map_io,
+	.init_irq	= footbridge_init_irq,
 	.timer		= &footbridge_timer,
 MACHINE_END
 

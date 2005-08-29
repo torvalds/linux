@@ -45,12 +45,10 @@
 #endif /* CONFIG_NFSD_V3 */
 #include <linux/nfsd/nfsfh.h>
 #include <linux/quotaops.h>
-#include <linux/dnotify.h>
-#include <linux/xattr_acl.h>
+#include <linux/fsnotify.h>
 #include <linux/posix_acl.h>
-#ifdef CONFIG_NFSD_V4
 #include <linux/posix_acl_xattr.h>
-#include <linux/xattr_acl.h>
+#ifdef CONFIG_NFSD_V4
 #include <linux/xattr.h>
 #include <linux/nfs4.h>
 #include <linux/nfs4_acl.h>
@@ -425,13 +423,13 @@ nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_nfserr;
 
 	if (pacl) {
-		error = set_nfsv4_acl_one(dentry, pacl, XATTR_NAME_ACL_ACCESS);
+		error = set_nfsv4_acl_one(dentry, pacl, POSIX_ACL_XATTR_ACCESS);
 		if (error < 0)
 			goto out_nfserr;
 	}
 
 	if (dpacl) {
-		error = set_nfsv4_acl_one(dentry, dpacl, XATTR_NAME_ACL_DEFAULT);
+		error = set_nfsv4_acl_one(dentry, dpacl, POSIX_ACL_XATTR_DEFAULT);
 		if (error < 0)
 			goto out_nfserr;
 	}
@@ -498,7 +496,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry, struct nfs4_ac
 	struct posix_acl *pacl = NULL, *dpacl = NULL;
 	unsigned int flags = 0;
 
-	pacl = _get_posix_acl(dentry, XATTR_NAME_ACL_ACCESS);
+	pacl = _get_posix_acl(dentry, POSIX_ACL_XATTR_ACCESS);
 	if (IS_ERR(pacl) && PTR_ERR(pacl) == -ENODATA)
 		pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
 	if (IS_ERR(pacl)) {
@@ -508,7 +506,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry, struct nfs4_ac
 	}
 
 	if (S_ISDIR(inode->i_mode)) {
-		dpacl = _get_posix_acl(dentry, XATTR_NAME_ACL_DEFAULT);
+		dpacl = _get_posix_acl(dentry, POSIX_ACL_XATTR_DEFAULT);
 		if (IS_ERR(dpacl) && PTR_ERR(dpacl) == -ENODATA)
 			dpacl = NULL;
 		else if (IS_ERR(dpacl)) {
@@ -735,7 +733,7 @@ nfsd_sync(struct file *filp)
 	up(&inode->i_sem);
 }
 
-static void
+void
 nfsd_sync_dir(struct dentry *dp)
 {
 	nfsd_dosync(NULL, dp, dp->d_inode->i_fop);
@@ -862,7 +860,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		nfsdstats.io_read += err;
 		*count = err;
 		err = 0;
-		dnotify_parent(file->f_dentry, DN_ACCESS);
+		fsnotify_access(file->f_dentry);
 	} else 
 		err = nfserrno(err);
 out:
@@ -918,7 +916,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	set_fs(oldfs);
 	if (err >= 0) {
 		nfsdstats.io_write += cnt;
-		dnotify_parent(file->f_dentry, DN_MODIFY);
+		fsnotify_modify(file->f_dentry);
 	}
 
 	/* clear setuid/setgid flag after write */
@@ -1873,10 +1871,10 @@ nfsd_get_posix_acl(struct svc_fh *fhp, int type)
 		return ERR_PTR(-EOPNOTSUPP);
 	switch(type) {
 		case ACL_TYPE_ACCESS:
-			name = XATTR_NAME_ACL_ACCESS;
+			name = POSIX_ACL_XATTR_ACCESS;
 			break;
 		case ACL_TYPE_DEFAULT:
-			name = XATTR_NAME_ACL_DEFAULT;
+			name = POSIX_ACL_XATTR_DEFAULT;
 			break;
 		default:
 			return ERR_PTR(-EOPNOTSUPP);
@@ -1920,17 +1918,17 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 		return -EOPNOTSUPP;
 	switch(type) {
 		case ACL_TYPE_ACCESS:
-			name = XATTR_NAME_ACL_ACCESS;
+			name = POSIX_ACL_XATTR_ACCESS;
 			break;
 		case ACL_TYPE_DEFAULT:
-			name = XATTR_NAME_ACL_DEFAULT;
+			name = POSIX_ACL_XATTR_DEFAULT;
 			break;
 		default:
 			return -EOPNOTSUPP;
 	}
 
 	if (acl && acl->a_count) {
-		size = xattr_acl_size(acl->a_count);
+		size = posix_acl_xattr_size(acl->a_count);
 		value = kmalloc(size, GFP_KERNEL);
 		if (!value)
 			return -ENOMEM;

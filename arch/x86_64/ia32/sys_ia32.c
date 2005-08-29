@@ -61,6 +61,7 @@
 #include <linux/ptrace.h>
 #include <linux/highuid.h>
 #include <linux/vmalloc.h>
+#include <linux/fsnotify.h>
 #include <asm/mman.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>
@@ -984,8 +985,10 @@ asmlinkage long sys32_open(const char __user * filename, int flags, int mode)
 			if (IS_ERR(f)) {
 				put_unused_fd(fd); 
 				fd = error;
-			} else
+			} else {
+				fsnotify_open(f->f_dentry);
 				fd_install(fd, f);
+			}
 		}
 		putname(tmp);
 	}

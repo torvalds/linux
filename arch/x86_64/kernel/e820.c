@@ -16,6 +16,7 @@
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
 #include <linux/string.h>
+#include <linux/kexec.h>
 #include <asm/page.h>
 #include <asm/e820.h>
 #include <asm/proto.h>
@@ -184,6 +185,40 @@ unsigned long __init e820_end_of_ram(void)
 }
 
 /* 
+ * Compute how much memory is missing in a range.
+ * Unlike the other functions in this file the arguments are in page numbers.
+ */
+unsigned long __init
+e820_hole_size(unsigned long start_pfn, unsigned long end_pfn)
+{
+	unsigned long ram = 0;
+	unsigned long start = start_pfn << PAGE_SHIFT;
+	unsigned long end = end_pfn << PAGE_SHIFT;
+	int i;
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		unsigned long last, addr;
+
+		if (ei->type != E820_RAM ||
+		    ei->addr+ei->size <= start ||
+		    ei->addr >= end)
+			continue;
+
+		addr = round_up(ei->addr, PAGE_SIZE);
+		if (addr < start)
+			addr = start;
+
+		last = round_down(ei->addr + ei->size, PAGE_SIZE);
+		if (last >= end)
+			last = end;
+
+		if (last > addr)
+			ram += last - addr;
+	}
+	return ((end - start) - ram) >> PAGE_SHIFT;
+}
+
+/*
  * Mark e820 reserved areas as busy for the resource manager.
  */
 void __init e820_reserve_resources(void)
@@ -191,8 +226,6 @@ void __init e820_reserve_resources(void)
 	int i;
 	for (i = 0; i < e820.nr_map; i++) {
 		struct resource *res;
-		if (e820.map[i].addr + e820.map[i].size > 0x100000000ULL)
-			continue;
 		res = alloc_bootmem_low(sizeof(struct resource));
 		switch (e820.map[i].type) {
 		case E820_RAM:	res->name = "System RAM"; break;
@@ -212,6 +245,9 @@ void __init e820_reserve_resources(void)
 			 */
 			request_resource(res, &code_resource);
 			request_resource(res, &data_resource);
+#ifdef CONFIG_KEXEC
+			request_resource(res, &crashk_res);
+#endif
 		}
 	}
 }

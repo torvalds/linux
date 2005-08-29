@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-mpeg.c,v 1.25 2005/03/07 14:18:00 kraxel Exp $
+ * $Id: cx88-mpeg.c,v 1.31 2005/07/07 14:17:47 mchehab Exp $
  *
  *  Support for the mpeg transport stream transfers
  *  PCI function #2 of the cx2388x.
@@ -55,7 +55,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 {
 	struct cx88_core *core = dev->core;
 
-	dprintk(1, "cx8802_start_mpegport_dma %d\n", buf->vb.width);
+	dprintk(0, "cx8802_start_dma %d\n", buf->vb.width);
 
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH28],
@@ -64,17 +64,21 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 	/* write TS length to chip */
 	cx_write(MO_TS_LNGTH, buf->vb.width);
 
-#if 1
 	/* FIXME: this needs a review.
 	 * also: move to cx88-blackbird + cx88-dvb source files? */
 
 	if (cx88_boards[core->board].dvb) {
 		/* negedge driven & software reset */
-		cx_write(TS_GEN_CNTRL, 0x40);
+		cx_write(TS_GEN_CNTRL, 0x0040 | dev->ts_gen_cntrl);
 		udelay(100);
 		cx_write(MO_PINMUX_IO, 0x00);
-		cx_write(TS_HW_SOP_CNTRL,47<<16|188<<4|0x00);
-		cx_write(TS_SOP_STAT,0x00);
+		cx_write(TS_HW_SOP_CNTRL,0x47<<16|188<<4|0x01);
+		if ((core->board == CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q) ||
+		    (core->board == CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T)) {
+			cx_write(TS_SOP_STAT, 1<<13);
+		} else {
+			cx_write(TS_SOP_STAT, 0x00);
+		}
 		cx_write(TS_GEN_CNTRL, dev->ts_gen_cntrl);
 		udelay(100);
 	}
@@ -93,25 +97,27 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		cx_write(TS_GEN_CNTRL, 0x06); /* punctured clock TS & posedge driven */
 		udelay(100);
 	}
-#endif
 
 	/* reset counter */
 	cx_write(MO_TS_GPCNTRL, GP_COUNT_CONTROL_RESET);
 	q->count = 1;
 
 	/* enable irqs */
+	dprintk( 0, "setting the interrupt mask\n" );
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask | 0x04);
-	cx_write(MO_TS_INTMSK,  0x1f0011);
+	cx_set(MO_TS_INTMSK,  0x1f0011);
+	//cx_write(MO_TS_INTMSK,  0x0f0011);
 
 	/* start dma */
-	cx_write(MO_DEV_CNTRL2, (1<<5)); /* FIXME: s/write/set/ ??? */
-	cx_write(MO_TS_DMACNTRL, 0x11);
+	cx_set(MO_DEV_CNTRL2, (1<<5));
+	cx_set(MO_TS_DMACNTRL, 0x11);
 	return 0;
 }
 
 static int cx8802_stop_dma(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
+	dprintk( 0, "cx8802_stop_dma\n" );
 
 	/* stop dma */
 	cx_clear(MO_TS_DMACNTRL, 0x11);
@@ -131,8 +137,12 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 	struct cx88_buffer *buf;
 	struct list_head *item;
 
+	dprintk( 0, "cx8802_restart_queue\n" );
 	if (list_empty(&q->active))
+	{
+		dprintk( 0, "cx8802_restart_queue: queue is empty\n" );
 		return 0;
+	}
 
 	buf = list_entry(q->active.next, struct cx88_buffer, vb.queue);
 	dprintk(2,"restart_queue [%p/%d]: restart dma\n",
@@ -182,27 +192,32 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 	struct cx88_buffer    *prev;
 	struct cx88_dmaqueue  *q    = &dev->mpegq;
 
+	dprintk( 1, "cx8802_buf_queue\n" );
 	/* add jump to stopper */
 	buf->risc.jmp[0] = cpu_to_le32(RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC);
 	buf->risc.jmp[1] = cpu_to_le32(q->stopper.dma);
 
 	if (list_empty(&q->active)) {
+		dprintk( 0, "queue is empty - first active\n" );
 		list_add_tail(&buf->vb.queue,&q->active);
 		cx8802_start_dma(dev, q, buf);
 		buf->vb.state = STATE_ACTIVE;
 		buf->count    = q->count++;
 		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
-		dprintk(2,"[%p/%d] %s - first active\n",
+		dprintk(0,"[%p/%d] %s - first active\n",
 			buf, buf->vb.i, __FUNCTION__);
+		//udelay(100);
 
 	} else {
+		dprintk( 1, "queue is not empty - append to active\n" );
 		prev = list_entry(q->active.prev, struct cx88_buffer, vb.queue);
 		list_add_tail(&buf->vb.queue,&q->active);
 		buf->vb.state = STATE_ACTIVE;
 		buf->count    = q->count++;
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
-		dprintk(2,"[%p/%d] %s - append to active\n",
+		dprintk( 1, "[%p/%d] %s - append to active\n",
 			buf, buf->vb.i, __FUNCTION__);
+		//udelay(100);
 	}
 }
 
@@ -224,7 +239,10 @@ static void do_cancel_buffers(struct cx8802_dev *dev, char *reason, int restart)
 			buf, buf->vb.i, reason, (unsigned long)buf->risc.dma);
 	}
 	if (restart)
+	{
+		dprintk(0, "restarting queue\n" );
 		cx8802_restart_queue(dev,q);
+	}
 	spin_unlock_irqrestore(&dev->slock,flags);
 }
 
@@ -232,6 +250,7 @@ void cx8802_cancel_buffers(struct cx8802_dev *dev)
 {
 	struct cx88_dmaqueue *q = &dev->mpegq;
 
+	dprintk( 1, "cx8802_cancel_buffers" );
 	del_timer_sync(&q->timeout);
 	cx8802_stop_dma(dev);
 	do_cancel_buffers(dev,"cancel",0);
@@ -241,7 +260,7 @@ static void cx8802_timeout(unsigned long data)
 {
 	struct cx8802_dev *dev = (struct cx8802_dev*)data;
 
-	dprintk(1, "%s\n",__FUNCTION__);
+	dprintk(0, "%s\n",__FUNCTION__);
 
 	if (debug)
 		cx88_sram_channel_dump(dev->core, &cx88_sram_channels[SRAM_CH28]);
@@ -249,17 +268,28 @@ static void cx8802_timeout(unsigned long data)
 	do_cancel_buffers(dev,"timeout",1);
 }
 
+static char *cx88_mpeg_irqs[32] = {
+	"ts_risci1", NULL, NULL, NULL,
+	"ts_risci2", NULL, NULL, NULL,
+	"ts_oflow",  NULL, NULL, NULL,
+	"ts_sync",   NULL, NULL, NULL,
+	"opc_err", "par_err", "rip_err", "pci_abort",
+	"ts_err?",
+};
+
 static void cx8802_mpeg_irq(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
 	u32 status, mask, count;
 
+	dprintk( 1, "cx8802_mpeg_irq\n" );
 	status = cx_read(MO_TS_INTSTAT);
 	mask   = cx_read(MO_TS_INTMSK);
 	if (0 == (status & mask))
 		return;
 
 	cx_write(MO_TS_INTSTAT, status);
+
 	if (debug || (status & mask & ~0xff))
 		cx88_print_irqbits(core->name, "irq mpeg ",
 				   cx88_mpeg_irqs, status, mask);
@@ -273,6 +303,7 @@ static void cx8802_mpeg_irq(struct cx8802_dev *dev)
 
 	/* risc1 y */
 	if (status & 0x01) {
+		dprintk( 1, "wake up\n" );
 		spin_lock(&dev->slock);
 		count = cx_read(MO_TS_GPCNT);
 		cx88_wakeup(dev->core, &dev->mpegq, count);
@@ -288,12 +319,15 @@ static void cx8802_mpeg_irq(struct cx8802_dev *dev)
 
         /* other general errors */
         if (status & 0x1f0100) {
+		dprintk( 0, "general errors: 0x%08x\n", status & 0x1f0100 );
                 spin_lock(&dev->slock);
 		cx8802_stop_dma(dev);
                 cx8802_restart_queue(dev,&dev->mpegq);
                 spin_unlock(&dev->slock);
         }
 }
+
+#define MAX_IRQ_LOOP 10
 
 static irqreturn_t cx8802_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -302,10 +336,13 @@ static irqreturn_t cx8802_irq(int irq, void *dev_id, struct pt_regs *regs)
 	u32 status;
 	int loop, handled = 0;
 
-	for (loop = 0; loop < 10; loop++) {
+	for (loop = 0; loop < MAX_IRQ_LOOP; loop++) {
 		status = cx_read(MO_PCI_INTSTAT) & (core->pci_irqmask | 0x04);
 		if (0 == status)
 			goto out;
+		dprintk( 1, "cx8802_irq\n" );
+		dprintk( 1, "    loop: %d/%d\n", loop, MAX_IRQ_LOOP );
+		dprintk( 1, "    status: %d\n", status );
 		handled = 1;
 		cx_write(MO_PCI_INTSTAT, status);
 
@@ -314,7 +351,8 @@ static irqreturn_t cx8802_irq(int irq, void *dev_id, struct pt_regs *regs)
 		if (status & 0x04)
 			cx8802_mpeg_irq(dev);
 	};
-	if (10 == loop) {
+	if (MAX_IRQ_LOOP == loop) {
+		dprintk( 0, "clearing mask\n" );
 		printk(KERN_WARNING "%s/0: irq loop -- clearing mask\n",
 		       core->name);
 		cx_write(MO_PCI_INTMSK,0);
@@ -378,6 +416,7 @@ int cx8802_init_common(struct cx8802_dev *dev)
 
 void cx8802_fini_common(struct cx8802_dev *dev)
 {
+	dprintk( 2, "cx8802_fini_common\n" );
 	cx8802_stop_dma(dev);
 	pci_disable_device(dev->pci);
 
@@ -399,16 +438,15 @@ int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
 	/* stop mpeg dma */
 	spin_lock(&dev->slock);
 	if (!list_empty(&dev->mpegq.active)) {
+		dprintk( 2, "suspend\n" );
 		printk("%s: suspend mpeg\n", core->name);
 		cx8802_stop_dma(dev);
 		del_timer(&dev->mpegq.timeout);
 	}
 	spin_unlock(&dev->slock);
 
-#if 1
 	/* FIXME -- shutdown device */
 	cx88_shutdown(dev->core);
-#endif
 
 	pci_save_state(pci_dev);
 	if (0 != pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state))) {
@@ -430,10 +468,8 @@ int cx8802_resume_common(struct pci_dev *pci_dev)
 	pci_set_power_state(pci_dev, PCI_D0);
 	pci_restore_state(pci_dev);
 
-#if 1
 	/* FIXME: re-initialize hardware */
 	cx88_reset(dev->core);
-#endif
 
 	/* restart video+vbi capture */
 	spin_lock(&dev->slock);
@@ -463,4 +499,5 @@ EXPORT_SYMBOL(cx8802_resume_common);
  * Local variables:
  * c-basic-offset: 8
  * End:
+ * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
  */

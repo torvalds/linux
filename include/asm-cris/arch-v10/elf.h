@@ -1,6 +1,16 @@
 #ifndef __ASMCRIS_ARCH_ELF_H
 #define __ASMCRIS_ARCH_ELF_H
 
+#define ELF_MACH EF_CRIS_VARIANT_ANY_V0_V10
+
+/*
+ * This is used to ensure we don't load something for the wrong architecture.
+ */
+#define elf_check_arch(x)			\
+ ((x)->e_machine == EM_CRIS			\
+  && ((((x)->e_flags & EF_CRIS_VARIANT_MASK) == EF_CRIS_VARIANT_ANY_V0_V10	\
+      || (((x)->e_flags & EF_CRIS_VARIANT_MASK) == EF_CRIS_VARIANT_COMMON_V10_V32))))
+
 /*
  * ELF register definitions..
  */

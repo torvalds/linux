@@ -844,7 +844,7 @@ static unsigned int ip_sabotage_out(unsigned int hook, struct sk_buff **pskb,
 		 * doesn't use the bridge parent of the indev by using
 		 * the BRNF_DONT_TAKE_PARENT mask. */
 		if (hook == NF_IP_FORWARD && nf_bridge->physindev == NULL) {
-			nf_bridge->mask &= BRNF_DONT_TAKE_PARENT;
+			nf_bridge->mask |= BRNF_DONT_TAKE_PARENT;
 			nf_bridge->physindev = (struct net_device *)in;
 		}
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)

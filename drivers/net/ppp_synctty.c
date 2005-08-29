@@ -406,7 +406,7 @@ ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
 	spin_lock_irqsave(&ap->recv_lock, flags);
 	ppp_sync_input(ap, buf, cflags, count);
 	spin_unlock_irqrestore(&ap->recv_lock, flags);
-	if (skb_queue_len(&ap->rqueue))
+	if (!skb_queue_empty(&ap->rqueue))
 		tasklet_schedule(&ap->tsk);
 	sp_put(ap);
 	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags)
@@ -793,7 +793,7 @@ err:
 static void __exit
 ppp_sync_cleanup(void)
 {
-	if (tty_register_ldisc(N_SYNC_PPP, NULL) != 0)
+	if (tty_unregister_ldisc(N_SYNC_PPP) != 0)
 		printk(KERN_ERR "failed to unregister Sync PPP line discipline\n");
 }
 

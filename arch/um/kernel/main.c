@@ -69,7 +69,6 @@ static __init void do_uml_initcalls(void)
 
 static void last_ditch_exit(int sig)
 {
-        kmalloc_ok = 0;
 	signal(SIGINT, SIG_DFL);
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGHUP, SIG_DFL);

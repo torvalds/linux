@@ -115,6 +115,8 @@ static int __init pci_numa_init(void)
 		return 0;
 
 	pci_root_bus = pcibios_scan_root(0);
+	if (pci_root_bus)
+		pci_bus_add_devices(pci_root_bus);
 	if (num_online_nodes() > 1)
 		for_each_online_node(quad) {
 			if (quad == 0)

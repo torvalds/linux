@@ -206,7 +206,7 @@ static inline unsigned long fast_get_dcookie(struct dentry * dentry,
  */
 static unsigned long get_exec_dcookie(struct mm_struct * mm)
 {
-	unsigned long cookie = 0;
+	unsigned long cookie = NO_COOKIE;
 	struct vm_area_struct * vma;
  
 	if (!mm)
@@ -234,35 +234,42 @@ out:
  */
 static unsigned long lookup_dcookie(struct mm_struct * mm, unsigned long addr, off_t * offset)
 {
-	unsigned long cookie = 0;
+	unsigned long cookie = NO_COOKIE;
 	struct vm_area_struct * vma;
 
 	for (vma = find_vma(mm, addr); vma; vma = vma->vm_next) {
  
-		if (!vma->vm_file)
-			continue;
-
 		if (addr < vma->vm_start || addr >= vma->vm_end)
 			continue;
 
-		cookie = fast_get_dcookie(vma->vm_file->f_dentry,
-			vma->vm_file->f_vfsmnt);
-		*offset = (vma->vm_pgoff << PAGE_SHIFT) + addr - vma->vm_start; 
+		if (vma->vm_file) {
+			cookie = fast_get_dcookie(vma->vm_file->f_dentry,
+				vma->vm_file->f_vfsmnt);
+			*offset = (vma->vm_pgoff << PAGE_SHIFT) + addr -
+				vma->vm_start;
+		} else {
+			/* must be an anonymous map */
+			*offset = addr;
+		}
+
 		break;
 	}
+
+	if (!vma)
+		cookie = INVALID_COOKIE;
 
 	return cookie;
 }
 
 
-static unsigned long last_cookie = ~0UL;
+static unsigned long last_cookie = INVALID_COOKIE;
  
 static void add_cpu_switch(int i)
 {
 	add_event_entry(ESCAPE_CODE);
 	add_event_entry(CPU_SWITCH_CODE);
 	add_event_entry(i);
-	last_cookie = ~0UL;
+	last_cookie = INVALID_COOKIE;
 }
 
 static void add_kernel_ctx_switch(unsigned int in_kernel)
@@ -317,7 +324,7 @@ static int add_us_sample(struct mm_struct * mm, struct op_sample * s)
  
  	cookie = lookup_dcookie(mm, s->eip, &offset);
  
-	if (!cookie) {
+	if (cookie == INVALID_COOKIE) {
 		atomic_inc(&oprofile_stats.sample_lost_no_mapping);
 		return 0;
 	}

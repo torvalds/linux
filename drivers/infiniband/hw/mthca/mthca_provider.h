@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,8 +37,8 @@
 #ifndef MTHCA_PROVIDER_H
 #define MTHCA_PROVIDER_H
 
-#include <ib_verbs.h>
-#include <ib_pack.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_pack.h>
 
 #define MTHCA_MPT_FLAG_ATOMIC        (1 << 14)
 #define MTHCA_MPT_FLAG_REMOTE_WRITE  (1 << 13)
@@ -49,23 +51,36 @@ struct mthca_buf_list {
 	DECLARE_PCI_UNMAP_ADDR(mapping)
 };
 
+union mthca_buf {
+	struct mthca_buf_list direct;
+	struct mthca_buf_list *page_list;
+};
+
 struct mthca_uar {
 	unsigned long pfn;
 	int           index;
 };
 
+struct mthca_user_db_table;
+
+struct mthca_ucontext {
+	struct ib_ucontext          ibucontext;
+	struct mthca_uar            uar;
+	struct mthca_user_db_table *db_tab;
+};
+
+struct mthca_mtt;
+
 struct mthca_mr {
-	struct ib_mr ibmr;
-	int order;
-	u32 first_seg;
+	struct ib_mr      ibmr;
+	struct mthca_mtt *mtt;
 };
 
 struct mthca_fmr {
-	struct ib_fmr ibmr;
+	struct ib_fmr      ibmr;
 	struct ib_fmr_attr attr;
-	int order;
-	u32 first_seg;
-	int maps;
+	struct mthca_mtt  *mtt;
+	int                maps;
 	union {
 		struct {
 			struct mthca_mpt_entry __iomem *mpt;
@@ -83,6 +98,7 @@ struct mthca_pd {
 	u32             pd_num;
 	atomic_t        sqp_count;
 	struct mthca_mr ntmr;
+	int             privileged;
 };
 
 struct mthca_eq {
@@ -167,20 +183,41 @@ struct mthca_cq {
 	int                    cqn;
 	u32                    cons_index;
 	int                    is_direct;
+	int                    is_kernel;
 
 	/* Next fields are Arbel only */
 	int                    set_ci_db_index;
-	u32                   *set_ci_db;
+	__be32                *set_ci_db;
 	int                    arm_db_index;
-	u32                   *arm_db;
+	__be32                *arm_db;
 	int                    arm_sn;
 
-	union {
-		struct mthca_buf_list direct;
-		struct mthca_buf_list *page_list;
-	}                      queue;
+	union mthca_buf        queue;
 	struct mthca_mr        mr;
 	wait_queue_head_t      wait;
+};
+
+struct mthca_srq {
+	struct ib_srq		ibsrq;
+	spinlock_t		lock;
+	atomic_t		refcount;
+	int			srqn;
+	int			max;
+	int			max_gs;
+	int			wqe_shift;
+	int			first_free;
+	int			last_free;
+	u16			counter;  /* Arbel only */
+	int			db_index; /* Arbel only */
+	__be32		       *db;       /* Arbel only */
+	void		       *last;
+
+	int			is_direct;
+	u64		       *wrid;
+	union mthca_buf		queue;
+	struct mthca_mr		mr;
+
+	wait_queue_head_t	wait;
 };
 
 struct mthca_wq {
@@ -195,7 +232,7 @@ struct mthca_wq {
 	int        wqe_shift;
 
 	int        db_index;	/* Arbel only */
-	u32       *db;
+	__be32    *db;
 };
 
 struct mthca_qp {
@@ -216,10 +253,7 @@ struct mthca_qp {
 	int                    send_wqe_offset;
 
 	u64                   *wrid;
-	union {
-		struct mthca_buf_list direct;
-		struct mthca_buf_list *page_list;
-	}                      queue;
+	union mthca_buf	       queue;
 
 	wait_queue_head_t      wait;
 };
@@ -235,6 +269,11 @@ struct mthca_sqp {
 	void           *header_buf;
 	dma_addr_t      header_dma;
 };
+
+static inline struct mthca_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
+{
+	return container_of(ibucontext, struct mthca_ucontext, ibucontext);
+}
 
 static inline struct mthca_fmr *to_mfmr(struct ib_fmr *ibmr)
 {
@@ -259,6 +298,11 @@ static inline struct mthca_ah *to_mah(struct ib_ah *ibah)
 static inline struct mthca_cq *to_mcq(struct ib_cq *ibcq)
 {
 	return container_of(ibcq, struct mthca_cq, ibcq);
+}
+
+static inline struct mthca_srq *to_msrq(struct ib_srq *ibsrq)
+{
+	return container_of(ibsrq, struct mthca_srq, ibsrq);
 }
 
 static inline struct mthca_qp *to_mqp(struct ib_qp *ibqp)

@@ -124,6 +124,7 @@ int		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 
 int		nfsd_notify_change(struct inode *, struct iattr *);
 int		nfsd_permission(struct svc_export *, struct dentry *, int);
+void		nfsd_sync_dir(struct dentry *dp);
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL
@@ -145,15 +146,19 @@ int nfsd_set_posix_acl(struct svc_fh *, int, struct posix_acl *);
  * NFSv4 State
  */
 #ifdef CONFIG_NFSD_V4
-int nfs4_state_init(void);
+void nfs4_state_init(void);
+int nfs4_state_start(void);
 void nfs4_state_shutdown(void);
 time_t nfs4_lease_time(void);
 void nfs4_reset_lease(time_t leasetime);
+int nfs4_reset_recoverydir(char *recdir);
 #else
-static inline int nfs4_state_init(void){return 0;}
+static inline void nfs4_state_init(void){};
+static inline int nfs4_state_start(void){return 0;}
 static inline void nfs4_state_shutdown(void){}
 static inline time_t nfs4_lease_time(void){return 0;}
 static inline void nfs4_reset_lease(time_t leasetime){}
+static inline int nfs4_reset_recoverydir(char *recdir) {return 0;}
 #endif
 
 /*
@@ -226,6 +231,7 @@ void		nfsd_lockd_shutdown(void);
 #define	nfserr_reclaim_bad	__constant_htonl(NFSERR_RECLAIM_BAD)
 #define	nfserr_badname		__constant_htonl(NFSERR_BADNAME)
 #define	nfserr_cb_path_down	__constant_htonl(NFSERR_CB_PATH_DOWN)
+#define	nfserr_locked		__constant_htonl(NFSERR_LOCKED)
 
 /* error codes for internal use */
 /* if a request fails due to kmalloc failure, it gets dropped.

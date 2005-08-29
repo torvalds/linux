@@ -367,11 +367,8 @@ static inline void bpa10x_free_urb(struct urb *urb)
 	if (!urb)
 		return;
 
-	if (urb->setup_packet)
-		kfree(urb->setup_packet);
-
-	if (urb->transfer_buffer)
-		kfree(urb->transfer_buffer);
+	kfree(urb->setup_packet);
+	kfree(urb->transfer_buffer);
 
 	usb_free_urb(urb);
 }

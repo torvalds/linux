@@ -48,7 +48,6 @@
 /*
  * Exceptions returned by external ACPI interfaces
  */
-
 #define AE_CODE_ENVIRONMENTAL           0x0000
 #define AE_CODE_PROGRAMMER              0x1000
 #define AE_CODE_ACPI_TABLES             0x2000
@@ -98,6 +97,7 @@
 #define AE_WAKE_ONLY_GPE                (acpi_status) (0x001E | AE_CODE_ENVIRONMENTAL)
 
 #define AE_CODE_ENV_MAX                 0x001E
+
 
 /*
  * Programmer exceptions
@@ -168,6 +168,7 @@
 
 #define AE_CODE_AML_MAX                 0x0021
 
+
 /*
  * Internal exceptions used for control
  */
@@ -187,6 +188,7 @@
 
 
 #ifdef DEFINE_ACPI_GLOBALS
+
 
 /*
  * String versions of the exception codes above
@@ -303,6 +305,5 @@ char const   *acpi_gbl_exception_names_ctrl[] =
 };
 
 #endif /* ACPI GLOBALS */
-
 
 #endif /* __ACEXCEP_H__ */

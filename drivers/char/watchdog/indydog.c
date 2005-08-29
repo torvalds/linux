@@ -29,14 +29,9 @@
 #define PFX "indydog: "
 static int indydog_alive;
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
-
 #define WATCHDOG_TIMEOUT 30		/* 30 sec default timeout */
 
+static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 

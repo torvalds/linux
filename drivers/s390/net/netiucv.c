@@ -1,5 +1,5 @@
 /*
- * $Id: netiucv.c,v 1.63 2004/07/27 13:36:05 mschwide Exp $
+ * $Id: netiucv.c,v 1.66 2005/05/11 08:10:17 holzheu Exp $
  *
  * IUCV network driver
  *
@@ -30,7 +30,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * RELEASE-TAG: IUCV network driver $Revision: 1.63 $
+ * RELEASE-TAG: IUCV network driver $Revision: 1.66 $
  *
  */
 
@@ -391,15 +391,15 @@ static int
 iucv_register_dbf_views(void)
 {
 	iucv_dbf_setup = debug_register(IUCV_DBF_SETUP_NAME,
-					IUCV_DBF_SETUP_INDEX,
+					IUCV_DBF_SETUP_PAGES,
 					IUCV_DBF_SETUP_NR_AREAS,
 					IUCV_DBF_SETUP_LEN);
 	iucv_dbf_data = debug_register(IUCV_DBF_DATA_NAME,
-				       IUCV_DBF_DATA_INDEX,
+				       IUCV_DBF_DATA_PAGES,
 				       IUCV_DBF_DATA_NR_AREAS,
 				       IUCV_DBF_DATA_LEN);
 	iucv_dbf_trace = debug_register(IUCV_DBF_TRACE_NAME,
-					IUCV_DBF_TRACE_INDEX,
+					IUCV_DBF_TRACE_PAGES,
 					IUCV_DBF_TRACE_NR_AREAS,
 					IUCV_DBF_TRACE_LEN);
 
@@ -2076,7 +2076,7 @@ DRIVER_ATTR(remove, 0200, NULL, remove_write);
 static void
 netiucv_banner(void)
 {
-	char vbuf[] = "$Revision: 1.63 $";
+	char vbuf[] = "$Revision: 1.66 $";
 	char *version = vbuf;
 
 	if ((version = strchr(version, ':'))) {

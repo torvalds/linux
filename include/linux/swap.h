@@ -7,6 +7,7 @@
 #include <linux/mmzone.h>
 #include <linux/list.h>
 #include <linux/sched.h>
+
 #include <asm/atomic.h>
 #include <asm/page.h>
 
@@ -148,7 +149,7 @@ struct swap_list_t {
 #define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
 
 /* linux/mm/oom_kill.c */
-extern void out_of_memory(unsigned int __nocast gfp_mask);
+extern void out_of_memory(unsigned int __nocast gfp_mask, int order);
 
 /* linux/mm/memory.c */
 extern void swapin_readahead(swp_entry_t, unsigned long, struct vm_area_struct *);
@@ -253,6 +254,8 @@ static inline void put_swap_token(struct mm_struct *mm)
 
 #define si_swapinfo(val) \
 	do { (val)->freeswap = (val)->totalswap = 0; } while (0)
+/* only sparc can not include linux/pagemap.h in this file
+ * so leave page_cache_release and release_pages undeclared... */
 #define free_page_and_swap_cache(page) \
 	page_cache_release(page)
 #define free_pages_and_swap_cache(pages, nr) \

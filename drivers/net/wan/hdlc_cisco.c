@@ -72,7 +72,7 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 	}
 	skb_reserve(skb, 4);
 	cisco_hard_header(skb, dev, CISCO_KEEPALIVE, NULL, NULL, 0);
-	data = (cisco_packet*)skb->tail;
+	data = (cisco_packet*)skb->data;
 
 	data->type = htonl(type);
 	data->par1 = htonl(par1);
@@ -91,8 +91,7 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 
 
 
-static unsigned short cisco_type_trans(struct sk_buff *skb,
-				       struct net_device *dev)
+static __be16 cisco_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	hdlc_header *data = (hdlc_header*)skb->data;
 

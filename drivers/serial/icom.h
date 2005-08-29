@@ -286,5 +286,3 @@ struct lookup_int_table {
 	u32	__iomem *global_int_mask;
 	unsigned long	processor_id;
 };
-
-#define MSECS_TO_JIFFIES(ms) (((ms)*HZ+999)/1000)

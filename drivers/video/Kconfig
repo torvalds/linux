@@ -1399,8 +1399,8 @@ config FB_TX3912
 	  Say Y here to enable kernel support for the on-board framebuffer.
 
 config FB_G364
-	bool
-	depends on MIPS_MAGNUM_4000 || OLIVETTI_M700
+	bool "G364 frame buffer support"
+	depends on (FB = y) && (MIPS_MAGNUM_4000 || OLIVETTI_M700)
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT

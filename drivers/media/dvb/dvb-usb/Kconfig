@@ -1,0 +1,119 @@
+config DVB_USB
+	tristate "Support for various USB DVB devices"
+	depends on DVB_CORE && USB
+	select FW_LOADER
+	help
+	  By enabling this you will be able to choose the various supported
+	  USB1.1 and USB2.0 DVB devices.
+
+	  Almost every USB device needs a firmware, please look into
+	  <file:Documentation/dvb/README.dvb-usb>.
+
+	  For a complete list of supported USB devices see the LinuxTV DVB Wiki:
+	  <http://www.linuxtv.org/wiki/index.php/DVB_USB>
+
+	  Say Y if you own a USB DVB device.
+
+config DVB_USB_DEBUG
+	bool "Enable extended debug support for all DVB-USB devices"
+	depends on DVB_USB
+	help
+	  Say Y if you want to enable debugging. See modinfo dvb-usb (and the
+	  appropriate drivers) for debug levels.
+
+config DVB_USB_A800
+	tristate "AVerMedia AverTV DVB-T USB 2.0 (A800)"
+	depends on DVB_USB
+	select DVB_DIB3000MC
+	help
+	  Say Y here to support the AVerMedia AverTV DVB-T USB 2.0 (A800) receiver.
+
+config DVB_USB_DIBUSB_MB
+	tristate "DiBcom USB DVB-T devices (based on the DiB3000M-B) (see help for device list)"
+	depends on DVB_USB
+	select DVB_DIB3000MB
+	help
+	  Support for USB 1.1 and 2.0 DVB-T receivers based on reference designs made by
+	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-B demodulator.
+
+	  Devices supported by this driver:
+	    TwinhanDTV USB-Ter (VP7041)
+	    TwinhanDTV Magic Box (VP7041e)
+	    KWorld/JetWay/ADSTech V-Stream XPERT DTV - DVB-T USB1.1 and USB2.0
+	    Hama DVB-T USB1.1-Box
+	    DiBcom USB1.1 reference devices (non-public)
+	    Ultima Electronic/Artec T1 USB TVBOX
+	    Compro Videomate DVB-U2000 - DVB-T USB
+	    Grandtec DVB-T USB
+	    Avermedia AverTV DVBT USB1.1
+	    Artec T1 USB1.1 boxes
+
+	  The VP7041 seems to be identical to "CTS Portable" (Chinese
+	  Television System).
+
+	  Say Y if you own such a device and want to use it. You should build it as
+	  a module.
+
+config DVB_USB_DIBUSB_MC
+	tristate "DiBcom USB DVB-T devices (based on the DiB3000M-C/P) (see help for device list)"
+	depends on DVB_USB
+	select DVB_DIB3000MC
+	help
+	  Support for 2.0 DVB-T receivers based on reference designs made by
+	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-C/P demodulator.
+
+	  Devices supported by this driver:
+	    DiBcom USB2.0 reference devices (non-public)
+	    Artec T1 USB2.0 boxes
+
+	  Say Y if you own such a device and want to use it. You should build it as
+	  a module.
+
+config DVB_USB_UMT_010
+	tristate "HanfTek UMT-010 DVB-T USB2.0 support"
+	depends on DVB_USB
+	select DVB_DIB3000MC
+	help
+	  Say Y here to support the HanfTek UMT-010 USB2.0 stick-sized DVB-T receiver.
+
+config DVB_USB_CXUSB
+	tristate "Medion MD95700 hybrid USB2.0 (Conexant) support"
+	depends on DVB_USB
+	select DVB_CX22702
+	help
+	  Say Y here to support the Medion MD95700 hybrid USB2.0 device. Currently
+	  only the DVB-T part is supported.
+
+config DVB_USB_DIGITV
+	tristate "Nebula Electronics uDigiTV DVB-T USB2.0 support"
+	depends on DVB_USB
+	select DVB_NXT6000
+	select DVB_MT352
+	help
+	  Say Y here to support the Nebula Electronics uDigitV USB2.0 DVB-T receiver.
+
+config DVB_USB_VP7045
+	tristate "TwinhanDTV Alpha/MagicBoxII and DNTV tinyUSB2 DVB-T USB2.0 support"
+	depends on DVB_USB
+	help
+	  Say Y here to support the
+	    TwinhanDTV Alpha (stick) (VP-7045),
+		TwinhanDTV MagicBox II (VP-7046) and
+		DigitalNow TinyUSB 2 DVB-t DVB-T USB2.0 receivers.
+
+config DVB_USB_NOVA_T_USB2
+	tristate "Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 support"
+	depends on DVB_USB
+	select DVB_DIB3000MC
+	help
+	  Say Y here to support the Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 receiver.
+
+config DVB_USB_DTT200U
+	tristate "WideView WT-200U and WT-220U (pen) DVB-T USB2.0 support (Yakumo/Hama/Typhoon/Yuan)"
+	depends on DVB_USB
+	help
+	  Say Y here to support the WideView/Yakumo/Hama/Typhoon/Yuan DVB-T USB2.0 receiver.
+
+	  The receivers are also known as DTT200U (Yakumo) and UB300 (Yuan).
+
+	  The WT-220U and its clones are pen-sized.

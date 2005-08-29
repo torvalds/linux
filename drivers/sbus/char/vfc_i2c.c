@@ -79,23 +79,10 @@ int vfc_pcf8584_init(struct vfc_dev *dev)
 	return 0;
 }
 
-void vfc_i2c_delay_wakeup(struct vfc_dev *dev) 
-{
-	/* Used to profile code and eliminate too many delays */
-	VFC_I2C_DEBUG_PRINTK(("vfc%d: Delaying\n", dev->instance));
-	wake_up(&dev->poll_wait);
-}
-
 void vfc_i2c_delay_no_busy(struct vfc_dev *dev, unsigned long usecs) 
 {
-	init_timer(&dev->poll_timer);
-	dev->poll_timer.expires = jiffies + 
-		((unsigned long)usecs*(HZ))/1000000;
-	dev->poll_timer.data=(unsigned long)dev;
-	dev->poll_timer.function=(void *)(unsigned long)vfc_i2c_delay_wakeup;
-	add_timer(&dev->poll_timer);
-	sleep_on(&dev->poll_wait);
-	del_timer(&dev->poll_timer);
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(usecs_to_jiffies(usecs));
 }
 
 void inline vfc_i2c_delay(struct vfc_dev *dev) 

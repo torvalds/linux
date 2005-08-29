@@ -70,7 +70,7 @@ MODULE_LICENSE("GPL");
  * seem to behave quite as expected.  Used by default.
  *
  * OUT dma documents design problems handling the common "short packet"
- * transfer termination policy; it couldn't enabled by default, even
+ * transfer termination policy; it couldn't be enabled by default, even
  * if the OUT-dma abort problems had a resolution.
  */
 static unsigned use_dma = 1;
@@ -269,7 +269,7 @@ static int goku_ep_disable(struct usb_ep *_ep)
 /*-------------------------------------------------------------------------*/
 
 static struct usb_request *
-goku_alloc_request(struct usb_ep *_ep, int gfp_flags)
+goku_alloc_request(struct usb_ep *_ep, unsigned gfp_flags)
 {
 	struct goku_request	*req;
 
@@ -313,7 +313,7 @@ goku_free_request(struct usb_ep *_ep, struct usb_request *_req)
 #if	defined(CONFIG_X86)
 #define USE_KMALLOC
 
-#elif	defined(CONFIG_MIPS) && !defined(CONFIG_NONCOHERENT_IO)
+#elif	defined(CONFIG_MIPS) && !defined(CONFIG_DMA_NONCOHERENT)
 #define USE_KMALLOC
 
 #elif	defined(CONFIG_PPC) && !defined(CONFIG_NOT_COHERENT_CACHE)
@@ -327,7 +327,7 @@ goku_free_request(struct usb_ep *_ep, struct usb_request *_req)
  */
 static void *
 goku_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
-			dma_addr_t *dma, int  gfp_flags)
+			dma_addr_t *dma, unsigned gfp_flags)
 {
 	void		*retval;
 	struct goku_ep	*ep;
@@ -789,7 +789,7 @@ finished:
 /*-------------------------------------------------------------------------*/
 
 static int
-goku_queue(struct usb_ep *_ep, struct usb_request *_req, int gfp_flags)
+goku_queue(struct usb_ep *_ep, struct usb_request *_req, unsigned gfp_flags)
 {
 	struct goku_request	*req;
 	struct goku_ep		*ep;
@@ -1524,9 +1524,12 @@ static void ep0_setup(struct goku_udc *dev)
 	/* read SETUP packet and enter DATA stage */
 	ctrl.bRequestType = readl(&regs->bRequestType);
 	ctrl.bRequest = readl(&regs->bRequest);
-	ctrl.wValue  = (readl(&regs->wValueH)  << 8) | readl(&regs->wValueL);
-	ctrl.wIndex  = (readl(&regs->wIndexH)  << 8) | readl(&regs->wIndexL);
-	ctrl.wLength = (readl(&regs->wLengthH) << 8) | readl(&regs->wLengthL);
+	ctrl.wValue  = cpu_to_le16((readl(&regs->wValueH)  << 8)
+					| readl(&regs->wValueL));
+	ctrl.wIndex  = cpu_to_le16((readl(&regs->wIndexH)  << 8)
+					| readl(&regs->wIndexL));
+	ctrl.wLength = cpu_to_le16((readl(&regs->wLengthH) << 8)
+					| readl(&regs->wLengthL));
 	writel(0, &regs->SetupRecv);
 
 	nuke(&dev->ep[0], 0);
@@ -1548,18 +1551,20 @@ static void ep0_setup(struct goku_udc *dev)
 		case USB_REQ_CLEAR_FEATURE:
 			switch (ctrl.bRequestType) {
 			case USB_RECIP_ENDPOINT:
-				tmp = ctrl.wIndex & 0x0f;
+				tmp = le16_to_cpu(ctrl.wIndex) & 0x0f;
 				/* active endpoint */
 				if (tmp > 3 || (!dev->ep[tmp].desc && tmp != 0))
 					goto stall;
-				if (ctrl.wIndex & USB_DIR_IN) {
+				if (ctrl.wIndex & __constant_cpu_to_le16(
+						USB_DIR_IN)) {
 					if (!dev->ep[tmp].is_in)
 						goto stall;
 				} else {
 					if (dev->ep[tmp].is_in)
 						goto stall;
 				}
-				if (ctrl.wValue != USB_ENDPOINT_HALT)
+				if (ctrl.wValue != __constant_cpu_to_le16(
+						USB_ENDPOINT_HALT))
 					goto stall;
 				if (tmp)
 					goku_clear_halt(&dev->ep[tmp]);
@@ -1571,7 +1576,7 @@ succeed:
 				return;
 			case USB_RECIP_DEVICE:
 				/* device remote wakeup: always clear */
-				if (ctrl.wValue != 1)
+				if (ctrl.wValue != __constant_cpu_to_le16(1))
 					goto stall;
 				VDBG(dev, "clear dev remote wakeup\n");
 				goto succeed;
@@ -1589,14 +1594,15 @@ succeed:
 #ifdef USB_TRACE
 	VDBG(dev, "SETUP %02x.%02x v%04x i%04x l%04x\n",
 		ctrl.bRequestType, ctrl.bRequest,
-		ctrl.wValue, ctrl.wIndex, ctrl.wLength);
+		le16_to_cpu(ctrl.wValue), le16_to_cpu(ctrl.wIndex),
+		le16_to_cpu(ctrl.wLength));
 #endif
 
 	/* hw wants to know when we're configured (or not) */
 	dev->req_config = (ctrl.bRequest == USB_REQ_SET_CONFIGURATION
 				&& ctrl.bRequestType == USB_RECIP_DEVICE);
 	if (unlikely(dev->req_config))
-		dev->configured = (ctrl.wValue != 0);
+		dev->configured = (ctrl.wValue != __constant_cpu_to_le16(0));
 
 	/* delegate everything to the gadget driver.
 	 * it may respond after this irq handler returns.

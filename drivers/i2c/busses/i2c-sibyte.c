@@ -23,8 +23,8 @@
 #include <asm/sibyte/sb1250_smbus.h>
 
 static struct i2c_algo_sibyte_data sibyte_board_data[2] = {
-	{ NULL, 0, (void *) (KSEG1+A_SMB_BASE(0)) },
-	{ NULL, 1, (void *) (KSEG1+A_SMB_BASE(1)) }
+	{ NULL, 0, (void *) (CKSEG1+A_SMB_BASE(0)) },
+	{ NULL, 1, (void *) (CKSEG1+A_SMB_BASE(1)) }
 };
 
 static struct i2c_adapter sibyte_board_adapter[2] = {

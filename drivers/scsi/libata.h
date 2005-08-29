@@ -26,7 +26,7 @@
 #define __LIBATA_H__
 
 #define DRV_NAME	"libata"
-#define DRV_VERSION	"1.11"	/* must be exactly four chars */
+#define DRV_VERSION	"1.12"	/* must be exactly four chars */
 
 struct ata_scsi_args {
 	u16			*id;
@@ -72,7 +72,7 @@ extern unsigned int ata_scsiop_report_luns(struct ata_scsi_args *args, u8 *rbuf,
 extern void ata_scsi_badcmd(struct scsi_cmnd *cmd,
 			    void (*done)(struct scsi_cmnd *),
 			    u8 asc, u8 ascq);
-extern void ata_scsi_rbuf_fill(struct ata_scsi_args *args, 
+extern void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
                         unsigned int (*actor) (struct ata_scsi_args *args,
                                            u8 *rbuf, unsigned int buflen));
 

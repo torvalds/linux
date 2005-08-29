@@ -257,7 +257,8 @@ static int skel_probe(struct usb_interface *interface, const struct usb_device_i
 		endpoint = &iface_desc->endpoint[i].desc;
 
 		if (!dev->bulk_in_endpointAddr &&
-		    (endpoint->bEndpointAddress & USB_DIR_IN) &&
+		    ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
+					== USB_DIR_IN) &&
 		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
 					== USB_ENDPOINT_XFER_BULK)) {
 			/* we found a bulk in endpoint */
@@ -272,7 +273,8 @@ static int skel_probe(struct usb_interface *interface, const struct usb_device_i
 		}
 
 		if (!dev->bulk_out_endpointAddr &&
-		    !(endpoint->bEndpointAddress & USB_DIR_OUT) &&
+		    ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
+					== USB_DIR_OUT) &&
 		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
 					== USB_ENDPOINT_XFER_BULK)) {
 			/* we found a bulk out endpoint */

@@ -52,7 +52,7 @@ typedef unsigned long long u64;
 typedef u32 dma_addr_t;
 typedef u32 dma64_addr_t;
 
-typedef unsigned int kmem_bufctl_t;
+typedef unsigned short kmem_bufctl_t;
 
 #endif /* __ASSEMBLY__ */
 

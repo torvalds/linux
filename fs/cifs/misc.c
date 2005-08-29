@@ -611,6 +611,7 @@ cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
 		src_char = source[i];
 		switch (src_char) {
 			case 0:
+				target[j] = 0;
 				goto ctoUCS_out;
 			case ':':
 				target[j] = cpu_to_le16(UNI_COLON);

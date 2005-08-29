@@ -239,6 +239,20 @@ struct ext3_new_group_data {
 #define EXT3_IOC_SETRSVSZ		_IOW('f', 6, long)
 
 /*
+ *  Mount options
+ */
+struct ext3_mount_options {
+	unsigned long s_mount_opt;
+	uid_t s_resuid;
+	gid_t s_resgid;
+	unsigned long s_commit_interval;
+#ifdef CONFIG_QUOTA
+	int s_jquota_fmt;
+	char *s_qf_names[MAXQUOTAS];
+#endif
+};
+
+/*
  * Structure of an inode on the disk
  */
 struct ext3_inode {
@@ -358,6 +372,7 @@ struct ext3_inode {
 #define EXT3_MOUNT_RESERVATION		0x10000	/* Preallocation */
 #define EXT3_MOUNT_BARRIER		0x20000 /* Use block barriers */
 #define EXT3_MOUNT_NOBH			0x40000 /* No bufferheads */
+#define EXT3_MOUNT_QUOTA		0x80000 /* Some quota option set */
 
 /* Compatibility, for having both ext2_fs.h and ext3_fs.h included at once */
 #ifndef _LINUX_EXT2_FS_H

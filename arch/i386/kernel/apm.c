@@ -228,10 +228,10 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/desc.h>
+#include <asm/i8253.h>
 
 #include "io_ports.h"
 
-extern spinlock_t i8253_lock;
 extern unsigned long get_cmos_time(void);
 extern void machine_real_restart(unsigned char *, int);
 
@@ -346,10 +346,10 @@ extern int (*console_blank_hook)(int);
 struct apm_user {
 	int		magic;
 	struct apm_user *	next;
-	int		suser: 1;
-	int		writer: 1;
-	int		reader: 1;
-	int		suspend_wait: 1;
+	unsigned int	suser: 1;
+	unsigned int	writer: 1;
+	unsigned int	reader: 1;
+	unsigned int	suspend_wait: 1;
 	int		suspend_result;
 	int		suspends_pending;
 	int		standbys_pending;
@@ -911,14 +911,7 @@ static void apm_power_off(void)
 		0xcd, 0x15		/* int   $0x15       */
 	};
 
-	/*
-	 * This may be called on an SMP machine.
-	 */
-#ifdef CONFIG_SMP
 	/* Some bioses don't like being called from CPU != 0 */
-	set_cpus_allowed(current, cpumask_of_cpu(0));
-	BUG_ON(smp_processor_id() != 0);
-#endif
 	if (apm_info.realmode_power_off)
 	{
 		(void)apm_save_cpus();
@@ -1168,8 +1161,7 @@ static void get_time_diff(void)
 static void reinit_timer(void)
 {
 #ifdef INIT_TIMER_AFTER_SUSPEND
-	unsigned long	flags;
-	extern spinlock_t i8253_lock;
+	unsigned long flags;
 
 	spin_lock_irqsave(&i8253_lock, flags);
 	/* set the clock to 100 Hz */

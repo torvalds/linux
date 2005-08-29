@@ -125,7 +125,8 @@
  */
 extern struct sock *sctp_get_ctl_sock(void);
 extern int sctp_copy_local_addr_list(struct sctp_bind_addr *,
-				     sctp_scope_t, int gfp, int flags);
+				     sctp_scope_t, unsigned int __nocast gfp,
+				     int flags);
 extern struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
 extern int sctp_register_pf(struct sctp_pf *, sa_family_t);
 
@@ -166,15 +167,12 @@ void sctp_unhash_established(struct sctp_association *);
 void sctp_hash_endpoint(struct sctp_endpoint *);
 void sctp_unhash_endpoint(struct sctp_endpoint *);
 struct sock *sctp_err_lookup(int family, struct sk_buff *,
-			     struct sctphdr *, struct sctp_endpoint **,
-			     struct sctp_association **,
+			     struct sctphdr *, struct sctp_association **,
 			     struct sctp_transport **);
-void sctp_err_finish(struct sock *, struct sctp_endpoint *,
-			    struct sctp_association *);
+void sctp_err_finish(struct sock *, struct sctp_association *);
 void sctp_icmp_frag_needed(struct sock *, struct sctp_association *,
 			   struct sctp_transport *t, __u32 pmtu);
 void sctp_icmp_proto_unreachable(struct sock *sk,
-				 struct sctp_endpoint *ep,
 				 struct sctp_association *asoc,
 				 struct sctp_transport *t);
 

@@ -3,6 +3,11 @@ config 4xx
 	depends on 40x || 44x
 	default y
 
+config WANT_EARLY_SERIAL
+	bool
+	select SERIAL_8250
+	default n
+
 menu "IBM 4xx options"
 	depends on 4xx
 
@@ -18,6 +23,7 @@ config ASH
 
 config BUBINGA
 	bool "Bubinga"
+	select WANT_EARLY_SERIAL
 	help
 	  This option enables support for the IBM 405EP evaluation board.
 
@@ -68,18 +74,27 @@ choice
 	depends on 44x
 	default EBONY
 
+config BAMBOO
+	bool "Bamboo"
+	select WANT_EARLY_SERIAL
+	help
+	  This option enables support for the IBM PPC440EP evaluation board.
+
 config EBONY
 	bool "Ebony"
+	select WANT_EARLY_SERIAL
 	help
 	  This option enables support for the IBM PPC440GP evaluation board.
 
 config LUAN
 	bool "Luan"
+	select WANT_EARLY_SERIAL
 	help
 	  This option enables support for the IBM PPC440SP evaluation board.
 
 config OCOTEA
 	bool "Ocotea"
+	select WANT_EARLY_SERIAL
 	help
 	  This option enables support for the IBM PPC440GX evaluation board.
 
@@ -96,6 +111,12 @@ config EP405PC
 config NP405H
 	bool
 	depends on ASH
+	default y
+
+config 440EP
+	bool
+	depends on BAMBOO
+	select PPC_FPU
 	default y
 
 config 440GP
@@ -115,12 +136,17 @@ config 440SP
 
 config 440
 	bool
-	depends on 440GP || 440SP
+	depends on 440GP || 440SP || 440EP
 	default y
 
 config 440A
 	bool
 	depends on 440GX
+	default y
+
+config IBM440EP_ERR42
+	bool
+	depends on 440EP
 	default y
 
 # All 405-based cores up until the 405GPR and 405EP have this errata.
@@ -142,7 +168,7 @@ config BOOKE
 
 config IBM_OCP
 	bool
-	depends on ASH || BUBINGA || CPCI405 || EBONY || EP405 || LUAN || OCOTEA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
+	depends on ASH || BAMBOO || BUBINGA || CPCI405 || EBONY || EP405 || LUAN || OCOTEA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
 	default y
 
 config XILINX_OCP
@@ -213,10 +239,6 @@ config PPC_GEN550
 	bool
 	depends on 4xx
 	default y
-
-config PM
-	bool "Power Management support (EXPERIMENTAL)"
-	depends on 4xx && EXPERIMENTAL
 
 choice
 	prompt "TTYS0 device and default console"

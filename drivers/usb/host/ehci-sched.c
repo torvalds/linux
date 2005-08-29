@@ -301,7 +301,7 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	dev_dbg (&qh->dev->dev,
 		"link qh%d-%04x/%p start %d [%d/%d us]\n",
-		period, le32_to_cpup (&qh->hw_info2) & 0xffff,
+		period, le32_to_cpup (&qh->hw_info2) & (QH_CMASK | QH_SMASK),
 		qh, qh->start, qh->usecs, qh->c_usecs);
 
 	/* high bandwidth, or otherwise every microframe */
@@ -385,7 +385,8 @@ static void qh_unlink_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	dev_dbg (&qh->dev->dev,
 		"unlink qh%d-%04x/%p start %d [%d/%d us]\n",
-		qh->period, le32_to_cpup (&qh->hw_info2) & 0xffff,
+		qh->period,
+		le32_to_cpup (&qh->hw_info2) & (QH_CMASK | QH_SMASK),
 		qh, qh->start, qh->usecs, qh->c_usecs);
 
 	/* qh->qh_next still "live" to HC */
@@ -411,7 +412,7 @@ static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 * active high speed queues may need bigger delays...
 	 */
 	if (list_empty (&qh->qtd_list)
-			|| (__constant_cpu_to_le32 (0x0ff << 8)
+			|| (__constant_cpu_to_le32 (QH_CMASK)
 					& qh->hw_info2) != 0)
 		wait = 2;
 	else
@@ -533,7 +534,7 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	/* reuse the previous schedule slots, if we can */
 	if (frame < qh->period) {
-		uframe = ffs (le32_to_cpup (&qh->hw_info2) & 0x00ff);
+		uframe = ffs (le32_to_cpup (&qh->hw_info2) & QH_SMASK);
 		status = check_intr_schedule (ehci, frame, --uframe,
 				qh, &c_mask);
 	} else {
@@ -569,10 +570,10 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		qh->start = frame;
 
 		/* reset S-frame and (maybe) C-frame masks */
-		qh->hw_info2 &= __constant_cpu_to_le32 (~0xffff);
+		qh->hw_info2 &= __constant_cpu_to_le32(~(QH_CMASK | QH_SMASK));
 		qh->hw_info2 |= qh->period
 			? cpu_to_le32 (1 << uframe)
-			: __constant_cpu_to_le32 (0xff);
+			: __constant_cpu_to_le32 (QH_SMASK);
 		qh->hw_info2 |= c_mask;
 	} else
 		ehci_dbg (ehci, "reused qh %p schedule\n", qh);
@@ -588,7 +589,7 @@ static int intr_submit (
 	struct usb_host_endpoint *ep,
 	struct urb		*urb,
 	struct list_head	*qtd_list,
-	int			mem_flags
+	unsigned		mem_flags
 ) {
 	unsigned		epnum;
 	unsigned long		flags;
@@ -633,13 +634,12 @@ done:
 /* ehci_iso_stream ops work with both ITD and SITD */
 
 static struct ehci_iso_stream *
-iso_stream_alloc (int mem_flags)
+iso_stream_alloc (unsigned mem_flags)
 {
 	struct ehci_iso_stream *stream;
 
-	stream = kmalloc(sizeof *stream, mem_flags);
+	stream = kcalloc(1, sizeof *stream, mem_flags);
 	if (likely (stream != NULL)) {
-		memset (stream, 0, sizeof(*stream));
 		INIT_LIST_HEAD(&stream->td_list);
 		INIT_LIST_HEAD(&stream->free_list);
 		stream->next_uframe = -1;
@@ -847,7 +847,7 @@ iso_stream_find (struct ehci_hcd *ehci, struct urb *urb)
 /* ehci_iso_sched ops can be ITD-only or SITD-only */
 
 static struct ehci_iso_sched *
-iso_sched_alloc (unsigned packets, int mem_flags)
+iso_sched_alloc (unsigned packets, unsigned mem_flags)
 {
 	struct ehci_iso_sched	*iso_sched;
 	int			size = sizeof *iso_sched;
@@ -894,7 +894,7 @@ itd_sched_init (
 		trans |= length << 16;
 		uframe->transaction = cpu_to_le32 (trans);
 
-		/* might need to cross a buffer page within a td */
+		/* might need to cross a buffer page within a uframe */
 		uframe->bufp = (buf & ~(u64)0x0fff);
 		buf += length;
 		if (unlikely ((uframe->bufp != (buf & ~(u64)0x0fff))))
@@ -920,7 +920,7 @@ itd_urb_transaction (
 	struct ehci_iso_stream	*stream,
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
-	int			mem_flags
+	unsigned		mem_flags
 )
 {
 	struct ehci_itd		*itd;
@@ -1194,6 +1194,7 @@ itd_init (struct ehci_iso_stream *stream, struct ehci_itd *itd)
 {
 	int i;
 
+	/* it's been recently zeroed */
 	itd->hw_next = EHCI_LIST_END;
 	itd->hw_bufp [0] = stream->buf0;
 	itd->hw_bufp [1] = stream->buf1;
@@ -1210,8 +1211,7 @@ itd_patch (
 	struct ehci_itd		*itd,
 	struct ehci_iso_sched	*iso_sched,
 	unsigned		index,
-	u16			uframe,
-	int			first
+	u16			uframe
 )
 {
 	struct ehci_iso_packet	*uf = &iso_sched->packet [index];
@@ -1228,7 +1228,7 @@ itd_patch (
 	itd->hw_bufp_hi [pg] |= cpu_to_le32 ((u32)(uf->bufp >> 32));
 
 	/* iso_frame_desc[].offset must be strictly increasing */
-	if (unlikely (!first && uf->cross)) {
+	if (unlikely (uf->cross)) {
 		u64	bufp = uf->bufp + 4096;
 		itd->pg = ++pg;
 		itd->hw_bufp [pg] |= cpu_to_le32 (bufp & ~(u32)0);
@@ -1257,7 +1257,7 @@ itd_link_urb (
 	struct ehci_iso_stream	*stream
 )
 {
-	int			packet, first = 1;
+	int			packet;
 	unsigned		next_uframe, uframe, frame;
 	struct ehci_iso_sched	*iso_sched = urb->hcpriv;
 	struct ehci_itd		*itd;
@@ -1290,7 +1290,6 @@ itd_link_urb (
 			list_move_tail (&itd->itd_list, &stream->td_list);
 			itd->stream = iso_stream_get (stream);
 			itd->urb = usb_get_urb (urb);
-			first = 1;
 			itd_init (stream, itd);
 		}
 
@@ -1298,8 +1297,7 @@ itd_link_urb (
 		frame = next_uframe >> 3;
 
 		itd->usecs [uframe] = stream->usecs;
-		itd_patch (itd, iso_sched, packet, uframe, first);
-		first = 0;
+		itd_patch (itd, iso_sched, packet, uframe);
 
 		next_uframe += stream->interval;
 		stream->depth += stream->interval;
@@ -1415,7 +1413,8 @@ itd_complete (
 
 /*-------------------------------------------------------------------------*/
 
-static int itd_submit (struct ehci_hcd *ehci, struct urb *urb, int mem_flags)
+static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
+	unsigned mem_flags)
 {
 	int			status = -EINVAL;
 	unsigned long		flags;
@@ -1526,7 +1525,7 @@ sitd_urb_transaction (
 	struct ehci_iso_stream	*stream,
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
-	int			mem_flags
+	unsigned		mem_flags
 )
 {
 	struct ehci_sitd	*sitd;
@@ -1775,7 +1774,8 @@ sitd_complete (
 }
 
 
-static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb, int mem_flags)
+static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
+	unsigned mem_flags)
 {
 	int			status = -EINVAL;
 	unsigned long		flags;
@@ -1825,7 +1825,8 @@ done:
 #else
 
 static inline int
-sitd_submit (struct ehci_hcd *ehci, struct urb *urb, int mem_flags)
+sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
+	unsigned mem_flags)
 {
 	ehci_dbg (ehci, "split iso support is disabled\n");
 	return -ENOSYS;

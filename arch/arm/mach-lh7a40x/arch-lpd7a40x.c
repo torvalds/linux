@@ -260,13 +260,15 @@ lpd7a400_map_io(void)
 #ifdef CONFIG_MACH_LPD7A400
 
 MACHINE_START (LPD7A400, "Logic Product Development LPD7A400-10")
-	MAINTAINER ("Marc Singer")
-	BOOT_MEM (0xc0000000, 0x80000000, io_p2v (0x80000000))
-	BOOT_PARAMS (0xc0000100)
-	MAPIO (lpd7a400_map_io)
-	INITIRQ (lh7a400_init_irq)
+	/* Maintainer: Marc Singer */
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((io_p2v (0x80000000))>>18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.map_io		= lpd7a400_map_io,
+	.init_irq	= lh7a400_init_irq,
 	.timer		= &lh7a40x_timer,
-	INIT_MACHINE (lpd7a40x_init)
+	.init_machine	= lpd7a40x_init,
 MACHINE_END
 
 #endif
@@ -274,13 +276,15 @@ MACHINE_END
 #ifdef CONFIG_MACH_LPD7A404
 
 MACHINE_START (LPD7A404, "Logic Product Development LPD7A404-10")
-	MAINTAINER ("Marc Singer")
-	BOOT_MEM (0xc0000000, 0x80000000, io_p2v (0x80000000))
-	BOOT_PARAMS (0xc0000100)
-	MAPIO (lpd7a400_map_io)
-	INITIRQ (lh7a404_init_irq)
+	/* Maintainer: Marc Singer */
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((io_p2v (0x80000000))>>18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.map_io		= lpd7a400_map_io,
+	.init_irq	= lh7a404_init_irq,
 	.timer		= &lh7a40x_timer,
-	INIT_MACHINE (lpd7a40x_init)
+	.init_machine	= lpd7a40x_init,
 MACHINE_END
 
 #endif

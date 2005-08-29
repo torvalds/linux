@@ -963,11 +963,11 @@ static int sbdma_add_rcvbuffer(sbmacdma_t *d,struct sk_buff *sb)
 	/*
 	 * Do not interrupt per DMA transfer.
 	 */
-	dsc->dscr_a = virt_to_phys(sb_new->tail) |
+	dsc->dscr_a = virt_to_phys(sb_new->data) |
 		V_DMA_DSCRA_A_SIZE(NUMCACHEBLKS(pktsize+ETHER_ALIGN)) |
 		0;
 #else
-	dsc->dscr_a = virt_to_phys(sb_new->tail) |
+	dsc->dscr_a = virt_to_phys(sb_new->data) |
 		V_DMA_DSCRA_A_SIZE(NUMCACHEBLKS(pktsize+ETHER_ALIGN)) |
 		M_DMA_DSCRA_INTERRUPT;
 #endif

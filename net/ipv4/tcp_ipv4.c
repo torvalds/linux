@@ -242,9 +242,14 @@ static int tcp_v4_get_port(struct sock *sk, unsigned short snum)
 		tcp_port_rover = rover;
 		spin_unlock(&tcp_portalloc_lock);
 
-		/* Exhausted local port range during search? */
+		/* Exhausted local port range during search?  It is not
+		 * possible for us to be holding one of the bind hash
+		 * locks if this test triggers, because if 'remaining'
+		 * drops to zero, we broke out of the do/while loop at
+		 * the top level, not from the 'break;' statement.
+		 */
 		ret = 1;
-		if (remaining <= 0)
+		if (unlikely(remaining <= 0))
 			goto fail;
 
 		/* OK, here is the one we will use.  HEAD is
@@ -1494,12 +1499,11 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 			 * to destinations, already remembered
 			 * to the moment of synflood.
 			 */
-			NETDEBUG(if (net_ratelimit()) \
-					printk(KERN_DEBUG "TCP: drop open "
-							  "request from %u.%u."
-							  "%u.%u/%u\n", \
-					       NIPQUAD(saddr),
-					       ntohs(skb->h.th->source)));
+			LIMIT_NETDEBUG(printk(KERN_DEBUG "TCP: drop open "
+					      "request from %u.%u."
+					      "%u.%u/%u\n",
+					      NIPQUAD(saddr),
+					      ntohs(skb->h.th->source)));
 			dst_release(dst);
 			goto drop_and_free;
 		}
@@ -1627,8 +1631,7 @@ static int tcp_v4_checksum_init(struct sk_buff *skb)
 				  skb->nh.iph->daddr, skb->csum))
 			return 0;
 
-		NETDEBUG(if (net_ratelimit())
-				printk(KERN_DEBUG "hw tcp v4 csum failed\n"));
+		LIMIT_NETDEBUG(printk(KERN_DEBUG "hw tcp v4 csum failed\n"));
 		skb->ip_summed = CHECKSUM_NONE;
 	}
 	if (skb->len <= 76) {
@@ -2045,9 +2048,10 @@ static int tcp_v4_init_sock(struct sock *sk)
 	 */
 	tp->snd_ssthresh = 0x7fffffff;	/* Infinity */
 	tp->snd_cwnd_clamp = ~0;
-	tp->mss_cache_std = tp->mss_cache = 536;
+	tp->mss_cache = 536;
 
 	tp->reordering = sysctl_tcp_reordering;
+	tp->ca_ops = &tcp_init_congestion_ops;
 
 	sk->sk_state = TCP_CLOSE;
 
@@ -2069,6 +2073,8 @@ int tcp_v4_destroy_sock(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	tcp_clear_xmit_timers(sk);
+
+	tcp_cleanup_congestion_control(tp);
 
 	/* Cleanup up the write buffer. */
   	sk_stream_writequeue_purge(sk);

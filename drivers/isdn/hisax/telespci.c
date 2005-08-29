@@ -21,7 +21,7 @@
 #include <linux/pci.h>
 
 extern const char *CardType[];
-const char *telespci_revision = "$Revision: 2.23.2.3 $";
+static const char *telespci_revision = "$Revision: 2.23.2.3 $";
 
 #define ZORAN_PO_RQ_PEN	0x02000000
 #define ZORAN_PO_WR	0x00800000
@@ -257,7 +257,7 @@ telespci_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_telespci(struct IsdnCardState *cs)
 {
 	iounmap(cs->hw.teles0.membase);

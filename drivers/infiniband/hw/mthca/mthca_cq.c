@@ -1,5 +1,9 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2005 Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,7 +39,7 @@
 #include <linux/init.h>
 #include <linux/hardirq.h>
 
-#include <ib_pack.h>
+#include <rdma/ib_pack.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
@@ -53,21 +57,21 @@ enum {
  * Must be packed because start is 64 bits but only aligned to 32 bits.
  */
 struct mthca_cq_context {
-	u32 flags;
-	u64 start;
-	u32 logsize_usrpage;
-	u32 error_eqn;		/* Tavor only */
-	u32 comp_eqn;
-	u32 pd;
-	u32 lkey;
-	u32 last_notified_index;
-	u32 solicit_producer_index;
-	u32 consumer_index;
-	u32 producer_index;
-	u32 cqn;
-	u32 ci_db;		/* Arbel only */
-	u32 state_db;		/* Arbel only */
-	u32 reserved;
+	__be32 flags;
+	__be64 start;
+	__be32 logsize_usrpage;
+	__be32 error_eqn;	/* Tavor only */
+	__be32 comp_eqn;
+	__be32 pd;
+	__be32 lkey;
+	__be32 last_notified_index;
+	__be32 solicit_producer_index;
+	__be32 consumer_index;
+	__be32 producer_index;
+	__be32 cqn;
+	__be32 ci_db;		/* Arbel only */
+	__be32 state_db;	/* Arbel only */
+	u32    reserved;
 } __attribute__((packed));
 
 #define MTHCA_CQ_STATUS_OK          ( 0 << 28)
@@ -106,31 +110,31 @@ enum {
 };
 
 struct mthca_cqe {
-	u32 my_qpn;
-	u32 my_ee;
-	u32 rqpn;
-	u16 sl_g_mlpath;
-	u16 rlid;
-	u32 imm_etype_pkey_eec;
-	u32 byte_cnt;
-	u32 wqe;
-	u8  opcode;
-	u8  is_send;
-	u8  reserved;
-	u8  owner;
+	__be32 my_qpn;
+	__be32 my_ee;
+	__be32 rqpn;
+	__be16 sl_g_mlpath;
+	__be16 rlid;
+	__be32 imm_etype_pkey_eec;
+	__be32 byte_cnt;
+	__be32 wqe;
+	u8     opcode;
+	u8     is_send;
+	u8     reserved;
+	u8     owner;
 };
 
 struct mthca_err_cqe {
-	u32 my_qpn;
-	u32 reserved1[3];
-	u8  syndrome;
-	u8  reserved2;
-	u16 db_cnt;
-	u32 reserved3;
-	u32 wqe;
-	u8  opcode;
-	u8  reserved4[2];
-	u8  owner;
+	__be32 my_qpn;
+	u32    reserved1[3];
+	u8     syndrome;
+	u8     reserved2;
+	__be16 db_cnt;
+	u32    reserved3;
+	__be32 wqe;
+	u8     opcode;
+	u8     reserved4[2];
+	u8     owner;
 };
 
 #define MTHCA_CQ_ENTRY_OWNER_SW      (0 << 7)
@@ -171,6 +175,17 @@ static inline void set_cqe_hw(struct mthca_cqe *cqe)
 	cqe->owner = MTHCA_CQ_ENTRY_OWNER_HW;
 }
 
+static void dump_cqe(struct mthca_dev *dev, void *cqe_ptr)
+{
+	__be32 *cqe = cqe_ptr;
+
+	(void) cqe;	/* avoid warning if mthca_dbg compiled away... */
+	mthca_dbg(dev, "CQE contents %08x %08x %08x %08x %08x %08x %08x %08x\n",
+		  be32_to_cpu(cqe[0]), be32_to_cpu(cqe[1]), be32_to_cpu(cqe[2]),
+		  be32_to_cpu(cqe[3]), be32_to_cpu(cqe[4]), be32_to_cpu(cqe[5]),
+		  be32_to_cpu(cqe[6]), be32_to_cpu(cqe[7]));
+}
+
 /*
  * incr is ignored in native Arbel (mem-free) mode, so cq->cons_index
  * should be correct before calling update_cons_index().
@@ -178,7 +193,7 @@ static inline void set_cqe_hw(struct mthca_cqe *cqe)
 static inline void update_cons_index(struct mthca_dev *dev, struct mthca_cq *cq,
 				     int incr)
 {
-	u32 doorbell[2];
+	__be32 doorbell[2];
 
 	if (mthca_is_memfree(dev)) {
 		*cq->set_ci_db = cpu_to_be32(cq->cons_index);
@@ -209,7 +224,8 @@ void mthca_cq_event(struct mthca_dev *dev, u32 cqn)
 	cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
 
-void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn)
+void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
+		    struct mthca_srq *srq)
 {
 	struct mthca_cq *cq;
 	struct mthca_cqe *cqe;
@@ -250,8 +266,11 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn)
 	 */
 	while (prod_index > cq->cons_index) {
 		cqe = get_cqe(cq, (prod_index - 1) & cq->ibcq.cqe);
-		if (cqe->my_qpn == cpu_to_be32(qpn))
+		if (cqe->my_qpn == cpu_to_be32(qpn)) {
+			if (srq)
+				mthca_free_srq_wqe(srq, be32_to_cpu(cqe->wqe));
 			++nfreed;
+		}
 		else if (nfreed)
 			memcpy(get_cqe(cq, (prod_index - 1 + nfreed) &
 				       cq->ibcq.cqe),
@@ -278,18 +297,14 @@ static int handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
 {
 	int err;
 	int dbd;
-	u32 new_wqe;
+	__be32 new_wqe;
 
-	if (1 && cqe->syndrome != SYNDROME_WR_FLUSH_ERR) {
-		int j;
-
-		mthca_dbg(dev, "%x/%d: error CQE -> QPN %06x, WQE @ %08x\n",
-			  cq->cqn, cq->cons_index, be32_to_cpu(cqe->my_qpn),
-			  be32_to_cpu(cqe->wqe));
-
-		for (j = 0; j < 8; ++j)
-			printk(KERN_DEBUG "  [%2x] %08x\n",
-			       j * 4, be32_to_cpu(((u32 *) cqe)[j]));
+	if (cqe->syndrome == SYNDROME_LOCAL_QP_OP_ERR) {
+		mthca_dbg(dev, "local QP operation err "
+			  "(QPN %06x, WQE @ %08x, CQN %06x, index %d)\n",
+			  be32_to_cpu(cqe->my_qpn), be32_to_cpu(cqe->wqe),
+			  cq->cqn, cq->cons_index);
+		dump_cqe(dev, cqe);
 	}
 
 	/*
@@ -356,6 +371,13 @@ static int handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
 		break;
 	}
 
+	/*
+	 * Mem-free HCAs always generate one CQE per WQE, even in the
+	 * error case, so we don't have to check the doorbell count, etc.
+	 */
+	if (mthca_is_memfree(dev))
+		return 0;
+
 	err = mthca_free_err_wqe(dev, qp, is_send, wqe_index, &dbd, &new_wqe);
 	if (err)
 		return err;
@@ -375,15 +397,6 @@ static int handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
 	*free_cqe = 0;
 
 	return 0;
-}
-
-static void dump_cqe(struct mthca_cqe *cqe)
-{
-	int j;
-
-	for (j = 0; j < 8; ++j)
-		printk(KERN_DEBUG "  [%2x] %08x\n",
-		       j * 4, be32_to_cpu(((u32 *) cqe)[j]));
 }
 
 static inline int mthca_poll_one(struct mthca_dev *dev,
@@ -414,8 +427,7 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 		mthca_dbg(dev, "%x/%d: CQE -> QPN %06x, WQE @ %08x\n",
 			  cq->cqn, cq->cons_index, be32_to_cpu(cqe->my_qpn),
 			  be32_to_cpu(cqe->wqe));
-
-		dump_cqe(cqe);
+		dump_cqe(dev, cqe);
 	}
 
 	is_error = (cqe->opcode & MTHCA_ERROR_CQE_OPCODE_MASK) ==
@@ -447,23 +459,27 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 			     >> wq->wqe_shift);
 		entry->wr_id = (*cur_qp)->wrid[wqe_index +
 					       (*cur_qp)->rq.max];
+	} else if ((*cur_qp)->ibqp.srq) {
+		struct mthca_srq *srq = to_msrq((*cur_qp)->ibqp.srq);
+		u32 wqe = be32_to_cpu(cqe->wqe);
+		wq = NULL;
+		wqe_index = wqe >> srq->wqe_shift;
+		entry->wr_id = srq->wrid[wqe_index];
+		mthca_free_srq_wqe(srq, wqe);
 	} else {
 		wq = &(*cur_qp)->rq;
 		wqe_index = be32_to_cpu(cqe->wqe) >> wq->wqe_shift;
 		entry->wr_id = (*cur_qp)->wrid[wqe_index];
 	}
 
-	if (wq->last_comp < wqe_index)
-		wq->tail += wqe_index - wq->last_comp;
-	else
-		wq->tail += wqe_index + wq->max - wq->last_comp;
+	if (wq) {
+		if (wq->last_comp < wqe_index)
+			wq->tail += wqe_index - wq->last_comp;
+		else
+			wq->tail += wqe_index + wq->max - wq->last_comp;
 
-	wq->last_comp = wqe_index;
-
-	if (0)
-		mthca_dbg(dev, "%s completion for QP %06x, index %d (nr %d)\n",
-			  is_send ? "Send" : "Receive",
-			  (*cur_qp)->qpn, wqe_index, wq->max);
+		wq->last_comp = wqe_index;
+	}
 
 	if (is_error) {
 		err = handle_error_cqe(dev, cq, *cur_qp, wqe_index, is_send,
@@ -581,13 +597,13 @@ int mthca_poll_cq(struct ib_cq *ibcq, int num_entries,
 
 int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify notify)
 {
-	u32 doorbell[2];
+	__be32 doorbell[2];
 
 	doorbell[0] = cpu_to_be32((notify == IB_CQ_SOLICITED ?
 				   MTHCA_TAVOR_CQ_DB_REQ_NOT_SOL :
 				   MTHCA_TAVOR_CQ_DB_REQ_NOT)      |
 				  to_mcq(cq)->cqn);
-	doorbell[1] = 0xffffffff;
+	doorbell[1] = (__force __be32) 0xffffffff;
 
 	mthca_write64(doorbell,
 		      to_mdev(cq->device)->kar + MTHCA_CQ_DOORBELL,
@@ -599,9 +615,9 @@ int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify notify)
 int mthca_arbel_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 {
 	struct mthca_cq *cq = to_mcq(ibcq);
-	u32 doorbell[2];
+	__be32 doorbell[2];
 	u32 sn;
-	u32 ci;
+	__be32 ci;
 
 	sn = cq->arm_sn & 3;
 	ci = cpu_to_be32(cq->cons_index);
@@ -634,119 +650,16 @@ int mthca_arbel_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 
 static void mthca_free_cq_buf(struct mthca_dev *dev, struct mthca_cq *cq)
 {
-	int i;
-	int size;
-
-	if (cq->is_direct)
-		pci_free_consistent(dev->pdev,
-				    (cq->ibcq.cqe + 1) * MTHCA_CQ_ENTRY_SIZE,
-				    cq->queue.direct.buf,
-				    pci_unmap_addr(&cq->queue.direct,
-						   mapping));
-	else {
-		size = (cq->ibcq.cqe + 1) * MTHCA_CQ_ENTRY_SIZE;
-		for (i = 0; i < (size + PAGE_SIZE - 1) / PAGE_SIZE; ++i)
-			if (cq->queue.page_list[i].buf)
-				pci_free_consistent(dev->pdev, PAGE_SIZE,
-						    cq->queue.page_list[i].buf,
-						    pci_unmap_addr(&cq->queue.page_list[i],
-								   mapping));
-
-		kfree(cq->queue.page_list);
-	}
-}
-
-static int mthca_alloc_cq_buf(struct mthca_dev *dev, int size,
-			      struct mthca_cq *cq)
-{
-	int err = -ENOMEM;
-	int npages, shift;
-	u64 *dma_list = NULL;
-	dma_addr_t t;
-	int i;
-
-	if (size <= MTHCA_MAX_DIRECT_CQ_SIZE) {
-		cq->is_direct = 1;
-		npages        = 1;
-		shift         = get_order(size) + PAGE_SHIFT;
-
-		cq->queue.direct.buf = pci_alloc_consistent(dev->pdev,
-							    size, &t);
-		if (!cq->queue.direct.buf)
-			return -ENOMEM;
-
-		pci_unmap_addr_set(&cq->queue.direct, mapping, t);
-
-		memset(cq->queue.direct.buf, 0, size);
-
-		while (t & ((1 << shift) - 1)) {
-			--shift;
-			npages *= 2;
-		}
-
-		dma_list = kmalloc(npages * sizeof *dma_list, GFP_KERNEL);
-		if (!dma_list)
-			goto err_free;
-
-		for (i = 0; i < npages; ++i)
-			dma_list[i] = t + i * (1 << shift);
-	} else {
-		cq->is_direct = 0;
-		npages        = (size + PAGE_SIZE - 1) / PAGE_SIZE;
-		shift         = PAGE_SHIFT;
-
-		dma_list = kmalloc(npages * sizeof *dma_list, GFP_KERNEL);
-		if (!dma_list)
-			return -ENOMEM;
-
-		cq->queue.page_list = kmalloc(npages * sizeof *cq->queue.page_list,
-					      GFP_KERNEL);
-		if (!cq->queue.page_list)
-			goto err_out;
-
-		for (i = 0; i < npages; ++i)
-			cq->queue.page_list[i].buf = NULL;
-
-		for (i = 0; i < npages; ++i) {
-			cq->queue.page_list[i].buf =
-				pci_alloc_consistent(dev->pdev, PAGE_SIZE, &t);
-			if (!cq->queue.page_list[i].buf)
-				goto err_free;
-
-			dma_list[i] = t;
-			pci_unmap_addr_set(&cq->queue.page_list[i], mapping, t);
-
-			memset(cq->queue.page_list[i].buf, 0, PAGE_SIZE);
-		}
-	}
-
-	err = mthca_mr_alloc_phys(dev, dev->driver_pd.pd_num,
-				  dma_list, shift, npages,
-				  0, size,
-				  MTHCA_MPT_FLAG_LOCAL_WRITE |
-				  MTHCA_MPT_FLAG_LOCAL_READ,
-				  &cq->mr);
-	if (err)
-		goto err_free;
-
-	kfree(dma_list);
-
-	return 0;
-
-err_free:
-	mthca_free_cq_buf(dev, cq);
-
-err_out:
-	kfree(dma_list);
-
-	return err;
+	mthca_buf_free(dev, (cq->ibcq.cqe + 1) * MTHCA_CQ_ENTRY_SIZE,
+		       &cq->queue, cq->is_direct, &cq->mr);
 }
 
 int mthca_init_cq(struct mthca_dev *dev, int nent,
+		  struct mthca_ucontext *ctx, u32 pdn,
 		  struct mthca_cq *cq)
 {
 	int size = nent * MTHCA_CQ_ENTRY_SIZE;
-	void *mailbox = NULL;
+	struct mthca_mailbox *mailbox;
 	struct mthca_cq_context *cq_context;
 	int err = -ENOMEM;
 	u8 status;
@@ -754,45 +667,51 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 
 	might_sleep();
 
-	cq->ibcq.cqe = nent - 1;
+	cq->ibcq.cqe  = nent - 1;
+	cq->is_kernel = !ctx;
 
 	cq->cqn = mthca_alloc(&dev->cq_table.alloc);
 	if (cq->cqn == -1)
 		return -ENOMEM;
 
 	if (mthca_is_memfree(dev)) {
-		cq->arm_sn = 1;
-
 		err = mthca_table_get(dev, dev->cq_table.table, cq->cqn);
 		if (err)
 			goto err_out;
 
-		err = -ENOMEM;
+		if (cq->is_kernel) {
+			cq->arm_sn = 1;
 
-		cq->set_ci_db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_CQ_SET_CI,
-						     cq->cqn, &cq->set_ci_db);
-		if (cq->set_ci_db_index < 0)
-			goto err_out_icm;
+			err = -ENOMEM;
 
-		cq->arm_db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_CQ_ARM,
-						  cq->cqn, &cq->arm_db);
-		if (cq->arm_db_index < 0)
-			goto err_out_ci;
+			cq->set_ci_db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_CQ_SET_CI,
+							     cq->cqn, &cq->set_ci_db);
+			if (cq->set_ci_db_index < 0)
+				goto err_out_icm;
+
+			cq->arm_db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_CQ_ARM,
+							  cq->cqn, &cq->arm_db);
+			if (cq->arm_db_index < 0)
+				goto err_out_ci;
+		}
 	}
 
-	mailbox = kmalloc(sizeof (struct mthca_cq_context) + MTHCA_CMD_MAILBOX_EXTRA,
-			  GFP_KERNEL);
-	if (!mailbox)
-		goto err_out_mailbox;
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		goto err_out_arm;
 
-	cq_context = MAILBOX_ALIGN(mailbox);
+	cq_context = mailbox->buf;
 
-	err = mthca_alloc_cq_buf(dev, size, cq);
-	if (err)
-		goto err_out_mailbox;
+	if (cq->is_kernel) {
+		err = mthca_buf_alloc(dev, size, MTHCA_MAX_DIRECT_CQ_SIZE,
+				      &cq->queue, &cq->is_direct,
+				      &dev->driver_pd, 1, &cq->mr);
+		if (err)
+			goto err_out_mailbox;
 
-	for (i = 0; i < nent; ++i)
-		set_cqe_hw(get_cqe(cq, i));
+		for (i = 0; i < nent; ++i)
+			set_cqe_hw(get_cqe(cq, i));
+	}
 
 	spin_lock_init(&cq->lock);
 	atomic_set(&cq->refcount, 1);
@@ -802,12 +721,14 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	cq_context->flags           = cpu_to_be32(MTHCA_CQ_STATUS_OK      |
 						  MTHCA_CQ_STATE_DISARMED |
 						  MTHCA_CQ_FLAG_TR);
-	cq_context->start           = cpu_to_be64(0);
-	cq_context->logsize_usrpage = cpu_to_be32((ffs(nent) - 1) << 24 |
-						  dev->driver_uar.index);
+	cq_context->logsize_usrpage = cpu_to_be32((ffs(nent) - 1) << 24);
+	if (ctx)
+		cq_context->logsize_usrpage |= cpu_to_be32(ctx->uar.index);
+	else
+		cq_context->logsize_usrpage |= cpu_to_be32(dev->driver_uar.index);
 	cq_context->error_eqn       = cpu_to_be32(dev->eq_table.eq[MTHCA_EQ_ASYNC].eqn);
 	cq_context->comp_eqn        = cpu_to_be32(dev->eq_table.eq[MTHCA_EQ_COMP].eqn);
-	cq_context->pd              = cpu_to_be32(dev->driver_pd.pd_num);
+	cq_context->pd              = cpu_to_be32(pdn);
 	cq_context->lkey            = cpu_to_be32(cq->mr.ibmr.lkey);
 	cq_context->cqn             = cpu_to_be32(cq->cqn);
 
@@ -816,7 +737,7 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 		cq_context->state_db = cpu_to_be32(cq->arm_db_index);
 	}
 
-	err = mthca_SW2HW_CQ(dev, cq_context, cq->cqn, &status);
+	err = mthca_SW2HW_CQ(dev, mailbox, cq->cqn, &status);
 	if (err) {
 		mthca_warn(dev, "SW2HW_CQ failed (%d)\n", err);
 		goto err_out_free_mr;
@@ -840,22 +761,23 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 
 	cq->cons_index = 0;
 
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 
 	return 0;
 
 err_out_free_mr:
-	mthca_free_mr(dev, &cq->mr);
-	mthca_free_cq_buf(dev, cq);
+	if (cq->is_kernel)
+		mthca_free_cq_buf(dev, cq);
 
 err_out_mailbox:
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 
-	if (mthca_is_memfree(dev))
+err_out_arm:
+	if (cq->is_kernel && mthca_is_memfree(dev))
 		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM, cq->arm_db_index);
 
 err_out_ci:
-	if (mthca_is_memfree(dev))
+	if (cq->is_kernel && mthca_is_memfree(dev))
 		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);
 
 err_out_icm:
@@ -870,32 +792,31 @@ err_out:
 void mthca_free_cq(struct mthca_dev *dev,
 		   struct mthca_cq *cq)
 {
-	void *mailbox;
+	struct mthca_mailbox *mailbox;
 	int err;
 	u8 status;
 
 	might_sleep();
 
-	mailbox = kmalloc(sizeof (struct mthca_cq_context) + MTHCA_CMD_MAILBOX_EXTRA,
-			  GFP_KERNEL);
-	if (!mailbox) {
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox)) {
 		mthca_warn(dev, "No memory for mailbox to free CQ.\n");
 		return;
 	}
 
-	err = mthca_HW2SW_CQ(dev, MAILBOX_ALIGN(mailbox), cq->cqn, &status);
+	err = mthca_HW2SW_CQ(dev, mailbox, cq->cqn, &status);
 	if (err)
 		mthca_warn(dev, "HW2SW_CQ failed (%d)\n", err);
 	else if (status)
-		mthca_warn(dev, "HW2SW_CQ returned status 0x%02x\n",
-			   status);
+		mthca_warn(dev, "HW2SW_CQ returned status 0x%02x\n", status);
 
 	if (0) {
-		u32 *ctx = MAILBOX_ALIGN(mailbox);
+		__be32 *ctx = mailbox->buf;
 		int j;
 
 		printk(KERN_ERR "context for CQN %x (cons index %x, next sw %d)\n",
-		       cq->cqn, cq->cons_index, !!next_cqe_sw(cq));
+		       cq->cqn, cq->cons_index,
+		       cq->is_kernel ? !!next_cqe_sw(cq) : 0);
 		for (j = 0; j < 16; ++j)
 			printk(KERN_ERR "[%2x] %08x\n", j * 4, be32_to_cpu(ctx[j]));
 	}
@@ -913,17 +834,17 @@ void mthca_free_cq(struct mthca_dev *dev,
 	atomic_dec(&cq->refcount);
 	wait_event(cq->wait, !atomic_read(&cq->refcount));
 
-	mthca_free_mr(dev, &cq->mr);
-	mthca_free_cq_buf(dev, cq);
-
-	if (mthca_is_memfree(dev)) {
-		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM,    cq->arm_db_index);
-		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);
-		mthca_table_put(dev, dev->cq_table.table, cq->cqn);
+	if (cq->is_kernel) {
+		mthca_free_cq_buf(dev, cq);
+		if (mthca_is_memfree(dev)) {
+			mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM,    cq->arm_db_index);
+			mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);
+		}
 	}
 
+	mthca_table_put(dev, dev->cq_table.table, cq->cqn);
 	mthca_free(&dev->cq_table.alloc, cq->cqn);
-	kfree(mailbox);
+	mthca_free_mailbox(dev, mailbox);
 }
 
 int __devinit mthca_init_cq_table(struct mthca_dev *dev)

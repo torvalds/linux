@@ -552,6 +552,11 @@ void txEnd(tid_t tid)
 		 * synchronize with logsync barrier
 		 */
 		if (test_bit(log_SYNCBARRIER, &log->flag)) {
+			TXN_UNLOCK();
+
+			/* write dirty metadata & forward log syncpt */
+			jfs_syncpt(log, 1);
+
 			jfs_info("log barrier off: 0x%x", log->lsn);
 
 			/* enable new transactions start */
@@ -559,11 +564,6 @@ void txEnd(tid_t tid)
 
 			/* wakeup all waitors for logsync barrier */
 			TXN_WAKEUP(&log->syncwait);
-
-			TXN_UNLOCK();
-
-			/* forward log syncpt */
-			jfs_syncpt(log);
 
 			goto wakeup;
 		}
@@ -657,7 +657,9 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 				/* only anonymous txn.
 				 * Remove from anon_list
 				 */
+				TXN_LOCK();
 				list_del_init(&jfs_ip->anon_inode_list);
+				TXN_UNLOCK();
 			}
 			jfs_ip->atlhead = tlck->next;
 		} else {
@@ -2788,9 +2790,9 @@ int jfs_lazycommit(void *arg)
 		/* In case a wakeup came while all threads were active */
 		jfs_commit_thread_waking = 0;
 
-		if (current->flags & PF_FREEZE) {
+		if (freezing(current)) {
 			LAZY_UNLOCK(flags);
-			refrigerator(PF_FREEZE);
+			refrigerator();
 		} else {
 			DECLARE_WAITQUEUE(wq, current);
 
@@ -2987,9 +2989,9 @@ int jfs_sync(void *arg)
 		/* Add anon_list2 back to anon_list */
 		list_splice_init(&TxAnchor.anon_list2, &TxAnchor.anon_list);
 
-		if (current->flags & PF_FREEZE) {
+		if (freezing(current)) {
 			TXN_UNLOCK();
-			refrigerator(PF_FREEZE);
+			refrigerator();
 		} else {
 			DECLARE_WAITQUEUE(wq, current);
 

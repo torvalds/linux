@@ -32,6 +32,10 @@
 #define PT_REGS_SYSCALL_RET(r) PT_REGS_EAX(r)
 #define PT_FIX_EXEC_STACK(sp) do ; while(0)
 
+/* Cope with a conditional i386 definition. */
+#undef profile_pc
+#define profile_pc(regs) PT_REGS_IP(regs)
+
 #define user_mode(r) UPT_IS_USER(&(r)->regs)
 
 #endif

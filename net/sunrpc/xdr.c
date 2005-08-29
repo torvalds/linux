@@ -993,6 +993,7 @@ xdr_xcode_array2(struct xdr_buf *buf, unsigned int base,
 			return -EINVAL;
 	} else {
 		if (xdr_decode_word(buf, base, &desc->array_len) != 0 ||
+		    desc->array_len > desc->array_maxlen ||
 		    (unsigned long) base + 4 + desc->array_len *
 				    desc->elem_size > buf->len)
 			return -EINVAL;

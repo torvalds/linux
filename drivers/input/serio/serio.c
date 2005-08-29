@@ -31,10 +31,9 @@
 #include <linux/serio.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
-#include <linux/completion.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Serio abstraction core");
@@ -43,6 +42,7 @@ MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(serio_interrupt);
 EXPORT_SYMBOL(__serio_register_port);
 EXPORT_SYMBOL(serio_unregister_port);
+EXPORT_SYMBOL(serio_unregister_child_port);
 EXPORT_SYMBOL(__serio_unregister_port_delayed);
 EXPORT_SYMBOL(__serio_register_driver);
 EXPORT_SYMBOL(serio_unregister_driver);
@@ -68,6 +68,37 @@ static void serio_destroy_port(struct serio *serio);
 static void serio_reconnect_port(struct serio *serio);
 static void serio_disconnect_port(struct serio *serio);
 
+static int serio_connect_driver(struct serio *serio, struct serio_driver *drv)
+{
+	int retval;
+
+	down(&serio->drv_sem);
+	retval = drv->connect(serio, drv);
+	up(&serio->drv_sem);
+
+	return retval;
+}
+
+static int serio_reconnect_driver(struct serio *serio)
+{
+	int retval = -1;
+
+	down(&serio->drv_sem);
+	if (serio->drv && serio->drv->reconnect)
+		retval = serio->drv->reconnect(serio);
+	up(&serio->drv_sem);
+
+	return retval;
+}
+
+static void serio_disconnect_driver(struct serio *serio)
+{
+	down(&serio->drv_sem);
+	if (serio->drv)
+		serio->drv->disconnect(serio);
+	up(&serio->drv_sem);
+}
+
 static int serio_match_port(const struct serio_device_id *ids, struct serio *serio)
 {
 	while (ids->type || ids->proto) {
@@ -91,7 +122,7 @@ static void serio_bind_driver(struct serio *serio, struct serio_driver *drv)
 
 	if (serio_match_port(drv->id_table, serio)) {
 		serio->dev.driver = &drv->driver;
-		if (drv->connect(serio, drv)) {
+		if (serio_connect_driver(serio, drv)) {
 			serio->dev.driver = NULL;
 			goto out;
 		}
@@ -138,8 +169,7 @@ struct serio_event {
 static DEFINE_SPINLOCK(serio_event_lock);	/* protects serio_event_list */
 static LIST_HEAD(serio_event_list);
 static DECLARE_WAIT_QUEUE_HEAD(serio_wait);
-static DECLARE_COMPLETION(serio_exited);
-static int serio_pid;
+static struct task_struct *serio_task;
 
 static void serio_queue_event(void *object, struct module *owner,
 			      enum serio_event_type event_type)
@@ -150,12 +180,12 @@ static void serio_queue_event(void *object, struct module *owner,
 	spin_lock_irqsave(&serio_event_lock, flags);
 
 	/*
- 	 * Scan event list for the other events for the same serio port,
+	 * Scan event list for the other events for the same serio port,
 	 * starting with the most recent one. If event is the same we
 	 * do not need add new one. If event is of different type we
 	 * need to add this event and should not look further because
 	 * we need to preseve sequence of distinct events.
- 	 */
+	 */
 	list_for_each_entry_reverse(event, &serio_event_list, node) {
 		if (event->object == object) {
 			if (event->type == event_type)
@@ -337,20 +367,15 @@ static struct serio *serio_get_pending_child(struct serio *parent)
 
 static int serio_thread(void *nothing)
 {
-	lock_kernel();
-	daemonize("kseriod");
-	allow_signal(SIGTERM);
-
 	do {
 		serio_handle_events();
-		wait_event_interruptible(serio_wait, !list_empty(&serio_event_list));
-		try_to_freeze(PF_FREEZE);
-	} while (!signal_pending(current));
+		wait_event_interruptible(serio_wait,
+			kthread_should_stop() || !list_empty(&serio_event_list));
+		try_to_freeze();
+	} while (!kthread_should_stop());
 
 	printk(KERN_DEBUG "serio: kseriod exiting\n");
-
-	unlock_kernel();
-	complete_and_exit(&serio_exited, 0);
+	return 0;
 }
 
 
@@ -362,6 +387,14 @@ static ssize_t serio_show_description(struct device *dev, struct device_attribut
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%s\n", serio->name);
+}
+
+static ssize_t serio_show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct serio *serio = to_serio_port(dev);
+
+	return sprintf(buf, "serio:ty%02Xpr%02Xid%02Xex%02X\n",
+			serio->id.type, serio->id.proto, serio->id.id, serio->id.extra);
 }
 
 static ssize_t serio_show_id_type(struct device *dev, struct device_attribute *attr, char *buf)
@@ -462,6 +495,7 @@ static ssize_t serio_set_bind_mode(struct device *dev, struct device_attribute *
 
 static struct device_attribute serio_device_attrs[] = {
 	__ATTR(description, S_IRUGO, serio_show_description, NULL),
+	__ATTR(modalias, S_IRUGO, serio_show_modalias, NULL),
 	__ATTR(drvctl, S_IWUSR, NULL, serio_rebind_driver),
 	__ATTR(bind_mode, S_IWUSR | S_IRUGO, serio_show_bind_mode, serio_set_bind_mode),
 	__ATTR_NULL
@@ -557,7 +591,7 @@ static void serio_destroy_port(struct serio *serio)
 static void serio_reconnect_port(struct serio *serio)
 {
 	do {
-		if (!serio->drv || !serio->drv->reconnect || serio->drv->reconnect(serio)) {
+		if (serio_reconnect_driver(serio)) {
 			serio_disconnect_port(serio);
 			serio_find_driver(serio);
 			/* Ok, old children are now gone, we are done */
@@ -630,6 +664,19 @@ void serio_unregister_port(struct serio *serio)
 }
 
 /*
+ * Safely unregisters child port if one is present.
+ */
+void serio_unregister_child_port(struct serio *serio)
+{
+	down(&serio_sem);
+	if (serio->child) {
+		serio_disconnect_port(serio->child);
+		serio_destroy_port(serio->child);
+	}
+	up(&serio_sem);
+}
+
+/*
  * Submits register request to kseriod for subsequent execution.
  * Can be used when it is not obvious whether the serio_sem is
  * taken or not and when delayed execution is feasible.
@@ -686,15 +733,14 @@ static int serio_driver_probe(struct device *dev)
 	struct serio *serio = to_serio_port(dev);
 	struct serio_driver *drv = to_serio_driver(dev->driver);
 
-	return drv->connect(serio, drv);
+	return serio_connect_driver(serio, drv);
 }
 
 static int serio_driver_remove(struct device *dev)
 {
 	struct serio *serio = to_serio_port(dev);
-	struct serio_driver *drv = to_serio_driver(dev->driver);
 
-	drv->disconnect(serio);
+	serio_disconnect_driver(serio);
 	return 0;
 }
 
@@ -730,11 +776,9 @@ start_over:
 
 static void serio_set_drv(struct serio *serio, struct serio_driver *drv)
 {
-	down(&serio->drv_sem);
 	serio_pause_rx(serio);
 	serio->drv = drv;
 	serio_continue_rx(serio);
-	up(&serio->drv_sem);
 }
 
 static int serio_bus_match(struct device *dev, struct device_driver *drv)
@@ -750,36 +794,37 @@ static int serio_bus_match(struct device *dev, struct device_driver *drv)
 
 #ifdef CONFIG_HOTPLUG
 
-#define PUT_ENVP(fmt, val) 						\
-do {									\
-	envp[i++] = buffer;						\
-	length += snprintf(buffer, buffer_size - length, fmt, val);	\
-	if (buffer_size - length <= 0 || i >= num_envp)			\
-		return -ENOMEM;						\
-	length++;							\
-	buffer += length;						\
-} while (0)
+#define SERIO_ADD_HOTPLUG_VAR(fmt, val...)				\
+	do {								\
+		int err = add_hotplug_env_var(envp, num_envp, &i,	\
+					buffer, buffer_size, &len,	\
+					fmt, val);			\
+		if (err)						\
+			return err;					\
+	} while (0)
+
 static int serio_hotplug(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
 {
 	struct serio *serio;
 	int i = 0;
-	int length = 0;
+	int len = 0;
 
 	if (!dev)
 		return -ENODEV;
 
 	serio = to_serio_port(dev);
 
-	PUT_ENVP("SERIO_TYPE=%02x", serio->id.type);
-	PUT_ENVP("SERIO_PROTO=%02x", serio->id.proto);
-	PUT_ENVP("SERIO_ID=%02x", serio->id.id);
-	PUT_ENVP("SERIO_EXTRA=%02x", serio->id.extra);
-
+	SERIO_ADD_HOTPLUG_VAR("SERIO_TYPE=%02x", serio->id.type);
+	SERIO_ADD_HOTPLUG_VAR("SERIO_PROTO=%02x", serio->id.proto);
+	SERIO_ADD_HOTPLUG_VAR("SERIO_ID=%02x", serio->id.id);
+	SERIO_ADD_HOTPLUG_VAR("SERIO_EXTRA=%02x", serio->id.extra);
+	SERIO_ADD_HOTPLUG_VAR("MODALIAS=serio:ty%02Xpr%02Xid%02Xex%02X",
+				serio->id.type, serio->id.proto, serio->id.id, serio->id.extra);
 	envp[i] = NULL;
 
 	return 0;
 }
-#undef PUT_ENVP
+#undef SERIO_ADD_HOTPLUG_VAR
 
 #else
 
@@ -794,7 +839,7 @@ static int serio_resume(struct device *dev)
 {
 	struct serio *serio = to_serio_port(dev);
 
-	if (!serio->drv || !serio->drv->reconnect || serio->drv->reconnect(serio)) {
+	if (serio_reconnect_driver(serio)) {
 		/*
 		 * Driver re-probing can take a while, so better let kseriod
 		 * deal with it.
@@ -848,9 +893,10 @@ irqreturn_t serio_interrupt(struct serio *serio,
 
 static int __init serio_init(void)
 {
-	if (!(serio_pid = kernel_thread(serio_thread, NULL, CLONE_KERNEL))) {
+	serio_task = kthread_run(serio_thread, NULL, "kseriod");
+	if (IS_ERR(serio_task)) {
 		printk(KERN_ERR "serio: Failed to start kseriod\n");
-		return -1;
+		return PTR_ERR(serio_task);
 	}
 
 	serio_bus.dev_attrs = serio_device_attrs;
@@ -866,8 +912,7 @@ static int __init serio_init(void)
 static void __exit serio_exit(void)
 {
 	bus_unregister(&serio_bus);
-	kill_proc(serio_pid, SIGTERM, 1);
-	wait_for_completion(&serio_exited);
+	kthread_stop(serio_task);
 }
 
 module_init(serio_init);

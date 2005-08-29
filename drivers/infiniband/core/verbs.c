@@ -4,6 +4,8 @@
  * Copyright (c) 2004 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2005 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -39,7 +41,8 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 
-#include <ib_verbs.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_cache.h>
 
 /* Protection domains */
 
@@ -47,10 +50,11 @@ struct ib_pd *ib_alloc_pd(struct ib_device *device)
 {
 	struct ib_pd *pd;
 
-	pd = device->alloc_pd(device);
+	pd = device->alloc_pd(device, NULL, NULL);
 
 	if (!IS_ERR(pd)) {
-		pd->device = device;
+		pd->device  = device;
+		pd->uobject = NULL;
 		atomic_set(&pd->usecnt, 0);
 	}
 
@@ -76,14 +80,49 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 	ah = pd->device->create_ah(pd, ah_attr);
 
 	if (!IS_ERR(ah)) {
-		ah->device = pd->device;
-		ah->pd     = pd;
+		ah->device  = pd->device;
+		ah->pd      = pd;
+		ah->uobject = NULL;
 		atomic_inc(&pd->usecnt);
 	}
 
 	return ah;
 }
 EXPORT_SYMBOL(ib_create_ah);
+
+struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, struct ib_wc *wc,
+				   struct ib_grh *grh, u8 port_num)
+{
+	struct ib_ah_attr ah_attr;
+	u32 flow_class;
+	u16 gid_index;
+	int ret;
+
+	memset(&ah_attr, 0, sizeof ah_attr);
+	ah_attr.dlid = wc->slid;
+	ah_attr.sl = wc->sl;
+	ah_attr.src_path_bits = wc->dlid_path_bits;
+	ah_attr.port_num = port_num;
+
+	if (wc->wc_flags & IB_WC_GRH) {
+		ah_attr.ah_flags = IB_AH_GRH;
+		ah_attr.grh.dgid = grh->dgid;
+
+		ret = ib_find_cached_gid(pd->device, &grh->sgid, &port_num,
+					 &gid_index);
+		if (ret)
+			return ERR_PTR(ret);
+
+		ah_attr.grh.sgid_index = (u8) gid_index;
+		flow_class = be32_to_cpu(grh->version_tclass_flow);
+		ah_attr.grh.flow_label = flow_class & 0xFFFFF;
+		ah_attr.grh.traffic_class = (flow_class >> 20) & 0xFF;
+		ah_attr.grh.hop_limit = grh->hop_limit;
+	}
+
+	return ib_create_ah(pd, &ah_attr);
+}
+EXPORT_SYMBOL(ib_create_ah_from_wc);
 
 int ib_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
 {
@@ -115,6 +154,66 @@ int ib_destroy_ah(struct ib_ah *ah)
 }
 EXPORT_SYMBOL(ib_destroy_ah);
 
+/* Shared receive queues */
+
+struct ib_srq *ib_create_srq(struct ib_pd *pd,
+			     struct ib_srq_init_attr *srq_init_attr)
+{
+	struct ib_srq *srq;
+
+	if (!pd->device->create_srq)
+		return ERR_PTR(-ENOSYS);
+
+	srq = pd->device->create_srq(pd, srq_init_attr, NULL);
+
+	if (!IS_ERR(srq)) {
+		srq->device    	   = pd->device;
+		srq->pd        	   = pd;
+		srq->uobject       = NULL;
+		srq->event_handler = srq_init_attr->event_handler;
+		srq->srq_context   = srq_init_attr->srq_context;
+		atomic_inc(&pd->usecnt);
+		atomic_set(&srq->usecnt, 0);
+	}
+
+	return srq;
+}
+EXPORT_SYMBOL(ib_create_srq);
+
+int ib_modify_srq(struct ib_srq *srq,
+		  struct ib_srq_attr *srq_attr,
+		  enum ib_srq_attr_mask srq_attr_mask)
+{
+	return srq->device->modify_srq(srq, srq_attr, srq_attr_mask);
+}
+EXPORT_SYMBOL(ib_modify_srq);
+
+int ib_query_srq(struct ib_srq *srq,
+		 struct ib_srq_attr *srq_attr)
+{
+	return srq->device->query_srq ?
+		srq->device->query_srq(srq, srq_attr) : -ENOSYS;
+}
+EXPORT_SYMBOL(ib_query_srq);
+
+int ib_destroy_srq(struct ib_srq *srq)
+{
+	struct ib_pd *pd;
+	int ret;
+
+	if (atomic_read(&srq->usecnt))
+		return -EBUSY;
+
+	pd = srq->pd;
+
+	ret = srq->device->destroy_srq(srq);
+	if (!ret)
+		atomic_dec(&pd->usecnt);
+
+	return ret;
+}
+EXPORT_SYMBOL(ib_destroy_srq);
+
 /* Queue pairs */
 
 struct ib_qp *ib_create_qp(struct ib_pd *pd,
@@ -122,7 +221,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 {
 	struct ib_qp *qp;
 
-	qp = pd->device->create_qp(pd, qp_init_attr);
+	qp = pd->device->create_qp(pd, qp_init_attr, NULL);
 
 	if (!IS_ERR(qp)) {
 		qp->device     	  = pd->device;
@@ -130,6 +229,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 		qp->send_cq    	  = qp_init_attr->send_cq;
 		qp->recv_cq    	  = qp_init_attr->recv_cq;
 		qp->srq	       	  = qp_init_attr->srq;
+		qp->uobject       = NULL;
 		qp->event_handler = qp_init_attr->event_handler;
 		qp->qp_context    = qp_init_attr->qp_context;
 		qp->qp_type	  = qp_init_attr->qp_type;
@@ -197,10 +297,11 @@ struct ib_cq *ib_create_cq(struct ib_device *device,
 {
 	struct ib_cq *cq;
 
-	cq = device->create_cq(device, cqe);
+	cq = device->create_cq(device, cqe, NULL, NULL);
 
 	if (!IS_ERR(cq)) {
 		cq->device        = device;
+		cq->uobject       = NULL;
 		cq->comp_handler  = comp_handler;
 		cq->event_handler = event_handler;
 		cq->cq_context    = cq_context;
@@ -245,8 +346,9 @@ struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 	mr = pd->device->get_dma_mr(pd, mr_access_flags);
 
 	if (!IS_ERR(mr)) {
-		mr->device = pd->device;
-		mr->pd     = pd;
+		mr->device  = pd->device;
+		mr->pd      = pd;
+		mr->uobject = NULL;
 		atomic_inc(&pd->usecnt);
 		atomic_set(&mr->usecnt, 0);
 	}
@@ -267,8 +369,9 @@ struct ib_mr *ib_reg_phys_mr(struct ib_pd *pd,
 				     mr_access_flags, iova_start);
 
 	if (!IS_ERR(mr)) {
-		mr->device = pd->device;
-		mr->pd     = pd;
+		mr->device  = pd->device;
+		mr->pd      = pd;
+		mr->uobject = NULL;
 		atomic_inc(&pd->usecnt);
 		atomic_set(&mr->usecnt, 0);
 	}
@@ -344,8 +447,9 @@ struct ib_mw *ib_alloc_mw(struct ib_pd *pd)
 
 	mw = pd->device->alloc_mw(pd);
 	if (!IS_ERR(mw)) {
-		mw->device = pd->device;
-		mw->pd     = pd;
+		mw->device  = pd->device;
+		mw->pd      = pd;
+		mw->uobject = NULL;
 		atomic_inc(&pd->usecnt);
 	}
 

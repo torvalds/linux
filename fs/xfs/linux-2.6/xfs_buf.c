@@ -1771,9 +1771,9 @@ xfsbufd(
 
 	INIT_LIST_HEAD(&tmp);
 	do {
-		if (unlikely(current->flags & PF_FREEZE)) {
+		if (unlikely(freezing(current))) {
 			xfsbufd_force_sleep = 1;
-			refrigerator(PF_FREEZE);
+			refrigerator();
 		} else {
 			xfsbufd_force_sleep = 0;
 		}

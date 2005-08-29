@@ -677,11 +677,11 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				mreq.imr_address.s_addr = mreqs.imr_interface;
 				mreq.imr_ifindex = 0;
 				err = ip_mc_join_group(sk, &mreq);
-				if (err)
+				if (err && err != -EADDRINUSE)
 					break;
 				omode = MCAST_INCLUDE;
 				add = 1;
-			} else /*IP_DROP_SOURCE_MEMBERSHIP */ {
+			} else /* IP_DROP_SOURCE_MEMBERSHIP */ {
 				omode = MCAST_INCLUDE;
 				add = 0;
 			}
@@ -754,7 +754,7 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				mreq.imr_address.s_addr = 0;
 				mreq.imr_ifindex = greqs.gsr_interface;
 				err = ip_mc_join_group(sk, &mreq);
-				if (err)
+				if (err && err != -EADDRINUSE)
 					break;
 				greqs.gsr_interface = mreq.imr_ifindex;
 				omode = MCAST_INCLUDE;
@@ -848,6 +848,9 @@ mc_msf_out:
  
 		case IP_IPSEC_POLICY:
 		case IP_XFRM_POLICY:
+			err = -EPERM;
+			if (!capable(CAP_NET_ADMIN))
+				break;
 			err = xfrm_user_policy(sk, optname, optval, optlen);
 			break;
 

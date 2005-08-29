@@ -367,7 +367,7 @@ static void S24C16_read_byte(struct sym_device *np, u_char *read_data, u_char ac
 	S24C16_write_ack(np, ack_data, gpreg, gpcntl);
 }
 
-#if SYM_CONF_NVRAM_WRITE_SUPPORT
+#ifdef SYM_CONF_NVRAM_WRITE_SUPPORT
 /*
  *  Write 'len' bytes starting at 'offset'.
  */

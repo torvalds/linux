@@ -37,12 +37,14 @@ fixup_clep7312(struct machine_desc *desc, struct tag *tags,
 
 
 MACHINE_START(CLEP7212, "Cirrus Logic 7212/7312")
-	MAINTAINER("Nobody")
-        BOOT_MEM(0xc0000000, 0x80000000, 0xff000000)
-	BOOT_PARAMS(0xc0000100)
-	FIXUP(fixup_clep7312)
-	MAPIO(clps711x_map_io)
-	INITIRQ(clps711x_init_irq)
+	/* Maintainer: Nobody */
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xff000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.fixup		= fixup_clep7312,
+	.map_io		= clps711x_map_io,
+	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
 MACHINE_END
 

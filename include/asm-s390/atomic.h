@@ -123,19 +123,19 @@ typedef struct {
 #define atomic64_read(v)          ((v)->counter)
 #define atomic64_set(v,i)         (((v)->counter) = (i))
 
-static __inline__ void atomic64_add(int i, atomic64_t * v)
+static __inline__ void atomic64_add(long long i, atomic64_t * v)
 {
 	       __CSG_LOOP(v, i, "agr");
 }
-static __inline__ long long atomic64_add_return(int i, atomic64_t * v)
+static __inline__ long long atomic64_add_return(long long i, atomic64_t * v)
 {
 	return __CSG_LOOP(v, i, "agr");
 }
-static __inline__ long long atomic64_add_negative(int i, atomic64_t * v)
+static __inline__ long long atomic64_add_negative(long long i, atomic64_t * v)
 {
 	return __CSG_LOOP(v, i, "agr") < 0;
 }
-static __inline__ void atomic64_sub(int i, atomic64_t * v)
+static __inline__ void atomic64_sub(long long i, atomic64_t * v)
 {
 	       __CSG_LOOP(v, i, "sgr");
 }

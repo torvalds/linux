@@ -593,6 +593,14 @@ _GLOBAL(flush_instruction_cache)
 	iccci	0,r3
 #endif
 #elif CONFIG_FSL_BOOKE
+BEGIN_FTR_SECTION
+	mfspr   r3,SPRN_L1CSR0
+	ori     r3,r3,L1CSR0_CFI|L1CSR0_CLFC
+	/* msync; isync recommended here */
+	mtspr   SPRN_L1CSR0,r3
+	isync
+	blr
+END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	mfspr	r3,SPRN_L1CSR1
 	ori	r3,r3,L1CSR1_ICFI|L1CSR1_ICLFR
 	mtspr	SPRN_L1CSR1,r3
@@ -1137,6 +1145,7 @@ _GLOBAL(kernel_thread)
 	stwu	r0,-16(r1)
 	mtlr	r30		/* fn addr in lr */
 	mr	r3,r31		/* load arg and call fn */
+	PPC440EP_ERR42
 	blrl
 	li	r0,__NR_exit	/* exit if function returns */
 	li	r3,0
@@ -1436,8 +1445,13 @@ _GLOBAL(sys_call_table)
 	.long sys_mq_timedreceive	/* 265 */
 	.long sys_mq_notify
 	.long sys_mq_getsetattr
-	.long sys_ni_syscall		/* 268 reserved for sys_kexec_load */
+	.long sys_kexec_load
 	.long sys_add_key
 	.long sys_request_key		/* 270 */
 	.long sys_keyctl
 	.long sys_waitid
+	.long sys_ioprio_set
+	.long sys_ioprio_get
+	.long sys_inotify_init		/* 275 */
+	.long sys_inotify_add_watch
+	.long sys_inotify_rm_watch

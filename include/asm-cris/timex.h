@@ -14,7 +14,7 @@
  * used so it does not matter.
  */
 
-typedef unsigned int cycles_t;
+typedef unsigned long long cycles_t;
 
 extern inline cycles_t get_cycles(void)
 {

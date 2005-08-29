@@ -50,9 +50,12 @@
 #include "sb.h"
 #include "mpu401.h"
 
+#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#define SUPPORT_JOYSTICK 1
+#endif
+
 static int      mad16_conf;
 static int      mad16_cdsel;
-static struct gameport *gameport;
 static DEFINE_SPINLOCK(lock);
 
 #define C928	1
@@ -902,6 +905,10 @@ static int __initdata irq_map[16] =
 	-1, -1, -1, -1
 };
 
+#ifdef SUPPORT_JOYSTICK
+
+static struct gameport *gameport;
+
 static int __devinit mad16_register_gameport(int io_port)
 {
 	if (!request_region(io_port, 1, "mad16 gameport")) {
@@ -924,6 +931,20 @@ static int __devinit mad16_register_gameport(int io_port)
 
 	return 0;
 }
+
+static inline void mad16_unregister_gameport(void)
+{
+	if (gameport) {
+		/* the gameport was initialized so we must free it up */
+		gameport_unregister_port(gameport);
+		gameport = NULL;
+		release_region(0x201, 1);
+	}
+}
+#else
+static inline int mad16_register_gameport(int io_port) { return -ENOSYS; }
+static inline void mad16_unregister_gameport(void) { }
+#endif
 
 static int __devinit init_mad16(void)
 {
@@ -1060,12 +1081,7 @@ static void __exit cleanup_mad16(void)
 {
 	if (found_mpu)
 		unload_mad16_mpu(&cfg_mpu);
-	if (gameport) {
-		/* the gameport was initialized so we must free it up */
-		gameport_unregister_port(gameport);
-		gameport = NULL;
-		release_region(0x201, 1);
-	}
+	mad16_unregister_gameport();
 	unload_mad16(&cfg);
 	release_region(MC0_PORT, 12);
 }

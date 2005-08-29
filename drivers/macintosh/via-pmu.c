@@ -63,6 +63,10 @@
 #include <asm/backlight.h>
 #endif
 
+#ifdef CONFIG_PPC32
+#include <asm/open_pic.h>
+#endif
+
 /* Some compile options */
 #undef SUSPEND_USES_PMU
 #define DEBUG_SLEEP
@@ -151,10 +155,10 @@ static spinlock_t pmu_lock;
 static u8 pmu_intr_mask;
 static int pmu_version;
 static int drop_interrupts;
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 static int option_lid_wakeup = 1;
 static int sleep_in_progress;
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 static unsigned long async_req_locks;
 static unsigned int pmu_irq_stats[11];
 
@@ -164,7 +168,6 @@ static struct proc_dir_entry *proc_pmu_irqstats;
 static struct proc_dir_entry *proc_pmu_options;
 static int option_server_mode;
 
-#ifdef CONFIG_PMAC_PBOOK
 int pmu_battery_count;
 int pmu_cur_battery;
 unsigned int pmu_power_flags;
@@ -172,7 +175,6 @@ struct pmu_battery_info pmu_batteries[PMU_MAX_BATTERIES];
 static int query_batt_timer = BATTERY_POLLING_COUNT;
 static struct adb_request batt_req;
 static struct proc_dir_entry *proc_pmu_batt[PMU_MAX_BATTERIES];
-#endif /* CONFIG_PMAC_PBOOK */
 
 #if defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_PMAC_BACKLIGHT)
 extern int disable_kernel_backlight;
@@ -206,11 +208,9 @@ static int proc_get_irqstats(char *page, char **start, off_t off,
 static int pmu_set_backlight_level(int level, void* data);
 static int pmu_set_backlight_enable(int on, int level, void* data);
 #endif /* CONFIG_PMAC_BACKLIGHT */
-#ifdef CONFIG_PMAC_PBOOK
 static void pmu_pass_intr(unsigned char *data, int len);
 static int proc_get_batt(char *page, char **start, off_t off,
 			int count, int *eof, void *data);
-#endif /* CONFIG_PMAC_PBOOK */
 static int proc_read_options(char *page, char **start, off_t off,
 			int count, int *eof, void *data);
 static int proc_write_options(struct file *file, const char __user *buffer,
@@ -403,8 +403,12 @@ static int __init via_pmu_start(void)
 
 	bright_req_1.complete = 1;
 	bright_req_2.complete = 1;
-#ifdef CONFIG_PMAC_PBOOK
 	batt_req.complete = 1;
+
+#ifdef CONFIG_PPC32
+	if (pmu_kind == PMU_KEYLARGO_BASED)
+		openpic_set_irq_priority(vias->intrs[0].line,
+					 OPENPIC_PRIORITY_DEFAULT + 1);
 #endif
 
 	if (request_irq(vias->intrs[0].line, via_pmu_interrupt, 0, "VIA-PMU",
@@ -458,7 +462,7 @@ static int __init via_pmu_dev_init(void)
 	register_backlight_controller(&pmu_backlight_controller, NULL, "pmu");
 #endif /* CONFIG_PMAC_BACKLIGHT */
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PPC32
   	if (machine_is_compatible("AAPL,3400/2400") ||
   		machine_is_compatible("AAPL,3500")) {
 		int mb = pmac_call_feature(PMAC_FTR_GET_MB_INFO,
@@ -486,20 +490,19 @@ static int __init via_pmu_dev_init(void)
 				pmu_batteries[1].flags |= PMU_BATT_TYPE_SMART;
 		}
 	}
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PPC32 */
+
 	/* Create /proc/pmu */
 	proc_pmu_root = proc_mkdir("pmu", NULL);
 	if (proc_pmu_root) {
-#ifdef CONFIG_PMAC_PBOOK
-		int i;
+		long i;
 
 		for (i=0; i<pmu_battery_count; i++) {
 			char title[16];
-			sprintf(title, "battery_%d", i);
+			sprintf(title, "battery_%ld", i);
 			proc_pmu_batt[i] = create_proc_read_entry(title, 0, proc_pmu_root,
 						proc_get_batt, (void *)i);
 		}
-#endif /* CONFIG_PMAC_PBOOK */
 
 		proc_pmu_info = create_proc_read_entry("info", 0, proc_pmu_root,
 					proc_get_info, NULL);
@@ -618,8 +621,6 @@ static void pmu_set_server_mode(int server_mode)
 			    req.reply[0], PMU_PWR_WAKEUP_AC_INSERT); 
 	pmu_wait_complete(&req);
 }
-
-#ifdef CONFIG_PMAC_PBOOK
 
 /* This new version of the code for 2400/3400/3500 powerbooks
  * is inspired from the implementation in gkrellm-pmu
@@ -803,8 +804,6 @@ query_battery_state(void)
 			2, PMU_SMART_BATTERY_STATE, pmu_cur_battery+1);
 }
 
-#endif /* CONFIG_PMAC_PBOOK */
-
 static int __pmac
 proc_get_info(char *page, char **start, off_t off,
 		int count, int *eof, void *data)
@@ -813,11 +812,9 @@ proc_get_info(char *page, char **start, off_t off,
 
 	p += sprintf(p, "PMU driver version     : %d\n", PMU_DRIVER_VERSION);
 	p += sprintf(p, "PMU firmware version   : %02x\n", pmu_version);
-#ifdef CONFIG_PMAC_PBOOK
 	p += sprintf(p, "AC Power               : %d\n",
 		((pmu_power_flags & PMU_PWR_AC_PRESENT) != 0));
 	p += sprintf(p, "Battery count          : %d\n", pmu_battery_count);
-#endif /* CONFIG_PMAC_PBOOK */
 
 	return p - page;
 }
@@ -849,12 +846,11 @@ proc_get_irqstats(char *page, char **start, off_t off,
 	return p - page;
 }
 
-#ifdef CONFIG_PMAC_PBOOK
 static int __pmac
 proc_get_batt(char *page, char **start, off_t off,
 		int count, int *eof, void *data)
 {
-	int batnum = (int)data;
+	long batnum = (long)data;
 	char *p = page;
 	
 	p += sprintf(p, "\n");
@@ -873,7 +869,6 @@ proc_get_batt(char *page, char **start, off_t off,
 
 	return p - page;
 }
-#endif /* CONFIG_PMAC_PBOOK */
 
 static int __pmac
 proc_read_options(char *page, char **start, off_t off,
@@ -881,11 +876,11 @@ proc_read_options(char *page, char **start, off_t off,
 {
 	char *p = page;
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	if (pmu_kind == PMU_KEYLARGO_BASED &&
 	    pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,-1) >= 0)
 		p += sprintf(p, "lid_wakeup=%d\n", option_lid_wakeup);
-#endif /* CONFIG_PMAC_PBOOK */
+#endif
 	if (pmu_kind == PMU_KEYLARGO_BASED)
 		p += sprintf(p, "server_mode=%d\n", option_server_mode);
 
@@ -922,12 +917,12 @@ proc_write_options(struct file *file, const char __user *buffer,
 	*(val++) = 0;
 	while(*val == ' ')
 		val++;
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 	if (pmu_kind == PMU_KEYLARGO_BASED &&
 	    pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,-1) >= 0)
 		if (!strcmp(label, "lid_wakeup"))
 			option_lid_wakeup = ((*val) == '1');
-#endif /* CONFIG_PMAC_PBOOK */
+#endif
 	if (pmu_kind == PMU_KEYLARGO_BASED && !strcmp(label, "server_mode")) {
 		int new_value;
 		new_value = ((*val) == '1');
@@ -1422,7 +1417,6 @@ next:
 	}
 	/* Tick interrupt */
 	else if ((1 << pirq) & PMU_INT_TICK) {
-#ifdef CONFIG_PMAC_PBOOK
 		/* Environement or tick interrupt, query batteries */
 		if (pmu_battery_count) {
 			if ((--query_batt_timer) == 0) {
@@ -1437,7 +1431,6 @@ next:
 		pmu_pass_intr(data, len);
 	} else {
 	       pmu_pass_intr(data, len);
-#endif /* CONFIG_PMAC_PBOOK */
 	}
 	goto next;
 }
@@ -2052,7 +2045,7 @@ pmu_i2c_simple_write(int bus, int addr,  u8* data, int len)
 	return -1;
 }
 
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 
 static LIST_HEAD(sleep_notifiers);
 
@@ -2705,6 +2698,8 @@ powerbook_sleep_3400(void)
 	return 0;
 }
 
+#endif /* CONFIG_PM */
+
 /*
  * Support for /dev/pmu device
  */
@@ -2884,11 +2879,11 @@ static int __pmac
 pmu_ioctl(struct inode * inode, struct file *filp,
 		     u_int cmd, u_long arg)
 {
-	struct pmu_private *pp = filp->private_data;
 	__u32 __user *argp = (__u32 __user *)arg;
-	int error;
+	int error = -EINVAL;
 
 	switch (cmd) {
+#ifdef CONFIG_PM
 	case PMU_IOC_SLEEP:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
@@ -2910,12 +2905,13 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 			error = -ENOSYS;
 		}
 		sleep_in_progress = 0;
-		return error;
+		break;
 	case PMU_IOC_CAN_SLEEP:
 		if (pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,-1) < 0)
 			return put_user(0, argp);
 		else
 			return put_user(1, argp);
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	/* Backlight should have its own device or go via
@@ -2936,11 +2932,13 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 		error = get_user(value, argp);
 		if (!error)
 			error = set_backlight_level(value);
-		return error;
+		break;
 	}
 #ifdef CONFIG_INPUT_ADBHID
 	case PMU_IOC_GRAB_BACKLIGHT: {
+		struct pmu_private *pp = filp->private_data;
 		unsigned long flags;
+
 		if (pp->backlight_locker)
 			return 0;
 		pp->backlight_locker = 1;
@@ -2956,7 +2954,7 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 	case PMU_IOC_HAS_ADB:
 		return put_user(pmu_has_adb, argp);
 	}
-	return -EINVAL;
+	return error;
 }
 
 static struct file_operations pmu_device_fops __pmacdata = {
@@ -2972,14 +2970,16 @@ static struct miscdevice pmu_device __pmacdata = {
 	PMU_MINOR, "pmu", &pmu_device_fops
 };
 
-void pmu_device_init(void)
+static int pmu_device_init(void)
 {
 	if (!via)
-		return;
+		return 0;
 	if (misc_register(&pmu_device) < 0)
 		printk(KERN_ERR "via-pmu: cannot register misc device.\n");
+	return 0;
 }
-#endif /* CONFIG_PMAC_PBOOK */
+device_initcall(pmu_device_init);
+
 
 #ifdef DEBUG_SLEEP
 static inline void  __pmac
@@ -3147,12 +3147,12 @@ EXPORT_SYMBOL(pmu_i2c_combined_read);
 EXPORT_SYMBOL(pmu_i2c_stdsub_write);
 EXPORT_SYMBOL(pmu_i2c_simple_read);
 EXPORT_SYMBOL(pmu_i2c_simple_write);
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 EXPORT_SYMBOL(pmu_register_sleep_notifier);
 EXPORT_SYMBOL(pmu_unregister_sleep_notifier);
 EXPORT_SYMBOL(pmu_enable_irled);
 EXPORT_SYMBOL(pmu_battery_count);
 EXPORT_SYMBOL(pmu_batteries);
 EXPORT_SYMBOL(pmu_power_flags);
-#endif /* CONFIG_PMAC_PBOOK */
+#endif /* CONFIG_PM */
 

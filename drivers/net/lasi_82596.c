@@ -553,14 +553,14 @@ static inline void init_rx_bufs(struct net_device *dev)
 		if (skb == NULL)
 			panic("%s: alloc_skb() failed", __FILE__);
 		skb_reserve(skb, 2);
-		dma_addr = dma_map_single(lp->dev, skb->tail,PKT_BUF_SZ,
+		dma_addr = dma_map_single(lp->dev, skb->data,PKT_BUF_SZ,
 					  DMA_FROM_DEVICE);
 		skb->dev = dev;
 		rbd->v_next = rbd+1;
 		rbd->b_next = WSWAPrbd(virt_to_dma(lp,rbd+1));
 		rbd->b_addr = WSWAPrbd(virt_to_dma(lp,rbd));
 		rbd->skb = skb;
-		rbd->v_data = skb->tail;
+		rbd->v_data = skb->data;
 		rbd->b_data = WSWAPchar(dma_addr);
 		rbd->size = PKT_BUF_SZ;
 	}
@@ -783,8 +783,8 @@ static inline int i596_rx(struct net_device *dev)
 				rx_in_place = 1;
 				rbd->skb = newskb;
 				newskb->dev = dev;
-				dma_addr = dma_map_single(lp->dev, newskb->tail, PKT_BUF_SZ, DMA_FROM_DEVICE);
-				rbd->v_data = newskb->tail;
+				dma_addr = dma_map_single(lp->dev, newskb->data, PKT_BUF_SZ, DMA_FROM_DEVICE);
+				rbd->v_data = newskb->data;
 				rbd->b_data = WSWAPchar(dma_addr);
 				CHECK_WBACK_INV(rbd, sizeof(struct i596_rbd));
 			}

@@ -24,7 +24,7 @@
 #include <linux/isapnp.h>
 
 extern const char *CardType[];
-const char *niccy_revision = "$Revision: 1.21.2.4 $";
+static const char *niccy_revision = "$Revision: 1.21.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
 #define bytein(addr) inb(addr)
@@ -178,7 +178,7 @@ niccy_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_niccy(struct IsdnCardState *cs)
 {
 	if (cs->subtyp == NICCY_PCI) {

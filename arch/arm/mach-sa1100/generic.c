@@ -221,6 +221,11 @@ static struct platform_device sa11x0mcp_device = {
 	.resource	= sa11x0mcp_resources,
 };
 
+void sa11x0_set_mcp_data(struct mcp_plat_data *data)
+{
+	sa11x0mcp_device.dev.platform_data = data;
+}
+
 static struct resource sa11x0ssp_resources[] = {
 	[0] = {
 		.start	= 0x80070000,

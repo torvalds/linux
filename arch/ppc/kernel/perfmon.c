@@ -36,7 +36,7 @@
 /* A lock to regulate grabbing the interrupt */
 DEFINE_SPINLOCK(perfmon_lock);
 
-#ifdef CONFIG_FSL_BOOKE
+#if defined (CONFIG_FSL_BOOKE) && !defined (CONFIG_E200)
 static void dummy_perf(struct pt_regs *regs)
 {
 	unsigned int pmgc0 = mfpmr(PMRN_PMGC0);

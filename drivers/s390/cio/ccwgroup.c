@@ -403,34 +403,22 @@ ccwgroup_driver_register (struct ccwgroup_driver *cdriver)
 	return driver_register(&cdriver->driver);
 }
 
-static inline struct device *
-__get_next_ccwgroup_device(struct device_driver *drv)
+static int
+__ccwgroup_driver_unregister_device(struct device *dev, void *data)
 {
-	struct device *dev, *d;
-
-	down_read(&drv->bus->subsys.rwsem);
-	dev = NULL;
-	list_for_each_entry(d, &drv->devices, driver_list) {
-		dev = get_device(d);
-		if (dev)
-			break;
-	}
-	up_read(&drv->bus->subsys.rwsem);
-	return dev;
+	__ccwgroup_remove_symlinks(to_ccwgroupdev(dev));
+	device_unregister(dev);
+	put_device(dev);
+	return 0;
 }
 
 void
 ccwgroup_driver_unregister (struct ccwgroup_driver *cdriver)
 {
-	struct device *dev;
-
 	/* We don't want ccwgroup devices to live longer than their driver. */
 	get_driver(&cdriver->driver);
-	while ((dev = __get_next_ccwgroup_device(&cdriver->driver))) {
-		__ccwgroup_remove_symlinks(to_ccwgroupdev(dev));
-		device_unregister(dev);
-		put_device(dev);
-	};
+	driver_for_each_device(&cdriver->driver, NULL, NULL,
+			       __ccwgroup_driver_unregister_device);
 	put_driver(&cdriver->driver);
 	driver_unregister(&cdriver->driver);
 }
@@ -449,7 +437,7 @@ __ccwgroup_get_gdev_by_cdev(struct ccw_device *cdev)
 	if (cdev->dev.driver_data) {
 		gdev = (struct ccwgroup_device *)cdev->dev.driver_data;
 		if (get_device(&gdev->dev)) {
-			if (!list_empty(&gdev->dev.node))
+			if (klist_node_attached(&gdev->dev.knode_bus))
 				return gdev;
 			put_device(&gdev->dev);
 		}

@@ -2433,7 +2433,7 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 	int ret = 0;
 
 	acquire_console_sem();
-	if (tty->count == 1) {
+	if (tty->driver_data == NULL) {
 		ret = vc_allocate(currcons);
 		if (ret == 0) {
 			struct vc_data *vc = vc_cons[currcons].d;
@@ -2796,7 +2796,7 @@ void do_blank_screen(int entering_gfx)
 		return;
 
 	if (vesa_off_interval) {
-		blank_state = blank_vesa_wait,
+		blank_state = blank_vesa_wait;
 		mod_timer(&console_timer, jiffies + vesa_off_interval);
 	}
 

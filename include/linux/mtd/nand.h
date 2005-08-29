@@ -5,7 +5,7 @@
  *                     Steven J. Hill <sjhill@realitydiluted.com>
  *		       Thomas Gleixner <tglx@linutronix.de>
  *
- * $Id: nand.h,v 1.68 2004/11/12 10:40:37 gleixner Exp $
+ * $Id: nand.h,v 1.73 2005/05/31 19:39:17 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -48,6 +48,10 @@
  *  02-08-2004 tglx 	added option field to nand structure for chip anomalities
  *  05-25-2004 tglx 	added bad block table support, ST-MICRO manufacturer id
  *			update of nand_chip structure description
+ *  01-17-2005 dmarlin	added extended commands for AG-AND device and added option 
+ * 			for BBT_AUTO_REFRESH.
+ *  01-20-2005 dmarlin	added optional pointer to hardware specific callback for 
+ *			extra error status checks.
  */
 #ifndef __LINUX_MTD_NAND_H
 #define __LINUX_MTD_NAND_H
@@ -115,6 +119,25 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
 #define NAND_CMD_READSTART	0x30
 #define NAND_CMD_CACHEDPROG	0x15
 
+/* Extended commands for AG-AND device */
+/* 
+ * Note: the command for NAND_CMD_DEPLETE1 is really 0x00 but 
+ *       there is no way to distinguish that from NAND_CMD_READ0
+ *       until the remaining sequence of commands has been completed
+ *       so add a high order bit and mask it off in the command.
+ */
+#define NAND_CMD_DEPLETE1	0x100
+#define NAND_CMD_DEPLETE2	0x38
+#define NAND_CMD_STATUS_MULTI	0x71
+#define NAND_CMD_STATUS_ERROR	0x72
+/* multi-bank error status (banks 0-3) */
+#define NAND_CMD_STATUS_ERROR0	0x73
+#define NAND_CMD_STATUS_ERROR1	0x74
+#define NAND_CMD_STATUS_ERROR2	0x75
+#define NAND_CMD_STATUS_ERROR3	0x76
+#define NAND_CMD_STATUS_RESET	0x7f
+#define NAND_CMD_STATUS_CLEAR	0xff
+
 /* Status bits */
 #define NAND_STATUS_FAIL	0x01
 #define NAND_STATUS_FAIL_N1	0x02
@@ -143,13 +166,17 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
 
 /*
  * Constants for Hardware ECC
-*/
+ */
 /* Reset Hardware ECC for read */
 #define NAND_ECC_READ		0
 /* Reset Hardware ECC for write */
 #define NAND_ECC_WRITE		1
 /* Enable Hardware ECC before syndrom is read back from flash */
 #define NAND_ECC_READSYN	2
+
+/* Bit mask for flags passed to do_nand_read_ecc */
+#define NAND_GET_DEVICE		0x80
+
 
 /* Option constants for bizarre disfunctionality and real
 *  features
@@ -170,6 +197,10 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
 /* Chip has a array of 4 pages which can be read without
  * additional ready /busy waits */
 #define NAND_4PAGE_ARRAY	0x00000040 
+/* Chip requires that BBT is periodically rewritten to prevent
+ * bits from adjacent blocks from 'leaking' in altering data.
+ * This happens with the Renesas AG-AND chips, possibly others.  */
+#define BBT_AUTO_REFRESH	0x00000080
 
 /* Options valid for Samsung large page devices */
 #define NAND_SAMSUNG_LP_OPTIONS \
@@ -192,7 +223,8 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
  * This can only work if we have the ecc bytes directly behind the 
  * data bytes. Applies for DOC and AG-AND Renesas HW Reed Solomon generators */
 #define NAND_HWECC_SYNDROME	0x00020000
-
+/* This option skips the bbt scan during initialization. */
+#define NAND_SKIP_BBTSCAN	0x00040000
 
 /* Options set by nand scan */
 /* Nand scan has allocated oob_buf */
@@ -221,10 +253,13 @@ struct nand_chip;
  * struct nand_hw_control - Control structure for hardware controller (e.g ECC generator) shared among independend devices
  * @lock:               protection lock  
  * @active:		the mtd device which holds the controller currently
+ * @wq:			wait queue to sleep on if a NAND operation is in progress
+ *                      used instead of the per chip wait queue when a hw controller is available
  */
 struct nand_hw_control {
 	spinlock_t	 lock;
 	struct nand_chip *active;
+	wait_queue_head_t wq;
 };
 
 /**
@@ -283,6 +318,8 @@ struct nand_hw_control {
  * @badblock_pattern:	[REPLACEABLE] bad block scan pattern used for initial bad block scan 
  * @controller:		[OPTIONAL] a pointer to a hardware controller structure which is shared among multiple independend devices
  * @priv:		[OPTIONAL] pointer to private chip date
+ * @errstat:		[OPTIONAL] hardware specific function to perform additional error status checks 
+ *			(determine if errors are correctable)
  */
  
 struct nand_chip {
@@ -338,6 +375,7 @@ struct nand_chip {
 	struct nand_bbt_descr	*badblock_pattern;
 	struct nand_hw_control  *controller;
 	void		*priv;
+	int		(*errstat)(struct mtd_info *mtd, struct nand_chip *this, int state, int status, int page);
 };
 
 /*
@@ -349,6 +387,7 @@ struct nand_chip {
 #define NAND_MFR_NATIONAL	0x8f
 #define NAND_MFR_RENESAS	0x07
 #define NAND_MFR_STMICRO	0x20
+#define NAND_MFR_HYNIX          0xad
 
 /**
  * struct nand_flash_dev - NAND Flash Device ID Structure
@@ -459,6 +498,9 @@ extern int nand_update_bbt (struct mtd_info *mtd, loff_t offs);
 extern int nand_default_bbt (struct mtd_info *mtd);
 extern int nand_isbad_bbt (struct mtd_info *mtd, loff_t offs, int allowbbt);
 extern int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbbt);
+extern int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
+                             size_t * retlen, u_char * buf, u_char * oob_buf,
+                             struct nand_oobinfo *oobsel, int flags);
 
 /*
 * Constants for oob configuration

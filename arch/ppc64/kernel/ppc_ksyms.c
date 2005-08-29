@@ -75,6 +75,7 @@ EXPORT_SYMBOL(giveup_fpu);
 EXPORT_SYMBOL(giveup_altivec);
 #endif
 EXPORT_SYMBOL(__flush_icache_range);
+EXPORT_SYMBOL(flush_dcache_range);
 
 #ifdef CONFIG_SMP
 #ifdef CONFIG_PPC_ISERIES

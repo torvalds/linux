@@ -859,8 +859,7 @@ static int translate_table(struct ebt_replace *repl,
 		if (repl->valid_hooks & (1 << i))
 			if (check_chainloops(newinfo->hook_entry[i],
 			   cl_s, udc_cnt, i, newinfo->entries)) {
-				if (cl_s)
-					vfree(cl_s);
+				vfree(cl_s);
 				return -EINVAL;
 			}
 
@@ -883,8 +882,7 @@ static int translate_table(struct ebt_replace *repl,
 		EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 		   ebt_cleanup_entry, &i);
 	}
-	if (cl_s)
-		vfree(cl_s);
+	vfree(cl_s);
 	return ret;
 }
 
@@ -1030,8 +1028,7 @@ static int do_replace(void __user *user, unsigned int len)
 	}
 	vfree(table);
 
-	if (counterstmp)
-		vfree(counterstmp);
+	vfree(counterstmp);
 	return ret;
 
 free_unlock:
@@ -1040,8 +1037,7 @@ free_iterate:
 	EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 	   ebt_cleanup_entry, NULL);
 free_counterstmp:
-	if (counterstmp)
-		vfree(counterstmp);
+	vfree(counterstmp);
 	/* can be initialized in translate_table() */
 	if (newinfo->chainstack) {
 		for (i = 0; i < num_possible_cpus(); i++)
@@ -1049,11 +1045,9 @@ free_counterstmp:
 		vfree(newinfo->chainstack);
 	}
 free_entries:
-	if (newinfo->entries)
-		vfree(newinfo->entries);
+	vfree(newinfo->entries);
 free_newinfo:
-	if (newinfo)
-		vfree(newinfo);
+	vfree(newinfo);
 	return ret;
 }
 
@@ -1213,8 +1207,7 @@ void ebt_unregister_table(struct ebt_table *table)
 	down(&ebt_mutex);
 	LIST_DELETE(&ebt_tables, table);
 	up(&ebt_mutex);
-	if (table->private->entries)
-		vfree(table->private->entries);
+	vfree(table->private->entries);
 	if (table->private->chainstack) {
 		for (i = 0; i < num_possible_cpus(); i++)
 			vfree(table->private->chainstack[i]);

@@ -30,7 +30,7 @@ config W1_DS9490
 	  This support is also available as a module.  If so, the module
 	  will be called ds9490r.ko.
 
-config W1_DS9490R_BRIDGE
+config W1_DS9490_BRIDGE
 	tristate "DS9490R USB <-> W1 transport layer for 1-wire"
 	depends on W1_DS9490
 	help

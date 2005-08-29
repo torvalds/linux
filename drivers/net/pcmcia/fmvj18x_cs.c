@@ -49,7 +49,6 @@
 #include <linux/ioport.h>
 #include <linux/crc32.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -135,7 +134,7 @@ typedef struct local_info_t {
     u_char mc_filter[8];
 } local_info_t;
 
-#define MC_FILTERBREAK 64
+#define MC_FILTERBREAK 8
 
 /*====================================================================*/
 /* 
@@ -288,11 +287,6 @@ static dev_link_t *fmvj18x_attach(void)
     link->next = dev_list;
     dev_list = link;
     client_reg.dev_info = &dev_info;
-    client_reg.EventMask =
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &fmvj18x_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -435,7 +429,9 @@ static void fmvj18x_config(dev_link_t *link)
 		pcmcia_get_status(handle, &status);
 		if (status.CardState & CS_EVENT_3VCARD)
 		    link->conf.Vcc = 33; /* inserted in 3.3V slot */
-	    } else if (le16_to_cpu(buf[1]) == PRODID_TDK_GN3410) {
+	    } else if (le16_to_cpu(buf[1]) == PRODID_TDK_GN3410
+			|| le16_to_cpu(buf[1]) == PRODID_TDK_NP9610
+			|| le16_to_cpu(buf[1]) == PRODID_TDK_MN3200) {
 		/* MultiFunction Card */
 		link->conf.ConfigBase = 0x800;
 		link->conf.ConfigIndex = 0x47;
@@ -764,13 +760,40 @@ static int fmvj18x_event(event_t event, int priority,
     return 0;
 } /* fmvj18x_event */
 
+static struct pcmcia_device_id fmvj18x_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x0004, 0x0004),
+	PCMCIA_DEVICE_PROD_ID12("EAGLE Technology", "NE200 ETHERNET LAN MBH10302 04", 0x528c88c4, 0x74f91e59),
+	PCMCIA_DEVICE_PROD_ID12("Eiger Labs,Inc", "EPX-10BT PC Card Ethernet 10BT", 0x53af556e, 0x877f9922),
+	PCMCIA_DEVICE_PROD_ID12("Eiger labs,Inc.", "EPX-10BT PC Card Ethernet 10BT", 0xf47e6c66, 0x877f9922),
+	PCMCIA_DEVICE_PROD_ID12("FUJITSU", "LAN Card(FMV-J182)", 0x6ee5a3d8, 0x5baf31db),
+	PCMCIA_DEVICE_PROD_ID12("FUJITSU", "MBH10308", 0x6ee5a3d8, 0x3f04875e),
+	PCMCIA_DEVICE_PROD_ID12("FUJITSU TOWA", "LA501", 0xb8451188, 0x12939ba2),
+	PCMCIA_DEVICE_PROD_ID12("HITACHI", "HT-4840-11", 0xf4f43949, 0x773910f4),
+	PCMCIA_DEVICE_PROD_ID12("NextComK.K.", "NC5310B Ver1.0       ", 0x8cef4d3a, 0x075fc7b6),
+	PCMCIA_DEVICE_PROD_ID12("NextComK.K.", "NC5310 Ver1.0        ", 0x8cef4d3a, 0xbccf43e6),
+	PCMCIA_DEVICE_PROD_ID12("RATOC System Inc.", "10BASE_T CARD R280", 0x85c10e17, 0xd9413666),
+	PCMCIA_DEVICE_PROD_ID12("TDK", "LAC-CD02x", 0x1eae9475, 0x8fa0ee70),
+	PCMCIA_DEVICE_PROD_ID12("TDK", "LAC-CF010", 0x1eae9475, 0x7683bc9a),
+	PCMCIA_DEVICE_PROD_ID1("CONTEC Co.,Ltd.", 0x58d8fee2),
+	PCMCIA_DEVICE_PROD_ID1("PCMCIA LAN MBH10304  ES", 0x2599f454),
+	PCMCIA_DEVICE_PROD_ID1("PCMCIA MBH10302", 0x8f4005da),
+	PCMCIA_DEVICE_PROD_ID1("UBKK,V2.0", 0x90888080),
+	PCMCIA_PFC_DEVICE_PROD_ID12(0, "TDK", "GlobalNetworker 3410/3412", 0x1eae9475, 0xd9a93bed),
+	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0d0a),
+	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0e0a),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, fmvj18x_ids);
+
 static struct pcmcia_driver fmvj18x_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "fmvj18x_cs",
 	},
 	.attach		= fmvj18x_attach,
+	.event		= fmvj18x_event,
 	.detach		= fmvj18x_detach,
+	.id_table       = fmvj18x_ids,
 };
 
 static int __init init_fmvj18x_cs(void)
@@ -989,7 +1012,7 @@ static void fjn_reset(struct net_device *dev)
 	outb(BANK_1U, ioaddr + CONFIG_1);
 
     /* set the multicast table to accept none. */
-    for (i = 0; i < 6; i++) 
+    for (i = 0; i < 8; i++) 
         outb(0x00, ioaddr + MAR_ADR + i);
 
     /* Switch to bank 2 (runtime mode) */
@@ -1246,6 +1269,16 @@ static void set_rx_mode(struct net_device *dev)
     u_long flags;
     int i;
     
+    int saved_config_0 = inb(ioaddr + CONFIG_0);
+     
+    local_irq_save(flags); 
+
+    /* Disable Tx and Rx */
+    if (sram_config == 0) 
+	outb(CONFIG0_RST, ioaddr + CONFIG_0);
+    else
+	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
+
     if (dev->flags & IFF_PROMISC) {
 	/* Unconditionally log net taps. */
 	printk("%s: Promiscuous mode enabled.\n", dev->name);
@@ -1267,20 +1300,23 @@ static void set_rx_mode(struct net_device *dev)
 	for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
 	     i++, mclist = mclist->next) {
 	    unsigned int bit =
-	    	ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x3f;
-	    mc_filter[bit >> 3] |= (1 << bit);
+	    	ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 26;
+	    mc_filter[bit >> 3] |= (1 << (bit & 7));
 	}
+	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */
     }
 
-    local_irq_save(flags); 
     if (memcmp(mc_filter, lp->mc_filter, sizeof(mc_filter))) {
 	int saved_bank = inb(ioaddr + CONFIG_1);
 	/* Switch to bank 1 and set the multicast table. */
 	outb(0xe4, ioaddr + CONFIG_1);
 	for (i = 0; i < 8; i++)
-	    outb(mc_filter[i], ioaddr + 8 + i);
+	    outb(mc_filter[i], ioaddr + MAR_ADR + i);
 	memcpy(lp->mc_filter, mc_filter, sizeof(mc_filter));
 	outb(saved_bank, ioaddr + CONFIG_1);
     }
+
+    outb(saved_config_0, ioaddr + CONFIG_0);
+
     local_irq_restore(flags);
 }

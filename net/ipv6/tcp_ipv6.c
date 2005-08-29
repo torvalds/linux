@@ -158,9 +158,14 @@ static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 		tcp_port_rover = rover;
 		spin_unlock(&tcp_portalloc_lock);
 
-		/* Exhausted local port range during search? */
+		/* Exhausted local port range during search?  It is not
+		 * possible for us to be holding one of the bind hash
+		 * locks if this test triggers, because if 'remaining'
+		 * drops to zero, we broke out of the do/while loop at
+		 * the top level, not from the 'break;' statement.
+		 */
 		ret = 1;
-		if (remaining <= 0)
+		if (unlikely(remaining <= 0))
 			goto fail;
 
 		/* OK, here is the one we will use. */
@@ -2018,14 +2023,14 @@ static int tcp_v6_init_sock(struct sock *sk)
 	 */
 	tp->snd_ssthresh = 0x7fffffff;
 	tp->snd_cwnd_clamp = ~0;
-	tp->mss_cache_std = tp->mss_cache = 536;
+	tp->mss_cache = 536;
 
 	tp->reordering = sysctl_tcp_reordering;
 
 	sk->sk_state = TCP_CLOSE;
 
 	tp->af_specific = &ipv6_specific;
-
+	tp->ca_ops = &tcp_init_congestion_ops;
 	sk->sk_write_space = sk_stream_write_space;
 	sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 

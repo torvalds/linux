@@ -647,6 +647,32 @@ static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
 	}
 }
 
+void xics_teardown_cpu(int secondary)
+{
+	int cpu = smp_processor_id();
+
+	ops->cppr_info(cpu, 0x00);
+	iosync();
+
+	/*
+	 * Some machines need to have at least one cpu in the GIQ,
+	 * so leave the master cpu in the group.
+	 */
+	if (secondary) {
+		/*
+		 * we need to EOI the IPI if we got here from kexec down IPI
+		 *
+		 * probably need to check all the other interrupts too
+		 * should we be flagging idle loop instead?
+		 * or creating some task to be scheduled?
+		 */
+		ops->xirr_info_set(cpu, XICS_IPI);
+		rtas_set_indicator(GLOBAL_INTERRUPT_QUEUE,
+			(1UL << interrupt_server_size) - 1 -
+			default_distrib_server, 0);
+	}
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 
 /* Interrupts are disabled. */

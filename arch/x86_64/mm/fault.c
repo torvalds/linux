@@ -23,7 +23,6 @@
 #include <linux/vt_kern.h>		/* For unblank_screen() */
 #include <linux/compiler.h>
 #include <linux/module.h>
-#include <linux/kprobes.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -74,7 +73,7 @@ static noinline int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	instr = (unsigned char *)convert_rip_to_linear(current, regs);
 	max_instr = instr + 15;
 
-	if ((regs->cs & 3) != 0 && instr >= (unsigned char *)TASK_SIZE)
+	if (user_mode(regs) && instr >= (unsigned char *)TASK_SIZE)
 		return 0;
 
 	while (scan_more && instr < max_instr) { 
@@ -106,7 +105,7 @@ static noinline int is_prefetch(struct pt_regs *regs, unsigned long addr,
 			/* Could check the LDT for lm, but for now it's good
 			   enough to assume that long mode only uses well known
 			   segments or kernel. */
-			scan_more = ((regs->cs & 3) == 0) || (regs->cs == __USER_CS);
+			scan_more = (!user_mode(regs)) || (regs->cs == __USER_CS);
 			break;
 			
 		case 0x60:
@@ -212,9 +211,7 @@ int unhandled_signal(struct task_struct *tsk, int sig)
 {
 	if (tsk->pid == 1)
 		return 1;
-	/* Warn for strace, but not for gdb */
-	if (!test_ti_thread_flag(tsk->thread_info, TIF_SYSCALL_TRACE) &&
-	    (tsk->ptrace & PT_PTRACED))
+	if (tsk->ptrace & PT_PTRACED)
 		return 0;
 	return (tsk->sighand->action[sig-1].sa.sa_handler == SIG_IGN) ||
 		(tsk->sighand->action[sig-1].sa.sa_handler == SIG_DFL);
@@ -440,13 +437,13 @@ good_area:
 	 * the fault.
 	 */
 	switch (handle_mm_fault(mm, vma, address, write)) {
-	case 1:
+	case VM_FAULT_MINOR:
 		tsk->min_flt++;
 		break;
-	case 2:
+	case VM_FAULT_MAJOR:
 		tsk->maj_flt++;
 		break;
-	case 0:
+	case VM_FAULT_SIGBUS:
 		goto do_sigbus;
 	default:
 		goto out_of_memory;

@@ -302,7 +302,7 @@ static void unix_write_space(struct sock *sk)
  * may receive messages only from that peer. */
 static void unix_dgram_disconnected(struct sock *sk, struct sock *other)
 {
-	if (skb_queue_len(&sk->sk_receive_queue)) {
+	if (!skb_queue_empty(&sk->sk_receive_queue)) {
 		skb_queue_purge(&sk->sk_receive_queue);
 		wake_up_interruptible_all(&unix_sk(sk)->peer_wait);
 
@@ -1619,7 +1619,7 @@ static long unix_stream_data_wait(struct sock * sk, long timeo)
 	for (;;) {
 		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 
-		if (skb_queue_len(&sk->sk_receive_queue) ||
+		if (!skb_queue_empty(&sk->sk_receive_queue) ||
 		    sk->sk_err ||
 		    (sk->sk_shutdown & RCV_SHUTDOWN) ||
 		    signal_pending(current) ||

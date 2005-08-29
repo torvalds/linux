@@ -22,16 +22,18 @@
  */
 #define __flush_tlb_global()						\
 	do {								\
-		unsigned long tmpreg;					\
+		unsigned long tmpreg, cr4, cr4_orig;			\
 									\
 		__asm__ __volatile__(					\
-			"movq %1, %%cr4;  # turn off PGE     \n"	\
+			"movq %%cr4, %2;  # turn off PGE     \n"	\
+			"movq %2, %1;                        \n"	\
+			"andq %3, %1;                        \n"	\
+			"movq %1, %%cr4;                     \n"	\
 			"movq %%cr3, %0;  # flush TLB        \n"	\
 			"movq %0, %%cr3;                     \n"	\
 			"movq %2, %%cr4;  # turn PGE back on \n"	\
-			: "=&r" (tmpreg)				\
-			: "r" (mmu_cr4_features & ~X86_CR4_PGE),	\
-			  "r" (mmu_cr4_features)			\
+			: "=&r" (tmpreg), "=&r" (cr4), "=&r" (cr4_orig)	\
+			: "i" (~X86_CR4_PGE)				\
 			: "memory");					\
 	} while (0)
 
@@ -54,8 +56,9 @@ extern unsigned long pgkern_mask;
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
  *  - flush_tlb_pgtables(mm, start, end) flushes a range of page tables
  *
- * ..but the x86_64 has somewhat limited tlb flushing capabilities,
- * and page-granular flushes are available only on i486 and up.
+ * x86-64 can only flush individual pages or full VMs. For a range flush
+ * we always do the full VM. Might be worth trying if for a small
+ * range a few INVLPGs in a row are a win.
  */
 
 #ifndef CONFIG_SMP
@@ -113,7 +116,9 @@ static inline void flush_tlb_range(struct vm_area_struct * vma, unsigned long st
 static inline void flush_tlb_pgtables(struct mm_struct *mm,
 				      unsigned long start, unsigned long end)
 {
-	/* x86_64 does not keep any page table caches in TLB */
+	/* x86_64 does not keep any page table caches in a software TLB.
+	   The CPUs do in their hardware TLBs, but they are handled
+	   by the normal TLB flushing algorithms. */
 }
 
 #endif /* _X8664_TLBFLUSH_H */

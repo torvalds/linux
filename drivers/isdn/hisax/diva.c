@@ -28,7 +28,7 @@
 
 extern const char *CardType[];
 
-const char *Diva_revision = "$Revision: 1.33.2.6 $";
+static const char *Diva_revision = "$Revision: 1.33.2.6 $";
 
 #define byteout(addr,val) outb(val,addr)
 #define bytein(addr) inb(addr)
@@ -706,7 +706,7 @@ diva_irq_ipacx_pci(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_diva(struct IsdnCardState *cs)
 {
 	int bytecnt;

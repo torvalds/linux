@@ -20,52 +20,52 @@ extern void change_bit(unsigned long nr, volatile unsigned long *addr);
 
 /* "non-atomic" versions... */
 
-static __inline__ void __set_bit(int nr, volatile unsigned long *addr)
+static inline void __set_bit(int nr, volatile unsigned long *addr)
 {
-	volatile unsigned long *m = addr + (nr >> 6);
+	unsigned long *m = ((unsigned long *)addr) + (nr >> 6);
 
 	*m |= (1UL << (nr & 63));
 }
 
-static __inline__ void __clear_bit(int nr, volatile unsigned long *addr)
+static inline void __clear_bit(int nr, volatile unsigned long *addr)
 {
-	volatile unsigned long *m = addr + (nr >> 6);
+	unsigned long *m = ((unsigned long *)addr) + (nr >> 6);
 
 	*m &= ~(1UL << (nr & 63));
 }
 
-static __inline__ void __change_bit(int nr, volatile unsigned long *addr)
+static inline void __change_bit(int nr, volatile unsigned long *addr)
 {
-	volatile unsigned long *m = addr + (nr >> 6);
+	unsigned long *m = ((unsigned long *)addr) + (nr >> 6);
 
 	*m ^= (1UL << (nr & 63));
 }
 
-static __inline__ int __test_and_set_bit(int nr, volatile unsigned long *addr)
+static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
 {
-	volatile unsigned long *m = addr + (nr >> 6);
-	long old = *m;
-	long mask = (1UL << (nr & 63));
+	unsigned long *m = ((unsigned long *)addr) + (nr >> 6);
+	unsigned long old = *m;
+	unsigned long mask = (1UL << (nr & 63));
 
 	*m = (old | mask);
 	return ((old & mask) != 0);
 }
 
-static __inline__ int __test_and_clear_bit(int nr, volatile unsigned long *addr)
+static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
 {
-	volatile unsigned long *m = addr + (nr >> 6);
-	long old = *m;
-	long mask = (1UL << (nr & 63));
+	unsigned long *m = ((unsigned long *)addr) + (nr >> 6);
+	unsigned long old = *m;
+	unsigned long mask = (1UL << (nr & 63));
 
 	*m = (old & ~mask);
 	return ((old & mask) != 0);
 }
 
-static __inline__ int __test_and_change_bit(int nr, volatile unsigned long *addr)
+static inline int __test_and_change_bit(int nr, volatile unsigned long *addr)
 {
-	volatile unsigned long *m = addr + (nr >> 6);
-	long old = *m;
-	long mask = (1UL << (nr & 63));
+	unsigned long *m = ((unsigned long *)addr) + (nr >> 6);
+	unsigned long old = *m;
+	unsigned long mask = (1UL << (nr & 63));
 
 	*m = (old ^ mask);
 	return ((old & mask) != 0);
@@ -79,13 +79,13 @@ static __inline__ int __test_and_change_bit(int nr, volatile unsigned long *addr
 #define smp_mb__after_clear_bit()	barrier()
 #endif
 
-static __inline__ int test_bit(int nr, __const__ volatile unsigned long *addr)
+static inline int test_bit(int nr, __const__ volatile unsigned long *addr)
 {
-	return (1UL & ((addr)[nr >> 6] >> (nr & 63))) != 0UL;
+	return (1UL & (addr[nr >> 6] >> (nr & 63))) != 0UL;
 }
 
 /* The easy/cheese version for now. */
-static __inline__ unsigned long ffz(unsigned long word)
+static inline unsigned long ffz(unsigned long word)
 {
 	unsigned long result;
 
@@ -103,7 +103,7 @@ static __inline__ unsigned long ffz(unsigned long word)
  *
  * Undefined if no bit exists, so code should check against 0 first.
  */
-static __inline__ unsigned long __ffs(unsigned long word)
+static inline unsigned long __ffs(unsigned long word)
 {
 	unsigned long result = 0;
 
@@ -144,7 +144,7 @@ static inline int sched_find_first_bit(unsigned long *b)
  * the libc and compiler builtin ffs routines, therefore
  * differs in spirit from the above ffz (man ffs).
  */
-static __inline__ int ffs(int x)
+static inline int ffs(int x)
 {
 	if (!x)
 		return 0;
@@ -158,7 +158,7 @@ static __inline__ int ffs(int x)
 
 #ifdef ULTRA_HAS_POPULATION_COUNT
 
-static __inline__ unsigned int hweight64(unsigned long w)
+static inline unsigned int hweight64(unsigned long w)
 {
 	unsigned int res;
 
@@ -166,7 +166,7 @@ static __inline__ unsigned int hweight64(unsigned long w)
 	return res;
 }
 
-static __inline__ unsigned int hweight32(unsigned int w)
+static inline unsigned int hweight32(unsigned int w)
 {
 	unsigned int res;
 
@@ -174,7 +174,7 @@ static __inline__ unsigned int hweight32(unsigned int w)
 	return res;
 }
 
-static __inline__ unsigned int hweight16(unsigned int w)
+static inline unsigned int hweight16(unsigned int w)
 {
 	unsigned int res;
 
@@ -182,7 +182,7 @@ static __inline__ unsigned int hweight16(unsigned int w)
 	return res;
 }
 
-static __inline__ unsigned int hweight8(unsigned int w)
+static inline unsigned int hweight8(unsigned int w)
 {
 	unsigned int res;
 
@@ -236,7 +236,7 @@ extern unsigned long find_next_zero_bit(const unsigned long *,
 #define test_and_clear_le_bit(nr,addr)	\
 	test_and_clear_bit((nr) ^ 0x38, (addr))
 
-static __inline__ int test_le_bit(int nr, __const__ unsigned long * addr)
+static inline int test_le_bit(int nr, __const__ unsigned long * addr)
 {
 	int			mask;
 	__const__ unsigned char	*ADDR = (__const__ unsigned char *) addr;

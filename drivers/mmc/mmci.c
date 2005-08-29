@@ -20,6 +20,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/protocol.h>
 
+#include <asm/div64.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/scatterlist.h>
@@ -33,7 +34,7 @@
 
 #ifdef CONFIG_MMC_DEBUG
 #define DBG(host,fmt,args...)	\
-	pr_debug("%s: %s: " fmt, host->mmc->host_name, __func__ , args)
+	pr_debug("%s: %s: " fmt, mmc_hostname(host->mmc), __func__ , args)
 #else
 #define DBG(host,fmt,args...)	do { } while (0)
 #endif
@@ -70,6 +71,7 @@ static void mmci_stop_data(struct mmci_host *host)
 static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 {
 	unsigned int datactrl, timeout, irqmask;
+	unsigned long long clks;
 	void __iomem *base;
 
 	DBG(host, "blksz %04x blks %04x flags %08x\n",
@@ -81,9 +83,10 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 
 	mmci_init_sg(host, data);
 
-	timeout = data->timeout_clks +
-		  ((unsigned long long)data->timeout_ns * host->cclk) /
-		   1000000000ULL;
+	clks = (unsigned long long)data->timeout_ns * host->cclk;
+	do_div(clks, 1000000000UL);
+
+	timeout = data->timeout_clks + (unsigned int)clks;
 
 	base = host->base;
 	writel(timeout, base + MMCIDATATIMER);
@@ -538,7 +541,7 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	mmc_add_host(mmc);
 
 	printk(KERN_INFO "%s: MMCI rev %x cfg %02x at 0x%08lx irq %d,%d\n",
-		mmc->host_name, amba_rev(dev), amba_config(dev),
+		mmc_hostname(mmc), amba_rev(dev), amba_config(dev),
 		dev->res.start, dev->irq[0], dev->irq[1]);
 
 	init_timer(&host->timer);

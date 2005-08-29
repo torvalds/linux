@@ -57,7 +57,6 @@
 #include <linux/trdevice.h>
 #include <linux/ibmtr.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -118,9 +117,6 @@ static dev_link_t *ibmtr_attach(void);
 static void ibmtr_detach(dev_link_t *);
 
 static dev_link_t *dev_list;
-
-extern int ibmtr_probe_card(struct net_device *dev);
-extern irqreturn_t tok_interrupt (int irq, void *dev_id, struct pt_regs *regs);
 
 /*====================================================================*/
 
@@ -193,11 +189,6 @@ static dev_link_t *ibmtr_attach(void)
     link->next = dev_list;
     dev_list = link;
     client_reg.dev_info = &dev_info;
-    client_reg.EventMask =
-        CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-        CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-        CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &ibmtr_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -511,13 +502,22 @@ static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase)
     return;
 }
 
+static struct pcmcia_device_id ibmtr_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("3Com", "TokenLink Velocity PC Card", 0x41240e5b, 0x82c3734e),
+	PCMCIA_DEVICE_PROD_ID12("IBM", "TOKEN RING", 0xb569a6e5, 0xbf8eed47),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, ibmtr_ids);
+
 static struct pcmcia_driver ibmtr_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "ibmtr_cs",
 	},
 	.attach		= ibmtr_attach,
+	.event		= ibmtr_event,
 	.detach		= ibmtr_detach,
+	.id_table       = ibmtr_ids,
 };
 
 static int __init init_ibmtr_cs(void)

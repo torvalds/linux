@@ -304,12 +304,12 @@ icn_pollbchan_send(int channel, icn_card * card)
 	isdn_ctrl cmd;
 
 	if (!(card->sndcount[channel] || card->xskb[channel] ||
-	      skb_queue_len(&card->spqueue[channel])))
+	      !skb_queue_empty(&card->spqueue[channel])))
 		return;
 	if (icn_trymaplock_channel(card, mch)) {
 		while (sbfree && 
 		       (card->sndcount[channel] ||
-			skb_queue_len(&card->spqueue[channel]) ||
+			!skb_queue_empty(&card->spqueue[channel]) ||
 			card->xskb[channel])) {
 			spin_lock_irqsave(&card->lock, flags);
 			if (card->xmit_lock[channel]) {
@@ -1650,7 +1650,7 @@ static void __exit icn_exit(void)
 {
 	isdn_ctrl cmd;
 	icn_card *card = cards;
-	icn_card *last;
+	icn_card *last, *tmpcard;
 	int i;
 	unsigned long flags;
 
@@ -1670,8 +1670,9 @@ static void __exit icn_exit(void)
 			for (i = 0; i < ICN_BCH; i++)
 				icn_free_queue(card, i);
 		}
-		card = card->next;
+		tmpcard = card->next;
 		spin_unlock_irqrestore(&card->lock, flags);
+		card = tmpcard;
 	}
 	card = cards;
 	cards = NULL;

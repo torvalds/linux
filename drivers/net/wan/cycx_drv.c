@@ -56,7 +56,7 @@
 #include <linux/sched.h>	/* for jiffies, HZ, etc. */
 #include <linux/cycx_drv.h>	/* API definitions */
 #include <linux/cycx_cfm.h>	/* CYCX firmware module definitions */
-#include <linux/delay.h>	/* udelay */
+#include <linux/delay.h>	/* udelay, msleep_interruptible */
 #include <asm/io.h>		/* read[wl], write[wl], ioremap, iounmap */
 
 #define	MOD_VERSION	0
@@ -74,7 +74,6 @@ static int reset_cyc2x(void __iomem *addr);
 static int detect_cyc2x(void __iomem *addr);
 
 /* Miscellaneous functions */
-static void delay_cycx(int sec);
 static int get_option_index(long *optlist, long optval);
 static u16 checksum(u8 *buf, u32 len);
 
@@ -259,7 +258,7 @@ static int memory_exists(void __iomem *addr)
 			if (readw(addr + 0x10) == TEST_PATTERN)
 				return 1;
 
-		delay_cycx(1);
+		msleep_interruptible(1 * 1000);
 	}
 
 	return 0;
@@ -316,7 +315,7 @@ static void cycx_reset_boot(void __iomem *addr, u8 *code, u32 len)
 
 	/* 80186 was in hold, go */
 	writeb(0, addr + START_CPU);
-	delay_cycx(1);
+	msleep_interruptible(1 * 1000);
 }
 
 /* Load data.bin file through boot (reset) interface. */
@@ -462,13 +461,13 @@ static int load_cyc2x(struct cycx_hw *hw, struct cycx_firmware *cfm, u32 len)
 		cycx_reset_boot(hw->dpmbase, reset_image, img_hdr->reset_size);
 		/* reset is waiting for boot */
 		writew(GEN_POWER_ON, pt_cycld);
-		delay_cycx(1);
+		msleep_interruptible(1 * 1000);
 
 		for (j = 0 ; j < 3 ; j++)
 			if (!readw(pt_cycld))
 				goto reset_loaded;
 			else
-				delay_cycx(1);
+				msleep_interruptible(1 * 1000);
 	}
 
 	printk(KERN_ERR "%s: reset not started.\n", modname);
@@ -495,7 +494,7 @@ reset_loaded:
 
 	/* Arthur Ganzert's tip: wait a while after the firmware loading...
 	   seg abr 26 17:17:12 EST 1999 - acme */
-	delay_cycx(7);
+	msleep_interruptible(7 * 1000);
 	printk(KERN_INFO "%s: firmware loaded!\n", modname);
 
 	/* enable interrupts */
@@ -547,18 +546,11 @@ static int get_option_index(long *optlist, long optval)
 static int reset_cyc2x(void __iomem *addr)
 {
 	writeb(0, addr + RST_ENABLE);
-	delay_cycx(2);
+	msleep_interruptible(2 * 1000);
 	writeb(0, addr + RST_DISABLE);
-	delay_cycx(2);
+	msleep_interruptible(2 * 1000);
 
 	return memory_exists(addr);
-}
-
-/* Delay */
-static void delay_cycx(int sec)
-{
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(sec * HZ);
 }
 
 /* Calculate 16-bit CRC using CCITT polynomial. */

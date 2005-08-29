@@ -137,7 +137,7 @@ static int i801_setup(struct pci_dev *dev)
 		pci_read_config_word(I801_dev, SMBBA, &i801_smba);
 		i801_smba &= 0xfff0;
 		if(i801_smba == 0) {
-			dev_err(&dev->dev, "SMB base address uninitialized"
+			dev_err(&dev->dev, "SMB base address uninitialized "
 				"- upgrade BIOS or use force_addr=0xaddr\n");
 			return -ENODEV;
 		}
@@ -186,7 +186,7 @@ static int i801_transaction(void)
 	int result = 0;
 	int timeout = 0;
 
-	dev_dbg(&I801_dev->dev, "Transaction (pre): CNT=%02x, CMD=%02x,"
+	dev_dbg(&I801_dev->dev, "Transaction (pre): CNT=%02x, CMD=%02x, "
 		"ADD=%02x, DAT0=%02x, DAT1=%02x\n", inb_p(SMBHSTCNT),
 		inb_p(SMBHSTCMD), inb_p(SMBHSTADD), inb_p(SMBHSTDAT0),
 		inb_p(SMBHSTDAT1));
@@ -194,7 +194,7 @@ static int i801_transaction(void)
 	/* Make sure the SMBus host is ready to start transmitting */
 	/* 0x1f = Failed, Bus_Err, Dev_Err, Intr, Host_Busy */
 	if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
-		dev_dbg(&I801_dev->dev, "SMBus busy (%02x). Resetting... \n",
+		dev_dbg(&I801_dev->dev, "SMBus busy (%02x). Resetting...\n",
 			temp);
 		outb_p(temp, SMBHSTSTS);
 		if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
@@ -240,7 +240,7 @@ static int i801_transaction(void)
 		outb_p(inb(SMBHSTSTS), SMBHSTSTS);
 
 	if ((temp = (0x1f & inb_p(SMBHSTSTS))) != 0x00) {
-		dev_dbg(&I801_dev->dev, "Failed reset at end of transaction"
+		dev_dbg(&I801_dev->dev, "Failed reset at end of transaction "
 			"(%02x)\n", temp);
 	}
 	dev_dbg(&I801_dev->dev, "Transaction (post): CNT=%02x, CMD=%02x, "
@@ -315,7 +315,7 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		}
 		if (temp & errmask) {
 			dev_dbg(&I801_dev->dev, "SMBus busy (%02x). "
-				"Resetting... \n", temp);
+				"Resetting...\n", temp);
 			outb_p(temp, SMBHSTSTS);
 			if (((temp = inb_p(SMBHSTSTS)) & errmask) != 0x00) {
 				dev_err(&I801_dev->dev,

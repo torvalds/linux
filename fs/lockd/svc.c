@@ -191,7 +191,9 @@ lockd(struct svc_rqst *rqstp)
 		printk(KERN_DEBUG
 			"lockd: new process, skipping host shutdown\n");
 	wake_up(&lockd_exit);
-		
+
+	flush_signals(current);
+
 	/* Exit the RPC thread */
 	svc_exit_thread(rqstp);
 
@@ -329,7 +331,7 @@ static ctl_table nlm_sysctls[] = {
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nlm_grace_period",
 		.data		= &nlm_grace_period,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= &proc_doulongvec_minmax,
 		.extra1		= (unsigned long *) &nlm_grace_period_min,
@@ -339,7 +341,7 @@ static ctl_table nlm_sysctls[] = {
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nlm_timeout",
 		.data		= &nlm_timeout,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= &proc_doulongvec_minmax,
 		.extra1		= (unsigned long *) &nlm_timeout_min,

@@ -916,6 +916,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		}
 	}
 
+#ifdef CONFIG_ALTIVEC
 	/* Check if we have a VMX and eventually update CPU features */
 	prop = (u32 *)get_flat_dt_prop(node, "ibm,vmx", NULL);
 	if (prop && (*prop) > 0) {
@@ -929,6 +930,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		cur_cpu_spec->cpu_features |= CPU_FTR_ALTIVEC;
 		cur_cpu_spec->cpu_user_features |= PPC_FEATURE_HAS_ALTIVEC;
 	}
+#endif /* CONFIG_ALTIVEC */
 
 	/*
 	 * Check for an SMT capable CPU and set the CPU feature. We do

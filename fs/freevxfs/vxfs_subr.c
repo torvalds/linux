@@ -36,7 +36,6 @@
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 
-#include "vxfs_kcompat.h"
 #include "vxfs_extern.h"
 
 

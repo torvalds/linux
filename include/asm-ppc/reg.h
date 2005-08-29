@@ -160,6 +160,7 @@
 #define HID0_ICFI	(1<<11)		/* Instr. Cache Flash Invalidate */
 #define HID0_DCI	(1<<10)		/* Data Cache Invalidate */
 #define HID0_SPD	(1<<9)		/* Speculative disable */
+#define HID0_DAPUEN	(1<<8)		/* Debug APU enable */
 #define HID0_SGE	(1<<7)		/* Store Gathering Enable */
 #define HID0_SIED	(1<<7)		/* Serial Instr. Execution [Disable] */
 #define HID0_DFCA	(1<<6)		/* Data Cache Flush Assist */

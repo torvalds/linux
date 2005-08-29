@@ -46,8 +46,10 @@ struct thread_info {
 	unsigned long		fault_address;
 	struct pt_regs		*kregs;
 	struct exec_domain	*exec_domain;
-	int			preempt_count;
-	int			__pad;
+	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
+	__u8			new_child;
+	__u8			syscall_noerror;
+	__u16			__pad;
 
 	unsigned long		*utraps;
 
@@ -65,6 +67,9 @@ struct thread_info {
 	__u64			cee_stuff;
 
 	struct restart_block	restart_block;
+
+	struct pt_regs		*kern_una_regs;
+	unsigned int		kern_una_insn;
 
 	unsigned long		fpregs[0] __attribute__ ((aligned(64)));
 };
@@ -87,6 +92,8 @@ struct thread_info {
 #define TI_KREGS	0x00000028
 #define TI_EXEC_DOMAIN	0x00000030
 #define TI_PRE_COUNT	0x00000038
+#define TI_NEW_CHILD	0x0000003c
+#define TI_SYS_NOERROR	0x0000003d
 #define TI_UTRAPS	0x00000040
 #define TI_REG_WINDOW	0x00000048
 #define TI_RWIN_SPTRS	0x000003c8	
@@ -99,6 +106,8 @@ struct thread_info {
 #define TI_PCR		0x00000490
 #define TI_CEE_STUFF	0x00000498
 #define TI_RESTART_BLOCK 0x000004a0
+#define TI_KUNA_REGS	0x000004c8
+#define TI_KUNA_INSN	0x000004d0
 #define TI_FPREGS	0x00000500
 
 /* We embed this in the uppermost byte of thread_info->flags */
@@ -219,16 +228,17 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define TIF_UNALIGNED		5	/* allowed to do unaligned accesses */
 #define TIF_NEWSIGNALS		6	/* wants new-style signals */
 #define TIF_32BIT		7	/* 32-bit binary */
-#define TIF_NEWCHILD		8	/* just-spawned child process */
-/* TIF_* value 9 is available */
-#define TIF_POLLING_NRFLAG	10
-#define TIF_SYSCALL_SUCCESS	11
+/* flag bit 8 is available */
+#define TIF_SECCOMP		9	/* secure computing */
+#define TIF_SYSCALL_AUDIT	10	/* syscall auditing active */
+/* flag bit 11 is available */
 /* NOTE: Thread flags >= 12 should be ones we have no interest
  *       in using in assembly, else we can't use the mask as
  *       an immediate value in instructions such as andcc.
  */
 #define TIF_ABI_PENDING		12
 #define TIF_MEMDIE		13
+#define TIF_POLLING_NRFLAG	14
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
@@ -238,10 +248,10 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define _TIF_UNALIGNED		(1<<TIF_UNALIGNED)
 #define _TIF_NEWSIGNALS		(1<<TIF_NEWSIGNALS)
 #define _TIF_32BIT		(1<<TIF_32BIT)
-#define _TIF_NEWCHILD		(1<<TIF_NEWCHILD)
-#define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
+#define _TIF_SECCOMP		(1<<TIF_SECCOMP)
+#define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_ABI_PENDING	(1<<TIF_ABI_PENDING)
-#define _TIF_SYSCALL_SUCCESS	(1<<TIF_SYSCALL_SUCCESS)
+#define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 
 #define _TIF_USER_WORK_MASK	((0xff << TI_FLAG_WSAVED_SHIFT) | \
 				 (_TIF_NOTIFY_RESUME | _TIF_SIGPENDING | \

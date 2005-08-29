@@ -69,9 +69,9 @@ config FEC_QS6612
 	
 config ENET_BIG_BUFFERS
 	bool "Use Big CPM Ethernet Buffers"
-	depends on NET_ETHERNET
+	depends on SCC_ENET || FEC_ENET
 	help
-	  Allocate large buffers for MPC8xx Etherenet.  Increases throughput
+	  Allocate large buffers for MPC8xx Ethernet. Increases throughput
 	  and decreases the likelihood of dropped packets, but costs memory.
 
 config HTDMSOUND

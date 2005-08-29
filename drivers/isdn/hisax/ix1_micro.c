@@ -25,7 +25,7 @@
 #include "isdnl1.h"
 
 extern const char *CardType[];
-const char *ix1_revision = "$Revision: 2.12.2.4 $";
+static const char *ix1_revision = "$Revision: 2.12.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
 #define bytein(addr) inb(addr)
@@ -162,7 +162,7 @@ ix1micro_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_ix1micro(struct IsdnCardState *cs)
 {
 	if (cs->hw.ix1.cfg_reg)

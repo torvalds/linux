@@ -239,6 +239,7 @@ nfsacl_decode(struct xdr_buf *buf, unsigned int base, unsigned int *aclcnt,
 	if (xdr_decode_word(buf, base, &entries) ||
 	    entries > NFS_ACL_MAX_ENTRIES)
 		return -EINVAL;
+	nfsacl_desc.desc.array_maxlen = entries;
 	err = xdr_decode_array2(buf, base + 4, &nfsacl_desc.desc);
 	if (err)
 		return err;

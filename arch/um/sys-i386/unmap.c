@@ -15,7 +15,7 @@ int switcheroo(int fd, int prot, void *from, void *to, int size)
 	if(munmap(to, size) < 0){
 		return(-1);
 	}
-	if(mmap2(to, size, prot, MAP_SHARED | MAP_FIXED, fd, 0) != to){
+	if(mmap2(to, size, prot, MAP_SHARED | MAP_FIXED, fd, 0) == (void*) -1 ){
 		return(-1);
 	}
 	if(munmap(from, size) < 0){

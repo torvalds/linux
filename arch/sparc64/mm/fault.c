@@ -34,22 +34,6 @@
 extern struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS];
 
 /*
- * To debug kernel during syscall entry.
- */
-void syscall_trace_entry(struct pt_regs *regs)
-{
-	printk("scall entry: %s[%d]/cpu%d: %d\n", current->comm, current->pid, smp_processor_id(), (int) regs->u_regs[UREG_G1]);
-}
-
-/*
- * To debug kernel during syscall exit.
- */
-void syscall_trace_exit(struct pt_regs *regs)
-{
-	printk("scall exit: %s[%d]/cpu%d: %d\n", current->comm, current->pid, smp_processor_id(), (int) regs->u_regs[UREG_G1]);
-}
-
-/*
  * To debug kernel to catch accesses to certain virtual/physical addresses.
  * Mode = 0 selects physical watchpoints, mode = 1 selects virtual watchpoints.
  * flags = VM_READ watches memread accesses, flags = VM_WRITE watches memwrite accesses.

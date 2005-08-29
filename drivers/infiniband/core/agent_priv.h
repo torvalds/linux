@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
- * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
- * Copyright (c) 2004 Intel Corporation.  All rights reserved.
- * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
- * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
+ * Copyright (c) 2004, 2005 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2004, 2005 Infinicon Corporation.  All rights reserved.
+ * Copyright (c) 2004, 2005 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2004, 2005 Topspin Corporation.  All rights reserved.
+ * Copyright (c) 2004, 2005 Voltaire Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -33,7 +33,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: agent_priv.h 1389 2004-12-27 22:56:47Z roland $
+ * $Id: agent_priv.h 1640 2005-01-24 22:39:02Z halr $
  */
 
 #ifndef __IB_AGENT_PRIV_H__
@@ -57,7 +57,6 @@ struct ib_agent_port_private {
 	int port_num;
 	struct ib_mad_agent *smp_agent;	      /* SM class */
 	struct ib_mad_agent *perf_mgmt_agent; /* PerfMgmt class */
-	struct ib_mr *mr;
 };
 
 #endif	/* __IB_AGENT_PRIV_H__ */

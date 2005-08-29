@@ -209,7 +209,15 @@ void csr1212_init_local_csr(struct csr1212_csr *csr,
 {
 	static const int mr_map[] = { 4, 64, 1024, 0 };
 
+#ifdef __KERNEL__
+	BUG_ON(max_rom & ~0x3);
 	csr->max_rom = mr_map[max_rom];
+#else
+	if (max_rom & ~0x3) /* caller supplied invalid argument */
+		csr->max_rom = 0;
+	else
+		csr->max_rom = mr_map[max_rom];
+#endif
 	memcpy(csr->bus_info_data, bus_info_data, csr->bus_info_len);
 }
 
@@ -533,11 +541,14 @@ struct csr1212_keyval *csr1212_new_icon_descriptor_leaf(u_int32_t version,
 	static const int pd[4] = { 0, 4, 16, 256 };
 	static const int cs[16] = { 4, 2 };
 	struct csr1212_keyval *kv;
-	int palette_size = pd[palette_depth] * cs[color_space];
+	int palette_size;
 	int pixel_size = (hscan * vscan + 3) & ~0x3;
 
-	if ((palette_depth && !palette) || !pixels)
+	if (!pixels || (!palette && palette_depth) ||
+	    (palette_depth & ~0x3) || (color_space & ~0xf))
 		return NULL;
+
+	palette_size = pd[palette_depth] * cs[color_space];
 
 	kv = csr1212_new_descriptor_leaf(1, 0, NULL,
 					 palette_size + pixel_size +
@@ -760,9 +771,9 @@ static int csr1212_append_new_cache(struct csr1212_csr *csr, size_t romsize)
 	struct csr1212_csr_rom_cache *cache;
 	u_int64_t csr_addr;
 
-	if (!csr || !csr->ops->allocate_addr_range ||
-	    !csr->ops->release_addr)
-		return CSR1212_ENOMEM;
+	if (!csr || !csr->ops || !csr->ops->allocate_addr_range ||
+	    !csr->ops->release_addr || csr->max_rom < 1)
+		return CSR1212_EINVAL;
 
 	/* ROM size must be a multiple of csr->max_rom */
 	romsize = (romsize + (csr->max_rom - 1)) & ~(csr->max_rom - 1);
@@ -1145,6 +1156,8 @@ int csr1212_generate_csr_image(struct csr1212_csr *csr)
 
 			/* Make sure the Extended ROM leaf is a multiple of
 			 * max_rom in size. */
+			if (csr->max_rom < 1)
+				return CSR1212_EINVAL;
 			leaf_size = (cache->len + (csr->max_rom - 1)) &
 				~(csr->max_rom - 1);
 
@@ -1409,7 +1422,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 	u_int32_t *cache_ptr;
 	u_int16_t kv_len = 0;
 
-	if (!csr || !kv)
+	if (!csr || !kv || csr->max_rom < 1)
 		return CSR1212_EINVAL;
 
 	/* First find which cache the data should be in (or go in if not read
@@ -1572,7 +1585,7 @@ int csr1212_parse_csr(struct csr1212_csr *csr)
 	struct csr1212_dentry *dentry;
 	int ret;
 
-	if (!csr || !csr->ops->bus_read)
+	if (!csr || !csr->ops || !csr->ops->bus_read)
 		return CSR1212_EINVAL;
 
 	ret = csr1212_parse_bus_info_block(csr);
@@ -1581,9 +1594,13 @@ int csr1212_parse_csr(struct csr1212_csr *csr)
 
 	if (!csr->ops->get_max_rom)
 		csr->max_rom = mr_map[0];	/* default value */
-	else
-		csr->max_rom = mr_map[csr->ops->get_max_rom(csr->bus_info_data,
-							    csr->private)];
+	else {
+		int i = csr->ops->get_max_rom(csr->bus_info_data,
+					      csr->private);
+		if (i & ~0x3)
+			return CSR1212_EINVAL;
+		csr->max_rom = mr_map[i];
+	}
 
 	csr->cache_head->layout_head = csr->root_kv;
 	csr->cache_head->layout_tail = csr->root_kv;

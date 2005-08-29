@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/moduleparam.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/timer.h>
 #include <sound/control.h>
@@ -100,7 +101,7 @@ static snd_timer_instance_t *snd_timer_instance_new(char *owner, snd_timer_t *ti
 	timeri = kcalloc(1, sizeof(*timeri), GFP_KERNEL);
 	if (timeri == NULL)
 		return NULL;
-	timeri->owner = snd_kmalloc_strdup(owner, GFP_KERNEL);
+	timeri->owner = kstrdup(owner, GFP_KERNEL);
 	if (! timeri->owner) {
 		kfree(timeri);
 		return NULL;

@@ -139,7 +139,7 @@ static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_
 	 */
 	dev->base_addr += 0x10;
 		
-	ret = tmsdev_init(dev, PCI_MAX_ADDRESS, pdev);
+	ret = tmsdev_init(dev, &pdev->dev);
 	if (ret) {
 		printk("%s: unable to get memory for dev->priv.\n", 
 		       dev->name);
@@ -468,14 +468,3 @@ static void __exit abyss_rmmod (void)
 module_init(abyss_init);
 module_exit(abyss_rmmod);
 
-
-/*
- * Local variables:
- *  compile-command: "gcc -DMODVERSIONS  -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer -I/usr/src/linux/drivers/net/tokenring/ -c abyss.c"
- *  alt-compile-command: "gcc -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer -I/usr/src/linux/drivers/net/tokenring/ -c abyss.c"
- *  c-set-style "K&R"
- *  c-indent-level: 8
- *  c-basic-offset: 8
- *  tab-width: 8
- * End:
- */

@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/serial.h>
 #include <linux/serialP.h>
+#include <linux/sysrq.h>
 
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
@@ -149,12 +150,17 @@ static  void receive_chars(struct tty_struct *tty, struct pt_regs *regs)
 				seen_esc = 2;
 				continue;
 			} else if ( seen_esc == 2 ) {
-				if ( ch == 'P' ) show_state();		/* F1 key */
-#ifdef CONFIG_KDB
-				if ( ch == 'S' )
-					kdb(KDB_REASON_KEYBOARD, 0, (kdb_eframe_t) regs);
+				if ( ch == 'P' ) /* F1 */
+					show_state();
+#ifdef CONFIG_MAGIC_SYSRQ
+				if ( ch == 'S' ) { /* F4 */
+					do
+						ch = ia64_ssc(0, 0, 0, 0,
+							      SSC_GETCHAR);
+					while (!ch);
+					handle_sysrq(ch, regs, NULL);
+				}
 #endif
-
 				seen_esc = 0;
 				continue;
 			}
@@ -976,7 +982,7 @@ static struct tty_operations hp_ops = {
 static int __init
 simrs_init (void)
 {
-	int			i;
+	int			i, rc;
 	struct serial_state	*state;
 
 	if (!ia64_platform_is("hpsim"))
@@ -1011,7 +1017,10 @@ simrs_init (void)
 		if (state->type == PORT_UNKNOWN) continue;
 
 		if (!state->irq) {
-			state->irq = assign_irq_vector(AUTO_ASSIGN);
+			if ((rc = assign_irq_vector(AUTO_ASSIGN)) < 0)
+				panic("%s: out of interrupt vectors!\n",
+				      __FUNCTION__);
+			state->irq = rc;
 			ia64_ssc_connect_irq(KEYBOARD_INTR, state->irq);
 		}
 

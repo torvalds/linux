@@ -173,7 +173,7 @@ struct fec_enet_private {
 	uint	phy_status;
 	uint	phy_speed;
 	phy_info_t	*phy;
-	struct tq_struct phy_task;
+	struct work_struct phy_task;
 
 	uint	sequence_done;
 
@@ -199,7 +199,8 @@ static int fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev);
 #ifdef	CONFIG_USE_MDIO
 static void fec_enet_mii(struct net_device *dev);
 #endif	/* CONFIG_USE_MDIO */
-static void fec_enet_interrupt(int irq, void * dev_id, struct pt_regs * regs);
+static irqreturn_t fec_enet_interrupt(int irq, void * dev_id,
+		       					struct pt_regs * regs);
 #ifdef CONFIG_FEC_PACKETHOOK
 static void  fec_enet_tx(struct net_device *dev, __u32 regval);
 static void  fec_enet_rx(struct net_device *dev, __u32 regval);
@@ -471,7 +472,7 @@ fec_timeout(struct net_device *dev)
 /* The interrupt handler.
  * This is called from the MPC core interrupt.
  */
-static	void
+static	irqreturn_t
 fec_enet_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 {
 	struct	net_device *dev = dev_id;
@@ -525,6 +526,7 @@ printk("%s[%d] %s: unexpected FEC_ENET_MII event\n", __FILE__,__LINE__,__FUNCTIO
 		}
 
 	}
+	return IRQ_RETVAL(IRQ_HANDLED);
 }
 
 
@@ -1263,8 +1265,9 @@ static void mii_display_status(struct net_device *dev)
 	printk(".\n");
 }
 
-static void mii_display_config(struct net_device *dev)
+static void mii_display_config(void *priv)
 {
+	struct net_device *dev = (struct net_device *)priv;
 	struct fec_enet_private *fep = dev->priv;
 	volatile uint *s = &(fep->phy_status);
 
@@ -1294,8 +1297,9 @@ static void mii_display_config(struct net_device *dev)
 	fep->sequence_done = 1;
 }
 
-static void mii_relink(struct net_device *dev)
+static void mii_relink(void *priv)
 {
+	struct net_device *dev = (struct net_device *)priv;
 	struct fec_enet_private *fep = dev->priv;
 	int duplex;
 
@@ -1323,18 +1327,16 @@ static void mii_queue_relink(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = dev->priv;
 
-	fep->phy_task.routine = (void *)mii_relink;
-	fep->phy_task.data = dev;
-	schedule_task(&fep->phy_task);
+	INIT_WORK(&fep->phy_task, mii_relink, (void *)dev);
+	schedule_work(&fep->phy_task);
 }
 
 static void mii_queue_config(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = dev->priv;
 
-	fep->phy_task.routine = (void *)mii_display_config;
-	fep->phy_task.data = dev;
-	schedule_task(&fep->phy_task);
+	INIT_WORK(&fep->phy_task, mii_display_config, (void *)dev);
+	schedule_work(&fep->phy_task);
 }
 
 
@@ -1403,11 +1405,11 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
 
 /* This interrupt occurs when the PHY detects a link change.
 */
-static void
+static
 #ifdef CONFIG_RPXCLASSIC
-mii_link_interrupt(void *dev_id)
+void mii_link_interrupt(void *dev_id)
 #else
-mii_link_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+irqreturn_t mii_link_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 #endif
 {
 #ifdef	CONFIG_USE_MDIO
@@ -1440,6 +1442,9 @@ mii_link_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 printk("%s[%d] %s: unexpected Link interrupt\n", __FILE__,__LINE__,__FUNCTION__);
 #endif	/* CONFIG_USE_MDIO */
 
+#ifndef CONFIG_RPXCLASSIC
+	return IRQ_RETVAL(IRQ_HANDLED);
+#endif	/* CONFIG_RPXCLASSIC */
 }
 
 static int
@@ -1575,7 +1580,7 @@ static int __init fec_enet_init(void)
 	struct fec_enet_private *fep;
 	int i, j, k, err;
 	unsigned char	*eap, *iap, *ba;
-	unsigned long	mem_addr;
+	dma_addr_t	mem_addr;
 	volatile	cbd_t	*bdp;
 	cbd_t		*cbd_base;
 	volatile	immap_t	*immap;
@@ -1640,7 +1645,8 @@ static int __init fec_enet_init(void)
 		printk("FEC initialization failed.\n");
 		return 1;
 	}
-	cbd_base = (cbd_t *)consistent_alloc(GFP_KERNEL, PAGE_SIZE, &mem_addr);
+	cbd_base = (cbd_t *)dma_alloc_coherent(dev->class_dev.dev, PAGE_SIZE,
+					       &mem_addr, GFP_KERNEL);
 
 	/* Set receive and transmit descriptor base.
 	*/
@@ -1657,7 +1663,10 @@ static int __init fec_enet_init(void)
 
 		/* Allocate a page.
 		*/
-		ba = (unsigned char *)consistent_alloc(GFP_KERNEL, PAGE_SIZE, &mem_addr);
+		ba = (unsigned char *)dma_alloc_coherent(dev->class_dev.dev,
+							 PAGE_SIZE,
+							 &mem_addr,
+							 GFP_KERNEL);
 		/* BUG: no check for failure */
 
 		/* Initialize the BD for every fragment in the page.

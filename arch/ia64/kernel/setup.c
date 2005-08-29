@@ -20,6 +20,7 @@
  * 02/01/00 R.Seth	fixed get_cpuinfo for SMP
  * 01/07/99 S.Eranian	added the support for command line argument
  * 06/24/99 W.Drummond	added boot_cpu_data.
+ * 05/28/05 Z. Menyhart	Dynamic stride size for "flush_icache_range()"
  */
 #include <linux/config.h>
 #include <linux/module.h>
@@ -40,6 +41,8 @@
 #include <linux/serial_core.h>
 #include <linux/efi.h>
 #include <linux/initrd.h>
+#include <linux/platform.h>
+#include <linux/pm.h>
 
 #include <asm/ia32.h>
 #include <asm/machvec.h>
@@ -72,6 +75,8 @@ DEFINE_PER_CPU(unsigned long, ia64_phys_stacked_size_p8);
 unsigned long ia64_cycles_per_usec;
 struct ia64_boot_param *ia64_boot_param;
 struct screen_info screen_info;
+unsigned long vga_console_iobase;
+unsigned long vga_console_membase;
 
 unsigned long ia64_max_cacheline_size;
 unsigned long ia64_iobase;	/* virtual address for I/O accesses */
@@ -79,6 +84,13 @@ EXPORT_SYMBOL(ia64_iobase);
 struct io_space io_space[MAX_IO_SPACES];
 EXPORT_SYMBOL(io_space);
 unsigned int num_io_spaces;
+
+/*
+ * "flush_icache_range()" needs to know what processor dependent stride size to use
+ * when it makes i-cache(s) coherent with d-caches.
+ */
+#define	I_CACHE_STRIDE_SHIFT	5	/* Safest way to go: 32 bytes by 32 bytes */
+unsigned long ia64_i_cache_stride_shift = ~0;
 
 /*
  * The merge_mask variable needs to be set to (max(iommu_page_size(iommu)) - 1).  This
@@ -273,23 +285,25 @@ io_port_init (void)
 static inline int __init
 early_console_setup (char *cmdline)
 {
+	int earlycons = 0;
+
 #ifdef CONFIG_SERIAL_SGI_L1_CONSOLE
 	{
 		extern int sn_serial_console_early_setup(void);
 		if (!sn_serial_console_early_setup())
-			return 0;
+			earlycons++;
 	}
 #endif
 #ifdef CONFIG_EFI_PCDP
 	if (!efi_setup_pcdp_console(cmdline))
-		return 0;
+		earlycons++;
 #endif
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 	if (!early_serial_console_init(cmdline))
-		return 0;
+		earlycons++;
 #endif
 
-	return -1;
+	return (earlycons) ? 0 : -1;
 }
 
 static inline void
@@ -622,6 +636,12 @@ setup_per_cpu_areas (void)
 	/* start_kernel() requires this... */
 }
 
+/*
+ * Calculate the max. cache line size.
+ *
+ * In addition, the minimum of the i-cache stride sizes is calculated for
+ * "flush_icache_range()".
+ */
 static void
 get_max_cacheline_size (void)
 {
@@ -635,6 +655,8 @@ get_max_cacheline_size (void)
                 printk(KERN_ERR "%s: ia64_pal_cache_summary() failed (status=%ld)\n",
                        __FUNCTION__, status);
                 max = SMP_CACHE_BYTES;
+		/* Safest setup for "flush_icache_range()" */
+		ia64_i_cache_stride_shift = I_CACHE_STRIDE_SHIFT;
 		goto out;
         }
 
@@ -643,14 +665,31 @@ get_max_cacheline_size (void)
 						    &cci);
 		if (status != 0) {
 			printk(KERN_ERR
-			       "%s: ia64_pal_cache_config_info(l=%lu) failed (status=%ld)\n",
+			       "%s: ia64_pal_cache_config_info(l=%lu, 2) failed (status=%ld)\n",
 			       __FUNCTION__, l, status);
 			max = SMP_CACHE_BYTES;
+			/* The safest setup for "flush_icache_range()" */
+			cci.pcci_stride = I_CACHE_STRIDE_SHIFT;
+			cci.pcci_unified = 1;
 		}
 		line_size = 1 << cci.pcci_line_size;
 		if (line_size > max)
 			max = line_size;
-        }
+		if (!cci.pcci_unified) {
+			status = ia64_pal_cache_config_info(l,
+						    /* cache_type (instruction)= */ 1,
+						    &cci);
+			if (status != 0) {
+				printk(KERN_ERR
+				"%s: ia64_pal_cache_config_info(l=%lu, 1) failed (status=%ld)\n",
+					__FUNCTION__, l, status);
+				/* The safest setup for "flush_icache_range()" */
+				cci.pcci_stride = I_CACHE_STRIDE_SHIFT;
+			}
+		}
+		if (cci.pcci_stride < ia64_i_cache_stride_shift)
+			ia64_i_cache_stride_shift = cci.pcci_stride;
+	}
   out:
 	if (max > ia64_max_cacheline_size)
 		ia64_max_cacheline_size = max;
@@ -779,6 +818,7 @@ cpu_init (void)
 	/* size of physical stacked register partition plus 8 bytes: */
 	__get_cpu_var(ia64_phys_stacked_size_p8) = num_phys_stacked*8 + 8;
 	platform_cpu_init();
+	pm_idle = default_idle;
 }
 
 void

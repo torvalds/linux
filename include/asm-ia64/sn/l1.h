@@ -33,5 +33,6 @@
 #define L1_BRICKTYPE_PA		0x6a            /* j */
 #define L1_BRICKTYPE_IA		0x6b            /* k */
 #define L1_BRICKTYPE_ATHENA	0x2b            /* + */
+#define L1_BRICKTYPE_DAYTONA	0x7a            /* z */
 
 #endif /* _ASM_IA64_SN_L1_H */

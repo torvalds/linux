@@ -1,26 +1,23 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
+ * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id: lpfc_nportdisc.c 1.179 2005/04/13 11:59:13EDT sf_support Exp  $
- */
 
 #include <linux/blkdev.h>
 #include <linux/pci.h>
@@ -950,8 +947,13 @@ lpfc_cmpl_adisc_adisc_issue(struct lpfc_hba * phba,
 		lpfc_unreg_rpi(phba, ndlp);
 		return (ndlp->nlp_state);
 	}
-	ndlp->nlp_state = NLP_STE_MAPPED_NODE;
-	lpfc_nlp_list(phba, ndlp, NLP_MAPPED_LIST);
+	if (ndlp->nlp_type & NLP_FCP_TARGET) {
+		ndlp->nlp_state = NLP_STE_MAPPED_NODE;
+		lpfc_nlp_list(phba, ndlp, NLP_MAPPED_LIST);
+	} else {
+		ndlp->nlp_state = NLP_STE_UNMAPPED_NODE;
+		lpfc_nlp_list(phba, ndlp, NLP_UNMAPPED_LIST);
+	}
 	return (ndlp->nlp_state);
 }
 

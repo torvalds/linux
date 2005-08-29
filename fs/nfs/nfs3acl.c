@@ -2,7 +2,7 @@
 #include <linux/nfs.h>
 #include <linux/nfs3.h>
 #include <linux/nfs_fs.h>
-#include <linux/xattr_acl.h>
+#include <linux/posix_acl_xattr.h>
 #include <linux/nfsacl.h>
 
 #define NFSDBG_FACILITY	NFSDBG_PROC
@@ -53,9 +53,9 @@ ssize_t nfs3_getxattr(struct dentry *dentry, const char *name,
 	struct posix_acl *acl;
 	int type, error = 0;
 
-	if (strcmp(name, XATTR_NAME_ACL_ACCESS) == 0)
+	if (strcmp(name, POSIX_ACL_XATTR_ACCESS) == 0)
 		type = ACL_TYPE_ACCESS;
-	else if (strcmp(name, XATTR_NAME_ACL_DEFAULT) == 0)
+	else if (strcmp(name, POSIX_ACL_XATTR_DEFAULT) == 0)
 		type = ACL_TYPE_DEFAULT;
 	else
 		return -EOPNOTSUPP;
@@ -82,9 +82,9 @@ int nfs3_setxattr(struct dentry *dentry, const char *name,
 	struct posix_acl *acl;
 	int type, error;
 
-	if (strcmp(name, XATTR_NAME_ACL_ACCESS) == 0)
+	if (strcmp(name, POSIX_ACL_XATTR_ACCESS) == 0)
 		type = ACL_TYPE_ACCESS;
-	else if (strcmp(name, XATTR_NAME_ACL_DEFAULT) == 0)
+	else if (strcmp(name, POSIX_ACL_XATTR_DEFAULT) == 0)
 		type = ACL_TYPE_DEFAULT;
 	else
 		return -EOPNOTSUPP;
@@ -103,9 +103,9 @@ int nfs3_removexattr(struct dentry *dentry, const char *name)
 	struct inode *inode = dentry->d_inode;
 	int type;
 
-	if (strcmp(name, XATTR_NAME_ACL_ACCESS) == 0)
+	if (strcmp(name, POSIX_ACL_XATTR_ACCESS) == 0)
 		type = ACL_TYPE_ACCESS;
-	else if (strcmp(name, XATTR_NAME_ACL_DEFAULT) == 0)
+	else if (strcmp(name, POSIX_ACL_XATTR_DEFAULT) == 0)
 		type = ACL_TYPE_DEFAULT;
 	else
 		return -EOPNOTSUPP;
@@ -308,7 +308,9 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 	nfs_begin_data_update(inode);
 	status = rpc_call(server->client_acl, ACLPROC3_SETACL,
 			  &args, &fattr, 0);
-	NFS_FLAGS(inode) |= NFS_INO_INVALID_ACCESS;
+	spin_lock(&inode->i_lock);
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ACCESS;
+	spin_unlock(&inode->i_lock);
 	nfs_end_data_update(inode);
 	dprintk("NFS reply setacl: %d\n", status);
 

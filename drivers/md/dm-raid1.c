@@ -1060,6 +1060,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ti->private = ms;
+ 	ti->split_io = ms->rh.region_size;
 
 	r = kcopyd_client_create(DM_IO_PAGES, &ms->kcopyd_client);
 	if (r) {
@@ -1229,7 +1230,7 @@ static int __init dm_mirror_init(void)
 	if (r)
 		return r;
 
-	_kmirrord_wq = create_workqueue("kmirrord");
+	_kmirrord_wq = create_singlethread_workqueue("kmirrord");
 	if (!_kmirrord_wq) {
 		DMERR("couldn't start kmirrord");
 		dm_dirty_log_exit();

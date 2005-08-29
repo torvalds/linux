@@ -2062,6 +2062,7 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 		zfcp_erp_adapter_shutdown(adapter, 0);
 		return -EIO;
 	}
+	zfcp_set_fc_host_attrs(adapter);
 	return 0;
 }
 

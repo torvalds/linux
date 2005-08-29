@@ -1,4 +1,4 @@
-/* $Id: head.S,v 1.7 2004/05/14 07:58:01 starvik Exp $
+/* $Id: head.S,v 1.10 2005/06/20 05:12:54 starvik Exp $
  * 
  * Head of the kernel - alter with care
  *
@@ -7,6 +7,16 @@
  * Authors:	Bjorn Wesen (bjornw@axis.com)
  * 
  * $Log: head.S,v $
+ * Revision 1.10  2005/06/20 05:12:54  starvik
+ * Remove unnecessary diff to kernel.org tree
+ *
+ * Revision 1.9  2004/12/13 12:21:51  starvik
+ * Added I/O and DMA allocators from Linux 2.4
+ *
+ * Revision 1.8  2004/11/22 11:41:14  starvik
+ * Kernel command line may be supplied to kernel. Not used by Axis but may
+ * be used by customers.
+ *
  * Revision 1.7  2004/05/14 07:58:01  starvik
  * Merge of changes from 2.4
  *
@@ -181,6 +191,7 @@
 
 #define CRAMFS_MAGIC 0x28cd3d45
 #define RAM_INIT_MAGIC 0x56902387
+#define COMMAND_LINE_MAGIC 0x87109563
 
 #define START_ETHERNET_CLOCK IO_STATE(R_NETWORK_GEN_CONFIG, enable, on) |\
                              IO_STATE(R_NETWORK_GEN_CONFIG, phy, mii_clk)
@@ -490,6 +501,23 @@ _no_romfs_in_flash:
 	
 _start_it:
 
+	;; Check if kernel command line is supplied
+	cmp.d	COMMAND_LINE_MAGIC, $r10
+	bne	no_command_line
+	nop
+
+	move.d	256, $r13
+	move.d  cris_command_line, $r10
+	or.d	0x80000000, $r11 ; Make it virtual
+1:
+	move.b  [$r11+], $r12
+	move.b  $r12, [$r10+]
+	subq	1, $r13
+	bne	1b
+	nop
+
+no_command_line:
+
 	;; the kernel stack is overlayed with the task structure for each
 	;; task. thus the initial kernel stack is in the same page as the
 	;; init_task (but starts in the top of the page, size 8192)
@@ -567,76 +595,32 @@ _start_it:
 	;; Etrax product HW genconfig setup
 
 	moveq	0,$r0
-#if (!defined(CONFIG_ETRAX_KGDB) || !defined(CONFIG_ETRAX_DEBUG_PORT0)) \
-	&& !defined(CONFIG_DMA_MEMCPY)
-	; DMA channels 6 and 7 to ser0, kgdb doesnt want DMA
-	or.d	  IO_STATE (R_GEN_CONFIG, dma7, serial0)	\
-		| IO_STATE (R_GEN_CONFIG, dma6, serial0),$r0
-#endif
-#if !defined(CONFIG_ETRAX_KGDB) || !defined(CONFIG_ETRAX_DEBUG_PORT1)
-	; DMA channels 8 and 9 to ser1, kgdb doesnt want DMA
-	or.d	  IO_STATE (R_GEN_CONFIG, dma9, serial1)	\
-		| IO_STATE (R_GEN_CONFIG, dma8, serial1),$r0
-#endif	
-#ifdef CONFIG_DMA_MEMCPY
-	; 6/7 memory-memory DMA
-	or.d	  IO_STATE (R_GEN_CONFIG, dma7, intdma6)	\
-		| IO_STATE (R_GEN_CONFIG, dma6, intdma7),$r0
-#endif
-#ifdef CONFIG_ETRAX_SERIAL_PORT2
-	; Enable serial port 2
-	or.w	IO_STATE (R_GEN_CONFIG, ser2, select),$r0
-#if !defined(CONFIG_ETRAX_KGDB) || !defined(CONFIG_ETRAX_DEBUG_PORT2)
-	; DMA channels 2 and 3 to ser2, kgdb doesnt want DMA
-	or.d	  IO_STATE (R_GEN_CONFIG, dma3, serial2)	\
-		| IO_STATE (R_GEN_CONFIG, dma2, serial2),$r0
-#endif
-#endif
-#if defined(CONFIG_ETRAX_SERIAL_PORT3) || defined(CONFIG_ETRAX_SYNCHRONOUS_SERIAL_PORT1)
-	; Enable serial port 3
-	or.w	IO_STATE (R_GEN_CONFIG, ser3, select),$r0
-#if !defined(CONFIG_ETRAX_KGDB) || !defined(CONFIG_ETRAX_DEBUG_PORT3)
-	; DMA channels 4 and 5 to ser3, kgdb doesnt want DMA
-	or.d	  IO_STATE (R_GEN_CONFIG, dma5, serial3)	\
-		| IO_STATE (R_GEN_CONFIG, dma4, serial3),$r0
-#endif
-#endif
-#if defined(CONFIG_ETRAX_PARALLEL_PORT0) || defined(CONFIG_ETRAX_ETHERNET_LPSLAVE)
-	; parport 0 enabled using DMA 2/3
-	or.w	IO_STATE (R_GEN_CONFIG, par0, select),$r0
-#endif
-#if defined(CONFIG_ETRAX_PARALLEL_PORT1) || defined(CONFIG_ETRAX_ETHERNET_LPSLAVE)
-	; parport 1 enabled using DMA 4/5
-	or.w	IO_STATE (R_GEN_CONFIG, par1, select),$r0
-#endif
-#ifdef CONFIG_ETRAX_IDE
-	; DMA channels 2 and 3 to ATA, ATA enabled
-	or.d	  IO_STATE (R_GEN_CONFIG, dma3, ata)	\
-		| IO_STATE (R_GEN_CONFIG, dma2, ata)	\
-		| IO_STATE (R_GEN_CONFIG, ata, select),$r0
-#endif
-	
-#ifdef CONFIG_ETRAX_USB_HOST_PORT1
-	; Set the USB port 1 enable bit
-	or.d	IO_STATE (R_GEN_CONFIG, usb1, select),$r0
-#endif
-#ifdef CONFIG_ETRAX_USB_HOST_PORT2
-	; Set the USB port 2 enable bit
-	or.d	IO_STATE (R_GEN_CONFIG, usb2, select),$r0
-#endif
-#ifdef CONFIG_ETRAX_USB_HOST
-	; Connect DMA channels 8 and 9 to USB
-	and.d	(~(IO_MASK (R_GEN_CONFIG, dma9)		\
-		   | IO_MASK (R_GEN_CONFIG, dma8)))	\
-		| IO_STATE (R_GEN_CONFIG, dma9, usb)	\
-		| IO_STATE (R_GEN_CONFIG, dma8, usb),$r0
-#endif
-	
-#ifdef CONFIG_JULIETTE
-	; DMA channels 4 and 5 to EXTDMA0, for Juliette
-	or.d	  IO_STATE (R_GEN_CONFIG, dma5, extdma0)	\
-		| IO_STATE (R_GEN_CONFIG, dma4, extdma0),$r0
-#endif
+
+	;; Init interfaces (disable them).
+	or.d	  IO_STATE (R_GEN_CONFIG, scsi0, disable) \
+		| IO_STATE (R_GEN_CONFIG, ata, disable) \
+		| IO_STATE (R_GEN_CONFIG, par0, disable) \
+		| IO_STATE (R_GEN_CONFIG, ser2, disable) \
+		| IO_STATE (R_GEN_CONFIG, mio, disable) \
+		| IO_STATE (R_GEN_CONFIG, scsi1, disable) \
+		| IO_STATE (R_GEN_CONFIG, scsi0w, disable) \
+		| IO_STATE (R_GEN_CONFIG, par1, disable) \
+		| IO_STATE (R_GEN_CONFIG, ser3, disable) \
+		| IO_STATE (R_GEN_CONFIG, mio_w, disable) \
+		| IO_STATE (R_GEN_CONFIG, usb1, disable) \
+		| IO_STATE (R_GEN_CONFIG, usb2, disable) \
+		| IO_STATE (R_GEN_CONFIG, par_w, disable),$r0
+
+	;; Init DMA channel muxing (set to unused clients).
+	or.d	  IO_STATE (R_GEN_CONFIG, dma2, ata)	\
+		| IO_STATE (R_GEN_CONFIG, dma3, ata) \
+		| IO_STATE (R_GEN_CONFIG, dma4, scsi1) \
+		| IO_STATE (R_GEN_CONFIG, dma5, scsi1) \
+		| IO_STATE (R_GEN_CONFIG, dma6, unused) \
+		| IO_STATE (R_GEN_CONFIG, dma7, unused) \
+		| IO_STATE (R_GEN_CONFIG, dma8, usb) \
+		| IO_STATE (R_GEN_CONFIG, dma9, usb),$r0
+
 
 #if defined(CONFIG_ETRAX_DEF_R_PORT_G0_DIR_OUT)
         or.d      IO_STATE (R_GEN_CONFIG, g0dir, out),$r0

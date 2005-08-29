@@ -146,12 +146,7 @@ static int heartbeat = WATCHDOG_HEARTBEAT;
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (2<=heartbeat<=7200, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
-
+static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 
@@ -344,7 +339,7 @@ static int pcwd_get_status(int *status)
 			*status |= WDIOF_OVERHEAT;
 			if (temp_panic) {
 				printk (KERN_INFO PFX "Temperature overheat trip!\n");
-				machine_power_off();
+				kernel_power_off();
 			}
 		}
 	} else {
@@ -355,7 +350,7 @@ static int pcwd_get_status(int *status)
 			*status |= WDIOF_OVERHEAT;
 			if (temp_panic) {
 				printk (KERN_INFO PFX "Temperature overheat trip!\n");
-				machine_power_off();
+				kernel_power_off();
 			}
 		}
 	}

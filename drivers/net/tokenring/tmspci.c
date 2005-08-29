@@ -100,7 +100,7 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 	unsigned int pci_irq_line;
 	unsigned long pci_ioaddr;
 	struct card_info *cardinfo = &card_info_table[ent->driver_data];
-		
+
 	if (versionprinted++ == 0)
 		printk("%s", version);
 
@@ -143,7 +143,7 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 		printk(":%2.2x", dev->dev_addr[i]);
 	printk("\n");
 		
-	ret = tmsdev_init(dev, PCI_MAX_ADDRESS, pdev);
+	ret = tmsdev_init(dev, &pdev->dev);
 	if (ret) {
 		printk("%s: unable to get memory for dev->priv.\n", dev->name);
 		goto err_out_irq;
@@ -254,14 +254,3 @@ static void __exit tms_pci_rmmod (void)
 module_init(tms_pci_init);
 module_exit(tms_pci_rmmod);
 
-
-/*
- * Local variables:
- *  compile-command: "gcc -DMODVERSIONS  -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer -I/usr/src/linux/drivers/net/tokenring/ -c tmspci.c"
- *  alt-compile-command: "gcc -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer -I/usr/src/linux/drivers/net/tokenring/ -c tmspci.c"
- *  c-set-style "K&R"
- *  c-indent-level: 8
- *  c-basic-offset: 8
- *  tab-width: 8
- * End:
- */

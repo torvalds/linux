@@ -22,6 +22,7 @@
 #define MII_EXPANSION       0x06        /* Expansion register          */
 #define MII_CTRL1000        0x09        /* 1000BASE-T control          */
 #define MII_STAT1000        0x0a        /* 1000BASE-T status           */
+#define MII_ESTATUS	    0x0f	/* Extended Status */
 #define MII_DCOUNTER        0x12        /* Disconnect counter          */
 #define MII_FCSCOUNTER      0x13        /* False carrier counter       */
 #define MII_NWAYTEST        0x14        /* N-way auto-neg test reg     */
@@ -54,7 +55,10 @@
 #define BMSR_ANEGCAPABLE        0x0008  /* Able to do auto-negotiation */
 #define BMSR_RFAULT             0x0010  /* Remote fault detected       */
 #define BMSR_ANEGCOMPLETE       0x0020  /* Auto-negotiation complete   */
-#define BMSR_RESV               0x07c0  /* Unused...                   */
+#define BMSR_RESV               0x00c0  /* Unused...                   */
+#define BMSR_ESTATEN		0x0100	/* Extended Status in R15 */
+#define BMSR_100FULL2		0x0200	/* Can do 100BASE-T2 HDX */
+#define BMSR_100HALF2		0x0400	/* Can do 100BASE-T2 FDX */
 #define BMSR_10HALF             0x0800  /* Can do 10mbps, half-duplex  */
 #define BMSR_10FULL             0x1000  /* Can do 10mbps, full-duplex  */
 #define BMSR_100HALF            0x2000  /* Can do 100mbps, half-duplex */
@@ -113,6 +117,9 @@
 #define EXPANSION_NPCAPABLE     0x0008  /* Link partner supports npage */
 #define EXPANSION_MFAULTS       0x0010  /* Multiple faults detected    */
 #define EXPANSION_RESV          0xffe0  /* Unused...                   */
+
+#define ESTATUS_1000_TFULL	0x2000	/* Can do 1000BT Full */
+#define ESTATUS_1000_THALF	0x1000	/* Can do 1000BT Half */
 
 /* N-way test register. */
 #define NWAYTEST_RESV1          0x00ff  /* Unused...                   */

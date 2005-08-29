@@ -230,16 +230,8 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 	do_exit(SIGSEGV);
 }
 
-void die_if_kernel(const char *str, struct pt_regs *regs, int err)
-{
-	if (user_mode(regs))
-    		return;
-
-    	die(str, regs, err);
-}
-
-static void notify_die(const char *str, struct pt_regs *regs, siginfo_t *info,
-		       unsigned long err, unsigned long trap)
+void notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
+		unsigned long err, unsigned long trap)
 {
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
@@ -256,16 +248,20 @@ static DEFINE_SPINLOCK(undef_lock);
 
 void register_undef_hook(struct undef_hook *hook)
 {
-	spin_lock_irq(&undef_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&undef_lock, flags);
 	list_add(&hook->node, &undef_hook);
-	spin_unlock_irq(&undef_lock);
+	spin_unlock_irqrestore(&undef_lock, flags);
 }
 
 void unregister_undef_hook(struct undef_hook *hook)
 {
-	spin_lock_irq(&undef_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&undef_lock, flags);
 	list_del(&hook->node);
-	spin_unlock_irq(&undef_lock);
+	spin_unlock_irqrestore(&undef_lock, flags);
 }
 
 asmlinkage void do_undefinstr(struct pt_regs *regs)
@@ -621,7 +617,7 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 	notify_die("unknown data abort code", regs, &info, instr, 0);
 }
 
-volatile void __bug(const char *file, int line, void *data)
+void __attribute__((noreturn)) __bug(const char *file, int line, void *data)
 {
 	printk(KERN_CRIT"kernel BUG at %s:%d!", file, line);
 	if (data)

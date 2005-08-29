@@ -2,6 +2,7 @@
 #define PSEUDO_DMA
 #define FOO
 #define UNSAFE  /* Not unsafe for PAS16 -- use it */
+#define PDEBUG 0
 
 /*
  * This driver adapted from Drew Eckhardt's Trantor T128 driver

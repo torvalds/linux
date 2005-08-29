@@ -23,6 +23,7 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
+#include <asm/arch/mcp.h>
 #include <asm/arch/simpad.h>
 
 #include <linux/serial_core.h>
@@ -123,6 +124,11 @@ static struct resource simpad_flash_resources [] = {
 	}
 };
 
+static struct mcp_plat_data simpad_mcp_data = {
+	.mccr0		= MCCR0_ADM,
+	.sclk_rate	= 11981000,
+};
+
 
 
 static void __init simpad_map_io(void)
@@ -157,6 +163,7 @@ static void __init simpad_map_io(void)
 
 	sa11x0_set_flash_data(&simpad_flash_data, simpad_flash_resources,
 			      ARRAY_SIZE(simpad_flash_resources));
+	sa11x0_set_mcp_data(&simpad_mcp_data);
 }
 
 static void simpad_power_off(void)
@@ -215,10 +222,12 @@ arch_initcall(simpad_init);
 
 
 MACHINE_START(SIMPAD, "Simpad")
-	MAINTAINER("Holger Freyther")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xf8000000)
-        BOOT_PARAMS(0xc0000100)
-	MAPIO(simpad_map_io)
-	INITIRQ(sa1100_init_irq)
+	/* Maintainer: Holger Freyther */
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.map_io		= simpad_map_io,
+	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 MACHINE_END

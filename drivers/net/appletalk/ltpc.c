@@ -1109,8 +1109,7 @@ struct net_device * __init ltpc_probe(void)
 	inb_p(io+1);
 	inb_p(io+3);
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(2*HZ/100);
+	msleep(20);
 
 	inb_p(io+0);
 	inb_p(io+2);
@@ -1120,8 +1119,7 @@ struct net_device * __init ltpc_probe(void)
 	inb_p(io+5); /* enable dma */
 	inb_p(io+6); /* tri-state interrupt line */
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ);
+	ssleep(1);
 	
 	/* now, figure out which dma channel we're using, unless it's
 	   already been specified */

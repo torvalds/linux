@@ -58,6 +58,7 @@ static DEFINE_SPINLOCK(fput_lock);
 static LIST_HEAD(fput_head);
 
 static void aio_kick_handler(void *);
+static void aio_queue_work(struct kioctx *);
 
 /* aio_setup
  *	Creates the slab caches used by the aio routines, panic on
@@ -747,6 +748,14 @@ out:
 		 * has already been kicked */
 		if (kiocbIsKicked(iocb)) {
 			__queue_kicked_iocb(iocb);
+
+			/*
+			 * __queue_kicked_iocb will always return 1 here, because
+			 * iocb->ki_run_list is empty at this point so it should
+			 * be safe to unconditionally queue the context into the
+			 * work queue.
+			 */
+			aio_queue_work(ctx);
 		}
 	}
 	return ret;

@@ -367,6 +367,7 @@ int snd_ac97_update(ac97_t *ac97, unsigned short reg, unsigned short value)
 		ac97->regs[reg] = value;
 		ac97->bus->ops->write(ac97, reg, value);
 	}
+	set_bit(reg, ac97->reg_accessed);
 	up(&ac97->reg_mutex);
 	return change;
 }
@@ -410,6 +411,7 @@ int snd_ac97_update_bits_nolock(ac97_t *ac97, unsigned short reg,
 		ac97->regs[reg] = new;
 		ac97->bus->ops->write(ac97, reg, new);
 	}
+	set_bit(reg, ac97->reg_accessed);
 	return change;
 }
 
@@ -1076,6 +1078,11 @@ static void check_volume_resolution(ac97_t *ac97, int reg, unsigned char *lo_max
 	for (i = 0 ; i < ARRAY_SIZE(cbit); i++) {
 		unsigned short val;
 		snd_ac97_write(ac97, reg, 0x8080 | cbit[i] | (cbit[i] << 8));
+		/* Do the read twice due to buffers on some ac97 codecs.
+		 * e.g. The STAC9704 returns exactly what you wrote the the register
+		 * if you read it immediately. This causes the detect routine to fail.
+		 */
+		val = snd_ac97_read(ac97, reg);
 		val = snd_ac97_read(ac97, reg);
 		if (! *lo_max && (val & 0x7f) == cbit[i])
 			*lo_max = max[i];
@@ -2224,7 +2231,7 @@ void snd_ac97_restore_iec958(ac97_t *ac97)
  */
 void snd_ac97_resume(ac97_t *ac97)
 {
-	int i;
+	unsigned long end_time;
 
 	if (ac97->bus->ops->reset) {
 		ac97->bus->ops->reset(ac97);
@@ -2242,26 +2249,26 @@ void snd_ac97_resume(ac97_t *ac97)
 	snd_ac97_write(ac97, AC97_POWERDOWN, ac97->regs[AC97_POWERDOWN]);
 	if (ac97_is_audio(ac97)) {
 		ac97->bus->ops->write(ac97, AC97_MASTER, 0x8101);
-		for (i = HZ/10; i >= 0; i--) {
+		end_time = jiffies + msecs_to_jiffies(100);
+		do {
 			if (snd_ac97_read(ac97, AC97_MASTER) == 0x8101)
 				break;
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule_timeout(1);
-		}
+		} while (time_after_eq(end_time, jiffies));
 		/* FIXME: extra delay */
 		ac97->bus->ops->write(ac97, AC97_MASTER, 0x8000);
-		if (snd_ac97_read(ac97, AC97_MASTER) != 0x8000) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(HZ/4);
-		}
+		if (snd_ac97_read(ac97, AC97_MASTER) != 0x8000)
+			msleep(250);
 	} else {
-		for (i = HZ/10; i >= 0; i--) {
+		end_time = jiffies + msecs_to_jiffies(100);
+		do {
 			unsigned short val = snd_ac97_read(ac97, AC97_EXTENDED_MID);
 			if (val != 0xffff && (val & 1) != 0)
 				break;
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule_timeout(1);
-		}
+		} while (time_after_eq(end_time, jiffies));
 	}
 __reset_ready:
 

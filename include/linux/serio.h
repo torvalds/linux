@@ -83,6 +83,7 @@ static inline void serio_register_port(struct serio *serio)
 }
 
 void serio_unregister_port(struct serio *serio);
+void serio_unregister_child_port(struct serio *serio);
 void __serio_unregister_port_delayed(struct serio *serio, struct module *owner);
 static inline void serio_unregister_port_delayed(struct serio *serio)
 {
@@ -151,6 +152,11 @@ static inline void serio_continue_rx(struct serio *serio)
 static inline int serio_pin_driver(struct serio *serio)
 {
 	return down_interruptible(&serio->drv_sem);
+}
+
+static inline void serio_pin_driver_uninterruptible(struct serio *serio)
+{
+	down(&serio->drv_sem);
 }
 
 static inline void serio_unpin_driver(struct serio *serio)

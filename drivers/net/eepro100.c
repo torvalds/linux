@@ -1263,13 +1263,13 @@ speedo_init_rx_ring(struct net_device *dev)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		struct sk_buff *skb;
 		skb = dev_alloc_skb(PKT_BUF_SZ + sizeof(struct RxFD));
-		/* XXX: do we really want to call this before the NULL check? --hch */
-		rx_align(skb);			/* Align IP on 16 byte boundary */
+		if (skb)
+			rx_align(skb);        /* Align IP on 16 byte boundary */
 		sp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;			/* OK.  Just initially short of Rx bufs. */
 		skb->dev = dev;			/* Mark as being used by this device. */
-		rxf = (struct RxFD *)skb->tail;
+		rxf = (struct RxFD *)skb->data;
 		sp->rx_ringp[i] = rxf;
 		sp->rx_ring_dma[i] =
 			pci_map_single(sp->pdev, rxf,
@@ -1654,14 +1654,14 @@ static inline struct RxFD *speedo_rx_alloc(struct net_device *dev, int entry)
 	struct sk_buff *skb;
 	/* Get a fresh skbuff to replace the consumed one. */
 	skb = dev_alloc_skb(PKT_BUF_SZ + sizeof(struct RxFD));
-	/* XXX: do we really want to call this before the NULL check? --hch */
-	rx_align(skb);				/* Align IP on 16 byte boundary */
+	if (skb)
+		rx_align(skb);		/* Align IP on 16 byte boundary */
 	sp->rx_skbuff[entry] = skb;
 	if (skb == NULL) {
 		sp->rx_ringp[entry] = NULL;
 		return NULL;
 	}
-	rxf = sp->rx_ringp[entry] = (struct RxFD *)skb->tail;
+	rxf = sp->rx_ringp[entry] = (struct RxFD *)skb->data;
 	sp->rx_ring_dma[entry] =
 		pci_map_single(sp->pdev, rxf,
 					   PKT_BUF_SZ + sizeof(struct RxFD), PCI_DMA_FROMDEVICE);
@@ -1808,10 +1808,10 @@ speedo_rx(struct net_device *dev)
 
 #if 1 || USE_IP_CSUM
 				/* Packet is in one chunk -- we can copy + cksum. */
-				eth_copy_and_sum(skb, sp->rx_skbuff[entry]->tail, pkt_len, 0);
+				eth_copy_and_sum(skb, sp->rx_skbuff[entry]->data, pkt_len, 0);
 				skb_put(skb, pkt_len);
 #else
-				memcpy(skb_put(skb, pkt_len), sp->rx_skbuff[entry]->tail,
+				memcpy(skb_put(skb, pkt_len), sp->rx_skbuff[entry]->data,
 					   pkt_len);
 #endif
 				pci_dma_sync_single_for_device(sp->pdev, sp->rx_ring_dma[entry],

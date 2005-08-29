@@ -376,7 +376,7 @@ static int help(struct sk_buff **pskb,
 	       fb_ptr + matchoff, matchlen, ntohl(th->seq) + matchoff);
 			 
 	/* Allocate expectation which will be inserted */
-	exp = ip_conntrack_expect_alloc();
+	exp = ip_conntrack_expect_alloc(ct);
 	if (exp == NULL) {
 		ret = NF_DROP;
 		goto out;
@@ -403,8 +403,7 @@ static int help(struct sk_buff **pskb,
 		   networks, or the packet filter itself). */
 		if (!loose) {
 			ret = NF_ACCEPT;
-			ip_conntrack_expect_free(exp);
-			goto out_update_nl;
+			goto out_put_expect;
 		}
 		exp->tuple.dst.ip = htonl((array[0] << 24) | (array[1] << 16)
 					 | (array[2] << 8) | array[3]);
@@ -419,7 +418,6 @@ static int help(struct sk_buff **pskb,
 		  { 0xFFFFFFFF, { .tcp = { 0xFFFF } }, 0xFF }});
 
 	exp->expectfn = NULL;
-	exp->master = ct;
 
 	/* Now, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
@@ -428,12 +426,14 @@ static int help(struct sk_buff **pskb,
 				      matchoff, matchlen, exp, &seq);
 	else {
 		/* Can't expect this?  Best to drop packet now. */
-		if (ip_conntrack_expect_related(exp) != 0) {
-			ip_conntrack_expect_free(exp);
+		if (ip_conntrack_expect_related(exp) != 0)
 			ret = NF_DROP;
-		} else
+		else
 			ret = NF_ACCEPT;
 	}
+
+out_put_expect:
+	ip_conntrack_expect_put(exp);
 
 out_update_nl:
 	/* Now if this ends in \n, update ftp info.  Seq may have been

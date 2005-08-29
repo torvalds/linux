@@ -35,6 +35,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
 #include <asm/arch/assabet.h>
+#include <asm/arch/mcp.h>
 
 #include "generic.h"
 
@@ -198,6 +199,11 @@ static struct irda_platform_data assabet_irda_data = {
 	.set_speed	= assabet_irda_set_speed,
 };
 
+static struct mcp_plat_data assabet_mcp_data = {
+	.mccr0		= MCCR0_ADM,
+	.sclk_rate	= 11981000,
+};
+
 static void __init assabet_init(void)
 {
 	/*
@@ -246,6 +252,7 @@ static void __init assabet_init(void)
 	sa11x0_set_flash_data(&assabet_flash_data, assabet_flash_resources,
 			      ARRAY_SIZE(assabet_flash_resources));
 	sa11x0_set_irda_data(&assabet_irda_data);
+	sa11x0_set_mcp_data(&assabet_mcp_data);
 }
 
 /*
@@ -431,11 +438,13 @@ static void __init assabet_map_io(void)
 
 
 MACHINE_START(ASSABET, "Intel-Assabet")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xf8000000)
-	BOOT_PARAMS(0xc0000100)
-	FIXUP(fixup_assabet)
-	MAPIO(assabet_map_io)
-	INITIRQ(sa1100_init_irq)
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.fixup		= fixup_assabet,
+	.map_io		= assabet_map_io,
+	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= assabet_init,
 MACHINE_END
