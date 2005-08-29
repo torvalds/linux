@@ -275,11 +275,9 @@ alloc_init_supersection(unsigned long virt, unsigned long phys, int prot)
 	int i;
 
 	for (i = 0; i < 16; i += 1) {
-		alloc_init_section(virt, phys & SUPERSECTION_MASK,
-				   prot | PMD_SECT_SUPER);
+		alloc_init_section(virt, phys, prot | PMD_SECT_SUPER);
 
 		virt += (PGDIR_SIZE / 2);
-		phys += (PGDIR_SIZE / 2);
 	}
 }
 
