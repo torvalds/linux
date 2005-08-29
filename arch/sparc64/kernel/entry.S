@@ -690,11 +690,6 @@ netbsd_syscall:
 	retl
 	 nop
 
-	/* These next few routines must be sure to clear the
-	 * SFSR FaultValid bit so that the fast tlb data protection
-	 * handler does not flush the wrong context and lock up the
-	 * box.
-	 */
 	.globl		__do_data_access_exception
 	.globl		__do_data_access_exception_tl1
 __do_data_access_exception_tl1:
@@ -733,9 +728,8 @@ __do_instruction_access_exception_tl1:
 	rdpr		%pstate, %g4
 	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
 	mov		TLB_SFSR, %g3
-	mov		DMMU_SFAR, %g5
-	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
-	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
+	ldxa		[%g3] ASI_IMMU, %g4	! Get SFSR
+	rdpr		%tpc, %g5		! IMMU has no SFAR, use TPC
 	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
 	membar		#Sync
 	sethi		%hi(109f), %g7
@@ -752,9 +746,8 @@ __do_instruction_access_exception:
 	rdpr		%pstate, %g4
 	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
 	mov		TLB_SFSR, %g3
-	mov		DMMU_SFAR, %g5
-	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
-	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
+	ldxa		[%g3] ASI_IMMU, %g4	! Get SFSR
+	rdpr		%tpc, %g5		! IMMU has no SFAR, use TPC
 	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
 	membar		#Sync
 	sethi		%hi(109f), %g7
