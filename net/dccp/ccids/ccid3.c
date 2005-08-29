@@ -556,6 +556,11 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/* remove all packets older than the one acked from history */
 		dccp_tx_hist_purge_older(ccid3_tx_hist,
 					 &hctx->ccid3hctx_hist, packet);
+		/*
+		 * As we have calculated new ipi, delta, t_nom it is possible that
+		 * we now can send a packet, so wake up dccp_wait_for_ccids.
+		 */
+		sk->sk_write_space(sk);
 
 		/*
 		 * Schedule no feedback timer to expire in

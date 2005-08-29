@@ -1280,6 +1280,7 @@ static int dccp_v4_init_sock(struct sock *sk)
 	dccp_init_xmit_timers(sk);
 	inet_csk(sk)->icsk_rto = DCCP_TIMEOUT_INIT;
 	sk->sk_state = DCCP_CLOSED;
+	sk->sk_write_space = dccp_write_space;
 	dp->dccps_mss_cache = 536;
 	dp->dccps_role = DCCP_ROLE_UNDEFINED;
 

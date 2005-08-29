@@ -150,6 +150,19 @@ unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu)
 	return mss_now;
 }
 
+void dccp_write_space(struct sock *sk)
+{
+	read_lock(&sk->sk_callback_lock);
+
+	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+		wake_up_interruptible(sk->sk_sleep);
+	/* Should agree with poll, otherwise some programs break */
+	if (sock_writeable(sk))
+		sk_wake_async(sk, 2, POLL_OUT);
+
+	read_unlock(&sk->sk_callback_lock);
+}
+
 /**
  * dccp_wait_for_ccid - Wait for ccid to tell us we can send a packet
  * @sk: socket to wait for
