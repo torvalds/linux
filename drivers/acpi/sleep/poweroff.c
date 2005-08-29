@@ -55,7 +55,11 @@ void acpi_power_off(void)
 
 static int acpi_shutdown(struct sys_device *x)
 {
-	return acpi_sleep_prepare(ACPI_STATE_S5);
+	if (system_state == SYSTEM_POWER_OFF) {
+		/* Prepare if we are going to power off the system */
+		return acpi_sleep_prepare(ACPI_STATE_S5);
+	}
+	return 0;
 }
 
 static struct sysdev_class acpi_sysclass = {

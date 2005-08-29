@@ -117,7 +117,7 @@ static void qs_phy_reset(struct ata_port *ap);
 static void qs_qc_prep(struct ata_queued_cmd *qc);
 static int qs_qc_issue(struct ata_queued_cmd *qc);
 static int qs_check_atapi_dma(struct ata_queued_cmd *qc);
-static void qs_bmdma_stop(struct ata_port *ap);
+static void qs_bmdma_stop(struct ata_queued_cmd *qc);
 static u8 qs_bmdma_status(struct ata_port *ap);
 static void qs_irq_clear(struct ata_port *ap);
 static void qs_eng_timeout(struct ata_port *ap);
@@ -198,7 +198,7 @@ static int qs_check_atapi_dma(struct ata_queued_cmd *qc)
 	return 1;	/* ATAPI DMA not supported */
 }
 
-static void qs_bmdma_stop(struct ata_port *ap)
+static void qs_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	/* nothing */
 }
@@ -386,7 +386,8 @@ static inline unsigned int qs_intr_pkt(struct ata_host_set *host_set)
 			DPRINTK("SFF=%08x%08x: sCHAN=%u sHST=%d sDST=%02x\n",
 					sff1, sff0, port_no, sHST, sDST);
 			handled = 1;
-			if (ap && (!(ap->flags & ATA_FLAG_PORT_DISABLED))) {
+			if (ap && !(ap->flags &
+				    (ATA_FLAG_PORT_DISABLED|ATA_FLAG_NOINTR))) {
 				struct ata_queued_cmd *qc;
 				struct qs_port_priv *pp = ap->private_data;
 				if (!pp || pp->state != qs_state_pkt)
@@ -417,7 +418,8 @@ static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
 	for (port_no = 0; port_no < host_set->n_ports; ++port_no) {
 		struct ata_port *ap;
 		ap = host_set->ports[port_no];
-		if (ap && (!(ap->flags & ATA_FLAG_PORT_DISABLED))) {
+		if (ap &&
+		    !(ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))) {
 			struct ata_queued_cmd *qc;
 			struct qs_port_priv *pp = ap->private_data;
 			if (!pp || pp->state != qs_state_mmio)
@@ -431,7 +433,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
 					continue;
 				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
 					ap->id, qc->tf.protocol, status);
-		
+
 				/* complete taskfile transaction */
 				pp->state = qs_state_idle;
 				ata_qc_complete(qc, status);

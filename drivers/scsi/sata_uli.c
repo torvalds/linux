@@ -214,7 +214,7 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = -ENOMEM;
 		goto err_out_regions;
 	}
-	
+
 	switch (board_idx) {
 	case uli_5287:
 		probe_ent->port[0].scr_addr = ULI5287_BASE;

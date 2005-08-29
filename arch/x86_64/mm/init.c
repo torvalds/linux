@@ -322,18 +322,26 @@ void zap_low_mappings(void)
 void __init paging_init(void)
 {
 	{
-		unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+		unsigned long zones_size[MAX_NR_ZONES];
+		unsigned long holes[MAX_NR_ZONES];
 		unsigned int max_dma;
+
+		memset(zones_size, 0, sizeof(zones_size));
+		memset(holes, 0, sizeof(holes));
 
 		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 
-		if (end_pfn < max_dma)
+		if (end_pfn < max_dma) {
 			zones_size[ZONE_DMA] = end_pfn;
-		else {
+			holes[ZONE_DMA] = e820_hole_size(0, end_pfn);
+		} else {
 			zones_size[ZONE_DMA] = max_dma;
+			holes[ZONE_DMA] = e820_hole_size(0, max_dma);
 			zones_size[ZONE_NORMAL] = end_pfn - max_dma;
+			holes[ZONE_NORMAL] = e820_hole_size(max_dma, end_pfn);
 		}
-		free_area_init(zones_size);
+		free_area_init_node(0, NODE_DATA(0), zones_size,
+                        __pa(PAGE_OFFSET) >> PAGE_SHIFT, holes);
 	}
 	return;
 }

@@ -23,6 +23,7 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
+#include <asm/arch/mcp.h>
 #include <asm/arch/simpad.h>
 
 #include <linux/serial_core.h>
@@ -123,6 +124,11 @@ static struct resource simpad_flash_resources [] = {
 	}
 };
 
+static struct mcp_plat_data simpad_mcp_data = {
+	.mccr0		= MCCR0_ADM,
+	.sclk_rate	= 11981000,
+};
+
 
 
 static void __init simpad_map_io(void)
@@ -157,6 +163,7 @@ static void __init simpad_map_io(void)
 
 	sa11x0_set_flash_data(&simpad_flash_data, simpad_flash_resources,
 			      ARRAY_SIZE(simpad_flash_resources));
+	sa11x0_set_mcp_data(&simpad_mcp_data);
 }
 
 static void simpad_power_off(void)

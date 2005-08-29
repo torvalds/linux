@@ -65,6 +65,7 @@ obj-$(CONFIG_ADAPTEC_STARFIRE) += starfire.o
 #
 
 obj-$(CONFIG_MII) += mii.o
+obj-$(CONFIG_PHYLIB) += phy/
 
 obj-$(CONFIG_SUNDANCE) += sundance.o
 obj-$(CONFIG_HAMACHI) += hamachi.o

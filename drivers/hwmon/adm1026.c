@@ -325,7 +325,7 @@ int adm1026_attach_adapter(struct i2c_adapter *adapter)
 int adm1026_detach_client(struct i2c_client *client)
 {
 	i2c_detach_client(client);
-	kfree(client);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 

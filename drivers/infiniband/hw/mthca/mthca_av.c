@@ -35,22 +35,22 @@
 
 #include <linux/init.h>
 
-#include <ib_verbs.h>
-#include <ib_cache.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_cache.h>
 
 #include "mthca_dev.h"
 
 struct mthca_av {
-	u32 port_pd;
-	u8  reserved1;
-	u8  g_slid;
-	u16 dlid;
-	u8  reserved2;
-	u8  gid_index;
-	u8  msg_sr;
-	u8  hop_limit;
-	u32 sl_tclass_flowlabel;
-	u32 dgid[4];
+	__be32 port_pd;
+	u8     reserved1;
+	u8     g_slid;
+	__be16 dlid;
+	u8     reserved2;
+	u8     gid_index;
+	u8     msg_sr;
+	u8     hop_limit;
+	__be32 sl_tclass_flowlabel;
+	__be32 dgid[4];
 };
 
 int mthca_create_ah(struct mthca_dev *dev,
@@ -128,7 +128,7 @@ on_hca_fail:
 			  av, (unsigned long) ah->avdma);
 		for (j = 0; j < 8; ++j)
 			printk(KERN_DEBUG "  [%2x] %08x\n",
-			       j * 4, be32_to_cpu(((u32 *) av)[j]));
+			       j * 4, be32_to_cpu(((__be32 *) av)[j]));
 	}
 
 	if (ah->type == MTHCA_AH_ON_HCA) {
@@ -169,7 +169,7 @@ int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 
 	header->lrh.service_level   = be32_to_cpu(ah->av->sl_tclass_flowlabel) >> 28;
 	header->lrh.destination_lid = ah->av->dlid;
-	header->lrh.source_lid      = ah->av->g_slid & 0x7f;
+	header->lrh.source_lid      = cpu_to_be16(ah->av->g_slid & 0x7f);
 	if (ah->av->g_slid & 0x80) {
 		header->grh_present = 1;
 		header->grh.traffic_class =

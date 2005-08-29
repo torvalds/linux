@@ -29,6 +29,7 @@
 #include <asm/mach/serial_sa1100.h>
 
 #include <asm/arch/cerf.h>
+#include <asm/arch/mcp.h>
 #include "generic.h"
 
 static struct resource cerfuart2_resources[] = {
@@ -116,10 +117,16 @@ static void __init cerf_map_io(void)
 	GPDR |= CERF_GPIO_CF_RESET;
 }
 
+static struct mcp_plat_data cerf_mcp_data = {
+	.mccr0		= MCCR0_ADM,
+	.sclk_rate	= 11981000,
+};
+
 static void __init cerf_init(void)
 {
 	platform_add_devices(cerf_devices, ARRAY_SIZE(cerf_devices));
 	sa11x0_set_flash_data(&cerf_flash_data, &cerf_flash_resource, 1);
+	sa11x0_set_mcp_data(&cerf_mcp_data);
 }
 
 MACHINE_START(CERF, "Intrinsyc CerfBoard/CerfCube")

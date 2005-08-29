@@ -34,7 +34,7 @@
 #if !defined(CM_MSGS_H)
 #define CM_MSGS_H
 
-#include <ib_mad.h>
+#include <rdma/ib_mad.h>
 
 /*
  * Parameters to routines below should be in network-byte order, and values
@@ -43,19 +43,17 @@
 
 #define IB_CM_CLASS_VERSION	2 /* IB specification 1.2 */
 
-enum cm_msg_attr_id {
-	CM_REQ_ATTR_ID	    = __constant_htons(0x0010),
-	CM_MRA_ATTR_ID	    = __constant_htons(0x0011),
-	CM_REJ_ATTR_ID	    = __constant_htons(0x0012),
-	CM_REP_ATTR_ID	    = __constant_htons(0x0013),
-	CM_RTU_ATTR_ID	    = __constant_htons(0x0014),
-	CM_DREQ_ATTR_ID	    = __constant_htons(0x0015),
-	CM_DREP_ATTR_ID	    = __constant_htons(0x0016),
-	CM_SIDR_REQ_ATTR_ID = __constant_htons(0x0017),
-	CM_SIDR_REP_ATTR_ID = __constant_htons(0x0018),
-	CM_LAP_ATTR_ID      = __constant_htons(0x0019),
-	CM_APR_ATTR_ID      = __constant_htons(0x001A)
-};
+#define CM_REQ_ATTR_ID	    __constant_htons(0x0010)
+#define CM_MRA_ATTR_ID	    __constant_htons(0x0011)
+#define CM_REJ_ATTR_ID	    __constant_htons(0x0012)
+#define CM_REP_ATTR_ID	    __constant_htons(0x0013)
+#define CM_RTU_ATTR_ID	    __constant_htons(0x0014)
+#define CM_DREQ_ATTR_ID	    __constant_htons(0x0015)
+#define CM_DREP_ATTR_ID	    __constant_htons(0x0016)
+#define CM_SIDR_REQ_ATTR_ID __constant_htons(0x0017)
+#define CM_SIDR_REP_ATTR_ID __constant_htons(0x0018)
+#define CM_LAP_ATTR_ID      __constant_htons(0x0019)
+#define CM_APR_ATTR_ID      __constant_htons(0x001A)
 
 enum cm_msg_sequence {
 	CM_MSG_SEQUENCE_REQ,
@@ -67,35 +65,35 @@ enum cm_msg_sequence {
 struct cm_req_msg {
 	struct ib_mad_hdr hdr;
 
-	u32 local_comm_id;
-	u32 rsvd4;
-	u64 service_id;
-	u64 local_ca_guid;
-	u32 rsvd24;
-	u32 local_qkey;
+	__be32 local_comm_id;
+	__be32 rsvd4;
+	__be64 service_id;
+	__be64 local_ca_guid;
+	__be32 rsvd24;
+	__be32 local_qkey;
 	/* local QPN:24, responder resources:8 */
-	u32 offset32;
+	__be32 offset32;
 	/* local EECN:24, initiator depth:8 */
-	u32 offset36;
+	__be32 offset36;
 	/*
 	 * remote EECN:24, remote CM response timeout:5,
 	 * transport service type:2, end-to-end flow control:1
 	 */
-	u32 offset40;
+	__be32 offset40;
 	/* starting PSN:24, local CM response timeout:5, retry count:3 */
-	u32 offset44;
-	u16 pkey;
+	__be32 offset44;
+	__be16 pkey;
 	/* path MTU:4, RDC exists:1, RNR retry count:3. */
 	u8 offset50;
 	/* max CM Retries:4, SRQ:1, rsvd:3 */
 	u8 offset51;
 
-	u16 primary_local_lid;
-	u16 primary_remote_lid;
+	__be16 primary_local_lid;
+	__be16 primary_remote_lid;
 	union ib_gid primary_local_gid;
 	union ib_gid primary_remote_gid;
 	/* flow label:20, rsvd:6, packet rate:6 */
-	u32 primary_offset88;
+	__be32 primary_offset88;
 	u8 primary_traffic_class;
 	u8 primary_hop_limit;
 	/* SL:4, subnet local:1, rsvd:3 */
@@ -103,12 +101,12 @@ struct cm_req_msg {
 	/* local ACK timeout:5, rsvd:3 */
 	u8 primary_offset95;
 
-	u16 alt_local_lid;
-	u16 alt_remote_lid;
+	__be16 alt_local_lid;
+	__be16 alt_remote_lid;
 	union ib_gid alt_local_gid;
 	union ib_gid alt_remote_gid;
 	/* flow label:20, rsvd:6, packet rate:6 */
-	u32 alt_offset132;
+	__be32 alt_offset132;
 	u8 alt_traffic_class;
 	u8 alt_hop_limit;
 	/* SL:4, subnet local:1, rsvd:3 */
@@ -120,12 +118,12 @@ struct cm_req_msg {
 
 } __attribute__ ((packed));
 
-static inline u32 cm_req_get_local_qpn(struct cm_req_msg *req_msg)
+static inline __be32 cm_req_get_local_qpn(struct cm_req_msg *req_msg)
 {
 	return cpu_to_be32(be32_to_cpu(req_msg->offset32) >> 8);
 }
 
-static inline void cm_req_set_local_qpn(struct cm_req_msg *req_msg, u32 qpn)
+static inline void cm_req_set_local_qpn(struct cm_req_msg *req_msg, __be32 qpn)
 {
 	req_msg->offset32 = cpu_to_be32((be32_to_cpu(qpn) << 8) |
 					 (be32_to_cpu(req_msg->offset32) &
@@ -208,13 +206,13 @@ static inline void cm_req_set_flow_ctrl(struct cm_req_msg *req_msg,
 					  0xFFFFFFFE));
 }
 
-static inline u32 cm_req_get_starting_psn(struct cm_req_msg *req_msg)
+static inline __be32 cm_req_get_starting_psn(struct cm_req_msg *req_msg)
 {
 	return cpu_to_be32(be32_to_cpu(req_msg->offset44) >> 8);
 }
 
 static inline void cm_req_set_starting_psn(struct cm_req_msg *req_msg,
-					   u32 starting_psn)
+					   __be32 starting_psn)
 {
 	req_msg->offset44 = cpu_to_be32((be32_to_cpu(starting_psn) << 8) |
 			    (be32_to_cpu(req_msg->offset44) & 0x000000FF));
@@ -288,13 +286,13 @@ static inline void cm_req_set_srq(struct cm_req_msg *req_msg, u8 srq)
 				  ((srq & 0x1) << 3));
 }
 
-static inline u32 cm_req_get_primary_flow_label(struct cm_req_msg *req_msg)
+static inline __be32 cm_req_get_primary_flow_label(struct cm_req_msg *req_msg)
 {
-	return cpu_to_be32((be32_to_cpu(req_msg->primary_offset88) >> 12));
+	return cpu_to_be32(be32_to_cpu(req_msg->primary_offset88) >> 12);
 }
 
 static inline void cm_req_set_primary_flow_label(struct cm_req_msg *req_msg,
-						 u32 flow_label)
+						 __be32 flow_label)
 {
 	req_msg->primary_offset88 = cpu_to_be32(
 				    (be32_to_cpu(req_msg->primary_offset88) &
@@ -350,13 +348,13 @@ static inline void cm_req_set_primary_local_ack_timeout(struct cm_req_msg *req_m
 					  (local_ack_timeout << 3));
 }
 
-static inline u32 cm_req_get_alt_flow_label(struct cm_req_msg *req_msg)
+static inline __be32 cm_req_get_alt_flow_label(struct cm_req_msg *req_msg)
 {
-	return cpu_to_be32((be32_to_cpu(req_msg->alt_offset132) >> 12));
+	return cpu_to_be32(be32_to_cpu(req_msg->alt_offset132) >> 12);
 }
 
 static inline void cm_req_set_alt_flow_label(struct cm_req_msg *req_msg,
-					     u32 flow_label)
+					     __be32 flow_label)
 {
 	req_msg->alt_offset132 = cpu_to_be32(
 				 (be32_to_cpu(req_msg->alt_offset132) &
@@ -422,8 +420,8 @@ enum cm_msg_response {
  struct cm_mra_msg {
 	struct ib_mad_hdr hdr;
 
-	u32 local_comm_id;
-	u32 remote_comm_id;
+	__be32 local_comm_id;
+	__be32 remote_comm_id;
 	/* message MRAed:2, rsvd:6 */
 	u8 offset8;
 	/* service timeout:5, rsvd:3 */
@@ -458,13 +456,13 @@ static inline void cm_mra_set_service_timeout(struct cm_mra_msg *mra_msg,
 struct cm_rej_msg {
 	struct ib_mad_hdr hdr;
 
-	u32 local_comm_id;
-	u32 remote_comm_id;
+	__be32 local_comm_id;
+	__be32 remote_comm_id;
 	/* message REJected:2, rsvd:6 */
 	u8 offset8;
 	/* reject info length:7, rsvd:1. */
 	u8 offset9;
-	u16 reason;
+	__be16 reason;
 	u8 ari[IB_CM_REJ_ARI_LENGTH];
 
 	u8 private_data[IB_CM_REJ_PRIVATE_DATA_SIZE];
@@ -495,45 +493,45 @@ static inline void cm_rej_set_reject_info_len(struct cm_rej_msg *rej_msg,
 struct cm_rep_msg {
 	struct ib_mad_hdr hdr;
 
-	u32 local_comm_id;
-	u32 remote_comm_id;
-	u32 local_qkey;
+	__be32 local_comm_id;
+	__be32 remote_comm_id;
+	__be32 local_qkey;
 	/* local QPN:24, rsvd:8 */
-	u32 offset12;
+	__be32 offset12;
 	/* local EECN:24, rsvd:8 */
-	u32 offset16;
+	__be32 offset16;
 	/* starting PSN:24 rsvd:8 */
-	u32 offset20;
+	__be32 offset20;
 	u8 resp_resources;
 	u8 initiator_depth;
 	/* target ACK delay:5, failover accepted:2, end-to-end flow control:1 */
 	u8 offset26;
 	/* RNR retry count:3, SRQ:1, rsvd:5 */
 	u8 offset27;
-	u64 local_ca_guid;
+	__be64 local_ca_guid;
 
 	u8 private_data[IB_CM_REP_PRIVATE_DATA_SIZE];
 
 } __attribute__ ((packed));
 
-static inline u32 cm_rep_get_local_qpn(struct cm_rep_msg *rep_msg)
+static inline __be32 cm_rep_get_local_qpn(struct cm_rep_msg *rep_msg)
 {
 	return cpu_to_be32(be32_to_cpu(rep_msg->offset12) >> 8);
 }
 
-static inline void cm_rep_set_local_qpn(struct cm_rep_msg *rep_msg, u32 qpn)
+static inline void cm_rep_set_local_qpn(struct cm_rep_msg *rep_msg, __be32 qpn)
 {
 	rep_msg->offset12 = cpu_to_be32((be32_to_cpu(qpn) << 8) |
 			    (be32_to_cpu(rep_msg->offset12) & 0x000000FF));
 }
 
-static inline u32 cm_rep_get_starting_psn(struct cm_rep_msg *rep_msg)
+static inline __be32 cm_rep_get_starting_psn(struct cm_rep_msg *rep_msg)
 {
 	return cpu_to_be32(be32_to_cpu(rep_msg->offset20) >> 8);
 }
 
 static inline void cm_rep_set_starting_psn(struct cm_rep_msg *rep_msg,
-					   u32 starting_psn)
+					   __be32 starting_psn)
 {
 	rep_msg->offset20 = cpu_to_be32((be32_to_cpu(starting_psn) << 8) |
 			    (be32_to_cpu(rep_msg->offset20) & 0x000000FF));
@@ -600,8 +598,8 @@ static inline void cm_rep_set_srq(struct cm_rep_msg *rep_msg, u8 srq)
 struct cm_rtu_msg {
 	struct ib_mad_hdr hdr;
 
-	u32 local_comm_id;
-	u32 remote_comm_id;
+	__be32 local_comm_id;
+	__be32 remote_comm_id;
 
 	u8 private_data[IB_CM_RTU_PRIVATE_DATA_SIZE];
 
@@ -610,21 +608,21 @@ struct cm_rtu_msg {
 struct cm_dreq_msg {
 	struct ib_mad_hdr hdr;
 
-	u32 local_comm_id;
-	u32 remote_comm_id;
+	__be32 local_comm_id;
+	__be32 remote_comm_id;
 	/* remote QPN/EECN:24, rsvd:8 */
-	u32 offset8;
+	__be32 offset8;
 
 	u8 private_data[IB_CM_DREQ_PRIVATE_DATA_SIZE];
 
 } __attribute__ ((packed));
 
-static inline u32 cm_dreq_get_remote_qpn(struct cm_dreq_msg *dreq_msg)
+static inline __be32 cm_dreq_get_remote_qpn(struct cm_dreq_msg *dreq_msg)
 {
 	return cpu_to_be32(be32_to_cpu(dreq_msg->offset8) >> 8);
 }
 
-static inline void cm_dreq_set_remote_qpn(struct cm_dreq_msg *dreq_msg, u32 qpn)
+static inline void cm_dreq_set_remote_qpn(struct cm_dreq_msg *dreq_msg, __be32 qpn)
 {
 	dreq_msg->offset8 = cpu_to_be32((be32_to_cpu(qpn) << 8) |
 			    (be32_to_cpu(dreq_msg->offset8) & 0x000000FF));
@@ -633,8 +631,8 @@ static inline void cm_dreq_set_remote_qpn(struct cm_dreq_msg *dreq_msg, u32 qpn)
 struct cm_drep_msg {
 	struct ib_mad_hdr hdr;
 
-	u32 local_comm_id;
-	u32 remote_comm_id;
+	__be32 local_comm_id;
+	__be32 remote_comm_id;
 
 	u8 private_data[IB_CM_DREP_PRIVATE_DATA_SIZE];
 
@@ -643,37 +641,37 @@ struct cm_drep_msg {
 struct cm_lap_msg {
 	struct ib_mad_hdr hdr;
 
-	u32 local_comm_id;
-	u32 remote_comm_id;
+	__be32 local_comm_id;
+	__be32 remote_comm_id;
 
-	u32 rsvd8;
+	__be32 rsvd8;
 	/* remote QPN/EECN:24, remote CM response timeout:5, rsvd:3 */
-	u32 offset12;
-	u32 rsvd16;
+	__be32 offset12;
+	__be32 rsvd16;
 
-	u16 alt_local_lid;
-	u16 alt_remote_lid;
+	__be16 alt_local_lid;
+	__be16 alt_remote_lid;
 	union ib_gid alt_local_gid;
 	union ib_gid alt_remote_gid;
 	/* flow label:20, rsvd:4, traffic class:8 */
-	u32 offset56;
+	__be32 offset56;
 	u8 alt_hop_limit;
 	/* rsvd:2, packet rate:6 */
-	uint8_t offset61;
+	u8 offset61;
 	/* SL:4, subnet local:1, rsvd:3 */
-	uint8_t offset62;
+	u8 offset62;
 	/* local ACK timeout:5, rsvd:3 */
-	uint8_t offset63;
+	u8 offset63;
 
 	u8 private_data[IB_CM_LAP_PRIVATE_DATA_SIZE];
 } __attribute__  ((packed));
 
-static inline u32 cm_lap_get_remote_qpn(struct cm_lap_msg *lap_msg)
+static inline __be32 cm_lap_get_remote_qpn(struct cm_lap_msg *lap_msg)
 {
 	return cpu_to_be32(be32_to_cpu(lap_msg->offset12) >> 8);
 }
 
-static inline void cm_lap_set_remote_qpn(struct cm_lap_msg *lap_msg, u32 qpn)
+static inline void cm_lap_set_remote_qpn(struct cm_lap_msg *lap_msg, __be32 qpn)
 {
 	lap_msg->offset12 = cpu_to_be32((be32_to_cpu(qpn) << 8) |
 					 (be32_to_cpu(lap_msg->offset12) &
@@ -693,17 +691,17 @@ static inline void cm_lap_set_remote_resp_timeout(struct cm_lap_msg *lap_msg,
 					  0xFFFFFF07));
 }
 
-static inline u32 cm_lap_get_flow_label(struct cm_lap_msg *lap_msg)
+static inline __be32 cm_lap_get_flow_label(struct cm_lap_msg *lap_msg)
 {
-	return be32_to_cpu(lap_msg->offset56) >> 12;
+	return cpu_to_be32(be32_to_cpu(lap_msg->offset56) >> 12);
 }
 
 static inline void cm_lap_set_flow_label(struct cm_lap_msg *lap_msg,
-					 u32 flow_label)
+					 __be32 flow_label)
 {
-	lap_msg->offset56 = cpu_to_be32((flow_label << 12) |
-					 (be32_to_cpu(lap_msg->offset56) &
-					  0x00000FFF));
+	lap_msg->offset56 = cpu_to_be32(
+				 (be32_to_cpu(lap_msg->offset56) & 0x00000FFF) |
+				 (be32_to_cpu(flow_label) << 12));
 }
 
 static inline u8 cm_lap_get_traffic_class(struct cm_lap_msg *lap_msg)
@@ -766,8 +764,8 @@ static inline void cm_lap_set_local_ack_timeout(struct cm_lap_msg *lap_msg,
 struct cm_apr_msg {
 	struct ib_mad_hdr hdr;
 
-	u32 local_comm_id;
-	u32 remote_comm_id;
+	__be32 local_comm_id;
+	__be32 remote_comm_id;
 
 	u8 info_length;
 	u8 ap_status;
@@ -779,10 +777,10 @@ struct cm_apr_msg {
 struct cm_sidr_req_msg {
 	struct ib_mad_hdr hdr;
 
-	u32 request_id;
-	u16 pkey;
-	u16 rsvd;
-	u64 service_id;
+	__be32 request_id;
+	__be16 pkey;
+	__be16 rsvd;
+	__be64 service_id;
 
 	u8 private_data[IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE];
 } __attribute__ ((packed));
@@ -790,26 +788,26 @@ struct cm_sidr_req_msg {
 struct cm_sidr_rep_msg {
 	struct ib_mad_hdr hdr;
 
-	u32 request_id;
+	__be32 request_id;
 	u8 status;
 	u8 info_length;
-	u16 rsvd;
+	__be16 rsvd;
 	/* QPN:24, rsvd:8 */
-	u32 offset8;
-	u64 service_id;
-	u32 qkey;
+	__be32 offset8;
+	__be64 service_id;
+	__be32 qkey;
 	u8 info[IB_CM_SIDR_REP_INFO_LENGTH];
 
 	u8 private_data[IB_CM_SIDR_REP_PRIVATE_DATA_SIZE];
 } __attribute__ ((packed));
 
-static inline u32 cm_sidr_rep_get_qpn(struct cm_sidr_rep_msg *sidr_rep_msg)
+static inline __be32 cm_sidr_rep_get_qpn(struct cm_sidr_rep_msg *sidr_rep_msg)
 {
 	return cpu_to_be32(be32_to_cpu(sidr_rep_msg->offset8) >> 8);
 }
 
 static inline void cm_sidr_rep_set_qpn(struct cm_sidr_rep_msg *sidr_rep_msg,
-				       u32 qpn)
+				       __be32 qpn)
 {
 	sidr_rep_msg->offset8 = cpu_to_be32((be32_to_cpu(qpn) << 8) |
 					(be32_to_cpu(sidr_rep_msg->offset8) &

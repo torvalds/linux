@@ -1157,16 +1157,20 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!skb_shinfo(skb)->nr_frags) {
 linear:
 		if (skb->ip_summed != CHECKSUM_HW) {
+			/* Errata BTS #50, IHL must be 5 if no HW checksum */
 			pkt_info.cmd_sts = ETH_TX_ENABLE_INTERRUPT |
-					ETH_TX_FIRST_DESC | ETH_TX_LAST_DESC;
+					   ETH_TX_FIRST_DESC |
+					   ETH_TX_LAST_DESC |
+					   5 << ETH_TX_IHL_SHIFT;
 			pkt_info.l4i_chk = 0;
 		} else {
-			u32 ipheader = skb->nh.iph->ihl << 11;
 
 			pkt_info.cmd_sts = ETH_TX_ENABLE_INTERRUPT |
-					ETH_TX_FIRST_DESC | ETH_TX_LAST_DESC |
-					ETH_GEN_TCP_UDP_CHECKSUM |
-					ETH_GEN_IP_V_4_CHECKSUM | ipheader;
+					   ETH_TX_FIRST_DESC |
+					   ETH_TX_LAST_DESC |
+					   ETH_GEN_TCP_UDP_CHECKSUM |
+					   ETH_GEN_IP_V_4_CHECKSUM |
+					   skb->nh.iph->ihl << ETH_TX_IHL_SHIFT;
 			/* CPU already calculated pseudo header checksum. */
 			if (skb->nh.iph->protocol == IPPROTO_UDP) {
 				pkt_info.cmd_sts |= ETH_UDP_FRAME;
@@ -1193,7 +1197,6 @@ linear:
 		stats->tx_bytes += pkt_info.byte_cnt;
 	} else {
 		unsigned int frag;
-		u32 ipheader;
 
 		/* Since hardware can't handle unaligned fragments smaller
 		 * than 9 bytes, if we find any, we linearize the skb
@@ -1222,12 +1225,16 @@ linear:
 							DMA_TO_DEVICE);
 		pkt_info.l4i_chk = 0;
 		pkt_info.return_info = 0;
-		pkt_info.cmd_sts = ETH_TX_FIRST_DESC;
 
-		if (skb->ip_summed == CHECKSUM_HW) {
-			ipheader = skb->nh.iph->ihl << 11;
-			pkt_info.cmd_sts |= ETH_GEN_TCP_UDP_CHECKSUM |
-					ETH_GEN_IP_V_4_CHECKSUM | ipheader;
+		if (skb->ip_summed != CHECKSUM_HW)
+			/* Errata BTS #50, IHL must be 5 if no HW checksum */
+			pkt_info.cmd_sts = ETH_TX_FIRST_DESC |
+					   5 << ETH_TX_IHL_SHIFT;
+		else {
+			pkt_info.cmd_sts = ETH_TX_FIRST_DESC |
+					   ETH_GEN_TCP_UDP_CHECKSUM |
+					   ETH_GEN_IP_V_4_CHECKSUM |
+					   skb->nh.iph->ihl << ETH_TX_IHL_SHIFT;
 			/* CPU already calculated pseudo header checksum. */
 			if (skb->nh.iph->protocol == IPPROTO_UDP) {
 				pkt_info.cmd_sts |= ETH_UDP_FRAME;
