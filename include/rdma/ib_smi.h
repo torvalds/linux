@@ -39,9 +39,7 @@
 #if !defined( IB_SMI_H )
 #define IB_SMI_H
 
-#include <ib_mad.h>
-
-#define IB_LID_PERMISSIVE			0xFFFF
+#include <rdma/ib_mad.h>
 
 #define IB_SMP_DATA_SIZE			64
 #define IB_SMP_MAX_PATH_HOPS			64
@@ -51,16 +49,16 @@ struct ib_smp {
 	u8	mgmt_class;
 	u8	class_version;
 	u8	method;
-	u16	status;
+	__be16	status;
 	u8	hop_ptr;
 	u8	hop_cnt;
-	u64	tid;
-	u16	attr_id;
-	u16	resv;
-	u32	attr_mod;
-	u64	mkey;
-	u16	dr_slid;
-	u16	dr_dlid;
+	__be64	tid;
+	__be16	attr_id;
+	__be16	resv;
+	__be32	attr_mod;
+	__be64	mkey;
+	__be16	dr_slid;
+	__be16	dr_dlid;
 	u8	reserved[28];
 	u8	data[IB_SMP_DATA_SIZE];
 	u8	initial_path[IB_SMP_MAX_PATH_HOPS];

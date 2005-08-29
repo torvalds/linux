@@ -35,7 +35,7 @@
 #ifndef IB_PACK_H
 #define IB_PACK_H
 
-#include <ib_verbs.h>
+#include <rdma/ib_verbs.h>
 
 enum {
 	IB_LRH_BYTES  = 8,

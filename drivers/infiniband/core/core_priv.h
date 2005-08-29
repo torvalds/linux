@@ -38,7 +38,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
-#include <ib_verbs.h>
+#include <rdma/ib_verbs.h>
 
 int  ib_device_register_sysfs(struct ib_device *device);
 void ib_device_unregister_sysfs(struct ib_device *device);

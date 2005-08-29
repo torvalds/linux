@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -36,7 +37,7 @@
 #include <linux/pci.h>
 #include <linux/errno.h>
 #include <asm/io.h>
-#include <ib_mad.h>
+#include <rdma/ib_mad.h>
 
 #include "mthca_dev.h"
 #include "mthca_config_reg.h"
@@ -108,6 +109,7 @@ enum {
 	CMD_SW2HW_SRQ 	    = 0x35,
 	CMD_HW2SW_SRQ 	    = 0x36,
 	CMD_QUERY_SRQ       = 0x37,
+	CMD_ARM_SRQ         = 0x40,
 
 	/* QP/EE commands */
 	CMD_RST2INIT_QPEE   = 0x19,
@@ -219,20 +221,20 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 	 * (and some architectures such as ia64 implement memcpy_toio
 	 * in terms of writeb).
 	 */
-	__raw_writel(cpu_to_be32(in_param >> 32),           dev->hcr + 0 * 4);
-	__raw_writel(cpu_to_be32(in_param & 0xfffffffful),  dev->hcr + 1 * 4);
-	__raw_writel(cpu_to_be32(in_modifier),              dev->hcr + 2 * 4);
-	__raw_writel(cpu_to_be32(out_param >> 32),          dev->hcr + 3 * 4);
-	__raw_writel(cpu_to_be32(out_param & 0xfffffffful), dev->hcr + 4 * 4);
-	__raw_writel(cpu_to_be32(token << 16),              dev->hcr + 5 * 4);
+	__raw_writel((__force u32) cpu_to_be32(in_param >> 32),           dev->hcr + 0 * 4);
+	__raw_writel((__force u32) cpu_to_be32(in_param & 0xfffffffful),  dev->hcr + 1 * 4);
+	__raw_writel((__force u32) cpu_to_be32(in_modifier),              dev->hcr + 2 * 4);
+	__raw_writel((__force u32) cpu_to_be32(out_param >> 32),          dev->hcr + 3 * 4);
+	__raw_writel((__force u32) cpu_to_be32(out_param & 0xfffffffful), dev->hcr + 4 * 4);
+	__raw_writel((__force u32) cpu_to_be32(token << 16),              dev->hcr + 5 * 4);
 
 	/* __raw_writel may not order writes. */
 	wmb();
 
-	__raw_writel(cpu_to_be32((1 << HCR_GO_BIT)                |
-				 (event ? (1 << HCA_E_BIT) : 0)   |
-				 (op_modifier << HCR_OPMOD_SHIFT) |
-				 op),                       dev->hcr + 6 * 4);
+	__raw_writel((__force u32) cpu_to_be32((1 << HCR_GO_BIT)                |
+					       (event ? (1 << HCA_E_BIT) : 0)   |
+					       (op_modifier << HCR_OPMOD_SHIFT) |
+					       op),                       dev->hcr + 6 * 4);
 
 out:
 	up(&dev->cmd.hcr_sem);
@@ -273,12 +275,14 @@ static int mthca_cmd_poll(struct mthca_dev *dev,
 		goto out;
 	}
 
-	if (out_is_imm) {
-		memcpy_fromio(out_param, dev->hcr + HCR_OUT_PARAM_OFFSET, sizeof (u64));
-		be64_to_cpus(out_param);
-	}
+	if (out_is_imm)
+		*out_param = 
+			(u64) be32_to_cpu((__force __be32)
+					  __raw_readl(dev->hcr + HCR_OUT_PARAM_OFFSET)) << 32 |
+			(u64) be32_to_cpu((__force __be32)
+					  __raw_readl(dev->hcr + HCR_OUT_PARAM_OFFSET + 4));
 
-	*status = be32_to_cpu(__raw_readl(dev->hcr + HCR_STATUS_OFFSET)) >> 24;
+	*status = be32_to_cpu((__force __be32) __raw_readl(dev->hcr + HCR_STATUS_OFFSET)) >> 24;
 
 out:
 	up(&dev->cmd.poll_sem);
@@ -1029,6 +1033,8 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 
 	mthca_dbg(dev, "Max QPs: %d, reserved QPs: %d, entry size: %d\n",
 		  dev_lim->max_qps, dev_lim->reserved_qps, dev_lim->qpc_entry_sz);
+	mthca_dbg(dev, "Max SRQs: %d, reserved SRQs: %d, entry size: %d\n",
+		  dev_lim->max_srqs, dev_lim->reserved_srqs, dev_lim->srq_entry_sz);
 	mthca_dbg(dev, "Max CQs: %d, reserved CQs: %d, entry size: %d\n",
 		  dev_lim->max_cqs, dev_lim->reserved_cqs, dev_lim->cqc_entry_sz);
 	mthca_dbg(dev, "Max EQs: %d, reserved EQs: %d, entry size: %d\n",
@@ -1082,6 +1088,34 @@ out:
 	return err;
 }
 
+static void get_board_id(void *vsd, char *board_id)
+{
+	int i;
+
+#define VSD_OFFSET_SIG1		0x00
+#define VSD_OFFSET_SIG2		0xde
+#define VSD_OFFSET_MLX_BOARD_ID	0xd0
+#define VSD_OFFSET_TS_BOARD_ID	0x20
+
+#define VSD_SIGNATURE_TOPSPIN	0x5ad
+
+	memset(board_id, 0, MTHCA_BOARD_ID_LEN);
+
+	if (be16_to_cpup(vsd + VSD_OFFSET_SIG1) == VSD_SIGNATURE_TOPSPIN &&
+	    be16_to_cpup(vsd + VSD_OFFSET_SIG2) == VSD_SIGNATURE_TOPSPIN) {
+		strlcpy(board_id, vsd + VSD_OFFSET_TS_BOARD_ID, MTHCA_BOARD_ID_LEN);
+	} else {
+		/*
+		 * The board ID is a string but the firmware byte
+		 * swaps each 4-byte word before passing it back to
+		 * us.  Therefore we need to swab it before printing.
+		 */
+		for (i = 0; i < 4; ++i)
+			((u32 *) board_id)[i] =
+				swab32(*(u32 *) (vsd + VSD_OFFSET_MLX_BOARD_ID + i * 4));
+	}
+}
+
 int mthca_QUERY_ADAPTER(struct mthca_dev *dev,
 			struct mthca_adapter *adapter, u8 *status)
 {
@@ -1094,6 +1128,7 @@ int mthca_QUERY_ADAPTER(struct mthca_dev *dev,
 #define QUERY_ADAPTER_DEVICE_ID_OFFSET     0x04
 #define QUERY_ADAPTER_REVISION_ID_OFFSET   0x08
 #define QUERY_ADAPTER_INTA_PIN_OFFSET      0x10
+#define QUERY_ADAPTER_VSD_OFFSET           0x20
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox))
@@ -1111,6 +1146,9 @@ int mthca_QUERY_ADAPTER(struct mthca_dev *dev,
 	MTHCA_GET(adapter->revision_id, outbox, QUERY_ADAPTER_REVISION_ID_OFFSET);
 	MTHCA_GET(adapter->inta_pin, outbox,    QUERY_ADAPTER_INTA_PIN_OFFSET);
 
+	get_board_id(outbox + QUERY_ADAPTER_VSD_OFFSET / 4,
+		     adapter->board_id);
+
 out:
 	mthca_free_mailbox(dev, mailbox);
 	return err;
@@ -1121,7 +1159,7 @@ int mthca_INIT_HCA(struct mthca_dev *dev,
 		   u8 *status)
 {
 	struct mthca_mailbox *mailbox;
-	u32 *inbox;
+	__be32 *inbox;
 	int err;
 
 #define INIT_HCA_IN_SIZE             	 0x200
@@ -1247,10 +1285,8 @@ int mthca_INIT_IB(struct mthca_dev *dev,
 #define INIT_IB_FLAG_SIG         (1 << 18)
 #define INIT_IB_FLAG_NG          (1 << 17)
 #define INIT_IB_FLAG_G0          (1 << 16)
-#define INIT_IB_FLAG_1X          (1 << 8)
-#define INIT_IB_FLAG_4X          (1 << 9)
-#define INIT_IB_FLAG_12X         (1 << 11)
 #define INIT_IB_VL_SHIFT         4
+#define INIT_IB_PORT_WIDTH_SHIFT 8
 #define INIT_IB_MTU_SHIFT        12
 #define INIT_IB_MAX_GID_OFFSET   0x06
 #define INIT_IB_MAX_PKEY_OFFSET  0x0a
@@ -1266,12 +1302,11 @@ int mthca_INIT_IB(struct mthca_dev *dev,
 	memset(inbox, 0, INIT_IB_IN_SIZE);
 
 	flags = 0;
-	flags |= param->enable_1x     ? INIT_IB_FLAG_1X  : 0;
-	flags |= param->enable_4x     ? INIT_IB_FLAG_4X  : 0;
 	flags |= param->set_guid0     ? INIT_IB_FLAG_G0  : 0;
 	flags |= param->set_node_guid ? INIT_IB_FLAG_NG  : 0;
 	flags |= param->set_si_guid   ? INIT_IB_FLAG_SIG : 0;
 	flags |= param->vl_cap << INIT_IB_VL_SHIFT;
+	flags |= param->port_width << INIT_IB_PORT_WIDTH_SHIFT;
 	flags |= param->mtu_cap << INIT_IB_MTU_SHIFT;
 	MTHCA_PUT(inbox, flags, INIT_IB_FLAGS_OFFSET);
 
@@ -1342,7 +1377,7 @@ int mthca_MAP_ICM(struct mthca_dev *dev, struct mthca_icm *icm, u64 virt, u8 *st
 int mthca_MAP_ICM_page(struct mthca_dev *dev, u64 dma_addr, u64 virt, u8 *status)
 {
 	struct mthca_mailbox *mailbox;
-	u64 *inbox;
+	__be64 *inbox;
 	int err;
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
@@ -1468,6 +1503,27 @@ int mthca_HW2SW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 			     CMD_TIME_CLASS_A, status);
 }
 
+int mthca_SW2HW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
+		    int srq_num, u8 *status)
+{
+	return mthca_cmd(dev, mailbox->dma, srq_num, 0, CMD_SW2HW_SRQ,
+			CMD_TIME_CLASS_A, status);
+}
+
+int mthca_HW2SW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
+		    int srq_num, u8 *status)
+{
+	return mthca_cmd_box(dev, 0, mailbox->dma, srq_num, 0,
+			     CMD_HW2SW_SRQ,
+			     CMD_TIME_CLASS_A, status);
+}
+
+int mthca_ARM_SRQ(struct mthca_dev *dev, int srq_num, int limit, u8 *status)
+{
+	return mthca_cmd(dev, limit, srq_num, 0, CMD_ARM_SRQ,
+			 CMD_TIME_CLASS_B, status);
+}
+
 int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 		    int is_ee, struct mthca_mailbox *mailbox, u32 optmask,
 		    u8 *status)
@@ -1513,7 +1569,7 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 				if (i % 8 == 0)
 					printk("  [%02x] ", i * 4);
 				printk(" %08x",
-				       be32_to_cpu(((u32 *) mailbox->buf)[i + 2]));
+				       be32_to_cpu(((__be32 *) mailbox->buf)[i + 2]));
 				if ((i + 1) % 8 == 0)
 					printk("\n");
 			}
@@ -1533,7 +1589,7 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 				if (i % 8 == 0)
 					printk("[%02x] ", i * 4);
 				printk(" %08x",
-				       be32_to_cpu(((u32 *) mailbox->buf)[i + 2]));
+				       be32_to_cpu(((__be32 *) mailbox->buf)[i + 2]));
 				if ((i + 1) % 8 == 0)
 					printk("\n");
 			}

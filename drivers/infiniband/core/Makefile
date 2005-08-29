@@ -1,5 +1,3 @@
-EXTRA_CFLAGS += -Idrivers/infiniband/include
-
 obj-$(CONFIG_INFINIBAND) +=		ib_core.o ib_mad.o ib_sa.o \
 					ib_cm.o ib_umad.o ib_ucm.o
 obj-$(CONFIG_INFINIBAND_USER_VERBS) +=	ib_uverbs.o

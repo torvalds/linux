@@ -97,7 +97,7 @@ static int ipoib_mcg_seq_show(struct seq_file *file, void *iter_ptr)
 
 		for (n = 0, i = 0; i < sizeof mgid / 2; ++i) {
 			n += sprintf(gid_buf + n, "%x",
-				     be16_to_cpu(((u16 *)mgid.raw)[i]));
+				     be16_to_cpu(((__be16 *) mgid.raw)[i]));
 			if (i < sizeof mgid / 2 - 1)
 				gid_buf[n++] = ':';
 		}

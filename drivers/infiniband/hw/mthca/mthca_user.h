@@ -69,6 +69,17 @@ struct mthca_create_cq_resp {
 	__u32 reserved;
 };
 
+struct mthca_create_srq {
+	__u32 lkey;
+	__u32 db_index;
+	__u64 db_page;
+};
+
+struct mthca_create_srq_resp {
+	__u32 srqn;
+	__u32 reserved;
+};
+
 struct mthca_create_qp {
 	__u32 lkey;
 	__u32 reserved;
