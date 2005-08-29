@@ -43,7 +43,7 @@ typedef struct {
 #define spin_is_locked(lp)  ((lp)->lock != 0)
 
 #define spin_unlock_wait(lp)	\
-do {	membar("#LoadLoad");	\
+do {	rmb();			\
 } while((lp)->lock)
 
 static inline void _raw_spin_lock(spinlock_t *lock)
@@ -129,7 +129,7 @@ typedef struct {
 #define spin_is_locked(__lock)	((__lock)->lock != 0)
 #define spin_unlock_wait(__lock)	\
 do { \
-	membar("#LoadLoad"); \
+	rmb(); \
 } while((__lock)->lock)
 
 extern void _do_spin_lock(spinlock_t *lock, char *str, unsigned long caller);

@@ -877,11 +877,12 @@ static void new_setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 			unsigned long page = (unsigned long)
 				page_address(pte_page(*ptep));
 
-			__asm__ __volatile__(
-			"	membar	#StoreStore\n"
-			"	flush	%0 + %1"
-			: : "r" (page), "r" (address & (PAGE_SIZE - 1))
-			: "memory");
+			wmb();
+			__asm__ __volatile__("flush	%0 + %1"
+					     : /* no outputs */
+					     : "r" (page),
+					       "r" (address & (PAGE_SIZE - 1))
+					     : "memory");
 		}
 		pte_unmap(ptep);
 		preempt_enable();
@@ -1292,11 +1293,12 @@ static void setup_rt_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 			unsigned long page = (unsigned long)
 				page_address(pte_page(*ptep));
 
-			__asm__ __volatile__(
-			"	membar	#StoreStore\n"
-			"	flush	%0 + %1"
-			: : "r" (page), "r" (address & (PAGE_SIZE - 1))
-			: "memory");
+			wmb();
+			__asm__ __volatile__("flush	%0 + %1"
+					     : /* no outputs */
+					     : "r" (page),
+					       "r" (address & (PAGE_SIZE - 1))
+					     : "memory");
 		}
 		pte_unmap(ptep);
 		preempt_enable();

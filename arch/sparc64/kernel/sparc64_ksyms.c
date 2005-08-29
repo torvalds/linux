@@ -406,3 +406,12 @@ EXPORT_SYMBOL(xor_vis_4);
 EXPORT_SYMBOL(xor_vis_5);
 
 EXPORT_SYMBOL(prom_palette);
+
+/* memory barriers */
+EXPORT_SYMBOL(mb);
+EXPORT_SYMBOL(rmb);
+EXPORT_SYMBOL(wmb);
+EXPORT_SYMBOL(membar_storeload);
+EXPORT_SYMBOL(membar_storeload_storestore);
+EXPORT_SYMBOL(membar_storeload_loadload);
+EXPORT_SYMBOL(membar_storestore_loadstore);

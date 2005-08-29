@@ -61,7 +61,7 @@ again:
 			     : "=r" (val)
 			     : "r" (&(lock->lock))
 			     : "memory");
-	membar("#StoreLoad | #StoreStore");
+	membar_storeload_storestore();
 	if (val) {
 		while (lock->lock) {
 			if (!--stuck) {
@@ -69,7 +69,7 @@ again:
 					show(str, lock, caller);
 				stuck = INIT_STUCK;
 			}
-			membar("#LoadLoad");
+			rmb();
 		}
 		goto again;
 	}
@@ -90,7 +90,7 @@ int _do_spin_trylock(spinlock_t *lock, unsigned long caller)
 			     : "=r" (val)
 			     : "r" (&(lock->lock))
 			     : "memory");
-	membar("#StoreLoad | #StoreStore");
+	membar_storeload_storestore();
 	if (!val) {
 		lock->owner_pc = ((unsigned int)caller);
 		lock->owner_cpu = cpu;
@@ -107,7 +107,7 @@ void _do_spin_unlock(spinlock_t *lock)
 {
 	lock->owner_pc = 0;
 	lock->owner_cpu = NO_PROC_ID;
-	membar("#StoreStore | #LoadStore");
+	membar_storestore_loadstore();
 	lock->lock = 0;
 	current->thread.smp_lock_count--;
 }
@@ -129,7 +129,7 @@ wlock_again:
 				show_read(str, rw, caller);
 			stuck = INIT_STUCK;
 		}
-		membar("#LoadLoad");
+		rmb();
 	}
 	/* Try once to increment the counter.  */
 	__asm__ __volatile__(
@@ -142,7 +142,7 @@ wlock_again:
 "2:"	: "=r" (val)
 	: "0" (&(rw->lock))
 	: "g1", "g7", "memory");
-	membar("#StoreLoad | #StoreStore");
+	membar_storeload_storestore();
 	if (val)
 		goto wlock_again;
 	rw->reader_pc[cpu] = ((unsigned int)caller);
@@ -201,7 +201,7 @@ wlock_again:
 				show_write(str, rw, caller);
 			stuck = INIT_STUCK;
 		}
-		membar("#LoadLoad");
+		rmb();
 	}
 
 	/* Try to acuire the write bit.  */
@@ -256,7 +256,7 @@ wlock_again:
 					show_write(str, rw, caller);
 				stuck = INIT_STUCK;
 			}
-			membar("#LoadLoad");
+			rmb();
 		}
 		goto wlock_again;
 	}
