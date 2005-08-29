@@ -20,6 +20,17 @@
  *  If you do not delete the provisions above, a recipient may use your
  *  version of this file under either the OSL or the GPL.
  *
+ *
+ *  libata documentation is available via 'make {ps|pdf}docs',
+ *  as Documentation/DocBook/libata.*
+ *
+ *  No hardware documentation available outside of NVIDIA.
+ *  This driver programs the NVIDIA SATA controller in a similar
+ *  fashion as with other PCI IDE BMDMA controllers, with a few
+ *  NV-specific details such as register offsets, SATA phy location,
+ *  hotplug info, etc.
+ *
+ *
  *  0.06
  *     - Added generic SATA support by using a pci_device_id that filters on
  *       the IDE storage class code.
