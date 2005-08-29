@@ -468,7 +468,7 @@ static void pdc20621_dma_prep(struct ata_queued_cmd *qc)
 	for (i = 0; i < last; i++) {
 		buf[idx++] = cpu_to_le32(sg_dma_address(&sg[i]));
 		buf[idx++] = cpu_to_le32(sg_dma_len(&sg[i]));
-		total_len += sg[i].length;
+		total_len += sg_dma_len(&sg[i]);
 	}
 	buf[idx - 1] |= cpu_to_le32(ATA_PRD_EOT);
 	sgt_len = idx * 4;

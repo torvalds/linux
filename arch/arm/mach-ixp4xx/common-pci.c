@@ -453,8 +453,8 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
 	local_write_config(PCI_COMMAND, 2, PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY);
 
 	res[0].name = "PCI I/O Space";
-	res[0].start = 0x00001000;
-	res[0].end = 0xffff0000;
+	res[0].start = 0x00000000;
+	res[0].end = 0x0000ffff;
 	res[0].flags = IORESOURCE_IO;
 
 	res[1].name = "PCI Memory Space";

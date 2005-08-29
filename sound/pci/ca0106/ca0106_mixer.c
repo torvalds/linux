@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
- *  Version: 0.0.16
+ *  Version: 0.0.17
  *
  *  FEATURES currently supported:
  *    See ca0106_main.c for features.
@@ -37,6 +37,8 @@
  *    Separated ca0106.c into separate functional .c files.
  *  0.0.16
  *    Modified Copyright message.
+ *  0.0.17
+ *    Implement Mic and Line in Capture.
  *
  *  This code was initally based on code from ALSA's emu10k1x.c which is:
  *  Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
@@ -113,7 +115,7 @@ static int snd_ca0106_shared_spdif_put(snd_kcontrol_t * kcontrol,
 		} else {
 			/* Analog */
 			snd_ca0106_ptr_write(emu, SPDIF_SELECT1, 0, 0xf);
-			snd_ca0106_ptr_write(emu, SPDIF_SELECT2, 0, 0x000b0000);
+			snd_ca0106_ptr_write(emu, SPDIF_SELECT2, 0, 0x000f0000);
 			snd_ca0106_ptr_write(emu, CAPTURE_CONTROL, 0,
 				snd_ca0106_ptr_read(emu, CAPTURE_CONTROL, 0) | 0x1000);
 			mask = inl(emu->port + GPIO) | 0x101;
@@ -181,6 +183,65 @@ static snd_kcontrol_new_t snd_ca0106_capture_source __devinitdata =
 	.info =		snd_ca0106_capture_source_info,
 	.get =		snd_ca0106_capture_source_get,
 	.put =		snd_ca0106_capture_source_put
+};
+
+static int snd_ca0106_capture_mic_line_in_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+{
+	static char *texts[2] = { "Line in", "Mic in" };
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 2;
+	if (uinfo->value.enumerated.item > 1)
+                uinfo->value.enumerated.item = 1;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int snd_ca0106_capture_mic_line_in_get(snd_kcontrol_t * kcontrol,
+					snd_ctl_elem_value_t * ucontrol)
+{
+	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = emu->capture_mic_line_in;
+	return 0;
+}
+
+static int snd_ca0106_capture_mic_line_in_put(snd_kcontrol_t * kcontrol,
+					snd_ctl_elem_value_t * ucontrol)
+{
+	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int val;
+	int change = 0;
+	u32 tmp;
+
+	val = ucontrol->value.enumerated.item[0] ;
+	change = (emu->capture_mic_line_in != val);
+	if (change) {
+		emu->capture_mic_line_in = val;
+		if (val) {
+			snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_PHONE); /* Mute input */
+			tmp = inl(emu->port+GPIO) & ~0x400;
+			tmp = tmp | 0x400;
+			outl(tmp, emu->port+GPIO);
+			snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_MIC);
+		} else {
+			snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_PHONE); /* Mute input */
+			tmp = inl(emu->port+GPIO) & ~0x400;
+			outl(tmp, emu->port+GPIO);
+			snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_LINEIN);
+		}
+	}
+        return change;
+}
+
+static snd_kcontrol_new_t snd_ca0106_capture_mic_line_in __devinitdata =
+{
+	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name =		"Mic/Line in Capture",
+	.info =		snd_ca0106_capture_mic_line_in_info,
+	.get =		snd_ca0106_capture_mic_line_in_get,
+	.put =		snd_ca0106_capture_mic_line_in_put
 };
 
 static int snd_ca0106_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
@@ -437,7 +498,7 @@ static snd_kcontrol_new_t snd_ca0106_volume_control_analog_center_lfe =
 static snd_kcontrol_new_t snd_ca0106_volume_control_analog_unknown =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "Analog Unknown Volume",
+        .name =         "Analog Side Volume",
         .info =         snd_ca0106_volume_info,
         .get =          snd_ca0106_volume_get_analog_unknown,
         .put =          snd_ca0106_volume_put_analog_unknown
@@ -620,10 +681,11 @@ int __devinit snd_ca0106_mixer(ca0106_t *emu)
 		return -ENOMEM;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
-	if ((kctl = ctl_find(card, SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT))) != NULL) {
-		/* already defined by ac97, remove it */
-		/* FIXME: or do we need both controls? */
-		remove_ctl(card, SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT));
+	if (emu->details->i2c_adc == 1) {
+		if ((kctl = snd_ctl_new1(&snd_ca0106_capture_mic_line_in, emu)) == NULL)
+			return -ENOMEM;
+		if ((err = snd_ctl_add(card, kctl)))
+			return err;
 	}
 	if ((kctl = snd_ctl_new1(&snd_ca0106_spdif_control, emu)) == NULL)
 		return -ENOMEM;

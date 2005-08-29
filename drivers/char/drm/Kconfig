@@ -6,7 +6,7 @@
 #
 config DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
-	depends on AGP || AGP=n
+	depends on (AGP || AGP=n) && PCI
 	help
 	  Kernel-level support for the Direct Rendering Infrastructure (DRI)
 	  introduced in XFree86 4.0. If you say Y here, you need to select
@@ -95,4 +95,11 @@ config DRM_SIS
 	  Choose this option if you have a SiS 630 or compatible video 
           chipset. If M is selected the module will be called sis. AGP
           support is required for this driver to work.
+
+config DRM_VIA
+	tristate "Via unichrome video cards"
+	depends on DRM
+	help
+	  Choose this option if you have a Via unichrome or compatible video
+	  chipset. If M is selected the module will be called via.
 

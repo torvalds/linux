@@ -478,7 +478,6 @@ typedef u32                                     acpi_object_type;
 #define ACPI_TYPE_INVALID               0x1E
 #define ACPI_TYPE_NOT_FOUND             0xFF
 
-
 /*
  * Bitmapped ACPI types.  Used internally only
  */
@@ -803,7 +802,6 @@ struct acpi_system_info
 /*
  * Types specific to the OS service interfaces
  */
-
 typedef u32
 (ACPI_SYSTEM_XFACE *acpi_osd_handler) (
 	void                            *context);

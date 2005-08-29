@@ -129,14 +129,13 @@ static struct iosapic {
 	char __iomem	*addr;		/* base address of IOSAPIC */
 	unsigned int 	gsi_base;	/* first GSI assigned to this IOSAPIC */
 	unsigned short 	num_rte;	/* number of RTE in this IOSAPIC */
+	int		rtes_inuse;	/* # of RTEs in use on this IOSAPIC */
 #ifdef CONFIG_NUMA
 	unsigned short	node;		/* numa node association via pxm */
 #endif
 } iosapic_lists[NR_IOSAPICS];
 
-static int num_iosapic;
-
-static unsigned char pcat_compat __initdata;	/* 8259 compatibility flag */
+static unsigned char pcat_compat __devinitdata;	/* 8259 compatibility flag */
 
 static int iosapic_kmalloc_ok;
 static LIST_HEAD(free_rte_list);
@@ -149,7 +148,7 @@ find_iosapic (unsigned int gsi)
 {
 	int i;
 
-	for (i = 0; i < num_iosapic; i++) {
+	for (i = 0; i < NR_IOSAPICS; i++) {
 		if ((unsigned) (gsi - iosapic_lists[i].gsi_base) < iosapic_lists[i].num_rte)
 			return i;
 	}
@@ -490,8 +489,6 @@ static int iosapic_find_sharable_vector (unsigned long trigger, unsigned long po
 			}
 		}
 	}
-	if (vector < 0)
-		panic("%s: out of interrupt vectors!\n", __FUNCTION__);
 
 	return vector;
 }
@@ -507,6 +504,8 @@ iosapic_reassign_vector (int vector)
 
 	if (!list_empty(&iosapic_intr_info[vector].rtes)) {
 		new_vector = assign_irq_vector(AUTO_ASSIGN);
+		if (new_vector < 0)
+			panic("%s: out of interrupt vectors!\n", __FUNCTION__);
 		printk(KERN_INFO "Reassigning vector %d to %d\n", vector, new_vector);
 		memcpy(&iosapic_intr_info[new_vector], &iosapic_intr_info[vector],
 		       sizeof(struct iosapic_intr_info));
@@ -598,6 +597,7 @@ register_intr (unsigned int gsi, int vector, unsigned char delivery,
 		rte->refcnt++;
 		list_add_tail(&rte->rte_list, &iosapic_intr_info[vector].rtes);
 		iosapic_intr_info[vector].count++;
+		iosapic_lists[index].rtes_inuse++;
 	}
 	else if (vector_is_shared(vector)) {
 		struct iosapic_intr_info *info = &iosapic_intr_info[vector];
@@ -734,9 +734,12 @@ again:
 	spin_unlock_irqrestore(&iosapic_lock, flags);
 
 	/* If vector is running out, we try to find a sharable vector */
-	vector = assign_irq_vector_nopanic(AUTO_ASSIGN);
-	if (vector < 0)
+	vector = assign_irq_vector(AUTO_ASSIGN);
+	if (vector < 0) {
 		vector = iosapic_find_sharable_vector(trigger, polarity);
+		if (vector < 0)
+			panic("%s: out of interrupt vectors!\n", __FUNCTION__);
+	}
 
 	spin_lock_irqsave(&irq_descp(vector)->lock, flags);
 	spin_lock(&iosapic_lock);
@@ -778,7 +781,7 @@ void
 iosapic_unregister_intr (unsigned int gsi)
 {
 	unsigned long flags;
-	int irq, vector;
+	int irq, vector, index;
 	irq_desc_t *idesc;
 	u32 low32;
 	unsigned long trigger, polarity;
@@ -819,6 +822,9 @@ iosapic_unregister_intr (unsigned int gsi)
 		list_del(&rte->rte_list);
 		iosapic_intr_info[vector].count--;
 		iosapic_free_rte(rte);
+		index = find_iosapic(gsi);
+		iosapic_lists[index].rtes_inuse--;
+		WARN_ON(iosapic_lists[index].rtes_inuse < 0);
 
 		trigger	 = iosapic_intr_info[vector].trigger;
 		polarity = iosapic_intr_info[vector].polarity;
@@ -881,6 +887,8 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 		break;
 	      case ACPI_INTERRUPT_INIT:
 		vector = assign_irq_vector(AUTO_ASSIGN);
+		if (vector < 0)
+			panic("%s: out of interrupt vectors!\n", __FUNCTION__);
 		delivery = IOSAPIC_INIT;
 		break;
 	      case ACPI_INTERRUPT_CPEI:
@@ -952,30 +960,86 @@ iosapic_system_init (int system_pcat_compat)
 	}
 }
 
-void __init
+static inline int
+iosapic_alloc (void)
+{
+	int index;
+
+	for (index = 0; index < NR_IOSAPICS; index++)
+		if (!iosapic_lists[index].addr)
+			return index;
+
+	printk(KERN_WARNING "%s: failed to allocate iosapic\n", __FUNCTION__);
+	return -1;
+}
+
+static inline void
+iosapic_free (int index)
+{
+	memset(&iosapic_lists[index], 0, sizeof(iosapic_lists[0]));
+}
+
+static inline int
+iosapic_check_gsi_range (unsigned int gsi_base, unsigned int ver)
+{
+	int index;
+	unsigned int gsi_end, base, end;
+
+	/* check gsi range */
+	gsi_end = gsi_base + ((ver >> 16) & 0xff);
+	for (index = 0; index < NR_IOSAPICS; index++) {
+		if (!iosapic_lists[index].addr)
+			continue;
+
+		base = iosapic_lists[index].gsi_base;
+		end  = base + iosapic_lists[index].num_rte - 1;
+
+		if (gsi_base < base && gsi_end < base)
+			continue;/* OK */
+
+		if (gsi_base > end && gsi_end > end)
+			continue; /* OK */
+
+		return -EBUSY;
+	}
+	return 0;
+}
+
+int __devinit
 iosapic_init (unsigned long phys_addr, unsigned int gsi_base)
 {
-	int num_rte;
+	int num_rte, err, index;
 	unsigned int isa_irq, ver;
 	char __iomem *addr;
+	unsigned long flags;
 
-	addr = ioremap(phys_addr, 0);
-	ver = iosapic_version(addr);
+	spin_lock_irqsave(&iosapic_lock, flags);
+	{
+		addr = ioremap(phys_addr, 0);
+		ver = iosapic_version(addr);
 
-	/*
-	 * The MAX_REDIR register holds the highest input pin
-	 * number (starting from 0).
-	 * We add 1 so that we can use it for number of pins (= RTEs)
-	 */
-	num_rte = ((ver >> 16) & 0xff) + 1;
+		if ((err = iosapic_check_gsi_range(gsi_base, ver))) {
+			iounmap(addr);
+			spin_unlock_irqrestore(&iosapic_lock, flags);
+			return err;
+		}
 
-	iosapic_lists[num_iosapic].addr = addr;
-	iosapic_lists[num_iosapic].gsi_base = gsi_base;
-	iosapic_lists[num_iosapic].num_rte = num_rte;
+		/*
+		 * The MAX_REDIR register holds the highest input pin
+		 * number (starting from 0).
+		 * We add 1 so that we can use it for number of pins (= RTEs)
+		 */
+		num_rte = ((ver >> 16) & 0xff) + 1;
+
+		index = iosapic_alloc();
+		iosapic_lists[index].addr = addr;
+		iosapic_lists[index].gsi_base = gsi_base;
+		iosapic_lists[index].num_rte = num_rte;
 #ifdef CONFIG_NUMA
-	iosapic_lists[num_iosapic].node = MAX_NUMNODES;
+		iosapic_lists[index].node = MAX_NUMNODES;
 #endif
-	num_iosapic++;
+	}
+	spin_unlock_irqrestore(&iosapic_lock, flags);
 
 	if ((gsi_base == 0) && pcat_compat) {
 		/*
@@ -986,10 +1050,43 @@ iosapic_init (unsigned long phys_addr, unsigned int gsi_base)
 		for (isa_irq = 0; isa_irq < 16; ++isa_irq)
 			iosapic_override_isa_irq(isa_irq, isa_irq, IOSAPIC_POL_HIGH, IOSAPIC_EDGE);
 	}
+	return 0;
 }
 
+#ifdef CONFIG_HOTPLUG
+int
+iosapic_remove (unsigned int gsi_base)
+{
+	int index, err = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&iosapic_lock, flags);
+	{
+		index = find_iosapic(gsi_base);
+		if (index < 0) {
+			printk(KERN_WARNING "%s: No IOSAPIC for GSI base %u\n",
+			       __FUNCTION__, gsi_base);
+			goto out;
+		}
+
+		if (iosapic_lists[index].rtes_inuse) {
+			err = -EBUSY;
+			printk(KERN_WARNING "%s: IOSAPIC for GSI base %u is busy\n",
+			       __FUNCTION__, gsi_base);
+			goto out;
+		}
+
+		iounmap(iosapic_lists[index].addr);
+		iosapic_free(index);
+	}
+ out:
+	spin_unlock_irqrestore(&iosapic_lock, flags);
+	return err;
+}
+#endif /* CONFIG_HOTPLUG */
+
 #ifdef CONFIG_NUMA
-void __init
+void __devinit
 map_iosapic_to_node(unsigned int gsi_base, int node)
 {
 	int index;

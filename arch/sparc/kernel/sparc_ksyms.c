@@ -98,8 +98,9 @@ extern void ___rw_write_enter(void);
  * The module references will be fixed up by module_frob_arch_sections.
  */
 #define DOT_ALIAS2(__ret, __x, __arg1, __arg2) \
-	extern __ret __x(__arg1, __arg2) \
-	             __attribute__((weak, alias("." # __x)));
+	extern __ret __x(__arg1, __arg2); \
+	asm(".weak " #__x);\
+	asm(#__x "=." #__x);
 
 DOT_ALIAS2(int, div, int, int)
 DOT_ALIAS2(int, mul, int, int)

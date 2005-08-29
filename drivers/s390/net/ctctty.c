@@ -156,7 +156,7 @@ ctc_tty_readmodem(ctc_tty_info *info)
 					skb_queue_head(&info->rx_queue, skb);
 				else {
 					kfree_skb(skb);
-					ret = skb_queue_len(&info->rx_queue);
+					ret = !skb_queue_empty(&info->rx_queue);
 				}
 			}
 		}
@@ -530,7 +530,7 @@ ctc_tty_write(struct tty_struct *tty, const u_char * buf, int count)
 		total += c;
 		count -= c;
 	}
-	if (skb_queue_len(&info->tx_queue)) {
+	if (!skb_queue_empty(&info->tx_queue)) {
 		info->lsr &= ~UART_LSR_TEMT;
 		tasklet_schedule(&info->tasklet);
 	}
@@ -594,7 +594,7 @@ ctc_tty_flush_chars(struct tty_struct *tty)
 		return;
 	if (ctc_tty_paranoia_check(info, tty->name, "ctc_tty_flush_chars"))
 		return;
-	if (tty->stopped || tty->hw_stopped || (!skb_queue_len(&info->tx_queue)))
+	if (tty->stopped || tty->hw_stopped || skb_queue_empty(&info->tx_queue))
 		return;
 	tasklet_schedule(&info->tasklet);
 }

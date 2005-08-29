@@ -56,7 +56,7 @@ static char     *acpi_gbl_fn_entry_str = "----Entry";
 static char     *acpi_gbl_fn_exit_str = "----Exit-";
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_init_stack_ptr_trace
  *
@@ -64,9 +64,9 @@ static char     *acpi_gbl_fn_exit_str = "----Exit-";
  *
  * RETURN:      None
  *
- * DESCRIPTION: Save the current stack pointer
+ * DESCRIPTION: Save the current CPU stack pointer at subsystem startup
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_init_stack_ptr_trace (
@@ -79,7 +79,7 @@ acpi_ut_init_stack_ptr_trace (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_track_stack_ptr
  *
@@ -87,9 +87,9 @@ acpi_ut_init_stack_ptr_trace (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Save the current stack pointer
+ * DESCRIPTION: Save the current CPU stack pointer
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_track_stack_ptr (
@@ -110,16 +110,16 @@ acpi_ut_track_stack_ptr (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_debug_print
  *
- * PARAMETERS:  debug_level         - Requested debug print level
- *              proc_name           - Caller's procedure name
- *              module_name         - Caller's module name (for error output)
+ * PARAMETERS:  requested_debug_level - Requested debug print level
  *              line_number         - Caller's line number (for error output)
- *              component_id        - Caller's component ID (for error output)
- *
+ *              dbg_info            - Contains:
+ *                  proc_name           - Caller's procedure name
+ *                  module_name         - Caller's module name
+ *                  component_id        - Caller's component ID
  *              Format              - Printf format field
  *              ...                 - Optional printf arguments
  *
@@ -128,7 +128,7 @@ acpi_ut_track_stack_ptr (
  * DESCRIPTION: Print error message with prefix consisting of the module name,
  *              line number, and component ID.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void  ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print (
@@ -157,7 +157,8 @@ acpi_ut_debug_print (
 
 	if (thread_id != acpi_gbl_prev_thread_id) {
 		if (ACPI_LV_THREADS & acpi_dbg_level) {
-			acpi_os_printf ("\n**** Context Switch from TID %X to TID %X ****\n\n",
+			acpi_os_printf (
+				"\n**** Context Switch from TID %X to TID %X ****\n\n",
 				acpi_gbl_prev_thread_id, thread_id);
 		}
 
@@ -174,15 +175,16 @@ acpi_ut_debug_print (
 		acpi_os_printf ("[%04lX] ", thread_id);
 	}
 
-	acpi_os_printf ("[%02ld] %-22.22s: ", acpi_gbl_nesting_level, dbg_info->proc_name);
+	acpi_os_printf ("[%02ld] %-22.22s: ",
+		acpi_gbl_nesting_level, dbg_info->proc_name);
 
 	va_start (args, format);
 	acpi_os_vprintf (format, args);
 }
+
 EXPORT_SYMBOL(acpi_ut_debug_print);
 
-
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_debug_print_raw
  *
@@ -200,7 +202,7 @@ EXPORT_SYMBOL(acpi_ut_debug_print);
  * DESCRIPTION: Print message with no headers.  Has same interface as
  *              debug_print so that the same macros can be used.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void  ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print_raw (
@@ -224,7 +226,7 @@ acpi_ut_debug_print_raw (
 EXPORT_SYMBOL(acpi_ut_debug_print_raw);
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_trace
  *
@@ -239,7 +241,7 @@ EXPORT_SYMBOL(acpi_ut_debug_print_raw);
  * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_trace (
@@ -256,7 +258,7 @@ acpi_ut_trace (
 EXPORT_SYMBOL(acpi_ut_trace);
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_trace_ptr
  *
@@ -272,7 +274,7 @@ EXPORT_SYMBOL(acpi_ut_trace);
  * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_trace_ptr (
@@ -288,7 +290,7 @@ acpi_ut_trace_ptr (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_trace_str
  *
@@ -304,7 +306,7 @@ acpi_ut_trace_ptr (
  * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_trace_str (
@@ -321,7 +323,7 @@ acpi_ut_trace_str (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_trace_u32
  *
@@ -337,7 +339,7 @@ acpi_ut_trace_str (
  * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_trace_u32 (
@@ -354,7 +356,7 @@ acpi_ut_trace_u32 (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_exit
  *
@@ -369,7 +371,7 @@ acpi_ut_trace_u32 (
  * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_exit (
@@ -385,7 +387,7 @@ acpi_ut_exit (
 EXPORT_SYMBOL(acpi_ut_exit);
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_status_exit
  *
@@ -401,7 +403,7 @@ EXPORT_SYMBOL(acpi_ut_exit);
  * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit status also.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_status_exit (
@@ -426,7 +428,7 @@ acpi_ut_status_exit (
 EXPORT_SYMBOL(acpi_ut_status_exit);
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_value_exit
  *
@@ -442,7 +444,7 @@ EXPORT_SYMBOL(acpi_ut_status_exit);
  * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit value also.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_value_exit (
@@ -460,7 +462,7 @@ acpi_ut_value_exit (
 EXPORT_SYMBOL(acpi_ut_value_exit);
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_ptr_exit
  *
@@ -469,14 +471,14 @@ EXPORT_SYMBOL(acpi_ut_value_exit);
  *                  proc_name           - Caller's procedure name
  *                  module_name         - Caller's module name
  *                  component_id        - Caller's component ID
- *              Value               - Value to be printed with exit msg
+ *              Ptr                 - Pointer to display
  *
  * RETURN:      None
  *
  * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit value also.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_ptr_exit (
@@ -494,7 +496,7 @@ acpi_ut_ptr_exit (
 #endif
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_dump_buffer
  *
@@ -507,7 +509,7 @@ acpi_ut_ptr_exit (
  *
  * DESCRIPTION: Generic dump buffer in both hex and ascii.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_dump_buffer (
@@ -533,34 +535,28 @@ acpi_ut_dump_buffer (
 		display = DB_BYTE_DISPLAY;
 	}
 
-	acpi_os_printf ("\nOffset Value\n");
+	/* Nasty little dump buffer routine! */
 
-	/*
-	 * Nasty little dump buffer routine!
-	 */
 	while (i < count) {
 		/* Print current offset */
 
-		acpi_os_printf ("%05X  ", (u32) i);
+		acpi_os_printf ("%6.4X: ", (u32) i);
 
 		/* Print 16 hex chars */
 
 		for (j = 0; j < 16;) {
 			if (i + j >= count) {
-				acpi_os_printf ("\n");
-				return;
+				/* Dump fill spaces */
+
+				acpi_os_printf ("%*s", ((display * 2) + 1), " ");
+				j += display;
+				continue;
 			}
 
-			/* Make sure that the s8 doesn't get sign-extended! */
-
 			switch (display) {
-			/* Default is BYTE display */
+			default:    /* Default is BYTE display */
 
-			default:
-
-				acpi_os_printf ("%02X ",
-						*((u8 *) &buffer[i + j]));
-				j += 1;
+				acpi_os_printf ("%02X ", buffer[i + j]);
 				break;
 
 
@@ -568,7 +564,6 @@ acpi_ut_dump_buffer (
 
 				ACPI_MOVE_16_TO_32 (&temp32, &buffer[i + j]);
 				acpi_os_printf ("%04X ", temp32);
-				j += 2;
 				break;
 
 
@@ -576,7 +571,6 @@ acpi_ut_dump_buffer (
 
 				ACPI_MOVE_32_TO_32 (&temp32, &buffer[i + j]);
 				acpi_os_printf ("%08X ", temp32);
-				j += 4;
 				break;
 
 
@@ -587,15 +581,17 @@ acpi_ut_dump_buffer (
 
 				ACPI_MOVE_32_TO_32 (&temp32, &buffer[i + j + 4]);
 				acpi_os_printf ("%08X ", temp32);
-				j += 8;
 				break;
 			}
+
+			j += display;
 		}
 
 		/*
 		 * Print the ASCII equivalent characters
 		 * But watch out for the bad unprintable ones...
 		 */
+		acpi_os_printf (" ");
 		for (j = 0; j < 16; j++) {
 			if (i + j >= count) {
 				acpi_os_printf ("\n");

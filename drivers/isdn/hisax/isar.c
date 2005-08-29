@@ -21,13 +21,13 @@
 #define ETX	0x03
 
 #define FAXMODCNT	13
-const	u_char	faxmodulation[] = {3,24,48,72,73,74,96,97,98,121,122,145,146};
+static const	u_char	faxmodulation[] = {3,24,48,72,73,74,96,97,98,121,122,145,146};
 static	u_int	modmask = 0x1fff;
 static	int	frm_extra_delay = 2;
 static	int	para_TOA = 6;
-const   u_char  *FC1_CMD[] = {"FAE", "FTS", "FRS", "FTM", "FRM", "FTH", "FRH", "CTRL" };
+static const   u_char  *FC1_CMD[] = {"FAE", "FTS", "FRS", "FTM", "FRM", "FTH", "FRH", "CTRL" };
 
-void isar_setup(struct IsdnCardState *cs);
+static void isar_setup(struct IsdnCardState *cs);
 static void isar_pump_cmd(struct BCState *bcs, u_char cmd, u_char para);
 static void ll_deliver_faxstat(struct BCState *bcs, u_char status);
 
@@ -45,7 +45,7 @@ waitforHIA(struct IsdnCardState *cs, int timeout)
 }
 
 
-int
+static int
 sendmsg(struct IsdnCardState *cs, u_char his, u_char creg, u_char len,
 	u_char *msg)
 {
@@ -85,7 +85,7 @@ sendmsg(struct IsdnCardState *cs, u_char his, u_char creg, u_char len,
 }
 
 /* Call only with IRQ disabled !!! */
-inline void
+static inline void
 rcv_mbox(struct IsdnCardState *cs, struct isar_reg *ireg, u_char *msg)
 {
 	int i;
@@ -114,7 +114,7 @@ rcv_mbox(struct IsdnCardState *cs, struct isar_reg *ireg, u_char *msg)
 }
 
 /* Call only with IRQ disabled !!! */
-inline void
+static inline void
 get_irq_infos(struct IsdnCardState *cs, struct isar_reg *ireg)
 {
 	ireg->iis = cs->BC_Read_Reg(cs, 1, ISAR_IIS);
@@ -127,7 +127,7 @@ get_irq_infos(struct IsdnCardState *cs, struct isar_reg *ireg)
 #endif
 }
 
-int
+static int
 waitrecmsg(struct IsdnCardState *cs, u_char *len,
 	u_char *msg, int maxdelay)
 {
@@ -185,7 +185,7 @@ ISARVersion(struct IsdnCardState *cs, char *s)
 	return(ver);
 }
 
-int
+static int
 isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 {
 	int ret, size, cnt, debug;
@@ -739,7 +739,7 @@ isar_fill_fifo(struct BCState *bcs)
 	}
 }
 
-inline
+static inline
 struct BCState *sel_bcs_isar(struct IsdnCardState *cs, u_char dpath)
 {
 	if ((!dpath) || (dpath == 3))
@@ -751,7 +751,7 @@ struct BCState *sel_bcs_isar(struct IsdnCardState *cs, u_char dpath)
 	return(NULL);
 }
 
-void
+static void
 send_frames(struct BCState *bcs)
 {
 	if (bcs->tx_skb) {
@@ -806,7 +806,7 @@ send_frames(struct BCState *bcs)
 	}
 }
 
-inline void
+static inline void
 check_send(struct IsdnCardState *cs, u_char rdm)
 {
 	struct BCState *bcs;
@@ -828,11 +828,13 @@ check_send(struct IsdnCardState *cs, u_char rdm)
 	
 }
 
-const char *dmril[] = {"NO SPEED", "1200/75", "NODEF2", "75/1200", "NODEF4",
-			"300", "600", "1200", "2400", "4800", "7200",
-			"9600nt", "9600t", "12000", "14400", "WRONG"};
-const char *dmrim[] = {"NO MOD", "NO DEF", "V32/V32b", "V22", "V21",
-			"Bell103", "V23", "Bell202", "V17", "V29", "V27ter"};
+static const char *dmril[] = {"NO SPEED", "1200/75", "NODEF2", "75/1200",
+				"NODEF4", "300", "600", "1200", "2400",
+				"4800", "7200", "9600nt", "9600t", "12000",
+				"14400", "WRONG"};
+static const char *dmrim[] = {"NO MOD", "NO DEF", "V32/V32b", "V22", "V21",
+				"Bell103", "V23", "Bell202", "V17", "V29",
+				"V27ter"};
 
 static void
 isar_pump_status_rsp(struct BCState *bcs, struct isar_reg *ireg) {
@@ -1388,7 +1390,7 @@ setup_iom2(struct BCState *bcs) {
 	udelay(1000);
 }
 
-int
+static int
 modeisar(struct BCState *bcs, int mode, int bc)
 {
 	struct IsdnCardState *cs = bcs->cs;
@@ -1562,7 +1564,7 @@ isar_pump_cmd(struct BCState *bcs, u_char cmd, u_char para)
 		sendmsg(cs, dps | ISAR_HIS_PUMPCTRL, ctrl, nom, &p1);
 }
 
-void
+static void
 isar_setup(struct IsdnCardState *cs)
 {
 	u_char msg;
@@ -1582,7 +1584,7 @@ isar_setup(struct IsdnCardState *cs)
 	}
 }
 
-void
+static void
 isar_l2l1(struct PStack *st, int pr, void *arg)
 {
 	struct BCState *bcs = st->l1.bcs;
@@ -1681,7 +1683,7 @@ isar_l2l1(struct PStack *st, int pr, void *arg)
 	}
 }
 
-void
+static void
 close_isarstate(struct BCState *bcs)
 {
 	modeisar(bcs, 0, bcs->channel);
@@ -1703,7 +1705,7 @@ close_isarstate(struct BCState *bcs)
 	del_timer(&bcs->hw.isar.ftimer);
 }
 
-int
+static int
 open_isarstate(struct IsdnCardState *cs, struct BCState *bcs)
 {
 	if (!test_and_set_bit(BC_FLG_INIT, &bcs->Flag)) {
@@ -1725,7 +1727,7 @@ open_isarstate(struct IsdnCardState *cs, struct BCState *bcs)
 	return (0);
 }
 
-int
+static int
 setstack_isar(struct PStack *st, struct BCState *bcs)
 {
 	bcs->channel = st->l1.bc;

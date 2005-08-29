@@ -1,6 +1,6 @@
 /*
  * MTD map driver for BIOS Flash on Intel SCB2 boards
- * $Id: scb2_flash.c,v 1.11 2004/11/28 09:40:40 dwmw2 Exp $
+ * $Id: scb2_flash.c,v 1.12 2005/03/18 14:04:35 gleixner Exp $
  * Copyright (C) 2002 Sun Microsystems, Inc.
  * Tim Hockin <thockin@sun.com>
  *
@@ -238,7 +238,7 @@ static struct pci_driver scb2_flash_driver = {
 static int __init
 scb2_flash_init(void)
 {
-	return pci_module_init(&scb2_flash_driver);
+	return pci_register_driver(&scb2_flash_driver);
 }
 
 static void __exit

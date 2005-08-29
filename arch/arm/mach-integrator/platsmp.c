@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 
 #include <asm/atomic.h>
+#include <asm/cacheflush.h>
 #include <asm/delay.h>
 #include <asm/mmu_context.h>
 #include <asm/procinfo.h>
@@ -27,12 +28,12 @@ extern void integrator_secondary_startup(void);
  * control for which core is the next to come out of the secondary
  * boot "holding pen"
  */
-volatile int __initdata pen_release = -1;
-unsigned long __initdata phys_pen_release = 0;
+volatile int __cpuinitdata pen_release = -1;
+unsigned long __cpuinitdata phys_pen_release = 0;
 
 static DEFINE_SPINLOCK(boot_lock);
 
-void __init platform_secondary_init(unsigned int cpu)
+void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	/*
 	 * the primary core may have used a "cross call" soft interrupt
@@ -61,7 +62,7 @@ void __init platform_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-int __init boot_secondary(unsigned int cpu, struct task_struct *idle)
+int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 
@@ -80,6 +81,7 @@ int __init boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * "cpu" is Linux's internal ID.
 	 */
 	pen_release = cpu;
+	flush_cache_all();
 
 	/*
 	 * XXX
@@ -174,11 +176,13 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		max_cpus = ncores;
 
 	/*
-	 * Initialise the present mask - this tells us which CPUs should
-	 * be present.
+	 * Initialise the possible/present maps.
+	 * cpu_possible_map describes the set of CPUs which may be present
+	 * cpu_present_map describes the set of CPUs populated
 	 */
 	for (i = 0; i < max_cpus; i++) {
-		cpu_set(i, cpu_present_mask);
+		cpu_set(i, cpu_possible_map);
+		cpu_set(i, cpu_present_map);
 	}
 
 	/*

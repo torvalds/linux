@@ -159,7 +159,7 @@ static void sun_82077_fd_outb(unsigned char value, unsigned long port)
  * underruns.  If non-zero, doing_pdma encodes the direction of
  * the transfer for debugging.  1=read 2=write
  */
-char *pdma_vaddr;
+unsigned char *pdma_vaddr;
 unsigned long pdma_size;
 volatile int doing_pdma = 0;
 
@@ -209,8 +209,7 @@ static void sun_fd_enable_dma(void)
 	pdma_areasize = pdma_size;
 }
 
-/* Our low-level entry point in arch/sparc/kernel/entry.S */
-extern irqreturn_t floppy_hardint(int irq, void *unused, struct pt_regs *regs);
+extern irqreturn_t sparc_floppy_irq(int, void *, struct pt_regs *);
 
 static int sun_fd_request_irq(void)
 {
@@ -220,8 +219,8 @@ static int sun_fd_request_irq(void)
 	if(!once) {
 		once = 1;
 
-		error = request_fast_irq(FLOPPY_IRQ, floppy_hardint, 
-					 SA_INTERRUPT, "floppy", NULL);
+		error = request_irq(FLOPPY_IRQ, sparc_floppy_irq, 
+				    SA_INTERRUPT, "floppy", NULL);
 
 		return ((error == 0) ? 0 : -1);
 	}
@@ -615,7 +614,7 @@ static unsigned long __init sun_floppy_init(void)
 		struct linux_ebus *ebus;
 		struct linux_ebus_device *edev = NULL;
 		unsigned long config = 0;
-		unsigned long auxio_reg;
+		void __iomem *auxio_reg;
 
 		for_each_ebus(ebus) {
 			for_each_ebusdev(edev, ebus) {
@@ -642,7 +641,7 @@ static unsigned long __init sun_floppy_init(void)
 		/* Make sure the high density bit is set, some systems
 		 * (most notably Ultra5/Ultra10) come up with it clear.
 		 */
-		auxio_reg = edev->resource[2].start;
+		auxio_reg = (void __iomem *) edev->resource[2].start;
 		writel(readl(auxio_reg)|0x2, auxio_reg);
 
 		sun_pci_ebus_dev = ebus->self;
@@ -650,7 +649,8 @@ static unsigned long __init sun_floppy_init(void)
 		spin_lock_init(&sun_pci_fd_ebus_dma.lock);
 
 		/* XXX ioremap */
-		sun_pci_fd_ebus_dma.regs = edev->resource[1].start;
+		sun_pci_fd_ebus_dma.regs = (void __iomem *)
+			edev->resource[1].start;
 		if (!sun_pci_fd_ebus_dma.regs)
 			return 0;
 

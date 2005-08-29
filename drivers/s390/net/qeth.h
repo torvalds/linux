@@ -42,44 +42,44 @@
  */
 #define QETH_DBF_SETUP_NAME "qeth_setup"
 #define QETH_DBF_SETUP_LEN 8
-#define QETH_DBF_SETUP_INDEX 3
+#define QETH_DBF_SETUP_PAGES 8
 #define QETH_DBF_SETUP_NR_AREAS 1
 #define QETH_DBF_SETUP_LEVEL 5
 
 #define QETH_DBF_MISC_NAME "qeth_misc"
 #define QETH_DBF_MISC_LEN 128
-#define QETH_DBF_MISC_INDEX 1
+#define QETH_DBF_MISC_PAGES 2
 #define QETH_DBF_MISC_NR_AREAS 1
 #define QETH_DBF_MISC_LEVEL 2
 
 #define QETH_DBF_DATA_NAME "qeth_data"
 #define QETH_DBF_DATA_LEN 96
-#define QETH_DBF_DATA_INDEX 3
+#define QETH_DBF_DATA_PAGES 8
 #define QETH_DBF_DATA_NR_AREAS 1
 #define QETH_DBF_DATA_LEVEL 2
 
 #define QETH_DBF_CONTROL_NAME "qeth_control"
 #define QETH_DBF_CONTROL_LEN 256
-#define QETH_DBF_CONTROL_INDEX 3
+#define QETH_DBF_CONTROL_PAGES 8
 #define QETH_DBF_CONTROL_NR_AREAS 2
 #define QETH_DBF_CONTROL_LEVEL 5
 
 #define QETH_DBF_TRACE_NAME "qeth_trace"
 #define QETH_DBF_TRACE_LEN 8
-#define QETH_DBF_TRACE_INDEX 2
+#define QETH_DBF_TRACE_PAGES 4
 #define QETH_DBF_TRACE_NR_AREAS 2
 #define QETH_DBF_TRACE_LEVEL 3
 extern debug_info_t *qeth_dbf_trace;
 
 #define QETH_DBF_SENSE_NAME "qeth_sense"
 #define QETH_DBF_SENSE_LEN 64
-#define QETH_DBF_SENSE_INDEX 1
+#define QETH_DBF_SENSE_PAGES 2
 #define QETH_DBF_SENSE_NR_AREAS 1
 #define QETH_DBF_SENSE_LEVEL 2
 
 #define QETH_DBF_QERR_NAME "qeth_qerr"
 #define QETH_DBF_QERR_LEN 8
-#define QETH_DBF_QERR_INDEX 1
+#define QETH_DBF_QERR_PAGES 2
 #define QETH_DBF_QERR_NR_AREAS 2
 #define QETH_DBF_QERR_LEVEL 2
 
@@ -824,7 +824,7 @@ extern struct list_head qeth_notify_list;
 
 #define QETH_CARD_IFNAME(card) (((card)->dev)? (card)->dev->name : "")
 
-inline static __u8
+static inline __u8
 qeth_get_ipa_adp_type(enum qeth_link_types link_type)
 {
 	switch (link_type) {
@@ -835,7 +835,7 @@ qeth_get_ipa_adp_type(enum qeth_link_types link_type)
 	}
 }
 
-inline static int
+static inline int
 qeth_realloc_headroom(struct qeth_card *card, struct sk_buff **skb, int size)
 {
 	struct sk_buff *new_skb = NULL;
@@ -852,6 +852,7 @@ qeth_realloc_headroom(struct qeth_card *card, struct sk_buff **skb, int size)
 	}
 	return 0;
 }
+
 static inline struct sk_buff *
 qeth_pskb_unshare(struct sk_buff *skb, int pri)
 {
@@ -863,8 +864,7 @@ qeth_pskb_unshare(struct sk_buff *skb, int pri)
         return nskb;
 }
 
-
-inline static void *
+static inline void *
 qeth_push_skb(struct qeth_card *card, struct sk_buff **skb, int size)
 {
         void *hdr;
@@ -887,7 +887,7 @@ qeth_push_skb(struct qeth_card *card, struct sk_buff **skb, int size)
 }
 
 
-inline static int
+static inline int
 qeth_get_hlen(__u8 link_type)
 {
 #ifdef CONFIG_QETH_IPV6
@@ -911,7 +911,7 @@ qeth_get_hlen(__u8 link_type)
 #endif /* CONFIG_QETH_IPV6 */
 }
 
-inline static unsigned short
+static inline unsigned short
 qeth_get_netdev_flags(struct qeth_card *card)
 {
 	if (card->options.layer2)
@@ -929,7 +929,7 @@ qeth_get_netdev_flags(struct qeth_card *card)
 	}
 }
 
-inline static int
+static inline int
 qeth_get_initial_mtu_for_card(struct qeth_card * card)
 {
 	switch (card->info.type) {
@@ -950,7 +950,7 @@ qeth_get_initial_mtu_for_card(struct qeth_card * card)
 	}
 }
 
-inline static int
+static inline int
 qeth_get_max_mtu_for_card(int cardtype)
 {
 	switch (cardtype) {
@@ -965,7 +965,7 @@ qeth_get_max_mtu_for_card(int cardtype)
 	}
 }
 
-inline static int
+static inline int
 qeth_get_mtu_out_of_mpc(int cardtype)
 {
 	switch (cardtype) {
@@ -976,7 +976,7 @@ qeth_get_mtu_out_of_mpc(int cardtype)
 	}
 }
 
-inline static int
+static inline int
 qeth_get_mtu_outof_framesize(int framesize)
 {
 	switch (framesize) {
@@ -993,7 +993,7 @@ qeth_get_mtu_outof_framesize(int framesize)
 	}
 }
 
-inline static int
+static inline int
 qeth_mtu_is_valid(struct qeth_card * card, int mtu)
 {
 	switch (card->info.type) {
@@ -1008,7 +1008,7 @@ qeth_mtu_is_valid(struct qeth_card * card, int mtu)
 	}
 }
 
-inline static int
+static inline int
 qeth_get_arphdr_type(int cardtype, int linktype)
 {
 	switch (cardtype) {
@@ -1027,7 +1027,7 @@ qeth_get_arphdr_type(int cardtype, int linktype)
 }
 
 #ifdef CONFIG_QETH_PERF_STATS
-inline static int
+static inline int
 qeth_get_micros(void)
 {
 	return (int) (get_clock() >> 12);

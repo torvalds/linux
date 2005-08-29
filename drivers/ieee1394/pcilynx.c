@@ -76,7 +76,7 @@
 
 
 /* Module Parameters */
-static int skip_eeprom = 0;
+static int skip_eeprom;
 module_param(skip_eeprom, int, 0444);
 MODULE_PARM_DESC(skip_eeprom, "Use generic bus info block instead of serial eeprom (default = 0).");
 
@@ -1422,7 +1422,7 @@ static int __devinit add_card(struct pci_dev *dev,
 		i = get_phy_reg(lynx, 4);
 		i |= PHY_04_LCTRL;
 		if (hpsb_disable_irm)
-			i &= !PHY_04_CONTENDER;
+			i &= ~PHY_04_CONTENDER;
 		else
 			i |= PHY_04_CONTENDER;
 		if (i != -1) set_phy_reg(lynx, 4, i);

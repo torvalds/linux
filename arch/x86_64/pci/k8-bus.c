@@ -29,7 +29,7 @@ __init static int
 fill_mp_bus_to_cpumask(void)
 {
 	struct pci_dev *nb_dev = NULL;
-	int i, j, printed;
+	int i, j;
 	u32 ldtbus, nid;
 	static int lbnr[3] = {
 		LDT_BUS_NUMBER_REGISTER_0,
@@ -47,28 +47,23 @@ fill_mp_bus_to_cpumask(void)
 			 * if there are no busses hanging off of the current
 			 * ldt link then both the secondary and subordinate
 			 * bus number fields are set to 0.
+			 * 
+			 * RED-PEN
+			 * This is slightly broken because it assumes
+ 			 * HT node IDs == Linux node ids, which is not always
+			 * true. However it is probably mostly true.
 			 */
 			if (!(SECONDARY_LDT_BUS_NUMBER(ldtbus) == 0
 				&& SUBORDINATE_LDT_BUS_NUMBER(ldtbus) == 0)) {
 				for (j = SECONDARY_LDT_BUS_NUMBER(ldtbus);
 				     j <= SUBORDINATE_LDT_BUS_NUMBER(ldtbus);
-				     j++)
-					pci_bus_to_cpumask[j] =
-						node_to_cpumask(NODE_ID(nid));
+				     j++) { 
+					int node = NODE_ID(nid);
+					if (!node_online(node))
+						node = 0;
+					pci_bus_to_node[j] = node;
+				}		
 			}
-		}
-	}
-
-	/* quick sanity check */
-	printed = 0;
-	for (i = 0; i < 256; i++) {
-		if (cpus_empty(pci_bus_to_cpumask[i])) {
-			pci_bus_to_cpumask[i] = CPU_MASK_ALL;
-			if (printed)
-				continue;
-			printk(KERN_ERR
-			       "k8-bus.c: some busses have empty cpu mask\n");
-			printed = 1;
 		}
 	}
 

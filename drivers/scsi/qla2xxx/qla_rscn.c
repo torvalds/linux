@@ -2,7 +2,7 @@
  *                  QLOGIC LINUX SOFTWARE
  *
  * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2004 QLogic Corporation
+ * Copyright (C) 2003-2005 QLogic Corporation
  * (www.qlogic.com)
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -82,7 +82,7 @@ static int qla2x00_send_login_iocb(scsi_qla_host_t *, struct io_descriptor *,
 static int qla2x00_send_login_iocb_cb(scsi_qla_host_t *, struct io_descriptor *,
     struct mbx_entry *);
 
-/** 
+/**
  * Mailbox IOCB callback array.
  **/
 static int (*iocb_function_cb_list[LAST_IOCB_CB])
@@ -95,7 +95,7 @@ static int (*iocb_function_cb_list[LAST_IOCB_CB])
 };
 
 
-/** 
+/**
  * Generic IO descriptor handle routines.
  **/
 
@@ -169,7 +169,7 @@ qla2x00_handle_to_iodesc(scsi_qla_host_t *ha, uint32_t handle)
 }
 
 
-/** 
+/**
  * IO descriptor allocation routines.
  **/
 
@@ -248,7 +248,7 @@ qla2x00_init_io_descriptors(scsi_qla_host_t *ha)
 }
 
 
-/** 
+/**
  * IO descriptor timer routines.
  **/
 
@@ -299,7 +299,7 @@ qla2x00_add_iodesc_timer(struct io_descriptor *iodesc)
 	add_timer(&iodesc->timer);
 }
 
-/** 
+/**
  * IO descriptor support routines.
  **/
 
@@ -333,7 +333,7 @@ qla2x00_update_login_fcport(scsi_qla_host_t *ha, struct mbx_entry *mbxstat,
 }
 
 
-/** 
+/**
  * Mailbox IOCB commands.
  **/
 
@@ -348,7 +348,7 @@ static inline struct mbx_entry *
 qla2x00_get_mbx_iocb_entry(scsi_qla_host_t *ha, uint32_t handle)
 {
 	uint16_t cnt;
-	device_reg_t __iomem *reg = ha->iobase;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	struct mbx_entry *mbxentry;
 
 	mbxentry = NULL;
@@ -383,7 +383,7 @@ qla2x00_get_mbx_iocb_entry(scsi_qla_host_t *ha, uint32_t handle)
  * Returns QLA_SUCCESS if the IOCB was issued.
  */
 static int
-qla2x00_send_abort_iocb(scsi_qla_host_t *ha, struct io_descriptor *iodesc, 
+qla2x00_send_abort_iocb(scsi_qla_host_t *ha, struct io_descriptor *iodesc,
     uint32_t handle_to_abort, int ha_locked)
 {
 	unsigned long flags = 0;
@@ -720,7 +720,7 @@ qla2x00_send_login_iocb_cb(scsi_qla_host_t *ha, struct io_descriptor *iodesc,
 	/* Only process the last command. */
 	if (remote_fcport->iodesc_idx_sent != iodesc->idx) {
 		DEBUG14(printk("scsi(%ld): Login IOCB -- ignoring, sent to "
-		    "[%02x%02x%02x], expected %x, received %x.\n", 
+		    "[%02x%02x%02x], expected %x, received %x.\n",
 		    ha->host_no, iodesc->d_id.b.domain, iodesc->d_id.b.area,
 		    iodesc->d_id.b.al_pa, remote_fcport->iodesc_idx_sent,
 		    iodesc->idx));
@@ -754,9 +754,9 @@ qla2x00_send_login_iocb_cb(scsi_qla_host_t *ha, struct io_descriptor *iodesc,
 
 		DEBUG14(printk("scsi(%ld): Login IOCB -- status=%x mb1=%x pn="
 		    "%02x%02x%02x%02x%02x%02x%02x%02x.\n", ha->host_no, status,
-		    mb[1], mbxstat->port_name[0], mbxstat->port_name[1], 
-		    mbxstat->port_name[2], mbxstat->port_name[3], 
-		    mbxstat->port_name[4], mbxstat->port_name[5], 
+		    mb[1], mbxstat->port_name[0], mbxstat->port_name[1],
+		    mbxstat->port_name[2], mbxstat->port_name[3],
+		    mbxstat->port_name[4], mbxstat->port_name[5],
 		    mbxstat->port_name[6], mbxstat->port_name[7]));
 
 		memcpy(remote_fcport->node_name, mbxstat->node_name, WWN_SIZE);
@@ -1052,7 +1052,7 @@ qla2x00_send_login_iocb_cb(scsi_qla_host_t *ha, struct io_descriptor *iodesc,
 }
 
 
-/** 
+/**
  * IO descriptor processing routines.
  **/
 
@@ -1136,7 +1136,7 @@ qla2x00_handle_port_rscn(scsi_qla_host_t *ha, uint32_t rscn_entry,
 		    remote_fcport = rscn_fcport;
 	}
 
-	/* 
+	/*
 	 * If the port is already in our fcport list and online, send an ADISC
 	 * to see if it's still alive.  Issue login if a new fcport or the known
 	 * fcport is currently offline.
@@ -1191,7 +1191,7 @@ qla2x00_handle_port_rscn(scsi_qla_host_t *ha, uint32_t rscn_entry,
 			}
 			return (QLA_SUCCESS);
 		}
-		
+
 		/* Send ADISC if the fcport is online */
 		if (atomic_read(&remote_fcport->state) == FCS_ONLINE ||
 		    remote_fcport->iodesc_idx_sent == IODESC_ADISC_NEEDED) {
@@ -1229,7 +1229,7 @@ qla2x00_handle_port_rscn(scsi_qla_host_t *ha, uint32_t rscn_entry,
 			 * abort.
 			 */
 			uint32_t handle_to_abort;
-			
+
 			iodesc = &ha->io_descriptors[
 				remote_fcport->iodesc_idx_sent];
 			qla2x00_remove_iodesc_timer(iodesc);

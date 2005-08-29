@@ -33,6 +33,11 @@ pci_update_resource(struct pci_dev *dev, struct resource *res, int resno)
 	u32 new, check, mask;
 	int reg;
 
+	/* Ignore resources for unimplemented BARs and unused resource slots
+	   for 64 bit BARs. */
+	if (!res->flags)
+		return;
+
 	pcibios_resource_to_bus(dev, &region, res);
 
 	pr_debug("  got res [%lx:%lx] bus [%lx:%lx] flags %lx for "
@@ -48,7 +53,9 @@ pci_update_resource(struct pci_dev *dev, struct resource *res, int resno)
 	if (resno < 6) {
 		reg = PCI_BASE_ADDRESS_0 + 4 * resno;
 	} else if (resno == PCI_ROM_RESOURCE) {
-		new |= res->flags & IORESOURCE_ROM_ENABLE;
+		if (!(res->flags & IORESOURCE_ROM_ENABLE))
+			return;
+		new |= PCI_ROM_ADDRESS_ENABLE;
 		reg = dev->rom_base_reg;
 	} else {
 		/* Hmm, non-standard resource. */
@@ -67,7 +74,7 @@ pci_update_resource(struct pci_dev *dev, struct resource *res, int resno)
 
 	if ((new & (PCI_BASE_ADDRESS_SPACE|PCI_BASE_ADDRESS_MEM_TYPE_MASK)) ==
 	    (PCI_BASE_ADDRESS_SPACE_MEMORY|PCI_BASE_ADDRESS_MEM_TYPE_64)) {
-		new = 0; /* currently everyone zeros the high address */
+		new = region.start >> 16 >> 16;
 		pci_write_config_dword(dev, reg + 4, new);
 		pci_read_config_dword(dev, reg + 4, &check);
 		if (check != new) {

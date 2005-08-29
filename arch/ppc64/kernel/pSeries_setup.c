@@ -19,6 +19,7 @@
 #undef DEBUG
 
 #include <linux/config.h>
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -71,11 +72,6 @@
 #define DBG(fmt...)
 #endif
 
-extern void pSeries_final_fixup(void);
-
-extern void pSeries_get_boot_time(struct rtc_time *rtc_time);
-extern void pSeries_get_rtc_time(struct rtc_time *rtc_time);
-extern int  pSeries_set_rtc_time(struct rtc_time *rtc_time);
 extern void find_udbg_vterm(void);
 extern void system_reset_fwnmi(void);	/* from head.S */
 extern void machine_check_fwnmi(void);	/* from head.S */
@@ -84,11 +80,11 @@ extern void generic_find_legacy_serial_ports(u64 *physport,
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 
-extern unsigned long ppc_proc_freq;
-extern unsigned long ppc_tb_freq;
-
 extern void pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
+
+static int pseries_shared_idle(void);
+static int pseries_dedicated_idle(void);
 
 static volatile void __iomem * chrp_int_ack_special;
 struct mpic *pSeries_mpic;
@@ -195,14 +191,16 @@ static void __init pSeries_setup_arch(void)
 {
 	/* Fixup ppc_md depending on the type of interrupt controller */
 	if (ppc64_interrupt_controller == IC_OPEN_PIC) {
-		ppc_md.init_IRQ       = pSeries_init_mpic; 
+		ppc_md.init_IRQ       = pSeries_init_mpic;
 		ppc_md.get_irq        = mpic_get_irq;
+	 	ppc_md.cpu_irq_down   = mpic_teardown_this_cpu;
 		/* Allocate the mpic now, so that find_and_init_phbs() can
 		 * fill the ISUs */
 		pSeries_setup_mpic();
 	} else {
 		ppc_md.init_IRQ       = xics_init_IRQ;
 		ppc_md.get_irq        = xics_get_irq;
+		ppc_md.cpu_irq_down   = xics_teardown_cpu;
 	}
 
 #ifdef CONFIG_SMP
@@ -235,6 +233,20 @@ static void __init pSeries_setup_arch(void)
 
 	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR)
 		vpa_init(boot_cpuid);
+
+	/* Choose an idle loop */
+	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR) {
+		if (get_paca()->lppaca.shared_proc) {
+			printk(KERN_INFO "Using shared processor idle loop\n");
+			ppc_md.idle_loop = pseries_shared_idle;
+		} else {
+			printk(KERN_INFO "Using dedicated idle loop\n");
+			ppc_md.idle_loop = pseries_dedicated_idle;
+		}
+	} else {
+		printk(KERN_INFO "Using default idle loop\n");
+		ppc_md.idle_loop = default_idle;
+	}
 }
 
 static int __init pSeries_init_panel(void)
@@ -381,171 +393,6 @@ static void __init pSeries_init_early(void)
 }
 
 
-static void pSeries_progress(char *s, unsigned short hex)
-{
-	struct device_node *root;
-	int width, *p;
-	char *os;
-	static int display_character, set_indicator;
-	static int max_width;
-	static DEFINE_SPINLOCK(progress_lock);
-	static int pending_newline = 0;  /* did last write end with unprinted newline? */
-
-	if (!rtas.base)
-		return;
-
-	if (max_width == 0) {
-		if ((root = find_path_device("/rtas")) &&
-		     (p = (unsigned int *)get_property(root,
-						       "ibm,display-line-length",
-						       NULL)))
-			max_width = *p;
-		else
-			max_width = 0x10;
-		display_character = rtas_token("display-character");
-		set_indicator = rtas_token("set-indicator");
-	}
-
-	if (display_character == RTAS_UNKNOWN_SERVICE) {
-		/* use hex display if available */
-		if (set_indicator != RTAS_UNKNOWN_SERVICE)
-			rtas_call(set_indicator, 3, 1, NULL, 6, 0, hex);
-		return;
-	}
-
-	spin_lock(&progress_lock);
-
-	/*
-	 * Last write ended with newline, but we didn't print it since
-	 * it would just clear the bottom line of output. Print it now
-	 * instead.
-	 *
-	 * If no newline is pending, print a CR to start output at the
-	 * beginning of the line.
-	 */
-	if (pending_newline) {
-		rtas_call(display_character, 1, 1, NULL, '\r');
-		rtas_call(display_character, 1, 1, NULL, '\n');
-		pending_newline = 0;
-	} else {
-		rtas_call(display_character, 1, 1, NULL, '\r');
-	}
- 
-	width = max_width;
-	os = s;
-	while (*os) {
-		if (*os == '\n' || *os == '\r') {
-			/* Blank to end of line. */
-			while (width-- > 0)
-				rtas_call(display_character, 1, 1, NULL, ' ');
- 
-			/* If newline is the last character, save it
-			 * until next call to avoid bumping up the
-			 * display output.
-			 */
-			if (*os == '\n' && !os[1]) {
-				pending_newline = 1;
-				spin_unlock(&progress_lock);
-				return;
-			}
- 
-			/* RTAS wants CR-LF, not just LF */
- 
-			if (*os == '\n') {
-				rtas_call(display_character, 1, 1, NULL, '\r');
-				rtas_call(display_character, 1, 1, NULL, '\n');
-			} else {
-				/* CR might be used to re-draw a line, so we'll
-				 * leave it alone and not add LF.
-				 */
-				rtas_call(display_character, 1, 1, NULL, *os);
-			}
- 
-			width = max_width;
-		} else {
-			width--;
-			rtas_call(display_character, 1, 1, NULL, *os);
-		}
- 
-		os++;
- 
-		/* if we overwrite the screen length */
-		if (width <= 0)
-			while ((*os != 0) && (*os != '\n') && (*os != '\r'))
-				os++;
-	}
- 
-	/* Blank to end of line. */
-	while (width-- > 0)
-		rtas_call(display_character, 1, 1, NULL, ' ');
-
-	spin_unlock(&progress_lock);
-}
-
-extern void setup_default_decr(void);
-
-/* Some sane defaults: 125 MHz timebase, 1GHz processor */
-#define DEFAULT_TB_FREQ		125000000UL
-#define DEFAULT_PROC_FREQ	(DEFAULT_TB_FREQ * 8)
-
-static void __init pSeries_calibrate_decr(void)
-{
-	struct device_node *cpu;
-	struct div_result divres;
-	unsigned int *fp;
-	int node_found;
-
-	/*
-	 * The cpu node should have a timebase-frequency property
-	 * to tell us the rate at which the decrementer counts.
-	 */
-	cpu = of_find_node_by_type(NULL, "cpu");
-
-	ppc_tb_freq = DEFAULT_TB_FREQ;		/* hardcoded default */
-	node_found = 0;
-	if (cpu != 0) {
-		fp = (unsigned int *)get_property(cpu, "timebase-frequency",
-						  NULL);
-		if (fp != 0) {
-			node_found = 1;
-			ppc_tb_freq = *fp;
-		}
-	}
-	if (!node_found)
-		printk(KERN_ERR "WARNING: Estimating decrementer frequency "
-				"(not found)\n");
-
-	ppc_proc_freq = DEFAULT_PROC_FREQ;
-	node_found = 0;
-	if (cpu != 0) {
-		fp = (unsigned int *)get_property(cpu, "clock-frequency",
-						  NULL);
-		if (fp != 0) {
-			node_found = 1;
-			ppc_proc_freq = *fp;
-		}
-	}
-	if (!node_found)
-		printk(KERN_ERR "WARNING: Estimating processor frequency "
-				"(not found)\n");
-
-	of_node_put(cpu);
-
-	printk(KERN_INFO "time_init: decrementer frequency = %lu.%.6lu MHz\n",
-	       ppc_tb_freq/1000000, ppc_tb_freq%1000000);
-	printk(KERN_INFO "time_init: processor frequency   = %lu.%.6lu MHz\n",
-	       ppc_proc_freq/1000000, ppc_proc_freq%1000000);
-
-	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
-	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
-	tb_ticks_per_usec = ppc_tb_freq / 1000000;
-	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
-	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &divres);
-	tb_to_xs = divres.result_low;
-
-	setup_default_decr();
-}
-
 static int pSeries_check_legacy_ioport(unsigned int baseport)
 {
 	struct device_node *np;
@@ -589,6 +436,144 @@ static int __init pSeries_probe(int platform)
 	return 1;
 }
 
+DECLARE_PER_CPU(unsigned long, smt_snooze_delay);
+
+static inline void dedicated_idle_sleep(unsigned int cpu)
+{
+	struct paca_struct *ppaca = &paca[cpu ^ 1];
+
+	/* Only sleep if the other thread is not idle */
+	if (!(ppaca->lppaca.idle)) {
+		local_irq_disable();
+
+		/*
+		 * We are about to sleep the thread and so wont be polling any
+		 * more.
+		 */
+		clear_thread_flag(TIF_POLLING_NRFLAG);
+
+		/*
+		 * SMT dynamic mode. Cede will result in this thread going
+		 * dormant, if the partner thread is still doing work.  Thread
+		 * wakes up if partner goes idle, an interrupt is presented, or
+		 * a prod occurs.  Returning from the cede enables external
+		 * interrupts.
+		 */
+		if (!need_resched())
+			cede_processor();
+		else
+			local_irq_enable();
+	} else {
+		/*
+		 * Give the HV an opportunity at the processor, since we are
+		 * not doing any work.
+		 */
+		poll_pending();
+	}
+}
+
+static int pseries_dedicated_idle(void)
+{
+	long oldval;
+	struct paca_struct *lpaca = get_paca();
+	unsigned int cpu = smp_processor_id();
+	unsigned long start_snooze;
+	unsigned long *smt_snooze_delay = &__get_cpu_var(smt_snooze_delay);
+
+	while (1) {
+		/*
+		 * Indicate to the HV that we are idle. Now would be
+		 * a good time to find other work to dispatch.
+		 */
+		lpaca->lppaca.idle = 1;
+
+		oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
+		if (!oldval) {
+			set_thread_flag(TIF_POLLING_NRFLAG);
+
+			start_snooze = __get_tb() +
+				*smt_snooze_delay * tb_ticks_per_usec;
+
+			while (!need_resched() && !cpu_is_offline(cpu)) {
+				ppc64_runlatch_off();
+
+				/*
+				 * Go into low thread priority and possibly
+				 * low power mode.
+				 */
+				HMT_low();
+				HMT_very_low();
+
+				if (*smt_snooze_delay != 0 &&
+				    __get_tb() > start_snooze) {
+					HMT_medium();
+					dedicated_idle_sleep(cpu);
+				}
+
+			}
+
+			HMT_medium();
+			clear_thread_flag(TIF_POLLING_NRFLAG);
+		} else {
+			set_need_resched();
+		}
+
+		lpaca->lppaca.idle = 0;
+		ppc64_runlatch_on();
+
+		schedule();
+
+		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
+			cpu_die();
+	}
+}
+
+static int pseries_shared_idle(void)
+{
+	struct paca_struct *lpaca = get_paca();
+	unsigned int cpu = smp_processor_id();
+
+	while (1) {
+		/*
+		 * Indicate to the HV that we are idle. Now would be
+		 * a good time to find other work to dispatch.
+		 */
+		lpaca->lppaca.idle = 1;
+
+		while (!need_resched() && !cpu_is_offline(cpu)) {
+			local_irq_disable();
+			ppc64_runlatch_off();
+
+			/*
+			 * Yield the processor to the hypervisor.  We return if
+			 * an external interrupt occurs (which are driven prior
+			 * to returning here) or if a prod occurs from another
+			 * processor. When returning here, external interrupts
+			 * are enabled.
+			 *
+			 * Check need_resched() again with interrupts disabled
+			 * to avoid a race.
+			 */
+			if (!need_resched())
+				cede_processor();
+			else
+				local_irq_enable();
+
+			HMT_medium();
+		}
+
+		lpaca->lppaca.idle = 0;
+		ppc64_runlatch_on();
+
+		schedule();
+
+		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
+			cpu_die();
+	}
+
+	return 0;
+}
+
 struct machdep_calls __initdata pSeries_md = {
 	.probe			= pSeries_probe,
 	.setup_arch		= pSeries_setup_arch,
@@ -596,16 +581,17 @@ struct machdep_calls __initdata pSeries_md = {
 	.get_cpuinfo		= pSeries_get_cpuinfo,
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
+	.irq_bus_setup		= pSeries_irq_bus_setup,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
 	.panic			= rtas_os_term,
 	.cpu_die		= pSeries_mach_cpu_die,
-	.get_boot_time		= pSeries_get_boot_time,
-	.get_rtc_time		= pSeries_get_rtc_time,
-	.set_rtc_time		= pSeries_set_rtc_time,
-	.calibrate_decr		= pSeries_calibrate_decr,
-	.progress		= pSeries_progress,
+	.get_boot_time		= rtas_get_boot_time,
+	.get_rtc_time		= rtas_get_rtc_time,
+	.set_rtc_time		= rtas_set_rtc_time,
+	.calibrate_decr		= generic_calibrate_decr,
+	.progress		= rtas_progress,
 	.check_legacy_ioport	= pSeries_check_legacy_ioport,
 	.system_reset_exception = pSeries_system_reset_exception,
 	.machine_check_exception = pSeries_machine_check_exception,

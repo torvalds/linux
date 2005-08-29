@@ -57,6 +57,7 @@ static struct snmp_mib sctp_snmp_list[] = {
 	SNMP_MIB_ITEM("SctpReasmUsrMsgs", SCTP_MIB_REASMUSRMSGS),
 	SNMP_MIB_ITEM("SctpOutSCTPPacks", SCTP_MIB_OUTSCTPPACKS),
 	SNMP_MIB_ITEM("SctpInSCTPPacks", SCTP_MIB_INSCTPPACKS),
+	SNMP_MIB_SENTINEL
 };
 
 /* Return the current value of a particular entry in the mib by adding its

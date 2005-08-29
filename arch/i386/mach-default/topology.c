@@ -73,12 +73,11 @@ static int __init topology_init(void)
 {
 	int i;
 
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		if (node_online(i))
-			arch_register_node(i);
-	}
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_possible(i)) arch_register_cpu(i);
+	for_each_online_node(i)
+		arch_register_node(i);
+
+	for_each_cpu(i)
+		arch_register_cpu(i);
 	return 0;
 }
 
@@ -88,8 +87,8 @@ static int __init topology_init(void)
 {
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_possible(i)) arch_register_cpu(i);
+	for_each_cpu(i)
+		arch_register_cpu(i);
 	return 0;
 }
 

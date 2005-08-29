@@ -284,7 +284,7 @@ static void do_machine_restart(void * __unused)
 	 * locks are always held disabled).
 	 */
 	if (MACHINE_IS_VM)
-		cpcmd ("IPL", NULL, 0);
+		cpcmd ("IPL", NULL, 0, NULL);
 	else
 		reipl (0x10000 | S390_lowcore.ipl_device);
 }
@@ -313,7 +313,7 @@ static void do_machine_halt(void * __unused)
 	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid) == 0) {
 		smp_send_stop();
 		if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
-			cpcmd(vmhalt_cmd, NULL, 0);
+			cpcmd(vmhalt_cmd, NULL, 0, NULL);
 		signal_processor(smp_processor_id(),
 				 sigp_stop_and_store_status);
 	}
@@ -332,7 +332,7 @@ static void do_machine_power_off(void * __unused)
 	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid) == 0) {
 		smp_send_stop();
 		if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
-			cpcmd(vmpoff_cmd, NULL, 0);
+			cpcmd(vmpoff_cmd, NULL, 0, NULL);
 		signal_processor(smp_processor_id(),
 				 sigp_stop_and_store_status);
 	}
@@ -375,7 +375,7 @@ static void smp_ext_bitcall(int cpu, ec_bit_sig sig)
          * Set signaling bit in lowcore of target cpu and kick it
          */
 	set_bit(sig, (unsigned long *) &lowcore_ptr[cpu]->ext_call_fast);
-	while(signal_processor(cpu, sigp_external_call) == sigp_busy)
+	while(signal_processor(cpu, sigp_emergency_signal) == sigp_busy)
 		udelay(10);
 }
 
@@ -394,7 +394,7 @@ static void smp_ext_bitcall_others(ec_bit_sig sig)
                  * Set signaling bit in lowcore of target cpu and kick it
                  */
 		set_bit(sig, (unsigned long *) &lowcore_ptr[cpu]->ext_call_fast);
-		while (signal_processor(cpu, sigp_external_call) == sigp_busy)
+		while (signal_processor(cpu, sigp_emergency_signal) == sigp_busy)
 			udelay(10);
         }
 }
@@ -537,7 +537,8 @@ int __devinit start_secondary(void *cpuvoid)
 #endif
 #ifdef CONFIG_PFAULT
 	/* Enable pfault pseudo page faults on this cpu. */
-	pfault_init();
+	if (MACHINE_IS_VM)
+		pfault_init();
 #endif
 	/* Mark this cpu as online */
 	cpu_set(smp_processor_id(), cpu_online_map);
@@ -679,16 +680,19 @@ __cpu_disable(void)
 {
 	unsigned long flags;
 	ec_creg_mask_parms cr_parms;
+	int cpu = smp_processor_id();
 
 	spin_lock_irqsave(&smp_reserve_lock, flags);
-	if (smp_cpu_reserved[smp_processor_id()] != 0) {
+	if (smp_cpu_reserved[cpu] != 0) {
 		spin_unlock_irqrestore(&smp_reserve_lock, flags);
 		return -EBUSY;
 	}
+	cpu_clear(cpu, cpu_online_map);
 
 #ifdef CONFIG_PFAULT
 	/* Disable pfault pseudo page faults on this cpu. */
-	pfault_fini();
+	if (MACHINE_IS_VM)
+		pfault_fini();
 #endif
 
 	/* disable all external interrupts */
@@ -749,9 +753,9 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	unsigned int cpu;
         int i;
 
-        /* request the 0x1202 external interrupt */
-        if (register_external_interrupt(0x1202, do_ext_call_interrupt) != 0)
-                panic("Couldn't request external interrupt 0x1202");
+        /* request the 0x1201 emergency signal external interrupt */
+        if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
+                panic("Couldn't request external interrupt 0x1201");
         smp_check_cpus(max_cpus);
         memset(lowcore_ptr,0,sizeof(lowcore_ptr));  
         /*
@@ -771,13 +775,24 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 		*(lowcore_ptr[i]) = S390_lowcore;
 		lowcore_ptr[i]->async_stack = stack + (ASYNC_SIZE);
-#ifdef CONFIG_CHECK_STACK
 		stack = __get_free_pages(GFP_KERNEL,0);
 		if (stack == 0ULL)
 			panic("smp_boot_cpus failed to allocate memory\n");
 		lowcore_ptr[i]->panic_stack = stack + (PAGE_SIZE);
+#ifndef __s390x__
+		if (MACHINE_HAS_IEEE) {
+			lowcore_ptr[i]->extended_save_area_addr =
+				(__u32) __get_free_pages(GFP_KERNEL,0);
+			if (lowcore_ptr[i]->extended_save_area_addr == 0)
+				panic("smp_boot_cpus failed to "
+				      "allocate memory\n");
+		}
 #endif
 	}
+#ifndef __s390x__
+	if (MACHINE_HAS_IEEE)
+		ctl_set_bit(14, 29); /* enable extended save area */
+#endif
 	set_prefix((u32)(unsigned long) lowcore_ptr[smp_processor_id()]);
 
 	for_each_cpu(cpu)

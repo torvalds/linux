@@ -2691,16 +2691,6 @@ no_xon:
 		pCh->flags	|= ASYNC_CHECK_CD;
 	}
 
-#ifdef XXX
-do_flags_thing:	// This is a test, we don't do the flags thing
-	
-	if ( (cflag & CRTSCTS) ) {
-		cflag |= 014000000000;
-	}
-	i2QueueCommands(PTYPE_BYPASS, pCh, 100, 1, 
-				CMD_UNIX_FLAGS(iflag,cflag,lflag));
-#endif
-		
 service_it:
 	i2DrainOutput( pCh, 100 );		
 }

@@ -172,10 +172,12 @@ config NOHIGHMEM
 	bool
 	default y
 
-config DISCONTIGMEM
+config ARCH_DISCONTIGMEM_ENABLE
 	bool "Internal RAM Support"
 	depends on CHIP_M32700 || CHIP_M32102 || CHIP_VDEC2 || CHIP_OPSP
 	default y
+
+source "mm/Kconfig"
 
 config IRAM_START
 	hex "Internal memory start address (hex)"
@@ -267,7 +269,7 @@ config NR_CPUS
 # Common NUMA Features
 config NUMA
 	bool "Numa Memory Allocation Support"
-	depends on SMP
+	depends on SMP && BROKEN
 	default n
 
 # turning this on wastes a bunch of space.
@@ -284,6 +286,7 @@ menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
 
 config PCI
 	bool "PCI support"
+	depends on BROKEN
 	default n
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
@@ -356,6 +359,8 @@ menu "Executable file formats"
 source "fs/Kconfig.binfmt"
 
 endmenu
+
+source "net/Kconfig"
 
 source "drivers/Kconfig"
 

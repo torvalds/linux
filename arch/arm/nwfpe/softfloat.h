@@ -74,7 +74,7 @@ enum {
 Software IEC/IEEE floating-point rounding mode.
 -------------------------------------------------------------------------------
 */
-extern signed char float_rounding_mode;
+//extern int8 float_rounding_mode;
 enum {
     float_round_nearest_even = 0,
     float_round_to_zero      = 1,
@@ -86,7 +86,6 @@ enum {
 -------------------------------------------------------------------------------
 Software IEC/IEEE floating-point exception flags.
 -------------------------------------------------------------------------------
-extern signed char float_exception_flags;
 enum {
     float_flag_inexact   =  1,
     float_flag_underflow =  2,
@@ -99,7 +98,6 @@ ScottB: November 4, 1998
 Changed the enumeration to match the bit order in the FPA11.
 */
 
-extern signed char float_exception_flags;
 enum {
     float_flag_invalid   =  1,
     float_flag_divbyzero =  2,
@@ -121,7 +119,7 @@ void float_raise( signed char );
 Software IEC/IEEE integer-to-floating-point conversion routines.
 -------------------------------------------------------------------------------
 */
-float32 int32_to_float32( signed int );
+float32 int32_to_float32( struct roundingData *, signed int );
 float64 int32_to_float64( signed int );
 #ifdef FLOATX80
 floatx80 int32_to_floatx80( signed int );
@@ -132,7 +130,7 @@ floatx80 int32_to_floatx80( signed int );
 Software IEC/IEEE single-precision conversion routines.
 -------------------------------------------------------------------------------
 */
-signed int float32_to_int32( float32 );
+signed int float32_to_int32( struct roundingData *, float32 );
 signed int float32_to_int32_round_to_zero( float32 );
 float64 float32_to_float64( float32 );
 #ifdef FLOATX80
@@ -144,13 +142,13 @@ floatx80 float32_to_floatx80( float32 );
 Software IEC/IEEE single-precision operations.
 -------------------------------------------------------------------------------
 */
-float32 float32_round_to_int( float32 );
-float32 float32_add( float32, float32 );
-float32 float32_sub( float32, float32 );
-float32 float32_mul( float32, float32 );
-float32 float32_div( float32, float32 );
-float32 float32_rem( float32, float32 );
-float32 float32_sqrt( float32 );
+float32 float32_round_to_int( struct roundingData*, float32 );
+float32 float32_add( struct roundingData *, float32, float32 );
+float32 float32_sub( struct roundingData *, float32, float32 );
+float32 float32_mul( struct roundingData *, float32, float32 );
+float32 float32_div( struct roundingData *, float32, float32 );
+float32 float32_rem( struct roundingData *, float32, float32 );
+float32 float32_sqrt( struct roundingData*, float32 );
 char float32_eq( float32, float32 );
 char float32_le( float32, float32 );
 char float32_lt( float32, float32 );
@@ -164,9 +162,9 @@ char float32_is_signaling_nan( float32 );
 Software IEC/IEEE double-precision conversion routines.
 -------------------------------------------------------------------------------
 */
-signed int float64_to_int32( float64 );
+signed int float64_to_int32( struct roundingData *, float64 );
 signed int float64_to_int32_round_to_zero( float64 );
-float32 float64_to_float32( float64 );
+float32 float64_to_float32( struct roundingData *, float64 );
 #ifdef FLOATX80
 floatx80 float64_to_floatx80( float64 );
 #endif
@@ -176,13 +174,13 @@ floatx80 float64_to_floatx80( float64 );
 Software IEC/IEEE double-precision operations.
 -------------------------------------------------------------------------------
 */
-float64 float64_round_to_int( float64 );
-float64 float64_add( float64, float64 );
-float64 float64_sub( float64, float64 );
-float64 float64_mul( float64, float64 );
-float64 float64_div( float64, float64 );
-float64 float64_rem( float64, float64 );
-float64 float64_sqrt( float64 );
+float64 float64_round_to_int( struct roundingData *, float64 );
+float64 float64_add( struct roundingData *, float64, float64 );
+float64 float64_sub( struct roundingData *, float64, float64 );
+float64 float64_mul( struct roundingData *, float64, float64 );
+float64 float64_div( struct roundingData *, float64, float64 );
+float64 float64_rem( struct roundingData *, float64, float64 );
+float64 float64_sqrt( struct roundingData *, float64 );
 char float64_eq( float64, float64 );
 char float64_le( float64, float64 );
 char float64_lt( float64, float64 );
@@ -198,31 +196,23 @@ char float64_is_signaling_nan( float64 );
 Software IEC/IEEE extended double-precision conversion routines.
 -------------------------------------------------------------------------------
 */
-signed int floatx80_to_int32( floatx80 );
+signed int floatx80_to_int32( struct roundingData *, floatx80 );
 signed int floatx80_to_int32_round_to_zero( floatx80 );
-float32 floatx80_to_float32( floatx80 );
-float64 floatx80_to_float64( floatx80 );
-
-/*
--------------------------------------------------------------------------------
-Software IEC/IEEE extended double-precision rounding precision.  Valid
-values are 32, 64, and 80.
--------------------------------------------------------------------------------
-*/
-extern signed char floatx80_rounding_precision;
+float32 floatx80_to_float32( struct roundingData *, floatx80 );
+float64 floatx80_to_float64( struct roundingData *, floatx80 );
 
 /*
 -------------------------------------------------------------------------------
 Software IEC/IEEE extended double-precision operations.
 -------------------------------------------------------------------------------
 */
-floatx80 floatx80_round_to_int( floatx80 );
-floatx80 floatx80_add( floatx80, floatx80 );
-floatx80 floatx80_sub( floatx80, floatx80 );
-floatx80 floatx80_mul( floatx80, floatx80 );
-floatx80 floatx80_div( floatx80, floatx80 );
-floatx80 floatx80_rem( floatx80, floatx80 );
-floatx80 floatx80_sqrt( floatx80 );
+floatx80 floatx80_round_to_int( struct roundingData *, floatx80 );
+floatx80 floatx80_add( struct roundingData *, floatx80, floatx80 );
+floatx80 floatx80_sub( struct roundingData *, floatx80, floatx80 );
+floatx80 floatx80_mul( struct roundingData *, floatx80, floatx80 );
+floatx80 floatx80_div( struct roundingData *, floatx80, floatx80 );
+floatx80 floatx80_rem( struct roundingData *, floatx80, floatx80 );
+floatx80 floatx80_sqrt( struct roundingData *, floatx80 );
 char floatx80_eq( floatx80, floatx80 );
 char floatx80_le( floatx80, floatx80 );
 char floatx80_lt( floatx80, floatx80 );

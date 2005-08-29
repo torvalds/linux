@@ -13,7 +13,8 @@
 #include <asm/arch/sv_addr_ag.h>
 
 #define RAM_INIT_MAGIC 0x56902387
-	
+#define COMMAND_LINE_MAGIC 0x87109563
+
 	;; Exported symbols
 	
 	.globl	_input_data
@@ -88,6 +89,12 @@ basse:	move.d	pc, r5
 	cmp.d	r2, r1
 	bcs	1b
 	nop
+
+	;;  Save command line magic and address.
+	move.d	_cmd_line_magic, $r12
+	move.d  $r10, [$r12]
+	move.d	_cmd_line_addr, $r12
+	move.d  $r11, [$r12]
 	
 	;; Do the decompression and save compressed size in _inptr
 
@@ -98,7 +105,13 @@ basse:	move.d	pc, r5
 
 	move.d	[_input_data], r9	; flash address of compressed kernel
 	add.d	[_inptr], r9		; size of compressed kernel
-	 
+
+	;; Restore command line magic and address.
+	move.d  _cmd_line_magic, $r10
+	move.d  [$r10], $r10
+	move.d  _cmd_line_addr, $r11
+	move.d  [$r11], $r11
+
 	;; Enter the decompressed kernel
 	move.d	RAM_INIT_MAGIC, r8	; Tell kernel that DRAM is initialized
 	jump	0x40004000	; kernel is linked to this address
@@ -107,5 +120,8 @@ basse:	move.d	pc, r5
 
 _input_data:
 	.dword	0		; used by the decompressor
-
+_cmd_line_magic:
+	.dword 0
+_cmd_line_addr:
+	.dword 0
 #include "../../lib/hw_settings.S"

@@ -7,7 +7,10 @@
 
 /* type used in struct mm to couple an MMU context to an active mm */
 
-typedef unsigned int mm_context_t;
+typedef struct
+{
+  unsigned int page_id;
+} mm_context_t;
 
 /* kernel memory segments */
 

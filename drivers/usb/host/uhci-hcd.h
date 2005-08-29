@@ -41,6 +41,7 @@
 #define USBFRNUM	6
 #define USBFLBASEADD	8
 #define USBSOF		12
+#define   USBSOF_DEFAULT	64	/* Frame length is exactly 1 ms */
 
 /* USB port status and control registers */
 #define USBPORTSC1	16
@@ -66,6 +67,8 @@
 /* Legacy support register */
 #define USBLEGSUP		0xc0
 #define   USBLEGSUP_DEFAULT	0x2000	/* only PIRQ enable set */
+#define   USBLEGSUP_RWC		0x8f00	/* the R/WC bits */
+#define   USBLEGSUP_RO		0x5040	/* R/O and reserved bits */
 
 #define UHCI_NULL_DATA_SIZE	0x7FF	/* for UHCI controller TD */
 
@@ -111,7 +114,6 @@ struct uhci_qh {
 	/* Software fields */
 	dma_addr_t dma_handle;
 
-	struct usb_device *dev;
 	struct urb_priv *urbp;
 
 	struct list_head list;		/* P: uhci->frame_list_lock */
@@ -203,7 +205,6 @@ struct uhci_td {
 	/* Software fields */
 	dma_addr_t dma_handle;
 
-	struct usb_device *dev;
 	struct urb *urb;
 
 	struct list_head list;		/* P: urb->lock */
@@ -314,26 +315,32 @@ static inline int __interval_to_skel(int interval)
 }
 
 /*
- * Device states for the host controller.
+ * States for the root hub.
  *
  * To prevent "bouncing" in the presence of electrical noise,
- * we insist on a 1-second "grace" period, before switching to
- * the RUNNING or SUSPENDED states, during which the state is
- * not allowed to change.
- *
- * The resume process is divided into substates in order to avoid
- * potentially length delays during the timer handler.
- *
- * States in which the host controller is halted must have values <= 0.
+ * when there are no devices attached we delay for 1 second in the
+ * RUNNING_NODEVS state before switching to the AUTO_STOPPED state.
+ * 
+ * (Note that the AUTO_STOPPED state won't be necessary once the hub
+ * driver learns to autosuspend.)
  */
-enum uhci_state {
-	UHCI_RESET,
-	UHCI_RUNNING_GRACE,		/* Before RUNNING */
-	UHCI_RUNNING,			/* The normal state */
-	UHCI_SUSPENDING_GRACE,		/* Before SUSPENDED */
-	UHCI_SUSPENDED = -10,		/* When no devices are attached */
-	UHCI_RESUMING_1,
-	UHCI_RESUMING_2
+enum uhci_rh_state {
+	/* In the following states the HC must be halted.
+	 * These two must come first */
+	UHCI_RH_RESET,
+	UHCI_RH_SUSPENDED,
+
+	UHCI_RH_AUTO_STOPPED,
+	UHCI_RH_RESUMING,
+
+	/* In this state the HC changes from running to halted,
+	 * so it can legally appear either way. */
+	UHCI_RH_SUSPENDING,
+
+	/* In the following states it's an error if the HC is halted.
+	 * These two must come last */
+	UHCI_RH_RUNNING,		/* The normal state */
+	UHCI_RH_RUNNING_NODEVS,		/* Running with no devices attached */
 };
 
 /*
@@ -363,15 +370,16 @@ struct uhci_hcd {
 	int fsbr;				/* Full-speed bandwidth reclamation */
 	unsigned long fsbrtimeout;		/* FSBR delay */
 
-	enum uhci_state state;			/* FIXME: needs a spinlock */
-	unsigned long state_end;		/* Time of next transition */
+	enum uhci_rh_state rh_state;
+	unsigned long auto_stop_time;		/* When to AUTO_STOP */
+
 	unsigned int frame_number;		/* As of last check */
 	unsigned int is_stopped;
 #define UHCI_IS_STOPPED		9999		/* Larger than a frame # */
 
 	unsigned int scan_in_progress:1;	/* Schedule scan is running */
 	unsigned int need_rescan:1;		/* Redo the schedule scan */
-	unsigned int resume_detect:1;		/* Need a Global Resume */
+	unsigned int hc_inaccessible:1;		/* HC is suspended or dead */
 
 	/* Support for port suspend/resume/reset */
 	unsigned long port_c_suspend;		/* Bit-arrays of ports */
@@ -450,5 +458,12 @@ struct urb_priv {
  * #1 uhci->lock
  * #2 urb->lock
  */
+
+
+/* Some special IDs */
+
+#define PCI_VENDOR_ID_GENESYS		0x17a0
+#define PCI_DEVICE_ID_GL880S_UHCI	0x8083
+#define PCI_DEVICE_ID_GL880S_EHCI	0x8084
 
 #endif

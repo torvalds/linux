@@ -52,7 +52,7 @@
 /*
  * Disable the nodemgr detection and config rom reading functionality.
  */
-static int disable_nodemgr = 0;
+static int disable_nodemgr;
 module_param(disable_nodemgr, int, 0444);
 MODULE_PARM_DESC(disable_nodemgr, "Disable nodemgr functionality.");
 
@@ -520,6 +520,9 @@ int hpsb_send_packet(struct hpsb_packet *packet)
 
 	if (!packet->no_waiter || packet->expect_response) {
 		atomic_inc(&packet->refcnt);
+		/* Set the initial "sendtime" to 10 seconds from now, to
+		   prevent premature expiry.  If a packet takes more than
+		   10 seconds to hit the wire, we have bigger problems :) */
 		packet->sendtime = jiffies + 10 * HZ;
 		skb_queue_tail(&host->pending_packet_queue, packet->skb);
 	}
@@ -1041,10 +1044,8 @@ static int hpsbpkt_thread(void *__hi)
 
 	while (1) {
 		if (down_interruptible(&khpsbpkt_sig)) {
-			if (current->flags & PF_FREEZE) {
-				refrigerator(0);
+			if (try_to_freeze())
 				continue;
-			}
 			printk("khpsbpkt: received unexpected signal?!\n" );
 			break;
 		}
@@ -1225,9 +1226,7 @@ EXPORT_SYMBOL(hpsb_protocol_class);
 EXPORT_SYMBOL(hpsb_set_packet_complete_task);
 EXPORT_SYMBOL(hpsb_alloc_packet);
 EXPORT_SYMBOL(hpsb_free_packet);
-EXPORT_SYMBOL(hpsb_send_phy_config);
 EXPORT_SYMBOL(hpsb_send_packet);
-EXPORT_SYMBOL(hpsb_send_packet_and_wait);
 EXPORT_SYMBOL(hpsb_reset_bus);
 EXPORT_SYMBOL(hpsb_bus_reset);
 EXPORT_SYMBOL(hpsb_selfid_received);
@@ -1235,6 +1234,10 @@ EXPORT_SYMBOL(hpsb_selfid_complete);
 EXPORT_SYMBOL(hpsb_packet_sent);
 EXPORT_SYMBOL(hpsb_packet_received);
 EXPORT_SYMBOL_GPL(hpsb_disable_irm);
+#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
+EXPORT_SYMBOL(hpsb_send_phy_config);
+EXPORT_SYMBOL(hpsb_send_packet_and_wait);
+#endif
 
 /** ieee1394_transactions.c **/
 EXPORT_SYMBOL(hpsb_get_tlabel);
@@ -1264,9 +1267,11 @@ EXPORT_SYMBOL(hpsb_destroy_hostinfo);
 EXPORT_SYMBOL(hpsb_set_hostinfo_key);
 EXPORT_SYMBOL(hpsb_get_hostinfo_bykey);
 EXPORT_SYMBOL(hpsb_set_hostinfo);
+EXPORT_SYMBOL(highlevel_host_reset);
+#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
 EXPORT_SYMBOL(highlevel_add_host);
 EXPORT_SYMBOL(highlevel_remove_host);
-EXPORT_SYMBOL(highlevel_host_reset);
+#endif
 
 /** nodemgr.c **/
 EXPORT_SYMBOL(hpsb_node_fill_packet);
@@ -1274,7 +1279,9 @@ EXPORT_SYMBOL(hpsb_node_write);
 EXPORT_SYMBOL(hpsb_register_protocol);
 EXPORT_SYMBOL(hpsb_unregister_protocol);
 EXPORT_SYMBOL(ieee1394_bus_type);
+#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
 EXPORT_SYMBOL(nodemgr_for_each_host);
+#endif
 
 /** csr.c **/
 EXPORT_SYMBOL(hpsb_update_config_rom);
@@ -1311,19 +1318,21 @@ EXPORT_SYMBOL(hpsb_iso_wake);
 EXPORT_SYMBOL(hpsb_iso_recv_flush);
 
 /** csr1212.c **/
+EXPORT_SYMBOL(csr1212_new_directory);
+EXPORT_SYMBOL(csr1212_attach_keyval_to_directory);
+EXPORT_SYMBOL(csr1212_detach_keyval_from_directory);
+EXPORT_SYMBOL(csr1212_release_keyval);
+EXPORT_SYMBOL(csr1212_read);
+EXPORT_SYMBOL(csr1212_parse_keyval);
+EXPORT_SYMBOL(_csr1212_read_keyval);
+EXPORT_SYMBOL(_csr1212_destroy_keyval);
+#ifdef CONFIG_IEEE1394_EXPORT_FULL_API
 EXPORT_SYMBOL(csr1212_create_csr);
 EXPORT_SYMBOL(csr1212_init_local_csr);
 EXPORT_SYMBOL(csr1212_new_immediate);
-EXPORT_SYMBOL(csr1212_new_directory);
 EXPORT_SYMBOL(csr1212_associate_keyval);
-EXPORT_SYMBOL(csr1212_attach_keyval_to_directory);
 EXPORT_SYMBOL(csr1212_new_string_descriptor_leaf);
-EXPORT_SYMBOL(csr1212_detach_keyval_from_directory);
-EXPORT_SYMBOL(csr1212_release_keyval);
 EXPORT_SYMBOL(csr1212_destroy_csr);
-EXPORT_SYMBOL(csr1212_read);
 EXPORT_SYMBOL(csr1212_generate_csr_image);
-EXPORT_SYMBOL(csr1212_parse_keyval);
 EXPORT_SYMBOL(csr1212_parse_csr);
-EXPORT_SYMBOL(_csr1212_read_keyval);
-EXPORT_SYMBOL(_csr1212_destroy_keyval);
+#endif

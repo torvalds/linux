@@ -1,4 +1,4 @@
-/* $Id: process.c,v 1.9 2004/10/19 13:07:37 starvik Exp $
+/* $Id: process.c,v 1.12 2004/12/27 11:18:32 starvik Exp $
  * 
  *  linux/arch/cris/kernel/process.c
  *
@@ -101,6 +101,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	regs.r11 = (unsigned long)fn;
 	regs.r12 = (unsigned long)arg;
 	regs.irp = (unsigned long)kernel_thread_helper;
+	regs.dccr = 1 << I_DCCR_BITNR;
 
 	/* Ok, create the new process.. */
         return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);

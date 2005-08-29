@@ -140,7 +140,9 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 		if (rdata->res.eof != 0 || result == 0)
 			break;
 	} while (count);
-	NFS_FLAGS(inode) |= NFS_INO_INVALID_ATIME;
+	spin_lock(&inode->i_lock);
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
+	spin_unlock(&inode->i_lock);
 
 	if (count)
 		memclear_highpage_flush(page, rdata->args.pgbase, count);
@@ -173,7 +175,6 @@ static int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	if (len < PAGE_CACHE_SIZE)
 		memclear_highpage_flush(page, len, PAGE_CACHE_SIZE - len);
 
-	nfs_lock_request(new);
 	nfs_list_add_request(new, &one_request);
 	nfs_pagein_one(&one_request, inode);
 	return 0;
@@ -185,7 +186,6 @@ static void nfs_readpage_release(struct nfs_page *req)
 
 	nfs_clear_request(req);
 	nfs_release_request(req);
-	nfs_unlock_request(req);
 
 	dprintk("NFS: read done (%s/%Ld %d@%Ld)\n",
 			req->wb_context->dentry->d_inode->i_sb->s_id,
@@ -475,7 +475,9 @@ void nfs_readpage_result(struct rpc_task *task)
 		}
 		task->tk_status = -EIO;
 	}
-	NFS_FLAGS(data->inode) |= NFS_INO_INVALID_ATIME;
+	spin_lock(&data->inode->i_lock);
+	NFS_I(data->inode)->cache_validity |= NFS_INO_INVALID_ATIME;
+	spin_unlock(&data->inode->i_lock);
 	data->complete(data, status);
 }
 
@@ -553,7 +555,6 @@ readpage_async_filler(void *data, struct page *page)
 	}
 	if (len < PAGE_CACHE_SIZE)
 		memclear_highpage_flush(page, len, PAGE_CACHE_SIZE - len);
-	nfs_lock_request(new);
 	nfs_list_add_request(new, desc->head);
 	return 0;
 }

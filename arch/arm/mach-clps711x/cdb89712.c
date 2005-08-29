@@ -49,10 +49,12 @@ static void __init cdb89712_map_io(void)
 }
 
 MACHINE_START(CDB89712, "Cirrus-CDB89712")
-	MAINTAINER("Ray Lehtiniemi")
-	BOOT_MEM(0xc0000000, 0x80000000, 0xff000000)
-	BOOT_PARAMS(0xc0000100)
-	MAPIO(cdb89712_map_io)
-	INITIRQ(clps711x_init_irq)
+	/* Maintainer: Ray Lehtiniemi */
+	.phys_ram	= 0xc0000000,
+	.phys_io	= 0x80000000,
+	.io_pg_offst	= ((0xff000000) >> 18) & 0xfffc,
+	.boot_params	= 0xc0000100,
+	.map_io		= cdb89712_map_io,
+	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
 MACHINE_END

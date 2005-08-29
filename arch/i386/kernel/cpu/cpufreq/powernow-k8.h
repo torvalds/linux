@@ -1,5 +1,5 @@
 /*
- *  (c) 2003, 2004 Advanced Micro Devices, Inc.
+ *  (c) 2003, 2004, 2005 Advanced Micro Devices, Inc.
  *  Your use of this code is subject to the terms and conditions of the
  *  GNU general public license version 2. See "COPYING" or
  *  http://www.gnu.org/licenses/gpl.html
@@ -19,6 +19,7 @@ struct powernow_k8_data {
 	u32 vidmvs;  /* usable value calculated from mvs */
 	u32 vstable; /* voltage stabilization time, units 20 us */
 	u32 plllock; /* pll lock time, units 1 us */
+        u32 exttype; /* extended interface = 1 */
 
 	/* keep track of the current fid / vid */
 	u32 currvid, currfid;
@@ -41,7 +42,7 @@ struct powernow_k8_data {
 #define CPUID_XFAM			0x0ff00000	/* extended family */
 #define CPUID_XFAM_K8			0
 #define CPUID_XMOD			0x000f0000	/* extended model */
-#define CPUID_XMOD_REV_E		0x00020000
+#define CPUID_XMOD_REV_F		0x00040000
 #define CPUID_USE_XFAM_XMOD		0x00000f00
 #define CPUID_GET_MAX_CAPABILITIES	0x80000000
 #define CPUID_FREQ_VOLT_CAPABILITIES	0x80000007
@@ -57,25 +58,26 @@ struct powernow_k8_data {
 
 /* Field definitions within the FID VID Low Control MSR : */
 #define MSR_C_LO_INIT_FID_VID     0x00010000
-#define MSR_C_LO_NEW_VID          0x00001f00
-#define MSR_C_LO_NEW_FID          0x0000002f
+#define MSR_C_LO_NEW_VID          0x00003f00
+#define MSR_C_LO_NEW_FID          0x0000003f
 #define MSR_C_LO_VID_SHIFT        8
 
 /* Field definitions within the FID VID High Control MSR : */
-#define MSR_C_HI_STP_GNT_TO       0x000fffff
+#define MSR_C_HI_STP_GNT_TO 	  0x000fffff
 
 /* Field definitions within the FID VID Low Status MSR : */
-#define MSR_S_LO_CHANGE_PENDING   0x80000000	/* cleared when completed */
-#define MSR_S_LO_MAX_RAMP_VID     0x1f000000
+#define MSR_S_LO_CHANGE_PENDING   0x80000000   /* cleared when completed */
+#define MSR_S_LO_MAX_RAMP_VID     0x3f000000
 #define MSR_S_LO_MAX_FID          0x003f0000
 #define MSR_S_LO_START_FID        0x00003f00
 #define MSR_S_LO_CURRENT_FID      0x0000003f
 
 /* Field definitions within the FID VID High Status MSR : */
-#define MSR_S_HI_MAX_WORKING_VID  0x001f0000
-#define MSR_S_HI_START_VID        0x00001f00
-#define MSR_S_HI_CURRENT_VID      0x0000001f
-#define MSR_C_HI_STP_GNT_BENIGN   0x00000001
+#define MSR_S_HI_MIN_WORKING_VID  0x3f000000
+#define MSR_S_HI_MAX_WORKING_VID  0x003f0000
+#define MSR_S_HI_START_VID        0x00003f00
+#define MSR_S_HI_CURRENT_VID      0x0000003f
+#define MSR_C_HI_STP_GNT_BENIGN	  0x00000001
 
 /*
  * There are restrictions frequencies have to follow:
@@ -99,13 +101,15 @@ struct powernow_k8_data {
 #define MIN_FREQ_RESOLUTION  200 /* fids jump by 2 matching freq jumps by 200 */
 
 #define MAX_FID 0x2a	/* Spec only gives FID values as far as 5 GHz */
-#define LEAST_VID 0x1e	/* Lowest (numerically highest) useful vid value */
+#define LEAST_VID 0x3e	/* Lowest (numerically highest) useful vid value */
 
 #define MIN_FREQ 800	/* Min and max freqs, per spec */
 #define MAX_FREQ 5000
 
 #define INVALID_FID_MASK 0xffffffc1  /* not a valid fid if these bits are set */
-#define INVALID_VID_MASK 0xffffffe0  /* not a valid vid if these bits are set */
+#define INVALID_VID_MASK 0xffffffc0  /* not a valid vid if these bits are set */
+
+#define VID_OFF 0x3f
 
 #define STOP_GRANT_5NS 1 /* min poss memory access latency for voltage change */
 
@@ -121,12 +125,14 @@ struct powernow_k8_data {
                                                                                                     
 #define IRT_SHIFT      30
 #define RVO_SHIFT      28
+#define EXT_TYPE_SHIFT 27
 #define PLL_L_SHIFT    20
 #define MVS_SHIFT      18
 #define VST_SHIFT      11
 #define VID_SHIFT       6
 #define IRT_MASK        3
 #define RVO_MASK        3
+#define EXT_TYPE_MASK   1
 #define PLL_L_MASK   0x7f
 #define MVS_MASK        3
 #define VST_MASK     0x7f

@@ -76,11 +76,6 @@ void smt_reset_defaults(struct s_smc *smc, int level);
 static void smt_init_mib(struct s_smc *smc, int level);
 static int set_min_max(int maxflag, u_long mib, u_long limit, u_long *oper);
 
-void smt_set_defaults(struct s_smc *smc)
-{
-	smt_reset_defaults(smc,0) ;
-}
-
 #define MS2BCLK(x)	((x)*12500L)
 #define US2BCLK(x)	((x)*1250L)
 

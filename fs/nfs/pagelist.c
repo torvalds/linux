@@ -107,8 +107,35 @@ void nfs_unlock_request(struct nfs_page *req)
 	smp_mb__before_clear_bit();
 	clear_bit(PG_BUSY, &req->wb_flags);
 	smp_mb__after_clear_bit();
-	wake_up_all(&req->wb_context->waitq);
+	wake_up_bit(&req->wb_flags, PG_BUSY);
 	nfs_release_request(req);
+}
+
+/**
+ * nfs_set_page_writeback_locked - Lock a request for writeback
+ * @req:
+ */
+int nfs_set_page_writeback_locked(struct nfs_page *req)
+{
+	struct nfs_inode *nfsi = NFS_I(req->wb_context->dentry->d_inode);
+
+	if (!nfs_lock_request(req))
+		return 0;
+	radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_WRITEBACK);
+	return 1;
+}
+
+/**
+ * nfs_clear_page_writeback - Unlock request and wake up sleepers
+ */
+void nfs_clear_page_writeback(struct nfs_page *req)
+{
+	struct nfs_inode *nfsi = NFS_I(req->wb_context->dentry->d_inode);
+
+	spin_lock(&nfsi->req_lock);
+	radix_tree_tag_clear(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_WRITEBACK);
+	spin_unlock(&nfsi->req_lock);
+	nfs_unlock_request(req);
 }
 
 /**
@@ -150,34 +177,15 @@ nfs_release_request(struct nfs_page *req)
 	nfs_page_free(req);
 }
 
-/**
- * nfs_list_add_request - Insert a request into a sorted list
- * @req: request
- * @head: head of list into which to insert the request.
- *
- * Note that the wb_list is sorted by page index in order to facilitate
- * coalescing of requests.
- * We use an insertion sort that is optimized for the case of appended
- * writes.
- */
-void
-nfs_list_add_request(struct nfs_page *req, struct list_head *head)
+static int nfs_wait_bit_interruptible(void *word)
 {
-	struct list_head *pos;
+	int ret = 0;
 
-#ifdef NFS_PARANOIA
-	if (!list_empty(&req->wb_list)) {
-		printk(KERN_ERR "NFS: Add to list failed!\n");
-		BUG();
-	}
-#endif
-	list_for_each_prev(pos, head) {
-		struct nfs_page	*p = nfs_list_entry(pos);
-		if (p->wb_index < req->wb_index)
-			break;
-	}
-	list_add(&req->wb_list, pos);
-	req->wb_list_head = head;
+	if (signal_pending(current))
+		ret = -ERESTARTSYS;
+	else
+		schedule();
+	return ret;
 }
 
 /**
@@ -190,12 +198,22 @@ nfs_list_add_request(struct nfs_page *req, struct list_head *head)
 int
 nfs_wait_on_request(struct nfs_page *req)
 {
-	struct inode	*inode = req->wb_context->dentry->d_inode;
-        struct rpc_clnt	*clnt = NFS_CLIENT(inode);
+        struct rpc_clnt	*clnt = NFS_CLIENT(req->wb_context->dentry->d_inode);
+	sigset_t oldmask;
+	int ret = 0;
 
-	if (!NFS_WBACK_BUSY(req))
-		return 0;
-	return nfs_wait_event(clnt, req->wb_context->waitq, !NFS_WBACK_BUSY(req));
+	if (!test_bit(PG_BUSY, &req->wb_flags))
+		goto out;
+	/*
+	 * Note: the call to rpc_clnt_sigmask() suffices to ensure that we
+	 *	 are not interrupted if intr flag is not set
+	 */
+	rpc_clnt_sigmask(clnt, &oldmask);
+	ret = out_of_line_wait_on_bit(&req->wb_flags, PG_BUSY,
+			nfs_wait_bit_interruptible, TASK_INTERRUPTIBLE);
+	rpc_clnt_sigunmask(clnt, &oldmask);
+out:
+	return ret;
 }
 
 /**
@@ -243,6 +261,62 @@ nfs_coalesce_requests(struct list_head *head, struct list_head *dst,
 	return npages;
 }
 
+#define NFS_SCAN_MAXENTRIES 16
+/**
+ * nfs_scan_lock_dirty - Scan the radix tree for dirty requests
+ * @nfsi: NFS inode
+ * @dst: Destination list
+ * @idx_start: lower bound of page->index to scan
+ * @npages: idx_start + npages sets the upper bound to scan.
+ *
+ * Moves elements from one of the inode request lists.
+ * If the number of requests is set to 0, the entire address_space
+ * starting at index idx_start, is scanned.
+ * The requests are *not* checked to ensure that they form a contiguous set.
+ * You must be holding the inode's req_lock when calling this function
+ */
+int
+nfs_scan_lock_dirty(struct nfs_inode *nfsi, struct list_head *dst,
+	      unsigned long idx_start, unsigned int npages)
+{
+	struct nfs_page *pgvec[NFS_SCAN_MAXENTRIES];
+	struct nfs_page *req;
+	unsigned long idx_end;
+	int found, i;
+	int res;
+
+	res = 0;
+	if (npages == 0)
+		idx_end = ~0;
+	else
+		idx_end = idx_start + npages - 1;
+
+	for (;;) {
+		found = radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree,
+				(void **)&pgvec[0], idx_start, NFS_SCAN_MAXENTRIES,
+				NFS_PAGE_TAG_DIRTY);
+		if (found <= 0)
+			break;
+		for (i = 0; i < found; i++) {
+			req = pgvec[i];
+			if (req->wb_index > idx_end)
+				goto out;
+
+			idx_start = req->wb_index + 1;
+
+			if (nfs_set_page_writeback_locked(req)) {
+				radix_tree_tag_clear(&nfsi->nfs_page_tree,
+						req->wb_index, NFS_PAGE_TAG_DIRTY);
+				nfs_list_remove_request(req);
+				nfs_list_add_request(req, dst);
+				res++;
+			}
+		}
+	}
+out:
+	return res;
+}
+
 /**
  * nfs_scan_list - Scan a list for matching requests
  * @head: One of the NFS inode request lists
@@ -280,7 +354,7 @@ nfs_scan_list(struct list_head *head, struct list_head *dst,
 		if (req->wb_index > idx_end)
 			break;
 
-		if (!nfs_lock_request(req))
+		if (!nfs_set_page_writeback_locked(req))
 			continue;
 		nfs_list_remove_request(req);
 		nfs_list_add_request(req, dst);

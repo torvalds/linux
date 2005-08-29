@@ -28,7 +28,7 @@ config ARCH_CLEP7312
 config ARCH_EDB7211
 	bool "EDB7211"
 	select ISA
-	select DISCONTIGMEM
+	select ARCH_DISCONTIGMEM_ENABLE
 	help
 	  Say Y here if you intend to run this kernel on a Cirrus Logic EDB-7211
 	  evaluation board.

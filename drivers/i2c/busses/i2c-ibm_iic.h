@@ -22,7 +22,6 @@
 #ifndef __I2C_IBM_IIC_H_
 #define __I2C_IBM_IIC_H_
 
-#include <linux/config.h>
 #include <linux/i2c.h> 
 
 struct iic_regs {

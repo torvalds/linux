@@ -251,10 +251,11 @@ void tr_source_route(struct sk_buff *skb,struct trh_hdr *trh,struct net_device *
 	unsigned int hash;
 	struct rif_cache *entry;
 	unsigned char *olddata;
+	unsigned long flags;
 	static const unsigned char mcast_func_addr[] 
 		= {0xC0,0x00,0x00,0x04,0x00,0x00};
 	
-	spin_lock_bh(&rif_lock);
+	spin_lock_irqsave(&rif_lock, flags);
 
 	/*
 	 *	Broadcasts are single route as stated in RFC 1042 
@@ -323,7 +324,7 @@ printk("source routing for %02X:%02X:%02X:%02X:%02X:%02X\n",trh->daddr[0],
 	else 
 		slack = 18 - ((ntohs(trh->rcf) & TR_RCF_LEN_MASK)>>8);
 	olddata = skb->data;
-	spin_unlock_bh(&rif_lock);
+	spin_unlock_irqrestore(&rif_lock, flags);
 
 	skb_pull(skb, slack);
 	memmove(skb->data, olddata, sizeof(struct trh_hdr) - slack);
@@ -337,10 +338,11 @@ printk("source routing for %02X:%02X:%02X:%02X:%02X:%02X\n",trh->daddr[0],
 static void tr_add_rif_info(struct trh_hdr *trh, struct net_device *dev)
 {
 	unsigned int hash, rii_p = 0;
+	unsigned long flags;
 	struct rif_cache *entry;
 
 
-	spin_lock_bh(&rif_lock);
+	spin_lock_irqsave(&rif_lock, flags);
 	
 	/*
 	 *	Firstly see if the entry exists
@@ -378,7 +380,7 @@ printk("adding rif_entry: addr:%02X:%02X:%02X:%02X:%02X:%02X rcf:%04X\n",
 		if(!entry) 
 		{
 			printk(KERN_DEBUG "tr.c: Couldn't malloc rif cache entry !\n");
-			spin_unlock_bh(&rif_lock);
+			spin_unlock_irqrestore(&rif_lock, flags);
 			return;
 		}
 
@@ -420,7 +422,7 @@ printk("updating rif_entry: addr:%02X:%02X:%02X:%02X:%02X:%02X rcf:%04X\n",
 		    }                                         
            	entry->last_used=jiffies;               
 	}
-	spin_unlock_bh(&rif_lock);
+	spin_unlock_irqrestore(&rif_lock, flags);
 }
 
 /*
@@ -430,9 +432,9 @@ printk("updating rif_entry: addr:%02X:%02X:%02X:%02X:%02X:%02X rcf:%04X\n",
 static void rif_check_expire(unsigned long dummy) 
 {
 	int i;
-	unsigned long next_interval = jiffies + sysctl_tr_rif_timeout/2;
+	unsigned long flags, next_interval = jiffies + sysctl_tr_rif_timeout/2;
 
-	spin_lock_bh(&rif_lock);
+	spin_lock_irqsave(&rif_lock, flags);
 	
 	for(i =0; i < RIF_TABLE_SIZE; i++) {
 		struct rif_cache *entry, **pentry;
@@ -454,7 +456,7 @@ static void rif_check_expire(unsigned long dummy)
 		}
 	}
 	
-	spin_unlock_bh(&rif_lock);
+	spin_unlock_irqrestore(&rif_lock, flags);
 
 	mod_timer(&rif_timer, next_interval);
 
@@ -485,7 +487,7 @@ static struct rif_cache *rif_get_idx(loff_t pos)
 
 static void *rif_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	spin_lock_bh(&rif_lock);
+	spin_lock_irq(&rif_lock);
 
 	return *pos ? rif_get_idx(*pos - 1) : SEQ_START_TOKEN;
 }
@@ -516,7 +518,7 @@ static void *rif_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void rif_seq_stop(struct seq_file *seq, void *v)
 {
-	spin_unlock_bh(&rif_lock);
+	spin_unlock_irq(&rif_lock);
 }
 
 static int rif_seq_show(struct seq_file *seq, void *v)

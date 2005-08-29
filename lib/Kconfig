@@ -63,5 +63,16 @@ config REED_SOLOMON_ENC16
 config REED_SOLOMON_DEC16
 	boolean
 
-endmenu
+#
+# Textsearch support is select'ed if needed
+#
+config TEXTSEARCH
+	boolean
 
+config TEXTSEARCH_KMP
+	tristate
+
+config TEXTSEARCH_FSM
+	tristate
+
+endmenu

@@ -49,7 +49,7 @@ static int vxp_reg_offset[VX_REG_MAX] = {
 };
 
 
-inline static unsigned long vxp_reg_addr(vx_core_t *_chip, int reg)
+static inline unsigned long vxp_reg_addr(vx_core_t *_chip, int reg)
 {
 	struct snd_vxpocket *chip = (struct snd_vxpocket *)_chip;
 	return chip->port + vxp_reg_offset[reg];

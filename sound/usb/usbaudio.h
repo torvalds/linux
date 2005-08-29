@@ -118,6 +118,11 @@
 /* maximum number of endpoints per interface */
 #define MIDI_MAX_ENDPOINTS 2
 
+/* handling of USB vendor/product ID pairs as 32-bit numbers */
+#define USB_ID(vendor, product) (((vendor) << 16) | (product))
+#define USB_ID_VENDOR(id) ((id) >> 16)
+#define USB_ID_PRODUCT(id) ((u16)(id))
+
 /*
  */
 
@@ -127,6 +132,7 @@ struct snd_usb_audio {
 	int index;
 	struct usb_device *dev;
 	snd_card_t *card;
+	u32 usb_id;
 	int shutdown;
 	int num_interfaces;
 
@@ -136,7 +142,7 @@ struct snd_usb_audio {
 	struct list_head midi_list;	/* list of midi interfaces */
 	int next_midi_device;
 
-	unsigned int ignore_ctl_error;	/* for mixer */
+	struct list_head mixer_list;	/* list of mixer interfaces */
 };
 
 /*
@@ -147,20 +153,24 @@ struct snd_usb_audio {
 #define QUIRK_NO_INTERFACE		-2
 #define QUIRK_ANY_INTERFACE		-1
 
-/* quirk type */
-#define QUIRK_MIDI_FIXED_ENDPOINT	0
-#define QUIRK_MIDI_YAMAHA		1
-#define QUIRK_MIDI_MIDIMAN		2
-#define QUIRK_COMPOSITE			3
-#define QUIRK_AUDIO_FIXED_ENDPOINT	4
-#define QUIRK_AUDIO_STANDARD_INTERFACE	5
-#define QUIRK_MIDI_STANDARD_INTERFACE	6
-#define QUIRK_AUDIO_EDIROL_UA700_UA25	7
-#define QUIRK_AUDIO_EDIROL_UA1000	8
-#define QUIRK_IGNORE_INTERFACE		9
-#define QUIRK_MIDI_NOVATION		10
-#define QUIRK_MIDI_MOTU			11
-#define QUIRK_MIDI_EMAGIC		12
+enum quirk_type {
+	QUIRK_IGNORE_INTERFACE,
+	QUIRK_COMPOSITE,
+	QUIRK_MIDI_STANDARD_INTERFACE,
+	QUIRK_MIDI_FIXED_ENDPOINT,
+	QUIRK_MIDI_YAMAHA,
+	QUIRK_MIDI_MIDIMAN,
+	QUIRK_MIDI_NOVATION,
+	QUIRK_MIDI_RAW,
+	QUIRK_MIDI_EMAGIC,
+	QUIRK_MIDI_MIDITECH,
+	QUIRK_AUDIO_STANDARD_INTERFACE,
+	QUIRK_AUDIO_FIXED_ENDPOINT,
+	QUIRK_AUDIO_EDIROL_UA700_UA25,
+	QUIRK_AUDIO_EDIROL_UA1000,
+
+	QUIRK_TYPE_COUNT
+};
 
 typedef struct snd_usb_audio_quirk snd_usb_audio_quirk_t;
 typedef struct snd_usb_midi_endpoint_info snd_usb_midi_endpoint_info_t;
@@ -169,7 +179,7 @@ struct snd_usb_audio_quirk {
 	const char *vendor_name;
 	const char *product_name;
 	int16_t ifnum;
-	int16_t type;
+	uint16_t type;
 	const void *data;
 };
 
@@ -199,10 +209,12 @@ struct snd_usb_midi_endpoint_info {
 
 /* for QUIRK_IGNORE_INTERFACE, data is NULL */
 
-/* for QUIRK_MIDI_NOVATION and _MOTU, data is NULL */
+/* for QUIRK_MIDI_NOVATION and _RAW, data is NULL */
 
 /* for QUIRK_MIDI_EMAGIC, data points to a snd_usb_midi_endpoint_info
  * structure (out_cables and in_cables only) */
+
+/* for QUIRK_MIDI_MIDITECH, data is NULL */
 
 /*
  */
@@ -219,11 +231,12 @@ void *snd_usb_find_csint_desc(void *descstart, int desclen, void *after, u8 dsub
 int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe, __u8 request, __u8 requesttype, __u16 value, __u16 index, void *data, __u16 size, int timeout);
 
 int snd_usb_create_mixer(snd_usb_audio_t *chip, int ctrlif);
+void snd_usb_mixer_disconnect(struct list_head *p);
 
 int snd_usb_create_midi_interface(snd_usb_audio_t *chip, struct usb_interface *iface, const snd_usb_audio_quirk_t *quirk);
 void snd_usbmidi_input_stop(struct list_head* p);
 void snd_usbmidi_input_start(struct list_head* p);
-void snd_usbmidi_disconnect(struct list_head *p, struct usb_driver *driver);
+void snd_usbmidi_disconnect(struct list_head *p);
 
 /*
  * retrieve usb_interface descriptor from the host interface

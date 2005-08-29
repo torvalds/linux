@@ -17,6 +17,7 @@
 #include <linux/nfs_page.h>
 #include <linux/lockd/bind.h>
 #include <linux/smp_lock.h>
+#include <linux/nfs_mount.h>
 
 #define NFSDBG_FACILITY		NFSDBG_PROC
 
@@ -45,7 +46,7 @@ static inline int
 nfs3_rpc_call_wrapper(struct rpc_clnt *clnt, u32 proc, void *argp, void *resp, int flags)
 {
 	struct rpc_message msg = {
-		.rpc_proc	= &nfs3_procedures[proc],
+		.rpc_proc	= &clnt->cl_procinfo[proc],
 		.rpc_argp	= argp,
 		.rpc_resp	= resp,
 	};
@@ -119,6 +120,8 @@ nfs3_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	dprintk("NFS call  setattr\n");
 	fattr->valid = 0;
 	status = rpc_call(NFS_CLIENT(inode), NFS3PROC_SETATTR, &arg, fattr, 0);
+	if (status == 0)
+		nfs_setattr_update_inode(inode, sattr);
 	dprintk("NFS reply setattr: %d\n", status);
 	return status;
 }
@@ -313,7 +316,8 @@ nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		.fh		= &fhandle,
 		.fattr		= &fattr
 	};
-	int			status;
+	mode_t mode = sattr->ia_mode;
+	int status;
 
 	dprintk("NFS call  create %s\n", dentry->d_name.name);
 	arg.createmode = NFS3_CREATE_UNCHECKED;
@@ -322,6 +326,8 @@ nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		arg.verifier[0] = jiffies;
 		arg.verifier[1] = current->pid;
 	}
+
+	sattr->ia_mode &= ~current->fs->umask;
 
 again:
 	dir_attr.valid = 0;
@@ -366,9 +372,14 @@ again:
 		 * not sure this buys us anything (and I'd have
 		 * to revamp the NFSv3 XDR code) */
 		status = nfs3_proc_setattr(dentry, &fattr, sattr);
+		if (status == 0)
+			nfs_setattr_update_inode(dentry->d_inode, sattr);
 		nfs_refresh_inode(dentry->d_inode, &fattr);
 		dprintk("NFS reply setattr (post-create): %d\n", status);
 	}
+	if (status != 0)
+		goto out;
+	status = nfs3_proc_set_default_acl(dir, dentry->d_inode, mode);
 out:
 	dprintk("NFS reply create: %d\n", status);
 	return status;
@@ -538,15 +549,24 @@ nfs3_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 		.fh		= &fhandle,
 		.fattr		= &fattr
 	};
-	int			status;
+	int mode = sattr->ia_mode;
+	int status;
 
 	dprintk("NFS call  mkdir %s\n", dentry->d_name.name);
 	dir_attr.valid = 0;
 	fattr.valid = 0;
+
+	sattr->ia_mode &= ~current->fs->umask;
+
 	status = rpc_call(NFS_CLIENT(dir), NFS3PROC_MKDIR, &arg, &res, 0);
 	nfs_refresh_inode(dir, &dir_attr);
-	if (status == 0)
-		status = nfs_instantiate(dentry, &fhandle, &fattr);
+	if (status != 0)
+		goto out;
+	status = nfs_instantiate(dentry, &fhandle, &fattr);
+	if (status != 0)
+		goto out;
+	status = nfs3_proc_set_default_acl(dir, dentry->d_inode, mode);
+out:
 	dprintk("NFS reply mkdir: %d\n", status);
 	return status;
 }
@@ -641,6 +661,7 @@ nfs3_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		.fh		= &fh,
 		.fattr		= &fattr
 	};
+	mode_t mode = sattr->ia_mode;
 	int status;
 
 	switch (sattr->ia_mode & S_IFMT) {
@@ -653,12 +674,20 @@ nfs3_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 
 	dprintk("NFS call  mknod %s %u:%u\n", dentry->d_name.name,
 			MAJOR(rdev), MINOR(rdev));
+
+	sattr->ia_mode &= ~current->fs->umask;
+
 	dir_attr.valid = 0;
 	fattr.valid = 0;
 	status = rpc_call(NFS_CLIENT(dir), NFS3PROC_MKNOD, &arg, &res, 0);
 	nfs_refresh_inode(dir, &dir_attr);
-	if (status == 0)
-		status = nfs_instantiate(dentry, &fh, &fattr);
+	if (status != 0)
+		goto out;
+	status = nfs_instantiate(dentry, &fh, &fattr);
+	if (status != 0)
+		goto out;
+	status = nfs3_proc_set_default_acl(dir, dentry->d_inode, mode);
+out:
 	dprintk("NFS reply mknod: %d\n", status);
 	return status;
 }
@@ -825,7 +854,8 @@ nfs3_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 struct nfs_rpc_ops	nfs_v3_clientops = {
 	.version	= 3,			/* protocol version */
 	.dentry_ops	= &nfs_dentry_operations,
-	.dir_inode_ops	= &nfs_dir_inode_operations,
+	.dir_inode_ops	= &nfs3_dir_inode_operations,
+	.file_inode_ops	= &nfs3_file_inode_operations,
 	.getroot	= nfs3_proc_get_root,
 	.getattr	= nfs3_proc_getattr,
 	.setattr	= nfs3_proc_setattr,
@@ -856,4 +886,5 @@ struct nfs_rpc_ops	nfs_v3_clientops = {
 	.file_open	= nfs_open,
 	.file_release	= nfs_release,
 	.lock		= nfs3_proc_lock,
+	.clear_acl_cache = nfs3_forget_cached_acls,
 };

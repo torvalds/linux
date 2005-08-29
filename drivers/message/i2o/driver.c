@@ -17,9 +17,12 @@
 #include <linux/module.h>
 #include <linux/rwsem.h>
 #include <linux/i2o.h>
+#include "core.h"
+
+#define OSM_NAME	"i2o"
 
 /* max_drivers - Maximum I2O drivers (OSMs) which could be registered */
-unsigned int i2o_max_drivers = I2O_MAX_DRIVERS;
+static unsigned int i2o_max_drivers = I2O_MAX_DRIVERS;
 module_param_named(max_drivers, i2o_max_drivers, uint, 0);
 MODULE_PARM_DESC(max_drivers, "maximum number of OSM's to support");
 
@@ -76,17 +79,16 @@ int i2o_driver_register(struct i2o_driver *drv)
 	int rc = 0;
 	unsigned long flags;
 
-	pr_debug("i2o: Register driver %s\n", drv->name);
+	osm_debug("Register driver %s\n", drv->name);
 
 	if (drv->event) {
 		drv->event_queue = create_workqueue(drv->name);
 		if (!drv->event_queue) {
-			printk(KERN_ERR "i2o: Could not initialize event queue "
-			       "for driver %s\n", drv->name);
+			osm_err("Could not initialize event queue for driver "
+				"%s\n", drv->name);
 			return -EFAULT;
 		}
-		pr_debug("i2o: Event queue initialized for driver %s\n",
-			 drv->name);
+		osm_debug("Event queue initialized for driver %s\n", drv->name);
 	} else
 		drv->event_queue = NULL;
 
@@ -97,8 +99,8 @@ int i2o_driver_register(struct i2o_driver *drv)
 
 	for (i = 0; i2o_drivers[i]; i++)
 		if (i >= i2o_max_drivers) {
-			printk(KERN_ERR "i2o: too many drivers registered, "
-			       "increase max_drivers\n");
+			osm_err("too many drivers registered, increase "
+				"max_drivers\n");
 			spin_unlock_irqrestore(&i2o_drivers_lock, flags);
 			return -EFAULT;
 		}
@@ -108,17 +110,15 @@ int i2o_driver_register(struct i2o_driver *drv)
 
 	spin_unlock_irqrestore(&i2o_drivers_lock, flags);
 
-	pr_debug("i2o: driver %s gets context id %d\n", drv->name,
-		 drv->context);
+	osm_debug("driver %s gets context id %d\n", drv->name, drv->context);
 
 	list_for_each_entry(c, &i2o_controllers, list) {
 		struct i2o_device *i2o_dev;
 
 		i2o_driver_notify_controller_add(drv, c);
 		list_for_each_entry(i2o_dev, &c->devices, list)
-			i2o_driver_notify_device_add(drv, i2o_dev);
+		    i2o_driver_notify_device_add(drv, i2o_dev);
 	}
-
 
 	rc = driver_register(&drv->driver);
 	if (rc)
@@ -139,7 +139,7 @@ void i2o_driver_unregister(struct i2o_driver *drv)
 	struct i2o_controller *c;
 	unsigned long flags;
 
-	pr_debug("i2o: unregister driver %s\n", drv->name);
+	osm_debug("unregister driver %s\n", drv->name);
 
 	driver_unregister(&drv->driver);
 
@@ -159,7 +159,7 @@ void i2o_driver_unregister(struct i2o_driver *drv)
 	if (drv->event_queue) {
 		destroy_workqueue(drv->event_queue);
 		drv->event_queue = NULL;
-		pr_debug("i2o: event queue removed for %s\n", drv->name);
+		osm_debug("event queue removed for %s\n", drv->name);
 	}
 };
 
@@ -176,68 +176,70 @@ void i2o_driver_unregister(struct i2o_driver *drv)
  *	on success and if the message should be flushed afterwords. Returns
  *	negative error code on failure (the message will be flushed too).
  */
-int i2o_driver_dispatch(struct i2o_controller *c, u32 m,
-			struct i2o_message __iomem *msg)
+int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 {
 	struct i2o_driver *drv;
-	u32 context = readl(&msg->u.s.icntxt);
+	struct i2o_message *msg = i2o_msg_out_to_virt(c, m);
+	u32 context = le32_to_cpu(msg->u.s.icntxt);
+	unsigned long flags;
 
-	if (likely(context < i2o_max_drivers)) {
-		spin_lock(&i2o_drivers_lock);
-		drv = i2o_drivers[context];
-		spin_unlock(&i2o_drivers_lock);
-
-		if (unlikely(!drv)) {
-			printk(KERN_WARNING "%s: Spurious reply to unknown "
-			       "driver %d\n", c->name, context);
-			return -EIO;
-		}
-
-		if ((readl(&msg->u.head[1]) >> 24) == I2O_CMD_UTIL_EVT_REGISTER) {
-			struct i2o_device *dev, *tmp;
-			struct i2o_event *evt;
-			u16 size;
-			u16 tid;
-
-			tid = readl(&msg->u.head[1]) & 0x1fff;
-
-			pr_debug("%s: event received from device %d\n", c->name,
-				 tid);
-
-			/* cut of header from message size (in 32-bit words) */
-			size = (readl(&msg->u.head[0]) >> 16) - 5;
-
-			evt = kmalloc(size * 4 + sizeof(*evt), GFP_ATOMIC);
-			if (!evt)
-				return -ENOMEM;
-			memset(evt, 0, size * 4 + sizeof(*evt));
-
-			evt->size = size;
-			memcpy_fromio(&evt->tcntxt, &msg->u.s.tcntxt,
-				      (size + 2) * 4);
-
-			list_for_each_entry_safe(dev, tmp, &c->devices, list)
-			    if (dev->lct_data.tid == tid) {
-				evt->i2o_dev = dev;
-				break;
-			}
-
-			INIT_WORK(&evt->work, (void (*)(void *))drv->event,
-				  evt);
-			queue_work(drv->event_queue, &evt->work);
-			return 1;
-		}
-
-		if (likely(drv->reply))
-			return drv->reply(c, m, msg);
-		else
-			pr_debug("%s: Reply to driver %s, but no reply function"
-				 " defined!\n", c->name, drv->name);
+	if (unlikely(context >= i2o_max_drivers)) {
+		osm_warn("%s: Spurious reply to unknown driver %d\n", c->name,
+			 context);
 		return -EIO;
-	} else
-		printk(KERN_WARNING "%s: Spurious reply to unknown driver "
-		       "%d\n", c->name, readl(&msg->u.s.icntxt));
-	return -EIO;
+	}
+
+	spin_lock_irqsave(&i2o_drivers_lock, flags);
+	drv = i2o_drivers[context];
+	spin_unlock_irqrestore(&i2o_drivers_lock, flags);
+
+	if (unlikely(!drv)) {
+		osm_warn("%s: Spurious reply to unknown driver %d\n", c->name,
+			 context);
+		return -EIO;
+	}
+
+	if ((le32_to_cpu(msg->u.head[1]) >> 24) == I2O_CMD_UTIL_EVT_REGISTER) {
+		struct i2o_device *dev, *tmp;
+		struct i2o_event *evt;
+		u16 size;
+		u16 tid = le32_to_cpu(msg->u.head[1]) & 0xfff;
+
+		osm_debug("event received from device %d\n", tid);
+
+		if (!drv->event)
+			return -EIO;
+
+		/* cut of header from message size (in 32-bit words) */
+		size = (le32_to_cpu(msg->u.head[0]) >> 16) - 5;
+
+		evt = kmalloc(size * 4 + sizeof(*evt), GFP_ATOMIC | __GFP_ZERO);
+		if (!evt)
+			return -ENOMEM;
+
+		evt->size = size;
+		evt->tcntxt = le32_to_cpu(msg->u.s.tcntxt);
+		evt->event_indicator = le32_to_cpu(msg->body[0]);
+		memcpy(&evt->tcntxt, &msg->u.s.tcntxt, size * 4);
+
+		list_for_each_entry_safe(dev, tmp, &c->devices, list)
+		    if (dev->lct_data.tid == tid) {
+			evt->i2o_dev = dev;
+			break;
+		}
+
+		INIT_WORK(&evt->work, (void (*)(void *))drv->event, evt);
+		queue_work(drv->event_queue, &evt->work);
+		return 1;
+	}
+
+	if (unlikely(!drv->reply)) {
+		osm_debug("%s: Reply to driver %s, but no reply function"
+			  " defined!\n", c->name, drv->name);
+		return -EIO;
+	}
+
+	return drv->reply(c, m, msg);
 }
 
 /**
@@ -334,11 +336,11 @@ int __init i2o_driver_init(void)
 	if ((i2o_max_drivers < 2) || (i2o_max_drivers > 64) ||
 	    ((i2o_max_drivers ^ (i2o_max_drivers - 1)) !=
 	     (2 * i2o_max_drivers - 1))) {
-		printk(KERN_WARNING "i2o: max_drivers set to %d, but must be "
-		       ">=2 and <= 64 and a power of 2\n", i2o_max_drivers);
+		osm_warn("max_drivers set to %d, but must be >=2 and <= 64 and "
+			 "a power of 2\n", i2o_max_drivers);
 		i2o_max_drivers = I2O_MAX_DRIVERS;
 	}
-	printk(KERN_INFO "i2o: max drivers = %d\n", i2o_max_drivers);
+	osm_info("max drivers = %d\n", i2o_max_drivers);
 
 	i2o_drivers =
 	    kmalloc(i2o_max_drivers * sizeof(*i2o_drivers), GFP_KERNEL);

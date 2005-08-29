@@ -90,7 +90,8 @@ int ip_vs_get_debug_level(void)
 #endif
 
 /*
- *	update_defense_level is called from keventd and from sysctl.
+ *	update_defense_level is called from keventd and from sysctl,
+ *	so it needs to protect itself from softirqs
  */
 static void update_defense_level(void)
 {
@@ -109,6 +110,8 @@ static void update_defense_level(void)
 	/* availmem = availmem - (i.totalswap - i.freeswap); */
 
 	nomem = (availmem < sysctl_ip_vs_amemthresh);
+
+	local_bh_disable();
 
 	/* drop_entry */
 	spin_lock(&__ip_vs_dropentry_lock);
@@ -206,6 +209,8 @@ static void update_defense_level(void)
 	if (to_change >= 0)
 		ip_vs_protocol_timeout_change(sysctl_ip_vs_secure_tcp>1);
 	write_unlock(&__ip_vs_securetcp_lock);
+
+	local_bh_enable();
 }
 
 
@@ -1360,9 +1365,7 @@ proc_do_defense_mode(ctl_table *table, int write, struct file * filp,
 			/* Restore the correct value */
 			*valp = val;
 		} else {
-			local_bh_disable();
 			update_defense_level();
-			local_bh_enable();
 		}
 	}
 	return rc;
@@ -2059,7 +2062,7 @@ ip_vs_copy_service(struct ip_vs_service_entry *dst, struct ip_vs_service *src)
 	dst->addr = src->addr;
 	dst->port = src->port;
 	dst->fwmark = src->fwmark;
-	strcpy(dst->sched_name, src->scheduler->name);
+	strlcpy(dst->sched_name, src->scheduler->name, sizeof(dst->sched_name));
 	dst->flags = src->flags;
 	dst->timeout = src->timeout / HZ;
 	dst->netmask = src->netmask;
@@ -2080,6 +2083,7 @@ __ip_vs_get_service_entries(const struct ip_vs_get_services *get,
 		list_for_each_entry(svc, &ip_vs_svc_table[idx], s_list) {
 			if (count >= get->num_services)
 				goto out;
+			memset(&entry, 0, sizeof(entry));
 			ip_vs_copy_service(&entry, svc);
 			if (copy_to_user(&uptr->entrytable[count],
 					 &entry, sizeof(entry))) {
@@ -2094,6 +2098,7 @@ __ip_vs_get_service_entries(const struct ip_vs_get_services *get,
 		list_for_each_entry(svc, &ip_vs_svc_fwm_table[idx], f_list) {
 			if (count >= get->num_services)
 				goto out;
+			memset(&entry, 0, sizeof(entry));
 			ip_vs_copy_service(&entry, svc);
 			if (copy_to_user(&uptr->entrytable[count],
 					 &entry, sizeof(entry))) {
@@ -2304,12 +2309,12 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		memset(&d, 0, sizeof(d));
 		if (ip_vs_sync_state & IP_VS_STATE_MASTER) {
 			d[0].state = IP_VS_STATE_MASTER;
-			strcpy(d[0].mcast_ifn, ip_vs_master_mcast_ifn);
+			strlcpy(d[0].mcast_ifn, ip_vs_master_mcast_ifn, sizeof(d[0].mcast_ifn));
 			d[0].syncid = ip_vs_master_syncid;
 		}
 		if (ip_vs_sync_state & IP_VS_STATE_BACKUP) {
 			d[1].state = IP_VS_STATE_BACKUP;
-			strcpy(d[1].mcast_ifn, ip_vs_backup_mcast_ifn);
+			strlcpy(d[1].mcast_ifn, ip_vs_backup_mcast_ifn, sizeof(d[1].mcast_ifn));
 			d[1].syncid = ip_vs_backup_syncid;
 		}
 		if (copy_to_user(user, &d, sizeof(d)) != 0)

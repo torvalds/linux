@@ -4,6 +4,8 @@
  * 	History
  *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities 
  *					  negotiation.
+ *	apr/02/05	Shaun Pereira Selective sub address matching with
+ *					call user data
  */
 
 #ifndef	X25_KERNEL_H
@@ -16,6 +18,9 @@
 #define	SIOCX25GCALLUSERDATA	(SIOCPROTOPRIVATE + 4)
 #define	SIOCX25SCALLUSERDATA	(SIOCPROTOPRIVATE + 5)
 #define	SIOCX25GCAUSEDIAG	(SIOCPROTOPRIVATE + 6)
+#define SIOCX25SCUDMATCHLEN	(SIOCPROTOPRIVATE + 7)
+#define SIOCX25CALLACCPTAPPRV   (SIOCPROTOPRIVATE + 8)
+#define SIOCX25SENDCALLACCPT    (SIOCPROTOPRIVATE + 9)
 
 /*
  *	Values for {get,set}sockopt.
@@ -107,6 +112,13 @@ struct x25_calluserdata {
 struct x25_causediag {
 	unsigned char	cause;
 	unsigned char	diagnostic;
+};
+
+/*
+ *	Further optional call user data match length selection
+ */
+struct x25_subaddr {
+	unsigned int cudmatchlength;
 };
 
 #endif

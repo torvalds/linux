@@ -44,3 +44,31 @@
 #define USB_RX_DMA_NBR 9
 
 #endif
+
+enum dma_owner
+{
+  dma_eth,
+  dma_ser0,
+  dma_ser1, /* Async and sync */
+  dma_ser2,
+  dma_ser3, /* Async and sync */
+  dma_ata,
+  dma_par0,
+  dma_par1,
+  dma_ext0,
+  dma_ext1,
+  dma_int6,
+  dma_int7,
+  dma_usb,
+  dma_scsi0,
+  dma_scsi1
+};
+
+/* Masks used by cris_request_dma options: */
+#define DMA_VERBOSE_ON_ERROR    (1<<0)
+#define DMA_PANIC_ON_ERROR     ((1<<1)|DMA_VERBOSE_ON_ERROR)
+
+int cris_request_dma(unsigned int dmanr, const char * device_id,
+                     unsigned options, enum dma_owner owner);
+
+void cris_free_dma(unsigned int dmanr, const char * device_id);

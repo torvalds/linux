@@ -383,9 +383,8 @@ int sock_map_fd(struct socket *sock)
 			goto out;
 		}
 
-		sprintf(name, "[%lu]", SOCK_INODE(sock)->i_ino);
+		this.len = sprintf(name, "[%lu]", SOCK_INODE(sock)->i_ino);
 		this.name = name;
-		this.len = strlen(name);
 		this.hash = SOCK_INODE(sock)->i_ino;
 
 		file->f_dentry = d_alloc(sock_mnt->mnt_sb->s_root, &this);

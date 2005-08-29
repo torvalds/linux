@@ -61,15 +61,14 @@ acpi_pci_data_handler (
 
 
 /**
- * acpi_os_get_pci_id
+ * acpi_get_pci_id
  * ------------------
  * This function is used by the ACPI Interpreter (a.k.a. Core Subsystem)
  * to resolve PCI information for ACPI-PCI devices defined in the namespace.
  * This typically occurs when resolving PCI operation region information.
  */
-#ifdef ACPI_FUTURE_USAGE
 acpi_status
-acpi_os_get_pci_id (
+acpi_get_pci_id (
 	acpi_handle		handle,
 	struct acpi_pci_id	*id)
 {
@@ -78,7 +77,7 @@ acpi_os_get_pci_id (
 	struct acpi_device	*device = NULL;
 	struct acpi_pci_data	*data = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_os_get_pci_id");
+	ACPI_FUNCTION_TRACE("acpi_get_pci_id");
 
 	if (!id)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -92,7 +91,7 @@ acpi_os_get_pci_id (
 	}
 
 	status = acpi_get_data(handle, acpi_pci_data_handler, (void**) &data);
-	if (ACPI_FAILURE(status) || !data || !data->dev) {
+	if (ACPI_FAILURE(status) || !data) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, 
 			"Invalid ACPI-PCI context for device %s\n",
 			acpi_device_bid(device)));
@@ -115,7 +114,7 @@ acpi_os_get_pci_id (
 
 	return_ACPI_STATUS(AE_OK);
 }
-#endif  /*  ACPI_FUTURE_USAGE  */
+EXPORT_SYMBOL(acpi_get_pci_id);
 
 	
 int
@@ -129,6 +128,8 @@ acpi_pci_bind (
 	char			*pathname = NULL;
 	struct acpi_buffer	buffer = {0, NULL};
 	acpi_handle		handle = NULL;
+	struct pci_dev		*dev;
+	struct pci_bus 		*bus;
 
 	ACPI_FUNCTION_TRACE("acpi_pci_bind");
 
@@ -193,8 +194,20 @@ acpi_pci_bind (
 	 * Locate matching device in PCI namespace.  If it doesn't exist
 	 * this typically means that the device isn't currently inserted
 	 * (e.g. docking station, port replicator, etc.).
+	 * We cannot simply search the global pci device list, since
+	 * PCI devices are added to the global pci list when the root
+	 * bridge start ops are run, which may not have happened yet.
 	 */
-	data->dev = pci_find_slot(data->id.bus, PCI_DEVFN(data->id.device, data->id.function));
+	bus = pci_find_bus(data->id.segment, data->id.bus);
+	if (bus) {
+		list_for_each_entry(dev, &bus->devices, bus_list) {
+			if (dev->devfn == PCI_DEVFN(data->id.device,
+						data->id.function)) {
+				data->dev = dev;
+				break;
+			}
+		}
+	}
 	if (!data->dev) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, 
 			"Device %02x:%02x:%02x.%02x not present in PCI namespace\n",

@@ -253,7 +253,7 @@ static int floppy_revalidate(struct gendisk *disk);
 static int swim3_add_device(struct device_node *swims);
 int swim3_init(void);
 
-#ifndef CONFIG_PMAC_PBOOK
+#ifndef CONFIG_PMAC_MEDIABAY
 #define check_media_bay(which, what)	1
 #endif
 
@@ -297,9 +297,11 @@ static void do_fd_request(request_queue_t * q)
 	int i;
 	for(i=0;i<floppy_count;i++)
 	{
+#ifdef CONFIG_PMAC_MEDIABAY
 		if (floppy_states[i].media_bay &&
 			check_media_bay(floppy_states[i].media_bay, MB_FD))
 			continue;
+#endif /* CONFIG_PMAC_MEDIABAY */
 		start_request(&floppy_states[i]);
 	}
 	sti();
@@ -856,8 +858,10 @@ static int floppy_ioctl(struct inode *inode, struct file *filp,
 	if ((cmd & 0x80) && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
+#ifdef CONFIG_PMAC_MEDIABAY
 	if (fs->media_bay && check_media_bay(fs->media_bay, MB_FD))
 		return -ENXIO;
+#endif
 
 	switch (cmd) {
 	case FDEJECT:
@@ -881,8 +885,10 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	int n, err = 0;
 
 	if (fs->ref_count == 0) {
+#ifdef CONFIG_PMAC_MEDIABAY
 		if (fs->media_bay && check_media_bay(fs->media_bay, MB_FD))
 			return -ENXIO;
+#endif
 		out_8(&sw->setup, S_IBM_DRIVE | S_FCLK_DIV2);
 		out_8(&sw->control_bic, 0xff);
 		out_8(&sw->mode, 0x95);
@@ -967,8 +973,10 @@ static int floppy_revalidate(struct gendisk *disk)
 	struct swim3 __iomem *sw;
 	int ret, n;
 
+#ifdef CONFIG_PMAC_MEDIABAY
 	if (fs->media_bay && check_media_bay(fs->media_bay, MB_FD))
 		return -ENXIO;
+#endif
 
 	sw = fs->swim3;
 	grab_drive(fs, revalidating, 0);

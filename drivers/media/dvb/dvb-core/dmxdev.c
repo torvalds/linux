@@ -42,12 +42,6 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
 #define dprintk	if (debug) printk
 
-static inline struct dmxdev_filter *
-dvb_dmxdev_file_to_filter(struct file *file)
-{
-	return (struct dmxdev_filter *) file->private_data;
-}
-
 static inline void dvb_dmxdev_buffer_init(struct dmxdev_buffer *buffer)
 {
 	buffer->data=NULL;
@@ -669,8 +663,10 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 
 		ret = filter->feed.ts->start_filtering(filter->feed.ts);
 
-		if (ret < 0)
+		if (ret < 0) {
+			dmxdev->demux->release_ts_feed(dmxdev->demux, *tsfeed);
 			return ret;
+		}
 
 		break;
 	}
@@ -842,7 +838,7 @@ static ssize_t dvb_dmxdev_read_sec(struct dmxdev_filter *dfil,
 static ssize_t
 dvb_demux_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct dmxdev_filter *dmxdevfilter=dvb_dmxdev_file_to_filter(file);
+	struct dmxdev_filter *dmxdevfilter= file->private_data;
 	int ret=0;
 
 	if (down_interruptible(&dmxdevfilter->mutex))
@@ -863,7 +859,7 @@ dvb_demux_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 			      unsigned int cmd, void *parg)
 {
-	struct dmxdev_filter *dmxdevfilter=dvb_dmxdev_file_to_filter(file);
+	struct dmxdev_filter *dmxdevfilter = file->private_data;
 	struct dmxdev *dmxdev=dmxdevfilter->dev;
 	unsigned long arg=(unsigned long) parg;
 	int ret=0;
@@ -960,7 +956,7 @@ static int dvb_demux_ioctl(struct inode *inode, struct file *file,
 
 static unsigned int dvb_demux_poll (struct file *file, poll_table *wait)
 {
-	struct dmxdev_filter *dmxdevfilter = dvb_dmxdev_file_to_filter(file);
+	struct dmxdev_filter *dmxdevfilter = file->private_data;
 	unsigned int mask = 0;
 
 	if (!dmxdevfilter)
@@ -985,7 +981,7 @@ static unsigned int dvb_demux_poll (struct file *file, poll_table *wait)
 
 static int dvb_demux_release(struct inode *inode, struct file *file)
 {
-	struct dmxdev_filter *dmxdevfilter = dvb_dmxdev_file_to_filter(file);
+	struct dmxdev_filter *dmxdevfilter = file->private_data;
 	struct dmxdev *dmxdev = dmxdevfilter->dev;
 
 	return dvb_dmxdev_filter_free(dmxdev, dmxdevfilter);
@@ -1109,7 +1105,6 @@ dvb_dmxdev_init(struct dmxdev *dmxdev, struct dvb_adapter *dvb_adapter)
 		dvb_dmxdev_filter_state_set(&dmxdev->filter[i], DMXDEV_STATE_FREE);
 		dmxdev->dvr[i].dev=dmxdev;
 		dmxdev->dvr[i].buffer.data=NULL;
-		dvb_dmxdev_filter_state_set(&dmxdev->filter[i], DMXDEV_STATE_FREE);
 		dvb_dmxdev_dvr_state_set(&dmxdev->dvr[i], DMXDEV_STATE_FREE);
 	}
 

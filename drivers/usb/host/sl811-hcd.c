@@ -815,7 +815,7 @@ static int sl811h_urb_enqueue(
 	struct usb_hcd		*hcd,
 	struct usb_host_endpoint *hep,
 	struct urb		*urb,
-	int			mem_flags
+	unsigned		mem_flags
 ) {
 	struct sl811		*sl811 = hcd_to_sl811(hcd);
 	struct usb_device	*udev = urb->dev;
@@ -1563,28 +1563,14 @@ static int
 sl811h_start(struct usb_hcd *hcd)
 {
 	struct sl811		*sl811 = hcd_to_sl811(hcd);
-	struct usb_device	*udev;
 
 	/* chip has been reset, VBUS power is off */
-
-	udev = usb_alloc_dev(NULL, &hcd->self, 0);
-	if (!udev)
-		return -ENOMEM;
-
-	udev->speed = USB_SPEED_FULL;
 	hcd->state = HC_STATE_RUNNING;
 
-	if (sl811->board)
+	if (sl811->board) {
 		hcd->can_wakeup = sl811->board->can_wakeup;
-
-	if (usb_hcd_register_root_hub(udev, hcd) != 0) {
-		usb_put_dev(udev);
-		sl811h_stop(hcd);
-		return -ENODEV;
+		hcd->power_budget = sl811->board->power * 2;
 	}
-
-	if (sl811->board && sl811->board->power)
-		hub_set_power_budget(udev, sl811->board->power * 2);
 
 	/* enable power and interupts */
 	port_power(sl811, 1);

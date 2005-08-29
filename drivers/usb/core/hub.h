@@ -224,15 +224,4 @@ struct usb_hub {
 	struct work_struct	leds;
 };
 
-/* use this for low-powered root hubs */
-static inline void
-hub_set_power_budget (struct usb_device *hubdev, unsigned mA)
-{
-	struct usb_hub	*hub;
-
-	hub = (struct usb_hub *)
-		usb_get_intfdata (hubdev->actconfig->interface[0]);
-	hub->power_budget = min(mA,(unsigned)500)/2;
-}
-
 #endif /* __LINUX_HUB_H */

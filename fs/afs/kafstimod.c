@@ -91,7 +91,7 @@ static int kafstimod(void *arg)
 			complete_and_exit(&kafstimod_dead, 0);
 		}
 
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 
 		/* discard pending signals */
 		afs_discard_my_signals();

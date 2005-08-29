@@ -1130,46 +1130,6 @@ Warnings: This function writes the data byte without checking to see if
 */
 #define sWriteTxByte(IO,DATA) sOutB(IO,DATA)
 
-int sInitController(CONTROLLER_T * CtlP,
-		    int CtlNum,
-		    ByteIO_t MudbacIO,
-		    ByteIO_t * AiopIOList,
-		    int AiopIOListSize,
-		    int IRQNum, Byte_t Frequency, int PeriodicOnly);
-
-int sPCIInitController(CONTROLLER_T * CtlP,
-		       int CtlNum,
-		       ByteIO_t * AiopIOList,
-		       int AiopIOListSize,
-		       WordIO_t ConfigIO,
-		       int IRQNum,
-		       Byte_t Frequency,
-		       int PeriodicOnly,
-		       int altChanRingIndicator, int UPCIRingInd);
-
-int sReadAiopID(ByteIO_t io);
-int sReadAiopNumChan(WordIO_t io);
-int sInitChan(CONTROLLER_T * CtlP,
-	      CHANNEL_T * ChP, int AiopNum, int ChanNum);
-Byte_t sGetRxErrStatus(CHANNEL_T * ChP);
-void sStopRxProcessor(CHANNEL_T * ChP);
-void sStopSWInFlowCtl(CHANNEL_T * ChP);
-void sFlushRxFIFO(CHANNEL_T * ChP);
-void sFlushTxFIFO(CHANNEL_T * ChP);
-int sWriteTxPrioByte(CHANNEL_T * ChP, Byte_t Data);
-void sEnInterrupts(CHANNEL_T * ChP, Word_t Flags);
-void sDisInterrupts(CHANNEL_T * ChP, Word_t Flags);
-void sModemReset(CONTROLLER_T * CtlP, int chan, int on);
-void sPCIModemReset(CONTROLLER_T * CtlP, int chan, int on);
-void sSetInterfaceMode(CHANNEL_T * ChP, Byte_t mode);
-
-extern Byte_t R[RDATASIZE];
-extern CONTROLLER_T sController[CTL_SIZE];
-extern Byte_t sIRQMap[16];
-extern Byte_t sBitMapClrTbl[8];
-extern Byte_t sBitMapSetTbl[8];
-extern int sClockPrescale;
-
 /*
  * Begin Linux specific definitions for the Rocketport driver
  *

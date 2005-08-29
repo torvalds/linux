@@ -38,6 +38,7 @@
 #include <asm/cputable.h>
 #include <asm/setup.h>
 #include <asm/hvcall.h>
+#include <asm/iSeries/LparMap.h>
 
 #ifdef CONFIG_PPC_ISERIES
 #define DO_SOFT_DISABLE
@@ -308,6 +309,7 @@ exception_marker:
 label##_pSeries:					\
 	HMT_MEDIUM;					\
 	mtspr	SPRG1,r13;		/* save r13 */	\
+	RUNLATCH_ON(r13);				\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
 
 #define STD_EXCEPTION_ISERIES(n, label, area)		\
@@ -315,6 +317,7 @@ label##_pSeries:					\
 label##_iSeries:					\
 	HMT_MEDIUM;					\
 	mtspr	SPRG1,r13;		/* save r13 */	\
+	RUNLATCH_ON(r13);				\
 	EXCEPTION_PROLOG_ISERIES_1(area);		\
 	EXCEPTION_PROLOG_ISERIES_2;			\
 	b	label##_common
@@ -324,6 +327,7 @@ label##_iSeries:					\
 label##_iSeries:							\
 	HMT_MEDIUM;							\
 	mtspr	SPRG1,r13;		/* save r13 */			\
+	RUNLATCH_ON(r13);						\
 	EXCEPTION_PROLOG_ISERIES_1(PACA_EXGEN);				\
 	lbz	r10,PACAPROCENABLED(r13);				\
 	cmpwi	0,r10,0;						\
@@ -393,6 +397,7 @@ __start_interrupts:
 _machine_check_pSeries:
 	HMT_MEDIUM
 	mtspr	SPRG1,r13		/* save r13 */
+	RUNLATCH_ON(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
 	. = 0x300
@@ -419,6 +424,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 data_access_slb_pSeries:
 	HMT_MEDIUM
 	mtspr	SPRG1,r13
+	RUNLATCH_ON(r13)
 	mfspr	r13,SPRG3		/* get paca address into r13 */
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
 	std	r10,PACA_EXSLB+EX_R10(r13)
@@ -439,6 +445,7 @@ data_access_slb_pSeries:
 instruction_access_slb_pSeries:
 	HMT_MEDIUM
 	mtspr	SPRG1,r13
+	RUNLATCH_ON(r13)
 	mfspr	r13,SPRG3		/* get paca address into r13 */
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
 	std	r10,PACA_EXSLB+EX_R10(r13)
@@ -464,6 +471,7 @@ instruction_access_slb_pSeries:
 	.globl	system_call_pSeries
 system_call_pSeries:
 	HMT_MEDIUM
+	RUNLATCH_ON(r9)
 	mr	r9,r13
 	mfmsr	r10
 	mfspr	r13,SPRG3
@@ -515,36 +523,9 @@ __end_interrupts:
 #ifdef CONFIG_PPC_ISERIES
 	.globl naca
 naca:
-	.llong itVpdAreas
-
-	/*
-	 * The iSeries LPAR map is at this fixed address
-	 * so that the HvReleaseData structure can address
-	 * it with a 32-bit offset.
-	 *
-	 * The VSID values below are dependent on the
-	 * VSID generation algorithm.  See include/asm/mmu_context.h.
-	 */
-
-	. = 0x4800
-
-	.llong	2		/* # ESIDs to be mapped by hypervisor	 */
-	.llong	1		/* # memory ranges to be mapped by hypervisor */
-	.llong	STAB0_PAGE	/* Page # of segment table within load area	*/
-	.llong	0		/* Reserved */
-	.llong	0		/* Reserved */
-	.llong	0		/* Reserved */
-	.llong	0		/* Reserved */
-	.llong	0		/* Reserved */
-	.llong	(KERNELBASE>>SID_SHIFT)
-	.llong	0x408f92c94	/* KERNELBASE VSID */
-	/* We have to list the bolted VMALLOC segment here, too, so that it
-	 * will be restored on shared processor switch */
-	.llong	(VMALLOCBASE>>SID_SHIFT)
-	.llong	0xf09b89af5	/* VMALLOCBASE VSID */
-	.llong	8192		/* # pages to map (32 MB) */
-	.llong	0		/* Offset from start of loadarea to start of map */
-	.llong	0x408f92c940000	/* VPN of first page to map */
+	.llong	itVpdAreas
+	.llong	0		/* xRamDisk */
+	.llong	0		/* xRamDiskSize */
 
 	. = 0x6100
 
@@ -699,6 +680,11 @@ hardware_interrupt_iSeries_masked:
 	.globl fwnmi_data_area
 fwnmi_data_area:
 
+#ifdef CONFIG_PPC_ISERIES
+	. = LPARMAP_PHYS
+#include "lparmap.s"
+#endif /* CONFIG_PPC_ISERIES */
+
 /*
  * Vectors for the FWNMI option.  Share common code.
  */
@@ -707,11 +693,13 @@ fwnmi_data_area:
 system_reset_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRG1,r13		/* save r13 */
+	RUNLATCH_ON(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
 	.globl machine_check_fwnmi
 machine_check_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRG1,r13		/* save r13 */
+	RUNLATCH_ON(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
 	/*
@@ -848,6 +836,7 @@ unrecov_fer:
 	.align	7
 	.globl data_access_common
 data_access_common:
+	RUNLATCH_ON(r10)		/* It wont fit in the 0x300 handler */
 	mfspr	r10,DAR
 	std	r10,PACA_EXGEN+EX_DAR(r13)
 	mfspr	r10,DSISR
@@ -1194,7 +1183,7 @@ _GLOBAL(pSeries_secondary_smp_init)
 	bl	.__restore_cpu_setup
 
 	/* Set up a paca value for this processor. Since we have the
-	 * physical cpu id in r3, we need to search the pacas to find
+	 * physical cpu id in r24, we need to search the pacas to find
 	 * which logical id maps to our physical one.
 	 */
 	LOADADDR(r13, paca) 		/* Get base vaddr of paca array	 */
@@ -1207,8 +1196,8 @@ _GLOBAL(pSeries_secondary_smp_init)
 	cmpwi	r5,NR_CPUS
 	blt	1b
 
-99:	HMT_LOW				/* Couldn't find our CPU id      */
-	b	99b
+	mr	r3,r24			/* not found, copy phys to r3	 */
+	b	.kexec_wait		/* next kernel might do better	 */
 
 2:	mtspr	SPRG3,r13		/* Save vaddr of paca in SPRG3	 */
 	/* From now on, r24 is expected to be logica cpuid */
@@ -2088,7 +2077,7 @@ _GLOBAL(hmt_start_secondary)
 	blr
 #endif
 
-#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_ISERIES)
+#if defined(CONFIG_KEXEC) || (defined(CONFIG_SMP) && !defined(CONFIG_PPC_ISERIES))
 _GLOBAL(smp_release_cpus)
 	/* All secondary cpus are spinning on a common
 	 * spinloop, release them all now so they can start
@@ -2121,13 +2110,6 @@ empty_zero_page:
 swapper_pg_dir:
 	.space	4096
 
-#ifdef CONFIG_SMP
-/* 1 page segment table per cpu (max 48, cpu0 allocated at STAB0_PHYS_ADDR) */
-	.globl	stab_array
-stab_array:
-	.space	4096 * 48
-#endif
-	
 /*
  * This space gets a copy of optional info passed to us by the bootstrap
  * Used to pass parameters into the kernel like root=/dev/sda1, etc.

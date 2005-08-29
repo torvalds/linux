@@ -291,6 +291,44 @@ a request to enable wake events from D3, two calls should be made to
 pci_enable_wake (one for both D3hot and D3cold).
 
 
+A reference implementation
+-------------------------
+.suspend()
+{
+	/* driver specific operations */
+
+	/* Disable IRQ */
+	free_irq();
+	/* If using MSI */
+	pci_disable_msi();
+
+	pci_save_state();
+	pci_enable_wake();
+	/* Disable IO/bus master/irq router */
+	pci_disable_device();
+	pci_set_power_state(pci_choose_state());
+}
+
+.resume()
+{
+	pci_set_power_state(PCI_D0);
+	pci_restore_state();
+	/* device's irq possibly is changed, driver should take care */
+	pci_enable_device();
+	pci_set_master();
+
+	/* if using MSI, device's vector possibly is changed */
+	pci_enable_msi();
+
+	request_irq();
+	/* driver specific operations; */
+}
+
+This is a typical implementation. Drivers can slightly change the order
+of the operations in the implementation, ignore some operations or add
+more deriver specific operations in it, but drivers should do something like
+this on the whole.
+
 5. Resources
 ~~~~~~~~~~~~
 

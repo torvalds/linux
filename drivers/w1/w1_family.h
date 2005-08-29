@@ -1,8 +1,8 @@
 /*
- * 	w1_family.h
+ *	w1_family.h
  *
  * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
- * 
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,8 +27,11 @@
 #include <asm/atomic.h>
 
 #define W1_FAMILY_DEFAULT	0
-#define W1_FAMILY_THERM		0x10
-#define W1_FAMILY_SMEM		0x01
+#define W1_FAMILY_SMEM_01	0x01
+#define W1_FAMILY_SMEM_81	0x81
+#define W1_THERM_DS18S20 	0x10
+#define W1_THERM_DS1822  	0x22
+#define W1_THERM_DS18B20 	0x28
 
 #define MAXNAMELEN		32
 
@@ -36,18 +39,15 @@ struct w1_family_ops
 {
 	ssize_t (* rname)(struct device *, struct device_attribute *, char *);
 	ssize_t (* rbin)(struct kobject *, char *, loff_t, size_t);
-	
-	ssize_t (* rval)(struct device *, struct device_attribute *, char *);
-	unsigned char rvalname[MAXNAMELEN];
 };
 
 struct w1_family
 {
 	struct list_head	family_entry;
 	u8			fid;
-	
+
 	struct w1_family_ops	*fops;
-	
+
 	atomic_t		refcnt;
 	u8			need_exit;
 };

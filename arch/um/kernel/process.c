@@ -32,6 +32,7 @@
 #include "uml-config.h"
 #include "choose-mode.h"
 #include "mode.h"
+#include "tempfile.h"
 #ifdef UML_CONFIG_MODE_SKAS
 #include "skas.h"
 #include "skas_ptrace.h"
@@ -130,7 +131,7 @@ int start_fork_tramp(void *thread_arg, unsigned long temp_stack,
 	return(arg.pid);
 }
 
-static int ptrace_child(void)
+static int ptrace_child(void *arg)
 {
 	int ret;
 	int pid = os_getpid(), ppid = getppid();
@@ -159,16 +160,20 @@ static int ptrace_child(void)
 	_exit(ret);
 }
 
-static int start_ptraced_child(void)
+static int start_ptraced_child(void **stack_out)
 {
+	void *stack;
+	unsigned long sp;
 	int pid, n, status;
 	
-	pid = fork();
-	if(pid == 0)
-		ptrace_child();
-
+	stack = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
+		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if(stack == MAP_FAILED)
+		panic("check_ptrace : mmap failed, errno = %d", errno);
+	sp = (unsigned long) stack + PAGE_SIZE - sizeof(void *);
+	pid = clone(ptrace_child, (void *) sp, SIGCHLD, NULL);
 	if(pid < 0)
-		panic("check_ptrace : fork failed, errno = %d", errno);
+		panic("check_ptrace : clone failed, errno = %d", errno);
 	CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
 	if(n < 0)
 		panic("check_ptrace : wait failed, errno = %d", errno);
@@ -176,6 +181,7 @@ static int start_ptraced_child(void)
 		panic("check_ptrace : expected SIGSTOP, got status = %d",
 		      status);
 
+	*stack_out = stack;
 	return(pid);
 }
 
@@ -183,12 +189,12 @@ static int start_ptraced_child(void)
  * just avoid using sysemu, not panic, but only if SYSEMU features are broken.
  * So only for SYSEMU features we test mustpanic, while normal host features
  * must work anyway!*/
-static int stop_ptraced_child(int pid, int exitcode, int mustexit)
+static int stop_ptraced_child(int pid, void *stack, int exitcode, int mustpanic)
 {
 	int status, n, ret = 0;
 
 	if(ptrace(PTRACE_CONT, pid, 0, 0) < 0)
-		panic("stop_ptraced_child : ptrace failed, errno = %d", errno);
+		panic("check_ptrace : ptrace failed, errno = %d", errno);
 	CATCH_EINTR(n = waitpid(pid, &status, 0));
 	if(!WIFEXITED(status) || (WEXITSTATUS(status) != exitcode)) {
 		int exit_with = WEXITSTATUS(status);
@@ -199,23 +205,39 @@ static int stop_ptraced_child(int pid, int exitcode, int mustexit)
 		printk("check_ptrace : child exited with exitcode %d, while "
 		      "expecting %d; status 0x%x", exit_with,
 		      exitcode, status);
-		if (mustexit)
+		if (mustpanic)
 			panic("\n");
 		else
 			printk("\n");
 		ret = -1;
 	}
 
+	if(munmap(stack, PAGE_SIZE) < 0)
+		panic("check_ptrace : munmap failed, errno = %d", errno);
 	return ret;
 }
 
 static int force_sysemu_disabled = 0;
+
+int ptrace_faultinfo = 1;
+int proc_mm = 1;
+
+static int __init skas0_cmd_param(char *str, int* add)
+{
+	ptrace_faultinfo = proc_mm = 0;
+	return 0;
+}
 
 static int __init nosysemu_cmd_param(char *str, int* add)
 {
 	force_sysemu_disabled = 1;
 	return 0;
 }
+
+__uml_setup("skas0", skas0_cmd_param,
+		"skas0\n"
+		"    Disables SKAS3 usage, so that SKAS0 is used, unless you \n"
+		"    specify mode=tt.\n\n");
 
 __uml_setup("nosysemu", nosysemu_cmd_param,
 		"nosysemu\n"
@@ -227,11 +249,12 @@ __uml_setup("nosysemu", nosysemu_cmd_param,
 
 static void __init check_sysemu(void)
 {
+	void *stack;
 	int pid, syscall, n, status, count=0;
 
 	printk("Checking syscall emulation patch for ptrace...");
 	sysemu_supported = 0;
-	pid = start_ptraced_child();
+	pid = start_ptraced_child(&stack);
 
 	if(ptrace(PTRACE_SYSEMU, pid, 0, 0) < 0)
 		goto fail;
@@ -249,7 +272,7 @@ static void __init check_sysemu(void)
 		panic("check_sysemu : failed to modify system "
 		      "call return, errno = %d", errno);
 
-	if (stop_ptraced_child(pid, 0, 0) < 0)
+	if (stop_ptraced_child(pid, stack, 0, 0) < 0)
 		goto fail_stopped;
 
 	sysemu_supported = 1;
@@ -257,7 +280,7 @@ static void __init check_sysemu(void)
 	set_using_sysemu(!force_sysemu_disabled);
 
 	printk("Checking advanced syscall emulation patch for ptrace...");
-	pid = start_ptraced_child();
+	pid = start_ptraced_child(&stack);
 	while(1){
 		count++;
 		if(ptrace(PTRACE_SYSEMU_SINGLESTEP, pid, 0, 0) < 0)
@@ -282,7 +305,7 @@ static void __init check_sysemu(void)
 			break;
 		}
 	}
-	if (stop_ptraced_child(pid, 0, 0) < 0)
+	if (stop_ptraced_child(pid, stack, 0, 0) < 0)
 		goto fail_stopped;
 
 	sysemu_supported = 2;
@@ -293,17 +316,18 @@ static void __init check_sysemu(void)
 	return;
 
 fail:
-	stop_ptraced_child(pid, 1, 0);
+	stop_ptraced_child(pid, stack, 1, 0);
 fail_stopped:
 	printk("missing\n");
 }
 
 void __init check_ptrace(void)
 {
+	void *stack;
 	int pid, syscall, n, status;
 
 	printk("Checking that ptrace can change system call numbers...");
-	pid = start_ptraced_child();
+	pid = start_ptraced_child(&stack);
 
 	if (ptrace(PTRACE_OLDSETOPTIONS, pid, 0, (void *)PTRACE_O_TRACESYSGOOD) < 0)
 		panic("check_ptrace: PTRACE_SETOPTIONS failed, errno = %d", errno);
@@ -330,7 +354,7 @@ void __init check_ptrace(void)
 			break;
 		}
 	}
-	stop_ptraced_child(pid, 0, 1);
+	stop_ptraced_child(pid, stack, 0, 1);
 	printk("OK\n");
 	check_sysemu();
 }
@@ -358,49 +382,54 @@ void forward_pending_sigio(int target)
 		kill(target, SIGIO);
 }
 
+extern void *__syscall_stub_start, __syscall_stub_end;
+
 #ifdef UML_CONFIG_MODE_SKAS
-static inline int check_skas3_ptrace_support(void)
+
+static inline void check_skas3_ptrace_support(void)
 {
 	struct ptrace_faultinfo fi;
-	int pid, n, ret = 1;
+	void *stack;
+	int pid, n;
 
 	printf("Checking for the skas3 patch in the host...");
-	pid = start_ptraced_child();
+	pid = start_ptraced_child(&stack);
 
 	n = ptrace(PTRACE_FAULTINFO, pid, 0, &fi);
 	if (n < 0) {
+		ptrace_faultinfo = 0;
 		if(errno == EIO)
 			printf("not found\n");
 		else {
 			perror("not found");
 		}
-		ret = 0;
-	} else {
-		printf("found\n");
+	}
+	else {
+		if (!ptrace_faultinfo)
+			printf("found but disabled on command line\n");
+		else
+			printf("found\n");
 	}
 
 	init_registers(pid);
-	stop_ptraced_child(pid, 1, 1);
-
-	return(ret);
+	stop_ptraced_child(pid, stack, 1, 1);
 }
 
 int can_do_skas(void)
 {
-	int ret = 1;
-
 	printf("Checking for /proc/mm...");
 	if (os_access("/proc/mm", OS_ACC_W_OK) < 0) {
+		proc_mm = 0;
 		printf("not found\n");
-		ret = 0;
-		goto out;
 	} else {
-		printf("found\n");
+		if (!proc_mm)
+			printf("found but disabled on command line\n");
+		else
+			printf("found\n");
 	}
 
-	ret = check_skas3_ptrace_support();
-out:
-	return ret;
+	check_skas3_ptrace_support();
+	return 1;
 }
 #else
 int can_do_skas(void)

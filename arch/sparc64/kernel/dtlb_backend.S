@@ -16,7 +16,7 @@
 #elif PAGE_SHIFT == 19
 #define SZ_BITS		_PAGE_SZ512K
 #elif PAGE_SHIFT == 22
-#define SZ_BITS		_PAGE_SZ4M
+#define SZ_BITS		_PAGE_SZ4MB
 #endif
 
 #define VALID_SZ_BITS	(_PAGE_VALID | SZ_BITS)

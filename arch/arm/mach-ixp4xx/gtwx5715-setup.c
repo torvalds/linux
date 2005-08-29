@@ -83,7 +83,7 @@ static struct plat_serial8250_port gtwx5715_uart_platform_data[] = {
 	.mapbase	= IXP4XX_UART2_BASE_PHYS,
 	.membase	= (char *)IXP4XX_UART2_BASE_VIRT + REG_OFFSET,
 	.irq		= IRQ_IXP4XX_UART2,
-	.flags		= UPF_BOOT_AUTOCONF,
+	.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 	.iotype		= UPIO_MEM,
 	.regshift	= 2,
 	.uartclk	= IXP4XX_UART_XTAL,
@@ -114,7 +114,7 @@ static struct flash_platform_data gtwx5715_flash_data = {
 
 static struct resource gtwx5715_flash_resource = {
 	.start		= GTWX5715_FLASH_BASE,
-	.end		= GTWX5715_FLASH_BASE + GTWX5715_FLASH_SIZE,
+	.end		= GTWX5715_FLASH_BASE + GTWX5715_FLASH_SIZE - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -140,14 +140,15 @@ static void __init gtwx5715_init(void)
 
 
 MACHINE_START(GTWX5715, "Gemtek GTWX5715 (Linksys WRV54G)")
-        MAINTAINER("George Joseph")
-        BOOT_MEM(PHYS_OFFSET, IXP4XX_UART2_BASE_PHYS,
-                IXP4XX_UART2_BASE_VIRT)
-        MAPIO(gtwx5715_map_io)
-        INITIRQ(ixp4xx_init_irq)
-		  .timer		= &ixp4xx_timer,
-        BOOT_PARAMS(0x0100)
-        INIT_MACHINE(gtwx5715_init)
+	/* Maintainer: George Joseph */
+	.phys_ram	= PHYS_OFFSET,
+	.phys_io	= IXP4XX_UART2_BASE_PHYS,
+	.io_pg_offst	= ((IXP4XX_UART2_BASE_VIRT) >> 18) & 0xfffc,
+	.map_io		= gtwx5715_map_io,
+	.init_irq	= ixp4xx_init_irq,
+	.timer		= &ixp4xx_timer,
+	.boot_params	= 0x0100,
+	.init_machine	= gtwx5715_init,
 MACHINE_END
 
 

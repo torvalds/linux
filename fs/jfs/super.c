@@ -24,6 +24,7 @@
 #include <linux/completion.h>
 #include <linux/vfs.h>
 #include <linux/moduleparam.h>
+#include <linux/posix_acl.h>
 #include <asm/uaccess.h>
 
 #include "jfs_incore.h"
@@ -112,6 +113,8 @@ static struct inode *jfs_alloc_inode(struct super_block *sb)
 static void jfs_destroy_inode(struct inode *inode)
 {
 	struct jfs_inode_info *ji = JFS_IP(inode);
+
+	BUG_ON(!list_empty(&ji->anon_inode_list));
 
 	spin_lock_irq(&ji->ag_lock);
 	if (ji->active_ag != -1) {
@@ -530,7 +533,7 @@ static int jfs_sync_fs(struct super_block *sb, int wait)
 	/* log == NULL indicates read-only mount */
 	if (log) {
 		jfs_flush_journal(log, wait);
-		jfs_syncpt(log);
+		jfs_syncpt(log, 0);
 	}
 
 	return 0;

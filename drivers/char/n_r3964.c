@@ -200,7 +200,7 @@ static void __exit r3964_exit(void)
    
    TRACE_M ("cleanup_module()");
 
-   status=tty_register_ldisc(N_R3964, NULL);
+   status=tty_unregister_ldisc(N_R3964);
    
    if(status!=0)
    {

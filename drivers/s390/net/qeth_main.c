@@ -2210,7 +2210,7 @@ no_mem:
 	return NULL;
 }
 
-static inline unsigned short
+static inline __be16
 qeth_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct qeth_card *card;
@@ -7639,31 +7639,31 @@ static int
 qeth_register_dbf_views(void)
 {
 	qeth_dbf_setup = debug_register(QETH_DBF_SETUP_NAME,
-					QETH_DBF_SETUP_INDEX,
+					QETH_DBF_SETUP_PAGES,
 					QETH_DBF_SETUP_NR_AREAS,
 					QETH_DBF_SETUP_LEN);
 	qeth_dbf_misc = debug_register(QETH_DBF_MISC_NAME,
-				       QETH_DBF_MISC_INDEX,
+				       QETH_DBF_MISC_PAGES,
 				       QETH_DBF_MISC_NR_AREAS,
 				       QETH_DBF_MISC_LEN);
 	qeth_dbf_data = debug_register(QETH_DBF_DATA_NAME,
-				       QETH_DBF_DATA_INDEX,
+				       QETH_DBF_DATA_PAGES,
 				       QETH_DBF_DATA_NR_AREAS,
 				       QETH_DBF_DATA_LEN);
 	qeth_dbf_control = debug_register(QETH_DBF_CONTROL_NAME,
-					  QETH_DBF_CONTROL_INDEX,
+					  QETH_DBF_CONTROL_PAGES,
 					  QETH_DBF_CONTROL_NR_AREAS,
 					  QETH_DBF_CONTROL_LEN);
 	qeth_dbf_sense = debug_register(QETH_DBF_SENSE_NAME,
-					QETH_DBF_SENSE_INDEX,
+					QETH_DBF_SENSE_PAGES,
 					QETH_DBF_SENSE_NR_AREAS,
 					QETH_DBF_SENSE_LEN);
 	qeth_dbf_qerr = debug_register(QETH_DBF_QERR_NAME,
-				       QETH_DBF_QERR_INDEX,
+				       QETH_DBF_QERR_PAGES,
 				       QETH_DBF_QERR_NR_AREAS,
 				       QETH_DBF_QERR_LEN);
 	qeth_dbf_trace = debug_register(QETH_DBF_TRACE_NAME,
-					QETH_DBF_TRACE_INDEX,
+					QETH_DBF_TRACE_PAGES,
 					QETH_DBF_TRACE_NR_AREAS,
 					QETH_DBF_TRACE_LEN);
 
@@ -8120,20 +8120,22 @@ static struct notifier_block qeth_ip6_notifier = {
 #endif
 
 static int
+__qeth_reboot_event_card(struct device *dev, void *data)
+{
+	struct qeth_card *card;
+
+	card = (struct qeth_card *) dev->driver_data;
+	qeth_clear_ip_list(card, 0, 0);
+	qeth_qdio_clear_card(card, 0);
+	return 0;
+}
+
+static int
 qeth_reboot_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 
-	struct device *entry;
-	struct qeth_card *card;
-
-	down_read(&qeth_ccwgroup_driver.driver.bus->subsys.rwsem);
-	       list_for_each_entry(entry, &qeth_ccwgroup_driver.driver.devices,
-			           driver_list) {
-	               card = (struct qeth_card *) entry->driver_data;
-		       qeth_clear_ip_list(card, 0, 0);
-		       qeth_qdio_clear_card(card, 0);
-	       }
-	up_read(&qeth_ccwgroup_driver.driver.bus->subsys.rwsem);
+	driver_for_each_device(&qeth_ccwgroup_driver.driver, NULL, NULL,
+			       __qeth_reboot_event_card);
 	return NOTIFY_DONE;
 }
 

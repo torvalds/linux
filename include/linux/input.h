@@ -811,9 +811,9 @@ struct input_dev {
 
 	void *private;
 
-	char *name;
-	char *phys;
-	char *uniq;
+	const char *name;
+	const char *phys;
+	const char *uniq;
 	struct input_id id;
 
 	unsigned long evbit[NBITS(EV_MAX)];
@@ -859,6 +859,10 @@ struct input_dev {
 	int (*erase_effect)(struct input_dev *dev, int effect_id);
 
 	struct input_handle *grab;
+
+	struct semaphore sem;	/* serializes open and close operations */
+	unsigned int users;
+
 	struct device *dev;
 
 	struct list_head	h_list;

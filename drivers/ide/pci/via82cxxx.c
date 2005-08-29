@@ -415,7 +415,7 @@ static int via82cxxx_ide_dma_check (ide_drive_t *drive)
  *	and initialize its drive independent registers.
  */
 
-static unsigned int __init init_chipset_via82cxxx(struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const char *name)
 {
 	struct pci_dev *isa = NULL;
 	u8 t, v;
@@ -576,7 +576,7 @@ static unsigned int __init init_chipset_via82cxxx(struct pci_dev *dev, const cha
 	return 0;
 }
 
-static void __init init_hwif_via82cxxx(ide_hwif_t *hwif)
+static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 {
 	int i;
 

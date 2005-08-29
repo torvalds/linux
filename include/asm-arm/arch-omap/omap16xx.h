@@ -183,5 +183,37 @@
 #define OMAP16XX_PWL_ENABLE	(OMAP16XX_PWL_BASE + 0x00)
 #define OMAP16XX_PWL_CLK_ENABLE	(OMAP16XX_PWL_BASE + 0x04)
 
+/*
+ * ---------------------------------------------------------------------------
+ * Watchdog timer
+ * ---------------------------------------------------------------------------
+ */
+
+/* 32-bit Watchdog timer in OMAP 16XX */
+#define OMAP_16XX_WATCHDOG_BASE        (0xfffeb000)
+#define OMAP_16XX_WIDR         (OMAP_16XX_WATCHDOG_BASE + 0x00)
+#define OMAP_16XX_WD_SYSCONFIG (OMAP_16XX_WATCHDOG_BASE + 0x10)
+#define OMAP_16XX_WD_SYSSTATUS (OMAP_16XX_WATCHDOG_BASE + 0x14)
+#define OMAP_16XX_WCLR         (OMAP_16XX_WATCHDOG_BASE + 0x24)
+#define OMAP_16XX_WCRR         (OMAP_16XX_WATCHDOG_BASE + 0x28)
+#define OMAP_16XX_WLDR         (OMAP_16XX_WATCHDOG_BASE + 0x2c)
+#define OMAP_16XX_WTGR         (OMAP_16XX_WATCHDOG_BASE + 0x30)
+#define OMAP_16XX_WWPS         (OMAP_16XX_WATCHDOG_BASE + 0x34)
+#define OMAP_16XX_WSPR         (OMAP_16XX_WATCHDOG_BASE + 0x48)
+
+#define WCLR_PRE_SHIFT         5
+#define WCLR_PTV_SHIFT         2
+
+#define WWPS_W_PEND_WSPR       (1 << 4)
+#define WWPS_W_PEND_WTGR       (1 << 3)
+#define WWPS_W_PEND_WLDR       (1 << 2)
+#define WWPS_W_PEND_WCRR       (1 << 1)
+#define WWPS_W_PEND_WCLR       (1 << 0)
+
+#define WSPR_ENABLE_0          (0x0000bbbb)
+#define WSPR_ENABLE_1          (0x00004444)
+#define WSPR_DISABLE_0         (0x0000aaaa)
+#define WSPR_DISABLE_1         (0x00005555)
+
 #endif /*  __ASM_ARCH_OMAP16XX_H */
 

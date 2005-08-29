@@ -50,6 +50,15 @@
 #define _COMPONENT          ACPI_EXECUTER
 	 ACPI_MODULE_NAME    ("exconvrt")
 
+/* Local prototypes */
+
+static u32
+acpi_ex_convert_to_ascii (
+	acpi_integer                    integer,
+	u16                             base,
+	u8                              *string,
+	u8                              max_length);
+
 
 /*******************************************************************************
  *
@@ -115,9 +124,8 @@ acpi_ex_convert_to_integer (
 	 */
 	result = 0;
 
-	/*
-	 * String conversion is different than Buffer conversion
-	 */
+	/* String conversion is different than Buffer conversion */
+
 	switch (ACPI_GET_OBJECT_TYPE (obj_desc)) {
 	case ACPI_TYPE_STRING:
 
@@ -168,9 +176,8 @@ acpi_ex_convert_to_integer (
 		break;
 	}
 
-	/*
-	 * Create a new integer
-	 */
+	/* Create a new integer */
+
 	return_desc = acpi_ut_create_internal_object (ACPI_TYPE_INTEGER);
 	if (!return_desc) {
 		return_ACPI_STATUS (AE_NO_MEMORY);
@@ -251,7 +258,8 @@ acpi_ex_convert_to_buffer (
 		 * ASL/AML code that depends on the null being transferred to the new
 		 * buffer.
 		 */
-		return_desc = acpi_ut_create_buffer_object ((acpi_size) obj_desc->string.length + 1);
+		return_desc = acpi_ut_create_buffer_object (
+				  (acpi_size) obj_desc->string.length + 1);
 		if (!return_desc) {
 			return_ACPI_STATUS (AE_NO_MEMORY);
 		}
@@ -291,7 +299,7 @@ acpi_ex_convert_to_buffer (
  *
  ******************************************************************************/
 
-u32
+static u32
 acpi_ex_convert_to_ascii (
 	acpi_integer                    integer,
 	u16                             base,
@@ -357,8 +365,9 @@ acpi_ex_convert_to_ascii (
 
 	case 16:
 
-		hex_length = ACPI_MUL_2 (data_width); /* 2 ascii hex chars per data byte */
+		/* hex_length: 2 ascii hex chars per data byte */
 
+		hex_length = ACPI_MUL_2 (data_width);
 		for (i = 0, j = (hex_length-1); i < hex_length; i++, j--) {
 			/* Get one hex digit, most significant digits first */
 
@@ -475,7 +484,7 @@ acpi_ex_convert_to_string (
 		/* Setup string length, base, and separator */
 
 		switch (type) {
-		case ACPI_EXPLICIT_CONVERT_DECIMAL: /* Used by to_decimal_string operator */
+		case ACPI_EXPLICIT_CONVERT_DECIMAL: /* Used by to_decimal_string */
 			/*
 			 * From ACPI: "If Data is a buffer, it is converted to a string of
 			 * decimal values separated by commas."
@@ -509,7 +518,7 @@ acpi_ex_convert_to_string (
 			string_length = (obj_desc->buffer.length * 3);
 			break;
 
-		case ACPI_EXPLICIT_CONVERT_HEX:     /* Used by to_hex_string operator */
+		case ACPI_EXPLICIT_CONVERT_HEX:     /* Used by to_hex_string */
 			/*
 			 * From ACPI: "If Data is a buffer, it is converted to a string of
 			 * hexadecimal values separated by commas."
@@ -530,9 +539,8 @@ acpi_ex_convert_to_string (
 			return_ACPI_STATUS (AE_AML_STRING_LIMIT);
 		}
 
-		/*
-		 * Create a new string object and string buffer
-		 */
+		/* Create a new string object and string buffer */
+
 		return_desc = acpi_ut_create_string_object ((acpi_size) string_length);
 		if (!return_desc) {
 			return_ACPI_STATUS (AE_NO_MEMORY);
@@ -551,8 +559,10 @@ acpi_ex_convert_to_string (
 			*new_buf++ = separator; /* each separated by a comma or space */
 		}
 
-		/* Null terminate the string (overwrites final comma/space from above) */
-
+		/*
+		 * Null terminate the string
+		 * (overwrites final comma/space from above)
+		 */
 		new_buf--;
 		*new_buf = 0;
 		break;
@@ -645,7 +655,6 @@ acpi_ex_convert_to_target_type (
 
 
 		case ACPI_TYPE_STRING:
-
 			/*
 			 * The operand must be a String.  We can convert an
 			 * Integer or Buffer if necessary
@@ -656,7 +665,6 @@ acpi_ex_convert_to_target_type (
 
 
 		case ACPI_TYPE_BUFFER:
-
 			/*
 			 * The operand must be a Buffer.  We can convert an
 			 * Integer or String if necessary

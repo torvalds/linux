@@ -38,8 +38,8 @@ struct hpsb_packet {
 
         /* These are core internal. */
         signed char tlabel;
-        char ack_code;
-        char tcode;
+	signed char ack_code;
+	unsigned char tcode;
 
         unsigned expect_response:1;
         unsigned no_waiter:1;

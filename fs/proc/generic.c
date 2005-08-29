@@ -329,10 +329,10 @@ static void release_inode_number(unsigned int inum)
 	spin_unlock(&proc_inum_lock);
 }
 
-static int proc_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *proc_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	nd_set_link(nd, PDE(dentry->d_inode)->data);
-	return 0;
+	return NULL;
 }
 
 static struct inode_operations proc_link_inode_operations = {

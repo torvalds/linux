@@ -30,13 +30,14 @@ void show_mem(void)
 	struct page *page;
 	pg_data_t *pgdat;
 	unsigned long i;
+	struct page_state ps;
 
-	printk("Mem-info:\n");
+	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+	printk(KERN_INFO "Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_pgdat(pgdat) {
 		for (i = 0; i < pgdat->node_spanned_pages; ++i) {
-			page = pgdat->node_mem_map + i;
+			page = pgdat_page_nr(pgdat, i);
 			total++;
 			if (PageHighMem(page))
 				highmem++;
@@ -48,11 +49,18 @@ void show_mem(void)
 				shared += page_count(page) - 1;
 		}
 	}
-	printk("%d pages of RAM\n", total);
-	printk("%d pages of HIGHMEM\n",highmem);
-	printk("%d reserved pages\n",reserved);
-	printk("%d pages shared\n",shared);
-	printk("%d pages swap cached\n",cached);
+	printk(KERN_INFO "%d pages of RAM\n", total);
+	printk(KERN_INFO "%d pages of HIGHMEM\n", highmem);
+	printk(KERN_INFO "%d reserved pages\n", reserved);
+	printk(KERN_INFO "%d pages shared\n", shared);
+	printk(KERN_INFO "%d pages swap cached\n", cached);
+
+	get_page_state(&ps);
+	printk(KERN_INFO "%lu pages dirty\n", ps.nr_dirty);
+	printk(KERN_INFO "%lu pages writeback\n", ps.nr_writeback);
+	printk(KERN_INFO "%lu pages mapped\n", ps.nr_mapped);
+	printk(KERN_INFO "%lu pages slab\n", ps.nr_slab);
+	printk(KERN_INFO "%lu pages pagetables\n", ps.nr_page_table_pages);
 }
 
 /*
@@ -105,16 +113,16 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
 	pmd_t *pmd;
 
 	if (vaddr & (PMD_SIZE-1)) {		/* vaddr is misaligned */
-		printk ("set_pmd_pfn: vaddr misaligned\n");
+		printk(KERN_WARNING "set_pmd_pfn: vaddr misaligned\n");
 		return; /* BUG(); */
 	}
 	if (pfn & (PTRS_PER_PTE-1)) {		/* pfn is misaligned */
-		printk ("set_pmd_pfn: pfn misaligned\n");
+		printk(KERN_WARNING "set_pmd_pfn: pfn misaligned\n");
 		return; /* BUG(); */
 	}
 	pgd = swapper_pg_dir + pgd_index(vaddr);
 	if (pgd_none(*pgd)) {
-		printk ("set_pmd_pfn: pgd_none\n");
+		printk(KERN_WARNING "set_pmd_pfn: pgd_none\n");
 		return; /* BUG(); */
 	}
 	pud = pud_offset(pgd, vaddr);

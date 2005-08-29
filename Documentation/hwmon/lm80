@@ -1,0 +1,56 @@
+Kernel driver lm80
+==================
+
+Supported chips:
+  * National Semiconductor LM80
+    Prefix: 'lm80'
+    Addresses scanned: I2C 0x28 - 0x2f
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/
+
+Authors:
+        Frodo Looijaard <frodol@dds.nl>,
+        Philip Edelbrock <phil@netroedge.com>
+
+Description
+-----------
+
+This driver implements support for the National Semiconductor LM80.
+It is described as a 'Serial Interface ACPI-Compatible Microprocessor
+System Hardware Monitor'.
+
+The LM80 implements one temperature sensor, two fan rotation speed sensors,
+seven voltage sensors, alarms, and some miscellaneous stuff.
+
+Temperatures are measured in degrees Celsius. There are two sets of limits
+which operate independently. When the HOT Temperature Limit is crossed,
+this will cause an alarm that will be reasserted until the temperature
+drops below the HOT Hysteresis. The Overtemperature Shutdown (OS) limits
+should work in the same way (but this must be checked; the datasheet
+is unclear about this). Measurements are guaranteed between -55 and
++125 degrees. The current temperature measurement has a resolution of
+0.0625 degrees; the limits have a resolution of 1 degree.
+
+Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
+triggered if the rotation speed has dropped below a programmable limit. Fan
+readings can be divided by a programmable divider (1, 2, 4 or 8) to give
+the readings more range or accuracy. Not all RPM values can accurately be
+represented, so some rounding is done. With a divider of 2, the lowest
+representable value is around 2600 RPM.
+
+Voltage sensors (also known as IN sensors) report their values in volts.
+An alarm is triggered if the voltage has crossed a programmable minimum
+or maximum limit. Note that minimum in this case always means 'closest to
+zero'; this is important for negative voltage measurements. All voltage
+inputs can measure voltages between 0 and 2.55 volts, with a resolution
+of 0.01 volt.
+
+If an alarm triggers, it will remain triggered until the hardware register
+is read at least once. This means that the cause for the alarm may
+already have disappeared! Note that in the current implementation, all
+hardware registers are read whenever any data is read (unless it is less
+than 2.0 seconds since the last update). This means that you can easily
+miss once-only alarms.
+
+The LM80 only updates its values each 1.5 seconds; reading it more often
+will do no harm, but will return 'old' values.

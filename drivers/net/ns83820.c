@@ -101,6 +101,7 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
@@ -573,7 +574,7 @@ static inline int ns83820_add_rx_skb(struct ns83820 *dev, struct sk_buff *skb)
 
 	dev->rx_info.next_empty = (next_empty + 1) % NR_RX_DESC;
 	cmdsts = REAL_RX_BUF_SIZE | CMDSTS_INTR;
-	buf = pci_map_single(dev->pci_dev, skb->tail,
+	buf = pci_map_single(dev->pci_dev, skb->data,
 			     REAL_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
 	build_rx_desc(dev, sg, 0, buf, cmdsts, 0);
 	/* update link of previous rx */
@@ -603,7 +604,7 @@ static inline int rx_refill(struct net_device *ndev, int gfp)
 		if (unlikely(!skb))
 			break;
 
-		res = (long)skb->tail & 0xf;
+		res = (long)skb->data & 0xf;
 		res = 0x10 - res;
 		res &= 0xf;
 		skb_reserve(skb, res);

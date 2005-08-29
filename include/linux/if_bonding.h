@@ -35,6 +35,9 @@
  *
  * 2003/12/01 - Shmulik Hen <shmulik.hen at intel dot com>
  *	- Code cleanup and style changes
+ *
+ * 2005/05/05 - Jason Gabler <jygabler at lbl dot gov>
+ *      - added definitions for various XOR hashing policies
  */
 
 #ifndef _LINUX_IF_BONDING_H
@@ -79,6 +82,10 @@
 #define BOND_STATE_BACKUP       1   /* link is backup */
 
 #define BOND_DEFAULT_MAX_BONDS  1   /* Default maximum number of devices to support */
+
+/* hashing types */
+#define BOND_XMIT_POLICY_LAYER2		0 /* layer 2 (MAC only), default */
+#define BOND_XMIT_POLICY_LAYER34	1 /* layer 3+4 (IP ^ MAC) */
 
 typedef struct ifbond {
 	__s32 bond_mode;

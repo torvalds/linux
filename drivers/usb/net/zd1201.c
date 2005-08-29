@@ -29,6 +29,7 @@ static struct usb_device_id zd1201_table[] = {
 	{USB_DEVICE(0x0ace, 0x1201)}, /* ZyDAS ZD1201 Wireless USB Adapter */
 	{USB_DEVICE(0x050d, 0x6051)}, /* Belkin F5D6051 usb  adapter */
 	{USB_DEVICE(0x0db0, 0x6823)}, /* MSI UB11B usb  adapter */
+	{USB_DEVICE(0x1044, 0x8005)}, /* GIGABYTE GN-WLBZ201 usb adapter */
 	{}
 };
 
@@ -345,8 +346,7 @@ static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
 			if (datalen<14)
 				goto resubmit;
 			if ((seq & IEEE802_11_SCTL_FRAG) == 0) {
-				frag = kmalloc(sizeof(struct zd1201_frag*),
-				    GFP_ATOMIC);
+				frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
 				if (!frag)
 					goto resubmit;
 				skb = dev_alloc_skb(IEEE802_11_DATA_LEN +14+2);
@@ -1884,12 +1884,53 @@ static void zd1201_disconnect(struct usb_interface *interface)
 	kfree(zd);
 }
 
+#ifdef CONFIG_PM
+
+static int zd1201_suspend(struct usb_interface *interface,
+			   pm_message_t message)
+{
+	struct zd1201 *zd = usb_get_intfdata(interface);
+
+	netif_device_detach(zd->dev);
+
+	zd->was_enabled = zd->mac_enabled;
+
+	if (zd->was_enabled)
+		return zd1201_disable(zd);
+	else
+		return 0;
+}
+
+static int zd1201_resume(struct usb_interface *interface)
+{
+	struct zd1201 *zd = usb_get_intfdata(interface);
+
+	if (!zd || !zd->dev)
+		return -ENODEV;
+
+	netif_device_attach(zd->dev);
+
+	if (zd->was_enabled)
+		return zd1201_enable(zd);
+	else
+		return 0;
+}
+
+#else
+
+#define zd1201_suspend NULL
+#define zd1201_resume  NULL
+
+#endif
+
 static struct usb_driver zd1201_usb = {
 	.owner = THIS_MODULE,
 	.name = "zd1201",
 	.probe = zd1201_probe,
 	.disconnect = zd1201_disconnect,
 	.id_table = zd1201_table,
+	.suspend = zd1201_suspend,
+	.resume = zd1201_resume,
 };
 
 static int __init zd1201_init(void)

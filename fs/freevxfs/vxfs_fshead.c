@@ -78,17 +78,18 @@ vxfs_getfsh(struct inode *ip, int which)
 	struct buffer_head		*bp;
 
 	bp = vxfs_bread(ip, which);
-	if (buffer_mapped(bp)) {
+	if (bp) {
 		struct vxfs_fsh		*fhp;
 
-		if (!(fhp = kmalloc(sizeof(*fhp), SLAB_KERNEL)))
-			return NULL;
+		if (!(fhp = kmalloc(sizeof(*fhp), GFP_KERNEL)))
+			goto out;
 		memcpy(fhp, bp->b_data, sizeof(*fhp));
 
-		brelse(bp);
+		put_bh(bp);
 		return (fhp);
 	}
-
+out:
+	brelse(bp);
 	return NULL;
 }
 

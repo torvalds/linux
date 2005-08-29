@@ -770,10 +770,8 @@ send_signal:
 		}
 		if (c == '\n') {
 			if (L_ECHO(tty) || L_ECHONL(tty)) {
-				if (tty->read_cnt >= N_TTY_BUF_SIZE-1) {
+				if (tty->read_cnt >= N_TTY_BUF_SIZE-1)
 					put_char('\a', tty);
-					return;
-				}
 				opost('\n', tty);
 			}
 			goto handle_newline;
@@ -790,10 +788,8 @@ send_signal:
 			 * XXX are EOL_CHAR and EOL2_CHAR echoed?!?
 			 */
 			if (L_ECHO(tty)) {
-				if (tty->read_cnt >= N_TTY_BUF_SIZE-1) {
+				if (tty->read_cnt >= N_TTY_BUF_SIZE-1)
 					put_char('\a', tty);
-					return;
-				}
 				/* Record the column of first canon char. */
 				if (tty->canon_head == tty->read_head)
 					tty->canon_column = tty->column;
@@ -862,12 +858,9 @@ static int n_tty_receive_room(struct tty_struct *tty)
 	 * that erase characters will be handled.  Other excess
 	 * characters will be beeped.
 	 */
-	if (tty->icanon && !tty->canon_data)
-		return N_TTY_BUF_SIZE;
-
-	if (left > 0)
-		return left;
-	return 0;
+	if (left <= 0)
+		left = tty->icanon && !tty->canon_data;
+	return left;
 }
 
 /**
@@ -1473,13 +1466,17 @@ static ssize_t write_chan(struct tty_struct * tty, struct file * file,
 			if (tty->driver->flush_chars)
 				tty->driver->flush_chars(tty);
 		} else {
-			c = tty->driver->write(tty, b, nr);
-			if (c < 0) {
-				retval = c;
-				goto break_out;
+			while (nr > 0) {
+				c = tty->driver->write(tty, b, nr);
+				if (c < 0) {
+					retval = c;
+					goto break_out;
+				}
+				if (!c)
+					break;
+				b += c;
+				nr -= c;
 			}
-			b += c;
-			nr -= c;
 		}
 		if (!nr)
 			break;

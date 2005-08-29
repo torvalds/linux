@@ -14,16 +14,6 @@
 #include <asm/tlbflush.h>
 #include <asm/ia32_unistd.h>
 
-/* 32bit VDSOs mapped into user space. */ 
-asm(".section \".init.data\",\"aw\"\n"
-    "syscall32_syscall:\n"
-    ".incbin \"arch/x86_64/ia32/vsyscall-syscall.so\"\n"
-    "syscall32_syscall_end:\n"
-    "syscall32_sysenter:\n"
-    ".incbin \"arch/x86_64/ia32/vsyscall-sysenter.so\"\n"
-    "syscall32_sysenter_end:\n"
-    ".previous");
-
 extern unsigned char syscall32_syscall[], syscall32_syscall_end[];
 extern unsigned char syscall32_sysenter[], syscall32_sysenter_end[];
 extern int sysctl_vsyscall32;
@@ -57,6 +47,7 @@ int syscall32_setup_pages(struct linux_binprm *bprm, int exstack)
 	int npages = (VSYSCALL32_END - VSYSCALL32_BASE) >> PAGE_SHIFT;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
+	int ret;
 
 	vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
 	if (!vma)
@@ -78,7 +69,11 @@ int syscall32_setup_pages(struct linux_binprm *bprm, int exstack)
 	vma->vm_mm = mm;
 
 	down_write(&mm->mmap_sem);
-	insert_vm_struct(mm, vma);
+	if ((ret = insert_vm_struct(mm, vma))) {
+		up_write(&mm->mmap_sem);
+		kmem_cache_free(vm_area_cachep, vma);
+		return ret;
+	}
 	mm->total_vm += npages;
 	up_write(&mm->mmap_sem);
 	return 0;

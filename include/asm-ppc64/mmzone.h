@@ -10,9 +10,20 @@
 #include <linux/config.h>
 #include <asm/smp.h>
 
-#ifdef CONFIG_DISCONTIGMEM
+/* generic non-linear memory support:
+ *
+ * 1) we will not split memory into more chunks than will fit into the
+ *    flags field of the struct page
+ */
+
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 
 extern struct pglist_data *node_data[];
+/*
+ * Return a pointer to the node data for node n.
+ */
+#define NODE_DATA(nid)		(node_data[nid])
 
 /*
  * Following are specific to this numa platform.
@@ -47,36 +58,32 @@ static inline int pa_to_nid(unsigned long pa)
 	return nid;
 }
 
-#define pfn_to_nid(pfn)		pa_to_nid((pfn) << PAGE_SHIFT)
-
-/*
- * Return a pointer to the node data for node n.
- */
-#define NODE_DATA(nid)		(node_data[nid])
-
 #define node_localnr(pfn, nid)	((pfn) - NODE_DATA(nid)->node_start_pfn)
 
 /*
  * Following are macros that each numa implmentation must define.
  */
 
-/*
- * Given a kernel address, find the home node of the underlying memory.
- */
-#define kvaddr_to_nid(kaddr)	pa_to_nid(__pa(kaddr))
-
-#define node_mem_map(nid)	(NODE_DATA(nid)->node_mem_map)
 #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
 #define node_end_pfn(nid)	(NODE_DATA(nid)->node_end_pfn)
 
 #define local_mapnr(kvaddr) \
 	( (__pa(kvaddr) >> PAGE_SHIFT) - node_start_pfn(kvaddr_to_nid(kvaddr)) 
 
+#ifdef CONFIG_DISCONTIGMEM
+
+/*
+ * Given a kernel address, find the home node of the underlying memory.
+ */
+#define kvaddr_to_nid(kaddr)	pa_to_nid(__pa(kaddr))
+
+#define pfn_to_nid(pfn)		pa_to_nid((unsigned long)(pfn) << PAGE_SHIFT)
+
 /* Written this way to avoid evaluating arguments twice */
 #define discontigmem_pfn_to_page(pfn) \
 ({ \
 	unsigned long __tmp = pfn; \
-	(node_mem_map(pfn_to_nid(__tmp)) + \
+	(NODE_DATA(pfn_to_nid(__tmp))->node_mem_map + \
 	 node_localnr(__tmp, pfn_to_nid(__tmp))); \
 })
 
@@ -91,4 +98,11 @@ static inline int pa_to_nid(unsigned long pa)
 #define discontigmem_pfn_valid(pfn)		((pfn) < num_physpages)
 
 #endif /* CONFIG_DISCONTIGMEM */
+
+#endif /* CONFIG_NEED_MULTIPLE_NODES */
+
+#ifdef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+#define early_pfn_to_nid(pfn)  pa_to_nid(((unsigned long)pfn) << PAGE_SHIFT)
+#endif
+
 #endif /* _ASM_MMZONE_H_ */

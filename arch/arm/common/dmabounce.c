@@ -93,15 +93,12 @@ static void print_alloc_stats(struct dmabounce_device_info *device_info)
 static inline struct dmabounce_device_info *
 find_dmabounce_dev(struct device *dev)
 {
-	struct list_head *entry;
+	struct dmabounce_device_info *d;
 
-	list_for_each(entry, &dmabounce_devs) {
-		struct dmabounce_device_info *d =
-			list_entry(entry, struct dmabounce_device_info, node);
-
+	list_for_each_entry(d, &dmabounce_devs, node)
 		if (d->dev == dev)
 			return d;
-	}
+
 	return NULL;
 }
 
@@ -172,15 +169,11 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 static inline struct safe_buffer *
 find_safe_buffer(struct dmabounce_device_info *device_info, dma_addr_t safe_dma_addr)
 {
-	struct list_head *entry;
+	struct safe_buffer *b;
 
-	list_for_each(entry, &device_info->safe_buffers) {
-		struct safe_buffer *b =
-			list_entry(entry, struct safe_buffer, node);
-
+	list_for_each_entry(b, &device_info->safe_buffers, node)
 		if (b->safe_dma_addr == safe_dma_addr)
 			return b;
-	}
 
 	return NULL;
 }
@@ -300,7 +293,6 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 			"%s: unsafe buffer %p (phy=%p) mapped to %p (phy=%p)\n",
 			__func__, buf->ptr, (void *) virt_to_dma(dev, buf->ptr),
 			buf->safe, (void *) buf->safe_dma_addr);
-
 
 		DO_STATS ( device_info->bounce_count++ );
 

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: background.c,v 1.50 2004/11/16 20:36:10 dwmw2 Exp $
+ * $Id: background.c,v 1.54 2005/05/20 21:37:12 gleixner Exp $
  *
  */
 
@@ -37,7 +37,7 @@ int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c)
 	if (c->gc_task)
 		BUG();
 
-	init_MUTEX_LOCKED(&c->gc_thread_start);
+	init_completion(&c->gc_thread_start);
 	init_completion(&c->gc_thread_exit);
 
 	pid = kernel_thread(jffs2_garbage_collect_thread, c, CLONE_FS|CLONE_FILES);
@@ -48,7 +48,7 @@ int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c)
 	} else {
 		/* Wait for it... */
 		D1(printk(KERN_DEBUG "JFFS2: Garbage collect thread is pid %d\n", pid));
-		down(&c->gc_thread_start);
+		wait_for_completion(&c->gc_thread_start);
 	}
  
 	return ret;
@@ -56,13 +56,16 @@ int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c)
 
 void jffs2_stop_garbage_collect_thread(struct jffs2_sb_info *c)
 {
+	int wait = 0;
 	spin_lock(&c->erase_completion_lock);
 	if (c->gc_task) {
 		D1(printk(KERN_DEBUG "jffs2: Killing GC task %d\n", c->gc_task->pid));
 		send_sig(SIGKILL, c->gc_task, 1);
+		wait = 1;
 	}
 	spin_unlock(&c->erase_completion_lock);
-	wait_for_completion(&c->gc_thread_exit);
+	if (wait)
+		wait_for_completion(&c->gc_thread_exit);
 }
 
 static int jffs2_garbage_collect_thread(void *_c)
@@ -75,7 +78,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 	allow_signal(SIGCONT);
 
 	c->gc_task = current;
-	up(&c->gc_thread_start);
+	complete(&c->gc_thread_start);
 
 	set_user_nice(current, 10);
 
@@ -92,7 +95,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 			schedule();
 		}
 
-		if (try_to_freeze(0))
+		if (try_to_freeze())
 			continue;
 
 		cond_resched();

@@ -533,6 +533,13 @@ ENTRY(__switch_to)
 	ldr	r3, [r2, #TI_TP_VALUE]
 	stmia	ip!, {r4 - sl, fp, sp, lr}	@ Store most regs on stack
 	ldr	r6, [r2, #TI_CPU_DOMAIN]!
+#if __LINUX_ARM_ARCH__ >= 6
+#ifdef CONFIG_CPU_MPCORE
+	clrex
+#else
+	strex	r3, r4, [ip]			@ Clear exclusive monitor
+#endif
+#endif
 #if defined(CONFIG_CPU_XSCALE) && !defined(CONFIG_IWMMXT)
 	mra	r4, r5, acc0
 	stmia   ip, {r4, r5}

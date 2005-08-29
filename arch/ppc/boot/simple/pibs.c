@@ -91,9 +91,11 @@ load_kernel(unsigned long load_addr, int num_words, unsigned long cksum,
 
 	mac64 = simple_strtoull((char *)PIBS_MAC_BASE, 0, 16);
 	memcpy(hold_residual->bi_enetaddr, (char *)&mac64+2, 6);
-#ifdef CONFIG_440GX
+#if defined(CONFIG_440GX) || defined(CONFIG_440EP)
 	mac64 = simple_strtoull((char *)(PIBS_MAC_BASE+PIBS_MAC_OFFSET), 0, 16);
 	memcpy(hold_residual->bi_enet1addr, (char *)&mac64+2, 6);
+#endif
+#ifdef CONFIG_440GX
 	mac64 = simple_strtoull((char *)(PIBS_MAC_BASE+PIBS_MAC_OFFSET*2), 0, 16);
 	memcpy(hold_residual->bi_enet2addr, (char *)&mac64+2, 6);
 	mac64 = simple_strtoull((char *)(PIBS_MAC_BASE+PIBS_MAC_OFFSET*3), 0, 16);

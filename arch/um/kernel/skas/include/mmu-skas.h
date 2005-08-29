@@ -6,9 +6,14 @@
 #ifndef __SKAS_MMU_H
 #define __SKAS_MMU_H
 
+#include "mm_id.h"
+
 struct mmu_context_skas {
-	int mm_fd;
+	struct mm_id id;
+        unsigned long last_page_table;
 };
+
+extern void switch_mm_skas(struct mm_id * mm_idp);
 
 #endif
 

@@ -41,7 +41,9 @@ EXPORT_SYMBOL(rpc_release_task);
 
 /* RPC client functions */
 EXPORT_SYMBOL(rpc_create_client);
+EXPORT_SYMBOL(rpc_new_client);
 EXPORT_SYMBOL(rpc_clone_client);
+EXPORT_SYMBOL(rpc_bind_new_program);
 EXPORT_SYMBOL(rpc_destroy_client);
 EXPORT_SYMBOL(rpc_shutdown_client);
 EXPORT_SYMBOL(rpc_release_client);
@@ -61,7 +63,6 @@ EXPORT_SYMBOL(rpc_mkpipe);
 
 /* Client transport */
 EXPORT_SYMBOL(xprt_create_proto);
-EXPORT_SYMBOL(xprt_destroy);
 EXPORT_SYMBOL(xprt_set_timeout);
 EXPORT_SYMBOL(xprt_udp_slot_table_entries);
 EXPORT_SYMBOL(xprt_tcp_slot_table_entries);
@@ -129,6 +130,10 @@ EXPORT_SYMBOL(xdr_encode_netobj);
 EXPORT_SYMBOL(xdr_encode_pages);
 EXPORT_SYMBOL(xdr_inline_pages);
 EXPORT_SYMBOL(xdr_shift_buf);
+EXPORT_SYMBOL(xdr_encode_word);
+EXPORT_SYMBOL(xdr_decode_word);
+EXPORT_SYMBOL(xdr_encode_array2);
+EXPORT_SYMBOL(xdr_decode_array2);
 EXPORT_SYMBOL(xdr_buf_from_iov);
 EXPORT_SYMBOL(xdr_buf_subsegment);
 EXPORT_SYMBOL(xdr_buf_read_netobj);

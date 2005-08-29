@@ -1065,7 +1065,7 @@ int		Port)	/* Port Index (MAC_1 + n) */
 	
 	/* WA code for COMA mode */
 	if (pAC->GIni.GIYukonLite &&
-		pAC->GIni.GIChipRev == CHIP_REV_YU_LITE_A3) {
+		pAC->GIni.GIChipRev >= CHIP_REV_YU_LITE_A3) {
 		
 		SK_IN32(IoC, B2_GP_IO, &DWord);
 
@@ -1110,7 +1110,7 @@ int		Port)	/* Port Index (MAC_1 + n) */
 
 	/* WA code for COMA mode */
 	if (pAC->GIni.GIYukonLite &&
-		pAC->GIni.GIChipRev == CHIP_REV_YU_LITE_A3) {
+		pAC->GIni.GIChipRev >= CHIP_REV_YU_LITE_A3) {
 		
 		SK_IN32(IoC, B2_GP_IO, &DWord);
 
@@ -2126,7 +2126,7 @@ SK_U8	Mode)		/* low power mode */
 	int		Ret = 0;
 
 	if (pAC->GIni.GIYukonLite &&
-	    pAC->GIni.GIChipRev == CHIP_REV_YU_LITE_A3) {
+	    pAC->GIni.GIChipRev >= CHIP_REV_YU_LITE_A3) {
 
 		/* save current power mode */
 		LastMode = pAC->GIni.GP[Port].PPhyPowerState;
@@ -2253,7 +2253,7 @@ int		Port)		/* Port Index (e.g. MAC_1) */
 	int		Ret = 0;
 
 	if (pAC->GIni.GIYukonLite &&
-		pAC->GIni.GIChipRev == CHIP_REV_YU_LITE_A3) {
+		pAC->GIni.GIChipRev >= CHIP_REV_YU_LITE_A3) {
 
 		/* save current power mode */
 		LastMode = pAC->GIni.GP[Port].PPhyPowerState;

@@ -1009,6 +1009,15 @@ static int __init init_ipv4_mibs(void)
 static int ipv4_proc_init(void);
 extern void ipfrag_init(void);
 
+/*
+ *	IP protocol layer initialiser
+ */
+
+static struct packet_type ip_packet_type = {
+	.type = __constant_htons(ETH_P_IP),
+	.func = ip_rcv,
+};
+
 static int __init inet_init(void)
 {
 	struct sk_buff *dummy_skb;
@@ -1102,6 +1111,8 @@ static int __init inet_init(void)
 
 	ipfrag_init();
 
+	dev_add_pack(&ip_packet_type);
+
 	rc = 0;
 out:
 	return rc;
@@ -1146,7 +1157,7 @@ static int __init ipv4_proc_init(void)
 #ifdef CONFIG_IP_FIB_TRIE
          if (fib_stat_proc_init())
                  goto out_fib_stat;
- #endif
+#endif
 	if (ip_misc_proc_init())
 		goto out_misc;
 out:

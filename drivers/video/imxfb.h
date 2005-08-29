@@ -54,6 +54,7 @@ struct imxfb_info {
 	u_int			pcr;
 	u_int			pwmr;
 	u_int			lscr1;
+	u_int			dmacr;
 	u_int			cmap_inverse:1,
 				cmap_static:1,
 				unused:30;

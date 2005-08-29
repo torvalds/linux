@@ -42,7 +42,7 @@ done:
 	irq_exit();
 }
 
-static void __init intel_init_thermal(struct cpuinfo_x86 *c)
+static void __cpuinit intel_init_thermal(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
 	int tm2 = 0;
@@ -93,7 +93,7 @@ static void __init intel_init_thermal(struct cpuinfo_x86 *c)
 	return;
 }
 
-void __init mce_intel_feature_init(struct cpuinfo_x86 *c)
+void __cpuinit mce_intel_feature_init(struct cpuinfo_x86 *c)
 {
 	intel_init_thermal(c);
 }

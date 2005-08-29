@@ -290,11 +290,8 @@ static inline void i2c_set_adapdata (struct i2c_adapter *dev, void *data)
  */
 struct i2c_client_address_data {
 	unsigned short *normal_i2c;
-	unsigned short *normal_i2c_range;
 	unsigned short *probe;
-	unsigned short *probe_range;
 	unsigned short *ignore;
-	unsigned short *ignore_range;
 	unsigned short *force;
 };
 
@@ -563,24 +560,15 @@ union i2c_smbus_data {
 #define I2C_CLIENT_INSMOD \
   I2C_CLIENT_MODULE_PARM(probe, \
                       "List of adapter,address pairs to scan additionally"); \
-  I2C_CLIENT_MODULE_PARM(probe_range, \
-                      "List of adapter,start-addr,end-addr triples to scan " \
-                      "additionally"); \
   I2C_CLIENT_MODULE_PARM(ignore, \
                       "List of adapter,address pairs not to scan"); \
-  I2C_CLIENT_MODULE_PARM(ignore_range, \
-                      "List of adapter,start-addr,end-addr triples not to " \
-                      "scan"); \
   I2C_CLIENT_MODULE_PARM(force, \
                       "List of adapter,address pairs to boldly assume " \
                       "to be present"); \
 	static struct i2c_client_address_data addr_data = {		\
 			.normal_i2c = 		normal_i2c,		\
-			.normal_i2c_range =	normal_i2c_range,	\
 			.probe =		probe,			\
-			.probe_range =		probe_range,		\
 			.ignore =		ignore,			\
-			.ignore_range =		ignore_range,		\
 			.force =		force,			\
 		}
 

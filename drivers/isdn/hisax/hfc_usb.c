@@ -60,7 +60,7 @@ static const char *hfcusb_revision =
 #include "hisax_debug.h"
 static u_int debug;
 module_param(debug, uint, 0);
-int hfc_debug;
+static int hfc_debug;
 #endif
 
 
@@ -85,7 +85,7 @@ static struct usb_device_id hfc_usb_idtab[] = {
 *   VendorID, ProductID, Devicename, LED_SCHEME,
 *   LED's BitMask in HFCUSB_P_DATA Register : LED_USB, LED_S0, LED_B1, LED_B2
 */
-vendor_data vdata[] = {
+static vendor_data vdata[] = {
 	/* CologneChip Eval TA */
 	{0x0959, 0x2bd0, "ISDN USB TA (Cologne Chip HFC-S USB based)",
 	 LED_OFF, {4, 0, 2, 1}
@@ -1137,7 +1137,7 @@ set_hfcmode(hfcusb_data * hfc, int channel, int mode)
 	}
 }
 
-void
+static void
 hfc_usb_l2l1(struct hisax_if *my_hisax_if, int pr, void *arg)
 {
 	usb_fifo *fifo = my_hisax_if->priv;

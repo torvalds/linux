@@ -154,6 +154,11 @@ config S3C2410_PM_CHECK_CHUNKSIZE
 	  the CRC data block will take more memory, but wil identify any
 	  faults with better precision.
 
+config PM_SIMTEC
+	bool
+	depends on PM && (ARCH_BAST || MACH_VR1000)
+	default y
+
 config S3C2410_LOWLEVEL_UART_PORT
 	int "S3C2410 UART to use for low-level messages"
 	default 0

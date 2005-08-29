@@ -424,6 +424,7 @@ struct _snd_intel8x0 {
 	unsigned xbox: 1;		/* workaround for Xbox AC'97 detection */
 
 	int spdif_idx;	/* SPDIF BAR index; *_SPBAR or -1 if use PCMOUT */
+	unsigned int sdm_saved;	/* SDM reg value */
 
 	ac97_bus_t *ac97_bus;
 	ac97_t *ac97[3];
@@ -1725,229 +1726,235 @@ static struct ac97_pcm ac97_pcm_defs[] __devinitdata = {
 
 static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	{
-		.vendor = 0x0e11,
-		.device = 0x008a,
+		.subvendor = 0x0e11,
+		.subdevice = 0x008a,
 		.name = "Compaq Evo W4000",	/* AD1885 */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x0e11,
-		.device = 0x00b8,
+		.subvendor = 0x0e11,
+		.subdevice = 0x00b8,
 		.name = "Compaq Evo D510C",
 		.type = AC97_TUNE_HP_ONLY
 	},
         {
-		.vendor = 0x0e11,
-		.device = 0x0860,
+		.subvendor = 0x0e11,
+		.subdevice = 0x0860,
 		.name = "HP/Compaq nx7010",
 		.type = AC97_TUNE_MUTE_LED
         },
 	{
-		.vendor = 0x1014,
-		.device = 0x1f00,
+		.subvendor = 0x1014,
+		.subdevice = 0x1f00,
 		.name = "MS-9128",
 		.type = AC97_TUNE_ALC_JACK
 	},
 	{
-		.vendor = 0x1028,
-		.device = 0x00d8,
+		.subvendor = 0x1028,
+		.subdevice = 0x00d8,
 		.name = "Dell Precision 530",	/* AD1885 */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x1028,
-		.device = 0x010d,
+		.subvendor = 0x1028,
+		.subdevice = 0x010d,
 		.name = "Dell",	/* which model?  AD1885 */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x1028,
-		.device = 0x0126,
+		.subvendor = 0x1028,
+		.subdevice = 0x0126,
 		.name = "Dell Optiplex GX260",	/* AD1981A */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x1028,
-		.device = 0x012c,
+		.subvendor = 0x1028,
+		.subdevice = 0x012c,
 		.name = "Dell Precision 650",	/* AD1981A */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x1028,
-		.device = 0x012d,
+		.subvendor = 0x1028,
+		.subdevice = 0x012d,
 		.name = "Dell Precision 450",	/* AD1981B*/
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x1028,
-		.device = 0x0147,
+		.subvendor = 0x1028,
+		.subdevice = 0x0147,
 		.name = "Dell",	/* which model?  AD1981B*/
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x1028,
-		.device = 0x0163,
+		.subvendor = 0x1028,
+		.subdevice = 0x0163,
 		.name = "Dell Unknown",	/* STAC9750/51 */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x103c,
-		.device = 0x006d,
+		.subvendor = 0x103c,
+		.subdevice = 0x006d,
 		.name = "HP zv5000",
 		.type = AC97_TUNE_MUTE_LED	/*AD1981B*/
 	},
 	{	/* FIXME: which codec? */
-		.vendor = 0x103c,
-		.device = 0x00c3,
+		.subvendor = 0x103c,
+		.subdevice = 0x00c3,
 		.name = "HP xw6000",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x103c,
-		.device = 0x088c,
+		.subvendor = 0x103c,
+		.subdevice = 0x088c,
 		.name = "HP nc8000",
 		.type = AC97_TUNE_MUTE_LED
 	},
 	{
-		.vendor = 0x103c,
-		.device = 0x0890,
+		.subvendor = 0x103c,
+		.subdevice = 0x0890,
 		.name = "HP nc6000",
 		.type = AC97_TUNE_MUTE_LED
 	},
 	{
-		.vendor = 0x103c,
-		.device = 0x129d,
+		.subvendor = 0x103c,
+		.subdevice = 0x129d,
 		.name = "HP xw8000",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x103c,
-		.device = 0x12f1,
+		.subvendor = 0x103c,
+		.subdevice = 0x12f1,
 		.name = "HP xw8200",	/* AD1981B*/
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x103c,
-		.device = 0x12f2,
+		.subvendor = 0x103c,
+		.subdevice = 0x12f2,
 		.name = "HP xw6200",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x103c,
-		.device = 0x3008,
+		.subvendor = 0x103c,
+		.subdevice = 0x3008,
 		.name = "HP xw4200",	/* AD1981B*/
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x104d,
-		.device = 0x8197,
+		.subvendor = 0x104d,
+		.subdevice = 0x8197,
 		.name = "Sony S1XP",
 		.type = AC97_TUNE_INV_EAPD
 	},
  	{
-		.vendor = 0x1043,
-		.device = 0x80f3,
+		.subvendor = 0x1043,
+		.subdevice = 0x80f3,
 		.name = "ASUS ICH5/AD1985",
 		.type = AC97_TUNE_AD_SHARING
 	},
 	{
-		.vendor = 0x10cf,
-		.device = 0x11c3,
+		.subvendor = 0x10cf,
+		.subdevice = 0x11c3,
 		.name = "Fujitsu-Siemens E4010",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x10cf,
-		.device = 0x1253,
+		.subvendor = 0x10cf,
+		.subdevice = 0x1225,
+		.name = "Fujitsu-Siemens T3010",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x10cf,
+		.subdevice = 0x1253,
 		.name = "Fujitsu S6210",	/* STAC9750/51 */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x10f1,
-		.device = 0x2665,
+		.subvendor = 0x10f1,
+		.subdevice = 0x2665,
 		.name = "Fujitsu-Siemens Celsius",	/* AD1981? */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x10f1,
-		.device = 0x2885,
+		.subvendor = 0x10f1,
+		.subdevice = 0x2885,
 		.name = "AMD64 Mobo",	/* ALC650 */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x110a,
-		.device = 0x0056,
+		.subvendor = 0x110a,
+		.subdevice = 0x0056,
 		.name = "Fujitsu-Siemens Scenic",	/* AD1981? */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x11d4,
-		.device = 0x5375,
+		.subvendor = 0x11d4,
+		.subdevice = 0x5375,
 		.name = "ADI AD1985 (discrete)",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x1462,
-		.device = 0x5470,
+		.subvendor = 0x1462,
+		.subdevice = 0x5470,
 		.name = "MSI P4 ATX 645 Ultra",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x1734,
-		.device = 0x0088,
+		.subvendor = 0x1734,
+		.subdevice = 0x0088,
 		.name = "Fujitsu-Siemens D1522",	/* AD1981 */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x8086,
-		.device = 0x2000,
+		.subvendor = 0x8086,
+		.subdevice = 0x2000,
 		.mask = 0xfff0,
 		.name = "Intel ICH5/AD1985",
 		.type = AC97_TUNE_AD_SHARING
 	},
 	{
-		.vendor = 0x8086,
-		.device = 0x4000,
+		.subvendor = 0x8086,
+		.subdevice = 0x4000,
 		.mask = 0xfff0,
 		.name = "Intel ICH5/AD1985",
 		.type = AC97_TUNE_AD_SHARING
 	},
 	{
-		.vendor = 0x8086,
-		.device = 0x4856,
+		.subvendor = 0x8086,
+		.subdevice = 0x4856,
 		.name = "Intel D845WN (82801BA)",
 		.type = AC97_TUNE_SWAP_HP
 	},
 	{
-		.vendor = 0x8086,
-		.device = 0x4d44,
+		.subvendor = 0x8086,
+		.subdevice = 0x4d44,
 		.name = "Intel D850EMV2",	/* AD1885 */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x8086,
-		.device = 0x4d56,
+		.subvendor = 0x8086,
+		.subdevice = 0x4d56,
 		.name = "Intel ICH/AD1885",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
-		.vendor = 0x8086,
-		.device = 0x6000,
+		.subvendor = 0x8086,
+		.subdevice = 0x6000,
 		.mask = 0xfff0,
 		.name = "Intel ICH5/AD1985",
 		.type = AC97_TUNE_AD_SHARING
 	},
 	{
-		.vendor = 0x8086,
-		.device = 0xe000,
+		.subvendor = 0x8086,
+		.subdevice = 0xe000,
 		.mask = 0xfff0,
 		.name = "Intel ICH5/AD1985",
 		.type = AC97_TUNE_AD_SHARING
 	},
 #if 0 /* FIXME: this seems wrong on most boards */
 	{
-		.vendor = 0x8086,
-		.device = 0xa000,
+		.subvendor = 0x8086,
+		.subdevice = 0xa000,
 		.mask = 0xfff0,
 		.name = "Intel ICH5/AD1985",
 		.type = AC97_TUNE_HP_ONLY
@@ -2367,6 +2374,11 @@ static int intel8x0_suspend(snd_card_t *card, pm_message_t state)
 	for (i = 0; i < 3; i++)
 		if (chip->ac97[i])
 			snd_ac97_suspend(chip->ac97[i]);
+	if (chip->device_type == DEVICE_INTEL_ICH4)
+		chip->sdm_saved = igetbyte(chip, ICHREG(SDM));
+
+	if (chip->irq >= 0)
+		free_irq(chip->irq, (void *)chip);
 	pci_disable_device(chip->pci);
 	return 0;
 }
@@ -2378,7 +2390,19 @@ static int intel8x0_resume(snd_card_t *card)
 
 	pci_enable_device(chip->pci);
 	pci_set_master(chip->pci);
-	snd_intel8x0_chip_init(chip, 0);
+	request_irq(chip->irq, snd_intel8x0_interrupt, SA_INTERRUPT|SA_SHIRQ, card->shortname, (void *)chip);
+	synchronize_irq(chip->irq);
+	snd_intel8x0_chip_init(chip, 1);
+
+	/* re-initialize mixer stuff */
+	if (chip->device_type == DEVICE_INTEL_ICH4) {
+		/* enable separate SDINs for ICH4 */
+		iputbyte(chip, ICHREG(SDM), chip->sdm_saved);
+		/* use slot 10/11 for SPDIF */
+		iputdword(chip, ICHREG(GLOB_CNT),
+			  (igetdword(chip, ICHREG(GLOB_CNT)) & ~ICH_PCM_SPDIF_MASK) |
+			  ICH_PCM_SPDIF_1011);
+	}
 
 	/* refill nocache */
 	if (chip->fix_nocache)
@@ -2445,8 +2469,7 @@ static void __devinit intel8x0_measure_ac97_clock(intel8x0_t *chip)
 	}
 	do_gettimeofday(&start_time);
 	spin_unlock_irq(&chip->reg_lock);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ / 20);
+	msleep(50);
 	spin_lock_irq(&chip->reg_lock);
 	/* check the position */
 	pos = ichdev->fragsize1;
@@ -2849,7 +2872,7 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_intel8x0_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_intel8x0_exit(void)

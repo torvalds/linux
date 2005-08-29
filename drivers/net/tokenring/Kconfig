@@ -84,7 +84,7 @@ config 3C359
 
 config TMS380TR
 	tristate "Generic TMS380 Token Ring ISA/PCI adapter support"
-	depends on TR && (PCI || ISA)
+	depends on TR && (PCI || ISA && ISA_DMA_API)
 	select FW_LOADER
 	---help---
 	  This driver provides generic support for token ring adapters

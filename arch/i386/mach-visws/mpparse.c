@@ -23,7 +23,6 @@ unsigned long mp_lapic_addr;
 
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
-unsigned int boot_cpu_logical_apicid = -1U;
 
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map;
@@ -52,10 +51,8 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 		(m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
 		m->mpc_apicver);
 
-	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
+	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR)
 		boot_cpu_physical_apicid = m->mpc_apicid;
-		boot_cpu_logical_apicid = logical_apicid;
-	}
 
 	ver = m->mpc_apicver;
 	if ((ver >= 0x14 && m->mpc_apicid >= 0xff) || m->mpc_apicid >= 0xf) {

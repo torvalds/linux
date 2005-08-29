@@ -40,9 +40,13 @@ struct device_node *fetch_dev_dn(struct pci_dev *dev);
 void pci_addr_cache_insert_device(struct pci_dev *dev);
 void pci_addr_cache_remove_device(struct pci_dev *dev);
 
-/* From pSeries_pci.h */
+/* From rtas_pci.h */
 void init_pci_config_tokens (void);
 unsigned long get_phb_buid (struct device_node *);
+
+/* From pSeries_pci.h */
+extern void pSeries_final_fixup(void);
+extern void pSeries_irq_bus_setup(struct pci_bus *bus);
 
 extern unsigned long pci_probe_only;
 extern unsigned long pci_assign_all_buses;

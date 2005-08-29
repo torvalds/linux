@@ -314,7 +314,7 @@ static int may_ptrace_attach(struct task_struct *task)
 	     (current->gid != task->gid)) && !capable(CAP_SYS_PTRACE))
 		goto out;
 	rmb();
-	if (!task->mm->dumpable && !capable(CAP_SYS_PTRACE))
+	if (task->mm->dumpable != 1 && !capable(CAP_SYS_PTRACE))
 		goto out;
 	if (security_ptrace(current, task))
 		goto out;
@@ -890,7 +890,7 @@ static struct file_operations proc_seccomp_operations = {
 };
 #endif /* CONFIG_SECCOMP */
 
-static int proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *inode = dentry->d_inode;
 	int error = -EACCES;
@@ -907,7 +907,7 @@ static int proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
 	error = PROC_I(inode)->op.proc_get_link(inode, &nd->dentry, &nd->mnt);
 	nd->last_type = LAST_BIND;
 out:
-	return error;
+	return ERR_PTR(error);
 }
 
 static int do_proc_readlink(struct dentry *dentry, struct vfsmount *mnt,
@@ -1113,7 +1113,9 @@ static int task_dumpable(struct task_struct *task)
 	if (mm)
 		dumpable = mm->dumpable;
 	task_unlock(task);
-	return dumpable;
+	if(dumpable == 1)
+		return 1;
+	return 0;
 }
 
 
@@ -1690,11 +1692,11 @@ static int proc_self_readlink(struct dentry *dentry, char __user *buffer,
 	return vfs_readlink(dentry,buffer,buflen,tmp);
 }
 
-static int proc_self_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *proc_self_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	char tmp[30];
 	sprintf(tmp, "%d", current->tgid);
-	return vfs_follow_link(nd,tmp);
+	return ERR_PTR(vfs_follow_link(nd,tmp));
 }	
 
 static struct inode_operations proc_self_inode_operations = {

@@ -72,7 +72,7 @@ int pcmcia_adjust_resource_info(adjust_t *adj)
 			/* you can't use the old interface if the new
 			 * one was used before */
 			spin_lock_irqsave(&s->lock, flags);
-			if ((s->resource_setup_done) &&
+			if ((s->resource_setup_new) &&
 			    !(s->resource_setup_old)) {
 				spin_unlock_irqrestore(&s->lock, flags);
 				continue;
@@ -105,29 +105,32 @@ void pcmcia_validate_mem(struct pcmcia_socket *s)
 }
 EXPORT_SYMBOL(pcmcia_validate_mem);
 
-int adjust_io_region(struct resource *res, unsigned long r_start,
+int pcmcia_adjust_io_region(struct resource *res, unsigned long r_start,
 		     unsigned long r_end, struct pcmcia_socket *s)
 {
 	if (s->resource_ops->adjust_io_region)
 		return s->resource_ops->adjust_io_region(res, r_start, r_end, s);
 	return -ENOMEM;
 }
+EXPORT_SYMBOL(pcmcia_adjust_io_region);
 
-struct resource *find_io_region(unsigned long base, int num,
+struct resource *pcmcia_find_io_region(unsigned long base, int num,
 		   unsigned long align, struct pcmcia_socket *s)
 {
 	if (s->resource_ops->find_io)
 		return s->resource_ops->find_io(base, num, align, s);
 	return NULL;
 }
+EXPORT_SYMBOL(pcmcia_find_io_region);
 
-struct resource *find_mem_region(u_long base, u_long num, u_long align,
+struct resource *pcmcia_find_mem_region(u_long base, u_long num, u_long align,
 				 int low, struct pcmcia_socket *s)
 {
 	if (s->resource_ops->find_mem)
 		return s->resource_ops->find_mem(base, num, align, low, s);
 	return NULL;
 }
+EXPORT_SYMBOL(pcmcia_find_mem_region);
 
 void release_resource_db(struct pcmcia_socket *s)
 {

@@ -504,6 +504,9 @@ done:
 		break;
 	case IPV6_IPSEC_POLICY:
 	case IPV6_XFRM_POLICY:
+		retv = -EPERM;
+		if (!capable(CAP_NET_ADMIN))
+			break;
 		retv = xfrm_user_policy(sk, optname, optval, optlen);
 		break;
 

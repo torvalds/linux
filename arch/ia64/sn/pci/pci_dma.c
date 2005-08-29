@@ -11,9 +11,10 @@
 
 #include <linux/module.h>
 #include <asm/dma.h>
-#include <asm/sn/sn_sal.h>
+#include <asm/sn/pcibr_provider.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
+#include <asm/sn/sn_sal.h>
 
 #define SG_ENT_VIRT_ADDRESS(sg)	(page_address((sg)->page) + (sg)->offset)
 #define SG_ENT_PHYS_ADDRESS(SG)	virt_to_phys(SG_ENT_VIRT_ADDRESS(SG))
@@ -78,6 +79,7 @@ void *sn_dma_alloc_coherent(struct device *dev, size_t size,
 {
 	void *cpuaddr;
 	unsigned long phys_addr;
+	int node;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
@@ -85,10 +87,19 @@ void *sn_dma_alloc_coherent(struct device *dev, size_t size,
 
 	/*
 	 * Allocate the memory.
-	 * FIXME: We should be doing alloc_pages_node for the node closest
-	 *        to the PCI device.
 	 */
-	if (!(cpuaddr = (void *)__get_free_pages(GFP_ATOMIC, get_order(size))))
+	node = pcibus_to_node(pdev->bus);
+	if (likely(node >=0)) {
+		struct page *p = alloc_pages_node(node, GFP_ATOMIC, get_order(size));
+
+		if (likely(p))
+			cpuaddr = page_address(p);
+		else
+			return NULL;
+	} else
+		cpuaddr = (void *)__get_free_pages(GFP_ATOMIC, get_order(size));
+
+	if (unlikely(!cpuaddr))
 		return NULL;
 
 	memset(cpuaddr, 0x0, size);

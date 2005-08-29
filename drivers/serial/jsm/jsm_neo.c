@@ -48,8 +48,9 @@ static inline void neo_pci_posting_flush(struct jsm_board *bd)
 
 static void neo_set_cts_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Setting CTSFLOW\n");
 
@@ -78,8 +79,9 @@ static void neo_set_cts_flow_control(struct jsm_channel *ch)
 
 static void neo_set_rts_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Setting RTSFLOW\n");
 
@@ -117,8 +119,9 @@ static void neo_set_rts_flow_control(struct jsm_channel *ch)
 
 static void neo_set_ixon_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Setting IXON FLOW\n");
 
@@ -153,8 +156,9 @@ static void neo_set_ixon_flow_control(struct jsm_channel *ch)
 
 static void neo_set_ixoff_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Setting IXOFF FLOW\n");
 
@@ -190,8 +194,9 @@ static void neo_set_ixoff_flow_control(struct jsm_channel *ch)
 
 static void neo_set_no_input_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Unsetting Input FLOW\n");
 
@@ -228,8 +233,9 @@ static void neo_set_no_input_flow_control(struct jsm_channel *ch)
 
 static void neo_set_no_output_flow_control(struct jsm_channel *ch)
 {
-	u8 ier = readb(&ch->ch_neo_uart->ier);
-	u8 efr = readb(&ch->ch_neo_uart->efr);
+	u8 ier, efr;
+	ier = readb(&ch->ch_neo_uart->ier);
+	efr = readb(&ch->ch_neo_uart->efr);
 
 	jsm_printk(PARAM, INFO, &ch->ch_bd->pci_dev, "Unsetting Output FLOW\n");
 

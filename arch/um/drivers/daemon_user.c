@@ -157,9 +157,9 @@ static void daemon_remove(void *data)
 
 	os_close_file(pri->fd);
 	os_close_file(pri->control);
-	if(pri->data_addr != NULL) kfree(pri->data_addr);
-	if(pri->ctl_addr != NULL) kfree(pri->ctl_addr);
-	if(pri->local_addr != NULL) kfree(pri->local_addr);
+	kfree(pri->data_addr);
+	kfree(pri->ctl_addr);
+	kfree(pri->local_addr);
 }
 
 int daemon_user_write(int fd, void *buf, int len, struct daemon_data *pri)

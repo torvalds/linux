@@ -977,8 +977,8 @@ static int ide_init_queue(ide_drive_t *drive)
 	 *	limits and LBA48 we could raise it but as yet
 	 *	do not.
 	 */
-	 
-	q = blk_init_queue(do_ide_request, &ide_lock);
+
+	q = blk_init_queue_node(do_ide_request, &ide_lock, hwif_to_node(hwif));
 	if (!q)
 		return 1;
 
@@ -1047,6 +1047,8 @@ static int init_irq (ide_hwif_t *hwif)
 
 	BUG_ON(in_interrupt());
 	BUG_ON(irqs_disabled());	
+	BUG_ON(hwif == NULL);
+
 	down(&ide_cfg_sem);
 	hwif->hwgroup = NULL;
 #if MAX_HWIFS > 1
@@ -1095,7 +1097,8 @@ static int init_irq (ide_hwif_t *hwif)
 		hwgroup->hwif->next = hwif;
 		spin_unlock_irq(&ide_lock);
 	} else {
-		hwgroup = kmalloc(sizeof(ide_hwgroup_t),GFP_KERNEL);
+		hwgroup = kmalloc_node(sizeof(ide_hwgroup_t), GFP_KERNEL,
+					hwif_to_node(hwif->drives[0].hwif));
 		if (!hwgroup)
 	       		goto out_up;
 

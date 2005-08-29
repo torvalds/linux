@@ -401,10 +401,8 @@ static void usX2Y_urbs_release(snd_usX2Y_substream_t *subs)
 	for (i = 0; i < NRURBS; i++)
 		usX2Y_urb_release(subs->urb + i, subs != subs->usX2Y->subs[SNDRV_PCM_STREAM_PLAYBACK]);
 
-	if (subs->tmpbuf) {
-		kfree(subs->tmpbuf);
-		subs->tmpbuf = NULL;
-	}
+	kfree(subs->tmpbuf);
+	subs->tmpbuf = NULL;
 }
 /*
  * initialize a substream's urbs

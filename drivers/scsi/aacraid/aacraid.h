@@ -15,11 +15,7 @@
 #define AAC_MAX_LUN		(8)
 
 #define AAC_MAX_HOSTPHYSMEMPAGES (0xfffff)
-/*
- *  max_sectors is an unsigned short, otherwise limit is 0x100000000 / 512
- * Linux has starvation problems if we permit larger than 4MB I/O ...
- */
-#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)8192)
+#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)512)
 
 /*
  * These macros convert from physical channels to virtual channels
@@ -845,6 +841,28 @@ struct aac_supplement_adapter_info
 #define AAC_SIS_VERSION_V3	3
 #define AAC_SIS_SLOT_UNKNOWN	0xFF
 
+#define GetBusInfo 0x00000009
+struct aac_bus_info {
+	__le32	Command;	/* VM_Ioctl */
+	__le32	ObjType;	/* FT_DRIVE */
+	__le32	MethodId;	/* 1 = SCSI Layer */
+	__le32	ObjectId;	/* Handle */
+	__le32	CtlCmd;		/* GetBusInfo */
+};
+
+struct aac_bus_info_response {
+	__le32	Status;		/* ST_OK */
+	__le32	ObjType;
+	__le32	MethodId;	/* unused */
+	__le32	ObjectId;	/* unused */
+	__le32	CtlCmd;		/* unused */
+	__le32	ProbeComplete;
+	__le32	BusCount;
+	__le32	TargetsPerBus;
+	u8	InitiatorBusId[10];
+	u8	BusValid[10];
+};
+
 /*
  * Battery platforms
  */
@@ -934,6 +952,8 @@ struct aac_dev
 
 	struct Scsi_Host	*scsi_host_ptr;
 	int			maximum_num_containers;
+	int			maximum_num_physicals;
+	int			maximum_num_channels;
 	struct fsa_dev_info	*fsa_dev;
 	pid_t			thread_pid;
 	int			cardtype;

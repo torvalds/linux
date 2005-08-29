@@ -28,12 +28,14 @@
 #ifndef SRP_H
 #define SRP_H
 
+#define SRP_VERSION "16.a"
+
 #define PACKED __attribute__((packed))
 
 enum srp_types {
 	SRP_LOGIN_REQ_TYPE = 0x00,
 	SRP_LOGIN_RSP_TYPE = 0xC0,
-	SRP_LOGIN_REJ_TYPE = 0x80,
+	SRP_LOGIN_REJ_TYPE = 0xC2,
 	SRP_I_LOGOUT_TYPE = 0x03,
 	SRP_T_LOGOUT_TYPE = 0x80,
 	SRP_TSK_MGMT_TYPE = 0x01,

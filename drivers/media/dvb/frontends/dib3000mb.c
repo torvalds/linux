@@ -48,8 +48,6 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info,2=xfer,4=setfe,8=getfe (|-a
 #define deb_setf(args...) dprintk(0x04,args)
 #define deb_getf(args...) dprintk(0x08,args)
 
-static int dib3000mb_tuner_pass_ctrl(struct dvb_frontend *fe, int onoff, u8 pll_addr);
-
 static int dib3000mb_get_frontend(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters *fep);
 
@@ -61,10 +59,8 @@ static int dib3000mb_set_frontend(struct dvb_frontend* fe,
 	fe_code_rate_t fe_cr = FEC_NONE;
 	int search_state, seq;
 
-	if (tuner && state->config.pll_addr && state->config.pll_set) {
-		dib3000mb_tuner_pass_ctrl(fe,1,state->config.pll_addr(fe));
-		state->config.pll_set(fe, fep, NULL);
-		dib3000mb_tuner_pass_ctrl(fe,0,state->config.pll_addr(fe));
+	if (tuner && state->config.pll_set) {
+		state->config.pll_set(fe, fep);
 
 		deb_setf("bandwidth: ");
 		switch (ofdm->bandwidth) {
@@ -389,11 +385,8 @@ static int dib3000mb_fe_init(struct dvb_frontend* fe, int mobile_mode)
 
 	wr(DIB3000MB_REG_DATA_IN_DIVERSITY, DIB3000MB_DATA_DIVERSITY_IN_OFF);
 
-	if (state->config.pll_init) {
-		dib3000mb_tuner_pass_ctrl(fe,1,state->config.pll_addr(fe));
-		state->config.pll_init(fe,NULL);
-		dib3000mb_tuner_pass_ctrl(fe,0,state->config.pll_addr(fe));
-	}
+	if (state->config.pll_init)
+		state->config.pll_init(fe);
 
 	return 0;
 }
@@ -623,7 +616,7 @@ static int dib3000mb_read_unc_blocks(struct dvb_frontend* fe, u32 *unc)
 {
 	struct dib3000_state* state = fe->demodulator_priv;
 
-	*unc = rd(DIB3000MB_REG_UNC);
+	*unc = rd(DIB3000MB_REG_PACKET_ERROR_RATE);
 	return 0;
 }
 
@@ -638,9 +631,6 @@ static int dib3000mb_sleep(struct dvb_frontend* fe)
 static int dib3000mb_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings *tune)
 {
 	tune->min_delay_ms = 800;
-	tune->step_size = 166667;
-	tune->max_drift = 166667 * 2;
-
 	return 0;
 }
 

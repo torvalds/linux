@@ -16,6 +16,11 @@ struct sysdev_class cpu_sysdev_class = {
 EXPORT_SYMBOL(cpu_sysdev_class);
 
 #ifdef CONFIG_HOTPLUG_CPU
+int __attribute__((weak)) smp_prepare_cpu (int cpu)
+{
+	return 0;
+}
+
 static ssize_t show_online(struct sys_device *dev, char *buf)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
@@ -36,7 +41,11 @@ static ssize_t store_online(struct sys_device *dev, const char *buf,
 			kobject_hotplug(&dev->kobj, KOBJ_OFFLINE);
 		break;
 	case '1':
-		ret = cpu_up(cpu->sysdev.id);
+		ret = smp_prepare_cpu(cpu->sysdev.id);
+		if (!ret)
+			ret = cpu_up(cpu->sysdev.id);
+		if (!ret)
+			kobject_hotplug(&dev->kobj, KOBJ_ONLINE);
 		break;
 	default:
 		ret = -EINVAL;

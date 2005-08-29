@@ -64,7 +64,8 @@
  ******************************************************************************/
 
 acpi_status
-acpi_enable (void)
+acpi_enable (
+	void)
 {
 	acpi_status                     status = AE_OK;
 
@@ -91,7 +92,8 @@ acpi_enable (void)
 			return_ACPI_STATUS (status);
 		}
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "Transition to ACPI mode successful\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_INIT,
+			"Transition to ACPI mode successful\n"));
 	}
 
 	return_ACPI_STATUS (status);
@@ -106,12 +108,13 @@ acpi_enable (void)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Transfers the system into LEGACY mode.
+ * DESCRIPTION: Transfers the system into LEGACY (non-ACPI) mode.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_disable (void)
+acpi_disable (
+	void)
 {
 	acpi_status                     status = AE_OK;
 
@@ -125,7 +128,8 @@ acpi_disable (void)
 	}
 
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_LEGACY) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "System is already in legacy (non-ACPI) mode\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_INIT,
+			"System is already in legacy (non-ACPI) mode\n"));
 	}
 	else {
 		/* Transition to LEGACY mode */
@@ -133,7 +137,8 @@ acpi_disable (void)
 		status = acpi_hw_set_mode (ACPI_SYS_MODE_LEGACY);
 
 		if (ACPI_FAILURE (status)) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not exit ACPI mode to legacy mode"));
+			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+				"Could not exit ACPI mode to legacy mode"));
 			return_ACPI_STATUS (status);
 		}
 
@@ -214,7 +219,7 @@ EXPORT_SYMBOL(acpi_enable_event);
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Enable an ACPI event (general purpose)
+ * DESCRIPTION: Set the type of an individual GPE
  *
  ******************************************************************************/
 
@@ -519,13 +524,12 @@ unlock_and_exit:
 
 
 #ifdef ACPI_FUTURE_USAGE
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_event_status
  *
  * PARAMETERS:  Event           - The fixed event
- *              Event Status    - Where the current status of the event will
+ *              event_status    - Where the current status of the event will
  *                                be returned
  *
  * RETURN:      Status
@@ -571,7 +575,7 @@ acpi_get_event_status (
  * PARAMETERS:  gpe_device      - Parent GPE Device
  *              gpe_number      - GPE level within the GPE block
  *              Flags           - Called from an ISR or not
- *              Event Status    - Where the current status of the event will
+ *              event_status    - Where the current status of the event will
  *                                be returned
  *
  * RETURN:      Status
@@ -775,4 +779,5 @@ unlock_and_exit:
 	(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS (status);
 }
+
 EXPORT_SYMBOL(acpi_remove_gpe_block);

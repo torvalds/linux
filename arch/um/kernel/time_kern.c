@@ -137,7 +137,10 @@ long um_stime(int __user *tptr)
 void timer_handler(int sig, union uml_pt_regs *regs)
 {
 	local_irq_disable();
-	update_process_times(CHOOSE_MODE(user_context(UPT_SP(regs)), (regs)->skas.is_user));
+	irq_enter();
+	update_process_times(CHOOSE_MODE(user_context(UPT_SP(regs)),
+					 (regs)->skas.is_user));
+	irq_exit();
 	local_irq_enable();
 	if(current_thread->cpu == 0)
 		timer_irq(regs);
@@ -162,7 +165,7 @@ int __init timer_init(void)
 {
 	int err;
 
-	CHOOSE_MODE(user_time_init_tt(), user_time_init_skas());
+	user_time_init();
 	err = request_irq(TIMER_IRQ, um_timer, SA_INTERRUPT, "timer", NULL);
 	if(err != 0)
 		printk(KERN_ERR "timer_init : request_irq failed - "

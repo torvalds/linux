@@ -2,8 +2,8 @@
  * include/asm-v850/v850e2_cache_cache.h -- Cache control for V850E2
  * 	cache memories
  *
- *  Copyright (C) 2003  NEC Electronics Corporation
- *  Copyright (C) 2003  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2003,05  NEC Electronics Corporation
+ *  Copyright (C) 2003,05  Miles Bader <miles@gnu.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -69,6 +69,7 @@
 
 /* For <asm/cache.h> */
 #define L1_CACHE_BYTES			V850E2_CACHE_LINE_SIZE
+#define L1_CACHE_SHIFT			V850E2_CACHE_LINE_SIZE_BITS
 
 
 #endif /* __V850_V850E2_CACHE_H__ */

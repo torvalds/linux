@@ -15,6 +15,8 @@
 #include <asm/page.h>
 #include <asm/meminit.h>
 
+#ifdef CONFIG_DISCONTIGMEM
+
 static inline int pfn_to_nid(unsigned long pfn)
 {
 #ifdef CONFIG_NUMA
@@ -28,8 +30,6 @@ static inline int pfn_to_nid(unsigned long pfn)
 	return 0;
 #endif
 }
-
-#ifdef CONFIG_DISCONTIGMEM
 
 #ifdef CONFIG_IA64_DIG /* DIG systems are small */
 # define MAX_PHYSNODE_ID	8

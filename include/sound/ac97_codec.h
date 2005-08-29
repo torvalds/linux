@@ -437,6 +437,7 @@ struct snd_ac97_build_ops {
 	void (*suspend) (ac97_t *ac97);
 	void (*resume) (ac97_t *ac97);
 #endif
+	void (*update_jacks) (ac97_t *ac97);	/* for jack-sharing */
 };
 
 struct _snd_ac97_bus_ops {
@@ -516,6 +517,9 @@ struct _snd_ac97 {
 		} ad18xx;
 		unsigned int dev_flags;		/* device specific */
 	} spec;
+	/* jack-sharing info */
+	unsigned char indep_surround;
+	unsigned char channel_mode;
 };
 
 /* conditions */
@@ -569,8 +573,8 @@ enum {
 };
 
 struct ac97_quirk {
-	unsigned short vendor;	/* PCI vendor id */
-	unsigned short device;	/* PCI device id */
+	unsigned short subvendor; /* PCI subsystem vendor id */
+	unsigned short subdevice; /* PCI sybsystem device id */
 	unsigned short mask;	/* device id bit mask, 0 = accept all */
 	unsigned int codec_id;	/* codec id (if any), 0 = accept all */
 	const char *name;	/* name shown as info */

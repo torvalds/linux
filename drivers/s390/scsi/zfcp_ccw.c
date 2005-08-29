@@ -202,9 +202,19 @@ static int
 zfcp_ccw_set_offline(struct ccw_device *ccw_device)
 {
 	struct zfcp_adapter *adapter;
+	struct zfcp_port *port;
+	struct fc_rport *rport;
 
 	down(&zfcp_data.config_sema);
 	adapter = dev_get_drvdata(&ccw_device->dev);
+	/* might be racy, but we cannot take config_lock due to the fact that
+	   fc_remote_port_delete might sleep */
+	list_for_each_entry(port, &adapter->port_list_head, list)
+		if (port->rport) {
+			rport = port->rport;
+			port->rport = NULL;
+			fc_remote_port_delete(rport);
+		}
 	zfcp_erp_adapter_shutdown(adapter, 0);
 	zfcp_erp_wait(adapter);
 	zfcp_adapter_scsi_unregister(adapter);

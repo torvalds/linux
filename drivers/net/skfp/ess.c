@@ -102,7 +102,7 @@ void ess_timer_poll(struct s_smc *smc);
 void ess_para_change(struct s_smc *smc);
 int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 			  int fs);
-int process_bw_alloc(struct s_smc *smc, long int payload, long int overhead);
+static int process_bw_alloc(struct s_smc *smc, long int payload, long int overhead);
 
 
 /*
@@ -375,7 +375,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
  * determines the synchronous bandwidth, set the TSYNC register and the
  * mib variables SBAPayload, SBAOverhead and fddiMACT-NEG.
  */
-int process_bw_alloc(struct s_smc *smc, long int payload, long int overhead)
+static int process_bw_alloc(struct s_smc *smc, long int payload, long int overhead)
 {
 	/*
 	 * determine the synchronous bandwidth (sync_bw) in bytes per T-NEG,

@@ -2,7 +2,7 @@
  * Copyright 2004 James Cleverdon, IBM.
  * Subject to the GNU Public License, v.2
  *
- * Flat APIC subarch code.  Maximum 8 CPUs, logical delivery.
+ * Flat APIC subarch code.
  *
  * Hacked for x86-64 by James Cleverdon from i386 architecture code by
  * Martin Bligh, Andi Kleen, James Bottomley, John Stultz, and
@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <asm/smp.h>
 #include <asm/ipi.h>
-
 
 static cpumask_t flat_target_cpus(void)
 {
@@ -43,22 +42,6 @@ static void flat_init_apic_ldr(void)
 	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
 	val |= SET_APIC_LOGICAL_ID(id);
 	apic_write_around(APIC_LDR, val);
-}
-
-static void flat_send_IPI_allbutself(int vector)
-{
-	/*
-	 * if there are no other CPUs in the system then
-	 * we get an APIC send error if we try to broadcast.
-	 * thus we have to avoid sending IPIs in this case.
-	 */
-	if (num_online_cpus() > 1)
-		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector, APIC_DEST_LOGICAL);
-}
-
-static void flat_send_IPI_all(int vector)
-{
-	__send_IPI_shortcut(APIC_DEST_ALLINC, vector, APIC_DEST_LOGICAL);
 }
 
 static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
@@ -93,6 +76,17 @@ static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 	local_irq_restore(flags);
 }
 
+static void flat_send_IPI_allbutself(int vector)
+{
+	if (((num_online_cpus()) - 1) >= 1)
+		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector,APIC_DEST_LOGICAL);
+}
+
+static void flat_send_IPI_all(int vector)
+{
+	__send_IPI_shortcut(APIC_DEST_ALLINC, vector, APIC_DEST_LOGICAL);
+}
+
 static int flat_apic_id_registered(void)
 {
 	return physid_isset(GET_APIC_ID(apic_read(APIC_ID)), phys_cpu_present_map);
@@ -123,5 +117,65 @@ struct genapic apic_flat =  {
 	.send_IPI_allbutself = flat_send_IPI_allbutself,
 	.send_IPI_mask = flat_send_IPI_mask,
 	.cpu_mask_to_apicid = flat_cpu_mask_to_apicid,
+	.phys_pkg_id = phys_pkg_id,
+};
+
+/*
+ * Physflat mode is used when there are more than 8 CPUs on a AMD system.
+ * We cannot use logical delivery in this case because the mask
+ * overflows, so use physical mode.
+ */
+
+static cpumask_t physflat_target_cpus(void)
+{
+	return cpumask_of_cpu(0);
+}
+
+static void physflat_send_IPI_mask(cpumask_t cpumask, int vector)
+{
+	send_IPI_mask_sequence(cpumask, vector);
+}
+
+static void physflat_send_IPI_allbutself(int vector)
+{
+	cpumask_t allbutme = cpu_online_map;
+	int me = get_cpu();
+	cpu_clear(me, allbutme);
+	physflat_send_IPI_mask(allbutme, vector);
+	put_cpu();
+}
+
+static void physflat_send_IPI_all(int vector)
+{
+	physflat_send_IPI_mask(cpu_online_map, vector);
+}
+
+static unsigned int physflat_cpu_mask_to_apicid(cpumask_t cpumask)
+{
+	int cpu;
+
+	/*
+	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
+	 * May as well be the first.
+	 */
+	cpu = first_cpu(cpumask);
+	if ((unsigned)cpu < NR_CPUS)
+		return x86_cpu_to_apicid[cpu];
+	else
+		return BAD_APICID;
+}
+
+struct genapic apic_physflat =  {
+	.name = "physical flat",
+	.int_delivery_mode = dest_LowestPrio,
+	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
+	.int_delivery_dest = APIC_DEST_PHYSICAL | APIC_DM_LOWEST,
+	.target_cpus = physflat_target_cpus,
+	.apic_id_registered = flat_apic_id_registered,
+	.init_apic_ldr = flat_init_apic_ldr,/*not needed, but shouldn't hurt*/
+	.send_IPI_all = physflat_send_IPI_all,
+	.send_IPI_allbutself = physflat_send_IPI_allbutself,
+	.send_IPI_mask = physflat_send_IPI_mask,
+	.cpu_mask_to_apicid = physflat_cpu_mask_to_apicid,
 	.phys_pkg_id = phys_pkg_id,
 };

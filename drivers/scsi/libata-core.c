@@ -1446,7 +1446,9 @@ void __sata_phy_reset(struct ata_port *ap)
 	if (ap->flags & ATA_FLAG_SATA_RESET) {
 		/* issue phy wake/reset */
 		scr_write_flush(ap, SCR_CONTROL, 0x301);
-		udelay(400);			/* FIXME: a guess */
+		/* Couldn't find anything in SATA I/II specs, but
+		 * AHCI-1.1 10.4.2 says at least 1 ms. */
+		mdelay(1);
 	}
 	scr_write_flush(ap, SCR_CONTROL, 0x300); /* phy wake/clear reset */
 
@@ -1958,6 +1960,7 @@ static const char * ata_dma_blacklist [] = {
 	"HITACHI CDR-8335",
 	"HITACHI CDR-8435",
 	"Toshiba CD-ROM XM-6202B",
+	"TOSHIBA CD-ROM XM-1702BC",
 	"CD-532E-A",
 	"E-IDE CD-ROM CR-840",
 	"CD-ROM Drive/F5A",
@@ -1965,7 +1968,6 @@ static const char * ata_dma_blacklist [] = {
 	"SAMSUNG CD-ROM SC-148C",
 	"SAMSUNG CD-ROM SC",
 	"SanDisk SDP3B-64",
-	"SAMSUNG CD-ROM SN-124",
 	"ATAPI CD-ROM DRIVE 40X MAXIMUM",
 	"_NEC DV5800A",
 };
@@ -2352,19 +2354,6 @@ void ata_qc_prep(struct ata_queued_cmd *qc)
  *	spin_lock_irqsave(host_set lock)
  */
 
-
-
-/**
- *	ata_sg_init_one - Prepare a one-entry scatter-gather list.
- *	@qc:  Queued command
- *	@buf:  transfer buffer
- *	@buflen:  length of buf
- *
- *	Builds a single-entry scatter-gather list to initiate a
- *	transfer utilizing the specified buffer.
- *
- *	LOCKING:
- */
 void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 {
 	struct scatterlist *sg;
@@ -2394,18 +2383,6 @@ void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
- */
-
-
-/**
- *	ata_sg_init - Assign a scatter gather list to a queued command
- *	@qc:  Queued command
- *	@sg:  Scatter-gather list
- *	@n_elem:  length of sg list
- *
- *	Attaches a scatter-gather list to a queued command.
- *
- *	LOCKING:
  */
 
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
@@ -2950,7 +2927,7 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 	if (qc->dev->class == ATA_DEV_ATAPI && qc->scsicmd) {
 		struct scsi_cmnd *cmd = qc->scsicmd;
 
-		if (!scsi_eh_eflags_chk(cmd, SCSI_EH_CANCEL_CMD)) {
+		if (!(cmd->eh_eflags & SCSI_EH_CANCEL_CMD)) {
 
 			/* finish completing original command */
 			__ata_qc_complete(qc);
@@ -3838,7 +3815,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	host->max_channel = 1;
 	host->unique_id = ata_unique_id++;
 	host->max_cmd_len = 12;
-	scsi_set_device(host, ent->dev);
+
 	scsi_assign_lock(host, &host_set->lock);
 
 	ap->flags = ATA_FLAG_PORT_DISABLED;

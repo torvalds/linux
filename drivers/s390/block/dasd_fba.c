@@ -4,7 +4,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.39 $
+ * $Revision: 1.40 $
  */
 
 #include <linux/config.h>
@@ -354,6 +354,8 @@ dasd_fba_build_cp(struct dasd_device * device, struct request *req)
 	}
 	cqr->device = device;
 	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */
+	cqr->retries = 32;
+	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
 }

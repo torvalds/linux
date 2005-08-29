@@ -1,0 +1,67 @@
+This file details changes in 2.6 which affect PCMCIA card driver authors:
+
+* event handler initialization in struct pcmcia_driver (as of 2.6.13)
+   The event handler is notified of all events, and must be initialized
+   as the event() callback in the driver's struct pcmcia_driver.
+
+* pcmcia/version.h should not be used (as of 2.6.13)
+   This file will be removed eventually.
+
+* in-kernel device<->driver matching (as of 2.6.13)
+   PCMCIA devices and their correct drivers can now be matched in
+   kernelspace. See 'devicetable.txt' for details.
+
+* Device model integration (as of 2.6.11)
+   A struct pcmcia_device is registered with the device model core,
+   and can be used (e.g. for SET_NETDEV_DEV) by using
+   handle_to_dev(client_handle_t * handle).
+
+* Convert internal I/O port addresses to unsigned long (as of 2.6.11)
+   ioaddr_t should be replaced by kio_addr_t in PCMCIA card drivers.
+
+* irq_mask and irq_list parameters (as of 2.6.11)
+   The irq_mask and irq_list parameters should no longer be used in
+   PCMCIA card drivers. Instead, it is the job of the PCMCIA core to
+   determine which IRQ should be used. Therefore, link->irq.IRQInfo2
+   is ignored.
+
+* client->PendingEvents is gone (as of 2.6.11)
+   client->PendingEvents is no longer available.
+
+* client->Attributes are gone (as of 2.6.11)
+   client->Attributes is unused, therefore it is removed from all
+   PCMCIA card drivers
+
+* core functions no longer available (as of 2.6.11)
+   The following functions have been removed from the kernel source
+   because they are unused by all in-kernel drivers, and no external
+   driver was reported to rely on them:
+	pcmcia_get_first_region()
+	pcmcia_get_next_region()
+	pcmcia_modify_window()
+	pcmcia_set_event_mask()
+	pcmcia_get_first_window()
+	pcmcia_get_next_window()
+
+* device list iteration upon module removal (as of 2.6.10)
+   It is no longer necessary to iterate on the driver's internal
+   client list and call the ->detach() function upon module removal.
+
+* Resource management. (as of 2.6.8)
+   Although the PCMCIA subsystem will allocate resources for cards,
+   it no longer marks these resources busy. This means that driver
+   authors are now responsible for claiming your resources as per
+   other drivers in Linux. You should use request_region() to mark
+   your IO regions in-use, and request_mem_region() to mark your
+   memory regions in-use. The name argument should be a pointer to
+   your driver name. Eg, for pcnet_cs, name should point to the
+   string "pcnet_cs".
+
+* CardServices is gone
+  CardServices() in 2.4 is just a big switch statement to call various
+  services.  In 2.6, all of those entry points are exported and called
+  directly (except for pcmcia_report_error(), just use cs_error() instead).
+
+* struct pcmcia_driver
+  You need to use struct pcmcia_driver and pcmcia_{un,}register_driver
+  instead of {un,}register_pccard_driver

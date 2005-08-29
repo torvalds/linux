@@ -133,10 +133,12 @@
 /* 6.10.00  - Remove 1G Addressing Limitations                               */
 /* 6.11.xx  - Get VersionInfo buffer off the stack !              DDTS 60401 */
 /* 6.11.xx  - Make Logical Drive Info structure safe for DMA      DDTS 60639 */
-/* 7.10.xx  - Add highmem_io flag in SCSI Templete for 2.4 kernels           */
+/* 7.10.18  - Add highmem_io flag in SCSI Templete for 2.4 kernels           */
 /*          - Fix path/name for scsi_hosts.h include for 2.6 kernels         */
 /*          - Fix sort order of 7k                                           */
 /*          - Remove 3 unused "inline" functions                             */
+/* 7.12.xx  - Use STATIC functions whereever possible                        */
+/*          - Clean up deprecated MODULE_PARM calls                          */
 /*****************************************************************************/
 
 /*
@@ -207,8 +209,8 @@ module_param(ips, charp, 0);
 /*
  * DRIVER_VER
  */
-#define IPS_VERSION_HIGH        "7.10"
-#define IPS_VERSION_LOW         ".18 "
+#define IPS_VERSION_HIGH        "7.12"
+#define IPS_VERSION_LOW         ".02 "
 
 #if !defined(__i386__) && !defined(__ia64__) && !defined(__x86_64__)
 #warning "This driver has only been tested on the x86/ia64/x86_64 platforms"

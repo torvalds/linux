@@ -2346,7 +2346,6 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 {
 	struct slave *slave, *start_at;
 	struct bonding *bond = dev->priv;
-	struct ethhdr *data = (struct ethhdr *)skb->data;
 	int slave_agg_no;
 	int slaves_in_agg;
 	int agg_id;
@@ -2377,7 +2376,7 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 	}
 
-	slave_agg_no = (data->h_dest[5]^bond->dev->dev_addr[5]) % slaves_in_agg;
+	slave_agg_no = bond->xmit_hash_policy(skb, dev, slaves_in_agg);
 
 	bond_for_each_slave(bond, slave, i) {
 		struct aggregator *agg = SLAVE_AD_INFO(slave).port.aggregator;

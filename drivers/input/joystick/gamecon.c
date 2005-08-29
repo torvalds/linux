@@ -1,12 +1,12 @@
 /*
  * NES, SNES, N64, MultiSystem, PSX gamepad driver for Linux
  *
- *  Copyright (c) 1999-2004 	Vojtech Pavlik <vojtech@suse.cz>
- *  Copyright (c) 2004 		Peter Nelson <rufus-kernel@hackish.org>
+ *  Copyright (c) 1999-2004	Vojtech Pavlik <vojtech@suse.cz>
+ *  Copyright (c) 2004		Peter Nelson <rufus-kernel@hackish.org>
  *
  *  Based on the work of:
- *  	Andree Borrmann		John Dahlstrom
- *  	David Kuder		Nathan Hand
+ *	Andree Borrmann		John Dahlstrom
+ *	David Kuder		Nathan Hand
  */
 
 /*
@@ -81,6 +81,7 @@ struct gc {
 	struct timer_list timer;
 	unsigned char pads[GC_MAX + 1];
 	int used;
+	struct semaphore sem;
 	char phys[5][32];
 };
 
@@ -433,7 +434,7 @@ static void gc_timer(unsigned long private)
 		gc_psx_read_packet(gc, data_psx, data);
 
 		for (i = 0; i < 5; i++) {
-	 		switch (data[i]) {
+			switch (data[i]) {
 
 				case GC_PSX_RUMBLE:
 
@@ -503,22 +504,33 @@ static void gc_timer(unsigned long private)
 static int gc_open(struct input_dev *dev)
 {
 	struct gc *gc = dev->private;
+	int err;
+
+	err = down_interruptible(&gc->sem);
+	if (err)
+		return err;
+
 	if (!gc->used++) {
 		parport_claim(gc->pd);
 		parport_write_control(gc->pd->port, 0x04);
 		mod_timer(&gc->timer, jiffies + GC_REFRESH_TIME);
 	}
+
+	up(&gc->sem);
 	return 0;
 }
 
 static void gc_close(struct input_dev *dev)
 {
 	struct gc *gc = dev->private;
+
+	down(&gc->sem);
 	if (!--gc->used) {
-		del_timer(&gc->timer);
+		del_timer_sync(&gc->timer);
 		parport_write_control(gc->pd->port, 0x00);
 		parport_release(gc->pd);
 	}
+	up(&gc->sem);
 }
 
 static struct gc __init *gc_probe(int *config, int nargs)
@@ -542,11 +554,12 @@ static struct gc __init *gc_probe(int *config, int nargs)
 		return NULL;
 	}
 
-	if (!(gc = kmalloc(sizeof(struct gc), GFP_KERNEL))) {
+	if (!(gc = kcalloc(1, sizeof(struct gc), GFP_KERNEL))) {
 		parport_put_port(pp);
 		return NULL;
 	}
-	memset(gc, 0, sizeof(struct gc));
+
+	init_MUTEX(&gc->sem);
 
 	gc->pd = parport_register_device(pp, "gamecon", NULL, NULL, NULL, PARPORT_DEV_EXCL, NULL);
 

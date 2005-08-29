@@ -5,7 +5,7 @@
 
 void show_mem(void)
 {
-#ifndef CONFIG_DISCONTIGMEM  /* XXX(hch): later.. */
+#ifndef CONFIG_NEED_MULTIPLE_NODES  /* XXX(hch): later.. */
 	int pfn, total = 0, reserved = 0;
 	int shared = 0, cached = 0;
 	int highmem = 0;

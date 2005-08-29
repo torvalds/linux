@@ -318,22 +318,30 @@ void zap_low_mappings(void)
 	flush_tlb_all();
 }
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NUMA
 void __init paging_init(void)
 {
 	{
-		unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+		unsigned long zones_size[MAX_NR_ZONES];
+		unsigned long holes[MAX_NR_ZONES];
 		unsigned int max_dma;
+
+		memset(zones_size, 0, sizeof(zones_size));
+		memset(holes, 0, sizeof(holes));
 
 		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 
-		if (end_pfn < max_dma)
+		if (end_pfn < max_dma) {
 			zones_size[ZONE_DMA] = end_pfn;
-		else {
+			holes[ZONE_DMA] = e820_hole_size(0, end_pfn);
+		} else {
 			zones_size[ZONE_DMA] = max_dma;
+			holes[ZONE_DMA] = e820_hole_size(0, max_dma);
 			zones_size[ZONE_NORMAL] = end_pfn - max_dma;
+			holes[ZONE_NORMAL] = e820_hole_size(max_dma, end_pfn);
 		}
-		free_area_init(zones_size);
+		free_area_init_node(0, NODE_DATA(0), zones_size,
+                        __pa(PAGE_OFFSET) >> PAGE_SHIFT, holes);
 	}
 	return;
 }
@@ -427,13 +435,16 @@ void __init mem_init(void)
 	reservedpages = 0;
 
 	/* this will put all low memory onto the freelists */
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 	totalram_pages += numa_free_all_bootmem();
 	tmp = 0;
 	/* should count reserved pages here for all nodes */ 
 #else
+
+#ifdef CONFIG_FLATMEM
 	max_mapnr = end_pfn;
 	if (!mem_map) BUG();
+#endif
 
 	totalram_pages += free_all_bootmem();
 
@@ -515,7 +526,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 void __init reserve_bootmem_generic(unsigned long phys, unsigned len) 
 { 
 	/* Should check here against the e820 map to avoid double free */ 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 	int nid = phys_to_nid(phys);
   	reserve_bootmem_node(NODE_DATA(nid), phys, len);
 #else       		

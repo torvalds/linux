@@ -9,56 +9,54 @@
 #define XATTR_SECURITY_PREFIX "security."
 
 static int
-security_get (struct inode *inode, const char *name, void *buffer, size_t size)
+security_get(struct inode *inode, const char *name, void *buffer, size_t size)
 {
-    if (strlen(name) < sizeof(XATTR_SECURITY_PREFIX))
-        return -EINVAL;
+	if (strlen(name) < sizeof(XATTR_SECURITY_PREFIX))
+		return -EINVAL;
 
-    if (is_reiserfs_priv_object(inode))
-        return -EPERM;
+	if (is_reiserfs_priv_object(inode))
+		return -EPERM;
 
-    return reiserfs_xattr_get (inode, name, buffer, size);
+	return reiserfs_xattr_get(inode, name, buffer, size);
 }
 
 static int
-security_set (struct inode *inode, const char *name, const void *buffer,
-          size_t size, int flags)
+security_set(struct inode *inode, const char *name, const void *buffer,
+	     size_t size, int flags)
 {
-    if (strlen(name) < sizeof(XATTR_SECURITY_PREFIX))
-        return -EINVAL;
+	if (strlen(name) < sizeof(XATTR_SECURITY_PREFIX))
+		return -EINVAL;
 
-    if (is_reiserfs_priv_object(inode))
-        return -EPERM;
+	if (is_reiserfs_priv_object(inode))
+		return -EPERM;
 
-    return reiserfs_xattr_set (inode, name, buffer, size, flags);
+	return reiserfs_xattr_set(inode, name, buffer, size, flags);
+}
+
+static int security_del(struct inode *inode, const char *name)
+{
+	if (strlen(name) < sizeof(XATTR_SECURITY_PREFIX))
+		return -EINVAL;
+
+	if (is_reiserfs_priv_object(inode))
+		return -EPERM;
+
+	return 0;
 }
 
 static int
-security_del (struct inode *inode, const char *name)
+security_list(struct inode *inode, const char *name, int namelen, char *out)
 {
-    if (strlen(name) < sizeof(XATTR_SECURITY_PREFIX))
-        return -EINVAL;
+	int len = namelen;
 
-    if (is_reiserfs_priv_object(inode))
-        return -EPERM;
+	if (is_reiserfs_priv_object(inode))
+		return 0;
 
-    return 0;
+	if (out)
+		memcpy(out, name, len);
+
+	return len;
 }
-
-static int
-security_list (struct inode *inode, const char *name, int namelen, char *out)
-{
-    int len = namelen;
-
-    if (is_reiserfs_priv_object(inode))
-        return 0;
-
-    if (out)
-        memcpy (out, name, len);
-
-    return len;
-}
-
 
 struct reiserfs_xattr_handler security_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,

@@ -122,7 +122,7 @@ isurf_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_isurf(struct IsdnCardState *cs)
 {
 	release_region(cs->hw.isurf.reset, 1);

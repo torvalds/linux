@@ -612,7 +612,7 @@ static void source_sink_complete (struct usb_ep *ep, struct usb_request *req)
 }
 
 static struct usb_request *
-source_sink_start_ep (struct usb_ep *ep, int gfp_flags)
+source_sink_start_ep (struct usb_ep *ep, unsigned gfp_flags)
 {
 	struct usb_request	*req;
 	int			status;
@@ -640,7 +640,7 @@ source_sink_start_ep (struct usb_ep *ep, int gfp_flags)
 }
 
 static int
-set_source_sink_config (struct zero_dev *dev, int gfp_flags)
+set_source_sink_config (struct zero_dev *dev, unsigned gfp_flags)
 {
 	int			result = 0;
 	struct usb_ep		*ep;
@@ -744,7 +744,7 @@ static void loopback_complete (struct usb_ep *ep, struct usb_request *req)
 }
 
 static int
-set_loopback_config (struct zero_dev *dev, int gfp_flags)
+set_loopback_config (struct zero_dev *dev, unsigned gfp_flags)
 {
 	int			result = 0;
 	struct usb_ep		*ep;
@@ -845,7 +845,7 @@ static void zero_reset_config (struct zero_dev *dev)
  * by limiting configuration choices (like the pxa2xx).
  */
 static int
-zero_set_config (struct zero_dev *dev, unsigned number, int gfp_flags)
+zero_set_config (struct zero_dev *dev, unsigned number, unsigned gfp_flags)
 {
 	int			result = 0;
 	struct usb_gadget	*gadget = dev->gadget;
@@ -919,9 +919,9 @@ zero_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	struct zero_dev		*dev = get_gadget_data (gadget);
 	struct usb_request	*req = dev->req;
 	int			value = -EOPNOTSUPP;
-	u16			w_index = ctrl->wIndex;
-	u16			w_value = ctrl->wValue;
-	u16			w_length = ctrl->wLength;
+	u16			w_index = le16_to_cpu(ctrl->wIndex);
+	u16			w_value = le16_to_cpu(ctrl->wValue);
+	u16			w_length = le16_to_cpu(ctrl->wLength);
 
 	/* usually this stores reply data in the pre-allocated ep0 buffer,
 	 * but config change events will reconfigure hardware.

@@ -12,6 +12,15 @@
 *!                                 don't use PB_I2C if DS1302 uses same bits,
 *!                                 use PB.
 *! $Log: i2c.c,v $
+*! Revision 1.13  2005/03/07 13:13:07  starvik
+*! Added spinlocks to protect states etc
+*!
+*! Revision 1.12  2005/01/05 06:11:22  starvik
+*! No need to do local_irq_disable after local_irq_save.
+*!
+*! Revision 1.11  2004/12/13 12:21:52  starvik
+*! Added I/O and DMA allocators from Linux 2.4
+*!
 *! Revision 1.9  2004/08/24 06:49:14  starvik
 *! Whitespace cleanup
 *!
@@ -75,7 +84,7 @@
 *! (C) Copyright 1999-2002 Axis Communications AB, LUND, SWEDEN
 *!
 *!***************************************************************************/
-/* $Id: i2c.c,v 1.9 2004/08/24 06:49:14 starvik Exp $ */
+/* $Id: i2c.c,v 1.13 2005/03/07 13:13:07 starvik Exp $ */
 
 /****************** INCLUDE FILES SECTION ***********************************/
 
@@ -95,6 +104,7 @@
 #include <asm/arch/svinto.h>
 #include <asm/io.h>
 #include <asm/delay.h>
+#include <asm/arch/io_interface_mux.h>
 
 #include "i2c.h"
 
@@ -184,6 +194,7 @@ static const char i2c_name[] = "i2c";
 
 #define i2c_delay(usecs) udelay(usecs)
 
+static DEFINE_SPINLOCK(i2c_lock); /* Protect directions etc */
 
 /****************** FUNCTION DEFINITION SECTION *************************/
 
@@ -488,13 +499,14 @@ i2c_writereg(unsigned char theSlave, unsigned char theReg,
 	int error, cntr = 3;
 	unsigned long flags;
 
+	spin_lock(&i2c_lock);
+
 	do {
 		error = 0;
 		/*
 		 * we don't like to be interrupted
 		 */
 		local_irq_save(flags);
-		local_irq_disable();
 
 		i2c_start();
 		/*
@@ -538,6 +550,8 @@ i2c_writereg(unsigned char theSlave, unsigned char theReg,
 
 	i2c_delay(CLOCK_LOW_TIME);
 
+	spin_unlock(&i2c_lock);
+
 	return -error;
 }
 
@@ -555,13 +569,14 @@ i2c_readreg(unsigned char theSlave, unsigned char theReg)
 	int error, cntr = 3;
 	unsigned long flags;
 
+	spin_lock(&i2c_lock);
+
 	do {
 		error = 0;
 		/*
 		 * we don't like to be interrupted
 		 */
 		local_irq_save(flags);
-		local_irq_disable();
 		/*
 		 * generate start condition
 		 */
@@ -619,6 +634,8 @@ i2c_readreg(unsigned char theSlave, unsigned char theReg)
 		local_irq_restore(flags);
 		
 	} while(error && cntr--);
+
+	spin_unlock(&i2c_lock);
 
 	return b;
 }
@@ -686,15 +703,26 @@ static struct file_operations i2c_fops = {
 int __init
 i2c_init(void)
 {
+	static int res = 0;
+	static int first = 1;
+
+	if (!first) {
+		return res;
+	}
+
 	/* Setup and enable the Port B I2C interface */
 
 #ifndef CONFIG_ETRAX_I2C_USES_PB_NOT_PB_I2C
+	if ((res = cris_request_io_interface(if_i2c, "I2C"))) {
+		printk(KERN_CRIT "i2c_init: Failed to get IO interface\n");
+		return res;
+	}
+
 	*R_PORT_PB_I2C = port_pb_i2c_shadow |= 
 		IO_STATE(R_PORT_PB_I2C, i2c_en,  on) |
 		IO_FIELD(R_PORT_PB_I2C, i2c_d,   1)  |
 		IO_FIELD(R_PORT_PB_I2C, i2c_clk, 1)  |
 		IO_STATE(R_PORT_PB_I2C, i2c_oe_, enable);
-#endif
 
 	port_pb_dir_shadow &= ~IO_MASK(R_PORT_PB_DIR, dir0);
 	port_pb_dir_shadow &= ~IO_MASK(R_PORT_PB_DIR, dir1);
@@ -702,8 +730,26 @@ i2c_init(void)
 	*R_PORT_PB_DIR = (port_pb_dir_shadow |=
 			  IO_STATE(R_PORT_PB_DIR, dir0, input)  |
 			  IO_STATE(R_PORT_PB_DIR, dir1, output));
+#else
+        if ((res = cris_io_interface_allocate_pins(if_i2c,
+						   'b',
+                                                   CONFIG_ETRAX_I2C_DATA_PORT,
+						   CONFIG_ETRAX_I2C_DATA_PORT))) {
+		printk(KERN_WARNING "i2c_init: Failed to get IO pin for I2C data port\n");
+		return res;
+	} else if ((res = cris_io_interface_allocate_pins(if_i2c,
+							  'b',
+							  CONFIG_ETRAX_I2C_CLK_PORT,
+							  CONFIG_ETRAX_I2C_CLK_PORT))) {
+		cris_io_interface_free_pins(if_i2c,
+					    'b',
+					    CONFIG_ETRAX_I2C_DATA_PORT,
+					    CONFIG_ETRAX_I2C_DATA_PORT);
+		printk(KERN_WARNING "i2c_init: Failed to get IO pin for I2C clk port\n");
+	}
+#endif
 
-	return 0;
+	return res;
 }
 
 static int __init
@@ -711,14 +757,16 @@ i2c_register(void)
 {
 	int res;
 
-	i2c_init();
+	res = i2c_init();
+	if (res < 0)
+		return res;
   	res = register_chrdev(I2C_MAJOR, i2c_name, &i2c_fops);
 	if(res < 0) {
 		printk(KERN_ERR "i2c: couldn't get a major number.\n");
 		return res;
 	}
 
-	printk(KERN_INFO "I2C driver v2.2, (c) 1999-2001 Axis Communications AB\n");
+	printk(KERN_INFO "I2C driver v2.2, (c) 1999-2004 Axis Communications AB\n");
 	
 	return 0;
 }

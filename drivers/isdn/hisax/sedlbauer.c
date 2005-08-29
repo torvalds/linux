@@ -51,9 +51,9 @@
 
 extern const char *CardType[];
 
-const char *Sedlbauer_revision = "$Revision: 1.34.2.6 $";
+static const char *Sedlbauer_revision = "$Revision: 1.34.2.6 $";
 
-const char *Sedlbauer_Types[] =
+static const char *Sedlbauer_Types[] =
 	{"None", "speed card/win", "speed star", "speed fax+",
 	"speed win II / ISDN PC/104", "speed star II", "speed pci",
 	"speed fax+ pyramid", "speed fax+ pci", "HST Saphir III"};
@@ -394,7 +394,7 @@ sedlbauer_interrupt_isar(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_sedlbauer(struct IsdnCardState *cs)
 {
 	int bytecnt = 8;

@@ -99,7 +99,8 @@ static void snd_gus_synth_free_private_instruments(snd_gus_port_t *p, int client
 	snd_seq_instr_list_free_cond(p->gus->gf1.ilist, &ifree, client, 0);
 }
  
-int snd_gus_synth_event_input(snd_seq_event_t *ev, int direct, void *private_data, int atomic, int hop)
+static int snd_gus_synth_event_input(snd_seq_event_t *ev, int direct,
+				     void *private_data, int atomic, int hop)
 {
 	snd_gus_port_t * p = (snd_gus_port_t *) private_data;
 	

@@ -11,6 +11,7 @@
 
 #include "miscsetup.h"
 #include <asm/io.h>
+#include <asm/page.h>
 
 /*
  * gzip declarations
@@ -92,8 +93,11 @@ static unsigned long output_ptr = 0;
 static void *malloc(int size);
 static void free(void *where);
  
+void* memset(void* s, int c, unsigned n);
+void* memcpy(void* dest, const void* src, unsigned n);
+
 static void putstr(const char *);
-  
+
 extern int end;
 static long free_mem_ptr = (long)&end;
 static long free_mem_end_ptr;
@@ -284,7 +288,7 @@ void setup_normal_output_buffer(void)
 #else
 	if ((ALT_MEM_K > EXT_MEM_K ? ALT_MEM_K : EXT_MEM_K) < 1024) error("Less than 2MB of memory");
 #endif
-	output_data = (char *)0x100000; /* Points to 1M */
+	output_data = (char *)__PHYSICAL_START; /* Normally Points to 1M */
 	free_mem_end_ptr = (long)real_mode;
 }
 
@@ -307,8 +311,8 @@ void setup_output_buffer_if_we_run_high(struct moveparams *mv)
 	low_buffer_size = low_buffer_end - LOW_BUFFER_START;
 	high_loaded = 1;
 	free_mem_end_ptr = (long)high_buffer_start;
-	if ( (0x100000 + low_buffer_size) > ((ulg)high_buffer_start)) {
-		high_buffer_start = (uch *)(0x100000 + low_buffer_size);
+	if ( (__PHYSICAL_START + low_buffer_size) > ((ulg)high_buffer_start)) {
+		high_buffer_start = (uch *)(__PHYSICAL_START + low_buffer_size);
 		mv->hcount = 0; /* say: we need not to move high_buffer */
 	}
 	else mv->hcount = -1;
