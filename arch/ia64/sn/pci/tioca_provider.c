@@ -559,7 +559,7 @@ tioca_error_intr_handler(int irq, void *arg, struct pt_regs *pt)
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
 
-	segment = 0;
+	segment = soft->ca_common.bs_persist_segment;
 	busnum = soft->ca_common.bs_persist_busnum;
 
 	SAL_CALL_NOLOCK(ret_stuff,
@@ -622,7 +622,8 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	    nasid_to_cnodeid(tioca_common->ca_closest_nasid);
 	tioca_common->ca_kernel_private = (uint64_t) tioca_kern;
 
-	bus = pci_find_bus(0, tioca_common->ca_common.bs_persist_busnum);
+	bus = pci_find_bus(tioca_common->ca_common.bs_persist_segment,
+		tioca_common->ca_common.bs_persist_busnum);
 	BUG_ON(!bus);
 	tioca_kern->ca_devices = &bus->devices;
 
@@ -656,6 +657,8 @@ static struct sn_pcibus_provider tioca_pci_interfaces = {
 	.dma_map_consistent = tioca_dma_map,
 	.dma_unmap = tioca_dma_unmap,
 	.bus_fixup = tioca_bus_fixup,
+	.force_interrupt = NULL,
+	.target_interrupt = NULL
 };
 
 /**

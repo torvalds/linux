@@ -37,7 +37,6 @@ struct phys_cpuid {
 
 struct nodepda_s {
 	void 		*pdinfo;	/* Platform-dependent per-node info */
-	spinlock_t		bist_lock;
 
 	/*
 	 * The BTEs on this node are shared by the local cpus
@@ -55,6 +54,8 @@ struct nodepda_s {
 	 * Array of physical cpu identifiers. Indexed by cpuid.
 	 */
 	struct phys_cpuid	phys_cpuid[NR_CPUS];
+	spinlock_t		ptc_lock ____cacheline_aligned_in_smp;
+	spinlock_t		bist_lock;
 };
 
 typedef struct nodepda_s nodepda_t;
