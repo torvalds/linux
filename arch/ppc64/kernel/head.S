@@ -1276,6 +1276,11 @@ fwnmi_data_area:
 #ifdef CONFIG_PPC_ISERIES
         . = LPARMAP_PHYS
 #include "lparmap.s"
+/*
+ * This ".text" is here for old compilers that generate a trailing
+ * .note section when compiling .c files to .s
+ */
+	.text
 #endif /* CONFIG_PPC_ISERIES */
 
         . = 0x8000
