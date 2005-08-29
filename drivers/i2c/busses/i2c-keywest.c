@@ -87,12 +87,9 @@ static const char *__kw_state_names[] = {
 };
 #endif /* DEBUG */
 
-static int probe;
-
 MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
 MODULE_DESCRIPTION("I2C driver for Apple's Keywest");
 MODULE_LICENSE("GPL");
-module_param(probe, bool, 0);
 
 #ifdef POLLED_MODE
 /* Don't schedule, the g5 fan controller is too
@@ -631,15 +628,6 @@ create_iface(struct device_node *np, struct device *dev)
 			printk("i2c-keywest.c: Adapter %s registration failed\n",
 				chan->adapter.name);
 			i2c_set_adapdata(&chan->adapter, NULL);
-		}
-		if (probe) {
-			printk("Probe: ");
-			for (addr = 0x00; addr <= 0x7f; addr++) {
-				if (i2c_smbus_xfer(&chan->adapter,addr,
-				    0,0,0,I2C_SMBUS_QUICK,NULL) >= 0)
-					printk("%02x ", addr);
-			}
-			printk("\n");
 		}
 	}
 
