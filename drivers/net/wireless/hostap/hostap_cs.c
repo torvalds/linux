@@ -772,6 +772,13 @@ static int prism2_config(dev_link_t *link)
 		goto failed;
 	link->priv = dev;
 
+	iface = netdev_priv(dev);
+	local = iface->local;
+	local->hw_priv = hw_priv;
+	hw_priv->link = link;
+	strcpy(hw_priv->node.dev_name, dev->name);
+	link->dev = &hw_priv->node;
+
 	/*
 	 * Allocate an interrupt line.  Note that this does not assign a
 	 * handler to the interrupt, unless the 'Handler' member of the
@@ -816,13 +823,6 @@ static int prism2_config(dev_link_t *link)
 
 	link->state |= DEV_CONFIG;
 	link->state &= ~DEV_CONFIG_PENDING;
-
-	iface = netdev_priv(dev);
-	local = iface->local;
-	local->hw_priv = hw_priv;
-	hw_priv->link = link;
-	strcpy(hw_priv->node.dev_name, dev->name);
-	link->dev = &hw_priv->node;
 
 	local->shutdown = 0;
 
