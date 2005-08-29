@@ -220,6 +220,17 @@ void data_access_exception(struct pt_regs *regs,
 	force_sig_info(SIGSEGV, &info, current);
 }
 
+void data_access_exception_tl1(struct pt_regs *regs,
+			       unsigned long sfsr, unsigned long sfar)
+{
+	if (notify_die(DIE_TRAP_TL1, "data access exception tl1", regs,
+		       0, 0x30, SIGTRAP) == NOTIFY_STOP)
+		return;
+
+	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
+	data_access_exception(regs, sfsr, sfar);
+}
+
 #ifdef CONFIG_PCI
 /* This is really pathetic... */
 extern volatile int pci_poke_in_progress;

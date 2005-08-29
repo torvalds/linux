@@ -701,8 +701,24 @@ __do_data_access_exception_tl1:
 	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
 	stxa		%g0, [%g3] ASI_DMMU	! Clear SFSR.FaultValid bit
 	membar		#Sync
+	rdpr		%tt, %g3
+	cmp		%g3, 0x80		! first win spill/fill trap
+	blu,pn		%xcc, 1f
+	 cmp		%g3, 0xff		! last win spill/fill trap
+	bgu,pn		%xcc, 1f
+	 nop
 	ba,pt		%xcc, winfix_dax
 	 rdpr		%tpc, %g3
+1:	sethi		%hi(109f), %g7
+	ba,pt		%xcc, etraptl1
+109:	 or		%g7, %lo(109b), %g7
+	mov		%l4, %o1
+	mov		%l5, %o2
+	call		data_access_exception_tl1
+	 add		%sp, PTREGS_OFF, %o0
+	ba,pt		%xcc, rtrap
+	 clr		%l6
+
 __do_data_access_exception:
 	rdpr		%pstate, %g4
 	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
