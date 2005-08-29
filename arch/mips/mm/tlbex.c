@@ -916,6 +916,7 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 
 	case CPU_VR4131:
 	case CPU_VR4133:
+	case CPU_R5432:
 		i_nop(p);
 		i_nop(p);
 		tlbw(p);
