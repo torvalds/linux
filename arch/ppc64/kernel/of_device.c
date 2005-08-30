@@ -236,7 +236,6 @@ void of_device_unregister(struct of_device *ofdev)
 struct of_device* of_platform_device_create(struct device_node *np, const char *bus_id)
 {
 	struct of_device *dev;
-	u32 *reg;
 
 	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -250,7 +249,6 @@ struct of_device* of_platform_device_create(struct device_node *np, const char *
 	dev->dev.bus = &of_platform_bus_type;
 	dev->dev.release = of_release_dev;
 
-	reg = (u32 *)get_property(np, "reg", NULL);
 	strlcpy(dev->dev.bus_id, bus_id, BUS_ID_SIZE);
 
 	if (of_device_register(dev) != 0) {

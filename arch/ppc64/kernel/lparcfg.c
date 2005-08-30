@@ -273,6 +273,7 @@ static void parse_system_parameter_string(struct seq_file *m)
 		if (!workbuffer) {
 			printk(KERN_ERR "%s %s kmalloc failure at line %d \n",
 			       __FILE__, __FUNCTION__, __LINE__);
+			kfree(local_buffer);			
 			return;
 		}
 #ifdef LPARCFG_DEBUG

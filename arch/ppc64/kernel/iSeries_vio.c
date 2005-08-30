@@ -68,7 +68,7 @@ static void __init iommu_vio_init(void)
 }
 
 /**
- * vio_register_device: - Register a new vio device.
+ * vio_register_device_iseries: - Register a new iSeries vio device.
  * @voidev:	The device to register.
  */
 static struct vio_dev *__init vio_register_device_iseries(char *type,
@@ -76,7 +76,7 @@ static struct vio_dev *__init vio_register_device_iseries(char *type,
 {
 	struct vio_dev *viodev;
 
-	/* allocate a vio_dev for this node */
+	/* allocate a vio_dev for this device */
 	viodev = kmalloc(sizeof(struct vio_dev), GFP_KERNEL);
 	if (!viodev)
 		return NULL;
@@ -84,8 +84,15 @@ static struct vio_dev *__init vio_register_device_iseries(char *type,
 
 	snprintf(viodev->dev.bus_id, BUS_ID_SIZE, "%s%d", type, unit_num);
 
-	return vio_register_device_common(viodev, viodev->dev.bus_id, type,
-			unit_num, &vio_iommu_table);
+	viodev->name = viodev->dev.bus_id;
+	viodev->type = type;
+	viodev->unit_address = unit_num;
+	viodev->iommu_table = &vio_iommu_table;
+	if (vio_register_device(viodev) == NULL) {
+		kfree(viodev);
+		return NULL;
+	}
+	return viodev;
 }
 
 void __init probe_bus_iseries(void)
@@ -124,6 +131,10 @@ static int vio_match_device_iseries(const struct vio_device_id *id,
 	return strncmp(dev->type, id->type, strlen(id->type)) == 0;
 }
 
+static struct vio_bus_ops vio_bus_ops_iseries = {
+	.match = vio_match_device_iseries,
+};
+
 /**
  * vio_bus_init_iseries: - Initialize the iSeries virtual IO bus
  */
@@ -131,7 +142,7 @@ static int __init vio_bus_init_iseries(void)
 {
 	int err;
 
-	err = vio_bus_init(vio_match_device_iseries, NULL, NULL);
+	err = vio_bus_init(&vio_bus_ops_iseries);
 	if (err == 0) {
 		iommu_vio_init();
 		vio_bus_device.iommu_table = &vio_iommu_table;

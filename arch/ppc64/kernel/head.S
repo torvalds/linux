@@ -1269,7 +1269,21 @@ initial_stab:
 	.= 0x7000
 	.globl fwnmi_data_area
 fwnmi_data_area:
-	.space	PAGE_SIZE
+
+	/* iSeries does not use the FWNMI stuff, so it is safe to put
+	 * this here, even if we later allow kernels that will boot on
+	 * both pSeries and iSeries */
+#ifdef CONFIG_PPC_ISERIES
+        . = LPARMAP_PHYS
+#include "lparmap.s"
+/*
+ * This ".text" is here for old compilers that generate a trailing
+ * .note section when compiling .c files to .s
+ */
+	.text
+#endif /* CONFIG_PPC_ISERIES */
+
+        . = 0x8000
 
 /*
  * On pSeries, secondary processors spin in the following code.

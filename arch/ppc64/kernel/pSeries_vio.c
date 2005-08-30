@@ -19,6 +19,7 @@
 #include <linux/kobject.h>
 #include <asm/iommu.h>
 #include <asm/dma.h>
+#include <asm/prom.h>
 #include <asm/vio.h>
 #include <asm/hvcall.h>
 
@@ -75,6 +76,12 @@ static void vio_unregister_device_pseries(struct vio_dev *viodev)
 	device_remove_file(&viodev->dev, &dev_attr_devspec);
 }
 
+static struct vio_bus_ops vio_bus_ops_pseries = {
+	.match = vio_match_device_pseries,
+	.unregister_device = vio_unregister_device_pseries,
+	.release_device = vio_release_device_pseries,
+};
+
 /**
  * vio_bus_init_pseries: - Initialize the pSeries virtual IO bus
  */
@@ -82,9 +89,7 @@ static int __init vio_bus_init_pseries(void)
 {
 	int err;
 
-	err = vio_bus_init(vio_match_device_pseries,
-			vio_unregister_device_pseries,
-			vio_release_device_pseries);
+	err = vio_bus_init(&vio_bus_ops_pseries);
 	if (err == 0)
 		probe_bus_pseries();
 	return err;
@@ -181,11 +186,13 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 	}
 
 	snprintf(viodev->dev.bus_id, BUS_ID_SIZE, "%x", *unit_address);
+	viodev->name = of_node->name;
+	viodev->type = of_node->type;
+	viodev->unit_address = *unit_address;
+	viodev->iommu_table = vio_build_iommu_table(viodev);
 
 	/* register with generic device framework */
-	if (vio_register_device_common(viodev, of_node->name, of_node->type,
-				*unit_address, vio_build_iommu_table(viodev))
-			== NULL) {
+	if (vio_register_device(viodev) == NULL) {
 		/* XXX free TCE table */
 		kfree(viodev);
 		return NULL;

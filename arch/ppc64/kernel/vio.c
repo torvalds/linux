@@ -32,14 +32,13 @@ struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.dev.bus = &vio_bus_type,
 };
 
-static int (*is_match)(const struct vio_device_id *id,
-		const struct vio_dev *dev);
-static void (*unregister_device_callback)(struct vio_dev *dev);
-static void (*release_device_callback)(struct device *dev);
+static struct vio_bus_ops vio_bus_ops;
 
-/* convert from struct device to struct vio_dev and pass to driver.
+/*
+ * Convert from struct device to struct vio_dev and pass to driver.
  * dev->driver has already been set by generic code because vio_bus_match
- * succeeded. */
+ * succeeded.
+ */
 static int vio_bus_probe(struct device *dev)
 {
 	struct vio_dev *viodev = to_vio_dev(dev);
@@ -51,9 +50,8 @@ static int vio_bus_probe(struct device *dev)
 		return error;
 
 	id = vio_match_device(viodrv->id_table, viodev);
-	if (id) {
+	if (id)
 		error = viodrv->probe(viodev, id);
-	}
 
 	return error;
 }
@@ -64,9 +62,8 @@ static int vio_bus_remove(struct device *dev)
 	struct vio_dev *viodev = to_vio_dev(dev);
 	struct vio_driver *viodrv = to_vio_driver(dev->driver);
 
-	if (viodrv->remove) {
+	if (viodrv->remove)
 		return viodrv->remove(viodev);
-	}
 
 	/* driver can't remove */
 	return 1;
@@ -102,19 +99,20 @@ void vio_unregister_driver(struct vio_driver *viodrv)
 EXPORT_SYMBOL(vio_unregister_driver);
 
 /**
- * vio_match_device: - Tell if a VIO device has a matching VIO device id structure.
- * @ids: 	array of VIO device id structures to search in
- * @dev: 	the VIO device structure to match against
+ * vio_match_device: - Tell if a VIO device has a matching
+ *			VIO device id structure.
+ * @ids:	array of VIO device id structures to search in
+ * @dev:	the VIO device structure to match against
  *
  * Used by a driver to check whether a VIO device present in the
  * system is in its list of supported devices. Returns the matching
  * vio_device_id structure or NULL if there is no match.
  */
-static const struct vio_device_id * vio_match_device(const struct vio_device_id *ids,
-	const struct vio_dev *dev)
+static const struct vio_device_id *vio_match_device(
+		const struct vio_device_id *ids, const struct vio_dev *dev)
 {
-	while (ids->type) {
-		if (is_match(ids, dev))
+	while (ids->type[0] != '\0') {
+		if (vio_bus_ops.match(ids, dev))
 			return ids;
 		ids++;
 	}
@@ -124,16 +122,11 @@ static const struct vio_device_id * vio_match_device(const struct vio_device_id 
 /**
  * vio_bus_init: - Initialize the virtual IO bus
  */
-int __init vio_bus_init(int (*match_func)(const struct vio_device_id *id,
-			const struct vio_dev *dev),
-		void (*unregister_dev)(struct vio_dev *),
-		void (*release_dev)(struct device *))
+int __init vio_bus_init(struct vio_bus_ops *ops)
 {
 	int err;
 
-	is_match = match_func;
-	unregister_device_callback = unregister_dev;
-	release_device_callback = release_dev;
+	vio_bus_ops = *ops;
 
 	err = bus_register(&vio_bus_type);
 	if (err) {
@@ -141,7 +134,8 @@ int __init vio_bus_init(int (*match_func)(const struct vio_device_id *id,
 		return err;
 	}
 
-	/* the fake parent of all vio devices, just to give us
+	/*
+	 * The fake parent of all vio devices, just to give us
 	 * a nice directory
 	 */
 	err = device_register(&vio_bus_device.dev);
@@ -157,25 +151,20 @@ int __init vio_bus_init(int (*match_func)(const struct vio_device_id *id,
 /* vio_dev refcount hit 0 */
 static void __devinit vio_dev_release(struct device *dev)
 {
-	if (release_device_callback)
-		release_device_callback(dev);
+	if (vio_bus_ops.release_device)
+		vio_bus_ops.release_device(dev);
 	kfree(to_vio_dev(dev));
 }
 
-static ssize_t viodev_show_name(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t viodev_show_name(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_vio_dev(dev)->name);
 }
 DEVICE_ATTR(name, S_IRUSR | S_IRGRP | S_IROTH, viodev_show_name, NULL);
 
-struct vio_dev * __devinit vio_register_device_common(
-		struct vio_dev *viodev, char *name, char *type,
-		uint32_t unit_address, struct iommu_table *iommu_table)
+struct vio_dev * __devinit vio_register_device(struct vio_dev *viodev)
 {
-	viodev->name = name;
-	viodev->type = type;
-	viodev->unit_address = unit_address;
-	viodev->iommu_table = iommu_table;
 	/* init generic 'struct device' fields: */
 	viodev->dev.parent = &vio_bus_device.dev;
 	viodev->dev.bus = &vio_bus_type;
@@ -194,8 +183,8 @@ struct vio_dev * __devinit vio_register_device_common(
 
 void __devinit vio_unregister_device(struct vio_dev *viodev)
 {
-	if (unregister_device_callback)
-		unregister_device_callback(viodev);
+	if (vio_bus_ops.unregister_device)
+		vio_bus_ops.unregister_device(viodev);
 	device_remove_file(&viodev->dev, &dev_attr_name);
 	device_unregister(&viodev->dev);
 }
@@ -262,16 +251,8 @@ static int vio_bus_match(struct device *dev, struct device_driver *drv)
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
 	struct vio_driver *vio_drv = to_vio_driver(drv);
 	const struct vio_device_id *ids = vio_drv->id_table;
-	const struct vio_device_id *found_id;
 
-	if (!ids)
-		return 0;
-
-	found_id = vio_match_device(ids, vio_dev);
-	if (found_id)
-		return 1;
-
-	return 0;
+	return (ids != NULL) && (vio_match_device(ids, vio_dev) != NULL);
 }
 
 struct bus_type vio_bus_type = {

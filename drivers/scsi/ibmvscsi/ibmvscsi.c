@@ -1442,7 +1442,7 @@ static int ibmvscsi_remove(struct vio_dev *vdev)
  */
 static struct vio_device_id ibmvscsi_device_table[] __devinitdata = {
 	{"vscsi", "IBM,v-scsi"},
-	{0,}
+	{ "", "" }
 };
 
 MODULE_DEVICE_TABLE(vio, ibmvscsi_device_table);
