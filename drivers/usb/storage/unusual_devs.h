@@ -86,6 +86,16 @@ UNUSUAL_DEV(  0x040d, 0x6205, 0x0003, 0x0003,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Sebastian Kapfer <sebastian_kapfer@gmx.net>
+ * and Olaf Hering <olh@suse.de> (different bcd's, same vendor/product)
+ * for USB floppies that need the SINGLE_LUN enforcement.
+ */
+UNUSUAL_DEV(  0x0409, 0x0040, 0x0000, 0x9999,
+		"NEC",
+		"NEC USB UF000x",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
+
 /* Deduced by Jonathan Woithe <jwoithe@physics.adelaide.edu.au>
  * Entry needed for flags: US_FL_FIX_INQUIRY because initial inquiry message
  * always fails and confuses drive.
@@ -95,6 +105,13 @@ UNUSUAL_DEV(  0x0411, 0x001c, 0x0113, 0x0113,
 		"DUB-P40G HDD",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
+
+/* Reported by Olaf Hering <olh@suse.de> from novell bug #105878 */
+UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
+		"SMSC",
+		"FDC GOLD-2.30",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
 
 #ifdef CONFIG_USB_STORAGE_DPCM
 UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
