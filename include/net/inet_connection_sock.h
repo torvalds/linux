@@ -147,7 +147,7 @@ static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
 	}
 #ifdef INET_CSK_DEBUG
 	else {
-		pr_debug(inet_csk_timer_bug_msg);
+		pr_debug("%s", inet_csk_timer_bug_msg);
 	}
 #endif
 }
@@ -180,7 +180,7 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 	}
 #ifdef INET_CSK_DEBUG
 	else {
-		pr_debug(inet_csk_timer_bug_msg);
+		pr_debug("%s", inet_csk_timer_bug_msg);
 	}
 #endif
 }
