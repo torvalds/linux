@@ -16,93 +16,51 @@
 #include <asm/page.h>
 #include <asm/prom.h>
 #include <asm/lmb.h>
+#include <asm/firmware.h>
 
-typedef u32 msChunks_entry;
-struct msChunks {
+struct mschunks_map {
         unsigned long num_chunks;
         unsigned long chunk_size;
         unsigned long chunk_shift;
         unsigned long chunk_mask;
-        msChunks_entry *abs;
+        u32 *mapping;
 };
 
-extern struct msChunks msChunks;
+extern struct mschunks_map mschunks_map;
 
-extern unsigned long msChunks_alloc(unsigned long, unsigned long, unsigned long);
-extern unsigned long reloc_offset(void);
+/* Chunks are 256 KB */
+#define MSCHUNKS_CHUNK_SHIFT	(18)
+#define MSCHUNKS_CHUNK_SIZE	(1UL << MSCHUNKS_CHUNK_SHIFT)
+#define MSCHUNKS_OFFSET_MASK	(MSCHUNKS_CHUNK_SIZE - 1)
 
-#ifdef CONFIG_MSCHUNKS
-
-static inline unsigned long
-chunk_to_addr(unsigned long chunk)
+static inline unsigned long chunk_to_addr(unsigned long chunk)
 {
-	unsigned long offset = reloc_offset();
-	struct msChunks *_msChunks = PTRRELOC(&msChunks);
-
-	return chunk << _msChunks->chunk_shift;
+	return chunk << MSCHUNKS_CHUNK_SHIFT;
 }
 
-static inline unsigned long
-addr_to_chunk(unsigned long addr)
+static inline unsigned long addr_to_chunk(unsigned long addr)
 {
-	unsigned long offset = reloc_offset();
-	struct msChunks *_msChunks = PTRRELOC(&msChunks);
-
-	return addr >> _msChunks->chunk_shift;
+	return addr >> MSCHUNKS_CHUNK_SHIFT;
 }
 
-static inline unsigned long
-chunk_offset(unsigned long addr)
+static inline unsigned long phys_to_abs(unsigned long pa)
 {
-	unsigned long offset = reloc_offset();
-	struct msChunks *_msChunks = PTRRELOC(&msChunks);
+	unsigned long chunk;
 
-	return addr & _msChunks->chunk_mask;
+	/* This is a no-op on non-iSeries */
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return pa;
+
+	chunk = addr_to_chunk(pa);
+
+	if (chunk < mschunks_map.num_chunks)
+		chunk = mschunks_map.mapping[chunk];
+
+	return chunk_to_addr(chunk) + (pa & MSCHUNKS_OFFSET_MASK);
 }
-
-static inline unsigned long
-abs_chunk(unsigned long pchunk)
-{
-	unsigned long offset = reloc_offset();
-	struct msChunks *_msChunks = PTRRELOC(&msChunks);
-	if ( pchunk >= _msChunks->num_chunks ) {
-		return pchunk;
-	}
-	return PTRRELOC(_msChunks->abs)[pchunk];
-}
-
-/* A macro so it can take pointers or unsigned long. */
-#define phys_to_abs(pa)						     \
-	({ unsigned long _pa = (unsigned long)(pa);			     \
-	   chunk_to_addr(abs_chunk(addr_to_chunk(_pa))) + chunk_offset(_pa); \
-	})
-
-static inline unsigned long
-physRpn_to_absRpn(unsigned long rpn)
-{
-	unsigned long pa = rpn << PAGE_SHIFT;
-	unsigned long aa = phys_to_abs(pa);
-	return (aa >> PAGE_SHIFT);
-}
-
-/* A macro so it can take pointers or unsigned long. */
-#define abs_to_phys(aa) lmb_abs_to_phys((unsigned long)(aa))
-
-#else  /* !CONFIG_MSCHUNKS */
-
-#define chunk_to_addr(chunk) ((unsigned long)(chunk))
-#define addr_to_chunk(addr) (addr)
-#define chunk_offset(addr) (0)
-#define abs_chunk(pchunk) (pchunk)
-
-#define phys_to_abs(pa) (pa)
-#define physRpn_to_absRpn(rpn) (rpn)
-#define abs_to_phys(aa) (aa)
-
-#endif /* !CONFIG_MSCHUNKS */
 
 /* Convenience macros */
 #define virt_to_abs(va) phys_to_abs(__pa(va))
-#define abs_to_virt(aa) __va(abs_to_phys(aa))
+#define abs_to_virt(aa) __va(aa)
 
 #endif /* _ABS_ADDR_H */

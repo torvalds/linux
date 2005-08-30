@@ -191,7 +191,7 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 
 	/* Special commands */
 	while ((skb = skb_dequeue(&hdev->driver_init))) {
-		skb->pkt_type = HCI_COMMAND_PKT;
+		bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
 		skb->dev = (void *) hdev;
 		skb_queue_tail(&hdev->cmd_q, skb);
 		hci_sched_cmd(hdev);
@@ -995,11 +995,11 @@ static int hci_send_frame(struct sk_buff *skb)
 		return -ENODEV;
 	}
 
-	BT_DBG("%s type %d len %d", hdev->name, skb->pkt_type, skb->len);
+	BT_DBG("%s type %d len %d", hdev->name, bt_cb(skb)->pkt_type, skb->len);
 
 	if (atomic_read(&hdev->promisc)) {
 		/* Time stamp */
-		do_gettimeofday(&skb->stamp);
+		__net_timestamp(skb);
 
 		hci_send_to_sock(hdev, skb);
 	}
@@ -1034,7 +1034,7 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 ogf, __u16 ocf, __u32 plen, void *p
 
 	BT_DBG("skb len %d", skb->len);
 
-	skb->pkt_type = HCI_COMMAND_PKT;
+	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
 	skb->dev = (void *) hdev;
 	skb_queue_tail(&hdev->cmd_q, skb);
 	hci_sched_cmd(hdev);
@@ -1081,7 +1081,7 @@ int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 	BT_DBG("%s conn %p flags 0x%x", hdev->name, conn, flags);
 
 	skb->dev = (void *) hdev;
-	skb->pkt_type = HCI_ACLDATA_PKT;
+	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
 	hci_add_acl_hdr(skb, conn->handle, flags | ACL_START);
 
 	if (!(list = skb_shinfo(skb)->frag_list)) {
@@ -1103,7 +1103,7 @@ int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 			skb = list; list = list->next;
 			
 			skb->dev = (void *) hdev;
-			skb->pkt_type = HCI_ACLDATA_PKT;
+			bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
 			hci_add_acl_hdr(skb, conn->handle, flags | ACL_CONT);
 
 			BT_DBG("%s frag %p len %d", hdev->name, skb, skb->len);
@@ -1139,7 +1139,7 @@ int hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
 	memcpy(skb->h.raw, &hdr, HCI_SCO_HDR_SIZE);
 
 	skb->dev = (void *) hdev;
-	skb->pkt_type = HCI_SCODATA_PKT;
+	bt_cb(skb)->pkt_type = HCI_SCODATA_PKT;
 	skb_queue_tail(&conn->data_q, skb);
 	hci_sched_tx(hdev);
 	return 0;
@@ -1369,7 +1369,7 @@ void hci_rx_task(unsigned long arg)
 
 		if (test_bit(HCI_INIT, &hdev->flags)) {
 			/* Don't process data packets in this states. */
-			switch (skb->pkt_type) {
+			switch (bt_cb(skb)->pkt_type) {
 			case HCI_ACLDATA_PKT:
 			case HCI_SCODATA_PKT:
 				kfree_skb(skb);
@@ -1378,7 +1378,7 @@ void hci_rx_task(unsigned long arg)
 		}
 
 		/* Process frame */
-		switch (skb->pkt_type) {
+		switch (bt_cb(skb)->pkt_type) {
 		case HCI_EVENT_PKT:
 			hci_event_packet(hdev, skb);
 			break;

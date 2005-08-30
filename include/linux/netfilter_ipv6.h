@@ -10,6 +10,8 @@
 
 #include <linux/netfilter.h>
 
+/* only for userspace compatibility */
+#ifndef __KERNEL__
 /* IP Cache bits. */
 /* Src IP address. */
 #define NFC_IP6_SRC              0x0001
@@ -38,6 +40,7 @@
 #define NFC_IP6_DST_PT           0x0400
 /* Something else about the proto */
 #define NFC_IP6_PROTO_UNKNOWN    0x2000
+#endif /* ! __KERNEL__ */
 
 
 /* IP6 Hooks */
@@ -67,5 +70,8 @@ enum nf_ip6_hook_priorities {
 	NF_IP6_PRI_SELINUX_LAST = 225,
 	NF_IP6_PRI_LAST = INT_MAX,
 };
+
+extern int ipv6_netfilter_init(void);
+extern void ipv6_netfilter_fini(void);
 
 #endif /*__LINUX_IP6_NETFILTER_H*/

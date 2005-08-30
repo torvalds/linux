@@ -131,10 +131,10 @@ static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len)
 		case NEXTHDR_HOP:
 		case NEXTHDR_DEST:
 			if (!zero_out_mutable_opts(exthdr.opth)) {
-				LIMIT_NETDEBUG(printk(
+				LIMIT_NETDEBUG(
 					KERN_WARNING "overrun %sopts\n",
 					nexthdr == NEXTHDR_HOP ?
-						"hop" : "dest"));
+						"hop" : "dest");
 				return -EINVAL;
 			}
 			break;
@@ -293,8 +293,7 @@ static int ah6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 		skb_push(skb, skb->data - skb->nh.raw);
 		ahp->icv(ahp, skb, ah->auth_data);
 		if (memcmp(ah->auth_data, auth_data, ahp->icv_trunc_len)) {
-			LIMIT_NETDEBUG(
-				printk(KERN_WARNING "ipsec ah authentication error\n"));
+			LIMIT_NETDEBUG(KERN_WARNING "ipsec ah authentication error\n");
 			x->stats.integrity_failed++;
 			goto free_out;
 		}
@@ -332,9 +331,9 @@ static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (!x)
 		return;
 
-	NETDEBUG(printk(KERN_DEBUG "pmtu discovery on SA AH/%08x/"
-			"%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-	       ntohl(ah->spi), NIP6(iph->daddr)));
+	NETDEBUG(KERN_DEBUG "pmtu discovery on SA AH/%08x/"
+		 "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+		 ntohl(ah->spi), NIP6(iph->daddr));
 
 	xfrm_state_put(x);
 }

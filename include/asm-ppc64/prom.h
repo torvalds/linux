@@ -22,13 +22,15 @@
 #define RELOC(x)        (*PTRRELOC(&(x)))
 
 /* Definitions used by the flattened device tree */
-#define OF_DT_HEADER		0xd00dfeed	/* 4: version, 4: total size */
-#define OF_DT_BEGIN_NODE	0x1		/* Start node: full name */
+#define OF_DT_HEADER		0xd00dfeed	/* marker */
+#define OF_DT_BEGIN_NODE	0x1		/* Start of node, full name */
 #define OF_DT_END_NODE		0x2		/* End node */
-#define OF_DT_PROP		0x3		/* Property: name off, size, content */
+#define OF_DT_PROP		0x3		/* Property: name off, size,
+						 * content */
+#define OF_DT_NOP		0x4		/* nop */
 #define OF_DT_END		0x9
 
-#define OF_DT_VERSION		1
+#define OF_DT_VERSION		0x10
 
 /*
  * This is what gets passed to the kernel by prom_init or kexec
@@ -54,7 +56,9 @@ struct boot_param_header
 	u32	version;		/* format version */
 	u32	last_comp_version;	/* last compatible version */
 	/* version 2 fields below */
-	u32	boot_cpuid_phys;	/* Which physical CPU id we're booting on */
+	u32	boot_cpuid_phys;	/* Physical CPU id we're booting on */
+	/* version 3 fields below */
+	u32	dt_strings_size;	/* size of the DT strings block */
 };
 
 

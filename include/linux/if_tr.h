@@ -43,12 +43,16 @@ struct trh_hdr {
 };
 
 #ifdef __KERNEL__
+#include <linux/config.h>
 #include <linux/skbuff.h>
 
 static inline struct trh_hdr *tr_hdr(const struct sk_buff *skb)
 {
 	return (struct trh_hdr *)skb->mac.raw;
 }
+#ifdef CONFIG_SYSCTL
+extern struct ctl_table tr_table[];
+#endif
 #endif
 
 /* This is an Token-Ring LLC structure */

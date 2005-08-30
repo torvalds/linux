@@ -10,7 +10,7 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/seq_file.h>
-#include <linux/tcp.h>
+#include <net/tcp_states.h>
 #include <net/ipx.h>
 
 static __inline__ struct ipx_interface *ipx_get_interface_idx(loff_t pos)

@@ -255,7 +255,6 @@ struct ip_vs_daemon_user {
 #include <asm/atomic.h>                 /* for struct atomic_t */
 #include <linux/netdevice.h>		/* for struct neighbour */
 #include <net/dst.h>			/* for struct dst_entry */
-#include <net/tcp.h>
 #include <net/udp.h>
 #include <linux/compiler.h>
 

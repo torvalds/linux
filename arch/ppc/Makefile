@@ -21,11 +21,13 @@ CC		:= $(CC) -m32
 endif
 
 LDFLAGS_vmlinux	:= -Ttext $(KERNELLOAD) -Bstatic
-CPPFLAGS	+= -Iarch/$(ARCH)
+CPPFLAGS	+= -Iarch/$(ARCH) -Iinclude3
 AFLAGS		+= -Iarch/$(ARCH)
 CFLAGS		+= -Iarch/$(ARCH) -msoft-float -pipe \
 		-ffixed-r2 -mmultiple
 CPP		= $(CC) -E $(CFLAGS)
+# Temporary hack until we have migrated to asm-powerpc
+LINUXINCLUDE    += -Iinclude3
 
 CHECKFLAGS	+= -D__powerpc__
 
@@ -101,6 +103,7 @@ endef
 
 archclean:
 	$(Q)$(MAKE) $(clean)=arch/ppc/boot
+	$(Q)rm -rf include3
 
 prepare: include/asm-$(ARCH)/offsets.h checkbin
 
@@ -109,6 +112,12 @@ arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
 
 include/asm-$(ARCH)/offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
 	$(call filechk,gen-asm-offsets)
+
+# Temporary hack until we have migrated to asm-powerpc
+include/asm: include3/asm
+include3/asm:
+	$(Q)if [ ! -d include3 ]; then mkdir -p include3; fi
+	$(Q)ln -fsn $(srctree)/include/asm-powerpc include3/asm
 
 # Use the file '.tmp_gas_check' for binutils tests, as gas won't output
 # to stdout and these checks are run even on install targets.

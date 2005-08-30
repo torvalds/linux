@@ -41,7 +41,58 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 DEFINE_PER_CPU(struct pte_freelist_batch *, pte_freelist_cur);
 unsigned long pte_freelist_forced_free;
 
-void __pte_free_tlb(struct mmu_gather *tlb, struct page *ptepage)
+struct pte_freelist_batch
+{
+	struct rcu_head	rcu;
+	unsigned int	index;
+	pgtable_free_t	tables[0];
+};
+
+DEFINE_PER_CPU(struct pte_freelist_batch *, pte_freelist_cur);
+unsigned long pte_freelist_forced_free;
+
+#define PTE_FREELIST_SIZE \
+	((PAGE_SIZE - sizeof(struct pte_freelist_batch)) \
+	  / sizeof(pgtable_free_t))
+
+#ifdef CONFIG_SMP
+static void pte_free_smp_sync(void *arg)
+{
+	/* Do nothing, just ensure we sync with all CPUs */
+}
+#endif
+
+/* This is only called when we are critically out of memory
+ * (and fail to get a page in pte_free_tlb).
+ */
+static void pgtable_free_now(pgtable_free_t pgf)
+{
+	pte_freelist_forced_free++;
+
+	smp_call_function(pte_free_smp_sync, NULL, 0, 1);
+
+	pgtable_free(pgf);
+}
+
+static void pte_free_rcu_callback(struct rcu_head *head)
+{
+	struct pte_freelist_batch *batch =
+		container_of(head, struct pte_freelist_batch, rcu);
+	unsigned int i;
+
+	for (i = 0; i < batch->index; i++)
+		pgtable_free(batch->tables[i]);
+
+	free_page((unsigned long)batch);
+}
+
+static void pte_free_submit(struct pte_freelist_batch *batch)
+{
+	INIT_RCU_HEAD(&batch->rcu);
+	call_rcu(&batch->rcu, pte_free_rcu_callback);
+}
+
+void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf)
 {
 	/* This is safe as we are holding page_table_lock */
         cpumask_t local_cpumask = cpumask_of_cpu(smp_processor_id());
@@ -49,19 +100,19 @@ void __pte_free_tlb(struct mmu_gather *tlb, struct page *ptepage)
 
 	if (atomic_read(&tlb->mm->mm_users) < 2 ||
 	    cpus_equal(tlb->mm->cpu_vm_mask, local_cpumask)) {
-		pte_free(ptepage);
+		pgtable_free(pgf);
 		return;
 	}
 
 	if (*batchp == NULL) {
 		*batchp = (struct pte_freelist_batch *)__get_free_page(GFP_ATOMIC);
 		if (*batchp == NULL) {
-			pte_free_now(ptepage);
+			pgtable_free_now(pgf);
 			return;
 		}
 		(*batchp)->index = 0;
 	}
-	(*batchp)->pages[(*batchp)->index++] = ptepage;
+	(*batchp)->tables[(*batchp)->index++] = pgf;
 	if ((*batchp)->index == PTE_FREELIST_SIZE) {
 		pte_free_submit(*batchp);
 		*batchp = NULL;
@@ -130,42 +181,6 @@ void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 		flush_hash_range(batch->context, i, local);
 	batch->index = 0;
 	put_cpu();
-}
-
-#ifdef CONFIG_SMP
-static void pte_free_smp_sync(void *arg)
-{
-	/* Do nothing, just ensure we sync with all CPUs */
-}
-#endif
-
-/* This is only called when we are critically out of memory
- * (and fail to get a page in pte_free_tlb).
- */
-void pte_free_now(struct page *ptepage)
-{
-	pte_freelist_forced_free++;
-
-	smp_call_function(pte_free_smp_sync, NULL, 0, 1);
-
-	pte_free(ptepage);
-}
-
-static void pte_free_rcu_callback(struct rcu_head *head)
-{
-	struct pte_freelist_batch *batch =
-		container_of(head, struct pte_freelist_batch, rcu);
-	unsigned int i;
-
-	for (i = 0; i < batch->index; i++)
-		pte_free(batch->pages[i]);
-	free_page((unsigned long)batch);
-}
-
-void pte_free_submit(struct pte_freelist_batch *batch)
-{
-	INIT_RCU_HEAD(&batch->rcu);
-	call_rcu(&batch->rcu, pte_free_rcu_callback);
 }
 
 void pte_free_finish(void)

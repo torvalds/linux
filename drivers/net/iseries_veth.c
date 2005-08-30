@@ -1370,7 +1370,7 @@ static int veth_probe(struct vio_dev *vdev, const struct vio_device_id *id)
  */
 static struct vio_device_id veth_device_table[] __devinitdata = {
 	{ "vlan", "" },
-	{ NULL, NULL }
+	{ "", "" }
 };
 MODULE_DEVICE_TABLE(vio, veth_device_table);
 

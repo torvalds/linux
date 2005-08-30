@@ -131,11 +131,12 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock);
 
 /* Skb helpers */
 struct bt_skb_cb {
-	int incoming;
+	__u8 pkt_type;
+	__u8 incoming;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)(skb->cb)) 
 
-static inline struct sk_buff *bt_skb_alloc(unsigned int len, int how)
+static inline struct sk_buff *bt_skb_alloc(unsigned int len, unsigned int __nocast how)
 {
 	struct sk_buff *skb;
 

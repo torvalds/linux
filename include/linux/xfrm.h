@@ -258,9 +258,27 @@ struct xfrm_usersa_flush {
 	__u8				proto;
 };
 
+#ifndef __KERNEL__
+/* backwards compatibility for userspace */
 #define XFRMGRP_ACQUIRE		1
 #define XFRMGRP_EXPIRE		2
 #define XFRMGRP_SA		4
 #define XFRMGRP_POLICY		8
+#endif
+
+enum xfrm_nlgroups {
+	XFRMNLGRP_NONE,
+#define XFRMNLGRP_NONE		XFRMNLGRP_NONE
+	XFRMNLGRP_ACQUIRE,
+#define XFRMNLGRP_ACQUIRE	XFRMNLGRP_ACQUIRE
+	XFRMNLGRP_EXPIRE,
+#define XFRMNLGRP_EXPIRE	XFRMNLGRP_EXPIRE
+	XFRMNLGRP_SA,
+#define XFRMNLGRP_SA		XFRMNLGRP_SA
+	XFRMNLGRP_POLICY,
+#define XFRMNLGRP_POLICY	XFRMNLGRP_POLICY
+	__XFRMNLGRP_MAX
+};
+#define XFRMNLGRP_MAX	(__XFRMNLGRP_MAX - 1)
 
 #endif /* _LINUX_XFRM_H */

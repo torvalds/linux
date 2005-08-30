@@ -22,6 +22,7 @@
  *
  * Changes:
  *	Paul `Rusty' Russell		properly handle non-linear skbs
+ *	Harald Welte			don't use nfcache
  *
  */
 
@@ -529,7 +530,7 @@ static unsigned int ip_vs_post_routing(unsigned int hooknum,
 				       const struct net_device *out,
 				       int (*okfn)(struct sk_buff *))
 {
-	if (!((*pskb)->nfcache & NFC_IPVS_PROPERTY))
+	if (!((*pskb)->ipvs_property))
 		return NF_ACCEPT;
 
 	/* The packet was sent from IPVS, exit this chain */
@@ -701,7 +702,7 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 	/* do the statistics and put it back */
 	ip_vs_out_stats(cp, skb);
 
-	skb->nfcache |= NFC_IPVS_PROPERTY;
+	skb->ipvs_property = 1;
 	verdict = NF_ACCEPT;
 
   out:
@@ -739,7 +740,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 
 	EnterFunction(11);
 
-	if (skb->nfcache & NFC_IPVS_PROPERTY)
+	if (skb->ipvs_property)
 		return NF_ACCEPT;
 
 	iph = skb->nh.iph;
@@ -821,7 +822,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 	ip_vs_set_state(cp, IP_VS_DIR_OUTPUT, skb, pp);
 	ip_vs_conn_put(cp);
 
-	skb->nfcache |= NFC_IPVS_PROPERTY;
+	skb->ipvs_property = 1;
 
 	LeaveFunction(11);
 	return NF_ACCEPT;

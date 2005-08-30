@@ -46,7 +46,8 @@ struct llc_sap {
 	unsigned char	 f_bit;
 	int		 (*rcv_func)(struct sk_buff *skb,
 				     struct net_device *dev,
-				     struct packet_type *pt);
+				     struct packet_type *pt,
+				     struct net_device *orig_dev);
 	struct llc_addr	 laddr;
 	struct list_head node;
 	struct {
@@ -64,7 +65,7 @@ extern rwlock_t llc_sap_list_lock;
 extern unsigned char llc_station_mac_sa[ETH_ALEN];
 
 extern int llc_rcv(struct sk_buff *skb, struct net_device *dev,
-		   struct packet_type *pt);
+		   struct packet_type *pt, struct net_device *orig_dev);
 
 extern int llc_mac_hdr_init(struct sk_buff *skb,
 			    unsigned char *sa, unsigned char *da);
@@ -78,7 +79,8 @@ extern void llc_set_station_handler(void (*handler)(struct sk_buff *skb));
 extern struct llc_sap *llc_sap_open(unsigned char lsap,
 				    int (*rcv)(struct sk_buff *skb,
 					       struct net_device *dev,
-					       struct packet_type *pt));
+					       struct packet_type *pt,
+					       struct net_device *orig_dev));
 extern void llc_sap_close(struct llc_sap *sap);
 
 extern struct llc_sap *llc_sap_find(unsigned char sap_value);

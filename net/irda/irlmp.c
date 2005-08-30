@@ -53,7 +53,6 @@ struct irlmp_cb *irlmp = NULL;
 /* These can be altered by the sysctl interface */
 int  sysctl_discovery         = 0;
 int  sysctl_discovery_timeout = 3; /* 3 seconds by default */
-EXPORT_SYMBOL(sysctl_discovery_timeout);
 int  sysctl_discovery_slots   = 6; /* 6 slots by default */
 int  sysctl_lap_keepalive_time = LM_IDLE_TIMEOUT * 1000 / HZ;
 char sysctl_devname[65];
@@ -67,7 +66,6 @@ const char *irlmp_reasons[] = {
 	"LM_INIT_DISCONNECT",
 	"ERROR, NOT USED",
 };
-EXPORT_SYMBOL(irlmp_reasons);
 
 /*
  * Function irlmp_init (void)
@@ -675,7 +673,6 @@ struct lsap_cb *irlmp_dup(struct lsap_cb *orig, void *instance)
 
 	return new;
 }
-EXPORT_SYMBOL(irlmp_dup);
 
 /*
  * Function irlmp_disconnect_request (handle, userdata)

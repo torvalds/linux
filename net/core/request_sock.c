@@ -32,7 +32,6 @@
  * Further increasing requires to change hash table size.
  */
 int sysctl_max_syn_backlog = 256;
-EXPORT_SYMBOL(sysctl_max_syn_backlog);
 
 int reqsk_queue_alloc(struct request_sock_queue *queue,
 		      const int nr_table_entries)
@@ -53,6 +52,8 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 	get_random_bytes(&lopt->hash_rnd, sizeof(lopt->hash_rnd));
 	rwlock_init(&queue->syn_wait_lock);
 	queue->rskq_accept_head = queue->rskq_accept_head = NULL;
+	queue->rskq_defer_accept = 0;
+	lopt->nr_table_entries = nr_table_entries;
 
 	write_lock_bh(&queue->syn_wait_lock);
 	queue->listen_opt = lopt;
@@ -62,3 +63,28 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 }
 
 EXPORT_SYMBOL(reqsk_queue_alloc);
+
+void reqsk_queue_destroy(struct request_sock_queue *queue)
+{
+	/* make all the listen_opt local to us */
+	struct listen_sock *lopt = reqsk_queue_yank_listen_sk(queue);
+
+	if (lopt->qlen != 0) {
+		int i;
+
+		for (i = 0; i < lopt->nr_table_entries; i++) {
+			struct request_sock *req;
+
+			while ((req = lopt->syn_table[i]) != NULL) {
+				lopt->syn_table[i] = req->dl_next;
+				lopt->qlen--;
+				reqsk_free(req);
+			}
+		}
+	}
+
+	BUG_TRAP(lopt->qlen == 0);
+	kfree(lopt);
+}
+
+EXPORT_SYMBOL(reqsk_queue_destroy);

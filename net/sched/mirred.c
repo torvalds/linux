@@ -158,7 +158,7 @@ tcf_mirred_cleanup(struct tc_action *a, int bind)
 }
 
 static int
-tcf_mirred(struct sk_buff **pskb, struct tc_action *a)
+tcf_mirred(struct sk_buff **pskb, struct tc_action *a, struct tcf_result *res)
 {
 	struct tcf_mirred *p = PRIV(a, mirred);
 	struct net_device *dev;

@@ -352,10 +352,10 @@ tcf_change_indev(struct tcf_proto *tp, char *indev, struct rtattr *indev_tlv)
 static inline int
 tcf_match_indev(struct sk_buff *skb, char *indev)
 {
-	if (0 != indev[0]) {
-		if  (NULL == skb->input_dev)
+	if (indev[0]) {
+		if  (!skb->input_dev)
 			return 0;
-		else if (0 != strcmp(indev, skb->input_dev->name))
+		if (strcmp(indev, skb->input_dev->name))
 			return 0;
 	}
 
