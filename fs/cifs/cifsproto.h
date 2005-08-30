@@ -40,7 +40,7 @@ extern unsigned int _GetXid(void);
 extern void _FreeXid(unsigned int);
 #define GetXid() (int)_GetXid(); cFYI(1,("CIFS VFS: in %s as Xid: %d with uid: %d",__FUNCTION__, xid,current->fsuid));
 #define FreeXid(curr_xid) {_FreeXid(curr_xid); cFYI(1,("CIFS VFS: leaving %s (xid = %d) rc = %d",__FUNCTION__,curr_xid,(int)rc));}
-extern char *build_path_from_dentry(struct dentry *, const struct cifs_sb_info *cifs_sb);
+extern char *build_path_from_dentry(struct dentry *);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
 extern void renew_parental_timestamps(struct dentry *direntry);
 extern int SendReceive(const unsigned int /* xid */ , struct cifsSesInfo *,

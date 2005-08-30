@@ -436,7 +436,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 	/* Unlink can be called from rename so we can not grab the sem here
 	   since we deadlock otherwise */
 /*	down(&direntry->d_sb->s_vfs_rename_sem);*/
-	full_path = build_path_from_dentry(direntry, cifs_sb);
+	full_path = build_path_from_dentry(direntry);
 /*	up(&direntry->d_sb->s_vfs_rename_sem);*/
 	if (full_path == NULL) {
 		FreeXid(xid);
@@ -580,7 +580,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 	pTcon = cifs_sb->tcon;
 
 	down(&inode->i_sb->s_vfs_rename_sem);
-	full_path = build_path_from_dentry(direntry, cifs_sb);
+	full_path = build_path_from_dentry(direntry);
 	up(&inode->i_sb->s_vfs_rename_sem);
 	if (full_path == NULL) {
 		FreeXid(xid);
@@ -654,7 +654,7 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	pTcon = cifs_sb->tcon;
 
 	down(&inode->i_sb->s_vfs_rename_sem);
-	full_path = build_path_from_dentry(direntry, cifs_sb);
+	full_path = build_path_from_dentry(direntry);
 	up(&inode->i_sb->s_vfs_rename_sem);
 	if (full_path == NULL) {
 		FreeXid(xid);
@@ -707,8 +707,8 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 
 	/* we already  have the rename sem so we do not need to grab it again
 	   here to protect the path integrity */
-	fromName = build_path_from_dentry(source_direntry, cifs_sb_source);
-	toName = build_path_from_dentry(target_direntry, cifs_sb_target);
+	fromName = build_path_from_dentry(source_direntry);
+	toName = build_path_from_dentry(target_direntry);
 	if ((fromName == NULL) || (toName == NULL)) {
 		rc = -ENOMEM;
 		goto cifs_rename_exit;
@@ -824,7 +824,7 @@ int cifs_revalidate(struct dentry *direntry)
 
 	/* can not safely grab the rename sem here if rename calls revalidate
 	   since that would deadlock */
-	full_path = build_path_from_dentry(direntry, cifs_sb);
+	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
@@ -973,7 +973,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	pTcon = cifs_sb->tcon;
 
 	down(&direntry->d_sb->s_vfs_rename_sem);
-	full_path = build_path_from_dentry(direntry, cifs_sb);
+	full_path = build_path_from_dentry(direntry);
 	up(&direntry->d_sb->s_vfs_rename_sem);
 	if (full_path == NULL) {
 		FreeXid(xid);

@@ -368,7 +368,7 @@ static int initiate_cifs_search(const int xid, struct file *file)
 		return -EINVAL;
 
 	down(&file->f_dentry->d_sb->s_vfs_rename_sem);
-	full_path = build_path_from_dentry(file->f_dentry, cifs_sb);
+	full_path = build_path_from_dentry(file->f_dentry);
 	up(&file->f_dentry->d_sb->s_vfs_rename_sem);
 
 	if(full_path == NULL) {

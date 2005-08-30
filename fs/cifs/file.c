@@ -196,7 +196,7 @@ int cifs_open(struct inode *inode, struct file *file)
 	}
 
 	down(&inode->i_sb->s_vfs_rename_sem);
-	full_path = build_path_from_dentry(file->f_dentry, cifs_sb);
+	full_path = build_path_from_dentry(file->f_dentry);
 	up(&inode->i_sb->s_vfs_rename_sem);
 	if (full_path == NULL) {
 		FreeXid(xid);
@@ -366,7 +366,7 @@ static int cifs_reopen_file(struct inode *inode, struct file *file,
    those that already have the rename sem can end up causing writepage
    to get called and if the server was down that means we end up here,
    and we can never tell if the caller already has the rename_sem */
-	full_path = build_path_from_dentry(file->f_dentry, cifs_sb);
+	full_path = build_path_from_dentry(file->f_dentry);
 	if (full_path == NULL) {
 		up(&pCifsFile->fh_sem);
 		FreeXid(xid);
