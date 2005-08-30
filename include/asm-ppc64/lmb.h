@@ -22,7 +22,6 @@
 
 struct lmb_property {
 	unsigned long base;
-	unsigned long physbase;
 	unsigned long size;
 };
 

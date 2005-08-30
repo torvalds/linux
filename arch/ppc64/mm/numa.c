@@ -671,7 +671,7 @@ new_range:
 		 * Mark reserved regions on this node
 		 */
 		for (i = 0; i < lmb.reserved.cnt; i++) {
-			unsigned long physbase = lmb.reserved.region[i].physbase;
+			unsigned long physbase = lmb.reserved.region[i].base;
 			unsigned long size = lmb.reserved.region[i].size;
 
 			if (pa_to_nid(physbase) != nid &&
