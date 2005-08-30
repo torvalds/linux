@@ -189,7 +189,6 @@ static void ahci_irq_clear(struct ata_port *ap);
 static void ahci_eng_timeout(struct ata_port *ap);
 static int ahci_port_start(struct ata_port *ap);
 static void ahci_port_stop(struct ata_port *ap);
-static void ahci_host_stop(struct ata_host_set *host_set);
 static void ahci_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static void ahci_qc_prep(struct ata_queued_cmd *qc);
 static u8 ahci_check_status(struct ata_port *ap);
@@ -242,7 +241,6 @@ static struct ata_port_operations ahci_ops = {
 
 	.port_start		= ahci_port_start,
 	.port_stop		= ahci_port_stop,
-	.host_stop		= ahci_host_stop,
 };
 
 static struct ata_port_info ahci_port_info[] = {
@@ -299,14 +297,6 @@ static inline unsigned long ahci_port_base_ul (unsigned long base, unsigned int 
 static inline void *ahci_port_base (void *base, unsigned int port)
 {
 	return (void *) ahci_port_base_ul((unsigned long)base, port);
-}
-
-static void ahci_host_stop(struct ata_host_set *host_set)
-{
-	struct ahci_host_priv *hpriv = host_set->private_data;
-	kfree(hpriv);
-
-	ata_host_stop(host_set);
 }
 
 static int ahci_port_start(struct ata_port *ap)
@@ -1089,7 +1079,8 @@ static void ahci_remove_one (struct pci_dev *pdev)
 		scsi_host_put(ap->host);
 	}
 
-	host_set->ops->host_stop(host_set);
+	kfree(hpriv);
+	iounmap(host_set->mmio_base);
 	kfree(host_set);
 
 	if (have_msi)
@@ -1105,7 +1096,6 @@ static int __init ahci_init(void)
 {
 	return pci_module_init(&ahci_pci_driver);
 }
-
 
 static void __exit ahci_exit(void)
 {
