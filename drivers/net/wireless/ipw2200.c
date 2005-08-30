@@ -526,7 +526,7 @@ static void ipw_dump_error_log(struct ipw_priv *priv,
 	for (i = 0; i < error->log_len; i++)
 		IPW_ERROR("%i\t0x%08x\t%i\n",
 			  error->log[i].time,
-			  error->log[i].event, error->log[i].data);
+			  error->log[i].data, error->log[i].event);
 }
 #endif
 
