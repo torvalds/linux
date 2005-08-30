@@ -38,6 +38,7 @@ struct ata_scsi_args {
 };
 
 /* libata-core.c */
+extern int atapi_enabled;
 extern struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 				      struct ata_device *dev);
 extern void ata_qc_free(struct ata_queued_cmd *qc);

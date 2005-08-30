@@ -75,6 +75,10 @@ static void __ata_qc_complete(struct ata_queued_cmd *qc);
 static unsigned int ata_unique_id = 1;
 static struct workqueue_struct *ata_wq;
 
+int atapi_enabled = 0;
+module_param(atapi_enabled, int, 0444);
+MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
