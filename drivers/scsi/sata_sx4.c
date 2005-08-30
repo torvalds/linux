@@ -451,9 +451,9 @@ static void pdc20621_dma_prep(struct ata_queued_cmd *qc)
 	struct scatterlist *sg = qc->sg;
 	struct ata_port *ap = qc->ap;
 	struct pdc_port_priv *pp = ap->private_data;
-	void *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host_set->mmio_base;
 	struct pdc_host_priv *hpriv = ap->host_set->private_data;
-	void *dimm_mmio = hpriv->dimm_mmio;
+	void __iomem *dimm_mmio = hpriv->dimm_mmio;
 	unsigned int portno = ap->port_no;
 	unsigned int i, last, idx, total_len = 0, sgt_len;
 	u32 *buf = (u32 *) &pp->dimm_buf[PDC_DIMM_HEADER_SZ];
@@ -513,9 +513,9 @@ static void pdc20621_nodata_prep(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pdc_port_priv *pp = ap->private_data;
-	void *mmio = ap->host_set->mmio_base;
+	void __iomem *mmio = ap->host_set->mmio_base;
 	struct pdc_host_priv *hpriv = ap->host_set->private_data;
-	void *dimm_mmio = hpriv->dimm_mmio;
+	void __iomem *dimm_mmio = hpriv->dimm_mmio;
 	unsigned int portno = ap->port_no;
 	unsigned int i;
 
@@ -565,7 +565,7 @@ static void __pdc20621_push_hdma(struct ata_queued_cmd *qc,
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_host_set *host_set = ap->host_set;
-	void *mmio = host_set->mmio_base;
+	void __iomem *mmio = host_set->mmio_base;
 
 	/* hard-code chip #0 */
 	mmio += PDC_CHIP0_OFS;
@@ -639,7 +639,7 @@ static void pdc20621_packet_start(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct ata_host_set *host_set = ap->host_set;
 	unsigned int port_no = ap->port_no;
-	void *mmio = host_set->mmio_base;
+	void __iomem *mmio = host_set->mmio_base;
 	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
 	u8 seq = (u8) (port_no + 1);
 	unsigned int port_ofs;
@@ -699,7 +699,7 @@ static int pdc20621_qc_issue_prot(struct ata_queued_cmd *qc)
 static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
                                           struct ata_queued_cmd *qc,
 					  unsigned int doing_hdma,
-					  void *mmio)
+					  void __iomem *mmio)
 {
 	unsigned int port_no = ap->port_no;
 	unsigned int port_ofs =
@@ -778,7 +778,7 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 static void pdc20621_irq_clear(struct ata_port *ap)
 {
 	struct ata_host_set *host_set = ap->host_set;
-	void *mmio = host_set->mmio_base;
+	void __iomem *mmio = host_set->mmio_base;
 
 	mmio += PDC_CHIP0_OFS;
 
@@ -792,7 +792,7 @@ static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_re
 	u32 mask = 0;
 	unsigned int i, tmp, port_no;
 	unsigned int handled = 0;
-	void *mmio_base;
+	void __iomem *mmio_base;
 
 	VPRINTK("ENTER\n");
 
@@ -940,9 +940,9 @@ static void pdc20621_get_from_dimm(struct ata_probe_ent *pe, void *psource,
 	u16 idx;
 	u8 page_mask;
 	long dist;
-	void *mmio = pe->mmio_base;
+	void __iomem *mmio = pe->mmio_base;
 	struct pdc_host_priv *hpriv = pe->private_data;
-	void *dimm_mmio = hpriv->dimm_mmio;
+	void __iomem *dimm_mmio = hpriv->dimm_mmio;
 
 	/* hard-code chip #0 */
 	mmio += PDC_CHIP0_OFS;
@@ -996,9 +996,9 @@ static void pdc20621_put_to_dimm(struct ata_probe_ent *pe, void *psource,
 	u16 idx;
 	u8 page_mask;
 	long dist;
-	void *mmio = pe->mmio_base;
+	void __iomem *mmio = pe->mmio_base;
 	struct pdc_host_priv *hpriv = pe->private_data;
-	void *dimm_mmio = hpriv->dimm_mmio;
+	void __iomem *dimm_mmio = hpriv->dimm_mmio;
 
 	/* hard-code chip #0 */
 	mmio += PDC_CHIP0_OFS;
@@ -1044,7 +1044,7 @@ static void pdc20621_put_to_dimm(struct ata_probe_ent *pe, void *psource,
 static unsigned int pdc20621_i2c_read(struct ata_probe_ent *pe, u32 device,
 				      u32 subaddr, u32 *pdata)
 {
-	void *mmio = pe->mmio_base;
+	void __iomem *mmio = pe->mmio_base;
 	u32 i2creg  = 0;
 	u32 status;
 	u32 count =0;
@@ -1103,7 +1103,7 @@ static int pdc20621_prog_dimm0(struct ata_probe_ent *pe)
 	u32 data = 0;
    	int size, i;
    	u8 bdimmsize;
-   	void *mmio = pe->mmio_base;
+   	void __iomem *mmio = pe->mmio_base;
 	static const struct {
 		unsigned int reg;
 		unsigned int ofs;
@@ -1166,7 +1166,7 @@ static unsigned int pdc20621_prog_dimm_global(struct ata_probe_ent *pe)
 {
 	u32 data, spd0;
    	int error, i;
-   	void *mmio = pe->mmio_base;
+   	void __iomem *mmio = pe->mmio_base;
 
 	/* hard-code chip #0 */
    	mmio += PDC_CHIP0_OFS;
@@ -1220,7 +1220,7 @@ static unsigned int pdc20621_dimm_init(struct ata_probe_ent *pe)
 	u32 ticks=0;
 	u32 clock=0;
 	u32 fparam=0;
-   	void *mmio = pe->mmio_base;
+   	void __iomem *mmio = pe->mmio_base;
 
 	/* hard-code chip #0 */
    	mmio += PDC_CHIP0_OFS;
@@ -1344,7 +1344,7 @@ static unsigned int pdc20621_dimm_init(struct ata_probe_ent *pe)
 static void pdc_20621_init(struct ata_probe_ent *pe)
 {
 	u32 tmp;
-	void *mmio = pe->mmio_base;
+	void __iomem *mmio = pe->mmio_base;
 
 	/* hard-code chip #0 */
 	mmio += PDC_CHIP0_OFS;
@@ -1377,7 +1377,8 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 	static int printed_version;
 	struct ata_probe_ent *probe_ent = NULL;
 	unsigned long base;
-	void *mmio_base, *dimm_mmio = NULL;
+	void __iomem *mmio_base;
+	void __iomem *dimm_mmio = NULL;
 	struct pdc_host_priv *hpriv = NULL;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
 	int pci_dev_busy = 0;

@@ -346,7 +346,7 @@ static int k2_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	static int printed_version;
 	struct ata_probe_ent *probe_ent = NULL;
 	unsigned long base;
-	void *mmio_base;
+	void __iomem *mmio_base;
 	int pci_dev_busy = 0;
 	int rc;
 	int i;

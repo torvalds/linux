@@ -294,9 +294,9 @@ static inline unsigned long ahci_port_base_ul (unsigned long base, unsigned int 
 	return base + 0x100 + (port * 0x80);
 }
 
-static inline void *ahci_port_base (void *base, unsigned int port)
+static inline void __iomem *ahci_port_base (void __iomem *base, unsigned int port)
 {
-	return (void *) ahci_port_base_ul((unsigned long)base, port);
+	return (void __iomem *) ahci_port_base_ul((unsigned long)base, port);
 }
 
 static int ahci_port_start(struct ata_port *ap)
@@ -304,8 +304,9 @@ static int ahci_port_start(struct ata_port *ap)
 	struct device *dev = ap->host_set->dev;
 	struct ahci_host_priv *hpriv = ap->host_set->private_data;
 	struct ahci_port_priv *pp;
-	void *mem, *mmio = ap->host_set->mmio_base;
-	void *port_mmio = ahci_port_base(mmio, ap->port_no);
+	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
+	void *mem;
 	dma_addr_t mem_dma;
 
 	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
@@ -373,8 +374,8 @@ static void ahci_port_stop(struct ata_port *ap)
 {
 	struct device *dev = ap->host_set->dev;
 	struct ahci_port_priv *pp = ap->private_data;
-	void *mmio = ap->host_set->mmio_base;
-	void *port_mmio = ahci_port_base(mmio, ap->port_no);
+	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	u32 tmp;
 
 	tmp = readl(port_mmio + PORT_CMD);
@@ -536,8 +537,8 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 
 static void ahci_intr_error(struct ata_port *ap, u32 irq_stat)
 {
-	void *mmio = ap->host_set->mmio_base;
-	void *port_mmio = ahci_port_base(mmio, ap->port_no);
+	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	u32 tmp;
 	int work;
 
@@ -585,8 +586,8 @@ static void ahci_intr_error(struct ata_port *ap, u32 irq_stat)
 static void ahci_eng_timeout(struct ata_port *ap)
 {
 	struct ata_host_set *host_set = ap->host_set;
-	void *mmio = host_set->mmio_base;
-	void *port_mmio = ahci_port_base(mmio, ap->port_no);
+	void __iomem *mmio = host_set->mmio_base;
+	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 
@@ -616,8 +617,8 @@ static void ahci_eng_timeout(struct ata_port *ap)
 
 static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 {
-	void *mmio = ap->host_set->mmio_base;
-	void *port_mmio = ahci_port_base(mmio, ap->port_no);
+	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	u32 status, serr, ci;
 
 	serr = readl(port_mmio + PORT_SCR_ERR);
@@ -653,7 +654,7 @@ static irqreturn_t ahci_interrupt (int irq, void *dev_instance, struct pt_regs *
 	struct ata_host_set *host_set = dev_instance;
 	struct ahci_host_priv *hpriv;
 	unsigned int i, handled = 0;
-	void *mmio;
+	void __iomem *mmio;
 	u32 irq_stat, irq_ack = 0;
 
 	VPRINTK("ENTER\n");
@@ -699,7 +700,7 @@ static irqreturn_t ahci_interrupt (int irq, void *dev_instance, struct pt_regs *
 static int ahci_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	void *port_mmio = (void *) ap->ioaddr.cmd_addr;
+	void __iomem *port_mmio = (void __iomem *) ap->ioaddr.cmd_addr;
 
 	writel(1, port_mmio + PORT_CMD_ISSUE);
 	readl(port_mmio + PORT_CMD_ISSUE);	/* flush */
@@ -884,7 +885,7 @@ static void ahci_print_info(struct ata_probe_ent *probe_ent)
 {
 	struct ahci_host_priv *hpriv = probe_ent->private_data;
 	struct pci_dev *pdev = to_pci_dev(probe_ent->dev);
-	void *mmio = probe_ent->mmio_base;
+	void __iomem *mmio = probe_ent->mmio_base;
 	u32 vers, cap, impl, speed;
 	const char *speed_s;
 	u16 cc;
@@ -957,7 +958,7 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_probe_ent *probe_ent = NULL;
 	struct ahci_host_priv *hpriv;
 	unsigned long base;
-	void *mmio_base;
+	void __iomem *mmio_base;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
 	int have_msi, pci_dev_busy = 0;
 	int rc;

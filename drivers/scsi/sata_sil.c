@@ -242,7 +242,8 @@ static void sil_post_set_mode (struct ata_port *ap)
 {
 	struct ata_host_set *host_set = ap->host_set;
 	struct ata_device *dev;
-	void *addr = host_set->mmio_base + sil_port[ap->port_no].xfer_mode;
+	void __iomem *addr =
+		host_set->mmio_base + sil_port[ap->port_no].xfer_mode;
 	u32 tmp, dev_mode[2];
 	unsigned int i;
 
@@ -375,7 +376,7 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int printed_version;
 	struct ata_probe_ent *probe_ent = NULL;
 	unsigned long base;
-	void *mmio_base;
+	void __iomem *mmio_base;
 	int rc;
 	unsigned int i;
 	int pci_dev_busy = 0;

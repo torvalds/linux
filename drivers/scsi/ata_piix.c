@@ -583,7 +583,7 @@ static void pci_enable_intx(struct pci_dev *pdev)
 #define AHCI_ENABLE (1 << 31)
 static int piix_disable_ahci(struct pci_dev *pdev)
 {
-	void *mmio;
+	void __iomem *mmio;
 	unsigned long addr;
 	u32 tmp;
 	int rc = 0;
