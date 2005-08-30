@@ -149,7 +149,7 @@ static int bcsp_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		return 0;
 	}
 
-	switch (skb->pkt_type) {
+	switch (bt_cb(skb)->pkt_type) {
 	case HCI_ACLDATA_PKT:
 	case HCI_COMMAND_PKT:
 		skb_queue_tail(&bcsp->rel, skb);
@@ -227,7 +227,7 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 	if (!nskb)
 		return NULL;
 
-	nskb->pkt_type = pkt_type;
+	bt_cb(nskb)->pkt_type = pkt_type;
 
 	bcsp_slip_msgdelim(nskb);
 
@@ -286,7 +286,7 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 	   since they have priority */
 
 	if ((skb = skb_dequeue(&bcsp->unrel)) != NULL) {
-		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, skb->pkt_type);
+		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, bt_cb(skb)->pkt_type);
 		if (nskb) {
 			kfree_skb(skb);
 			return nskb;
@@ -303,7 +303,7 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 	spin_lock_irqsave(&bcsp->unack.lock, flags);
 
 	if (bcsp->unack.qlen < BCSP_TXWINSIZE && (skb = skb_dequeue(&bcsp->rel)) != NULL) {
-		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, skb->pkt_type);
+		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, bt_cb(skb)->pkt_type);
 		if (nskb) {
 			__skb_queue_tail(&bcsp->unack, skb);
 			mod_timer(&bcsp->tbcsp, jiffies + HZ / 4);
@@ -401,7 +401,7 @@ static void bcsp_handle_le_pkt(struct hci_uart *hu)
 		if (!nskb)
 			return;
 		memcpy(skb_put(nskb, 4), conf_rsp_pkt, 4);
-		nskb->pkt_type = BCSP_LE_PKT;
+		bt_cb(nskb)->pkt_type = BCSP_LE_PKT;
 
 		skb_queue_head(&bcsp->unrel, nskb);
 		hci_uart_tx_wakeup(hu);
@@ -483,14 +483,14 @@ static inline void bcsp_complete_rx_pkt(struct hci_uart *hu)
 	bcsp_pkt_cull(bcsp);
 	if ((bcsp->rx_skb->data[1] & 0x0f) == 6 &&
 			bcsp->rx_skb->data[0] & 0x80) {
-		bcsp->rx_skb->pkt_type = HCI_ACLDATA_PKT;
+		bt_cb(bcsp->rx_skb)->pkt_type = HCI_ACLDATA_PKT;
 		pass_up = 1;
 	} else if ((bcsp->rx_skb->data[1] & 0x0f) == 5 &&
 			bcsp->rx_skb->data[0] & 0x80) {
-		bcsp->rx_skb->pkt_type = HCI_EVENT_PKT;
+		bt_cb(bcsp->rx_skb)->pkt_type = HCI_EVENT_PKT;
 		pass_up = 1;
 	} else if ((bcsp->rx_skb->data[1] & 0x0f) == 7) {
-		bcsp->rx_skb->pkt_type = HCI_SCODATA_PKT;
+		bt_cb(bcsp->rx_skb)->pkt_type = HCI_SCODATA_PKT;
 		pass_up = 1;
 	} else if ((bcsp->rx_skb->data[1] & 0x0f) == 1 &&
 			!(bcsp->rx_skb->data[0] & 0x80)) {
@@ -512,7 +512,7 @@ static inline void bcsp_complete_rx_pkt(struct hci_uart *hu)
 				hdr.evt = 0xff;
 				hdr.plen = bcsp->rx_skb->len;
 				memcpy(skb_push(bcsp->rx_skb, HCI_EVENT_HDR_SIZE), &hdr, HCI_EVENT_HDR_SIZE);
-				bcsp->rx_skb->pkt_type = HCI_EVENT_PKT;
+				bt_cb(bcsp->rx_skb)->pkt_type = HCI_EVENT_PKT;
 
 				hci_recv_frame(bcsp->rx_skb);
 			} else {

@@ -3,6 +3,7 @@
 
 #include <linux/dn.h>
 #include <net/sock.h>
+#include <net/tcp.h>
 #include <asm/byteorder.h>
 
 typedef unsigned short dn_address;

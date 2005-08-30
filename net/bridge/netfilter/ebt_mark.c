@@ -23,10 +23,9 @@ static int ebt_target_mark(struct sk_buff **pskb, unsigned int hooknr,
 {
 	struct ebt_mark_t_info *info = (struct ebt_mark_t_info *)data;
 
-	if ((*pskb)->nfmark != info->mark) {
+	if ((*pskb)->nfmark != info->mark)
 		(*pskb)->nfmark = info->mark;
-		(*pskb)->nfcache |= NFC_ALTERED;
-	}
+
 	return info->target;
 }
 

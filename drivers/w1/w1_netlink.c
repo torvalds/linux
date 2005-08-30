@@ -51,7 +51,7 @@ void w1_netlink_send(struct w1_master *dev, struct w1_netlink_msg *msg)
 
 	memcpy(data, msg, sizeof(struct w1_netlink_msg));
 
-	NETLINK_CB(skb).dst_groups = dev->groups;
+	NETLINK_CB(skb).dst_group = dev->groups;
 	netlink_broadcast(dev->nls, skb, 0, dev->groups, GFP_ATOMIC);
 
 nlmsg_failure:

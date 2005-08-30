@@ -51,7 +51,7 @@ struct net_device *__find_vlan_dev(struct net_device* real_dev,
 /* found in vlan_dev.c */
 int vlan_dev_rebuild_header(struct sk_buff *skb);
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
-                  struct packet_type* ptype);
+                  struct packet_type *ptype, struct net_device *orig_dev);
 int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
                          unsigned short type, void *daddr, void *saddr,
                          unsigned len);

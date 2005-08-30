@@ -43,7 +43,6 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/inet.h>
-#include <linux/tcp.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/poll.h>
@@ -51,9 +50,10 @@
 
 #include <net/protocol.h>
 #include <linux/skbuff.h>
-#include <net/sock.h>
-#include <net/checksum.h>
 
+#include <net/checksum.h>
+#include <net/sock.h>
+#include <net/tcp_states.h>
 
 /*
  *	Is a socket 'connection oriented' ?

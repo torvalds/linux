@@ -14,9 +14,6 @@
 #include <net/ipv6.h>
 #include <net/addrconf.h>
 
-extern ctl_table ipv6_route_table[];
-extern ctl_table ipv6_icmp_table[];
-
 #ifdef CONFIG_SYSCTL
 
 static ctl_table ipv6_table[] = {

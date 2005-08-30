@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/net.h>
+#include <net/ip.h>
 #include <net/inetpeer.h>
 
 /*
@@ -72,7 +73,7 @@
 /* Exported for inet_getid inline function.  */
 DEFINE_SPINLOCK(inet_peer_idlock);
 
-static kmem_cache_t *peer_cachep;
+static kmem_cache_t *peer_cachep __read_mostly;
 
 #define node_height(x) x->avl_height
 static struct inet_peer peer_fake_node = {
@@ -459,5 +460,3 @@ static void peer_check_expire(unsigned long dummy)
 				peer_total / inet_peer_threshold * HZ;
 	add_timer(&peer_periodic_timer);
 }
-
-EXPORT_SYMBOL(inet_peer_idlock);

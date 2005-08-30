@@ -120,7 +120,7 @@ aoenet_xmit(struct sk_buff *sl)
  * (1) len doesn't include the header by default.  I want this. 
  */
 static int
-aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt)
+aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct aoe_hdr *h;
 	u32 n;

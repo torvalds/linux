@@ -21,10 +21,6 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-/* 
-   RPN support    -    Dirk Husemann <hud@zurich.ibm.com>
-*/
-
 /*
  * Bluetooth RFCOMM core.
  *
@@ -115,10 +111,10 @@ static void rfcomm_session_del(struct rfcomm_session *s);
 #define __get_mcc_len(b)  ((b & 0xfe) >> 1)
 
 /* RPN macros */
-#define __rpn_line_settings(data, stop, parity)  ((data & 0x3) | ((stop & 0x1) << 2) | ((parity & 0x3) << 3))
+#define __rpn_line_settings(data, stop, parity)  ((data & 0x3) | ((stop & 0x1) << 2) | ((parity & 0x7) << 3))
 #define __get_rpn_data_bits(line) ((line) & 0x3)
 #define __get_rpn_stop_bits(line) (((line) >> 2) & 0x1)
-#define __get_rpn_parity(line)    (((line) >> 3) & 0x3)
+#define __get_rpn_parity(line)    (((line) >> 3) & 0x7)
 
 static inline void rfcomm_schedule(uint event)
 {
@@ -233,7 +229,7 @@ static void rfcomm_dlc_clear_state(struct rfcomm_dlc *d)
 	d->rx_credits = RFCOMM_DEFAULT_CREDITS;
 }
 
-struct rfcomm_dlc *rfcomm_dlc_alloc(int prio)
+struct rfcomm_dlc *rfcomm_dlc_alloc(unsigned int __nocast prio)
 {
 	struct rfcomm_dlc *d = kmalloc(sizeof(*d), prio);
 	if (!d)
@@ -780,10 +776,10 @@ static int rfcomm_send_pn(struct rfcomm_session *s, int cr, struct rfcomm_dlc *d
 	return rfcomm_send_frame(s, buf, ptr - buf);
 }
 
-static int rfcomm_send_rpn(struct rfcomm_session *s, int cr, u8 dlci,
-			   u8 bit_rate, u8 data_bits, u8 stop_bits,
-			   u8 parity, u8 flow_ctrl_settings, 
-			   u8 xon_char, u8 xoff_char, u16 param_mask)
+int rfcomm_send_rpn(struct rfcomm_session *s, int cr, u8 dlci,
+			u8 bit_rate, u8 data_bits, u8 stop_bits,
+			u8 parity, u8 flow_ctrl_settings, 
+			u8 xon_char, u8 xoff_char, u16 param_mask)
 {
 	struct rfcomm_hdr *hdr;
 	struct rfcomm_mcc *mcc;
@@ -791,9 +787,9 @@ static int rfcomm_send_rpn(struct rfcomm_session *s, int cr, u8 dlci,
 	u8 buf[16], *ptr = buf;
 
 	BT_DBG("%p cr %d dlci %d bit_r 0x%x data_b 0x%x stop_b 0x%x parity 0x%x"
-	       "flwc_s 0x%x xon_c 0x%x xoff_c 0x%x p_mask 0x%x", 
-			s, cr, dlci, bit_rate, data_bits, stop_bits, parity, 
-			flow_ctrl_settings, xon_char, xoff_char, param_mask);
+			" flwc_s 0x%x xon_c 0x%x xoff_c 0x%x p_mask 0x%x", 
+		s, cr, dlci, bit_rate, data_bits, stop_bits, parity, 
+		flow_ctrl_settings, xon_char, xoff_char, param_mask);
 
 	hdr = (void *) ptr; ptr += sizeof(*hdr);
 	hdr->addr = __addr(s->initiator, 0);
@@ -1265,16 +1261,16 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 	u8 xon_char  = 0;
 	u8 xoff_char = 0;
 	u16 rpn_mask = RFCOMM_RPN_PM_ALL;
-	
-	BT_DBG("dlci %d cr %d len 0x%x bitr 0x%x line 0x%x flow 0x%x xonc 0x%x xoffc 0x%x pm 0x%x", 
-	       dlci, cr, len, rpn->bit_rate, rpn->line_settings, rpn->flow_ctrl,
-	       rpn->xon_char, rpn->xoff_char, rpn->param_mask);
-	
-	if (!cr) 
+
+	BT_DBG("dlci %d cr %d len 0x%x bitr 0x%x line 0x%x flow 0x%x xonc 0x%x xoffc 0x%x pm 0x%x",
+		dlci, cr, len, rpn->bit_rate, rpn->line_settings, rpn->flow_ctrl,
+		rpn->xon_char, rpn->xoff_char, rpn->param_mask);
+
+	if (!cr)
 		return 0;
-	
+
 	if (len == 1) {
-		/* request: return default setting */
+		/* This is a request, return default settings */
 		bit_rate  = RFCOMM_RPN_BR_115200;
 		data_bits = RFCOMM_RPN_DATA_8;
 		stop_bits = RFCOMM_RPN_STOP_1;
@@ -1282,11 +1278,12 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 		flow_ctrl = RFCOMM_RPN_FLOW_NONE;
 		xon_char  = RFCOMM_RPN_XON_CHAR;
 		xoff_char = RFCOMM_RPN_XOFF_CHAR;
-
 		goto rpn_out;
 	}
-	/* check for sane values: ignore/accept bit_rate, 8 bits, 1 stop bit, no parity,
-	                          no flow control lines, normal XON/XOFF chars */
+
+	/* Check for sane values, ignore/accept bit_rate, 8 bits, 1 stop bit,
+	 * no parity, no flow control lines, normal XON/XOFF chars */
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_BITRATE) {
 		bit_rate = rpn->bit_rate;
 		if (bit_rate != RFCOMM_RPN_BR_115200) {
@@ -1295,6 +1292,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_BITRATE;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_DATA) {
 		data_bits = __get_rpn_data_bits(rpn->line_settings);
 		if (data_bits != RFCOMM_RPN_DATA_8) {
@@ -1303,6 +1301,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_DATA;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_STOP) {
 		stop_bits = __get_rpn_stop_bits(rpn->line_settings);
 		if (stop_bits != RFCOMM_RPN_STOP_1) {
@@ -1311,6 +1310,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_STOP;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_PARITY) {
 		parity = __get_rpn_parity(rpn->line_settings);
 		if (parity != RFCOMM_RPN_PARITY_NONE) {
@@ -1319,6 +1319,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_PARITY;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_FLOW) {
 		flow_ctrl = rpn->flow_ctrl;
 		if (flow_ctrl != RFCOMM_RPN_FLOW_NONE) {
@@ -1327,6 +1328,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_FLOW;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_XON) {
 		xon_char = rpn->xon_char;
 		if (xon_char != RFCOMM_RPN_XON_CHAR) {
@@ -1335,6 +1337,7 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 			rpn_mask ^= RFCOMM_RPN_PM_XON;
 		}
 	}
+
 	if (rpn->param_mask & RFCOMM_RPN_PM_XOFF) {
 		xoff_char = rpn->xoff_char;
 		if (xoff_char != RFCOMM_RPN_XOFF_CHAR) {
@@ -1345,9 +1348,8 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 	}
 
 rpn_out:
-	rfcomm_send_rpn(s, 0, dlci, 
-			bit_rate, data_bits, stop_bits, parity, flow_ctrl,
-			xon_char, xoff_char, rpn_mask);
+	rfcomm_send_rpn(s, 0, dlci, bit_rate, data_bits, stop_bits,
+			parity, flow_ctrl, xon_char, xoff_char, rpn_mask);
 
 	return 0;
 }
@@ -1358,14 +1360,13 @@ static int rfcomm_recv_rls(struct rfcomm_session *s, int cr, struct sk_buff *skb
 	u8 dlci = __get_dlci(rls->dlci);
 
 	BT_DBG("dlci %d cr %d status 0x%x", dlci, cr, rls->status);
-	
+
 	if (!cr)
 		return 0;
 
-	/* FIXME: We should probably do something with this
-	   information here. But for now it's sufficient just
-	   to reply -- Bluetooth 1.1 says it's mandatory to 
-	   recognise and respond to RLS */
+	/* We should probably do something with this information here. But
+	 * for now it's sufficient just to reply -- Bluetooth 1.1 says it's
+	 * mandatory to recognise and respond to RLS */
 
 	rfcomm_send_rls(s, 0, dlci, rls->status);
 
@@ -1381,7 +1382,7 @@ static int rfcomm_recv_msc(struct rfcomm_session *s, int cr, struct sk_buff *skb
 	BT_DBG("dlci %d cr %d v24 0x%x", dlci, cr, msc->v24_sig);
 
 	d = rfcomm_dlc_get(s, dlci);
-	if (!d) 
+	if (!d)
 		return 0;
 
 	if (cr) {
@@ -1389,7 +1390,7 @@ static int rfcomm_recv_msc(struct rfcomm_session *s, int cr, struct sk_buff *skb
 			set_bit(RFCOMM_TX_THROTTLED, &d->flags);
 		else
 			clear_bit(RFCOMM_TX_THROTTLED, &d->flags);
-		
+
 		rfcomm_dlc_lock(d);
 		if (d->modem_status)
 			d->modem_status(d, msc->v24_sig);
@@ -1398,7 +1399,7 @@ static int rfcomm_recv_msc(struct rfcomm_session *s, int cr, struct sk_buff *skb
 		rfcomm_send_msc(s, 0, dlci, msc->v24_sig);
 
 		d->mscex |= RFCOMM_MSCEX_RX;
-	} else 
+	} else
 		d->mscex |= RFCOMM_MSCEX_TX;
 
 	return 0;

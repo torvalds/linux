@@ -988,9 +988,6 @@ void irlap_resend_rejected_frames(struct irlap_cb *self, int command)
 			IRDA_DEBUG(0, "%s(), unable to copy\n", __FUNCTION__);
 			return;
 		}
-		/* Unlink tx_skb from list */
-		tx_skb->next = tx_skb->prev = NULL;
-		tx_skb->list = NULL;
 
 		/* Clear old Nr field + poll bit */
 		tx_skb->data[1] &= 0x0f;
@@ -1063,9 +1060,6 @@ void irlap_resend_rejected_frame(struct irlap_cb *self, int command)
 			IRDA_DEBUG(0, "%s(), unable to copy\n", __FUNCTION__);
 			return;
 		}
-		/* Unlink tx_skb from list */
-		tx_skb->next = tx_skb->prev = NULL;
-		tx_skb->list = NULL;
 
 		/* Clear old Nr field + poll bit */
 		tx_skb->data[1] &= 0x0f;
@@ -1309,7 +1303,7 @@ static void irlap_recv_test_frame(struct irlap_cb *self, struct sk_buff *skb,
  * Jean II
  */
 int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
-		     struct packet_type *ptype)
+		     struct packet_type *ptype, struct net_device *orig_dev)
 {
 	struct irlap_info info;
 	struct irlap_cb *self;

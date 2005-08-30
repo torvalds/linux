@@ -110,6 +110,8 @@ static inline struct ethhdr *eth_hdr(const struct sk_buff *skb)
 {
 	return (struct ethhdr *)skb->mac.raw;
 }
+
+extern struct ctl_table ether_table[];
 #endif
 
 #endif	/* _LINUX_IF_ETHER_H */
