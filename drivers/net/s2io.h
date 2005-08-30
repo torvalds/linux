@@ -762,8 +762,8 @@ static inline u64 readq(void __iomem *addr)
 {
 	u64 ret = 0;
 	ret = readl(addr + 4);
-	(u64) ret <<= 32;
-	(u64) ret |= readl(addr);
+	ret <<= 32;
+	ret |= readl(addr);
 
 	return ret;
 }

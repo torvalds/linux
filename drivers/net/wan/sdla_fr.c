@@ -445,7 +445,7 @@ void 	s508_s514_unlock(sdla_t *card, unsigned long *smp_flags);
 void 	s508_s514_lock(sdla_t *card, unsigned long *smp_flags);
 
 unsigned short calc_checksum (char *, int);
-static int setup_fr_header(struct sk_buff** skb,
+static int setup_fr_header(struct sk_buff *skb,
 			   struct net_device* dev, char op_mode);
 
 
@@ -1372,7 +1372,7 @@ static int if_send(struct sk_buff* skb, struct net_device* dev)
 	/* Move the if_header() code to here. By inserting frame
 	 * relay header in if_header() we would break the
 	 * tcpdump and other packet sniffers */
-	chan->fr_header_len = setup_fr_header(&skb,dev,chan->common.usedby);
+	chan->fr_header_len = setup_fr_header(skb,dev,chan->common.usedby);
 	if (chan->fr_header_len < 0 ){
 		++chan->ifstats.tx_dropped;
 		++card->wandev.stats.tx_dropped;
@@ -1597,8 +1597,6 @@ static int setup_for_delayed_transmit(struct net_device* dev,
 		return 1;
 	}
 
-	skb_unlink(skb);
-	
         chan->transmit_length = len;
 	chan->delay_skb = skb;
         
@@ -4871,18 +4869,15 @@ static void unconfig_fr (sdla_t *card)
 	}
 }
 
-static int setup_fr_header(struct sk_buff **skb_orig, struct net_device* dev,
+static int setup_fr_header(struct sk_buff *skb, struct net_device* dev,
 			   char op_mode)
 {
-	struct sk_buff *skb = *skb_orig;
 	fr_channel_t *chan=dev->priv;
 
-	if (op_mode == WANPIPE){
-
+	if (op_mode == WANPIPE) {
 		chan->fr_header[0]=Q922_UI;
 		
 		switch (htons(skb->protocol)){
-			
 		case ETH_P_IP:
 			chan->fr_header[1]=NLPID_IP;
 			break;
@@ -4894,16 +4889,14 @@ static int setup_fr_header(struct sk_buff **skb_orig, struct net_device* dev,
 	}
 
 	/* If we are in bridging mode, we must apply
-	 * an Ethernet header */
-	if (op_mode == BRIDGE || op_mode == BRIDGE_NODE){
-
-
+	 * an Ethernet header
+	 */
+	if (op_mode == BRIDGE || op_mode == BRIDGE_NODE) {
 		/* Encapsulate the packet as a bridged Ethernet frame. */
 #ifdef DEBUG
 		printk(KERN_INFO "%s: encapsulating skb for frame relay\n", 
 			dev->name);
 #endif
-		
 		chan->fr_header[0] = 0x03;
 		chan->fr_header[1] = 0x00;
 		chan->fr_header[2] = 0x80;
@@ -4916,7 +4909,6 @@ static int setup_fr_header(struct sk_buff **skb_orig, struct net_device* dev,
 		/* Yuck. */
 		skb->protocol = ETH_P_802_3;
 		return 8;
-
 	}
 		
 	return 0;

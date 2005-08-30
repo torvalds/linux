@@ -39,7 +39,7 @@ static int ports_c;
 static int max_dcc_channels = 8;
 static unsigned int dcc_timeout = 300;
 /* This is slow, but it's simple. --RR */
-static char irc_buffer[65536];
+static char *irc_buffer;
 static DEFINE_SPINLOCK(irc_buffer_lock);
 
 unsigned int (*ip_nat_irc_hook)(struct sk_buff **pskb,
@@ -257,6 +257,10 @@ static int __init init(void)
 		printk("ip_conntrack_irc: dcc_timeout must be a positive integer\n");
 		return -EBUSY;
 	}
+
+	irc_buffer = kmalloc(65536, GFP_KERNEL);
+	if (!irc_buffer)
+		return -ENOMEM;
 	
 	/* If no port given, default to standard irc port */
 	if (ports_c == 0)
@@ -304,6 +308,7 @@ static void fini(void)
 		       ports[i]);
 		ip_conntrack_helper_unregister(&irc_helpers[i]);
 	}
+	kfree(irc_buffer);
 }
 
 module_init(init);

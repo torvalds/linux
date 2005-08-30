@@ -112,7 +112,7 @@ static int h4_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	BT_DBG("hu %p skb %p", hu, skb);
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &skb->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
 	skb_queue_tail(&h4->txq, skb);
 	return 0;
 }
@@ -239,7 +239,7 @@ static int h4_recv(struct hci_uart *hu, void *data, int count)
 			return 0;
 		}
 		h4->rx_skb->dev = (void *) hu->hdev;
-		h4->rx_skb->pkt_type = type;
+		bt_cb(h4->rx_skb)->pkt_type = type;
 	}
 	return count;
 }

@@ -1362,6 +1362,7 @@ struct sctp_association *sctp_unpack_cookie(
 	char *key;
 	sctp_scope_t scope;
 	struct sk_buff *skb = chunk->skb;
+	struct timeval tv;
 
 	headersize = sizeof(sctp_chunkhdr_t) + SCTP_SECRET_SIZE;
 	bodysize = ntohs(chunk->chunk_hdr->length) - headersize;
@@ -1434,7 +1435,8 @@ no_hmac:
 	 * an association, there is no need to check cookie's expiration
 	 * for init collision case of lost COOKIE ACK.
 	 */
-	if (!asoc && tv_lt(bear_cookie->expiration, skb->stamp)) {
+	skb_get_timestamp(skb, &tv);
+	if (!asoc && tv_lt(bear_cookie->expiration, tv)) {
 		__u16 len;
 		/*
 		 * Section 3.3.10.3 Stale Cookie Error (3)
@@ -1447,10 +1449,9 @@ no_hmac:
 		len = ntohs(chunk->chunk_hdr->length);
 		*errp = sctp_make_op_error_space(asoc, chunk, len);
 		if (*errp) {
-			suseconds_t usecs = (skb->stamp.tv_sec -
+			suseconds_t usecs = (tv.tv_sec -
 				bear_cookie->expiration.tv_sec) * 1000000L +
-				skb->stamp.tv_usec -
-				bear_cookie->expiration.tv_usec;
+				tv.tv_usec - bear_cookie->expiration.tv_usec;
 
 			usecs = htonl(usecs);
 			sctp_init_cause(*errp, SCTP_ERROR_STALE_COOKIE,

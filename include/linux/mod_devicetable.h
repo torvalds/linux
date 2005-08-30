@@ -1,6 +1,6 @@
 /*
  * Device tables which are exported to userspace via
- * scripts/table2alias.c.  You must keep that file in sync with this
+ * scripts/mod/file2alias.c.  You must keep that file in sync with this
  * header.
  */
 
@@ -190,6 +190,11 @@ struct of_device_id
 #endif
 };
 
+/* VIO */
+struct vio_device_id {
+	char type[32];
+	char compat[32];
+};
 
 /* PCMCIA */
 

@@ -210,7 +210,7 @@ void __init htab_initialize(void)
 
 	/* create bolted the linear mapping in the hash table */
 	for (i=0; i < lmb.memory.cnt; i++) {
-		base = lmb.memory.region[i].physbase + KERNELBASE;
+		base = lmb.memory.region[i].base + KERNELBASE;
 		size = lmb.memory.region[i].size;
 
 		DBG("creating mapping for region: %lx : %lx\n", base, size);
@@ -302,7 +302,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	int local = 0;
 	cpumask_t tmp;
 
-	if ((ea & ~REGION_MASK) > EADDR_MASK)
+	if ((ea & ~REGION_MASK) >= PGTABLE_RANGE)
 		return 1;
 
  	switch (REGION_ID(ea)) {

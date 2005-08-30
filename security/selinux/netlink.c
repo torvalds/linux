@@ -80,7 +80,8 @@ static void selnl_notify(int msgtype, void *data)
 	nlh = NLMSG_PUT(skb, 0, 0, msgtype, len);
 	selnl_add_payload(nlh, len, msgtype, data);
 	nlh->nlmsg_len = skb->tail - tmp;
-	netlink_broadcast(selnl, skb, 0, SELNL_GRP_AVC, GFP_USER);
+	NETLINK_CB(skb).dst_group = SELNLGRP_AVC;
+	netlink_broadcast(selnl, skb, 0, SELNLGRP_AVC, GFP_USER);
 out:
 	return;
 	
@@ -103,7 +104,8 @@ void selnl_notify_policyload(u32 seqno)
 
 static int __init selnl_init(void)
 {
-	selnl = netlink_kernel_create(NETLINK_SELINUX, NULL);
+	selnl = netlink_kernel_create(NETLINK_SELINUX, SELNLGRP_MAX, NULL,
+	                              THIS_MODULE);
 	if (selnl == NULL)
 		panic("SELinux:  Cannot create netlink socket.");
 	netlink_set_nonroot(NETLINK_SELINUX, NL_NONROOT_RECV);	

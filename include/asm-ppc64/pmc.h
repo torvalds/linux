@@ -26,4 +26,6 @@ typedef void (*perf_irq_t)(struct pt_regs *);
 int reserve_pmc_hardware(perf_irq_t new_perf_irq);
 void release_pmc_hardware(void);
 
+void power4_enable_pmcs(void);
+
 #endif /* _PPC64_PMC_H */

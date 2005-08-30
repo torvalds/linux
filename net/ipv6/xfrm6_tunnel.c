@@ -79,7 +79,7 @@ static u32 xfrm6_tunnel_spi;
 #define XFRM6_TUNNEL_SPI_MIN	1
 #define XFRM6_TUNNEL_SPI_MAX	0xffffffff
 
-static kmem_cache_t *xfrm6_tunnel_spi_kmem;
+static kmem_cache_t *xfrm6_tunnel_spi_kmem __read_mostly;
 
 #define XFRM6_TUNNEL_SPI_BYADDR_HSIZE 256
 #define XFRM6_TUNNEL_SPI_BYSPI_HSIZE 256

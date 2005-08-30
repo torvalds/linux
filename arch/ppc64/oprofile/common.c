@@ -153,6 +153,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 		case PV_970:
 		case PV_970FX:
+		case PV_970MP:
 			model = &op_model_power4;
 			model->num_counters = 8;
 			ops->cpu_type = "ppc64/970";

@@ -104,9 +104,6 @@ extern void iommu_devnode_init_pSeries(struct device_node *dn);
 
 #ifdef CONFIG_PPC_ISERIES
 
-/* Initializes tables for bio buses */
-extern void __init iommu_vio_init(void);
-
 struct iSeries_Device_Node;
 /* Creates table for an individual device node */
 extern void iommu_devnode_init_iSeries(struct iSeries_Device_Node *dn);

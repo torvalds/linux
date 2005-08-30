@@ -159,7 +159,7 @@ static int econet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	err = memcpy_toiovec(msg->msg_iov, skb->data, copied);
 	if (err)
 		goto out_free;
-	sk->sk_stamp = skb->stamp;
+	skb_get_timestamp(skb, &sk->sk_stamp);
 
 	if (msg->msg_name)
 		memcpy(msg->msg_name, skb->cb, msg->msg_namelen);
@@ -869,7 +869,7 @@ static void aun_tx_ack(unsigned long seq, int result)
 
 foundit:
 	tx_result(skb->sk, eb->cookie, result);
-	skb_unlink(skb);
+	skb_unlink(skb, &aun_queue);
 	spin_unlock_irqrestore(&aun_queue_lock, flags);
 	kfree_skb(skb);
 }
@@ -947,7 +947,7 @@ static void ab_cleanup(unsigned long h)
 		{
 			tx_result(skb->sk, eb->cookie, 
 				  ECTYPE_TRANSMIT_NOT_PRESENT);
-			skb_unlink(skb);
+			skb_unlink(skb, &aun_queue);
 			kfree_skb(skb);
 		}
 		skb = newskb;
@@ -1009,7 +1009,7 @@ release:
  *	Receive an Econet frame from a device.
  */
 
-static int econet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+static int econet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct ec_framehdr *hdr;
 	struct sock *sk;

@@ -55,7 +55,7 @@
 
 #include <asm/uaccess.h>
 
-DEFINE_SNMP_STAT(struct ipstats_mib, ipv6_statistics);
+DEFINE_SNMP_STAT(struct ipstats_mib, ipv6_statistics) __read_mostly;
 
 static struct packet_type ipv6_packet_type = {
 	.type = __constant_htons(ETH_P_IPV6), 
@@ -109,13 +109,6 @@ int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
 	return 0;
 }
 
-extern int ip6_mc_source(int add, int omode, struct sock *sk,
-	struct group_source_req *pgsr);
-extern int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf);
-extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
-	struct group_filter __user *optval, int __user *optlen);
-
-
 int ipv6_setsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int optlen)
 {
@@ -163,6 +156,13 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 			fl6_free_socklist(sk);
 			ipv6_sock_mc_close(sk);
 
+			/*
+			 * Sock is moving from IPv6 to IPv4 (sk_prot), so
+			 * remove it from the refcnt debug socks count in the
+			 * original family...
+			 */
+			sk_refcnt_debug_dec(sk);
+
 			if (sk->sk_protocol == IPPROTO_TCP) {
 				struct tcp_sock *tp = tcp_sk(sk);
 
@@ -192,9 +192,11 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 				kfree_skb(pktopt);
 
 			sk->sk_destruct = inet_sock_destruct;
-#ifdef INET_REFCNT_DEBUG
-			atomic_dec(&inet6_sock_nr);
-#endif
+			/*
+			 * ... and add it to the refcnt debug socks count
+			 * in the new family. -acme
+			 */
+			sk_refcnt_debug_inc(sk);
 			module_put(THIS_MODULE);
 			retv = 0;
 			break;
@@ -437,7 +439,6 @@ done:
 	}
 	case MCAST_MSFILTER:
 	{
-		extern int sysctl_optmem_max;
 		extern int sysctl_mld_max_msf;
 		struct group_filter *gsf;
 

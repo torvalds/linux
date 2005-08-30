@@ -286,7 +286,7 @@ static inline void rfcomm_set_owner_w(struct sk_buff *skb, struct rfcomm_dev *de
 	skb->destructor = rfcomm_wfree;
 }
 
-static struct sk_buff *rfcomm_wmalloc(struct rfcomm_dev *dev, unsigned long size, int priority)
+static struct sk_buff *rfcomm_wmalloc(struct rfcomm_dev *dev, unsigned long size, unsigned int __nocast priority)
 {
 	if (atomic_read(&dev->wmem_alloc) < rfcomm_room(dev->dlc)) {
 		struct sk_buff *skb = alloc_skb(size, priority);
@@ -528,8 +528,13 @@ static void rfcomm_dev_modem_status(struct rfcomm_dlc *dlc, u8 v24_sig)
 	struct rfcomm_dev *dev = dlc->owner;
 	if (!dev)
 		return;
-	
+
 	BT_DBG("dlc %p dev %p v24_sig 0x%02x", dlc, dev, v24_sig);
+
+	if ((dev->modem_status & TIOCM_CD) && !(v24_sig & RFCOMM_V24_DV)) {
+		if (dev->tty && !C_CLOCAL(dev->tty))
+			tty_hangup(dev->tty);
+	}
 
 	dev->modem_status = 
 		((v24_sig & RFCOMM_V24_RTC) ? (TIOCM_DSR | TIOCM_DTR) : 0) |
@@ -740,20 +745,143 @@ static int rfcomm_tty_ioctl(struct tty_struct *tty, struct file *filp, unsigned 
 	return -ENOIOCTLCMD;
 }
 
-#define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
-
 static void rfcomm_tty_set_termios(struct tty_struct *tty, struct termios *old)
 {
-	BT_DBG("tty %p", tty);
+	struct termios *new = (struct termios *) tty->termios;
+	int old_baud_rate = tty_termios_baud_rate(old);
+	int new_baud_rate = tty_termios_baud_rate(new);
 
-	if ((tty->termios->c_cflag == old->c_cflag) &&
-		(RELEVANT_IFLAG(tty->termios->c_iflag) == RELEVANT_IFLAG(old->c_iflag)))
-		return;
+	u8 baud, data_bits, stop_bits, parity, x_on, x_off;
+	u16 changes = 0;
 
-	/* handle turning off CRTSCTS */
-	if ((old->c_cflag & CRTSCTS) && !(tty->termios->c_cflag & CRTSCTS)) {
-		BT_DBG("turning off CRTSCTS");
+	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
+
+	BT_DBG("tty %p termios %p", tty, old);
+
+	/* Handle turning off CRTSCTS */
+	if ((old->c_cflag & CRTSCTS) && !(new->c_cflag & CRTSCTS)) 
+		BT_DBG("Turning off CRTSCTS unsupported");
+
+	/* Parity on/off and when on, odd/even */
+	if (((old->c_cflag & PARENB) != (new->c_cflag & PARENB)) ||
+			((old->c_cflag & PARODD) != (new->c_cflag & PARODD)) ) {
+		changes |= RFCOMM_RPN_PM_PARITY;
+		BT_DBG("Parity change detected.");
 	}
+
+	/* Mark and space parity are not supported! */
+	if (new->c_cflag & PARENB) {
+		if (new->c_cflag & PARODD) {
+			BT_DBG("Parity is ODD");
+			parity = RFCOMM_RPN_PARITY_ODD;
+		} else {
+			BT_DBG("Parity is EVEN");
+			parity = RFCOMM_RPN_PARITY_EVEN;
+		}
+	} else {
+		BT_DBG("Parity is OFF");
+		parity = RFCOMM_RPN_PARITY_NONE;
+	}
+
+	/* Setting the x_on / x_off characters */
+	if (old->c_cc[VSTOP] != new->c_cc[VSTOP]) {
+		BT_DBG("XOFF custom");
+		x_on = new->c_cc[VSTOP];
+		changes |= RFCOMM_RPN_PM_XON;
+	} else {
+		BT_DBG("XOFF default");
+		x_on = RFCOMM_RPN_XON_CHAR;
+	}
+
+	if (old->c_cc[VSTART] != new->c_cc[VSTART]) {
+		BT_DBG("XON custom");
+		x_off = new->c_cc[VSTART];
+		changes |= RFCOMM_RPN_PM_XOFF;
+	} else {
+		BT_DBG("XON default");
+		x_off = RFCOMM_RPN_XOFF_CHAR;
+	}
+
+	/* Handle setting of stop bits */
+	if ((old->c_cflag & CSTOPB) != (new->c_cflag & CSTOPB))
+		changes |= RFCOMM_RPN_PM_STOP;
+
+	/* POSIX does not support 1.5 stop bits and RFCOMM does not
+	 * support 2 stop bits. So a request for 2 stop bits gets
+	 * translated to 1.5 stop bits */
+	if (new->c_cflag & CSTOPB) {
+		stop_bits = RFCOMM_RPN_STOP_15;
+	} else {
+		stop_bits = RFCOMM_RPN_STOP_1;
+	}
+
+	/* Handle number of data bits [5-8] */
+	if ((old->c_cflag & CSIZE) != (new->c_cflag & CSIZE)) 
+		changes |= RFCOMM_RPN_PM_DATA;
+
+	switch (new->c_cflag & CSIZE) {
+	case CS5:
+		data_bits = RFCOMM_RPN_DATA_5;
+		break;
+	case CS6:
+		data_bits = RFCOMM_RPN_DATA_6;
+		break;
+	case CS7:
+		data_bits = RFCOMM_RPN_DATA_7;
+		break;
+	case CS8:
+		data_bits = RFCOMM_RPN_DATA_8;
+		break;
+	default:
+		data_bits = RFCOMM_RPN_DATA_8;
+		break;
+	}
+
+	/* Handle baudrate settings */
+	if (old_baud_rate != new_baud_rate)
+		changes |= RFCOMM_RPN_PM_BITRATE;
+
+	switch (new_baud_rate) {
+	case 2400:
+		baud = RFCOMM_RPN_BR_2400;
+		break;
+	case 4800:
+		baud = RFCOMM_RPN_BR_4800;
+		break;
+	case 7200:
+		baud = RFCOMM_RPN_BR_7200;
+		break;
+	case 9600:
+		baud = RFCOMM_RPN_BR_9600;
+		break;
+	case 19200: 
+		baud = RFCOMM_RPN_BR_19200;
+		break;
+	case 38400:
+		baud = RFCOMM_RPN_BR_38400;
+		break;
+	case 57600:
+		baud = RFCOMM_RPN_BR_57600;
+		break;
+	case 115200:
+		baud = RFCOMM_RPN_BR_115200;
+		break;
+	case 230400:
+		baud = RFCOMM_RPN_BR_230400;
+		break;
+	default:
+		/* 9600 is standard accordinag to the RFCOMM specification */
+		baud = RFCOMM_RPN_BR_9600;
+		break;
+	
+	}
+
+	if (changes)
+		rfcomm_send_rpn(dev->dlc->session, 1, dev->dlc->dlci, baud,
+				data_bits, stop_bits, parity,
+				RFCOMM_RPN_FLOW_NONE, x_on, x_off, changes);
+
+	return;
 }
 
 static void rfcomm_tty_throttle(struct tty_struct *tty)
@@ -761,7 +889,7 @@ static void rfcomm_tty_throttle(struct tty_struct *tty)
 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
 
 	BT_DBG("tty %p dev %p", tty, dev);
-	
+
 	rfcomm_dlc_throttle(dev->dlc);
 }
 
@@ -770,7 +898,7 @@ static void rfcomm_tty_unthrottle(struct tty_struct *tty)
 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
 
 	BT_DBG("tty %p dev %p", tty, dev);
-	
+
 	rfcomm_dlc_unthrottle(dev->dlc);
 }
 
@@ -841,35 +969,35 @@ static int rfcomm_tty_tiocmget(struct tty_struct *tty, struct file *filp)
 
 static int rfcomm_tty_tiocmset(struct tty_struct *tty, struct file *filp, unsigned int set, unsigned int clear)
 {
- 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
- 	struct rfcomm_dlc *dlc = dev->dlc;
- 	u8 v24_sig;
+	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
+	struct rfcomm_dlc *dlc = dev->dlc;
+	u8 v24_sig;
 
 	BT_DBG("tty %p dev %p set 0x%02x clear 0x%02x", tty, dev, set, clear);
 
- 	rfcomm_dlc_get_modem_status(dlc, &v24_sig);
+	rfcomm_dlc_get_modem_status(dlc, &v24_sig);
 
- 	if (set & TIOCM_DSR || set & TIOCM_DTR)
- 		v24_sig |= RFCOMM_V24_RTC;
- 	if (set & TIOCM_RTS || set & TIOCM_CTS)
- 		v24_sig |= RFCOMM_V24_RTR;
- 	if (set & TIOCM_RI)
- 		v24_sig |= RFCOMM_V24_IC;
- 	if (set & TIOCM_CD)
- 		v24_sig |= RFCOMM_V24_DV;
+	if (set & TIOCM_DSR || set & TIOCM_DTR)
+		v24_sig |= RFCOMM_V24_RTC;
+	if (set & TIOCM_RTS || set & TIOCM_CTS)
+		v24_sig |= RFCOMM_V24_RTR;
+	if (set & TIOCM_RI)
+		v24_sig |= RFCOMM_V24_IC;
+	if (set & TIOCM_CD)
+		v24_sig |= RFCOMM_V24_DV;
 
- 	if (clear & TIOCM_DSR || clear & TIOCM_DTR)
- 		v24_sig &= ~RFCOMM_V24_RTC;
- 	if (clear & TIOCM_RTS || clear & TIOCM_CTS)
- 		v24_sig &= ~RFCOMM_V24_RTR;
- 	if (clear & TIOCM_RI)
- 		v24_sig &= ~RFCOMM_V24_IC;
- 	if (clear & TIOCM_CD)
- 		v24_sig &= ~RFCOMM_V24_DV;
+	if (clear & TIOCM_DSR || clear & TIOCM_DTR)
+		v24_sig &= ~RFCOMM_V24_RTC;
+	if (clear & TIOCM_RTS || clear & TIOCM_CTS)
+		v24_sig &= ~RFCOMM_V24_RTR;
+	if (clear & TIOCM_RI)
+		v24_sig &= ~RFCOMM_V24_IC;
+	if (clear & TIOCM_CD)
+		v24_sig &= ~RFCOMM_V24_DV;
 
- 	rfcomm_dlc_set_modem_status(dlc, v24_sig);
+	rfcomm_dlc_set_modem_status(dlc, v24_sig);
 
- 	return 0;
+	return 0;
 }
 
 /* ---- TTY structure ---- */

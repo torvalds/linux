@@ -65,3 +65,24 @@ void release_pmc_hardware(void)
 	spin_unlock(&pmc_owner_lock);
 }
 EXPORT_SYMBOL_GPL(release_pmc_hardware);
+
+void power4_enable_pmcs(void)
+{
+	unsigned long hid0;
+
+	hid0 = mfspr(HID0);
+	hid0 |= 1UL << (63 - 20);
+
+	/* POWER4 requires the following sequence */
+	asm volatile(
+		"sync\n"
+		"mtspr     %1, %0\n"
+		"mfspr     %0, %1\n"
+		"mfspr     %0, %1\n"
+		"mfspr     %0, %1\n"
+		"mfspr     %0, %1\n"
+		"mfspr     %0, %1\n"
+		"mfspr     %0, %1\n"
+		"isync" : "=&r" (hid0) : "i" (HID0), "0" (hid0):
+		"memory");
+}

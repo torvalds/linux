@@ -21,7 +21,7 @@
 #include <net/llc_s_ev.h>
 #include <net/llc_s_st.h>
 #include <net/sock.h>
-#include <linux/tcp.h>
+#include <net/tcp_states.h>
 #include <linux/llc.h>
 
 /**

@@ -144,7 +144,7 @@ void __init smp_callin(void)
 	current->active_mm = &init_mm;
 
 	while (!cpu_isset(cpuid, smp_commenced_mask))
-		membar("#LoadLoad");
+		rmb();
 
 	cpu_set(cpuid, cpu_online_map);
 }
@@ -184,11 +184,11 @@ static inline long get_delta (long *rt, long *master)
 	for (i = 0; i < NUM_ITERS; i++) {
 		t0 = tick_ops->get_tick();
 		go[MASTER] = 1;
-		membar("#StoreLoad");
+		membar_storeload();
 		while (!(tm = go[SLAVE]))
-			membar("#LoadLoad");
+			rmb();
 		go[SLAVE] = 0;
-		membar("#StoreStore");
+		wmb();
 		t1 = tick_ops->get_tick();
 
 		if (t1 - t0 < best_t1 - best_t0)
@@ -221,7 +221,7 @@ void smp_synchronize_tick_client(void)
 	go[MASTER] = 1;
 
 	while (go[MASTER])
-		membar("#LoadLoad");
+		rmb();
 
 	local_irq_save(flags);
 	{
@@ -273,21 +273,21 @@ static void smp_synchronize_one_tick(int cpu)
 
 	/* wait for client to be ready */
 	while (!go[MASTER])
-		membar("#LoadLoad");
+		rmb();
 
 	/* now let the client proceed into his loop */
 	go[MASTER] = 0;
-	membar("#StoreLoad");
+	membar_storeload();
 
 	spin_lock_irqsave(&itc_sync_lock, flags);
 	{
 		for (i = 0; i < NUM_ROUNDS*NUM_ITERS; i++) {
 			while (!go[MASTER])
-				membar("#LoadLoad");
+				rmb();
 			go[MASTER] = 0;
-			membar("#StoreStore");
+			wmb();
 			go[SLAVE] = tick_ops->get_tick();
-			membar("#StoreLoad");
+			membar_storeload();
 		}
 	}
 	spin_unlock_irqrestore(&itc_sync_lock, flags);
@@ -927,11 +927,11 @@ void smp_capture(void)
 		       smp_processor_id());
 #endif
 		penguins_are_doing_time = 1;
-		membar("#StoreStore | #LoadStore");
+		membar_storestore_loadstore();
 		atomic_inc(&smp_capture_registry);
 		smp_cross_call(&xcall_capture, 0, 0, 0);
 		while (atomic_read(&smp_capture_registry) != ncpus)
-			membar("#LoadLoad");
+			rmb();
 #ifdef CAPTURE_DEBUG
 		printk("done\n");
 #endif
@@ -947,7 +947,7 @@ void smp_release(void)
 		       smp_processor_id());
 #endif
 		penguins_are_doing_time = 0;
-		membar("#StoreStore | #StoreLoad");
+		membar_storeload_storestore();
 		atomic_dec(&smp_capture_registry);
 	}
 }
@@ -970,9 +970,9 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 	save_alternate_globals(global_save);
 	prom_world(1);
 	atomic_inc(&smp_capture_registry);
-	membar("#StoreLoad | #StoreStore");
+	membar_storeload_storestore();
 	while (penguins_are_doing_time)
-		membar("#LoadLoad");
+		rmb();
 	restore_alternate_globals(global_save);
 	atomic_dec(&smp_capture_registry);
 	prom_world(0);
