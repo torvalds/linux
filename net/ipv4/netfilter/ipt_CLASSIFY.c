@@ -32,10 +32,8 @@ target(struct sk_buff **pskb,
 {
 	const struct ipt_classify_target_info *clinfo = targinfo;
 
-	if((*pskb)->priority != clinfo->priority) {
+	if((*pskb)->priority != clinfo->priority) 
 		(*pskb)->priority = clinfo->priority;
-		(*pskb)->nfcache |= NFC_ALTERED;
-	}
 
 	return IPT_CONTINUE;
 }

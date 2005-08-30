@@ -681,7 +681,7 @@ static void handle_packet_response(struct hpsb_host *host, int tcode,
                 return;
         }
 
-	__skb_unlink(skb, skb->list);
+	__skb_unlink(skb, &host->pending_packet_queue);
 
 	if (packet->state == hpsb_queued) {
 		packet->sendtime = jiffies;
@@ -989,7 +989,7 @@ void abort_timedouts(unsigned long __opaque)
 		packet = (struct hpsb_packet *)skb->data;
 
 		if (time_before(packet->sendtime + expire, jiffies)) {
-			__skb_unlink(skb, skb->list);
+			__skb_unlink(skb, &host->pending_packet_queue);
 			packet->state = hpsb_complete;
 			packet->ack_code = ACKX_TIMEOUT;
 			queue_packet_complete(packet);

@@ -127,7 +127,7 @@ static struct usb_device_id blacklist_ids[] = {
 	{ }	/* Terminating entry */
 };
 
-static struct _urb *_urb_alloc(int isoc, int gfp)
+static struct _urb *_urb_alloc(int isoc, unsigned int __nocast gfp)
 {
 	struct _urb *_urb = kmalloc(sizeof(struct _urb) +
 				sizeof(struct usb_iso_packet_descriptor) * isoc, gfp);
@@ -443,7 +443,7 @@ static int __tx_submit(struct hci_usb *husb, struct _urb *_urb)
 
 static inline int hci_usb_send_ctrl(struct hci_usb *husb, struct sk_buff *skb)
 {
-	struct _urb *_urb = __get_completed(husb, skb->pkt_type);
+	struct _urb *_urb = __get_completed(husb, bt_cb(skb)->pkt_type);
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
 
@@ -451,7 +451,7 @@ static inline int hci_usb_send_ctrl(struct hci_usb *husb, struct sk_buff *skb)
 		_urb = _urb_alloc(0, GFP_ATOMIC);
 		if (!_urb)
 			return -ENOMEM;
-		_urb->type = skb->pkt_type;
+		_urb->type = bt_cb(skb)->pkt_type;
 
 		dr = kmalloc(sizeof(*dr), GFP_ATOMIC);
 		if (!dr) {
@@ -479,7 +479,7 @@ static inline int hci_usb_send_ctrl(struct hci_usb *husb, struct sk_buff *skb)
 
 static inline int hci_usb_send_bulk(struct hci_usb *husb, struct sk_buff *skb)
 {
-	struct _urb *_urb = __get_completed(husb, skb->pkt_type);
+	struct _urb *_urb = __get_completed(husb, bt_cb(skb)->pkt_type);
 	struct urb *urb;
 	int pipe;
 
@@ -487,7 +487,7 @@ static inline int hci_usb_send_bulk(struct hci_usb *husb, struct sk_buff *skb)
 		_urb = _urb_alloc(0, GFP_ATOMIC);
 		if (!_urb)
 			return -ENOMEM;
-		_urb->type = skb->pkt_type;
+		_urb->type = bt_cb(skb)->pkt_type;
 	}
 
 	urb  = &_urb->urb;
@@ -505,14 +505,14 @@ static inline int hci_usb_send_bulk(struct hci_usb *husb, struct sk_buff *skb)
 #ifdef CONFIG_BT_HCIUSB_SCO
 static inline int hci_usb_send_isoc(struct hci_usb *husb, struct sk_buff *skb)
 {
-	struct _urb *_urb = __get_completed(husb, skb->pkt_type);
+	struct _urb *_urb = __get_completed(husb, bt_cb(skb)->pkt_type);
 	struct urb *urb;
 
 	if (!_urb) {
 		_urb = _urb_alloc(HCI_MAX_ISOC_FRAMES, GFP_ATOMIC);
 		if (!_urb)
 			return -ENOMEM;
-		_urb->type = skb->pkt_type;
+		_urb->type = bt_cb(skb)->pkt_type;
 	}
 
 	BT_DBG("%s skb %p len %d", husb->hdev->name, skb, skb->len);
@@ -601,11 +601,11 @@ static int hci_usb_send_frame(struct sk_buff *skb)
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return -EBUSY;
 
-	BT_DBG("%s type %d len %d", hdev->name, skb->pkt_type, skb->len);
+	BT_DBG("%s type %d len %d", hdev->name, bt_cb(skb)->pkt_type, skb->len);
 
 	husb = (struct hci_usb *) hdev->driver_data;
 
-	switch (skb->pkt_type) {
+	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		break;
@@ -627,7 +627,7 @@ static int hci_usb_send_frame(struct sk_buff *skb)
 
 	read_lock(&husb->completion_lock);
 
-	skb_queue_tail(__transmit_q(husb, skb->pkt_type), skb);
+	skb_queue_tail(__transmit_q(husb, bt_cb(skb)->pkt_type), skb);
 	hci_usb_tx_wakeup(husb);
 
 	read_unlock(&husb->completion_lock);
@@ -682,7 +682,7 @@ static inline int __recv_frame(struct hci_usb *husb, int type, void *data, int c
 				return -ENOMEM;
 			}
 			skb->dev = (void *) husb->hdev;
-			skb->pkt_type = type;
+			bt_cb(skb)->pkt_type = type;
 	
 			__reassembly(husb, type) = skb;
 
@@ -702,6 +702,7 @@ static inline int __recv_frame(struct hci_usb *husb, int type, void *data, int c
 		if (!scb->expect) {
 			/* Complete frame */
 			__reassembly(husb, type) = NULL;
+			bt_cb(skb)->pkt_type = type;
 			hci_recv_frame(skb);
 		}
 

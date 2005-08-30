@@ -104,6 +104,7 @@ struct frag_hdr {
 
 #ifdef __KERNEL__
 
+#include <linux/config.h>
 #include <net/sock.h>
 
 /* sysctls */
@@ -145,7 +146,6 @@ DECLARE_SNMP_STAT(struct udp_mib, udp_stats_in6);
 #define UDP6_INC_STATS(field)		SNMP_INC_STATS(udp_stats_in6, field)
 #define UDP6_INC_STATS_BH(field)	SNMP_INC_STATS_BH(udp_stats_in6, field)
 #define UDP6_INC_STATS_USER(field) 	SNMP_INC_STATS_USER(udp_stats_in6, field)
-extern atomic_t			inet6_sock_nr;
 
 int snmp6_register_dev(struct inet6_dev *idev);
 int snmp6_unregister_dev(struct inet6_dev *idev);
@@ -346,7 +346,8 @@ static inline int ipv6_addr_any(const struct in6_addr *a)
 
 extern int			ipv6_rcv(struct sk_buff *skb, 
 					 struct net_device *dev, 
-					 struct packet_type *pt);
+					 struct packet_type *pt,
+					 struct net_device *orig_dev);
 
 /*
  *	upper-layer output functions
@@ -464,8 +465,38 @@ extern int sysctl_ip6frag_low_thresh;
 extern int sysctl_ip6frag_time;
 extern int sysctl_ip6frag_secret_interval;
 
+extern struct proto_ops inet6_stream_ops;
+extern struct proto_ops inet6_dgram_ops;
+
+extern int ip6_mc_source(int add, int omode, struct sock *sk,
+			 struct group_source_req *pgsr);
+extern int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf);
+extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
+			 struct group_filter __user *optval,
+			 int __user *optlen);
+
+#ifdef CONFIG_PROC_FS
+extern int  ac6_proc_init(void);
+extern void ac6_proc_exit(void);
+extern int  raw6_proc_init(void);
+extern void raw6_proc_exit(void);
+extern int  tcp6_proc_init(void);
+extern void tcp6_proc_exit(void);
+extern int  udp6_proc_init(void);
+extern void udp6_proc_exit(void);
+extern int  ipv6_misc_proc_init(void);
+extern void ipv6_misc_proc_exit(void);
+
+extern struct rt6_statistics rt6_stats;
+#endif
+
+#ifdef CONFIG_SYSCTL
+extern ctl_table ipv6_route_table[];
+extern ctl_table ipv6_icmp_table[];
+
+extern void ipv6_sysctl_register(void);
+extern void ipv6_sysctl_unregister(void);
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* _NET_IPV6_H */
-
-
-

@@ -147,7 +147,7 @@ static void sbus_strbuf_flush(struct sbus_iommu *iommu, u32 base, unsigned long 
 		if (!limit)
 			break;
 		udelay(1);
-		membar("#LoadLoad");
+		rmb();
 	}
 	if (!limit)
 		printk(KERN_WARNING "sbus_strbuf_flush: flushflag timeout "

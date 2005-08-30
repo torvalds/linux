@@ -45,6 +45,7 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/systemcfg.h>
+#include <asm/firmware.h>
 #include "pci.h"
 
 #define DBG(fmt...)
@@ -546,7 +547,7 @@ void iommu_init_early_pSeries(void)
 	}
 
 	if (systemcfg->platform & PLATFORM_LPAR) {
-		if (cur_cpu_spec->firmware_features & FW_FEATURE_MULTITCE) {
+		if (firmware_has_feature(FW_FEATURE_MULTITCE)) {
 			ppc_md.tce_build = tce_buildmulti_pSeriesLP;
 			ppc_md.tce_free	 = tce_freemulti_pSeriesLP;
 		} else {

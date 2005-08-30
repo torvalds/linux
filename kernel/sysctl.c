@@ -31,6 +31,7 @@
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/net.h>
 #include <linux/sysrq.h>
 #include <linux/highuid.h>
 #include <linux/writeback.h>
@@ -136,9 +137,6 @@ static struct ctl_table_header root_table_header =
 
 static ctl_table kern_table[];
 static ctl_table vm_table[];
-#ifdef CONFIG_NET
-extern ctl_table net_table[];
-#endif
 static ctl_table proc_table[];
 static ctl_table fs_table[];
 static ctl_table debug_table[];

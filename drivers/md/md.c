@@ -1689,6 +1689,7 @@ static int do_md_run(mddev_t * mddev)
 	mddev->pers = pers[pnum];
 	spin_unlock(&pers_lock);
 
+	mddev->recovery = 0;
 	mddev->resync_max_sectors = mddev->size << 1; /* may be over-ridden by personality */
 
 	/* before we start the array running, initialise the bitmap */
@@ -4011,3 +4012,4 @@ EXPORT_SYMBOL(md_print_devices);
 EXPORT_SYMBOL(md_check_recovery);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md");
+MODULE_ALIAS_BLOCKDEV_MAJOR(MD_MAJOR);

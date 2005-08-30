@@ -21,10 +21,23 @@
 #define NF_STOP 5
 #define NF_MAX_VERDICT NF_STOP
 
+/* we overload the higher bits for encoding auxiliary data such as the queue
+ * number. Not nice, but better than additional function arguments. */
+#define NF_VERDICT_MASK 0x0000ffff
+#define NF_VERDICT_BITS 16
+
+#define NF_VERDICT_QMASK 0xffff0000
+#define NF_VERDICT_QBITS 16
+
+#define NF_QUEUE_NR(x) (((x << NF_VERDICT_QBITS) & NF_VERDICT_QMASK) | NF_QUEUE)
+
+/* only for userspace compatibility */
+#ifndef __KERNEL__
 /* Generic cache responses from hook functions.
    <= 0x2000 is used for protocol-flags. */
 #define NFC_UNKNOWN 0x4000
 #define NFC_ALTERED 0x8000
+#endif
 
 #ifdef __KERNEL__
 #include <linux/config.h>
@@ -101,15 +114,51 @@ void nf_unregister_sockopt(struct nf_sockopt_ops *reg);
 
 extern struct list_head nf_hooks[NPROTO][NF_MAX_HOOKS];
 
-typedef void nf_logfn(unsigned int hooknum,
+/* those NF_LOG_* defines and struct nf_loginfo are legacy definitios that will
+ * disappear once iptables is replaced with pkttables.  Please DO NOT use them
+ * for any new code! */
+#define NF_LOG_TCPSEQ		0x01	/* Log TCP sequence numbers */
+#define NF_LOG_TCPOPT		0x02	/* Log TCP options */
+#define NF_LOG_IPOPT		0x04	/* Log IP options */
+#define NF_LOG_UID		0x08	/* Log UID owning local socket */
+#define NF_LOG_MASK		0x0f
+
+#define NF_LOG_TYPE_LOG		0x01
+#define NF_LOG_TYPE_ULOG	0x02
+
+struct nf_loginfo {
+	u_int8_t type;
+	union {
+		struct {
+			u_int32_t copy_len;
+			u_int16_t group;
+			u_int16_t qthreshold;
+		} ulog;
+		struct {
+			u_int8_t level;
+			u_int8_t logflags;
+		} log;
+	} u;
+};
+
+typedef void nf_logfn(unsigned int pf,
+		      unsigned int hooknum,
 		      const struct sk_buff *skb,
 		      const struct net_device *in,
 		      const struct net_device *out,
+		      const struct nf_loginfo *li,
 		      const char *prefix);
 
+struct nf_logger {
+	struct module	*me;
+	nf_logfn 	*logfn;
+	char		*name;
+};
+
 /* Function to register/unregister log function. */
-int nf_log_register(int pf, nf_logfn *logfn);
-void nf_log_unregister(int pf, nf_logfn *logfn);
+int nf_log_register(int pf, struct nf_logger *logger);
+int nf_log_unregister_pf(int pf);
+void nf_log_unregister_logger(struct nf_logger *logger);
 
 /* Calls the registered backend logging function */
 void nf_log_packet(int pf,
@@ -117,6 +166,7 @@ void nf_log_packet(int pf,
 		   const struct sk_buff *skb,
 		   const struct net_device *in,
 		   const struct net_device *out,
+		   struct nf_loginfo *li,
 		   const char *fmt, ...);
                    
 /* Activate hook; either okfn or kfree_skb called, unless a hook
@@ -175,11 +225,16 @@ int nf_getsockopt(struct sock *sk, int pf, int optval, char __user *opt,
 		  int *len);
 
 /* Packet queuing */
-typedef int (*nf_queue_outfn_t)(struct sk_buff *skb, 
-                                struct nf_info *info, void *data);
+struct nf_queue_handler {
+	int (*outfn)(struct sk_buff *skb, struct nf_info *info,
+		     unsigned int queuenum, void *data);
+	void *data;
+	char *name;
+};
 extern int nf_register_queue_handler(int pf, 
-                                     nf_queue_outfn_t outfn, void *data);
+                                     struct nf_queue_handler *qh);
 extern int nf_unregister_queue_handler(int pf);
+extern void nf_unregister_queue_handlers(struct nf_queue_handler *qh);
 extern void nf_reinject(struct sk_buff *skb,
 			struct nf_info *info,
 			unsigned int verdict);
@@ -189,6 +244,27 @@ extern void nf_ct_attach(struct sk_buff *, struct sk_buff *);
 
 /* FIXME: Before cache is ever used, this must be implemented for real. */
 extern void nf_invalidate_cache(int pf);
+
+/* Call this before modifying an existing packet: ensures it is
+   modifiable and linear to the point you care about (writable_len).
+   Returns true or false. */
+extern int skb_make_writable(struct sk_buff **pskb, unsigned int writable_len);
+
+struct nf_queue_rerouter {
+	void (*save)(const struct sk_buff *skb, struct nf_info *info);
+	int (*reroute)(struct sk_buff **skb, const struct nf_info *info);
+	int rer_size;
+};
+
+#define nf_info_reroute(x) ((void *)x + sizeof(struct nf_info))
+
+extern int nf_register_queue_rerouter(int pf, struct nf_queue_rerouter *rer);
+extern int nf_unregister_queue_rerouter(int pf);
+
+#ifdef CONFIG_PROC_FS
+#include <linux/proc_fs.h>
+extern struct proc_dir_entry *proc_net_netfilter;
+#endif
 
 #else /* !CONFIG_NETFILTER */
 #define NF_HOOK(pf, hook, skb, indev, outdev, okfn) (okfn)(skb)

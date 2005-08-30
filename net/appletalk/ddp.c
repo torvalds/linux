@@ -53,12 +53,12 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/tcp.h>
 #include <linux/if_arp.h>
 #include <linux/termios.h>	/* For TIOCOUTQ/INQ */
 #include <net/datalink.h>
 #include <net/psnap.h>
 #include <net/sock.h>
+#include <net/tcp_states.h>
 #include <net/route.h>
 #include <linux/atalk.h>
 
@@ -1390,7 +1390,7 @@ free_it:
  *	[ie ARPHRD_ETHERTALK]
  */
 static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
-		     struct packet_type *pt)
+		     struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct ddpehdr *ddp;
 	struct sock *sock;
@@ -1482,7 +1482,7 @@ freeit:
  * header and append a long one.
  */
 static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
-			struct packet_type *pt)
+		     struct packet_type *pt, struct net_device *orig_dev)
 {
 	/* Expand any short form frames */
 	if (skb->mac.raw[2] == 1) {
@@ -1528,7 +1528,7 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 	}
 	skb->h.raw = skb->data;
 
-	return atalk_rcv(skb, dev, pt);
+	return atalk_rcv(skb, dev, pt, orig_dev);
 freeit:
 	kfree_skb(skb);
 	return 0;

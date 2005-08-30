@@ -1444,7 +1444,7 @@ static int snd_es1371_spdif_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 
 /* spdif controls */
 static snd_kcontrol_new_t snd_es1371_mixer_spdif[] __devinitdata = {
-	ES1371_SPDIF("IEC958 Playback Switch"),
+	ES1371_SPDIF(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH)),
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 		.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),

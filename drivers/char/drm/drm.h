@@ -98,7 +98,7 @@
 #define _DRM_LOCKING_CONTEXT(lock) ((lock) & ~(_DRM_LOCK_HELD|_DRM_LOCK_CONT))
 
 
-typedef unsigned long drm_handle_t;
+typedef unsigned int  drm_handle_t;
 typedef unsigned int  drm_context_t;
 typedef unsigned int  drm_drawable_t;
 typedef unsigned int  drm_magic_t;
@@ -209,7 +209,8 @@ typedef enum drm_map_type {
 	_DRM_REGISTERS	    = 1,  /**< no caching, no core dump */
 	_DRM_SHM	    = 2,  /**< shared, cached */
 	_DRM_AGP            = 3,  /**< AGP/GART */
-	_DRM_SCATTER_GATHER = 4	  /**< Scatter/gather memory for PCI DMA */
+	_DRM_SCATTER_GATHER = 4,  /**< Scatter/gather memory for PCI DMA */
+	_DRM_CONSISTENT     = 5,  /**< Consistent memory for PCI DMA */
 } drm_map_type_t;
 
 
@@ -368,7 +369,8 @@ typedef struct drm_buf_desc {
 	enum {
 		_DRM_PAGE_ALIGN = 0x01, /**< Align on page boundaries for DMA */
 		_DRM_AGP_BUFFER = 0x02, /**< Buffer is in AGP space */
-		_DRM_SG_BUFFER  = 0x04  /**< Scatter/gather memory buffer */
+		_DRM_SG_BUFFER  = 0x04, /**< Scatter/gather memory buffer */
+		_DRM_FB_BUFFER  = 0x08  /**< Buffer is in frame buffer */
 	}	      flags;
 	unsigned long agp_start; /**< 
 				  * Start address of where the AGP buffers are

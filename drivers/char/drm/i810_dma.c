@@ -45,11 +45,6 @@
 #define I810_BUF_UNMAPPED 0
 #define I810_BUF_MAPPED   1
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,4,2)
-#define down_write down
-#define up_write up
-#endif
-
 static drm_buf_t *i810_freelist_get(drm_device_t *dev)
 {
    	drm_device_dma_t *dma = dev->dma;
@@ -351,6 +346,7 @@ static int i810_dma_initialize(drm_device_t *dev,
 	   	DRM_ERROR("can not find mmio map!\n");
 	   	return -EINVAL;
 	}
+	dev->agp_buffer_token = init->buffers_offset;
 	dev->agp_buffer_map = drm_core_findmap(dev, init->buffers_offset);
 	if (!dev->agp_buffer_map) {
 		dev->dev_private = (void *)dev_priv;
@@ -1383,3 +1379,19 @@ drm_ioctl_desc_t i810_ioctls[] = {
 };
 
 int i810_max_ioctl = DRM_ARRAY_SIZE(i810_ioctls);
+
+/**
+ * Determine if the device really is AGP or not.
+ *
+ * All Intel graphics chipsets are treated as AGP, even if they are really
+ * PCI-e.
+ *
+ * \param dev   The device to be tested.
+ *
+ * \returns
+ * A value of 1 is always retured to indictate every i810 is AGP.
+ */
+int i810_driver_device_is_agp(drm_device_t * dev)
+{
+	return 1;
+}

@@ -2971,23 +2971,22 @@ static void * dev_seq_start(struct seq_file *s, loff_t *pos)
 {
 	struct sg_proc_deviter * it = kmalloc(sizeof(*it), GFP_KERNEL);
 
+	s->private = it;
 	if (! it)
 		return NULL;
+
 	if (NULL == sg_dev_arr)
-		goto err1;
+		return NULL;
 	it->index = *pos;
 	it->max = sg_last_dev();
 	if (it->index >= it->max)
-		goto err1;
+		return NULL;
 	return it;
-err1:
-	kfree(it);
-	return NULL;
 }
 
 static void * dev_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
-	struct sg_proc_deviter * it = (struct sg_proc_deviter *) v;
+	struct sg_proc_deviter * it = s->private;
 
 	*pos = ++it->index;
 	return (it->index < it->max) ? it : NULL;
@@ -2995,7 +2994,7 @@ static void * dev_seq_next(struct seq_file *s, void *v, loff_t *pos)
 
 static void dev_seq_stop(struct seq_file *s, void *v)
 {
-	kfree (v);
+	kfree(s->private);
 }
 
 static int sg_proc_open_dev(struct inode *inode, struct file *file)

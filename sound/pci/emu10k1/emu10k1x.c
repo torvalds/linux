@@ -1183,7 +1183,7 @@ static int snd_emu10k1x_spdif_put(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_emu10k1x_spdif_mask_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,MASK),
 	.count =	3,
 	.info =         snd_emu10k1x_spdif_info,
@@ -1192,7 +1192,7 @@ static snd_kcontrol_new_t snd_emu10k1x_spdif_mask_control =
 
 static snd_kcontrol_new_t snd_emu10k1x_spdif_control =
 {
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 	.count =	3,
 	.info =         snd_emu10k1x_spdif_info,

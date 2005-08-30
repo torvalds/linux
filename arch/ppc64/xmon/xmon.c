@@ -2496,15 +2496,25 @@ static void dump_stab(void)
 	}
 }
 
-void xmon_init(void)
+void xmon_init(int enable)
 {
-	__debugger = xmon;
-	__debugger_ipi = xmon_ipi;
-	__debugger_bpt = xmon_bpt;
-	__debugger_sstep = xmon_sstep;
-	__debugger_iabr_match = xmon_iabr_match;
-	__debugger_dabr_match = xmon_dabr_match;
-	__debugger_fault_handler = xmon_fault_handler;
+	if (enable) {
+		__debugger = xmon;
+		__debugger_ipi = xmon_ipi;
+		__debugger_bpt = xmon_bpt;
+		__debugger_sstep = xmon_sstep;
+		__debugger_iabr_match = xmon_iabr_match;
+		__debugger_dabr_match = xmon_dabr_match;
+		__debugger_fault_handler = xmon_fault_handler;
+	} else {
+		__debugger = NULL;
+		__debugger_ipi = NULL;
+		__debugger_bpt = NULL;
+		__debugger_sstep = NULL;
+		__debugger_iabr_match = NULL;
+		__debugger_dabr_match = NULL;
+		__debugger_fault_handler = NULL;
+	}
 }
 
 void dump_segments(void)

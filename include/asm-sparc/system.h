@@ -9,7 +9,6 @@
 #include <linux/threads.h>	/* NR_CPUS */
 #include <linux/thread_info.h>
 
-#include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/psr.h>
 #include <asm/ptrace.h>

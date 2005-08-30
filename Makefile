@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 13
-EXTRAVERSION =-rc7
-NAME=Woozy Numbat
+EXTRAVERSION =
+NAME=Affluent Albatross
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
