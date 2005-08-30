@@ -129,9 +129,76 @@ static int compat_mga_getparam(struct file *file, unsigned int cmd,
 			 DRM_IOCTL_MGA_GETPARAM, (unsigned long)getparam);
 }
 
+typedef struct drm_mga_drm_bootstrap32 {
+	u32 texture_handle;
+	u32 texture_size;
+	u32 primary_size;
+	u32 secondary_bin_count;
+	u32 secondary_bin_size;
+	u32 agp_mode;
+	u8 agp_size;
+} drm_mga_dma_bootstrap32_t;
+
+static int compat_mga_dma_bootstrap(struct file *file, unsigned int cmd,
+				    unsigned long arg)
+{
+	drm_mga_dma_bootstrap32_t dma_bootstrap32;
+	drm_mga_dma_bootstrap_t __user *dma_bootstrap;
+	int err;
+
+	if (copy_from_user(&dma_bootstrap32, (void __user *)arg,
+			   sizeof(dma_bootstrap32)))
+		return -EFAULT;
+
+	dma_bootstrap = compat_alloc_user_space(sizeof(*dma_bootstrap));
+	if (!access_ok(VERIFY_WRITE, dma_bootstrap, sizeof(*dma_bootstrap))
+	    || __put_user(dma_bootstrap32.texture_handle,
+			  &dma_bootstrap->texture_handle)
+	    || __put_user(dma_bootstrap32.texture_size,
+			  &dma_bootstrap->texture_size)
+	    || __put_user(dma_bootstrap32.primary_size,
+			  &dma_bootstrap->primary_size)
+	    || __put_user(dma_bootstrap32.secondary_bin_count,
+			  &dma_bootstrap->secondary_bin_count)
+	    || __put_user(dma_bootstrap32.secondary_bin_size,
+			  &dma_bootstrap->secondary_bin_size)
+	    || __put_user(dma_bootstrap32.agp_mode, &dma_bootstrap->agp_mode)
+	    || __put_user(dma_bootstrap32.agp_size, &dma_bootstrap->agp_size))
+		return -EFAULT;
+
+	err = drm_ioctl(file->f_dentry->d_inode, file,
+			DRM_IOCTL_MGA_DMA_BOOTSTRAP,
+			(unsigned long)dma_bootstrap);
+	if (err)
+		return err;
+
+	if (__get_user(dma_bootstrap32.texture_handle,
+		       &dma_bootstrap->texture_handle)
+	    || __get_user(dma_bootstrap32.texture_size,
+			  &dma_bootstrap->texture_size)
+	    || __get_user(dma_bootstrap32.primary_size,
+			  &dma_bootstrap->primary_size)
+	    || __get_user(dma_bootstrap32.secondary_bin_count,
+			  &dma_bootstrap->secondary_bin_count)
+	    || __get_user(dma_bootstrap32.secondary_bin_size,
+			  &dma_bootstrap->secondary_bin_size)
+	    || __get_user(dma_bootstrap32.agp_mode,
+			  &dma_bootstrap->agp_mode)
+	    || __get_user(dma_bootstrap32.agp_size,
+			  &dma_bootstrap->agp_size))
+		return -EFAULT;
+
+	if (copy_to_user((void __user *)arg, &dma_bootstrap32,
+	    		 sizeof(dma_bootstrap32)))
+		return -EFAULT;
+
+	return 0;
+}
+
 drm_ioctl_compat_t *mga_compat_ioctls[] = {
 	[DRM_MGA_INIT] = compat_mga_init,
 	[DRM_MGA_GETPARAM] = compat_mga_getparam,
+	[DRM_MGA_DMA_BOOTSTRAP] = compat_mga_dma_bootstrap,
 };
 
 /**
