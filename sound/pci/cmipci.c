@@ -1029,7 +1029,7 @@ static int snd_cmipci_spdif_mask_get(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_cmipci_spdif_mask __devinitdata =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,CON_MASK),
 	.info =		snd_cmipci_spdif_mask_info,
 	.get =		snd_cmipci_spdif_mask_get,

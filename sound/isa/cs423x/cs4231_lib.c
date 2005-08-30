@@ -1346,6 +1346,8 @@ static void snd_cs4231_suspend(cs4231_t *chip)
 	int reg;
 	unsigned long flags;
 	
+	if (chip->pcm)
+		snd_pcm_suspend_all(chip->pcm);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	for (reg = 0; reg < 32; reg++)
 		chip->image[reg] = snd_cs4231_in(chip, reg);

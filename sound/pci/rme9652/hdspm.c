@@ -65,7 +65,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable/disable specific HDSPM soundcards.");
 
 module_param_array(precise_ptr, bool, NULL, 0444);
-MODULE_PARM_DESC(precise_ptr, "Enable precise pointer, or disable.");
+MODULE_PARM_DESC(precise_ptr, "Enable or disable precise pointer.");
 
 module_param_array(line_outs_monitor, bool, NULL, 0444);
 MODULE_PARM_DESC(line_outs_monitor,
@@ -1104,14 +1104,14 @@ static int snd_hdspm_midi_output_close(snd_rawmidi_substream_t * substream)
 	return 0;
 }
 
-snd_rawmidi_ops_t snd_hdspm_midi_output =
+static snd_rawmidi_ops_t snd_hdspm_midi_output =
 {
 	.open =		snd_hdspm_midi_output_open,
 	.close =	snd_hdspm_midi_output_close,
 	.trigger =	snd_hdspm_midi_output_trigger,
 };
 
-snd_rawmidi_ops_t snd_hdspm_midi_input =
+static snd_rawmidi_ops_t snd_hdspm_midi_input =
 {
 	.open =		snd_hdspm_midi_input_open,
 	.close =	snd_hdspm_midi_input_close,
@@ -1168,7 +1168,7 @@ static void hdspm_midi_tasklet(unsigned long arg)
 /* get the system sample rate which is set */
 
 #define HDSPM_SYSTEM_SAMPLE_RATE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ, \
@@ -1195,7 +1195,7 @@ static int snd_hdspm_get_system_sample_rate(snd_kcontrol_t * kcontrol,
 }
 
 #define HDSPM_AUTOSYNC_SAMPLE_RATE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_PCM, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ, \
@@ -1264,7 +1264,7 @@ static int snd_hdspm_get_autosync_sample_rate(snd_kcontrol_t * kcontrol,
 }
 
 #define HDSPM_SYSTEM_CLOCK_MODE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ, \
@@ -1310,7 +1310,7 @@ static int snd_hdspm_get_system_clock_mode(snd_kcontrol_t * kcontrol,
 }
 
 #define HDSPM_CLOCK_SOURCE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_PCM, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdspm_info_clock_source, \
@@ -1457,7 +1457,7 @@ static int snd_hdspm_put_clock_source(snd_kcontrol_t * kcontrol,
 }
 
 #define HDSPM_PREF_SYNC_REF(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdspm_info_pref_sync_ref, \
@@ -1547,7 +1547,7 @@ static int snd_hdspm_put_pref_sync_ref(snd_kcontrol_t * kcontrol,
 }
 
 #define HDSPM_AUTOSYNC_REF(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ, \
@@ -1604,7 +1604,7 @@ static int snd_hdspm_get_autosync_ref(snd_kcontrol_t * kcontrol,
 }
 
 #define HDSPM_LINE_OUT(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdspm_info_line_out, \
@@ -1668,7 +1668,7 @@ static int snd_hdspm_put_line_out(snd_kcontrol_t * kcontrol,
 }
 
 #define HDSPM_TX_64(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdspm_info_tx_64, \
@@ -1731,7 +1731,7 @@ static int snd_hdspm_put_tx_64(snd_kcontrol_t * kcontrol,
 }
 
 #define HDSPM_C_TMS(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdspm_info_c_tms, \
@@ -1794,7 +1794,7 @@ static int snd_hdspm_put_c_tms(snd_kcontrol_t * kcontrol,
 }
 
 #define HDSPM_SAFE_MODE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdspm_info_safe_mode, \
@@ -1857,7 +1857,7 @@ static int snd_hdspm_put_safe_mode(snd_kcontrol_t * kcontrol,
 }
 
 #define HDSPM_INPUT_SELECT(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .info = snd_hdspm_info_input_select, \
@@ -1941,6 +1941,7 @@ static int snd_hdspm_put_input_select(snd_kcontrol_t * kcontrol,
 { .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
   .name = xname, \
   .index = xindex, \
+  .device = 0, \
   .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | \
 		 SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
   .info = snd_hdspm_info_mixer, \
@@ -2124,7 +2125,7 @@ static int snd_hdspm_put_playback_mixer(snd_kcontrol_t * kcontrol,
 }
 
 #define HDSPM_WC_SYNC_CHECK(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
@@ -2170,7 +2171,7 @@ static int snd_hdspm_get_wc_sync_check(snd_kcontrol_t * kcontrol,
 
 
 #define HDSPM_MADI_SYNC_CHECK(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_HWDEP, \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
   .index = xindex, \
   .access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE, \

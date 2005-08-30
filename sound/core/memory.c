@@ -56,7 +56,7 @@ static DEFINE_SPINLOCK(snd_alloc_vmalloc_lock);
 #define VMALLOC_MAGIC 0x87654320
 static snd_info_entry_t *snd_memory_info_entry;
 
-void snd_memory_init(void)
+void __init snd_memory_init(void)
 {
 	snd_alloc_kmalloc = 0;
 	snd_alloc_vmalloc = 0;
