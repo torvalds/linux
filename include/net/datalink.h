@@ -9,7 +9,7 @@ struct datalink_proto {
         unsigned short  header_length;
 
         int     (*rcvfunc)(struct sk_buff *, struct net_device *,
-                                struct packet_type *);
+                                struct packet_type *, struct net_device *);
 	int     (*request)(struct datalink_proto *, struct sk_buff *,
                                         unsigned char *);
 	struct list_head node;

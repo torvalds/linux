@@ -991,7 +991,7 @@ static int viotape_remove(struct vio_dev *vdev)
  */
 static struct vio_device_id viotape_device_table[] __devinitdata = {
 	{ "viotape", "" },
-	{ 0, }
+	{ "", "" }
 };
 
 MODULE_DEVICE_TABLE(vio, viotape_device_table);

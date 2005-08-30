@@ -105,7 +105,7 @@ static void bpa10x_recv_bulk(struct bpa10x_data *data, unsigned char *buf, int c
 			if (skb) {
 				memcpy(skb_put(skb, len), buf, len);
 				skb->dev = (void *) data->hdev;
-				skb->pkt_type = HCI_ACLDATA_PKT;
+				bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
 				hci_recv_frame(skb);
 			}
 			break;
@@ -117,7 +117,7 @@ static void bpa10x_recv_bulk(struct bpa10x_data *data, unsigned char *buf, int c
 			if (skb) {
 				memcpy(skb_put(skb, len), buf, len);
 				skb->dev = (void *) data->hdev;
-				skb->pkt_type = HCI_SCODATA_PKT;
+				bt_cb(skb)->pkt_type = HCI_SCODATA_PKT;
 				hci_recv_frame(skb);
 			}
 			break;
@@ -129,7 +129,7 @@ static void bpa10x_recv_bulk(struct bpa10x_data *data, unsigned char *buf, int c
 			if (skb) {
 				memcpy(skb_put(skb, len), buf, len);
 				skb->dev = (void *) data->hdev;
-				skb->pkt_type = HCI_VENDOR_PKT;
+				bt_cb(skb)->pkt_type = HCI_VENDOR_PKT;
 				hci_recv_frame(skb);
 			}
 			break;
@@ -190,7 +190,7 @@ static int bpa10x_recv_event(struct bpa10x_data *data, unsigned char *buf, int s
 		}
 
 		skb->dev = (void *) data->hdev;
-		skb->pkt_type = pkt_type;
+		bt_cb(skb)->pkt_type = pkt_type;
 
 		memcpy(skb_put(skb, size), buf, size);
 
@@ -307,7 +307,8 @@ unlock:
 	read_unlock(&data->lock);
 }
 
-static inline struct urb *bpa10x_alloc_urb(struct usb_device *udev, unsigned int pipe, size_t size, int flags, void *data)
+static inline struct urb *bpa10x_alloc_urb(struct usb_device *udev, unsigned int pipe,
+					size_t size, unsigned int __nocast flags, void *data)
 {
 	struct urb *urb;
 	struct usb_ctrlrequest *cr;
@@ -487,7 +488,7 @@ static int bpa10x_send_frame(struct sk_buff *skb)
 	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
 	struct bpa10x_data *data;
 
-	BT_DBG("hdev %p skb %p type %d len %d", hdev, skb, skb->pkt_type, skb->len);
+	BT_DBG("hdev %p skb %p type %d len %d", hdev, skb, bt_cb(skb)->pkt_type, skb->len);
 
 	if (!hdev) {
 		BT_ERR("Frame for unknown HCI device");
@@ -500,9 +501,9 @@ static int bpa10x_send_frame(struct sk_buff *skb)
 	data = hdev->driver_data;
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &(skb->pkt_type), 1);
+	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
 
-	switch (skb->pkt_type) {
+	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		skb_queue_tail(&data->cmd_queue, skb);

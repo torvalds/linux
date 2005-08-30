@@ -698,7 +698,7 @@ static void __aarp_resolved(struct aarp_entry **list, struct aarp_entry *a,
  *	frame. We currently only support Ethernet.
  */
 static int aarp_rcv(struct sk_buff *skb, struct net_device *dev,
-		    struct packet_type *pt)
+		    struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct elapaarp *ea = aarp_hdr(skb);
 	int hash, ret = 0;

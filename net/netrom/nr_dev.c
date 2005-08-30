@@ -38,8 +38,6 @@
 #include <net/ax25.h>
 #include <net/netrom.h>
 
-#ifdef CONFIG_INET
-
 /*
  *	Only allow IP over NET/ROM frames through if the netrom device is up.
  */
@@ -64,11 +62,12 @@ int nr_rx_ip(struct sk_buff *skb, struct net_device *dev)
 	skb->nh.raw   = skb->data;
 	skb->pkt_type = PACKET_HOST;
 
-	ip_rcv(skb, skb->dev, NULL);
+	netif_rx(skb);
 
 	return 1;
 }
 
+#ifdef CONFIG_INET
 
 static int nr_rebuild_header(struct sk_buff *skb)
 {

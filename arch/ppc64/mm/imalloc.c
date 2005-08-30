@@ -31,7 +31,7 @@ static int get_free_im_addr(unsigned long size, unsigned long *im_addr)
 			break;
 		if ((unsigned long)tmp->addr >= ioremap_bot)
 			addr = tmp->size + (unsigned long) tmp->addr;
-		if (addr > IMALLOC_END-size) 
+		if (addr >= IMALLOC_END-size)
 			return 1;
 	}
 	*im_addr = addr;

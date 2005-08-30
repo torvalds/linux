@@ -12,8 +12,6 @@
 
 #include <asm/types.h>
 
-#ifndef __ASSEMBLY__
-
 struct naca_struct {
 	/* Kernel only data - undefined for user space */
 	void *xItVpdAreas;              /* VPD Data                  0x00 */
@@ -22,10 +20,5 @@ struct naca_struct {
 };
 
 extern struct naca_struct naca;
-
-#endif /* __ASSEMBLY__ */
-
-#define NACA_PAGE      0x4
-#define NACA_PHYS_ADDR (NACA_PAGE<<PAGE_SHIFT)
 
 #endif /* _NACA_H */

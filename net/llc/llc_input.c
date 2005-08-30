@@ -132,7 +132,7 @@ static inline int llc_fixup_skb(struct sk_buff *skb)
  *	data now), it queues this frame in the connection's backlog.
  */
 int llc_rcv(struct sk_buff *skb, struct net_device *dev,
-	    struct packet_type *pt)
+	    struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct llc_sap *sap;
 	struct llc_pdu_sn *pdu;
@@ -165,7 +165,7 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * LLC functionality
 	 */
 	if (sap->rcv_func) {
-		sap->rcv_func(skb, dev, pt);
+		sap->rcv_func(skb, dev, pt, orig_dev);
 		goto out;
 	}
 	dest = llc_pdu_type(skb);

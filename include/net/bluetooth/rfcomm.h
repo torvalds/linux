@@ -80,9 +80,9 @@
 #define RFCOMM_RPN_STOP_15	1
 
 #define RFCOMM_RPN_PARITY_NONE	0x0
-#define RFCOMM_RPN_PARITY_ODD	0x4
-#define RFCOMM_RPN_PARITY_EVEN	0x5
-#define RFCOMM_RPN_PARITY_MARK	0x6
+#define RFCOMM_RPN_PARITY_ODD	0x1
+#define RFCOMM_RPN_PARITY_EVEN	0x3
+#define RFCOMM_RPN_PARITY_MARK	0x5
 #define RFCOMM_RPN_PARITY_SPACE	0x7
 
 #define RFCOMM_RPN_FLOW_NONE	0x00
@@ -223,8 +223,14 @@ struct rfcomm_dlc {
 #define RFCOMM_CFC_DISABLED 0
 #define RFCOMM_CFC_ENABLED  RFCOMM_MAX_CREDITS
 
+/* ---- RFCOMM SEND RPN ---- */
+int rfcomm_send_rpn(struct rfcomm_session *s, int cr, u8 dlci,
+			u8 bit_rate, u8 data_bits, u8 stop_bits,
+			u8 parity, u8 flow_ctrl_settings, 
+			u8 xon_char, u8 xoff_char, u16 param_mask);
+
 /* ---- RFCOMM DLCs (channels) ---- */
-struct rfcomm_dlc *rfcomm_dlc_alloc(int prio);
+struct rfcomm_dlc *rfcomm_dlc_alloc(unsigned int __nocast prio);
 void rfcomm_dlc_free(struct rfcomm_dlc *d);
 int  rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst, u8 channel);
 int  rfcomm_dlc_close(struct rfcomm_dlc *d, int reason);

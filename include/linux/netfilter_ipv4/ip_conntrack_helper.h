@@ -24,6 +24,8 @@ struct ip_conntrack_helper
 	int (*help)(struct sk_buff **pskb,
 		    struct ip_conntrack *ct,
 		    enum ip_conntrack_info conntrackinfo);
+
+	int (*to_nfattr)(struct sk_buff *skb, const struct ip_conntrack *ct);
 };
 
 extern int ip_conntrack_helper_register(struct ip_conntrack_helper *);

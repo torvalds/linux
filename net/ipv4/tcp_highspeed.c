@@ -98,9 +98,10 @@ struct hstcp {
 	u32	ai;
 };
 
-static void hstcp_init(struct tcp_sock *tp)
+static void hstcp_init(struct sock *sk)
 {
-	struct hstcp *ca = tcp_ca(tp);
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct hstcp *ca = inet_csk_ca(sk);
 
 	ca->ai = 0;
 
@@ -109,10 +110,11 @@ static void hstcp_init(struct tcp_sock *tp)
 	tp->snd_cwnd_clamp = min_t(u32, tp->snd_cwnd_clamp, 0xffffffff/128);
 }
 
-static void hstcp_cong_avoid(struct tcp_sock *tp, u32 adk, u32 rtt,
+static void hstcp_cong_avoid(struct sock *sk, u32 adk, u32 rtt,
 			     u32 in_flight, int good)
 {
-	struct hstcp *ca = tcp_ca(tp);
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct hstcp *ca = inet_csk_ca(sk);
 
 	if (in_flight < tp->snd_cwnd)
 		return;
@@ -143,9 +145,10 @@ static void hstcp_cong_avoid(struct tcp_sock *tp, u32 adk, u32 rtt,
 	}
 }
 
-static u32 hstcp_ssthresh(struct tcp_sock *tp)
+static u32 hstcp_ssthresh(struct sock *sk)
 {
-	struct hstcp *ca = tcp_ca(tp);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	const struct hstcp *ca = inet_csk_ca(sk);
 
 	/* Do multiplicative decrease */
 	return max(tp->snd_cwnd - ((tp->snd_cwnd * hstcp_aimd_vals[ca->ai].md) >> 8), 2U);
@@ -164,7 +167,7 @@ static struct tcp_congestion_ops tcp_highspeed = {
 
 static int __init hstcp_register(void)
 {
-	BUG_ON(sizeof(struct hstcp) > TCP_CA_PRIV_SIZE);
+	BUG_ON(sizeof(struct hstcp) > ICSK_CA_PRIV_SIZE);
 	return tcp_register_congestion_control(&tcp_highspeed);
 }
 

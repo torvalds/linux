@@ -35,7 +35,8 @@ static int p8022_request(struct datalink_proto *dl, struct sk_buff *skb,
 struct datalink_proto *register_8022_client(unsigned char type,
 					    int (*func)(struct sk_buff *skb,
 							struct net_device *dev,
-							struct packet_type *pt))
+							struct packet_type *pt,
+							struct net_device *orig_dev))
 {
 	struct datalink_proto *proto;
 

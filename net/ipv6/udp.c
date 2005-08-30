@@ -51,6 +51,7 @@
 #include <net/udp.h>
 #include <net/raw.h>
 #include <net/inet_common.h>
+#include <net/tcp_states.h>
 
 #include <net/ip6_checksum.h>
 #include <net/xfrm.h>
@@ -58,7 +59,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
-DEFINE_SNMP_STAT(struct udp_mib, udp_stats_in6);
+DEFINE_SNMP_STAT(struct udp_mib, udp_stats_in6) __read_mostly;
 
 /* Grrr, addr_type already calculated by caller, but I don't want
  * to add some silly "cookie" argument to this method just for that.
@@ -477,8 +478,7 @@ static int udpv6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 		/* RFC 2460 section 8.1 says that we SHOULD log
 		   this error. Well, it is reasonable.
 		 */
-		LIMIT_NETDEBUG(
-			printk(KERN_INFO "IPv6: udp checksum is 0\n"));
+		LIMIT_NETDEBUG(KERN_INFO "IPv6: udp checksum is 0\n");
 		goto discard;
 	}
 
@@ -493,7 +493,7 @@ static int udpv6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	if (skb->ip_summed==CHECKSUM_HW) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		if (csum_ipv6_magic(saddr, daddr, ulen, IPPROTO_UDP, skb->csum)) {
-			LIMIT_NETDEBUG(printk(KERN_DEBUG "udp v6 hw csum failure.\n"));
+			LIMIT_NETDEBUG(KERN_DEBUG "udp v6 hw csum failure.\n");
 			skb->ip_summed = CHECKSUM_NONE;
 		}
 	}
@@ -825,7 +825,7 @@ back_from_confirm:
 		/* ... which is an evident application bug. --ANK */
 		release_sock(sk);
 
-		LIMIT_NETDEBUG(printk(KERN_DEBUG "udp cork app bug 2\n"));
+		LIMIT_NETDEBUG(KERN_DEBUG "udp cork app bug 2\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1053,8 +1053,6 @@ struct proto udpv6_prot = {
 	.get_port =	udp_v6_get_port,
 	.obj_size =	sizeof(struct udp6_sock),
 };
-
-extern struct proto_ops inet6_dgram_ops;
 
 static struct inet_protosw udpv6_protosw = {
 	.type =      SOCK_DGRAM,

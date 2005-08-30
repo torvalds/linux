@@ -240,7 +240,9 @@ static unsigned			rt_hash_mask;
 static int			rt_hash_log;
 static unsigned int		rt_hash_rnd;
 
-struct rt_cache_stat *rt_cache_stat;
+static struct rt_cache_stat *rt_cache_stat;
+#define RT_CACHE_STAT_INC(field)					  \
+		(per_cpu_ptr(rt_cache_stat, raw_smp_processor_id())->field++)
 
 static int rt_intern_hash(unsigned hash, struct rtable *rth,
 				struct rtable **res);
@@ -2600,6 +2602,8 @@ int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
 	return ip_route_output_slow(rp, flp);
 }
 
+EXPORT_SYMBOL_GPL(__ip_route_output_key);
+
 int ip_route_output_flow(struct rtable **rp, struct flowi *flp, struct sock *sk, int flags)
 {
 	int err;
@@ -2617,6 +2621,8 @@ int ip_route_output_flow(struct rtable **rp, struct flowi *flp, struct sock *sk,
 
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(ip_route_output_flow);
 
 int ip_route_output_key(struct rtable **rp, struct flowi *flp)
 {

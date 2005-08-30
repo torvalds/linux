@@ -39,7 +39,7 @@ char hvc_driver_name[] = "hvc_console";
 
 static struct vio_device_id hvc_driver_table[] __devinitdata = {
 	{"serial", "hvterm1"},
-	{ NULL, }
+	{ "", "" }
 };
 MODULE_DEVICE_TABLE(vio, hvc_driver_table);
 
