@@ -245,13 +245,14 @@ static struct pci_driver pdc_sata_pci_driver = {
 
 static void pdc20621_host_stop(struct ata_host_set *host_set)
 {
+	struct pci_dev *pdev = to_pci_dev(host_set->dev);
 	struct pdc_host_priv *hpriv = host_set->private_data;
 	void *dimm_mmio = hpriv->dimm_mmio;
 
-	iounmap(dimm_mmio);
+	pci_iounmap(pdev, dimm_mmio);
 	kfree(hpriv);
 
-	ata_host_stop(host_set);
+	pci_iounmap(pdev, host_set->mmio_base);
 }
 
 static int pdc_port_start(struct ata_port *ap)
@@ -1418,8 +1419,7 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
-	mmio_base = ioremap(pci_resource_start(pdev, 3),
-		            pci_resource_len(pdev, 3));
+	mmio_base = pci_iomap(pdev, 3, 0);
 	if (mmio_base == NULL) {
 		rc = -ENOMEM;
 		goto err_out_free_ent;
@@ -1433,8 +1433,7 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 	}
 	memset(hpriv, 0, sizeof(*hpriv));
 
-	dimm_mmio = ioremap(pci_resource_start(pdev, 4),
-			    pci_resource_len(pdev, 4));
+	dimm_mmio = pci_iomap(pdev, 4, 0);
 	if (!dimm_mmio) {
 		kfree(hpriv);
 		rc = -ENOMEM;
@@ -1481,9 +1480,9 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 
 err_out_iounmap_dimm:		/* only get to this label if 20621 */
 	kfree(hpriv);
-	iounmap(dimm_mmio);
+	pci_iounmap(pdev, dimm_mmio);
 err_out_iounmap:
-	iounmap(mmio_base);
+	pci_iounmap(pdev, mmio_base);
 err_out_free_ent:
 	kfree(probe_ent);
 err_out_regions:

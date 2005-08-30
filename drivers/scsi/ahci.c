@@ -995,8 +995,7 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
-	mmio_base = ioremap(pci_resource_start(pdev, AHCI_PCI_BAR),
-		            pci_resource_len(pdev, AHCI_PCI_BAR));
+	mmio_base = pci_iomap(pdev, AHCI_PCI_BAR, 0);
 	if (mmio_base == NULL) {
 		rc = -ENOMEM;
 		goto err_out_free_ent;
@@ -1040,7 +1039,7 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 err_out_hpriv:
 	kfree(hpriv);
 err_out_iounmap:
-	iounmap(mmio_base);
+	pci_iounmap(pdev, mmio_base);
 err_out_free_ent:
 	kfree(probe_ent);
 err_out_msi:
@@ -1081,7 +1080,7 @@ static void ahci_remove_one (struct pci_dev *pdev)
 	}
 
 	kfree(hpriv);
-	iounmap(host_set->mmio_base);
+	pci_iounmap(pdev, host_set->mmio_base);
 	kfree(host_set);
 
 	if (have_msi)

@@ -4200,6 +4200,15 @@ ata_probe_ent_alloc(struct device *dev, struct ata_port_info *port)
 
 
 
+#ifdef CONFIG_PCI
+
+void ata_pci_host_stop (struct ata_host_set *host_set)
+{
+	struct pci_dev *pdev = to_pci_dev(host_set->dev);
+
+	pci_iounmap(pdev, host_set->mmio_base);
+}
+
 /**
  *	ata_pci_init_native_mode - Initialize native-mode driver
  *	@pdev:  pci device to be initialized
@@ -4212,7 +4221,6 @@ ata_probe_ent_alloc(struct device *dev, struct ata_port_info *port)
  *	ata_probe_ent structure should then be freed with kfree().
  */
 
-#ifdef CONFIG_PCI
 struct ata_probe_ent *
 ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port)
 {
@@ -4595,6 +4603,7 @@ EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL_GPL(pci_test_config_bits);
+EXPORT_SYMBOL_GPL(ata_pci_host_stop);
 EXPORT_SYMBOL_GPL(ata_pci_init_native_mode);
 EXPORT_SYMBOL_GPL(ata_pci_init_one);
 EXPORT_SYMBOL_GPL(ata_pci_remove_one);

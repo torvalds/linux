@@ -584,7 +584,6 @@ static void pci_enable_intx(struct pci_dev *pdev)
 static int piix_disable_ahci(struct pci_dev *pdev)
 {
 	void __iomem *mmio;
-	unsigned long addr;
 	u32 tmp;
 	int rc = 0;
 
@@ -592,11 +591,11 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 	 * works because this device is usually set up by BIOS.
 	 */
 
-	addr = pci_resource_start(pdev, AHCI_PCI_BAR);
-	if (!addr || !pci_resource_len(pdev, AHCI_PCI_BAR))
+	if (!pci_resource_start(pdev, AHCI_PCI_BAR) ||
+	    !pci_resource_len(pdev, AHCI_PCI_BAR))
 		return 0;
 
-	mmio = ioremap(addr, 64);
+	mmio = pci_iomap(pdev, AHCI_PCI_BAR, 64);
 	if (!mmio)
 		return -ENOMEM;
 
@@ -610,7 +609,7 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 			rc = -EIO;
 	}
 
-	iounmap(mmio);
+	pci_iounmap(pdev, mmio);
 	return rc;
 }
 
