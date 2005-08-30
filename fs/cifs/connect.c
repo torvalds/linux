@@ -1078,7 +1078,8 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
                         vol->nocase = 1;
 		} else if (strnicmp(data, "brl", 3) == 0) {
 			vol->nobrl =  0;
-		} else if (strnicmp(data, "nobrl", 5) == 0) {
+		} else if ((strnicmp(data, "nobrl", 5) == 0) || 
+			   (strnicmp(data, "nolock", 6)) {
 			vol->nobrl =  1;
 			/* turn off mandatory locking in mode
 			if remote locking is turned off since the
