@@ -340,41 +340,92 @@ static struct {
 
 static void tg3_write_indirect_reg32(struct tg3 *tp, u32 off, u32 val)
 {
-	if ((tp->tg3_flags & TG3_FLAG_PCIX_TARGET_HWBUG) != 0) {
-		spin_lock_bh(&tp->indirect_lock);
-		pci_write_config_dword(tp->pdev, TG3PCI_REG_BASE_ADDR, off);
-		pci_write_config_dword(tp->pdev, TG3PCI_REG_DATA, val);
-		spin_unlock_bh(&tp->indirect_lock);
-	} else {
-		writel(val, tp->regs + off);
-		if ((tp->tg3_flags & TG3_FLAG_5701_REG_WRITE_BUG) != 0)
-			readl(tp->regs + off);
+	unsigned long flags;
+
+	spin_lock_irqsave(&tp->indirect_lock, flags);
+	pci_write_config_dword(tp->pdev, TG3PCI_REG_BASE_ADDR, off);
+	pci_write_config_dword(tp->pdev, TG3PCI_REG_DATA, val);
+	spin_unlock_irqrestore(&tp->indirect_lock, flags);
+}
+
+static void tg3_write_flush_reg32(struct tg3 *tp, u32 off, u32 val)
+{
+	writel(val, tp->regs + off);
+	readl(tp->regs + off);
+}
+
+static u32 tg3_read_indirect_reg32(struct tg3 *tp, u32 off)
+{
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(&tp->indirect_lock, flags);
+	pci_write_config_dword(tp->pdev, TG3PCI_REG_BASE_ADDR, off);
+	pci_read_config_dword(tp->pdev, TG3PCI_REG_DATA, &val);
+	spin_unlock_irqrestore(&tp->indirect_lock, flags);
+	return val;
+}
+
+static void tg3_write_indirect_mbox(struct tg3 *tp, u32 off, u32 val)
+{
+	unsigned long flags;
+
+	if (off == (MAILBOX_RCVRET_CON_IDX_0 + TG3_64BIT_REG_LOW)) {
+		pci_write_config_dword(tp->pdev, TG3PCI_RCV_RET_RING_CON_IDX +
+				       TG3_64BIT_REG_LOW, val);
+		return;
 	}
+	if (off == (MAILBOX_RCV_STD_PROD_IDX + TG3_64BIT_REG_LOW)) {
+		pci_write_config_dword(tp->pdev, TG3PCI_STD_RING_PROD_IDX +
+				       TG3_64BIT_REG_LOW, val);
+		return;
+	}
+
+	spin_lock_irqsave(&tp->indirect_lock, flags);
+	pci_write_config_dword(tp->pdev, TG3PCI_REG_BASE_ADDR, off + 0x5600);
+	pci_write_config_dword(tp->pdev, TG3PCI_REG_DATA, val);
+	spin_unlock_irqrestore(&tp->indirect_lock, flags);
+
+	/* In indirect mode when disabling interrupts, we also need
+	 * to clear the interrupt bit in the GRC local ctrl register.
+	 */
+	if ((off == (MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW)) &&
+	    (val == 0x1)) {
+		pci_write_config_dword(tp->pdev, TG3PCI_MISC_LOCAL_CTRL,
+				       tp->grc_local_ctrl|GRC_LCLCTRL_CLEARINT);
+	}
+}
+
+static u32 tg3_read_indirect_mbox(struct tg3 *tp, u32 off)
+{
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(&tp->indirect_lock, flags);
+	pci_write_config_dword(tp->pdev, TG3PCI_REG_BASE_ADDR, off + 0x5600);
+	pci_read_config_dword(tp->pdev, TG3PCI_REG_DATA, &val);
+	spin_unlock_irqrestore(&tp->indirect_lock, flags);
+	return val;
 }
 
 static void _tw32_flush(struct tg3 *tp, u32 off, u32 val)
 {
-	if ((tp->tg3_flags & TG3_FLAG_PCIX_TARGET_HWBUG) != 0) {
-		spin_lock_bh(&tp->indirect_lock);
-		pci_write_config_dword(tp->pdev, TG3PCI_REG_BASE_ADDR, off);
-		pci_write_config_dword(tp->pdev, TG3PCI_REG_DATA, val);
-		spin_unlock_bh(&tp->indirect_lock);
-	} else {
-		void __iomem *dest = tp->regs + off;
-		writel(val, dest);
-		readl(dest);    /* always flush PCI write */
-	}
+	tp->write32(tp, off, val);
+	if (!(tp->tg3_flags & TG3_FLAG_PCIX_TARGET_HWBUG) &&
+	    !(tp->tg3_flags & TG3_FLAG_5701_REG_WRITE_BUG) &&
+	    !(tp->tg3_flags2 & TG3_FLG2_ICH_WORKAROUND))
+		tp->read32(tp, off);	/* flush */
 }
 
-static inline void _tw32_rx_mbox(struct tg3 *tp, u32 off, u32 val)
+static inline void tw32_mailbox_flush(struct tg3 *tp, u32 off, u32 val)
 {
-	void __iomem *mbox = tp->regs + off;
-	writel(val, mbox);
-	if (tp->tg3_flags & TG3_FLAG_MBOX_WRITE_REORDER)
-		readl(mbox);
+	tp->write32_mbox(tp, off, val);
+	if (!(tp->tg3_flags & TG3_FLAG_MBOX_WRITE_REORDER) &&
+	    !(tp->tg3_flags2 & TG3_FLG2_ICH_WORKAROUND))
+		tp->read32_mbox(tp, off);
 }
 
-static inline void _tw32_tx_mbox(struct tg3 *tp, u32 off, u32 val)
+static void tg3_write32_tx_mbox(struct tg3 *tp, u32 off, u32 val)
 {
 	void __iomem *mbox = tp->regs + off;
 	writel(val, mbox);
@@ -384,46 +435,57 @@ static inline void _tw32_tx_mbox(struct tg3 *tp, u32 off, u32 val)
 		readl(mbox);
 }
 
-#define tw32_mailbox(reg, val)  writel(((val) & 0xffffffff), tp->regs + (reg))
-#define tw32_rx_mbox(reg, val)  _tw32_rx_mbox(tp, reg, val)
-#define tw32_tx_mbox(reg, val)  _tw32_tx_mbox(tp, reg, val)
+static void tg3_write32(struct tg3 *tp, u32 off, u32 val)
+{
+	writel(val, tp->regs + off);
+}
 
-#define tw32(reg,val)		tg3_write_indirect_reg32(tp,(reg),(val))
+static u32 tg3_read32(struct tg3 *tp, u32 off)
+{
+	return (readl(tp->regs + off)); 
+}
+
+#define tw32_mailbox(reg, val)	tp->write32_mbox(tp, reg, val)
+#define tw32_mailbox_f(reg, val)	tw32_mailbox_flush(tp, (reg), (val))
+#define tw32_rx_mbox(reg, val)	tp->write32_rx_mbox(tp, reg, val)
+#define tw32_tx_mbox(reg, val)	tp->write32_tx_mbox(tp, reg, val)
+#define tr32_mailbox(reg)	tp->read32_mbox(tp, reg)
+
+#define tw32(reg,val)		tp->write32(tp, reg, val)
 #define tw32_f(reg,val)		_tw32_flush(tp,(reg),(val))
-#define tw16(reg,val)		writew(((val) & 0xffff), tp->regs + (reg))
-#define tw8(reg,val)		writeb(((val) & 0xff), tp->regs + (reg))
-#define tr32(reg)		readl(tp->regs + (reg))
-#define tr16(reg)		readw(tp->regs + (reg))
-#define tr8(reg)		readb(tp->regs + (reg))
+#define tr32(reg)		tp->read32(tp, reg)
 
 static void tg3_write_mem(struct tg3 *tp, u32 off, u32 val)
 {
-	spin_lock_bh(&tp->indirect_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&tp->indirect_lock, flags);
 	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
 	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
 
 	/* Always leave this as zero. */
 	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
-	spin_unlock_bh(&tp->indirect_lock);
+	spin_unlock_irqrestore(&tp->indirect_lock, flags);
 }
 
 static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
 {
-	spin_lock_bh(&tp->indirect_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&tp->indirect_lock, flags);
 	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
 	pci_read_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
 
 	/* Always leave this as zero. */
 	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
-	spin_unlock_bh(&tp->indirect_lock);
+	spin_unlock_irqrestore(&tp->indirect_lock, flags);
 }
 
 static void tg3_disable_ints(struct tg3 *tp)
 {
 	tw32(TG3PCI_MISC_HOST_CTRL,
 	     (tp->misc_host_ctrl | MISC_HOST_CTRL_MASK_PCI_INT));
-	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
-	tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
+	tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
 }
 
 static inline void tg3_cond_int(struct tg3 *tp)
@@ -439,9 +501,8 @@ static void tg3_enable_ints(struct tg3 *tp)
 
 	tw32(TG3PCI_MISC_HOST_CTRL,
 	     (tp->misc_host_ctrl & ~MISC_HOST_CTRL_MASK_PCI_INT));
-	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-		     (tp->last_tag << 24));
-	tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
+	tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+		       (tp->last_tag << 24));
 	tg3_cond_int(tp);
 }
 
@@ -472,8 +533,6 @@ static inline unsigned int tg3_has_work(struct tg3 *tp)
  */
 static void tg3_restart_ints(struct tg3 *tp)
 {
-	tw32(TG3PCI_MISC_HOST_CTRL,
-		(tp->misc_host_ctrl & ~MISC_HOST_CTRL_MASK_PCI_INT));
 	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 		     tp->last_tag << 24);
 	mmiowb();
@@ -3278,9 +3337,8 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			/* No work, shared interrupt perhaps?  re-enable
 			 * interrupts, and flush that PCI write
 			 */
-			tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+			tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 			     	0x00000000);
-			tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
 		}
 	} else {	/* shared interrupt */
 		handled = 0;
@@ -3323,9 +3381,8 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id, struct pt_regs *r
 			/* no work, shared interrupt perhaps?  re-enable
 			 * interrupts, and flush that PCI write
 			 */
-			tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-				     tp->last_tag << 24);
-			tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
+			tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+				       tp->last_tag << 24);
 		}
 	} else {	/* shared interrupt */
 		handled = 0;
@@ -4216,7 +4273,7 @@ static void tg3_stop_fw(struct tg3 *);
 static int tg3_chip_reset(struct tg3 *tp)
 {
 	u32 val;
-	u32 flags_save;
+	void (*write_op)(struct tg3 *, u32, u32);
 	int i;
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_SUN_570X))
@@ -4228,8 +4285,9 @@ static int tg3_chip_reset(struct tg3 *tp)
 	 * fun things.  So, temporarily disable the 5701
 	 * hardware workaround, while we do the reset.
 	 */
-	flags_save = tp->tg3_flags;
-	tp->tg3_flags &= ~TG3_FLAG_5701_REG_WRITE_BUG;
+	write_op = tp->write32;
+	if (write_op == tg3_write_flush_reg32)
+		tp->write32 = tg3_write32;
 
 	/* do the reset */
 	val = GRC_MISC_CFG_CORECLK_RESET;
@@ -4248,8 +4306,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 		val |= GRC_MISC_CFG_KEEP_GPHY_POWER;
 	tw32(GRC_MISC_CFG, val);
 
-	/* restore 5701 hardware bug workaround flag */
-	tp->tg3_flags = flags_save;
+	/* restore 5701 hardware bug workaround write method */
+	tp->write32 = write_op;
 
 	/* Unfortunately, we have to delay before the PCI read back.
 	 * Some 575X chips even will not respond to a PCI cfg access
@@ -4635,7 +4693,6 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base, u32 cpu_scratch_b
 				 int cpu_scratch_size, struct fw_info *info)
 {
 	int err, i;
-	u32 orig_tg3_flags = tp->tg3_flags;
 	void (*write_op)(struct tg3 *, u32, u32);
 
 	if (cpu_base == TX_CPU_BASE &&
@@ -4650,11 +4707,6 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base, u32 cpu_scratch_b
 		write_op = tg3_write_mem;
 	else
 		write_op = tg3_write_indirect_reg32;
-
-	/* Force use of PCI config space for indirect register
-	 * write calls.
-	 */
-	tp->tg3_flags |= TG3_FLAG_PCIX_TARGET_HWBUG;
 
 	/* It is possible that bootcode is still loading at this point.
 	 * Get the nvram lock first before halting the cpu.
@@ -4691,7 +4743,6 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base, u32 cpu_scratch_b
 	err = 0;
 
 out:
-	tp->tg3_flags = orig_tg3_flags;
 	return err;
 }
 
@@ -5808,8 +5859,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 	tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
 	udelay(100);
 
-	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0);
-	tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
+	tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0);
 	tp->last_tag = 0;
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS)) {
@@ -6198,7 +6248,8 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	       HOSTCC_MODE_NOW);
 
 	for (i = 0; i < 5; i++) {
-		int_mbox = tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
+		int_mbox = tr32_mailbox(MAILBOX_INTERRUPT_0 +
+					TG3_64BIT_REG_LOW);
 		if (int_mbox != 0)
 			break;
 		msleep(10);
@@ -6598,10 +6649,10 @@ static int tg3_open(struct net_device *dev)
 
 	/* Mailboxes */
 	printk("DEBUG: SNDHOST_PROD[%08x%08x] SNDNIC_PROD[%08x%08x]\n",
-	       tr32(MAILBOX_SNDHOST_PROD_IDX_0 + 0x0),
-	       tr32(MAILBOX_SNDHOST_PROD_IDX_0 + 0x4),
-	       tr32(MAILBOX_SNDNIC_PROD_IDX_0 + 0x0),
-	       tr32(MAILBOX_SNDNIC_PROD_IDX_0 + 0x4));
+	       tr32_mailbox(MAILBOX_SNDHOST_PROD_IDX_0 + 0x0),
+	       tr32_mailbox(MAILBOX_SNDHOST_PROD_IDX_0 + 0x4),
+	       tr32_mailbox(MAILBOX_SNDNIC_PROD_IDX_0 + 0x0),
+	       tr32_mailbox(MAILBOX_SNDNIC_PROD_IDX_0 + 0x4));
 
 	/* NIC side send descriptors. */
 	for (i = 0; i < 6; i++) {
@@ -7901,7 +7952,7 @@ static int tg3_test_loopback(struct tg3 *tp)
 	num_pkts++;
 
 	tw32_tx_mbox(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW, send_idx);
-	tr32(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW);
+	tr32_mailbox(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW);
 
 	udelay(10);
 
@@ -9153,14 +9204,6 @@ static int __devinit tg3_is_sun_570X(struct tg3 *tp)
 static int __devinit tg3_get_invariants(struct tg3 *tp)
 {
 	static struct pci_device_id write_reorder_chipsets[] = {
-		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL,
-		             PCI_DEVICE_ID_INTEL_82801AA_8) },
-		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL,
-		             PCI_DEVICE_ID_INTEL_82801AB_8) },
-		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL,
-		             PCI_DEVICE_ID_INTEL_82801BA_11) },
-		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL,
-		             PCI_DEVICE_ID_INTEL_82801BA_6) },
 		{ PCI_DEVICE(PCI_VENDOR_ID_AMD,
 		             PCI_DEVICE_ID_AMD_FE_GATE_700C) },
 		{ },
@@ -9177,7 +9220,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags2 |= TG3_FLG2_SUN_570X;
 #endif
 
-	/* If we have an AMD 762 or Intel ICH/ICH0/ICH2 chipset, write
+	/* If we have an AMD 762 chipset, write
 	 * reordering to the mailbox registers done by the host
 	 * controller can cause major troubles.  We read back from
 	 * every mailbox register write to force the writes to be
@@ -9214,6 +9257,69 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	 */
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5752_A0_HW)
 		tp->pci_chip_rev_id = CHIPREV_ID_5752_A0;
+
+	/* If we have 5702/03 A1 or A2 on certain ICH chipsets,
+	 * we need to disable memory and use config. cycles
+	 * only to access all registers. The 5702/03 chips
+	 * can mistakenly decode the special cycles from the
+	 * ICH chipsets as memory write cycles, causing corruption
+	 * of register and memory space. Only certain ICH bridges
+	 * will drive special cycles with non-zero data during the
+	 * address phase which can fall within the 5703's address
+	 * range. This is not an ICH bug as the PCI spec allows
+	 * non-zero address during special cycles. However, only
+	 * these ICH bridges are known to drive non-zero addresses
+	 * during special cycles.
+	 *
+	 * Since special cycles do not cross PCI bridges, we only
+	 * enable this workaround if the 5703 is on the secondary
+	 * bus of these ICH bridges.
+	 */
+	if ((tp->pci_chip_rev_id == CHIPREV_ID_5703_A1) ||
+	    (tp->pci_chip_rev_id == CHIPREV_ID_5703_A2)) {
+		static struct tg3_dev_id {
+			u32	vendor;
+			u32	device;
+			u32	rev;
+		} ich_chipsets[] = {
+			{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801AA_8,
+			  PCI_ANY_ID },
+			{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801AB_8,
+			  PCI_ANY_ID },
+			{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_11,
+			  0xa },
+			{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_6,
+			  PCI_ANY_ID },
+			{ },
+		};
+		struct tg3_dev_id *pci_id = &ich_chipsets[0];
+		struct pci_dev *bridge = NULL;
+
+		while (pci_id->vendor != 0) {
+			bridge = pci_get_device(pci_id->vendor, pci_id->device,
+						bridge);
+			if (!bridge) {
+				pci_id++;
+				continue;
+			}
+			if (pci_id->rev != PCI_ANY_ID) {
+				u8 rev;
+
+				pci_read_config_byte(bridge, PCI_REVISION_ID,
+						     &rev);
+				if (rev > pci_id->rev)
+					continue;
+			}
+			if (bridge->subordinate &&
+			    (bridge->subordinate->number ==
+			     tp->pdev->bus->number)) {
+
+				tp->tg3_flags2 |= TG3_FLG2_ICH_WORKAROUND;
+				pci_dev_put(bridge);
+				break;
+			}
+		}
+	}
 
 	/* Find msi capability. */
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)
@@ -9302,6 +9408,12 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		}
 	}
 
+	/* 5700 BX chips need to have their TX producer index mailboxes
+	 * written twice to workaround a bug.
+	 */
+	if (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5700_BX)
+		tp->tg3_flags |= TG3_FLAG_TXD_MBOX_HWBUG;
+
 	/* Back to back register writes can cause problems on this chip,
 	 * the workaround is to read back all reg writes except those to
 	 * mailbox regs.  See tg3_write_indirect_reg32().
@@ -9323,6 +9435,43 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	    (!(pci_state_reg & PCISTATE_RETRY_SAME_DMA))) {
 		pci_state_reg |= PCISTATE_RETRY_SAME_DMA;
 		pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, pci_state_reg);
+	}
+
+	/* Default fast path register access methods */
+	tp->read32 = tg3_read32;
+	tp->write32 = tg3_write32;
+	tp->read32_mbox = tg3_read32;
+	tp->write32_mbox = tg3_write32;
+	tp->write32_tx_mbox = tg3_write32;
+	tp->write32_rx_mbox = tg3_write32;
+
+	/* Various workaround register access methods */
+	if (tp->tg3_flags & TG3_FLAG_PCIX_TARGET_HWBUG)
+		tp->write32 = tg3_write_indirect_reg32;
+	else if (tp->tg3_flags & TG3_FLAG_5701_REG_WRITE_BUG)
+		tp->write32 = tg3_write_flush_reg32;
+
+	if ((tp->tg3_flags & TG3_FLAG_TXD_MBOX_HWBUG) ||
+	    (tp->tg3_flags & TG3_FLAG_MBOX_WRITE_REORDER)) {
+		tp->write32_tx_mbox = tg3_write32_tx_mbox;
+		if (tp->tg3_flags & TG3_FLAG_MBOX_WRITE_REORDER)
+			tp->write32_rx_mbox = tg3_write_flush_reg32;
+	}
+
+	if (tp->tg3_flags2 & TG3_FLG2_ICH_WORKAROUND) {
+		tp->read32 = tg3_read_indirect_reg32;
+		tp->write32 = tg3_write_indirect_reg32;
+		tp->read32_mbox = tg3_read_indirect_mbox;
+		tp->write32_mbox = tg3_write_indirect_mbox;
+		tp->write32_tx_mbox = tg3_write_indirect_mbox;
+		tp->write32_rx_mbox = tg3_write_indirect_mbox;
+
+		iounmap(tp->regs);
+		tp->regs = 0;
+
+		pci_read_config_word(tp->pdev, PCI_COMMAND, &pci_cmd);
+		pci_cmd &= ~PCI_COMMAND_MEMORY;
+		pci_write_config_word(tp->pdev, PCI_COMMAND, pci_cmd);
 	}
 
 	/* Get eeprom hw config before calling tg3_set_power_state().
@@ -9538,14 +9687,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags |= TG3_FLAG_POLL_SERDES;
 	else
 		tp->tg3_flags &= ~TG3_FLAG_POLL_SERDES;
-
-	/* 5700 BX chips need to have their TX producer index mailboxes
-	 * written twice to workaround a bug.
-	 */
-	if (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5700_BX)
-		tp->tg3_flags |= TG3_FLAG_TXD_MBOX_HWBUG;
-	else
-		tp->tg3_flags &= ~TG3_FLAG_TXD_MBOX_HWBUG;
 
 	/* It seems all chips can get confused if TX buffers
 	 * straddle the 4GB address boundary in some cases.
@@ -10469,7 +10610,10 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	return 0;
 
 err_out_iounmap:
-	iounmap(tp->regs);
+	if (tp->regs) {
+		iounmap(tp->regs);
+		tp->regs = 0;
+	}
 
 err_out_free_dev:
 	free_netdev(dev);
@@ -10491,7 +10635,10 @@ static void __devexit tg3_remove_one(struct pci_dev *pdev)
 		struct tg3 *tp = netdev_priv(dev);
 
 		unregister_netdev(dev);
-		iounmap(tp->regs);
+		if (tp->regs) {
+			iounmap(tp->regs);
+			tp->regs = 0;
+		}
 		free_netdev(dev);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);

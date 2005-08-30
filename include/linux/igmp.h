@@ -129,6 +129,9 @@ struct igmpv3_query {
 #include <linux/skbuff.h>
 #include <linux/in.h>
 
+extern int sysctl_igmp_max_memberships;
+extern int sysctl_igmp_max_msf;
+
 struct ip_sf_socklist
 {
 	unsigned int		sl_max;

@@ -62,6 +62,7 @@
  *				normal operation.
  *	30-Dec-02	JF	Removed incorrect __init from 
  *				tms380tr_init_card.
+ *	22-Jul-05	JF	Converted to dma-mapping.
  *      			
  *  To do:
  *    1. Multi/Broadcast packet handling (this may have fixed itself)
@@ -89,7 +90,7 @@ static const char version[] = "tms380tr.c: v1.10 30/12/2002 by Christoph Goos, A
 #include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -113,8 +114,6 @@ static const char version[] = "tms380tr.c: v1.10 30/12/2002 by Christoph Goos, A
 #define TMS380TR_DEBUG 0
 #endif
 static unsigned int tms380tr_debug = TMS380TR_DEBUG;
-
-static struct device tms_device;
 
 /* Index to functions, as function prototypes.
  * Alphabetical by function name.
@@ -434,7 +433,7 @@ static void tms380tr_init_net_local(struct net_device *dev)
 			skb_put(tp->Rpl[i].Skb, tp->MaxPacketSize);
 
 			/* data unreachable for DMA ? then use local buffer */
-			dmabuf = pci_map_single(tp->pdev, tp->Rpl[i].Skb->data, tp->MaxPacketSize, PCI_DMA_FROMDEVICE);
+			dmabuf = dma_map_single(tp->pdev, tp->Rpl[i].Skb->data, tp->MaxPacketSize, DMA_FROM_DEVICE);
 			if(tp->dmalimit && (dmabuf + tp->MaxPacketSize > tp->dmalimit))
 			{
 				tp->Rpl[i].SkbStat = SKB_DATA_COPY;
@@ -638,10 +637,10 @@ static int tms380tr_hardware_send_packet(struct sk_buff *skb, struct net_device 
 	/* Is buffer reachable for Busmaster-DMA? */
 
 	length	= skb->len;
-	dmabuf = pci_map_single(tp->pdev, skb->data, length, PCI_DMA_TODEVICE);
+	dmabuf = dma_map_single(tp->pdev, skb->data, length, DMA_TO_DEVICE);
 	if(tp->dmalimit && (dmabuf + length > tp->dmalimit)) {
 		/* Copy frame to local buffer */
-		pci_unmap_single(tp->pdev, dmabuf, length, PCI_DMA_TODEVICE);
+		dma_unmap_single(tp->pdev, dmabuf, length, DMA_TO_DEVICE);
 		dmabuf  = 0;
 		i 	= tp->TplFree->TPLIndex;
 		buf 	= tp->LocalTxBuffers[i];
@@ -1284,9 +1283,7 @@ static int tms380tr_reset_adapter(struct net_device *dev)
 	unsigned short count, c, count2;
 	const struct firmware *fw_entry = NULL;
 
-	strncpy(tms_device.bus_id,dev->name, BUS_ID_SIZE);
-
-	if (request_firmware(&fw_entry, "tms380tr.bin", &tms_device) != 0) {
+	if (request_firmware(&fw_entry, "tms380tr.bin", tp->pdev) != 0) {
 		printk(KERN_ALERT "%s: firmware %s is missing, cannot start.\n",
 			dev->name, "tms380tr.bin");
 		return (-1);
@@ -2021,7 +2018,7 @@ static void tms380tr_cancel_tx_queue(struct net_local* tp)
 
 		printk(KERN_INFO "Cancel tx (%08lXh).\n", (unsigned long)tpl);
 		if (tpl->DMABuff)
-			pci_unmap_single(tp->pdev, tpl->DMABuff, tpl->Skb->len, PCI_DMA_TODEVICE);
+			dma_unmap_single(tp->pdev, tpl->DMABuff, tpl->Skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(tpl->Skb);
 	}
 
@@ -2090,7 +2087,7 @@ static void tms380tr_tx_status_irq(struct net_device *dev)
 
 		tp->MacStat.tx_packets++;
 		if (tpl->DMABuff)
-			pci_unmap_single(tp->pdev, tpl->DMABuff, tpl->Skb->len, PCI_DMA_TODEVICE);
+			dma_unmap_single(tp->pdev, tpl->DMABuff, tpl->Skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_irq(tpl->Skb);
 		tpl->BusyFlag = 0;	/* "free" TPL */
 	}
@@ -2209,7 +2206,7 @@ static void tms380tr_rcv_status_irq(struct net_device *dev)
 				tp->MacStat.rx_errors++;
 		}
 		if (rpl->DMABuff)
-			pci_unmap_single(tp->pdev, rpl->DMABuff, tp->MaxPacketSize, PCI_DMA_TODEVICE);
+			dma_unmap_single(tp->pdev, rpl->DMABuff, tp->MaxPacketSize, DMA_TO_DEVICE);
 		rpl->DMABuff = 0;
 
 		/* Allocate new skb for rpl */
@@ -2227,7 +2224,7 @@ static void tms380tr_rcv_status_irq(struct net_device *dev)
 			skb_put(rpl->Skb, tp->MaxPacketSize);
 
 			/* Data unreachable for DMA ? then use local buffer */
-			dmabuf = pci_map_single(tp->pdev, rpl->Skb->data, tp->MaxPacketSize, PCI_DMA_FROMDEVICE);
+			dmabuf = dma_map_single(tp->pdev, rpl->Skb->data, tp->MaxPacketSize, DMA_FROM_DEVICE);
 			if(tp->dmalimit && (dmabuf + tp->MaxPacketSize > tp->dmalimit))
 			{
 				rpl->SkbStat = SKB_DATA_COPY;
@@ -2332,23 +2329,26 @@ void tmsdev_term(struct net_device *dev)
 	struct net_local *tp;
 
 	tp = netdev_priv(dev);
-	pci_unmap_single(tp->pdev, tp->dmabuffer, sizeof(struct net_local),
-		PCI_DMA_BIDIRECTIONAL);
+	dma_unmap_single(tp->pdev, tp->dmabuffer, sizeof(struct net_local),
+		DMA_BIDIRECTIONAL);
 }
 
-int tmsdev_init(struct net_device *dev, unsigned long dmalimit, 
-		struct pci_dev *pdev)
+int tmsdev_init(struct net_device *dev, struct device *pdev)
 {
 	struct net_local *tms_local;
 
 	memset(dev->priv, 0, sizeof(struct net_local));
 	tms_local = netdev_priv(dev);
 	init_waitqueue_head(&tms_local->wait_for_tok_int);
-	tms_local->dmalimit = dmalimit;
+	if (pdev->dma_mask)
+		tms_local->dmalimit = *pdev->dma_mask;
+	else
+		return -ENOMEM;
 	tms_local->pdev = pdev;
-	tms_local->dmabuffer = pci_map_single(pdev, (void *)tms_local,
-	    sizeof(struct net_local), PCI_DMA_BIDIRECTIONAL);
-	if (tms_local->dmabuffer + sizeof(struct net_local) > dmalimit)
+	tms_local->dmabuffer = dma_map_single(pdev, (void *)tms_local,
+	    sizeof(struct net_local), DMA_BIDIRECTIONAL);
+	if (tms_local->dmabuffer + sizeof(struct net_local) > 
+			tms_local->dmalimit)
 	{
 		printk(KERN_INFO "%s: Memory not accessible for DMA\n",
 			dev->name);
@@ -2370,14 +2370,14 @@ int tmsdev_init(struct net_device *dev, unsigned long dmalimit,
 	return 0;
 }
 
-#ifdef MODULE
-
 EXPORT_SYMBOL(tms380tr_open);
 EXPORT_SYMBOL(tms380tr_close);
 EXPORT_SYMBOL(tms380tr_interrupt);
 EXPORT_SYMBOL(tmsdev_init);
 EXPORT_SYMBOL(tmsdev_term);
 EXPORT_SYMBOL(tms380tr_wait);
+
+#ifdef MODULE
 
 static struct module *TMS380_module = NULL;
 

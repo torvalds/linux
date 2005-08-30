@@ -56,7 +56,7 @@ static inline int ip6_rcv_finish( struct sk_buff *skb)
 	return dst_input(skb);
 }
 
-int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct ipv6hdr *hdr;
 	u32 		pkt_len;
@@ -166,8 +166,8 @@ resubmit:
 	nexthdr = skb->nh.raw[nhoff];
 
 	raw_sk = sk_head(&raw_v6_htable[nexthdr & (MAX_INET_PROTOS - 1)]);
-	if (raw_sk)
-		ipv6_raw_deliver(skb, nexthdr);
+	if (raw_sk && !ipv6_raw_deliver(skb, nexthdr))
+		raw_sk = NULL;
 
 	hash = nexthdr & (MAX_INET_PROTOS - 1);
 	if ((ipprot = rcu_dereference(inet6_protos[hash])) != NULL) {

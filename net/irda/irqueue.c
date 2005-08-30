@@ -822,7 +822,6 @@ void* hashbin_find_next( hashbin_t* hashbin, long hashv, const char* name,
 
 	return entry;
 }
-EXPORT_SYMBOL(hashbin_find_next);
 
 /*
  * Function hashbin_get_first (hashbin)

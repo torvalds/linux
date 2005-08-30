@@ -2049,6 +2049,11 @@ struct tg3 {
 	spinlock_t			lock;
 	spinlock_t			indirect_lock;
 
+	u32				(*read32) (struct tg3 *, u32);
+	void				(*write32) (struct tg3 *, u32, u32);
+	u32				(*read32_mbox) (struct tg3 *, u32);
+	void				(*write32_mbox) (struct tg3 *, u32,
+							 u32);
 	void __iomem			*regs;
 	struct net_device		*dev;
 	struct pci_dev			*pdev;
@@ -2060,6 +2065,8 @@ struct tg3 {
 	u32				msg_enable;
 
 	/* begin "tx thread" cacheline section */
+	void				(*write32_tx_mbox) (struct tg3 *, u32,
+							    u32);
 	u32				tx_prod;
 	u32				tx_cons;
 	u32				tx_pending;
@@ -2071,6 +2078,8 @@ struct tg3 {
 	dma_addr_t			tx_desc_mapping;
 
 	/* begin "rx thread" cacheline section */
+	void				(*write32_rx_mbox) (struct tg3 *, u32,
+							    u32);
 	u32				rx_rcb_ptr;
 	u32				rx_std_ptr;
 	u32				rx_jumbo_ptr;
@@ -2165,6 +2174,7 @@ struct tg3 {
 #define TG3_FLG2_ANY_SERDES		(TG3_FLG2_PHY_SERDES |	\
 					TG3_FLG2_MII_SERDES)
 #define TG3_FLG2_PARALLEL_DETECT	0x01000000
+#define TG3_FLG2_ICH_WORKAROUND		0x02000000
 
 	u32				split_mode_max_reqs;
 #define SPLIT_MODE_5704_MAX_REQ		3

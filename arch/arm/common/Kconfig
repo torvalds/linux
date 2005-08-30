@@ -1,6 +1,9 @@
 config ICST525
 	bool
 
+config ARM_GIC
+	bool
+
 config ICST307
 	bool
 

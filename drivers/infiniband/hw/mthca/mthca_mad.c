@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,9 +34,9 @@
  * $Id: mthca_mad.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <ib_verbs.h>
-#include <ib_mad.h>
-#include <ib_smi.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_mad.h>
+#include <rdma/ib_smi.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
@@ -192,7 +194,7 @@ int mthca_process_mad(struct ib_device *ibdev,
 {
 	int err;
 	u8 status;
-	u16 slid = in_wc ? in_wc->slid : IB_LID_PERMISSIVE;
+	u16 slid = in_wc ? in_wc->slid : be16_to_cpu(IB_LID_PERMISSIVE);
 
 	/* Forward locally generated traps to the SM */
 	if (in_mad->mad_hdr.method == IB_MGMT_METHOD_TRAP &&

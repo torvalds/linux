@@ -479,7 +479,7 @@ int dn_nsp_check_xmit_queue(struct sock *sk, struct sk_buff *skb, struct sk_buff
 		xmit_count = cb2->xmit_count;
 		segnum = cb2->segnum;
 		/* Remove and drop ack'ed packet */
-		skb_unlink(ack);
+		skb_unlink(ack, q);
 		kfree_skb(ack);
 		ack = NULL;
 

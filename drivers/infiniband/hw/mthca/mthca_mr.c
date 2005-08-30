@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -50,18 +51,18 @@ struct mthca_mtt {
  * Must be packed because mtt_seg is 64 bits but only aligned to 32 bits.
  */
 struct mthca_mpt_entry {
-	u32 flags;
-	u32 page_size;
-	u32 key;
-	u32 pd;
-	u64 start;
-	u64 length;
-	u32 lkey;
-	u32 window_count;
-	u32 window_count_limit;
-	u64 mtt_seg;
-	u32 mtt_sz;		/* Arbel only */
-	u32 reserved[2];
+	__be32 flags;
+	__be32 page_size;
+	__be32 key;
+	__be32 pd;
+	__be64 start;
+	__be64 length;
+	__be32 lkey;
+	__be32 window_count;
+	__be32 window_count_limit;
+	__be64 mtt_seg;
+	__be32 mtt_sz;		/* Arbel only */
+	u32    reserved[2];
 } __attribute__((packed));
 
 #define MTHCA_MPT_FLAG_SW_OWNS       (0xfUL << 28)
@@ -247,7 +248,7 @@ int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 		    int start_index, u64 *buffer_list, int list_len)
 {
 	struct mthca_mailbox *mailbox;
-	u64 *mtt_entry;
+	__be64 *mtt_entry;
 	int err = 0;
 	u8 status;
 	int i;
@@ -389,7 +390,7 @@ int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 		for (i = 0; i < sizeof (struct mthca_mpt_entry) / 4; ++i) {
 			if (i % 4 == 0)
 				printk("[%02x] ", i * 4);
-			printk(" %08x", be32_to_cpu(((u32 *) mpt_entry)[i]));
+			printk(" %08x", be32_to_cpu(((__be32 *) mpt_entry)[i]));
 			if ((i + 1) % 4 == 0)
 				printk("\n");
 		}
@@ -458,7 +459,7 @@ int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 static void mthca_free_region(struct mthca_dev *dev, u32 lkey)
 {
 	mthca_table_put(dev, dev->mr_table.mpt_table,
-			arbel_key_to_hw_index(lkey));
+			key_to_hw_index(dev, lkey));
 
 	mthca_free(&dev->mr_table.mpt_alloc, key_to_hw_index(dev, lkey));
 }
@@ -562,7 +563,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		for (i = 0; i < sizeof (struct mthca_mpt_entry) / 4; ++i) {
 			if (i % 4 == 0)
 				printk("[%02x] ", i * 4);
-			printk(" %08x", be32_to_cpu(((u32 *) mpt_entry)[i]));
+			printk(" %08x", be32_to_cpu(((__be32 *) mpt_entry)[i]));
 			if ((i + 1) % 4 == 0)
 				printk("\n");
 		}
@@ -669,7 +670,7 @@ int mthca_tavor_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 	mpt_entry.length = cpu_to_be64(list_len * (1ull << fmr->attr.page_size));
 	mpt_entry.start  = cpu_to_be64(iova);
 
-	writel(mpt_entry.lkey, &fmr->mem.tavor.mpt->key);
+	__raw_writel((__force u32) mpt_entry.lkey, &fmr->mem.tavor.mpt->key);
 	memcpy_toio(&fmr->mem.tavor.mpt->start, &mpt_entry.start,
 		    offsetof(struct mthca_mpt_entry, window_count) -
 		    offsetof(struct mthca_mpt_entry, start));

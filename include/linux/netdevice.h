@@ -244,6 +244,7 @@ struct netdev_boot_setup {
 };
 #define NETDEV_BOOT_SETUP_MAX 8
 
+extern int __init netdev_boot_setup(char *str);
 
 /*
  *	The DEVICE structure.
@@ -336,6 +337,7 @@ struct net_device
 	/* Interface address info. */
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 	unsigned char		dev_addr[MAX_ADDR_LEN];	/* hw address	*/
+	unsigned char		perm_addr[MAX_ADDR_LEN]; /* permanent hw address */
 	unsigned char		addr_len;	/* hardware address length	*/
 	unsigned short          dev_id;		/* for shared network cards */
 
@@ -497,10 +499,12 @@ static inline void *netdev_priv(struct net_device *dev)
 #define SET_NETDEV_DEV(net, pdev)	((net)->class_dev.dev = (pdev))
 
 struct packet_type {
-	__be16			type;	/* This is really htons(ether_type).	*/
-	struct net_device		*dev;	/* NULL is wildcarded here		*/
-	int			(*func) (struct sk_buff *, struct net_device *,
-					 struct packet_type *);
+	__be16			type;	/* This is really htons(ether_type). */
+	struct net_device	*dev;	/* NULL is wildcarded here	     */
+	int			(*func) (struct sk_buff *,
+					 struct net_device *,
+					 struct packet_type *,
+					 struct net_device *);
 	void			*af_packet_priv;
 	struct list_head	list;
 };
@@ -671,6 +675,7 @@ extern void		dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev);
 extern void		dev_init(void);
 
 extern int		netdev_nit;
+extern int		netdev_budget;
 
 /* Called by rtnetlink.c:rtnl_unlock() */
 extern void netdev_run_todo(void);
@@ -697,19 +702,9 @@ static inline int netif_carrier_ok(const struct net_device *dev)
 
 extern void __netdev_watchdog_up(struct net_device *dev);
 
-static inline void netif_carrier_on(struct net_device *dev)
-{
-	if (test_and_clear_bit(__LINK_STATE_NOCARRIER, &dev->state))
-		linkwatch_fire_event(dev);
-	if (netif_running(dev))
-		__netdev_watchdog_up(dev);
-}
+extern void netif_carrier_on(struct net_device *dev);
 
-static inline void netif_carrier_off(struct net_device *dev)
-{
-	if (!test_and_set_bit(__LINK_STATE_NOCARRIER, &dev->state))
-		linkwatch_fire_event(dev);
-}
+extern void netif_carrier_off(struct net_device *dev);
 
 /* Hot-plugging. */
 static inline int netif_device_present(struct net_device *dev)
@@ -915,6 +910,14 @@ extern int skb_checksum_help(struct sk_buff *skb, int inward);
 /* rx skb timestamps */
 extern void		net_enable_timestamp(void);
 extern void		net_disable_timestamp(void);
+
+#ifdef CONFIG_PROC_FS
+extern void *dev_seq_start(struct seq_file *seq, loff_t *pos);
+extern void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos);
+extern void dev_seq_stop(struct seq_file *seq, void *v);
+#endif
+
+extern void linkwatch_run_queue(void);
 
 #endif /* __KERNEL__ */
 

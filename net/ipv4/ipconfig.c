@@ -393,7 +393,7 @@ static int __init ic_defaults(void)
 
 #ifdef IPCONFIG_RARP
 
-static int ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt);
+static int ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev);
 
 static struct packet_type rarp_packet_type __initdata = {
 	.type =	__constant_htons(ETH_P_RARP),
@@ -414,7 +414,7 @@ static inline void ic_rarp_cleanup(void)
  *  Process received RARP packet.
  */
 static int __init
-ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct arphdr *rarp;
 	unsigned char *rarp_ptr;
@@ -555,7 +555,7 @@ struct bootp_pkt {		/* BOOTP packet format */
 #define DHCPRELEASE	7
 #define DHCPINFORM	8
 
-static int ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt);
+static int ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev);
 
 static struct packet_type bootp_packet_type __initdata = {
 	.type =	__constant_htons(ETH_P_IP),
@@ -823,7 +823,7 @@ static void __init ic_do_bootp_ext(u8 *ext)
 /*
  *  Receive BOOTP reply.
  */
-static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct bootp_pkt *b;
 	struct iphdr *h;

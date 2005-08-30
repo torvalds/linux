@@ -88,7 +88,7 @@ DEBUGGER_BOILERPLATE(debugger_dabr_match)
 DEBUGGER_BOILERPLATE(debugger_fault_handler)
 
 #ifdef CONFIG_XMON
-extern void xmon_init(void);
+extern void xmon_init(int enable);
 #endif
 
 #else
@@ -301,6 +301,8 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 #define NET_IP_ALIGN   0
 
 #define arch_align_stack(x) (x)
+
+extern unsigned long reloc_offset(void);
 
 #endif /* __KERNEL__ */
 #endif

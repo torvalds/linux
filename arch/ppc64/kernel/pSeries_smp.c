@@ -41,6 +41,7 @@
 #include <asm/machdep.h>
 #include <asm/xics.h>
 #include <asm/cputable.h>
+#include <asm/firmware.h>
 #include <asm/system.h>
 #include <asm/rtas.h>
 #include <asm/plpar_wrappers.h>
@@ -326,7 +327,7 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 	if (cpu != boot_cpuid)
 		xics_setup_cpu();
 
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR)
+	if (firmware_has_feature(FW_FEATURE_SPLPAR))
 		vpa_init(cpu);
 
 	cpu_clear(cpu, of_spin_map);
