@@ -784,6 +784,8 @@ static int cifs_oplock_thread(void * dummyarg)
 
 	oplockThread = current;
 	do {
+		if(try_to_freeze()) 
+			continue;
 		set_current_state(TASK_INTERRUPTIBLE);
 		
 		schedule_timeout(1*HZ);  
@@ -848,6 +850,8 @@ static int cifs_dnotify_thread(void * dummyarg)
 
 	dnotifyThread = current;
 	do {
+		if(try_to_freeze())
+			continue;
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(39*HZ);
 	} while(!signal_pending(current));

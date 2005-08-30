@@ -2,7 +2,8 @@ Version 1.36
 ------------
 Add support for mounting to older pre-CIFS servers such as Windows9x and ME.
 For these older servers, add option for passing netbios name of server in
-on mount (servernetbiosname).
+on mount (servernetbiosname).  Add suspend support for power management, to
+avoid cifsd thread preventing software suspend from working.
 Add mount option for disabling the default behavior of sending byte range lock
 requests to the server (necessary for certain applications which break with
 mandatory lock behavior such as Evolution), and also mount option for
