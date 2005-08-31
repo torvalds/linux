@@ -80,7 +80,7 @@ static void uart_stop(struct tty_struct *tty)
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	port->ops->stop_tx(port, 1);
+	port->ops->stop_tx(port);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -91,7 +91,7 @@ static void __uart_start(struct tty_struct *tty)
 
 	if (!uart_circ_empty(&state->info->xmit) && state->info->xmit.buf &&
 	    !tty->stopped && !tty->hw_stopped)
-		port->ops->start_tx(port, 1);
+		port->ops->start_tx(port);
 }
 
 static void uart_start(struct tty_struct *tty)
@@ -542,7 +542,7 @@ static void uart_send_xchar(struct tty_struct *tty, char ch)
 		port->x_char = ch;
 		if (ch) {
 			spin_lock_irqsave(&port->lock, flags);
-			port->ops->start_tx(port, 0);
+			port->ops->start_tx(port);
 			spin_unlock_irqrestore(&port->lock, flags);
 		}
 	}
@@ -1146,7 +1146,7 @@ static void uart_set_termios(struct tty_struct *tty, struct termios *old_termios
 		spin_lock_irqsave(&state->port->lock, flags);
 		if (!(state->port->ops->get_mctrl(state->port) & TIOCM_CTS)) {
 			tty->hw_stopped = 1;
-			state->port->ops->stop_tx(state->port, 0);
+			state->port->ops->stop_tx(state->port);
 		}
 		spin_unlock_irqrestore(&state->port->lock, flags);
 	}
@@ -1869,7 +1869,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 		struct uart_ops *ops = port->ops;
 
 		spin_lock_irq(&port->lock);
-		ops->stop_tx(port, 0);
+		ops->stop_tx(port);
 		ops->set_mctrl(port, 0);
 		ops->stop_rx(port);
 		spin_unlock_irq(&port->lock);
@@ -1935,7 +1935,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 		uart_change_speed(state, NULL);
 		spin_lock_irq(&port->lock);
 		ops->set_mctrl(port, port->mctrl);
-		ops->start_tx(port, 0);
+		ops->start_tx(port);
 		spin_unlock_irq(&port->lock);
 	}
 

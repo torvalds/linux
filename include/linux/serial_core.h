@@ -142,8 +142,8 @@ struct uart_ops {
 	unsigned int	(*tx_empty)(struct uart_port *);
 	void		(*set_mctrl)(struct uart_port *, unsigned int mctrl);
 	unsigned int	(*get_mctrl)(struct uart_port *);
-	void		(*stop_tx)(struct uart_port *, unsigned int tty_stop);
-	void		(*start_tx)(struct uart_port *, unsigned int tty_start);
+	void		(*stop_tx)(struct uart_port *);
+	void		(*start_tx)(struct uart_port *);
 	void		(*send_xchar)(struct uart_port *, char ch);
 	void		(*stop_rx)(struct uart_port *);
 	void		(*enable_ms)(struct uart_port *);
@@ -468,13 +468,13 @@ uart_handle_cts_change(struct uart_port *port, unsigned int status)
 		if (tty->hw_stopped) {
 			if (status) {
 				tty->hw_stopped = 0;
-				port->ops->start_tx(port, 0);
+				port->ops->start_tx(port);
 				uart_write_wakeup(port);
 			}
 		} else {
 			if (!status) {
 				tty->hw_stopped = 1;
-				port->ops->stop_tx(port, 0);
+				port->ops->stop_tx(port);
 			}
 		}
 	}

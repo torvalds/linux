@@ -74,7 +74,7 @@ struct uart_amba_port {
 	unsigned int		old_status;
 };
 
-static void pl011_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void pl011_stop_tx(struct uart_port *port)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
 
@@ -82,7 +82,7 @@ static void pl011_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	writew(uap->im, uap->port.membase + UART011_IMSC);
 }
 
-static void pl011_start_tx(struct uart_port *port, unsigned int tty_start)
+static void pl011_start_tx(struct uart_port *port)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
 
@@ -184,7 +184,7 @@ static void pl011_tx_chars(struct uart_amba_port *uap)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&uap->port)) {
-		pl011_stop_tx(&uap->port, 0);
+		pl011_stop_tx(&uap->port);
 		return;
 	}
 
@@ -201,7 +201,7 @@ static void pl011_tx_chars(struct uart_amba_port *uap)
 		uart_write_wakeup(&uap->port);
 
 	if (uart_circ_empty(xmit))
-		pl011_stop_tx(&uap->port, 0);
+		pl011_stop_tx(&uap->port);
 }
 
 static void pl011_modem_status(struct uart_amba_port *uap)

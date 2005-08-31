@@ -1001,7 +1001,7 @@ static inline void __stop_tx(struct uart_8250_port *p)
 	}
 }
 
-static void serial8250_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void serial8250_stop_tx(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 
@@ -1018,7 +1018,7 @@ static void serial8250_stop_tx(struct uart_port *port, unsigned int tty_stop)
 
 static void transmit_chars(struct uart_8250_port *up);
 
-static void serial8250_start_tx(struct uart_port *port, unsigned int tty_start)
+static void serial8250_start_tx(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 
@@ -1158,7 +1158,11 @@ static _INLINE_ void transmit_chars(struct uart_8250_port *up)
 		up->port.x_char = 0;
 		return;
 	}
-	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
+	if (uart_tx_stopped(&up->port)) {
+		serial8250_stop_tx(&up->port);
+		return;
+	}
+	if (uart_circ_empty(xmit)) {
 		__stop_tx(up);
 		return;
 	}

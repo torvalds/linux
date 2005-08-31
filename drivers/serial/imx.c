@@ -124,7 +124,7 @@ static void imx_timeout(unsigned long data)
 /*
  * interrupts disabled on entry
  */
-static void imx_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void imx_stop_tx(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	UCR1((u32)sport->port.membase) &= ~UCR1_TXMPTYEN;
@@ -165,13 +165,13 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 	} while (!(UTS((u32)sport->port.membase) & UTS_TXFULL));
 
 	if (uart_circ_empty(xmit))
-		imx_stop_tx(&sport->port, 0);
+		imx_stop_tx(&sport->port);
 }
 
 /*
  * interrupts disabled on entry
  */
-static void imx_start_tx(struct uart_port *port, unsigned int tty_start)
+static void imx_start_tx(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 
@@ -196,7 +196,7 @@ static irqreturn_t imx_txint(int irq, void *dev_id, struct pt_regs *regs)
 	}
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&sport->port)) {
-		imx_stop_tx(&sport->port, 0);
+		imx_stop_tx(&sport->port);
 		goto out;
 	}
 
