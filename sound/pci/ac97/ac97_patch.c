@@ -2145,8 +2145,13 @@ int patch_alc655(ac97_t * ac97)
 	val = snd_ac97_read(ac97, 0x7a); /* misc control */
 	if (ac97->id == 0x414c4780) /* ALC658 */
 		val &= ~(1 << 1); /* Pin 47 is spdif input pin */
-	else /* ALC655 */
-		val |= (1 << 1); /* Pin 47 is spdif input pin */
+	else { /* ALC655 */
+		if (ac97->subsystem_vendor == 0x1462 &&
+		    ac97->subsystem_device == 0x0131) /* MSI S270 laptop */
+			val &= ~(1 << 1); /* Pin 47 is EAPD (for internal speaker) */
+		else
+			val |= (1 << 1); /* Pin 47 is spdif input pin */
+	}
 	val &= ~(1 << 12); /* vref enable */
 	snd_ac97_write_cache(ac97, 0x7a, val);
 	/* set default: spdif-in enabled,
