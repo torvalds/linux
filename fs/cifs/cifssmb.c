@@ -1082,12 +1082,20 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	int rc = -EACCES;
 	WRITE_REQ *pSMB = NULL;
 	WRITE_RSP *pSMBr = NULL;
-	int bytes_returned;
+	int bytes_returned, wct;
 	__u32 bytes_sent;
 	__u16 byte_count;
 
 	/* cFYI(1,("write at %lld %d bytes",offset,count));*/
-	rc = smb_init(SMB_COM_WRITE_ANDX, 14, tcon, (void **) &pSMB,
+	if(tcon->ses == NULL)
+		return -ECONNABORTED;
+
+	if(tcon->ses->capabilities & CAP_LARGE_FILES)
+		wct = 14;
+	else
+		wct = 12;
+
+	rc = smb_init(SMB_COM_WRITE_ANDX, wct, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
 	if (rc)
 		return rc;
@@ -1098,7 +1106,11 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	pSMB->AndXCommand = 0xFF;	/* none */
 	pSMB->Fid = netfid;
 	pSMB->OffsetLow = cpu_to_le32(offset & 0xFFFFFFFF);
-	pSMB->OffsetHigh = cpu_to_le32(offset >> 32);
+	if(wct == 14) 
+		pSMB->OffsetHigh = cpu_to_le32(offset >> 32);
+	else if((offset >> 32) > 0) /* can not handle this big offset for old */
+		return -EIO;
+	
 	pSMB->Reserved = 0xFFFFFFFF;
 	pSMB->WriteMode = 0;
 	pSMB->Remaining = 0;
@@ -1135,7 +1147,14 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	pSMB->DataLengthLow = cpu_to_le16(bytes_sent & 0xFFFF);
 	pSMB->DataLengthHigh = cpu_to_le16(bytes_sent >> 16);
 	pSMB->hdr.smb_buf_length += bytes_sent+1;
-	pSMB->ByteCount = cpu_to_le16(byte_count);
+
+	if(wct == 14)
+		pSMB->ByteCount = cpu_to_le16(byte_count);
+	else { /* old style write has byte count 4 bytes earlier */
+		struct smb_com_writex_req * pSMBW = 
+			(struct smb_com_writex_req *)pSMB;
+		pSMBW->ByteCount = cpu_to_le16(byte_count);
+	}
 
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, long_op);

@@ -1183,10 +1183,15 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 	char *smb_read_data;
 	char __user *current_offset;
 	struct smb_com_read_rsp *pSMBr;
+	int use_old_read = FALSE;
 
 	xid = GetXid();
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
 	pTcon = cifs_sb->tcon;
+
+	if(pTcon->ses)
+		if((pTcon->ses->capabilities & CAP_LARGE_FILES) == 0)
+			use_old_read = TRUE;
 
 	if (file->private_data == NULL) {
 		FreeXid(xid);
@@ -1212,16 +1217,21 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 				if (rc != 0)
 					break;
 			}
-
-			rc = CIFSSMBRead(xid, pTcon,
-				 open_file->netfid,
-				 current_read_size, *poffset,
-				 &bytes_read, &smb_read_data);
-			if(rc == -EINVAL) {
+			if(use_old_read)
 				rc = SMBLegacyRead(xid, pTcon,
 					open_file->netfid,
 					current_read_size, *poffset,
 					&bytes_read, &smb_read_data);
+			else {
+				rc = CIFSSMBRead(xid, pTcon,
+					open_file->netfid,
+					current_read_size, *poffset,
+					&bytes_read, &smb_read_data);
+				if(rc == -EINVAL) {
+					use_old_read = TRUE;
+					rc = -EAGAIN;
+					continue;
+				}
 			}
 			pSMBr = (struct smb_com_read_rsp *)smb_read_data;
 			if (copy_to_user(current_offset, 
@@ -1266,6 +1276,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	int xid;
 	char *current_offset;
 	struct cifsFileInfo *open_file;
+	int use_old_read = FALSE;
 
 	xid = GetXid();
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
@@ -1276,6 +1287,9 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 		return -EBADF;
 	}
 	open_file = (struct cifsFileInfo *)file->private_data;
+	if(pTcon->ses)
+		if((pTcon->ses->capabilities & CAP_LARGE_FILES) == 0)
+			use_old_read = TRUE;
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, ("attempting read on write only file instance"));
@@ -1294,16 +1308,23 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 				if (rc != 0)
 					break;
 			}
-
-			rc = CIFSSMBRead(xid, pTcon,
-				 open_file->netfid,
-				 current_read_size, *poffset,
-				 &bytes_read, &current_offset);
-			if(rc == -EINVAL) {
+			if(use_old_read) 
 				rc = SMBLegacyRead(xid, pTcon,
+					 open_file->netfid,
+					 current_read_size, *poffset,
+					 &bytes_read, &current_offset);
+			else {
+				rc = CIFSSMBRead(xid, pTcon,
 					open_file->netfid,
 					current_read_size, *poffset,
 					&bytes_read, &current_offset);
+				/* check if server disavows support for
+				   64 bit offsets */
+				if(rc == -EINVAL) {
+					rc = -EAGAIN;
+					use_old_read = TRUE;
+					continue;
+				}
 			}
 		}
 		if (rc || (bytes_read == 0)) {
@@ -1402,6 +1423,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	struct smb_com_read_rsp *pSMBr;
 	struct pagevec lru_pvec;
 	struct cifsFileInfo *open_file;
+	int use_old_read = FALSE;
 
 	xid = GetXid();
 	if (file->private_data == NULL) {
@@ -1411,7 +1433,9 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	open_file = (struct cifsFileInfo *)file->private_data;
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
 	pTcon = cifs_sb->tcon;
-
+	if(pTcon->ses)
+		if((pTcon->ses->capabilities & CAP_LARGE_FILES) == 0)
+			use_old_read = TRUE;
 	pagevec_init(&lru_pvec, 0);
 
 	for (i = 0; i < num_pages; ) {
@@ -1457,15 +1481,21 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 					break;
 			}
 
-			rc = CIFSSMBRead(xid, pTcon,
-				open_file->netfid,
-				read_size, offset,
-				&bytes_read, &smb_read_data);
-			if (rc == -EINVAL) {
+			if(use_old_read)
 				rc = SMBLegacyRead(xid, pTcon,
 					open_file->netfid,
 					read_size, offset,
 					&bytes_read, &smb_read_data);
+			else {
+				rc = CIFSSMBRead(xid, pTcon,
+					open_file->netfid,
+					read_size, offset,
+					&bytes_read, &smb_read_data);
+				if(rc == -EINVAL) {
+					use_old_read = TRUE;
+					rc = -EAGAIN;
+					continue;
+				}
 			}
 
 			/* BB more RC checks ? */
