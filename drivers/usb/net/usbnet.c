@@ -103,6 +103,7 @@
  * 		disconnect; other cleanups. (db)  Flush net1080 fifos
  * 		after several sequential framing errors. (Johannes Erdfelt)
  * 22-aug-2003	AX8817X support (Dave Hollis).
+ *
  * 14-jun-2004  Trivial patch for AX8817X based Buffalo LUA-U2-KTX in Japan
  *		(Neil Bortnak)
  * 03-nov-2004	Trivial patch for KC2190 (KC-190) chip. (Jonathan McDowell)
@@ -1373,14 +1374,6 @@ static const struct usb_device_id	products [] = {
 }, {
 	USB_DEVICE (0x067b, 0x0001),	// PL-2302
 	.driver_info =	(unsigned long) &prolific_info,
-},
-#endif
-
-#ifdef	CONFIG_USB_RNDIS
-{
-	/* RNDIS is MSFT's un-official variant of CDC ACM */
-	USB_INTERFACE_INFO (USB_CLASS_COMM, 2 /* ACM */, 0x0ff),
-	.driver_info = (unsigned long) &rndis_info,
 },
 #endif
 	{ },		// END
