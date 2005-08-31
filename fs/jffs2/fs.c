@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: fs.c,v 1.62 2005/08/06 04:51:30 nico Exp $
+ * $Id: fs.c,v 1.64 2005/09/01 08:42:31 havasi Exp $
  *
  */
 
@@ -457,19 +457,8 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 #endif
 
 	c->flash_size = c->mtd->size;
-
-	/* 
-	 * Check, if we have to concatenate physical blocks to larger virtual blocks
-	 * to reduce the memorysize for c->blocks. (kmalloc allows max. 128K allocation)
-	 */
 	c->sector_size = c->mtd->erasesize; 
 	blocks = c->flash_size / c->sector_size;
-	if (!(c->mtd->flags & MTD_NO_VIRTBLOCKS)) {
-		while ((blocks * sizeof (struct jffs2_eraseblock)) > (128 * 1024)) {
-			blocks >>= 1;
-			c->sector_size <<= 1;
-		}	
-	}
 
 	/*
 	 * Size alignment check
@@ -479,10 +468,6 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 		printk(KERN_INFO "jffs2: Flash size not aligned to erasesize, reducing to %dKiB\n",
 			c->flash_size / 1024);
 	}
-
-	if (c->sector_size != c->mtd->erasesize)
-		printk(KERN_INFO "jffs2: Erase block size too small (%dKiB). Using virtual blocks size (%dKiB) instead\n", 
-			c->mtd->erasesize / 1024, c->sector_size / 1024);
 
 	if (c->flash_size < 5*c->sector_size) {
 		printk(KERN_ERR "jffs2: Too few erase blocks (%d)\n", c->flash_size / c->sector_size);
@@ -533,7 +518,7 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	iput(root_i);
 	jffs2_free_ino_caches(c);
 	jffs2_free_raw_node_refs(c);
-	if (c->mtd->flags & MTD_NO_VIRTBLOCKS)
+	if (jffs2_blocks_use_vmalloc(c))
 		vfree(c->blocks);
 	else
 		kfree(c->blocks);

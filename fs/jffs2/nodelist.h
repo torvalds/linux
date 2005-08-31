@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.h,v 1.138 2005/08/17 13:46:23 dedekind Exp $
+ * $Id: nodelist.h,v 1.139 2005/08/31 13:51:00 havasi Exp $
  *
  */
 
@@ -196,6 +196,11 @@ struct jffs2_eraseblock
 
 	struct jffs2_raw_node_ref *gc_node;	/* Next node to be garbage collected */
 };
+
+static inline int jffs2_blocks_use_vmalloc(struct jffs2_sb_info *c)
+{
+	return ((c->flash_size / c->sector_size) * sizeof (struct jffs2_eraseblock)) > (128 * 1024);
+}
 
 /* Calculate totlen from surrounding nodes or eraseblock */
 static inline uint32_t __ref_totlen(struct jffs2_sb_info *c,

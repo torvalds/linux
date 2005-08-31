@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: build.c,v 1.76 2005/07/30 15:29:27 lunn Exp $
+ * $Id: build.c,v 1.77 2005/08/31 13:51:00 havasi Exp $
  *
  */
 
@@ -318,7 +318,7 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 	c->free_size = c->flash_size;
 	c->nr_blocks = c->flash_size / c->sector_size;
 #ifndef __ECOS
- 	if (c->mtd->flags & MTD_NO_VIRTBLOCKS)
+	if (jffs2_blocks_use_vmalloc(c))
 		c->blocks = vmalloc(sizeof(struct jffs2_eraseblock) * c->nr_blocks);
 	else
 #endif
@@ -356,7 +356,7 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 		jffs2_free_ino_caches(c);
 		jffs2_free_raw_node_refs(c);
 #ifndef __ECOS
-		if (c->mtd->flags & MTD_NO_VIRTBLOCKS) 
+		if (jffs2_blocks_use_vmalloc(c))
                     vfree(c->blocks);
 		else 
 #endif
