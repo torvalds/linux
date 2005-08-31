@@ -1934,7 +1934,7 @@ static int __init de_init_one (struct pci_dev *pdev,
 	struct de_private *de;
 	int rc;
 	void __iomem *regs;
-	long pciaddr;
+	unsigned long pciaddr;
 	static int board_idx = -1;
 
 	board_idx++;
