@@ -719,6 +719,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd, struct pt_regs *ptregs)
 
 	if (ints & OHCI_INTR_RD) {
 		ohci_vdbg (ohci, "resume detect\n");
+		ohci_writel (ohci, OHCI_INTR_RD, &regs->intrstatus);
 		if (hcd->state != HC_STATE_QUIESCING)
 			schedule_work(&ohci->rh_resume);
 	}
