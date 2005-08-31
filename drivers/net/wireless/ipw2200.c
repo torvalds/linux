@@ -5510,6 +5510,15 @@ static int ipw_best_network(struct ipw_priv *priv,
 		return 0;
 	}
 
+	if (!priv->ieee->wpa_enabled && (network->wpa_ie_len > 0 ||
+					 network->rsn_ie_len > 0)) {
+		IPW_DEBUG_ASSOC("Network '%s (" MAC_FMT ")' excluded "
+				"because of WPA capability mismatch.\n",
+				escape_essid(network->ssid, network->ssid_len),
+				MAC_ARG(network->bssid));
+		return 0;
+	}
+
 	if ((priv->config & CFG_STATIC_BSSID) &&
 	    memcmp(network->bssid, priv->bssid, ETH_ALEN)) {
 		IPW_DEBUG_ASSOC("Network '%s (" MAC_FMT ")' excluded "
@@ -6228,6 +6237,7 @@ static int ipw_wpa_enable(struct ipw_priv *priv, int value)
 {
 	/* This is called when wpa_supplicant loads and closes the driver
 	 * interface. */
+	priv->ieee->wpa_enabled = value;
 	return 0;
 }
 
