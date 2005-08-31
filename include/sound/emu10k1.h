@@ -1178,7 +1178,7 @@ int snd_p16v_free(emu10k1_t * emu);
 int snd_p16v_mixer(emu10k1_t * emu);
 int snd_emu10k1_pcm_multi(emu10k1_t * emu, int device, snd_pcm_t ** rpcm);
 int snd_emu10k1_fx8010_pcm(emu10k1_t * emu, int device, snd_pcm_t ** rpcm);
-int snd_emu10k1_mixer(emu10k1_t * emu);
+int snd_emu10k1_mixer(emu10k1_t * emu, int pcm_device, int multi_device);
 int snd_emu10k1_timer(emu10k1_t * emu, int device);
 int snd_emu10k1_fx8010_new(emu10k1_t *emu, int device, snd_hwdep_t ** rhwdep);
 
