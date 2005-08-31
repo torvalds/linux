@@ -45,7 +45,7 @@
 
 #define LDST_P_EQ_U(i)	((((i) ^ ((i) >> 1)) & (1 << 23)) == 0)
 
-#define LDSTH_I_BIT(i)	(i & (1 << 22))		/* half-word immed	*/
+#define LDSTHD_I_BIT(i)	(i & (1 << 22))		/* double/half-word immed */
 #define LDM_S_BIT(i)	(i & (1 << 22))		/* write CPSR from SPSR	*/
 
 #define RN_BITS(i)	((i >> 16) & 15)	/* Rn			*/
@@ -68,6 +68,7 @@ static unsigned long ai_sys;
 static unsigned long ai_skipped;
 static unsigned long ai_half;
 static unsigned long ai_word;
+static unsigned long ai_dword;
 static unsigned long ai_multi;
 static int ai_usermode;
 
@@ -93,6 +94,8 @@ proc_alignment_read(char *page, char **start, off_t off, int count, int *eof,
 	p += sprintf(p, "Skipped:\t%lu\n", ai_skipped);
 	p += sprintf(p, "Half:\t\t%lu\n", ai_half);
 	p += sprintf(p, "Word:\t\t%lu\n", ai_word);
+	if (cpu_architecture() >= CPU_ARCH_ARMv5TE)
+		p += sprintf(p, "DWord:\t\t%lu\n", ai_dword);
 	p += sprintf(p, "Multi:\t\t%lu\n", ai_multi);
 	p += sprintf(p, "User faults:\t%i (%s)\n", ai_usermode,
 			usermode_action[ai_usermode]);
@@ -283,12 +286,6 @@ do_alignment_ldrhstrh(unsigned long addr, unsigned long instr, struct pt_regs *r
 {
 	unsigned int rd = RD_BITS(instr);
 
-	if ((instr & 0x01f00ff0) == 0x01000090)
-		goto swp;
-
-	if ((instr & 0x90) != 0x90 || (instr & 0x60) == 0)
-		goto bad;
-
 	ai_half += 1;
 
 	if (user_mode(regs))
@@ -323,10 +320,47 @@ do_alignment_ldrhstrh(unsigned long addr, unsigned long instr, struct pt_regs *r
 
  	return TYPE_LDST;
 
- swp:
-	printk(KERN_ERR "Alignment trap: not handling swp instruction\n");
- bad:
-	return TYPE_ERROR;
+ fault:
+	return TYPE_FAULT;
+}
+
+static int
+do_alignment_ldrdstrd(unsigned long addr, unsigned long instr,
+		      struct pt_regs *regs)
+{
+	unsigned int rd = RD_BITS(instr);
+
+	ai_dword += 1;
+
+	if (user_mode(regs))
+		goto user;
+
+	if ((instr & 0xf0) == 0xd0) {
+		unsigned long val;
+		get32_unaligned_check(val, addr);
+		regs->uregs[rd] = val;
+		get32_unaligned_check(val, addr+4);
+		regs->uregs[rd+1] = val;
+	} else {
+		put32_unaligned_check(regs->uregs[rd], addr);
+		put32_unaligned_check(regs->uregs[rd+1], addr+4);
+	}
+
+	return TYPE_LDST;
+
+ user:
+	if ((instr & 0xf0) == 0xd0) {
+		unsigned long val;
+		get32t_unaligned_check(val, addr);
+		regs->uregs[rd] = val;
+		get32t_unaligned_check(val, addr+4);
+		regs->uregs[rd+1] = val;
+	} else {
+		put32t_unaligned_check(regs->uregs[rd], addr);
+		put32t_unaligned_check(regs->uregs[rd+1], addr+4);
+	}
+
+	return TYPE_LDST;
 
  fault:
 	return TYPE_FAULT;
@@ -617,12 +651,20 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	regs->ARM_pc += thumb_mode(regs) ? 2 : 4;
 
 	switch (CODING_BITS(instr)) {
-	case 0x00000000:	/* ldrh or strh */
-		if (LDSTH_I_BIT(instr))
+	case 0x00000000:	/* 3.13.4 load/store instruction extensions */
+		if (LDSTHD_I_BIT(instr))
 			offset.un = (instr & 0xf00) >> 4 | (instr & 15);
 		else
 			offset.un = regs->uregs[RM_BITS(instr)];
-		handler = do_alignment_ldrhstrh;
+
+		if ((instr & 0x000000f0) == 0x000000b0 || /* LDRH, STRH */
+		    (instr & 0x001000f0) == 0x001000f0)   /* LDRSH */
+			handler = do_alignment_ldrhstrh;
+		else if ((instr & 0x001000f0) == 0x000000d0 || /* LDRD */
+			 (instr & 0x001000f0) == 0x000000f0)   /* STRD */
+			handler = do_alignment_ldrdstrd;
+		else
+			goto bad;
 		break;
 
 	case 0x04000000:	/* ldr or str immediate */
