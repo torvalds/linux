@@ -24,7 +24,7 @@
 #define	__USBNET_H
 
 
-/* interface from usbnet core to each USB networking device we handle */
+/* interface from usbnet core to each USB networking link we handle */
 struct usbnet {
 	/* housekeeping */
 	struct usb_device	*udev;
@@ -62,6 +62,10 @@ struct usbnet {
 #		define EVENT_LINK_RESET	4
 };
 
+static inline struct usb_driver *driver_of(struct usb_interface *intf)
+{
+	return to_usb_driver(intf->dev.driver);
+}
 
 /* interface from the device/framing level "minidriver" to core */
 struct driver_info {
@@ -110,6 +114,15 @@ struct driver_info {
 
 	unsigned long	data;		/* Misc driver specific data */
 };
+
+/* Minidrivers are just drivers using the "usbnet" core as a powerful
+ * network-specific subroutine library ... that happens to do pretty
+ * much everything except custom framing and chip-specific stuff.
+ */
+extern int usbnet_probe(struct usb_interface *, const struct usb_device_id *);
+extern int usbnet_suspend (struct usb_interface *, pm_message_t );
+extern int usbnet_resume (struct usb_interface *);
+extern void usbnet_disconnect(struct usb_interface *);
 
 
 /* we record the state for each of our queued skbs */
