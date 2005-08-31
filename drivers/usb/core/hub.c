@@ -435,6 +435,7 @@ void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
 static void hub_power_on(struct usb_hub *hub)
 {
 	int port1;
+	unsigned pgood_delay = hub->descriptor->bPwrOn2PwrGood * 2;
 
 	/* if hub supports power switching, enable power on each port */
 	if ((hub->descriptor->wHubCharacteristics & HUB_CHAR_LPSM) < 2) {
@@ -444,8 +445,8 @@ static void hub_power_on(struct usb_hub *hub)
 					USB_PORT_FEAT_POWER);
 	}
 
-	/* Wait for power to be enabled */
-	msleep(hub->descriptor->bPwrOn2PwrGood * 2);
+	/* Wait at least 100 msec for power to become stable */
+	msleep(max(pgood_delay, (unsigned) 100));
 }
 
 static void hub_quiesce(struct usb_hub *hub)
@@ -1469,8 +1470,8 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		/* return on disconnect or reset */
 		switch (status) {
 		case 0:
-			/* TRSTRCY = 10 ms */
-			msleep(10);
+			/* TRSTRCY = 10 ms; plus some extra */
+			msleep(10 + 40);
 			/* FALL THROUGH */
 		case -ENOTCONN:
 		case -ENODEV:
