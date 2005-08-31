@@ -128,16 +128,6 @@ config USB_USBNET
 comment "USB Host-to-Host Cables"
 	depends on USB_USBNET
 
-config USB_GENESYS
-	boolean "GeneSys GL620USB-A based cables"
-	default y
-	depends on USB_USBNET
-	help
-	  Choose this option if you're using a host-to-host cable,
-	  or PC2PC motherboard, with this chip.
-
-	  Note that the half-duplex "GL620USB" is not supported.
-
 config USB_PL2301
 	boolean "Prolific PL-2301/2302 based cables"
 	default y
@@ -223,6 +213,15 @@ config USB_NET_AX8817X
 	  This driver creates an interface named "ethX", where X depends on
 	  what other networking devices you have in use.
 
+
+config USB_NET_GL620A
+	tristate "GeneSys GL620USB-A based cables"
+	depends on USB_USBNET
+	help
+	  Choose this option if you're using a host-to-host cable,
+	  or PC2PC motherboard, with this chip.
+
+	  Note that the half-duplex "GL620USB" is not supported.
 
 config USB_NET_NET1080
 	tristate "NetChip 1080 based cables (Laplink, ...)"
