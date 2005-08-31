@@ -759,12 +759,16 @@ static int ehci_resume (struct usb_hcd *hcd)
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep (100);
 
-	/* If any port is suspended, we know we can/must resume the HC. */
+	/* If any port is suspended (or owned by the companion),
+	 * we know we can/must resume the HC (and mustn't reset it).
+	 */
 	for (port = HCS_N_PORTS (ehci->hcs_params); port > 0; ) {
 		u32	status;
 		port--;
 		status = readl (&ehci->regs->port_status [port]);
-		if (status & PORT_SUSPEND) {
+		if (!(status & PORT_POWER))
+			continue;
+		if (status & (PORT_SUSPEND | PORT_OWNER)) {
 			down (&hcd->self.root_hub->serialize);
 			retval = ehci_hub_resume (hcd);
 			up (&hcd->self.root_hub->serialize);
