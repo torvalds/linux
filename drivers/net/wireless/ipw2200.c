@@ -5771,7 +5771,8 @@ static void ipw_set_hwcrypto_keys(struct ipw_priv *priv)
 					    DCT_FLAG_EXT_SECURITY_CCM,
 					    priv->ieee->sec.active_key);
 
-		ipw_send_wep_keys(priv, DCW_WEP_KEY_SEC_TYPE_CCM);
+		if (!priv->ieee->host_mc_decrypt)
+			ipw_send_wep_keys(priv, DCW_WEP_KEY_SEC_TYPE_CCM);
 		break;
 	case SEC_LEVEL_2:
 		if (priv->ieee->sec.flags & SEC_ACTIVE_KEY)
@@ -5786,9 +5787,6 @@ static void ipw_set_hwcrypto_keys(struct ipw_priv *priv)
 	default:
 		break;
 	}
-
-	ipw_set_hw_decrypt_unicast(priv, priv->ieee->sec.level);
-	ipw_set_hw_decrypt_multicast(priv, priv->ieee->sec.level);
 }
 
 static void ipw_adhoc_check(void *data)
@@ -6473,6 +6471,7 @@ static int ipw_wpa_set_encryption(struct net_device *dev,
 				  struct ipw_param *param, int param_len)
 {
 	int ret = 0;
+	int group_key = 0;
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee;
 	struct ieee80211_crypto_ops *ops;
@@ -6502,6 +6501,9 @@ static int ipw_wpa_set_encryption(struct net_device *dev,
 		return -EINVAL;
 	}
 
+	if (param->u.crypt.idx != 0)
+		group_key = 1;
+
 	sec.flags |= SEC_ENABLED | SEC_ENCRYPT;
 	if (strcmp(param->u.crypt.alg, "none") == 0) {
 		if (crypt) {
@@ -6517,11 +6519,19 @@ static int ipw_wpa_set_encryption(struct net_device *dev,
 	sec.encrypt = 1;
 
 	/* IPW HW cannot build TKIP MIC, host decryption still needed. */
-	if (strcmp(param->u.crypt.alg, "TKIP") == 0)
-		ieee->host_encrypt_msdu = 1;
+	if (strcmp(param->u.crypt.alg, "TKIP") == 0) {
+		if (group_key)
+			ieee->host_mc_decrypt = 1;
+		else
+			ieee->host_encrypt_msdu = 1;
+	}
 
-	if (!(ieee->host_encrypt || ieee->host_encrypt_msdu ||
-	      ieee->host_decrypt))
+	/*if (!(ieee->host_encrypt || ieee->host_encrypt_msdu ||
+	   ieee->host_decrypt))
+	   goto skip_host_crypt; */
+	if (group_key ? !ieee->host_mc_decrypt :
+	    !(ieee->host_encrypt || ieee->host_decrypt ||
+	      ieee->host_encrypt_msdu))
 		goto skip_host_crypt;
 
 	ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
@@ -6604,6 +6614,9 @@ static int ipw_wpa_set_encryption(struct net_device *dev,
 			sec.flags |= SEC_LEVEL;
 			sec.level = SEC_LEVEL_3;
 		}
+		/* Don't set sec level for group keys. */
+		if (group_key)
+			sec.flags &= ~SEC_LEVEL;
 	}
       done:
 	if (ieee->set_security)
@@ -6953,15 +6966,21 @@ static int ipw_wx_set_encodeext(struct net_device *dev,
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 
 	if (hwcrypto) {
-		/* IPW HW can't build TKIP MIC, host decryption still needed */
 		if (ext->alg == IW_ENCODE_ALG_TKIP) {
-			priv->ieee->host_encrypt = 0;
-			priv->ieee->host_encrypt_msdu = 1;
-			priv->ieee->host_decrypt = 1;
+			/* IPW HW can't build TKIP MIC,
+			   host decryption still needed */
+			if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
+				priv->ieee->host_mc_decrypt = 1;
+			else {
+				priv->ieee->host_encrypt = 0;
+				priv->ieee->host_encrypt_msdu = 1;
+				priv->ieee->host_decrypt = 1;
+			}
 		} else {
 			priv->ieee->host_encrypt = 0;
 			priv->ieee->host_encrypt_msdu = 0;
 			priv->ieee->host_decrypt = 0;
+			priv->ieee->host_mc_decrypt = 0;
 		}
 	}
 
@@ -7878,6 +7897,7 @@ static void ipw_handle_data_packet(struct ipw_priv *priv,
 				   struct ipw_rx_mem_buffer *rxb,
 				   struct ieee80211_rx_stats *stats)
 {
+	struct ieee80211_hdr_4addr *hdr;
 	struct ipw_rx_packet *pkt = (struct ipw_rx_packet *)rxb->skb->data;
 
 	/* We received data from the HW, so stop the watchdog */
@@ -7907,7 +7927,10 @@ static void ipw_handle_data_packet(struct ipw_priv *priv,
 	IPW_DEBUG_RX("Rx packet of %d bytes.\n", rxb->skb->len);
 
 	/* HW decrypt will not clear the WEP bit, MIC, PN, etc. */
-	if (!priv->ieee->host_decrypt && priv->ieee->iw_mode != IW_MODE_MONITOR)
+	hdr = (struct ieee80211_hdr_4addr *)rxb->skb->data;
+	if (priv->ieee->iw_mode != IW_MODE_MONITOR &&
+	    (is_multicast_ether_addr(hdr->addr1) ?
+	     !priv->ieee->host_mc_decrypt : !priv->ieee->host_decrypt))
 		ipw_rebuild_decrypted_skb(priv, rxb->skb);
 
 	if (!ieee80211_rx(priv->ieee, rxb->skb, stats))
@@ -8508,6 +8531,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int init)
 		priv->ieee->host_encrypt = 0;
 		priv->ieee->host_encrypt_msdu = 0;
 		priv->ieee->host_decrypt = 0;
+		priv->ieee->host_mc_decrypt = 0;
 	}
 	IPW_DEBUG_INFO("Hardware crypto [%s]\n", hwcrypto ? "on" : "off");
 
