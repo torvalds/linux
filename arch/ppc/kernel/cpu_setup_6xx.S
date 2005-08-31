@@ -249,8 +249,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_NO_DPM)
 	sync
 	isync
 
-	/* Enable L2 HW prefetch
+	/* Enable L2 HW prefetch, if L2 is enabled
 	 */
+	mfspr	r3,SPRN_L2CR
+	andis.	r3,r3,L2CR_L2E@h
+	beqlr
 	mfspr	r3,SPRN_MSSCR0
 	ori	r3,r3,3
 	sync
