@@ -247,6 +247,7 @@ config USB_CDCETHER
 	  
 	  CDC Ethernet is an implementation option for DOCSIS cable modems
 	  that support USB connectivity, used for non-Microsoft USB hosts.
+	  The Linux-USB CDC Ethernet Gadget driver is an open implementation.
  	  This driver should work with at least the following devices:
 
  	    * Ericsson PipeRider (all variants)

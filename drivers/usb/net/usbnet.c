@@ -1,6 +1,6 @@
 /*
  * USB Networking Links
- * Copyright (C) 2000-2005 by David Brownell <dbrownell@users.sourceforge.net>
+ * Copyright (C) 2000-2005 by David Brownell
  * Copyright (C) 2002 Pavel Machek <pavel@ucw.cz>
  * Copyright (C) 2003-2005 David Hollis <dhollis@davehollis.com>
  * Copyright (C) 2005 Phil Chang <pchang23@sbcglobal.net>
@@ -126,19 +126,18 @@
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/random.h>
 #include <linux/ethtool.h>
 #include <linux/workqueue.h>
 #include <linux/mii.h>
-#include <asm/uaccess.h>
-#include <asm/unaligned.h>
 #include <linux/usb.h>
-#include <asm/io.h>
-#include <asm/scatterlist.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 
-#define DRIVER_VERSION		"03-Nov-2004"
+#include <asm/unaligned.h>
+
+#include "usbnet.h"
+
+#define DRIVER_VERSION		"22-Aug-2005"
 
 
 /*-------------------------------------------------------------------------*/
@@ -149,14 +148,16 @@
  * One maximum size Ethernet packet takes twenty four of them.
  * For high speed, each frame comfortably fits almost 36 max size
  * Ethernet packets (so queues should be bigger).
+ *
+ * REVISIT qlens should be members of 'struct usbnet'; the goal is to
+ * let the USB host controller be busy for 5msec or more before an irq
+ * is required, under load.  Jumbograms change the equation.
  */
 #define	RX_QLEN(dev) (((dev)->udev->speed == USB_SPEED_HIGH) ? 60 : 4)
 #define	TX_QLEN(dev) (((dev)->udev->speed == USB_SPEED_HIGH) ? 60 : 4)
 
-// packets are always ethernet inside
-// ... except they can be bigger (limit of 64K with NetChip framing)
+/* packets are always ethernet, sometimes wrapped in other framing */
 #define MIN_PACKET	sizeof(struct ethhdr)
-#define MAX_PACKET	32768
 
 // reawaken network queue this soon after stopping; else watchdog barks
 #define TX_TIMEOUT_JIFFIES	(5*HZ)
@@ -166,7 +167,7 @@
 #define THROTTLE_JIFFIES	(HZ/8)
 
 // for vendor-specific control operations
-#define	CONTROL_TIMEOUT_MS	500
+#define	CONTROL_TIMEOUT_MS	USB_CTRL_GET_TIMEOUT
 
 // between wakeups
 #define UNLINK_TIMEOUT_MS	3
@@ -176,131 +177,12 @@
 // randomly generated ethernet address
 static u8	node_id [ETH_ALEN];
 
-// state we keep for each device we handle
-struct usbnet {
-	// housekeeping
-	struct usb_device	*udev;
-	struct driver_info	*driver_info;
-	wait_queue_head_t	*wait;
-
-	// i/o info: pipes etc
-	unsigned		in, out;
-	struct usb_host_endpoint *status;
-	unsigned		maxpacket;
-	struct timer_list	delay;
-
-	// protocol/interface state
-	struct net_device	*net;
-	struct net_device_stats	stats;
-	int			msg_enable;
-	unsigned long		data [5];
-
-	struct mii_if_info	mii;
-
-	// various kinds of pending driver work
-	struct sk_buff_head	rxq;
-	struct sk_buff_head	txq;
-	struct sk_buff_head	done;
-	struct urb		*interrupt;
-	struct tasklet_struct	bh;
-
-	struct work_struct	kevent;
-	unsigned long		flags;
-#		define EVENT_TX_HALT	0
-#		define EVENT_RX_HALT	1
-#		define EVENT_RX_MEMORY	2
-#		define EVENT_STS_SPLIT	3
-#		define EVENT_LINK_RESET	4
-};
-
-// device-specific info used by the driver
-struct driver_info {
-	char		*description;
-
-	int		flags;
-/* framing is CDC Ethernet, not writing ZLPs (hw issues), or optionally: */
-#define FLAG_FRAMING_NC	0x0001		/* guard against device dropouts */ 
-#define FLAG_FRAMING_GL	0x0002		/* genelink batches packets */
-#define FLAG_FRAMING_Z	0x0004		/* zaurus adds a trailer */
-#define FLAG_FRAMING_RN	0x0008		/* RNDIS batches, plus huge header */
-
-#define FLAG_NO_SETINT	0x0010		/* device can't set_interface() */
-#define FLAG_ETHER	0x0020		/* maybe use "eth%d" names */
-
-#define FLAG_FRAMING_AX 0x0040          /* AX88772/178 packets */
-
-	/* init device ... can sleep, or cause probe() failure */
-	int	(*bind)(struct usbnet *, struct usb_interface *);
-
-	/* cleanup device ... can sleep, but can't fail */
-	void	(*unbind)(struct usbnet *, struct usb_interface *);
-
-	/* reset device ... can sleep */
-	int	(*reset)(struct usbnet *);
-
-	/* see if peer is connected ... can sleep */
-	int	(*check_connect)(struct usbnet *);
-
-	/* for status polling */
-	void	(*status)(struct usbnet *, struct urb *);
-
-	/* link reset handling, called from defer_kevent */
-	int	(*link_reset)(struct usbnet *);
-
-	/* fixup rx packet (strip framing) */
-	int	(*rx_fixup)(struct usbnet *dev, struct sk_buff *skb);
-
-	/* fixup tx packet (add framing) */
-	struct sk_buff	*(*tx_fixup)(struct usbnet *dev,
-				struct sk_buff *skb, unsigned flags);
-
-	// FIXME -- also an interrupt mechanism
-	// useful for at least PL2301/2302 and GL620USB-A
-	// and CDC use them to report 'is it connected' changes
-
-	/* for new devices, use the descriptor-reading code instead */
-	int		in;		/* rx endpoint */
-	int		out;		/* tx endpoint */
-
-	unsigned long	data;		/* Misc driver specific data */
-};
-
-// we record the state for each of our queued skbs
-enum skb_state {
-	illegal = 0,
-	tx_start, tx_done,
-	rx_start, rx_done, rx_cleanup
-};
-
-struct skb_data {	// skb->cb is one of these
-	struct urb		*urb;
-	struct usbnet		*dev;
-	enum skb_state		state;
-	size_t			length;
-};
-
 static const char driver_name [] = "usbnet";
 
 /* use ethtool to change the level for any given device */
 static int msg_level = -1;
 module_param (msg_level, int, 0);
 MODULE_PARM_DESC (msg_level, "Override default message level");
-
-
-#ifdef DEBUG
-#define devdbg(usbnet, fmt, arg...) \
-	printk(KERN_DEBUG "%s: " fmt "\n" , (usbnet)->net->name , ## arg)
-#else
-#define devdbg(usbnet, fmt, arg...) do {} while(0)
-#endif
-
-#define deverr(usbnet, fmt, arg...) \
-	printk(KERN_ERR "%s: " fmt "\n" , (usbnet)->net->name , ## arg)
-#define devwarn(usbnet, fmt, arg...) \
-	printk(KERN_WARNING "%s: " fmt "\n" , (usbnet)->net->name , ## arg)
-
-#define devinfo(usbnet, fmt, arg...) \
-	printk(KERN_INFO "%s: " fmt "\n" , (usbnet)->net->name , ## arg); \
 
 /*-------------------------------------------------------------------------*/
 
@@ -921,6 +803,11 @@ static int ax8817x_bind(struct usbnet *dev, struct usb_interface *intf)
 		ADVERTISE_ALL | ADVERTISE_CSMA | ADVERTISE_PAUSE_CAP);
 	mii_nway_restart(&dev->mii);
 
+	if (dev->driver_info->flags & FLAG_FRAMING_AX) {
+		/* REVISIT:  adjust hard_header_len too */
+		dev->hard_mtu = 2048;
+	}
+
 	return 0;
 out2:
 	kfree(buf);
@@ -1432,9 +1319,8 @@ static int generic_cdc_bind (struct usbnet *dev, struct usb_interface *intf)
 					info->ether->bLength);
 				goto bad_desc;
 			}
-			dev->net->mtu = le16_to_cpup (
-						&info->ether->wMaxSegmentSize)
-					- ETH_HLEN;
+			dev->hard_mtu = le16_to_cpu(
+						info->ether->wMaxSegmentSize);
 			/* because of Zaurus, we may be ignoring the host
 			 * side link address we were given.
 			 */
@@ -1988,9 +1874,17 @@ genelink_tx_fixup (struct usbnet *dev, struct sk_buff *skb, unsigned flags)
 	return skb;
 }
 
+static int genelink_bind (struct usbnet *dev, struct usb_interface *intf)
+{
+	dev->hard_mtu = GL_RCV_BUF_SIZE;
+	dev->net->hard_header_len += 4;
+	return 0;
+}
+
 static const struct driver_info	genelink_info = {
 	.description =	"Genesys GeneLink",
 	.flags =	FLAG_FRAMING_GL | FLAG_NO_SETINT,
+	.bind =		genelink_bind,
 	.rx_fixup =	genelink_rx_fixup,
 	.tx_fixup =	genelink_tx_fixup,
 
@@ -2015,7 +1909,6 @@ static const struct driver_info	genelink_info = {
  *
  *-------------------------------------------------------------------------*/
 
-#define dev_packet_id	data[0]
 #define frame_errors	data[1]
 
 /*
@@ -2056,6 +1949,9 @@ struct nc_trailer {
 				+ sizeof (struct nc_trailer))
 
 #define MIN_FRAMED	FRAMED_SIZE(0)
+
+/* packets _could_ be up to 64KB... */
+#define NC_MAX_PACKET	32767
 
 
 /*
@@ -2398,16 +2294,14 @@ static void nc_ensure_sync (struct usbnet *dev)
 static int net1080_rx_fixup (struct usbnet *dev, struct sk_buff *skb)
 {
 	struct nc_header	*header;
+	struct net_device	*net = dev->net;
 	struct nc_trailer	*trailer;
 	u16			hdr_len, packet_len;
 
-	if (!(skb->len & 0x01)
-			|| MIN_FRAMED > skb->len
-			|| skb->len > FRAMED_SIZE (dev->net->mtu)) {
+	if (!(skb->len & 0x01)) {
 		dev->stats.rx_frame_errors++;
 		dbg ("rx framesize %d range %d..%d mtu %d", skb->len,
-			(int)MIN_FRAMED, (int)FRAMED_SIZE (dev->net->mtu),
-			dev->net->mtu);
+			net->hard_header_len, dev->hard_mtu, net->mtu);
 		nc_ensure_sync (dev);
 		return 0;
 	}
@@ -2415,7 +2309,7 @@ static int net1080_rx_fixup (struct usbnet *dev, struct sk_buff *skb)
 	header = (struct nc_header *) skb->data;
 	hdr_len = le16_to_cpup (&header->hdr_len);
 	packet_len = le16_to_cpup (&header->packet_len);
-	if (FRAMED_SIZE (packet_len) > MAX_PACKET) {
+	if (FRAMED_SIZE (packet_len) > NC_MAX_PACKET) {
 		dev->stats.rx_frame_errors++;
 		dbg ("packet too big, %d", packet_len);
 		nc_ensure_sync (dev);
@@ -2505,11 +2399,23 @@ net1080_tx_fixup (struct usbnet *dev, struct sk_buff *skb, unsigned flags)
 	return skb2;
 }
 
+static int net1080_bind (struct usbnet *dev, struct usb_interface *intf)
+{
+	unsigned	extra = sizeof (struct nc_header)
+				+ 1
+				+ sizeof (struct nc_trailer);
+
+	dev->net->hard_header_len += extra;
+	dev->hard_mtu = NC_MAX_PACKET;
+	return 0;
+}
+
 static const struct driver_info	net1080_info = {
 	.description =	"NetChip TurboCONNECT",
 	.flags =	FLAG_FRAMING_NC,
+	.bind =		net1080_bind,
 	.reset =	net1080_reset,
-	.check_connect =net1080_check_connect,
+	.check_connect = net1080_check_connect,
 	.rx_fixup =	net1080_rx_fixup,
 	.tx_fixup =	net1080_tx_fixup,
 };
@@ -2690,11 +2596,20 @@ done:
 	return skb;
 }
 
+static int zaurus_bind (struct usbnet *dev, struct usb_interface *intf)
+{
+	/* Belcarra's funky framing has other options; mostly
+	 * TRAILERS (!) with 4 bytes CRC, and maybe 2 pad bytes.
+	 */
+	dev->net->hard_header_len += 6;
+	return generic_cdc_bind(dev, intf);
+}
+
 static const struct driver_info	zaurus_sl5x00_info = {
 	.description =	"Sharp Zaurus SL-5x00",
 	.flags =	FLAG_FRAMING_Z,
 	.check_connect = always_connected,
-	.bind =		generic_cdc_bind,
+	.bind =		zaurus_bind,
 	.unbind =	cdc_unbind,
 	.tx_fixup = 	zaurus_tx_fixup,
 };
@@ -2704,7 +2619,7 @@ static const struct driver_info	zaurus_pxa_info = {
 	.description =	"Sharp Zaurus, PXA-2xx based",
 	.flags =	FLAG_FRAMING_Z,
 	.check_connect = always_connected,
-	.bind =		generic_cdc_bind,
+	.bind =		zaurus_bind,
 	.unbind =	cdc_unbind,
 	.tx_fixup = 	zaurus_tx_fixup,
 };
@@ -2714,7 +2629,7 @@ static const struct driver_info	olympus_mxl_info = {
 	.description =	"Olympus R1000",
 	.flags =	FLAG_FRAMING_Z,
 	.check_connect = always_connected,
-	.bind =		generic_cdc_bind,
+	.bind =		zaurus_bind,
 	.unbind =	cdc_unbind,
 	.tx_fixup = 	zaurus_tx_fixup,
 };
@@ -2868,22 +2783,12 @@ static const struct driver_info	bogus_mdlm_info = {
 static int usbnet_change_mtu (struct net_device *net, int new_mtu)
 {
 	struct usbnet	*dev = netdev_priv(net);
+	int		ll_mtu = new_mtu + net->hard_header_len;
 
-	if (new_mtu <= MIN_PACKET || new_mtu > MAX_PACKET)
+	if (new_mtu <= 0 || ll_mtu > dev->hard_mtu)
 		return -EINVAL;
-#ifdef	CONFIG_USB_NET1080
-	if (((dev->driver_info->flags) & FLAG_FRAMING_NC)) {
-		if (FRAMED_SIZE (new_mtu) > MAX_PACKET)
-			return -EINVAL;
-	}
-#endif
-#ifdef	CONFIG_USB_GENESYS
-	if (((dev->driver_info->flags) & FLAG_FRAMING_GL)
-			&& new_mtu > GL_MAX_PACKET_LEN)
-		return -EINVAL;
-#endif
 	// no second zero-length packet read wanted after mtu-sized packets
-	if (((new_mtu + sizeof (struct ethhdr)) % dev->maxpacket) == 0)
+	if ((ll_mtu % dev->maxpacket) == 0)
 		return -EDOM;
 	net->mtu = new_mtu;
 	return 0;
@@ -2943,33 +2848,8 @@ static void rx_submit (struct usbnet *dev, struct urb *urb, unsigned flags)
 	unsigned long		lockflags;
 	size_t			size;
 
-#ifdef CONFIG_USB_NET1080
-	if (dev->driver_info->flags & FLAG_FRAMING_NC)
-		size = FRAMED_SIZE (dev->net->mtu);
-	else
-#endif
-#ifdef CONFIG_USB_GENESYS
-	if (dev->driver_info->flags & FLAG_FRAMING_GL)
-		size = GL_RCV_BUF_SIZE;
-	else
-#endif
-#ifdef CONFIG_USB_ZAURUS
-	if (dev->driver_info->flags & FLAG_FRAMING_Z)
-		size = 6 + (sizeof (struct ethhdr) + dev->net->mtu);
-	else
-#endif
-#ifdef CONFIG_USB_RNDIS
-	if (dev->driver_info->flags & FLAG_FRAMING_RN)
-		size = RNDIS_MAX_TRANSFER;
-	else
-#endif
-#ifdef CONFIG_USB_AX8817X
-	if (dev->driver_info->flags & FLAG_FRAMING_AX)
-		size = 2048;
-	else
-#endif
-		size = (sizeof (struct ethhdr) + dev->net->mtu);
-
+	size = max(dev->net->hard_header_len + dev->net->mtu,
+			(unsigned)ETH_FRAME_LEN);
 	if ((skb = alloc_skb (size + NET_IP_ALIGN, flags)) == NULL) {
 		if (netif_msg_rx_err (dev))
 			devdbg (dev, "no rx skb");
@@ -3062,7 +2942,7 @@ static void rx_complete (struct urb *urb, struct pt_regs *regs)
 	switch (urb_status) {
 	    // success
 	    case 0:
-		if (MIN_PACKET > skb->len || skb->len > MAX_PACKET) {
+		if (skb->len < dev->net->hard_header_len) {
 			entry->state = rx_cleanup;
 			dev->stats.rx_errors++;
 			dev->stats.rx_length_errors++;
@@ -3334,11 +3214,11 @@ static u32 usbnet_get_link (struct net_device *net)
 {
 	struct usbnet *dev = netdev_priv(net);
 
-	/* If a check_connect is defined, return it's results */
+	/* If a check_connect is defined, return its result */
 	if (dev->driver_info->check_connect)
 		return dev->driver_info->check_connect (dev) == 0;
 
-	/* Otherwise, we're up to avoid breaking scripts */
+	/* Otherwise, say we're up (to avoid breaking scripts) */
 	return 1;
 }
 
@@ -3386,19 +3266,24 @@ kevent (void *data)
 	if (test_bit (EVENT_TX_HALT, &dev->flags)) {
 		unlink_urbs (dev, &dev->txq);
 		status = usb_clear_halt (dev->udev, dev->out);
-		if (status < 0 && status != -EPIPE) {
+		if (status < 0
+				&& status != -EPIPE
+				&& status != -ESHUTDOWN) {
 			if (netif_msg_tx_err (dev))
 				deverr (dev, "can't clear tx halt, status %d",
 					status);
 		} else {
 			clear_bit (EVENT_TX_HALT, &dev->flags);
-			netif_wake_queue (dev->net);
+			if (status != -ESHUTDOWN)
+				netif_wake_queue (dev->net);
 		}
 	}
 	if (test_bit (EVENT_RX_HALT, &dev->flags)) {
 		unlink_urbs (dev, &dev->rxq);
 		status = usb_clear_halt (dev->udev, dev->in);
-		if (status < 0 && status != -EPIPE) {
+		if (status < 0
+				&& status != -EPIPE
+				&& status != -ESHUTDOWN) {
 			if (netif_msg_rx_err (dev))
 				deverr (dev, "can't clear rx halt, status %d",
 					status);
@@ -3574,7 +3459,7 @@ static int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 
 #ifdef	CONFIG_USB_NET1080
 	if (info->flags & FLAG_FRAMING_NC) {
-		header->packet_id = cpu_to_le16 ((u16)dev->dev_packet_id++);
+		header->packet_id = cpu_to_le16 ((u16)dev->xid++);
 		put_unaligned (header->packet_id, &trailer->packet_id);
 #if 0
 		devdbg (dev, "frame >tx h %d p %d id %d",
@@ -3776,6 +3661,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	dev->net = net;
 	strcpy (net->name, "usb%d");
 	memcpy (net->dev_addr, node_id, sizeof node_id);
+	dev->hard_mtu = net->mtu + net->hard_header_len;
 
 #if 0
 // dma_supported() is deeply broken on almost all architectures
@@ -3804,6 +3690,10 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 		if ((dev->driver_info->flags & FLAG_ETHER) != 0
 				&& (net->dev_addr [0] & 0x02) == 0)
 			strcpy (net->name, "eth%d");
+
+		/* maybe the remote can't receive an Ethernet MTU */
+		if (net->mtu > (dev->hard_mtu - net->hard_header_len))
+			net->mtu = dev->hard_mtu - net->hard_header_len;
 	} else if (!info->in || info->out)
 		status = get_endpoints (dev, udev);
 	else {
@@ -3817,7 +3707,6 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 			status = 0;
 
 	}
-
 	if (status == 0 && dev->status)
 		status = init_status (dev, udev);
 	if (status < 0)
@@ -4212,7 +4101,7 @@ static struct ethtool_ops usbnet_ethtool_ops = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init usbnet_init (void)
+static int __init usbnet_init(void)
 {
 	// compiler should optimize these out
 	BUG_ON (sizeof (((struct sk_buff *)0)->cb)
@@ -4226,14 +4115,14 @@ static int __init usbnet_init (void)
 
  	return usb_register(&usbnet_driver);
 }
-module_init (usbnet_init);
+module_init(usbnet_init);
 
-static void __exit usbnet_exit (void)
+static void __exit usbnet_exit(void)
 {
- 	usb_deregister (&usbnet_driver);
+ 	usb_deregister(&usbnet_driver);
 }
-module_exit (usbnet_exit);
+module_exit(usbnet_exit);
 
-MODULE_AUTHOR ("David Brownell <dbrownell@users.sourceforge.net>");
-MODULE_DESCRIPTION ("USB Host-to-Host Link Drivers (numerous vendors)");
-MODULE_LICENSE ("GPL");
+MODULE_AUTHOR("David Brownell");
+MODULE_DESCRIPTION("USB Host-to-Host Link Drivers (numerous vendors)");
+MODULE_LICENSE("GPL");
