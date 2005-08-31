@@ -44,6 +44,7 @@ struct usbnet {
 	unsigned long		data [5];
 	u32			xid;
 	u32			hard_mtu;	/* count any extra framing */
+	size_t		        rx_urb_size;    /* size for rx urbs  */
 	struct mii_if_info	mii;
 
 	/* various kinds of pending driver work */
@@ -140,6 +141,13 @@ struct skb_data {	/* skb->cb is one of these */
 };
 
 
+extern int usbnet_get_endpoints(struct usbnet *, struct usb_interface *);
+extern void usbnet_defer_kevent (struct usbnet *, int);
+extern void usbnet_skb_return (struct usbnet *, struct sk_buff *);
+
+extern u32 usbnet_get_msglevel (struct net_device *);
+extern void usbnet_set_msglevel (struct net_device *, u32);
+extern void usbnet_get_drvinfo (struct net_device *, struct ethtool_drvinfo *);
 
 /* messaging support includes the interface name, so it must not be
  * used before it has one ... notably, in minidriver bind() calls.
