@@ -126,6 +126,28 @@ extern int usbnet_resume (struct usb_interface *);
 extern void usbnet_disconnect(struct usb_interface *);
 
 
+/* Drivers that reuse some of the standard USB CDC infrastructure
+ * (notably, using multiple interfaces according to the the CDC
+ * union descriptor) get some helper code.
+ */
+struct cdc_state {
+	struct usb_cdc_header_desc	*header;
+	struct usb_cdc_union_desc	*u;
+	struct usb_cdc_ether_desc	*ether;
+	struct usb_interface		*control;
+	struct usb_interface		*data;
+};
+
+extern int usbnet_generic_cdc_bind (struct usbnet *, struct usb_interface *);
+extern void usbnet_cdc_unbind (struct usbnet *, struct usb_interface *);
+
+/* CDC and RNDIS support the same host-chosen packet filters for IN transfers */
+#define	DEFAULT_FILTER	(USB_CDC_PACKET_TYPE_BROADCAST \
+ 			|USB_CDC_PACKET_TYPE_ALL_MULTICAST \
+ 			|USB_CDC_PACKET_TYPE_PROMISCUOUS \
+ 			|USB_CDC_PACKET_TYPE_DIRECTED)
+
+
 /* we record the state for each of our queued skbs */
 enum skb_state {
 	illegal = 0,

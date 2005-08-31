@@ -1,7 +1,6 @@
 /*
  * USB Networking Links
  * Copyright (C) 2000-2005 by David Brownell
- * Copyright (C) 2002 Pavel Machek <pavel@ucw.cz>
  * Copyright (C) 2003-2005 David Hollis <dhollis@davehollis.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -173,14 +172,6 @@ MODULE_PARM_DESC (msg_level, "Override default message level");
 
 /*-------------------------------------------------------------------------*/
 
-static u32 usbnet_get_link (struct net_device *);
-
-/* mostly for PDA style devices, which are always connected if present */
-static int always_connected (struct usbnet *dev)
-{
-	return 0;
-}
-
 /* handles CDC Ethernet and many other network "bulk data" interfaces */
 int usbnet_get_endpoints(struct usbnet *dev, struct usb_interface *intf)
 {
@@ -321,7 +312,7 @@ EXPORT_SYMBOL_GPL(usbnet_skb_return);
 #define NEED_GENERIC_CDC
 #endif
 
-#ifdef	CONFIG_USB_ZAURUS
+#if defined(CONFIG_USB_ZAURUS) || defined(CONFIG_USB_ZAURUS_MODULE)
 /* Ethernet variant uses funky framing, broken ethernet addressing */
 #define NEED_GENERIC_CDC
 #endif
@@ -336,14 +327,6 @@ EXPORT_SYMBOL_GPL(usbnet_skb_return);
 
 #include <linux/usb_cdc.h>
 
-struct cdc_state {
-	struct usb_cdc_header_desc	*header;
-	struct usb_cdc_union_desc	*u;
-	struct usb_cdc_ether_desc	*ether;
-	struct usb_interface		*control;
-	struct usb_interface		*data;
-};
-
 static struct usb_driver usbnet_driver;
 
 /*
@@ -351,7 +334,7 @@ static struct usb_driver usbnet_driver;
  * endpoints, activates data interface (if needed), maybe sets MTU.
  * all pure cdc, except for certain firmware workarounds.
  */
-static int generic_cdc_bind (struct usbnet *dev, struct usb_interface *intf)
+int usbnet_generic_cdc_bind (struct usbnet *dev, struct usb_interface *intf)
 {
 	u8				*buf = intf->cur_altsetting->extra;
 	int				len = intf->cur_altsetting->extralen;
@@ -530,8 +513,9 @@ bad_desc:
 	dev_info (&dev->udev->dev, "bad CDC descriptors\n");
 	return -ENODEV;
 }
+EXPORT_SYMBOL_GPL(usbnet_generic_cdc_bind);
 
-static void cdc_unbind (struct usbnet *dev, struct usb_interface *intf)
+void usbnet_cdc_unbind (struct usbnet *dev, struct usb_interface *intf)
 {
 	struct cdc_state		*info = (void *) &dev->data;
 
@@ -551,6 +535,7 @@ static void cdc_unbind (struct usbnet *dev, struct usb_interface *intf)
 		info->control = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(usbnet_cdc_unbind);
 
 #endif	/* NEED_GENERIC_CDC */
 
@@ -657,7 +642,7 @@ static int cdc_bind (struct usbnet *dev, struct usb_interface *intf)
 	int				status;
 	struct cdc_state		*info = (void *) &dev->data;
 
-	status = generic_cdc_bind (dev, intf);
+	status = usbnet_generic_cdc_bind (dev, intf);
 	if (status < 0)
 		return status;
 
@@ -679,7 +664,7 @@ static const struct driver_info	cdc_info = {
 	.flags =	FLAG_ETHER,
 	// .check_connect = cdc_check_connect,
 	.bind =		cdc_bind,
-	.unbind =	cdc_unbind,
+	.unbind =	usbnet_cdc_unbind,
 	.status =	cdc_status,
 };
 
@@ -756,239 +741,6 @@ static const struct driver_info	prolific_info = {
 };
 
 #endif /* CONFIG_USB_PL2301 */
-
-
-#ifdef CONFIG_USB_ZAURUS
-#define	HAVE_HARDWARE
-
-#include <linux/crc32.h>
-
-/*-------------------------------------------------------------------------
- *
- * Zaurus is also a SA-1110 based PDA, but one using a different driver
- * (and framing) for its USB slave/gadget controller than the case above.
- *
- * For the current version of that driver, the main way that framing is
- * nonstandard (also from perspective of the CDC ethernet model!) is a
- * crc32, added to help detect when some sa1100 usb-to-memory DMA errata
- * haven't been fully worked around.  Also, all Zaurii use the same
- * default Ethernet address.
- *
- * PXA based models use the same framing, and also can't implement
- * set_interface properly.
- *
- * All known Zaurii lie about their standards conformance.  Most lie by
- * saying they support CDC Ethernet.  Some lie and say they support CDC
- * MDLM (as if for access to cell phone modems).  Someone, please beat 
- * on Sharp (and other such vendors) for a while with a cluestick.
- *
- *-------------------------------------------------------------------------*/
-
-static struct sk_buff *
-zaurus_tx_fixup (struct usbnet *dev, struct sk_buff *skb, unsigned flags)
-{
-	int			padlen;
-	struct sk_buff		*skb2;
-
-	padlen = 2;
-	if (!skb_cloned (skb)) {
-		int	tailroom = skb_tailroom (skb);
-		if ((padlen + 4) <= tailroom)
-			goto done;
-	}
-	skb2 = skb_copy_expand (skb, 0, 4 + padlen, flags);
-	dev_kfree_skb_any (skb);
-	skb = skb2;
-	if (skb) {
-		u32		fcs;
-done:
-		fcs = crc32_le (~0, skb->data, skb->len);
-		fcs = ~fcs;
-
-		*skb_put (skb, 1) = fcs       & 0xff;
-		*skb_put (skb, 1) = (fcs>> 8) & 0xff;
-		*skb_put (skb, 1) = (fcs>>16) & 0xff;
-		*skb_put (skb, 1) = (fcs>>24) & 0xff;
-	}
-	return skb;
-}
-
-static int zaurus_bind (struct usbnet *dev, struct usb_interface *intf)
-{
-	/* Belcarra's funky framing has other options; mostly
-	 * TRAILERS (!) with 4 bytes CRC, and maybe 2 pad bytes.
-	 */
-	dev->net->hard_header_len += 6;
-	return generic_cdc_bind(dev, intf);
-}
-
-static const struct driver_info	zaurus_sl5x00_info = {
-	.description =	"Sharp Zaurus SL-5x00",
-	.flags =	FLAG_FRAMING_Z,
-	.check_connect = always_connected,
-	.bind =		zaurus_bind,
-	.unbind =	cdc_unbind,
-	.tx_fixup = 	zaurus_tx_fixup,
-};
-#define	ZAURUS_STRONGARM_INFO	((unsigned long)&zaurus_sl5x00_info)
-
-static const struct driver_info	zaurus_pxa_info = {
-	.description =	"Sharp Zaurus, PXA-2xx based",
-	.flags =	FLAG_FRAMING_Z,
-	.check_connect = always_connected,
-	.bind =		zaurus_bind,
-	.unbind =	cdc_unbind,
-	.tx_fixup = 	zaurus_tx_fixup,
-};
-#define	ZAURUS_PXA_INFO		((unsigned long)&zaurus_pxa_info)
-
-static const struct driver_info	olympus_mxl_info = {
-	.description =	"Olympus R1000",
-	.flags =	FLAG_FRAMING_Z,
-	.check_connect = always_connected,
-	.bind =		zaurus_bind,
-	.unbind =	cdc_unbind,
-	.tx_fixup = 	zaurus_tx_fixup,
-};
-#define	OLYMPUS_MXL_INFO	((unsigned long)&olympus_mxl_info)
-
-
-/* Some more recent products using Lineo/Belcarra code will wrongly claim
- * CDC MDLM conformance.  They aren't conformant:  data endpoints live
- * in the control interface, there's no data interface, and it's not used
- * to talk to a cell phone radio.  But at least we can detect these two
- * pseudo-classes, rather than growing this product list with entries for
- * each new nonconformant product (sigh).
- */
-static const u8 safe_guid[16] = {
-	0x5d, 0x34, 0xcf, 0x66, 0x11, 0x18, 0x11, 0xd6,
-	0xa2, 0x1a, 0x00, 0x01, 0x02, 0xca, 0x9a, 0x7f,
-};
-static const u8 blan_guid[16] = {
-	0x74, 0xf0, 0x3d, 0xbd, 0x1e, 0xc1, 0x44, 0x70,
-	0xa3, 0x67, 0x71, 0x34, 0xc9, 0xf5, 0x54, 0x37,
-};
-
-static int blan_mdlm_bind (struct usbnet *dev, struct usb_interface *intf)
-{
-	u8				*buf = intf->cur_altsetting->extra;
-	int				len = intf->cur_altsetting->extralen;
-	struct usb_cdc_mdlm_desc	*desc = NULL;
-	struct usb_cdc_mdlm_detail_desc	*detail = NULL;
-
-	while (len > 3) {
-		if (buf [1] != USB_DT_CS_INTERFACE)
-			goto next_desc;
-
-		/* use bDescriptorSubType, and just verify that we get a
-		 * "BLAN" (or "SAFE") descriptor.
-		 */
-		switch (buf [2]) {
-		case USB_CDC_MDLM_TYPE:
-			if (desc) {
-				dev_dbg (&intf->dev, "extra MDLM\n");
-				goto bad_desc;
-			}
-			desc = (void *) buf;
-			if (desc->bLength != sizeof *desc) {
-				dev_dbg (&intf->dev, "MDLM len %u\n",
-					desc->bLength);
-				goto bad_desc;
-			}
-			/* expect bcdVersion 1.0, ignore */
-			if (memcmp(&desc->bGUID, blan_guid, 16)
-				    && memcmp(&desc->bGUID, safe_guid, 16) ) {
-				/* hey, this one might _really_ be MDLM! */
-				dev_dbg (&intf->dev, "MDLM guid\n");
-				goto bad_desc;
-			}
-			break;
-		case USB_CDC_MDLM_DETAIL_TYPE:
-			if (detail) {
-				dev_dbg (&intf->dev, "extra MDLM detail\n");
-				goto bad_desc;
-			}
-			detail = (void *) buf;
-			switch (detail->bGuidDescriptorType) {
-			case 0:			/* "SAFE" */
-				if (detail->bLength != (sizeof *detail + 2))
-					goto bad_detail;
-				break;
-			case 1:			/* "BLAN" */
-				if (detail->bLength != (sizeof *detail + 3))
-					goto bad_detail;
-				break;
-			default:
-				goto bad_detail;
-			}
-
-			/* assuming we either noticed BLAN already, or will
-			 * find it soon, there are some data bytes here:
-			 *  - bmNetworkCapabilities (unused)
-			 *  - bmDataCapabilities (bits, see below)
-			 *  - bPad (ignored, for PADAFTER -- BLAN-only)
-			 * bits are:
-			 *  - 0x01 -- Zaurus framing (add CRC)
-			 *  - 0x02 -- PADBEFORE (CRC includes some padding)
-			 *  - 0x04 -- PADAFTER (some padding after CRC)
-			 *  - 0x08 -- "fermat" packet mangling (for hw bugs)
-			 * the PADBEFORE appears not to matter; we interop
-			 * with devices that use it and those that don't.
-			 */
-			if ((detail->bDetailData[1] & ~02) != 0x01) {
-				/* bmDataCapabilites == 0 would be fine too,
-				 * but framing is minidriver-coupled for now.
-				 */
-bad_detail:
-				dev_dbg (&intf->dev,
-						"bad MDLM detail, %d %d %d\n",
-						detail->bLength,
-						detail->bDetailData[0],
-						detail->bDetailData[2]);
-				goto bad_desc;
-			}
-			break;
-		}
-next_desc:
-		len -= buf [0];	/* bLength */
-		buf += buf [0];
-	}
-
-	if (!desc || !detail) {
-		dev_dbg (&intf->dev, "missing cdc mdlm %s%sdescriptor\n",
-			desc ? "" : "func ",
-			detail ? "" : "detail ");
-		goto bad_desc;
-	}
-
-	/* There's probably a CDC Ethernet descriptor there, but we can't
-	 * rely on the Ethernet address it provides since not all vendors
-	 * bother to make it unique.  Likewise there's no point in tracking
-	 * of the CDC event notifications.
-	 */
-	return usbnet_get_endpoints (dev, intf);
-
-bad_desc:
-	dev_info (&dev->udev->dev, "unsupported MDLM descriptors\n");
-	return -ENODEV;
-}
-
-static const struct driver_info	bogus_mdlm_info = {
-	.description =	"pseudo-MDLM (BLAN) device",
-	.flags =	FLAG_FRAMING_Z,
-	.check_connect = always_connected,
-	.tx_fixup = 	zaurus_tx_fixup,
-	.bind =		blan_mdlm_bind,
-};
-
-#else
-
-/* blacklist all those devices */
-#define	ZAURUS_STRONGARM_INFO	0
-#define	ZAURUS_PXA_INFO		0
-#define	OLYMPUS_MXL_INFO	0
-
-#endif
 
 
 /*-------------------------------------------------------------------------
@@ -2000,101 +1752,6 @@ static const struct usb_device_id	products [] = {
 	/* RNDIS is MSFT's un-official variant of CDC ACM */
 	USB_INTERFACE_INFO (USB_CLASS_COMM, 2 /* ACM */, 0x0ff),
 	.driver_info = (unsigned long) &rndis_info,
-},
-#endif
-
-#if	defined(CONFIG_USB_ZAURUS) || defined(CONFIG_USB_CDCETHER)
-/*
- * SA-1100 based Sharp Zaurus ("collie"), or compatible.
- * Same idea as above, but different framing.
- *
- * PXA-2xx based models are also lying-about-cdc.
- * Some models don't even tell the same lies ...
- *
- * NOTE:  OpenZaurus versions with 2.6 kernels won't use these entries,
- * unlike the older ones with 2.4 "embedix" kernels.
- *
- * NOTE:  These entries do double-duty, serving as blacklist entries
- * whenever Zaurus support isn't enabled, but CDC Ethernet is.
- */
-#define	ZAURUS_MASTER_INTERFACE \
-	.bInterfaceClass	= USB_CLASS_COMM, \
-	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET, \
-	.bInterfaceProtocol	= USB_CDC_PROTO_NONE
-{
-	.match_flags	=   USB_DEVICE_ID_MATCH_INT_INFO
-			  | USB_DEVICE_ID_MATCH_DEVICE, 
-	.idVendor		= 0x04DD,
-	.idProduct		= 0x8004,
-	ZAURUS_MASTER_INTERFACE,
-	.driver_info = ZAURUS_STRONGARM_INFO,
-}, {
-	.match_flags	=   USB_DEVICE_ID_MATCH_INT_INFO
-			  | USB_DEVICE_ID_MATCH_DEVICE, 
-	.idVendor		= 0x04DD,
-	.idProduct		= 0x8005,	/* A-300 */
-	ZAURUS_MASTER_INTERFACE,
-	.driver_info = ZAURUS_PXA_INFO,
-}, {
-	.match_flags	=   USB_DEVICE_ID_MATCH_INT_INFO
-			  | USB_DEVICE_ID_MATCH_DEVICE, 
-	.idVendor		= 0x04DD,
-	.idProduct		= 0x8006,	/* B-500/SL-5600 */
-	ZAURUS_MASTER_INTERFACE,
-	.driver_info = ZAURUS_PXA_INFO,
-}, {
-	.match_flags    =   USB_DEVICE_ID_MATCH_INT_INFO
-	          | USB_DEVICE_ID_MATCH_DEVICE,
-	.idVendor		= 0x04DD,
-	.idProduct		= 0x8007,	/* C-700 */
-	ZAURUS_MASTER_INTERFACE,
-	.driver_info = ZAURUS_PXA_INFO,
-}, {
-	.match_flags    =   USB_DEVICE_ID_MATCH_INT_INFO
-		 | USB_DEVICE_ID_MATCH_DEVICE,
-	.idVendor               = 0x04DD,
-	.idProduct              = 0x9031,	/* C-750 C-760 */
-	ZAURUS_MASTER_INTERFACE,
-	.driver_info = ZAURUS_PXA_INFO,
-}, {
-	.match_flags    =   USB_DEVICE_ID_MATCH_INT_INFO
-		 | USB_DEVICE_ID_MATCH_DEVICE,
-	.idVendor               = 0x04DD,
-	.idProduct              = 0x9032,	/* SL-6000 */
-	ZAURUS_MASTER_INTERFACE,
-	.driver_info = ZAURUS_PXA_INFO,
-}, {
-	.match_flags    =   USB_DEVICE_ID_MATCH_INT_INFO
-		 | USB_DEVICE_ID_MATCH_DEVICE,
-	.idVendor               = 0x04DD,
-	/* reported with some C860 units */
-	.idProduct              = 0x9050,	/* C-860 */
-	ZAURUS_MASTER_INTERFACE,
-	.driver_info = ZAURUS_PXA_INFO,
-},
-
-#ifdef	CONFIG_USB_ZAURUS
-	/* At least some (reports vary) PXA units have very different lies
-	 * about their standards support:  they claim to be cell phones with
-	 * direct access to their radios.  (They don't conform to CDC MDLM.)
-	 */
-{
-	USB_INTERFACE_INFO (USB_CLASS_COMM, USB_CDC_SUBCLASS_MDLM,
-			USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &bogus_mdlm_info,
-},
-#endif
-
-/* Olympus has some models with a Zaurus-compatible option.
- * R-1000 uses a FreeScale i.MXL cpu (ARMv4T)
- */
-{
-	.match_flags    =   USB_DEVICE_ID_MATCH_INT_INFO
-		 | USB_DEVICE_ID_MATCH_DEVICE,
-	.idVendor               = 0x07B4,
-	.idProduct              = 0x0F02,	/* R-1000 */
-	ZAURUS_MASTER_INTERFACE,
-	.driver_info = OLYMPUS_MXL_INFO,
 },
 #endif
 
