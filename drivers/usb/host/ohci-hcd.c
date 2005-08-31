@@ -484,6 +484,10 @@ static int ohci_init (struct ohci_hcd *ohci)
 	// flush the writes
 	(void) ohci_readl (ohci, &ohci->regs->control);
 
+	/* Read the number of ports unless overridden */
+	if (ohci->num_ports == 0)
+		ohci->num_ports = roothub_a(ohci) & RH_A_NDP;
+
 	if (ohci->hcca)
 		return 0;
 
@@ -560,10 +564,8 @@ static int ohci_run (struct ohci_hcd *ohci)
 	msleep(temp);
 	temp = roothub_a (ohci);
 	if (!(temp & RH_A_NPS)) {
-		unsigned ports = temp & RH_A_NDP; 
-
 		/* power down each port */
-		for (temp = 0; temp < ports; temp++)
+		for (temp = 0; temp < ohci->num_ports; temp++)
 			ohci_writel (ohci, RH_PS_LSDA,
 				&ohci->regs->roothub.portstatus [temp]);
 	}
@@ -861,7 +863,7 @@ static int ohci_restart (struct ohci_hcd *ohci)
 		 * and that if we try to turn them back on the root hub
 		 * will respond to CSC processing.
 		 */
-		i = roothub_a (ohci) & RH_A_NDP;
+		i = ohci->num_ports;
 		while (i--)
 			ohci_writel (ohci, RH_PS_PSS,
 				&ohci->regs->roothub.portstatus [temp]);

@@ -258,6 +258,9 @@ ohci_pxa27x_start (struct usb_hcd *hcd)
 
 	ohci_dbg (ohci, "ohci_pxa27x_start, ohci:%p", ohci);
 
+	/* The value of NDP in roothub_a is incorrect on this hardware */
+	ohci->num_ports = 3;
+
 	if ((ret = ohci_init(ohci)) < 0)
 		return ret;
 
