@@ -138,15 +138,6 @@ config USB_GENESYS
 
 	  Note that the half-duplex "GL620USB" is not supported.
 
-config USB_NET1080
-	boolean "NetChip 1080 based cables (Laplink, ...)"
-	default y
-	depends on USB_USBNET
-	help
-	  Choose this option if you're using a host-to-host cable based
-	  on this design:  one NetChip 1080 chips and supporting logic,
-	  supporting LEDs that indicate traffic
-
 config USB_PL2301
 	boolean "Prolific PL-2301/2302 based cables"
 	default y
@@ -232,6 +223,15 @@ config USB_NET_AX8817X
 	  This driver creates an interface named "ethX", where X depends on
 	  what other networking devices you have in use.
 
+
+config USB_NET_NET1080
+	tristate "NetChip 1080 based cables (Laplink, ...)"
+	default y
+	depends on USB_USBNET
+	help
+	  Choose this option if you're using a host-to-host cable based
+	  on this design:  one NetChip 1080 chip and supporting logic,
+	  optionally with LEDs that indicate traffic
 
 config USB_NET_CDC_SUBSET
 	tristate "Simple USB Network Links (CDC Ethernet subset)"
