@@ -1,5 +1,5 @@
 /*
- * USB Networking Links
+ * USB Network driver infrastructure
  * Copyright (C) 2000-2005 by David Brownell
  * Copyright (C) 2003-2005 David Hollis <dhollis@davehollis.com>
  *
@@ -20,96 +20,15 @@
 
 /*
  * This is a generic "USB networking" framework that works with several
- * kinds of full and high speed networking devices:
+ * kinds of full and high speed networking devices:  host-to-host cables,
+ * smart usb peripherals, and actual Ethernet adapters.
  *
- *   + USB host-to-host "network cables", used for IP-over-USB links.
- *     These are often used for Laplink style connectivity products.
- *	- AnchorChip 2720
- *	- Belkin, eTEK (interops with Win32 drivers)
- *	- GeneSys GL620USB-A
- *	- NetChip 1080 (interoperates with NetChip Win32 drivers)
- *	- Prolific PL-2301/2302 (replaces "plusb" driver)
- *	- KC Technology KC2190
- *
- *   + Smart USB devices can support such links directly, using Internet
- *     standard protocols instead of proprietary host-to-device links.
- *	- Linux PDAs like iPaq, Yopy, and Zaurus
- *	- The BLOB boot loader (for diskless booting)
- *	- Linux "gadgets", perhaps using PXA-2xx or Net2280 controllers
- *	- Devices using EPSON's sample USB firmware
- *	- CDC-Ethernet class devices, such as many cable modems
- *
- *   + Adapters to networks such as Ethernet.
- *	- AX8817X based USB 2.0 products
- *
- * Links to these devices can be bridged using Linux Ethernet bridging.
- * With minor exceptions, these all use similar USB framing for network
- * traffic, but need different protocols for control traffic.
- *
- * USB devices can implement their side of this protocol at the cost
- * of two bulk endpoints; it's not restricted to "cable" applications.
- * See the SA1110, Zaurus, or EPSON device/client support in this driver;
- * slave/target drivers such as "usb-eth" (on most SA-1100 PDAs) or
- * "g_ether" (in the Linux "gadget" framework) implement that behavior
- * within devices.
- *
- *
- * CHANGELOG:
- *
- * 13-sep-2000	experimental, new
- * 10-oct-2000	usb_device_id table created. 
- * 28-oct-2000	misc fixes; mostly, discard more TTL-mangled rx packets.
- * 01-nov-2000	usb_device_id table and probing api update by
- *		Adam J. Richter <adam@yggdrasil.com>.
- * 18-dec-2000	(db) tx watchdog, "net1080" renaming to "usbnet", device_info
- *		and prolific support, isolate net1080-specific bits, cleanup.
- *		fix unlink_urbs oops in D3 PM resume code path.
- *
- * 02-feb-2001	(db) fix tx skb sharing, packet length, match_flags, ...
- * 08-feb-2001	stubbed in "linuxdev", maybe the SA-1100 folk can use it;
- *		AnchorChips 2720 support (from spec) for testing;
- *		fix bit-ordering problem with ethernet multicast addr
- * 19-feb-2001  Support for clearing halt conditions. SA1100 UDC support
- *		updates. Oleg Drokin (green@iXcelerator.com)
- * 25-mar-2001	More SA-1100 updates, including workaround for ip problem
- *		expecting cleared skb->cb and framing change to match latest
- *		handhelds.org version (Oleg).  Enable device IDs from the
- *		Win32 Belkin driver; other cleanups (db).
- * 16-jul-2001	Bugfixes for uhci oops-on-unplug, Belkin support, various
- *		cleanups for problems not yet seen in the field. (db)
- * 17-oct-2001	Handle "Advance USBNET" product, like Belkin/eTEK devices,
- *		from Ioannis Mavroukakis <i.mavroukakis@btinternet.com>;
- *		rx unlinks somehow weren't async; minor cleanup.
- * 03-nov-2001	Merged GeneSys driver; original code from Jiun-Jie Huang
- *		<huangjj@genesyslogic.com.tw>, updated by Stanislav Brabec
- *		<utx@penguin.cz>.  Made framing options (NetChip/GeneSys)
- *		tie mostly to (sub)driver info.  Workaround some PL-2302
- *		chips that seem to reject SET_INTERFACE requests.
- *
- * 06-apr-2002	Added ethtool support, based on a patch from Brad Hards.
- *		Level of diagnostics is more configurable; they use device
- *		location (usb_device->devpath) instead of address (2.5).
- *		For tx_fixup, memflags can't be NOIO.
- * 07-may-2002	Generalize/cleanup keventd support, handling rx stalls (mostly
- *		for USB 2.0 TTs) and memory shortages (potential) too. (db)
- *		Use "locally assigned" IEEE802 address space. (Brad Hards)
- * 18-oct-2002	Support for Zaurus (Pavel Machek), related cleanup (db).
- * 14-dec-2002	Remove Zaurus-private crc32 code (Pavel); 2.5 oops fix,
- * 		cleanups and stubbed PXA-250 support (db), fix for framing
- * 		issues on Z, net1080, and gl620a (Toby Milne)
- *
- * 31-mar-2003	Use endpoint descriptors:  high speed support, simpler sa1100
- * 		vs pxa25x, and CDC Ethernet.  Throttle down log floods on
- * 		disconnect; other cleanups. (db)  Flush net1080 fifos
- * 		after several sequential framing errors. (Johannes Erdfelt)
- * 22-aug-2003	AX8817X support (Dave Hollis).
- *
- * 14-jun-2004  Trivial patch for AX8817X based Buffalo LUA-U2-KTX in Japan
- *		(Neil Bortnak)
- * 03-nov-2004	Trivial patch for KC2190 (KC-190) chip. (Jonathan McDowell)
- *
- * 01-feb-2005	AX88772 support (Phil Chang & Dave Hollis)
- *-------------------------------------------------------------------------*/
+ * These devices usually differ in terms of control protocols (if they
+ * even have one!) and sometimes they define new framing to wrap or batch
+ * Ethernet packets.  Otherwise, they talk to USB pretty much the same,
+ * so interface (un)binding, endpoint I/O queues, fault handling, and other
+ * issues can usefully be addressed by this framework.
+ */
 
 // #define	DEBUG			// error path messages, extra info
 // #define	VERBOSE			// more; success messages
@@ -300,77 +219,6 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 		devdbg (dev, "netif_rx status %d", status);
 }
 EXPORT_SYMBOL_GPL(usbnet_skb_return);
-
-
-#ifdef CONFIG_USB_PL2301
-#define	HAVE_HARDWARE
-
-/*-------------------------------------------------------------------------
- *
- * Prolific PL-2301/PL-2302 driver ... http://www.prolifictech.com
- *
- * The protocol and handshaking used here should be bug-compatible
- * with the Linux 2.2 "plusb" driver, by Deti Fliegl.
- *
- *-------------------------------------------------------------------------*/
-
-/*
- * Bits 0-4 can be used for software handshaking; they're set from
- * one end, cleared from the other, "read" with the interrupt byte.
- */
-#define	PL_S_EN		(1<<7)		/* (feature only) suspend enable */
-/* reserved bit -- rx ready (6) ? */
-#define	PL_TX_READY	(1<<5)		/* (interrupt only) transmit ready */
-#define	PL_RESET_OUT	(1<<4)		/* reset output pipe */
-#define	PL_RESET_IN	(1<<3)		/* reset input pipe */
-#define	PL_TX_C		(1<<2)		/* transmission complete */
-#define	PL_TX_REQ	(1<<1)		/* transmission received */
-#define	PL_PEER_E	(1<<0)		/* peer exists */
-
-static inline int
-pl_vendor_req (struct usbnet *dev, u8 req, u8 val, u8 index)
-{
-	return usb_control_msg (dev->udev,
-		usb_rcvctrlpipe (dev->udev, 0),
-		req,
-		USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		val, index,
-		NULL, 0,
-		USB_CTRL_GET_TIMEOUT);
-}
-
-static inline int
-pl_clear_QuickLink_features (struct usbnet *dev, int val)
-{
-	return pl_vendor_req (dev, 1, (u8) val, 0);
-}
-
-static inline int
-pl_set_QuickLink_features (struct usbnet *dev, int val)
-{
-	return pl_vendor_req (dev, 3, (u8) val, 0);
-}
-
-/*-------------------------------------------------------------------------*/
-
-static int pl_reset (struct usbnet *dev)
-{
-	/* some units seem to need this reset, others reject it utterly.
-	 * FIXME be more like "naplink" or windows drivers.
-	 */
-	(void) pl_set_QuickLink_features (dev,
-		PL_S_EN|PL_RESET_OUT|PL_RESET_IN|PL_PEER_E);
-	return 0;
-}
-
-static const struct driver_info	prolific_info = {
-	.description =	"Prolific PL-2301/PL-2302",
-	.flags =	FLAG_NO_SETINT,
-		/* some PL-2302 versions seem to fail usb_set_interface() */
-	.reset =	pl_reset,
-};
-
-#endif /* CONFIG_USB_PL2301 */
 
 
 /*-------------------------------------------------------------------------
@@ -1356,60 +1204,22 @@ EXPORT_SYMBOL_GPL(usbnet_resume);
 
 /*-------------------------------------------------------------------------*/
 
-#ifndef	HAVE_HARDWARE
-#error You need to configure some hardware for this driver
-#endif
-
-/*
- * chip vendor names won't normally be on the cables, and
- * may not be on the device.
- */
-
-static const struct usb_device_id	products [] = {
-
-#ifdef CONFIG_USB_PL2301
-{
-	USB_DEVICE (0x067b, 0x0000),	// PL-2301
-	.driver_info =	(unsigned long) &prolific_info,
-}, {
-	USB_DEVICE (0x067b, 0x0001),	// PL-2302
-	.driver_info =	(unsigned long) &prolific_info,
-},
-#endif
-	{ },		// END
-};
-MODULE_DEVICE_TABLE (usb, products);
-
-static struct usb_driver usbnet_driver = {
-	.owner =	THIS_MODULE,
-	.name =		driver_name,
-	.id_table =	products,
-	.probe =	usbnet_probe,
-	.disconnect =	usbnet_disconnect,
-	.suspend =	usbnet_suspend,
-	.resume =	usbnet_resume,
-};
-
-/*-------------------------------------------------------------------------*/
-
 static int __init usbnet_init(void)
 {
-	// compiler should optimize these out
+	/* compiler should optimize this out */
 	BUG_ON (sizeof (((struct sk_buff *)0)->cb)
 			< sizeof (struct skb_data));
 
 	random_ether_addr(node_id);
-
- 	return usb_register(&usbnet_driver);
+ 	return 0;
 }
 module_init(usbnet_init);
 
 static void __exit usbnet_exit(void)
 {
- 	usb_deregister(&usbnet_driver);
 }
 module_exit(usbnet_exit);
 
 MODULE_AUTHOR("David Brownell");
-MODULE_DESCRIPTION("USB Host-to-Host Link Drivers (numerous vendors)");
+MODULE_DESCRIPTION("USB network driver framework");
 MODULE_LICENSE("GPL");

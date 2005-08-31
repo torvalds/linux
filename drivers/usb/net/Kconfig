@@ -99,7 +99,7 @@ config USB_USBNET
 	  with "minidrivers" built around a common network driver core
 	  that supports deep queues for efficient transfers.  (This gives
 	  better performance with small packets and at high speeds).
-	  
+
 	  The USB host runs "usbnet", and the other end of the link might be:
 
 	  - Another USB host, when using USB "network" or "data transfer"
@@ -124,20 +124,6 @@ config USB_USBNET
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbnet.
-
-comment "USB Host-to-Host Cables"
-	depends on USB_USBNET
-
-config USB_PL2301
-	boolean "Prolific PL-2301/2302 based cables"
-	default y
-	# handshake/init/reset problems, from original 'plusb' driver
-	depends on USB_USBNET && EXPERIMENTAL
-	help
-	  Choose this option if you're using a host-to-host cable
-	  with one of these chips.
-
-comment "Drivers built using the usbnet core"
 
 config USB_NET_AX8817X
 	tristate "ASIX AX88xxx Based USB 2.0 Ethernet Adapters"
@@ -211,6 +197,15 @@ config USB_NET_NET1080
 	  Choose this option if you're using a host-to-host cable based
 	  on this design:  one NetChip 1080 chip and supporting logic,
 	  optionally with LEDs that indicate traffic
+
+config USB_NET_PLUSB
+	tristate "Prolific PL-2301/2302 based cables"
+	# if the handshake/init/reset problems, from original 'plusb',
+	# are ever resolved ... then remove "experimental"
+	depends on USB_USBNET && EXPERIMENTAL
+	help
+	  Choose this option if you're using a host-to-host cable
+	  with one of these chips.
 
 config USB_NET_RNDIS_HOST
 	tristate "Host for RNDIS devices (EXPERIMENTAL)"
