@@ -896,8 +896,8 @@ source "drivers/char/pcmcia/Kconfig"
 
 config MWAVE
 	tristate "ACP Modem (Mwave) support"
-	depends on X86
-	select SERIAL_8250
+	depends on X86 && BROKEN
+	select SERIAL_8250 # PLEASE DO NOT DO THIS - move this driver to drivers/serial
 	---help---
 	  The ACP modem (Mwave) for Linux is a WinModem. It is composed of a
 	  kernel driver and a user level application. Together these components

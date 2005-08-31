@@ -291,13 +291,31 @@ static unsigned int imx_tx_empty(struct uart_port *port)
 	return USR2((u32)sport->port.membase) & USR2_TXDC ?  TIOCSER_TEMT : 0;
 }
 
+/*
+ * We have a modem side uart, so the meanings of RTS and CTS are inverted.
+ */
 static unsigned int imx_get_mctrl(struct uart_port *port)
 {
-	return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
+        struct imx_port *sport = (struct imx_port *)port;
+        unsigned int tmp = TIOCM_DSR | TIOCM_CAR;
+
+        if (USR1((u32)sport->port.membase) & USR1_RTSS)
+                tmp |= TIOCM_CTS;
+
+        if (UCR2((u32)sport->port.membase) & UCR2_CTS)
+                tmp |= TIOCM_RTS;
+
+        return tmp;
 }
 
 static void imx_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+        struct imx_port *sport = (struct imx_port *)port;
+
+        if (mctrl & TIOCM_RTS)
+                UCR2((u32)sport->port.membase) |= UCR2_CTS;
+        else
+                UCR2((u32)sport->port.membase) &= ~UCR2_CTS;
 }
 
 /*
