@@ -75,33 +75,6 @@ static int pxa27x_ohci_select_pmm( int mode )
 	return 0;
 }
 
-/*
-  If you select PMM_PERPORT_MODE, you should set the port power
- */
-static int pxa27x_ohci_set_port_power( int port )
-{
-	if ( (pxa27x_ohci_pmm_state==PMM_PERPORT_MODE)
-	     && (port>0) && (port<PXA_UHC_MAX_PORTNUM) ) {
-		UHCRHPS(port) |= 0x100;
-		return 0;
-	}
-	return -1;
-}
-
-/*
-  If you select PMM_PERPORT_MODE, you should set the port power
- */
-static int pxa27x_ohci_clear_port_power( int port )
-{
-	if ( (pxa27x_ohci_pmm_state==PMM_PERPORT_MODE) 
-	     && (port>0) && (port<PXA_UHC_MAX_PORTNUM) ) {
-		UHCRHPS(port) |= 0x200;
-		return 0;
-	}
-	 
-	return -1;
-}
-
 extern int usb_disabled(void);
 
 /*-------------------------------------------------------------------------*/
@@ -130,11 +103,17 @@ static void pxa27x_start_hc(struct platform_device *dev)
 		   Polarity Low to active low. Supply power to USB ports. */
 		UHCHR = (UHCHR | UHCHR_PCPL | UHCHR_PSPL) &
 			~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
+
+		pxa27x_ohci_pmm_state = PMM_PERPORT_MODE;
 	}
 
 	UHCHR &= ~UHCHR_SSE;
 
 	UHCHIE = (UHCHIE_UPRIE | UHCHIE_RWIE);
+
+	/* Clear any OTG Pin Hold */
+	if (PSSR & PSSR_OTGPH)
+		PSSR |= PSSR_OTGPH;
 }
 
 static void pxa27x_stop_hc(struct platform_device *dev)
@@ -198,17 +177,7 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver,
 	pxa27x_start_hc(dev);
 
 	/* Select Power Management Mode */
-	pxa27x_ohci_select_pmm( PMM_PERPORT_MODE );
-
-	/* If choosing PMM_PERPORT_MODE, we should set the port power before we use it. */
-	if (pxa27x_ohci_set_port_power(1) < 0)
-		printk(KERN_ERR "Setting port 1 power failed.\n");
-
-	if (pxa27x_ohci_clear_port_power(2) < 0)
-		printk(KERN_ERR "Setting port 2 power failed.\n");
-
-	if (pxa27x_ohci_clear_port_power(3) < 0)
-		printk(KERN_ERR "Setting port 3 power failed.\n");
+	pxa27x_ohci_select_pmm(pxa27x_ohci_pmm_state);
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
