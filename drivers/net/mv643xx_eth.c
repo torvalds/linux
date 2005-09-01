@@ -412,15 +412,13 @@ static int mv643xx_eth_receive_queue(struct net_device *dev)
 	struct pkt_info pkt_info;
 
 #ifdef MV643XX_NAPI
-	while (eth_port_receive(mp, &pkt_info) == ETH_OK && budget > 0) {
+	while (budget-- > 0 && eth_port_receive(mp, &pkt_info) == ETH_OK) {
 #else
 	while (eth_port_receive(mp, &pkt_info) == ETH_OK) {
 #endif
 		mp->rx_ring_skbs--;
 		received_packets++;
-#ifdef MV643XX_NAPI
-		budget--;
-#endif
+
 		/* Update statistics. Note byte count includes 4 byte CRC count */
 		stats->rx_packets++;
 		stats->rx_bytes += pkt_info.byte_cnt;
