@@ -167,6 +167,8 @@ struct veth_port {
 	int promiscuous;
 	int num_mcast;
 	u64 mcast_addr[VETH_MAX_MCAST];
+
+	struct kobject kobject;
 };
 
 static HvLpIndex this_lp;
@@ -348,6 +350,62 @@ static struct kobj_type veth_lpar_connection_ktype = {
 	.release	= veth_release_connection,
 	.sysfs_ops	= &veth_cnx_sysfs_ops,
 	.default_attrs	= veth_cnx_default_attrs
+};
+
+struct veth_port_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct veth_port *, char *buf);
+	ssize_t (*store)(struct veth_port *, const char *buf);
+};
+
+static ssize_t veth_port_attribute_show(struct kobject *kobj,
+		struct attribute *attr, char *buf)
+{
+	struct veth_port_attribute *port_attr;
+	struct veth_port *port;
+
+	port_attr = container_of(attr, struct veth_port_attribute, attr);
+	port = container_of(kobj, struct veth_port, kobject);
+
+	if (!port_attr->show)
+		return -EIO;
+
+	return port_attr->show(port, buf);
+}
+
+#define CUSTOM_PORT_ATTR(_name, _format, _expression)			\
+static ssize_t _name##_show(struct veth_port *port, char *buf)		\
+{									\
+	return sprintf(buf, _format, _expression);			\
+}									\
+struct veth_port_attribute veth_port_attr_##_name = __ATTR_RO(_name)
+
+#define SIMPLE_PORT_ATTR(_name)	\
+	CUSTOM_PORT_ATTR(_name, "%lu\n", (unsigned long)port->_name)
+
+SIMPLE_PORT_ATTR(promiscuous);
+SIMPLE_PORT_ATTR(num_mcast);
+CUSTOM_PORT_ATTR(lpar_map, "0x%X\n", port->lpar_map);
+CUSTOM_PORT_ATTR(stopped_map, "0x%X\n", port->stopped_map);
+CUSTOM_PORT_ATTR(mac_addr, "0x%lX\n", port->mac_addr);
+
+#define GET_PORT_ATTR(_name)	(&veth_port_attr_##_name.attr)
+static struct attribute *veth_port_default_attrs[] = {
+	GET_PORT_ATTR(mac_addr),
+	GET_PORT_ATTR(lpar_map),
+	GET_PORT_ATTR(stopped_map),
+	GET_PORT_ATTR(promiscuous),
+	GET_PORT_ATTR(num_mcast),
+	NULL
+};
+
+static struct sysfs_ops veth_port_sysfs_ops = {
+	.show = veth_port_attribute_show
+};
+
+static struct kobj_type veth_port_ktype = {
+	.sysfs_ops	= &veth_port_sysfs_ops,
+	.default_attrs	= veth_port_default_attrs
 };
 
 /*
@@ -992,6 +1050,13 @@ static struct net_device * __init veth_probe_one(int vlan, struct device *vdev)
 		return NULL;
 	}
 
+	kobject_init(&port->kobject);
+	port->kobject.parent = &dev->class_dev.kobj;
+	port->kobject.ktype  = &veth_port_ktype;
+	kobject_set_name(&port->kobject, "veth_port");
+	if (0 != kobject_add(&port->kobject))
+		veth_error("Failed adding port for %s to sysfs.\n", dev->name);
+
 	veth_info("%s attached to iSeries vlan %d (LPAR map = 0x%.4X)\n",
 			dev->name, vlan, port->lpar_map);
 
@@ -1486,6 +1551,8 @@ static int veth_remove(struct vio_dev *vdev)
 	}
 
 	veth_dev[vdev->unit_address] = NULL;
+	kobject_del(&port->kobject);
+	kobject_put(&port->kobject);
 	unregister_netdev(dev);
 	free_netdev(dev);
 
