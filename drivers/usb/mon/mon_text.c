@@ -79,7 +79,7 @@ static inline char mon_text_get_setup(struct mon_event_text *ep,
 		return '-';
 
 	if (urb->transfer_flags & URB_NO_SETUP_DMA_MAP)
-		return 'D';
+		return mon_dmapeek(ep->setup, urb->setup_dma, SETUP_MAX);
 	if (urb->setup_packet == NULL)
 		return 'Z';	/* '0' would be not as pretty. */
 
