@@ -450,13 +450,15 @@ static void veth_statemachine(void *p)
 	if (cnx->state & VETH_STATE_RESET) {
 		int i;
 
-		del_timer(&cnx->ack_timer);
-
 		if (cnx->state & VETH_STATE_OPEN)
 			HvCallEvent_closeLpEventPath(cnx->remote_lp,
 						     HvLpEvent_Type_VirtualLan);
 
-		/* reset ack data */
+		/*
+		 * Reset ack data. This prevents the ack_timer actually
+		 * doing anything, even if it runs one more time when
+		 * we drop the lock below.
+		 */
 		memset(&cnx->pending_acks, 0xff, sizeof (cnx->pending_acks));
 		cnx->num_pending_acks = 0;
 
@@ -469,9 +471,16 @@ static void veth_statemachine(void *p)
 		if (cnx->msgs)
 			for (i = 0; i < VETH_NUMBUFFERS; ++i)
 				veth_recycle_msg(cnx, cnx->msgs + i);
+
+		/* Drop the lock so we can do stuff that might sleep or
+		 * take other locks. */
 		spin_unlock_irq(&cnx->lock);
+
+		del_timer_sync(&cnx->ack_timer);
 		veth_flush_pending(cnx);
+
 		spin_lock_irq(&cnx->lock);
+
 		if (cnx->state & VETH_STATE_RESET)
 			goto restart;
 	}
@@ -658,12 +667,8 @@ static void veth_stop_connection(u8 rlp)
 	veth_kick_statemachine(cnx);
 	spin_unlock_irq(&cnx->lock);
 
+	/* Wait for the state machine to run. */
 	flush_scheduled_work();
-
-	/* FIXME: not sure if this is necessary - will already have
-	 * been deleted by the state machine, just want to make sure
-	 * its not running any more */
-	del_timer_sync(&cnx->ack_timer);
 
 	if (cnx->num_events > 0)
 		mf_deallocate_lp_events(cnx->remote_lp,
