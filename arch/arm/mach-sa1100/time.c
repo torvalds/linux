@@ -70,12 +70,24 @@ static unsigned long sa1100_gettimeoffset (void)
 	return usec;
 }
 
+#ifdef CONFIG_NO_IDLE_HZ
+static unsigned long initial_match;
+static int match_posponed;
+#endif
+
 static irqreturn_t
 sa1100_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	unsigned int next_match;
 
 	write_seqlock(&xtime_lock);
+
+#ifdef CONFIG_NO_IDLE_HZ
+	if (match_posponed) {
+		match_posponed = 0;
+		OSMR0 = initial_match;
+	}
+#endif
 
 	/*
 	 * Loop until we get ahead of the free running timer.
@@ -119,6 +131,42 @@ static void __init sa1100_timer_init(void)
 	OSCR = 0;		/* initialize free-running timer, force first match */
 }
 
+#ifdef CONFIG_NO_IDLE_HZ
+static int sa1100_dyn_tick_enable_disable(void)
+{
+	/* nothing to do */
+	return 0;
+}
+
+static void sa1100_dyn_tick_reprogram(unsigned long ticks)
+{
+	if (ticks > 1) {
+		initial_match = OSMR0;
+		OSMR0 = initial_match + ticks * LATCH;
+		match_posponed = 1;
+	}
+}
+
+static irqreturn_t
+sa1100_dyn_tick_handler(int irq, void *dev_id, struct pt_regs *regs)
+{
+	if (match_posponed) {
+		match_posponed = 0;
+		OSMR0 = initial_match;
+		if ((signed long)(initial_match - OSCR) <= 0)
+			return sa1100_timer_interrupt(irq, dev_id, regs);
+	}
+	return IRQ_NONE;
+}
+
+static struct dyn_tick_timer sa1100_dyn_tick = {
+	.enable		= sa1100_dyn_tick_enable_disable,
+	.disable	= sa1100_dyn_tick_enable_disable,
+	.reprogram	= sa1100_dyn_tick_reprogram,
+	.handler	= sa1100_dyn_tick_handler,
+};
+#endif
+
 #ifdef CONFIG_PM
 unsigned long osmr[4], oier;
 
@@ -155,4 +203,7 @@ struct sys_timer sa1100_timer = {
 	.suspend	= sa1100_timer_suspend,
 	.resume		= sa1100_timer_resume,
 	.offset		= sa1100_gettimeoffset,
+#ifdef CONFIG_NO_IDLE_HZ
+	.dyn_tick	= &sa1100_dyn_tick,
+#endif
 };
