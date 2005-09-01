@@ -284,7 +284,7 @@ __syscall_start:
 		.long	sys_fstatfs64
 		.long	sys_tgkill
 		.long	sys_utimes
-/* 270 */	.long	sys_fadvise64_64
+/* 270 */	.long	sys_arm_fadvise64_64_wrapper
 		.long	sys_pciconfig_iobase
 		.long	sys_pciconfig_read
 		.long	sys_pciconfig_write
