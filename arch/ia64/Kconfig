@@ -383,6 +383,12 @@ source "drivers/acpi/Kconfig"
 
 endif
 
+if PM
+
+source "arch/ia64/kernel/cpufreq/Kconfig"
+
+endif
+
 endmenu
 
 if !IA64_HP_SIM
