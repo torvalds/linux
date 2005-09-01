@@ -577,23 +577,23 @@ static void __init create_mapping(struct map_desc *md)
  */
 void setup_mm_for_reboot(char mode)
 {
-	unsigned long pmdval;
+	unsigned long base_pmdval;
 	pgd_t *pgd;
-	pmd_t *pmd;
 	int i;
-	int cpu_arch = cpu_architecture();
 
 	if (current->mm && current->mm->pgd)
 		pgd = current->mm->pgd;
 	else
 		pgd = init_mm.pgd;
 
-	for (i = 0; i < FIRST_USER_PGD_NR + USER_PTRS_PER_PGD; i++) {
-		pmdval = (i << PGDIR_SHIFT) |
-			 PMD_SECT_AP_WRITE | PMD_SECT_AP_READ |
-			 PMD_TYPE_SECT;
-		if (cpu_arch <= CPU_ARCH_ARMv5TEJ)
-			pmdval |= PMD_BIT4;
+	base_pmdval = PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | PMD_TYPE_SECT;
+	if (cpu_architecture() <= CPU_ARCH_ARMv5TEJ)
+		base_pmdval |= PMD_BIT4;
+
+	for (i = 0; i < FIRST_USER_PGD_NR + USER_PTRS_PER_PGD; i++, pgd++) {
+		unsigned long pmdval = (i << PGDIR_SHIFT) | base_pmdval;
+		pmd_t *pmd;
+
 		pmd = pmd_off(pgd, i << PGDIR_SHIFT);
 		pmd[0] = __pmd(pmdval);
 		pmd[1] = __pmd(pmdval + (1 << (PGDIR_SHIFT - 1)));
