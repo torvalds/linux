@@ -111,6 +111,12 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 	if (rc)
 		goto out3;
 
+	rc = jfs_init_security(tid, ip, dip);
+	if (rc) {
+		txAbort(tid, 0);
+		goto out3;
+	}
+
 	if ((rc = dtSearch(dip, &dname, &ino, &btstack, JFS_CREATE))) {
 		jfs_err("jfs_create: dtSearch returned %d", rc);
 		txAbort(tid, 0);
@@ -238,6 +244,12 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	rc = jfs_init_acl(tid, ip, dip);
 	if (rc)
 		goto out3;
+
+	rc = jfs_init_security(tid, ip, dip);
+	if (rc) {
+		txAbort(tid, 0);
+		goto out3;
+	}
 
 	if ((rc = dtSearch(dip, &dname, &ino, &btstack, JFS_CREATE))) {
 		jfs_err("jfs_mkdir: dtSearch returned %d", rc);
@@ -906,6 +918,10 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	down(&JFS_IP(dip)->commit_sem);
 	down(&JFS_IP(ip)->commit_sem);
 
+	rc = jfs_init_security(tid, ip, dip);
+	if (rc)
+		goto out3;
+
 	tblk = tid_to_tblock(tid);
 	tblk->xflag |= COMMIT_CREATE;
 	tblk->ino = ip->i_ino;
@@ -1348,6 +1364,12 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 	rc = jfs_init_acl(tid, ip, dir);
 	if (rc)
 		goto out3;
+
+	rc = jfs_init_security(tid, ip, dir);
+	if (rc) {
+		txAbort(tid, 0);
+		goto out3;
+	}
 
 	if ((rc = dtSearch(dir, &dname, &ino, &btstack, JFS_CREATE))) {
 		txAbort(tid, 0);

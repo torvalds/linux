@@ -21,6 +21,7 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/quotaops.h>
+#include <linux/security.h>
 #include "jfs_incore.h"
 #include "jfs_superblock.h"
 #include "jfs_dmap.h"
@@ -1148,3 +1149,38 @@ int jfs_removexattr(struct dentry *dentry, const char *name)
 
 	return rc;
 }
+
+#ifdef CONFIG_JFS_SECURITY
+int jfs_init_security(tid_t tid, struct inode *inode, struct inode *dir)
+{
+	int rc;
+	size_t len;
+	void *value;
+	char *suffix;
+	char *name;
+
+	rc = security_inode_init_security(inode, dir, &suffix, &value, &len);
+	if (rc) {
+		if (rc == -EOPNOTSUPP)
+			return 0;
+		return rc;
+	}
+	name = kmalloc(XATTR_SECURITY_PREFIX_LEN + 1 + strlen(suffix),
+		       GFP_NOFS);
+	if (!name) {
+		rc = -ENOMEM;
+		goto kmalloc_failed;
+	}
+	strcpy(name, XATTR_SECURITY_PREFIX);
+	strcpy(name + XATTR_SECURITY_PREFIX_LEN, suffix);
+
+	rc = __jfs_setxattr(tid, inode, name, value, len, 0);
+
+	kfree(name);
+kmalloc_failed:
+	kfree(suffix);
+	kfree(value);
+
+	return rc;
+}
+#endif
