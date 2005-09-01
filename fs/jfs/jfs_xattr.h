@@ -52,8 +52,8 @@ struct jfs_ea_list {
 #define	END_EALIST(ealist) \
 	((struct jfs_ea *) (((char *) (ealist)) + EALIST_SIZE(ealist)))
 
-extern int __jfs_setxattr(struct inode *, const char *, const void *, size_t,
-			  int);
+extern int __jfs_setxattr(tid_t, struct inode *, const char *, const void *,
+			  size_t, int);
 extern int jfs_setxattr(struct dentry *, const char *, const void *, size_t,
 			int);
 extern ssize_t __jfs_getxattr(struct inode *, const char *, void *, size_t);
