@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -37,7 +38,7 @@
 
 #include <linux/types.h>
 
-#define IB_USER_CM_ABI_VERSION 1
+#define IB_USER_CM_ABI_VERSION 2
 
 enum {
 	IB_USER_CM_CMD_CREATE_ID,
@@ -60,6 +61,7 @@ enum {
 	IB_USER_CM_CMD_SEND_SIDR_REP,
 
 	IB_USER_CM_CMD_EVENT,
+	IB_USER_CM_CMD_INIT_QP_ATTR,
 };
 /*
  * command ABI structures.
@@ -71,6 +73,7 @@ struct ib_ucm_cmd_hdr {
 };
 
 struct ib_ucm_create_id {
+	__u64 uid;
 	__u64 response;
 };
 
@@ -79,7 +82,12 @@ struct ib_ucm_create_id_resp {
 };
 
 struct ib_ucm_destroy_id {
+	__u64 response;
 	__u32 id;
+};
+
+struct ib_ucm_destroy_id_resp {
+	__u32 events_reported;
 };
 
 struct ib_ucm_attr_id {
@@ -92,6 +100,64 @@ struct ib_ucm_attr_id_resp {
 	__be64 service_mask;
 	__be32 local_id;
 	__be32 remote_id;
+};
+
+struct ib_ucm_init_qp_attr {
+	__u64 response;
+	__u32 id;
+	__u32 qp_state;
+};
+
+struct ib_ucm_ah_attr {
+	__u8	grh_dgid[16];
+	__u32	grh_flow_label;
+	__u16	dlid;
+	__u16	reserved;
+	__u8	grh_sgid_index;
+	__u8	grh_hop_limit;
+	__u8	grh_traffic_class;
+	__u8	sl;
+	__u8	src_path_bits;
+	__u8	static_rate;
+	__u8	is_global;
+	__u8	port_num;
+};
+
+struct ib_ucm_init_qp_attr_resp {
+	__u32	qp_attr_mask;
+	__u32	qp_state;
+	__u32	cur_qp_state;
+	__u32	path_mtu;
+	__u32	path_mig_state;
+	__u32	qkey;
+	__u32	rq_psn;
+	__u32	sq_psn;
+	__u32	dest_qp_num;
+	__u32	qp_access_flags;
+
+	struct ib_ucm_ah_attr	ah_attr;
+	struct ib_ucm_ah_attr	alt_ah_attr;
+
+	/* ib_qp_cap */
+	__u32	max_send_wr;
+	__u32	max_recv_wr;
+	__u32	max_send_sge;
+	__u32	max_recv_sge;
+	__u32	max_inline_data;
+
+	__u16	pkey_index;
+	__u16	alt_pkey_index;
+	__u8	en_sqd_async_notify;
+	__u8	sq_draining;
+	__u8	max_rd_atomic;
+	__u8	max_dest_rd_atomic;
+	__u8	min_rnr_timer;
+	__u8	port_num;
+	__u8	timeout;
+	__u8	retry_cnt;
+	__u8	rnr_retry;
+	__u8	alt_port_num;
+	__u8	alt_timeout;
 };
 
 struct ib_ucm_listen {
@@ -157,6 +223,7 @@ struct ib_ucm_req {
 };
 
 struct ib_ucm_rep {
+	__u64 uid;
 	__u64 data;
 	__u32 id;
 	__u32 qpn;
@@ -232,7 +299,6 @@ struct ib_ucm_event_get {
 };
 
 struct ib_ucm_req_event_resp {
-	__u32                  listen_id;
 	/* device */
 	/* port */
 	struct ib_ucm_path_rec primary_path;
@@ -287,7 +353,6 @@ struct ib_ucm_apr_event_resp {
 };
 
 struct ib_ucm_sidr_req_event_resp {
-	__u32 listen_id;
 	/* device */
 	/* port */
 	__u16 pkey;
@@ -307,6 +372,7 @@ struct ib_ucm_sidr_rep_event_resp {
 #define IB_UCM_PRES_ALTERNATE 0x08
 
 struct ib_ucm_event_resp {
+	__u64 uid;
 	__u32 id;
 	__u32 event;
 	__u32 present;
