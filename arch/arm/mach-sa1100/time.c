@@ -70,15 +70,6 @@ static unsigned long sa1100_gettimeoffset (void)
 	return usec;
 }
 
-/*
- * We will be entered with IRQs enabled.
- *
- * Loop until we get ahead of the free running timer.
- * This ensures an exact clock tick count and time accuracy.
- * IRQs are disabled inside the loop to ensure coherence between
- * lost_ticks (updated in do_timer()) and the match reg value, so we
- * can use do_gettimeofday() from interrupt handlers.
- */
 static irqreturn_t
 sa1100_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -86,6 +77,14 @@ sa1100_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	write_seqlock(&xtime_lock);
 
+	/*
+	 * Loop until we get ahead of the free running timer.
+	 * This ensures an exact clock tick count and time accuracy.
+	 * Since IRQs are disabled at this point, coherence between
+	 * lost_ticks(updated in do_timer()) and the match reg value is
+	 * ensured, hence we can use do_gettimeofday() from interrupt
+	 * handlers.
+	 */
 	do {
 		timer_tick(regs);
 		OSSR = OSSR_M0;  /* Clear match on timer 0 */

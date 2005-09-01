@@ -91,9 +91,10 @@ pxa_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	/* Loop until we get ahead of the free running timer.
 	 * This ensures an exact clock tick count and time accuracy.
-	 * IRQs are disabled inside the loop to ensure coherence between
-	 * lost_ticks (updated in do_timer()) and the match reg value, so we
-	 * can use do_gettimeofday() from interrupt handlers.
+	 * Since IRQs are disabled at this point, coherence between
+	 * lost_ticks(updated in do_timer()) and the match reg value is
+	 * ensured, hence we can use do_gettimeofday() from interrupt
+	 * handlers.
 	 *
 	 * HACK ALERT: it seems that the PXA timer regs aren't updated right
 	 * away in all cases when a write occurs.  We therefore compare with
