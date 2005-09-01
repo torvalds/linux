@@ -383,39 +383,45 @@ __ixp4xx_insl(u32 io_addr, u32 *vaddr, u32 count)
 		*vaddr++ = inl(io_addr);
 }
 
-#define	__is_io_address(p)	(((unsigned long)p >= 0x0) && \
-					((unsigned long)p <= 0x0000ffff))
+#define PIO_OFFSET      0x10000UL
+#define PIO_MASK        0x0ffffUL
+
+#define	__is_io_address(p)	(((unsigned long)p >= PIO_OFFSET) && \
+					((unsigned long)p <= (PIO_MASK + PIO_OFFSET)))
 static inline unsigned int
-__ixp4xx_ioread8(void __iomem *port)
+__ixp4xx_ioread8(void __iomem *addr)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		return	(unsigned int)__ixp4xx_inb((unsigned int)port);
+		return	(unsigned int)__ixp4xx_inb(port & PIO_MASK);
 	else
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
-		return (unsigned int)__raw_readb((u32)port);
+		return (unsigned int)__raw_readb(port);
 #else
-		return (unsigned int)__ixp4xx_readb((u32)port);
+		return (unsigned int)__ixp4xx_readb(port);
 #endif
 }
 
 static inline void
-__ixp4xx_ioread8_rep(u32 port, u8 *vaddr, u32 count)
+__ixp4xx_ioread8_rep(void __iomem *addr, void *vaddr, u32 count)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		__ixp4xx_insb(port, vaddr, count);
+		__ixp4xx_insb(port & PIO_MASK, vaddr, count);
 	else
 #ifndef	CONFIG_IXP4XX_INDIRECT_PCI
-		__raw_readsb((void __iomem *)port, vaddr, count);
+		__raw_readsb(addr, vaddr, count);
 #else
 		__ixp4xx_readsb(port, vaddr, count);
 #endif
 }
 
 static inline unsigned int
-__ixp4xx_ioread16(void __iomem *port)
+__ixp4xx_ioread16(void __iomem *addr)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		return	(unsigned int)__ixp4xx_inw((unsigned int)port);
+		return	(unsigned int)__ixp4xx_inw(port & PIO_MASK);
 	else
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
 		return le16_to_cpu(__raw_readw((u32)port));
@@ -425,23 +431,25 @@ __ixp4xx_ioread16(void __iomem *port)
 }
 
 static inline void
-__ixp4xx_ioread16_rep(u32 port, u16 *vaddr, u32 count)
+__ixp4xx_ioread16_rep(void __iomem *addr, void *vaddr, u32 count)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		__ixp4xx_insw(port, vaddr, count);
+		__ixp4xx_insw(port & PIO_MASK, vaddr, count);
 	else
 #ifndef	CONFIG_IXP4XX_INDIRECT_PCI
-		__raw_readsw((void __iomem *)port, vaddr, count);
+		__raw_readsw(addr, vaddr, count);
 #else
 		__ixp4xx_readsw(port, vaddr, count);
 #endif
 }
 
 static inline unsigned int
-__ixp4xx_ioread32(void __iomem *port)
+__ixp4xx_ioread32(void __iomem *addr)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		return	(unsigned int)__ixp4xx_inl((unsigned int)port);
+		return	(unsigned int)__ixp4xx_inl(port & PIO_MASK);
 	else {
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
 		return le32_to_cpu(__raw_readl((u32)port));
@@ -452,90 +460,100 @@ __ixp4xx_ioread32(void __iomem *port)
 }
 
 static inline void
-__ixp4xx_ioread32_rep(u32 port, u32 *vaddr, u32 count)
+__ixp4xx_ioread32_rep(void __iomem *addr, void *vaddr, u32 count)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		__ixp4xx_insl(port, vaddr, count);
+		__ixp4xx_insl(port & PIO_MASK, vaddr, count);
 	else
 #ifndef	CONFIG_IXP4XX_INDIRECT_PCI
-		__raw_readsl((void __iomem *)port, vaddr, count);
+		__raw_readsl(addr, vaddr, count);
 #else
 		__ixp4xx_readsl(port, vaddr, count);
 #endif
 }
 
 static inline void
-__ixp4xx_iowrite8(u8 value, void __iomem *port)
+__ixp4xx_iowrite8(u8 value, void __iomem *addr)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		__ixp4xx_outb(value, (unsigned int)port);
+		__ixp4xx_outb(value, port & PIO_MASK);
 	else
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
-		__raw_writeb(value, (u32)port);
+		__raw_writeb(value, port);
 #else
-		__ixp4xx_writeb(value, (u32)port);
+		__ixp4xx_writeb(value, port);
 #endif
 }
 
 static inline void
-__ixp4xx_iowrite8_rep(u32 port, u8 *vaddr, u32 count)
+__ixp4xx_iowrite8_rep(void __iomem *addr, const void *vaddr, u32 count)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		__ixp4xx_outsb(port, vaddr, count);
+		__ixp4xx_outsb(port & PIO_MASK, vaddr, count);
+	else
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
-		__raw_writesb((void __iomem *)port, vaddr, count);
+		__raw_writesb(addr, vaddr, count);
 #else
 		__ixp4xx_writesb(port, vaddr, count);
 #endif
 }
 
 static inline void
-__ixp4xx_iowrite16(u16 value, void __iomem *port)
+__ixp4xx_iowrite16(u16 value, void __iomem *addr)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		__ixp4xx_outw(value, (unsigned int)port);
+		__ixp4xx_outw(value, port & PIO_MASK);
 	else
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
-		__raw_writew(cpu_to_le16(value), (u32)port);
+		__raw_writew(cpu_to_le16(value), addr);
 #else
-		__ixp4xx_writew(value, (u32)port);
+		__ixp4xx_writew(value, port);
 #endif
 }
 
 static inline void
-__ixp4xx_iowrite16_rep(u32 port, u16 *vaddr, u32 count)
+__ixp4xx_iowrite16_rep(void __iomem *addr, const void *vaddr, u32 count)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		__ixp4xx_outsw(port, vaddr, count);
+		__ixp4xx_outsw(port & PIO_MASK, vaddr, count);
+	else
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
-		__raw_readsw((void __iomem *)port, vaddr, count);
+		__raw_writesw(addr, vaddr, count);
 #else
 		__ixp4xx_writesw(port, vaddr, count);
 #endif
 }
 
 static inline void
-__ixp4xx_iowrite32(u32 value, void __iomem *port)
+__ixp4xx_iowrite32(u32 value, void __iomem *addr)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		__ixp4xx_outl(value, (unsigned int)port);
+		__ixp4xx_outl(value, port & PIO_MASK);
 	else
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
-		__raw_writel(cpu_to_le32(value), (u32)port);
+		__raw_writel(cpu_to_le32(value), port);
 #else
-		__ixp4xx_writel(value, (u32)port);
+		__ixp4xx_writel(value, port);
 #endif
 }
 
 static inline void
-__ixp4xx_iowrite32_rep(u32 port, u32 *vaddr, u32 count)
+__ixp4xx_iowrite32_rep(void __iomem *addr, const void *vaddr, u32 count)
 {
+	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
-		__ixp4xx_outsl(port, vaddr, count);
+		__ixp4xx_outsl(port & PIO_MASK, vaddr, count);
+	else
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
-		__raw_readsl((void __iomem *)port, vaddr, count);
+		__raw_writesl(addr, vaddr, count);
 #else
-		__ixp4xx_outsl(port, vaddr, count);
+		__ixp4xx_writesl(port, vaddr, count);
 #endif
 }
 
@@ -555,7 +573,7 @@ __ixp4xx_iowrite32_rep(u32 port, u32 *vaddr, u32 count)
 #define	iowrite16_rep(p, v, c)		__ixp4xx_iowrite16_rep(p, v, c)
 #define	iowrite32_rep(p, v, c)		__ixp4xx_iowrite32_rep(p, v, c)
 
-#define	ioport_map(port, nr)		((void __iomem*)port)
+#define	ioport_map(port, nr)		((void __iomem*)(port + PIO_OFFSET))
 #define	ioport_unmap(addr)
 
 #endif	//  __ASM_ARM_ARCH_IO_H

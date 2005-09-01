@@ -818,6 +818,23 @@
 #define UDCOTGICR_IEIDF	(1 << 0)	/* OTG ID Change Falling Edge
 					   Interrupt Enable */
 
+#define UP2OCR		  __REG(0x40600020)  /* USB Port 2 Output Control register */
+
+#define UP2OCR_CPVEN	(1 << 0)	/* Charge Pump Vbus Enable */
+#define UP2OCR_CPVPE	(1 << 1)	/* Charge Pump Vbus Pulse Enable */
+#define UP2OCR_DPPDE	(1 << 2)	/* Host Port 2 Transceiver D+ Pull Down Enable */
+#define UP2OCR_DMPDE	(1 << 3)	/* Host Port 2 Transceiver D- Pull Down Enable */
+#define UP2OCR_DPPUE	(1 << 4)	/* Host Port 2 Transceiver D+ Pull Up Enable */
+#define UP2OCR_DMPUE	(1 << 5)	/* Host Port 2 Transceiver D- Pull Up Enable */
+#define UP2OCR_DPPUBE	(1 << 6)	/* Host Port 2 Transceiver D+ Pull Up Bypass Enable */
+#define UP2OCR_DMPUBE	(1 << 7)	/* Host Port 2 Transceiver D- Pull Up Bypass Enable */
+#define UP2OCR_EXSP		(1 << 8)	/* External Transceiver Speed Control */
+#define UP2OCR_EXSUS	(1 << 9)	/* External Transceiver Speed Enable */
+#define UP2OCR_IDON		(1 << 10)	/* OTG ID Read Enable */
+#define UP2OCR_HXS		(1 << 16)	/* Host Port 2 Transceiver Output Select */
+#define UP2OCR_HXOE		(1 << 17)	/* Host Port 2 Transceiver Output Enable */
+#define UP2OCR_SEOS		(1 << 24)	/* Single-Ended Output Select */
+
 #define UDCCSN(x)	__REG2(0x40600100, (x) << 2)
 #define UDCCSR0         __REG(0x40600100) /* UDC Control/Status register - Endpoint 0 */
 #define UDCCSR0_SA	(1 << 7)	/* Setup Active */
@@ -1423,6 +1440,7 @@
 #define GPIO84_NSSP_RX      	(84 | GPIO_ALT_FN_2_IN)
 #define GPIO85_nPCE_1_MD	(85 | GPIO_ALT_FN_1_OUT)
 #define GPIO92_MMCDAT0_MD	(92 | GPIO_ALT_FN_1_OUT)
+#define GPIO104_pSKTSEL_MD	(104 | GPIO_ALT_FN_1_OUT)
 #define GPIO109_MMCDAT1_MD	(109 | GPIO_ALT_FN_1_OUT)
 #define GPIO110_MMCDAT2_MD	(110 | GPIO_ALT_FN_1_OUT)
 #define GPIO110_MMCCS0_MD	(110 | GPIO_ALT_FN_1_OUT)
@@ -1510,6 +1528,8 @@
 #define PSSR_BFS	(1 << 1)	/* Battery Fault Status */
 #define PSSR_SSS	(1 << 0)	/* Software Sleep Status */
 
+#define PSLR_SL_ROD	(1 << 20)	/* Sleep-Mode/Depp-Sleep Mode nRESET_OUT Disable */
+
 #define PCFR_RO		(1 << 15)	/* RDH Override */
 #define PCFR_PO		(1 << 14)	/* PH Override */
 #define PCFR_GPROD	(1 << 12)	/* GPIO nRESET_OUT Disable */
@@ -1517,6 +1537,7 @@
 #define PCFR_FVC	(1 << 10)	/* Frequency/Voltage Change */
 #define PCFR_DC_EN	(1 << 7)	/* Sleep/deep-sleep DC-DC Converter Enable */
 #define PCFR_PI2CEN	(1 << 6)	/* Enable PI2C controller */
+#define PCFR_GPR_EN	(1 << 4)	/* nRESET_GPIO Pin Enable */
 #define PCFR_DS		(1 << 3)	/* Deep Sleep Mode */
 #define PCFR_FS		(1 << 2)	/* Float Static Chip Selects */
 #define PCFR_FP		(1 << 1)	/* Float PCMCIA controls */
@@ -1810,6 +1831,11 @@
 #define LCCR0_PDD_S	12
 #define LCCR0_BM	(1 << 20) 	/* Branch mask */
 #define LCCR0_OUM	(1 << 21)	/* Output FIFO underrun mask */
+#define LCCR0_LCDT      (1 << 22)       /* LCD panel type */
+#define LCCR0_RDSTM     (1 << 23)       /* Read status interrupt mask */
+#define LCCR0_CMDIM     (1 << 24)       /* Command interrupt mask */
+#define LCCR0_OUC       (1 << 25)       /* Overlay Underlay control bit */
+#define LCCR0_LDDALT    (1 << 26)       /* LDD alternate mapping control */
 
 #define LCCR1_PPL       Fld (10, 0)      /* Pixels Per Line - 1 */
 #define LCCR1_DisWdth(Pixel)            /* Display Width [1..800 pix.]  */ \
@@ -2062,7 +2088,10 @@
 #define UHCFMN		__REG(0x4C00003C) /* UHC Frame Number */
 #define UHCPERS		__REG(0x4C000040) /* UHC Periodic Start */
 #define UHCLS		__REG(0x4C000044) /* UHC Low Speed Threshold */
+
 #define UHCRHDA		__REG(0x4C000048) /* UHC Root Hub Descriptor A */
+#define UHCRHDA_NOCP	(1 << 12)	/* No over current protection */
+
 #define UHCRHDB		__REG(0x4C00004C) /* UHC Root Hub Descriptor B */
 #define UHCRHS		__REG(0x4C000050) /* UHC Root Hub Status */
 #define UHCRHPS1	__REG(0x4C000054) /* UHC Root Hub Port 1 Status */
