@@ -259,7 +259,7 @@ static int centrino_cpu_init_table(struct cpufreq_policy *policy)
 
 	if (model->op_points == NULL) {
 		/* Matched a non-match */
-		dprintk(KERN_INFO PFX "no table support for CPU model \"%s\": \n",
+		dprintk(KERN_INFO PFX "no table support for CPU model \"%s\"\n",
 		       cpu->x86_model_id);
 #ifndef CONFIG_X86_SPEEDSTEP_CENTRINO_ACPI
 		dprintk(KERN_INFO PFX "try compiling with CONFIG_X86_SPEEDSTEP_CENTRINO_ACPI enabled\n");
