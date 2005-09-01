@@ -217,7 +217,15 @@ enum xpc_retval {
 	xpcInvalidPartid,	/* 42: invalid partition ID */
 	xpcLocalPartid,		/* 43: local partition ID */
 
-	xpcUnknownReason	/* 44: unknown reason -- must be last in list */
+	xpcOtherGoingDown,	/* 44: other side going down, reason unknown */
+	xpcSystemGoingDown,	/* 45: system is going down, reason unknown */
+	xpcSystemHalt,		/* 46: system is being halted */
+	xpcSystemReboot,	/* 47: system is being rebooted */
+	xpcSystemPoweroff,	/* 48: system is being powered off */
+
+	xpcDisconnecting,	/* 49: channel disconnecting (closing) */
+
+	xpcUnknownReason	/* 50: unknown reason -- must be last in list */
 };
 
 

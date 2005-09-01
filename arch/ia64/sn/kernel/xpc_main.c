@@ -54,6 +54,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/reboot.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/uaccess.h>
@@ -82,11 +83,13 @@ struct device *xpc_chan = &xpc_chan_dbg_subname;
 
 /* systune related variables for /proc/sys directories */
 
-static int xpc_hb_min = 1;
-static int xpc_hb_max = 10;
+static int xpc_hb_interval = XPC_HB_DEFAULT_INTERVAL;
+static int xpc_hb_min_interval = 1;
+static int xpc_hb_max_interval = 10;
 
-static int xpc_hb_check_min = 10;
-static int xpc_hb_check_max = 120;
+static int xpc_hb_check_interval = XPC_HB_CHECK_DEFAULT_INTERVAL;
+static int xpc_hb_check_min_interval = 10;
+static int xpc_hb_check_max_interval = 120;
 
 static ctl_table xpc_sys_xpc_hb_dir[] = {
 	{
@@ -99,7 +102,8 @@ static ctl_table xpc_sys_xpc_hb_dir[] = {
 		&proc_dointvec_minmax,
 		&sysctl_intvec,
 		NULL,
-		&xpc_hb_min, &xpc_hb_max
+		&xpc_hb_min_interval,
+		&xpc_hb_max_interval
 	},
 	{
 		2,
@@ -111,7 +115,8 @@ static ctl_table xpc_sys_xpc_hb_dir[] = {
 		&proc_dointvec_minmax,
 		&sysctl_intvec,
 		NULL,
-		&xpc_hb_check_min, &xpc_hb_check_max
+		&xpc_hb_check_min_interval,
+		&xpc_hb_check_max_interval
 	},
 	{0}
 };
@@ -148,17 +153,41 @@ static DECLARE_WAIT_QUEUE_HEAD(xpc_act_IRQ_wq);
 
 static unsigned long xpc_hb_check_timeout;
 
-/* xpc_hb_checker thread exited notification */
-static DECLARE_MUTEX_LOCKED(xpc_hb_checker_exited);
+/* used as an indication of when the xpc_hb_checker thread is inactive */
+static DECLARE_MUTEX_LOCKED(xpc_hb_checker_inactive);
 
-/* xpc_discovery thread exited notification */
-static DECLARE_MUTEX_LOCKED(xpc_discovery_exited);
+/* used as an indication of when the xpc_discovery thread is inactive */
+static DECLARE_MUTEX_LOCKED(xpc_discovery_inactive);
 
 
 static struct timer_list xpc_hb_timer;
 
 
 static void xpc_kthread_waitmsgs(struct xpc_partition *, struct xpc_channel *);
+
+
+static int xpc_system_reboot(struct notifier_block *, unsigned long, void *);
+static struct notifier_block xpc_reboot_notifier = {
+	.notifier_call = xpc_system_reboot,
+};
+
+
+/*
+ * Timer function to enforce the timelimit on the partition disengage request.
+ */
+static void
+xpc_timeout_partition_disengage_request(unsigned long data)
+{
+	struct xpc_partition *part = (struct xpc_partition *) data;
+
+
+	DBUG_ON(XPC_TICKS < part->disengage_request_timeout);
+
+	(void) xpc_partition_disengaged(part);
+
+	DBUG_ON(part->disengage_request_timeout != 0);
+	DBUG_ON(xpc_partition_engaged(1UL << XPC_PARTID(part)) != 0);
+}
 
 
 /*
@@ -214,12 +243,6 @@ xpc_hb_checker(void *ignore)
 
 	while (!(volatile int) xpc_exiting) {
 
-		/* wait for IRQ or timeout */
-		(void) wait_event_interruptible(xpc_act_IRQ_wq,
-			    (last_IRQ_count < atomic_read(&xpc_act_IRQ_rcvd) ||
-					jiffies >= xpc_hb_check_timeout ||
-						(volatile int) xpc_exiting));
-
 		dev_dbg(xpc_part, "woke up with %d ticks rem; %d IRQs have "
 			"been received\n",
 			(int) (xpc_hb_check_timeout - jiffies),
@@ -240,6 +263,7 @@ xpc_hb_checker(void *ignore)
 		}
 
 
+		/* check for outstanding IRQs */
 		new_IRQ_count = atomic_read(&xpc_act_IRQ_rcvd);
 		if (last_IRQ_count < new_IRQ_count || force_IRQ != 0) {
 			force_IRQ = 0;
@@ -257,13 +281,19 @@ xpc_hb_checker(void *ignore)
 			xpc_hb_check_timeout = jiffies +
 					   (xpc_hb_check_interval * HZ);
 		}
+
+		/* wait for IRQ or timeout */
+		(void) wait_event_interruptible(xpc_act_IRQ_wq,
+			    (last_IRQ_count < atomic_read(&xpc_act_IRQ_rcvd) ||
+					jiffies >= xpc_hb_check_timeout ||
+						(volatile int) xpc_exiting));
 	}
 
 	dev_dbg(xpc_part, "heartbeat checker is exiting\n");
 
 
 	/* mark this thread as inactive */
-	up(&xpc_hb_checker_exited);
+	up(&xpc_hb_checker_inactive);
 	return 0;
 }
 
@@ -283,7 +313,7 @@ xpc_initiate_discovery(void *ignore)
 	dev_dbg(xpc_part, "discovery thread is exiting\n");
 
 	/* mark this thread as inactive */
-	up(&xpc_discovery_exited);
+	up(&xpc_discovery_inactive);
 	return 0;
 }
 
@@ -309,7 +339,7 @@ xpc_make_first_contact(struct xpc_partition *part)
 			"partition %d\n", XPC_PARTID(part));
 
 		/* wait a 1/4 of a second or so */
-		msleep_interruptible(250);
+		(void) msleep_interruptible(250);
 
 		if (part->act_state == XPC_P_DEACTIVATING) {
 			return part->reason;
@@ -336,7 +366,8 @@ static void
 xpc_channel_mgr(struct xpc_partition *part)
 {
 	while (part->act_state != XPC_P_DEACTIVATING ||
-				atomic_read(&part->nchannels_active) > 0) {
+			atomic_read(&part->nchannels_active) > 0 ||
+					!xpc_partition_disengaged(part)) {
 
 		xpc_process_channel_activity(part);
 
@@ -360,7 +391,8 @@ xpc_channel_mgr(struct xpc_partition *part)
 				(volatile u64) part->local_IPI_amo != 0 ||
 				((volatile u8) part->act_state ==
 							XPC_P_DEACTIVATING &&
-				atomic_read(&part->nchannels_active) == 0)));
+				atomic_read(&part->nchannels_active) == 0 &&
+				xpc_partition_disengaged(part))));
 		atomic_set(&part->channel_mgr_requests, 1);
 
 		// >>> Does it need to wakeup periodically as well? In case we
@@ -482,7 +514,7 @@ xpc_activating(void *__partid)
 		return 0;
 	}
 
-	XPC_ALLOW_HB(partid, xpc_vars);
+	xpc_allow_hb(partid, xpc_vars);
 	xpc_IPI_send_activated(part);
 
 
@@ -492,6 +524,7 @@ xpc_activating(void *__partid)
 	 */
 	(void) xpc_partition_up(part);
 
+	xpc_disallow_hb(partid, xpc_vars);
 	xpc_mark_partition_inactive(part);
 
 	if (part->reason == xpcReactivating) {
@@ -704,11 +737,14 @@ xpc_daemonize_kthread(void *args)
 		xpc_kthread_waitmsgs(part, ch);
 	}
 
-	if (atomic_dec_return(&ch->kthreads_assigned) == 0 &&
-			((ch->flags & XPC_C_CONNECTCALLOUT) ||
-				(ch->reason != xpcUnregistering &&
-					ch->reason != xpcOtherUnregistering))) {
-		xpc_disconnected_callout(ch);
+	if (atomic_dec_return(&ch->kthreads_assigned) == 0) {
+		if (ch->flags & XPC_C_CONNECTCALLOUT) {
+			xpc_disconnecting_callout(ch);
+		}
+		if (atomic_dec_return(&part->nchannels_engaged) == 0) {
+			xpc_mark_partition_disengaged(part);
+			xpc_IPI_send_disengage(part);
+		}
 	}
 
 
@@ -740,6 +776,7 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed)
 	unsigned long irq_flags;
 	pid_t pid;
 	u64 args = XPC_PACK_ARGS(ch->partid, ch->number);
+	struct xpc_partition *part = &xpc_partitions[ch->partid];
 
 
 	while (needed-- > 0) {
@@ -770,9 +807,13 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed)
 		 * kthread. That kthread is responsible for doing the
 		 * counterpart to the following before it exits.
 		 */
-		(void) xpc_part_ref(&xpc_partitions[ch->partid]);
+		(void) xpc_part_ref(part);
 		xpc_msgqueue_ref(ch);
-		atomic_inc(&ch->kthreads_assigned);
+		if (atomic_inc_return(&ch->kthreads_assigned) == 1) {
+			if (atomic_inc_return(&part->nchannels_engaged) == 1) {
+				xpc_mark_partition_engaged(part);
+			}
+		}
 		ch->kthreads_created++;	// >>> temporary debug only!!!
 	}
 }
@@ -781,6 +822,7 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed)
 void
 xpc_disconnect_wait(int ch_number)
 {
+	unsigned long irq_flags;
 	partid_t partid;
 	struct xpc_partition *part;
 	struct xpc_channel *ch;
@@ -793,10 +835,13 @@ xpc_disconnect_wait(int ch_number)
 		if (xpc_part_ref(part)) {
 			ch = &part->channels[ch_number];
 
-// >>> how do we keep from falling into the window between our check and going
-// >>> down and coming back up where sema is re-inited?
-			if (ch->flags & XPC_C_SETUP) {
-				(void) down(&ch->teardown_sema);
+			if (ch->flags & XPC_C_WDISCONNECT) {
+				if (!(ch->flags & XPC_C_DISCONNECTED)) {
+					(void) down(&ch->wdisconnect_sema);
+				}
+				spin_lock_irqsave(&ch->lock, irq_flags);
+				ch->flags &= ~XPC_C_WDISCONNECT;
+				spin_unlock_irqrestore(&ch->lock, irq_flags);
 			}
 
 			xpc_part_deref(part);
@@ -806,62 +851,89 @@ xpc_disconnect_wait(int ch_number)
 
 
 static void
-xpc_do_exit(void)
+xpc_do_exit(enum xpc_retval reason)
 {
 	partid_t partid;
 	int active_part_count;
 	struct xpc_partition *part;
+	unsigned long printmsg_time;
 
 
-	/* now it's time to eliminate our heartbeat */
-	del_timer_sync(&xpc_hb_timer);
-	xpc_vars->heartbeating_to_mask = 0;
-
-	/* indicate to others that our reserved page is uninitialized */
-	xpc_rsvd_page->vars_pa = 0;
+	/* a 'rmmod XPC' and a 'reboot' cannot both end up here together */
+	DBUG_ON(xpc_exiting == 1);
 
 	/*
-	 * Ignore all incoming interrupts. Without interupts the heartbeat
-	 * checker won't activate any new partitions that may come up.
-	 */
-	free_irq(SGI_XPC_ACTIVATE, NULL);
-
-	/*
-	 * Cause the heartbeat checker and the discovery threads to exit.
-	 * We don't want them attempting to activate new partitions as we
-	 * try to deactivate the existing ones.
+	 * Let the heartbeat checker thread and the discovery thread
+	 * (if one is running) know that they should exit. Also wake up
+	 * the heartbeat checker thread in case it's sleeping.
 	 */
 	xpc_exiting = 1;
 	wake_up_interruptible(&xpc_act_IRQ_wq);
 
-	/* wait for the heartbeat checker thread to mark itself inactive */
-	down(&xpc_hb_checker_exited);
+	/* ignore all incoming interrupts */
+	free_irq(SGI_XPC_ACTIVATE, NULL);
 
 	/* wait for the discovery thread to mark itself inactive */
-	down(&xpc_discovery_exited);
+	down(&xpc_discovery_inactive);
+
+	/* wait for the heartbeat checker thread to mark itself inactive */
+	down(&xpc_hb_checker_inactive);
 
 
-	msleep_interruptible(300);
+	/* sleep for a 1/3 of a second or so */
+	(void) msleep_interruptible(300);
 
 
 	/* wait for all partitions to become inactive */
+
+	printmsg_time = jiffies;
 
 	do {
 		active_part_count = 0;
 
 		for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
 			part = &xpc_partitions[partid];
-			if (part->act_state != XPC_P_INACTIVE) {
-				active_part_count++;
-
-				XPC_DEACTIVATE_PARTITION(part, xpcUnloading);
+			if (xpc_partition_disengaged(part) &&
+					part->act_state == XPC_P_INACTIVE) {
+				continue;
 			}
+
+			active_part_count++;
+
+			XPC_DEACTIVATE_PARTITION(part, reason);
 		}
 
-		if (active_part_count)
-			msleep_interruptible(300);
-	} while (active_part_count > 0);
+		if (active_part_count == 0) {
+			break;
+		}
 
+		if (jiffies >= printmsg_time) {
+			dev_info(xpc_part, "waiting for partitions to "
+				"deactivate/disengage, active count=%d, remote "
+				"engaged=0x%lx\n", active_part_count,
+				xpc_partition_engaged(1UL << partid));
+
+			printmsg_time = jiffies +
+					(XPC_DISENGAGE_PRINTMSG_INTERVAL * HZ);
+		}
+
+		/* sleep for a 1/3 of a second or so */
+		(void) msleep_interruptible(300);
+
+	} while (1);
+
+	DBUG_ON(xpc_partition_engaged(-1UL));
+
+
+	/* indicate to others that our reserved page is uninitialized */
+	xpc_rsvd_page->vars_pa = 0;
+
+	/* now it's time to eliminate our heartbeat */
+	del_timer_sync(&xpc_hb_timer);
+	DBUG_ON(xpc_vars->heartbeating_to_mask == 0);
+
+	/* take ourselves off of the reboot_notifier_list */
+	(void) unregister_reboot_notifier(&xpc_reboot_notifier);
 
 	/* close down protections for IPI operations */
 	xpc_restrict_IPI_ops();
@@ -873,6 +945,34 @@ xpc_do_exit(void)
 	if (xpc_sysctl) {
 		unregister_sysctl_table(xpc_sysctl);
 	}
+}
+
+
+/*
+ * This function is called when the system is being rebooted.
+ */
+static int
+xpc_system_reboot(struct notifier_block *nb, unsigned long event, void *unused)
+{
+	enum xpc_retval reason;
+
+
+	switch (event) {
+	case SYS_RESTART:
+		reason = xpcSystemReboot;
+		break;
+	case SYS_HALT:
+		reason = xpcSystemHalt;
+		break;
+	case SYS_POWER_OFF:
+		reason = xpcSystemPoweroff;
+		break;
+	default:
+		reason = xpcSystemGoingDown;
+	}
+
+	xpc_do_exit(reason);
+	return NOTIFY_DONE;
 }
 
 
@@ -920,6 +1020,12 @@ xpc_init(void)
 		spin_lock_init(&part->act_lock);
 		part->act_state = XPC_P_INACTIVE;
 		XPC_SET_REASON(part, 0, 0);
+
+		init_timer(&part->disengage_request_timer);
+		part->disengage_request_timer.function =
+				xpc_timeout_partition_disengage_request;
+		part->disengage_request_timer.data = (unsigned long) part;
+
 		part->setup_state = XPC_P_UNSET;
 		init_waitqueue_head(&part->teardown_wq);
 		atomic_set(&part->references, 0);
@@ -976,6 +1082,13 @@ xpc_init(void)
 	}
 
 
+	/* add ourselves to the reboot_notifier_list */
+	ret = register_reboot_notifier(&xpc_reboot_notifier);
+	if (ret != 0) {
+		dev_warn(xpc_part, "can't register reboot notifier\n");
+	}
+
+
 	/*
 	 * Set the beating to other partitions into motion.  This is
 	 * the last requirement for other partitions' discovery to
@@ -996,6 +1109,9 @@ xpc_init(void)
 
 		/* indicate to others that our reserved page is uninitialized */
 		xpc_rsvd_page->vars_pa = 0;
+
+		/* take ourselves off of the reboot_notifier_list */
+		(void) unregister_reboot_notifier(&xpc_reboot_notifier);
 
 		del_timer_sync(&xpc_hb_timer);
 		free_irq(SGI_XPC_ACTIVATE, NULL);
@@ -1018,9 +1134,9 @@ xpc_init(void)
 		dev_err(xpc_part, "failed while forking discovery thread\n");
 
 		/* mark this new thread as a non-starter */
-		up(&xpc_discovery_exited);
+		up(&xpc_discovery_inactive);
 
-		xpc_do_exit();
+		xpc_do_exit(xpcUnloading);
 		return -EBUSY;
 	}
 
@@ -1039,7 +1155,7 @@ module_init(xpc_init);
 void __exit
 xpc_exit(void)
 {
-	xpc_do_exit();
+	xpc_do_exit(xpcUnloading);
 }
 module_exit(xpc_exit);
 
