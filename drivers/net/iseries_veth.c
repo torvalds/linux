@@ -931,7 +931,6 @@ static int veth_transmit_to_one(struct sk_buff *skb, HvLpIndex rlp,
 	struct veth_lpar_connection *cnx = veth_cnx[rlp];
 	struct veth_port *port = (struct veth_port *) dev->priv;
 	HvLpEvent_Rc rc;
-	u32 dma_address, dma_length;
 	struct veth_msg *msg = NULL;
 	int err = 0;
 	unsigned long flags;
@@ -959,20 +958,19 @@ static int veth_transmit_to_one(struct sk_buff *skb, HvLpIndex rlp,
 
 	msg->in_use = 1;
 
-	dma_length = skb->len;
-	dma_address = dma_map_single(port->dev, skb->data,
-				     dma_length, DMA_TO_DEVICE);
+	msg->data.addr[0] = dma_map_single(port->dev, skb->data,
+				skb->len, DMA_TO_DEVICE);
 
-	if (dma_mapping_error(dma_address))
+	if (dma_mapping_error(msg->data.addr[0]))
 		goto recycle_and_drop;
 
 	/* Is it really necessary to check the length and address
 	 * fields of the first entry here? */
 	msg->skb = skb;
 	msg->dev = port->dev;
-	msg->data.addr[0] = dma_address;
-	msg->data.len[0] = dma_length;
+	msg->data.len[0] = skb->len;
 	msg->data.eofmask = 1 << VETH_EOF_SHIFT;
+
 	rc = veth_signaldata(cnx, VethEventTypeFrames, msg->token, &msg->data);
 
 	if (rc != HvLpEvent_Rc_Good)
@@ -1076,8 +1074,9 @@ static void veth_recycle_msg(struct veth_lpar_connection *cnx,
 		dma_address = msg->data.addr[0];
 		dma_length = msg->data.len[0];
 
-		dma_unmap_single(msg->dev, dma_address, dma_length,
-				 DMA_TO_DEVICE);
+		if (!dma_mapping_error(dma_address))
+			dma_unmap_single(msg->dev, dma_address, dma_length,
+					DMA_TO_DEVICE);
 
 		if (msg->skb) {
 			dev_kfree_skb_any(msg->skb);
