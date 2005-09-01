@@ -453,7 +453,7 @@ static void __init build_mem_type_table(void)
 
 	for (i = 0; i < 16; i++) {
 		unsigned long v = pgprot_val(protection_map[i]);
-		v &= (~(PTE_BUFFERABLE|PTE_CACHEABLE)) | user_pgprot;
+		v = (v & ~(PTE_BUFFERABLE|PTE_CACHEABLE)) | user_pgprot;
 		protection_map[i] = __pgprot(v);
 	}
 
