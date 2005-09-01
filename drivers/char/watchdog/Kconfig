@@ -309,6 +309,19 @@ config 60XX_WDT
 	  You can compile this driver directly into the kernel, or use
 	  it as a module.  The module will be called sbc60xxwdt.
 
+config SBC8360_WDT
+	tristate "SBC8360 Watchdog Timer"
+	depends on WATCHDOG && X86
+	---help---
+
+	  This is the driver for the hardware watchdog on the SBC8360 Single
+	  Board Computer produced by Axiomtek Co., Ltd. (www.axiomtek.com).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sbc8360.ko.
+
+	  Most people will say N.
+
 config CPU5_WDT
 	tristate "SMA CPU5 Watchdog"
 	depends on WATCHDOG && X86
