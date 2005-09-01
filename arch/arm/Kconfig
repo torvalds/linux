@@ -365,8 +365,8 @@ config NO_IDLE_HZ
 
 	  Please note that dynamic tick may affect the accuracy of
 	  timekeeping on some platforms depending on the implementation.
-	  Currently at least OMAP platform is known to have accurate
-	  timekeeping with dynamic tick.
+	  Currently at least OMAP and PXA2xx platforms are known to have
+	  accurate timekeeping with dynamic tick.
 
 config ARCH_DISCONTIGMEM_ENABLE
 	bool
