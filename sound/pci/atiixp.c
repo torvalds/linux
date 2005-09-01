@@ -1453,6 +1453,7 @@ static int snd_atiixp_resume(snd_card_t *card)
 			atiixp_dma_t *dma = &chip->dmas[i];
 			if (dma->substream && dma->suspended) {
 				dma->ops->enable_dma(chip, 1);
+				dma->substream->ops->prepare(dma->substream);
 				writel((u32)dma->desc_buf.addr | ATI_REG_LINKPTR_EN,
 				       chip->remap_addr + dma->ops->llp_offset);
 				writel(dma->saved_curptr, chip->remap_addr + dma->ops->dt_cur);
