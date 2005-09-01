@@ -324,8 +324,14 @@ static void veth_take_monitor_ack(struct veth_lpar_connection *cnx,
 
 	spin_lock_irqsave(&cnx->lock, flags);
 	veth_debug("cnx %d: lost connection.\n", cnx->remote_lp);
-	cnx->state |= VETH_STATE_RESET;
-	veth_kick_statemachine(cnx);
+
+	/* Avoid kicking the statemachine once we're shutdown.
+	 * It's unnecessary and it could break veth_stop_connection(). */
+
+	if (! (cnx->state & VETH_STATE_SHUTDOWN)) {
+		cnx->state |= VETH_STATE_RESET;
+		veth_kick_statemachine(cnx);
+	}
 	spin_unlock_irqrestore(&cnx->lock, flags);
 }
 
@@ -483,6 +489,12 @@ static void veth_statemachine(void *p)
 
 		if (cnx->state & VETH_STATE_RESET)
 			goto restart;
+
+		/* Hack, wait for the other end to reset itself. */
+		if (! (cnx->state & VETH_STATE_SHUTDOWN)) {
+			schedule_delayed_work(&cnx->statemachine_wq, 5 * HZ);
+			goto out;
+		}
 	}
 
 	if (cnx->state & VETH_STATE_SHUTDOWN)
@@ -666,6 +678,15 @@ static void veth_stop_connection(u8 rlp)
 	cnx->state |= VETH_STATE_RESET | VETH_STATE_SHUTDOWN;
 	veth_kick_statemachine(cnx);
 	spin_unlock_irq(&cnx->lock);
+
+	/* There's a slim chance the reset code has just queued the
+	 * statemachine to run in five seconds. If so we need to cancel
+	 * that and requeue the work to run now. */
+	if (cancel_delayed_work(&cnx->statemachine_wq)) {
+		spin_lock_irq(&cnx->lock);
+		veth_kick_statemachine(cnx);
+		spin_unlock_irq(&cnx->lock);
+	}
 
 	/* Wait for the state machine to run. */
 	flush_scheduled_work();
