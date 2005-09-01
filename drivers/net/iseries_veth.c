@@ -683,6 +683,14 @@ static void veth_stop_connection(u8 rlp)
 
 	/* Wait for the state machine to run. */
 	flush_scheduled_work();
+}
+
+static void veth_destroy_connection(u8 rlp)
+{
+	struct veth_lpar_connection *cnx = veth_cnx[rlp];
+
+	if (! cnx)
+		return;
 
 	if (cnx->num_events > 0)
 		mf_deallocate_lp_events(cnx->remote_lp,
@@ -694,14 +702,6 @@ static void veth_stop_connection(u8 rlp)
 				      HvLpEvent_Type_VirtualLan,
 				      cnx->num_ack_events,
 				      NULL, NULL);
-}
-
-static void veth_destroy_connection(u8 rlp)
-{
-	struct veth_lpar_connection *cnx = veth_cnx[rlp];
-
-	if (! cnx)
-		return;
 
 	kfree(cnx->msgs);
 	kfree(cnx);
@@ -1441,15 +1441,24 @@ int __init veth_module_init(void)
 
 	for (i = 0; i < HVMAXARCHITECTEDLPS; ++i) {
 		rc = veth_init_connection(i);
-		if (rc != 0) {
-			veth_module_cleanup();
-			return rc;
-		}
+		if (rc != 0)
+			goto error;
 	}
 
 	HvLpEvent_registerHandler(HvLpEvent_Type_VirtualLan,
 				  &veth_handle_event);
 
-	return vio_register_driver(&veth_driver);
+	rc = vio_register_driver(&veth_driver);
+	if (rc != 0)
+		goto error;
+
+	return 0;
+
+error:
+	for (i = 0; i < HVMAXARCHITECTEDLPS; ++i) {
+		veth_destroy_connection(i);
+	}
+
+	return rc;
 }
 module_init(veth_module_init);
