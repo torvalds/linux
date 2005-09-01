@@ -11,6 +11,12 @@
 /*
  * IP22 with a variety of processors so we can't use defaults for everything.
  */
+#define cpu_has_tlb		1
+#define cpu_has_4kex		1
+#define cpu_has_4ktlb		1
+#define cpu_has_fpu		1
+#define cpu_has_32fpr		1
+#define cpu_has_counter		1
 #define cpu_has_mips16		0
 #define cpu_has_divec		0
 #define cpu_has_cache_cdex_p	1
