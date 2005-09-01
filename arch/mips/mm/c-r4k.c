@@ -50,8 +50,8 @@ static struct bcache_ops no_sc_ops = {
 
 struct bcache_ops *bcops = &no_sc_ops;
 
-#define cpu_is_r4600_v1_x()	((read_c0_prid() & 0xfffffff0) == 0x2010)
-#define cpu_is_r4600_v2_x()	((read_c0_prid() & 0xfffffff0) == 0x2020)
+#define cpu_is_r4600_v1_x()	((read_c0_prid() & 0xfffffff0) == 0x00002010)
+#define cpu_is_r4600_v2_x()	((read_c0_prid() & 0xfffffff0) == 0x00002020)
 
 #define R4600_HIT_CACHEOP_WAR_IMPL					\
 do {									\
